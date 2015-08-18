@@ -18,6 +18,8 @@ type Type interface {
 	IsFloat() bool
 	IsPtr() bool
 	IsString() bool
+	IsSlice() bool
+	IsInterface() bool
 
 	IsMemory() bool // special ssa-package-only types
 	IsFlags() bool
@@ -36,19 +38,21 @@ type CompilerType struct {
 	Flags  bool
 }
 
-func (t *CompilerType) Size() int64      { return 0 }
-func (t *CompilerType) Alignment() int64 { return 0 }
-func (t *CompilerType) IsBoolean() bool  { return false }
-func (t *CompilerType) IsInteger() bool  { return false }
-func (t *CompilerType) IsSigned() bool   { return false }
-func (t *CompilerType) IsFloat() bool    { return false }
-func (t *CompilerType) IsPtr() bool      { return false }
-func (t *CompilerType) IsString() bool   { return false }
-func (t *CompilerType) IsMemory() bool   { return t.Memory }
-func (t *CompilerType) IsFlags() bool    { return t.Flags }
-func (t *CompilerType) String() string   { return t.Name }
-func (t *CompilerType) Elem() Type       { panic("not implemented") }
-func (t *CompilerType) PtrTo() Type      { panic("not implemented") }
+func (t *CompilerType) Size() int64       { return 0 }
+func (t *CompilerType) Alignment() int64  { return 0 }
+func (t *CompilerType) IsBoolean() bool   { return false }
+func (t *CompilerType) IsInteger() bool   { return false }
+func (t *CompilerType) IsSigned() bool    { return false }
+func (t *CompilerType) IsFloat() bool     { return false }
+func (t *CompilerType) IsPtr() bool       { return false }
+func (t *CompilerType) IsString() bool    { return false }
+func (t *CompilerType) IsSlice() bool     { return false }
+func (t *CompilerType) IsInterface() bool { return false }
+func (t *CompilerType) IsMemory() bool    { return t.Memory }
+func (t *CompilerType) IsFlags() bool     { return t.Flags }
+func (t *CompilerType) String() string    { return t.Name }
+func (t *CompilerType) Elem() Type        { panic("not implemented") }
+func (t *CompilerType) PtrTo() Type       { panic("not implemented") }
 
 func (t *CompilerType) Equal(u Type) bool {
 	x, ok := u.(*CompilerType)

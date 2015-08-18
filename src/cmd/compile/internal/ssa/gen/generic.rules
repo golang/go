@@ -59,36 +59,90 @@
 (Com32 (Com32 x)) -> x
 (Com64 (Com64 x)) -> x
 
-// tear apart slices
-// TODO: anything that generates a slice needs to go in here.
-(SlicePtr (Load ptr mem)) -> (Load ptr mem)
-(SliceLen (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Frontend().TypeUintptr()> [config.PtrSize])) mem)
-(SliceCap (Load ptr mem)) -> (Load (AddPtr <ptr.Type> ptr (ConstPtr <config.Frontend().TypeUintptr()> [config.PtrSize*2])) mem)
-
 // slice and interface comparisons
 // the frontend ensures that we can only compare against nil
 // start by putting nil on the right to simplify the other rules
 (EqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (EqFat y x)
 (NeqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (NeqFat y x)
 // it suffices to check the first word (backing array for slices, dynamic type for interfaces)
-(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.Frontend().TypeUintptr()> ptr mem) (ConstPtr <config.Frontend().TypeUintptr()> [0]))
-(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.Frontend().TypeUintptr()> ptr mem) (ConstPtr <config.Frontend().TypeUintptr()> [0]))
+(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr <config.fe.TypeUintptr()> [0]))
+(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr <config.fe.TypeUintptr()> [0]))
 
 // indexing operations
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
-(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.Frontend().TypeUintptr()> idx (ConstPtr <config.Frontend().TypeUintptr()> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.fe.TypeUintptr()> idx (ConstPtr <config.fe.TypeUintptr()> [t.Elem().Size()])))
 (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
-// big-object moves
-(Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
-
 // string ops
-(ConstString {s}) -> (StringMake (Addr <config.Frontend().TypeBytePtr()> {config.fe.StringData(s.(string))} (SB <config.Frontend().TypeUintptr()>)) (ConstPtr <config.Frontend().TypeUintptr()> [int64(len(s.(string)))]))
-(Load <t> ptr mem) && t.IsString() -> (StringMake (Load <config.Frontend().TypeBytePtr()> ptr mem) (Load <config.Frontend().TypeUintptr()> (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] ptr) mem))
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len
-(Store [2*config.PtrSize] dst str mem) && str.Type.IsString() -> (Store [config.PtrSize] (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store [config.PtrSize] <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
+(ConstString {s}) ->
+  (StringMake
+    (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
+      (SB <config.fe.TypeUintptr()>))
+    (ConstPtr <config.fe.TypeUintptr()> [int64(len(s.(string)))]))
+(Load <t> ptr mem) && t.IsString() ->
+  (StringMake
+    (Load <config.fe.TypeBytePtr()> ptr mem)
+    (Load <config.fe.TypeUintptr()>
+      (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)
+      mem))
+(Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
+  (Store [config.PtrSize]
+    (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)
+    len
+    (Store <TypeMem> [config.PtrSize] dst ptr mem))
+
+// slice ops
+(SlicePtr (SliceMake ptr _ _ )) -> ptr
+(SliceLen (SliceMake _ len _)) -> len
+(SliceCap (SliceMake _ _ cap)) -> cap
+(ConstSlice) ->
+  (SliceMake
+    (ConstNil <config.fe.TypeBytePtr()>)
+    (ConstPtr <config.fe.TypeUintptr()>)
+    (ConstPtr <config.fe.TypeUintptr()>))
+
+(Load <t> ptr mem) && t.IsSlice() ->
+  (SliceMake
+    (Load <config.fe.TypeBytePtr()> ptr mem)
+    (Load <config.fe.TypeUintptr()>
+      (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)
+      mem)
+    (Load <config.fe.TypeUintptr()>
+      (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] ptr)
+      mem))
+(Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
+  (Store [config.PtrSize]
+    (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)
+    cap
+    (Store <TypeMem> [config.PtrSize]
+      (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)
+      len
+      (Store <TypeMem> [config.PtrSize] dst ptr mem)))
+
+// interface ops
+(ITab (IMake itab _)) -> itab
+(IData (IMake _ data)) -> data
+(ConstInterface) ->
+  (IMake
+    (ConstNil <config.fe.TypeBytePtr()>)
+    (ConstNil <config.fe.TypeBytePtr()>))
+(Load <t> ptr mem) && t.IsInterface() ->
+  (IMake
+    (Load <config.fe.TypeBytePtr()> ptr mem)
+    (Load <config.fe.TypeBytePtr()>
+      (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)
+      mem))
+(Store [2*config.PtrSize] dst (IMake itab data) mem) ->
+  (Store [config.PtrSize]
+    (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
+    data
+    (Store <TypeMem> [config.PtrSize] dst itab mem))
+
+// big-object moves (TODO: remove?)
+(Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
 
 (If (IsNonNil (GetG)) yes no) -> (Plain nil yes)
 

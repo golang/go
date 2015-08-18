@@ -229,7 +229,9 @@ var genericOps = []opData{
 	{name: "Const64"},
 	{name: "Const32F"},
 	{name: "Const64F"},
-	{name: "ConstPtr"}, // pointer-sized integer constant
+	{name: "ConstPtr"},       // pointer-sized integer constant
+	{name: "ConstInterface"}, // nil interface
+	{name: "ConstSlice"},     // nil slice
 	// TODO: Const32F, ...
 
 	// Constant-like things
@@ -305,7 +307,9 @@ var genericOps = []opData{
 	{name: "StringLen"},  // len(arg0)
 
 	// Interfaces
-	{name: "ITab"}, // arg0=interface, returns itable field
+	{name: "IMake"}, // arg0=itab, arg1=data
+	{name: "ITab"},  // arg0=interface, returns itable field
+	{name: "IData"}, // arg0=interface, returns data field
 
 	// Spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
