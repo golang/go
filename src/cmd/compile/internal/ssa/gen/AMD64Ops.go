@@ -103,6 +103,7 @@ func init() {
 			clobbers: dx | flags}
 		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
 			clobbers: ax | flags}
+		gp10 = regInfo{inputs: []regMask{gp}}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
@@ -353,7 +354,9 @@ func init() {
 		{name: "InvertFlags"}, // reverse direction of arg0
 
 		// Pseudo-ops
-		{name: "LoweredPanicNilCheck"},
+		{name: "LoweredPanicNilCheck", reg: gp10},
+		{name: "LoweredPanicIndexCheck"},
+		{name: "LoweredPanicSliceCheck"},
 		{name: "LoweredGetG", reg: gp01},
 	}
 

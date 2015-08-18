@@ -1617,6 +1617,9 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 // boundsCheck generates bounds checking code.  Checks if 0 <= idx < len, branches to exit if not.
 // Starts a new block on return.
 func (s *state) boundsCheck(idx, len *ssa.Value) {
+	if Debug['B'] != 0 {
+		return
+	}
 	// TODO: convert index to full width?
 	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
 
@@ -1627,9 +1630,15 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	b.Control = cmp
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
+	bPanic := s.f.NewBlock(ssa.BlockPlain)
 	addEdge(b, bNext)
-	addEdge(b, s.exit)
-	// TODO: don't go directly to s.exit.  Go to a stub that calls panicindex first.
+	addEdge(b, bPanic)
+	addEdge(bPanic, s.exit)
+	s.startBlock(bPanic)
+	// The panic check takes/returns memory to ensure that the right
+	// memory state is observed if the panic happens.
+	s.vars[&memvar] = s.newValue1(ssa.OpPanicIndexCheck, ssa.TypeMem, s.mem())
+	s.endBlock()
 	s.startBlock(bNext)
 }
 
@@ -2416,20 +2425,26 @@ func genValue(v *ssa.Value) {
 			Warnl(int(v.Line), "generated nil check")
 		}
 		// Write to memory address 0. It doesn't matter what we write; use AX.
-		// XORL AX, AX; MOVL AX, (AX) is shorter than MOVL AX, 0.
-		// TODO: If we had the pointer (v.Args[0]) in a register r,
-		// we could use MOVL AX, (r) instead of having to zero AX.
-		// But it isn't worth loading r just to accomplish that.
-		p := Prog(x86.AXORL)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x86.REG_AX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
+		// Input 0 is the pointer we just checked, use it as the destination.
+		r := regnum(v.Args[0])
 		q := Prog(x86.AMOVL)
 		q.From.Type = obj.TYPE_REG
 		q.From.Reg = x86.REG_AX
 		q.To.Type = obj.TYPE_MEM
-		q.To.Reg = x86.REG_AX
+		q.To.Reg = r
+		// TODO: need AUNDEF here?
+	case ssa.OpAMD64LoweredPanicIndexCheck:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = Linksym(Panicindex.Sym)
+		// TODO: need AUNDEF here?
+	case ssa.OpAMD64LoweredPanicSliceCheck:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = Linksym(panicslice.Sym)
+		// TODO: need AUNDEF here?
 	case ssa.OpAMD64LoweredGetG:
 		r := regnum(v)
 		// See the comments in cmd/internal/obj/x86/obj6.go
@@ -2545,6 +2560,17 @@ var blockJump = [...]struct{ asm, invasm int }{
 
 func genBlock(b, next *ssa.Block, branches []branch) []branch {
 	lineno = b.Line
+
+	// after a panic call, don't emit any branch code
+	if len(b.Values) > 0 {
+		switch b.Values[len(b.Values)-1].Op {
+		case ssa.OpAMD64LoweredPanicNilCheck,
+			ssa.OpAMD64LoweredPanicIndexCheck,
+			ssa.OpAMD64LoweredPanicSliceCheck:
+			return branches
+		}
+	}
+
 	switch b.Kind {
 	case ssa.BlockPlain:
 		if b.Succs[0] != next {

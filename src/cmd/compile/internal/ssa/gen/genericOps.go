@@ -282,8 +282,10 @@ var genericOps = []opData{
 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
 
 	// Pseudo-ops
-	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem
-	{name: "GetG"},          // runtime.getg() (read g pointer)
+	{name: "PanicNilCheck"},   // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
+	{name: "PanicIndexCheck"}, // trigger a bounds check failure, arg0=mem, returns mem
+	{name: "PanicSliceCheck"}, // trigger a slice bounds check failure, arg0=mem, returns mem
+	{name: "GetG"},            // runtime.getg() (read g pointer)
 
 	// Indexing operations
 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
