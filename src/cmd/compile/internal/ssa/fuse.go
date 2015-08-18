@@ -35,7 +35,7 @@ func fuse(f *Func) {
 		}
 
 		// trash b, just in case
-		b.Kind = blockInvalid
+		b.Kind = BlockInvalid
 		b.Values = nil
 		b.Preds = nil
 		b.Succs = nil

@@ -76,7 +76,7 @@ func genOp() {
 
 	// generate Block* declarations
 	fmt.Fprintln(w, "const (")
-	fmt.Fprintln(w, "blockInvalid BlockKind = iota")
+	fmt.Fprintln(w, "BlockInvalid BlockKind = iota")
 	for _, a := range archs {
 		fmt.Fprintln(w)
 		for _, d := range a.blocks {
@@ -87,7 +87,7 @@ func genOp() {
 
 	// generate block kind string method
 	fmt.Fprintln(w, "var blockString = [...]string{")
-	fmt.Fprintln(w, "blockInvalid:\"BlockInvalid\",")
+	fmt.Fprintln(w, "BlockInvalid:\"BlockInvalid\",")
 	for _, a := range archs {
 		fmt.Fprintln(w)
 		for _, b := range a.blocks {

@@ -848,6 +848,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
 	opAndType{OEQ, TUINTPTR}:   ssa.OpEqPtr,
 	opAndType{OEQ, TUNSAFEPTR}: ssa.OpEqPtr,
+	opAndType{OEQ, TFLOAT64}:   ssa.OpEq64F,
+	opAndType{OEQ, TFLOAT32}:   ssa.OpEq32F,
 
 	opAndType{ONE, TBOOL}:      ssa.OpNeq8,
 	opAndType{ONE, TINT8}:      ssa.OpNeq8,
@@ -866,42 +868,52 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
 	opAndType{ONE, TUINTPTR}:   ssa.OpNeqPtr,
 	opAndType{ONE, TUNSAFEPTR}: ssa.OpNeqPtr,
+	opAndType{ONE, TFLOAT64}:   ssa.OpNeq64F,
+	opAndType{ONE, TFLOAT32}:   ssa.OpNeq32F,
 
-	opAndType{OLT, TINT8}:   ssa.OpLess8,
-	opAndType{OLT, TUINT8}:  ssa.OpLess8U,
-	opAndType{OLT, TINT16}:  ssa.OpLess16,
-	opAndType{OLT, TUINT16}: ssa.OpLess16U,
-	opAndType{OLT, TINT32}:  ssa.OpLess32,
-	opAndType{OLT, TUINT32}: ssa.OpLess32U,
-	opAndType{OLT, TINT64}:  ssa.OpLess64,
-	opAndType{OLT, TUINT64}: ssa.OpLess64U,
+	opAndType{OLT, TINT8}:    ssa.OpLess8,
+	opAndType{OLT, TUINT8}:   ssa.OpLess8U,
+	opAndType{OLT, TINT16}:   ssa.OpLess16,
+	opAndType{OLT, TUINT16}:  ssa.OpLess16U,
+	opAndType{OLT, TINT32}:   ssa.OpLess32,
+	opAndType{OLT, TUINT32}:  ssa.OpLess32U,
+	opAndType{OLT, TINT64}:   ssa.OpLess64,
+	opAndType{OLT, TUINT64}:  ssa.OpLess64U,
+	opAndType{OLT, TFLOAT64}: ssa.OpLess64F,
+	opAndType{OLT, TFLOAT32}: ssa.OpLess32F,
 
-	opAndType{OGT, TINT8}:   ssa.OpGreater8,
-	opAndType{OGT, TUINT8}:  ssa.OpGreater8U,
-	opAndType{OGT, TINT16}:  ssa.OpGreater16,
-	opAndType{OGT, TUINT16}: ssa.OpGreater16U,
-	opAndType{OGT, TINT32}:  ssa.OpGreater32,
-	opAndType{OGT, TUINT32}: ssa.OpGreater32U,
-	opAndType{OGT, TINT64}:  ssa.OpGreater64,
-	opAndType{OGT, TUINT64}: ssa.OpGreater64U,
+	opAndType{OGT, TINT8}:    ssa.OpGreater8,
+	opAndType{OGT, TUINT8}:   ssa.OpGreater8U,
+	opAndType{OGT, TINT16}:   ssa.OpGreater16,
+	opAndType{OGT, TUINT16}:  ssa.OpGreater16U,
+	opAndType{OGT, TINT32}:   ssa.OpGreater32,
+	opAndType{OGT, TUINT32}:  ssa.OpGreater32U,
+	opAndType{OGT, TINT64}:   ssa.OpGreater64,
+	opAndType{OGT, TUINT64}:  ssa.OpGreater64U,
+	opAndType{OGT, TFLOAT64}: ssa.OpGreater64F,
+	opAndType{OGT, TFLOAT32}: ssa.OpGreater32F,
 
-	opAndType{OLE, TINT8}:   ssa.OpLeq8,
-	opAndType{OLE, TUINT8}:  ssa.OpLeq8U,
-	opAndType{OLE, TINT16}:  ssa.OpLeq16,
-	opAndType{OLE, TUINT16}: ssa.OpLeq16U,
-	opAndType{OLE, TINT32}:  ssa.OpLeq32,
-	opAndType{OLE, TUINT32}: ssa.OpLeq32U,
-	opAndType{OLE, TINT64}:  ssa.OpLeq64,
-	opAndType{OLE, TUINT64}: ssa.OpLeq64U,
+	opAndType{OLE, TINT8}:    ssa.OpLeq8,
+	opAndType{OLE, TUINT8}:   ssa.OpLeq8U,
+	opAndType{OLE, TINT16}:   ssa.OpLeq16,
+	opAndType{OLE, TUINT16}:  ssa.OpLeq16U,
+	opAndType{OLE, TINT32}:   ssa.OpLeq32,
+	opAndType{OLE, TUINT32}:  ssa.OpLeq32U,
+	opAndType{OLE, TINT64}:   ssa.OpLeq64,
+	opAndType{OLE, TUINT64}:  ssa.OpLeq64U,
+	opAndType{OLE, TFLOAT64}: ssa.OpLeq64F,
+	opAndType{OLE, TFLOAT32}: ssa.OpLeq32F,
 
-	opAndType{OGE, TINT8}:   ssa.OpGeq8,
-	opAndType{OGE, TUINT8}:  ssa.OpGeq8U,
-	opAndType{OGE, TINT16}:  ssa.OpGeq16,
-	opAndType{OGE, TUINT16}: ssa.OpGeq16U,
-	opAndType{OGE, TINT32}:  ssa.OpGeq32,
-	opAndType{OGE, TUINT32}: ssa.OpGeq32U,
-	opAndType{OGE, TINT64}:  ssa.OpGeq64,
-	opAndType{OGE, TUINT64}: ssa.OpGeq64U,
+	opAndType{OGE, TINT8}:    ssa.OpGeq8,
+	opAndType{OGE, TUINT8}:   ssa.OpGeq8U,
+	opAndType{OGE, TINT16}:   ssa.OpGeq16,
+	opAndType{OGE, TUINT16}:  ssa.OpGeq16U,
+	opAndType{OGE, TINT32}:   ssa.OpGeq32,
+	opAndType{OGE, TUINT32}:  ssa.OpGeq32U,
+	opAndType{OGE, TINT64}:   ssa.OpGeq64,
+	opAndType{OGE, TUINT64}:  ssa.OpGeq64U,
+	opAndType{OGE, TFLOAT64}: ssa.OpGeq64F,
+	opAndType{OGE, TFLOAT32}: ssa.OpGeq32F,
 
 	opAndType{OLROT, TUINT8}:  ssa.OpLrot8,
 	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
@@ -2198,7 +2210,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 }
 
 // opregreg emits instructions for
-//     dest := dest op src
+//     dest := dest(To) op src(From)
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
 func opregreg(op int, dest, src int16) *obj.Prog {
@@ -2522,11 +2534,11 @@ func genValue(v *ssa.Value) {
 		p.To.Reg = regnum(v)
 	case ssa.OpAMD64CMPQ, ssa.OpAMD64CMPL, ssa.OpAMD64CMPW, ssa.OpAMD64CMPB,
 		ssa.OpAMD64TESTQ, ssa.OpAMD64TESTL, ssa.OpAMD64TESTW, ssa.OpAMD64TESTB:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v.Args[1])
+		opregreg(v.Op.Asm(), regnum(v.Args[1]), regnum(v.Args[0]))
+	case ssa.OpAMD64UCOMISS, ssa.OpAMD64UCOMISD:
+		// Go assembler has swapped operands for UCOMISx relative to CMP,
+		// must account for that right here.
+		opregreg(v.Op.Asm(), regnum(v.Args[0]), regnum(v.Args[1]))
 	case ssa.OpAMD64CMPQconst, ssa.OpAMD64CMPLconst, ssa.OpAMD64CMPWconst, ssa.OpAMD64CMPBconst,
 		ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
 		p := Prog(v.Op.Asm())
@@ -2763,11 +2775,34 @@ func genValue(v *ssa.Value) {
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
+		ssa.OpAMD64SETGF, ssa.OpAMD64SETGEF,
 		ssa.OpAMD64SETB, ssa.OpAMD64SETBE,
+		ssa.OpAMD64SETORD, ssa.OpAMD64SETNAN,
 		ssa.OpAMD64SETA, ssa.OpAMD64SETAE:
 		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
+
+	case ssa.OpAMD64SETNEF:
+		p := Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+		q := Prog(x86.ASETPS)
+		q.To.Type = obj.TYPE_REG
+		q.To.Reg = x86.REG_AX
+		// TODO AORQ copied from old code generator, why not AORB?
+		opregreg(x86.AORQ, regnum(v), x86.REG_AX)
+
+	case ssa.OpAMD64SETEQF:
+		p := Prog(v.Op.Asm())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+		q := Prog(x86.ASETPC)
+		q.To.Type = obj.TYPE_REG
+		q.To.Reg = x86.REG_AX
+		// TODO AANDQ copied from old code generator, why not AANDB?
+		opregreg(x86.AANDQ, regnum(v), x86.REG_AX)
+
 	case ssa.OpAMD64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v)
 	case ssa.OpAMD64REPSTOSQ:
@@ -2808,7 +2843,9 @@ func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nle
 	return nleft, offset
 }
 
-var blockJump = [...]struct{ asm, invasm int }{
+var blockJump = [...]struct {
+	asm, invasm int
+}{
 	ssa.BlockAMD64EQ:  {x86.AJEQ, x86.AJNE},
 	ssa.BlockAMD64NE:  {x86.AJNE, x86.AJEQ},
 	ssa.BlockAMD64LT:  {x86.AJLT, x86.AJGE},
@@ -2819,6 +2856,63 @@ var blockJump = [...]struct{ asm, invasm int }{
 	ssa.BlockAMD64UGE: {x86.AJCC, x86.AJCS},
 	ssa.BlockAMD64UGT: {x86.AJHI, x86.AJLS},
 	ssa.BlockAMD64ULE: {x86.AJLS, x86.AJHI},
+	ssa.BlockAMD64ORD: {x86.AJPC, x86.AJPS},
+	ssa.BlockAMD64NAN: {x86.AJPS, x86.AJPC},
+}
+
+type floatingEQNEJump struct {
+	jump, index int
+}
+
+var eqfJumps = [2][2]floatingEQNEJump{
+	{{x86.AJNE, 1}, {x86.AJPS, 1}}, // next == b.Succs[0]
+	{{x86.AJNE, 1}, {x86.AJPC, 0}}, // next == b.Succs[1]
+}
+var nefJumps = [2][2]floatingEQNEJump{
+	{{x86.AJNE, 0}, {x86.AJPC, 1}}, // next == b.Succs[0]
+	{{x86.AJNE, 0}, {x86.AJPS, 0}}, // next == b.Succs[1]
+}
+
+func oneFPJump(b *ssa.Block, jumps *floatingEQNEJump, likely ssa.BranchPrediction, branches []branch) []branch {
+	p := Prog(jumps.jump)
+	p.To.Type = obj.TYPE_BRANCH
+	to := jumps.index
+	branches = append(branches, branch{p, b.Succs[to]})
+	if to == 1 {
+		likely = -likely
+	}
+	// liblink reorders the instruction stream as it sees fit.
+	// Pass along what we know so liblink can make use of it.
+	// TODO: Once we've fully switched to SSA,
+	// make liblink leave our output alone.
+	switch likely {
+	case ssa.BranchUnlikely:
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0
+	case ssa.BranchLikely:
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+	}
+	return branches
+}
+
+func genFPJump(b, next *ssa.Block, jumps *[2][2]floatingEQNEJump, branches []branch) []branch {
+	likely := b.Likely
+	switch next {
+	case b.Succs[0]:
+		branches = oneFPJump(b, &jumps[0][0], likely, branches)
+		branches = oneFPJump(b, &jumps[0][1], likely, branches)
+	case b.Succs[1]:
+		branches = oneFPJump(b, &jumps[1][0], likely, branches)
+		branches = oneFPJump(b, &jumps[1][1], likely, branches)
+	default:
+		branches = oneFPJump(b, &jumps[1][0], likely, branches)
+		branches = oneFPJump(b, &jumps[1][1], likely, branches)
+		q := Prog(obj.AJMP)
+		q.To.Type = obj.TYPE_BRANCH
+		branches = append(branches, branch{q, b.Succs[1]})
+	}
+	return branches
 }
 
 func genBlock(b, next *ssa.Block, branches []branch) []branch {
@@ -2849,12 +2943,18 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			p.To.Type = obj.TYPE_BRANCH
 			branches = append(branches, branch{p, b.Succs[0]})
 		}
+
+	case ssa.BlockAMD64EQF:
+		branches = genFPJump(b, next, &eqfJumps, branches)
+
+	case ssa.BlockAMD64NEF:
+		branches = genFPJump(b, next, &nefJumps, branches)
+
 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
 		ssa.BlockAMD64LE, ssa.BlockAMD64GT,
 		ssa.BlockAMD64ULT, ssa.BlockAMD64UGT,
 		ssa.BlockAMD64ULE, ssa.BlockAMD64UGE:
-
 		jmp := blockJump[b.Kind]
 		likely := b.Likely
 		var p *obj.Prog
