@@ -83,7 +83,6 @@ func init() {
 		flags      = buildReg("FLAGS")
 		callerSave = gp | fp | flags
 	)
-
 	// Common slices of register masks
 	var (
 		gponly    = []regMask{gp}
@@ -110,8 +109,9 @@ func init() {
 
 		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
-		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
+		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly}
 		readflags = regInfo{inputs: flagsonly, outputs: gponly}
+		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax, outputs: []regMask{gp &^ ax}}
 
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
@@ -124,10 +124,11 @@ func init() {
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
 		fp21x15 = regInfo{inputs: []regMask{fp &^ x15, fp &^ x15},
 			clobbers: x15, outputs: []regMask{fp &^ x15}}
-
-		fpgp = regInfo{inputs: fponly, outputs: gponly}
-		gpfp = regInfo{inputs: gponly, outputs: fponly}
-		fp11 = regInfo{inputs: fponly, outputs: fponly}
+		fpgp     = regInfo{inputs: fponly, outputs: gponly}
+		gpfp     = regInfo{inputs: gponly, outputs: fponly}
+		fp11     = regInfo{inputs: fponly, outputs: fponly}
+		fp2flags = regInfo{inputs: []regMask{fp, fp}, outputs: flagsonly}
+		// fp1flags = regInfo{inputs: fponly, outputs: flagsonly}
 
 		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
 		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
@@ -249,6 +250,9 @@ func init() {
 		{name: "CMPWconst", reg: gp1flags, asm: "CMPW"}, // arg0 compare to auxint
 		{name: "CMPBconst", reg: gp1flags, asm: "CMPB"}, // arg0 compare to auxint
 
+		{name: "UCOMISS", reg: fp2flags, asm: "UCOMISS"}, // arg0 compare to arg1, f32
+		{name: "UCOMISD", reg: fp2flags, asm: "UCOMISD"}, // arg0 compare to arg1, f64
+
 		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"},      // (arg0 & arg1) compare to 0
 		{name: "TESTL", reg: gp2flags, asm: "TESTL"},      // (arg0 & arg1) compare to 0
 		{name: "TESTW", reg: gp2flags, asm: "TESTW"},      // (arg0 & arg1) compare to 0
@@ -316,6 +320,16 @@ func init() {
 		{name: "SETBE", reg: readflags, asm: "SETLS"}, // extract unsigned <= condition from arg0
 		{name: "SETA", reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
 		{name: "SETAE", reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
+		// Need different opcodes for floating point conditions because
+		// any comparison involving a NaN is always FALSE and thus
+		// the patterns for inverting conditions cannot be used.
+		{name: "SETEQF", reg: flagsgpax, asm: "SETEQ"}, // extract == condition from arg0
+		{name: "SETNEF", reg: flagsgpax, asm: "SETNE"}, // extract != condition from arg0
+		{name: "SETORD", reg: flagsgp, asm: "SETPC"},   // extract "ordered" (No Nan present) condition from arg0
+		{name: "SETNAN", reg: flagsgp, asm: "SETPS"},   // extract "unordered" (Nan present) condition from arg0
+
+		{name: "SETGF", reg: flagsgp, asm: "SETHI"},  // extract floating > condition from arg0
+		{name: "SETGEF", reg: flagsgp, asm: "SETCC"}, // extract floating >= condition from arg0
 
 		{name: "MOVBQSX", reg: gp11nf, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
 		{name: "MOVBQZX", reg: gp11nf, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
@@ -395,6 +409,10 @@ func init() {
 		{name: "ULE"},
 		{name: "UGT"},
 		{name: "UGE"},
+		{name: "EQF"},
+		{name: "NEF"},
+		{name: "ORD"}, // FP, ordered comparison (parity zero)
+		{name: "NAN"}, // FP, unordered comparison (parity one)
 	}
 
 	archs = append(archs, arch{"AMD64", AMD64ops, AMD64blocks, regNamesAMD64})

@@ -161,6 +161,8 @@ var genericOps = []opData{
 	{name: "Eq64"},
 	{name: "EqPtr"},
 	{name: "EqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
+	{name: "Eq32F"},
+	{name: "Eq64F"},
 
 	{name: "Neq8"}, // arg0 != arg1
 	{name: "Neq16"},
@@ -168,6 +170,8 @@ var genericOps = []opData{
 	{name: "Neq64"},
 	{name: "NeqPtr"},
 	{name: "NeqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
+	{name: "Neq32F"},
+	{name: "Neq64F"},
 
 	{name: "Less8"}, // arg0 < arg1
 	{name: "Less8U"},
@@ -177,6 +181,8 @@ var genericOps = []opData{
 	{name: "Less32U"},
 	{name: "Less64"},
 	{name: "Less64U"},
+	{name: "Less32F"},
+	{name: "Less64F"},
 
 	{name: "Leq8"}, // arg0 <= arg1
 	{name: "Leq8U"},
@@ -186,6 +192,8 @@ var genericOps = []opData{
 	{name: "Leq32U"},
 	{name: "Leq64"},
 	{name: "Leq64U"},
+	{name: "Leq32F"},
+	{name: "Leq64F"},
 
 	{name: "Greater8"}, // arg0 > arg1
 	{name: "Greater8U"},
@@ -195,6 +203,8 @@ var genericOps = []opData{
 	{name: "Greater32U"},
 	{name: "Greater64"},
 	{name: "Greater64U"},
+	{name: "Greater32F"},
+	{name: "Greater64F"},
 
 	{name: "Geq8"}, // arg0 <= arg1
 	{name: "Geq8U"},
@@ -204,6 +214,8 @@ var genericOps = []opData{
 	{name: "Geq32U"},
 	{name: "Geq64"},
 	{name: "Geq64U"},
+	{name: "Geq32F"},
+	{name: "Geq64F"},
 
 	// 1-input ops
 	{name: "Not"}, // !arg0

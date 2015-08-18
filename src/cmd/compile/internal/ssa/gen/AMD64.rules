@@ -198,53 +198,67 @@
 (Less32 x y) -> (SETL (CMPL <TypeFlags> x y))
 (Less16 x y) -> (SETL (CMPW <TypeFlags> x y))
 (Less8  x y) -> (SETL (CMPB <TypeFlags> x y))
-
 (Less64U x y) -> (SETB (CMPQ <TypeFlags> x y))
 (Less32U x y) -> (SETB (CMPL <TypeFlags> x y))
 (Less16U x y) -> (SETB (CMPW <TypeFlags> x y))
 (Less8U  x y) -> (SETB (CMPB <TypeFlags> x y))
+// Use SETGF with reversed operands to dodge NaN case
+(Less64F x y) -> (SETGF (UCOMISD <TypeFlags> y x))
+(Less32F x y) -> (SETGF (UCOMISS <TypeFlags> y x))
 
 (Leq64 x y) -> (SETLE (CMPQ <TypeFlags> x y))
 (Leq32 x y) -> (SETLE (CMPL <TypeFlags> x y))
 (Leq16 x y) -> (SETLE (CMPW <TypeFlags> x y))
 (Leq8  x y) -> (SETLE (CMPB <TypeFlags> x y))
-
 (Leq64U x y) -> (SETBE (CMPQ <TypeFlags> x y))
 (Leq32U x y) -> (SETBE (CMPL <TypeFlags> x y))
 (Leq16U x y) -> (SETBE (CMPW <TypeFlags> x y))
 (Leq8U  x y) -> (SETBE (CMPB <TypeFlags> x y))
+// Use SETGEF with reversed operands to dodge NaN case
+(Leq64F x y) -> (SETGEF (UCOMISD <TypeFlags> y x))
+(Leq32F x y) -> (SETGEF (UCOMISS <TypeFlags> y x))
 
 (Greater64 x y) -> (SETG (CMPQ <TypeFlags> x y))
 (Greater32 x y) -> (SETG (CMPL <TypeFlags> x y))
 (Greater16 x y) -> (SETG (CMPW <TypeFlags> x y))
 (Greater8  x y) -> (SETG (CMPB <TypeFlags> x y))
-
 (Greater64U x y) -> (SETA (CMPQ <TypeFlags> x y))
 (Greater32U x y) -> (SETA (CMPL <TypeFlags> x y))
 (Greater16U x y) -> (SETA (CMPW <TypeFlags> x y))
 (Greater8U  x y) -> (SETA (CMPB <TypeFlags> x y))
+// Note Go assembler gets UCOMISx operand order wrong, but it is right here
+// Bug is accommodated at generation of assembly language.
+(Greater64F x y) -> (SETGF (UCOMISD <TypeFlags> x y))
+(Greater32F x y) -> (SETGF (UCOMISS <TypeFlags> x y))
 
 (Geq64 x y) -> (SETGE (CMPQ <TypeFlags> x y))
 (Geq32 x y) -> (SETGE (CMPL <TypeFlags> x y))
 (Geq16 x y) -> (SETGE (CMPW <TypeFlags> x y))
 (Geq8  x y) -> (SETGE (CMPB <TypeFlags> x y))
-
 (Geq64U x y) -> (SETAE (CMPQ <TypeFlags> x y))
 (Geq32U x y) -> (SETAE (CMPL <TypeFlags> x y))
 (Geq16U x y) -> (SETAE (CMPW <TypeFlags> x y))
 (Geq8U  x y) -> (SETAE (CMPB <TypeFlags> x y))
+// Note Go assembler gets UCOMISx operand order wrong, but it is right here
+// Bug is accommodated at generation of assembly language.
+(Geq64F x y) -> (SETGEF (UCOMISD <TypeFlags> x y))
+(Geq32F x y) -> (SETGEF (UCOMISS <TypeFlags> x y))
 
 (Eq64 x y) -> (SETEQ (CMPQ <TypeFlags> x y))
 (Eq32 x y) -> (SETEQ (CMPL <TypeFlags> x y))
 (Eq16 x y) -> (SETEQ (CMPW <TypeFlags> x y))
 (Eq8 x y) -> (SETEQ (CMPB <TypeFlags> x y))
 (EqPtr x y) -> (SETEQ (CMPQ <TypeFlags> x y))
+(Eq64F x y) -> (SETEQF (UCOMISD <TypeFlags> x y))
+(Eq32F x y) -> (SETEQF (UCOMISS <TypeFlags> x y))
 
 (Neq64 x y) -> (SETNE (CMPQ <TypeFlags> x y))
 (Neq32 x y) -> (SETNE (CMPL <TypeFlags> x y))
 (Neq16 x y) -> (SETNE (CMPW <TypeFlags> x y))
 (Neq8 x y) -> (SETNE (CMPB <TypeFlags> x y))
 (NeqPtr x y) -> (SETNE (CMPQ <TypeFlags> x y))
+(Neq64F x y) -> (SETNEF (UCOMISD <TypeFlags> x y))
+(Neq32F x y) -> (SETNEF (UCOMISS <TypeFlags> x y))
 
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
 (Load <t> ptr mem) && is32BitInt(t) -> (MOVLload ptr mem)
@@ -304,6 +318,12 @@
 (If (SETA  cmp) yes no) -> (UGT cmp yes no)
 (If (SETAE cmp) yes no) -> (UGE cmp yes no)
 
+// Special case for floating point - LF/LEF not generated
+(If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
+(If (SETGEF cmp) yes no) -> (UGE  cmp yes no)
+(If (SETEQF cmp) yes no) -> (EQF  cmp yes no)
+(If (SETNEF cmp) yes no) -> (EQF  cmp yes no)
+
 (If cond yes no) -> (NE (TESTB <TypeFlags> cond cond) yes no)
 
 (NE (TESTB (SETL  cmp)) yes no) -> (LT  cmp yes no)
@@ -316,6 +336,16 @@
 (NE (TESTB (SETBE cmp)) yes no) -> (ULE cmp yes no)
 (NE (TESTB (SETA  cmp)) yes no) -> (UGT cmp yes no)
 (NE (TESTB (SETAE cmp)) yes no) -> (UGE cmp yes no)
+
+// Special case for floating point - LF/LEF not generated
+(NE (TESTB (SETGF  cmp)) yes no) -> (UGT  cmp yes no)
+(NE (TESTB (SETGEF cmp)) yes no) -> (UGE  cmp yes no)
+(NE (TESTB (SETEQF cmp)) yes no) -> (EQF  cmp yes no)
+(NE (TESTB (SETNEF cmp)) yes no) -> (NEF  cmp yes no)
+
+// Disabled because it interferes with the pattern match above and makes worse code.
+// (SETNEF x) -> (ORQ (SETNE <config.Frontend().TypeInt8()> x) (SETNAN <config.Frontend().TypeInt8()> x))
+// (SETEQF x) -> (ANDQ (SETEQ <config.Frontend().TypeInt8()> x) (SETORD <config.Frontend().TypeInt8()> x))
 
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
@@ -518,7 +548,6 @@
 	(MOVSDloadidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVSDstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-
 
 (ADDQconst [0] x) -> x
 

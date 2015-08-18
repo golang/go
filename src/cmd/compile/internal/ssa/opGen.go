@@ -5,7 +5,7 @@ package ssa
 import "cmd/internal/obj/x86"
 
 const (
-	blockInvalid BlockKind = iota
+	BlockInvalid BlockKind = iota
 
 	BlockAMD64EQ
 	BlockAMD64NE
@@ -17,6 +17,10 @@ const (
 	BlockAMD64ULE
 	BlockAMD64UGT
 	BlockAMD64UGE
+	BlockAMD64EQF
+	BlockAMD64NEF
+	BlockAMD64ORD
+	BlockAMD64NAN
 
 	BlockExit
 	BlockDead
@@ -26,7 +30,7 @@ const (
 )
 
 var blockString = [...]string{
-	blockInvalid: "BlockInvalid",
+	BlockInvalid: "BlockInvalid",
 
 	BlockAMD64EQ:  "EQ",
 	BlockAMD64NE:  "NE",
@@ -38,6 +42,10 @@ var blockString = [...]string{
 	BlockAMD64ULE: "ULE",
 	BlockAMD64UGT: "UGT",
 	BlockAMD64UGE: "UGE",
+	BlockAMD64EQF: "EQF",
+	BlockAMD64NEF: "NEF",
+	BlockAMD64ORD: "ORD",
+	BlockAMD64NAN: "NAN",
 
 	BlockExit:  "Exit",
 	BlockDead:  "Dead",
@@ -143,6 +151,8 @@ const (
 	OpAMD64CMPLconst
 	OpAMD64CMPWconst
 	OpAMD64CMPBconst
+	OpAMD64UCOMISS
+	OpAMD64UCOMISD
 	OpAMD64TESTQ
 	OpAMD64TESTL
 	OpAMD64TESTW
@@ -199,6 +209,12 @@ const (
 	OpAMD64SETBE
 	OpAMD64SETA
 	OpAMD64SETAE
+	OpAMD64SETEQF
+	OpAMD64SETNEF
+	OpAMD64SETORD
+	OpAMD64SETNAN
+	OpAMD64SETGF
+	OpAMD64SETGEF
 	OpAMD64MOVBQSX
 	OpAMD64MOVBQZX
 	OpAMD64MOVWQSX
@@ -361,12 +377,16 @@ const (
 	OpEq64
 	OpEqPtr
 	OpEqFat
+	OpEq32F
+	OpEq64F
 	OpNeq8
 	OpNeq16
 	OpNeq32
 	OpNeq64
 	OpNeqPtr
 	OpNeqFat
+	OpNeq32F
+	OpNeq64F
 	OpLess8
 	OpLess8U
 	OpLess16
@@ -375,6 +395,8 @@ const (
 	OpLess32U
 	OpLess64
 	OpLess64U
+	OpLess32F
+	OpLess64F
 	OpLeq8
 	OpLeq8U
 	OpLeq16
@@ -383,6 +405,8 @@ const (
 	OpLeq32U
 	OpLeq64
 	OpLeq64U
+	OpLeq32F
+	OpLeq64F
 	OpGreater8
 	OpGreater8U
 	OpGreater16
@@ -391,6 +415,8 @@ const (
 	OpGreater32U
 	OpGreater64
 	OpGreater64U
+	OpGreater32F
+	OpGreater64F
 	OpGeq8
 	OpGeq8U
 	OpGeq16
@@ -399,6 +425,8 @@ const (
 	OpGeq32U
 	OpGeq64
 	OpGeq64U
+	OpGeq32F
+	OpGeq64F
 	OpNot
 	OpNeg8
 	OpNeg16
@@ -1708,6 +1736,32 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "UCOMISS",
+		asm:  x86.AUCOMISS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
+		name: "UCOMISD",
+		asm:  x86.AUCOMISD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				8589934592, // .FLAGS
+			},
+		},
+	},
+	{
 		name: "TESTQ",
 		asm:  x86.ATESTQ,
 		reg: regInfo{
@@ -2427,6 +2481,84 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETEQF",
+		asm:  x86.ASETEQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589934592}, // .FLAGS
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETNEF",
+		asm:  x86.ASETNE,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589934592}, // .FLAGS
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETORD",
+		asm:  x86.ASETPC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589934592}, // .FLAGS
+			},
+			clobbers: 8589934592, // .FLAGS
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETNAN",
+		asm:  x86.ASETPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589934592}, // .FLAGS
+			},
+			clobbers: 8589934592, // .FLAGS
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETGF",
+		asm:  x86.ASETHI,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589934592}, // .FLAGS
+			},
+			clobbers: 8589934592, // .FLAGS
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "SETGEF",
+		asm:  x86.ASETCC,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 8589934592}, // .FLAGS
+			},
+			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -3387,6 +3519,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Eq32F",
+		generic: true,
+	},
+	{
+		name:    "Eq64F",
+		generic: true,
+	},
+	{
 		name:    "Neq8",
 		generic: true,
 	},
@@ -3408,6 +3548,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "NeqFat",
+		generic: true,
+	},
+	{
+		name:    "Neq32F",
+		generic: true,
+	},
+	{
+		name:    "Neq64F",
 		generic: true,
 	},
 	{
@@ -3443,6 +3591,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Less32F",
+		generic: true,
+	},
+	{
+		name:    "Less64F",
+		generic: true,
+	},
+	{
 		name:    "Leq8",
 		generic: true,
 	},
@@ -3472,6 +3628,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Leq64U",
+		generic: true,
+	},
+	{
+		name:    "Leq32F",
+		generic: true,
+	},
+	{
+		name:    "Leq64F",
 		generic: true,
 	},
 	{
@@ -3507,6 +3671,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "Greater32F",
+		generic: true,
+	},
+	{
+		name:    "Greater64F",
+		generic: true,
+	},
+	{
 		name:    "Geq8",
 		generic: true,
 	},
@@ -3536,6 +3708,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Geq64U",
+		generic: true,
+	},
+	{
+		name:    "Geq32F",
+		generic: true,
+	},
+	{
+		name:    "Geq64F",
 		generic: true,
 	},
 	{
