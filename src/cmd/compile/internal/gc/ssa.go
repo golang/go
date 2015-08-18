@@ -1313,7 +1313,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 				len = s.constInt(Types[TINT], n.Left.Type.Bound)
 				elemtype = n.Left.Type.Type
 			}
-			s.boundsCheck(i, len)
+			if !n.Bounded {
+				s.boundsCheck(i, len)
+			}
 			return s.newValue2(ssa.OpArrayIndex, elemtype, a, i)
 		} else { // slice
 			p := s.addr(n)
@@ -1530,7 +1532,9 @@ func (s *state) addr(n *Node) *ssa.Value {
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
 			len := s.newValue1(ssa.OpSliceLen, Types[TUINTPTR], a)
-			s.boundsCheck(i, len)
+			if !n.Bounded {
+				s.boundsCheck(i, len)
+			}
 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
 		} else { // array
@@ -1538,7 +1542,9 @@ func (s *state) addr(n *Node) *ssa.Value {
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
 			len := s.constInt(Types[TINT], n.Left.Type.Bound)
-			s.boundsCheck(i, len)
+			if !n.Bounded {
+				s.boundsCheck(i, len)
+			}
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
 		}
 	case OIND:
