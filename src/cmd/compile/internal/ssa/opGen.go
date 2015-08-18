@@ -227,6 +227,8 @@ const (
 	OpAMD64REPMOVSB
 	OpAMD64InvertFlags
 	OpAMD64LoweredPanicNilCheck
+	OpAMD64LoweredPanicIndexCheck
+	OpAMD64LoweredPanicSliceCheck
 	OpAMD64LoweredGetG
 
 	OpAdd8
@@ -426,6 +428,8 @@ const (
 	OpIsNonNil
 	OpIsInBounds
 	OpPanicNilCheck
+	OpPanicIndexCheck
+	OpPanicSliceCheck
 	OpGetG
 	OpArrayIndex
 	OpPtrIndex
@@ -2686,6 +2690,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name: "LoweredPanicNilCheck",
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "LoweredPanicIndexCheck",
+		reg:  regInfo{},
+	},
+	{
+		name: "LoweredPanicSliceCheck",
 		reg:  regInfo{},
 	},
 	{
@@ -3484,6 +3500,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "PanicNilCheck",
+		generic: true,
+	},
+	{
+		name:    "PanicIndexCheck",
+		generic: true,
+	},
+	{
+		name:    "PanicSliceCheck",
 		generic: true,
 	},
 	{
