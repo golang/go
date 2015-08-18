@@ -43,10 +43,25 @@ func testPhiControl() {
 	}
 }
 
+func emptyRange_ssa(b []byte) bool {
+	for _, x := range b {
+		_ = x
+	}
+	return true
+}
+
+func testEmptyRange() {
+	if !emptyRange_ssa([]byte{}) {
+		println("emptyRange_ssa([]byte{})=false, want true")
+		failed = true
+	}
+}
+
 var failed = false
 
 func main() {
 	testPhiControl()
+	testEmptyRange()
 	if failed {
 		panic("failed")
 	}
