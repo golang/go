@@ -828,7 +828,7 @@ func traceGoUnpark(gp *g, skip int) {
 }
 
 func traceGoSysCall() {
-	traceEvent(traceEvGoSysCall, 4)
+	traceEvent(traceEvGoSysCall, 1)
 }
 
 func traceGoSysExit(seq uint64, ts int64) {
