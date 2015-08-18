@@ -396,6 +396,8 @@ const (
 	OpConst32F
 	OpConst64F
 	OpConstPtr
+	OpConstInterface
+	OpConstSlice
 	OpArg
 	OpAddr
 	OpSP
@@ -442,7 +444,9 @@ const (
 	OpStringMake
 	OpStringPtr
 	OpStringLen
+	OpIMake
 	OpITab
+	OpIData
 	OpStoreReg
 	OpLoadReg
 	OpFwdRef
@@ -3375,6 +3379,14 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "ConstInterface",
+		generic: true,
+	},
+	{
+		name:    "ConstSlice",
+		generic: true,
+	},
+	{
 		name:    "Arg",
 		generic: true,
 	},
@@ -3559,7 +3571,15 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
+		name:    "IMake",
+		generic: true,
+	},
+	{
 		name:    "ITab",
+		generic: true,
+	},
+	{
+		name:    "IData",
 		generic: true,
 	},
 	{

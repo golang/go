@@ -1072,7 +1072,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case CTBOOL:
 			return s.entryNewValue0A(ssa.OpConstBool, n.Type, n.Val().U)
 		case CTNIL:
-			return s.entryNewValue0(ssa.OpConstNil, n.Type)
+			t := n.Type
+			switch {
+			case t.IsSlice():
+				return s.entryNewValue0(ssa.OpConstSlice, t)
+			case t.IsInterface():
+				return s.entryNewValue0(ssa.OpConstInterface, t)
+			default:
+				return s.entryNewValue0(ssa.OpConstNil, t)
+			}
 		case CTFLT:
 			f := n.Val().U.(*Mpflt)
 			switch n.Type.Size() {
@@ -1470,6 +1478,10 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		return s.entryNewValue0(ssa.OpConstNil, t)
 	case t.IsBoolean():
 		return s.entryNewValue0A(ssa.OpConstBool, t, false) // TODO: store bools as 0/1 in AuxInt?
+	case t.IsInterface():
+		return s.entryNewValue0(ssa.OpConstInterface, t)
+	case t.IsSlice():
+		return s.entryNewValue0(ssa.OpConstSlice, t)
 	}
 	s.Unimplementedf("zero for type %v not implemented", t)
 	return nil
@@ -1582,11 +1594,47 @@ func canSSA(n *Node) bool {
 	if n.Class == PPARAMOUT {
 		return false
 	}
-	if Isfat(n.Type) {
+	return canSSAType(n.Type)
+	// TODO: try to make more variables SSAable?
+}
+
+// canSSA reports whether variables of type t are SSA-able.
+func canSSAType(t *Type) bool {
+	dowidth(t)
+	if t.Width > int64(4*Widthptr) {
+		// 4*Widthptr is an arbitrary constant.  We want it
+		// to be at least 3*Widthptr so slices can be registerized.
+		// Too big and we'll introduce too much register pressure.
 		return false
 	}
-	return true
-	// TODO: try to make more variables SSAable.
+	switch t.Etype {
+	case TARRAY:
+		if Isslice(t) {
+			return true
+		}
+		// We can't do arrays because dynamic indexing is
+		// not supported on SSA variables.
+		// TODO: maybe allow if length is <=1?  All indexes
+		// are constant?  Might be good for the arrays
+		// introduced by the compiler for variadic functions.
+		return false
+	case TSTRUCT:
+		if countfield(t) > 4 {
+			// 4 is an arbitrary constant.  Same reasoning
+			// as above, lots of small fields would waste
+			// register space needed by other values.
+			return false
+		}
+		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+			if !canSSAType(t1.Type) {
+				return false
+			}
+		}
+		return false // until it is implemented
+		//return true
+	default:
+		return true
+	}
 }
 
 // nilCheck generates nil pointer checking code.

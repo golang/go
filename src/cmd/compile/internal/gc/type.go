@@ -68,6 +68,10 @@ func (t *Type) IsSlice() bool {
 	return t.Etype == TARRAY && t.Bound < 0
 }
 
+func (t *Type) IsInterface() bool {
+	return t.Etype == TINTER
+}
+
 func (t *Type) Elem() ssa.Type {
 	return t.Type
 }

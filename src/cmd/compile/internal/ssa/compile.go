@@ -60,6 +60,7 @@ type pass struct {
 var passes = [...]pass{
 	{"phielim", phielim},
 	{"copyelim", copyelim},
+	{"decompose", decompose},
 	{"early deadcode", deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{"opt", opt},
 	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
@@ -103,6 +104,8 @@ var passOrder = [...]constraint{
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
+	// don't run optimization pass until we've decomposed compound objects
+	{"decompose", "opt"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges
