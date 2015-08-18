@@ -25,7 +25,7 @@ func TestNoteReading(t *testing.T) {
 	}
 
 	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
-		t.Logf("skipping - golang.org/issue/11184")
+		t.Skipf("skipping - golang.org/issue/11184")
 	}
 
 	switch runtime.GOOS {
