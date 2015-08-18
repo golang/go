@@ -5,7 +5,7 @@
 package main_test
 
 import (
-	"cmd/go"
+	main "cmd/go"
 	"runtime"
 	"testing"
 )
@@ -24,10 +24,17 @@ func TestNoteReading(t *testing.T) {
 		t.Fatalf("buildID in hello binary = %q, want %q", id, buildID)
 	}
 
+	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+		t.Logf("skipping - golang.org/issue/11184")
+	}
+
 	switch runtime.GOOS {
 	case "plan9":
 		// no external linking
 		t.Logf("no external linking - skipping linkmode=external test")
+
+	case "solaris":
+		t.Logf("skipping - golang.org/issue/12178")
 
 	default:
 		tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello.exe"), tg.path("hello.go"))
