@@ -906,20 +906,24 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto enda18a7163888e2f4fca9f38bae56cef42
 	enda18a7163888e2f4fca9f38bae56cef42:
 		;
-		// match: (Store dst str mem)
+		// match: (Store [2*config.PtrSize] dst str mem)
 		// cond: str.Type.IsString()
-		// result: (Store (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
+		// result: (Store [config.PtrSize] (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store [config.PtrSize] <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
 		{
+			if v.AuxInt != 2*config.PtrSize {
+				goto end6942df62f9cb570a99ab97a5aeebfd2d
+			}
 			dst := v.Args[0]
 			str := v.Args[1]
 			mem := v.Args[2]
 			if !(str.Type.IsString()) {
-				goto enddf0c5a150f4b4bf6715fd2bd4bb4cc20
+				goto end6942df62f9cb570a99ab97a5aeebfd2d
 			}
 			v.Op = OpStore
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
+			v.AuxInt = config.PtrSize
 			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 			v0.Type = config.Frontend().TypeBytePtr()
 			v0.AuxInt = config.PtrSize
@@ -930,6 +934,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v1.AddArg(str)
 			v.AddArg(v1)
 			v2 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+			v2.AuxInt = config.PtrSize
 			v2.Type = TypeMem
 			v2.AddArg(dst)
 			v3 := b.NewValue0(v.Line, OpStringPtr, TypeInvalid)
@@ -940,8 +945,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v2)
 			return true
 		}
-		goto enddf0c5a150f4b4bf6715fd2bd4bb4cc20
-	enddf0c5a150f4b4bf6715fd2bd4bb4cc20:
+		goto end6942df62f9cb570a99ab97a5aeebfd2d
+	end6942df62f9cb570a99ab97a5aeebfd2d:
 		;
 	case OpStringLen:
 		// match: (StringLen (StringMake _ len))

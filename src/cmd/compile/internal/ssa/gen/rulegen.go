@@ -560,7 +560,7 @@ func unbalanced(s string) bool {
 
 // isVariable reports whether s is a single Go alphanumeric identifier.
 func isVariable(s string) bool {
-	b, err := regexp.MatchString("[A-Za-z_][A-Za-z_0-9]*", s)
+	b, err := regexp.MatchString("^[A-Za-z_][A-Za-z_0-9]*$", s)
 	if err != nil {
 		panic("bad variable regexp")
 	}

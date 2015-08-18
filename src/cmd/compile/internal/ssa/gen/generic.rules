@@ -88,7 +88,7 @@
 (Load <t> ptr mem) && t.IsString() -> (StringMake (Load <config.Frontend().TypeBytePtr()> ptr mem) (Load <config.Frontend().TypeUintptr()> (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] ptr) mem))
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len
-(Store dst str mem) && str.Type.IsString() -> (Store (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
+(Store [2*config.PtrSize] dst str mem) && str.Type.IsString() -> (Store [config.PtrSize] (OffPtr <config.Frontend().TypeBytePtr()> [config.PtrSize] dst) (StringLen <config.Frontend().TypeUintptr()> str) (Store [config.PtrSize] <TypeMem> dst (StringPtr <config.Frontend().TypeBytePtr()> str) mem))
 
 (If (IsNonNil (GetG)) yes no) -> (Plain nil yes)
 
