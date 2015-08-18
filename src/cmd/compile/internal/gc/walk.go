@@ -3873,7 +3873,7 @@ func usefield(n *Node) {
 	if Isptr[t.Etype] {
 		t = t.Type
 	}
-	field := dotField[typeSym{t, n.Right.Sym}]
+	field := dotField[typeSym{t.Orig, n.Right.Sym}]
 	if field == nil {
 		Fatal("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
 	}
