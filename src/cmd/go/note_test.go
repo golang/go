@@ -6,6 +6,7 @@ package main_test
 
 import (
 	"cmd/go"
+	"runtime"
 	"testing"
 )
 
@@ -21,5 +22,21 @@ func TestNoteReading(t *testing.T) {
 	}
 	if id != buildID {
 		t.Fatalf("buildID in hello binary = %q, want %q", id, buildID)
+	}
+
+	switch runtime.GOOS {
+	case "plan9":
+		// no external linking
+		t.Logf("no external linking - skipping linkmode=external test")
+
+	default:
+		tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello.exe"), tg.path("hello.go"))
+		id, err := main.ReadBuildIDFromBinary(tg.path("hello.exe"))
+		if err != nil {
+			t.Fatalf("reading build ID from hello binary (linkmode=external): %v", err)
+		}
+		if id != buildID {
+			t.Fatalf("buildID in hello binary = %q, want %q (linkmode=external)", id, buildID)
+		}
 	}
 }
