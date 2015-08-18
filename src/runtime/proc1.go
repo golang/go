@@ -1823,10 +1823,6 @@ func reentersyscall(pc, sp uintptr) {
 	// but can have inconsistent g->sched, do not let GC observe it.
 	_g_.m.locks++
 
-	if trace.enabled {
-		systemstack(traceGoSysCall)
-	}
-
 	// Entersyscall must not call any function that might split/grow the stack.
 	// (See details in comment above.)
 	// Catch calls that might, by replacing the stack guard with something that
@@ -1844,6 +1840,14 @@ func reentersyscall(pc, sp uintptr) {
 			print("entersyscall inconsistent ", hex(_g_.syscallsp), " [", hex(_g_.stack.lo), ",", hex(_g_.stack.hi), "]\n")
 			throw("entersyscall")
 		})
+	}
+
+	if trace.enabled {
+		systemstack(traceGoSysCall)
+		// systemstack itself clobbers g.sched.{pc,sp} and we might
+		// need them later when the G is genuinely blocked in a
+		// syscall
+		save(pc, sp)
 	}
 
 	if atomicload(&sched.sysmonwait) != 0 { // TODO: fast atomic
