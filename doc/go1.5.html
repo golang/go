@@ -83,7 +83,8 @@ time the release dates more conveniently.
 Due to an oversight, the rule that allowed the element type to be elided from slice literals was not
 applied to map keys.
 This has been <a href="/cl/2591">corrected</a> in Go 1.5.
-An example will make this clear: as of Go 1.5, this map literal,
+An example will make this clear.
+As of Go 1.5, this map literal,
 </p>
 
 <pre>
@@ -182,7 +183,7 @@ Details of the new collector were presented in a
 <p>
 In Go 1.5, the order in which goroutines are scheduled has been changed.
 The properties of the scheduler were never defined by the language,
-but programs that depended on the scheduling order may be broken
+but programs that depend on the scheduling order may be broken
 by this change.
 We have seen a few (erroneous) programs affected by this change.
 If you have programs that implicitly depend on the scheduling
@@ -194,7 +195,7 @@ Another potentially breaking change is that the runtime now
 sets the default number of threads to run simultaneously,
 defined by <code>GOMAXPROCS</code>, to the number
 of cores available on the CPU.
-In prior releases it defaulted to 1.
+In prior releases the default was 1.
 Programs that do not expect to run with multiple cores may
 break inadvertently.
 They can be updated by removing the restriction or by setting
@@ -292,7 +293,7 @@ The old names are gone; the new tools are available through the <code>go</code> 
 mechanism as <code>go tool compile</code>,
 <code>go tool asm</code>,
 <code>and go tool link</code>.
-Also, the file suffixes <code>.6</code>, <code>.8</code> etc. for the
+Also, the file suffixes <code>.6</code>, <code>.8</code>, etc. for the
 intermediate object files are also gone; now they are just plain <code>.o</code> files.
 </p>
 
@@ -512,7 +513,7 @@ A new <code>cmd</code> wildcard covers the commands.
 <li>
 A new <code>-asmflags</code> build option
 sets flags to pass to the assembler.
-However, 
+However,
 the <code>-ccflags</code> build option has been dropped;
 it was specific to the old, now deleted C compiler .
 </li>
@@ -538,7 +539,7 @@ This acts as a custom replacement for <code>go tool</code>.
 <li>
 The <code>test</code> subcommand now has a <code>-count</code>
 flag to specify how many times to run each test and benchmark.
-<a href="/pkg/testing/"><code>testing</code></a> package
+The <a href="/pkg/testing/"><code>testing</code></a> package
 does the work here, through by the <code>-test.count</code> flag.
 </li>
 
@@ -1024,14 +1025,14 @@ To update, run
 In the <a href="/pkg/image/"><code>image</code></a> package,
 the <a href="/pkg/image/#Rectangle"><code>Rectangle</code></a> type
 now implements the <a href="/pkg/image/#Image"><code>Image</code></a> interface,
-mask image when drawing.
+so a <code>Rectangle</code> can serve as a mask when drawing.
 </li>
 
 <li>
 Also in the <a href="/pkg/image/"><code>image</code></a> package,
 to assist in the handling of some JPEG images,
 there is now support for 4:1:1 and 4:1:0 YCbCr subsampling and basic
-CMYK support, represented by the new image.CMYK struct.
+CMYK support, represented by the new <code>image.CMYK</code> struct.
 </li>
 
 <li>
@@ -1054,7 +1055,7 @@ Because of the echo property of the old code, the operation
 In Go 1.5, that operation may yield a different value.
 The correct code is, and always was, to select the high 8 bits:
 <code>uint8(r&gt;&gt;8)</code>.
-Incidentally, <code>image/draw</code> package
+Incidentally, the <code>image/draw</code> package
 provides better support for such conversions; see
 <a href="https://blog.golang.org/go-imagedraw-package">this blog post</a>
 for more information.
@@ -1100,7 +1101,7 @@ but now correctly according to the IEEE754 definition of NaNs.
 <li>
 The <a href="/pkg/math/big/"><code>math/big</code></a> package
 adds a new <a href="/pkg/math/big/#Jacobi"><code>Jacobi</code></a>
-function for integers and a new method
+function for integers and a new
 <a href="/pkg/math/big/#Int.ModSqrt"><code>ModSqrt</code></a>
 method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
 </li>
@@ -1192,7 +1193,7 @@ variable.
 
 <li>
 The <a href="/pkg/net/mail/"><code>net/mail</code></a> package
-adds a <a href="/pkg/net/mail/#AddressParser"><code>AddressParser</code></a>
+adds an <a href="/pkg/net/mail/#AddressParser"><code>AddressParser</code></a>
 type that can parse mail addresses.
 </li>
 
@@ -1279,7 +1280,7 @@ precision.
 <li>
 Also in the <a href="/pkg/text/template/"><code>text/template</code></a> and
 <a href="/pkg/html/template/"><code>html/template</code></a> packages,
-a new <a href="/pkg/text/template/#Option"><code>Option</code></a> type
+a new <a href="/pkg/text/template/#Template.Option"><code>Option</code></a> method
 allows customization of the behavior of the template during execution.
 The sole implemented option allows control over how a missing key is
 handled when indexing a map.
