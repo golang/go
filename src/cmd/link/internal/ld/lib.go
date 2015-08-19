@@ -564,6 +564,24 @@ func loadlib() {
 	tlsg.Reachable = true
 	Ctxt.Tlsg = tlsg
 
+	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
+	if moduledata.Type == 0 || moduledata.Type == obj.SDYNIMPORT {
+		// If the module we are linking does not define the
+		// runtime.firstmoduledata symbol, create a local symbol for
+		// the moduledata.
+		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
+		moduledata.Local = true
+	} else {
+		// If OTOH the module does define the symbol, we truncate the
+		// symbol back to 0 bytes so we can define its entire
+		// contents.
+		moduledata.Size = 0
+	}
+	// Either way we mark it as noptrdata to hide it from the GC.
+	moduledata.Type = obj.SNOPTRDATA
+	moduledata.Reachable = true
+	Ctxt.Moduledata = moduledata
+
 	// Now that we know the link mode, trim the dynexp list.
 	x := CgoExportDynamic
 
