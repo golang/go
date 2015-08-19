@@ -19,7 +19,7 @@ type conf struct {
 	// forceCgoLookupHost forces CGO to always be used, if available.
 	forceCgoLookupHost bool
 
-	netGo  bool // "netgo" build tag in use (or no cgo)
+	netGo  bool // go DNS resolution forced
 	netCgo bool // cgo DNS resolution forced
 
 	// machine has an /etc/mdns.allow file
@@ -110,6 +110,12 @@ func initConfVal() {
 	if _, err := os.Stat("/etc/mdns.allow"); err == nil {
 		confVal.hasMDNSAllow = true
 	}
+}
+
+// canUseCgo reports whether calling cgo functions is allowed
+// for non-hostname lookups.
+func (c *conf) canUseCgo() bool {
+	return c.hostLookupOrder("") == hostLookupCgo
 }
 
 // hostLookupOrder determines which strategy to use to resolve hostname.
