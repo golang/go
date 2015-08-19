@@ -5,6 +5,7 @@
 package net
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -391,4 +392,112 @@ func TestLookupIPDeadline(t *testing.T) {
 	// As a rule, unknown must not be shown but it might possibly
 	// happen due to issue 4856 for now.
 	t.Logf("%v succeeded, %v failed (%v timeout, %v temporary, %v other, %v unknown)", qstats.succeeded, qstats.failed, qstats.timeout, qstats.temporary, qstats.other, qstats.unknown)
+}
+
+func TestLookupDots(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skipf("skipping external network test")
+	}
+
+	fixup := forceGoDNS()
+	defer fixup()
+	testDots(t, "go")
+
+	if forceCgoDNS() {
+		testDots(t, "cgo")
+	}
+}
+
+func testDots(t *testing.T, mode string) {
+	names, err := LookupAddr("8.8.8.8") // Google dns server
+	if err != nil {
+		t.Errorf("LookupAddr(8.8.8.8): %v (mode=%v)", err, mode)
+	} else {
+		for _, name := range names {
+			if !strings.HasSuffix(name, ".google.com.") {
+				t.Errorf("LookupAddr(8.8.8.8) = %v, want names ending in .google.com. with trailing dot (mode=%v)", names, mode)
+				break
+			}
+		}
+	}
+
+	cname, err := LookupCNAME("www.mit.edu")
+	if err != nil || !strings.HasSuffix(cname, ".") {
+		t.Errorf("LookupCNAME(www.mit.edu) = %v, %v, want cname ending in . with trailing dot (mode=%v)", cname, err, mode)
+	}
+
+	mxs, err := LookupMX("google.com")
+	if err != nil {
+		t.Errorf("LookupMX(google.com): %v (mode=%v)", err, mode)
+	} else {
+		for _, mx := range mxs {
+			if !strings.HasSuffix(mx.Host, ".google.com.") {
+				t.Errorf("LookupMX(google.com) = %v, want names ending in .google.com. with trailing dot (mode=%v)", mxString(mxs), mode)
+				break
+			}
+		}
+	}
+
+	nss, err := LookupNS("google.com")
+	if err != nil {
+		t.Errorf("LookupNS(google.com): %v (mode=%v)", err, mode)
+	} else {
+		for _, ns := range nss {
+			if !strings.HasSuffix(ns.Host, ".google.com.") {
+				t.Errorf("LookupNS(google.com) = %v, want names ending in .google.com. with trailing dot (mode=%v)", nsString(nss), mode)
+				break
+			}
+		}
+	}
+
+	cname, srvs, err := LookupSRV("xmpp-server", "tcp", "google.com")
+	if err != nil {
+		t.Errorf("LookupSRV(xmpp-server, tcp, google.com): %v (mode=%v)", err, mode)
+	} else {
+		if !strings.HasSuffix(cname, ".google.com.") {
+			t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned cname=%v, want name ending in .google.com. with trailing dot (mode=%v)", cname, mode)
+		}
+		for _, srv := range srvs {
+			if !strings.HasSuffix(srv.Target, ".google.com.") {
+				t.Errorf("LookupSRV(xmpp-server, tcp, google.com) returned addrs=%v, want names ending in .google.com. with trailing dot (mode=%v)", srvString(srvs), mode)
+				break
+			}
+		}
+	}
+}
+
+func mxString(mxs []*MX) string {
+	var buf bytes.Buffer
+	sep := ""
+	fmt.Fprintf(&buf, "[")
+	for _, mx := range mxs {
+		fmt.Fprintf(&buf, "%s%s:%d", sep, mx.Host, mx.Pref)
+		sep = " "
+	}
+	fmt.Fprintf(&buf, "]")
+	return buf.String()
+}
+
+func nsString(nss []*NS) string {
+	var buf bytes.Buffer
+	sep := ""
+	fmt.Fprintf(&buf, "[")
+	for _, ns := range nss {
+		fmt.Fprintf(&buf, "%s%s", sep, ns.Host)
+		sep = " "
+	}
+	fmt.Fprintf(&buf, "]")
+	return buf.String()
+}
+
+func srvString(srvs []*SRV) string {
+	var buf bytes.Buffer
+	sep := ""
+	fmt.Fprintf(&buf, "[")
+	for _, srv := range srvs {
+		fmt.Fprintf(&buf, "%s%s:%d:%d:%d", sep, srv.Target, srv.Port, srv.Priority, srv.Weight)
+		sep = " "
+	}
+	fmt.Fprintf(&buf, "]")
+	return buf.String()
 }
