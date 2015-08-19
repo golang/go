@@ -53,7 +53,7 @@ var Categories = map[string]*RangeTable{
 
 var _C = &RangeTable{
 	R16: []Range16{
-		{0x0001, 0x001f, 1},
+		{0x0000, 0x001f, 1},
 		{0x007f, 0x009f, 1},
 		{0x00ad, 0x0600, 1363},
 		{0x0601, 0x0605, 1},
@@ -81,7 +81,7 @@ var _C = &RangeTable{
 
 var _Cc = &RangeTable{
 	R16: []Range16{
-		{0x0001, 0x001f, 1},
+		{0x0000, 0x001f, 1},
 		{0x007f, 0x009f, 1},
 	},
 	LatinOffset: 2,
