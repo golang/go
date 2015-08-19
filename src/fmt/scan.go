@@ -888,7 +888,6 @@ func hexDigit(d rune) (int, bool) {
 func (s *ss) hexByte() (b byte, ok bool) {
 	rune1 := s.getRune()
 	if rune1 == eof {
-		s.UnreadRune()
 		return
 	}
 	value1, ok := hexDigit(rune1)

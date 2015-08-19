@@ -77,7 +77,7 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'code.google.com/p/project'.
+such as 'github.com/user/repo'.
 
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized

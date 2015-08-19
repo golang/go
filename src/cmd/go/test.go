@@ -1027,7 +1027,7 @@ func (b *builder) runTest(a *action) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Dir = a.p.Dir
-	cmd.Env = envForDir(cmd.Dir)
+	cmd.Env = envForDir(cmd.Dir, origEnv)
 	var buf bytes.Buffer
 	if testStreamOutput {
 		cmd.Stdout = os.Stdout

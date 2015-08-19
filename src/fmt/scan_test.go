@@ -1128,3 +1128,31 @@ func TestScanfNewlineMatchFormat(t *testing.T) {
 		}
 	}
 }
+
+// Test for issue 12090: Was unreading at EOF, double-scanning a byte.
+
+type hexBytes [2]byte
+
+func (h *hexBytes) Scan(ss ScanState, verb rune) error {
+	var b []byte
+	_, err := Fscanf(ss, "%4x", &b)
+	if err != nil {
+		panic(err) // Really shouldn't happen.
+	}
+	copy((*h)[:], b)
+	return err
+}
+
+func TestHexByte(t *testing.T) {
+	var h hexBytes
+	n, err := Sscanln("0123\n", &h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 item; scanned %d", n)
+	}
+	if h[0] != 0x01 || h[1] != 0x23 {
+		t.Fatalf("expected 0123 got %x", h)
+	}
+}

@@ -319,7 +319,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 }
 
 func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
-	r := int(reg[dr])
+	r := gc.GetReg(dr)
 	gc.Nodreg(x, gc.Types[gc.TINT32], dr)
 
 	// save current ax and dx if they are live
@@ -408,7 +408,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	var oldcx gc.Node
 	var cx gc.Node
 	gc.Nodreg(&cx, gc.Types[gc.TUINT32], x86.REG_CX)
-	if reg[x86.REG_CX] > 1 && !gc.Samereg(&cx, res) {
+	if gc.GetReg(x86.REG_CX) > 1 && !gc.Samereg(&cx, res) {
 		gc.Tempname(&oldcx, gc.Types[gc.TUINT32])
 		gmove(&cx, &oldcx)
 	}

@@ -416,7 +416,7 @@ func vendoredImportPath(parent *Package, path string) (found string, searched []
 		return path, nil
 	}
 	dir := filepath.Clean(parent.Dir)
-	root := filepath.Clean(parent.Root)
+	root := filepath.Join(parent.Root, "src")
 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
 		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
 	}
@@ -836,7 +836,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 			importPaths = append(importPaths, "runtime/race")
 		}
 		// On ARM with GOARM=5, everything depends on math for the link.
-		if p.ImportPath == "main" && goarch == "arm" {
+		if p.Name == "main" && goarch == "arm" {
 			importPaths = append(importPaths, "math")
 		}
 	}
@@ -1796,10 +1796,10 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
 	}
 
-	// Read the first 8 kB of the binary file.
+	// Read the first 16 kB of the binary file.
 	// That should be enough to find the build ID.
 	// In ELF files, the build ID is in the leading headers,
-	// which are typically less than 4 kB, not to mention 8 kB.
+	// which are typically less than 4 kB, not to mention 16 kB.
 	// On other systems, we're trying to read enough that
 	// we get the beginning of the text segment in the read.
 	// The offset where the text segment begins in a hello
@@ -1807,7 +1807,7 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 	//
 	//	Plan 9: 0x20
 	//	Windows: 0x600
-	//	Mach-O: 0x1000
+	//	Mach-O: 0x2000
 	//
 	f, err := os.Open(filename)
 	if err != nil {
@@ -1815,7 +1815,7 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 	}
 	defer f.Close()
 
-	data := make([]byte, 8192)
+	data := make([]byte, 16*1024)
 	_, err = io.ReadFull(f, data)
 	if err == io.ErrUnexpectedEOF {
 		err = nil

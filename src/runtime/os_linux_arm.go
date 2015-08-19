@@ -19,7 +19,6 @@ const (
 var randomNumber uint32
 var armArch uint8 = 6 // we default to ARMv6
 var hwcap uint32      // set by setup_auxv
-var goarm uint8       // set by 5l
 
 func checkgoarm() {
 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {

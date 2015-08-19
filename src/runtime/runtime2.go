@@ -645,6 +645,8 @@ var (
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
 	lfenceBeforeRdtsc bool
+
+	goarm uint8 // set by cmd/link on arm systems
 )
 
 // Set by the linker so the runtime can determine the buildmode.
