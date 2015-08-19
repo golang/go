@@ -779,6 +779,13 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ODIV, TFLOAT32}: ssa.OpDiv32F,
 	opAndType{ODIV, TFLOAT64}: ssa.OpDiv64F,
 
+	opAndType{OHMUL, TINT8}:   ssa.OpHmul8,
+	opAndType{OHMUL, TUINT8}:  ssa.OpHmul8u,
+	opAndType{OHMUL, TINT16}:  ssa.OpHmul16,
+	opAndType{OHMUL, TUINT16}: ssa.OpHmul16u,
+	opAndType{OHMUL, TINT32}:  ssa.OpHmul32,
+	opAndType{OHMUL, TUINT32}: ssa.OpHmul32u,
+
 	opAndType{ODIV, TINT8}:   ssa.OpDiv8,
 	opAndType{ODIV, TUINT8}:  ssa.OpDiv8u,
 	opAndType{ODIV, TINT16}:  ssa.OpDiv16,
@@ -1201,7 +1208,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
-	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OXOR:
+	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OXOR, OHMUL:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
@@ -2097,6 +2104,27 @@ func genValue(v *ssa.Value) {
 
 			j.To.Val = n
 			j2.To.Val = Pc
+		}
+
+	case ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
+		ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
+		// the frontend rewrites constant division by 8/16/32 bit integers into
+		// HMUL by a constant
+
+		// Arg[0] is already in AX as it's the only register we allow
+		// and DX is the only output we care about (the high bits)
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[1])
+
+		// IMULB puts the high portion in AH instead of DL,
+		// so move it to DL for consistency
+		if v.Type.Size() == 1 {
+			m := Prog(x86.AMOVB)
+			m.From.Type = obj.TYPE_REG
+			m.From.Reg = x86.REG_AH
+			m.To.Type = obj.TYPE_REG
+			m.To.Reg = x86.REG_DX
 		}
 
 	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,

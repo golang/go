@@ -93,6 +93,12 @@ const (
 	OpAMD64MULLconst
 	OpAMD64MULWconst
 	OpAMD64MULBconst
+	OpAMD64HMULL
+	OpAMD64HMULW
+	OpAMD64HMULB
+	OpAMD64HMULLU
+	OpAMD64HMULWU
+	OpAMD64HMULBU
 	OpAMD64DIVQ
 	OpAMD64DIVL
 	OpAMD64DIVW
@@ -245,6 +251,12 @@ const (
 	OpMul64F
 	OpDiv32F
 	OpDiv64F
+	OpHmul8
+	OpHmul8u
+	OpHmul16
+	OpHmul16u
+	OpHmul32
+	OpHmul32u
 	OpDiv8
 	OpDiv8u
 	OpDiv16
@@ -974,6 +986,90 @@ var opcodeTable = [...]opInfo{
 			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "HMULL",
+		asm:  x86.AIMULL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "HMULW",
+		asm:  x86.AIMULW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "HMULB",
+		asm:  x86.AIMULB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "HMULLU",
+		asm:  x86.AMULL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "HMULWU",
+		asm:  x86.AMULW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "HMULBU",
+		asm:  x86.AMULB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
 			},
 		},
 	},
@@ -2688,6 +2784,30 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Div64F",
+		generic: true,
+	},
+	{
+		name:    "Hmul8",
+		generic: true,
+	},
+	{
+		name:    "Hmul8u",
+		generic: true,
+	},
+	{
+		name:    "Hmul16",
+		generic: true,
+	},
+	{
+		name:    "Hmul16u",
+		generic: true,
+	},
+	{
+		name:    "Hmul32",
+		generic: true,
+	},
+	{
+		name:    "Hmul32u",
 		generic: true,
 	},
 	{

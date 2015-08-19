@@ -5,7 +5,7 @@ Coverage
 --------
 - Floating point numbers
 - Complex numbers
-- Integer division (HMUL & MOD)
+- Integer division (MOD)
 - Fat objects (strings/slices/interfaces) vs. Phi
 - Defer?
 - Closure args
@@ -50,6 +50,7 @@ Optimizations (better compiler)
 - Constant cache
 - Reuseable slices (e.g. []int of size NumValues()) cached in Func
 - Handle signed division overflow and sign extension earlier
+- Implement 64 bit const division with high multiply, maybe in the frontend?
 
 Regalloc
 --------
