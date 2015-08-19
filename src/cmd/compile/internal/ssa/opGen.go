@@ -105,6 +105,12 @@ const (
 	OpAMD64DIVQU
 	OpAMD64DIVLU
 	OpAMD64DIVWU
+	OpAMD64MODQ
+	OpAMD64MODL
+	OpAMD64MODW
+	OpAMD64MODQU
+	OpAMD64MODLU
+	OpAMD64MODWU
 	OpAMD64ANDQ
 	OpAMD64ANDL
 	OpAMD64ANDW
@@ -267,6 +273,14 @@ const (
 	OpDiv32u
 	OpDiv64
 	OpDiv64u
+	OpMod8
+	OpMod8u
+	OpMod16
+	OpMod16u
+	OpMod32
+	OpMod32u
+	OpMod64
+	OpMod64u
 	OpAnd8
 	OpAnd16
 	OpAnd32
@@ -1162,6 +1176,90 @@ var opcodeTable = [...]opInfo{
 			clobbers: 8589934596, // .DX .FLAGS
 			outputs: []regMask{
 				1, // .AX
+			},
+		},
+	},
+	{
+		name: "MODQ",
+		asm:  x86.AIDIVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65531}, // .AX .CX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "MODL",
+		asm:  x86.AIDIVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65531}, // .AX .CX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "MODW",
+		asm:  x86.AIDIVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65531}, // .AX .CX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "MODQU",
+		asm:  x86.ADIVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65531}, // .AX .CX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "MODLU",
+		asm:  x86.ADIVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65531}, // .AX .CX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "MODWU",
+		asm:  x86.ADIVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65531}, // .AX .CX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
 			},
 		},
 	},
@@ -2850,6 +2948,38 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Div64u",
+		generic: true,
+	},
+	{
+		name:    "Mod8",
+		generic: true,
+	},
+	{
+		name:    "Mod8u",
+		generic: true,
+	},
+	{
+		name:    "Mod16",
+		generic: true,
+	},
+	{
+		name:    "Mod16u",
+		generic: true,
+	},
+	{
+		name:    "Mod32",
+		generic: true,
+	},
+	{
+		name:    "Mod32u",
+		generic: true,
+	},
+	{
+		name:    "Mod64",
+		generic: true,
+	},
+	{
+		name:    "Mod64u",
 		generic: true,
 	},
 	{

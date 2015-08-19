@@ -52,6 +52,15 @@
 (Hmul8 x y) ->  (HMULB x y)
 (Hmul8u x y) ->  (HMULBU x y)
 
+(Mod64 x y) -> (MODQ x y)
+(Mod64u x y) -> (MODQU x y)
+(Mod32 x y) -> (MODL x y)
+(Mod32u x y) -> (MODLU x y)
+(Mod16 x y) -> (MODW x y)
+(Mod16u x y) -> (MODWU x y)
+(Mod8 x y) ->  (MODW (SignExt8to16 <config.Frontend().TypeInt16()> x) (SignExt8to16 <config.Frontend().TypeInt16()> y))
+(Mod8u x y) ->  (MODWU (ZeroExt8to16 <config.Frontend().TypeUInt16()> x) (ZeroExt8to16 <config.Frontend().TypeUInt16()> y))
+
 (And64 x y) -> (ANDQ x y)
 (And32 x y) -> (ANDL x y)
 (And16 x y) -> (ANDW x y)

@@ -4734,6 +4734,162 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end61dbc9d9e93dd6946a20a1f475b3f74b
 	end61dbc9d9e93dd6946a20a1f475b3f74b:
 		;
+	case OpMod16:
+		// match: (Mod16 x y)
+		// cond:
+		// result: (MODW x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end036bac694be9fe0d6b00b86c2e625990
+	end036bac694be9fe0d6b00b86c2e625990:
+		;
+	case OpMod16u:
+		// match: (Mod16u x y)
+		// cond:
+		// result: (MODWU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODWU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto enda75d900097f1510ca1c6df786bef0c24
+	enda75d900097f1510ca1c6df786bef0c24:
+		;
+	case OpMod32:
+		// match: (Mod32 x y)
+		// cond:
+		// result: (MODL x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end12c8c0ecf3296810b8217cd4e40f7707
+	end12c8c0ecf3296810b8217cd4e40f7707:
+		;
+	case OpMod32u:
+		// match: (Mod32u x y)
+		// cond:
+		// result: (MODLU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODLU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end1f0892076cfd58733a08d3ab175a3c1c
+	end1f0892076cfd58733a08d3ab175a3c1c:
+		;
+	case OpMod64:
+		// match: (Mod64 x y)
+		// cond:
+		// result: (MODQ x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endaae75f449baf5dc108be4e0439af97f2
+	endaae75f449baf5dc108be4e0439af97f2:
+		;
+	case OpMod64u:
+		// match: (Mod64u x y)
+		// cond:
+		// result: (MODQU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODQU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end0d4c8b9df77e59289fb14e2496559d1d
+	end0d4c8b9df77e59289fb14e2496559d1d:
+		;
+	case OpMod8:
+		// match: (Mod8 x y)
+		// cond:
+		// result: (MODW (SignExt8to16 <config.Frontend().TypeInt16()> x) (SignExt8to16 <config.Frontend().TypeInt16()> y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
+			v0.Type = config.Frontend().TypeInt16()
+			v0.AddArg(x)
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
+			v1.Type = config.Frontend().TypeInt16()
+			v1.AddArg(y)
+			v.AddArg(v1)
+			return true
+		}
+		goto end13bfd4e75ea363f7b6926fa05136e193
+	end13bfd4e75ea363f7b6926fa05136e193:
+		;
+	case OpMod8u:
+		// match: (Mod8u x y)
+		// cond:
+		// result: (MODWU (ZeroExt8to16 <config.Frontend().TypeUInt16()> x) (ZeroExt8to16 <config.Frontend().TypeUInt16()> y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64MODWU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
+			v0.Type = config.Frontend().TypeUInt16()
+			v0.AddArg(x)
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
+			v1.Type = config.Frontend().TypeUInt16()
+			v1.AddArg(y)
+			v.AddArg(v1)
+			return true
+		}
+		goto end4c0e16e55b5f8f6d19811fc8d07eacf2
+	end4c0e16e55b5f8f6d19811fc8d07eacf2:
+		;
 	case OpMove:
 		// match: (Move [size] dst src mem)
 		// cond:
