@@ -51,3 +51,6 @@ func TestFP(t *testing.T) { runTest(t, "fp_ssa.go") }
 
 // TestArithmeticBoundary tests boundary results for arithmetic operations.
 func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary_ssa.go") }
+
+// TestArithmeticConst tests results for arithmetic operations against constants.
+func TestArithmeticConst(t *testing.T) { runTest(t, "arithConst_ssa.go") }

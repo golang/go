@@ -101,6 +101,8 @@ func init() {
 		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
 			clobbers: dx | flags}
+		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+			clobbers: ax | flags}
 
 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
@@ -184,10 +186,16 @@ func init() {
 		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
 		{name: "MULBconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
 
+		{name: "HMULL", reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
+		{name: "HMULW", reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
+		{name: "HMULB", reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
+		{name: "HMULLU", reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
+		{name: "HMULWU", reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
+		{name: "HMULBU", reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+
 		{name: "DIVQ", reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
 		{name: "DIVL", reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
 		{name: "DIVW", reg: gp11div, asm: "IDIVW"}, // arg0 / arg1
-
 		{name: "DIVQU", reg: gp11div, asm: "DIVQ"}, // arg0 / arg1
 		{name: "DIVLU", reg: gp11div, asm: "DIVL"}, // arg0 / arg1
 		{name: "DIVWU", reg: gp11div, asm: "DIVW"}, // arg0 / arg1

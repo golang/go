@@ -8,7 +8,7 @@
 
 package main
 
-// test64BitConstMulti tests that rewrite rules don't fold 64 bit constants
+// test64BitConstMult tests that rewrite rules don't fold 64 bit constants
 // into multiply instructions.
 func test64BitConstMult() {
 	want := int64(103079215109)

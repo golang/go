@@ -37,6 +37,14 @@ var genericOps = []opData{
 	{name: "Div64F"},
 	// TODO: Div8, Div16, Div32, Div64 and unsigned
 
+	{name: "Hmul8"}, // (arg0 * arg1) >> width
+	{name: "Hmul8u"},
+	{name: "Hmul16"},
+	{name: "Hmul16u"},
+	{name: "Hmul32"},
+	{name: "Hmul32u"},
+	// frontend currently doesn't generate a 64 bit hmul
+
 	{name: "Div8"}, // arg0 / arg1
 	{name: "Div8u"},
 	{name: "Div16"},

@@ -2335,6 +2335,114 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end22eaafbcfe70447f79d9b3e6cc395bbd
 	end22eaafbcfe70447f79d9b3e6cc395bbd:
 		;
+	case OpHmul16:
+		// match: (Hmul16 x y)
+		// cond:
+		// result: (HMULW x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64HMULW
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end1b9ff394bb3b06fc109637656b6875f5
+	end1b9ff394bb3b06fc109637656b6875f5:
+		;
+	case OpHmul16u:
+		// match: (Hmul16u x y)
+		// cond:
+		// result: (HMULWU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64HMULWU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto endee9089e794a43f2ce1619a6ef61670f4
+	endee9089e794a43f2ce1619a6ef61670f4:
+		;
+	case OpHmul32:
+		// match: (Hmul32 x y)
+		// cond:
+		// result: (HMULL x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64HMULL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end7c83c91ef2634f0b1da4f49350b437b1
+	end7c83c91ef2634f0b1da4f49350b437b1:
+		;
+	case OpHmul32u:
+		// match: (Hmul32u x y)
+		// cond:
+		// result: (HMULLU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64HMULLU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end3c4f36611dc8815aa2a63d4ec0eaa06d
+	end3c4f36611dc8815aa2a63d4ec0eaa06d:
+		;
+	case OpHmul8:
+		// match: (Hmul8 x y)
+		// cond:
+		// result: (HMULB x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64HMULB
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end51b2cc9f1ed15314e68fc81024f281a7
+	end51b2cc9f1ed15314e68fc81024f281a7:
+		;
+	case OpHmul8u:
+		// match: (Hmul8u x y)
+		// cond:
+		// result: (HMULBU x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64HMULBU
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto ende68d7b3a3c774cedc3522af9d635c39d
+	ende68d7b3a3c774cedc3522af9d635c39d:
+		;
 	case OpITab:
 		// match: (ITab (Load ptr mem))
 		// cond:
