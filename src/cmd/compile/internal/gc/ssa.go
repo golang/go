@@ -795,6 +795,15 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ODIV, TINT64}:  ssa.OpDiv64,
 	opAndType{ODIV, TUINT64}: ssa.OpDiv64u,
 
+	opAndType{OMOD, TINT8}:   ssa.OpMod8,
+	opAndType{OMOD, TUINT8}:  ssa.OpMod8u,
+	opAndType{OMOD, TINT16}:  ssa.OpMod16,
+	opAndType{OMOD, TUINT16}: ssa.OpMod16u,
+	opAndType{OMOD, TINT32}:  ssa.OpMod32,
+	opAndType{OMOD, TUINT32}: ssa.OpMod32u,
+	opAndType{OMOD, TINT64}:  ssa.OpMod64,
+	opAndType{OMOD, TUINT64}: ssa.OpMod64u,
+
 	opAndType{OAND, TINT8}:   ssa.OpAnd8,
 	opAndType{OAND, TUINT8}:  ssa.OpAnd8,
 	opAndType{OAND, TINT16}:  ssa.OpAnd16,
@@ -1216,7 +1225,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
-	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OXOR, OHMUL:
+	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OMOD, OHMUL, OXOR:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
@@ -2099,57 +2108,58 @@ func genValue(v *ssa.Value) {
 		opregreg(v.Op.Asm(), r, y)
 
 	case ssa.OpAMD64DIVQ, ssa.OpAMD64DIVL, ssa.OpAMD64DIVW,
-		ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
+		ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU,
+		ssa.OpAMD64MODQ, ssa.OpAMD64MODL, ssa.OpAMD64MODW,
+		ssa.OpAMD64MODQU, ssa.OpAMD64MODLU, ssa.OpAMD64MODWU:
 
 		// Arg[0] is already in AX as it's the only register we allow
 		// and AX is the only output
 		x := regnum(v.Args[1])
 
 		// CPU faults upon signed overflow, which occurs when most
-		// negative int is divided by -1.  So we check for division
-		// by -1 and negate the input.
+		// negative int is divided by -1.
 		var j *obj.Prog
 		if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
-			v.Op == ssa.OpAMD64DIVW {
+			v.Op == ssa.OpAMD64DIVW || v.Op == ssa.OpAMD64MODQ ||
+			v.Op == ssa.OpAMD64MODL || v.Op == ssa.OpAMD64MODW {
 
 			var c *obj.Prog
 			switch v.Op {
-			case ssa.OpAMD64DIVQ:
+			case ssa.OpAMD64DIVQ, ssa.OpAMD64MODQ:
 				c = Prog(x86.ACMPQ)
-			case ssa.OpAMD64DIVL:
+				j = Prog(x86.AJEQ)
+				// go ahead and sign extend to save doing it later
+				Prog(x86.ACQO)
+
+			case ssa.OpAMD64DIVL, ssa.OpAMD64MODL:
 				c = Prog(x86.ACMPL)
-			case ssa.OpAMD64DIVW:
+				j = Prog(x86.AJEQ)
+				Prog(x86.ACDQ)
+
+			case ssa.OpAMD64DIVW, ssa.OpAMD64MODW:
 				c = Prog(x86.ACMPW)
+				j = Prog(x86.AJEQ)
+				Prog(x86.ACWD)
 			}
 			c.From.Type = obj.TYPE_REG
 			c.From.Reg = x
 			c.To.Type = obj.TYPE_CONST
 			c.To.Offset = -1
 
-			j = Prog(x86.AJEQ)
 			j.To.Type = obj.TYPE_BRANCH
 
 		}
 
-		// dividend is ax, so we sign extend to
-		// dx:ax for DIV input
-		switch v.Op {
-		case ssa.OpAMD64DIVQU:
-			fallthrough
-		case ssa.OpAMD64DIVLU:
-			fallthrough
-		case ssa.OpAMD64DIVWU:
+		// for unsigned ints, we sign extend by setting DX = 0
+		// signed ints were sign extended above
+		if v.Op == ssa.OpAMD64DIVQU || v.Op == ssa.OpAMD64MODQU ||
+			v.Op == ssa.OpAMD64DIVLU || v.Op == ssa.OpAMD64MODLU ||
+			v.Op == ssa.OpAMD64DIVWU || v.Op == ssa.OpAMD64MODWU {
 			c := Prog(x86.AXORQ)
 			c.From.Type = obj.TYPE_REG
 			c.From.Reg = x86.REG_DX
 			c.To.Type = obj.TYPE_REG
 			c.To.Reg = x86.REG_DX
-		case ssa.OpAMD64DIVQ:
-			Prog(x86.ACQO)
-		case ssa.OpAMD64DIVL:
-			Prog(x86.ACDQ)
-		case ssa.OpAMD64DIVW:
-			Prog(x86.ACWD)
 		}
 
 		p := Prog(v.Op.Asm())
@@ -2161,9 +2171,21 @@ func genValue(v *ssa.Value) {
 			j2 := Prog(obj.AJMP)
 			j2.To.Type = obj.TYPE_BRANCH
 
-			n := Prog(x86.ANEGQ)
-			n.To.Type = obj.TYPE_REG
-			n.To.Reg = x86.REG_AX
+			var n *obj.Prog
+			if v.Op == ssa.OpAMD64DIVQ || v.Op == ssa.OpAMD64DIVL ||
+				v.Op == ssa.OpAMD64DIVW {
+				// n * -1 = -n
+				n = Prog(x86.ANEGQ)
+				n.To.Type = obj.TYPE_REG
+				n.To.Reg = x86.REG_AX
+			} else {
+				// n % -1 == 0
+				n = Prog(x86.AXORQ)
+				n.From.Type = obj.TYPE_REG
+				n.From.Reg = x86.REG_DX
+				n.To.Type = obj.TYPE_REG
+				n.To.Reg = x86.REG_DX
+			}
 
 			j.To.Val = n
 			j2.To.Val = Pc

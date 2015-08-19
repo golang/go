@@ -103,6 +103,8 @@ func init() {
 			clobbers: dx | flags}
 		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
 			clobbers: ax | flags}
+		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
+			clobbers: ax | flags}
 		gp10 = regInfo{inputs: []regMask{gp}}
 
 		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
@@ -201,6 +203,13 @@ func init() {
 		{name: "DIVQU", reg: gp11div, asm: "DIVQ"}, // arg0 / arg1
 		{name: "DIVLU", reg: gp11div, asm: "DIVL"}, // arg0 / arg1
 		{name: "DIVWU", reg: gp11div, asm: "DIVW"}, // arg0 / arg1
+
+		{name: "MODQ", reg: gp11mod, asm: "IDIVQ"}, // arg0 % arg1
+		{name: "MODL", reg: gp11mod, asm: "IDIVL"}, // arg0 % arg1
+		{name: "MODW", reg: gp11mod, asm: "IDIVW"}, // arg0 % arg1
+		{name: "MODQU", reg: gp11mod, asm: "DIVQ"}, // arg0 % arg1
+		{name: "MODLU", reg: gp11mod, asm: "DIVL"}, // arg0 % arg1
+		{name: "MODWU", reg: gp11mod, asm: "DIVW"}, // arg0 % arg1
 
 		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
 		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
