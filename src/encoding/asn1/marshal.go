@@ -640,10 +640,16 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 //	printable:	causes strings to be marshaled as ASN.1, PrintableString strings.
 //	utf8:		causes strings to be marshaled as ASN.1, UTF8 strings
 func Marshal(val interface{}) ([]byte, error) {
+	return MarshalWithParams(val, "")
+}
+
+// MarshalWithParams allows field parameters to be specified for the top-level
+// element. The form of the params is the same as the field tags.
+func MarshalWithParams(val interface{}, params string) ([]byte, error) {
 	var out bytes.Buffer
 	v := reflect.ValueOf(val)
 	f := newForkableWriter()
-	err := marshalField(f, v, fieldParameters{})
+	err := marshalField(f, v, parseFieldParameters(params))
 	if err != nil {
 		return nil, err
 	}
