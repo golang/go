@@ -538,7 +538,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		if len(rv.FullBytes) != 0 {
 			_, err = out.Write(rv.FullBytes)
 		} else {
-			err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
+			err = marshalTagAndLength(out, tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound, false})
 			if err != nil {
 				return
 			}
@@ -613,7 +613,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		class = classContextSpecific
 	}
 
-	err = marshalTagAndLength(tags, tagAndLength{class, tag, bodyLen, isCompound})
+	err = marshalTagAndLength(tags, tagAndLength{class, tag, bodyLen, isCompound, false})
 	if err != nil {
 		return
 	}
