@@ -222,7 +222,10 @@ static void *thr(void *arg) {
 
 static void foo() {
     pthread_t th;
-    pthread_create(&th, 0, thr, 0);
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 256 << 10);
+    pthread_create(&th, &attr, thr, 0);
     pthread_join(th, 0);
 }
 */
