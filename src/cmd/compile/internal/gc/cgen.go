@@ -2018,11 +2018,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		Regalloc(&n2, nr.Type, nil)
 		Cgen(nr, &n2)
 		nr = &n2
-		Regfree(&n2)
 
 		Regalloc(&n1, nl.Type, nil)
 		Cgen(&tmp, &n1)
 		Regfree(&n1)
+		Regfree(&n2)
 	} else {
 		var n1 Node
 		if !nl.Addable && Ctxt.Arch.Thechar == '8' {
