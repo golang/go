@@ -287,6 +287,17 @@ var genericOps = []opData{
 	{name: "Trunc64to16"},
 	{name: "Trunc64to32"},
 
+	{name: "Cvt32to32F"},
+	{name: "Cvt32to64F"},
+	{name: "Cvt64to32F"},
+	{name: "Cvt64to64F"},
+	{name: "Cvt32Fto32"},
+	{name: "Cvt32Fto64"},
+	{name: "Cvt64Fto32"},
+	{name: "Cvt64Fto64"},
+	{name: "Cvt32Fto64F"},
+	{name: "Cvt64Fto32F"},
+
 	// Automatically inserted safety checks
 	{name: "IsNonNil"},   // arg0 != nil
 	{name: "IsInBounds"}, // 0 <= arg0 < arg1

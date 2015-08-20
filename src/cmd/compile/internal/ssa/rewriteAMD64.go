@@ -1688,6 +1688,166 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endc395c0a53eeccf597e225a07b53047d1
 	endc395c0a53eeccf597e225a07b53047d1:
 		;
+	case OpCvt32Fto32:
+		// match: (Cvt32Fto32 x)
+		// cond:
+		// result: (CVTSS2SL x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSS2SL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endad55e2986dea26975574ee27f4976d5e
+	endad55e2986dea26975574ee27f4976d5e:
+		;
+	case OpCvt32Fto64:
+		// match: (Cvt32Fto64 x)
+		// cond:
+		// result: (CVTSS2SQ x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSS2SQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end227800dc831e0b4ef80fa315133c0991
+	end227800dc831e0b4ef80fa315133c0991:
+		;
+	case OpCvt32Fto64F:
+		// match: (Cvt32Fto64F x)
+		// cond:
+		// result: (CVTSS2SD x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSS2SD
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end0bf5d6f8d182ee2b3ab7d7c2f8ff7790
+	end0bf5d6f8d182ee2b3ab7d7c2f8ff7790:
+		;
+	case OpCvt32to32F:
+		// match: (Cvt32to32F x)
+		// cond:
+		// result: (CVTSL2SS x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSL2SS
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto ende0bdea2b21aecdb8399d6fd80ddc97d6
+	ende0bdea2b21aecdb8399d6fd80ddc97d6:
+		;
+	case OpCvt32to64F:
+		// match: (Cvt32to64F x)
+		// cond:
+		// result: (CVTSL2SD x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSL2SD
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto ende06cbe745112bcf0e6612788ef71c958
+	ende06cbe745112bcf0e6612788ef71c958:
+		;
+	case OpCvt64Fto32:
+		// match: (Cvt64Fto32 x)
+		// cond:
+		// result: (CVTSD2SL x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSD2SL
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end1ce5fd52f29d5a42d1aa08d7ac53e49e
+	end1ce5fd52f29d5a42d1aa08d7ac53e49e:
+		;
+	case OpCvt64Fto32F:
+		// match: (Cvt64Fto32F x)
+		// cond:
+		// result: (CVTSD2SS x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSD2SS
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endfd70158a96824ced99712d606c607d94
+	endfd70158a96824ced99712d606c607d94:
+		;
+	case OpCvt64Fto64:
+		// match: (Cvt64Fto64 x)
+		// cond:
+		// result: (CVTSD2SQ x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSD2SQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end8239c11ce860dc3b5417d4d2ae59386a
+	end8239c11ce860dc3b5417d4d2ae59386a:
+		;
+	case OpCvt64to32F:
+		// match: (Cvt64to32F x)
+		// cond:
+		// result: (CVTSQ2SS x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSQ2SS
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endfecc08b8a8cbd2bf3be21a077c4d0d40
+	endfecc08b8a8cbd2bf3be21a077c4d0d40:
+		;
+	case OpCvt64to64F:
+		// match: (Cvt64to64F x)
+		// cond:
+		// result: (CVTSQ2SD x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64CVTSQ2SD
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto endf74ce5df659f385f75c61187b515a5d0
+	endf74ce5df659f385f75c61187b515a5d0:
+		;
 	case OpDiv16:
 		// match: (Div16 x y)
 		// cond:

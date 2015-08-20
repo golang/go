@@ -101,6 +101,19 @@
 (ZeroExt16to64 x) -> (MOVWQZX x)
 (ZeroExt32to64 x) -> (MOVLQZX x)
 
+(Cvt32to32F x) -> (CVTSL2SS x)
+(Cvt32to64F x) -> (CVTSL2SD x)
+(Cvt64to32F x) -> (CVTSQ2SS x)
+(Cvt64to64F x) -> (CVTSQ2SD x)
+
+(Cvt32Fto32 x) -> (CVTSS2SL x)
+(Cvt32Fto64 x) -> (CVTSS2SQ x)
+(Cvt64Fto32 x) -> (CVTSD2SL x)
+(Cvt64Fto64 x) -> (CVTSD2SQ x)
+
+(Cvt32Fto64F x) -> (CVTSS2SD x)
+(Cvt64Fto32F x) -> (CVTSD2SS x)
+
 // Because we ignore high parts of registers, truncates are just copies.
 (Trunc16to8 x) -> x
 (Trunc32to8 x) -> x

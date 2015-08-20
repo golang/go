@@ -209,6 +209,16 @@ const (
 	OpAMD64MOVWconst
 	OpAMD64MOVLconst
 	OpAMD64MOVQconst
+	OpAMD64CVTSD2SL
+	OpAMD64CVTSD2SQ
+	OpAMD64CVTSS2SL
+	OpAMD64CVTSS2SQ
+	OpAMD64CVTSL2SS
+	OpAMD64CVTSL2SD
+	OpAMD64CVTSQ2SS
+	OpAMD64CVTSQ2SD
+	OpAMD64CVTSD2SS
+	OpAMD64CVTSS2SD
 	OpAMD64LEAQ
 	OpAMD64LEAQ1
 	OpAMD64LEAQ2
@@ -441,6 +451,16 @@ const (
 	OpTrunc64to8
 	OpTrunc64to16
 	OpTrunc64to32
+	OpCvt32to32F
+	OpCvt32to64F
+	OpCvt64to32F
+	OpCvt64to64F
+	OpCvt32Fto32
+	OpCvt32Fto64
+	OpCvt64Fto32
+	OpCvt64Fto64
+	OpCvt32Fto64F
+	OpCvt64Fto32F
 	OpIsNonNil
 	OpIsInBounds
 	OpPanicNilCheck
@@ -2522,6 +2542,126 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "CVTSD2SL",
+		asm:  x86.ACVTSD2SL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "CVTSD2SQ",
+		asm:  x86.ACVTSD2SQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "CVTSS2SL",
+		asm:  x86.ACVTSS2SL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "CVTSS2SQ",
+		asm:  x86.ACVTSS2SQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name: "CVTSL2SS",
+		asm:  x86.ACVTSL2SS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name: "CVTSL2SD",
+		asm:  x86.ACVTSL2SD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name: "CVTSQ2SS",
+		asm:  x86.ACVTSQ2SS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name: "CVTSQ2SD",
+		asm:  x86.ACVTSQ2SD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name: "CVTSD2SS",
+		asm:  x86.ACVTSD2SS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name: "CVTSS2SD",
+		asm:  x86.ACVTSS2SD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
 		name: "LEAQ",
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3604,6 +3744,46 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Trunc64to32",
+		generic: true,
+	},
+	{
+		name:    "Cvt32to32F",
+		generic: true,
+	},
+	{
+		name:    "Cvt32to64F",
+		generic: true,
+	},
+	{
+		name:    "Cvt64to32F",
+		generic: true,
+	},
+	{
+		name:    "Cvt64to64F",
+		generic: true,
+	},
+	{
+		name:    "Cvt32Fto32",
+		generic: true,
+	},
+	{
+		name:    "Cvt32Fto64",
+		generic: true,
+	},
+	{
+		name:    "Cvt64Fto32",
+		generic: true,
+	},
+	{
+		name:    "Cvt64Fto64",
+		generic: true,
+	},
+	{
+		name:    "Cvt32Fto64F",
+		generic: true,
+	},
+	{
+		name:    "Cvt64Fto32F",
 		generic: true,
 	},
 	{
