@@ -1217,6 +1217,84 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.newValue1(op, n.Type, x)
 		}
+
+		var op1, op2 ssa.Op
+		if ft.IsInteger() && tt.IsFloat() {
+			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
+			signedSize := ft.Size()
+			it := TINT32 // intermediate type in conversion, int32 or int64
+			if !ft.IsSigned() {
+				signedSize += 5
+			}
+			switch signedSize {
+			case 1:
+				op1 = ssa.OpSignExt8to32
+			case 2:
+				op1 = ssa.OpSignExt16to32
+			case 4:
+				op1 = ssa.OpCopy
+			case 8:
+				op1 = ssa.OpCopy
+				it = TINT64
+			case 6:
+				op1 = ssa.OpZeroExt8to32
+			case 7:
+				op1 = ssa.OpZeroExt16to32
+			case 9:
+				// Go wide to dodge the unsignedness correction
+				op1 = ssa.OpZeroExt32to64
+				it = TINT64
+			case 13:
+				// unsigned 64, there is branchy correction code
+				// because there is only signed-integer to FP
+				// conversion in the (AMD64) instructions set.
+				// Branchy correction code *may* be amenable to
+				// optimization, and it can be cleanly expressed
+				// in SSA, so do it here.
+				if tt.Size() == 4 {
+					return s.uint64Tofloat32(n, x, ft, tt)
+				}
+				if tt.Size() == 8 {
+					return s.uint64Tofloat64(n, x, ft, tt)
+				}
+
+			default:
+				s.Fatalf("weird integer to float sign extension %s -> %s", ft, tt)
+
+			}
+			if tt.Size() == 4 {
+				if it == TINT64 {
+					op2 = ssa.OpCvt64to32F
+				} else {
+					op2 = ssa.OpCvt32to32F
+				}
+			} else {
+				if it == TINT64 {
+					op2 = ssa.OpCvt64to64F
+				} else {
+					op2 = ssa.OpCvt32to64F
+				}
+			}
+			if op1 == ssa.OpCopy {
+				return s.newValue1(op2, n.Type, x)
+			}
+			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
+		}
+		if ft.IsFloat() && tt.IsFloat() {
+			var op ssa.Op
+			if ft.Size() == tt.Size() {
+				op = ssa.OpCopy
+			} else if ft.Size() == 4 && tt.Size() == 8 {
+				op = ssa.OpCvt32Fto64F
+			} else if ft.Size() == 8 && tt.Size() == 4 {
+				op = ssa.OpCvt64Fto32F
+			} else {
+				s.Fatalf("weird float conversion %s -> %s", ft, tt)
+			}
+			return s.newValue1(op, n.Type, x)
+		}
+		// TODO: Still lack float-to-int
+
 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
 		return nil
 
@@ -1707,6 +1785,112 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	s.vars[&memvar] = s.newValue1(ssa.OpPanicIndexCheck, ssa.TypeMem, s.mem())
 	s.endBlock()
 	s.startBlock(bNext)
+}
+
+type u2fcvtTab struct {
+	geq, cvt2F, and, rsh, or, add ssa.Op
+	one                           func(*state, ssa.Type, int64) *ssa.Value
+}
+
+var u64_f64 u2fcvtTab = u2fcvtTab{
+	geq:   ssa.OpGeq64,
+	cvt2F: ssa.OpCvt64to64F,
+	and:   ssa.OpAnd64,
+	rsh:   ssa.OpRsh64Ux64,
+	or:    ssa.OpOr64,
+	add:   ssa.OpAdd64F,
+	one:   (*state).constInt64,
+}
+
+var u64_f32 u2fcvtTab = u2fcvtTab{
+	geq:   ssa.OpGeq64,
+	cvt2F: ssa.OpCvt64to32F,
+	and:   ssa.OpAnd64,
+	rsh:   ssa.OpRsh64Ux64,
+	or:    ssa.OpOr64,
+	add:   ssa.OpAdd32F,
+	one:   (*state).constInt64,
+}
+
+// Excess generality on a machine with 64-bit integer registers.
+// Not used on AMD64.
+var u32_f32 u2fcvtTab = u2fcvtTab{
+	geq:   ssa.OpGeq32,
+	cvt2F: ssa.OpCvt32to32F,
+	and:   ssa.OpAnd32,
+	rsh:   ssa.OpRsh32Ux32,
+	or:    ssa.OpOr32,
+	add:   ssa.OpAdd32F,
+	one: func(s *state, t ssa.Type, x int64) *ssa.Value {
+		return s.constInt32(t, int32(x))
+	},
+}
+
+func (s *state) uint64Tofloat64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+	return s.uintTofloat(&u64_f64, n, x, ft, tt)
+}
+
+func (s *state) uint64Tofloat32(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+	return s.uintTofloat(&u64_f32, n, x, ft, tt)
+}
+
+func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+	// if x >= 0 {
+	//    result = (floatY) x
+	// } else {
+	// 	  y = uintX(x) ; y = x & 1
+	// 	  z = uintX(x) ; z = z >> 1
+	// 	  z = z >> 1
+	// 	  z = z | y
+	// 	  result = (floatY) z
+	// 	  z = z + z
+	// }
+	//
+	// Code borrowed from old code generator.
+	// What's going on: large 64-bit "unsigned" looks like
+	// negative number to hardware's integer-to-float
+	// conversion.  However, because the mantissa is only
+	// 63 bits, we don't need the LSB, so instead we do an
+	// unsigned right shift (divide by two), convert, and
+	// double.  However, before we do that, we need to be
+	// sure that we do not lose a "1" if that made the
+	// difference in the resulting rounding.  Therefore, we
+	// preserve it, and OR (not ADD) it back in.  The case
+	// that matters is when the eleven discarded bits are
+	// equal to 10000000001; that rounds up, and the 1 cannot
+	// be lost else it would round down if the LSB of the
+	// candidate mantissa is 0.
+	cmp := s.newValue2(cvttab.geq, Types[TBOOL], x, s.zeroVal(ft))
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Control = cmp
+	b.Likely = ssa.BranchLikely
+
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bAfter := s.f.NewBlock(ssa.BlockPlain)
+
+	addEdge(b, bThen)
+	s.startBlock(bThen)
+	a0 := s.newValue1(cvttab.cvt2F, tt, x)
+	s.vars[n] = a0
+	s.endBlock()
+	addEdge(bThen, bAfter)
+
+	addEdge(b, bElse)
+	s.startBlock(bElse)
+	one := cvttab.one(s, ft, 1)
+	y := s.newValue2(cvttab.and, ft, x, one)
+	z := s.newValue2(cvttab.rsh, ft, x, one)
+	z = s.newValue2(cvttab.or, ft, z, y)
+	a := s.newValue1(cvttab.cvt2F, tt, z)
+	a1 := s.newValue2(cvttab.add, tt, a, a)
+	s.vars[n] = a1
+	s.endBlock()
+	addEdge(bElse, bAfter)
+
+	s.startBlock(bAfter)
+	return s.variable(n, n.Type)
 }
 
 // checkgoto checks that a goto from from to to does not
@@ -2425,12 +2609,11 @@ func genValue(v *ssa.Value) {
 		p.To.Scale = 4
 		p.To.Index = regnum(v.Args[1])
 		addAux(&p.To, v)
-	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX:
-		p := Prog(v.Op.Asm())
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = regnum(v.Args[0])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
+	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
+		ssa.OpAMD64CVTSL2SS, ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSQ2SD,
+		ssa.OpAMD64CVTSS2SL, ssa.OpAMD64CVTSD2SL, ssa.OpAMD64CVTSS2SQ, ssa.OpAMD64CVTSD2SQ,
+		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
+		opregreg(v.Op.Asm(), regnum(v), regnum(v.Args[0]))
 	case ssa.OpAMD64MOVXzero:
 		nb := v.AuxInt
 		offset := int64(0)

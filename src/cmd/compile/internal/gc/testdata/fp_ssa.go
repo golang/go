@@ -31,8 +31,41 @@ func fail32(s string, f func(a, b float32) float32, a, b, e float32) int {
 func expect64(s string, x, expected float64) int {
 	if x != expected {
 		println("Expected", expected, "for", s, ", got", x)
+		return 1
 	}
 	return 0
+}
+
+func expect32(s string, x, expected float32) int {
+	if x != expected {
+		println("Expected", expected, "for", s, ", got", x)
+		return 1
+	}
+	return 0
+}
+
+func expectAll64(s string, expected, a, b, c, d, e, f, g, h, i float64) int {
+	fails := 0
+	fails += expect64(s+":a", a, expected)
+	fails += expect64(s+":b", b, expected)
+	fails += expect64(s+":c", c, expected)
+	fails += expect64(s+":d", d, expected)
+	fails += expect64(s+":e", e, expected)
+	fails += expect64(s+":f", f, expected)
+	fails += expect64(s+":g", g, expected)
+	return fails
+}
+
+func expectAll32(s string, expected, a, b, c, d, e, f, g, h, i float32) int {
+	fails := 0
+	fails += expect32(s+":a", a, expected)
+	fails += expect32(s+":b", b, expected)
+	fails += expect32(s+":c", c, expected)
+	fails += expect32(s+":d", d, expected)
+	fails += expect32(s+":e", e, expected)
+	fails += expect32(s+":f", f, expected)
+	fails += expect32(s+":g", g, expected)
+	return fails
 }
 
 // manysub_ssa is designed to tickle bugs that depend on register
@@ -107,6 +140,111 @@ func div32_ssa(a, b float32) float32 {
 	return a / b
 }
 
+func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
+	e int32, f uint32, g int64, h uint64, i float32) (aa, bb, cc, dd, ee, ff, gg, hh, ii float64) {
+	switch {
+	}
+	aa = float64(a)
+	bb = float64(b)
+	cc = float64(c)
+	hh = float64(h)
+	dd = float64(d)
+	ee = float64(e)
+	ff = float64(f)
+	gg = float64(g)
+	ii = float64(i)
+	return
+}
+
+func conv2Float32_ssa(a int8, b uint8, c int16, d uint16,
+	e int32, f uint32, g int64, h uint64, i float64) (aa, bb, cc, dd, ee, ff, gg, hh, ii float32) {
+	switch {
+	}
+	aa = float32(a)
+	bb = float32(b)
+	cc = float32(c)
+	dd = float32(d)
+	ee = float32(e)
+	ff = float32(f)
+	gg = float32(g)
+	hh = float32(h)
+	ii = float32(i)
+	return
+}
+
+func integer2floatConversions() int {
+	fails := 0
+	{
+		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(0, 0, 0, 0, 0, 0, 0, 0, 0)
+		fails += expectAll64("zero64", 0, a, b, c, d, e, f, g, h, i)
+	}
+	{
+		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(1, 1, 1, 1, 1, 1, 1, 1, 1)
+		fails += expectAll64("one64", 1, a, b, c, d, e, f, g, h, i)
+	}
+	{
+		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(0, 0, 0, 0, 0, 0, 0, 0, 0)
+		fails += expectAll32("zero32", 0, a, b, c, d, e, f, g, h, i)
+	}
+	{
+		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(1, 1, 1, 1, 1, 1, 1, 1, 1)
+		fails += expectAll32("one32", 1, a, b, c, d, e, f, g, h, i)
+	}
+	{
+		// Check maximum values
+		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
+		fails += expect64("a", a, 127)
+		fails += expect64("b", b, 255)
+		fails += expect64("c", c, 32767)
+		fails += expect64("d", d, 65535)
+		fails += expect64("e", e, float64(int32(0x7fffffff)))
+		fails += expect64("f", f, float64(uint32(0xffffffff)))
+		fails += expect64("g", g, float64(int64(0x7fffffffffffffff)))
+		fails += expect64("h", h, float64(uint64(0xffffffffffffffff)))
+		fails += expect64("i", i, float64(float32(3.402823E38)))
+	}
+	{
+		// Check minimum values (and tweaks for unsigned)
+		a, b, c, d, e, f, g, h, i := conv2Float64_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
+		fails += expect64("a", a, -128)
+		fails += expect64("b", b, 254)
+		fails += expect64("c", c, -32768)
+		fails += expect64("d", d, 65534)
+		fails += expect64("e", e, float64(^int32(0x7fffffff)))
+		fails += expect64("f", f, float64(uint32(0xfffffffe)))
+		fails += expect64("g", g, float64(^int64(0x7fffffffffffffff)))
+		fails += expect64("h", h, float64(uint64(0xfffffffffffff401)))
+		fails += expect64("i", i, float64(float32(1.5E-45)))
+	}
+	{
+		// Check maximum values
+		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(127, 255, 32767, 65535, 0x7fffffff, 0xffffffff, 0x7fffFFFFffffFFFF, 0xffffFFFFffffFFFF, 3.402823E38)
+		fails += expect32("a", a, 127)
+		fails += expect32("b", b, 255)
+		fails += expect32("c", c, 32767)
+		fails += expect32("d", d, 65535)
+		fails += expect32("e", e, float32(int32(0x7fffffff)))
+		fails += expect32("f", f, float32(uint32(0xffffffff)))
+		fails += expect32("g", g, float32(int64(0x7fffffffffffffff)))
+		fails += expect32("h", h, float32(uint64(0xffffffffffffffff)))
+		fails += expect32("i", i, float32(float64(3.402823E38)))
+	}
+	{
+		// Check minimum values (and tweaks for unsigned)
+		a, b, c, d, e, f, g, h, i := conv2Float32_ssa(-128, 254, -32768, 65534, ^0x7fffffff, 0xfffffffe, ^0x7fffFFFFffffFFFF, 0xffffFFFFffffF401, 1.5E-45)
+		fails += expect32("a", a, -128)
+		fails += expect32("b", b, 254)
+		fails += expect32("c", c, -32768)
+		fails += expect32("d", d, 65534)
+		fails += expect32("e", e, float32(^int32(0x7fffffff)))
+		fails += expect32("f", f, float32(uint32(0xfffffffe)))
+		fails += expect32("g", g, float32(^int64(0x7fffffffffffffff)))
+		fails += expect32("h", h, float32(uint64(0xfffffffffffff401)))
+		fails += expect32("i", i, float32(float64(1.5E-45)))
+	}
+	return fails
+}
+
 func main() {
 
 	a := 3.0
@@ -156,6 +294,8 @@ func main() {
 	fails += expect64("db", db, -99.0)
 	fails += expect64("dc", dc, -9.0)
 	fails += expect64("dd", dd, 44.0)
+
+	fails += integer2floatConversions()
 
 	if fails > 0 {
 		fmt.Printf("Saw %v failures\n", fails)

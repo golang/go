@@ -120,13 +120,14 @@ func init() {
 		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
 		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
 
-		// fp11     = regInfo{inputs: fponly, outputs: fponly}
 		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
 		fp21x15 = regInfo{inputs: []regMask{fp &^ x15, fp &^ x15},
 			clobbers: x15, outputs: []regMask{fp &^ x15}}
-		// fp2flags = regInfo{inputs: []regMask{fp, fp}, outputs: flagsonly}
-		// fp1flags = regInfo{inputs: fponly, outputs: flagsonly}
+
+		fpgp = regInfo{inputs: fponly, outputs: gponly}
+		gpfp = regInfo{inputs: gponly, outputs: fponly}
+		fp11 = regInfo{inputs: fponly, outputs: fponly}
 
 		fpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: fponly}
 		fploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: fponly}
@@ -327,6 +328,17 @@ func init() {
 		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
 		{name: "MOVLconst", reg: gp01, asm: "MOVL"}, // 32 low bits of auxint
 		{name: "MOVQconst", reg: gp01, asm: "MOVQ"}, // auxint
+
+		{name: "CVTSD2SL", reg: fpgp, asm: "CVTSD2SL"}, // convert float64 to int32
+		{name: "CVTSD2SQ", reg: fpgp, asm: "CVTSD2SQ"}, // convert float64 to int64
+		{name: "CVTSS2SL", reg: fpgp, asm: "CVTSS2SL"}, // convert float32 to int32
+		{name: "CVTSS2SQ", reg: fpgp, asm: "CVTSS2SQ"}, // convert float32 to int64
+		{name: "CVTSL2SS", reg: gpfp, asm: "CVTSL2SS"}, // convert int32 to float32
+		{name: "CVTSL2SD", reg: gpfp, asm: "CVTSL2SD"}, // convert int32 to float64
+		{name: "CVTSQ2SS", reg: gpfp, asm: "CVTSQ2SS"}, // convert int64 to float32
+		{name: "CVTSQ2SD", reg: gpfp, asm: "CVTSQ2SD"}, // convert int64 to float64
+		{name: "CVTSD2SS", reg: fp11, asm: "CVTSD2SS"}, // convert float64 to float32
+		{name: "CVTSS2SD", reg: fp11, asm: "CVTSS2SD"}, // convert float32 to float64
 
 		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
 		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
