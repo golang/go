@@ -20,8 +20,8 @@ import (
 
 // Server returns a new TLS server side connection
 // using conn as the underlying transport.
-// The configuration config must be non-nil and must have
-// at least one certificate.
+// The configuration config must be non-nil and must include
+// at least one certificate or else set GetCertificate.
 func Server(conn net.Conn, config *Config) *Conn {
 	return &Conn{conn: conn, config: config}
 }
@@ -53,8 +53,8 @@ func (l *listener) Accept() (c net.Conn, err error) {
 
 // NewListener creates a Listener which accepts connections from an inner
 // Listener and wraps each connection with Server.
-// The configuration config must be non-nil and must have
-// at least one certificate.
+// The configuration config must be non-nil and must include
+// at least one certificate or else set GetCertificate.
 func NewListener(inner net.Listener, config *Config) net.Listener {
 	l := new(listener)
 	l.Listener = inner
@@ -64,8 +64,8 @@ func NewListener(inner net.Listener, config *Config) net.Listener {
 
 // Listen creates a TLS listener accepting connections on the
 // given network address using net.Listen.
-// The configuration config must be non-nil and must have
-// at least one certificate.
+// The configuration config must be non-nil and must include
+// at least one certificate or else set GetCertificate.
 func Listen(network, laddr string, config *Config) (net.Listener, error) {
 	if config == nil || (len(config.Certificates) == 0 && config.GetCertificate == nil) {
 		return nil, errors.New("tls: neither Certificates nor GetCertificate set in Config")
