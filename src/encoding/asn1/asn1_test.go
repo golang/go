@@ -405,8 +405,9 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 	{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
 	{"tag:17", fieldParameters{tag: newInt(17)}},
+	{"definedby:foo", fieldParameters{definedBy: "foo"}},
 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false}},
+	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false, ""}},
 	{"set", fieldParameters{set: true}},
 }
 
@@ -949,5 +950,41 @@ func TestUnmarshalInvalidUTF8(t *testing.T) {
 		t.Fatal("Successfully unmarshaled invalid UTF-8 data")
 	} else if !strings.Contains(err.Error(), expectedSubstring) {
 		t.Fatalf("Expected error to mention %q but error was %q", expectedSubstring, err.Error())
+	}
+}
+
+type TestDefinedByStruct struct {
+	T int
+	V interface{} `asn1:"definedby:T,set"`
+}
+
+type TestDefinedByVal1 struct {
+	A, B int
+}
+
+func (TestDefinedByStruct) DefinedBy(field string, val int) interface{} {
+	if field == "V" && val == 2 {
+		return &TestDefinedByVal1{}
+	}
+	return nil
+}
+
+func TestUnmarshalDefinedBy(t *testing.T) {
+	data := []byte{0x30, 0x80, 0x02, 0x01, 0x02, 0x31, 0x80, 0x02, 0x01, 0x03, 0x02, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00}
+	var r TestDefinedByStruct
+	if rest, err := Unmarshal(data, &r); err != nil {
+		t.Fatal(err)
+	} else if len(rest) > 0 {
+		t.Fatal("bytes remaining", rest)
+	}
+
+	if r.T != 2 {
+		t.Fatal(r.T)
+	} else if v, ok := r.V.(TestDefinedByVal1); !ok {
+		t.Fatal(r.V)
+	} else if v.A != 3 {
+		t.Fatal(v.A)
+	} else if v.B != 4 {
+		t.Fatal(v.B)
 	}
 }

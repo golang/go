@@ -77,6 +77,7 @@ type fieldParameters struct {
 	timeType     int    // the time tag to use when marshaling.
 	set          bool   // true iff this should be encoded as a SET
 	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
+	definedBy    string // type is defined by this prior struct field
 
 	// Invariants:
 	//   if explicit is set, tag is non-nil.
@@ -126,6 +127,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 			}
 		case part == "omitempty":
 			ret.omitEmpty = true
+		case strings.HasPrefix(part, "definedby:"):
+			ret.definedBy = part[10:]
 		}
 	}
 	return
