@@ -387,6 +387,11 @@ func TestSetBytes(t *testing.T) {
 }
 
 func checkBytes(b []byte) bool {
+	// trim leading zero bytes since Bytes() won't return them
+	// (was issue 12231)
+	for len(b) > 0 && b[0] == 0 {
+		b = b[1:]
+	}
 	b2 := new(Int).SetBytes(b).Bytes()
 	return bytes.Equal(b, b2)
 }
@@ -661,6 +666,21 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 	D.binaryGCD(a, b)
 	if D.Cmp(d) != 0 {
 		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
+	}
+
+	// check results in presence of aliasing (issue #11284)
+	a2 := new(Int).Set(a)
+	b2 := new(Int).Set(b)
+	a2.binaryGCD(a2, b2) // result is same as 1st argument
+	if a2.Cmp(d) != 0 {
+		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, a2, d)
+	}
+
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	b2.binaryGCD(a2, b2) // result is same as 2nd argument
+	if b2.Cmp(d) != 0 {
+		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, b2, d)
 	}
 }
 
