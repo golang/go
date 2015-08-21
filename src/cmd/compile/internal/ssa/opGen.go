@@ -2202,7 +2202,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2215,7 +2214,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2228,7 +2226,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2241,7 +2238,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2254,7 +2250,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2267,7 +2262,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2280,7 +2274,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2293,7 +2286,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2306,7 +2298,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2319,7 +2310,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
