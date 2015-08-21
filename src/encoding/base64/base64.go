@@ -75,7 +75,7 @@ var URLEncoding = NewEncoding(encodeURL)
 // This is the same as StdEncoding but omits padding characters.
 var RawStdEncoding = StdEncoding.WithPadding(NoPadding)
 
-// URLEncoding is the unpadded alternate base64 encoding defined in RFC 4648.
+// RawURLEncoding is the unpadded alternate base64 encoding defined in RFC 4648.
 // It is typically used in URLs and file names.
 // This is the same as URLEncoding but omits padding characters.
 var RawURLEncoding = URLEncoding.WithPadding(NoPadding)
