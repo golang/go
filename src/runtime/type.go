@@ -27,7 +27,7 @@ type _type struct {
 	_string *string
 	x       *uncommontype
 	ptrto   *_type
-	zero    *byte // ptr to the zero value for this type
+	zero    *byte // unused
 }
 
 type method struct {

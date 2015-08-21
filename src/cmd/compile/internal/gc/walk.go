@@ -872,11 +872,6 @@ func walkexpr(np **Node, init **NodeList) {
 		typecheck(&n, Etop)
 		walkexpr(&n, init)
 
-		// mapaccess needs a zero value to be at least this big.
-		if zerosize < t.Type.Width {
-			zerosize = t.Type.Width
-		}
-
 		// TODO: ptr is always non-nil, so disable nil check for this OIND op.
 		goto ret
 
@@ -1285,10 +1280,6 @@ func walkexpr(np **Node, init **NodeList) {
 		n.Type = t.Type
 		n.Typecheck = 1
 
-		// mapaccess needs a zero value to be at least this big.
-		if zerosize < t.Type.Width {
-			zerosize = t.Type.Width
-		}
 		goto ret
 
 	case ORECV:

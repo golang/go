@@ -794,13 +794,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		sptr = weaktypesym(tptr)
 	}
 
-	// All (non-reflect-allocated) Types share the same zero object.
-	// Each place in the compiler where a pointer to the zero object
-	// might be returned by a runtime call (map access return value,
-	// 2-arg type cast) declares the size of the zerovalue it needs.
-	// The linker magically takes the max of all the sizes.
-	zero := Pkglookup("zerovalue", Runtimepkg)
-
 	gcsym, useGCProg, ptrdata := dgcsym(t)
 
 	// We use size 0 here so we get the pointer to the zero value,
@@ -876,7 +869,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot += Widthptr
 
 	ot = dsymptr(s, ot, sptr, 0) // ptrto type
-	ot = dsymptr(s, ot, zero, 0) // ptr to zero value
+	ot = duintptr(s, ot, 0)      // ptr to zero value (unused)
 	return ot
 }
 

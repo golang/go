@@ -233,7 +233,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("need padding in bucket (value)")
 	}
 
-	// make sure zero of element type is available.
+	// make sure zeroptr is large enough
 	mapzero(t.elem)
 
 	// find size parameter which will hold the requested # of elements
@@ -277,7 +277,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
-		return unsafe.Pointer(t.elem.zero)
+		return atomicloadp(unsafe.Pointer(&zeroptr))
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
@@ -312,7 +312,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return unsafe.Pointer(t.elem.zero)
+			return atomicloadp(unsafe.Pointer(&zeroptr))
 		}
 	}
 }
@@ -325,7 +325,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
-		return unsafe.Pointer(t.elem.zero), false
+		return atomicloadp(unsafe.Pointer(&zeroptr)), false
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
@@ -360,7 +360,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return unsafe.Pointer(t.elem.zero), false
+			return atomicloadp(unsafe.Pointer(&zeroptr)), false
 		}
 	}
 }
@@ -994,59 +994,39 @@ func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)
 }
 
-var zerobuf struct {
-	lock mutex
-	p    *byte
-	size uintptr
-}
+var zerolock mutex
 
-var zerotiny [1024]byte
+const initialZeroSize = 1024
 
-// mapzero ensures that t.zero points at a zero value for type t.
-// Types known to the compiler are in read-only memory and all point
-// to a single zero in the bss of a large enough size.
-// Types allocated by package reflect are in writable memory and
-// start out with zero set to nil; we initialize those on demand.
+var zeroinitial [initialZeroSize]byte
+
+// All accesses to zeroptr and zerosize must be atomic so that they
+// can be accessed without locks in the common case.
+var zeroptr unsafe.Pointer = unsafe.Pointer(&zeroinitial)
+var zerosize uintptr = initialZeroSize
+
+// mapzero ensures that zeroptr points to a buffer large enough to
+// serve as the zero value for t.
 func mapzero(t *_type) {
-	// On ARM, atomicloadp is implemented as xadd(p, 0),
-	// so we cannot use atomicloadp on read-only memory.
-	// Check whether the pointer is in the heap; if not, it's not writable
-	// so the zero value must already be set.
-	if GOARCH == "arm" && !inheap(uintptr(unsafe.Pointer(t))) {
-		if t.zero == nil {
-			print("runtime: map element ", *t._string, " missing zero value\n")
-			throw("mapzero")
-		}
+	// Is the type small enough for existing buffer?
+	cursize := uintptr(atomicloadp(unsafe.Pointer(&zerosize)))
+	if t.size <= cursize {
 		return
 	}
 
-	// Already done?
-	// Check without lock, so must use atomicload to sync with atomicstore in allocation case below.
-	if atomicloadp(unsafe.Pointer(&t.zero)) != nil {
-		return
-	}
-
-	// Small enough for static buffer?
-	if t.size <= uintptr(len(zerotiny)) {
-		atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(&zerotiny[0]))
-		return
-	}
-
-	// Use allocated buffer.
-	lock(&zerobuf.lock)
-	if zerobuf.size < t.size {
-		if zerobuf.size == 0 {
-			zerobuf.size = 4 * 1024
-		}
-		for zerobuf.size < t.size {
-			zerobuf.size *= 2
-			if zerobuf.size == 0 {
+	// Allocate a new buffer.
+	lock(&zerolock)
+	cursize = uintptr(atomicloadp(unsafe.Pointer(&zerosize)))
+	if cursize < t.size {
+		for cursize < t.size {
+			cursize *= 2
+			if cursize == 0 {
 				// need >2GB zero on 32-bit machine
 				throw("map element too large")
 			}
 		}
-		zerobuf.p = (*byte)(persistentalloc(zerobuf.size, 64, &memstats.other_sys))
+		atomicstorep1(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
+		atomicstorep1(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
 	}
-	atomicstorep(unsafe.Pointer(&t.zero), unsafe.Pointer(zerobuf.p))
-	unlock(&zerobuf.lock)
+	unlock(&zerolock)
 }
