@@ -796,11 +796,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 
 	gcsym, useGCProg, ptrdata := dgcsym(t)
 
-	// We use size 0 here so we get the pointer to the zero value,
-	// but don't allocate space for the zero value unless we need it.
-	// TODO: how do we get this symbol into bss?  We really want
-	// a read-only bss, but I don't think such a thing exists.
-
 	// ../../pkg/reflect/type.go:/^type.commonType
 	// actual type structure
 	//	type commonType struct {
@@ -816,7 +811,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		string        *string
 	//		*extraType
 	//		ptrToThis     *Type
-	//		zero          unsafe.Pointer
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
 	ot = duintptr(s, ot, uint64(ptrdata))
@@ -869,7 +863,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot += Widthptr
 
 	ot = dsymptr(s, ot, sptr, 0) // ptrto type
-	ot = duintptr(s, ot, 0)      // ptr to zero value (unused)
 	return ot
 }
 
@@ -1052,7 +1045,7 @@ ok:
 	switch t.Etype {
 	default:
 		ot = dcommontype(s, ot, t)
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 
 	case TARRAY:
 		if t.Bound >= 0 {
@@ -1064,7 +1057,7 @@ ok:
 			t2.Bound = -1 // slice
 			s2 := dtypesym(t2)
 			ot = dcommontype(s, ot, t)
-			xt = ot - 3*Widthptr
+			xt = ot - 2*Widthptr
 			ot = dsymptr(s, ot, s1, 0)
 			ot = dsymptr(s, ot, s2, 0)
 			ot = duintptr(s, ot, uint64(t.Bound))
@@ -1073,7 +1066,7 @@ ok:
 			s1 := dtypesym(t.Type)
 
 			ot = dcommontype(s, ot, t)
-			xt = ot - 3*Widthptr
+			xt = ot - 2*Widthptr
 			ot = dsymptr(s, ot, s1, 0)
 		}
 
@@ -1082,7 +1075,7 @@ ok:
 		s1 := dtypesym(t.Type)
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = duintptr(s, ot, uint64(t.Chan))
 
@@ -1101,7 +1094,7 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
 
 		// two slice headers: in and out.
@@ -1140,7 +1133,7 @@ ok:
 		// ../../runtime/type.go:/InterfaceType
 		ot = dcommontype(s, ot, t)
 
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
@@ -1160,7 +1153,7 @@ ok:
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
 		ot = dcommontype(s, ot, t)
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = dsymptr(s, ot, s2, 0)
 		ot = dsymptr(s, ot, s3, 0)
@@ -1196,7 +1189,7 @@ ok:
 		s1 := dtypesym(t.Type)
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 
 		// ../../runtime/type.go:/StructType
@@ -1210,7 +1203,7 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 3*Widthptr
+		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)

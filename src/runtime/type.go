@@ -8,8 +8,8 @@ package runtime
 
 import "unsafe"
 
-// Needs to be in sync with ../cmd/internal/ld/decodesym.go:/^func.commonsize,
-// ../cmd/internal/gc/reflect.go:/^func.dcommontype and
+// Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
+// ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
 // ../reflect/type.go:/^type.rtype.
 type _type struct {
 	size       uintptr
@@ -27,7 +27,6 @@ type _type struct {
 	_string *string
 	x       *uncommontype
 	ptrto   *_type
-	zero    *byte // unused
 }
 
 type method struct {

@@ -247,17 +247,16 @@ const (
 type rtype struct {
 	size          uintptr
 	ptrdata       uintptr
-	hash          uint32         // hash of type; avoids computation in hash tables
-	_             uint8          // unused/padding
-	align         uint8          // alignment of variable with this type
-	fieldAlign    uint8          // alignment of struct field with this type
-	kind          uint8          // enumeration for C
-	alg           *typeAlg       // algorithm table
-	gcdata        *byte          // garbage collection data
-	string        *string        // string form; unnecessary but undeniably useful
-	*uncommonType                // (relatively) uncommon fields
-	ptrToThis     *rtype         // type for pointer to this type, if used in binary or has methods
-	zero          unsafe.Pointer // unused
+	hash          uint32   // hash of type; avoids computation in hash tables
+	_             uint8    // unused/padding
+	align         uint8    // alignment of variable with this type
+	fieldAlign    uint8    // alignment of struct field with this type
+	kind          uint8    // enumeration for C
+	alg           *typeAlg // algorithm table
+	gcdata        *byte    // garbage collection data
+	string        *string  // string form; unnecessary but undeniably useful
+	*uncommonType          // (relatively) uncommon fields
+	ptrToThis     *rtype   // type for pointer to this type, if used in binary or has methods
 }
 
 // a copy of runtime.typeAlg
