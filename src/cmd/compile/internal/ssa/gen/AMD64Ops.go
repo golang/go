@@ -105,9 +105,10 @@ func init() {
 			clobbers: ax | flags}
 		gp10 = regInfo{inputs: []regMask{gp}}
 
-		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
-		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
-		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
+		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly, clobbers: flags}
+		readflags = regInfo{inputs: flagsonly, outputs: gponly}
 
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
@@ -294,16 +295,16 @@ func init() {
 		{name: "SBBLcarrymask", reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
 
-		{name: "SETEQ", reg: flagsgp, asm: "SETEQ"}, // extract == condition from arg0
-		{name: "SETNE", reg: flagsgp, asm: "SETNE"}, // extract != condition from arg0
-		{name: "SETL", reg: flagsgp, asm: "SETLT"},  // extract signed < condition from arg0
-		{name: "SETLE", reg: flagsgp, asm: "SETLE"}, // extract signed <= condition from arg0
-		{name: "SETG", reg: flagsgp, asm: "SETGT"},  // extract signed > condition from arg0
-		{name: "SETGE", reg: flagsgp, asm: "SETGE"}, // extract signed >= condition from arg0
-		{name: "SETB", reg: flagsgp, asm: "SETCS"},  // extract unsigned < condition from arg0
-		{name: "SETBE", reg: flagsgp, asm: "SETLS"}, // extract unsigned <= condition from arg0
-		{name: "SETA", reg: flagsgp, asm: "SETHI"},  // extract unsigned > condition from arg0
-		{name: "SETAE", reg: flagsgp, asm: "SETCC"}, // extract unsigned >= condition from arg0
+		{name: "SETEQ", reg: readflags, asm: "SETEQ"}, // extract == condition from arg0
+		{name: "SETNE", reg: readflags, asm: "SETNE"}, // extract != condition from arg0
+		{name: "SETL", reg: readflags, asm: "SETLT"},  // extract signed < condition from arg0
+		{name: "SETLE", reg: readflags, asm: "SETLE"}, // extract signed <= condition from arg0
+		{name: "SETG", reg: readflags, asm: "SETGT"},  // extract signed > condition from arg0
+		{name: "SETGE", reg: readflags, asm: "SETGE"}, // extract signed >= condition from arg0
+		{name: "SETB", reg: readflags, asm: "SETCS"},  // extract unsigned < condition from arg0
+		{name: "SETBE", reg: readflags, asm: "SETLS"}, // extract unsigned <= condition from arg0
+		{name: "SETA", reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
+		{name: "SETAE", reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
 
 		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
 		{name: "MOVBQZX", reg: gp11, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
