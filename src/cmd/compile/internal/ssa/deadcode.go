@@ -6,6 +6,20 @@ package ssa
 
 // findlive returns the reachable blocks and live values in f.
 func findlive(f *Func) (reachable []bool, live []bool) {
+	// After regalloc, consider all blocks and values to be reachable and live.
+	// See the comment at the top of regalloc.go and in deadcode for details.
+	if f.RegAlloc != nil {
+		reachable = make([]bool, f.NumBlocks())
+		for i := range reachable {
+			reachable[i] = true
+		}
+		live = make([]bool, f.NumValues())
+		for i := range live {
+			live[i] = true
+		}
+		return reachable, live
+	}
+
 	// Find all reachable basic blocks.
 	reachable = make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
