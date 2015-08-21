@@ -257,7 +257,7 @@ type rtype struct {
 	string        *string        // string form; unnecessary but undeniably useful
 	*uncommonType                // (relatively) uncommon fields
 	ptrToThis     *rtype         // type for pointer to this type, if used in binary or has methods
-	zero          unsafe.Pointer // pointer to zero value
+	zero          unsafe.Pointer // unused
 }
 
 // a copy of runtime.typeAlg
