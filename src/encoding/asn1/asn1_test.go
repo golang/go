@@ -347,22 +347,23 @@ type tagAndLengthTest struct {
 }
 
 var tagAndLengthData = []tagAndLengthTest{
-	{[]byte{0x80, 0x01}, true, tagAndLength{2, 0, 1, false}},
-	{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true}},
-	{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false}},
-	{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true}},
-	{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
-	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
-	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
-	{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false}},
-	{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false}},
+	{[]byte{0x80, 0x01}, true, tagAndLength{2, 0, 1, false, false}},
+	{[]byte{0xa0, 0x01}, true, tagAndLength{2, 0, 1, true, false}},
+	{[]byte{0x02, 0x00}, true, tagAndLength{0, 2, 0, false, false}},
+	{[]byte{0xfe, 0x00}, true, tagAndLength{3, 30, 0, true, false}},
+	{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false, false}},
+	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false, false}},
+	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false, false}},
+	{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false, false}},
+	{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false, false}},
 	{[]byte{0x00, 0x83, 0x01, 0x00}, false, tagAndLength{}},
 	{[]byte{0x1f, 0x85}, false, tagAndLength{}},
-	{[]byte{0x30, 0x80}, false, tagAndLength{}},
+	// Indefinite length.
+	{[]byte{0x30, 0x80, 0x02, 0x01, 0x04, 0x00, 0x00}, true, tagAndLength{0, 16, 3, true, true}},
 	// Superfluous zeros in the length should be an error.
 	{[]byte{0xa0, 0x82, 0x00, 0x01}, false, tagAndLength{}},
 	// Lengths up to the maximum size of an int should work.
-	{[]byte{0xa0, 0x84, 0x7f, 0xff, 0xff, 0xff}, true, tagAndLength{2, 0, 0x7fffffff, true}},
+	{[]byte{0xa0, 0x84, 0x7f, 0xff, 0xff, 0xff}, true, tagAndLength{2, 0, 0x7fffffff, true, false}},
 	// Lengths that would overflow an int should be rejected.
 	{[]byte{0xa0, 0x84, 0x80, 0x00, 0x00, 0x00}, false, tagAndLength{}},
 }
@@ -404,8 +405,9 @@ var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParame
 	{"optional,explicit", fieldParameters{optional: true, explicit: true, tag: new(int)}},
 	{"default:42", fieldParameters{defaultValue: newInt64(42)}},
 	{"tag:17", fieldParameters{tag: newInt(17)}},
+	{"definedby:foo", fieldParameters{definedBy: "foo"}},
 	{"optional,explicit,default:42,tag:17", fieldParameters{optional: true, explicit: true, defaultValue: newInt64(42), tag: newInt(17)}},
-	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false}},
+	{"optional,explicit,default:42,tag:17,rubbish1", fieldParameters{true, true, false, newInt64(42), newInt(17), 0, 0, false, false, ""}},
 	{"set", fieldParameters{set: true}},
 }
 
@@ -448,6 +450,11 @@ type TestSet struct {
 	Ints []int `asn1:"set"`
 }
 
+type TestExplicitIndefinite struct {
+	T    TestContextSpecificTags2 `asn1:"explicit,tag:2,set"`
+	Ints []int                    `asn1:"explicit,application"`
+}
+
 var unmarshalTestData = []struct {
 	in  []byte
 	out interface{}
@@ -469,6 +476,11 @@ var unmarshalTestData = []struct {
 	{[]byte{0x30, 0x0b, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33}, &TestElementsAfterString{"foo", 0x22, 0x33}},
 	{[]byte{0x30, 0x05, 0x02, 0x03, 0x12, 0x34, 0x56}, &TestBigInt{big.NewInt(0x123456)}},
 	{[]byte{0x30, 0x0b, 0x31, 0x09, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03}, &TestSet{Ints: []int{1, 2, 3}}},
+	{[]byte{0x30, 0x80, 0x31, 0x80, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03, 0x00, 0x00, 0x00, 0x00}, &TestSet{Ints: []int{1, 2, 3}}},
+	{[]byte{0x30, 0x80, 0x13, 0x03, 0x66, 0x6f, 0x6f, 0x02, 0x01, 0x22, 0x02, 0x01, 0x33, 0x00, 0x00}, &TestElementsAfterString{"foo", 0x22, 0x33}},
+	{[]byte{0x30, 0x80, 0xa2, 0x80, 0x31, 0x08, 0xa1, 0x03, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x00, 0x00,
+		0x60, 0x80, 0x30, 0x80, 0x02, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		&TestExplicitIndefinite{TestContextSpecificTags2{1, 2}, []int{2}}},
 }
 
 func TestUnmarshal(t *testing.T) {
@@ -938,5 +950,41 @@ func TestUnmarshalInvalidUTF8(t *testing.T) {
 		t.Fatal("Successfully unmarshaled invalid UTF-8 data")
 	} else if !strings.Contains(err.Error(), expectedSubstring) {
 		t.Fatalf("Expected error to mention %q but error was %q", expectedSubstring, err.Error())
+	}
+}
+
+type TestDefinedByStruct struct {
+	T int
+	V interface{} `asn1:"definedby:T,set"`
+}
+
+type TestDefinedByVal1 struct {
+	A, B int
+}
+
+func (TestDefinedByStruct) DefinedBy(field string, val int) interface{} {
+	if field == "V" && val == 2 {
+		return &TestDefinedByVal1{}
+	}
+	return nil
+}
+
+func TestUnmarshalDefinedBy(t *testing.T) {
+	data := []byte{0x30, 0x80, 0x02, 0x01, 0x02, 0x31, 0x80, 0x02, 0x01, 0x03, 0x02, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00}
+	var r TestDefinedByStruct
+	if rest, err := Unmarshal(data, &r); err != nil {
+		t.Fatal(err)
+	} else if len(rest) > 0 {
+		t.Fatal("bytes remaining", rest)
+	}
+
+	if r.T != 2 {
+		t.Fatal(r.T)
+	} else if v, ok := r.V.(TestDefinedByVal1); !ok {
+		t.Fatal(r.V)
+	} else if v.A != 3 {
+		t.Fatal(v.A)
+	} else if v.B != 4 {
+		t.Fatal(v.B)
 	}
 }

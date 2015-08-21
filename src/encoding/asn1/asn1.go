@@ -450,9 +450,31 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 		// Bottom 7 bits give the number of length bytes to follow.
 		numBytes := int(b & 0x7f)
 		if numBytes == 0 {
-			err = SyntaxError{"indefinite length found (not DER)"}
+			if !ret.isCompound {
+				err = SyntaxError{"indefinite length for non-constructed type"}
+				return
+			}
+			ret.isIndefinite = true
+			innerOffset := offset
+			for innerOffset <= (len(bytes) - 2) {
+				if bytes[innerOffset] == 0x00 && bytes[innerOffset+1] == 0x00 {
+					ret.length = innerOffset - offset
+					return
+				}
+				var t tagAndLength
+				t, innerOffset, err = parseTagAndLength(bytes, innerOffset)
+				if err != nil {
+					return
+				}
+				innerOffset += t.length
+				if t.isIndefinite {
+					innerOffset += 2
+				}
+			}
+			err = SyntaxError{"missing end-of-contents octets"}
 			return
 		}
+
 		ret.length = 0
 		for i := 0; i < numBytes; i++ {
 			if offset >= len(bytes) {
@@ -519,6 +541,9 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		offset += t.length
+		if t.isIndefinite {
+			offset += 2
+		}
 		numElements++
 	}
 	ret = reflect.MakeSlice(sliceType, numElements, numElements)
@@ -578,6 +603,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
 		offset += t.length
+		if t.isIndefinite {
+			offset += 2
+		}
 		v.Set(reflect.ValueOf(result))
 		return
 	}
@@ -622,6 +650,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			}
 		}
 		offset += t.length
+		if t.isIndefinite {
+			offset += 2
+		}
 		if err != nil {
 			return
 		}
@@ -640,6 +671,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	if err != nil {
 		return
 	}
+	explicitIsIndefinite := params.explicit && t.isIndefinite
 	if params.explicit {
 		expectedClass := classContextSpecific
 		if params.application {
@@ -728,8 +760,25 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		err = SyntaxError{"data truncated"}
 		return
 	}
-	innerBytes := bytes[offset : offset+t.length]
+
+	err = parseFieldContents(v, universalTag, bytes[initOffset:offset+t.length], offset-initOffset)
+	if err != nil {
+		return
+	}
 	offset += t.length
+	if t.isIndefinite {
+		offset += 2
+	}
+	if explicitIsIndefinite {
+		offset += 2
+	}
+
+	return
+}
+
+func parseFieldContents(v reflect.Value, universalTag int, bytes []byte, offset int) (err error) {
+	innerBytes := bytes[offset:]
+	fieldType := v.Type()
 
 	// We deal with the structures defined in this package first.
 	switch fieldType {
@@ -805,7 +854,6 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 		if structType.NumField() > 0 &&
 			structType.Field(0).Type == rawContentsType {
-			bytes := bytes[initOffset:offset]
 			val.Field(0).Set(reflect.ValueOf(RawContent(bytes)))
 		}
 
@@ -815,9 +863,24 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			if i == 0 && field.Type == rawContentsType {
 				continue
 			}
-			innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag.Get("asn1")))
-			if err != nil {
-				return
+
+			params := parseFieldParameters(field.Tag.Get("asn1"))
+			if params.definedBy != "" {
+				fv, err1 := getDefinedByValue(val, i, params.definedBy)
+				if err1 != nil {
+					err = err1
+					return
+				}
+				innerOffset, err = parseField(fv, innerBytes, innerOffset, parseFieldParameters(field.Tag.Get("asn1")))
+				if err != nil {
+					return
+				}
+				val.Field(i).Set(fv)
+			} else {
+				innerOffset, err = parseField(val.Field(i), innerBytes, innerOffset, parseFieldParameters(field.Tag.Get("asn1")))
+				if err != nil {
+					return
+				}
 			}
 		}
 		// We allow extra bytes at the end of the SEQUENCE because
@@ -895,6 +958,42 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 }
 
 // Unmarshal parses the DER-encoded ASN.1 data structure b
+func getDefinedByValue(structVal reflect.Value, fieldIndex int, definedBy string) (val reflect.Value, err error) {
+	m := structVal.MethodByName("DefinedBy")
+	if !m.IsValid() {
+		err = fmt.Errorf("asn1: %v doesn't contain a DefinedBy method", structVal)
+	}
+
+	structType := structVal.Type()
+	name := structType.Field(fieldIndex).Name
+	for i := 0; i < fieldIndex; i++ {
+		if definedBy == structType.Field(i).Name {
+			vals := []reflect.Value{
+				reflect.ValueOf(name),
+				structVal.Field(i),
+			}
+			ret := m.Call(vals)
+			if len(ret) != 1 || ret[0].Kind() != reflect.Interface {
+				err = fmt.Errorf("asn1: expected DefinedBy on %v to return interface{} type", structVal)
+				return
+			}
+			e := ret[0].Elem()
+			if !e.IsValid() {
+				err = StructuralError{"unsupported definedby for field " + name}
+				return
+			} else if e.Kind() != reflect.Ptr {
+				err = fmt.Errorf("asn1: expected DefinedBy on %v to return pointer", structVal)
+				return
+			}
+			val = e.Elem()
+			return
+		}
+	}
+	err = fmt.Errorf("asn1: missing %v definedby field %s", structVal, name)
+	return
+}
+
+// Unmarshal parses the BER-encoded ASN.1 data structure b
 // and uses the reflect package to fill in an arbitrary value pointed at by val.
 // Because Unmarshal uses the reflect package, the structs
 // being written to must use upper case field names.
@@ -936,6 +1035,14 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 //	optional	marks the field as ASN.1 OPTIONAL
 //	set		causes a SET, rather than a SEQUENCE type to be expected
 //	tag:x		specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+//	definedby:x	handles ANY DEFINED BY (see below)
+//
+// The "definedby:x" tag indicates that the given struct field's content type is
+// defined by a previous struct field named "x". The field must have type
+// interface{}, and the struct must define a "DefinedBy" method. The method will
+// be passed the "definedby" field name and the (unmarshalled) value of field
+// "x", and should return a pointer to the type that the "definedby" field
+// should be unmarshalled as, or nil if unsupported.
 //
 // If the type of the first field of a structure is RawContent then the raw
 // ASN1 contents of the struct will be stored in it.
