@@ -1349,6 +1349,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue1(op, Types[TINT], s.expr(n.Left))
 		case n.Left.Type.IsString(): // string; not reachable for OCAP
 			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
+		case n.Left.Type.IsMap():
+			s.Unimplementedf("unhandled len(map)")
+			return nil
+		case n.Left.Type.IsChan():
+			if n.Op == OCAP {
+				s.Unimplementedf("unhandled cap(chan)")
+			} else {
+				s.Unimplementedf("unhandled len(chan)")
+			}
+			return nil
 		default: // array
 			return s.constInt(Types[TINT], n.Left.Type.Bound)
 		}

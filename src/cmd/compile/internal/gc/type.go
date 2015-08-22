@@ -64,6 +64,14 @@ func (t *Type) IsString() bool {
 	return t.Etype == TSTRING
 }
 
+func (t *Type) IsMap() bool {
+	return t.Etype == TMAP
+}
+
+func (t *Type) IsChan() bool {
+	return t.Etype == TCHAN
+}
+
 func (t *Type) IsSlice() bool {
 	return t.Etype == TARRAY && t.Bound < 0
 }
