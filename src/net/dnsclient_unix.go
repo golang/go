@@ -165,9 +165,6 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, err
 	if len(cfg.servers) == 0 {
 		return "", nil, &DNSError{Err: "no DNS servers", Name: name}
 	}
-	if len(name) >= 256 {
-		return "", nil, &DNSError{Err: "DNS name too long", Name: name}
-	}
 	timeout := time.Duration(cfg.timeout) * time.Second
 	var lastErr error
 	for i := 0; i < cfg.attempts; i++ {
