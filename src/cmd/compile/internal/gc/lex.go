@@ -85,7 +85,7 @@ const (
 )
 
 func usage() {
-	fmt.Printf("usage: %cg [options] file.go...\n", Thearch.Thechar)
+	fmt.Printf("usage: compile [options] file.go...\n")
 	obj.Flagprint(1)
 	Exit(2)
 }
@@ -111,7 +111,7 @@ func doversion() {
 	if p != "" {
 		sep = " "
 	}
-	fmt.Printf("%cg version %s%s%s\n", Thearch.Thechar, obj.Getgoversion(), sep, p)
+	fmt.Printf("compile version %s%s%s\n", obj.Getgoversion(), sep, p)
 	os.Exit(0)
 }
 
