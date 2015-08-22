@@ -48,6 +48,9 @@ type Value struct {
 
 // short form print.  Just v#.
 func (v *Value) String() string {
+	if v == nil {
+		return "nil" // should never happen, but not panicking helps with debugging
+	}
 	return fmt.Sprintf("v%d", v.ID)
 }
 
