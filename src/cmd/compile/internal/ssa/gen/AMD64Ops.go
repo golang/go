@@ -93,11 +93,12 @@ func init() {
 
 	// Common regInfo
 	var (
-		gp01      = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
+		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
 		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
-		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly, clobbers: flags}
+		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
+		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
 		gp21      = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: gponly, clobbers: flags}
-		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly, clobbers: flags}
+		gp21sb    = regInfo{inputs: []regMask{gpspsb, gpsp}, outputs: gponly}
 		gp21shift = regInfo{inputs: []regMask{gpsp, cx}, outputs: []regMask{gp &^ cx}, clobbers: flags}
 		gp11div   = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{ax},
 			clobbers: dx | flags}
@@ -315,12 +316,12 @@ func init() {
 		{name: "SETA", reg: readflags, asm: "SETHI"},  // extract unsigned > condition from arg0
 		{name: "SETAE", reg: readflags, asm: "SETCC"}, // extract unsigned >= condition from arg0
 
-		{name: "MOVBQSX", reg: gp11, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
-		{name: "MOVBQZX", reg: gp11, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
-		{name: "MOVWQSX", reg: gp11, asm: "MOVWQSX"}, // sign extend arg0 from int16 to int64
-		{name: "MOVWQZX", reg: gp11, asm: "MOVWQZX"}, // zero extend arg0 from int16 to int64
-		{name: "MOVLQSX", reg: gp11, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
-		{name: "MOVLQZX", reg: gp11, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
+		{name: "MOVBQSX", reg: gp11nf, asm: "MOVBQSX"}, // sign extend arg0 from int8 to int64
+		{name: "MOVBQZX", reg: gp11nf, asm: "MOVBQZX"}, // zero extend arg0 from int8 to int64
+		{name: "MOVWQSX", reg: gp11nf, asm: "MOVWQSX"}, // sign extend arg0 from int16 to int64
+		{name: "MOVWQZX", reg: gp11nf, asm: "MOVWQZX"}, // zero extend arg0 from int16 to int64
+		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
 
 		{name: "MOVBconst", reg: gp01, asm: "MOVB"}, // 8 low bits of auxint
 		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
