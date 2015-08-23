@@ -112,6 +112,53 @@ func (k Key) GetStringValue(name string) (val string, valtype uint32, err error)
 	return syscall.UTF16ToString(u), typ, nil
 }
 
+// GetMUIStringValue retrieves the localized string value for
+// the specified value name associated with an open key k.
+// If the value name doesn't exist or the localized string value
+// can't be resolved, GetMUIStringValue returns ErrNotExist.
+// GetMUIStringValue panics if the system doesn't support
+// regLoadMUIString; use LoadRegLoadMUIString to check if
+// regLoadMUIString is supported before calling this function.
+func (k Key) GetMUIStringValue(name string) (string, error) {
+	pname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]uint16, 1024)
+	var buflen uint32
+	var pdir *uint16
+
+	err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+	if err == syscall.ERROR_FILE_NOT_FOUND { // Try fallback path
+		var s string
+		s, err = ExpandString("%SystemRoot%\\system32\\")
+		if err != nil {
+			return "", err
+		}
+		pdir, err = syscall.UTF16PtrFromString(s)
+		if err != nil {
+			return "", err
+		}
+
+		err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+	}
+
+	for err == syscall.ERROR_MORE_DATA { // Grow buffer if needed
+		if buflen <= uint32(len(buf)) {
+			break // Buffer not growing, assume race; break
+		}
+		buf = make([]uint16, buflen)
+		err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return syscall.UTF16ToString(buf), nil
+}
+
 // ExpandString expands environment-variable strings and replaces
 // them with the values defined for the current user.
 // Use ExpandString to expand EXPAND_SZ strings.
