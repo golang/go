@@ -300,10 +300,13 @@ var scanfTests = []ScanfTest{
 	{"%2s", "sssss", &xVal, Xs("ss")},
 
 	// Fixed bugs
-	{"%d\n", "27\n", &intVal, 27},  // ok
-	{"%d\n", "28 \n", &intVal, 28}, // was: "unexpected newline"
-	{"%v", "0", &intVal, 0},        // was: "EOF"; 0 was taken as base prefix and not counted.
-	{"%v", "0", &uintVal, uint(0)}, // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%d\n", "27\n", &intVal, 27},      // ok
+	{"%d\n", "28 \n", &intVal, 28},     // was: "unexpected newline"
+	{"%v", "0", &intVal, 0},            // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%v", "0", &uintVal, uint(0)},     // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%c", " ", &uintVal, uint(' ')},   // %c must accept a blank.
+	{"%c", "\t", &uintVal, uint('\t')}, // %c must accept any space.
+	{"%c", "\n", &uintVal, uint('\n')}, // %c must accept any space.
 }
 
 var overflowTests = []ScanTest{
