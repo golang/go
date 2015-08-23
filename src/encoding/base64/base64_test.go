@@ -80,11 +80,11 @@ type encodingTest struct {
 }
 
 var encodingTests = []encodingTest{
-	encodingTest{StdEncoding, stdRef},
-	encodingTest{URLEncoding, urlRef},
-	encodingTest{RawStdEncoding, rawRef},
-	encodingTest{RawURLEncoding, rawUrlRef},
-	encodingTest{funnyEncoding, funnyRef},
+	{StdEncoding, stdRef},
+	{URLEncoding, urlRef},
+	{RawStdEncoding, rawRef},
+	{RawURLEncoding, rawUrlRef},
+	{funnyEncoding, funnyRef},
 }
 
 var bigtest = testpair{
