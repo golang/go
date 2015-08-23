@@ -466,7 +466,6 @@ type Link struct {
 	Arch               *LinkArch
 	Debugasm           int32
 	Debugvlog          int32
-	Debugzerostack     int32
 	Debugdivmod        int32
 	Debugpcln          int32
 	Flag_shared        int32
