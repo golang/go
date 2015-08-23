@@ -173,6 +173,7 @@ const rand3Hex = "1744b384d68c042371244e13500d4bfb98c6244e3d71a5b700224420b59c59
 const (
 	digits = iota
 	twain
+	random
 )
 
 var testfiles = []string{
@@ -182,6 +183,8 @@ var testfiles = []string{
 	digits: "testdata/e.txt.bz2",
 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
 	twain: "testdata/Mark.Twain-Tom.Sawyer.txt.bz2",
+	// 16KB of random data from /dev/urandom
+	random: "testdata/random.data.bz2",
 }
 
 func benchmarkDecode(b *testing.B, testfile int) {
@@ -198,6 +201,7 @@ func benchmarkDecode(b *testing.B, testfile int) {
 
 func BenchmarkDecodeDigits(b *testing.B) { benchmarkDecode(b, digits) }
 func BenchmarkDecodeTwain(b *testing.B)  { benchmarkDecode(b, twain) }
+func BenchmarkDecodeRand(b *testing.B)   { benchmarkDecode(b, random) }
 
 func TestBufferOverrun(t *testing.T) {
 	// Tests https://golang.org/issue/5747.
