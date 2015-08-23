@@ -38,6 +38,12 @@
 // x3 can then be used wherever x is referenced again.
 // If the spill (x2) is never used, it will be removed at the end of regalloc.
 //
+// Flags values are special. Instead of attempting to spill and restore the flags
+// register, we recalculate it if needed.
+// There are more efficient schemes (see the discussion in CL 13844),
+// but flag restoration is empirically rare, and this approach is simple
+// and architecture-independent.
+//
 // Phi values are special, as always.  We define two kinds of phis, those
 // where the merge happens in a register (a "register" phi) and those where
 // the merge happens in a stack location (a "stack" phi).
@@ -391,17 +397,45 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 		}
 		c = s.curBlock.NewValue1(v.Line, OpCopy, v.Type, s.regs[r2].c)
 	} else {
+		switch {
+		// It is difficult to spill and reload flags on many architectures.
+		// Instead, we regenerate the flags register by issuing the same instruction again.
+		// This requires (possibly) spilling and reloading that instruction's args.
+		case v.Type.IsFlags():
+			ns := s.nospill
+			// Place v's arguments in registers, spilling and loading as needed
+			args := make([]*Value, 0, len(v.Args))
+			regspec := opcodeTable[v.Op].reg
+			for _, i := range regspec.inputs {
+				a := v.Args[i.idx]
+				// Extract the original arguments to v
+				for a.Op == OpLoadReg || a.Op == OpStoreReg || a.Op == OpCopy {
+					a = a.Args[0]
+				}
+				if a.Type.IsFlags() {
+					s.f.Fatalf("cannot load flags value with flags arg: %v has unwrapped arg %v", v.LongString(), a.LongString())
+				}
+				cc := s.allocValToReg(a, i.regs, true)
+				args = append(args, cc)
+			}
+			s.nospill = ns
+			// Recalculate v
+			c = s.curBlock.NewValue0(v.Line, v.Op, v.Type)
+			c.Aux = v.Aux
+			c.AuxInt = v.AuxInt
+			c.resetArgs()
+			c.AddArgs(args...)
+
 		// Load v from its spill location.
 		// TODO: rematerialize if we can.
-		if vi.spill2 != nil {
+		case vi.spill2 != nil:
 			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill2)
 			vi.spill2used = true
-		} else {
+		case vi.spill != nil:
 			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill)
 			vi.spillUsed = true
-		}
-		if v.Type.IsFlags() {
-			v.Unimplementedf("spill of flags not implemented yet")
+		default:
+			s.f.Fatalf("attempt to load unspilled value %v", v.LongString())
 		}
 	}
 	s.assignReg(r, v, c)
@@ -716,9 +750,11 @@ func (s *regAllocState) regalloc(f *Func) {
 
 			// Issue a spill for this value.  We issue spills unconditionally,
 			// then at the end of regalloc delete the ones we never use.
-			spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
-			s.values[v.ID].spill = spill
-			s.values[v.ID].spillUsed = false
+			if !v.Type.IsFlags() {
+				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+				s.values[v.ID].spill = spill
+				s.values[v.ID].spillUsed = false
+			}
 
 			// Increment pc for next Value.
 			pc++
