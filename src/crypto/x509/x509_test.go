@@ -504,9 +504,9 @@ func TestUnknownCriticalExtension(t *testing.T) {
 
 	oids := []asn1.ObjectIdentifier{
 		// This OID is in the PKIX arc, but unknown.
-		asn1.ObjectIdentifier{2, 5, 29, 999999},
+		{2, 5, 29, 999999},
 		// This is a nonsense, unassigned OID.
-		asn1.ObjectIdentifier{1, 2, 3, 4},
+		{1, 2, 3, 4},
 	}
 
 	for _, oid := range oids {
