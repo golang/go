@@ -248,7 +248,7 @@ function toggleHash() {
 function personalizeInstallInstructions() {
   var prefix = '?download=';
   var s = window.location.search;
-  if (!s.startsWith(prefix)) {
+  if (s.indexOf(prefix) != 0) {
     // No 'download' query string; bail.
     return;
   }
