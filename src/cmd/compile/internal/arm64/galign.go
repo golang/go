@@ -26,9 +26,9 @@ var MAXWIDTH int64 = 1 << 50
  * int, uint, and uintptr
  */
 var typedefs = []gc.Typedef{
-	gc.Typedef{"int", gc.TINT, gc.TINT64},
-	gc.Typedef{"uint", gc.TUINT, gc.TUINT64},
-	gc.Typedef{"uintptr", gc.TUINTPTR, gc.TUINT64},
+	{"int", gc.TINT, gc.TINT64},
+	{"uint", gc.TUINT, gc.TUINT64},
+	{"uintptr", gc.TUINTPTR, gc.TUINT64},
 }
 
 func betypeinit() {
