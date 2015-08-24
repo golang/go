@@ -310,7 +310,6 @@ loopItems:
 				break
 			}
 			if err == syscall.ERROR_MORE_DATA {
-				println(len(buf), l)
 				// Double buffer size and try again.
 				l = uint32(2 * len(buf))
 				buf = make([]uint16, l)
