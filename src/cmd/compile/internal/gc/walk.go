@@ -3219,6 +3219,11 @@ func walkcompare(np **Node, init **NodeList) {
 
 	if l != nil {
 		x := temp(r.Type)
+		if haspointers(r.Type) {
+			a := Nod(OAS, x, nil)
+			typecheck(&a, Etop)
+			*init = list(*init, a)
+		}
 		ok := temp(Types[TBOOL])
 
 		// l.(type(r))
