@@ -1178,7 +1178,9 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
 			case '\n', '\f':
 				_, err = p.output.Write(data[m:n])
 				p.resetSpace()
-				_, err = p.output.Write(aNewline)
+				if err == nil {
+					_, err = p.output.Write(aNewline)
+				}
 			case tabwriter.Escape:
 				_, err = p.output.Write(data[m:n])
 				p.state = inEscape
