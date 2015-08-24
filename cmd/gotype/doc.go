@@ -27,8 +27,8 @@ The flags are:
 		report all errors (not just the first 10)
 	-v
 		verbose mode
-	-gccgo
-		use gccimporter instead of gcimporter
+	-c
+		compiler used to compile packages (gc or gccgo); default: gc
 
 Debugging flags:
 	-seq
