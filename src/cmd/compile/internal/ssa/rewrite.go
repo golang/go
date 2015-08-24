@@ -122,6 +122,8 @@ func addOff(x, y int64) int64 {
 	return z
 }
 
+// mergeSym merges two symbolic offsets.  There is no real merging of
+// offsets, we just pick the non-nil one.
 func mergeSym(x, y interface{}) interface{} {
 	if x == nil {
 		return y
@@ -131,6 +133,9 @@ func mergeSym(x, y interface{}) interface{} {
 	}
 	panic(fmt.Sprintf("mergeSym with two non-nil syms %s %s", x, y))
 	return nil
+}
+func canMergeSym(x, y interface{}) bool {
+	return x == nil || y == nil
 }
 
 func inBounds8(idx, len int64) bool  { return int8(idx) >= 0 && int8(idx) < int8(len) }
