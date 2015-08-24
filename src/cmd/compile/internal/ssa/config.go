@@ -4,6 +4,8 @@
 
 package ssa
 
+import "fmt"
+
 type Config struct {
 	arch       string                     // "amd64", etc.
 	IntSize    int64                      // 4 or 8
@@ -52,6 +54,10 @@ type Frontend interface {
 
 	// StringData returns a symbol pointing to the given string's contents.
 	StringData(string) interface{} // returns *gc.Sym
+
+	// Auto returns a Node for an auto variable of the given type.
+	// The SSA compiler uses this function to allocate space for spills.
+	Auto(Type) fmt.Stringer // returns *gc.Node
 }
 
 // NewConfig returns a new configuration object for the given architecture.

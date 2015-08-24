@@ -4,7 +4,10 @@
 
 package ssa
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 var CheckFunc = checkFunc
 var PrintFunc = printFunc
@@ -22,6 +25,9 @@ type DummyFrontend struct {
 }
 
 func (DummyFrontend) StringData(s string) interface{} {
+	return nil
+}
+func (DummyFrontend) Auto(t Type) fmt.Stringer {
 	return nil
 }
 

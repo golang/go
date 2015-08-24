@@ -26,9 +26,9 @@ func (r *Register) Name() string {
 
 // A LocalSlot is a location in the stack frame.
 type LocalSlot struct {
-	Idx int64 // offset in locals area (distance up from SP)
+	N fmt.Stringer // a *gc.Node for an auto variable
 }
 
 func (s *LocalSlot) Name() string {
-	return fmt.Sprintf("%d(SP)", s.Idx)
+	return s.N.String()
 }
