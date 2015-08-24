@@ -229,8 +229,13 @@ func assertE2T(t *_type, e interface{}, r unsafe.Pointer) {
 	}
 }
 
+var testingAssertE2T2GC bool
+
 // The compiler ensures that r is non-nil.
 func assertE2T2(t *_type, e interface{}, r unsafe.Pointer) bool {
+	if testingAssertE2T2GC {
+		GC()
+	}
 	ep := (*eface)(unsafe.Pointer(&e))
 	if ep._type != t {
 		memclr(r, uintptr(t.size))
