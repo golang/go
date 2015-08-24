@@ -18,22 +18,6 @@ func setloc(home []Location, v *Value, loc Location) []Location {
 func stackalloc(f *Func) {
 	home := f.RegAlloc
 
-	// Start with space for callee arguments/returns.
-	var n int64
-	for _, b := range f.Blocks {
-		if b.Kind != BlockCall {
-			continue
-		}
-		v := b.Control
-		if n < v.AuxInt {
-			n = v.AuxInt
-		}
-	}
-	f.Logf("stackalloc: 0-%d for callee arguments/returns\n", n)
-
-	// TODO: group variables by ptr/nonptr, size, etc.  Emit ptr vars last
-	// so stackmap is smaller.
-
 	// Assign stack locations to phis first, because we
 	// must also assign the same locations to the phi stores
 	// introduced during regalloc.
@@ -49,10 +33,9 @@ func stackalloc(f *Func) {
 				continue // register-based phi
 			}
 			// stack-based phi
-			n = align(n, v.Type.Alignment())
-			f.Logf("stackalloc: %d-%d for %v\n", n, n+v.Type.Size(), v)
+			n := f.Config.fe.Auto(v.Type)
+			f.Logf("stackalloc: %s: for %v <%v>\n", n, v, v.Type)
 			loc := &LocalSlot{n}
-			n += v.Type.Size()
 			home = setloc(home, v, loc)
 			for _, w := range v.Args {
 				if w.Op != OpStoreReg {
@@ -79,34 +62,15 @@ func stackalloc(f *Func) {
 			if len(v.Args) == 1 && (v.Args[0].Op == OpSP || v.Args[0].Op == OpSB) {
 				continue
 			}
-			n = align(n, v.Type.Alignment())
-			f.Logf("stackalloc: %d-%d for %v\n", n, n+v.Type.Size(), v)
+
+			n := f.Config.fe.Auto(v.Type)
+			f.Logf("stackalloc: %s for %v\n", n, v)
 			loc := &LocalSlot{n}
-			n += v.Type.Size()
 			home = setloc(home, v, loc)
 		}
 	}
 
-	// Finally, allocate space for all autos that we used
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			s, ok := v.Aux.(*AutoSymbol)
-			if !ok || s.Offset >= 0 {
-				continue
-			}
-			t := s.Typ
-			n = align(n, t.Alignment())
-			f.Logf("stackalloc: %d-%d for auto %v\n", n, n+t.Size(), v)
-			s.Offset = n
-			n += t.Size()
-		}
-	}
-
-	n = align(n, f.Config.PtrSize)
-	f.Logf("stackalloc: %d-%d for return address\n", n, n+f.Config.PtrSize)
-	n += f.Config.PtrSize // space for return address.  TODO: arch-dependent
 	f.RegAlloc = home
-	f.FrameSize = n
 
 	// TODO: share stack slots among noninterfering (& gc type compatible) values
 }

@@ -524,6 +524,8 @@ const (
 	OpStoreReg
 	OpLoadReg
 	OpFwdRef
+	OpVarDef
+	OpVarKill
 )
 
 var opcodeTable = [...]opInfo{
@@ -4107,6 +4109,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "FwdRef",
+		generic: true,
+	},
+	{
+		name:    "VarDef",
+		generic: true,
+	},
+	{
+		name:    "VarKill",
 		generic: true,
 	},
 }

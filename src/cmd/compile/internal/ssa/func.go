@@ -25,8 +25,6 @@ type Func struct {
 
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
-	// when stackalloc is done, the size of the stack frame
-	FrameSize int64
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.

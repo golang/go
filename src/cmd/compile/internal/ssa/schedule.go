@@ -74,7 +74,8 @@ func schedule(f *Func) {
 				score[v.ID] = 0
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible.  This tends to
-				// reduce register pressure.
+				// reduce register pressure.  It also helps make sure
+				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = 1
 			case v.Type.IsFlags():
 				// Schedule flag register generation as late as possible.

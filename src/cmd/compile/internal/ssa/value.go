@@ -142,17 +142,15 @@ type ExternSymbol struct {
 // ArgSymbol is an aux value that encodes an argument or result
 // variable's constant offset from FP (FP = SP + framesize).
 type ArgSymbol struct {
-	Typ    Type         // Go type
-	Offset int64        // Distance above frame pointer
-	Sym    fmt.Stringer // A *gc.Sym referring to the argument/result variable.
+	Typ  Type         // Go type
+	Node fmt.Stringer // A *gc.Node referring to the argument/result variable.
 }
 
 // AutoSymbol is an aux value that encodes a local variable's
 // constant offset from SP.
 type AutoSymbol struct {
-	Typ    Type         // Go type
-	Offset int64        // Distance above stack pointer.  Set by stackalloc in SSA.
-	Sym    fmt.Stringer // A *gc.Sym referring to a local (auto) variable.
+	Typ  Type         // Go type
+	Node fmt.Stringer // A *gc.Node referring to a local (auto) variable.
 }
 
 func (s *ExternSymbol) String() string {
@@ -160,9 +158,9 @@ func (s *ExternSymbol) String() string {
 }
 
 func (s *ArgSymbol) String() string {
-	return s.Sym.String()
+	return s.Node.String()
 }
 
 func (s *AutoSymbol) String() string {
-	return s.Sym.String()
+	return s.Node.String()
 }

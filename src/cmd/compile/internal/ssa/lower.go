@@ -21,7 +21,7 @@ func checkLower(f *Func) {
 				continue // lowered
 			}
 			switch v.Op {
-			case OpSP, OpSB, OpArg, OpCopy, OpPhi:
+			case OpSP, OpSB, OpArg, OpCopy, OpPhi, OpVarDef, OpVarKill:
 				continue // ok not to lower
 			}
 			s := "not lowered: " + v.Op.String() + " " + v.Type.SimpleString()

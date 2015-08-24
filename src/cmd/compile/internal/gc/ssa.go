@@ -91,11 +91,11 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		n := d.N
 		switch n.Class {
 		case PPARAM, PPARAMOUT:
-			aux := &ssa.ArgSymbol{Typ: n.Type, Offset: n.Xoffset, Sym: n.Sym}
+			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PAUTO:
-			aux := &ssa.AutoSymbol{Typ: n.Type, Offset: -1, Sym: n.Sym} // offset TBD by SSA pass
-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+			// processed at each use, to prevent Addr coming
+			// before the decl.
 		default:
 			str := ""
 			if n.Class&PHEAP != 0 {
@@ -105,7 +105,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		}
 	}
 	// nodfp is a special argument which is the function's FP.
-	aux := &ssa.ArgSymbol{Typ: Types[TUINTPTR], Offset: 0, Sym: nodfp.Sym}
+	aux := &ssa.ArgSymbol{Typ: Types[TUINTPTR], Node: nodfp}
 	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, Types[TUINTPTR], aux, s.sp)
 
 	// Convert the AST-based IR to the SSA-based IR
@@ -200,7 +200,7 @@ type state struct {
 	// all defined variables at the end of each block.  Indexed by block ID.
 	defvars []map[*Node]*ssa.Value
 
-	// addresses of PPARAM, PPARAMOUT, and PAUTO variables.
+	// addresses of PPARAM and PPARAMOUT variables.
 	decladdrs map[*Node]*ssa.Value
 
 	// starting values.  Memory, frame pointer, and stack pointer
@@ -721,8 +721,11 @@ func (s *state) stmt(n *Node) {
 		s.startBlock(bEnd)
 
 	case OVARKILL:
-		// TODO(khr): ??? anything to do here?  Only for addrtaken variables?
-		// Maybe just link it in the store chain?
+		// Insert a varkill op to record that a variable is no longer live.
+		// We only care about liveness info at call sites, so putting the
+		// varkill in the store chain is enough to keep it correctly ordered
+		// with respect to call ops.
+		s.vars[&memvar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
 	default:
 		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
 	}
@@ -1175,9 +1178,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
 		case CTBOOL:
 			if n.Val().U.(bool) {
-				return s.entryNewValue0I(ssa.OpConstBool, n.Type, 1) // 1 = true
+				return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 1) // 1 = true
 			} else {
-				return s.entryNewValue0I(ssa.OpConstBool, n.Type, 0) // 0 = false
+				return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 0) // 0 = false
 			}
 		case CTNIL:
 			t := n.Type
@@ -1798,6 +1801,9 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 		if !canSSA(left) {
 			// if we can't ssa this memory, treat it as just zeroing out the backing memory
 			addr := s.addr(left)
+			if left.Op == ONAME {
+				s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+			}
 			s.vars[&memvar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
 			return
 		}
@@ -1812,6 +1818,9 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 	}
 	// not ssa-able.  Treat as a store.
 	addr := s.addr(left)
+	if left.Op == ONAME {
+		s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+	}
 	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, val, s.mem())
 }
 
@@ -1857,7 +1866,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	case t.IsPtr():
 		return s.entryNewValue0(ssa.OpConstNil, t)
 	case t.IsBoolean():
-		return s.entryNewValue0I(ssa.OpConstBool, t, 0) // 0 = false
+		return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 0) // 0 = false
 	case t.IsInterface():
 		return s.entryNewValue0(ssa.OpConstInterface, t)
 	case t.IsSlice():
@@ -1894,7 +1903,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
 			}
 			return v
-		case PPARAM, PPARAMOUT, PAUTO:
+		case PPARAM, PPARAMOUT:
 			// parameter/result slot or local variable
 			v := s.decladdrs[n]
 			if v == nil {
@@ -1904,6 +1913,17 @@ func (s *state) addr(n *Node) *ssa.Value {
 				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			}
 			return v
+		case PAUTO:
+			// We need to regenerate the address of autos
+			// at every use.  This prevents LEA instructions
+			// from occurring before the corresponding VarDef
+			// op and confusing the liveness analysis into thinking
+			// the variable is live at function entry.
+			// TODO: I'm not sure if this really works or we're just
+			// getting lucky.  We might need a real dependency edge
+			// between vardef and addr ops.
+			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PAUTO | PHEAP, PPARAMREF:
 			return s.expr(n.Name.Heapaddr)
 		default:
@@ -2477,22 +2497,11 @@ type branch struct {
 // genssa appends entries to ptxt for each instruction in f.
 // gcargs and gclocals are filled in with pointer maps for the frame.
 func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
-	// TODO: line numbers
-
-	if f.FrameSize > 1<<31 {
-		Yyerror("stack frame too large (>2GB)")
-		return
-	}
-
 	e := f.Config.Frontend().(*ssaExport)
 	// We're about to emit a bunch of Progs.
 	// Since the only way to get here is to explicitly request it,
 	// just fail on unimplemented instead of trying to unwind our mess.
 	e.mustImplement = true
-
-	ptxt.To.Type = obj.TYPE_TEXTSIZE
-	ptxt.To.Val = int32(Rnd(Curfn.Type.Argwid, int64(Widthptr))) // arg size
-	ptxt.To.Offset = f.FrameSize - 8                             // TODO: arch-dependent
 
 	// Remember where each block starts.
 	bstart := make([]*obj.Prog, f.NumBlocks())
@@ -2592,18 +2601,22 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		}
 	}
 
-	// TODO: liveness
-	// TODO: gcargs
-	// TODO: gclocals
+	// Allocate stack frame
+	allocauto(ptxt)
 
-	// TODO: dump frame if -f
+	// Generate gc bitmaps.
+	liveness(Curfn, ptxt, gcargs, gclocals)
+	gcsymdup(gcargs)
+	gcsymdup(gclocals)
 
-	// Emit garbage collection symbols.  TODO: put something in them
-	//liveness(Curfn, ptxt, gcargs, gclocals)
-	duint32(gcargs, 0, 0)
-	ggloblsym(gcargs, 4, obj.RODATA|obj.DUPOK)
-	duint32(gclocals, 0, 0)
-	ggloblsym(gclocals, 4, obj.RODATA|obj.DUPOK)
+	// Add frame prologue.  Zero ambiguously live variables.
+	Thearch.Defframe(ptxt)
+	if Debug['f'] != 0 {
+		frame(0)
+	}
+
+	// Remove leftover instrumentation from the instruction stream.
+	removevardef(ptxt)
 
 	f.Config.HTML.Close()
 }
@@ -3056,9 +3069,11 @@ func genValue(v *ssa.Value) {
 			return
 		}
 		p := Prog(movSizeByType(v.Type))
+		n := autoVar(v.Args[0])
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = x86.REG_SP
-		p.From.Offset = localOffset(v.Args[0])
+		p.From.Name = obj.NAME_AUTO
+		p.From.Node = n
+		p.From.Sym = Linksym(n.Sym)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
 
@@ -3070,9 +3085,11 @@ func genValue(v *ssa.Value) {
 		p := Prog(movSizeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
+		n := autoVar(v)
 		p.To.Type = obj.TYPE_MEM
-		p.To.Reg = x86.REG_SP
-		p.To.Offset = localOffset(v)
+		p.To.Name = obj.NAME_AUTO
+		p.To.Node = n
+		p.To.Sym = Linksym(n.Sym)
 	case ssa.OpPhi:
 		// just check to make sure regalloc and stackalloc did it right
 		if v.Type.IsMemory() {
@@ -3106,19 +3123,19 @@ func genValue(v *ssa.Value) {
 		q.From.Reg = x86.REG_AX
 		q.To.Type = obj.TYPE_MEM
 		q.To.Reg = r
-		// TODO: need AUNDEF here?
+		Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.OpAMD64LoweredPanicIndexCheck:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(Panicindex.Sym)
-		// TODO: need AUNDEF here?
+		Prog(obj.AUNDEF)
 	case ssa.OpAMD64LoweredPanicSliceCheck:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(panicslice.Sym)
-		// TODO: need AUNDEF here?
+		Prog(obj.AUNDEF)
 	case ssa.OpAMD64LoweredGetG:
 		r := regnum(v)
 		// See the comments in cmd/internal/obj/x86/obj6.go
@@ -3151,10 +3168,16 @@ func genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(v.Aux.(*Sym))
+		if Maxarg < v.AuxInt {
+			Maxarg = v.AuxInt
+		}
 	case ssa.OpAMD64CALLclosure:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
+		if Maxarg < v.AuxInt {
+			Maxarg = v.AuxInt
+		}
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
 		x := regnum(v.Args[0])
@@ -3215,6 +3238,10 @@ func genValue(v *ssa.Value) {
 	case ssa.OpAMD64REPMOVSB:
 		Prog(x86.AREP)
 		Prog(x86.AMOVSB)
+	case ssa.OpVarDef:
+		Gvardef(v.Aux.(*Node))
+	case ssa.OpVarKill:
+		gvarkill(v.Aux.(*Node))
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
@@ -3414,12 +3441,16 @@ func addAux(a *obj.Addr, v *ssa.Value) {
 		a.Name = obj.NAME_EXTERN
 		a.Sym = Linksym(sym.Sym.(*Sym))
 	case *ssa.ArgSymbol:
-		a.Offset += v.Block.Func.FrameSize + sym.Offset
+		n := sym.Node.(*Node)
+		a.Name = obj.NAME_PARAM
+		a.Node = n
+		a.Sym = Linksym(n.Orig.Sym)
+		a.Offset += n.Xoffset // TODO: why do I have to add this here?  I don't for auto variables.
 	case *ssa.AutoSymbol:
-		if sym.Offset == -1 {
-			v.Fatalf("auto symbol %s offset not calculated", sym.Sym)
-		}
-		a.Offset += sym.Offset
+		n := sym.Node.(*Node)
+		a.Name = obj.NAME_AUTO
+		a.Node = n
+		a.Sym = Linksym(n.Sym)
 	default:
 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
 	}
@@ -3571,18 +3602,9 @@ func regnum(v *ssa.Value) int16 {
 	return ssaRegToReg[reg.(*ssa.Register).Num]
 }
 
-// localOffset returns the offset below the frame pointer where
-// a stack-allocated local has been allocated.  Panics if v
-// is not assigned to a local slot.
-// TODO: Make this panic again once it stops happening routinely.
-func localOffset(v *ssa.Value) int64 {
-	reg := v.Block.Func.RegAlloc[v.ID]
-	slot, ok := reg.(*ssa.LocalSlot)
-	if !ok {
-		v.Unimplementedf("localOffset of non-LocalSlot value: %s\n%s\n", v.LongString(), v.Block.Func)
-		return 0
-	}
-	return slot.Idx
+// autoVar returns a *Node representing the auto variable assigned to v.
+func autoVar(v *ssa.Value) *Node {
+	return v.Block.Func.RegAlloc[v.ID].(*ssa.LocalSlot).N.(*Node)
 }
 
 // ssaExport exports a bunch of compiler services for the ssa backend.
@@ -3614,6 +3636,12 @@ func (*ssaExport) StringData(s string) interface{} {
 	// TODO: is idealstring correct?  It might not matter...
 	_, data := stringsym(s)
 	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
+}
+
+func (e *ssaExport) Auto(t ssa.Type) fmt.Stringer {
+	n := temp(t.(*Type))   // Note: adds new auto to Curfn.Func.Dcl list
+	e.mustImplement = true // This modifies the input to SSA, so we want to make sure we succeed from here!
+	return n
 }
 
 // Log logs a message from the compiler.
