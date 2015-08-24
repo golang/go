@@ -21,21 +21,22 @@ type TypeImpl struct {
 	Name string
 }
 
-func (t *TypeImpl) Size() int64       { return t.Size_ }
-func (t *TypeImpl) Alignment() int64  { return t.Align }
-func (t *TypeImpl) IsBoolean() bool   { return t.Boolean }
-func (t *TypeImpl) IsInteger() bool   { return t.Integer }
-func (t *TypeImpl) IsSigned() bool    { return t.Signed }
-func (t *TypeImpl) IsFloat() bool     { return t.Float }
-func (t *TypeImpl) IsPtr() bool       { return t.Ptr }
-func (t *TypeImpl) IsString() bool    { return t.string }
-func (t *TypeImpl) IsSlice() bool     { return t.slice }
-func (t *TypeImpl) IsInterface() bool { return t.inter }
-func (t *TypeImpl) IsMemory() bool    { return false }
-func (t *TypeImpl) IsFlags() bool     { return false }
-func (t *TypeImpl) String() string    { return t.Name }
-func (t *TypeImpl) Elem() Type        { return t.Elem_ }
-func (t *TypeImpl) PtrTo() Type       { panic("not implemented") }
+func (t *TypeImpl) Size() int64          { return t.Size_ }
+func (t *TypeImpl) Alignment() int64     { return t.Align }
+func (t *TypeImpl) IsBoolean() bool      { return t.Boolean }
+func (t *TypeImpl) IsInteger() bool      { return t.Integer }
+func (t *TypeImpl) IsSigned() bool       { return t.Signed }
+func (t *TypeImpl) IsFloat() bool        { return t.Float }
+func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
+func (t *TypeImpl) IsString() bool       { return t.string }
+func (t *TypeImpl) IsSlice() bool        { return t.slice }
+func (t *TypeImpl) IsInterface() bool    { return t.inter }
+func (t *TypeImpl) IsMemory() bool       { return false }
+func (t *TypeImpl) IsFlags() bool        { return false }
+func (t *TypeImpl) String() string       { return t.Name }
+func (t *TypeImpl) SimpleString() string { return t.Name }
+func (t *TypeImpl) Elem() Type           { return t.Elem_ }
+func (t *TypeImpl) PtrTo() Type          { panic("not implemented") }
 
 func (t *TypeImpl) Equal(u Type) bool {
 	x, ok := u.(*TypeImpl)

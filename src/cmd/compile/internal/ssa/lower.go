@@ -24,7 +24,11 @@ func checkLower(f *Func) {
 			case OpSP, OpSB, OpArg, OpCopy, OpPhi:
 				continue // ok not to lower
 			}
-			f.Unimplementedf("%s not lowered", v.LongString())
+			s := "not lowered: " + v.Op.String() + " " + v.Type.SimpleString()
+			for _, a := range v.Args {
+				s += " " + a.Type.SimpleString()
+			}
+			f.Unimplementedf("%s", s)
 		}
 	}
 }
