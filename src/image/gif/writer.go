@@ -83,7 +83,7 @@ func (b blockWriter) Write(data []byte) (int, error) {
 		total += n
 		b.e.buf[0] = uint8(n)
 
-		n, b.e.err = b.e.w.Write(b.e.buf[:n+1])
+		_, b.e.err = b.e.w.Write(b.e.buf[:n+1])
 		if b.e.err != nil {
 			return 0, b.e.err
 		}
