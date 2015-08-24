@@ -23,6 +23,10 @@ func (t *Type) Alignment() int64 {
 	return int64(t.Align)
 }
 
+func (t *Type) SimpleString() string {
+	return Econv(int(t.Etype), 0)
+}
+
 func (t *Type) Equal(u ssa.Type) bool {
 	x, ok := u.(*Type)
 	if !ok {

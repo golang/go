@@ -28,6 +28,7 @@ type Type interface {
 	PtrTo() Type // given T, return *T
 
 	String() string
+	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
 	Equal(Type) bool
 }
 
@@ -38,21 +39,22 @@ type CompilerType struct {
 	Flags  bool
 }
 
-func (t *CompilerType) Size() int64       { return 0 }
-func (t *CompilerType) Alignment() int64  { return 0 }
-func (t *CompilerType) IsBoolean() bool   { return false }
-func (t *CompilerType) IsInteger() bool   { return false }
-func (t *CompilerType) IsSigned() bool    { return false }
-func (t *CompilerType) IsFloat() bool     { return false }
-func (t *CompilerType) IsPtr() bool       { return false }
-func (t *CompilerType) IsString() bool    { return false }
-func (t *CompilerType) IsSlice() bool     { return false }
-func (t *CompilerType) IsInterface() bool { return false }
-func (t *CompilerType) IsMemory() bool    { return t.Memory }
-func (t *CompilerType) IsFlags() bool     { return t.Flags }
-func (t *CompilerType) String() string    { return t.Name }
-func (t *CompilerType) Elem() Type        { panic("not implemented") }
-func (t *CompilerType) PtrTo() Type       { panic("not implemented") }
+func (t *CompilerType) Size() int64          { return 0 }
+func (t *CompilerType) Alignment() int64     { return 0 }
+func (t *CompilerType) IsBoolean() bool      { return false }
+func (t *CompilerType) IsInteger() bool      { return false }
+func (t *CompilerType) IsSigned() bool       { return false }
+func (t *CompilerType) IsFloat() bool        { return false }
+func (t *CompilerType) IsPtr() bool          { return false }
+func (t *CompilerType) IsString() bool       { return false }
+func (t *CompilerType) IsSlice() bool        { return false }
+func (t *CompilerType) IsInterface() bool    { return false }
+func (t *CompilerType) IsMemory() bool       { return t.Memory }
+func (t *CompilerType) IsFlags() bool        { return t.Flags }
+func (t *CompilerType) String() string       { return t.Name }
+func (t *CompilerType) SimpleString() string { return t.Name }
+func (t *CompilerType) Elem() Type           { panic("not implemented") }
+func (t *CompilerType) PtrTo() Type          { panic("not implemented") }
 
 func (t *CompilerType) Equal(u Type) bool {
 	x, ok := u.(*CompilerType)

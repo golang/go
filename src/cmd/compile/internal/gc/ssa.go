@@ -100,7 +100,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 			if n.Class&PHEAP != 0 {
 				str = ",heap"
 			}
-			s.Unimplementedf("local variable %v with class %s%s unimplemented", n, classnames[n.Class&^PHEAP], str)
+			s.Unimplementedf("local variable with class %s%s unimplemented", classnames[n.Class&^PHEAP], str)
 		}
 	}
 	// nodfp is a special argument which is the function's FP.
@@ -936,7 +936,7 @@ func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
 	etype := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
-		s.Unimplementedf("unhandled binary op %s etype=%s", opnames[op], Econv(int(etype), 0))
+		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(int(etype), 0))
 	}
 	return x
 }
@@ -1110,7 +1110,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		to := n.Type
 		from := n.Left.Type
 		if to.Etype == TFUNC {
-			s.Unimplementedf("CONVNOP closure %v -> %v", n.Type, n.Left.Type)
+			s.Unimplementedf("CONVNOP closure")
 			return nil
 		}
 
@@ -1217,7 +1217,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.newValue1(op, n.Type, x)
 		}
-		s.Unimplementedf("unhandled OCONV %s -> %s", n.Left.Type, n.Type)
+		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
 		return nil
 
 	// binary ops
@@ -1546,7 +1546,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 		case PAUTO | PHEAP:
 			return s.expr(n.Name.Heapaddr)
 		default:
-			s.Unimplementedf("variable address of %v not implemented", n)
+			s.Unimplementedf("variable address class %v not implemented", n.Class)
 			return nil
 		}
 	case OINDREG:
@@ -1590,7 +1590,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 		s.nilCheck(p)
 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	default:
-		s.Unimplementedf("addr: bad op %v", Oconv(int(n.Op), 0))
+		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
 		return nil
 	}
 }
@@ -1814,7 +1814,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 		addr := s.decladdrs[name]
 		if addr == nil {
 			// TODO: closure args reach here.
-			s.Unimplementedf("variable %s not found", name)
+			s.Unimplementedf("unhandled closure arg")
 		}
 		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
 			s.Fatalf("variable live at start of function %s is not an argument %s", b.Func.Name, name)
