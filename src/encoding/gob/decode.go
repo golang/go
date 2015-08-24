@@ -634,7 +634,7 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
 func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, value reflect.Value) {
 	// Read the name of the concrete type.
 	nr := state.decodeUint()
-	if nr < 0 || nr > 1<<31 { // zero is permissible for anonymous types
+	if nr > 1<<31 { // zero is permissible for anonymous types
 		errorf("invalid type name length %d", nr)
 	}
 	if nr > uint64(state.b.Len()) {
