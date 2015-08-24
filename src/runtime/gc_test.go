@@ -469,3 +469,20 @@ func testAssertVar(x interface{}) error {
 	}
 	return nil
 }
+
+func TestAssertE2T2Liveness(t *testing.T) {
+	*runtime.TestingAssertE2T2GC = true
+	defer func() {
+		*runtime.TestingAssertE2T2GC = false
+	}()
+
+	poisonStack()
+	testIfaceEqual(io.EOF)
+}
+
+func testIfaceEqual(x interface{}) {
+	if x == "abc" {
+		// Prevent inlining
+		panic("")
+	}
+}

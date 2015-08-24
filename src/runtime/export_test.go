@@ -154,3 +154,4 @@ func BenchSetType(n int, x interface{}) {
 const PtrSize = ptrSize
 
 var TestingAssertE2I2GC = &testingAssertE2I2GC
+var TestingAssertE2T2GC = &testingAssertE2T2GC
