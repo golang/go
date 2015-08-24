@@ -56,6 +56,9 @@ func marshalPublicKey(pub interface{}) (publicKeyBytes []byte, publicKeyAlgorith
 			N: pub.N,
 			E: pub.E,
 		})
+		if err != nil {
+			return nil, pkix.AlgorithmIdentifier{}, err
+		}
 		publicKeyAlgorithm.Algorithm = oidPublicKeyRSA
 		// This is a NULL parameters value which is technically
 		// superfluous, but most other code includes it and, by
