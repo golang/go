@@ -1538,7 +1538,7 @@ func resetspinning() {
 	if _g_.m.spinning {
 		_g_.m.spinning = false
 		nmspinning = xadd(&sched.nmspinning, -1)
-		if nmspinning < 0 {
+		if int32(nmspinning) < 0 {
 			throw("findrunnable: negative nmspinning")
 		}
 	} else {
