@@ -429,7 +429,7 @@ type schedt struct {
 
 	pidle      puintptr // idle p's
 	npidle     uint32
-	nmspinning uint32
+	nmspinning uint32 // limited to [0, 2^31-1]
 
 	// Global runnable queue.
 	runqhead guintptr
