@@ -671,7 +671,7 @@ func TestGoBuildDashAInDevBranch(t *testing.T) {
 	tg.grepStderr("runtime", "testgo build -a math in dev branch DID NOT build runtime, but should have")
 }
 
-func TestGoBuilDashAInReleaseBranch(t *testing.T) {
+func TestGoBuildDashAInReleaseBranch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't rebuild the standard library in short mode")
 	}
