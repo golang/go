@@ -39,6 +39,9 @@ func bytes_Compare(s1, s2 []byte) int {
 	if len(s2) < l {
 		l = len(s2)
 	}
+	if l == 0 || &s1[0] == &s2[0] {
+		goto samebytes
+	}
 	for i := 0; i < l; i++ {
 		c1, c2 := s1[i], s2[i]
 		if c1 < c2 {
@@ -48,6 +51,7 @@ func bytes_Compare(s1, s2 []byte) int {
 			return +1
 		}
 	}
+samebytes:
 	if len(s1) < len(s2) {
 		return -1
 	}
