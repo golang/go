@@ -106,6 +106,11 @@ func caninl(fn *Node) {
 		Fatalf("caninl no nname %v", Nconv(fn, obj.FmtSign))
 	}
 
+	// If marked "go:noinline", don't inline
+	if fn.Func.Noinline {
+		return
+	}
+
 	// If fn has no body (is defined outside of Go), cannot inline it.
 	if fn.Nbody == nil {
 		return
