@@ -9,7 +9,7 @@ package types
 import (
 	"bytes"
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -17,27 +17,27 @@ import (
 type operandMode byte
 
 const (
-	invalid  operandMode = iota // operand is invalid
-	novalue                     // operand represents no value (result of a function call w/o result)
-	builtin                     // operand is a built-in function
-	typexpr                     // operand is a type
-	constant                    // operand is a constant; the operand's typ is a Basic type
-	variable                    // operand is an addressable variable
-	mapindex                    // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
-	value                       // operand is a computed value
-	commaok                     // like value, but operand may be used in a comma,ok expression
+	invalid   operandMode = iota // operand is invalid
+	novalue                      // operand represents no value (result of a function call w/o result)
+	builtin                      // operand is a built-in function
+	typexpr                      // operand is a type
+	constant_                    // operand is a constant; the operand's typ is a Basic type
+	variable                     // operand is an addressable variable
+	mapindex                     // operand is a map index expression (acts like a variable on lhs, commaok on rhs of an assignment)
+	value                        // operand is a computed value
+	commaok                      // like value, but operand may be used in a comma,ok expression
 )
 
 var operandModeString = [...]string{
-	invalid:  "invalid operand",
-	novalue:  "no value",
-	builtin:  "built-in",
-	typexpr:  "type",
-	constant: "constant",
-	variable: "variable",
-	mapindex: "map index expression",
-	value:    "value",
-	commaok:  "comma, ok expression",
+	invalid:   "invalid operand",
+	novalue:   "no value",
+	builtin:   "built-in",
+	typexpr:   "type",
+	constant_: "constant",
+	variable:  "variable",
+	mapindex:  "map index expression",
+	value:     "value",
+	commaok:   "comma, ok expression",
 }
 
 // An operand represents an intermediate value during type checking.
@@ -50,7 +50,7 @@ type operand struct {
 	mode operandMode
 	expr ast.Expr
 	typ  Type
-	val  exact.Value
+	val  constant.Value
 	id   builtinId
 }
 
@@ -105,7 +105,7 @@ func operandString(x *operand, qf Qualifier) string {
 			expr = predeclaredFuncs[x.id].name
 		case typexpr:
 			expr = TypeString(x.typ, qf)
-		case constant:
+		case constant_:
 			expr = x.val.String()
 		}
 	}
@@ -135,7 +135,7 @@ func operandString(x *operand, qf Qualifier) string {
 	buf.WriteString(operandModeString[x.mode])
 
 	// <val>
-	if x.mode == constant {
+	if x.mode == constant_ {
 		if s := x.val.String(); s != expr {
 			buf.WriteByte(' ')
 			buf.WriteString(s)
@@ -166,7 +166,7 @@ func (x *operand) String() string {
 
 // setConst sets x to the untyped constant for literal lit.
 func (x *operand) setConst(tok token.Token, lit string) {
-	val := exact.MakeFromLiteral(lit, tok, 0)
+	val := constant.MakeFromLiteral(lit, tok, 0)
 	if val == nil {
 		// TODO(gri) Should we make it an unknown constant instead?
 		x.mode = invalid
@@ -187,7 +187,7 @@ func (x *operand) setConst(tok token.Token, lit string) {
 		kind = UntypedString
 	}
 
-	x.mode = constant
+	x.mode = constant_
 	x.typ = Typ[kind]
 	x.val = val
 }
@@ -260,7 +260,7 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
 	if isUntyped(Vu) {
 		switch t := Tu.(type) {
 		case *Basic:
-			if x.mode == constant {
+			if x.mode == constant_ {
 				return representableConst(x.val, conf, t.kind, nil)
 			}
 			// The result of a comparison is an untyped boolean,
@@ -283,5 +283,5 @@ func (x *operand) assignableTo(conf *Config, T Type) bool {
 func (x *operand) isInteger() bool {
 	return x.mode == invalid ||
 		isInteger(x.typ) ||
-		isUntyped(x.typ) && x.mode == constant && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
+		isUntyped(x.typ) && x.mode == constant_ && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
 }

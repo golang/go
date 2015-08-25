@@ -300,10 +300,13 @@ var scanfTests = []ScanfTest{
 	{"%2s", "sssss", &xVal, Xs("ss")},
 
 	// Fixed bugs
-	{"%d\n", "27\n", &intVal, 27},  // ok
-	{"%d\n", "28 \n", &intVal, 28}, // was: "unexpected newline"
-	{"%v", "0", &intVal, 0},        // was: "EOF"; 0 was taken as base prefix and not counted.
-	{"%v", "0", &uintVal, uint(0)}, // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%d\n", "27\n", &intVal, 27},      // ok
+	{"%d\n", "28 \n", &intVal, 28},     // was: "unexpected newline"
+	{"%v", "0", &intVal, 0},            // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%v", "0", &uintVal, uint(0)},     // was: "EOF"; 0 was taken as base prefix and not counted.
+	{"%c", " ", &uintVal, uint(' ')},   // %c must accept a blank.
+	{"%c", "\t", &uintVal, uint('\t')}, // %c must accept any space.
+	{"%c", "\n", &uintVal, uint('\n')}, // %c must accept any space.
 }
 
 var overflowTests = []ScanTest{
@@ -1126,5 +1129,33 @@ func TestScanfNewlineMatchFormat(t *testing.T) {
 		if !test.ok && err == nil {
 			t.Errorf("%s: expected error; got none", test.name)
 		}
+	}
+}
+
+// Test for issue 12090: Was unreading at EOF, double-scanning a byte.
+
+type hexBytes [2]byte
+
+func (h *hexBytes) Scan(ss ScanState, verb rune) error {
+	var b []byte
+	_, err := Fscanf(ss, "%4x", &b)
+	if err != nil {
+		panic(err) // Really shouldn't happen.
+	}
+	copy((*h)[:], b)
+	return err
+}
+
+func TestHexByte(t *testing.T) {
+	var h hexBytes
+	n, err := Sscanln("0123\n", &h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("expected 1 item; scanned %d", n)
+	}
+	if h[0] != 0x01 || h[1] != 0x23 {
+		t.Fatalf("expected 0123 got %x", h)
 	}
 }

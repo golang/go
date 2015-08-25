@@ -602,6 +602,13 @@ func unpatch(p *obj.Prog) *obj.Prog {
 var reg [100]int       // count of references to reg
 var regstk [100][]byte // allocation sites, when -v is given
 
+func GetReg(r int) int {
+	return reg[r-Thearch.REGMIN]
+}
+func SetReg(r, v int) {
+	reg[r-Thearch.REGMIN] = v
+}
+
 func ginit() {
 	for r := range reg {
 		reg[r] = 1

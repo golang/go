@@ -24,7 +24,7 @@ func TestCorruptedInputs(t *testing.T) {
 	for _, data := range tests {
 		events, err := Parse(strings.NewReader(data))
 		if err == nil || events != nil {
-			t.Fatalf("no error on input: %q\n", t)
+			t.Fatalf("no error on input: %q\n", data)
 		}
 	}
 }

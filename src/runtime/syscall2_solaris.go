@@ -9,9 +9,6 @@ import _ "unsafe" // for go:linkname
 //go:cgo_import_dynamic libc_chdir chdir "libc.so"
 //go:cgo_import_dynamic libc_chroot chroot "libc.so"
 //go:cgo_import_dynamic libc_close close "libc.so"
-//go:cgo_import_dynamic libc_dlclose dlclose "libc.so"
-//go:cgo_import_dynamic libc_dlopen dlopen "libc.so"
-//go:cgo_import_dynamic libc_dlsym dlsym "libc.so"
 //go:cgo_import_dynamic libc_execve execve "libc.so"
 //go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
 //go:cgo_import_dynamic libc_gethostname gethostname "libc.so"
@@ -30,9 +27,6 @@ import _ "unsafe" // for go:linkname
 //go:linkname libc_chdir libc_chdir
 //go:linkname libc_chroot libc_chroot
 //go:linkname libc_close libc_close
-//go:linkname libc_dlclose libc_dlclose
-//go:linkname libc_dlopen libc_dlopen
-//go:linkname libc_dlsym libc_dlsym
 //go:linkname libc_execve libc_execve
 //go:linkname libc_fcntl libc_fcntl
 //go:linkname libc_gethostname libc_gethostname

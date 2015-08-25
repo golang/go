@@ -20,23 +20,32 @@ see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
 
 <p>
 The project welcomes submissions but please let everyone know what
-you're working on if you want it to become part of the main repository.
+you're working on if you want to change or add to the Go repositories.
 </p>
 
 <p>
-Before undertaking to write something new for the Go project, send
-mail to the <a href="https://groups.google.com/group/golang-nuts">mailing
-list</a> to discuss what you plan to do.  This gives everyone a
-chance to validate the design, helps prevent duplication of effort,
-and ensures that the idea fits inside the goals for the language
-and tools.  It also guarantees that the design is sound before code
-is written; the code review tool is not the place for high-level
-discussions.
+Before undertaking to write something new for the Go project,
+please <a href="https://golang.org/issue/new">file an issue</a>
+(or claim an <a href="https://golang.org/issues">existing issue</a>).
+Significant changes must go through the
+<a href="https://golang.org/s/proposal-process">change proposal process</a>
+before they can be accepted.
 </p>
 
 <p>
-In short, send mail before you code.
-And don't start the discussion by mailing a change list!
+This process gives everyone a chance to validate the design,
+helps prevent duplication of effort,
+and ensures that the idea fits inside the goals for the language and tools.
+It also checks that the design is sound before code is written;
+the code review tool is not the place for high-level discussions.
+</p>
+
+<p>
+When planning work, please note that the Go project follows a
+<a href="https://golang.org/wiki/Go-Release-Cycle">six-month
+development cycle</a>. The latter half of each cycle is a three-month
+feature freeze during which only bug fixes and doc updates are accepted.
+New work cannot be submitted during a feature freeze.
 </p>
 
 <h2 id="Testing">Testing redux</h2>
@@ -121,6 +130,41 @@ To do this, visit
 go-review.googlesource.com/login/</a>. You will immediately be redirected
 to Google Accounts. Sign in using the same Google Account you used above.
 That is all that is required.
+</p>
+
+<h3>Contributor License Agreement</h3>
+
+<p>Gerrit serves as the gatekeeper and uses your e-mail address as the key.
+To send your first change to the Go project from a given address,
+you must have completed one of the contributor license agreements:
+<ul>
+<li>
+If you are the copyright holder, you will need to agree to the
+<a href="https://developers.google.com/open-source/cla/individual">individual
+contributor license agreement</a>, which can be completed online.
+</li>
+<li>
+If your organization is the copyright holder, the organization
+will need to agree to the
+<a href="https://developers.google.com/open-source/cla/corporate">corporate
+contributor license agreement</a>.
+(If the copyright holder for your code has already completed the
+agreement in connection with another Google open source project,
+it does not need to be completed again.)
+</li>
+</ul>
+
+<p>
+You can use the links above to create and sign the contributor license agreement
+or you can show your current agreements and create new ones through the Gerrit
+interface.  <a href="https://go-review.googlesource.com/login/">Log into Gerrit</a>,
+click your name in the upper-right, choose "Settings", then select "Agreements"
+from the topics on the left. If you do not have a signed agreement listed here,
+you can create one by clicking "New Contributor Agreement" and following the steps.
+</p>
+
+<p>
+This rigmarole only needs to be done for your first submission for each email address.
 </p>
 
 <h3>Install the git-codereview command</h3>
@@ -626,30 +670,6 @@ defines who the Go contributors&mdash;the people&mdash;are;
 the <a href="/AUTHORS"><code>AUTHORS</code></a> file defines
 who &ldquo;The Go Authors&rdquo;&mdash;the copyright holders&mdash;are.
 These files will be periodically updated based on the commit logs.
-
-<p>Gerrit serves as the gatekeeper and uses your e-mail address as the key.
-To send your first change to the Go project from a given address,
-you must have completed one of the contributor license agreements:
-<ul>
-<li>
-If you are the copyright holder, you will need to agree to the
-<a href="https://developers.google.com/open-source/cla/individual">individual
-contributor license agreement</a>, which can be completed online.
-</li>
-<li>
-If your organization is the copyright holder, the organization
-will need to agree to the
-<a href="https://developers.google.com/open-source/cla/corporate">corporate
-contributor license agreement</a>.
-(If the copyright holder for your code has already completed the
-agreement in connection with another Google open source project,
-it does not need to be completed again.)
-</li>
-</ul>
-
-<p>
-This rigmarole needs to be done only for your first submission.
-</p>
 
 <p>Code that you contribute should use the standard copyright header:</p>
 

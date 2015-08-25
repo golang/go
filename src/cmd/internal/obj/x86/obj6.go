@@ -657,51 +657,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		p2.Pcond = p
 	}
 
-	if ctxt.Debugzerostack != 0 && autoffset != 0 && cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
-		// 6l -Z means zero the stack frame on entry.
-		// This slows down function calls but can help avoid
-		// false positives in garbage collection.
-		p = obj.Appendp(ctxt, p)
-
-		p.As = AMOVQ
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = REG_SP
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_DI
-		if p.Mode == 32 {
-			p.As = AMOVL
-		}
-
-		p = obj.Appendp(ctxt, p)
-		p.As = AMOVQ
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(autoffset) / int64(ctxt.Arch.Regsize)
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_CX
-		if p.Mode == 32 {
-			p.As = AMOVL
-		}
-
-		p = obj.Appendp(ctxt, p)
-		p.As = AMOVQ
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_AX
-		if p.Mode == 32 {
-			p.As = AMOVL
-		}
-
-		p = obj.Appendp(ctxt, p)
-		p.As = AREP
-
-		p = obj.Appendp(ctxt, p)
-		p.As = ASTOSQ
-		if p.Mode == 32 {
-			p.As = ASTOSL
-		}
-	}
-
 	var a int
 	var pcsize int
 	for ; p != nil; p = p.Link {

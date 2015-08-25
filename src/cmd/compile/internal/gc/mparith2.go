@@ -229,7 +229,7 @@ func mprshfixfix(a, b *Mpint) {
 	}
 
 	s := Mpgetfix(b)
-	if s < 0 || s >= Mpprec {
+	if s < 0 {
 		Yyerror("stupid shift: %d", s)
 		if a.Val.Sign() < 0 {
 			Mpmovecfix(a, -1)

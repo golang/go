@@ -14,8 +14,8 @@
 // language object (Object) it denotes.
 // Use Info.{Defs,Uses,Implicits} for the results of name resolution.
 //
-// Constant folding computes the exact constant value (exact.Value) for
-// every expression (ast.Expr) that is a compile-time constant.
+// Constant folding computes the exact constant value (constant.Value)
+// for every expression (ast.Expr) that is a compile-time constant.
 // Use Info.Types[expr].Value for the results of constant folding.
 //
 // Type inference computes the type (Type) of every expression (ast.Expr)
@@ -28,7 +28,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -218,7 +218,7 @@ func (info *Info) ObjectOf(id *ast.Ident) Object {
 type TypeAndValue struct {
 	mode  operandMode
 	Type  Type
-	Value exact.Value
+	Value constant.Value
 }
 
 // TODO(gri) Consider eliminating the IsVoid predicate. Instead, report
@@ -246,7 +246,7 @@ func (tv TypeAndValue) IsBuiltin() bool {
 // nil Value.
 func (tv TypeAndValue) IsValue() bool {
 	switch tv.mode {
-	case constant, variable, mapindex, value, commaok:
+	case constant_, variable, mapindex, value, commaok:
 		return true
 	}
 	return false

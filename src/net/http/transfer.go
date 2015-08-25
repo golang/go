@@ -637,6 +637,12 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 		if b.hdr != nil {
 			if e := b.readTrailer(); e != nil {
 				err = e
+				// Something went wrong in the trailer, we must not allow any
+				// further reads of any kind to succeed from body, nor any
+				// subsequent requests on the server connection. See
+				// golang.org/issue/12027
+				b.sawEOF = false
+				b.closed = true
 			}
 			b.hdr = nil
 		} else {
@@ -737,11 +743,10 @@ func mergeSetHeader(dst *Header, src Header) {
 	}
 }
 
-// unreadDataSize returns the number of bytes of unread input.
+// unreadDataSizeLocked returns the number of bytes of unread input.
 // It returns -1 if unknown.
-func (b *body) unreadDataSize() int64 {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+// b.mu must be held.
+func (b *body) unreadDataSizeLocked() int64 {
 	if lr, ok := b.src.(*io.LimitedReader); ok {
 		return lr.N
 	}

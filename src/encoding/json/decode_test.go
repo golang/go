@@ -1322,48 +1322,7 @@ func (t *Time3339) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// A Time-like type supporting the json Unmarshal interface
-type AJson struct {
-	T int
-}
-
-func (t *AJson) UnmarshalJSON(b []byte) error {
-	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
-		return fmt.Errorf("types: failed to unmarshal non-string value %q", b)
-	}
-	if _, err := fmt.Sscanf(string(b[1:len(b)-1]), "%d", &t.T); err != nil {
-		return err
-	}
-	return nil
-}
-
-// A Time-like type supporting the text Unmarshal interface
-type AText struct {
-	T int
-}
-
-func (t *AText) UnmarshalText(b []byte) error {
-	if len(b) < 2 || b[0] != '"' || b[len(b)-1] != '"' {
-		return fmt.Errorf("types: failed to unmarshal non-string value %q", b)
-	}
-	if _, err := fmt.Sscanf(string(b[1:len(b)-1]), "%d", &t.T); err != nil {
-		return err
-	}
-	return nil
-}
-
-// This type mixes pointers and structures, supporting json or text Unmarshal interfaces
-type STime struct {
-	X  int
-	J1 AJson
-	J2 *AJson
-	J3 **AJson
-	T1 AText
-	T2 *AText
-	T3 **AText
-}
-
-func TestUnmarshalJSONLiteralError1(t *testing.T) {
+func TestUnmarshalJSONLiteralError(t *testing.T) {
 	var t3 Time3339
 	err := Unmarshal([]byte(`"0000-00-00T00:00:00Z"`), &t3)
 	if err == nil {
@@ -1371,39 +1330,6 @@ func TestUnmarshalJSONLiteralError1(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "range") {
 		t.Errorf("got err = %v; want out of range error", err)
-	}
-
-	out := time.Now()
-	want := out
-	err = Unmarshal([]byte(`null`), &out)
-	if err != nil {
-		t.Fatalf("got err = %v; no error was expected", err)
-	}
-	if out != want {
-		t.Fatalf("got %q, want %q", out, want)
-	}
-}
-
-func TestUnmarshalJSONLiteralError2(t *testing.T) {
-	out := STime{
-		X:  1,
-		J1: AJson{2},
-		J2: &AJson{3},
-		J3: new(*AJson),
-		T1: AText{5},
-		T2: &AText{6},
-		T3: new(*AText),
-	}
-	want := out
-	want.J2 = nil
-	want.T2 = nil
-	// Keep the spaces as they are in the following line
-	err := Unmarshal([]byte(`{"X":1,"J1":null,"J2":null,"J3": null,"T1":null ,"T2": null , "T3":null}`), &out)
-	if err != nil {
-		t.Fatalf("got err = %v; no error was expected", err)
-	}
-	if out != want {
-		t.Fatalf("got %v, want %v", out, want)
 	}
 }
 

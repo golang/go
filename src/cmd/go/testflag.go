@@ -36,6 +36,7 @@ var testFlagDefn = []*testFlagSpec{
 	{name: "cover", boolVar: &testCover},
 	{name: "covermode"},
 	{name: "coverpkg"},
+	{name: "exec"},
 
 	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
 	{name: "bench", passToTest: true},

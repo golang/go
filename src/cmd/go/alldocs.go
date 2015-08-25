@@ -59,18 +59,20 @@ along with their dependencies, but it does not install the results.
 If the arguments to build are a list of .go files, build treats
 them as a list of source files specifying a single package.
 
-When the command line specifies a single main package,
-build writes the resulting executable to output.
-Otherwise build compiles the packages but discards the results,
+When compiling a single main package, build writes
+the resulting executable to an output file named after
+the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
+or the source code directory ('go build unix/sam' writes 'sam' or 'sam.exe').
+The '.exe' suffix is added when writing a Windows executable.
+
+When compiling multiple packages or a single non-main package,
+build compiles the packages but discards the resulting object,
 serving only as a check that the packages can be built.
 
-The -o flag specifies the output file name. If not specified, the
-output file name depends on the arguments and derives from the name
-of the package, such as p.a for package p, unless p is 'main'. If
-the package is main and file names are provided, the file name
-derives from the first file name mentioned, such as f1 for 'go build
-f1.go f2.go'; with no files provided ('go build'), the output file
-name is the base name of the containing directory.
+The -o flag, only allowed when compiling a single package,
+forces build to write the resulting executable or object
+to the named output file, instead of the default behavior described
+in the last two paragraphs.
 
 The -i flag installs the packages that are dependencies of the target.
 
@@ -519,9 +521,10 @@ List lists the packages named by the import paths, one per line.
 
 The default output shows the package import path:
 
-    code.google.com/p/google-api-go-client/books/v1
-    code.google.com/p/goauth2/oauth
-    code.google.com/p/sqlite
+    bytes
+    encoding/json
+    github.com/gorilla/mux
+    golang.org/x/net/html
 
 The -f flag specifies an alternate format for the list, using the
 syntax of package template.  The default output is equivalent to -f
@@ -779,14 +782,14 @@ are:
 	-buildmode=c-archive
 		Build the listed main package, plus all packages it imports,
 		into a C archive file. The only callable symbols will be those
-		functions marked as exported. Requires exactly one main package
-		to be listed.
+		functions exported using a cgo //export comment. Requires
+		exactly one main package to be listed.
 
 	-buildmode=c-shared
 		Build the listed main packages, plus all packages that they
 		import, into C shared libraries. The only callable symbols will
-		be those functions marked as exported. Non-main packages are
-		ignored.
+		be those functions exported using a cgo //export comment.
+		Non-main packages are ignored.
 
 	-buildmode=default
 		Listed main packages are built into executables and listed
@@ -1282,7 +1285,7 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'code.google.com/p/project'.
+such as 'github.com/user/repo'.
 
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized
@@ -1402,6 +1405,7 @@ control the execution of any test:
 
 	-timeout t
 	    If a test runs longer than t, panic.
+	    The default is 10 minutes (10m).
 
 	-trace trace.out
 	    Write an execution trace to the specified file before exiting.

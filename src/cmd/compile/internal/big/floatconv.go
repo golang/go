@@ -125,9 +125,9 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// apply 10**exp10
 	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
 	if exp10 < 0 {
-		z.uquo(z, p.pow10(-exp10))
+		z.Quo(z, p.pow10(-exp10))
 	} else {
-		z.umul(z, p.pow10(exp10))
+		z.Mul(z, p.pow10(exp10))
 	}
 
 	return

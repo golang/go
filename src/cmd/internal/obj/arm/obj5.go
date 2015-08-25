@@ -186,65 +186,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	cursym.Locals = autoffset
 	cursym.Args = p.To.Val.(int32)
 
-	if ctxt.Debugzerostack != 0 {
-		if autoffset != 0 && p.From3.Offset&obj.NOSPLIT == 0 {
-			// MOVW $4(R13), R1
-			p = obj.Appendp(ctxt, p)
-
-			p.As = AMOVW
-			p.From.Type = obj.TYPE_ADDR
-			p.From.Reg = REG_R13
-			p.From.Offset = 4
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R1
-
-			// MOVW $n(R13), R2
-			p = obj.Appendp(ctxt, p)
-
-			p.As = AMOVW
-			p.From.Type = obj.TYPE_ADDR
-			p.From.Reg = REG_R13
-			p.From.Offset = 4 + int64(autoffset)
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R2
-
-			// MOVW $0, R3
-			p = obj.Appendp(ctxt, p)
-
-			p.As = AMOVW
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 0
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R3
-
-			// L:
-			//	MOVW.nil R3, 0(R1) +4
-			//	CMP R1, R2
-			//	BNE L
-			pl := obj.Appendp(ctxt, p)
-			p := pl
-
-			p.As = AMOVW
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = REG_R3
-			p.To.Type = obj.TYPE_MEM
-			p.To.Reg = REG_R1
-			p.To.Offset = 4
-			p.Scond |= C_PBIT
-
-			p = obj.Appendp(ctxt, p)
-			p.As = ACMP
-			p.From.Type = obj.TYPE_REG
-			p.From.Reg = REG_R1
-			p.Reg = REG_R2
-
-			p = obj.Appendp(ctxt, p)
-			p.As = ABNE
-			p.To.Type = obj.TYPE_BRANCH
-			p.Pcond = pl
-		}
-	}
-
 	/*
 	 * find leaf subroutines
 	 * strip NOPs

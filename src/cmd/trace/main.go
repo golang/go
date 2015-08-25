@@ -71,7 +71,7 @@ func main() {
 	}
 	// Open browser.
 	if !startBrowser("http://" + ln.Addr().String()) {
-		dief("failed to start browser\n")
+		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
 	}
 
 	// Parse and symbolize trace asynchronously while browser opens.

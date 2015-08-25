@@ -145,6 +145,11 @@ const (
 	// bookkeeping will use a large amount of each stack.
 	firstStackBarrierOffset = 1024
 	debugStackBarrier       = false
+
+	// sweepMinHeapDistance is a lower bound on the heap distance
+	// (in bytes) reserved for concurrent sweeping between GC
+	// cycles. This will be scaled by gcpercent/100.
+	sweepMinHeapDistance = 1024 * 1024
 )
 
 // heapminimum is the minimum heap size at which to trigger GC.
@@ -343,6 +348,10 @@ type gcControllerState struct {
 	// that the background mark phase started.
 	bgMarkStartTime int64
 
+	// assistTime is the absolute start time in nanoseconds that
+	// mutator assists were enabled.
+	assistStartTime int64
+
 	// heapGoal is the goal memstats.heap_live for when this cycle
 	// ends. This is computed at the beginning of each cycle.
 	heapGoal uint64
@@ -355,7 +364,8 @@ type gcControllerState struct {
 
 	// assistRatio is the ratio of allocated bytes to scan work
 	// that should be performed by mutator assists. This is
-	// computed at the beginning of each cycle.
+	// computed at the beginning of each cycle and updated every
+	// time heap_scan is updated.
 	assistRatio float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
@@ -373,10 +383,6 @@ type gcControllerState struct {
 	// the heap size marked by the previous cycle. This is updated
 	// at the end of of each cycle.
 	triggerRatio float64
-
-	// reviseTimer is a timer that triggers periodic revision of
-	// control variables during the cycle.
-	reviseTimer timer
 
 	_ [_CacheLineSize]byte
 
@@ -436,18 +442,19 @@ func (c *gcControllerState) startCycle() {
 	// throughout the cycle.
 	c.revise()
 
-	// Set up a timer to revise periodically
-	c.reviseTimer.f = func(interface{}, uintptr) {
-		gcController.revise()
+	if debug.gcpacertrace > 0 {
+		print("pacer: assist ratio=", c.assistRatio,
+			" (scan ", memstats.heap_scan>>20, " MB in ",
+			work.initialHeapLive>>20, "->",
+			c.heapGoal>>20, " MB)",
+			" workers=", c.dedicatedMarkWorkersNeeded,
+			"+", c.fractionalMarkWorkersNeeded, "\n")
 	}
-	c.reviseTimer.period = 10 * 1000 * 1000
-	c.reviseTimer.when = nanotime() + c.reviseTimer.period
-	addtimer(&c.reviseTimer)
 }
 
 // revise updates the assist ratio during the GC cycle to account for
-// improved estimates. This should be called periodically during
-// concurrent mark.
+// improved estimates. This should be called either under STW or
+// whenever memstats.heap_scan is updated (with mheap_.lock held).
 func (c *gcControllerState) revise() {
 	// Compute the expected scan work. This is a strict upper
 	// bound on the possible scan work in the current heap.
@@ -488,27 +495,28 @@ func (c *gcControllerState) endCycle() {
 	// transient changes. Values near 1 may be unstable.
 	const triggerGain = 0.5
 
-	// Stop the revise timer
-	deltimer(&c.reviseTimer)
-
 	// Compute next cycle trigger ratio. First, this computes the
 	// "error" for this cycle; that is, how far off the trigger
 	// was from what it should have been, accounting for both heap
-	// growth and GC CPU utilization. We computing the actual heap
+	// growth and GC CPU utilization. We compute the actual heap
 	// growth during this cycle and scale that by how far off from
 	// the goal CPU utilization we were (to estimate the heap
 	// growth if we had the desired CPU utilization). The
 	// difference between this estimate and the GOGC-based goal
 	// heap growth is the error.
+	//
+	// TODO(austin): next_gc is based on heap_reachable, not
+	// heap_marked, which means the actual growth ratio
+	// technically isn't comparable to the trigger ratio.
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
-	duration := nanotime() - c.bgMarkStartTime
+	assistDuration := nanotime() - c.assistStartTime
 
 	// Assume background mark hit its utilization goal.
 	utilization := gcGoalUtilization
 	// Add assist utilization; avoid divide by zero.
-	if duration > 0 {
-		utilization += float64(c.assistTime) / float64(duration*int64(gomaxprocs))
+	if assistDuration > 0 {
+		utilization += float64(c.assistTime) / float64(assistDuration*int64(gomaxprocs))
 	}
 
 	triggerError := goalGrowthRatio - c.triggerRatio - utilization/gcGoalUtilization*(actualGrowthRatio-c.triggerRatio)
@@ -803,7 +811,7 @@ var work struct {
 // garbage collection is complete. It may also block the entire
 // program.
 func GC() {
-	startGC(gcForceBlockMode)
+	startGC(gcForceBlockMode, false)
 }
 
 const (
@@ -812,7 +820,12 @@ const (
 	gcForceBlockMode        // stop-the-world GC now and wait for sweep
 )
 
-func startGC(mode int) {
+// startGC starts a GC cycle. If mode is gcBackgroundMode, this will
+// start GC in the background and return. Otherwise, this will block
+// until the new GC cycle is started and finishes. If forceTrigger is
+// true, it indicates that GC should be started regardless of the
+// current heap size.
+func startGC(mode int, forceTrigger bool) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
 	// holding locks. To avoid deadlocks during stop-the-world, don't bother
@@ -841,6 +854,14 @@ func startGC(mode int) {
 	// trigger concurrent GC
 	readied := false
 	lock(&bggc.lock)
+	// The trigger was originally checked speculatively, so
+	// recheck that this really should trigger GC. (For example,
+	// we may have gone through a whole GC cycle since the
+	// speculative check.)
+	if !(forceTrigger || shouldtriggergc()) {
+		unlock(&bggc.lock)
+		return
+	}
 	if !bggc.started {
 		bggc.working = 1
 		bggc.started = true
@@ -971,6 +992,7 @@ func gc(mode int) {
 			now = nanotime()
 			pauseNS += now - pauseStart
 			tScan = now
+			gcController.assistStartTime = now
 			gcscan_m()
 
 			// Enter mark phase.
@@ -1064,6 +1086,16 @@ func gc(mode int) {
 	// need to switch to g0 so we can shrink the stack.
 	systemstack(func() {
 		gcMark(startTime)
+		// Must return immediately.
+		// The outer function's stack may have moved
+		// during gcMark (it shrinks stacks, including the
+		// outer function's stack), so we must not refer
+		// to any of its variables. Return back to the
+		// non-system stack to pick up the new addresses
+		// before continuing.
+	})
+
+	systemstack(func() {
 		heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
 			// Run a full stop-the-world mark using checkmark bits,
@@ -1448,7 +1480,7 @@ func gcMark(start_time int64) {
 	} else {
 		// This can happen if most of the allocation during
 		// the cycle never became reachable from the heap.
-		// Just set the reachable heap appropriation to 0 and
+		// Just set the reachable heap approximation to 0 and
 		// let the heapminimum kick in below.
 		memstats.heap_reachable = 0
 	}
@@ -1470,6 +1502,21 @@ func gcMark(start_time int64) {
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_marked = work.bytesMarked
 	memstats.heap_scan = uint64(gcController.scanWork)
+
+	minNextGC := memstats.heap_live + sweepMinHeapDistance*uint64(gcpercent)/100
+	if memstats.next_gc < minNextGC {
+		// The allocated heap is already past the trigger.
+		// This can happen if the triggerRatio is very low and
+		// the reachable heap estimate is less than the live
+		// heap size.
+		//
+		// Concurrent sweep happens in the heap growth from
+		// heap_live to next_gc, so bump next_gc up to ensure
+		// that concurrent sweep has some heap growth in which
+		// to perform sweeping before we start the next GC
+		// cycle.
+		memstats.next_gc = minNextGC
+	}
 
 	if trace.enabled {
 		traceHeapAlloc()
@@ -1525,6 +1572,7 @@ func gcSweep(mode int) {
 	lock(&mheap_.lock)
 	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
 	mheap_.pagesSwept = 0
+	mheap_.spanBytesAlloc = 0
 	unlock(&mheap_.lock)
 
 	// Background sweep.

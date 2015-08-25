@@ -61,3 +61,12 @@ func gcbits(interface{}) []byte // provided by runtime
 func MapBucketOf(x, y Type) Type {
 	return bucketOf(x.(*rtype), y.(*rtype))
 }
+
+func CachedBucketOf(m Type) Type {
+	t := m.(*rtype)
+	if Kind(t.kind&kindMask) != Map {
+		panic("not map")
+	}
+	tt := (*mapType)(unsafe.Pointer(t))
+	return tt.bucket
+}

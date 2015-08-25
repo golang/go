@@ -83,7 +83,7 @@ run() {
 			program=$(echo $1 | sed 's/gc //')
 			shift
 			echo $program
-			$1 <fasta-1000.out > /tmp/$$
+			$1 <fasta-1000.txt > /tmp/$$
 			case $program in
 			chameneosredux)
 				# exact numbers may vary but non-numbers should match
@@ -247,3 +247,6 @@ do
 	$i
 	runonly echo
 done
+
+rm *.o *.$EXE # Clean up
+

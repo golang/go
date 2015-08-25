@@ -77,7 +77,7 @@ By convention, this is arranged by starting each path with a
 unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
-such as 'code.google.com/p/project'.
+such as 'github.com/user/repo'.
 
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized
@@ -548,14 +548,14 @@ are:
 	-buildmode=c-archive
 		Build the listed main package, plus all packages it imports,
 		into a C archive file. The only callable symbols will be those
-		functions marked as exported. Requires exactly one main package
-		to be listed.
+		functions exported using a cgo //export comment. Requires
+		exactly one main package to be listed.
 
 	-buildmode=c-shared
 		Build the listed main packages, plus all packages that they
 		import, into C shared libraries. The only callable symbols will
-		be those functions marked as exported. Non-main packages are
-		ignored.
+		be those functions exported using a cgo //export comment.
+		Non-main packages are ignored.
 
 	-buildmode=default
 		Listed main packages are built into executables and listed
