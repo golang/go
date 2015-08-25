@@ -25,7 +25,6 @@ var genericOps = []opData{
 	{name: "Sub32F"},
 	{name: "Sub64F"},
 	// TODO: Sub64C, Sub128C
-	// TODO: Sub32F, Sub64F, Sub64C, Sub128C
 
 	{name: "Mul8"}, // arg0 * arg1
 	{name: "Mul16"},
