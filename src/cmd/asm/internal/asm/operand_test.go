@@ -181,7 +181,7 @@ var amd64OperandTests = []operandTest{
 	{"x·y+8(SB)", "x.y+8(SB)"},
 	{"x·y+8(SP)", "x.y+8(SP)"},
 	{"y+56(FP)", "y+56(FP)"},
-	{"·AddUint32(SB", "\"\".AddUint32(SB)"},
+	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·callReflect(SB)", "\"\".callReflect(SB)"},
 }
 
@@ -288,6 +288,7 @@ var armOperandTests = []operandTest{
 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"(R1, R3)", "(R1, R3)"},
+	{"[R0,R1,g,R15", ""}, // Issue 11764 - previously asm just hung parsing ']' missing register lists
 }
 
 var ppc64OperandTests = []operandTest{
