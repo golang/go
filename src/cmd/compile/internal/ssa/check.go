@@ -99,9 +99,6 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
 			}
-			if b.Succs[1].Kind != BlockExit {
-				f.Fatalf("exception edge from call block %s does not go to exit but %s", b, b.Succs[1])
-			}
 		}
 		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
 			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))

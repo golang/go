@@ -13,19 +13,6 @@ func critical(f *Func) {
 			continue
 		}
 
-		// decide if we need to split edges coming into b.
-		hasphi := false
-		for _, v := range b.Values {
-			if v.Op == OpPhi && v.Type != TypeMem {
-				hasphi = true
-				break
-			}
-		}
-		if !hasphi {
-			// no splitting needed
-			continue
-		}
-
 		// split input edges coming from multi-output blocks.
 		for i, c := range b.Preds {
 			if c.Kind == BlockPlain {
