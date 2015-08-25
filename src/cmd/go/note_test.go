@@ -24,7 +24,7 @@ func TestNoteReading(t *testing.T) {
 		t.Fatalf("buildID in hello binary = %q, want %q", id, buildID)
 	}
 
-	if runtime.GOOS == "linux" && runtime.GOARCH == "ppc64le" {
+	if runtime.GOOS == "linux" && (runtime.GOARCH == "ppc64le" || runtime.GOARCH == "ppc64") {
 		t.Skipf("skipping - golang.org/issue/11184")
 	}
 
