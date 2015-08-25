@@ -1103,12 +1103,12 @@ type Tx struct {
 
 var ErrTxDone = errors.New("sql: Transaction has already been committed or rolled back")
 
-func (tx *Tx) close() {
+func (tx *Tx) close(err error) {
 	if tx.done {
 		panic("double close") // internal error
 	}
 	tx.done = true
-	tx.db.putConn(tx.dc, nil)
+	tx.db.putConn(tx.dc, err)
 	tx.dc = nil
 	tx.txi = nil
 }
@@ -1134,13 +1134,13 @@ func (tx *Tx) Commit() error {
 	if tx.done {
 		return ErrTxDone
 	}
-	defer tx.close()
 	tx.dc.Lock()
 	err := tx.txi.Commit()
 	tx.dc.Unlock()
 	if err != driver.ErrBadConn {
 		tx.closePrepared()
 	}
+	tx.close(err)
 	return err
 }
 
@@ -1149,13 +1149,13 @@ func (tx *Tx) Rollback() error {
 	if tx.done {
 		return ErrTxDone
 	}
-	defer tx.close()
 	tx.dc.Lock()
 	err := tx.txi.Rollback()
 	tx.dc.Unlock()
 	if err != driver.ErrBadConn {
 		tx.closePrepared()
 	}
+	tx.close(err)
 	return err
 }
 
