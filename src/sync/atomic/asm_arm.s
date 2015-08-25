@@ -8,6 +8,18 @@
 
 // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
 
+#define DMB_ISHST_7 \
+	MOVB	runtime·goarm(SB), R11; \
+	CMP	$7, R11; \
+	BLT	2(PC); \
+	WORD	$0xf57ff05a	// dmb ishst
+
+#define DMB_ISH_7 \
+	MOVB	runtime·goarm(SB), R11; \
+	CMP	$7, R11; \
+	BLT	2(PC); \
+	WORD	$0xf57ff05b	// dmb ish
+
 TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
 	MOVW	addr+0(FP), R1
 	MOVW	old+4(FP), R2
@@ -17,10 +29,12 @@ casloop:
 	LDREX	(R1), R0
 	CMP	R0, R2
 	BNE	casfail
+	DMB_ISHST_7
 	STREX	R3, (R1), R0
 	CMP	$0, R0
 	BNE	casloop
 	MOVW	$1, R0
+	DMB_ISH_7
 	MOVBU	R0, ret+12(FP)
 	RET
 casfail:
@@ -46,10 +60,12 @@ cas64loop:
 	BNE	cas64fail
 	CMP	R3, R7
 	BNE	cas64fail
+	DMB_ISHST_7
 	STREXD	R4, (R1), R0	// stores R4 and R5
 	CMP	$0, R0
 	BNE	cas64loop
 	MOVW	$1, R0
+	DMB_ISH_7
 	MOVBU	R0, ret+20(FP)
 	RET
 cas64fail:
@@ -64,9 +80,11 @@ addloop:
 	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R3
 	ADD	R2, R3
+	DMB_ISHST_7
 	STREX	R3, (R1), R0
 	CMP	$0, R0
 	BNE	addloop
+	DMB_ISH_7
 	MOVW	R3, ret+8(FP)
 	RET
 
@@ -84,9 +102,11 @@ add64loop:
 	LDREXD	(R1), R4	// loads R4 and R5
 	ADD.S	R2, R4
 	ADC	R3, R5
+	DMB_ISHST_7
 	STREXD	R4, (R1), R0	// stores R4 and R5
 	CMP	$0, R0
 	BNE	add64loop
+	DMB_ISH_7
 	MOVW	R4, retlo+12(FP)
 	MOVW	R5, rethi+16(FP)
 	RET
@@ -97,9 +117,11 @@ TEXT ·armSwapUint32(SB),NOSPLIT,$0-12
 swaploop:
 	// LDREX and STREX were introduced in ARMv6.
 	LDREX	(R1), R3
+	DMB_ISHST_7
 	STREX	R2, (R1), R0
 	CMP	$0, R0
 	BNE	swaploop
+	DMB_ISH_7
 	MOVW	R3, old+8(FP)
 	RET
 
@@ -115,9 +137,11 @@ TEXT ·armSwapUint64(SB),NOSPLIT,$0-20
 swap64loop:
 	// LDREXD and STREXD were introduced in ARMv6k.
 	LDREXD	(R1), R4	// loads R4 and R5
+	DMB_ISHST_7
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
 	BNE	swap64loop
+	DMB_ISH_7
 	MOVW	R4, oldlo+12(FP)
 	MOVW	R5, oldhi+16(FP)
 	RET
@@ -131,9 +155,11 @@ TEXT ·armLoadUint64(SB),NOSPLIT,$0-12
 	MOVW	R2, (R2)
 load64loop:
 	LDREXD	(R1), R2	// loads R2 and R3
+	DMB_ISHST_7
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
 	BNE	load64loop
+	DMB_ISH_7
 	MOVW	R2, vallo+4(FP)
 	MOVW	R3, valhi+8(FP)
 	RET
@@ -149,9 +175,11 @@ TEXT ·armStoreUint64(SB),NOSPLIT,$0-12
 	MOVW	valhi+8(FP), R3
 store64loop:
 	LDREXD	(R1), R4	// loads R4 and R5
+	DMB_ISHST_7
 	STREXD	R2, (R1), R0	// stores R2 and R3
 	CMP	$0, R0
 	BNE	store64loop
+	DMB_ISH_7
 	RET
 
 // Check for broken 64-bit LDREXD as found in QEMU.

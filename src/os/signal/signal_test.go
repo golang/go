@@ -255,6 +255,12 @@ func TestNohup(t *testing.T) {
 
 	Stop(c)
 
+	// Skip the nohup test below when running in tmux on darwin, since nohup
+	// doesn't work correctly there. See issue #5135.
+	if runtime.GOOS == "darwin" && os.Getenv("TMUX") != "" {
+		t.Skip("Skipping nohup test due to running in tmux on darwin")
+	}
+
 	// Again, this time with nohup, assuming we can find it.
 	_, err := os.Stat("/usr/bin/nohup")
 	if err != nil {

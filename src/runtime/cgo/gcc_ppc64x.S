@@ -129,11 +129,6 @@ restoreregs:
 
 	blr
 
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	// TODO(austin)
-	b 1b
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

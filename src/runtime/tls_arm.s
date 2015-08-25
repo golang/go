@@ -77,7 +77,17 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	MOVW	0(R0), g
 	RET
 
-TEXT runtime·_initcgo(SB),NOSPLIT,$0
+// This is called from rt0_go, which runs on the system stack
+// using the initial stack allocated by the OS.
+// It calls back into standard C using the BL (R4) below.
+// To do that, the stack pointer must be 8-byte-aligned
+// on some systems, notably FreeBSD.
+// The ARM ABI says the stack pointer must be 8-byte-aligned
+// on entry to any function, but only FreeBSD's C library seems to care.
+// The caller was 8-byte aligned, but we push an LR.
+// Declare a dummy word ($4, not $0) to make sure the
+// frame is 8 bytes and stays 8-byte-aligned.
+TEXT runtime·_initcgo(SB),NOSPLIT,$4
 #ifndef GOOS_nacl
 	// if there is an _cgo_init, call it.
 	MOVW	_cgo_init(SB), R4

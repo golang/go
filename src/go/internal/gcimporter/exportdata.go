@@ -71,7 +71,7 @@ func FindExportData(r *bufio.Reader) (err error) {
 				size -= n
 			}
 
-			if name, size, err = readGopackHeader(r); err != nil {
+			if name, _, err = readGopackHeader(r); err != nil {
 				return
 			}
 		}

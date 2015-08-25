@@ -6,7 +6,7 @@ package types
 
 import (
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -105,7 +105,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 	defer func() { check.iota = nil }()
 
 	// provide valid constant value under all circumstances
-	obj.val = exact.MakeUnknown()
+	obj.val = constant.MakeUnknown()
 
 	// determine type, if any
 	if typ != nil {
@@ -335,7 +335,7 @@ func (check *Checker) declStmt(decl ast.Decl) {
 					// declare all constants
 					lhs := make([]*Const, len(s.Names))
 					for i, name := range s.Names {
-						obj := NewConst(name.Pos(), pkg, name.Name, nil, exact.MakeInt64(int64(iota)))
+						obj := NewConst(name.Pos(), pkg, name.Name, nil, constant.MakeInt64(int64(iota)))
 						lhs[i] = obj
 
 						var init ast.Expr

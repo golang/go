@@ -47,10 +47,6 @@ EXT(crosscall1):
 	ldp x19, x20, [sp], #16
 	ret
 
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	b 1b
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

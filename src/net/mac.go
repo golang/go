@@ -24,14 +24,17 @@ func (a HardwareAddr) String() string {
 	return string(buf)
 }
 
-// ParseMAC parses s as an IEEE 802 MAC-48, EUI-48, or EUI-64 using one of the
-// following formats:
+// ParseMAC parses s as an IEEE 802 MAC-48, EUI-48, EUI-64, or a 20-octet
+// IP over InfiniBand link-layer address using one of the following formats:
 //   01:23:45:67:89:ab
 //   01:23:45:67:89:ab:cd:ef
+//   01:23:45:67:89:ab:cd:ef:00:00:01:23:45:67:89:ab:cd:ef:00:00
 //   01-23-45-67-89-ab
 //   01-23-45-67-89-ab-cd-ef
+//   01-23-45-67-89-ab-cd-ef-00-00-01-23-45-67-89-ab-cd-ef-00-00
 //   0123.4567.89ab
 //   0123.4567.89ab.cdef
+//   0123.4567.89ab.cdef.0000.0123.4567.89ab.cdef.0000
 func ParseMAC(s string) (hw HardwareAddr, err error) {
 	if len(s) < 14 {
 		goto error
@@ -42,7 +45,7 @@ func ParseMAC(s string) (hw HardwareAddr, err error) {
 			goto error
 		}
 		n := (len(s) + 1) / 3
-		if n != 6 && n != 8 {
+		if n != 6 && n != 8 && n != 20 {
 			goto error
 		}
 		hw = make(HardwareAddr, n)
@@ -58,7 +61,7 @@ func ParseMAC(s string) (hw HardwareAddr, err error) {
 			goto error
 		}
 		n := 2 * (len(s) + 1) / 5
-		if n != 6 && n != 8 {
+		if n != 6 && n != 8 && n != 20 {
 			goto error
 		}
 		hw = make(HardwareAddr, n)

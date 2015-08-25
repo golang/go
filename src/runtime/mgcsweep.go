@@ -313,6 +313,38 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	return res
 }
 
+// deductSweepCredit deducts sweep credit for allocating a span of
+// size spanBytes. This must be performed *before* the span is
+// allocated to ensure the system has enough credit. If necessary, it
+// performs sweeping to prevent going in to debt. If the caller will
+// also sweep pages (e.g., for a large allocation), it can pass a
+// non-zero callerSweepPages to leave that many pages unswept.
+//
+// deductSweepCredit is the core of the "proportional sweep" system.
+// It uses statistics gathered by the garbage collector to perform
+// enough sweeping so that all pages are swept during the concurrent
+// sweep phase between GC cycles.
+//
+// mheap_ must NOT be locked.
+func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
+	if mheap_.sweepPagesPerByte == 0 {
+		// Proportional sweep is done or disabled.
+		return
+	}
+
+	// Account for this span allocation.
+	spanBytesAlloc := xadd64(&mheap_.spanBytesAlloc, int64(spanBytes))
+
+	// Fix debt if necessary.
+	pagesOwed := int64(mheap_.sweepPagesPerByte * float64(spanBytesAlloc))
+	for pagesOwed-int64(atomicload64(&mheap_.pagesSwept)) > int64(callerSweepPages) {
+		if gosweepone() == ^uintptr(0) {
+			mheap_.sweepPagesPerByte = 0
+			break
+		}
+	}
+}
+
 func dumpFreeList(s *mspan) {
 	printlock()
 	print("runtime: free list of span ", s, ":\n")

@@ -7,7 +7,7 @@
 package types
 
 import (
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 	"strings"
 )
@@ -76,11 +76,11 @@ func defPredeclaredTypes() {
 var predeclaredConsts = [...]struct {
 	name string
 	kind BasicKind
-	val  exact.Value
+	val  constant.Value
 }{
-	{"true", UntypedBool, exact.MakeBool(true)},
-	{"false", UntypedBool, exact.MakeBool(false)},
-	{"iota", UntypedInt, exact.MakeInt64(0)},
+	{"true", UntypedBool, constant.MakeBool(true)},
+	{"false", UntypedBool, constant.MakeBool(false)},
+	{"iota", UntypedInt, constant.MakeInt64(0)},
 }
 
 func defPredeclaredConsts() {

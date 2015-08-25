@@ -702,13 +702,25 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	}
 
 	if shouldhelpgc && shouldtriggergc() {
-		startGC(gcBackgroundMode)
+		startGC(gcBackgroundMode, false)
 	} else if gcBlackenEnabled != 0 {
 		// Assist garbage collector. We delay this until the
 		// epilogue so that it doesn't interfere with the
 		// inner working of malloc such as mcache refills that
 		// might happen while doing the gcAssistAlloc.
 		gcAssistAlloc(size, shouldhelpgc)
+	} else if shouldhelpgc && bggc.working != 0 {
+		// The GC is starting up or shutting down, so we can't
+		// assist, but we also can't allocate unabated. Slow
+		// down this G's allocation and help the GC stay
+		// scheduled by yielding.
+		//
+		// TODO: This is a workaround. Either help the GC make
+		// the transition or block.
+		gp := getg()
+		if gp != gp.m.g0 && gp.m.locks == 0 && gp.m.preemptoff == "" {
+			Gosched()
+		}
 	}
 
 	return x
@@ -724,6 +736,12 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 	if size&_PageMask != 0 {
 		npages++
 	}
+
+	// Deduct credit for this span allocation and sweep if
+	// necessary. mHeap_Alloc will also sweep npages, so this only
+	// pays the debt down to npage pages.
+	deductSweepCredit(npages*_PageSize, npages)
+
 	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
 	if s == nil {
 		throw("out of memory")

@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"go/format"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -23,17 +24,16 @@ import (
 	"time"
 )
 
-// Whether we can run go or ./testgo.
-var canRun = true
+var (
+	canRun  = true  // whether we can run go or ./testgo
+	canRace = false // whether we can run the race detector
+	canCgo  = false // whether we can use cgo
 
-// The suffix for executables, because Windows.
-var exeSuffix string
+	exeSuffix string // ".exe" on Windows
 
-// Whether we can run the race detector.
-var canRace bool
-
-// Whether we can use cgo.
-var canCgo bool
+	builder             = testenv.Builder()
+	skipExternalBuilder = false // skip external tests on this builder
+)
 
 func init() {
 	switch runtime.GOOS {
@@ -44,6 +44,11 @@ func init() {
 		case "arm", "arm64":
 			canRun = false
 		}
+	}
+
+	if strings.HasPrefix(builder+"-", "freebsd-arm-") {
+		skipExternalBuilder = true
+		canRun = false
 	}
 
 	switch runtime.GOOS {
@@ -132,6 +137,10 @@ type testgoData struct {
 // testgo sets up for a test that runs testgo.
 func testgo(t *testing.T) *testgoData {
 	testenv.MustHaveGoBuild(t)
+
+	if skipExternalBuilder {
+		t.Skip("skipping external tests on %s builder", builder)
+	}
 
 	return &testgoData{t: t}
 }
@@ -499,6 +508,13 @@ func (tg *testgoData) path(name string) string {
 	return filepath.Join(tg.tempdir, name)
 }
 
+// mustNotExist fails if path exists.
+func (tg *testgoData) mustNotExist(path string) {
+	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+		tg.t.Fatalf("%s exists but should not (%v)", path, err)
+	}
+}
+
 // wantExecutable fails with msg if path is not executable.
 func (tg *testgoData) wantExecutable(path, msg string) {
 	if st, err := os.Stat(path); err != nil {
@@ -510,6 +526,20 @@ func (tg *testgoData) wantExecutable(path, msg string) {
 		if runtime.GOOS != "windows" && st.Mode()&0111 == 0 {
 			tg.t.Fatalf("binary %s exists but is not executable", path)
 		}
+	}
+}
+
+// wantArchive fails if path is not an archive.
+func (tg *testgoData) wantArchive(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		tg.t.Fatal(err)
+	}
+	buf := make([]byte, 100)
+	io.ReadFull(f, buf)
+	f.Close()
+	if !bytes.HasPrefix(buf, []byte("!<arch>\n")) {
+		tg.t.Fatalf("file %s exists but is not an archive", path)
 	}
 }
 
@@ -641,7 +671,7 @@ func TestGoBuildDashAInDevBranch(t *testing.T) {
 	tg.grepStderr("runtime", "testgo build -a math in dev branch DID NOT build runtime, but should have")
 }
 
-func TestGoBuilDashAInReleaseBranch(t *testing.T) {
+func TestGoBuildDashAInReleaseBranch(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't rebuild the standard library in short mode")
 	}
@@ -765,7 +795,7 @@ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 	}
 	tg.setenv("GOOS", "linux")
 	tg.setenv("GOARCH", goarch)
-	tg.runFail("install", "mycmd")
+	tg.run("install", "mycmd")
 	tg.setenv("GOBIN", tg.path("."))
 	tg.runFail("install", "mycmd")
 	tg.run("install", "cmd/pack")
@@ -1961,7 +1991,7 @@ func TestGoGenerateRunFlag(t *testing.T) {
 	tg.grepStdoutNot("no", "go generate -run yes ./testdata/generate/test4.go selected no")
 }
 
-func TestGoGetWorksWithVanityWildcards(t *testing.T) {
+func TestGoGetCustomDomainWildcard(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
 	tg := testgo(t)
@@ -1970,6 +2000,17 @@ func TestGoGetWorksWithVanityWildcards(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("get", "-u", "rsc.io/pdf/...")
 	tg.wantExecutable(tg.path("bin/pdfpasswd"+exeSuffix), "did not build rsc/io/pdf/pdfpasswd")
+}
+
+func TestGoGetInternalWildcard(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	// used to fail with errors about internal packages
+	tg.run("get", "github.com/rsc/go-get-issue-11960/...")
 }
 
 func TestGoVetWithExternalTests(t *testing.T) {
@@ -2251,4 +2292,98 @@ func TestIssue11709(t *testing.T) {
 		}`)
 	tg.unsetenv("TERM")
 	tg.run("run", tg.path("run.go"))
+}
+
+func TestIssue12096(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("test_test.go", `
+		package main
+		import ("os"; "testing")
+		func TestEnv(t *testing.T) {
+			if os.Getenv("TERM") != "" {
+				t.Fatal("TERM is set")
+			}
+		}`)
+	tg.unsetenv("TERM")
+	tg.run("test", tg.path("test_test.go"))
+}
+
+func TestGoBuildOutput(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+
+	nonExeSuffix := ".exe"
+	if exeSuffix == ".exe" {
+		nonExeSuffix = ""
+	}
+
+	tg.tempFile("x.go", "package main\nfunc main(){}\n")
+	tg.run("build", "x.go")
+	tg.wantExecutable("x"+exeSuffix, "go build x.go did not write x"+exeSuffix)
+	tg.must(os.Remove(tg.path("x" + exeSuffix)))
+	tg.mustNotExist("x" + nonExeSuffix)
+
+	tg.run("build", "-o", "myprog", "x.go")
+	tg.mustNotExist("x")
+	tg.mustNotExist("x.exe")
+	tg.wantExecutable("myprog", "go build -o myprog x.go did not write myprog")
+	tg.mustNotExist("myprog.exe")
+
+	tg.tempFile("p.go", "package p\n")
+	tg.run("build", "p.go")
+	tg.mustNotExist("p")
+	tg.mustNotExist("p.a")
+	tg.mustNotExist("p.o")
+	tg.mustNotExist("p.exe")
+
+	tg.run("build", "-o", "p.a", "p.go")
+	tg.wantArchive("p.a")
+
+	tg.run("build", "cmd/gofmt")
+	tg.wantExecutable("gofmt"+exeSuffix, "go build cmd/gofmt did not write gofmt"+exeSuffix)
+	tg.must(os.Remove(tg.path("gofmt" + exeSuffix)))
+	tg.mustNotExist("gofmt" + nonExeSuffix)
+
+	tg.run("build", "-o", "mygofmt", "cmd/gofmt")
+	tg.wantExecutable("mygofmt", "go build -o mygofmt cmd/gofmt did not write mygofmt")
+	tg.mustNotExist("mygofmt.exe")
+	tg.mustNotExist("gofmt")
+	tg.mustNotExist("gofmt.exe")
+
+	tg.run("build", "sync/atomic")
+	tg.mustNotExist("atomic")
+	tg.mustNotExist("atomic.exe")
+
+	tg.run("build", "-o", "myatomic.a", "sync/atomic")
+	tg.wantArchive("myatomic.a")
+	tg.mustNotExist("atomic")
+	tg.mustNotExist("atomic.a")
+	tg.mustNotExist("atomic.exe")
+
+	tg.runFail("build", "-o", "whatever", "cmd/gofmt", "sync/atomic")
+	tg.grepStderr("multiple packages", "did not reject -o with multiple packages")
+}
+
+func TestGoBuildARM(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cross-compile in short mode")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	tg.makeTempdir()
+	tg.cd(tg.path("."))
+
+	tg.setenv("GOARCH", "arm")
+	tg.setenv("GOOS", "linux")
+	tg.setenv("GOARM", "5")
+	tg.tempFile("hello.go", `package main
+		func main() {}`)
+	tg.run("build", "hello.go")
+	tg.grepStderrNot("unable to find math.a", "did not build math.a correctly")
 }

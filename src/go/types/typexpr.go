@@ -8,7 +8,7 @@ package types
 
 import (
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 	"sort"
 	"strconv"
@@ -65,7 +65,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
 			x.val = obj.val
 		}
 		assert(x.val != nil)
-		x.mode = constant
+		x.mode = constant_
 
 	case *TypeName:
 		x.mode = typexpr
@@ -367,7 +367,7 @@ func (check *Checker) typOrNil(e ast.Expr) Type {
 func (check *Checker) arrayLength(e ast.Expr) int64 {
 	var x operand
 	check.expr(&x, e)
-	if x.mode != constant {
+	if x.mode != constant_ {
 		if x.mode != invalid {
 			check.errorf(x.pos(), "array length %s must be constant", &x)
 		}
@@ -377,7 +377,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 		check.errorf(x.pos(), "array length %s must be integer", &x)
 		return 0
 	}
-	n, ok := exact.Int64Val(x.val)
+	n, ok := constant.Int64Val(x.val)
 	if !ok || n < 0 {
 		check.errorf(x.pos(), "invalid array length %s", &x)
 		return 0

@@ -40,6 +40,9 @@ func TestCgoCallbackGC(t *testing.T) {
 	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
 		t.Skipf("no pthreads on %s", runtime.GOOS)
 	}
+	if testing.Short() && runtime.GOOS == "dragonfly" {
+		t.Skip("see golang.org/issue/11990")
+	}
 	got := executeTest(t, cgoCallbackGCSource, nil)
 	want := "OK\n"
 	if got != want {

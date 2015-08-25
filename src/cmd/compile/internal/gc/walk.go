@@ -3219,6 +3219,11 @@ func walkcompare(np **Node, init **NodeList) {
 
 	if l != nil {
 		x := temp(r.Type)
+		if haspointers(r.Type) {
+			a := Nod(OAS, x, nil)
+			typecheck(&a, Etop)
+			*init = list(*init, a)
+		}
 		ok := temp(Types[TBOOL])
 
 		// l.(type(r))
@@ -3873,7 +3878,7 @@ func usefield(n *Node) {
 	if Isptr[t.Etype] {
 		t = t.Type
 	}
-	field := dotField[typeSym{t, n.Right.Sym}]
+	field := dotField[typeSym{t.Orig, n.Right.Sym}]
 	if field == nil {
 		Fatal("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
 	}

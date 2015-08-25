@@ -367,9 +367,9 @@ func TestFloatText(t *testing.T) {
 
 		// make sure "stupid" exponents don't stall the machine
 		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap+3321929"},
-		{"1e1000000000", 64, 'p', 0, "0x.ecc5f45aa573d3p+1538481529"},
+		{"1e1000000000", 64, 'p', 0, "+Inf"},
 		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
-		{"1e-1000000000", 64, 'p', 0, "0x.8a64dd983a4c7dabp-1538481528"},
+		{"1e-1000000000", 64, 'p', 0, "0"},
 
 		// TODO(gri) need tests for actual large Floats
 

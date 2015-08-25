@@ -2532,7 +2532,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 		n.Xoffset = f1.Width
 		n.Type = f1.Type
 		if obj.Fieldtrack_enabled > 0 {
-			dotField[typeSym{t, s}] = f1
+			dotField[typeSym{t.Orig, s}] = f1
 		}
 		if t.Etype == TINTER {
 			if Isptr[n.Left.Type.Etype] {

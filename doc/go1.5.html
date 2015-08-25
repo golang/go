@@ -83,7 +83,8 @@ time the release dates more conveniently.
 Due to an oversight, the rule that allowed the element type to be elided from slice literals was not
 applied to map keys.
 This has been <a href="/cl/2591">corrected</a> in Go 1.5.
-An example will make this clear: as of Go 1.5, this map literal,
+An example will make this clear.
+As of Go 1.5, this map literal,
 </p>
 
 <pre>
@@ -182,7 +183,7 @@ Details of the new collector were presented in a
 <p>
 In Go 1.5, the order in which goroutines are scheduled has been changed.
 The properties of the scheduler were never defined by the language,
-but programs that depended on the scheduling order may be broken
+but programs that depend on the scheduling order may be broken
 by this change.
 We have seen a few (erroneous) programs affected by this change.
 If you have programs that implicitly depend on the scheduling
@@ -194,11 +195,13 @@ Another potentially breaking change is that the runtime now
 sets the default number of threads to run simultaneously,
 defined by <code>GOMAXPROCS</code>, to the number
 of cores available on the CPU.
-In prior releases it defaulted to 1.
+In prior releases the default was 1.
 Programs that do not expect to run with multiple cores may
 break inadvertently.
 They can be updated by removing the restriction or by setting
 <code>GOMAXPROCS</code> explicitly.
+For a more detailed discussion of this change, see
+the <a href="https://golang.org/s/go15gomaxprocs">design document</a>.
 </p>
 
 <h3 id="build">Build</h3>
@@ -234,11 +237,10 @@ is only supported using external linking.
 </p>
 
 <p>
-Also available as experiments are <code>ppc64</code> (IBM Power 64)
-and <code>ppc64le</code> (IBM Power 64, little-endian).
-Both these ports support <code>cgo</code>,
-but for <code>ppc64</code> it requires external linking while
-for <code>ppc64le</code> it requires internal linking.
+Also available as experiments are <code>ppc64</code>
+and <code>ppc64le</code> (64-bit PowerPC, big- and little-endian).
+Both these ports support <code>cgo</code> but
+only with internal linking.
 </p>
 
 <p>
@@ -246,13 +248,20 @@ On FreeBSD, Go 1.5 requires FreeBSD 8-STABLE+ because of its new use of the <cod
 </p>
 
 <p>
-On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
-<code>get_random_bytes</code> system call.
+On NaCl, Go 1.5 requires SDK version pepper-41. Later pepper versions are not
+compatible due to the removal of the sRPC subsystem from the NaCl runtime.
 </p>
 
 <p>
 On Darwin, the use of the system X.509 certificate interface can be disabled
 with the <code>ios</code> build tag.
+</p>
+
+<p>
+The Solaris port now has full support for cgo and the packages
+<a href="/pkg/net/"><code>net</code></a> and
+<a href="/pkg/crypto/x509/"><code>crypto/x509</code></a>,
+as well as a number of other fixes and improvements.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -284,7 +293,7 @@ The old names are gone; the new tools are available through the <code>go</code> 
 mechanism as <code>go tool compile</code>,
 <code>go tool asm</code>,
 <code>and go tool link</code>.
-Also, the file suffixes <code>.6</code>, <code>.8</code> etc. for the
+Also, the file suffixes <code>.6</code>, <code>.8</code>, etc. for the
 intermediate object files are also gone; now they are just plain <code>.o</code> files.
 </p>
 
@@ -410,8 +419,8 @@ by the environment variables <code>GOOS</code> and <code>GOARCH</code>.
 </p>
 
 <p>
-There are a couple of other changes.
-The more significant is the addition of a <code>-buildmode</code> option that
+There are several other changes.
+The most significant is the addition of a <code>-buildmode</code> option that
 expands the style of linking; it now supports
 situations such as building shared libraries and allowing other languages
 to call into Go libraries.
@@ -428,6 +437,29 @@ Another minor change is that the linker no longer records build time stamps in
 the header of Windows executables.
 Also, although this may be fixed, Windows cgo executables are missing some
 DWARF information.
+</p>
+
+<p>
+Finally, the <code>-X</code> flag, which takes two arguments,
+as in
+</p>
+
+<pre>
+-X importpath.name value
+</pre>
+
+<p>
+now also accepts a more common Go flag style with a single argument
+that is itself a <code>name=value</code> pair:
+</p>
+
+<pre>
+-X importpath.name=value
+</pre>
+
+<p>
+Although the old syntax still works, it is recommended that uses of this
+flag in scripts and the like be updated to the new form.
 </p>
 
 <h3 id="go_command">Go command</h3>
@@ -481,7 +513,7 @@ A new <code>cmd</code> wildcard covers the commands.
 <li>
 A new <code>-asmflags</code> build option
 sets flags to pass to the assembler.
-However, 
+However,
 the <code>-ccflags</code> build option has been dropped;
 it was specific to the old, now deleted C compiler .
 </li>
@@ -489,14 +521,6 @@ it was specific to the old, now deleted C compiler .
 <li>
 A new <code>-buildmode</code> build option
 sets the build mode, described above.
-</li>
-
-<li>
-An <code>-asmflags</code> build option has been added to provide
-flags to the assembler.
-However,
-the <code>-ccflags</code> build option has been dropped;
-it was specific to the old, now deleted C compiler .
 </li>
 
 <li>
@@ -515,8 +539,8 @@ This acts as a custom replacement for <code>go tool</code>.
 <li>
 The <code>test</code> subcommand now has a <code>-count</code>
 flag to specify how many times to run each test and benchmark.
-<a href="/pkg/testing/"><code>testing</code></a> package
-does the work here, through by the <code>-test.count</code> flag.
+The <a href="/pkg/testing/"><code>testing</code></a> package
+does the work here, through the <code>-test.count</code> flag.
 </li>
 
 <li>
@@ -595,7 +619,17 @@ invalid when the current working directory changes.
 </p>
 
 <p>
+Solaris now has full cgo support.
+</p>
+
+<p>
 On Windows, cgo now uses external linking by default.
+</p>
+
+<p>
+When a C struct ends with a zero-sized field, but the struct itself is
+not zero-sized, Go code can no longer refer to the zero-sized field.
+Any such references will have to be rewritten.
 </p>
 
 <h2 id="performance">Performance</h2>
@@ -782,7 +816,7 @@ method to discard data from the input.
 </li>
 
 <li>
-Also in the <a href="/pkg/bytes/"><code>bytes</code></a> package,
+In the <a href="/pkg/bytes/"><code>bytes</code></a> package,
 the <a href="/pkg/bytes/#Buffer"><code>Buffer</code></a> type
 now has a <a href="/pkg/bytes/#Buffer.Cap"><code>Cap</code></a> method
 that reports the number of bytes allocated within the buffer.
@@ -913,8 +947,13 @@ See for example the definition of the new type
 </li>
 
 <li>
+The <a href="/pkg/debug/dwarf/"><code>debug/dwarf</code></a> package
+also now supports decoding of DWARF line tables.
+</li>
+
+<li>
 The <a href="/pkg/debug/elf/"><code>debug/elf</code></a>
-package now has support for the 64-bit Power architecture.
+package now has support for the 64-bit PowerPC architecture.
 </li>
 
 <li>
@@ -986,14 +1025,14 @@ To update, run
 In the <a href="/pkg/image/"><code>image</code></a> package,
 the <a href="/pkg/image/#Rectangle"><code>Rectangle</code></a> type
 now implements the <a href="/pkg/image/#Image"><code>Image</code></a> interface,
-mask image when drawing.
+so a <code>Rectangle</code> can serve as a mask when drawing.
 </li>
 
 <li>
 Also in the <a href="/pkg/image/"><code>image</code></a> package,
 to assist in the handling of some JPEG images,
 there is now support for 4:1:1 and 4:1:0 YCbCr subsampling and basic
-CMYK support, represented by the new image.CMYK struct.
+CMYK support, represented by the new <code>image.CMYK</code> struct.
 </li>
 
 <li>
@@ -1016,7 +1055,7 @@ Because of the echo property of the old code, the operation
 In Go 1.5, that operation may yield a different value.
 The correct code is, and always was, to select the high 8 bits:
 <code>uint8(r&gt;&gt;8)</code>.
-Incidentally, <code>image/draw</code> package
+Incidentally, the <code>image/draw</code> package
 provides better support for such conversions; see
 <a href="https://blog.golang.org/go-imagedraw-package">this blog post</a>
 for more information.
@@ -1049,9 +1088,8 @@ uses a caller-provided buffer, permitting control of allocation and buffer size.
 The <a href="/pkg/log/"><code>log</code></a> package
 has a new <a href="/pkg/log/#LUTC"><code>LUTC</code></a> flag
 that causes time stamps to be printed in the UTC time zone.
-It also adds a <a href="/pkg/log/#SetOutput"><code>SetOutput</code></a> function
-to set the output destination for the standard logger
-and a corresponding method for user-created loggers.
+It also adds a <a href="/pkg/log/#Logger.SetOutput"><code>SetOutput</code></a> method
+for user-created loggers.
 </li>
 
 <li>
@@ -1063,7 +1101,7 @@ but now correctly according to the IEEE754 definition of NaNs.
 <li>
 The <a href="/pkg/math/big/"><code>math/big</code></a> package
 adds a new <a href="/pkg/math/big/#Jacobi"><code>Jacobi</code></a>
-function for integers and a new method
+function for integers and a new
 <a href="/pkg/math/big/#Int.ModSqrt"><code>ModSqrt</code></a>
 method for the <a href="/pkg/math/big/#Int"><code>Int</code></a> type.
 </li>
@@ -1147,7 +1185,7 @@ to report the corresponding error conditions.
 <li>
 The <a href="/pkg/net/http/cgi/"><code>net/http/cgi</code></a> package
 had a bug that mishandled the values of the environment variables
-<code>REMOTE_ADDR</code> ad <code>REMOTE_HOST</code>.
+<code>REMOTE_ADDR</code> and <code>REMOTE_HOST</code>.
 This has been fixed.
 Also, starting with Go 1.5 the package sets the <code>REMOTE_PORT</code>
 variable.
@@ -1155,7 +1193,7 @@ variable.
 
 <li>
 The <a href="/pkg/net/mail/"><code>net/mail</code></a> package
-adds a <a href="/pkg/net/mail/#AddressParser"><code>AddressParser</code></a>
+adds an <a href="/pkg/net/mail/#AddressParser"><code>AddressParser</code></a>
 type that can parse mail addresses.
 </li>
 
@@ -1181,14 +1219,14 @@ adds new <a href="/pkg/os/signal/#Ignore"><code>Ignore</code></a> and
 
 <li>
 The <a href="/pkg/runtime/"><code>runtime</code></a>,
-<a href="/pkg/runtime/pprof/"><code>runtime/pprof</code></a>,
+<a href="/pkg/runtime/trace/"><code>runtime/trace</code></a>,
 and <a href="/pkg/net/http/pprof/"><code>net/http/pprof</code></a> packages
 each have new functions to support the tracing facilities described above:
 <a href="/pkg/runtime/#ReadTrace"><code>ReadTrace</code></a>,
 <a href="/pkg/runtime/#StartTrace"><code>StartTrace</code></a>,
 <a href="/pkg/runtime/#StopTrace"><code>StopTrace</code></a>,
-<a href="/pkg/runtime/pprof/#StartTrace"><code>StartTrace</code></a>,
-<a href="/pkg/runtime/pprof/#StopTrace"><code>StopTrace</code></a>, and
+<a href="/pkg/runtime/trace/#Start"><code>Start</code></a>,
+<a href="/pkg/runtime/trace/#Stop"><code>Stop</code></a>, and
 <a href="/pkg/net/http/pprof/#Trace"><code>Trace</code></a>.
 See the respective documentation for details.
 </li>
@@ -1206,11 +1244,11 @@ but is otherwise unnecessary as strings support comparison natively.
 </li>
 
 <li>
-The <a href="/pkg/sync/#WaitGroup"><code>WaitGroup</code></a> function in
+The <a href="/pkg/sync/#WaitGroup"><code>WaitGroup</code></a> implementation in
 package <a href="/pkg/sync/"><code>sync</code></a>
 now diagnoses code that races a call to <a href="/pkg/sync/#WaitGroup.Add"><code>Add</code></a>
 against a return from <a href="/pkg/sync/#WaitGroup.Wait"><code>Wait</code></a>.
-If it detects this condition, <code>WaitGroup</code> panics.
+If it detects this condition, the implementation panics.
 </li>
 
 <li>
@@ -1242,7 +1280,7 @@ precision.
 <li>
 Also in the <a href="/pkg/text/template/"><code>text/template</code></a> and
 <a href="/pkg/html/template/"><code>html/template</code></a> packages,
-a new <a href="/pkg/text/template/#Option"><code>Option</code></a> type
+a new <a href="/pkg/text/template/#Template.Option"><code>Option</code></a> method
 allows customization of the behavior of the template during execution.
 The sole implemented option allows control over how a missing key is
 handled when indexing a map.

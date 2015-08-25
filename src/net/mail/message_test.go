@@ -483,6 +483,14 @@ func TestAddressFormatting(t *testing.T) {
 			&Address{Name: "Böb Jacöb", Address: "bob@example.com"},
 			`=?utf-8?q?B=C3=B6b_Jac=C3=B6b?= <bob@example.com>`,
 		},
+		{ // https://golang.org/issue/12098
+			&Address{Name: "Rob", Address: ""},
+			`"Rob" <@>`,
+		},
+		{ // https://golang.org/issue/12098
+			&Address{Name: "Rob", Address: "@"},
+			`"Rob" <@>`,
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
@@ -522,6 +530,7 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		`<".john.doe"@example.com>`,
 		`<"."@example.com>`,
 		`<".."@example.com>`,
+		`<"0:"@0>`,
 	}
 
 	for _, test := range tests {
@@ -563,6 +572,8 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		`<test@.>`,
 		`< @example.com>`,
 		`<""test""blah""@example.com>`,
+		`<""@0>`,
+		"<\"\t0\"@0>",
 	}
 
 	for _, test := range badTests {

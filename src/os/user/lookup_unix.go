@@ -9,7 +9,6 @@ package user
 
 import (
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -55,17 +54,15 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 	var pwd C.struct_passwd
 	var result *C.struct_passwd
 
-	var bufSize C.long
-	if runtime.GOOS == "dragonfly" || runtime.GOOS == "freebsd" {
-		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX
-		// and just return -1.  So just use the same
-		// size that Linux returns.
+	bufSize := C.sysconf(C._SC_GETPW_R_SIZE_MAX)
+	if bufSize == -1 {
+		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX.
+		// Additionally, not all Linux systems have it, either. For
+		// example, the musl libc returns -1.
 		bufSize = 1024
-	} else {
-		bufSize = C.sysconf(C._SC_GETPW_R_SIZE_MAX)
-		if bufSize <= 0 || bufSize > 1<<20 {
-			return nil, fmt.Errorf("user: unreasonable _SC_GETPW_R_SIZE_MAX of %d", bufSize)
-		}
+	}
+	if bufSize <= 0 || bufSize > 1<<20 {
+		return nil, fmt.Errorf("user: unreasonable _SC_GETPW_R_SIZE_MAX of %d", bufSize)
 	}
 	buf := C.malloc(C.size_t(bufSize))
 	defer C.free(buf)

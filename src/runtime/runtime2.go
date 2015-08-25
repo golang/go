@@ -429,7 +429,7 @@ type schedt struct {
 
 	pidle      puintptr // idle p's
 	npidle     uint32
-	nmspinning uint32
+	nmspinning uint32 // limited to [0, 2^31-1]
 
 	// Global runnable queue.
 	runqhead guintptr
@@ -645,6 +645,8 @@ var (
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
 	lfenceBeforeRdtsc bool
+
+	goarm uint8 // set by cmd/link on arm systems
 )
 
 // Set by the linker so the runtime can determine the buildmode.

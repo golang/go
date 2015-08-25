@@ -34,14 +34,19 @@ func osinit() {
 	// bsdthread_register delayed until end of goenvs so that we
 	// can look at the environment first.
 
+	ncpu = getncpu()
+}
+
+func getncpu() int32 {
 	// Use sysctl to fetch hw.ncpu.
 	mib := [2]uint32{6, 3}
 	out := uint32(0)
 	nout := unsafe.Sizeof(out)
 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		ncpu = int32(out)
+	if ret >= 0 && int32(out) > 0 {
+		return int32(out)
 	}
+	return 1
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")

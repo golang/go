@@ -10,8 +10,8 @@ import (
 	"internal/trace"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -63,7 +63,7 @@ var templTrace = `
 // httpTraceViewerHTML serves static part of trace-viewer.
 // This URL is queried from templTrace HTML.
 func httpTraceViewerHTML(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, filepath.Join(os.Getenv("GOROOT"), "misc", "trace", "trace_viewer_lean.html"))
+	http.ServeFile(w, r, filepath.Join(runtime.GOROOT(), "misc", "trace", "trace_viewer_lean.html"))
 }
 
 // httpJsonTrace serves json trace, requested from within templTrace HTML.

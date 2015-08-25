@@ -222,6 +222,11 @@ func cgoLookupPTR(addr string) ([]string, error, bool) {
 			break
 		}
 	}
+	// Add trailing dot to match pure Go reverse resolver
+	// and all other lookup routines. See golang.org/issue/12189.
+	if len(b) > 0 && b[len(b)-1] != '.' {
+		b = append(b, '.')
+	}
 	return []string{string(b)}, nil, true
 }
 

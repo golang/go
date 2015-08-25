@@ -1060,6 +1060,20 @@ func BenchmarkFormatNow(b *testing.B) {
 	}
 }
 
+func BenchmarkMarshalJSON(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalJSON()
+	}
+}
+
+func BenchmarkMarshalText(b *testing.B) {
+	t := Now()
+	for i := 0; i < b.N; i++ {
+		t.MarshalText()
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Parse(ANSIC, "Mon Jan  2 15:04:05 2006")

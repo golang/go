@@ -40,8 +40,6 @@ const (
 	NREGVAR = 32
 )
 
-var reg [x86.MAXREG]uint8
-
 var regname = []string{
 	".AX",
 	".CX",

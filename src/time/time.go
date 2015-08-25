@@ -935,7 +935,12 @@ func (t Time) MarshalJSON() ([]byte, error) {
 		// See golang.org/issue/4556#c15 for more discussion.
 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
 	}
-	return []byte(t.Format(`"` + RFC3339Nano + `"`)), nil
+
+	b := make([]byte, 0, len(RFC3339Nano)+2)
+	b = append(b, '"')
+	b = t.AppendFormat(b, RFC3339Nano)
+	b = append(b, '"')
+	return b, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -952,7 +957,9 @@ func (t Time) MarshalText() ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
 		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
 	}
-	return []byte(t.Format(RFC3339Nano)), nil
+
+	b := make([]byte, 0, len(RFC3339Nano))
+	return t.AppendFormat(b, RFC3339Nano), nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.

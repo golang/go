@@ -382,6 +382,48 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// issue 12036
+	{
+		"mysql://a,b,c/bar",
+		&URL{
+			Scheme: "mysql",
+			Host:   "a,b,c",
+			Path:   "/bar",
+		},
+		"",
+	},
+	// worst case host, still round trips
+	{
+		"scheme://!$&'()*+,;=hello!:port/path",
+		&URL{
+			Scheme: "scheme",
+			Host:   "!$&'()*+,;=hello!:port",
+			Path:   "/path",
+		},
+		"",
+	},
+	// worst case path, still round trips
+	{
+		"http://host/!$&'()*+,;=:@[hello]",
+		&URL{
+			Scheme:  "http",
+			Host:    "host",
+			Path:    "/!$&'()*+,;=:@[hello]",
+			RawPath: "/!$&'()*+,;=:@[hello]",
+		},
+		"",
+	},
+	// golang.org/issue/5684
+	{
+		"http://example.com/oid/[order_id]",
+		&URL{
+			Scheme:  "http",
+			Host:    "example.com",
+			Path:    "/oid/[order_id]",
+			RawPath: "/oid/[order_id]",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1081,13 +1123,17 @@ func TestParseAuthority(t *testing.T) {
 		{"http://[::1]/", false},
 		{"http://[::1]a", true},
 		{"http://[::1]%23", true},
-		{"http://[::1%25en0]", false}, // valid zone id
-		{"http://[::1]:", true},       // colon, but no port
-		{"http://[::1]:%38%30", true}, // no hex in port
-		{"http://[::1%25%10]", false}, // TODO: reject the %10 after the valid zone %25 separator?
-		{"http://[%10::1]", true},     // no %xx escapes in IP address
-		{"http://[::1]/%48", false},   // %xx in path is fine
-		{"http://%41:8080/", true},    // TODO: arguably we should accept reg-name with %xx
+		{"http://[::1%25en0]", false},     // valid zone id
+		{"http://[::1]:", true},           // colon, but no port
+		{"http://[::1]:%38%30", true},     // no hex in port
+		{"http://[::1%25%10]", false},     // TODO: reject the %10 after the valid zone %25 separator?
+		{"http://[%10::1]", true},         // no %xx escapes in IP address
+		{"http://[::1]/%48", false},       // %xx in path is fine
+		{"http://%41:8080/", true},        // TODO: arguably we should accept reg-name with %xx
+		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
+		{"mysql://x@y(1.2.3.4:123)/foo", false},
+		{"mysql://x@y([2001:db8::1]:123)/foo", false},
+		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)
@@ -1126,6 +1172,7 @@ var shouldEscapeTests = []shouldEscapeTest{
 	{'a', encodeUserPassword, false},
 	{'a', encodeQueryComponent, false},
 	{'a', encodeFragment, false},
+	{'a', encodeHost, false},
 	{'z', encodePath, false},
 	{'A', encodePath, false},
 	{'Z', encodePath, false},
@@ -1150,6 +1197,29 @@ var shouldEscapeTests = []shouldEscapeTest{
 	{',', encodeUserPassword, false},
 	{';', encodeUserPassword, false},
 	{'=', encodeUserPassword, false},
+
+	// Host (IP address, IPv6 address, registered name, port suffix; §3.2.2)
+	{'!', encodeHost, false},
+	{'$', encodeHost, false},
+	{'&', encodeHost, false},
+	{'\'', encodeHost, false},
+	{'(', encodeHost, false},
+	{')', encodeHost, false},
+	{'*', encodeHost, false},
+	{'+', encodeHost, false},
+	{',', encodeHost, false},
+	{';', encodeHost, false},
+	{'=', encodeHost, false},
+	{':', encodeHost, false},
+	{'[', encodeHost, false},
+	{']', encodeHost, false},
+	{'0', encodeHost, false},
+	{'9', encodeHost, false},
+	{'A', encodeHost, false},
+	{'z', encodeHost, false},
+	{'_', encodeHost, false},
+	{'-', encodeHost, false},
+	{'.', encodeHost, false},
 }
 
 func TestShouldEscape(t *testing.T) {

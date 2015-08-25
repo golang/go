@@ -39,8 +39,6 @@ const (
 	NREGVAR = 64 /* 32 general + 32 floating */
 )
 
-var reg [arm64.NREG + arm64.NFREG]uint8
-
 var regname = []string{
 	".R0",
 	".R1",

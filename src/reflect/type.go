@@ -1705,6 +1705,18 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	// they're guaranteed to have bitmaps instead of GC programs.
 	var gcdata *byte
 	var ptrdata uintptr
+	var overflowPad uintptr
+
+	// On NaCl, pad if needed to make overflow end at the proper struct alignment.
+	// On other systems, align > ptrSize is not possible.
+	if runtime.GOARCH == "amd64p32" && (ktyp.align > ptrSize || etyp.align > ptrSize) {
+		overflowPad = ptrSize
+	}
+	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + ptrSize
+	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
+		panic("reflect: bad size computation in MapOf")
+	}
+
 	if kind != kindNoPointers {
 		nptr := (bucketSize*(1+ktyp.size+etyp.size) + ptrSize) / ptrSize
 		mask := make([]byte, (nptr+7)/8)
@@ -1741,19 +1753,24 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 			}
 		}
 		base += bucketSize * etyp.size / ptrSize
+		base += overflowPad / ptrSize
 
 		word := base
 		mask[word/8] |= 1 << (word % 8)
 		gcdata = &mask[0]
 		ptrdata = (word + 1) * ptrSize
-	}
 
-	size := bucketSize*(1+ktyp.size+etyp.size) + ptrSize
-	if runtime.GOARCH == "amd64p32" {
-		size += ptrSize
+		// overflow word must be last
+		if ptrdata != size {
+			panic("reflect: bad layout computation in MapOf")
+		}
 	}
 
 	b := new(rtype)
+	b.align = ptrSize
+	if overflowPad > 0 {
+		b.align = 8
+	}
 	b.size = size
 	b.ptrdata = ptrdata
 	b.kind = kind
@@ -2073,6 +2090,10 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 
 	// build dummy rtype holding gc program
 	x := new(rtype)
+	x.align = ptrSize
+	if runtime.GOARCH == "amd64p32" {
+		x.align = 8
+	}
 	x.size = offset
 	x.ptrdata = uintptr(ptrmap.n) * ptrSize
 	if ptrmap.n > 0 {

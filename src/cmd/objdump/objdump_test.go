@@ -5,6 +5,7 @@
 package main
 
 import (
+	"go/build"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -122,6 +123,9 @@ func TestDisasmExtld(t *testing.T) {
 	// TODO(jsing): Reenable once openbsd/arm has external linking support.
 	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
 		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
+	}
+	if !build.Default.CgoEnabled {
+		t.Skip("skipping because cgo is not enabled")
 	}
 	testDisasm(t, "-ldflags=-linkmode=external")
 }

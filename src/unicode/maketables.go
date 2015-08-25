@@ -261,9 +261,6 @@ func parseCategory(line string) (state State) {
 		logger.Fatalf("%.5s...: %s", line, err)
 	}
 	lastChar = rune(point)
-	if point == 0 {
-		return // not interesting and we use 0 as unset
-	}
 	if point > MaxChar {
 		return
 	}

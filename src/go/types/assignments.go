@@ -23,7 +23,7 @@ func (check *Checker) assignment(x *operand, T Type) bool {
 	switch x.mode {
 	case invalid:
 		return true // error reported before
-	case constant, variable, mapindex, value, commaok:
+	case constant_, variable, mapindex, value, commaok:
 		// ok
 	default:
 		unreachable()
@@ -74,7 +74,7 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 	}
 
 	// rhs must be a constant
-	if x.mode != constant {
+	if x.mode != constant_ {
 		check.errorf(x.pos(), "%s is not constant", x)
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]

@@ -159,7 +159,7 @@ func evacuated(b *bmap) bool {
 }
 
 func (b *bmap) overflow(t *maptype) *bmap {
-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize))
+	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize))
 }
 
 func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
@@ -167,7 +167,7 @@ func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
 		h.createOverflow()
 		*h.overflow[0] = append(*h.overflow[0], ovf)
 	}
-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize)) = ovf
+	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize)) = ovf
 }
 
 func (h *hmap) createOverflow() {

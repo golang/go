@@ -2645,7 +2645,7 @@ func TestTransportFlushesBodyChunks(t *testing.T) {
 		req.Header.Set("User-Agent", "x") // known value for test
 		res, err := tr.RoundTrip(req)
 		if err != nil {
-			t.Error("RoundTrip: %v", err)
+			t.Errorf("RoundTrip: %v", err)
 			close(resc)
 			return
 		}

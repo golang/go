@@ -128,7 +128,20 @@ func breakpoint()
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
 func procyield(cycles uint32)
-func goexit()
+
+type neverCallThisFunction struct{}
+
+// goexit is the return stub at the top of every goroutine call stack.
+// Each goroutine stack is constructed as if goexit called the
+// goroutine's entry point function, so that when the entry point
+// function returns, it will return to goexit, which will call goexit1
+// to perform the actual exit.
+//
+// This function must never be called directly. Call goexit1 instead.
+// gentraceback assumes that goexit terminates the stack. A direct
+// call on the stack will cause gentraceback to stop walking the stack
+// prematurely and if there are leftover stack barriers it may panic.
+func goexit(neverCallThisFunction)
 
 // Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
 // so not all have these arguments. Mark them uintptr so that the GC

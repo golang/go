@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
-	exact "go/constant" // Renamed to reduce diffs from x/tools.  TODO: remove
+	"go/constant"
 	"go/token"
 )
 
@@ -143,15 +143,15 @@ func (obj *PkgName) Imported() *Package { return obj.imported }
 // A Const represents a declared constant.
 type Const struct {
 	object
-	val     exact.Value
+	val     constant.Value
 	visited bool // for initialization cycle detection
 }
 
-func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val exact.Value) *Const {
+func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.Value) *Const {
 	return &Const{object{nil, pos, pkg, name, typ, 0, token.NoPos}, val, false}
 }
 
-func (obj *Const) Val() exact.Value { return obj.val }
+func (obj *Const) Val() constant.Value { return obj.val }
 
 // A TypeName represents a declared type.
 type TypeName struct {
