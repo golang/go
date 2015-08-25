@@ -1465,6 +1465,71 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		return s.newValue1(ssa.OpITab, n.Type, a)
 
+	case OSLICESTR:
+		// Evaluate the string once.
+		str := s.expr(n.Left)
+		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), str)
+		len := s.newValue1(ssa.OpStringLen, Types[TINT], str)
+		zero := s.constInt(Types[TINT], 0)
+
+		// Evaluate the slice indexes.
+		var low, high *ssa.Value
+		if n.Right.Left == nil {
+			low = zero
+		} else {
+			low = s.expr(n.Right.Left)
+		}
+		if n.Right.Right == nil {
+			high = len
+		} else {
+			high = s.expr(n.Right.Right)
+		}
+
+		// Panic if slice indices are not in bounds.
+		s.sliceBoundsCheck(low, high)
+		s.sliceBoundsCheck(high, len)
+
+		// Generate the following code assuming that indexes are in bounds.
+		// The conditional is to make sure that we don't generate a string
+		// that points to the next object in memory.
+		// rlen = (SubPtr high low)
+		// p = ptr
+		// if rlen != 0 {
+		//    p = (AddPtr ptr low)
+		// }
+		// result = (StringMake p size)
+		rlen := s.newValue2(ssa.OpSubPtr, Types[TINT], high, low)
+
+		// Use n as the "variable" for p.
+		s.vars[n] = ptr
+
+		// Generate code to test the resulting slice length.
+		var cmp *ssa.Value
+		if s.config.IntSize == 8 {
+			cmp = s.newValue2(ssa.OpNeq64, Types[TBOOL], rlen, zero)
+		} else {
+			cmp = s.newValue2(ssa.OpNeq32, Types[TBOOL], rlen, zero)
+		}
+
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.Likely = ssa.BranchLikely
+		b.Control = cmp
+
+		// Generate code for non-zero length slice case.
+		nz := s.f.NewBlock(ssa.BlockPlain)
+		addEdge(b, nz)
+		s.startBlock(nz)
+		s.vars[n] = s.newValue2(ssa.OpAddPtr, Ptrto(Types[TUINT8]), ptr, low)
+		s.endBlock()
+
+		// All done.
+		merge := s.f.NewBlock(ssa.BlockPlain)
+		addEdge(b, merge)
+		addEdge(nz, merge)
+		s.startBlock(merge)
+		return s.newValue2(ssa.OpStringMake, Types[TSTRING], s.variable(n, Ptrto(Types[TUINT8])), rlen)
+
 	case OCALLFUNC, OCALLMETH:
 		left := n.Left
 		static := left.Op == ONAME && left.Class == PFUNC
@@ -1782,6 +1847,25 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 
 	// bounds check
 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
+	s.check(cmp, ssa.OpPanicIndexCheck)
+}
+
+// sliceBoundsCheck generates slice bounds checking code.  Checks if 0 <= idx <= len, branches to exit if not.
+// Starts a new block on return.
+func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
+	if Debug['B'] != 0 {
+		return
+	}
+	// TODO: convert index to full width?
+	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
+
+	// bounds check
+	cmp := s.newValue2(ssa.OpIsSliceInBounds, Types[TBOOL], idx, len)
+	s.check(cmp, ssa.OpPanicSliceCheck)
+}
+
+// If cmp (a bool) is true, panic using the given op.
+func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = cmp
@@ -1794,7 +1878,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	s.startBlock(bPanic)
 	// The panic check takes/returns memory to ensure that the right
 	// memory state is observed if the panic happens.
-	s.vars[&memvar] = s.newValue1(ssa.OpPanicIndexCheck, ssa.TypeMem, s.mem())
+	s.vars[&memvar] = s.newValue1(panicOp, ssa.TypeMem, s.mem())
 	s.endBlock()
 	s.startBlock(bNext)
 }

@@ -19,6 +19,7 @@
 (Add64F x y) -> (ADDSD x y)
 
 (Sub64 x y) -> (SUBQ x y)
+(SubPtr x y) -> (SUBQ x y)
 (Sub32 x y) -> (SUBL x y)
 (Sub16 x y) -> (SUBW x y)
 (Sub8 x y) -> (SUBB x y)
@@ -279,6 +280,7 @@
 // checks
 (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
 (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+(IsSliceInBounds idx len) -> (SETBE (CMPQ <TypeFlags> idx len))
 
 (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
 (PanicIndexCheck mem) -> (LoweredPanicIndexCheck mem)
