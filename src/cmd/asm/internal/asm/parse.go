@@ -698,10 +698,15 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 func (p *Parser) registerList(a *obj.Addr) {
 	// One range per loop.
 	var bits uint16
+ListLoop:
 	for {
 		tok := p.next()
-		if tok.ScanToken == ']' {
-			break
+		switch tok.ScanToken {
+		case ']':
+			break ListLoop
+		case scanner.EOF:
+			p.errorf("missing ']' in register list")
+			return
 		}
 		lo := p.registerNumber(tok.String())
 		hi := lo
