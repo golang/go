@@ -480,7 +480,12 @@ func runBuild(cmd *Command, args []string) {
 
 	var a *action
 	if buildBuildmode == "shared" {
-		a = b.libaction(libname(args), pkgsFilter(packages(args)), modeBuild, depMode)
+		pkgs := pkgsFilter(packages(args))
+		if libName, err := libname(args, pkgs); err != nil {
+			fatalf("%s", err.Error())
+		} else {
+			a = b.libaction(libName, pkgs, modeBuild, depMode)
+		}
 	} else {
 		a = &action{}
 		for _, p := range pkgsFilter(packages(args)) {
@@ -504,28 +509,49 @@ See also: go build, go get, go clean.
 	`,
 }
 
+// isMetaPackage checks if name is a reserved package name that expands to multiple packages
+func isMetaPackage(name string) bool {
+	return name == "std" || name == "cmd" || name == "all"
+}
+
 // libname returns the filename to use for the shared library when using
 // -buildmode=shared.  The rules we use are:
-//  1) Drop any trailing "/..."s if present
-//  2) Change / to -
-//  3) Join arguments with ,
-// So std -> libstd.so
-//    a b/... -> liba,b.so
-//    gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
-func libname(args []string) string {
+// Use arguments for special 'meta' packages:
+//	std --> libstd.so
+//	std cmd --> libstd,cmd.so
+// Use import paths for other cases, changing '/' to '-':
+//	somelib --> libsubdir-somelib.so
+//	./ or ../ --> libsubdir-somelib.so
+//	gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
+//	./... ---> libpkg1,pkg2.so - subset of all import paths
+// Name parts are joined with ','.
+func libname(args []string, pkgs []*Package) (string, error) {
 	var libname string
-	for _, arg := range args {
-		arg = strings.TrimSuffix(arg, "/...")
-		arg = strings.Replace(arg, "/", "-", -1)
+	appendName := func(arg string) {
 		if libname == "" {
 			libname = arg
 		} else {
 			libname += "," + arg
 		}
 	}
+	var haveNonMeta bool
+	for _, arg := range args {
+		if isMetaPackage(arg) {
+			appendName(arg)
+		} else {
+			haveNonMeta = true
+		}
+	}
+	if len(libname) == 0 { // non-meta packages only. use import paths
+		for _, pkg := range pkgs {
+			appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
+		}
+	} else if haveNonMeta { // have both meta package and a non-meta one
+		return "", errors.New("mixing of meta and non-meta packages is not allowed")
+	}
 	// TODO(mwhudson): Needs to change for platforms that use different naming
 	// conventions...
-	return "lib" + libname + ".so"
+	return "lib" + libname + ".so", nil
 }
 
 func runInstall(cmd *Command, args []string) {
@@ -558,7 +584,11 @@ func runInstall(cmd *Command, args []string) {
 	b.init()
 	var a *action
 	if buildBuildmode == "shared" {
-		a = b.libaction(libname(args), pkgs, modeInstall, modeInstall)
+		if libName, err := libname(args, pkgs); err != nil {
+			fatalf("%s", err.Error())
+		} else {
+			a = b.libaction(libName, pkgs, modeInstall, modeInstall)
+		}
 	} else {
 		a = &action{}
 		var tools []*action
