@@ -2791,6 +2791,27 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endff508c3726edfb573abc6128c177e76c
 	endff508c3726edfb573abc6128c177e76c:
 		;
+	case OpIsSliceInBounds:
+		// match: (IsSliceInBounds idx len)
+		// cond:
+		// result: (SETBE (CMPQ <TypeFlags> idx len))
+		{
+			idx := v.Args[0]
+			len := v.Args[1]
+			v.Op = OpAMD64SETBE
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
+			v0.Type = TypeFlags
+			v0.AddArg(idx)
+			v0.AddArg(len)
+			v.AddArg(v0)
+			return true
+		}
+		goto end41f8211150e3a4ef36a1b5168013f96f
+	end41f8211150e3a4ef36a1b5168013f96f:
+		;
 	case OpLeq16:
 		// match: (Leq16 x y)
 		// cond:
@@ -9578,6 +9599,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto end7d33bf9bdfa505f96b930563eca7955f
 	end7d33bf9bdfa505f96b930563eca7955f:
+		;
+	case OpSubPtr:
+		// match: (SubPtr x y)
+		// cond:
+		// result: (SUBQ x y)
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpAMD64SUBQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v.AddArg(y)
+			return true
+		}
+		goto end748f63f755afe0b97a8f3cf7e4d9cbfe
+	end748f63f755afe0b97a8f3cf7e4d9cbfe:
 		;
 	case OpTrunc16to8:
 		// match: (Trunc16to8 x)
