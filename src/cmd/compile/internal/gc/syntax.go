@@ -171,6 +171,7 @@ type Func struct {
 
 	Norace         bool // func must not have race detector annotations
 	Nosplit        bool // func should not execute on separate stack
+	Noinline       bool // func should not be inlined
 	Nowritebarrier bool // emit compiler error instead of write barrier
 	Dupok          bool // duplicate definitions ok
 	Wrapper        bool // is method wrapper
