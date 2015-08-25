@@ -870,6 +870,8 @@ TEXT bytes·Compare(SB),NOSPLIT,$-4-56
 // On exit:
 // R4, R5, and R6 are clobbered
 TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+	CMP	R2, R3
+	BEQ	samebytes // same starting pointers; compare lengths
 	CMP	R0, R1
 	CSEL    LT, R1, R0, R6 // R6 is min(R0, R1)
 
