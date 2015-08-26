@@ -35,6 +35,52 @@ func manysub_ssa(a, b, c, d float64) (aa, ab, ac, ad, ba, bb, bc, bd, ca, cb, cc
 	return
 }
 
+// fpspill_ssa attempts to trigger a bug where phis with floating point values
+// were stored in non-fp registers causing an error in doasm.
+func fpspill_ssa(a int) float64 {
+	switch {
+	}
+
+	ret := -1.0
+	switch a {
+	case 0:
+		ret = 1.0
+	case 1:
+		ret = 1.1
+	case 2:
+		ret = 1.2
+	case 3:
+		ret = 1.3
+	case 4:
+		ret = 1.4
+	case 5:
+		ret = 1.5
+	case 6:
+		ret = 1.6
+	case 7:
+		ret = 1.7
+	case 8:
+		ret = 1.8
+	case 9:
+		ret = 1.9
+	case 10:
+		ret = 1.10
+	case 11:
+		ret = 1.11
+	case 12:
+		ret = 1.12
+	case 13:
+		ret = 1.13
+	case 14:
+		ret = 1.14
+	case 15:
+		ret = 1.15
+	case 16:
+		ret = 1.16
+	}
+	return ret
+}
+
 func add64_ssa(a, b float64) float64 {
 	switch {
 	}
