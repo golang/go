@@ -550,6 +550,16 @@ func (s *regAllocState) setState(state []regState) {
 	}
 }
 
+// compatReg returns a register compatible with the a value and is used when
+// spilling/loading.
+// TODO: choose a better default register (set of reg by type?).
+func compatReg(v *Value) regMask {
+	if v.Type.IsFloat() {
+		return 1 << 16 // X0
+	}
+	return 1 << 0 // AX
+}
+
 func (s *regAllocState) regalloc(f *Func) {
 	liveset := newSparseSet(f.NumValues())
 	argset := newSparseSet(f.NumValues())
@@ -836,10 +846,11 @@ func (s *regAllocState) regalloc(f *Func) {
 				if !argset.contains(v.ID) {
 					continue
 				}
+
 				// This stack-based phi is the argument of some other
 				// phi in this block.  We must make a copy of its
 				// value so that we don't clobber it prematurely.
-				c := s.allocValToReg(v, s.values[v.ID].regs|1<<0, false)
+				c := s.allocValToReg(v, s.values[v.ID].regs|compatReg(v), false)
 				d := p.NewValue1(v.Line, OpStoreReg, v.Type, c)
 				s.values[v.ID].spill2 = d
 			}
@@ -848,9 +859,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			// we might need a register to do the assignment.
 			for _, v := range stackPhis {
 				// Load phi arg into a register, then store it with a StoreReg.
-				// If already in a register, use that.  If not, use register 0.
-				// TODO: choose a better default register (set of reg by type?).
-				c := s.allocValToReg(v.Args[i], s.values[v.Args[i].ID].regs|1<<0, false)
+				// If already in a register, use that.  If not, pick a compatible
+				// register.
+				w := v.Args[i]
+				c := s.allocValToReg(w, s.values[w.ID].regs|compatReg(w), false)
 				v.Args[i] = p.NewValue1(v.Line, OpStoreReg, v.Type, c)
 			}
 			// Figure out what value goes in each register.
