@@ -584,9 +584,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVD	R3, ret+16(FP)
 	RET
 
-TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
-	BR	runtime·xchg64(SB)
-
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
 	BR	runtime·xchg64(SB)
 
