@@ -388,9 +388,10 @@ func scanstack(gp *g) {
 			// frame because on LR machines this LR is not
 			// on the stack.
 			if gcphase == _GCscan && n != 0 {
-				gcInstallStackBarrier(gp, frame)
-				barrierOffset *= 2
-				nextBarrier = sp + barrierOffset
+				if gcInstallStackBarrier(gp, frame) {
+					barrierOffset *= 2
+					nextBarrier = sp + barrierOffset
+				}
 			} else if gcphase == _GCmarktermination {
 				// We just scanned a frame containing
 				// a return to a stack barrier. Since
@@ -509,12 +510,25 @@ func gcMaxStackBarriers(stackSize int) (n int) {
 
 // gcInstallStackBarrier installs a stack barrier over the return PC of frame.
 //go:nowritebarrier
-func gcInstallStackBarrier(gp *g, frame *stkframe) {
+func gcInstallStackBarrier(gp *g, frame *stkframe) bool {
 	if frame.lr == 0 {
 		if debugStackBarrier {
 			print("not installing stack barrier with no LR, goid=", gp.goid, "\n")
 		}
-		return
+		return false
+	}
+
+	if frame.fn.entry == cgocallback_gofuncPC {
+		// cgocallback_gofunc doesn't return to its LR;
+		// instead, its return path puts LR in g.sched.pc and
+		// switches back to the system stack on which
+		// cgocallback_gofunc was originally called. We can't
+		// have a stack barrier in g.sched.pc, so don't
+		// install one in this frame.
+		if debugStackBarrier {
+			print("not installing stack barrier over LR of cgocallback_gofunc, goid=", gp.goid, "\n")
+		}
+		return false
 	}
 
 	// Save the return PC and overwrite it with stackBarrier.
@@ -538,6 +552,7 @@ func gcInstallStackBarrier(gp *g, frame *stkframe) {
 	stkbar.savedLRPtr = lrUintptr
 	stkbar.savedLRVal = uintptr(*lrPtr)
 	*lrPtr = uintreg(stackBarrierPC)
+	return true
 }
 
 // gcRemoveStackBarriers removes all stack barriers installed in gp's stack.
