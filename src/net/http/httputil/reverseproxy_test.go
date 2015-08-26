@@ -7,6 +7,7 @@
 package httputil
 
 import (
+	"bufio"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -279,5 +280,43 @@ func TestReverseProxyCancellation(t *testing.T) {
 		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
 		//    use of closed network connection
 		t.Fatal("DefaultClient.Do() returned nil error")
+	}
+}
+
+func req(t *testing.T, v string) *http.Request {
+	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(v)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
+}
+
+// Issue 12344
+func TestNilBody(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hi"))
+	}))
+	defer backend.Close()
+
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		backURL, _ := url.Parse(backend.URL)
+		rp := NewSingleHostReverseProxy(backURL)
+		r := req(t, "GET / HTTP/1.0\r\n\r\n")
+		r.Body = nil // this accidentally worked in Go 1.4 and below, so keep it working
+		rp.ServeHTTP(w, r)
+	}))
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != "hi" {
+		t.Errorf("Got %q; want %q", slurp, "hi")
 	}
 }
