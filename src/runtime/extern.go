@@ -47,6 +47,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	that allow the garbage collector to avoid repeating a stack scan during the
 	mark termination phase.
 
+	gcstackbarrierall: setting gcstackbarrierall=1 installs stack barriers
+	in every stack frame, rather than in exponentially-spaced frames.
+
 	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
 	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
 	also disables concurrent sweeping after the garbage collection finishes.
