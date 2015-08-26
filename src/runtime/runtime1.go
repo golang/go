@@ -310,6 +310,7 @@ var debug struct {
 	gcpacertrace      int32
 	gcshrinkstackoff  int32
 	gcstackbarrieroff int32
+	gcstackbarrierall int32
 	gcstoptheworld    int32
 	gctrace           int32
 	invalidptr        int32
@@ -327,6 +328,7 @@ var dbgvars = []dbgVar{
 	{"gcpacertrace", &debug.gcpacertrace},
 	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
 	{"gcstackbarrieroff", &debug.gcstackbarrieroff},
+	{"gcstackbarrierall", &debug.gcstackbarrierall},
 	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
@@ -381,6 +383,10 @@ func parsedebugvars() {
 	// and panics is surprising. Be louder and abort instead.
 	if islibrary || isarchive {
 		traceback_cache |= 1
+	}
+
+	if debug.gcstackbarrierall > 0 {
+		firstStackBarrierOffset = 0
 	}
 }
 
