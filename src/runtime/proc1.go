@@ -988,6 +988,7 @@ func newextram() {
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.syscallpc = gp.sched.pc
 	gp.syscallsp = gp.sched.sp
+	gp.stktopsp = gp.sched.sp
 	// malg returns status as Gidle, change to Gsyscall before adding to allg
 	// where GC will see it.
 	casgstatus(gp, _Gidle, _Gsyscall)
@@ -2267,6 +2268,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 
 	memclr(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
 	newg.sched.sp = sp
+	newg.stktopsp = sp
 	newg.sched.pc = funcPC(goexit) + _PCQuantum // +PCQuantum so that previous instruction is in same function
 	newg.sched.g = guintptr(unsafe.Pointer(newg))
 	gostartcallfn(&newg.sched, fn)
