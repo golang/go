@@ -8,6 +8,7 @@ package asm
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -37,6 +38,7 @@ type Parser struct {
 	firstProg     *obj.Prog
 	lastProg      *obj.Prog
 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+	errorWriter   io.Writer
 }
 
 type Patch struct {
@@ -46,11 +48,12 @@ type Patch struct {
 
 func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 	return &Parser{
-		ctxt:     ctxt,
-		arch:     ar,
-		lex:      lexer,
-		labels:   make(map[string]*obj.Prog),
-		dataAddr: make(map[string]int64),
+		ctxt:        ctxt,
+		arch:        ar,
+		lex:         lexer,
+		labels:      make(map[string]*obj.Prog),
+		dataAddr:    make(map[string]int64),
+		errorWriter: os.Stderr,
 	}
 }
 
@@ -67,10 +70,12 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 		return
 	}
 	p.errorLine = p.histLineNum
-	// Put file and line information on head of message.
-	format = "%s:%d: " + format + "\n"
-	args = append([]interface{}{p.lex.File(), p.lineNum}, args...)
-	fmt.Fprintf(os.Stderr, format, args...)
+	if p.lex != nil {
+		// Put file and line information on head of message.
+		format = "%s:%d: " + format + "\n"
+		args = append([]interface{}{p.lex.File(), p.lineNum}, args...)
+	}
+	fmt.Fprintf(p.errorWriter, format, args...)
 	p.errorCount++
 	if p.errorCount > 10 {
 		log.Fatal("too many errors")

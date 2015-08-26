@@ -66,10 +66,10 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 // validateSymbol checks that addr represents a valid name for a pseudo-op.
 func (p *Parser) validateSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
 	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
-		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, addr.Sym.Name)
+		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
 	}
 	if !offsetOk && addr.Offset != 0 {
-		p.errorf("%s symbol %q must not be offset from SB", pseudo, addr.Sym.Name)
+		p.errorf("%s symbol %q must not be offset from SB", pseudo, symbolName(addr))
 	}
 }
 
@@ -91,6 +91,7 @@ func (p *Parser) validateImmediate(pseudo string, addr *obj.Addr) {
 func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	if len(operands) != 2 && len(operands) != 3 {
 		p.errorf("expect two or three operands for TEXT")
+		return
 	}
 
 	// Labels are function scoped. Patch existing labels and
@@ -102,7 +103,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	// That means symbol plus indirect on SB and no offset.
 	nameAddr := p.address(operands[0])
 	p.validateSymbol("TEXT", &nameAddr, false)
-	name := nameAddr.Sym.Name
+	name := symbolName(&nameAddr)
 	next := 1
 
 	// Next operand is the optional text flag, a literal integer.
@@ -171,6 +172,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 func (p *Parser) asmData(word string, operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for DATA")
+		return
 	}
 
 	// Operand 0 has the general form foo<>+0x04(SB)/4.
@@ -178,12 +180,13 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 	n := len(op)
 	if n < 3 || op[n-2].ScanToken != '/' || op[n-1].ScanToken != scanner.Int {
 		p.errorf("expect /size for DATA argument")
+		return
 	}
 	scale := p.parseScale(op[n-1].String())
 	op = op[:n-2]
 	nameAddr := p.address(op)
 	p.validateSymbol("DATA", &nameAddr, true)
-	name := nameAddr.Sym.Name
+	name := symbolName(&nameAddr)
 
 	// Operand 1 is an immediate constant or address.
 	valueAddr := p.address(operands[1])
@@ -220,6 +223,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 	if len(operands) != 2 && len(operands) != 3 {
 		p.errorf("expect two or three operands for GLOBL")
+		return
 	}
 
 	// Operand 0 has the general form foo<>+0x04(SB).
@@ -257,6 +261,7 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for PCDATA")
+		return
 	}
 
 	// Operand 0 must be an immediate constant.
@@ -283,6 +288,7 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 	if len(operands) != 2 {
 		p.errorf("expect two operands for FUNCDATA")
+		return
 	}
 
 	// Operand 0 must be an immediate constant.
@@ -620,6 +626,14 @@ func newAddr(x obj.Addr) *obj.Addr {
 	p := new(obj.Addr)
 	*p = x
 	return p
+}
+
+// symbolName returns the symbol name, or an error string if none if available.
+func symbolName(addr *obj.Addr) string {
+	if addr.Sym != nil {
+		return addr.Sym.Name
+	}
+	return "<erroneous symbol>"
 }
 
 var emptyProg obj.Prog
