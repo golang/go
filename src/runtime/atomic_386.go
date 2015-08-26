@@ -52,9 +52,6 @@ func xadd(ptr *uint32, delta int32) uint32
 //go:noescape
 func xchg(ptr *uint32, new uint32) uint32
 
-// NO go:noescape annotation; see atomic_pointer.go.
-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
-
 //go:noescape
 func xchguintptr(ptr *uintptr, new uintptr) uintptr
 

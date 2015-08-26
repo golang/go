@@ -563,13 +563,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xchgp1(SB), NOSPLIT, $0-24
-	MOVQ	ptr+0(FP), BX
-	MOVQ	new+8(FP), AX
-	XCHGQ	AX, 0(BX)
-	MOVQ	AX, ret+16(FP)
-	RET
-
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-24
 	JMP	runtime·xchg64(SB)
 

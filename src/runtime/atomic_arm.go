@@ -42,16 +42,6 @@ func xchg(addr *uint32, v uint32) uint32 {
 }
 
 //go:nosplit
-func xchgp1(addr unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
-	for {
-		old := *(*unsafe.Pointer)(addr)
-		if casp1((*unsafe.Pointer)(addr), old, v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
 func xchguintptr(addr *uintptr, v uintptr) uintptr {
 	return uintptr(xchg((*uint32)(unsafe.Pointer(addr)), uint32(v)))
 }
