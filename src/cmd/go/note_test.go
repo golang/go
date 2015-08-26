@@ -33,9 +33,6 @@ func TestNoteReading(t *testing.T) {
 		// no external linking
 		t.Logf("no external linking - skipping linkmode=external test")
 
-	case "solaris":
-		t.Logf("skipping - golang.org/issue/12178")
-
 	default:
 		tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello.exe"), tg.path("hello.go"))
 		id, err := main.ReadBuildIDFromBinary(tg.path("hello.exe"))
