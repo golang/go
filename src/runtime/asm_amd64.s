@@ -346,7 +346,12 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
 	MOVQ	(g_stkbar+slice_array)(CX), DX
 	MOVQ	g_stkbarPos(CX), BX
 	IMULQ	$stkbar__size, BX	// Too big for SIB.
+	MOVQ	stkbar_savedLRPtr(DX)(BX*1), R8
 	MOVQ	stkbar_savedLRVal(DX)(BX*1), BX
+	// Assert that we're popping the right saved LR.
+	CMPQ	R8, SP
+	JNE	2(PC)
+	MOVL	$0, 0
 	// Record that this stack barrier was hit.
 	ADDQ	$1, g_stkbarPos(CX)
 	// Jump to the original return PC.
