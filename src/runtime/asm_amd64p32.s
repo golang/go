@@ -592,6 +592,12 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// Not implemented.
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-12
+	MOVL	0, AX
+	RET
+
 // void setg(G*); set g. for use by needm.
 // Not implemented.
 TEXT runtime·setg(SB), NOSPLIT, $0-4
