@@ -1725,10 +1725,6 @@ func doelf() {
 			Addstring(shstrtab, ".note.go.pkg-list")
 			Addstring(shstrtab, ".note.go.deps")
 		}
-
-		if buildid != "" {
-			Addstring(shstrtab, ".note.go.buildid")
-		}
 	}
 
 	hasinitarr := Linkshared
