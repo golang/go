@@ -105,7 +105,7 @@ type requestCanceler interface {
 }
 
 type runOnFirstRead struct {
-	io.Reader
+	io.Reader // optional; nil means empty body
 
 	fn func() // Run before first Read, then set to nil
 }
@@ -114,6 +114,9 @@ func (c *runOnFirstRead) Read(bs []byte) (int, error) {
 	if c.fn != nil {
 		c.fn()
 		c.fn = nil
+	}
+	if c.Reader == nil {
+		return 0, io.EOF
 	}
 	return c.Reader.Read(bs)
 }
