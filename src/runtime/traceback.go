@@ -479,6 +479,12 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		throw("traceback has leftover stack barriers")
 	}
 
+	if callback != nil && n < max && frame.sp != gp.stktopsp {
+		print("runtime: g", gp.goid, ": frame.sp=", hex(frame.sp), " top=", hex(gp.stktopsp), "\n")
+		print("\tstack=[", hex(gp.stack.lo), "-", hex(gp.stack.hi), "] n=", n, " max=", max, "\n")
+		throw("traceback did not unwind completely")
+	}
+
 	return n
 }
 

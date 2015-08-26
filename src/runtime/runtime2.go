@@ -229,6 +229,7 @@ type g struct {
 	syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
 	stkbar         []stkbar       // stack barriers, from low to high
 	stkbarPos      uintptr        // index of lowest stack barrier not hit
+	stktopsp       uintptr        // expected sp at top of stack, to check in traceback
 	param          unsafe.Pointer // passed parameter on wakeup
 	atomicstatus   uint32
 	stackLock      uint32 // sigprof/scang lock; TODO: fold in to atomicstatus
