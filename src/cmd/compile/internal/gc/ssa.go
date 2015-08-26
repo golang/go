@@ -1440,8 +1440,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case n.Left.Type.IsString(): // string; not reachable for OCAP
 			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
 		case n.Left.Type.IsMap():
-			s.Unimplementedf("unhandled len(map)")
-			return nil
+			return s.lenMap(n, s.expr(n.Left))
 		case n.Left.Type.IsChan():
 			if n.Op == OCAP {
 				s.Unimplementedf("unhandled cap(chan)")
@@ -1996,6 +1995,41 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 
 	s.startBlock(bAfter)
 	return s.variable(n, n.Type)
+}
+
+func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
+	// if n == nil {
+	//   return 0
+	// } else {
+	//   return *((*int)n)
+	// }
+	lenType := n.Type
+	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, s.zeroVal(lenType))
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Control = cmp
+	b.Likely = ssa.BranchUnlikely
+
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bAfter := s.f.NewBlock(ssa.BlockPlain)
+
+	// length of a nil map is zero
+	addEdge(b, bThen)
+	s.startBlock(bThen)
+	s.vars[n] = s.zeroVal(lenType)
+	s.endBlock()
+	addEdge(bThen, bAfter)
+
+	// the length is stored in the first word
+	addEdge(b, bElse)
+	s.startBlock(bElse)
+	s.vars[n] = s.newValue2(ssa.OpLoad, lenType, x, s.mem())
+	s.endBlock()
+	addEdge(bElse, bAfter)
+
+	s.startBlock(bAfter)
+	return s.variable(n, lenType)
 }
 
 // checkgoto checks that a goto from from to to does not
