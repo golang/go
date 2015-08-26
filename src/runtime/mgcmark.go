@@ -341,7 +341,7 @@ func scanstack(gp *g) {
 	switch gcphase {
 	case _GCscan:
 		// Install stack barriers during stack scan.
-		barrierOffset = firstStackBarrierOffset
+		barrierOffset = uintptr(firstStackBarrierOffset)
 		nextBarrier = sp + barrierOffset
 
 		if debug.gcstackbarrieroff > 0 {
