@@ -1646,6 +1646,15 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		default:
 			s.Fatalf("bad sized integer type %s", t)
 		}
+	case t.IsFloat():
+		switch t.Size() {
+		case 4:
+			return s.constFloat32(t, 0)
+		case 8:
+			return s.constFloat64(t, 0)
+		default:
+			s.Fatalf("bad sized float type %s", t)
+		}
 	case t.IsString():
 		return s.entryNewValue0A(ssa.OpConstString, t, "")
 	case t.IsPtr():
