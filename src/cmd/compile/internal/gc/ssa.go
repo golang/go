@@ -1253,7 +1253,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue1(op, n.Type, x)
 		}
 
-		var op1, op2 ssa.Op
 		if ft.IsInteger() && tt.IsFloat() {
 			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
 			signedSize := ft.Size()
@@ -1261,6 +1260,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			if !ft.IsSigned() {
 				signedSize += 5
 			}
+			var op1, op2 ssa.Op
 			switch signedSize {
 			case 1:
 				op1 = ssa.OpSignExt8to32
@@ -1315,6 +1315,72 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
 		}
+
+		if tt.IsInteger() && ft.IsFloat() {
+			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
+			signedSize := tt.Size()
+			it := TINT32 // intermediate type in conversion, int32 or int64
+			if !tt.IsSigned() {
+				signedSize += 5
+			}
+			var op1, op2 ssa.Op
+			switch signedSize {
+			case 1:
+				op2 = ssa.OpTrunc32to8
+			case 2:
+				op2 = ssa.OpTrunc32to16
+			case 4:
+				op2 = ssa.OpCopy
+			case 8:
+				op2 = ssa.OpCopy
+				it = TINT64
+			case 6:
+				op2 = ssa.OpTrunc32to8
+			case 7:
+				op2 = ssa.OpTrunc32to16
+			case 9:
+				// Go wide to dodge the unsignedness correction
+				op2 = ssa.OpTrunc64to32
+				it = TINT64
+			case 13:
+				// unsigned 64, branchy correction code is needed
+				// because there is only FP to signed-integer
+				// conversion in the (AMD64) instructions set.
+				// Branchy correction code *may* be amenable to
+				// optimization, and it can be cleanly expressed
+				// in generic SSA, so do it here.
+				if ft.Size() == 4 {
+					return s.float32ToUint64(n, x, ft, tt)
+				}
+				if ft.Size() == 8 {
+					return s.float64ToUint64(n, x, ft, tt)
+				}
+				// unrecognized size is also "weird", hence fatal.
+				fallthrough
+
+			default:
+				s.Fatalf("weird float to integer conversion %s -> %s", ft, tt)
+
+			}
+			if ft.Size() == 4 {
+				if it == TINT64 {
+					op1 = ssa.OpCvt32Fto64
+				} else {
+					op1 = ssa.OpCvt32Fto32
+				}
+			} else {
+				if it == TINT64 {
+					op1 = ssa.OpCvt64Fto64
+				} else {
+					op1 = ssa.OpCvt64Fto32
+				}
+			}
+			if op2 == ssa.OpCopy {
+				return s.newValue1(op1, n.Type, x)
+			}
+			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
+		}
+
 		if ft.IsFloat() && tt.IsFloat() {
 			var op ssa.Op
 			if ft.Size() == tt.Size() {
@@ -1328,7 +1394,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.newValue1(op, n.Type, x)
 		}
-		// TODO: Still lack float-to-int
+		// TODO: Still lack complex conversions.
 
 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
 		return nil
@@ -1981,8 +2047,8 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	// 	  z = uintX(x) ; z = z >> 1
 	// 	  z = z >> 1
 	// 	  z = z | y
-	// 	  result = (floatY) z
-	// 	  z = z + z
+	// 	  result = floatY(z)
+	// 	  result = result + result
 	// }
 	//
 	// Code borrowed from old code generator.
@@ -2066,6 +2132,72 @@ func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
 
 	s.startBlock(bAfter)
 	return s.variable(n, lenType)
+}
+
+type f2uCvtTab struct {
+	ltf, cvt2U, subf ssa.Op
+	value            func(*state, ssa.Type, float64) *ssa.Value
+}
+
+var f32_u64 f2uCvtTab = f2uCvtTab{
+	ltf:   ssa.OpLess32F,
+	cvt2U: ssa.OpCvt32Fto64,
+	subf:  ssa.OpSub32F,
+	value: (*state).constFloat32,
+}
+
+var f64_u64 f2uCvtTab = f2uCvtTab{
+	ltf:   ssa.OpLess64F,
+	cvt2U: ssa.OpCvt64Fto64,
+	subf:  ssa.OpSub64F,
+	value: (*state).constFloat64,
+}
+
+func (s *state) float32ToUint64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+	return s.floatToUint(&f32_u64, n, x, ft, tt)
+}
+func (s *state) float64ToUint64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+	return s.floatToUint(&f64_u64, n, x, ft, tt)
+}
+
+func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
+	// if x < 9223372036854775808.0 {
+	// 	result = uintY(x)
+	// } else {
+	// 	y = x - 9223372036854775808.0
+	// 	z = uintY(y)
+	// 	result = z | -9223372036854775808
+	// }
+	twoToThe63 := cvttab.value(s, ft, 9223372036854775808.0)
+	cmp := s.newValue2(cvttab.ltf, Types[TBOOL], x, twoToThe63)
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Control = cmp
+	b.Likely = ssa.BranchLikely
+
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bAfter := s.f.NewBlock(ssa.BlockPlain)
+
+	addEdge(b, bThen)
+	s.startBlock(bThen)
+	a0 := s.newValue1(cvttab.cvt2U, tt, x)
+	s.vars[n] = a0
+	s.endBlock()
+	addEdge(bThen, bAfter)
+
+	addEdge(b, bElse)
+	s.startBlock(bElse)
+	y := s.newValue2(cvttab.subf, ft, x, twoToThe63)
+	y = s.newValue1(cvttab.cvt2U, tt, y)
+	z := s.constInt64(tt, -9223372036854775808)
+	a1 := s.newValue2(ssa.OpOr64, tt, y, z)
+	s.vars[n] = a1
+	s.endBlock()
+	addEdge(bElse, bAfter)
+
+	s.startBlock(bAfter)
+	return s.variable(n, n.Type)
 }
 
 // checkgoto checks that a goto from from to to does not

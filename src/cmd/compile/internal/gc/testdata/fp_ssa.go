@@ -1052,6 +1052,222 @@ func gtbr32_ssa(x, y float32) float32 {
 	return 42
 }
 
+func F32toU8_ssa(x float32) uint8 {
+	switch {
+	}
+	return uint8(x)
+}
+
+func F32toI8_ssa(x float32) int8 {
+	switch {
+	}
+	return int8(x)
+}
+
+func F32toU16_ssa(x float32) uint16 {
+	switch {
+	}
+	return uint16(x)
+}
+
+func F32toI16_ssa(x float32) int16 {
+	switch {
+	}
+	return int16(x)
+}
+
+func F32toU32_ssa(x float32) uint32 {
+	switch {
+	}
+	return uint32(x)
+}
+
+func F32toI32_ssa(x float32) int32 {
+	switch {
+	}
+	return int32(x)
+}
+
+func F32toU64_ssa(x float32) uint64 {
+	switch {
+	}
+	return uint64(x)
+}
+
+func F32toI64_ssa(x float32) int64 {
+	switch {
+	}
+	return int64(x)
+}
+
+func F64toU8_ssa(x float64) uint8 {
+	switch {
+	}
+	return uint8(x)
+}
+
+func F64toI8_ssa(x float64) int8 {
+	switch {
+	}
+	return int8(x)
+}
+
+func F64toU16_ssa(x float64) uint16 {
+	switch {
+	}
+	return uint16(x)
+}
+
+func F64toI16_ssa(x float64) int16 {
+	switch {
+	}
+	return int16(x)
+}
+
+func F64toU32_ssa(x float64) uint32 {
+	switch {
+	}
+	return uint32(x)
+}
+
+func F64toI32_ssa(x float64) int32 {
+	switch {
+	}
+	return int32(x)
+}
+
+func F64toU64_ssa(x float64) uint64 {
+	switch {
+	}
+	return uint64(x)
+}
+
+func F64toI64_ssa(x float64) int64 {
+	switch {
+	}
+	return int64(x)
+}
+
+func floatsToInts(x float64, expected int64) int {
+	y := float32(x)
+	fails := 0
+	fails += expectInt64("F64toI8", int64(F64toI8_ssa(x)), expected)
+	fails += expectInt64("F64toI16", int64(F64toI16_ssa(x)), expected)
+	fails += expectInt64("F64toI32", int64(F64toI32_ssa(x)), expected)
+	fails += expectInt64("F64toI64", int64(F64toI64_ssa(x)), expected)
+	fails += expectInt64("F32toI8", int64(F32toI8_ssa(y)), expected)
+	fails += expectInt64("F32toI16", int64(F32toI16_ssa(y)), expected)
+	fails += expectInt64("F32toI32", int64(F32toI32_ssa(y)), expected)
+	fails += expectInt64("F32toI64", int64(F32toI64_ssa(y)), expected)
+	return fails
+}
+
+func floatsToUints(x float64, expected uint64) int {
+	y := float32(x)
+	fails := 0
+	fails += expectUint64("F64toU8", uint64(F64toU8_ssa(x)), expected)
+	fails += expectUint64("F64toU16", uint64(F64toU16_ssa(x)), expected)
+	fails += expectUint64("F64toU32", uint64(F64toU32_ssa(x)), expected)
+	fails += expectUint64("F64toU64", uint64(F64toU64_ssa(x)), expected)
+	fails += expectUint64("F32toU8", uint64(F32toU8_ssa(y)), expected)
+	fails += expectUint64("F32toU16", uint64(F32toU16_ssa(y)), expected)
+	fails += expectUint64("F32toU32", uint64(F32toU32_ssa(y)), expected)
+	fails += expectUint64("F32toU64", uint64(F32toU64_ssa(y)), expected)
+	return fails
+}
+
+func floatingToIntegerConversionsTest() int {
+	fails := 0
+	fails += floatsToInts(0.0, 0)
+	fails += floatsToInts(1.0, 1)
+	fails += floatsToInts(127.0, 127)
+	fails += floatsToInts(-1.0, -1)
+	fails += floatsToInts(-128.0, -128)
+
+	fails += floatsToUints(0.0, 0)
+	fails += floatsToUints(1.0, 1)
+	fails += floatsToUints(255.0, 255)
+
+	for j := uint(0); j < 24; j++ {
+		// Avoid hard cases in the construction
+		// of the test inputs.
+		v := int64(1<<62) | int64(1<<(62-j))
+		w := uint64(v)
+		f := float32(v)
+		d := float64(v)
+		fails += expectUint64("2**62...", F32toU64_ssa(f), w)
+		fails += expectUint64("2**62...", F64toU64_ssa(d), w)
+		fails += expectInt64("2**62...", F32toI64_ssa(f), v)
+		fails += expectInt64("2**62...", F64toI64_ssa(d), v)
+		fails += expectInt64("2**62...", F32toI64_ssa(-f), -v)
+		fails += expectInt64("2**62...", F64toI64_ssa(-d), -v)
+		w += w
+		f += f
+		d += d
+		fails += expectUint64("2**63...", F32toU64_ssa(f), w)
+		fails += expectUint64("2**63...", F64toU64_ssa(d), w)
+	}
+
+	for j := uint(0); j < 16; j++ {
+		// Avoid hard cases in the construction
+		// of the test inputs.
+		v := int32(1<<30) | int32(1<<(30-j))
+		w := uint32(v)
+		f := float32(v)
+		d := float64(v)
+		fails += expectUint32("2**30...", F32toU32_ssa(f), w)
+		fails += expectUint32("2**30...", F64toU32_ssa(d), w)
+		fails += expectInt32("2**30...", F32toI32_ssa(f), v)
+		fails += expectInt32("2**30...", F64toI32_ssa(d), v)
+		fails += expectInt32("2**30...", F32toI32_ssa(-f), -v)
+		fails += expectInt32("2**30...", F64toI32_ssa(-d), -v)
+		w += w
+		f += f
+		d += d
+		fails += expectUint32("2**31...", F32toU32_ssa(f), w)
+		fails += expectUint32("2**31...", F64toU32_ssa(d), w)
+	}
+
+	for j := uint(0); j < 15; j++ {
+		// Avoid hard cases in the construction
+		// of the test inputs.
+		v := int16(1<<14) | int16(1<<(14-j))
+		w := uint16(v)
+		f := float32(v)
+		d := float64(v)
+		fails += expectUint16("2**14...", F32toU16_ssa(f), w)
+		fails += expectUint16("2**14...", F64toU16_ssa(d), w)
+		fails += expectInt16("2**14...", F32toI16_ssa(f), v)
+		fails += expectInt16("2**14...", F64toI16_ssa(d), v)
+		fails += expectInt16("2**14...", F32toI16_ssa(-f), -v)
+		fails += expectInt16("2**14...", F64toI16_ssa(-d), -v)
+		w += w
+		f += f
+		d += d
+		fails += expectUint16("2**15...", F32toU16_ssa(f), w)
+		fails += expectUint16("2**15...", F64toU16_ssa(d), w)
+	}
+
+	fails += expectInt32("-2147483648", F32toI32_ssa(-2147483648), -2147483648)
+
+	fails += expectInt32("-2147483648", F64toI32_ssa(-2147483648), -2147483648)
+	fails += expectInt32("-2147483647", F64toI32_ssa(-2147483647), -2147483647)
+	fails += expectUint32("4294967295", F64toU32_ssa(4294967295), 4294967295)
+
+	fails += expectInt16("-32768", F64toI16_ssa(-32768), -32768)
+	fails += expectInt16("-32768", F32toI16_ssa(-32768), -32768)
+
+	// NB more of a pain to do these for 32-bit because of lost bits in Float32 mantissa
+	fails += expectInt16("32767", F64toI16_ssa(32767), 32767)
+	fails += expectInt16("32767", F32toI16_ssa(32767), 32767)
+	fails += expectUint16("32767", F64toU16_ssa(32767), 32767)
+	fails += expectUint16("32767", F32toU16_ssa(32767), 32767)
+	fails += expectUint16("65535", F64toU16_ssa(65535), 65535)
+	fails += expectUint16("65535", F32toU16_ssa(65535), 65535)
+
+	return fails
+}
+
 func fail64(s string, f func(a, b float64) float64, a, b, e float64) int {
 	d := f(a, b)
 	if d != e {
@@ -1106,7 +1322,47 @@ func expect32(s string, x, expected float32) int {
 
 func expectUint64(s string, x, expected uint64) int {
 	if x != expected {
-		fmt.Printf("Expected 0x%016x for %s, got 0x%016x\n", expected, s, x)
+		fmt.Printf("%s: Expected 0x%016x, got 0x%016x\n", s, expected, x)
+		return 1
+	}
+	return 0
+}
+
+func expectInt64(s string, x, expected int64) int {
+	if x != expected {
+		fmt.Printf("%s: Expected 0x%016x, got 0x%016x\n", s, expected, x)
+		return 1
+	}
+	return 0
+}
+
+func expectUint32(s string, x, expected uint32) int {
+	if x != expected {
+		fmt.Printf("U32 %s: Expected 0x%08x, got 0x%08x\n", s, expected, x)
+		return 1
+	}
+	return 0
+}
+
+func expectInt32(s string, x, expected int32) int {
+	if x != expected {
+		fmt.Printf("I32 %s: Expected 0x%08x, got 0x%08x\n", s, expected, x)
+		return 1
+	}
+	return 0
+}
+
+func expectUint16(s string, x, expected uint16) int {
+	if x != expected {
+		fmt.Printf("U16 %s: Expected 0x%04x, got 0x%04x\n", s, expected, x)
+		return 1
+	}
+	return 0
+}
+
+func expectInt16(s string, x, expected int16) int {
+	if x != expected {
+		fmt.Printf("I16 %s: Expected 0x%04x, got 0x%04x\n", s, expected, x)
 		return 1
 	}
 	return 0
@@ -1265,6 +1521,8 @@ func main() {
 		fails += expectUint64("ge", ge, 0x1000110011100000)
 		fails += expectUint64("gt", gt, 0x0000100011000000)
 	}
+
+	fails += floatingToIntegerConversionsTest()
 
 	if fails > 0 {
 		fmt.Printf("Saw %v failures\n", fails)
