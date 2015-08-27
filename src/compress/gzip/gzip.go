@@ -44,10 +44,7 @@ type Writer struct {
 // Writes may be buffered and not flushed until Close.
 //
 // Callers that wish to set the fields in Writer.Header must do so before
-// the first call to Write or Close. The Comment and Name header fields are
-// UTF-8 strings in Go, but the underlying format requires NUL-terminated ISO
-// 8859-1 (Latin-1). NUL or non-Latin-1 runes in those strings will lead to an
-// error on Write.
+// the first call to Write, Flush, or Close.
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevel(w, DefaultCompression)
 	return z
