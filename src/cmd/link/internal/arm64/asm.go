@@ -133,6 +133,12 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
 
+	case obj.R_ARM64_GOTPCREL:
+		ld.Thearch.Vput(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
+		ld.Thearch.Vput(uint64(r.Xadd))
+		ld.Thearch.Vput(uint64(sectoff + 4))
+		ld.Thearch.Vput(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
+
 	case obj.R_CALLARM64:
 		if r.Siz != 4 {
 			return -1
@@ -235,7 +241,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_ADDRARM64:
+		case obj.R_ADDRARM64,
+			obj.R_ARM64_GOTPCREL:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
@@ -246,7 +253,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Sect == nil {
+			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
 				ld.Diag("missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
