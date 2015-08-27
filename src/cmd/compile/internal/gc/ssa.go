@@ -1373,7 +1373,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		addEdge(b, bResult)
 
 		s.startBlock(bResult)
-		return s.variable(n, n.Type)
+		return s.variable(n, Types[TBOOL])
 
 	// unary ops
 	case ONOT, OMINUS, OCOM:
