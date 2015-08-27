@@ -410,6 +410,8 @@ const (
 	// the referenced symbol into the immediate field of the first instruction and the
 	// low 16 bits into that of the second instruction.
 	R_ADDRPOWER
+	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
+	// referenced symbol.
 	R_ADDRARM64
 	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
 	// by loading the address into a register with two instructions (lui, ori).
@@ -466,6 +468,10 @@ const (
 	// the thread local base and the thread local variable defined by the
 	// referenced (thread local) symbol from the GOT.
 	R_ARM64_TLS_IE
+
+	// R_ARM64_GOTPCREL relocates an adrp, ld64 pair to compute the address of the GOT
+	// slot of the referenced symbol.
+	R_ARM64_GOTPCREL
 
 	// PPC64.
 
