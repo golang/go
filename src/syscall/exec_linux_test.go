@@ -109,3 +109,11 @@ func TestCloneNEWUSERAndRemapNoRootSetgroupsEnableSetgroups(t *testing.T) {
 		t.Fatalf("Unprivileged gid_map rewriting with GidMappingsEnableSetgroups must fail")
 	}
 }
+
+func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
+	cmd := whoamiCmd(t, os.Getuid(), os.Getgid(), false)
+	cmd.SysProcAttr.Credential = &syscall.Credential{}
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+}
