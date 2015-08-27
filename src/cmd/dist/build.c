@@ -482,7 +482,6 @@ static char *proto_gccargs[] = {
 	"-Wno-switch",
 	"-Wno-comment",
 	"-Wno-missing-field-initializers",
-	"-Werror",
 	"-fno-common",
 	"-ggdb",
 	"-pipe",
