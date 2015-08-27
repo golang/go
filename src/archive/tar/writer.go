@@ -12,8 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -288,11 +288,11 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	// succeed, and seems harmless enough.
 	ext.ModTime = hdr.ModTime
 	// The spec asks that we namespace our pseudo files
-	// with the current pid.
-	pid := os.Getpid()
+	// with the current pid.  However, this results in differing outputs
+	// for identical inputs.  As such, the constant 0 is now used instead.
+	// golang.org/issue/12358
 	dir, file := path.Split(hdr.Name)
-	fullName := path.Join(dir,
-		fmt.Sprintf("PaxHeaders.%d", pid), file)
+	fullName := path.Join(dir, "PaxHeaders.0", file)
 
 	ascii := toASCII(fullName)
 	if len(ascii) > 100 {
@@ -302,8 +302,15 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	// Construct the body
 	var buf bytes.Buffer
 
-	for k, v := range paxHeaders {
-		fmt.Fprint(&buf, paxHeader(k+"="+v))
+	// Keys are sorted before writing to body to allow deterministic output.
+	var keys []string
+	for k := range paxHeaders {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		fmt.Fprint(&buf, paxHeader(k+"="+paxHeaders[k]))
 	}
 
 	ext.Size = int64(len(buf.Bytes()))
