@@ -78,7 +78,23 @@ func doublePercent(str string) string {
 	return str
 }
 
-// errorf formats the error and terminates processing.
+// TODO: It would be nice if ExecError was more broken down, but
+// the way ErrorContext embeds the template name makes the
+// processing too clumsy.
+
+// ExecError is the custom error type returned when Execute has an
+// error evaluating its template. (If a write error occurs, the actual
+// error is returned; it will not be of type ExecError.)
+type ExecError struct {
+	Name string // Name of template.
+	Err  error  // Pre-formatted error.
+}
+
+func (e ExecError) Error() string {
+	return e.Err.Error()
+}
+
+// errorf records an ExecError and terminates processing.
 func (s *state) errorf(format string, args ...interface{}) {
 	name := doublePercent(s.tmpl.Name())
 	if s.node == nil {
@@ -87,7 +103,24 @@ func (s *state) errorf(format string, args ...interface{}) {
 		location, context := s.tmpl.ErrorContext(s.node)
 		format = fmt.Sprintf("template: %s: executing %q at <%s>: %s", location, name, doublePercent(context), format)
 	}
-	panic(fmt.Errorf(format, args...))
+	panic(ExecError{
+		Name: s.tmpl.Name(),
+		Err:  fmt.Errorf(format, args...),
+	})
+}
+
+// writeError is the wrapper type used internally when Execute has an
+// error writing to its output. We strip the wrapper in errRecover.
+// Note that this is not an implementation of error, so it cannot escape
+// from the package as an error value.
+type writeError struct {
+	Err error // Original error.
+}
+
+func (s *state) writeError(err error) {
+	panic(writeError{
+		Err: err,
+	})
 }
 
 // errRecover is the handler that turns panics into returns from the top
@@ -98,7 +131,11 @@ func errRecover(errp *error) {
 		switch err := e.(type) {
 		case runtime.Error:
 			panic(e)
-		case error:
+		case writeError:
+			*errp = err.Err // Strip the wrapper.
+		case ExecError:
+			*errp = err // Keep the wrapper.
+		case error: // TODO: This should never happen, but it does. Understand and/or fix.
 			*errp = err
 		default:
 			panic(e)
@@ -193,7 +230,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		s.walkTemplate(dot, node)
 	case *parse.TextNode:
 		if _, err := s.wr.Write(node.Text); err != nil {
-			s.errorf("%s", err)
+			s.writeError(err)
 		}
 	case *parse.WithNode:
 		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
@@ -811,7 +848,10 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 	if !ok {
 		s.errorf("can't print %s of type %s", n, v.Type())
 	}
-	fmt.Fprint(s.wr, iface)
+	_, err := fmt.Fprint(s.wr, iface)
+	if err != nil {
+		s.writeError(err)
+	}
 }
 
 // printableValue returns the, possibly indirected, interface value inside v that
