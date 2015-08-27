@@ -250,11 +250,13 @@ func reloadPackage(arg string, stk *importStack) *Package {
 	return loadPackage(arg, stk)
 }
 
-// The Go 1.5 vendoring experiment is enabled by setting GO15VENDOREXPERIMENT=1.
+// The Go 1.5 vendoring experiment was enabled by setting GO15VENDOREXPERIMENT=1.
+// In Go 1.6 this is on by default and is disabled by setting GO15VENDOREXPERIMENT=0.
+// In Go 1.7 the variable will stop having any effect.
 // The variable is obnoxiously long so that years from now when people find it in
 // their profiles and wonder what it does, there is some chance that a web search
 // might answer the question.
-var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") == "1"
+var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") != "0"
 
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path.  It begins with _/ and then contains the full path
