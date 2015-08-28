@@ -174,8 +174,8 @@
 // big-object moves (TODO: remove?)
 (Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
 
-(If (IsNonNil (GetG)) yes no) -> (Plain nil yes)
+(If (IsNonNil (GetG)) yes no) -> (First nil yes no)
 
 (If (Not cond) yes no) -> (If cond no yes)
-(If (ConstBool {c}) yes no) && c.(bool) -> (Plain nil yes)
-(If (ConstBool {c}) yes no) && !c.(bool) -> (Plain nil no)
+(If (ConstBool {c}) yes no) && c.(bool) -> (First nil yes no)
+(If (ConstBool {c}) yes no) && !c.(bool) -> (First nil no yes)

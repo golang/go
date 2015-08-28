@@ -83,10 +83,8 @@ func nilcheckelim(f *Func) {
 					// Eliminate the nil check.
 					// The deadcode pass will remove vestigial values,
 					// and the fuse pass will join this block with its successor.
-					node.block.Kind = BlockPlain
+					node.block.Kind = BlockFirst
 					node.block.Control = nil
-					f.removePredecessor(node.block, node.block.Succs[1])
-					node.block.Succs = node.block.Succs[:1]
 				} else {
 					// new nilcheck so add a ClearPtr node to clear the
 					// ptr from the map of nil checks once we traverse
@@ -173,10 +171,8 @@ func nilcheckelim0(f *Func) {
 			// Eliminate the nil check.
 			// The deadcode pass will remove vestigial values,
 			// and the fuse pass will join this block with its successor.
-			b.Kind = BlockPlain
+			b.Kind = BlockFirst
 			b.Control = nil
-			f.removePredecessor(b, b.Succs[1])
-			b.Succs = b.Succs[:1]
 		}
 	}
 }

@@ -373,7 +373,7 @@ var genericBlocks = []blockData{
 	{name: "Plain"}, // a single successor
 	{name: "If"},    // 2 successors, if control goto Succs[0] else goto Succs[1]
 	{name: "Call"},  // 2 successors, normal return and panic
-	// TODO(khr): BlockPanic for the built-in panic call, has 1 edge to the exit block
+	{name: "First"}, // 2 successors, always takes the first one (second is dead)
 }
 
 func init() {

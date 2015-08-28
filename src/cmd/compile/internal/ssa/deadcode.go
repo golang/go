@@ -29,7 +29,11 @@ func findlive(f *Func) (reachable []bool, live []bool) {
 		b := p[len(p)-1]
 		p = p[:len(p)-1]
 		// Mark successors as reachable
-		for _, c := range b.Succs {
+		s := b.Succs
+		if b.Kind == BlockFirst {
+			s = s[:1]
+		}
+		for _, c := range s {
 			if !reachable[c.ID] {
 				reachable[c.ID] = true
 				p = append(p, c) // push
@@ -103,6 +107,37 @@ func deadcode(f *Func) {
 		b.Values = b.Values[:i]
 	}
 
+	// Get rid of edges from dead to live code.
+	for _, b := range f.Blocks {
+		if reachable[b.ID] {
+			continue
+		}
+		for _, c := range b.Succs {
+			if reachable[c.ID] {
+				c.removePred(b)
+			}
+		}
+	}
+
+	// Get rid of dead edges from live code.
+	for _, b := range f.Blocks {
+		if !reachable[b.ID] {
+			continue
+		}
+		if b.Kind != BlockFirst {
+			continue
+		}
+		c := b.Succs[1]
+		b.Succs[1] = nil
+		b.Succs = b.Succs[:1]
+		b.Kind = BlockPlain
+
+		if reachable[c.ID] {
+			// Note: c must be reachable through some other edge.
+			c.removePred(b)
+		}
+	}
+
 	// Remove unreachable blocks.  Return dead block ids to allocator.
 	i := 0
 	for _, b := range f.Blocks {
@@ -113,11 +148,10 @@ func deadcode(f *Func) {
 			if len(b.Values) > 0 {
 				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
 			}
-			s := b.Succs
+			b.Preds = nil
 			b.Succs = nil
-			for _, c := range s {
-				f.removePredecessor(b, c)
-			}
+			b.Control = nil
+			b.Kind = BlockDead
 			f.bid.put(b.ID)
 		}
 	}
@@ -132,94 +166,68 @@ func deadcode(f *Func) {
 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
 }
 
-// There was an edge b->c.  c has been removed from b's successors.
-// Fix up c to handle that fact.
-func (f *Func) removePredecessor(b, c *Block) {
-	work := [][2]*Block{{b, c}}
-
-	for len(work) > 0 {
-		b, c := work[0][0], work[0][1]
-		work = work[1:]
-
-		// Find index of b in c's predecessor list
-		// TODO: This could conceivably cause O(n^2) work.  Imagine a very
-		// wide phi in (for example) the return block.  If we determine that
-		// lots of panics won't happen, we remove each edge at a cost of O(n) each.
-		var i int
-		found := false
-		for j, p := range c.Preds {
-			if p == b {
-				i = j
-				found = true
-				break
-			}
+// removePred removes the predecessor p from b's predecessor list.
+func (b *Block) removePred(p *Block) {
+	var i int
+	found := false
+	for j, q := range b.Preds {
+		if q == p {
+			i = j
+			found = true
+			break
 		}
-		if !found {
-			f.Fatalf("can't find predecessor %v of %v\n", b, c)
-		}
+	}
+	// TODO: the above loop could make the deadcode pass take quadratic time
+	if !found {
+		b.Fatalf("can't find predecessor %v of %v\n", p, b)
+	}
 
-		n := len(c.Preds) - 1
-		c.Preds[i] = c.Preds[n]
-		c.Preds[n] = nil // aid GC
-		c.Preds = c.Preds[:n]
+	n := len(b.Preds) - 1
+	b.Preds[i] = b.Preds[n]
+	b.Preds[n] = nil // aid GC
+	b.Preds = b.Preds[:n]
 
-		// rewrite phi ops to match the new predecessor list
-		for _, v := range c.Values {
-			if v.Op != OpPhi {
-				continue
-			}
-			v.Args[i] = v.Args[n]
-			v.Args[n] = nil // aid GC
-			v.Args = v.Args[:n]
-			if n == 1 {
-				v.Op = OpCopy
-				// Note: this is trickier than it looks.  Replacing
-				// a Phi with a Copy can in general cause problems because
-				// Phi and Copy don't have exactly the same semantics.
-				// Phi arguments always come from a predecessor block,
-				// whereas copies don't.  This matters in loops like:
-				// 1: x = (Phi y)
-				//    y = (Add x 1)
-				//    goto 1
-				// If we replace Phi->Copy, we get
-				// 1: x = (Copy y)
-				//    y = (Add x 1)
-				//    goto 1
-				// (Phi y) refers to the *previous* value of y, whereas
-				// (Copy y) refers to the *current* value of y.
-				// The modified code has a cycle and the scheduler
-				// will barf on it.
-				//
-				// Fortunately, this situation can only happen for dead
-				// code loops.  So although the value graph is transiently
-				// bad, we'll throw away the bad part by the end of
-				// the next deadcode phase.
-				// Proof: If we have a potential bad cycle, we have a
-				// situation like this:
-				//   x = (Phi z)
-				//   y = (op1 x ...)
-				//   z = (op2 y ...)
-				// Where opX are not Phi ops.  But such a situation
-				// implies a cycle in the dominator graph.  In the
-				// example, x.Block dominates y.Block, y.Block dominates
-				// z.Block, and z.Block dominates x.Block (treating
-				// "dominates" as reflexive).  Cycles in the dominator
-				// graph can only happen in an unreachable cycle.
-			}
+	// rewrite phi ops to match the new predecessor list
+	for _, v := range b.Values {
+		if v.Op != OpPhi {
+			continue
 		}
-		if n == 0 {
-			// c is now dead--recycle its values
-			for _, v := range c.Values {
-				f.vid.put(v.ID)
-			}
-			c.Values = nil
-			// Also kill any successors of c now, to spare later processing.
-			for _, succ := range c.Succs {
-				work = append(work, [2]*Block{c, succ})
-			}
-			c.Succs = nil
-			c.Kind = BlockDead
-			c.Control = nil
+		v.Args[i] = v.Args[n]
+		v.Args[n] = nil // aid GC
+		v.Args = v.Args[:n]
+		if n == 1 {
+			v.Op = OpCopy
+			// Note: this is trickier than it looks.  Replacing
+			// a Phi with a Copy can in general cause problems because
+			// Phi and Copy don't have exactly the same semantics.
+			// Phi arguments always come from a predecessor block,
+			// whereas copies don't.  This matters in loops like:
+			// 1: x = (Phi y)
+			//    y = (Add x 1)
+			//    goto 1
+			// If we replace Phi->Copy, we get
+			// 1: x = (Copy y)
+			//    y = (Add x 1)
+			//    goto 1
+			// (Phi y) refers to the *previous* value of y, whereas
+			// (Copy y) refers to the *current* value of y.
+			// The modified code has a cycle and the scheduler
+			// will barf on it.
+			//
+			// Fortunately, this situation can only happen for dead
+			// code loops.  We know the code we're working with is
+			// not dead, so we're ok.
+			// Proof: If we have a potential bad cycle, we have a
+			// situation like this:
+			//   x = (Phi z)
+			//   y = (op1 x ...)
+			//   z = (op2 y ...)
+			// Where opX are not Phi ops.  But such a situation
+			// implies a cycle in the dominator graph.  In the
+			// example, x.Block dominates y.Block, y.Block dominates
+			// z.Block, and z.Block dominates x.Block (treating
+			// "dominates" as reflexive).  Cycles in the dominator
+			// graph can only happen in an unreachable cycle.
 		}
 	}
 }

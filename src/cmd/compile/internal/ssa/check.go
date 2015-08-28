@@ -99,6 +99,13 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
 			}
+		case BlockFirst:
+			if len(b.Succs) != 2 {
+				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
+			}
+			if b.Control != nil {
+				f.Fatalf("plain/dead block %s has a control value", b)
+			}
 		}
 		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
 			f.Fatalf("likeliness prediction %d for block %s with %d successors: %s", b.Likely, b, len(b.Succs))
