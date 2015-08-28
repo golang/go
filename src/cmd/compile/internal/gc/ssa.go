@@ -1681,10 +1681,10 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		switch t.Size() {
 		case 8:
 			z := s.constFloat32(Types[TFLOAT32], 0)
-			return s.newValue2(ssa.OpComplexMake, t, z, z)
+			return s.entryNewValue2(ssa.OpComplexMake, t, z, z)
 		case 16:
 			z := s.constFloat64(Types[TFLOAT64], 0)
-			return s.newValue2(ssa.OpComplexMake, t, z, z)
+			return s.entryNewValue2(ssa.OpComplexMake, t, z, z)
 		default:
 			s.Fatalf("bad sized complex type %s", t)
 		}
