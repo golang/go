@@ -1232,3 +1232,36 @@ func testBadFuncName(name string, t *testing.T) {
 	// reports an error.
 	t.Errorf("%q succeeded incorrectly as function name", name)
 }
+
+func TestBlock(t *testing.T) {
+	const (
+		input   = `a({{block "inner" .}}bar({{.}})baz{{end}})b`
+		want    = `a(bar(hello)baz)b`
+		overlay = `{{define "inner"}}foo({{.}})bar{{end}}`
+		want2   = `a(foo(goodbye)bar)b`
+	)
+	tmpl, err := New("outer").Parse(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl2, err := Must(tmpl.Clone()).Parse(overlay)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, "hello"); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	buf.Reset()
+	if err := tmpl2.Execute(&buf, "goodbye"); err != nil {
+		t.Fatal(err)
+	}
+	if got := buf.String(); got != want2 {
+		t.Errorf("got %q, want %q", got, want2)
+	}
+}

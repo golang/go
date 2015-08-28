@@ -33,6 +33,7 @@ var itemName = map[itemType]string{
 
 	// keywords
 	itemDot:      ".",
+	itemBlock:    "block",
 	itemDefine:   "define",
 	itemElse:     "else",
 	itemIf:       "if",
@@ -58,6 +59,8 @@ type lexTest struct {
 }
 
 var (
+	tDot        = item{itemDot, 0, "."}
+	tBlock      = item{itemBlock, 0, "block"}
 	tEOF        = item{itemEOF, 0, ""}
 	tFor        = item{itemIdentifier, 0, "for"}
 	tLeft       = item{itemLeftDelim, 0, "{{"}
@@ -104,6 +107,9 @@ var lexTests = []lexTest{
 	}},
 	{"empty action", `{{}}`, []item{tLeft, tRight, tEOF}},
 	{"for", `{{for}}`, []item{tLeft, tFor, tRight, tEOF}},
+	{"block", `{{block "foo" .}}`, []item{
+		tLeft, tBlock, tSpace, {itemString, 0, `"foo"`}, tSpace, tDot, tRight, tEOF,
+	}},
 	{"quote", `{{"abc \n\t\" "}}`, []item{tLeft, tQuote, tRight, tEOF}},
 	{"raw quote", "{{" + raw + "}}", []item{tLeft, tRawQuote, tRight, tEOF}},
 	{"raw quote with newline", "{{" + rawNL + "}}", []item{tLeft, tRawQuoteNL, tRight, tEOF}},
@@ -155,7 +161,7 @@ var lexTests = []lexTest{
 	}},
 	{"dot", "{{.}}", []item{
 		tLeft,
-		{itemDot, 0, "."},
+		tDot,
 		tRight,
 		tEOF,
 	}},
@@ -169,7 +175,7 @@ var lexTests = []lexTest{
 		tLeft,
 		{itemField, 0, ".x"},
 		tSpace,
-		{itemDot, 0, "."},
+		tDot,
 		tSpace,
 		{itemNumber, 0, ".2"},
 		tSpace,
@@ -501,9 +507,9 @@ func TestShutdown(t *testing.T) {
 func (t *Tree) parseLexer(lex *lexer, text string) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	t.startParse(nil, lex)
-	t.parse(nil)
-	t.add(nil)
+	t.startParse(nil, lex, map[string]*Tree{})
+	t.parse()
+	t.add()
 	t.stopParse()
 	return t, nil
 }
