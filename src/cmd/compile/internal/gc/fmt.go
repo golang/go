@@ -356,7 +356,7 @@ func Vconv(v Val, flag int) string {
 		return "nil"
 	}
 
-	return fmt.Sprintf("<ctype=%d>", v.Ctype)
+	return fmt.Sprintf("<ctype=%d>", v.Ctype())
 }
 
 /*
