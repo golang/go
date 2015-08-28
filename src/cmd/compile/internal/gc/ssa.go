@@ -2039,7 +2039,8 @@ func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
 	//   return *((*int)n)
 	// }
 	lenType := n.Type
-	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, s.zeroVal(lenType))
+	nilValue := s.newValue0(ssa.OpConstNil, Types[TUINTPTR])
+	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, nilValue)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = cmp
