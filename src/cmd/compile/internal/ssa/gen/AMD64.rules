@@ -81,6 +81,8 @@
 (Neg32 x) -> (NEGL x)
 (Neg16 x) -> (NEGW x)
 (Neg8 x) -> (NEGB x)
+(Neg32F x) -> (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> {math.Copysign(0, -1)}))
+(Neg64F x) -> (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> {math.Copysign(0, -1)}))
 
 (Com64 x) -> (NOTQ x)
 (Com32 x) -> (NOTL x)

@@ -354,6 +354,8 @@ func init() {
 		{name: "CVTSD2SS", reg: fp11, asm: "CVTSD2SS"}, // convert float64 to float32
 		{name: "CVTSS2SD", reg: fp11, asm: "CVTSS2SD"}, // convert float32 to float64
 
+		{name: "PXOR", reg: fp21, asm: "PXOR"}, // exclusive or, applied to X regs for float negation.
+
 		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
 		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
 		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint

@@ -237,6 +237,7 @@ const (
 	OpAMD64CVTSQ2SD
 	OpAMD64CVTSD2SS
 	OpAMD64CVTSS2SD
+	OpAMD64PXOR
 	OpAMD64LEAQ
 	OpAMD64LEAQ1
 	OpAMD64LEAQ2
@@ -435,6 +436,8 @@ const (
 	OpNeg16
 	OpNeg32
 	OpNeg64
+	OpNeg32F
+	OpNeg64F
 	OpCom8
 	OpCom16
 	OpCom32
@@ -2795,6 +2798,19 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "PXOR",
+		asm:  x86.APXOR,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
 		name: "LEAQ",
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3741,6 +3757,14 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Neg64",
+		generic: true,
+	},
+	{
+		name:    "Neg32F",
+		generic: true,
+	},
+	{
+		name:    "Neg64F",
 		generic: true,
 	},
 	{

@@ -142,6 +142,9 @@ func genRules(arch arch) {
 	if *genLog {
 		fmt.Fprintln(w, "import \"fmt\"")
 	}
+	fmt.Fprintln(w, "import \"math\"")
+	fmt.Fprintln(w, "var _ = math.MinInt8 // in case not otherwise used")
+
 	fmt.Fprintf(w, "func rewriteValue%s(v *Value, config *Config) bool {\n", arch.name)
 	fmt.Fprintln(w, "b := v.Block")
 
