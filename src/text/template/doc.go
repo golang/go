@@ -115,6 +115,14 @@ data, defined in detail below.
 		The template with the specified name is executed with dot set
 		to the value of the pipeline.
 
+	{{block "name" pipeline}} T1 {{end}}
+		A block is shorthand for defining a template
+			{{define "name"}} T1 {{end}}
+		and then executing it in place
+			{{template "name" .}}
+		The typical use is to define a set of root templates that are
+		then customized by redefining the block templates within.
+
 	{{with pipeline}} T1 {{end}}
 		If the value of the pipeline is empty, no output is generated;
 		otherwise, dot is set to the value of the pipeline and T1 is

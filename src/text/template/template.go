@@ -5,7 +5,6 @@
 package template
 
 import (
-	"fmt"
 	"reflect"
 	"sync"
 	"text/template/parse"
@@ -117,11 +116,10 @@ func (t *Template) copy(c *common) *Template {
 
 // AddParseTree adds parse tree for template with given name and associates it with t.
 // If the template does not already exist, it will create a new one.
-// It is an error to reuse a name except to overwrite an empty template.
+// If the template does exist, it will be replaced.
 func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
 	t.init()
 	// If the name is the name of this template, overwrite this template.
-	// The associate method checks it's not a redefinition.
 	nt := t
 	if name != t.name {
 		nt = t.New(name)
@@ -185,11 +183,7 @@ func (t *Template) Lookup(name string) *Template {
 
 // Parse defines the template by parsing the text. Nested template definitions will be
 // associated with the top-level template t. Parse may be called multiple times
-// to parse definitions of templates to associate with t. It is an error if a
-// resulting template is non-empty (contains content other than template
-// definitions) and would replace a non-empty template with the same name.
-// (In multiple calls to Parse with the same receiver template, only one call
-// can contain text other than space, comments, and template definitions.)
+// to parse definitions of templates to associate with t.
 func (t *Template) Parse(text string) (*Template, error) {
 	t.init()
 	t.muFuncs.RLock()
@@ -208,25 +202,17 @@ func (t *Template) Parse(text string) (*Template, error) {
 }
 
 // associate installs the new template into the group of templates associated
-// with t. It is an error to reuse a name except to overwrite an empty
-// template. The two are already known to share the common structure.
-// The boolean return value reports wither to store this tree as t.Tree.
+// with t. The two are already known to share the common structure.
+// The boolean return value reports whether to store this tree as t.Tree.
 func (t *Template) associate(new *Template, tree *parse.Tree) (bool, error) {
 	if new.common != t.common {
 		panic("internal error: associate not common")
 	}
-	name := new.name
-	if old := t.tmpl[name]; old != nil {
-		oldIsEmpty := parse.IsEmptyTree(old.Root)
-		newIsEmpty := parse.IsEmptyTree(tree.Root)
-		if newIsEmpty {
-			// Whether old is empty or not, new is empty; no reason to replace old.
-			return false, nil
-		}
-		if !oldIsEmpty {
-			return false, fmt.Errorf("template: redefinition of template %q", name)
-		}
+	if t.tmpl[new.name] != nil && parse.IsEmptyTree(tree.Root) {
+		// If a template by that name exists,
+		// don't replace it with an empty template.
+		return false, nil
 	}
-	t.tmpl[name] = new
+	t.tmpl[new.name] = new
 	return true, nil
 }
