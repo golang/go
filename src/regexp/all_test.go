@@ -201,6 +201,12 @@ var replaceTests = []ReplaceTest{
 	// Substitution when subexpression isn't found
 	{"(x)?", "$1", "123", "123"},
 	{"abc", "$1", "123", "123"},
+
+	// Substitutions involving a (x){0}
+	{"(a)(b){0}(c)", ".$1|$3.", "xacxacx", "x.a|c.x.a|c.x"},
+	{"(a)(((b))){0}c", ".$1.", "xacxacx", "x.a.x.a.x"},
+	{"((a(b){0}){3}){5}(h)", "y caramb$2", "say aaaaaaaaaaaaaaaah", "say ay caramba"},
+	{"((a(b){0}){3}){5}h", "y caramb$2", "say aaaaaaaaaaaaaaaah", "say ay caramba"},
 }
 
 var replaceLiteralTests = []ReplaceTest{

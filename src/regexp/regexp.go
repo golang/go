@@ -482,6 +482,10 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 	} else {
 		endPos = len(src)
 	}
+	if nmatch > re.prog.NumCap {
+		nmatch = re.prog.NumCap
+	}
+
 	for searchPos <= endPos {
 		a := re.doExecute(nil, bsrc, src, searchPos, nmatch)
 		if len(a) == 0 {
