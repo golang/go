@@ -181,4 +181,45 @@ func checkFunc(f *Func) {
 			f.Fatalf("used value v%d in free list", id)
 		}
 	}
+
+	// Check to make sure all args dominate uses.
+	if f.RegAlloc == nil {
+		// Note: regalloc introduces non-dominating args.
+		// See TODO in regalloc.go.
+		idom := dominators(f)
+		for _, b := range f.Blocks {
+			for _, v := range b.Values {
+				for i, arg := range v.Args {
+					x := arg.Block
+					y := b
+					if v.Op == OpPhi {
+						y = b.Preds[i]
+					}
+					if !domCheck(f, idom, x, y) {
+						f.Fatalf("arg %d of value %s does not dominate", i, v.LongString())
+					}
+				}
+			}
+			if b.Control != nil && !domCheck(f, idom, b.Control.Block, b) {
+				f.Fatalf("control value %s for %s doesn't dominate", b.Control, b)
+			}
+		}
+	}
+}
+
+// domCheck reports whether x dominates y (including x==y).
+func domCheck(f *Func, idom []*Block, x, y *Block) bool {
+	if y != f.Entry && idom[y.ID] == nil {
+		// unreachable - ignore
+		return true
+	}
+	for {
+		if x == y {
+			return true
+		}
+		y = idom[y.ID]
+		if y == nil {
+			return false
+		}
+	}
 }
