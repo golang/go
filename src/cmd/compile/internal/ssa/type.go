@@ -16,6 +16,7 @@ type Type interface {
 	IsInteger() bool //  ... ditto for the others
 	IsSigned() bool
 	IsFloat() bool
+	IsComplex() bool
 	IsPtr() bool
 	IsString() bool
 	IsSlice() bool
@@ -39,12 +40,13 @@ type CompilerType struct {
 	Flags  bool
 }
 
-func (t *CompilerType) Size() int64          { return 0 }
+func (t *CompilerType) Size() int64          { return 0 } // Size in bytes
 func (t *CompilerType) Alignment() int64     { return 0 }
 func (t *CompilerType) IsBoolean() bool      { return false }
 func (t *CompilerType) IsInteger() bool      { return false }
 func (t *CompilerType) IsSigned() bool       { return false }
 func (t *CompilerType) IsFloat() bool        { return false }
+func (t *CompilerType) IsComplex() bool      { return false }
 func (t *CompilerType) IsPtr() bool          { return false }
 func (t *CompilerType) IsString() bool       { return false }
 func (t *CompilerType) IsSlice() bool        { return false }

@@ -38,6 +38,8 @@ func (d DummyFrontend) TypeUInt8() Type   { return TypeUInt8 }
 func (d DummyFrontend) TypeUInt16() Type  { return TypeUInt16 }
 func (d DummyFrontend) TypeUInt32() Type  { return TypeUInt32 }
 func (d DummyFrontend) TypeUInt64() Type  { return TypeUInt64 }
+func (d DummyFrontend) TypeFloat32() Type { return TypeFloat32 }
+func (d DummyFrontend) TypeFloat64() Type { return TypeFloat64 }
 func (d DummyFrontend) TypeInt() Type     { return TypeInt64 }
 func (d DummyFrontend) TypeUintptr() Type { return TypeUInt64 }
 func (d DummyFrontend) TypeString() Type  { panic("unimplemented") }

@@ -12,6 +12,7 @@ type TypeImpl struct {
 	Integer bool
 	Signed  bool
 	Float   bool
+	Complex bool
 	Ptr     bool
 	string  bool
 	slice   bool
@@ -27,6 +28,7 @@ func (t *TypeImpl) IsBoolean() bool      { return t.Boolean }
 func (t *TypeImpl) IsInteger() bool      { return t.Integer }
 func (t *TypeImpl) IsSigned() bool       { return t.Signed }
 func (t *TypeImpl) IsFloat() bool        { return t.Float }
+func (t *TypeImpl) IsComplex() bool      { return t.Complex }
 func (t *TypeImpl) IsPtr() bool          { return t.Ptr }
 func (t *TypeImpl) IsString() bool       { return t.string }
 func (t *TypeImpl) IsSlice() bool        { return t.slice }
@@ -48,14 +50,18 @@ func (t *TypeImpl) Equal(u Type) bool {
 
 var (
 	// shortcuts for commonly used basic types
-	TypeInt8    = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
-	TypeInt16   = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
-	TypeInt32   = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
-	TypeInt64   = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
-	TypeUInt8   = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
-	TypeUInt16  = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
-	TypeUInt32  = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
-	TypeUInt64  = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
-	TypeBool    = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
-	TypeBytePtr = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
+	TypeInt8       = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
+	TypeInt16      = &TypeImpl{Size_: 2, Align: 2, Integer: true, Signed: true, Name: "int16"}
+	TypeInt32      = &TypeImpl{Size_: 4, Align: 4, Integer: true, Signed: true, Name: "int32"}
+	TypeInt64      = &TypeImpl{Size_: 8, Align: 8, Integer: true, Signed: true, Name: "int64"}
+	TypeFloat32    = &TypeImpl{Size_: 4, Align: 4, Float: true, Name: "float32"}
+	TypeFloat64    = &TypeImpl{Size_: 8, Align: 8, Float: true, Name: "float64"}
+	TypeComplex64  = &TypeImpl{Size_: 8, Align: 4, Complex: true, Name: "complex64"}
+	TypeComplex128 = &TypeImpl{Size_: 16, Align: 8, Complex: true, Name: "complex128"}
+	TypeUInt8      = &TypeImpl{Size_: 1, Align: 1, Integer: true, Name: "uint8"}
+	TypeUInt16     = &TypeImpl{Size_: 2, Align: 2, Integer: true, Name: "uint16"}
+	TypeUInt32     = &TypeImpl{Size_: 4, Align: 4, Integer: true, Name: "uint32"}
+	TypeUInt64     = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
+	TypeBool       = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
+	TypeBytePtr    = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
 )
