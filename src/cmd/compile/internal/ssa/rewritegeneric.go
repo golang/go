@@ -237,6 +237,46 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto end4d92ff3ba567d9afd38fc9ca113602ad
 	end4d92ff3ba567d9afd38fc9ca113602ad:
 		;
+	case OpComplexImag:
+		// match: (ComplexImag (ComplexMake _ imag ))
+		// cond:
+		// result: imag
+		{
+			if v.Args[0].Op != OpComplexMake {
+				goto endec3009fd8727d03002021997936e091f
+			}
+			imag := v.Args[0].Args[1]
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = imag.Type
+			v.AddArg(imag)
+			return true
+		}
+		goto endec3009fd8727d03002021997936e091f
+	endec3009fd8727d03002021997936e091f:
+		;
+	case OpComplexReal:
+		// match: (ComplexReal (ComplexMake real _  ))
+		// cond:
+		// result: real
+		{
+			if v.Args[0].Op != OpComplexMake {
+				goto end8db3e16bd59af1adaa4b734c8adcc71d
+			}
+			real := v.Args[0].Args[0]
+			v.Op = OpCopy
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = real.Type
+			v.AddArg(real)
+			return true
+		}
+		goto end8db3e16bd59af1adaa4b734c8adcc71d
+	end8db3e16bd59af1adaa4b734c8adcc71d:
+		;
 	case OpConstInterface:
 		// match: (ConstInterface)
 		// cond:
@@ -569,6 +609,72 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	end84d6ae817944985f572ecaac51999d6c:
 		;
 	case OpLoad:
+		// match: (Load <t> ptr mem)
+		// cond: t.IsComplex() && t.Size() == 8
+		// result: (ComplexMake     (Load <config.fe.TypeFloat32()> ptr mem)     (Load <config.fe.TypeFloat32()>       (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)       mem)     )
+		{
+			t := v.Type
+			ptr := v.Args[0]
+			mem := v.Args[1]
+			if !(t.IsComplex() && t.Size() == 8) {
+				goto end665854b31b828893d90b36bb462ff381
+			}
+			v.Op = OpComplexMake
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v0.Type = config.fe.TypeFloat32()
+			v0.AddArg(ptr)
+			v0.AddArg(mem)
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v1.Type = config.fe.TypeFloat32()
+			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+			v2.Type = config.fe.TypeFloat32().PtrTo()
+			v2.AuxInt = 4
+			v2.AddArg(ptr)
+			v1.AddArg(v2)
+			v1.AddArg(mem)
+			v.AddArg(v1)
+			return true
+		}
+		goto end665854b31b828893d90b36bb462ff381
+	end665854b31b828893d90b36bb462ff381:
+		;
+		// match: (Load <t> ptr mem)
+		// cond: t.IsComplex() && t.Size() == 16
+		// result: (ComplexMake     (Load <config.fe.TypeFloat64()> ptr mem)     (Load <config.fe.TypeFloat64()>       (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)       mem)     )
+		{
+			t := v.Type
+			ptr := v.Args[0]
+			mem := v.Args[1]
+			if !(t.IsComplex() && t.Size() == 16) {
+				goto end1b106f89e0e3e26c613b957a7c98d8ad
+			}
+			v.Op = OpComplexMake
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v0.Type = config.fe.TypeFloat64()
+			v0.AddArg(ptr)
+			v0.AddArg(mem)
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v1.Type = config.fe.TypeFloat64()
+			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+			v2.Type = config.fe.TypeFloat64().PtrTo()
+			v2.AuxInt = 8
+			v2.AddArg(ptr)
+			v1.AddArg(v2)
+			v1.AddArg(mem)
+			v.AddArg(v1)
+			return true
+		}
+		goto end1b106f89e0e3e26c613b957a7c98d8ad
+	end1b106f89e0e3e26c613b957a7c98d8ad:
+		;
 		// match: (Load <t> ptr mem)
 		// cond: t.IsString()
 		// result: (StringMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem))
@@ -1017,6 +1123,80 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	end526acc0a705137a5d25577499206720b:
 		;
 	case OpStore:
+		// match: (Store [8] dst (ComplexMake real imag) mem)
+		// cond:
+		// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store <TypeMem> [4] dst real mem))
+		{
+			if v.AuxInt != 8 {
+				goto endba187c049aa71488994c8a2eb3453045
+			}
+			dst := v.Args[0]
+			if v.Args[1].Op != OpComplexMake {
+				goto endba187c049aa71488994c8a2eb3453045
+			}
+			real := v.Args[1].Args[0]
+			imag := v.Args[1].Args[1]
+			mem := v.Args[2]
+			v.Op = OpStore
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = 4
+			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+			v0.Type = config.fe.TypeFloat32().PtrTo()
+			v0.AuxInt = 4
+			v0.AddArg(dst)
+			v.AddArg(v0)
+			v.AddArg(imag)
+			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+			v1.Type = TypeMem
+			v1.AuxInt = 4
+			v1.AddArg(dst)
+			v1.AddArg(real)
+			v1.AddArg(mem)
+			v.AddArg(v1)
+			return true
+		}
+		goto endba187c049aa71488994c8a2eb3453045
+	endba187c049aa71488994c8a2eb3453045:
+		;
+		// match: (Store [16] dst (ComplexMake real imag) mem)
+		// cond:
+		// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store <TypeMem> [8] dst real mem))
+		{
+			if v.AuxInt != 16 {
+				goto end4df4c826201cf51af245d6b89de00589
+			}
+			dst := v.Args[0]
+			if v.Args[1].Op != OpComplexMake {
+				goto end4df4c826201cf51af245d6b89de00589
+			}
+			real := v.Args[1].Args[0]
+			imag := v.Args[1].Args[1]
+			mem := v.Args[2]
+			v.Op = OpStore
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = 8
+			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+			v0.Type = config.fe.TypeFloat64().PtrTo()
+			v0.AuxInt = 8
+			v0.AddArg(dst)
+			v.AddArg(v0)
+			v.AddArg(imag)
+			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+			v1.Type = TypeMem
+			v1.AuxInt = 8
+			v1.AddArg(dst)
+			v1.AddArg(real)
+			v1.AddArg(mem)
+			v.AddArg(v1)
+			return true
+		}
+		goto end4df4c826201cf51af245d6b89de00589
+	end4df4c826201cf51af245d6b89de00589:
+		;
 		// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
 		// cond:
 		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store <TypeMem> [config.PtrSize] dst ptr mem))

@@ -33,6 +33,58 @@ func testString() {
 	}
 }
 
+func complex64_ssa(a, b complex64, x bool) complex64 {
+	switch {
+	}
+	var c complex64
+	if x {
+		c = a
+	} else {
+		c = b
+	}
+	return c
+}
+
+func complex128_ssa(a, b complex128, x bool) complex128 {
+	switch {
+	}
+	var c complex128
+	if x {
+		c = a
+	} else {
+		c = b
+	}
+	return c
+}
+
+func testComplex64() {
+	var a complex64 = 1 + 2i
+	var b complex64 = 3 + 4i
+
+	if want, got := a, complex64_ssa(a, b, true); got != want {
+		fmt.Printf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+		failed = true
+	}
+	if want, got := b, complex64_ssa(a, b, false); got != want {
+		fmt.Printf("complex64_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+		failed = true
+	}
+}
+
+func testComplex128() {
+	var a complex128 = 1 + 2i
+	var b complex128 = 3 + 4i
+
+	if want, got := a, complex128_ssa(a, b, true); got != want {
+		fmt.Printf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+		failed = true
+	}
+	if want, got := b, complex128_ssa(a, b, false); got != want {
+		fmt.Printf("complex128_ssa(%v, %v, true) = %v, want %v\n", a, b, got, want)
+		failed = true
+	}
+}
+
 func slice_ssa(a, b []byte, x bool) []byte {
 	var s []byte
 	if x {
@@ -85,6 +137,8 @@ func main() {
 	testString()
 	testSlice()
 	testInterface()
+	testComplex64()
+	testComplex128()
 	if failed {
 		panic("failed")
 	}

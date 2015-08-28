@@ -27,6 +27,8 @@ type TypeSource interface {
 	TypeUInt32() Type
 	TypeUInt64() Type
 	TypeInt() Type
+	TypeFloat32() Type
+	TypeFloat64() Type
 	TypeUintptr() Type
 	TypeString() Type
 	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?

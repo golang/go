@@ -505,6 +505,9 @@ const (
 	OpSlicePtr
 	OpSliceLen
 	OpSliceCap
+	OpComplexMake
+	OpComplexReal
+	OpComplexImag
 	OpStringMake
 	OpStringPtr
 	OpStringLen
@@ -2350,7 +2353,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2363,7 +2365,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2496,7 +2497,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934593, // .AX .FLAGS
+			clobbers: 1, // .AX
 			outputs: []regMask{
 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2509,7 +2510,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934593, // .AX .FLAGS
+			clobbers: 1, // .AX
 			outputs: []regMask{
 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2522,7 +2523,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2535,7 +2535,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2548,7 +2547,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2561,7 +2559,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 8589934592, // .FLAGS
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -4030,6 +4027,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SliceCap",
+		generic: true,
+	},
+	{
+		name:    "ComplexMake",
+		generic: true,
+	},
+	{
+		name:    "ComplexReal",
+		generic: true,
+	},
+	{
+		name:    "ComplexImag",
 		generic: true,
 	},
 	{

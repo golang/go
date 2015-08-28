@@ -74,6 +74,36 @@
 (PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.fe.TypeUintptr()> idx (ConstPtr <config.fe.TypeUintptr()> [t.Elem().Size()])))
 (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
+// complex ops
+(ComplexReal (ComplexMake real _  )) -> real
+(ComplexImag (ComplexMake _ imag )) -> imag
+
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 8 ->
+  (ComplexMake
+    (Load <config.fe.TypeFloat32()> ptr mem)
+    (Load <config.fe.TypeFloat32()>
+      (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)
+      mem)
+    )
+(Store [8] dst (ComplexMake real imag) mem) ->
+  (Store [4]
+    (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
+    imag
+    (Store <TypeMem> [4] dst real mem))
+
+(Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
+  (ComplexMake
+    (Load <config.fe.TypeFloat64()> ptr mem)
+    (Load <config.fe.TypeFloat64()>
+      (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)
+      mem)
+    )
+(Store [16] dst (ComplexMake real imag) mem) ->
+  (Store [8]
+    (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
+    imag
+    (Store <TypeMem> [8] dst real mem))
+
 // string ops
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len

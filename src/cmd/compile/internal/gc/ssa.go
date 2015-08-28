@@ -1113,6 +1113,29 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil
 			}
+		case CTCPLX:
+			c := n.Val().U.(*Mpcplx)
+			r := &c.Real
+			i := &c.Imag
+			switch n.Type.Size() {
+			case 8:
+				{
+					pt := Types[TFLOAT32]
+					return s.newValue2(ssa.OpComplexMake, n.Type,
+						s.constFloat32(pt, mpgetflt32(r)),
+						s.constFloat32(pt, mpgetflt32(i)))
+				}
+			case 16:
+				{
+					pt := Types[TFLOAT64]
+					return s.newValue2(ssa.OpComplexMake, n.Type,
+						s.constFloat32(pt, mpgetflt(r)),
+						s.constFloat32(pt, mpgetflt(i)))
+				}
+			default:
+				s.Fatalf("bad float size %d", n.Type.Size())
+				return nil
+			}
 
 		default:
 			s.Unimplementedf("unhandled OLITERAL %v", n.Val().Ctype())
@@ -1654,6 +1677,18 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		default:
 			s.Fatalf("bad sized float type %s", t)
 		}
+	case t.IsComplex():
+		switch t.Size() {
+		case 8:
+			z := s.constFloat32(Types[TFLOAT32], 0)
+			return s.newValue2(ssa.OpComplexMake, t, z, z)
+		case 16:
+			z := s.constFloat64(Types[TFLOAT64], 0)
+			return s.newValue2(ssa.OpComplexMake, t, z, z)
+		default:
+			s.Fatalf("bad sized complex type %s", t)
+		}
+
 	case t.IsString():
 		return s.entryNewValue0A(ssa.OpConstString, t, "")
 	case t.IsPtr():
@@ -3328,6 +3363,8 @@ func (s *ssaExport) TypeUInt8() ssa.Type   { return Types[TUINT8] }
 func (s *ssaExport) TypeUInt16() ssa.Type  { return Types[TUINT16] }
 func (s *ssaExport) TypeUInt32() ssa.Type  { return Types[TUINT32] }
 func (s *ssaExport) TypeUInt64() ssa.Type  { return Types[TUINT64] }
+func (s *ssaExport) TypeFloat32() ssa.Type { return Types[TFLOAT32] }
+func (s *ssaExport) TypeFloat64() ssa.Type { return Types[TFLOAT64] }
 func (s *ssaExport) TypeInt() ssa.Type     { return Types[TINT] }
 func (s *ssaExport) TypeUintptr() ssa.Type { return Types[TUINTPTR] }
 func (s *ssaExport) TypeString() ssa.Type  { return Types[TSTRING] }

@@ -59,6 +59,10 @@ func (t *Type) IsFloat() bool {
 	return t.Etype == TFLOAT32 || t.Etype == TFLOAT64
 }
 
+func (t *Type) IsComplex() bool {
+	return t.Etype == TCOMPLEX64 || t.Etype == TCOMPLEX128
+}
+
 func (t *Type) IsPtr() bool {
 	return t.Etype == TPTR32 || t.Etype == TPTR64 || t.Etype == TUNSAFEPTR ||
 		t.Etype == TMAP || t.Etype == TCHAN || t.Etype == TFUNC

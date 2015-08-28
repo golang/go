@@ -334,6 +334,11 @@ var genericOps = []opData{
 	{name: "SliceLen"},  // len(arg0)
 	{name: "SliceCap"},  // cap(arg0)
 
+	// Complex (part/whole)
+	{name: "ComplexMake"}, // arg0=real, arg1=imag
+	{name: "ComplexReal"}, // real_part(arg0)
+	{name: "ComplexImag"}, // imaginary_part(arg0)
+
 	// Strings
 	{name: "StringMake"}, // arg0=ptr, arg1=len
 	{name: "StringPtr"},  // ptr(arg0)

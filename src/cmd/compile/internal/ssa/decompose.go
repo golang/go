@@ -14,6 +14,8 @@ func decompose(f *Func) {
 				continue
 			}
 			switch {
+			case v.Type.IsComplex():
+				decomposeComplexPhi(v)
 			case v.Type.IsString():
 				decomposeStringPhi(v)
 			case v.Type.IsSlice():
@@ -70,6 +72,31 @@ func decomposeSlicePhi(v *Value) {
 	v.AddArg(ptr)
 	v.AddArg(len)
 	v.AddArg(cap)
+}
+
+func decomposeComplexPhi(v *Value) {
+	fe := v.Block.Func.Config.fe
+	var partType Type
+	if v.Type.Size() == 8 {
+		partType = fe.TypeFloat32()
+	} else if v.Type.Size() == 16 {
+		partType = fe.TypeFloat64()
+	} else {
+		panic("Whoops, are sizes in bytes or bits?")
+	}
+
+	real := v.Block.NewValue0(v.Line, OpPhi, partType)
+	imag := v.Block.NewValue0(v.Line, OpPhi, partType)
+	for _, a := range v.Args {
+		real.AddArg(a.Block.NewValue1(v.Line, OpComplexReal, partType, a))
+		imag.AddArg(a.Block.NewValue1(v.Line, OpComplexImag, partType, a))
+	}
+	v.Op = OpComplexMake
+	v.AuxInt = 0
+	v.Aux = nil
+	v.resetArgs()
+	v.AddArg(real)
+	v.AddArg(imag)
 }
 
 func decomposeInterfacePhi(v *Value) {
