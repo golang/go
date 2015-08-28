@@ -1528,15 +1528,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue1(op, Types[TINT], s.expr(n.Left))
 		case n.Left.Type.IsString(): // string; not reachable for OCAP
 			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
-		case n.Left.Type.IsMap():
-			return s.lenMap(n, s.expr(n.Left))
-		case n.Left.Type.IsChan():
-			if n.Op == OCAP {
-				s.Unimplementedf("unhandled cap(chan)")
-			} else {
-				s.Unimplementedf("unhandled len(chan)")
-			}
-			return nil
+		case n.Left.Type.IsMap(), n.Left.Type.IsChan():
+			return s.referenceTypeBuiltin(n, s.expr(n.Left))
 		default: // array
 			return s.constInt(Types[TINT], n.Left.Type.Bound)
 		}
@@ -2098,11 +2091,18 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	return s.variable(n, n.Type)
 }
 
-func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
+// referenceTypeBuiltin generates code for the len/cap builtins for maps and channels.
+func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
+	if !n.Left.Type.IsMap() && !n.Left.Type.IsChan() {
+		s.Fatalf("node must be a map or a channel")
+	}
 	// if n == nil {
 	//   return 0
 	// } else {
+	//   // len
 	//   return *((*int)n)
+	//   // cap
+	//   return *(((*int)n)+1)
 	// }
 	lenType := n.Type
 	nilValue := s.newValue0(ssa.OpConstNil, Types[TUINTPTR])
@@ -2116,17 +2116,25 @@ func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bAfter := s.f.NewBlock(ssa.BlockPlain)
 
-	// length of a nil map is zero
+	// length/capacity of a nil map/chan is zero
 	addEdge(b, bThen)
 	s.startBlock(bThen)
 	s.vars[n] = s.zeroVal(lenType)
 	s.endBlock()
 	addEdge(bThen, bAfter)
 
-	// the length is stored in the first word
 	addEdge(b, bElse)
 	s.startBlock(bElse)
-	s.vars[n] = s.newValue2(ssa.OpLoad, lenType, x, s.mem())
+	if n.Op == OLEN {
+		// length is stored in the first word for map/chan
+		s.vars[n] = s.newValue2(ssa.OpLoad, lenType, x, s.mem())
+	} else if n.Op == OCAP {
+		// capacity is stored in the second word for chan
+		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Width, x)
+		s.vars[n] = s.newValue2(ssa.OpLoad, lenType, sw, s.mem())
+	} else {
+		s.Fatalf("op must be OLEN or OCAP")
+	}
 	s.endBlock()
 	addEdge(bElse, bAfter)
 
