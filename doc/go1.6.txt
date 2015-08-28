@@ -1,0 +1,7 @@
+Ports:
+
+NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+
+API additions and behavior changes:
+
+text/template: ExecError (https://golang.org/cl/13957/)
