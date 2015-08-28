@@ -1800,7 +1800,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			}
 			return v
-		case PAUTO | PHEAP:
+		case PAUTO | PHEAP, PPARAMREF:
 			return s.expr(n.Name.Heapaddr)
 		default:
 			s.Unimplementedf("variable address class %v not implemented", n.Class)
@@ -1864,10 +1864,8 @@ func canSSA(n *Node) bool {
 	if n.Class&PHEAP != 0 {
 		return false
 	}
-	if n.Class == PEXTERN {
-		return false
-	}
-	if n.Class == PPARAMOUT {
+	switch n.Class {
+	case PEXTERN, PPARAMOUT, PPARAMREF:
 		return false
 	}
 	return canSSAType(n.Type)
