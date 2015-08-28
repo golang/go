@@ -236,7 +236,7 @@ func genRules(arch arch) {
 			t := split(result[1 : len(result)-1]) // remove parens, then split
 			newsuccs := t[2:]
 
-			// Check if newsuccs is a subset of succs.
+			// Check if newsuccs is the same set as succs.
 			m := map[string]bool{}
 			for _, succ := range succs {
 				if m[succ] {
@@ -249,6 +249,9 @@ func genRules(arch arch) {
 					log.Fatalf("unknown successor %s in %s", succ, rule)
 				}
 				delete(m, succ)
+			}
+			if len(m) != 0 {
+				log.Fatalf("unmatched successors %v in %s", m, rule)
 			}
 
 			// Modify predecessor lists for no-longer-reachable blocks

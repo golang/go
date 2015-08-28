@@ -27,6 +27,7 @@ const (
 	BlockPlain
 	BlockIf
 	BlockCall
+	BlockFirst
 )
 
 var blockString = [...]string{
@@ -52,6 +53,7 @@ var blockString = [...]string{
 	BlockPlain: "Plain",
 	BlockIf:    "If",
 	BlockCall:  "Call",
+	BlockFirst: "First",
 }
 
 func (k BlockKind) String() string { return blockString[k] }
