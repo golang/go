@@ -77,12 +77,13 @@ func decomposeSlicePhi(v *Value) {
 func decomposeComplexPhi(v *Value) {
 	fe := v.Block.Func.Config.fe
 	var partType Type
-	if v.Type.Size() == 8 {
+	switch z := v.Type.Size(); z {
+	case 8:
 		partType = fe.TypeFloat32()
-	} else if v.Type.Size() == 16 {
+	case 16:
 		partType = fe.TypeFloat64()
-	} else {
-		panic("Whoops, are sizes in bytes or bits?")
+	default:
+		v.Fatalf("decomposeComplexPhi: bad complex size %d", z)
 	}
 
 	real := v.Block.NewValue0(v.Line, OpPhi, partType)

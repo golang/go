@@ -24,7 +24,6 @@ var genericOps = []opData{
 	{name: "SubPtr"},
 	{name: "Sub32F"},
 	{name: "Sub64F"},
-	// TODO: Sub64C, Sub128C
 
 	{name: "Mul8"}, // arg0 * arg1
 	{name: "Mul16"},
@@ -225,6 +224,8 @@ var genericOps = []opData{
 	{name: "Neg16"},
 	{name: "Neg32"},
 	{name: "Neg64"},
+	{name: "Neg32F"},
+	{name: "Neg64F"},
 
 	{name: "Com8"}, // ^arg0
 	{name: "Com16"},
@@ -336,8 +337,8 @@ var genericOps = []opData{
 
 	// Complex (part/whole)
 	{name: "ComplexMake"}, // arg0=real, arg1=imag
-	{name: "ComplexReal"}, // real_part(arg0)
-	{name: "ComplexImag"}, // imaginary_part(arg0)
+	{name: "ComplexReal"}, // real(arg0)
+	{name: "ComplexImag"}, // imag(arg0)
 
 	// Strings
 	{name: "StringMake"}, // arg0=ptr, arg1=len

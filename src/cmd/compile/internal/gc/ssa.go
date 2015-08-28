@@ -747,14 +747,16 @@ var opToSSA = map[opAndType]ssa.Op{
 
 	opAndType{ONOT, TBOOL}: ssa.OpNot,
 
-	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
-	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8,
-	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
-	opAndType{OMINUS, TUINT16}: ssa.OpNeg16,
-	opAndType{OMINUS, TINT32}:  ssa.OpNeg32,
-	opAndType{OMINUS, TUINT32}: ssa.OpNeg32,
-	opAndType{OMINUS, TINT64}:  ssa.OpNeg64,
-	opAndType{OMINUS, TUINT64}: ssa.OpNeg64,
+	opAndType{OMINUS, TINT8}:    ssa.OpNeg8,
+	opAndType{OMINUS, TUINT8}:   ssa.OpNeg8,
+	opAndType{OMINUS, TINT16}:   ssa.OpNeg16,
+	opAndType{OMINUS, TUINT16}:  ssa.OpNeg16,
+	opAndType{OMINUS, TINT32}:   ssa.OpNeg32,
+	opAndType{OMINUS, TUINT32}:  ssa.OpNeg32,
+	opAndType{OMINUS, TINT64}:   ssa.OpNeg64,
+	opAndType{OMINUS, TUINT64}:  ssa.OpNeg64,
+	opAndType{OMINUS, TFLOAT32}: ssa.OpNeg32F,
+	opAndType{OMINUS, TFLOAT64}: ssa.OpNeg64F,
 
 	opAndType{OCOM, TINT8}:   ssa.OpCom8,
 	opAndType{OCOM, TUINT8}:  ssa.OpCom8,
@@ -951,6 +953,14 @@ func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
 		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(int(etype), 0))
 	}
 	return x
+}
+
+func floatForComplex(t *Type) *Type {
+	if t.Size() == 8 {
+		return Types[TFLOAT32]
+	} else {
+		return Types[TFLOAT64]
+	}
 }
 
 type opAndTwoTypes struct {
@@ -1394,7 +1404,24 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.newValue1(op, n.Type, x)
 		}
-		// TODO: Still lack complex conversions.
+
+		if ft.IsComplex() && tt.IsComplex() {
+			var op ssa.Op
+			if ft.Size() == tt.Size() {
+				op = ssa.OpCopy
+			} else if ft.Size() == 8 && tt.Size() == 16 {
+				op = ssa.OpCvt32Fto64F
+			} else if ft.Size() == 16 && tt.Size() == 8 {
+				op = ssa.OpCvt64Fto32F
+			} else {
+				s.Fatalf("weird complex conversion %s -> %s", ft, tt)
+			}
+			ftp := floatForComplex(ft)
+			ttp := floatForComplex(tt)
+			return s.newValue2(ssa.OpComplexMake, tt,
+				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, x)),
+				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
+		}
 
 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
 		return nil
@@ -1404,7 +1431,97 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
-	case OADD, OAND, OMUL, OOR, OSUB, ODIV, OMOD, OHMUL, OXOR:
+	case OMUL:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		if n.Type.IsComplex() {
+			mulop := ssa.OpMul64F
+			addop := ssa.OpAdd64F
+			subop := ssa.OpSub64F
+			pt := floatForComplex(n.Type) // Could be Float32 or Float64
+			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
+
+			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+			aimag := s.newValue1(ssa.OpComplexImag, pt, a)
+			bimag := s.newValue1(ssa.OpComplexImag, pt, b)
+
+			if pt != wt { // Widen for calculation
+				areal = s.newValue1(ssa.OpCvt32Fto64F, wt, areal)
+				breal = s.newValue1(ssa.OpCvt32Fto64F, wt, breal)
+				aimag = s.newValue1(ssa.OpCvt32Fto64F, wt, aimag)
+				bimag = s.newValue1(ssa.OpCvt32Fto64F, wt, bimag)
+			}
+
+			xreal := s.newValue2(subop, wt, s.newValue2(mulop, wt, areal, breal), s.newValue2(mulop, wt, aimag, bimag))
+			ximag := s.newValue2(addop, wt, s.newValue2(mulop, wt, areal, bimag), s.newValue2(mulop, wt, aimag, breal))
+
+			if pt != wt { // Narrow to store back
+				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
+				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
+			}
+
+			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
+		}
+		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+
+	case ODIV:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		if n.Type.IsComplex() {
+			// TODO this is not executed because the front-end substitutes a runtime call.
+			// That probably ought to change; with modest optimization the widen/narrow
+			// conversions could all be elided in larger expression trees.
+			mulop := ssa.OpMul64F
+			addop := ssa.OpAdd64F
+			subop := ssa.OpSub64F
+			divop := ssa.OpDiv64F
+			pt := floatForComplex(n.Type) // Could be Float32 or Float64
+			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
+
+			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+			aimag := s.newValue1(ssa.OpComplexImag, pt, a)
+			bimag := s.newValue1(ssa.OpComplexImag, pt, b)
+
+			if pt != wt { // Widen for calculation
+				areal = s.newValue1(ssa.OpCvt32Fto64F, wt, areal)
+				breal = s.newValue1(ssa.OpCvt32Fto64F, wt, breal)
+				aimag = s.newValue1(ssa.OpCvt32Fto64F, wt, aimag)
+				bimag = s.newValue1(ssa.OpCvt32Fto64F, wt, bimag)
+			}
+
+			denom := s.newValue2(addop, wt, s.newValue2(mulop, wt, breal, breal), s.newValue2(mulop, wt, bimag, bimag))
+			xreal := s.newValue2(addop, wt, s.newValue2(mulop, wt, areal, breal), s.newValue2(mulop, wt, aimag, bimag))
+			ximag := s.newValue2(subop, wt, s.newValue2(mulop, wt, aimag, breal), s.newValue2(mulop, wt, areal, bimag))
+
+			// TODO not sure if this is best done in wide precision or narrow
+			// Double-rounding might be an issue.
+			// Note that the pre-SSA implementation does the entire calculation
+			// in wide format, so wide is compatible.
+			xreal = s.newValue2(divop, wt, xreal, denom)
+			ximag = s.newValue2(divop, wt, ximag, denom)
+
+			if pt != wt { // Narrow to store back
+				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
+				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
+			}
+
+			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
+		}
+		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+	case OADD, OSUB:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		if n.Type.IsComplex() {
+			pt := floatForComplex(n.Type)
+			op := s.ssaOp(n.Op, pt)
+			return s.newValue2(ssa.OpComplexMake, n.Type,
+				s.newValue2(op, pt, s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b)),
+				s.newValue2(op, pt, s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b)))
+		}
+		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+	case OAND, OOR, OMOD, OHMUL, OXOR:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
@@ -1464,8 +1581,18 @@ func (s *state) expr(n *Node) *ssa.Value {
 		s.startBlock(bResult)
 		return s.variable(n, Types[TBOOL])
 
-	// unary ops
-	case ONOT, OMINUS, OCOM:
+		// unary ops
+	case OMINUS:
+		a := s.expr(n.Left)
+		if n.Type.IsComplex() {
+			tp := floatForComplex(n.Type)
+			negop := s.ssaOp(n.Op, tp)
+			return s.newValue2(ssa.OpComplexMake, n.Type,
+				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexReal, tp, a)),
+				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
+		}
+		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+	case ONOT, OCOM:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 
@@ -2551,7 +2678,7 @@ func genValue(v *ssa.Value) {
 		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB,
 		ssa.OpAMD64XORQ, ssa.OpAMD64XORL, ssa.OpAMD64XORW, ssa.OpAMD64XORB,
 		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW, ssa.OpAMD64MULB,
-		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD:
+		ssa.OpAMD64MULSS, ssa.OpAMD64MULSD, ssa.OpAMD64PXOR:
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])

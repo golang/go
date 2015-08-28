@@ -2,6 +2,9 @@
 // generated with: cd gen; go run *.go
 package ssa
 
+import "math"
+
+var _ = math.MinInt8 // in case not otherwise used
 func rewriteValuegeneric(v *Value, config *Config) bool {
 	b := v.Block
 	switch v.Op {

@@ -2,6 +2,9 @@
 // generated with: cd gen; go run *.go
 package ssa
 
+import "math"
+
+var _ = math.MinInt8 // in case not otherwise used
 func rewriteValueAMD64(v *Value, config *Config) bool {
 	b := v.Block
 	switch v.Op {
@@ -6059,6 +6062,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endce1f7e17fc193f6c076e47d5e401e126
 	endce1f7e17fc193f6c076e47d5e401e126:
 		;
+	case OpNeg32F:
+		// match: (Neg32F x)
+		// cond:
+		// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> {math.Copysign(0, -1)}))
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64PXOR
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v0 := b.NewValue0(v.Line, OpAMD64MOVSSconst, TypeInvalid)
+			v0.Type = config.Frontend().TypeFloat32()
+			v0.Aux = math.Copysign(0, -1)
+			v.AddArg(v0)
+			return true
+		}
+		goto end47074133a76e069317ceca46372cafc3
+	end47074133a76e069317ceca46372cafc3:
+		;
 	case OpNeg64:
 		// match: (Neg64 x)
 		// cond:
@@ -6074,6 +6097,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto enda06c5b1718f2b96aba10bf5a5c437c6c
 	enda06c5b1718f2b96aba10bf5a5c437c6c:
+		;
+	case OpNeg64F:
+		// match: (Neg64F x)
+		// cond:
+		// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> {math.Copysign(0, -1)}))
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64PXOR
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			v0 := b.NewValue0(v.Line, OpAMD64MOVSDconst, TypeInvalid)
+			v0.Type = config.Frontend().TypeFloat64()
+			v0.Aux = math.Copysign(0, -1)
+			v.AddArg(v0)
+			return true
+		}
+		goto end9240202f5753ebd23f11f982ece3e06e
+	end9240202f5753ebd23f11f982ece3e06e:
 		;
 	case OpNeg8:
 		// match: (Neg8 x)
