@@ -11,33 +11,27 @@ package ssa
 //   v = phi(x,x,x)
 //   v = phi(x,v,x,v)
 func phielim(f *Func) {
-	args := newSparseSet(f.NumValues())
+	argSet := newSparseSet(f.NumValues())
+	var args []*Value
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != OpPhi {
 				continue
 			}
-			args.clear()
+			argSet.clear()
+			args = args[:0]
 			for _, x := range v.Args {
 				for x.Op == OpCopy {
 					x = x.Args[0]
 				}
-				args.add(x.ID)
-			}
-			switch {
-			case args.size() == 1:
-				v.Op = OpCopy
-				v.SetArgs1(v.Args[0])
-			case args.size() == 2 && args.contains(v.ID):
-				var w *Value
-				for _, x := range v.Args {
-					if x.ID != v.ID {
-						w = x
-						break
-					}
+				if x != v && !argSet.contains(x.ID) {
+					argSet.add(x.ID)
+					args = append(args, x)
 				}
+			}
+			if len(args) == 1 {
 				v.Op = OpCopy
-				v.SetArgs1(w)
+				v.SetArgs1(args[0])
 			}
 		}
 	}
