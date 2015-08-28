@@ -119,14 +119,15 @@ func NewPresentation(c *Corpus) *Presentation {
 		p:       p,
 		c:       c,
 		pattern: "/cmd/",
-		fsRoot:  "/src/cmd",
+		fsRoot:  "/src",
 	}
 	p.pkgHandler = handlerServer{
-		p:       p,
-		c:       c,
-		pattern: "/pkg/",
-		fsRoot:  "/src",
-		exclude: []string{"/src/cmd"},
+		p:           p,
+		c:           c,
+		pattern:     "/pkg/",
+		stripPrefix: "pkg/",
+		fsRoot:      "/src",
+		exclude:     []string{"/src/cmd"},
 	}
 	p.cmdHandler.registerWithMux(p.mux)
 	p.pkgHandler.registerWithMux(p.mux)

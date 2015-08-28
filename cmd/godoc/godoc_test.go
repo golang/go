@@ -266,6 +266,18 @@ func testWeb(t *testing.T, withIndex bool) {
 			},
 			needIndex: true,
 		},
+		{
+			path: "/pkg/strings/",
+			match: []string{
+				`href="/src/strings/strings.go"`,
+			},
+		},
+		{
+			path: "/cmd/compile/internal/amd64/",
+			match: []string{
+				`href="/src/cmd/compile/internal/amd64/reg.go"`,
+			},
+		},
 	}
 	for _, test := range tests {
 		if test.needIndex && !withIndex {

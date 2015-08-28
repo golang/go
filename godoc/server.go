@@ -34,11 +34,12 @@ import (
 // handlerServer is a migration from an old godoc http Handler type.
 // This should probably merge into something else.
 type handlerServer struct {
-	p       *Presentation
-	c       *Corpus  // copy of p.Corpus
-	pattern string   // url pattern; e.g. "/pkg/"
-	fsRoot  string   // file system root to which the pattern is mapped; e.g. "/src"
-	exclude []string // file system paths to exclude; e.g. "/src/cmd"
+	p           *Presentation
+	c           *Corpus  // copy of p.Corpus
+	pattern     string   // url pattern; e.g. "/pkg/"
+	stripPrefix string   // prefix to strip from import path; e.g. "pkg/"
+	fsRoot      string   // file system root to which the pattern is mapped; e.g. "/src"
+	exclude     []string // file system paths to exclude; e.g. "/src/cmd"
 }
 
 func (s *handlerServer) registerWithMux(mux *http.ServeMux) {
@@ -235,7 +236,7 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	relpath := pathpkg.Clean(r.URL.Path[len(h.pattern):])
+	relpath := pathpkg.Clean(r.URL.Path[len(h.stripPrefix)+1:])
 	abspath := pathpkg.Join(h.fsRoot, relpath)
 	mode := h.p.GetPageInfoMode(r)
 	if relpath == builtinPkgPath {
