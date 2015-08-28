@@ -1,3 +1,7 @@
+Tools:
+
+cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
+
 Ports:
 
 NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
