@@ -496,7 +496,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	fl := flag(Func)
 	if p.pkgPath != nil {
 		m.PkgPath = *p.pkgPath
-		fl |= flagRO
+		fl |= flagStickyRO
 	}
 	mt := p.typ
 	m.Type = mt
