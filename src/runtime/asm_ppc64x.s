@@ -1115,6 +1115,65 @@ notfound:
 	MOVD	R3, ret+24(FP)
 	RET
 
+TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
+	MOVD	s1_base+0(FP), R5
+	MOVD	s1_len+8(FP), R3
+	MOVD	s2_base+16(FP), R6
+	MOVD	s2_len+24(FP), R4
+	MOVD	$ret+32(FP), R7
+	BR	runtime·cmpbody<>(SB)
+
+TEXT bytes·Compare(SB),NOSPLIT,$-4-56
+	MOVD	s1+0(FP), R5
+	MOVD	s1+8(FP), R3
+	MOVD	s2+24(FP), R6
+	MOVD	s2+32(FP), R4
+	MOVD	$ret+48(FP), R7
+	BR	runtime·cmpbody<>(SB)
+
+// On entry:
+// R3 is the length of s1
+// R4 is the length of s2
+// R5 points to the start of s1
+// R6 points to the start of s2
+// R7 points to return value (-1/0/1 will be written here)
+//
+// On exit:
+// R5, R6, R8, R9 and R10 are clobbered
+TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+	CMP	R5, R6
+	BEQ	samebytes // same starting pointers; compare lengths
+	SUB	$1, R5
+	SUB	$1, R6
+	MOVD	R4, R8
+	CMP	R3, R4
+	BGE	2(PC)
+	MOVD	R3, R8	// R8 is min(R3, R4)
+	ADD	R5, R8	// R5 is current byte in s1, R8 is last byte in s1 to compare
+loop:
+	CMP	R5, R8
+	BEQ	samebytes // all compared bytes were the same; compare lengths
+	MOVBZU	1(R5), R9
+	MOVBZU	1(R6), R10
+	CMP	R9, R10
+	BEQ	loop
+	// bytes differed
+	MOVD	$1, R4
+	BGT	2(PC)
+	NEG	R4
+	MOVD	R4, (R7)
+	RET
+samebytes:
+	MOVD	$1, R8
+	CMP	R3, R4
+	BNE	3(PC)
+	MOVD	R0, (R7)
+	RET
+	BGT	2(PC)
+	NEG	R8
+	MOVD	R8, (R7)
+	RET
+
 TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	MOVD	g_m(g), R4
 	MOVWZ	m_fastrand(R4), R3
