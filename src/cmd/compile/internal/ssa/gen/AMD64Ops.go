@@ -93,6 +93,7 @@ func init() {
 	// Common regInfo
 	var (
 		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
+		gp01flags = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
 		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
 		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
@@ -338,10 +339,12 @@ func init() {
 		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
 		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
 
-		{name: "MOVBconst", reg: gp01, asm: "MOVB"}, // 8 low bits of auxint
-		{name: "MOVWconst", reg: gp01, asm: "MOVW"}, // 16 low bits of auxint
-		{name: "MOVLconst", reg: gp01, asm: "MOVL"}, // 32 low bits of auxint
-		{name: "MOVQconst", reg: gp01, asm: "MOVQ"}, // auxint
+		// clobbers flags as liblink will rewrite these to XOR reg, reg if the constant is zero
+		// TODO: revisit when issue 12405 is fixed
+		{name: "MOVBconst", reg: gp01flags, asm: "MOVB"}, // 8 low bits of auxint
+		{name: "MOVWconst", reg: gp01flags, asm: "MOVW"}, // 16 low bits of auxint
+		{name: "MOVLconst", reg: gp01flags, asm: "MOVL"}, // 32 low bits of auxint
+		{name: "MOVQconst", reg: gp01flags, asm: "MOVQ"}, // auxint
 
 		{name: "CVTSD2SL", reg: fpgp, asm: "CVTSD2SL"}, // convert float64 to int32
 		{name: "CVTSD2SQ", reg: fpgp, asm: "CVTSD2SQ"}, // convert float64 to int64
