@@ -114,7 +114,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// fallthrough to exit
 	if b := s.endBlock(); b != nil {
-		addEdge(b, s.exit)
+		b.AddEdgeTo(s.exit)
 	}
 
 	// Finish up exit block
@@ -487,7 +487,7 @@ func (s *state) stmt(n *Node) {
 
 		// go to that label (we pretend "label:" is preceded by "goto label")
 		b := s.endBlock()
-		addEdge(b, lab.target)
+		b.AddEdgeTo(lab.target)
 		s.startBlock(lab.target)
 
 	case OGOTO:
@@ -508,7 +508,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		b := s.endBlock()
-		addEdge(b, lab.target)
+		b.AddEdgeTo(lab.target)
 
 	case OAS, OASWB:
 		// Check whether we can generate static data rather than code.
@@ -536,25 +536,25 @@ func (s *state) stmt(n *Node) {
 		var bElse *ssa.Block
 
 		if n.Rlist == nil {
-			addEdge(b, bThen)
-			addEdge(b, bEnd)
+			b.AddEdgeTo(bThen)
+			b.AddEdgeTo(bEnd)
 		} else {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
-			addEdge(b, bThen)
-			addEdge(b, bElse)
+			b.AddEdgeTo(bThen)
+			b.AddEdgeTo(bElse)
 		}
 
 		s.startBlock(bThen)
 		s.stmtList(n.Nbody)
 		if b := s.endBlock(); b != nil {
-			addEdge(b, bEnd)
+			b.AddEdgeTo(bEnd)
 		}
 
 		if n.Rlist != nil {
 			s.startBlock(bElse)
 			s.stmtList(n.Rlist)
 			if b := s.endBlock(); b != nil {
-				addEdge(b, bEnd)
+				b.AddEdgeTo(bEnd)
 			}
 		}
 		s.startBlock(bEnd)
@@ -562,7 +562,7 @@ func (s *state) stmt(n *Node) {
 	case ORETURN:
 		s.stmtList(n.List)
 		b := s.endBlock()
-		addEdge(b, s.exit)
+		b.AddEdgeTo(s.exit)
 
 	case OCONTINUE, OBREAK:
 		var op string
@@ -614,7 +614,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		b := s.endBlock()
-		addEdge(b, to)
+		b.AddEdgeTo(to)
 
 	case OFOR:
 		// OFOR: for Ninit; Left; Right { Nbody }
@@ -625,7 +625,7 @@ func (s *state) stmt(n *Node) {
 
 		// first, jump to condition test
 		b := s.endBlock()
-		addEdge(b, bCond)
+		b.AddEdgeTo(bCond)
 
 		// generate code to test condition
 		s.startBlock(bCond)
@@ -639,8 +639,8 @@ func (s *state) stmt(n *Node) {
 		b.Kind = ssa.BlockIf
 		b.Control = cond
 		b.Likely = ssa.BranchLikely
-		addEdge(b, bBody)
-		addEdge(b, bEnd)
+		b.AddEdgeTo(bBody)
+		b.AddEdgeTo(bEnd)
 
 		// set up for continue/break in body
 		prevContinue := s.continueTo
@@ -668,7 +668,7 @@ func (s *state) stmt(n *Node) {
 
 		// done with body, goto incr
 		if b := s.endBlock(); b != nil {
-			addEdge(b, bIncr)
+			b.AddEdgeTo(bIncr)
 		}
 
 		// generate incr
@@ -677,7 +677,7 @@ func (s *state) stmt(n *Node) {
 			s.stmt(n.Right)
 		}
 		if b := s.endBlock(); b != nil {
-			addEdge(b, bCond)
+			b.AddEdgeTo(bCond)
 		}
 		s.startBlock(bEnd)
 
@@ -703,7 +703,7 @@ func (s *state) stmt(n *Node) {
 		}
 
 		if b := s.endBlock(); b != nil {
-			addEdge(b, bEnd)
+			b.AddEdgeTo(bEnd)
 		}
 		s.startBlock(bEnd)
 
@@ -1447,11 +1447,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		bRight := s.f.NewBlock(ssa.BlockPlain)
 		bResult := s.f.NewBlock(ssa.BlockPlain)
 		if n.Op == OANDAND {
-			addEdge(b, bRight)
-			addEdge(b, bResult)
+			b.AddEdgeTo(bRight)
+			b.AddEdgeTo(bResult)
 		} else if n.Op == OOROR {
-			addEdge(b, bResult)
-			addEdge(b, bRight)
+			b.AddEdgeTo(bResult)
+			b.AddEdgeTo(bRight)
 		}
 
 		s.startBlock(bRight)
@@ -1459,7 +1459,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		s.vars[n] = er
 
 		b = s.endBlock()
-		addEdge(b, bResult)
+		b.AddEdgeTo(bResult)
 
 		s.startBlock(bResult)
 		return s.variable(n, Types[TBOOL])
@@ -1599,15 +1599,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// Generate code for non-zero length slice case.
 		nz := s.f.NewBlock(ssa.BlockPlain)
-		addEdge(b, nz)
+		b.AddEdgeTo(nz)
 		s.startBlock(nz)
 		s.vars[n] = s.newValue2(ssa.OpAddPtr, Ptrto(Types[TUINT8]), ptr, low)
 		s.endBlock()
 
 		// All done.
 		merge := s.f.NewBlock(ssa.BlockPlain)
-		addEdge(b, merge)
-		addEdge(nz, merge)
+		b.AddEdgeTo(merge)
+		nz.AddEdgeTo(merge)
 		s.startBlock(merge)
 		return s.newValue2(ssa.OpStringMake, Types[TSTRING], s.variable(n, Ptrto(Types[TUINT8])), rlen)
 
@@ -1654,8 +1654,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b := s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call
-		addEdge(b, bNext)
-		addEdge(b, s.exit)
+		b.AddEdgeTo(bNext)
+		b.AddEdgeTo(s.exit)
 
 		// read result from stack at the start of the fallthrough block
 		s.startBlock(bNext)
@@ -1928,9 +1928,9 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	bPanic := s.f.NewBlock(ssa.BlockPlain)
-	addEdge(b, bNext)
-	addEdge(b, bPanic)
-	addEdge(bPanic, s.exit)
+	b.AddEdgeTo(bNext)
+	b.AddEdgeTo(bPanic)
+	bPanic.AddEdgeTo(s.exit)
 	s.startBlock(bPanic)
 	// TODO: implicit nil checks somehow?
 	s.vars[&memvar] = s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
@@ -1974,9 +1974,9 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	bPanic := s.f.NewBlock(ssa.BlockPlain)
-	addEdge(b, bNext)
-	addEdge(b, bPanic)
-	addEdge(bPanic, s.exit)
+	b.AddEdgeTo(bNext)
+	b.AddEdgeTo(bPanic)
+	bPanic.AddEdgeTo(s.exit)
 	s.startBlock(bPanic)
 	// The panic check takes/returns memory to ensure that the right
 	// memory state is observed if the panic happens.
@@ -2068,14 +2068,14 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bAfter := s.f.NewBlock(ssa.BlockPlain)
 
-	addEdge(b, bThen)
+	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
 	a0 := s.newValue1(cvttab.cvt2F, tt, x)
 	s.vars[n] = a0
 	s.endBlock()
-	addEdge(bThen, bAfter)
+	bThen.AddEdgeTo(bAfter)
 
-	addEdge(b, bElse)
+	b.AddEdgeTo(bElse)
 	s.startBlock(bElse)
 	one := cvttab.one(s, ft, 1)
 	y := s.newValue2(cvttab.and, ft, x, one)
@@ -2085,7 +2085,7 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	a1 := s.newValue2(cvttab.add, tt, a, a)
 	s.vars[n] = a1
 	s.endBlock()
-	addEdge(bElse, bAfter)
+	bElse.AddEdgeTo(bAfter)
 
 	s.startBlock(bAfter)
 	return s.variable(n, n.Type)
@@ -2117,13 +2117,13 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
 	bAfter := s.f.NewBlock(ssa.BlockPlain)
 
 	// length/capacity of a nil map/chan is zero
-	addEdge(b, bThen)
+	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
 	s.vars[n] = s.zeroVal(lenType)
 	s.endBlock()
-	addEdge(bThen, bAfter)
+	bThen.AddEdgeTo(bAfter)
 
-	addEdge(b, bElse)
+	b.AddEdgeTo(bElse)
 	s.startBlock(bElse)
 	if n.Op == OLEN {
 		// length is stored in the first word for map/chan
@@ -2136,7 +2136,7 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
 		s.Fatalf("op must be OLEN or OCAP")
 	}
 	s.endBlock()
-	addEdge(bElse, bAfter)
+	bElse.AddEdgeTo(bAfter)
 
 	s.startBlock(bAfter)
 	return s.variable(n, lenType)
@@ -2187,14 +2187,14 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bAfter := s.f.NewBlock(ssa.BlockPlain)
 
-	addEdge(b, bThen)
+	b.AddEdgeTo(bThen)
 	s.startBlock(bThen)
 	a0 := s.newValue1(cvttab.cvt2U, tt, x)
 	s.vars[n] = a0
 	s.endBlock()
-	addEdge(bThen, bAfter)
+	bThen.AddEdgeTo(bAfter)
 
-	addEdge(b, bElse)
+	b.AddEdgeTo(bElse)
 	s.startBlock(bElse)
 	y := s.newValue2(cvttab.subf, ft, x, twoToThe63)
 	y = s.newValue1(cvttab.cvt2U, tt, y)
@@ -2202,7 +2202,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	a1 := s.newValue2(ssa.OpOr64, tt, y, z)
 	s.vars[n] = a1
 	s.endBlock()
-	addEdge(bElse, bAfter)
+	bElse.AddEdgeTo(bAfter)
 
 	s.startBlock(bAfter)
 	return s.variable(n, n.Type)
@@ -2365,12 +2365,6 @@ func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 }
 
 // TODO: the above mutually recursive functions can lead to very deep stacks.  Fix that.
-
-// addEdge adds an edge from b to c.
-func addEdge(b, c *ssa.Block) {
-	b.Succs = append(b.Succs, c)
-	c.Preds = append(c.Preds, b)
-}
 
 // an unresolved branch
 type branch struct {

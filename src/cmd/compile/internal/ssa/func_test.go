@@ -179,7 +179,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 		}
 		// Connect to successors.
 		for _, succ := range c.succs {
-			addEdge(b, blocks[succ])
+			b.AddEdgeTo(blocks[succ])
 		}
 	}
 	return fun{f, blocks, values}
@@ -254,11 +254,6 @@ type valu struct {
 	auxint int64
 	aux    interface{}
 	args   []string
-}
-
-func addEdge(b, c *Block) {
-	b.Succs = append(b.Succs, c)
-	c.Preds = append(c.Preds, b)
 }
 
 func TestArgs(t *testing.T) {
