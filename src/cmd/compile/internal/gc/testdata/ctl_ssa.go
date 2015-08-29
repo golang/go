@@ -57,11 +57,71 @@ func testEmptyRange() {
 	}
 }
 
+func switch_ssa(a int) int {
+	ret := 0
+	switch a {
+	case 5:
+		ret += 5
+	case 4:
+		ret += 4
+	case 3:
+		ret += 3
+	case 2:
+		ret += 2
+	case 1:
+		ret += 1
+	}
+	return ret
+
+}
+
+func fallthrough_ssa(a int) int {
+	ret := 0
+	switch a {
+	case 5:
+		ret++
+		fallthrough
+	case 4:
+		ret++
+		fallthrough
+	case 3:
+		ret++
+		fallthrough
+	case 2:
+		ret++
+		fallthrough
+	case 1:
+		ret++
+	}
+	return ret
+
+}
+
+func testFallthrough() {
+	for i := 0; i < 6; i++ {
+		if got := fallthrough_ssa(i); got != i {
+			println("fallthrough_ssa(i) =", got, "wanted", i)
+		}
+	}
+}
+
+func testSwitch() {
+	for i := 0; i < 6; i++ {
+		if got := switch_ssa(i); got != i {
+			println("switch_ssa(i) =", got, "wanted", i)
+		}
+	}
+}
+
 var failed = false
 
 func main() {
 	testPhiControl()
 	testEmptyRange()
+
+	testSwitch()
+	testFallthrough()
+
 	if failed {
 		panic("failed")
 	}
