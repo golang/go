@@ -1830,6 +1830,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endf74ce5df659f385f75c61187b515a5d0
 	endf74ce5df659f385f75c61187b515a5d0:
 		;
+	case OpDeferCall:
+		// match: (DeferCall [argwid] mem)
+		// cond:
+		// result: (CALLdefer [argwid] mem)
+		{
+			argwid := v.AuxInt
+			mem := v.Args[0]
+			v.Op = OpAMD64CALLdefer
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = argwid
+			v.AddArg(mem)
+			return true
+		}
+		goto end1c408581037450df959dd1fb7554a022
+	end1c408581037450df959dd1fb7554a022:
+		;
 	case OpDiv16:
 		// match: (Div16 x y)
 		// cond:
@@ -2392,6 +2410,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto endb17140e71dd641aa4d89e14479160260
 	endb17140e71dd641aa4d89e14479160260:
+		;
+	case OpGoCall:
+		// match: (GoCall [argwid] mem)
+		// cond:
+		// result: (CALLgo [argwid] mem)
+		{
+			argwid := v.AuxInt
+			mem := v.Args[0]
+			v.Op = OpAMD64CALLgo
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = argwid
+			v.AddArg(mem)
+			return true
+		}
+		goto end1cef0f92c46e6aaa2c7abdf5f2794baf
+	end1cef0f92c46e6aaa2c7abdf5f2794baf:
 		;
 	case OpGreater16:
 		// match: (Greater16 x y)

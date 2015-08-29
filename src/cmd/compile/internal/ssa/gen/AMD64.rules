@@ -352,6 +352,8 @@
 
 (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+(DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+(GoCall [argwid] mem) -> (CALLgo [argwid] mem)
 
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?
