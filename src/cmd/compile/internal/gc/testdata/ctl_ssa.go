@@ -115,6 +115,35 @@ func testSwitch() {
 	}
 }
 
+type junk struct {
+	step int
+}
+
+// flagOverwrite_ssa is intended to reproduce an issue seen where a XOR
+// was scheduled between a compare and branch, clearing flags.
+func flagOverwrite_ssa(s *junk, c int) int {
+	switch {
+	}
+	if '0' <= c && c <= '9' {
+		s.step = 0
+		return 1
+	}
+	if c == 'e' || c == 'E' {
+		s.step = 0
+		return 2
+	}
+	s.step = 0
+	return 3
+}
+
+func testFlagOverwrite() {
+	j := junk{}
+	if got := flagOverwrite_ssa(&j, ' '); got != 3 {
+		println("flagOverwrite_ssa =", got, "wanted 3")
+		failed = true
+	}
+}
+
 var failed = false
 
 func main() {
@@ -123,6 +152,8 @@ func main() {
 
 	testSwitch()
 	testFallthrough()
+
+	testFlagOverwrite()
 
 	if failed {
 		panic("failed")
