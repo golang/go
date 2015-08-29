@@ -726,6 +726,44 @@ func (s *state) stmt(n *Node) {
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
 		s.vars[&memvar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
+
+	case OPROC, ODEFER:
+		call := n.Left
+		fn := call.Left
+		if call.Op != OCALLFUNC {
+			s.Unimplementedf("defer/go of %s", opnames[call.Op])
+		}
+
+		// Write argsize and closure (args to Newproc/Deferproc)
+		argsize := s.constInt32(Types[TUINT32], int32(fn.Type.Argwid))
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
+		closure := s.expr(fn)
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
+
+		// Run all argument assignments.  The arg slots have already
+		// been offset by 2*widthptr.
+		s.stmtList(call.List)
+
+		// Call deferproc or newproc
+		bNext := s.f.NewBlock(ssa.BlockPlain)
+		var op ssa.Op
+		switch n.Op {
+		case ODEFER:
+			op = ssa.OpDeferCall
+		case OPROC:
+			op = ssa.OpGoCall
+		}
+		r := s.newValue1(op, ssa.TypeMem, s.mem())
+		r.AuxInt = fn.Type.Argwid + 2*int64(Widthptr) // total stack space used
+		s.vars[&memvar] = r
+		b := s.endBlock()
+		b.Kind = ssa.BlockCall
+		b.Control = r
+		b.AddEdgeTo(bNext)
+		b.AddEdgeTo(s.exit)
+		s.startBlock(bNext)
+
 	default:
 		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
 	}
@@ -2494,9 +2532,26 @@ type branch struct {
 	b *ssa.Block // target
 }
 
+type genState struct {
+	// branches remembers all the branch instructions we've seen
+	// and where they would like to go.
+	branches []branch
+
+	// bstart remembers where each block starts (indexed by block ID)
+	bstart []*obj.Prog
+
+	// deferBranches remembers all the defer branches we've seen.
+	deferBranches []*obj.Prog
+
+	// deferTarget remembers the (last) deferreturn call site.
+	deferTarget *obj.Prog
+}
+
 // genssa appends entries to ptxt for each instruction in f.
 // gcargs and gclocals are filled in with pointer maps for the frame.
 func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+	var s genState
+
 	e := f.Config.Frontend().(*ssaExport)
 	// We're about to emit a bunch of Progs.
 	// Since the only way to get here is to explicitly request it,
@@ -2504,11 +2559,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	e.mustImplement = true
 
 	// Remember where each block starts.
-	bstart := make([]*obj.Prog, f.NumBlocks())
-
-	// Remember all the branch instructions we've seen
-	// and where they would like to go
-	var branches []branch
+	s.bstart = make([]*obj.Prog, f.NumBlocks())
 
 	var valueProgs map[*obj.Prog]*ssa.Value
 	var blockProgs map[*obj.Prog]*ssa.Block
@@ -2522,11 +2573,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 
 	// Emit basic blocks
 	for i, b := range f.Blocks {
-		bstart[b.ID] = Pc
+		s.bstart[b.ID] = Pc
 		// Emit values in block
 		for _, v := range b.Values {
 			x := Pc
-			genValue(v)
+			s.genValue(v)
 			if logProgs {
 				for ; x != Pc; x = x.Link {
 					valueProgs[x] = v
@@ -2539,7 +2590,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 			next = f.Blocks[i+1]
 		}
 		x := Pc
-		branches = genBlock(b, next, branches)
+		s.genBlock(b, next)
 		if logProgs {
 			for ; x != Pc; x = x.Link {
 				blockProgs[x] = b
@@ -2548,8 +2599,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	}
 
 	// Resolve branches
-	for _, br := range branches {
-		br.p.To.Val = bstart[br.b.ID]
+	for _, br := range s.branches {
+		br.p.To.Val = s.bstart[br.b.ID]
+	}
+	for _, p := range s.deferBranches {
+		p.To.Val = s.deferTarget
 	}
 
 	Pc.As = obj.ARET // overwrite AEND
@@ -2634,7 +2688,7 @@ func opregreg(op int, dest, src int16) *obj.Prog {
 	return p
 }
 
-func genValue(v *ssa.Value) {
+func (s *genState) genValue(v *ssa.Value) {
 	lineno = v.Line
 	switch v.Op {
 	case ssa.OpAMD64ADDQ:
@@ -3178,6 +3232,33 @@ func genValue(v *ssa.Value) {
 		if Maxarg < v.AuxInt {
 			Maxarg = v.AuxInt
 		}
+	case ssa.OpAMD64CALLdefer:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = Linksym(Deferproc.Sym)
+		if Maxarg < v.AuxInt {
+			Maxarg = v.AuxInt
+		}
+		// defer returns in rax:
+		// 0 if we should continue executing
+		// 1 if we should jump to deferreturn call
+		p = Prog(x86.ATESTL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_AX
+		p = Prog(x86.AJNE)
+		p.To.Type = obj.TYPE_BRANCH
+		s.deferBranches = append(s.deferBranches, p)
+	case ssa.OpAMD64CALLgo:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = Linksym(Newproc.Sym)
+		if Maxarg < v.AuxInt {
+			Maxarg = v.AuxInt
+		}
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
 		x := regnum(v.Args[0])
@@ -3322,26 +3403,25 @@ func oneFPJump(b *ssa.Block, jumps *floatingEQNEJump, likely ssa.BranchPredictio
 	return branches
 }
 
-func genFPJump(b, next *ssa.Block, jumps *[2][2]floatingEQNEJump, branches []branch) []branch {
+func genFPJump(s *genState, b, next *ssa.Block, jumps *[2][2]floatingEQNEJump) {
 	likely := b.Likely
 	switch next {
 	case b.Succs[0]:
-		branches = oneFPJump(b, &jumps[0][0], likely, branches)
-		branches = oneFPJump(b, &jumps[0][1], likely, branches)
+		s.branches = oneFPJump(b, &jumps[0][0], likely, s.branches)
+		s.branches = oneFPJump(b, &jumps[0][1], likely, s.branches)
 	case b.Succs[1]:
-		branches = oneFPJump(b, &jumps[1][0], likely, branches)
-		branches = oneFPJump(b, &jumps[1][1], likely, branches)
+		s.branches = oneFPJump(b, &jumps[1][0], likely, s.branches)
+		s.branches = oneFPJump(b, &jumps[1][1], likely, s.branches)
 	default:
-		branches = oneFPJump(b, &jumps[1][0], likely, branches)
-		branches = oneFPJump(b, &jumps[1][1], likely, branches)
+		s.branches = oneFPJump(b, &jumps[1][0], likely, s.branches)
+		s.branches = oneFPJump(b, &jumps[1][1], likely, s.branches)
 		q := Prog(obj.AJMP)
 		q.To.Type = obj.TYPE_BRANCH
-		branches = append(branches, branch{q, b.Succs[1]})
+		s.branches = append(s.branches, branch{q, b.Succs[1]})
 	}
-	return branches
 }
 
-func genBlock(b, next *ssa.Block, branches []branch) []branch {
+func (s *genState) genBlock(b, next *ssa.Block) {
 	lineno = b.Line
 
 	// after a panic call, don't emit any branch code
@@ -3350,7 +3430,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		case ssa.OpAMD64LoweredPanicNilCheck,
 			ssa.OpAMD64LoweredPanicIndexCheck,
 			ssa.OpAMD64LoweredPanicSliceCheck:
-			return branches
+			return
 		}
 	}
 
@@ -3359,23 +3439,39 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 		if b.Succs[0] != next {
 			p := Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
+			s.branches = append(s.branches, branch{p, b.Succs[0]})
 		}
 	case ssa.BlockExit:
 	case ssa.BlockRet:
+		if Hasdefer != 0 {
+			// Deferred calls will appear to be returning to
+			// the CALL deferreturn(SB) that we are about to emit.
+			// However, the stack trace code will show the line
+			// of the instruction byte before the return PC.
+			// To avoid that being an unrelated instruction,
+			// insert an actual hardware NOP that will have the right line number.
+			// This is different from obj.ANOP, which is a virtual no-op
+			// that doesn't make it into the instruction stream.
+			s.deferTarget = Pc
+			Thearch.Ginsnop()
+			p := Prog(obj.ACALL)
+			p.To.Type = obj.TYPE_MEM
+			p.To.Name = obj.NAME_EXTERN
+			p.To.Sym = Linksym(Deferreturn.Sym)
+		}
 		Prog(obj.ARET)
 	case ssa.BlockCall:
 		if b.Succs[0] != next {
 			p := Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
+			s.branches = append(s.branches, branch{p, b.Succs[0]})
 		}
 
 	case ssa.BlockAMD64EQF:
-		branches = genFPJump(b, next, &eqfJumps, branches)
+		genFPJump(s, b, next, &eqfJumps)
 
 	case ssa.BlockAMD64NEF:
-		branches = genFPJump(b, next, &nefJumps, branches)
+		genFPJump(s, b, next, &nefJumps)
 
 	case ssa.BlockAMD64EQ, ssa.BlockAMD64NE,
 		ssa.BlockAMD64LT, ssa.BlockAMD64GE,
@@ -3390,18 +3486,18 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			p = Prog(jmp.invasm)
 			likely *= -1
 			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[1]})
+			s.branches = append(s.branches, branch{p, b.Succs[1]})
 		case b.Succs[1]:
 			p = Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
+			s.branches = append(s.branches, branch{p, b.Succs[0]})
 		default:
 			p = Prog(jmp.asm)
 			p.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{p, b.Succs[0]})
+			s.branches = append(s.branches, branch{p, b.Succs[0]})
 			q := Prog(obj.AJMP)
 			q.To.Type = obj.TYPE_BRANCH
-			branches = append(branches, branch{q, b.Succs[1]})
+			s.branches = append(s.branches, branch{q, b.Succs[1]})
 		}
 
 		// liblink reorders the instruction stream as it sees fit.
@@ -3420,7 +3516,6 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 	default:
 		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
-	return branches
 }
 
 // addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
