@@ -430,7 +430,7 @@ func (s *state) stmt(n *Node) {
 		s.stmtList(n.List)
 
 	// No-ops
-	case OEMPTY, ODCLCONST, ODCLTYPE:
+	case OEMPTY, ODCLCONST, ODCLTYPE, OFALL:
 
 	// Expression statements
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
