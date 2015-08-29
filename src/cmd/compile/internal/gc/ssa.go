@@ -461,7 +461,8 @@ func (s *state) stmt(n *Node) {
 			palloc = callnew(n.Left.Type)
 			prealloc[n.Left] = palloc
 		}
-		s.assign(OAS, n.Left.Name.Heapaddr, palloc)
+		r := s.expr(palloc)
+		s.assign(n.Left.Name.Heapaddr, r, false)
 
 	case OLABEL:
 		sym := n.Left.Sym
@@ -530,7 +531,11 @@ func (s *state) stmt(n *Node) {
 			s.f.StaticData = append(data, n)
 			return
 		}
-		s.assign(n.Op, n.Left, n.Right)
+		var r *ssa.Value
+		if n.Right != nil {
+			r = s.expr(n.Right)
+		}
+		s.assign(n.Left, r, n.Op == OASWB)
 
 	case OIF:
 		cond := s.expr(n.Left)
@@ -1864,18 +1869,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 	}
 }
 
-func (s *state) assign(op uint8, left *Node, right *Node) {
+func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	if left.Op == ONAME && isblank(left) {
-		if right != nil {
-			s.expr(right)
-		}
 		return
 	}
 	// TODO: do write barrier
-	// if op == OASWB
+	// if wb
 	t := left.Type
 	dowidth(t)
-	var val *ssa.Value
 	if right == nil {
 		// right == nil means use the zero value of the assigned type.
 		if !canSSA(left) {
@@ -1887,13 +1888,11 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 			s.vars[&memvar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
 			return
 		}
-		val = s.zeroVal(t)
-	} else {
-		val = s.expr(right)
+		right = s.zeroVal(t)
 	}
 	if left.Op == ONAME && canSSA(left) {
 		// Update variable assignment.
-		s.vars[left] = val
+		s.vars[left] = right
 		return
 	}
 	// not ssa-able.  Treat as a store.
@@ -1901,7 +1900,7 @@ func (s *state) assign(op uint8, left *Node, right *Node) {
 	if left.Op == ONAME {
 		s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
-	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, val, s.mem())
+	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
 }
 
 // zeroVal returns the zero value for type t.
