@@ -83,6 +83,13 @@ func (b *Block) LongString() string {
 	return s
 }
 
+// AddEdgeTo adds an edge from block b to block c.  Used during building of the
+// SSA graph; do not use on an already-completed SSA graph.
+func (b *Block) AddEdgeTo(c *Block) {
+	b.Succs = append(b.Succs, c)
+	c.Preds = append(c.Preds, b)
+}
+
 func (b *Block) Logf(msg string, args ...interface{})           { b.Func.Logf(msg, args...) }
 func (b *Block) Fatalf(msg string, args ...interface{})         { b.Func.Fatalf(msg, args...) }
 func (b *Block) Unimplementedf(msg string, args ...interface{}) { b.Func.Unimplementedf(msg, args...) }
