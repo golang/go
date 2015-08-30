@@ -36,10 +36,10 @@ func defframe(ptxt *obj.Prog) {
 			continue
 		}
 		if n.Class != gc.PAUTO {
-			gc.Fatal("needzero class %d", n.Class)
+			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 
 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
@@ -124,7 +124,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 	if cnt%int64(gc.Widthreg) != 0 {
 		// should only happen with nacl
 		if cnt%int64(gc.Widthptr) != 0 {
-			gc.Fatal("zerorange count not a multiple of widthptr %d", cnt)
+			gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 		}
 		p = appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
 		lo += int64(gc.Widthptr)

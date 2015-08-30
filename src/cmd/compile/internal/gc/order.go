@@ -182,7 +182,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
 		return a
 	}
 
-	Fatal("ordersafeexpr %v", Oconv(int(n.Op), 0))
+	Fatalf("ordersafeexpr %v", Oconv(int(n.Op), 0))
 	return nil // not reached
 }
 
@@ -337,7 +337,7 @@ func ismulticall(l *NodeList) bool {
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) *NodeList {
 	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
-		Fatal("copyret %v %d", n.Type, n.Left.Type.Outtuple)
+		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
 	}
 
 	var l1 *NodeList
@@ -403,7 +403,7 @@ func ordercall(n *Node, order *Order) {
 func ordermapassign(n *Node, order *Order) {
 	switch n.Op {
 	default:
-		Fatal("ordermapassign %v", Oconv(int(n.Op), 0))
+		Fatalf("ordermapassign %v", Oconv(int(n.Op), 0))
 
 	case OAS:
 		order.out = list(order.out, n)
@@ -462,7 +462,7 @@ func orderstmt(n *Node, order *Order) {
 
 	switch n.Op {
 	default:
-		Fatal("orderstmt %v", Oconv(int(n.Op), 0))
+		Fatalf("orderstmt %v", Oconv(int(n.Op), 0))
 
 	case OVARKILL:
 		order.out = list(order.out, n)
@@ -704,7 +704,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexpr(&n.Right, order, nil)
 		switch n.Type.Etype {
 		default:
-			Fatal("orderstmt range %v", n.Type)
+			Fatalf("orderstmt range %v", n.Type)
 
 			// Mark []byte(str) range expression to reuse string backing storage.
 		// It is safe because the storage cannot be mutated.
@@ -773,7 +773,7 @@ func orderstmt(n *Node, order *Order) {
 		var r *Node
 		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op != OXCASE {
-				Fatal("order select case %v", Oconv(int(l.N.Op), 0))
+				Fatalf("order select case %v", Oconv(int(l.N.Op), 0))
 			}
 			r = l.N.Left
 			setlineno(l.N)
@@ -781,7 +781,7 @@ func orderstmt(n *Node, order *Order) {
 			// Append any new body prologue to ninit.
 			// The next loop will insert ninit into nbody.
 			if l.N.Ninit != nil {
-				Fatal("order select ninit")
+				Fatalf("order select ninit")
 			}
 			if r != nil {
 				switch r.Op {
@@ -927,7 +927,7 @@ func orderstmt(n *Node, order *Order) {
 		orderexpr(&n.Left, order, nil)
 		for l := n.List; l != nil; l = l.Next {
 			if l.N.Op != OXCASE {
-				Fatal("order switch case %v", Oconv(int(l.N.Op), 0))
+				Fatalf("order switch case %v", Oconv(int(l.N.Op), 0))
 			}
 			orderexprlistinplace(l.N.List, order)
 			orderblock(&l.N.Nbody)

@@ -102,7 +102,7 @@ func Prog(as int) *obj.Prog {
 
 	if as == obj.ADATA || as == obj.AGLOBL {
 		if ddumped != 0 {
-			Fatal("already dumped data")
+			Fatalf("already dumped data")
 		}
 		if dpc == nil {
 			dpc = Ctxt.NewProg()
@@ -132,7 +132,7 @@ func Prog(as int) *obj.Prog {
 
 func Nodreg(n *Node, t *Type, r int) {
 	if t == nil {
-		Fatal("nodreg: t nil")
+		Fatalf("nodreg: t nil")
 	}
 
 	*n = Node{}
@@ -310,7 +310,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a := a // copy to let escape into Ctxt.Dconv
 		Debug['h'] = 1
 		Dump("naddr", n)
-		Fatal("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+		Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
 
 	case OREGISTER:
 		a.Type = obj.TYPE_REG
@@ -346,7 +346,7 @@ func Naddr(a *obj.Addr, n *Node) {
 
 	case OCLOSUREVAR:
 		if !Curfn.Func.Needctxt {
-			Fatal("closurevar without needctxt")
+			Fatalf("closurevar without needctxt")
 		}
 		a.Type = obj.TYPE_MEM
 		a.Reg = int16(Thearch.REGCTXT)
@@ -384,7 +384,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a.Type = obj.TYPE_MEM
 		switch n.Class {
 		default:
-			Fatal("naddr: ONAME class %v %d\n", n.Sym, n.Class)
+			Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
 
 		case PEXTERN:
 			a.Name = obj.NAME_EXTERN
@@ -410,7 +410,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		switch n.Val().Ctype() {
 		default:
-			Fatal("naddr: const %v", Tconv(n.Type, obj.FmtLong))
+			Fatalf("naddr: const %v", Tconv(n.Type, obj.FmtLong))
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
@@ -443,7 +443,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		if a.Type != obj.TYPE_MEM {
 			a := a // copy to let escape into Ctxt.Dconv
-			Fatal("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
+			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
 		}
 		a.Type = obj.TYPE_ADDR
 
@@ -518,10 +518,10 @@ func nodarg(t *Type, fp int) *Node {
 		var savet Iter
 		first := Structfirst(&savet, &t)
 		if first == nil {
-			Fatal("nodarg: bad struct")
+			Fatalf("nodarg: bad struct")
 		}
 		if first.Width == BADWIDTH {
-			Fatal("nodarg: offset not computed for %v", t)
+			Fatalf("nodarg: offset not computed for %v", t)
 		}
 		n.Xoffset = first.Width
 		n.Addable = true
@@ -529,7 +529,7 @@ func nodarg(t *Type, fp int) *Node {
 	}
 
 	if t.Etype != TFIELD {
-		Fatal("nodarg: not field %v", t)
+		Fatalf("nodarg: not field %v", t)
 	}
 
 	if fp == 1 {
@@ -547,7 +547,7 @@ func nodarg(t *Type, fp int) *Node {
 	n.Sym = t.Sym
 
 	if t.Width == BADWIDTH {
-		Fatal("nodarg: offset not computed for %v", t)
+		Fatalf("nodarg: offset not computed for %v", t)
 	}
 	n.Xoffset = t.Width
 	n.Addable = true
@@ -574,7 +574,7 @@ fp:
 		n.Class = PPARAM
 
 	case 2: // offset output arg
-		Fatal("shouldn't be used")
+		Fatalf("shouldn't be used")
 	}
 
 	n.Typecheck = 1
@@ -583,7 +583,7 @@ fp:
 
 func Patch(p *obj.Prog, to *obj.Prog) {
 	if p.To.Type != obj.TYPE_BRANCH {
-		Fatal("patch: not a branch")
+		Fatalf("patch: not a branch")
 	}
 	p.To.Val = to
 	p.To.Offset = to.Pc
@@ -591,7 +591,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
 
 func unpatch(p *obj.Prog) *obj.Prog {
 	if p.To.Type != obj.TYPE_BRANCH {
-		Fatal("unpatch: not a branch")
+		Fatalf("unpatch: not a branch")
 	}
 	q, _ := p.To.Val.(*obj.Prog)
 	p.To.Val = nil
@@ -669,18 +669,18 @@ func Anyregalloc() bool {
  */
 func Regalloc(n *Node, t *Type, o *Node) {
 	if t == nil {
-		Fatal("regalloc: t nil")
+		Fatalf("regalloc: t nil")
 	}
 	et := int(Simtype[t.Etype])
 	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
-		Fatal("regalloc 64bit")
+		Fatalf("regalloc 64bit")
 	}
 
 	var i int
 Switch:
 	switch et {
 	default:
-		Fatal("regalloc: unknown type %v", t)
+		Fatalf("regalloc: unknown type %v", t)
 
 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
 		if o != nil && o.Op == OREGISTER {
@@ -696,7 +696,7 @@ Switch:
 		}
 		Flusherrors()
 		Regdump()
-		Fatal("out of fixed registers")
+		Fatalf("out of fixed registers")
 
 	case TFLOAT32, TFLOAT64:
 		if Thearch.Use387 {
@@ -716,7 +716,7 @@ Switch:
 		}
 		Flusherrors()
 		Regdump()
-		Fatal("out of floating registers")
+		Fatalf("out of floating registers")
 
 	case TCOMPLEX64, TCOMPLEX128:
 		Tempname(n, t)
@@ -741,7 +741,7 @@ func Regfree(n *Node) {
 		return
 	}
 	if n.Op != OREGISTER && n.Op != OINDREG {
-		Fatal("regfree: not a register")
+		Fatalf("regfree: not a register")
 	}
 	i := int(n.Reg)
 	if i == Thearch.REGSP {
@@ -752,12 +752,12 @@ func Regfree(n *Node) {
 		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
 		// ok
 	default:
-		Fatal("regfree: reg out of range")
+		Fatalf("regfree: reg out of range")
 	}
 
 	i -= Thearch.REGMIN
 	if reg[i] <= 0 {
-		Fatal("regfree: reg not allocated")
+		Fatalf("regfree: reg not allocated")
 	}
 	reg[i]--
 	if reg[i] == 0 {
@@ -772,7 +772,7 @@ func Reginuse(r int) bool {
 		Thearch.FREGMIN <= r && r <= Thearch.FREGMAX:
 		// ok
 	default:
-		Fatal("reginuse: reg out of range")
+		Fatalf("reginuse: reg out of range")
 	}
 
 	return reg[r-Thearch.REGMIN] > 0
@@ -782,7 +782,7 @@ func Reginuse(r int) bool {
 // so that a register can be given up but then reclaimed.
 func Regrealloc(n *Node) {
 	if n.Op != OREGISTER && n.Op != OINDREG {
-		Fatal("regrealloc: not a register")
+		Fatalf("regrealloc: not a register")
 	}
 	i := int(n.Reg)
 	if i == Thearch.REGSP {
@@ -793,7 +793,7 @@ func Regrealloc(n *Node) {
 		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
 		// ok
 	default:
-		Fatal("regrealloc: reg out of range")
+		Fatalf("regrealloc: reg out of range")
 	}
 
 	i -= Thearch.REGMIN

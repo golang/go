@@ -221,7 +221,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
 
 		/*
 		 * integer copy and truncate
@@ -621,7 +621,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	case x86.ALEAQ:
 		if f != nil && gc.Isconst(f, gc.CTNIL) {
-			gc.Fatal("gins LEAQ nil %v", f.Type)
+			gc.Fatalf("gins LEAQ nil %v", f.Type)
 		}
 	}
 
@@ -651,11 +651,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Width > int64(w))) {
 		gc.Dump("f", f)
 		gc.Dump("t", t)
-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
 	}
 
 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
-		gc.Fatal("bad use of addr: %v", p)
+		gc.Fatalf("bad use of addr: %v", p)
 	}
 
 	return p
@@ -675,13 +675,13 @@ func ginsnop() {
  */
 func optoas(op int, t *gc.Type) int {
 	if t == nil {
-		gc.Fatal("optoas: t is nil")
+		gc.Fatalf("optoas: t is nil")
 	}
 
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
 
 	case gc.OADDR<<16 | gc.TPTR32:
 		a = x86.ALEAL
@@ -1223,7 +1223,7 @@ func jmptoset(jmp int) int {
 	case x86.AJPS:
 		return x86.ASETPS
 	}
-	gc.Fatal("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
+	gc.Fatalf("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
 	panic("unreachable")
 }
 
@@ -1359,7 +1359,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 
 		for i := 1; i < o; i++ {
 			if oary[i] >= 0 {
-				gc.Fatal("can't happen")
+				gc.Fatalf("can't happen")
 			}
 			gins(movptr, &n1, reg)
 			gc.Cgen_checknil(reg)

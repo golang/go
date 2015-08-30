@@ -34,7 +34,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	}
 
 	if res == nil || res.Type == nil {
-		Fatal("cgen: res nil")
+		Fatalf("cgen: res nil")
 	}
 
 	for n.Op == OCONVNOP {
@@ -68,7 +68,7 @@ func cgen_wb(n, res *Node, wb bool) {
 
 	if n.Ullman >= UINF {
 		if n.Op == OINDREG {
-			Fatal("cgen: this is going to miscompile")
+			Fatalf("cgen: this is going to miscompile")
 		}
 		if res.Ullman >= UINF {
 			var n1 Node
@@ -81,7 +81,7 @@ func cgen_wb(n, res *Node, wb bool) {
 
 	if Isfat(n.Type) {
 		if n.Type.Width < 0 {
-			Fatal("forgot to compute width for %v", n.Type)
+			Fatalf("forgot to compute width for %v", n.Type)
 		}
 		sgen_wb(n, res, n.Type.Width, wb)
 		return
@@ -103,7 +103,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			if n1.Ullman > res.Ullman {
 				Dump("n1", &n1)
 				Dump("res", res)
-				Fatal("loop in cgen")
+				Fatalf("loop in cgen")
 			}
 
 			cgen_wb(&n1, res, wb)
@@ -191,7 +191,7 @@ func cgen_wb(n, res *Node, wb bool) {
 
 	if wb {
 		if int(Simtype[res.Type.Etype]) != Tptr {
-			Fatal("cgen_wb of type %v", res.Type)
+			Fatalf("cgen_wb of type %v", res.Type)
 		}
 		if n.Ullman >= UINF {
 			var n1 Node
@@ -362,7 +362,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	default:
 		Dump("cgen", n)
 		Dump("cgen-res", res)
-		Fatal("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+		Fatalf("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
 
 	case OOROR, OANDAND,
 		OEQ, ONE,
@@ -593,7 +593,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		Fatal("cgen: OLEN: unknown type %v", Tconv(nl.Type, obj.FmtLong))
+		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, obj.FmtLong))
 
 	case OCAP:
 		if Istype(nl.Type, TCHAN) {
@@ -631,7 +631,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			break
 		}
 
-		Fatal("cgen: OCAP: unknown type %v", Tconv(nl.Type, obj.FmtLong))
+		Fatalf("cgen: OCAP: unknown type %v", Tconv(nl.Type, obj.FmtLong))
 
 	case OADDR:
 		if n.Bounded { // let race detector avoid nil checks
@@ -928,7 +928,7 @@ func Cgenr(n *Node, a *Node, res *Node) {
 	}
 
 	if Isfat(n.Type) {
-		Fatal("cgenr on fat node")
+		Fatalf("cgenr on fat node")
 	}
 
 	if n.Addable {
@@ -1034,7 +1034,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			// constant index
 			if Isconst(nr, CTINT) {
 				if Isconst(nl, CTSTR) {
-					Fatal("constant string constant index")
+					Fatalf("constant string constant index")
 				}
 				v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
 				var n2 Node
@@ -1186,7 +1186,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			// constant index
 			if Isconst(nr, CTINT) {
 				if Isconst(nl, CTSTR) {
-					Fatal("constant string constant index") // front end should handle
+					Fatalf("constant string constant index") // front end should handle
 				}
 				v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
@@ -1376,7 +1376,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 	index:
 		if Isconst(nr, CTINT) {
 			if Isconst(nl, CTSTR) {
-				Fatal("constant string constant index") // front end should handle
+				Fatalf("constant string constant index") // front end should handle
 			}
 			v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
@@ -1529,7 +1529,7 @@ func Agen(n *Node, res *Node) {
 
 	if n.Addable {
 		if n.Op == OREGISTER {
-			Fatal("agen OREGISTER")
+			Fatalf("agen OREGISTER")
 		}
 		var n1 Node
 		n1.Op = OADDR
@@ -1546,7 +1546,7 @@ func Agen(n *Node, res *Node) {
 
 	switch n.Op {
 	default:
-		Fatal("agen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+		Fatalf("agen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
@@ -1576,13 +1576,13 @@ func Agen(n *Node, res *Node) {
 		// should only get here with names in this func.
 		if n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
 			Dump("bad agen", n)
-			Fatal("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
+			Fatalf("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
 		}
 
 		// should only get here for heap vars or paramref
 		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
 			Dump("bad agen", n)
-			Fatal("agen: bad ONAME class %#x", n.Class)
+			Fatalf("agen: bad ONAME class %#x", n.Class)
 		}
 
 		Cgen(n.Name.Heapaddr, res)
@@ -1800,7 +1800,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if n.Type.Etype != TBOOL {
-		Fatal("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
+		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
 	}
 
 	for n.Op == OCONVNOP {
@@ -1841,7 +1841,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			// We can fix that as we go.
 			switch Ctxt.Arch.Thechar {
 			case '5', '7', '9':
-				Fatal("genval 5g, 7g, 9g ONAMES not fully implemented")
+				Fatalf("genval 5g, 7g, 9g ONAMES not fully implemented")
 			}
 			Cgen(n, res)
 			if !wantTrue {
@@ -1865,7 +1865,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	case OLITERAL:
 		// n is a constant.
 		if !Isconst(n, CTBOOL) {
-			Fatal("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
+			Fatalf("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
 		}
 		if genval {
 			Cgen(Nodbool(wantTrue == n.Val().U.(bool)), res)
@@ -2068,7 +2068,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		switch Ctxt.Arch.Thechar {
 		case '5':
 			if genval {
-				Fatal("genval 5g Isfloat special cases not implemented")
+				Fatalf("genval 5g Isfloat special cases not implemented")
 			}
 			switch n.Op {
 			case ONE:
@@ -2116,7 +2116,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			}
 		case '7', '9':
 			if genval {
-				Fatal("genval 7g, 9g Isfloat special cases not implemented")
+				Fatalf("genval 7g, 9g Isfloat special cases not implemented")
 			}
 			switch n.Op {
 			// On arm64 and ppc64, <= and >= mishandle NaN. Must decompose into < or > and =.
@@ -2251,11 +2251,11 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 	}
 
 	if n.Ullman >= UINF && ns.Ullman >= UINF {
-		Fatal("sgen UINF")
+		Fatalf("sgen UINF")
 	}
 
 	if w < 0 {
-		Fatal("sgen copy %d", w)
+		Fatalf("sgen copy %d", w)
 	}
 
 	// If copying .args, that's all the results, so record definition sites
@@ -2336,7 +2336,7 @@ func Ginscall(f *Node, proc int) {
 
 	switch proc {
 	default:
-		Fatal("Ginscall: bad proc %d", proc)
+		Fatalf("Ginscall: bad proc %d", proc)
 
 	case 0, // normal call
 		-1: // normal call but no return
@@ -2402,7 +2402,7 @@ func Ginscall(f *Node, proc int) {
 			Ginscall(Newproc, 0)
 		} else {
 			if Hasdefer == 0 {
-				Fatal("hasdefer=0 but has defer")
+				Fatalf("hasdefer=0 but has defer")
 			}
 			Ginscall(Deferproc, 0)
 		}
@@ -2423,12 +2423,12 @@ func Ginscall(f *Node, proc int) {
 func cgen_callinter(n *Node, res *Node, proc int) {
 	i := n.Left
 	if i.Op != ODOTINTER {
-		Fatal("cgen_callinter: not ODOTINTER %v", Oconv(int(i.Op), 0))
+		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(int(i.Op), 0))
 	}
 
 	f := i.Right // field
 	if f.Op != ONAME {
-		Fatal("cgen_callinter: not ONAME %v", Oconv(int(f.Op), 0))
+		Fatalf("cgen_callinter: not ONAME %v", Oconv(int(f.Op), 0))
 	}
 
 	i = i.Left // interface
@@ -2471,7 +2471,7 @@ func cgen_callinter(n *Node, res *Node, proc int) {
 	var nodr Node
 	Regalloc(&nodr, Types[Tptr], &nodo)
 	if n.Left.Xoffset == BADWIDTH {
-		Fatal("cgen_callinter: badwidth")
+		Fatalf("cgen_callinter: badwidth")
 	}
 	Cgen_checknil(&nodo) // in case offset is huge
 	nodo.Op = OINDREG
@@ -2562,7 +2562,7 @@ func cgen_callret(n *Node, res *Node) {
 	var flist Iter
 	fp := Structfirst(&flist, Getoutarg(t))
 	if fp == nil {
-		Fatal("cgen_callret: nil")
+		Fatalf("cgen_callret: nil")
 	}
 
 	var nod Node
@@ -2592,7 +2592,7 @@ func cgen_aret(n *Node, res *Node) {
 	var flist Iter
 	fp := Structfirst(&flist, Getoutarg(t))
 	if fp == nil {
-		Fatal("cgen_aret: nil")
+		Fatalf("cgen_aret: nil")
 	}
 
 	var nod1 Node
@@ -2814,11 +2814,11 @@ func cgen_append(n, res *Node) {
 	if res.Op != ONAME && !samesafeexpr(res, n.List.N) {
 		Dump("cgen_append-n", n)
 		Dump("cgen_append-res", res)
-		Fatal("append not lowered")
+		Fatalf("append not lowered")
 	}
 	for l := n.List; l != nil; l = l.Next {
 		if l.N.Ullman >= UINF {
-			Fatal("append with function call arguments")
+			Fatalf("append with function call arguments")
 		}
 	}
 
@@ -3261,7 +3261,7 @@ func cgen_slice(n, res *Node, wb bool) {
 		// but it will be represented in 32 bits.
 		if Ctxt.Arch.Regsize == 4 && Is64(n1.Type) {
 			if mpcmpfixc(n1.Val().U.(*Mpint), 1<<31) >= 0 {
-				Fatal("missed slice out of bounds check")
+				Fatalf("missed slice out of bounds check")
 			}
 			var tmp Node
 			Nodconst(&tmp, indexRegType, Mpgetfix(n1.Val().U.(*Mpint)))

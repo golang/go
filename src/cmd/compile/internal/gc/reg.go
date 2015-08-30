@@ -351,7 +351,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 	node = node.Orig
 	if node.Orig != node {
-		Fatal("%v: bad node", Ctxt.Dconv(a))
+		Fatalf("%v: bad node", Ctxt.Dconv(a))
 	}
 	if node.Sym == nil || node.Sym.Name[0] == '.' {
 		return zbits
@@ -360,7 +360,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	o := a.Offset
 	w := a.Width
 	if w < 0 {
-		Fatal("bad width %d for %v", w, Ctxt.Dconv(a))
+		Fatalf("bad width %d for %v", w, Ctxt.Dconv(a))
 	}
 
 	flag := 0
@@ -396,7 +396,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 
 	if nvar >= NVAR {
 		if Debug['w'] > 1 && node != nil {
-			Fatal("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+			Fatalf("variable not optimized: %v", Nconv(node, obj.FmtSharp))
 		}
 		if Debug['v'] > 0 {
 			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
@@ -655,7 +655,7 @@ func allreg(b uint64, r *Rgn) uint64 {
 	r.regno = 0
 	switch v.etype {
 	default:
-		Fatal("unknown etype %d/%v", Bitno(b), Econv(int(v.etype), 0))
+		Fatalf("unknown etype %d/%v", Bitno(b), Econv(int(v.etype), 0))
 
 	case TINT8,
 		TUINT8,
@@ -1120,7 +1120,7 @@ func regopt(firstp *obj.Prog) {
 		// Currently we never generate three register forms.
 		// If we do, this will need to change.
 		if p.From3Type() != obj.TYPE_NONE {
-			Fatal("regopt not implemented for from3")
+			Fatalf("regopt not implemented for from3")
 		}
 
 		bit = mkvar(f, &p.To)
@@ -1472,7 +1472,7 @@ func bnum(a Bits) int {
 		}
 	}
 
-	Fatal("bad in bnum")
+	Fatalf("bad in bnum")
 	return 0
 }
 
@@ -1499,10 +1499,10 @@ func biclr(a *Bits, n uint) {
 }
 
 // Bitno reports the lowest index of a 1 bit in b.
-// It calls Fatal if there is no 1 bit.
+// It calls Fatalf if there is no 1 bit.
 func Bitno(b uint64) int {
 	if b == 0 {
-		Fatal("bad in bitno")
+		Fatalf("bad in bitno")
 	}
 	n := 0
 	if b&(1<<32-1) == 0 {

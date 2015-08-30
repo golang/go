@@ -305,7 +305,7 @@ func Main() {
 
 	Thearch.Betypeinit()
 	if Widthptr == 0 {
-		Fatal("betypeinit failed")
+		Fatalf("betypeinit failed")
 	}
 
 	lexinit()
@@ -2200,7 +2200,7 @@ func lexinit() {
 		etype = syms[i].etype
 		if etype != Txxx {
 			if etype < 0 || etype >= len(Types) {
-				Fatal("lexinit: %s bad etype", s.Name)
+				Fatalf("lexinit: %s bad etype", s.Name)
 			}
 			s1 = Pkglookup(syms[i].name, builtinpkg)
 			t = Types[etype]

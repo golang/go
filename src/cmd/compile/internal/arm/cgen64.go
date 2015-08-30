@@ -19,7 +19,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
 		gc.Dump("n", n)
 		gc.Dump("res", res)
-		gc.Fatal("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
+		gc.Fatalf("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
 	}
 
 	l := n.Left
@@ -35,7 +35,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	split64(l, &lo1, &hi1)
 	switch n.Op {
 	default:
-		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen64 %v", gc.Oconv(int(n.Op), 0))
 
 	case gc.OMINUS:
 		var lo2 gc.Node
@@ -129,7 +129,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	// Do op.  Leave result in ah:al.
 	switch n.Op {
 	default:
-		gc.Fatal("cgen64: not implemented: %v\n", n)
+		gc.Fatalf("cgen64: not implemented: %v\n", n)
 
 		// TODO: Constants
 	case gc.OADD:
@@ -793,7 +793,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
 	var br *obj.Prog
 	switch op {
 	default:
-		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("cmp64 %v %v", gc.Oconv(int(op), 0), t)
 
 		// cmp hi
 	// bne L

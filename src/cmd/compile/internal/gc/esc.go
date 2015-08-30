@@ -323,7 +323,7 @@ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
 		return nE
 	}
 	if n.Opt() != nil {
-		Fatal("nodeEscState: opt in use (%T)", n.Opt())
+		Fatalf("nodeEscState: opt in use (%T)", n.Opt())
 	}
 	nE := new(NodeEscState)
 	nE.Curfn = Curfn
@@ -334,7 +334,7 @@ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
 
 func (e *EscState) track(n *Node) {
 	if Curfn == nil {
-		Fatal("EscState.track: Curfn nil")
+		Fatalf("EscState.track: Curfn nil")
 	}
 	n.Esc = EscNone // until proven otherwise
 	nE := e.nodeEscState(n)
@@ -368,7 +368,7 @@ func escMax(e, etype uint16) uint16 {
 	if e&EscMask >= EscScope {
 		// normalize
 		if e&^EscMask != 0 {
-			Fatal("Escape information had unexpected return encoding bits (w/ EscScope, EscHeap, EscNever), e&EscMask=%v", e&EscMask)
+			Fatalf("Escape information had unexpected return encoding bits (w/ EscScope, EscHeap, EscNever), e&EscMask=%v", e&EscMask)
 		}
 	}
 	if e&EscMask > etype {
@@ -478,7 +478,7 @@ func escAnalyze(all *NodeList, recursive bool) {
 func escfunc(e *EscState, func_ *Node) {
 	//	print("escfunc %N %s\n", func->nname, e->recursive?"(recursive)":"");
 	if func_.Esc != 1 {
-		Fatal("repeat escfunc %v", func_.Func.Nname)
+		Fatalf("repeat escfunc %v", func_.Func.Nname)
 	}
 	func_.Esc = EscFuncStarted
 
@@ -549,7 +549,7 @@ func escloopdepth(e *EscState, n *Node) {
 	switch n.Op {
 	case OLABEL:
 		if n.Left == nil || n.Left.Sym == nil {
-			Fatal("esc:label without label: %v", Nconv(n, obj.FmtSign))
+			Fatalf("esc:label without label: %v", Nconv(n, obj.FmtSign))
 		}
 
 		// Walk will complain about this label being already defined, but that's not until
@@ -560,7 +560,7 @@ func escloopdepth(e *EscState, n *Node) {
 
 	case OGOTO:
 		if n.Left == nil || n.Left.Sym == nil {
-			Fatal("esc:goto without label: %v", Nconv(n, obj.FmtSign))
+			Fatalf("esc:goto without label: %v", Nconv(n, obj.FmtSign))
 		}
 
 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
@@ -766,7 +766,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			escassign(e, ll.N, lr.N)
 		}
 		if lr != nil || ll != nil {
-			Fatal("esc oas2func")
+			Fatalf("esc oas2func")
 		}
 
 	case ORETURN:
@@ -787,7 +787,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 		if ll != nil {
-			Fatal("esc return list")
+			Fatalf("esc return list")
 		}
 
 		// Argument could leak through recover.
@@ -949,7 +949,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	switch dst.Op {
 	default:
 		Dump("dst", dst)
-		Fatal("escassign: unexpected dst")
+		Fatalf("escassign: unexpected dst")
 
 	case OARRAYLIT,
 		OCLOSURE,
@@ -1112,7 +1112,7 @@ func mktag(mask int) *string {
 		break
 
 	default:
-		Fatal("escape mktag")
+		Fatalf("escape mktag")
 	}
 
 	if mask < len(tags) && tags[mask] != "" {
@@ -1239,7 +1239,7 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint
 	// so there is no need to check here.
 
 	if em != 0 && dsts == nil {
-		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
+		Fatalf("corrupt esc tag %q or messed up escretval list\n", note)
 	}
 	return em0
 }
@@ -1334,7 +1334,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	var fn *Node
 	switch n.Op {
 	default:
-		Fatal("esccall")
+		Fatalf("esccall")
 
 	case OCALLFUNC:
 		fn = n.Left
@@ -1394,7 +1394,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		// function in same mutually recursive group.  Incorporate into flow graph.
 		//		print("esc local fn: %N\n", fn->ntype);
 		if fn.Name.Defn.Esc == EscFuncUnknown || nE.Escretval != nil {
-			Fatal("graph inconsistency")
+			Fatalf("graph inconsistency")
 		}
 
 		// set up out list on this call node
@@ -1443,7 +1443,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	// Imported or completely analyzed function.  Use the escape tags.
 	if nE.Escretval != nil {
-		Fatal("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
+		Fatalf("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
 	}
 
 	if Debug['m'] > 2 {

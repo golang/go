@@ -165,7 +165,7 @@ func walkrange(n *Node) {
 	var init *NodeList
 	switch t.Etype {
 	default:
-		Fatal("walkrange")
+		Fatalf("walkrange")
 
 		// Lower n into runtime·memclr if possible, for
 	// fast zeroing of slices and arrays (issue 5373).

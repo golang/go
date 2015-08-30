@@ -62,7 +62,7 @@ func addrescapes(n *Node) {
 			n.Name.Param.Stackparam.Type = n.Type
 			n.Name.Param.Stackparam.Addable = true
 			if n.Xoffset == BADWIDTH {
-				Fatal("addrescapes before param assignment")
+				Fatalf("addrescapes before param assignment")
 			}
 			n.Name.Param.Stackparam.Xoffset = n.Xoffset
 			fallthrough
@@ -226,7 +226,7 @@ func Genlist(l *NodeList) {
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
-		Fatal("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
+		Fatalf("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
 
 	case OCALLMETH:
 		cgen_callmeth(n.Left, proc)
@@ -250,7 +250,7 @@ func cgen_dcl(n *Node) {
 	}
 	if n.Op != ONAME {
 		Dump("cgen_dcl", n)
-		Fatal("cgen_dcl")
+		Fatalf("cgen_dcl")
 	}
 
 	if n.Class&PHEAP == 0 {
@@ -360,7 +360,7 @@ func Clearslim(n *Node) {
 		Mpmovecfix(z.Val().U.(*Mpint), 0)
 
 	default:
-		Fatal("clearslim called on type %v", n.Type)
+		Fatalf("clearslim called on type %v", n.Type)
 	}
 
 	ullmancalc(&z)
@@ -561,7 +561,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
 	case ODOT:
 		if n.Xoffset == BADWIDTH {
 			Dump("bad width in dotoffset", n)
-			Fatal("bad width in dotoffset")
+			Fatalf("bad width in dotoffset")
 		}
 
 		i = Dotoffset(n.Left, oary, nn)
@@ -582,7 +582,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
 	case ODOTPTR:
 		if n.Xoffset == BADWIDTH {
 			Dump("bad width in dotoffset", n)
-			Fatal("bad width in dotoffset")
+			Fatalf("bad width in dotoffset")
 		}
 
 		i = Dotoffset(n.Left, oary, nn)
@@ -607,7 +607,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
  */
 func Tempname(nn *Node, t *Type) {
 	if Curfn == nil {
-		Fatal("no curfn for tempname")
+		Fatalf("no curfn for tempname")
 	}
 
 	if t == nil {
@@ -661,7 +661,7 @@ func gen(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatal("gen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+		Fatalf("gen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
 
 	case OCASE,
 		OFALL,
@@ -897,7 +897,7 @@ func gen(n *Node) {
 ret:
 	if Anyregalloc() != wasregalloc {
 		Dump("node", n)
-		Fatal("registers left allocated")
+		Fatalf("registers left allocated")
 	}
 
 	lineno = lno
@@ -963,7 +963,7 @@ func cgen_callmeth(n *Node, proc int) {
 	l := n.Left
 
 	if l.Op != ODOTMETH {
-		Fatal("cgen_callmeth: not dotmethod: %v", l)
+		Fatalf("cgen_callmeth: not dotmethod: %v", l)
 	}
 
 	n2 := *n
@@ -1002,7 +1002,7 @@ func checklabels() {
 		}
 
 		if lab.Gotopc != nil {
-			Fatal("label %v never resolved", lab.Sym)
+			Fatalf("label %v never resolved", lab.Sym)
 		}
 		for l = lab.Use; l != nil; l = l.Next {
 			checkgoto(l.N, lab.Def)
@@ -1136,7 +1136,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 	nodr = *nr
 	if !cadable(nr) {
 		if nr.Ullman >= UINF && nodl.Op == OINDREG {
-			Fatal("miscompile")
+			Fatalf("miscompile")
 		}
 		Igen(nr, &nodr, nil)
 		defer Regfree(&nodr)
@@ -1157,7 +1157,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
 		if wb && int(Simtype[t.Etype]) == Tptr && t != itable {
 			if ptrType != nil {
-				Fatal("componentgen_wb %v", Tconv(nl.Type, 0))
+				Fatalf("componentgen_wb %v", Tconv(nl.Type, 0))
 			}
 			ptrType = t
 			ptrOffset = offset
@@ -1197,7 +1197,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		// NOTE: Assuming little endian (signed top half at offset 4).
 		// We don't have any 32-bit big-endian systems.
 		if Thearch.Thechar != '5' && Thearch.Thechar != '8' {
-			Fatal("unknown 32-bit architecture")
+			Fatalf("unknown 32-bit architecture")
 		}
 		return f(Types[TUINT32], startOffset) &&
 			f(Types[TINT32], startOffset+4)
@@ -1254,12 +1254,12 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			// in code introduced in CL 6932045 to fix issue #4518.
 			// But the test case in issue 4518 does not trigger this anymore,
 			// so maybe this complication is no longer needed.
-			Fatal("struct not at offset 0")
+			Fatalf("struct not at offset 0")
 		}
 
 		for field := t.Type; field != nil; field = field.Down {
 			if field.Etype != TFIELD {
-				Fatal("bad struct")
+				Fatalf("bad struct")
 			}
 			if !visitComponents(field.Type, startOffset+field.Width, f) {
 				return false

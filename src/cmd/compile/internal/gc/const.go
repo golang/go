@@ -14,7 +14,7 @@ import (
 // n must be an integer constant.
 func (n *Node) Int() int64 {
 	if !Isconst(n, CTINT) {
-		Fatal("Int(%v)", n)
+		Fatalf("Int(%v)", n)
 	}
 	return Mpgetfix(n.Val().U.(*Mpint))
 }
@@ -23,7 +23,7 @@ func (n *Node) Int() int64 {
 // n must be an integer constant.
 func (n *Node) SetInt(i int64) {
 	if !Isconst(n, CTINT) {
-		Fatal("SetInt(%v)", n)
+		Fatalf("SetInt(%v)", n)
 	}
 	Mpmovecfix(n.Val().U.(*Mpint), i)
 }
@@ -32,7 +32,7 @@ func (n *Node) SetInt(i int64) {
 // n must be an integer constant.
 func (n *Node) SetBigInt(x *big.Int) {
 	if !Isconst(n, CTINT) {
-		Fatal("SetBigInt(%v)", n)
+		Fatalf("SetBigInt(%v)", n)
 	}
 	n.Val().U.(*Mpint).Val.Set(x)
 }
@@ -41,7 +41,7 @@ func (n *Node) SetBigInt(x *big.Int) {
 // n must be an boolean constant.
 func (n *Node) Bool() bool {
 	if !Isconst(n, CTBOOL) {
-		Fatal("Int(%v)", n)
+		Fatalf("Int(%v)", n)
 	}
 	return n.Val().U.(bool)
 }
@@ -396,7 +396,7 @@ func doesoverflow(v Val, t *Type) bool {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		if !Isint[t.Etype] {
-			Fatal("overflow: %v integer constant", t)
+			Fatalf("overflow: %v integer constant", t)
 		}
 		if Mpcmpfixfix(v.U.(*Mpint), Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[t.Etype]) > 0 {
 			return true
@@ -404,7 +404,7 @@ func doesoverflow(v Val, t *Type) bool {
 
 	case CTFLT:
 		if !Isfloat[t.Etype] {
-			Fatal("overflow: %v floating-point constant", t)
+			Fatalf("overflow: %v floating-point constant", t)
 		}
 		if mpcmpfltflt(v.U.(*Mpflt), minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.(*Mpflt), maxfltval[t.Etype]) >= 0 {
 			return true
@@ -412,7 +412,7 @@ func doesoverflow(v Val, t *Type) bool {
 
 	case CTCPLX:
 		if !Iscomplex[t.Etype] {
-			Fatal("overflow: %v complex constant", t)
+			Fatalf("overflow: %v complex constant", t)
 		}
 		if mpcmpfltflt(&v.U.(*Mpcplx).Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, maxfltval[t.Etype]) >= 0 {
 			return true
@@ -787,7 +787,7 @@ func evconst(n *Node) {
 		if (v.Ctype() == 0 || rv.Ctype() == 0) && nerrors > 0 {
 			return
 		}
-		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
+		Fatalf("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
 	}
 
 	// run op
@@ -1106,7 +1106,7 @@ func nodlit(v Val) *Node {
 	n.SetVal(v)
 	switch v.Ctype() {
 	default:
-		Fatal("nodlit ctype %d", v.Ctype())
+		Fatalf("nodlit ctype %d", v.Ctype())
 
 	case CTSTR:
 		n.Type = idealstring
@@ -1134,7 +1134,7 @@ func nodcplxlit(r Val, i Val) *Node {
 	n.SetVal(Val{c})
 
 	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
-		Fatal("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
+		Fatalf("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
 	}
 
 	mpmovefltflt(&c.Real, r.U.(*Mpflt))
@@ -1249,7 +1249,7 @@ func defaultlit(np **Node, t *Type) {
 		Yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
-		Fatal("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
+		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
 
 	case CTBOOL:
 		t1 := Types[TBOOL]
@@ -1450,7 +1450,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		var i int64
 		switch n.Val().Ctype() {
 		default:
-			Fatal("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, obj.FmtLong))
+			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, obj.FmtLong))
 
 		case CTINT, CTRUNE:
 			i = Mpgetfix(n.Val().U.(*Mpint))
@@ -1470,7 +1470,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 	if Isfloat[tt] {
 		con.SetVal(toflt(con.Val()))
 		if con.Val().Ctype() != CTFLT {
-			Fatal("convconst ctype=%d %v", con.Val().Ctype(), t)
+			Fatalf("convconst ctype=%d %v", con.Val().Ctype(), t)
 		}
 		if tt == TFLOAT32 {
 			con.SetVal(Val{truncfltlit(con.Val().U.(*Mpflt), t)})
@@ -1487,7 +1487,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	Fatal("convconst %v constant", Tconv(t, obj.FmtLong))
+	Fatalf("convconst %v constant", Tconv(t, obj.FmtLong))
 }
 
 // complex multiply v *= rv

@@ -433,7 +433,7 @@ func symfmt(s *Sym, flag int) string {
 
 		case FExp:
 			if s.Name != "" && s.Name[0] == '.' {
-				Fatal("exporting synthetic symbol %s", s.Name)
+				Fatalf("exporting synthetic symbol %s", s.Name)
 			}
 			if s.Pkg != builtinpkg {
 				return fmt.Sprintf("@%q.%s", s.Pkg.Path, s.Name)
@@ -755,7 +755,7 @@ func typefmt(t *Type, flag int) string {
 	}
 
 	if fmtmode == FExp {
-		Fatal("missing %v case during export", Econv(int(t.Etype), 0))
+		Fatalf("missing %v case during export", Econv(int(t.Etype), 0))
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
@@ -1672,7 +1672,7 @@ func Nconv(n *Node, flag int) string {
 		dumpdepth--
 
 	default:
-		Fatal("unhandled %%N mode")
+		Fatalf("unhandled %%N mode")
 	}
 
 	flag = sf

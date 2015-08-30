@@ -36,10 +36,10 @@ func defframe(ptxt *obj.Prog) {
 			continue
 		}
 		if n.Class != gc.PAUTO {
-			gc.Fatal("needzero class %d", n.Class)
+			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 
 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
@@ -291,7 +291,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		}
 
 	default:
-		gc.Fatal("cgen_hmul %v", t)
+		gc.Fatalf("cgen_hmul %v", t)
 	}
 
 	gc.Cgen(&n1, res)
@@ -411,7 +411,7 @@ func clearfat(nl *gc.Node) {
 	q := uint64(w / 8) // dwords
 
 	if gc.Reginuse(ppc64.REGRT1) {
-		gc.Fatal("%v in use during clearfat", obj.Rconv(ppc64.REGRT1))
+		gc.Fatalf("%v in use during clearfat", obj.Rconv(ppc64.REGRT1))
 	}
 
 	var r0 gc.Node
@@ -499,7 +499,7 @@ func expandchecks(firstp *obj.Prog) {
 			gc.Warnl(int(p.Lineno), "generated nil check")
 		}
 		if p.From.Type != obj.TYPE_REG {
-			gc.Fatal("invalid nil check %v\n", p)
+			gc.Fatalf("invalid nil check %v\n", p)
 		}
 
 		/*

@@ -193,7 +193,7 @@ func init1(n *Node, out **NodeList) {
 	l = initlist
 	initlist = l.Next
 	if l.N != n {
-		Fatal("bad initlist")
+		Fatalf("bad initlist")
 	}
 
 	n.Initorder = InitDone
@@ -201,7 +201,7 @@ func init1(n *Node, out **NodeList) {
 
 bad:
 	Dump("defn", n.Name.Defn)
-	Fatal("init1: bad defn")
+	Fatalf("init1: bad defn")
 }
 
 // recurse over n, doing init1 everywhere.
@@ -211,7 +211,7 @@ func init2(n *Node, out **NodeList) {
 	}
 
 	if n.Op == ONAME && n.Ninit != nil {
-		Fatal("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
+		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
 	}
 
 	init1(n, out)
@@ -271,7 +271,7 @@ func initfix(l *NodeList) *NodeList {
  */
 func staticinit(n *Node, out **NodeList) bool {
 	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
-		Fatal("staticinit")
+		Fatalf("staticinit")
 	}
 
 	lineno = n.Lineno
@@ -607,7 +607,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 	for nl := n.List; nl != nil; nl = nl.Next {
 		r = nl.N
 		if r.Op != OKEY {
-			Fatal("structlit: rhs not OKEY: %v", r)
+			Fatalf("structlit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -654,7 +654,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 		if pass == 1 {
 			walkexpr(&a, init) // add any assignments in r to top
 			if a.Op != OAS {
-				Fatal("structlit: not as")
+				Fatalf("structlit: not as")
 			}
 			a.Dodata = 2
 		} else {
@@ -675,7 +675,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 	for l := n.List; l != nil; l = l.Next {
 		r = l.N
 		if r.Op != OKEY {
-			Fatal("arraylit: rhs not OKEY: %v", r)
+			Fatalf("arraylit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -722,7 +722,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 		if pass == 1 {
 			walkexpr(&a, init)
 			if a.Op != OAS {
-				Fatal("arraylit: not as")
+				Fatalf("arraylit: not as")
 			}
 			a.Dodata = 2
 		} else {
@@ -851,7 +851,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	for l := n.List; l != nil; l = l.Next {
 		r = l.N
 		if r.Op != OKEY {
-			Fatal("slicelit: rhs not OKEY: %v", r)
+			Fatalf("slicelit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -909,7 +909,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		r = l.N
 
 		if r.Op != OKEY {
-			Fatal("maplit: rhs not OKEY: %v", r)
+			Fatalf("maplit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -960,7 +960,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			r = l.N
 
 			if r.Op != OKEY {
-				Fatal("maplit: rhs not OKEY: %v", r)
+				Fatalf("maplit: rhs not OKEY: %v", r)
 			}
 			index = r.Left
 			value = r.Right
@@ -1031,7 +1031,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		r = l.N
 
 		if r.Op != OKEY {
-			Fatal("maplit: rhs not OKEY: %v", r)
+			Fatalf("maplit: rhs not OKEY: %v", r)
 		}
 		index = r.Left
 		value = r.Right
@@ -1083,11 +1083,11 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	t := n.Type
 	switch n.Op {
 	default:
-		Fatal("anylit: not lit")
+		Fatalf("anylit: not lit")
 
 	case OPTRLIT:
 		if !Isptr[t.Etype] {
-			Fatal("anylit: not ptr")
+			Fatalf("anylit: not ptr")
 		}
 
 		var r *Node
@@ -1113,7 +1113,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 	case OSTRUCTLIT:
 		if t.Etype != TSTRUCT {
-			Fatal("anylit: not struct")
+			Fatalf("anylit: not struct")
 		}
 
 		if simplename(var_) && count(n.List) > 4 {
@@ -1153,7 +1153,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 	case OARRAYLIT:
 		if t.Etype != TARRAY {
-			Fatal("anylit: not array")
+			Fatalf("anylit: not array")
 		}
 		if t.Bound < 0 {
 			slicelit(ctxt, n, var_, init)
@@ -1197,7 +1197,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 	case OMAPLIT:
 		if t.Etype != TMAP {
-			Fatal("anylit: not map")
+			Fatalf("anylit: not map")
 		}
 		maplit(ctxt, n, var_, init)
 	}
@@ -1304,14 +1304,14 @@ func initplan(n *Node) {
 	initplans[n] = p
 	switch n.Op {
 	default:
-		Fatal("initplan")
+		Fatalf("initplan")
 
 	case OARRAYLIT:
 		var a *Node
 		for l := n.List; l != nil; l = l.Next {
 			a = l.N
 			if a.Op != OKEY || !Smallintconst(a.Left) {
-				Fatal("initplan arraylit")
+				Fatalf("initplan arraylit")
 			}
 			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val().U.(*Mpint)), nil, a.Right)
 		}
@@ -1321,7 +1321,7 @@ func initplan(n *Node) {
 		for l := n.List; l != nil; l = l.Next {
 			a = l.N
 			if a.Op != OKEY || a.Left.Type == nil {
-				Fatal("initplan structlit")
+				Fatalf("initplan structlit")
 			}
 			addvalue(p, a.Left.Type.Width, nil, a.Right)
 		}
@@ -1331,7 +1331,7 @@ func initplan(n *Node) {
 		for l := n.List; l != nil; l = l.Next {
 			a = l.N
 			if a.Op != OKEY {
-				Fatal("initplan maplit")
+				Fatalf("initplan maplit")
 			}
 			addvalue(p, -1, a.Left, a.Right)
 		}
@@ -1377,7 +1377,7 @@ func iszero(n *Node) bool {
 		switch n.Val().Ctype() {
 		default:
 			Dump("unexpected literal", n)
-			Fatal("iszero")
+			Fatalf("iszero")
 
 		case CTNIL:
 			return true
@@ -1544,7 +1544,7 @@ func gen_as_init(n *Node) bool {
 no:
 	if n.Dodata == 2 {
 		Dump("\ngen_as_init", n)
-		Fatal("gen_as_init couldnt make data statement")
+		Fatalf("gen_as_init couldnt make data statement")
 	}
 
 	return false
