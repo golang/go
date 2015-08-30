@@ -118,7 +118,7 @@ var typecheck_tcfree *NodeList
 
 func typecheck(np **Node, top int) *Node {
 	// cannot type check until all the source has been parsed
-	if typecheckok == 0 {
+	if !typecheckok {
 		Fatalf("early typecheck")
 	}
 

@@ -360,7 +360,7 @@ func Main() {
 	mkpackage(localpkg.Name) // final import not used checks
 	lexfini()
 
-	typecheckok = 1
+	typecheckok = true
 	if Debug['f'] != 0 {
 		frame(1)
 	}
@@ -799,7 +799,7 @@ func importfile(f *Val, line int) {
 	curio.peekc1 = 0
 	curio.infile = file
 	curio.nlsemi = 0
-	typecheckok = 1
+	typecheckok = true
 
 	var c int32
 	for {
@@ -836,7 +836,7 @@ func unimportfile() {
 
 	pushedio.bin = nil
 	incannedimport = 0
-	typecheckok = 0
+	typecheckok = false
 }
 
 func cannedimports(file string, cp string) {
@@ -852,7 +852,7 @@ func cannedimports(file string, cp string) {
 	curio.nlsemi = 0
 	curio.importsafe = false
 
-	typecheckok = 1
+	typecheckok = true
 	incannedimport = 1
 }
 
