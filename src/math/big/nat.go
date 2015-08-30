@@ -1121,9 +1121,12 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	return zz.norm()
 }
 
-// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
-// If it returns true, n is prime with probability 1 - 1/4^reps.
-// If it returns false, n is not prime.
+// probablyPrime performs n Miller-Rabin tests to check whether x is prime.
+// If x is prime, it returns true.
+// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
+//
+// It is not suitable for judging primes that an adversary may have crafted
+// to fool this test.
 func (n nat) probablyPrime(reps int) bool {
 	if len(n) == 0 {
 		return false
