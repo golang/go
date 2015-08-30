@@ -151,15 +151,11 @@ func updateSlicingBy8(crc uint32, tab *slicing8Table, p []byte) uint32 {
 
 // Update returns the result of adding the bytes in p to the crc.
 func Update(crc uint32, tab *Table, p []byte) uint32 {
-	if tab == castagnoliTable {
+	switch tab {
+	case castagnoliTable:
 		return updateCastagnoli(crc, p)
-	}
-	// only use slicing-by-8 when input is larger than 4KB
-	if tab == IEEETable && len(p) >= 4096 {
-		iEEETable8Once.Do(func() {
-			iEEETable8 = makeTable8(IEEE)
-		})
-		return updateSlicingBy8(crc, iEEETable8, p)
+	case IEEETable:
+		return updateIEEE(crc, p)
 	}
 	return update(crc, tab, p)
 }
