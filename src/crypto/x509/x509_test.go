@@ -1159,6 +1159,12 @@ func TestASN1BitLength(t *testing.T) {
 	}
 }
 
+func TestVerifyEmptyCertificate(t *testing.T) {
+	if _, err := new(Certificate).Verify(VerifyOptions{}); err != errNotParsed {
+		t.Errorf("Verifying empty certificate resulted in unexpected error: %q (wanted %q)", err, errNotParsed)
+	}
+}
+
 // These CSR was generated with OpenSSL:
 //  openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
 //
