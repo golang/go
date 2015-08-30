@@ -638,7 +638,7 @@ var thunk int32
 
 var Funcdepth int32
 
-var typecheckok int
+var typecheckok bool
 
 var compiling_runtime int
 
