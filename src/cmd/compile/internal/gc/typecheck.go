@@ -119,7 +119,7 @@ var typecheck_tcfree *NodeList
 func typecheck(np **Node, top int) *Node {
 	// cannot type check until all the source has been parsed
 	if typecheckok == 0 {
-		Fatal("early typecheck")
+		Fatalf("early typecheck")
 	}
 
 	n := *np
@@ -204,7 +204,7 @@ func typecheck(np **Node, top int) *Node {
 	n.Typecheck = 1
 
 	if typecheck_tcstack != l {
-		Fatal("typecheck stack out of sync")
+		Fatalf("typecheck stack out of sync")
 	}
 	typecheck_tcstack = l.Next
 	l.Next = typecheck_tcfree
@@ -293,7 +293,7 @@ OpSwitch:
 	default:
 		Dump("typecheck", n)
 
-		Fatal("typecheck %v", Oconv(int(n.Op), 0))
+		Fatalf("typecheck %v", Oconv(int(n.Op), 0))
 
 		/*
 		 * names
@@ -820,7 +820,7 @@ OpSwitch:
 		}
 
 		if l.Orig != l && l.Op == ONAME {
-			Fatal("found non-orig name node %v", l)
+			Fatalf("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
 		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
@@ -1354,7 +1354,7 @@ OpSwitch:
 			tp := getthisx(t).Type.Type
 
 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
-				Fatal("method receiver")
+				Fatalf("method receiver")
 			}
 
 		default:
@@ -2008,7 +2008,7 @@ OpSwitch:
 			return
 		}
 		if t.Etype != TINTER {
-			Fatal("OITAB of %v", t)
+			Fatalf("OITAB of %v", t)
 		}
 		n.Type = Ptrto(Types[TUINTPTR])
 		break OpSwitch
@@ -2022,7 +2022,7 @@ OpSwitch:
 			return
 		}
 		if !Isslice(t) && t.Etype != TSTRING {
-			Fatal("OSPTR of %v", t)
+			Fatalf("OSPTR of %v", t)
 		}
 		if t.Etype == TSTRING {
 			n.Type = Ptrto(Types[TUINT8])
@@ -2527,7 +2527,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 			Yyerror("%v is both field and method", n.Right.Sym)
 		}
 		if f1.Width == BADWIDTH {
-			Fatal("lookdot badwidth %v %p", f1, f1)
+			Fatalf("lookdot badwidth %v %p", f1, f1)
 		}
 		n.Xoffset = f1.Width
 		n.Type = f1.Type
@@ -2578,7 +2578,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 					tt = tt.Type
 				}
 			} else {
-				Fatal("method mismatch: %v for %v", rcvr, tt)
+				Fatalf("method mismatch: %v for %v", rcvr, tt)
 			}
 		}
 
@@ -2820,7 +2820,7 @@ toomany:
  */
 func fielddup(n *Node, hash map[string]bool) {
 	if n.Op != ONAME {
-		Fatal("fielddup: not ONAME")
+		Fatalf("fielddup: not ONAME")
 	}
 	name := n.Sym.Name
 	if hash[name] {
@@ -2893,7 +2893,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 
 func indexdup(n *Node, hash map[int64]*Node) {
 	if n.Op != OLITERAL {
-		Fatal("indexdup: not OLITERAL")
+		Fatalf("indexdup: not OLITERAL")
 	}
 
 	v := Mpgetfix(n.Val().U.(*Mpint))
@@ -3497,7 +3497,7 @@ func typecheckfunc(n *Node) {
 func stringtoarraylit(np **Node) {
 	n := *np
 	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
-		Fatal("stringtoarraylit %v", n)
+		Fatalf("stringtoarraylit %v", n)
 	}
 
 	s := n.Left.Val().U.(string)
@@ -3709,7 +3709,7 @@ func typecheckdef(n *Node) *Node {
 			fmt.Printf(" %v", l.N.Sym)
 		}
 		fmt.Printf("\n")
-		Fatal("typecheckdef loop")
+		Fatalf("typecheckdef loop")
 	}
 
 	n.Walkdef = 2
@@ -3720,7 +3720,7 @@ func typecheckdef(n *Node) *Node {
 
 	switch n.Op {
 	default:
-		Fatal("typecheckdef %v", Oconv(int(n.Op), 0))
+		Fatalf("typecheckdef %v", Oconv(int(n.Op), 0))
 
 		// not really syms
 	case OGOTO, OLABEL:
@@ -3803,7 +3803,7 @@ func typecheckdef(n *Node) *Node {
 				break
 			}
 
-			Fatal("var without type, init: %v", n.Sym)
+			Fatalf("var without type, init: %v", n.Sym)
 		}
 
 		if n.Name.Defn.Op == ONAME {
@@ -3840,10 +3840,10 @@ func typecheckdef(n *Node) *Node {
 
 ret:
 	if n.Op != OLITERAL && n.Type != nil && isideal(n.Type) {
-		Fatal("got %v for %v", n.Type, n)
+		Fatalf("got %v for %v", n.Type, n)
 	}
 	if typecheckdefstack.N != n {
-		Fatal("typecheckdefstack mismatch")
+		Fatalf("typecheckdefstack mismatch")
 	}
 	l = typecheckdefstack
 	typecheckdefstack = l.Next

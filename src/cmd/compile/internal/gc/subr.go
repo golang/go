@@ -181,7 +181,7 @@ func Warnl(line int, fmt_ string, args ...interface{}) {
 	}
 }
 
-func Fatal(fmt_ string, args ...interface{}) {
+func Fatalf(fmt_ string, args ...interface{}) {
 	Flusherrors()
 
 	fmt.Printf("%v: internal compiler error: ", Ctxt.Line(int(lineno)))
@@ -339,7 +339,7 @@ func importdot(opkg *Pkg, pack *Node) {
 		s1.Block = s.Block
 		if s1.Def.Name == nil {
 			Dump("s1def", s1.Def)
-			Fatal("missing Name")
+			Fatalf("missing Name")
 		}
 		s1.Def.Name.Pack = pack
 		s1.Origpkg = opkg
@@ -414,7 +414,7 @@ func saveorignode(n *Node) {
 // the last field, total gives the size of the enclosing struct.
 func ispaddedfield(t *Type, total int64) bool {
 	if t.Etype != TFIELD {
-		Fatal("ispaddedfield called non-field %v", t)
+		Fatalf("ispaddedfield called non-field %v", t)
 	}
 	if t.Down == nil {
 		return t.Width+t.Type.Width != total
@@ -530,7 +530,7 @@ func algtype1(t *Type, bad **Type) int {
 		return ret
 	}
 
-	Fatal("algtype1: unexpected type %v", t)
+	Fatalf("algtype1: unexpected type %v", t)
 	return 0
 }
 
@@ -709,7 +709,7 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Type = t
 
 	if Isfloat[t.Etype] {
-		Fatal("nodconst: bad type %v", t)
+		Fatalf("nodconst: bad type %v", t)
 	}
 }
 
@@ -775,7 +775,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		}
 		if m.Name != nil && n.Op != ODCLFIELD {
 			Dump("treecopy", n)
-			Fatal("treecopy Name")
+			Fatalf("treecopy Name")
 		}
 
 	case ONONAME:
@@ -938,7 +938,7 @@ func cplxsubtype(et int) int {
 		return TFLOAT64
 	}
 
-	Fatal("cplxsubtype: %v\n", Econv(int(et), 0))
+	Fatalf("cplxsubtype: %v\n", Econv(int(et), 0))
 	return 0
 }
 
@@ -1010,7 +1010,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		t2 = t2.Type
 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
-				Fatal("struct/interface missing field: %v %v", t1, t2)
+				Fatalf("struct/interface missing field: %v %v", t1, t2)
 			}
 			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
 				return false
@@ -1028,7 +1028,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		t2 = t2.Type
 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
 			if t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
-				Fatal("func missing struct: %v %v", t1, t2)
+				Fatalf("func missing struct: %v %v", t1, t2)
 			}
 
 			// Loop over fields in structs, ignoring argument names.
@@ -1036,7 +1036,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 			tb := t2.Type
 			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
-					Fatal("func struct missing field: %v %v", ta, tb)
+					Fatalf("func struct missing field: %v %v", ta, tb)
 				}
 				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
 					return false
@@ -1378,7 +1378,7 @@ func substArgTypes(n *Node, types ...*Type) {
 	}
 	substAny(&n.Type, &types)
 	if len(types) > 0 {
-		Fatal("substArgTypes: too many argument types")
+		Fatalf("substArgTypes: too many argument types")
 	}
 }
 
@@ -1392,7 +1392,7 @@ func substAny(tp **Type, types *[]*Type) {
 		}
 		if t.Etype == TANY && t.Copyany != 0 {
 			if len(*types) == 0 {
-				Fatal("substArgTypes: not enough argument types")
+				Fatalf("substArgTypes: not enough argument types")
 			}
 			*tp = (*types)[0]
 			*types = (*types)[1:]
@@ -1526,7 +1526,7 @@ func deep(t *Type) *Type {
 func syslook(name string, copy int) *Node {
 	s := Pkglookup(name, Runtimepkg)
 	if s == nil || s.Def == nil {
-		Fatal("syslook: can't find runtime.%s", name)
+		Fatalf("syslook: can't find runtime.%s", name)
 	}
 
 	if copy == 0 {
@@ -1600,7 +1600,7 @@ func ptrto1(t *Type) *Type {
 // The returned struct must not be modified.
 func Ptrto(t *Type) *Type {
 	if Tptr == 0 {
-		Fatal("ptrto: no tptr")
+		Fatalf("ptrto: no tptr")
 	}
 	// Reduce allocations by pre-creating common cases.
 	if !initPtrtoDone {
@@ -1760,14 +1760,14 @@ func Structfirst(s *Iter, nn **Type) *Type {
 	}
 
 	if t.Etype != TFIELD {
-		Fatal("structfirst: not field %v", t)
+		Fatalf("structfirst: not field %v", t)
 	}
 
 	s.T = t
 	return t
 
 bad:
-	Fatal("structfirst: not struct %v", n)
+	Fatalf("structfirst: not struct %v", n)
 
 	return nil
 }
@@ -1780,7 +1780,7 @@ func structnext(s *Iter) *Type {
 	}
 
 	if t.Etype != TFIELD {
-		Fatal("structnext: not struct %v", n)
+		Fatalf("structnext: not struct %v", n)
 
 		return nil
 	}
@@ -1814,7 +1814,7 @@ func funcfirst(s *Iter, t *Type) *Type {
 	return fp
 
 bad:
-	Fatal("funcfirst: not func %v", t)
+	Fatalf("funcfirst: not func %v", t)
 	return nil
 }
 
@@ -1830,21 +1830,21 @@ func funcnext(s *Iter) *Type {
 
 func getthis(t *Type) **Type {
 	if t.Etype != TFUNC {
-		Fatal("getthis: not a func %v", t)
+		Fatalf("getthis: not a func %v", t)
 	}
 	return &t.Type
 }
 
 func Getoutarg(t *Type) **Type {
 	if t.Etype != TFUNC {
-		Fatal("getoutarg: not a func %v", t)
+		Fatalf("getoutarg: not a func %v", t)
 	}
 	return &t.Type.Down
 }
 
 func getinarg(t *Type) **Type {
 	if t.Etype != TFUNC {
-		Fatal("getinarg: not a func %v", t)
+		Fatalf("getinarg: not a func %v", t)
 	}
 	return &t.Type.Down.Down
 }
@@ -1878,7 +1878,7 @@ func Brcom(a int) int {
 	case OGE:
 		return OLT
 	}
-	Fatal("brcom: no com for %v\n", Oconv(a, 0))
+	Fatalf("brcom: no com for %v\n", Oconv(a, 0))
 	return a
 }
 
@@ -1899,7 +1899,7 @@ func Brrev(a int) int {
 	case OGE:
 		return OLE
 	}
-	Fatal("brrev: no rev for %v\n", Oconv(a, 0))
+	Fatalf("brrev: no rev for %v\n", Oconv(a, 0))
 	return a
 }
 
@@ -1961,7 +1961,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
 
 	// make a copy; must not be used as an lvalue
 	if islvalue(n) {
-		Fatal("missing lvalue case in safeexpr: %v", n)
+		Fatalf("missing lvalue case in safeexpr: %v", n)
 	}
 	return cheapexpr(n, init)
 }
@@ -2005,11 +2005,11 @@ func Setmaxarg(t *Type, extra int32) {
 	dowidth(t)
 	w := t.Argwid
 	if w >= Thearch.MAXWIDTH {
-		Fatal("bad argwid %v", t)
+		Fatalf("bad argwid %v", t)
 	}
 	w += int64(extra)
 	if w >= Thearch.MAXWIDTH {
-		Fatal("bad argwid %d + %v", extra, t)
+		Fatalf("bad argwid %d + %v", extra, t)
 	}
 	if w > Maxarg {
 		Maxarg = w
@@ -2526,7 +2526,7 @@ func hashfor(t *Type) *Node {
 	a := algtype1(t, nil)
 	switch a {
 	case AMEM:
-		Fatal("hashfor with AMEM type")
+		Fatalf("hashfor with AMEM type")
 
 	case AINTER:
 		sym = Pkglookup("interhash", Runtimepkg)
@@ -2601,11 +2601,11 @@ func genhash(sym *Sym, t *Type) {
 	// so t must be either an array or a struct.
 	switch t.Etype {
 	default:
-		Fatal("genhash %v", t)
+		Fatalf("genhash %v", t)
 
 	case TARRAY:
 		if Isslice(t) {
-			Fatal("genhash %v", t)
+			Fatalf("genhash %v", t)
 		}
 
 		// An array of pure memory would be handled by the
@@ -2852,11 +2852,11 @@ func geneq(sym *Sym, t *Type) {
 	// so t must be either an array or a struct.
 	switch t.Etype {
 	default:
-		Fatal("geneq %v", t)
+		Fatalf("geneq %v", t)
 
 	case TARRAY:
 		if Isslice(t) {
-			Fatal("geneq %v", t)
+			Fatalf("geneq %v", t)
 		}
 
 		// An array of pure memory would be handled by the

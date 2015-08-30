@@ -34,10 +34,10 @@ func defframe(ptxt *obj.Prog) {
 			continue
 		}
 		if n.Class != gc.PAUTO {
-			gc.Fatal("needzero class %d", n.Class)
+			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
 			// merge with range we already have
@@ -350,7 +350,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
  */
 func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if gc.Is64(nl.Type) {
-		gc.Fatal("cgen_div %v", nl.Type)
+		gc.Fatalf("cgen_div %v", nl.Type)
 	}
 
 	var t *gc.Type
@@ -377,7 +377,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  */
 func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if nl.Type.Width > 4 {
-		gc.Fatal("cgen_shift %v", nl.Type)
+		gc.Fatalf("cgen_shift %v", nl.Type)
 	}
 
 	w := int(nl.Type.Width * 8)
@@ -677,7 +677,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	default:
 		gc.Dump("cgen_floatsse", n)
-		gc.Fatal("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
 		return
 
 	case gc.OMINUS,

@@ -1313,7 +1313,7 @@ yydefault:
 			// no package statement. This allows us to test more
 			// than one invalid import statement in a single file.
 			if nerrors == 0 {
-				Fatal("phase error in import")
+				Fatalf("phase error in import")
 			}
 		}
 	case 15:

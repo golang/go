@@ -65,7 +65,7 @@ func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
 
 func bvcmp(bv1 Bvec, bv2 Bvec) int {
 	if bv1.n != bv2.n {
-		Fatal("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
+		Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
 	}
 	for i, x := range bv1.b {
 		if x != bv2.b[i] {
@@ -98,7 +98,7 @@ func bvconcat(src1 Bvec, src2 Bvec) Bvec {
 
 func bvget(bv Bvec, i int32) int {
 	if i < 0 || i >= bv.n {
-		Fatal("bvget: index %d is out of bounds with length %d\n", i, bv.n)
+		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
 	}
 	return int((bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)) & 1)
 }
@@ -174,7 +174,7 @@ func bvprint(bv Bvec) {
 
 func bvreset(bv Bvec, i int32) {
 	if i < 0 || i >= bv.n {
-		Fatal("bvreset: index %d is out of bounds with length %d\n", i, bv.n)
+		Fatalf("bvreset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
 	mask := uint32(^(1 << uint(i%WORDBITS)))
 	bv.b[i/WORDBITS] &= mask
@@ -188,7 +188,7 @@ func bvresetall(bv Bvec) {
 
 func bvset(bv Bvec, i int32) {
 	if i < 0 || i >= bv.n {
-		Fatal("bvset: index %d is out of bounds with length %d\n", i, bv.n)
+		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
 	}
 	mask := uint32(1 << uint(i%WORDBITS))
 	bv.b[i/WORDBITS] |= mask

@@ -139,7 +139,7 @@ func proginfo(p *obj.Prog) {
 	info := &p.Info
 	*info = progtable[p.As]
 	if info.Flags == 0 {
-		gc.Fatal("proginfo: unknown instruction %v", p)
+		gc.Fatalf("proginfo: unknown instruction %v", p)
 	}
 
 	if (info.Flags&gc.RegRead != 0) && p.Reg == 0 {
@@ -302,7 +302,7 @@ func as2variant(as int) int {
 			return i
 		}
 	}
-	gc.Fatal("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
+	gc.Fatalf("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
 	return 0
 }
 

@@ -55,13 +55,13 @@ const (
  */
 func optoas(op int, t *gc.Type) int {
 	if t == nil {
-		gc.Fatal("optoas: t is nil")
+		gc.Fatalf("optoas: t is nil")
 	}
 
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
 
 	case gc.OADDR<<16 | gc.TPTR32:
 		a = x86.ALEAL
@@ -413,7 +413,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
 	if !gc.Thearch.Use387 {
 		switch uint32(op)<<16 | uint32(et) {
 		default:
-			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
+			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
 
 		case gc.OCMP<<16 | gc.TFLOAT32:
 			a = x86.AUCOMISS
@@ -546,7 +546,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
 		return x86.AFCHS
 	}
 
-	gc.Fatal("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
+	gc.Fatalf("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
 	return 0
 }
 
@@ -655,11 +655,11 @@ var nsclean int
  */
 func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	if !gc.Is64(n.Type) {
-		gc.Fatal("split64 %v", n.Type)
+		gc.Fatalf("split64 %v", n.Type)
 	}
 
 	if nsclean >= len(sclean) {
-		gc.Fatal("split64 clean")
+		gc.Fatalf("split64 clean")
 	}
 	sclean[nsclean].Op = gc.OEMPTY
 	nsclean++
@@ -714,7 +714,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 
 func splitclean() {
 	if nsclean <= 0 {
-		gc.Fatal("splitclean")
+		gc.Fatalf("splitclean")
 	}
 	nsclean--
 	if sclean[nsclean].Op != gc.OEMPTY {
@@ -805,7 +805,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		// should not happen
-		gc.Fatal("gmove %v -> %v", f, t)
+		gc.Fatalf("gmove %v -> %v", f, t)
 		return
 
 		/*
@@ -1372,7 +1372,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		gmove(f, &t1)
 		switch tt {
 		default:
-			gc.Fatal("gmove %v", t)
+			gc.Fatalf("gmove %v", t)
 
 		case gc.TINT8:
 			gins(x86.ACMPL, &t1, ncon(-0x80&(1<<32-1)))
@@ -1483,7 +1483,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		}
 		if gc.Ismem(t) {
 			if f.Op != gc.OREGISTER || f.Reg != x86.REG_F0 {
-				gc.Fatal("gmove %v", f)
+				gc.Fatalf("gmove %v", f)
 			}
 			a = x86.AFMOVFP
 			if ft == gc.TFLOAT64 {
@@ -1551,7 +1551,7 @@ hardmem:
 
 	// should not happen
 fatal:
-	gc.Fatal("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
 
 	return
 }
@@ -1567,7 +1567,7 @@ func floatmove_sse(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	// should not happen
 	default:
-		gc.Fatal("gmove %v -> %v", f, t)
+		gc.Fatalf("gmove %v -> %v", f, t)
 
 		return
 
@@ -1703,13 +1703,13 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  */
 func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	if as == x86.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
-		gc.Fatal("gins MOVF reg, reg")
+		gc.Fatalf("gins MOVF reg, reg")
 	}
 	if as == x86.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
-		gc.Fatal("gins CVTSD2SS const")
+		gc.Fatalf("gins CVTSD2SS const")
 	}
 	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Reg == x86.REG_F0 {
-		gc.Fatal("gins MOVSD into F0")
+		gc.Fatalf("gins MOVSD into F0")
 	}
 
 	if as == x86.AMOVL && f != nil && f.Op == gc.OADDR && f.Left.Op == gc.ONAME && f.Left.Class != gc.PEXTERN && f.Left.Class != gc.PFUNC {
@@ -1731,7 +1731,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	case x86.ALEAL:
 		if f != nil && gc.Isconst(f, gc.CTNIL) {
-			gc.Fatal("gins LEAL nil %v", f.Type)
+			gc.Fatalf("gins LEAL nil %v", f.Type)
 		}
 	}
 
@@ -1758,11 +1758,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	if true && w != 0 && f != nil && (p.From.Width > int64(w) || p.To.Width > int64(w)) {
 		gc.Dump("bad width from:", f)
 		gc.Dump("bad width to:", t)
-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
 	}
 
 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
-		gc.Fatal("bad use of addr: %v", p)
+		gc.Fatalf("bad use of addr: %v", p)
 	}
 
 	return p

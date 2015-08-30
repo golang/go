@@ -93,7 +93,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
 
 	switch as {
 	default:
-		gc.Fatal("ginscon2")
+		gc.Fatalf("ginscon2")
 
 	case ppc64.ACMP:
 		if -ppc64.BIG <= c && c <= ppc64.BIG {
@@ -261,7 +261,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
-		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
 
 		/*
 		 * integer copy and truncate
@@ -614,12 +614,12 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	case ppc64.AAND, ppc64.AMULLD:
 		if p.From.Type == obj.TYPE_CONST {
 			gc.Debug['h'] = 1
-			gc.Fatal("bad inst: %v", p)
+			gc.Fatalf("bad inst: %v", p)
 		}
 	case ppc64.ACMP, ppc64.ACMPU:
 		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
 			gc.Debug['h'] = 1
-			gc.Fatal("bad inst: %v", p)
+			gc.Fatalf("bad inst: %v", p)
 		}
 	}
 
@@ -658,7 +658,7 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
 		gc.Dump("f", f)
 		gc.Dump("t", t)
-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
 	}
 
 	return p
@@ -669,13 +669,13 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
  */
 func optoas(op int, t *gc.Type) int {
 	if t == nil {
-		gc.Fatal("optoas: t is nil")
+		gc.Fatalf("optoas: t is nil")
 	}
 
 	a := int(obj.AXXX)
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
 
 	case gc.OEQ<<16 | gc.TBOOL,
 		gc.OEQ<<16 | gc.TINT8,
