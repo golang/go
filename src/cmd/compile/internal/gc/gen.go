@@ -135,7 +135,7 @@ func newlab(n *Node) *Label {
 			lab.Def = n
 		}
 	} else {
-		lab.Use = list(lab.Use, n)
+		lab.Use = append(lab.Use, n)
 	}
 
 	return lab
@@ -986,12 +986,10 @@ func CgenTemp(n *Node) *Node {
 }
 
 func checklabels() {
-	var l *NodeList
-
 	for lab := labellist; lab != nil; lab = lab.Link {
 		if lab.Def == nil {
-			for l = lab.Use; l != nil; l = l.Next {
-				yyerrorl(int(l.N.Lineno), "label %v not defined", lab.Sym)
+			for _, n := range lab.Use {
+				yyerrorl(int(n.Lineno), "label %v not defined", lab.Sym)
 			}
 			continue
 		}
@@ -1004,8 +1002,8 @@ func checklabels() {
 		if lab.Gotopc != nil {
 			Fatalf("label %v never resolved", lab.Sym)
 		}
-		for l = lab.Use; l != nil; l = l.Next {
-			checkgoto(l.N, lab.Def)
+		for _, n := range lab.Use {
+			checkgoto(n, lab.Def)
 		}
 	}
 }

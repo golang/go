@@ -220,7 +220,7 @@ type Label struct {
 	Used uint8
 	Sym  *Sym
 	Def  *Node
-	Use  *NodeList
+	Use  []*Node
 	Link *Label
 
 	// for use during gen
