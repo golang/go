@@ -101,6 +101,7 @@ func testFallthrough() {
 	for i := 0; i < 6; i++ {
 		if got := fallthrough_ssa(i); got != i {
 			println("fallthrough_ssa(i) =", got, "wanted", i)
+			failed = true
 		}
 	}
 }
@@ -109,6 +110,7 @@ func testSwitch() {
 	for i := 0; i < 6; i++ {
 		if got := switch_ssa(i); got != i {
 			println("switch_ssa(i) =", got, "wanted", i)
+			failed = true
 		}
 	}
 }
