@@ -840,12 +840,12 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OEQ, TUINT32}:    ssa.OpEq32,
 	opAndType{OEQ, TINT64}:     ssa.OpEq64,
 	opAndType{OEQ, TUINT64}:    ssa.OpEq64,
-	opAndType{OEQ, TPTR64}:     ssa.OpEq64,
 	opAndType{OEQ, TINTER}:     ssa.OpEqFat, // e == nil only
 	opAndType{OEQ, TARRAY}:     ssa.OpEqFat, // slice only; a == nil only
 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
+	opAndType{OEQ, TPTR64}:     ssa.OpEqPtr,
 	opAndType{OEQ, TUINTPTR}:   ssa.OpEqPtr,
 	opAndType{OEQ, TUNSAFEPTR}: ssa.OpEqPtr,
 	opAndType{OEQ, TFLOAT64}:   ssa.OpEq64F,
@@ -860,12 +860,12 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ONE, TUINT32}:    ssa.OpNeq32,
 	opAndType{ONE, TINT64}:     ssa.OpNeq64,
 	opAndType{ONE, TUINT64}:    ssa.OpNeq64,
-	opAndType{ONE, TPTR64}:     ssa.OpNeq64,
 	opAndType{ONE, TINTER}:     ssa.OpNeqFat, // e != nil only
 	opAndType{ONE, TARRAY}:     ssa.OpNeqFat, // slice only; a != nil only
 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
+	opAndType{ONE, TPTR64}:     ssa.OpNeqPtr,
 	opAndType{ONE, TUINTPTR}:   ssa.OpNeqPtr,
 	opAndType{ONE, TUNSAFEPTR}: ssa.OpNeqPtr,
 	opAndType{ONE, TFLOAT64}:   ssa.OpNeq64F,
