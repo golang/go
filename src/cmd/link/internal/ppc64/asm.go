@@ -348,26 +348,39 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		return 0
 
 	case obj.R_ADDRPOWER:
-		// r->add is two ppc64 instructions holding an immediate 32-bit constant.
-		// We want to add r->sym's address to that constant.
-		// The encoding of the immediate x<<16 + y,
-		// where x is the low 16 bits of the first instruction and y is the low 16
-		// bits of the second. Both x and y are signed (int16, not uint16).
-		o1 := uint32(r.Add >> 32)
-		o2 := uint32(r.Add)
-		t := ld.Symaddr(r.Sym)
-		if t < 0 {
+		// We are spreading a 31-bit address across two instructions,
+		// putting the high (adjusted) part in the low 16 bits of the
+		// first instruction and the low part in the low 16 bits of the
+		// second instruction.
+		t := ld.Symaddr(r.Sym) + r.Add
+		if t < 0 || t >= 1<<31 {
 			ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
 		}
-
-		t += int64((o1&0xffff)<<16 + uint32(int32(o2)<<16>>16))
+		var o1, o2 uint32
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+			o1 = uint32(*val >> 32)
+			o2 = uint32(*val)
+		} else {
+			o1 = uint32(*val)
+			o2 = uint32(*val >> 32)
+		}
 		if t&0x8000 != 0 {
 			t += 0x10000
 		}
-		o1 = o1&0xffff0000 | (uint32(t)>>16)&0xffff
-		o2 = o2&0xffff0000 | uint32(t)&0xffff
+		// There is an almost-bug here. When R_ADDRPOWER is relocating a
+		// load, the two instructions are addi and then a load. addi and
+		// almost all loads are "D-form" instructions, which have a
+		// 16-bit immediate in the lower 16-bits of the instruction
+		// word. But the load doubleword instruction is a "DS-form"
+		// instruction: the immediate only occupies bits 16-29 of the
+		// instruction and is implicity padded with zeros on the
+		// right. The reason the belows isn't a bug is because we only
+		// ever use immediates that have zeros on in their lower bits
+		// with ld, and we combine the immediate with | so bits 30 and
+		// 31 are preserved.
+		o1 |= (uint32(t) >> 16) & 0xffff
+		o2 |= uint32(t) & 0xffff
 
-		// when laid out, the instruction order must always be o1, o2.
 		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
 			*val = int64(o1)<<32 | int64(o2)
 		} else {
@@ -377,12 +390,6 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 	case obj.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
-		var o1 uint32
-		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-			o1 = ld.Be32(s.P[r.Off:])
-		} else {
-			o1 = ld.Le32(s.P[r.Off:])
-		}
 
 		t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
 		if t&3 != 0 {
@@ -394,7 +401,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			ld.Ctxt.Diag("relocation for %s+%d is too big: %d", r.Sym.Name, r.Off, t)
 		}
 
-		*val = int64(o1&0xfc000003 | uint32(t)&^0xfc000003)
+		*val |= int64(uint32(t) &^ 0xfc000003)
 		return 0
 
 	case obj.R_POWER_TOC: // S + A - .TOC.
@@ -578,10 +585,8 @@ func ensureglinkresolver() *ld.LSym {
 	r.Siz = 8
 	r.Type = obj.R_ADDRPOWER
 
-	// addis r11,0,.plt@ha; addi r11,r11,.plt@l
-	r.Add = 0x3d600000<<32 | 0x396b0000
-
-	glink.Size += 8
+	ld.Adduint32(ld.Ctxt, glink, 0x3d600000) // addis r11,0,.plt@ha
+	ld.Adduint32(ld.Ctxt, glink, 0x396b0000) // addi r11,r11,.plt@l
 
 	// Load r12 = dynamic resolver address and r11 = DSO
 	// identifier from the first two doublewords of the PLT.
