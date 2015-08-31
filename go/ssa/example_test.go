@@ -113,15 +113,15 @@ func ExampleBuildPackage() {
 	// 	return
 }
 
-// This program shows how to load a main package (cmd/nm) and all its
+// This program shows how to load a main package (cmd/cover) and all its
 // dependencies from source, using the loader, and then build SSA code
 // for the entire program.  This is what you'd typically use for a
 // whole-program analysis.
 //
 func ExampleLoadProgram() {
-	// Load cmd/nm and its dependencies.
+	// Load cmd/cover and its dependencies.
 	var conf loader.Config
-	conf.Import("cmd/nm")
+	conf.Import("cmd/cover")
 	lprog, err := conf.Load()
 	if err != nil {
 		fmt.Print(err) // type error in some package
@@ -131,7 +131,7 @@ func ExampleLoadProgram() {
 	// Create SSA-form program representation.
 	prog := ssautil.CreateProgram(lprog, ssa.SanityCheckFunctions)
 
-	// Build SSA code for the entire cmd/nm program.
+	// Build SSA code for the entire cmd/cover program.
 	prog.BuildAll()
 
 	// Output:

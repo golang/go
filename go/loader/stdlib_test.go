@@ -28,6 +28,17 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
+// The set of packages that transitively depend on cmd/internal/objfile,
+// which uses vendoring, which go/loader does not yet support.
+// TODO(adonovan): add support for vendoring and delete this.
+var skip = map[string]bool{
+	"cmd/addr2line":        true,
+	"cmd/internal/objfile": true,
+	"cmd/nm":               true,
+	"cmd/objdump":          true,
+	"cmd/pprof":            true,
+}
+
 func TestStdlib(t *testing.T) {
 	if runtime.GOOS == "android" {
 		t.Skipf("incomplete std lib on %s", runtime.GOOS)
@@ -44,6 +55,9 @@ func TestStdlib(t *testing.T) {
 	ctxt.GOPATH = ""      // disable GOPATH
 	conf := loader.Config{Build: &ctxt}
 	for _, path := range buildutil.AllPackages(conf.Build) {
+		if skip[path] {
+			continue
+		}
 		conf.ImportWithTests(path)
 	}
 
