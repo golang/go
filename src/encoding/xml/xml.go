@@ -583,7 +583,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				return nil, d.err
 			}
 			enc := procInst("encoding", content)
-			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
+			if enc != "" && enc != "utf-8" && enc != "UTF-8" && !strings.EqualFold(enc, "utf-8") {
 				if d.CharsetReader == nil {
 					d.err = fmt.Errorf("xml: encoding %q declared but Decoder.CharsetReader is nil", enc)
 					return nil, d.err
