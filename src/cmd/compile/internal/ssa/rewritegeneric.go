@@ -478,6 +478,49 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto end6f10fb57a906a2c23667c770acb6abf9
 	end6f10fb57a906a2c23667c770acb6abf9:
 		;
+	case OpEqPtr:
+		// match: (EqPtr p (ConstNil))
+		// cond:
+		// result: (Not (IsNonNil p))
+		{
+			p := v.Args[0]
+			if v.Args[1].Op != OpConstNil {
+				goto ende701cdb6a2c1fff4d4b283b7f8f6178b
+			}
+			v.Op = OpNot
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
+			v0.AddArg(p)
+			v0.Type = config.fe.TypeBool()
+			v.AddArg(v0)
+			return true
+		}
+		goto ende701cdb6a2c1fff4d4b283b7f8f6178b
+	ende701cdb6a2c1fff4d4b283b7f8f6178b:
+		;
+		// match: (EqPtr (ConstNil) p)
+		// cond:
+		// result: (Not (IsNonNil p))
+		{
+			if v.Args[0].Op != OpConstNil {
+				goto end7cdc0d5c38fbffe6287c8928803b038e
+			}
+			p := v.Args[1]
+			v.Op = OpNot
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
+			v0.AddArg(p)
+			v0.Type = config.fe.TypeBool()
+			v.AddArg(v0)
+			return true
+		}
+		goto end7cdc0d5c38fbffe6287c8928803b038e
+	end7cdc0d5c38fbffe6287c8928803b038e:
+		;
 	case OpIData:
 		// match: (IData (IMake _ data))
 		// cond:
@@ -960,6 +1003,43 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		}
 		goto end3ffd7685735a83eaee8dc2577ae89d79
 	end3ffd7685735a83eaee8dc2577ae89d79:
+		;
+	case OpNeqPtr:
+		// match: (NeqPtr p (ConstNil))
+		// cond:
+		// result: (IsNonNil p)
+		{
+			p := v.Args[0]
+			if v.Args[1].Op != OpConstNil {
+				goto endba798520b4d41172b110347158c44791
+			}
+			v.Op = OpIsNonNil
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(p)
+			return true
+		}
+		goto endba798520b4d41172b110347158c44791
+	endba798520b4d41172b110347158c44791:
+		;
+		// match: (NeqPtr (ConstNil) p)
+		// cond:
+		// result: (IsNonNil p)
+		{
+			if v.Args[0].Op != OpConstNil {
+				goto enddd95e9c3606d9fd48034f1a703561e45
+			}
+			p := v.Args[1]
+			v.Op = OpIsNonNil
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(p)
+			return true
+		}
+		goto enddd95e9c3606d9fd48034f1a703561e45
+	enddd95e9c3606d9fd48034f1a703561e45:
 		;
 	case OpOr16:
 		// match: (Or16 x x)

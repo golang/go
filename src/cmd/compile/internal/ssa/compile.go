@@ -121,6 +121,8 @@ var passOrder = [...]constraint{
 	{"nilcheckelim", "generic deadcode"},
 	// nilcheckelim generates sequences of plain basic blocks
 	{"nilcheckelim", "fuse"},
+	// nilcheckelim relies on opt to rewrite user nil checks
+	{"opt", "nilcheckelim"},
 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
 	{"tighten", "lower"},
 	// tighten will be most effective when as many values have been removed as possible

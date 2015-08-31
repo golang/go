@@ -313,9 +313,9 @@ var genericOps = []opData{
 	{name: "Cvt64Fto32F"},
 
 	// Automatically inserted safety checks
-	{name: "IsNonNil"},        // arg0 != nil
-	{name: "IsInBounds"},      // 0 <= arg0 < arg1
-	{name: "IsSliceInBounds"}, // 0 <= arg0 <= arg1
+	{name: "IsNonNil", typ: "Bool"},        // arg0 != nil
+	{name: "IsInBounds", typ: "Bool"},      // 0 <= arg0 < arg1
+	{name: "IsSliceInBounds", typ: "Bool"}, // 0 <= arg0 <= arg1
 
 	// Pseudo-ops
 	{name: "PanicNilCheck"},   // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem

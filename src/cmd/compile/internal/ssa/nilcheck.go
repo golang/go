@@ -105,12 +105,11 @@ func nilcheckelim(f *Func) {
 
 		var nilBranch *Block
 		for _, w := range domTree[node.block.ID] {
-			// TODO: Since we handle the false side of OpIsNonNil
-			// correctly, look into rewriting user nil checks into
-			// OpIsNonNil so they can be eliminated also
-
-			// we are about to traverse down the 'ptr is nil' side
-			// of a nilcheck block, so save it for later
+			// We are about to traverse down the 'ptr is nil' side
+			// of a nilcheck block, so save it for later.  This doesn't
+			// remove nil checks on the false side of the OpIsNonNil branch.
+			// This is important otherwise we would remove nil checks that
+			// are not redundant.
 			if node.block.Kind == BlockIf && node.block.Control.Op == OpIsNonNil &&
 				w == node.block.Succs[1] {
 				nilBranch = w
