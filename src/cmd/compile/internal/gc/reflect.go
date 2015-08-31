@@ -1180,7 +1180,8 @@ ok:
 				}
 			} else {
 				ot = dgostringptr(s, ot, "")
-				if t1.Type.Sym != nil && t1.Type.Sym.Pkg == builtinpkg {
+				if t1.Type.Sym != nil &&
+					(t1.Type.Sym.Pkg == builtinpkg || !exportname(t1.Type.Sym.Name)) {
 					ot = dgopkgpath(s, ot, localpkg)
 				} else {
 					ot = dgostringptr(s, ot, "")
