@@ -24,6 +24,13 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 		}
 		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
 	}
+	// On some systems, there is a sysctl setting.
+	if os.Getuid() != 0 {
+		data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+		if errRead == nil && data[0] == '0' {
+			t.Skip("kernel prohibits user namespace in unprivileged process")
+		}
+	}
 	cmd := exec.Command("whoami")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER,
@@ -42,14 +49,6 @@ func testNEWUSERRemap(t *testing.T, uid, gid int, setgroups bool) {
 	cmd := whoamiCmd(t, uid, gid, setgroups)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		// On some systems, there is a sysctl setting.
-		if os.IsPermission(err) && os.Getuid() != 0 {
-			data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-			if errRead == nil && data[0] == '0' {
-				t.Skip("kernel prohibits user namespace in unprivileged process")
-			}
-		}
-
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	sout := strings.TrimSpace(string(out))
