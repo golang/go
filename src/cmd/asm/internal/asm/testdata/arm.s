@@ -165,14 +165,6 @@ TEXT	foo(SB), 0, $0
 //	}
 	STREX.S	(R2), R3
 
-// CASE
-//
-//	LTYPED cond reg
-//	{
-//		outcode($1, $2, &$3, 0, &nullgen);
-//	}
-	CASE.S	R1
-
 //
 // word
 //
