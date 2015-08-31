@@ -434,7 +434,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 		// TODO: rematerialize if we can.
 		case vi.spill2 != nil:
 			if logSpills {
-				fmt.Println("regallog: load spill2")
+				fmt.Println("regalloc: load spill2")
 			}
 			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill2)
 			vi.spill2used = true
