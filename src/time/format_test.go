@@ -164,6 +164,9 @@ var parseTests = []ParseTest{
 	// GMT with offset.
 	{"GMT-8", UnixDate, "Fri Feb  5 05:00:57 GMT-8 2010", true, true, 1, 0},
 
+	// Day of month can be out of range.
+	{"Jan 36", UnixDate, "Fri Jan 36 05:00:57 GMT-8 2010", true, true, 1, 0},
+
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two
 	// cases would succeed, but the next four would not. Go 1.1 accepts all six.
