@@ -124,7 +124,7 @@ func (r *renamer) checkInPackageBlock(from types.Object) {
 	// Check for conflicts between package block and all file blocks.
 	for _, f := range info.Files {
 		fileScope := info.Info.Scopes[f]
-		b, prev := fileScope.LookupParent(r.to)
+		b, prev := fileScope.LookupParent(r.to, token.NoPos)
 		if b == fileScope {
 			r.errorf(from.Pos(), "renaming this %s %q to %q would conflict",
 				objectKind(from), from.Name(), r.to)
@@ -210,7 +210,7 @@ func (r *renamer) checkInLocalScope(from types.Object) {
 func (r *renamer) checkInLexicalScope(from types.Object, info *loader.PackageInfo) {
 	b := from.Parent() // the block defining the 'from' object
 	if b != nil {
-		toBlock, to := b.LookupParent(r.to)
+		toBlock, to := b.LookupParent(r.to, from.Parent().End())
 		if toBlock == b {
 			// same-block conflict
 			r.errorf(from.Pos(), "renaming this %s %q to %q",
