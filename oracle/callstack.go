@@ -61,7 +61,7 @@ func callstack(q *Query) error {
 	}
 
 	// Defer SSA construction till after errors are reported.
-	prog.BuildAll()
+	prog.Build()
 
 	target := ssa.EnclosingFunction(pkg, qpos.path)
 	if target == nil {

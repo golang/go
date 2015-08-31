@@ -1879,7 +1879,7 @@ func (c *rtypeMethodByNameConstraint) solve(a *analysis, delta *nodeset) {
 				if isIface {
 					sig = sel.Type().(*types.Signature)
 				} else {
-					fn = a.prog.Method(sel)
+					fn = a.prog.MethodValue(sel)
 					// move receiver to params[0]
 					sig = changeRecv(fn.Signature)
 				}

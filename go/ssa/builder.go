@@ -2217,9 +2217,7 @@ func (b *builder) buildFuncDecl(pkg *Package, decl *ast.FuncDecl) {
 //
 // BuildAll is idempotent and thread-safe.
 //
-// TODO(adonovan): rename to Build.
-//
-func (prog *Program) BuildAll() {
+func (prog *Program) Build() {
 	var wg sync.WaitGroup
 	for _, p := range prog.packages {
 		if prog.mode&BuildSerially != 0 {
@@ -2281,10 +2279,10 @@ func (p *Package) Build() {
 		emitStore(init, initguard, vTrue, token.NoPos)
 
 		// Call the init() function of each package we import.
-		for _, pkg := range p.Object.Imports() {
+		for _, pkg := range p.Pkg.Imports() {
 			prereq := p.Prog.packages[pkg]
 			if prereq == nil {
-				panic(fmt.Sprintf("Package(%q).Build(): unsatisfied import: Program.CreatePackage(%q) was not called", p.Object.Path(), pkg.Path()))
+				panic(fmt.Sprintf("Package(%q).Build(): unsatisfied import: Program.CreatePackage(%q) was not called", p.Pkg.Path(), pkg.Path()))
 			}
 			var v Call
 			v.Call.Value = prereq.init

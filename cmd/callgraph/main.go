@@ -180,7 +180,7 @@ func doCallgraph(ctxt *build.Context, algo, format string, tests bool, args []st
 
 	// Create and build SSA-form program representation.
 	prog := ssautil.CreateProgram(iprog, 0)
-	prog.BuildAll()
+	prog.Build()
 
 	// -- call graph construction ------------------------------------------
 
@@ -295,7 +295,7 @@ func mainPackage(prog *ssa.Program, tests bool) (*ssa.Package, error) {
 
 	// Otherwise, use the first package named main.
 	for _, pkg := range pkgs {
-		if pkg.Object.Name() == "main" {
+		if pkg.Pkg.Name() == "main" {
 			if pkg.Func("main") == nil {
 				return nil, fmt.Errorf("no func main() in main package")
 			}

@@ -162,7 +162,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
-		Object:  pkg,
+		Pkg:     pkg,
 		info:    info,  // transient (CREATE and BUILD phases)
 		files:   files, // transient (CREATE and BUILD phases)
 	}
@@ -190,7 +190,7 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 		// GC-compiled binary package.
 		// No code.
 		// No position information.
-		scope := p.Object.Scope()
+		scope := p.Pkg.Scope()
 		for _, name := range scope.Names() {
 			obj := scope.Lookup(name)
 			memberFromObject(p, obj, nil)
@@ -224,9 +224,9 @@ func (prog *Program) CreatePackage(pkg *types.Package, files []*ast.File, info *
 	}
 
 	if importable {
-		prog.imported[p.Object.Path()] = p
+		prog.imported[p.Pkg.Path()] = p
 	}
-	prog.packages[p.Object] = p
+	prog.packages[p.Pkg] = p
 
 	return p
 }

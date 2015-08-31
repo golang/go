@@ -407,8 +407,8 @@ func (s *sanity) checkFunction(fn *Function) bool {
 		s.errorf("nil Prog")
 	}
 
-	fn.String()               // must not crash
-	fn.RelString(fn.pkgobj()) // must not crash
+	fn.String()            // must not crash
+	fn.RelString(fn.pkg()) // must not crash
 
 	// All functions have a package, except delegates (which are
 	// shared across packages, or duplicated as weak symbols in a
@@ -484,7 +484,7 @@ func (s *sanity) checkFunction(fn *Function) bool {
 // It does not require that the package is built.
 // Unlike sanityCheck (for functions), it just panics at the first error.
 func sanityCheckPackage(pkg *Package) {
-	if pkg.Object == nil {
+	if pkg.Pkg == nil {
 		panic(fmt.Sprintf("Package %s has no Object", pkg))
 	}
 	pkg.String() // must not crash
@@ -492,7 +492,7 @@ func sanityCheckPackage(pkg *Package) {
 	for name, mem := range pkg.Members {
 		if name != mem.Name() {
 			panic(fmt.Sprintf("%s: %T.Name() = %s, want %s",
-				pkg.Object.Path(), mem, mem.Name(), name))
+				pkg.Pkg.Path(), mem, mem.Name(), name))
 		}
 		obj := mem.Object()
 		if obj == nil {
@@ -510,7 +510,7 @@ func sanityCheckPackage(pkg *Package) {
 				// its types.Func ("init") and its ssa.Function ("init#%d").
 			} else {
 				panic(fmt.Sprintf("%s: %T.Object().Name() = %s, want %s",
-					pkg.Object.Path(), mem, obj.Name(), name))
+					pkg.Pkg.Path(), mem, obj.Name(), name))
 			}
 		}
 		if obj.Pos() != mem.Pos() {

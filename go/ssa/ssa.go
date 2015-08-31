@@ -45,7 +45,7 @@ type Program struct {
 //
 type Package struct {
 	Prog    *Program               // the owning program
-	Object  *types.Package         // the type checker's package object for this package
+	Pkg     *types.Package         // the corresponding go/types.Package
 	Members map[string]Member      // all package members keyed by name (incl. init and init#%d)
 	values  map[types.Object]Value // package members (incl. types and methods), keyed by object
 	init    *Function              // Func("init"); the package's init function

@@ -619,7 +619,7 @@ func setGlobal(i *interpreter, pkg *ssa.Package, name string, v value) {
 		*g = v
 		return
 	}
-	panic("no global variable: " + pkg.Object.Path() + "." + name)
+	panic("no global variable: " + pkg.Pkg.Path() + "." + name)
 }
 
 var environ []value
@@ -687,7 +687,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 		}
 
 		// Ad-hoc initialization for magic system variables.
-		switch pkg.Object.Path() {
+		switch pkg.Pkg.Path() {
 		case "syscall":
 			setGlobal(i, pkg, "envs", environ)
 
@@ -695,7 +695,7 @@ func Interpret(mainpkg *ssa.Package, mode Mode, sizes types.Sizes, filename stri
 			deleteBodies(pkg, "DeepEqual", "deepValueEqual")
 
 		case "runtime":
-			sz := sizes.Sizeof(pkg.Object.Scope().Lookup("MemStats").Type())
+			sz := sizes.Sizeof(pkg.Pkg.Scope().Lookup("MemStats").Type())
 			setGlobal(i, pkg, "sizeof_C_MStats", uintptr(sz))
 			deleteBodies(pkg, "GOROOT", "gogetenv")
 		}

@@ -66,7 +66,7 @@ func main() {
 	mainPkg := prog.Package(iprog.Created[0].Pkg)
 
 	// Build SSA code for bodies of all functions in the whole program.
-	prog.BuildAll()
+	prog.Build()
 
 	// Configure the pointer analysis to build a call-graph.
 	config := &pointer.Config{
@@ -76,7 +76,7 @@ func main() {
 
 	// Query points-to set of (C).f's parameter m, a map.
 	C := mainPkg.Type("C").Type()
-	Cfm := prog.LookupMethod(C, mainPkg.Object, "f").Params[1]
+	Cfm := prog.LookupMethod(C, mainPkg.Pkg, "f").Params[1]
 	config.AddQuery(Cfm)
 
 	// Run the pointer analysis.

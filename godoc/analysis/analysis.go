@@ -405,7 +405,7 @@ func Run(pta bool, result *Result) {
 		}
 	}
 	for _, pkg := range allPackages {
-		if pkg.Object.Name() == "main" && pkg.Func("main") != nil {
+		if pkg.Pkg.Name() == "main" && pkg.Func("main") != nil {
 			mainPkgs = append(mainPkgs, pkg)
 		}
 	}
@@ -413,7 +413,7 @@ func Run(pta bool, result *Result) {
 
 	// Build SSA code for bodies of all functions in the whole program.
 	result.setStatusf("Constructing SSA form...")
-	prog.BuildAll()
+	prog.Build()
 	log.Print("SSA construction complete")
 
 	a := analysis{

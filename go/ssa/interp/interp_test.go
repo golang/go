@@ -219,7 +219,7 @@ func run(t *testing.T, dir, input string, success successPredicate) bool {
 	}
 
 	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
-	prog.BuildAll()
+	prog.Build()
 
 	var mainPkg *ssa.Package
 	var initialPkgs []*ssa.Package

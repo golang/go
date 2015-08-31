@@ -102,7 +102,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		Prog:    prog,
 		Members: make(map[string]Member),
 		values:  make(map[types.Object]Value),
-		Object:  types.NewPackage("test$main", "main"),
+		Pkg:     types.NewPackage("test$main", "main"),
 	}
 
 	// Build package's init function.
@@ -127,23 +127,23 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		v.setType(types.NewTuple())
 		init.emit(&v)
 
-		pkgpaths = append(pkgpaths, pkg.Object.Path())
+		pkgpaths = append(pkgpaths, pkg.Pkg.Path())
 	}
 	sort.Strings(pkgpaths)
 	init.emit(new(Return))
 	init.finishBody()
 	testmain.init = init
-	testmain.Object.MarkComplete()
+	testmain.Pkg.MarkComplete()
 	testmain.Members[init.name] = init
 
 	// For debugging convenience, define an unexported const
 	// that enumerates the packages.
-	packagesConst := types.NewConst(token.NoPos, testmain.Object, "packages", tString,
+	packagesConst := types.NewConst(token.NoPos, testmain.Pkg, "packages", tString,
 		exact.MakeString(strings.Join(pkgpaths, " ")))
 	memberFromObject(testmain, packagesConst, nil)
 
 	// Create main *types.Func and *ssa.Function
-	mainFunc := types.NewFunc(token.NoPos, testmain.Object, "main", new(types.Signature))
+	mainFunc := types.NewFunc(token.NoPos, testmain.Pkg, "main", new(types.Signature))
 	memberFromObject(testmain, mainFunc, nil)
 	main := testmain.Func("main")
 	main.Synthetic = "test main function"
@@ -222,7 +222,7 @@ func (prog *Program) CreateTestMainPackage(pkgs ...*Package) *Package {
 		sanityCheckPackage(testmain)
 	}
 
-	prog.packages[testmain.Object] = testmain
+	prog.packages[testmain.Pkg] = testmain
 
 	return testmain
 }

@@ -132,7 +132,7 @@ func ExampleLoadProgram() {
 	prog := ssautil.CreateProgram(lprog, ssa.SanityCheckFunctions)
 
 	// Build SSA code for the entire cmd/cover program.
-	prog.BuildAll()
+	prog.Build()
 
 	// Output:
 }

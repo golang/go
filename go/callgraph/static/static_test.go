@@ -63,7 +63,7 @@ func TestStatic(t *testing.T) {
 	P := iprog.Created[0].Pkg
 
 	prog := ssautil.CreateProgram(iprog, 0)
-	prog.BuildAll()
+	prog.Build()
 
 	cg := static.CallGraph(prog)
 

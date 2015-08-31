@@ -12,20 +12,17 @@ import (
 	"golang.org/x/tools/go/types"
 )
 
-// Method returns the Function implementing method sel, building
+// MethodValue returns the Function implementing method sel, building
 // wrapper methods on demand.  It returns nil if sel denotes an
 // abstract (interface) method.
 //
 // Precondition: sel.Kind() == MethodVal.
 //
-// TODO(adonovan): rename this to MethodValue because of the
-// precondition, and for consistency with functions in source.go.
-//
 // Thread-safe.
 //
 // EXCLUSIVE_LOCKS_ACQUIRED(prog.methodsMu)
 //
-func (prog *Program) Method(sel *types.Selection) *Function {
+func (prog *Program) MethodValue(sel *types.Selection) *Function {
 	if sel.Kind() != types.MethodVal {
 		panic(fmt.Sprintf("Method(%s) kind != MethodVal", sel))
 	}
@@ -52,7 +49,7 @@ func (prog *Program) LookupMethod(T types.Type, pkg *types.Package, name string)
 	if sel == nil {
 		panic(fmt.Sprintf("%s has no method %s", T, types.Id(pkg, name)))
 	}
-	return prog.Method(sel)
+	return prog.MethodValue(sel)
 }
 
 // methodSet contains the (concrete) methods of a non-interface type.

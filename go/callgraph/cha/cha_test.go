@@ -78,11 +78,11 @@ func TestCHA(t *testing.T) {
 
 		prog := ssautil.CreateProgram(iprog, 0)
 		mainPkg := prog.Package(iprog.Created[0].Pkg)
-		prog.BuildAll()
+		prog.Build()
 
 		cg := cha.CallGraph(prog)
 
-		if got := printGraph(cg, mainPkg.Object); got != want {
+		if got := printGraph(cg, mainPkg.Pkg); got != want {
 			t.Errorf("%s: got:\n%s\nwant:\n%s",
 				prog.Fset.Position(pos), got, want)
 		}

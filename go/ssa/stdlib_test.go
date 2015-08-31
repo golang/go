@@ -80,7 +80,7 @@ func TestStdlib(t *testing.T) {
 	t2 := time.Now()
 
 	// Build SSA.
-	prog.BuildAll()
+	prog.Build()
 
 	t3 := time.Now()
 	alloc3 := bytesAllocated()

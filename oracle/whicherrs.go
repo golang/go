@@ -91,7 +91,7 @@ func whicherrs(q *Query) error {
 	}
 
 	// Defer SSA construction till after errors are reported.
-	prog.BuildAll()
+	prog.Build()
 
 	globals := findVisibleErrs(prog, qpos)
 	constants := findVisibleConsts(prog, qpos)

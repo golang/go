@@ -55,7 +55,7 @@ func peers(q *Query) error {
 	}
 
 	// Defer SSA construction till after errors are reported.
-	prog.BuildAll()
+	prog.Build()
 
 	var queryOp chanOp // the originating send or receive operation
 	var ops []chanOp   // all sends/receives of opposite direction

@@ -176,7 +176,7 @@ func doOneInput(input, filename string) bool {
 
 	// SSA creation + building.
 	prog := ssautil.CreateProgram(iprog, ssa.SanityCheckFunctions)
-	prog.BuildAll()
+	prog.Build()
 
 	mainpkg := prog.Package(mainPkgInfo)
 	ptrmain := mainpkg // main package for the pointer analysis
@@ -243,7 +243,7 @@ func doOneInput(input, filename string) bool {
 				for _, typstr := range split(rest, "|") {
 					var t types.Type = types.Typ[types.Invalid] // means "..."
 					if typstr != "..." {
-						tv, err := types.Eval(prog.Fset, mainpkg.Object, f.Pos(), typstr)
+						tv, err := types.Eval(prog.Fset, mainpkg.Pkg, f.Pos(), typstr)
 						if err != nil {
 							ok = false
 							// Don't print err since its location is bad.

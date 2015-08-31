@@ -44,7 +44,7 @@ func (visit *visitor) program() {
 	for _, T := range visit.prog.RuntimeTypes() {
 		mset := visit.prog.MethodSets.MethodSet(T)
 		for i, n := 0, mset.Len(); i < n; i++ {
-			visit.function(visit.prog.Method(mset.At(i)))
+			visit.function(visit.prog.MethodValue(mset.At(i)))
 		}
 	}
 }

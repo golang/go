@@ -115,7 +115,7 @@ func callees(q *Query) error {
 	}
 
 	// Defer SSA construction till after errors are reported.
-	prog.BuildAll()
+	prog.Build()
 
 	// Ascertain calling function and call site.
 	callerFn := ssa.EnclosingFunction(pkg, qpos.path)

@@ -104,7 +104,7 @@ func (a *analysis) doCallgraph(cg *callgraph.Graph) {
 
 		var this *types.Package // for relativizing names
 		if callee.Pkg != nil {
-			this = callee.Pkg.Object
+			this = callee.Pkg.Pkg
 		}
 
 		// Compute sites grouped by parent, with text and URLs.
@@ -169,14 +169,14 @@ func (a *analysis) doCallgraph(cg *callgraph.Graph) {
 				roots := &pcg.nodes[0].edges
 				roots.SetBit(roots, i, 1)
 			}
-			index[n.fn.RelString(pkg.Object)] = i
+			index[n.fn.RelString(pkg.Pkg)] = i
 		}
 
 		json := a.pcgJSON(pcg)
 
 		// TODO(adonovan): pkg.Path() is not unique!
 		// It is possible to declare a non-test package called x_test.
-		a.result.pkgInfo(pkg.Object.Path()).setCallGraph(json, index)
+		a.result.pkgInfo(pkg.Pkg.Path()).setCallGraph(json, index)
 	}
 }
 
@@ -188,7 +188,7 @@ func (a *analysis) addCallees(site ssa.CallInstruction, fns []*ssa.Function) {
 	}
 	var this *types.Package // for relativizing names
 	if p := site.Parent().Package(); p != nil {
-		this = p.Object
+		this = p.Pkg
 	}
 
 	for _, fn := range fns {
@@ -242,10 +242,10 @@ func prettyFunc(this *types.Package, fn *ssa.Function) string {
 	}
 	if fn.Synthetic != "" && fn.Name() == "init" {
 		// (This is the actual initializer, not a declared 'func init').
-		if fn.Pkg.Object == this {
+		if fn.Pkg.Pkg == this {
 			return "package initializer"
 		}
-		return fmt.Sprintf("%q package initializer", fn.Pkg.Object.Path())
+		return fmt.Sprintf("%q package initializer", fn.Pkg.Pkg.Path())
 	}
 	return fn.RelString(this)
 }
@@ -273,7 +273,7 @@ func (pcg *packageCallGraph) sortNodes() {
 	for fn := range pcg.nodeIndex {
 		nodes = append(nodes, &pcgNode{
 			fn:     fn,
-			pretty: prettyFunc(fn.Pkg.Object, fn),
+			pretty: prettyFunc(fn.Pkg.Pkg, fn),
 		})
 	}
 	sort.Sort(pcgNodesByPretty(nodes[1:]))

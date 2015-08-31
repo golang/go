@@ -72,7 +72,7 @@ func (a *analysis) doChannelPeers(ptsets map[ssa.Value]pointer.Pointer) {
 					Href: a.posURL(makechan.Pos()-token.Pos(len("make")),
 						len("make")),
 				},
-				Fn: makechan.Parent().RelString(op.fn.Package().Object),
+				Fn: makechan.Parent().RelString(op.fn.Package().Pkg),
 			})
 			for _, op := range aliasedOps[makechan] {
 				ops[op] = true

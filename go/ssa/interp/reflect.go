@@ -520,7 +520,7 @@ func newMethod(pkg *ssa.Package, recvType types.Type, name string) *ssa.Function
 func initReflect(i *interpreter) {
 	i.reflectPackage = &ssa.Package{
 		Prog:    i.prog,
-		Object:  reflectTypesPackage,
+		Pkg:     reflectTypesPackage,
 		Members: make(map[string]ssa.Member),
 	}
 
@@ -539,18 +539,18 @@ func initReflect(i *interpreter) {
 	// provide fake source files.  This would guarantee that no bad
 	// information leaks into other packages.
 	if r := i.prog.ImportedPackage("reflect"); r != nil {
-		rV := r.Object.Scope().Lookup("Value").Type().(*types.Named)
+		rV := r.Pkg.Scope().Lookup("Value").Type().(*types.Named)
 
 		// delete bodies of the old methods
 		mset := i.prog.MethodSets.MethodSet(rV)
 		for j := 0; j < mset.Len(); j++ {
-			i.prog.Method(mset.At(j)).Blocks = nil
+			i.prog.MethodValue(mset.At(j)).Blocks = nil
 		}
 
 		tEface := types.NewInterface(nil, nil).Complete()
 		rV.SetUnderlying(types.NewStruct([]*types.Var{
-			types.NewField(token.NoPos, r.Object, "t", tEface, false), // a lie
-			types.NewField(token.NoPos, r.Object, "v", tEface, false),
+			types.NewField(token.NoPos, r.Pkg, "t", tEface, false), // a lie
+			types.NewField(token.NoPos, r.Pkg, "v", tEface, false),
 		}, nil))
 	}
 

@@ -254,17 +254,17 @@ func Analyze(config *Config) (result *Result, err error) {
 	for _, pkg := range a.prog.AllPackages() {
 		// (This only checks that the package scope is complete,
 		// not that func bodies exist, but it's a good signal.)
-		if !pkg.Object.Complete() {
-			return nil, fmt.Errorf(`pointer analysis requires a complete program yet package %q was incomplete`, pkg.Object.Path())
+		if !pkg.Pkg.Complete() {
+			return nil, fmt.Errorf(`pointer analysis requires a complete program yet package %q was incomplete`, pkg.Pkg.Path())
 		}
 	}
 
 	if reflect := a.prog.ImportedPackage("reflect"); reflect != nil {
-		rV := reflect.Object.Scope().Lookup("Value")
+		rV := reflect.Pkg.Scope().Lookup("Value")
 		a.reflectValueObj = rV
 		a.reflectValueCall = a.prog.LookupMethod(rV.Type(), nil, "Call")
-		a.reflectType = reflect.Object.Scope().Lookup("Type").Type().(*types.Named)
-		a.reflectRtypeObj = reflect.Object.Scope().Lookup("rtype")
+		a.reflectType = reflect.Pkg.Scope().Lookup("Type").Type().(*types.Named)
+		a.reflectRtypeObj = reflect.Pkg.Scope().Lookup("rtype")
 		a.reflectRtypePtr = types.NewPointer(a.reflectRtypeObj.Type())
 
 		// Override flattening of reflect.Value, treating it like a basic type.

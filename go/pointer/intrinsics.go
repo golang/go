@@ -211,7 +211,7 @@ func (a *analysis) isReflect(fn *ssa.Function) bool {
 		return false // "reflect" package not loaded
 	}
 	reflectPackage := a.reflectValueObj.Pkg()
-	if fn.Pkg != nil && fn.Pkg.Object == reflectPackage {
+	if fn.Pkg != nil && fn.Pkg.Pkg == reflectPackage {
 		return true
 	}
 	// Synthetic wrappers have a nil Pkg, so they slip through the

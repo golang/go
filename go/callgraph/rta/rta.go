@@ -197,7 +197,7 @@ func (r *rta) visitDynCall(site ssa.CallInstruction) {
 func (r *rta) addInvokeEdge(site ssa.CallInstruction, C types.Type) {
 	// Ascertain the concrete method of C to be called.
 	imethod := site.Common().Method
-	cmethod := r.prog.Method(r.prog.MethodSets.MethodSet(C).Lookup(imethod.Pkg(), imethod.Name()))
+	cmethod := r.prog.MethodValue(r.prog.MethodSets.MethodSet(C).Lookup(imethod.Pkg(), imethod.Name()))
 	r.addEdge(site, cmethod, true)
 }
 
@@ -361,7 +361,7 @@ func (r *rta) addRuntimeType(T types.Type, skip bool) {
 
 			if m.Exported() {
 				// Exported methods are always potentially callable via reflection.
-				r.addReachable(r.prog.Method(sel), true)
+				r.addReachable(r.prog.MethodValue(sel), true)
 			}
 		}
 

@@ -95,7 +95,7 @@ func pointsto(q *Query) error {
 	}
 
 	// Defer SSA construction till after errors are reported.
-	prog.BuildAll()
+	prog.Build()
 
 	// Run the pointer analysis.
 	ptrs, err := runPTA(ptaConfig, value, isAddr)

@@ -1223,7 +1223,7 @@ func (a *analysis) genMethodsOf(T types.Type) {
 	// I think so, but the answer may depend on reflection.
 	mset := a.prog.MethodSets.MethodSet(T)
 	for i, n := 0, mset.Len(); i < n; i++ {
-		m := a.prog.Method(mset.At(i))
+		m := a.prog.MethodValue(mset.At(i))
 		a.valueNode(m)
 
 		if !itf {
