@@ -440,7 +440,7 @@ loop:
 	if p.Pcond != nil {
 		if a != ABL && p.Link != nil {
 			q = obj.Brchain(ctxt, p.Link)
-			if a != obj.ATEXT && a != ABCASE {
+			if a != obj.ATEXT {
 				if q != nil && (q.Mark&FOLL != 0) {
 					p.As = int16(relinv(a))
 					p.Link = p.Pcond
@@ -515,7 +515,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			ACBZW,
 			ATBZ,
 			ATBNZ,
-			ABCASE,
 			AB,
 			ABEQ,
 			ABNE,
