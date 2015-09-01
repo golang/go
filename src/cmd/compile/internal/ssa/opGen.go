@@ -3024,7 +3024,7 @@ var opcodeTable = [...]opInfo{
 				{0, 128}, // .DI
 				{1, 2},   // .CX
 			},
-			clobbers: 131, // .AX .CX .DI
+			clobbers: 8589934723, // .AX .CX .DI .FLAGS
 		},
 	},
 	{

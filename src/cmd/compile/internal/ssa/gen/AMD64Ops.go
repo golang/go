@@ -380,8 +380,8 @@ func init() {
 		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 
 		{name: "MOVXzero", reg: gpstoreconst}, // store auxint 0 bytes into arg0 using a series of MOV instructions. arg1=mem.
-		// TODO: implement this when register clobbering works
-		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
+
+		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX FLAGS"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
 
 		//TODO: set register clobber to everything?
 		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}},                                 // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
