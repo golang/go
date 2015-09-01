@@ -142,7 +142,6 @@ var (
 // use in debuggers and such.
 
 const (
-	MAXIO   = 8192
 	MINFUNC = 16 // minimum size for a function
 )
 
@@ -240,12 +239,6 @@ var coutbuf struct {
 	*bufio.Writer
 	f *os.File
 }
-
-const (
-	// Whether to assume that the external linker is "gold"
-	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
-	AssumeGoldLinker = 0
-)
 
 const (
 	symname = "__.GOSYMDEF"
@@ -965,10 +958,6 @@ func hostlink() {
 		}
 	}
 
-	if Iself && AssumeGoldLinker != 0 /*TypeKind(100016)*/ {
-		argv = append(argv, "-Wl,--rosegment")
-	}
-
 	switch Buildmode {
 	case BuildmodeExe:
 		if HEADTYPE == obj.Hdarwin {
@@ -1473,10 +1462,6 @@ func Be32(b []byte) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-func Be64(b []byte) uint64 {
-	return uint64(Be32(b))<<32 | uint64(Be32(b[4:]))
-}
-
 type Chain struct {
 	sym   *LSym
 	up    *Chain
@@ -1686,33 +1671,6 @@ func stkprint(ch *Chain, limit int) {
 	if ch.limit != limit {
 		fmt.Printf("\t%d\tafter %s uses %d\n", limit, name, ch.limit-limit)
 	}
-}
-
-func Yconv(s *LSym) string {
-	var fp string
-
-	if s == nil {
-		fp += fmt.Sprintf("<nil>")
-	} else {
-		fmt_ := ""
-		fmt_ += fmt.Sprintf("%s @0x%08x [%d]", s.Name, int64(s.Value), int64(s.Size))
-		for i := 0; int64(i) < s.Size; i++ {
-			if i%8 == 0 {
-				fmt_ += fmt.Sprintf("\n\t0x%04x ", i)
-			}
-			fmt_ += fmt.Sprintf("%02x ", s.P[i])
-		}
-
-		fmt_ += fmt.Sprintf("\n")
-		for i := 0; i < len(s.R); i++ {
-			fmt_ += fmt.Sprintf("\t0x%04x[%x] %d %s[%x]\n", s.R[i].Off, s.R[i].Siz, s.R[i].Type, s.R[i].Sym.Name, int64(s.R[i].Add))
-		}
-
-		str := fmt_
-		fp += str
-	}
-
-	return fp
 }
 
 func Cflush() {

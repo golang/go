@@ -42,8 +42,6 @@ func PADDR(x uint32) uint32 {
 	return x &^ 0x80000000
 }
 
-var zeroes string
-
 func Addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) int64 {
 	s.Reachable = true
 	i := s.Size

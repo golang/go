@@ -39,10 +39,6 @@ import (
 	"strconv"
 )
 
-func yy_isalpha(c int) bool {
-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
-}
-
 var headers = []struct {
 	name string
 	val  int
