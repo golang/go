@@ -1220,7 +1220,6 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 	case TINTER:
 		return f(itable, startOffset) &&
 			f(Ptrto(Types[TUINT8]), startOffset+int64(Widthptr))
-		return true
 
 	case TSTRING:
 		return f(Ptrto(Types[TUINT8]), startOffset) &&
