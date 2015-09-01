@@ -209,10 +209,6 @@ const (
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )
 
-const (
-	LINKHASH = 100003
-)
-
 // Pcdata iterator.
 //	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
 
