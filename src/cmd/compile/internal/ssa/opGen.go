@@ -2502,7 +2502,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 1, // .AX
+			clobbers: 8589934593, // .AX .FLAGS
 			outputs: []regMask{
 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
@@ -2515,7 +2515,7 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
 			},
-			clobbers: 1, // .AX
+			clobbers: 8589934593, // .AX .FLAGS
 			outputs: []regMask{
 				65518, // .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
