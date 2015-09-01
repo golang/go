@@ -24,6 +24,7 @@ type xRepo struct {
 var xMap = map[string]xRepo{
 	"codereview": {"https://code.google.com/p/go.codereview", "hg"},
 
+	"arch":       {"https://go.googlesource.com/arch", "git"},
 	"benchmarks": {"https://go.googlesource.com/benchmarks", "git"},
 	"blog":       {"https://go.googlesource.com/blog", "git"},
 	"build":      {"https://go.googlesource.com/build", "git"},
