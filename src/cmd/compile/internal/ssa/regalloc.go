@@ -912,6 +912,8 @@ func (s *regAllocState) regalloc(f *Func) {
 					spill2.Op = OpInvalid
 					spill2.Type = TypeInvalid
 					spill2.resetArgs()
+				} else if logSpills {
+					fmt.Println("regalloc: spilled phi")
 				}
 				s.values[v.ID].spill2 = nil
 				s.values[v.ID].spill2used = false
@@ -926,6 +928,9 @@ func (s *regAllocState) regalloc(f *Func) {
 	for i := range s.values {
 		vi := s.values[i]
 		if vi.spillUsed {
+			if logSpills {
+				fmt.Println("regalloc: spilled value")
+			}
 			continue
 		}
 		spill := vi.spill
