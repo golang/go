@@ -2611,21 +2611,6 @@ func genhash(sym *Sym, t *Type) {
 		colasdefn(n.List, n)
 		ni = n.List.N
 
-		// TODO: with aeshash we don't need these shift/mul parts
-
-		// h = h<<3 | h>>61
-		n.Nbody = list(n.Nbody, Nod(OAS, nh, Nod(OOR, Nod(OLSH, nh, Nodintconst(3)), Nod(ORSH, nh, Nodintconst(int64(Widthptr)*8-3)))))
-
-		// h *= mul
-		// Same multipliers as in runtime.memhash.
-		var mul int64
-		if Widthptr == 4 {
-			mul = 3267000013
-		} else {
-			mul = 23344194077549503
-		}
-		n.Nbody = list(n.Nbody, Nod(OAS, nh, Nod(OMUL, nh, Nodintconst(mul))))
-
 		// h = hashel(&p[i], h)
 		call := Nod(OCALL, hashel, nil)
 
