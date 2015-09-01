@@ -502,7 +502,6 @@ type Link struct {
 	Autosize           int32
 	Armsize            int32
 	Pc                 int64
-	Tlsoffset          int
 	Diag               func(string, ...interface{})
 	Mode               int
 	Cursym             *LSym
