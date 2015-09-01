@@ -283,6 +283,49 @@ func TestFileServerEscapesNames(t *testing.T) {
 	}
 }
 
+func TestFileServerSortsNames(t *testing.T) {
+	defer afterTest(t)
+	const contents = "I am a fake file"
+	dirMod := time.Unix(123, 0).UTC()
+	fileMod := time.Unix(1000000000, 0).UTC()
+	fs := fakeFS{
+		"/": &fakeFileInfo{
+			dir:     true,
+			modtime: dirMod,
+			ents: []*fakeFileInfo{
+				{
+					basename: "b",
+					modtime:  fileMod,
+					contents: contents,
+				},
+				{
+					basename: "a",
+					modtime:  fileMod,
+					contents: contents,
+				},
+			},
+		},
+	}
+
+	ts := httptest.NewServer(FileServer(&fs))
+	defer ts.Close()
+
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer res.Body.Close()
+
+	b, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("read Body: %v", err)
+	}
+	s := string(b)
+	if !strings.Contains(s, "<a href=\"a\">a</a>\n<a href=\"b\">b</a>") {
+		t.Errorf("output appears to be unsorted:\n%s", s)
+	}
+}
+
 func mustRemoveAll(dir string) {
 	err := os.RemoveAll(dir)
 	if err != nil {
