@@ -362,11 +362,6 @@ func relocsym(s *LSym) {
 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
 		}
 
-		// Android emulates runtime.tlsg as a regular variable.
-		if r.Type == obj.R_TLS && goos == "android" {
-			r.Type = obj.R_ADDR
-		}
-
 		switch r.Type {
 		default:
 			switch siz {
@@ -383,26 +378,6 @@ func relocsym(s *LSym) {
 			}
 			if Thearch.Archreloc(r, s, &o) < 0 {
 				Diag("unknown reloc %d", r.Type)
-			}
-
-		case obj.R_TLS:
-			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
-				r.Done = 0
-				r.Sym = Ctxt.Tlsg
-				r.Xsym = Ctxt.Tlsg
-				r.Xadd = r.Add
-				o = r.Add
-				break
-			}
-			if Linkmode == LinkInternal && Iself && Thearch.Thechar == '5' {
-				panic("should no longer get here")
-				break
-			}
-
-			r.Done = 0
-			o = 0
-			if Thearch.Thechar != '6' {
-				o = r.Add
 			}
 
 		case obj.R_TLS_LE:

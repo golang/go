@@ -504,9 +504,6 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 	/*
 	 * lay out the code, emitting code and data relocations.
 	 */
-	if ctxt.Tlsg == nil {
-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
-	}
 
 	obj.Symgrow(ctxt, cursym, cursym.Size)
 

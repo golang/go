@@ -58,9 +58,6 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	// See save_g
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
-	// $runtime.tlsg(SB) is a special linker symbol.
-	// It is the offset from the TLS base pointer to our
-	// thread-local storage for g.
 	MOVW	runtime·tls_g(SB), R11
 	ADD	R11, R0
 	MOVW	0(R0), g

@@ -30,7 +30,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-8-0
 	// $runtime.tlsg(SB) is a special linker symbol.
 	// It is the offset from the start of TLS to our
 	// thread-local storage for g.
-	MOVD	$runtime·tlsg(SB), R31
+	MOVD	$runtime·tls_g(SB), R31
 	ADD	R13, R31
 	// The actual TLS base is 0x7000 below R13
 	SUB	$0x7000, R31
@@ -51,10 +51,12 @@ nocgo:
 //
 // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
 TEXT runtime·load_g(SB),NOSPLIT,$-8-0
-	MOVD	$runtime·tlsg(SB), R31
+	MOVD	$runtime·tls_g(SB), R31
 	// R13 is the C ABI TLS base pointer + 0x7000
 	ADD	R13, R31
 	SUB	$0x7000, R31
 
 	MOVD	0(R31), g
 	RET
+
+GLOBL runtime·tls_g+0(SB), TLSBSS, $8

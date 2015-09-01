@@ -1506,9 +1506,7 @@ func elfshbits(sect *Section) *ElfShdr {
 		sh.flags |= SHF_WRITE
 	}
 	if sect.Name == ".tbss" {
-		if goos != "android" {
-			sh.flags |= SHF_TLS // no TLS on android
-		}
+		sh.flags |= SHF_TLS
 		sh.type_ = SHT_NOBITS
 	}
 
@@ -1517,7 +1515,7 @@ func elfshbits(sect *Section) *ElfShdr {
 	}
 	sh.addralign = uint64(sect.Align)
 	sh.size = sect.Length
-	if sect.Name != ".tbss" || goos == "android" {
+	if sect.Name != ".tbss" {
 		sh.off = sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr
 	}
 
