@@ -1206,12 +1206,12 @@ func TestStringKind(t *testing.T) {
 
 	data, err := Marshal(m1)
 	if err != nil {
-		t.Errorf("Unexpected error marshalling: %v", err)
+		t.Errorf("Unexpected error marshaling: %v", err)
 	}
 
 	err = Unmarshal(data, &m2)
 	if err != nil {
-		t.Errorf("Unexpected error unmarshalling: %v", err)
+		t.Errorf("Unexpected error unmarshaling: %v", err)
 	}
 
 	if !reflect.DeepEqual(m1, m2) {
