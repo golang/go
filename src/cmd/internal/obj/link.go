@@ -414,23 +414,16 @@ const (
 	R_CALLPOWER
 	R_CONST
 	R_PCREL
-	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
-	// a regular variable) resolves to data needed to access the thread-local g. It is
-	// interpreted differently depending on toolchain flags to implement either the
-	// "local exec" or "inital exec" model for tls access.
-	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
-	// R_TLS do double duty.
-	R_TLS
-	// R_TLS_LE (only used on 386 and amd64 currently) resolves to the offset of the
-	// thread-local g from the thread local base and is used to implement the "local
-	// exec" model for tls access (r.Sym is not set by the compiler for this case but
-	// is set to Tlsg in the linker when externally linking).
+	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
+	// thread-local symbol from the thread local base and is used to implement the
+	// "local exec" model for tls access (r.Sym is not set on intel platforms but is
+	// set to a TLS symbol -- runtime.tlsg -- in the linker when externally linking).
 	R_TLS_LE
-	// R_TLS_IE (only used on 386 and amd64 currently) resolves to the PC-relative
-	// offset to a GOT slot containing the offset the thread-local g from the thread
-	// local base and is used to implemented the "initial exec" model for tls access
-	// (r.Sym is not set by the compiler for this case but is set to Tlsg in the
-	// linker when externally linking).
+	// R_TLS_IE, used 386, amd64, and ARM resolves to the PC-relative offset to a GOT
+	// slot containing the offset from the thread-local symbol from the thread local
+	// base and is used to implemented the "initial exec" model for tls access (r.Sym
+	// is not set on intel platforms but is set to a TLS symbol -- runtime.tlsg -- in
+	// the linker when externally linking).
 	R_TLS_IE
 	R_GOTOFF
 	R_PLT0
@@ -505,7 +498,6 @@ type Link struct {
 	Sym_divu           *LSym
 	Sym_mod            *LSym
 	Sym_modu           *LSym
-	Tlsg               *LSym
 	Plan9privates      *LSym
 	Curp               *Prog
 	Printp             *Prog

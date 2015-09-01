@@ -739,9 +739,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 	 * code references to be relocated too, and then
 	 * perhaps we'd be able to parallelize the span loop above.
 	 */
-	if ctxt.Tlsg == nil {
-		ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
-	}
 
 	p = cursym.Text
 	ctxt.Autosize = int32(p.To.Offset + 4)
@@ -1646,19 +1643,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel.Sym = p.To.Sym
 			rel.Add = p.To.Offset
 
-			// runtime.tlsg is special.
-			// Its "address" is the offset from the TLS thread pointer
-			// to the thread-local g and m pointers.
-			// Emit a TLS relocation instead of a standard one if its
-			// type is not explicitly set by runtime. This assumes that
-			// all references to runtime.tlsg should be accompanied with
-			// its type declaration if necessary.
-			if rel.Sym == ctxt.Tlsg && ctxt.Tlsg.Type == 0 {
-				rel.Type = obj.R_TLS
-				if ctxt.Flag_shared != 0 {
-					rel.Add += ctxt.Pc - p.Rel.Pc - 8 - int64(rel.Siz)
-				}
-			} else if ctxt.Flag_shared != 0 {
+			if ctxt.Flag_shared != 0 {
 				rel.Type = obj.R_PCREL
 				rel.Add += ctxt.Pc - p.Rel.Pc - 8
 			} else {
