@@ -395,15 +395,7 @@ func relocsym(s *LSym) {
 				break
 			}
 			if Linkmode == LinkInternal && Iself && Thearch.Thechar == '5' {
-				// On ELF ARM, the thread pointer is 8 bytes before
-				// the start of the thread-local data block, so add 8
-				// to the actual TLS offset (r->sym->value).
-				// This 8 seems to be a fundamental constant of
-				// ELF on ARM (or maybe Glibc on ARM); it is not
-				// related to the fact that our own TLS storage happens
-				// to take up 8 bytes.
-				o = 8 + r.Sym.Value
-
+				panic("should no longer get here")
 				break
 			}
 
@@ -416,8 +408,10 @@ func relocsym(s *LSym) {
 		case obj.R_TLS_LE:
 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
 				r.Done = 0
-				r.Sym = Ctxt.Tlsg
-				r.Xsym = Ctxt.Tlsg
+				if r.Sym == nil {
+					r.Sym = Ctxt.Tlsg
+				}
+				r.Xsym = r.Sym
 				r.Xadd = r.Add
 				o = 0
 				if Thearch.Thechar != '6' {
@@ -426,7 +420,16 @@ func relocsym(s *LSym) {
 				break
 			}
 
-			if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
+			if Iself && Thearch.Thechar == '5' {
+				// On ELF ARM, the thread pointer is 8 bytes before
+				// the start of the thread-local data block, so add 8
+				// to the actual TLS offset (r->sym->value).
+				// This 8 seems to be a fundamental constant of
+				// ELF on ARM (or maybe Glibc on ARM); it is not
+				// related to the fact that our own TLS storage happens
+				// to take up 8 bytes.
+				o = 8 + r.Sym.Value
+			} else if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
 				o = int64(Ctxt.Tlsoffset) + r.Add
 			} else if Ctxt.Headtype == obj.Hwindows {
 				o = r.Add
@@ -437,8 +440,10 @@ func relocsym(s *LSym) {
 		case obj.R_TLS_IE:
 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
 				r.Done = 0
-				r.Sym = Ctxt.Tlsg
-				r.Xsym = Ctxt.Tlsg
+				if r.Sym == nil {
+					r.Sym = Ctxt.Tlsg
+				}
+				r.Xsym = r.Sym
 				r.Xadd = r.Add
 				o = 0
 				if Thearch.Thechar != '6' {
