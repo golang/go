@@ -112,7 +112,7 @@ func init() {
 		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
 		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly}
 		readflags = regInfo{inputs: flagsonly, outputs: gponly}
-		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax, outputs: []regMask{gp &^ ax}}
+		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
 
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
