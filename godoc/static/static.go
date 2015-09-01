@@ -441,7 +441,9 @@ var Files = map[string]string{
 				<div class="buttons">
 					<a class="run" title="Run this code [shift-enter]">Run</a>
 					<a class="fmt" title="Format this code">Format</a>
+					{{if $.Share}}
 					<a class="share" title="Share this code">Share</a>
+					{{end}}
 				</div>
 			</div>
 		{{else}}
@@ -513,7 +515,9 @@ func main() {
 	<div class="buttons">
 		<a class="run" title="Run this code [shift-enter]">Run</a>
 		<a class="fmt" title="Format this code">Format</a>
+		{{if $.Share}}
 		<a class="share" title="Share this code">Share</a>
+		{{end}}
 	</div>
 </div>
 {{end}}

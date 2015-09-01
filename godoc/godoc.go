@@ -281,6 +281,7 @@ func sanitizeFunc(src string) string {
 type PageInfo struct {
 	Dirname string // directory containing the package
 	Err     error  // error or nil
+	Share   bool   // show share button on examples
 
 	// package info
 	FSet       *token.FileSet         // nil if no package documentation
@@ -490,7 +491,8 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 
 		err := p.ExampleHTML.Execute(&buf, struct {
 			Name, Doc, Code, Play, Output string
-		}{eg.Name, eg.Doc, code, play, out})
+			Share                         bool
+		}{eg.Name, eg.Doc, code, play, out, info.Share})
 		if err != nil {
 			log.Print(err)
 		}

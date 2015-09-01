@@ -300,11 +300,13 @@ func (h *handlerServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		info.TypeInfoIndex[ti.Name] = i
 	}
 
+	info.Share = allowShare(r)
 	h.p.ServePage(w, Page{
 		Title:    title,
 		Tabtitle: tabtitle,
 		Subtitle: subtitle,
 		Body:     applyTemplate(h.p.PackageHTML, "packageHTML", info),
+		Share:    info.Share,
 	})
 }
 
@@ -546,6 +548,7 @@ func (p *Presentation) serveTextFile(w http.ResponseWriter, r *http.Request, abs
 		Title:    title + " " + relpath,
 		Tabtitle: relpath,
 		Body:     buf.Bytes(),
+		Share:    allowShare(r),
 	})
 }
 
@@ -606,6 +609,7 @@ func (p *Presentation) serveDirectory(w http.ResponseWriter, r *http.Request, ab
 		Title:    "Directory " + relpath,
 		Tabtitle: relpath,
 		Body:     applyTemplate(p.DirlistHTML, "dirlistHTML", list),
+		Share:    allowShare(r),
 	})
 }
 
@@ -631,6 +635,12 @@ func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, absp
 		log.Printf("decoding metadata %s: %v", relpath, err)
 	}
 
+	page := Page{
+		Title:    meta.Title,
+		Subtitle: meta.Subtitle,
+		Share:    allowShare(r),
+	}
+
 	// evaluate as template if indicated
 	if meta.Template {
 		tmpl, err := template.New("main").Funcs(p.TemplateFuncs()).Parse(string(src))
@@ -640,7 +650,7 @@ func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, absp
 			return
 		}
 		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, nil); err != nil {
+		if err := tmpl.Execute(&buf, page); err != nil {
 			log.Printf("executing template %s: %v", relpath, err)
 			p.ServeError(w, r, relpath, err)
 			return
@@ -655,11 +665,8 @@ func (p *Presentation) ServeHTMLDoc(w http.ResponseWriter, r *http.Request, absp
 		src = buf.Bytes()
 	}
 
-	p.ServePage(w, Page{
-		Title:    meta.Title,
-		Subtitle: meta.Subtitle,
-		Body:     src,
-	})
+	page.Body = src
+	p.ServePage(w, page)
 }
 
 func (p *Presentation) ServeFile(w http.ResponseWriter, r *http.Request) {

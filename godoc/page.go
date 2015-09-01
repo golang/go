@@ -16,6 +16,7 @@ type Page struct {
 	Subtitle string
 	Query    string
 	Body     []byte
+	Share    bool
 
 	// filled in by servePage
 	SearchBox  bool
@@ -39,5 +40,19 @@ func (p *Presentation) ServeError(w http.ResponseWriter, r *http.Request, relpat
 		Title:    "File " + relpath,
 		Subtitle: relpath,
 		Body:     applyTemplate(p.ErrorHTML, "errorHTML", err), // err may contain an absolute path!
+		Share:    allowShare(r),
 	})
+}
+
+var onAppengine = false // overriden in appengine.go when on app engine
+
+func allowShare(r *http.Request) bool {
+	if !onAppengine {
+		return true
+	}
+	switch r.Header.Get("X-AppEngine-Country") {
+	case "", "ZZ", "HK", "CN", "RC":
+		return false
+	}
+	return true
 }
