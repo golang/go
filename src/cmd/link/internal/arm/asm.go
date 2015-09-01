@@ -233,6 +233,12 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 		} else {
 			return -1
 		}
+
+	case obj.R_TLS_LE:
+		ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
+
+	case obj.R_TLS_IE:
+		ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
 	}
 
 	return 0
