@@ -29,6 +29,7 @@ type opData struct {
 	name string
 	reg  regInfo
 	asm  string
+	typ  string // default result type
 }
 
 type blockData struct {

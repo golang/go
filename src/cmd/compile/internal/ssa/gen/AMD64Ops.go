@@ -241,26 +241,26 @@ func init() {
 		{name: "XORWconst", reg: gp11, asm: "XORW"}, // arg0 ^ auxint
 		{name: "XORBconst", reg: gp11, asm: "XORB"}, // arg0 ^ auxint
 
-		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
-		{name: "CMPL", reg: gp2flags, asm: "CMPL"},      // arg0 compare to arg1
-		{name: "CMPW", reg: gp2flags, asm: "CMPW"},      // arg0 compare to arg1
-		{name: "CMPB", reg: gp2flags, asm: "CMPB"},      // arg0 compare to arg1
-		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
-		{name: "CMPLconst", reg: gp1flags, asm: "CMPL"}, // arg0 compare to auxint
-		{name: "CMPWconst", reg: gp1flags, asm: "CMPW"}, // arg0 compare to auxint
-		{name: "CMPBconst", reg: gp1flags, asm: "CMPB"}, // arg0 compare to auxint
+		{name: "CMPQ", reg: gp2flags, asm: "CMPQ", typ: "Flags"},      // arg0 compare to arg1
+		{name: "CMPL", reg: gp2flags, asm: "CMPL", typ: "Flags"},      // arg0 compare to arg1
+		{name: "CMPW", reg: gp2flags, asm: "CMPW", typ: "Flags"},      // arg0 compare to arg1
+		{name: "CMPB", reg: gp2flags, asm: "CMPB", typ: "Flags"},      // arg0 compare to arg1
+		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ", typ: "Flags"}, // arg0 compare to auxint
+		{name: "CMPLconst", reg: gp1flags, asm: "CMPL", typ: "Flags"}, // arg0 compare to auxint
+		{name: "CMPWconst", reg: gp1flags, asm: "CMPW", typ: "Flags"}, // arg0 compare to auxint
+		{name: "CMPBconst", reg: gp1flags, asm: "CMPB", typ: "Flags"}, // arg0 compare to auxint
 
-		{name: "UCOMISS", reg: fp2flags, asm: "UCOMISS"}, // arg0 compare to arg1, f32
-		{name: "UCOMISD", reg: fp2flags, asm: "UCOMISD"}, // arg0 compare to arg1, f64
+		{name: "UCOMISS", reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
+		{name: "UCOMISD", reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
 
-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ"},      // (arg0 & arg1) compare to 0
-		{name: "TESTL", reg: gp2flags, asm: "TESTL"},      // (arg0 & arg1) compare to 0
-		{name: "TESTW", reg: gp2flags, asm: "TESTW"},      // (arg0 & arg1) compare to 0
-		{name: "TESTB", reg: gp2flags, asm: "TESTB"},      // (arg0 & arg1) compare to 0
-		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ"}, // (arg0 & auxint) compare to 0
-		{name: "TESTLconst", reg: gp1flags, asm: "TESTL"}, // (arg0 & auxint) compare to 0
-		{name: "TESTWconst", reg: gp1flags, asm: "TESTW"}, // (arg0 & auxint) compare to 0
-		{name: "TESTBconst", reg: gp1flags, asm: "TESTB"}, // (arg0 & auxint) compare to 0
+		{name: "TESTQ", reg: gp2flags, asm: "TESTQ", typ: "Flags"},      // (arg0 & arg1) compare to 0
+		{name: "TESTL", reg: gp2flags, asm: "TESTL", typ: "Flags"},      // (arg0 & arg1) compare to 0
+		{name: "TESTW", reg: gp2flags, asm: "TESTW", typ: "Flags"},      // (arg0 & arg1) compare to 0
+		{name: "TESTB", reg: gp2flags, asm: "TESTB", typ: "Flags"},      // (arg0 & arg1) compare to 0
+		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ", typ: "Flags"}, // (arg0 & auxint) compare to 0
+		{name: "TESTLconst", reg: gp1flags, asm: "TESTL", typ: "Flags"}, // (arg0 & auxint) compare to 0
+		{name: "TESTWconst", reg: gp1flags, asm: "TESTW", typ: "Flags"}, // (arg0 & auxint) compare to 0
+		{name: "TESTBconst", reg: gp1flags, asm: "TESTB", typ: "Flags"}, // (arg0 & auxint) compare to 0
 
 		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"}, // arg0 << arg1, shift amount is mod 64
 		{name: "SHLL", reg: gp21shift, asm: "SHLL"}, // arg0 << arg1, shift amount is mod 32

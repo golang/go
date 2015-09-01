@@ -459,7 +459,24 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 		}
 	}
 	if !hasType {
-		log.Fatalf("sub-expression %s must have a type", result)
+		// find default type, if any
+		for _, op := range arch.ops {
+			if op.name != s[0] || op.typ == "" || hasType {
+				continue
+			}
+			fmt.Fprintf(w, "%s.Type = %s\n", v, typeName(op.typ))
+			hasType = true
+		}
+		for _, op := range genericOps {
+			if op.name != s[0] || op.typ == "" || hasType {
+				continue
+			}
+			fmt.Fprintf(w, "%s.Type = %s\n", v, typeName(op.typ))
+			hasType = true
+		}
+	}
+	if !hasType {
+		log.Fatalf("sub-expression %s (op=%s) must have a type", result, s[0])
 	}
 	return v
 }
@@ -545,6 +562,16 @@ func blockName(name string, arch arch) string {
 		}
 	}
 	return "Block" + arch.name + name
+}
+
+// typeName returns the string to use to generate a type.
+func typeName(typ string) string {
+	switch typ {
+	case "Flags", "Mem":
+		return "Type" + typ
+	default:
+		return "config.fe.Type" + typ + "()"
+	}
 }
 
 // unbalanced returns true if there aren't the same number of ( and ) in the string.
