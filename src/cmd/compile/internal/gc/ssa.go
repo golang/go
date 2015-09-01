@@ -982,6 +982,66 @@ type opAndTwoTypes struct {
 	etype2 uint8
 }
 
+type twoTypes struct {
+	etype1 uint8
+	etype2 uint8
+}
+
+type twoOpsAndType struct {
+	op1              ssa.Op
+	op2              ssa.Op
+	intermediateType uint8
+}
+
+var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
+
+	twoTypes{TINT8, TFLOAT32}:  twoOpsAndType{ssa.OpSignExt8to32, ssa.OpCvt32to32F, TINT32},
+	twoTypes{TINT16, TFLOAT32}: twoOpsAndType{ssa.OpSignExt16to32, ssa.OpCvt32to32F, TINT32},
+	twoTypes{TINT32, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32to32F, TINT32},
+	twoTypes{TINT64, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64to32F, TINT64},
+
+	twoTypes{TINT8, TFLOAT64}:  twoOpsAndType{ssa.OpSignExt8to32, ssa.OpCvt32to64F, TINT32},
+	twoTypes{TINT16, TFLOAT64}: twoOpsAndType{ssa.OpSignExt16to32, ssa.OpCvt32to64F, TINT32},
+	twoTypes{TINT32, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt32to64F, TINT32},
+	twoTypes{TINT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCvt64to64F, TINT64},
+
+	twoTypes{TFLOAT32, TINT8}:  twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to8, TINT32},
+	twoTypes{TFLOAT32, TINT16}: twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to16, TINT32},
+	twoTypes{TFLOAT32, TINT32}: twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpCopy, TINT32},
+	twoTypes{TFLOAT32, TINT64}: twoOpsAndType{ssa.OpCvt32Fto64, ssa.OpCopy, TINT64},
+
+	twoTypes{TFLOAT64, TINT8}:  twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to8, TINT32},
+	twoTypes{TFLOAT64, TINT16}: twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to16, TINT32},
+	twoTypes{TFLOAT64, TINT32}: twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpCopy, TINT32},
+	twoTypes{TFLOAT64, TINT64}: twoOpsAndType{ssa.OpCvt64Fto64, ssa.OpCopy, TINT64},
+	// unsigned
+	twoTypes{TUINT8, TFLOAT32}:  twoOpsAndType{ssa.OpZeroExt8to32, ssa.OpCvt32to32F, TINT32},
+	twoTypes{TUINT16, TFLOAT32}: twoOpsAndType{ssa.OpZeroExt16to32, ssa.OpCvt32to32F, TINT32},
+	twoTypes{TUINT32, TFLOAT32}: twoOpsAndType{ssa.OpZeroExt32to64, ssa.OpCvt64to32F, TINT64}, // go wide to dodge unsigned
+	twoTypes{TUINT64, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpInvalid, TUINT64},            // Cvt64Uto32F, branchy code expansion instead
+
+	twoTypes{TUINT8, TFLOAT64}:  twoOpsAndType{ssa.OpZeroExt8to32, ssa.OpCvt32to64F, TINT32},
+	twoTypes{TUINT16, TFLOAT64}: twoOpsAndType{ssa.OpZeroExt16to32, ssa.OpCvt32to64F, TINT32},
+	twoTypes{TUINT32, TFLOAT64}: twoOpsAndType{ssa.OpZeroExt32to64, ssa.OpCvt64to64F, TINT64}, // go wide to dodge unsigned
+	twoTypes{TUINT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpInvalid, TUINT64},            // Cvt64Uto64F, branchy code expansion instead
+
+	twoTypes{TFLOAT32, TUINT8}:  twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to8, TINT32},
+	twoTypes{TFLOAT32, TUINT16}: twoOpsAndType{ssa.OpCvt32Fto32, ssa.OpTrunc32to16, TINT32},
+	twoTypes{TFLOAT32, TUINT32}: twoOpsAndType{ssa.OpCvt32Fto64, ssa.OpTrunc64to32, TINT64}, // go wide to dodge unsigned
+	twoTypes{TFLOAT32, TUINT64}: twoOpsAndType{ssa.OpInvalid, ssa.OpCopy, TUINT64},          // Cvt32Fto64U, branchy code expansion instead
+
+	twoTypes{TFLOAT64, TUINT8}:  twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to8, TINT32},
+	twoTypes{TFLOAT64, TUINT16}: twoOpsAndType{ssa.OpCvt64Fto32, ssa.OpTrunc32to16, TINT32},
+	twoTypes{TFLOAT64, TUINT32}: twoOpsAndType{ssa.OpCvt64Fto64, ssa.OpTrunc64to32, TINT64}, // go wide to dodge unsigned
+	twoTypes{TFLOAT64, TUINT64}: twoOpsAndType{ssa.OpInvalid, ssa.OpCopy, TUINT64},          // Cvt64Fto64U, branchy code expansion instead
+
+	// float
+	twoTypes{TFLOAT64, TFLOAT32}: twoOpsAndType{ssa.OpCvt64Fto32F, ssa.OpCopy, TFLOAT32},
+	twoTypes{TFLOAT64, TFLOAT64}: twoOpsAndType{ssa.OpCopy, ssa.OpCopy, TFLOAT64},
+	twoTypes{TFLOAT32, TFLOAT32}: twoOpsAndType{ssa.OpCopy, ssa.OpCopy, TFLOAT32},
+	twoTypes{TFLOAT32, TFLOAT64}: twoOpsAndType{ssa.OpCvt32Fto64F, ssa.OpCopy, TFLOAT64},
+}
+
 var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
 	opAndTwoTypes{OLSH, TINT8, TUINT8}:   ssa.OpLsh8x8,
 	opAndTwoTypes{OLSH, TUINT8, TUINT8}:  ssa.OpLsh8x8,
@@ -1280,146 +1340,46 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return s.newValue1(op, n.Type, x)
 		}
 
-		if ft.IsInteger() && tt.IsFloat() {
-			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
-			signedSize := ft.Size()
-			it := TINT32 // intermediate type in conversion, int32 or int64
-			if !ft.IsSigned() {
-				signedSize += 5
+		if ft.IsFloat() || tt.IsFloat() {
+			conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+			if !ok {
+				s.Fatalf("weird float conversion %s -> %s", ft, tt)
 			}
-			var op1, op2 ssa.Op
-			switch signedSize {
-			case 1:
-				op1 = ssa.OpSignExt8to32
-			case 2:
-				op1 = ssa.OpSignExt16to32
-			case 4:
-				op1 = ssa.OpCopy
-			case 8:
-				op1 = ssa.OpCopy
-				it = TINT64
-			case 6:
-				op1 = ssa.OpZeroExt8to32
-			case 7:
-				op1 = ssa.OpZeroExt16to32
-			case 9:
-				// Go wide to dodge the unsignedness correction
-				op1 = ssa.OpZeroExt32to64
-				it = TINT64
-			case 13:
-				// unsigned 64, there is branchy correction code
-				// because there is only signed-integer to FP
-				// conversion in the (AMD64) instructions set.
-				// Branchy correction code *may* be amenable to
-				// optimization, and it can be cleanly expressed
-				// in SSA, so do it here.
+			op1, op2, it := conv.op1, conv.op2, conv.intermediateType
+
+			if op1 != ssa.OpInvalid && op2 != ssa.OpInvalid {
+				// normal case, not tripping over unsigned 64
+				if op1 == ssa.OpCopy {
+					if op2 == ssa.OpCopy {
+						return x
+					}
+					return s.newValue1(op2, n.Type, x)
+				}
+				if op2 == ssa.OpCopy {
+					return s.newValue1(op1, n.Type, x)
+				}
+				return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
+			}
+			// Tricky 64-bit unsigned cases.
+			if ft.IsInteger() {
+				// therefore tt is float32 or float64, and ft is also unsigned
 				if tt.Size() == 4 {
 					return s.uint64Tofloat32(n, x, ft, tt)
 				}
 				if tt.Size() == 8 {
 					return s.uint64Tofloat64(n, x, ft, tt)
 				}
-
-			default:
-				s.Fatalf("weird integer to float sign extension %s -> %s", ft, tt)
-
+				s.Fatalf("weird unsigned integer to float conversion %s -> %s", ft, tt)
 			}
-			if tt.Size() == 4 {
-				if it == TINT64 {
-					op2 = ssa.OpCvt64to32F
-				} else {
-					op2 = ssa.OpCvt32to32F
-				}
-			} else {
-				if it == TINT64 {
-					op2 = ssa.OpCvt64to64F
-				} else {
-					op2 = ssa.OpCvt32to64F
-				}
-			}
-			if op1 == ssa.OpCopy {
-				return s.newValue1(op2, n.Type, x)
-			}
-			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
-		}
-
-		if tt.IsInteger() && ft.IsFloat() {
-			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
-			signedSize := tt.Size()
-			it := TINT32 // intermediate type in conversion, int32 or int64
-			if !tt.IsSigned() {
-				signedSize += 5
-			}
-			var op1, op2 ssa.Op
-			switch signedSize {
-			case 1:
-				op2 = ssa.OpTrunc32to8
-			case 2:
-				op2 = ssa.OpTrunc32to16
-			case 4:
-				op2 = ssa.OpCopy
-			case 8:
-				op2 = ssa.OpCopy
-				it = TINT64
-			case 6:
-				op2 = ssa.OpTrunc32to8
-			case 7:
-				op2 = ssa.OpTrunc32to16
-			case 9:
-				// Go wide to dodge the unsignedness correction
-				op2 = ssa.OpTrunc64to32
-				it = TINT64
-			case 13:
-				// unsigned 64, branchy correction code is needed
-				// because there is only FP to signed-integer
-				// conversion in the (AMD64) instructions set.
-				// Branchy correction code *may* be amenable to
-				// optimization, and it can be cleanly expressed
-				// in generic SSA, so do it here.
-				if ft.Size() == 4 {
-					return s.float32ToUint64(n, x, ft, tt)
-				}
-				if ft.Size() == 8 {
-					return s.float64ToUint64(n, x, ft, tt)
-				}
-				// unrecognized size is also "weird", hence fatal.
-				fallthrough
-
-			default:
-				s.Fatalf("weird float to integer conversion %s -> %s", ft, tt)
-
-			}
+			// therefore ft is float32 or float64, and tt is unsigned integer
 			if ft.Size() == 4 {
-				if it == TINT64 {
-					op1 = ssa.OpCvt32Fto64
-				} else {
-					op1 = ssa.OpCvt32Fto32
-				}
-			} else {
-				if it == TINT64 {
-					op1 = ssa.OpCvt64Fto64
-				} else {
-					op1 = ssa.OpCvt64Fto32
-				}
+				return s.float32ToUint64(n, x, ft, tt)
 			}
-			if op2 == ssa.OpCopy {
-				return s.newValue1(op1, n.Type, x)
+			if ft.Size() == 8 {
+				return s.float64ToUint64(n, x, ft, tt)
 			}
-			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
-		}
-
-		if ft.IsFloat() && tt.IsFloat() {
-			var op ssa.Op
-			if ft.Size() == tt.Size() {
-				op = ssa.OpCopy
-			} else if ft.Size() == 4 && tt.Size() == 8 {
-				op = ssa.OpCvt32Fto64F
-			} else if ft.Size() == 8 && tt.Size() == 4 {
-				op = ssa.OpCvt64Fto32F
-			} else {
-				s.Fatalf("weird float conversion %s -> %s", ft, tt)
-			}
-			return s.newValue1(op, n.Type, x)
+			s.Fatalf("weird float to unsigned integer conversion %s -> %s", ft, tt)
+			return nil
 		}
 
 		if ft.IsComplex() && tt.IsComplex() {
