@@ -512,6 +512,7 @@ type Link struct {
 	Blitrl             *Prog
 	Elitrl             *Prog
 	Rexflag            int
+	Vexflag            int
 	Rep                int
 	Repn               int
 	Lock               int
