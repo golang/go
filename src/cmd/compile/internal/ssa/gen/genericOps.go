@@ -30,7 +30,7 @@ var genericOps = []opData{
 	{name: "Mul16"},
 	{name: "Mul32"},
 	{name: "Mul64"},
-	{name: "MulPtr"}, // MulPtr is used for address calculations
+	{name: "MulPtr", typ: "Uintptr"}, // MulPtr is used for address calculations
 	{name: "Mul32F"},
 	{name: "Mul64F"},
 
@@ -250,9 +250,9 @@ var genericOps = []opData{
 	{name: "Const64"},
 	{name: "Const32F"},
 	{name: "Const64F"},
-	{name: "ConstPtr"},       // pointer-sized integer constant
-	{name: "ConstInterface"}, // nil interface
-	{name: "ConstSlice"},     // nil slice
+	{name: "ConstPtr", typ: "Uintptr"}, // pointer-sized integer constant
+	{name: "ConstInterface"},           // nil interface
+	{name: "ConstSlice"},               // nil slice
 	// TODO: Const32F, ...
 
 	// Constant-like things
@@ -264,15 +264,15 @@ var genericOps = []opData{
 	// or *AutoSymbol (arg0=SP).
 	{name: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
-	{name: "SP"},   // stack pointer
-	{name: "SB"},   // static base pointer (a.k.a. globals pointer)
-	{name: "Func"}, // entry address of a function
+	{name: "SP"},                 // stack pointer
+	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
+	{name: "Func"},               // entry address of a function
 
 	// Memory operations
-	{name: "Load"},  // Load from arg0.  arg1=memory
-	{name: "Store"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
-	{name: "Move"},  // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
-	{name: "Zero"},  // arg0=destptr, arg1=mem, auxint=size. Returns memory.
+	{name: "Load"},              // Load from arg0.  arg1=memory
+	{name: "Store", typ: "Mem"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
+	{name: "Move"},              // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
+	{name: "Zero"},              // arg0=destptr, arg1=mem, auxint=size. Returns memory.
 
 	// Function calls.  Arguments to the call have already been written to the stack.
 	// Return values appear on the stack.  The method receiver, if any, is treated
@@ -281,13 +281,13 @@ var genericOps = []opData{
 	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  Returns memory.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
-	{name: "SignExt8to16"},
+	{name: "SignExt8to16", typ: "Int16"},
 	{name: "SignExt8to32"},
 	{name: "SignExt8to64"},
 	{name: "SignExt16to32"},
 	{name: "SignExt16to64"},
 	{name: "SignExt32to64"},
-	{name: "ZeroExt8to16"},
+	{name: "ZeroExt8to16", typ: "UInt16"},
 	{name: "ZeroExt8to32"},
 	{name: "ZeroExt8to64"},
 	{name: "ZeroExt16to32"},

@@ -65,13 +65,13 @@
 (EqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (EqFat y x)
 (NeqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (NeqFat y x)
 // it suffices to check the first word (backing array for slices, dynamic type for interfaces)
-(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr <config.fe.TypeUintptr()> [0]))
-(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr <config.fe.TypeUintptr()> [0]))
+(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
+(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
 
 // indexing operations
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
-(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr <config.fe.TypeUintptr()> idx (ConstPtr <config.fe.TypeUintptr()> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
 (StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // complex ops
@@ -89,7 +89,7 @@
   (Store [4]
     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
     imag
-    (Store <TypeMem> [4] dst real mem))
+    (Store [4] dst real mem))
 
 (Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
   (ComplexMake
@@ -102,7 +102,7 @@
   (Store [8]
     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
     imag
-    (Store <TypeMem> [8] dst real mem))
+    (Store [8] dst real mem))
 
 // string ops
 (StringPtr (StringMake ptr _)) -> ptr
@@ -110,8 +110,8 @@
 (ConstString {s}) ->
   (StringMake
     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
-      (SB <config.fe.TypeUintptr()>))
-    (ConstPtr <config.fe.TypeUintptr()> [int64(len(s.(string)))]))
+      (SB))
+    (ConstPtr [int64(len(s.(string)))]))
 (Load <t> ptr mem) && t.IsString() ->
   (StringMake
     (Load <config.fe.TypeBytePtr()> ptr mem)
@@ -122,7 +122,7 @@
   (Store [config.PtrSize]
     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)
     len
-    (Store <TypeMem> [config.PtrSize] dst ptr mem))
+    (Store [config.PtrSize] dst ptr mem))
 
 // slice ops
 (SlicePtr (SliceMake ptr _ _ )) -> ptr
@@ -131,8 +131,8 @@
 (ConstSlice) ->
   (SliceMake
     (ConstNil <config.fe.TypeBytePtr()>)
-    (ConstPtr <config.fe.TypeUintptr()>)
-    (ConstPtr <config.fe.TypeUintptr()>))
+    (ConstPtr [0])
+    (ConstPtr [0]))
 
 (Load <t> ptr mem) && t.IsSlice() ->
   (SliceMake
@@ -147,10 +147,10 @@
   (Store [config.PtrSize]
     (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)
     cap
-    (Store <TypeMem> [config.PtrSize]
+    (Store [config.PtrSize]
       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)
       len
-      (Store <TypeMem> [config.PtrSize] dst ptr mem)))
+      (Store [config.PtrSize] dst ptr mem)))
 
 // interface ops
 (ITab (IMake itab _)) -> itab
@@ -169,7 +169,7 @@
   (Store [config.PtrSize]
     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
     data
-    (Store <TypeMem> [config.PtrSize] dst itab mem))
+    (Store [config.PtrSize] dst itab mem))
 
 // big-object moves (TODO: remove?)
 (Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)

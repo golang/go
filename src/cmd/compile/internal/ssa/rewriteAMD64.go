@@ -1279,10 +1279,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (CMPB (MOVBconst [c]) x)
 		// cond:
-		// result: (InvertFlags (CMPBconst <TypeFlags> x [c]))
+		// result: (InvertFlags (CMPBconst x [c]))
 		{
 			if v.Args[0].Op != OpAMD64MOVBconst {
-				goto end6798593f4f9a27e90de089b3248187fd
+				goto end25ab646f9eb8749ea58c8fbbb4bf6bcd
 			}
 			c := v.Args[0].AuxInt
 			x := v.Args[1]
@@ -1291,14 +1291,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AuxInt = c
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end6798593f4f9a27e90de089b3248187fd
-	end6798593f4f9a27e90de089b3248187fd:
+		goto end25ab646f9eb8749ea58c8fbbb4bf6bcd
+	end25ab646f9eb8749ea58c8fbbb4bf6bcd:
 		;
 	case OpAMD64CMPL:
 		// match: (CMPL x (MOVLconst [c]))
@@ -1323,10 +1323,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (CMPL (MOVLconst [c]) x)
 		// cond:
-		// result: (InvertFlags (CMPLconst <TypeFlags> x [c]))
+		// result: (InvertFlags (CMPLconst x [c]))
 		{
 			if v.Args[0].Op != OpAMD64MOVLconst {
-				goto end3c04e861f07a442be9e2f5e0e0d07cce
+				goto end7d89230086678ab4ed5cc96a3ae358d6
 			}
 			c := v.Args[0].AuxInt
 			x := v.Args[1]
@@ -1335,14 +1335,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AuxInt = c
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end3c04e861f07a442be9e2f5e0e0d07cce
-	end3c04e861f07a442be9e2f5e0e0d07cce:
+		goto end7d89230086678ab4ed5cc96a3ae358d6
+	end7d89230086678ab4ed5cc96a3ae358d6:
 		;
 	case OpAMD64CMPQ:
 		// match: (CMPQ x (MOVQconst [c]))
@@ -1370,29 +1370,29 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (CMPQ (MOVQconst [c]) x)
 		// cond: is32Bit(c)
-		// result: (InvertFlags (CMPQconst <TypeFlags> x [c]))
+		// result: (InvertFlags (CMPQconst x [c]))
 		{
 			if v.Args[0].Op != OpAMD64MOVQconst {
-				goto end5edbe48a495a51ecabd3b2c0ed44a3d3
+				goto end153e951c4d9890ee40bf6f189ff6280e
 			}
 			c := v.Args[0].AuxInt
 			x := v.Args[1]
 			if !(is32Bit(c)) {
-				goto end5edbe48a495a51ecabd3b2c0ed44a3d3
+				goto end153e951c4d9890ee40bf6f189ff6280e
 			}
 			v.Op = OpAMD64InvertFlags
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AuxInt = c
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end5edbe48a495a51ecabd3b2c0ed44a3d3
-	end5edbe48a495a51ecabd3b2c0ed44a3d3:
+		goto end153e951c4d9890ee40bf6f189ff6280e
+	end153e951c4d9890ee40bf6f189ff6280e:
 		;
 	case OpAMD64CMPW:
 		// match: (CMPW x (MOVWconst [c]))
@@ -1417,10 +1417,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 		// match: (CMPW (MOVWconst [c]) x)
 		// cond:
-		// result: (InvertFlags (CMPWconst <TypeFlags> x [c]))
+		// result: (InvertFlags (CMPWconst x [c]))
 		{
 			if v.Args[0].Op != OpAMD64MOVWconst {
-				goto end1ce191aaab0f4dd3b98dafdfbfac13ce
+				goto end3c52d0ae6e3d186bf131b41276c21889
 			}
 			c := v.Args[0].AuxInt
 			x := v.Args[1]
@@ -1429,14 +1429,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AuxInt = c
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end1ce191aaab0f4dd3b98dafdfbfac13ce
-	end1ce191aaab0f4dd3b98dafdfbfac13ce:
+		goto end3c52d0ae6e3d186bf131b41276c21889
+	end3c52d0ae6e3d186bf131b41276c21889:
 		;
 	case OpClosureCall:
 		// match: (ClosureCall [argwid] entry closure mem)
@@ -1995,7 +1995,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpDiv8:
 		// match: (Div8 x y)
 		// cond:
-		// result: (DIVW (SignExt8to16 <config.Frontend().TypeInt16()> x) (SignExt8to16 <config.Frontend().TypeInt16()> y))
+		// result: (DIVW (SignExt8to16 x) (SignExt8to16 y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2004,22 +2004,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
-			v0.Type = config.Frontend().TypeInt16()
 			v0.AddArg(x)
+			v0.Type = config.fe.TypeInt16()
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
-			v1.Type = config.Frontend().TypeInt16()
 			v1.AddArg(y)
+			v1.Type = config.fe.TypeInt16()
 			v.AddArg(v1)
 			return true
 		}
-		goto ende25a7899b9c7a869f74226b4b6033084
-	ende25a7899b9c7a869f74226b4b6033084:
+		goto endeee2bc780a73ec2ccb1a66c527816ee0
+	endeee2bc780a73ec2ccb1a66c527816ee0:
 		;
 	case OpDiv8u:
 		// match: (Div8u x y)
 		// cond:
-		// result: (DIVWU (ZeroExt8to16 <config.Frontend().TypeUInt16()> x) (ZeroExt8to16 <config.Frontend().TypeUInt16()> y))
+		// result: (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2028,22 +2028,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
-			v0.Type = config.Frontend().TypeUInt16()
 			v0.AddArg(x)
+			v0.Type = config.fe.TypeUInt16()
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
-			v1.Type = config.Frontend().TypeUInt16()
 			v1.AddArg(y)
+			v1.Type = config.fe.TypeUInt16()
 			v.AddArg(v1)
 			return true
 		}
-		goto ende655b41d48feafc4d139b815a3b7b55c
-	ende655b41d48feafc4d139b815a3b7b55c:
+		goto end39da6664d6434d844303f6924cc875dd
+	end39da6664d6434d844303f6924cc875dd:
 		;
 	case OpEq16:
 		// match: (Eq16 x y)
 		// cond:
-		// result: (SETEQ (CMPW <TypeFlags> x y))
+		// result: (SETEQ (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2052,19 +2052,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end66a03470b5b3e8457ba205ccfcaccea6
-	end66a03470b5b3e8457ba205ccfcaccea6:
+		goto endd7f668b1d23603b0949953ee8dec8107
+	endd7f668b1d23603b0949953ee8dec8107:
 		;
 	case OpEq32:
 		// match: (Eq32 x y)
 		// cond:
-		// result: (SETEQ (CMPL <TypeFlags> x y))
+		// result: (SETEQ (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2073,19 +2073,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end4d77d0b016f93817fd6e5f60fa0e7ef2
-	end4d77d0b016f93817fd6e5f60fa0e7ef2:
+		goto endf28041ae0c73fb341cc0d2f4903fb2fb
+	endf28041ae0c73fb341cc0d2f4903fb2fb:
 		;
 	case OpEq32F:
 		// match: (Eq32F x y)
 		// cond:
-		// result: (SETEQF (UCOMISS <TypeFlags> x y))
+		// result: (SETEQF (UCOMISS x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2094,19 +2094,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISS, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end034925b03df528b1ffec9fafdcd56c8e
-	end034925b03df528b1ffec9fafdcd56c8e:
+		goto endb2c12933769e5faa8fc238048e113dee
+	endb2c12933769e5faa8fc238048e113dee:
 		;
 	case OpEq64:
 		// match: (Eq64 x y)
 		// cond:
-		// result: (SETEQ (CMPQ <TypeFlags> x y))
+		// result: (SETEQ (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2115,19 +2115,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endae6c62e4e20b4f62694b6ee40dbd9211
-	endae6c62e4e20b4f62694b6ee40dbd9211:
+		goto ende07a380487b710b51bcd5aa6d3144b8c
+	ende07a380487b710b51bcd5aa6d3144b8c:
 		;
 	case OpEq64F:
 		// match: (Eq64F x y)
 		// cond:
-		// result: (SETEQF (UCOMISD <TypeFlags> x y))
+		// result: (SETEQF (UCOMISD x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2136,19 +2136,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISD, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end62b2fb60187571e6ab0c53696ef7d030
-	end62b2fb60187571e6ab0c53696ef7d030:
+		goto end68e20c0c1b3ee62fbd17af07ac100704
+	end68e20c0c1b3ee62fbd17af07ac100704:
 		;
 	case OpEq8:
 		// match: (Eq8 x y)
 		// cond:
-		// result: (SETEQ (CMPB <TypeFlags> x y))
+		// result: (SETEQ (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2157,19 +2157,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end84a692e769900e3adbfe00718d2169e0
-	end84a692e769900e3adbfe00718d2169e0:
+		goto end359e5a51d2ab928a455f0ae5adb42ab0
+	end359e5a51d2ab928a455f0ae5adb42ab0:
 		;
 	case OpEqPtr:
 		// match: (EqPtr x y)
 		// cond:
-		// result: (SETEQ (CMPQ <TypeFlags> x y))
+		// result: (SETEQ (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2178,19 +2178,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end6de1d39c9d151e5e503d643bd835356e
-	end6de1d39c9d151e5e503d643bd835356e:
+		goto endf19bd3c0eb99d15718bef4066d62560c
+	endf19bd3c0eb99d15718bef4066d62560c:
 		;
 	case OpGeq16:
 		// match: (Geq16 x y)
 		// cond:
-		// result: (SETGE (CMPW <TypeFlags> x y))
+		// result: (SETGE (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2199,19 +2199,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end26084bf821f9e418934fee812632b774
-	end26084bf821f9e418934fee812632b774:
+		goto end0a3f723d5c0b877c473b0043d814867b
+	end0a3f723d5c0b877c473b0043d814867b:
 		;
 	case OpGeq16U:
 		// match: (Geq16U x y)
 		// cond:
-		// result: (SETAE (CMPW <TypeFlags> x y))
+		// result: (SETAE (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2220,19 +2220,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end20b00f850ca834cb2013414645c19ad9
-	end20b00f850ca834cb2013414645c19ad9:
+		goto end79d754a28ee34eff95140635b26f0248
+	end79d754a28ee34eff95140635b26f0248:
 		;
 	case OpGeq32:
 		// match: (Geq32 x y)
 		// cond:
-		// result: (SETGE (CMPL <TypeFlags> x y))
+		// result: (SETGE (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2241,19 +2241,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end713c3dfa0f7247dcc232bcfc916fb044
-	end713c3dfa0f7247dcc232bcfc916fb044:
+		goto endfb1f6286a1b153b2a3f5b8548a782c8c
+	endfb1f6286a1b153b2a3f5b8548a782c8c:
 		;
 	case OpGeq32F:
 		// match: (Geq32F x y)
 		// cond:
-		// result: (SETGEF (UCOMISS <TypeFlags> x y))
+		// result: (SETGEF (UCOMISS x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2262,19 +2262,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISS, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end5847ac7f2e264fba4c408ebb60c1e8a5
-	end5847ac7f2e264fba4c408ebb60c1e8a5:
+		goto end7a8d6107a945410e64db06669a61da97
+	end7a8d6107a945410e64db06669a61da97:
 		;
 	case OpGeq32U:
 		// match: (Geq32U x y)
 		// cond:
-		// result: (SETAE (CMPL <TypeFlags> x y))
+		// result: (SETAE (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2283,19 +2283,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endac2cde17ec6ab0107eabbda6407d1004
-	endac2cde17ec6ab0107eabbda6407d1004:
+		goto endc5d3478a626df01ede063564f4cb80d0
+	endc5d3478a626df01ede063564f4cb80d0:
 		;
 	case OpGeq64:
 		// match: (Geq64 x y)
 		// cond:
-		// result: (SETGE (CMPQ <TypeFlags> x y))
+		// result: (SETGE (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2304,19 +2304,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end63f44e3fec8d92723b5bde42d6d7eea0
-	end63f44e3fec8d92723b5bde42d6d7eea0:
+		goto end74bddb7905ab865de5b041e7e4789911
+	end74bddb7905ab865de5b041e7e4789911:
 		;
 	case OpGeq64F:
 		// match: (Geq64F x y)
 		// cond:
-		// result: (SETGEF (UCOMISD <TypeFlags> x y))
+		// result: (SETGEF (UCOMISD x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2325,19 +2325,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISD, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endb40fbc46a8fc04fef95182771e2933c2
-	endb40fbc46a8fc04fef95182771e2933c2:
+		goto end9fac9bd98ef58b7fbbe1a31f84bdcccf
+	end9fac9bd98ef58b7fbbe1a31f84bdcccf:
 		;
 	case OpGeq64U:
 		// match: (Geq64U x y)
 		// cond:
-		// result: (SETAE (CMPQ <TypeFlags> x y))
+		// result: (SETAE (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2346,19 +2346,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endd8d2d9faa19457f6a7b0635a756d234f
-	endd8d2d9faa19457f6a7b0635a756d234f:
+		goto end95101721fc8f5be9969e50e364143e7f
+	end95101721fc8f5be9969e50e364143e7f:
 		;
 	case OpGeq8:
 		// match: (Geq8  x y)
 		// cond:
-		// result: (SETGE (CMPB <TypeFlags> x y))
+		// result: (SETGE (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2367,19 +2367,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endb5f40ee158007e675b2113c3ce962382
-	endb5f40ee158007e675b2113c3ce962382:
+		goto end983070a3db317bdb64b5a0fb104d267c
+	end983070a3db317bdb64b5a0fb104d267c:
 		;
 	case OpGeq8U:
 		// match: (Geq8U  x y)
 		// cond:
-		// result: (SETAE (CMPB <TypeFlags> x y))
+		// result: (SETAE (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2388,14 +2388,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endd30ee67afc0284c419cef70261f61452
-	endd30ee67afc0284c419cef70261f61452:
+		goto enda617119faaccc0f0c2d23548116cf331
+	enda617119faaccc0f0c2d23548116cf331:
 		;
 	case OpGetG:
 		// match: (GetG)
@@ -2414,7 +2414,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpGreater16:
 		// match: (Greater16 x y)
 		// cond:
-		// result: (SETG (CMPW <TypeFlags> x y))
+		// result: (SETG (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2423,19 +2423,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end5bc9fdb7e563a6b949e42d721903cb58
-	end5bc9fdb7e563a6b949e42d721903cb58:
+		goto end4e4a1307c61240af9a86d8fe4f834ee8
+	end4e4a1307c61240af9a86d8fe4f834ee8:
 		;
 	case OpGreater16U:
 		// match: (Greater16U x y)
 		// cond:
-		// result: (SETA (CMPW <TypeFlags> x y))
+		// result: (SETA (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2444,19 +2444,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endd5b646f04fd839d11082a9ff6adb4a3f
-	endd5b646f04fd839d11082a9ff6adb4a3f:
+		goto end7c66c75f4b8ec1db593f3e60cfba9592
+	end7c66c75f4b8ec1db593f3e60cfba9592:
 		;
 	case OpGreater32:
 		// match: (Greater32 x y)
 		// cond:
-		// result: (SETG (CMPL <TypeFlags> x y))
+		// result: (SETG (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2465,19 +2465,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endbf0b2b1368aadff48969a7386eee5795
-	endbf0b2b1368aadff48969a7386eee5795:
+		goto end6fb0eae4a0e0e81b4afb085d398d873b
+	end6fb0eae4a0e0e81b4afb085d398d873b:
 		;
 	case OpGreater32F:
 		// match: (Greater32F x y)
 		// cond:
-		// result: (SETGF (UCOMISS <TypeFlags> x y))
+		// result: (SETGF (UCOMISS x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2486,19 +2486,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISS, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endb65b042358784f18002ae59ea6f2c51a
-	endb65b042358784f18002ae59ea6f2c51a:
+		goto end94df0bd5cedad8ce8021df1b24da40c6
+	end94df0bd5cedad8ce8021df1b24da40c6:
 		;
 	case OpGreater32U:
 		// match: (Greater32U x y)
 		// cond:
-		// result: (SETA (CMPL <TypeFlags> x y))
+		// result: (SETA (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2507,19 +2507,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end033c944272dc0af6fafe33f667cf7485
-	end033c944272dc0af6fafe33f667cf7485:
+		goto end18da022a28eae8bd0771e0c948aadaf8
+	end18da022a28eae8bd0771e0c948aadaf8:
 		;
 	case OpGreater64:
 		// match: (Greater64 x y)
 		// cond:
-		// result: (SETG (CMPQ <TypeFlags> x y))
+		// result: (SETG (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2528,19 +2528,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endaef0cfa5e27e23cf5e527061cf251069
-	endaef0cfa5e27e23cf5e527061cf251069:
+		goto endc025c908708f939780fba0da0c1148b4
+	endc025c908708f939780fba0da0c1148b4:
 		;
 	case OpGreater64F:
 		// match: (Greater64F x y)
 		// cond:
-		// result: (SETGF (UCOMISD <TypeFlags> x y))
+		// result: (SETGF (UCOMISD x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2549,19 +2549,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISD, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end1a6ca23bbb3e885473865e3b3ea501e7
-	end1a6ca23bbb3e885473865e3b3ea501e7:
+		goto end033ca5181b18376e7215c02812ef5a6b
+	end033ca5181b18376e7215c02812ef5a6b:
 		;
 	case OpGreater64U:
 		// match: (Greater64U x y)
 		// cond:
-		// result: (SETA (CMPQ <TypeFlags> x y))
+		// result: (SETA (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2570,19 +2570,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end2afc16a19fe1073dfa86770a78eba2b4
-	end2afc16a19fe1073dfa86770a78eba2b4:
+		goto endb3e25347041760a04d3fc8321c3f3d00
+	endb3e25347041760a04d3fc8321c3f3d00:
 		;
 	case OpGreater8:
 		// match: (Greater8  x y)
 		// cond:
-		// result: (SETG (CMPB <TypeFlags> x y))
+		// result: (SETG (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2591,19 +2591,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endbdb1e5f6b760cf02e0fc2f474622e6be
-	endbdb1e5f6b760cf02e0fc2f474622e6be:
+		goto enda3eeb5da2e69cb54a1515601d4b360d4
+	enda3eeb5da2e69cb54a1515601d4b360d4:
 		;
 	case OpGreater8U:
 		// match: (Greater8U  x y)
 		// cond:
-		// result: (SETA (CMPB <TypeFlags> x y))
+		// result: (SETA (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2612,14 +2612,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end22eaafbcfe70447f79d9b3e6cc395bbd
-	end22eaafbcfe70447f79d9b3e6cc395bbd:
+		goto endd2027f3b6471262f42b90c8cc0413667
+	endd2027f3b6471262f42b90c8cc0413667:
 		;
 	case OpHmul16:
 		// match: (Hmul16 x y)
@@ -2753,7 +2753,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpIsInBounds:
 		// match: (IsInBounds idx len)
 		// cond:
-		// result: (SETB (CMPQ <TypeFlags> idx len))
+		// result: (SETB (CMPQ idx len))
 		{
 			idx := v.Args[0]
 			len := v.Args[1]
@@ -2762,19 +2762,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(idx)
 			v0.AddArg(len)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endb51d371171154c0f1613b687757e0576
-	endb51d371171154c0f1613b687757e0576:
+		goto endfff988d5f1912886d73be3bb563c37d9
+	endfff988d5f1912886d73be3bb563c37d9:
 		;
 	case OpIsNonNil:
 		// match: (IsNonNil p)
 		// cond:
-		// result: (SETNE (TESTQ <TypeFlags> p p))
+		// result: (SETNE (TESTQ p p))
 		{
 			p := v.Args[0]
 			v.Op = OpAMD64SETNE
@@ -2782,19 +2782,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64TESTQ, TypeInvalid)
+			v0.AddArg(p)
+			v0.AddArg(p)
 			v0.Type = TypeFlags
-			v0.AddArg(p)
-			v0.AddArg(p)
 			v.AddArg(v0)
 			return true
 		}
-		goto endff508c3726edfb573abc6128c177e76c
-	endff508c3726edfb573abc6128c177e76c:
+		goto end0af5ec868ede9ea73fb0602d54b863e9
+	end0af5ec868ede9ea73fb0602d54b863e9:
 		;
 	case OpIsSliceInBounds:
 		// match: (IsSliceInBounds idx len)
 		// cond:
-		// result: (SETBE (CMPQ <TypeFlags> idx len))
+		// result: (SETBE (CMPQ idx len))
 		{
 			idx := v.Args[0]
 			len := v.Args[1]
@@ -2803,19 +2803,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(idx)
 			v0.AddArg(len)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end41f8211150e3a4ef36a1b5168013f96f
-	end41f8211150e3a4ef36a1b5168013f96f:
+		goto end02799ad95fe7fb5ce3c2c8ab313b737c
+	end02799ad95fe7fb5ce3c2c8ab313b737c:
 		;
 	case OpLeq16:
 		// match: (Leq16 x y)
 		// cond:
-		// result: (SETLE (CMPW <TypeFlags> x y))
+		// result: (SETLE (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2824,19 +2824,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endc1916dfcb3eae58ab237e40a57e1ff16
-	endc1916dfcb3eae58ab237e40a57e1ff16:
+		goto end586c647ca6bb8ec725eea917c743d1ea
+	end586c647ca6bb8ec725eea917c743d1ea:
 		;
 	case OpLeq16U:
 		// match: (Leq16U x y)
 		// cond:
-		// result: (SETBE (CMPW <TypeFlags> x y))
+		// result: (SETBE (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2845,19 +2845,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end627e261aea217b5d17177b52711b8c82
-	end627e261aea217b5d17177b52711b8c82:
+		goto end9c24a81bc6a4a92267bd6638362dfbfc
+	end9c24a81bc6a4a92267bd6638362dfbfc:
 		;
 	case OpLeq32:
 		// match: (Leq32 x y)
 		// cond:
-		// result: (SETLE (CMPL <TypeFlags> x y))
+		// result: (SETLE (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2866,19 +2866,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endf422ecc8da0033e22242de9c67112537
-	endf422ecc8da0033e22242de9c67112537:
+		goto end595ee99a9fc3460b2748b9129b139f88
+	end595ee99a9fc3460b2748b9129b139f88:
 		;
 	case OpLeq32F:
 		// match: (Leq32F x y)
 		// cond:
-		// result: (SETGEF (UCOMISS <TypeFlags> y x))
+		// result: (SETGEF (UCOMISS y x))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2887,19 +2887,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISS, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(y)
 			v0.AddArg(x)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end98f7b2e6e15ce282d044c812454fe77f
-	end98f7b2e6e15ce282d044c812454fe77f:
+		goto endfee4b989a80cc43328b24f7017e80a17
+	endfee4b989a80cc43328b24f7017e80a17:
 		;
 	case OpLeq32U:
 		// match: (Leq32U x y)
 		// cond:
-		// result: (SETBE (CMPL <TypeFlags> x y))
+		// result: (SETBE (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2908,19 +2908,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end1b39c9661896abdff8a29de509311b96
-	end1b39c9661896abdff8a29de509311b96:
+		goto end1a59850aad6cb17c295d0dc359013420
+	end1a59850aad6cb17c295d0dc359013420:
 		;
 	case OpLeq64:
 		// match: (Leq64 x y)
 		// cond:
-		// result: (SETLE (CMPQ <TypeFlags> x y))
+		// result: (SETLE (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2929,19 +2929,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endf03da5e28dccdb4797671f39e824fb10
-	endf03da5e28dccdb4797671f39e824fb10:
+		goto end406def83fcbf29cd8fa306170b512de2
+	end406def83fcbf29cd8fa306170b512de2:
 		;
 	case OpLeq64F:
 		// match: (Leq64F x y)
 		// cond:
-		// result: (SETGEF (UCOMISD <TypeFlags> y x))
+		// result: (SETGEF (UCOMISD y x))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2950,19 +2950,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISD, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(y)
 			v0.AddArg(x)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end7efa164f4e4f5a395f547b1885b7eef4
-	end7efa164f4e4f5a395f547b1885b7eef4:
+		goto end6e3de6d4b5668f673e3822d5947edbd0
+	end6e3de6d4b5668f673e3822d5947edbd0:
 		;
 	case OpLeq64U:
 		// match: (Leq64U x y)
 		// cond:
-		// result: (SETBE (CMPQ <TypeFlags> x y))
+		// result: (SETBE (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2971,19 +2971,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end37302777dd91a5d0c6f410a5444ccb38
-	end37302777dd91a5d0c6f410a5444ccb38:
+		goto end52f23c145b80639c8d60420ad4057bc7
+	end52f23c145b80639c8d60420ad4057bc7:
 		;
 	case OpLeq8:
 		// match: (Leq8  x y)
 		// cond:
-		// result: (SETLE (CMPB <TypeFlags> x y))
+		// result: (SETLE (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -2992,19 +2992,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end03be536eea60fdd98d48b17681acaf5a
-	end03be536eea60fdd98d48b17681acaf5a:
+		goto end72ecba6f2a7062cb266923dfec811f79
+	end72ecba6f2a7062cb266923dfec811f79:
 		;
 	case OpLeq8U:
 		// match: (Leq8U  x y)
 		// cond:
-		// result: (SETBE (CMPB <TypeFlags> x y))
+		// result: (SETBE (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3013,19 +3013,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end661377f6745450bb1fa7fd0608ef0a86
-	end661377f6745450bb1fa7fd0608ef0a86:
+		goto endb043b338cced4f15400d8d6e584ebea7
+	endb043b338cced4f15400d8d6e584ebea7:
 		;
 	case OpLess16:
 		// match: (Less16 x y)
 		// cond:
-		// result: (SETL (CMPW <TypeFlags> x y))
+		// result: (SETL (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3034,19 +3034,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endeb09704ef62ba2695a967b6fcb42e562
-	endeb09704ef62ba2695a967b6fcb42e562:
+		goto end2f6c6ba80eda8d68e77a58cba13d3f16
+	end2f6c6ba80eda8d68e77a58cba13d3f16:
 		;
 	case OpLess16U:
 		// match: (Less16U x y)
 		// cond:
-		// result: (SETB (CMPW <TypeFlags> x y))
+		// result: (SETB (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3055,19 +3055,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end2209a57bd887f68ad732aa7da2bc7286
-	end2209a57bd887f68ad732aa7da2bc7286:
+		goto end9f65eefe7b83a3c436b5c16664c93703
+	end9f65eefe7b83a3c436b5c16664c93703:
 		;
 	case OpLess32:
 		// match: (Less32 x y)
 		// cond:
-		// result: (SETL (CMPL <TypeFlags> x y))
+		// result: (SETL (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3076,19 +3076,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end8da8d2030c0a323a84503c1240c566ae
-	end8da8d2030c0a323a84503c1240c566ae:
+		goto end6632ff4ee994eb5b14cdf60c99ac3798
+	end6632ff4ee994eb5b14cdf60c99ac3798:
 		;
 	case OpLess32F:
 		// match: (Less32F x y)
 		// cond:
-		// result: (SETGF (UCOMISS <TypeFlags> y x))
+		// result: (SETGF (UCOMISS y x))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3097,19 +3097,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISS, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(y)
 			v0.AddArg(x)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end54f94ce87c18a1ed2beb8d0161bea907
-	end54f94ce87c18a1ed2beb8d0161bea907:
+		goto end5b3b0c96a7fc2ede81bc89c9abaac9d0
+	end5b3b0c96a7fc2ede81bc89c9abaac9d0:
 		;
 	case OpLess32U:
 		// match: (Less32U x y)
 		// cond:
-		// result: (SETB (CMPL <TypeFlags> x y))
+		// result: (SETB (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3118,19 +3118,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto enddcfbbb482eb194146f4f7c8f12029a7a
-	enddcfbbb482eb194146f4f7c8f12029a7a:
+		goto end39e5a513c7fb0a42817a6cf9c6143b60
+	end39e5a513c7fb0a42817a6cf9c6143b60:
 		;
 	case OpLess64:
 		// match: (Less64 x y)
 		// cond:
-		// result: (SETL (CMPQ <TypeFlags> x y))
+		// result: (SETL (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3139,19 +3139,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endf8e7a24c25692045bbcfd2c9356d1a8c
-	endf8e7a24c25692045bbcfd2c9356d1a8c:
+		goto enddce827d3e922e8487b61a88c2b1510f2
+	enddce827d3e922e8487b61a88c2b1510f2:
 		;
 	case OpLess64F:
 		// match: (Less64F x y)
 		// cond:
-		// result: (SETGF (UCOMISD <TypeFlags> y x))
+		// result: (SETGF (UCOMISD y x))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3160,19 +3160,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISD, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(y)
 			v0.AddArg(x)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end92720155a95cbfae47ea469583c4d3c7
-	end92720155a95cbfae47ea469583c4d3c7:
+		goto endf2be3d2dcb6543d2159e7fff5ccbbb55
+	endf2be3d2dcb6543d2159e7fff5ccbbb55:
 		;
 	case OpLess64U:
 		// match: (Less64U x y)
 		// cond:
-		// result: (SETB (CMPQ <TypeFlags> x y))
+		// result: (SETB (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3181,19 +3181,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end2fac0a2c2e972b5e04b5062d5786b87d
-	end2fac0a2c2e972b5e04b5062d5786b87d:
+		goto endb76d7768f175a44baf6d63d12ab6e81d
+	endb76d7768f175a44baf6d63d12ab6e81d:
 		;
 	case OpLess8:
 		// match: (Less8  x y)
 		// cond:
-		// result: (SETL (CMPB <TypeFlags> x y))
+		// result: (SETL (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3202,19 +3202,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end445ad05f8d23dfecf246ce083f1ea167
-	end445ad05f8d23dfecf246ce083f1ea167:
+		goto end314fbffe99f3bd4b07857a80c0b914cd
+	end314fbffe99f3bd4b07857a80c0b914cd:
 		;
 	case OpLess8U:
 		// match: (Less8U  x y)
 		// cond:
-		// result: (SETB (CMPB <TypeFlags> x y))
+		// result: (SETB (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -3223,14 +3223,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end816d1dff858c45836dfa337262e04649
-	end816d1dff858c45836dfa337262e04649:
+		goto endadccc5d80fd053a33004ed0759f64d93
+	endadccc5d80fd053a33004ed0759f64d93:
 		;
 	case OpLoad:
 		// match: (Load <t> ptr mem)
@@ -3442,7 +3442,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpLsh16x16:
 		// match: (Lsh16x16 <t> x y)
 		// cond:
-		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPWconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3459,20 +3459,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end5b63495f0e75ac68c4ce9d4afa1472d4
-	end5b63495f0e75ac68c4ce9d4afa1472d4:
+		goto end7ffc4f31c526f7fcb2283215b458f589
+	end7ffc4f31c526f7fcb2283215b458f589:
 		;
 	case OpLsh16x32:
 		// match: (Lsh16x32 <t> x y)
 		// cond:
-		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPLconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3489,20 +3489,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end6384dd9bdcec3046732d7347250d49f6
-	end6384dd9bdcec3046732d7347250d49f6:
+		goto enddcc0e751d315967423c99518c0cc065e
+	enddcc0e751d315967423c99518c0cc065e:
 		;
 	case OpLsh16x64:
 		// match: (Lsh16x64 <t> x y)
 		// cond:
-		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPQconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3519,20 +3519,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end0975ca28988350db0ad556c925d8af07
-	end0975ca28988350db0ad556c925d8af07:
+		goto endf6368b59d046ca83050cd75fbe8715d2
+	endf6368b59d046ca83050cd75fbe8715d2:
 		;
 	case OpLsh16x8:
 		// match: (Lsh16x8 <t> x y)
 		// cond:
-		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHLW <t> x y) (SBBLcarrymask <t> (CMPBconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3549,20 +3549,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto endd17c913707f29d59cfcb5d57d5f5c6ff
-	endd17c913707f29d59cfcb5d57d5f5c6ff:
+		goto end8730d944c8fb358001ba2d165755bdc4
+	end8730d944c8fb358001ba2d165755bdc4:
 		;
 	case OpLsh32x16:
 		// match: (Lsh32x16 <t> x y)
 		// cond:
-		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3579,20 +3579,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end027b6f888054cc1dd8911fe16a6315a1
-	end027b6f888054cc1dd8911fe16a6315a1:
+		goto end5a43b7e9b0780e62f622bac0a68524d2
+	end5a43b7e9b0780e62f622bac0a68524d2:
 		;
 	case OpLsh32x32:
 		// match: (Lsh32x32 <t> x y)
 		// cond:
-		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3609,20 +3609,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto endbcc31e2bd8800d5ddb27c09d37f867b9
-	endbcc31e2bd8800d5ddb27c09d37f867b9:
+		goto end9ce0ab6f9095c24ea46ca8fe2d7e5507
+	end9ce0ab6f9095c24ea46ca8fe2d7e5507:
 		;
 	case OpLsh32x64:
 		// match: (Lsh32x64 <t> x y)
 		// cond:
-		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPQconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3639,20 +3639,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end6797e3a3bbb0fe7eda819fe19a4d4b49
-	end6797e3a3bbb0fe7eda819fe19a4d4b49:
+		goto end646b5471b709d5ea6c21f49a2815236f
+	end646b5471b709d5ea6c21f49a2815236f:
 		;
 	case OpLsh32x8:
 		// match: (Lsh32x8 <t> x y)
 		// cond:
-		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3669,20 +3669,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end7dd2c717933f46750e8a0871aab6fc63
-	end7dd2c717933f46750e8a0871aab6fc63:
+		goto end96a677c71370e7c9179125f92cbdfda8
+	end96a677c71370e7c9179125f92cbdfda8:
 		;
 	case OpLsh64x16:
 		// match: (Lsh64x16 <t> x y)
 		// cond:
-		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPWconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3699,20 +3699,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end3a2fda1dddb29e49f46ccde6f5397222
-	end3a2fda1dddb29e49f46ccde6f5397222:
+		goto end5f88f241d68d38954222d81559cd7f9f
+	end5f88f241d68d38954222d81559cd7f9f:
 		;
 	case OpLsh64x32:
 		// match: (Lsh64x32 <t> x y)
 		// cond:
-		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPLconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3729,20 +3729,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end147322aba732027ac2290fd8173d806a
-	end147322aba732027ac2290fd8173d806a:
+		goto endae1705f03ed3d6f43cd63b53496a910a
+	endae1705f03ed3d6f43cd63b53496a910a:
 		;
 	case OpLsh64x64:
 		// match: (Lsh64x64 <t> x y)
 		// cond:
-		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPQconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3759,20 +3759,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto endeb8e78c9c960fa12e29ea07a8519649b
-	endeb8e78c9c960fa12e29ea07a8519649b:
+		goto end1f6f5f510c5c68e4ce4a78643e6d85a1
+	end1f6f5f510c5c68e4ce4a78643e6d85a1:
 		;
 	case OpLsh64x8:
 		// match: (Lsh64x8 <t> x y)
 		// cond:
-		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHLQ <t> x y) (SBBQcarrymask <t> (CMPBconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3789,20 +3789,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end42cdc11c34c81bbd5e8b4ad19ceec1ef
-	end42cdc11c34c81bbd5e8b4ad19ceec1ef:
+		goto endd14f5c89e3496b0e425aa1ae366f4b53
+	endd14f5c89e3496b0e425aa1ae366f4b53:
 		;
 	case OpLsh8x16:
 		// match: (Lsh8x16 <t> x y)
 		// cond:
-		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPWconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3819,20 +3819,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end60bf962bf5256e20b547e18e3c886aa5
-	end60bf962bf5256e20b547e18e3c886aa5:
+		goto end0926c3d8b9a0776ba5058946f6e1a4b7
+	end0926c3d8b9a0776ba5058946f6e1a4b7:
 		;
 	case OpLsh8x32:
 		// match: (Lsh8x32 <t> x y)
 		// cond:
-		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPLconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3849,20 +3849,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end8ed3445f6dbba1a87c80b140371445ce
-	end8ed3445f6dbba1a87c80b140371445ce:
+		goto end5987682d77f197ef0fd95251f413535a
+	end5987682d77f197ef0fd95251f413535a:
 		;
 	case OpLsh8x64:
 		// match: (Lsh8x64 <t> x y)
 		// cond:
-		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPQconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3879,20 +3879,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end0a03c9cc48ef1bfd74973de5f5fb02b0
-	end0a03c9cc48ef1bfd74973de5f5fb02b0:
+		goto end9ffe6731d7d6514b8c0482f1645eee18
+	end9ffe6731d7d6514b8c0482f1645eee18:
 		;
 	case OpLsh8x8:
 		// match: (Lsh8x8 <t> x y)
 		// cond:
-		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHLB <t> x y) (SBBLcarrymask <t> (CMPBconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -3909,15 +3909,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end781e3a47b186cf99fcb7137afd3432b9
-	end781e3a47b186cf99fcb7137afd3432b9:
+		goto end2b75242a31c3713ffbfdd8f0288b1c12
+	end2b75242a31c3713ffbfdd8f0288b1c12:
 		;
 	case OpAMD64MOVBQSX:
 		// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
@@ -5679,7 +5679,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpMod8:
 		// match: (Mod8 x y)
 		// cond:
-		// result: (MODW (SignExt8to16 <config.Frontend().TypeInt16()> x) (SignExt8to16 <config.Frontend().TypeInt16()> y))
+		// result: (MODW (SignExt8to16 x) (SignExt8to16 y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -5688,22 +5688,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
-			v0.Type = config.Frontend().TypeInt16()
 			v0.AddArg(x)
+			v0.Type = config.fe.TypeInt16()
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpSignExt8to16, TypeInvalid)
-			v1.Type = config.Frontend().TypeInt16()
 			v1.AddArg(y)
+			v1.Type = config.fe.TypeInt16()
 			v.AddArg(v1)
 			return true
 		}
-		goto end13bfd4e75ea363f7b6926fa05136e193
-	end13bfd4e75ea363f7b6926fa05136e193:
+		goto endf959fc16e72bc6dc47ab7c9ee3778901
+	endf959fc16e72bc6dc47ab7c9ee3778901:
 		;
 	case OpMod8u:
 		// match: (Mod8u x y)
 		// cond:
-		// result: (MODWU (ZeroExt8to16 <config.Frontend().TypeUInt16()> x) (ZeroExt8to16 <config.Frontend().TypeUInt16()> y))
+		// result: (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -5712,17 +5712,17 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
-			v0.Type = config.Frontend().TypeUInt16()
 			v0.AddArg(x)
+			v0.Type = config.fe.TypeUInt16()
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpZeroExt8to16, TypeInvalid)
-			v1.Type = config.Frontend().TypeUInt16()
 			v1.AddArg(y)
+			v1.Type = config.fe.TypeUInt16()
 			v.AddArg(v1)
 			return true
 		}
-		goto end4c0e16e55b5f8f6d19811fc8d07eacf2
-	end4c0e16e55b5f8f6d19811fc8d07eacf2:
+		goto end9b3274d9dd7f1e91c75ce5e7b548fe97
+	end9b3274d9dd7f1e91c75ce5e7b548fe97:
 		;
 	case OpMove:
 		// match: (Move [size] dst src mem)
@@ -6094,7 +6094,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpNeq16:
 		// match: (Neq16 x y)
 		// cond:
-		// result: (SETNE (CMPW <TypeFlags> x y))
+		// result: (SETNE (CMPW x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6103,19 +6103,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPW, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto endf177c3b3868606824e43e11da7804572
-	endf177c3b3868606824e43e11da7804572:
+		goto end6413ee42d523a005cce9e3372ff2c8e9
+	end6413ee42d523a005cce9e3372ff2c8e9:
 		;
 	case OpNeq32:
 		// match: (Neq32 x y)
 		// cond:
-		// result: (SETNE (CMPL <TypeFlags> x y))
+		// result: (SETNE (CMPL x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6124,19 +6124,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPL, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end39c4bf6d063f8a0b6f0064c96ce25173
-	end39c4bf6d063f8a0b6f0064c96ce25173:
+		goto endb1a3ad499a09d8262952e6cbc47a23a8
+	endb1a3ad499a09d8262952e6cbc47a23a8:
 		;
 	case OpNeq32F:
 		// match: (Neq32F x y)
 		// cond:
-		// result: (SETNEF (UCOMISS <TypeFlags> x y))
+		// result: (SETNEF (UCOMISS x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6145,19 +6145,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISS, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end4eb0af70b64b789e55d83c15e426b0c5
-	end4eb0af70b64b789e55d83c15e426b0c5:
+		goto end2a001b2774f58aaf8c1e9efce6ae59e7
+	end2a001b2774f58aaf8c1e9efce6ae59e7:
 		;
 	case OpNeq64:
 		// match: (Neq64 x y)
 		// cond:
-		// result: (SETNE (CMPQ <TypeFlags> x y))
+		// result: (SETNE (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6166,19 +6166,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end8ab0bcb910c0d3213dd8726fbcc4848e
-	end8ab0bcb910c0d3213dd8726fbcc4848e:
+		goto end092b9159bce08d2ef7896f7d3da5a595
+	end092b9159bce08d2ef7896f7d3da5a595:
 		;
 	case OpNeq64F:
 		// match: (Neq64F x y)
 		// cond:
-		// result: (SETNEF (UCOMISD <TypeFlags> x y))
+		// result: (SETNEF (UCOMISD x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6187,19 +6187,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64UCOMISD, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end73beb54a015a226bc2e83bdd39e7ee46
-	end73beb54a015a226bc2e83bdd39e7ee46:
+		goto endb9c010023c38bd2fee7800fbefc85d98
+	endb9c010023c38bd2fee7800fbefc85d98:
 		;
 	case OpNeq8:
 		// match: (Neq8 x y)
 		// cond:
-		// result: (SETNE (CMPB <TypeFlags> x y))
+		// result: (SETNE (CMPB x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6208,19 +6208,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPB, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end4aaff28af59a65b3684f4f1897299932
-	end4aaff28af59a65b3684f4f1897299932:
+		goto end89e59f45e068c89458cc4db1692bf3bb
+	end89e59f45e068c89458cc4db1692bf3bb:
 		;
 	case OpNeqPtr:
 		// match: (NeqPtr x y)
 		// cond:
-		// result: (SETNE (CMPQ <TypeFlags> x y))
+		// result: (SETNE (CMPQ x y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -6229,14 +6229,14 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.Aux = nil
 			v.resetArgs()
 			v0 := b.NewValue0(v.Line, OpAMD64CMPQ, TypeInvalid)
-			v0.Type = TypeFlags
 			v0.AddArg(x)
 			v0.AddArg(y)
+			v0.Type = TypeFlags
 			v.AddArg(v0)
 			return true
 		}
-		goto end6e180ffd9583cd55361ed3e465158a4c
-	end6e180ffd9583cd55361ed3e465158a4c:
+		goto end3b8bb3b4952011d1d40f993d8717cf16
+	end3b8bb3b4952011d1d40f993d8717cf16:
 		;
 	case OpNot:
 		// match: (Not x)
@@ -6874,7 +6874,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpRsh16Ux16:
 		// match: (Rsh16Ux16 <t> x y)
 		// cond:
-		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -6891,20 +6891,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end73239750a306668023d2c49875ac442f
-	end73239750a306668023d2c49875ac442f:
+		goto end4d5e000764dcea396f2d86472c2af6eb
+	end4d5e000764dcea396f2d86472c2af6eb:
 		;
 	case OpRsh16Ux32:
 		// match: (Rsh16Ux32 <t> x y)
 		// cond:
-		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -6921,20 +6921,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end9951e3b2e92c892256feece722b32219
-	end9951e3b2e92c892256feece722b32219:
+		goto end9ef4fe2ea4565865cd4b3aa9c7596c00
+	end9ef4fe2ea4565865cd4b3aa9c7596c00:
 		;
 	case OpRsh16Ux64:
 		// match: (Rsh16Ux64 <t> x y)
 		// cond:
-		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPQconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -6951,20 +6951,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end610d56d808c204abfa40d653447b2c17
-	end610d56d808c204abfa40d653447b2c17:
+		goto end48bc94b9a68aad454eaabc42b2e1d646
+	end48bc94b9a68aad454eaabc42b2e1d646:
 		;
 	case OpRsh16Ux8:
 		// match: (Rsh16Ux8 <t> x y)
 		// cond:
-		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [16] y)))
+		// result: (ANDW (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst [16] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -6981,20 +6981,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 16
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end45e76a8d2b004e6802d53cf12b4757b3
-	end45e76a8d2b004e6802d53cf12b4757b3:
+		goto ende98f618fa53b1f1d5d3f79781d5cb2cc
+	ende98f618fa53b1f1d5d3f79781d5cb2cc:
 		;
 	case OpRsh16x16:
 		// match: (Rsh16x16 <t> x y)
 		// cond:
-		// result: (SARW <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [16] y)))))
+		// result: (SARW <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst [16] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7013,22 +7013,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 16
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto endbcd8fd69ada08517f6f94f35da91e1c3
-	endbcd8fd69ada08517f6f94f35da91e1c3:
+		goto end1de548dcf8d7c7222c7a739809597526
+	end1de548dcf8d7c7222c7a739809597526:
 		;
 	case OpRsh16x32:
 		// match: (Rsh16x32 <t> x y)
 		// cond:
-		// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [16] y)))))
+		// result: (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst [16] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7047,22 +7047,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 16
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto endec3994083e7f82857ecec05906c29aa6
-	endec3994083e7f82857ecec05906c29aa6:
+		goto end74419e1036ea7e0c3a09d05b1eabad22
+	end74419e1036ea7e0c3a09d05b1eabad22:
 		;
 	case OpRsh16x64:
 		// match: (Rsh16x64 <t> x y)
 		// cond:
-		// result: (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [16] y)))))
+		// result: (SARW <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst [16] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7081,22 +7081,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 16
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end19da3883e21ffa3a45d7fc648ef38b66
-	end19da3883e21ffa3a45d7fc648ef38b66:
+		goto ende35d1c2918196fae04fca22e80936bab
+	ende35d1c2918196fae04fca22e80936bab:
 		;
 	case OpRsh16x8:
 		// match: (Rsh16x8 <t> x y)
 		// cond:
-		// result: (SARW <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [16] y)))))
+		// result: (SARW <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst [16] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7115,22 +7115,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 16
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end3c989f6931d059ea04e4ba93601b6c51
-	end3c989f6931d059ea04e4ba93601b6c51:
+		goto endaa6a45afc4c6552c1a90a13160578fba
+	endaa6a45afc4c6552c1a90a13160578fba:
 		;
 	case OpRsh32Ux16:
 		// match: (Rsh32Ux16 <t> x y)
 		// cond:
-		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7147,20 +7147,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end056ede9885a9fc2f32615a2a03b35388
-	end056ede9885a9fc2f32615a2a03b35388:
+		goto end74495683df77023ed619b4ecee98d94a
+	end74495683df77023ed619b4ecee98d94a:
 		;
 	case OpRsh32Ux32:
 		// match: (Rsh32Ux32 <t> x y)
 		// cond:
-		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7177,20 +7177,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end30439bdc3517479ea25ae7f54408ba7f
-	end30439bdc3517479ea25ae7f54408ba7f:
+		goto enda7d6c92ab2d7467102db447d6b431b28
+	enda7d6c92ab2d7467102db447d6b431b28:
 		;
 	case OpRsh32Ux64:
 		// match: (Rsh32Ux64 <t> x y)
 		// cond:
-		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPQconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7207,20 +7207,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end49b47fd18b54461d8eea51f6e5889cd2
-	end49b47fd18b54461d8eea51f6e5889cd2:
+		goto end7c0829166a6219a15de2c0aa688a9bb3
+	end7c0829166a6219a15de2c0aa688a9bb3:
 		;
 	case OpRsh32Ux8:
 		// match: (Rsh32Ux8 <t> x y)
 		// cond:
-		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [32] y)))
+		// result: (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst [32] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7237,20 +7237,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 32
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end46e045970a8b1afb9035605fc0e50c69
-	end46e045970a8b1afb9035605fc0e50c69:
+		goto end221315aa8a09c9d8d2f243bf445446ea
+	end221315aa8a09c9d8d2f243bf445446ea:
 		;
 	case OpRsh32x16:
 		// match: (Rsh32x16 <t> x y)
 		// cond:
-		// result: (SARL <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [32] y)))))
+		// result: (SARL <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst [32] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7269,22 +7269,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 32
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end5d1b8d7e1d1e53e621d13bb0eafc9102
-	end5d1b8d7e1d1e53e621d13bb0eafc9102:
+		goto end521b60d91648f07fe1be359f1cdbde29
+	end521b60d91648f07fe1be359f1cdbde29:
 		;
 	case OpRsh32x32:
 		// match: (Rsh32x32 <t> x y)
 		// cond:
-		// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [32] y)))))
+		// result: (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst [32] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7303,22 +7303,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 32
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end9c27383961c2161a9955012fce808cab
-	end9c27383961c2161a9955012fce808cab:
+		goto end0fc03188975afbca2139e28c38b7cd17
+	end0fc03188975afbca2139e28c38b7cd17:
 		;
 	case OpRsh32x64:
 		// match: (Rsh32x64 <t> x y)
 		// cond:
-		// result: (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [32] y)))))
+		// result: (SARL <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst [32] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7337,22 +7337,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 32
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end75dc7144497705c800e0c60dcd4a2828
-	end75dc7144497705c800e0c60dcd4a2828:
+		goto endf36790cc7ba330d448b403a450a7c1d4
+	endf36790cc7ba330d448b403a450a7c1d4:
 		;
 	case OpRsh32x8:
 		// match: (Rsh32x8 <t> x y)
 		// cond:
-		// result: (SARL <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [32] y)))))
+		// result: (SARL <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst [32] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7371,22 +7371,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 32
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto enda7b94b2fd5cbcd12bb2dcd576bdca481
-	enda7b94b2fd5cbcd12bb2dcd576bdca481:
+		goto end1242709228488be2f2505ead8eabb871
+	end1242709228488be2f2505ead8eabb871:
 		;
 	case OpRsh64Ux16:
 		// match: (Rsh64Ux16 <t> x y)
 		// cond:
-		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPWconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7403,20 +7403,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto endc4bdfdc375a5c94978d936bd0db89cc5
-	endc4bdfdc375a5c94978d936bd0db89cc5:
+		goto end0bc6c36a57ebaf0b90fc418f976fe210
+	end0bc6c36a57ebaf0b90fc418f976fe210:
 		;
 	case OpRsh64Ux32:
 		// match: (Rsh64Ux32 <t> x y)
 		// cond:
-		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPLconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7433,20 +7433,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end217f32bca5f6744b9a7de052f4fae13e
-	end217f32bca5f6744b9a7de052f4fae13e:
+		goto ende3f52062f53bc3b5aa0461a644e38a1b
+	ende3f52062f53bc3b5aa0461a644e38a1b:
 		;
 	case OpRsh64Ux64:
 		// match: (Rsh64Ux64 <t> x y)
 		// cond:
-		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPQconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7463,20 +7463,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end530dee0bcadf1cf5d092894b6210ffcd
-	end530dee0bcadf1cf5d092894b6210ffcd:
+		goto endaec410d0544f817303c79bad739c50fd
+	endaec410d0544f817303c79bad739c50fd:
 		;
 	case OpRsh64Ux8:
 		// match: (Rsh64Ux8 <t> x y)
 		// cond:
-		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst <TypeFlags> [64] y)))
+		// result: (ANDQ (SHRQ <t> x y) (SBBQcarrymask <t> (CMPBconst [64] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7493,20 +7493,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 64
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto endf09baf4e0005c5eb4905f71ce4c8b306
-	endf09baf4e0005c5eb4905f71ce4c8b306:
+		goto end0318851ecb02e4ad8a2669034adf7862
+	end0318851ecb02e4ad8a2669034adf7862:
 		;
 	case OpRsh64x16:
 		// match: (Rsh64x16 <t> x y)
 		// cond:
-		// result: (SARQ <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [64] y)))))
+		// result: (SARQ <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst [64] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7525,22 +7525,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 64
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto endb370ee74ca256a604138321ddca9d543
-	endb370ee74ca256a604138321ddca9d543:
+		goto endcf8bbca9a7a848fbebaaaa8b699cd086
+	endcf8bbca9a7a848fbebaaaa8b699cd086:
 		;
 	case OpRsh64x32:
 		// match: (Rsh64x32 <t> x y)
 		// cond:
-		// result: (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [64] y)))))
+		// result: (SARQ <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst [64] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7559,22 +7559,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 64
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end3cc6edf5b286a449332757ea12d2d601
-	end3cc6edf5b286a449332757ea12d2d601:
+		goto end7604d45b06ee69bf2feddf88b2f33cb6
+	end7604d45b06ee69bf2feddf88b2f33cb6:
 		;
 	case OpRsh64x64:
 		// match: (Rsh64x64 <t> x y)
 		// cond:
-		// result: (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [64] y)))))
+		// result: (SARQ <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst [64] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7593,22 +7593,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 64
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end45de7b33396d9fd2ba377bd095f1d7a6
-	end45de7b33396d9fd2ba377bd095f1d7a6:
+		goto end12a3b44af604b515ad5530502336486f
+	end12a3b44af604b515ad5530502336486f:
 		;
 	case OpRsh64x8:
 		// match: (Rsh64x8 <t> x y)
 		// cond:
-		// result: (SARQ <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [64] y)))))
+		// result: (SARQ <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst [64] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7627,22 +7627,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 64
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto ende03fa68104fd18bb9b2bb94370e0c8b3
-	ende03fa68104fd18bb9b2bb94370e0c8b3:
+		goto end4e2a83809914aad301a2f74d3c38fbbb
+	end4e2a83809914aad301a2f74d3c38fbbb:
 		;
 	case OpRsh8Ux16:
 		// match: (Rsh8Ux16 <t> x y)
 		// cond:
-		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7659,20 +7659,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto enda1adfc560334e10d5e83fbff27a8752f
-	enda1adfc560334e10d5e83fbff27a8752f:
+		goto end724175a51b6efac60c6bb9d83d81215a
+	end724175a51b6efac60c6bb9d83d81215a:
 		;
 	case OpRsh8Ux32:
 		// match: (Rsh8Ux32 <t> x y)
 		// cond:
-		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7689,20 +7689,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end17f63b4b712e715a33ac780193b59c2e
-	end17f63b4b712e715a33ac780193b59c2e:
+		goto end9d973431bed6682c1d557a535cf440ed
+	end9d973431bed6682c1d557a535cf440ed:
 		;
 	case OpRsh8Ux64:
 		// match: (Rsh8Ux64 <t> x y)
 		// cond:
-		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPQconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7719,20 +7719,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end77d5c3ef9982ebd27c135d3461b7430b
-	end77d5c3ef9982ebd27c135d3461b7430b:
+		goto end9586937cdeb7946c337d46cd30cb9a11
+	end9586937cdeb7946c337d46cd30cb9a11:
 		;
 	case OpRsh8Ux8:
 		// match: (Rsh8Ux8 <t> x y)
 		// cond:
-		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst <TypeFlags> [8] y)))
+		// result: (ANDB (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst [8] y)))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7749,20 +7749,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v1 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v1.Type = t
 			v2 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v2.Type = TypeFlags
 			v2.AuxInt = 8
 			v2.AddArg(y)
+			v2.Type = TypeFlags
 			v1.AddArg(v2)
 			v.AddArg(v1)
 			return true
 		}
-		goto end206712ffbda924142afbf384aeb8f09e
-	end206712ffbda924142afbf384aeb8f09e:
+		goto endc5a55ef63d86e6b8d4d366a947bf563d
+	endc5a55ef63d86e6b8d4d366a947bf563d:
 		;
 	case OpRsh8x16:
 		// match: (Rsh8x16 <t> x y)
 		// cond:
-		// result: (SARB <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst <TypeFlags> [8] y)))))
+		// result: (SARB <t> x (ORW <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst [8] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7781,22 +7781,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 8
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto endd303f390b49d9716dc783d5c4d57ddd1
-	endd303f390b49d9716dc783d5c4d57ddd1:
+		goto endfa967d6583c1bb9644514c2013b919f8
+	endfa967d6583c1bb9644514c2013b919f8:
 		;
 	case OpRsh8x32:
 		// match: (Rsh8x32 <t> x y)
 		// cond:
-		// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst <TypeFlags> [8] y)))))
+		// result: (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst [8] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7815,22 +7815,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 8
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto ende12a524a6fc68eb245140c6919034337
-	ende12a524a6fc68eb245140c6919034337:
+		goto ende5a630810624a1bd3677618c2cbc8619
+	ende5a630810624a1bd3677618c2cbc8619:
 		;
 	case OpRsh8x64:
 		// match: (Rsh8x64 <t> x y)
 		// cond:
-		// result: (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst <TypeFlags> [8] y)))))
+		// result: (SARB <t> x (ORQ <y.Type> y (NOTQ <y.Type> (SBBQcarrymask <y.Type> (CMPQconst [8] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7849,22 +7849,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBQcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 8
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end6ee53459daa5458d163c86ea02dd2f31
-	end6ee53459daa5458d163c86ea02dd2f31:
+		goto end23c55e49d8bc44afc680b2a4eade5af6
+	end23c55e49d8bc44afc680b2a4eade5af6:
 		;
 	case OpRsh8x8:
 		// match: (Rsh8x8 <t> x y)
 		// cond:
-		// result: (SARB <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst <TypeFlags> [8] y)))))
+		// result: (SARB <t> x (ORB <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst [8] y)))))
 		{
 			t := v.Type
 			x := v.Args[0]
@@ -7883,17 +7883,17 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v2 := b.NewValue0(v.Line, OpAMD64SBBLcarrymask, TypeInvalid)
 			v2.Type = y.Type
 			v3 := b.NewValue0(v.Line, OpAMD64CMPBconst, TypeInvalid)
-			v3.Type = TypeFlags
 			v3.AuxInt = 8
 			v3.AddArg(y)
+			v3.Type = TypeFlags
 			v2.AddArg(v3)
 			v1.AddArg(v2)
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
-		goto end07f447a7e25b048c41d412c242330ec0
-	end07f447a7e25b048c41d412c242330ec0:
+		goto enddab0c33c56e2e9434b880e1718621979
+	enddab0c33c56e2e9434b880e1718621979:
 		;
 	case OpAMD64SARB:
 		// match: (SARB x (MOVBconst [c]))
@@ -10732,7 +10732,7 @@ func rewriteBlockAMD64(b *Block) bool {
 		;
 		// match: (If cond yes no)
 		// cond:
-		// result: (NE (TESTB <TypeFlags> cond cond) yes no)
+		// result: (NE (TESTB cond cond) yes no)
 		{
 			v := b.Control
 			cond := v
@@ -10740,16 +10740,16 @@ func rewriteBlockAMD64(b *Block) bool {
 			no := b.Succs[1]
 			b.Kind = BlockAMD64NE
 			v0 := b.NewValue0(v.Line, OpAMD64TESTB, TypeInvalid)
+			v0.AddArg(cond)
+			v0.AddArg(cond)
 			v0.Type = TypeFlags
-			v0.AddArg(cond)
-			v0.AddArg(cond)
 			b.Control = v0
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
 		}
-		goto end012351592edfc708bd3181d7e53f3993
-	end012351592edfc708bd3181d7e53f3993:
+		goto end5bdbb8d5ea62ff2a76dccf3f9e89d94d
+	end5bdbb8d5ea62ff2a76dccf3f9e89d94d:
 		;
 	case BlockAMD64LE:
 		// match: (LE (InvertFlags cmp) yes no)

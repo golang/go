@@ -300,7 +300,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpConstSlice:
 		// match: (ConstSlice)
 		// cond:
-		// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstPtr <config.fe.TypeUintptr()>)     (ConstPtr <config.fe.TypeUintptr()>))
+		// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstPtr [0])     (ConstPtr [0]))
 		{
 			v.Op = OpSliceMake
 			v.AuxInt = 0
@@ -310,20 +310,22 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.Type = config.fe.TypeBytePtr()
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+			v1.AuxInt = 0
 			v1.Type = config.fe.TypeUintptr()
 			v.AddArg(v1)
 			v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+			v2.AuxInt = 0
 			v2.Type = config.fe.TypeUintptr()
 			v.AddArg(v2)
 			return true
 		}
-		goto endfd2d8ffcd55eaf8a5092a20c3ae61ba3
-	endfd2d8ffcd55eaf8a5092a20c3ae61ba3:
+		goto endc587abac76a5fd9b1284ba891a178e63
+	endc587abac76a5fd9b1284ba891a178e63:
 		;
 	case OpConstString:
 		// match: (ConstString {s})
 		// cond:
-		// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB <config.fe.TypeUintptr()>))     (ConstPtr <config.fe.TypeUintptr()> [int64(len(s.(string)))]))
+		// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (ConstPtr [int64(len(s.(string)))]))
 		{
 			s := v.Aux
 			v.Op = OpStringMake
@@ -338,13 +340,13 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(v1)
 			v.AddArg(v0)
 			v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v2.Type = config.fe.TypeUintptr()
 			v2.AuxInt = int64(len(s.(string)))
+			v2.Type = config.fe.TypeUintptr()
 			v.AddArg(v2)
 			return true
 		}
-		goto end51a3d96f2d304db9a52f36ee6b29c14e
-	end51a3d96f2d304db9a52f36ee6b29c14e:
+		goto end2eb756398dd4c6b6d126012a26284c89
+	end2eb756398dd4c6b6d126012a26284c89:
 		;
 	case OpEq16:
 		// match: (Eq16 x x)
@@ -445,15 +447,15 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		;
 		// match: (EqFat (Load ptr mem) (ConstNil))
 		// cond:
-		// result: (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr <config.fe.TypeUintptr()> [0]))
+		// result: (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
 		{
 			if v.Args[0].Op != OpLoad {
-				goto ende10070e5ddd3dc059674d25ccc6a63b5
+				goto end6f10fb57a906a2c23667c770acb6abf9
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
 			if v.Args[1].Op != OpConstNil {
-				goto ende10070e5ddd3dc059674d25ccc6a63b5
+				goto end6f10fb57a906a2c23667c770acb6abf9
 			}
 			v.Op = OpEqPtr
 			v.AuxInt = 0
@@ -465,13 +467,13 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(mem)
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.Type = config.fe.TypeUintptr()
 			v1.AuxInt = 0
+			v1.Type = config.fe.TypeUintptr()
 			v.AddArg(v1)
 			return true
 		}
-		goto ende10070e5ddd3dc059674d25ccc6a63b5
-	ende10070e5ddd3dc059674d25ccc6a63b5:
+		goto end6f10fb57a906a2c23667c770acb6abf9
+	end6f10fb57a906a2c23667c770acb6abf9:
 		;
 	case OpIData:
 		// match: (IData (IMake _ data))
@@ -928,15 +930,15 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		;
 		// match: (NeqFat (Load ptr mem) (ConstNil))
 		// cond:
-		// result: (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr <config.fe.TypeUintptr()> [0]))
+		// result: (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
 		{
 			if v.Args[0].Op != OpLoad {
-				goto end423eea941d60473e73140e25f5818bfb
+				goto end3ffd7685735a83eaee8dc2577ae89d79
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
 			if v.Args[1].Op != OpConstNil {
-				goto end423eea941d60473e73140e25f5818bfb
+				goto end3ffd7685735a83eaee8dc2577ae89d79
 			}
 			v.Op = OpNeqPtr
 			v.AuxInt = 0
@@ -948,13 +950,13 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v0.AddArg(mem)
 			v.AddArg(v0)
 			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.Type = config.fe.TypeUintptr()
 			v1.AuxInt = 0
+			v1.Type = config.fe.TypeUintptr()
 			v.AddArg(v1)
 			return true
 		}
-		goto end423eea941d60473e73140e25f5818bfb
-	end423eea941d60473e73140e25f5818bfb:
+		goto end3ffd7685735a83eaee8dc2577ae89d79
+	end3ffd7685735a83eaee8dc2577ae89d79:
 		;
 	case OpOr16:
 		// match: (Or16 x x)
@@ -1039,7 +1041,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpPtrIndex:
 		// match: (PtrIndex <t> ptr idx)
 		// cond:
-		// result: (AddPtr ptr (MulPtr <config.fe.TypeUintptr()> idx (ConstPtr <config.fe.TypeUintptr()> [t.Elem().Size()])))
+		// result: (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
 		{
 			t := v.Type
 			ptr := v.Args[0]
@@ -1050,17 +1052,17 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.resetArgs()
 			v.AddArg(ptr)
 			v0 := b.NewValue0(v.Line, OpMulPtr, TypeInvalid)
-			v0.Type = config.fe.TypeUintptr()
 			v0.AddArg(idx)
 			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.Type = config.fe.TypeUintptr()
 			v1.AuxInt = t.Elem().Size()
+			v1.Type = config.fe.TypeUintptr()
 			v0.AddArg(v1)
+			v0.Type = config.fe.TypeUintptr()
 			v.AddArg(v0)
 			return true
 		}
-		goto end1e1c5ef80c11231f89a5439cdda98359
-	end1e1c5ef80c11231f89a5439cdda98359:
+		goto end502555083d57a877982955070cda7530
+	end502555083d57a877982955070cda7530:
 		;
 	case OpSliceCap:
 		// match: (SliceCap (SliceMake _ _ cap))
@@ -1125,14 +1127,14 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpStore:
 		// match: (Store [8] dst (ComplexMake real imag) mem)
 		// cond:
-		// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store <TypeMem> [4] dst real mem))
+		// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store [4] dst real mem))
 		{
 			if v.AuxInt != 8 {
-				goto endba187c049aa71488994c8a2eb3453045
+				goto endced898cb0a165662afe48ea44ad3318a
 			}
 			dst := v.Args[0]
 			if v.Args[1].Op != OpComplexMake {
-				goto endba187c049aa71488994c8a2eb3453045
+				goto endced898cb0a165662afe48ea44ad3318a
 			}
 			real := v.Args[1].Args[0]
 			imag := v.Args[1].Args[1]
@@ -1149,27 +1151,27 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			v.AddArg(imag)
 			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.Type = TypeMem
 			v1.AuxInt = 4
 			v1.AddArg(dst)
 			v1.AddArg(real)
 			v1.AddArg(mem)
+			v1.Type = TypeMem
 			v.AddArg(v1)
 			return true
 		}
-		goto endba187c049aa71488994c8a2eb3453045
-	endba187c049aa71488994c8a2eb3453045:
+		goto endced898cb0a165662afe48ea44ad3318a
+	endced898cb0a165662afe48ea44ad3318a:
 		;
 		// match: (Store [16] dst (ComplexMake real imag) mem)
 		// cond:
-		// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store <TypeMem> [8] dst real mem))
+		// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store [8] dst real mem))
 		{
 			if v.AuxInt != 16 {
-				goto end4df4c826201cf51af245d6b89de00589
+				goto end3851a482d7bd37a93c4d81581e85b3ab
 			}
 			dst := v.Args[0]
 			if v.Args[1].Op != OpComplexMake {
-				goto end4df4c826201cf51af245d6b89de00589
+				goto end3851a482d7bd37a93c4d81581e85b3ab
 			}
 			real := v.Args[1].Args[0]
 			imag := v.Args[1].Args[1]
@@ -1186,27 +1188,27 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			v.AddArg(imag)
 			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.Type = TypeMem
 			v1.AuxInt = 8
 			v1.AddArg(dst)
 			v1.AddArg(real)
 			v1.AddArg(mem)
+			v1.Type = TypeMem
 			v.AddArg(v1)
 			return true
 		}
-		goto end4df4c826201cf51af245d6b89de00589
-	end4df4c826201cf51af245d6b89de00589:
+		goto end3851a482d7bd37a93c4d81581e85b3ab
+	end3851a482d7bd37a93c4d81581e85b3ab:
 		;
 		// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
 		// cond:
-		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store <TypeMem> [config.PtrSize] dst ptr mem))
+		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] dst ptr mem))
 		{
 			if v.AuxInt != 2*config.PtrSize {
-				goto end25ae4fc3dc01583a4adc45067d49940a
+				goto end12abe4021d24e76ed56d64b18730bffb
 			}
 			dst := v.Args[0]
 			if v.Args[1].Op != OpStringMake {
-				goto end25ae4fc3dc01583a4adc45067d49940a
+				goto end12abe4021d24e76ed56d64b18730bffb
 			}
 			ptr := v.Args[1].Args[0]
 			len := v.Args[1].Args[1]
@@ -1223,27 +1225,27 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			v.AddArg(len)
 			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.Type = TypeMem
 			v1.AuxInt = config.PtrSize
 			v1.AddArg(dst)
 			v1.AddArg(ptr)
 			v1.AddArg(mem)
+			v1.Type = TypeMem
 			v.AddArg(v1)
 			return true
 		}
-		goto end25ae4fc3dc01583a4adc45067d49940a
-	end25ae4fc3dc01583a4adc45067d49940a:
+		goto end12abe4021d24e76ed56d64b18730bffb
+	end12abe4021d24e76ed56d64b18730bffb:
 		;
 		// match: (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem)
 		// cond:
-		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)     cap     (Store <TypeMem> [config.PtrSize]       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)       len       (Store <TypeMem> [config.PtrSize] dst ptr mem)))
+		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize]       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] dst ptr mem)))
 		{
 			if v.AuxInt != 3*config.PtrSize {
-				goto end39ab85d51c8cd7f5d54e3eea4fb79a96
+				goto end7498d25e17db5398cf073a8590e35cc2
 			}
 			dst := v.Args[0]
 			if v.Args[1].Op != OpSliceMake {
-				goto end39ab85d51c8cd7f5d54e3eea4fb79a96
+				goto end7498d25e17db5398cf073a8590e35cc2
 			}
 			ptr := v.Args[1].Args[0]
 			len := v.Args[1].Args[1]
@@ -1261,7 +1263,6 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			v.AddArg(cap)
 			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.Type = TypeMem
 			v1.AuxInt = config.PtrSize
 			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 			v2.Type = config.fe.TypeUintptr().PtrTo()
@@ -1270,28 +1271,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v1.AddArg(v2)
 			v1.AddArg(len)
 			v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v3.Type = TypeMem
 			v3.AuxInt = config.PtrSize
 			v3.AddArg(dst)
 			v3.AddArg(ptr)
 			v3.AddArg(mem)
+			v3.Type = TypeMem
 			v1.AddArg(v3)
+			v1.Type = TypeMem
 			v.AddArg(v1)
 			return true
 		}
-		goto end39ab85d51c8cd7f5d54e3eea4fb79a96
-	end39ab85d51c8cd7f5d54e3eea4fb79a96:
+		goto end7498d25e17db5398cf073a8590e35cc2
+	end7498d25e17db5398cf073a8590e35cc2:
 		;
 		// match: (Store [2*config.PtrSize] dst (IMake itab data) mem)
 		// cond:
-		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)     data     (Store <TypeMem> [config.PtrSize] dst itab mem))
+		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)     data     (Store [config.PtrSize] dst itab mem))
 		{
 			if v.AuxInt != 2*config.PtrSize {
-				goto end63b77ae78d92c05d496202e8b6b96ff3
+				goto endaa801a871178ae3256b3f6f5d9f13514
 			}
 			dst := v.Args[0]
 			if v.Args[1].Op != OpIMake {
-				goto end63b77ae78d92c05d496202e8b6b96ff3
+				goto endaa801a871178ae3256b3f6f5d9f13514
 			}
 			itab := v.Args[1].Args[0]
 			data := v.Args[1].Args[1]
@@ -1308,16 +1310,16 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			v.AddArg(data)
 			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.Type = TypeMem
 			v1.AuxInt = config.PtrSize
 			v1.AddArg(dst)
 			v1.AddArg(itab)
 			v1.AddArg(mem)
+			v1.Type = TypeMem
 			v.AddArg(v1)
 			return true
 		}
-		goto end63b77ae78d92c05d496202e8b6b96ff3
-	end63b77ae78d92c05d496202e8b6b96ff3:
+		goto endaa801a871178ae3256b3f6f5d9f13514
+	endaa801a871178ae3256b3f6f5d9f13514:
 		;
 		// match: (Store [size] dst (Load src mem) mem)
 		// cond: size > config.IntSize
