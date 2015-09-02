@@ -558,19 +558,30 @@ func loadlib() {
 	Ctxt.Tlsg = tlsg
 
 	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
-	if moduledata.Type == 0 || moduledata.Type == obj.SDYNIMPORT {
-		// If the module we are linking does not define the
-		// runtime.firstmoduledata symbol, create a local symbol for
-		// the moduledata.
+	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
+		// If the module (toolchain-speak for "executable or shared
+		// library") we are linking contains the runtime package, it
+		// will define the runtime.firstmoduledata symbol and we
+		// truncate it back to 0 bytes so we can define its entire
+		// contents in symtab.go:symtab().
+		moduledata.Size = 0
+
+		// In addition, on ARM, the runtime depends on the linker
+		// recording the value of GOARM.
+		if Thearch.Thechar == '5' {
+			s := Linklookup(Ctxt, "runtime.goarm", 0)
+
+			s.Type = obj.SRODATA
+			Adduint8(Ctxt, s, uint8(Ctxt.Goarm))
+		}
+	} else {
+		// If OTOH the module does not contain the runtime package,
+		// create a local symbol for the moduledata.
 		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
 		moduledata.Local = true
-	} else {
-		// If OTOH the module does define the symbol, we truncate the
-		// symbol back to 0 bytes so we can define its entire
-		// contents.
-		moduledata.Size = 0
 	}
-	// Either way we mark it as noptrdata to hide it from the GC.
+	// In all cases way we mark the moduledata as noptrdata to hide it from
+	// the GC.
 	moduledata.Type = obj.SNOPTRDATA
 	moduledata.Reachable = true
 	Ctxt.Moduledata = moduledata
