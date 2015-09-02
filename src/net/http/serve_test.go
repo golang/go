@@ -1906,6 +1906,41 @@ func TestRedirectBadPath(t *testing.T) {
 	}
 }
 
+// Test different URL formats and schemes
+func TestRedirectURLFormat(t *testing.T) {
+	req, _ := NewRequest("GET", "http://example.com/qux/", nil)
+
+	var tests = []struct {
+		in   string
+		want string
+	}{
+		// normal http
+		{"http://foobar.com/baz", "http://foobar.com/baz"},
+		// normal https
+		{"https://foobar.com/baz", "https://foobar.com/baz"},
+		// custom scheme
+		{"test://foobar.com/baz", "test://foobar.com/baz"},
+		// schemeless
+		{"//foobar.com/baz", "//foobar.com/baz"},
+		// relative to the root
+		{"/foobar.com/baz", "/foobar.com/baz"},
+		// relative to the current path
+		{"foobar.com/baz", "/qux/foobar.com/baz"},
+		// relative to the current path (+ going upwards)
+		{"../quux/foobar.com/baz", "/quux/foobar.com/baz"},
+		// incorrect number of slashes
+		{"///foobar.com/baz", "/foobar.com/baz"},
+	}
+
+	for _, tt := range tests {
+		rec := httptest.NewRecorder()
+		Redirect(rec, req, tt.in, 302)
+		if got := rec.Header().Get("Location"); got != tt.want {
+			t.Errorf("Redirect(%q) generated Location header %q; want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
 // TestZeroLengthPostAndResponse exercises an optimization done by the Transport:
 // when there is no body (either because the method doesn't permit a body, or an
 // explicit Content-Length of zero is present), then the transport can re-use the

@@ -1665,11 +1665,12 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 		// Because of this problem, no one pays attention
 		// to the RFC; they all send back just a new path.
 		// So do we.
-		oldpath := r.URL.Path
-		if oldpath == "" { // should not happen, but avoid a crash if it does
-			oldpath = "/"
-		}
-		if u.Scheme == "" {
+		if u.Scheme == "" && u.Host == "" {
+			oldpath := r.URL.Path
+			if oldpath == "" { // should not happen, but avoid a crash if it does
+				oldpath = "/"
+			}
+
 			// no leading http://server
 			if urlStr == "" || urlStr[0] != '/' {
 				// make relative path absolute
