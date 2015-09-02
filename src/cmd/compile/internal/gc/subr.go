@@ -59,26 +59,21 @@ func adderr(line int, format string, args ...interface{}) {
 	})
 }
 
+// errcmp sorts errors by line, then seq, then message.
 type errcmp []Error
 
-func (x errcmp) Len() int {
-	return len(x)
-}
-
-func (x errcmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
+func (x errcmp) Len() int      { return len(x) }
+func (x errcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x errcmp) Less(i, j int) bool {
 	a := &x[i]
 	b := &x[j]
 	if a.lineno != b.lineno {
-		return a.lineno-b.lineno < 0
+		return a.lineno < b.lineno
 	}
 	if a.seq != b.seq {
-		return a.seq-b.seq < 0
+		return a.seq < b.seq
 	}
-	return stringsCompare(a.msg, b.msg) < 0
+	return a.msg < b.msg
 }
 
 func Flusherrors() {
@@ -86,7 +81,7 @@ func Flusherrors() {
 	if len(errors) == 0 {
 		return
 	}
-	sort.Sort(errcmp(errors[:len(errors)]))
+	sort.Sort(errcmp(errors))
 	for i := 0; i < len(errors); i++ {
 		if i == 0 || errors[i].msg != errors[i-1].msg {
 			fmt.Printf("%s", errors[i].msg)
