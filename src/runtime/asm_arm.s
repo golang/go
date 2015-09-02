@@ -1072,3 +1072,6 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
 	MULU	R0, R1
 	SUB	R1, R3, R1
 	RET
+
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-4
+        RET
