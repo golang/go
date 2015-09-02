@@ -274,6 +274,10 @@ TEXT	foo(SB), 0, $0
 	JMP	foo(SB)
 	CALL	foo(SB)
 
+// CMPF and CMPD are special.
+	CMPF F1, F2
+	CMPD F1, F2
+
 //
 // END
 //
