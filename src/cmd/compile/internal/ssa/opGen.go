@@ -227,10 +227,10 @@ const (
 	OpAMD64MOVWconst
 	OpAMD64MOVLconst
 	OpAMD64MOVQconst
-	OpAMD64CVTSD2SL
-	OpAMD64CVTSD2SQ
-	OpAMD64CVTSS2SL
-	OpAMD64CVTSS2SQ
+	OpAMD64CVTTSD2SL
+	OpAMD64CVTTSD2SQ
+	OpAMD64CVTTSS2SL
+	OpAMD64CVTTSS2SQ
 	OpAMD64CVTSL2SS
 	OpAMD64CVTSL2SD
 	OpAMD64CVTSQ2SS
@@ -2682,8 +2682,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSD2SL",
-		asm:  x86.ACVTSD2SL,
+		name: "CVTTSD2SL",
+		asm:  x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2694,8 +2694,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSD2SQ",
-		asm:  x86.ACVTSD2SQ,
+		name: "CVTTSD2SQ",
+		asm:  x86.ACVTTSD2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2706,8 +2706,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSS2SL",
-		asm:  x86.ACVTSS2SL,
+		name: "CVTTSS2SL",
+		asm:  x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2718,8 +2718,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSS2SQ",
-		asm:  x86.ACVTSS2SQ,
+		name: "CVTTSS2SQ",
+		asm:  x86.ACVTTSS2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15

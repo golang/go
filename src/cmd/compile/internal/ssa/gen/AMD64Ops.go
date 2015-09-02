@@ -346,16 +346,16 @@ func init() {
 		{name: "MOVLconst", reg: gp01flags, asm: "MOVL"}, // 32 low bits of auxint
 		{name: "MOVQconst", reg: gp01flags, asm: "MOVQ"}, // auxint
 
-		{name: "CVTSD2SL", reg: fpgp, asm: "CVTSD2SL"}, // convert float64 to int32
-		{name: "CVTSD2SQ", reg: fpgp, asm: "CVTSD2SQ"}, // convert float64 to int64
-		{name: "CVTSS2SL", reg: fpgp, asm: "CVTSS2SL"}, // convert float32 to int32
-		{name: "CVTSS2SQ", reg: fpgp, asm: "CVTSS2SQ"}, // convert float32 to int64
-		{name: "CVTSL2SS", reg: gpfp, asm: "CVTSL2SS"}, // convert int32 to float32
-		{name: "CVTSL2SD", reg: gpfp, asm: "CVTSL2SD"}, // convert int32 to float64
-		{name: "CVTSQ2SS", reg: gpfp, asm: "CVTSQ2SS"}, // convert int64 to float32
-		{name: "CVTSQ2SD", reg: gpfp, asm: "CVTSQ2SD"}, // convert int64 to float64
-		{name: "CVTSD2SS", reg: fp11, asm: "CVTSD2SS"}, // convert float64 to float32
-		{name: "CVTSS2SD", reg: fp11, asm: "CVTSS2SD"}, // convert float32 to float64
+		{name: "CVTTSD2SL", reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
+		{name: "CVTTSD2SQ", reg: fpgp, asm: "CVTTSD2SQ"}, // convert float64 to int64
+		{name: "CVTTSS2SL", reg: fpgp, asm: "CVTTSS2SL"}, // convert float32 to int32
+		{name: "CVTTSS2SQ", reg: fpgp, asm: "CVTTSS2SQ"}, // convert float32 to int64
+		{name: "CVTSL2SS", reg: gpfp, asm: "CVTSL2SS"},   // convert int32 to float32
+		{name: "CVTSL2SD", reg: gpfp, asm: "CVTSL2SD"},   // convert int32 to float64
+		{name: "CVTSQ2SS", reg: gpfp, asm: "CVTSQ2SS"},   // convert int64 to float32
+		{name: "CVTSQ2SD", reg: gpfp, asm: "CVTSQ2SD"},   // convert int64 to float64
+		{name: "CVTSD2SS", reg: fp11, asm: "CVTSD2SS"},   // convert float64 to float32
+		{name: "CVTSS2SD", reg: fp11, asm: "CVTSS2SD"},   // convert float32 to float64
 
 		{name: "PXOR", reg: fp21, asm: "PXOR"}, // exclusive or, applied to X regs for float negation.
 
