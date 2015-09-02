@@ -105,6 +105,12 @@ func div64_ssa(a, b float64) float64 {
 	return a / b
 }
 
+func neg64_ssa(a, b float64) float64 {
+	switch {
+	}
+	return -a + -1*b
+}
+
 func add32_ssa(a, b float32) float32 {
 	switch {
 	}
@@ -126,6 +132,12 @@ func div32_ssa(a, b float32) float32 {
 	switch {
 	}
 	return a / b
+}
+
+func neg32_ssa(a, b float32) float32 {
+	switch {
+	}
+	return -a + -1*b
 }
 
 func conv2Float64_ssa(a int8, b uint8, c int16, d uint16,
@@ -1548,11 +1560,13 @@ func main() {
 	fails += fail64("*", mul64_ssa, a, b, 12.0)
 	fails += fail64("-", sub64_ssa, a, b, -1.0)
 	fails += fail64("/", div64_ssa, a, b, 0.75)
+	fails += fail64("neg", neg64_ssa, a, b, -7)
 
 	fails += fail32("+", add32_ssa, c, d, 7.0)
 	fails += fail32("*", mul32_ssa, c, d, 12.0)
 	fails += fail32("-", sub32_ssa, c, d, -1.0)
 	fails += fail32("/", div32_ssa, c, d, 0.75)
+	fails += fail32("neg", neg32_ssa, c, d, -7)
 
 	// denorm-squared should underflow to zero.
 	fails += fail32("*", mul32_ssa, tiny, tiny, 0)
