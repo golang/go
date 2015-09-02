@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run gen.go -output fixedhuff.go
-
 // Package flate implements the DEFLATE compressed data format, described in
 // RFC 1951.  The gzip and zlib packages implement access to DEFLATE-based file
 // formats.
@@ -13,6 +11,7 @@ import (
 	"bufio"
 	"io"
 	"strconv"
+	"sync"
 )
 
 const (
@@ -25,6 +24,10 @@ const (
 	maxNumDist = 30
 	numCodes   = 19 // number of codes in Huffman meta-code
 )
+
+// Initialize the fixedHuffmanDecoder only once upon first use.
+var fixedOnce sync.Once
+var fixedHuffmanDecoder huffmanDecoder
 
 // A CorruptInputError reports the presence of corrupt input at a given offset.
 type CorruptInputError int64
@@ -67,10 +70,6 @@ type Resetter interface {
 	Reset(r io.Reader, dict []byte) error
 }
 
-// Note that much of the implementation of huffmanDecoder is also copied
-// into gen.go (in package main) for the purpose of precomputing the
-// fixed huffman tables so they can be included statically.
-
 // The data structure for decoding Huffman tables is based on that of
 // zlib. There is a lookup table of a fixed bit width (huffmanChunkBits),
 // For codes smaller than the table width, there are multiple entries
@@ -78,12 +77,15 @@ type Resetter interface {
 // larger than the table width, the table contains a link to an overflow
 // table. The width of each entry in the link table is the maximum code
 // size minus the chunk width.
-
+//
 // Note that you can do a lookup in the table even without all bits
 // filled. Since the extra bits are zero, and the DEFLATE Huffman codes
 // have the property that shorter codes come before longer ones, the
 // bit length estimate in the result is a lower bound on the actual
 // number of bits.
+//
+// See the following:
+//	http://www.gzip.org/algorithm.txt
 
 // chunk & 15 is number of bits
 // chunk >> 4 is value, including table link
@@ -760,6 +762,26 @@ func makeReader(r io.Reader) Reader {
 	return bufio.NewReader(r)
 }
 
+func fixedHuffmanDecoderInit() {
+	fixedOnce.Do(func() {
+		// These come from the RFC section 3.2.6.
+		var bits [288]int
+		for i := 0; i < 144; i++ {
+			bits[i] = 8
+		}
+		for i := 144; i < 256; i++ {
+			bits[i] = 9
+		}
+		for i := 256; i < 280; i++ {
+			bits[i] = 7
+		}
+		for i := 280; i < 288; i++ {
+			bits[i] = 8
+		}
+		fixedHuffmanDecoder.init(bits[:])
+	})
+}
+
 func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 	*f = decompressor{
 		r:        makeReader(r),
@@ -783,11 +805,13 @@ func (f *decompressor) Reset(r io.Reader, dict []byte) error {
 //
 // The ReadCloser returned by NewReader also implements Resetter.
 func NewReader(r io.Reader) io.ReadCloser {
+	fixedHuffmanDecoderInit()
+
 	var f decompressor
-	f.bits = new([maxNumLit + maxNumDist]int)
-	f.codebits = new([numCodes]int)
 	f.r = makeReader(r)
 	f.hist = new([maxHist]byte)
+	f.bits = new([maxNumLit + maxNumDist]int)
+	f.codebits = new([numCodes]int)
 	f.step = (*decompressor).nextBlock
 	return &f
 }
@@ -800,6 +824,8 @@ func NewReader(r io.Reader) io.ReadCloser {
 //
 // The ReadCloser returned by NewReader also implements Resetter.
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+	fixedHuffmanDecoderInit()
+
 	var f decompressor
 	f.r = makeReader(r)
 	f.hist = new([maxHist]byte)
