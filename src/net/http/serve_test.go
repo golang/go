@@ -1693,6 +1693,62 @@ func TestRedirectBadPath(t *testing.T) {
 	}
 }
 
+// Test different URL formats and schemes
+func TestRedirectURLFormat(t *testing.T) {
+	req, _ := NewRequest("GET", "http://example.com/", nil)
+
+	var resp ResponseWriter
+
+	// normal http
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "http://foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "http://foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	// normal https
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "https://foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "https://foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	// custom scheme
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "test://foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "test://foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	// schemeless
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "//foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "//foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	// relative with slash
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "/foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "/foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	// relative without slash
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "/foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+
+	// too many slashes
+	resp = httptest.NewRecorder()
+	Redirect(resp, req, "///foobar.com/baz", 302)
+	if g, e := resp.Header().Get("Location"), "/foobar.com/baz"; g != e {
+		t.Errorf("Location header was %q; want %q", g, e)
+	}
+}
+
 // TestZeroLengthPostAndResponse exercises an optimization done by the Transport:
 // when there is no body (either because the method doesn't permit a body, or an
 // explicit Content-Length of zero is present), then the transport can re-use the
