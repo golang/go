@@ -55,4 +55,6 @@
 273 00055 (testdata/arm.s:273)	CALL	foo(SB)
 274 00056 (testdata/arm.s:274)	JMP	foo(SB)
 275 00057 (testdata/arm.s:275)	CALL	foo(SB)
-284 00058 (testdata/arm.s:284)	END
+278 00058 (testdata/arm.s:278)	CMPF	F1, F2
+279 00059 (testdata/arm.s:279)	CMPD	F1, F2
+288 00060 (testdata/arm.s:288)	END
