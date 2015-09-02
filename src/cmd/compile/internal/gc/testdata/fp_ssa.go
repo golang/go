@@ -1179,7 +1179,10 @@ func floatsToUints(x float64, expected uint64) int {
 func floatingToIntegerConversionsTest() int {
 	fails := 0
 	fails += floatsToInts(0.0, 0)
+	fails += floatsToInts(0.5, 0)
+	fails += floatsToInts(0.9, 0)
 	fails += floatsToInts(1.0, 1)
+	fails += floatsToInts(1.5, 1)
 	fails += floatsToInts(127.0, 127)
 	fails += floatsToInts(-1.0, -1)
 	fails += floatsToInts(-128.0, -128)

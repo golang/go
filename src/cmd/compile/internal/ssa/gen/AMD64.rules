@@ -109,10 +109,10 @@
 (Cvt64to32F x) -> (CVTSQ2SS x)
 (Cvt64to64F x) -> (CVTSQ2SD x)
 
-(Cvt32Fto32 x) -> (CVTSS2SL x)
-(Cvt32Fto64 x) -> (CVTSS2SQ x)
-(Cvt64Fto32 x) -> (CVTSD2SL x)
-(Cvt64Fto64 x) -> (CVTSD2SQ x)
+(Cvt32Fto32 x) -> (CVTTSS2SL x)
+(Cvt32Fto64 x) -> (CVTTSS2SQ x)
+(Cvt64Fto32 x) -> (CVTTSD2SL x)
+(Cvt64Fto64 x) -> (CVTTSD2SQ x)
 
 (Cvt32Fto64F x) -> (CVTSS2SD x)
 (Cvt64Fto32F x) -> (CVTSD2SS x)

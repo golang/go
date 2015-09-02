@@ -1694,34 +1694,34 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpCvt32Fto32:
 		// match: (Cvt32Fto32 x)
 		// cond:
-		// result: (CVTSS2SL x)
+		// result: (CVTTSS2SL x)
 		{
 			x := v.Args[0]
-			v.Op = OpAMD64CVTSS2SL
+			v.Op = OpAMD64CVTTSS2SL
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
 			return true
 		}
-		goto endad55e2986dea26975574ee27f4976d5e
-	endad55e2986dea26975574ee27f4976d5e:
+		goto enda410209d31804e1bce7bdc235fc62342
+	enda410209d31804e1bce7bdc235fc62342:
 		;
 	case OpCvt32Fto64:
 		// match: (Cvt32Fto64 x)
 		// cond:
-		// result: (CVTSS2SQ x)
+		// result: (CVTTSS2SQ x)
 		{
 			x := v.Args[0]
-			v.Op = OpAMD64CVTSS2SQ
+			v.Op = OpAMD64CVTTSS2SQ
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
 			return true
 		}
-		goto end227800dc831e0b4ef80fa315133c0991
-	end227800dc831e0b4ef80fa315133c0991:
+		goto enddb02fa4f3230a14d557d6c90cdadd523
+	enddb02fa4f3230a14d557d6c90cdadd523:
 		;
 	case OpCvt32Fto64F:
 		// match: (Cvt32Fto64F x)
@@ -1774,18 +1774,18 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpCvt64Fto32:
 		// match: (Cvt64Fto32 x)
 		// cond:
-		// result: (CVTSD2SL x)
+		// result: (CVTTSD2SL x)
 		{
 			x := v.Args[0]
-			v.Op = OpAMD64CVTSD2SL
+			v.Op = OpAMD64CVTTSD2SL
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
 			return true
 		}
-		goto end1ce5fd52f29d5a42d1aa08d7ac53e49e
-	end1ce5fd52f29d5a42d1aa08d7ac53e49e:
+		goto endc213dd690dfe568607dec717b2c385b7
+	endc213dd690dfe568607dec717b2c385b7:
 		;
 	case OpCvt64Fto32F:
 		// match: (Cvt64Fto32F x)
@@ -1806,18 +1806,18 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpCvt64Fto64:
 		// match: (Cvt64Fto64 x)
 		// cond:
-		// result: (CVTSD2SQ x)
+		// result: (CVTTSD2SQ x)
 		{
 			x := v.Args[0]
-			v.Op = OpAMD64CVTSD2SQ
+			v.Op = OpAMD64CVTTSD2SQ
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
 			v.AddArg(x)
 			return true
 		}
-		goto end8239c11ce860dc3b5417d4d2ae59386a
-	end8239c11ce860dc3b5417d4d2ae59386a:
+		goto end0bf3e4468047fd20714266ff05797454
+	end0bf3e4468047fd20714266ff05797454:
 		;
 	case OpCvt64to32F:
 		// match: (Cvt64to32F x)
