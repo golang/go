@@ -74,6 +74,16 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+// issue 12440.
+func TestFormatSingleDigits(t *testing.T) {
+	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
+	test := FormatTest{"single digit format", "3:4:5", "4:5:6"}
+	result := time.Format(test.format)
+	if result != test.result {
+		t.Errorf("%s expected %q got %q", test.name, test.result, result)
+	}
+}
+
 func TestFormatShortYear(t *testing.T) {
 	years := []int{
 		-100001, -100000, -99999,

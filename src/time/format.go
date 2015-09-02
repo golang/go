@@ -518,7 +518,7 @@ func (t Time) AppendFormat(b []byte, layout string) []byte {
 		case stdZeroMinute:
 			b = appendInt(b, min, 2)
 		case stdSecond:
-			b = appendInt(b, sec, 2)
+			b = appendInt(b, sec, 0)
 		case stdZeroSecond:
 			b = appendInt(b, sec, 2)
 		case stdPM:
