@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -203,11 +204,14 @@ func TestNoTextrel(t *testing.T) {
 }
 
 // The install command should have created a "shlibname" file for the
-// listed packages (and runtime/cgo) indicating the name of the shared
-// library containing it.
+// listed packages (and runtime/cgo, and math on arm) indicating the
+// name of the shared library containing it.
 func TestShlibnameFiles(t *testing.T) {
 	pkgs := append([]string{}, minpkgs...)
 	pkgs = append(pkgs, "runtime/cgo")
+	if runtime.GOARCH == "arm" {
+		pkgs = append(pkgs, "math")
+	}
 	for _, pkg := range pkgs {
 		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
 		contentsb, err := ioutil.ReadFile(shlibnamefile)
