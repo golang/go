@@ -1076,3 +1076,14 @@ TEXT runtime·usplitR0(SB),NOSPLIT,$0
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-4
         RET
+
+#ifndef GOOS_nacl
+// This is called from .init_array and follows the platform, not Go, ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-4
+	MOVW	R9, saver9-4(SP) // The access to global variables below implicitly uses R9, which is callee-save
+	MOVW	runtime·lastmoduledatap(SB), R1
+	MOVW	R0, moduledata_next(R1)
+	MOVW	R0, runtime·lastmoduledatap(SB)
+	MOVW	saver9-4(SP), R9
+	RET
+#endif
