@@ -624,7 +624,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					return nil, d.err
 				}
 				d.buf.WriteByte(b)
-				if b0 == '-' && b1 == '-' && b == '>' {
+				if b0 == '-' && b1 == '-' {
+					if b != '>' {
+						d.err = d.syntaxError(
+							`invalid sequence "--" not allowed in comments`)
+						return nil, d.err
+					}
 					break
 				}
 				b0, b1 = b1, b
