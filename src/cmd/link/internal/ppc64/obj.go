@@ -111,6 +111,9 @@ func archinit() {
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
 		}
+
+	case obj.Hlinux:
+		break
 	}
 
 	switch ld.HEADTYPE {
