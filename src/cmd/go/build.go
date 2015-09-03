@@ -982,7 +982,11 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 
 func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode buildMode) *action {
 	a := &action{}
-	if mode == modeBuild {
+	switch mode {
+	default:
+		fatalf("unrecognized mode %v", mode)
+
+	case modeBuild:
 		a.f = (*builder).linkShared
 		a.target = filepath.Join(b.work, libname)
 		for _, p := range pkgs {
@@ -991,14 +995,15 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 			}
 			a.deps = append(a.deps, b.action(depMode, depMode, p))
 		}
-	} else if mode == modeInstall {
+
+	case modeInstall:
 		// Currently build mode shared forces external linking mode, and
-		// external linking mode forces an import of runtime/cgo. So if it
-		// was not passed on the command line and it is not present in
-		// another shared library, add it here.
-		seencgo := false
+		// external linking mode forces an import of runtime/cgo (and
+		// math on arm). So if it was not passed on the command line and
+		// it is not present in another shared library, add it here.
 		_, gccgo := buildToolchain.(gccgoToolchain)
 		if !gccgo {
+			seencgo := false
 			for _, p := range pkgs {
 				seencgo = seencgo || (p.Standard && p.ImportPath == "runtime/cgo")
 			}
@@ -1016,6 +1021,28 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 				if p.Shlib == "" || p.Shlib == libname {
 					pkgs = append([]*Package{}, pkgs...)
 					pkgs = append(pkgs, p)
+				}
+			}
+			if goarch == "arm" {
+				seenmath := false
+				for _, p := range pkgs {
+					seenmath = seenmath || (p.Standard && p.ImportPath == "math")
+				}
+				if !seenmath {
+					var stk importStack
+					p := loadPackage("math", &stk)
+					if p.Error != nil {
+						fatalf("load math: %v", p.Error)
+					}
+					computeStale(p)
+					// If math is in another shared library, then that's
+					// also the shared library that contains runtime, so
+					// something will depend on it and so math's staleness
+					// will be checked when processing that library.
+					if p.Shlib == "" || p.Shlib == libname {
+						pkgs = append([]*Package{}, pkgs...)
+						pkgs = append(pkgs, p)
+					}
 				}
 			}
 		}
@@ -1068,8 +1095,6 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 				shlibnameaction.deps = append(shlibnameaction.deps, buildAction)
 			}
 		}
-	} else {
-		fatalf("unregonized mode %v", mode)
 	}
 	return a
 }
