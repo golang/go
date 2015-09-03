@@ -114,6 +114,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// fallthrough to exit
 	if b := s.endBlock(); b != nil {
+		b.Kind = ssa.BlockRet
 		b.AddEdgeTo(s.exit)
 	}
 
