@@ -169,4 +169,10 @@ func archinit() {
 	if ld.INITDAT != 0 && ld.INITRND != 0 {
 		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(ld.INITDAT), uint32(ld.INITRND))
 	}
+
+	// embed goarm to runtime.goarm
+	s := ld.Linklookup(ld.Ctxt, "runtime.goarm", 0)
+
+	s.Type = obj.SRODATA
+	ld.Adduint8(ld.Ctxt, s, uint8(ld.Ctxt.Goarm))
 }
