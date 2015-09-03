@@ -59,6 +59,16 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
 			}
+		case BlockRet:
+			if len(b.Succs) != 1 {
+				f.Fatalf("ret block %s len(Succs)==%d, want 1", b, len(b.Succs))
+			}
+			if b.Control != nil {
+				f.Fatalf("ret block %s has non-nil control %s", b, b.Control.LongString())
+			}
+			if b.Succs[0].Kind != BlockExit {
+				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)
+			}
 		case BlockDead:
 			if len(b.Succs) != 0 {
 				f.Fatalf("dead block %s has successors", b)

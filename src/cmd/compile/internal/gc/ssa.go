@@ -562,6 +562,7 @@ func (s *state) stmt(n *Node) {
 	case ORETURN:
 		s.stmtList(n.List)
 		b := s.endBlock()
+		b.Kind = ssa.BlockRet
 		b.AddEdgeTo(s.exit)
 
 	case OCONTINUE, OBREAK:
@@ -3358,6 +3359,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
 			branches = append(branches, branch{p, b.Succs[0]})
 		}
 	case ssa.BlockExit:
+	case ssa.BlockRet:
 		Prog(obj.ARET)
 	case ssa.BlockCall:
 		if b.Succs[0] != next {
