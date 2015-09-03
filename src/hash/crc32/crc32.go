@@ -61,7 +61,8 @@ type slicing8Table [8]Table
 var iEEETable8 *slicing8Table
 var iEEETable8Once sync.Once
 
-// MakeTable returns the Table constructed from the specified polynomial.
+// MakeTable returns a Table constructed from the specified polynomial.
+// The contents of this Table must not be modified.
 func MakeTable(poly uint32) *Table {
 	switch poly {
 	case IEEE:

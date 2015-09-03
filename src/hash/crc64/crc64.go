@@ -24,7 +24,8 @@ const (
 // Table is a 256-word table representing the polynomial for efficient processing.
 type Table [256]uint64
 
-// MakeTable returns the Table constructed from the specified polynomial.
+// MakeTable returns a Table constructed from the specified polynomial.
+// The contents of this Table must not be modified.
 func MakeTable(poly uint64) *Table {
 	t := new(Table)
 	for i := 0; i < 256; i++ {
