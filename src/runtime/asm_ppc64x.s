@@ -1079,4 +1079,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R3, runtime·lastmoduledatap(SB)
 	MOVD	0(R1), R31
 	ADD	$8, R1
+
+TEXT ·checkASM(SB),NOSPLIT,$0-1
+	MOVW	$1, R3
+	MOVB	R3, ret+0(FP)
 	RET
