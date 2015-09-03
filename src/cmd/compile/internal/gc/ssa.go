@@ -1139,8 +1139,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 				{
 					pt := Types[TFLOAT64]
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat32(pt, mpgetflt(r)),
-						s.constFloat32(pt, mpgetflt(i)))
+						s.constFloat64(pt, mpgetflt(r)),
+						s.constFloat64(pt, mpgetflt(i)))
 				}
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
