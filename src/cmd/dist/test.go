@@ -547,7 +547,7 @@ func (t *tester) extLink() bool {
 		"darwin-arm", "darwin-arm64",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64",
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
@@ -741,7 +741,7 @@ func (t *tester) cgoTestSOSupported() bool {
 		// No exec facility on Android or iOS.
 		return false
 	}
-	if t.goarch == "ppc64le" || t.goarch == "ppc64" {
+	if t.goarch == "ppc64" {
 		// External linking not implemented on ppc64 (issue #8912).
 		return false
 	}
