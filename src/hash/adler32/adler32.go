@@ -33,6 +33,7 @@ type digest uint32
 func (d *digest) Reset() { *d = 1 }
 
 // New returns a new hash.Hash32 computing the Adler-32 checksum.
+// Its Sum method will lay the value out in big-endian byte order.
 func New() hash.Hash32 {
 	d := new(digest)
 	d.Reset()

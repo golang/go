@@ -113,10 +113,12 @@ type digest struct {
 
 // New creates a new hash.Hash32 computing the CRC-32 checksum
 // using the polynomial represented by the Table.
+// Its Sum method will lay the value out in big-endian byte order.
 func New(tab *Table) hash.Hash32 { return &digest{0, tab} }
 
 // NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum
 // using the IEEE polynomial.
+// Its Sum method will lay the value out in big-endian byte order.
 func NewIEEE() hash.Hash32 { return New(IEEETable) }
 
 func (d *digest) Size() int { return Size }
