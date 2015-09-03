@@ -17,7 +17,7 @@ func TestDeadLoop(t *testing.T) {
 		// dead loop
 		Bloc("deadblock",
 			// dead value in dead block
-			Valu("deadval", OpConstBool, TypeBool, 0, true),
+			Valu("deadval", OpConstBool, TypeBool, 1, nil),
 			If("deadval", "deadblock", "exit")))
 
 	CheckFunc(fun.f)
@@ -63,7 +63,7 @@ func TestNeverTaken(t *testing.T) {
 	c := testConfig(t)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("cond", OpConstBool, TypeBool, 0, false),
+			Valu("cond", OpConstBool, TypeBool, 0, nil),
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
 			If("cond", "then", "else")),
 		Bloc("then",
@@ -99,7 +99,7 @@ func TestNestedDeadBlocks(t *testing.T) {
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpArg, TypeMem, 0, ".mem"),
-			Valu("cond", OpConstBool, TypeBool, 0, false),
+			Valu("cond", OpConstBool, TypeBool, 0, nil),
 			If("cond", "b2", "b4")),
 		Bloc("b2",
 			If("cond", "b3", "b4")),

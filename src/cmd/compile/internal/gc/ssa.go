@@ -302,6 +302,11 @@ func (s *state) newValue0A(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
 	return s.curBlock.NewValue0A(s.peekLine(), op, t, aux)
 }
 
+// newValue0I adds a new value with no arguments and an auxint value to the current block.
+func (s *state) newValue0I(op ssa.Op, t ssa.Type, auxint int64) *ssa.Value {
+	return s.curBlock.NewValue0I(s.peekLine(), op, t, auxint)
+}
+
 // newValue1 adds a new value with one argument to the current block.
 func (s *state) newValue1(op ssa.Op, t ssa.Type, arg *ssa.Value) *ssa.Value {
 	return s.curBlock.NewValue1(s.peekLine(), op, t, arg)
@@ -337,14 +342,19 @@ func (s *state) newValue3I(op ssa.Op, t ssa.Type, aux int64, arg0, arg1, arg2 *s
 	return s.curBlock.NewValue3I(s.peekLine(), op, t, aux, arg0, arg1, arg2)
 }
 
-// entryNewValue adds a new value with no arguments to the entry block.
+// entryNewValue0 adds a new value with no arguments to the entry block.
 func (s *state) entryNewValue0(op ssa.Op, t ssa.Type) *ssa.Value {
 	return s.f.Entry.NewValue0(s.peekLine(), op, t)
 }
 
-// entryNewValue adds a new value with no arguments and an aux value to the entry block.
+// entryNewValue0A adds a new value with no arguments and an aux value to the entry block.
 func (s *state) entryNewValue0A(op ssa.Op, t ssa.Type, aux interface{}) *ssa.Value {
 	return s.f.Entry.NewValue0A(s.peekLine(), op, t, aux)
+}
+
+// entryNewValue0I adds a new value with no arguments and an auxint value to the entry block.
+func (s *state) entryNewValue0I(op ssa.Op, t ssa.Type, auxint int64) *ssa.Value {
+	return s.f.Entry.NewValue0I(s.peekLine(), op, t, auxint)
 }
 
 // entryNewValue1 adds a new value with one argument to the entry block.
@@ -635,7 +645,7 @@ func (s *state) stmt(n *Node) {
 		if n.Left != nil {
 			cond = s.expr(n.Left)
 		} else {
-			cond = s.entryNewValue0A(ssa.OpConstBool, Types[TBOOL], true)
+			cond = s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 1) // 1 = true
 		}
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
@@ -1103,7 +1113,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case CTSTR:
 			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
 		case CTBOOL:
-			return s.entryNewValue0A(ssa.OpConstBool, n.Type, n.Val().U)
+			if n.Val().U.(bool) {
+				return s.entryNewValue0I(ssa.OpConstBool, n.Type, 1) // 1 = true
+			} else {
+				return s.entryNewValue0I(ssa.OpConstBool, n.Type, 0) // 0 = false
+			}
 		case CTNIL:
 			t := n.Type
 			switch {
@@ -1882,7 +1896,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	case t.IsPtr():
 		return s.entryNewValue0(ssa.OpConstNil, t)
 	case t.IsBoolean():
-		return s.entryNewValue0A(ssa.OpConstBool, t, false) // TODO: store bools as 0/1 in AuxInt?
+		return s.entryNewValue0I(ssa.OpConstBool, t, 0) // 0 = false
 	case t.IsInterface():
 		return s.entryNewValue0(ssa.OpConstInterface, t)
 	case t.IsSlice():

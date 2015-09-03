@@ -1624,41 +1624,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	end200524c722ed14ca935ba47f8f30327d:
 		;
 	case OpConstBool:
-		// match: (ConstBool {b})
-		// cond: !b.(bool)
-		// result: (MOVBconst [0])
+		// match: (ConstBool [b])
+		// cond:
+		// result: (MOVBconst [b])
 		{
-			b := v.Aux
-			if !(!b.(bool)) {
-				goto end876159ea073d2dcefcc251667c1a7780
-			}
+			b := v.AuxInt
 			v.Op = OpAMD64MOVBconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.AuxInt = 0
+			v.AuxInt = b
 			return true
 		}
-		goto end876159ea073d2dcefcc251667c1a7780
-	end876159ea073d2dcefcc251667c1a7780:
-		;
-		// match: (ConstBool {b})
-		// cond: b.(bool)
-		// result: (MOVBconst [1])
-		{
-			b := v.Aux
-			if !(b.(bool)) {
-				goto end0dacad3f7cad53905aad5303391447f6
-			}
-			v.Op = OpAMD64MOVBconst
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 1
-			return true
-		}
-		goto end0dacad3f7cad53905aad5303391447f6
-	end0dacad3f7cad53905aad5303391447f6:
+		goto end6d919011283330dcbcb3826f0adc6793
+	end6d919011283330dcbcb3826f0adc6793:
 		;
 	case OpConstNil:
 		// match: (ConstNil)
