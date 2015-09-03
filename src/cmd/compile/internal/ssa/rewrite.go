@@ -162,3 +162,11 @@ func isPowerOfTwo(n int64) bool {
 func is32Bit(n int64) bool {
 	return n == int64(int32(n))
 }
+
+// b2i translates a boolean value to 0 or 1 for assigning to auxInt.
+func b2i(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
+}

@@ -354,78 +354,78 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpEq16:
 		// match: (Eq16 x x)
 		// cond:
-		// result: (ConstBool {true})
+		// result: (ConstBool [1])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto enda503589f9b617e708a5ad3ddb047809f
+				goto end0c0fe5fdfba3821add3448fd3f1fc6b7
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = true
+			v.AuxInt = 1
 			return true
 		}
-		goto enda503589f9b617e708a5ad3ddb047809f
-	enda503589f9b617e708a5ad3ddb047809f:
+		goto end0c0fe5fdfba3821add3448fd3f1fc6b7
+	end0c0fe5fdfba3821add3448fd3f1fc6b7:
 		;
 	case OpEq32:
 		// match: (Eq32 x x)
 		// cond:
-		// result: (ConstBool {true})
+		// result: (ConstBool [1])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endc94ae3b97d0090257b02152e437b3e17
+				goto end6da547ec4ee93d787434f3bda873e4a0
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = true
+			v.AuxInt = 1
 			return true
 		}
-		goto endc94ae3b97d0090257b02152e437b3e17
-	endc94ae3b97d0090257b02152e437b3e17:
+		goto end6da547ec4ee93d787434f3bda873e4a0
+	end6da547ec4ee93d787434f3bda873e4a0:
 		;
 	case OpEq64:
 		// match: (Eq64 x x)
 		// cond:
-		// result: (ConstBool {true})
+		// result: (ConstBool [1])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end4d21cead60174989467a9c8202dbb91d
+				goto endb1d471cc503ba8bb05440f01dbf33d81
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = true
+			v.AuxInt = 1
 			return true
 		}
-		goto end4d21cead60174989467a9c8202dbb91d
-	end4d21cead60174989467a9c8202dbb91d:
+		goto endb1d471cc503ba8bb05440f01dbf33d81
+	endb1d471cc503ba8bb05440f01dbf33d81:
 		;
 	case OpEq8:
 		// match: (Eq8 x x)
 		// cond:
-		// result: (ConstBool {true})
+		// result: (ConstBool [1])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end73dce8bba164e4f4a1dd701bf8cfb362
+				goto enda66da0d3e7e51624ee46527727c48a9a
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = true
+			v.AuxInt = 1
 			return true
 		}
-		goto end73dce8bba164e4f4a1dd701bf8cfb362
-	end73dce8bba164e4f4a1dd701bf8cfb362:
+		goto enda66da0d3e7e51624ee46527727c48a9a
+	enda66da0d3e7e51624ee46527727c48a9a:
 		;
 	case OpEqFat:
 		// match: (EqFat x y)
@@ -521,97 +521,97 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpIsInBounds:
 		// match: (IsInBounds (Const32 [c]) (Const32 [d]))
 		// cond:
-		// result: (ConstBool {inBounds32(c,d)})
+		// result: (ConstBool [b2i(inBounds32(c,d))])
 		{
 			if v.Args[0].Op != OpConst32 {
-				goto endc3396bf88b56276e1691abe62811dba5
+				goto endf0a2ecfe84b293de6ff0919e45d19d9d
 			}
 			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConst32 {
-				goto endc3396bf88b56276e1691abe62811dba5
+				goto endf0a2ecfe84b293de6ff0919e45d19d9d
 			}
 			d := v.Args[1].AuxInt
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = inBounds32(c, d)
+			v.AuxInt = b2i(inBounds32(c, d))
 			return true
 		}
-		goto endc3396bf88b56276e1691abe62811dba5
-	endc3396bf88b56276e1691abe62811dba5:
+		goto endf0a2ecfe84b293de6ff0919e45d19d9d
+	endf0a2ecfe84b293de6ff0919e45d19d9d:
 		;
 		// match: (IsInBounds (Const64 [c]) (Const64 [d]))
 		// cond:
-		// result: (ConstBool {inBounds64(c,d)})
+		// result: (ConstBool [b2i(inBounds64(c,d))])
 		{
 			if v.Args[0].Op != OpConst64 {
-				goto end0b4b8178a54662835b00bfa503cf879a
+				goto end4b406f402c135f50f71effcc904ecb2b
 			}
 			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConst64 {
-				goto end0b4b8178a54662835b00bfa503cf879a
+				goto end4b406f402c135f50f71effcc904ecb2b
 			}
 			d := v.Args[1].AuxInt
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = inBounds64(c, d)
+			v.AuxInt = b2i(inBounds64(c, d))
 			return true
 		}
-		goto end0b4b8178a54662835b00bfa503cf879a
-	end0b4b8178a54662835b00bfa503cf879a:
+		goto end4b406f402c135f50f71effcc904ecb2b
+	end4b406f402c135f50f71effcc904ecb2b:
 		;
 		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
 		// cond: config.PtrSize == 4
-		// result: (ConstBool {inBounds32(c,d)})
+		// result: (ConstBool [b2i(inBounds32(c,d))])
 		{
 			if v.Args[0].Op != OpConstPtr {
-				goto end2c6938f68a67e08dbd96edb1e693e549
+				goto end4323278ec7a053034fcf7033697d7b3b
 			}
 			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConstPtr {
-				goto end2c6938f68a67e08dbd96edb1e693e549
+				goto end4323278ec7a053034fcf7033697d7b3b
 			}
 			d := v.Args[1].AuxInt
 			if !(config.PtrSize == 4) {
-				goto end2c6938f68a67e08dbd96edb1e693e549
+				goto end4323278ec7a053034fcf7033697d7b3b
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = inBounds32(c, d)
+			v.AuxInt = b2i(inBounds32(c, d))
 			return true
 		}
-		goto end2c6938f68a67e08dbd96edb1e693e549
-	end2c6938f68a67e08dbd96edb1e693e549:
+		goto end4323278ec7a053034fcf7033697d7b3b
+	end4323278ec7a053034fcf7033697d7b3b:
 		;
 		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
 		// cond: config.PtrSize == 8
-		// result: (ConstBool {inBounds64(c,d)})
+		// result: (ConstBool [b2i(inBounds64(c,d))])
 		{
 			if v.Args[0].Op != OpConstPtr {
-				goto end84d6ae817944985f572ecaac51999d6c
+				goto endb550b8814df20b5eeda4f43cc94e902b
 			}
 			c := v.Args[0].AuxInt
 			if v.Args[1].Op != OpConstPtr {
-				goto end84d6ae817944985f572ecaac51999d6c
+				goto endb550b8814df20b5eeda4f43cc94e902b
 			}
 			d := v.Args[1].AuxInt
 			if !(config.PtrSize == 8) {
-				goto end84d6ae817944985f572ecaac51999d6c
+				goto endb550b8814df20b5eeda4f43cc94e902b
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = inBounds64(c, d)
+			v.AuxInt = b2i(inBounds64(c, d))
 			return true
 		}
-		goto end84d6ae817944985f572ecaac51999d6c
-	end84d6ae817944985f572ecaac51999d6c:
+		goto endb550b8814df20b5eeda4f43cc94e902b
+	endb550b8814df20b5eeda4f43cc94e902b:
 		;
 	case OpLoad:
 		// match: (Load <t> ptr mem)
@@ -837,78 +837,78 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpNeq16:
 		// match: (Neq16 x x)
 		// cond:
-		// result: (ConstBool {false})
+		// result: (ConstBool [0])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto end192755dd3c2be992e9d3deb53794a8d2
+				goto ende76a50b524aeb16c7aeccf5f5cc60c06
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = false
+			v.AuxInt = 0
 			return true
 		}
-		goto end192755dd3c2be992e9d3deb53794a8d2
-	end192755dd3c2be992e9d3deb53794a8d2:
+		goto ende76a50b524aeb16c7aeccf5f5cc60c06
+	ende76a50b524aeb16c7aeccf5f5cc60c06:
 		;
 	case OpNeq32:
 		// match: (Neq32 x x)
 		// cond:
-		// result: (ConstBool {false})
+		// result: (ConstBool [0])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endeb23619fc85950a8df7b31126252c4dd
+				goto end3713a608cffd29b40ff7c3b3f2585cbb
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = false
+			v.AuxInt = 0
 			return true
 		}
-		goto endeb23619fc85950a8df7b31126252c4dd
-	endeb23619fc85950a8df7b31126252c4dd:
+		goto end3713a608cffd29b40ff7c3b3f2585cbb
+	end3713a608cffd29b40ff7c3b3f2585cbb:
 		;
 	case OpNeq64:
 		// match: (Neq64 x x)
 		// cond:
-		// result: (ConstBool {false})
+		// result: (ConstBool [0])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endfc6eea780fb4056afb9e4287076da60c
+				goto end3601ad382705ea12b79d2008c1e5725c
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = false
+			v.AuxInt = 0
 			return true
 		}
-		goto endfc6eea780fb4056afb9e4287076da60c
-	endfc6eea780fb4056afb9e4287076da60c:
+		goto end3601ad382705ea12b79d2008c1e5725c
+	end3601ad382705ea12b79d2008c1e5725c:
 		;
 	case OpNeq8:
 		// match: (Neq8 x x)
 		// cond:
-		// result: (ConstBool {false})
+		// result: (ConstBool [0])
 		{
 			x := v.Args[0]
 			if v.Args[1] != x {
-				goto endcccf700d93c6d57765b80f92f7b3fa81
+				goto end09a0deaf3c42627d0d2d3efa96e30745
 			}
 			v.Op = OpConstBool
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = false
+			v.AuxInt = 0
 			return true
 		}
-		goto endcccf700d93c6d57765b80f92f7b3fa81
-	endcccf700d93c6d57765b80f92f7b3fa81:
+		goto end09a0deaf3c42627d0d2d3efa96e30745
+	end09a0deaf3c42627d0d2d3efa96e30745:
 		;
 	case OpNeqFat:
 		// match: (NeqFat x y)
@@ -1620,19 +1620,19 @@ func rewriteBlockgeneric(b *Block) bool {
 		goto endebe19c1c3c3bec068cdb2dd29ef57f96
 	endebe19c1c3c3bec068cdb2dd29ef57f96:
 		;
-		// match: (If (ConstBool {c}) yes no)
-		// cond: c.(bool)
+		// match: (If (ConstBool [c]) yes no)
+		// cond: c == 1
 		// result: (First nil yes no)
 		{
 			v := b.Control
 			if v.Op != OpConstBool {
-				goto end7a20763049489cdb40bb1eaa57d113d8
+				goto endc58ecbb85af78c0d58bb232ca86b67a4
 			}
-			c := v.Aux
+			c := v.AuxInt
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			if !(c.(bool)) {
-				goto end7a20763049489cdb40bb1eaa57d113d8
+			if !(c == 1) {
+				goto endc58ecbb85af78c0d58bb232ca86b67a4
 			}
 			b.Kind = BlockFirst
 			b.Control = nil
@@ -1640,22 +1640,22 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Succs[1] = no
 			return true
 		}
-		goto end7a20763049489cdb40bb1eaa57d113d8
-	end7a20763049489cdb40bb1eaa57d113d8:
+		goto endc58ecbb85af78c0d58bb232ca86b67a4
+	endc58ecbb85af78c0d58bb232ca86b67a4:
 		;
-		// match: (If (ConstBool {c}) yes no)
-		// cond: !c.(bool)
+		// match: (If (ConstBool [c]) yes no)
+		// cond: c == 0
 		// result: (First nil no yes)
 		{
 			v := b.Control
 			if v.Op != OpConstBool {
-				goto end3ecbf5b2cc1f0a08444d8ab1871a829c
+				goto end4c3e297e275dd7e2e67f8ccd348c4bb5
 			}
-			c := v.Aux
+			c := v.AuxInt
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			if !(!c.(bool)) {
-				goto end3ecbf5b2cc1f0a08444d8ab1871a829c
+			if !(c == 0) {
+				goto end4c3e297e275dd7e2e67f8ccd348c4bb5
 			}
 			b.Kind = BlockFirst
 			b.Control = nil
@@ -1664,8 +1664,8 @@ func rewriteBlockgeneric(b *Block) bool {
 			b.Likely *= -1
 			return true
 		}
-		goto end3ecbf5b2cc1f0a08444d8ab1871a829c
-	end3ecbf5b2cc1f0a08444d8ab1871a829c:
+		goto end4c3e297e275dd7e2e67f8ccd348c4bb5
+	end4c3e297e275dd7e2e67f8ccd348c4bb5:
 	}
 	return false
 }

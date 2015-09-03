@@ -303,8 +303,7 @@
 (Const64F {val}) -> (MOVSDconst {val})
 (ConstPtr [val]) -> (MOVQconst [val])
 (ConstNil) -> (MOVQconst [0])
-(ConstBool {b}) && !b.(bool) -> (MOVBconst [0])
-(ConstBool {b}) && b.(bool) -> (MOVBconst [1])
+(ConstBool [b]) -> (MOVBconst [b])
 
 (Addr {sym} base) -> (LEAQ {sym} base)
 
