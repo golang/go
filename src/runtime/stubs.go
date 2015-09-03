@@ -270,3 +270,6 @@ func unixnanotime() int64 {
 func round(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
+
+// checkASM returns whether assembly runtime checks have passed.
+func checkASM() bool

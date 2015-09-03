@@ -1012,3 +1012,7 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
 	MOVL	addr+0(FP), AX
 	PREFETCHNTA	(AX)
 	RET
+
+TEXT ·checkASM(SB),NOSPLIT,$0-1
+	MOVB	$1, ret+0(FP)
+	RET

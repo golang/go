@@ -1188,6 +1188,15 @@ DATA shifts<>+0xfc(SB)/4, $0xff0f0e0d
 
 GLOBL shifts<>(SB),RODATA,$256
 
+TEXT ·checkASM(SB),NOSPLIT,$0-1
+	// check that masks<>(SB) and shifts<>(SB) are aligned to 16-byte
+	MOVL	$masks<>(SB), AX
+	MOVL	$shifts<>(SB), BX
+	ORL	BX, AX
+	TESTL	$15, AX
+	SETEQ	ret+0(FP)
+	RET
+
 TEXT runtime·memeq(SB),NOSPLIT,$0-13
 	MOVL	a+0(FP), SI
 	MOVL	b+4(FP), DI

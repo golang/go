@@ -296,6 +296,10 @@ func check() {
 	if _FixedStack != round2(_FixedStack) {
 		throw("FixedStack is not power-of-2")
 	}
+
+	if !checkASM() {
+		throw("assembly checks failed")
+	}
 }
 
 type dbgVar struct {
