@@ -187,6 +187,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AORW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.APOPL:     {Flags: gc.SizeL | gc.RightWrite},
 	x86.APUSHL:    {Flags: gc.SizeL | gc.LeftRead},
+	x86.APXOR:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 	x86.ARCLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
 	x86.ARCLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
 	x86.ARCLW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
