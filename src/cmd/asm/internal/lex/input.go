@@ -136,10 +136,11 @@ func (in *Input) hash() bool {
 		in.expectText("expected identifier after '#'")
 	}
 	if !in.enabled() {
-		// Can only start including again if we are at #else or #endif.
+		// Can only start including again if we are at #else or #endif but also
+		// need to keep track of nested #if[n]defs.
 		// We let #line through because it might affect errors.
 		switch in.Stack.Text() {
-		case "else", "endif", "line":
+		case "else", "endif", "ifdef", "ifndef", "line":
 			// Press on.
 		default:
 			return false
@@ -360,7 +361,9 @@ func (in *Input) collectArgument(macro *Macro) ([]Token, ScanToken) {
 func (in *Input) ifdef(truth bool) {
 	name := in.macroName()
 	in.expectNewline("#if[n]def")
-	if _, defined := in.macros[name]; !defined {
+	if !in.enabled() {
+		truth = false
+	} else if _, defined := in.macros[name]; !defined {
 		truth = !truth
 	}
 	in.ifdefStack = append(in.ifdefStack, truth)
@@ -372,7 +375,9 @@ func (in *Input) else_() {
 	if len(in.ifdefStack) == 0 {
 		in.Error("unmatched #else")
 	}
-	in.ifdefStack[len(in.ifdefStack)-1] = !in.ifdefStack[len(in.ifdefStack)-1]
+	if len(in.ifdefStack) == 1 || in.ifdefStack[len(in.ifdefStack)-2] {
+		in.ifdefStack[len(in.ifdefStack)-1] = !in.ifdefStack[len(in.ifdefStack)-1]
+	}
 }
 
 // #endif processing.
