@@ -126,6 +126,13 @@ func checkFunc(f *Func) {
 			if _, ok := v.Aux.(bool); ok {
 				f.Fatalf("value %v has a bool Aux value, should be AuxInt", v.LongString())
 			}
+			if _, ok := v.Aux.(float32); ok {
+				f.Fatalf("value %v has a float32 Aux value, should be AuxInt", v.LongString())
+			}
+
+			if _, ok := v.Aux.(float64); ok {
+				f.Fatalf("value %v has a float64 Aux value, should be AuxInt", v.LongString())
+			}
 
 			for _, arg := range v.Args {
 				if arg == nil {

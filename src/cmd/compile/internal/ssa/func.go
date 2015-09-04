@@ -4,7 +4,10 @@
 
 package ssa
 
-import "sync"
+import (
+	"math"
+	"sync"
+)
 
 // A Func represents a Go func declaration (or function literal) and
 // its body.  This package compiles each Func independently.
@@ -287,13 +290,11 @@ func (f *Func) ConstIntPtr(line int32, t Type, c int64) *Value {
 }
 func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
 	// TODO: cache?
-	// For now stuff FP values into aux interface
-	return f.Entry.NewValue0A(line, OpConst32F, t, c)
+	return f.Entry.NewValue0I(line, OpConst32F, t, int64(math.Float64bits(c)))
 }
 func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
 	// TODO: cache?
-	// For now stuff FP values into aux interface
-	return f.Entry.NewValue0A(line, OpConst64F, t, c)
+	return f.Entry.NewValue0I(line, OpConst64F, t, int64(math.Float64bits(c)))
 }
 
 func (f *Func) Logf(msg string, args ...interface{})           { f.Config.Logf(msg, args...) }

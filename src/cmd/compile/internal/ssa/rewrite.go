@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) {
 	// repeat rewrites until we find no more rewrites
@@ -169,4 +172,9 @@ func b2i(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// f2i is used in the rules for storing a float in AuxInt.
+func f2i(f float64) int64 {
+	return int64(math.Float64bits(f))
 }
