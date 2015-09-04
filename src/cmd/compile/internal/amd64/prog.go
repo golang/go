@@ -116,6 +116,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AJPL:       {Flags: gc.Cjmp | gc.UseCarry},
 	x86.AJPS:       {Flags: gc.Cjmp | gc.UseCarry},
 	obj.AJMP:       {Flags: gc.Jump | gc.Break | gc.KillCarry},
+	x86.ALEAW:      {Flags: gc.LeftAddr | gc.RightWrite},
 	x86.ALEAL:      {Flags: gc.LeftAddr | gc.RightWrite},
 	x86.ALEAQ:      {Flags: gc.LeftAddr | gc.RightWrite},
 	x86.AMOVBLSX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
