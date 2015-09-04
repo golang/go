@@ -463,6 +463,9 @@ var deptab = []struct {
 	{"runtime/internal/sys", []string{
 		"zversion.go",
 	}},
+	{"go/build", []string{
+		"zcgo.go",
+	}},
 }
 
 // depsuffix records the allowed suffixes for source files.
@@ -478,6 +481,7 @@ var gentab = []struct {
 }{
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zversion.go", mkzversion},
+	{"zcgo.go", mkzcgo},
 
 	// not generated anymore, but delete the file if we see it
 	{"enam.c", nil},
@@ -1061,9 +1065,9 @@ func cmdbootstrap() {
 	}
 }
 
-// Copied from go/build/build.go.
 // Cannot use go/build directly because cmd/dist for a new release
 // builds against an old release's go/build, which may be out of sync.
+// To reduce duplication, we generate the list for go/build from this.
 var cgoEnabled = map[string]bool{
 	"darwin/386":      true,
 	"darwin/amd64":    true,
