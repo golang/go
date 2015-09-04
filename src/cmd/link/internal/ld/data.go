@@ -1207,31 +1207,6 @@ func dodata() {
 
 	*l = nil
 
-	if UseRelro() {
-		// "read only" data with relocations needs to go in its own section
-		// when building a shared library. We do this by boosting objects of
-		// type SXXX with relocations to type SXXXRELRO.
-		for s := datap; s != nil; s = s.Next {
-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRING {
-				s.Type += (obj.STYPERELRO - obj.STYPE)
-				if s.Outer != nil {
-					s.Outer.Type = s.Type
-				}
-			}
-		}
-		// Check that we haven't made two symbols with the same .Outer into
-		// different types (because references two symbols with non-nil Outer
-		// become references to the outer symbol + offset it's vital that the
-		// symbol and the outer end up in the same section).
-		for s := datap; s != nil; s = s.Next {
-			if s.Outer != nil && s.Outer.Type != s.Type {
-				Diag("inconsistent types for %s and its Outer %s (%d != %d)",
-					s.Name, s.Outer.Name, s.Type, s.Outer.Type)
-			}
-		}
-
-	}
-
 	datap = listsort(datap, datcmp, listnextp)
 
 	if Iself {
@@ -1490,12 +1465,12 @@ func dodata() {
 	/* read-only data */
 	sect = addsection(segro, ".rodata", 04)
 
-	sect.Align = maxalign(s, obj.STYPERELRO-1)
+	sect.Align = maxalign(s, obj.STYPELINK-1)
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = 0
 	Linklookup(Ctxt, "runtime.rodata", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.erodata", 0).Sect = sect
-	for ; s != nil && s.Type < obj.STYPERELRO; s = s.Next {
+	for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = obj.SRODATA
@@ -1505,45 +1480,8 @@ func dodata() {
 
 	sect.Length = uint64(datsize) - sect.Vaddr
 
-	// There is some data that are conceptually read-only but are written to by
-	// relocations. On GNU systems, we can arrange for the dynamic linker to
-	// mprotect sections after relocations are applied by giving them write
-	// permissions in the object file and calling them ".data.rel.ro.FOO". We
-	// divide the .rodata section between actual .rodata and .data.rel.ro.rodata,
-	// but for the other sections that this applies to, we just write a read-only
-	// .FOO section or a read-write .data.rel.ro.FOO section depending on the
-	// situation.
-	// TODO(mwhudson): It would make sense to do this more widely, but it makes
-	// the system linker segfault on darwin.
-	relro_perms := 04
-	relro_prefix := ""
-
-	if UseRelro() {
-		relro_perms = 06
-		relro_prefix = ".data.rel.ro"
-		/* data only written by relocations */
-		sect = addsection(segro, ".data.rel.ro", 06)
-
-		sect.Align = maxalign(s, obj.STYPELINK-1)
-		datsize = Rnd(datsize, int64(sect.Align))
-		sect.Vaddr = 0
-		for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
-			datsize = aligndatsize(datsize, s)
-			if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
-				Diag("s.Outer (%s) in different section from s (%s)", s.Outer.Name, s.Name)
-			}
-			s.Sect = sect
-			s.Type = obj.SRODATA
-			s.Value = int64(uint64(datsize) - sect.Vaddr)
-			growdatsize(&datsize, s)
-		}
-
-		sect.Length = uint64(datsize) - sect.Vaddr
-
-	}
-
 	/* typelink */
-	sect = addsection(segro, relro_prefix+".typelink", relro_perms)
+	sect = addsection(segro, ".typelink", 04)
 
 	sect.Align = maxalign(s, obj.STYPELINK)
 	datsize = Rnd(datsize, int64(sect.Align))
@@ -1561,7 +1499,7 @@ func dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gosymtab */
-	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
+	sect = addsection(segro, ".gosymtab", 04)
 
 	sect.Align = maxalign(s, obj.SPCLNTAB-1)
 	datsize = Rnd(datsize, int64(sect.Align))
@@ -1579,7 +1517,7 @@ func dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* gopclntab */
-	sect = addsection(segro, relro_prefix+".gopclntab", relro_perms)
+	sect = addsection(segro, ".gopclntab", 04)
 
 	sect.Align = maxalign(s, obj.SELFROSECT-1)
 	datsize = Rnd(datsize, int64(sect.Align))
@@ -1785,11 +1723,6 @@ func address() {
 		rodata = text.Next
 	}
 	typelink := rodata.Next
-	if UseRelro() {
-		// There is another section (.data.rel.ro) when building a shared
-		// object on elf systems.
-		typelink = typelink.Next
-	}
 	symtab := typelink.Next
 	pclntab := symtab.Next
 
