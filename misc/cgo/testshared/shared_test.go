@@ -163,45 +163,6 @@ func TestSOBuilt(t *testing.T) {
 	}
 }
 
-func hasDynTag(f *elf.File, tag elf.DynTag) bool {
-	ds := f.SectionByType(elf.SHT_DYNAMIC)
-	if ds == nil {
-		return false
-	}
-	d, err := ds.Data()
-	if err != nil {
-		return false
-	}
-	for len(d) > 0 {
-		var t elf.DynTag
-		switch f.Class {
-		case elf.ELFCLASS32:
-			t = elf.DynTag(f.ByteOrder.Uint32(d[0:4]))
-			d = d[8:]
-		case elf.ELFCLASS64:
-			t = elf.DynTag(f.ByteOrder.Uint64(d[0:8]))
-			d = d[16:]
-		}
-		if t == tag {
-			return true
-		}
-	}
-	return false
-}
-
-// The shared library does not have relocations against the text segment.
-func TestNoTextrel(t *testing.T) {
-	sopath := filepath.Join(gorootInstallDir, soname)
-	f, err := elf.Open(sopath)
-	if err != nil {
-		t.Fatal("elf.Open failed: ", err)
-	}
-	defer f.Close()
-	if hasDynTag(f, elf.DT_TEXTREL) {
-		t.Errorf("%s has DT_TEXTREL set", soname)
-	}
-}
-
 // The install command should have created a "shlibname" file for the
 // listed packages (and runtime/cgo) indicating the name of the shared
 // library containing it.

@@ -81,13 +81,6 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
 GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
 binpush libgo.$libext
 
-if [ "$goos" == "linux" ]; then
-    if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
-        echo "libgo.$libext has TEXTREL set"
-        exit 1
-    fi
-fi
-
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
 $(go env CC) $(go env GOGCCFLAGS) -I ${installdir} -o testp main0.c libgo.$libext
