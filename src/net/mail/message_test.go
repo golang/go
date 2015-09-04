@@ -127,6 +127,14 @@ func TestAddressParsingError(t *testing.T) {
 	}
 }
 
+func TestAddressParsingErrorUnquotedNonASCII(t *testing.T) {
+	const txt = "µ <micro@example.net>"
+	_, err := ParseAddress(txt)
+	if err == nil || !strings.Contains(err.Error(), "unencoded non-ASCII text in address") {
+		t.Errorf(`mail.ParseAddress(%q) err: %q, want ".*unencoded non-ASCII text in address.*"`, txt, err)
+	}
+}
+
 func TestAddressParsing(t *testing.T) {
 	tests := []struct {
 		addrsStr string
