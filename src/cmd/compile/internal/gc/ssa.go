@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"html"
+	"math"
 	"os"
 	"strings"
 
@@ -3006,7 +3007,7 @@ func genValue(v *ssa.Value) {
 		x := regnum(v)
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_FCONST
-		p.From.Val = v.Aux.(float64)
+		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
 	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload:

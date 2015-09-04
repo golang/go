@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // A Value represents a value in the SSA representation of the program.
 // The ID and Type fields must not be modified.  The remainder may be modified
@@ -60,6 +63,15 @@ func (v *Value) LongString() string {
 	s += " <" + v.Type.String() + ">"
 	if v.AuxInt != 0 {
 		s += fmt.Sprintf(" [%d]", v.AuxInt)
+
+		switch {
+		case v.Op == OpConst32F || v.Op == OpConst64F:
+			s += fmt.Sprintf("(%g)", math.Float64frombits(uint64(v.AuxInt)))
+		case v.Op == OpConstBool && v.AuxInt == 0:
+			s += " (false)"
+		case v.Op == OpConstBool && v.AuxInt == 1:
+			s += " (true)"
+		}
 	}
 	if v.Aux != nil {
 		if _, ok := v.Aux.(string); ok {

@@ -4,10 +4,7 @@
 
 package ssa
 
-import (
-	"math"
-	"sort"
-)
+import "sort"
 
 // cse does common-subexpression elimination on the Function.
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
@@ -55,18 +52,11 @@ func cse(f *Func) {
 				arg1op = v.Args[1].Op
 			}
 
-			aux := v.Aux
-			auxInt := v.AuxInt
-			// -0 == 0, but aren't equivalent values so we use
-			// Float64bits to distinguish
-			if f, ok := aux.(float64); ok {
-				aux = nil
-				if auxInt != 0 {
-					v.Fatalf("float would clobber v.auxInt")
-				}
-				auxInt = int64(math.Float64bits(f))
-			}
-			k := key{v.Op, v.Type.String(), aux, auxInt, len(v.Args), bid, arg0op, arg1op}
+			// This assumes that floats are stored in AuxInt
+			// instead of Aux. If not, then we need to use the
+			// float bits as part of the key, otherwise since 0.0 == -0.0
+			// this would incorrectly treat 0.0 and -0.0 as identical values
+			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args), bid, arg0op, arg1op}
 			m[k] = append(m[k], v)
 		}
 	}

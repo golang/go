@@ -1560,20 +1560,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	enddae5807662af67143a3ac3ad9c63bae5:
 		;
 	case OpConst32F:
-		// match: (Const32F {val})
+		// match: (Const32F [val])
 		// cond:
-		// result: (MOVSSconst {val})
+		// result: (MOVSSconst [val])
 		{
-			val := v.Aux
+			val := v.AuxInt
 			v.Op = OpAMD64MOVSSconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = val
+			v.AuxInt = val
 			return true
 		}
-		goto end30a68b43982e55971cc58f893ae2c04a
-	end30a68b43982e55971cc58f893ae2c04a:
+		goto endfabcef2d57a8f36eaa6041de6f112b89
+	endfabcef2d57a8f36eaa6041de6f112b89:
 		;
 	case OpConst64:
 		// match: (Const64 [val])
@@ -1592,20 +1592,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	endc630434ae7f143ab69d5f482a9b52b5f:
 		;
 	case OpConst64F:
-		// match: (Const64F {val})
+		// match: (Const64F [val])
 		// cond:
-		// result: (MOVSDconst {val})
+		// result: (MOVSDconst [val])
 		{
-			val := v.Aux
+			val := v.AuxInt
 			v.Op = OpAMD64MOVSDconst
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.Aux = val
+			v.AuxInt = val
 			return true
 		}
-		goto end958041a44a2ee8fc571cbc0832fad285
-	end958041a44a2ee8fc571cbc0832fad285:
+		goto endae6cf7189e464bbde17b98635a20f0ff
+	endae6cf7189e464bbde17b98635a20f0ff:
 		;
 	case OpConst8:
 		// match: (Const8 [val])
@@ -6044,7 +6044,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpNeg32F:
 		// match: (Neg32F x)
 		// cond:
-		// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> {math.Copysign(0, -1)}))
+		// result: (PXOR x (MOVSSconst <config.Frontend().TypeFloat32()> [f2i(math.Copysign(0, -1))]))
 		{
 			x := v.Args[0]
 			v.Op = OpAMD64PXOR
@@ -6054,12 +6054,12 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(x)
 			v0 := b.NewValue0(v.Line, OpAMD64MOVSSconst, TypeInvalid)
 			v0.Type = config.Frontend().TypeFloat32()
-			v0.Aux = math.Copysign(0, -1)
+			v0.AuxInt = f2i(math.Copysign(0, -1))
 			v.AddArg(v0)
 			return true
 		}
-		goto end47074133a76e069317ceca46372cafc3
-	end47074133a76e069317ceca46372cafc3:
+		goto end685a5fc899e195b9091afbe2a7146051
+	end685a5fc899e195b9091afbe2a7146051:
 		;
 	case OpNeg64:
 		// match: (Neg64 x)
@@ -6080,7 +6080,7 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	case OpNeg64F:
 		// match: (Neg64F x)
 		// cond:
-		// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> {math.Copysign(0, -1)}))
+		// result: (PXOR x (MOVSDconst <config.Frontend().TypeFloat64()> [f2i(math.Copysign(0, -1))]))
 		{
 			x := v.Args[0]
 			v.Op = OpAMD64PXOR
@@ -6090,12 +6090,12 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(x)
 			v0 := b.NewValue0(v.Line, OpAMD64MOVSDconst, TypeInvalid)
 			v0.Type = config.Frontend().TypeFloat64()
-			v0.Aux = math.Copysign(0, -1)
+			v0.AuxInt = f2i(math.Copysign(0, -1))
 			v.AddArg(v0)
 			return true
 		}
-		goto end9240202f5753ebd23f11f982ece3e06e
-	end9240202f5753ebd23f11f982ece3e06e:
+		goto ende85ae82b7a51e75000eb9158d584acb2
+	ende85ae82b7a51e75000eb9158d584acb2:
 		;
 	case OpNeg8:
 		// match: (Neg8 x)
