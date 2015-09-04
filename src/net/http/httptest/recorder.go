@@ -55,6 +55,17 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 	return len(buf), nil
 }
 
+// WriteString always succeeds and writes to rw.Body, if not nil.
+func (rw *ResponseRecorder) WriteString(str string) (int, error) {
+	if !rw.wroteHeader {
+		rw.WriteHeader(200)
+	}
+	if rw.Body != nil {
+		rw.Body.WriteString(str)
+	}
+	return len(str), nil
+}
+
 // WriteHeader sets rw.Code.
 func (rw *ResponseRecorder) WriteHeader(code int) {
 	if !rw.wroteHeader {
