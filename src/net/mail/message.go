@@ -442,16 +442,24 @@ Loop:
 	return string(qsb), nil
 }
 
+var errNonASCII = errors.New("mail: unencoded non-ASCII text in address")
+
 // consumeAtom parses an RFC 5322 atom at the start of p.
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
 // If permissive is true, consumeAtom will not fail on
 // leading/trailing/double dots in the atom (see golang.org/issue/4938).
 func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
-	if !isAtext(p.peek(), false) {
+	if c := p.peek(); !isAtext(c, false) {
+		if c > 127 {
+			return "", errNonASCII
+		}
 		return "", errors.New("mail: invalid string")
 	}
 	i := 1
 	for ; i < p.len() && isAtext(p.s[i], dot); i++ {
+	}
+	if i < p.len() && p.s[i] > 127 {
+		return "", errNonASCII
 	}
 	atom, p.s = string(p.s[:i]), p.s[i:]
 	if !permissive {
