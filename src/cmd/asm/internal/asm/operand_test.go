@@ -183,6 +183,7 @@ var amd64OperandTests = []operandTest{
 	{"y+56(FP)", "y+56(FP)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·callReflect(SB)", "\"\".callReflect(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
 
 var x86OperandTests = []operandTest{
@@ -240,6 +241,7 @@ var x86OperandTests = []operandTest{
 	{"x+4(FP)", "x+4(FP)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·reflectcall(SB)", "\"\".reflectcall(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
 
 var armOperandTests = []operandTest{
@@ -288,7 +290,9 @@ var armOperandTests = []operandTest{
 	{"runtime·_sfloat2(SB)", "runtime._sfloat2(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"(R1, R3)", "(R1, R3)"},
-	{"[R0,R1,g,R15", ""}, // Issue 11764 - previously asm just hung parsing ']' missing register lists
+	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.
+	{"[):[o-FP", ""},     // Issue 12469 - there was no infinite loop for ARM; these are just sanity checks.
+	{"[):[R0-FP", ""},
 }
 
 var ppc64OperandTests = []operandTest{
@@ -378,6 +382,7 @@ var ppc64OperandTests = []operandTest{
 	{"runtime·abort(SB)", "runtime.abort(SB)"},
 	{"·AddUint32(SB)", "\"\".AddUint32(SB)"},
 	{"·trunc(SB)", "\"\".trunc(SB)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
 
 var arm64OperandTests = []operandTest{
@@ -427,4 +432,5 @@ var arm64OperandTests = []operandTest{
 	{"ZR", "ZR"},
 	{"(ZR)", "(ZR)"},
 	{"(R29, RSP)", "(R29, RSP)"},
+	{"[):[o-FP", ""}, // Issue 12469 - asm hung parsing the o-FP range on non ARM platforms.
 }
