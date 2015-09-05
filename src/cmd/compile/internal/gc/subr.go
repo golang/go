@@ -2499,7 +2499,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	typechecklist(fn.Nbody, Etop)
 
 	inlcalls(fn)
-	escAnalyze(list1(fn), false)
+	escAnalyze([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)
