@@ -89,33 +89,26 @@ func typekind(t *Type) string {
 	return fmt.Sprintf("etype=%d", et)
 }
 
-/*
- * sprint_depchain prints a dependency chain
- * of nodes into fmt.
- * It is used by typecheck in the case of OLITERAL nodes
- * to print constant definition loops.
- */
-func sprint_depchain(fmt_ *string, stack *NodeList, cur *Node, first *Node) {
-	for l := stack; l != nil; l = l.Next {
-		if l.N.Op == cur.Op {
-			if l.N != first {
-				sprint_depchain(fmt_, l.Next, l.N, first)
+// sprint_depchain prints a dependency chain of nodes into fmt.
+// It is used by typecheck in the case of OLITERAL nodes
+// to print constant definition loops.
+func sprint_depchain(fmt_ *string, stack []*Node, cur *Node, first *Node) {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if n := stack[i]; n.Op == cur.Op {
+			if n != first {
+				sprint_depchain(fmt_, stack[:i], n, first)
 			}
-			*fmt_ += fmt.Sprintf("\n\t%v: %v uses %v", l.N.Line(), l.N, cur)
+			*fmt_ += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cur)
 			return
 		}
 	}
 }
 
-/*
- * type check node *np.
- * replaces *np with a new pointer in some cases.
- * returns the final value of *np as a convenience.
- */
+var typecheck_tcstack []*Node
 
-var typecheck_tcstack *NodeList
-var typecheck_tcfree *NodeList
-
+// typecheck type checks node *np.
+// It replaces *np with a new pointer in some cases.
+// It returns the final value of *np as a convenience.
 func typecheck(np **Node, top int) *Node {
 	// cannot type check until all the source has been parsed
 	if !typecheckok {
@@ -168,16 +161,15 @@ func typecheck(np **Node, top int) *Node {
 				Yyerror("%v is not a type", n)
 				break
 			}
-
-			fmt_ = ""
 			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
 			yyerrorl(int(n.Lineno), "constant definition loop%s", fmt_)
 		}
 
 		if nsavederrors+nerrors == 0 {
 			fmt_ = ""
-			for l := typecheck_tcstack; l != nil; l = l.Next {
-				fmt_ += fmt.Sprintf("\n\t%v %v", l.N.Line(), l.N)
+			for i := len(typecheck_tcstack) - 1; i >= 0; i-- {
+				x := typecheck_tcstack[i]
+				fmt_ += fmt.Sprintf("\n\t%v %v", x.Line(), x)
 			}
 			Yyerror("typechecking loop involving %v%s", n, fmt_)
 		}
@@ -188,27 +180,15 @@ func typecheck(np **Node, top int) *Node {
 
 	n.Typecheck = 2
 
-	var l *NodeList
-	if typecheck_tcfree != nil {
-		l = typecheck_tcfree
-		typecheck_tcfree = l.Next
-	} else {
-		l = new(NodeList)
-	}
-	l.Next = typecheck_tcstack
-	l.N = n
-	typecheck_tcstack = l
-
+	typecheck_tcstack = append(typecheck_tcstack, n)
 	typecheck1(&n, top)
 	*np = n
+
 	n.Typecheck = 1
 
-	if typecheck_tcstack != l {
-		Fatalf("typecheck stack out of sync")
-	}
-	typecheck_tcstack = l.Next
-	l.Next = typecheck_tcfree
-	typecheck_tcfree = l
+	last := len(typecheck_tcstack) - 1
+	typecheck_tcstack[last] = nil
+	typecheck_tcstack = typecheck_tcstack[:last]
 
 	lineno = int32(lno)
 	return n
