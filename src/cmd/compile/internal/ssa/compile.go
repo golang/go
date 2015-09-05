@@ -57,15 +57,16 @@ func Compile(f *Func) {
 		if logMemStats {
 			var mEnd runtime.MemStats
 			runtime.ReadMemStats(&mEnd)
-			nAllocs := mEnd.TotalAlloc - mStart.TotalAlloc
-			stats = fmt.Sprintf("[%d ns %d bytes]", time, nAllocs)
+			nBytes := mEnd.TotalAlloc - mStart.TotalAlloc
+			nAllocs := mEnd.Mallocs - mStart.Mallocs
+			stats = fmt.Sprintf("[%d ns %d allocs %d bytes]", time, nAllocs, nBytes)
 		} else {
 			stats = fmt.Sprintf("[%d ns]", time)
 		}
 
 		f.Logf("  pass %s end %s\n", p.name, stats)
 		printFunc(f)
-		f.Config.HTML.WriteFunc(fmt.Sprintf("after %s %s", phaseName, stats), f)
+		f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		checkFunc(f)
 	}
 
