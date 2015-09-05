@@ -437,11 +437,13 @@ func Main() {
 
 	if Debug['l'] != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		visitBottomUp(xtop, func(list *NodeList, recursive bool) {
-			for l := list; l != nil; l = l.Next {
-				if l.N.Op == ODCLFUNC {
-					caninl(l.N)
-					inlcalls(l.N)
+		visitBottomUp(xtop, func(list []*Node, recursive bool) {
+			// TODO: use a range statement here if the order does not matter
+			for i := len(list) - 1; i >= 0; i-- {
+				n := list[i]
+				if n.Op == ODCLFUNC {
+					caninl(n)
+					inlcalls(n)
 				}
 			}
 		})

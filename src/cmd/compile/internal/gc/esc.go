@@ -34,10 +34,10 @@ import (
 // when analyzing a set of mutually recursive functions.
 
 type bottomUpVisitor struct {
-	analyze  func(*NodeList, bool)
+	analyze  func([]*Node, bool)
 	visitgen uint32
 	nodeID   map[*Node]uint32
-	stack    *NodeList
+	stack    []*Node
 }
 
 // visitBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
@@ -53,7 +53,7 @@ type bottomUpVisitor struct {
 // If recursive is false, the list consists of only a single function and its closures.
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
-func visitBottomUp(list *NodeList, analyze func(list *NodeList, recursive bool)) {
+func visitBottomUp(list *NodeList, analyze func(list []*Node, recursive bool)) {
 	var v bottomUpVisitor
 	v.analyze = analyze
 	v.nodeID = make(map[*Node]uint32)
@@ -76,10 +76,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	v.visitgen++
 	min := v.visitgen
 
-	l := new(NodeList)
-	l.Next = v.stack
-	l.N = n
-	v.stack = l
+	v.stack = append(v.stack, n)
 	min = v.visitcodelist(n.Nbody, min)
 	if (min == id || min == id+1) && n.Func.FCurfn == nil {
 		// This node is the root of a strongly connected component.
@@ -93,17 +90,19 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 		// Remove connected component from stack.
 		// Mark walkgen so that future visits return a large number
 		// so as not to affect the caller's min.
-		block := v.stack
 
-		var l *NodeList
-		for l = v.stack; l.N != n; l = l.Next {
-			v.nodeID[l.N] = ^uint32(0)
+		var i int
+		for i = len(v.stack) - 1; i >= 0; i-- {
+			x := v.stack[i]
+			if x == n {
+				break
+			}
+			v.nodeID[x] = ^uint32(0)
 		}
 		v.nodeID[n] = ^uint32(0)
-		v.stack = l.Next
-		l.Next = nil
-
+		block := v.stack[i:]
 		// Run escape analysis on this set of functions.
+		v.stack = v.stack[:i]
 		v.analyze(block, recursive)
 	}
 
@@ -425,7 +424,7 @@ func (e *EscState) curfnSym(n *Node) *Sym {
 	return funcSym(nE.Curfn)
 }
 
-func escAnalyze(all *NodeList, recursive bool) {
+func escAnalyze(all []*Node, recursive bool) {
 	var es EscState
 	e := &es
 	e.theSink.Op = ONAME
@@ -435,16 +434,16 @@ func escAnalyze(all *NodeList, recursive bool) {
 	e.nodeEscState(&e.theSink).Escloopdepth = -1
 	e.recursive = recursive
 
-	for l := all; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC {
-			l.N.Esc = EscFuncPlanned
+	for i := len(all) - 1; i >= 0; i-- {
+		if n := all[i]; n.Op == ODCLFUNC {
+			n.Esc = EscFuncPlanned
 		}
 	}
 
 	// flow-analyze functions
-	for l := all; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC {
-			escfunc(e, l.N)
+	for i := len(all) - 1; i >= 0; i-- {
+		if n := all[i]; n.Op == ODCLFUNC {
+			escfunc(e, n)
 		}
 	}
 
@@ -457,9 +456,9 @@ func escAnalyze(all *NodeList, recursive bool) {
 	}
 
 	// for all top level functions, tag the typenodes corresponding to the param nodes
-	for l := all; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC {
-			esctag(e, l.N)
+	for i := len(all) - 1; i >= 0; i-- {
+		if n := all[i]; n.Op == ODCLFUNC {
+			esctag(e, n)
 		}
 	}
 
