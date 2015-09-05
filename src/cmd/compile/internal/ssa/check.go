@@ -122,16 +122,9 @@ func checkFunc(f *Func) {
 		}
 
 		for _, v := range b.Values {
-
-			if _, ok := v.Aux.(bool); ok {
-				f.Fatalf("value %v has a bool Aux value, should be AuxInt", v.LongString())
-			}
-			if _, ok := v.Aux.(float32); ok {
-				f.Fatalf("value %v has a float32 Aux value, should be AuxInt", v.LongString())
-			}
-
-			if _, ok := v.Aux.(float64); ok {
-				f.Fatalf("value %v has a float64 Aux value, should be AuxInt", v.LongString())
+			switch v.Aux.(type) {
+			case bool, float32, float64:
+				f.Fatalf("value %v has an Aux value of type %T, should be AuxInt", v.LongString(), v.Aux)
 			}
 
 			for _, arg := range v.Args {
