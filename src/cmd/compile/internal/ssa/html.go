@@ -45,6 +45,10 @@ func (w *HTMLWriter) start(name string) {
     display: none;
 }
 
+.stats {
+	font-size: 60%;
+}
+
 table {
     border: 1px solid black;
     table-layout: fixed;
