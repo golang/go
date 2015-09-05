@@ -1365,6 +1365,10 @@ func TestEscapeText(t *testing.T) {
 			context{state: stateTag, element: elementScript},
 		},
 		{
+			`<script>`,
+			context{state: stateJS, jsCtx: jsCtxRegexp, element: elementScript},
+		},
+		{
 			`<script>foo`,
 			context{state: stateJS, jsCtx: jsCtxDivOp, element: elementScript},
 		},
@@ -1386,6 +1390,14 @@ func TestEscapeText(t *testing.T) {
 		},
 		{
 			`<script>document.write("<script>alert(1)</script>");`,
+			context{state: stateText},
+		},
+		{
+			`<script type="text/template">`,
+			context{state: stateText},
+		},
+		{
+			`<script type="notjs">`,
 			context{state: stateText},
 		},
 		{

@@ -362,3 +362,41 @@ func isJSIdentPart(r rune) bool {
 	}
 	return false
 }
+
+// isJSType returns true if the given MIME type should be considered JavaScript.
+//
+// It is used to determine whether a script tag with a type attribute is a javascript container.
+func isJSType(mimeType string) bool {
+	// per
+	//   http://www.w3.org/TR/html5/scripting-1.html#attr-script-type
+	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
+	//   http://tools.ietf.org/html/rfc4329#section-3
+
+	// discard parameters
+	if i := strings.Index(mimeType, ";"); i >= 0 {
+		mimeType = mimeType[:i]
+	}
+	mimeType = strings.TrimSpace(mimeType)
+	switch mimeType {
+	case
+		"application/ecmascript",
+		"application/javascript",
+		"application/x-ecmascript",
+		"application/x-javascript",
+		"text/ecmascript",
+		"text/javascript",
+		"text/javascript1.0",
+		"text/javascript1.1",
+		"text/javascript1.2",
+		"text/javascript1.3",
+		"text/javascript1.4",
+		"text/javascript1.5",
+		"text/jscript",
+		"text/livescript",
+		"text/x-ecmascript",
+		"text/x-javascript":
+		return true
+	default:
+		return false
+	}
+}

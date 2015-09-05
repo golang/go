@@ -673,6 +673,8 @@ func contextAfterText(c context, s []byte) (context, int) {
 		return transitionFunc[c.state](c, s[:i])
 	}
 
+	// We are at the beginning of an attribute value.
+
 	i := bytes.IndexAny(s, delimEnds[c.delim])
 	if i == -1 {
 		i = len(s)
@@ -703,13 +705,21 @@ func contextAfterText(c context, s []byte) (context, int) {
 		}
 		return c, len(s)
 	}
+
+	element := c.element
+
+	// If this is a non-JS "type" attribute inside "script" tag, do not treat the contents as JS.
+	if c.state == stateAttr && c.element == elementScript && c.attr == attrScriptType && !isJSType(string(s[:i])) {
+		element = elementNone
+	}
+
 	if c.delim != delimSpaceOrTagEnd {
 		// Consume any quote.
 		i++
 	}
 	// On exiting an attribute, we discard all state information
 	// except the state and element.
-	return context{state: stateTag, element: c.element}, i
+	return context{state: stateTag, element: element}, i
 }
 
 // editActionNode records a change to an action pipeline for later commit.
