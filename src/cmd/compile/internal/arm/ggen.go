@@ -120,9 +120,7 @@ func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int32, ttype int
  */
 func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if nl.Ullman < nr.Ullman {
-		tmp := nl
-		nl = nr
-		nr = tmp
+		nl, nr = nr, nl
 	}
 
 	t := nl.Type

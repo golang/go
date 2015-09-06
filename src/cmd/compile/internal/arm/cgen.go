@@ -205,12 +205,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 		gc.Regfree(&nend)
 	} else {
 		var p *obj.Prog
-		for {
-			tmp14 := c
-			c--
-			if tmp14 <= 0 {
-				break
-			}
+		for ; c > 0; c-- {
 			p = gins(op, &src, &tmp)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Offset = int64(dir)

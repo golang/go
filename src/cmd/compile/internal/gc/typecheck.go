@@ -3073,11 +3073,10 @@ func typecheckcomplit(np **Node) {
 				setlineno(ll.N)
 				typecheck(&ll.N, Erv)
 				if f == nil {
-					tmp12 := bad
-					bad++
-					if tmp12 == 0 {
+					if bad == 0 {
 						Yyerror("too many values in struct initializer")
 					}
+					bad++
 					continue
 				}
 
@@ -3110,11 +3109,10 @@ func typecheckcomplit(np **Node) {
 				l = ll.N
 				setlineno(l)
 				if l.Op != OKEY {
-					tmp13 := bad
-					bad++
-					if tmp13 == 0 {
+					if bad == 0 {
 						Yyerror("mixture of field:value and value initializers")
 					}
+					bad++
 					typecheck(&ll.N, Erv)
 					continue
 				}

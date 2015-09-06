@@ -187,13 +187,13 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t := nl.Type
 
 	t0 := t
-	check := 0
+	check := false
 	if gc.Issigned[t.Etype] {
-		check = 1
+		check = true
 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
-			check = 0
+			check = false
 		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
-			check = 0
+			check = false
 		}
 	}
 
@@ -203,7 +203,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		} else {
 			t = gc.Types[gc.TUINT32]
 		}
-		check = 0
+		check = false
 	}
 
 	a := optoas(op, t)
@@ -252,7 +252,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	var p2 *obj.Prog
-	if check != 0 {
+	if check {
 		gc.Nodconst(&n4, t, -1)
 		gins(optoas(gc.OCMP, t), &n3, &n4)
 		p1 := gc.Gbranch(optoas(gc.ONE, t), nil, +1)
@@ -289,7 +289,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gmove(&dx, res)
 	}
 	restx(&dx, &olddx)
-	if check != 0 {
+	if check {
 		gc.Patch(p2, gc.Pc)
 	}
 	restx(&ax, &oldax)
@@ -340,9 +340,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t := nl.Type
 	a := optoas(gc.OHMUL, t)
 	if nl.Ullman < nr.Ullman {
-		tmp := nl
-		nl = nr
-		nr = tmp
+		nl, nr = nr, nl
 	}
 
 	var n1 gc.Node
@@ -500,9 +498,7 @@ func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 
 	// largest ullman on left.
 	if nl.Ullman < nr.Ullman {
-		tmp := nl
-		nl = nr
-		nr = tmp
+		nl, nr = nr, nl
 	}
 
 	// generate operands in "8-bit" registers.
@@ -564,12 +560,7 @@ func clearfat(nl *gc.Node) {
 		n1.Op = gc.OINDREG
 		var z gc.Node
 		gc.Nodconst(&z, gc.Types[gc.TUINT64], 0)
-		for {
-			tmp14 := q
-			q--
-			if tmp14 <= 0 {
-				break
-			}
+		for ; q > 0; q-- {
 			n1.Type = z.Type
 			gins(x86.AMOVQ, &z, &n1)
 			n1.Xoffset += 8
@@ -584,12 +575,7 @@ func clearfat(nl *gc.Node) {
 		}
 
 		gc.Nodconst(&z, gc.Types[gc.TUINT8], 0)
-		for {
-			tmp15 := c
-			c--
-			if tmp15 <= 0 {
-				break
-			}
+		for ; c > 0; c-- {
 			n1.Type = z.Type
 			gins(x86.AMOVB, &z, &n1)
 			n1.Xoffset++
