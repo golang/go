@@ -18,7 +18,7 @@ import (
  * marks variables that escape the local frame.
  * rewrites n->op to be more specific in some cases.
  */
-var typecheckdefstack *NodeList
+var typecheckdefstack []*Node
 
 /*
  * resolve ONONAME to definition, if any.
@@ -3679,16 +3679,13 @@ func typecheckdef(n *Node) *Node {
 		return n
 	}
 
-	l := new(NodeList)
-	l.N = n
-	l.Next = typecheckdefstack
-	typecheckdefstack = l
-
+	typecheckdefstack = append(typecheckdefstack, n)
 	if n.Walkdef == 2 {
 		Flusherrors()
 		fmt.Printf("typecheckdef loop:")
-		for l := typecheckdefstack; l != nil; l = l.Next {
-			fmt.Printf(" %v", l.N.Sym)
+		for i := len(typecheckdefstack) - 1; i >= 0; i-- {
+			n := typecheckdefstack[i]
+			fmt.Printf(" %v", n.Sym)
 		}
 		fmt.Printf("\n")
 		Fatalf("typecheckdef loop")
@@ -3824,11 +3821,12 @@ ret:
 	if n.Op != OLITERAL && n.Type != nil && isideal(n.Type) {
 		Fatalf("got %v for %v", n.Type, n)
 	}
-	if typecheckdefstack.N != n {
+	last := len(typecheckdefstack) - 1
+	if typecheckdefstack[last] != n {
 		Fatalf("typecheckdefstack mismatch")
 	}
-	l = typecheckdefstack
-	typecheckdefstack = l.Next
+	typecheckdefstack[last] = nil
+	typecheckdefstack = typecheckdefstack[:last]
 
 	lineno = int32(lno)
 	n.Walkdef = 1
