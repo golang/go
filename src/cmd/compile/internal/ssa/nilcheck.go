@@ -38,7 +38,7 @@ func nilcheckelim(f *Func) {
 	}
 
 	work := make([]bp, 0, 256)
-	work = append(work, bp{block: f.Entry, ptr: checkedptr(f.Entry)})
+	work = append(work, bp{block: f.Entry})
 
 	// map from value ID to bool indicating if value is known to be non-nil
 	// in the current dominator path being walked.  This slice is updated by
@@ -74,26 +74,37 @@ func nilcheckelim(f *Func) {
 		node := work[len(work)-1]
 		work = work[:len(work)-1]
 
-		var pushRecPtr bool
 		switch node.op {
 		case Work:
-			if node.ptr != nil {
-				// already have a nilcheck in the dominator path
-				if nonNilValues[node.ptr.ID] {
+			checked := checkedptr(node.block) // ptr being checked for nil/non-nil
+			nonnil := nonnilptr(node.block)   // ptr that is non-nil due to this blocks pred
+
+			if checked != nil {
+				// already have a nilcheck in the dominator path, or this block is a success
+				// block for the same value it is checking
+				if nonNilValues[checked.ID] || checked == nonnil {
 					// Eliminate the nil check.
 					// The deadcode pass will remove vestigial values,
 					// and the fuse pass will join this block with its successor.
 					node.block.Kind = BlockFirst
 					node.block.Control = nil
-				} else {
-					// new nilcheck so add a ClearPtr node to clear the
-					// ptr from the map of nil checks once we traverse
-					// back up the tree
-					work = append(work, bp{op: ClearPtr, ptr: node.ptr})
-					// and cause a new setPtr to be appended after the
-					// block's dominees
-					pushRecPtr = true
 				}
+			}
+
+			if nonnil != nil && !nonNilValues[nonnil.ID] {
+				// this is a new nilcheck so add a ClearPtr node to clear the
+				// ptr from the map of nil checks once we traverse
+				// back up the tree
+				work = append(work, bp{op: ClearPtr, ptr: nonnil})
+			}
+
+			// add all dominated blocks to the work list
+			for _, w := range domTree[node.block.ID] {
+				work = append(work, bp{block: w})
+			}
+
+			if nonnil != nil && !nonNilValues[nonnil.ID] {
+				work = append(work, bp{op: RecPtr, ptr: nonnil})
 			}
 		case RecPtr:
 			nonNilValues[node.ptr.ID] = true
@@ -101,77 +112,6 @@ func nilcheckelim(f *Func) {
 		case ClearPtr:
 			nonNilValues[node.ptr.ID] = false
 			continue
-		}
-
-		var nilBranch *Block
-		for _, w := range domTree[node.block.ID] {
-			// We are about to traverse down the 'ptr is nil' side
-			// of a nilcheck block, so save it for later.  This doesn't
-			// remove nil checks on the false side of the OpIsNonNil branch.
-			// This is important otherwise we would remove nil checks that
-			// are not redundant.
-			if node.block.Kind == BlockIf && node.block.Control.Op == OpIsNonNil &&
-				w == node.block.Succs[1] {
-				nilBranch = w
-				continue
-			}
-			work = append(work, bp{block: w, ptr: checkedptr(w)})
-		}
-
-		if nilBranch != nil {
-			// we pop from the back of the work slice, so this sets
-			// up the false branch to be operated on before the
-			// node.ptr is recorded
-			work = append(work, bp{op: RecPtr, ptr: node.ptr})
-			work = append(work, bp{block: nilBranch, ptr: checkedptr(nilBranch)})
-		} else if pushRecPtr {
-			work = append(work, bp{op: RecPtr, ptr: node.ptr})
-		}
-	}
-}
-
-// nilcheckelim0 is the original redundant nilcheck elimination algorithm.
-func nilcheckelim0(f *Func) {
-	// Exit early if there are no nil checks to eliminate.
-	var found bool
-	for _, b := range f.Blocks {
-		if checkedptr(b) != nil {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return
-	}
-
-	// Eliminate redundant nil checks.
-	// A nil check is redundant if the same
-	// nil check has been performed by a
-	// dominating block.
-	// The efficacy of this pass depends
-	// heavily on the efficacy of the cse pass.
-	idom := dominators(f) // TODO: cache the dominator tree in the function, clearing when the CFG changes?
-	for _, b := range f.Blocks {
-		ptr := checkedptr(b)
-		if ptr == nil {
-			continue
-		}
-		var elim bool
-		// Walk up the dominator tree,
-		// looking for identical nil checks.
-		// TODO: This loop is O(n^2). See BenchmarkNilCheckDeep*.
-		for c := idom[b.ID]; c != nil; c = idom[c.ID] {
-			if checkedptr(c) == ptr {
-				elim = true
-				break
-			}
-		}
-		if elim {
-			// Eliminate the nil check.
-			// The deadcode pass will remove vestigial values,
-			// and the fuse pass will join this block with its successor.
-			b.Kind = BlockFirst
-			b.Control = nil
 		}
 	}
 }
@@ -181,6 +121,20 @@ func nilcheckelim0(f *Func) {
 func checkedptr(b *Block) *Value {
 	if b.Kind == BlockIf && b.Control.Op == OpIsNonNil {
 		return b.Control.Args[0]
+	}
+	return nil
+}
+
+// nonnilptr returns the Value, if any,
+// that is non-nil due to b being the success block
+// of an OpIsNonNil block for the value and having a single
+// predecessor.
+func nonnilptr(b *Block) *Value {
+	if len(b.Preds) == 1 {
+		bp := b.Preds[0]
+		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0] == b {
+			return bp.Control.Args[0]
+		}
 	}
 	return nil
 }
