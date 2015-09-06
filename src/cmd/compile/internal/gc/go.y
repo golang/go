@@ -2038,7 +2038,7 @@ hidden_import:
 		$2.Func.Inl = $3;
 
 		funcbody($2);
-		importlist = list(importlist, $2);
+		importlist = append(importlist, $2);
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", importpkg.Path, $2)
