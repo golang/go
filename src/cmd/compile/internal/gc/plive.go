@@ -1685,15 +1685,13 @@ func livenessprintdebug(lv *Liveness) {
 				for j = 0; j < len(lv.vars); j++ {
 					n = lv.vars[j]
 					if islive(n, args, locals) {
-						tmp9 := printed
-						printed++
-						if tmp9 != 0 {
+						if printed != 0 {
 							fmt.Printf(",")
 						}
 						fmt.Printf("%v", n)
+						printed++
 					}
 				}
-
 				fmt.Printf("\n")
 			}
 

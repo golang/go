@@ -151,13 +151,13 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	t := nl.Type
 
 	t0 := t
-	check := 0
+	check := false
 	if gc.Issigned[t.Etype] {
-		check = 1
+		check = true
 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -(1<<uint64(t.Width*8-1)) {
-			check = 0
+			check = false
 		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
-			check = 0
+			check = false
 		}
 	}
 
@@ -167,7 +167,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		} else {
 			t = gc.Types[gc.TUINT64]
 		}
-		check = 0
+		check = false
 	}
 
 	a := optoas(gc.ODIV, t)
@@ -206,7 +206,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	gc.Patch(p1, gc.Pc)
 
 	var p2 *obj.Prog
-	if check != 0 {
+	if check {
 		var nm1 gc.Node
 		gc.Nodconst(&nm1, t, -1)
 		gcmp(optoas(gc.OCMP, t), &tr, &nm1)
@@ -250,7 +250,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	gc.Regfree(&tl)
-	if check != 0 {
+	if check {
 		gc.Patch(p2, gc.Pc)
 	}
 }
@@ -262,9 +262,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// largest ullman on left.
 	if nl.Ullman < nr.Ullman {
-		tmp := (*gc.Node)(nl)
-		nl = nr
-		nr = tmp
+		nl, nr = nr, nl
 	}
 
 	t := (*gc.Type)(nl.Type)

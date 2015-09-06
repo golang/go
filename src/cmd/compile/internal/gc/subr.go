@@ -665,12 +665,7 @@ func sortinter(t *Type) *Type {
 		i++
 	}
 	sort.Sort(methcmp(a[:i]))
-	for {
-		tmp11 := i
-		i--
-		if tmp11 <= 0 {
-			break
-		}
+	for i--; i >= 0; i-- {
 		a[i].Down = f
 		f = a[i]
 	}

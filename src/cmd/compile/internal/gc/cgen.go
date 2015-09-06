@@ -705,9 +705,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	 */
 sbop: // symmetric binary
 	if nl.Ullman < nr.Ullman || (nl.Ullman == nr.Ullman && (Smallintconst(nl) || (nr.Op == OLITERAL && !Smallintconst(nr)))) {
-		r := nl
-		nl = nr
-		nr = r
+		nl, nr = nr, nl
 	}
 
 abop: // asymmetric binary
