@@ -1700,6 +1700,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		return s.newValue1(ssa.OpITab, n.Type, a)
 
+	case OEFACE:
+		tab := s.expr(n.Left)
+		data := s.expr(n.Right)
+		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
+
 	case OSLICESTR:
 		// Evaluate the string once.
 		str := s.expr(n.Left)
