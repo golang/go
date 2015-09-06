@@ -1621,6 +1621,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OADDR:
 		return s.addr(n.Left)
 
+	case OCHECKNIL:
+		p := s.expr(n.Left)
+		s.nilCheck(p)
+		return p
+
 	case OINDREG:
 		if int(n.Reg) != Thearch.REGSP {
 			s.Unimplementedf("OINDREG of non-SP register %s in expr: %v", obj.Rconv(int(n.Reg)), n)
