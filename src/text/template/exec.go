@@ -135,8 +135,6 @@ func errRecover(errp *error) {
 			*errp = err.Err // Strip the wrapper.
 		case ExecError:
 			*errp = err // Keep the wrapper.
-		case error: // TODO: This should never happen, but it does. Understand and/or fix.
-			*errp = err
 		default:
 			panic(e)
 		}
