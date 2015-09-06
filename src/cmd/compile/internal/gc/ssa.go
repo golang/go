@@ -96,6 +96,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		case PAUTO:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
+		case PFUNC:
+			// local function - already handled by frontend
 		default:
 			str := ""
 			if n.Class&PHEAP != 0 {
