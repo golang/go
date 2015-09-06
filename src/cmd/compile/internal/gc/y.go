@@ -3241,7 +3241,7 @@ yydefault:
 			yyDollar[2].node.Func.Inl = yyDollar[3].list
 
 			funcbody(yyDollar[2].node)
-			importlist = list(importlist, yyDollar[2].node)
+			importlist = append(importlist, yyDollar[2].node)
 
 			if Debug['E'] > 0 {
 				fmt.Printf("import [%q] func %v \n", importpkg.Path, yyDollar[2].node)
