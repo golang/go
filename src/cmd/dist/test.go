@@ -281,9 +281,6 @@ func (t *tester) registerSSATest(pkg string) {
 	// known failures due to GOGC=off
 	case "runtime", "runtime/pprof", "runtime/trace", "sync":
 		return
-	// TODO: fix these failures
-	case "math/big", "cmd/compile/internal/big":
-		return
 	}
 	t.tests = append(t.tests, distTest{
 		name:    "go_test_ssa:" + pkg,

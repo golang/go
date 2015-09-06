@@ -382,3 +382,48 @@ func TestNilcheckUser(t *testing.T) {
 		}
 	}
 }
+
+// TestNilcheckBug reproduces a bug in nilcheckelim found by compiling math/big
+func TestNilcheckBug(t *testing.T) {
+	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
+	c := NewConfig("amd64", DummyFrontend{t})
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("sb", OpSB, TypeInvalid, 0, nil),
+			Goto("checkPtr")),
+		Bloc("checkPtr",
+			Valu("ptr1", OpConstPtr, ptrType, 0, nil, "sb"),
+			Valu("nilptr", OpConstNil, ptrType, 0, nil, "sb"),
+			Valu("bool1", OpNeqPtr, TypeBool, 0, nil, "ptr1", "nilptr"),
+			If("bool1", "secondCheck", "couldBeNil")),
+		Bloc("couldBeNil",
+			Goto("secondCheck")),
+		Bloc("secondCheck",
+			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
+			If("bool2", "extra", "exit")),
+		Bloc("extra",
+			Goto("exit")),
+		Bloc("exit",
+			Exit("mem")))
+
+	CheckFunc(fun.f)
+	// we need the opt here to rewrite the user nilcheck
+	opt(fun.f)
+	nilcheckelim(fun.f)
+
+	// clean up the removed nil check
+	fuse(fun.f)
+	deadcode(fun.f)
+
+	CheckFunc(fun.f)
+	foundSecondCheck := false
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["secondCheck"] && isNilCheck(b) {
+			foundSecondCheck = true
+		}
+	}
+	if !foundSecondCheck {
+		t.Errorf("secondCheck was eliminated, but shouldn't have")
+	}
+}
