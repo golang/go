@@ -10,6 +10,11 @@ import "sort"
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
 func cse(f *Func) {
+	if f.NumBlocks() > 10000 {
+		f.Unimplementedf("too many blocks: %d", f.NumBlocks())
+		return
+	}
+
 	// Two values are equivalent if they satisfy the following definition:
 	// equivalent(v, w):
 	//   v.op == w.op
