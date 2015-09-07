@@ -179,6 +179,7 @@
 
 // big-object moves (TODO: remove?)
 (Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
+(Store [size] dst (Load src mem) (VarDef {x} mem)) && size > config.IntSize -> (Move [size] dst src (VarDef {x} mem))
 
 (If (IsNonNil (GetG)) yes no) -> (First nil yes no)
 

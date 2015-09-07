@@ -1434,6 +1434,44 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto enda18a7163888e2f4fca9f38bae56cef42
 	enda18a7163888e2f4fca9f38bae56cef42:
 		;
+		// match: (Store [size] dst (Load src mem) (VarDef {x} mem))
+		// cond: size > config.IntSize
+		// result: (Move [size] dst src (VarDef {x} mem))
+		{
+			size := v.AuxInt
+			dst := v.Args[0]
+			if v.Args[1].Op != OpLoad {
+				goto endc671c9b1be99e3125fe81e29018bc0e6
+			}
+			src := v.Args[1].Args[0]
+			mem := v.Args[1].Args[1]
+			if v.Args[2].Op != OpVarDef {
+				goto endc671c9b1be99e3125fe81e29018bc0e6
+			}
+			x := v.Args[2].Aux
+			if v.Args[2].Args[0] != mem {
+				goto endc671c9b1be99e3125fe81e29018bc0e6
+			}
+			if !(size > config.IntSize) {
+				goto endc671c9b1be99e3125fe81e29018bc0e6
+			}
+			v.Op = OpMove
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = size
+			v.AddArg(dst)
+			v.AddArg(src)
+			v0 := b.NewValue0(v.Line, OpVarDef, TypeInvalid)
+			v0.Aux = x
+			v0.AddArg(mem)
+			v0.Type = TypeMem
+			v.AddArg(v0)
+			return true
+		}
+		goto endc671c9b1be99e3125fe81e29018bc0e6
+	endc671c9b1be99e3125fe81e29018bc0e6:
+		;
 	case OpStringLen:
 		// match: (StringLen (StringMake _ len))
 		// cond:

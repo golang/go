@@ -362,8 +362,8 @@ var genericOps = []opData{
 	// Used during ssa construction.  Like Copy, but the arg has not been specified yet.
 	{name: "FwdRef"},
 
-	{name: "VarDef"},  // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
-	{name: "VarKill"}, // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+	{name: "VarDef", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
 }
 
 //     kind           control    successors
