@@ -2399,7 +2399,7 @@ func Ginscall(f *Node, proc int) {
 		if proc == 1 {
 			Ginscall(Newproc, 0)
 		} else {
-			if Hasdefer == 0 {
+			if !hasdefer {
 				Fatalf("hasdefer=0 but has defer")
 			}
 			Ginscall(Deferproc, 0)
@@ -2622,7 +2622,7 @@ func cgen_ret(n *Node) {
 	if n != nil {
 		Genlist(n.List) // copy out args
 	}
-	if Hasdefer != 0 {
+	if hasdefer {
 		Ginscall(Deferreturn, 0)
 	}
 	Genlist(Curfn.Func.Exit)

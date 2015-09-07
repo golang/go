@@ -231,7 +231,7 @@ func walkstmt(np **Node) {
 		walkstmt(&n.Right)
 
 	case ODEFER:
-		Hasdefer = 1
+		hasdefer = true
 		switch n.Left.Op {
 		case OPRINT, OPRINTN:
 			walkprintfunc(&n.Left, &n.Ninit)
