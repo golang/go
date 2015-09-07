@@ -493,6 +493,7 @@ func (t *test) run() {
 	}
 
 	useTmp := true
+	ssaMain := false
 	runcmd := func(args ...string) ([]byte, error) {
 		cmd := exec.Command(args[0], args[1:]...)
 		var buf bytes.Buffer
@@ -501,6 +502,11 @@ func (t *test) run() {
 		if useTmp {
 			cmd.Dir = t.tempDir
 			cmd.Env = envForDir(cmd.Dir)
+		} else {
+			cmd.Env = os.Environ()
+		}
+		if ssaMain && os.Getenv("GOARCH") == "amd64" {
+			cmd.Env = append(cmd.Env, "GOSSAPKG=main")
 		}
 		err := cmd.Run()
 		if err != nil {
@@ -631,6 +637,12 @@ func (t *test) run() {
 
 	case "run":
 		useTmp = false
+		switch t.gofile {
+		case "bug434.go", "recover.go", "recover1.go", "issue4066.go":
+			// TODO fix these failures
+		default:
+			ssaMain = true
+		}
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
 		if err != nil {
 			t.err = err
@@ -656,6 +668,7 @@ func (t *test) run() {
 			t.err = fmt.Errorf("write tempfile:%s", err)
 			return
 		}
+		ssaMain = true
 		out, err = runcmd("go", "run", tfile)
 		if err != nil {
 			t.err = err
