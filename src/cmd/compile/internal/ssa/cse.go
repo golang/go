@@ -10,11 +10,6 @@ import "sort"
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
 func cse(f *Func) {
-	if f.NumBlocks() > 10000 {
-		f.Unimplementedf("too many blocks: %d", f.NumBlocks())
-		return
-	}
-
 	// Two values are equivalent if they satisfy the following definition:
 	// equivalent(v, w):
 	//   v.op == w.op
@@ -132,6 +127,7 @@ func cse(f *Func) {
 
 	// Compute dominator tree
 	idom := dominators(f)
+	sdom := newSparseTree(f, idom)
 
 	// Compute substitutions we would like to do.  We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
@@ -142,7 +138,7 @@ func cse(f *Func) {
 			// Find a maximal dominant element in e
 			v := e[0]
 			for _, w := range e[1:] {
-				if dom(w.Block, v.Block, idom) {
+				if sdom.isAncestorEq(w.Block, v.Block) {
 					v = w
 				}
 			}
@@ -152,7 +148,7 @@ func cse(f *Func) {
 				w := e[i]
 				if w == v {
 					e, e[i] = e[:len(e)-1], e[len(e)-1]
-				} else if dom(v.Block, w.Block, idom) {
+				} else if sdom.isAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e, e[i] = e[:len(e)-1], e[len(e)-1]
 				} else {
@@ -176,7 +172,7 @@ func cse(f *Func) {
 }
 
 // returns true if b dominates c.
-// TODO(khr): faster
+// simple and iterative, has O(depth) complexity in tall trees.
 func dom(b, c *Block, idom []*Block) bool {
 	// Walk up from c in the dominator tree looking for b.
 	for c != nil {
