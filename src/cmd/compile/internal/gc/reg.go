@@ -486,7 +486,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	//
 	// Disable registerization for results if using defer, because the deferred func
 	// might recover and return, causing the current values to be used.
-	if node.Class == PEXTERN || (Hasdefer != 0 && node.Class == PPARAMOUT) {
+	if node.Class == PEXTERN || (hasdefer && node.Class == PPARAMOUT) {
 		v.addr = 1
 	}
 

@@ -392,7 +392,7 @@ func compile(fn *Node) {
 		goto ret
 	}
 
-	Hasdefer = 0
+	hasdefer = false
 	walk(Curfn)
 	if nerrors != 0 {
 		goto ret
@@ -487,7 +487,7 @@ func compile(fn *Node) {
 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
 	cgen_ret(nil)
 
-	if Hasdefer != 0 {
+	if hasdefer {
 		// deferreturn pretends to have one uintptr argument.
 		// Reserve space for it so stack scanner is happy.
 		if Maxarg < int64(Widthptr) {

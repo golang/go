@@ -616,7 +616,7 @@ var blockgen int32 // max block number
 
 var block int32 // current block number
 
-var Hasdefer int // flag that curfn has defer statetment
+var hasdefer bool // flag that curfn has defer statement
 
 var Curfn *Node
 
