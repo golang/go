@@ -32,7 +32,7 @@ func mkzversion(dir, file string) {
 			"const defaultGoroot = `%s`\n"+
 			"const theVersion = `%s`\n"+
 			"const goexperiment = `%s`\n"+
-			"const stackGuardMultiplier = %d\n"+
+			"const stackGuardMultiplier = %d\n\n"+
 			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
 
 	writefile(out, file, writeSkipSame)
