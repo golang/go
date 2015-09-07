@@ -3,17 +3,13 @@ be complete soon.
 
 Coverage
 --------
-- Complex numbers
-- Defer?
 - Closure args
 - PHEAP vars
 
 Correctness
 -----------
-- GC maps
 - Write barriers
 - Debugging info
-- Deferreturn
 - Can/should we move control values out of their basic block?
 - Anything to do for the race detector?
 - Slicing details (avoid ptr to next object) [done for string]
@@ -24,11 +20,10 @@ Optimizations (better compiled code)
 - More strength reduction: multiply -> shift/add combos (Worth doing?)
 - Strength reduction: constant divides -> multiply
 - Expand current optimizations to all bit widths
-- Nil/bounds check removal
+- Add a value range propagation pass (for bounds elim & bitwidth reduction)
 - Combining nil checks with subsequent load
 - Implement memory zeroing with REPSTOSQ and DuffZero
 - Implement memory copying with REPMOVSQ and DuffCopy
-- Add a value range propagation pass (for bounds elim & bitwidth reduction)
 - Stackalloc: organize values to allow good packing
 - Regalloc: use arg slots as the home for arguments (don't copy args to locals)
 - Reuse stack slots for noninterfering & compatible values (but see issue 8740)
@@ -44,6 +39,7 @@ Optimizations (better compiler)
 - Reuseable slices (e.g. []int of size NumValues()) cached in Func
 - Handle signed division overflow and sign extension earlier
 - Implement 64 bit const division with high multiply, maybe in the frontend?
+- Add bit widths to complex ops
 
 Regalloc
 --------
