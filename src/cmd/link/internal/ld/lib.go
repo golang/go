@@ -421,7 +421,7 @@ func loadinternal(name string) {
 			if Debug['v'] != 0 {
 				fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, shlibname)
 			}
-			if obj.Access(shlibname, obj.AEXIST) >= 0 {
+			if _, err := os.Stat(shlibname); err == nil {
 				addlibpath(Ctxt, "internal", "internal", "", name, shlibname)
 				found = 1
 				break
@@ -431,7 +431,7 @@ func loadinternal(name string) {
 		if Debug['v'] != 0 {
 			fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, pname)
 		}
-		if obj.Access(pname, obj.AEXIST) >= 0 {
+		if _, err := os.Stat(pname); err == nil {
 			addlibpath(Ctxt, "internal", "internal", pname, name, "")
 			found = 1
 			break

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -191,8 +192,8 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 		if peobj.sect[i].name[0] != '/' {
 			continue
 		}
-		l = uint32(obj.Atoi(peobj.sect[i].name[1:]))
-		peobj.sect[i].name = cstring(peobj.snames[l:])
+		n, _ := strconv.Atoi(peobj.sect[i].name[1:])
+		peobj.sect[i].name = cstring(peobj.snames[n:])
 	}
 
 	// read symbols

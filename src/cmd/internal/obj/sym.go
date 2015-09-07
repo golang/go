@@ -107,12 +107,7 @@ func Linknew(arch *LinkArch) *Link {
 
 	// On arm, record goarm.
 	if ctxt.Arch.Thechar == '5' {
-		p := Getgoarm()
-		if p != "" {
-			ctxt.Goarm = int32(Atoi(p))
-		} else {
-			ctxt.Goarm = 6
-		}
+		ctxt.Goarm = Getgoarm()
 	}
 
 	return ctxt

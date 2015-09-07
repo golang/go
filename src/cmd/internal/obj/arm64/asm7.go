@@ -147,7 +147,6 @@ func OPBIT(x uint32) uint32 {
 const (
 	LFROM = 1 << 0
 	LTO   = 1 << 1
-	LPOOL = 1 << 2
 )
 
 var optab = []Optab{

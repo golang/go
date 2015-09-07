@@ -239,21 +239,6 @@ func setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
 	return setaddrplus(ctxt, s, off, t, 0)
 }
 
-func addsize(ctxt *Link, s *LSym, t *LSym) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	i := s.Size
-	s.Size += int64(ctxt.Arch.Ptrsize)
-	Symgrow(ctxt, s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Siz = uint8(ctxt.Arch.Ptrsize)
-	r.Type = R_SIZE
-	return i + int64(r.Siz)
-}
-
 func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	if s.Type == 0 {
 		s.Type = SDATA
