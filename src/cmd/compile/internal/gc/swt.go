@@ -153,9 +153,9 @@ func typecheckswitch(n *Node) {
 						// reset to original type
 						ll.N = n.Left.Right
 					case ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr):
-						if have != nil && missing.Broke == 0 && have.Broke == 0 {
+						if have != nil && !missing.Broke && !have.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
-						} else if missing.Broke == 0 {
+						} else if !missing.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym)
 						}
 					}

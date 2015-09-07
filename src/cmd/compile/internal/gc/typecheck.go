@@ -348,7 +348,7 @@ OpSwitch:
 		} else if l.Op == ODDD {
 			t.Bound = -100 // to be filled in
 			if top&Ecomplit == 0 && n.Diag == 0 {
-				t.Broke = 1
+				t.Broke = true
 				n.Diag = 1
 				Yyerror("use of [...] array outside of array literal")
 			}
@@ -430,7 +430,7 @@ OpSwitch:
 		ok |= Etype
 		n.Op = OTYPE
 		n.Type = tostruct(n.List)
-		if n.Type == nil || n.Type.Broke != 0 {
+		if n.Type == nil || n.Type.Broke {
 			n.Type = nil
 			return
 		}
@@ -1286,7 +1286,7 @@ OpSwitch:
 		l = n.Left
 		if l.Op == OTYPE {
 			if n.Isddd || l.Type.Bound == -100 {
-				if l.Type.Broke == 0 {
+				if !l.Type.Broke {
 					Yyerror("invalid use of ... in type conversion to %v", l.Type)
 				}
 				n.Diag = 1
@@ -1753,7 +1753,7 @@ OpSwitch:
 		var why string
 		n.Op = uint8(convertop(t, n.Type, &why))
 		if (n.Op) == 0 {
-			if n.Diag == 0 && n.Type.Broke == 0 {
+			if n.Diag == 0 && !n.Type.Broke {
 				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
 				n.Diag = 1
 			}
@@ -2307,7 +2307,7 @@ func checkdefergo(n *Node) {
 
 	// type is broken or missing, most likely a method call on a broken type
 	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
-	if n.Left.Type == nil || n.Left.Type.Broke != 0 {
+	if n.Left.Type == nil || n.Left.Type.Broke {
 		return
 	}
 
@@ -2627,7 +2627,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 
 	lno := int(lineno)
 
-	if tstruct.Broke != 0 {
+	if tstruct.Broke {
 		goto out
 	}
 
@@ -3804,7 +3804,7 @@ func typecheckdef(n *Node) *Node {
 		if n.Type.Etype == TFORW && nerrors > nerrors0 {
 			// Something went wrong during type-checking,
 			// but it was reported. Silence future errors.
-			n.Type.Broke = 1
+			n.Type.Broke = true
 		}
 
 		if Curfn != nil {

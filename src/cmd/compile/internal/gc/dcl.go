@@ -834,7 +834,7 @@ func structfield(n *Node) *Type {
 
 	f.Type = n.Type
 	if f.Type == nil {
-		f.Broke = 1
+		f.Broke = true
 	}
 
 	switch n.Val().Ctype() {
@@ -894,16 +894,16 @@ func tostruct(l *NodeList) *Type {
 		tp = &f.Down
 	}
 
-	for f := t.Type; f != nil && t.Broke == 0; f = f.Down {
-		if f.Broke != 0 {
-			t.Broke = 1
+	for f := t.Type; f != nil && !t.Broke; f = f.Down {
+		if f.Broke {
+			t.Broke = true
 		}
 	}
 
 	uniqgen++
 	checkdupfields(t.Type, "field")
 
-	if t.Broke == 0 {
+	if !t.Broke {
 		checkwidth(t)
 	}
 
@@ -929,9 +929,9 @@ func tofunargs(l *NodeList) *Type {
 		tp = &f.Down
 	}
 
-	for f := t.Type; f != nil && t.Broke == 0; f = f.Down {
-		if f.Broke != 0 {
-			t.Broke = 1
+	for f := t.Type; f != nil && !t.Broke; f = f.Down {
+		if f.Broke {
+			t.Broke = true
 		}
 	}
 
@@ -984,11 +984,11 @@ func interfacefield(n *Node) *Type {
 
 				case TFORW:
 					Yyerror("interface type loop involving %v", n.Type)
-					f.Broke = 1
+					f.Broke = true
 
 				default:
 					Yyerror("interface contains embedded non-interface %v", n.Type)
-					f.Broke = 1
+					f.Broke = true
 				}
 			}
 		}
@@ -998,7 +998,7 @@ func interfacefield(n *Node) *Type {
 
 	f.Type = n.Type
 	if f.Type == nil {
-		f.Broke = 1
+		f.Broke = true
 	}
 
 	lineno = int32(lno)
@@ -1034,9 +1034,9 @@ func tointerface(l *NodeList) *Type {
 		}
 	}
 
-	for f := t.Type; f != nil && t.Broke == 0; f = f.Down {
-		if f.Broke != 0 {
-			t.Broke = 1
+	for f := t.Type; f != nil && !t.Broke; f = f.Down {
+		if f.Broke {
+			t.Broke = true
 		}
 	}
 
@@ -1224,8 +1224,8 @@ func functype(this *Node, in *NodeList, out *NodeList) *Type {
 	checkdupfields(t.Type.Down.Type, "argument")
 	checkdupfields(t.Type.Down.Down.Type, "argument")
 
-	if t.Type.Broke != 0 || t.Type.Down.Broke != 0 || t.Type.Down.Down.Broke != 0 {
-		t.Broke = 1
+	if t.Type.Broke || t.Type.Down.Broke || t.Type.Down.Down.Broke {
+		t.Broke = true
 	}
 
 	if this != nil {
@@ -1383,7 +1383,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 				t = t.Type
 			}
 
-			if t.Broke != 0 { // rely on typecheck having complained before
+			if t.Broke { // rely on typecheck having complained before
 				return
 			}
 			if t.Sym == nil {
