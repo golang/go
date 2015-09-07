@@ -823,6 +823,11 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OCOM, TINT64}:  ssa.OpCom64,
 	opAndType{OCOM, TUINT64}: ssa.OpCom64,
 
+	opAndType{OIMAG, TCOMPLEX64}:  ssa.OpComplexImag,
+	opAndType{OIMAG, TCOMPLEX128}: ssa.OpComplexImag,
+	opAndType{OREAL, TCOMPLEX64}:  ssa.OpComplexReal,
+	opAndType{OREAL, TCOMPLEX128}: ssa.OpComplexReal,
+
 	opAndType{OMUL, TINT8}:    ssa.OpMul8,
 	opAndType{OMUL, TUINT8}:   ssa.OpMul8,
 	opAndType{OMUL, TINT16}:   ssa.OpMul16,
@@ -1612,7 +1617,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
 		}
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
-	case ONOT, OCOM:
+	case ONOT, OCOM, OIMAG, OREAL:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 	case OPLUS:
