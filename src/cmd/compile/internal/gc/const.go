@@ -292,7 +292,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 
 bad:
 	if n.Diag == 0 {
-		if t.Broke == 0 {
+		if !t.Broke {
 			Yyerror("cannot convert %v to type %v", n, t)
 		}
 		n.Diag = 1

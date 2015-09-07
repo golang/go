@@ -426,7 +426,7 @@ func algtype1(t *Type, bad **Type) int {
 	if bad != nil {
 		*bad = nil
 	}
-	if t.Broke != 0 {
+	if t.Broke {
 		return AMEM
 	}
 	if t.Noalg != 0 {
@@ -1133,7 +1133,7 @@ func assignop(src *Type, dst *Type, why *string) int {
 		}
 
 		// we'll have complained about this method anyway, suppress spurious messages.
-		if have != nil && have.Sym == missing.Sym && (have.Type.Broke != 0 || missing.Type.Broke != 0) {
+		if have != nil && have.Sym == missing.Sym && (have.Type.Broke || missing.Type.Broke) {
 			return OCONVIFACE
 		}
 
@@ -1317,7 +1317,7 @@ func assignconv(n *Node, t *Type, context string) *Node {
 
 // Convert node n for assignment to type t.
 func assignconvfn(n *Node, t *Type, context func() string) *Node {
-	if n == nil || n.Type == nil || n.Type.Broke != 0 {
+	if n == nil || n.Type == nil || n.Type.Broke {
 		return n
 	}
 

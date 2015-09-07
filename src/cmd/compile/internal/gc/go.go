@@ -165,8 +165,8 @@ type Type struct {
 	Copyany     uint8
 	Local       bool // created in this file
 	Deferwidth  uint8
-	Broke       uint8 // broken type definition.
-	Isddd       bool  // TFIELD is ... argument
+	Broke       bool // broken type definition.
+	Isddd       bool // TFIELD is ... argument
 	Align       uint8
 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
 
