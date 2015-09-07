@@ -729,7 +729,7 @@ func gen(n *Node) {
 				break
 			}
 
-			lab.Used = 1
+			lab.Used = true
 			if lab.Breakpc == nil {
 				Yyerror("invalid break label %v", n.Left.Sym)
 				break
@@ -754,7 +754,7 @@ func gen(n *Node) {
 				break
 			}
 
-			lab.Used = 1
+			lab.Used = true
 			if lab.Continpc == nil {
 				Yyerror("invalid continue label %v", n.Left.Sym)
 				break
@@ -994,7 +994,7 @@ func checklabels() {
 			continue
 		}
 
-		if lab.Use == nil && lab.Used == 0 {
+		if lab.Use == nil && !lab.Used {
 			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
 			continue
 		}

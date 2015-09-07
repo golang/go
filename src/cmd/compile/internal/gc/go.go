@@ -217,7 +217,6 @@ type Type struct {
 }
 
 type Label struct {
-	Used uint8
 	Sym  *Sym
 	Def  *Node
 	Use  []*Node
@@ -228,6 +227,8 @@ type Label struct {
 	Labelpc  *obj.Prog // pointer to code
 	Breakpc  *obj.Prog // pointer to code
 	Continpc *obj.Prog // pointer to code
+
+	Used bool
 }
 
 type InitEntry struct {
