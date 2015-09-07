@@ -40,8 +40,6 @@ import (
 // Instruction layout.
 
 const (
-	MaxAlign = 32 // max data alignment
-
 	// Loop alignment constants:
 	// want to align loop entry to LoopAlign-byte boundary,
 	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
@@ -175,7 +173,6 @@ const (
 	Zil_rp
 	Ziq_rp
 	Zilo_m
-	Ziqo_m
 	Zjmp
 	Zjmpcon
 	Zloop
@@ -225,14 +222,10 @@ const (
 	Py1 = 0x81 // symbolic; exact value doesn't matter
 	Py3 = 0x83 // symbolic; exact value doesn't matter
 
-	Rxf = 1 << 9 /* internal flag for Rxr on from */
-	Rxt = 1 << 8 /* internal flag for Rxr on to */
 	Rxw = 1 << 3 /* =1, 64-bit operand size */
 	Rxr = 1 << 2 /* extend modrm reg */
 	Rxx = 1 << 1 /* extend sib index */
 	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
-
-	Maxand = 10 /* in -a output width of the byte codes */
 )
 
 var ycover [Ymax * Ymax]uint8
@@ -242,11 +235,6 @@ var reg [MAXREG]int
 var regrex [MAXREG + 1]int
 
 var ynone = []ytab{
-	{Ynone, Ynone, Ynone, Zlit, 1},
-}
-
-var ysahf = []ytab{
-	{Ynone, Ynone, Ynone, Zlit, 2},
 	{Ynone, Ynone, Ynone, Zlit, 1},
 }
 

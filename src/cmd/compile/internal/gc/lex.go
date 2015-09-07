@@ -319,6 +319,7 @@ func Main() {
 	dclcontext = PEXTERN
 	nerrors = 0
 	lexlineno = 1
+	const BOM = 0xFEFF
 
 	for _, infile = range flag.Args() {
 		linehistpush(infile)
@@ -338,7 +339,7 @@ func Main() {
 		curio.last = 0
 
 		// Skip initial BOM if present.
-		if obj.Bgetrune(curio.bin) != obj.BOM {
+		if obj.Bgetrune(curio.bin) != BOM {
 			obj.Bungetrune(curio.bin)
 		}
 
@@ -601,11 +602,11 @@ func findpkg(name string) (file string, ok bool) {
 		// if there is an array.6 in the array.a library,
 		// want to find all of array.a, not just array.6.
 		file = fmt.Sprintf("%s.a", name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		file = fmt.Sprintf("%s.o", name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		return "", false
@@ -623,11 +624,11 @@ func findpkg(name string) (file string, ok bool) {
 
 	for p := idirs; p != nil; p = p.link {
 		file = fmt.Sprintf("%s/%s.a", p.dir, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		file = fmt.Sprintf("%s/%s.o", p.dir, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 	}
@@ -644,11 +645,11 @@ func findpkg(name string) (file string, ok bool) {
 		}
 
 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 	}
