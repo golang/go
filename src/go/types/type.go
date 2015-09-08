@@ -360,7 +360,7 @@ type Chan struct {
 // A ChanDir value indicates a channel direction.
 type ChanDir int
 
-// The direction of a channel is indicated by one of the following constants.
+// The direction of a channel is indicated by one of these constants.
 const (
 	SendRecv ChanDir = iota
 	SendOnly

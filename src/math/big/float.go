@@ -124,7 +124,7 @@ const (
 // rounding error is described by the Float's Accuracy.
 type RoundingMode byte
 
-// The following rounding modes are supported.
+// These constants define supported rounding modes.
 const (
 	ToNearestEven RoundingMode = iota // == IEEE 754-2008 roundTiesToEven
 	ToNearestAway                     // == IEEE 754-2008 roundTiesToAway
