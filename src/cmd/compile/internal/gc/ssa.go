@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"html"
 	"math"
@@ -162,7 +163,28 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// TODO: enable codegen more broadly once the codegen stabilizes
 	// and runtime support is in (gc maps, write barriers, etc.)
-	return s.f, usessa || localpkg.Name == os.Getenv("GOSSAPKG")
+	if usessa {
+		return s.f, true
+	}
+	if localpkg.Name != os.Getenv("GOSSAPKG") {
+		return s.f, false
+	}
+	if os.Getenv("GOSSAHASH") == "" {
+		// Use everything in the package
+		return s.f, true
+	}
+	// Check the hash of the name against a partial input hash.
+	// We use this feature to do a binary search within a package to
+	// find a function that is incorrectly compiled.
+	hstr := ""
+	for _, b := range sha1.Sum([]byte(name)) {
+		hstr += fmt.Sprintf("%08b", b)
+	}
+	if strings.HasSuffix(hstr, os.Getenv("GOSSAHASH")) {
+		fmt.Println("GOSSAHASH triggered %s\n", name)
+		return s.f, true
+	}
+	return s.f, false
 }
 
 type state struct {
@@ -744,6 +766,7 @@ func (s *state) stmt(n *Node) {
 		fn := call.Left
 		if call.Op != OCALLFUNC {
 			s.Unimplementedf("defer/go of %s", opnames[call.Op])
+			return
 		}
 
 		// Run all argument assignments.  The arg slots have already
@@ -1852,8 +1875,6 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
-	// TODO: do write barrier
-	// if wb
 	t := left.Type
 	dowidth(t)
 	if right == nil {
@@ -1880,6 +1901,41 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 		s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
 	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
+	if wb {
+		// if writeBarrierEnabled {
+		//   typedmemmove_nostore(t, &l)
+		// }
+		bThen := s.f.NewBlock(ssa.BlockPlain)
+		bNext := s.f.NewBlock(ssa.BlockPlain)
+
+		aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrierEnabled", 0).Sym}
+		flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+		flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.Likely = ssa.BranchUnlikely
+		b.Control = flag
+		b.AddEdgeTo(bThen)
+		b.AddEdgeTo(bNext)
+
+		s.startBlock(bThen)
+		// NOTE: there must be no GC suspension points between the write above
+		// (the OpStore) and this call to typedmemmove_nostore.
+		// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
+		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(left.Type)}, s.sb)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
+		spplus8 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, addr, s.mem())
+		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("typedmemmove_nostore", 0).Sym, s.mem())
+		call.AuxInt = int64(2 * Widthptr)
+		s.vars[&memvar] = call
+		c := s.endBlock()
+		c.Kind = ssa.BlockCall
+		c.Control = call
+		c.AddEdgeTo(bNext)
+
+		s.startBlock(bNext)
+	}
 }
 
 // zeroVal returns the zero value for type t.

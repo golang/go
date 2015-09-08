@@ -54,6 +54,8 @@ The linkers explore all possible call traces involving non-splitting
 functions to make sure that this limit cannot be violated.
 */
 
+// Constants here match those in cmd/internal/obj/stack.go.
+
 const (
 	// StackSystem is a number of additional bytes to add
 	// to each stack below the usual guard area for OS-specific
@@ -84,7 +86,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 640*stackGuardMultiplier + _StackSystem
+	_StackGuard = 960*stackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction

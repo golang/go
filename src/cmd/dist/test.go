@@ -277,11 +277,6 @@ func (t *tester) registerStdTest(pkg string) {
 
 // TODO: Remove when SSA codegen is used by default.
 func (t *tester) registerSSATest(pkg string) {
-	switch pkg {
-	// known failures due to GOGC=off
-	case "runtime", "runtime/pprof", "runtime/trace", "sync":
-		return
-	}
 	t.tests = append(t.tests, distTest{
 		name:    "go_test_ssa:" + pkg,
 		heading: "Testing packages with SSA codegen.",
@@ -297,7 +292,7 @@ func (t *tester) registerSSATest(pkg string) {
 			}
 			args = append(args, pkg)
 			cmd := exec.Command("go", args...)
-			cmd.Env = mergeEnvLists([]string{"GOSSAPKG=" + path.Base(pkg), "GOGC=off"}, os.Environ())
+			cmd.Env = mergeEnvLists([]string{"GOSSAPKG=" + path.Base(pkg)}, os.Environ())
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			return cmd.Run()
