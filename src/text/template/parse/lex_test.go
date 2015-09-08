@@ -278,6 +278,19 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
+	{"trimming spaces before and after", "hello- {{- 3 -}} -world", []item{
+		{itemText, 0, "hello-"},
+		tLeft,
+		{itemNumber, 0, "3"},
+		tRight,
+		{itemText, 0, "-world"},
+		tEOF,
+	}},
+	{"trimming spaces before and after comment", "hello- {{- /* hello */ -}} -world", []item{
+		{itemText, 0, "hello-"},
+		{itemText, 0, "-world"},
+		tEOF,
+	}},
 	// errors
 	{"badchar", "#{{\x01}}", []item{
 		{itemText, 0, "#"},
@@ -339,7 +352,7 @@ var lexTests = []lexTest{
 		{itemText, 0, "hello-"},
 		{itemError, 0, `unclosed comment`},
 	}},
-	{"text with comment close separted from delim", "hello-{{/* */ }}-world", []item{
+	{"text with comment close separated from delim", "hello-{{/* */ }}-world", []item{
 		{itemText, 0, "hello-"},
 		{itemError, 0, `comment ends before closing delimiter`},
 	}},

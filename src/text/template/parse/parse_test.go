@@ -228,6 +228,13 @@ var parseTests = []parseTest{
 		`{{with .X}}"hello"{{end}}`},
 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
 		`{{with .X}}"hello"{{else}}"goodbye"{{end}}`},
+	// Trimming spaces.
+	{"trim left", "x \r\n\t{{- 3}}", noError, `"x"{{3}}`},
+	{"trim right", "{{3 -}}\n\n\ty", noError, `{{3}}"y"`},
+	{"trim left and right", "x \r\n\t{{- 3 -}}\n\n\ty", noError, `"x"{{3}}"y"`},
+	{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"`},
+	{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `"y"`},
+	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},

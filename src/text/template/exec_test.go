@@ -797,18 +797,19 @@ type Tree struct {
 }
 
 // Use different delimiters to test Set.Delims.
+// Also test the trimming of leading and trailing spaces.
 const treeTemplate = `
-	(define "tree")
+	(- define "tree" -)
 	[
-		(.Val)
-		(with .Left)
-			(template "tree" .)
-		(end)
-		(with .Right)
-			(template "tree" .)
-		(end)
+		(- .Val -)
+		(- with .Left -)
+			(template "tree" . -)
+		(- end -)
+		(- with .Right -)
+			(- template "tree" . -)
+		(- end -)
 	]
-	(end)
+	(- end -)
 `
 
 func TestTree(t *testing.T) {
@@ -853,19 +854,13 @@ func TestTree(t *testing.T) {
 		t.Fatal("parse error:", err)
 	}
 	var b bytes.Buffer
-	stripSpace := func(r rune) rune {
-		if r == '\t' || r == '\n' {
-			return -1
-		}
-		return r
-	}
 	const expect = "[1[2[3[4]][5[6]]][7[8[9]][10[11]]]]"
 	// First by looking up the template.
 	err = tmpl.Lookup("tree").Execute(&b, tree)
 	if err != nil {
 		t.Fatal("exec error:", err)
 	}
-	result := strings.Map(stripSpace, b.String())
+	result := b.String()
 	if result != expect {
 		t.Errorf("expected %q got %q", expect, result)
 	}
@@ -875,7 +870,7 @@ func TestTree(t *testing.T) {
 	if err != nil {
 		t.Fatal("exec error:", err)
 	}
-	result = strings.Map(stripSpace, b.String())
+	result = b.String()
 	if result != expect {
 		t.Errorf("expected %q got %q", expect, result)
 	}
