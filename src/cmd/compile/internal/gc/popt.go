@@ -572,22 +572,11 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Build list of all mergeable variables.
-	nvar := 0
+	var vars []*TempVar
 	for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-		if canmerge(l.N) {
-			nvar++
-		}
-	}
-
-	var_ := make([]TempVar, nvar)
-	nvar = 0
-	var n *Node
-	var v *TempVar
-	for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-		n = l.N
-		if canmerge(n) {
-			v = &var_[nvar]
-			nvar++
+		if n := l.N; canmerge(n) {
+			v := &TempVar{}
+			vars = append(vars, v)
 			n.SetOpt(v)
 			v.node = n
 		}
@@ -602,8 +591,8 @@ func mergetemp(firstp *obj.Prog) {
 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt() != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt() != nil {
 			Fatalf("double node %v", p)
 		}
-		v = nil
-		n, _ = p.From.Node.(*Node)
+		var v *TempVar
+		n, _ := p.From.Node.(*Node)
 		if n != nil {
 			v, _ = n.Opt().(*TempVar)
 		}
@@ -632,8 +621,7 @@ func mergetemp(firstp *obj.Prog) {
 	nkill := 0
 
 	// Special case.
-	for i := 0; i < len(var_); i++ {
-		v = &var_[i]
+	for _, v := range vars {
 		if v.addr {
 			continue
 		}
@@ -682,28 +670,24 @@ func mergetemp(firstp *obj.Prog) {
 	// Traverse live range of each variable to set start, end.
 	// Each flood uses a new value of gen so that we don't have
 	// to clear all the r->active words after each variable.
-	gen := int32(0)
+	gen := uint32(0)
 
-	for i := 0; i < len(var_); i++ {
-		v = &var_[i]
+	for _, v := range vars {
 		gen++
 		for f := v.use; f != nil; f = f.Data.(*Flow) {
-			mergewalk(v, f, uint32(gen))
+			mergewalk(v, f, gen)
 		}
 		if v.addr {
 			gen++
 			for f := v.use; f != nil; f = f.Data.(*Flow) {
-				varkillwalk(v, f, uint32(gen))
+				varkillwalk(v, f, gen)
 			}
 		}
 	}
 
 	// Sort variables by start.
-	bystart := make([]*TempVar, len(var_))
-
-	for i := 0; i < len(var_); i++ {
-		bystart[i] = &var_[i]
-	}
+	bystart := make([]*TempVar, len(vars))
+	copy(bystart, vars)
 	sort.Sort(startcmp(bystart))
 
 	// List of in-use variables, sorted by end, so that the ones that
@@ -712,15 +696,11 @@ func mergetemp(firstp *obj.Prog) {
 	// In theory we should use a sorted tree so that insertions are
 	// guaranteed O(log n) and then the loop is guaranteed O(n log n).
 	// In practice, it doesn't really matter.
-	inuse := make([]*TempVar, len(var_))
+	inuse := make([]*TempVar, len(bystart))
 
 	ninuse := 0
-	nfree := len(var_)
-	var t *Type
-	var v1 *TempVar
-	var j int
-	for i := 0; i < len(var_); i++ {
-		v = bystart[i]
+	nfree := len(bystart)
+	for _, v := range bystart {
 		if debugmerge > 0 && Debug['v'] != 0 {
 			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, obj.FmtSharp), v.removed)
 		}
@@ -732,20 +712,19 @@ func mergetemp(firstp *obj.Prog) {
 		// Expire no longer in use.
 		for ninuse > 0 && inuse[ninuse-1].end < v.start {
 			ninuse--
-			v1 = inuse[ninuse]
 			nfree--
-			inuse[nfree] = v1
+			inuse[nfree] = inuse[ninuse]
 		}
 
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(var_))
+			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(bystart))
 		}
 
 		// Find old temp to reuse if possible.
-		t = v.node.Type
+		t := v.node.Type
 
-		for j = nfree; j < len(var_); j++ {
-			v1 = inuse[j]
+		for j := nfree; j < len(inuse); j++ {
+			v1 := inuse[j]
 			if debugmerge > 0 && Debug['v'] != 0 {
 				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
 			}
@@ -769,7 +748,7 @@ func mergetemp(firstp *obj.Prog) {
 		}
 
 		// Sort v into inuse.
-		j = ninuse
+		j := ninuse
 		ninuse++
 
 		for j > 0 && inuse[j-1].end < v.end {
@@ -781,10 +760,8 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	if debugmerge > 0 && Debug['v'] != 0 {
-		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(var_), nkill)
-		var v *TempVar
-		for i := 0; i < len(var_); i++ {
-			v = &var_[i]
+		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(vars), nkill)
+		for _, v := range vars {
 			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
 			if v.addr {
 				fmt.Printf(" addr=true")
@@ -809,16 +786,16 @@ func mergetemp(firstp *obj.Prog) {
 	// Update node references to use merged temporaries.
 	for f := g.Start; f != nil; f = f.Link {
 		p := f.Prog
-		n, _ = p.From.Node.(*Node)
+		n, _ := p.From.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt().(*TempVar)
+			v, _ := n.Opt().(*TempVar)
 			if v != nil && v.merge != nil {
 				p.From.Node = v.merge.node
 			}
 		}
 		n, _ = p.To.Node.(*Node)
 		if n != nil {
-			v, _ = n.Opt().(*TempVar)
+			v, _ := n.Opt().(*TempVar)
 			if v != nil && v.merge != nil {
 				p.To.Node = v.merge.node
 			}
@@ -826,16 +803,15 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Delete merged nodes from declaration list.
-	var l *NodeList
 	for lp := &Curfn.Func.Dcl; ; {
-		l = *lp
+		l := *lp
 		if l == nil {
 			break
 		}
 
 		Curfn.Func.Dcl.End = l
-		n = l.N
-		v, _ = n.Opt().(*TempVar)
+		n := l.N
+		v, _ := n.Opt().(*TempVar)
 		if v != nil && (v.merge != nil || v.removed) {
 			*lp = l.Next
 			continue
@@ -845,8 +821,8 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Clear aux structures.
-	for i := 0; i < len(var_); i++ {
-		var_[i].node.SetOpt(nil)
+	for _, v := range vars {
+		v.node.SetOpt(nil)
 	}
 
 	Flowend(g)

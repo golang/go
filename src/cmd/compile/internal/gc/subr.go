@@ -3358,7 +3358,6 @@ func ngotype(n *Node) *Sym {
  * only in the last segment of the path, and it makes for happier
  * users if we escape that as little as possible.
  *
- * If you edit this, edit ../ld/lib.c:/^pathtoprefix too.
  * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
  */
 func pathtoprefix(s string) string {
@@ -3430,17 +3429,13 @@ func isbadimport(path string) bool {
 		return true
 	}
 
-	for i := 0; i < len(reservedimports); i++ {
-		if path == reservedimports[i] {
+	for _, ri := range reservedimports {
+		if path == ri {
 			Yyerror("import path %q is reserved and cannot be used", path)
 			return true
 		}
 	}
 
-	var s string
-	_ = s
-	var r uint
-	_ = r
 	for _, r := range path {
 		if r == utf8.RuneError {
 			Yyerror("import path contains invalid UTF-8 sequence: %q", path)
