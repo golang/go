@@ -1722,12 +1722,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if n.Right.Left == nil {
 			low = zero
 		} else {
-			low = s.expr(n.Right.Left)
+			low = s.extendIndex(s.expr(n.Right.Left))
 		}
 		if n.Right.Right == nil {
 			high = len
 		} else {
-			high = s.expr(n.Right.Right)
+			high = s.extendIndex(s.expr(n.Right.Right))
 		}
 
 		// Panic if slice indices are not in bounds.
