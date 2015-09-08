@@ -425,7 +425,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 
 	bb := newblock(firstp)
 	cfg = append(cfg, bb)
-	for p := firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
 		Thearch.Proginfo(p)
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.To.Val == nil {
@@ -453,7 +453,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 	// contained instructions until a label is reached.  Add edges
 	// for branches and fall-through instructions.
 	for _, bb := range cfg {
-		for p := bb.last; p != nil; p = p.Link {
+		for p := bb.last; p != nil && p.As != obj.AEND; p = p.Link {
 			if p.Opt != nil && p != bb.last {
 				break
 			}
@@ -462,6 +462,8 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 			// Stop before an unreachable RET, to avoid creating
 			// unreachable control flow nodes.
 			if p.Link != nil && p.Link.As == obj.ARET && p.Link.Mode == 1 {
+				// TODO: remove after SSA is done.  SSA does not
+				// generate any unreachable RET instructions.
 				break
 			}
 

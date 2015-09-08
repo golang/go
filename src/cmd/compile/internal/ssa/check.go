@@ -63,8 +63,11 @@ func checkFunc(f *Func) {
 			if len(b.Succs) != 1 {
 				f.Fatalf("ret block %s len(Succs)==%d, want 1", b, len(b.Succs))
 			}
-			if b.Control != nil {
-				f.Fatalf("ret block %s has non-nil control %s", b, b.Control.LongString())
+			if b.Control == nil {
+				f.Fatalf("ret block %s has nil control %s", b)
+			}
+			if !b.Control.Type.IsMemory() {
+				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
 			}
 			if b.Succs[0].Kind != BlockExit {
 				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)

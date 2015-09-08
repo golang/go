@@ -369,9 +369,11 @@ var genericOps = []opData{
 //     kind           control    successors
 //   ------------------------------------------
 //     Exit        return mem                []
+//      Ret        return mem            [exit]
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
-//     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
+//     Call               mem   [nopanic, exit]  (control opcode should be OpCall or OpStaticCall)
+//    First               nil    [always,never]
 
 var genericBlocks = []blockData{
 	{name: "Exit"},  // no successors.  There should only be 1 of these.
