@@ -1203,6 +1203,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	s.stmtList(n.Ninit)
 	switch n.Op {
+	case OCFUNC:
+		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
+		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
@@ -1296,15 +1299,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OCONVNOP:
 		to := n.Type
 		from := n.Left.Type
-		if to.Etype == TFUNC {
-			s.Unimplementedf("CONVNOP closure")
-			return nil
-		}
 
 		// Assume everything will work out, so set up our return value.
 		// Anything interesting that happens from here is a fatal.
 		x := s.expr(n.Left)
 		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
+
+		// CONVNOP closure
+		if to.Etype == TFUNC && from.IsPtr() {
+			return v
+		}
 
 		// named <--> unnamed type or typed <--> untyped const
 		if from.Etype == to.Etype {
