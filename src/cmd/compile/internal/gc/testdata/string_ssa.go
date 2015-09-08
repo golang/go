@@ -86,9 +86,39 @@ func testStringSlicePanic() {
 	failed = true
 }
 
+const _Accuracy_name = "BelowExactAbove"
+
+var _Accuracy_index = [...]uint8{0, 5, 10, 15}
+
+func testSmallIndexType_ssa(i int) string {
+	switch { // prevent inlining
+	}
+	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
+}
+
+func testSmallIndexType() {
+	tests := []struct {
+		i    int
+		want string
+	}{
+		{0, "Below"},
+		{1, "Exact"},
+		{2, "Above"},
+	}
+
+	for i, t := range tests {
+		if got := testSmallIndexType_ssa(t.i); got != t.want {
+			println("#", i, "got ", got, ", wanted", t.want)
+			failed = true
+		}
+	}
+}
+
 func main() {
 	testStringSlice()
 	testStringSlicePanic()
+	testStructSlice()
+	testSmallIndexType()
 
 	if failed {
 		panic("failed")
