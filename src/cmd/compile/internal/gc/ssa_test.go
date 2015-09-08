@@ -54,3 +54,19 @@ func TestArithmeticBoundary(t *testing.T) { runTest(t, "arithBoundary_ssa.go") }
 
 // TestArithmeticConst tests results for arithmetic operations against constants.
 func TestArithmeticConst(t *testing.T) { runTest(t, "arithConst_ssa.go") }
+
+func TestChan(t *testing.T) { runTest(t, "chan_ssa.go") }
+
+func TestCompound(t *testing.T) { runTest(t, "compound_ssa.go") }
+
+func TestCtl(t *testing.T) { runTest(t, "ctl_ssa.go") }
+
+func TestFp(t *testing.T) { runTest(t, "fp_ssa.go") }
+
+func TestLoadStore(t *testing.T) { runTest(t, "loadstore_ssa.go") }
+
+func TestMap(t *testing.T) { runTest(t, "map_ssa.go") }
+
+func TestRegalloc(t *testing.T) { runTest(t, "regalloc_ssa.go") }
+
+func TestString(t *testing.T) { runTest(t, "string_ssa.go") }
