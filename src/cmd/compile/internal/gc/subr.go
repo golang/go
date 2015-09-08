@@ -429,7 +429,7 @@ func algtype1(t *Type, bad **Type) int {
 	if t.Broke {
 		return AMEM
 	}
-	if t.Noalg != 0 {
+	if t.Noalg {
 		return ANOEQ
 	}
 
@@ -1385,7 +1385,7 @@ func substAny(tp **Type, types *[]*Type) {
 		if t == nil {
 			return
 		}
-		if t.Etype == TANY && t.Copyany != 0 {
+		if t.Etype == TANY && t.Copyany {
 			if len(*types) == 0 {
 				Fatalf("substArgTypes: not enough argument types")
 			}
@@ -1486,7 +1486,7 @@ func deep(t *Type) *Type {
 
 	case TANY:
 		nt = shallow(t)
-		nt.Copyany = 1
+		nt.Copyany = true
 
 	case TPTR32, TPTR64, TCHAN, TARRAY:
 		nt = shallow(t)

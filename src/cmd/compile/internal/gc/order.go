@@ -336,7 +336,7 @@ func ismulticall(l *NodeList) bool {
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
 func copyret(n *Node, order *Order) *NodeList {
-	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
+	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
 	}
 

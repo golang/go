@@ -914,11 +914,11 @@ func tofunargs(l *NodeList) *Type {
 	var f *Type
 
 	t := typ(TSTRUCT)
-	t.Funarg = 1
+	t.Funarg = true
 
 	for tp := &t.Type; l != nil; l = l.Next {
 		f = structfield(l.N)
-		f.Funarg = 1
+		f.Funarg = true
 
 		// esc.c needs to find f given a PPARAM to add the tag.
 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
@@ -1233,11 +1233,11 @@ func functype(this *Node, in *NodeList, out *NodeList) *Type {
 	}
 	t.Outtuple = count(out)
 	t.Intuple = count(in)
-	t.Outnamed = 0
+	t.Outnamed = false
 	if t.Outtuple > 0 && out.N.Left != nil && out.N.Left.Orig != nil {
 		s := out.N.Left.Orig.Sym
 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
-			t.Outnamed = 1
+			t.Outnamed = true
 		}
 	}
 

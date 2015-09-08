@@ -1289,12 +1289,12 @@ loop2:
 		for z := 0; z < BITS; z++ {
 			bit.b[z] = (r.refahead.b[z] | r.calahead.b[z]) &^ (externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z])
 		}
-		if bany(&bit) && f.Refset == 0 {
+		if bany(&bit) && !f.Refset {
 			// should never happen - all variables are preset
 			if Debug['w'] != 0 {
 				fmt.Printf("%v: used and not set: %v\n", f.Prog.Line(), &bit)
 			}
-			f.Refset = 1
+			f.Refset = true
 		}
 	}
 
@@ -1309,11 +1309,11 @@ loop2:
 		for z := 0; z < BITS; z++ {
 			bit.b[z] = r.set.b[z] &^ (r.refahead.b[z] | r.calahead.b[z] | addrs.b[z])
 		}
-		if bany(&bit) && f.Refset == 0 {
+		if bany(&bit) && !f.Refset {
 			if Debug['w'] != 0 {
 				fmt.Printf("%v: set and not used: %v\n", f.Prog.Line(), &bit)
 			}
-			f.Refset = 1
+			f.Refset = true
 			Thearch.Excise(f)
 		}
 

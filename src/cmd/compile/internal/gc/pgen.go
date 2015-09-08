@@ -371,7 +371,7 @@ func compile(fn *Node) {
 	// set up domain for labels
 	clearlabels()
 
-	if Curfn.Type.Outnamed != 0 {
+	if Curfn.Type.Outnamed {
 		// add clearing of the output parameters
 		var save Iter
 		t := Structfirst(&save, Getoutarg(Curfn.Type))

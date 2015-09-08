@@ -511,7 +511,7 @@ func nodarg(t *Type, fp int) *Node {
 	var n *Node
 
 	// entire argument struct, not just one arg
-	if t.Etype == TSTRUCT && t.Funarg != 0 {
+	if t.Etype == TSTRUCT && t.Funarg {
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t

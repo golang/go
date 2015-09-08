@@ -2288,20 +2288,20 @@ func lexinit1() {
 
 	rcvr.Type = typ(TFIELD)
 	rcvr.Type.Type = Ptrto(typ(TSTRUCT))
-	rcvr.Funarg = 1
+	rcvr.Funarg = true
 	in := typ(TSTRUCT)
-	in.Funarg = 1
+	in.Funarg = true
 	out := typ(TSTRUCT)
 	out.Type = typ(TFIELD)
 	out.Type.Type = Types[TSTRING]
-	out.Funarg = 1
+	out.Funarg = true
 	f := typ(TFUNC)
 	*getthis(f) = rcvr
 	*Getoutarg(f) = out
 	*getinarg(f) = in
 	f.Thistuple = 1
 	f.Intuple = 0
-	f.Outnamed = 0
+	f.Outnamed = false
 	f.Outtuple = 1
 	t := typ(TINTER)
 	t.Type = typ(TFIELD)

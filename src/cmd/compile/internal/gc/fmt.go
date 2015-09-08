@@ -647,7 +647,7 @@ func typefmt(t *Type, flag int) string {
 		}
 
 		var buf bytes.Buffer
-		if t.Funarg != 0 {
+		if t.Funarg {
 			buf.WriteString("(")
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
 				for t1 := t.Type; t1 != nil; t1 = t1.Down {
@@ -704,7 +704,7 @@ func typefmt(t *Type, flag int) string {
 			}
 
 			if s != nil && t.Embedded == 0 {
-				if t.Funarg != 0 {
+				if t.Funarg {
 					name = Nconv(t.Nname, 0)
 				} else if flag&obj.FmtLong != 0 {
 					name = Sconv(s, obj.FmtShort|obj.FmtByte) // qualify non-exported names (used on structs, not on funarg)

@@ -283,7 +283,7 @@ func walkstmt(np **Node) {
 		if n.List == nil {
 			break
 		}
-		if (Curfn.Type.Outnamed != 0 && count(n.List) > 1) || paramoutheap(Curfn) {
+		if (Curfn.Type.Outnamed && count(n.List) > 1) || paramoutheap(Curfn) {
 			// assign to the function out parameters,
 			// so that reorder3 can fix up conflicts
 			var rl *NodeList
@@ -1900,7 +1900,7 @@ func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int,
 	var l2 string
 	var ll *Type
 	var l1 string
-	if r != nil && lr.Next == nil && r.Type.Etype == TSTRUCT && r.Type.Funarg != 0 {
+	if r != nil && lr.Next == nil && r.Type.Etype == TSTRUCT && r.Type.Funarg {
 		// optimization - can do block copy
 		if eqtypenoname(r.Type, *nl) {
 			a := nodarg(*nl, fp)

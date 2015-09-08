@@ -155,15 +155,15 @@ type Sym struct {
 type Type struct {
 	Etype       uint8
 	Nointerface bool
-	Noalg       uint8
+	Noalg       bool
 	Chan        uint8
 	Trecur      uint8 // to detect loops
-	Printed     uint8
+	Printed     bool
 	Embedded    uint8 // TFIELD embedded type
-	Funarg      uint8 // on TSTRUCT and TFIELD
-	Copyany     uint8
+	Funarg      bool  // on TSTRUCT and TFIELD
+	Copyany     bool
 	Local       bool // created in this file
-	Deferwidth  uint8
+	Deferwidth  bool
 	Broke       bool // broken type definition.
 	Isddd       bool // TFIELD is ... argument
 	Align       uint8
@@ -177,7 +177,7 @@ type Type struct {
 	Thistuple int
 	Outtuple  int
 	Intuple   int
-	Outnamed  uint8
+	Outnamed  bool
 
 	Method  *Type
 	Xmethod *Type
@@ -699,7 +699,7 @@ type Flow struct {
 	Id     int32  // sequence number in flow graph
 	Rpo    int32  // reverse post ordering
 	Loop   uint16 // x5 for every loop
-	Refset uint8  // diagnostic generated
+	Refset bool   // diagnostic generated
 
 	Data interface{} // for use by client
 }
