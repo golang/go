@@ -116,8 +116,11 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.stmtList(fn.Nbody)
 
 	// fallthrough to exit
-	if b := s.endBlock(); b != nil {
+	if s.curBlock != nil {
+		m := s.mem()
+		b := s.endBlock()
 		b.Kind = ssa.BlockRet
+		b.Control = m
 		b.AddEdgeTo(s.exit)
 	}
 
@@ -575,8 +578,10 @@ func (s *state) stmt(n *Node) {
 
 	case ORETURN:
 		s.stmtList(n.List)
+		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
+		b.Control = m
 		b.AddEdgeTo(s.exit)
 
 	case OCONTINUE, OBREAK:
@@ -2630,8 +2635,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	for _, p := range s.deferBranches {
 		p.To.Val = s.deferTarget
 	}
-
-	Pc.As = obj.ARET // overwrite AEND
 
 	if logProgs {
 		for p := ptxt; p != nil; p = p.Link {
