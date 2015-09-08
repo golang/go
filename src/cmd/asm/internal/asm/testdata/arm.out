@@ -37,23 +37,24 @@
 154 00037 (testdata/arm.s:154)	STREX.S	(R2), R1, R3
 160 00038 (testdata/arm.s:160)	STREX.S	(R2), R1, R1
 166 00039 (testdata/arm.s:166)	STREX.S	(R2), R3, R3
-174 00040 (testdata/arm.s:174)	CASE.S	R1
-183 00041 (testdata/arm.s:183)	WORD	$1234
-192 00042 (testdata/arm.s:192)	ABSF.S	F1, F2
-198 00043 (testdata/arm.s:198)	ADDD.S	F1, F2
-199 00044 (testdata/arm.s:199)	ADDD.S	$(0.5), F2
-205 00045 (testdata/arm.s:205)	ADDD.S	F1, F2, F3
-206 00046 (testdata/arm.s:206)	ADDD.S	$(0.5), F2, F3
-212 00047 (testdata/arm.s:212)	CMPD.S	F1, F2
-236 00048 (testdata/arm.s:236)	MRC	$8301712627
-237 00049 (testdata/arm.s:237)	MRC	$8300664051
-246 00050 (testdata/arm.s:246)	MULL	R1, R2, (R3, R4)
-258 00051 (testdata/arm.s:258)	MULAWT	R1, R2, R3, R4
-266 00052 (testdata/arm.s:266)	PLD	(R1)
-267 00053 (testdata/arm.s:267)	PLD	4(R1)
-276 00054 (testdata/arm.s:276)	RET
-280 00055 (testdata/arm.s:280)	JMP	foo(SB)
-281 00056 (testdata/arm.s:281)	CALL	foo(SB)
-282 00057 (testdata/arm.s:282)	JMP	foo(SB)
-283 00058 (testdata/arm.s:283)	CALL	foo(SB)
-292 00059 (testdata/arm.s:292)	END
+175 00040 (testdata/arm.s:175)	WORD	$1234
+184 00041 (testdata/arm.s:184)	ABSF.S	F1, F2
+190 00042 (testdata/arm.s:190)	ADDD.S	F1, F2
+191 00043 (testdata/arm.s:191)	ADDD.S	$(0.5), F2
+197 00044 (testdata/arm.s:197)	ADDD.S	F1, F2, F3
+198 00045 (testdata/arm.s:198)	ADDD.S	$(0.5), F2, F3
+204 00046 (testdata/arm.s:204)	CMPD.S	F1, F2
+228 00047 (testdata/arm.s:228)	MRC	$8301712627
+229 00048 (testdata/arm.s:229)	MRC	$8300664051
+238 00049 (testdata/arm.s:238)	MULL	R1, R2, (R3, R4)
+250 00050 (testdata/arm.s:250)	MULAWT	R1, R2, R3, R4
+258 00051 (testdata/arm.s:258)	PLD	(R1)
+259 00052 (testdata/arm.s:259)	PLD	4(R1)
+268 00053 (testdata/arm.s:268)	RET
+272 00054 (testdata/arm.s:272)	JMP	foo(SB)
+273 00055 (testdata/arm.s:273)	CALL	foo(SB)
+274 00056 (testdata/arm.s:274)	JMP	foo(SB)
+275 00057 (testdata/arm.s:275)	CALL	foo(SB)
+278 00058 (testdata/arm.s:278)	CMPF	F1, F2
+279 00059 (testdata/arm.s:279)	CMPD	F1, F2
+288 00060 (testdata/arm.s:288)	END

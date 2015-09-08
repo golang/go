@@ -1564,6 +1564,77 @@ func TestErrBadConnReconnect(t *testing.T) {
 	simulateBadConn("stmt.Query exec", &hookQueryBadConn, stmtQuery)
 }
 
+// golang.org/issue/11264
+func TestTxEndBadConn(t *testing.T) {
+	db := newTestDB(t, "foo")
+	defer closeDB(t, db)
+	db.SetMaxIdleConns(0)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	db.SetMaxIdleConns(1)
+
+	simulateBadConn := func(name string, hook *func() bool, op func() error) {
+		broken := false
+		numOpen := db.numOpen
+
+		*hook = func() bool {
+			if !broken {
+				broken = true
+			}
+			return broken
+		}
+
+		if err := op(); err != driver.ErrBadConn {
+			t.Errorf(name+": %v", err)
+			return
+		}
+
+		if !broken {
+			t.Error(name + ": Failed to simulate broken connection")
+		}
+		*hook = nil
+
+		if numOpen != db.numOpen {
+			t.Errorf(name+": leaked %d connection(s)!", db.numOpen-numOpen)
+		}
+	}
+
+	// db.Exec
+	dbExec := func(endTx func(tx *Tx) error) func() error {
+		return func() error {
+			tx, err := db.Begin()
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("INSERT|t1|name=?,age=?,dead=?", "Gordon", 3, true)
+			if err != nil {
+				return err
+			}
+			return endTx(tx)
+		}
+	}
+	simulateBadConn("db.Tx.Exec commit", &hookCommitBadConn, dbExec((*Tx).Commit))
+	simulateBadConn("db.Tx.Exec rollback", &hookRollbackBadConn, dbExec((*Tx).Rollback))
+
+	// db.Query
+	dbQuery := func(endTx func(tx *Tx) error) func() error {
+		return func() error {
+			tx, err := db.Begin()
+			if err != nil {
+				return err
+			}
+			rows, err := tx.Query("SELECT|t1|age,name|")
+			if err == nil {
+				err = rows.Close()
+			} else {
+				return err
+			}
+			return endTx(tx)
+		}
+	}
+	simulateBadConn("db.Tx.Query commit", &hookCommitBadConn, dbQuery((*Tx).Commit))
+	simulateBadConn("db.Tx.Query rollback", &hookRollbackBadConn, dbQuery((*Tx).Rollback))
+}
+
 type concurrentTest interface {
 	init(t testing.TB, db *DB)
 	finish(t testing.TB)

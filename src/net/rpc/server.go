@@ -611,13 +611,15 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
 }
 
 // Accept accepts connections on the listener and serves requests
-// for each incoming connection.  Accept blocks; the caller typically
-// invokes it in a go statement.
+// for each incoming connection. Accept blocks until the listener
+// returns a non-nil error. The caller typically invokes Accept in a
+// go statement.
 func (server *Server) Accept(lis net.Listener) {
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
-			log.Fatal("rpc.Serve: accept:", err.Error()) // TODO(r): exit?
+			log.Print("rpc.Serve: accept:", err.Error())
+			return
 		}
 		go server.ServeConn(conn)
 	}

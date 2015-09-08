@@ -1,5 +1,6 @@
 <!--{
-	"Path": "/"
+	"Path": "/",
+	"Template": true
 }-->
 
 <div class="left">
@@ -25,7 +26,9 @@ Hello, 世界
 </div>
 <div class="buttons">
 <a class="run" href="#" title="Run this code [shift-enter]">Run</a>
+{{if $.Share}}
 <a class="share" href="#" title="Share this code">Share</a>
+{{end}}
 <a class="tour" href="//tour.golang.org/" title="Learn Go from your browser">Tour</a>
 </div>
 <div class="toys">

@@ -74,7 +74,7 @@ func (s *HashSet) check(t *testing.T) {
 	pairs := int64(s.n) * int64(s.n-1) / 2
 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
 	stddev := math.Sqrt(expected)
-	if float64(collisions) > expected+SLOP*3*stddev {
+	if float64(collisions) > expected+SLOP*(3*stddev+1) {
 		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f", collisions, expected, stddev)
 	}
 }

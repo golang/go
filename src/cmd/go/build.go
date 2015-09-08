@@ -60,7 +60,6 @@ and test commands:
 
 	-a
 		force rebuilding of packages that are already up-to-date.
-		In Go releases, does not apply to the standard library.
 	-n
 		print the commands but do not run them.
 	-p n
@@ -345,12 +344,9 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/amd64":
+			case "linux/amd64", "linux/arm", "android/arm":
 				codegenArg = "-shared"
-			case "linux/arm":
-				buildAsmflags = append(buildAsmflags, "-shared")
 			case "darwin/amd64":
-			case "android/arm":
 			default:
 				fatalf("-buildmode=c-shared not supported on %s\n", platform)
 			}

@@ -20,7 +20,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	var op int
 	switch align {
 	default:
-		gc.Fatal("sgen: invalid alignment %d for %v", align, n.Type)
+		gc.Fatalf("sgen: invalid alignment %d for %v", align, n.Type)
 
 	case 1:
 		op = arm64.AMOVB
@@ -36,12 +36,12 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	}
 
 	if w%int64(align) != 0 {
-		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
+		gc.Fatalf("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
 	}
 	c := int32(w / int64(align))
 
 	if osrc%int64(align) != 0 || odst%int64(align) != 0 {
-		gc.Fatal("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align)
+		gc.Fatalf("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align)
 	}
 
 	// if we are copying forward on the stack and
@@ -132,13 +132,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 		// ADDs.  That will produce shorter, more
 		// pipeline-able code.
 		var p *obj.Prog
-		for {
-			tmp14 := c
-			c--
-			if tmp14 <= 0 {
-				break
-			}
-
+		for ; c > 0; c-- {
 			p = gins(op, &src, &tmp)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Offset = int64(dir)

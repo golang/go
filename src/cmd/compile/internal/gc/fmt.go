@@ -356,7 +356,7 @@ func Vconv(v Val, flag int) string {
 		return "nil"
 	}
 
-	return fmt.Sprintf("<ctype=%d>", v.Ctype)
+	return fmt.Sprintf("<ctype=%d>", v.Ctype())
 }
 
 /*
@@ -434,7 +434,7 @@ func symfmt(s *Sym, flag int) string {
 
 		case FExp:
 			if s.Name != "" && s.Name[0] == '.' {
-				Fatal("exporting synthetic symbol %s", s.Name)
+				Fatalf("exporting synthetic symbol %s", s.Name)
 			}
 			if s.Pkg != builtinpkg {
 				return fmt.Sprintf("@%q.%s", s.Pkg.Path, s.Name)
@@ -648,7 +648,7 @@ func typefmt(t *Type, flag int) string {
 		}
 
 		var buf bytes.Buffer
-		if t.Funarg != 0 {
+		if t.Funarg {
 			buf.WriteString("(")
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
 				for t1 := t.Type; t1 != nil; t1 = t1.Down {
@@ -705,7 +705,7 @@ func typefmt(t *Type, flag int) string {
 			}
 
 			if s != nil && t.Embedded == 0 {
-				if t.Funarg != 0 {
+				if t.Funarg {
 					name = Nconv(t.Nname, 0)
 				} else if flag&obj.FmtLong != 0 {
 					name = Sconv(s, obj.FmtShort|obj.FmtByte) // qualify non-exported names (used on structs, not on funarg)
@@ -756,7 +756,7 @@ func typefmt(t *Type, flag int) string {
 	}
 
 	if fmtmode == FExp {
-		Fatal("missing %v case during export", Econv(int(t.Etype), 0))
+		Fatalf("missing %v case during export", Econv(int(t.Etype), 0))
 	}
 
 	// Don't know how to handle - fall back to detailed prints.
@@ -1673,7 +1673,7 @@ func Nconv(n *Node, flag int) string {
 		dumpdepth--
 
 	default:
-		Fatal("unhandled %%N mode")
+		Fatalf("unhandled %%N mode")
 	}
 
 	flag = sf

@@ -66,11 +66,11 @@ func TestLinuxDeathSignal(t *testing.T) {
 	cmd.Env = []string{"GO_DEATHSIG_PARENT=1"}
 	chldStdin, err := cmd.StdinPipe()
 	if err != nil {
-		t.Fatal("failed to create new stdin pipe: %v", err)
+		t.Fatalf("failed to create new stdin pipe: %v", err)
 	}
 	chldStdout, err := cmd.StdoutPipe()
 	if err != nil {
-		t.Fatal("failed to create new stdout pipe: %v", err)
+		t.Fatalf("failed to create new stdout pipe: %v", err)
 	}
 	cmd.Stderr = os.Stderr
 
@@ -114,7 +114,7 @@ func deathSignalParent() {
 
 	err := cmd.Start()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "death signal parent error: %v\n")
+		fmt.Fprintf(os.Stderr, "death signal parent error: %v\n", err)
 		os.Exit(1)
 	}
 	cmd.Wait()

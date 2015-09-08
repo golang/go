@@ -207,7 +207,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		// Convert or check untyped arguments.
+		// convert or check untyped arguments
 		d := 0
 		if isUntyped(x.typ) {
 			d |= 1
@@ -231,7 +231,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			// 2) if one of them is not constant (possible because
 			//    it contains a shift that is yet untyped), convert
 			//    both of them to float64 since they must have the
-			//    same type to succeed
+			//    same type to succeed (this will result in an error
+			//    because shifts of floats are not permitted)
 			if x.mode == constant_ && y.mode == constant_ {
 				toFloat := func(x *operand) {
 					if isNumeric(x.typ) && constant.Sign(constant.Imag(x.val)) == 0 {
@@ -243,6 +244,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			} else {
 				check.convertUntyped(x, Typ[Float64])
 				check.convertUntyped(&y, Typ[Float64])
+				// x and y should be invalid now, but be conservative
+				// and check below
 			}
 		}
 		if x.mode == invalid || y.mode == invalid {
@@ -261,7 +264,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		// if both arguments are constant, the result is a constant
+		// if both arguments are constants, the result is a constant
 		if x.mode == constant_ && y.mode == constant_ {
 			x.val = constant.BinaryOp(x.val, token.ADD, constant.MakeImag(y.val))
 		} else {
@@ -351,10 +354,35 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Imag, _Real:
 		// imag(complexT) floatT
 		// real(complexT) floatT
+
+		// convert or check untyped argument
+		if isUntyped(x.typ) {
+			if x.mode == constant_ {
+				// an untyped constant number can alway be considered
+				// as a complex constant
+				if isNumeric(x.typ) {
+					x.typ = Typ[UntypedComplex]
+				}
+			} else {
+				// an untyped non-constant argument may appear if
+				// it contains a (yet untyped non-constant) shift
+				// epression: convert it to complex128 which will
+				// result in an error (shift of complex value)
+				check.convertUntyped(x, Typ[Complex128])
+				// x should be invalid now, but be conservative and check
+				if x.mode == invalid {
+					return
+				}
+			}
+		}
+
+		// the argument must be of complex type
 		if !isComplex(x.typ) {
-			check.invalidArg(x.pos(), "%s must be a complex number", x)
+			check.invalidArg(x.pos(), "argument has type %s, expected complex type", x.typ)
 			return
 		}
+
+		// if the argument is a constant, the result is a constant
 		if x.mode == constant_ {
 			if id == _Real {
 				x.val = constant.Real(x.val)
@@ -364,22 +392,26 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		} else {
 			x.mode = value
 		}
-		var k BasicKind
+
+		// determine result type
+		var res BasicKind
 		switch x.typ.Underlying().(*Basic).kind {
 		case Complex64:
-			k = Float32
+			res = Float32
 		case Complex128:
-			k = Float64
+			res = Float64
 		case UntypedComplex:
-			k = UntypedFloat
+			res = UntypedFloat
 		default:
 			unreachable()
 		}
+		resTyp := Typ[res]
 
 		if check.Types != nil && x.mode != constant_ {
-			check.recordBuiltinType(call.Fun, makeSig(Typ[k], x.typ))
+			check.recordBuiltinType(call.Fun, makeSig(resTyp, x.typ))
 		}
-		x.typ = Typ[k]
+
+		x.typ = resTyp
 
 	case _Make:
 		// make(T, n)

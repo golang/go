@@ -699,13 +699,25 @@ func (s *fakeStmt) NumInput() int {
 	return s.placeholders
 }
 
+// hook to simulate broken connections
+var hookCommitBadConn func() bool
+
 func (tx *fakeTx) Commit() error {
 	tx.c.currTx = nil
+	if hookCommitBadConn != nil && hookCommitBadConn() {
+		return driver.ErrBadConn
+	}
 	return nil
 }
 
+// hook to simulate broken connections
+var hookRollbackBadConn func() bool
+
 func (tx *fakeTx) Rollback() error {
 	tx.c.currTx = nil
+	if hookRollbackBadConn != nil && hookRollbackBadConn() {
+		return driver.ErrBadConn
+	}
 	return nil
 }
 

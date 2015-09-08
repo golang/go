@@ -90,6 +90,10 @@ const (
 	_EPOLL_CTL_ADD = 0x1
 	_EPOLL_CTL_DEL = 0x2
 	_EPOLL_CTL_MOD = 0x3
+
+	_AF_UNIX    = 0x1
+	_F_SETFL    = 0x4
+	_SOCK_DGRAM = 0x2
 )
 
 type fpreg struct {
@@ -217,4 +221,9 @@ type itimerval struct {
 type epollevent struct {
 	events uint32
 	data   [8]byte // to match amd64
+}
+
+type sockaddr_un struct {
+	family uint16
+	path   [108]byte
 }

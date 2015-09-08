@@ -10,7 +10,7 @@ import "unsafe"
 // because while ptr does not escape, new does.
 // If new is marked as not escaping, the compiler will make incorrect
 // escape analysis decisions about the pointer value being stored.
-// Instead, these are wrappers around the actual atomics (xchgp1 and so on)
+// Instead, these are wrappers around the actual atomics (casp1 and so on)
 // that use noescape to convey which arguments do not escape.
 //
 // Additionally, these functions must update the shadow heap for
@@ -20,13 +20,6 @@ import "unsafe"
 func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	atomicstorep1(noescape(ptr), new)
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-}
-
-//go:nosplit
-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
-	old := xchgp1(noescape(ptr), new)
-	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	return old
 }
 
 //go:nosplit

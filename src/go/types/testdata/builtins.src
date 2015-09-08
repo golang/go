@@ -307,9 +307,10 @@ func imag1() {
 	var c128 complex128
 	_ = imag() // ERROR not enough arguments
 	_ = imag(1, 2) // ERROR too many arguments
-	_ = imag(10 /* ERROR must be a complex number */)
-	_ = imag(2.7182818 /* ERROR must be a complex number */)
-	_ = imag("foo" /* ERROR must be a complex number */)
+	_ = imag(10)
+	_ = imag(2.7182818)
+	_ = imag("foo" /* ERROR expected complex */)
+	_ = imag('a')
 	const _5 = imag(1 + 2i)
 	assert(_5 == 2)
 	f32 = _5
@@ -331,8 +332,16 @@ func imag1() {
 	f32 = imag(x64)
 	f64 = imag(x128)
 
-	var s []complex64
-	_ = imag(s... /* ERROR invalid use of \.\.\. */ )
+	var a []complex64
+	_ = imag(a... /* ERROR invalid use of \.\.\. */ )
+
+	// if argument is untyped, result is untyped
+	const _ byte = imag(1.2 + 3i)
+	const _ complex128 = imag(1.2 + 3i)
+
+	// lhs constant shift operands are typed as complex128
+	var s uint
+	_ = imag(1 /* ERROR must be integer */ << s)
 }
 
 func imag2() {
@@ -579,9 +588,9 @@ func real1() {
 	var c128 complex128
 	_ = real() // ERROR not enough arguments
 	_ = real(1, 2) // ERROR too many arguments
-	_ = real(10 /* ERROR must be a complex number */)
-	_ = real(2.7182818 /* ERROR must be a complex number */)
-	_ = real("foo" /* ERROR must be a complex number */)
+	_ = real(10)
+	_ = real(2.7182818)
+	_ = real("foo" /* ERROR expected complex */)
 	const _5 = real(1 + 2i)
 	assert(_5 == 1)
 	f32 = _5
@@ -601,10 +610,18 @@ func real1() {
 	var x128 C128
 	f32 = imag(x64)
 	f64 = imag(x128)
-
-	var s []complex64
-	_ = real(s... /* ERROR invalid use of \.\.\. */ )
 	_, _ = f32, f64
+
+	var a []complex64
+	_ = real(a... /* ERROR invalid use of \.\.\. */ )
+
+	// if argument is untyped, result is untyped
+	const _ byte = real(1 + 2.3i)
+	const _ complex128 = real(1 + 2.3i)
+
+	// lhs constant shift operands are typed as complex128
+	var s uint
+	_ = real(1 /* ERROR must be integer */ << s)
 }
 
 func real2() {

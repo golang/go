@@ -506,6 +506,9 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 }
 
 func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) (err error) {
+	if !v.IsValid() {
+		return fmt.Errorf("asn1: cannot marshal nil value")
+	}
 	// If the field is an interface{} then recurse into it.
 	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
 		return marshalField(out, v.Elem(), params)

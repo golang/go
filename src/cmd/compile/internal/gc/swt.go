@@ -153,9 +153,9 @@ func typecheckswitch(n *Node) {
 						// reset to original type
 						ll.N = n.Left.Right
 					case ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr):
-						if have != nil && missing.Broke == 0 && have.Broke == 0 {
+						if have != nil && !missing.Broke && !have.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
-						} else if missing.Broke == 0 {
+						} else if !missing.Broke {
 							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym)
 						}
 					}
@@ -348,7 +348,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		n := l.N
 		setlineno(n)
 		if n.Op != OXCASE {
-			Fatal("casebody %v", Oconv(int(n.Op), 0))
+			Fatalf("casebody %v", Oconv(int(n.Op), 0))
 		}
 		n.Op = OCASE
 		needvar := count(n.List) != 1 || n.List.N.Op == OLITERAL
@@ -679,7 +679,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 		for _, c := range cc {
 			n := c.node
 			if c.typ != caseKindTypeConst {
-				Fatal("typeSwitch walkCases")
+				Fatalf("typeSwitch walkCases")
 			}
 			a := Nod(OIF, nil, nil)
 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))

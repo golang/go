@@ -34,10 +34,10 @@ func defframe(ptxt *obj.Prog) {
 			continue
 		}
 		if n.Class != gc.PAUTO {
-			gc.Fatal("needzero class %d", n.Class)
+			gc.Fatalf("needzero class %d", n.Class)
 		}
 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
 		}
 		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
 			// merge with range we already have
@@ -133,24 +133,14 @@ func clearfat(nl *gc.Node) {
 		n1.Op = gc.OINDREG
 		var z gc.Node
 		gc.Nodconst(&z, gc.Types[gc.TUINT64], 0)
-		for {
-			tmp14 := q
-			q--
-			if tmp14 <= 0 {
-				break
-			}
+		for ; q > 0; q-- {
 			n1.Type = z.Type
 			gins(x86.AMOVL, &z, &n1)
 			n1.Xoffset += 4
 		}
 
 		gc.Nodconst(&z, gc.Types[gc.TUINT8], 0)
-		for {
-			tmp15 := c
-			c--
-			if tmp15 <= 0 {
-				break
-			}
+		for ; c > 0; c-- {
 			n1.Type = z.Type
 			gins(x86.AMOVB, &z, &n1)
 			n1.Xoffset++
@@ -213,13 +203,13 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 	t := nl.Type
 
 	t0 := t
-	check := 0
+	check := false
 	if gc.Issigned[t.Etype] {
-		check = 1
+		check = true
 		if gc.Isconst(nl, gc.CTINT) && nl.Int() != -1<<uint64(t.Width*8-1) {
-			check = 0
+			check = false
 		} else if gc.Isconst(nr, gc.CTINT) && nr.Int() != -1 {
-			check = 0
+			check = false
 		}
 	}
 
@@ -229,7 +219,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 		} else {
 			t = gc.Types[gc.TUINT32]
 		}
-		check = 0
+		check = false
 	}
 
 	var t1 gc.Node
@@ -278,7 +268,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 		gc.Patch(p1, gc.Pc)
 	}
 
-	if check != 0 {
+	if check {
 		gc.Nodconst(&n4, t, -1)
 		gins(optoas(gc.OCMP, t), &n1, &n4)
 		p1 := gc.Gbranch(optoas(gc.ONE, t), nil, +1)
@@ -313,7 +303,7 @@ func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.N
 	} else {
 		gmove(dx, res)
 	}
-	if check != 0 {
+	if check {
 		gc.Patch(p2, gc.Pc)
 	}
 }
@@ -350,7 +340,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
  */
 func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if gc.Is64(nl.Type) {
-		gc.Fatal("cgen_div %v", nl.Type)
+		gc.Fatalf("cgen_div %v", nl.Type)
 	}
 
 	var t *gc.Type
@@ -377,7 +367,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  */
 func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if nl.Type.Width > 4 {
-		gc.Fatal("cgen_shift %v", nl.Type)
+		gc.Fatalf("cgen_shift %v", nl.Type)
 	}
 
 	w := int(nl.Type.Width * 8)
@@ -513,9 +503,7 @@ func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 
 	// largest ullman on left.
 	if nl.Ullman < nr.Ullman {
-		tmp := nl
-		nl = nr
-		nr = tmp
+		nl, nr = nr, nl
 	}
 
 	var nt gc.Node
@@ -677,7 +665,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	default:
 		gc.Dump("cgen_floatsse", n)
-		gc.Fatal("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
 		return
 
 	case gc.OMINUS,
@@ -705,9 +693,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 
 sbop: // symmetric binary
 	if nl.Ullman < nr.Ullman || nl.Op == gc.OLITERAL {
-		r := nl
-		nl = nr
-		nr = r
+		nl, nr = nr, nl
 	}
 
 abop: // asymmetric binary

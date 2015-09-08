@@ -42,14 +42,24 @@ func TestToEnglishName(t *testing.T) {
 		t.Fatalf("cannot open CEST time zone information from registry: %s", err)
 	}
 	defer k.Close()
-	std, _, err := k.GetStringValue("Std")
-	if err != nil {
-		t.Fatalf("cannot read CEST Std registry key: %s", err)
+
+	var std, dlt string
+	if err = registry.LoadRegLoadMUIString(); err == nil {
+		// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
+		std, err = k.GetMUIStringValue("MUI_Std")
+		if err == nil {
+			dlt, err = k.GetMUIStringValue("MUI_Dlt")
+		}
 	}
-	dlt, _, err := k.GetStringValue("Dlt")
-	if err != nil {
-		t.Fatalf("cannot read CEST Dlt registry key: %s", err)
+	if err != nil { // Fallback to Std and Dlt
+		if std, _, err = k.GetStringValue("Std"); err != nil {
+			t.Fatalf("cannot read CEST Std registry key: %s", err)
+		}
+		if dlt, _, err = k.GetStringValue("Dlt"); err != nil {
+			t.Fatalf("cannot read CEST Dlt registry key: %s", err)
+		}
 	}
+
 	name, err := ToEnglishName(std, dlt)
 	if err != nil {
 		t.Fatalf("toEnglishName failed: %s", err)

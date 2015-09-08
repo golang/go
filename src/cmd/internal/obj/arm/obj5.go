@@ -156,17 +156,6 @@ const (
 	LEAF  = 1 << 2
 )
 
-func linkcase(casep *obj.Prog) {
-	for p := casep; p != nil; p = p.Link {
-		if p.As == ABCASE {
-			for ; p != nil && p.As == ABCASE; p = p.Link {
-				p.Rel = casep
-			}
-			break
-		}
-	}
-}
-
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	autosize := int32(0)
 
@@ -196,11 +185,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	var q *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
 		switch p.As {
-		case ACASE:
-			if ctxt.Flag_shared != 0 {
-				linkcase(p)
-			}
-
 		case obj.ATEXT:
 			p.Mark |= LEAF
 
@@ -230,8 +214,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			cursym.Text.Mark &^= LEAF
 			fallthrough
 
-		case ABCASE,
-			AB,
+		case AB,
 			ABEQ,
 			ABNE,
 			ABCS,
@@ -914,7 +897,7 @@ loop:
 	if p.Pcond != nil {
 		if a != ABL && a != ABX && p.Link != nil {
 			q = obj.Brchain(ctxt, p.Link)
-			if a != obj.ATEXT && a != ABCASE {
+			if a != obj.ATEXT {
 				if q != nil && (q.Mark&FOLL != 0) {
 					p.As = int16(relinv(a))
 					p.Link = p.Pcond

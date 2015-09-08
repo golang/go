@@ -89,9 +89,6 @@ func dumpobj() {
 	dumpglobls()
 	externdcl = tmp
 
-	zero := Pkglookup("zerovalue", Runtimepkg)
-	ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
-
 	dumpdata()
 	obj.Writeobjdirect(Ctxt, bout)
 
@@ -120,7 +117,7 @@ func dumpglobls() {
 		}
 
 		if n.Type == nil {
-			Fatal("external %v nil type\n", n)
+			Fatalf("external %v nil type\n", n)
 		}
 		if n.Class == PFUNC {
 			continue
@@ -279,7 +276,7 @@ func slicebytes(nam *Node, s string, len int) {
 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
-		Fatal("slicebytes %v", nam)
+		Fatalf("slicebytes %v", nam)
 	}
 	off = int(nam.Xoffset)
 	off = dsymptr(nam.Sym, off, sym, 0)

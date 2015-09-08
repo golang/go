@@ -55,7 +55,7 @@ func TestTCPServer(t *testing.T) {
 
 	for i, tt := range tcpServerTests {
 		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
-			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"->"+tt.taddr)
+			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
 			continue
 		}
 
@@ -251,7 +251,7 @@ var udpServerTests = []struct {
 func TestUDPServer(t *testing.T) {
 	for i, tt := range udpServerTests {
 		if !testableListenArgs(tt.snet, tt.saddr, tt.taddr) {
-			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"->"+tt.taddr)
+			t.Logf("skipping %s test", tt.snet+" "+tt.saddr+"<-"+tt.taddr)
 			continue
 		}
 
@@ -329,7 +329,7 @@ var unixgramServerTests = []struct {
 func TestUnixgramServer(t *testing.T) {
 	for i, tt := range unixgramServerTests {
 		if !testableListenArgs("unixgram", tt.saddr, "") {
-			t.Logf("skipping %s test", "unixgram "+tt.saddr+"->"+tt.caddr)
+			t.Logf("skipping %s test", "unixgram "+tt.saddr+"<-"+tt.caddr)
 			continue
 		}
 

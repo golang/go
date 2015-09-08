@@ -27,6 +27,7 @@ var portTests = []struct {
 	{"tcp", "time", 37, true},
 	{"tcp", "domain", 53, true},
 	{"tcp", "finger", 79, true},
+	{"tcp", "42", 42, true},
 
 	{"udp", "echo", 7, true},
 	{"udp", "tftp", 69, true},
@@ -36,6 +37,7 @@ var portTests = []struct {
 	{"udp", "ntp", 123, true},
 	{"udp", "snmp", 161, true},
 	{"udp", "syslog", 514, true},
+	{"udp", "42", 42, true},
 
 	{"--badnet--", "zzz", 0, false},
 	{"tcp", "--badport--", 0, false},

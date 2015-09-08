@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
@@ -1139,5 +1140,47 @@ func TestUnterminatedStringError(t *testing.T) {
 	str := err.Error()
 	if !strings.Contains(str, "X:3: unexpected unterminated raw quoted strin") {
 		t.Fatalf("unexpected error: %s", str)
+	}
+}
+
+const alwaysErrorText = "always be failing"
+
+var alwaysError = errors.New(alwaysErrorText)
+
+type ErrorWriter int
+
+func (e ErrorWriter) Write(p []byte) (int, error) {
+	return 0, alwaysError
+}
+
+func TestExecuteGivesExecError(t *testing.T) {
+	// First, a non-execution error shouldn't be an ExecError.
+	tmpl, err := New("X").Parse("hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tmpl.Execute(ErrorWriter(0), 0)
+	if err == nil {
+		t.Fatal("expected error; got none")
+	}
+	if err.Error() != alwaysErrorText {
+		t.Errorf("expected %q error; got %q", alwaysErrorText, err)
+	}
+	// This one should be an ExecError.
+	tmpl, err = New("X").Parse("hello, {{.X.Y}}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = tmpl.Execute(ioutil.Discard, 0)
+	if err == nil {
+		t.Fatal("expected error; got none")
+	}
+	eerr, ok := err.(ExecError)
+	if !ok {
+		t.Fatalf("did not expect ExecError %s", eerr)
+	}
+	expect := "field X in type int"
+	if !strings.Contains(err.Error(), expect) {
+		t.Errorf("expected %q; got %q", expect, err)
 	}
 }

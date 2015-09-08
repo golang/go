@@ -763,6 +763,10 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
 				return false
 			}
 			d = d[1:]
+			if len(d) == 0 {
+				// ALPN protocols must not be empty.
+				return false
+			}
 			m.alpnProtocol = string(d)
 		case extensionSCT:
 			d := data[:length]

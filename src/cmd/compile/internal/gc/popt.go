@@ -306,11 +306,11 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.To.Val == nil {
-				Fatal("pnil %v", p)
+				Fatalf("pnil %v", p)
 			}
 			f1 = p.To.Val.(*obj.Prog).Opt.(*Flow)
 			if f1 == nil {
-				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
+				Fatalf("fnil %v / %v", p, p.To.Val.(*obj.Prog))
 			}
 			if f1 == f {
 				//fatal("self loop %v", p);
@@ -380,7 +380,7 @@ func rpolca(idom []int32, rpo1 int32, rpo2 int32) int32 {
 		for rpo1 < rpo2 {
 			t = idom[rpo2]
 			if t >= rpo2 {
-				Fatal("bad idom")
+				Fatalf("bad idom")
 			}
 			rpo2 = t
 		}
@@ -435,7 +435,7 @@ func flowrpo(g *Graph) {
 	d := postorder(g.Start, rpo2r, 0)
 	nr := int32(g.Num)
 	if d > nr {
-		Fatal("too many reg nodes %d %d", d, nr)
+		Fatalf("too many reg nodes %d %d", d, nr)
 	}
 	nr = d
 	var r1 *Flow
@@ -605,7 +605,7 @@ func mergetemp(firstp *obj.Prog) {
 	for f := g.Start; f != nil; f = f.Link {
 		p := f.Prog
 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt() != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt() != nil {
-			Fatal("double node %v", p)
+			Fatalf("double node %v", p)
 		}
 		v = nil
 		n, _ = p.From.Node.(*Node)
@@ -655,7 +655,7 @@ func mergetemp(firstp *obj.Prog) {
 					fmt.Printf("drop write-only %v\n", v.node.Sym)
 				}
 			} else {
-				Fatal("temp used and not set: %v", p)
+				Fatalf("temp used and not set: %v", p)
 			}
 			nkill++
 			continue

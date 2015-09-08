@@ -1,0 +1,12 @@
+Tools:
+
+cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
+
+Ports:
+
+NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+
+API additions and behavior changes:
+
+strconv: QuoteTOGraphic (https://golang.org/cl/14184/)
+text/template: ExecError (https://golang.org/cl/13957/)

@@ -138,7 +138,7 @@ func proginfo(p *obj.Prog) {
 	info := &p.Info
 	*info = progtable[p.As]
 	if info.Flags == 0 {
-		gc.Fatal("unknown instruction %v", p)
+		gc.Fatalf("unknown instruction %v", p)
 	}
 
 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {

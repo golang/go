@@ -105,74 +105,9 @@ func Linknew(arch *LinkArch) *Link {
 		log.Fatalf("unknown goos %s", Getgoos())
 	}
 
-	// Record thread-local storage offset.
-	// TODO(rsc): Move tlsoffset back into the linker.
-	switch ctxt.Headtype {
-	default:
-		log.Fatalf("unknown thread-local storage offset for %s", Headstr(ctxt.Headtype))
-
-	case Hplan9, Hwindows:
-		break
-
-		/*
-		 * ELF uses TLS offset negative from FS.
-		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
-		 * Known to low-level assembly in package runtime and runtime/cgo.
-		 */
-	case Hlinux,
-		Hfreebsd,
-		Hnetbsd,
-		Hopenbsd,
-		Hdragonfly,
-		Hsolaris:
-		ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
-
-	case Hnacl:
-		switch ctxt.Arch.Thechar {
-		default:
-			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
-
-		case '5':
-			ctxt.Tlsoffset = 0
-
-		case '6':
-			ctxt.Tlsoffset = 0
-
-		case '8':
-			ctxt.Tlsoffset = -8
-		}
-
-		/*
-		 * OS X system constants - offset from 0(GS) to our TLS.
-		 * Explained in ../../runtime/cgo/gcc_darwin_*.c.
-		 */
-	case Hdarwin:
-		switch ctxt.Arch.Thechar {
-		default:
-			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)
-
-		case '5':
-			ctxt.Tlsoffset = 0 // dummy value, not needed
-
-		case '6':
-			ctxt.Tlsoffset = 0x8a0
-
-		case '7':
-			ctxt.Tlsoffset = 0 // dummy value, not needed
-
-		case '8':
-			ctxt.Tlsoffset = 0x468
-		}
-	}
-
 	// On arm, record goarm.
 	if ctxt.Arch.Thechar == '5' {
-		p := Getgoarm()
-		if p != "" {
-			ctxt.Goarm = int32(Atoi(p))
-		} else {
-			ctxt.Goarm = 6
-		}
+		ctxt.Goarm = Getgoarm()
 	}
 
 	return ctxt

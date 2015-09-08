@@ -240,15 +240,15 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform) {
 	i1 := i0 + r.Dx()*4
 	for y := r.Min.Y; y != r.Max.Y; y++ {
 		for i := i0; i < i1; i += 4 {
-			dr := uint32(dst.Pix[i+0])
-			dg := uint32(dst.Pix[i+1])
-			db := uint32(dst.Pix[i+2])
-			da := uint32(dst.Pix[i+3])
+			dr := &dst.Pix[i+0]
+			dg := &dst.Pix[i+1]
+			db := &dst.Pix[i+2]
+			da := &dst.Pix[i+3]
 
-			dst.Pix[i+0] = uint8((dr*a/m + sr) >> 8)
-			dst.Pix[i+1] = uint8((dg*a/m + sg) >> 8)
-			dst.Pix[i+2] = uint8((db*a/m + sb) >> 8)
-			dst.Pix[i+3] = uint8((da*a/m + sa) >> 8)
+			*dr = uint8((uint32(*dr)*a/m + sr) >> 8)
+			*dg = uint8((uint32(*dg)*a/m + sg) >> 8)
+			*db = uint8((uint32(*db)*a/m + sb) >> 8)
+			*da = uint8((uint32(*da)*a/m + sa) >> 8)
 		}
 		i0 += dst.Stride
 		i1 += dst.Stride
@@ -310,18 +310,18 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
 			sb := uint32(spix[i+2]) * 0x101
 			sa := uint32(spix[i+3]) * 0x101
 
-			dr := uint32(dpix[i+0])
-			dg := uint32(dpix[i+1])
-			db := uint32(dpix[i+2])
-			da := uint32(dpix[i+3])
+			dr := &dpix[i+0]
+			dg := &dpix[i+1]
+			db := &dpix[i+2]
+			da := &dpix[i+3]
 
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - sa) * 0x101
 
-			dpix[i+0] = uint8((dr*a/m + sr) >> 8)
-			dpix[i+1] = uint8((dg*a/m + sg) >> 8)
-			dpix[i+2] = uint8((db*a/m + sb) >> 8)
-			dpix[i+3] = uint8((da*a/m + sa) >> 8)
+			*dr = uint8((uint32(*dr)*a/m + sr) >> 8)
+			*dg = uint8((uint32(*dg)*a/m + sg) >> 8)
+			*db = uint8((uint32(*db)*a/m + sb) >> 8)
+			*da = uint8((uint32(*da)*a/m + sa) >> 8)
 		}
 		d0 += ddelta
 		s0 += sdelta
@@ -471,18 +471,18 @@ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.Uniform, mask 
 			}
 			ma |= ma << 8
 
-			dr := uint32(dst.Pix[i+0])
-			dg := uint32(dst.Pix[i+1])
-			db := uint32(dst.Pix[i+2])
-			da := uint32(dst.Pix[i+3])
+			dr := &dst.Pix[i+0]
+			dg := &dst.Pix[i+1]
+			db := &dst.Pix[i+2]
+			da := &dst.Pix[i+3]
 
 			// The 0x101 is here for the same reason as in drawRGBA.
 			a := (m - (sa * ma / m)) * 0x101
 
-			dst.Pix[i+0] = uint8((dr*a + sr*ma) / m >> 8)
-			dst.Pix[i+1] = uint8((dg*a + sg*ma) / m >> 8)
-			dst.Pix[i+2] = uint8((db*a + sb*ma) / m >> 8)
-			dst.Pix[i+3] = uint8((da*a + sa*ma) / m >> 8)
+			*dr = uint8((uint32(*dr)*a + sr*ma) / m >> 8)
+			*dg = uint8((uint32(*dg)*a + sg*ma) / m >> 8)
+			*db = uint8((uint32(*db)*a + sb*ma) / m >> 8)
+			*da = uint8((uint32(*da)*a + sa*ma) / m >> 8)
 		}
 		i0 += dst.Stride
 		i1 += dst.Stride

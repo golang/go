@@ -142,7 +142,6 @@ var (
 // use in debuggers and such.
 
 const (
-	MAXIO   = 8192
 	MINFUNC = 16 // minimum size for a function
 )
 
@@ -240,12 +239,6 @@ var coutbuf struct {
 	*bufio.Writer
 	f *os.File
 }
-
-const (
-	// Whether to assume that the external linker is "gold"
-	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
-	AssumeGoldLinker = 0
-)
 
 const (
 	symname = "__.GOSYMDEF"
@@ -428,7 +421,7 @@ func loadinternal(name string) {
 			if Debug['v'] != 0 {
 				fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, shlibname)
 			}
-			if obj.Access(shlibname, obj.AEXIST) >= 0 {
+			if _, err := os.Stat(shlibname); err == nil {
 				addlibpath(Ctxt, "internal", "internal", "", name, shlibname)
 				found = 1
 				break
@@ -438,7 +431,7 @@ func loadinternal(name string) {
 		if Debug['v'] != 0 {
 			fmt.Fprintf(&Bso, "searching for %s.a in %s\n", name, pname)
 		}
-		if obj.Access(pname, obj.AEXIST) >= 0 {
+		if _, err := os.Stat(pname); err == nil {
 			addlibpath(Ctxt, "internal", "internal", pname, name, "")
 			found = 1
 			break
@@ -563,6 +556,36 @@ func loadlib() {
 	tlsg.Size = int64(Thearch.Ptrsize)
 	tlsg.Reachable = true
 	Ctxt.Tlsg = tlsg
+
+	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
+	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
+		// If the module (toolchain-speak for "executable or shared
+		// library") we are linking contains the runtime package, it
+		// will define the runtime.firstmoduledata symbol and we
+		// truncate it back to 0 bytes so we can define its entire
+		// contents in symtab.go:symtab().
+		moduledata.Size = 0
+
+		// In addition, on ARM, the runtime depends on the linker
+		// recording the value of GOARM.
+		if Thearch.Thechar == '5' {
+			s := Linklookup(Ctxt, "runtime.goarm", 0)
+
+			s.Type = obj.SRODATA
+			s.Size = 0
+			Adduint8(Ctxt, s, uint8(Ctxt.Goarm))
+		}
+	} else {
+		// If OTOH the module does not contain the runtime package,
+		// create a local symbol for the moduledata.
+		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
+		moduledata.Local = true
+	}
+	// In all cases way we mark the moduledata as noptrdata to hide it from
+	// the GC.
+	moduledata.Type = obj.SNOPTRDATA
+	moduledata.Reachable = true
+	Ctxt.Moduledata = moduledata
 
 	// Now that we know the link mode, trim the dynexp list.
 	x := CgoExportDynamic
@@ -945,10 +968,6 @@ func hostlink() {
 		} else {
 			argv = append(argv, "-mconsole")
 		}
-	}
-
-	if Iself && AssumeGoldLinker != 0 /*TypeKind(100016)*/ {
-		argv = append(argv, "-Wl,--rosegment")
 	}
 
 	switch Buildmode {
@@ -1455,10 +1474,6 @@ func Be32(b []byte) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-func Be64(b []byte) uint64 {
-	return uint64(Be32(b))<<32 | uint64(Be32(b[4:]))
-}
-
 type Chain struct {
 	sym   *LSym
 	up    *Chain
@@ -1668,33 +1683,6 @@ func stkprint(ch *Chain, limit int) {
 	if ch.limit != limit {
 		fmt.Printf("\t%d\tafter %s uses %d\n", limit, name, ch.limit-limit)
 	}
-}
-
-func Yconv(s *LSym) string {
-	var fp string
-
-	if s == nil {
-		fp += fmt.Sprintf("<nil>")
-	} else {
-		fmt_ := ""
-		fmt_ += fmt.Sprintf("%s @0x%08x [%d]", s.Name, int64(s.Value), int64(s.Size))
-		for i := 0; int64(i) < s.Size; i++ {
-			if i%8 == 0 {
-				fmt_ += fmt.Sprintf("\n\t0x%04x ", i)
-			}
-			fmt_ += fmt.Sprintf("%02x ", s.P[i])
-		}
-
-		fmt_ += fmt.Sprintf("\n")
-		for i := 0; i < len(s.R); i++ {
-			fmt_ += fmt.Sprintf("\t0x%04x[%x] %d %s[%x]\n", s.R[i].Off, s.R[i].Siz, s.R[i].Type, s.R[i].Sym.Name, int64(s.R[i].Add))
-		}
-
-		str := fmt_
-		fp += str
-	}
-
-	return fp
 }
 
 func Cflush() {

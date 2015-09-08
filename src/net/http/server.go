@@ -179,7 +179,9 @@ func (c *conn) closeNotify() <-chan bool {
 		c.sr.r = pr
 		c.sr.Unlock()
 		go func() {
-			_, err := io.Copy(pw, readSource)
+			bufp := copyBufPool.Get().(*[]byte)
+			defer copyBufPool.Put(bufp)
+			_, err := io.CopyBuffer(pw, readSource, *bufp)
 			if err == nil {
 				err = io.EOF
 			}
@@ -423,7 +425,9 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 		return 0, err
 	}
 	if !ok || !regFile {
-		return io.Copy(writerOnly{w}, src)
+		bufp := copyBufPool.Get().(*[]byte)
+		defer copyBufPool.Put(bufp)
+		return io.CopyBuffer(writerOnly{w}, src, *bufp)
 	}
 
 	// sendfile path:
@@ -486,6 +490,13 @@ var (
 	bufioWriter2kPool sync.Pool
 	bufioWriter4kPool sync.Pool
 )
+
+var copyBufPool = sync.Pool{
+	New: func() interface{} {
+		b := make([]byte, 32*1024)
+		return &b
+	},
+}
 
 func bufioWriterPool(size int) *sync.Pool {
 	switch size {

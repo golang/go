@@ -22,9 +22,6 @@ func xchg(ptr *uint32, new uint32) uint32
 //go:noescape
 func xchg64(ptr *uint64, new uint64) uint64
 
-// NO go:noescape annotation; see atomic_pointer.go.
-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
-
 //go:noescape
 func xchguintptr(ptr *uintptr, new uintptr) uintptr
 

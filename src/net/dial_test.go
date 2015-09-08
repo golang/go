@@ -643,7 +643,7 @@ func TestDialerDualStack(t *testing.T) {
 		}
 	}
 
-	var timeout = 100*time.Millisecond + closedPortDelay
+	var timeout = 150*time.Millisecond + closedPortDelay
 	for _, dualstack := range []bool{false, true} {
 		dss, err := newDualStackServer([]streamListener{
 			{network: "tcp4", address: "127.0.0.1"},

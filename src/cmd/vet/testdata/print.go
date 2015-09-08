@@ -195,6 +195,9 @@ func PrintfTests() {
 	et4.Error() // ok, not an error method.
 	var et5 errorTest5
 	et5.error() // ok, not an error method.
+	// Can't print a function.
+	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
+	Println(someFunction)      // ERROR "arg someFunction in Println call is a function value, not a function call"
 	// Bug: used to recur forever.
 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
 	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)
@@ -207,6 +210,10 @@ func PrintfTests() {
 	Logf("%d", 3)
 	Logf("%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: untyped string"
 
+}
+
+// A function we use as a function value; it has no other purpose.
+func someFunction() {
 }
 
 // Printf is used by the test so we must declare it.
@@ -297,14 +304,14 @@ func (s recursiveStringer) String() string {
 	_ = fmt.Sprintf("%v", s)  // ERROR "arg s for printf causes recursive call to String method"
 	_ = fmt.Sprintf("%v", &s) // ERROR "arg &s for printf causes recursive call to String method"
 	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
-	return fmt.Sprintln(s)    // ERROR "arg s for print causes recursive call to String method"
+	return fmt.Sprintln(s)    // ERROR "arg s in Sprintln call causes recursive call to String method"
 }
 
 type recursivePtrStringer int
 
 func (p *recursivePtrStringer) String() string {
 	_ = fmt.Sprintf("%v", *p)
-	return fmt.Sprintln(p) // ERROR "arg p for print causes recursive call to String method"
+	return fmt.Sprintln(p) // ERROR "arg p in Sprintln call causes recursive call to String method"
 }
 
 type Formatter bool
