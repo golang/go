@@ -7,15 +7,11 @@
 // Test that a defer in a function with no return
 // statement will compile correctly.
 
-package main
+package foo
 
 func deferNoReturn_ssa() {
 	defer func() { println("returned") }()
 	for {
 		println("loop")
 	}
-}
-
-func main() {
-	deferNoReturn_ssa()
 }
