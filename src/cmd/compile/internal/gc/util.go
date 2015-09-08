@@ -36,10 +36,10 @@ func isDigit(c int) bool {
 
 func plan9quote(s string) string {
 	if s == "" {
-		return "'" + strings.Replace(s, "'", "''", -1) + "'"
+		return "''"
 	}
-	for i := 0; i < len(s); i++ {
-		if s[i] <= ' ' || s[i] == '\'' {
+	for _, c := range s {
+		if c <= ' ' || c == '\'' {
 			return "'" + strings.Replace(s, "'", "''", -1) + "'"
 		}
 	}

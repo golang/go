@@ -32,8 +32,8 @@ var noinst_pkgs = []string{"sync", "sync/atomic"}
 
 func ispkgin(pkgs []string) bool {
 	if myimportpath != "" {
-		for i := 0; i < len(pkgs); i++ {
-			if myimportpath == pkgs[i] {
+		for _, p := range pkgs {
+			if myimportpath == p {
 				return true
 			}
 		}
