@@ -266,6 +266,14 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, aux int64, arg0, arg1, arg
 }
 
 // ConstInt returns an int constant representing its argument.
+func (f *Func) ConstBool(line int32, t Type, c bool) *Value {
+	// TODO: cache?
+	i := int64(0)
+	if c {
+		i = 1
+	}
+	return f.Entry.NewValue0I(line, OpConstBool, t, i)
+}
 func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
 	// TODO: cache?
 	return f.Entry.NewValue0I(line, OpConst8, t, int64(c))
