@@ -78,3 +78,6 @@ func TestRegalloc(t *testing.T) { runTest(t, "regalloc_ssa.go") }
 func TestString(t *testing.T) { runTest(t, "string_ssa.go") }
 
 func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn_ssa.go") }
+
+// TestClosure tests closure related behavior.
+func TestClosure(t *testing.T) { runTest(t, "closure_ssa.go") }
