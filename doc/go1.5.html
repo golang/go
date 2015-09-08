@@ -505,6 +505,13 @@ now require SWIG 3.0.6 or later.
 </li>
 
 <li>
+The <code>install</code> subcommand now removes the
+binary created by the <code>build</code> subcommand
+in the source directory, if present,
+to avoid problems having two binaries present in the tree.
+</li>
+
+<li>
 The <code>std</code> (standard library) wildcard package name
 now excludes commands.
 A new <code>cmd</code> wildcard covers the commands.
