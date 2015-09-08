@@ -371,7 +371,10 @@ func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ss
 	return s.f.Entry.NewValue2(s.peekLine(), op, t, arg0, arg1)
 }
 
-// constInt* routines add a new const int value to the entry block.
+// const* routines add a new const value to the entry block.
+func (s *state) constBool(c bool) *ssa.Value {
+	return s.f.ConstBool(s.peekLine(), Types[TBOOL], c)
+}
 func (s *state) constInt8(t ssa.Type, c int8) *ssa.Value {
 	return s.f.ConstInt8(s.peekLine(), t, c)
 }
@@ -647,7 +650,7 @@ func (s *state) stmt(n *Node) {
 		if n.Left != nil {
 			cond = s.expr(n.Left)
 		} else {
-			cond = s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 1) // 1 = true
+			cond = s.constBool(true)
 		}
 		b = s.endBlock()
 		b.Kind = ssa.BlockIf
@@ -1223,11 +1226,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case CTSTR:
 			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
 		case CTBOOL:
-			if n.Val().U.(bool) {
-				return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 1) // 1 = true
-			} else {
-				return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 0) // 0 = false
-			}
+			return s.constBool(n.Val().U.(bool))
 		case CTNIL:
 			t := n.Type
 			switch {
@@ -1947,7 +1946,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	case t.IsPtr():
 		return s.entryNewValue0(ssa.OpConstNil, t)
 	case t.IsBoolean():
-		return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 0) // 0 = false
+		return s.constBool(false)
 	case t.IsInterface():
 		return s.entryNewValue0(ssa.OpConstInterface, t)
 	case t.IsSlice():
