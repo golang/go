@@ -281,7 +281,7 @@ func dowidth(t *Type) {
 		}
 
 	case TSTRUCT:
-		if t.Funarg != 0 {
+		if t.Funarg {
 			Fatalf("dowidth fn struct %v", t)
 		}
 		w = widstruct(t, t, 0, 1)
@@ -366,7 +366,7 @@ func checkwidth(t *Type) {
 
 	// function arg structs should not be checked
 	// outside of the enclosing function.
-	if t.Funarg != 0 {
+	if t.Funarg {
 		Fatalf("checkwidth %v", t)
 	}
 
@@ -375,10 +375,10 @@ func checkwidth(t *Type) {
 		return
 	}
 
-	if t.Deferwidth != 0 {
+	if t.Deferwidth {
 		return
 	}
-	t.Deferwidth = 1
+	t.Deferwidth = true
 
 	l := tlfree
 	if l != nil {
@@ -405,7 +405,7 @@ func resumecheckwidth() {
 		Fatalf("resumecheckwidth")
 	}
 	for l := tlq; l != nil; l = tlq {
-		l.t.Deferwidth = 0
+		l.t.Deferwidth = false
 		tlq = l.next
 		dowidth(l.t)
 		l.next = tlfree

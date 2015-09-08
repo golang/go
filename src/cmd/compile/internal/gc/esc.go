@@ -1356,7 +1356,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	ll := n.List
 	if n.List != nil && n.List.Next == nil {
 		a := n.List.N
-		if a.Type.Etype == TSTRUCT && a.Type.Funarg != 0 { // f(g()).
+		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).
 			ll = e.nodeEscState(a).Escretval
 		}
 	}

@@ -192,7 +192,7 @@ func mapbucket(t *Type) *Type {
 	field = append(field, ovf)
 
 	// link up fields
-	bucket.Noalg = 1
+	bucket.Noalg = true
 	bucket.Local = t.Local
 	bucket.Type = field[0]
 	for n := int32(0); n < int32(len(field)-1); n++ {
@@ -232,7 +232,7 @@ func hmap(t *Type) *Type {
 	field[7] = makefield("overflow", Types[TUNSAFEPTR])
 
 	h := typ(TSTRUCT)
-	h.Noalg = 1
+	h.Noalg = true
 	h.Local = t.Local
 	h.Type = field[0]
 	for n := int32(0); n < int32(len(field)-1); n++ {
@@ -284,7 +284,7 @@ func hiter(t *Type) *Type {
 	// build iterator struct holding the above fields
 	i := typ(TSTRUCT)
 
-	i.Noalg = 1
+	i.Noalg = true
 	i.Type = field[0]
 	for n := int32(0); n < int32(len(field)-1); n++ {
 		field[n].Down = field[n+1]

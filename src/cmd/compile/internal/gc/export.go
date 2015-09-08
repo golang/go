@@ -273,10 +273,10 @@ func dumpexporttype(t *Type) {
 	if t == nil {
 		return
 	}
-	if t.Printed != 0 || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
+	if t.Printed || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
 		return
 	}
-	t.Printed = 1
+	t.Printed = true
 
 	if t.Sym != nil && t.Etype != TFIELD {
 		dumppkg(t.Sym.Pkg)
@@ -548,7 +548,7 @@ func dumpasmhdr() {
 
 		case OTYPE:
 			t = n.Type
-			if t.Etype != TSTRUCT || t.Map != nil || t.Funarg != 0 {
+			if t.Etype != TSTRUCT || t.Map != nil || t.Funarg {
 				break
 			}
 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))

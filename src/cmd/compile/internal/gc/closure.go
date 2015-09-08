@@ -322,7 +322,7 @@ func transformclosure(xfunc *Node) {
 				continue
 			}
 			fld = typ(TFIELD)
-			fld.Funarg = 1
+			fld.Funarg = true
 			if v.Name.Byval {
 				// If v is captured by value, we merely downgrade it to PPARAM.
 				v.Class = PPARAM
