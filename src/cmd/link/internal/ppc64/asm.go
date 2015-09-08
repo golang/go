@@ -330,6 +330,55 @@ func symtoc(s *ld.LSym) int64 {
 	return toc.Value
 }
 
+func archrelocaddr(r *ld.Reloc, s *ld.LSym, val *int64) int {
+	var o1, o2 uint32
+	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+		o1 = uint32(*val >> 32)
+		o2 = uint32(*val)
+	} else {
+		o1 = uint32(*val)
+		o2 = uint32(*val >> 32)
+	}
+
+	// We are spreading a 31-bit address across two instructions, putting the
+	// high (adjusted) part in the low 16 bits of the first instruction and the
+	// low part in the low 16 bits of the second instruction, or, in the DS case,
+	// bits 15-2 (inclusive) of the address into bits 15-2 of the second
+	// instruction (it is an error in this case if the low 2 bits of the address
+	// are non-zero).
+
+	t := ld.Symaddr(r.Sym) + r.Add
+	if t < 0 || t >= 1<<31 {
+		ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
+	}
+	if t&0x8000 != 0 {
+		t += 0x10000
+	}
+
+	switch r.Type {
+	case obj.R_ADDRPOWER:
+		o1 |= (uint32(t) >> 16) & 0xffff
+		o2 |= uint32(t) & 0xffff
+
+	case obj.R_ADDRPOWER_DS:
+		o1 |= (uint32(t) >> 16) & 0xffff
+		if t&3 != 0 {
+			ld.Ctxt.Diag("bad DS reloc for %s: %d", s.Name, ld.Symaddr(r.Sym))
+		}
+		o2 |= uint32(t) & 0xfffc
+
+	default:
+		return -1
+	}
+
+	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+		*val = int64(o1)<<32 | int64(o2)
+	} else {
+		*val = int64(o2)<<32 | int64(o1)
+	}
+	return 0
+}
+
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		// TODO(minux): translate R_ADDRPOWER and R_CALLPOWER into standard ELF relocations.
@@ -347,46 +396,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-	case obj.R_ADDRPOWER:
-		// We are spreading a 31-bit address across two instructions,
-		// putting the high (adjusted) part in the low 16 bits of the
-		// first instruction and the low part in the low 16 bits of the
-		// second instruction.
-		t := ld.Symaddr(r.Sym) + r.Add
-		if t < 0 || t >= 1<<31 {
-			ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, ld.Symaddr(r.Sym))
-		}
-		var o1, o2 uint32
-		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-			o1 = uint32(*val >> 32)
-			o2 = uint32(*val)
-		} else {
-			o1 = uint32(*val)
-			o2 = uint32(*val >> 32)
-		}
-		if t&0x8000 != 0 {
-			t += 0x10000
-		}
-		// There is an almost-bug here. When R_ADDRPOWER is relocating a
-		// load, the two instructions are addi and then a load. addi and
-		// almost all loads are "D-form" instructions, which have a
-		// 16-bit immediate in the lower 16-bits of the instruction
-		// word. But the load doubleword instruction is a "DS-form"
-		// instruction: the immediate only occupies bits 16-29 of the
-		// instruction and is implicity padded with zeros on the
-		// right. The reason the belows isn't a bug is because we only
-		// ever use immediates that have zeros on in their lower bits
-		// with ld, and we combine the immediate with | so bits 30 and
-		// 31 are preserved.
-		o1 |= (uint32(t) >> 16) & 0xffff
-		o2 |= uint32(t) & 0xffff
-
-		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-			*val = int64(o1)<<32 | int64(o2)
-		} else {
-			*val = int64(o2)<<32 | int64(o1)
-		}
-		return 0
+	case obj.R_ADDRPOWER, obj.R_ADDRPOWER_DS:
+		return archrelocaddr(r, s, val)
 
 	case obj.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2

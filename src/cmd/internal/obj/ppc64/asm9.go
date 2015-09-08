@@ -1377,14 +1377,57 @@ func oclass(a *obj.Addr) int {
 	return int(a.Class) - 1
 }
 
-// add R_ADDRPOWER relocation to symbol s with addend d
-func addaddrreloc(ctxt *obj.Link, s *obj.LSym, d int64) {
+const (
+	D_FORM = iota
+	DS_FORM
+)
+
+// opform returns the form (D_FORM or DS_FORM) of an instruction. Used to decide on
+// which relocation to use with a load or store and only supports the needed
+// instructions.
+func opform(ctxt *obj.Link, insn int32) int {
+	switch uint32(insn) {
+	default:
+		ctxt.Diag("bad insn in loadform: %x", insn)
+	case OPVCC(58, 0, 0, 0), // ld
+		OPVCC(58, 0, 0, 0) | 1<<1, // lwa
+		OPVCC(62, 0, 0, 0):        // std
+		return DS_FORM
+	case OP_ADDI, // add
+		OPVCC(32, 0, 0, 0), // lwz
+		OPVCC(42, 0, 0, 0), // lha
+		OPVCC(40, 0, 0, 0), // lhz
+		OPVCC(34, 0, 0, 0), // lbz
+		OPVCC(50, 0, 0, 0), // lfd
+		OPVCC(48, 0, 0, 0), // lfs
+		OPVCC(36, 0, 0, 0), // stw
+		OPVCC(44, 0, 0, 0), // sth
+		OPVCC(38, 0, 0, 0), // stb
+		OPVCC(54, 0, 0, 0), // stfd
+		OPVCC(52, 0, 0, 0): // stfs
+		return D_FORM
+	}
+	return 0
+}
+
+// Encode instructions and create relocation for accessing s+d according to the
+// instruction op with source or destination (as appropriate) register reg.
+func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op int32) (o1, o2 uint32) {
+	form := opform(ctxt, op)
+	o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, 0)
+	o2 = AOP_IRR(uint32(op), uint32(reg), REGTMP, 0)
 	rel := obj.Addrel(ctxt.Cursym)
 	rel.Off = int32(ctxt.Pc)
 	rel.Siz = 8
 	rel.Sym = s
 	rel.Add = d
-	rel.Type = obj.R_ADDRPOWER
+	switch form {
+	case D_FORM:
+		rel.Type = obj.R_ADDRPOWER
+	case DS_FORM:
+		rel.Type = obj.R_ADDRPOWER_DS
+	}
+	return
 }
 
 /*
@@ -1810,9 +1853,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			o1 = loadu32(int(p.To.Reg), d)
 			o2 = LOP_IRR(OP_ORI, uint32(p.To.Reg), uint32(p.To.Reg), uint32(int32(d)))
 		} else {
-			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, 0)
-			o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGTMP, 0)
-			addaddrreloc(ctxt, p.From.Sym, d)
+			o1, o2 = symbolAccess(ctxt, p.From.Sym, d, p.To.Reg, OP_ADDI)
 		}
 
 	//if(dlm) reloc(&p->from, p->pc, 0);
@@ -2377,26 +2418,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	/* relocation operations */
 	case 74:
 		v := vregoff(ctxt, &p.To)
-
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, 0)
-		o2 = AOP_IRR(uint32(opstore(ctxt, int(p.As))), uint32(p.From.Reg), REGTMP, 0)
-		addaddrreloc(ctxt, p.To.Sym, v)
+		o1, o2 = symbolAccess(ctxt, p.To.Sym, v, p.From.Reg, opstore(ctxt, int(p.As)))
 
 	//if(dlm) reloc(&p->to, p->pc, 1);
 
 	case 75:
 		v := vregoff(ctxt, &p.From)
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, 0)
-		o2 = AOP_IRR(uint32(opload(ctxt, int(p.As))), uint32(p.To.Reg), REGTMP, 0)
-		addaddrreloc(ctxt, p.From.Sym, v)
+		o1, o2 = symbolAccess(ctxt, p.From.Sym, v, p.To.Reg, opload(ctxt, int(p.As)))
 
 	//if(dlm) reloc(&p->from, p->pc, 1);
 
 	case 76:
 		v := vregoff(ctxt, &p.From)
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, 0)
-		o2 = AOP_IRR(uint32(opload(ctxt, int(p.As))), uint32(p.To.Reg), REGTMP, 0)
-		addaddrreloc(ctxt, p.From.Sym, v)
+		o1, o2 = symbolAccess(ctxt, p.From.Sym, v, p.To.Reg, opload(ctxt, int(p.As)))
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 		//if(dlm) reloc(&p->from, p->pc, 1);
