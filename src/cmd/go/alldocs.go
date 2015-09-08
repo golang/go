@@ -81,7 +81,6 @@ and test commands:
 
 	-a
 		force rebuilding of packages that are already up-to-date.
-		In Go releases, does not apply to the standard library.
 	-n
 		print the commands but do not run them.
 	-p n
@@ -226,12 +225,15 @@ which is schematically one of these:
 
 	go doc <pkg>
 	go doc <sym>[.<method>]
-	go doc [<pkg>].<sym>[.<method>]
+	go doc [<pkg>.]<sym>[.<method>]
+	go doc [<pkg>.][<sym>.]<method>
 
-The first item in this list matched by the argument is the one whose
-documentation is printed. (See the examples below.) For packages, the order of
-scanning is determined lexically, but the GOROOT tree is always scanned before
-GOPATH.
+The first item in this list matched by the argument is the one whose documentation
+is printed. (See the examples below.) However, if the argument starts with a capital
+letter it is assumed to identify a symbol or method in the current directory.
+
+For packages, the order of scanning is determined lexically, but the GOROOT tree
+is always scanned before GOPATH.
 
 If there is no package specified or matched, the package in the current
 directory is selected, so "go doc Foo" shows the documentation for symbol Foo in
@@ -278,6 +280,14 @@ Examples:
 		Show documentation for text/template's New function.
 	go doc text/template new # Two arguments
 		Show documentation for text/template's New function.
+
+	At least in the current tree, these invocations all print the
+	documentation for json.Decoder's Decode method:
+
+	go doc json.Decoder.Decode
+	go doc json.decoder.decode
+	go doc json.decode
+	cd go/src/encoding/json; go doc decode
 
 Flags:
 	-c
@@ -484,8 +494,8 @@ rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
 
-If the vendoring experiment is enabled (see 'go help gopath'),
-then when go get checks out or updates a Git repository,
+Unless vendoring support is disabled (see 'go help gopath'),
+when go get checks out or updates a Git repository,
 it also updates any git submodules referenced by the repository.
 
 For more about specifying packages, see 'go help packages'.
@@ -934,13 +944,10 @@ See https://golang.org/s/go14internal for details.
 
 Vendor Directories
 
-Go 1.5 includes experimental support for using local copies
-of external dependencies to satisfy imports of those dependencies,
-often referred to as vendoring. Setting the environment variable
-GO15VENDOREXPERIMENT=1 enables that experimental support.
+Go 1.6 includes support for using local copies of external dependencies
+to satisfy imports of those dependencies, often referred to as vendoring.
 
-When the vendor experiment is enabled,
-code below a directory named "vendor" is importable only
+Code below a directory named "vendor" is importable only
 by code in the directory tree rooted at the parent of "vendor",
 and only using an import path that omits the prefix up to and
 including the vendor element.
@@ -978,9 +985,18 @@ top-level "crash/bang".
 Code in vendor directories is not subject to import path
 checking (see 'go help importpath').
 
-When the vendor experiment is enabled, 'go get' checks out
-submodules when checking out or updating a git repository
-(see 'go help get').
+When 'go get' checks out or updates a git repository, it now also
+updates submodules.
+
+Vendor directories do not affect the placement of new repositories
+being checked out for the first time by 'go get': those are always
+placed in the main GOPATH, never in a vendor subtree.
+
+In Go 1.5, as an experiment, setting the environment variable
+GO15VENDOREXPERIMENT=1 enabled these features.
+As of Go 1.6 they are on by default. To turn them off, set
+GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
+variable will stop having any effect.
 
 The vendoring semantics are an experiment, and they may change
 in future releases. Once settled, they will be on by default.

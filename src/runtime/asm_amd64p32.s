@@ -517,13 +517,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
-TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
-	MOVL	ptr+0(FP), BX
-	MOVL	new+4(FP), AX
-	XCHGL	AX, 0(BX)
-	MOVL	AX, ret+8(FP)
-	RET
-
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-12
 	JMP	runtime·xchg(SB)
 
@@ -596,6 +589,12 @@ TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Not implemented.
 TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
+	MOVL	0, AX
+	RET
+
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// Not implemented.
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 

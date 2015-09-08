@@ -3685,3 +3685,35 @@ Host: golang.org
 		<-conn.closec
 	}
 }
+
+func BenchmarkCloseNotifier(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	sawClose := make(chan bool)
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		<-rw.(CloseNotifier).CloseNotify()
+		sawClose <- true
+	}))
+	defer ts.Close()
+	tot := time.NewTimer(5 * time.Second)
+	defer tot.Stop()
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			b.Fatalf("error dialing: %v", err)
+		}
+		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+		if err != nil {
+			b.Fatal(err)
+		}
+		conn.Close()
+		tot.Reset(5 * time.Second)
+		select {
+		case <-sawClose:
+		case <-tot.C:
+			b.Fatal("timeout")
+		}
+	}
+	b.StopTimer()
+}

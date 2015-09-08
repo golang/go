@@ -78,10 +78,10 @@ func startProfile() {
 	if cpuprofile != "" {
 		f, err := os.Create(cpuprofile)
 		if err != nil {
-			Fatal("%v", err)
+			Fatalf("%v", err)
 		}
 		if err := pprof.StartCPUProfile(f); err != nil {
-			Fatal("%v", err)
+			Fatalf("%v", err)
 		}
 		AtExit(pprof.StopCPUProfile)
 	}
@@ -91,12 +91,12 @@ func startProfile() {
 		}
 		f, err := os.Create(memprofile)
 		if err != nil {
-			Fatal("%v", err)
+			Fatalf("%v", err)
 		}
 		AtExit(func() {
 			runtime.GC() // profile all outstanding allocations
 			if err := pprof.WriteHeapProfile(f); err != nil {
-				Fatal("%v", err)
+				Fatalf("%v", err)
 			}
 		})
 	}

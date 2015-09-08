@@ -38,6 +38,13 @@ type AEAD interface {
 	Open(dst, nonce, ciphertext, data []byte) ([]byte, error)
 }
 
+// gcmAble is an interface implemented by ciphers that have a specific optimized
+// implementation of GCM, like crypto/aes. NewGCM will check for this interface
+// and return the specific AEAD if found.
+type gcmAble interface {
+	NewGCM(int) (AEAD, error)
+}
+
 // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
 // standard and make getUint64 suitable for marshaling these values, the bits
 // are stored backwards. For example:
@@ -72,6 +79,10 @@ func NewGCM(cipher Block) (AEAD, error) {
 // cryptosystem that uses non-standard nonce lengths. All other users should use
 // NewGCM, which is faster and more resistant to misuse.
 func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+	if cipher, ok := cipher.(gcmAble); ok {
+		return cipher.NewGCM(size)
+	}
+
 	if cipher.BlockSize() != gcmBlockSize {
 		return nil, errors.New("cipher: NewGCM requires 128-bit block cipher")
 	}

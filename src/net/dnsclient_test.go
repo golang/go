@@ -67,3 +67,28 @@ func testWeighting(t *testing.T, margin float64) {
 func TestWeighting(t *testing.T) {
 	testWeighting(t, 0.05)
 }
+
+// Issue 8434: verify that Temporary returns true on an error when rcode
+// is SERVFAIL
+func TestIssue8434(t *testing.T) {
+	msg := &dnsMsg{
+		dnsMsgHdr: dnsMsgHdr{
+			rcode: dnsRcodeServerFailure,
+		},
+	}
+
+	_, _, err := answer("golang.org", "foo:53", msg, uint16(dnsTypeSRV))
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if ne, ok := err.(Error); !ok {
+		t.Fatalf("err = %#v; wanted something supporting net.Error", err)
+	} else if !ne.Temporary() {
+		t.Fatalf("Temporary = false for err = %#v; want Temporary == true", err)
+	}
+	if de, ok := err.(*DNSError); !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	} else if !de.IsTemporary {
+		t.Fatalf("IsTemporary = false for err = %#v; want IsTemporary == true", err)
+	}
+}

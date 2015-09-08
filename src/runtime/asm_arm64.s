@@ -426,7 +426,6 @@ end:						\
 
 // These have 8 added to make the overall frame size a multiple of 16,
 // as required by the ABI. (There is another +8 for the saved LR.)
-CALLFN(·call16, 24 )
 CALLFN(·call32, 40 )
 CALLFN(·call64, 72 )
 CALLFN(·call128, 136 )
@@ -1029,3 +1028,5 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 	RET
 
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
+        RET

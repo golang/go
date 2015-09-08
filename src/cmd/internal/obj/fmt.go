@@ -17,18 +17,11 @@ package obj
 const (
 	FmtWidth = 1 << iota
 	FmtLeft
-	FmtPrec
 	FmtSharp
-	FmtSpace
 	FmtSign
-	FmtApost
-	FmtZero
 	FmtUnsigned
 	FmtShort
 	FmtLong
-	FmtVLong
 	FmtComma
 	FmtByte
-	FmtLDouble
-	FmtFlag
 )

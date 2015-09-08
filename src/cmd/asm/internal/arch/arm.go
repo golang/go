@@ -121,6 +121,15 @@ func IsARMMRC(op int) bool {
 	return false
 }
 
+// IsARMFloatCmp reports whether the op is a floating comparison instruction.
+func IsARMFloatCmp(op int) bool {
+	switch op {
+	case arm.ACMPF, arm.ACMPD:
+		return true
+	}
+	return false
+}
+
 // ARMMRCOffset implements the peculiar encoding of the MRC and MCR instructions.
 // The difference between MRC and MCR is represented by a bit high in the word, not
 // in the usual way by the opcode itself. Asm must use AMRC for both instructions, so

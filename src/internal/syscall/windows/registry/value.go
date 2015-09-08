@@ -108,8 +108,63 @@ func (k Key) GetStringValue(name string) (val string, valtype uint32, err error)
 	if len(data) == 0 {
 		return "", typ, nil
 	}
-	u := (*[1 << 10]uint16)(unsafe.Pointer(&data[0]))[:]
+	u := (*[1 << 29]uint16)(unsafe.Pointer(&data[0]))[:]
 	return syscall.UTF16ToString(u), typ, nil
+}
+
+// GetMUIStringValue retrieves the localized string value for
+// the specified value name associated with an open key k.
+// If the value name doesn't exist or the localized string value
+// can't be resolved, GetMUIStringValue returns ErrNotExist.
+// GetMUIStringValue panics if the system doesn't support
+// regLoadMUIString; use LoadRegLoadMUIString to check if
+// regLoadMUIString is supported before calling this function.
+func (k Key) GetMUIStringValue(name string) (string, error) {
+	pname, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return "", err
+	}
+
+	buf := make([]uint16, 1024)
+	var buflen uint32
+	var pdir *uint16
+
+	err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+	if err == syscall.ERROR_FILE_NOT_FOUND { // Try fallback path
+
+		// Try to resolve the string value using the system directory as
+		// a DLL search path; this assumes the string value is of the form
+		// @[path]\dllname,-strID but with no path given, e.g. @tzres.dll,-320.
+
+		// This approach works with tzres.dll but may have to be revised
+		// in the future to allow callers to provide custom search paths.
+
+		var s string
+		s, err = ExpandString("%SystemRoot%\\system32\\")
+		if err != nil {
+			return "", err
+		}
+		pdir, err = syscall.UTF16PtrFromString(s)
+		if err != nil {
+			return "", err
+		}
+
+		err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+	}
+
+	for err == syscall.ERROR_MORE_DATA { // Grow buffer if needed
+		if buflen <= uint32(len(buf)) {
+			break // Buffer not growing, assume race; break
+		}
+		buf = make([]uint16, buflen)
+		err = regLoadMUIString(syscall.Handle(k), pname, &buf[0], uint32(len(buf)), &buflen, 0, pdir)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return syscall.UTF16ToString(buf), nil
 }
 
 // ExpandString expands environment-variable strings and replaces
@@ -130,7 +185,7 @@ func ExpandString(value string) (string, error) {
 			return "", err
 		}
 		if n <= uint32(len(r)) {
-			u := (*[1 << 15]uint16)(unsafe.Pointer(&r[0]))[:]
+			u := (*[1 << 29]uint16)(unsafe.Pointer(&r[0]))[:]
 			return syscall.UTF16ToString(u), nil
 		}
 		r = make([]uint16, n)
@@ -153,7 +208,7 @@ func (k Key) GetStringsValue(name string) (val []string, valtype uint32, err err
 	if len(data) == 0 {
 		return nil, typ, nil
 	}
-	p := (*[1 << 24]uint16)(unsafe.Pointer(&data[0]))[:len(data)/2]
+	p := (*[1 << 29]uint16)(unsafe.Pointer(&data[0]))[:len(data)/2]
 	if len(p) == 0 {
 		return nil, typ, nil
 	}
@@ -241,7 +296,7 @@ func (k Key) setStringValue(name string, valtype uint32, value string) error {
 	if err != nil {
 		return err
 	}
-	buf := (*[1 << 10]byte)(unsafe.Pointer(&v[0]))[:len(v)*2]
+	buf := (*[1 << 29]byte)(unsafe.Pointer(&v[0]))[:len(v)*2]
 	return k.setValue(name, valtype, buf)
 }
 
@@ -271,7 +326,7 @@ func (k Key) SetStringsValue(name string, value []string) error {
 		ss += s + "\x00"
 	}
 	v := utf16.Encode([]rune(ss + "\x00"))
-	buf := (*[1 << 10]byte)(unsafe.Pointer(&v[0]))[:len(v)*2]
+	buf := (*[1 << 29]byte)(unsafe.Pointer(&v[0]))[:len(v)*2]
 	return k.setValue(name, MULTI_SZ, buf)
 }
 

@@ -11,10 +11,12 @@
 // One argument:
 //	go doc <pkg>
 //	go doc <sym>[.<method>]
-//	go doc [<pkg>].<sym>[.<method>]
+//	go doc [<pkg>.]<sym>[.<method>]
+//	go doc [<pkg>.][<sym>.]<method>
 // The first item in this list that succeeds is the one whose documentation
 // is printed. If there is a symbol but no package, the package in the current
-// directory is chosen.
+// directory is chosen. However, if the argument begins with a capital
+// letter it is always assumed to be a symbol in the current directory.
 //
 // Two arguments:
 //	go doc <pkg> <sym>[.<method>]

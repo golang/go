@@ -66,11 +66,11 @@ var nsclean int
  */
 func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 	if !gc.Is64(n.Type) {
-		gc.Fatal("split64 %v", n.Type)
+		gc.Fatalf("split64 %v", n.Type)
 	}
 
 	if nsclean >= len(sclean) {
-		gc.Fatal("split64 clean")
+		gc.Fatalf("split64 clean")
 	}
 	sclean[nsclean].Op = gc.OEMPTY
 	nsclean++
@@ -125,7 +125,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
 
 func splitclean() {
 	if nsclean <= 0 {
-		gc.Fatal("splitclean")
+		gc.Fatalf("splitclean")
 	}
 	nsclean--
 	if sclean[nsclean].Op != gc.OEMPTY {
@@ -204,7 +204,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	switch uint32(ft)<<16 | uint32(tt) {
 	default:
 		// should not happen
-		gc.Fatal("gmove %v -> %v", f, t)
+		gc.Fatalf("gmove %v -> %v", f, t)
 		return
 
 		/*
@@ -546,7 +546,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	case gc.TUINT64<<16 | gc.TFLOAT32,
 		gc.TUINT64<<16 | gc.TFLOAT64:
-		gc.Fatal("gmove UINT64, TFLOAT not implemented")
+		gc.Fatalf("gmove UINT64, TFLOAT not implemented")
 		return
 
 		/*
@@ -641,7 +641,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	//	int32 v;
 
 	if f != nil && f.Op == gc.OINDEX {
-		gc.Fatal("gins OINDEX not implemented")
+		gc.Fatalf("gins OINDEX not implemented")
 	}
 
 	//		gc.Regalloc(&nod, &regnode, Z);
@@ -651,7 +651,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	//		idx.reg = nod.reg;
 	//		gc.Regfree(&nod);
 	if t != nil && t.Op == gc.OINDEX {
-		gc.Fatal("gins OINDEX not implemented")
+		gc.Fatalf("gins OINDEX not implemented")
 	}
 
 	//		gc.Regalloc(&nod, &regnode, Z);
@@ -677,7 +677,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 				/* generate a comparison
 				TODO(kaib): one of the args can actually be a small constant. relax the constraint and fix call sites.
 				*/
-				gc.Fatal("bad operands to gcmp")
+				gc.Fatalf("bad operands to gcmp")
 			}
 			p.From = p.To
 			p.To = obj.Addr{}
@@ -686,22 +686,22 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 
 	case arm.AMULU:
 		if f != nil && f.Op != gc.OREGISTER {
-			gc.Fatal("bad operands to mul")
+			gc.Fatalf("bad operands to mul")
 		}
 
 	case arm.AMOVW:
 		if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR || p.From.Type == obj.TYPE_CONST) && (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) {
-			gc.Fatal("gins double memory")
+			gc.Fatalf("gins double memory")
 		}
 
 	case arm.AADD:
 		if p.To.Type == obj.TYPE_MEM {
-			gc.Fatal("gins arith to mem")
+			gc.Fatalf("gins arith to mem")
 		}
 
 	case arm.ARSB:
 		if p.From.Type == obj.TYPE_NONE {
-			gc.Fatal("rsb with no from")
+			gc.Fatalf("rsb with no from")
 		}
 	}
 
@@ -719,9 +719,9 @@ func raddr(n *gc.Node, p *obj.Prog) {
 	gc.Naddr(&a, n)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
-			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+			gc.Fatalf("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
 		} else {
-			gc.Fatal("bad in raddr: <null>")
+			gc.Fatalf("bad in raddr: <null>")
 		}
 		p.Reg = 0
 	} else {
@@ -734,7 +734,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
  */
 func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Prog {
 	if sval <= 0 || sval > 32 {
-		gc.Fatal("bad shift value: %d", sval)
+		gc.Fatalf("bad shift value: %d", sval)
 	}
 
 	sval = sval & 0x1f
@@ -759,13 +759,13 @@ func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *o
  */
 func optoas(op int, t *gc.Type) int {
 	if t == nil {
-		gc.Fatal("optoas: t is nil")
+		gc.Fatalf("optoas: t is nil")
 	}
 
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatal("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(int(op), 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
+		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(int(op), 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
 
 		/*	case CASE(OADDR, TPTR32):
 				a = ALEAL;
@@ -1188,7 +1188,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
 
 		for i := 1; i < o; i++ {
 			if oary[i] >= 0 {
-				gc.Fatal("can't happen")
+				gc.Fatalf("can't happen")
 			}
 			gins(arm.AMOVW, &n1, reg)
 			gc.Cgen_checknil(reg)

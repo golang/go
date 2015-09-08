@@ -237,9 +237,11 @@ func Main() {
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared int
 	var flag_dynlink bool
+	if Thearch.Thechar == '6' || Thearch.Thechar == '5' {
+		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
+	}
 	if Thearch.Thechar == '6' {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
-		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
@@ -305,7 +307,7 @@ func Main() {
 
 	Thearch.Betypeinit()
 	if Widthptr == 0 {
-		Fatal("betypeinit failed")
+		Fatalf("betypeinit failed")
 	}
 
 	lexinit()
@@ -317,6 +319,7 @@ func Main() {
 	dclcontext = PEXTERN
 	nerrors = 0
 	lexlineno = 1
+	const BOM = 0xFEFF
 
 	for _, infile = range flag.Args() {
 		linehistpush(infile)
@@ -336,7 +339,7 @@ func Main() {
 		curio.last = 0
 
 		// Skip initial BOM if present.
-		if obj.Bgetrune(curio.bin) != obj.BOM {
+		if obj.Bgetrune(curio.bin) != BOM {
 			obj.Bungetrune(curio.bin)
 		}
 
@@ -360,7 +363,7 @@ func Main() {
 	mkpackage(localpkg.Name) // final import not used checks
 	lexfini()
 
-	typecheckok = 1
+	typecheckok = true
 	if Debug['f'] != 0 {
 		frame(1)
 	}
@@ -421,10 +424,10 @@ func Main() {
 	if Debug['l'] > 1 {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
-		for l := importlist; l != nil; l = l.Next {
-			if l.N.Func.Inl != nil {
+		for _, n := range importlist {
+			if n.Func.Inl != nil {
 				saveerrors()
-				typecheckinl(l.N)
+				typecheckinl(n)
 			}
 		}
 
@@ -435,11 +438,13 @@ func Main() {
 
 	if Debug['l'] != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
-		visitBottomUp(xtop, func(list *NodeList, recursive bool) {
-			for l := list; l != nil; l = l.Next {
-				if l.N.Op == ODCLFUNC {
-					caninl(l.N)
-					inlcalls(l.N)
+		visitBottomUp(xtop, func(list []*Node, recursive bool) {
+			// TODO: use a range statement here if the order does not matter
+			for i := len(list) - 1; i >= 0; i-- {
+				n := list[i]
+				if n.Op == ODCLFUNC {
+					caninl(n)
+					inlcalls(n)
 				}
 			}
 		})
@@ -597,11 +602,11 @@ func findpkg(name string) (file string, ok bool) {
 		// if there is an array.6 in the array.a library,
 		// want to find all of array.a, not just array.6.
 		file = fmt.Sprintf("%s.a", name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		file = fmt.Sprintf("%s.o", name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		return "", false
@@ -619,11 +624,11 @@ func findpkg(name string) (file string, ok bool) {
 
 	for p := idirs; p != nil; p = p.link {
 		file = fmt.Sprintf("%s/%s.a", p.dir, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		file = fmt.Sprintf("%s/%s.o", p.dir, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 	}
@@ -640,11 +645,11 @@ func findpkg(name string) (file string, ok bool) {
 		}
 
 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
-		if obj.Access(file, 0) >= 0 {
+		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
 	}
@@ -740,7 +745,7 @@ func importfile(f *Val, line int) {
 
 	// If we already saw that package, feed a dummy statement
 	// to the lexer to avoid parsing export data twice.
-	if importpkg.Imported != 0 {
+	if importpkg.Imported {
 		tag := ""
 		if importpkg.Safe {
 			tag = "safe"
@@ -751,7 +756,7 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	importpkg.Imported = 1
+	importpkg.Imported = true
 
 	var err error
 	var imp *obj.Biobuf
@@ -799,7 +804,7 @@ func importfile(f *Val, line int) {
 	curio.peekc1 = 0
 	curio.infile = file
 	curio.nlsemi = 0
-	typecheckok = 1
+	typecheckok = true
 
 	var c int32
 	for {
@@ -836,7 +841,7 @@ func unimportfile() {
 
 	pushedio.bin = nil
 	incannedimport = 0
-	typecheckok = 0
+	typecheckok = false
 }
 
 func cannedimports(file string, cp string) {
@@ -852,7 +857,7 @@ func cannedimports(file string, cp string) {
 	curio.nlsemi = 0
 	curio.importsafe = false
 
-	typecheckok = 1
+	typecheckok = true
 	incannedimport = 1
 }
 
@@ -1623,6 +1628,9 @@ func getlinepragma() int {
 		}
 
 		if verb == "go:systemstack" {
+			if compiling_runtime == 0 {
+				Yyerror("//go:systemstack only allowed in runtime")
+			}
 			systemstack = true
 			return c
 		}
@@ -2200,7 +2208,7 @@ func lexinit() {
 		etype = syms[i].etype
 		if etype != Txxx {
 			if etype < 0 || etype >= len(Types) {
-				Fatal("lexinit: %s bad etype", s.Name)
+				Fatalf("lexinit: %s bad etype", s.Name)
 			}
 			s1 = Pkglookup(syms[i].name, builtinpkg)
 			t = Types[etype]
@@ -2281,20 +2289,20 @@ func lexinit1() {
 
 	rcvr.Type = typ(TFIELD)
 	rcvr.Type.Type = Ptrto(typ(TSTRUCT))
-	rcvr.Funarg = 1
+	rcvr.Funarg = true
 	in := typ(TSTRUCT)
-	in.Funarg = 1
+	in.Funarg = true
 	out := typ(TSTRUCT)
 	out.Type = typ(TFIELD)
 	out.Type.Type = Types[TSTRING]
-	out.Funarg = 1
+	out.Funarg = true
 	f := typ(TFUNC)
 	*getthis(f) = rcvr
 	*Getoutarg(f) = out
 	*getinarg(f) = in
 	f.Thistuple = 1
 	f.Intuple = 0
-	f.Outnamed = 0
+	f.Outnamed = false
 	f.Outtuple = 1
 	t := typ(TINTER)
 	t.Type = typ(TFIELD)

@@ -89,37 +89,30 @@ func typekind(t *Type) string {
 	return fmt.Sprintf("etype=%d", et)
 }
 
-/*
- * sprint_depchain prints a dependency chain
- * of nodes into fmt.
- * It is used by typecheck in the case of OLITERAL nodes
- * to print constant definition loops.
- */
-func sprint_depchain(fmt_ *string, stack *NodeList, cur *Node, first *Node) {
-	for l := stack; l != nil; l = l.Next {
-		if l.N.Op == cur.Op {
-			if l.N != first {
-				sprint_depchain(fmt_, l.Next, l.N, first)
+// sprint_depchain prints a dependency chain of nodes into fmt.
+// It is used by typecheck in the case of OLITERAL nodes
+// to print constant definition loops.
+func sprint_depchain(fmt_ *string, stack []*Node, cur *Node, first *Node) {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if n := stack[i]; n.Op == cur.Op {
+			if n != first {
+				sprint_depchain(fmt_, stack[:i], n, first)
 			}
-			*fmt_ += fmt.Sprintf("\n\t%v: %v uses %v", l.N.Line(), l.N, cur)
+			*fmt_ += fmt.Sprintf("\n\t%v: %v uses %v", n.Line(), n, cur)
 			return
 		}
 	}
 }
 
-/*
- * type check node *np.
- * replaces *np with a new pointer in some cases.
- * returns the final value of *np as a convenience.
- */
+var typecheck_tcstack []*Node
 
-var typecheck_tcstack *NodeList
-var typecheck_tcfree *NodeList
-
+// typecheck type checks node *np.
+// It replaces *np with a new pointer in some cases.
+// It returns the final value of *np as a convenience.
 func typecheck(np **Node, top int) *Node {
 	// cannot type check until all the source has been parsed
-	if typecheckok == 0 {
-		Fatal("early typecheck")
+	if !typecheckok {
+		Fatalf("early typecheck")
 	}
 
 	n := *np
@@ -168,16 +161,15 @@ func typecheck(np **Node, top int) *Node {
 				Yyerror("%v is not a type", n)
 				break
 			}
-
-			fmt_ = ""
 			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
 			yyerrorl(int(n.Lineno), "constant definition loop%s", fmt_)
 		}
 
 		if nsavederrors+nerrors == 0 {
 			fmt_ = ""
-			for l := typecheck_tcstack; l != nil; l = l.Next {
-				fmt_ += fmt.Sprintf("\n\t%v %v", l.N.Line(), l.N)
+			for i := len(typecheck_tcstack) - 1; i >= 0; i-- {
+				x := typecheck_tcstack[i]
+				fmt_ += fmt.Sprintf("\n\t%v %v", x.Line(), x)
 			}
 			Yyerror("typechecking loop involving %v%s", n, fmt_)
 		}
@@ -188,27 +180,15 @@ func typecheck(np **Node, top int) *Node {
 
 	n.Typecheck = 2
 
-	var l *NodeList
-	if typecheck_tcfree != nil {
-		l = typecheck_tcfree
-		typecheck_tcfree = l.Next
-	} else {
-		l = new(NodeList)
-	}
-	l.Next = typecheck_tcstack
-	l.N = n
-	typecheck_tcstack = l
-
+	typecheck_tcstack = append(typecheck_tcstack, n)
 	typecheck1(&n, top)
 	*np = n
+
 	n.Typecheck = 1
 
-	if typecheck_tcstack != l {
-		Fatal("typecheck stack out of sync")
-	}
-	typecheck_tcstack = l.Next
-	l.Next = typecheck_tcfree
-	typecheck_tcfree = l
+	last := len(typecheck_tcstack) - 1
+	typecheck_tcstack[last] = nil
+	typecheck_tcstack = typecheck_tcstack[:last]
 
 	lineno = int32(lno)
 	return n
@@ -293,7 +273,7 @@ OpSwitch:
 	default:
 		Dump("typecheck", n)
 
-		Fatal("typecheck %v", Oconv(int(n.Op), 0))
+		Fatalf("typecheck %v", Oconv(int(n.Op), 0))
 
 		/*
 		 * names
@@ -368,7 +348,7 @@ OpSwitch:
 		} else if l.Op == ODDD {
 			t.Bound = -100 // to be filled in
 			if top&Ecomplit == 0 && n.Diag == 0 {
-				t.Broke = 1
+				t.Broke = true
 				n.Diag = 1
 				Yyerror("use of [...] array outside of array literal")
 			}
@@ -450,7 +430,7 @@ OpSwitch:
 		ok |= Etype
 		n.Op = OTYPE
 		n.Type = tostruct(n.List)
-		if n.Type == nil || n.Type.Broke != 0 {
+		if n.Type == nil || n.Type.Broke {
 			n.Type = nil
 			return
 		}
@@ -820,7 +800,7 @@ OpSwitch:
 		}
 
 		if l.Orig != l && l.Op == ONAME {
-			Fatal("found non-orig name node %v", l)
+			Fatalf("found non-orig name node %v", l)
 		}
 		l.Addrtaken = true
 		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
@@ -1306,7 +1286,7 @@ OpSwitch:
 		l = n.Left
 		if l.Op == OTYPE {
 			if n.Isddd || l.Type.Bound == -100 {
-				if l.Type.Broke == 0 {
+				if !l.Type.Broke {
 					Yyerror("invalid use of ... in type conversion to %v", l.Type)
 				}
 				n.Diag = 1
@@ -1354,7 +1334,7 @@ OpSwitch:
 			tp := getthisx(t).Type.Type
 
 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
-				Fatal("method receiver")
+				Fatalf("method receiver")
 			}
 
 		default:
@@ -1641,7 +1621,7 @@ OpSwitch:
 
 		// Unpack multiple-return result before type-checking.
 		var funarg *Type
-		if Istype(t, TSTRUCT) && t.Funarg != 0 {
+		if Istype(t, TSTRUCT) && t.Funarg {
 			funarg = t
 			t = t.Type.Type
 		}
@@ -1773,7 +1753,7 @@ OpSwitch:
 		var why string
 		n.Op = uint8(convertop(t, n.Type, &why))
 		if (n.Op) == 0 {
-			if n.Diag == 0 && n.Type.Broke == 0 {
+			if n.Diag == 0 && !n.Type.Broke {
 				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
 				n.Diag = 1
 			}
@@ -2008,7 +1988,7 @@ OpSwitch:
 			return
 		}
 		if t.Etype != TINTER {
-			Fatal("OITAB of %v", t)
+			Fatalf("OITAB of %v", t)
 		}
 		n.Type = Ptrto(Types[TUINTPTR])
 		break OpSwitch
@@ -2022,7 +2002,7 @@ OpSwitch:
 			return
 		}
 		if !Isslice(t) && t.Etype != TSTRING {
-			Fatal("OSPTR of %v", t)
+			Fatalf("OSPTR of %v", t)
 		}
 		if t.Etype == TSTRING {
 			n.Type = Ptrto(Types[TUINT8])
@@ -2137,7 +2117,7 @@ OpSwitch:
 			return
 		}
 
-		if Curfn.Type.Outnamed != 0 && n.List == nil {
+		if Curfn.Type.Outnamed && n.List == nil {
 			break OpSwitch
 		}
 		typecheckaste(ORETURN, nil, false, getoutargx(Curfn.Type), n.List, func() string { return "return argument" })
@@ -2193,7 +2173,7 @@ OpSwitch:
 	}
 
 	t := n.Type
-	if t != nil && t.Funarg == 0 && n.Op != OTYPE {
+	if t != nil && !t.Funarg && n.Op != OTYPE {
 		switch t.Etype {
 		case TFUNC, // might have TANY; wait until its called
 			TANY,
@@ -2327,7 +2307,7 @@ func checkdefergo(n *Node) {
 
 	// type is broken or missing, most likely a method call on a broken type
 	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
-	if n.Left.Type == nil || n.Left.Type.Broke != 0 {
+	if n.Left.Type == nil || n.Left.Type.Broke {
 		return
 	}
 
@@ -2527,7 +2507,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 			Yyerror("%v is both field and method", n.Right.Sym)
 		}
 		if f1.Width == BADWIDTH {
-			Fatal("lookdot badwidth %v %p", f1, f1)
+			Fatalf("lookdot badwidth %v %p", f1, f1)
 		}
 		n.Xoffset = f1.Width
 		n.Type = f1.Type
@@ -2578,7 +2558,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 					tt = tt.Type
 				}
 			} else {
-				Fatal("method mismatch: %v for %v", rcvr, tt)
+				Fatalf("method mismatch: %v for %v", rcvr, tt)
 			}
 		}
 
@@ -2647,7 +2627,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 
 	lno := int(lineno)
 
-	if tstruct.Broke != 0 {
+	if tstruct.Broke {
 		goto out
 	}
 
@@ -2655,7 +2635,7 @@ func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, 
 	if nl != nil && nl.Next == nil {
 		n = nl.N
 		if n.Type != nil {
-			if n.Type.Etype == TSTRUCT && n.Type.Funarg != 0 {
+			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
 				if !hasddd(tstruct) {
 					n1 := downcount(tstruct)
 					n2 := downcount(n.Type)
@@ -2820,7 +2800,7 @@ toomany:
  */
 func fielddup(n *Node, hash map[string]bool) {
 	if n.Op != ONAME {
-		Fatal("fielddup: not ONAME")
+		Fatalf("fielddup: not ONAME")
 	}
 	name := n.Sym.Name
 	if hash[name] {
@@ -2893,7 +2873,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 
 func indexdup(n *Node, hash map[int64]*Node) {
 	if n.Op != OLITERAL {
-		Fatal("indexdup: not OLITERAL")
+		Fatalf("indexdup: not OLITERAL")
 	}
 
 	v := Mpgetfix(n.Val().U.(*Mpint))
@@ -3093,11 +3073,10 @@ func typecheckcomplit(np **Node) {
 				setlineno(ll.N)
 				typecheck(&ll.N, Erv)
 				if f == nil {
-					tmp12 := bad
-					bad++
-					if tmp12 == 0 {
+					if bad == 0 {
 						Yyerror("too many values in struct initializer")
 					}
+					bad++
 					continue
 				}
 
@@ -3130,11 +3109,10 @@ func typecheckcomplit(np **Node) {
 				l = ll.N
 				setlineno(l)
 				if l.Op != OKEY {
-					tmp13 := bad
-					bad++
-					if tmp13 == 0 {
+					if bad == 0 {
 						Yyerror("mixture of field:value and value initializers")
 					}
+					bad++
 					typecheck(&ll.N, Erv)
 					continue
 				}
@@ -3397,7 +3375,7 @@ func typecheckas2(n *Node) {
 		}
 		switch r.Op {
 		case OCALLMETH, OCALLINTER, OCALLFUNC:
-			if r.Type.Etype != TSTRUCT || r.Type.Funarg == 0 {
+			if r.Type.Etype != TSTRUCT || !r.Type.Funarg {
 				break
 			}
 			cr = structcount(r.Type)
@@ -3497,7 +3475,7 @@ func typecheckfunc(n *Node) {
 func stringtoarraylit(np **Node) {
 	n := *np
 	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
-		Fatal("stringtoarraylit %v", n)
+		Fatalf("stringtoarraylit %v", n)
 	}
 
 	s := n.Left.Val().U.(string)
@@ -3578,12 +3556,11 @@ func copytype(n *Node, t *Type) {
 	if n.Name != nil {
 		t.Vargen = n.Name.Vargen
 	}
-	t.Siggen = 0
 	t.Method = nil
 	t.Xmethod = nil
 	t.Nod = nil
-	t.Printed = 0
-	t.Deferwidth = 0
+	t.Printed = false
+	t.Deferwidth = false
 	t.Copyto = nil
 
 	// Update nodes waiting on this type.
@@ -3709,7 +3686,7 @@ func typecheckdef(n *Node) *Node {
 			fmt.Printf(" %v", l.N.Sym)
 		}
 		fmt.Printf("\n")
-		Fatal("typecheckdef loop")
+		Fatalf("typecheckdef loop")
 	}
 
 	n.Walkdef = 2
@@ -3720,7 +3697,7 @@ func typecheckdef(n *Node) *Node {
 
 	switch n.Op {
 	default:
-		Fatal("typecheckdef %v", Oconv(int(n.Op), 0))
+		Fatalf("typecheckdef %v", Oconv(int(n.Op), 0))
 
 		// not really syms
 	case OGOTO, OLABEL:
@@ -3803,7 +3780,7 @@ func typecheckdef(n *Node) *Node {
 				break
 			}
 
-			Fatal("var without type, init: %v", n.Sym)
+			Fatalf("var without type, init: %v", n.Sym)
 		}
 
 		if n.Name.Defn.Op == ONAME {
@@ -3826,7 +3803,7 @@ func typecheckdef(n *Node) *Node {
 		if n.Type.Etype == TFORW && nerrors > nerrors0 {
 			// Something went wrong during type-checking,
 			// but it was reported. Silence future errors.
-			n.Type.Broke = 1
+			n.Type.Broke = true
 		}
 
 		if Curfn != nil {
@@ -3840,10 +3817,10 @@ func typecheckdef(n *Node) *Node {
 
 ret:
 	if n.Op != OLITERAL && n.Type != nil && isideal(n.Type) {
-		Fatal("got %v for %v", n.Type, n)
+		Fatalf("got %v for %v", n.Type, n)
 	}
 	if typecheckdefstack.N != n {
-		Fatal("typecheckdefstack mismatch")
+		Fatalf("typecheckdefstack mismatch")
 	}
 	l = typecheckdefstack
 	typecheckdefstack = l.Next

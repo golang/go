@@ -455,7 +455,7 @@ func (s *state) stmt(n *Node) {
 			return
 		}
 		if compiling_runtime != 0 {
-			Fatal("%v escapes to heap, not allowed in runtime.", n)
+			Fatalf("%v escapes to heap, not allowed in runtime.", n)
 		}
 
 		// TODO: the old pass hides the details of PHEAP
@@ -1783,7 +1783,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			// Rewrite to an OCALLFUNC: (p.f)(...) becomes (f)(p, ...)
 			// Take care not to modify the original AST.
 			if left.Op != ODOTMETH {
-				Fatal("OCALLMETH: n.Left not an ODOTMETH: %v", left)
+				Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", left)
 			}
 
 			newLeft := *left.Right
@@ -2675,7 +2675,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	if f.StaticData != nil {
 		for _, n := range f.StaticData.([]*Node) {
 			if !gen_as_init(n, false) {
-				Fatal("non-static data marked as static: %v\n\n", n, f)
+				Fatalf("non-static data marked as static: %v\n\n", n, f)
 			}
 		}
 	}
@@ -3468,7 +3468,7 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 		}
 	case ssa.BlockExit:
 	case ssa.BlockRet:
-		if Hasdefer != 0 {
+		if hasdefer {
 			s.deferReturn()
 		}
 		Prog(obj.ARET)
@@ -3780,7 +3780,7 @@ func (e *ssaExport) Logf(msg string, args ...interface{}) {
 func (e *ssaExport) Fatalf(msg string, args ...interface{}) {
 	// If e was marked as unimplemented, anything could happen. Ignore.
 	if !e.unimplemented {
-		Fatal(msg, args...)
+		Fatalf(msg, args...)
 	}
 }
 
@@ -3788,7 +3788,7 @@ func (e *ssaExport) Fatalf(msg string, args ...interface{}) {
 // It will be removed once SSA work is complete.
 func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
 	if e.mustImplement {
-		Fatal(msg, args...)
+		Fatalf(msg, args...)
 	}
 	const alwaysLog = false // enable to calculate top unimplemented features
 	if !e.unimplemented && (e.log || alwaysLog) {

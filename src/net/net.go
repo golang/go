@@ -520,10 +520,11 @@ var (
 
 // DNSError represents a DNS lookup error.
 type DNSError struct {
-	Err       string // description of the error
-	Name      string // name looked for
-	Server    string // server used
-	IsTimeout bool   // if true, timed out; not all timeouts set this
+	Err         string // description of the error
+	Name        string // name looked for
+	Server      string // server used
+	IsTimeout   bool   // if true, timed out; not all timeouts set this
+	IsTemporary bool   // if true, error is temporary; not all errors set this
 }
 
 func (e *DNSError) Error() string {
@@ -546,7 +547,7 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
 // Temporary reports whether the DNS error is known to be temporary.
 // This is not always known; a DNS lookup may fail due to a temporary
 // error and return a DNSError for which Temporary returns false.
-func (e *DNSError) Temporary() bool { return e.IsTimeout }
+func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
 
 type writerOnly struct {
 	io.Writer

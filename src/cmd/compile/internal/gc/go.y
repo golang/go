@@ -275,7 +275,7 @@ import_stmt:
 		// no package statement. This allows us to test more
 		// than one invalid import statement in a single file.
 		if nerrors == 0 {
-			Fatal("phase error in import");
+			Fatalf("phase error in import");
 		}
 	}
 
@@ -315,7 +315,7 @@ import_package:
 		} else if importpkg.Name != $2.Name {
 			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
 		}
-		importpkg.Direct = 1;
+		importpkg.Direct = true;
 		importpkg.Safe = curio.importsafe
 
 		if safemode != 0 && !curio.importsafe {
@@ -2038,7 +2038,7 @@ hidden_import:
 		$2.Func.Inl = $3;
 
 		funcbody($2);
-		importlist = list(importlist, $2);
+		importlist = append(importlist, $2);
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", importpkg.Path, $2)

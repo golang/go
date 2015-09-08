@@ -35,8 +35,10 @@ cp -R "$src" "$targ"
 cd "$targ"
 echo
 echo "#### Cleaning $targ"
-rm .gitignore
-git clean -f -d
+rm -f .gitignore
+if [ -e .git ]; then
+	git clean -f -d
+fi
 echo
 echo "#### Building $targ"
 echo

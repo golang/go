@@ -188,8 +188,6 @@ var optab = []Optab{
 	Optab{AMOVB, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
 	Optab{AMOVBS, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
 	Optab{AMOVBU, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
-	Optab{ACASE, C_REG, C_NONE, C_NONE, 62, 4, 0, LPCREL, 8},
-	Optab{ABCASE, C_NONE, C_NONE, C_SBRA, 63, 4, 0, LPCREL, 0},
 	Optab{AMOVH, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
 	Optab{AMOVH, C_REG, C_NONE, C_HOREG, 70, 4, 0, 0, 0},
 	Optab{AMOVHS, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
@@ -273,25 +271,6 @@ var oprange [ALAST & obj.AMask]Oprang
 var xcmp [C_GOK + 1][C_GOK + 1]uint8
 
 var deferreturn *obj.LSym
-
-/* size of a case statement including jump table */
-func casesz(ctxt *obj.Link, p *obj.Prog) int32 {
-	var jt int = 0
-	var n int32 = 0
-	var o *Optab
-
-	for ; p != nil; p = p.Link {
-		if p.As == ABCASE {
-			jt = 1
-		} else if jt != 0 {
-			break
-		}
-		o = oplook(ctxt, p)
-		n += int32(o.size)
-	}
-
-	return n
-}
 
 // Note about encoding: Prog.scond holds the condition encoding,
 // but XOR'ed with C_SCOND_XOR, so that C_SCOND_NONE == 0.
@@ -625,9 +604,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 		// must check literal pool here in case p generates many instructions
 		if ctxt.Blitrl != nil {
 			i = m
-			if p.As == ACASE {
-				i = int(casesz(ctxt, p))
-			}
 			if checkpool(ctxt, op, i) {
 				p = op
 				continue
@@ -1442,8 +1418,6 @@ func buildop(ctxt *obj.Link) {
 			ARFE,
 			obj.ATEXT,
 			obj.AUSEFIELD,
-			ACASE,
-			ABCASE,
 			obj.ATYPE:
 			break
 
@@ -2033,39 +2007,6 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = osrr(ctxt, int(p.From.Reg), int(p.To.Offset), int(p.To.Reg), int(p.Scond))
 		if p.As == AMOVB || p.As == AMOVBS || p.As == AMOVBU {
 			o1 |= 1 << 22
-		}
-
-	case 62: /* case R -> movw	R<<2(PC),PC */
-		if o.flag&LPCREL != 0 {
-			o1 = oprrr(ctxt, AADD, int(p.Scond)) | uint32(immrot(1)) | (uint32(p.From.Reg)&15)<<16 | (REGTMP&15)<<12
-			o2 = olrr(ctxt, REGTMP&15, REGPC, REGTMP, int(p.Scond))
-			o2 |= 2 << 7
-			o3 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGPC&15)<<12
-		} else {
-			o1 = olrr(ctxt, int(p.From.Reg)&15, REGPC, REGPC, int(p.Scond))
-			o1 |= 2 << 7
-		}
-
-	case 63: /* bcase */
-		if p.Pcond != nil {
-			rel := obj.Addrel(ctxt.Cursym)
-			rel.Off = int32(ctxt.Pc)
-			rel.Siz = 4
-			if p.To.Sym != nil && p.To.Sym.Type != 0 {
-				rel.Sym = p.To.Sym
-				rel.Add = p.To.Offset
-			} else {
-				rel.Sym = ctxt.Cursym
-				rel.Add = p.Pcond.Pc
-			}
-
-			if o.flag&LPCREL != 0 {
-				rel.Type = obj.R_PCREL
-				rel.Add += ctxt.Pc - p.Rel.Pc - 16 + int64(rel.Siz)
-			} else {
-				rel.Type = obj.R_ADDR
-			}
-			o1 = 0
 		}
 
 		/* reloc ops */

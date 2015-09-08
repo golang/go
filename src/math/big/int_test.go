@@ -1185,6 +1185,53 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
 	}
 }
 
+// tri generates the trinomial 2**(n*2) - 2**n - 1, which is always 3 mod 4 and
+// 7 mod 8, so that 2 is always a quadratic residue.
+func tri(n uint) *Int {
+	x := NewInt(1)
+	x.Lsh(x, n)
+	x2 := new(Int).Lsh(x, n)
+	x2.Sub(x2, x)
+	x2.Sub(x2, intOne)
+	return x2
+}
+
+func BenchmarkModSqrt225_Tonelli(b *testing.B) {
+	p := tri(225)
+	x := NewInt(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrtTonelliShanks(x, p)
+	}
+}
+
+func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+	p := tri(225)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrt3Mod4Prime(x, p)
+	}
+}
+
+func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
+	p := tri(5430)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrtTonelliShanks(x, p)
+	}
+}
+
+func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
+	p := tri(5430)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrt3Mod4Prime(x, p)
+	}
+}
+
 func TestBitwise(t *testing.T) {
 	x := new(Int)
 	y := new(Int)

@@ -251,8 +251,6 @@ const (
 	AMULA
 
 	AWORD
-	ABCASE
-	ACASE
 
 	AMULL
 	AMULAL

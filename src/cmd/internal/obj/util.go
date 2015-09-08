@@ -11,7 +11,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -166,17 +165,6 @@ func Brdstr(b *Biobuf, delim int, cut int) string {
 	return s
 }
 
-func Access(name string, mode int) int {
-	if mode != 0 {
-		panic("bad access")
-	}
-	_, err := os.Stat(name)
-	if err != nil {
-		return -1
-	}
-	return 0
-}
-
 func Blinelen(b *Biobuf) int {
 	return b.linelen
 }
@@ -212,10 +200,14 @@ func Getgoos() string {
 	return envOr("GOOS", defaultGOOS)
 }
 
-func Getgoarm() string {
+func Getgoarm() int32 {
 	switch v := envOr("GOARM", defaultGOARM); v {
-	case "5", "6", "7":
-		return v
+	case "5":
+		return 5
+	case "6":
+		return 6
+	case "7":
+		return 7
 	}
 	// Fail here, rather than validate at multiple call sites.
 	log.Fatalf("Invalid GOARM value. Must be 5, 6, or 7.")
@@ -233,11 +225,6 @@ func Getgoextlinkenabled() string {
 
 func Getgoversion() string {
 	return version
-}
-
-func Atoi(s string) int {
-	i, _ := strconv.Atoi(s)
-	return i
 }
 
 func (p *Prog) Line() string {

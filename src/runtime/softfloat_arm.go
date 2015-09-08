@@ -157,6 +157,17 @@ execute:
 		}
 		return 1
 	}
+	if i == 0xe08fb00b {
+		// add pc to r11
+		// might be part of a PIC floating point move
+		// (or might not, but again no harm done).
+		regs[11] += uint32(uintptr(unsafe.Pointer(pc))) + 8
+
+		if fptrace > 0 {
+			print("*** cpu R[11] += pc ", hex(regs[11]), "\n")
+		}
+		return 1
+	}
 	if i == 0xe08bb00d {
 		// add sp to r11.
 		// might be part of a large stack offset address

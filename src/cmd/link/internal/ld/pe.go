@@ -1107,6 +1107,11 @@ func Asmbpe() {
 
 	t := addpesection(".text", int(Segtext.Length), int(Segtext.Length))
 	t.Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ
+	if Linkmode == LinkExternal {
+		// some data symbols (e.g. masks) end up in the .text section, and they normally
+		// expect larger alignment requirement than the default text section alignment.
+		t.Characteristics |= IMAGE_SCN_ALIGN_32BYTES
+	}
 	chksectseg(t, &Segtext)
 	textsect = pensect
 

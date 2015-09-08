@@ -107,8 +107,6 @@ import (
 	"strings"
 )
 
-var outfile string
-
 // The Go and C compilers, and the assembler, call writeobj to write
 // out a Go object file.  The linker does not call this; the linker
 // does not write out object files.
@@ -194,6 +192,8 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 					s.Type = SRODATA
 				} else if flag&NOPTR != 0 {
 					s.Type = SNOPTRBSS
+				} else if flag&TLSBSS != 0 {
+					s.Type = STLSBSS
 				}
 				edata = s
 				continue

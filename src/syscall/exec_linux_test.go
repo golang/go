@@ -10,8 +10,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -23,6 +21,13 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
+	}
+	// On some systems, there is a sysctl setting.
+	if os.Getuid() != 0 {
+		data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+		if errRead == nil && data[0] == '0' {
+			t.Skip("kernel prohibits user namespace in unprivileged process")
+		}
 	}
 	cmd := exec.Command("whoami")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -42,14 +47,6 @@ func testNEWUSERRemap(t *testing.T, uid, gid int, setgroups bool) {
 	cmd := whoamiCmd(t, uid, gid, setgroups)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		// On some systems, there is a sysctl setting.
-		if os.IsPermission(err) && os.Getuid() != 0 {
-			data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-			if errRead == nil && data[0] == '0' {
-				t.Skip("kernel prohibits user namespace in unprivileged process")
-			}
-		}
-
 		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
 	}
 	sout := strings.TrimSpace(string(out))
@@ -73,22 +70,6 @@ func TestCloneNEWUSERAndRemapRootEnableSetgroups(t *testing.T) {
 	testNEWUSERRemap(t, 0, 0, false)
 }
 
-// kernelVersion returns the major and minor versions of the Linux
-// kernel version.  It calls t.Skip if it can't figure it out.
-func kernelVersion(t *testing.T) (int, int) {
-	bytes, err := ioutil.ReadFile("/proc/version")
-	if err != nil {
-		t.Skipf("can't get kernel version: %v", err)
-	}
-	matches := regexp.MustCompile("([0-9]+).([0-9]+)").FindSubmatch(bytes)
-	if len(matches) < 3 {
-		t.Skipf("can't get kernel version from %s", bytes)
-	}
-	major, _ := strconv.Atoi(string(matches[1]))
-	minor, _ := strconv.Atoi(string(matches[2]))
-	return major, minor
-}
-
 func TestCloneNEWUSERAndRemapNoRootDisableSetgroups(t *testing.T) {
 	if os.Getuid() == 0 {
 		t.Skip("skipping unprivileged user only test")
@@ -107,5 +88,13 @@ func TestCloneNEWUSERAndRemapNoRootSetgroupsEnableSetgroups(t *testing.T) {
 	}
 	if !os.IsPermission(err) {
 		t.Fatalf("Unprivileged gid_map rewriting with GidMappingsEnableSetgroups must fail")
+	}
+}
+
+func TestEmptyCredGroupsDisableSetgroups(t *testing.T) {
+	cmd := whoamiCmd(t, os.Getuid(), os.Getgid(), false)
+	cmd.SysProcAttr.Credential = &syscall.Credential{}
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -86,7 +86,7 @@ func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
 
 func gvardefx(n *Node, as int) {
 	if n == nil {
-		Fatal("gvardef nil")
+		Fatalf("gvardef nil")
 	}
 	if n.Op != ONAME {
 		Yyerror("gvardef %v; %v", Oconv(int(n.Op), obj.FmtSharp), n)
@@ -123,7 +123,7 @@ func removevardef(firstp *obj.Prog) {
 func gcsymdup(s *Sym) {
 	ls := Linksym(s)
 	if len(ls.R) > 0 {
-		Fatal("cannot rosymdup %s with relocations", ls.Name)
+		Fatalf("cannot rosymdup %s with relocations", ls.Name)
 	}
 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
 	ls.Dupok = 1
@@ -274,7 +274,7 @@ func allocauto(ptxt *obj.Prog) {
 		dowidth(n.Type)
 		w = n.Type.Width
 		if w >= Thearch.MAXWIDTH || w < 0 {
-			Fatal("bad width")
+			Fatalf("bad width")
 		}
 		Stksize += w
 		Stksize = Rnd(Stksize, int64(n.Type.Align))
@@ -315,7 +315,7 @@ func Cgen_checknil(n *Node) {
 	// Ideally we wouldn't see any integer types here, but we do.
 	if n.Type == nil || (!Isptr[n.Type.Etype] && !Isint[n.Type.Etype] && n.Type.Etype != TUNSAFEPTR) {
 		Dump("checknil", n)
-		Fatal("bad checknil")
+		Fatalf("bad checknil")
 	}
 
 	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
@@ -374,7 +374,7 @@ func compile(fn *Node) {
 	// set up domain for labels
 	clearlabels()
 
-	if Curfn.Type.Outnamed != 0 {
+	if Curfn.Type.Outnamed {
 		// add clearing of the output parameters
 		var save Iter
 		t := Structfirst(&save, Getoutarg(Curfn.Type))
@@ -395,7 +395,7 @@ func compile(fn *Node) {
 		goto ret
 	}
 
-	Hasdefer = 0
+	hasdefer = false
 	walk(Curfn)
 	if nerrors != 0 {
 		goto ret
@@ -498,7 +498,7 @@ func compile(fn *Node) {
 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
 	cgen_ret(nil)
 
-	if Hasdefer != 0 {
+	if hasdefer {
 		// deferreturn pretends to have one uintptr argument.
 		// Reserve space for it so stack scanner is happy.
 		if Maxarg < int64(Widthptr) {

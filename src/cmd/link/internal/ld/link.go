@@ -121,31 +121,32 @@ type Shlib struct {
 }
 
 type Link struct {
-	Thechar   int32
-	Thestring string
-	Goarm     int32
-	Headtype  int
-	Arch      *LinkArch
-	Debugasm  int32
-	Debugvlog int32
-	Bso       *obj.Biobuf
-	Windows   int32
-	Goroot    string
-	Hash      map[symVer]*LSym
-	Allsym    *LSym
-	Nsymbol   int32
-	Tlsg      *LSym
-	Libdir    []string
-	Library   []*Library
-	Shlibs    []Shlib
-	Tlsoffset int
-	Diag      func(string, ...interface{})
-	Cursym    *LSym
-	Version   int
-	Textp     *LSym
-	Etextp    *LSym
-	Nhistfile int32
-	Filesyms  *LSym
+	Thechar    int32
+	Thestring  string
+	Goarm      int32
+	Headtype   int
+	Arch       *LinkArch
+	Debugasm   int32
+	Debugvlog  int32
+	Bso        *obj.Biobuf
+	Windows    int32
+	Goroot     string
+	Hash       map[symVer]*LSym
+	Allsym     *LSym
+	Nsymbol    int32
+	Tlsg       *LSym
+	Libdir     []string
+	Library    []*Library
+	Shlibs     []Shlib
+	Tlsoffset  int
+	Diag       func(string, ...interface{})
+	Cursym     *LSym
+	Version    int
+	Textp      *LSym
+	Etextp     *LSym
+	Nhistfile  int32
+	Filesyms   *LSym
+	Moduledata *LSym
 }
 
 type LinkArch struct {
@@ -206,10 +207,6 @@ const (
 	RV_POWER_DS
 	RV_CHECK_OVERFLOW = 1 << 8
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
-)
-
-const (
-	LINKHASH = 100003
 )
 
 // Pcdata iterator.

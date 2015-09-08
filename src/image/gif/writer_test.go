@@ -328,11 +328,11 @@ func TestEncodeAllFramesOutOfBounds(t *testing.T) {
 
 func TestEncodeNonZeroMinPoint(t *testing.T) {
 	points := []image.Point{
-		image.Point{-8, -9},
-		image.Point{-4, -4},
-		image.Point{-3, +3},
-		image.Point{+0, +0},
-		image.Point{+2, +2},
+		{-8, -9},
+		{-4, -4},
+		{-3, +3},
+		{+0, +0},
+		{+2, +2},
 	}
 	for _, p := range points {
 		src := image.NewPaletted(image.Rectangle{Min: p, Max: p.Add(image.Point{6, 6})}, palette.Plan9)
