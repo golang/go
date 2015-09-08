@@ -523,8 +523,8 @@ type TempVar struct {
 	merge   *TempVar // merge var with this one
 	start   int64    // smallest Prog.pc in live range
 	end     int64    // largest Prog.pc in live range
-	addr    uint8    // address taken - no accurate end
-	removed uint8    // removed from program
+	addr    bool     // address taken - no accurate end
+	removed bool     // removed from program
 }
 
 type startcmp []*TempVar
@@ -625,7 +625,7 @@ func mergetemp(firstp *obj.Prog) {
 			f.Data = v.use
 			v.use = f
 			if n == p.From.Node && (p.Info.Flags&LeftAddr != 0) {
-				v.addr = 1
+				v.addr = true
 			}
 		}
 	}
@@ -639,7 +639,7 @@ func mergetemp(firstp *obj.Prog) {
 	// Special case.
 	for i := 0; i < len(var_); i++ {
 		v = &var_[i]
-		if v.addr != 0 {
+		if v.addr {
 			continue
 		}
 
@@ -650,7 +650,7 @@ func mergetemp(firstp *obj.Prog) {
 			if p.To.Node == v.node && (p.Info.Flags&RightWrite != 0) && p.Info.Flags&RightRead == 0 {
 				p.As = obj.ANOP
 				p.To = obj.Addr{}
-				v.removed = 1
+				v.removed = true
 				if debugmerge > 0 && Debug['v'] != 0 {
 					fmt.Printf("drop write-only %v\n", v.node.Sym)
 				}
@@ -673,7 +673,7 @@ func mergetemp(firstp *obj.Prog) {
 			if p.From.Node == v.node && p1.To.Node == v.node && (p.Info.Flags&Move != 0) && (p.Info.Flags|p1.Info.Flags)&(LeftAddr|RightAddr) == 0 && p.Info.Flags&SizeAny == p1.Info.Flags&SizeAny {
 				p1.From = p.From
 				Thearch.Excise(f)
-				v.removed = 1
+				v.removed = true
 				if debugmerge > 0 && Debug['v'] != 0 {
 					fmt.Printf("drop immediate-use %v\n", v.node.Sym)
 				}
@@ -695,7 +695,7 @@ func mergetemp(firstp *obj.Prog) {
 		for f := v.use; f != nil; f = f.Data.(*Flow) {
 			mergewalk(v, f, uint32(gen))
 		}
-		if v.addr != 0 {
+		if v.addr {
 			gen++
 			for f := v.use; f != nil; f = f.Data.(*Flow) {
 				varkillwalk(v, f, uint32(gen))
@@ -727,10 +727,10 @@ func mergetemp(firstp *obj.Prog) {
 	for i := 0; i < len(var_); i++ {
 		v = bystart[i]
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%d\n", Nconv(v.node, obj.FmtSharp), v.removed)
+			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, obj.FmtSharp), v.removed)
 		}
 
-		if v.removed != 0 {
+		if v.removed {
 			continue
 		}
 
@@ -743,7 +743,7 @@ func mergetemp(firstp *obj.Prog) {
 		}
 
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%d nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(var_))
+			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(var_))
 		}
 
 		// Find old temp to reuse if possible.
@@ -791,11 +791,11 @@ func mergetemp(firstp *obj.Prog) {
 		for i := 0; i < len(var_); i++ {
 			v = &var_[i]
 			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
-			if v.addr != 0 {
-				fmt.Printf(" addr=1")
+			if v.addr {
+				fmt.Printf(" addr=true")
 			}
-			if v.removed != 0 {
-				fmt.Printf(" dead=1")
+			if v.removed {
+				fmt.Printf(" removed=true")
 			}
 			if v.merge != nil {
 				fmt.Printf(" merge %v", Nconv(v.merge.node, obj.FmtSharp))
@@ -841,7 +841,7 @@ func mergetemp(firstp *obj.Prog) {
 		Curfn.Func.Dcl.End = l
 		n = l.N
 		v, _ = n.Opt().(*TempVar)
-		if v != nil && (v.merge != nil || v.removed != 0) {
+		if v != nil && (v.merge != nil || v.removed) {
 			*lp = l.Next
 			continue
 		}
