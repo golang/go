@@ -79,12 +79,12 @@ func autoexport(n *Node, ctxt uint8) {
 }
 
 func dumppkg(p *Pkg) {
-	if p == nil || p == localpkg || p.Exported != 0 || p == builtinpkg {
+	if p == nil || p == localpkg || p.Exported || p == builtinpkg {
 		return
 	}
-	p.Exported = 1
+	p.Exported = true
 	suffix := ""
-	if p.Direct == 0 {
+	if !p.Direct {
 		suffix = " // indirect"
 	}
 	fmt.Fprintf(bout, "\timport %s %q%s\n", p.Name, p.Path, suffix)
@@ -371,7 +371,7 @@ func dumpexport() {
 	fmt.Fprintf(bout, "\n")
 
 	for _, p := range pkgs {
-		if p.Direct != 0 {
+		if p.Direct {
 			dumppkg(p)
 		}
 	}

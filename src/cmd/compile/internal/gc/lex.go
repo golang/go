@@ -744,7 +744,7 @@ func importfile(f *Val, line int) {
 
 	// If we already saw that package, feed a dummy statement
 	// to the lexer to avoid parsing export data twice.
-	if importpkg.Imported != 0 {
+	if importpkg.Imported {
 		tag := ""
 		if importpkg.Safe {
 			tag = "safe"
@@ -755,7 +755,7 @@ func importfile(f *Val, line int) {
 		return
 	}
 
-	importpkg.Imported = 1
+	importpkg.Imported = true
 
 	var err error
 	var imp *obj.Biobuf
