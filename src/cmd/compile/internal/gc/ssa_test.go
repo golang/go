@@ -17,12 +17,18 @@ import (
 // TODO: move all these tests elsewhere?
 // Perhaps teach test/run.go how to run them with a new action verb.
 func runTest(t *testing.T, filename string) {
+	doTest(t, filename, "run")
+}
+func buildTest(t *testing.T, filename string) {
+	doTest(t, filename, "build")
+}
+func doTest(t *testing.T, filename string, kind string) {
 	if runtime.GOARCH != "amd64" {
 		t.Skipf("skipping SSA tests on %s for now", runtime.GOARCH)
 	}
 	testenv.MustHaveGoBuild(t)
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command("go", "run", filepath.Join("testdata", filename))
+	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	// TODO: set GOGC=off until we have stackmaps
@@ -70,3 +76,5 @@ func TestMap(t *testing.T) { runTest(t, "map_ssa.go") }
 func TestRegalloc(t *testing.T) { runTest(t, "regalloc_ssa.go") }
 
 func TestString(t *testing.T) { runTest(t, "string_ssa.go") }
+
+func TestDeferNoReturn(t *testing.T) { buildTest(t, "deferNoReturn_ssa.go") }

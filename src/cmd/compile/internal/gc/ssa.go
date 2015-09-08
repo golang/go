@@ -2621,6 +2621,12 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	for _, br := range s.branches {
 		br.p.To.Val = s.bstart[br.b.ID]
 	}
+	if s.deferBranches != nil && s.deferTarget == nil {
+		// This can happen when the function has a defer but
+		// no return (because it has an infinite loop).
+		s.deferReturn()
+		Prog(obj.ARET)
+	}
 	for _, p := range s.deferBranches {
 		p.To.Val = s.deferTarget
 	}
@@ -3463,20 +3469,7 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 	case ssa.BlockExit:
 	case ssa.BlockRet:
 		if Hasdefer != 0 {
-			// Deferred calls will appear to be returning to
-			// the CALL deferreturn(SB) that we are about to emit.
-			// However, the stack trace code will show the line
-			// of the instruction byte before the return PC.
-			// To avoid that being an unrelated instruction,
-			// insert an actual hardware NOP that will have the right line number.
-			// This is different from obj.ANOP, which is a virtual no-op
-			// that doesn't make it into the instruction stream.
-			s.deferTarget = Pc
-			Thearch.Ginsnop()
-			p := Prog(obj.ACALL)
-			p.To.Type = obj.TYPE_MEM
-			p.To.Name = obj.NAME_EXTERN
-			p.To.Sym = Linksym(Deferreturn.Sym)
+			s.deferReturn()
 		}
 		Prog(obj.ARET)
 	case ssa.BlockCall:
@@ -3535,6 +3528,23 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 	default:
 		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
+}
+
+func (s *genState) deferReturn() {
+	// Deferred calls will appear to be returning to
+	// the CALL deferreturn(SB) that we are about to emit.
+	// However, the stack trace code will show the line
+	// of the instruction byte before the return PC.
+	// To avoid that being an unrelated instruction,
+	// insert an actual hardware NOP that will have the right line number.
+	// This is different from obj.ANOP, which is a virtual no-op
+	// that doesn't make it into the instruction stream.
+	s.deferTarget = Pc
+	Thearch.Ginsnop()
+	p := Prog(obj.ACALL)
+	p.To.Type = obj.TYPE_MEM
+	p.To.Name = obj.NAME_EXTERN
+	p.To.Sym = Linksym(Deferreturn.Sym)
 }
 
 // addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
