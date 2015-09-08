@@ -3556,7 +3556,6 @@ func copytype(n *Node, t *Type) {
 	if n.Name != nil {
 		t.Vargen = n.Name.Vargen
 	}
-	t.Siggen = 0
 	t.Method = nil
 	t.Xmethod = nil
 	t.Nod = nil

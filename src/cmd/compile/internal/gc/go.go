@@ -160,7 +160,6 @@ type Type struct {
 	Trecur      uint8 // to detect loops
 	Printed     uint8
 	Embedded    uint8 // TFIELD embedded type
-	Siggen      uint8
 	Funarg      uint8 // on TSTRUCT and TFIELD
 	Copyany     uint8
 	Local       bool // created in this file
