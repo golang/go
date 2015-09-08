@@ -2854,12 +2854,17 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 			if Eqtype(a.Left.Type, n.Type) {
 				cmp.Right = a.Left
 				evconst(&cmp)
-				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
+				if cmp.Op == OLITERAL {
+					// Sometimes evconst fails.  See issue 12536.
+					b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
+				}
 			}
 		} else if Eqtype(a.Type, n.Type) {
 			cmp.Right = a
 			evconst(&cmp)
-			b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
+			if cmp.Op == OLITERAL {
+				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
+			}
 		}
 
 		if b != 0 {
