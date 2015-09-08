@@ -31,7 +31,6 @@ func doTest(t *testing.T, filename string, kind string) {
 	cmd := exec.Command("go", kind, filepath.Join("testdata", filename))
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	// TODO: set GOGC=off until we have stackmaps
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
 	}
