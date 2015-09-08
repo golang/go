@@ -315,7 +315,7 @@ import_package:
 		} else if importpkg.Name != $2.Name {
 			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
 		}
-		importpkg.Direct = 1;
+		importpkg.Direct = true;
 		importpkg.Safe = curio.importsafe
 
 		if safemode != 0 && !curio.importsafe {

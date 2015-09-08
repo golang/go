@@ -1354,7 +1354,7 @@ yydefault:
 			} else if importpkg.Name != yyDollar[2].sym.Name {
 				Yyerror("conflicting names %s and %s for package %q", importpkg.Name, yyDollar[2].sym.Name, importpkg.Path)
 			}
-			importpkg.Direct = 1
+			importpkg.Direct = true
 			importpkg.Safe = curio.importsafe
 
 			if safemode != 0 && !curio.importsafe {

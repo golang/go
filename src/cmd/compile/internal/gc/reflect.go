@@ -1293,7 +1293,7 @@ func dumptypestructs() {
 
 	// generate import strings for imported packages
 	for _, p := range pkgs {
-		if p.Direct != 0 {
+		if p.Direct {
 			dimportpath(p)
 		}
 	}

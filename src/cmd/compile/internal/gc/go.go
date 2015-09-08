@@ -125,9 +125,9 @@ type Pkg struct {
 	Path     string // string literal used in import statement
 	Pathsym  *Sym
 	Prefix   string // escaped path for use in symbol table
-	Imported uint8  // export data of this package was parsed
-	Exported int8   // import line written in export data
-	Direct   int8   // imported directly
+	Imported bool   // export data of this package was parsed
+	Exported bool   // import line written in export data
+	Direct   bool   // imported directly
 	Safe     bool   // whether the package is marked as safe
 	Syms     map[string]*Sym
 }
