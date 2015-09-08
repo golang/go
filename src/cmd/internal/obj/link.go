@@ -404,6 +404,11 @@ type Reloc struct {
 // Reloc.type
 const (
 	R_ADDR = 1 + iota
+	// R_ADDRPOWER relocates a pair of "D-form" instructions (instructions with 16-bit
+	// immediates in the low half of the instruction word), usually addis followed by
+	// another add or a load, inserting the "high adjusted" 16 bits of the address of
+	// the referenced symbol into the immediate field of the first instruction and the
+	// low 16 bits into that of the second instruction.
 	R_ADDRPOWER
 	R_ADDRARM64
 	R_SIZE
@@ -459,6 +464,13 @@ const (
 	// thread pointer (R13) and inserts this value into the low 16 bits of an
 	// instruction word.
 	R_POWER_TLS_LE
+
+	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
+	// instruction is a "DS-form" instruction, which has an immediate field occupying
+	// bits [15:2] of the instruction word. Bits [15:2] of the address of the
+	// relocated symbol are inserted into this field; it is an error if the last two
+	// bits of the address are not 0.
+	R_ADDRPOWER_DS
 )
 
 type Auto struct {
