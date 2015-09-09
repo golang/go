@@ -194,12 +194,24 @@ type WordDecoder struct {
 
 // Decode decodes an RFC 2047 encoded-word.
 func (d *WordDecoder) Decode(word string) (string, error) {
-	fields := strings.Split(word, "?") // TODO: remove allocation?
-	if len(fields) != 5 || fields[0] != "=" || fields[4] != "=" || len(fields[2]) != 1 {
+	if !strings.HasPrefix(word, "=?") || !strings.HasSuffix(word, "?=") || strings.Count(word, "?") != 4 {
+		return "", errInvalidWord
+	}
+	word = word[2 : len(word)-2]
+
+	// split delimits the first 2 fields
+	split := strings.IndexByte(word, '?')
+	// the field after split must only be one byte
+	if word[split+2] != '?' {
 		return "", errInvalidWord
 	}
 
-	content, err := decode(fields[2][0], fields[3])
+	// split word "UTF-8?q?ascii" into "UTF-8", 'q', and "ascii"
+	charset := word[:split]
+	encoding := word[split+1]
+	text := word[split+3:]
+
+	content, err := decode(encoding, text)
 	if err != nil {
 		return "", err
 	}
@@ -207,7 +219,7 @@ func (d *WordDecoder) Decode(word string) (string, error) {
 	buf := getBuffer()
 	defer putBuffer(buf)
 
-	if err := d.convert(buf, fields[1], content); err != nil {
+	if err := d.convert(buf, charset, content); err != nil {
 		return "", err
 	}
 
