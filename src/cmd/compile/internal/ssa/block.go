@@ -30,6 +30,9 @@ type Block struct {
 	// has a memory control value.
 	Control *Value
 
+	// Auxiliary info for the block.  Its value depends on the Kind.
+	Aux interface{}
+
 	// The unordered set of Values that define the operation of this block.
 	// The list must include the control value, if any. (TODO: need this last condition?)
 	// After the scheduling pass, this list is ordered.
@@ -65,6 +68,9 @@ func (b *Block) String() string {
 // long form print
 func (b *Block) LongString() string {
 	s := b.Kind.String()
+	if b.Aux != nil {
+		s += fmt.Sprintf(" %s", b.Aux)
+	}
 	if b.Control != nil {
 		s += fmt.Sprintf(" %s", b.Control)
 	}
