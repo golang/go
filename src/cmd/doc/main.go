@@ -87,6 +87,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 	buildPackage, userPath, symbol := parseArgs(flagSet.Args())
 	symbol, method := parseSymbol(symbol)
 	pkg := parsePackage(writer, buildPackage, userPath)
+
 	defer func() {
 		pkg.flush()
 		e := recover()
@@ -100,6 +101,13 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
 		}
 		panic(e)
 	}()
+
+	// The builtin package needs special treatment: its symbols are lower
+	// case but we want to see them, always.
+	if pkg.build.ImportPath == "builtin" {
+		unexported = true
+	}
+
 	switch {
 	case symbol == "":
 		pkg.packageDoc()
