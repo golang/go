@@ -135,6 +135,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AMOVL:      {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVQ:      {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVW:      {Flags: gc.SizeW | gc.LeftRead | gc.RightWrite | gc.Move},
+	x86.AMOVUPS:    {Flags: gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVSB:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
 	x86.AMOVSL:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
 	x86.AMOVSQ:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
@@ -246,6 +247,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AXORL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.AXORQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.AXORW:     {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
+	x86.AXORPS:    {Flags: gc.LeftRead | RightRdwr},
 }
 
 func progflags(p *obj.Prog) uint32 {
