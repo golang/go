@@ -8,5 +8,5 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 
 API additions and behavior changes:
 
-strconv: QuoteTOGraphic (https://golang.org/cl/14184/)
+strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
