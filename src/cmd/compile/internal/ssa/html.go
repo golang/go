@@ -384,6 +384,9 @@ func (b *Block) HTML() string {
 func (b *Block) LongHTML() string {
 	// TODO: improve this for HTML?
 	s := fmt.Sprintf("<span class=\"%s ssa-block\">%s</span>", html.EscapeString(b.String()), html.EscapeString(b.Kind.String()))
+	if b.Aux != nil {
+		s += html.EscapeString(fmt.Sprintf(" {%v}", b.Aux))
+	}
 	if b.Control != nil {
 		s += fmt.Sprintf(" %s", b.Control.HTML())
 	}

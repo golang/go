@@ -72,6 +72,22 @@ func checkFunc(f *Func) {
 			if b.Succs[0].Kind != BlockExit {
 				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)
 			}
+		case BlockRetJmp:
+			if len(b.Succs) != 1 {
+				f.Fatalf("retjmp block %s len(Succs)==%d, want 1", b, len(b.Succs))
+			}
+			if b.Control == nil {
+				f.Fatalf("retjmp block %s has nil control %s", b)
+			}
+			if !b.Control.Type.IsMemory() {
+				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Control.LongString())
+			}
+			if b.Succs[0].Kind != BlockExit {
+				f.Fatalf("retjmp block %s has successor %s, not Exit", b, b.Succs[0].Kind)
+			}
+			if b.Aux == nil {
+				f.Fatalf("retjmp block %s has nil Aux field", b)
+			}
 		case BlockDead:
 			if len(b.Succs) != 0 {
 				f.Fatalf("dead block %s has successors", b)
