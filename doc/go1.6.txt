@@ -10,3 +10,4 @@ API additions and behavior changes:
 
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
+text/template: trimming spaces (https://golang.org/cl/14391/)
