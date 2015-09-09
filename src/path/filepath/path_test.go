@@ -752,10 +752,6 @@ var EvalSymlinksTests = []EvalSymlinksTest{
 	{"test/linkabs", "/"},
 }
 
-var EvalSymlinksAbsWindowsTests = []EvalSymlinksTest{
-	{`c:\`, `c:\`},
-}
-
 // simpleJoin builds a file name from the directory and path.
 // It does not use Join because we don't want ".." to be evaluated.
 func simpleJoin(dir, path string) string {
@@ -766,6 +762,9 @@ func TestEvalSymlinks(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "nacl", "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+	if !supportsSymlinks {
+		t.Skip("skipping because symlinks are not supported")
 	}
 
 	tmpDir, err := ioutil.TempDir("", "evalsymlink")
@@ -788,35 +787,15 @@ func TestEvalSymlinks(t *testing.T) {
 		if d.dest == "" {
 			err = os.Mkdir(path, 0755)
 		} else {
-			if supportsSymlinks {
-				err = os.Symlink(d.dest, path)
-			}
+			err = os.Symlink(d.dest, path)
 		}
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	var tests []EvalSymlinksTest
-	if supportsSymlinks {
-		tests = EvalSymlinksTests
-	} else {
-		for _, d := range EvalSymlinksTests {
-			if d.path == d.dest {
-				// will test only real files and directories
-				tests = append(tests, d)
-				// test "canonical" names
-				d2 := EvalSymlinksTest{
-					path: strings.ToUpper(d.path),
-					dest: d.dest,
-				}
-				tests = append(tests, d2)
-			}
-		}
-	}
-
 	// Evaluate the symlink farm.
-	for _, d := range tests {
+	for _, d := range EvalSymlinksTests {
 		path := simpleJoin(tmpDir, d.path)
 		dest := simpleJoin(tmpDir, d.dest)
 		if filepath.IsAbs(d.dest) || os.IsPathSeparator(d.dest[0]) {
