@@ -404,14 +404,54 @@ func TestValidRune(t *testing.T) {
 }
 
 func BenchmarkRuneCountTenASCIIChars(b *testing.B) {
+	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		RuneCount(s)
+	}
+}
+
+func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
+	s := []byte("日本語日本語日本語日")
+	for i := 0; i < b.N; i++ {
+		RuneCount(s)
+	}
+}
+
+func BenchmarkRuneCountInStringTenASCIIChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		RuneCountInString("0123456789")
 	}
 }
 
-func BenchmarkRuneCountTenJapaneseChars(b *testing.B) {
+func BenchmarkRuneCountInStringTenJapaneseChars(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		RuneCountInString("日本語日本語日本語日")
+	}
+}
+
+func BenchmarkValidTenASCIIChars(b *testing.B) {
+	s := []byte("0123456789")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValidTenJapaneseChars(b *testing.B) {
+	s := []byte("日本語日本語日本語日")
+	for i := 0; i < b.N; i++ {
+		Valid(s)
+	}
+}
+
+func BenchmarkValidStringTenASCIIChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString("0123456789")
+	}
+}
+
+func BenchmarkValidStringTenJapaneseChars(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		ValidString("日本語日本語日本語日")
 	}
 }
 
@@ -440,5 +480,19 @@ func BenchmarkDecodeJapaneseRune(b *testing.B) {
 	nihon := []byte("本")
 	for i := 0; i < b.N; i++ {
 		DecodeRune(nihon)
+	}
+}
+
+func BenchmarkFullASCIIRune(b *testing.B) {
+	a := []byte{'a'}
+	for i := 0; i < b.N; i++ {
+		FullRune(a)
+	}
+}
+
+func BenchmarkFullJapaneseRune(b *testing.B) {
+	nihon := []byte("本")
+	for i := 0; i < b.N; i++ {
+		FullRune(nihon)
 	}
 }
