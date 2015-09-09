@@ -638,8 +638,8 @@ func (t *test) run() {
 	case "run":
 		useTmp = false
 		switch t.gofile {
-		case "bug434.go", "recover.go", "recover1.go", "issue4066.go":
-			// TODO fix these failures
+		case "bug434.go":
+			// TODO fix this failure
 		default:
 			ssaMain = true
 		}

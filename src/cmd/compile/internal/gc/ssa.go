@@ -741,16 +741,16 @@ func (s *state) stmt(n *Node) {
 			s.Unimplementedf("defer/go of %s", opnames[call.Op])
 		}
 
+		// Run all argument assignments.  The arg slots have already
+		// been offset by 2*widthptr.
+		s.stmtList(call.List)
+
 		// Write argsize and closure (args to Newproc/Deferproc)
 		argsize := s.constInt32(Types[TUINT32], int32(fn.Type.Argwid))
 		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
 		closure := s.expr(fn)
 		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
 		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
-
-		// Run all argument assignments.  The arg slots have already
-		// been offset by 2*widthptr.
-		s.stmtList(call.List)
 
 		// Call deferproc or newproc
 		bNext := s.f.NewBlock(ssa.BlockPlain)
