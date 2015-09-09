@@ -60,20 +60,17 @@ func gen(arch string, tags, zero, copy func(io.Writer)) {
 func notags(w io.Writer) { fmt.Fprintln(w) }
 
 func zeroAMD64(w io.Writer) {
-	// AX: zero
+	// X0: zero
 	// DI: ptr to memory to be zeroed
 	// DI is updated as a side effect.
 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $0-0")
-	for i := 0; i < 31; i++ {
-		fmt.Fprintln(w, "\tMOVQ\tAX,(DI)")
-		fmt.Fprintln(w, "\tMOVQ\tAX,8(DI)")
-		fmt.Fprintln(w, "\tMOVQ\tAX,16(DI)")
-		fmt.Fprintln(w, "\tMOVQ\tAX,24(DI)")
-		fmt.Fprintln(w, "\tADDQ\t$32,DI")
+	for i := 0; i < 16; i++ {
+		fmt.Fprintln(w, "\tMOVUPS\tX0,(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX0,16(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX0,32(DI)")
+		fmt.Fprintln(w, "\tMOVUPS\tX0,48(DI)")
+		fmt.Fprintln(w, "\tADDQ\t$64,DI")
 		fmt.Fprintln(w)
-	}
-	for i := 0; i < 4; i++ {
-		fmt.Fprintln(w, "\tSTOSQ")
 	}
 	fmt.Fprintln(w, "\tRET")
 }

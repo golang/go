@@ -28,6 +28,7 @@ func defframe(ptxt *obj.Prog) {
 	hi := int64(0)
 	lo := hi
 	ax := uint32(0)
+	x0 := uint32(0)
 
 	// iterate through declarations - they are sorted in decreasing xoffset order.
 	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
@@ -50,7 +51,7 @@ func defframe(ptxt *obj.Prog) {
 		}
 
 		// zero old range
-		p = zerorange(p, int64(frame), lo, hi, &ax)
+		p = zerorange(p, int64(frame), lo, hi, &ax, &x0)
 
 		// set new range
 		hi = n.Xoffset + n.Type.Width
@@ -59,66 +60,50 @@ func defframe(ptxt *obj.Prog) {
 	}
 
 	// zero final range
-	zerorange(p, int64(frame), lo, hi, &ax)
+	zerorange(p, int64(frame), lo, hi, &ax, &x0)
 }
 
-// DUFFZERO consists of repeated blocks of 4 MOVs + ADD,
-// with 4 STOSQs at the very end.
-// The trailing STOSQs prevent the need for a DI preadjustment
-// for small numbers of words to clear.
+// DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
 // See runtime/mkduff.go.
 const (
-	dzBlocks    = 31 // number of MOV/ADD blocks
+	dzBlocks    = 16 // number of MOV/ADD blocks
 	dzBlockLen  = 4  // number of clears per block
 	dzBlockSize = 19 // size of instructions in a single block
 	dzMovSize   = 4  // size of single MOV instruction w/ offset
 	dzAddSize   = 4  // size of single ADD instruction
-	dzDIStep    = 8  // number of bytes cleared by each MOV instruction
+	dzClearStep = 16 // number of bytes cleared by each MOV instruction
 
-	dzTailLen  = 4 // number of final STOSQ instructions
-	dzTailSize = 2 // size of single STOSQ instruction
-
-	dzSize = dzBlocks*dzBlockSize + dzTailLen*dzTailSize // total size of DUFFZERO routine
+	dzClearLen = dzClearStep * dzBlockLen // bytes cleared by one block
+	dzSize     = dzBlocks * dzBlockSize
 )
 
-// duffzeroDI returns the pre-adjustment to DI for a call to DUFFZERO.
-// q is the number of words to zero.
-func dzDI(q int64) int64 {
-	if q < dzTailLen {
-		return 0
-	}
-	q -= dzTailLen
-	if q%dzBlockLen == 0 {
-		return 0
-	}
-	return -dzDIStep * (dzBlockLen - q%dzBlockLen)
-}
-
 // dzOff returns the offset for a jump into DUFFZERO.
-// q is the number of words to zero.
-func dzOff(q int64) int64 {
+// b is the number of bytes to zero.
+func dzOff(b int64) int64 {
 	off := int64(dzSize)
-	if q < dzTailLen {
-		return off - q*dzTailSize
-	}
-	off -= dzTailLen * dzTailSize
-	q -= dzTailLen
-	blocks, steps := q/dzBlockLen, q%dzBlockLen
-	off -= dzBlockSize * blocks
-	if steps > 0 {
-		off -= dzAddSize + dzMovSize*steps
+	off -= b / dzClearLen * dzBlockSize
+	tailLen := b % dzClearLen
+	if tailLen >= dzClearStep {
+		off -= dzAddSize + dzMovSize*(tailLen/dzClearStep)
 	}
 	return off
 }
 
-func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Prog {
+// duffzeroDI returns the pre-adjustment to DI for a call to DUFFZERO.
+// b is the number of bytes to zero.
+func dzDI(b int64) int64 {
+	tailLen := b % dzClearLen
+	if tailLen < dzClearStep {
+		return 0
+	}
+	tailSteps := tailLen / dzClearStep
+	return -dzClearStep * (dzBlockLen - tailSteps)
+}
+
+func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uint32) *obj.Prog {
 	cnt := hi - lo
 	if cnt == 0 {
 		return p
-	}
-	if *ax == 0 {
-		p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
-		*ax = 1
 	}
 
 	if cnt%int64(gc.Widthreg) != 0 {
@@ -126,21 +111,53 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 		if cnt%int64(gc.Widthptr) != 0 {
 			gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
 		}
+		if *ax == 0 {
+			p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+			*ax = 1
+		}
 		p = appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
 		lo += int64(gc.Widthptr)
 		cnt -= int64(gc.Widthptr)
 	}
 
-	if cnt <= int64(4*gc.Widthreg) {
-		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
-			p = appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i)
+	if cnt == 8 {
+		if *ax == 0 {
+			p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+			*ax = 1
+		}
+		p = appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
+	} else if cnt <= int64(8*gc.Widthreg) {
+		if *x0 == 0 {
+			p = appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
+			*x0 = 1
+		}
+
+		for i := int64(0); i < cnt/16; i++ {
+			p = appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+i*16)
+		}
+
+		if cnt%16 != 0 {
+			p = appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+cnt-int64(16))
 		}
 	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthreg)) {
-		q := cnt / int64(gc.Widthreg)
-		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(q), obj.TYPE_REG, x86.REG_DI, 0)
-		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(q))
+		if *x0 == 0 {
+			p = appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
+			*x0 = 1
+		}
+
+		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
+		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
+
+		if cnt%16 != 0 {
+			p = appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
+		}
 	} else {
+		if *ax == 0 {
+			p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, 0, obj.TYPE_REG, x86.REG_AX, 0)
+			*ax = 1
+		}
+
 		p = appendpp(p, x86.AMOVQ, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
 		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo, obj.TYPE_REG, x86.REG_DI, 0)
 		p = appendpp(p, x86.AREP, obj.TYPE_NONE, 0, 0, obj.TYPE_NONE, 0, 0)
@@ -537,106 +554,150 @@ func clearfat(nl *gc.Node) {
 		gc.Dump("\nclearfat", nl)
 	}
 
-	w := nl.Type.Width
-
 	// Avoid taking the address for simple enough types.
 	if gc.Componentgen(nil, nl) {
 		return
 	}
 
-	c := w % 8 // bytes
-	q := w / 8 // quads
+	w := nl.Type.Width
 
-	if q < 4 {
-		// Write sequence of MOV 0, off(base) instead of using STOSQ.
-		// The hope is that although the code will be slightly longer,
-		// the MOVs will have no dependencies and pipeline better
-		// than the unrolled STOSQ loop.
-		// NOTE: Must use agen, not igen, so that optimizer sees address
-		// being taken. We are not writing on field boundaries.
+	if w > 1024 || (gc.Nacl && w >= 64) {
+		var oldn1 gc.Node
 		var n1 gc.Node
-		gc.Agenr(nl, &n1, nil)
+		savex(x86.REG_DI, &n1, &oldn1, nil, gc.Types[gc.Tptr])
+		gc.Agen(nl, &n1)
 
-		n1.Op = gc.OINDREG
-		var z gc.Node
-		gc.Nodconst(&z, gc.Types[gc.TUINT64], 0)
-		for ; q > 0; q-- {
-			n1.Type = z.Type
-			gins(x86.AMOVQ, &z, &n1)
-			n1.Xoffset += 8
+		var ax gc.Node
+		var oldax gc.Node
+		savex(x86.REG_AX, &ax, &oldax, nil, gc.Types[gc.Tptr])
+		gconreg(x86.AMOVL, 0, x86.REG_AX)
+		gconreg(movptr, w/8, x86.REG_CX)
+
+		gins(x86.AREP, nil, nil)   // repeat
+		gins(x86.ASTOSQ, nil, nil) // STOQ AL,*(DI)+
+
+		if w%8 != 0 {
+			n1.Op = gc.OINDREG
+			clearfat_tail(&n1, w%8)
 		}
 
-		if c >= 4 {
-			gc.Nodconst(&z, gc.Types[gc.TUINT32], 0)
-			n1.Type = z.Type
-			gins(x86.AMOVL, &z, &n1)
-			n1.Xoffset += 4
-			c -= 4
-		}
-
-		gc.Nodconst(&z, gc.Types[gc.TUINT8], 0)
-		for ; c > 0; c-- {
-			n1.Type = z.Type
-			gins(x86.AMOVB, &z, &n1)
-			n1.Xoffset++
-		}
-
-		gc.Regfree(&n1)
+		restx(&n1, &oldn1)
+		restx(&ax, &oldax)
 		return
 	}
 
-	var oldn1 gc.Node
-	var n1 gc.Node
-	savex(x86.REG_DI, &n1, &oldn1, nil, gc.Types[gc.Tptr])
-	gc.Agen(nl, &n1)
+	if w >= 64 {
+		var oldn1 gc.Node
+		var n1 gc.Node
+		savex(x86.REG_DI, &n1, &oldn1, nil, gc.Types[gc.Tptr])
+		gc.Agen(nl, &n1)
 
-	var ax gc.Node
-	var oldax gc.Node
-	savex(x86.REG_AX, &ax, &oldax, nil, gc.Types[gc.Tptr])
-	gconreg(x86.AMOVL, 0, x86.REG_AX)
+		var vec_zero gc.Node
+		var old_x0 gc.Node
+		savex(x86.REG_X0, &vec_zero, &old_x0, nil, gc.Types[gc.TFLOAT64])
+		gins(x86.AXORPS, &vec_zero, &vec_zero)
 
-	if q > 128 || gc.Nacl {
-		gconreg(movptr, q, x86.REG_CX)
-		gins(x86.AREP, nil, nil)   // repeat
-		gins(x86.ASTOSQ, nil, nil) // STOQ AL,*(DI)+
-	} else {
-		if di := dzDI(q); di != 0 {
+		if di := dzDI(w); di != 0 {
 			gconreg(addptr, di, x86.REG_DI)
 		}
 		p := gins(obj.ADUFFZERO, nil, nil)
 		p.To.Type = obj.TYPE_ADDR
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
-		p.To.Offset = dzOff(q)
+		p.To.Offset = dzOff(w)
+
+		if w%16 != 0 {
+			n1.Op = gc.OINDREG
+			n1.Xoffset -= 16 - w%16
+			gins(x86.AMOVUPS, &vec_zero, &n1)
+		}
+
+		restx(&vec_zero, &old_x0)
+		restx(&n1, &oldn1)
+		return
 	}
 
-	z := ax
-	di := n1
-	if w >= 8 && c >= 4 {
-		di.Op = gc.OINDREG
-		z.Type = gc.Types[gc.TINT64]
-		di.Type = z.Type
-		p := gins(x86.AMOVQ, &z, &di)
-		p.To.Scale = 1
-		p.To.Offset = c - 8
-	} else if c >= 4 {
-		di.Op = gc.OINDREG
-		z.Type = gc.Types[gc.TINT32]
-		di.Type = z.Type
-		gins(x86.AMOVL, &z, &di)
-		if c > 4 {
-			p := gins(x86.AMOVL, &z, &di)
-			p.To.Scale = 1
-			p.To.Offset = c - 4
+	// NOTE: Must use agen, not igen, so that optimizer sees address
+	// being taken. We are not writing on field boundaries.
+	var n1 gc.Node
+	gc.Agenr(nl, &n1, nil)
+	n1.Op = gc.OINDREG
+
+	clearfat_tail(&n1, w)
+
+	gc.Regfree(&n1)
+}
+
+func clearfat_tail(n1 *gc.Node, b int64) {
+	if b >= 16 {
+		var vec_zero gc.Node
+		gc.Regalloc(&vec_zero, gc.Types[gc.TFLOAT64], nil)
+		gins(x86.AXORPS, &vec_zero, &vec_zero)
+
+		for b >= 16 {
+			gins(x86.AMOVUPS, &vec_zero, n1)
+			n1.Xoffset += 16
+			b -= 16
 		}
-	} else {
-		for c > 0 {
-			gins(x86.ASTOSB, nil, nil) // STOB AL,*(DI)+
-			c--
+
+		// MOVUPS X0, off(base) is a few bytes shorter than MOV 0, off(base)
+		if b != 0 {
+			n1.Xoffset -= 16 - b
+			gins(x86.AMOVUPS, &vec_zero, n1)
 		}
+
+		gc.Regfree(&vec_zero)
+		return
 	}
 
-	restx(&n1, &oldn1)
-	restx(&ax, &oldax)
+	// Write sequence of MOV 0, off(base) instead of using STOSQ.
+	// The hope is that although the code will be slightly longer,
+	// the MOVs will have no dependencies and pipeline better
+	// than the unrolled STOSQ loop.
+	var z gc.Node
+	gc.Nodconst(&z, gc.Types[gc.TUINT64], 0)
+	if b >= 8 {
+		n1.Type = z.Type
+		gins(x86.AMOVQ, &z, n1)
+		n1.Xoffset += 8
+		b -= 8
+
+		if b != 0 {
+			n1.Xoffset -= 8 - b
+			gins(x86.AMOVQ, &z, n1)
+		}
+		return
+	}
+
+	if b >= 4 {
+		gc.Nodconst(&z, gc.Types[gc.TUINT32], 0)
+		n1.Type = z.Type
+		gins(x86.AMOVL, &z, n1)
+		n1.Xoffset += 4
+		b -= 4
+
+		if b != 0 {
+			n1.Xoffset -= 4 - b
+			gins(x86.AMOVL, &z, n1)
+		}
+		return
+	}
+
+	if b >= 2 {
+		gc.Nodconst(&z, gc.Types[gc.TUINT16], 0)
+		n1.Type = z.Type
+		gins(x86.AMOVW, &z, n1)
+		n1.Xoffset += 2
+		b -= 2
+	}
+
+	gc.Nodconst(&z, gc.Types[gc.TUINT8], 0)
+	for b > 0 {
+		n1.Type = z.Type
+		gins(x86.AMOVB, &z, n1)
+		n1.Xoffset++
+		b--
+	}
+
 }
 
 // Called after regopt and peep have run.
