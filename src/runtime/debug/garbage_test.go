@@ -88,7 +88,7 @@ func TestReadGCStats(t *testing.T) {
 var big = make([]byte, 1<<20)
 
 func TestFreeOSMemory(t *testing.T) {
-	if runtime.GOARCH == "arm64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" ||
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "mips64" || runtime.GOARCH == "mips64le" ||
 		runtime.GOOS == "nacl" {
 		t.Skip("issue 9993; scavenger temporarily disabled on systems with physical pages larger than logical pages")
 	}
