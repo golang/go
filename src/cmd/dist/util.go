@@ -480,6 +480,14 @@ func main() {
 		}
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
+		useVFPv1() // might fail with SIGILL
+		println("VFPv1 OK.")
+		useVFPv3() // might fail with SIGILL
+		println("VFPv3 OK.")
+		os.Exit(0)
+	}
+
 	xinit()
 	xmain()
 	xexit(0)
@@ -515,40 +523,21 @@ func xgetgoarm() string {
 		// OpenBSD currently only supports softfloat.
 		return "5"
 	}
-	if goos != "linux" {
-		// All other arm platforms that we support
-		// require ARMv7.
+
+	// Try to exec ourselves in a mode to detect VFP support.
+	// Seeing how far it gets determines which instructions failed.
+	// The test is OS-agnostic.
+	out := run("", 0, os.Args[0], "-check-goarm")
+	v1ok := strings.Contains(out, "VFPv1 OK.")
+	v3ok := strings.Contains(out, "VFPv3 OK.")
+
+	if v1ok && v3ok {
 		return "7"
 	}
-	cpuinfo := readfile("/proc/cpuinfo")
-	goarm := "5"
-	for _, line := range splitlines(cpuinfo) {
-		line := strings.SplitN(line, ":", 2)
-		if len(line) < 2 {
-			continue
-		}
-		if strings.TrimSpace(line[0]) != "Features" {
-			continue
-		}
-		features := splitfields(line[1])
-		sort.Strings(features) // so vfpv3 sorts after vfp
-
-		// Infer GOARM value from the vfp features available
-		// on this host. Values of GOARM detected are:
-		// 5: no vfp support was found
-		// 6: vfp (v1) support was detected, but no higher
-		// 7: vfpv3 support was detected.
-		// This matches the assertions in runtime.checkarm.
-		for _, f := range features {
-			switch f {
-			case "vfp":
-				goarm = "6"
-			case "vfpv3":
-				goarm = "7"
-			}
-		}
+	if v1ok {
+		return "6"
 	}
-	return goarm
+	return "5"
 }
 
 func min(a, b int) int {
