@@ -18,15 +18,19 @@ func atoi(s string) int {
 	return int(n)
 }
 
-func isalnum(c int) bool {
-	return isalpha(c) || isdigit(c)
+func isSpace(c int) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
 
-func isalpha(c int) bool {
+func isAlnum(c int) bool {
+	return isAlpha(c) || isDigit(c)
+}
+
+func isAlpha(c int) bool {
 	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
 }
 
-func isdigit(c int) bool {
+func isDigit(c int) bool {
 	return '0' <= c && c <= '9'
 }
 
