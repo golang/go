@@ -2,27 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ppc64
+package mips64
 
 import (
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
-	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/mips"
 )
 
-var thechar int = '9'
+var thechar int = '0'
 
-var thestring string = "ppc64"
+var thestring string = "mips64"
 
 var thelinkarch *obj.LinkArch
 
 func linkarchinit() {
 	thestring = obj.Getgoarch()
 	gc.Thearch.Thestring = thestring
-	if thestring == "ppc64le" {
-		thelinkarch = &ppc64.Linkppc64le
+	if thestring == "mips64le" {
+		thelinkarch = &mips.Linkmips64le
 	} else {
-		thelinkarch = &ppc64.Linkppc64
+		thelinkarch = &mips.Linkmips64
 	}
 	gc.Thearch.Thelinkarch = thelinkarch
 }
@@ -50,15 +50,15 @@ func Main() {
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
 	gc.Thearch.Typedefs = typedefs
-	gc.Thearch.REGSP = ppc64.REGSP
-	gc.Thearch.REGCTXT = ppc64.REGCTXT
-	gc.Thearch.REGCALLX = ppc64.REG_R3
-	gc.Thearch.REGCALLX2 = ppc64.REG_R4
-	gc.Thearch.REGRETURN = ppc64.REG_R3
-	gc.Thearch.REGMIN = ppc64.REG_R0
-	gc.Thearch.REGMAX = ppc64.REG_R31
-	gc.Thearch.FREGMIN = ppc64.REG_F0
-	gc.Thearch.FREGMAX = ppc64.REG_F31
+	gc.Thearch.REGSP = mips.REGSP
+	gc.Thearch.REGCTXT = mips.REGCTXT
+	gc.Thearch.REGCALLX = mips.REG_R1
+	gc.Thearch.REGCALLX2 = mips.REG_R2
+	gc.Thearch.REGRETURN = mips.REGRET
+	gc.Thearch.REGMIN = mips.REG_R0
+	gc.Thearch.REGMAX = mips.REG_R31
+	gc.Thearch.FREGMIN = mips.REG_F0
+	gc.Thearch.FREGMAX = mips.REG_F31
 	gc.Thearch.MAXWIDTH = MAXWIDTH
 	gc.Thearch.ReservedRegs = resvd
 
