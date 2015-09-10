@@ -1476,6 +1476,22 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLT, OEQ, ONE, OLE, OGE, OGT:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
+		if n.Left.Type.IsComplex() {
+			pt := floatForComplex(n.Type)
+			op := s.ssaOp(OEQ, pt)
+			r := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
+			i := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
+			c := s.newValue2(ssa.OpAnd8, Types[TBOOL], r, i)
+			switch n.Op {
+			case OEQ:
+				return c
+			case ONE:
+				return s.newValue1(ssa.OpNot, Types[TBOOL], c)
+			default:
+				s.Fatalf("ordered complex compare %s", opnames[n.Op])
+			}
+
+		}
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
 	case OMUL:
 		a := s.expr(n.Left)

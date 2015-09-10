@@ -1557,6 +1557,45 @@ func cx64imag_ssa(a complex64) float32 {
 	return imag(a)
 }
 
+func cx128eq_ssa(a, b complex128) bool {
+	switch { // prevent inlining
+	}
+	return a == b
+}
+
+func cx128ne_ssa(a, b complex128) bool {
+	switch { // prevent inlining
+	}
+	return a != b
+}
+
+func cx64eq_ssa(a, b complex64) bool {
+	switch { // prevent inlining
+	}
+	return a == b
+}
+
+func cx64ne_ssa(a, b complex64) bool {
+	switch { // prevent inlining
+	}
+	return a != b
+}
+
+func expectTrue(s string, b bool) int {
+	if !b {
+		println("expected true for", s, ", got false")
+		return 1
+	}
+	return 0
+}
+func expectFalse(s string, b bool) int {
+	if b {
+		println("expected false for", s, ", got true")
+		return 1
+	}
+	return 0
+}
+
 func complexTest128() int {
 	fails := 0
 	var a complex128 = 1 + 2i
@@ -1569,6 +1608,10 @@ func complexTest128() int {
 	r := cx128real_ssa(a)
 	i := cx128imag_ssa(a)
 	cnst := cx128cnst_ssa(a)
+	c1 := cx128eq_ssa(a, a)
+	c2 := cx128eq_ssa(a, b)
+	c3 := cx128ne_ssa(a, a)
+	c4 := cx128ne_ssa(a, b)
 
 	fails += expectCx128("sum", sum, 4+8i)
 	fails += expectCx128("diff", diff, 2+4i)
@@ -1578,6 +1621,10 @@ func complexTest128() int {
 	fails += expect64("real", r, 1)
 	fails += expect64("imag", i, 2)
 	fails += expectCx128("cnst", cnst, -4+7i)
+	fails += expectTrue(fmt.Sprintf("%v==%v", a, a), c1)
+	fails += expectFalse(fmt.Sprintf("%v==%v", a, b), c2)
+	fails += expectFalse(fmt.Sprintf("%v!=%v", a, a), c3)
+	fails += expectTrue(fmt.Sprintf("%v!=%v", a, b), c4)
 
 	return fails
 }
@@ -1593,6 +1640,10 @@ func complexTest64() int {
 	neg := cx64neg_ssa(a)
 	r := cx64real_ssa(a)
 	i := cx64imag_ssa(a)
+	c1 := cx64eq_ssa(a, a)
+	c2 := cx64eq_ssa(a, b)
+	c3 := cx64ne_ssa(a, a)
+	c4 := cx64ne_ssa(a, b)
 
 	fails += expectCx64("sum", sum, 4+8i)
 	fails += expectCx64("diff", diff, 2+4i)
@@ -1601,6 +1652,10 @@ func complexTest64() int {
 	fails += expectCx64("neg", neg, -1-2i)
 	fails += expect32("real", r, 1)
 	fails += expect32("imag", i, 2)
+	fails += expectTrue(fmt.Sprintf("%v==%v", a, a), c1)
+	fails += expectFalse(fmt.Sprintf("%v==%v", a, b), c2)
+	fails += expectFalse(fmt.Sprintf("%v!=%v", a, a), c3)
+	fails += expectTrue(fmt.Sprintf("%v!=%v", a, b), c4)
 
 	return fails
 }
