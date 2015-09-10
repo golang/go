@@ -1496,6 +1496,18 @@ func cx128neg_ssa(a complex128) complex128 {
 	return -a
 }
 
+func cx128real_ssa(a complex128) float64 {
+	switch { // prevent inlining
+	}
+	return real(a)
+}
+
+func cx128imag_ssa(a complex128) float64 {
+	switch { // prevent inlining
+	}
+	return imag(a)
+}
+
 func cx128cnst_ssa(a complex128) complex128 {
 	switch { // prevent inlining
 	}
@@ -1533,6 +1545,18 @@ func cx64neg_ssa(a complex64) complex64 {
 	return -a
 }
 
+func cx64real_ssa(a complex64) float32 {
+	switch { // prevent inlining
+	}
+	return real(a)
+}
+
+func cx64imag_ssa(a complex64) float32 {
+	switch { // prevent inlining
+	}
+	return imag(a)
+}
+
 func complexTest128() int {
 	fails := 0
 	var a complex128 = 1 + 2i
@@ -1542,6 +1566,8 @@ func complexTest128() int {
 	prod := cx128prod_ssa(b, a)
 	quot := cx128quot_ssa(b, a)
 	neg := cx128neg_ssa(a)
+	r := cx128real_ssa(a)
+	i := cx128imag_ssa(a)
 	cnst := cx128cnst_ssa(a)
 
 	fails += expectCx128("sum", sum, 4+8i)
@@ -1549,6 +1575,8 @@ func complexTest128() int {
 	fails += expectCx128("prod", prod, -9+12i)
 	fails += expectCx128("quot", quot, 3+0i)
 	fails += expectCx128("neg", neg, -1-2i)
+	fails += expect64("real", r, 1)
+	fails += expect64("imag", i, 2)
 	fails += expectCx128("cnst", cnst, -4+7i)
 
 	return fails
@@ -1563,12 +1591,16 @@ func complexTest64() int {
 	prod := cx64prod_ssa(b, a)
 	quot := cx64quot_ssa(b, a)
 	neg := cx64neg_ssa(a)
+	r := cx64real_ssa(a)
+	i := cx64imag_ssa(a)
 
 	fails += expectCx64("sum", sum, 4+8i)
 	fails += expectCx64("diff", diff, 2+4i)
 	fails += expectCx64("prod", prod, -9+12i)
 	fails += expectCx64("quot", quot, 3+0i)
 	fails += expectCx64("neg", neg, -1-2i)
+	fails += expect32("real", r, 1)
+	fails += expect32("imag", i, 2)
 
 	return fails
 }
