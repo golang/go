@@ -1188,6 +1188,11 @@ var startests = []struct {
 	{"%.*d", args(4, 42), "0042"},
 	{"%*.*d", args(8, 4, 42), "    0042"},
 	{"%0*d", args(4, 42), "0042"},
+	// Some non-int types for width. (Issue 10732).
+	{"%0*d", args(uint(4), 42), "0042"},
+	{"%0*d", args(uint64(4), 42), "0042"},
+	{"%0*d", args('\x04', 42), "0042"},
+	{"%0*d", args(uintptr(4), 42), "0042"},
 
 	// erroneous
 	{"%*d", args(nil, 42), "%!(BADWIDTH)42"},
@@ -1196,17 +1201,19 @@ var startests = []struct {
 	{"%.*d", args(nil, 42), "%!(BADPREC)42"},
 	{"%.*d", args(-1, 42), "%!(BADPREC)42"},
 	{"%.*d", args(int(1e7), 42), "%!(BADPREC)42"},
+	{"%.*d", args(uint(1e7), 42), "%!(BADPREC)42"},
+	{"%.*d", args(uint64(1<<63), 42), "%!(BADPREC)42"},   // Huge negative (-inf).
+	{"%.*d", args(uint64(1<<64-1), 42), "%!(BADPREC)42"}, // Small negative (-1).
 	{"%*d", args(5, "foo"), "%!d(string=  foo)"},
 	{"%*% %d", args(20, 5), "% 5"},
 	{"%*", args(4), "%!(NOVERB)"},
-	{"%*d", args(int32(4), 42), "%!(BADWIDTH)42"},
 }
 
 func TestWidthAndPrecision(t *testing.T) {
-	for _, tt := range startests {
+	for i, tt := range startests {
 		s := Sprintf(tt.fmt, tt.in...)
 		if s != tt.out {
-			t.Errorf("%q: got %q expected %q", tt.fmt, s, tt.out)
+			t.Errorf("#%d: %q: got %q expected %q", i, tt.fmt, s, tt.out)
 		}
 	}
 }
