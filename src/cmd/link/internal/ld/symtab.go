@@ -67,7 +67,7 @@ func putelfstr(s string) int {
 
 func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
 	switch Thearch.Thechar {
-	case '6', '7', '9':
+	case '0', '6', '7', '9':
 		Thearch.Lput(uint32(off))
 		Cput(uint8(info))
 		Cput(uint8(other))
