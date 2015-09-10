@@ -122,7 +122,7 @@ func Yyerror(format string, args ...interface{}) {
 
 		// An unexpected EOF caused a syntax error. Use the previous
 		// line number since getc generated a fake newline character.
-		if curio.eofnl != 0 {
+		if curio.eofnl {
 			lexlineno = prevlineno
 		}
 

@@ -382,12 +382,12 @@ type Sig struct {
 type Io struct {
 	infile     string
 	bin        *obj.Biobuf
-	nlsemi     int
-	eofnl      int
+	cp         string // used for content when bin==nil
 	last       int
 	peekc      int
-	peekc1     int    // second peekc for ...
-	cp         string // used for content when bin==nil
+	peekc1     int // second peekc for ...
+	nlsemi     bool
+	eofnl      bool
 	importsafe bool
 }
 
@@ -598,7 +598,7 @@ var incannedimport int
 
 var statuniqgen int // name generator for static temps
 
-var loophack int
+var loophack bool
 
 var iota_ int32
 
