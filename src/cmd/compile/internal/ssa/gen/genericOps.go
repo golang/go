@@ -160,7 +160,8 @@ var genericOps = []opData{
 	{name: "Eq32"},
 	{name: "Eq64"},
 	{name: "EqPtr"},
-	{name: "EqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
+	{name: "EqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
+	{name: "EqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "Eq32F"},
 	{name: "Eq64F"},
 
@@ -169,7 +170,8 @@ var genericOps = []opData{
 	{name: "Neq32"},
 	{name: "Neq64"},
 	{name: "NeqPtr"},
-	{name: "NeqFat"}, // slice/interface; arg0 or arg1 is nil; other cases handled by frontend
+	{name: "NeqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
+	{name: "NeqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "Neq32F"},
 	{name: "Neq64F"},
 
@@ -334,10 +336,10 @@ var genericOps = []opData{
 	{name: "StructSelect"}, // arg0=struct, auxint=field offset.  Returns field at that offset (size=size of result type)
 
 	// Slices
-	{name: "SliceMake"}, // arg0=ptr, arg1=len, arg2=cap
-	{name: "SlicePtr"},  // ptr(arg0)
-	{name: "SliceLen"},  // len(arg0)
-	{name: "SliceCap"},  // cap(arg0)
+	{name: "SliceMake"},                // arg0=ptr, arg1=len, arg2=cap
+	{name: "SlicePtr", typ: "Uintptr"}, // ptr(arg0)
+	{name: "SliceLen"},                 // len(arg0)
+	{name: "SliceCap"},                 // cap(arg0)
 
 	// Complex (part/whole)
 	{name: "ComplexMake"}, // arg0=real, arg1=imag
@@ -350,9 +352,9 @@ var genericOps = []opData{
 	{name: "StringLen"},  // len(arg0)
 
 	// Interfaces
-	{name: "IMake"}, // arg0=itab, arg1=data
-	{name: "ITab"},  // arg0=interface, returns itable field
-	{name: "IData"}, // arg0=interface, returns data field
+	{name: "IMake"},                // arg0=itab, arg1=data
+	{name: "ITab", typ: "Uintptr"}, // arg0=interface, returns itable field
+	{name: "IData"},                // arg0=interface, returns data field
 
 	// Spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return

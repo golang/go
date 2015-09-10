@@ -950,8 +950,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OEQ, TUINT32}:    ssa.OpEq32,
 	opAndType{OEQ, TINT64}:     ssa.OpEq64,
 	opAndType{OEQ, TUINT64}:    ssa.OpEq64,
-	opAndType{OEQ, TINTER}:     ssa.OpEqFat, // e == nil only
-	opAndType{OEQ, TARRAY}:     ssa.OpEqFat, // slice only; a == nil only
+	opAndType{OEQ, TINTER}:     ssa.OpEqInter,
+	opAndType{OEQ, TARRAY}:     ssa.OpEqSlice,
 	opAndType{OEQ, TFUNC}:      ssa.OpEqPtr,
 	opAndType{OEQ, TMAP}:       ssa.OpEqPtr,
 	opAndType{OEQ, TCHAN}:      ssa.OpEqPtr,
@@ -970,8 +970,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{ONE, TUINT32}:    ssa.OpNeq32,
 	opAndType{ONE, TINT64}:     ssa.OpNeq64,
 	opAndType{ONE, TUINT64}:    ssa.OpNeq64,
-	opAndType{ONE, TINTER}:     ssa.OpNeqFat, // e != nil only
-	opAndType{ONE, TARRAY}:     ssa.OpNeqFat, // slice only; a != nil only
+	opAndType{ONE, TINTER}:     ssa.OpNeqInter,
+	opAndType{ONE, TARRAY}:     ssa.OpNeqSlice,
 	opAndType{ONE, TFUNC}:      ssa.OpNeqPtr,
 	opAndType{ONE, TMAP}:       ssa.OpNeqPtr,
 	opAndType{ONE, TCHAN}:      ssa.OpNeqPtr,
@@ -1522,7 +1522,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 			default:
 				s.Fatalf("ordered complex compare %s", opnames[n.Op])
 			}
-
 		}
 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), Types[TBOOL], a, b)
 	case OMUL:
