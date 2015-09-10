@@ -1477,7 +1477,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		if n.Left.Type.IsComplex() {
-			pt := floatForComplex(n.Type)
+			pt := floatForComplex(n.Left.Type)
 			op := s.ssaOp(OEQ, pt)
 			r := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexReal, pt, a), s.newValue1(ssa.OpComplexReal, pt, b))
 			i := s.newValue2(op, Types[TBOOL], s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b))
