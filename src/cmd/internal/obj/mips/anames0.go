@@ -1,14 +1,18 @@
-package ppc64
+package mips
 
-var cnames9 = []string{
+var cnames0 = []string{
 	"NONE",
 	"REG",
 	"FREG",
-	"CREG",
-	"SPR",
+	"FCREG",
+	"MREG",
+	"HI",
+	"LO",
 	"ZCON",
 	"SCON",
 	"UCON",
+	"ADD0CON",
+	"AND0CON",
 	"ADDCON",
 	"ANDCON",
 	"LCON",
@@ -27,12 +31,6 @@ var cnames9 = []string{
 	"ZOREG",
 	"SOREG",
 	"LOREG",
-	"FPSCR",
-	"MSR",
-	"XER",
-	"LR",
-	"CTR",
-	"ANY",
 	"GOK",
 	"ADDR",
 	"TEXTSIZE",
