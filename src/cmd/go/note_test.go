@@ -28,6 +28,10 @@ func TestNoteReading(t *testing.T) {
 		t.Skipf("skipping - golang.org/issue/11184")
 	}
 
+	if runtime.GOOS == "linux" && (runtime.GOARCH == "mips64le" || runtime.GOARCH == "mips64") {
+		t.Skipf("skipping - external linking not supported, golang.org/issue/12560")
+	}
+
 	switch runtime.GOOS {
 	case "plan9":
 		// no external linking
