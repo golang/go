@@ -464,9 +464,9 @@ func Main() {
 	}
 
 	// Phase 9: Check external declarations.
-	for l := externdcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME {
-			typecheck(&l.N, Erv)
+	for i, n := range externdcl {
+		if n.Op == ONAME {
+			typecheck(&externdcl[i], Erv)
 		}
 	}
 
