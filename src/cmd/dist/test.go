@@ -745,6 +745,10 @@ func (t *tester) cgoTestSOSupported() bool {
 		// External linking not implemented on ppc64 (issue #8912).
 		return false
 	}
+	if t.goarch == "mips64le" || t.goarch == "mips64" {
+		// External linking not implemented on mips64.
+		return false
+	}
 	return true
 }
 
