@@ -636,6 +636,7 @@ func (t *test) run() {
 		}
 
 	case "run":
+		useTmp = false
 		ssaMain = true
 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
 		if err != nil {
