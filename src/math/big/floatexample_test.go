@@ -113,9 +113,9 @@ func ExampleFloat_Cmp() {
 func ExampleRoundingMode() {
 	operands := []float64{2.6, 2.5, 2.1, -2.1, -2.5, -2.6}
 
-	fmt.Printf("x   ")
+	fmt.Print("   x")
 	for mode := big.ToNearestEven; mode <= big.ToPositiveInf; mode++ {
-		fmt.Printf(" %s", mode)
+		fmt.Printf("  %s", mode)
 	}
 	fmt.Println()
 
@@ -125,18 +125,17 @@ func ExampleRoundingMode() {
 			// sample operands above require 2 bits to represent mantissa
 			// set binary precision to 2 to round them to integer values
 			f := new(big.Float).SetPrec(2).SetMode(mode).SetFloat64(f64)
-			format := fmt.Sprintf(" %%%dg", len(mode.String()))
-			fmt.Printf(format, f)
+			fmt.Printf("  %*g", len(mode.String()), f)
 		}
 		fmt.Println()
 	}
 
 	// Output:
-	// x    ToNearestEven ToNearestAway ToZero AwayFromZero ToNegativeInf ToPositiveInf
-	//  2.6             3             3      2            3             2             3
-	//  2.5             2             3      2            3             2             3
-	//  2.1             2             2      2            3             2             3
-	// -2.1            -2            -2     -2           -3            -3            -2
-	// -2.5            -2            -3     -2           -3            -3            -2
-	// -2.6            -3            -3     -2           -3            -3            -2
+	//    x  ToNearestEven  ToNearestAway  ToZero  AwayFromZero  ToNegativeInf  ToPositiveInf
+	//  2.6              3              3       2             3              2              3
+	//  2.5              2              3       2             3              2              3
+	//  2.1              2              2       2             3              2              3
+	// -2.1             -2             -2      -2            -3             -3             -2
+	// -2.5             -2             -3      -2            -3             -3             -2
+	// -2.6             -3             -3      -2            -3             -3             -2
 }
