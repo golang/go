@@ -74,9 +74,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// Allocate starting block
 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
 
-	// Allocate exit block
-	s.exit = s.f.NewBlock(ssa.BlockExit)
-
 	// Allocate starting values
 	s.vars = map[*Node]*ssa.Value{}
 	s.labels = map[string]*ssaLabel{}
@@ -121,13 +118,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
 		b.Control = m
-		b.AddEdgeTo(s.exit)
 	}
-
-	// Finish up exit block
-	s.startBlock(s.exit)
-	s.exit.Control = s.mem()
-	s.endBlock()
 
 	// Check that we used all labels
 	for name, lab := range s.labels {
@@ -180,9 +171,6 @@ type state struct {
 
 	// function we're building
 	f *ssa.Func
-
-	// exit block that "return" jumps to (and panics jump to)
-	exit *ssa.Block
 
 	// labels and labeled control flow nodes (OFOR, OSWITCH, OSELECT) in f
 	labels       map[string]*ssaLabel
@@ -582,7 +570,6 @@ func (s *state) stmt(n *Node) {
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
 		b.Control = m
-		b.AddEdgeTo(s.exit)
 	case ORETJMP:
 		s.stmtList(n.List)
 		m := s.mem()
@@ -590,7 +577,6 @@ func (s *state) stmt(n *Node) {
 		b.Kind = ssa.BlockRetJmp
 		b.Aux = n.Left.Sym
 		b.Control = m
-		b.AddEdgeTo(s.exit)
 
 	case OCONTINUE, OBREAK:
 		var op string
@@ -776,7 +762,6 @@ func (s *state) stmt(n *Node) {
 		b.Kind = ssa.BlockCall
 		b.Control = r
 		b.AddEdgeTo(bNext)
-		b.AddEdgeTo(s.exit)
 		s.startBlock(bNext)
 
 	default:
@@ -1859,7 +1844,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b.Kind = ssa.BlockCall
 		b.Control = call
 		b.AddEdgeTo(bNext)
-		b.AddEdgeTo(s.exit)
 
 		// read result from stack at the start of the fallthrough block
 		s.startBlock(bNext)
@@ -2154,11 +2138,12 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	bPanic := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
 	b.AddEdgeTo(bPanic)
-	bPanic.AddEdgeTo(s.exit)
 	s.startBlock(bPanic)
 	// TODO: implicit nil checks somehow?
-	s.vars[&memvar] = s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
+	chk := s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
 	s.endBlock()
+	bPanic.Kind = ssa.BlockExit
+	bPanic.Control = chk
 	s.startBlock(bNext)
 }
 
@@ -2200,12 +2185,13 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	bPanic := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
 	b.AddEdgeTo(bPanic)
-	bPanic.AddEdgeTo(s.exit)
 	s.startBlock(bPanic)
 	// The panic check takes/returns memory to ensure that the right
 	// memory state is observed if the panic happens.
-	s.vars[&memvar] = s.newValue1(panicOp, ssa.TypeMem, s.mem())
+	chk := s.newValue1(panicOp, ssa.TypeMem, s.mem())
 	s.endBlock()
+	bPanic.Kind = ssa.BlockExit
+	bPanic.Control = chk
 	s.startBlock(bNext)
 }
 
@@ -3492,18 +3478,8 @@ func genFPJump(s *genState, b, next *ssa.Block, jumps *[2][2]floatingEQNEJump) {
 func (s *genState) genBlock(b, next *ssa.Block) {
 	lineno = b.Line
 
-	// after a panic call, don't emit any branch code
-	if len(b.Values) > 0 {
-		switch b.Values[len(b.Values)-1].Op {
-		case ssa.OpAMD64LoweredPanicNilCheck,
-			ssa.OpAMD64LoweredPanicIndexCheck,
-			ssa.OpAMD64LoweredPanicSliceCheck:
-			return
-		}
-	}
-
 	switch b.Kind {
-	case ssa.BlockPlain:
+	case ssa.BlockPlain, ssa.BlockCall:
 		if b.Succs[0] != next {
 			p := Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
@@ -3520,12 +3496,6 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(b.Aux.(*Sym))
-	case ssa.BlockCall:
-		if b.Succs[0] != next {
-			p := Prog(obj.AJMP)
-			p.To.Type = obj.TYPE_BRANCH
-			s.branches = append(s.branches, branch{p, b.Succs[0]})
-		}
 
 	case ssa.BlockAMD64EQF:
 		genFPJump(s, b, next, &eqfJumps)

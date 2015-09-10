@@ -366,24 +366,27 @@ var genericOps = []opData{
 	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
 }
 
-//     kind           control    successors
-//   ------------------------------------------
-//     Exit        return mem                []
-//      Ret        return mem            [exit]
+//     kind           control    successors       implicit exit
+//   ----------------------------------------------------------
+//     Exit        return mem                []             yes
+//      Ret        return mem                []             yes
+//   RetJmp        return mem                []             yes
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
-//     Call               mem   [nopanic, exit]  (control opcode should be OpCall or OpStaticCall)
+//     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
 //    First               nil    [always,never]
 
 var genericBlocks = []blockData{
-	{name: "Exit"},   // no successors.  There should only be 1 of these.
-	{name: "Dead"},   // no successors; determined to be dead but not yet removed
 	{name: "Plain"},  // a single successor
 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
-	{name: "Call"},   // 2 successors, normal return and panic
-	{name: "First"},  // 2 successors, always takes the first one (second is dead)
-	{name: "Ret"},    // 1 successor, branches to exit
-	{name: "RetJmp"}, // 1 successor, branches to exit.  Jumps to b.Aux.(*gc.Sym)
+	{name: "Call"},   // 1 successor, control is call op (of memory type)
+	{name: "Ret"},    // no successors, control value is memory result
+	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
+	{name: "Exit"},   // no successors, control value generates a panic
+
+	// transient block states used for dead code removal
+	{name: "First"}, // 2 successors, always takes the first one (second is dead)
+	{name: "Dead"},  // no successors; determined to be dead but not yet removed
 }
 
 func init() {

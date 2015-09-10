@@ -60,8 +60,8 @@ func checkFunc(f *Func) {
 				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
 			}
 		case BlockRet:
-			if len(b.Succs) != 1 {
-				f.Fatalf("ret block %s len(Succs)==%d, want 1", b, len(b.Succs))
+			if len(b.Succs) != 0 {
+				f.Fatalf("ret block %s has successors", b)
 			}
 			if b.Control == nil {
 				f.Fatalf("ret block %s has nil control %s", b)
@@ -69,21 +69,15 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
 			}
-			if b.Succs[0].Kind != BlockExit {
-				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)
-			}
 		case BlockRetJmp:
-			if len(b.Succs) != 1 {
-				f.Fatalf("retjmp block %s len(Succs)==%d, want 1", b, len(b.Succs))
+			if len(b.Succs) != 0 {
+				f.Fatalf("retjmp block %s len(Succs)==%d, want 0", b, len(b.Succs))
 			}
 			if b.Control == nil {
 				f.Fatalf("retjmp block %s has nil control %s", b)
 			}
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Control.LongString())
-			}
-			if b.Succs[0].Kind != BlockExit {
-				f.Fatalf("retjmp block %s has successor %s, not Exit", b, b.Succs[0].Kind)
 			}
 			if b.Aux == nil {
 				f.Fatalf("retjmp block %s has nil Aux field", b)
@@ -119,8 +113,8 @@ func checkFunc(f *Func) {
 				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
 			}
 		case BlockCall:
-			if len(b.Succs) != 2 {
-				f.Fatalf("call block %s len(Succs)==%d, want 2", b, len(b.Succs))
+			if len(b.Succs) != 1 {
+				f.Fatalf("call block %s len(Succs)==%d, want 1", b, len(b.Succs))
 			}
 			if b.Control == nil {
 				f.Fatalf("call block %s has no control value", b)
