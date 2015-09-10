@@ -70,6 +70,7 @@ func testStructSlice() {
 	p.slice_ssa()
 	if "pre" != p.prefix {
 		println("wrong field slice: wanted %s got %s", "pre", p.prefix)
+		failed = true
 	}
 }
 
@@ -114,11 +115,51 @@ func testSmallIndexType() {
 	}
 }
 
+func testStringElem_ssa(s string, i int) byte {
+	switch { // prevent inlining
+	}
+	return s[i]
+}
+
+func testStringElem() {
+	tests := []struct {
+		s string
+		i int
+		n byte
+	}{
+		{"foobar", 3, 98},
+		{"foobar", 0, 102},
+		{"foobar", 5, 114},
+	}
+	for _, t := range tests {
+		if got := testStringElem_ssa(t.s, t.i); got != t.n {
+			print("testStringElem \"", t.s, "\"[", t.i, "]=", got, ", wanted ", t.n, "\n")
+			failed = true
+		}
+	}
+}
+
+func testStringElemConst_ssa(i int) byte {
+	switch { // prevent inlining
+	}
+	s := "foobar"
+	return s[i]
+}
+
+func testStringElemConst() {
+	if got := testStringElemConst_ssa(3); got != 98 {
+		println("testStringElemConst=", got, ", wanted 98")
+		failed = true
+	}
+}
+
 func main() {
 	testStringSlice()
 	testStringSlicePanic()
 	testStructSlice()
 	testSmallIndexType()
+	testStringElem()
+	testStringElemConst()
 
 	if failed {
 		panic("failed")
