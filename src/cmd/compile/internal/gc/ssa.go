@@ -1693,19 +1693,22 @@ func (s *state) expr(n *Node) *ssa.Value {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			var elemtype *Type
-			var len *ssa.Value
 			if n.Left.Type.IsString() {
-				len = s.newValue1(ssa.OpStringLen, Types[TINT], a)
-				elemtype = Types[TUINT8]
+				if !n.Bounded {
+					len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
+					s.boundsCheck(i, len)
+				}
+				ptrtyp := Ptrto(Types[TUINT8])
+				ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
+				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+				return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
 			} else {
-				len = s.constInt(Types[TINT], n.Left.Type.Bound)
-				elemtype = n.Left.Type.Type
+				if !n.Bounded {
+					len := s.constInt(Types[TINT], n.Left.Type.Bound)
+					s.boundsCheck(i, len)
+				}
+				return s.newValue2(ssa.OpArrayIndex, n.Left.Type.Type, a, i)
 			}
-			if !n.Bounded {
-				s.boundsCheck(i, len)
-			}
-			return s.newValue2(ssa.OpArrayIndex, elemtype, a, i)
 		} else { // slice
 			p := s.addr(n)
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
