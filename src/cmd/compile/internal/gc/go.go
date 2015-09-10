@@ -584,7 +584,7 @@ var maxfltval [NTYPE]*Mpflt
 
 var xtop *NodeList
 
-var externdcl *NodeList
+var externdcl []*Node
 
 var exportlist []*Node
 

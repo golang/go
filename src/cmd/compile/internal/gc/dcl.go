@@ -182,7 +182,7 @@ func declare(n *Node, ctxt uint8) {
 
 	gen := 0
 	if ctxt == PEXTERN {
-		externdcl = list(externdcl, n)
+		externdcl = append(externdcl, n)
 		if dflag() {
 			fmt.Printf("\t%v global decl %v %p\n", Ctxt.Line(int(lineno)), s, n)
 		}

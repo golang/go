@@ -72,10 +72,7 @@ func dumpobj() {
 
 	fmt.Fprintf(bout, "\n!\n")
 
-	var externs *NodeList
-	if externdcl != nil {
-		externs = externdcl.End
-	}
+	externs := len(externdcl)
 
 	dumpglobls()
 	dumptypestructs()
@@ -83,8 +80,8 @@ func dumpobj() {
 	// Dump extra globals.
 	tmp := externdcl
 
-	if externs != nil {
-		externdcl = externs.Next
+	if externdcl != nil {
+		externdcl = externdcl[externs:]
 	}
 	dumpglobls()
 	externdcl = tmp
@@ -110,8 +107,7 @@ func dumpglobls() {
 	var n *Node
 
 	// add globals
-	for l := externdcl; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range externdcl {
 		if n.Op != ONAME {
 			continue
 		}
@@ -126,7 +122,6 @@ func dumpglobls() {
 			continue
 		}
 		dowidth(n.Type)
-
 		ggloblnod(n)
 	}
 

@@ -1317,8 +1317,7 @@ func dumptypestructs() {
 	var n *Node
 
 	// copy types from externdcl list to signatlist
-	for l := externdcl; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range externdcl {
 		if n.Op != OTYPE {
 			continue
 		}
