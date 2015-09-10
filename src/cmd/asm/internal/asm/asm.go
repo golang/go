@@ -27,15 +27,18 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		case '5':
 			if !arch.ARMConditionCodes(prog, cond) {
 				p.errorf("unrecognized condition code .%q", cond)
+				return
 			}
 
 		case '7':
 			if !arch.ARM64Suffix(prog, cond) {
 				p.errorf("unrecognized suffix .%q", cond)
+				return
 			}
 
 		default:
 			p.errorf("unrecognized suffix .%q", cond)
+			return
 		}
 	}
 	if p.firstProg == nil {
@@ -49,6 +52,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		for _, label := range p.pendingLabels {
 			if p.labels[label] != nil {
 				p.errorf("label %q multiply defined", label)
+				return
 			}
 			p.labels[label] = prog
 		}
@@ -67,8 +71,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 func (p *Parser) validateSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
 	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
-	}
-	if !offsetOk && addr.Offset != 0 {
+	} else if !offsetOk && addr.Offset != 0 {
 		p.errorf("%s symbol %q must not be offset from SB", pseudo, symbolName(addr))
 	}
 }
@@ -144,6 +147,7 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 		// There is an argument size. It must be a minus sign followed by a non-negative integer literal.
 		if len(op) != 2 || op[0].ScanToken != '-' || op[1].ScanToken != scanner.Int {
 			p.errorf("TEXT %s: argument size must be of form -integer", name)
+			return
 		}
 		argSize = p.positiveAtoi(op[1].String())
 	}
@@ -195,11 +199,13 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 		// OK
 	default:
 		p.errorf("DATA value must be an immediate constant or address")
+		return
 	}
 
 	// The addresses must not overlap. Easiest test: require monotonicity.
 	if lastAddr, ok := p.dataAddr[name]; ok && nameAddr.Offset < lastAddr {
 		p.errorf("overlapping DATA entry for %s", name)
+		return
 	}
 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
 
@@ -340,6 +346,7 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 			reg, ok := p.arch.RegisterNumber("R", int16(reg))
 			if !ok {
 				p.errorf("bad register number %d", reg)
+				return
 			}
 			prog.Reg = reg
 			break
@@ -390,6 +397,7 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
 		prog.To = a[0]
 	default:
 		p.errorf("cannot assemble jump %+v", target)
+		return
 	}
 
 	p.append(prog, cond, true)
@@ -400,9 +408,9 @@ func (p *Parser) patch() {
 		targetProg := p.labels[patch.label]
 		if targetProg == nil {
 			p.errorf("undefined label %s", patch.label)
-		} else {
-			p.branch(patch.prog, targetProg)
+			return
 		}
+		p.branch(patch.prog, targetProg)
 	}
 	p.toPatch = p.toPatch[:0]
 }
@@ -468,6 +476,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 					break
 				}
 				p.errorf("unrecognized addressing for %s", obj.Aconv(op))
+				return
 			}
 			if arch.IsARMFloatCmp(op) {
 				prog.From = a[0]
@@ -506,6 +515,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 				prog.To = a[1]
 				if a[2].Type != obj.TYPE_REG {
 					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", obj.Aconv(op))
+					return
 				}
 				prog.RegTo2 = a[2].Reg
 				break
@@ -541,9 +551,11 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 				prog.To = a[2]
 			default:
 				p.errorf("invalid addressing modes for %s instruction", obj.Aconv(op))
+				return
 			}
 		default:
 			p.errorf("TODO: implement three-operand instructions for this architecture")
+			return
 		}
 	case 4:
 		if p.arch.Thechar == '5' && arch.IsARMMULA(op) {
@@ -577,6 +589,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			break
 		}
 		p.errorf("can't handle %s instruction with 4 operands", obj.Aconv(op))
+		return
 	case 5:
 		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
 			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
@@ -598,6 +611,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 			break
 		}
 		p.errorf("can't handle %s instruction with 5 operands", obj.Aconv(op))
+		return
 	case 6:
 		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
 			// Strange special case: MCR, MRC.
@@ -621,6 +635,7 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
 		fallthrough
 	default:
 		p.errorf("can't handle %s instruction with %d operands", obj.Aconv(op), len(a))
+		return
 	}
 
 	p.append(prog, cond, true)
