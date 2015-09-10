@@ -8,6 +8,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
 	"cmd/internal/obj/x86"
 	"fmt"
@@ -65,6 +66,14 @@ func Set(GOARCH string) *Arch {
 		return archArm()
 	case "arm64":
 		return archArm64()
+	case "mips64":
+		a := archMips64()
+		a.LinkArch = &mips.Linkmips64
+		return a
+	case "mips64le":
+		a := archMips64()
+		a.LinkArch = &mips.Linkmips64le
+		return a
 	case "ppc64":
 		a := archPPC64()
 		a.LinkArch = &ppc64.Linkppc64
@@ -361,5 +370,59 @@ func archPPC64() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: ppc64RegisterNumber,
 		IsJump:         jumpPPC64,
+	}
+}
+
+func archMips64() *Arch {
+	register := make(map[string]int16)
+	// Create maps for easy lookup of instruction names etc.
+	// Note that there is no list of names as there is for x86.
+	for i := mips.REG_R0; i <= mips.REG_R31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := mips.REG_F0; i <= mips.REG_F31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := mips.REG_M0; i <= mips.REG_M31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
+	register["HI"] = mips.REG_HI
+	register["LO"] = mips.REG_LO
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+	// Avoid unintentionally clobbering g using R30.
+	delete(register, "R30")
+	register["g"] = mips.REG_R30
+	registerPrefix := map[string]bool{
+		"F":   true,
+		"FCR": true,
+		"M":   true,
+		"R":   true,
+	}
+
+	instructions := make(map[string]int)
+	for i, s := range obj.Anames {
+		instructions[s] = i
+	}
+	for i, s := range mips.Anames {
+		if i >= obj.A_ARCHSPECIFIC {
+			instructions[s] = i + obj.ABaseMIPS64
+		}
+	}
+	// Annoying alias.
+	instructions["JAL"] = mips.AJAL
+
+	return &Arch{
+		LinkArch:       &mips.Linkmips64,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: registerPrefix,
+		RegisterNumber: mipsRegisterNumber,
+		IsJump:         jumpMIPS64,
 	}
 }
