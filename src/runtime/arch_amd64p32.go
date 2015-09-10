@@ -4,5 +4,15 @@
 
 package runtime
 
+const (
+	thechar        = '6'
+	_BigEndian     = 0
+	_CacheLineSize = 64
+	_PhysPageSize  = 65536*goos_nacl + 4096*(1-goos_nacl)
+	_PCQuantum     = 1
+	_Int64Align    = 8
+	hugePageSize   = 1 << 21
+)
+
 type uintreg uint64
 type intptr int32 // TODO(rsc): remove
