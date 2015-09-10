@@ -8,6 +8,8 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 
 API additions and behavior changes:
 
+fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
 text/template: trimming spaces (https://golang.org/cl/14391/)
+time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
