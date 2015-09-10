@@ -22,14 +22,14 @@ const (
 	BlockAMD64ORD
 	BlockAMD64NAN
 
-	BlockExit
-	BlockDead
 	BlockPlain
 	BlockIf
 	BlockCall
-	BlockFirst
 	BlockRet
 	BlockRetJmp
+	BlockExit
+	BlockFirst
+	BlockDead
 )
 
 var blockString = [...]string{
@@ -50,14 +50,14 @@ var blockString = [...]string{
 	BlockAMD64ORD: "ORD",
 	BlockAMD64NAN: "NAN",
 
-	BlockExit:   "Exit",
-	BlockDead:   "Dead",
 	BlockPlain:  "Plain",
 	BlockIf:     "If",
 	BlockCall:   "Call",
-	BlockFirst:  "First",
 	BlockRet:    "Ret",
 	BlockRetJmp: "RetJmp",
+	BlockExit:   "Exit",
+	BlockFirst:  "First",
+	BlockDead:   "Dead",
 }
 
 func (k BlockKind) String() string { return blockString[k] }

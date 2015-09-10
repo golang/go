@@ -54,12 +54,13 @@ func postorder(f *Func) []*Block {
 
 type linkedBlocks func(*Block) []*Block
 
-// dfs performs a depth first search over the blocks. dfnum contains a mapping
+// dfs performs a depth first search over the blocks starting at the set of
+// blocks in the entries list (in arbitrary order). dfnum contains a mapping
 // from block id to an int indicating the order the block was reached or
 // notFound if the block was not reached.  order contains a mapping from dfnum
-// to block
-func dfs(entry *Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent []*Block) {
-	maxBlockID := entry.Func.NumBlocks()
+// to block.
+func dfs(entries []*Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent []*Block) {
+	maxBlockID := entries[0].Func.NumBlocks()
 
 	dfnum = make([]int, maxBlockID)
 	order = make([]*Block, maxBlockID)
@@ -67,23 +68,28 @@ func dfs(entry *Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent
 
 	n := 0
 	s := make([]*Block, 0, 256)
-	s = append(s, entry)
-	parent[entry.ID] = entry
-	for len(s) > 0 {
-		node := s[len(s)-1]
-		s = s[:len(s)-1]
-
-		n++
-		for _, w := range succFn(node) {
-			// if it has a dfnum, we've already visited it
-			if dfnum[w.ID] == notFound {
-				s = append(s, w)
-				parent[w.ID] = node
-				dfnum[w.ID] = notExplored
-			}
+	for _, entry := range entries {
+		if dfnum[entry.ID] != notFound {
+			continue // already found from a previous entry
 		}
-		dfnum[node.ID] = n
-		order[n] = node
+		s = append(s, entry)
+		parent[entry.ID] = entry
+		for len(s) > 0 {
+			node := s[len(s)-1]
+			s = s[:len(s)-1]
+
+			n++
+			for _, w := range succFn(node) {
+				// if it has a dfnum, we've already visited it
+				if dfnum[w.ID] == notFound {
+					s = append(s, w)
+					parent[w.ID] = node
+					dfnum[w.ID] = notExplored
+				}
+			}
+			dfnum[node.ID] = n
+			order[n] = node
+		}
 	}
 
 	return
@@ -98,7 +104,7 @@ func dominators(f *Func) []*Block {
 
 	//TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
-	return dominatorsLT(f.Entry, preds, succs)
+	return dominatorsLT([]*Block{f.Entry}, preds, succs)
 }
 
 // postDominators computes the post-dominator tree for f.
@@ -110,35 +116,36 @@ func postDominators(f *Func) []*Block {
 		return nil
 	}
 
-	// find the exit block, maybe store it as f.Exit instead?
-	var exit *Block
+	// find the exit blocks
+	var exits []*Block
 	for i := len(f.Blocks) - 1; i >= 0; i-- {
-		if f.Blocks[i].Kind == BlockExit {
-			exit = f.Blocks[i]
+		switch f.Blocks[i].Kind {
+		case BlockExit, BlockRet, BlockRetJmp, BlockCall:
+			exits = append(exits, f.Blocks[i])
 			break
 		}
 	}
 
-	// infite loop with no exit
-	if exit == nil {
+	// infinite loop with no exit
+	if exits == nil {
 		return make([]*Block, f.NumBlocks())
 	}
-	return dominatorsLT(exit, succs, preds)
+	return dominatorsLT(exits, succs, preds)
 }
 
 // dominatorsLt runs Lengauer-Tarjan to compute a dominator tree starting at
 // entry and using predFn/succFn to find predecessors/successors to allow
 // computing both dominator and post-dominator trees.
-func dominatorsLT(entry *Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
+func dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
 	// Based on Lengauer-Tarjan from Modern Compiler Implementation in C -
 	// Appel with optimizations from Finding Dominators in Practice -
 	// Georgiadis
 
 	// Step 1. Carry out a depth first search of the problem graph. Number
 	// the vertices from 1 to n as they are reached during the search.
-	dfnum, vertex, parent := dfs(entry, succFn)
+	dfnum, vertex, parent := dfs(entries, succFn)
 
-	maxBlockID := entry.Func.NumBlocks()
+	maxBlockID := entries[0].Func.NumBlocks()
 	semi := make([]*Block, maxBlockID)
 	samedom := make([]*Block, maxBlockID)
 	idom := make([]*Block, maxBlockID)

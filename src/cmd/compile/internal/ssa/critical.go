@@ -9,7 +9,7 @@ package ssa
 // Regalloc wants a critical-edge-free CFG so it can implement phi values.
 func critical(f *Func) {
 	for _, b := range f.Blocks {
-		if len(b.Preds) <= 1 || b.Kind == BlockExit {
+		if len(b.Preds) <= 1 {
 			continue
 		}
 
