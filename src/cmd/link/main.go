@@ -9,6 +9,7 @@ import (
 	"cmd/link/internal/amd64"
 	"cmd/link/internal/arm"
 	"cmd/link/internal/arm64"
+	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
 	"cmd/link/internal/x86"
 	"fmt"
@@ -28,6 +29,8 @@ func main() {
 		arm.Main()
 	case "arm64":
 		arm64.Main()
+	case "mips64", "mips64le":
+		mips64.Main()
 	case "ppc64", "ppc64le":
 		ppc64.Main()
 	}
