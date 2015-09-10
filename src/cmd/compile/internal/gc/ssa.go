@@ -468,7 +468,11 @@ func (s *state) stmt(n *Node) {
 
 	// Expression statements
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
-		s.expr(n)
+		s.call(n, callNormal)
+	case ODEFER:
+		s.call(n.Left, callDefer)
+	case OPROC:
+		s.call(n.Left, callGo)
 
 	case ODCL:
 		if n.Left.Class&PHEAP == 0 {
@@ -771,43 +775,6 @@ func (s *state) stmt(n *Node) {
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
 		s.vars[&memvar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
-
-	case OPROC, ODEFER:
-		call := n.Left
-		fn := call.Left
-		if call.Op != OCALLFUNC {
-			s.Unimplementedf("defer/go of %s", opnames[call.Op])
-			return
-		}
-
-		// Run all argument assignments.  The arg slots have already
-		// been offset by 2*widthptr.
-		s.stmtList(call.List)
-
-		// Write argsize and closure (args to Newproc/Deferproc)
-		argsize := s.constInt32(Types[TUINT32], int32(fn.Type.Argwid))
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
-		closure := s.expr(fn)
-		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
-
-		// Call deferproc or newproc
-		bNext := s.f.NewBlock(ssa.BlockPlain)
-		var op ssa.Op
-		switch n.Op {
-		case ODEFER:
-			op = ssa.OpDeferCall
-		case OPROC:
-			op = ssa.OpGoCall
-		}
-		r := s.newValue1(op, ssa.TypeMem, s.mem())
-		r.AuxInt = fn.Type.Argwid + 2*int64(Widthptr) // total stack space used
-		s.vars[&memvar] = r
-		b := s.endBlock()
-		b.Kind = ssa.BlockCall
-		b.Control = r
-		b.AddEdgeTo(bNext)
-		s.startBlock(bNext)
 
 	case OCHECKNIL:
 		p := s.expr(n.Left)
@@ -1816,61 +1783,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		p, l, c := s.slice(n.Left.Type, v, i, j, k)
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
-	case OCALLFUNC, OCALLMETH:
-		left := n.Left
-		static := left.Op == ONAME && left.Class == PFUNC
-
-		if n.Op == OCALLMETH {
-			// Rewrite to an OCALLFUNC: (p.f)(...) becomes (f)(p, ...)
-			// Take care not to modify the original AST.
-			if left.Op != ODOTMETH {
-				Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", left)
-			}
-
-			newLeft := *left.Right
-			newLeft.Type = left.Type
-			if newLeft.Op == ONAME {
-				newLeft.Class = PFUNC
-			}
-			left = &newLeft
-			static = true
-		}
-
-		// evaluate closure
-		var closure *ssa.Value
-		if !static {
-			closure = s.expr(left)
-		}
-
-		// run all argument assignments
-		s.stmtList(n.List)
-
-		bNext := s.f.NewBlock(ssa.BlockPlain)
-		var call *ssa.Value
-		if static {
-			call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, left.Sym, s.mem())
-		} else {
-			entry := s.newValue2(ssa.OpLoad, Types[TUINTPTR], closure, s.mem())
-			call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, entry, closure, s.mem())
-		}
-		dowidth(left.Type)
-		call.AuxInt = left.Type.Argwid // call operations carry the argsize of the callee along with them
-		s.vars[&memvar] = call
-		b := s.endBlock()
-		b.Kind = ssa.BlockCall
-		b.Control = call
-		b.AddEdgeTo(bNext)
-
-		// read result from stack at the start of the fallthrough block
-		s.startBlock(bNext)
-		var titer Iter
-		fp := Structfirst(&titer, Getoutarg(left.Type))
-		if fp == nil {
-			// CALLFUNC has no return value. Continue with the next statement.
-			return nil
-		}
-		a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
-		return s.newValue2(ssa.OpLoad, fp.Type, a, call)
+	case OCALLFUNC, OCALLINTER, OCALLMETH:
+		return s.call(n, callNormal)
 
 	case OGETG:
 		return s.newValue0(ssa.OpGetG, n.Type)
@@ -2063,6 +1977,132 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	}
 	s.Unimplementedf("zero for type %v not implemented", t)
 	return nil
+}
+
+type callKind int8
+
+const (
+	callNormal callKind = iota
+	callDefer
+	callGo
+)
+
+func (s *state) call(n *Node, k callKind) *ssa.Value {
+	var sym *Sym           // target symbol (if static)
+	var closure *ssa.Value // ptr to closure to run (if dynamic)
+	var codeptr *ssa.Value // ptr to target code (if dynamic)
+	var rcvr *ssa.Value    // receiver to set
+	fn := n.Left
+	switch n.Op {
+	case OCALLFUNC:
+		if k == callNormal && fn.Op == ONAME && fn.Class == PFUNC {
+			sym = fn.Sym
+			break
+		}
+		closure = s.expr(fn)
+		if closure == nil {
+			return nil // TODO: remove when expr always returns non-nil
+		}
+	case OCALLMETH:
+		if fn.Op != ODOTMETH {
+			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+		}
+		if fn.Right.Op != ONAME {
+			Fatalf("OCALLMETH: n.Left.Right not a ONAME: %v", fn.Right)
+		}
+		if k == callNormal {
+			sym = fn.Right.Sym
+			break
+		}
+		n2 := *fn.Right
+		n2.Class = PFUNC
+		closure = s.expr(&n2)
+		// Note: receiver is already assigned in n.List, so we don't
+		// want to set it here.
+	case OCALLINTER:
+		if fn.Op != ODOTINTER {
+			Fatalf("OCALLINTER: n.Left not an ODOTINTER: %v", Oconv(int(fn.Op), 0))
+		}
+		i := s.expr(fn.Left)
+		itab := s.newValue1(ssa.OpITab, Types[TUINTPTR], i)
+		itabidx := fn.Xoffset + 3*int64(Widthptr) + 8 // offset of fun field in runtime.itab
+		itab = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], itabidx, itab)
+		if k == callNormal {
+			codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], itab, s.mem())
+		} else {
+			closure = itab
+		}
+		rcvr = s.newValue1(ssa.OpIData, Types[TUINTPTR], i)
+	}
+	dowidth(fn.Type)
+	stksize := fn.Type.Argwid // includes receiver
+
+	// Run all argument assignments.  The arg slots have already
+	// been offset by the appropriate amount (+2*widthptr for go/defer,
+	// +widthptr for interface calls).
+	// For OCALLMETH, the receiver is set in these statements.
+	s.stmtList(n.List)
+
+	// Set receiver (for interface calls)
+	if rcvr != nil {
+		var argStart int64
+		if HasLinkRegister() {
+			argStart += int64(Widthptr)
+		}
+		if k != callNormal {
+			argStart += int64(2 * Widthptr)
+		}
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Types[TUINTPTR], argStart, s.sp)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
+	}
+
+	// Defer/go args
+	if k != callNormal {
+		// Write argsize and closure (args to Newproc/Deferproc).
+		argsize := s.constInt32(Types[TUINT32], int32(stksize))
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
+		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
+		stksize += 2 * int64(Widthptr)
+	}
+
+	// call target
+	bNext := s.f.NewBlock(ssa.BlockPlain)
+	var call *ssa.Value
+	switch {
+	case k == callDefer:
+		call = s.newValue1(ssa.OpDeferCall, ssa.TypeMem, s.mem())
+	case k == callGo:
+		call = s.newValue1(ssa.OpGoCall, ssa.TypeMem, s.mem())
+	case closure != nil:
+		codeptr = s.newValue2(ssa.OpLoad, Types[TUINTPTR], closure, s.mem())
+		call = s.newValue3(ssa.OpClosureCall, ssa.TypeMem, codeptr, closure, s.mem())
+	case codeptr != nil:
+		call = s.newValue2(ssa.OpInterCall, ssa.TypeMem, codeptr, s.mem())
+	case sym != nil:
+		call = s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, sym, s.mem())
+	default:
+		Fatalf("bad call type %s %v", opnames[n.Op], n)
+	}
+	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
+
+	// Finish call block
+	s.vars[&memvar] = call
+	b := s.endBlock()
+	b.Kind = ssa.BlockCall
+	b.Control = call
+	b.AddEdgeTo(bNext)
+
+	// Read result from stack at the start of the fallthrough block
+	s.startBlock(bNext)
+	var titer Iter
+	fp := Structfirst(&titer, Getoutarg(n.Left.Type))
+	if fp == nil || k != callNormal {
+		// call has no return value. Continue with the next statement.
+		return nil
+	}
+	a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
+	return s.newValue2(ssa.OpLoad, fp.Type, a, call)
 }
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
@@ -3575,6 +3615,13 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(Newproc.Sym)
+		if Maxarg < v.AuxInt {
+			Maxarg = v.AuxInt
+		}
+	case ssa.OpAMD64CALLinter:
+		p := Prog(obj.ACALL)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v.Args[0])
 		if Maxarg < v.AuxInt {
 			Maxarg = v.AuxInt
 		}

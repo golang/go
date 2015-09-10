@@ -356,6 +356,7 @@
 (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
 (DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
 (GoCall [argwid] mem) -> (CALLgo [argwid] mem)
+(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // Rules below here apply some simple optimizations after lowering.
 // TODO: Should this be a separate pass?

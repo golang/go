@@ -2768,6 +2768,26 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto enda49fcae3630a097c78aa58189c90a97a
 	enda49fcae3630a097c78aa58189c90a97a:
 		;
+	case OpInterCall:
+		// match: (InterCall [argwid] entry mem)
+		// cond:
+		// result: (CALLinter [argwid] entry mem)
+		{
+			argwid := v.AuxInt
+			entry := v.Args[0]
+			mem := v.Args[1]
+			v.Op = OpAMD64CALLinter
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = argwid
+			v.AddArg(entry)
+			v.AddArg(mem)
+			return true
+		}
+		goto endc04351e492ed362efc6aa75121bca305
+	endc04351e492ed362efc6aa75121bca305:
+		;
 	case OpIsInBounds:
 		// match: (IsInBounds idx len)
 		// cond:
