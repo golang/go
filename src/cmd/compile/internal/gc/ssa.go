@@ -1638,9 +1638,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
 		}
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
-	case ONOT, OCOM, OIMAG, OREAL:
+	case ONOT, OCOM:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+	case OIMAG, OREAL:
+		a := s.expr(n.Left)
+		return s.newValue1(s.ssaOp(n.Op, n.Left.Type), n.Type, a)
 	case OPLUS:
 		return s.expr(n.Left)
 
