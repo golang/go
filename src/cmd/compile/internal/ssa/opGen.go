@@ -387,7 +387,8 @@ const (
 	OpEq32
 	OpEq64
 	OpEqPtr
-	OpEqFat
+	OpEqInter
+	OpEqSlice
 	OpEq32F
 	OpEq64F
 	OpNeq8
@@ -395,7 +396,8 @@ const (
 	OpNeq32
 	OpNeq64
 	OpNeqPtr
-	OpNeqFat
+	OpNeqInter
+	OpNeqSlice
 	OpNeq32F
 	OpNeq64F
 	OpLess8
@@ -3576,7 +3578,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "EqFat",
+		name:    "EqInter",
+		generic: true,
+	},
+	{
+		name:    "EqSlice",
 		generic: true,
 	},
 	{
@@ -3608,7 +3614,11 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "NeqFat",
+		name:    "NeqInter",
+		generic: true,
+	},
+	{
+		name:    "NeqSlice",
 		generic: true,
 	},
 	{

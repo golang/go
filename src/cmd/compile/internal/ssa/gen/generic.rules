@@ -66,13 +66,12 @@
 (EqPtr (ConstNil) p) -> (Not (IsNonNil p))
 
 // slice and interface comparisons
-// the frontend ensures that we can only compare against nil
-// start by putting nil on the right to simplify the other rules
-(EqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (EqFat y x)
-(NeqFat x y) && x.Op == OpConstNil && y.Op != OpConstNil -> (NeqFat y x)
-// it suffices to check the first word (backing array for slices, dynamic type for interfaces)
-(EqFat (Load ptr mem) (ConstNil)) -> (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
-(NeqFat (Load ptr mem) (ConstNil)) -> (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
+// The frontend ensures that we can only compare against nil,
+// so we need only compare the first word (interface type or slice ptr).
+(EqInter x y)  -> (EqPtr  (ITab x) (ITab y))
+(NeqInter x y) -> (NeqPtr (ITab x) (ITab y))
+(EqSlice x y)  -> (EqPtr  (SlicePtr x) (SlicePtr y))
+(NeqSlice x y) -> (NeqPtr (SlicePtr x) (SlicePtr y))
 
 // indexing operations
 // Note: bounds check has already been done

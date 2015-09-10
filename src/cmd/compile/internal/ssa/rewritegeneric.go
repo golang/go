@@ -427,56 +427,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto enda66da0d3e7e51624ee46527727c48a9a
 	enda66da0d3e7e51624ee46527727c48a9a:
 		;
-	case OpEqFat:
-		// match: (EqFat x y)
-		// cond: x.Op == OpConstNil && y.Op != OpConstNil
-		// result: (EqFat y x)
+	case OpEqInter:
+		// match: (EqInter x y)
+		// cond:
+		// result: (EqPtr (ITab x) (ITab y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
-			if !(x.Op == OpConstNil && y.Op != OpConstNil) {
-				goto endcea7f7399afcff860c54d82230a9a934
-			}
-			v.Op = OpEqFat
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(y)
-			v.AddArg(x)
-			return true
-		}
-		goto endcea7f7399afcff860c54d82230a9a934
-	endcea7f7399afcff860c54d82230a9a934:
-		;
-		// match: (EqFat (Load ptr mem) (ConstNil))
-		// cond:
-		// result: (EqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
-		{
-			if v.Args[0].Op != OpLoad {
-				goto end6f10fb57a906a2c23667c770acb6abf9
-			}
-			ptr := v.Args[0].Args[0]
-			mem := v.Args[0].Args[1]
-			if v.Args[1].Op != OpConstNil {
-				goto end6f10fb57a906a2c23667c770acb6abf9
-			}
 			v.Op = OpEqPtr
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+			v0.AddArg(x)
 			v0.Type = config.fe.TypeUintptr()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
 			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.AuxInt = 0
+			v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+			v1.AddArg(y)
 			v1.Type = config.fe.TypeUintptr()
 			v.AddArg(v1)
 			return true
 		}
-		goto end6f10fb57a906a2c23667c770acb6abf9
-	end6f10fb57a906a2c23667c770acb6abf9:
+		goto endfcedc545b9bbbe3790786c8981b12d32
+	endfcedc545b9bbbe3790786c8981b12d32:
 		;
 	case OpEqPtr:
 		// match: (EqPtr p (ConstNil))
@@ -520,6 +493,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		}
 		goto end7cdc0d5c38fbffe6287c8928803b038e
 	end7cdc0d5c38fbffe6287c8928803b038e:
+		;
+	case OpEqSlice:
+		// match: (EqSlice x y)
+		// cond:
+		// result: (EqPtr (SlicePtr x) (SlicePtr y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpEqPtr
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+			v0.AddArg(x)
+			v0.Type = config.fe.TypeUintptr()
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+			v1.AddArg(y)
+			v1.Type = config.fe.TypeUintptr()
+			v.AddArg(v1)
+			return true
+		}
+		goto end2937092dca53f896cd527e59e92cab1d
+	end2937092dca53f896cd527e59e92cab1d:
 		;
 	case OpIData:
 		// match: (IData (IMake _ data))
@@ -953,56 +950,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto end09a0deaf3c42627d0d2d3efa96e30745
 	end09a0deaf3c42627d0d2d3efa96e30745:
 		;
-	case OpNeqFat:
-		// match: (NeqFat x y)
-		// cond: x.Op == OpConstNil && y.Op != OpConstNil
-		// result: (NeqFat y x)
+	case OpNeqInter:
+		// match: (NeqInter x y)
+		// cond:
+		// result: (NeqPtr (ITab x) (ITab y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
-			if !(x.Op == OpConstNil && y.Op != OpConstNil) {
-				goto end94c68f7dc30c66ed42e507e01c4e5dc7
-			}
-			v.Op = OpNeqFat
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(y)
-			v.AddArg(x)
-			return true
-		}
-		goto end94c68f7dc30c66ed42e507e01c4e5dc7
-	end94c68f7dc30c66ed42e507e01c4e5dc7:
-		;
-		// match: (NeqFat (Load ptr mem) (ConstNil))
-		// cond:
-		// result: (NeqPtr (Load <config.fe.TypeUintptr()> ptr mem) (ConstPtr [0]))
-		{
-			if v.Args[0].Op != OpLoad {
-				goto end3ffd7685735a83eaee8dc2577ae89d79
-			}
-			ptr := v.Args[0].Args[0]
-			mem := v.Args[0].Args[1]
-			if v.Args[1].Op != OpConstNil {
-				goto end3ffd7685735a83eaee8dc2577ae89d79
-			}
 			v.Op = OpNeqPtr
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+			v0.AddArg(x)
 			v0.Type = config.fe.TypeUintptr()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
 			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.AuxInt = 0
+			v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+			v1.AddArg(y)
 			v1.Type = config.fe.TypeUintptr()
 			v.AddArg(v1)
 			return true
 		}
-		goto end3ffd7685735a83eaee8dc2577ae89d79
-	end3ffd7685735a83eaee8dc2577ae89d79:
+		goto end17b2333bf57e9fe81a671be02f9c4c14
+	end17b2333bf57e9fe81a671be02f9c4c14:
 		;
 	case OpNeqPtr:
 		// match: (NeqPtr p (ConstNil))
@@ -1040,6 +1010,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		}
 		goto enddd95e9c3606d9fd48034f1a703561e45
 	enddd95e9c3606d9fd48034f1a703561e45:
+		;
+	case OpNeqSlice:
+		// match: (NeqSlice x y)
+		// cond:
+		// result: (NeqPtr (SlicePtr x) (SlicePtr y))
+		{
+			x := v.Args[0]
+			y := v.Args[1]
+			v.Op = OpNeqPtr
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+			v0.AddArg(x)
+			v0.Type = config.fe.TypeUintptr()
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+			v1.AddArg(y)
+			v1.Type = config.fe.TypeUintptr()
+			v.AddArg(v1)
+			return true
+		}
+		goto endc6bc83c506e491236ca66ea1081231a2
+	endc6bc83c506e491236ca66ea1081231a2:
 		;
 	case OpOr16:
 		// match: (Or16 x x)
