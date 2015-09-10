@@ -1,0 +1,99 @@
+8 00001 (testdata/mips64.s:8)	TEXT	foo(SB), 0, $0
+18 00002 (testdata/mips64.s:18)	MOVW	R1, R2
+19 00003 (testdata/mips64.s:19)	MOVW	LO, R1
+20 00004 (testdata/mips64.s:20)	MOVW	HI, R1
+21 00005 (testdata/mips64.s:21)	MOVW	R1, LO
+22 00006 (testdata/mips64.s:22)	MOVW	R1, HI
+23 00007 (testdata/mips64.s:23)	MOVV	R1, R2
+24 00008 (testdata/mips64.s:24)	MOVV	LO, R1
+25 00009 (testdata/mips64.s:25)	MOVV	HI, R1
+26 00010 (testdata/mips64.s:26)	MOVV	R1, LO
+27 00011 (testdata/mips64.s:27)	MOVV	R1, HI
+33 00012 (testdata/mips64.s:33)	MOVW	foo<>+3(SB), R2
+34 00013 (testdata/mips64.s:34)	MOVW	16(R1), R2
+35 00014 (testdata/mips64.s:35)	MOVW	(R1), R2
+36 00015 (testdata/mips64.s:36)	MOVV	foo<>+3(SB), R2
+37 00016 (testdata/mips64.s:37)	MOVV	16(R1), R2
+38 00017 (testdata/mips64.s:38)	MOVV	(R1), R2
+44 00018 (testdata/mips64.s:44)	MOVB	R1, R2
+50 00019 (testdata/mips64.s:50)	MOVB	foo<>+3(SB), R2
+51 00020 (testdata/mips64.s:51)	MOVB	16(R1), R2
+52 00021 (testdata/mips64.s:52)	MOVB	(R1), R2
+61 00022 (testdata/mips64.s:61)	MOVD	foo<>+3(SB), F2
+62 00023 (testdata/mips64.s:62)	MOVD	16(R1), F2
+63 00024 (testdata/mips64.s:63)	MOVD	(R1), F2
+69 00025 (testdata/mips64.s:69)	MOVD	$(0.10000000000000001), F2
+75 00026 (testdata/mips64.s:75)	MOVD	F1, F2
+81 00027 (testdata/mips64.s:81)	MOVD	F2, foo<>+3(SB)
+82 00028 (testdata/mips64.s:82)	MOVD	F2, 16(R1)
+83 00029 (testdata/mips64.s:83)	MOVD	F2, (R1)
+92 00030 (testdata/mips64.s:92)	MOVW	R1, foo<>+3(SB)
+93 00031 (testdata/mips64.s:93)	MOVW	R1, 16(R2)
+94 00032 (testdata/mips64.s:94)	MOVW	R1, (R2)
+95 00033 (testdata/mips64.s:95)	MOVV	R1, foo<>+3(SB)
+96 00034 (testdata/mips64.s:96)	MOVV	R1, 16(R2)
+97 00035 (testdata/mips64.s:97)	MOVV	R1, (R2)
+103 00036 (testdata/mips64.s:103)	MOVB	R1, foo<>+3(SB)
+104 00037 (testdata/mips64.s:104)	MOVB	R1, 16(R2)
+105 00038 (testdata/mips64.s:105)	MOVB	R1, (R2)
+114 00039 (testdata/mips64.s:114)	MOVD	F1, foo<>+3(SB)
+115 00040 (testdata/mips64.s:115)	MOVD	F1, 16(R2)
+116 00041 (testdata/mips64.s:116)	MOVD	F1, (R2)
+125 00042 (testdata/mips64.s:125)	MOVW	FCR0, R1
+131 00043 (testdata/mips64.s:131)	MOVW	R1, FCR0
+137 00044 (testdata/mips64.s:137)	MOVW	R1, M1
+138 00045 (testdata/mips64.s:138)	MOVV	R1, M1
+144 00046 (testdata/mips64.s:144)	MOVW	M1, R1
+145 00047 (testdata/mips64.s:145)	MOVV	M1, R1
+158 00048 (testdata/mips64.s:158)	ADD	R1, R2, R3
+164 00049 (testdata/mips64.s:164)	ADD	$1, R2, R3
+170 00050 (testdata/mips64.s:170)	ADD	R1, R2
+176 00051 (testdata/mips64.s:176)	ADD	$4, R1
+182 00052 (testdata/mips64.s:182)	MUL	R1, R2
+188 00053 (testdata/mips64.s:188)	SLL	R1, R2, R3
+194 00054 (testdata/mips64.s:194)	SLL	R1, R2
+200 00055 (testdata/mips64.s:200)	SLL	$4, R1, R2
+206 00056 (testdata/mips64.s:206)	SLL	$4, R1
+215 00057 (testdata/mips64.s:215)	MOVW	$1, R1
+216 00058 (testdata/mips64.s:216)	MOVV	$1, R1
+222 00059 (testdata/mips64.s:222)	MOVW	$1, R1
+223 00060 (testdata/mips64.s:223)	MOVW	$foo(SB), R1
+224 00061 (testdata/mips64.s:224)	MOVV	$1, R1
+225 00062 (testdata/mips64.s:225)	MOVV	$foo(SB), R1
+236 00063 (testdata/mips64.s:236)	JMP	64(PC)
+237 00064 (testdata/mips64.s:237)	JMP	63
+238 00065 (testdata/mips64.s:238)	CALL	66(PC)
+239 00066 (testdata/mips64.s:239)	CALL	63
+245 00067 (testdata/mips64.s:245)	JMP	4(R1)
+246 00068 (testdata/mips64.s:246)	JMP	foo(SB)
+247 00069 (testdata/mips64.s:247)	CALL	4(R1)
+248 00070 (testdata/mips64.s:248)	CALL	foo(SB)
+258 00071 (testdata/mips64.s:258)	BEQ	R1, 72(PC)
+259 00072 (testdata/mips64.s:259)	BEQ	R1, 71
+266 00073 (testdata/mips64.s:266)	BEQ	R1, R2, 74(PC)
+267 00074 (testdata/mips64.s:267)	BEQ	R1, R2, 73
+277 00075 (testdata/mips64.s:277)	BLTZ	R1, 76(PC)
+278 00076 (testdata/mips64.s:278)	BLTZ	R1, 75
+285 00077 (testdata/mips64.s:285)	BFPT	78(PC)
+286 00078 (testdata/mips64.s:286)	BFPT	77
+296 00079 (testdata/mips64.s:296)	ABSD	F1, F2
+302 00080 (testdata/mips64.s:302)	ADDD	F1, F2
+308 00081 (testdata/mips64.s:308)	ADDD	F1, F2, F3
+314 00082 (testdata/mips64.s:314)	CMPEQD	F1, F2
+320 00083 (testdata/mips64.s:320)	WORD	$1
+321 00084 (testdata/mips64.s:321)	WORD	$foo(SB)
+330 00085 (testdata/mips64.s:330)	NOP
+336 00086 (testdata/mips64.s:336)	NOP	R2
+342 00087 (testdata/mips64.s:342)	NOP	F2
+348 00088 (testdata/mips64.s:348)	NOP	R2
+354 00089 (testdata/mips64.s:354)	NOP	F2
+360 00090 (testdata/mips64.s:360)	NOP	$4
+365 00091 (testdata/mips64.s:365)	SYSCALL
+366 00092 (testdata/mips64.s:366)	BREAK
+367 00093 (testdata/mips64.s:367)	BREAK	$1, (R1)
+376 00094 (testdata/mips64.s:376)	SYSCALL
+377 00095 (testdata/mips64.s:377)	RET
+382 00096 (testdata/mips64.s:382)	CALL	foo(SB)
+383 00097 (testdata/mips64.s:383)	JMP	foo(SB)
+384 00098 (testdata/mips64.s:384)	CALL	foo(SB)
+392 00099 (testdata/mips64.s:392)	END
