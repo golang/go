@@ -155,6 +155,7 @@ func (p *Parser) line() bool {
 					// Remember this location so we can swap the operands below.
 					if colon >= 0 {
 						p.errorf("invalid ':' in operand")
+						return true
 					}
 					colon = len(operands)
 				}
@@ -338,8 +339,13 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	case scanner.Int, scanner.Float, scanner.String, scanner.Char, '+', '-', '~':
 		haveConstant = true
 	case '(':
-		// Could be parenthesized expression or (R).
-		rname := p.next().String()
+		// Could be parenthesized expression or (R). Must be something, though.
+		tok := p.next()
+		if tok.ScanToken == scanner.EOF {
+			p.errorf("missing right parenthesis")
+			return false
+		}
+		rname := tok.String()
 		p.back()
 		haveConstant = !p.atStartOfRegister(rname)
 		if !haveConstant {
@@ -361,6 +367,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 		if p.have(scanner.String) {
 			if prefix != '$' {
 				p.errorf("string constant must be an immediate")
+				return false
 			}
 			str, err := strconv.Unquote(p.get(scanner.String).String())
 			if err != nil {
@@ -952,7 +959,11 @@ func (p *Parser) next() lex.Token {
 }
 
 func (p *Parser) back() {
-	p.inputPos--
+	if p.inputPos == 0 {
+		p.errorf("internal error: backing up before BOL")
+	} else {
+		p.inputPos--
+	}
 }
 
 func (p *Parser) peek() lex.ScanToken {
