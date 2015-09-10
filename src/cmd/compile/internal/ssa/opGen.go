@@ -266,6 +266,7 @@ const (
 	OpAMD64CALLclosure
 	OpAMD64CALLdefer
 	OpAMD64CALLgo
+	OpAMD64CALLinter
 	OpAMD64REPMOVSB
 	OpAMD64InvertFlags
 	OpAMD64LoweredPanicNilCheck
@@ -479,6 +480,7 @@ const (
 	OpStaticCall
 	OpDeferCall
 	OpGoCall
+	OpInterCall
 	OpSignExt8to16
 	OpSignExt8to32
 	OpSignExt8to64
@@ -3082,6 +3084,15 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "CALLinter",
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
+		},
+	},
+	{
 		name: "REPMOVSB",
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3943,6 +3954,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GoCall",
+		generic: true,
+	},
+	{
+		name:    "InterCall",
 		generic: true,
 	},
 	{

@@ -286,6 +286,7 @@ var genericOps = []opData{
 	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
 	{name: "DeferCall"},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
 	{name: "GoCall"},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
+	{name: "InterCall"},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", typ: "Int16"},

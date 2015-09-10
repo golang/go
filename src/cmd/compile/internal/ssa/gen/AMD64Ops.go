@@ -390,6 +390,7 @@ func init() {
 		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "CALLdefer", reg: regInfo{clobbers: callerSave}},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLgo", reg: regInfo{clobbers: callerSave}},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLinter", reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
 
