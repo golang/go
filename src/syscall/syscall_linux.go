@@ -837,7 +837,7 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Fdatasync(fd int) (err error)
 //sys	Flock(fd int, how int) (err error)
 //sys	Fsync(fd int) (err error)
-//sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
+//sys	Getdents(fd int, buf []byte) (n int, err error) = _SYS_getdents
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
 func Getpgrp() (pid int) {

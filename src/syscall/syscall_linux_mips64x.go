@@ -1,17 +1,25 @@
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// +build linux
+// +build mips64 mips64le
 
 package syscall
 
 const (
-	_SYS_dup      = SYS_DUP3
-	_SYS_getdents = SYS_GETDENTS64
+	_SYS_dup = SYS_DUP2
+
+	// Linux introduced getdents64 syscall for N64 ABI only in 3.10
+	// (May 21 2013, rev dec33abaafc89bcbd78f85fad0513170415a26d5),
+	// to support older kernels, we have to use getdents for mips64.
+	// Also note that struct dirent is different for these two.
+	// Lookup linux_dirent{,64} in kernel source code for details.
+	_SYS_getdents = SYS_GETDENTS
 )
 
+//sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
-//sys	Fstat(fd int, stat *Stat_t) (err error)
-//sys	Fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
 //sys	Fstatfs(fd int, buf *Statfs_t) (err error)
 //sys	Ftruncate(fd int, length int64) (err error)
 //sysnb	Getegid() (egid int)
@@ -19,6 +27,8 @@ const (
 //sysnb	Getgid() (gid int)
 //sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
 //sysnb	Getuid() (uid int)
+//sysnb	InotifyInit() (fd int, err error)
+//sys	Lchown(path string, uid int, gid int) (err error)
 //sys	Listen(s int, n int) (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
@@ -34,21 +44,8 @@ const (
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
-
-func Stat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, 0)
-}
-
-func Lchown(path string, uid int, gid int) (err error) {
-	return Fchownat(_AT_FDCWD, path, uid, gid, _AT_SYMLINK_NOFOLLOW)
-}
-
-func Lstat(path string, stat *Stat_t) (err error) {
-	return Fstatat(_AT_FDCWD, path, stat, _AT_SYMLINK_NOFOLLOW)
-}
-
 //sys	Statfs(path string, buf *Statfs_t) (err error)
-//sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error) = SYS_SYNC_FILE_RANGE2
+//sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
 //sys	Truncate(path string, length int64) (err error)
 //sys	accept(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (fd int, err error)
 //sys	accept4(s int, rsa *RawSockaddrAny, addrlen *_Socklen, flags int) (fd int, err error)
@@ -71,7 +68,18 @@ func Lstat(path string, stat *Stat_t) (err error) {
 func Getpagesize() int { return 65536 }
 
 //sysnb	Gettimeofday(tv *Timeval) (err error)
-//sysnb	Time(t *Time_t) (tt Time_t, err error)
+
+func Time(t *Time_t) (tt Time_t, err error) {
+	var tv Timeval
+	err = Gettimeofday(&tv)
+	if err != nil {
+		return 0, err
+	}
+	if t != nil {
+		*t = Time_t(tv.Sec)
+	}
+	return Time_t(tv.Sec), nil
+}
 
 func TimespecToNsec(ts Timespec) int64 { return int64(ts.Sec)*1e9 + int64(ts.Nsec) }
 
@@ -114,9 +122,80 @@ func Pipe2(p []int, flags int) (err error) {
 	return
 }
 
-func (r *PtraceRegs) PC() uint64 { return r.Pc }
+func Ioperm(from int, num int, on int) (err error) {
+	return ENOSYS
+}
 
-func (r *PtraceRegs) SetPC(pc uint64) { r.Pc = pc }
+func Iopl(level int) (err error) {
+	return ENOSYS
+}
+
+type stat_t struct {
+	Dev        uint32
+	Pad0       [3]int32
+	Ino        uint64
+	Mode       uint32
+	Nlink      uint32
+	Uid        uint32
+	Gid        uint32
+	Rdev       uint32
+	Pad1       [3]uint32
+	Size       int64
+	Atime      uint32
+	Atime_nsec uint32
+	Mtime      uint32
+	Mtime_nsec uint32
+	Ctime      uint32
+	Ctime_nsec uint32
+	Blksize    uint32
+	Pad2       uint32
+	Blocks     int64
+}
+
+//sys	fstat(fd int, st *stat_t) (err error)
+//sys	lstat(path string, st *stat_t) (err error)
+//sys	stat(path string, st *stat_t) (err error)
+
+func Fstat(fd int, s *Stat_t) (err error) {
+	st := &stat_t{}
+	err = fstat(fd, st)
+	fillStat_t(s, st)
+	return
+}
+
+func Lstat(path string, s *Stat_t) (err error) {
+	st := &stat_t{}
+	err = lstat(path, st)
+	fillStat_t(s, st)
+	return
+}
+
+func Stat(path string, s *Stat_t) (err error) {
+	st := &stat_t{}
+	err = stat(path, st)
+	fillStat_t(s, st)
+	return
+}
+
+func fillStat_t(s *Stat_t, st *stat_t) {
+	s.Dev = st.Dev
+	s.Ino = st.Ino
+	s.Mode = st.Mode
+	s.Nlink = st.Nlink
+	s.Uid = st.Uid
+	s.Gid = st.Gid
+	s.Rdev = st.Rdev
+	s.Size = st.Size
+	s.Atim = Timespec{int64(st.Atime), int64(st.Atime_nsec)}
+	s.Mtim = Timespec{int64(st.Mtime), int64(st.Mtime_nsec)}
+	s.Ctim = Timespec{int64(st.Ctime), int64(st.Ctime_nsec)}
+	s.Blksize = st.Blksize
+	s.Blocks = st.Blocks
+}
+
+func (r *PtraceRegs) PC() uint64 { return r.Regs[64] }
+
+func (r *PtraceRegs) SetPC(pc uint64) { r.Regs[64] = pc }
 
 func (iov *Iovec) SetLen(length int) {
 	iov.Len = uint64(length)
@@ -129,23 +208,3 @@ func (msghdr *Msghdr) SetControllen(length int) {
 func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint64(length)
 }
-
-func InotifyInit() (fd int, err error) {
-	return InotifyInit1(0)
-}
-
-// TODO(dfc): constants that should be in zsysnum_linux_arm64.go, remove
-// these when the deprecated syscalls that the syscall package relies on
-// are removed.
-const (
-	SYS_GETPGRP      = 1060
-	SYS_UTIMES       = 1037
-	SYS_FUTIMESAT    = 1066
-	SYS_PAUSE        = 1061
-	SYS_USTAT        = 1070
-	SYS_UTIME        = 1063
-	SYS_LCHOWN       = 1032
-	SYS_TIME         = 1062
-	SYS_EPOLL_CREATE = 1042
-	SYS_EPOLL_WAIT   = 1069
-)
