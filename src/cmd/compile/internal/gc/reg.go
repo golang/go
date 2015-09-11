@@ -170,7 +170,7 @@ func setaddrs(bit Bits) {
 
 	for bany(&bit) {
 		// convert each bit to a variable
-		i = bnum(bit)
+		i = bnum(&bit)
 
 		node = vars[i].node
 		n = int(vars[i].name)
@@ -1321,7 +1321,7 @@ loop2:
 			bit.b[z] = LOAD(r, z) &^ (r.act.b[z] | addrs.b[z])
 		}
 		for bany(&bit) {
-			i = bnum(bit)
+			i = bnum(&bit)
 			change = 0
 			paint1(f, i)
 			biclr(&bit, uint(i))
@@ -1465,7 +1465,7 @@ func bany(a *Bits) bool {
 }
 
 // bnum reports the lowest index of a 1 bit in a.
-func bnum(a Bits) int {
+func bnum(a *Bits) int {
 	for i, x := range &a.b { // & to avoid making a copy of a.b
 		if x != 0 {
 			return 64*i + Bitno(x)
@@ -1541,7 +1541,7 @@ func (bits Bits) String() string {
 	var buf bytes.Buffer
 	sep := ""
 	for bany(&bits) {
-		i := bnum(bits)
+		i := bnum(&bits)
 		buf.WriteString(sep)
 		sep = " "
 		v := &vars[i]
