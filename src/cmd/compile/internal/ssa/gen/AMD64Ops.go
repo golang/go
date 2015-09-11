@@ -424,6 +424,10 @@ func init() {
 		// Pseudo-ops
 		{name: "LoweredPanicNilCheck", reg: gp10},
 		{name: "LoweredGetG", reg: gp01},
+		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
+		// and sorts it to the very beginning of the block to prevent other
+		// use of DX (the closure pointer)
+		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
 	}
 
 	var AMD64blocks = []blockData{

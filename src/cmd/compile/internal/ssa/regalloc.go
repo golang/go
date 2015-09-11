@@ -333,7 +333,11 @@ func (s *regAllocState) allocReg(mask regMask) register {
 	// farthest-in-the-future use.
 	// TODO: Prefer registers with already spilled Values?
 	// TODO: Modify preference using affinity graph.
-	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
+
+	// SP and SB are allocated specially.  No regular value should
+	// be allocated to them.
+	mask &^= 1<<4 | 1<<32
+
 	maxuse := int32(-1)
 	for t := register(0); t < numRegs; t++ {
 		if mask>>t&1 == 0 {
@@ -381,9 +385,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 		return s.regs[r].c
 	}
 
-	// SP and SB are allocated specially.  No regular value should
-	// be allocated to them.
-	mask &^= 1<<4 | 1<<32
+	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
 
 	// Allocate a register.
 	r := s.allocReg(mask)
