@@ -181,7 +181,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		hstr += fmt.Sprintf("%08b", b)
 	}
 	if strings.HasSuffix(hstr, os.Getenv("GOSSAHASH")) {
-		fmt.Println("GOSSAHASH triggered %s\n", name)
+		fmt.Printf("GOSSAHASH triggered %s\n", name)
 		return s.f, true
 	}
 	return s.f, false
@@ -264,6 +264,7 @@ var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
 
 // dummy nodes for temporary variables
 var ptrvar = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
+var capvar = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
 
 // startBlock sets the current block we're generating code in to b.
 func (s *state) startBlock(b *ssa.Block) {
@@ -559,6 +560,16 @@ func (s *state) stmt(n *Node) {
 		var r *ssa.Value
 		if n.Right != nil {
 			r = s.expr(n.Right)
+		}
+		if n.Right != nil && n.Right.Op == OAPPEND {
+			// Yuck!  The frontend gets rid of the write barrier, but we need it!
+			// At least, we need it in the case where growslice is called.
+			// TODO: Do the write barrier on just the growslice branch.
+			// TODO: just add a ptr graying to the end of growslice?
+			// TODO: check whether we need to do this for ODOTTYPE and ORECV also.
+			// They get similar wb-removal treatment in walk.go:OAS.
+			s.assign(n.Left, r, true)
+			return
 		}
 		s.assign(n.Left, r, n.Op == OASWB)
 
@@ -1865,6 +1876,103 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OGETG:
 		return s.newValue0(ssa.OpGetG, n.Type)
 
+	case OAPPEND:
+		// append(s, e1, e2, e3).  Compile like:
+		// ptr,len,cap := s
+		// newlen := len + 3
+		// if newlen > s.cap {
+		//     ptr,_,cap = growslice(s, newlen)
+		// }
+		// *(ptr+len) = e1
+		// *(ptr+len+1) = e2
+		// *(ptr+len+2) = e3
+		// makeslice(ptr,newlen,cap)
+
+		et := n.Type.Type
+		pt := Ptrto(et)
+
+		// Evaluate slice
+		slice := s.expr(n.List.N)
+
+		// Evaluate args
+		nargs := int64(count(n.List) - 1)
+		args := make([]*ssa.Value, 0, nargs)
+		for l := n.List.Next; l != nil; l = l.Next {
+			args = append(args, s.expr(l.N))
+		}
+
+		// Allocate new blocks
+		grow := s.f.NewBlock(ssa.BlockPlain)
+		growresult := s.f.NewBlock(ssa.BlockPlain)
+		assign := s.f.NewBlock(ssa.BlockPlain)
+
+		// Decide if we need to grow
+		p := s.newValue1(ssa.OpSlicePtr, pt, slice)
+		l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
+		nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+		cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
+		s.vars[&ptrvar] = p
+		s.vars[&capvar] = c
+		b := s.endBlock()
+		b.Kind = ssa.BlockIf
+		b.Likely = ssa.BranchUnlikely
+		b.Control = cmp
+		b.AddEdgeTo(grow)
+		b.AddEdgeTo(assign)
+
+		// Call growslice
+		s.startBlock(grow)
+		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(n.Type)}, s.sb)
+
+		spplus1 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
+		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
+		spplus3 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(3*Widthptr), s.sp)
+		spplus4 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(4*Widthptr), s.sp)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, p, s.mem())
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, l, s.mem())
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus3, c, s.mem())
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus4, nl, s.mem())
+		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("growslice", 0).Sym, s.mem())
+		call.AuxInt = int64(8 * Widthptr)
+		s.vars[&memvar] = call
+		b = s.endBlock()
+		b.Kind = ssa.BlockCall
+		b.Control = call
+		b.AddEdgeTo(growresult)
+
+		// Read result of growslice
+		s.startBlock(growresult)
+		spplus5 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(5*Widthptr), s.sp)
+		// Note: we don't need to read the result's length.
+		spplus7 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(7*Widthptr), s.sp)
+		s.vars[&ptrvar] = s.newValue2(ssa.OpLoad, pt, spplus5, s.mem())
+		s.vars[&capvar] = s.newValue2(ssa.OpLoad, Types[TINT], spplus7, s.mem())
+		b = s.endBlock()
+		b.AddEdgeTo(assign)
+
+		// assign new elements to slots
+		s.startBlock(assign)
+		p = s.variable(&ptrvar, pt)          // generates phi for ptr
+		c = s.variable(&capvar, Types[TINT]) // generates phi for cap
+		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+		for i, arg := range args {
+			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TUINTPTR], int64(i)))
+			s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			if haspointers(et) {
+				// TODO: just one write barrier call for all of these writes?
+				// TODO: maybe just one writeBarrierEnabled check?
+				s.insertWB(et, addr)
+			}
+		}
+
+		// make result
+		r := s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
+		delete(s.vars, &ptrvar)
+		delete(s.vars, &capvar)
+		return r
+
 	default:
 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
 		return nil
@@ -1902,39 +2010,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	}
 	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
 	if wb {
-		// if writeBarrierEnabled {
-		//   typedmemmove_nostore(t, &l)
-		// }
-		bThen := s.f.NewBlock(ssa.BlockPlain)
-		bNext := s.f.NewBlock(ssa.BlockPlain)
-
-		aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrierEnabled", 0).Sym}
-		flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
-		flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
-		b := s.endBlock()
-		b.Kind = ssa.BlockIf
-		b.Likely = ssa.BranchUnlikely
-		b.Control = flag
-		b.AddEdgeTo(bThen)
-		b.AddEdgeTo(bNext)
-
-		s.startBlock(bThen)
-		// NOTE: there must be no GC suspension points between the write above
-		// (the OpStore) and this call to typedmemmove_nostore.
-		// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
-		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(left.Type)}, s.sb)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
-		spplus8 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, addr, s.mem())
-		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("typedmemmove_nostore", 0).Sym, s.mem())
-		call.AuxInt = int64(2 * Widthptr)
-		s.vars[&memvar] = call
-		c := s.endBlock()
-		c.Kind = ssa.BlockCall
-		c.Control = call
-		c.AddEdgeTo(bNext)
-
-		s.startBlock(bNext)
+		s.insertWB(left.Type, addr)
 	}
 }
 
@@ -2225,6 +2301,44 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	s.endBlock()
 	bPanic.Kind = ssa.BlockExit
 	bPanic.Control = chk
+	s.startBlock(bNext)
+}
+
+// insertWB inserts a write barrier.  A value of type t has already
+// been stored at location p.  Tell the runtime about this write.
+// Note: there must be no GC suspension points between the write and
+// the call that this function inserts.
+func (s *state) insertWB(t *Type, p *ssa.Value) {
+	// if writeBarrierEnabled {
+	//   typedmemmove_nostore(&t, p)
+	// }
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bNext := s.f.NewBlock(ssa.BlockPlain)
+
+	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrierEnabled", 0).Sym}
+	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Likely = ssa.BranchUnlikely
+	b.Control = flag
+	b.AddEdgeTo(bThen)
+	b.AddEdgeTo(bNext)
+
+	s.startBlock(bThen)
+	// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
+	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(t)}, s.sb)
+	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
+	spplus8 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
+	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, p, s.mem())
+	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("typedmemmove_nostore", 0).Sym, s.mem())
+	call.AuxInt = int64(2 * Widthptr)
+	s.vars[&memvar] = call
+	c := s.endBlock()
+	c.Kind = ssa.BlockCall
+	c.Control = call
+	c.AddEdgeTo(bNext)
+
 	s.startBlock(bNext)
 }
 
