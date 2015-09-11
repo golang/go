@@ -92,20 +92,18 @@ func cse(f *Func) {
 			// all values in this equiv class that are not equivalent to v get moved
 			// into another equiv class.
 			// To avoid allocating while building that equivalence class,
-			// move the values equivalent to v to the beginning of e,
-			// other values to the end of e, and track where the split is.
+			// move the values equivalent to v to the beginning of e
+			// and other values to the end of e.
 			allvals := e
-			split := len(e)
 		eqloop:
 			for j := 1; j < len(e); {
 				w := e[j]
 				for i := 0; i < len(v.Args); i++ {
 					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] || !v.Type.Equal(w.Type) {
 						// w is not equivalent to v.
-						// move it to the end, shrink e, and move the split.
+						// move it to the end and shrink e.
 						e[j], e[len(e)-1] = e[len(e)-1], e[j]
 						e = e[:len(e)-1]
-						split--
 						valueEqClass[w.ID] = len(partition)
 						changed = true
 						continue eqloop
@@ -115,8 +113,8 @@ func cse(f *Func) {
 				j++
 			}
 			partition[i] = e
-			if split < len(allvals) {
-				partition = append(partition, allvals[split:])
+			if len(e) < len(allvals) {
+				partition = append(partition, allvals[len(e):])
 			}
 		}
 
