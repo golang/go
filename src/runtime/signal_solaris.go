@@ -46,7 +46,7 @@ var sigtable = [...]sigTabT{
 	/* 33 */ {_SigNotify, "SIGLWP: reserved signal no longer used by"},
 	/* 34 */ {_SigNotify, "SIGFREEZE: special signal used by CPR"},
 	/* 35 */ {_SigNotify, "SIGTHAW: special signal used by CPR"},
-	/* 36 */ {0, "SIGCANCEL: reserved signal for thread cancellation"},
+	/* 36 */ {0, "SIGCANCEL: reserved signal for thread cancellation"}, // Oracle's spelling of cancelation.
 	/* 37 */ {_SigNotify, "SIGLOST: resource lost (eg, record-lock lost)"},
 	/* 38 */ {_SigNotify, "SIGXRES: resource control exceeded"},
 	/* 39 */ {_SigNotify, "SIGJVM1: reserved signal for Java Virtual Machine"},
