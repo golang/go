@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of August 5, 2015",
+	"Subtitle": "Version of September 11, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -2210,9 +2210,8 @@ math.Sin	// denotes the Sin function in package math
 <p>
 Composite literals construct values for structs, arrays, slices, and maps
 and create a new value each time they are evaluated.
-They consist of the type of the value
-followed by a brace-bound list of composite elements. An element may be
-a single expression or a key-value pair.
+They consist of the type of the value followed by a brace-bound list of elements.
+Each element may optionally be preceded by a corresponding key.
 </p>
 
 <pre class="ebnf">
@@ -2220,18 +2219,18 @@ CompositeLit  = LiteralType LiteralValue .
 LiteralType   = StructType | ArrayType | "[" "..." "]" ElementType |
                 SliceType | MapType | TypeName .
 LiteralValue  = "{" [ ElementList [ "," ] ] "}" .
-ElementList   = Element { "," Element } .
-Element       = [ Key ":" ] Value .
+ElementList   = KeyedElement { "," KeyedElement } .
+KeyedElement  = [ Key ":" ] Element .
 Key           = FieldName | Expression | LiteralValue .
 FieldName     = identifier .
-Value         = Expression | LiteralValue .
+Element       = Expression | LiteralValue .
 </pre>
 
 <p>
 The LiteralType must be a struct, array, slice, or map type
 (the grammar enforces this constraint except when the type is given
 as a TypeName).
-The types of the expressions must be <a href="#Assignability">assignable</a>
+The types of the elements and keys must be <a href="#Assignability">assignable</a>
 to the respective field, element, and key types of the LiteralType;
 there is no additional conversion.
 The key is interpreted as a field name for struct literals,
