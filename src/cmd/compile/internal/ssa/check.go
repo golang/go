@@ -231,7 +231,7 @@ func checkFunc(f *Func) {
 						y = b.Preds[i]
 					}
 					if !domCheck(f, idom, x, y) {
-						f.Fatalf("arg %d of value %s does not dominate", i, v.LongString())
+						f.Fatalf("arg %d of value %s does not dominate, arg=%s", i, v.LongString(), arg.LongString())
 					}
 				}
 			}

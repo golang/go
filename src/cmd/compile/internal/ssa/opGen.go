@@ -271,6 +271,7 @@ const (
 	OpAMD64InvertFlags
 	OpAMD64LoweredPanicNilCheck
 	OpAMD64LoweredGetG
+	OpAMD64LoweredGetClosurePtr
 
 	OpAdd8
 	OpAdd16
@@ -512,6 +513,7 @@ const (
 	OpIsSliceInBounds
 	OpPanicNilCheck
 	OpGetG
+	OpGetClosurePtr
 	OpArrayIndex
 	OpPtrIndex
 	OpOffPtr
@@ -3122,6 +3124,14 @@ var opcodeTable = [...]opInfo{
 			},
 		},
 	},
+	{
+		name: "LoweredGetClosurePtr",
+		reg: regInfo{
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
 
 	{
 		name:    "Add8",
@@ -4081,6 +4091,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "GetG",
+		generic: true,
+	},
+	{
+		name:    "GetClosurePtr",
 		generic: true,
 	},
 	{

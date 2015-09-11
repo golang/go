@@ -24,7 +24,7 @@ import (
 // it will never return nil, and the bool can be removed.
 func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	name := fn.Func.Nname.Sym.Name
-	usessa = strings.HasSuffix(name, "_ssa") || name == os.Getenv("GOSSAFUNC")
+	usessa = strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
 
 	if usessa {
 		fmt.Println("generating SSA for", name)
@@ -76,22 +76,30 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
 
 	// Allocate starting values
-	s.vars = map[*Node]*ssa.Value{}
 	s.labels = map[string]*ssaLabel{}
 	s.labeledNodes = map[*Node]*ssaLabel{}
 	s.startmem = s.entryNewValue0(ssa.OpArg, ssa.TypeMem)
 	s.sp = s.entryNewValue0(ssa.OpSP, Types[TUINTPTR]) // TODO: use generic pointer type (unsafe.Pointer?) instead
 	s.sb = s.entryNewValue0(ssa.OpSB, Types[TUINTPTR])
 
+	s.startBlock(s.f.Entry)
+	s.vars[&memVar] = s.startmem
+
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
 	for d := fn.Func.Dcl; d != nil; d = d.Next {
 		n := d.N
 		switch n.Class {
-		case PPARAM, PPARAMOUT:
+		case PPARAM:
 			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
-		case PAUTO:
+		case PAUTO | PHEAP:
+			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
+			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		case PPARAM | PHEAP: // PPARAMOUT | PHEAP seems to not occur
+			// This ends up wrong, have to do it at the PARAM node instead.
+		case PAUTO, PPARAMOUT:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
 		case PFUNC:
@@ -109,7 +117,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, Types[TUINTPTR], aux, s.sp)
 
 	// Convert the AST-based IR to the SSA-based IR
-	s.startBlock(s.f.Entry)
 	s.stmtList(fn.Func.Enter)
 	s.stmtList(fn.Nbody)
 
@@ -1231,6 +1238,23 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OCFUNC:
 		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+	case OPARAM:
+		// Reach through param to expected ONAME w/ PHEAP|PARAM class
+		// to reference the incoming parameter.  Used in initialization
+		// of heap storage allocated for escaping params, where it appears
+		// as the RHS of an OAS node.  No point doing SSA for this variable,
+		// this is the only use.
+		p := n.Left
+		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
+			s.Fatalf("OPARAM not of ONAME,{PPARAM,PPARAMOUT}|PHEAP, instead %s", nodedump(p, 0))
+		}
+
+		// Recover original offset to address passed-in param value.
+		original_p := *p
+		original_p.Xoffset = n.Xoffset
+		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
+		addr := s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		return s.newValue2(ssa.OpLoad, p.Type, addr, s.mem())
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
@@ -1241,6 +1265,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if canSSA(n) {
 			return s.variable(n, n.Type)
 		}
+		addr := s.addr(n)
+		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+	case OCLOSUREVAR:
 		addr := s.addr(n)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 	case OLITERAL:
@@ -2138,8 +2165,8 @@ func (s *state) addr(n *Node) *ssa.Value {
 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
 			}
 			return v
-		case PPARAM, PPARAMOUT:
-			// parameter/result slot or local variable
+		case PPARAM:
+			// parameter slot
 			v := s.decladdrs[n]
 			if v == nil {
 				if flag_race != 0 && n.String() == ".fp" {
@@ -2159,7 +2186,10 @@ func (s *state) addr(n *Node) *ssa.Value {
 			// between vardef and addr ops.
 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
 			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
-		case PAUTO | PHEAP, PPARAMREF:
+		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
+			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
+			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
 			return s.expr(n.Name.Heapaddr)
 		default:
 			s.Unimplementedf("variable address class %v not implemented", n.Class)
@@ -2205,6 +2235,10 @@ func (s *state) addr(n *Node) *ssa.Value {
 		p := s.expr(n.Left)
 		s.nilCheck(p)
 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+	case OCLOSUREVAR:
+		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
+			s.entryNewValue0(ssa.OpGetClosurePtr, Types[TUINTPTR]),
+			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	default:
 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
 		return nil
@@ -3688,6 +3722,12 @@ func (s *genState) genValue(v *ssa.Value) {
 		q.From.Reg = x86.REG_AX
 		q.To.Type = obj.TYPE_MEM
 		q.To.Reg = r
+	case ssa.OpAMD64LoweredGetClosurePtr:
+		// Output is hardwired to DX only,
+		// and DX contains the closure pointer on
+		// closure entry, and this "instruction"
+		// is scheduled to the very beginning
+		// of the entry block.
 	case ssa.OpAMD64LoweredGetG:
 		r := regnum(v)
 		// See the comments in cmd/internal/obj/x86/obj6.go

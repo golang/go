@@ -4,6 +4,17 @@
 
 package ssa
 
+const (
+	ScorePhi = iota // towards top of block
+	ScoreVarDef
+	ScoreMemory
+	ScoreDefault
+	ScoreFlags
+	ScoreControl // towards bottom of block
+
+	ScoreCount // not a real score
+)
+
 // Schedule the Values in each Block.  After this phase returns, the
 // order of b.Values matters and is the order in which those values
 // will appear in the assembly output.  For now it generates a
@@ -21,7 +32,7 @@ func schedule(f *Func) {
 	var order []*Value
 
 	// priority queue of legally schedulable (0 unscheduled uses) values
-	var priq [5][]*Value
+	var priq [ScoreCount][]*Value
 
 	// maps mem values to the next live memory value
 	nextMem := make([]*Value, f.NumValues())
@@ -69,27 +80,39 @@ func schedule(f *Func) {
 		// Compute score.  Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
+			case v.Op == OpAMD64LoweredGetClosurePtr:
+				// We also score GetLoweredClosurePtr as early as possible to ensure that the
+				// context register is not stomped.  GetLoweredClosurePtr should only appear
+				// in the entry block where there are no phi functions, so there is no
+				// conflict or ambiguity here.
+				if b != f.Entry {
+					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block.")
+				}
+				score[v.ID] = ScorePhi
 			case v.Op == OpPhi:
 				// We want all the phis first.
-				score[v.ID] = 0
+				score[v.ID] = ScorePhi
+			case v.Op == OpVarDef:
+				// We want all the vardefs next.
+				score[v.ID] = ScoreVarDef
 			case v.Type.IsMemory():
 				// Schedule stores as early as possible.  This tends to
 				// reduce register pressure.  It also helps make sure
 				// VARDEF ops are scheduled before the corresponding LEA.
-				score[v.ID] = 1
+				score[v.ID] = ScoreMemory
 			case v.Type.IsFlags():
 				// Schedule flag register generation as late as possible.
 				// This makes sure that we only have one live flags
 				// value at a time.
-				score[v.ID] = 3
+				score[v.ID] = ScoreFlags
 			default:
-				score[v.ID] = 2
+				score[v.ID] = ScoreDefault
 			}
 		}
 		if b.Control != nil && b.Control.Op != OpPhi {
 			// Force the control value to be scheduled at the end,
 			// unless it is a phi value (which must be first).
-			score[b.Control.ID] = 4
+			score[b.Control.ID] = ScoreControl
 
 			// Schedule values dependent on the control value at the end.
 			// This reduces the number of register spills. We don't find
@@ -100,7 +123,7 @@ func schedule(f *Func) {
 				if v.Op != OpPhi {
 					for _, a := range v.Args {
 						if a == b.Control {
-							score[v.ID] = 4
+							score[v.ID] = ScoreControl
 						}
 					}
 				}

@@ -2397,6 +2397,20 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto enda617119faaccc0f0c2d23548116cf331
 	enda617119faaccc0f0c2d23548116cf331:
 		;
+	case OpGetClosurePtr:
+		// match: (GetClosurePtr)
+		// cond:
+		// result: (LoweredGetClosurePtr)
+		{
+			v.Op = OpAMD64LoweredGetClosurePtr
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			return true
+		}
+		goto end6fd0b53f0acb4d35e7d7fa78d2ca1392
+	end6fd0b53f0acb4d35e7d7fa78d2ca1392:
+		;
 	case OpGetG:
 		// match: (GetG)
 		// cond:
