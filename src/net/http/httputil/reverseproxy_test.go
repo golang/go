@@ -225,7 +225,7 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	}
 }
 
-func TestReverseProxyCancellation(t *testing.T) {
+func TestReverseProxyCancelation(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/9554")
 	}
