@@ -1633,6 +1633,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		s.startBlock(bResult)
 		return s.variable(n, Types[TBOOL])
+	case OCOMPLEX:
+		r := s.expr(n.Left)
+		i := s.expr(n.Right)
+		return s.newValue2(ssa.OpComplexMake, n.Type, r, i)
 
 	// unary ops
 	case OMINUS:
