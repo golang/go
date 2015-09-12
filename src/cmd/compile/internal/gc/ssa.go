@@ -772,6 +772,10 @@ func (s *state) stmt(n *Node) {
 		b.AddEdgeTo(bNext)
 		s.startBlock(bNext)
 
+	case OCHECKNIL:
+		p := s.expr(n.Left)
+		s.nilCheck(p)
+
 	default:
 		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
 	}
@@ -1660,11 +1664,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	case OADDR:
 		return s.addr(n.Left)
-
-	case OCHECKNIL:
-		p := s.expr(n.Left)
-		s.nilCheck(p)
-		return p
 
 	case OINDREG:
 		if int(n.Reg) != Thearch.REGSP {
