@@ -232,6 +232,8 @@ var genericOps = []opData{
 	{name: "Com32"},
 	{name: "Com64"},
 
+	{name: "Sqrt"}, // sqrt(arg0), float64 only
+
 	// Data movement
 	{name: "Phi"},  // select an argument based on which predecessor block we came from
 	{name: "Copy"}, // output = arg0

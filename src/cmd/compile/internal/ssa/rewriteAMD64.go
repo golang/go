@@ -9391,6 +9391,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endcef6d6001d3f25cf5dacee11a46e5c8c
 	endcef6d6001d3f25cf5dacee11a46e5c8c:
 		;
+	case OpSqrt:
+		// match: (Sqrt x)
+		// cond:
+		// result: (SQRTSD x)
+		{
+			x := v.Args[0]
+			v.Op = OpAMD64SQRTSD
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(x)
+			return true
+		}
+		goto end72f79ca9ec139e15856aaa03338cf543
+	end72f79ca9ec139e15856aaa03338cf543:
+		;
 	case OpStaticCall:
 		// match: (StaticCall [argwid] {target} mem)
 		// cond:

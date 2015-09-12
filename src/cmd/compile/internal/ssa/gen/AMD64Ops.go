@@ -307,6 +307,8 @@ func init() {
 		{name: "NOTW", reg: gp11, asm: "NOTW"}, // ^arg0
 		{name: "NOTB", reg: gp11, asm: "NOTB"}, // ^arg0
 
+		{name: "SQRTSD", reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+
 		{name: "SBBQcarrymask", reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
 		{name: "SBBLcarrymask", reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
