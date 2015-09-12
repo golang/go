@@ -203,6 +203,7 @@ const (
 	OpAMD64NOTL
 	OpAMD64NOTW
 	OpAMD64NOTB
+	OpAMD64SQRTSD
 	OpAMD64SBBQcarrymask
 	OpAMD64SBBLcarrymask
 	OpAMD64SETEQ
@@ -448,6 +449,7 @@ const (
 	OpCom16
 	OpCom32
 	OpCom64
+	OpSqrt
 	OpPhi
 	OpCopy
 	OpConstBool
@@ -2362,6 +2364,18 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "SQRTSD",
+		asm:  x86.ASQRTSD,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
 		name: "SBBQcarrymask",
 		asm:  x86.ASBBQ,
 		reg: regInfo{
@@ -3807,6 +3821,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Com64",
+		generic: true,
+	},
+	{
+		name:    "Sqrt",
 		generic: true,
 	},
 	{

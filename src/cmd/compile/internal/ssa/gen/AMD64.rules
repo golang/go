@@ -89,6 +89,8 @@
 (Com16 x) -> (NOTW x)
 (Com8 x) -> (NOTB x)
 
+(Sqrt x) -> (SQRTSD x)
+
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
 (SignExt8to16 x) -> (MOVBQSX x)
 (SignExt8to32 x) -> (MOVBQSX x)

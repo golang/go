@@ -988,6 +988,8 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
 	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
 	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
+
+	opAndType{OSQRT, TFLOAT64}: ssa.OpSqrt,
 }
 
 func (s *state) concreteEtype(t *Type) uint8 {
@@ -1643,7 +1645,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
 		}
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
-	case ONOT, OCOM:
+	case ONOT, OCOM, OSQRT:
 		a := s.expr(n.Left)
 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
 	case OIMAG, OREAL:
@@ -3325,6 +3327,12 @@ func (s *genState) genValue(v *ssa.Value) {
 		p := Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+	case ssa.OpAMD64SQRTSD:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[0])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
 	case ssa.OpSP, ssa.OpSB:
 		// nothing to do
 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
