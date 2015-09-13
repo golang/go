@@ -3544,7 +3544,7 @@ var mapqueue *NodeList
 func copytype(n *Node, t *Type) {
 	if t.Etype == TFORW {
 		// This type isn't computed yet; when it is, update n.
-		t.Copyto = list(t.Copyto, n)
+		t.Copyto = append(t.Copyto, n)
 
 		return
 	}
@@ -3569,8 +3569,8 @@ func copytype(n *Node, t *Type) {
 	t.Copyto = nil
 
 	// Update nodes waiting on this type.
-	for ; l != nil; l = l.Next {
-		copytype(l.N, t)
+	for _, n := range l {
+		copytype(n, t)
 	}
 
 	// Double-check use of type as embedded type.
