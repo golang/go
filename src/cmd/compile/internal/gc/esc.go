@@ -248,17 +248,6 @@ func satInc8(x int8) int8 {
 	return x + 1
 }
 
-func satAdd8(x, y int8) int8 {
-	z := x + y
-	if x^y < 0 || x^z >= 0 {
-		return z
-	}
-	if x < 0 {
-		return -128
-	}
-	return 127
-}
-
 func min8(a, b int8) int8 {
 	if a < b {
 		return a
@@ -385,10 +374,9 @@ func escMax(e, etype uint16) uint16 {
 // something whose address is returned -- but that implies stored into the heap,
 // hence EscHeap, which means that the details are not currently relevant. )
 const (
-	bitsPerOutputInTag = 3                                         // For each output, the number of bits for a tag
-	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1         // The bit mask to extract a single tag.
-	outputsPerTag      = (16 - EscReturnBits) / bitsPerOutputInTag // The number of outputs that can be tagged.
-	maxEncodedLevel    = int(bitsMaskForTag - 1)                   // The largest level that can be stored in a tag.
+	bitsPerOutputInTag = 3                                 // For each output, the number of bits for a tag
+	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1 // The bit mask to extract a single tag.
+	maxEncodedLevel    = int(bitsMaskForTag - 1)           // The largest level that can be stored in a tag.
 )
 
 type EscState struct {

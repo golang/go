@@ -347,23 +347,6 @@ func importdot(opkg *Pkg, pack *Node) {
 	}
 }
 
-func gethunk() {
-	nh := int32(NHUNK)
-	if thunk >= 10*NHUNK {
-		nh = 10 * NHUNK
-	}
-	h := string(make([]byte, nh))
-	if h == "" {
-		Flusherrors()
-		Yyerror("out of memory")
-		errorexit()
-	}
-
-	hunk = h
-	nhunk = nh
-	thunk += nh
-}
-
 func Nod(op int, nleft *Node, nright *Node) *Node {
 	n := new(Node)
 	n.Op = uint8(op)
@@ -1964,19 +1947,6 @@ func cheapexpr(n *Node, init **NodeList) *Node {
 	}
 
 	return copyexpr(n, n.Type, init)
-}
-
-/*
- * return n in a local variable of type t if it is not already.
- * the value is guaranteed not to change except by direct
- * assignment to it.
- */
-func localexpr(n *Node, t *Type, init **NodeList) *Node {
-	if n.Op == ONAME && (!n.Addrtaken || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
-		return n
-	}
-
-	return copyexpr(n, t, init)
 }
 
 func Setmaxarg(t *Type, extra int32) {
