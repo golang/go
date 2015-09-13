@@ -240,6 +240,9 @@ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimp
 // dummy node for the memory variable
 var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
 
+// dummy nodes for temporary variables
+var ptrvar = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
+
 // startBlock sets the current block we're generating code in to b.
 func (s *state) startBlock(b *ssa.Block) {
 	if s.curBlock != nil {
@@ -1747,70 +1750,38 @@ func (s *state) expr(n *Node) *ssa.Value {
 		data := s.expr(n.Right)
 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
 
+	case OSLICE, OSLICEARR:
+		v := s.expr(n.Left)
+		var i, j *ssa.Value
+		if n.Right.Left != nil {
+			i = s.extendIndex(s.expr(n.Right.Left))
+		}
+		if n.Right.Right != nil {
+			j = s.extendIndex(s.expr(n.Right.Right))
+		}
+		p, l, c := s.slice(n.Left.Type, v, i, j, nil)
+		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 	case OSLICESTR:
-		// Evaluate the string once.
-		str := s.expr(n.Left)
-		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), str)
-		len := s.newValue1(ssa.OpStringLen, Types[TINT], str)
-		zero := s.constInt(Types[TINT], 0)
-
-		// Evaluate the slice indexes.
-		var low, high *ssa.Value
-		if n.Right.Left == nil {
-			low = zero
-		} else {
-			low = s.extendIndex(s.expr(n.Right.Left))
+		v := s.expr(n.Left)
+		var i, j *ssa.Value
+		if n.Right.Left != nil {
+			i = s.extendIndex(s.expr(n.Right.Left))
 		}
-		if n.Right.Right == nil {
-			high = len
-		} else {
-			high = s.extendIndex(s.expr(n.Right.Right))
+		if n.Right.Right != nil {
+			j = s.extendIndex(s.expr(n.Right.Right))
 		}
-
-		// Panic if slice indices are not in bounds.
-		s.sliceBoundsCheck(low, high)
-		s.sliceBoundsCheck(high, len)
-
-		// Generate the following code assuming that indexes are in bounds.
-		// The conditional is to make sure that we don't generate a string
-		// that points to the next object in memory.
-		// rlen = (SubPtr high low)
-		// p = ptr
-		// if rlen != 0 {
-		//    p = (AddPtr ptr low)
-		// }
-		// result = (StringMake p size)
-		rlen := s.newValue2(ssa.OpSubPtr, Types[TINT], high, low)
-
-		// Use n as the "variable" for p.
-		s.vars[n] = ptr
-
-		// Generate code to test the resulting slice length.
-		var cmp *ssa.Value
-		if s.config.IntSize == 8 {
-			cmp = s.newValue2(ssa.OpNeq64, Types[TBOOL], rlen, zero)
-		} else {
-			cmp = s.newValue2(ssa.OpNeq32, Types[TBOOL], rlen, zero)
+		p, l, _ := s.slice(n.Left.Type, v, i, j, nil)
+		return s.newValue2(ssa.OpStringMake, n.Type, p, l)
+	case OSLICE3, OSLICE3ARR:
+		v := s.expr(n.Left)
+		var i *ssa.Value
+		if n.Right.Left != nil {
+			i = s.extendIndex(s.expr(n.Right.Left))
 		}
-
-		b := s.endBlock()
-		b.Kind = ssa.BlockIf
-		b.Likely = ssa.BranchLikely
-		b.Control = cmp
-
-		// Generate code for non-zero length slice case.
-		nz := s.f.NewBlock(ssa.BlockPlain)
-		b.AddEdgeTo(nz)
-		s.startBlock(nz)
-		s.vars[n] = s.newValue2(ssa.OpAddPtr, Ptrto(Types[TUINT8]), ptr, low)
-		s.endBlock()
-
-		// All done.
-		merge := s.f.NewBlock(ssa.BlockPlain)
-		b.AddEdgeTo(merge)
-		nz.AddEdgeTo(merge)
-		s.startBlock(merge)
-		return s.newValue2(ssa.OpStringMake, Types[TSTRING], s.variable(n, Ptrto(Types[TUINT8])), rlen)
+		j := s.extendIndex(s.expr(n.Right.Right.Left))
+		k := s.extendIndex(s.expr(n.Right.Right.Right))
+		p, l, c := s.slice(n.Left.Type, v, i, j, k)
+		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OCALLFUNC, OCALLMETH:
 		left := n.Left
@@ -2199,6 +2170,125 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	bPanic.Kind = ssa.BlockExit
 	bPanic.Control = chk
 	s.startBlock(bNext)
+}
+
+// slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
+// i,j,k may be nil, in which case they are set to their default value.
+// t is a slice, ptr to array, or string type.
+func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+	var elemtype *Type
+	var ptrtype *Type
+	var ptr *ssa.Value
+	var len *ssa.Value
+	var cap *ssa.Value
+	zero := s.constInt(Types[TINT], 0)
+	switch {
+	case t.IsSlice():
+		elemtype = t.Type
+		ptrtype = Ptrto(elemtype)
+		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
+		len = s.newValue1(ssa.OpSliceLen, Types[TINT], v)
+		cap = s.newValue1(ssa.OpSliceCap, Types[TINT], v)
+	case t.IsString():
+		elemtype = Types[TUINT8]
+		ptrtype = Ptrto(elemtype)
+		ptr = s.newValue1(ssa.OpStringPtr, ptrtype, v)
+		len = s.newValue1(ssa.OpStringLen, Types[TINT], v)
+		cap = len
+	case t.IsPtr():
+		if !t.Type.IsArray() {
+			s.Fatalf("bad ptr to array in slice %v\n", t)
+		}
+		elemtype = t.Type.Type
+		ptrtype = Ptrto(elemtype)
+		s.nilCheck(v)
+		ptr = v
+		len = s.constInt(Types[TINT], t.Type.Bound)
+		cap = len
+	default:
+		s.Fatalf("bad type in slice %v\n", t)
+	}
+
+	// Set default values
+	if i == nil {
+		i = zero
+	}
+	if j == nil {
+		j = len
+	}
+	if k == nil {
+		k = cap
+	}
+
+	// Panic if slice indices are not in bounds.
+	s.sliceBoundsCheck(i, j)
+	if j != k {
+		s.sliceBoundsCheck(j, k)
+	}
+	if k != cap {
+		s.sliceBoundsCheck(k, cap)
+	}
+
+	// Generate the following code assuming that indexes are in bounds.
+	// The conditional is to make sure that we don't generate a slice
+	// that points to the next object in memory.
+	// rlen = (SubPtr j i)
+	// rcap = (SubPtr k i)
+	// p = ptr
+	// if rcap != 0 {
+	//    p = (AddPtr ptr (MulPtr low (ConstPtr size)))
+	// }
+	// result = (SliceMake p size)
+	rlen := s.newValue2(ssa.OpSubPtr, Types[TINT], j, i)
+	var rcap *ssa.Value
+	switch {
+	case t.IsString():
+		// Capacity of the result is unimportant.  However, we use
+		// rcap to test if we've generated a zero-length slice.
+		// Use length of strings for that.
+		rcap = rlen
+	case j == k:
+		rcap = rlen
+	default:
+		rcap = s.newValue2(ssa.OpSubPtr, Types[TINT], k, i)
+	}
+
+	s.vars[&ptrvar] = ptr
+
+	// Generate code to test the resulting slice length.
+	var cmp *ssa.Value
+	if s.config.IntSize == 8 {
+		cmp = s.newValue2(ssa.OpNeq64, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
+	} else {
+		cmp = s.newValue2(ssa.OpNeq32, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
+	}
+
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Likely = ssa.BranchLikely
+	b.Control = cmp
+
+	// Generate code for non-zero length slice case.
+	nz := s.f.NewBlock(ssa.BlockPlain)
+	b.AddEdgeTo(nz)
+	s.startBlock(nz)
+	var inc *ssa.Value
+	if elemtype.Width == 1 {
+		inc = i
+	} else {
+		inc = s.newValue2(ssa.OpMulPtr, Types[TUINTPTR], i, s.constInt(Types[TINT], elemtype.Width))
+	}
+	s.vars[&ptrvar] = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, inc)
+	s.endBlock()
+
+	// All done.
+	merge := s.f.NewBlock(ssa.BlockPlain)
+	b.AddEdgeTo(merge)
+	nz.AddEdgeTo(merge)
+	s.startBlock(merge)
+	rptr := s.variable(&ptrvar, ptrtype)
+	delete(s.vars, &ptrvar)
+	return rptr, rlen, rcap
 }
 
 type u2fcvtTab struct {
