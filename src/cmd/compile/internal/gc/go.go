@@ -210,7 +210,7 @@ type Type struct {
 	Embedlineno int32 // first use of TFORW as embedded type
 
 	// for TFORW, where to copy the eventual value to
-	Copyto *NodeList
+	Copyto []*Node
 
 	Lastfn *Node // for usefield
 }
