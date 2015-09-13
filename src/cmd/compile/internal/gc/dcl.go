@@ -79,16 +79,6 @@ func popdcl() {
 	block = d.Block
 }
 
-func poptodcl() {
-	// pop the old marker and push a new one
-	// (cannot reuse the existing one)
-	// because we use the markers to identify blocks
-	// for the goto restriction checks.
-	popdcl()
-
-	markdcl()
-}
-
 func markdcl() {
 	d := push()
 	d.Name = "" // used as a mark in fifo

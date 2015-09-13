@@ -630,12 +630,6 @@ var typesw *Node
 
 var nblank *Node
 
-var hunk string
-
-var nhunk int32
-
-var thunk int32
-
 var Funcdepth int32
 
 var typecheckok bool

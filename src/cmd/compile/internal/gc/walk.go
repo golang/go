@@ -2225,8 +2225,6 @@ func needwritebarrier(l *Node, r *Node) bool {
 
 // TODO(rsc): Perhaps componentgen should run before this.
 
-var applywritebarrier_bv Bvec
-
 func applywritebarrier(n *Node, init **NodeList) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
 		if Debug_wb > 1 {

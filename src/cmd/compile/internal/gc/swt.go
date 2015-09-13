@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/internal/obj"
-	"fmt"
 	"sort"
 	"strconv"
 )
@@ -805,44 +804,4 @@ func (x caseClauseByType) Less(i, j int) bool {
 
 	// sort by ordinal
 	return c1.ordinal < c2.ordinal
-}
-
-func dumpcase(cc []*caseClause) {
-	for _, c := range cc {
-		switch c.typ {
-		case caseKindDefault:
-			fmt.Printf("case-default\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-
-		case caseKindExprConst:
-			fmt.Printf("case-exprconst\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-
-		case caseKindExprVar:
-			fmt.Printf("case-exprvar\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-			fmt.Printf("\top=%v\n", Oconv(int(c.node.Left.Op), 0))
-
-		case caseKindTypeNil:
-			fmt.Printf("case-typenil\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-
-		case caseKindTypeConst:
-			fmt.Printf("case-typeconst\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-			fmt.Printf("\thash=%x\n", c.hash)
-
-		case caseKindTypeVar:
-			fmt.Printf("case-typevar\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-
-		default:
-			fmt.Printf("case-???\n")
-			fmt.Printf("\tord=%d\n", c.ordinal)
-			fmt.Printf("\top=%v\n", Oconv(int(c.node.Left.Op), 0))
-			fmt.Printf("\thash=%x\n", c.hash)
-		}
-	}
-
-	fmt.Printf("\n")
 }
