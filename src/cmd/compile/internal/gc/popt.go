@@ -527,16 +527,11 @@ type TempVar struct {
 	removed bool     // removed from program
 }
 
+// startcmp sorts TempVars by start, then id, then symbol name.
 type startcmp []*TempVar
 
-func (x startcmp) Len() int {
-	return len(x)
-}
-
-func (x startcmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
+func (x startcmp) Len() int      { return len(x) }
+func (x startcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x startcmp) Less(i, j int) bool {
 	a := x[i]
 	b := x[j]
@@ -556,7 +551,7 @@ func (x startcmp) Less(i, j int) bool {
 		return int(a.def.Id-b.def.Id) < 0
 	}
 	if a.node != b.node {
-		return stringsCompare(a.node.Sym.Name, b.node.Sym.Name) < 0
+		return a.node.Sym.Name < b.node.Sym.Name
 	}
 	return false
 }
@@ -709,7 +704,7 @@ func mergetemp(firstp *obj.Prog) {
 	for i := 0; i < len(var_); i++ {
 		bystart[i] = &var_[i]
 	}
-	sort.Sort(startcmp(bystart[:len(var_)]))
+	sort.Sort(startcmp(bystart))
 
 	// List of in-use variables, sorted by end, so that the ones that
 	// will last the longest are the earliest ones in the array.
