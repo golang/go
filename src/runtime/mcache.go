@@ -69,16 +69,7 @@ func allocmcache() *mcache {
 	for i := 0; i < _NumSizeClasses; i++ {
 		c.alloc[i] = &emptymspan
 	}
-
-	// Set first allocation sample size.
-	rate := MemProfileRate
-	if rate > 0x3fffffff { // make 2*rate not overflow
-		rate = 0x3fffffff
-	}
-	if rate != 0 {
-		c.next_sample = int32(int(fastrand1()) % (2 * rate))
-	}
-
+	c.next_sample = nextSample()
 	return c
 }
 

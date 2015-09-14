@@ -792,26 +792,43 @@ func rawmem(size uintptr) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	c := mp.mcache
-	rate := MemProfileRate
-	if size < uintptr(rate) {
-		// pick next profile time
-		// If you change this, also change allocmcache.
-		if rate > 0x3fffffff { // make 2*rate not overflow
-			rate = 0x3fffffff
-		}
-		next := int32(fastrand1()) % (2 * int32(rate))
-		// Subtract the "remainder" of the current allocation.
-		// Otherwise objects that are close in size to sampling rate
-		// will be under-sampled, because we consistently discard this remainder.
-		next -= (int32(size) - c.next_sample)
-		if next < 0 {
-			next = 0
-		}
-		c.next_sample = next
+	mp.mcache.next_sample = nextSample()
+	mProf_Malloc(x, size)
+}
+
+// nextSample returns the next sampling point for heap profiling.
+// It produces a random variable with a geometric distribution and
+// mean MemProfileRate. This is done by generating a uniformly
+// distributed random number and applying the cumulative distribution
+// function for an exponential.
+func nextSample() int32 {
+	period := MemProfileRate
+
+	// make nextSample not overflow. Maximum possible step is
+	// -ln(1/(1<<kRandomBitCount)) * period, approximately 20 * period.
+	switch {
+	case period > 0x7000000:
+		period = 0x7000000
+	case period == 0:
+		return 0
 	}
 
-	mProf_Malloc(x, size)
+	// Let m be the sample rate,
+	// the probability distribution function is m*exp(-mx), so the CDF is
+	// p = 1 - exp(-mx), so
+	// q = 1 - p == exp(-mx)
+	// log_e(q) = -mx
+	// -log_e(q)/m = x
+	// x = -log_e(q) * period
+	// x = log_2(q) * (-log_e(2)) * period    ; Using log_2 for efficiency
+	const randomBitCount = 26
+	q := uint32(fastrand1())%(1<<randomBitCount) + 1
+	qlog := fastlog2(float64(q)) - randomBitCount
+	if qlog > 0 {
+		qlog = 0
+	}
+	const minusLog2 = -0.6931471805599453 // -ln(2)
+	return int32(qlog*(minusLog2*float64(period))) + 1
 }
 
 type persistentAlloc struct {
