@@ -1910,14 +1910,23 @@ func isTypeSwitchAssert(x ast.Expr) bool {
 	return ok && a.Type == nil
 }
 
-func isTypeSwitchGuard(s ast.Stmt) bool {
+func (p *parser) isTypeSwitchGuard(s ast.Stmt) bool {
 	switch t := s.(type) {
 	case *ast.ExprStmt:
-		// x.(nil)
+		// x.(type)
 		return isTypeSwitchAssert(t.X)
 	case *ast.AssignStmt:
-		// v := x.(nil)
-		return len(t.Lhs) == 1 && t.Tok == token.DEFINE && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0])
+		// v := x.(type)
+		if len(t.Lhs) == 1 && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0]) {
+			switch t.Tok {
+			case token.ASSIGN:
+				// permit v = x.(type) but complain
+				p.error(t.TokPos, "expected ':=', found '='")
+				fallthrough
+			case token.DEFINE:
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -1963,7 +1972,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		p.exprLev = prevLev
 	}
 
-	typeSwitch := isTypeSwitchGuard(s2)
+	typeSwitch := p.isTypeSwitchGuard(s2)
 	lbrace := p.expect(token.LBRACE)
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
