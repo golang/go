@@ -64,7 +64,7 @@ var invalids = []string{
 	`package p; func f() { for _ = range x ; /* ERROR "expected '{'" */ ; {} };`,
 	`package p; func f() { for ; ; _ = range /* ERROR "expected operand" */ x {} };`,
 	`package p; func f() { for ; _ /* ERROR "expected boolean or range expression" */ = range x ; {} };`,
-	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type) {} };`,
+	`package p; func f() { switch t = /* ERROR "expected ':=', found '='" */ t.(type) {} };`,
 	`package p; func f() { switch t /* ERROR "expected switch expression" */ , t = t.(type) {} };`,
 	`package p; func f() { switch t /* ERROR "expected switch expression" */ = t.(type), t {} };`,
 	`package p; var a = [ /* ERROR "expected expression" */ 1]int;`,
