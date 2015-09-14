@@ -1183,3 +1183,52 @@ func TestExecuteGivesExecError(t *testing.T) {
 		t.Errorf("expected %q; got %q", expect, err)
 	}
 }
+
+func funcNameTestFunc() int {
+	return 0
+}
+
+func TestGoodFuncNames(t *testing.T) {
+	names := []string{
+		"_",
+		"a",
+		"a1",
+		"a1",
+		"Ӵ",
+	}
+	for _, name := range names {
+		tmpl := New("X").Funcs(
+			FuncMap{
+				name: funcNameTestFunc,
+			},
+		)
+		if tmpl == nil {
+			t.Fatalf("nil result for %q", name)
+		}
+	}
+}
+
+func TestBadFuncNames(t *testing.T) {
+	names := []string{
+		"",
+		"2",
+		"a-b",
+	}
+	for _, name := range names {
+		testBadFuncName(name, t)
+	}
+}
+
+func testBadFuncName(name string, t *testing.T) {
+	defer func() {
+		recover()
+	}()
+	New("X").Funcs(
+		FuncMap{
+			name: funcNameTestFunc,
+		},
+	)
+	// If we get here, the name did not cause a panic, which is how Funcs
+	// reports an error.
+	t.Errorf("%q succeeded incorrectly as function name", name)
+}
