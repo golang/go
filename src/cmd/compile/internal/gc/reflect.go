@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"os"
+	"sort"
 )
 
 /*
@@ -16,93 +17,30 @@ import (
  */
 var signatlist *NodeList
 
-func sigcmp(a *Sig, b *Sig) int {
-	i := stringsCompare(a.name, b.name)
-	if i != 0 {
-		return i
-	}
-	if a.pkg == b.pkg {
-		return 0
-	}
-	if a.pkg == nil {
-		return -1
-	}
-	if b.pkg == nil {
-		return +1
-	}
-	return stringsCompare(a.pkg.Path, b.pkg.Path)
+// byMethodNameAndPackagePath sorts method signatures by name, then package path.
+type byMethodNameAndPackagePath []*Sig
+
+func (x byMethodNameAndPackagePath) Len() int      { return len(x) }
+func (x byMethodNameAndPackagePath) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+func (x byMethodNameAndPackagePath) Less(i, j int) bool {
+	return siglt(x[i], x[j])
 }
 
-func lsort(l *Sig, f func(*Sig, *Sig) int) *Sig {
-	if l == nil || l.link == nil {
-		return l
+// siglt reports whether a < b
+func siglt(a, b *Sig) bool {
+	if a.name != b.name {
+		return a.name < b.name
 	}
-
-	l1 := l
-	l2 := l
-	for {
-		l2 = l2.link
-		if l2 == nil {
-			break
-		}
-		l2 = l2.link
-		if l2 == nil {
-			break
-		}
-		l1 = l1.link
+	if a.pkg == b.pkg {
+		return false
 	}
-
-	l2 = l1.link
-	l1.link = nil
-	l1 = lsort(l, f)
-	l2 = lsort(l2, f)
-
-	/* set up lead element */
-	if f(l1, l2) < 0 {
-		l = l1
-		l1 = l1.link
-	} else {
-		l = l2
-		l2 = l2.link
+	if a.pkg == nil {
+		return true
 	}
-
-	le := l
-
-	for {
-		if l1 == nil {
-			for l2 != nil {
-				le.link = l2
-				le = l2
-				l2 = l2.link
-			}
-
-			le.link = nil
-			break
-		}
-
-		if l2 == nil {
-			for l1 != nil {
-				le.link = l1
-				le = l1
-				l1 = l1.link
-			}
-
-			break
-		}
-
-		if f(l1, l2) < 0 {
-			le.link = l1
-			le = l1
-			l1 = l1.link
-		} else {
-			le.link = l2
-			le = l2
-			l2 = l2.link
-		}
+	if b.pkg == nil {
+		return false
 	}
-
-	le.link = nil
-	return l
+	return a.pkg.Path < b.pkg.Path
 }
 
 // Builds a type representing a Bucket structure for
@@ -335,11 +273,9 @@ func methodfunc(f *Type, receiver *Type) *Type {
 	return t
 }
 
-/*
- * return methods of non-interface type t, sorted by name.
- * generates stub functions as needed.
- */
-func methods(t *Type) *Sig {
+// methods returns the methods of the non-interface type t, sorted by name.
+// Generates stub functions as needed.
+func methods(t *Type) []*Sig {
 	// method type
 	mt := methtype(t, 0)
 
@@ -357,11 +293,7 @@ func methods(t *Type) *Sig {
 
 	// make list of methods for t,
 	// generating code if necessary.
-	var a *Sig
-
-	var this *Type
-	var b *Sig
-	var method *Sym
+	var ms []*Sig
 	for f := mt.Xmethod; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
 			Fatalf("methods: not field %v", f)
@@ -376,7 +308,7 @@ func methods(t *Type) *Sig {
 			continue
 		}
 
-		method = f.Sym
+		method := f.Sym
 		if method == nil {
 			continue
 		}
@@ -385,7 +317,7 @@ func methods(t *Type) *Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		this = getthisx(f.Type).Type.Type
+		this := getthisx(f.Type).Type.Type
 
 		if Isptr[this.Etype] && this.Type == t {
 			continue
@@ -394,55 +326,48 @@ func methods(t *Type) *Sig {
 			continue
 		}
 
-		b = new(Sig)
-		b.link = a
-		a = b
+		var sig Sig
+		ms = append(ms, &sig)
 
-		a.name = method.Name
+		sig.name = method.Name
 		if !exportname(method.Name) {
 			if method.Pkg == nil {
 				Fatalf("methods: missing package")
 			}
-			a.pkg = method.Pkg
+			sig.pkg = method.Pkg
 		}
 
-		a.isym = methodsym(method, it, 1)
-		a.tsym = methodsym(method, t, 0)
-		a.type_ = methodfunc(f.Type, t)
-		a.mtype = methodfunc(f.Type, nil)
+		sig.isym = methodsym(method, it, 1)
+		sig.tsym = methodsym(method, t, 0)
+		sig.type_ = methodfunc(f.Type, t)
+		sig.mtype = methodfunc(f.Type, nil)
 
-		if a.isym.Flags&SymSiggen == 0 {
-			a.isym.Flags |= SymSiggen
+		if sig.isym.Flags&SymSiggen == 0 {
+			sig.isym.Flags |= SymSiggen
 			if !Eqtype(this, it) || this.Width < Types[Tptr].Width {
 				compiling_wrappers = 1
-				genwrapper(it, f, a.isym, 1)
+				genwrapper(it, f, sig.isym, 1)
 				compiling_wrappers = 0
 			}
 		}
 
-		if a.tsym.Flags&SymSiggen == 0 {
-			a.tsym.Flags |= SymSiggen
+		if sig.tsym.Flags&SymSiggen == 0 {
+			sig.tsym.Flags |= SymSiggen
 			if !Eqtype(this, t) {
 				compiling_wrappers = 1
-				genwrapper(t, f, a.tsym, 0)
+				genwrapper(t, f, sig.tsym, 0)
 				compiling_wrappers = 0
 			}
 		}
 	}
 
-	return lsort(a, sigcmp)
+	sort.Sort(byMethodNameAndPackagePath(ms))
+	return ms
 }
 
-/*
- * return methods of interface type t, sorted by name.
- */
-func imethods(t *Type) *Sig {
-	var a *Sig
-	var method *Sym
-	var isym *Sym
-
-	var all *Sig
-	var last *Sig
+// imethods returns the methods of the interface type t, sorted by name.
+func imethods(t *Type) []*Sig {
+	var methods []*Sig
 	for f := t.Type; f != nil; f = f.Down {
 		if f.Etype != TFIELD {
 			Fatalf("imethods: not field")
@@ -450,29 +375,28 @@ func imethods(t *Type) *Sig {
 		if f.Type.Etype != TFUNC || f.Sym == nil {
 			continue
 		}
-		method = f.Sym
-		a = new(Sig)
-		a.name = method.Name
+		method := f.Sym
+		var sig = Sig{
+			name: method.Name,
+		}
 		if !exportname(method.Name) {
 			if method.Pkg == nil {
 				Fatalf("imethods: missing package")
 			}
-			a.pkg = method.Pkg
+			sig.pkg = method.Pkg
 		}
 
-		a.mtype = f.Type
-		a.offset = 0
-		a.type_ = methodfunc(f.Type, nil)
+		sig.mtype = f.Type
+		sig.offset = 0
+		sig.type_ = methodfunc(f.Type, nil)
 
-		if last != nil && sigcmp(last, a) >= 0 {
-			Fatalf("sigcmp vs sortinter %s %s", last.name, a.name)
+		if n := len(methods); n > 0 {
+			last := methods[n-1]
+			if !(siglt(last, &sig)) {
+				Fatalf("sigcmp vs sortinter %s %s", last.name, sig.name)
+			}
 		}
-		if last == nil {
-			all = a
-		} else {
-			last.link = a
-		}
-		last = a
+		methods = append(methods, &sig)
 
 		// Compiler can only refer to wrappers for non-blank methods.
 		if isblanksym(method) {
@@ -483,7 +407,7 @@ func imethods(t *Type) *Sig {
 		// IfaceType.Method is not in the reflect data.
 		// Generate the method body, so that compiled
 		// code can refer to it.
-		isym = methodsym(method, t, 0)
+		isym := methodsym(method, t, 0)
 
 		if isym.Flags&SymSiggen == 0 {
 			isym.Flags |= SymSiggen
@@ -491,7 +415,7 @@ func imethods(t *Type) *Sig {
 		}
 	}
 
-	return all
+	return methods
 }
 
 var dimportpath_gopkg *Pkg
@@ -559,7 +483,7 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
  */
 func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 	m := methods(t)
-	if t.Sym == nil && m == nil {
+	if t.Sym == nil && len(m) == 0 {
 		return off
 	}
 
@@ -568,10 +492,8 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 
 	dsymptr(sym, ptroff, sym, off)
 
-	n := 0
-	for a := m; a != nil; a = a.link {
+	for _, a := range m {
 		dtypesym(a.type_)
-		n++
 	}
 
 	ot := off
@@ -591,11 +513,12 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 	// slice header
 	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
 
+	n := len(m)
 	ot = duintxx(s, ot, uint64(n), Widthint)
 	ot = duintxx(s, ot, uint64(n), Widthint)
 
 	// methods
-	for a := m; a != nil; a = a.link {
+	for _, a := range m {
 		// method
 		// ../../runtime/type.go:/method
 		ot = dgostringptr(s, ot, a.name)
@@ -1171,28 +1094,27 @@ ok:
 
 	case TINTER:
 		m := imethods(t)
-		n := 0
-		for a := m; a != nil; a = a.link {
+		n := len(m)
+		for _, a := range m {
 			dtypesym(a.type_)
-			n++
 		}
 
-		// ../../runtime/type.go:/InterfaceType
+		// ../../../runtime/type.go:/InterfaceType
 		ot = dcommontype(s, ot, t)
 
 		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
-		for a := m; a != nil; a = a.link {
-			// ../../runtime/type.go:/imethod
+		for _, a := range m {
+			// ../../../runtime/type.go:/imethod
 			ot = dgostringptr(s, ot, a.name)
 
 			ot = dgopkgpath(s, ot, a.pkg)
 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
 		}
 
-		// ../../runtime/type.go:/MapType
+		// ../../../runtime/type.go:/MapType
 	case TMAP:
 		s1 := dtypesym(t.Down)
 

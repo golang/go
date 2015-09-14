@@ -376,7 +376,6 @@ type Sig struct {
 	type_  *Type
 	mtype  *Type
 	offset int32
-	link   *Sig
 }
 
 type Io struct {
