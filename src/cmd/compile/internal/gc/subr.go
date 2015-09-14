@@ -607,16 +607,11 @@ func typ(et int) *Type {
 	return t
 }
 
+// methcmp sorts by symbol, then by package path for unexported symbols.
 type methcmp []*Type
 
-func (x methcmp) Len() int {
-	return len(x)
-}
-
-func (x methcmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
+func (x methcmp) Len() int      { return len(x) }
+func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x methcmp) Less(i, j int) bool {
 	a := x[i]
 	b := x[j]
@@ -627,16 +622,14 @@ func (x methcmp) Less(i, j int) bool {
 		return true
 	}
 	if b.Sym == nil {
-		return 1 < 0
+		return false
 	}
-	k := stringsCompare(a.Sym.Name, b.Sym.Name)
-	if k != 0 {
-		return k < 0
+	if a.Sym.Name != b.Sym.Name {
+		return a.Sym.Name < b.Sym.Name
 	}
 	if !exportname(a.Sym.Name) {
-		k := stringsCompare(a.Sym.Pkg.Path, b.Sym.Pkg.Path)
-		if k != 0 {
-			return k < 0
+		if a.Sym.Pkg.Path != b.Sym.Pkg.Path {
+			return a.Sym.Pkg.Path < b.Sym.Pkg.Path
 		}
 	}
 
@@ -648,24 +641,19 @@ func sortinter(t *Type) *Type {
 		return t
 	}
 
-	i := 0
+	var a []*Type
 	for f := t.Type; f != nil; f = f.Down {
-		i++
+		a = append(a, f)
 	}
-	a := make([]*Type, i)
-	i = 0
-	var f *Type
-	for f = t.Type; f != nil; f = f.Down {
-		a[i] = f
-		i++
-	}
-	sort.Sort(methcmp(a[:i]))
-	for i--; i >= 0; i-- {
-		a[i].Down = f
-		f = a[i]
-	}
+	sort.Sort(methcmp(a))
 
-	t.Type = f
+	n := len(a) // n > 0 due to initial conditions.
+	for i := 0; i < n-1; i++ {
+		a[i].Down = a[i+1]
+	}
+	a[n-1].Down = nil
+
+	t.Type = a[0]
 	return t
 }
 
