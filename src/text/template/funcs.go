@@ -58,6 +58,9 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
 // addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	for name, fn := range in {
+		if !goodName(name) {
+			panic(fmt.Errorf("function name %s is not a valid identifier", name))
+		}
 		v := reflect.ValueOf(fn)
 		if v.Kind() != reflect.Func {
 			panic("value for " + name + " not a function")
@@ -77,7 +80,7 @@ func addFuncs(out, in FuncMap) {
 	}
 }
 
-// goodFunc checks that the function or method has the right result signature.
+// goodFunc reports whether the function or method has the right result signature.
 func goodFunc(typ reflect.Type) bool {
 	// We allow functions with 1 result or 2 results where the second is an error.
 	switch {
@@ -87,6 +90,23 @@ func goodFunc(typ reflect.Type) bool {
 		return true
 	}
 	return false
+}
+
+// goodName reports whether the function name is a valid identifier.
+func goodName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r == '_':
+		case i == 0 && !unicode.IsLetter(r):
+			return false
+		case !unicode.IsLetter(r) && !unicode.IsDigit(r):
+			return false
+		}
+	}
+	return true
 }
 
 // findFunction looks for a function in the template, and global map.
