@@ -67,13 +67,17 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 	}
 }
 
-// validateSymbol checks that addr represents a valid name for a pseudo-op.
-func (p *Parser) validateSymbol(pseudo string, addr *obj.Addr, offsetOk bool) {
+// validSymbol checks that addr represents a valid name for a pseudo-op.
+func (p *Parser) validSymbol(pseudo string, addr *obj.Addr, offsetOk bool) bool {
 	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
-	} else if !offsetOk && addr.Offset != 0 {
-		p.errorf("%s symbol %q must not be offset from SB", pseudo, symbolName(addr))
+		return false
 	}
+	if !offsetOk && addr.Offset != 0 {
+		p.errorf("%s symbol %q must not be offset from SB", pseudo, symbolName(addr))
+		return false
+	}
+	return true
 }
 
 // evalInteger evaluates an integer constant for a pseudo-op.
@@ -82,11 +86,13 @@ func (p *Parser) evalInteger(pseudo string, operands []lex.Token) int64 {
 	return p.getConstantPseudo(pseudo, &addr)
 }
 
-// validateImmediate checks that addr represents an immediate constant.
-func (p *Parser) validateImmediate(pseudo string, addr *obj.Addr) {
+// validImmediate checks that addr represents an immediate constant.
+func (p *Parser) validImmediate(pseudo string, addr *obj.Addr) bool {
 	if addr.Type != obj.TYPE_CONST || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
 		p.errorf("%s: expected immediate constant; found %s", pseudo, obj.Dconv(&emptyProg, addr))
+		return false
 	}
+	return true
 }
 
 // asmText assembles a TEXT pseudo-op.
@@ -105,7 +111,9 @@ func (p *Parser) asmText(word string, operands [][]lex.Token) {
 	// Operand 0 is the symbol name in the form foo(SB).
 	// That means symbol plus indirect on SB and no offset.
 	nameAddr := p.address(operands[0])
-	p.validateSymbol("TEXT", &nameAddr, false)
+	if !p.validSymbol("TEXT", &nameAddr, false) {
+		return
+	}
 	name := symbolName(&nameAddr)
 	next := 1
 
@@ -189,7 +197,9 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 	scale := p.parseScale(op[n-1].String())
 	op = op[:n-2]
 	nameAddr := p.address(op)
-	p.validateSymbol("DATA", &nameAddr, true)
+	if !p.validSymbol("DATA", &nameAddr, true) {
+		return
+	}
 	name := symbolName(&nameAddr)
 
 	// Operand 1 is an immediate constant or address.
@@ -234,7 +244,9 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 	// Operand 0 has the general form foo<>+0x04(SB).
 	nameAddr := p.address(operands[0])
-	p.validateSymbol("GLOBL", &nameAddr, false)
+	if !p.validSymbol("GLOBL", &nameAddr, false) {
+		return
+	}
 	next := 1
 
 	// Next operand is the optional flag, a literal integer.
@@ -246,7 +258,9 @@ func (p *Parser) asmGlobl(word string, operands [][]lex.Token) {
 
 	// Final operand is an immediate constant.
 	addr := p.address(operands[next])
-	p.validateImmediate("GLOBL", &addr)
+	if !p.validImmediate("GLOBL", &addr) {
+		return
+	}
 
 	// log.Printf("GLOBL %s %d, $%d", name, flag, size)
 	prog := &obj.Prog{
@@ -272,11 +286,15 @@ func (p *Parser) asmPCData(word string, operands [][]lex.Token) {
 
 	// Operand 0 must be an immediate constant.
 	key := p.address(operands[0])
-	p.validateImmediate("PCDATA", &key)
+	if !p.validImmediate("PCDATA", &key) {
+		return
+	}
 
 	// Operand 1 must be an immediate constant.
 	value := p.address(operands[1])
-	p.validateImmediate("PCDATA", &value)
+	if !p.validImmediate("PCDATA", &value) {
+		return
+	}
 
 	// log.Printf("PCDATA $%d, $%d", key.Offset, value.Offset)
 	prog := &obj.Prog{
@@ -299,11 +317,15 @@ func (p *Parser) asmFuncData(word string, operands [][]lex.Token) {
 
 	// Operand 0 must be an immediate constant.
 	valueAddr := p.address(operands[0])
-	p.validateImmediate("FUNCDATA", &valueAddr)
+	if !p.validImmediate("FUNCDATA", &valueAddr) {
+		return
+	}
 
 	// Operand 1 is a symbol name in the form foo(SB).
 	nameAddr := p.address(operands[1])
-	p.validateSymbol("FUNCDATA", &nameAddr, true)
+	if !p.validSymbol("FUNCDATA", &nameAddr, true) {
+		return
+	}
 
 	prog := &obj.Prog{
 		Ctxt:   p.ctxt,
