@@ -121,8 +121,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 	sg := mheap_.sweepgen
 	startSpan := shard * len(work.spans) / _RootSpansShards
 	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
-	for spanidx := startSpan; spanidx < endSpan; spanidx++ {
-		s := work.spans[spanidx]
+	for _, s := range work.spans[startSpan:endSpan] {
 		if s.state != mSpanInUse {
 			continue
 		}
