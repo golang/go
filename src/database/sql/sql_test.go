@@ -1159,6 +1159,67 @@ func TestMaxOpenConnsOnBusy(t *testing.T) {
 	}
 }
 
+// Issue 10886: tests that all connection attempts return when more than
+// DB.maxOpen connections are in flight and the first DB.maxOpen fail.
+func TestPendingConnsAfterErr(t *testing.T) {
+	const (
+		maxOpen = 2
+		tryOpen = maxOpen*2 + 2
+	)
+
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+	defer func() {
+		for k, v := range db.lastPut {
+			t.Logf("%p: %v", k, v)
+		}
+	}()
+
+	db.SetMaxOpenConns(maxOpen)
+	db.SetMaxIdleConns(0)
+
+	errOffline := errors.New("db offline")
+	defer func() { setHookOpenErr(nil) }()
+
+	errs := make(chan error, tryOpen)
+
+	unblock := make(chan struct{})
+	setHookOpenErr(func() error {
+		<-unblock // block until all connections are in flight
+		return errOffline
+	})
+
+	var opening sync.WaitGroup
+	opening.Add(tryOpen)
+	for i := 0; i < tryOpen; i++ {
+		go func() {
+			opening.Done() // signal one connection is in flight
+			_, err := db.Exec("INSERT|people|name=Julia,age=19")
+			errs <- err
+		}()
+	}
+
+	opening.Wait()                    // wait for all workers to begin running
+	time.Sleep(10 * time.Millisecond) // make extra sure all workers are blocked
+	close(unblock)                    // let all workers proceed
+
+	const timeout = 100 * time.Millisecond
+	to := time.NewTimer(timeout)
+	defer to.Stop()
+
+	// check that all connections fail without deadlock
+	for i := 0; i < tryOpen; i++ {
+		select {
+		case err := <-errs:
+			if got, want := err, errOffline; got != want {
+				t.Errorf("unexpected err: got %v, want %v", got, want)
+			}
+		case <-to.C:
+			t.Fatalf("orphaned connection request(s), still waiting after %v", timeout)
+		}
+	}
+}
+
 func TestSingleOpenConn(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
