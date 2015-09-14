@@ -101,13 +101,26 @@ var invalids = []string{
 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
 	`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
-	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,                 // issue 8656
-	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`,       // issue 9639
-	`package p; const x /* ERROR "missing constant value" */ ;`,                            // issue 9639
-	`package p; const x /* ERROR "missing constant value" */ int;`,                         // issue 9639
-	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,             // issue 9639
-	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{}`,         // issue 12437
-	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ y float }{}`, // issue 12437
+
+	// issue 8656
+	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,
+
+	// issue 9639
+	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`,
+	`package p; const x /* ERROR "missing constant value" */ ;`,
+	`package p; const x /* ERROR "missing constant value" */ int;`,
+	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,
+
+	// issue 12437
+	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{};`,
+	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ y float }{};`,
+
+	// issue 11611
+	`package p; type _ struct { int, } /* ERROR "expected type, found '}'" */ ;`,
+	`package p; type _ struct { int, float } /* ERROR "expected type, found '}'" */ ;`,
+	`package p; type _ struct { ( /* ERROR "expected anonymous field" */ int) };`,
+	`package p; func _()(x, y, z ... /* ERROR "expected '\)', found '...'" */ int){}`,
+	`package p; func _()(... /* ERROR "expected type, found '...'" */ int){}`,
 }
 
 func TestInvalid(t *testing.T) {
