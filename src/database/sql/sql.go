@@ -441,7 +441,7 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 	}
 }
 
-// This is the size of the connectionOpener request chan (dn.openerCh).
+// This is the size of the connectionOpener request chan (DB.openerCh).
 // This value should be larger than the maximum typical value
 // used for db.maxOpen. If maxOpen is significantly larger than
 // connectionRequestQueueSize then it is possible for ALL calls into the *DB
