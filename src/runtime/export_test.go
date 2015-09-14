@@ -26,6 +26,8 @@ var Xadduintptr = xadduintptr
 
 var FuncPC = funcPC
 
+var Fastlog2 = fastlog2
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
