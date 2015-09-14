@@ -410,9 +410,14 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 func (p *parser) expectSemi() {
 	// semicolon is optional before a closing ')' or '}'
 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
-		if p.tok == token.SEMICOLON {
+		switch p.tok {
+		case token.COMMA:
+			// permit a ',' instead of a ';' but complain
+			p.errorExpected(p.pos, "';'")
+			fallthrough
+		case token.SEMICOLON:
 			p.next()
-		} else {
+		default:
 			p.errorExpected(p.pos, "';'")
 			syncStmt(p)
 		}

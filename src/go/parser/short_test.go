@@ -101,11 +101,13 @@ var invalids = []string{
 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
 	`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
-	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,           // issue 8656
-	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`, // issue 9639
-	`package p; const x /* ERROR "missing constant value" */ ;`,                      // issue 9639
-	`package p; const x /* ERROR "missing constant value" */ int;`,                   // issue 9639
-	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,       // issue 9639
+	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,                 // issue 8656
+	`package p; var x /* ERROR "missing variable type or initialization" */ , y, z;`,       // issue 9639
+	`package p; const x /* ERROR "missing constant value" */ ;`,                            // issue 9639
+	`package p; const x /* ERROR "missing constant value" */ int;`,                         // issue 9639
+	`package p; const (x = 0; y; z /* ERROR "missing constant value" */ int);`,             // issue 9639
+	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ }{}`,         // issue 12437
+	`package p; var _ = struct { x int, /* ERROR "expected ';', found ','" */ y float }{}`, // issue 12437
 }
 
 func TestInvalid(t *testing.T) {
