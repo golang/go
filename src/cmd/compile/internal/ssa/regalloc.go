@@ -1046,5 +1046,33 @@ func (f *Func) live() [][][]ID {
 			break
 		}
 	}
+
+	// Make sure that there is only one live memory variable in each set.
+	// Ideally we should check this at every instructiom, but at every
+	// edge seems good enough for now.
+	isMem := make([]bool, f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			isMem[v.ID] = v.Type.IsMemory()
+		}
+	}
+	for _, b := range f.Blocks {
+		for i, c := range b.Succs {
+			nmem := 0
+			for _, id := range live[b.ID][i] {
+				if isMem[id] {
+					nmem++
+				}
+			}
+			if nmem > 1 {
+				f.Fatalf("more than one mem live on edge %v->%v: %v", b, c, live[b.ID][i])
+			}
+			// TODO: figure out why we get nmem==0 occasionally.
+			//if nmem == 0 {
+			//	f.Fatalf("no mem live on edge %v->%v: %v", b, c, live[b.ID][i])
+			//}
+		}
+	}
+
 	return live
 }

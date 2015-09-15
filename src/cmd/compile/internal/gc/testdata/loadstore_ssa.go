@@ -57,10 +57,31 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
 
 var failed = false
 
+func testExtStore_ssa(p *byte, b bool) int {
+	switch {
+	}
+	x := *p
+	*p = 7
+	if b {
+		return int(x)
+	}
+	return 0
+}
+
+func testExtStore() {
+	const start = 8
+	var b byte = start
+	if got := testExtStore_ssa(&b, true); got != start {
+		fmt.Println("testExtStore failed.  want =", start, ", got =", got)
+		failed = true
+	}
+}
+
 func main() {
 
 	testLoadStoreOrder()
 	testStoreSize()
+	testExtStore()
 
 	if failed {
 		panic("failed")

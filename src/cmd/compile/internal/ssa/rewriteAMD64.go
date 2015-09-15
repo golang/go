@@ -3939,16 +3939,19 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 	case OpAMD64MOVBQSX:
 		// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
-		// cond:
+		// cond: b == v.Args[0].Block
 		// result: (MOVBQSXload [off] {sym} ptr mem)
 		{
 			if v.Args[0].Op != OpAMD64MOVBload {
-				goto end9de452216bde3b2e2a2d01f43da1f78e
+				goto end4fcdab76af223d4a6b942b532ebf860b
 			}
 			off := v.Args[0].AuxInt
 			sym := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
+			if !(b == v.Args[0].Block) {
+				goto end4fcdab76af223d4a6b942b532ebf860b
+			}
 			v.Op = OpAMD64MOVBQSXload
 			v.AuxInt = 0
 			v.Aux = nil
@@ -3959,21 +3962,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto end9de452216bde3b2e2a2d01f43da1f78e
-	end9de452216bde3b2e2a2d01f43da1f78e:
+		goto end4fcdab76af223d4a6b942b532ebf860b
+	end4fcdab76af223d4a6b942b532ebf860b:
 		;
 	case OpAMD64MOVBQZX:
 		// match: (MOVBQZX (MOVBload [off] {sym} ptr mem))
-		// cond:
+		// cond: b == v.Args[0].Block
 		// result: (MOVBQZXload [off] {sym} ptr mem)
 		{
 			if v.Args[0].Op != OpAMD64MOVBload {
-				goto end573f4e6a6fe8032338b85fddd4d1bab4
+				goto endce35c966b0a38aa124a610e5616a220c
 			}
 			off := v.Args[0].AuxInt
 			sym := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
+			if !(b == v.Args[0].Block) {
+				goto endce35c966b0a38aa124a610e5616a220c
+			}
 			v.Op = OpAMD64MOVBQZXload
 			v.AuxInt = 0
 			v.Aux = nil
@@ -3984,8 +3990,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto end573f4e6a6fe8032338b85fddd4d1bab4
-	end573f4e6a6fe8032338b85fddd4d1bab4:
+		goto endce35c966b0a38aa124a610e5616a220c
+	endce35c966b0a38aa124a610e5616a220c:
 		;
 	case OpAMD64MOVBload:
 		// match: (MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem)
