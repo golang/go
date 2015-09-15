@@ -164,6 +164,11 @@ func emitptrargsmap() {
 	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
 }
 
+// cmpstackvarlt reports whether the stack variable a sorts before b.
+func cmpstackvarlt(a, b *Node) bool {
+	return cmpstackvar(a, b) < 0
+}
+
 // Sort the list of stack variables. Autos after anything else,
 // within autos, unused after used, within used, things with
 // pointers first, zeroed things first, and then decreasing size.
