@@ -31,7 +31,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$-4
 	MOVW	R8, g_m(g)
 
 	// create istack out of the OS stack
-	MOVW	$(-8192+104)(R13), R0
+	// (1MB of system stack is available on iOS and Android)
+	MOVW	$(-64*1024+104)(R13), R0
 	MOVW	R0, g_stackguard0(g)
 	MOVW	R0, g_stackguard1(g)
 	MOVW	R0, (g_stack+stack_lo)(g)
