@@ -37,49 +37,6 @@ except the printf check.
 
 Available checks:
 
-Printf family
-
-Flag: -printf
-
-Suspicious calls to functions in the Printf family, including any functions
-with these names, disregarding case:
-	Print Printf Println
-	Fprint Fprintf Fprintln
-	Sprint Sprintf Sprintln
-	Error Errorf
-	Fatal Fatalf
-	Log Logf
-	Panic Panicf Panicln
-If the function name ends with an 'f', the function is assumed to take
-a format descriptor string in the manner of fmt.Printf. If not, vet
-complains about arguments that look like format descriptor strings.
-
-It also checks for errors such as using a Writer as the first argument of
-Printf.
-
-Methods
-
-Flag: -methods
-
-Non-standard signatures for methods with familiar names, including:
-	Format GobEncode GobDecode MarshalJSON MarshalXML
-	Peek ReadByte ReadFrom ReadRune Scan Seek
-	UnmarshalJSON UnreadByte UnreadRune WriteByte
-	WriteTo
-
-Struct tags
-
-Flag: -structtags
-
-Struct tags that do not follow the format understood by reflect.StructTag.Get.
-Well-known encoding struct tags (json, xml) used with unexported fields.
-
-Unkeyed composite literals
-
-Flag: -composites
-
-Composite struct literals that do not use the field-keyed syntax.
-
 Assembly declarations
 
 Flag: -asmdecl
@@ -110,11 +67,34 @@ Flag: -buildtags
 
 Badly formed or misplaced +build tags.
 
+Unkeyed composite literals
+
+Flag: -composites
+
+Composite struct literals that do not use the field-keyed syntax.
+
 Copying locks
 
 Flag: -copylocks
 
 Locks that are erroneously passed by value.
+
+Documentation examples
+
+Flag: -example
+
+Mistakes involving example tests, including examples with incorrect names or
+function signatures, or that document identifiers not in the package.
+
+Methods
+
+Flag: -methods
+
+Non-standard signatures for methods with familiar names, including:
+	Format GobEncode GobDecode MarshalJSON MarshalXML
+	Peek ReadByte ReadFrom ReadRune Scan Seek
+	UnmarshalJSON UnreadByte UnreadRune WriteByte
+	WriteTo
 
 Nil function comparison
 
@@ -122,23 +102,56 @@ Flag: -nilfunc
 
 Comparisons between functions and nil.
 
+Printf family
+
+Flag: -printf
+
+Suspicious calls to functions in the Printf family, including any functions
+with these names, disregarding case:
+	Print Printf Println
+	Fprint Fprintf Fprintln
+	Sprint Sprintf Sprintln
+	Error Errorf
+	Fatal Fatalf
+	Log Logf
+	Panic Panicf Panicln
+If the function name ends with an 'f', the function is assumed to take
+a format descriptor string in the manner of fmt.Printf. If not, vet
+complains about arguments that look like format descriptor strings.
+
+It also checks for errors such as using a Writer as the first argument of
+Printf.
+
 Range loop variables
 
 Flag: -rangeloops
 
 Incorrect uses of range loop variables in closures.
 
-Unreachable code
-
-Flag: -unreachable
-
-Unreachable code.
-
 Shadowed variables
 
 Flag: -shadow=false (experimental; must be set explicitly)
 
 Variables that may have been unintentionally shadowed.
+
+Shifts
+
+Flag: -shift
+
+Shifts equal to or longer than the variable's length.
+
+Struct tags
+
+Flag: -structtags
+
+Struct tags that do not follow the format understood by reflect.StructTag.Get.
+Well-known encoding struct tags (json, xml) used with unexported fields.
+
+Unreachable code
+
+Flag: -unreachable
+
+Unreachable code.
 
 Misuse of unsafe Pointers
 
@@ -158,19 +171,6 @@ Calls to well-known functions and methods that return a value that is
 discarded.  By default, this includes functions like fmt.Errorf and
 fmt.Sprintf and methods like String and Error. The flags -unusedfuncs
 and -unusedstringmethods control the set.
-
-Shifts
-
-Flag: -shift
-
-Shifts equal to or longer than the variable's length.
-
-Documentation examples
-
-Flag: -example
-
-Mistakes involving example tests, including examples with incorrect names or
-function signatures, or that document identifiers not in the package.
 
 Other flags
 
