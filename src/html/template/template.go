@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"text/template"
 	"text/template/parse"
@@ -412,4 +413,11 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 		return nil, fmt.Errorf("html/template: pattern matches no files: %#q", pattern)
 	}
 	return parseFiles(t, filenames...)
+}
+
+// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value. This is the definition of
+// truth used by if and other such actions.
+func IsTrue(val reflect.Value) (truth, ok bool) {
+	return template.IsTrue(val)
 }
