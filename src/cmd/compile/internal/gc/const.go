@@ -434,19 +434,8 @@ func overflow(v Val, t *Type) {
 		return
 	}
 
-	if !doesoverflow(v, t) {
-		return
-	}
-
-	switch v.Ctype() {
-	case CTINT, CTRUNE:
-		Yyerror("constant %v overflows %v", v.U.(*Mpint), t)
-
-	case CTFLT:
-		Yyerror("constant %v overflows %v", Fconv(v.U.(*Mpflt), obj.FmtSharp), t)
-
-	case CTCPLX:
-		Yyerror("constant %v overflows %v", Fconv(v.U.(*Mpflt), obj.FmtSharp), t)
+	if doesoverflow(v, t) {
+		Yyerror("constant %s overflows %v", Vconv(v, 0), t)
 	}
 }
 
