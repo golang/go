@@ -53,11 +53,13 @@ var experimental = map[string]bool{}
 // setTrueCount record how many flags are explicitly set to true.
 var setTrueCount int
 
-var (
-	dirsRun, filesRun bool
+// dirsRun and filesRun indicate whether the vet is applied to directory or
+// file targets. The distinction affects which checks are run.
+var dirsRun, filesRun bool
 
-	includesNonTest bool
-)
+// includesNonTest indicates whether the vet is applied to non-test targets.
+// Certain checks are relevant only if they touch both test and non-test files.
+var includesNonTest bool
 
 // A triState is a boolean that knows whether it has been set to either true or false.
 // It is used to identify if a flag appears; the standard boolean flag cannot
@@ -192,8 +194,6 @@ type File struct {
 	// Registered checkers to run.
 	checkers map[ast.Node][]func(*File, ast.Node)
 }
-
-func (f *File) IsTest() bool { return strings.HasSuffix(f.name, "_test.go") }
 
 func main() {
 	flag.Usage = Usage

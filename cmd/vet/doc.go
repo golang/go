@@ -165,6 +165,13 @@ Flag: -shift
 
 Shifts equal to or longer than the variable's length.
 
+Documentation examples
+
+Flag: -example
+
+Mistakes involving example tests, including examples with incorrect names or
+function signatures, or that document identifiers not in the package.
+
 Other flags
 
 These flags configure the behavior of vet:

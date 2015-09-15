@@ -24,7 +24,7 @@ func isExampleSuffix(s string) bool { return strings.ToLower(s) == s }
 // mistakes of misnamed functions, failure to map functions to existing
 // identifiers, etc.
 func checkExample(f *File, node ast.Node) {
-	if !f.IsTest() {
+	if !strings.HasSuffix(f.name, "_test.go") {
 		return
 	}
 	var (
