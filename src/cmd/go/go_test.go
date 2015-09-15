@@ -1839,6 +1839,9 @@ func TestIssue6480(t *testing.T) {
 
 // cmd/cgo: undefined reference when linking a C-library using gccgo
 func TestIssue7573(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
 	if _, err := exec.LookPath("gccgo"); err != nil {
 		t.Skip("skipping because no gccgo compiler found")
 	}
