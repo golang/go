@@ -19,6 +19,8 @@ func isExist(err error) bool {
 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
 }
 
+const _ERROR_BAD_NETPATH = syscall.Errno(53)
+
 func isNotExist(err error) bool {
 	switch pe := err.(type) {
 	case nil:
@@ -29,6 +31,7 @@ func isNotExist(err error) bool {
 		err = pe.Err
 	}
 	return err == syscall.ERROR_FILE_NOT_FOUND ||
+		err == _ERROR_BAD_NETPATH ||
 		err == syscall.ERROR_PATH_NOT_FOUND || err == ErrNotExist
 }
 
