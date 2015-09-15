@@ -37,6 +37,7 @@ type Scanner struct {
 	end          int       // End of data in buf.
 	err          error     // Sticky error.
 	empties      int       // Count of successive empty tokens.
+	scanCalled   bool      // Scan has been called; buffer is in use.
 }
 
 // SplitFunc is the signature of the split function used to tokenize the
@@ -65,10 +66,13 @@ var (
 )
 
 const (
-	// MaxScanTokenSize is the maximum size used to buffer a token.
+	// MaxScanTokenSize is the maximum size used to buffer a token
+	// unless the user provides an explicit buffer with Scan.Buffer.
 	// The actual maximum token size may be smaller as the buffer
 	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024
+
+	startBufSize = 4096 // Size of initial allocation for buffer.
 )
 
 // NewScanner returns a new Scanner to read from r.
@@ -78,7 +82,6 @@ func NewScanner(r io.Reader) *Scanner {
 		r:            r,
 		split:        ScanLines,
 		maxTokenSize: MaxScanTokenSize,
-		buf:          make([]byte, 4096), // Plausible starting size; needn't be large.
 	}
 }
 
@@ -112,6 +115,7 @@ func (s *Scanner) Text() string {
 // Scan panics if the split function returns 100 empty tokens without
 // advancing the input. This is a common error mode for scanners.
 func (s *Scanner) Scan() bool {
+	s.scanCalled = true
 	// Loop until we have a token.
 	for {
 		// See if we can get a token with what we already have.
@@ -162,7 +166,10 @@ func (s *Scanner) Scan() bool {
 				s.setErr(ErrTooLong)
 				return false
 			}
-			newSize := len(s.buf) * 2
+			newSize := len(s.buf) * 2 // See protection against overflow in Buffer.
+			if newSize == 0 {
+				newSize = startBufSize
+			}
 			if newSize > s.maxTokenSize {
 				newSize = s.maxTokenSize
 			}
@@ -217,9 +224,37 @@ func (s *Scanner) setErr(err error) {
 	}
 }
 
-// Split sets the split function for the Scanner. If called, it must be
-// called before Scan. The default split function is ScanLines.
+// Buffer sets the initial buffer to use when scanning and the maximum
+// size of buffer that may be allocated during scanning. The maximum
+// token size is the larger of max and cap(buf). If max <= cap(buf),
+// Scan will use this buffer only and do no allocation.
+//
+// By default, Scan uses an internal buffer and sets the
+// maximum token size to MaxScanTokenSize.
+//
+// Buffer panics if it is called after scanning has started.
+func (s *Scanner) Buffer(buf []byte, max int) {
+	if s.scanCalled {
+		panic("Buffer called after Scan")
+	}
+	s.buf = buf[0:cap(buf)]
+	// Guarantee no overflow: we multiply len(s.buf) by two in Scan,
+	// but only if it exceeds maxTokenSize.
+	const maxInt = int(^uint(0) >> 1)
+	if max > maxInt {
+		max = maxInt
+	}
+	s.maxTokenSize = max
+}
+
+// Split sets the split function for the Scanner.
+// The default split function is ScanLines.
+//
+// Split panics if it is called after scanning has started.
 func (s *Scanner) Split(split SplitFunc) {
+	if s.scanCalled {
+		panic("Split called after Scan")
+	}
 	s.split = split
 }
 
