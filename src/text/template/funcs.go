@@ -265,7 +265,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 // Boolean logic.
 
 func truth(a interface{}) bool {
-	t, _ := isTrue(reflect.ValueOf(a))
+	t, _ := IsTrue(reflect.ValueOf(a))
 	return t
 }
 
@@ -300,9 +300,8 @@ func or(arg0 interface{}, args ...interface{}) interface{} {
 }
 
 // not returns the Boolean negation of its argument.
-func not(arg interface{}) (truth bool) {
-	truth, _ = isTrue(reflect.ValueOf(arg))
-	return !truth
+func not(arg interface{}) bool {
+	return !truth(arg)
 }
 
 // Comparison.
