@@ -12,4 +12,5 @@ fmt: allow any integer type as an argument to the * operator (https://golang.org
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
 text/template: trimming spaces (https://golang.org/cl/14391/)
+text/template: Funcs check names (https://golang.org/cl/14562/)
 time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
