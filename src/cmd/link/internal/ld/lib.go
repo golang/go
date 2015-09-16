@@ -1001,9 +1001,9 @@ func hostlink() {
 		// anyway.
 		argv = append(argv, "-Wl,-Bsymbolic-functions")
 		if UseRelro() {
-			argv = append(argv, "-shared")
+			argv = append(argv, "-Wl,-z,relro")
 		}
-		argv = append(argv, "-Wl,-z,relro")
+		argv = append(argv, "-shared")
 	}
 
 	if Linkshared && Iself {
