@@ -9,6 +9,7 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 API additions and behavior changes:
 
 fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+math/rand: add Read (https://golang.org/cl/14522)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
 text/template: trimming spaces (https://golang.org/cl/14391/)
