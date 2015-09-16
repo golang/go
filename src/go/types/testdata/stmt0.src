@@ -180,8 +180,8 @@ func sends() {
 	var ch chan int
 	var rch <-chan int
 	var x int
-	x /* ERROR "cannot send" */ <- x
-	rch /* ERROR "cannot send" */ <- x
+	x <- x /* ERROR "cannot send" */
+	rch <- x /* ERROR "cannot send" */
 	ch <- "foo" /* ERROR "cannot convert" */
 	ch <- x
 }

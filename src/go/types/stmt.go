@@ -321,9 +321,10 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir == RecvOnly || !check.assignment(&x, tch.elem) {
+		reason := ""
+		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir == RecvOnly || !check.assignment(&x, tch.elem, &reason) {
 			if x.mode != invalid {
-				check.invalidOp(ch.pos(), "cannot send %s to channel %s", &x, &ch)
+				check.xerrorf(x.pos(), reason, "cannot send %s to channel %s", &x, &ch)
 			}
 		}
 
@@ -464,7 +465,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.expr(&x, s.Tag)
 			// By checking assignment of x to an invisible temporary
 			// (as a compiler would), we get all the relevant checks.
-			check.assignment(&x, nil)
+			check.assignment(&x, nil, nil)
 		} else {
 			// spec: "A missing switch expression is
 			// equivalent to the boolean value true."

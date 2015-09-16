@@ -95,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// spec: "As a special case, append also accepts a first argument assignable
 		// to type []byte with a second argument of string type followed by ... .
 		// This form appends the bytes of the string.
-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte)) {
+		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte), nil) {
 			arg(x, 1)
 			if x.mode == invalid {
 				return
@@ -341,7 +341,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 
-		if !x.assignableTo(check.conf, m.key) {
+		if !x.assignableTo(check.conf, m.key, nil) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.key)
 			return
 		}
@@ -471,7 +471,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Panic:
 		// panic(x)
 		T := new(Interface)
-		if !check.assignment(x, T) {
+		if !check.assignment(x, T, nil) {
 			assert(x.mode == invalid)
 			return
 		}
@@ -491,7 +491,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 				if i > 0 {
 					arg(x, i) // first argument already evaluated
 				}
-				if !check.assignment(x, nil) {
+				if !check.assignment(x, nil, nil) {
 					assert(x.mode == invalid)
 					return
 				}
@@ -514,7 +514,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Alignof:
 		// unsafe.Alignof(x T) uintptr
-		if !check.assignment(x, nil) {
+		if !check.assignment(x, nil, nil) {
 			assert(x.mode == invalid)
 			return
 		}
@@ -571,7 +571,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Sizeof:
 		// unsafe.Sizeof(x T) uintptr
-		if !check.assignment(x, nil) {
+		if !check.assignment(x, nil, nil) {
 			assert(x.mode == invalid)
 			return
 		}

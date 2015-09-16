@@ -570,7 +570,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 	// spec: "In any comparison, the first operand must be assignable
 	// to the type of the second operand, or vice versa."
 	err := ""
-	if x.assignableTo(check.conf, y.typ) || y.assignableTo(check.conf, x.typ) {
+	if x.assignableTo(check.conf, y.typ, nil) || y.assignableTo(check.conf, x.typ, nil) {
 		defined := false
 		switch op {
 		case token.EQL, token.NEQ:
@@ -898,8 +898,8 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 		// check element against composite literal element type
 		var x operand
 		check.exprWithHint(&x, eval, typ)
-		if !check.assignment(&x, typ) && x.mode != invalid {
-			check.errorf(x.pos(), "cannot use %s as %s value in array or slice literal", &x, typ)
+		if reason := ""; !check.assignment(&x, typ, &reason) && x.mode != invalid {
+			check.xerrorf(x.pos(), reason, "cannot use %s as %s value in array or slice literal", &x, typ)
 		}
 	}
 	return max
@@ -1062,9 +1062,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					visited[i] = true
 					check.expr(x, kv.Value)
 					etyp := fld.typ
-					if !check.assignment(x, etyp) {
+					if reason := ""; !check.assignment(x, etyp, &reason) {
 						if x.mode != invalid {
-							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
+							check.xerrorf(x.pos(), reason, "cannot use %s as %s value in struct literal", x, etyp)
 						}
 						continue
 					}
@@ -1088,9 +1088,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					etyp := fld.typ
-					if !check.assignment(x, etyp) {
+					if reason := ""; !check.assignment(x, etyp, &reason) {
 						if x.mode != invalid {
-							check.errorf(x.pos(), "cannot use %s as %s value in struct literal", x, etyp)
+							check.xerrorf(x.pos(), reason, "cannot use %s as %s value in struct literal", x, etyp)
 						}
 						continue
 					}
@@ -1120,9 +1120,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					continue
 				}
 				check.exprWithHint(x, kv.Key, utyp.key)
-				if !check.assignment(x, utyp.key) {
+				if reason := ""; !check.assignment(x, utyp.key, &reason) {
 					if x.mode != invalid {
-						check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.key)
+						check.xerrorf(x.pos(), reason, "cannot use %s as %s key in map literal", x, utyp.key)
 					}
 					continue
 				}
@@ -1147,9 +1147,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 				}
 				check.exprWithHint(x, kv.Value, utyp.elem)
-				if !check.assignment(x, utyp.elem) {
+				if reason := ""; !check.assignment(x, utyp.elem, &reason) {
 					if x.mode != invalid {
-						check.errorf(x.pos(), "cannot use %s as %s value in map literal", x, utyp.elem)
+						check.xerrorf(x.pos(), reason, "cannot use %s as %s value in map literal", x, utyp.elem)
 					}
 					continue
 				}
@@ -1220,9 +1220,9 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case *Map:
 			var key operand
 			check.expr(&key, e.Index)
-			if !check.assignment(&key, typ.key) {
+			if reason := ""; !check.assignment(&key, typ.key, &reason) {
 				if key.mode != invalid {
-					check.invalidOp(key.pos(), "cannot use %s as map index of type %s", &key, typ.key)
+					check.xerrorf(key.pos(), reason, "cannot use %s as map index of type %s", &key, typ.key)
 				}
 				goto Error
 			}

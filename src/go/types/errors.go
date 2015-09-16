@@ -86,6 +86,14 @@ func (check *Checker) errorf(pos token.Pos, format string, args ...interface{}) 
 	check.err(pos, check.sprintf(format, args...), false)
 }
 
+func (check *Checker) xerrorf(pos token.Pos, reason, format string, args ...interface{}) {
+	if reason != "" {
+		format += ": %s"
+		args = append(args, reason)
+	}
+	check.err(pos, check.sprintf(format, args...), true)
+}
+
 func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface{}) {
 	check.err(pos, check.sprintf(format, args...), true)
 }
