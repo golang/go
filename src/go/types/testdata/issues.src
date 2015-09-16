@@ -17,8 +17,7 @@ func issue7035() {
 
 func issue8066() {
 	const (
-		// TODO(gri) Enable test below for releases 1.4 and higher
-		// _ = float32(340282356779733661637539395458142568447)
+		_ = float32(340282356779733661637539395458142568447)
 		_ = float32(340282356779733661637539395458142568448 /* ERROR cannot convert */ )
 	)
 }
