@@ -261,8 +261,8 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
 		typ = typ.(*Slice).elem
 	}
 
-	if !check.assignment(x, typ) && x.mode != invalid {
-		check.errorf(x.pos(), "cannot pass argument %s to parameter of type %s", x, typ)
+	if reason := ""; !check.assignment(x, typ, &reason) && x.mode != invalid {
+		check.xerrorf(x.pos(), reason, "cannot pass argument %s to parameter of type %s", x, typ)
 	}
 }
 

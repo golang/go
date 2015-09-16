@@ -16,10 +16,9 @@ import (
 // type. If x.mode == invalid upon return, then assignment has already
 // issued an error message and the caller doesn't have to report another.
 // Use T == nil to indicate assignment to an untyped blank identifier.
-//
-// TODO(gri) Should find a better way to handle in-band errors.
-//
-func (check *Checker) assignment(x *operand, T Type) bool {
+// If the result is false and a non-nil reason is provided, it may be set
+// to a more detailed explanation of the failure (result != "").
+func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
 	switch x.mode {
 	case invalid:
 		return true // error reported before
@@ -58,11 +57,12 @@ func (check *Checker) assignment(x *operand, T Type) bool {
 			return false
 		}
 	}
+	// x.typ is typed
 
 	// spec: "If a left-hand side is the blank identifier, any typed or
 	// non-constant value except for the predeclared identifier nil may
 	// be assigned to it."
-	return T == nil || x.assignableTo(check.conf, T)
+	return T == nil || x.assignableTo(check.conf, T, reason)
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
@@ -88,9 +88,9 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 		lhs.typ = x.typ
 	}
 
-	if !check.assignment(x, lhs.typ) {
+	if reason := ""; !check.assignment(x, lhs.typ, &reason) {
 		if x.mode != invalid {
-			check.errorf(x.pos(), "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
+			check.xerrorf(x.pos(), reason, "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
 		}
 		return
 	}
@@ -122,13 +122,13 @@ func (check *Checker) initVar(lhs *Var, x *operand, result bool) Type {
 		lhs.typ = typ
 	}
 
-	if !check.assignment(x, lhs.typ) {
+	if reason := ""; !check.assignment(x, lhs.typ, &reason) {
 		if x.mode != invalid {
 			if result {
 				// don't refer to lhs.name because it may be an anonymous result parameter
-				check.errorf(x.pos(), "cannot return %s as value of type %s", x, lhs.typ)
+				check.xerrorf(x.pos(), reason, "cannot return %s as value of type %s", x, lhs.typ)
 			} else {
-				check.errorf(x.pos(), "cannot initialize %s with %s", lhs, x)
+				check.xerrorf(x.pos(), reason, "cannot initialize %s with %s", lhs, x)
 			}
 		}
 		return nil
@@ -148,7 +148,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Name == "_" {
 		check.recordDef(ident, nil)
-		if !check.assignment(x, nil) {
+		if !check.assignment(x, nil, nil) {
 			assert(x.mode == invalid)
 			x.typ = nil
 		}
@@ -191,9 +191,9 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	if !check.assignment(x, z.typ) {
+	if reason := ""; !check.assignment(x, z.typ, &reason) {
 		if x.mode != invalid {
-			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
+			check.xerrorf(x.pos(), reason, "cannot assign %s to %s", x, &z)
 		}
 		return nil
 	}
