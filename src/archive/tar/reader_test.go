@@ -289,6 +289,30 @@ var untarTests = []*untarTest{
 		},
 	},
 	{
+		// Matches the behavior of GNU, BSD, and STAR tar utilities.
+		file: "testdata/gnu-multi-hdrs.tar",
+		headers: []*Header{
+			{
+				Name:     "GNU2/GNU2/long-path-name",
+				Linkname: "GNU4/GNU4/long-linkpath-name",
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '2',
+			},
+		},
+	},
+	{
+		// Matches the behavior of GNU and BSD tar utilities.
+		file: "testdata/pax-multi-hdrs.tar",
+		headers: []*Header{
+			{
+				Name:     "bar",
+				Linkname: "PAX4/PAX4/long-linkpath-name",
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '2',
+			},
+		},
+	},
+	{
 		file: "testdata/neg-size.tar",
 		err:  ErrHeader,
 	},
