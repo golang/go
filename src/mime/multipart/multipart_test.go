@@ -616,6 +616,54 @@ html things
 			},
 		},
 	},
+	// Issue 12662: Check that we don't consume the leading \r if the peekBuffer
+	// ends in '\r\n--separator-'
+	{
+		name: "peek buffer boundary condition",
+		sep:  "00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db",
+		in: strings.Replace(`--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db
+Content-Disposition: form-data; name="block"; filename="block"
+Content-Type: application/octet-stream
+
+`+strings.Repeat("A", peekBufferSize-65)+"\n--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db--", "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="block"; filename="block"`}},
+				strings.Repeat("A", peekBufferSize-65),
+			},
+		},
+	},
+	// Issue 12662: Same test as above with \r\n at the end
+	{
+		name: "peek buffer boundary condition",
+		sep:  "00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db",
+		in: strings.Replace(`--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db
+Content-Disposition: form-data; name="block"; filename="block"
+Content-Type: application/octet-stream
+
+`+strings.Repeat("A", peekBufferSize-65)+"\n--00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db--\n", "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="block"; filename="block"`}},
+				strings.Repeat("A", peekBufferSize-65),
+			},
+		},
+	},
+	// Issue 12662v2: We want to make sure that for short buffers that end with
+	// '\r\n--separator-' we always consume at least one (valid) symbol from the
+	// peekBuffer
+	{
+		name: "peek buffer boundary condition",
+		sep:  "aaaaaaaaaa00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db",
+		in: strings.Replace(`--aaaaaaaaaa00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db
+Content-Disposition: form-data; name="block"; filename="block"
+Content-Type: application/octet-stream
+
+`+strings.Repeat("A", peekBufferSize)+"\n--aaaaaaaaaa00ffded004d4dd0fdf945fbdef9d9050cfd6a13a821846299b27fc71b9db--", "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="block"; filename="block"`}},
+				strings.Repeat("A", peekBufferSize),
+			},
+		},
+	},
 
 	roundTripParseTest(),
 }
