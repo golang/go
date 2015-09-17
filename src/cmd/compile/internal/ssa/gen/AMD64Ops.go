@@ -403,8 +403,6 @@ func init() {
 
 		// Pseudo-ops
 		{name: "LoweredPanicNilCheck", reg: gp10},
-		{name: "LoweredPanicIndexCheck"},
-		{name: "LoweredPanicSliceCheck"},
 		{name: "LoweredGetG", reg: gp01},
 	}
 

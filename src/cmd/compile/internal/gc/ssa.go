@@ -2312,7 +2312,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 
 	// bounds check
 	cmp := s.newValue2(ssa.OpIsInBounds, Types[TBOOL], idx, len)
-	s.check(cmp, ssa.OpPanicIndexCheck)
+	s.check(cmp, Panicindex)
 }
 
 // sliceBoundsCheck generates slice bounds checking code.  Checks if 0 <= idx <= len, branches to exit if not.
@@ -2326,11 +2326,11 @@ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 
 	// bounds check
 	cmp := s.newValue2(ssa.OpIsSliceInBounds, Types[TBOOL], idx, len)
-	s.check(cmp, ssa.OpPanicSliceCheck)
+	s.check(cmp, panicslice)
 }
 
-// If cmp (a bool) is true, panic using the given op.
-func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
+// If cmp (a bool) is true, panic using the given function.
+func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = cmp
@@ -2340,12 +2340,10 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	b.AddEdgeTo(bNext)
 	b.AddEdgeTo(bPanic)
 	s.startBlock(bPanic)
-	// The panic check takes/returns memory to ensure that the right
+	// The panic call takes/returns memory to ensure that the right
 	// memory state is observed if the panic happens.
-	chk := s.newValue1(panicOp, ssa.TypeMem, s.mem())
-	s.endBlock()
-	bPanic.Kind = ssa.BlockExit
-	bPanic.Control = chk
+	s.rtcall(fn, false, nil)
+
 	s.startBlock(bNext)
 }
 
@@ -3700,16 +3698,6 @@ func (s *genState) genValue(v *ssa.Value) {
 		q.From.Reg = x86.REG_AX
 		q.To.Type = obj.TYPE_MEM
 		q.To.Reg = r
-	case ssa.OpAMD64LoweredPanicIndexCheck:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = Linksym(Panicindex.Sym)
-	case ssa.OpAMD64LoweredPanicSliceCheck:
-		p := Prog(obj.ACALL)
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_EXTERN
-		p.To.Sym = Linksym(panicslice.Sym)
 	case ssa.OpAMD64LoweredGetG:
 		r := regnum(v)
 		// See the comments in cmd/internal/obj/x86/obj6.go
