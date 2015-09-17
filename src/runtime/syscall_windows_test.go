@@ -5,6 +5,7 @@
 package runtime_test
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -645,5 +646,157 @@ func TestTimeBeginPeriod(t *testing.T) {
 	const TIMERR_NOERROR = 0
 	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
 		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
+	}
+}
+
+// removeOneCPU removes one (any) cpu from affinity mask.
+// It returns new affinity mask.
+func removeOneCPU(mask uintptr) (uintptr, error) {
+	if mask == 0 {
+		return 0, fmt.Errorf("cpu affinity mask is empty")
+	}
+	maskbits := int(unsafe.Sizeof(mask) * 8)
+	for i := 0; i < maskbits; i++ {
+		newmask := mask & ^(1 << uint(i))
+		if newmask != mask {
+			return newmask, nil
+		}
+
+	}
+	panic("not reached")
+}
+
+func resumeChildThread(kernel32 *syscall.DLL, childpid int) error {
+	_OpenThread := kernel32.MustFindProc("OpenThread")
+	_ResumeThread := kernel32.MustFindProc("ResumeThread")
+	_Thread32First := kernel32.MustFindProc("Thread32First")
+	_Thread32Next := kernel32.MustFindProc("Thread32Next")
+
+	snapshot, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPTHREAD, 0)
+	if err != nil {
+		return err
+	}
+	defer syscall.CloseHandle(snapshot)
+
+	const _THREAD_SUSPEND_RESUME = 0x0002
+
+	type ThreadEntry32 struct {
+		Size           uint32
+		tUsage         uint32
+		ThreadID       uint32
+		OwnerProcessID uint32
+		BasePri        int32
+		DeltaPri       int32
+		Flags          uint32
+	}
+
+	var te ThreadEntry32
+	te.Size = uint32(unsafe.Sizeof(te))
+	ret, _, err := _Thread32First.Call(uintptr(snapshot), uintptr(unsafe.Pointer(&te)))
+	if ret == 0 {
+		return err
+	}
+	for te.OwnerProcessID != uint32(childpid) {
+		ret, _, err = _Thread32Next.Call(uintptr(snapshot), uintptr(unsafe.Pointer(&te)))
+		if ret == 0 {
+			return err
+		}
+	}
+	h, _, err := _OpenThread.Call(_THREAD_SUSPEND_RESUME, 1, uintptr(te.ThreadID))
+	if h == 0 {
+		return err
+	}
+	defer syscall.Close(syscall.Handle(h))
+
+	ret, _, err = _ResumeThread.Call(h)
+	if ret == 0xffffffff {
+		return err
+	}
+	return nil
+}
+
+func TestNumCPU(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		// in child process
+		fmt.Fprintf(os.Stderr, "%d", runtime.NumCPU())
+		os.Exit(0)
+	}
+
+	switch n := runtime.NumberOfProcessors(); {
+	case n < 1:
+		t.Fatalf("system cannot have %d cpu(s)", n)
+	case n == 1:
+		if runtime.NumCPU() != 1 {
+			t.Fatalf("runtime.NumCPU() returns %d on single cpu system", runtime.NumCPU())
+		}
+		return
+	}
+
+	const (
+		_CREATE_SUSPENDED   = 0x00000004
+		_PROCESS_ALL_ACCESS = syscall.STANDARD_RIGHTS_REQUIRED | syscall.SYNCHRONIZE | 0xfff
+	)
+
+	kernel32 := syscall.MustLoadDLL("kernel32.dll")
+	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
+	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: _CREATE_SUSPENDED}
+	err := cmd.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		err = cmd.Wait()
+		childOutput := string(buf.Bytes())
+		if err != nil {
+			t.Fatalf("child failed: %v: %v", err, childOutput)
+		}
+		// removeOneCPU should have decreased child cpu count by 1
+		want := fmt.Sprintf("%d", runtime.NumCPU()-1)
+		if childOutput != want {
+			t.Fatalf("child output: want %q, got %q", want, childOutput)
+		}
+	}()
+
+	defer func() {
+		err = resumeChildThread(kernel32, cmd.Process.Pid)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	ph, err := syscall.OpenProcess(_PROCESS_ALL_ACCESS, false, uint32(cmd.Process.Pid))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.CloseHandle(ph)
+
+	var mask, sysmask uintptr
+	ret, _, err := _GetProcessAffinityMask.Call(uintptr(ph), uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+	if ret == 0 {
+		t.Fatal(err)
+	}
+
+	newmask, err := removeOneCPU(mask)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, _, err = _SetProcessAffinityMask.Call(uintptr(ph), newmask)
+	if ret == 0 {
+		t.Fatal(err)
+	}
+	ret, _, err = _GetProcessAffinityMask.Call(uintptr(ph), uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+	if ret == 0 {
+		t.Fatal(err)
+	}
+	if newmask != mask {
+		t.Fatalf("SetProcessAffinityMask didn't set newmask of 0x%x. Current mask is 0x%x.", newmask, mask)
 	}
 }
