@@ -1455,9 +1455,10 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, 
 
 func (check *Checker) singleValue(x *operand) {
 	if x.mode == value {
-		// tuple types are never named - no need for Underlying() below
-		if t, ok := x.typ.(*Tuple); ok && t.Len() != 1 {
-			check.errorf(x.pos(), "%d-valued %s in single-value context", t.Len(), x)
+		// tuple types are never named - no need for underlying type below
+		if t, ok := x.typ.(*Tuple); ok {
+			assert(t.Len() != 1)
+			check.errorf(x.pos(), "%d-valued %s where single value is expected", t.Len(), x)
 			x.mode = invalid
 		}
 	}

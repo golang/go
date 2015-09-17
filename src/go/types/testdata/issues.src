@@ -54,10 +54,10 @@ func issue9473(a []int, b ...int) {
 	_ = append(f1())
 	_ = append(f2 /* ERROR cannot pass argument */ ())
 	_ = append(f2()... /* ERROR cannot use ... */ )
-	_ = append(f0(), f1 /* ERROR 2-valued expression */ ())
-	_ = append(f0(), f2 /* ERROR 2-valued expression */ ())
-	_ = append(f0(), f1()... /* ERROR cannot use ... */ )
-	_ = append(f0(), f2()... /* ERROR cannot use ... */ )
+	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ())
+	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ())
+	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ()...)
+	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ()...)
 
 	// variadic user-defined function
 	append_(f0())
@@ -65,10 +65,10 @@ func issue9473(a []int, b ...int) {
 	append_(f1())
 	append_(f2 /* ERROR cannot pass argument */ ())
 	append_(f2()... /* ERROR cannot use ... */ )
-	append_(f0(), f1 /* ERROR 2-valued expression */ ())
-	append_(f0(), f2 /* ERROR 2-valued expression */ ())
-	append_(f0(), f1()... /* ERROR cannot use */ )
-	append_(f0(), f2()... /* ERROR cannot use */ )
+	append_(f0(), f1 /* ERROR 2-valued f1 */ ())
+	append_(f0(), f2 /* ERROR 2-valued f2 */ ())
+	append_(f0(), f1 /* ERROR 2-valued f1 */ ()...)
+	append_(f0(), f2 /* ERROR 2-valued f2 */ ()...)
 }
 
 // Check that embedding a non-interface type in an interface results in a good error message.
