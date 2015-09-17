@@ -6905,22 +6905,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto end6f8a8c559a167d1f0a5901d09a1fb248
 	end6f8a8c559a167d1f0a5901d09a1fb248:
 		;
-	case OpPanicIndexCheck:
-		// match: (PanicIndexCheck mem)
-		// cond:
-		// result: (LoweredPanicIndexCheck mem)
-		{
-			mem := v.Args[0]
-			v.Op = OpAMD64LoweredPanicIndexCheck
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(mem)
-			return true
-		}
-		goto enda5014ba73d3550a5b66424044395c70f
-	enda5014ba73d3550a5b66424044395c70f:
-		;
 	case OpPanicNilCheck:
 		// match: (PanicNilCheck ptr mem)
 		// cond:
@@ -6938,22 +6922,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		}
 		goto enda02b1ad5a6f929b782190145f2c8628b
 	enda02b1ad5a6f929b782190145f2c8628b:
-		;
-	case OpPanicSliceCheck:
-		// match: (PanicSliceCheck mem)
-		// cond:
-		// result: (LoweredPanicSliceCheck mem)
-		{
-			mem := v.Args[0]
-			v.Op = OpAMD64LoweredPanicSliceCheck
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(mem)
-			return true
-		}
-		goto end238ed0074810b55bd2bba7b45cdeed68
-	end238ed0074810b55bd2bba7b45cdeed68:
 		;
 	case OpRsh16Ux16:
 		// match: (Rsh16Ux16 <t> x y)

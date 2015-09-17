@@ -287,8 +287,6 @@
 (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
 
 (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
-(PanicIndexCheck mem) -> (LoweredPanicIndexCheck mem)
-(PanicSliceCheck mem) -> (LoweredPanicSliceCheck mem)
 (GetG) -> (LoweredGetG)
 
 (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
