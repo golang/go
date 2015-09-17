@@ -258,3 +258,76 @@ func drain(input *Input) string {
 		buf.WriteString(input.Text())
 	}
 }
+
+type badLexTest struct {
+	input string
+	error string
+}
+
+var badLexTests = []badLexTest{
+	{
+		"3 #define foo bar\n",
+		"'#' must be first item on line",
+	},
+	{
+		"#ifdef foo\nhello",
+		"unclosed #ifdef or #ifndef",
+	},
+	{
+		"#ifndef foo\nhello",
+		"unclosed #ifdef or #ifndef",
+	},
+	{
+		"#ifdef foo\nhello\n#else\nbye",
+		"unclosed #ifdef or #ifndef",
+	},
+	{
+		"#define A() A()\nA()",
+		"recursive macro invocation",
+	},
+	{
+		"#define A a\n#define A a\n",
+		"redefinition of macro",
+	},
+	{
+		"#define A a",
+		"no newline after macro definition",
+	},
+}
+
+func TestBadLex(t *testing.T) {
+	for _, test := range badLexTests {
+		input := NewInput(test.error)
+		input.Push(NewTokenizer(test.error, strings.NewReader(test.input), nil))
+		err := firstError(input)
+		if err == nil {
+			t.Errorf("%s: got no error", test.error)
+			continue
+		}
+		if !strings.Contains(err.Error(), test.error) {
+			t.Errorf("got error %q expected %q", err.Error(), test.error)
+		}
+	}
+}
+
+// firstError returns the first error value triggered by the input.
+func firstError(input *Input) (err error) {
+	panicOnError = true
+	defer func() {
+		panicOnError = false
+		switch e := recover(); e := e.(type) {
+		case nil:
+		case error:
+			err = e
+		default:
+			panic(e)
+		}
+	}()
+
+	for {
+		tok := input.Next()
+		if tok == scanner.EOF {
+			return
+		}
+	}
+}
