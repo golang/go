@@ -22,12 +22,12 @@ func append1() {
 	append /* ERROR not used */ (s)
 
 	_ = append(s, b)
-	_ = append(s, x /* ERROR cannot pass argument x */ )
-	_ = append(s, s /* ERROR cannot pass argument s */ )
+	_ = append(s, x /* ERROR cannot use x */ )
+	_ = append(s, s /* ERROR cannot use s */ )
 	_ = append(s... /* ERROR can only use ... with matching parameter */ )
 	_ = append(s, b, s... /* ERROR can only use ... with matching parameter */ )
 	_ = append(s, 1, 2, 3)
-	_ = append(s, 1, 2, 3, x /* ERROR cannot pass argument x */ , 5, 6, 6)
+	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
 	_ = append(s, 1, 2, s... /* ERROR can only use ... with matching parameter */ )
 	_ = append([]interface{}(nil), 1, 2, "foo", x, 3.1425, false)
 
@@ -38,13 +38,13 @@ func append1() {
 	_ = append(s, "foo"...)
 	_ = append(S(s), "foo" /* ERROR cannot convert */ )
 	_ = append(S(s), "foo"...)
-	_ = append(s, t /* ERROR cannot pass argument t */ )
+	_ = append(s, t /* ERROR cannot use t */ )
 	_ = append(s, t...)
 	_ = append(s, T("foo")...)
-	_ = append(S(s), t /* ERROR cannot pass argument t */ )
+	_ = append(S(s), t /* ERROR cannot use t */ )
 	_ = append(S(s), t...)
 	_ = append(S(s), T("foo")...)
-	_ = append([]string{}, t /* ERROR cannot pass argument t */ , "foo")
+	_ = append([]string{}, t /* ERROR cannot use t */ , "foo")
 	_ = append([]T{}, t, "foo")
 }
 
@@ -192,9 +192,9 @@ func complex1() {
 	complex /* ERROR not used */ (1, 2)
 
 	var _ complex64 = complex(f32, f32)
-	var _ complex64 = complex /* ERROR cannot initialize */ (f64, f64)
+	var _ complex64 = complex /* ERROR cannot use .* in variable declaration */ (f64, f64)
 
-	var _ complex128 = complex /* ERROR cannot initialize */ (f32, f32)
+	var _ complex128 = complex /* ERROR cannot use .* in variable declaration */ (f32, f32)
 	var _ complex128 = complex(f64, f64)
 
 	// untyped constants
@@ -213,7 +213,7 @@ func complex1() {
 	var s uint
 	_ = complex(1 /* ERROR integer */ <<s, 0)
 	const _ = complex /* ERROR not constant */ (1 /* ERROR integer */ <<s, 0)
-	var _ int = complex /* ERROR cannot initialize */ (1 /* ERROR integer */ <<s, 0)
+	var _ int = complex /* ERROR cannot use .* in variable declaration */ (1 /* ERROR integer */ <<s, 0)
 
 	// floating-point argument types must be identical
 	type F32 float32
@@ -319,8 +319,8 @@ func imag1() {
 	assert(_6 == 0)
 	f32 = imag(c64)
 	f64 = imag(c128)
-	f32 = imag /* ERROR cannot assign */ (c128)
-	f64 = imag /* ERROR cannot assign */ (c64)
+	f32 = imag /* ERROR cannot use .* in assignment */ (c128)
+	f64 = imag /* ERROR cannot use .* in assignment */ (c64)
 	imag /* ERROR not used */ (c64)
 	_, _ = f32, f64
 
@@ -599,8 +599,8 @@ func real1() {
 	assert(_6 == 0)
 	f32 = real(c64)
 	f64 = real(c128)
-	f32 = real /* ERROR cannot assign */ (c128)
-	f64 = real /* ERROR cannot assign */ (c64)
+	f32 = real /* ERROR cannot use .* in assignment */ (c128)
+	f64 = real /* ERROR cannot use .* in assignment */ (c64)
 	real /* ERROR not used */ (c64)
 
 	// complex type may not be predeclared

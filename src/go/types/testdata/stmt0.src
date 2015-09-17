@@ -37,11 +37,11 @@ func assignments0() (int, int) {
 
 func assignments1() {
 	b, i, f, c, s := false, 1, 1.0, 1i, "foo"
-	b = i /* ERROR "cannot assign" */
-	i = f /* ERROR "cannot assign" */
-	f = c /* ERROR "cannot assign" */
-	c = s /* ERROR "cannot assign" */
-	s = b /* ERROR "cannot assign" */
+	b = i /* ERROR "cannot use .* in assignment" */
+	i = f /* ERROR "cannot use .* in assignment" */
+	f = c /* ERROR "cannot use .* in assignment" */
+	c = s /* ERROR "cannot use .* in assignment" */
+	s = b /* ERROR "cannot use .* in assignment" */
 
 	v0, v1, v2 := 1 /* ERROR "mismatch" */ , 2, 3, 4
 	_, _, _ = v0, v1, v2
@@ -180,8 +180,8 @@ func sends() {
 	var ch chan int
 	var rch <-chan int
 	var x int
-	x <- x /* ERROR "cannot send" */
-	rch <- x /* ERROR "cannot send" */
+	x <- /* ERROR "cannot send" */ x
+	rch <- /* ERROR "cannot send" */ x
 	ch <- "foo" /* ERROR "cannot convert" */
 	ch <- x
 }
@@ -381,7 +381,7 @@ func returns0() {
 func returns1(x float64) (int, *float64) {
 	return 0, &x
 	return /* ERROR wrong number of return values */
-	return "foo" /* ERROR "cannot convert" */, x /* ERROR "cannot return" */
+	return "foo" /* ERROR "cannot convert" */, x /* ERROR "cannot use .* in return statement" */
 	return /* ERROR wrong number of return values */ 0, &x, 1
 }
 
@@ -421,7 +421,7 @@ func switches0() {
 
 	true := "false"
 	_ = true
-	// A tagless switch is equivalent to the bool 
+	// A tagless switch is equivalent to the bool
         // constant true, not the identifier 'true'.
 	switch {
 	case "false" /* ERROR "cannot convert" */:
@@ -682,16 +682,16 @@ func typeswitches() {
 
 	switch t := x.(type) {
 	case nil:
-		var v bool = t /* ERROR "cannot initialize" */
+		var v bool = t /* ERROR "cannot use .* in variable declaration" */
 		_ = v
 	case int:
 		var v int = t
 		_ = v
 	case float32, complex64:
-		var v float32 = t /* ERROR "cannot initialize" */
+		var v float32 = t /* ERROR "cannot use .* in variable declaration" */
 		_ = v
 	default:
-		var v float32 = t /* ERROR "cannot initialize" */
+		var v float32 = t /* ERROR "cannot use .* in variable declaration" */
 		_ = v
 	}
 
@@ -801,7 +801,7 @@ func rangeloops1() {
 		ii = i
 		_ = ii
 		var xx float64
-		xx = x /* ERROR "cannot assign" */
+		xx = x /* ERROR "cannot use .* in assignment" */
 		_ = xx
 	}
 	var ii int
@@ -852,7 +852,7 @@ func rangeloops1() {
 	for range m {}
 	for k := range m {
 		var kk int32
-		kk = k /* ERROR "cannot assign" */
+		kk = k /* ERROR "cannot use .* in assignment" */
 		_ = kk
 	}
 	for k, v := range m {
@@ -894,17 +894,17 @@ func rangeloops2() {
 	var a [10]int
 	var i I
 	_ = i
-	for i /* ERROR cannot assign */ = range a {}
-	for i /* ERROR cannot assign */ = range &a {}
-	for i /* ERROR cannot assign */ = range a[:] {}
+	for i /* ERROR cannot use .* in assignment */ = range a {}
+	for i /* ERROR cannot use .* in assignment */ = range &a {}
+	for i /* ERROR cannot use .* in assignment */ = range a[:] {}
 
 	var s string
 	var r R
 	_ = r
-	for i /* ERROR cannot assign */ = range s {}
-	for i /* ERROR cannot assign */ = range "foo" {}
-	for _, r /* ERROR cannot assign */ = range s {}
-	for _, r /* ERROR cannot assign */ = range "foo" {}
+	for i /* ERROR cannot use .* in assignment */ = range s {}
+	for i /* ERROR cannot use .* in assignment */ = range "foo" {}
+	for _, r /* ERROR cannot use .* in assignment */ = range s {}
+	for _, r /* ERROR cannot use .* in assignment */ = range "foo" {}
 }
 
 func issue6766b() {
@@ -937,7 +937,7 @@ func labels0() {
 	L1:
 	L1 /* ERROR "already declared" */ :
 	if true {
-		goto L2		
+		goto L2
 		L2:
 		L0 /* ERROR "already declared" */ :
 	}

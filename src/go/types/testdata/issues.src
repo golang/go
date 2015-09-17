@@ -52,7 +52,7 @@ func issue9473(a []int, b ...int) {
 	_ = append(f0())
 	_ = append(f0(), f0()...)
 	_ = append(f1())
-	_ = append(f2 /* ERROR cannot pass argument */ ())
+	_ = append(f2 /* ERROR cannot use .* in argument */ ())
 	_ = append(f2()... /* ERROR cannot use ... */ )
 	_ = append(f0(), f1 /* ERROR 2-valued f1 */ ())
 	_ = append(f0(), f2 /* ERROR 2-valued f2 */ ())
@@ -63,7 +63,7 @@ func issue9473(a []int, b ...int) {
 	append_(f0())
 	append_(f0(), f0()...)
 	append_(f1())
-	append_(f2 /* ERROR cannot pass argument */ ())
+	append_(f2 /* ERROR cannot use .* in argument */ ())
 	append_(f2()... /* ERROR cannot use ... */ )
 	append_(f0(), f1 /* ERROR 2-valued f1 */ ())
 	append_(f0(), f2 /* ERROR 2-valued f2 */ ())
@@ -124,24 +124,24 @@ func issue10260() {
 		t1 *T1
 		t2 *T2
 	)
-	i1 = i0 /* ERROR cannot assign .* missing method foo */
-	i1 = t0 /* ERROR cannot assign .* missing method foo */
-	i1 = i2 /* ERROR cannot assign .* wrong type for method foo */
-	i1 = t2 /* ERROR cannot assign .* wrong type for method foo */
-	i2 = i1 /* ERROR cannot assign .* wrong type for method foo */
-	i2 = t1 /* ERROR cannot assign .* wrong type for method foo */
+	i1 = i0 /* ERROR cannot use .* missing method foo */
+	i1 = t0 /* ERROR cannot use .* missing method foo */
+	i1 = i2 /* ERROR cannot use .* wrong type for method foo */
+	i1 = t2 /* ERROR cannot use .* wrong type for method foo */
+	i2 = i1 /* ERROR cannot use .* wrong type for method foo */
+	i2 = t1 /* ERROR cannot use .* wrong type for method foo */
 
-	_ = func() I1 { return i0 /* ERROR cannot return .* missing method foo */ }
-	_ = func() I1 { return t0 /* ERROR cannot return .* missing method foo */ }
-	_ = func() I1 { return i2 /* ERROR cannot return .* wrong type for method foo */ }
-	_ = func() I1 { return t2 /* ERROR cannot return .* wrong type for method foo */ }
-	_ = func() I2 { return i1 /* ERROR cannot return .* wrong type for method foo */ }
-	_ = func() I2 { return t1 /* ERROR cannot return .* wrong type for method foo */ }
+	_ = func() I1 { return i0 /* ERROR cannot use .* missing method foo */ }
+	_ = func() I1 { return t0 /* ERROR cannot use .* missing method foo */ }
+	_ = func() I1 { return i2 /* ERROR cannot use .* wrong type for method foo */ }
+	_ = func() I1 { return t2 /* ERROR cannot use .* wrong type for method foo */ }
+	_ = func() I2 { return i1 /* ERROR cannot use .* wrong type for method foo */ }
+	_ = func() I2 { return t1 /* ERROR cannot use .* wrong type for method foo */ }
 
 	// a few more - less exhaustive now
 
 	f := func(I1, I2){}
-	f(i0 /* ERROR cannot pass .* missing method foo */ , i1 /* ERROR cannot pass .* wrong type for method foo */)
+	f(i0 /* ERROR cannot use .* missing method foo */ , i1 /* ERROR cannot use .* wrong type for method foo */)
 
 	_ = [...]I1{i0 /* ERROR cannot use .* missing method foo */ }
 	_ = [...]I1{i2 /* ERROR cannot use .* wrong type for method foo */ }
@@ -150,6 +150,6 @@ func issue10260() {
 	_ = map[int]I1{0: i0 /* ERROR cannot use .* missing method foo */ }
 	_ = map[int]I1{0: i2 /* ERROR cannot use .* wrong type for method foo */ }
 
-	make(chan I1) <- i0 /* ERROR cannot send .* missing method foo */
-	make(chan I1) <- i2 /* ERROR cannot send .* wrong type for method foo */
+	make(chan I1) <- i0 /* ERROR cannot use .* in send: missing method foo */
+	make(chan I1) <- i2 /* ERROR cannot use .* in send: wrong type for method foo */
 }

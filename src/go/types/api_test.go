@@ -797,7 +797,7 @@ func main() {
 	makePkg("main", mainSrc)
 
 	for e, sel := range selections {
-		sel.String() // assertion: must not panic
+		_ = sel.String() // assertion: must not panic
 
 		start := fset.Position(e.Pos()).Offset
 		end := fset.Position(e.End()).Offset

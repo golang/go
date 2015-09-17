@@ -898,9 +898,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 		// check element against composite literal element type
 		var x operand
 		check.exprWithHint(&x, eval, typ)
-		if reason := ""; !check.assignment(&x, typ, &reason) && x.mode != invalid {
-			check.xerrorf(x.pos(), reason, "cannot use %s as %s value in array or slice literal", &x, typ)
-		}
+		check.assignment(&x, typ, "array or slice literal")
 	}
 	return max
 }
@@ -1062,12 +1060,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					visited[i] = true
 					check.expr(x, kv.Value)
 					etyp := fld.typ
-					if reason := ""; !check.assignment(x, etyp, &reason) {
-						if x.mode != invalid {
-							check.xerrorf(x.pos(), reason, "cannot use %s as %s value in struct literal", x, etyp)
-						}
-						continue
-					}
+					check.assignment(x, etyp, "struct literal")
 				}
 			} else {
 				// no element must have a key
@@ -1088,12 +1081,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 						continue
 					}
 					etyp := fld.typ
-					if reason := ""; !check.assignment(x, etyp, &reason) {
-						if x.mode != invalid {
-							check.xerrorf(x.pos(), reason, "cannot use %s as %s value in struct literal", x, etyp)
-						}
-						continue
-					}
+					check.assignment(x, etyp, "struct literal")
 				}
 				if len(e.Elts) < len(fields) {
 					check.error(e.Rbrace, "too few values in struct literal")
@@ -1120,10 +1108,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					continue
 				}
 				check.exprWithHint(x, kv.Key, utyp.key)
-				if reason := ""; !check.assignment(x, utyp.key, &reason) {
-					if x.mode != invalid {
-						check.xerrorf(x.pos(), reason, "cannot use %s as %s key in map literal", x, utyp.key)
-					}
+				check.assignment(x, utyp.key, "map literal")
+				if x.mode == invalid {
 					continue
 				}
 				if x.mode == constant_ {
@@ -1147,12 +1133,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					}
 				}
 				check.exprWithHint(x, kv.Value, utyp.elem)
-				if reason := ""; !check.assignment(x, utyp.elem, &reason) {
-					if x.mode != invalid {
-						check.xerrorf(x.pos(), reason, "cannot use %s as %s value in map literal", x, utyp.elem)
-					}
-					continue
-				}
+				check.assignment(x, utyp.elem, "map literal")
 			}
 
 		default:
@@ -1220,10 +1201,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case *Map:
 			var key operand
 			check.expr(&key, e.Index)
-			if reason := ""; !check.assignment(&key, typ.key, &reason) {
-				if key.mode != invalid {
-					check.xerrorf(key.pos(), reason, "cannot use %s as map index of type %s", &key, typ.key)
-				}
+			check.assignment(&key, typ.key, "map index")
+			if x.mode == invalid {
 				goto Error
 			}
 			x.mode = mapindex
