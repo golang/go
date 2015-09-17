@@ -321,12 +321,19 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if ch.mode == invalid || x.mode == invalid {
 			return
 		}
-		reason := ""
-		if tch, ok := ch.typ.Underlying().(*Chan); !ok || tch.dir == RecvOnly || !check.assignment(&x, tch.elem, &reason) {
-			if x.mode != invalid {
-				check.xerrorf(x.pos(), reason, "cannot send %s to channel %s", &x, &ch)
-			}
+
+		tch, ok := ch.typ.Underlying().(*Chan)
+		if !ok {
+			check.invalidOp(s.Arrow, "cannot send to non-chan type %s", ch.typ)
+			return
 		}
+
+		if tch.dir == RecvOnly {
+			check.invalidOp(s.Arrow, "cannot send to receive-only type %s", tch)
+			return
+		}
+
+		check.assignment(&x, tch.elem, "send")
 
 	case *ast.IncDecStmt:
 		var op token.Token
@@ -465,7 +472,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.expr(&x, s.Tag)
 			// By checking assignment of x to an invisible temporary
 			// (as a compiler would), we get all the relevant checks.
-			check.assignment(&x, nil, nil)
+			check.assignment(&x, nil, "switch expression")
 		} else {
 			// spec: "A missing switch expression is
 			// equivalent to the boolean value true."
@@ -767,7 +774,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					x.mode = value
 					x.expr = lhs // we don't have a better rhs expression to use here
 					x.typ = typ
-					check.initVar(obj, &x, false)
+					check.initVar(obj, &x, "range clause")
 				} else {
 					obj.typ = Typ[Invalid]
 					obj.used = true // don't complain about unused variable

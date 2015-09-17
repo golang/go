@@ -202,7 +202,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 			if i == n-1 && call.Ellipsis.IsValid() {
 				ellipsis = call.Ellipsis
 			}
-			check.argument(sig, i, x, ellipsis)
+			check.argument(call.Fun, sig, i, x, ellipsis)
 		}
 	}
 
@@ -220,7 +220,7 @@ func (check *Checker) arguments(x *operand, call *ast.CallExpr, sig *Signature, 
 
 // argument checks passing of argument x to the i'th parameter of the given signature.
 // If ellipsis is valid, the argument is followed by ... at that position in the call.
-func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token.Pos) {
+func (check *Checker) argument(fun ast.Expr, sig *Signature, i int, x *operand, ellipsis token.Pos) {
 	check.singleValue(x)
 	if x.mode == invalid {
 		return
@@ -260,9 +260,7 @@ func (check *Checker) argument(sig *Signature, i int, x *operand, ellipsis token
 		typ = typ.(*Slice).elem
 	}
 
-	if reason := ""; !check.assignment(x, typ, &reason) && x.mode != invalid {
-		check.xerrorf(x.pos(), reason, "cannot pass argument %s to parameter of type %s", x, typ)
-	}
+	check.assignment(x, typ, check.sprintf("argument to %s", fun))
 }
 
 func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
