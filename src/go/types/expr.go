@@ -1453,23 +1453,40 @@ func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, 
 	check.errorf(pos, "%s cannot have dynamic type %s (%s %s)", x, T, msg, method.name)
 }
 
+func (check *Checker) singleValue(x *operand) {
+	if x.mode == value {
+		// tuple types are never named - no need for Underlying() below
+		if t, ok := x.typ.(*Tuple); ok && t.Len() != 1 {
+			check.errorf(x.pos(), "%d-valued %s in single-value context", t.Len(), x)
+			x.mode = invalid
+		}
+	}
+}
+
 // expr typechecks expression e and initializes x with the expression value.
+// The result must be a single value.
 // If an error occurred, x.mode is set to invalid.
 //
 func (check *Checker) expr(x *operand, e ast.Expr) {
+	check.multiExpr(x, e)
+	check.singleValue(x)
+}
+
+// multiExpr is like expr but the result may be a multi-value.
+func (check *Checker) multiExpr(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil)
 	var msg string
 	switch x.mode {
 	default:
 		return
 	case novalue:
-		msg = "used as value"
+		msg = "%s used as value"
 	case builtin:
-		msg = "must be called"
+		msg = "%s must be called"
 	case typexpr:
-		msg = "is not an expression"
+		msg = "%s is not an expression"
 	}
-	check.errorf(x.pos(), "%s %s", x, msg)
+	check.errorf(x.pos(), msg, x)
 	x.mode = invalid
 }
 
@@ -1480,18 +1497,19 @@ func (check *Checker) expr(x *operand, e ast.Expr) {
 func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 	assert(hint != nil)
 	check.rawExpr(x, e, hint)
+	check.singleValue(x)
 	var msg string
 	switch x.mode {
 	default:
 		return
 	case novalue:
-		msg = "used as value"
+		msg = "%s used as value"
 	case builtin:
-		msg = "must be called"
+		msg = "%s must be called"
 	case typexpr:
-		msg = "is not an expression"
+		msg = "%s is not an expression"
 	}
-	check.errorf(x.pos(), "%s %s", x, msg)
+	check.errorf(x.pos(), msg, x)
 	x.mode = invalid
 }
 
@@ -1500,6 +1518,7 @@ func (check *Checker) exprWithHint(x *operand, e ast.Expr, hint Type) {
 //
 func (check *Checker) exprOrType(x *operand, e ast.Expr) {
 	check.rawExpr(x, e, nil)
+	check.singleValue(x)
 	if x.mode == novalue {
 		check.errorf(x.pos(), "%s used as value or type", x)
 		x.mode = invalid

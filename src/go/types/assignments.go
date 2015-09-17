@@ -30,6 +30,8 @@ func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
 
 	// x must be a single value
 	// (tuple types are never named - no need for underlying type)
+	// TODO(gri) We may be able to get rid of this check now that
+	// we check for single-valued expressions more rigorously.
 	if t, _ := x.typ.(*Tuple); t != nil {
 		assert(t.Len() > 1)
 		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
@@ -205,7 +207,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 // return expressions, and returnPos is the position of the return statement.
 func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
 	l := len(lhs)
-	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
+	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
 	if get == nil || l != r {
 		// invalidate lhs and use rhs
 		for _, obj := range lhs {
@@ -244,7 +246,7 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 
 func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	l := len(lhs)
-	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2)
+	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2)
 	if get == nil {
 		return // error reported by unpack
 	}
