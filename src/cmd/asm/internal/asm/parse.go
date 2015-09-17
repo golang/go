@@ -38,6 +38,7 @@ type Parser struct {
 	firstProg     *obj.Prog
 	lastProg      *obj.Prog
 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+	isJump        bool             // Instruction being assembled is a jump.
 	errorWriter   io.Writer
 }
 
@@ -197,15 +198,15 @@ func (p *Parser) line() bool {
 
 func (p *Parser) instruction(op int, word, cond string, operands [][]lex.Token) {
 	p.addr = p.addr[0:0]
-	isJump := p.arch.IsJump(word)
+	p.isJump = p.arch.IsJump(word)
 	for _, op := range operands {
 		addr := p.address(op)
-		if !isJump && addr.Reg < 0 { // Jumps refer to PC, a pseudo.
+		if !p.isJump && addr.Reg < 0 { // Jumps refer to PC, a pseudo.
 			p.errorf("illegal use of pseudo-register in %s", word)
 		}
 		p.addr = append(p.addr, addr)
 	}
-	if isJump {
+	if p.isJump {
 		p.asmJump(op, cond, p.addr)
 		return
 	}
@@ -575,12 +576,14 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	}
 	a.Sym = obj.Linklookup(p.ctxt, name, isStatic)
 	if p.peek() == scanner.EOF {
-		if prefix != 0 {
-			p.errorf("illegal addressing mode for symbol %s", name)
+		if prefix == 0 && p.isJump {
+			// Symbols without prefix or suffix are jump labels.
+			return
 		}
+		p.errorf("illegal or missing addressing mode for symbol %s", name)
 		return
 	}
-	// Expect (SB) or (FP), (PC), (SB), or (SP)
+	// Expect (SB), (FP), (PC), or (SP)
 	p.get('(')
 	reg := p.get(scanner.Ident).String()
 	p.get(')')
