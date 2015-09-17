@@ -544,3 +544,37 @@ func TestWriteAfterClose(t *testing.T) {
 		t.Fatalf("Write: got %v; want ErrWriteAfterClose", err)
 	}
 }
+
+func TestSplitUSTARPath(t *testing.T) {
+	var sr = strings.Repeat
+
+	var vectors = []struct {
+		input  string // Input path
+		prefix string // Expected output prefix
+		suffix string // Expected output suffix
+		ok     bool   // Split success?
+	}{
+		{"", "", "", false},
+		{"abc", "", "", false},
+		{"用戶名", "", "", false},
+		{sr("a", fileNameSize), "", "", false},
+		{sr("a", fileNameSize) + "/", "", "", false},
+		{sr("a", fileNameSize) + "/a", sr("a", fileNameSize), "a", true},
+		{sr("a", fileNamePrefixSize) + "/", "", "", false},
+		{sr("a", fileNamePrefixSize) + "/a", sr("a", fileNamePrefixSize), "a", true},
+		{sr("a", fileNameSize+1), "", "", false},
+		{sr("/", fileNameSize+1), sr("/", fileNameSize-1), "/", true},
+		{sr("a", fileNamePrefixSize) + "/" + sr("b", fileNameSize),
+			sr("a", fileNamePrefixSize), sr("b", fileNameSize), true},
+		{sr("a", fileNamePrefixSize) + "//" + sr("b", fileNameSize), "", "", false},
+		{sr("a/", fileNameSize), sr("a/", 77) + "a", sr("a/", 22), true},
+	}
+
+	for _, v := range vectors {
+		prefix, suffix, ok := splitUSTARPath(v.input)
+		if prefix != v.prefix || suffix != v.suffix || ok != v.ok {
+			t.Errorf("splitUSTARPath(%q):\ngot  (%q, %q, %v)\nwant (%q, %q, %v)",
+				v.input, prefix, suffix, ok, v.prefix, v.suffix, v.ok)
+		}
+	}
+}
