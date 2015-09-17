@@ -3536,19 +3536,16 @@ func (s *genState) genValue(v *ssa.Value) {
 		q.From.Reg = x86.REG_AX
 		q.To.Type = obj.TYPE_MEM
 		q.To.Reg = r
-		Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.OpAMD64LoweredPanicIndexCheck:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(Panicindex.Sym)
-		Prog(obj.AUNDEF)
 	case ssa.OpAMD64LoweredPanicSliceCheck:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = Linksym(panicslice.Sym)
-		Prog(obj.AUNDEF)
 	case ssa.OpAMD64LoweredGetG:
 		r := regnum(v)
 		// See the comments in cmd/internal/obj/x86/obj6.go
@@ -3804,6 +3801,7 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 			s.branches = append(s.branches, branch{p, b.Succs[0]})
 		}
 	case ssa.BlockExit:
+		Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
 		if hasdefer {
 			s.deferReturn()
