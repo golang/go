@@ -15,35 +15,34 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 
-	"golang.org/x/tools/playground/socket"
 	"golang.org/x/tools/present"
 )
 
 const basePkg = "golang.org/x/tools/cmd/present"
 
-var basePath string
+var (
+	httpAddr     = flag.String("http", "127.0.0.1:3999", "HTTP service address (e.g., '127.0.0.1:3999')")
+	originHost   = flag.String("orighost", "", "host component of web origin URL (e.g., 'localhost')")
+	basePath     = flag.String("base", "", "base path for slide template and static resources")
+	nativeClient = flag.Bool("nacl", false, "use Native Client environment playground (prevents non-Go code execution)")
+)
 
 func main() {
-	httpAddr := flag.String("http", "127.0.0.1:3999", "HTTP service address (e.g., '127.0.0.1:3999')")
-	originHost := flag.String("orighost", "", "host component of web origin URL (e.g., 'localhost')")
-	flag.StringVar(&basePath, "base", "", "base path for slide template and static resources")
 	flag.BoolVar(&present.PlayEnabled, "play", true, "enable playground (permit execution of arbitrary user code)")
-	nativeClient := flag.Bool("nacl", false, "use Native Client environment playground (prevents non-Go code execution)")
 	flag.Parse()
 
-	if basePath == "" {
+	if *basePath == "" {
 		p, err := build.Default.Import(basePkg, "", build.FindOnly)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't find gopresent files: %v\n", err)
 			fmt.Fprintf(os.Stderr, basePathMessage, basePkg)
 			os.Exit(1)
 		}
-		basePath = p.Dir
+		*basePath = p.Dir
 	}
-	err := initTemplates(basePath)
+	err := initTemplates(*basePath)
 	if err != nil {
 		log.Fatalf("Failed to parse templates: %v", err)
 	}
@@ -58,6 +57,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	origin := &url.URL{Scheme: "http"}
 	if *originHost != "" {
 		origin.Host = net.JoinHostPort(*originHost, port)
@@ -76,20 +76,8 @@ func main() {
 		}
 	}
 
-	if present.PlayEnabled {
-		if *nativeClient {
-			socket.RunScripts = false
-			socket.Environ = func() []string {
-				if runtime.GOARCH == "amd64" {
-					return environ("GOOS=nacl", "GOARCH=amd64p32")
-				}
-				return environ("GOOS=nacl")
-			}
-		}
-		playScript(basePath, "SocketTransport")
-		http.Handle("/socket", socket.NewHandler(origin))
-	}
-	http.Handle("/static/", http.FileServer(http.Dir(basePath)))
+	initPlayground(*basePath, origin)
+	http.Handle("/static/", http.FileServer(http.Dir(*basePath)))
 
 	if !ln.Addr().(*net.TCPAddr).IP.IsLoopback() &&
 		present.PlayEnabled && !*nativeClient {
@@ -98,10 +86,6 @@ func main() {
 
 	log.Printf("Open your web browser and visit %s", origin.String())
 	log.Fatal(http.Serve(ln, nil))
-}
-
-func playable(c present.Code) bool {
-	return present.PlayEnabled && c.Play
 }
 
 func environ(vars ...string) []string {
