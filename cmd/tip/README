@@ -1,0 +1,3 @@
+To deploy tip.golang.org:
+
+$ gcloud --project golang-org preview app deploy --set-default godoc.yaml

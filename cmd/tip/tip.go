@@ -8,7 +8,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,10 +29,17 @@ const (
 	startTimeout = 5 * time.Minute
 )
 
-var indexingMsg = []byte("Indexing in progress: result may be inaccurate")
-
 func main() {
-	p := new(Proxy)
+	const k = "TIP_BUILDER"
+	var b Builder
+	switch os.Getenv(k) {
+	case "godoc":
+		b = godocBuilder{}
+	default:
+		log.Fatalf("Unknown %v value: %q", k, os.Getenv(k))
+	}
+
+	p := &Proxy{builder: b}
 	go p.run()
 	http.Handle("/", p)
 
@@ -46,12 +52,19 @@ func main() {
 // Proxy implements the tip.golang.org server: a reverse-proxy
 // that builds and runs godoc instances showing the latest docs.
 type Proxy struct {
+	builder Builder
+
 	mu    sync.Mutex // protects the followin'
 	proxy http.Handler
 	cur   string    // signature of gorepo+toolsrepo
 	cmd   *exec.Cmd // live godoc instance, or nil for none
 	side  string
 	err   error
+}
+
+type Builder interface {
+	Signature(heads map[string]string) string
+	Init(dir, hostport string, heads map[string]string) (*exec.Cmd, error)
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +77,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err := p.err
 	p.mu.Unlock()
 	if proxy == nil {
-		s := "tip.golang.org is starting up"
+		s := "starting up"
 		if err != nil {
 			s = err.Error()
 		}
@@ -108,7 +121,7 @@ func (p *Proxy) poll() {
 		return
 	}
 
-	sig := heads["go"] + "-" + heads["tools"]
+	sig := p.builder.Signature(heads)
 
 	p.mu.Lock()
 	changes := sig != p.cur
@@ -125,7 +138,16 @@ func (p *Proxy) poll() {
 		newSide = "a"
 	}
 
-	cmd, hostport, err := initSide(newSide, heads["go"], heads["tools"])
+	dir := filepath.Join(os.TempDir(), "tip", newSide)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		p.err = err
+		return
+	}
+	hostport := "localhost:8081"
+	if newSide == "b" {
+		hostport = "localhost:8082"
+	}
+	cmd, err := p.builder.Init(dir, hostport, heads)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -147,76 +169,6 @@ func (p *Proxy) poll() {
 		p.cmd.Process.Kill()
 	}
 	p.cmd = cmd
-}
-
-func initSide(side, goHash, toolsHash string) (godoc *exec.Cmd, hostport string, err error) {
-	dir := filepath.Join(os.TempDir(), "tipgodoc", side)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, "", err
-	}
-
-	goDir := filepath.Join(dir, "go")
-	toolsDir := filepath.Join(dir, "gopath/src/golang.org/x/tools")
-	if err := checkout(repoURL+"go", goHash, goDir); err != nil {
-		return nil, "", err
-	}
-	if err := checkout(repoURL+"tools", toolsHash, toolsDir); err != nil {
-		return nil, "", err
-	}
-
-	make := exec.Command(filepath.Join(goDir, "src/make.bash"))
-	make.Dir = filepath.Join(goDir, "src")
-	if err := runErr(make); err != nil {
-		return nil, "", err
-	}
-	goBin := filepath.Join(goDir, "bin/go")
-	install := exec.Command(goBin, "install", "golang.org/x/tools/cmd/godoc")
-	install.Env = []string{
-		"GOROOT=" + goDir,
-		"GOPATH=" + filepath.Join(dir, "gopath"),
-		"GOROOT_BOOTSTRAP=" + os.Getenv("GOROOT_BOOTSTRAP"),
-	}
-	if err := runErr(install); err != nil {
-		return nil, "", err
-	}
-
-	godocBin := filepath.Join(goDir, "bin/godoc")
-	hostport = "localhost:8081"
-	if side == "b" {
-		hostport = "localhost:8082"
-	}
-	godoc = exec.Command(godocBin, "-http="+hostport, "-index", "-index_interval=-1s")
-	godoc.Env = []string{"GOROOT=" + goDir}
-	// TODO(adg): log this somewhere useful
-	godoc.Stdout = os.Stdout
-	godoc.Stderr = os.Stderr
-	if err := godoc.Start(); err != nil {
-		return nil, "", err
-	}
-	go func() {
-		// TODO(bradfitz): tell the proxy that this side is dead
-		if err := godoc.Wait(); err != nil {
-			log.Printf("side %v exited: %v", side, err)
-		}
-	}()
-
-	deadline := time.Now().Add(startTimeout)
-	for time.Now().Before(deadline) {
-		time.Sleep(time.Second)
-		var res *http.Response
-		res, err = http.Get(fmt.Sprintf("http://%v/search?q=FALLTHROUGH", hostport))
-		if err != nil {
-			continue
-		}
-		rbody, err := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		if err == nil && res.StatusCode == http.StatusOK &&
-			!bytes.Contains(rbody, indexingMsg) {
-			return godoc, hostport, nil
-		}
-	}
-	godoc.Process.Kill()
-	return nil, "", fmt.Errorf("timed out waiting for side %v at %v (%v)", side, hostport, err)
 }
 
 func runErr(cmd *exec.Cmd) error {

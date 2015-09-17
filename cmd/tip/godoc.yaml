@@ -10,3 +10,6 @@ automatic_scaling:
 handlers:
 - url: /.*
   script: _go_app
+
+env_variables:
+  TIP_BUILDER: 'godoc'
