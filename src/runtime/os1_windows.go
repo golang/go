@@ -22,6 +22,7 @@ import (
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
@@ -63,6 +64,7 @@ var (
 	_FreeEnvironmentStringsW,
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
+	_GetProcessAffinityMask,
 	_GetQueuedCompletionStatus,
 	_GetStdHandle,
 	_GetSystemInfo,
@@ -126,6 +128,21 @@ func getGetProcAddress() uintptr {
 }
 
 func getproccount() int32 {
+	var mask, sysmask uintptr
+	ret := stdcall3(_GetProcessAffinityMask, currentProcess, uintptr(unsafe.Pointer(&mask)), uintptr(unsafe.Pointer(&sysmask)))
+	if ret != 0 {
+		n := 0
+		maskbits := int(unsafe.Sizeof(mask) * 8)
+		for i := 0; i < maskbits; i++ {
+			if mask&(1<<uint(i)) != 0 {
+				n++
+			}
+		}
+		if n != 0 {
+			return int32(n)
+		}
+	}
+	// use GetSystemInfo if GetProcessAffinityMask fails
 	var info systeminfo
 	stdcall1(_GetSystemInfo, uintptr(unsafe.Pointer(&info)))
 	return int32(info.dwnumberofprocessors)
