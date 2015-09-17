@@ -308,7 +308,11 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	sort.Strings(keys)
 
 	for _, k := range keys {
-		fmt.Fprint(&buf, formatPAXRecord(k, paxHeaders[k]))
+		rec, err := formatPAXRecord(k, paxHeaders[k])
+		if err != nil {
+			return err
+		}
+		fmt.Fprint(&buf, rec)
 	}
 
 	ext.Size = int64(len(buf.Bytes()))

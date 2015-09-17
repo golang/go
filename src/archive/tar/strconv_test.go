@@ -256,7 +256,7 @@ func TestParsePAXRecord(t *testing.T) {
 		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
 		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
 		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
-		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
+		{"17 \x00hello=\x00world\n", "17 \x00hello=\x00world\n", "", "", false},
 		{"1 k=1\n", "1 k=1\n", "", "", false},
 		{"6 k~1\n", "6 k~1\n", "", "", false},
 		{"6_k=1\n", "6_k=1\n", "", "", false},
@@ -296,21 +296,33 @@ func TestFormatPAXRecord(t *testing.T) {
 		inKey string
 		inVal string
 		want  string
+		ok    bool
 	}{
-		{"k", "v", "6 k=v\n"},
-		{"path", "/etc/hosts", "19 path=/etc/hosts\n"},
-		{"path", longName, "210 path=" + longName + "\n"},
-		{"path", medName, "110 path=" + medName + "\n"},
-		{"foo", "ba", "9 foo=ba\n"},
-		{"foo", "bar", "11 foo=bar\n"},
-		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n"},
-		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n"},
-		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n"},
-		{"\x00hello", "\x00world", "17 \x00hello=\x00world\n"},
+		{"k", "v", "6 k=v\n", true},
+		{"path", "/etc/hosts", "19 path=/etc/hosts\n", true},
+		{"path", longName, "210 path=" + longName + "\n", true},
+		{"path", medName, "110 path=" + medName + "\n", true},
+		{"foo", "ba", "9 foo=ba\n", true},
+		{"foo", "bar", "11 foo=bar\n", true},
+		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n", true},
+		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n", true},
+		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n", true},
+		{"xhello", "\x00world", "17 xhello=\x00world\n", true},
+		{"path", "null\x00", "", false},
+		{"null\x00", "value", "", false},
+		{paxXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
 	}
 
 	for _, v := range vectors {
-		got := formatPAXRecord(v.inKey, v.inVal)
+		got, err := formatPAXRecord(v.inKey, v.inVal)
+		ok := (err == nil)
+		if ok != v.ok {
+			if v.ok {
+				t.Errorf("formatPAXRecord(%q, %q): got format failure, want success", v.inKey, v.inVal)
+			} else {
+				t.Errorf("formatPAXRecord(%q, %q): got format success, want failure", v.inKey, v.inVal)
+			}
+		}
 		if got != v.want {
 			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
 				v.inKey, v.inVal, got, v.want)

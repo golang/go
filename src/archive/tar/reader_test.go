@@ -336,6 +336,34 @@ func TestReader(t *testing.T) {
 			Typeflag: '2',
 		}},
 	}, {
+		// Both BSD and GNU tar truncate long names at first NUL even
+		// if there is data following that NUL character.
+		// This is reasonable as GNU long names are C-strings.
+		file: "testdata/gnu-long-nul.tar",
+		headers: []*Header{{
+			Name:     "0123456789",
+			Mode:     0644,
+			Uid:      1000,
+			Gid:      1000,
+			ModTime:  time.Unix(1486082191, 0),
+			Typeflag: '0',
+			Uname:    "rawr",
+			Gname:    "dsnet",
+		}},
+	}, {
+		// BSD tar v3.1.2 and GNU tar v1.27.1 both rejects PAX records
+		// with NULs in the key.
+		file: "testdata/pax-nul-xattrs.tar",
+		err:  ErrHeader,
+	}, {
+		// BSD tar v3.1.2 rejects a PAX path with NUL in the value, while
+		// GNU tar v1.27.1 simply truncates at first NUL.
+		// We emulate the behavior of BSD since it is strange doing NUL
+		// truncations since PAX records are length-prefix strings instead
+		// of NUL-terminated C-strings.
+		file: "testdata/pax-nul-path.tar",
+		err:  ErrHeader,
+	}, {
 		file: "testdata/neg-size.tar",
 		err:  ErrHeader,
 	}, {
@@ -358,76 +386,71 @@ func TestReader(t *testing.T) {
 		}},
 	}}
 
-	for i, v := range vectors {
-		f, err := os.Open(v.file)
-		if err != nil {
-			t.Errorf("file %s, test %d: unexpected error: %v", v.file, i, err)
-			continue
-		}
-		defer f.Close()
-
-		// Capture all headers and checksums.
-		var (
-			tr      = NewReader(f)
-			hdrs    []*Header
-			chksums []string
-			rdbuf   = make([]byte, 8)
-		)
-		for {
-			var hdr *Header
-			hdr, err = tr.Next()
+	for _, v := range vectors {
+		t.Run(path.Base(v.file), func(t *testing.T) {
+			f, err := os.Open(v.file)
 			if err != nil {
-				if err == io.EOF {
-					err = nil // Expected error
+				t.Fatalf("unexpected error: %v", err)
+			}
+			defer f.Close()
+
+			// Capture all headers and checksums.
+			var (
+				tr      = NewReader(f)
+				hdrs    []*Header
+				chksums []string
+				rdbuf   = make([]byte, 8)
+			)
+			for {
+				var hdr *Header
+				hdr, err = tr.Next()
+				if err != nil {
+					if err == io.EOF {
+						err = nil // Expected error
+					}
+					break
 				}
-				break
-			}
-			hdrs = append(hdrs, hdr)
+				hdrs = append(hdrs, hdr)
 
-			if v.chksums == nil {
-				continue
+				if v.chksums == nil {
+					continue
+				}
+				h := md5.New()
+				_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
+				if err != nil {
+					break
+				}
+				chksums = append(chksums, fmt.Sprintf("%x", h.Sum(nil)))
 			}
-			h := md5.New()
-			_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
-			if err != nil {
-				break
-			}
-			chksums = append(chksums, fmt.Sprintf("%x", h.Sum(nil)))
-		}
 
-		for j, hdr := range hdrs {
-			if j >= len(v.headers) {
-				t.Errorf("file %s, test %d, entry %d: unexpected header:\ngot %+v",
-					v.file, i, j, *hdr)
-				continue
+			for i, hdr := range hdrs {
+				if i >= len(v.headers) {
+					t.Fatalf("entry %d: unexpected header:\ngot %+v", i, *hdr)
+					continue
+				}
+				if !reflect.DeepEqual(*hdr, *v.headers[i]) {
+					t.Fatalf("entry %d: incorrect header:\ngot  %+v\nwant %+v", i, *hdr, *v.headers[i])
+				}
 			}
-			if !reflect.DeepEqual(*hdr, *v.headers[j]) {
-				t.Errorf("file %s, test %d, entry %d: incorrect header:\ngot  %+v\nwant %+v",
-					v.file, i, j, *hdr, *v.headers[j])
+			if len(hdrs) != len(v.headers) {
+				t.Fatalf("got %d headers, want %d headers", len(hdrs), len(v.headers))
 			}
-		}
-		if len(hdrs) != len(v.headers) {
-			t.Errorf("file %s, test %d: got %d headers, want %d headers",
-				v.file, i, len(hdrs), len(v.headers))
-		}
 
-		for j, sum := range chksums {
-			if j >= len(v.chksums) {
-				t.Errorf("file %s, test %d, entry %d: unexpected sum: got %s",
-					v.file, i, j, sum)
-				continue
+			for i, sum := range chksums {
+				if i >= len(v.chksums) {
+					t.Fatalf("entry %d: unexpected sum: got %s", i, sum)
+					continue
+				}
+				if sum != v.chksums[i] {
+					t.Fatalf("entry %d: incorrect checksum: got %s, want %s", i, sum, v.chksums[i])
+				}
 			}
-			if sum != v.chksums[j] {
-				t.Errorf("file %s, test %d, entry %d: incorrect checksum: got %s, want %s",
-					v.file, i, j, sum, v.chksums[j])
-			}
-		}
 
-		if err != v.err {
-			t.Errorf("file %s, test %d: unexpected error: got %v, want %v",
-				v.file, i, err, v.err)
-		}
-		f.Close()
+			if err != v.err {
+				t.Fatalf("unexpected error: got %v, want %v", err, v.err)
+			}
+			f.Close()
+		})
 	}
 }
 
