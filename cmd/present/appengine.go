@@ -10,8 +10,6 @@ import (
 	"mime"
 
 	"golang.org/x/tools/present"
-
-	_ "golang.org/x/tools/playground"
 )
 
 func init() {

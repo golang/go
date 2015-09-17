@@ -10,6 +10,8 @@ import (
 	"net/url"
 
 	"golang.org/x/tools/present"
+
+	_ "golang.org/x/tools/playground"
 )
 
 func initPlayground(basepath string, origin *url.URL) {
