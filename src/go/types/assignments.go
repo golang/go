@@ -19,6 +19,8 @@ import (
 // If the result is false and a non-nil reason is provided, it may be set
 // to a more detailed explanation of the failure (result != "").
 func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
+	check.singleValue(x)
+
 	switch x.mode {
 	case invalid:
 		return true // error reported before
@@ -26,17 +28,6 @@ func (check *Checker) assignment(x *operand, T Type, reason *string) bool {
 		// ok
 	default:
 		unreachable()
-	}
-
-	// x must be a single value
-	// (tuple types are never named - no need for underlying type)
-	// TODO(gri) We may be able to get rid of this check now that
-	// we check for single-valued expressions more rigorously.
-	if t, _ := x.typ.(*Tuple); t != nil {
-		assert(t.Len() > 1)
-		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
-		x.mode = invalid
-		return false
 	}
 
 	if isUntyped(x.typ) {
