@@ -252,7 +252,9 @@ func archArm64() *Arch {
 	register["EQ"] = arm64.COND_EQ
 	register["NE"] = arm64.COND_NE
 	register["HS"] = arm64.COND_HS
+	register["CS"] = arm64.COND_HS
 	register["LO"] = arm64.COND_LO
+	register["CC"] = arm64.COND_LO
 	register["MI"] = arm64.COND_MI
 	register["PL"] = arm64.COND_PL
 	register["VS"] = arm64.COND_VS
