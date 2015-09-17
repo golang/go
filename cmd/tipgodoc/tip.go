@@ -71,6 +71,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, s, http.StatusInternalServerError)
 		return
 	}
+	if r.URL.Path == "/_ah/health" {
+		fmt.Fprintln(w, "OK")
+		return
+	}
 	proxy.ServeHTTP(w, r)
 }
 

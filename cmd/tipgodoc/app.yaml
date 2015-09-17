@@ -3,12 +3,10 @@ runtime: custom
 api_version: go1
 vm: true
 
-manual_scaling:
-  instances: 1
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 2
 
 handlers:
 - url: /.*
   script: _go_app
-
-health_check:
-  enable_health_check: False
