@@ -172,3 +172,9 @@ var (
 	p3 P = &p2
 )
 
+func g() (a, b int) { return }
+
+func _() {
+	_ = -g /* ERROR 2-valued g */ ()
+	_ = <-g /* ERROR 2-valued g */ ()
+}

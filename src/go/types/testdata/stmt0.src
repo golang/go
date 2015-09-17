@@ -631,14 +631,14 @@ func issue11667() {
 
 func issue11687() {
 	f := func() (_, _ int) { return }
-	switch f /* ERROR "2-valued expression" */ () {
+	switch f /* ERROR "2-valued f" */ () {
 	}
 	var x int
-	switch f /* ERROR "2-valued expression" */ () {
+	switch f /* ERROR "2-valued f" */ () {
 	case x:
 	}
 	switch x {
-	case f /* ERROR "cannot compare" */ (): // TODO(gri) better error message (issue 11896)
+	case f /* ERROR "2-valued f" */ ():
 	}
 }
 
