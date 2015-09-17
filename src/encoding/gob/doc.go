@@ -82,6 +82,12 @@ slice has capacity the slice will be extended in place; if not, a new array is
 allocated. Regardless, the length of the resulting slice reports the number of
 elements decoded.
 
+In general, if allocation is required, the decoder will allocate memory. If not,
+it will update the destination variables with values read from the stream. It does
+not initialize them first, so if the destination is a compound value such as a
+map, struct, or slice, the decoded values will be merged elementwise into the
+existing variables.
+
 Functions and channels will not be sent in a gob. Attempting to encode such a value
 at the top level will fail. A struct field of chan or func type is treated exactly
 like an unexported field and is ignored.
