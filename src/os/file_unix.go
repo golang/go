@@ -90,14 +90,19 @@ func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 		}
 	}
 
-retry:
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
-	if e != nil {
+	var r int
+	for {
+		var e error
+		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+		if e == nil {
+			break
+		}
+
 		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
 		// open(2) to be restarted for regular files. This is easy to reproduce on
 		// fuse file systems (see http://golang.org/issue/11180).
-		if e == syscall.EINTR {
-			goto retry
+		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+			continue
 		}
 
 		return nil, &PathError{"open", name, e}
