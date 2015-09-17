@@ -6,14 +6,11 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
 type godocBuilder struct {
@@ -22,8 +19,6 @@ type godocBuilder struct {
 func (b godocBuilder) Signature(heads map[string]string) string {
 	return heads["go"] + "-" + heads["tools"]
 }
-
-var indexingMsg = []byte("Indexing in progress: result may be inaccurate")
 
 func (b godocBuilder) Init(dir, hostport string, heads map[string]string) (*exec.Cmd, error) {
 	goDir := filepath.Join(dir, "go")
@@ -60,29 +55,18 @@ func (b godocBuilder) Init(dir, hostport string, heads map[string]string) (*exec
 	if err := godoc.Start(); err != nil {
 		return nil, err
 	}
-	go func() {
-		// TODO(bradfitz): tell the proxy that this side is dead
-		if err := godoc.Wait(); err != nil {
-			log.Printf("process in %v exited: %v", dir, err)
-		}
-	}()
+	return godoc, nil
+}
 
-	var err error
-	deadline := time.Now().Add(startTimeout)
-	for time.Now().Before(deadline) {
-		time.Sleep(time.Second)
-		var res *http.Response
-		res, err = http.Get(fmt.Sprintf("http://%v/search?q=FALLTHROUGH", hostport))
-		if err != nil {
-			continue
-		}
-		rbody, err := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		if err == nil && res.StatusCode == http.StatusOK &&
-			!bytes.Contains(rbody, indexingMsg) {
-			return godoc, nil
-		}
+var indexingMsg = []byte("Indexing in progress: result may be inaccurate")
+
+func (b godocBuilder) HealthCheck(hostport string) error {
+	body, err := getOK(fmt.Sprintf("http://%v/search?q=FALLTHROUGH", hostport))
+	if err != nil {
+		return err
 	}
-	godoc.Process.Kill()
-	return nil, fmt.Errorf("timed out waiting for process in %v at %v (%v)", dir, hostport, err)
+	if bytes.Contains(body, indexingMsg) {
+		return errors.New("still indexing")
+	}
+	return nil
 }

@@ -1,0 +1,15 @@
+module: talks
+runtime: custom
+api_version: go1
+vm: true
+
+automatic_scaling:
+  min_num_instances: 1
+  max_num_instances: 5
+
+handlers:
+- url: /.*
+  script: _go_app
+
+env_variables:
+  TIP_BUILDER: 'talks'

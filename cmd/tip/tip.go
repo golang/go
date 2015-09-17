@@ -9,6 +9,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -35,6 +36,8 @@ func main() {
 	switch os.Getenv(k) {
 	case "godoc":
 		b = godocBuilder{}
+	case "talks":
+		b = talksBuilder{}
 	default:
 		log.Fatalf("Unknown %v value: %q", k, os.Getenv(k))
 	}
@@ -54,17 +57,19 @@ func main() {
 type Proxy struct {
 	builder Builder
 
-	mu    sync.Mutex // protects the followin'
-	proxy http.Handler
-	cur   string    // signature of gorepo+toolsrepo
-	cmd   *exec.Cmd // live godoc instance, or nil for none
-	side  string
-	err   error
+	mu       sync.Mutex // protects the followin'
+	proxy    http.Handler
+	cur      string    // signature of gorepo+toolsrepo
+	cmd      *exec.Cmd // live godoc instance, or nil for none
+	side     string
+	hostport string // host and port of the live instance
+	err      error
 }
 
 type Builder interface {
 	Signature(heads map[string]string) string
 	Init(dir, hostport string, heads map[string]string) (*exec.Cmd, error)
+	HealthCheck(hostport string) error
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +90,10 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.URL.Path == "/_ah/health" {
+		if err := p.builder.HealthCheck(p.hostport); err != nil {
+			http.Error(w, "Health check failde: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		fmt.Fprintln(w, "OK")
 		return
 	}
@@ -148,6 +157,15 @@ func (p *Proxy) poll() {
 		hostport = "localhost:8082"
 	}
 	cmd, err := p.builder.Init(dir, hostport, heads)
+	if err == nil {
+		go func() {
+			// TODO(adg,bradfitz): be smarter about dead processes
+			if err := cmd.Wait(); err != nil {
+				log.Printf("process in %v exited: %v", dir, err)
+			}
+		}()
+		err = waitReady(p.builder, hostport)
+	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -165,10 +183,23 @@ func (p *Proxy) poll() {
 	}
 	p.proxy = httputil.NewSingleHostReverseProxy(u)
 	p.side = newSide
+	p.hostport = hostport
 	if p.cmd != nil {
 		p.cmd.Process.Kill()
 	}
 	p.cmd = cmd
+}
+
+func waitReady(b Builder, hostport string) error {
+	var err error
+	deadline := time.Now().Add(startTimeout)
+	for time.Now().Before(deadline) {
+		if err = b.HealthCheck(hostport); err == nil {
+			return nil
+		}
+		time.Sleep(time.Second)
+	}
+	return fmt.Errorf("timed out waiting for process at %v: %v", hostport, err)
 }
 
 func runErr(cmd *exec.Cmd) error {
@@ -251,4 +282,20 @@ func gerritMetaMap() map[string]string {
 		}
 	}
 	return m
+}
+
+func getOK(url string) (body []byte, err error) {
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	body, err = ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.New(res.Status)
+	}
+	return body, nil
 }
