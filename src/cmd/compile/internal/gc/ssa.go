@@ -259,12 +259,17 @@ func (s *state) Logf(msg string, args ...interface{})           { s.config.Logf(
 func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
 func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
 
-// dummy node for the memory variable
-var memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
+var (
+	// dummy node for the memory variable
+	memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
 
-// dummy nodes for temporary variables
-var ptrvar = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
-var capvar = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
+	// dummy nodes for temporary variables
+	ptrvar   = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
+	capvar   = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
+	typVar   = Node{Op: ONAME, Sym: &Sym{Name: "typ"}}
+	idataVar = Node{Op: ONAME, Sym: &Sym{Name: "idata"}}
+	okVar    = Node{Op: ONAME, Sym: &Sym{Name: "ok"}}
+)
 
 // startBlock sets the current block we're generating code in to b.
 func (s *state) startBlock(b *ssa.Block) {
@@ -473,6 +478,12 @@ func (s *state) stmt(n *Node) {
 		s.call(n.Left, callDefer)
 	case OPROC:
 		s.call(n.Left, callGo)
+
+	case OAS2DOTTYPE:
+		res, resok := s.dottype(n.Rlist.N, true)
+		s.assign(n.List.N, res, false)
+		s.assign(n.List.Next.N, resok, false)
+		return
 
 	case ODCL:
 		if n.Left.Class&PHEAP == 0 {
@@ -1470,6 +1481,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
 		return nil
+
+	case ODOTTYPE:
+		res, _ := s.dottype(n, false)
+		return res
 
 	// binary ops
 	case OLT, OEQ, ONE, OLE, OGE, OGT:
@@ -2721,6 +2736,122 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 
 	s.startBlock(bAfter)
 	return s.variable(n, n.Type)
+}
+
+// ifaceType returns the value for the word containing the type.
+// n is the node for the interface expression.
+// v is the corresponding value.
+func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
+	byteptr := Ptrto(Types[TUINT8]) // type used in runtime prototypes for runtime type (*byte)
+
+	if isnilinter(n.Type) {
+		// Have *eface. The type is the first word in the struct.
+		return s.newValue1(ssa.OpITab, byteptr, v)
+	}
+
+	// Have *iface.
+	// The first word in the struct is the *itab.
+	// If the *itab is nil, return 0.
+	// Otherwise, the second word in the *itab is the type.
+
+	tab := s.newValue1(ssa.OpITab, byteptr, v)
+	s.vars[&typVar] = tab
+	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.entryNewValue0(ssa.OpConstNil, byteptr))
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Control = isnonnil
+	b.Likely = ssa.BranchLikely
+
+	bLoad := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+	b.AddEdgeTo(bLoad)
+	b.AddEdgeTo(bEnd)
+	bLoad.AddEdgeTo(bEnd)
+
+	s.startBlock(bLoad)
+	off := s.newValue1I(ssa.OpOffPtr, byteptr, int64(Widthptr), tab)
+	s.vars[&typVar] = s.newValue2(ssa.OpLoad, byteptr, off, s.mem())
+	s.endBlock()
+
+	s.startBlock(bEnd)
+	typ := s.variable(&typVar, byteptr)
+	delete(s.vars, &typVar)
+	return typ
+}
+
+// dottype generates SSA for a type assertion node.
+// commaok indicates whether to panic or return a bool.
+// If commaok is false, resok will be nil.
+func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+	iface := s.expr(n.Left)
+	typ := s.ifaceType(n.Left, iface)  // actual concrete type
+	target := s.expr(typename(n.Type)) // target type
+	if !isdirectiface(n.Type) {
+		// walk rewrites ODOTTYPE/OAS2DOTTYPE into runtime calls except for this case.
+		Fatalf("dottype needs a direct iface type %s", n.Type)
+	}
+
+	// TODO:  If we have a nonempty interface and its itab field is nil,
+	// then this test is redundant and ifaceType should just branch directly to bFail.
+	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Control = cond
+	b.Likely = ssa.BranchLikely
+
+	byteptr := Ptrto(Types[TUINT8])
+
+	bOk := s.f.NewBlock(ssa.BlockPlain)
+	bFail := s.f.NewBlock(ssa.BlockPlain)
+	b.AddEdgeTo(bOk)
+	b.AddEdgeTo(bFail)
+
+	if !commaok {
+		// on failure, panic by calling panicdottype
+		s.startBlock(bFail)
+
+		spplus1 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
+		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
+		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{byteptr, typenamesym(n.Left.Type)}, s.sb)
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, typ, s.mem())       // actual dynamic type
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, target, s.mem()) // type we're casting to
+		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, taddr, s.mem())  // static source type
+		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("panicdottype", 0).Sym, s.mem())
+		s.endBlock()
+		bFail.Kind = ssa.BlockExit
+		bFail.Control = call
+
+		// on success, return idata field
+		s.startBlock(bOk)
+		return s.newValue1(ssa.OpIData, n.Type, iface), nil
+	}
+
+	// commaok is the more complicated case because we have
+	// a control flow merge point.
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+	// type assertion succeeded
+	s.startBlock(bOk)
+	s.vars[&idataVar] = s.newValue1(ssa.OpIData, n.Type, iface)
+	s.vars[&okVar] = s.constBool(true)
+	s.endBlock()
+	bOk.AddEdgeTo(bEnd)
+
+	// type assertion failed
+	s.startBlock(bFail)
+	s.vars[&idataVar] = s.entryNewValue0(ssa.OpConstNil, byteptr)
+	s.vars[&okVar] = s.constBool(false)
+	s.endBlock()
+	bFail.AddEdgeTo(bEnd)
+
+	// merge point
+	s.startBlock(bEnd)
+	res = s.variable(&idataVar, byteptr)
+	resok = s.variable(&okVar, Types[TBOOL])
+	delete(s.vars, &idataVar)
+	delete(s.vars, &okVar)
+	return res, resok
 }
 
 // checkgoto checks that a goto from from to to does not
