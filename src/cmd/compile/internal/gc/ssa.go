@@ -261,11 +261,11 @@ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimp
 
 var (
 	// dummy node for the memory variable
-	memvar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
+	memVar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
 
 	// dummy nodes for temporary variables
-	ptrvar   = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
-	capvar   = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
+	ptrVar   = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
+	capVar   = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
 	typVar   = Node{Op: ONAME, Sym: &Sym{Name: "typ"}}
 	idataVar = Node{Op: ONAME, Sym: &Sym{Name: "idata"}}
 	okVar    = Node{Op: ONAME, Sym: &Sym{Name: "ok"}}
@@ -785,7 +785,7 @@ func (s *state) stmt(n *Node) {
 		// We only care about liveness info at call sites, so putting the
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
-		s.vars[&memvar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
 
 	case OCHECKNIL:
 		p := s.expr(n.Left)
@@ -1840,8 +1840,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
 		nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
 		cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
-		s.vars[&ptrvar] = p
-		s.vars[&capvar] = c
+		s.vars[&ptrVar] = p
+		s.vars[&capVar] = c
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Likely = ssa.BranchUnlikely
@@ -1857,14 +1857,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
 		spplus3 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(3*Widthptr), s.sp)
 		spplus4 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(4*Widthptr), s.sp)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, p, s.mem())
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, l, s.mem())
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus3, c, s.mem())
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus4, nl, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, p, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, l, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus3, c, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus4, nl, s.mem())
 		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("growslice", 0).Sym, s.mem())
 		call.AuxInt = int64(8 * Widthptr)
-		s.vars[&memvar] = call
+		s.vars[&memVar] = call
 		b = s.endBlock()
 		b.Kind = ssa.BlockCall
 		b.Control = call
@@ -1875,19 +1875,19 @@ func (s *state) expr(n *Node) *ssa.Value {
 		spplus5 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(5*Widthptr), s.sp)
 		// Note: we don't need to read the result's length.
 		spplus7 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(7*Widthptr), s.sp)
-		s.vars[&ptrvar] = s.newValue2(ssa.OpLoad, pt, spplus5, s.mem())
-		s.vars[&capvar] = s.newValue2(ssa.OpLoad, Types[TINT], spplus7, s.mem())
+		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, spplus5, s.mem())
+		s.vars[&capVar] = s.newValue2(ssa.OpLoad, Types[TINT], spplus7, s.mem())
 		b = s.endBlock()
 		b.AddEdgeTo(assign)
 
 		// assign new elements to slots
 		s.startBlock(assign)
-		p = s.variable(&ptrvar, pt)          // generates phi for ptr
-		c = s.variable(&capvar, Types[TINT]) // generates phi for cap
+		p = s.variable(&ptrVar, pt)          // generates phi for ptr
+		c = s.variable(&capVar, Types[TINT]) // generates phi for cap
 		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
 		for i, arg := range args {
 			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TUINTPTR], int64(i)))
-			s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
 			if haspointers(et) {
 				// TODO: just one write barrier call for all of these writes?
 				// TODO: maybe just one writeBarrierEnabled check?
@@ -1897,8 +1897,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// make result
 		r := s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
-		delete(s.vars, &ptrvar)
-		delete(s.vars, &capvar)
+		delete(s.vars, &ptrVar)
+		delete(s.vars, &capVar)
 		return r
 
 	default:
@@ -1919,9 +1919,9 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 			// if we can't ssa this memory, treat it as just zeroing out the backing memory
 			addr := s.addr(left)
 			if left.Op == ONAME {
-				s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+				s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 			}
-			s.vars[&memvar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
+			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
 			return
 		}
 		right = s.zeroVal(t)
@@ -1934,9 +1934,9 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	// not ssa-able.  Treat as a store.
 	addr := s.addr(left)
 	if left.Op == ONAME {
-		s.vars[&memvar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
-	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
+	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
 	if wb {
 		s.insertWB(left.Type, addr)
 	}
@@ -2068,16 +2068,16 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			argStart += int64(2 * Widthptr)
 		}
 		addr := s.entryNewValue1I(ssa.OpOffPtr, Types[TUINTPTR], argStart, s.sp)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
 	}
 
 	// Defer/go args
 	if k != callNormal {
 		// Write argsize and closure (args to Newproc/Deferproc).
 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, s.sp, argsize, s.mem())
 		addr := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(Types[TUINTPTR]), int64(Widthptr), s.sp)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
 		stksize += 2 * int64(Widthptr)
 	}
 
@@ -2102,7 +2102,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
 
 	// Finish call block
-	s.vars[&memvar] = call
+	s.vars[&memVar] = call
 	b := s.endBlock()
 	b.Kind = ssa.BlockCall
 	b.Control = call
@@ -2382,12 +2382,12 @@ func (s *state) insertWB(t *Type, p *ssa.Value) {
 	s.startBlock(bThen)
 	// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
 	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(t)}, s.sb)
-	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
+	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
 	spplus8 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
-	s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, p, s.mem())
+	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, p, s.mem())
 	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("typedmemmove_nostore", 0).Sym, s.mem())
 	call.AuxInt = int64(2 * Widthptr)
-	s.vars[&memvar] = call
+	s.vars[&memVar] = call
 	c := s.endBlock()
 	c.Kind = ssa.BlockCall
 	c.Control = call
@@ -2477,7 +2477,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 		rcap = s.newValue2(ssa.OpSubPtr, Types[TINT], k, i)
 	}
 
-	s.vars[&ptrvar] = ptr
+	s.vars[&ptrVar] = ptr
 
 	// Generate code to test the resulting slice length.
 	var cmp *ssa.Value
@@ -2502,7 +2502,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	} else {
 		inc = s.newValue2(ssa.OpMulPtr, Types[TUINTPTR], i, s.constInt(Types[TINT], elemtype.Width))
 	}
-	s.vars[&ptrvar] = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, inc)
+	s.vars[&ptrVar] = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, inc)
 	s.endBlock()
 
 	// All done.
@@ -2510,8 +2510,8 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	b.AddEdgeTo(merge)
 	nz.AddEdgeTo(merge)
 	s.startBlock(merge)
-	rptr := s.variable(&ptrvar, ptrtype)
-	delete(s.vars, &ptrvar)
+	rptr := s.variable(&ptrVar, ptrtype)
+	delete(s.vars, &ptrVar)
 	return rptr, rlen, rcap
 }
 
@@ -2814,9 +2814,9 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		spplus1 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
 		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
 		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{byteptr, typenamesym(n.Left.Type)}, s.sb)
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, typ, s.mem())       // actual dynamic type
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, target, s.mem()) // type we're casting to
-		s.vars[&memvar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, taddr, s.mem())  // static source type
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, typ, s.mem())       // actual dynamic type
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, target, s.mem()) // type we're casting to
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, taddr, s.mem())  // static source type
 		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("panicdottype", 0).Sym, s.mem())
 		s.endBlock()
 		bFail.Kind = ssa.BlockExit
@@ -2924,7 +2924,7 @@ func (s *state) variable(name *Node, t ssa.Type) *ssa.Value {
 }
 
 func (s *state) mem() *ssa.Value {
-	return s.variable(&memvar, ssa.TypeMem)
+	return s.variable(&memVar, ssa.TypeMem)
 }
 
 func (s *state) linkForwardReferences() {
@@ -2952,7 +2952,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 	// TODO(khr): have lookupVarIncoming overwrite the fwdRef or copy it
 	// will be used in, instead of having the result used in a copy value.
 	if b == s.f.Entry {
-		if name == &memvar {
+		if name == &memVar {
 			return s.startmem
 		}
 		// variable is live at the entry block.  Load it.
@@ -2974,7 +2974,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 		// This block is dead; we have no predecessors and we're not the entry block.
 		// It doesn't matter what we use here as long as it is well-formed,
 		// so use the default/zero value.
-		if name == &memvar {
+		if name == &memVar {
 			return s.startmem
 		}
 		return s.zeroVal(name.Type)
