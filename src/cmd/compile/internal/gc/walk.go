@@ -1356,7 +1356,7 @@ func walkexpr(np **Node, init **NodeList) {
 		}
 
 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
-		if (n.Etype == OEQ || n.Etype == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && cmpslit(n.Right, n.Left.List.Next.N) == 0 {
+		if (n.Etype == OEQ || n.Etype == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && strlit(n.Right) == strlit(n.Left.List.Next.N) {
 			r := Nod(int(n.Etype), Nod(OLEN, n.Left.List.N, nil), Nodintconst(0))
 			typecheck(&r, Erv)
 			walkexpr(&r, init)
