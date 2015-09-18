@@ -1842,7 +1842,6 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// Allocate new blocks
 		grow := s.f.NewBlock(ssa.BlockPlain)
-		growresult := s.f.NewBlock(ssa.BlockPlain)
 		assign := s.f.NewBlock(ssa.BlockPlain)
 
 		// Decide if we need to grow
@@ -1864,30 +1863,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		s.startBlock(grow)
 		taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(n.Type)}, s.sb)
 
-		spplus1 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
-		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
-		spplus3 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(3*Widthptr), s.sp)
-		spplus4 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(4*Widthptr), s.sp)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, p, s.mem())
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, l, s.mem())
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus3, c, s.mem())
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus4, nl, s.mem())
-		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("growslice", 0).Sym, s.mem())
-		call.AuxInt = int64(8 * Widthptr)
-		s.vars[&memVar] = call
-		b = s.endBlock()
-		b.Kind = ssa.BlockCall
-		b.Control = call
-		b.AddEdgeTo(growresult)
+		r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
-		// Read result of growslice
-		s.startBlock(growresult)
-		spplus5 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(5*Widthptr), s.sp)
-		// Note: we don't need to read the result's length.
-		spplus7 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(7*Widthptr), s.sp)
-		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, spplus5, s.mem())
-		s.vars[&capVar] = s.newValue2(ssa.OpLoad, Types[TINT], spplus7, s.mem())
+		s.vars[&ptrVar] = r[0]
+		// Note: we don't need to read r[1], the result's length.  It will be nl.
+		// (or maybe we should, we just have to spill/restore nl otherwise?)
+		s.vars[&capVar] = r[2]
 		b = s.endBlock()
 		b.AddEdgeTo(assign)
 
@@ -1907,10 +1888,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 
 		// make result
-		r := s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
 		delete(s.vars, &ptrVar)
 		delete(s.vars, &capVar)
-		return r
+		return s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
 
 	default:
 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
@@ -2369,6 +2349,68 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
 	s.startBlock(bNext)
 }
 
+// rtcall issues a call to the given runtime function fn with the listed args.
+// Returns a slice of results of the given result types.
+// The call is added to the end of the current block.
+// If returns is false, the block is marked as an exit block.
+// If returns is true, the block is marked as a call block.  A new block
+// is started to load the return values.
+func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Value) []*ssa.Value {
+	// Write args to the stack
+	var off int64 // TODO: arch-dependent starting offset?
+	for _, arg := range args {
+		t := arg.Type
+		off = Rnd(off, t.Alignment())
+		ptr := s.sp
+		if off != 0 {
+			ptr = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], off, s.sp)
+		}
+		size := t.Size()
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
+		off += size
+	}
+	off = Rnd(off, int64(Widthptr))
+
+	// Issue call
+	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, fn.Sym, s.mem())
+	s.vars[&memVar] = call
+
+	// Finish block
+	b := s.endBlock()
+	if !returns {
+		b.Kind = ssa.BlockExit
+		b.Control = call
+		call.AuxInt = off
+		if len(results) > 0 {
+			Fatalf("panic call can't have results")
+		}
+		return nil
+	}
+	b.Kind = ssa.BlockCall
+	b.Control = call
+	bNext := s.f.NewBlock(ssa.BlockPlain)
+	b.AddEdgeTo(bNext)
+	s.startBlock(bNext)
+
+	// Load results
+	res := make([]*ssa.Value, len(results))
+	for i, t := range results {
+		off = Rnd(off, t.Alignment())
+		ptr := s.sp
+		if off != 0 {
+			ptr = s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], off, s.sp)
+		}
+		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
+		off += t.Size()
+	}
+	off = Rnd(off, int64(Widthptr))
+
+	// Remember how much callee stack space we needed.
+	call.AuxInt = off
+
+	return res
+}
+
 // insertWB inserts a write barrier.  A value of type t has already
 // been stored at location p.  Tell the runtime about this write.
 // Note: there must be no GC suspension points between the write and
@@ -2378,7 +2420,6 @@ func (s *state) insertWB(t *Type, p *ssa.Value) {
 	//   typedmemmove_nostore(&t, p)
 	// }
 	bThen := s.f.NewBlock(ssa.BlockPlain)
-	bNext := s.f.NewBlock(ssa.BlockPlain)
 
 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrierEnabled", 0).Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
@@ -2388,23 +2429,13 @@ func (s *state) insertWB(t *Type, p *ssa.Value) {
 	b.Likely = ssa.BranchUnlikely
 	b.Control = flag
 	b.AddEdgeTo(bThen)
-	b.AddEdgeTo(bNext)
 
 	s.startBlock(bThen)
 	// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
 	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(t)}, s.sb)
-	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, taddr, s.mem())
-	spplus8 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
-	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus8, p, s.mem())
-	call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("typedmemmove_nostore", 0).Sym, s.mem())
-	call.AuxInt = int64(2 * Widthptr)
-	s.vars[&memVar] = call
-	c := s.endBlock()
-	c.Kind = ssa.BlockCall
-	c.Control = call
-	c.AddEdgeTo(bNext)
+	s.rtcall(typedmemmove_nostore, true, nil, taddr, p)
 
-	s.startBlock(bNext)
+	b.AddEdgeTo(s.curBlock)
 }
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.
@@ -2821,17 +2852,8 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if !commaok {
 		// on failure, panic by calling panicdottype
 		s.startBlock(bFail)
-
-		spplus1 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(Widthptr), s.sp)
-		spplus2 := s.newValue1I(ssa.OpOffPtr, Types[TUINTPTR], int64(2*Widthptr), s.sp)
 		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{byteptr, typenamesym(n.Left.Type)}, s.sb)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), s.sp, typ, s.mem())       // actual dynamic type
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus1, target, s.mem()) // type we're casting to
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), spplus2, taddr, s.mem())  // static source type
-		call := s.newValue1A(ssa.OpStaticCall, ssa.TypeMem, syslook("panicdottype", 0).Sym, s.mem())
-		s.endBlock()
-		bFail.Kind = ssa.BlockExit
-		bFail.Control = call
+		s.rtcall(panicdottype, false, nil, typ, target, taddr)
 
 		// on success, return idata field
 		s.startBlock(bOk)
