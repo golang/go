@@ -8,10 +8,12 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 
 API additions and behavior changes:
 
+bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
 fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
 math/rand: add Read (https://golang.org/cl/14522)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
 text/template: trimming spaces (https://golang.org/cl/14391/)
 text/template: Funcs check names (https://golang.org/cl/14562/)
+text/template: IsTrue (https://golang.org/cl/14562/)
 time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
