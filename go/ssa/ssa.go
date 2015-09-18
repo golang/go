@@ -53,10 +53,10 @@ type Package struct {
 
 	// The following fields are set transiently, then cleared
 	// after building.
-	started int32       // atomically tested and set at start of build phase
-	ninit   int32       // number of init functions
-	info    *types.Info // package type information
-	files   []*ast.File // package ASTs
+	buildOnce sync.Once   // ensures package building occurs once
+	ninit     int32       // number of init functions
+	info      *types.Info // package type information
+	files     []*ast.File // package ASTs
 }
 
 // A Member is a member of a Go package, implemented by *NamedConst,

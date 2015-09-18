@@ -35,7 +35,6 @@ import (
 	"go/token"
 	"os"
 	"sync"
-	"sync/atomic"
 
 	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/types"
@@ -2241,10 +2240,9 @@ func (prog *Program) Build() {
 //
 // Build is idempotent and thread-safe.
 //
-func (p *Package) Build() {
-	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
-		return // already started
-	}
+func (p *Package) Build() { p.buildOnce.Do(p.build) }
+
+func (p *Package) build() {
 	if p.info == nil {
 		return // synthetic package, e.g. "testmain"
 	}
