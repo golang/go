@@ -6,7 +6,7 @@ package tar
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/hex"
 	"io"
 	"io/ioutil"
 	"os"
@@ -18,40 +18,26 @@ import (
 	"time"
 )
 
-// Render byte array in a two-character hexadecimal string, spaced for easy visual inspection.
-func bytestr(offset int, b []byte) string {
-	const rowLen = 32
-	s := fmt.Sprintf("%04x ", offset)
-	for _, ch := range b {
-		switch {
-		case '0' <= ch && ch <= '9', 'A' <= ch && ch <= 'Z', 'a' <= ch && ch <= 'z':
-			s += fmt.Sprintf("  %c", ch)
-		default:
-			s += fmt.Sprintf(" %02x", ch)
-		}
-	}
-	return s
-}
-
 // Render a pseudo-diff between two blocks of bytes.
-func bytediff(a []byte, b []byte) string {
-	const rowLen = 32
-	s := fmt.Sprintf("(%d bytes vs. %d bytes)\n", len(a), len(b))
-	for offset := 0; len(a)+len(b) > 0; offset += rowLen {
-		na, nb := rowLen, rowLen
-		if na > len(a) {
-			na = len(a)
+func bytediff(a []byte, b []byte) (s string) {
+	var ax = strings.Split(hex.Dump(a), "\n")
+	var bx = strings.Split(hex.Dump(b), "\n")
+	for i := 0; i < len(ax) || i < len(bx); i++ {
+		var sa, sb = "", ""
+		if i < len(ax) {
+			sa = ax[i]
 		}
-		if nb > len(b) {
-			nb = len(b)
+		if i < len(bx) {
+			sb = bx[i]
 		}
-		sa := bytestr(offset, a[0:na])
-		sb := bytestr(offset, b[0:nb])
 		if sa != sb {
-			s += fmt.Sprintf("-%v\n+%v\n", sa, sb)
+			if len(sa) > 0 {
+				s += "+" + sa + "\n"
+			}
+			if len(sb) > 0 {
+				s += "-" + sb + "\n"
+			}
 		}
-		a = a[na:]
-		b = b[nb:]
 	}
 	return s
 }
