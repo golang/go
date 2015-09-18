@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 24, 2015",
+	"Subtitle": "Version of October 20, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -558,7 +558,9 @@ and are discussed in that section.
 </p>
 
 <p>
-Numeric constants represent values of arbitrary precision and do not overflow.
+Numeric constants represent exact values of arbitrary precision and do not overflow.
+Consequently, there are no constants denoting the IEEE-754 negative zero, infinity,
+and not-a-number values.
 </p>
 
 <p>
@@ -591,16 +593,6 @@ The default type of an untyped constant is <code>bool</code>, <code>rune</code>,
 <code>int</code>, <code>float64</code>, <code>complex128</code> or <code>string</code>
 respectively, depending on whether it is a boolean, rune, integer, floating-point,
 complex, or string constant.
-</p>
-
-<p>
-There are no constants denoting the IEEE-754 infinity and not-a-number values,
-but the <a href="/pkg/math/"><code>math</code> package</a>'s
-<a href="/pkg/math/#Inf">Inf</a>,
-<a href="/pkg/math/#NaN">NaN</a>,
-<a href="/pkg/math/#IsInf">IsInf</a>, and
-<a href="/pkg/math/#IsNaN">IsNaN</a>
-functions return and test for those values at run time.
 </p>
 
 <p>
@@ -3795,7 +3787,8 @@ type <code>T</code> in any of these cases:
 	<code>T</code> is a floating-point type,
 	and <code>x</code> is representable by a value
 	of type <code>T</code> after rounding using
-	IEEE 754 round-to-even rules.
+	IEEE 754 round-to-even rules, but with an IEEE <code>-0.0</code>
+	further rounded to an unsigned <code>0.0</code>.
 	The constant <code>T(x)</code> is the rounded value.
 	</li>
 	<li>
@@ -3815,6 +3808,7 @@ uint(iota)               // iota value of type uint
 float32(2.718281828)     // 2.718281828 of type float32
 complex128(1)            // 1.0 + 0.0i of type complex128
 float32(0.49999999)      // 0.5 of type float32
+float64(-1e-1000)        // 0.0 of type float64
 string('x')              // "x" of type string
 string(0x266c)           // "♬" of type string
 MyString("foo" + "bar")  // "foobar" of type MyString
