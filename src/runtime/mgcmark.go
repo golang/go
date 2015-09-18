@@ -823,12 +823,27 @@ func gcDumpObject(label string, obj, off uintptr) {
 		return
 	}
 	print(" s.start*_PageSize=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
+	skipped := false
 	for i := uintptr(0); i < s.elemsize; i += ptrSize {
+		// For big objects, just print the beginning (because
+		// that usually hints at the object's type) and the
+		// fields around off.
+		if !(i < 128*ptrSize || off-16*ptrSize < i && i < off+16*ptrSize) {
+			skipped = true
+			continue
+		}
+		if skipped {
+			print(" ...\n")
+			skipped = false
+		}
 		print(" *(", label, "+", i, ") = ", hex(*(*uintptr)(unsafe.Pointer(obj + uintptr(i)))))
 		if i == off {
 			print(" <==")
 		}
 		print("\n")
+	}
+	if skipped {
+		print(" ...\n")
 	}
 }
 
