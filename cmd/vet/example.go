@@ -7,6 +7,8 @@ package main
 import (
 	"go/ast"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/tools/go/types"
 )
@@ -18,7 +20,10 @@ func init() {
 		funcDecl)
 }
 
-func isExampleSuffix(s string) bool { return strings.ToLower(s) == s }
+func isExampleSuffix(s string) bool {
+	r, size := utf8.DecodeRuneInString(s)
+	return size > 0 && unicode.IsLower(r)
+}
 
 // checkExample walks the documentation example functions checking for common
 // mistakes of misnamed functions, failure to map functions to existing

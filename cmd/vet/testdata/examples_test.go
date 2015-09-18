@@ -17,7 +17,7 @@ var DefaultBuf Buf
 
 func Example() {} // OK because is package-level.
 
-func Example_suffix() // OK because refers to suffix annotation.
+func Example_goodSuffix() // OK because refers to suffix annotation.
 
 func Example_BadSuffix() // ERROR "Example_BadSuffix has malformed example suffix: BadSuffix"
 
