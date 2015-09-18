@@ -54,6 +54,7 @@ var tests = []test{
 			`Package comment`,
 			`const ExportedConstant = 1`,                            // Simple constant.
 			`const ConstOne = 1`,                                    // First entry in constant block.
+			`const ConstFive ...`,                                   // From block starting with unexported constant.
 			`var ExportedVariable = 1`,                              // Simple variable.
 			`var VarOne = 1`,                                        // First entry in variable block.
 			`func ExportedFunc\(a int\) bool`,                       // Function.
@@ -73,6 +74,7 @@ var tests = []test{
 			`Comment before VarOne`,             // No comment for first entry in variable block.
 			`ConstTwo = 2`,                      // No second entry in constant block.
 			`VarTwo = 2`,                        // No second entry in variable block.
+			`VarFive = 5`,                       // From block starting with unexported variable.
 			`type unexportedType`,               // No unexported type.
 			`unexportedTypedConstant`,           // No unexported typed constant.
 			`Field`,                             // No fields.

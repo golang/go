@@ -257,18 +257,7 @@ func (pkg *Package) packageClause(checkUserPath bool) {
 // valueSummary prints a one-line summary for each set of values and constants.
 func (pkg *Package) valueSummary(values []*doc.Value) {
 	for _, value := range values {
-		// Only print first item in spec, show ... to stand for the rest.
-		spec := value.Decl.Specs[0].(*ast.ValueSpec) // Must succeed.
-		exported := true
-		for _, name := range spec.Names {
-			if !isExported(name.Name) {
-				exported = false
-				break
-			}
-		}
-		if exported {
-			pkg.oneLineValueGenDecl(value.Decl)
-		}
+		pkg.oneLineValueGenDecl(value.Decl)
 	}
 }
 
