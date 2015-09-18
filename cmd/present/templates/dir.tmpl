@@ -1,10 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   <title>Talks - The Go Programming Language</title>
   <link type="text/css" rel="stylesheet" href="/static/dir.css">
   <script src="/static/dir.js"></script>
+  <script>
+    // Initialize Google Analytics tracking code on production site only.
+    if (window["location"] && window["location"]["hostname"] == "talks.golang.org") {
+      var _gaq = _gaq || [];
+      _gaq.push(["_setAccount", "UA-11222381-6"]);
+      _gaq.push(["b._setAccount", "UA-49880327-6"]);
+      window.trackPageview = function() {
+        _gaq.push(["_trackPageview", location.pathname+location.hash]);
+        _gaq.push(["b._trackPageview", location.pathname+location.hash]);
+      };
+      window.trackPageview();
+      window.trackEvent = function(category, action, opt_label, opt_value, opt_noninteraction) {
+        _gaq.push(["_trackEvent", category, action, opt_label, opt_value, opt_noninteraction]);
+        _gaq.push(["b._trackEvent", category, action, opt_label, opt_value, opt_noninteraction]);
+      };
+    }
+  </script>
 </head>
 <body>
 
@@ -77,5 +94,15 @@ and code is licensed under a <a href="http://golang.org/LICENSE">BSD license</a>
 <a href="http://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
 </div>
 
+<script>
+  (function() {
+    // Load Google Analytics tracking code on production site only.
+    if (window["location"] && window["location"]["hostname"] == "talks.golang.org") {
+      var ga = document.createElement("script"); ga.type = "text/javascript"; ga.async = true;
+      ga.src = ("https:" == document.location.protocol ? "https://ssl" : "http://www") + ".google-analytics.com/ga.js";
+      var s = document.getElementsByTagName("script")[0]; s.parentNode.insertBefore(ga, s);
+    }
+  })();
+</script>
 </body>
 </html>
