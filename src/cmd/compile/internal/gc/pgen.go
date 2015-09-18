@@ -338,6 +338,9 @@ func compile(fn *Node) {
 		Panicindex = Sysfunc("panicindex")
 		panicslice = Sysfunc("panicslice")
 		throwreturn = Sysfunc("throwreturn")
+		growslice = Sysfunc("growslice")
+		typedmemmove_nostore = Sysfunc("typedmemmove_nostore")
+		panicdottype = Sysfunc("panicdottype")
 	}
 
 	lno := setlineno(fn)

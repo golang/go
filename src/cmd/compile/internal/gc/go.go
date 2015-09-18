@@ -866,3 +866,9 @@ var Panicindex *Node
 var panicslice *Node
 
 var throwreturn *Node
+
+var growslice *Node
+
+var typedmemmove_nostore *Node
+
+var panicdottype *Node
