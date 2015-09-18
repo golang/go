@@ -10,6 +10,19 @@ import (
 	"strings"
 )
 
+// IntLiteral returns the Node's literal value as an interger.
+func (n *Node) IntLiteral() (x int64, ok bool) {
+	switch {
+	case n == nil:
+		return
+	case Isconst(n, CTINT):
+		return n.Int(), true
+	case Isconst(n, CTBOOL):
+		return int64(obj.Bool2int(n.Bool())), true
+	}
+	return
+}
+
 // Int returns n as an int.
 // n must be an integer constant.
 func (n *Node) Int() int64 {
