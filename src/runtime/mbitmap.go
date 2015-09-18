@@ -182,7 +182,11 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
 // If p does not point into a heap object,
 // return base == 0
 // otherwise return the base of the object.
-func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
+//
+// refBase and refOff optionally give the base address of the object
+// in which the pointer p was found and the byte offset at which it
+// was found. These are used for error reporting.
+func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits, s *mspan) {
 	arenaStart := mheap_.arena_start
 	if p < arenaStart || p >= mheap_.arena_used {
 		return
@@ -203,18 +207,28 @@ func heapBitsForObject(p uintptr) (base uintptr, hbits heapBits, s *mspan) {
 
 		// The following ensures that we are rigorous about what data
 		// structures hold valid pointers.
-		// TODO(rsc): Check if this still happens.
 		if debug.invalidptr != 0 {
-			// Still happens sometimes. We don't know why.
+			// Typically this indicates an incorrect use
+			// of unsafe or cgo to store a bad pointer in
+			// the Go heap. It may also indicate a runtime
+			// bug.
+			//
+			// TODO(austin): We could be more aggressive
+			// and detect pointers to unallocated objects
+			// in allocated spans.
 			printlock()
-			print("runtime:objectstart Span weird: p=", hex(p), " k=", hex(k))
-			if s == nil {
-				print(" s=nil\n")
+			print("runtime: pointer ", hex(p))
+			if s.state != mSpanInUse {
+				print(" to unallocated span")
 			} else {
-				print(" s.start=", hex(s.start<<_PageShift), " s.limit=", hex(s.limit), " s.state=", s.state, "\n")
+				print(" to unused region of span")
 			}
-			printunlock()
-			throw("objectstart: bad pointer in unexpected span")
+			print("idx=", hex(idx), " span.start=", hex(s.start<<_PageShift), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
+			if refBase != 0 {
+				print("runtime: found in object at *(", hex(refBase), "+", hex(off), ")\n")
+				gcDumpObject("object", refBase, refOff)
+			}
+			throw("found bad pointer in Go heap (incorrect use of unsafe or cgo?)")
 		}
 		return
 	}

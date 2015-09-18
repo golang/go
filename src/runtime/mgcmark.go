@@ -659,7 +659,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 				// Same work as in scanobject; see comments there.
 				obj := *(*uintptr)(unsafe.Pointer(b + i))
 				if obj != 0 && arena_start <= obj && obj < arena_used {
-					if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+					if obj, hbits, span := heapBitsForObject(obj, b, i); obj != 0 {
 						greyobject(obj, b, i, hbits, span, gcw)
 					}
 				}
@@ -725,7 +725,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// Check if it points into heap and not back at the current object.
 		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
 			// Mark the object.
-			if obj, hbits, span := heapBitsForObject(obj); obj != 0 {
+			if obj, hbits, span := heapBitsForObject(obj, b, i); obj != 0 {
 				greyobject(obj, b, i, hbits, span, gcw)
 			}
 		}
@@ -739,7 +739,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 // Preemption must be disabled.
 //go:nowritebarrier
 func shade(b uintptr) {
-	if obj, hbits, span := heapBitsForObject(b); obj != 0 {
+	if obj, hbits, span := heapBitsForObject(b, 0, 0); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
 		greyobject(obj, 0, 0, hbits, span, gcw)
 		if gcphase == _GCmarktermination || gcBlackenPromptly {
@@ -810,7 +810,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 // field at byte offset off in obj.
 func gcDumpObject(label string, obj, off uintptr) {
 	if obj < mheap_.arena_start || obj >= mheap_.arena_used {
-		print(label, "=", hex(obj), " is not a heap object\n")
+		print(label, "=", hex(obj), " is not in the Go heap\n")
 		return
 	}
 	k := obj >> _PageShift
