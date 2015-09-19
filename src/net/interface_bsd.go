@@ -16,7 +16,7 @@ import (
 // network interfaces.  Otherwise it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
-	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
+	tab, err := syscall.RouteRIB(rtSockIfListSyscall, ifindex)
 	if err != nil {
 		return nil, os.NewSyscallError("routerib", err)
 	}
@@ -102,7 +102,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	if ifi != nil {
 		index = ifi.Index
 	}
-	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, index)
+	tab, err := syscall.RouteRIB(rtSockIfListSyscall, index)
 	if err != nil {
 		return nil, os.NewSyscallError("routerib", err)
 	}

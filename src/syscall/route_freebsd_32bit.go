@@ -16,18 +16,3 @@ func (any *anyMessage) parseRouteMessage(b []byte) *RouteMessage {
 	}
 	return &RouteMessage{Header: p.Header, Data: b[rsaAlignOf(off):any.Msglen]}
 }
-
-func (any *anyMessage) parseInterfaceMessage(b []byte) *InterfaceMessage {
-	p := (*InterfaceMessage)(unsafe.Pointer(any))
-	// FreeBSD 10 and beyond have a restructured mbuf
-	// packet header view.
-	// See http://svnweb.freebsd.org/base?view=revision&revision=254804.
-	if freebsdVersion >= 1000000 {
-		m := (*ifMsghdr)(unsafe.Pointer(any))
-		p.Header.Data.Hwassist = uint32(m.Data.Hwassist)
-		p.Header.Data.Epoch = m.Data.Epoch
-		p.Header.Data.Lastchange = m.Data.Lastchange
-		return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
-	}
-	return &InterfaceMessage{Header: p.Header, Data: b[int(unsafe.Offsetof(p.Header.Data))+int(p.Header.Data.Datalen) : any.Msglen]}
-}
