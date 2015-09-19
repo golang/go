@@ -10,13 +10,18 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
 )
 
 func TestRouteRIB(t *testing.T) {
-	for _, facility := range []int{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
+	var rtSockIfListSyscall = syscall.NET_RT_IFLIST
+	if runtime.GOOS == "freebsd" {
+		rtSockIfListSyscall = syscall.NET_RT_IFLISTL
+	}
+	for _, facility := range []int{syscall.NET_RT_DUMP, rtSockIfListSyscall} {
 		for _, param := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
 			var err error
 			var b []byte

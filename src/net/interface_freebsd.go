@@ -9,6 +9,8 @@ import (
 	"syscall"
 )
 
+const rtSockIfListSyscall = syscall.NET_RT_IFLISTL
+
 // interfaceMulticastAddrTable returns addresses for a specific
 // interface.
 func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
