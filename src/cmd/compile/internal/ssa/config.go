@@ -34,6 +34,8 @@ type TypeSource interface {
 	TypeUintptr() Type
 	TypeString() Type
 	TypeBytePtr() Type // TODO: use unsafe.Pointer instead?
+
+	CanSSA(t Type) bool
 }
 
 type Logger interface {
