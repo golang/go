@@ -574,7 +574,16 @@ func (s *state) stmt(n *Node) {
 		}
 		var r *ssa.Value
 		if n.Right != nil {
-			r = s.expr(n.Right)
+			if n.Right.Op == OSTRUCTLIT || n.Right.Op == OARRAYLIT {
+				// All literals with nonzero fields have already been
+				// rewritten during walk.  Any that remain are just T{}
+				// or equivalents.  Leave r = nil to get zeroing behavior.
+				if !iszero(n.Right) {
+					Fatalf("literal with nonzero value in SSA: %v", n.Right)
+				}
+			} else {
+				r = s.expr(n.Right)
+			}
 		}
 		if n.Right != nil && n.Right.Op == OAPPEND {
 			// Yuck!  The frontend gets rid of the write barrier, but we need it!
