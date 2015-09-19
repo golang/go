@@ -162,11 +162,13 @@ func (s *Scanner) Scan() bool {
 		}
 		// Is the buffer full? If so, resize.
 		if s.end == len(s.buf) {
-			if len(s.buf) >= s.maxTokenSize {
+			// Guarantee no overflow in the multiplication below.
+			const maxInt = int(^uint(0) >> 1)
+			if len(s.buf) >= s.maxTokenSize || len(s.buf) > maxInt/2 {
 				s.setErr(ErrTooLong)
 				return false
 			}
-			newSize := len(s.buf) * 2 // See protection against overflow in Buffer.
+			newSize := len(s.buf) * 2
 			if newSize == 0 {
 				newSize = startBufSize
 			}
@@ -238,12 +240,6 @@ func (s *Scanner) Buffer(buf []byte, max int) {
 		panic("Buffer called after Scan")
 	}
 	s.buf = buf[0:cap(buf)]
-	// Guarantee no overflow: we multiply len(s.buf) by two in Scan,
-	// but only if it exceeds maxTokenSize.
-	const maxInt = int(^uint(0) >> 1)
-	if max > maxInt {
-		max = maxInt
-	}
 	s.maxTokenSize = max
 }
 
