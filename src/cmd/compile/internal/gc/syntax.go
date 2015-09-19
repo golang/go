@@ -409,9 +409,10 @@ func list(l *NodeList, n *Node) *NodeList {
 	return concat(l, list1(n))
 }
 
-// listsort sorts *l in place according to the 3-way comparison function f.
+// listsort sorts *l in place according to the comparison function lt.
+// The algorithm expects lt(a, b) to be equivalent to a < b.
 // The algorithm is mergesort, so it is guaranteed to be O(n log n).
-func listsort(l **NodeList, f func(*Node, *Node) int) {
+func listsort(l **NodeList, lt func(*Node, *Node) bool) {
 	if *l == nil || (*l).Next == nil {
 		return
 	}
@@ -436,10 +437,10 @@ func listsort(l **NodeList, f func(*Node, *Node) int) {
 	(*l).End = l1
 
 	l1 = *l
-	listsort(&l1, f)
-	listsort(&l2, f)
+	listsort(&l1, lt)
+	listsort(&l2, lt)
 
-	if f(l1.N, l2.N) < 0 {
+	if lt(l1.N, l2.N) {
 		*l = l1
 	} else {
 		*l = l2
@@ -451,7 +452,7 @@ func listsort(l **NodeList, f func(*Node, *Node) int) {
 
 	var le *NodeList
 	for (l1 != nil) && (l2 != nil) {
-		for (l1.Next != nil) && f(l1.Next.N, l2.N) < 0 {
+		for (l1.Next != nil) && lt(l1.Next.N, l2.N) {
 			l1 = l1.Next
 		}
 

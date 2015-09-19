@@ -4,7 +4,10 @@
 
 package gc
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // Test all code paths for cmpstackvarlt.
 func TestCmpstackvar(t *testing.T) {
@@ -97,6 +100,77 @@ func TestCmpstackvar(t *testing.T) {
 		got := cmpstackvarlt(&d.a, &d.b)
 		if got != d.lt {
 			t.Errorf("want %#v < %#v", d.a, d.b)
+		}
+	}
+}
+
+func slice2nodelist(s []*Node) *NodeList {
+	var nl *NodeList
+	for _, n := range s {
+		nl = list(nl, n)
+	}
+	return nl
+}
+
+func nodelist2slice(nl *NodeList) []*Node {
+	var s []*Node
+	for l := nl; l != nil; l = l.Next {
+		s = append(s, l.N)
+	}
+	return s
+}
+
+func TestListsort(t *testing.T) {
+	inp := []*Node{
+		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Xoffset: 0, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Used: true, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{Needzero: true}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
+	}
+	want := []*Node{
+		{Class: PFUNC, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Xoffset: 0, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Xoffset: 10, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PFUNC, Xoffset: 20, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Used: true, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{Needzero: true}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{Width: 2}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{Width: 1}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "abc"}},
+		{Class: PAUTO, Type: &Type{}, Name: &Name{}, Sym: &Sym{Name: "xyz"}},
+		{Class: PAUTO, Type: &Type{Haspointers: 1}, Name: &Name{}, Sym: &Sym{}}, // haspointers -> false
+	}
+	// haspointers updates Type.Haspointers as a side effect, so
+	// exercise this function on all inputs so that reflect.DeepEqual
+	// doesn't produce false positives.
+	for i := range want {
+		haspointers(want[i].Type)
+		haspointers(inp[i].Type)
+	}
+
+	nl := slice2nodelist(inp)
+	listsort(&nl, cmpstackvarlt)
+	got := nodelist2slice(nl)
+	if !reflect.DeepEqual(want, got) {
+		t.Error("listsort failed")
+		for i := range got {
+			g := got[i]
+			w := want[i]
+			eq := reflect.DeepEqual(w, g)
+			if !eq {
+				t.Log(i, w, g)
+			}
 		}
 	}
 }
