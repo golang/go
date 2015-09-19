@@ -727,6 +727,9 @@ func (d *decoder) parseChunk() error {
 		d.stage = dsSeenIEND
 		return d.parseIEND(length)
 	}
+	if length > 0x7fffffff {
+		return FormatError(fmt.Sprintf("Bad chunk length: %d", length))
+	}
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte
 	for length > 0 {
