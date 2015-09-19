@@ -117,9 +117,8 @@ func init() {
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
 
-		gpstore      = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
-		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+		gpstore    = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
 
 		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -167,14 +166,14 @@ func init() {
 		{name: "MOVSDstoreidx8", reg: fpstoreidx, asm: "MOVSD"}, // fp64 indexed by 8i store
 
 		// binary ops
-		{name: "ADDQ", reg: gp21, asm: "ADDQ"},      // arg0 + arg1
-		{name: "ADDL", reg: gp21, asm: "ADDL"},      // arg0 + arg1
-		{name: "ADDW", reg: gp21, asm: "ADDW"},      // arg0 + arg1
-		{name: "ADDB", reg: gp21, asm: "ADDB"},      // arg0 + arg1
-		{name: "ADDQconst", reg: gp11, asm: "ADDQ"}, // arg0 + auxint
-		{name: "ADDLconst", reg: gp11, asm: "ADDL"}, // arg0 + auxint
-		{name: "ADDWconst", reg: gp11, asm: "ADDW"}, // arg0 + auxint
-		{name: "ADDBconst", reg: gp11, asm: "ADDB"}, // arg0 + auxint
+		{name: "ADDQ", reg: gp21, asm: "ADDQ"},                     // arg0 + arg1
+		{name: "ADDL", reg: gp21, asm: "ADDL"},                     // arg0 + arg1
+		{name: "ADDW", reg: gp21, asm: "ADDW"},                     // arg0 + arg1
+		{name: "ADDB", reg: gp21, asm: "ADDB"},                     // arg0 + arg1
+		{name: "ADDQconst", reg: gp11, asm: "ADDQ", typ: "UInt64"}, // arg0 + auxint
+		{name: "ADDLconst", reg: gp11, asm: "ADDL"},                // arg0 + auxint
+		{name: "ADDWconst", reg: gp11, asm: "ADDW"},                // arg0 + auxint
+		{name: "ADDBconst", reg: gp11, asm: "ADDB"},                // arg0 + auxint
 
 		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
 		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
@@ -343,10 +342,10 @@ func init() {
 
 		// clobbers flags as liblink will rewrite these to XOR reg, reg if the constant is zero
 		// TODO: revisit when issue 12405 is fixed
-		{name: "MOVBconst", reg: gp01flags, asm: "MOVB"}, // 8 low bits of auxint
-		{name: "MOVWconst", reg: gp01flags, asm: "MOVW"}, // 16 low bits of auxint
-		{name: "MOVLconst", reg: gp01flags, asm: "MOVL"}, // 32 low bits of auxint
-		{name: "MOVQconst", reg: gp01flags, asm: "MOVQ"}, // auxint
+		{name: "MOVBconst", reg: gp01flags, asm: "MOVB", typ: "UInt8"},  // 8 low bits of auxint
+		{name: "MOVWconst", reg: gp01flags, asm: "MOVW", typ: "UInt16"}, // 16 low bits of auxint
+		{name: "MOVLconst", reg: gp01flags, asm: "MOVL", typ: "UInt32"}, // 32 low bits of auxint
+		{name: "MOVQconst", reg: gp01flags, asm: "MOVQ", typ: "UInt64"}, // auxint
 
 		{name: "CVTTSD2SL", reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
 		{name: "CVTTSD2SQ", reg: fpgp, asm: "CVTTSD2SQ"}, // convert float64 to int64
@@ -368,24 +367,45 @@ func init() {
 		{name: "LEAQ8", reg: gp21sb}, // arg0 + 8*arg1 + auxint
 
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
-		{name: "MOVBload", reg: gpload, asm: "MOVB"},          // load byte from arg0+auxint+aux. arg1=mem
-		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},    // ditto, extend to int64
-		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},    // ditto, extend to uint64
-		{name: "MOVWload", reg: gpload, asm: "MOVW"},          // load 2 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVLload", reg: gpload, asm: "MOVL"},          // load 4 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVQload", reg: gpload, asm: "MOVQ"},          // load 8 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},   // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
-		{name: "MOVBstore", reg: gpstore, asm: "MOVB"},        // store byte in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVWstore", reg: gpstore, asm: "MOVW"},        // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVLstore", reg: gpstore, asm: "MOVL"},        // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ"},        // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVBload", reg: gpload, asm: "MOVB"},               // load byte from arg0+auxint+aux. arg1=mem
+		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},         // ditto, extend to int64
+		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},         // ditto, extend to uint64
+		{name: "MOVWload", reg: gpload, asm: "MOVW"},               // load 2 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVLload", reg: gpload, asm: "MOVL"},               // load 4 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVQload", reg: gpload, asm: "MOVQ"},               // load 8 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},        // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+		{name: "MOVBstore", reg: gpstore, asm: "MOVB", typ: "Mem"}, // store byte in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVWstore", reg: gpstore, asm: "MOVW", typ: "Mem"}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVLstore", reg: gpstore, asm: "MOVL", typ: "Mem"}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", typ: "Mem"}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"},      // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 
-		{name: "MOVXzero", reg: gpstoreconst}, // store auxint 0 bytes into arg0 using a series of MOV instructions. arg1=mem.
+		// arg0 = (duff-adjusted) pointer to start of memory to zero
+		// arg1 = value to store (will always be zero)
+		// arg2 = mem
+		// auxint = offset into duffzero code to start executing
+		// returns mem
+		{
+			name: "DUFFZERO",
+			reg: regInfo{
+				inputs:   []regMask{buildReg("DI"), buildReg("AX")},
+				clobbers: buildReg("DI FLAGS"),
+			},
+		},
 
-		{name: "REPSTOSQ", reg: regInfo{[]regMask{buildReg("DI"), buildReg("CX")}, buildReg("DI AX CX FLAGS"), nil}}, // store arg1 8-byte words containing zero into arg0 using STOSQ. arg2=mem.
+		// arg0 = address of memory to zero
+		// arg1 = # of 8-byte words to zero
+		// arg2 = value to store (will always be zero)
+		// arg3 = mem
+		// returns mem
+		{
+			name: "REPSTOSQ",
+			reg: regInfo{
+				inputs:   []regMask{buildReg("DI"), buildReg("CX"), buildReg("AX")},
+				clobbers: buildReg("DI CX FLAGS"),
+			},
+		},
 
-		//TODO: set register clobber to everything?
 		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}},                                 // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
 		{name: "CALLdefer", reg: regInfo{clobbers: callerSave}},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem

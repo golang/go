@@ -260,7 +260,7 @@ const (
 	OpAMD64MOVLstore
 	OpAMD64MOVQstore
 	OpAMD64MOVQstoreidx8
-	OpAMD64MOVXzero
+	OpAMD64DUFFZERO
 	OpAMD64REPSTOSQ
 	OpAMD64CALLstatic
 	OpAMD64CALLclosure
@@ -3034,11 +3034,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVXzero",
+		name: "DUFFZERO",
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+				{0, 128}, // .DI
+				{1, 1},   // .AX
 			},
+			clobbers: 8589934720, // .DI .FLAGS
 		},
 	},
 	{
@@ -3047,8 +3049,9 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, 128}, // .DI
 				{1, 2},   // .CX
+				{2, 1},   // .AX
 			},
-			clobbers: 8589934723, // .AX .CX .DI .FLAGS
+			clobbers: 8589934722, // .CX .DI .FLAGS
 		},
 	},
 	{

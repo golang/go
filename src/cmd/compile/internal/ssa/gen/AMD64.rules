@@ -565,15 +565,50 @@
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> mem
-(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst <config.Frontend().TypeInt8()> [0]) mem)
-(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst <config.Frontend().TypeInt16()> [0]) mem)
-(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst <config.Frontend().TypeInt32()> [0]) mem)
-(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst <config.Frontend().TypeInt64()> [0]) mem)
+(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst [0]) mem)
+(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst [0]) mem)
+(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst [0]) mem)
+(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst [0]) mem)
 
-// rewrite anything less than 4 words into a series of MOV[BWLQ] $0, ptr(off) instructions
-(Zero [size] destptr mem) && size < 4*8 -> (MOVXzero [size] destptr mem)
-// Use STOSQ to zero memory. Rewrite this into storing the words with REPSTOSQ and then filling in the remainder with linear moves
-(Zero [size] destptr mem) && size >= 4*8 -> (Zero [size%8] (OffPtr <config.Frontend().TypeUInt64()> [size-(size%8)] destptr) (REPSTOSQ  <TypeMem> destptr (MOVQconst <config.Frontend().TypeUInt64()> [size/8]) mem))
+(Zero [3] destptr mem) ->
+	(MOVBstore (ADDQconst [2] destptr) (MOVBconst [0])
+		(MOVWstore destptr (MOVWconst [0]) mem))
+(Zero [5] destptr mem) ->
+	(MOVBstore (ADDQconst [4] destptr) (MOVBconst [0])
+		(MOVLstore destptr (MOVLconst [0]) mem))
+(Zero [6] destptr mem) ->
+	(MOVWstore (ADDQconst [4] destptr) (MOVWconst [0])
+		(MOVLstore destptr (MOVLconst [0]) mem))
+(Zero [7] destptr mem) ->
+	(MOVLstore (ADDQconst [3] destptr) (MOVLconst [0])
+		(MOVLstore destptr (MOVLconst [0]) mem))
+
+// Strip off any fractional word zeroing.
+(Zero [size] destptr mem) && size%8 != 0 && size > 8 ->
+	(Zero [size-size%8] (ADDQconst destptr [size%8])
+		(MOVQstore destptr (MOVQconst [0]) mem))
+
+// Zero small numbers of words directly.
+(Zero [16] destptr mem) ->
+	(MOVQstore (ADDQconst [8] destptr) (MOVQconst [0])
+		(MOVQstore destptr (MOVQconst [0]) mem))
+(Zero [24] destptr mem) ->
+	(MOVQstore (ADDQconst [16] destptr) (MOVQconst [0])
+		(MOVQstore (ADDQconst [8] destptr) (MOVQconst [0])
+			(MOVQstore destptr (MOVQconst [0]) mem)))
+(Zero [32] destptr mem) ->
+	(MOVQstore (ADDQconst [24] destptr) (MOVQconst [0])
+		(MOVQstore (ADDQconst [16] destptr) (MOVQconst [0])
+			(MOVQstore (ADDQconst [8] destptr) (MOVQconst [0])
+				(MOVQstore destptr (MOVQconst [0]) mem))))
+
+// Medium zeroing uses a duff device.
+(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 ->
+	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVQconst [0]) mem)
+
+// Large zeroing uses REP STOSQ.
+(Zero [size] destptr mem) && size > 1024 && size%8 == 0 ->
+	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
