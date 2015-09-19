@@ -430,7 +430,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpEqInter:
 		// match: (EqInter x y)
 		// cond:
-		// result: (EqPtr (ITab x) (ITab y))
+		// result: (EqPtr  (ITab x) (ITab y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -448,8 +448,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v1)
 			return true
 		}
-		goto endfcedc545b9bbbe3790786c8981b12d32
-	endfcedc545b9bbbe3790786c8981b12d32:
+		goto end1cc40483caab33ece971ab7e6c8fdfca
+	end1cc40483caab33ece971ab7e6c8fdfca:
 		;
 	case OpEqPtr:
 		// match: (EqPtr p (ConstNil))
@@ -497,7 +497,7 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	case OpEqSlice:
 		// match: (EqSlice x y)
 		// cond:
-		// result: (EqPtr (SlicePtr x) (SlicePtr y))
+		// result: (EqPtr  (SlicePtr x) (SlicePtr y))
 		{
 			x := v.Args[0]
 			y := v.Args[1]
@@ -515,8 +515,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v1)
 			return true
 		}
-		goto end2937092dca53f896cd527e59e92cab1d
-	end2937092dca53f896cd527e59e92cab1d:
+		goto end9cd53ca57ee90aa09c54f8071c8e8769
+	end9cd53ca57ee90aa09c54f8071c8e8769:
 		;
 	case OpIData:
 		// match: (IData (IMake _ data))
@@ -1398,22 +1398,23 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto endaa801a871178ae3256b3f6f5d9f13514
 	endaa801a871178ae3256b3f6f5d9f13514:
 		;
-		// match: (Store [size] dst (Load src mem) mem)
-		// cond: size > config.IntSize
+		// match: (Store [size] dst (Load <t> src mem) mem)
+		// cond: !config.fe.CanSSA(t)
 		// result: (Move [size] dst src mem)
 		{
 			size := v.AuxInt
 			dst := v.Args[0]
 			if v.Args[1].Op != OpLoad {
-				goto enda18a7163888e2f4fca9f38bae56cef42
+				goto end45295326269ba18413dceb7b608a0b9d
 			}
+			t := v.Args[1].Type
 			src := v.Args[1].Args[0]
 			mem := v.Args[1].Args[1]
 			if v.Args[2] != mem {
-				goto enda18a7163888e2f4fca9f38bae56cef42
+				goto end45295326269ba18413dceb7b608a0b9d
 			}
-			if !(size > config.IntSize) {
-				goto enda18a7163888e2f4fca9f38bae56cef42
+			if !(!config.fe.CanSSA(t)) {
+				goto end45295326269ba18413dceb7b608a0b9d
 			}
 			v.Op = OpMove
 			v.AuxInt = 0
@@ -1425,29 +1426,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(mem)
 			return true
 		}
-		goto enda18a7163888e2f4fca9f38bae56cef42
-	enda18a7163888e2f4fca9f38bae56cef42:
+		goto end45295326269ba18413dceb7b608a0b9d
+	end45295326269ba18413dceb7b608a0b9d:
 		;
-		// match: (Store [size] dst (Load src mem) (VarDef {x} mem))
-		// cond: size > config.IntSize
+		// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
+		// cond: !config.fe.CanSSA(t)
 		// result: (Move [size] dst src (VarDef {x} mem))
 		{
 			size := v.AuxInt
 			dst := v.Args[0]
 			if v.Args[1].Op != OpLoad {
-				goto endc671c9b1be99e3125fe81e29018bc0e6
+				goto end7f3cc0baffb82ba3ee879599b189a512
 			}
+			t := v.Args[1].Type
 			src := v.Args[1].Args[0]
 			mem := v.Args[1].Args[1]
 			if v.Args[2].Op != OpVarDef {
-				goto endc671c9b1be99e3125fe81e29018bc0e6
+				goto end7f3cc0baffb82ba3ee879599b189a512
 			}
 			x := v.Args[2].Aux
 			if v.Args[2].Args[0] != mem {
-				goto endc671c9b1be99e3125fe81e29018bc0e6
+				goto end7f3cc0baffb82ba3ee879599b189a512
 			}
-			if !(size > config.IntSize) {
-				goto endc671c9b1be99e3125fe81e29018bc0e6
+			if !(!config.fe.CanSSA(t)) {
+				goto end7f3cc0baffb82ba3ee879599b189a512
 			}
 			v.Op = OpMove
 			v.AuxInt = 0
@@ -1463,8 +1465,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 			v.AddArg(v0)
 			return true
 		}
-		goto endc671c9b1be99e3125fe81e29018bc0e6
-	endc671c9b1be99e3125fe81e29018bc0e6:
+		goto end7f3cc0baffb82ba3ee879599b189a512
+	end7f3cc0baffb82ba3ee879599b189a512:
 		;
 	case OpStringLen:
 		// match: (StringLen (StringMake _ len))

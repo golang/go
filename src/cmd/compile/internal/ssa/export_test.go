@@ -50,3 +50,8 @@ func (d DummyFrontend) TypeInt() Type     { return TypeInt64 }
 func (d DummyFrontend) TypeUintptr() Type { return TypeUInt64 }
 func (d DummyFrontend) TypeString() Type  { panic("unimplemented") }
 func (d DummyFrontend) TypeBytePtr() Type { return TypeBytePtr }
+
+func (d DummyFrontend) CanSSA(t Type) bool {
+	// There are no un-SSAable types in dummy land.
+	return true
+}

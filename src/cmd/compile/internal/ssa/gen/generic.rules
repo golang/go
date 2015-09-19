@@ -176,9 +176,9 @@
     data
     (Store [config.PtrSize] dst itab mem))
 
-// big-object moves (TODO: remove?)
-(Store [size] dst (Load src mem) mem) && size > config.IntSize -> (Move [size] dst src mem)
-(Store [size] dst (Load src mem) (VarDef {x} mem)) && size > config.IntSize -> (Move [size] dst src (VarDef {x} mem))
+// un-SSAable values use mem->mem copies
+(Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
+(Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
 
 (If (IsNonNil (GetG)) yes no) -> (First nil yes no)
 

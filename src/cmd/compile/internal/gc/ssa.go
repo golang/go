@@ -4242,6 +4242,10 @@ func (e *ssaExport) Auto(t ssa.Type) fmt.Stringer {
 	return n
 }
 
+func (e ssaExport) CanSSA(t ssa.Type) bool {
+	return canSSAType(t.(*Type))
+}
+
 // Log logs a message from the compiler.
 func (e *ssaExport) Logf(msg string, args ...interface{}) {
 	// If e was marked as unimplemented, anything could happen. Ignore.
