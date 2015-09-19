@@ -3613,22 +3613,12 @@ func (s *genState) genValue(v *ssa.Value) {
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
 		ssa.OpAMD64CVTSS2SD, ssa.OpAMD64CVTSD2SS:
 		opregreg(v.Op.Asm(), regnum(v), regnum(v.Args[0]))
-	case ssa.OpAMD64MOVXzero:
-		nb := v.AuxInt
-		offset := int64(0)
-		reg := regnum(v.Args[0])
-		for nb >= 8 {
-			nb, offset = movZero(x86.AMOVQ, 8, nb, offset, reg)
-		}
-		for nb >= 4 {
-			nb, offset = movZero(x86.AMOVL, 4, nb, offset, reg)
-		}
-		for nb >= 2 {
-			nb, offset = movZero(x86.AMOVW, 2, nb, offset, reg)
-		}
-		for nb >= 1 {
-			nb, offset = movZero(x86.AMOVB, 1, nb, offset, reg)
-		}
+	case ssa.OpAMD64DUFFZERO:
+		p := Prog(obj.ADUFFZERO)
+		p.To.Type = obj.TYPE_ADDR
+		p.To.Sym = Linksym(Pkglookup("duffzero", Runtimepkg))
+		p.To.Offset = v.AuxInt
+
 	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
 		if v.Type.IsMemory() {
 			return
@@ -3830,11 +3820,6 @@ func (s *genState) genValue(v *ssa.Value) {
 	case ssa.OpAMD64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v)
 	case ssa.OpAMD64REPSTOSQ:
-		p := Prog(x86.AXORL) // TODO: lift out zeroing into its own instruction?
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x86.REG_AX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
 		Prog(x86.AREP)
 		Prog(x86.ASTOSQ)
 	case ssa.OpAMD64REPMOVSB:

@@ -178,3 +178,52 @@ func b2i(b bool) int64 {
 func f2i(f float64) int64 {
 	return int64(math.Float64bits(f))
 }
+
+// DUFFZERO consists of repeated blocks of 4 MOVs + ADD,
+// with 4 STOSQs at the very end.
+// The trailing STOSQs prevent the need for a DI preadjustment
+// for small numbers of words to clear.
+// See runtime/mkduff.go.
+const (
+	dzBlocks    = 31 // number of MOV/ADD blocks
+	dzBlockLen  = 4  // number of clears per block
+	dzBlockSize = 19 // size of instructions in a single block
+	dzMovSize   = 4  // size of single MOV instruction w/ offset
+	dzAddSize   = 4  // size of single ADD instruction
+	dzDIStep    = 8  // number of bytes cleared by each MOV instruction
+
+	dzTailLen  = 4 // number of final STOSQ instructions
+	dzTailSize = 2 // size of single STOSQ instruction
+
+	dzSize = dzBlocks*dzBlockSize + dzTailLen*dzTailSize // total size of DUFFZERO routine
+)
+
+func duffStart(size int64) int64 {
+	x, _ := duff(size)
+	return x
+}
+func duffAdj(size int64) int64 {
+	_, x := duff(size)
+	return x
+}
+
+// duff returns the offset (from duffzero, in bytes) and pointer adjust (in bytes)
+// required to use the duffzero mechanism for a block of the given size.
+func duff(size int64) (int64, int64) {
+	if size < 32 || size > 1024 || size%8 != 0 {
+		panic("bad duffzero size")
+	}
+	// TODO: arch-dependent
+	off := int64(dzSize)
+	off -= dzTailLen * dzTailSize
+	size -= dzTailLen * dzDIStep
+	q := size / dzDIStep
+	blocks, singles := q/dzBlockLen, q%dzBlockLen
+	off -= dzBlockSize * blocks
+	var adj int64
+	if singles > 0 {
+		off -= dzAddSize + dzMovSize*singles
+		adj -= dzDIStep * (dzBlockLen - singles)
+	}
+	return off, adj
+}

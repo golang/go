@@ -87,3 +87,5 @@ func TestClosure(t *testing.T) { runTest(t, "closure_ssa.go") }
 func TestArray(t *testing.T) { runTest(t, "array_ssa.go") }
 
 func TestAppend(t *testing.T) { runTest(t, "append_ssa.go") }
+
+func TestZero(t *testing.T) { runTest(t, "zero_ssa.go") }
