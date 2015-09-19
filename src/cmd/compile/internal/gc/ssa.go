@@ -794,7 +794,9 @@ func (s *state) stmt(n *Node) {
 		// We only care about liveness info at call sites, so putting the
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
-		s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
+		if !canSSA(n.Left) {
+			s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
+		}
 
 	case OCHECKNIL:
 		p := s.expr(n.Left)
