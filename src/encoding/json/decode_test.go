@@ -716,7 +716,7 @@ func TestErrorMessageFromMisusedString(t *testing.T) {
 }
 
 func noSpace(c rune) rune {
-	if isSpace(c) {
+	if isSpace(byte(c)) { //only used for ascii
 		return -1
 	}
 	return c
