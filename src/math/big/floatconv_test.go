@@ -571,3 +571,67 @@ func TestFloatFormat(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkParseFloatSmallExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, s := range []string{
+			"1e0",
+			"1e-1",
+			"1e-2",
+			"1e-3",
+			"1e-4",
+			"1e-5",
+			"1e-10",
+			"1e-20",
+			"1e-50",
+			"1e1",
+			"1e2",
+			"1e3",
+			"1e4",
+			"1e5",
+			"1e10",
+			"1e20",
+			"1e50",
+		} {
+			var x Float
+			_, _, err := x.Parse(s, 0)
+			if err != nil {
+				b.Fatalf("%s: %v", s, err)
+			}
+		}
+	}
+}
+
+func BenchmarkParseFloatLargeExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, s := range []string{
+			"1e0",
+			"1e-10",
+			"1e-20",
+			"1e-30",
+			"1e-40",
+			"1e-50",
+			"1e-100",
+			"1e-500",
+			"1e-1000",
+			"1e-5000",
+			"1e-10000",
+			"1e10",
+			"1e20",
+			"1e30",
+			"1e40",
+			"1e50",
+			"1e100",
+			"1e500",
+			"1e1000",
+			"1e5000",
+			"1e10000",
+		} {
+			var x Float
+			_, _, err := x.Parse(s, 0)
+			if err != nil {
+				b.Fatalf("%s: %v", s, err)
+			}
+		}
+	}
+}
