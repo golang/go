@@ -226,6 +226,35 @@ var lexTests = []lexTest{
 		),
 		"C.\n",
 	},
+	{
+		"nested #define",
+		lines(
+			"#define A #define B THIS",
+			"A",
+			"B",
+		),
+		"THIS.\n",
+	},
+	{
+		"nested #define with args",
+		lines(
+			"#define A #define B(x) x",
+			"A",
+			"B(THIS)",
+		),
+		"THIS.\n",
+	},
+	/* This one fails. See comment in Slice.Col.
+	{
+		"nested #define with args",
+		lines(
+			"#define A #define B (x) x",
+			"A",
+			"B(THIS)",
+		),
+		"x.\n",
+	},
+	*/
 }
 
 func TestLex(t *testing.T) {
