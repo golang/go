@@ -225,7 +225,7 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
 			}
 			print("idx=", hex(idx), " span.start=", hex(s.start<<_PageShift), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
 			if refBase != 0 {
-				print("runtime: found in object at *(", hex(refBase), "+", hex(off), ")\n")
+				print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
 				gcDumpObject("object", refBase, refOff)
 			}
 			throw("found bad pointer in Go heap (incorrect use of unsafe or cgo?)")
