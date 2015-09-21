@@ -10,6 +10,8 @@ package main_test
 
 import (
 	"bytes"
+	"flag"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,20 +24,47 @@ const (
 	binary  = "testvet.exe"
 )
 
-func CanRun(t *testing.T) bool {
-	// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
+// We implement TestMain so remove the test binary when all is done.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	result := m.Run()
+	os.Remove(binary)
+	os.Exit(result)
+}
+
+func CanRun() bool {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		t.Skip("skipping test; no Perl on %q", runtime.GOOS)
+		// No Perl installed, can't run errcheck.
+		return false
+	case "nacl":
+		// Minimal and problematic file system.
 		return false
 	}
 	return true
 }
 
+var (
+	built  = false // We have built the binary.
+	failed = false // We have failed to build the binary, don't try again.
+)
+
 func Build(t *testing.T) {
-	// go build
+	if built {
+		return
+	}
+	if !CanRun() || failed {
+		t.Skip("cannot run on this environment")
+		return
+	}
 	cmd := exec.Command("go", "build", "-o", binary)
-	run(cmd, t)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		failed = true
+		fmt.Fprintf(os.Stderr, "%s\n", output)
+		t.Fatal(err)
+	}
+	built = true
 }
 
 func Vet(t *testing.T, files []string) {
@@ -58,11 +87,7 @@ func Vet(t *testing.T, files []string) {
 //
 
 func TestVet(t *testing.T) {
-	if !CanRun(t) {
-		t.Skip("cannot run on this environment")
-	}
 	Build(t)
-	defer os.Remove(binary)
 
 	// errchk ./testvet
 	gos, err := filepath.Glob(filepath.Join(dataDir, "*.go"))
@@ -78,23 +103,13 @@ func TestVet(t *testing.T) {
 }
 
 func TestDivergentPackagesExamples(t *testing.T) {
-	if !CanRun(t) {
-		t.Skip("cannot run on this environment")
-	}
 	Build(t)
-	defer os.Remove(binary)
-
 	// errchk ./testvet
 	Vet(t, []string{"testdata/divergent/buf.go", "testdata/divergent/buf_test.go"})
 }
 
 func TestIncompleteExamples(t *testing.T) {
-	if !CanRun(t) {
-		t.Skip("cannot run on this environment")
-	}
 	Build(t)
-	defer os.Remove(binary)
-
 	// errchk ./testvet
 	Vet(t, []string{"testdata/incomplete/examples_test.go"})
 }
@@ -115,18 +130,13 @@ func run(c *exec.Cmd, t *testing.T) bool {
 
 // TestTags verifies that the -tags argument controls which files to check.
 func TestTags(t *testing.T) {
-	// go build
-	cmd := exec.Command("go", "build", "-o", binary)
-	run(cmd, t)
-
-	defer os.Remove(binary)
-
+	Build(t)
 	args := []string{
 		"-tags=testtag",
 		"-v", // We're going to look at the files it examines.
 		"testdata/tagtest",
 	}
-	cmd = exec.Command("./"+binary, args...)
+	cmd := exec.Command("./"+binary, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
