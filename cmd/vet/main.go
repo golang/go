@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// NOTE: This version of vet is retired. Bug fixes only.
+// Vet now lives in the core repository.
+
 // Vet is a simple checker for static errors in Go source code.
 // See doc.go for more information.
 package main
