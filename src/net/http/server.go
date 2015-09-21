@@ -796,8 +796,8 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if w.req.ContentLength != 0 && !w.closeAfterReply {
 		ecr, isExpecter := w.req.Body.(*expectContinueReader)
 		if !isExpecter || ecr.resp.wroteContinue {
-			n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
-			if n >= maxPostHandlerReadBytes {
+			n, err := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+			if n >= maxPostHandlerReadBytes || (err != nil && err != io.EOF) {
 				w.requestTooLarge()
 				delHeader("Connection")
 				setHeader.connection = "close"

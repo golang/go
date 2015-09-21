@@ -616,6 +616,7 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 		if b.hdr != nil {
 			if e := b.readTrailer(); e != nil {
 				err = e
+				b.closed = true
 			}
 			b.hdr = nil
 		} else {
