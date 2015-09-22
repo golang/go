@@ -20,9 +20,12 @@ import (
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
+
+	"appengine"
 )
 
 func init() {
+	enforceHosts = !appengine.IsDevAppServer()
 	playEnabled = true
 
 	log.Println("initializing godoc ...")
