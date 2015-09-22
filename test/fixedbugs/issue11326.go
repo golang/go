@@ -9,8 +9,15 @@
 package main
 
 func main() {
-	var _ = 1e2147483647 // ERROR "constant too large"
-	var _ = 1e646456993  // ERROR "constant too large"
+	// The gc compiler implementation uses the minimally required 32bit
+	// binary exponent, so these constants cannot be represented anymore
+	// internally. However, the language spec does not preclude other
+	// implementations from handling these. Don't check the error.
+	// var _ = 1e2147483647 // "constant too large"
+	// var _ = 1e646456993  // "constant too large"
+
+	// Any implementation must be able to handle these constants at
+	// compile time (even though they cannot be assigned to a float64).
 	var _ = 1e646456992  // ERROR "1.00000e\+646456992 overflows float64"
 	var _ = 1e64645699   // ERROR "1.00000e\+64645699 overflows float64"
 	var _ = 1e6464569    // ERROR "1.00000e\+6464569 overflows float64"
@@ -19,5 +26,6 @@ func main() {
 	var _ = 1e6464       // ERROR "1.00000e\+6464 overflows float64"
 	var _ = 1e646        // ERROR "1.00000e\+646 overflows float64"
 	var _ = 1e309        // ERROR "1.00000e\+309 overflows float64"
+
 	var _ = 1e308
 }
