@@ -42,6 +42,8 @@ type InternalError string
 func (e InternalError) Error() string { return "flate: internal error: " + string(e) }
 
 // A ReadError reports an error encountered while reading input.
+//
+// Deprecated: No longer returned.
 type ReadError struct {
 	Offset int64 // byte offset where error occurred
 	Err    error // error returned by underlying Read
@@ -52,6 +54,8 @@ func (e *ReadError) Error() string {
 }
 
 // A WriteError reports an error encountered while writing output.
+//
+// Deprecated: No longer returned.
 type WriteError struct {
 	Offset int64 // byte offset where error occurred
 	Err    error // error returned by underlying Write
@@ -640,7 +644,7 @@ func (f *decompressor) dataBlock() {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
-		f.err = &ReadError{f.roffset, err}
+		f.err = err
 		return
 	}
 	n := int(f.buf[0]) | int(f.buf[1])<<8
@@ -675,7 +679,7 @@ func (f *decompressor) copyData() {
 			if err == io.EOF {
 				err = io.ErrUnexpectedEOF
 			}
-			f.err = &ReadError{f.roffset, err}
+			f.err = err
 			return
 		}
 		n -= m
