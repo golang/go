@@ -1782,7 +1782,7 @@ func save(pc, sp uintptr) {
 // The goroutine g is about to enter a system call.
 // Record that it's not using the cpu anymore.
 // This is called only from the go syscall library and cgocall,
-// not from the low-level system calls used by the
+// not from the low-level system calls used by the runtime.
 //
 // Entersyscall cannot split the stack: the gosave must
 // make g->sched refer to the caller's stack segment, because
