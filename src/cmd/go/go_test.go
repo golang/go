@@ -1698,7 +1698,7 @@ func TestCoverageUsesSetMode(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-coverprofile=testdata/cover.out", "encoding/binary")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1721,7 +1721,7 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-race", "-coverprofile=testdata/cover.out", "encoding/binary")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1744,7 +1744,7 @@ func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-covermode=count", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-race", "-covermode=count", "-coverprofile=testdata/cover.out", "encoding/binary")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1938,6 +1938,12 @@ func TestGoTestFooTestWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "testdata/standalone_test.go")
+}
+
+func TestGoTestFlagsAfterPackage(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-v", "testdata/flag_test.go", "-v=7") // Two distinct -v flags.
 }
 
 func TestGoTestXtestonlyWorks(t *testing.T) {
