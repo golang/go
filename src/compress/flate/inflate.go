@@ -637,6 +637,9 @@ func (f *decompressor) dataBlock() {
 	nr, err := io.ReadFull(f.r, f.buf[0:4])
 	f.roffset += int64(nr)
 	if err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		f.err = &ReadError{f.roffset, err}
 		return
 	}
@@ -669,6 +672,9 @@ func (f *decompressor) copyData() {
 		m, err := io.ReadFull(f.r, f.hist[f.hp:f.hp+m])
 		f.roffset += int64(m)
 		if err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
 			f.err = &ReadError{f.roffset, err}
 			return
 		}
