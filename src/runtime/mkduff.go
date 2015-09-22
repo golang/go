@@ -84,11 +84,11 @@ func copyAMD64(w io.Writer) {
 	// for some reason that is 3.5x slower than this code.
 	// The STOSQ in duffzero seem fine, though.
 	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT, $0-0")
-	for i := 0; i < 128; i++ {
-		fmt.Fprintln(w, "\tMOVQ\t(SI), CX")
-		fmt.Fprintln(w, "\tADDQ\t$8, SI")
-		fmt.Fprintln(w, "\tMOVQ\tCX, (DI)")
-		fmt.Fprintln(w, "\tADDQ\t$8, DI")
+	for i := 0; i < 64; i++ {
+		fmt.Fprintln(w, "\tMOVUPS\t(SI), X0")
+		fmt.Fprintln(w, "\tADDQ\t$16, SI")
+		fmt.Fprintln(w, "\tMOVUPS\tX0, (DI)")
+		fmt.Fprintln(w, "\tADDQ\t$16, DI")
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "\tRET")
