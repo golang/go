@@ -267,9 +267,6 @@ func TestTruncatedStreams(t *testing.T) {
 	for i := 0; i < len(data)-1; i++ {
 		r := NewReader(strings.NewReader(data[:i]))
 		_, err := io.Copy(ioutil.Discard, r)
-		if ferr, ok := err.(*ReadError); ok {
-			err = ferr.Err
-		}
 		if err != io.ErrUnexpectedEOF {
 			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
 		}
