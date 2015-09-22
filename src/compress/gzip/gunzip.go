@@ -167,6 +167,9 @@ func (z *Reader) readString() (string, error) {
 func (z *Reader) read2() (uint32, error) {
 	_, err := io.ReadFull(z.r, z.buf[0:2])
 	if err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		return 0, err
 	}
 	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
@@ -175,6 +178,13 @@ func (z *Reader) read2() (uint32, error) {
 func (z *Reader) readHeader(save bool) error {
 	_, err := io.ReadFull(z.r, z.buf[0:10])
 	if err != nil {
+		// RFC1952 section 2.2 says the following:
+		//	A gzip file consists of a series of "members" (compressed data sets).
+		//
+		// Other than this, the specification does not clarify whether a
+		// "series" is defined as "one or more" or "zero or more". To err on the
+		// side of caution, Go interprets this to mean "zero or more".
+		// Thus, it is okay to return io.EOF here.
 		return err
 	}
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
@@ -196,6 +206,9 @@ func (z *Reader) readHeader(save bool) error {
 		}
 		data := make([]byte, n)
 		if _, err = io.ReadFull(z.r, data); err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
 			return err
 		}
 		if save {
@@ -260,6 +273,9 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 
 	// Finished file; check checksum + size.
 	if _, err := io.ReadFull(z.r, z.buf[0:8]); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		z.err = err
 		return 0, err
 	}
