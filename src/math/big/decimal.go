@@ -20,7 +20,7 @@
 package big
 
 // A decimal represents an unsigned floating-point number in decimal representation.
-// The value of a non-zero decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
+// The value of a non-zero decimal d is d.mant * 10**d.exp with 0.5 <= d.mant < 1,
 // with the most-significant mantissa digit at index 0. For the zero decimal, the
 // mantissa length and exponent are 0.
 // The zero value for decimal represents a ready-to-use 0.0.
