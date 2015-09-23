@@ -39,8 +39,6 @@ import (
 // the total number of digits. A negative precision selects the smallest
 // number of digits necessary to identify the value x uniquely.
 // The prec value is ignored for the 'b' or 'p' format.
-//
-// BUG(gri) Float.Text does not accept negative precisions (issue #10991).
 func (x *Float) Text(format byte, prec int) string {
 	const extra = 10 // TODO(gri) determine a good/better value here
 	return string(x.Append(make([]byte, 0, prec+extra), format, prec))
@@ -83,6 +81,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
 	// 1) convert Float to multiprecision decimal
 	var d decimal // == 0.0
 	if x.form == finite {
+		// x != 0
 		d.init(x.mant, int(x.exp)-x.mant.bitLen())
 	}
 
@@ -90,9 +89,7 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
 	shortest := false
 	if prec < 0 {
 		shortest = true
-		panic("unimplemented")
-		// TODO(gri) complete this
-		// roundShortest(&d, f.mant, int(f.exp))
+		roundShortest(&d, x)
 		// Precision for shortest representation mode.
 		switch fmt {
 		case 'e', 'E':
@@ -156,6 +153,86 @@ func (x *Float) Append(buf []byte, fmt byte, prec int) []byte {
 		buf = buf[:len(buf)-1] // sign was added prematurely - remove it again
 	}
 	return append(buf, '%', fmt)
+}
+
+func roundShortest(d *decimal, x *Float) {
+	// if the mantissa is zero, the number is zero - stop now
+	if len(d.mant) == 0 {
+		return
+	}
+
+	// Approach: All numbers in the interval [x - 1/2ulp, x + 1/2ulp]
+	// (possibly exclusive) round to x for the given precision of x.
+	// Compute the lower and upper bound in decimal form and find the
+	// the shortest decimal number d such that lower <= d <= upper.
+
+	// TODO(gri) strconv/ftoa.do describes a shortcut in some cases.
+	// See if we can use it (in adjusted form) here as well.
+
+	// 1) Compute normalized mantissa mant and exponent exp for x such
+	// that the lsb of mant corresponds to 1/2 ulp for the precision of
+	// x (i.e., for mant we want x.prec + 1 bits).
+	mant := nat(nil).set(x.mant)
+	exp := int(x.exp) - mant.bitLen()
+	s := mant.bitLen() - int(x.prec+1)
+	switch {
+	case s < 0:
+		mant = mant.shl(mant, uint(-s))
+	case s > 0:
+		mant = mant.shr(mant, uint(+s))
+	}
+	exp += s
+	// x = mant * 2**exp with lsb(mant) == 1/2 ulp of x.prec
+
+	// 2) Compute lower bound by subtracting 1/2 ulp.
+	var lower decimal
+	var tmp nat
+	lower.init(tmp.sub(mant, natOne), exp)
+
+	// 3) Compute upper bound by adding 1/2 ulp.
+	var upper decimal
+	upper.init(tmp.add(mant, natOne), exp)
+
+	// The upper and lower bounds are possible outputs only if
+	// the original mantissa is even, so that ToNearestEven rounding
+	// would round to the original mantissa and not the neighbors.
+	inclusive := mant[0]&2 == 0 // test bit 1 since original mantissa was shifted by 1
+
+	// Now we can figure out the minimum number of digits required.
+	// Walk along until d has distinguished itself from upper and lower.
+	for i, m := range d.mant {
+		l := byte('0') // lower digit
+		if i < len(lower.mant) {
+			l = lower.mant[i]
+		}
+		u := byte('0') // upper digit
+		if i < len(upper.mant) {
+			u = upper.mant[i]
+		}
+
+		// Okay to round down (truncate) if lower has a different digit
+		// or if lower is inclusive and is exactly the result of rounding
+		// down (i.e., and we have reached the final digit of lower).
+		okdown := l != m || inclusive && i+1 == len(lower.mant)
+
+		// Okay to round up if upper has a different digit and either upper
+		// is inclusive or upper is bigger than the result of rounding up.
+		okup := m != u && (inclusive || m+1 < u || i+1 < len(upper.mant))
+
+		// If it's okay to do either, then round to the nearest one.
+		// If it's okay to do only one, do it.
+		switch {
+		case okdown && okup:
+			d.round(i + 1)
+			return
+		case okdown:
+			d.roundDown(i + 1)
+			return
+		case okup:
+			d.roundUp(i + 1)
+			return
+		}
+	}
 }
 
 // %e: d.ddddde±dd
@@ -336,8 +413,7 @@ func (x *Float) Format(s fmt.State, format rune) {
 		fallthrough
 	case 'g', 'G':
 		if !hasPrec {
-			// TODO(gri) uncomment once (*Float).Text handles prec < 0
-			// prec = -1 // default precision for 'g', 'G'
+			prec = -1 // default precision for 'g', 'G'
 		}
 	default:
 		fmt.Fprintf(s, "%%!%c(*big.Float=%s)", format, x.String())
