@@ -87,7 +87,9 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	p.To.Val = nil
 	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(obj.Bool2int(likely > 0))
+		if likely > 0 {
+			p.From.Offset = 1
+		}
 	}
 
 	if Debug['g'] != 0 {

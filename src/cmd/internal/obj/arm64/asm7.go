@@ -673,7 +673,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
  * drop the pool now, and branch round it.
  */
 func checkpool(ctxt *obj.Link, p *obj.Prog, skip int) {
-	if pool.size >= 0xffff0 || !(ispcdisp(int32(p.Pc+4+int64(pool.size)-int64(pool.start)+8)) != 0) {
+	if pool.size >= 0xffff0 || !ispcdisp(int32(p.Pc+4+int64(pool.size)-int64(pool.start)+8)) {
 		flushpool(ctxt, p, skip)
 	} else if p.Link == nil {
 		flushpool(ctxt, p, 2)
@@ -826,27 +826,27 @@ func regoff(ctxt *obj.Link, a *obj.Addr) uint32 {
 	return uint32(ctxt.Instoffset)
 }
 
-func ispcdisp(v int32) int {
+func ispcdisp(v int32) bool {
 	/* pc-relative addressing will reach? */
-	return obj.Bool2int(v >= -0xfffff && v <= 0xfffff && (v&3) == 0)
+	return v >= -0xfffff && v <= 0xfffff && (v&3) == 0
 }
 
-func isaddcon(v int64) int {
+func isaddcon(v int64) bool {
 	/* uimm12 or uimm24? */
 	if v < 0 {
-		return 0
+		return false
 	}
 	if (v & 0xFFF) == 0 {
 		v >>= 12
 	}
-	return obj.Bool2int(v <= 0xFFF)
+	return v <= 0xFFF
 }
 
-func isbitcon(v uint64) int {
+func isbitcon(v uint64) bool {
 	/*  fancy bimm32 or bimm64? */
 	// TODO(aram):
-	return 0
-	// return obj.Bool2int(findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil)
+	return false
+	// return findmask(v) != nil || (v>>32) == 0 && findmask(v|(v<<32)) != nil
 }
 
 func autoclass(l int64) int {
@@ -1007,11 +1007,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			if v == 0 {
 				return C_ZCON
 			}
-			if isaddcon(v) != 0 {
+			if isaddcon(v) {
 				if v <= 0xFFF {
 					return C_ADDCON0
 				}
-				if isbitcon(uint64(v)) != 0 {
+				if isbitcon(uint64(v)) {
 					return C_ABCON
 				}
 				return C_ADDCON
@@ -1019,7 +1019,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 			t := movcon(v)
 			if t >= 0 {
-				if isbitcon(uint64(v)) != 0 {
+				if isbitcon(uint64(v)) {
 					return C_MBCON
 				}
 				return C_MOVCON
@@ -1027,13 +1027,13 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 			t = movcon(^v)
 			if t >= 0 {
-				if isbitcon(uint64(v)) != 0 {
+				if isbitcon(uint64(v)) {
 					return C_MBCON
 				}
 				return C_MOVCON
 			}
 
-			if isbitcon(uint64(v)) != 0 {
+			if isbitcon(uint64(v)) {
 				return C_BITCON
 			}
 
@@ -1062,7 +1062,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		return C_GOK
 
 	aconsize:
-		if isaddcon(ctxt.Instoffset) != 0 {
+		if isaddcon(ctxt.Instoffset) {
 			return C_AACON
 		}
 		return C_LACON
@@ -2182,14 +2182,14 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 	case 24: /* mov/mvn Rs,Rd -> add $0,Rs,Rd or orr Rs,ZR,Rd */
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
-		s := obj.Bool2int(rf == REGSP || rt == REGSP)
+		s := rf == REGSP || rt == REGSP
 		if p.As == AMVN || p.As == AMVNW {
-			if s != 0 {
+			if s {
 				ctxt.Diag("illegal SP reference\n%v", p)
 			}
 			o1 = oprrr(ctxt, int(p.As))
 			o1 |= (uint32(rf&31) << 16) | (REGZERO & 31 << 5) | uint32(rt&31)
-		} else if s != 0 {
+		} else if s {
 			o1 = opirr(ctxt, int(p.As))
 			o1 |= (uint32(rf&31) << 5) | uint32(rt&31)
 		} else {

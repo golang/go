@@ -2847,25 +2847,25 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 	for _, a := range hash[h] {
 		cmp.Op = OEQ
 		cmp.Left = n
-		b := uint32(0)
+		b := false
 		if a.Op == OCONVIFACE && orign.Op == OCONVIFACE {
 			if Eqtype(a.Left.Type, n.Type) {
 				cmp.Right = a.Left
 				evconst(&cmp)
 				if cmp.Op == OLITERAL {
 					// Sometimes evconst fails.  See issue 12536.
-					b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
+					b = cmp.Val().U.(bool)
 				}
 			}
 		} else if Eqtype(a.Type, n.Type) {
 			cmp.Right = a
 			evconst(&cmp)
 			if cmp.Op == OLITERAL {
-				b = uint32(obj.Bool2int(cmp.Val().U.(bool)))
+				b = cmp.Val().U.(bool)
 			}
 		}
 
-		if b != 0 {
+		if b {
 			Yyerror("duplicate key %v in map literal", n)
 			return
 		}
