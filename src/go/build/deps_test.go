@@ -39,9 +39,10 @@ var pkgDeps = map[string][]string{
 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
 	"runtime/internal/sys":    {},
 	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
-	"sync":        {"runtime", "sync/atomic", "unsafe"},
-	"sync/atomic": {"unsafe"},
-	"unsafe":      {},
+	"internal/race":           {"runtime", "unsafe"},
+	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
+	"sync/atomic":             {"unsafe"},
+	"unsafe":                  {},
 
 	"L0": {
 		"errors",
@@ -131,7 +132,7 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":                           {"L0", "unicode/utf16"},
+	"syscall":                           {"L0", "internal/race", "unicode/utf16"},
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "unicode/utf16"},
@@ -278,7 +279,7 @@ var pkgDeps = map[string][]string{
 	// Basic networking.
 	// Because net must be used by any package that wants to
 	// do networking portably, it must have a small dependency set: just L0+basic os.
-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight"},
+	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight", "internal/race"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {

@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/race"
 	"os"
 	"runtime"
 	"sync"
@@ -461,8 +462,8 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	n, err := rsrv.ExecIO(o, "WSARecv", func(o *operation) error {
 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
 	})
-	if raceenabled {
-		raceAcquire(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.Acquire(unsafe.Pointer(&ioSync))
 	}
 	err = fd.eofError(n, err)
 	if _, ok := err.(syscall.Errno); ok {
@@ -504,8 +505,8 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
 	o := &fd.wop
 	o.InitBuf(buf)
