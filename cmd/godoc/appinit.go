@@ -12,6 +12,7 @@ package main
 import (
 	"archive/zip"
 	"log"
+	"net/http"
 	"path"
 	"regexp"
 
@@ -67,10 +68,15 @@ func init() {
 	pres.NotesRx = regexp.MustCompile("BUG")
 
 	readTemplates(pres, true)
+
 	mux := registerHandlers(pres)
 	dl.RegisterHandlers(mux)
-	proxy.RegisterHandlers(mux)
 	short.RegisterHandlers(mux)
+
+	// Register /compile and /share handlers against the default serve mux
+	// so that other app modules can make plain HTTP requests to those
+	// hosts. (For reasons, HTTPS communication between modules is broken.)
+	proxy.RegisterHandlers(http.DefaultServeMux)
 
 	log.Println("godoc initialization complete")
 }
