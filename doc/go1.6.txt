@@ -1,6 +1,7 @@
 Tools:
 
 cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
+cmd/go: flags for tests must precede package name if present; also makes it easier to pass flags to test binaries (https://golang.org/cl/14826)
 
 Ports:
 
