@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of September 11, 2015",
+	"Subtitle": "Version of September 24, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -2210,7 +2210,7 @@ math.Sin	// denotes the Sin function in package math
 <p>
 Composite literals construct values for structs, arrays, slices, and maps
 and create a new value each time they are evaluated.
-They consist of the type of the value followed by a brace-bound list of elements.
+They consist of the type of the literal followed by a brace-bound list of elements.
 Each element may optionally be preceded by a corresponding key.
 </p>
 
@@ -2227,11 +2227,11 @@ Element       = Expression | LiteralValue .
 </pre>
 
 <p>
-The LiteralType must be a struct, array, slice, or map type
+The LiteralType's underlying type must be a struct, array, slice, or map type
 (the grammar enforces this constraint except when the type is given
 as a TypeName).
 The types of the elements and keys must be <a href="#Assignability">assignable</a>
-to the respective field, element, and key types of the LiteralType;
+to the respective field, element, and key types of the literal type;
 there is no additional conversion.
 The key is interpreted as a field name for struct literals,
 an index for array and slice literals, and a key for map literals.
@@ -2244,7 +2244,7 @@ constant key value.
 For struct literals the following rules apply:
 </p>
 <ul>
-	<li>A key must be a field name declared in the LiteralType.
+	<li>A key must be a field name declared in the struct type.
 	</li>
 	<li>An element list that does not contain any keys must
 	    list an element for each struct field in the
@@ -2306,7 +2306,7 @@ var pointer *Point3D = &amp;Point3D{y: 1000}
 </pre>
 
 <p>
-The length of an array literal is the length specified in the LiteralType.
+The length of an array literal is the length specified in the literal type.
 If fewer elements than the length are provided in the literal, the missing
 elements are set to the zero value for the array element type.
 It is an error to provide elements with index values outside the index range
