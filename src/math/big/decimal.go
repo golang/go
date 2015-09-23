@@ -29,6 +29,14 @@ type decimal struct {
 	exp  int    // exponent
 }
 
+// at returns the i'th mantissa digit, starting with the most significant digit at 0.
+func (d *decimal) at(i int) byte {
+	if 0 <= i && i < len(d.mant) {
+		return d.mant[i]
+	}
+	return '0'
+}
+
 // Maximum shift amount that can be done in one pass without overflow.
 // A Word has _W bits and (1<<maxShift - 1)*10 + 9 must fit into Word.
 const maxShift = _W - 4
@@ -91,12 +99,6 @@ func (x *decimal) init(m nat, shift int) {
 		shr(x, uint(-shift))
 	}
 }
-
-// Possibly optimization: The current implementation of nat.string takes
-// a charset argument. When a right shift is needed, we could provide
-// "\x00\x01...\x09" instead of "012..9" (as in nat.decimalString) and
-// avoid the repeated +'0' and -'0' operations in decimal.shr (and do a
-// single +'0' pass at the end).
 
 // shr implements x >> s, for s <= maxShift.
 func shr(x *decimal, s uint) {
