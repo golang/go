@@ -5,6 +5,7 @@ import (
 	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"log"
 	"sort"
 	"strings"
@@ -315,6 +316,135 @@ func valuecmp(a *LSym, b *LSym) int {
 	return 0
 }
 
+const (
+	Tag_file                 = 1
+	Tag_CPU_name             = 4
+	Tag_CPU_raw_name         = 5
+	Tag_compatibility        = 32
+	Tag_nodefaults           = 64
+	Tag_also_compatible_with = 65
+	Tag_ABI_VFP_args         = 28
+)
+
+type elfAttribute struct {
+	tag  uint64
+	sval string
+	ival uint64
+}
+
+type elfAttributeList struct {
+	data []byte
+	err  error
+}
+
+func (a *elfAttributeList) string() string {
+	if a.err != nil {
+		return ""
+	}
+	nul := bytes.IndexByte(a.data, 0)
+	if nul < 0 {
+		a.err = io.EOF
+		return ""
+	}
+	s := string(a.data[:nul])
+	a.data = a.data[nul+1:]
+	return s
+}
+
+func (a *elfAttributeList) uleb128() uint64 {
+	if a.err != nil {
+		return 0
+	}
+	v, size := binary.Uvarint(a.data)
+	a.data = a.data[size:]
+	return v
+}
+
+// Read an elfAttribute from the list following the rules used on ARM systems.
+func (a *elfAttributeList) armAttr() elfAttribute {
+	attr := elfAttribute{tag: a.uleb128()}
+	switch {
+	case attr.tag == Tag_compatibility:
+		attr.ival = a.uleb128()
+		attr.sval = a.string()
+
+	case attr.tag == 64: // Tag_nodefaults has no argument
+
+	case attr.tag == 65: // Tag_also_compatible_with
+		// Not really, but we don't actually care about this tag.
+		attr.sval = a.string()
+
+	// Tag with string argument
+	case attr.tag == Tag_CPU_name || attr.tag == Tag_CPU_raw_name || (attr.tag >= 32 && attr.tag&1 != 0):
+		attr.sval = a.string()
+
+	default: // Tag with integer argument
+		attr.ival = a.uleb128()
+	}
+	return attr
+}
+
+func (a *elfAttributeList) done() bool {
+	if a.err != nil || len(a.data) == 0 {
+		return true
+	}
+	return false
+}
+
+// Look for the attribute that indicates the object uses the hard-float ABI (a
+// file-level attribute with tag Tag_VFP_arch and value 1). Unfortunately the
+// format used means that we have to parse all of the file-level attributes to
+// find the one we are looking for. This format is slightly documented in "ELF
+// for the ARM Architecture" but mostly this is derived from reading the source
+// to gold and readelf.
+func parseArmAttributes(e binary.ByteOrder, data []byte) {
+	// We assume the soft-float ABI unless we see a tag indicating otherwise.
+	if ehdr.flags == 0x5000002 {
+		ehdr.flags = 0x5000202
+	}
+	if data[0] != 'A' {
+		fmt.Fprintf(&Bso, ".ARM.attributes has unexpected format %c\n", data[0])
+		return
+	}
+	data = data[1:]
+	for len(data) != 0 {
+		sectionlength := e.Uint32(data)
+		sectiondata := data[4:sectionlength]
+		data = data[sectionlength:]
+
+		nulIndex := bytes.IndexByte(sectiondata, 0)
+		if nulIndex < 0 {
+			fmt.Fprintf(&Bso, "corrupt .ARM.attributes (section name not NUL-terminated)\n")
+			return
+		}
+		name := string(sectiondata[:nulIndex])
+		sectiondata = sectiondata[nulIndex+1:]
+
+		if name != "aeabi" {
+			continue
+		}
+		for len(sectiondata) != 0 {
+			subsectiontag, sz := binary.Uvarint(sectiondata)
+			subsectionsize := e.Uint32(sectiondata[sz:])
+			subsectiondata := sectiondata[sz+4 : subsectionsize]
+			sectiondata = sectiondata[subsectionsize:]
+
+			if subsectiontag == Tag_file {
+				attrList := elfAttributeList{data: subsectiondata}
+				for !attrList.done() {
+					attr := attrList.armAttr()
+					if attr.tag == Tag_ABI_VFP_args && attr.ival == 1 {
+						ehdr.flags = 0x5000402 // has entry point, Version5 EABI, hard-float ABI
+					}
+				}
+				if attrList.err != nil {
+					fmt.Fprintf(&Bso, "could not parse .ARM.attributes\n")
+				}
+			}
+		}
+	}
+}
+
 func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f ldelf %s\n", obj.Cputime(), pn)
@@ -549,6 +679,12 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 	// create symbols for elfmapped sections
 	for i := 0; uint(i) < elfobj.nsect; i++ {
 		sect = &elfobj.sect[i]
+		if sect.type_ == SHT_ARM_ATTRIBUTES && sect.name == ".ARM.attributes" {
+			if err = elfmap(elfobj, sect); err != nil {
+				goto bad
+			}
+			parseArmAttributes(e, sect.base[:sect.size])
+		}
 		if (sect.type_ != ElfSectProgbits && sect.type_ != ElfSectNobits) || sect.flags&ElfSectFlagAlloc == 0 {
 			continue
 		}
