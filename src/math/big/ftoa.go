@@ -201,14 +201,8 @@ func roundShortest(d *decimal, x *Float) {
 	// Now we can figure out the minimum number of digits required.
 	// Walk along until d has distinguished itself from upper and lower.
 	for i, m := range d.mant {
-		l := byte('0') // lower digit
-		if i < len(lower.mant) {
-			l = lower.mant[i]
-		}
-		u := byte('0') // upper digit
-		if i < len(upper.mant) {
-			u = upper.mant[i]
-		}
+		l := lower.at(i)
+		u := upper.at(i)
 
 		// Okay to round down (truncate) if lower has a different digit
 		// or if lower is inclusive and is exactly the result of rounding
@@ -296,11 +290,7 @@ func fmtF(buf []byte, prec int, d decimal) []byte {
 	if prec > 0 {
 		buf = append(buf, '.')
 		for i := 0; i < prec; i++ {
-			ch := byte('0')
-			if j := d.exp + i; 0 <= j && j < len(d.mant) {
-				ch = d.mant[j]
-			}
-			buf = append(buf, ch)
+			buf = append(buf, d.at(d.exp+i))
 		}
 	}
 
