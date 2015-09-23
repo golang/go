@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !appengine
+
 package main
 
 import "net/http"
@@ -10,5 +12,5 @@ import "net/http"
 // This file will not be included when deploying godoc to golang.org.
 
 func init() {
-	http.Handle("/dl/", http.RedirectHandler("http://golang.org/dl/", http.StatusFound))
+	http.Handle("/dl/", http.RedirectHandler("https://golang.org/dl/", http.StatusFound))
 }

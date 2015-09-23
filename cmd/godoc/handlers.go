@@ -61,7 +61,7 @@ func (h hostEnforcerHandler) validHost(host string) bool {
 	return false
 }
 
-func registerHandlers(pres *godoc.Presentation) {
+func registerHandlers(pres *godoc.Presentation) *http.ServeMux {
 	if pres == nil {
 		panic("nil Presentation")
 	}
@@ -73,6 +73,8 @@ func registerHandlers(pres *godoc.Presentation) {
 	mux.Handle("/pkg/C/", redirect.Handler("/cmd/cgo/"))
 	redirect.Register(mux)
 	http.Handle("/", hostEnforcerHandler{mux})
+
+	return mux
 }
 
 func readTemplate(name string) *template.Template {

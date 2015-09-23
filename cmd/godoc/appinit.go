@@ -16,12 +16,15 @@ import (
 	"regexp"
 
 	"golang.org/x/tools/godoc"
+	"golang.org/x/tools/godoc/dl"
+	"golang.org/x/tools/godoc/proxy"
+	"golang.org/x/tools/godoc/short"
 	"golang.org/x/tools/godoc/static"
 	"golang.org/x/tools/godoc/vfs"
 	"golang.org/x/tools/godoc/vfs/mapfs"
 	"golang.org/x/tools/godoc/vfs/zipfs"
 
-	"appengine"
+	"google.golang.org/appengine"
 )
 
 func init() {
@@ -64,7 +67,10 @@ func init() {
 	pres.NotesRx = regexp.MustCompile("BUG")
 
 	readTemplates(pres, true)
-	registerHandlers(pres)
+	mux := registerHandlers(pres)
+	dl.RegisterHandlers(mux)
+	proxy.RegisterHandlers(mux)
+	short.RegisterHandlers(mux)
 
 	log.Println("godoc initialization complete")
 }
