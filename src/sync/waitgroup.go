@@ -5,6 +5,7 @@
 package sync
 
 import (
+	"internal/race"
 	"sync/atomic"
 	"unsafe"
 )
@@ -46,24 +47,24 @@ func (wg *WaitGroup) state() *uint64 {
 // See the WaitGroup example.
 func (wg *WaitGroup) Add(delta int) {
 	statep := wg.state()
-	if raceenabled {
+	if race.Enabled {
 		_ = *statep // trigger nil deref early
 		if delta < 0 {
 			// Synchronize decrements with Wait.
-			raceReleaseMerge(unsafe.Pointer(wg))
+			race.ReleaseMerge(unsafe.Pointer(wg))
 		}
-		raceDisable()
-		defer raceEnable()
+		race.Disable()
+		defer race.Enable()
 	}
 	state := atomic.AddUint64(statep, uint64(delta)<<32)
 	v := int32(state >> 32)
 	w := uint32(state)
-	if raceenabled {
+	if race.Enabled {
 		if delta > 0 && v == int32(delta) {
 			// The first increment must be synchronized with Wait.
 			// Need to model this as a read, because there can be
 			// several concurrent wg.counter transitions from 0.
-			raceRead(unsafe.Pointer(&wg.sema))
+			race.Read(unsafe.Pointer(&wg.sema))
 		}
 	}
 	if v < 0 {
@@ -98,9 +99,9 @@ func (wg *WaitGroup) Done() {
 // Wait blocks until the WaitGroup counter is zero.
 func (wg *WaitGroup) Wait() {
 	statep := wg.state()
-	if raceenabled {
+	if race.Enabled {
 		_ = *statep // trigger nil deref early
-		raceDisable()
+		race.Disable()
 	}
 	for {
 		state := atomic.LoadUint64(statep)
@@ -108,28 +109,28 @@ func (wg *WaitGroup) Wait() {
 		w := uint32(state)
 		if v == 0 {
 			// Counter is 0, no need to wait.
-			if raceenabled {
-				raceEnable()
-				raceAcquire(unsafe.Pointer(wg))
+			if race.Enabled {
+				race.Enable()
+				race.Acquire(unsafe.Pointer(wg))
 			}
 			return
 		}
 		// Increment waiters count.
 		if atomic.CompareAndSwapUint64(statep, state, state+1) {
-			if raceenabled && w == 0 {
+			if race.Enabled && w == 0 {
 				// Wait must be synchronized with the first Add.
 				// Need to model this is as a write to race with the read in Add.
 				// As a consequence, can do the write only for the first waiter,
 				// otherwise concurrent Waits will race with each other.
-				raceWrite(unsafe.Pointer(&wg.sema))
+				race.Write(unsafe.Pointer(&wg.sema))
 			}
 			runtime_Semacquire(&wg.sema)
 			if *statep != 0 {
 				panic("sync: WaitGroup is reused before previous Wait has returned")
 			}
-			if raceenabled {
-				raceEnable()
-				raceAcquire(unsafe.Pointer(wg))
+			if race.Enabled {
+				race.Enable()
+				race.Acquire(unsafe.Pointer(wg))
 			}
 			return
 		}
