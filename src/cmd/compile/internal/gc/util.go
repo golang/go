@@ -17,17 +17,6 @@ func atoi(s string) int {
 	return int(n)
 }
 
-// strings.Compare, introduced in Go 1.5.
-func stringsCompare(a, b string) int {
-	if a == b {
-		return 0
-	}
-	if a < b {
-		return -1
-	}
-	return +1
-}
-
 var atExitFuncs []func()
 
 func AtExit(f func()) {

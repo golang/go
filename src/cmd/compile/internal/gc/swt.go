@@ -778,7 +778,13 @@ func exprcmp(c1, c2 *caseClause) int {
 		if len(a) > len(b) {
 			return +1
 		}
-		return stringsCompare(a, b)
+		if a == b {
+			return 0
+		}
+		if a < b {
+			return -1
+		}
+		return +1
 	}
 
 	return 0
