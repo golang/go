@@ -7,12 +7,20 @@ package main
 import (
 	"bytes"
 	"flag"
-	"os"
-	"os/exec"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 )
+
+func maybeSkip(t *testing.T) {
+	if strings.HasPrefix(runtime.GOOS, "nacl") {
+		t.Skip("nacl does not have a full file tree")
+	}
+	if runtime.GOOS == "darwin" && strings.HasPrefix(runtime.GOARCH, "arm") {
+		t.Skip("darwin/arm does not have a full file tree")
+	}
+}
 
 const (
 	dataDir = "testdata"
@@ -301,9 +309,7 @@ var tests = []test{
 }
 
 func TestDoc(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
-		t.Skip("TODO: on darwin/arm, test fails: no such package cmd/doc/testdata")
-	}
+	maybeSkip(t)
 	for _, test := range tests {
 		var b bytes.Buffer
 		var flagSet flag.FlagSet
@@ -339,12 +345,59 @@ func TestDoc(t *testing.T) {
 	}
 }
 
-// run runs the command, but calls t.Fatal if there is an error.
-func run(c *exec.Cmd, t *testing.T) []byte {
-	output, err := c.CombinedOutput()
-	if err != nil {
-		os.Stdout.Write(output)
-		t.Fatal(err)
+// Test the code to try multiple packages. Our test case is
+//	go doc rand.Float64
+// This needs to find math/rand.Float64; however crypto/rand, which doesn't
+// have the symbol, usually appears first in the directory listing.
+func TestMultiplePackages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("scanning file system takes too long")
 	}
-	return output
+	maybeSkip(t)
+	var b bytes.Buffer // We don't care about the output.
+	// Make sure crypto/rand does not have the symbol.
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"crypto/rand.float64"})
+		if err == nil {
+			t.Errorf("expected error from crypto/rand.float64")
+		} else if !strings.Contains(err.Error(), "no symbol float64") {
+			t.Errorf("unexpected error %q from crypto/rand.float64", err)
+		}
+	}
+	// Make sure math/rand does have the symbol.
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"math/rand.float64"})
+		if err != nil {
+			t.Errorf("unexpected error %q from math/rand.float64", err)
+		}
+	}
+	// Try the shorthand.
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"rand.float64"})
+		if err != nil {
+			t.Errorf("unexpected error %q from rand.float64", err)
+		}
+	}
+	// Now try a missing symbol. We should see both packages in the error.
+	{
+		var flagSet flag.FlagSet
+		err := do(&b, &flagSet, []string{"rand.doesnotexit"})
+		if err == nil {
+			t.Errorf("expected error from rand.doesnotexit")
+		} else {
+			errStr := err.Error()
+			if !strings.Contains(errStr, "no symbol") {
+				t.Errorf("error %q should contain 'no symbol", errStr)
+			}
+			if !strings.Contains(errStr, "crypto/rand") {
+				t.Errorf("error %q should contain crypto/rand", errStr)
+			}
+			if !strings.Contains(errStr, "math/rand") {
+				t.Errorf("error %q should contain math/rand", errStr)
+			}
+		}
+	}
 }

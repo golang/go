@@ -16,6 +16,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -44,6 +46,33 @@ type PackageError string // type returned by pkg.Fatalf.
 
 func (p PackageError) Error() string {
 	return string(p)
+}
+
+// prettyPath returns a version of the package path that is suitable for an
+// error message. It obeys the import comment if present. Also, since
+// pkg.build.ImportPath is sometimes the unhelpful "" or ".", it looks for a
+// directory name in GOROOT or GOPATH if that happens.
+func (pkg *Package) prettyPath() string {
+	path := pkg.build.ImportComment
+	if path == "" {
+		path = pkg.build.ImportPath
+	}
+	if path != "." && path != "" {
+		return path
+	}
+	// Conver the source directory into a more useful path.
+	path = filepath.Clean(pkg.build.Dir)
+	// Can we find a decent prefix?
+	goroot := filepath.Join(build.Default.GOROOT, "src")
+	if strings.HasPrefix(path, goroot) {
+		return path[len(goroot)+1:]
+	}
+	for _, gopath := range splitGopath() {
+		if strings.HasPrefix(path, gopath) {
+			return path[len(gopath)+1:]
+		}
+	}
+	return path
 }
 
 // pkg.Fatalf is like log.Fatalf, but panics so it can be recovered in the
@@ -344,7 +373,7 @@ func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec
 // symbolDoc prints the docs for symbol. There may be multiple matches.
 // If symbol matches a type, output includes its methods factories and associated constants.
 // If there is no top-level symbol, symbolDoc looks for methods that match.
-func (pkg *Package) symbolDoc(symbol string) {
+func (pkg *Package) symbolDoc(symbol string) bool {
 	defer pkg.flush()
 	found := false
 	// Functions.
@@ -413,9 +442,10 @@ func (pkg *Package) symbolDoc(symbol string) {
 	if !found {
 		// See if there are methods.
 		if !pkg.printMethodDoc("", symbol) {
-			log.Printf("symbol %s not present in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
+			return false
 		}
 	}
+	return true
 }
 
 // trimUnexportedElems modifies spec in place to elide unexported fields from
@@ -493,11 +523,9 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 }
 
 // methodDoc prints the docs for matches of symbol.method.
-func (pkg *Package) methodDoc(symbol, method string) {
+func (pkg *Package) methodDoc(symbol, method string) bool {
 	defer pkg.flush()
-	if !pkg.printMethodDoc(symbol, method) {
-		pkg.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
-	}
+	return pkg.printMethodDoc(symbol, method)
 }
 
 // match reports whether the user's symbol matches the program's.
