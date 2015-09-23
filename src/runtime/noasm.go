@@ -4,7 +4,7 @@
 
 // Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x}.s
 
-// +build ignore
+// +build mips64 mips64le
 
 package runtime
 

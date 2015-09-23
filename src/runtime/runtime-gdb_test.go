@@ -103,7 +103,7 @@ func TestGdbPython(t *testing.T) {
 	// stack frames on RISC architectures.
 	canBackTrace := false
 	switch runtime.GOARCH {
-	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64":
+	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64", "mips64", "mips64le":
 		canBackTrace = true
 		args = append(args,
 			"-ex", "echo BEGIN goroutine 2 bt\n",
