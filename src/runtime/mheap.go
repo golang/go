@@ -930,7 +930,8 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	}
 
 	// Ensure that the span is swept.
-	// GC accesses specials list w/o locks. And it's just much safer.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
 	mp := acquirem()
 	mSpan_EnsureSwept(span)
 
@@ -977,7 +978,8 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 	}
 
 	// Ensure that the span is swept.
-	// GC accesses specials list w/o locks. And it's just much safer.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
 	mp := acquirem()
 	mSpan_EnsureSwept(span)
 
@@ -1025,6 +1027,25 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 	s.fint = fint
 	s.ot = ot
 	if addspecial(p, &s.special) {
+		// This is responsible for maintaining the same
+		// GC-related invariants as markrootSpans in any
+		// situation where it's possible that markrootSpans
+		// has already run but mark termination hasn't yet.
+		if gcphase != _GCoff {
+			_, base, _ := findObject(p)
+			mp := acquirem()
+			gcw := &mp.p.ptr().gcw
+			// Mark everything reachable from the object
+			// so it's retained for the finalizer.
+			scanobject(uintptr(base), gcw)
+			// Mark the finalizer itself, since the
+			// special isn't part of the GC'd heap.
+			scanblock(uintptr(unsafe.Pointer(&s.fn)), ptrSize, &oneptrmask[0], gcw)
+			if gcBlackenPromptly {
+				gcw.dispose()
+			}
+			releasem(mp)
+		}
 		return true
 	}
 

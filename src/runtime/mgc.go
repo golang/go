@@ -763,6 +763,12 @@ var work struct {
 	alldone note
 	markfor *parfor
 
+	// finalizersDone indicates that finalizers and objects with
+	// finalizers have been scanned by markroot. During concurrent
+	// GC, this happens during the concurrent scan phase. During
+	// STW GC, this happens during mark termination.
+	finalizersDone bool
+
 	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
 	// Background mark completion signaling
@@ -938,6 +944,8 @@ func gc(mode gcMode) {
 
 	gcResetMarkState()
 
+	work.finalizersDone = false
+
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
 		heapGoal = gcController.heapGoal
@@ -969,6 +977,10 @@ func gc(mode gcMode) {
 			// 3) Don't install stack barriers over frame
 			// boundaries where there are up-pointers.
 			setGCPhase(_GCscan)
+
+			// markrootSpans uses work.spans, so make sure
+			// it is up to date.
+			gcCopySpans()
 
 			gcBgMarkPrepare() // Must happen before assist enable.
 
@@ -1036,6 +1048,10 @@ func gc(mode gcMode) {
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
+
+		// markroot is done now, so record that objects with
+		// finalizers have been scanned.
+		work.finalizersDone = true
 
 		// Flush the gcWork caches. This must be done before
 		// endCycle since endCycle depends on statistics kept
@@ -1441,6 +1457,10 @@ func gcMark(start_time int64) {
 	if work.nproc > 1 {
 		notesleep(&work.alldone)
 	}
+
+	// markroot is done now, so record that objects with
+	// finalizers have been scanned.
+	work.finalizersDone = true
 
 	for i := 0; i < int(gomaxprocs); i++ {
 		if allp[i].gcw.wbuf != 0 {
