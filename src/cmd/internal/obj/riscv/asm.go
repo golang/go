@@ -30,6 +30,24 @@ import (
 // TODO(myenik)
 func progedit(ctxt *obj.Link, p *obj.Prog) {
 	log.Printf("progedit: ctxt: %+v p: %#v p: %s", ctxt, p, p)
+
+	// Rewrite branches as TYPE_BRANCHH
+	switch p.As {
+	case AJAL,
+		AJALR,
+		ABEQ,
+		ABNE,
+		ABLT,
+		ABLTU,
+		ABGE,
+		ABGEU,
+		obj.ARET,
+		obj.ADUFFZERO,
+		obj.ADUFFCOPY:
+		if p.To.Sym != nil {
+			p.To.Type = obj.TYPE_BRANCH
+		}
+	}
 }
 
 // TODO(myenik)
