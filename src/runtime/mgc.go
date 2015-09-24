@@ -803,10 +803,13 @@ func GC() {
 	startGC(gcForceBlockMode, false)
 }
 
+// gcMode indicates how concurrent a GC cycle should be.
+type gcMode int
+
 const (
-	gcBackgroundMode = iota // concurrent GC
-	gcForceMode             // stop-the-world GC now
-	gcForceBlockMode        // stop-the-world GC now and wait for sweep
+	gcBackgroundMode gcMode = iota // concurrent GC and sweep
+	gcForceMode                    // stop-the-world GC now, concurrent sweep
+	gcForceBlockMode               // stop-the-world GC now and STW sweep
 )
 
 // startGC starts a GC cycle. If mode is gcBackgroundMode, this will
@@ -814,7 +817,7 @@ const (
 // until the new GC cycle is started and finishes. If forceTrigger is
 // true, it indicates that GC should be started regardless of the
 // current heap size.
-func startGC(mode int, forceTrigger bool) {
+func startGC(mode gcMode, forceTrigger bool) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
 	// holding locks. To avoid deadlocks during stop-the-world, don't bother
@@ -889,7 +892,7 @@ func backgroundgc() {
 	}
 }
 
-func gc(mode int) {
+func gc(mode gcMode) {
 	// Timing/utilization tracking
 	var stwprocs, maxprocs int32
 	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
@@ -1513,7 +1516,7 @@ func gcMark(start_time int64) {
 	}
 }
 
-func gcSweep(mode int) {
+func gcSweep(mode gcMode) {
 	if gcphase != _GCoff {
 		throw("gcSweep being done but phase is not GCoff")
 	}
