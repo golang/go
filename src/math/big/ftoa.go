@@ -37,7 +37,8 @@ import (
 // printed by the 'e', 'E', 'f', 'g', and 'G' formats. For 'e', 'E', and 'f'
 // it is the number of digits after the decimal point. For 'g' and 'G' it is
 // the total number of digits. A negative precision selects the smallest
-// number of digits necessary to identify the value x uniquely.
+// number of decimal digits necessary to identify the value x uniquely using
+// x.Prec() mantissa bits.
 // The prec value is ignored for the 'b' or 'p' format.
 func (x *Float) Text(format byte, prec int) string {
 	const extra = 10 // TODO(gri) determine a good/better value here
@@ -381,10 +382,6 @@ func min(x, y int) int {
 // '+' and ' ' for sign control, '0' for space or zero padding,
 // and '-' for left or right justification. See the fmt package
 // for details.
-//
-// BUG(gri) A missing precision for the 'g' format, or a negative
-//          (via '*') precision is not yet supported. Instead the
-//          default precision (6) is used in that case (issue #10991).
 func (x *Float) Format(s fmt.State, format rune) {
 	prec, hasPrec := s.Precision()
 	if !hasPrec {
