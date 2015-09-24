@@ -50,6 +50,11 @@ var isSecureScheme = map[string]bool{
 }
 
 func (v *vcsCmd) isSecure(repo string) bool {
+	// git protocol is secure
+	if strings.HasPrefix(repo, "git@") {
+		return true
+	}
+
 	u, err := url.Parse(repo)
 	if err != nil {
 		// If repo is not a URL, it's not secure.
@@ -861,6 +866,14 @@ var vcsPaths = []*vcsPath{
 		vcs:    "git",
 		repo:   "https://{root}",
 		check:  noVCSSuffix,
+	},
+
+	// Gitlab
+	{
+		prefix: "gitlab.",
+		re:     `^(?P<root>gitlab.(?P<domain>[A-Za-z0-9_.\-]+)/(?P<user>[A-Za-z0-9_.\-]+)/(?P<project>[A-Za-z0-9_.\-]+))(/[A-Za-z0-9_.\-]+)*$`,
+		vcs:    "git",
+		repo:   "git@gitlab.{domain}:{user}/{project}.git",
 	},
 
 	// Bitbucket
