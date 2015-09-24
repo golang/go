@@ -625,10 +625,10 @@ func (x machoscmp) Less(i, j int) bool {
 	k1 := symkind(s1)
 	k2 := symkind(s2)
 	if k1 != k2 {
-		return k1-k2 < 0
+		return k1 < k2
 	}
 
-	return stringsCompare(s1.Extname, s2.Extname) < 0
+	return s1.Extname < s2.Extname
 }
 
 func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
