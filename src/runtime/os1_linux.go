@@ -6,8 +6,6 @@ package runtime
 
 import "unsafe"
 
-var sigset_all sigset = sigset{^uint32(0), ^uint32(0)}
-
 // Linux futex.
 //
 //	futexsleep(uint32 *addr, uint32 val)
@@ -221,7 +219,7 @@ func minit() {
 	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+			sigdelset(&nmask, i)
 		}
 	}
 	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
@@ -281,7 +279,7 @@ func setsig(i int32, fn uintptr, restart bool) {
 	if restart {
 		sa.sa_flags |= _SA_RESTART
 	}
-	sa.sa_mask = ^uint64(0)
+	sigfillset(&sa.sa_mask)
 	// Although Linux manpage says "sa_restorer element is obsolete and
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
@@ -338,12 +336,12 @@ func signalstack(s *stack) {
 
 func updatesigmask(m sigmask) {
 	var mask sigset
-	copy(mask[:], m[:])
+	sigcopyset(&mask, m)
 	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }
 
 func unblocksig(sig int32) {
 	var mask sigset
-	mask[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	sigaddset(&mask, int(sig))
 	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }
