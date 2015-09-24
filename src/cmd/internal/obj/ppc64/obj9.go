@@ -473,18 +473,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				break
 			}
 
-			if p.To.Sym != nil { // retjmp
-				p.As = ABR
-				p.To.Type = obj.TYPE_BRANCH
-				break
-			}
+			retTarget := p.To.Sym
 
 			if cursym.Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = ABR
 					p.From = obj.Addr{}
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REG_LR
+					if retTarget == nil {
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = REG_LR
+					} else {
+						p.To.Type = obj.TYPE_BRANCH
+						p.To.Sym = retTarget
+					}
 					p.Mark |= BRANCH
 					break
 				}
@@ -562,14 +563,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			q1 = ctxt.NewProg()
 			q1.As = ABR
 			q1.Lineno = p.Lineno
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REG_LR
+			if retTarget == nil {
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REG_LR
+			} else {
+				q1.To.Type = obj.TYPE_BRANCH
+				q1.To.Sym = retTarget
+			}
 			q1.Mark |= BRANCH
 			q1.Spadj = +autosize
 
 			q1.Link = q.Link
 			q.Link = q1
-
 		case AADD:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
