@@ -9,6 +9,7 @@ import (
 	"cmd/internal/obj/arm"
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
 	"fmt"
 	"strings"
@@ -73,6 +74,8 @@ func Set(GOARCH string) *Arch {
 		a := archPPC64()
 		a.LinkArch = &ppc64.Linkppc64le
 		return a
+	case "riscv":
+		return archRiscv()
 	}
 	return nil
 }
@@ -361,5 +364,16 @@ func archPPC64() *Arch {
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: ppc64RegisterNumber,
 		IsJump:         jumpPPC64,
+	}
+}
+
+func archRiscv() *Arch {
+	return &Arch{
+		LinkArch:       &riscv.LinkRISCV,
+		Instructions:   riscv.Instructions,
+		Register:       riscv.Registers,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         func(string) bool { return false },
 	}
 }
