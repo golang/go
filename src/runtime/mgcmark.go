@@ -118,9 +118,38 @@ func markroot(desc *parfor, i uint32) {
 //
 //go:nowritebarrier
 func markrootSpans(gcw *gcWork, shard int) {
+	// Objects with finalizers have two GC-related invariants:
+	//
+	// 1) Everything reachable from the object must be marked.
+	// This ensures that when we pass the object to its finalizer,
+	// everything the finalizer can reach will be retained.
+	//
+	// 2) Finalizer specials (which are not in the garbage
+	// collected heap) are roots. In practice, this means the fn
+	// field must be scanned.
+	//
+	// TODO(austin): There are several ideas for making this more
+	// efficient in issue #11485.
+
+	// We process objects with finalizers only during the first
+	// markroot pass. In concurrent GC, this happens during
+	// concurrent scan and we depend on addfinalizer to ensure the
+	// above invariants for objects that get finalizers after
+	// concurrent scan. In STW GC, this will happen during mark
+	// termination.
+	if work.finalizersDone {
+		return
+	}
+
 	sg := mheap_.sweepgen
 	startSpan := shard * len(work.spans) / _RootSpansShards
 	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
+	// Note that work.spans may not include spans that were
+	// allocated between entering the scan phase and now. This is
+	// okay because any objects with finalizers in those spans
+	// must have been allocated and given finalizers after we
+	// entered the scan phase, so addfinalizer will have ensured
+	// the above invariants for them.
 	for _, s := range work.spans[startSpan:endSpan] {
 		if s.state != mSpanInUse {
 			continue
@@ -130,6 +159,22 @@ func markrootSpans(gcw *gcWork, shard int) {
 			print("sweep ", s.sweepgen, " ", sg, "\n")
 			throw("gc: unswept span")
 		}
+
+		// Speculatively check if there are any specials
+		// without acquiring the span lock. This may race with
+		// adding the first special to a span, but in that
+		// case addfinalizer will observe that the GC is
+		// active (which is globally synchronized) and ensure
+		// the above invariants. We may also ensure the
+		// invariants, but it's okay to scan an object twice.
+		if s.specials == nil {
+			continue
+		}
+
+		// Lock the specials to prevent a special from being
+		// removed from the list while we're traversing it.
+		lock(&s.speciallock)
+
 		for sp := s.specials; sp != nil; sp = sp.next {
 			if sp.kind != _KindSpecialFinalizer {
 				continue
@@ -139,11 +184,17 @@ func markrootSpans(gcw *gcWork, shard int) {
 			spf := (*specialfinalizer)(unsafe.Pointer(sp))
 			// A finalizer can be set for an inner byte of an object, find object beginning.
 			p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
-			if gcphase != _GCscan {
-				scanobject(p, gcw) // scanned during mark termination
-			}
+
+			// Mark everything that can be reached from
+			// the object (but *not* the object itself or
+			// we'll never collect it).
+			scanobject(p, gcw)
+
+			// The special itself is a root.
 			scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], gcw)
 		}
+
+		unlock(&s.speciallock)
 	}
 }
 
