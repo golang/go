@@ -17,25 +17,9 @@ func (x *Int) String() string {
 	case x == nil:
 		return "<nil>"
 	case x.neg:
-		return "-" + x.abs.decimalString()
+		return "-" + string(x.abs.itoa(10))
 	}
-	return x.abs.decimalString()
-}
-
-func charset(ch rune) string {
-	switch ch {
-	case 'b':
-		return lowercaseDigits[0:2]
-	case 'o':
-		return lowercaseDigits[0:8]
-	case 'd', 's', 'v':
-		return lowercaseDigits[0:10]
-	case 'x':
-		return lowercaseDigits[0:16]
-	case 'X':
-		return uppercaseDigits[0:16]
-	}
-	return "" // unknown format
+	return string(x.abs.itoa(10))
 }
 
 // write count copies of text to s
@@ -60,15 +44,24 @@ func writeMultiple(s fmt.State, text string, count int) {
 // right justification.
 //
 func (x *Int) Format(s fmt.State, ch rune) {
-	cs := charset(ch)
-
-	// special cases
-	switch {
-	case cs == "":
+	// determine base
+	var base int
+	switch ch {
+	case 'b':
+		base = 2
+	case 'o':
+		base = 8
+	case 'd', 's', 'v':
+		base = 10
+	case 'x', 'X':
+		base = 16
+	default:
 		// unknown format
 		fmt.Fprintf(s, "%%!%c(big.Int=%s)", ch, x.String())
 		return
-	case x == nil:
+	}
+
+	if x == nil {
 		fmt.Fprint(s, "<nil>")
 		return
 	}
@@ -97,8 +90,15 @@ func (x *Int) Format(s fmt.State, ch rune) {
 		}
 	}
 
-	// determine digits with base set by len(cs) and digit characters from cs
-	digits := x.abs.string(cs)
+	digits := x.abs.itoa(base)
+	if ch == 'X' {
+		// faster than bytes.ToUpper
+		for i, d := range digits {
+			if 'a' <= d && d <= 'z' {
+				digits[i] = 'A' + (d - 'a')
+			}
+		}
+	}
 
 	// number of characters for the three classes of number padding
 	var left int  // space characters to left of digits for right justification ("%8d")
@@ -111,7 +111,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 		switch {
 		case len(digits) < precision:
 			zeros = precision - len(digits) // count of zero padding
-		case digits == "0" && precision == 0:
+		case len(digits) == 1 && digits[0] == '0' && precision == 0:
 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
 		}
 	}
@@ -137,7 +137,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
 	writeMultiple(s, sign, 1)
 	writeMultiple(s, prefix, 1)
 	writeMultiple(s, "0", zeros)
-	writeMultiple(s, digits, 1)
+	s.Write(digits)
 	writeMultiple(s, " ", right)
 }
 

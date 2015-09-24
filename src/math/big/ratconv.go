@@ -190,7 +190,7 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 func (x *Rat) String() string {
 	s := "/1"
 	if len(x.b.abs) != 0 {
-		s = "/" + x.b.abs.decimalString()
+		s = "/" + string(x.b.abs.itoa(10))
 	}
 	return x.a.String() + s
 }
@@ -237,13 +237,13 @@ func (x *Rat) FloatString(prec int) string {
 		}
 	}
 
-	s := q.decimalString()
+	s := string(q.itoa(10))
 	if x.a.neg {
 		s = "-" + s
 	}
 
 	if prec > 0 {
-		rs := r.decimalString()
+		rs := string(r.itoa(10))
 		leadingZeros := prec - len(rs)
 		s += "." + strings.Repeat("0", leadingZeros) + rs
 	}
