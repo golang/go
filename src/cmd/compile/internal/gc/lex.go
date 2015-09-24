@@ -840,6 +840,33 @@ func cannedimports(file string, cp string) {
 	incannedimport = 1
 }
 
+func isSpace(c int) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+func isAlpha(c int) bool {
+	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+}
+
+func isDigit(c int) bool {
+	return '0' <= c && c <= '9'
+}
+func isAlnum(c int) bool {
+	return isAlpha(c) || isDigit(c)
+}
+
+func plan9quote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	for _, c := range s {
+		if c <= ' ' || c == '\'' {
+			return "'" + strings.Replace(s, "'", "''", -1) + "'"
+		}
+	}
+	return s
+}
+
 func isfrog(c int) bool {
 	// complain about possibly invisible control characters
 	if c < ' ' {
