@@ -741,9 +741,9 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gins(arm.AMOVW, &lo1, &al)
 		gins(arm.AMOVW, &hi1, &ah)
 		gins(arm.AMOVW, &lo2, &n1)
-		gins(optoas(int(n.Op), lo1.Type), &n1, &al)
+		gins(optoas(n.Op, lo1.Type), &n1, &al)
 		gins(arm.AMOVW, &hi2, &n1)
-		gins(optoas(int(n.Op), lo1.Type), &n1, &ah)
+		gins(optoas(n.Op, lo1.Type), &n1, &ah)
 		gc.Regfree(&n1)
 	}
 
@@ -767,7 +767,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
  * generate comparison of nl, nr, both 64-bit.
  * nl is memory; nr is constant or memory.
  */
-func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
 	var lo1 gc.Node
 	var hi1 gc.Node
 	var lo2 gc.Node

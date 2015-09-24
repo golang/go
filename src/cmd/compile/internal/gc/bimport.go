@@ -182,7 +182,7 @@ func (p *importer) localname() *Sym {
 	return importpkg.Lookup(name)
 }
 
-func (p *importer) newtyp(etype int) *Type {
+func (p *importer) newtyp(etype EType) *Type {
 	t := typ(etype)
 	p.typList = append(p.typList, t)
 	return t

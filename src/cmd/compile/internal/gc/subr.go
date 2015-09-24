@@ -347,9 +347,9 @@ func importdot(opkg *Pkg, pack *Node) {
 	}
 }
 
-func Nod(op int, nleft *Node, nright *Node) *Node {
+func Nod(op Op, nleft *Node, nright *Node) *Node {
 	n := new(Node)
-	n.Op = uint8(op)
+	n.Op = op
 	n.Left = nleft
 	n.Right = nright
 	n.Lineno = int32(parserline())
@@ -382,7 +382,7 @@ func saveorignode(n *Node) {
 	if n.Orig != nil {
 		return
 	}
-	norig := Nod(int(n.Op), nil, nil)
+	norig := Nod(n.Op, nil, nil)
 	*norig = *n
 	n.Orig = norig
 }
@@ -546,11 +546,11 @@ func maptype(key *Type, val *Type) *Type {
 	if key != nil {
 		var bad *Type
 		atype := algtype1(key, &bad)
-		var mtype int
+		var mtype EType
 		if bad == nil {
-			mtype = int(key.Etype)
+			mtype = key.Etype
 		} else {
-			mtype = int(bad.Etype)
+			mtype = bad.Etype
 		}
 		switch mtype {
 		default:
@@ -581,9 +581,9 @@ func maptype(key *Type, val *Type) *Type {
 	return t
 }
 
-func typ(et int) *Type {
+func typ(et EType) *Type {
 	t := new(Type)
-	t.Etype = uint8(et)
+	t.Etype = et
 	t.Width = BADWIDTH
 	t.Lineno = int(lineno)
 	t.Orig = t
@@ -777,7 +777,7 @@ func isnil(n *Node) bool {
 	return true
 }
 
-func isptrto(t *Type, et int) bool {
+func isptrto(t *Type, et EType) bool {
 	if t == nil {
 		return false
 	}
@@ -788,14 +788,14 @@ func isptrto(t *Type, et int) bool {
 	if t == nil {
 		return false
 	}
-	if int(t.Etype) != et {
+	if t.Etype != et {
 		return false
 	}
 	return true
 }
 
-func Istype(t *Type, et int) bool {
-	return t != nil && int(t.Etype) == et
+func Istype(t *Type, et EType) bool {
+	return t != nil && t.Etype == et
 }
 
 func Isfixedarray(t *Type) bool {
@@ -888,7 +888,7 @@ func methtype(t *Type, mustname int) *Type {
 	return t
 }
 
-func cplxsubtype(et int) int {
+func cplxsubtype(et EType) EType {
 	switch et {
 	case TCOMPLEX64:
 		return TFLOAT32
@@ -897,7 +897,7 @@ func cplxsubtype(et int) int {
 		return TFLOAT64
 	}
 
-	Fatalf("cplxsubtype: %v\n", Econv(int(et), 0))
+	Fatalf("cplxsubtype: %v\n", Econv(et))
 	return 0
 }
 
@@ -1054,7 +1054,7 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
 // If not, return 0.
-func assignop(src *Type, dst *Type, why *string) int {
+func assignop(src *Type, dst *Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -1178,7 +1178,7 @@ func assignop(src *Type, dst *Type, why *string) int {
 // Can we convert a value of type src to a value of type dst?
 // If so, return op code to use in conversion (maybe OCONVNOP).
 // If not, return 0.
-func convertop(src *Type, dst *Type, why *string) int {
+func convertop(src *Type, dst *Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -1396,8 +1396,8 @@ func Is64(t *Type) bool {
 
 // Is a conversion between t1 and t2 a no-op?
 func Noconv(t1 *Type, t2 *Type) bool {
-	e1 := int(Simtype[t1.Etype])
-	e2 := int(Simtype[t2.Etype])
+	e1 := Simtype[t1.Etype]
+	e2 := Simtype[t2.Etype]
 
 	switch e1 {
 	case TINT8, TUINT8:
@@ -1663,7 +1663,7 @@ out:
 	n.Ullman = uint8(ul)
 }
 
-func badtype(o int, tl *Type, tr *Type) {
+func badtype(op Op, tl *Type, tr *Type) {
 	fmt_ := ""
 	if tl != nil {
 		fmt_ += fmt.Sprintf("\n\t%v", tl)
@@ -1682,7 +1682,7 @@ func badtype(o int, tl *Type, tr *Type) {
 	}
 
 	s := fmt_
-	Yyerror("illegal types for operand: %v%s", Oconv(int(o), 0), s)
+	Yyerror("illegal types for operand: %v%s", Oconv(int(op), 0), s)
 }
 
 // iterator to walk a structure declaration
@@ -1809,8 +1809,8 @@ func getinargx(t *Type) *Type {
 
 // Brcom returns !(op).
 // For example, Brcom(==) is !=.
-func Brcom(a int) int {
-	switch a {
+func Brcom(op Op) Op {
+	switch op {
 	case OEQ:
 		return ONE
 	case ONE:
@@ -1824,14 +1824,14 @@ func Brcom(a int) int {
 	case OGE:
 		return OLT
 	}
-	Fatalf("brcom: no com for %v\n", Oconv(a, 0))
-	return a
+	Fatalf("brcom: no com for %v\n", Oconv(int(op), 0))
+	return op
 }
 
 // Brrev returns reverse(op).
 // For example, Brrev(<) is >.
-func Brrev(a int) int {
-	switch a {
+func Brrev(op Op) Op {
+	switch op {
 	case OEQ:
 		return OEQ
 	case ONE:
@@ -1845,8 +1845,8 @@ func Brrev(a int) int {
 	case OGE:
 		return OLE
 	}
-	Fatalf("brrev: no rev for %v\n", Oconv(a, 0))
-	return a
+	Fatalf("brrev: no rev for %v\n", Oconv(int(op), 0))
+	return op
 }
 
 // return side effect-free n, appending side effects to init.
@@ -2991,12 +2991,12 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 // even simpler simtype; get rid of ptr, bool.
 // assuming that the front end has rejected
 // all the invalid conversions (like ptr -> bool)
-func Simsimtype(t *Type) int {
+func Simsimtype(t *Type) EType {
 	if t == nil {
 		return 0
 	}
 
-	et := int(Simtype[t.Etype])
+	et := Simtype[t.Etype]
 	switch et {
 	case TPTR32:
 		et = TUINT32

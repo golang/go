@@ -488,7 +488,7 @@ simple_stmt:
 |	expr LASOP expr
 	{
 		$$ = Nod(OASOP, $1, $3);
-		$$.Etype = uint8($2);			// rathole to pass opcode
+		$$.Etype = EType($2);			// rathole to pass opcode
 	}
 |	expr_list '=' expr_list
 	{
@@ -524,13 +524,15 @@ simple_stmt:
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
 		$$.Implicit = true;
-		$$.Etype = OADD;
+		// TODO(marvin): Fix Node.EType type union.
+		$$.Etype = EType(OADD);
 	}
 |	expr LDEC
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
 		$$.Implicit = true;
-		$$.Etype = OSUB;
+		// TODO(marvin): Fix Node.EType type union.
+		$$.Etype = EType(OSUB);
 	}
 
 case:

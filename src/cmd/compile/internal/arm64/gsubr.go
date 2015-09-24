@@ -102,7 +102,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
 	gc.Regfree(&ntmp)
 }
 
-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n2.Op != gc.OLITERAL {
 		// Reverse comparison to place constant last.
 		op = gc.Brrev(op)
@@ -590,240 +590,264 @@ func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op int, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) int {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
+
+	// avoid constant conversions in switches below
+	const (
+		OMINUS_ = uint32(gc.OMINUS) << 16
+		OLSH_   = uint32(gc.OLSH) << 16
+		ORSH_   = uint32(gc.ORSH) << 16
+		OADD_   = uint32(gc.OADD) << 16
+		OSUB_   = uint32(gc.OSUB) << 16
+		OMUL_   = uint32(gc.OMUL) << 16
+		ODIV_   = uint32(gc.ODIV) << 16
+		OOR_    = uint32(gc.OOR) << 16
+		OAND_   = uint32(gc.OAND) << 16
+		OXOR_   = uint32(gc.OXOR) << 16
+		OEQ_    = uint32(gc.OEQ) << 16
+		ONE_    = uint32(gc.ONE) << 16
+		OLT_    = uint32(gc.OLT) << 16
+		OLE_    = uint32(gc.OLE) << 16
+		OGE_    = uint32(gc.OGE) << 16
+		OGT_    = uint32(gc.OGT) << 16
+		OCMP_   = uint32(gc.OCMP) << 16
+		OAS_    = uint32(gc.OAS) << 16
+		OHMUL_  = uint32(gc.OHMUL) << 16
+		OSQRT_  = uint32(gc.OSQRT) << 16
+	)
 
 	a := int(obj.AXXX)
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
 		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
 
-	case gc.OEQ<<16 | gc.TBOOL,
-		gc.OEQ<<16 | gc.TINT8,
-		gc.OEQ<<16 | gc.TUINT8,
-		gc.OEQ<<16 | gc.TINT16,
-		gc.OEQ<<16 | gc.TUINT16,
-		gc.OEQ<<16 | gc.TINT32,
-		gc.OEQ<<16 | gc.TUINT32,
-		gc.OEQ<<16 | gc.TINT64,
-		gc.OEQ<<16 | gc.TUINT64,
-		gc.OEQ<<16 | gc.TPTR32,
-		gc.OEQ<<16 | gc.TPTR64,
-		gc.OEQ<<16 | gc.TFLOAT32,
-		gc.OEQ<<16 | gc.TFLOAT64:
+	case OEQ_ | gc.TBOOL,
+		OEQ_ | gc.TINT8,
+		OEQ_ | gc.TUINT8,
+		OEQ_ | gc.TINT16,
+		OEQ_ | gc.TUINT16,
+		OEQ_ | gc.TINT32,
+		OEQ_ | gc.TUINT32,
+		OEQ_ | gc.TINT64,
+		OEQ_ | gc.TUINT64,
+		OEQ_ | gc.TPTR32,
+		OEQ_ | gc.TPTR64,
+		OEQ_ | gc.TFLOAT32,
+		OEQ_ | gc.TFLOAT64:
 		a = arm64.ABEQ
 
-	case gc.ONE<<16 | gc.TBOOL,
-		gc.ONE<<16 | gc.TINT8,
-		gc.ONE<<16 | gc.TUINT8,
-		gc.ONE<<16 | gc.TINT16,
-		gc.ONE<<16 | gc.TUINT16,
-		gc.ONE<<16 | gc.TINT32,
-		gc.ONE<<16 | gc.TUINT32,
-		gc.ONE<<16 | gc.TINT64,
-		gc.ONE<<16 | gc.TUINT64,
-		gc.ONE<<16 | gc.TPTR32,
-		gc.ONE<<16 | gc.TPTR64,
-		gc.ONE<<16 | gc.TFLOAT32,
-		gc.ONE<<16 | gc.TFLOAT64:
+	case ONE_ | gc.TBOOL,
+		ONE_ | gc.TINT8,
+		ONE_ | gc.TUINT8,
+		ONE_ | gc.TINT16,
+		ONE_ | gc.TUINT16,
+		ONE_ | gc.TINT32,
+		ONE_ | gc.TUINT32,
+		ONE_ | gc.TINT64,
+		ONE_ | gc.TUINT64,
+		ONE_ | gc.TPTR32,
+		ONE_ | gc.TPTR64,
+		ONE_ | gc.TFLOAT32,
+		ONE_ | gc.TFLOAT64:
 		a = arm64.ABNE
 
-	case gc.OLT<<16 | gc.TINT8,
-		gc.OLT<<16 | gc.TINT16,
-		gc.OLT<<16 | gc.TINT32,
-		gc.OLT<<16 | gc.TINT64:
+	case OLT_ | gc.TINT8,
+		OLT_ | gc.TINT16,
+		OLT_ | gc.TINT32,
+		OLT_ | gc.TINT64:
 		a = arm64.ABLT
 
-	case gc.OLT<<16 | gc.TUINT8,
-		gc.OLT<<16 | gc.TUINT16,
-		gc.OLT<<16 | gc.TUINT32,
-		gc.OLT<<16 | gc.TUINT64,
-		gc.OLT<<16 | gc.TFLOAT32,
-		gc.OLT<<16 | gc.TFLOAT64:
+	case OLT_ | gc.TUINT8,
+		OLT_ | gc.TUINT16,
+		OLT_ | gc.TUINT32,
+		OLT_ | gc.TUINT64,
+		OLT_ | gc.TFLOAT32,
+		OLT_ | gc.TFLOAT64:
 		a = arm64.ABLO
 
-	case gc.OLE<<16 | gc.TINT8,
-		gc.OLE<<16 | gc.TINT16,
-		gc.OLE<<16 | gc.TINT32,
-		gc.OLE<<16 | gc.TINT64:
+	case OLE_ | gc.TINT8,
+		OLE_ | gc.TINT16,
+		OLE_ | gc.TINT32,
+		OLE_ | gc.TINT64:
 		a = arm64.ABLE
 
-	case gc.OLE<<16 | gc.TUINT8,
-		gc.OLE<<16 | gc.TUINT16,
-		gc.OLE<<16 | gc.TUINT32,
-		gc.OLE<<16 | gc.TUINT64,
-		gc.OLE<<16 | gc.TFLOAT32,
-		gc.OLE<<16 | gc.TFLOAT64:
+	case OLE_ | gc.TUINT8,
+		OLE_ | gc.TUINT16,
+		OLE_ | gc.TUINT32,
+		OLE_ | gc.TUINT64,
+		OLE_ | gc.TFLOAT32,
+		OLE_ | gc.TFLOAT64:
 		a = arm64.ABLS
 
-	case gc.OGT<<16 | gc.TINT8,
-		gc.OGT<<16 | gc.TINT16,
-		gc.OGT<<16 | gc.TINT32,
-		gc.OGT<<16 | gc.TINT64,
-		gc.OGT<<16 | gc.TFLOAT32,
-		gc.OGT<<16 | gc.TFLOAT64:
+	case OGT_ | gc.TINT8,
+		OGT_ | gc.TINT16,
+		OGT_ | gc.TINT32,
+		OGT_ | gc.TINT64,
+		OGT_ | gc.TFLOAT32,
+		OGT_ | gc.TFLOAT64:
 		a = arm64.ABGT
 
-	case gc.OGT<<16 | gc.TUINT8,
-		gc.OGT<<16 | gc.TUINT16,
-		gc.OGT<<16 | gc.TUINT32,
-		gc.OGT<<16 | gc.TUINT64:
+	case OGT_ | gc.TUINT8,
+		OGT_ | gc.TUINT16,
+		OGT_ | gc.TUINT32,
+		OGT_ | gc.TUINT64:
 		a = arm64.ABHI
 
-	case gc.OGE<<16 | gc.TINT8,
-		gc.OGE<<16 | gc.TINT16,
-		gc.OGE<<16 | gc.TINT32,
-		gc.OGE<<16 | gc.TINT64,
-		gc.OGE<<16 | gc.TFLOAT32,
-		gc.OGE<<16 | gc.TFLOAT64:
+	case OGE_ | gc.TINT8,
+		OGE_ | gc.TINT16,
+		OGE_ | gc.TINT32,
+		OGE_ | gc.TINT64,
+		OGE_ | gc.TFLOAT32,
+		OGE_ | gc.TFLOAT64:
 		a = arm64.ABGE
 
-	case gc.OGE<<16 | gc.TUINT8,
-		gc.OGE<<16 | gc.TUINT16,
-		gc.OGE<<16 | gc.TUINT32,
-		gc.OGE<<16 | gc.TUINT64:
+	case OGE_ | gc.TUINT8,
+		OGE_ | gc.TUINT16,
+		OGE_ | gc.TUINT32,
+		OGE_ | gc.TUINT64:
 		a = arm64.ABHS
 
-	case gc.OCMP<<16 | gc.TBOOL,
-		gc.OCMP<<16 | gc.TINT8,
-		gc.OCMP<<16 | gc.TINT16,
-		gc.OCMP<<16 | gc.TINT32,
-		gc.OCMP<<16 | gc.TPTR32,
-		gc.OCMP<<16 | gc.TINT64,
-		gc.OCMP<<16 | gc.TUINT8,
-		gc.OCMP<<16 | gc.TUINT16,
-		gc.OCMP<<16 | gc.TUINT32,
-		gc.OCMP<<16 | gc.TUINT64,
-		gc.OCMP<<16 | gc.TPTR64:
+	case OCMP_ | gc.TBOOL,
+		OCMP_ | gc.TINT8,
+		OCMP_ | gc.TINT16,
+		OCMP_ | gc.TINT32,
+		OCMP_ | gc.TPTR32,
+		OCMP_ | gc.TINT64,
+		OCMP_ | gc.TUINT8,
+		OCMP_ | gc.TUINT16,
+		OCMP_ | gc.TUINT32,
+		OCMP_ | gc.TUINT64,
+		OCMP_ | gc.TPTR64:
 		a = arm64.ACMP
 
-	case gc.OCMP<<16 | gc.TFLOAT32:
+	case OCMP_ | gc.TFLOAT32:
 		a = arm64.AFCMPS
 
-	case gc.OCMP<<16 | gc.TFLOAT64:
+	case OCMP_ | gc.TFLOAT64:
 		a = arm64.AFCMPD
 
-	case gc.OAS<<16 | gc.TBOOL,
-		gc.OAS<<16 | gc.TINT8:
+	case OAS_ | gc.TBOOL,
+		OAS_ | gc.TINT8:
 		a = arm64.AMOVB
 
-	case gc.OAS<<16 | gc.TUINT8:
+	case OAS_ | gc.TUINT8:
 		a = arm64.AMOVBU
 
-	case gc.OAS<<16 | gc.TINT16:
+	case OAS_ | gc.TINT16:
 		a = arm64.AMOVH
 
-	case gc.OAS<<16 | gc.TUINT16:
+	case OAS_ | gc.TUINT16:
 		a = arm64.AMOVHU
 
-	case gc.OAS<<16 | gc.TINT32:
+	case OAS_ | gc.TINT32:
 		a = arm64.AMOVW
 
-	case gc.OAS<<16 | gc.TUINT32,
-		gc.OAS<<16 | gc.TPTR32:
+	case OAS_ | gc.TUINT32,
+		OAS_ | gc.TPTR32:
 		a = arm64.AMOVWU
 
-	case gc.OAS<<16 | gc.TINT64,
-		gc.OAS<<16 | gc.TUINT64,
-		gc.OAS<<16 | gc.TPTR64:
+	case OAS_ | gc.TINT64,
+		OAS_ | gc.TUINT64,
+		OAS_ | gc.TPTR64:
 		a = arm64.AMOVD
 
-	case gc.OAS<<16 | gc.TFLOAT32:
+	case OAS_ | gc.TFLOAT32:
 		a = arm64.AFMOVS
 
-	case gc.OAS<<16 | gc.TFLOAT64:
+	case OAS_ | gc.TFLOAT64:
 		a = arm64.AFMOVD
 
-	case gc.OADD<<16 | gc.TINT8,
-		gc.OADD<<16 | gc.TUINT8,
-		gc.OADD<<16 | gc.TINT16,
-		gc.OADD<<16 | gc.TUINT16,
-		gc.OADD<<16 | gc.TINT32,
-		gc.OADD<<16 | gc.TUINT32,
-		gc.OADD<<16 | gc.TPTR32,
-		gc.OADD<<16 | gc.TINT64,
-		gc.OADD<<16 | gc.TUINT64,
-		gc.OADD<<16 | gc.TPTR64:
+	case OADD_ | gc.TINT8,
+		OADD_ | gc.TUINT8,
+		OADD_ | gc.TINT16,
+		OADD_ | gc.TUINT16,
+		OADD_ | gc.TINT32,
+		OADD_ | gc.TUINT32,
+		OADD_ | gc.TPTR32,
+		OADD_ | gc.TINT64,
+		OADD_ | gc.TUINT64,
+		OADD_ | gc.TPTR64:
 		a = arm64.AADD
 
-	case gc.OADD<<16 | gc.TFLOAT32:
+	case OADD_ | gc.TFLOAT32:
 		a = arm64.AFADDS
 
-	case gc.OADD<<16 | gc.TFLOAT64:
+	case OADD_ | gc.TFLOAT64:
 		a = arm64.AFADDD
 
-	case gc.OSUB<<16 | gc.TINT8,
-		gc.OSUB<<16 | gc.TUINT8,
-		gc.OSUB<<16 | gc.TINT16,
-		gc.OSUB<<16 | gc.TUINT16,
-		gc.OSUB<<16 | gc.TINT32,
-		gc.OSUB<<16 | gc.TUINT32,
-		gc.OSUB<<16 | gc.TPTR32,
-		gc.OSUB<<16 | gc.TINT64,
-		gc.OSUB<<16 | gc.TUINT64,
-		gc.OSUB<<16 | gc.TPTR64:
+	case OSUB_ | gc.TINT8,
+		OSUB_ | gc.TUINT8,
+		OSUB_ | gc.TINT16,
+		OSUB_ | gc.TUINT16,
+		OSUB_ | gc.TINT32,
+		OSUB_ | gc.TUINT32,
+		OSUB_ | gc.TPTR32,
+		OSUB_ | gc.TINT64,
+		OSUB_ | gc.TUINT64,
+		OSUB_ | gc.TPTR64:
 		a = arm64.ASUB
 
-	case gc.OSUB<<16 | gc.TFLOAT32:
+	case OSUB_ | gc.TFLOAT32:
 		a = arm64.AFSUBS
 
-	case gc.OSUB<<16 | gc.TFLOAT64:
+	case OSUB_ | gc.TFLOAT64:
 		a = arm64.AFSUBD
 
-	case gc.OMINUS<<16 | gc.TINT8,
-		gc.OMINUS<<16 | gc.TUINT8,
-		gc.OMINUS<<16 | gc.TINT16,
-		gc.OMINUS<<16 | gc.TUINT16,
-		gc.OMINUS<<16 | gc.TINT32,
-		gc.OMINUS<<16 | gc.TUINT32,
-		gc.OMINUS<<16 | gc.TPTR32,
-		gc.OMINUS<<16 | gc.TINT64,
-		gc.OMINUS<<16 | gc.TUINT64,
-		gc.OMINUS<<16 | gc.TPTR64:
+	case OMINUS_ | gc.TINT8,
+		OMINUS_ | gc.TUINT8,
+		OMINUS_ | gc.TINT16,
+		OMINUS_ | gc.TUINT16,
+		OMINUS_ | gc.TINT32,
+		OMINUS_ | gc.TUINT32,
+		OMINUS_ | gc.TPTR32,
+		OMINUS_ | gc.TINT64,
+		OMINUS_ | gc.TUINT64,
+		OMINUS_ | gc.TPTR64:
 		a = arm64.ANEG
 
-	case gc.OMINUS<<16 | gc.TFLOAT32:
+	case OMINUS_ | gc.TFLOAT32:
 		a = arm64.AFNEGS
 
-	case gc.OMINUS<<16 | gc.TFLOAT64:
+	case OMINUS_ | gc.TFLOAT64:
 		a = arm64.AFNEGD
 
-	case gc.OAND<<16 | gc.TINT8,
-		gc.OAND<<16 | gc.TUINT8,
-		gc.OAND<<16 | gc.TINT16,
-		gc.OAND<<16 | gc.TUINT16,
-		gc.OAND<<16 | gc.TINT32,
-		gc.OAND<<16 | gc.TUINT32,
-		gc.OAND<<16 | gc.TPTR32,
-		gc.OAND<<16 | gc.TINT64,
-		gc.OAND<<16 | gc.TUINT64,
-		gc.OAND<<16 | gc.TPTR64:
+	case OAND_ | gc.TINT8,
+		OAND_ | gc.TUINT8,
+		OAND_ | gc.TINT16,
+		OAND_ | gc.TUINT16,
+		OAND_ | gc.TINT32,
+		OAND_ | gc.TUINT32,
+		OAND_ | gc.TPTR32,
+		OAND_ | gc.TINT64,
+		OAND_ | gc.TUINT64,
+		OAND_ | gc.TPTR64:
 		a = arm64.AAND
 
-	case gc.OOR<<16 | gc.TINT8,
-		gc.OOR<<16 | gc.TUINT8,
-		gc.OOR<<16 | gc.TINT16,
-		gc.OOR<<16 | gc.TUINT16,
-		gc.OOR<<16 | gc.TINT32,
-		gc.OOR<<16 | gc.TUINT32,
-		gc.OOR<<16 | gc.TPTR32,
-		gc.OOR<<16 | gc.TINT64,
-		gc.OOR<<16 | gc.TUINT64,
-		gc.OOR<<16 | gc.TPTR64:
+	case OOR_ | gc.TINT8,
+		OOR_ | gc.TUINT8,
+		OOR_ | gc.TINT16,
+		OOR_ | gc.TUINT16,
+		OOR_ | gc.TINT32,
+		OOR_ | gc.TUINT32,
+		OOR_ | gc.TPTR32,
+		OOR_ | gc.TINT64,
+		OOR_ | gc.TUINT64,
+		OOR_ | gc.TPTR64:
 		a = arm64.AORR
 
-	case gc.OXOR<<16 | gc.TINT8,
-		gc.OXOR<<16 | gc.TUINT8,
-		gc.OXOR<<16 | gc.TINT16,
-		gc.OXOR<<16 | gc.TUINT16,
-		gc.OXOR<<16 | gc.TINT32,
-		gc.OXOR<<16 | gc.TUINT32,
-		gc.OXOR<<16 | gc.TPTR32,
-		gc.OXOR<<16 | gc.TINT64,
-		gc.OXOR<<16 | gc.TUINT64,
-		gc.OXOR<<16 | gc.TPTR64:
+	case OXOR_ | gc.TINT8,
+		OXOR_ | gc.TUINT8,
+		OXOR_ | gc.TINT16,
+		OXOR_ | gc.TUINT16,
+		OXOR_ | gc.TINT32,
+		OXOR_ | gc.TUINT32,
+		OXOR_ | gc.TPTR32,
+		OXOR_ | gc.TINT64,
+		OXOR_ | gc.TUINT64,
+		OXOR_ | gc.TPTR64:
 		a = arm64.AEOR
 
 		// TODO(minux): handle rotates
@@ -840,30 +864,30 @@ func optoas(op int, t *gc.Type) int {
 	//	a = 0//???; RLDC?
 	//	break;
 
-	case gc.OLSH<<16 | gc.TINT8,
-		gc.OLSH<<16 | gc.TUINT8,
-		gc.OLSH<<16 | gc.TINT16,
-		gc.OLSH<<16 | gc.TUINT16,
-		gc.OLSH<<16 | gc.TINT32,
-		gc.OLSH<<16 | gc.TUINT32,
-		gc.OLSH<<16 | gc.TPTR32,
-		gc.OLSH<<16 | gc.TINT64,
-		gc.OLSH<<16 | gc.TUINT64,
-		gc.OLSH<<16 | gc.TPTR64:
+	case OLSH_ | gc.TINT8,
+		OLSH_ | gc.TUINT8,
+		OLSH_ | gc.TINT16,
+		OLSH_ | gc.TUINT16,
+		OLSH_ | gc.TINT32,
+		OLSH_ | gc.TUINT32,
+		OLSH_ | gc.TPTR32,
+		OLSH_ | gc.TINT64,
+		OLSH_ | gc.TUINT64,
+		OLSH_ | gc.TPTR64:
 		a = arm64.ALSL
 
-	case gc.ORSH<<16 | gc.TUINT8,
-		gc.ORSH<<16 | gc.TUINT16,
-		gc.ORSH<<16 | gc.TUINT32,
-		gc.ORSH<<16 | gc.TPTR32,
-		gc.ORSH<<16 | gc.TUINT64,
-		gc.ORSH<<16 | gc.TPTR64:
+	case ORSH_ | gc.TUINT8,
+		ORSH_ | gc.TUINT16,
+		ORSH_ | gc.TUINT32,
+		ORSH_ | gc.TPTR32,
+		ORSH_ | gc.TUINT64,
+		ORSH_ | gc.TPTR64:
 		a = arm64.ALSR
 
-	case gc.ORSH<<16 | gc.TINT8,
-		gc.ORSH<<16 | gc.TINT16,
-		gc.ORSH<<16 | gc.TINT32,
-		gc.ORSH<<16 | gc.TINT64:
+	case ORSH_ | gc.TINT8,
+		ORSH_ | gc.TINT16,
+		ORSH_ | gc.TINT32,
+		ORSH_ | gc.TINT64:
 		a = arm64.AASR
 
 		// TODO(minux): handle rotates
@@ -878,59 +902,59 @@ func optoas(op int, t *gc.Type) int {
 	//	a = 0//??? RLDC??
 	//	break;
 
-	case gc.OHMUL<<16 | gc.TINT64:
+	case OHMUL_ | gc.TINT64:
 		a = arm64.ASMULH
 
-	case gc.OHMUL<<16 | gc.TUINT64,
-		gc.OHMUL<<16 | gc.TPTR64:
+	case OHMUL_ | gc.TUINT64,
+		OHMUL_ | gc.TPTR64:
 		a = arm64.AUMULH
 
-	case gc.OMUL<<16 | gc.TINT8,
-		gc.OMUL<<16 | gc.TINT16,
-		gc.OMUL<<16 | gc.TINT32:
+	case OMUL_ | gc.TINT8,
+		OMUL_ | gc.TINT16,
+		OMUL_ | gc.TINT32:
 		a = arm64.ASMULL
 
-	case gc.OMUL<<16 | gc.TINT64:
+	case OMUL_ | gc.TINT64:
 		a = arm64.AMUL
 
-	case gc.OMUL<<16 | gc.TUINT8,
-		gc.OMUL<<16 | gc.TUINT16,
-		gc.OMUL<<16 | gc.TUINT32,
-		gc.OMUL<<16 | gc.TPTR32:
+	case OMUL_ | gc.TUINT8,
+		OMUL_ | gc.TUINT16,
+		OMUL_ | gc.TUINT32,
+		OMUL_ | gc.TPTR32:
 		// don't use word multiply, the high 32-bit are undefined.
 		a = arm64.AUMULL
 
-	case gc.OMUL<<16 | gc.TUINT64,
-		gc.OMUL<<16 | gc.TPTR64:
+	case OMUL_ | gc.TUINT64,
+		OMUL_ | gc.TPTR64:
 		a = arm64.AMUL // for 64-bit multiplies, signedness doesn't matter.
 
-	case gc.OMUL<<16 | gc.TFLOAT32:
+	case OMUL_ | gc.TFLOAT32:
 		a = arm64.AFMULS
 
-	case gc.OMUL<<16 | gc.TFLOAT64:
+	case OMUL_ | gc.TFLOAT64:
 		a = arm64.AFMULD
 
-	case gc.ODIV<<16 | gc.TINT8,
-		gc.ODIV<<16 | gc.TINT16,
-		gc.ODIV<<16 | gc.TINT32,
-		gc.ODIV<<16 | gc.TINT64:
+	case ODIV_ | gc.TINT8,
+		ODIV_ | gc.TINT16,
+		ODIV_ | gc.TINT32,
+		ODIV_ | gc.TINT64:
 		a = arm64.ASDIV
 
-	case gc.ODIV<<16 | gc.TUINT8,
-		gc.ODIV<<16 | gc.TUINT16,
-		gc.ODIV<<16 | gc.TUINT32,
-		gc.ODIV<<16 | gc.TPTR32,
-		gc.ODIV<<16 | gc.TUINT64,
-		gc.ODIV<<16 | gc.TPTR64:
+	case ODIV_ | gc.TUINT8,
+		ODIV_ | gc.TUINT16,
+		ODIV_ | gc.TUINT32,
+		ODIV_ | gc.TPTR32,
+		ODIV_ | gc.TUINT64,
+		ODIV_ | gc.TPTR64:
 		a = arm64.AUDIV
 
-	case gc.ODIV<<16 | gc.TFLOAT32:
+	case ODIV_ | gc.TFLOAT32:
 		a = arm64.AFDIVS
 
-	case gc.ODIV<<16 | gc.TFLOAT64:
+	case ODIV_ | gc.TFLOAT64:
 		a = arm64.AFDIVD
 
-	case gc.OSQRT<<16 | gc.TFLOAT64:
+	case OSQRT_ | gc.TFLOAT64:
 		a = arm64.AFSQRTD
 	}
 
