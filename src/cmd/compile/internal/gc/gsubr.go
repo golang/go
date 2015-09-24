@@ -335,7 +335,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		// n->left is PHEAP ONAME for stack parameter.
 	// compute address of actual parameter on stack.
 	case OPARAM:
-		a.Etype = Simtype[n.Left.Type.Etype]
+		a.Etype = uint8(Simtype[n.Left.Type.Etype])
 
 		a.Width = n.Left.Type.Width
 		a.Offset = n.Xoffset
@@ -360,7 +360,7 @@ func Naddr(a *obj.Addr, n *Node) {
 	case ONAME:
 		a.Etype = 0
 		if n.Type != nil {
-			a.Etype = Simtype[n.Type.Etype]
+			a.Etype = uint8(Simtype[n.Type.Etype])
 		}
 		a.Offset = n.Xoffset
 		s := n.Sym
@@ -464,7 +464,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // ptr(nil)
 		}
-		a.Etype = Simtype[Tptr]
+		a.Etype = uint8(Simtype[Tptr])
 		a.Offset += int64(Array_array)
 		a.Width = int64(Widthptr)
 
@@ -475,7 +475,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // len(nil)
 		}
-		a.Etype = Simtype[TUINT]
+		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_nel)
 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
@@ -488,7 +488,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // cap(nil)
 		}
-		a.Etype = Simtype[TUINT]
+		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_cap)
 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
@@ -667,7 +667,7 @@ func Regalloc(n *Node, t *Type, o *Node) {
 	if t == nil {
 		Fatalf("regalloc: t nil")
 	}
-	et := int(Simtype[t.Etype])
+	et := Simtype[t.Etype]
 	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
 		Fatalf("regalloc 64bit")
 	}

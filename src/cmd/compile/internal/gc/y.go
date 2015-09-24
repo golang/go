@@ -1560,7 +1560,7 @@ yydefault:
 		//line go.y:489
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, yyDollar[3].node)
-			yyVAL.node.Etype = uint8(yyDollar[2].i) // rathole to pass opcode
+			yyVAL.node.Etype = EType(yyDollar[2].i) // rathole to pass opcode
 		}
 	case 51:
 		yyDollar = yyS[yypt-3 : yypt+1]
@@ -1602,7 +1602,7 @@ yydefault:
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
 			yyVAL.node.Implicit = true
-			yyVAL.node.Etype = OADD
+			yyVAL.node.Etype = EType(OADD)
 		}
 	case 54:
 		yyDollar = yyS[yypt-2 : yypt+1]
@@ -1610,7 +1610,7 @@ yydefault:
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
 			yyVAL.node.Implicit = true
-			yyVAL.node.Etype = OSUB
+			yyVAL.node.Etype = EType(OSUB)
 		}
 	case 55:
 		yyDollar = yyS[yypt-3 : yypt+1]

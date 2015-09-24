@@ -434,8 +434,8 @@ func dumpexport() {
 // import
 
 // return the sym for ss, which should match lexical
-func importsym(s *Sym, op int) *Sym {
-	if s.Def != nil && int(s.Def.Op) != op {
+func importsym(s *Sym, op Op) *Sym {
+	if s.Def != nil && s.Def.Op != op {
 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
 		redeclare(s, pkgstr)
 	}

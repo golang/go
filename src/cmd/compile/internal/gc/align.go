@@ -149,7 +149,7 @@ func dowidth(t *Type) {
 	t.Width = -2
 	t.Align = 0
 
-	et := int32(t.Etype)
+	et := t.Etype
 	switch et {
 	case TFUNC, TCHAN, TMAP, TSTRING:
 		break
@@ -157,7 +157,7 @@ func dowidth(t *Type) {
 	// simtype == 0 during bootstrap
 	default:
 		if Simtype[t.Etype] != 0 {
-			et = int32(Simtype[t.Etype])
+			et = Simtype[t.Etype]
 		}
 	}
 
@@ -416,8 +416,8 @@ func typeinit() {
 		Fatalf("typeinit before betypeinit")
 	}
 
-	for i := 0; i < NTYPE; i++ {
-		Simtype[i] = uint8(i)
+	for et := EType(0); et < NTYPE; et++ {
+		Simtype[et] = et
 	}
 
 	Types[TPTR32] = typ(TPTR32)
@@ -439,8 +439,8 @@ func typeinit() {
 		Tptr = TPTR64
 	}
 
-	for i := TINT8; i <= TUINT64; i++ {
-		Isint[i] = true
+	for et := TINT8; et <= TUINT64; et++ {
+		Isint[et] = true
 	}
 	Isint[TINT] = true
 	Isint[TUINT] = true
@@ -464,36 +464,36 @@ func typeinit() {
 	Issigned[TINT64] = true
 
 	// initialize okfor
-	for i := 0; i < NTYPE; i++ {
-		if Isint[i] || i == TIDEAL {
-			okforeq[i] = true
-			okforcmp[i] = true
-			okforarith[i] = true
-			okforadd[i] = true
-			okforand[i] = true
-			okforconst[i] = true
-			issimple[i] = true
-			Minintval[i] = new(Mpint)
-			Maxintval[i] = new(Mpint)
+	for et := EType(0); et < NTYPE; et++ {
+		if Isint[et] || et == TIDEAL {
+			okforeq[et] = true
+			okforcmp[et] = true
+			okforarith[et] = true
+			okforadd[et] = true
+			okforand[et] = true
+			okforconst[et] = true
+			issimple[et] = true
+			Minintval[et] = new(Mpint)
+			Maxintval[et] = new(Mpint)
 		}
 
-		if Isfloat[i] {
-			okforeq[i] = true
-			okforcmp[i] = true
-			okforadd[i] = true
-			okforarith[i] = true
-			okforconst[i] = true
-			issimple[i] = true
-			minfltval[i] = newMpflt()
-			maxfltval[i] = newMpflt()
+		if Isfloat[et] {
+			okforeq[et] = true
+			okforcmp[et] = true
+			okforadd[et] = true
+			okforarith[et] = true
+			okforconst[et] = true
+			issimple[et] = true
+			minfltval[et] = newMpflt()
+			maxfltval[et] = newMpflt()
 		}
 
-		if Iscomplex[i] {
-			okforeq[i] = true
-			okforadd[i] = true
-			okforarith[i] = true
-			okforconst[i] = true
-			issimple[i] = true
+		if Iscomplex[et] {
+			okforeq[et] = true
+			okforadd[et] = true
+			okforarith[et] = true
+			okforconst[et] = true
+			issimple[et] = true
 		}
 	}
 
@@ -612,30 +612,26 @@ func typeinit() {
 	Types[TINTER] = typ(TINTER)
 
 	// simple aliases
-	Simtype[TMAP] = uint8(Tptr)
+	Simtype[TMAP] = Tptr
 
-	Simtype[TCHAN] = uint8(Tptr)
-	Simtype[TFUNC] = uint8(Tptr)
-	Simtype[TUNSAFEPTR] = uint8(Tptr)
+	Simtype[TCHAN] = Tptr
+	Simtype[TFUNC] = Tptr
+	Simtype[TUNSAFEPTR] = Tptr
 
 	// pick up the backend thearch.typedefs
-	var s1 *Sym
-	var etype int
-	var sameas int
-	var s *Sym
 	for i = range Thearch.Typedefs {
-		s = Lookup(Thearch.Typedefs[i].Name)
-		s1 = Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
+		s := Lookup(Thearch.Typedefs[i].Name)
+		s1 := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
 
-		etype = Thearch.Typedefs[i].Etype
-		if etype < 0 || etype >= len(Types) {
+		etype := Thearch.Typedefs[i].Etype
+		if int(etype) >= len(Types) {
 			Fatalf("typeinit: %s bad etype", s.Name)
 		}
-		sameas = Thearch.Typedefs[i].Sameas
-		if sameas < 0 || sameas >= len(Types) {
+		sameas := Thearch.Typedefs[i].Sameas
+		if int(sameas) >= len(Types) {
 			Fatalf("typeinit: %s bad sameas", s.Name)
 		}
-		Simtype[etype] = uint8(sameas)
+		Simtype[etype] = sameas
 		minfltval[etype] = minfltval[sameas]
 		maxfltval[etype] = maxfltval[sameas]
 		Minintval[etype] = Minintval[sameas]

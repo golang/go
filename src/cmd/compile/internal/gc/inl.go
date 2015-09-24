@@ -350,7 +350,8 @@ func inlnode(np **Node) {
 	case ODEFER, OPROC:
 		switch n.Left.Op {
 		case OCALLFUNC, OCALLMETH:
-			n.Left.Etype = n.Op
+			// TODO(marvin): Fix Node.EType type union.
+			n.Left.Etype = EType(n.Op)
 		}
 		fallthrough
 
@@ -450,7 +451,8 @@ func inlnode(np **Node) {
 	// switch at the top of this function.
 	switch n.Op {
 	case OCALLFUNC, OCALLMETH:
-		if n.Etype == OPROC || n.Etype == ODEFER {
+		// TODO(marvin): Fix Node.EType type union.
+		if n.Etype == EType(OPROC) || n.Etype == EType(ODEFER) {
 			return
 		}
 	}

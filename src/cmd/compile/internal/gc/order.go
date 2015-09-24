@@ -509,7 +509,8 @@ func orderstmt(n *Node, order *Order) {
 			tmp1.Etype = 0 // now an rvalue not an lvalue
 		}
 		tmp1 = ordercopyexpr(tmp1, n.Left.Type, order, 0)
-		n.Right = Nod(int(n.Etype), tmp1, n.Right)
+		// TODO(marvin): Fix Node.EType type union.
+		n.Right = Nod(Op(n.Etype), tmp1, n.Right)
 		typecheck(&n.Right, Erv)
 		orderexpr(&n.Right, order, nil)
 		n.Etype = 0

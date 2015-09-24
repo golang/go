@@ -1187,14 +1187,14 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = ODIV
+			c = int(ODIV)
 			goto asop
 		}
 
 	case ':':
 		c1 = getc()
 		if c1 == '=' {
-			c = LCOLAS
+			c = int(LCOLAS)
 			yylval.i = int(lexlineno)
 			goto lx
 		}
@@ -1202,48 +1202,48 @@ l0:
 	case '*':
 		c1 = getc()
 		if c1 == '=' {
-			c = OMUL
+			c = int(OMUL)
 			goto asop
 		}
 
 	case '%':
 		c1 = getc()
 		if c1 == '=' {
-			c = OMOD
+			c = int(OMOD)
 			goto asop
 		}
 
 	case '+':
 		c1 = getc()
 		if c1 == '+' {
-			c = LINC
+			c = int(LINC)
 			goto lx
 		}
 
 		if c1 == '=' {
-			c = OADD
+			c = int(OADD)
 			goto asop
 		}
 
 	case '-':
 		c1 = getc()
 		if c1 == '-' {
-			c = LDEC
+			c = int(LDEC)
 			goto lx
 		}
 
 		if c1 == '=' {
-			c = OSUB
+			c = int(OSUB)
 			goto asop
 		}
 
 	case '>':
 		c1 = getc()
 		if c1 == '>' {
-			c = LRSH
+			c = int(LRSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = ORSH
+				c = int(ORSH)
 				goto asop
 			}
 
@@ -1251,19 +1251,19 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = LGE
+			c = int(LGE)
 			goto lx
 		}
 
-		c = LGT
+		c = int(LGT)
 
 	case '<':
 		c1 = getc()
 		if c1 == '<' {
-			c = LLSH
+			c = int(LLSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = OLSH
+				c = int(OLSH)
 				goto asop
 			}
 
@@ -1271,43 +1271,43 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = LLE
+			c = int(LLE)
 			goto lx
 		}
 
 		if c1 == '-' {
-			c = LCOMM
+			c = int(LCOMM)
 			goto lx
 		}
 
-		c = LLT
+		c = int(LLT)
 
 	case '=':
 		c1 = getc()
 		if c1 == '=' {
-			c = LEQ
+			c = int(LEQ)
 			goto lx
 		}
 
 	case '!':
 		c1 = getc()
 		if c1 == '=' {
-			c = LNE
+			c = int(LNE)
 			goto lx
 		}
 
 	case '&':
 		c1 = getc()
 		if c1 == '&' {
-			c = LANDAND
+			c = int(LANDAND)
 			goto lx
 		}
 
 		if c1 == '^' {
-			c = LANDNOT
+			c = int(LANDNOT)
 			c1 = getc()
 			if c1 == '=' {
-				c = OANDNOT
+				c = int(OANDNOT)
 				goto asop
 			}
 
@@ -1315,26 +1315,26 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = OAND
+			c = int(OAND)
 			goto asop
 		}
 
 	case '|':
 		c1 = getc()
 		if c1 == '|' {
-			c = LOROR
+			c = int(LOROR)
 			goto lx
 		}
 
 		if c1 == '=' {
-			c = OOR
+			c = int(OOR)
 			goto asop
 		}
 
 	case '^':
 		c1 = getc()
 		if c1 == '=' {
-			c = OXOR
+			c = int(OXOR)
 			goto asop
 		}
 
@@ -2159,8 +2159,8 @@ hex:
 var syms = []struct {
 	name    string
 	lexical int
-	etype   int
-	op      int
+	etype   EType
+	op      Op
 }{
 	// basic types
 	{"int8", LNAME, TINT8, OXXX},
@@ -2233,7 +2233,7 @@ func lexinit() {
 		s1.Lexical = uint16(lex)
 
 		if etype := s.etype; etype != Txxx {
-			if etype < 0 || etype >= len(Types) {
+			if int(etype) >= len(Types) {
 				Fatalf("lexinit: %s bad etype", s.name)
 			}
 			s2 := Pkglookup(s.name, builtinpkg)
@@ -2254,12 +2254,13 @@ func lexinit() {
 			continue
 		}
 
+		// TODO(marvin): Fix Node.EType type union.
 		if etype := s.op; etype != OXXX {
 			s2 := Pkglookup(s.name, builtinpkg)
 			s2.Lexical = LNAME
 			s2.Def = Nod(ONAME, nil, nil)
 			s2.Def.Sym = s2
-			s2.Def.Etype = uint8(etype)
+			s2.Def.Etype = EType(etype)
 		}
 	}
 
@@ -2368,38 +2369,34 @@ func lexinit1() {
 }
 
 func lexfini() {
-	var s *Sym
-	var lex int
-	var etype int
-	var i int
-
-	for i = 0; i < len(syms); i++ {
-		lex = syms[i].lexical
+	for i := range syms {
+		lex := syms[i].lexical
 		if lex != LNAME {
 			continue
 		}
-		s = Lookup(syms[i].name)
+		s := Lookup(syms[i].name)
 		s.Lexical = uint16(lex)
 
-		etype = syms[i].etype
+		etype := syms[i].etype
 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
 			s.Def = typenod(Types[etype])
 			s.Def.Name = new(Name)
 			s.Origpkg = builtinpkg
 		}
 
-		etype = syms[i].op
-		if etype != OXXX && s.Def == nil {
+		// TODO(marvin): Fix Node.EType type union.
+		etype = EType(syms[i].op)
+		if etype != EType(OXXX) && s.Def == nil {
 			s.Def = Nod(ONAME, nil, nil)
 			s.Def.Sym = s
-			s.Def.Etype = uint8(etype)
+			s.Def.Etype = etype
 			s.Origpkg = builtinpkg
 		}
 	}
 
 	// backend-specific builtin types (e.g. int).
-	for i = range Thearch.Typedefs {
-		s = Lookup(Thearch.Typedefs[i].Name)
+	for i := range Thearch.Typedefs {
+		s := Lookup(Thearch.Typedefs[i].Name)
 		if s.Def == nil {
 			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
 			s.Def.Name = new(Name)
@@ -2409,30 +2406,25 @@ func lexfini() {
 
 	// there's only so much table-driven we can handle.
 	// these are special cases.
-	s = Lookup("byte")
-
-	if s.Def == nil {
+	if s := Lookup("byte"); s.Def == nil {
 		s.Def = typenod(bytetype)
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("error")
-	if s.Def == nil {
+	if s := Lookup("error"); s.Def == nil {
 		s.Def = typenod(errortype)
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("rune")
-	if s.Def == nil {
+	if s := Lookup("rune"); s.Def == nil {
 		s.Def = typenod(runetype)
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("nil")
-	if s.Def == nil {
+	if s := Lookup("nil"); s.Def == nil {
 		var v Val
 		v.U = new(NilVal)
 		s.Def = nodlit(v)
@@ -2441,23 +2433,20 @@ func lexfini() {
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("iota")
-	if s.Def == nil {
+	if s := Lookup("iota"); s.Def == nil {
 		s.Def = Nod(OIOTA, nil, nil)
 		s.Def.Sym = s
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("true")
-	if s.Def == nil {
+	if s := Lookup("true"); s.Def == nil {
 		s.Def = Nodbool(true)
 		s.Def.Sym = s
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("false")
-	if s.Def == nil {
+	if s := Lookup("false"); s.Def == nil {
 		s.Def = Nodbool(false)
 		s.Def.Sym = s
 		s.Def.Name = new(Name)

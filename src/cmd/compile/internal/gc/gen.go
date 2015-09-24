@@ -1012,7 +1012,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 	numPtr := 0
 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
 		n++
-		if int(Simtype[t.Etype]) == Tptr && t != itable {
+		if Simtype[t.Etype] == Tptr && t != itable {
 			numPtr++
 		}
 		return n <= maxMoves && (!wb || numPtr <= 1)
@@ -1129,7 +1129,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
 		ptrOffset int64
 	)
 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
-		if wb && int(Simtype[t.Etype]) == Tptr && t != itable {
+		if wb && Simtype[t.Etype] == Tptr && t != itable {
 			if ptrType != nil {
 				Fatalf("componentgen_wb %v", Tconv(nl.Type, 0))
 			}

@@ -14,7 +14,7 @@ func overlap_cplx(f *Node, t *Node) bool {
 	return f.Op == OINDREG && t.Op == OINDREG && f.Xoffset+f.Type.Width >= t.Xoffset && t.Xoffset+t.Type.Width >= f.Xoffset
 }
 
-func complexbool(op int, nl, nr, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+func complexbool(op Op, nl, nr, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	// make both sides addable in ullman order
 	if nr != nil {
 		if nl.Ullman > nr.Ullman && !nl.Addable {
@@ -130,7 +130,7 @@ func complexminus(nl *Node, res *Node) {
 // build and execute tree
 //	real(res) = real(nl) op real(nr)
 //	imag(res) = imag(nl) op imag(nr)
-func complexadd(op int, nl *Node, nr *Node, res *Node) {
+func complexadd(op Op, nl *Node, nr *Node, res *Node) {
 	var n1 Node
 	var n2 Node
 	var n3 Node
@@ -143,14 +143,14 @@ func complexadd(op int, nl *Node, nr *Node, res *Node) {
 	subnode(&n5, &n6, res)
 
 	var ra Node
-	ra.Op = uint8(op)
+	ra.Op = op
 	ra.Left = &n1
 	ra.Right = &n3
 	ra.Type = n1.Type
 	Cgen(&ra, &n5)
 
 	ra = Node{}
-	ra.Op = uint8(op)
+	ra.Op = op
 	ra.Left = &n2
 	ra.Right = &n4
 	ra.Type = n2.Type
@@ -293,17 +293,10 @@ func Complexmove(f *Node, t *Node) {
 
 	ft := Simsimtype(f.Type)
 	tt := Simsimtype(t.Type)
-	switch uint32(ft)<<16 | uint32(tt) {
-	default:
-		Fatalf("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
-
-		// complex to complex move/convert.
+	// complex to complex move/convert.
 	// make f addable.
 	// also use temporary if possible stack overlap.
-	case TCOMPLEX64<<16 | TCOMPLEX64,
-		TCOMPLEX64<<16 | TCOMPLEX128,
-		TCOMPLEX128<<16 | TCOMPLEX64,
-		TCOMPLEX128<<16 | TCOMPLEX128:
+	if (ft == TCOMPLEX64 || ft == TCOMPLEX128) && (tt == TCOMPLEX64 || tt == TCOMPLEX128) {
 		if !f.Addable || overlap_cplx(f, t) {
 			var tmp Node
 			Tempname(&tmp, f.Type)
@@ -320,6 +313,8 @@ func Complexmove(f *Node, t *Node) {
 
 		Cgen(&n1, &n3)
 		Cgen(&n2, &n4)
+	} else {
+		Fatalf("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
 	}
 }
 
@@ -471,7 +466,7 @@ func Complexgen(n *Node, res *Node) {
 		complexminus(nl, res)
 
 	case OADD, OSUB:
-		complexadd(int(n.Op), nl, nr, res)
+		complexadd(n.Op, nl, nr, res)
 
 	case OMUL:
 		complexmul(nl, nr, res)

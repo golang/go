@@ -313,19 +313,19 @@ func walkstmt(np **Node) {
 				if f.Op != OCALLFUNC && f.Op != OCALLMETH && f.Op != OCALLINTER {
 					Fatalf("expected return of call, have %v", f)
 				}
-				n.List = concat(list1(f), ascompatet(int(n.Op), rl, &f.Type, 0, &n.Ninit))
+				n.List = concat(list1(f), ascompatet(n.Op, rl, &f.Type, 0, &n.Ninit))
 				break
 			}
 
 			// move function calls out, to make reorder3's job easier.
 			walkexprlistsafe(n.List, &n.Ninit)
 
-			ll := ascompatee(int(n.Op), rl, n.List, &n.Ninit)
+			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
 			n.List = reorder3(ll)
 			break
 		}
 
-		ll := ascompatte(int(n.Op), nil, false, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
+		ll := ascompatte(n.Op, nil, false, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
 		n.List = ll
 
 	case ORETJMP:
@@ -579,7 +579,7 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List, init)
-		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
 		n.List = reorder1(ll)
 
 	case OCALLFUNC:
@@ -626,7 +626,7 @@ opswitch:
 			}
 		}
 
-		ll := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
 		n.List = reorder1(ll)
 
 	case OCALLMETH:
@@ -636,8 +636,8 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List, init)
-		ll := ascompatte(int(n.Op), n, false, getthis(t), list1(n.Left.Left), 0, init)
-		lr := ascompatte(int(n.Op), n, n.Isddd, getinarg(t), n.List, 0, init)
+		ll := ascompatte(n.Op, n, false, getthis(t), list1(n.Left.Left), 0, init)
+		lr := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
 		ll = concat(ll, lr)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
@@ -748,7 +748,7 @@ opswitch:
 		walkexprlistsafe(n.List, init)
 		walkexpr(&r, init)
 
-		ll := ascompatet(int(n.Op), n.List, &r.Type, 0, init)
+		ll := ascompatet(n.Op, n.List, &r.Type, 0, init)
 		for lr := ll; lr != nil; lr = lr.Next {
 			lr.N = applywritebarrier(lr.N, init)
 		}
@@ -1103,7 +1103,7 @@ opswitch:
 		walkexpr(&n.Right, init)
 
 		// rewrite complex div into function call.
-		et := int(n.Left.Type.Etype)
+		et := n.Left.Type.Etype
 
 		if Iscomplex[et] && n.Op == ODIV {
 			t := n.Type
@@ -1291,7 +1291,8 @@ opswitch:
 	// without the function call.
 	case OCMPSTR:
 		if (Isconst(n.Left, CTSTR) && len(n.Left.Val().U.(string)) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val().U.(string)) == 0) {
-			r := Nod(int(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
+			// TODO(marvin): Fix Node.EType type union.
+			r := Nod(Op(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
 			typecheck(&r, Erv)
 			walkexpr(&r, init)
 			r.Type = n.Type
@@ -1300,8 +1301,9 @@ opswitch:
 		}
 
 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
-		if (n.Etype == OEQ || n.Etype == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && strlit(n.Right) == strlit(n.Left.List.Next.N) {
-			r := Nod(int(n.Etype), Nod(OLEN, n.Left.List.N, nil), Nodintconst(0))
+		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && strlit(n.Right) == strlit(n.Left.List.Next.N) {
+			// TODO(marvin): Fix Node.EType type union.
+			r := Nod(Op(n.Etype), Nod(OLEN, n.Left.List.N, nil), Nodintconst(0))
 			typecheck(&r, Erv)
 			walkexpr(&r, init)
 			r.Type = n.Type
@@ -1310,7 +1312,8 @@ opswitch:
 		}
 
 		var r *Node
-		if n.Etype == OEQ || n.Etype == ONE {
+		// TODO(marvin): Fix Node.EType type union.
+		if Op(n.Etype) == OEQ || Op(n.Etype) == ONE {
 			// prepare for rewrite below
 			n.Left = cheapexpr(n.Left, init)
 
@@ -1320,7 +1323,8 @@ opswitch:
 
 			// quick check of len before full compare for == or !=
 			// eqstring assumes that the lengths are equal
-			if n.Etype == OEQ {
+			// TODO(marvin): Fix Node.EType type union.
+			if Op(n.Etype) == OEQ {
 				// len(left) == len(right) && eqstring(left, right)
 				r = Nod(OANDAND, Nod(OEQ, Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil)), r)
 			} else {
@@ -1336,7 +1340,8 @@ opswitch:
 			// sys_cmpstring(s1, s2) :: 0
 			r = mkcall("cmpstring", Types[TINT], init, conv(n.Left, Types[TSTRING]), conv(n.Right, Types[TSTRING]))
 
-			r = Nod(int(n.Etype), r, Nodintconst(0))
+			// TODO(marvin): Fix Node.EType type union.
+			r = Nod(Op(n.Etype), r, Nodintconst(0))
 		}
 
 		typecheck(&r, Erv)
@@ -1514,12 +1519,14 @@ opswitch:
 		n.Left = cheapexpr(n.Left, init)
 		substArgTypes(fn, n.Right.Type, n.Left.Type)
 		r := mkcall1(fn, n.Type, init, n.Left, n.Right)
-		if n.Etype == ONE {
+		// TODO(marvin): Fix Node.EType type union.
+		if Op(n.Etype) == ONE {
 			r = Nod(ONOT, r, nil)
 		}
 
 		// check itable/type before full compare.
-		if n.Etype == OEQ {
+		// TODO(marvin): Fix Node.EType type union.
+		if Op(n.Etype) == OEQ {
 			r = Nod(OANDAND, Nod(OEQ, Nod(OITAB, n.Left, nil), Nod(OITAB, n.Right, nil)), r)
 		} else {
 			r = Nod(OOROR, Nod(ONE, Nod(OITAB, n.Left, nil), Nod(OITAB, n.Right, nil)), r)
@@ -1587,7 +1594,7 @@ func reduceSlice(n *Node) *Node {
 	return n
 }
 
-func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
+func ascompatee1(op Op, l *Node, r *Node, init **NodeList) *Node {
 	// convas will turn map assigns into function calls,
 	// making it impossible for reorder3 to work.
 	n := Nod(OAS, l, r)
@@ -1599,7 +1606,7 @@ func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
 	return convas(n, init)
 }
 
-func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
+func ascompatee(op Op, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
 	// check assign expression list to
 	// a expression list. called in
 	//	expr-list = expr-list
@@ -1648,7 +1655,7 @@ func fncall(l *Node, rt *Type) bool {
 	return true
 }
 
-func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeList {
+func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeList {
 	var l *Node
 	var tmp *Node
 	var a *Node
@@ -1789,7 +1796,7 @@ func dumpnodetypes(l *NodeList, what string) string {
 // a type list. called in
 //	return expr-list
 //	func(expr-list)
-func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
+func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
 	var savel Iter
 
 	lr0 := lr
@@ -1902,9 +1909,9 @@ func walkprint(nn *Node, init **NodeList) *Node {
 	var n *Node
 	var on *Node
 	var t *Type
-	var et int
+	var et EType
 
-	op := int(nn.Op)
+	op := nn.Op
 	all := nn.List
 	var calls *NodeList
 	notfirst := false
@@ -1945,7 +1952,7 @@ func walkprint(nn *Node, init **NodeList) *Node {
 		}
 
 		t = n.Type
-		et = int(n.Type.Etype)
+		et = n.Type.Etype
 		if Isinter(n.Type) {
 			if isnilinter(n.Type) {
 				on = syslook("printeface", 1)
@@ -3162,7 +3169,7 @@ func walkcompare(np **Node, init **NodeList) {
 	typecheck(&a, Etop)
 	*init = list(*init, a)
 
-	andor := OANDAND
+	var andor Op = OANDAND
 	if n.Op == ONE {
 		andor = OOROR
 	}
@@ -3176,7 +3183,7 @@ func walkcompare(np **Node, init **NodeList) {
 		for i := 0; int64(i) < t.Bound; i++ {
 			li = Nod(OINDEX, l, Nodintconst(int64(i)))
 			ri = Nod(OINDEX, r, Nodintconst(int64(i)))
-			a = Nod(int(n.Op), li, ri)
+			a = Nod(n.Op, li, ri)
 			if expr == nil {
 				expr = a
 			} else {
@@ -3202,7 +3209,7 @@ func walkcompare(np **Node, init **NodeList) {
 			}
 			li = Nod(OXDOT, l, newname(t1.Sym))
 			ri = Nod(OXDOT, r, newname(t1.Sym))
-			a = Nod(int(n.Op), li, ri)
+			a = Nod(n.Op, li, ri)
 			if expr == nil {
 				expr = a
 			} else {
@@ -3917,7 +3924,7 @@ func walkprintfunc(np **Node, init **NodeList) {
 	Curfn = nil
 	funchdr(fn)
 
-	a = Nod(int(n.Op), nil, nil)
+	a = Nod(n.Op, nil, nil)
 	a.List = printargs
 	typecheck(&a, Etop)
 	walkstmt(&a)

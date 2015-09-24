@@ -151,7 +151,7 @@ type Sym struct {
 }
 
 type Type struct {
-	Etype       uint8
+	Etype       EType
 	Nointerface bool
 	Noalg       bool
 	Chan        uint8
@@ -257,6 +257,8 @@ type Iter struct {
 	Tfunc *Type
 	T     *Type
 }
+
+type EType uint8
 
 const (
 	Txxx = iota
@@ -369,8 +371,8 @@ const (
 
 type Typedef struct {
 	Name   string
-	Etype  int
-	Sameas int
+	Etype  EType
+	Sameas EType
 }
 
 type Sig struct {
@@ -522,7 +524,7 @@ var unsafepkg *Pkg // package unsafe
 
 var trackpkg *Pkg // fake package for field tracking
 
-var Tptr int // either TPTR32 or TPTR64
+var Tptr EType // either TPTR32 or TPTR64
 
 var myimportpath string
 
@@ -544,7 +546,7 @@ var runetype *Type
 
 var errortype *Type
 
-var Simtype [NTYPE]uint8
+var Simtype [NTYPE]EType
 
 var (
 	Isptr     [NTYPE]bool
@@ -792,14 +794,14 @@ type Arch struct {
 	Bgen_float   func(*Node, bool, int, *obj.Prog) // optional
 	Cgen64       func(*Node, *Node)                // only on 32-bit systems
 	Cgenindex    func(*Node, *Node, bool) *obj.Prog
-	Cgen_bmul    func(int, *Node, *Node, *Node) bool
+	Cgen_bmul    func(Op, *Node, *Node, *Node) bool
 	Cgen_float   func(*Node, *Node) // optional
 	Cgen_hmul    func(*Node, *Node, *Node)
-	Cgen_shift   func(int, bool, *Node, *Node, *Node)
+	Cgen_shift   func(Op, bool, *Node, *Node, *Node)
 	Clearfat     func(*Node)
-	Cmp64        func(*Node, *Node, int, int, *obj.Prog) // only on 32-bit systems
+	Cmp64        func(*Node, *Node, Op, int, *obj.Prog) // only on 32-bit systems
 	Defframe     func(*obj.Prog)
-	Dodiv        func(int, *Node, *Node, *Node)
+	Dodiv        func(Op, *Node, *Node, *Node)
 	Excise       func(*Flow)
 	Expandchecks func(*obj.Prog)
 	Getg         func(*Node)
@@ -815,7 +817,7 @@ type Arch struct {
 	// function calls needed during the evaluation, and on 32-bit systems
 	// the values are guaranteed not to be 64-bit values, so no in-memory
 	// temporaries are necessary.
-	Ginscmp func(op int, t *Type, n1, n2 *Node, likely int) *obj.Prog
+	Ginscmp func(op Op, t *Type, n1, n2 *Node, likely int) *obj.Prog
 
 	// Ginsboolval inserts instructions to convert the result
 	// of a just-completed comparison to a boolean value.
@@ -844,7 +846,7 @@ type Arch struct {
 	FtoB         func(int) uint64
 	BtoR         func(uint64) int
 	BtoF         func(uint64) int
-	Optoas       func(int, *Type) int
+	Optoas       func(Op, *Type) int
 	Doregbits    func(int) uint64
 	Regnames     func(*int) []string
 	Use387       bool // should 8g use 387 FP instructions instead of sse2.

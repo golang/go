@@ -188,7 +188,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	}
 
 	if wb {
-		if int(Simtype[res.Type.Etype]) != Tptr {
+		if Simtype[res.Type.Etype] != Tptr {
 			Fatalf("cgen_wb of type %v", res.Type)
 		}
 		if n.Ullman >= UINF {
@@ -395,7 +395,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			goto sbop
 		}
 
-		a := Thearch.Optoas(int(n.Op), nl.Type)
+		a := Thearch.Optoas(n.Op, nl.Type)
 		// unary
 		var n1 Node
 		Regalloc(&n1, nl.Type, res)
@@ -432,15 +432,15 @@ func cgen_wb(n, res *Node, wb bool) {
 		OXOR,
 		OADD,
 		OMUL:
-		if n.Op == OMUL && Thearch.Cgen_bmul != nil && Thearch.Cgen_bmul(int(n.Op), nl, nr, res) {
+		if n.Op == OMUL && Thearch.Cgen_bmul != nil && Thearch.Cgen_bmul(n.Op, nl, nr, res) {
 			break
 		}
-		a = Thearch.Optoas(int(n.Op), nl.Type)
+		a = Thearch.Optoas(n.Op, nl.Type)
 		goto sbop
 
 		// asymmetric binary
 	case OSUB:
-		a = Thearch.Optoas(int(n.Op), nl.Type)
+		a = Thearch.Optoas(n.Op, nl.Type)
 		goto abop
 
 	case OHMUL:
@@ -654,7 +654,7 @@ func cgen_wb(n, res *Node, wb bool) {
 
 	case OMOD, ODIV:
 		if Isfloat[n.Type.Etype] || Thearch.Dodiv == nil {
-			a = Thearch.Optoas(int(n.Op), nl.Type)
+			a = Thearch.Optoas(n.Op, nl.Type)
 			goto abop
 		}
 
@@ -662,7 +662,7 @@ func cgen_wb(n, res *Node, wb bool) {
 			var n1 Node
 			Regalloc(&n1, nl.Type, res)
 			Cgen(nl, &n1)
-			cgen_div(int(n.Op), &n1, nr, res)
+			cgen_div(n.Op, &n1, nr, res)
 			Regfree(&n1)
 		} else {
 			var n2 Node
@@ -673,14 +673,14 @@ func cgen_wb(n, res *Node, wb bool) {
 				n2 = *nr
 			}
 
-			cgen_div(int(n.Op), nl, &n2, res)
+			cgen_div(n.Op, nl, &n2, res)
 			if n2.Op != OLITERAL {
 				Regfree(&n2)
 			}
 		}
 
 	case OLSH, ORSH, OLROT:
-		Thearch.Cgen_shift(int(n.Op), n.Bounded, nl, nr, res)
+		Thearch.Cgen_shift(n.Op, n.Bounded, nl, nr, res)
 	}
 
 	return
@@ -1902,7 +1902,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	// n.Op is one of OEQ, ONE, OLT, OGT, OLE, OGE
 	nl := n.Left
 	nr := n.Right
-	a := int(n.Op)
+	op := n.Op
 
 	if !wantTrue {
 		if Isfloat[nr.Type.Etype] {
@@ -1925,19 +1925,19 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			return
 		}
 
-		a = Brcom(a)
+		op = Brcom(op)
 	}
 	wantTrue = true
 
 	// make simplest on right
 	if nl.Op == OLITERAL || (nl.Ullman < nr.Ullman && nl.Ullman < UINF) {
-		a = Brrev(a)
+		op = Brrev(op)
 		nl, nr = nr, nl
 	}
 
 	if Isslice(nl.Type) || Isinter(nl.Type) {
 		// front end should only leave cmp to literal nil
-		if (a != OEQ && a != ONE) || nr.Op != OLITERAL {
+		if (op != OEQ && op != ONE) || nr.Op != OLITERAL {
 			if Isslice(nl.Type) {
 				Yyerror("illegal slice comparison")
 			} else {
@@ -1956,13 +1956,13 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		Regalloc(&tmp, ptr.Type, &ptr)
 		Cgen(&ptr, &tmp)
 		Regfree(&ptr)
-		bgenNonZero(&tmp, res, a == OEQ != wantTrue, likely, to)
+		bgenNonZero(&tmp, res, op == OEQ != wantTrue, likely, to)
 		Regfree(&tmp)
 		return
 	}
 
 	if Iscomplex[nl.Type.Etype] {
-		complexbool(a, nl, nr, res, wantTrue, likely, to)
+		complexbool(op, nl, nr, res, wantTrue, likely, to)
 		return
 	}
 
@@ -1978,7 +1978,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		if !nr.Addable {
 			nr = CgenTemp(nr)
 		}
-		Thearch.Cmp64(nl, nr, a, likely, to)
+		Thearch.Cmp64(nl, nr, op, likely, to)
 		return
 	}
 
@@ -2015,7 +2015,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 
 		if Smallintconst(nr) && Ctxt.Arch.Thechar != '9' {
 			Thearch.Gins(Thearch.Optoas(OCMP, nr.Type), nl, nr)
-			bins(nr.Type, res, a, likely, to)
+			bins(nr.Type, res, op, likely, to)
 			return
 		}
 
@@ -2033,9 +2033,9 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	l, r := nl, nr
 
 	// On x86, only < and <= work right with NaN; reverse if needed
-	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (a == OGT || a == OGE) {
+	if Ctxt.Arch.Thechar == '6' && Isfloat[nl.Type.Etype] && (op == OGT || op == OGE) {
 		l, r = r, l
-		a = Brrev(a)
+		op = Brrev(op)
 	}
 
 	// Do the comparison.
@@ -2052,10 +2052,10 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			switch n.Op {
 			case ONE:
 				Patch(Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, likely), to)
-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+				Patch(Gbranch(Thearch.Optoas(op, nr.Type), nr.Type, likely), to)
 			default:
 				p := Gbranch(Thearch.Optoas(OPS, nr.Type), nr.Type, -likely)
-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+				Patch(Gbranch(Thearch.Optoas(op, nr.Type), nr.Type, likely), to)
 				Patch(p, Pc)
 			}
 			return
@@ -2101,12 +2101,12 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			// On arm64 and ppc64, <= and >= mishandle NaN. Must decompose into < or > and =.
 			// TODO(josh): Convert a <= b to b > a instead?
 			case OLE, OGE:
-				if a == OLE {
-					a = OLT
+				if op == OLE {
+					op = OLT
 				} else {
-					a = OGT
+					op = OGT
 				}
-				Patch(Gbranch(Thearch.Optoas(a, nr.Type), nr.Type, likely), to)
+				Patch(Gbranch(Thearch.Optoas(op, nr.Type), nr.Type, likely), to)
 				Patch(Gbranch(Thearch.Optoas(OEQ, nr.Type), nr.Type, likely), to)
 				return
 			}
@@ -2114,26 +2114,26 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	// Not a special case. Insert the conditional jump or value gen.
-	bins(nr.Type, res, a, likely, to)
+	bins(nr.Type, res, op, likely, to)
 }
 
 func bgenNonZero(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	// TODO: Optimize on systems that can compare to zero easily.
-	a := ONE
+	var op Op = ONE
 	if !wantTrue {
-		a = OEQ
+		op = OEQ
 	}
 	var zero Node
 	Nodconst(&zero, n.Type, 0)
 	Thearch.Gins(Thearch.Optoas(OCMP, n.Type), n, &zero)
-	bins(n.Type, res, a, likely, to)
+	bins(n.Type, res, op, likely, to)
 }
 
 // bins inserts an instruction to handle the result of a compare.
 // If res is non-nil, it inserts appropriate value generation instructions.
 // If res is nil, it inserts a branch to to.
-func bins(typ *Type, res *Node, a, likely int, to *obj.Prog) {
-	a = Thearch.Optoas(a, typ)
+func bins(typ *Type, res *Node, op Op, likely int, to *obj.Prog) {
+	a := Thearch.Optoas(op, typ)
 	if res != nil {
 		// value gen
 		Thearch.Ginsboolval(a, res)
@@ -2580,7 +2580,7 @@ func cgen_ret(n *Node) {
 // generate division according to op, one of:
 //	res = nl / nr
 //	res = nl % nr
-func cgen_div(op int, nl *Node, nr *Node, res *Node) {
+func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 	var w int
 
 	// TODO(rsc): arm64 needs to support the relevant instructions

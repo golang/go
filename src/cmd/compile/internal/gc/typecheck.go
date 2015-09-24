@@ -75,8 +75,8 @@ func typekind(t *Type) string {
 	if Isslice(t) {
 		return "slice"
 	}
-	et := int(t.Etype)
-	if 0 <= et && et < len(_typekind) {
+	et := t.Etype
+	if int(et) < len(_typekind) {
 		s := _typekind[et]
 		if s != "" {
 			return s
@@ -410,7 +410,8 @@ OpSwitch:
 		}
 		t := typ(TCHAN)
 		t.Type = l.Type
-		t.Chan = n.Etype
+		// TODO(marvin): Fix Node.EType type union.
+		t.Chan = uint8(n.Etype)
 		n.Op = OTYPE
 		n.Type = t
 		n.Left = nil
@@ -503,7 +504,7 @@ OpSwitch:
 		OSUB,
 		OXOR:
 		var l *Node
-		var op int
+		var op Op
 		var r *Node
 		if n.Op == OASOP {
 			ok |= Etop
@@ -514,7 +515,8 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			op = int(n.Etype)
+			// TODO(marvin): Fix Node.EType type union.
+			op = Op(n.Etype)
 		} else {
 			ok |= Erv
 			l = typecheck(&n.Left, Erv|top&Eiota)
@@ -523,7 +525,7 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			op = int(n.Op)
+			op = n.Op
 		}
 		if op == OLSH || op == ORSH {
 			defaultlit(&r, Types[TUINT])
@@ -562,11 +564,11 @@ OpSwitch:
 		if t.Etype == TIDEAL {
 			t = r.Type
 		}
-		et := int(t.Etype)
+		et := t.Etype
 		if et == TIDEAL {
 			et = TINT
 		}
-		aop := 0
+		var aop Op = OXXX
 		if iscmp[n.Op] && t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
 			// comparison is okay as long as one side is
 			// assignable to the other.  convert so they have
@@ -619,7 +621,7 @@ OpSwitch:
 			}
 
 		converted:
-			et = int(t.Etype)
+			et = t.Etype
 		}
 
 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
@@ -701,7 +703,8 @@ OpSwitch:
 
 		if et == TSTRING {
 			if iscmp[n.Op] {
-				n.Etype = n.Op
+				// TODO(marvin): Fix Node.EType type union.
+				n.Etype = EType(n.Op)
 				n.Op = OCMPSTR
 			} else if n.Op == OADD {
 				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
@@ -731,7 +734,8 @@ OpSwitch:
 			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
 			} else // leave alone for back end
 			if Isinter(r.Type) == Isinter(l.Type) {
-				n.Etype = n.Op
+				// TODO(marvin): Fix Node.EType type union.
+				n.Etype = EType(n.Op)
 				n.Op = OCMPIFACE
 			}
 		}
@@ -1251,12 +1255,14 @@ OpSwitch:
 		n.Diag |= n.Left.Diag
 		l = n.Left
 		if l.Op == ONAME && l.Etype != 0 {
-			if n.Isddd && l.Etype != OAPPEND {
+			// TODO(marvin): Fix Node.EType type union.
+			if n.Isddd && Op(l.Etype) != OAPPEND {
 				Yyerror("invalid use of ... with builtin %v", l)
 			}
 
 			// builtin: OLEN, OCAP, etc.
-			n.Op = l.Etype
+			// TODO(marvin): Fix Node.EType type union.
+			n.Op = Op(l.Etype)
 
 			n.Left = n.Right
 			n.Right = nil
@@ -1408,7 +1414,7 @@ OpSwitch:
 				n.Orig = r
 			}
 
-			n.Type = Types[cplxsubtype(int(t.Etype))]
+			n.Type = Types[cplxsubtype(t.Etype)]
 			break OpSwitch
 		}
 
@@ -1733,8 +1739,8 @@ OpSwitch:
 			return
 		}
 		var why string
-		n.Op = uint8(convertop(t, n.Type, &why))
-		if (n.Op) == 0 {
+		n.Op = convertop(t, n.Type, &why)
+		if n.Op == 0 {
 			if n.Diag == 0 && !n.Type.Broke {
 				Yyerror("cannot convert %v to type %v%s", Nconv(n.Left, obj.FmtLong), n.Type, why)
 				n.Diag = 1
@@ -2442,7 +2448,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 }
 
 func derefall(t *Type) *Type {
-	for t != nil && int(t.Etype) == Tptr {
+	for t != nil && t.Etype == Tptr {
 		t = t.Type
 	}
 	return t
@@ -2514,20 +2520,20 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 		dowidth(tt)
 		rcvr := getthisx(f2.Type).Type.Type
 		if !Eqtype(rcvr, tt) {
-			if int(rcvr.Etype) == Tptr && Eqtype(rcvr.Type, tt) {
+			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
 				checklvalue(n.Left, "call pointer method on")
 				n.Left = Nod(OADDR, n.Left, nil)
 				n.Left.Implicit = true
 				typecheck(&n.Left, Etype|Erv)
-			} else if int(tt.Etype) == Tptr && int(rcvr.Etype) != Tptr && Eqtype(tt.Type, rcvr) {
+			} else if tt.Etype == Tptr && rcvr.Etype != Tptr && Eqtype(tt.Type, rcvr) {
 				n.Left = Nod(OIND, n.Left, nil)
 				n.Left.Implicit = true
 				typecheck(&n.Left, Etype|Erv)
-			} else if int(tt.Etype) == Tptr && int(tt.Type.Etype) == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
 				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Right, Nconv(n.Left, obj.FmtLong))
-				for int(tt.Etype) == Tptr {
+				for tt.Etype == Tptr {
 					// Stop one level early for method with pointer receiver.
-					if int(rcvr.Etype) == Tptr && int(tt.Type.Etype) != Tptr {
+					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
 						break
 					}
 					n.Left = Nod(OIND, n.Left, nil)
@@ -2597,7 +2603,7 @@ func downcount(t *Type) int {
 }
 
 // typecheck assignment: type list = expression list
-func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
+func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
 	var t *Type
 	var n *Node
 	var n1 int
@@ -2915,7 +2921,7 @@ func typecheckcomplit(np **Node) {
 	}
 
 	// Save original node (including n->right)
-	norig := Nod(int(n.Op), nil, nil)
+	norig := Nod(n.Op, nil, nil)
 
 	*norig = *n
 

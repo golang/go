@@ -42,11 +42,11 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op          uint8
+	Op          Op
 	Nointerface bool
 	Ullman      uint8 // sethi/ullman number
 	Addable     bool  // addressable
-	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+	Etype       EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
 	Bounded     bool  // bounds check unnecessary
 	Class       Class // PPARAM, PAUTO, PEXTERN, etc
 	Embedded    uint8 // ODCLFIELD embedded type
@@ -179,9 +179,11 @@ type Func struct {
 	Systemstack    bool // must run on system stack
 }
 
+type Op uint8
+
 // Node ops.
 const (
-	OXXX = iota
+	OXXX = Op(iota)
 
 	// names
 	ONAME    // var, const or func name
