@@ -38,6 +38,7 @@ type Scanner struct {
 	err          error     // Sticky error.
 	empties      int       // Count of successive empty tokens.
 	scanCalled   bool      // Scan has been called; buffer is in use.
+	done         bool      // Scan has finished.
 }
 
 // SplitFunc is the signature of the split function used to tokenize the
@@ -106,6 +107,16 @@ func (s *Scanner) Text() string {
 	return string(s.token)
 }
 
+// ErrFinalToken is a special sentinel error value. It is intended to be
+// returned by a Split function to indicate that the token being delivered
+// with the error is the last token and scanning should stop after this one.
+// After ErrFinalToken is received by Scan, scanning stops with no error.
+// The value is useful to stop processing early or when it is necessary to
+// deliver a final empty token. One could achieve the same behavior
+// with a custom error value but providing one here is tidier.
+// See the emptyFinalToken example for a use of this value.
+var ErrFinalToken = errors.New("final token")
+
 // Scan advances the Scanner to the next token, which will then be
 // available through the Bytes or Text method. It returns false when the
 // scan stops, either by reaching the end of the input or an error.
@@ -115,6 +126,9 @@ func (s *Scanner) Text() string {
 // Scan panics if the split function returns 100 empty tokens without
 // advancing the input. This is a common error mode for scanners.
 func (s *Scanner) Scan() bool {
+	if s.done {
+		return false
+	}
 	s.scanCalled = true
 	// Loop until we have a token.
 	for {
@@ -124,6 +138,11 @@ func (s *Scanner) Scan() bool {
 		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
+				if err == ErrFinalToken {
+					s.token = token
+					s.done = true
+					return true
+				}
 				s.setErr(err)
 				return false
 			}
