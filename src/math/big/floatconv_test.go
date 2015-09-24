@@ -254,11 +254,10 @@ func TestFloat64Text(t *testing.T) {
 		{above1e23, 'f', -1, "100000000000000010000000"},
 		{above1e23, 'g', -1, "1.0000000000000001e+23"},
 
-		// TODO(gri) track down why these don't work yet
-		// {5e-304/1e20, 'g', -1, "5e-324"},
-		// {-5e-304/1e20, 'g', -1, "-5e-324"},
-		// {fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
-		// {fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+		{5e-304 / 1e20, 'g', -1, "5e-324"},
+		{-5e-304 / 1e20, 'g', -1, "-5e-324"},
+		{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
+		{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
 
 		{32, 'g', -1, "32"},
 		{32, 'g', 0, "3e+01"},
@@ -292,10 +291,16 @@ func TestFloat64Text(t *testing.T) {
 		{383260575764816448, 'f', 0, "383260575764816448"},
 		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
 	} {
-		f := new(Float).SetFloat64(test.x)
+		// The test cases are from the strconv package which tests float64 values.
+		// When formatting values with prec = -1 (shortest representation),
+		// the actually available mantissa precision matters.
+		// For denormalized values, that precision is < 53 (SetFloat64 default).
+		// Compute and set the actual precision explicitly.
+		f := new(Float).SetPrec(actualPrec(test.x)).SetFloat64(test.x)
 		got := f.Text(test.format, test.prec)
 		if got != test.want {
 			t.Errorf("%v: got %s; want %s", test, got, test.want)
+			continue
 		}
 
 		if test.format == 'b' && test.x == 0 {
@@ -311,6 +316,15 @@ func TestFloat64Text(t *testing.T) {
 			t.Errorf("%v: got %s; want %s (strconv)", test, got, want)
 		}
 	}
+}
+
+// actualPrec returns the number of actually used mantissa bits.
+func actualPrec(x float64) uint {
+	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
+		// x is denormalized
+		return 64 - nlz64(bits&(1<<52-1))
+	}
+	return 53
 }
 
 func TestFloatText(t *testing.T) {
