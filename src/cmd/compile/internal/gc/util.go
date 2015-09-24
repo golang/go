@@ -5,7 +5,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
-	"strings"
 )
 
 func (n *Node) Line() string {
@@ -16,34 +15,6 @@ func atoi(s string) int {
 	// NOTE: Not strconv.Atoi, accepts hex and octal prefixes.
 	n, _ := strconv.ParseInt(s, 0, 0)
 	return int(n)
-}
-
-func isSpace(c int) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-}
-
-func isAlnum(c int) bool {
-	return isAlpha(c) || isDigit(c)
-}
-
-func isAlpha(c int) bool {
-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
-}
-
-func isDigit(c int) bool {
-	return '0' <= c && c <= '9'
-}
-
-func plan9quote(s string) string {
-	if s == "" {
-		return "''"
-	}
-	for _, c := range s {
-		if c <= ' ' || c == '\'' {
-			return "'" + strings.Replace(s, "'", "''", -1) + "'"
-		}
-	}
-	return s
 }
 
 // strings.Compare, introduced in Go 1.5.
