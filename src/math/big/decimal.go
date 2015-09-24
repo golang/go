@@ -80,7 +80,7 @@ func (x *decimal) init(m nat, shift int) {
 	}
 
 	// Convert mantissa into decimal representation.
-	s := m.decimalString() // TODO(gri) avoid string conversion here
+	s := m.itoa(10)
 	n := len(s)
 	x.exp = n
 	// Trim trailing zeros; instead the exponent is tracking

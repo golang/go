@@ -9,9 +9,9 @@
 package big
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 // Text converts the floating-point number x to a string according
@@ -323,7 +323,7 @@ func (x *Float) fmtB(buf []byte) []byte {
 		m = nat(nil).shr(m, uint(w-x.prec))
 	}
 
-	buf = append(buf, m.decimalString()...)
+	buf = append(buf, m.itoa(10)...)
 	buf = append(buf, 'p')
 	e := int64(x.exp) - int64(x.prec)
 	if e >= 0 {
@@ -357,7 +357,7 @@ func (x *Float) fmtP(buf []byte) []byte {
 	m = m[i:]
 
 	buf = append(buf, "0x."...)
-	buf = append(buf, strings.TrimRight(m.hexString(), "0")...)
+	buf = append(buf, bytes.TrimRight(m.itoa(16), "0")...)
 	buf = append(buf, 'p')
 	if x.exp >= 0 {
 		buf = append(buf, '+')
