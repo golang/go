@@ -429,31 +429,35 @@ func commaSplit(data []byte, atEOF bool) (advance int, token []byte, err error) 
 			return i + 1, data[:i], nil
 		}
 	}
-	if !atEOF {
-		return 0, nil, nil
-	}
-	return 0, data, nil
+	return 0, data, ErrFinalToken
 }
 
-func TestEmptyTokens(t *testing.T) {
-	s := NewScanner(strings.NewReader("1,2,3,"))
-	values := []string{"1", "2", "3", ""}
+func testEmptyTokens(t *testing.T, text string, values []string) {
+	s := NewScanner(strings.NewReader(text))
 	s.Split(commaSplit)
 	var i int
-	for i = 0; i < len(values); i++ {
-		if !s.Scan() {
-			break
+	for i = 0; s.Scan(); i++ {
+		if i >= len(values) {
+			t.Fatalf("got %d fields, expected %d", i+1, len(values))
 		}
 		if s.Text() != values[i] {
 			t.Errorf("%d: expected %q got %q", i, values[i], s.Text())
 		}
 	}
 	if i != len(values) {
-		t.Errorf("got %d fields, expected %d", i, len(values))
+		t.Fatalf("got %d fields, expected %d", i, len(values))
 	}
 	if err := s.Err(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestEmptyTokens(t *testing.T) {
+	testEmptyTokens(t, "1,2,3,", []string{"1", "2", "3", ""})
+}
+
+func TestWithNoEmptyTokens(t *testing.T) {
+	testEmptyTokens(t, "1,2,3", []string{"1", "2", "3"})
 }
 
 func loopAtEOFSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
