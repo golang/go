@@ -13,6 +13,8 @@
 package main
 
 import (
+	"encoding/json"
+	"go/format"
 	"log"
 	"net/http"
 	"strings"
@@ -44,7 +46,9 @@ func (h hostEnforcerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.TLS == nil || !h.validHost(r.Host) {
 		r.URL.Scheme = "https"
-		if !h.validHost(r.Host) {
+		if h.validHost(r.Host) {
+			r.URL.Host = r.Host
+		} else {
 			r.URL.Host = "golang.org"
 		}
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
@@ -71,7 +75,9 @@ func registerHandlers(pres *godoc.Presentation) *http.ServeMux {
 	mux.Handle("/robots.txt", pres.FileServer())
 	mux.Handle("/", pres)
 	mux.Handle("/pkg/C/", redirect.Handler("/cmd/cgo/"))
+	mux.HandleFunc("/fmt", fmtHandler)
 	redirect.Register(mux)
+
 	http.Handle("/", hostEnforcerHandler{mux})
 
 	return mux
@@ -118,4 +124,22 @@ func readTemplates(p *godoc.Presentation, html bool) {
 		p.SearchTxtHTML = readTemplate("searchtxt.html")
 		p.SearchDescXML = readTemplate("opensearch.xml")
 	}
+}
+
+type fmtResponse struct {
+	Body  string
+	Error string
+}
+
+// fmtHandler takes a Go program in its "body" form value, formats it with
+// standard gofmt formatting, and writes a fmtResponse as a JSON object.
+func fmtHandler(w http.ResponseWriter, r *http.Request) {
+	resp := new(fmtResponse)
+	body, err := format.Source([]byte(r.FormValue("body")))
+	if err != nil {
+		resp.Error = err.Error()
+	} else {
+		resp.Body = string(body)
+	}
+	json.NewEncoder(w).Encode(resp)
 }
