@@ -61,14 +61,14 @@ func TestString(t *testing.T) {
 		defer func() {
 			panicStr = recover().(string)
 		}()
-		natOne.itoa(1)
+		natOne.utoa(1)
 	}()
 	if panicStr != "invalid base" {
 		t.Errorf("expected panic for invalid base")
 	}
 
 	for _, a := range strTests {
-		s := string(a.x.itoa(a.b))
+		s := string(a.x.utoa(a.b))
 		if s != a.s {
 			t.Errorf("string%+v\n\tgot s = %s; want %s", a, s, a.s)
 		}
@@ -234,7 +234,7 @@ func TestScanPi(t *testing.T) {
 	if err != nil {
 		t.Errorf("scanning pi: %s", err)
 	}
-	if s := string(z.itoa(10)); s != pi {
+	if s := string(z.utoa(10)); s != pi {
 		t.Errorf("scanning pi: got %s", s)
 	}
 }
@@ -263,12 +263,12 @@ func BenchmarkScanPi(b *testing.B) {
 func BenchmarkStringPiParallel(b *testing.B) {
 	var x nat
 	x, _, _, _ = x.scan(strings.NewReader(pi), 0, false)
-	if string(x.itoa(10)) != pi {
+	if string(x.utoa(10)) != pi {
 		panic("benchmark incorrect: conversion failed")
 	}
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			x.itoa(10)
+			x.utoa(10)
 		}
 	})
 }
@@ -302,7 +302,7 @@ func ScanHelper(b *testing.B, base int, x, y Word) {
 	var z nat
 	z = z.expWW(x, y)
 
-	s := z.itoa(base)
+	s := z.utoa(base)
 	if t := itoa(z, base); !bytes.Equal(s, t) {
 		b.Fatalf("scanning: got %s; want %s", s, t)
 	}
@@ -341,11 +341,11 @@ func StringHelper(b *testing.B, base int, x, y Word) {
 	b.StopTimer()
 	var z nat
 	z = z.expWW(x, y)
-	z.itoa(base) // warm divisor cache
+	z.utoa(base) // warm divisor cache
 	b.StartTimer()
 
 	for i := 0; i < b.N; i++ {
-		_ = z.itoa(base)
+		_ = z.utoa(base)
 	}
 }
 
@@ -380,11 +380,11 @@ func LeafSizeHelper(b *testing.B, base, size int) {
 		b.StopTimer()
 		var z nat
 		z = z.expWW(Word(base), Word(d)) // build target number
-		_ = z.itoa(base)                 // warm divisor cache
+		_ = z.utoa(base)                 // warm divisor cache
 		b.StartTimer()
 
 		for i := 0; i < b.N; i++ {
-			_ = z.itoa(base)
+			_ = z.utoa(base)
 		}
 	}
 
@@ -409,7 +409,7 @@ func TestStringPowers(t *testing.T) {
 	for b := 2; b <= 16; b++ {
 		for p = 0; p <= 512; p++ {
 			x := nat(nil).expWW(Word(b), p)
-			xs := x.itoa(b)
+			xs := x.utoa(b)
 			xs2 := itoa(x, b)
 			if !bytes.Equal(xs, xs2) {
 				t.Errorf("failed at %d ** %d in base %d: %s != %s", b, p, b, xs, xs2)
