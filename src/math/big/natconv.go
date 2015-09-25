@@ -234,9 +234,14 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 	return
 }
 
-// itoa converts x to an ASCII representation in the given base;
+// utoa converts x to an ASCII representation in the given base;
 // base must be between 2 and MaxBase, inclusive.
-func (x nat) itoa(base int) []byte {
+func (x nat) utoa(base int) []byte {
+	return x.itoa(false, base)
+}
+
+// itoa is like utoa but it prepends a '-' if neg && x != 0.
+func (x nat) itoa(neg bool, base int) []byte {
 	if base < 2 || base > MaxBase {
 		panic("invalid base")
 	}
@@ -249,6 +254,9 @@ func (x nat) itoa(base int) []byte {
 
 	// allocate buffer for conversion
 	i := int(float64(x.bitLen())/math.Log2(float64(base))) + 1 // off by 1 at most
+	if neg {
+		i++
+	}
 	s := make([]byte, i)
 
 	// convert power of two and non power of two bases separately
@@ -313,6 +321,11 @@ func (x nat) itoa(base int) []byte {
 		for s[i] == '0' {
 			i++
 		}
+	}
+
+	if neg {
+		i--
+		s[i] = '-'
 	}
 
 	return s[i:]

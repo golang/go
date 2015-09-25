@@ -165,7 +165,7 @@ func roundShortest(d *decimal, x *Float) {
 	// Approach: All numbers in the interval [x - 1/2ulp, x + 1/2ulp]
 	// (possibly exclusive) round to x for the given precision of x.
 	// Compute the lower and upper bound in decimal form and find the
-	// the shortest decimal number d such that lower <= d <= upper.
+	// shortest decimal number d such that lower <= d <= upper.
 
 	// TODO(gri) strconv/ftoa.do describes a shortcut in some cases.
 	// See if we can use it (in adjusted form) here as well.
@@ -323,7 +323,7 @@ func (x *Float) fmtB(buf []byte) []byte {
 		m = nat(nil).shr(m, uint(w-x.prec))
 	}
 
-	buf = append(buf, m.itoa(10)...)
+	buf = append(buf, m.utoa(10)...)
 	buf = append(buf, 'p')
 	e := int64(x.exp) - int64(x.prec)
 	if e >= 0 {
@@ -357,7 +357,7 @@ func (x *Float) fmtP(buf []byte) []byte {
 	m = m[i:]
 
 	buf = append(buf, "0x."...)
-	buf = append(buf, bytes.TrimRight(m.itoa(16), "0")...)
+	buf = append(buf, bytes.TrimRight(m.utoa(16), "0")...)
 	buf = append(buf, 'p')
 	if x.exp >= 0 {
 		buf = append(buf, '+')
