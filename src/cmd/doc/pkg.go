@@ -169,10 +169,12 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 			log.Fatal(err)
 		}
 		if comment != "" {
-			pkg.newlines(2) // Guarantee blank line before comment.
+			pkg.newlines(1)
 			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
+			pkg.newlines(2) // Blank line after comment to separate from next item.
+		} else {
+			pkg.newlines(1)
 		}
-		pkg.newlines(1)
 	}
 }
 
@@ -247,7 +249,7 @@ func (pkg *Package) packageDoc() {
 		return
 	}
 
-	pkg.newlines(1)
+	pkg.newlines(2) // Guarantee blank line before the components.
 	pkg.valueSummary(pkg.doc.Consts)
 	pkg.valueSummary(pkg.doc.Vars)
 	pkg.funcSummary(pkg.doc.Funcs)
