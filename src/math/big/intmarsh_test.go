@@ -37,10 +37,12 @@ func TestIntGobEncoding(t *testing.T) {
 		tx.SetString(test, 10)
 		if err := enc.Encode(&tx); err != nil {
 			t.Errorf("encoding of %s failed: %s", &tx, err)
+			continue
 		}
 		var rx Int
 		if err := dec.Decode(&rx); err != nil {
 			t.Errorf("decoding of %s failed: %s", &tx, err)
+			continue
 		}
 		if rx.Cmp(&tx) != 0 {
 			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
@@ -70,7 +72,7 @@ func TestGobEncodingNilIntInSlice(t *testing.T) {
 	}
 	var zero Int
 	if out[0].Cmp(&zero) != 0 {
-		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
+		t.Fatalf("transmission of (*Int)(nil) failed: got %s want 0", out)
 	}
 }
 
@@ -81,10 +83,12 @@ func TestIntJSONEncoding(t *testing.T) {
 		b, err := json.Marshal(&tx)
 		if err != nil {
 			t.Errorf("marshaling of %s failed: %s", &tx, err)
+			continue
 		}
 		var rx Int
 		if err := json.Unmarshal(b, &rx); err != nil {
 			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+			continue
 		}
 		if rx.Cmp(&tx) != 0 {
 			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)

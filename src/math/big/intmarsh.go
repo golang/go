@@ -42,23 +42,6 @@ func (z *Int) GobDecode(buf []byte) error {
 	return nil
 }
 
-// MarshalJSON implements the json.Marshaler interface.
-func (x *Int) MarshalJSON() ([]byte, error) {
-	if x == nil {
-		return []byte("<nil>"), nil
-	}
-	return x.abs.itoa(x.neg, 10), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (z *Int) UnmarshalJSON(text []byte) error {
-	// TODO(gri): get rid of the []byte/string conversion
-	if _, ok := z.SetString(string(text), 0); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
-	}
-	return nil
-}
-
 // MarshalText implements the encoding.TextMarshaler interface.
 func (x *Int) MarshalText() (text []byte, err error) {
 	if x == nil {
@@ -74,4 +57,14 @@ func (z *Int) UnmarshalText(text []byte) error {
 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
 	}
 	return nil
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (x *Int) MarshalJSON() ([]byte, error) {
+	return x.MarshalText()
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (z *Int) UnmarshalJSON(text []byte) error {
+	return z.UnmarshalText(text)
 }
