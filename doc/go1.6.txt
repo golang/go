@@ -10,6 +10,7 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 API additions and behavior changes:
 
 bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
+bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
 fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
 math/rand: add Read (https://golang.org/cl/14522)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
