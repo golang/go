@@ -159,10 +159,6 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		env = append(env, "CONTENT_TYPE="+ctype)
 	}
 
-	if h.Env != nil {
-		env = append(env, h.Env...)
-	}
-
 	envPath := os.Getenv("PATH")
 	if envPath == "" {
 		envPath = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
@@ -179,6 +175,10 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		if v := os.Getenv(e); v != "" {
 			env = append(env, e+"="+v)
 		}
+	}
+
+	if h.Env != nil {
+		env = append(env, h.Env...)
 	}
 
 	env = removeLeadingDuplicates(env)
