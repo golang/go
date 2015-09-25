@@ -141,5 +141,6 @@ func fmtHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		resp.Body = string(body)
 	}
+	w.Header().Set("Content-type", "application/json; charset=utf-8")
 	json.NewEncoder(w).Encode(resp)
 }
