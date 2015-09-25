@@ -487,12 +487,14 @@ func TestEnvOverride(t *testing.T) {
 		Args: []string{cgifile},
 		Env: []string{
 			"SCRIPT_FILENAME=" + cgifile,
-			"REQUEST_URI=/foo/bar"},
+			"REQUEST_URI=/foo/bar",
+			"PATH=/wibble"},
 	}
 	expectedMap := map[string]string{
 		"cwd": cwd,
 		"env-SCRIPT_FILENAME": cgifile,
 		"env-REQUEST_URI":     "/foo/bar",
+		"env-PATH":            "/wibble",
 	}
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
 }
