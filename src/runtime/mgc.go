@@ -937,7 +937,10 @@ func gc(mode gcMode) {
 
 	pauseStart = now
 	systemstack(stopTheWorldWithSema)
-	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+	// Finish sweep before we start concurrent scan.
+	systemstack(func() {
+		finishsweep_m(true)
+	})
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
@@ -1127,7 +1130,7 @@ func gc(mode gcMode) {
 			// Reset these so that all stacks will be rescanned.
 			gcResetGState()
 			gcResetMarkState()
-			finishsweep_m()
+			finishsweep_m(true)
 
 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
 			// At this point all objects will be found during the gcMark which

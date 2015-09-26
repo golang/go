@@ -24,20 +24,28 @@ type sweepdata struct {
 }
 
 //go:nowritebarrier
-func finishsweep_m() {
-	// The world is stopped so we should be able to complete the sweeps
-	// quickly.
+func finishsweep_m(stw bool) {
+	// Sweeping must be complete before marking commences, so
+	// sweep any unswept spans. If this is a concurrent GC, there
+	// shouldn't be any spans left to sweep, so this should finish
+	// instantly. If GC was forced before the concurrent sweep
+	// finished, there may be spans to sweep.
 	for sweepone() != ^uintptr(0) {
 		sweep.npausesweep++
 	}
 
 	// There may be some other spans being swept concurrently that
 	// we need to wait for. If finishsweep_m is done with the world stopped
-	// this code is not required.
-	sg := mheap_.sweepgen
-	for _, s := range work.spans {
-		if s.sweepgen != sg && s.state == _MSpanInUse {
-			mSpan_EnsureSwept(s)
+	// this is not required because the STW must have waited for sweeps.
+	//
+	// TODO(austin): As of this writing, we always pass true for stw.
+	// Consider removing this code.
+	if !stw {
+		sg := mheap_.sweepgen
+		for _, s := range work.spans {
+			if s.sweepgen != sg && s.state == _MSpanInUse {
+				mSpan_EnsureSwept(s)
+			}
 		}
 	}
 }
