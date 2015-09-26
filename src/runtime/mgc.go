@@ -1565,14 +1565,9 @@ func gcSweep(mode gcMode) {
 		return
 	}
 
-	// Account how much sweeping needs to be done before the next
-	// GC cycle and set up proportional sweep statistics.
-	var pagesToSweep uintptr
-	for _, s := range work.spans {
-		if s.state == mSpanInUse {
-			pagesToSweep += s.npages
-		}
-	}
+	// Concurrent sweep needs to sweep all of the in-use pages by
+	// the time the allocated heap reaches the GC trigger. Compute
+	// the ratio of in-use pages to sweep per byte allocated.
 	heapDistance := int64(memstats.next_gc) - int64(memstats.heap_live)
 	// Add a little margin so rounding errors and concurrent
 	// sweep are less likely to leave pages unswept when GC starts.
@@ -1582,7 +1577,7 @@ func gcSweep(mode gcMode) {
 		heapDistance = _PageSize
 	}
 	lock(&mheap_.lock)
-	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
+	mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
 	mheap_.pagesSwept = 0
 	mheap_.spanBytesAlloc = 0
 	unlock(&mheap_.lock)
