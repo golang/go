@@ -67,7 +67,7 @@ fetchGodoc() {
 	go=$APPENGINE_SDK/goapp
 	$go get -d -tags appengine $GODOC
 	mkdir -p $APPDIR/$GODOC
-	cp $(find $($go list -f '{{.Dir}}' $GODOC) -type f -depth 1) $APPDIR/$GODOC/
+	cp $(find $($go list -f '{{.Dir}}' $GODOC) -mindepth 1 -maxdepth 1 -type f) $APPDIR/$GODOC/
 }
 
 makeAppYaml() {
