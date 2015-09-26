@@ -398,6 +398,9 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 			// is reserved and part is not.
 			var reserved bool
 			p := uintptr(sysReserve((unsafe.Pointer)(h.arena_end), p_size, &reserved))
+			if p == 0 {
+				return nil
+			}
 			if p == h.arena_end {
 				h.arena_end = new_end
 				h.arena_reserved = reserved
