@@ -29,9 +29,12 @@ type mheap struct {
 	spans_mapped uintptr
 
 	// Proportional sweep
+	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
 	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
 	pagesSwept        uint64  // pages swept this cycle; updated atomically
 	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+	// TODO(austin): pagesInUse should be a uintptr, but the 386
+	// compiler can't 8-byte align fields.
 
 	// Malloc stats.
 	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
@@ -447,6 +450,7 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 		}
 
 		// update stats, sweep lists
+		h.pagesInUse += uint64(npage)
 		if large {
 			memstats.heap_objects++
 			memstats.heap_live += uint64(npage << _PageShift)
@@ -614,6 +618,8 @@ func bestFit(list *mspan, npage uintptr, best *mspan) *mspan {
 
 // Try to add at least npage pages of memory to the heap,
 // returning whether it worked.
+//
+// h must be locked.
 func mHeap_Grow(h *mheap, npage uintptr) bool {
 	// Ask for a big chunk, to reduce the number of mappings
 	// the operating system needs to track; also amortizes
@@ -648,6 +654,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 	}
 	atomicstore(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
+	h.pagesInUse += uint64(npage)
 	mHeap_FreeSpanLocked(h, s, false, true, 0)
 	return true
 }
@@ -728,6 +735,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " ref ", s.ref, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("MHeap_FreeSpanLocked - invalid free")
 		}
+		h.pagesInUse -= uint64(s.npages)
 	default:
 		throw("MHeap_FreeSpanLocked - invalid span state")
 	}
