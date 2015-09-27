@@ -1339,7 +1339,7 @@ func (c *conn) serve() {
 				// responding to them and hanging up
 				// while they're still writing their
 				// request.  Undefined behavior.
-				io.WriteString(c.rwc, "HTTP/1.1 413 Request Entity Too Large\r\n\r\n")
+				io.WriteString(c.rwc, "HTTP/1.1 413 Request Entity Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n413 Request Entity Too Large")
 				c.closeWriteAndWait()
 				break
 			} else if err == io.EOF {
@@ -1347,7 +1347,7 @@ func (c *conn) serve() {
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 				break // Don't reply
 			}
-			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\n\r\n")
+			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n400 Bad Request")
 			break
 		}
 
