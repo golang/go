@@ -4,26 +4,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// darwin/386 seems to mangle the PC and SP before
-// it manages to invoke the signal handler, so this test fails there.
-// +build !darwin !386
-//
-// openbsd/386 and netbsd/386 don't work, not sure why.
-// +build !openbsd !386
-// +build !netbsd !386
-//
 // windows doesn't work, because Windows exception handling
 // delivers signals based on the current PC, and that current PC
 // doesn't go into the Go runtime.
 // +build !windows
-//
-// arm64 gets "illegal instruction" (why is the data executable?)
-// and is unable to do the traceback correctly (why?).
-// +build !arm64
 
 package main
 
 import (
+	"encoding/binary"
 	"runtime"
 	"runtime/debug"
 	"unsafe"
@@ -56,7 +45,27 @@ func f(n int) {
 	var f struct {
 		x uintptr
 	}
-	f.x = uintptr(unsafe.Pointer(&f))
+
+	// We want to force an illegal instruction, to get a crash
+	// at a PC value != 0.
+	// Not all systems make the data section non-executable.
+	ill := make([]byte, 64)
+	switch runtime.GOARCH {
+	case "386", "amd64":
+		binary.LittleEndian.PutUint16(ill, 0x0b0f) // ud2
+	case "arm":
+		binary.LittleEndian.PutUint32(ill, 0xe7f000f0) // no name, but permanently undefined
+	case "arm64":
+		binary.LittleEndian.PutUint32(ill, 0xd4207d00) // brk #1000
+	case "ppc64":
+		binary.BigEndian.PutUint32(ill, 0x7fe00008) // trap
+	case "ppc64le":
+		binary.LittleEndian.PutUint32(ill, 0x7fe00008) // trap
+	default:
+		// Just leave it as 0 and hope for the best.
+	}
+
+	f.x = uintptr(unsafe.Pointer(&ill[0]))
 	fn := *(*func())(unsafe.Pointer(&f))
 	fn()
 }
