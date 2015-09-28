@@ -316,7 +316,6 @@ func findPackage(pkg string) (string, bool) {
 			return path, true
 		}
 	}
-	return "", false
 }
 
 // splitGopath splits $GOPATH into a list of roots.
