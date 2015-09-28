@@ -1,7 +1,8 @@
 // errorcheck -0 -d=nil
 // Fails on ppc64x because of incomplete optimization.
 // See issues 9058.
-// +build !ppc64,!ppc64le
+// Same reason for mips64x.
+// +build !ppc64,!ppc64le,!mips64,!mips64le
 
 // Copyright 2013 The Go Authors.  All rights reserved.
 // Use of this source code is governed by a BSD-style

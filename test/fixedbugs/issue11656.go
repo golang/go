@@ -61,6 +61,10 @@ func f(n int) {
 		binary.BigEndian.PutUint32(ill, 0x7fe00008) // trap
 	case "ppc64le":
 		binary.LittleEndian.PutUint32(ill, 0x7fe00008) // trap
+	case "mips64":
+		binary.BigEndian.PutUint32(ill, 0x00000034) // trap
+	case "mips64le":
+		binary.LittleEndian.PutUint32(ill, 0x00000034) // trap
 	default:
 		// Just leave it as 0 and hope for the best.
 	}
