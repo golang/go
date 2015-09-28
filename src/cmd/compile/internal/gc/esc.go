@@ -650,10 +650,15 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		n.Left.Sym.Label = nil
 
-		// Everything but fixed array is a dereference.
 	case ORANGE:
 		if n.List != nil && n.List.Next != nil {
-			if Isfixedarray(n.Type) {
+			// Everything but fixed array is a dereference.
+
+			// If fixed array is really the address of fixed array,
+			// it is also a dereference, because it is implicitly
+			// dereferenced (see #12588)
+			if Isfixedarray(n.Type) &&
+				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
 				escassign(e, n.List.Next.N, n.Right)
 			} else {
 				escassignDereference(e, n.List.Next.N, n.Right)
