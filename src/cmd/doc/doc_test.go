@@ -401,3 +401,33 @@ func TestMultiplePackages(t *testing.T) {
 		}
 	}
 }
+
+type trimTest struct {
+	path   string
+	prefix string
+	result string
+	ok     bool
+}
+
+var trimTests = []trimTest{
+	{"", "", "", true},
+	{"/usr/gopher", "/usr/gopher", "/usr/gopher", true},
+	{"/usr/gopher/bar", "/usr/gopher", "bar", true},
+	{"/usr/gopher", "/usr/gopher", "/usr/gopher", true},
+	{"/usr/gopherflakes", "/usr/gopher", "/usr/gopherflakes", false},
+	{"/usr/gopher/bar", "/usr/zot", "/usr/gopher/bar", false},
+}
+
+func TestTrim(t *testing.T) {
+	for _, test := range trimTests {
+		result, ok := trim(test.path, test.prefix)
+		if ok != test.ok {
+			t.Errorf("%s %s expected %t got %t", test.path, test.prefix, test.ok, ok)
+			continue
+		}
+		if result != test.result {
+			t.Errorf("%s %s expected %q got %q", test.path, test.prefix, test.result, result)
+			continue
+		}
+	}
+}

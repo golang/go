@@ -60,19 +60,37 @@ func (pkg *Package) prettyPath() string {
 	if path != "." && path != "" {
 		return path
 	}
-	// Conver the source directory into a more useful path.
-	path = filepath.Clean(pkg.build.Dir)
+	// Convert the source directory into a more useful path.
+	// Also convert everything to slash-separated paths for uniform handling.
+	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
 	// Can we find a decent prefix?
 	goroot := filepath.Join(build.Default.GOROOT, "src")
-	if strings.HasPrefix(path, goroot) {
-		return path[len(goroot)+1:]
+	if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
+		return p
 	}
 	for _, gopath := range splitGopath() {
-		if strings.HasPrefix(path, gopath) {
-			return path[len(gopath)+1:]
+		if p, ok := trim(path, filepath.ToSlash(gopath)); ok {
+			return p
 		}
 	}
 	return path
+}
+
+// trim trims the directory prefix from the path, paying attention
+// to the path separator. If they are the same string or the prefix
+// is not present the original is returned. The boolean reports whether
+// the prefix is present. That path and prefix have slashes for separators.
+func trim(path, prefix string) (string, bool) {
+	if !strings.HasPrefix(path, prefix) {
+		return path, false
+	}
+	if path == prefix {
+		return path, true
+	}
+	if path[len(prefix)] == '/' {
+		return path[len(prefix)+1:], true
+	}
+	return path, false // Textual prefix but not a path prefix.
 }
 
 // pkg.Fatalf is like log.Fatalf, but panics so it can be recovered in the
