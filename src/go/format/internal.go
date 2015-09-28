@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// TODO(gri): This file and the file src/cmd/gofmt/internal.go are
+// the same (but for this comment and the package name). Do not modify
+// one without the other. Determine if we can factor out functionality
+// in a public API. See also #11844 for context.
+
 package format
 
 import (
@@ -13,11 +18,9 @@ import (
 	"strings"
 )
 
-const parserMode = parser.ParseComments
-
-// Parse parses src, which was read from the named file,
+// parse parses src, which was read from the named file,
 // as a Go source file, declaration, or statement list.
-func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
+func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	file *ast.File,
 	sourceAdj func(src []byte, indent int) []byte,
 	indentAdj int,
@@ -85,10 +88,10 @@ func Parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 	return
 }
 
-// Format formats the given package file originally obtained from src
+// format formats the given package file originally obtained from src
 // and adjusts the result based on the original source via sourceAdj
 // and indentAdj.
-func Format(
+func format(
 	fset *token.FileSet,
 	file *ast.File,
 	sourceAdj func(src []byte, indent int) []byte,
@@ -109,7 +112,7 @@ func Format(
 	// Partial source file.
 	// Determine and prepend leading space.
 	i, j := 0, 0
-	for j < len(src) && IsSpace(src[j]) {
+	for j < len(src) && isSpace(src[j]) {
 		if src[j] == '\n' {
 			i = j + 1 // byte offset of last line in leading space
 		}
@@ -150,14 +153,14 @@ func Format(
 
 	// Determine and append trailing space.
 	i = len(src)
-	for i > 0 && IsSpace(src[i-1]) {
+	for i > 0 && isSpace(src[i-1]) {
 		i--
 	}
 	return append(res, src[i:]...), nil
 }
 
-// IsSpace reports whether the byte is a space character.
-// IsSpace defines a space as being among the following bytes: ' ', '\t', '\n' and '\r'.
-func IsSpace(b byte) bool {
+// isSpace reports whether the byte is a space character.
+// isSpace defines a space as being among the following bytes: ' ', '\t', '\n' and '\r'.
+func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
