@@ -30,7 +30,10 @@ import (
 // Marshal traverses the value v recursively.
 // If an encountered value implements the Marshaler interface
 // and is not a nil pointer, Marshal calls its MarshalJSON method
-// to produce JSON.  The nil pointer exception is not strictly necessary
+// to produce JSON. If no MarshalJSON method is present but the
+// value implements encoding.TextMarshaler instead, Marshal calls
+// its MarshalText method.
+// The nil pointer exception is not strictly necessary
 // but mimics a similar, necessary exception in the behavior of
 // UnmarshalJSON.
 //
