@@ -12,7 +12,6 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"internal/format"
 	"io"
 )
 
@@ -82,7 +81,7 @@ func Node(dst io.Writer, fset *token.FileSet, node interface{}) error {
 //
 func Source(src []byte) ([]byte, error) {
 	fset := token.NewFileSet()
-	file, sourceAdj, indentAdj, err := format.Parse(fset, "", src, true)
+	file, sourceAdj, indentAdj, err := parse(fset, "", src, true)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func Source(src []byte) ([]byte, error) {
 		ast.SortImports(fset, file)
 	}
 
-	return format.Format(fset, file, sourceAdj, indentAdj, src, config)
+	return format(fset, file, sourceAdj, indentAdj, src, config)
 }
 
 func hasUnsortedImports(file *ast.File) bool {
