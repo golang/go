@@ -486,24 +486,6 @@ func TestPaxHeadersSorted(t *testing.T) {
 	}
 }
 
-func TestPAXHeader(t *testing.T) {
-	medName := strings.Repeat("CD", 50)
-	longName := strings.Repeat("AB", 100)
-	paxTests := [][2]string{
-		{paxPath + "=/etc/hosts", "19 path=/etc/hosts\n"},
-		{"a=b", "6 a=b\n"},          // Single digit length
-		{"a=names", "11 a=names\n"}, // Test case involving carries
-		{paxPath + "=" + longName, fmt.Sprintf("210 path=%s\n", longName)},
-		{paxPath + "=" + medName, fmt.Sprintf("110 path=%s\n", medName)}}
-
-	for _, test := range paxTests {
-		key, expected := test[0], test[1]
-		if result := paxHeader(key); result != expected {
-			t.Fatalf("paxHeader: got %s, expected %s", result, expected)
-		}
-	}
-}
-
 func TestUSTARLongName(t *testing.T) {
 	// Create an archive with a path that failed to split with USTAR extension in previous versions.
 	fileinfo, err := os.Stat("testdata/small.txt")
@@ -622,6 +604,36 @@ func TestSplitUSTARPath(t *testing.T) {
 		if prefix != v.prefix || suffix != v.suffix || ok != v.ok {
 			t.Errorf("splitUSTARPath(%q):\ngot  (%q, %q, %v)\nwant (%q, %q, %v)",
 				v.input, prefix, suffix, ok, v.prefix, v.suffix, v.ok)
+		}
+	}
+}
+
+func TestFormatPAXRecord(t *testing.T) {
+	var medName = strings.Repeat("CD", 50)
+	var longName = strings.Repeat("AB", 100)
+
+	var vectors = []struct {
+		inputKey string
+		inputVal string
+		output   string
+	}{
+		{"k", "v", "6 k=v\n"},
+		{"path", "/etc/hosts", "19 path=/etc/hosts\n"},
+		{"path", longName, "210 path=" + longName + "\n"},
+		{"path", medName, "110 path=" + medName + "\n"},
+		{"foo", "ba", "9 foo=ba\n"},
+		{"foo", "bar", "11 foo=bar\n"},
+		{"foo", "b=\nar=\n==\x00", "18 foo=b=\nar=\n==\x00\n"},
+		{"foo", "hello9 foo=ba\nworld", "27 foo=hello9 foo=ba\nworld\n"},
+		{"☺☻☹", "日a本b語ç", "27 ☺☻☹=日a本b語ç\n"},
+		{"\x00hello", "\x00world", "17 \x00hello=\x00world\n"},
+	}
+
+	for _, v := range vectors {
+		output := formatPAXRecord(v.inputKey, v.inputVal)
+		if output != v.output {
+			t.Errorf("formatPAXRecord(%q, %q): got %q, want %q",
+				v.inputKey, v.inputVal, output, v.output)
 		}
 	}
 }

@@ -37,6 +37,10 @@ type Reader struct {
 	hdrBuff [blockSize]byte // buffer to use in readHeader
 }
 
+type parser struct {
+	err error // Last error seen
+}
+
 // A numBytesReader is an io.Reader with a numBytes method, returning the number
 // of bytes remaining in the underlying encoded data.
 type numBytesReader interface {
@@ -113,6 +117,7 @@ func NewReader(r io.Reader) *Reader { return &Reader{r: r} }
 //
 // io.EOF is returned at the end of the input.
 func (tr *Reader) Next() (*Header, error) {
+	var p parser
 	var hdr *Header
 	if tr.err == nil {
 		tr.skipUnread()
@@ -176,7 +181,10 @@ func (tr *Reader) Next() (*Header, error) {
 		if tr.err != nil {
 			return nil, tr.err
 		}
-		hdr.Name = cString(realname)
+		hdr.Name = p.parseString(realname)
+		if p.err != nil {
+			return nil, p.err
+		}
 		return hdr, nil
 	case TypeGNULongLink:
 		// We have a GNU long link header.
@@ -188,7 +196,10 @@ func (tr *Reader) Next() (*Header, error) {
 		if tr.err != nil {
 			return nil, tr.err
 		}
-		hdr.Linkname = cString(realname)
+		hdr.Linkname = p.parseString(realname)
+		if p.err != nil {
+			return nil, p.err
+		}
 		return hdr, nil
 	}
 	return hdr, tr.err
@@ -362,6 +373,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	sbuf := string(buf)
 
 	// For GNU PAX sparse format 0.0 support.
 	// This function transforms the sparse format 0.0 headers into sparse format 0.1 headers.
@@ -370,35 +382,17 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 	headers := make(map[string]string)
 	// Each record is constructed as
 	//     "%d %s=%s\n", length, keyword, value
-	for len(buf) > 0 {
-		// or the header was empty to start with.
-		var sp int
-		// The size field ends at the first space.
-		sp = bytes.IndexByte(buf, ' ')
-		if sp == -1 {
+	for len(sbuf) > 0 {
+		key, value, residual, err := parsePAXRecord(sbuf)
+		if err != nil {
 			return nil, ErrHeader
 		}
-		// Parse the first token as a decimal integer.
-		n, err := strconv.ParseInt(string(buf[:sp]), 10, 0)
-		if err != nil || n < 5 || int64(len(buf)) < n {
-			return nil, ErrHeader
-		}
-		// Extract everything between the decimal and the n -1 on the
-		// beginning to eat the ' ', -1 on the end to skip the newline.
-		var record []byte
-		record, buf = buf[sp+1:n-1], buf[n:]
-		// The first equals is guaranteed to mark the end of the key.
-		// Everything else is value.
-		eq := bytes.IndexByte(record, '=')
-		if eq == -1 {
-			return nil, ErrHeader
-		}
-		key, value := record[:eq], record[eq+1:]
+		sbuf = residual
 
 		keyStr := string(key)
 		if keyStr == paxGNUSparseOffset || keyStr == paxGNUSparseNumBytes {
 			// GNU sparse format 0.0 special key. Write to sparseMap instead of using the headers map.
-			sparseMap.Write(value)
+			sparseMap.WriteString(value)
 			sparseMap.Write([]byte{','})
 		} else {
 			// Normal key. Set the value in the headers map.
@@ -413,9 +407,42 @@ func parsePAX(r io.Reader) (map[string]string, error) {
 	return headers, nil
 }
 
-// cString parses bytes as a NUL-terminated C-style string.
+// parsePAXRecord parses the input PAX record string into a key-value pair.
+// If parsing is successful, it will slice off the currently read record and
+// return the remainder as r.
+//
+// A PAX record is of the following form:
+//	"%d %s=%s\n" % (size, key, value)
+func parsePAXRecord(s string) (k, v, r string, err error) {
+	// The size field ends at the first space.
+	sp := strings.IndexByte(s, ' ')
+	if sp == -1 {
+		return "", "", s, ErrHeader
+	}
+
+	// Parse the first token as a decimal integer.
+	n, perr := strconv.ParseInt(s[:sp], 10, 0) // Intentionally parse as native int
+	if perr != nil || n < 5 || int64(len(s)) < n {
+		return "", "", s, ErrHeader
+	}
+
+	// Extract everything between the space and the final newline.
+	rec, nl, rem := s[sp+1:n-1], s[n-1:n], s[n:]
+	if nl != "\n" {
+		return "", "", s, ErrHeader
+	}
+
+	// The first equals separates the key from the value.
+	eq := strings.IndexByte(rec, '=')
+	if eq == -1 {
+		return "", "", s, ErrHeader
+	}
+	return rec[:eq], rec[eq+1:], rem, nil
+}
+
+// parseString parses bytes as a NUL-terminated C-style string.
 // If a NUL byte is not found then the whole slice is returned as a string.
-func cString(b []byte) string {
+func (*parser) parseString(b []byte) string {
 	n := 0
 	for n < len(b) && b[n] != 0 {
 		n++
@@ -423,7 +450,7 @@ func cString(b []byte) string {
 	return string(b[0:n])
 }
 
-func (tr *Reader) octal(b []byte) int64 {
+func (p *parser) parseNumeric(b []byte) int64 {
 	// Check for binary format first.
 	if len(b) > 0 && b[0]&0x80 != 0 {
 		var x int64
@@ -436,6 +463,10 @@ func (tr *Reader) octal(b []byte) int64 {
 		return x
 	}
 
+	return p.parseOctal(b)
+}
+
+func (p *parser) parseOctal(b []byte) int64 {
 	// Because unused fields are filled with NULs, we need
 	// to skip leading NULs. Fields may also be padded with
 	// spaces or NULs.
@@ -446,9 +477,9 @@ func (tr *Reader) octal(b []byte) int64 {
 	if len(b) == 0 {
 		return 0
 	}
-	x, err := strconv.ParseUint(cString(b), 8, 64)
-	if err != nil {
-		tr.err = err
+	x, perr := strconv.ParseUint(p.parseString(b), 8, 64)
+	if perr != nil {
+		p.err = ErrHeader
 	}
 	return int64(x)
 }
@@ -499,9 +530,10 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 		return false
 	}
 
-	given := tr.octal(header[148:156])
+	var p parser
+	given := p.parseOctal(header[148:156])
 	unsigned, signed := checksum(header)
-	return given == unsigned || given == signed
+	return p.err == nil && (given == unsigned || given == signed)
 }
 
 // readHeader reads the next block header and assumes that the underlying reader
@@ -538,18 +570,19 @@ func (tr *Reader) readHeader() *Header {
 	}
 
 	// Unpack
+	var p parser
 	hdr := new(Header)
 	s := slicer(header)
 
-	hdr.Name = cString(s.next(100))
-	hdr.Mode = tr.octal(s.next(8))
-	hdr.Uid = int(tr.octal(s.next(8)))
-	hdr.Gid = int(tr.octal(s.next(8)))
-	hdr.Size = tr.octal(s.next(12))
-	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
+	hdr.Name = p.parseString(s.next(100))
+	hdr.Mode = p.parseNumeric(s.next(8))
+	hdr.Uid = int(p.parseNumeric(s.next(8)))
+	hdr.Gid = int(p.parseNumeric(s.next(8)))
+	hdr.Size = p.parseNumeric(s.next(12))
+	hdr.ModTime = time.Unix(p.parseNumeric(s.next(12)), 0)
 	s.next(8) // chksum
 	hdr.Typeflag = s.next(1)[0]
-	hdr.Linkname = cString(s.next(100))
+	hdr.Linkname = p.parseString(s.next(100))
 
 	// The remainder of the header depends on the value of magic.
 	// The original (v7) version of tar had no explicit magic field,
@@ -569,30 +602,30 @@ func (tr *Reader) readHeader() *Header {
 
 	switch format {
 	case "posix", "gnu", "star":
-		hdr.Uname = cString(s.next(32))
-		hdr.Gname = cString(s.next(32))
+		hdr.Uname = p.parseString(s.next(32))
+		hdr.Gname = p.parseString(s.next(32))
 		devmajor := s.next(8)
 		devminor := s.next(8)
 		if hdr.Typeflag == TypeChar || hdr.Typeflag == TypeBlock {
-			hdr.Devmajor = tr.octal(devmajor)
-			hdr.Devminor = tr.octal(devminor)
+			hdr.Devmajor = p.parseNumeric(devmajor)
+			hdr.Devminor = p.parseNumeric(devminor)
 		}
 		var prefix string
 		switch format {
 		case "posix", "gnu":
-			prefix = cString(s.next(155))
+			prefix = p.parseString(s.next(155))
 		case "star":
-			prefix = cString(s.next(131))
-			hdr.AccessTime = time.Unix(tr.octal(s.next(12)), 0)
-			hdr.ChangeTime = time.Unix(tr.octal(s.next(12)), 0)
+			prefix = p.parseString(s.next(131))
+			hdr.AccessTime = time.Unix(p.parseNumeric(s.next(12)), 0)
+			hdr.ChangeTime = time.Unix(p.parseNumeric(s.next(12)), 0)
 		}
 		if len(prefix) > 0 {
 			hdr.Name = prefix + "/" + hdr.Name
 		}
 	}
 
-	if tr.err != nil {
-		tr.err = ErrHeader
+	if p.err != nil {
+		tr.err = p.err
 		return nil
 	}
 
@@ -612,7 +645,11 @@ func (tr *Reader) readHeader() *Header {
 	// Check for old GNU sparse format entry.
 	if hdr.Typeflag == TypeGNUSparse {
 		// Get the real size of the file.
-		hdr.Size = tr.octal(header[483:495])
+		hdr.Size = p.parseNumeric(header[483:495])
+		if p.err != nil {
+			tr.err = p.err
+			return nil
+		}
 
 		// Read the sparse map.
 		sp := tr.readOldGNUSparseMap(header)
@@ -634,6 +671,7 @@ func (tr *Reader) readHeader() *Header {
 // The sparse map is stored in the tar header if it's small enough. If it's larger than four entries,
 // then one or more extension headers are used to store the rest of the sparse map.
 func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
+	var p parser
 	isExtended := header[oldGNUSparseMainHeaderIsExtendedOffset] != 0
 	spCap := oldGNUSparseMainHeaderNumEntries
 	if isExtended {
@@ -644,10 +682,10 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
 
 	// Read the four entries from the main tar header
 	for i := 0; i < oldGNUSparseMainHeaderNumEntries; i++ {
-		offset := tr.octal(s.next(oldGNUSparseOffsetSize))
-		numBytes := tr.octal(s.next(oldGNUSparseNumBytesSize))
-		if tr.err != nil {
-			tr.err = ErrHeader
+		offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
+		numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
+		if p.err != nil {
+			tr.err = p.err
 			return nil
 		}
 		if offset == 0 && numBytes == 0 {
@@ -665,10 +703,10 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
 		isExtended = sparseHeader[oldGNUSparseExtendedHeaderIsExtendedOffset] != 0
 		s = slicer(sparseHeader)
 		for i := 0; i < oldGNUSparseExtendedHeaderNumEntries; i++ {
-			offset := tr.octal(s.next(oldGNUSparseOffsetSize))
-			numBytes := tr.octal(s.next(oldGNUSparseNumBytesSize))
-			if tr.err != nil {
-				tr.err = ErrHeader
+			offset := p.parseNumeric(s.next(oldGNUSparseOffsetSize))
+			numBytes := p.parseNumeric(s.next(oldGNUSparseNumBytesSize))
+			if p.err != nil {
+				tr.err = p.err
 				return nil
 			}
 			if offset == 0 && numBytes == 0 {
