@@ -247,6 +247,9 @@ TestCases:
 		var buf bytes.Buffer
 		ptrSize := 4
 		switch goarch {
+		case "mips64", "mips64le":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define CALL JAL\n#define REGISTER (R0)\n")
 		case "ppc64", "ppc64le":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n")
