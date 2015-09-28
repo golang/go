@@ -298,10 +298,7 @@ var untarTests = []*untarTest{
 	},
 	{
 		file: "testdata/issue11169.tar",
-		// TODO(dsnet): Currently the library does not detect that this file is
-		// malformed. Instead it incorrectly believes that file just ends.
-		// At least the library doesn't crash anymore.
-		// err:  ErrHeader,
+		err:  ErrHeader,
 	},
 	{
 		file: "testdata/issue12435.tar",
@@ -988,6 +985,58 @@ func TestReadHeaderOnly(t *testing.T) {
 		hdr1.Size, hdr2.Size = 0, 0
 		if !reflect.DeepEqual(*hdr1, *hdr2) {
 			t.Errorf("incorrect header:\ngot  %+v\nwant %+v", *hdr1, *hdr2)
+		}
+	}
+}
+
+func TestParsePAXRecord(t *testing.T) {
+	var medName = strings.Repeat("CD", 50)
+	var longName = strings.Repeat("AB", 100)
+
+	var vectors = []struct {
+		input     string
+		residual  string
+		outputKey string
+		outputVal string
+		ok        bool
+	}{
+		{"6 k=v\n\n", "\n", "k", "v", true},
+		{"19 path=/etc/hosts\n", "", "path", "/etc/hosts", true},
+		{"210 path=" + longName + "\nabc", "abc", "path", longName, true},
+		{"110 path=" + medName + "\n", "", "path", medName, true},
+		{"9 foo=ba\n", "", "foo", "ba", true},
+		{"11 foo=bar\n\x00", "\x00", "foo", "bar", true},
+		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
+		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
+		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
+		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
+		{"1 k=1\n", "1 k=1\n", "", "", false},
+		{"6 k~1\n", "6 k~1\n", "", "", false},
+		{"6_k=1\n", "6_k=1\n", "", "", false},
+		{"6 k=1 ", "6 k=1 ", "", "", false},
+		{"632 k=1\n", "632 k=1\n", "", "", false},
+		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
+		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
+		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
+	}
+
+	for _, v := range vectors {
+		key, val, res, err := parsePAXRecord(v.input)
+		ok := (err == nil)
+		if v.ok != ok {
+			if v.ok {
+				t.Errorf("parsePAXRecord(%q): got parsing failure, want success", v.input)
+			} else {
+				t.Errorf("parsePAXRecord(%q): got parsing success, want failure", v.input)
+			}
+		}
+		if ok && (key != v.outputKey || val != v.outputVal) {
+			t.Errorf("parsePAXRecord(%q): got (%q: %q), want (%q: %q)",
+				v.input, key, val, v.outputKey, v.outputVal)
+		}
+		if res != v.residual {
+			t.Errorf("parsePAXRecord(%q): got residual %q, want residual %q",
+				v.input, res, v.residual)
 		}
 	}
 }
