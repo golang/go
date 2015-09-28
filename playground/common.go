@@ -56,7 +56,7 @@ func allowShare(r *http.Request) bool {
 		return true
 	}
 	switch r.Header.Get("X-AppEngine-Country") {
-	case "", "ZZ", "HK", "CN", "RC":
+	case "", "ZZ", "CN":
 		return false
 	}
 	return true
