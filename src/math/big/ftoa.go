@@ -46,6 +46,7 @@ func (x *Float) Text(format byte, prec int) string {
 }
 
 // String formats x like x.Text('g', 10).
+// (String must be called explicitly, Float.Format does not support %s verb.)
 func (x *Float) String() string {
 	return x.Text('g', 10)
 }
