@@ -13,16 +13,11 @@ import (
 )
 
 var encodingTests = []string{
-	"-539345864568634858364538753846587364875430589374589",
-	"-678645873",
-	"-100",
-	"-2",
-	"-1",
 	"0",
 	"1",
 	"2",
 	"10",
-	"42",
+	"1000",
 	"1234567890",
 	"298472983472983471903246121093472394872319615612417471234712061",
 }
@@ -32,20 +27,23 @@ func TestIntGobEncoding(t *testing.T) {
 	enc := gob.NewEncoder(&medium)
 	dec := gob.NewDecoder(&medium)
 	for _, test := range encodingTests {
-		medium.Reset() // empty buffer for each test case (in case of failures)
-		var tx Int
-		tx.SetString(test, 10)
-		if err := enc.Encode(&tx); err != nil {
-			t.Errorf("encoding of %s failed: %s", &tx, err)
-			continue
-		}
-		var rx Int
-		if err := dec.Decode(&rx); err != nil {
-			t.Errorf("decoding of %s failed: %s", &tx, err)
-			continue
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
+		for _, sign := range []string{"", "+", "-"} {
+			x := sign + test
+			medium.Reset() // empty buffer for each test case (in case of failures)
+			var tx Int
+			tx.SetString(x, 10)
+			if err := enc.Encode(&tx); err != nil {
+				t.Errorf("encoding of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Int
+			if err := dec.Decode(&rx); err != nil {
+				t.Errorf("decoding of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
 		}
 	}
 }
@@ -78,72 +76,46 @@ func TestGobEncodingNilIntInSlice(t *testing.T) {
 
 func TestIntJSONEncoding(t *testing.T) {
 	for _, test := range encodingTests {
-		var tx Int
-		tx.SetString(test, 10)
-		b, err := json.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		var rx Int
-		if err := json.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
-		}
-	}
-}
-
-var intVals = []string{
-	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
-	"-1415926535897932384626433832795028841971",
-	"-141592653589793",
-	"-1",
-	"0",
-	"1",
-	"141592653589793",
-	"1415926535897932384626433832795028841971",
-	"141592653589793238462643383279502884197169399375105820974944592307816406286",
-}
-
-func TestIntJSONEncodingTextMarshaller(t *testing.T) {
-	for _, num := range intVals {
-		var tx Int
-		tx.SetString(num, 0)
-		b, err := json.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		var rx Int
-		if err := json.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+		for _, sign := range []string{"", "+", "-"} {
+			x := sign + test
+			var tx Int
+			tx.SetString(x, 10)
+			b, err := json.Marshal(&tx)
+			if err != nil {
+				t.Errorf("marshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Int
+			if err := json.Unmarshal(b, &rx); err != nil {
+				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
 		}
 	}
 }
 
-func TestIntXMLEncodingTextMarshaller(t *testing.T) {
-	for _, num := range intVals {
-		var tx Int
-		tx.SetString(num, 0)
-		b, err := xml.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		var rx Int
-		if err := xml.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+func TestIntXMLEncoding(t *testing.T) {
+	for _, test := range encodingTests {
+		for _, sign := range []string{"", "+", "-"} {
+			x := sign + test
+			var tx Int
+			tx.SetString(x, 0)
+			b, err := xml.Marshal(&tx)
+			if err != nil {
+				t.Errorf("marshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			var rx Int
+			if err := xml.Unmarshal(b, &rx); err != nil {
+				t.Errorf("unmarshaling of %s failed: %s", &tx, err)
+				continue
+			}
+			if rx.Cmp(&tx) != 0 {
+				t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+			}
 		}
 	}
 }
