@@ -124,7 +124,7 @@ func Example_escape() {
 
 // The following example is duplicated in text/template; keep them in sync.
 
-func ExampleBlock() {
+func ExampleTemplate_block() {
 	const (
 		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
 		overlay = `{{define "list"}} {{join . ", "}}{{end}} `
