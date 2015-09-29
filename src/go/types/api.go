@@ -297,8 +297,10 @@ func (init *Initializer) String() string {
 	return buf.String()
 }
 
-// Check type-checks a package and returns the resulting package object,
-// the first error if any, and if info != nil, additional type information.
+// Check type-checks a package and returns the resulting package object and
+// the first error if any. Additionally, if info != nil, Check populates each
+// of the non-nil maps in the Info struct.
+//
 // The package is marked as complete if no errors occurred, otherwise it is
 // incomplete. See Config.Error for controlling behavior in the presence of
 // errors.
