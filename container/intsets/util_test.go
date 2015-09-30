@@ -4,7 +4,10 @@
 
 package intsets
 
-import "testing"
+import (
+	"math/rand"
+	"testing"
+)
 
 func TestNLZ(t *testing.T) {
 	// Test the platform-specific edge case.
@@ -23,3 +26,33 @@ func TestNLZ(t *testing.T) {
 
 // Backdoor for testing.
 func (s *Sparse) Check() error { return s.check() }
+
+func dumbPopcount(x word) int {
+	var popcnt int
+	for i := uint(0); i < bitsPerWord; i++ {
+		if x&(1<<i) != 0 {
+			popcnt++
+		}
+	}
+	return popcnt
+}
+
+func TestPopcount(t *testing.T) {
+	for i := 0; i < 1e5; i++ {
+		x := word(rand.Uint32())
+		if bitsPerWord == 64 {
+			x = x | (word(rand.Uint32()) << 32)
+		}
+		want := dumbPopcount(x)
+		got := popcount(x)
+		if got != want {
+			t.Errorf("popcount(%d) = %d, want %d", x, got, want)
+		}
+	}
+}
+
+func BenchmarkPopcount(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		popcount(word(i))
+	}
+}

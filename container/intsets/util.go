@@ -4,6 +4,16 @@
 
 package intsets
 
+// From Hacker's Delight, fig 5.2.
+func popcountHD(x uint32) int {
+	x -= (x >> 1) & 0x55555555
+	x = (x & 0x33333333) + ((x >> 2) & 0x33333333)
+	x = (x + (x >> 4)) & 0x0f0f0f0f
+	x = x + (x >> 8)
+	x = x + (x >> 16)
+	return int(x & 0x0000003f)
+}
+
 var a [1 << 8]byte
 
 func init() {
@@ -18,8 +28,7 @@ func init() {
 	}
 }
 
-// popcount returns the population count (number of set bits) of x.
-func popcount(x word) int {
+func popcountTable(x word) int {
 	return int(a[byte(x>>(0*8))] +
 		a[byte(x>>(1*8))] +
 		a[byte(x>>(2*8))] +
