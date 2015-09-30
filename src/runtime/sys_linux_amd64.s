@@ -239,7 +239,7 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	SYSCALL
 	INT $3	// not reached
 
-TEXT runtime·mmap(SB),NOSPLIT,$0
+TEXT runtime·sysMmap(SB),NOSPLIT,$0
 	MOVQ	addr+0(FP), DI
 	MOVQ	n+8(FP), SI
 	MOVL	prot+16(FP), DX
@@ -253,6 +253,20 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	JLS	3(PC)
 	NOTQ	AX
 	INCQ	AX
+	MOVQ	AX, ret+32(FP)
+	RET
+
+// Call the function stored in _cgo_mmap using the GCC calling convention.
+// This must be called on the system stack.
+TEXT runtime·callCgoMmap(SB),NOSPLIT,$0
+	MOVQ	addr+0(FP), DI
+	MOVQ	n+8(FP), SI
+	MOVL	prot+16(FP), DX
+	MOVL	flags+20(FP), CX
+	MOVL	fd+24(FP), R8
+	MOVL	off+28(FP), R9
+	MOVQ	_cgo_mmap(SB), AX
+	CALL	AX
 	MOVQ	AX, ret+32(FP)
 	RET
 
