@@ -149,7 +149,17 @@ func format(
 	if err != nil {
 		return nil, err
 	}
-	res = append(res, sourceAdj(buf.Bytes(), cfg.Indent)...)
+	out := sourceAdj(buf.Bytes(), cfg.Indent)
+
+	// If the adjusted output is empty, the source
+	// was empty but (possibly) for white space.
+	// The result is the incoming source.
+	if len(out) == 0 {
+		return src, nil
+	}
+
+	// Otherwise, append output to leading space.
+	res = append(res, out...)
 
 	// Determine and append trailing space.
 	i = len(src)
