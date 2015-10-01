@@ -225,7 +225,6 @@ type WriterAt interface {
 // ByteReader is the interface that wraps the ReadByte method.
 //
 // ReadByte reads and returns the next byte from the input.
-// If no byte is available, err will be set.
 type ByteReader interface {
 	ReadByte() (c byte, err error)
 }
