@@ -446,16 +446,45 @@ func (tr *Reader) octal(b []byte) int64 {
 	return int64(x)
 }
 
-// skipUnread skips any unread bytes in the existing file entry, as well as any alignment padding.
-func (tr *Reader) skipUnread() {
-	nr := tr.numBytes() + tr.pad // number of bytes to skip
+// skipUnread skips any unread bytes in the existing file entry, as well as any
+// alignment padding. It returns io.ErrUnexpectedEOF if any io.EOF is
+// encountered in the data portion; it is okay to hit io.EOF in the padding.
+//
+// Note that this function still works properly even when sparse files are being
+// used since numBytes returns the bytes remaining in the underlying io.Reader.
+func (tr *Reader) skipUnread() error {
+	dataSkip := tr.numBytes()      // Number of data bytes to skip
+	totalSkip := dataSkip + tr.pad // Total number of bytes to skip
 	tr.curr, tr.pad = nil, 0
-	if sr, ok := tr.r.(io.Seeker); ok {
-		if _, err := sr.Seek(nr, os.SEEK_CUR); err == nil {
-			return
+
+	// If possible, Seek to the last byte before the end of the data section.
+	// Do this because Seek is often lazy about reporting errors; this will mask
+	// the fact that the tar stream may be truncated. We can rely on the
+	// io.CopyN done shortly afterwards to trigger any IO errors.
+	var seekSkipped int64 // Number of bytes skipped via Seek
+	if sr, ok := tr.r.(io.Seeker); ok && dataSkip > 1 {
+		// Not all io.Seeker can actually Seek. For example, os.Stdin implements
+		// io.Seeker, but calling Seek always returns an error and performs
+		// no action. Thus, we try an innocent seek to the current position
+		// to see if Seek is really supported.
+		pos1, err := sr.Seek(0, os.SEEK_CUR)
+		if err == nil {
+			// Seek seems supported, so perform the real Seek.
+			pos2, err := sr.Seek(dataSkip-1, os.SEEK_CUR)
+			if err != nil {
+				tr.err = err
+				return tr.err
+			}
+			seekSkipped = pos2 - pos1
 		}
 	}
-	_, tr.err = io.CopyN(ioutil.Discard, tr.r, nr)
+
+	var copySkipped int64 // Number of bytes skipped via CopyN
+	copySkipped, tr.err = io.CopyN(ioutil.Discard, tr.r, totalSkip-seekSkipped)
+	if tr.err == io.EOF && seekSkipped+copySkipped < dataSkip {
+		tr.err = io.ErrUnexpectedEOF
+	}
+	return tr.err
 }
 
 func (tr *Reader) verifyChecksum(header []byte) bool {
@@ -468,18 +497,25 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
 	return given == unsigned || given == signed
 }
 
+// readHeader reads the next block header and assumes that the underlying reader
+// is already aligned to a block boundary.
+//
+// The err will be set to io.EOF only when one of the following occurs:
+//	* Exactly 0 bytes are read and EOF is hit.
+//	* Exactly 1 block of zeros is read and EOF is hit.
+//	* At least 2 blocks of zeros are read.
 func (tr *Reader) readHeader() *Header {
 	header := tr.hdrBuff[:]
 	copy(header, zeroBlock)
 
 	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
-		return nil
+		return nil // io.EOF is okay here
 	}
 
 	// Two blocks of zero bytes marks the end of the archive.
 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
 		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
-			return nil
+			return nil // io.EOF is okay here
 		}
 		if bytes.Equal(header, zeroBlock[0:blockSize]) {
 			tr.err = io.EOF

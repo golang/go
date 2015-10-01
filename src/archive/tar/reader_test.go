@@ -422,35 +422,6 @@ func TestPartialRead(t *testing.T) {
 	}
 }
 
-func TestNonSeekable(t *testing.T) {
-	test := gnuTarTest
-	f, err := os.Open(test.file)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	defer f.Close()
-
-	type readerOnly struct {
-		io.Reader
-	}
-	tr := NewReader(readerOnly{f})
-	nread := 0
-
-	for ; ; nread++ {
-		_, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-	}
-
-	if nread != len(test.headers) {
-		t.Errorf("Didn't process all files\nexpected: %d\nprocessed %d\n", len(test.headers), nread)
-	}
-}
-
 func TestParsePAXHeader(t *testing.T) {
 	paxTests := [][3]string{
 		{"a", "a=name", "10 a=name\n"}, // Test case involving multiple acceptable lengths
@@ -802,4 +773,131 @@ func TestUninitializedRead(t *testing.T) {
 		t.Errorf("Unexpected error: %v, wanted %v", err, io.EOF)
 	}
 
+}
+
+type reader struct{ io.Reader }
+type readSeeker struct{ io.ReadSeeker }
+type readBadSeeker struct{ io.ReadSeeker }
+
+func (rbs *readBadSeeker) Seek(int64, int) (int64, error) { return 0, fmt.Errorf("illegal seek") }
+
+// TestReadTruncation test the ending condition on various truncated files and
+// that truncated files are still detected even if the underlying io.Reader
+// satisfies io.Seeker.
+func TestReadTruncation(t *testing.T) {
+	var ss []string
+	for _, p := range []string{
+		"testdata/gnu.tar",
+		"testdata/ustar-file-reg.tar",
+		"testdata/pax-path-hdr.tar",
+		"testdata/sparse-formats.tar",
+	} {
+		buf, err := ioutil.ReadFile(p)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		ss = append(ss, string(buf))
+	}
+
+	data1, data2, pax, sparse := ss[0], ss[1], ss[2], ss[3]
+	data2 += strings.Repeat("\x00", 10*512)
+	trash := strings.Repeat("garbage ", 64) // Exactly 512 bytes
+
+	var vectors = []struct {
+		input string // Input stream
+		cnt   int    // Expected number of headers read
+		err   error  // Expected error outcome
+	}{
+		{"", 0, io.EOF}, // Empty file is a "valid" tar file
+		{data1[:511], 0, io.ErrUnexpectedEOF},
+		{data1[:512], 1, io.ErrUnexpectedEOF},
+		{data1[:1024], 1, io.EOF},
+		{data1[:1536], 2, io.ErrUnexpectedEOF},
+		{data1[:2048], 2, io.EOF},
+		{data1, 2, io.EOF},
+		{data1[:2048] + data2[:1536], 3, io.EOF},
+		{data2[:511], 0, io.ErrUnexpectedEOF},
+		{data2[:512], 1, io.ErrUnexpectedEOF},
+		{data2[:1195], 1, io.ErrUnexpectedEOF},
+		{data2[:1196], 1, io.EOF}, // Exact end of data and start of padding
+		{data2[:1200], 1, io.EOF},
+		{data2[:1535], 1, io.EOF},
+		{data2[:1536], 1, io.EOF}, // Exact end of padding
+		{data2[:1536] + trash[:1], 1, io.ErrUnexpectedEOF},
+		{data2[:1536] + trash[:511], 1, io.ErrUnexpectedEOF},
+		{data2[:1536] + trash, 1, ErrHeader},
+		{data2[:2048], 1, io.EOF}, // Exactly 1 empty block
+		{data2[:2048] + trash[:1], 1, io.ErrUnexpectedEOF},
+		{data2[:2048] + trash[:511], 1, io.ErrUnexpectedEOF},
+		{data2[:2048] + trash, 1, ErrHeader},
+		{data2[:2560], 1, io.EOF}, // Exactly 2 empty blocks (normal end-of-stream)
+		{data2[:2560] + trash[:1], 1, io.EOF},
+		{data2[:2560] + trash[:511], 1, io.EOF},
+		{data2[:2560] + trash, 1, io.EOF},
+		{data2[:3072], 1, io.EOF},
+		{pax, 0, io.EOF}, // PAX header without data is a "valid" tar file
+		{pax + trash[:1], 0, io.ErrUnexpectedEOF},
+		{pax + trash[:511], 0, io.ErrUnexpectedEOF},
+		{sparse[:511], 0, io.ErrUnexpectedEOF},
+		// TODO(dsnet): This should pass, but currently fails.
+		// {sparse[:512], 0, io.ErrUnexpectedEOF},
+		{sparse[:3584], 1, io.EOF},
+		{sparse[:9200], 1, io.EOF}, // Terminate in padding of sparse header
+		{sparse[:9216], 1, io.EOF},
+		{sparse[:9728], 2, io.ErrUnexpectedEOF},
+		{sparse[:10240], 2, io.EOF},
+		{sparse[:11264], 2, io.ErrUnexpectedEOF},
+		{sparse, 5, io.EOF},
+		{sparse + trash, 5, io.EOF},
+	}
+
+	for i, v := range vectors {
+		for j := 0; j < 6; j++ {
+			var tr *Reader
+			var s1, s2 string
+
+			switch j {
+			case 0:
+				tr = NewReader(&reader{strings.NewReader(v.input)})
+				s1, s2 = "io.Reader", "auto"
+			case 1:
+				tr = NewReader(&reader{strings.NewReader(v.input)})
+				s1, s2 = "io.Reader", "manual"
+			case 2:
+				tr = NewReader(&readSeeker{strings.NewReader(v.input)})
+				s1, s2 = "io.ReadSeeker", "auto"
+			case 3:
+				tr = NewReader(&readSeeker{strings.NewReader(v.input)})
+				s1, s2 = "io.ReadSeeker", "manual"
+			case 4:
+				tr = NewReader(&readBadSeeker{strings.NewReader(v.input)})
+				s1, s2 = "ReadBadSeeker", "auto"
+			case 5:
+				tr = NewReader(&readBadSeeker{strings.NewReader(v.input)})
+				s1, s2 = "ReadBadSeeker", "manual"
+			}
+
+			var cnt int
+			var err error
+			for {
+				if _, err = tr.Next(); err != nil {
+					break
+				}
+				cnt++
+				if s2 == "manual" {
+					if _, err = io.Copy(ioutil.Discard, tr); err != nil {
+						break
+					}
+				}
+			}
+			if err != v.err {
+				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %v, want %v",
+					i, s1, s2, err, v.err)
+			}
+			if cnt != v.cnt {
+				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %d headers, want %d headers",
+					i, s1, s2, cnt, v.cnt)
+			}
+		}
+	}
 }
