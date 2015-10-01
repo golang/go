@@ -142,7 +142,7 @@ type Info struct {
 	//
 	//	*ast.ImportSpec    *PkgName for dot-imports and imports without renames
 	//	*ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//      *ast.Field         anonymous struct field or parameter *Var
+	//      *ast.Field         anonymous parameter *Var
 	//
 	Implicits map[ast.Node]Object
 
