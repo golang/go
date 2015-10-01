@@ -265,7 +265,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 // Boolean logic.
 
 func truth(a interface{}) bool {
-	t, _ := IsTrue(reflect.ValueOf(a))
+	t, _ := IsTrue(a)
 	return t
 }
 
