@@ -36,6 +36,7 @@ func Register(mux *http.ServeMux) {
 	mux.HandleFunc("/src/pkg/", srcPkgHandler)
 	mux.HandleFunc("/cl/", clHandler)
 	mux.HandleFunc("/change/", changeHandler)
+	mux.HandleFunc("/design/", designHandler)
 }
 
 func handlePathRedirects(mux *http.ServeMux, redirects map[string]string, prefix string) {
@@ -228,5 +229,17 @@ func changeHandler(w http.ResponseWriter, r *http.Request) {
 	if git := changeMap.Lookup(hash); git > 0 {
 		target = fmt.Sprintf("https://go.googlesource.com/%v/+/%v", git.Repo(), git.Hash())
 	}
+	http.Redirect(w, r, target, http.StatusFound)
+}
+
+func designHandler(w http.ResponseWriter, r *http.Request) {
+	const prefix = "/design/"
+	if p := r.URL.Path; p == prefix {
+		// redirect /prefix/ to /prefix
+		http.Redirect(w, r, p[:len(p)-1], http.StatusFound)
+		return
+	}
+	name := r.URL.Path[len(prefix):]
+	target := "https://github.com/golang/proposal/blob/master/design/" + name + ".md"
 	http.Redirect(w, r, target, http.StatusFound)
 }
