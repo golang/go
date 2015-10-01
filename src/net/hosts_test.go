@@ -74,6 +74,7 @@ var lookupStaticAddrTests = []struct {
 			{"255.255.255.255", []string{"broadcasthost"}},
 			{"127.0.0.2", []string{"odin"}},
 			{"127.0.0.3", []string{"odin"}},
+			{"127.0.0.4", []string{"bor"}},
 			{"::2", []string{"odin"}},
 			{"127.1.1.1", []string{"thor"}},
 			{"127.1.1.2", []string{"ullr", "ullrhost"}},
