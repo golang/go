@@ -1576,9 +1576,9 @@ func (s *Stmt) Close() error {
 	s.closed = true
 
 	if s.tx != nil {
-		s.txsi.Close()
+		err := s.txsi.Close()
 		s.mu.Unlock()
-		return nil
+		return err
 	}
 	s.mu.Unlock()
 
