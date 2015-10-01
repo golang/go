@@ -727,35 +727,82 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
 }
 
 func TestReadGNUSparseMap1x0(t *testing.T) {
-	// This test uses lots of holes so the sparse header takes up more than two blocks
-	numEntries := 100
-	expected := make([]sparseEntry, 0, numEntries)
-	sparseMap := new(bytes.Buffer)
-
-	fmt.Fprintf(sparseMap, "%d\n", numEntries)
-	for i := 0; i < numEntries; i++ {
-		offset := int64(2048 * i)
-		numBytes := int64(1024)
-		expected = append(expected, sparseEntry{offset: offset, numBytes: numBytes})
-		fmt.Fprintf(sparseMap, "%d\n%d\n", offset, numBytes)
+	var sp = []sparseEntry{{1, 2}, {3, 4}}
+	for i := 0; i < 98; i++ {
+		sp = append(sp, sparseEntry{54321, 12345})
 	}
 
-	// Make the header the smallest multiple of blockSize that fits the sparseMap
-	headerBlocks := (sparseMap.Len() + blockSize - 1) / blockSize
-	bufLen := blockSize * headerBlocks
-	buf := make([]byte, bufLen)
-	copy(buf, sparseMap.Bytes())
+	var vectors = []struct {
+		input     string        // Input data
+		sparseMap []sparseEntry // Expected sparse entries to be outputted
+		cnt       int           // Expected number of bytes read
+		err       error         // Expected errors that may be raised
+	}{{
+		input: "",
+		cnt:   0,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: "ab",
+		cnt:   2,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: strings.Repeat("\x00", 512),
+		cnt:   512,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: strings.Repeat("\x00", 511) + "\n",
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input: strings.Repeat("\n", 512),
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input:     "0\n" + strings.Repeat("\x00", 510) + strings.Repeat("a", 512),
+		sparseMap: []sparseEntry{},
+		cnt:       512,
+	}, {
+		input:     strings.Repeat("0", 512) + "0\n" + strings.Repeat("\x00", 510),
+		sparseMap: []sparseEntry{},
+		cnt:       1024,
+	}, {
+		input:     strings.Repeat("0", 1024) + "1\n2\n3\n" + strings.Repeat("\x00", 506),
+		sparseMap: []sparseEntry{{2, 3}},
+		cnt:       1536,
+	}, {
+		input: strings.Repeat("0", 1024) + "1\n2\n\n" + strings.Repeat("\x00", 509),
+		cnt:   1536,
+		err:   ErrHeader,
+	}, {
+		input: strings.Repeat("0", 1024) + "1\n2\n" + strings.Repeat("\x00", 508),
+		cnt:   1536,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: "-1\n2\n\n" + strings.Repeat("\x00", 506),
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input: "1\nk\n2\n" + strings.Repeat("\x00", 506),
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input:     "100\n1\n2\n3\n4\n" + strings.Repeat("54321\n0000000000000012345\n", 98) + strings.Repeat("\x00", 512),
+		cnt:       2560,
+		sparseMap: sp,
+	}}
 
-	// Get an reader to read the sparse map
-	r := bytes.NewReader(buf)
-
-	// Read the sparse map
-	sp, err := readGNUSparseMap1x0(r)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if !reflect.DeepEqual(sp, expected) {
-		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
+	for i, v := range vectors {
+		r := strings.NewReader(v.input)
+		sp, err := readGNUSparseMap1x0(r)
+		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
+			t.Errorf("test %d, readGNUSparseMap1x0(...): got %v, want %v", i, sp, v.sparseMap)
+		}
+		if numBytes := len(v.input) - r.Len(); numBytes != v.cnt {
+			t.Errorf("test %d, bytes read: got %v, want %v", i, numBytes, v.cnt)
+		}
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+		}
 	}
 }
 
