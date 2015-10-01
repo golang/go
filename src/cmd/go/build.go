@@ -1235,12 +1235,6 @@ func (b *builder) build(a *action) (err error) {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
 	}
 
-	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
-		(!hasString(a.p.GoFiles, "zgoos_"+buildContext.GOOS+".go") ||
-			!hasString(a.p.GoFiles, "zgoarch_"+buildContext.GOARCH+".go")) {
-		return fmt.Errorf("%s/%s must be bootstrapped using make%v", buildContext.GOOS, buildContext.GOARCH, defaultSuffix())
-	}
-
 	// Make build directory.
 	obj := a.objdir
 	if err := b.mkdir(obj); err != nil {
@@ -3354,17 +3348,4 @@ func raceInit() {
 	}
 	buildContext.InstallSuffix += "race"
 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
-}
-
-// defaultSuffix returns file extension used for command files in
-// current os environment.
-func defaultSuffix() string {
-	switch runtime.GOOS {
-	case "windows":
-		return ".bat"
-	case "plan9":
-		return ".rc"
-	default:
-		return ".bash"
-	}
 }
