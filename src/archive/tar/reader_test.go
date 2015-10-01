@@ -680,23 +680,78 @@ func TestSparseFileReader(t *testing.T) {
 }
 
 func TestReadGNUSparseMap0x1(t *testing.T) {
-	headers := map[string]string{
-		paxGNUSparseNumBlocks: "4",
-		paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
-	}
-	expected := []sparseEntry{
-		{offset: 0, numBytes: 5},
-		{offset: 10, numBytes: 5},
-		{offset: 20, numBytes: 5},
-		{offset: 30, numBytes: 5},
-	}
+	const (
+		maxUint = ^uint(0)
+		maxInt  = int(maxUint >> 1)
+	)
+	var (
+		big1 = fmt.Sprintf("%d", int64(maxInt))
+		big2 = fmt.Sprintf("%d", (int64(maxInt)/2)+1)
+		big3 = fmt.Sprintf("%d", (int64(maxInt) / 3))
+	)
 
-	sp, err := readGNUSparseMap0x1(headers)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if !reflect.DeepEqual(sp, expected) {
-		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
+	var vectors = []struct {
+		extHdrs   map[string]string // Input data
+		sparseMap []sparseEntry     // Expected sparse entries to be outputted
+		err       error             // Expected errors that may be raised
+	}{{
+		extHdrs: map[string]string{paxGNUSparseNumBlocks: "-4"},
+		err:     ErrHeader,
+	}, {
+		extHdrs: map[string]string{paxGNUSparseNumBlocks: "fee "},
+		err:     ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: big1,
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: big2,
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: big3,
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0.5,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,5.5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,fewafewa.5,fewafw,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		sparseMap: []sparseEntry{{0, 5}, {10, 5}, {20, 5}, {30, 5}},
+	}}
+
+	for i, v := range vectors {
+		sp, err := readGNUSparseMap0x1(v.extHdrs)
+		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
+			t.Errorf("test %d, readGNUSparseMap0x1(...): got %v, want %v", i, sp, v.sparseMap)
+		}
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+		}
 	}
 }
 

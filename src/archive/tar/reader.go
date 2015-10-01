@@ -718,40 +718,37 @@ func readGNUSparseMap1x0(r io.Reader) ([]sparseEntry, error) {
 	return sp, nil
 }
 
-// readGNUSparseMap0x1 reads the sparse map as stored in GNU's PAX sparse format version 0.1.
-// The sparse map is stored in the PAX headers.
-func readGNUSparseMap0x1(headers map[string]string) ([]sparseEntry, error) {
-	// Get number of entries
-	numEntriesStr, ok := headers[paxGNUSparseNumBlocks]
-	if !ok {
-		return nil, ErrHeader
-	}
-	numEntries, err := strconv.ParseInt(numEntriesStr, 10, 0)
-	if err != nil {
+// readGNUSparseMap0x1 reads the sparse map as stored in GNU's PAX sparse format
+// version 0.1. The sparse map is stored in the PAX headers.
+func readGNUSparseMap0x1(extHdrs map[string]string) ([]sparseEntry, error) {
+	// Get number of entries.
+	// Use integer overflow resistant math to check this.
+	numEntriesStr := extHdrs[paxGNUSparseNumBlocks]
+	numEntries, err := strconv.ParseInt(numEntriesStr, 10, 0) // Intentionally parse as native int
+	if err != nil || numEntries < 0 || int(2*numEntries) < int(numEntries) {
 		return nil, ErrHeader
 	}
 
-	sparseMap := strings.Split(headers[paxGNUSparseMap], ",")
-
-	// There should be two numbers in sparseMap for each entry
+	// There should be two numbers in sparseMap for each entry.
+	sparseMap := strings.Split(extHdrs[paxGNUSparseMap], ",")
 	if int64(len(sparseMap)) != 2*numEntries {
 		return nil, ErrHeader
 	}
 
-	// Loop through the entries in the sparse map
+	// Loop through the entries in the sparse map.
+	// numEntries is trusted now.
 	sp := make([]sparseEntry, 0, numEntries)
 	for i := int64(0); i < numEntries; i++ {
-		offset, err := strconv.ParseInt(sparseMap[2*i], 10, 0)
+		offset, err := strconv.ParseInt(sparseMap[2*i], 10, 64)
 		if err != nil {
 			return nil, ErrHeader
 		}
-		numBytes, err := strconv.ParseInt(sparseMap[2*i+1], 10, 0)
+		numBytes, err := strconv.ParseInt(sparseMap[2*i+1], 10, 64)
 		if err != nil {
 			return nil, ErrHeader
 		}
 		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
 	}
-
 	return sp, nil
 }
 
