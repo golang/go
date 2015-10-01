@@ -195,7 +195,7 @@ func crash() {
 	raise(_SIGABRT)
 }
 
-// createSigM starts one global, sleeping thread to make sure at least one thread
+// ensureSigM starts one global, sleeping thread to make sure at least one thread
 // is available to catch signals enabled for os/signal.
 func ensureSigM() {
 	if maskUpdatedChan != nil {
