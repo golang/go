@@ -99,6 +99,7 @@ var redirects = map[string]string{
 	"/issues":     "https://github.com/golang/go/issues",
 	"/issues/new": "https://github.com/golang/go/issues/new",
 	"/play":       "http://play.golang.org",
+	"/design":     "https://github.com/golang/proposal/tree/master/design",
 
 	// In Go 1.2 the references page is part of /doc/.
 	"/ref": "/doc/#references",
