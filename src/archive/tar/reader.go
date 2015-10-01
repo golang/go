@@ -680,85 +680,77 @@ func (tr *Reader) readOldGNUSparseMap(header []byte) []sparseEntry {
 	return sp
 }
 
-// readGNUSparseMap1x0 reads the sparse map as stored in GNU's PAX sparse format version 1.0.
-// The sparse map is stored just before the file data and padded out to the nearest block boundary.
+// readGNUSparseMap1x0 reads the sparse map as stored in GNU's PAX sparse format
+// version 1.0. The format of the sparse map consists of a series of
+// newline-terminated numeric fields. The first field is the number of entries
+// and is always present. Following this are the entries, consisting of two
+// fields (offset, numBytes). This function must stop reading at the end
+// boundary of the block containing the last newline.
+//
+// Note that the GNU manual says that numeric values should be encoded in octal
+// format. However, the GNU tar utility itself outputs these values in decimal.
+// As such, this library treats values as being encoded in decimal.
 func readGNUSparseMap1x0(r io.Reader) ([]sparseEntry, error) {
-	buf := make([]byte, 2*blockSize)
-	sparseHeader := buf[:blockSize]
+	var cntNewline int64
+	var buf bytes.Buffer
+	var blk = make([]byte, blockSize)
 
-	// readDecimal is a helper function to read a decimal integer from the sparse map
-	// while making sure to read from the file in blocks of size blockSize
-	readDecimal := func() (int64, error) {
-		// Look for newline
-		nl := bytes.IndexByte(sparseHeader, '\n')
-		if nl == -1 {
-			if len(sparseHeader) >= blockSize {
-				// This is an error
-				return 0, ErrHeader
+	// feedTokens copies data in numBlock chunks from r into buf until there are
+	// at least cnt newlines in buf. It will not read more blocks than needed.
+	var feedTokens = func(cnt int64) error {
+		for cntNewline < cnt {
+			if _, err := io.ReadFull(r, blk); err != nil {
+				if err == io.EOF {
+					err = io.ErrUnexpectedEOF
+				}
+				return err
 			}
-			oldLen := len(sparseHeader)
-			newLen := oldLen + blockSize
-			if cap(sparseHeader) < newLen {
-				// There's more header, but we need to make room for the next block
-				copy(buf, sparseHeader)
-				sparseHeader = buf[:newLen]
-			} else {
-				// There's more header, and we can just reslice
-				sparseHeader = sparseHeader[:newLen]
+			buf.Write(blk)
+			for _, c := range blk {
+				if c == '\n' {
+					cntNewline++
+				}
 			}
-
-			// Now that sparseHeader is large enough, read next block
-			if _, err := io.ReadFull(r, sparseHeader[oldLen:newLen]); err != nil {
-				return 0, err
-			}
-
-			// Look for a newline in the new data
-			nl = bytes.IndexByte(sparseHeader[oldLen:newLen], '\n')
-			if nl == -1 {
-				// This is an error
-				return 0, ErrHeader
-			}
-			nl += oldLen // We want the position from the beginning
 		}
-		// Now that we've found a newline, read a number
-		n, err := strconv.ParseInt(string(sparseHeader[:nl]), 10, 0)
-		if err != nil {
-			return 0, ErrHeader
-		}
-
-		// Update sparseHeader to consume this number
-		sparseHeader = sparseHeader[nl+1:]
-		return n, nil
+		return nil
 	}
 
-	// Read the first block
-	if _, err := io.ReadFull(r, sparseHeader); err != nil {
+	// nextToken gets the next token delimited by a newline. This assumes that
+	// at least one newline exists in the buffer.
+	var nextToken = func() string {
+		cntNewline--
+		tok, _ := buf.ReadString('\n')
+		return tok[:len(tok)-1] // Cut off newline
+	}
+
+	// Parse for the number of entries.
+	// Use integer overflow resistant math to check this.
+	if err := feedTokens(1); err != nil {
 		return nil, err
 	}
-
-	// The first line contains the number of entries
-	numEntries, err := readDecimal()
-	if err != nil {
-		return nil, err
+	numEntries, err := strconv.ParseInt(nextToken(), 10, 0) // Intentionally parse as native int
+	if err != nil || numEntries < 0 || int(2*numEntries) < int(numEntries) {
+		return nil, ErrHeader
 	}
 
-	// Read all the entries
+	// Parse for all member entries.
+	// numEntries is trusted after this since a potential attacker must have
+	// committed resources proportional to what this library used.
+	if err := feedTokens(2 * numEntries); err != nil {
+		return nil, err
+	}
 	sp := make([]sparseEntry, 0, numEntries)
 	for i := int64(0); i < numEntries; i++ {
-		// Read the offset
-		offset, err := readDecimal()
+		offset, err := strconv.ParseInt(nextToken(), 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, ErrHeader
 		}
-		// Read numBytes
-		numBytes, err := readDecimal()
+		numBytes, err := strconv.ParseInt(nextToken(), 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, ErrHeader
 		}
-
 		sp = append(sp, sparseEntry{offset: offset, numBytes: numBytes})
 	}
-
 	return sp, nil
 }
 
