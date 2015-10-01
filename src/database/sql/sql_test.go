@@ -356,6 +356,44 @@ func TestStatementQueryRow(t *testing.T) {
 	}
 }
 
+type stubDriverStmt struct {
+	err error
+}
+
+func (s stubDriverStmt) Close() error {
+	return s.err
+}
+
+func (s stubDriverStmt) NumInput() int {
+	return -1
+}
+
+func (s stubDriverStmt) Exec(args []driver.Value) (driver.Result, error) {
+	return nil, nil
+}
+
+func (s stubDriverStmt) Query(args []driver.Value) (driver.Rows, error) {
+	return nil, nil
+}
+
+// golang.org/issue/12798
+func TestStatementClose(t *testing.T) {
+	want := errors.New("STMT ERROR")
+
+	tests := []struct {
+		stmt *Stmt
+		msg  string
+	}{
+		{&Stmt{stickyErr: want}, "stickyErr not propagated"},
+		{&Stmt{tx: &Tx{}, txsi: &driverStmt{&sync.Mutex{}, stubDriverStmt{want}}}, "driverStmt.Close() error not propagated"},
+	}
+	for _, test := range tests {
+		if err := test.stmt.Close(); err != want {
+			t.Errorf("%s. Got stmt.Close() = %v, want = %v", test.msg, err, want)
+		}
+	}
+}
+
 // golang.org/issue/3734
 func TestStatementQueryRowConcurrent(t *testing.T) {
 	db := newTestDB(t, "people")
