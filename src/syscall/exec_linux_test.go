@@ -29,6 +29,13 @@ func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 			t.Skip("kernel prohibits user namespace in unprivileged process")
 		}
 	}
+	// When running under the Go continuous build, skip tests for
+	// now when under Kubernetes. (where things are root but not quite)
+	// Both of these are our own environment variables.
+	// See Issue 12815.
+	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
+		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
+	}
 	cmd := exec.Command("whoami")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUSER,
