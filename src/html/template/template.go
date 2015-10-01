@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
-	"reflect"
 	"sync"
 	"text/template"
 	"text/template/parse"
@@ -420,6 +419,6 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
 // and whether the value has a meaningful truth value. This is the definition of
 // truth used by if and other such actions.
-func IsTrue(val reflect.Value) (truth, ok bool) {
+func IsTrue(val interface{}) (truth, ok bool) {
 	return template.IsTrue(val)
 }
