@@ -19,10 +19,10 @@ A collection is triggered when the ratio of freshly allocated data to live data
 remaining after the previous collection reaches this percentage. The default
 is GOGC=100. Setting GOGC=off disables the garbage collector entirely.
 The runtime/debug package's SetGCPercent function allows changing this
-percentage at run time. See http://golang.org/pkg/runtime/debug/#SetGCPercent.
+percentage at run time. See https://golang.org/pkg/runtime/debug/#SetGCPercent.
 
-The GODEBUG variable controls debug output from the runtime. GODEBUG value is
-a comma-separated list of name=val pairs. Supported names are:
+The GODEBUG variable controls debugging variables within the runtime.
+It is a comma-separated list of name=val pairs setting these named variables:
 
 	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
 	profiled and a stack trace printed on each object's allocation and free.
@@ -31,13 +31,53 @@ a comma-separated list of name=val pairs. Supported names are:
 	where each object is allocated on a unique page and addresses are
 	never recycled.
 
+	gccheckmark: setting gccheckmark=1 enables verification of the
+	garbage collector's concurrent mark phase by performing a
+	second mark pass while the world is stopped.  If the second
+	pass finds a reachable object that was not found by concurrent
+	mark, the garbage collector will panic.
+
+	gcpacertrace: setting gcpacertrace=1 causes the garbage collector to
+	print information about the internal state of the concurrent pacer.
+
+	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
+	onto smaller stacks. In this mode, a goroutine's stack can only grow.
+
+	gcstackbarrieroff: setting gcstackbarrieroff=1 disables the use of stack barriers
+	that allow the garbage collector to avoid repeating a stack scan during the
+	mark termination phase.
+
+	gcstackbarrierall: setting gcstackbarrierall=1 installs stack barriers
+	in every stack frame, rather than in exponentially-spaced frames.
+
+	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
+	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
+	also disables concurrent sweeping after the garbage collection finishes.
+
 	gctrace: setting gctrace=1 causes the garbage collector to emit a single line to standard
 	error at each collection, summarizing the amount of memory collected and the
 	length of the pause. Setting gctrace=2 emits the same summary but also
-	repeats each collection.
+	repeats each collection. The format of this line is subject to change.
+	Currently, it is:
+		gc # @#s #%: #+...+# ms clock, #+...+# ms cpu, #->#-># MB, # MB goal, # P
+	where the fields are as follows:
+		gc #        the GC number, incremented at each GC
+		@#s         time in seconds since program start
+		#%          percentage of time spent in GC since program start
+		#+...+#     wall-clock/CPU times for the phases of the GC
+		#->#-># MB  heap size at GC start, at GC end, and live heap
+		# MB goal   goal heap size
+		# P         number of processors used
+	The phases are stop-the-world (STW) sweep termination, scan,
+	synchronize Ps, mark, and STW mark termination. The CPU times
+	for mark are broken down in to assist time (GC performed in
+	line with allocation), background GC time, and idle GC time.
+	If the line ends with "(forced)", this GC was forced by a
+	runtime.GC() call and all phases are STW.
 
-	gcdead: setting gcdead=1 causes the garbage collector to clobber all stack slots
-	that it thinks are dead.
+	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
+	When set to 0 memory profiling is disabled.  Refer to the description of
+	MemProfileRate for the default value.
 
 	invalidptr: defaults to invalidptr=1, causing the garbage collector and stack
 	copier to crash the program if an invalid pointer value (for example, 1)
@@ -45,9 +85,11 @@ a comma-separated list of name=val pairs. Supported names are:
 	This should only be used as a temporary workaround to diagnose buggy code.
 	The real fix is to not store integers in pointer-typed locations.
 
-	memprofilerate: setting memprofilerate=X will update the value of runtime.MemProfileRate.
-	When set to 0 memory profiling is disabled.  Refer to the description of
-	MemProfileRate for the default value.
+	sbrk: setting sbrk=1 replaces the memory allocator and garbage collector
+	with a trivial allocator that obtains memory from the operating system and
+	never reclaims any memory.
+
+	scavenge: scavenge=1 enables debugging mode of heap scavenger.
 
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,
@@ -55,26 +97,6 @@ a comma-separated list of name=val pairs. Supported names are:
 
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
-
-	scavenge: scavenge=1 enables debugging mode of heap scavenger.
-
-	wbshadow: setting wbshadow=1 enables a shadow copy of the heap
-	used to detect missing write barriers at the next write to a
-	given location. If a bug can be detected in this mode it is
-	typically easy to understand, since the crash says quite
-	clearly what kind of word has missed a write barrier.
-	Setting wbshadow=2 checks the shadow copy during garbage
-	collection as well. Bugs detected at garbage collection can be
-	difficult to understand, because there is no context for what
-	the found word means. Typically you have to reproduce the
-	problem with allocfreetrace=1 in order to understand the type
-	of the badly updated word.
-
-	gccheckmark: setting gccheckmark=1 enables verification of the
-	garbage collector's concurrent mark phase by performing a
-	second mark pass while the world is stopped.  If the second
-	pass finds a reachable object that was not found by concurrent
-	mark, the garbage collector will panic.
 
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
@@ -96,7 +118,7 @@ core dump.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs
-(see http://golang.org/cmd/go and http://golang.org/pkg/go/build).
+(see https://golang.org/cmd/go and https://golang.org/pkg/go/build).
 GOARCH, GOOS, and GOROOT are recorded at compile time and made available by
 constants or functions in this package, but they do not influence the execution
 of the run-time system.
@@ -114,7 +136,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// and what it called, so that we can see if it
 	// "called" sigpanic.
 	var rpc [2]uintptr
-	if callers(1+skip-1, &rpc[0], 2) < 2 {
+	if callers(1+skip-1, rpc[:]) < 2 {
 		return
 	}
 	f := findfunc(rpc[1])
@@ -161,7 +183,7 @@ func Callers(skip int, pc []uintptr) int {
 	if len(pc) == 0 {
 		return 0
 	}
-	return callers(skip, &pc[0], len(pc))
+	return callers(skip, pc)
 }
 
 // GOROOT returns the root of the Go tree.

@@ -16,15 +16,21 @@
 ::
 :: GOOS: The target operating system for installed packages and tools.
 ::
-:: GO_GCFLAGS: Additional 5g/6g/8g arguments to use when
+:: GO_GCFLAGS: Additional go tool compile arguments to use when
 :: building the packages and commands.
 ::
-:: GO_LDFLAGS: Additional 5l/6l/8l arguments to use when
+:: GO_LDFLAGS: Additional go tool link arguments to use when
 :: building the commands.
 ::
 :: CGO_ENABLED: Controls cgo usage during the build. Set it to 1
 :: to include all cgo related files, .c and .go file with "cgo"
 :: build directive, in the build. Set it to 0 to ignore them.
+::
+:: CC: Command line to run to compile C code for GOHOSTARCH.
+:: Default is "gcc".
+::
+:: CC_FOR_TARGET: Command line to run compile C code for GOARCH.
+:: This is used by cgo. Default is CC.
 
 @echo off
 
@@ -84,7 +90,9 @@ if not %GOHOSTOS% == %GOOS% goto localbuild
 goto mainbuild
 
 :localbuild
-echo ##### Building tools for local system. %GOHOSTOS%/%GOHOSTARCH%
+echo ##### Building packages and commands for host, %GOHOSTOS%/%GOHOSTARCH%.
+:: CC_FOR_TARGET is recorded as the default compiler for the go tool. When building for the
+:: host, however, use the host compiler, CC, from `cmd/dist/dist env` instead.
 setlocal
 set GOOS=%GOHOSTOS%
 set GOARCH=%GOHOSTARCH%
@@ -94,8 +102,11 @@ if errorlevel 1 goto fail
 echo.
 
 :mainbuild
-echo ##### Building packages and commands.
+echo ##### Building packages and commands for %GOOS%/%GOARCH%.
+setlocal
+set CC=%CC_FOR_TARGET%
 "%GOTOOLDIR%\go_bootstrap" install -gcflags "%GO_GCFLAGS%" -ldflags "%GO_LDFLAGS%" -a -v std cmd
+endlocal
 if errorlevel 1 goto fail
 del "%GOTOOLDIR%\go_bootstrap.exe"
 echo.

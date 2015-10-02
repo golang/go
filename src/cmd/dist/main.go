@@ -21,6 +21,7 @@ var cmdtab = []struct {
 	{"clean", cmdclean},
 	{"env", cmdenv},
 	{"install", cmdinstall},
+	{"test", cmdtest},
 	{"version", cmdversion},
 }
 

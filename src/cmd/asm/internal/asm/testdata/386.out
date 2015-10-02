@@ -1,0 +1,49 @@
+5 00001 (testdata/386.s:5)	TEXT	foo(SB), 0, $0
+8 00002 (testdata/386.s:8)	SETCC	AX
+9 00003 (testdata/386.s:9)	SETCC	foo+4(SB)
+12 00004 (testdata/386.s:12)	DIVB	AX
+13 00005 (testdata/386.s:13)	DIVB	foo+4(SB)
+14 00006 (testdata/386.s:14)	PUSHL	$foo+4(SB)
+15 00007 (testdata/386.s:15)	POPL	AX
+18 00008 (testdata/386.s:18)	SUBB	$1, AX
+19 00009 (testdata/386.s:19)	SUBB	$1, foo+4(SB)
+20 00010 (testdata/386.s:20)	SUBB	BX, AX
+21 00011 (testdata/386.s:21)	SUBB	BX, foo+4(SB)
+24 00012 (testdata/386.s:24)	CMPB	AX, $1
+25 00013 (testdata/386.s:25)	CMPB	foo+4(SB), $4
+26 00014 (testdata/386.s:26)	CMPB	BX, AX
+27 00015 (testdata/386.s:27)	CMPB	foo+4(SB), BX
+31 00016 (testdata/386.s:31)	JCS
+32 00017 (testdata/386.s:32)	JCS	16(PC)
+35 00018 (testdata/386.s:35)	CALL	AX
+36 00019 (testdata/386.s:36)	JMP	AX
+37 00020 (testdata/386.s:37)	CALL	*foo(SB)
+38 00021 (testdata/386.s:38)	JMP	$4
+39 00022 (testdata/386.s:39)	JMP	16
+40 00023 (testdata/386.s:40)	CALL	foo(SB)
+42 00024 (testdata/386.s:42)	CALL	foo+4(SB)(AX*4)
+43 00025 (testdata/386.s:43)	CALL	4(SP)
+44 00026 (testdata/386.s:44)	CALL	(AX)
+45 00027 (testdata/386.s:45)	CALL	(SP)
+47 00028 (testdata/386.s:47)	CALL	(AX)(AX*4)
+48 00029 (testdata/386.s:48)	CALL	4(SP)
+49 00030 (testdata/386.s:49)	CALL	(AX)
+50 00031 (testdata/386.s:50)	CALL	(SP)
+52 00032 (testdata/386.s:52)	JMP	(AX)(AX*4)
+55 00033 (testdata/386.s:55)	NOP
+56 00034 (testdata/386.s:56)	NOP	AX
+57 00035 (testdata/386.s:57)	NOP	foo+4(SB)
+60 00036 (testdata/386.s:60)	SHLL	$4, BX
+61 00037 (testdata/386.s:61)	SHLL	$4, foo+4(SB)
+62 00038 (testdata/386.s:62)	SHLL	$4, AX, foo+4(SB)
+65 00039 (testdata/386.s:65)	MOVL	AX, BX
+66 00040 (testdata/386.s:66)	MOVL	$4, BX
+69 00041 (testdata/386.s:69)	IMULL	AX
+70 00042 (testdata/386.s:70)	IMULL	$4, CX
+71 00043 (testdata/386.s:71)	IMULL	AX, BX
+74 00044 (testdata/386.s:74)	CMPPD	X0, X1, 4
+75 00045 (testdata/386.s:75)	CMPPD	X0, foo+4(SB), 4
+78 00046 (testdata/386.s:78)	PINSRD	$1, (AX), X0
+79 00047 (testdata/386.s:79)	PINSRD	$2, foo+4(FP), X0
+83 00048 (testdata/386.s:83)	LOOP
+86 00049 (testdata/386.s:86)	RET

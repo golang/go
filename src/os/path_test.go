@@ -207,9 +207,14 @@ func TestMkdirAllAtSlash(t *testing.T) {
 	switch runtime.GOOS {
 	case "android", "plan9", "windows":
 		t.Skipf("skipping on %s", runtime.GOOS)
+	case "darwin":
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on darwin/%s, mkdir returns EPERM", runtime.GOARCH)
+		}
 	}
 	RemoveAll("/_go_os_test")
-	const dir = "/go_os_test/dir"
+	const dir = "/_go_os_test/dir"
 	err := MkdirAll(dir, 0777)
 	if err != nil {
 		pathErr, ok := err.(*PathError)
@@ -217,7 +222,7 @@ func TestMkdirAllAtSlash(t *testing.T) {
 		if ok && (pathErr.Err == syscall.EACCES || isReadonlyError(pathErr.Err)) {
 			t.Skipf("could not create %v: %v", dir, err)
 		}
-		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
+		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v, %s`, err, pathErr.Err)
 	}
 	RemoveAll("/_go_os_test")
 }

@@ -4,9 +4,15 @@
 
 // +build !cgo netgo
 
-// Stub cgo routines for systems that do not use cgo to do network lookups.
-
 package net
+
+func init() { netGo = true }
+
+type addrinfoErrno int
+
+func (eai addrinfoErrno) Error() string   { return "<nil>" }
+func (eai addrinfoErrno) Temporary() bool { return false }
+func (eai addrinfoErrno) Timeout() bool   { return false }
 
 func cgoLookupHost(name string) (addrs []string, err error, completed bool) {
 	return nil, nil, false
@@ -16,10 +22,14 @@ func cgoLookupPort(network, service string) (port int, err error, completed bool
 	return 0, nil, false
 }
 
-func cgoLookupIP(name string) (addrs []IP, err error, completed bool) {
+func cgoLookupIP(name string) (addrs []IPAddr, err error, completed bool) {
 	return nil, nil, false
 }
 
 func cgoLookupCNAME(name string) (cname string, err error, completed bool) {
 	return "", nil, false
+}
+
+func cgoLookupPTR(addr string) (ptrs []string, err error, completed bool) {
+	return nil, nil, false
 }

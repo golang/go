@@ -1,5 +1,6 @@
 // errorcheck -0 -d=nil
-// Fails on ppc64x because of incomplete optimization.  See issue 9058.
+// Fails on ppc64x because of incomplete optimization.
+// See issues 9058.
 // +build !ppc64,!ppc64le
 
 // Copyright 2013 The Go Authors.  All rights reserved.

@@ -23,26 +23,32 @@ import (
 // which are commands, and entries beginning with internal/, which are
 // packages supporting the commands.
 var bootstrapDirs = []string{
-	"5a",
-	"5g",
-	"6a",
-	"6g",
-	"8a",
-	"8g",
-	"9a",
-	"9g",
 	"asm",
 	"asm/internal/arch",
 	"asm/internal/asm",
 	"asm/internal/flags",
 	"asm/internal/lex",
-	"internal/asm",
-	"internal/gc",
+	"compile",
+	"compile/internal/amd64",
+	"compile/internal/arm",
+	"compile/internal/arm64",
+	"compile/internal/big",
+	"compile/internal/gc",
+	"compile/internal/ppc64",
+	"compile/internal/x86",
+	"internal/gcprog",
 	"internal/obj",
 	"internal/obj/arm",
-	"internal/obj/i386",
+	"internal/obj/arm64",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
+	"link",
+	"link/internal/amd64",
+	"link/internal/arm",
+	"link/internal/arm64",
+	"link/internal/ld",
+	"link/internal/ppc64",
+	"link/internal/x86",
 }
 
 func bootstrapBuildTools() {
@@ -107,7 +113,7 @@ func bootstrapBuildTools() {
 	// Copy binaries into tool binary directory.
 	for _, name := range bootstrapDirs {
 		if !strings.Contains(name, "/") {
-			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), 1)
+			copyfile(pathf("%s/%s%s", tooldir, name, exe), pathf("%s/bin/%s%s", workspace, name, exe), writeExec)
 		}
 	}
 
@@ -132,7 +138,7 @@ func bootstrapFixImports(text, srcFile string) string {
 		}
 	}
 
-	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n" + lines[0]
+	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
 
 	return strings.Join(lines, "")
 }

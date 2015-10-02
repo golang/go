@@ -4,6 +4,8 @@
 
 package reflect
 
+import "unsafe"
+
 // MakeRO returns a copy of v with the read-only flag set.
 func MakeRO(v Value) Value {
 	v.flag |= flagRO
@@ -15,12 +17,9 @@ func IsRO(v Value) bool {
 	return v.flag&flagRO != 0
 }
 
-var ArrayOf = arrayOf
 var CallGC = &callGC
 
 const PtrSize = ptrSize
-const BitsPointer = bitsPointer
-const BitsScalar = bitsScalar
 
 func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, stack []byte, gc []byte, ptrs bool) {
 	var ft *rtype
@@ -31,16 +30,43 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr, 
 		ft, argSize, retOffset, s, _ = funcLayout(t.(*rtype), nil)
 	}
 	frametype = ft
-	for i := uint32(0); i < s.n; i += 2 {
-		stack = append(stack, s.data[i/8]>>(i%8)&3)
+	for i := uint32(0); i < s.n; i++ {
+		stack = append(stack, s.data[i/8]>>(i%8)&1)
 	}
 	if ft.kind&kindGCProg != 0 {
 		panic("can't handle gc programs")
 	}
-	gcdata := (*[1000]byte)(ft.gc[0])
-	for i := uintptr(0); i < ft.size/ptrSize; i++ {
-		gc = append(gc, gcdata[i/2]>>(i%2*4+2)&3)
+	gcdata := (*[1000]byte)(unsafe.Pointer(ft.gcdata))
+	for i := uintptr(0); i < ft.ptrdata/ptrSize; i++ {
+		gc = append(gc, gcdata[i/8]>>(i%8)&1)
 	}
 	ptrs = ft.kind&kindNoPointers == 0
 	return
+}
+
+func TypeLinks() []string {
+	var r []string
+	for _, m := range typelinks() {
+		for _, t := range m {
+			r = append(r, *t.string)
+		}
+	}
+	return r
+}
+
+var GCBits = gcbits
+
+func gcbits(interface{}) []byte // provided by runtime
+
+func MapBucketOf(x, y Type) Type {
+	return bucketOf(x.(*rtype), y.(*rtype))
+}
+
+func CachedBucketOf(m Type) Type {
+	t := m.(*rtype)
+	if Kind(t.kind&kindMask) != Map {
+		panic("not map")
+	}
+	tt := (*mapType)(unsafe.Pointer(t))
+	return tt.bucket
 }

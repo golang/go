@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// FreeBSD system calls.
+// DragonflyBSD system calls.
 // This file is compiled as ordinary Go code,
 // but it is also input to mksyscall,
 // which parses the //sys lines and generates system call stubs.
@@ -127,8 +127,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 //sys	Chown(path string, uid int, gid int) (err error)
 //sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
-//sysnb	Dup(fd int) (nfd int, err error)
-//sysnb	Dup2(from int, to int) (err error)
+//sys	Dup(fd int) (nfd int, err error)
+//sys	Dup2(from int, to int) (err error)
 //sys	Exit(code int)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchflags(fd int, flags int) (err error)

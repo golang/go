@@ -4,7 +4,10 @@
 
 package runtime_test
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 // arm soft division benchmarks adapted from
 // http://ridiculousfish.com/files/division_benchmarks.tar.gz
@@ -68,3 +71,14 @@ func BenchmarkUint32Mod13307(b *testing.B)     { bmUint32Mod(13307, b) }
 func BenchmarkUint32Mod52513(b *testing.B)     { bmUint32Mod(52513, b) }
 func BenchmarkUint32Mod60978747(b *testing.B)  { bmUint32Mod(60978747, b) }
 func BenchmarkUint32Mod106956295(b *testing.B) { bmUint32Mod(106956295, b) }
+
+func TestUsplit(t *testing.T) {
+	var den uint32 = 1000000
+	for _, x := range []uint32{0, 1, 999999, 1000000, 1010101, 0xFFFFFFFF} {
+		q1, r1 := runtime.Usplit(x)
+		q2, r2 := x/den, x%den
+		if q1 != q2 || r1 != r2 {
+			t.Errorf("%d/1e6, %d%%1e6 = %d, %d, want %d, %d", x, x, q1, r1, q2, r2)
+		}
+	}
+}

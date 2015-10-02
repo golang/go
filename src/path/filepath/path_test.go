@@ -399,7 +399,34 @@ func mark(path string, info os.FileInfo, err error, errors *[]error, clear bool)
 	return nil
 }
 
+func chtmpdir(t *testing.T) (restore func()) {
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	d, err := ioutil.TempDir("", "test")
+	if err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	if err := os.Chdir(d); err != nil {
+		t.Fatalf("chtmpdir: %v", err)
+	}
+	return func() {
+		if err := os.Chdir(oldwd); err != nil {
+			t.Fatalf("chtmpdir: %v", err)
+		}
+		os.RemoveAll(d)
+	}
+}
+
 func TestWalk(t *testing.T) {
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			restore := chtmpdir(t)
+			defer restore()
+		}
+	}
 	makeTree(t)
 	errors := make([]error, 0, 10)
 	clear := true
@@ -480,6 +507,35 @@ func touch(t *testing.T, name string) {
 	}
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWalkSkipDirOnFile(t *testing.T) {
+	td, err := ioutil.TempDir("", "walktest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(td)
+
+	if err := os.MkdirAll(filepath.Join(td, "dir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	touch(t, filepath.Join(td, "dir/foo1"))
+	touch(t, filepath.Join(td, "dir/foo2"))
+
+	sawFoo2 := false
+	filepath.Walk(td, func(path string, info os.FileInfo, err error) error {
+		if strings.HasSuffix(path, "foo2") {
+			sawFoo2 = true
+		}
+		if strings.HasSuffix(path, "foo1") {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+
+	if sawFoo2 {
+		t.Errorf("SkipDir on file foo1 did not block processing of foo2")
 	}
 }
 
@@ -1008,7 +1064,13 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
 	}
 }
 
-func TestBug3486(t *testing.T) { // http://golang.org/issue/3486
+func TestBug3486(t *testing.T) { // https://golang.org/issue/3486
+	if runtime.GOOS == "darwin" {
+		switch runtime.GOARCH {
+		case "arm", "arm64":
+			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
+	}
 	root, err := filepath.EvalSymlinks(runtime.GOROOT() + "/test")
 	if err != nil {
 		t.Fatal(err)

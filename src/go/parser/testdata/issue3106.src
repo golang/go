@@ -19,7 +19,7 @@ func f() {
 				time.Sleep(1e8)
 				m.Lock()
 				defer
-				if /* ERROR "expected operand, found 'if'" */ percent == 100 {
+				if /* ERROR "expected ';', found 'if'" */ percent == 100 {
 					m.Unlock()
 					break
 				}

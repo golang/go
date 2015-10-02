@@ -17,6 +17,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_fstat fstat "libc.so"
 //go:cgo_import_dynamic libc_getcontext getcontext "libc.so"
 //go:cgo_import_dynamic libc_getrlimit getrlimit "libc.so"
+//go:cgo_import_dynamic libc_kill kill "libc.so"
 //go:cgo_import_dynamic libc_madvise madvise "libc.so"
 //go:cgo_import_dynamic libc_malloc malloc "libc.so"
 //go:cgo_import_dynamic libc_mmap mmap "libc.so"
@@ -51,6 +52,7 @@ import "unsafe"
 //go:linkname libc_fstat libc_fstat
 //go:linkname libc_getcontext libc_getcontext
 //go:linkname libc_getrlimit libc_getrlimit
+//go:linkname libc_kill libc_kill
 //go:linkname libc_madvise libc_madvise
 //go:linkname libc_malloc libc_malloc
 //go:linkname libc_mmap libc_mmap
@@ -86,6 +88,7 @@ var (
 	libc_fstat,
 	libc_getcontext,
 	libc_getrlimit,
+	libc_kill,
 	libc_madvise,
 	libc_malloc,
 	libc_mmap,
@@ -114,7 +117,6 @@ var (
 	libc_write libcFunc
 )
 
-var sigset_none = sigset{}
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
 
 func getncpu() int32 {
@@ -131,6 +133,8 @@ func osinit() {
 
 func tstart_sysvicall()
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, _ unsafe.Pointer) {
 	var (
 		attr pthreadattr
@@ -171,7 +175,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
 func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -188,19 +192,39 @@ func mpreinit(mp *m) {
 
 func miniterrno()
 
+func msigsave(mp *m) {
+	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
+	sigprocmask(_SIG_SETMASK, nil, smask)
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
 	_g_ := getg()
-	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(libc____errno))
+	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
 	// Initialize signal handling
-	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+	signalstack(&_g_.m.gsignal.stack)
+
+	// restore signal mask from m.sigmask and unblock essential signals
+	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			nmask.__sigbits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+		}
+	}
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	signalstack(nil, 0)
+	_g_ := getg()
+	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	sigprocmask(_SIG_SETMASK, smask, nil)
+
+	signalstack(nil)
 }
 
 func memlimit() uintptr {
@@ -265,19 +289,28 @@ func getsig(i int32) uintptr {
 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
 }
 
-func signalstack(p *byte, n int32) {
+func signalstack(s *stack) {
 	var st sigaltstackt
-	st.ss_sp = (*byte)(unsafe.Pointer(p))
-	st.ss_size = uint64(n)
-	st.ss_flags = 0
-	if p == nil {
+	if s == nil {
 		st.ss_flags = _SS_DISABLE
+	} else {
+		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
+		st.ss_size = uint64(s.hi - s.lo)
+		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+func updatesigmask(m sigmask) {
+	var mask sigset
+	copy(mask.__sigbits[:], m[:])
+	sigprocmask(_SIG_SETMASK, &mask, nil)
+}
+
+func unblocksig(sig int32) {
+	var mask sigset
+	mask.__sigbits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	sigprocmask(_SIG_UNBLOCK, &mask, nil)
 }
 
 //go:nosplit
@@ -288,7 +321,7 @@ func semacreate() uintptr {
 	// Call libc's malloc rather than malloc.  This will
 	// allocate space on the C heap.  We can't call malloc
 	// here because it could cause a deadlock.
-	_g_.m.libcall.fn = uintptr(libc_malloc)
+	_g_.m.libcall.fn = uintptr(unsafe.Pointer(&libc_malloc))
 	_g_.m.libcall.n = 1
 	memclr(unsafe.Pointer(&_g_.m.scratch), uintptr(len(_g_.m.scratch.v)))
 	_g_.m.scratch.v[0] = unsafe.Sizeof(*sem)
@@ -308,7 +341,7 @@ func semasleep(ns int64) int32 {
 		_m_.ts.tv_sec = ns / 1000000000
 		_m_.ts.tv_nsec = ns % 1000000000
 
-		_m_.libcall.fn = uintptr(unsafe.Pointer(libc_sem_reltimedwait_np))
+		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_reltimedwait_np))
 		_m_.libcall.n = 2
 		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
 		_m_.scratch.v[0] = _m_.waitsema
@@ -324,7 +357,7 @@ func semasleep(ns int64) int32 {
 		return 0
 	}
 	for {
-		_m_.libcall.fn = uintptr(unsafe.Pointer(libc_sem_wait))
+		_m_.libcall.fn = uintptr(unsafe.Pointer(&libc_sem_wait))
 		_m_.libcall.n = 1
 		memclr(unsafe.Pointer(&_m_.scratch), uintptr(len(_m_.scratch.v)))
 		_m_.scratch.v[0] = _m_.waitsema
@@ -349,122 +382,123 @@ func semawakeup(mp *m) {
 }
 
 //go:nosplit
-func close(fd int32) int32 {
-	return int32(sysvicall1(libc_close, uintptr(fd)))
+func closefd(fd int32) int32 {
+	return int32(sysvicall1(&libc_close, uintptr(fd)))
 }
 
 //go:nosplit
 func exit(r int32) {
-	sysvicall1(libc_exit, uintptr(r))
+	sysvicall1(&libc_exit, uintptr(r))
 }
 
 //go:nosplit
 func getcontext(context *ucontext) /* int32 */ {
-	sysvicall1(libc_getcontext, uintptr(unsafe.Pointer(context)))
+	sysvicall1(&libc_getcontext, uintptr(unsafe.Pointer(context)))
 }
 
 //go:nosplit
 func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
-	sysvicall3(libc_madvise, uintptr(addr), uintptr(n), uintptr(flags))
+	sysvicall3(&libc_madvise, uintptr(addr), uintptr(n), uintptr(flags))
 }
 
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
-	return unsafe.Pointer(sysvicall6(libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off)))
+	return unsafe.Pointer(sysvicall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off)))
 }
 
 //go:nosplit
 func munmap(addr unsafe.Pointer, n uintptr) {
-	sysvicall2(libc_munmap, uintptr(addr), uintptr(n))
+	sysvicall2(&libc_munmap, uintptr(addr), uintptr(n))
 }
 
 func nanotime1()
 
 //go:nosplit
 func nanotime() int64 {
-	return int64(sysvicall0(libcFunc(funcPC(nanotime1))))
+	return int64(sysvicall0((*libcFunc)(unsafe.Pointer(funcPC(nanotime1)))))
 }
 
 //go:nosplit
 func open(path *byte, mode, perm int32) int32 {
-	return int32(sysvicall3(libc_open, uintptr(unsafe.Pointer(path)), uintptr(mode), uintptr(perm)))
+	return int32(sysvicall3(&libc_open, uintptr(unsafe.Pointer(path)), uintptr(mode), uintptr(perm)))
 }
 
 func pthread_attr_destroy(attr *pthreadattr) int32 {
-	return int32(sysvicall1(libc_pthread_attr_destroy, uintptr(unsafe.Pointer(attr))))
+	return int32(sysvicall1(&libc_pthread_attr_destroy, uintptr(unsafe.Pointer(attr))))
 }
 
 func pthread_attr_getstack(attr *pthreadattr, addr unsafe.Pointer, size *uint64) int32 {
-	return int32(sysvicall3(libc_pthread_attr_getstack, uintptr(unsafe.Pointer(attr)), uintptr(addr), uintptr(unsafe.Pointer(size))))
+	return int32(sysvicall3(&libc_pthread_attr_getstack, uintptr(unsafe.Pointer(attr)), uintptr(addr), uintptr(unsafe.Pointer(size))))
 }
 
 func pthread_attr_init(attr *pthreadattr) int32 {
-	return int32(sysvicall1(libc_pthread_attr_init, uintptr(unsafe.Pointer(attr))))
+	return int32(sysvicall1(&libc_pthread_attr_init, uintptr(unsafe.Pointer(attr))))
 }
 
 func pthread_attr_setdetachstate(attr *pthreadattr, state int32) int32 {
-	return int32(sysvicall2(libc_pthread_attr_setdetachstate, uintptr(unsafe.Pointer(attr)), uintptr(state)))
+	return int32(sysvicall2(&libc_pthread_attr_setdetachstate, uintptr(unsafe.Pointer(attr)), uintptr(state)))
 }
 
 func pthread_attr_setstack(attr *pthreadattr, addr uintptr, size uint64) int32 {
-	return int32(sysvicall3(libc_pthread_attr_setstack, uintptr(unsafe.Pointer(attr)), uintptr(addr), uintptr(size)))
+	return int32(sysvicall3(&libc_pthread_attr_setstack, uintptr(unsafe.Pointer(attr)), uintptr(addr), uintptr(size)))
 }
 
 func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.Pointer) int32 {
-	return int32(sysvicall4(libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
+	return int32(sysvicall4(&libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
 }
 
 func raise(sig int32) /* int32 */ {
-	sysvicall1(libc_raise, uintptr(sig))
+	sysvicall1(&libc_raise, uintptr(sig))
 }
 
 func raiseproc(sig int32) /* int32 */ {
-	sysvicall1(libc_raise, uintptr(sig))
+	pid := sysvicall0(&libc_getpid)
+	sysvicall2(&libc_kill, pid, uintptr(sig))
 }
 
 //go:nosplit
 func read(fd int32, buf unsafe.Pointer, nbyte int32) int32 {
-	return int32(sysvicall3(libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+	return int32(sysvicall3(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))
 }
 
 //go:nosplit
 func sem_init(sem *semt, pshared int32, value uint32) int32 {
-	return int32(sysvicall3(libc_sem_init, uintptr(unsafe.Pointer(sem)), uintptr(pshared), uintptr(value)))
+	return int32(sysvicall3(&libc_sem_init, uintptr(unsafe.Pointer(sem)), uintptr(pshared), uintptr(value)))
 }
 
 //go:nosplit
 func sem_post(sem *semt) int32 {
-	return int32(sysvicall1(libc_sem_post, uintptr(unsafe.Pointer(sem))))
+	return int32(sysvicall1(&libc_sem_post, uintptr(unsafe.Pointer(sem))))
 }
 
 //go:nosplit
 func sem_reltimedwait_np(sem *semt, timeout *timespec) int32 {
-	return int32(sysvicall2(libc_sem_reltimedwait_np, uintptr(unsafe.Pointer(sem)), uintptr(unsafe.Pointer(timeout))))
+	return int32(sysvicall2(&libc_sem_reltimedwait_np, uintptr(unsafe.Pointer(sem)), uintptr(unsafe.Pointer(timeout))))
 }
 
 //go:nosplit
 func sem_wait(sem *semt) int32 {
-	return int32(sysvicall1(libc_sem_wait, uintptr(unsafe.Pointer(sem))))
+	return int32(sysvicall1(&libc_sem_wait, uintptr(unsafe.Pointer(sem))))
 }
 
 func setitimer(which int32, value *itimerval, ovalue *itimerval) /* int32 */ {
-	sysvicall3(libc_setitimer, uintptr(which), uintptr(unsafe.Pointer(value)), uintptr(unsafe.Pointer(ovalue)))
+	sysvicall3(&libc_setitimer, uintptr(which), uintptr(unsafe.Pointer(value)), uintptr(unsafe.Pointer(ovalue)))
 }
 
 func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
-	sysvicall3(libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
+	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
 }
 
 func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
-	sysvicall2(libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
+	sysvicall2(&libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
 }
 
 func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
-	sysvicall3(libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
+	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
 }
 
 func sysconf(name int32) int64 {
-	return int64(sysvicall1(libc_sysconf, uintptr(name)))
+	return int64(sysvicall1(&libc_sysconf, uintptr(name)))
 }
 
 func usleep1(uint32)
@@ -476,7 +510,7 @@ func usleep(µs uint32) {
 
 //go:nosplit
 func write(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
-	return int32(sysvicall3(libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+	return int32(sysvicall3(&libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
 }
 
 func osyield1()
@@ -488,7 +522,7 @@ func osyield() {
 	// Check the validity of m because we might be called in cgo callback
 	// path early enough where there isn't a m available yet.
 	if _g_ != nil && _g_.m != nil {
-		sysvicall0(libc_sched_yield)
+		sysvicall0(&libc_sched_yield)
 		return
 	}
 	osyield1()

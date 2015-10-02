@@ -32,264 +32,6 @@ package obj
 
 import "encoding/binary"
 
-type Addr struct {
-	Type   int16
-	Reg    int16
-	Index  int16
-	Scale  int8
-	Name   int8
-	Offset int64
-	Sym    *LSym
-	U      struct {
-		Sval    string
-		Dval    float64
-		Branch  *Prog
-		Argsize int32
-		Bits    uint64
-	}
-	Gotype *LSym
-	Class  int8
-	Etype  uint8
-	Node   interface{}
-	Width  int64
-}
-
-type Prog struct {
-	Ctxt     *Link
-	Pc       int64
-	Lineno   int32
-	Link     *Prog
-	As       int16
-	Scond    uint8
-	From     Addr
-	Reg      int16
-	From3    Addr
-	To       Addr
-	Opt      interface{}
-	Forwd    *Prog
-	Pcond    *Prog
-	Comefrom *Prog
-	Pcrel    *Prog
-	Spadj    int32
-	Mark     uint16
-	Optab    uint16
-	Back     uint8
-	Ft       uint8
-	Tt       uint8
-	Isize    uint8
-	Printed  uint8
-	Width    int8
-	Mode     int8
-}
-
-type LSym struct {
-	Name        string
-	Extname     string
-	Type        int16
-	Version     int16
-	Dupok       uint8
-	Cfunc       uint8
-	External    uint8
-	Nosplit     uint8
-	Reachable   uint8
-	Cgoexport   uint8
-	Special     uint8
-	Stkcheck    uint8
-	Hide        uint8
-	Leaf        uint8
-	Fnptr       uint8
-	Localentry  uint8
-	Seenglobl   uint8
-	Onlist      uint8
-	Printed     uint8
-	Symid       int16
-	Dynid       int32
-	Sig         int32
-	Plt         int32
-	Got         int32
-	Align       int32
-	Elfsym      int32
-	Args        int32
-	Locals      int32
-	Value       int64
-	Size        int64
-	Hash        *LSym
-	Allsym      *LSym
-	Next        *LSym
-	Sub         *LSym
-	Outer       *LSym
-	Gotype      *LSym
-	Reachparent *LSym
-	Queue       *LSym
-	File        string
-	Dynimplib   string
-	Dynimpvers  string
-	Sect        *struct{}
-	Autom       *Auto
-	Text        *Prog
-	Etext       *Prog
-	Pcln        *Pcln
-	P           []byte
-	R           []Reloc
-}
-
-type Reloc struct {
-	Off     int32
-	Siz     uint8
-	Done    uint8
-	Type    int32
-	Variant int32
-	Add     int64
-	Xadd    int64
-	Sym     *LSym
-	Xsym    *LSym
-}
-
-type Auto struct {
-	Asym    *LSym
-	Link    *Auto
-	Aoffset int32
-	Name    int16
-	Gotype  *LSym
-}
-
-type Hist struct {
-	Link    *Hist
-	Name    string
-	Line    int32
-	Offset  int32
-	Printed uint8
-}
-
-type Link struct {
-	Thechar            int32
-	Thestring          string
-	Goarm              int32
-	Headtype           int
-	Arch               *LinkArch
-	Ignore             func(string) int32
-	Debugasm           int32
-	Debugline          int32
-	Debughist          int32
-	Debugread          int32
-	Debugvlog          int32
-	Debugstack         int32
-	Debugzerostack     int32
-	Debugdivmod        int32
-	Debugfloat         int32
-	Debugpcln          int32
-	Flag_shared        int32
-	Iself              int32
-	Bso                *Biobuf
-	Pathname           string
-	Windows            int32
-	Trimpath           string
-	Goroot             string
-	Goroot_final       string
-	Enforce_data_order int32
-	Hash               [LINKHASH]*LSym
-	Allsym             *LSym
-	Nsymbol            int32
-	Hist               *Hist
-	Ehist              *Hist
-	Plist              *Plist
-	Plast              *Plist
-	Sym_div            *LSym
-	Sym_divu           *LSym
-	Sym_mod            *LSym
-	Sym_modu           *LSym
-	Symmorestack       [2]*LSym
-	Tlsg               *LSym
-	Plan9privates      *LSym
-	Curp               *Prog
-	Printp             *Prog
-	Blitrl             *Prog
-	Elitrl             *Prog
-	Rexflag            int
-	Rep                int
-	Repn               int
-	Lock               int
-	Asmode             int
-	Andptr             []byte
-	And                [100]uint8
-	Instoffset         int64
-	Autosize           int32
-	Armsize            int32
-	Pc                 int64
-	Libdir             []string
-	Library            []Library
-	Tlsoffset          int
-	Diag               func(string, ...interface{})
-	Mode               int
-	Curauto            *Auto
-	Curhist            *Auto
-	Cursym             *LSym
-	Version            int
-	Textp              *LSym
-	Etextp             *LSym
-	Histdepth          int32
-	Nhistfile          int32
-	Filesyms           *LSym
-}
-
-type Plist struct {
-	Name    *LSym
-	Firstpc *Prog
-	Recur   int
-	Link    *Plist
-}
-
-type LinkArch struct {
-	Pconv      func(*Prog) string
-	Dconv      func(*Prog, int, *Addr) string
-	Rconv      func(int) string
-	ByteOrder  binary.ByteOrder
-	Name       string
-	Thechar    int
-	Endian     int32
-	Preprocess func(*Link, *LSym)
-	Assemble   func(*Link, *LSym)
-	Follow     func(*Link, *LSym)
-	Progedit   func(*Link, *Prog)
-	Minlc      int
-	Ptrsize    int
-	Regsize    int
-}
-
-type Library struct {
-	Objref string
-	Srcref string
-	File   string
-	Pkg    string
-}
-
-type Pcln struct {
-	Pcsp        Pcdata
-	Pcfile      Pcdata
-	Pcline      Pcdata
-	Pcdata      []Pcdata
-	Funcdata    []*LSym
-	Funcdataoff []int64
-	File        []*LSym
-	Lastfile    *LSym
-	Lastindex   int
-}
-
-type Pcdata struct {
-	P []byte
-}
-
-type Pciter struct {
-	d       Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
-}
-
 // An Addr is an argument to an instruction.
 // The general forms and their encodings are:
 //
@@ -334,13 +76,13 @@ type Pciter struct {
 //		Floating point constant value.
 //		Encoding:
 //			type = TYPE_FCONST
-//			u.dval = floating point value
+//			val = floating point value
 //
 //	$<string literal, up to 8 chars>
 //		String literal value (raw bytes used for DATA instruction).
 //		Encoding:
 //			type = TYPE_SCONST
-//			u.sval = string
+//			val = string
 //
 //	<register name>
 //		Any register: integer, floating point, control, segment, and so on.
@@ -352,7 +94,7 @@ type Pciter struct {
 //	x(PC)
 //		Encoding:
 //			type = TYPE_BRANCH
-//			u.branch = Prog* reference OR ELSE offset = target pc (branch takes priority)
+//			val = Prog* reference OR ELSE offset = target pc (branch takes priority)
 //
 //	$±x-±y
 //		Final argument to TEXT, specifying local frame size x and argument size y.
@@ -364,7 +106,7 @@ type Pciter struct {
 //		Encoding:
 //			type = TYPE_TEXTSIZE
 //			offset = x
-//			u.argsize = y
+//			val = int32(y)
 //
 //	reg<<shift, reg>>shift, reg->shift, reg@>shift
 //		Shifted register value, for ARM.
@@ -383,9 +125,46 @@ type Pciter struct {
 //			reg = first register
 //			offset = second register
 //
-//	reg, reg
-//		TYPE_REGREG2, to be removed.
+//	[reg, reg, reg-reg]
+//		Register list for ARM.
+//		Encoding:
+//			type = TYPE_REGLIST
+//			offset = bit mask of registers in list; R0 is low bit.
 //
+//	reg, reg
+//		Register pair for ARM.
+//		TYPE_REGREG2
+//
+//	(reg+reg)
+//		Register pair for PPC64.
+//		Encoding:
+//			type = TYPE_MEM
+//			reg = first register
+//			index = second register
+//			scale = 1
+//
+type Addr struct {
+	Type   int16
+	Reg    int16
+	Index  int16
+	Scale  int16 // Sometimes holds a register.
+	Name   int8
+	Class  int8
+	Etype  uint8
+	Offset int64
+	Width  int64
+	Sym    *LSym
+	Gotype *LSym
+
+	// argument value:
+	//	for TYPE_SCONST, a string
+	//	for TYPE_FCONST, a float64
+	//	for TYPE_BRANCH, a *Prog (optional)
+	//	for TYPE_TEXTSIZE, an int32 (optional)
+	Val interface{}
+
+	Node interface{} // for use by compiler
+}
 
 const (
 	NAME_NONE = 0 + iota
@@ -393,11 +172,17 @@ const (
 	NAME_STATIC
 	NAME_AUTO
 	NAME_PARAM
+	// A reference to name@GOT(SB) is a reference to the entry in the global offset
+	// table for 'name'.
+	NAME_GOTREF
 )
 
 const (
-	TYPE_NONE   = 0
-	TYPE_BRANCH = 5 + iota - 1
+	TYPE_NONE = 0
+)
+
+const (
+	TYPE_BRANCH = 5 + iota
 	TYPE_TEXTSIZE
 	TYPE_MEM
 	TYPE_CONST
@@ -409,15 +194,74 @@ const (
 	TYPE_REGREG
 	TYPE_REGREG2
 	TYPE_INDIR
+	TYPE_REGLIST
 )
 
 // TODO(rsc): Describe prog.
 // TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
+type Prog struct {
+	Ctxt   *Link
+	Link   *Prog
+	From   Addr
+	From3  *Addr // optional
+	To     Addr
+	Opt    interface{}
+	Forwd  *Prog
+	Pcond  *Prog
+	Rel    *Prog // Source of forward jumps on x86; pcrel on arm
+	Pc     int64
+	Lineno int32
+	Spadj  int32
+	As     int16
+	Reg    int16
+	RegTo2 int16 // 2nd register output operand
+	Mark   uint16
+	Optab  uint16
+	Scond  uint8
+	Back   uint8
+	Ft     uint8
+	Tt     uint8
+	Isize  uint8
+	Mode   int8
+
+	Info ProgInfo
+}
+
+// From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
+func (p *Prog) From3Type() int16 {
+	if p.From3 == nil {
+		return TYPE_NONE
+	}
+	return p.From3.Type
+}
+
+// From3Offset returns From3.Offset, or 0 when From3 is nil.
+func (p *Prog) From3Offset() int64 {
+	if p.From3 == nil {
+		return 0
+	}
+	return p.From3.Offset
+}
+
+// ProgInfo holds information about the instruction for use
+// by clients such as the compiler. The exact meaning of this
+// data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+type ProgInfo struct {
+	Flags    uint32   // flag bits
+	Reguse   uint64   // registers implicitly used by this instruction
+	Regset   uint64   // registers implicitly set by this instruction
+	Regindex uint64   // registers used by addressing mode
+	_        struct{} // to prevent unkeyed literals
+}
 
 // Prog.as opcodes.
 // These are the portable opcodes, common to all architectures.
 // Each architecture defines many more arch-specific opcodes,
 // with values starting at A_ARCHSPECIFIC.
+// Each architecture adds an offset to this so each machine has
+// distinct space for its instructions. The offset is a power of
+// two so it can be masked to return to origin zero.
+// See the definitions of ABase386 etc.
 const (
 	AXXX = 0 + iota
 	ACALL
@@ -441,19 +285,82 @@ const (
 	A_ARCHSPECIFIC
 )
 
-// prevent incompatible type signatures between liblink and 8l on Plan 9
+// An LSym is the sort of symbol that is written to an object file.
+type LSym struct {
+	Name      string
+	Type      int16
+	Version   int16
+	Dupok     uint8
+	Cfunc     uint8
+	Nosplit   uint8
+	Leaf      uint8
+	Seenglobl uint8
+	Onlist    uint8
+	// Local means make the symbol local even when compiling Go code to reference Go
+	// symbols in other shared libraries, as in this mode symbols are global by
+	// default. "local" here means in the sense of the dynamic linker, i.e. not
+	// visible outside of the module (shared library or executable) that contains its
+	// definition. (When not compiling to support Go shared libraries, all symbols are
+	// local in this sense unless there is a cgo_export_* directive).
+	Local  bool
+	Args   int32
+	Locals int32
+	Value  int64
+	Size   int64
+	Next   *LSym
+	Gotype *LSym
+	Autom  *Auto
+	Text   *Prog
+	Etext  *Prog
+	Pcln   *Pcln
+	P      []byte
+	R      []Reloc
+}
+
+type Pcln struct {
+	Pcsp        Pcdata
+	Pcfile      Pcdata
+	Pcline      Pcdata
+	Pcdata      []Pcdata
+	Funcdata    []*LSym
+	Funcdataoff []int64
+	File        []*LSym
+	Lastfile    *LSym
+	Lastindex   int
+}
 
 // LSym.type
 const (
 	Sxxx = iota
 	STEXT
 	SELFRXSECT
+
 	STYPE
 	SSTRING
 	SGOSTRING
 	SGOFUNC
+	SGCBITS
 	SRODATA
 	SFUNCTAB
+
+	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
+	// When linking a shared object, some conceptually "read only" types need to
+	// be written to by relocations and putting them in a section called
+	// ".rodata" interacts poorly with the system linkers. The GNU linkers
+	// support this situation by arranging for sections of the name
+	// ".data.rel.ro.XXX" to be mprotected read only by the dynamic linker after
+	// relocations have applied, so when the Go linker is creating a shared
+	// object it checks all objects of the above types and bumps any object that
+	// has a relocation to it to the corresponding type below, which are then
+	// written to sections with appropriate magic names.
+	STYPERELRO
+	SSTRINGRELRO
+	SGOSTRINGRELRO
+	SGOFUNCRELRO
+	SGCBITSRELRO
+	SRODATARELRO
+	SFUNCTABRELRO
+
 	STYPELINK
 	SSYMTAB
 	SPCLNTAB
@@ -480,24 +387,50 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
-	SSUB    = 1 << 8
-	SMASK   = SSUB - 1
-	SHIDDEN = 1 << 9
+	SSUB       = 1 << 8
+	SMASK      = SSUB - 1
+	SHIDDEN    = 1 << 9
+	SCONTAINER = 1 << 10 // has a sub-symbol
 )
+
+type Reloc struct {
+	Off  int32
+	Siz  uint8
+	Type int32
+	Add  int64
+	Sym  *LSym
+}
 
 // Reloc.type
 const (
 	R_ADDR = 1 + iota
 	R_ADDRPOWER
+	R_ADDRARM64
 	R_SIZE
 	R_CALL
 	R_CALLARM
+	R_CALLARM64
 	R_CALLIND
 	R_CALLPOWER
 	R_CONST
 	R_PCREL
+	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
+	// a regular variable) resolves to data needed to access the thread-local g. It is
+	// interpreted differently depending on toolchain flags to implement either the
+	// "local exec" or "inital exec" model for tls access.
+	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
+	// R_TLS do double duty.
 	R_TLS
+	// R_TLS_LE (only used on 386 and amd64 currently) resolves to the offset of the
+	// thread-local g from the thread local base and is used to implement the "local
+	// exec" model for tls access (r.Sym is not set by the compiler for this case but
+	// is set to Tlsg in the linker when externally linking).
 	R_TLS_LE
+	// R_TLS_IE (only used on 386 and amd64 currently) resolves to the PC-relative
+	// offset to a GOT slot containing the offset the thread-local g from the thread
+	// local base and is used to implemented the "initial exec" model for tls access
+	// (r.Sym is not set by the compiler for this case but is set to Tlsg in the
+	// linker when externally linking).
 	R_TLS_IE
 	R_GOTOFF
 	R_PLT0
@@ -505,18 +438,16 @@ const (
 	R_PLT2
 	R_USEFIELD
 	R_POWER_TOC
+	R_GOTPCREL
 )
 
-// Reloc.variant
-const (
-	RV_NONE = iota
-	RV_POWER_LO
-	RV_POWER_HI
-	RV_POWER_HA
-	RV_POWER_DS
-	RV_CHECK_OVERFLOW = 1 << 8
-	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
-)
+type Auto struct {
+	Asym    *LSym
+	Link    *Auto
+	Aoffset int32
+	Name    int16
+	Gotype  *LSym
+}
 
 // Auto.name
 const (
@@ -524,12 +455,22 @@ const (
 	A_PARAM
 )
 
-const (
-	LINKHASH = 100003
-)
+type Pcdata struct {
+	P []byte
+}
 
 // Pcdata iterator.
-//	for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+//      for(pciterinit(ctxt, &it, &pcd); !it.done; pciternext(&it)) { it.value holds in [it.pc, it.nextpc) }
+type Pciter struct {
+	d       Pcdata
+	p       []byte
+	pc      uint32
+	nextpc  uint32
+	pcscale uint32
+	value   int32
+	start   int
+	done    int
+}
 
 // symbol version, incremented each time a file is loaded.
 // version==1 is reserved for savehist.
@@ -539,13 +480,75 @@ const (
 
 // Link holds the context for writing object code from a compiler
 // to be linker input or for reading that input into the linker.
+type Link struct {
+	Goarm              int32
+	Headtype           int
+	Arch               *LinkArch
+	Debugasm           int32
+	Debugvlog          int32
+	Debugdivmod        int32
+	Debugpcln          int32
+	Flag_shared        int32
+	Flag_dynlink       bool
+	Bso                *Biobuf
+	Pathname           string
+	Windows            int32
+	Goroot             string
+	Goroot_final       string
+	Enforce_data_order int32
+	Hash               map[SymVer]*LSym
+	LineHist           LineHist
+	Imports            []string
+	Plist              *Plist
+	Plast              *Plist
+	Sym_div            *LSym
+	Sym_divu           *LSym
+	Sym_mod            *LSym
+	Sym_modu           *LSym
+	Tlsg               *LSym
+	Plan9privates      *LSym
+	Curp               *Prog
+	Printp             *Prog
+	Blitrl             *Prog
+	Elitrl             *Prog
+	Rexflag            int
+	Rep                int
+	Repn               int
+	Lock               int
+	Asmode             int
+	Andptr             []byte
+	And                [100]uint8
+	Instoffset         int64
+	Autosize           int32
+	Armsize            int32
+	Pc                 int64
+	Diag               func(string, ...interface{})
+	Mode               int
+	Cursym             *LSym
+	Version            int
+	Textp              *LSym
+	Etextp             *LSym
+}
 
-const (
-	LittleEndian = 0x04030201
-	BigEndian    = 0x01020304
-)
+type SymVer struct {
+	Name    string
+	Version int // TODO: make int16 to match LSym.Version?
+}
 
 // LinkArch is the definition of a single architecture.
+type LinkArch struct {
+	ByteOrder  binary.ByteOrder
+	Name       string
+	Thechar    int
+	Preprocess func(*Link, *LSym)
+	Assemble   func(*Link, *LSym)
+	Follow     func(*Link, *LSym)
+	Progedit   func(*Link, *Prog)
+	UnaryDst   map[int]bool // Instruction takes one operand, a destination.
+	Minlc      int
+	Ptrsize    int
+	Regsize    int
+}
 
 /* executable header types */
 const (
@@ -563,36 +566,23 @@ const (
 	Hwindows
 )
 
-const (
-	LinkAuto = 0 + iota
-	LinkInternal
-	LinkExternal
-)
+type Plist struct {
+	Name    *LSym
+	Firstpc *Prog
+	Recur   int
+	Link    *Plist
+}
 
-// asm5.c
-
-// asm6.c
-
-// asm8.c
-
-// asm9.c
-
-// data.c
-
-// go.c
-
-// ld.c
-
-// list[5689].c
-
-// obj.c
-
-// objfile.c
-
-// pass.c
-
-// pcln.c
-
-// sym.c
-
-var linkbasepointer int
+/*
+ * start a new Prog list.
+ */
+func Linknewplist(ctxt *Link) *Plist {
+	pl := new(Plist)
+	if ctxt.Plist == nil {
+		ctxt.Plist = pl
+	} else {
+		ctxt.Plast.Link = pl
+	}
+	ctxt.Plast = pl
+	return pl
+}

@@ -16,7 +16,7 @@ func sigaltstack(new, old *sigaltstackt)
 func sigaction(sig int32, new, old *sigactiont)
 
 //go:noescape
-func sigprocmask(new, old *sigset)
+func sigprocmask(how int32, new, old *sigset)
 
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)

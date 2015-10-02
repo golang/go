@@ -7,7 +7,6 @@
 package big
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -184,6 +183,10 @@ func (z *Int) MulRange(a, b int64) *Int {
 
 // Binomial sets z to the binomial coefficient of (n, k) and returns z.
 func (z *Int) Binomial(n, k int64) *Int {
+	// reduce the number of multiplications by reducing k
+	if n/2 < k && k <= n {
+		k = n - k // Binomial(n, k) == Binomial(n, n-k)
+	}
 	var a, b Int
 	a.MulRange(n-k+1, n)
 	b.MulRange(1, k)
@@ -497,15 +500,17 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
 	// use one Euclidean iteration to ensure that u and v are approx. the same size
 	switch {
 	case len(a.abs) > len(b.abs):
-		u.Set(b)
+		// must set v before u since u may be alias for a or b (was issue #11284)
 		v.Rem(a, b)
+		u.Set(b)
 	case len(a.abs) < len(b.abs):
-		u.Set(a)
 		v.Rem(b, a)
-	default:
 		u.Set(a)
+	default:
 		v.Set(b)
+		u.Set(a)
 	}
+	// a, b must not be used anymore (may be aliases with u)
 
 	// v might be 0 now
 	if len(v.abs) == 0 {
@@ -546,8 +551,11 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
 }
 
 // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
-// If it returns true, x is prime with probability 1 - 1/4^n.
-// If it returns false, x is not prime. n must be > 0.
+// If x is prime, it returns true.
+// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
+//
+// It is not suitable for judging primes that an adversary may have crafted
+// to fool this test.
 func (x *Int) ProbablyPrime(n int) bool {
 	if n <= 0 {
 		panic("non-positive n for ProbablyPrime")
@@ -578,6 +586,149 @@ func (z *Int) ModInverse(g, n *Int) *Int {
 		z.Add(z, n)
 	}
 	return z
+}
+
+// Jacobi returns the Jacobi symbol (x/y), either +1, -1, or 0.
+// The y argument must be an odd integer.
+func Jacobi(x, y *Int) int {
+	if len(y.abs) == 0 || y.abs[0]&1 == 0 {
+		panic(fmt.Sprintf("big: invalid 2nd argument to Int.Jacobi: need odd integer but got %s", y))
+	}
+
+	// We use the formulation described in chapter 2, section 2.4,
+	// "The Yacas Book of Algorithms":
+	// http://yacas.sourceforge.net/Algo.book.pdf
+
+	var a, b, c Int
+	a.Set(x)
+	b.Set(y)
+	j := 1
+
+	if b.neg {
+		if a.neg {
+			j = -1
+		}
+		b.neg = false
+	}
+
+	for {
+		if b.Cmp(intOne) == 0 {
+			return j
+		}
+		if len(a.abs) == 0 {
+			return 0
+		}
+		a.Mod(&a, &b)
+		if len(a.abs) == 0 {
+			return 0
+		}
+		// a > 0
+
+		// handle factors of 2 in 'a'
+		s := a.abs.trailingZeroBits()
+		if s&1 != 0 {
+			bmod8 := b.abs[0] & 7
+			if bmod8 == 3 || bmod8 == 5 {
+				j = -j
+			}
+		}
+		c.Rsh(&a, s) // a = 2^s*c
+
+		// swap numerator and denominator
+		if b.abs[0]&3 == 3 && c.abs[0]&3 == 3 {
+			j = -j
+		}
+		a.Set(&b)
+		b.Set(&c)
+	}
+}
+
+// modSqrt3Mod4 uses the identity
+//      (a^((p+1)/4))^2  mod p
+//   == u^(p+1)          mod p
+//   == u^2              mod p
+// to calculate the square root of any quadratic residue mod p quickly for 3
+// mod 4 primes.
+func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
+	z.Set(p)         // z = p
+	z.Add(z, intOne) // z = p + 1
+	z.Rsh(z, 2)      // z = (p + 1) / 4
+	z.Exp(x, z, p)   // z = x^z mod p
+	return z
+}
+
+// modSqrtTonelliShanks uses the Tonelli-Shanks algorithm to find the square
+// root of a quadratic residue modulo any prime.
+func (z *Int) modSqrtTonelliShanks(x, p *Int) *Int {
+	// Break p-1 into s*2^e such that s is odd.
+	var s Int
+	s.Sub(p, intOne)
+	e := s.abs.trailingZeroBits()
+	s.Rsh(&s, e)
+
+	// find some non-square n
+	var n Int
+	n.SetInt64(2)
+	for Jacobi(&n, p) != -1 {
+		n.Add(&n, intOne)
+	}
+
+	// Core of the Tonelli-Shanks algorithm. Follows the description in
+	// section 6 of "Square roots from 1; 24, 51, 10 to Dan Shanks" by Ezra
+	// Brown:
+	// https://www.maa.org/sites/default/files/pdf/upload_library/22/Polya/07468342.di020786.02p0470a.pdf
+	var y, b, g, t Int
+	y.Add(&s, intOne)
+	y.Rsh(&y, 1)
+	y.Exp(x, &y, p)  // y = x^((s+1)/2)
+	b.Exp(x, &s, p)  // b = x^s
+	g.Exp(&n, &s, p) // g = n^s
+	r := e
+	for {
+		// find the least m such that ord_p(b) = 2^m
+		var m uint
+		t.Set(&b)
+		for t.Cmp(intOne) != 0 {
+			t.Mul(&t, &t).Mod(&t, p)
+			m++
+		}
+
+		if m == 0 {
+			return z.Set(&y)
+		}
+
+		t.SetInt64(0).SetBit(&t, int(r-m-1), 1).Exp(&g, &t, p)
+		// t = g^(2^(r-m-1)) mod p
+		g.Mul(&t, &t).Mod(&g, p) // g = g^(2^(r-m)) mod p
+		y.Mul(&y, &t).Mod(&y, p)
+		b.Mul(&b, &g).Mod(&b, p)
+		r = m
+	}
+}
+
+// ModSqrt sets z to a square root of x mod p if such a square root exists, and
+// returns z. The modulus p must be an odd prime. If x is not a square mod p,
+// ModSqrt leaves z unchanged and returns nil. This function panics if p is
+// not an odd integer.
+func (z *Int) ModSqrt(x, p *Int) *Int {
+	switch Jacobi(x, p) {
+	case -1:
+		return nil // x is not a square mod p
+	case 0:
+		return z.SetInt64(0) // sqrt(0) mod p = 0
+	case 1:
+		break
+	}
+	if x.neg || x.Cmp(p) >= 0 { // ensure 0 <= x < p
+		x = new(Int).Mod(x, p)
+	}
+
+	// Check whether p is 3 mod 4, and if so, use the faster algorithm.
+	if len(p.abs) > 0 && p.abs[0]%4 == 3 {
+		return z.modSqrt3Mod4Prime(x, p)
+	}
+	// Otherwise, use Tonelli-Shanks.
+	return z.modSqrtTonelliShanks(x, p)
 }
 
 // Lsh sets z = x << n and returns z.
@@ -780,66 +931,4 @@ func (z *Int) Not(x *Int) *Int {
 	z.abs = z.abs.add(x.abs, natOne)
 	z.neg = true // z cannot be zero if x is positive
 	return z
-}
-
-// Gob codec version. Permits backward-compatible changes to the encoding.
-const intGobVersion byte = 1
-
-// GobEncode implements the gob.GobEncoder interface.
-func (x *Int) GobEncode() ([]byte, error) {
-	if x == nil {
-		return nil, nil
-	}
-	buf := make([]byte, 1+len(x.abs)*_S) // extra byte for version and sign bit
-	i := x.abs.bytes(buf) - 1            // i >= 0
-	b := intGobVersion << 1              // make space for sign bit
-	if x.neg {
-		b |= 1
-	}
-	buf[i] = b
-	return buf[i:], nil
-}
-
-// GobDecode implements the gob.GobDecoder interface.
-func (z *Int) GobDecode(buf []byte) error {
-	if len(buf) == 0 {
-		// Other side sent a nil or default value.
-		*z = Int{}
-		return nil
-	}
-	b := buf[0]
-	if b>>1 != intGobVersion {
-		return errors.New(fmt.Sprintf("Int.GobDecode: encoding version %d not supported", b>>1))
-	}
-	z.neg = b&1 != 0
-	z.abs = z.abs.setBytes(buf[1:])
-	return nil
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (z *Int) MarshalJSON() ([]byte, error) {
-	// TODO(gri): get rid of the []byte/string conversions
-	return []byte(z.String()), nil
-}
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (z *Int) UnmarshalJSON(text []byte) error {
-	// TODO(gri): get rid of the []byte/string conversions
-	if _, ok := z.SetString(string(text), 0); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
-	}
-	return nil
-}
-
-// MarshalText implements the encoding.TextMarshaler interface.
-func (z *Int) MarshalText() (text []byte, err error) {
-	return []byte(z.String()), nil
-}
-
-// UnmarshalText implements the encoding.TextUnmarshaler interface.
-func (z *Int) UnmarshalText(text []byte) error {
-	if _, ok := z.SetString(string(text), 0); !ok {
-		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
-	}
-	return nil
 }

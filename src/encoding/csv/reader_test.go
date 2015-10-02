@@ -87,6 +87,15 @@ field"`,
 		},
 	},
 	{
+		Name:               "BlankLineFieldCount",
+		Input:              "a,b,c\n\nd,e,f\n\n",
+		UseFieldsPerRecord: true,
+		Output: [][]string{
+			{"a", "b", "c"},
+			{"d", "e", "f"},
+		},
+	},
+	{
 		Name:             "TrimSpace",
 		Input:            " a,  b,   c\n",
 		TrimLeadingSpace: true,
@@ -279,6 +288,28 @@ func TestRead(t *testing.T) {
 			t.Errorf("%s: unexpected error %v", tt.Name, err)
 		} else if !reflect.DeepEqual(out, tt.Output) {
 			t.Errorf("%s: out=%q want %q", tt.Name, out, tt.Output)
+		}
+	}
+}
+
+func BenchmarkRead(b *testing.B) {
+	data := `x,y,z,w
+x,y,z,
+x,y,,
+x,,,
+,,,
+"x","y","z","w"
+"x","y","z",""
+"x","y","",""
+"x","","",""
+"","","",""
+`
+
+	for i := 0; i < b.N; i++ {
+		_, err := NewReader(strings.NewReader(data)).ReadAll()
+
+		if err != nil {
+			b.Fatalf("could not read data: %s", err)
 		}
 	}
 }

@@ -138,6 +138,16 @@ func LastIndex(s, sep []byte) int {
 	return -1
 }
 
+// LastIndexByte returns the index of the last instance of c in s, or -1 if c is not present in s.
+func LastIndexByte(s []byte, c byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == c {
+			return i
+		}
+	}
+	return -1
+}
+
 // IndexRune interprets s as a sequence of UTF-8-encoded Unicode code points.
 // It returns the byte index of the first occurrence in s of the given rune.
 // It returns -1 if rune is not present in s.
@@ -443,7 +453,7 @@ func isSeparator(r rune) bool {
 // Title returns a copy of s with all Unicode letters that begin words
 // mapped to their title case.
 //
-// BUG: The rule Title uses for word boundaries does not handle Unicode punctuation properly.
+// BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s []byte) []byte {
 	// Use a closure here to remember state.
 	// Hackish but effective. Depends on Map scanning in order and calling

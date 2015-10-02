@@ -59,22 +59,24 @@ if ! which go_nacl_${naclGOARCH}_exec >/dev/null; then
 	exit 1
 fi
 
-# Run host build to get toolchain for running zip generator.
 unset GOOS GOARCH
 if [ ! -f make.bash ]; then
 	echo 'nacltest.bash must be run from $GOROOT/src' 1>&2
 	exit 1
 fi
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH ./make.bash
 
 # the builder might have set GOROOT_FINAL.
 export GOROOT=$(pwd)/..
 
 # Build zip file embedded in package syscall.
-gobin=${GOBIN:-$(pwd)/../bin}
+echo "##### Building fake file system zip for nacl"
 rm -f syscall/fstest_nacl.go
-GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
+GOROOT_BOOTSTRAP=${GOROOT_BOOTSTRAP:-$HOME/go1.4}
+gobin=$GOROOT_BOOTSTRAP/bin
+GOROOT=$GOROOT_BOOTSTRAP $gobin/go run ../misc/nacl/mkzip.go -p syscall -r .. ../misc/nacl/testzip.proto syscall/fstest_nacl.go
 
 # Run standard build and tests.
 export PATH=$(pwd)/../misc/nacl:$PATH
-GOOS=nacl GOARCH=$naclGOARCH ./all.bash --no-clean
+GOOS=nacl GOARCH=$naclGOARCH ./all.bash
+
+rm -f syscall/fstest_nacl.go

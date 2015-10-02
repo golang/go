@@ -19,6 +19,19 @@ func TestOnCurve(t *testing.T) {
 	}
 }
 
+func TestOffCurve(t *testing.T) {
+	p224 := P224()
+	x, y := new(big.Int).SetInt64(1), new(big.Int).SetInt64(1)
+	if p224.IsOnCurve(x, y) {
+		t.Errorf("FAIL: point off curve is claimed to be on the curve")
+	}
+	b := Marshal(p224, x, y)
+	x1, y1 := Unmarshal(p224, b)
+	if x1 != nil || y1 != nil {
+		t.Errorf("FAIL: unmarshalling a point not on the curve succeeded")
+	}
+}
+
 type baseMultTest struct {
 	k    string
 	x, y string

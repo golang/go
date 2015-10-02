@@ -1,5 +1,3 @@
-// compile
-
 package main
 
 import (

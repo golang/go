@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -38,10 +39,7 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
 }
 
 func executeTest(t *testing.T, templ string, data interface{}, extra ...string) string {
-	switch runtime.GOOS {
-	case "android", "nacl":
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
+	testenv.MustHaveGoBuild(t)
 
 	checkStaleRuntime(t)
 
@@ -68,7 +66,14 @@ func executeTest(t *testing.T, templ string, data interface{}, extra ...string) 
 	}
 
 	for i := 0; i < len(extra); i += 2 {
-		if err := ioutil.WriteFile(filepath.Join(dir, extra[i]), []byte(extra[i+1]), 0666); err != nil {
+		fname := extra[i]
+		contents := extra[i+1]
+		if d, _ := filepath.Split(fname); d != "" {
+			if err := os.Mkdir(filepath.Join(dir, d), 0755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := ioutil.WriteFile(filepath.Join(dir, fname), []byte(contents), 0666); err != nil {
 			t.Fatal(err)
 		}
 	}

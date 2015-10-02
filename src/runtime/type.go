@@ -8,30 +8,25 @@ package runtime
 
 import "unsafe"
 
-// Needs to be in sync with ../../cmd/ld/decodesym.c:/^commonsize and pkg/reflect/type.go:/type.
+// Needs to be in sync with ../cmd/compile/internal/ld/decodesym.go:/^func.commonsize,
+// ../cmd/compile/internal/gc/reflect.go:/^func.dcommontype and
+// ../reflect/type.go:/^type.rtype.
 type _type struct {
 	size       uintptr
+	ptrdata    uintptr // size of memory prefix holding all pointers
 	hash       uint32
 	_unused    uint8
 	align      uint8
 	fieldalign uint8
 	kind       uint8
 	alg        *typeAlg
-	// gc stores type info required for garbage collector.
-	// If (kind&KindGCProg)==0, then gc[0] points at sparse GC bitmap
-	// (no indirection), 4 bits per word.
-	// If (kind&KindGCProg)!=0, then gc[1] points to a compiler-generated
-	// read-only GC program; and gc[0] points to BSS space for sparse GC bitmap.
-	// For huge types (>maxGCMask), runtime unrolls the program directly into
-	// GC bitmap and gc[0] is not used. For moderately-sized types, runtime
-	// unrolls the program into gc[0] space on first use. The first byte of gc[0]
-	// (gc[0][0]) contains 'unroll' flag saying whether the program is already
-	// unrolled into gc[0] or not.
-	gc      [2]uintptr
+	// gcdata stores the GC type data for the garbage collector.
+	// If the KindGCProg bit is set in kind, gcdata is a GC program.
+	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
+	gcdata  *byte
 	_string *string
 	x       *uncommontype
 	ptrto   *_type
-	zero    *byte // ptr to the zero value for this type
 }
 
 type method struct {
@@ -72,6 +67,7 @@ type maptype struct {
 	indirectvalue bool   // store ptr to value instead of value itself
 	bucketsize    uint16 // size of bucket
 	reflexivekey  bool   // true if k==k for all keys
+	needkeyupdate bool   // true if we need to update key on an overwrite
 }
 
 type chantype struct {

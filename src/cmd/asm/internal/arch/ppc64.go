@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file encapsulates some of the odd characteristics of the ARM
-// instruction set, to minimize its interaction with the core of the
-// assembler.
+// This file encapsulates some of the odd characteristics of the
+// 64-bit PowerPC (PPC64) instruction set, to minimize its interaction
+// with the core of the assembler.
 
 package arch
 
@@ -12,7 +12,7 @@ import "cmd/internal/obj/ppc64"
 
 func jumpPPC64(word string) bool {
 	switch word {
-	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL":
+	case "BC", "BCL", "BEQ", "BGE", "BGT", "BL", "BLE", "BLT", "BNE", "BR", "BVC", "BVS", "CALL", "JMP":
 		return true
 	}
 	return false
@@ -68,7 +68,7 @@ func ppc64RegisterNumber(name string, n int16) (int16, bool) {
 	switch name {
 	case "CR":
 		if 0 <= n && n <= 7 {
-			return ppc64.REG_C0 + n, true
+			return ppc64.REG_CR0 + n, true
 		}
 	case "F":
 		if 0 <= n && n <= 31 {

@@ -34,7 +34,7 @@
 // its -bench flag is provided. Benchmarks are run sequentially.
 //
 // For a description of the testing flags, see
-// http://golang.org/cmd/go/#hdr-Description_of_testing_flags.
+// https://golang.org/cmd/go/#hdr-Description_of_testing_flags.
 //
 // A sample benchmark function looks like this:
 //     func BenchmarkHello(b *testing.B) {
@@ -44,7 +44,7 @@
 //     }
 //
 // The benchmark function must run the target code b.N times.
-// During benchark execution, b.N is adjusted until the benchmark function lasts
+// During benchmark execution, b.N is adjusted until the benchmark function lasts
 // long enough to be timed reliably.  The output
 //     BenchmarkHello    10000000    282 ns/op
 // means that the loop ran 10000000 times at a speed of 282 ns per loop.
@@ -130,13 +130,17 @@
 // then the generated test will call TestMain(m) instead of running the tests
 // directly. TestMain runs in the main goroutine and can do whatever setup
 // and teardown is necessary around a call to m.Run. It should then call
-// os.Exit with the result of m.Run.
+// os.Exit with the result of m.Run. When TestMain is called, flag.Parse has
+// not been run. If TestMain depends on command-line flags, including those
+// of the testing package, it should call flag.Parse explicitly.
 //
-// The minimal implementation of TestMain is:
+// A simple implementation of TestMain is:
 //
-//	func TestMain(m *testing.M) { os.Exit(m.Run()) }
+//	func TestMain(m *testing.M) {
+//		flag.Parse()
+//		os.Exit(m.Run())
+//	}
 //
-// In effect, that is the implementation used when no TestMain is explicitly defined.
 package testing
 
 import (
@@ -146,6 +150,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 	"sync"
@@ -168,6 +173,7 @@ var (
 
 	// Report as tests are run; default is silent for success.
 	chatty           = flag.Bool("test.v", false, "verbose: print additional output")
+	count            = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
 	coverProfile     = flag.String("test.coverprofile", "", "write a coverage profile to the named file after execution")
 	match            = flag.String("test.run", "", "regular expression to select tests and examples to run")
 	memProfile       = flag.String("test.memprofile", "", "write a memory profile to the named file after execution")
@@ -175,7 +181,7 @@ var (
 	cpuProfile       = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
 	blockProfile     = flag.String("test.blockprofile", "", "write a goroutine blocking profile to the named file after execution")
 	blockProfileRate = flag.Int("test.blockprofilerate", 1, "if >= 0, calls runtime.SetBlockProfileRate()")
-	trace            = flag.String("test.trace", "", "write an execution trace to the named file after execution")
+	traceFile        = flag.String("test.trace", "", "write an execution trace to the named file after execution")
 	timeout          = flag.Duration("test.timeout", 0, "if positive, sets an aggregate time limit for all tests")
 	cpuListStr       = flag.String("test.cpu", "", "comma-separated list of number of CPUs to use for each test")
 	parallel         = flag.Int("test.parallel", runtime.GOMAXPROCS(0), "maximum test parallelism")
@@ -338,13 +344,15 @@ func (c *common) log(s string) {
 }
 
 // Log formats its arguments using default formatting, analogous to Println,
-// and records the text in the error log. The text will be printed only if
-// the test fails or the -test.v flag is set.
+// and records the text in the error log. For tests, the text will be printed only if
+// the test fails or the -test.v flag is set. For benchmarks, the text is always
+// printed to avoid having performance depend on the value of the -test.v flag.
 func (c *common) Log(args ...interface{}) { c.log(fmt.Sprintln(args...)) }
 
 // Logf formats its arguments according to the format, analogous to Printf,
-// and records the text in the error log. The text will be printed only if
-// the test fails or the -test.v flag is set.
+// and records the text in the error log. For tests, the text will be printed only if
+// the test fails or the -test.v flag is set. For benchmarks, the text is always
+// printed to avoid having performance depend on the value of the -test.v flag.
 func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(format, args...)) }
 
 // Error is equivalent to Log followed by Fail.
@@ -539,9 +547,6 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				continue
 			}
 			testName := tests[i].Name
-			if procs != 1 {
-				testName = fmt.Sprintf("%s-%d", tests[i].Name, procs)
-			}
 			t := &T{
 				common: common{
 					signal: make(chan interface{}),
@@ -551,7 +556,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			}
 			t.self = t
 			if *chatty {
-				fmt.Printf("=== RUN %s\n", t.name)
+				fmt.Printf("=== RUN   %s\n", t.name)
 			}
 			go tRunner(t, &tests[i])
 			out := (<-t.signal).(*T)
@@ -601,13 +606,13 @@ func before() {
 		}
 		// Could save f so after can call f.Close; not worth the effort.
 	}
-	if *trace != "" {
-		f, err := os.Create(toOutputDir(*trace))
+	if *traceFile != "" {
+		f, err := os.Create(toOutputDir(*traceFile))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "testing: %s", err)
 			return
 		}
-		if err := pprof.StartTrace(f); err != nil {
+		if err := trace.Start(f); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't start tracing: %s", err)
 			f.Close()
 			return
@@ -628,8 +633,8 @@ func after() {
 	if *cpuProfile != "" {
 		pprof.StopCPUProfile() // flushes profile to disk
 	}
-	if *trace != "" {
-		pprof.StopTrace() // flushes trace to disk
+	if *traceFile != "" {
+		trace.Stop() // flushes trace to disk
 	}
 	if *memProfile != "" {
 		f, err := os.Create(toOutputDir(*memProfile))
@@ -718,9 +723,13 @@ func parseCpuList() {
 			fmt.Fprintf(os.Stderr, "testing: invalid value %q for -test.cpu\n", val)
 			os.Exit(1)
 		}
-		cpuList = append(cpuList, cpu)
+		for i := uint(0); i < *count; i++ {
+			cpuList = append(cpuList, cpu)
+		}
 	}
 	if cpuList == nil {
-		cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+		for i := uint(0); i < *count; i++ {
+			cpuList = append(cpuList, runtime.GOMAXPROCS(-1))
+		}
 	}
 }

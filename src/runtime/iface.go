@@ -4,9 +4,7 @@
 
 package runtime
 
-import (
-	"unsafe"
-)
+import "unsafe"
 
 const (
 	hashSize = 1009
@@ -94,7 +92,7 @@ search:
 		itype := i._type
 		for ; j < nt; j++ {
 			t := &x.mhdr[j]
-			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
+			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
 				if m != nil {
 					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*ptrSize)) = t.ifn
 				}
@@ -130,13 +128,18 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 	return tab
 }
 
-func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
+func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+	}
 	ep := (*eface)(unsafe.Pointer(&e))
 	if isDirectIface(t) {
 		ep._type = t
 		typedmemmove(t, unsafe.Pointer(&ep.data), elem)
 	} else {
-		x := newobject(t)
+		if x == nil {
+			x = newobject(t)
+		}
 		// TODO: We allocate a zeroed object only to overwrite it with
 		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
 		typedmemmove(t, x, elem)
@@ -146,7 +149,10 @@ func convT2E(t *_type, elem unsafe.Pointer) (e interface{}) {
 	return
 }
 
-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) (i fInterface) {
+func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i fInterface) {
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
+	}
 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
 	if tab == nil {
 		tab = getitab(inter, t, false)
@@ -157,12 +163,22 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer) 
 		pi.tab = tab
 		typedmemmove(t, unsafe.Pointer(&pi.data), elem)
 	} else {
-		x := newobject(t)
+		if x == nil {
+			x = newobject(t)
+		}
 		typedmemmove(t, x, elem)
 		pi.tab = tab
 		pi.data = x
 	}
 	return
+}
+
+func panicdottype(have, want, iface *_type) {
+	haveString := ""
+	if have != nil {
+		haveString = *have._string
+	}
+	panic(&TypeAssertionError{*iface._string, haveString, *want._string, ""})
 }
 
 func assertI2T(t *_type, i fInterface, r unsafe.Pointer) {
@@ -219,20 +235,22 @@ func assertE2T(t *_type, e interface{}, r unsafe.Pointer) {
 	}
 }
 
+var testingAssertE2T2GC bool
+
+// The compiler ensures that r is non-nil.
 func assertE2T2(t *_type, e interface{}, r unsafe.Pointer) bool {
+	if testingAssertE2T2GC {
+		GC()
+	}
 	ep := (*eface)(unsafe.Pointer(&e))
 	if ep._type != t {
-		if r != nil {
-			memclr(r, uintptr(t.size))
-		}
+		memclr(r, uintptr(t.size))
 		return false
 	}
-	if r != nil {
-		if isDirectIface(t) {
-			writebarrierptr((*uintptr)(r), uintptr(ep.data))
-		} else {
-			typedmemmove(t, r, ep.data)
-		}
+	if isDirectIface(t) {
+		writebarrierptr((*uintptr)(r), uintptr(ep.data))
+	} else {
+		typedmemmove(t, r, ep.data)
 	}
 	return true
 }
@@ -262,17 +280,16 @@ func assertI2E(inter *interfacetype, i fInterface, r *interface{}) {
 	return
 }
 
+// The compiler ensures that r is non-nil.
 func assertI2E2(inter *interfacetype, i fInterface, r *interface{}) bool {
 	ip := (*iface)(unsafe.Pointer(&i))
 	tab := ip.tab
 	if tab == nil {
 		return false
 	}
-	if r != nil {
-		rp := (*eface)(unsafe.Pointer(r))
-		rp._type = tab._type
-		rp.data = ip.data
-	}
+	rp := (*eface)(unsafe.Pointer(r))
+	rp._type = tab._type
+	rp.data = ip.data
 	return true
 }
 
@@ -348,7 +365,12 @@ func assertE2I(inter *interfacetype, e interface{}, r *fInterface) {
 	rp.data = ep.data
 }
 
+var testingAssertE2I2GC bool
+
 func assertE2I2(inter *interfacetype, e interface{}, r *fInterface) bool {
+	if testingAssertE2I2GC {
+		GC()
+	}
 	ep := (*eface)(unsafe.Pointer(&e))
 	t := ep._type
 	if t == nil {
@@ -386,17 +408,14 @@ func assertE2E(inter *interfacetype, e interface{}, r *interface{}) {
 	*r = e
 }
 
+// The compiler ensures that r is non-nil.
 func assertE2E2(inter *interfacetype, e interface{}, r *interface{}) bool {
 	ep := (*eface)(unsafe.Pointer(&e))
 	if ep._type == nil {
-		if r != nil {
-			*r = nil
-		}
+		*r = nil
 		return false
 	}
-	if r != nil {
-		*r = e
-	}
+	*r = e
 	return true
 }
 

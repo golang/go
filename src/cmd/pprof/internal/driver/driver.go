@@ -429,7 +429,6 @@ type flags struct {
 	flagCommands      map[string]*bool   // pprof commands without parameters
 	flagParamCommands map[string]*string // pprof commands with parameters
 
-	flagSVGPan *string // URL to fetch the SVG Pan library
 	flagOutput *string // Output file name
 
 	flagCum      *bool // Sort by cumulative data
@@ -625,7 +624,6 @@ func getFlags(flag plugin.FlagSet, overrides commands.Commands, ui plugin.UI) (*
 		flagBase:         flag.String("base", "", "Source for base profile for comparison"),
 		flagDropNegative: flag.Bool("drop_negative", false, "Ignore negative differences"),
 
-		flagSVGPan: flag.String("svgpan", "https://www.cyberz.org/projects/SVGPan/SVGPan.js", "URL for SVGPan Library"),
 		// Data sorting criteria.
 		flagCum: flag.Bool("cum", false, "Sort by cumulative data"),
 		// Graph handling options.
@@ -670,8 +668,7 @@ func getFlags(flag plugin.FlagSet, overrides commands.Commands, ui plugin.UI) (*
 
 	// Flags used during command processing
 	interactive := &f.flagInteractive
-	svgpan := &f.flagSVGPan
-	f.commands = commands.PProf(functionCompleter, interactive, svgpan)
+	f.commands = commands.PProf(functionCompleter, interactive)
 
 	// Override commands
 	for name, cmd := range overrides {
@@ -897,7 +894,7 @@ var usageMsg = "Output file parameters (for file-based output formats):\n" +
 	"  -help             This message"
 
 var usageMsgVars = "Environment Variables:\n" +
-	"   PPROF_TMPDIR       Location for temporary files (default $HOME/pprof)\n" +
+	"   PPROF_TMPDIR       Location for saved profiles (default $HOME/pprof)\n" +
 	"   PPROF_TOOLS        Search path for object-level tools\n" +
 	"   PPROF_BINARY_PATH  Search path for local binary files\n" +
 	"                      default: $HOME/pprof/binaries\n" +
@@ -1011,6 +1008,10 @@ func generate(interactive bool, prof *profile.Profile, obj plugin.ObjTool, ui pl
 		}
 		defer outputFile.Close()
 		w = outputFile
+	}
+
+	if prof.Empty() {
+		return fmt.Errorf("profile is empty")
 	}
 
 	value, stype, unit := sampleFormat(prof, f)

@@ -2,31 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package big implements multi-precision arithmetic (big numbers).
-// The following numeric types are supported:
-//
-//   Int    signed integers
-//   Rat    rational numbers
-//   Float  floating-point numbers
-//
-// Methods are typically of the form:
-//
-//   func (z *T) Unary(x *T) *T        // z = op x
-//   func (z *T) Binary(x, y *T) *T    // z = x op y
-//   func (x *T) M() T1                // v = x.M()
-//
-// with T one of Int, Rat, or Float. For unary and binary operations, the
-// result is the receiver (usually named z in that case); if it is one of
-// the operands x or y it may be overwritten (and its memory reused).
-// To enable chaining of operations, the result is also returned. Methods
-// returning a result other than *Int, *Rat, or *Float take an operand as
-// the receiver (usually named x in that case).
-//
-package big
+// This file implements unsigned multi-precision integers (natural
+// numbers). They are the building blocks for the implementation
+// of signed integers, rationals, and floating-point numbers.
 
-// This file contains operations on unsigned multi-precision integers.
-// These are the building blocks for the operations on signed integers
-// and rationals.
+package big
 
 import "math/rand"
 
@@ -216,6 +196,34 @@ func basicMul(z, x, y nat) {
 	}
 }
 
+// montgomery computes x*y*2^(-n*_W) mod m,
+// assuming k = -1/m mod 2^_W.
+// z is used for storing the result which is returned;
+// z must not alias x, y or m.
+func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
+	var c1, c2 Word
+	z = z.make(n)
+	z.clear()
+	for i := 0; i < n; i++ {
+		d := y[i]
+		c1 += addMulVVW(z, x, d)
+		t := z[0] * k
+		c2 = addMulVVW(z, m, t)
+
+		copy(z, z[1:])
+		z[n-1] = c1 + c2
+		if z[n-1] < c1 {
+			c1 = 1
+		} else {
+			c1 = 0
+		}
+	}
+	if c1 != 0 {
+		subVV(z, z, m)
+	}
+	return z
+}
+
 // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
 // Factored out for readability - do not use outside karatsuba.
 func karatsubaAdd(z, x nat, n int) {
@@ -335,7 +343,7 @@ func karatsuba(z, x, y nat) {
 	}
 }
 
-// alias returns true if x and y share the same base array.
+// alias reports whether x and y share the same base array.
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
@@ -544,7 +552,7 @@ func (z nat) divLarge(u, uIn, v nat) (q, r nat) {
 	u.clear() // TODO(gri) no need to clear if we allocated a new u
 
 	// D1.
-	shift := leadingZeros(v[n-1])
+	shift := nlz(v[n-1])
 	if shift > 0 {
 		// do not modify v, it may be used by another goroutine simultaneously
 		v1 := make(nat, n)
@@ -819,7 +827,7 @@ func (z nat) xor(x, y nat) nat {
 	return z.norm()
 }
 
-// greaterThan returns true iff (x1<<_W + x2) > (y1<<_W + y2)
+// greaterThan reports whether (x1<<_W + x2) > (y1<<_W + y2)
 func greaterThan(x1, x2, y1, y2 Word) bool {
 	return x1 > y1 || x1 == y1 && x2 > y2
 }
@@ -888,6 +896,13 @@ func (z nat) expNN(x, y, m nat) nat {
 	}
 	// y > 0
 
+	// x**1 mod m == x mod m
+	if len(y) == 1 && y[0] == 1 && len(m) != 0 {
+		_, z = z.div(z, x, m)
+		return z
+	}
+	// y > 1
+
 	if len(m) != 0 {
 		// We likely end up being as long as the modulus.
 		z = z.make(len(m))
@@ -898,13 +913,16 @@ func (z nat) expNN(x, y, m nat) nat {
 	// 4-bit, windowed exponentiation. This involves precomputing 14 values
 	// (x^2...x^15) but then reduces the number of multiply-reduces by a
 	// third. Even for a 32-bit exponent, this reduces the number of
-	// operations.
+	// operations. Uses Montgomery method for odd moduli.
 	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
+		if m[0]&1 == 1 {
+			return z.expNNMontgomery(x, y, m)
+		}
 		return z.expNNWindowed(x, y, m)
 	}
 
 	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
-	shift := leadingZeros(v) + 1
+	shift := nlz(v) + 1
 	v <<= shift
 	var q nat
 
@@ -1022,9 +1040,93 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 	return z.norm()
 }
 
-// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
-// If it returns true, n is prime with probability 1 - 1/4^reps.
-// If it returns false, n is not prime.
+// expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
+// Uses Montgomery representation.
+func (z nat) expNNMontgomery(x, y, m nat) nat {
+	var zz, one, rr, RR nat
+
+	numWords := len(m)
+
+	// We want the lengths of x and m to be equal.
+	if len(x) > numWords {
+		_, rr = rr.div(rr, x, m)
+	} else if len(x) < numWords {
+		rr = rr.make(numWords)
+		rr.clear()
+		for i := range x {
+			rr[i] = x[i]
+		}
+	} else {
+		rr = x
+	}
+	x = rr
+
+	// Ideally the precomputations would be performed outside, and reused
+	// k0 = -mˆ-1 mod 2ˆ_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+	// Iteration for Multiplicative Inverses Modulo Prime Powers".
+	k0 := 2 - m[0]
+	t := m[0] - 1
+	for i := 1; i < _W; i <<= 1 {
+		t *= t
+		k0 *= (t + 1)
+	}
+	k0 = -k0
+
+	// RR = 2ˆ(2*_W*len(m)) mod m
+	RR = RR.setWord(1)
+	zz = zz.shl(RR, uint(2*numWords*_W))
+	_, RR = RR.div(RR, zz, m)
+	if len(RR) < numWords {
+		zz = zz.make(numWords)
+		copy(zz, RR)
+		RR = zz
+	}
+	// one = 1, with equal length to that of m
+	one = one.make(numWords)
+	one.clear()
+	one[0] = 1
+
+	const n = 4
+	// powers[i] contains x^i
+	var powers [1 << n]nat
+	powers[0] = powers[0].montgomery(one, RR, m, k0, numWords)
+	powers[1] = powers[1].montgomery(x, RR, m, k0, numWords)
+	for i := 2; i < 1<<n; i++ {
+		powers[i] = powers[i].montgomery(powers[i-1], powers[1], m, k0, numWords)
+	}
+
+	// initialize z = 1 (Montgomery 1)
+	z = z.make(numWords)
+	copy(z, powers[0])
+
+	zz = zz.make(numWords)
+
+	// same windowed exponent, but with Montgomery multiplications
+	for i := len(y) - 1; i >= 0; i-- {
+		yi := y[i]
+		for j := 0; j < _W; j += n {
+			if i != len(y)-1 || j != 0 {
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+				zz = zz.montgomery(z, z, m, k0, numWords)
+				z = z.montgomery(zz, zz, m, k0, numWords)
+			}
+			zz = zz.montgomery(z, powers[yi>>(_W-n)], m, k0, numWords)
+			z, zz = zz, z
+			yi <<= n
+		}
+	}
+	// convert to regular number
+	zz = zz.montgomery(z, one, m, k0, numWords)
+	return zz.norm()
+}
+
+// probablyPrime performs n Miller-Rabin tests to check whether x is prime.
+// If x is prime, it returns true.
+// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
+//
+// It is not suitable for judging primes that an adversary may have crafted
+// to fool this test.
 func (n nat) probablyPrime(reps int) bool {
 	if len(n) == 0 {
 		return false

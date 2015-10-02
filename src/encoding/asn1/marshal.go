@@ -18,7 +18,7 @@ import (
 // A forkableWriter is an in-memory buffer that can be
 // 'forked' to create new forkableWriters that bracket the
 // original.  After
-//    pre, post := w.fork();
+//    pre, post := w.fork()
 // the overall sequence of bytes represented is logically w+pre+post.
 type forkableWriter struct {
 	*bytes.Buffer
@@ -410,9 +410,11 @@ func stripTagAndLength(in []byte) []byte {
 
 func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err error) {
 	switch value.Type() {
+	case flagType:
+		return nil
 	case timeType:
 		t := value.Interface().(time.Time)
-		if outsideUTCRange(t) {
+		if params.timeType == tagGeneralizedTime || outsideUTCRange(t) {
 			return marshalGeneralizedTime(out, t)
 		} else {
 			return marshalUTCTime(out, t)
@@ -504,6 +506,9 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
 }
 
 func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) (err error) {
+	if !v.IsValid() {
+		return fmt.Errorf("asn1: cannot marshal nil value")
+	}
 	// If the field is an interface{} then recurse into it.
 	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
 		return marshalField(out, v.Elem(), params)
@@ -552,6 +557,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 	}
 	class := classUniversal
 
+	if params.timeType != 0 && tag != tagUTCTime {
+		return StructuralError{"explicit time type given to non-time member"}
+	}
+
 	if params.stringType != 0 && tag != tagPrintableString {
 		return StructuralError{"explicit string type given to non-string member"}
 	}
@@ -575,7 +584,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 			tag = params.stringType
 		}
 	case tagUTCTime:
-		if outsideUTCRange(v.Interface().(time.Time)) {
+		if params.timeType == tagGeneralizedTime || outsideUTCRange(v.Interface().(time.Time)) {
 			tag = tagGeneralizedTime
 		}
 	}
@@ -621,7 +630,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) 
 		})
 	}
 
-	return nil
+	return err
 }
 
 // Marshal returns the ASN.1 encoding of val.
@@ -642,5 +651,5 @@ func Marshal(val interface{}) ([]byte, error) {
 		return nil, err
 	}
 	_, err = f.writeTo(&out)
-	return out.Bytes(), nil
+	return out.Bytes(), err
 }

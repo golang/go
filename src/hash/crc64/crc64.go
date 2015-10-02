@@ -24,7 +24,8 @@ const (
 // Table is a 256-word table representing the polynomial for efficient processing.
 type Table [256]uint64
 
-// MakeTable returns the Table constructed from the specified polynomial.
+// MakeTable returns a Table constructed from the specified polynomial.
+// The contents of this Table must not be modified.
 func MakeTable(poly uint64) *Table {
 	t := new(Table)
 	for i := 0; i < 256; i++ {
@@ -49,6 +50,7 @@ type digest struct {
 
 // New creates a new hash.Hash64 computing the CRC-64 checksum
 // using the polynomial represented by the Table.
+// Its Sum method will lay the value out in big-endian byte order.
 func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
 
 func (d *digest) Size() int { return Size }

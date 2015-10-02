@@ -29,12 +29,14 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW mode+4(FP), R1
 	MOVW perm+8(FP), R2
 	SWI $0xa00005
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVW fd+0(FP), R0
 	SWI $0xa00006
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -43,6 +45,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW p+4(FP), R1
 	MOVW n+8(FP), R2
 	SWI $0xa00003
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -51,6 +54,7 @@ TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVW	p+4(FP), R1	// arg 2 - buf
 	MOVW	n+8(FP), R2	// arg 3 - nbyte
 	SWI $0xa00004	// sys_write
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -100,15 +104,12 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
-	MOVW R0, R2
-	MOVW $1000000, R1
-	DIV R1, R0
+	CALL runtime·usplitR0(SB)
 	// 0(R13) is the saved LR, don't use it
 	MOVW R0, 4(R13) // tv_sec.low
 	MOVW $0, R0
 	MOVW R0, 8(R13) // tv_sec.high
-	MOD R1, R2
-	MOVW $1000, R1
+	MOVW $1000, R2
 	MUL R1, R2
 	MOVW R2, 12(R13) // tv_nsec
 
@@ -121,6 +122,12 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	SWI $0xa00137	// sys__lwp_self, the returned R0 is arg 1
 	MOVW	sig+0(FP), R1	// arg 2 - signal
 	SWI $0xa0013e	// sys__lwp_kill
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	SWI $0xa00014	// sys_getpid, the returned R0 is arg 1
+	MOVW	sig+0(FP), R1	// arg 2 - signal
+	SWI $0xa00025	// sys_kill
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$-4
@@ -344,6 +351,10 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
 //		return 0;
 TEXT runtime·cas(SB),NOSPLIT,$0
 	B runtime·armcas(SB)
+
+// TODO: this is only valid for ARMv7+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
 
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
 	MOVM.WP [R1, R2, R3, R12], (R13)

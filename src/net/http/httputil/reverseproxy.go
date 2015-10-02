@@ -105,7 +105,7 @@ type requestCanceler interface {
 }
 
 type runOnFirstRead struct {
-	io.Reader
+	io.Reader // optional; nil means empty body
 
 	fn func() // Run before first Read, then set to nil
 }
@@ -114,6 +114,9 @@ func (c *runOnFirstRead) Read(bs []byte) (int, error) {
 	if c.fn != nil {
 		c.fn()
 		c.fn = nil
+	}
+	if c.Reader == nil {
+		return 0, io.EOF
 	}
 	return c.Reader.Read(bs)
 }
@@ -194,7 +197,6 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer res.Body.Close()
 
 	for _, h := range hopHeaders {
 		res.Header.Del(h)
@@ -202,8 +204,28 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 	copyHeader(rw.Header(), res.Header)
 
+	// The "Trailer" header isn't included in the Transport's response,
+	// at least for *http.Transport. Build it up from Trailer.
+	if len(res.Trailer) > 0 {
+		var trailerKeys []string
+		for k := range res.Trailer {
+			trailerKeys = append(trailerKeys, k)
+		}
+		rw.Header().Add("Trailer", strings.Join(trailerKeys, ", "))
+	}
+
 	rw.WriteHeader(res.StatusCode)
+	if len(res.Trailer) > 0 {
+		// Force chunking if we saw a response trailer.
+		// This prevents net/http from calculating the length for short
+		// bodies and adding a Content-Length.
+		if fl, ok := rw.(http.Flusher); ok {
+			fl.Flush()
+		}
+	}
 	p.copyResponse(rw, res.Body)
+	res.Body.Close() // close now, instead of defer, to populate res.Trailer
+	copyHeader(rw.Header(), res.Trailer)
 }
 
 func (p *ReverseProxy) copyResponse(dst io.Writer, src io.Reader) {

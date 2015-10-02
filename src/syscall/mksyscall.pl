@@ -292,7 +292,7 @@ while(<>) {
 		$text .= "\t}\n";
 	} elsif ($do_errno) {
 		$text .= "\tif e1 != 0 {\n";
-		$text .= "\t\terr = e1\n";
+		$text .= "\t\terr = errnoErr(e1)\n";
 		$text .= "\t}\n";
 	}
 	$text .= "\treturn\n";

@@ -16,7 +16,7 @@ func lookupHost(host string) (addrs []string, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 
-func lookupIP(host string) (ips []IP, err error) {
+func lookupIP(host string) (addrs []IPAddr, err error) {
 	return nil, syscall.ENOPROTOOPT
 }
 

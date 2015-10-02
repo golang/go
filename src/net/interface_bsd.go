@@ -18,11 +18,11 @@ import (
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, ifindex)
 	if err != nil {
-		return nil, os.NewSyscallError("route rib", err)
+		return nil, os.NewSyscallError("routerib", err)
 	}
 	msgs, err := syscall.ParseRoutingMessage(tab)
 	if err != nil {
-		return nil, os.NewSyscallError("route message", err)
+		return nil, os.NewSyscallError("parseroutingmessage", err)
 	}
 	return parseInterfaceTable(ifindex, msgs)
 }
@@ -51,7 +51,7 @@ loop:
 func newLink(m *syscall.InterfaceMessage) (*Interface, error) {
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
-		return nil, os.NewSyscallError("route sockaddr", err)
+		return nil, os.NewSyscallError("parseroutingsockaddr", err)
 	}
 	ifi := &Interface{Index: int(m.Header.Index), Flags: linkFlags(m.Header.Flags)}
 	sa, _ := sas[syscall.RTAX_IFP].(*syscall.SockaddrDatalink)
@@ -104,11 +104,11 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	}
 	tab, err := syscall.RouteRIB(syscall.NET_RT_IFLIST, index)
 	if err != nil {
-		return nil, os.NewSyscallError("route rib", err)
+		return nil, os.NewSyscallError("routerib", err)
 	}
 	msgs, err := syscall.ParseRoutingMessage(tab)
 	if err != nil {
-		return nil, os.NewSyscallError("route message", err)
+		return nil, os.NewSyscallError("parseroutingmessage", err)
 	}
 	var ift []Interface
 	if index == 0 {
@@ -145,7 +145,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
 	sas, err := syscall.ParseRoutingSockaddr(m)
 	if err != nil {
-		return nil, os.NewSyscallError("route sockaddr", err)
+		return nil, os.NewSyscallError("parseroutingsockaddr", err)
 	}
 	ifa := &IPNet{}
 	switch sa := sas[syscall.RTAX_NETMASK].(type) {

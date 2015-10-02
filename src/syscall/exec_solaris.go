@@ -12,9 +12,12 @@ type SysProcAttr struct {
 	Chroot     string      // Chroot.
 	Credential *Credential // Credential.
 	Setsid     bool        // Create session.
-	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
-	Setctty    bool        // Set controlling terminal to fd 0
+	Setpgid    bool        // Set process group ID to Pgid, or, if Pgid == 0, to new pid.
+	Setctty    bool        // Set controlling terminal to fd Ctty
 	Noctty     bool        // Detach fd 0 from controlling terminal
+	Ctty       int         // Controlling TTY fd
+	Foreground bool        // Place child's process group in foreground. (Implies Setpgid. Uses Ctty as fd of controlling TTY)
+	Pgid       int         // Child's process group ID if Setpgid.
 }
 
 // Implemented in runtime package.
@@ -28,6 +31,7 @@ func execve(path uintptr, argv uintptr, envp uintptr) (err Errno)
 func exit(code uintptr)
 func fcntl1(fd uintptr, cmd uintptr, arg uintptr) (val uintptr, err Errno)
 func forkx(flags uintptr) (pid uintptr, err Errno)
+func getpid() (pid uintptr, err Errno)
 func ioctl(fd uintptr, req uintptr, arg uintptr) (err Errno)
 func setgid(gid uintptr) (err Errno)
 func setgroups1(ngid uintptr, gid uintptr) (err Errno)
@@ -97,8 +101,27 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 	}
 
 	// Set process group
-	if sys.Setpgid {
-		err1 = setpgid(0, 0)
+	if sys.Setpgid || sys.Foreground {
+		// Place child in process group.
+		err1 = setpgid(0, uintptr(sys.Pgid))
+		if err1 != 0 {
+			goto childerror
+		}
+	}
+
+	if sys.Foreground {
+		pgrp := sys.Pgid
+		if pgrp == 0 {
+			r1, err1 = getpid()
+			if err1 != 0 {
+				goto childerror
+			}
+
+			pgrp = int(r1)
+		}
+
+		// Place process group in foreground.
+		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgrp)))
 		if err1 != 0 {
 			goto childerror
 		}
@@ -206,9 +229,9 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
 		}
 	}
 
-	// Make fd 0 the tty
+	// Set the controlling TTY to Ctty
 	if sys.Setctty {
-		err1 = ioctl(0, uintptr(TIOCSCTTY), 0)
+		err1 = ioctl(uintptr(sys.Ctty), uintptr(TIOCSCTTY), 0)
 		if err1 != 0 {
 			goto childerror
 		}

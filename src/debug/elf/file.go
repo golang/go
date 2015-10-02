@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 // TODO: error reporting detail
@@ -523,20 +524,22 @@ func (f *File) Section(name string) *Section {
 // applyRelocations applies relocations to dst. rels is a relocations section
 // in RELA format.
 func (f *File) applyRelocations(dst []byte, rels []byte) error {
-	if f.Class == ELFCLASS64 && f.Machine == EM_X86_64 {
+	switch {
+	case f.Class == ELFCLASS64 && f.Machine == EM_X86_64:
 		return f.applyRelocationsAMD64(dst, rels)
-	}
-	if f.Class == ELFCLASS32 && f.Machine == EM_386 {
+	case f.Class == ELFCLASS32 && f.Machine == EM_386:
 		return f.applyRelocations386(dst, rels)
-	}
-	if f.Class == ELFCLASS64 && f.Machine == EM_AARCH64 {
+	case f.Class == ELFCLASS32 && f.Machine == EM_ARM:
+		return f.applyRelocationsARM(dst, rels)
+	case f.Class == ELFCLASS64 && f.Machine == EM_AARCH64:
 		return f.applyRelocationsARM64(dst, rels)
-	}
-	if f.Class == ELFCLASS64 && f.Machine == EM_PPC64 {
+	case f.Class == ELFCLASS32 && f.Machine == EM_PPC:
+		return f.applyRelocationsPPC(dst, rels)
+	case f.Class == ELFCLASS64 && f.Machine == EM_PPC64:
 		return f.applyRelocationsPPC64(dst, rels)
+	default:
+		return errors.New("applyRelocations: not implemented")
 	}
-
-	return errors.New("not implemented")
 }
 
 func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
@@ -625,6 +628,44 @@ func (f *File) applyRelocations386(dst []byte, rels []byte) error {
 	return nil
 }
 
+func (f *File) applyRelocationsARM(dst []byte, rels []byte) error {
+	// 8 is the size of Rel32.
+	if len(rels)%8 != 0 {
+		return errors.New("length of relocation section is not a multiple of 8")
+	}
+
+	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+	if err != nil {
+		return err
+	}
+
+	b := bytes.NewReader(rels)
+	var rel Rel32
+
+	for b.Len() > 0 {
+		binary.Read(b, f.ByteOrder, &rel)
+		symNo := rel.Info >> 8
+		t := R_ARM(rel.Info & 0xff)
+
+		if symNo == 0 || symNo > uint32(len(symbols)) {
+			continue
+		}
+		sym := &symbols[symNo-1]
+
+		switch t {
+		case R_ARM_ABS32:
+			if rel.Off+4 >= uint32(len(dst)) {
+				continue
+			}
+			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
+			val += uint32(sym.Value)
+			f.ByteOrder.PutUint32(dst[rel.Off:rel.Off+4], val)
+		}
+	}
+
+	return nil
+}
+
 func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
 	// 24 is the size of Rela64.
 	if len(rels)%24 != 0 {
@@ -665,6 +706,46 @@ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
 			f.ByteOrder.PutUint64(dst[rela.Off:rela.Off+8], uint64(rela.Addend))
 		case R_AARCH64_ABS32:
 			if rela.Off+4 >= uint64(len(dst)) || rela.Addend < 0 {
+				continue
+			}
+			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
+		}
+	}
+
+	return nil
+}
+
+func (f *File) applyRelocationsPPC(dst []byte, rels []byte) error {
+	// 12 is the size of Rela32.
+	if len(rels)%12 != 0 {
+		return errors.New("length of relocation section is not a multiple of 12")
+	}
+
+	symbols, _, err := f.getSymbols(SHT_SYMTAB)
+	if err != nil {
+		return err
+	}
+
+	b := bytes.NewReader(rels)
+	var rela Rela32
+
+	for b.Len() > 0 {
+		binary.Read(b, f.ByteOrder, &rela)
+		symNo := rela.Info >> 8
+		t := R_PPC(rela.Info & 0xff)
+
+		if symNo == 0 || symNo > uint32(len(symbols)) {
+			continue
+		}
+		sym := &symbols[symNo-1]
+		if SymType(sym.Info&0xf) != STT_SECTION {
+			// We don't handle non-section relocations for now.
+			continue
+		}
+
+		switch t {
+		case R_PPC_ADDR32:
+			if rela.Off+4 >= uint32(len(dst)) || rela.Addend < 0 {
 				continue
 			}
 			f.ByteOrder.PutUint32(dst[rela.Off:rela.Off+4], uint32(rela.Addend))
@@ -720,53 +801,52 @@ func (f *File) applyRelocationsPPC64(dst []byte, rels []byte) error {
 }
 
 func (f *File) DWARF() (*dwarf.Data, error) {
-	// There are many other DWARF sections, but these
-	// are the required ones, and the debug/dwarf package
-	// does not use the others, so don't bother loading them.
-	var names = [...]string{"abbrev", "info", "str"}
-	var dat [len(names)][]byte
-	for i, name := range names {
-		name = ".debug_" + name
-		s := f.Section(name)
-		if s == nil {
-			continue
-		}
+	// sectionData gets the data for s, checks its size, and
+	// applies any applicable relations.
+	sectionData := func(i int, s *Section) ([]byte, error) {
 		b, err := s.Data()
 		if err != nil && uint64(len(b)) < s.Size {
 			return nil, err
 		}
-		dat[i] = b
+
+		for _, r := range f.Sections {
+			if r.Type != SHT_RELA && r.Type != SHT_REL {
+				continue
+			}
+			if int(r.Info) != i {
+				continue
+			}
+			rd, err := r.Data()
+			if err != nil {
+				return nil, err
+			}
+			err = f.applyRelocations(b, rd)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return b, nil
 	}
 
-	// If there's a relocation table for .debug_info, we have to process it
-	// now otherwise the data in .debug_info is invalid for x86-64 objects.
-	rela := f.Section(".rela.debug_info")
-	if rela != nil && rela.Type == SHT_RELA && (f.Machine == EM_X86_64 || f.Machine == EM_AARCH64 || f.Machine == EM_PPC64) {
-		data, err := rela.Data()
+	// There are many other DWARF sections, but these
+	// are the ones the debug/dwarf package uses.
+	// Don't bother loading others.
+	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil}
+	for i, s := range f.Sections {
+		if !strings.HasPrefix(s.Name, ".debug_") {
+			continue
+		}
+		if _, ok := dat[s.Name[7:]]; !ok {
+			continue
+		}
+		b, err := sectionData(i, s)
 		if err != nil {
 			return nil, err
 		}
-		err = f.applyRelocations(dat[1], data)
-		if err != nil {
-			return nil, err
-		}
+		dat[s.Name[7:]] = b
 	}
 
-	// When using clang we need to process relocations even for 386.
-	rel := f.Section(".rel.debug_info")
-	if rel != nil && rel.Type == SHT_REL && f.Machine == EM_386 {
-		data, err := rel.Data()
-		if err != nil {
-			return nil, err
-		}
-		err = f.applyRelocations(dat[1], data)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	abbrev, info, str := dat[0], dat[1], dat[2]
-	d, err := dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
+	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, nil, dat["str"])
 	if err != nil {
 		return nil, err
 	}
@@ -774,26 +854,9 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	// Look for DWARF4 .debug_types sections.
 	for i, s := range f.Sections {
 		if s.Name == ".debug_types" {
-			b, err := s.Data()
-			if err != nil && uint64(len(b)) < s.Size {
+			b, err := sectionData(i, s)
+			if err != nil {
 				return nil, err
-			}
-
-			for _, r := range f.Sections {
-				if r.Type != SHT_RELA && r.Type != SHT_REL {
-					continue
-				}
-				if int(r.Info) != i {
-					continue
-				}
-				rd, err := r.Data()
-				if err != nil {
-					return nil, err
-				}
-				err = f.applyRelocations(b, rd)
-				if err != nil {
-					return nil, err
-				}
 			}
 
 			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)

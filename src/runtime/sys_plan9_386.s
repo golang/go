@@ -52,7 +52,7 @@ TEXT runtime·seek(SB),NOSPLIT,$24
 	MOVL	$-1, ret_hi+20(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$0
+TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$4, AX
 	INT	$64
 	MOVL	AX, ret+4(FP)

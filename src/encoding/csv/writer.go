@@ -114,7 +114,7 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
 	return w.w.Flush()
 }
 
-// fieldNeedsQuotes returns true if our field must be enclosed in quotes.
+// fieldNeedsQuotes reports whether our field must be enclosed in quotes.
 // Fields with a Comma, fields with a quote or newline, and
 // fields which start with a space must be enclosed in quotes.
 // We used to quote empty strings, but we do not anymore (as of Go 1.4).
@@ -125,7 +125,7 @@ func (w *Writer) WriteAll(records [][]string) (err error) {
 // CSV with quoted empty strings strictly less useful.
 // Not quoting the empty string also makes this package match the behavior
 // of Microsoft Excel and Google Drive.
-// For Postgres, quote the data termating string `\.`.
+// For Postgres, quote the data terminating string `\.`.
 func (w *Writer) fieldNeedsQuotes(field string) bool {
 	if field == "" {
 		return false

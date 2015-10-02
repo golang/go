@@ -5,7 +5,7 @@
 package rand
 
 import (
-	"internal/syscall"
+	"internal/syscall/unix"
 	"sync"
 )
 
@@ -25,7 +25,7 @@ func pickStrategy() {
 	// - the machine has no entropy available (early boot + no hardware
 	//   entropy source?) and we want to avoid blocking later.
 	var buf [1]byte
-	n, err := syscall.GetRandom(buf[:], syscall.GRND_NONBLOCK)
+	n, err := unix.GetRandom(buf[:], unix.GRND_NONBLOCK)
 	useSyscall = n == 1 && err == nil
 }
 
@@ -34,6 +34,6 @@ func getRandomLinux(p []byte) (ok bool) {
 	if !useSyscall {
 		return false
 	}
-	n, err := syscall.GetRandom(p, 0)
+	n, err := unix.GetRandom(p, 0)
 	return n == len(p) && err == nil
 }

@@ -10,7 +10,7 @@ package runtime
 //uint32 runtime·panicking;
 var paniclk mutex
 
-const hasLinkRegister = GOARCH == "arm" || GOARCH == "ppc64" || GOARCH == "ppc64le"
+const hasLinkRegister = GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le"
 
 // Unwind the stack after a deferred function calls recover
 // after a panic.  Then arrange to continue running as though
@@ -29,6 +29,7 @@ func recovery(gp *g) {
 	// Make the deferproc for this d return again,
 	// this time returning 1.  The calling function will
 	// jump to the standard return epilogue.
+	gcUnwindBarriers(gp, sp)
 	gp.sched.sp = sp
 	gp.sched.pc = pc
 	gp.sched.lr = 0

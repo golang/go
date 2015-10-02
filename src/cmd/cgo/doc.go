@@ -20,16 +20,23 @@ the C parts of the package.  For example:
 	// #include <errno.h>
 	import "C"
 
+The preamble may contain any C code, including function and variable
+declarations and definitions.  These may then be referred to from Go
+code as though they were defined in the package "C".  All names
+declared in the preamble may be used, even if they start with a
+lower-case letter.  Exception: static variables in the preamble may
+not be referenced from Go code; static functions are permitted.
+
 See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
 "C? Go? Cgo!" for an introduction to using cgo:
-http://golang.org/doc/articles/c_go_cgo.html.
+https://golang.org/doc/articles/c_go_cgo.html.
 
 CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo
 directives within these comments to tweak the behavior of the C or C++
 compiler.  Values defined in multiple directives are concatenated
 together.  The directive can include a list of build constraints limiting its
 effect to systems satisfying one of the constraints
-(see http://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
+(see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
 For example:
 
 	// #cgo CFLAGS: -DPNG_DEBUG=1
@@ -83,17 +90,19 @@ compilers may be changed by the CC and CXX environment variables,
 respectively; those environment variables may include command line
 options.
 
-To enable cgo during cross compiling builds, set the CGO_ENABLED
-environment variable to 1 when building the Go tools with make.bash.
-Also, set CC_FOR_TARGET to the C cross compiler for the target.  CC will
-be used for compiling for the host.
+The cgo tool is enabled by default for native builds on systems where
+it is expected to work.  It is disabled by default when
+cross-compiling.  You can control this by setting the CGO_ENABLED
+environment variable when running the go tool: set it to 1 to enable
+the use of cgo, and to 0 to disable it.  The go tool will set the
+build constraint "cgo" if cgo is enabled.
 
-After the Go tools are built, when running the go command, CC_FOR_TARGET is
-ignored.  The value of CC_FOR_TARGET when running make.bash is the default
-compiler.  However, you can set the environment variable CC, not CC_FOR_TARGET,
-to control the compiler when running the go tool.
-
-CXX_FOR_TARGET works in a similar way for C++ code.
+When cross-compiling, you must specify a C cross-compiler for cgo to
+use.  You can do this by setting the CC_FOR_TARGET environment
+variable when building the toolchain using make.bash, or by setting
+the CC environment variable any time you run the go tool.  The
+CXX_FOR_TARGET and CXX environment variables work in a similar way for
+C++ code.
 
 Go references to C
 
@@ -207,8 +216,10 @@ Not all Go types can be mapped to C types in a useful way.
 
 Using //export in a file places a restriction on the preamble:
 since it is copied into two different C output files, it must not
-contain any definitions, only declarations. Definitions must be
-placed in preambles in other files, or in C source files.
+contain any definitions, only declarations. If a file contains both
+definitions and declarations, then the two output files will produce
+duplicate symbols and the linker will fail. To avoid this, definitions
+must be placed in preambles in other files, or in C source files.
 
 Using cgo directly
 
@@ -239,6 +250,13 @@ The following options are available when running cgo directly:
 		syscall package when bootstrapping a new target.
 	-objdir directory
 		Put all generated files in directory.
+	-importpath string
+		The import path for the Go package. Optional; used for
+		nicer comments in the generated files.
+	-exportheader file
+		If there are any exported functions, write the
+		generated export declarations to file.
+		C code can #include this to see the declarations.
 	-gccgo
 		Generate output for the gccgo compiler rather than the
 		gc compiler.
@@ -416,7 +434,7 @@ For example, here is the definition of _Cfunc_puts:
 	var _cgo_be59f0f25121_Cfunc_puts = unsafe.Pointer(&__cgofn__cgo_be59f0f25121_Cfunc_puts)
 
 	func _Cfunc_puts(p0 *_Ctype_char) (r1 _Ctype_int) {
-		_cgo_runtime_cgocall_errno(_cgo_be59f0f25121_Cfunc_puts, uintptr(unsafe.Pointer(&p0)))
+		_cgo_runtime_cgocall(_cgo_be59f0f25121_Cfunc_puts, uintptr(unsafe.Pointer(&p0)))
 		return
 	}
 
@@ -428,6 +446,7 @@ file compiled by gcc, the file x.cgo2.c:
 	void
 	_cgo_be59f0f25121_Cfunc_puts(void *v)
 	{
+		_cgo_wait_runtime_init_done();
 		struct {
 			char* p0;
 			int r;
@@ -436,7 +455,8 @@ file compiled by gcc, the file x.cgo2.c:
 		a->r = puts((void*)a->p0);
 	}
 
-It extracts the arguments from the pointer to _Cfunc_puts's argument
+It waits for Go runtime to be initialized (required for shared libraries),
+extracts the arguments from the pointer to _Cfunc_puts's argument
 frame, invokes the system C function (in this case, puts), stores the
 result in the frame, and returns.
 
@@ -455,6 +475,7 @@ _cgo_main.c:
 
 	int main() { return 0; }
 	void crosscall2(void(*fn)(void*, int), void *a, int c) { }
+	void _cgo_wait_runtime_init_done() { }
 	void _cgo_allocate(void *a, int c) { }
 	void _cgo_panic(void *a, int c) { }
 
@@ -663,7 +684,7 @@ The following code will be generated by cgo:
 	var _cgo_gcc_Cfunc_sin = unsafe.Pointer(&__cgo_gcc_Cfunc_sin)
 
 	func _Cfunc_sin(p0 _Ctype_double) (r1 _Ctype_double) {
-		_cgo_runtime_cgocall_errno(_cgo_gcc_Cfunc_sin, uintptr(unsafe.Pointer(&p0)))
+		_cgo_runtime_cgocall(_cgo_gcc_Cfunc_sin, uintptr(unsafe.Pointer(&p0)))
 		return
 	}
 

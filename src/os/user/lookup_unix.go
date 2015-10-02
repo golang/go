@@ -9,7 +9,6 @@ package user
 
 import (
 	"fmt"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -17,6 +16,7 @@ import (
 )
 
 /*
+#cgo solaris CFLAGS: -D_POSIX_PTHREAD_SEMANTICS
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
@@ -24,7 +24,12 @@ import (
 
 static int mygetpwuid_r(int uid, struct passwd *pwd,
 	char *buf, size_t buflen, struct passwd **result) {
- return getpwuid_r(uid, pwd, buf, buflen, result);
+	return getpwuid_r(uid, pwd, buf, buflen, result);
+}
+
+static int mygetpwnam_r(const char *name, struct passwd *pwd,
+	char *buf, size_t buflen, struct passwd **result) {
+	return getpwnam_r(name, pwd, buf, buflen, result);
 }
 */
 import "C"
@@ -49,17 +54,15 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 	var pwd C.struct_passwd
 	var result *C.struct_passwd
 
-	var bufSize C.long
-	if runtime.GOOS == "dragonfly" || runtime.GOOS == "freebsd" {
-		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX
-		// and just return -1.  So just use the same
-		// size that Linux returns.
+	bufSize := C.sysconf(C._SC_GETPW_R_SIZE_MAX)
+	if bufSize == -1 {
+		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX.
+		// Additionally, not all Linux systems have it, either. For
+		// example, the musl libc returns -1.
 		bufSize = 1024
-	} else {
-		bufSize = C.sysconf(C._SC_GETPW_R_SIZE_MAX)
-		if bufSize <= 0 || bufSize > 1<<20 {
-			return nil, fmt.Errorf("user: unreasonable _SC_GETPW_R_SIZE_MAX of %d", bufSize)
-		}
+	}
+	if bufSize <= 0 || bufSize > 1<<20 {
+		return nil, fmt.Errorf("user: unreasonable _SC_GETPW_R_SIZE_MAX of %d", bufSize)
 	}
 	buf := C.malloc(C.size_t(bufSize))
 	defer C.free(buf)
@@ -67,7 +70,11 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 	if lookupByName {
 		nameC := C.CString(username)
 		defer C.free(unsafe.Pointer(nameC))
-		rv = C.getpwnam_r(nameC,
+		// mygetpwnam_r is a wrapper around getpwnam_r to avoid
+		// passing a size_t to getpwnam_r, because for unknown
+		// reasons passing a size_t to getpwnam_r doesn't work on
+		// Solaris.
+		rv = C.mygetpwnam_r(nameC,
 			&pwd,
 			(*C.char)(buf),
 			C.size_t(bufSize),

@@ -165,10 +165,21 @@ func newdefer(siz int32) *_defer {
 	sc := deferclass(uintptr(siz))
 	mp := acquirem()
 	if sc < uintptr(len(p{}.deferpool)) {
-		pp := mp.p
-		d = pp.deferpool[sc]
-		if d != nil {
-			pp.deferpool[sc] = d.link
+		pp := mp.p.ptr()
+		if len(pp.deferpool[sc]) == 0 && sched.deferpool[sc] != nil {
+			lock(&sched.deferlock)
+			for len(pp.deferpool[sc]) < cap(pp.deferpool[sc])/2 && sched.deferpool[sc] != nil {
+				d := sched.deferpool[sc]
+				sched.deferpool[sc] = d.link
+				d.link = nil
+				pp.deferpool[sc] = append(pp.deferpool[sc], d)
+			}
+			unlock(&sched.deferlock)
+		}
+		if n := len(pp.deferpool[sc]); n > 0 {
+			d = pp.deferpool[sc][n-1]
+			pp.deferpool[sc][n-1] = nil
+			pp.deferpool[sc] = pp.deferpool[sc][:n-1]
 		}
 	}
 	if d == nil {
@@ -177,16 +188,6 @@ func newdefer(siz int32) *_defer {
 		d = (*_defer)(mallocgc(total, deferType, 0))
 	}
 	d.siz = siz
-	if mheap_.shadow_enabled {
-		// This memory will be written directly, with no write barrier,
-		// and then scanned like stacks during collection.
-		// Unlike real stacks, it is from heap spans, so mark the
-		// shadow as explicitly unusable.
-		p := deferArgs(d)
-		for i := uintptr(0); i+ptrSize <= uintptr(siz); i += ptrSize {
-			writebarrierptr_noshadow((*uintptr)(add(p, i)))
-		}
-	}
 	gp := mp.curg
 	d.link = gp._defer
 	gp._defer = d
@@ -196,7 +197,6 @@ func newdefer(siz int32) *_defer {
 
 // Free the given defer.
 // The defer cannot be used after this call.
-//go:nosplit
 func freedefer(d *_defer) {
 	if d._panic != nil {
 		freedeferpanic()
@@ -204,19 +204,32 @@ func freedefer(d *_defer) {
 	if d.fn != nil {
 		freedeferfn()
 	}
-	if mheap_.shadow_enabled {
-		// Undo the marking in newdefer.
-		systemstack(func() {
-			clearshadow(uintptr(deferArgs(d)), uintptr(d.siz))
-		})
-	}
 	sc := deferclass(uintptr(d.siz))
 	if sc < uintptr(len(p{}.deferpool)) {
 		mp := acquirem()
-		pp := mp.p
+		pp := mp.p.ptr()
+		if len(pp.deferpool[sc]) == cap(pp.deferpool[sc]) {
+			// Transfer half of local cache to the central cache.
+			var first, last *_defer
+			for len(pp.deferpool[sc]) > cap(pp.deferpool[sc])/2 {
+				n := len(pp.deferpool[sc])
+				d := pp.deferpool[sc][n-1]
+				pp.deferpool[sc][n-1] = nil
+				pp.deferpool[sc] = pp.deferpool[sc][:n-1]
+				if first == nil {
+					first = d
+				} else {
+					last.link = d
+				}
+				last = d
+			}
+			lock(&sched.deferlock)
+			last.link = sched.deferpool[sc]
+			sched.deferpool[sc] = first
+			unlock(&sched.deferlock)
+		}
 		*d = _defer{}
-		d.link = pp.deferpool[sc]
-		pp.deferpool[sc] = d
+		pp.deferpool[sc] = append(pp.deferpool[sc], d)
 		releasem(mp)
 	}
 }
@@ -267,7 +280,10 @@ func deferreturn(arg0 uintptr) {
 	fn := d.fn
 	d.fn = nil
 	gp._defer = d.link
-	freedefer(d)
+	// Switch to systemstack merely to save nosplit stack space.
+	systemstack(func() {
+		freedefer(d)
+	})
 	releasem(mp)
 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
@@ -311,7 +327,7 @@ func Goexit() {
 		freedefer(d)
 		// Note: we ignore recovers here because Goexit isn't a panic
 	}
-	goexit()
+	goexit1()
 }
 
 // Print all currently active panics.  Used when crashing.
@@ -395,7 +411,7 @@ func gopanic(e interface{}) {
 
 		// Mark defer as started, but keep on list, so that traceback
 		// can find and update the defer's argument frame if stack growth
-		// or a garbage collection hapens before reflectcall starts executing d.fn.
+		// or a garbage collection happens before reflectcall starts executing d.fn.
 		d.started = true
 
 		// Record the panic that is running the defer.

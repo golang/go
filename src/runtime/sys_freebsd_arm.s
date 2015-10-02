@@ -18,6 +18,8 @@
 #define SYS_write (SYS_BASE + 4)
 #define SYS_open (SYS_BASE + 5)
 #define SYS_close (SYS_BASE + 6)
+#define SYS_getpid (SYS_BASE + 20)
+#define SYS_kill (SYS_BASE + 37)
 #define SYS_sigaltstack (SYS_BASE + 53)
 #define SYS_munmap (SYS_BASE + 73)
 #define SYS_madvise (SYS_BASE + 75)
@@ -93,6 +95,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
 	MOVW perm+8(FP), R2	// arg 3 perm
 	MOVW $SYS_open, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -102,6 +105,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -111,13 +115,15 @@ TEXT runtime·write(SB),NOSPLIT,$-8
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-8
+TEXT runtime·closefd(SB),NOSPLIT,$-8
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW $SYS_close, R7
 	SWI $0
+	MOVW.CS	$-1, R0
 	MOVW	R0, ret+4(FP)
 	RET
 
@@ -138,6 +144,17 @@ TEXT runtime·raise(SB),NOSPLIT,$8
 	MOVW 4(R13), R0	// arg 1 id
 	MOVW sig+0(FP), R1	// arg 2 - signal
 	MOVW $SYS_thr_kill, R7
+	SWI $0
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$0
+	// getpid
+	MOVW $SYS_getpid, R7
+	SWI $0
+	// kill(self, sig)
+				// arg 1 - pid, now in R0
+	MOVW sig+0(FP), R1	// arg 2 - signal
+	MOVW $SYS_kill, R7
 	SWI $0
 	RET
 
@@ -285,15 +302,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 TEXT runtime·usleep(SB),NOSPLIT,$16
 	MOVW usec+0(FP), R0
-	MOVW R0, R2
-	MOVW $1000000, R1
-	DIV R1, R0
+	CALL runtime·usplitR0(SB)
 	// 0(R13) is the saved LR, don't use it
 	MOVW R0, 4(R13) // tv_sec.low
 	MOVW $0, R0
 	MOVW R0, 8(R13) // tv_sec.high
-	MOD R1, R2
-	MOVW $1000, R1
+	MOVW $1000, R2
 	MUL R1, R2
 	MOVW R2, 12(R13) // tv_nsec
 
@@ -323,9 +337,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 	RET
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$0
-	MOVW $3, R0	// arg 1 - how (SIG_SETMASK)
-	MOVW new+0(FP), R1	// arg 2 - set
-	MOVW old+4(FP), R2	// arg 3 - oset
+	MOVW how+0(FP), R0	// arg 1 - how
+	MOVW new+4(FP), R1	// arg 2 - set
+	MOVW old+8(FP), R2	// arg 3 - oset
 	MOVW $SYS_sigprocmask, R7
 	SWI $0
 	MOVW.CS $0, R8 // crash on syscall failure
@@ -376,6 +390,10 @@ TEXT runtime·casp1(SB),NOSPLIT,$0
 //		return 0;
 TEXT runtime·cas(SB),NOSPLIT,$0
 	B runtime·armcas(SB)
+
+// TODO: this is only valid for ARMv7+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+	B	runtime·armPublicationBarrier(SB)
 
 // TODO(minux): this only supports ARMv6K+.
 TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4

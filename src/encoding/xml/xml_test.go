@@ -657,20 +657,23 @@ type procInstEncodingTest struct {
 }
 
 var procInstTests = []struct {
-	input, expect string
+	input  string
+	expect [2]string
 }{
-	{`version="1.0" encoding="utf-8"`, "utf-8"},
-	{`version="1.0" encoding='utf-8'`, "utf-8"},
-	{`version="1.0" encoding='utf-8' `, "utf-8"},
-	{`version="1.0" encoding=utf-8`, ""},
-	{`encoding="FOO" `, "FOO"},
+	{`version="1.0" encoding="utf-8"`, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding='utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding='utf-8' `, [2]string{"1.0", "utf-8"}},
+	{`version="1.0" encoding=utf-8`, [2]string{"1.0", ""}},
+	{`encoding="FOO" `, [2]string{"", "FOO"}},
 }
 
 func TestProcInstEncoding(t *testing.T) {
 	for _, test := range procInstTests {
-		got := procInstEncoding(test.input)
-		if got != test.expect {
-			t.Errorf("procInstEncoding(%q) = %q; want %q", test.input, got, test.expect)
+		if got := procInst("version", test.input); got != test.expect[0] {
+			t.Errorf("procInst(version, %q) = %q; want %q", test.input, got, test.expect[0])
+		}
+		if got := procInst("encoding", test.input); got != test.expect[1] {
+			t.Errorf("procInst(encoding, %q) = %q; want %q", test.input, got, test.expect[1])
 		}
 	}
 }
@@ -745,5 +748,26 @@ func TestIssue5880(t *testing.T) {
 	}
 	if !utf8.Valid(data) {
 		t.Errorf("Marshal generated invalid UTF-8: %x", data)
+	}
+}
+
+func TestIssue11405(t *testing.T) {
+	testCases := []string{
+		"<root>",
+		"<root><foo>",
+		"<root><foo></foo>",
+	}
+	for _, tc := range testCases {
+		d := NewDecoder(strings.NewReader(tc))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				break
+			}
+		}
+		if _, ok := err.(*SyntaxError); !ok {
+			t.Errorf("%s: Token: Got error %v, want SyntaxError", tc, err)
+		}
 	}
 }

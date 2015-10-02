@@ -41,7 +41,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 	SUBQ	$64, SP	// 16 bytes will do, but who knows in the future?
 	MOVQ	$3, DI	// CLOCK_REALTIME from <sys/time_impl.h>
 	MOVQ	SP, SI
-	MOVQ	libc_clock_gettime(SB), AX
+	LEAQ	libc_clock_gettime(SB), AX
 	CALL	AX
 	MOVQ	(SP), AX	// tv_sec from struct timespec
 	IMULQ	$1000000000, AX	// multiply into nanoseconds
@@ -54,7 +54,7 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0
 TEXT runtime·pipe1(SB),NOSPLIT,$0
 	SUBQ	$16, SP // 8 bytes will do, but stack has to be 16-byte alligned
 	MOVQ	SP, DI
-	MOVQ	libc_pipe(SB), AX
+	LEAQ	libc_pipe(SB), AX
 	CALL	AX
 	MOVL	0(SP), AX
 	MOVL	4(SP), DX
@@ -321,13 +321,13 @@ noswitch:
 
 // Runs on OS stack. duration (in µs units) is in DI.
 TEXT runtime·usleep2(SB),NOSPLIT,$0
-	MOVQ	libc_usleep(SB), AX
+	LEAQ	libc_usleep(SB), AX
 	CALL	AX
 	RET
 
 // Runs on OS stack, called from runtime·osyield.
 TEXT runtime·osyield1(SB),NOSPLIT,$0
-	MOVQ	libc_sched_yield(SB), AX
+	LEAQ	libc_sched_yield(SB), AX
 	CALL	AX
 	RET
 

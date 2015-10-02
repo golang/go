@@ -37,6 +37,7 @@ var (
 	ts TS
 	tm TM
 	tl TL
+	ok bool
 )
 
 // Issue 9370
@@ -176,5 +177,87 @@ func BenchmarkAssertE2E(b *testing.B) {
 	e = tm
 	for i := 0; i < b.N; i++ {
 		e_ = e
+	}
+}
+
+func BenchmarkAssertE2T2(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		tm, ok = e.(TM)
+	}
+}
+
+func BenchmarkAssertE2T2Blank(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		_, ok = e.(TM)
+	}
+}
+
+func BenchmarkAssertI2E2(b *testing.B) {
+	i1 = tm
+	for i := 0; i < b.N; i++ {
+		e, ok = i1.(interface{})
+	}
+}
+
+func BenchmarkAssertI2E2Blank(b *testing.B) {
+	i1 = tm
+	for i := 0; i < b.N; i++ {
+		_, ok = i1.(interface{})
+	}
+}
+
+func BenchmarkAssertE2E2(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		e_, ok = e.(interface{})
+	}
+}
+
+func BenchmarkAssertE2E2Blank(b *testing.B) {
+	e = tm
+	for i := 0; i < b.N; i++ {
+		_, ok = e.(interface{})
+	}
+}
+
+func TestNonEscapingConvT2E(t *testing.T) {
+	m := make(map[interface{}]bool)
+	m[42] = true
+	if !m[42] {
+		t.Fatalf("42 is not present in the map")
+	}
+	if m[0] {
+		t.Fatalf("0 is present in the map")
+	}
+
+	n := testing.AllocsPerRun(1000, func() {
+		if m[0] {
+			t.Fatalf("0 is present in the map")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
+	}
+}
+
+func TestNonEscapingConvT2I(t *testing.T) {
+	m := make(map[I1]bool)
+	m[TM(42)] = true
+	if !m[TM(42)] {
+		t.Fatalf("42 is not present in the map")
+	}
+	if m[TM(0)] {
+		t.Fatalf("0 is present in the map")
+	}
+
+	n := testing.AllocsPerRun(1000, func() {
+		if m[TM(0)] {
+			t.Fatalf("0 is present in the map")
+		}
+	})
+	if n != 0 {
+		t.Fatalf("want 0 allocs, got %v", n)
 	}
 }

@@ -1,3 +1,7 @@
+// Copyright 2015 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This input was created by taking the instruction productions in
 // the old assembler's (6a's) grammar and hand-writing complete
 // instructions for each rule, to guarantee we cover the same space.
@@ -64,7 +68,7 @@ label:
 // LTYPES spec5	{ outcode($1, &$2); }
 	SHLL	R11, R12
 	SHLL	R11, foo+4(SB)
-	SHLL	R11, R11:AX
+	SHLL	R11, R11:AX // Old syntax, still accepted.
 
 // LTYPEM spec6	{ outcode($1, &$2); }
 	MOVL	AX, R11
@@ -88,6 +92,10 @@ label:
 
 // LTYPERT spec10	{ outcode($1, &$2); }
 	RETFL	$4
+
+// Was bug: LOOP is a branch instruction.
+loop:
+	LOOP	loop
 
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET

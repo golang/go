@@ -17,7 +17,9 @@ var (
 	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
 	OutputFile = flag.String("o", "", "output file; default foo.6 for /a/b/c/foo.s on amd64")
 	PrintOut   = flag.Bool("S", false, "print assembly and machine code")
-	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths (unused TODO)")
+	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
 )
 
 var (
@@ -49,7 +51,7 @@ func Usage() {
 	os.Exit(2)
 }
 
-func Parse(theChar int) {
+func Parse() {
 	flag.Usage = Usage
 	flag.Parse()
 	if flag.NArg() != 1 {
@@ -62,6 +64,6 @@ func Parse(theChar int) {
 		if strings.HasSuffix(input, ".s") {
 			input = input[:len(input)-2]
 		}
-		*OutputFile = fmt.Sprintf("%s.%c", input, theChar)
+		*OutputFile = fmt.Sprintf("%s.o", input)
 	}
 }

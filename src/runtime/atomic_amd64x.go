@@ -37,19 +37,24 @@ func xadd(ptr *uint32, delta int32) uint32
 func xadd64(ptr *uint64, delta int64) uint64
 
 //go:noescape
+func xadduintptr(ptr *uintptr, delta uintptr) uintptr
+
+//go:noescape
 func xchg(ptr *uint32, new uint32) uint32
 
 //go:noescape
 func xchg64(ptr *uint64, new uint64) uint64
 
-// NO go:noescape annotation; see atomic_pointer.go.
-func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
-
 //go:noescape
 func xchguintptr(ptr *uintptr, new uintptr) uintptr
 
 //go:noescape
+func atomicand8(ptr *uint8, val uint8)
+
+//go:noescape
 func atomicor8(ptr *uint8, val uint8)
+
+// NOTE: Do not add atomicxor8 (XOR is not idempotent).
 
 //go:noescape
 func cas64(ptr *uint64, old, new uint64) bool

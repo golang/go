@@ -13,9 +13,9 @@ type hex uint64
 func bytes(s string) (ret []byte) {
 	rp := (*slice)(unsafe.Pointer(&ret))
 	sp := (*_string)(noescape(unsafe.Pointer(&s)))
-	rp.array = sp.str
-	rp.len = uint(sp.len)
-	rp.cap = uint(sp.len)
+	rp.array = unsafe.Pointer(sp.str)
+	rp.len = sp.len
+	rp.cap = sp.len
 	return
 }
 

@@ -4,7 +4,7 @@
 
 // Central free lists.
 //
-// See malloc.h for an overview.
+// See malloc.go for an overview.
 //
 // The MCentral doesn't actually contain the list of free objects; the MSpan does.
 // Each MCentral is two lists of MSpans: those with free objects (c->nonempty)
@@ -29,6 +29,9 @@ func mCentral_Init(c *mcentral, sizeclass int32) {
 
 // Allocate a span to use in an MCache.
 func mCentral_CacheSpan(c *mcentral) *mspan {
+	// Deduct credit for this span allocation and sweep if necessary.
+	deductSweepCredit(uintptr(class_to_size[c.sizeclass]), 0)
+
 	lock(&c.lock)
 	sg := mheap_.sweepgen
 retry:
@@ -173,7 +176,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	s.needzero = 1
 	s.freelist = 0
 	unlock(&c.lock)
-	heapBitsForSpan(s.base()).clearSpan(s.layout())
+	heapBitsForSpan(s.base()).initSpan(s.layout())
 	mHeap_Free(&mheap_, s, 0)
 	return true
 }

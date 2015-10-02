@@ -44,6 +44,9 @@ func rsaAlignOf(salen int) int {
 
 // parseSockaddrLink parses b as a datalink socket address.
 func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
+	if len(b) < 8 {
+		return nil, EINVAL
+	}
 	sa, _, err := parseLinkLayerAddr(b[4:])
 	if err != nil {
 		return nil, err
@@ -58,7 +61,7 @@ func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
 // parseLinkLayerAddr parses b as a datalink socket address in
 // conventional BSD kernel form.
 func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
-	// The encoding looks like the follwoing:
+	// The encoding looks like the following:
 	// +----------------------------+
 	// | Type             (1 octet) |
 	// +----------------------------+
@@ -77,16 +80,16 @@ func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
 		Slen byte
 	}
 	lla := (*linkLayerAddr)(unsafe.Pointer(&b[0]))
-	l := rsaAlignOf(int(4 + lla.Nlen + lla.Alen + lla.Slen))
+	l := 4 + int(lla.Nlen) + int(lla.Alen) + int(lla.Slen)
 	if len(b) < l {
 		return nil, 0, EINVAL
 	}
 	b = b[4:]
 	sa := &SockaddrDatalink{Type: lla.Type, Nlen: lla.Nlen, Alen: lla.Alen, Slen: lla.Slen}
-	for i := 0; len(sa.Data) > i && i < int(lla.Nlen+lla.Alen+lla.Slen); i++ {
+	for i := 0; len(sa.Data) > i && i < l-4; i++ {
 		sa.Data[i] = int8(b[i])
 	}
-	return sa, l, nil
+	return sa, rsaAlignOf(l), nil
 }
 
 // parseSockaddrInet parses b as an internet socket address.
@@ -140,14 +143,24 @@ func parseNetworkLayerAddr(b []byte, family byte) (Sockaddr, error) {
 	if len(b) < l {
 		return nil, EINVAL
 	}
-	switch family {
-	case AF_INET6:
+	// Don't reorder case expressions.
+	// The case expressions for IPv6 must come first.
+	switch {
+	case b[0] == SizeofSockaddrInet6:
+		sa := &SockaddrInet6{}
+		copy(sa.Addr[:], b[offsetofInet6:])
+		return sa, nil
+	case family == AF_INET6:
 		sa := &SockaddrInet6{}
 		if l-1 < offsetofInet6 {
 			copy(sa.Addr[:], b[1:l])
 		} else {
 			copy(sa.Addr[:], b[l-offsetofInet6:l])
 		}
+		return sa, nil
+	case b[0] == SizeofSockaddrInet4:
+		sa := &SockaddrInet4{}
+		copy(sa.Addr[:], b[offsetofInet4:])
 		return sa, nil
 	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
 		sa := &SockaddrInet4{}

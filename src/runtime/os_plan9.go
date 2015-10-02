@@ -6,7 +6,7 @@ package runtime
 
 import "unsafe"
 
-func close(fd int32) int32
+func closefd(fd int32) int32
 
 //go:noescape
 func open(name *byte, mode, perm int32) int32

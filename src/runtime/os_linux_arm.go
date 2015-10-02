@@ -19,7 +19,6 @@ const (
 var randomNumber uint32
 var armArch uint8 = 6 // we default to ARMv6
 var hwcap uint32      // set by setup_auxv
-var goarm uint8       // set by 5l
 
 func checkgoarm() {
 	if goarm > 5 && hwcap&_HWCAP_VFP == 0 {
@@ -47,7 +46,7 @@ func sysargs(argc int32, argv **byte) {
 		switch auxv[i] {
 		case _AT_RANDOM: // kernel provides a pointer to 16-bytes worth of random data
 			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))[:]
-			// the pointer provided may not be word alined, so we must to treat it
+			// the pointer provided may not be word aligned, so we must treat it
 			// as a byte array.
 			randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
 				uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
@@ -64,6 +63,7 @@ func sysargs(argc int32, argv **byte) {
 	}
 }
 
+//go:nosplit
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.

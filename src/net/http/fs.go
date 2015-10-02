@@ -17,6 +17,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -68,24 +69,28 @@ type File interface {
 }
 
 func dirList(w ResponseWriter, f File) {
+	dirs, err := f.Readdir(-1)
+	if err != nil {
+		// TODO: log err.Error() to the Server.ErrorLog, once it's possible
+		// for a handler to get at its Server via the ResponseWriter. See
+		// Issue 12438.
+		Error(w, "Error reading directory", StatusInternalServerError)
+		return
+	}
+	sort.Sort(byName(dirs))
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, "<pre>\n")
-	for {
-		dirs, err := f.Readdir(100)
-		if err != nil || len(dirs) == 0 {
-			break
+	for _, d := range dirs {
+		name := d.Name()
+		if d.IsDir() {
+			name += "/"
 		}
-		for _, d := range dirs {
-			name := d.Name()
-			if d.IsDir() {
-				name += "/"
-			}
-			// name may contain '?' or '#', which must be escaped to remain
-			// part of the URL path, and not indicate the start of a query
-			// string or fragment.
-			url := url.URL{Path: name}
-			fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
-		}
+		// name may contain '?' or '#', which must be escaped to remain
+		// part of the URL path, and not indicate the start of a query
+		// string or fragment.
+		url := url.URL{Path: name}
+		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
 	}
 	fmt.Fprintf(w, "</pre>\n")
 }
@@ -102,10 +107,10 @@ func dirList(w ResponseWriter, f File) {
 // The name is otherwise unused; in particular it can be empty and is
 // never sent in the response.
 //
-// If modtime is not the zero time, ServeContent includes it in a
-// Last-Modified header in the response.  If the request includes an
-// If-Modified-Since header, ServeContent uses modtime to decide
-// whether the content needs to be sent at all.
+// If modtime is not the zero time or Unix epoch, ServeContent
+// includes it in a Last-Modified header in the response.  If the
+// request includes an If-Modified-Since header, ServeContent uses
+// modtime to decide whether the content needs to be sent at all.
 //
 // The content's Seek method must work: ServeContent uses
 // a seek to the end of the content to determine its size.
@@ -258,10 +263,15 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 	}
 }
 
+var unixEpochTime = time.Unix(0, 0)
+
 // modtime is the modification time of the resource to be served, or IsZero().
 // return value is whether this request is now complete.
 func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
-	if modtime.IsZero() {
+	if modtime.IsZero() || modtime.Equal(unixEpochTime) {
+		// If the file doesn't have a modtime (IsZero), or the modtime
+		// is obviously garbage (Unix time == 0), then ignore modtimes
+		// and don't process the If-Modified-Since header.
 		return false
 	}
 
@@ -353,16 +363,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 
 	f, err := fs.Open(name)
 	if err != nil {
-		// TODO expose actual error?
-		NotFound(w, r)
+		msg, code := toHTTPError(err)
+		Error(w, msg, code)
 		return
 	}
 	defer f.Close()
 
 	d, err1 := f.Stat()
 	if err1 != nil {
-		// TODO expose actual error?
-		NotFound(w, r)
+		msg, code := toHTTPError(err)
+		Error(w, msg, code)
 		return
 	}
 
@@ -412,6 +422,22 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
 }
 
+// toHTTPError returns a non-specific HTTP error message and status code
+// for a given non-nil error value. It's important that toHTTPError does not
+// actually return err.Error(), since msg and httpStatus are returned to users,
+// and historically Go's ServeContent always returned just "404 Not Found" for
+// all errors. We don't want to start leaking information in error messages.
+func toHTTPError(err error) (msg string, httpStatus int) {
+	if os.IsNotExist(err) {
+		return "404 page not found", StatusNotFound
+	}
+	if os.IsPermission(err) {
+		return "403 Forbidden", StatusForbidden
+	}
+	// Default:
+	return "500 Internal Server Error", StatusInternalServerError
+}
+
 // localRedirect gives a Moved Permanently response.
 // It does not convert relative paths to absolute paths like Redirect does.
 func localRedirect(w ResponseWriter, r *Request, newPath string) {
@@ -422,7 +448,13 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 	w.WriteHeader(StatusMovedPermanently)
 }
 
-// ServeFile replies to the request with the contents of the named file or directory.
+// ServeFile replies to the request with the contents of the named
+// file or directory.
+//
+// As a special case, ServeFile redirects any request where r.URL.Path
+// ends in "/index.html" to the same path, without the final
+// "index.html". To avoid such redirects either modify the path or
+// use ServeContent.
 func ServeFile(w ResponseWriter, r *Request, name string) {
 	dir, file := filepath.Split(name)
 	serveFile(w, r, Dir(dir), file, false)
@@ -439,6 +471,10 @@ type fileHandler struct {
 // use http.Dir:
 //
 //     http.Handle("/", http.FileServer(http.Dir("/tmp")))
+//
+// As a special case, the returned file server redirects any request
+// ending in "/index.html" to the same path, without the final
+// "index.html".
 func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }
@@ -554,3 +590,9 @@ func sumRangesSize(ranges []httpRange) (size int64) {
 	}
 	return
 }
+
+type byName []os.FileInfo
+
+func (s byName) Len() int           { return len(s) }
+func (s byName) Less(i, j int) bool { return s[i].Name() < s[j].Name() }
+func (s byName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

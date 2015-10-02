@@ -56,6 +56,10 @@ func (b *Buffer) String() string {
 // b.Len() == len(b.Bytes()).
 func (b *Buffer) Len() int { return len(b.buf) - b.off }
 
+// Cap returns the capacity of the buffer's underlying byte slice, that is, the
+// total space allocated for the buffer's data.
+func (b *Buffer) Cap() int { return cap(b.buf) }
+
 // Truncate discards all but the first n unread bytes from the buffer.
 // It panics if n is negative or greater than the length of the buffer.
 func (b *Buffer) Truncate(n int) {

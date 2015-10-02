@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -155,5 +156,17 @@ func TestWriteTo(t *testing.T) {
 		if r.Len() != 0 {
 			t.Errorf("reader contains %v bytes; want 0", r.Len())
 		}
+	}
+}
+
+// tests that Len is affected by reads, but Size is not.
+func TestReaderLenSize(t *testing.T) {
+	r := strings.NewReader("abc")
+	io.CopyN(ioutil.Discard, r, 1)
+	if r.Len() != 2 {
+		t.Errorf("Len = %d; want 2", r.Len())
+	}
+	if r.Size() != 3 {
+		t.Errorf("Size = %d; want 3", r.Size())
 	}
 }

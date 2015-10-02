@@ -19,12 +19,22 @@
 
 package big
 
-// A decimal represents a floating-point number in decimal representation.
-// The value of a decimal x is x.mant * 10 ** x.exp with 0.5 <= x.mant < 1,
-// with the most-significant mantissa digit at index 0.
+// A decimal represents an unsigned floating-point number in decimal representation.
+// The value of a non-zero decimal d is d.mant * 10**d.exp with 0.5 <= d.mant < 1,
+// with the most-significant mantissa digit at index 0. For the zero decimal, the
+// mantissa length and exponent are 0.
+// The zero value for decimal represents a ready-to-use 0.0.
 type decimal struct {
 	mant []byte // mantissa ASCII digits, big-endian
-	exp  int    // exponent, valid if len(mant) > 0
+	exp  int    // exponent
+}
+
+// at returns the i'th mantissa digit, starting with the most significant digit at 0.
+func (d *decimal) at(i int) byte {
+	if 0 <= i && i < len(d.mant) {
+		return d.mant[i]
+	}
+	return '0'
 }
 
 // Maximum shift amount that can be done in one pass without overflow.
@@ -37,12 +47,16 @@ const maxShift = _W - 4
 // precision argument and keeping track of when a number was truncated early
 // (equivalent of "sticky bit" in binary rounding).
 
+// TODO(gri) Along the same lines, enforce some limit to shift magnitudes
+// to avoid "infinitely" long running conversions (until we run out of space).
+
 // Init initializes x to the decimal representation of m << shift (for
 // shift >= 0), or m >> -shift (for shift < 0).
 func (x *decimal) init(m nat, shift int) {
 	// special case 0
 	if len(m) == 0 {
 		x.mant = x.mant[:0]
+		x.exp = 0
 		return
 	}
 
@@ -66,7 +80,7 @@ func (x *decimal) init(m nat, shift int) {
 	}
 
 	// Convert mantissa into decimal representation.
-	s := m.decimalString() // TODO(gri) avoid string conversion here
+	s := m.utoa(10)
 	n := len(s)
 	x.exp = n
 	// Trim trailing zeros; instead the exponent is tracking
@@ -85,12 +99,6 @@ func (x *decimal) init(m nat, shift int) {
 		shr(x, uint(-shift))
 	}
 }
-
-// Possibly optimization: The current implementation of nat.string takes
-// a charset argument. When a right shift is needed, we could provide
-// "\x00\x01...\x09" instead of "012..9" (as in nat.decimalString) and
-// avoid the repeated +'0' and -'0' operations in decimal.shr (and do a
-// single +'0' pass at the end).
 
 // shr implements x >> s, for s <= maxShift.
 func shr(x *decimal, s uint) {
@@ -252,4 +260,7 @@ func trim(x *decimal) {
 		i--
 	}
 	x.mant = x.mant[:i]
+	if i == 0 {
+		x.exp = 0
+	}
 }

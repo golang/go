@@ -30,7 +30,7 @@ type Sym struct {
 	Type   byte
 	Name   string
 	GoType uint64
-	// If this symbol if a function symbol, the corresponding Func
+	// If this symbol is a function symbol, the corresponding Func
 	Func *Func
 }
 

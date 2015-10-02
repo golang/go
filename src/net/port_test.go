@@ -9,14 +9,12 @@ import (
 	"testing"
 )
 
-type portTest struct {
-	netw string
-	name string
-	port int
-	ok   bool
-}
-
-var porttests = []portTest{
+var portTests = []struct {
+	network string
+	name    string
+	port    int
+	ok      bool
+}{
 	{"tcp", "echo", 7, true},
 	{"tcp", "discard", 9, true},
 	{"tcp", "systat", 11, true},
@@ -29,6 +27,7 @@ var porttests = []portTest{
 	{"tcp", "time", 37, true},
 	{"tcp", "domain", 53, true},
 	{"tcp", "finger", 79, true},
+	{"tcp", "42", 42, true},
 
 	{"udp", "echo", 7, true},
 	{"udp", "tftp", 69, true},
@@ -38,6 +37,7 @@ var porttests = []portTest{
 	{"udp", "ntp", 123, true},
 	{"udp", "snmp", 161, true},
 	{"udp", "syslog", 514, true},
+	{"udp", "42", 42, true},
 
 	{"--badnet--", "zzz", 0, false},
 	{"tcp", "--badport--", 0, false},
@@ -46,14 +46,12 @@ var porttests = []portTest{
 func TestLookupPort(t *testing.T) {
 	switch runtime.GOOS {
 	case "nacl":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
-	for i := 0; i < len(porttests); i++ {
-		tt := porttests[i]
-		if port, err := LookupPort(tt.netw, tt.name); port != tt.port || (err == nil) != tt.ok {
-			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v",
-				tt.netw, tt.name, port, err, tt.port)
+	for _, tt := range portTests {
+		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
+			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v", tt.network, tt.name, port, err, tt.port)
 		}
 	}
 }

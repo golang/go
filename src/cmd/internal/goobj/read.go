@@ -12,6 +12,7 @@ package goobj
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/obj"
 	"errors"
 	"fmt"
 	"io"
@@ -31,45 +32,46 @@ const (
 	_ SymKind = iota
 
 	// readonly, executable
-	STEXT
-	SELFRXSECT
+	STEXT      SymKind = obj.STEXT
+	SELFRXSECT SymKind = obj.SELFRXSECT
 
 	// readonly, non-executable
-	STYPE
-	SSTRING
-	SGOSTRING
-	SGOFUNC
-	SRODATA
-	SFUNCTAB
-	STYPELINK
-	SSYMTAB // TODO: move to unmapped section
-	SPCLNTAB
-	SELFROSECT
+	STYPE      SymKind = obj.STYPE
+	SSTRING    SymKind = obj.SSTRING
+	SGOSTRING  SymKind = obj.SGOSTRING
+	SGOFUNC    SymKind = obj.SGOFUNC
+	SRODATA    SymKind = obj.SRODATA
+	SFUNCTAB   SymKind = obj.SFUNCTAB
+	STYPELINK  SymKind = obj.STYPELINK
+	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
+	SPCLNTAB   SymKind = obj.SPCLNTAB
+	SELFROSECT SymKind = obj.SELFROSECT
 
 	// writable, non-executable
-	SMACHOPLT
-	SELFSECT
-	SMACHO // Mach-O __nl_symbol_ptr
-	SMACHOGOT
-	SNOPTRDATA
-	SINITARR
-	SDATA
-	SWINDOWS
-	SBSS
-	SNOPTRBSS
-	STLSBSS
+	SMACHOPLT  SymKind = obj.SMACHOPLT
+	SELFSECT   SymKind = obj.SELFSECT
+	SMACHO     SymKind = obj.SMACHO // Mach-O __nl_symbol_ptr
+	SMACHOGOT  SymKind = obj.SMACHOGOT
+	SWINDOWS   SymKind = obj.SWINDOWS
+	SELFGOT    SymKind = obj.SELFGOT
+	SNOPTRDATA SymKind = obj.SNOPTRDATA
+	SINITARR   SymKind = obj.SINITARR
+	SDATA      SymKind = obj.SDATA
+	SBSS       SymKind = obj.SBSS
+	SNOPTRBSS  SymKind = obj.SNOPTRBSS
+	STLSBSS    SymKind = obj.STLSBSS
 
 	// not mapped
-	SXREF
-	SMACHOSYMSTR
-	SMACHOSYMTAB
-	SMACHOINDIRECTPLT
-	SMACHOINDIRECTGOT
-	SFILE
-	SFILEPATH
-	SCONST
-	SDYNIMPORT
-	SHOSTOBJ
+	SXREF             SymKind = obj.SXREF
+	SMACHOSYMSTR      SymKind = obj.SMACHOSYMSTR
+	SMACHOSYMTAB      SymKind = obj.SMACHOSYMTAB
+	SMACHOINDIRECTPLT SymKind = obj.SMACHOINDIRECTPLT
+	SMACHOINDIRECTGOT SymKind = obj.SMACHOINDIRECTGOT
+	SFILE             SymKind = obj.SFILE
+	SFILEPATH         SymKind = obj.SFILEPATH
+	SCONST            SymKind = obj.SCONST
+	SDYNIMPORT        SymKind = obj.SDYNIMPORT
+	SHOSTOBJ          SymKind = obj.SHOSTOBJ
 )
 
 var symKindStrings = []string{

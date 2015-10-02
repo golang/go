@@ -45,9 +45,20 @@ struct ThreadStart
 extern void (*_cgo_thread_start)(ThreadStart *ts);
 
 /*
+ * Creates a new operating system thread without updating any Go state
+ * (OS dependent).
+ */
+extern void (*_cgo_sys_thread_create)(void* (*func)(void*), void* arg);
+
+/*
  * Creates the new operating system thread (OS, arch dependent).
  */
 void _cgo_sys_thread_start(ThreadStart *ts);
+
+/*
+ * Waits for the Go runtime to be initialized (OS dependent).
+ */
+void _cgo_wait_runtime_init_done();
 
 /*
  * Call fn in the 6c world.
@@ -63,3 +74,13 @@ void crosscall_386(void (*fn)(void));
  * Prints error then calls abort. For linux and android.
  */
 void fatalf(const char* format, ...);
+
+/*
+ * Registers the current mach thread port for EXC_BAD_ACCESS processing.
+ */
+void darwin_arm_init_thread_exception_port(void);
+
+/*
+ * Starts a mach message server processing EXC_BAD_ACCESS.
+ */
+void darwin_arm_init_mach_exception_handler(void);

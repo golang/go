@@ -4,9 +4,17 @@
 
 package x509
 
-import "testing"
+import (
+	"runtime"
+	"testing"
+)
 
 func TestSystemRoots(t *testing.T) {
+	switch runtime.GOARCH {
+	case "arm", "arm64":
+		t.Skipf("skipping on %s/%s, no system root", runtime.GOOS, runtime.GOARCH)
+	}
+
 	sysRoots := systemRootsPool()         // actual system roots
 	execRoots, err := execSecurityRoots() // non-cgo roots
 

@@ -73,7 +73,7 @@ ok:
 	CALL	runtime·schedinit(SB)
 
 	// create a new goroutine to start program
-	MOVL	$runtime·main·f(SB), AX	// entry
+	MOVL	$runtime·mainPC(SB), AX	// entry
 	MOVL	$0, 0(SP)
 	MOVL	AX, 4(SP)
 	CALL	runtime·newproc(SB)
@@ -84,8 +84,8 @@ ok:
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-DATA	runtime·main·f+0(SB)/4,$runtime·main(SB)
-GLOBL	runtime·main·f(SB),RODATA,$4
+DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 	INT $3
@@ -289,6 +289,23 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT,$0
 	MOVL	$0, DX
 	JMP	runtime·morestack(SB)
 
+TEXT runtime·stackBarrier(SB),NOSPLIT,$0
+	// We came here via a RET to an overwritten return PC.
+	// AX may be live. Other registers are available.
+
+	// Get the original return PC, g.stkbar[g.stkbarPos].savedLRVal.
+	get_tls(CX)
+	MOVL	g(CX), CX
+	MOVL	(g_stkbar+slice_array)(CX), DX
+	MOVL	g_stkbarPos(CX), BX
+	IMULL	$stkbar__size, BX	// Too big for SIB.
+	ADDL	DX, BX
+	MOVL	stkbar_savedLRVal(BX), BX
+	// Record that this stack barrier was hit.
+	ADDL	$1, g_stkbarPos(CX)
+	// Jump to the original return PC.
+	JMP	BX
+
 // reflectcall: call a function with the given argument list
 // func call(argtype *_type, f *FuncVal, arg *byte, argsize, retoffset uint32).
 // we don't have variable-sized frames, so we use a small number
@@ -483,6 +500,9 @@ TEXT runtime·xadd64(SB), NOSPLIT, $0-24
 	MOVQ	AX, ret+16(FP)
 	RET
 
+TEXT runtime·xadduintptr(SB), NOSPLIT, $0-12
+	JMP	runtime·xadd(SB)
+
 TEXT runtime·xchg(SB), NOSPLIT, $0-12
 	MOVL	ptr+0(FP), BX
 	MOVL	new+4(FP), AX
@@ -495,13 +515,6 @@ TEXT runtime·xchg64(SB), NOSPLIT, $0-24
 	MOVQ	new+8(FP), AX
 	XCHGQ	AX, 0(BX)
 	MOVQ	AX, ret+16(FP)
-	RET
-
-TEXT runtime·xchgp1(SB), NOSPLIT, $0-12
-	MOVL	ptr+0(FP), BX
-	MOVL	new+4(FP), AX
-	XCHGL	AX, 0(BX)
-	MOVL	AX, ret+8(FP)
 	RET
 
 TEXT runtime·xchguintptr(SB), NOSPLIT, $0-12
@@ -541,6 +554,19 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
 	ORB	AX, 0(BX)
 	RET
 
+// void	runtime·atomicand8(byte volatile*, byte);
+TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
+	MOVL	ptr+0(FP), BX
+	MOVB	val+4(FP), AX
+	LOCK
+	ANDB	AX, 0(BX)
+	RET
+
+TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
+	// Stores are already ordered on x86, so this is just a
+	// compile barrier.
+	RET
+
 // void jmpdefer(fn, sp);
 // called from deferreturn.
 // 1. pop the caller
@@ -554,21 +580,21 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $0-8
 	MOVL	0(DX), BX
 	JMP	BX	// but first run the deferred function
 
-// asmcgocall(void(*fn)(void*), void *arg)
+// func asmcgocall(fn, arg unsafe.Pointer) int32
 // Not implemented.
-TEXT runtime·asmcgocall(SB),NOSPLIT,$0-8
-	MOVL	0, AX
-	RET
-
-// asmcgocall(void(*fn)(void*), void *arg)
-// Not implemented.
-TEXT runtime·asmcgocall_errno(SB),NOSPLIT,$0-12
+TEXT runtime·asmcgocall(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 
 // cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
 // Not implemented.
 TEXT runtime·cgocallback(SB),NOSPLIT,$0-12
+	MOVL	0, AX
+	RET
+
+// cgocallback_gofunc(FuncVal*, void *frame, uintptr framesize)
+// Not implemented.
+TEXT ·cgocallback_gofunc(SB),NOSPLIT,$0-12
 	MOVL	0, AX
 	RET
 
@@ -594,43 +620,45 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), CX
 	MOVQ	CX, BX
-	ANDQ	$7, BX
-	SHRQ	$3, CX
+	ANDQ	$3, BX
+	SHRQ	$2, CX
 	MOVQ	$0, AX
 	CLD
 	REP
-	STOSQ
+	STOSL
 	MOVQ	BX, CX
 	REP
 	STOSB
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT,$0-12
+TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12
 	MOVL	argp+0(FP),AX		// addr of first arg
 	MOVL	-8(AX),AX		// get calling pc
+	CMPL	AX, runtime·stackBarrierPC(SB)
+	JNE	nobar
+	// Get original return PC.
+	CALL	runtime·nextBarrierPC(SB)
+	MOVL	0(SP), AX
+nobar:
 	MOVL	AX, ret+8(FP)
 	RET
 
-TEXT runtime·gogetcallerpc(SB),NOSPLIT,$0-12
-	MOVL	p+0(FP),AX		// addr of first arg
-	MOVL	-8(AX),AX		// get calling pc
-	MOVL	AX, ret+8(FP)
-	RET
-
-TEXT runtime·setcallerpc(SB),NOSPLIT,$0-8
+TEXT runtime·setcallerpc(SB),NOSPLIT,$8-8
 	MOVL	argp+0(FP),AX		// addr of first arg
 	MOVL	pc+4(FP), BX		// pc to set
+	MOVL	-8(AX), CX
+	CMPL	CX, runtime·stackBarrierPC(SB)
+	JEQ	setbar
 	MOVQ	BX, -8(AX)		// set calling pc
+	RET
+setbar:
+	// Set the stack barrier return PC.
+	MOVL	BX, 0(SP)
+	CALL	runtime·setNextBarrierPC(SB)
 	RET
 
 TEXT runtime·getcallersp(SB),NOSPLIT,$0-12
 	MOVL	argp+0(FP), AX
-	MOVL	AX, ret+8(FP)
-	RET
-
-// func gogetcallersp(p unsafe.Pointer) uintptr
-TEXT runtime·gogetcallersp(SB),NOSPLIT,$0-12
-	MOVL	p+0(FP),AX		// addr of first arg
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -834,7 +862,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$0-28
 	MOVL	s2+12(FP), DI
 	MOVL	s2+16(FP), DX
 	CALL	runtime·cmpbody(SB)
-	MOVQ	AX, res+24(FP)
+	MOVL	AX, res+24(FP)
 	RET
 
 // input:
@@ -955,7 +983,7 @@ allsame:
 	LEAQ	-1(CX)(AX*2), AX	// 1,0,-1 result
 	RET
 
-TEXT bytes·IndexByte(SB),NOSPLIT,$0
+TEXT bytes·IndexByte(SB),NOSPLIT,$0-20
 	MOVL s+0(FP), SI
 	MOVL s_len+4(FP), BX
 	MOVB c+12(FP), AL
@@ -963,7 +991,7 @@ TEXT bytes·IndexByte(SB),NOSPLIT,$0
 	MOVL AX, ret+16(FP)
 	RET
 
-TEXT strings·IndexByte(SB),NOSPLIT,$0
+TEXT strings·IndexByte(SB),NOSPLIT,$0-20
 	MOVL s+0(FP), SI
 	MOVL s_len+4(FP), BX
 	MOVB c+8(FP), AL
@@ -1097,12 +1125,8 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 TEXT runtime·goexit(SB),NOSPLIT,$0-0
 	BYTE	$0x90	// NOP
 	CALL	runtime·goexit1(SB)	// does not return
-
-TEXT runtime·getg(SB),NOSPLIT,$0-4
-	get_tls(CX)
-	MOVL	g(CX), AX
-	MOVL	AX, ret+0(FP)
-	RET
+	// traceback from goexit1 must hit code range of goexit
+	BYTE	$0x90	// NOP
 
 TEXT runtime·prefetcht0(SB),NOSPLIT,$0-4
 	MOVL	addr+0(FP), AX

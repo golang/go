@@ -38,3 +38,10 @@ func init() {
 	var s syncSema
 	runtime_Syncsemcheck(unsafe.Sizeof(s))
 }
+
+// Active spinning runtime support.
+// runtime_canSpin returns true is spinning makes sense at the moment.
+func runtime_canSpin(i int) bool
+
+// runtime_doSpin does active spinning.
+func runtime_doSpin()

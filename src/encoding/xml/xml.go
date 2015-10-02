@@ -35,22 +35,13 @@ func (e *SyntaxError) Error() string {
 	return "XML syntax error on line " + strconv.Itoa(e.Line) + ": " + e.Msg
 }
 
-// A Name represents an XML name (Local) annotated with a name space
-// identifier (Space). In tokens returned by Decoder.Token, the Space
-// identifier is given as a canonical URL, not the short prefix used in
-// the document being parsed.
-//
-// As a special case, XML namespace declarations will use the literal
-// string "xmlns" for the Space field instead of the fully resolved URL.
-// See Encoder.EncodeToken for more information on namespace encoding
-// behaviour.
+// A Name represents an XML name (Local) annotated
+// with a name space identifier (Space).
+// In tokens returned by Decoder.Token, the Space identifier
+// is given as a canonical URL, not the short prefix used
+// in the document being parsed.
 type Name struct {
 	Space, Local string
-}
-
-// isNamespace reports whether the name is a namespace-defining name.
-func (name Name) isNamespace() bool {
-	return name.Local == "xmlns" || name.Space == "xmlns"
 }
 
 // An Attr represents an attribute in an XML element (Name=Value).
@@ -79,24 +70,6 @@ func (e StartElement) Copy() StartElement {
 // End returns the corresponding XML end element.
 func (e StartElement) End() EndElement {
 	return EndElement{e.Name}
-}
-
-// setDefaultNamespace sets the namespace of the element
-// as the default for all elements contained within it.
-func (e *StartElement) setDefaultNamespace() {
-	if e.Name.Space == "" {
-		// If there's no namespace on the element, don't
-		// set the default. Strictly speaking this might be wrong, as
-		// we can't tell if the element had no namespace set
-		// or was just using the default namespace.
-		return
-	}
-	e.Attr = append(e.Attr, Attr{
-		Name: Name{
-			Local: "xmlns",
-		},
-		Value: e.Name.Space,
-	})
 }
 
 // An EndElement represents an XML end element.
@@ -272,6 +245,9 @@ func (d *Decoder) Token() (t Token, err error) {
 		t = d.nextToken
 		d.nextToken = nil
 	} else if t, err = d.rawToken(); err != nil {
+		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
+			err = d.syntaxError("unexpected EOF")
+		}
 		return
 	}
 
@@ -576,7 +552,6 @@ func (d *Decoder) rawToken() (Token, error) {
 
 	case '?':
 		// <?: Processing instruction.
-		// TODO(rsc): Should parse the <?xml declaration to make sure the version is 1.0.
 		var target string
 		if target, ok = d.name(); !ok {
 			if d.err == nil {
@@ -601,7 +576,13 @@ func (d *Decoder) rawToken() (Token, error) {
 		data = data[0 : len(data)-2] // chop ?>
 
 		if target == "xml" {
-			enc := procInstEncoding(string(data))
+			content := string(data)
+			ver := procInst("version", content)
+			if ver != "" && ver != "1.0" {
+				d.err = fmt.Errorf("xml: unsupported version %q; only version 1.0 is supported", ver)
+				return nil, d.err
+			}
+			enc := procInst("encoding", content)
 			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
 				if d.CharsetReader == nil {
 					d.err = fmt.Errorf("xml: encoding %q declared but Decoder.CharsetReader is nil", enc)
@@ -1863,6 +1844,13 @@ var (
 // EscapeText writes to w the properly escaped XML equivalent
 // of the plain text data s.
 func EscapeText(w io.Writer, s []byte) error {
+	return escapeText(w, s, true)
+}
+
+// escapeText writes to w the properly escaped XML equivalent
+// of the plain text data s. If escapeNewline is true, newline
+// characters will be escaped.
+func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 	var esc []byte
 	last := 0
 	for i := 0; i < len(s); {
@@ -1882,6 +1870,9 @@ func EscapeText(w io.Writer, s []byte) error {
 		case '\t':
 			esc = esc_tab
 		case '\n':
+			if !escapeNewline {
+				continue
+			}
 			esc = esc_nl
 		case '\r':
 			esc = esc_cr
@@ -1952,16 +1943,17 @@ func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
 }
 
-// procInstEncoding parses the `encoding="..."` or `encoding='...'`
+// procInst parses the `param="..."` or `param='...'`
 // value out of the provided string, returning "" if not found.
-func procInstEncoding(s string) string {
+func procInst(param, s string) string {
 	// TODO: this parsing is somewhat lame and not exact.
 	// It works for all actual cases, though.
-	idx := strings.Index(s, "encoding=")
+	param = param + "="
+	idx := strings.Index(s, param)
 	if idx == -1 {
 		return ""
 	}
-	v := s[idx+len("encoding="):]
+	v := s[idx+len(param):]
 	if v == "" {
 		return ""
 	}

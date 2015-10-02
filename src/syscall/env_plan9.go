@@ -16,7 +16,7 @@ var (
 )
 
 func readenv(key string) (string, error) {
-	fd, err := Open("/env/"+key, O_RDONLY)
+	fd, err := open("/env/"+key, O_RDONLY)
 	if err != nil {
 		return "", err
 	}
@@ -35,7 +35,7 @@ func readenv(key string) (string, error) {
 }
 
 func writeenv(key, value string) error {
-	fd, err := Create("/env/"+key, O_RDWR, 0666)
+	fd, err := create("/env/"+key, O_RDWR, 0666)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func Unsetenv(key string) error {
 }
 
 func Environ() []string {
-	fd, err := Open("/env", O_RDONLY)
+	fd, err := open("/env", O_RDONLY)
 	if err != nil {
 		return nil
 	}

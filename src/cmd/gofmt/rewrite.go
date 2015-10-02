@@ -154,7 +154,7 @@ func isWildcard(s string) bool {
 	return size == len(s) && unicode.IsLower(rune)
 }
 
-// match returns true if pattern matches val,
+// match reports whether pattern matches val,
 // recording wildcard submatches in m.
 // If m == nil, match checks whether pattern == val.
 func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {

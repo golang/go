@@ -205,15 +205,17 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 }
 
 // allIdents returns the names of the identifiers under the Ident field of the node,
-// which might be a singleton (Identifier) or a slice (Field).
+// which might be a singleton (Identifier) or a slice (Field or Chain).
 func allIdents(node parse.Node) []string {
 	switch node := node.(type) {
 	case *parse.IdentifierNode:
 		return []string{node.Ident}
 	case *parse.FieldNode:
 		return node.Ident
+	case *parse.ChainNode:
+		return node.Field
 	}
-	panic("unidentified node type in allIdents")
+	return nil
 }
 
 // ensurePipelineContains ensures that the pipeline has commands with
@@ -297,9 +299,9 @@ var redundantFuncs = map[string]map[string]bool{
 // unless it is redundant with the last command.
 func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.CommandNode {
 	if n := len(cmds); n != 0 {
-		last, ok := cmds[n-1].Args[0].(*parse.IdentifierNode)
-		next, _ := cmd.Args[0].(*parse.IdentifierNode)
-		if ok && redundantFuncs[last.Ident][next.Ident] {
+		last, okLast := cmds[n-1].Args[0].(*parse.IdentifierNode)
+		next, okNext := cmd.Args[0].(*parse.IdentifierNode)
+		if okLast && okNext && redundantFuncs[last.Ident][next.Ident] {
 			return cmds
 		}
 	}

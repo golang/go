@@ -47,12 +47,20 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 	return ""
 }
 
+type routeStats struct {
+	loop  int // # of active loopback interfaces
+	other int // # of active other interfaces
+
+	uni4, uni6     int // # of active connected unicast, anycast routes
+	multi4, multi6 int // # of active connected multicast route clones
+}
+
 func TestInterfaces(t *testing.T) {
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
 	}
-	var nifs, naf4, naf6, nmaf4, nmaf6 int
+	var stats routeStats
 	for _, ifi := range ift {
 		ifxi, err := InterfaceByIndex(ifi.Index)
 		if err != nil {
@@ -70,36 +78,53 @@ func TestInterfaces(t *testing.T) {
 		}
 		t.Logf("%q: flags %q, ifindex %v, mtu %v", ifi.Name, ifi.Flags.String(), ifi.Index, ifi.MTU)
 		t.Logf("hardware address %q", ifi.HardwareAddr.String())
-		if ifi.Flags&FlagUp != 0 && ifi.Flags&FlagLoopback == 0 {
-			nifs++ // active interfaces except loopback interfaces
+		if ifi.Flags&FlagUp != 0 {
+			if ifi.Flags&FlagLoopback != 0 {
+				stats.loop++
+			} else {
+				stats.other++
+			}
 		}
 		n4, n6 := testInterfaceAddrs(t, &ifi)
-		naf4 += n4
-		naf6 += n6
+		stats.uni4 += n4
+		stats.uni6 += n6
 		n4, n6 = testInterfaceMulticastAddrs(t, &ifi)
-		nmaf4 += n4
-		nmaf6 += n6
+		stats.multi4 += n4
+		stats.multi6 += n6
 	}
 	switch runtime.GOOS {
 	case "nacl", "plan9", "solaris":
 	default:
-		if supportsIPv4 && nifs > 0 && naf4 == 0 {
-			t.Errorf("got %v; want more than or equal to one", naf4)
+		// Test the existence of connected unicast routes for
+		// IPv4.
+		if supportsIPv4 && stats.loop+stats.other > 0 && stats.uni4 == 0 {
+			t.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v", stats)
 		}
-		if supportsIPv6 && nifs > 0 && naf6 == 0 {
-			t.Errorf("got %v; want more than or equal to one", naf6)
+		// Test the existence of connected unicast routes for
+		// IPv6. We can assume the existence of ::1/128 when
+		// at least one looopback interface is installed.
+		if supportsIPv6 && stats.loop > 0 && stats.uni6 == 0 {
+			t.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v", stats)
 		}
 	}
 	switch runtime.GOOS {
 	case "dragonfly", "nacl", "netbsd", "openbsd", "plan9", "solaris":
 	default:
-		// Unlike IPv6, IPv4 multicast capability is not a
-		// mandatory feature.
-		//if supportsIPv4 && nactvifs > 0 && nmaf4 == 0 {
-		//	t.Errorf("got %v; want more than or equal to one", nmaf4)
+		// Test the existence of connected multicast route
+		// clones for IPv4. Unlike IPv6, IPv4 multicast
+		// capability is not a mandatory feature, and so this
+		// test is disabled.
+		//if supportsIPv4 && stats.loop > 0 && stats.uni4 > 1 && stats.multi4 == 0 {
+		//	t.Errorf("num IPv4 multicast route clones = 0; want >0; summary: %+v", stats)
 		//}
-		if supportsIPv6 && nifs > 0 && nmaf6 == 0 {
-			t.Errorf("got %v; want more than or equal to one", nmaf6)
+		// Test the existence of connected multicast route
+		// clones for IPv6. Some platform never uses loopback
+		// interface as the nexthop for multicast routing.
+		// We can assume the existence of connected multicast
+		// route clones when at least two connected unicast
+		// routes, ::1/128 and other, are installed.
+		if supportsIPv6 && stats.loop > 0 && stats.uni6 > 1 && stats.multi6 == 0 {
+			t.Errorf("num IPv6 multicast route clones = 0; want >0; summary: %+v", stats)
 		}
 	}
 }
@@ -109,22 +134,30 @@ func TestInterfaceAddrs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var nifs int
+	var stats routeStats
 	for _, ifi := range ift {
-		if ifi.Flags&FlagUp != 0 && ifi.Flags&FlagLoopback == 0 {
-			nifs++ // active interfaces except loopback interfaces
+		if ifi.Flags&FlagUp != 0 {
+			if ifi.Flags&FlagLoopback != 0 {
+				stats.loop++
+			} else {
+				stats.other++
+			}
 		}
 	}
 	ifat, err := InterfaceAddrs()
 	if err != nil {
 		t.Fatal(err)
 	}
-	naf4, naf6 := testAddrs(t, ifat)
-	if supportsIPv4 && nifs > 0 && naf4 == 0 {
-		t.Errorf("got %v; want more than or equal to one", naf4)
+	stats.uni4, stats.uni6 = testAddrs(t, ifat)
+	// Test the existence of connected unicast routes for IPv4.
+	if supportsIPv4 && stats.loop+stats.other > 0 && stats.uni4 == 0 {
+		t.Errorf("num IPv4 unicast routes = 0; want >0; summary: %+v", stats)
 	}
-	if supportsIPv6 && nifs > 0 && naf6 == 0 {
-		t.Errorf("got %v; want more than or equal to one", naf6)
+	// Test the existence of connected unicast routes for IPv6.
+	// We can assume the existence of ::1/128 when at least one
+	// looopback interface is installed.
+	if supportsIPv6 && stats.loop > 0 && stats.uni6 == 0 {
+		t.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v", stats)
 	}
 }
 
@@ -196,6 +229,8 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
 }
 
 func BenchmarkInterfaces(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		if _, err := Interfaces(); err != nil {
 			b.Fatal(err)
@@ -204,6 +239,8 @@ func BenchmarkInterfaces(b *testing.B) {
 }
 
 func BenchmarkInterfaceByIndex(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")
@@ -216,6 +253,8 @@ func BenchmarkInterfaceByIndex(b *testing.B) {
 }
 
 func BenchmarkInterfaceByName(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")
@@ -228,6 +267,8 @@ func BenchmarkInterfaceByName(b *testing.B) {
 }
 
 func BenchmarkInterfaceAddrs(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		if _, err := InterfaceAddrs(); err != nil {
 			b.Fatal(err)
@@ -236,6 +277,8 @@ func BenchmarkInterfaceAddrs(b *testing.B) {
 }
 
 func BenchmarkInterfacesAndAddrs(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")
@@ -248,6 +291,8 @@ func BenchmarkInterfacesAndAddrs(b *testing.B) {
 }
 
 func BenchmarkInterfacesAndMulticastAddrs(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	ifi := loopbackInterface()
 	if ifi == nil {
 		b.Skip("loopback interface not found")

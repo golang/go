@@ -265,6 +265,23 @@ func TestIndexByte(t *testing.T) {
 	}
 }
 
+func TestLastIndexByte(t *testing.T) {
+	testCases := []BinOpTest{
+		{"", "q", -1},
+		{"abcdef", "q", -1},
+		{"abcdefabcdef", "a", len("abcdef")},      // something in the middle
+		{"abcdefabcdef", "f", len("abcdefabcde")}, // last byte
+		{"zabcdefabcdef", "z", 0},                 // first byte
+		{"a☺b☻c☹d", "b", len("a☺")},               // non-ascii
+	}
+	for _, test := range testCases {
+		actual := LastIndexByte([]byte(test.a), test.b[0])
+		if actual != test.i {
+			t.Errorf("LastIndexByte(%q,%c) = %v; want %v", test.a, test.b[0], actual, test.i)
+		}
+	}
+}
+
 // test a larger buffer with different sizes and alignments
 func TestIndexByteBig(t *testing.T) {
 	var n = 1024
@@ -1238,3 +1255,34 @@ func BenchmarkRepeat(b *testing.B) {
 		Repeat([]byte("-"), 80)
 	}
 }
+
+func benchmarkBytesCompare(b *testing.B, n int) {
+	var x = make([]byte, n)
+	var y = make([]byte, n)
+
+	for i := 0; i < n; i++ {
+		x[i] = 'a'
+	}
+
+	for i := 0; i < n; i++ {
+		y[i] = 'a'
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Compare(x, y)
+	}
+}
+
+func BenchmarkBytesCompare1(b *testing.B)    { benchmarkBytesCompare(b, 1) }
+func BenchmarkBytesCompare2(b *testing.B)    { benchmarkBytesCompare(b, 2) }
+func BenchmarkBytesCompare4(b *testing.B)    { benchmarkBytesCompare(b, 4) }
+func BenchmarkBytesCompare8(b *testing.B)    { benchmarkBytesCompare(b, 8) }
+func BenchmarkBytesCompare16(b *testing.B)   { benchmarkBytesCompare(b, 16) }
+func BenchmarkBytesCompare32(b *testing.B)   { benchmarkBytesCompare(b, 32) }
+func BenchmarkBytesCompare64(b *testing.B)   { benchmarkBytesCompare(b, 64) }
+func BenchmarkBytesCompare128(b *testing.B)  { benchmarkBytesCompare(b, 128) }
+func BenchmarkBytesCompare256(b *testing.B)  { benchmarkBytesCompare(b, 256) }
+func BenchmarkBytesCompare512(b *testing.B)  { benchmarkBytesCompare(b, 512) }
+func BenchmarkBytesCompare1024(b *testing.B) { benchmarkBytesCompare(b, 1024) }
+func BenchmarkBytesCompare2048(b *testing.B) { benchmarkBytesCompare(b, 2048) }

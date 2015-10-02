@@ -163,6 +163,17 @@ func (b *buf) addr() uint64 {
 	return 0
 }
 
+func (b *buf) unitLength() (length Offset, dwarf64 bool) {
+	length = Offset(b.uint32())
+	if length == 0xffffffff {
+		dwarf64 = true
+		length = Offset(b.uint64())
+	} else if length >= 0xfffffff0 {
+		b.error("unit length has reserved value")
+	}
+	return
+}
+
 func (b *buf) error(s string) {
 	if b.err == nil {
 		b.data = nil

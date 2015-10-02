@@ -21,36 +21,40 @@ func (h Hash) HashFunc() Hash {
 }
 
 const (
-	MD4       Hash = 1 + iota // import golang.org/x/crypto/md4
-	MD5                       // import crypto/md5
-	SHA1                      // import crypto/sha1
-	SHA224                    // import crypto/sha256
-	SHA256                    // import crypto/sha256
-	SHA384                    // import crypto/sha512
-	SHA512                    // import crypto/sha512
-	MD5SHA1                   // no implementation; MD5+SHA1 used for TLS RSA
-	RIPEMD160                 // import golang.org/x/crypto/ripemd160
-	SHA3_224                  // import golang.org/x/crypto/sha3
-	SHA3_256                  // import golang.org/x/crypto/sha3
-	SHA3_384                  // import golang.org/x/crypto/sha3
-	SHA3_512                  // import golang.org/x/crypto/sha3
+	MD4        Hash = 1 + iota // import golang.org/x/crypto/md4
+	MD5                        // import crypto/md5
+	SHA1                       // import crypto/sha1
+	SHA224                     // import crypto/sha256
+	SHA256                     // import crypto/sha256
+	SHA384                     // import crypto/sha512
+	SHA512                     // import crypto/sha512
+	MD5SHA1                    // no implementation; MD5+SHA1 used for TLS RSA
+	RIPEMD160                  // import golang.org/x/crypto/ripemd160
+	SHA3_224                   // import golang.org/x/crypto/sha3
+	SHA3_256                   // import golang.org/x/crypto/sha3
+	SHA3_384                   // import golang.org/x/crypto/sha3
+	SHA3_512                   // import golang.org/x/crypto/sha3
+	SHA512_224                 // import crypto/sha512
+	SHA512_256                 // import crypto/sha512
 	maxHash
 )
 
 var digestSizes = []uint8{
-	MD4:       16,
-	MD5:       16,
-	SHA1:      20,
-	SHA224:    28,
-	SHA256:    32,
-	SHA384:    48,
-	SHA512:    64,
-	SHA3_224:  28,
-	SHA3_256:  32,
-	SHA3_384:  48,
-	SHA3_512:  64,
-	MD5SHA1:   36,
-	RIPEMD160: 20,
+	MD4:        16,
+	MD5:        16,
+	SHA1:       20,
+	SHA224:     28,
+	SHA256:     32,
+	SHA384:     48,
+	SHA512:     64,
+	SHA512_224: 28,
+	SHA512_256: 32,
+	SHA3_224:   28,
+	SHA3_256:   32,
+	SHA3_384:   48,
+	SHA3_512:   64,
+	MD5SHA1:    36,
+	RIPEMD160:  20,
 }
 
 // Size returns the length, in bytes, of a digest resulting from the given hash
@@ -124,3 +128,19 @@ type SignerOpts interface {
 	// hashing was done.
 	HashFunc() Hash
 }
+
+// Decrypter is an interface for an opaque private key that can be used for
+// asymmetric decryption operations. An example would be an RSA key
+// kept in a hardware module.
+type Decrypter interface {
+	// Public returns the public key corresponding to the opaque,
+	// private key.
+	Public() PublicKey
+
+	// Decrypt decrypts msg. The opts argument should be appropriate for
+	// the primitive used. See the documentation in each implementation for
+	// details.
+	Decrypt(rand io.Reader, msg []byte, opts DecrypterOpts) (plaintext []byte, err error)
+}
+
+type DecrypterOpts interface{}

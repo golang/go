@@ -87,6 +87,8 @@ struct my_sockaddr_un {
 
 #ifdef __ARM_EABI__
 typedef struct user_regs PtraceRegs;
+#elif defined(__aarch64__)
+typedef struct user_pt_regs PtraceRegs;
 #elif defined(__powerpc64__)
 typedef struct pt_regs PtraceRegs;
 #else
@@ -376,7 +378,9 @@ type Ustat_t C.struct_ustat
 type EpollEvent C.struct_my_epoll_event
 
 const (
-	_AT_FDCWD = C.AT_FDCWD
+	_AT_FDCWD            = C.AT_FDCWD
+	_AT_REMOVEDIR        = C.AT_REMOVEDIR
+	_AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
 )
 
 // Terminal handling

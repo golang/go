@@ -22,16 +22,19 @@ func (t T) method() []byte {
 	The traceback should look something like this, modulo line numbers and hex constants.
 	Don't worry much about the base levels, but check the ones in our own package.
 
-		/Users/r/go/src/runtime/debug/stack_test.go:15 (0x13878)
-			(*T).ptrmethod: return Stack()
-		/Users/r/go/src/runtime/debug/stack_test.go:18 (0x138dd)
-			T.method: return t.ptrmethod()
-		/Users/r/go/src/runtime/debug/stack_test.go:23 (0x13920)
-			TestStack: b := T(0).method()
-		/Users/r/go/src/testing/testing.go:132 (0x14a7a)
-			tRunner: test.F(t)
-		/Users/r/go/src/runtime/proc.c:145 (0xc970)
-			???: runtime·unlock(&runtime·sched);
+		goroutine 10 [running]:
+		runtime/debug.Stack(0x0, 0x0, 0x0)
+			/Users/r/go/src/runtime/debug/stack.go:28 +0x80
+		runtime/debug.(*T).ptrmethod(0xc82005ee70, 0x0, 0x0, 0x0)
+			/Users/r/go/src/runtime/debug/stack_test.go:15 +0x29
+		runtime/debug.T.method(0x0, 0x0, 0x0, 0x0)
+			/Users/r/go/src/runtime/debug/stack_test.go:18 +0x32
+		runtime/debug.TestStack(0xc8201ce000)
+			/Users/r/go/src/runtime/debug/stack_test.go:37 +0x38
+		testing.tRunner(0xc8201ce000, 0x664b58)
+			/Users/r/go/src/testing/testing.go:456 +0x98
+		created by testing.RunTests
+			/Users/r/go/src/testing/testing.go:561 +0x86d
 */
 func TestStack(t *testing.T) {
 	b := T(0).method()
@@ -41,17 +44,16 @@ func TestStack(t *testing.T) {
 	}
 	n := 0
 	frame := func(line, code string) {
+		check(t, lines[n], code)
+		n++
 		check(t, lines[n], line)
 		n++
-		// The source might not be available while running the test.
-		if strings.HasPrefix(lines[n], "\t") {
-			check(t, lines[n], code)
-			n++
-		}
 	}
-	frame("src/runtime/debug/stack_test.go", "\t(*T).ptrmethod: return Stack()")
-	frame("src/runtime/debug/stack_test.go", "\tT.method: return t.ptrmethod()")
-	frame("src/runtime/debug/stack_test.go", "\tTestStack: b := T(0).method()")
+	n++
+	frame("src/runtime/debug/stack.go", "runtime/debug.Stack")
+	frame("src/runtime/debug/stack_test.go", "runtime/debug.(*T).ptrmethod")
+	frame("src/runtime/debug/stack_test.go", "runtime/debug.T.method")
+	frame("src/runtime/debug/stack_test.go", "runtime/debug.TestStack")
 	frame("src/testing/testing.go", "")
 }
 

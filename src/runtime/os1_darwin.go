@@ -8,7 +8,6 @@ import "unsafe"
 
 //extern SigTabTT runtime·sigtab[];
 
-var sigset_none = uint32(0)
 var sigset_all = ^uint32(0)
 
 func unimplemented(name string) {
@@ -35,14 +34,19 @@ func osinit() {
 	// bsdthread_register delayed until end of goenvs so that we
 	// can look at the environment first.
 
+	ncpu = getncpu()
+}
+
+func getncpu() int32 {
 	// Use sysctl to fetch hw.ncpu.
 	mib := [2]uint32{6, 3}
 	out := uint32(0)
 	nout := unsafe.Sizeof(out)
 	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
-	if ret >= 0 {
-		ncpu = int32(out)
+	if ret >= 0 && int32(out) > 0 {
+		return int32(out)
 	}
+	return 1
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -51,7 +55,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
 func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -71,6 +75,8 @@ func goenvs() {
 	}
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if false {
@@ -79,7 +85,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 
 	var oset uint32
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
-	errno := bsdthread_create(stk, mp, mp.g0, funcPC(mstart))
+	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
 
 	if errno < 0 {
@@ -88,6 +94,35 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	}
 }
 
+// newosproc0 is a version of newosproc that can be called before the runtime
+// is initialized.
+//
+// As Go uses bsdthread_register when running without cgo, this function is
+// not safe to use after initialization as it does not pass an M as fnarg.
+//
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
+	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+	if stack == nil {
+		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		exit(1)
+	}
+	stk := unsafe.Pointer(uintptr(stack) + stacksize)
+
+	var oset uint32
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	errno := bsdthread_create(stk, fn, fnarg)
+	sigprocmask(_SIG_SETMASK, &oset, nil)
+
+	if errno < 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+}
+
+var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
@@ -95,18 +130,37 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+func msigsave(mp *m) {
+	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
+	sigprocmask(_SIG_SETMASK, nil, smask)
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
 	// Initialize signal handling.
 	_g_ := getg()
-	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+	signalstack(&_g_.m.gsignal.stack)
+
+	// restore signal mask from m.sigmask and unblock essential signals
+	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			nmask &^= 1 << (uint32(i) - 1)
+		}
+	}
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	signalstack(nil, 0)
+	_g_ := getg()
+	smask := (*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	sigprocmask(_SIG_SETMASK, smask, nil)
+	signalstack(nil)
 }
 
 // Mach IPC, to get at semaphores
@@ -405,17 +459,23 @@ func getsig(i int32) uintptr {
 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
 }
 
-func signalstack(p *byte, n int32) {
+func signalstack(s *stack) {
 	var st stackt
-	st.ss_sp = p
-	st.ss_size = uintptr(n)
-	st.ss_flags = 0
-	if p == nil {
+	if s == nil {
 		st.ss_flags = _SS_DISABLE
+	} else {
+		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
+		st.ss_size = s.hi - s.lo
+		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+func updatesigmask(m sigmask) {
+	sigprocmask(_SIG_SETMASK, &m[0], nil)
+}
+
+func unblocksig(sig int32) {
+	mask := uint32(1) << (uint32(sig) - 1)
+	sigprocmask(_SIG_UNBLOCK, &mask, nil)
 }

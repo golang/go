@@ -72,7 +72,7 @@ Loop:
 			// for this lock, chained through m->nextwaitm.
 			// Queue this M.
 			for {
-				gp.m.nextwaitm = (*m)((unsafe.Pointer)(v &^ locked))
+				gp.m.nextwaitm = v &^ locked
 				if casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
 					break
 				}
@@ -90,6 +90,8 @@ Loop:
 	}
 }
 
+//go:nowritebarrier
+// We might not be holding a p in this code.
 func unlock(l *mutex) {
 	gp := getg()
 	var mp *m
@@ -103,7 +105,7 @@ func unlock(l *mutex) {
 			// Other M's are waiting for the lock.
 			// Dequeue an M.
 			mp = (*m)((unsafe.Pointer)(v &^ locked))
-			if casuintptr(&l.key, v, uintptr(unsafe.Pointer(mp.nextwaitm))) {
+			if casuintptr(&l.key, v, mp.nextwaitm) {
 				// Dequeued an M.  Wake it.
 				semawakeup(mp)
 				break

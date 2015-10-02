@@ -101,6 +101,7 @@
 //	- "go1.2", from Go version 1.2 onward
 //	- "go1.3", from Go version 1.3 onward
 //	- "go1.4", from Go version 1.4 onward
+//	- "go1.5", from Go version 1.5 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // If a file's name, after stripping the extension and a possible _test suffix,
@@ -111,7 +112,7 @@
 // (example: source_windows_amd64.go) where GOOS and GOARCH represent
 // any known operating system and architecture values respectively, then
 // the file is considered to have an implicit build constraint requiring
-// those terms.
+// those terms (in addition to any explicit constraints in the file).
 //
 // To keep a file from being considered for the build:
 //

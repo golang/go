@@ -52,6 +52,30 @@ func (t *multiWriter) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+var _ stringWriter = (*multiWriter)(nil)
+
+func (t *multiWriter) WriteString(s string) (n int, err error) {
+	var p []byte // lazily initialized if/when needed
+	for _, w := range t.writers {
+		if sw, ok := w.(stringWriter); ok {
+			n, err = sw.WriteString(s)
+		} else {
+			if p == nil {
+				p = []byte(s)
+			}
+			n, err = w.Write(p)
+		}
+		if err != nil {
+			return
+		}
+		if n != len(s) {
+			err = ErrShortWrite
+			return
+		}
+	}
+	return len(s), nil
+}
+
 // MultiWriter creates a writer that duplicates its writes to all the
 // provided writers, similar to the Unix tee(1) command.
 func MultiWriter(writers ...Writer) Writer {
