@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
 	}
 
-	flags.Parse(architecture.Thechar)
+	flags.Parse()
 
 	// Create object file, write header.
 	fd, err := os.Create(*flags.OutputFile)
@@ -40,8 +40,13 @@ func main() {
 	if *flags.PrintOut {
 		ctxt.Debugasm = 1
 	}
+	ctxt.LineHist.TrimPathPrefix = *flags.TrimPath
+	ctxt.Flag_dynlink = *flags.Dynlink
+	if *flags.Shared || *flags.Dynlink {
+		ctxt.Flag_shared = 1
+	}
 	ctxt.Bso = obj.Binitw(os.Stdout)
-	defer obj.Bflush(ctxt.Bso)
+	defer ctxt.Bso.Flush()
 	ctxt.Diag = log.Fatalf
 	output := obj.Binitw(fd)
 	fmt.Fprintf(output, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
@@ -53,9 +58,10 @@ func main() {
 	var ok bool
 	pList.Firstpc, ok = parser.Parse()
 	if !ok {
-		log.Fatalf("asm: assembly of %s failed", flag.Arg(0))
+		log.Printf("asm: assembly of %s failed", flag.Arg(0))
+		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}
 	obj.Writeobjdirect(ctxt, output)
-	obj.Bflush(output)
+	output.Flush()
 }

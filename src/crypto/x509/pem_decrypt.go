@@ -108,7 +108,10 @@ var IncorrectPasswordError = errors.New("x509: decryption password incorrect")
 // encrypt it and returns a slice of decrypted DER encoded bytes. It inspects
 // the DEK-Info header to determine the algorithm used for decryption. If no
 // DEK-Info header is present, an error is returned. If an incorrect password
-// is detected an IncorrectPasswordError is returned.
+// is detected an IncorrectPasswordError is returned. Because of deficiencies
+// in the encrypted-PEM format, it's not always possible to detect an incorrect
+// password. In these cases no error will be returned but the decrypted DER
+// bytes will be random noise.
 func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	dek, ok := b.Headers["DEK-Info"]
 	if !ok {
@@ -139,6 +142,10 @@ func DecryptPEMBlock(b *pem.Block, password []byte) ([]byte, error) {
 	block, err := ciph.cipherFunc(key)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(b.Bytes)%block.BlockSize() != 0 {
+		return nil, errors.New("x509: encrypted PEM data is not a multiple of the block size")
 	}
 
 	data := make([]byte, len(b.Bytes))

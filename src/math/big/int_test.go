@@ -6,10 +6,7 @@ package big
 
 import (
 	"bytes"
-	"encoding/gob"
 	"encoding/hex"
-	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -219,6 +216,45 @@ func TestMulRangeZ(t *testing.T) {
 	}
 }
 
+func TestBinomial(t *testing.T) {
+	var z Int
+	for _, test := range []struct {
+		n, k int64
+		want string
+	}{
+		{0, 0, "1"},
+		{0, 1, "0"},
+		{1, 0, "1"},
+		{1, 1, "1"},
+		{1, 10, "0"},
+		{4, 0, "1"},
+		{4, 1, "4"},
+		{4, 2, "6"},
+		{4, 3, "4"},
+		{4, 4, "1"},
+		{10, 1, "10"},
+		{10, 9, "10"},
+		{10, 5, "252"},
+		{11, 5, "462"},
+		{11, 6, "462"},
+		{100, 10, "17310309456440"},
+		{100, 90, "17310309456440"},
+		{1000, 10, "263409560461970212832400"},
+		{1000, 990, "263409560461970212832400"},
+	} {
+		if got := z.Binomial(test.n, test.k).String(); got != test.want {
+			t.Errorf("Binomial(%d, %d) = %s; want %s", test.n, test.k, got, test.want)
+		}
+	}
+}
+
+func BenchmarkBinomial(b *testing.B) {
+	var z Int
+	for i := b.N - 1; i >= 0; i-- {
+		z.Binomial(1000, 990)
+	}
+}
+
 // Examples from the Go Language Spec, section "Arithmetic operators"
 var divisionSignsTests = []struct {
 	x, y int64
@@ -290,15 +326,6 @@ func TestDivisionSigns(t *testing.T) {
 	}
 }
 
-var bitsTests = []nat{
-	nil,
-	{0},
-	{1},
-	{0, 1, 2, 3, 4},
-	{4, 3, 2, 1, 0},
-	{4, 3, 2, 1, 0, 0, 0, 0},
-}
-
 func norm(x nat) nat {
 	i := len(x)
 	for i > 0 && x[i-1] == 0 {
@@ -308,7 +335,14 @@ func norm(x nat) nat {
 }
 
 func TestBits(t *testing.T) {
-	for _, test := range bitsTests {
+	for _, test := range []nat{
+		nil,
+		{0},
+		{1},
+		{0, 1, 2, 3, 4},
+		{4, 3, 2, 1, 0},
+		{4, 3, 2, 1, 0, 0, 0, 0},
+	} {
 		var z Int
 		z.neg = true
 		got := z.SetBits(test)
@@ -318,7 +352,7 @@ func TestBits(t *testing.T) {
 		}
 
 		if got.neg {
-			t.Errorf("SetBits(%v): got negative result")
+			t.Errorf("SetBits(%v): got negative result", test)
 		}
 
 		bits := nat(z.Bits())
@@ -350,12 +384,17 @@ func TestSetBytes(t *testing.T) {
 }
 
 func checkBytes(b []byte) bool {
+	// trim leading zero bytes since Bytes() won't return them
+	// (was issue 12231)
+	for len(b) > 0 && b[0] == 0 {
+		b = b[1:]
+	}
 	b2 := new(Int).SetBytes(b).Bytes()
 	return bytes.Equal(b, b2)
 }
 
 func TestBytes(t *testing.T) {
-	if err := quick.Check(checkSetBytes, nil); err != nil {
+	if err := quick.Check(checkBytes, nil); err != nil {
 		t.Error(err)
 	}
 }
@@ -488,6 +527,7 @@ var expTests = []struct {
 	{"1234", "-1", "1", "0"},
 
 	// misc
+	{"5", "1", "3", "2"},
 	{"5", "-7", "", "1"},
 	{"-5", "-7", "", "1"},
 	{"5", "0", "", "1"},
@@ -624,6 +664,21 @@ func testGcd(t *testing.T, d, x, y, a, b *Int) {
 	if D.Cmp(d) != 0 {
 		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, D, d)
 	}
+
+	// check results in presence of aliasing (issue #11284)
+	a2 := new(Int).Set(a)
+	b2 := new(Int).Set(b)
+	a2.binaryGCD(a2, b2) // result is same as 1st argument
+	if a2.Cmp(d) != 0 {
+		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, a2, d)
+	}
+
+	a2 = new(Int).Set(a)
+	b2 = new(Int).Set(b)
+	b2.binaryGCD(a2, b2) // result is same as 2nd argument
+	if b2.Cmp(d) != 0 {
+		t.Errorf("binaryGcd(%s, %s): got d = %s, want %s", a, b, b2, d)
+	}
 }
 
 func TestGcd(t *testing.T) {
@@ -655,7 +710,7 @@ var primes = []string{
 	"10953742525620032441",
 	"17908251027575790097",
 
-	// http://golang.org/issue/638
+	// https://golang.org/issue/638
 	"18699199384836356663",
 
 	"98920366548084643601728869055592650835572950932266967461790948584315647051443",
@@ -666,6 +721,13 @@ var primes = []string{
 	"230975859993204150666423538988557839555560243929065415434980904258310530753006723857139742334640122533598517597674807096648905501653461687601339782814316124971547968912893214002992086353183070342498989426570593",
 	"5521712099665906221540423207019333379125265462121169655563495403888449493493629943498064604536961775110765377745550377067893607246020694972959780839151452457728855382113555867743022746090187341871655890805971735385789993",
 	"203956878356401977405765866929034577280193993314348263094772646453283062722701277632936616063144088173312372882677123879538709400158306567338328279154499698366071906766440037074217117805690872792848149112022286332144876183376326512083574821647933992961249917319836219304274280243803104015000563790123",
+
+	// ECC primes: http://tools.ietf.org/html/draft-ladd-safecurves-02
+	"3618502788666131106986593281521497120414687020801267626233049500247285301239",                                                                                  // Curve1174: 2^251-9
+	"57896044618658097711785492504343953926634992332820282019728792003956564819949",                                                                                 // Curve25519: 2^255-19
+	"9850501549098619803069760025035903451269934817616361666987073351061430442874302652853566563721228910201656997576599",                                           // E-382: 2^382-105
+	"42307582002575910332922579714097346549017899709713998034217522897561970639123926132812109468141778230245837569601494931472367",                                 // Curve41417: 2^414-17
+	"6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151", // E-521: 2^521-1
 }
 
 var composites = []string{
@@ -1120,6 +1182,53 @@ func BenchmarkBitsetNegOrig(b *testing.B) {
 	}
 }
 
+// tri generates the trinomial 2**(n*2) - 2**n - 1, which is always 3 mod 4 and
+// 7 mod 8, so that 2 is always a quadratic residue.
+func tri(n uint) *Int {
+	x := NewInt(1)
+	x.Lsh(x, n)
+	x2 := new(Int).Lsh(x, n)
+	x2.Sub(x2, x)
+	x2.Sub(x2, intOne)
+	return x2
+}
+
+func BenchmarkModSqrt225_Tonelli(b *testing.B) {
+	p := tri(225)
+	x := NewInt(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrtTonelliShanks(x, p)
+	}
+}
+
+func BenchmarkModSqrt224_3Mod4(b *testing.B) {
+	p := tri(225)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrt3Mod4Prime(x, p)
+	}
+}
+
+func BenchmarkModSqrt5430_Tonelli(b *testing.B) {
+	p := tri(5430)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrtTonelliShanks(x, p)
+	}
+}
+
+func BenchmarkModSqrt5430_3Mod4(b *testing.B) {
+	p := tri(5430)
+	x := new(Int).SetUint64(2)
+	for i := 0; i < b.N; i++ {
+		x.SetUint64(2)
+		x.modSqrt3Mod4Prime(x, p)
+	}
+}
+
 func TestBitwise(t *testing.T) {
 	x := new(Int)
 	y := new(Int)
@@ -1211,136 +1320,134 @@ func TestModInverse(t *testing.T) {
 	}
 }
 
-var encodingTests = []string{
-	"-539345864568634858364538753846587364875430589374589",
-	"-678645873",
-	"-100",
-	"-2",
-	"-1",
-	"0",
-	"1",
-	"2",
-	"10",
-	"42",
-	"1234567890",
-	"298472983472983471903246121093472394872319615612417471234712061",
+// testModSqrt is a helper for TestModSqrt,
+// which checks that ModSqrt can compute a square-root of elt^2.
+func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
+	var sqChk, sqrtChk, sqrtsq Int
+	sq.Mul(elt, elt)
+	sq.Mod(sq, mod)
+	z := sqrt.ModSqrt(sq, mod)
+	if z != sqrt {
+		t.Errorf("ModSqrt returned wrong value %s", z)
+	}
+
+	// test ModSqrt arguments outside the range [0,mod)
+	sqChk.Add(sq, mod)
+	z = sqrtChk.ModSqrt(&sqChk, mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+	sqChk.Sub(sq, mod)
+	z = sqrtChk.ModSqrt(&sqChk, mod)
+	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
+		t.Errorf("ModSqrt returned inconsistent value %s", z)
+	}
+
+	// make sure we actually got a square root
+	if sqrt.Cmp(elt) == 0 {
+		return true // we found the "desired" square root
+	}
+	sqrtsq.Mul(sqrt, sqrt) // make sure we found the "other" one
+	sqrtsq.Mod(&sqrtsq, mod)
+	return sq.Cmp(&sqrtsq) == 0
 }
 
-func TestIntGobEncoding(t *testing.T) {
-	var medium bytes.Buffer
-	enc := gob.NewEncoder(&medium)
-	dec := gob.NewDecoder(&medium)
-	for _, test := range encodingTests {
-		medium.Reset() // empty buffer for each test case (in case of failures)
-		var tx Int
-		tx.SetString(test, 10)
-		if err := enc.Encode(&tx); err != nil {
-			t.Errorf("encoding of %s failed: %s", &tx, err)
-		}
-		var rx Int
-		if err := dec.Decode(&rx); err != nil {
-			t.Errorf("decoding of %s failed: %s", &tx, err)
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("transmission of %s failed: got %s want %s", &tx, &rx, &tx)
-		}
-	}
-}
+func TestModSqrt(t *testing.T) {
+	var elt, mod, modx4, sq, sqrt Int
+	r := rand.New(rand.NewSource(9))
+	for i, s := range primes[1:] { // skip 2, use only odd primes
+		mod.SetString(s, 10)
+		modx4.Lsh(&mod, 2)
 
-// Sending a nil Int pointer (inside a slice) on a round trip through gob should yield a zero.
-// TODO: top-level nils.
-func TestGobEncodingNilIntInSlice(t *testing.T) {
-	buf := new(bytes.Buffer)
-	enc := gob.NewEncoder(buf)
-	dec := gob.NewDecoder(buf)
-
-	var in = make([]*Int, 1)
-	err := enc.Encode(&in)
-	if err != nil {
-		t.Errorf("gob encode failed: %q", err)
-	}
-	var out []*Int
-	err = dec.Decode(&out)
-	if err != nil {
-		t.Fatalf("gob decode failed: %q", err)
-	}
-	if len(out) != 1 {
-		t.Fatalf("wrong len; want 1 got %d", len(out))
-	}
-	var zero Int
-	if out[0].Cmp(&zero) != 0 {
-		t.Errorf("transmission of (*Int)(nill) failed: got %s want 0", out)
-	}
-}
-
-func TestIntJSONEncoding(t *testing.T) {
-	for _, test := range encodingTests {
-		var tx Int
-		tx.SetString(test, 10)
-		b, err := json.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
-		}
-		var rx Int
-		if err := json.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+		// test a few random elements per prime
+		for x := 1; x < 5; x++ {
+			elt.Rand(r, &modx4)
+			elt.Sub(&elt, &mod) // test range [-mod, 3*mod)
+			if !testModSqrt(t, &elt, &mod, &sq, &sqrt) {
+				t.Errorf("#%d: failed (sqrt(e) = %s)", i, &sqrt)
+			}
 		}
 	}
-}
 
-var intVals = []string{
-	"-141592653589793238462643383279502884197169399375105820974944592307816406286",
-	"-1415926535897932384626433832795028841971",
-	"-141592653589793",
-	"-1",
-	"0",
-	"1",
-	"141592653589793",
-	"1415926535897932384626433832795028841971",
-	"141592653589793238462643383279502884197169399375105820974944592307816406286",
-}
-
-func TestIntJSONEncodingTextMarshaller(t *testing.T) {
-	for _, num := range intVals {
-		var tx Int
-		tx.SetString(num, 0)
-		b, err := json.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
+	// exhaustive test for small values
+	for n := 3; n < 100; n++ {
+		mod.SetInt64(int64(n))
+		if !mod.ProbablyPrime(10) {
 			continue
 		}
-		var rx Int
-		if err := json.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
+		isSquare := make([]bool, n)
+
+		// test all the squares
+		for x := 1; x < n; x++ {
+			elt.SetInt64(int64(x))
+			if !testModSqrt(t, &elt, &mod, &sq, &sqrt) {
+				t.Errorf("#%d: failed (sqrt(%d,%d) = %s)", x, &elt, &mod, &sqrt)
+			}
+			isSquare[sq.Uint64()] = true
 		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("JSON encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+
+		// test all non-squares
+		for x := 1; x < n; x++ {
+			sq.SetInt64(int64(x))
+			z := sqrt.ModSqrt(&sq, &mod)
+			if !isSquare[x] && z != nil {
+				t.Errorf("#%d: failed (sqrt(%d,%d) = nil)", x, &sqrt, &mod)
+			}
 		}
 	}
 }
 
-func TestIntXMLEncodingTextMarshaller(t *testing.T) {
-	for _, num := range intVals {
-		var tx Int
-		tx.SetString(num, 0)
-		b, err := xml.Marshal(&tx)
-		if err != nil {
-			t.Errorf("marshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		var rx Int
-		if err := xml.Unmarshal(b, &rx); err != nil {
-			t.Errorf("unmarshaling of %s failed: %s", &tx, err)
-			continue
-		}
-		if rx.Cmp(&tx) != 0 {
-			t.Errorf("XML encoding of %s failed: got %s want %s", &tx, &rx, &tx)
+func TestJacobi(t *testing.T) {
+	testCases := []struct {
+		x, y   int64
+		result int
+	}{
+		{0, 1, 1},
+		{0, -1, 1},
+		{1, 1, 1},
+		{1, -1, 1},
+		{0, 5, 0},
+		{1, 5, 1},
+		{2, 5, -1},
+		{-2, 5, -1},
+		{2, -5, -1},
+		{-2, -5, 1},
+		{3, 5, -1},
+		{5, 5, 0},
+		{-5, 5, 0},
+		{6, 5, 1},
+		{6, -5, 1},
+		{-6, 5, 1},
+		{-6, -5, -1},
+	}
+
+	var x, y Int
+
+	for i, test := range testCases {
+		x.SetInt64(test.x)
+		y.SetInt64(test.y)
+		expected := test.result
+		actual := Jacobi(&x, &y)
+		if actual != expected {
+			t.Errorf("#%d: Jacobi(%d, %d) = %d, but expected %d", i, test.x, test.y, actual, expected)
 		}
 	}
+}
+
+func TestJacobiPanic(t *testing.T) {
+	const failureMsg = "test failure"
+	defer func() {
+		msg := recover()
+		if msg == nil || msg == failureMsg {
+			panic(msg)
+		}
+		t.Log(msg)
+	}()
+	x := NewInt(1)
+	y := NewInt(2)
+	// Jacobi should panic when the second argument is even.
+	Jacobi(x, y)
+	panic(failureMsg)
 }
 
 func TestIssue2607(t *testing.T) {

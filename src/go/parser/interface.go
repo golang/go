@@ -91,7 +91,10 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 	var p parser
 	defer func() {
 		if e := recover(); e != nil {
-			_ = e.(bailout) // re-panics if it's not a bailout
+			// resume same panic if it's not a bailout
+			if _, ok := e.(bailout); !ok {
+				panic(e)
+			}
 		}
 
 		// set result values
@@ -164,14 +167,31 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
 	return
 }
 
-// ParseExpr is a convenience function for obtaining the AST of an expression x.
-// The position information recorded in the AST is undefined. The filename used
-// in error messages is the empty string.
+// ParseExprFrom is a convenience function for parsing an expression.
+// The arguments have the same meaning as for Parse, but the source must
+// be a valid Go (type or value) expression.
 //
-func ParseExpr(x string) (ast.Expr, error) {
-	var p parser
-	p.init(token.NewFileSet(), "", []byte(x), 0)
+func ParseExprFrom(fset *token.FileSet, filename string, src interface{}, mode Mode) (ast.Expr, error) {
+	// get source
+	text, err := readSource(filename, src)
+	if err != nil {
+		return nil, err
+	}
 
+	var p parser
+	defer func() {
+		if e := recover(); e != nil {
+			// resume same panic if it's not a bailout
+			if _, ok := e.(bailout); !ok {
+				panic(e)
+			}
+		}
+		p.errors.Sort()
+		err = p.errors.Err()
+	}()
+
+	// parse expr
+	p.init(fset, filename, text, mode)
 	// Set up pkg-level scopes to avoid nil-pointer errors.
 	// This is not needed for a correct expression x as the
 	// parser will be ok with a nil topScope, but be cautious
@@ -195,4 +215,12 @@ func ParseExpr(x string) (ast.Expr, error) {
 	}
 
 	return e, nil
+}
+
+// ParseExpr is a convenience function for obtaining the AST of an expression x.
+// The position information recorded in the AST is undefined. The filename used
+// in error messages is the empty string.
+//
+func ParseExpr(x string) (ast.Expr, error) {
+	return ParseExprFrom(token.NewFileSet(), "", []byte(x), 0)
 }

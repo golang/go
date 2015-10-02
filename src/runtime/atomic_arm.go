@@ -27,21 +27,15 @@ func xadd(val *uint32, delta int32) uint32 {
 	}
 }
 
+//go:noescape
+//go:linkname xadduintptr runtime.xadd
+func xadduintptr(ptr *uintptr, delta uintptr) uintptr
+
 //go:nosplit
 func xchg(addr *uint32, v uint32) uint32 {
 	for {
 		old := *addr
 		if cas(addr, old, v) {
-			return old
-		}
-	}
-}
-
-//go:nosplit
-func xchgp1(addr unsafe.Pointer, v unsafe.Pointer) unsafe.Pointer {
-	for {
-		old := *(*unsafe.Pointer)(addr)
-		if casp1((*unsafe.Pointer)(addr), old, v) {
 			return old
 		}
 	}
@@ -149,6 +143,22 @@ func atomicor8(addr *uint8, v uint8) {
 	for {
 		old := *addr32
 		if cas(addr32, old, old|word) {
+			return
+		}
+	}
+}
+
+//go:nosplit
+func atomicand8(addr *uint8, v uint8) {
+	// Align down to 4 bytes and use 32-bit CAS.
+	uaddr := uintptr(unsafe.Pointer(addr))
+	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
+	word := uint32(v) << ((uaddr & 3) * 8)    // little endian
+	mask := uint32(0xFF) << ((uaddr & 3) * 8) // little endian
+	word |= ^mask
+	for {
+		old := *addr32
+		if cas(addr32, old, old&word) {
 			return
 		}
 	}

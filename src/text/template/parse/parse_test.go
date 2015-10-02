@@ -69,6 +69,7 @@ var numberTests = []numberTest{
 	{text: "1+2."},
 	{text: "'x"},
 	{text: "'xx'"},
+	{text: "'433937734937734969526500969526500'"}, // Integer too large - issue 10634.
 	// Issue 8622 - 0xe parsed as floating point. Very embarrassing.
 	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
 }
@@ -227,9 +228,21 @@ var parseTests = []parseTest{
 		`{{with .X}}"hello"{{end}}`},
 	{"with with else", "{{with .X}}hello{{else}}goodbye{{end}}", noError,
 		`{{with .X}}"hello"{{else}}"goodbye"{{end}}`},
+	// Trimming spaces.
+	{"trim left", "x \r\n\t{{- 3}}", noError, `"x"{{3}}`},
+	{"trim right", "{{3 -}}\n\n\ty", noError, `{{3}}"y"`},
+	{"trim left and right", "x \r\n\t{{- 3 -}}\n\n\ty", noError, `"x"{{3}}"y"`},
+	{"comment trim left", "x \r\n\t{{- /* hi */}}", noError, `"x"`},
+	{"comment trim right", "{{/* hi */ -}}\n\n\ty", noError, `"y"`},
+	{"comment trim left and right", "x \r\n\t{{- /* */ -}}\n\n\ty", noError, `"x""y"`},
+	{"block definition", `{{block "foo" .}}hello{{end}}`, noError,
+		`{{template "foo" .}}`},
 	// Errors.
 	{"unclosed action", "hello{{range", hasError, ""},
 	{"unmatched end", "{{end}}", hasError, ""},
+	{"unmatched else", "{{else}}", hasError, ""},
+	{"unmatched else after if", "{{if .X}}hello{{end}}{{else}}", hasError, ""},
+	{"multiple else", "{{if .X}}1{{else}}2{{else}}3{{end}}", hasError, ""},
 	{"missing end", "hello{{range .x}}", hasError, ""},
 	{"missing end after else", "hello{{range .x}}{{else}}", hasError, ""},
 	{"undefined function", "hello{{undefined}}", hasError, ""},
@@ -257,6 +270,24 @@ var parseTests = []parseTest{
 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
+	// dot following a literal value
+	{"dot after integer", "{{1.E}}", hasError, ""},
+	{"dot after float", "{{0.1.E}}", hasError, ""},
+	{"dot after boolean", "{{true.E}}", hasError, ""},
+	{"dot after char", "{{'a'.any}}", hasError, ""},
+	{"dot after string", `{{"hello".guys}}`, hasError, ""},
+	{"dot after dot", "{{..E}}", hasError, ""},
+	{"dot after nil", "{{nil.E}}", hasError, ""},
+	// Wrong pipeline
+	{"wrong pipeline dot", "{{12|.}}", hasError, ""},
+	{"wrong pipeline number", "{{.|12|printf}}", hasError, ""},
+	{"wrong pipeline string", "{{.|printf|\"error\"}}", hasError, ""},
+	{"wrong pipeline char", "{{12|printf|'e'}}", hasError, ""},
+	{"wrong pipeline boolean", "{{.|true}}", hasError, ""},
+	{"wrong pipeline nil", "{{'c'|nil}}", hasError, ""},
+	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
+	// Missing pipeline in block
+	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
 }
 
 var builtins = map[string]interface{}{
@@ -375,7 +406,7 @@ var errorTests = []parseTest{
 		hasError, `unexpected ")"`},
 	{"space",
 		"{{`x`3}}",
-		hasError, `missing space?`},
+		hasError, `in operand`},
 	{"idchar",
 		"{{a#}}",
 		hasError, `'#'`},
@@ -407,6 +438,15 @@ var errorTests = []parseTest{
 	{"undefvar",
 		"{{$a}}",
 		hasError, `undefined variable`},
+	{"wrongdot",
+		"{{true.any}}",
+		hasError, `unexpected . after term`},
+	{"wrongpipeline",
+		"{{12|false}}",
+		hasError, `non executable command in pipeline`},
+	{"emptypipeline",
+		`{{ ( ) }}`,
+		hasError, `missing value for parenthesized pipeline`},
 }
 
 func TestErrors(t *testing.T) {
@@ -419,5 +459,28 @@ func TestErrors(t *testing.T) {
 		if !strings.Contains(err.Error(), test.result) {
 			t.Errorf("%q: error %q does not contain %q", test.name, err, test.result)
 		}
+	}
+}
+
+func TestBlock(t *testing.T) {
+	const (
+		input = `a{{block "inner" .}}bar{{.}}baz{{end}}b`
+		outer = `a{{template "inner" .}}b`
+		inner = `bar{{.}}baz`
+	)
+	treeSet := make(map[string]*Tree)
+	tmpl, err := New("outer").Parse(input, "", "", treeSet, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := tmpl.Root.String(), outer; g != w {
+		t.Errorf("outer template = %q, want %q", g, w)
+	}
+	inTmpl := treeSet["inner"]
+	if inTmpl == nil {
+		t.Fatal("block did not define template")
+	}
+	if g, w := inTmpl.Root.String(), inner; g != w {
+		t.Errorf("inner template = %q, want %q", g, w)
 	}
 }

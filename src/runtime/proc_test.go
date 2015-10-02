@@ -7,6 +7,7 @@ package runtime_test
 import (
 	"math"
 	"runtime"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -95,6 +96,10 @@ func TestYieldLocked(t *testing.T) {
 }
 
 func TestGoroutineParallelism(t *testing.T) {
+	if runtime.NumCPU() == 1 {
+		// Takes too long, too easy to deadlock, etc.
+		t.Skip("skipping on uniprocessor")
+	}
 	P := 4
 	N := 10
 	if testing.Short() {
@@ -104,8 +109,8 @@ func TestGoroutineParallelism(t *testing.T) {
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(P))
 	// If runtime triggers a forced GC during this test then it will deadlock,
 	// since the goroutines can't be stopped/preempted.
-	// So give this test as much time as possible.
-	runtime.GC()
+	// Disable GC for this test (see issue #10958).
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
 	for try := 0; try < N; try++ {
 		done := make(chan bool)
 		x := uint32(0)
@@ -291,6 +296,98 @@ func main() {
 	fmt.Println("OK")
 }
 `
+
+func TestPingPongHog(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+	done := make(chan bool)
+	hogChan, lightChan := make(chan bool), make(chan bool)
+	hogCount, lightCount := 0, 0
+
+	run := func(limit int, counter *int, wake chan bool) {
+		for {
+			select {
+			case <-done:
+				return
+
+			case <-wake:
+				for i := 0; i < limit; i++ {
+					*counter++
+				}
+				wake <- true
+			}
+		}
+	}
+
+	// Start two co-scheduled hog goroutines.
+	for i := 0; i < 2; i++ {
+		go run(1e6, &hogCount, hogChan)
+	}
+
+	// Start two co-scheduled light goroutines.
+	for i := 0; i < 2; i++ {
+		go run(1e3, &lightCount, lightChan)
+	}
+
+	// Start goroutine pairs and wait for a few preemption rounds.
+	hogChan <- true
+	lightChan <- true
+	time.Sleep(100 * time.Millisecond)
+	close(done)
+	<-hogChan
+	<-lightChan
+
+	// Check that hogCount and lightCount are within a factor of
+	// 2, which indicates that both pairs of goroutines handed off
+	// the P within a time-slice to their buddy.
+	if hogCount > lightCount*2 || lightCount > hogCount*2 {
+		t.Fatalf("want hogCount/lightCount in [0.5, 2]; got %d/%d = %g", hogCount, lightCount, float64(hogCount)/float64(lightCount))
+	}
+}
+
+func BenchmarkPingPongHog(b *testing.B) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	// Create a CPU hog
+	stop, done := make(chan bool), make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-stop:
+				done <- true
+				return
+			default:
+			}
+		}
+	}()
+
+	// Ping-pong b.N times
+	ping, pong := make(chan bool), make(chan bool)
+	go func() {
+		for j := 0; j < b.N; j++ {
+			pong <- <-ping
+		}
+		close(stop)
+		done <- true
+	}()
+	go func() {
+		for i := 0; i < b.N; i++ {
+			ping <- <-pong
+		}
+		done <- true
+	}()
+	b.ResetTimer()
+	ping <- true // Start ping-pong
+	<-stop
+	b.StopTimer()
+	<-ping // Let last ponger exit
+	<-done // Make sure goroutines exit
+	<-done
+	<-done
+}
 
 func stackGrowthRecursive(i int) {
 	var pad [128]uint64

@@ -4,7 +4,7 @@
 
 // Fixed-size object allocator.  Returned memory is not zeroed.
 //
-// See malloc.h for overview.
+// See malloc.go for overview.
 
 package runtime
 

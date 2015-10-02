@@ -16,11 +16,11 @@ import (
 func interfaceTable(ifindex int) ([]Interface, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
-		return nil, os.NewSyscallError("netlink rib", err)
+		return nil, os.NewSyscallError("netlinkrib", err)
 	}
 	msgs, err := syscall.ParseNetlinkMessage(tab)
 	if err != nil {
-		return nil, os.NewSyscallError("netlink message", err)
+		return nil, os.NewSyscallError("parsenetlinkmessage", err)
 	}
 	var ift []Interface
 loop:
@@ -33,7 +33,7 @@ loop:
 			if ifindex == 0 || ifindex == int(ifim.Index) {
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
-					return nil, os.NewSyscallError("netlink routeattr", err)
+					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)
 				}
 				ift = append(ift, *newLink(ifim, attrs))
 				if ifindex == int(ifim.Index) {
@@ -120,11 +120,11 @@ func linkFlags(rawFlags uint32) Flags {
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
 	if err != nil {
-		return nil, os.NewSyscallError("netlink rib", err)
+		return nil, os.NewSyscallError("netlinkrib", err)
 	}
 	msgs, err := syscall.ParseNetlinkMessage(tab)
 	if err != nil {
-		return nil, os.NewSyscallError("netlink message", err)
+		return nil, os.NewSyscallError("parsenetlinkmessage", err)
 	}
 	var ift []Interface
 	if ifi == nil {
@@ -160,7 +160,7 @@ loop:
 				}
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
 				if err != nil {
-					return nil, os.NewSyscallError("netlink routeattr", err)
+					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)
 				}
 				ifa := newAddr(ifi, ifam, attrs)
 				if ifa != nil {
@@ -176,17 +176,15 @@ func newAddr(ifi *Interface, ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRou
 	var ipPointToPoint bool
 	// Seems like we need to make sure whether the IP interface
 	// stack consists of IP point-to-point numbered or unnumbered
-	// addressing over point-to-point link encapsulation.
-	if ifi.Flags&FlagPointToPoint != 0 {
-		for _, a := range attrs {
-			if a.Attr.Type == syscall.IFA_LOCAL {
-				ipPointToPoint = true
-				break
-			}
+	// addressing.
+	for _, a := range attrs {
+		if a.Attr.Type == syscall.IFA_LOCAL {
+			ipPointToPoint = true
+			break
 		}
 	}
 	for _, a := range attrs {
-		if ipPointToPoint && a.Attr.Type == syscall.IFA_ADDRESS || !ipPointToPoint && a.Attr.Type == syscall.IFA_LOCAL {
+		if ipPointToPoint && a.Attr.Type == syscall.IFA_ADDRESS {
 			continue
 		}
 		switch ifam.Family {
@@ -238,8 +236,8 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
 					b[i/2], _ = xtoi2(f[0][i:i+2], 0)
 				}
 				i := *(*uint32)(unsafe.Pointer(&b[:4][0]))
-				ifma := IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
-				ifmat = append(ifmat, ifma.toAddr())
+				ifma := &IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
+				ifmat = append(ifmat, ifma)
 			}
 		}
 	}
@@ -263,8 +261,8 @@ func parseProcNetIGMP6(path string, ifi *Interface) []Addr {
 			for i := 0; i+1 < len(f[2]); i += 2 {
 				b[i/2], _ = xtoi2(f[2][i:i+2], 0)
 			}
-			ifma := IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
-			ifmat = append(ifmat, ifma.toAddr())
+			ifma := &IPAddr{IP: IP{b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}}
+			ifmat = append(ifmat, ifma)
 		}
 	}
 	return ifmat

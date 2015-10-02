@@ -27,7 +27,7 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
 			break
 		}
 		if err.(syscall.Errno) != syscall.ERROR_BUFFER_OVERFLOW {
-			return nil, os.NewSyscallError("GetAdaptersAddresses", err)
+			return nil, os.NewSyscallError("getadaptersaddresses", err)
 		}
 	}
 	return &addrs[0], nil
@@ -36,16 +36,16 @@ func getAdapters() (*windows.IpAdapterAddresses, error) {
 func getInterfaceInfos() ([]syscall.InterfaceInfo, error) {
 	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
 	if err != nil {
-		return nil, os.NewSyscallError("Socket", err)
+		return nil, err
 	}
-	defer syscall.Closesocket(s)
+	defer closeFunc(s)
 
 	iia := [20]syscall.InterfaceInfo{}
 	ret := uint32(0)
 	size := uint32(unsafe.Sizeof(iia))
 	err = syscall.WSAIoctl(s, syscall.SIO_GET_INTERFACE_LIST, nil, 0, (*byte)(unsafe.Pointer(&iia[0])), size, &ret, nil, 0)
 	if err != nil {
-		return nil, os.NewSyscallError("WSAIoctl", err)
+		return nil, os.NewSyscallError("wsaioctl", err)
 	}
 	iilen := ret / uint32(unsafe.Sizeof(iia[0]))
 	return iia[:iilen-1], nil
@@ -217,11 +217,11 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 					case *syscall.SockaddrInet4:
 						ifa := &IPAddr{IP: make(IP, IPv4len)}
 						copy(ifa.IP, sav.Addr[:])
-						ifat = append(ifat, ifa.toAddr())
+						ifat = append(ifat, ifa)
 					case *syscall.SockaddrInet6:
 						ifa := &IPAddr{IP: make(IP, IPv6len)}
 						copy(ifa.IP, sav.Addr[:])
-						ifat = append(ifat, ifa.toAddr())
+						ifat = append(ifat, ifa)
 					}
 				}
 			}

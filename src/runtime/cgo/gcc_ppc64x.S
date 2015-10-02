@@ -16,7 +16,7 @@
 /*
  * void crosscall_ppc64(void (*fn)(void), void *g)
  *
- * Calling into the 9g tool chain, where all registers are caller save.
+ * Calling into the gc tool chain, where all registers are caller save.
  * Called from standard ppc64 C ABI, where r2, r14-r31, f14-f31 are
  * callee-save, so they must be saved explicitly.
  */
@@ -129,11 +129,6 @@ restoreregs:
 
 	blr
 
-.globl EXT(__stack_chk_fail_local)
-EXT(__stack_chk_fail_local):
-1:
-	// TODO(austin)
-	b 1b
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits

@@ -16,7 +16,7 @@ import (
 // ErrBadPattern indicates a globbing pattern was malformed.
 var ErrBadPattern = errors.New("syntax error in pattern")
 
-// Match returns true if name matches the shell file name pattern.
+// Match reports whether name matches the shell file name pattern.
 // The pattern syntax is:
 //
 //	pattern:
@@ -301,7 +301,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 	return
 }
 
-// hasMeta returns true if path contains any of the magic characters
+// hasMeta reports whether path contains any of the magic characters
 // recognized by Match.
 func hasMeta(path string) bool {
 	// TODO(niemeyer): Should other magic characters be added here?

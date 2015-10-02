@@ -184,19 +184,10 @@ func main() {
 		goarch = runtime.GOARCH
 	}
 
-	thechar := ""
-	if gochar, err := exec.Command("go", "env", "GOCHAR").Output(); err != nil {
-		bug()
-		fmt.Printf("running go env GOCHAR: %v\n", err)
-		return
-	} else {
-		thechar = strings.TrimSpace(string(gochar))
-	}
-
-	version, err := exec.Command("go", "tool", thechar+"g", "-V").Output()
+	version, err := exec.Command("go", "tool", "compile", "-V").Output()
 	if err != nil {
 		bug()
-		fmt.Printf("running go tool %sg -V: %v\n", thechar, err)
+		fmt.Printf("running go tool compile -V: %v\n", err)
 		return
 	}
 	if strings.Contains(string(version), "framepointer") {
@@ -258,8 +249,11 @@ TestCases:
 		switch goarch {
 		case "ppc64", "ppc64le":
 			ptrSize = 8
-			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n#define RET RETURN\n")
+			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n")
 		case "arm":
+			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
+		case "arm64":
+			ptrSize = 8
 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (R0)\n")
 		case "amd64":
 			ptrSize = 8
@@ -289,12 +283,19 @@ TestCases:
 
 				// The limit was originally 128 but is now 512.
 				// Instead of rewriting the test cases above, adjust
-				// the first stack frame to use up the extra 32 bytes.
+				// the first stack frame to use up the extra bytes.
 				if i == 0 {
 					size += 512 - 128
+					// Noopt builds have a larger stackguard.
+					// See ../cmd/dist/buildruntime.go:stackGuardMultiplier
+					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+						if s == "-N" {
+							size += 640
+						}
+					}
 				}
 
-				if size%ptrSize == 4 {
+				if size%ptrSize == 4 || goarch == "arm64" && size != 0 && (size+8)%16 != 0 {
 					continue TestCases
 				}
 				nosplit := m[3]

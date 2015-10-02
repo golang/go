@@ -52,7 +52,52 @@ func TestParseIP(t *testing.T) {
 	}
 }
 
+func TestLookupWithIP(t *testing.T) {
+	_, err := LookupIP("")
+	if err == nil {
+		t.Errorf(`LookupIP("") succeeded, should fail`)
+	}
+	_, err = LookupHost("")
+	if err == nil {
+		t.Errorf(`LookupIP("") succeeded, should fail`)
+	}
+
+	// Test that LookupHost and LookupIP, which normally
+	// expect host names, work with IP addresses.
+	for _, tt := range parseIPTests {
+		if tt.out != nil {
+			addrs, err := LookupHost(tt.in)
+			if len(addrs) != 1 || addrs[0] != tt.in || err != nil {
+				t.Errorf("LookupHost(%q) = %v, %v, want %v, nil", tt.in, addrs, err, []string{tt.in})
+			}
+		} else if !testing.Short() {
+			// We can't control what the host resolver does; if it can resolve, say,
+			// 127.0.0.256 or fe80::1%911 or a host named 'abc', who are we to judge?
+			// Warn about these discrepancies but don't fail the test.
+			addrs, err := LookupHost(tt.in)
+			if err == nil {
+				t.Logf("warning: LookupHost(%q) = %v, want error", tt.in, addrs)
+			}
+		}
+
+		if tt.out != nil {
+			ips, err := LookupIP(tt.in)
+			if len(ips) != 1 || !reflect.DeepEqual(ips[0], tt.out) || err != nil {
+				t.Errorf("LookupIP(%q) = %v, %v, want %v, nil", tt.in, ips, err, []IP{tt.out})
+			}
+		} else if !testing.Short() {
+			ips, err := LookupIP(tt.in)
+			// We can't control what the host resolver does. See above.
+			if err == nil {
+				t.Logf("warning: LookupIP(%q) = %v, want error", tt.in, ips)
+			}
+		}
+	}
+}
+
 func BenchmarkParseIP(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		for _, tt := range parseIPTests {
 			ParseIP(tt.in)
@@ -108,6 +153,8 @@ func TestIPString(t *testing.T) {
 }
 
 func BenchmarkIPString(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipStringTests {
 			if tt.in != nil {
@@ -158,6 +205,8 @@ func TestIPMaskString(t *testing.T) {
 }
 
 func BenchmarkIPMaskString(b *testing.B) {
+	testHookUninstaller.Do(uninstallTestHooks)
+
 	for i := 0; i < b.N; i++ {
 		for _, tt := range ipMaskStringTests {
 			tt.in.String()
@@ -188,10 +237,10 @@ var parseCIDRTests = []struct {
 	{"abcd:2345::/24", ParseIP("abcd:2345::"), &IPNet{IP: ParseIP("abcd:2300::"), Mask: IPMask(ParseIP("ffff:ff00::"))}, nil},
 	{"2001:DB8::/48", ParseIP("2001:DB8::"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
 	{"2001:DB8::1/48", ParseIP("2001:DB8::1"), &IPNet{IP: ParseIP("2001:DB8::"), Mask: IPMask(ParseIP("ffff:ffff:ffff::"))}, nil},
-	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{"CIDR address", "192.168.1.1/255.255.255.0"}},
-	{"192.168.1.1/35", nil, nil, &ParseError{"CIDR address", "192.168.1.1/35"}},
-	{"2001:db8::1/-1", nil, nil, &ParseError{"CIDR address", "2001:db8::1/-1"}},
-	{"", nil, nil, &ParseError{"CIDR address", ""}},
+	{"192.168.1.1/255.255.255.0", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/255.255.255.0"}},
+	{"192.168.1.1/35", nil, nil, &ParseError{Type: "CIDR address", Text: "192.168.1.1/35"}},
+	{"2001:db8::1/-1", nil, nil, &ParseError{Type: "CIDR address", Text: "2001:db8::1/-1"}},
+	{"", nil, nil, &ParseError{Type: "CIDR address", Text: ""}},
 }
 
 func TestParseCIDR(t *testing.T) {
@@ -433,31 +482,44 @@ var ipAddrScopeTests = []struct {
 	{IP.IsUnspecified, IPv4(127, 0, 0, 1), false},
 	{IP.IsUnspecified, IPv6unspecified, true},
 	{IP.IsUnspecified, IPv6interfacelocalallnodes, false},
+	{IP.IsUnspecified, nil, false},
 	{IP.IsLoopback, IPv4(127, 0, 0, 1), true},
 	{IP.IsLoopback, IPv4(127, 255, 255, 254), true},
 	{IP.IsLoopback, IPv4(128, 1, 2, 3), false},
 	{IP.IsLoopback, IPv6loopback, true},
 	{IP.IsLoopback, IPv6linklocalallrouters, false},
+	{IP.IsLoopback, nil, false},
 	{IP.IsMulticast, IPv4(224, 0, 0, 0), true},
 	{IP.IsMulticast, IPv4(239, 0, 0, 0), true},
 	{IP.IsMulticast, IPv4(240, 0, 0, 0), false},
 	{IP.IsMulticast, IPv6linklocalallnodes, true},
 	{IP.IsMulticast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
 	{IP.IsMulticast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsMulticast, nil, false},
+	{IP.IsInterfaceLocalMulticast, IPv4(224, 0, 0, 0), false},
+	{IP.IsInterfaceLocalMulticast, IPv4(0xff, 0x01, 0, 0), false},
+	{IP.IsInterfaceLocalMulticast, IPv6interfacelocalallnodes, true},
+	{IP.IsInterfaceLocalMulticast, nil, false},
 	{IP.IsLinkLocalMulticast, IPv4(224, 0, 0, 0), true},
 	{IP.IsLinkLocalMulticast, IPv4(239, 0, 0, 0), false},
+	{IP.IsLinkLocalMulticast, IPv4(0xff, 0x02, 0, 0), false},
 	{IP.IsLinkLocalMulticast, IPv6linklocalallrouters, true},
 	{IP.IsLinkLocalMulticast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsLinkLocalMulticast, nil, false},
 	{IP.IsLinkLocalUnicast, IPv4(169, 254, 0, 0), true},
 	{IP.IsLinkLocalUnicast, IPv4(169, 255, 0, 0), false},
+	{IP.IsLinkLocalUnicast, IPv4(0xfe, 0x80, 0, 0), false},
 	{IP.IsLinkLocalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, true},
 	{IP.IsLinkLocalUnicast, IP{0xfe, 0xc0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsLinkLocalUnicast, nil, false},
 	{IP.IsGlobalUnicast, IPv4(240, 0, 0, 0), true},
 	{IP.IsGlobalUnicast, IPv4(232, 0, 0, 0), false},
 	{IP.IsGlobalUnicast, IPv4(169, 254, 0, 0), false},
+	{IP.IsGlobalUnicast, IPv4bcast, false},
 	{IP.IsGlobalUnicast, IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0, 0x1, 0x23, 0, 0x12, 0, 0x1}, true},
 	{IP.IsGlobalUnicast, IP{0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
 	{IP.IsGlobalUnicast, IP{0xff, 0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, false},
+	{IP.IsGlobalUnicast, nil, false},
 }
 
 func name(f interface{}) string {
@@ -468,6 +530,13 @@ func TestIPAddrScope(t *testing.T) {
 	for _, tt := range ipAddrScopeTests {
 		if ok := tt.scope(tt.in); ok != tt.ok {
 			t.Errorf("%s(%q) = %v, want %v", name(tt.scope), tt.in, ok, tt.ok)
+		}
+		ip := tt.in.To4()
+		if ip == nil {
+			continue
+		}
+		if ok := tt.scope(ip); ok != tt.ok {
+			t.Errorf("%s(%q) = %v, want %v", name(tt.scope), ip, ok, tt.ok)
 		}
 	}
 }

@@ -19,7 +19,7 @@ TEXT ·SwapUint32(SB),NOSPLIT,$0-20
 	SYNC
 	ISYNC
 	MOVW	R5, old+16(FP)
-	RETURN
+	RET
 
 TEXT ·SwapInt64(SB),NOSPLIT,$0-24
 	BR	·SwapUint64(SB)
@@ -34,7 +34,7 @@ TEXT ·SwapUint64(SB),NOSPLIT,$0-24
 	SYNC
 	ISYNC
 	MOVD	R5, old+16(FP)
-	RETURN
+	RET
 
 TEXT ·SwapUintptr(SB),NOSPLIT,$0-24
 	BR	·SwapUint64(SB)
@@ -56,9 +56,9 @@ TEXT ·CompareAndSwapUint32(SB),NOSPLIT,$0-17
 	ISYNC
 	MOVD	$1, R3
 	MOVB	R3, swapped+16(FP)
-	RETURN
+	RET
 	MOVB	R0, swapped+16(FP)
-	RETURN
+	RET
 
 TEXT ·CompareAndSwapUintptr(SB),NOSPLIT,$0-25
 	BR	·CompareAndSwapUint64(SB)
@@ -80,9 +80,9 @@ TEXT ·CompareAndSwapUint64(SB),NOSPLIT,$0-25
 	ISYNC
 	MOVD	$1, R3
 	MOVB	R3, swapped+24(FP)
-	RETURN
+	RET
 	MOVB	R0, swapped+24(FP)
-	RETURN
+	RET
 
 TEXT ·AddInt32(SB),NOSPLIT,$0-20
 	BR	·AddUint32(SB)
@@ -98,7 +98,7 @@ TEXT ·AddUint32(SB),NOSPLIT,$0-20
 	SYNC
 	ISYNC
 	MOVW	R5, ret+16(FP)
-	RETURN
+	RET
 
 TEXT ·AddUintptr(SB),NOSPLIT,$0-24
 	BR	·AddUint64(SB)
@@ -117,7 +117,7 @@ TEXT ·AddUint64(SB),NOSPLIT,$0-24
 	SYNC
 	ISYNC
 	MOVD	R5, ret+16(FP)
-	RETURN
+	RET
 
 TEXT ·LoadInt32(SB),NOSPLIT,$0-12
 	BR	·LoadUint32(SB)
@@ -130,7 +130,7 @@ TEXT ·LoadUint32(SB),NOSPLIT,$0-12
 	BC	4, 30, 1(PC)	// bne- cr7,0x4
 	ISYNC
 	MOVW	R3, val+8(FP)
-	RETURN
+	RET
 
 TEXT ·LoadInt64(SB),NOSPLIT,$0-16
 	BR	·LoadUint64(SB)
@@ -143,7 +143,7 @@ TEXT ·LoadUint64(SB),NOSPLIT,$0-16
 	BC	4, 30, 1(PC)	// bne- cr7,0x4
 	ISYNC
 	MOVD	R3, val+8(FP)
-	RETURN
+	RET
 
 TEXT ·LoadUintptr(SB),NOSPLIT,$0-16
 	BR	·LoadPointer(SB)
@@ -159,7 +159,7 @@ TEXT ·StoreUint32(SB),NOSPLIT,$0-12
 	MOVW	val+8(FP), R4
 	SYNC
 	MOVW	R4, 0(R3)
-	RETURN
+	RET
 
 TEXT ·StoreInt64(SB),NOSPLIT,$0-16
 	BR	·StoreUint64(SB)
@@ -169,7 +169,7 @@ TEXT ·StoreUint64(SB),NOSPLIT,$0-16
 	MOVD	val+8(FP), R4
 	SYNC
 	MOVD	R4, 0(R3)
-	RETURN
+	RET
 
 TEXT ·StoreUintptr(SB),NOSPLIT,$0-16
 	BR	·StoreUint64(SB)

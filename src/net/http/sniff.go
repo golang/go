@@ -209,7 +209,7 @@ func (textSig) match(data []byte, firstNonWS int) string {
 	// c.f. section 5, step 4.
 	for _, b := range data[firstNonWS:] {
 		switch {
-		case 0x00 <= b && b <= 0x08,
+		case b <= 0x08,
 			b == 0x0B,
 			0x0E <= b && b <= 0x1A,
 			0x1C <= b && b <= 0x1F:

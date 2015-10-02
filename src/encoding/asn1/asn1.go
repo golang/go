@@ -20,11 +20,13 @@ package asn1
 // everything by any means.
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf8"
 )
 
 // A StructuralError suggests that the ASN.1 data is valid, but the Go type
@@ -287,11 +289,23 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 
 func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 	s := string(bytes)
-	ret, err = time.Parse("0601021504Z0700", s)
+
+	formatStr := "0601021504Z0700"
+	ret, err = time.Parse(formatStr, s)
 	if err != nil {
-		ret, err = time.Parse("060102150405Z0700", s)
+		formatStr = "060102150405Z0700"
+		ret, err = time.Parse(formatStr, s)
 	}
-	if err == nil && ret.Year() >= 2050 {
+	if err != nil {
+		return
+	}
+
+	if serialized := ret.Format(formatStr); serialized != s {
+		err = fmt.Errorf("asn1: time did not serialize back to the original value and may be invalid: given %q, but serialized as %q", s, serialized)
+		return
+	}
+
+	if ret.Year() >= 2050 {
 		// UTCTime only encodes times prior to 2050. See https://tools.ietf.org/html/rfc5280#section-4.1.2.5.1
 		ret = ret.AddDate(-100, 0, 0)
 	}
@@ -302,7 +316,18 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
 // and returns the resulting time.
 func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
-	return time.Parse("20060102150405Z0700", string(bytes))
+	const formatStr = "20060102150405Z0700"
+	s := string(bytes)
+
+	if ret, err = time.Parse(formatStr, s); err != nil {
+		return
+	}
+
+	if serialized := ret.Format(formatStr); serialized != s {
+		err = fmt.Errorf("asn1: time did not serialize back to the original value and may be invalid: given %q, but serialized as %q", s, serialized)
+	}
+
+	return
 }
 
 // PrintableString
@@ -320,7 +345,7 @@ func parsePrintableString(bytes []byte) (ret string, err error) {
 	return
 }
 
-// isPrintable returns true iff the given b is in the ASN.1 PrintableString set.
+// isPrintable reports whether the given b is in the ASN.1 PrintableString set.
 func isPrintable(b byte) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||
@@ -365,6 +390,9 @@ func parseT61String(bytes []byte) (ret string, err error) {
 // parseUTF8String parses a ASN.1 UTF8String (raw UTF-8) from the given byte
 // array and returns it.
 func parseUTF8String(bytes []byte) (ret string, err error) {
+	if !utf8.Valid(bytes) {
+		return "", errors.New("asn1: invalid UTF-8 string")
+	}
 	return string(bytes), nil
 }
 
@@ -389,6 +417,12 @@ type RawContent []byte
 // don't distinguish between ordered and unordered objects in this code.
 func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err error) {
 	offset = initOffset
+	// parseTagAndLength should not be called without at least a single
+	// byte to read. Thus this check is for robustness:
+	if offset >= len(bytes) {
+		err = errors.New("asn1: internal error in parseTagAndLength")
+		return
+	}
 	b := bytes[offset]
 	offset++
 	ret.class = int(b >> 6)
@@ -579,6 +613,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseObjectIdentifier(innerBytes)
 			case tagUTCTime:
 				result, err = parseUTCTime(innerBytes)
+			case tagGeneralizedTime:
+				result, err = parseGeneralizedTime(innerBytes)
 			case tagOctetString:
 				result = innerBytes
 			default:
@@ -608,6 +644,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		expectedClass := classContextSpecific
 		if params.application {
 			expectedClass = classApplication
+		}
+		if offset == len(bytes) {
+			err = StructuralError{"explicit tag has no child"}
+			return
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
 			if t.length > 0 {

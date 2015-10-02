@@ -24,15 +24,23 @@ if [ "$GOOS" != "android" ]; then
 fi
 
 export CGO_ENABLED=1
+unset GOBIN
 
-# Run the build for the host bootstrap, so we can build go_android_exec.
+# Do the build first, so we can build go_android_exec and cleaner.
 # Also lets us fail early before the (slow) adb push if the build is broken.
-./make.bash
+. ./make.bash --no-banner
 export GOROOT=$(dirname $(pwd))
 export PATH=$GOROOT/bin:$PATH
 GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 	-o ../bin/go_android_${GOARCH}_exec \
 	../misc/android/go_android_exec.go
+
+export ANDROID_TEST_DIR=/tmp/androidtest-$$
+
+function cleanup() {
+	rm -rf ${ANDROID_TEST_DIR}
+}
+trap cleanup EXIT
 
 # Push GOROOT to target device.
 #
@@ -41,16 +49,28 @@ GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH go build \
 # on the host. We copy the files required for running tests under
 # /data/local/tmp/goroot. The adb sync command does not follow
 # symlinks so we have to copy.
-export ANDROID_PRODUCT_OUT=/tmp/androidtest-$$
+export ANDROID_PRODUCT_OUT="${ANDROID_TEST_DIR}/out"
 FAKE_GOROOT=$ANDROID_PRODUCT_OUT/data/local/tmp/goroot
 mkdir -p $FAKE_GOROOT
+mkdir -p $FAKE_GOROOT/pkg
 cp -a "${GOROOT}/src" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
+cp -a "${GOROOT}/pkg/android_$GOARCH" "${FAKE_GOROOT}/pkg/"
 echo '# Syncing test files to android device'
+adb shell mkdir -p /data/local/tmp/goroot
 time adb sync data &> /dev/null
-echo ''
-rm -rf "$ANDROID_PRODUCT_OUT"
 
-# Run standard build and tests.
-./all.bash --no-clean
+export CLEANER=${ANDROID_TEST_DIR}/androidcleaner-$$
+cp ../misc/android/cleaner.go $CLEANER.go
+echo 'var files = `' >> $CLEANER.go
+(cd $ANDROID_PRODUCT_OUT/data/local/tmp/goroot; find . >> $CLEANER.go)
+echo '`' >> $CLEANER.go
+go build -o $CLEANER $CLEANER.go
+adb push $CLEANER /data/local/tmp/cleaner
+adb shell /data/local/tmp/cleaner
+
+echo ''
+
+# Run standard tests.
+bash run.bash --no-rebuild

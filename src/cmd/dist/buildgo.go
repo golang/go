@@ -30,10 +30,10 @@ func mkzdefaultcc(dir, file string) {
 			"const defaultCXX = `%s`\n",
 		defaultcctarget, defaultcxxtarget)
 
-	writefile(out, file, 0)
+	writefile(out, file, writeSkipSame)
 
 	// Convert file name to replace: turn go into cgo.
 	i := len(file) - len("go/zdefaultcc.go")
 	file = file[:i] + "c" + file[i:]
-	writefile(out, file, 0)
+	writefile(out, file, writeSkipSame)
 }

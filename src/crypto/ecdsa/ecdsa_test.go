@@ -91,11 +91,11 @@ func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
 
 	if s0.Cmp(s1) == 0 {
 		// This should never happen.
-		t.Errorf("%s: the signatures on two different messages were the same")
+		t.Errorf("%s: the signatures on two different messages were the same", tag)
 	}
 
 	if r0.Cmp(r1) == 0 {
-		t.Errorf("%s: the nonce used for two diferent messages was the same")
+		t.Errorf("%s: the nonce used for two diferent messages was the same", tag)
 	}
 }
 
@@ -126,11 +126,11 @@ func testINDCCA(t *testing.T, c elliptic.Curve, tag string) {
 	}
 
 	if s0.Cmp(s1) == 0 {
-		t.Errorf("%s: two signatures of the same message produced the same result")
+		t.Errorf("%s: two signatures of the same message produced the same result", tag)
 	}
 
 	if r0.Cmp(r1) == 0 {
-		t.Errorf("%s: two signatures of the same message produced the same nonce")
+		t.Errorf("%s: two signatures of the same message produced the same nonce", tag)
 	}
 }
 

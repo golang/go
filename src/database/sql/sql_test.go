@@ -356,6 +356,44 @@ func TestStatementQueryRow(t *testing.T) {
 	}
 }
 
+type stubDriverStmt struct {
+	err error
+}
+
+func (s stubDriverStmt) Close() error {
+	return s.err
+}
+
+func (s stubDriverStmt) NumInput() int {
+	return -1
+}
+
+func (s stubDriverStmt) Exec(args []driver.Value) (driver.Result, error) {
+	return nil, nil
+}
+
+func (s stubDriverStmt) Query(args []driver.Value) (driver.Rows, error) {
+	return nil, nil
+}
+
+// golang.org/issue/12798
+func TestStatementClose(t *testing.T) {
+	want := errors.New("STMT ERROR")
+
+	tests := []struct {
+		stmt *Stmt
+		msg  string
+	}{
+		{&Stmt{stickyErr: want}, "stickyErr not propagated"},
+		{&Stmt{tx: &Tx{}, txsi: &driverStmt{&sync.Mutex{}, stubDriverStmt{want}}}, "driverStmt.Close() error not propagated"},
+	}
+	for _, test := range tests {
+		if err := test.stmt.Close(); err != want {
+			t.Errorf("%s. Got stmt.Close() = %v, want = %v", test.msg, err, want)
+		}
+	}
+}
+
 // golang.org/issue/3734
 func TestStatementQueryRowConcurrent(t *testing.T) {
 	db := newTestDB(t, "people")
@@ -497,7 +535,7 @@ func TestTxStmt(t *testing.T) {
 	}
 }
 
-// Issue: http://golang.org/issue/2784
+// Issue: https://golang.org/issue/2784
 // This test didn't fail before because we got lucky with the fakedb driver.
 // It was failing, and now not, in github.com/bradfitz/go-sql-test
 func TestTxQuery(t *testing.T) {
@@ -1070,6 +1108,57 @@ func TestMaxOpenConns(t *testing.T) {
 	}
 }
 
+// Issue 9453: tests that SetMaxOpenConns can be lowered at runtime
+// and affects the subsequent release of connections.
+func TestMaxOpenConnsOnBusy(t *testing.T) {
+	defer setHookpostCloseConn(nil)
+	setHookpostCloseConn(func(_ *fakeConn, err error) {
+		if err != nil {
+			t.Errorf("Error closing fakeConn: %v", err)
+		}
+	})
+
+	db := newTestDB(t, "magicquery")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(3)
+
+	conn0, err := db.conn(cachedOrNewConn)
+	if err != nil {
+		t.Fatalf("db open conn fail: %v", err)
+	}
+
+	conn1, err := db.conn(cachedOrNewConn)
+	if err != nil {
+		t.Fatalf("db open conn fail: %v", err)
+	}
+
+	conn2, err := db.conn(cachedOrNewConn)
+	if err != nil {
+		t.Fatalf("db open conn fail: %v", err)
+	}
+
+	if g, w := db.numOpen, 3; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+
+	db.SetMaxOpenConns(2)
+	if g, w := db.numOpen, 3; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+
+	conn0.releaseConn(nil)
+	conn1.releaseConn(nil)
+	if g, w := db.numOpen, 2; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+
+	conn2.releaseConn(nil)
+	if g, w := db.numOpen, 2; g != w {
+		t.Errorf("free conns = %d; want %d", g, w)
+	}
+}
+
 func TestSingleOpenConn(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
@@ -1090,6 +1179,26 @@ func TestSingleOpenConn(t *testing.T) {
 	}
 	if err = rows.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestStats(t *testing.T) {
+	db := newTestDB(t, "people")
+	stats := db.Stats()
+	if got := stats.OpenConnections; got != 1 {
+		t.Errorf("stats.OpenConnections = %d; want 1", got)
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx.Commit()
+
+	closeDB(t, db)
+	stats = db.Stats()
+	if got := stats.OpenConnections; got != 0 {
+		t.Errorf("stats.OpenConnections = %d; want 0", got)
 	}
 }
 
@@ -1314,7 +1423,80 @@ func TestStmtCloseOrder(t *testing.T) {
 	}
 }
 
-// golang.org/issue/5781
+// Test cases where there's more than maxBadConnRetries bad connections in the
+// pool (issue 8834)
+func TestManyErrBadConn(t *testing.T) {
+	manyErrBadConnSetup := func() *DB {
+		db := newTestDB(t, "people")
+
+		nconn := maxBadConnRetries + 1
+		db.SetMaxIdleConns(nconn)
+		db.SetMaxOpenConns(nconn)
+		// open enough connections
+		func() {
+			for i := 0; i < nconn; i++ {
+				rows, err := db.Query("SELECT|people|age,name|")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer rows.Close()
+			}
+		}()
+
+		if db.numOpen != nconn {
+			t.Fatalf("unexpected numOpen %d (was expecting %d)", db.numOpen, nconn)
+		} else if len(db.freeConn) != nconn {
+			t.Fatalf("unexpected len(db.freeConn) %d (was expecting %d)", len(db.freeConn), nconn)
+		}
+		for _, conn := range db.freeConn {
+			conn.ci.(*fakeConn).stickyBad = true
+		}
+		return db
+	}
+
+	// Query
+	db := manyErrBadConnSetup()
+	defer closeDB(t, db)
+	rows, err := db.Query("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Exec
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	_, err = db.Exec("INSERT|people|name=Julia,age=19")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Begin
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Prepare
+	db = manyErrBadConnSetup()
+	defer closeDB(t, db)
+	stmt, err := db.Prepare("SELECT|people|age,name|")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = stmt.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// golang.org/issue/5718
 func TestErrBadConnReconnect(t *testing.T) {
 	db := newTestDB(t, "foo")
 	defer closeDB(t, db)
@@ -1418,6 +1600,77 @@ func TestErrBadConnReconnect(t *testing.T) {
 	}
 	simulateBadConn("stmt.Query prepare", &hookPrepareBadConn, stmtQuery)
 	simulateBadConn("stmt.Query exec", &hookQueryBadConn, stmtQuery)
+}
+
+// golang.org/issue/11264
+func TestTxEndBadConn(t *testing.T) {
+	db := newTestDB(t, "foo")
+	defer closeDB(t, db)
+	db.SetMaxIdleConns(0)
+	exec(t, db, "CREATE|t1|name=string,age=int32,dead=bool")
+	db.SetMaxIdleConns(1)
+
+	simulateBadConn := func(name string, hook *func() bool, op func() error) {
+		broken := false
+		numOpen := db.numOpen
+
+		*hook = func() bool {
+			if !broken {
+				broken = true
+			}
+			return broken
+		}
+
+		if err := op(); err != driver.ErrBadConn {
+			t.Errorf(name+": %v", err)
+			return
+		}
+
+		if !broken {
+			t.Error(name + ": Failed to simulate broken connection")
+		}
+		*hook = nil
+
+		if numOpen != db.numOpen {
+			t.Errorf(name+": leaked %d connection(s)!", db.numOpen-numOpen)
+		}
+	}
+
+	// db.Exec
+	dbExec := func(endTx func(tx *Tx) error) func() error {
+		return func() error {
+			tx, err := db.Begin()
+			if err != nil {
+				return err
+			}
+			_, err = tx.Exec("INSERT|t1|name=?,age=?,dead=?", "Gordon", 3, true)
+			if err != nil {
+				return err
+			}
+			return endTx(tx)
+		}
+	}
+	simulateBadConn("db.Tx.Exec commit", &hookCommitBadConn, dbExec((*Tx).Commit))
+	simulateBadConn("db.Tx.Exec rollback", &hookRollbackBadConn, dbExec((*Tx).Rollback))
+
+	// db.Query
+	dbQuery := func(endTx func(tx *Tx) error) func() error {
+		return func() error {
+			tx, err := db.Begin()
+			if err != nil {
+				return err
+			}
+			rows, err := tx.Query("SELECT|t1|age,name|")
+			if err == nil {
+				err = rows.Close()
+			} else {
+				return err
+			}
+			return endTx(tx)
+		}
+	}
+	simulateBadConn("db.Tx.Query commit", &hookCommitBadConn, dbQuery((*Tx).Commit))
+	simulateBadConn("db.Tx.Query rollback", &hookRollbackBadConn, dbQuery((*Tx).Rollback))
 }
 
 type concurrentTest interface {

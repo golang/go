@@ -215,7 +215,7 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	r.column = -1
 
 	// Peek at the first rune.  If it is an error we are done.
-	// If we are support comments and it is the comment character
+	// If we support comments and it is the comment character
 	// then skip to the end of line.
 
 	r1, _, err := r.r.ReadRune()
@@ -232,6 +232,11 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	for {
 		haveField, delim, err := r.parseField()
 		if haveField {
+			// If FieldsPerRecord is greater then 0 we can assume the final
+			// length of fields to be equal to FieldsPerRecord.
+			if r.FieldsPerRecord > 0 && fields == nil {
+				fields = make([]string, 0, r.FieldsPerRecord)
+			}
 			fields = append(fields, r.field.String())
 		}
 		if delim == '\n' || err == io.EOF {

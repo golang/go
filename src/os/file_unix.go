@@ -12,6 +12,14 @@ import (
 	"syscall"
 )
 
+func rename(oldname, newname string) error {
+	e := syscall.Rename(oldname, newname)
+	if e != nil {
+		return &LinkError{"rename", oldname, newname, e}
+	}
+	return nil
+}
+
 // File represents an open file descriptor.
 type File struct {
 	*file
@@ -74,7 +82,7 @@ const DevNull = "/dev/null"
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	chmod := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
 		if _, err := Stat(name); IsNotExist(err) {
@@ -82,14 +90,27 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
 		}
 	}
 
-	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
-	if e != nil {
+	var r int
+	for {
+		var e error
+		r, e = syscall.Open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
+		if e == nil {
+			break
+		}
+
+		// On OS X, sigaction(2) doesn't guarantee that SA_RESTART will cause
+		// open(2) to be restarted for regular files. This is easy to reproduce on
+		// fuse file systems (see http://golang.org/issue/11180).
+		if runtime.GOOS == "darwin" && e == syscall.EINTR {
+			continue
+		}
+
 		return nil, &PathError{"open", name, e}
 	}
 
 	// open(2) itself won't handle the sticky bit on *BSD and Solaris
-	if chmod && e == nil {
-		e = Chmod(name, perm)
+	if chmod {
+		Chmod(name, perm)
 	}
 
 	// There's a race here with fork/exec, which we are
@@ -127,12 +148,12 @@ func (file *file) close() error {
 
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
-func (f *File) Stat() (fi FileInfo, err error) {
+func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}
 	var stat syscall.Stat_t
-	err = syscall.Fstat(f.fd, &stat)
+	err := syscall.Fstat(f.fd, &stat)
 	if err != nil {
 		return nil, &PathError{"stat", f.name, err}
 	}
@@ -141,9 +162,9 @@ func (f *File) Stat() (fi FileInfo, err error) {
 
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
-func Stat(name string) (fi FileInfo, err error) {
+func Stat(name string) (FileInfo, error) {
 	var stat syscall.Stat_t
-	err = syscall.Stat(name, &stat)
+	err := syscall.Stat(name, &stat)
 	if err != nil {
 		return nil, &PathError{"stat", name, err}
 	}
@@ -154,9 +175,9 @@ func Stat(name string) (fi FileInfo, err error) {
 // If the file is a symbolic link, the returned FileInfo
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
-func Lstat(name string) (fi FileInfo, err error) {
+func Lstat(name string) (FileInfo, error) {
 	var stat syscall.Stat_t
-	err = syscall.Lstat(name, &stat)
+	err := syscall.Lstat(name, &stat)
 	if err != nil {
 		return nil, &PathError{"lstat", name, err}
 	}

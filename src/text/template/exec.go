@@ -78,7 +78,23 @@ func doublePercent(str string) string {
 	return str
 }
 
-// errorf formats the error and terminates processing.
+// TODO: It would be nice if ExecError was more broken down, but
+// the way ErrorContext embeds the template name makes the
+// processing too clumsy.
+
+// ExecError is the custom error type returned when Execute has an
+// error evaluating its template. (If a write error occurs, the actual
+// error is returned; it will not be of type ExecError.)
+type ExecError struct {
+	Name string // Name of template.
+	Err  error  // Pre-formatted error.
+}
+
+func (e ExecError) Error() string {
+	return e.Err.Error()
+}
+
+// errorf records an ExecError and terminates processing.
 func (s *state) errorf(format string, args ...interface{}) {
 	name := doublePercent(s.tmpl.Name())
 	if s.node == nil {
@@ -87,7 +103,24 @@ func (s *state) errorf(format string, args ...interface{}) {
 		location, context := s.tmpl.ErrorContext(s.node)
 		format = fmt.Sprintf("template: %s: executing %q at <%s>: %s", location, name, doublePercent(context), format)
 	}
-	panic(fmt.Errorf(format, args...))
+	panic(ExecError{
+		Name: s.tmpl.Name(),
+		Err:  fmt.Errorf(format, args...),
+	})
+}
+
+// writeError is the wrapper type used internally when Execute has an
+// error writing to its output. We strip the wrapper in errRecover.
+// Note that this is not an implementation of error, so it cannot escape
+// from the package as an error value.
+type writeError struct {
+	Err error // Original error.
+}
+
+func (s *state) writeError(err error) {
+	panic(writeError{
+		Err: err,
+	})
 }
 
 // errRecover is the handler that turns panics into returns from the top
@@ -98,8 +131,10 @@ func errRecover(errp *error) {
 		switch err := e.(type) {
 		case runtime.Error:
 			panic(e)
-		case error:
-			*errp = err
+		case writeError:
+			*errp = err.Err // Strip the wrapper.
+		case ExecError:
+			*errp = err // Keep the wrapper.
 		default:
 			panic(e)
 		}
@@ -113,7 +148,10 @@ func errRecover(errp *error) {
 // the output writer.
 // A template may be executed safely in parallel.
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) error {
-	tmpl := t.tmpl[name]
+	var tmpl *Template
+	if t.common != nil {
+		tmpl = t.tmpl[name]
+	}
 	if tmpl == nil {
 		return fmt.Errorf("template: no template %q associated with template %q", name, t.name)
 	}
@@ -134,26 +172,36 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 		wr:   wr,
 		vars: []variable{{"$", value}},
 	}
-	t.init()
 	if t.Tree == nil || t.Root == nil {
-		var b bytes.Buffer
-		for name, tmpl := range t.tmpl {
-			if tmpl.Tree == nil || tmpl.Root == nil {
-				continue
-			}
-			if b.Len() > 0 {
-				b.WriteString(", ")
-			}
-			fmt.Fprintf(&b, "%q", name)
-		}
-		var s string
-		if b.Len() > 0 {
-			s = "; defined templates are: " + b.String()
-		}
-		state.errorf("%q is an incomplete or empty template%s", t.Name(), s)
+		state.errorf("%q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
 	}
 	state.walk(value, t.Root)
 	return
+}
+
+// DefinedTemplates returns a string listing the defined templates,
+// prefixed by the string "defined templates are: ". If there are none,
+// it returns the empty string. For generating an error message here
+// and in html/template.
+func (t *Template) DefinedTemplates() string {
+	if t.common == nil {
+		return ""
+	}
+	var b bytes.Buffer
+	for name, tmpl := range t.tmpl {
+		if tmpl.Tree == nil || tmpl.Root == nil {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "%q", name)
+	}
+	var s string
+	if b.Len() > 0 {
+		s = "; defined templates are: " + b.String()
+	}
+	return s
 }
 
 // Walk functions step through the major pieces of the template structure,
@@ -180,7 +228,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 		s.walkTemplate(dot, node)
 	case *parse.TextNode:
 		if _, err := s.wr.Write(node.Text); err != nil {
-			s.errorf("%s", err)
+			s.writeError(err)
 		}
 	case *parse.WithNode:
 		s.walkIfOrWith(parse.NodeWith, dot, node.Pipe, node.List, node.ElseList)
@@ -209,8 +257,13 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 }
 
-// isTrue reports whether the value is 'true', in the sense of not the zero of its type,
-// and whether the value has a meaningful truth value.
+// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value. This is the definition of
+// truth used by if and other such actions.
+func IsTrue(val interface{}) (truth, ok bool) {
+	return isTrue(reflect.ValueOf(val))
+}
+
 func isTrue(val reflect.Value) (truth, ok bool) {
 	if !val.IsValid() {
 		// Something like var x interface{}, never set. It's a form of nil.
@@ -418,11 +471,14 @@ func (s *state) evalFieldNode(dot reflect.Value, field *parse.FieldNode, args []
 
 func (s *state) evalChainNode(dot reflect.Value, chain *parse.ChainNode, args []parse.Node, final reflect.Value) reflect.Value {
 	s.at(chain)
-	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
-	pipe := s.evalArg(dot, nil, chain.Node)
 	if len(chain.Field) == 0 {
 		s.errorf("internal error: no fields in evalChainNode")
 	}
+	if chain.Node.Type() == parse.NodeNil {
+		s.errorf("indirection through explicit nil in %s", chain)
+	}
+	// (pipe).Field1.Field2 has pipe as .Node, fields as .Field. Eval the pipeline, then the fields.
+	pipe := s.evalArg(dot, nil, chain.Node)
 	return s.evalFieldChain(dot, pipe, chain, chain.Field, args, final)
 }
 
@@ -505,7 +561,18 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			if hasArgs {
 				s.errorf("%s is not a method but has arguments", fieldName)
 			}
-			return receiver.MapIndex(nameVal)
+			result := receiver.MapIndex(nameVal)
+			if !result.IsValid() {
+				switch s.tmpl.option.missingKey {
+				case mapInvalid:
+					// Just use the invalid value.
+				case mapZeroValue:
+					result = reflect.Zero(receiver.Type().Elem())
+				case mapError:
+					s.errorf("map has no entry for key %q", fieldName)
+				}
+			}
+			return result
 		}
 	}
 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
@@ -560,7 +627,15 @@ func (s *state) evalCall(dot, fun reflect.Value, node parse.Node, name string, a
 	if final.IsValid() {
 		t := typ.In(typ.NumIn() - 1)
 		if typ.IsVariadic() {
-			t = t.Elem()
+			if numIn-1 < numFixed {
+				// The added final argument corresponds to a fixed parameter of the function.
+				// Validate against the type of the actual parameter.
+				t = typ.In(numIn - 1)
+			} else {
+				// The added final argument corresponds to the variadic part.
+				// Validate against the type of the elements of the variadic slice.
+				t = t.Elem()
+			}
 		}
 		argv[i] = s.validateType(final, t)
 	}
@@ -635,7 +710,7 @@ func (s *state) evalArg(dot reflect.Value, typ reflect.Type, n parse.Node) refle
 	case *parse.PipeNode:
 		return s.validateType(s.evalPipeline(dot, arg), typ)
 	case *parse.IdentifierNode:
-		return s.evalFunction(dot, arg, arg, nil, zero)
+		return s.validateType(s.evalFunction(dot, arg, arg, nil, zero), typ)
 	case *parse.ChainNode:
 		return s.validateType(s.evalChainNode(dot, arg, nil, zero), typ)
 	}
@@ -776,7 +851,10 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 	if !ok {
 		s.errorf("can't print %s of type %s", n, v.Type())
 	}
-	fmt.Fprint(s.wr, iface)
+	_, err := fmt.Fprint(s.wr, iface)
+	if err != nil {
+		s.writeError(err)
+	}
 }
 
 // printableValue returns the, possibly indirected, interface value inside v that

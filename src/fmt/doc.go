@@ -34,13 +34,13 @@
 		%b	decimalless scientific notation with exponent a power of two,
 			in the manner of strconv.FormatFloat with the 'b' format,
 			e.g. -123456p-78
-		%e	scientific notation, e.g. -1234.456e+78
-		%E	scientific notation, e.g. -1234.456E+78
+		%e	scientific notation, e.g. -1.234456e+78
+		%E	scientific notation, e.g. -1.234456E+78
 		%f	decimal point but no exponent, e.g. 123.456
 		%F	synonym for %f
 		%g	%e for large exponents, %f otherwise
 		%G	%E for large exponents, %F otherwise
-	String and slice of bytes:
+	String and slice of bytes (treated equivalently with these verbs):
 		%s	the uninterpreted bytes of the string or slice
 		%q	a double-quoted string safely escaped with Go syntax
 		%x	base 16, lower-case, two characters per byte
@@ -138,20 +138,23 @@
 	formatting considerations apply for operands that implement
 	certain interfaces. In order of application:
 
-	1. If an operand implements the Formatter interface, it will
+	1. If the operand is a reflect.Value, the concrete value it
+	holds is printed as if it was the operand.
+
+	2. If an operand implements the Formatter interface, it will
 	be invoked. Formatter provides fine control of formatting.
 
-	2. If the %v verb is used with the # flag (%#v) and the operand
+	3. If the %v verb is used with the # flag (%#v) and the operand
 	implements the GoStringer interface, that will be invoked.
 
 	If the format (which is implicitly %v for Println etc.) is valid
 	for a string (%s %q %v %x %X), the following two rules apply:
 
-	3. If an operand implements the error interface, the Error method
+	4. If an operand implements the error interface, the Error method
 	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
-	4. If an operand implements method String() string, that method
+	5. If an operand implements method String() string, that method
 	will be invoked to convert the object to a string, which will then
 	be formatted as required by the verb (if any).
 
@@ -160,6 +163,9 @@
 	operand as a whole. Thus %q will quote each element of a slice
 	of strings, and %6.2f will control formatting for each element
 	of a floating-point array.
+
+	However, when printing a byte slice with a string-like verb
+	(%s %q %x %X), it is treated identically to a string, as a single item.
 
 	To avoid recursion in cases such as
 		type X string
@@ -225,18 +231,33 @@
 		%!s(PANIC=bad)
 
 	The %!s just shows the print verb in use when the failure
-	occurred.
+	occurred. If the panic is caused by a nil receiver to an Error
+	or String method, however, the output is the undecorated
+	string, "<nil>".
 
 	Scanning
 
 	An analogous set of functions scans formatted text to yield
 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
 	Fscanf and Fscanln read from a specified io.Reader; Sscan,
-	Sscanf and Sscanln read from an argument string.  Scanln,
-	Fscanln and Sscanln stop scanning at a newline and require that
-	the items be followed by one; Scanf, Fscanf and Sscanf require
-	newlines in the input to match newlines in the format; the other
-	routines treat newlines as spaces.
+	Sscanf and Sscanln read from an argument string.
+
+	Scan, Fscan, Sscan treat newlines in the input as spaces.
+
+	Scanln, Fscanln and Sscanln stop scanning at a newline and
+	require that the items be followed by a newline or EOF.
+
+	Scanf, Fscanf and Sscanf require that (after skipping spaces)
+	newlines in the format are matched by newlines in the input
+	and vice versa.  This behavior differs from the corresponding
+	routines in C, which uniformly treat newlines as spaces.
+
+	When scanning with Scanf, Fscanf, and Sscanf, all non-empty
+	runs of space characters (except newline) are equivalent
+	to a single space in both the format and the input.  With
+	that proviso, text in the format string must match the input
+	text; scanning stops if it does not, with the return value
+	of the function indicating the number of arguments scanned.
 
 	Scanf, Fscanf, and Sscanf parse the arguments according to a
 	format string, analogous to that of Printf.  For example, %x
@@ -253,20 +274,18 @@
 		Flags # and + are not implemented.
 
 	The familiar base-setting prefixes 0 (octal) and 0x
-	(hexadecimal) are accepted when scanning integers without a
-	format or with the %v verb.
+	(hexadecimal) are accepted when scanning integers without
+	a format or with the %v verb.
 
-	Width is interpreted in the input text (%5s means at most
-	five runes of input will be read to scan a string) but there
-	is no syntax for scanning with a precision (no %5.2f, just
-	%5f).
-
-	When scanning with a format, all non-empty runs of space
-	characters (except newline) are equivalent to a single
-	space in both the format and the input.  With that proviso,
-	text in the format string must match the input text; scanning
-	stops if it does not, with the return value of the function
-	indicating the number of arguments scanned.
+	Width is interpreted in the input text but there is no
+	syntax for scanning with a precision (no %5.2f, just %5f).
+	If width is provided, it applies after leading spaces are
+	trimmed and specifies the maximum number of runes to read
+	to satisfy the verb. For example,
+	   Sscanf(" 1234567 ", "%5s%d", &s, &i)
+	will set s to "12345" and i to 67 while
+	   Sscanf(" 12 34 567 ", "%5s%d", &s, &i)
+	will set s to "12" and i to 34.
 
 	In all the scanning functions, a carriage return followed
 	immediately by a newline is treated as a plain newline

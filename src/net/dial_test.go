@@ -5,111 +5,50 @@
 package net
 
 import (
-	"bytes"
-	"flag"
-	"fmt"
 	"io"
-	"os"
-	"os/exec"
-	"reflect"
-	"regexp"
+	"net/internal/socktest"
 	"runtime"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
 )
 
-func newLocalListener(t *testing.T) Listener {
-	ln, err := Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		ln, err = Listen("tcp6", "[::1]:0")
+var prohibitionaryDialArgTests = []struct {
+	network string
+	address string
+}{
+	{"tcp6", "127.0.0.1"},
+	{"tcp6", "::ffff:127.0.0.1"},
+}
+
+func TestProhibitionaryDialArg(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
 	}
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4map {
+		t.Skip("mapping ipv4 address inside ipv6 address not supported")
+	}
+
+	ln, err := Listen("tcp", "[::]:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ln
-}
-
-func TestDialTimeout(t *testing.T) {
-	origBacklog := listenerBacklog
-	defer func() {
-		listenerBacklog = origBacklog
-	}()
-	listenerBacklog = 1
-
-	ln := newLocalListener(t)
 	defer ln.Close()
 
-	errc := make(chan error)
-
-	numConns := listenerBacklog + 100
-
-	// TODO(bradfitz): It's hard to test this in a portable
-	// way. This is unfortunate, but works for now.
-	switch runtime.GOOS {
-	case "linux":
-		// The kernel will start accepting TCP connections before userspace
-		// gets a chance to not accept them, so fire off a bunch to fill up
-		// the kernel's backlog.  Then we test we get a failure after that.
-		for i := 0; i < numConns; i++ {
-			go func() {
-				_, err := DialTimeout("tcp", ln.Addr().String(), 200*time.Millisecond)
-				errc <- err
-			}()
-		}
-	case "darwin", "plan9", "windows":
-		// At least OS X 10.7 seems to accept any number of
-		// connections, ignoring listen's backlog, so resort
-		// to connecting to a hopefully-dead 127/8 address.
-		// Same for windows.
-		//
-		// Use an IANA reserved port (49151) instead of 80, because
-		// on our 386 builder, this Dial succeeds, connecting
-		// to an IIS web server somewhere.  The data center
-		// or VM or firewall must be stealing the TCP connection.
-		//
-		// IANA Service Name and Transport Protocol Port Number Registry
-		// <http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml>
-		go func() {
-			c, err := DialTimeout("tcp", "127.0.71.111:49151", 200*time.Millisecond)
-			if err == nil {
-				err = fmt.Errorf("unexpected: connected to %s!", c.RemoteAddr())
-				c.Close()
-			}
-			errc <- err
-		}()
-	default:
-		// TODO(bradfitz):
-		// OpenBSD may have a reject route to 127/8 except 127.0.0.1/32
-		// by default. FreeBSD likely works, but is untested.
-		// TODO(rsc):
-		// The timeout never happens on Windows.  Why?  Issue 3016.
-		t.Skipf("skipping test on %q; untested.", runtime.GOOS)
+	_, port, err := SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	connected := 0
-	for {
-		select {
-		case <-time.After(15 * time.Second):
-			t.Fatal("too slow")
-		case err := <-errc:
-			if err == nil {
-				connected++
-				if connected == numConns {
-					t.Fatal("all connections connected; expected some to time out")
-				}
-			} else {
-				terr, ok := err.(timeout)
-				if !ok {
-					t.Fatalf("got error %q; want error with timeout interface", err)
-				}
-				if !terr.Timeout() {
-					t.Fatalf("got error %q; not a timeout", err)
-				}
-				// Pass. We saw a timeout error.
-				return
-			}
+	for i, tt := range prohibitionaryDialArgTests {
+		c, err := Dial(tt.network, JoinHostPort(tt.address, port))
+		if err == nil {
+			c.Close()
+			t.Errorf("#%d: %v", i, err)
 		}
 	}
 }
@@ -117,7 +56,7 @@ func TestDialTimeout(t *testing.T) {
 func TestSelfConnect(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		// TODO(brainman): do not know why it hangs.
-		t.Skip("skipping known-broken test on windows")
+		t.Skip("known-broken test on windows")
 	}
 
 	// Test that Dial does not honor self-connects.
@@ -160,303 +99,518 @@ func TestSelfConnect(t *testing.T) {
 	}
 }
 
-var runErrorTest = flag.Bool("run_error_test", false, "let TestDialError check for dns errors")
-
-type DialErrorTest struct {
-	Net     string
-	Raddr   string
-	Pattern string
-}
-
-var dialErrorTests = []DialErrorTest{
-	{
-		"datakit", "mh/astro/r70",
-		"dial datakit mh/astro/r70: unknown network datakit",
-	},
-	{
-		"tcp", "127.0.0.1:☺",
-		"dial tcp 127.0.0.1:☺: unknown port tcp/☺",
-	},
-	{
-		"tcp", "no-such-name.google.com.:80",
-		"dial tcp no-such-name.google.com.:80: lookup no-such-name.google.com.( on .*)?: no (.*)",
-	},
-	{
-		"tcp", "no-such-name.no-such-top-level-domain.:80",
-		"dial tcp no-such-name.no-such-top-level-domain.:80: lookup no-such-name.no-such-top-level-domain.( on .*)?: no (.*)",
-	},
-	{
-		"tcp", "no-such-name:80",
-		`dial tcp no-such-name:80: lookup no-such-name\.(.*\.)?( on .*)?: no (.*)`,
-	},
-	{
-		"tcp", "mh/astro/r70:http",
-		"dial tcp mh/astro/r70:http: lookup mh/astro/r70: invalid domain name",
-	},
-	{
-		"unix", "/etc/file-not-found",
-		"dial unix /etc/file-not-found: no such file or directory",
-	},
-	{
-		"unix", "/etc/",
-		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
-	},
-	{
-		"unixpacket", "/etc/file-not-found",
-		"dial unixpacket /etc/file-not-found: no such file or directory",
-	},
-	{
-		"unixpacket", "/etc/",
-		"dial unixpacket /etc/: (permission denied|socket operation on non-socket|connection refused)",
-	},
-}
-
-var duplicateErrorPattern = `dial (.*) dial (.*)`
-
-func TestDialError(t *testing.T) {
-	if !*runErrorTest {
-		t.Logf("test disabled; use -run_error_test to enable")
-		return
-	}
-	for i, tt := range dialErrorTests {
-		c, err := Dial(tt.Net, tt.Raddr)
-		if c != nil {
-			c.Close()
-		}
-		if err == nil {
-			t.Errorf("#%d: nil error, want match for %#q", i, tt.Pattern)
-			continue
-		}
-		s := err.Error()
-		match, _ := regexp.MatchString(tt.Pattern, s)
-		if !match {
-			t.Errorf("#%d: %q, want match for %#q", i, s, tt.Pattern)
-		}
-		match, _ = regexp.MatchString(duplicateErrorPattern, s)
-		if match {
-			t.Errorf("#%d: %q, duplicate error return from Dial", i, s)
-		}
-	}
-}
-
-var invalidDialAndListenArgTests = []struct {
-	net  string
-	addr string
-	err  error
-}{
-	{"foo", "bar", &OpError{Op: "dial", Net: "foo", Addr: nil, Err: UnknownNetworkError("foo")}},
-	{"baz", "", &OpError{Op: "listen", Net: "baz", Addr: nil, Err: UnknownNetworkError("baz")}},
-	{"tcp", "", &OpError{Op: "dial", Net: "tcp", Addr: nil, Err: errMissingAddress}},
-}
-
-func TestInvalidDialAndListenArgs(t *testing.T) {
-	for _, tt := range invalidDialAndListenArgTests {
-		var err error
-		switch tt.err.(*OpError).Op {
-		case "dial":
-			_, err = Dial(tt.net, tt.addr)
-		case "listen":
-			_, err = Listen(tt.net, tt.addr)
-		}
-		if !reflect.DeepEqual(tt.err, err) {
-			t.Fatalf("got %#v; expected %#v", err, tt.err)
-		}
-	}
-}
-
 func TestDialTimeoutFDLeak(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		// TODO(bradfitz): test on other platforms
-		t.Skipf("skipping test on %q", runtime.GOOS)
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
 	}
 
-	ln := newLocalListener(t)
-	defer ln.Close()
+	const T = 100 * time.Millisecond
 
-	type connErr struct {
-		conn Conn
-		err  error
-	}
-	dials := listenerBacklog + 100
-	// used to be listenerBacklog + 5, but was found to be unreliable, issue 4384.
-	maxGoodConnect := listenerBacklog + runtime.NumCPU()*10
-	resc := make(chan connErr)
-	for i := 0; i < dials; i++ {
-		go func() {
-			conn, err := DialTimeout("tcp", ln.Addr().String(), 500*time.Millisecond)
-			resc <- connErr{conn, err}
-		}()
-	}
-
-	var firstErr string
-	var ngood int
-	var toClose []io.Closer
-	for i := 0; i < dials; i++ {
-		ce := <-resc
-		if ce.err == nil {
-			ngood++
-			if ngood > maxGoodConnect {
-				t.Errorf("%d good connects; expected at most %d", ngood, maxGoodConnect)
-			}
-			toClose = append(toClose, ce.conn)
-			continue
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		origTestHookDialChannel := testHookDialChannel
+		testHookDialChannel = func() { time.Sleep(2 * T) }
+		defer func() { testHookDialChannel = origTestHookDialChannel }()
+		if runtime.GOOS == "plan9" {
+			break
 		}
-		err := ce.err
-		if firstErr == "" {
-			firstErr = err.Error()
-		} else if err.Error() != firstErr {
-			t.Fatalf("inconsistent error messages: first was %q, then later %q", firstErr, err)
-		}
-	}
-	for _, c := range toClose {
-		c.Close()
-	}
-	for i := 0; i < 100; i++ {
-		if got := numFD(); got < dials {
-			// Test passes.
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if got := numFD(); got >= dials {
-		t.Errorf("num fds after %d timeouts = %d; want <%d", dials, got, dials)
-	}
-}
-
-func numTCP() (ntcp, nopen, nclose int, err error) {
-	lsof, err := exec.Command("lsof", "-n", "-p", strconv.Itoa(os.Getpid())).Output()
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	ntcp += bytes.Count(lsof, []byte("TCP"))
-	for _, state := range []string{"LISTEN", "SYN_SENT", "SYN_RECEIVED", "ESTABLISHED"} {
-		nopen += bytes.Count(lsof, []byte(state))
-	}
-	for _, state := range []string{"CLOSED", "CLOSE_WAIT", "LAST_ACK", "FIN_WAIT_1", "FIN_WAIT_2", "CLOSING", "TIME_WAIT"} {
-		nclose += bytes.Count(lsof, []byte(state))
-	}
-	return ntcp, nopen, nclose, nil
-}
-
-func TestDialMultiFDLeak(t *testing.T) {
-	t.Skip("flaky test - golang.org/issue/8764")
-
-	if !supportsIPv4 || !supportsIPv6 {
-		t.Skip("neither ipv4 nor ipv6 is supported")
+		fallthrough
+	default:
+		sw.Set(socktest.FilterConnect, func(so *socktest.Status) (socktest.AfterFilter, error) {
+			time.Sleep(2 * T)
+			return nil, errTimeout
+		})
+		defer sw.Set(socktest.FilterConnect, nil)
 	}
 
-	halfDeadServer := func(dss *dualStackServer, ln Listener) {
-		for {
-			if c, err := ln.Accept(); err != nil {
-				return
-			} else {
-				// It just keeps established
-				// connections like a half-dead server
-				// does.
-				dss.putConn(c)
-			}
-		}
-	}
-	dss, err := newDualStackServer([]streamListener{
-		{net: "tcp4", addr: "127.0.0.1"},
-		{net: "tcp6", addr: "[::1]"},
+	// Avoid tracking open-close jitterbugs between netFD and
+	// socket that leads to confusion of information inside
+	// socktest.Switch.
+	// It may happen when the Dial call bumps against TCP
+	// simultaneous open. See selfConnect in tcpsock_posix.go.
+	defer func() {
+		sw.Set(socktest.FilterClose, nil)
+		forceCloseSockets()
+	}()
+	var mu sync.Mutex
+	var attempts int
+	sw.Set(socktest.FilterClose, func(so *socktest.Status) (socktest.AfterFilter, error) {
+		mu.Lock()
+		attempts++
+		mu.Unlock()
+		return nil, errTimedout
 	})
-	if err != nil {
-		t.Fatalf("newDualStackServer failed: %v", err)
-	}
-	defer dss.teardown()
-	if err := dss.buildup(halfDeadServer); err != nil {
-		t.Fatalf("dualStackServer.buildup failed: %v", err)
-	}
 
-	_, before, _, err := numTCP()
-	if err != nil {
-		t.Skipf("skipping test; error finding or running lsof: %v", err)
-	}
-
+	const N = 100
 	var wg sync.WaitGroup
-	portnum, _, _ := dtoi(dss.port, 0)
-	ras := addrList{
-		// Losers that will fail to connect, see RFC 6890.
-		&TCPAddr{IP: IPv4(198, 18, 0, 254), Port: portnum},
-		&TCPAddr{IP: ParseIP("2001:2::254"), Port: portnum},
-
-		// Winner candidates of this race.
-		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
-		&TCPAddr{IP: IPv6loopback, Port: portnum},
-
-		// Losers that will have established connections.
-		&TCPAddr{IP: IPv4(127, 0, 0, 1), Port: portnum},
-		&TCPAddr{IP: IPv6loopback, Port: portnum},
-	}
-	const T1 = 10 * time.Millisecond
-	const T2 = 2 * T1
-	const N = 10
+	wg.Add(N)
 	for i := 0; i < N; i++ {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if c, err := dialMulti("tcp", "fast failover test", nil, ras, time.Now().Add(T1)); err == nil {
+			// This dial never starts to send any SYN
+			// segment because of above socket filter and
+			// test hook.
+			c, err := DialTimeout("tcp", "127.0.0.1:0", T)
+			if err == nil {
+				t.Errorf("unexpectedly established: tcp:%s->%s", c.LocalAddr(), c.RemoteAddr())
 				c.Close()
 			}
 		}()
 	}
 	wg.Wait()
-	time.Sleep(T2)
-
-	ntcp, after, nclose, err := numTCP()
-	if err != nil {
-		t.Skipf("skipping test; error finding or running lsof: %v", err)
-	}
-	t.Logf("tcp sessions: %v, open sessions: %v, closing sessions: %v", ntcp, after, nclose)
-
-	if after != before {
-		t.Fatalf("got %v open sessions; expected %v", after, before)
+	if attempts < N {
+		t.Errorf("got %d; want >= %d", attempts, N)
 	}
 }
 
-func numFD() int {
-	if runtime.GOOS == "linux" {
-		f, err := os.Open("/proc/self/fd")
-		if err != nil {
-			panic(err)
-		}
-		defer f.Close()
-		names, err := f.Readdirnames(0)
-		if err != nil {
-			panic(err)
-		}
-		return len(names)
+func TestDialerDualStackFDLeak(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+	case "windows":
+		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
 	}
-	// All tests using this should be skipped anyway, but:
-	panic("numFDs not implemented on " + runtime.GOOS)
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
+	}
+
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
+	handler := func(dss *dualStackServer, ln Listener) {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}
+	dss, err := newDualStackServer([]streamListener{
+		{network: "tcp4", address: "127.0.0.1"},
+		{network: "tcp6", address: "::1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dss.teardown()
+	if err := dss.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+
+	before := sw.Sockets()
+	const T = 100 * time.Millisecond
+	const N = 10
+	var wg sync.WaitGroup
+	wg.Add(N)
+	d := &Dialer{DualStack: true, Timeout: T}
+	for i := 0; i < N; i++ {
+		go func() {
+			defer wg.Done()
+			c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			c.Close()
+		}()
+	}
+	wg.Wait()
+	time.Sleep(2 * T) // wait for the dial racers to stop
+	after := sw.Sockets()
+	if len(after) != len(before) {
+		t.Errorf("got %d; want %d", len(after), len(before))
+	}
 }
 
-func TestDialer(t *testing.T) {
-	ln, err := Listen("tcp4", "127.0.0.1:0")
+// Define a pair of blackholed (IPv4, IPv6) addresses, for which dialTCP is
+// expected to hang until the timeout elapses. These addresses are reserved
+// for benchmarking by RFC 6890.
+const (
+	slowDst4    = "192.18.0.254"
+	slowDst6    = "2001:2::254"
+	slowTimeout = 1 * time.Second
+)
+
+// In some environments, the slow IPs may be explicitly unreachable, and fail
+// more quickly than expected. This test hook prevents dialTCP from returning
+// before the deadline.
+func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
+	c, err := dialTCP(net, laddr, raddr, deadline)
+	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
+		time.Sleep(deadline.Sub(time.Now()))
+	}
+	return c, err
+}
+
+func dialClosedPort() (actual, expected time.Duration) {
+	// Estimate the expected time for this platform.
+	// On Windows, dialing a closed port takes roughly 1 second,
+	// but other platforms should be instantaneous.
+	if runtime.GOOS == "windows" {
+		expected = 1500 * time.Millisecond
+	} else {
+		expected = 95 * time.Millisecond
+	}
+
+	l, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		t.Fatalf("Listen failed: %v", err)
+		return 999 * time.Hour, expected
+	}
+	addr := l.Addr().String()
+	l.Close()
+	// On OpenBSD, interference from TestSelfConnect is mysteriously
+	// causing the first attempt to hang for a few seconds, so we throw
+	// away the first result and keep the second.
+	for i := 1; ; i++ {
+		startTime := time.Now()
+		c, err := Dial("tcp", addr)
+		if err == nil {
+			c.Close()
+		}
+		elapsed := time.Now().Sub(startTime)
+		if i == 2 {
+			return elapsed, expected
+		}
+	}
+}
+
+func TestDialParallel(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
+	}
+
+	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	if closedPortDelay > expectClosedPortDelay {
+		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
+	}
+
+	const instant time.Duration = 0
+	const fallbackDelay = 200 * time.Millisecond
+
+	// Some cases will run quickly when "connection refused" is fast,
+	// or trigger the fallbackDelay on Windows.  This value holds the
+	// lesser of the two delays.
+	var closedPortOrFallbackDelay time.Duration
+	if closedPortDelay < fallbackDelay {
+		closedPortOrFallbackDelay = closedPortDelay
+	} else {
+		closedPortOrFallbackDelay = fallbackDelay
+	}
+
+	origTestHookDialTCP := testHookDialTCP
+	defer func() { testHookDialTCP = origTestHookDialTCP }()
+	testHookDialTCP = slowDialTCP
+
+	nCopies := func(s string, n int) []string {
+		out := make([]string, n)
+		for i := 0; i < n; i++ {
+			out[i] = s
+		}
+		return out
+	}
+
+	var testCases = []struct {
+		primaries       []string
+		fallbacks       []string
+		teardownNetwork string
+		expectOk        bool
+		expectElapsed   time.Duration
+	}{
+		// These should just work on the first try.
+		{[]string{"127.0.0.1"}, []string{}, "", true, instant},
+		{[]string{"::1"}, []string{}, "", true, instant},
+		{[]string{"127.0.0.1", "::1"}, []string{slowDst6}, "tcp6", true, instant},
+		{[]string{"::1", "127.0.0.1"}, []string{slowDst4}, "tcp4", true, instant},
+		// Primary is slow; fallback should kick in.
+		{[]string{slowDst4}, []string{"::1"}, "", true, fallbackDelay},
+		// Skip a "connection refused" in the primary thread.
+		{[]string{"127.0.0.1", "::1"}, []string{}, "tcp4", true, closedPortDelay},
+		{[]string{"::1", "127.0.0.1"}, []string{}, "tcp6", true, closedPortDelay},
+		// Skip a "connection refused" in the fallback thread.
+		{[]string{slowDst4, slowDst6}, []string{"::1", "127.0.0.1"}, "tcp6", true, fallbackDelay + closedPortDelay},
+		// Primary refused, fallback without delay.
+		{[]string{"127.0.0.1"}, []string{"::1"}, "tcp4", true, closedPortOrFallbackDelay},
+		{[]string{"::1"}, []string{"127.0.0.1"}, "tcp6", true, closedPortOrFallbackDelay},
+		// Everything is refused.
+		{[]string{"127.0.0.1"}, []string{}, "tcp4", false, closedPortDelay},
+		// Nothing to do; fail instantly.
+		{[]string{}, []string{}, "", false, instant},
+		// Connecting to tons of addresses should not trip the deadline.
+		{nCopies("::1", 1000), []string{}, "", true, instant},
+	}
+
+	handler := func(dss *dualStackServer, ln Listener) {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}
+
+	// Convert a list of IP strings into TCPAddrs.
+	makeAddrs := func(ips []string, port string) addrList {
+		var out addrList
+		for _, ip := range ips {
+			addr, err := ResolveTCPAddr("tcp", JoinHostPort(ip, port))
+			if err != nil {
+				t.Fatal(err)
+			}
+			out = append(out, addr)
+		}
+		return out
+	}
+
+	for i, tt := range testCases {
+		dss, err := newDualStackServer([]streamListener{
+			{network: "tcp4", address: "127.0.0.1"},
+			{network: "tcp6", address: "::1"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer dss.teardown()
+		if err := dss.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
+		if tt.teardownNetwork != "" {
+			// Destroy one of the listening sockets, creating an unreachable port.
+			dss.teardownNetwork(tt.teardownNetwork)
+		}
+
+		primaries := makeAddrs(tt.primaries, dss.port)
+		fallbacks := makeAddrs(tt.fallbacks, dss.port)
+		d := Dialer{
+			FallbackDelay: fallbackDelay,
+			Timeout:       slowTimeout,
+		}
+		ctx := &dialContext{
+			Dialer:        d,
+			network:       "tcp",
+			address:       "?",
+			finalDeadline: d.deadline(time.Now()),
+		}
+		startTime := time.Now()
+		c, err := dialParallel(ctx, primaries, fallbacks)
+		elapsed := time.Now().Sub(startTime)
+
+		if c != nil {
+			c.Close()
+		}
+
+		if tt.expectOk && err != nil {
+			t.Errorf("#%d: got %v; want nil", i, err)
+		} else if !tt.expectOk && err == nil {
+			t.Errorf("#%d: got nil; want non-nil", i)
+		}
+
+		expectElapsedMin := tt.expectElapsed - 95*time.Millisecond
+		expectElapsedMax := tt.expectElapsed + 95*time.Millisecond
+		if !(elapsed >= expectElapsedMin) {
+			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectElapsedMin)
+		} else if !(elapsed <= expectElapsedMax) {
+			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectElapsedMax)
+		}
+	}
+	// Wait for any slowDst4/slowDst6 connections to timeout.
+	time.Sleep(slowTimeout * 3 / 2)
+}
+
+func lookupSlowFast(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) {
+	switch host {
+	case "slow6loopback4":
+		// Returns a slow IPv6 address, and a local IPv4 address.
+		return []IPAddr{
+			{IP: ParseIP(slowDst6)},
+			{IP: ParseIP("127.0.0.1")},
+		}, nil
+	default:
+		return fn(host)
+	}
+}
+
+func TestDialerFallbackDelay(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
+	}
+
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupSlowFast
+
+	origTestHookDialTCP := testHookDialTCP
+	defer func() { testHookDialTCP = origTestHookDialTCP }()
+	testHookDialTCP = slowDialTCP
+
+	var testCases = []struct {
+		dualstack     bool
+		delay         time.Duration
+		expectElapsed time.Duration
+	}{
+		// Use a very brief delay, which should fallback immediately.
+		{true, 1 * time.Nanosecond, 0},
+		// Use a 200ms explicit timeout.
+		{true, 200 * time.Millisecond, 200 * time.Millisecond},
+		// The default is 300ms.
+		{true, 0, 300 * time.Millisecond},
+		// This case is last, in order to wait for hanging slowDst6 connections.
+		{false, 0, slowTimeout},
+	}
+
+	handler := func(dss *dualStackServer, ln Listener) {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}
+	dss, err := newDualStackServer([]streamListener{
+		{network: "tcp", address: "127.0.0.1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dss.teardown()
+	if err := dss.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+
+	for i, tt := range testCases {
+		d := &Dialer{DualStack: tt.dualstack, FallbackDelay: tt.delay, Timeout: slowTimeout}
+
+		startTime := time.Now()
+		c, err := d.Dial("tcp", JoinHostPort("slow6loopback4", dss.port))
+		elapsed := time.Now().Sub(startTime)
+		if err == nil {
+			c.Close()
+		} else if tt.dualstack {
+			t.Error(err)
+		}
+		expectMin := tt.expectElapsed - 1*time.Millisecond
+		expectMax := tt.expectElapsed + 95*time.Millisecond
+		if !(elapsed >= expectMin) {
+			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectMin)
+		}
+		if !(elapsed <= expectMax) {
+			t.Errorf("#%d: got %v; want <= %v", i, elapsed, expectMax)
+		}
+	}
+}
+
+func TestDialSerialAsyncSpuriousConnection(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
 	}
 	defer ln.Close()
+
+	d := Dialer{}
+	ctx := &dialContext{
+		Dialer:        d,
+		network:       "tcp",
+		address:       "?",
+		finalDeadline: d.deadline(time.Now()),
+	}
+
+	results := make(chan dialResult)
+	cancel := make(chan struct{})
+
+	// Spawn a connection in the background.
+	go dialSerialAsync(ctx, addrList{ln.Addr()}, nil, cancel, results)
+
+	// Receive it at the server.
+	c, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Tell dialSerialAsync that someone else won the race.
+	close(cancel)
+
+	// The connection should close itself, without sending data.
+	c.SetReadDeadline(time.Now().Add(1 * time.Second))
+	var b [1]byte
+	if _, err := c.Read(b[:]); err != io.EOF {
+		t.Errorf("got %v; want %v", err, io.EOF)
+	}
+}
+
+func TestDialerPartialDeadline(t *testing.T) {
+	now := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	var testCases = []struct {
+		now            time.Time
+		deadline       time.Time
+		addrs          int
+		expectDeadline time.Time
+		expectErr      error
+	}{
+		// Regular division.
+		{now, now.Add(12 * time.Second), 1, now.Add(12 * time.Second), nil},
+		{now, now.Add(12 * time.Second), 2, now.Add(6 * time.Second), nil},
+		{now, now.Add(12 * time.Second), 3, now.Add(4 * time.Second), nil},
+		// Bump against the 2-second sane minimum.
+		{now, now.Add(12 * time.Second), 999, now.Add(2 * time.Second), nil},
+		// Total available is now below the sane minimum.
+		{now, now.Add(1900 * time.Millisecond), 999, now.Add(1900 * time.Millisecond), nil},
+		// Null deadline.
+		{now, noDeadline, 1, noDeadline, nil},
+		// Step the clock forward and cross the deadline.
+		{now.Add(-1 * time.Millisecond), now, 1, now, nil},
+		{now.Add(0 * time.Millisecond), now, 1, noDeadline, errTimeout},
+		{now.Add(1 * time.Millisecond), now, 1, noDeadline, errTimeout},
+	}
+	for i, tt := range testCases {
+		deadline, err := partialDeadline(tt.now, tt.deadline, tt.addrs)
+		if err != tt.expectErr {
+			t.Errorf("#%d: got %v; want %v", i, err, tt.expectErr)
+		}
+		if deadline != tt.expectDeadline {
+			t.Errorf("#%d: got %v; want %v", i, deadline, tt.expectDeadline)
+		}
+	}
+}
+
+func TestDialerLocalAddr(t *testing.T) {
 	ch := make(chan error, 1)
-	go func() {
+	handler := func(ls *localServer, ln Listener) {
 		c, err := ln.Accept()
 		if err != nil {
-			ch <- fmt.Errorf("Accept failed: %v", err)
+			ch <- err
 			return
 		}
 		defer c.Close()
 		ch <- nil
-	}()
-
-	laddr, err := ResolveTCPAddr("tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("ResolveTCPAddr failed: %v", err)
 	}
-	d := &Dialer{LocalAddr: laddr}
-	c, err := d.Dial("tcp4", ln.Addr().String())
+	ls, err := newLocalServer("tcp")
 	if err != nil {
-		t.Fatalf("Dial failed: %v", err)
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+
+	laddr, err := ResolveTCPAddr(ls.Listener.Addr().Network(), ls.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	laddr.Port = 0
+	d := &Dialer{LocalAddr: laddr}
+	c, err := d.Dial(ls.Listener.Addr().Network(), ls.Addr().String())
+	if err != nil {
+		t.Fatal(err)
 	}
 	defer c.Close()
 	c.Read(make([]byte, 1))
@@ -466,61 +620,20 @@ func TestDialer(t *testing.T) {
 	}
 }
 
-func TestDialDualStackLocalhost(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+func TestDialerDualStack(t *testing.T) {
+	if !supportsIPv4 || !supportsIPv6 {
+		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	if ips, err := LookupIP("localhost"); err != nil {
-		t.Fatalf("LookupIP failed: %v", err)
-	} else if len(ips) < 2 || !supportsIPv4 || !supportsIPv6 {
-		t.Skip("localhost doesn't have a pair of different address family IP addresses")
+	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	if closedPortDelay > expectClosedPortDelay {
+		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
 	}
 
-	touchAndByeServer := func(dss *dualStackServer, ln Listener) {
-		for {
-			if c, err := ln.Accept(); err != nil {
-				return
-			} else {
-				c.Close()
-			}
-		}
-	}
-	dss, err := newDualStackServer([]streamListener{
-		{net: "tcp4", addr: "127.0.0.1"},
-		{net: "tcp6", addr: "[::1]"},
-	})
-	if err != nil {
-		t.Fatalf("newDualStackServer failed: %v", err)
-	}
-	defer dss.teardown()
-	if err := dss.buildup(touchAndByeServer); err != nil {
-		t.Fatalf("dualStackServer.buildup failed: %v", err)
-	}
-
-	d := &Dialer{DualStack: true}
-	for range dss.lns {
-		if c, err := d.Dial("tcp", "localhost:"+dss.port); err != nil {
-			t.Errorf("Dial failed: %v", err)
-		} else {
-			if addr := c.LocalAddr().(*TCPAddr); addr.IP.To4() != nil {
-				dss.teardownNetwork("tcp4")
-			} else if addr.IP.To16() != nil && addr.IP.To4() == nil {
-				dss.teardownNetwork("tcp6")
-			}
-			c.Close()
-		}
-	}
-}
-
-func TestDialerKeepAlive(t *testing.T) {
-	ln := newLocalListener(t)
-	defer ln.Close()
-	defer func() {
-		testHookSetKeepAlive = func() {}
-	}()
-	go func() {
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
+	handler := func(dss *dualStackServer, ln Listener) {
 		for {
 			c, err := ln.Accept()
 			if err != nil {
@@ -528,7 +641,61 @@ func TestDialerKeepAlive(t *testing.T) {
 			}
 			c.Close()
 		}
-	}()
+	}
+
+	var timeout = 150*time.Millisecond + closedPortDelay
+	for _, dualstack := range []bool{false, true} {
+		dss, err := newDualStackServer([]streamListener{
+			{network: "tcp4", address: "127.0.0.1"},
+			{network: "tcp6", address: "::1"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer dss.teardown()
+		if err := dss.buildup(handler); err != nil {
+			t.Fatal(err)
+		}
+
+		d := &Dialer{DualStack: dualstack, Timeout: timeout}
+		for range dss.lns {
+			c, err := d.Dial("tcp", JoinHostPort("localhost", dss.port))
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+			switch addr := c.LocalAddr().(*TCPAddr); {
+			case addr.IP.To4() != nil:
+				dss.teardownNetwork("tcp4")
+			case addr.IP.To16() != nil && addr.IP.To4() == nil:
+				dss.teardownNetwork("tcp6")
+			}
+			c.Close()
+		}
+	}
+	time.Sleep(timeout * 3 / 2) // wait for the dial racers to stop
+}
+
+func TestDialerKeepAlive(t *testing.T) {
+	handler := func(ls *localServer, ln Listener) {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			c.Close()
+		}
+	}
+	ls, err := newLocalServer("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ls.teardown()
+	if err := ls.buildup(handler); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { testHookSetKeepAlive = func() {} }()
+
 	for _, keepAlive := range []bool{false, true} {
 		got := false
 		testHookSetKeepAlive = func() { got = true }
@@ -536,7 +703,7 @@ func TestDialerKeepAlive(t *testing.T) {
 		if keepAlive {
 			d.KeepAlive = 30 * time.Second
 		}
-		c, err := d.Dial("tcp", ln.Addr().String())
+		c, err := d.Dial("tcp", ls.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}

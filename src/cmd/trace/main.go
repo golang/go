@@ -6,7 +6,7 @@
 Trace is a tool for viewing trace files.
 
 Trace files can be generated with:
-	- runtime/pprof.StartTrace
+	- runtime/trace.Start
 	- net/http/pprof package
 	- go test -trace
 
@@ -71,7 +71,7 @@ func main() {
 	}
 	// Open browser.
 	if !startBrowser("http://" + ln.Addr().String()) {
-		dief("failed to start browser\n")
+		fmt.Fprintf(os.Stderr, "Trace viewer is listening on http://%s\n", ln.Addr().String())
 	}
 
 	// Parse and symbolize trace asynchronously while browser opens.
@@ -124,7 +124,7 @@ var templMain = []byte(`
 <body>
 <a href="/trace">View trace</a><br>
 <a href="/goroutines">Goroutine analysis</a><br>
-<a href="/io">IO blocking profile</a><br>
+<a href="/io">Network blocking profile</a><br>
 <a href="/block">Synchronization blocking profile</a><br>
 <a href="/syscall">Syscall blocking profile</a><br>
 <a href="/sched">Scheduler latency profile</a><br>

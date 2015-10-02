@@ -300,7 +300,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 //    V. Raman in Algorithmica (1996) 16, 115-160:
 //    This algorithm either needs additional 2n bits or works only if there
 //    are enough different elements available to encode some permutations
-//    which have to be undone later (so not stable an any input).
+//    which have to be undone later (so not stable on any input).
 //  - All the optimal in-place sorting/merging algorithms I found are either
 //    unstable or rely on enough different elements in each step to encode the
 //    performed block rearrangements. See also "In-Place Merging Algorithms",

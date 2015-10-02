@@ -68,7 +68,7 @@ const (
 	// Maximum key or value size to keep inline (instead of mallocing per element).
 	// Must fit in a uint8.
 	// Fast versions cannot handle big values - the cutoff size for
-	// fast versions in ../../cmd/gc/walk.c must be at most this value.
+	// fast versions in ../../cmd/internal/gc/walk.go must be at most this value.
 	maxKeySize   = 128
 	maxValueSize = 128
 
@@ -96,14 +96,11 @@ const (
 
 	// sentinel bucket ID for iterator checks
 	noCheck = 1<<(8*ptrSize) - 1
-
-	// trigger a garbage collection at every alloc called from this code
-	checkgc = false
 )
 
 // A header for a Go map.
 type hmap struct {
-	// Note: the format of the Hmap is encoded in ../../cmd/gc/reflect.c and
+	// Note: the format of the Hmap is encoded in ../../cmd/internal/gc/reflect.go and
 	// ../reflect/type.go.  Don't change this structure without also changing that code!
 	count int // # live cells == size of map.  Must be first (used by len() builtin)
 	flags uint8
@@ -137,11 +134,11 @@ type bmap struct {
 }
 
 // A hash iteration structure.
-// If you modify hiter, also change cmd/gc/reflect.c to indicate
+// If you modify hiter, also change cmd/internal/gc/reflect.go to indicate
 // the layout of this structure.
 type hiter struct {
-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/gc/range.c).
-	value       unsafe.Pointer // Must be in second position (see cmd/gc/range.c).
+	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
+	value       unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
 	t           *maptype
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
@@ -162,7 +159,7 @@ func evacuated(b *bmap) bool {
 }
 
 func (b *bmap) overflow(t *maptype) *bmap {
-	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize))
+	return *(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize))
 }
 
 func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
@@ -170,7 +167,7 @@ func (h *hmap) setoverflow(t *maptype, b, ovf *bmap) {
 		h.createOverflow()
 		*h.overflow[0] = append(*h.overflow[0], ovf)
 	}
-	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-regSize)) = ovf
+	*(**bmap)(add(unsafe.Pointer(b), uintptr(t.bucketsize)-ptrSize)) = ovf
 }
 
 func (h *hmap) createOverflow() {
@@ -236,6 +233,9 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("need padding in bucket (value)")
 	}
 
+	// make sure zeroptr is large enough
+	mapzero(t.elem)
+
 	// find size parameter which will hold the requested # of elements
 	B := uint8(0)
 	for ; hint > bucketCnt && float32(hint) > loadFactor*float32(uintptr(1)<<B); B++ {
@@ -246,16 +246,10 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	// If hint is large zeroing this memory could take a while.
 	buckets := bucket
 	if B != 0 {
-		if checkgc {
-			memstats.next_gc = memstats.heap_alloc
-		}
 		buckets = newarray(t.bucket, uintptr(1)<<B)
 	}
 
 	// initialize Hmap
-	if checkgc {
-		memstats.next_gc = memstats.heap_alloc
-	}
 	if h == nil {
 		h = (*hmap)(newobject(t.hmap))
 	}
@@ -283,7 +277,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
-		return unsafe.Pointer(t.elem.zero)
+		return atomicloadp(unsafe.Pointer(&zeroptr))
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
@@ -318,7 +312,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return unsafe.Pointer(t.elem.zero)
+			return atomicloadp(unsafe.Pointer(&zeroptr))
 		}
 	}
 }
@@ -331,7 +325,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
 	if h == nil || h.count == 0 {
-		return unsafe.Pointer(t.elem.zero), false
+		return atomicloadp(unsafe.Pointer(&zeroptr)), false
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
@@ -366,7 +360,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return unsafe.Pointer(t.elem.zero), false
+			return atomicloadp(unsafe.Pointer(&zeroptr)), false
 		}
 	}
 }
@@ -430,9 +424,6 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 	hash := alg.hash(key, uintptr(h.hash0))
 
 	if h.buckets == nil {
-		if checkgc {
-			memstats.next_gc = memstats.heap_alloc
-		}
 		h.buckets = newarray(t.bucket, 1)
 	}
 
@@ -469,7 +460,9 @@ again:
 				continue
 			}
 			// already have a mapping for key.  Update it.
-			typedmemmove(t.key, k2, key)
+			if t.needkeyupdate {
+				typedmemmove(t.key, k2, key)
+			}
 			v := add(unsafe.Pointer(b), dataOffset+bucketCnt*uintptr(t.keysize)+i*uintptr(t.valuesize))
 			v2 := v
 			if t.indirectvalue {
@@ -493,9 +486,6 @@ again:
 
 	if inserti == nil {
 		// all current buckets are full, allocate a new one.
-		if checkgc {
-			memstats.next_gc = memstats.heap_alloc
-		}
 		newb := (*bmap)(newobject(t.bucket))
 		h.setoverflow(t, b, newb)
 		inserti = &newb.tophash[0]
@@ -505,17 +495,11 @@ again:
 
 	// store new key/value at insert position
 	if t.indirectkey {
-		if checkgc {
-			memstats.next_gc = memstats.heap_alloc
-		}
 		kmem := newobject(t.key)
 		*(*unsafe.Pointer)(insertk) = kmem
 		insertk = kmem
 	}
 	if t.indirectvalue {
-		if checkgc {
-			memstats.next_gc = memstats.heap_alloc
-		}
 		vmem := newobject(t.elem)
 		*(*unsafe.Pointer)(insertv) = vmem
 		insertv = vmem
@@ -597,7 +581,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
 	}
 
 	if unsafe.Sizeof(hiter{})/ptrSize != 12 {
-		throw("hash_iter size incorrect") // see ../../cmd/gc/reflect.c
+		throw("hash_iter size incorrect") // see ../../cmd/internal/gc/reflect.go
 	}
 	it.t = t
 	it.h = h
@@ -776,9 +760,6 @@ func hashGrow(t *maptype, h *hmap) {
 		throw("evacuation not done in time")
 	}
 	oldbuckets := h.buckets
-	if checkgc {
-		memstats.next_gc = memstats.heap_alloc
-	}
 	newbuckets := newarray(t.bucket, uintptr(1)<<(h.B+1))
 	flags := h.flags &^ (iterator | oldIterator)
 	if h.flags&iterator != 0 {
@@ -879,9 +860,6 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				if (hash & newbit) == 0 {
 					b.tophash[i] = evacuatedX
 					if xi == bucketCnt {
-						if checkgc {
-							memstats.next_gc = memstats.heap_alloc
-						}
 						newx := (*bmap)(newobject(t.bucket))
 						h.setoverflow(t, x, newx)
 						x = newx
@@ -906,9 +884,6 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				} else {
 					b.tophash[i] = evacuatedY
 					if yi == bucketCnt {
-						if checkgc {
-							memstats.next_gc = memstats.heap_alloc
-						}
 						newy := (*bmap)(newobject(t.bucket))
 						h.setoverflow(t, y, newy)
 						y = newy
@@ -1019,4 +994,41 @@ func reflect_maplen(h *hmap) int {
 //go:linkname reflect_ismapkey reflect.ismapkey
 func reflect_ismapkey(t *_type) bool {
 	return ismapkey(t)
+}
+
+var zerolock mutex
+
+const initialZeroSize = 1024
+
+var zeroinitial [initialZeroSize]byte
+
+// All accesses to zeroptr and zerosize must be atomic so that they
+// can be accessed without locks in the common case.
+var zeroptr unsafe.Pointer = unsafe.Pointer(&zeroinitial)
+var zerosize uintptr = initialZeroSize
+
+// mapzero ensures that zeroptr points to a buffer large enough to
+// serve as the zero value for t.
+func mapzero(t *_type) {
+	// Is the type small enough for existing buffer?
+	cursize := uintptr(atomicloadp(unsafe.Pointer(&zerosize)))
+	if t.size <= cursize {
+		return
+	}
+
+	// Allocate a new buffer.
+	lock(&zerolock)
+	cursize = uintptr(atomicloadp(unsafe.Pointer(&zerosize)))
+	if cursize < t.size {
+		for cursize < t.size {
+			cursize *= 2
+			if cursize == 0 {
+				// need >2GB zero on 32-bit machine
+				throw("map element too large")
+			}
+		}
+		atomicstorep1(unsafe.Pointer(&zeroptr), persistentalloc(cursize, 64, &memstats.other_sys))
+		atomicstorep1(unsafe.Pointer(&zerosize), unsafe.Pointer(zerosize))
+	}
+	unlock(&zerolock)
 }

@@ -158,7 +158,7 @@ var mulRangesN = []struct {
 
 func TestMulRangeN(t *testing.T) {
 	for i, r := range mulRangesN {
-		prod := nat(nil).mulRange(r.a, r.b).decimalString()
+		prod := string(nat(nil).mulRange(r.a, r.b).utoa(10))
 		if prod != r.prod {
 			t.Errorf("#%d: got %s; want %s", i, prod, r.prod)
 		}
@@ -205,11 +205,11 @@ func BenchmarkMul(b *testing.B) {
 	}
 }
 
-func TestLeadingZeros(t *testing.T) {
+func TestNLZ(t *testing.T) {
 	var x Word = _B >> 1
 	for i := 0; i <= _W; i++ {
-		if int(leadingZeros(x)) != i {
-			t.Errorf("failed at %x: got %d want %d", x, leadingZeros(x), i)
+		if int(nlz(x)) != i {
+			t.Errorf("failed at %x: got %d want %d", x, nlz(x), i)
 		}
 		x >>= 1
 	}
@@ -326,9 +326,70 @@ func TestTrailingZeroBits(t *testing.T) {
 	for i := uint(0); i <= 3*_W; i++ {
 		n := y.trailingZeroBits()
 		if n != i {
-			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.hexString(), n, i)
+			t.Errorf("got 0x%s.trailingZeroBits() = %d; want %d", y.utoa(16), n, i)
 		}
 		y = y.shl(y, 1)
+	}
+}
+
+var montgomeryTests = []struct {
+	x, y, m      string
+	k0           uint64
+	out32, out64 string
+}{
+	{
+		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
+		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
+		"0xfffffffffffffffffffffffffffffffffffffffffffffffff",
+		0x0000000000000000,
+		"0xffffffffffffffffffffffffffffffffffffffffff",
+		"0xffffffffffffffffffffffffffffffffff",
+	},
+	{
+		"0x0000000080000000",
+		"0x00000000ffffffff",
+		"0x0000000010000001",
+		0xff0000000fffffff,
+		"0x0000000088000000",
+		"0x0000000007800001",
+	},
+	{
+		"0xffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
+		"0xffffffffffffffffffffffffffffffff999999999999999aaabbbbbbbbcccccccccccc",
+		"0x33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1",
+		0xdecc8f1249812adf,
+		"0x22bb05b6d95eaaeca2bb7c05e51f807bce9064b5fbad177161695e4558f9474e91cd79",
+		"0x14beb58d230f85b6d95eaaeca2bb7c05e51f807bce9064b5fb45669afa695f228e48cd",
+	},
+	{
+		"0x10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
+		"0x10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff999999999999999aaabbbbbbbbcccccccccccc",
+		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1",
+		0xdecc8f1249812adf,
+		"0x5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d7a11c7772cba02c22f9711078d51a3797eb18e691295293284d988e349fa6deba46b25a4ecd9f715",
+		"0x92fcad4b5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d799c32fe2f3cc5422f9711078d51a3797eb18e691295293284d8f5e69caf6decddfe1df6",
+	},
+}
+
+func TestMontgomery(t *testing.T) {
+	for i, test := range montgomeryTests {
+		x := natFromString(test.x)
+		y := natFromString(test.y)
+		m := natFromString(test.m)
+
+		var out nat
+		if _W == 32 {
+			out = natFromString(test.out32)
+		} else {
+			out = natFromString(test.out64)
+		}
+
+		k0 := Word(test.k0 & _M) // mask k0 to ensure that it fits for 32-bit systems.
+		z := nat(nil).montgomery(x, y, m, k0, len(m))
+		z = z.norm()
+		if z.cmp(out) != 0 {
+			t.Errorf("#%d got %s want %s", i, z.utoa(10), out.utoa(10))
+		}
 	}
 }
 
@@ -368,7 +429,7 @@ func TestExpNN(t *testing.T) {
 
 		z := nat(nil).expNN(x, y, m)
 		if z.cmp(out) != 0 {
-			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
+			t.Errorf("#%d got %s want %s", i, z.utoa(10), out.utoa(10))
 		}
 	}
 }
@@ -425,7 +486,7 @@ var fiboNums = []string{
 func TestFibo(t *testing.T) {
 	for i, want := range fiboNums {
 		n := i * 10
-		got := fibo(n).decimalString()
+		got := string(fibo(n).utoa(10))
 		if got != want {
 			t.Errorf("fibo(%d) failed: got %s want %s", n, got, want)
 		}

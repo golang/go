@@ -8,8 +8,9 @@ import "unsafe"
 
 // Declarations for runtime services implemented in C or assembly.
 
-const ptrSize = 4 << (^uintptr(0) >> 63) // unsafe.Sizeof(uintptr(0)) but an ideal const
-const regSize = 4 << (^uintreg(0) >> 63) // unsafe.Sizeof(uintreg(0)) but an ideal const
+const ptrSize = 4 << (^uintptr(0) >> 63)             // unsafe.Sizeof(uintptr(0)) but an ideal const
+const regSize = 4 << (^uintreg(0) >> 63)             // unsafe.Sizeof(uintreg(0)) but an ideal const
+const spAlign = 1*(1-goarch_arm64) + 16*goarch_arm64 // SP alignment: 1 normally, 16 for ARM64
 
 // Should be a built-in for unsafe.Pointer?
 //go:nosplit
@@ -17,6 +18,9 @@ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(p) + x)
 }
 
+// getg returns the pointer to the current g.
+// The compiler rewrites calls to this function into instructions
+// that fetch the g directly (from TLS or from the dedicated register).
 func getg() *g
 
 // mcall switches from the g to the g0 stack and invokes fn(g),
@@ -29,7 +33,10 @@ func getg() *g
 // run other goroutines.
 //
 // mcall can only be called from g stacks (not g0, not gsignal).
-//go:noescape
+//
+// This must NOT be go:noescape: if fn is a stack-allocated closure,
+// fn puts g on a run queue, and g executes before fn returns, the
+// closure will be invalidated while it is still executing.
 func mcall(fn func(*g))
 
 // systemstack runs fn on a system stack.
@@ -121,8 +128,28 @@ func breakpoint()
 func reflectcall(argtype *_type, fn, arg unsafe.Pointer, argsize uint32, retoffset uint32)
 
 func procyield(cycles uint32)
-func cgocallback_gofunc(fv *funcval, frame unsafe.Pointer, framesize uintptr)
-func goexit()
+
+type neverCallThisFunction struct{}
+
+// goexit is the return stub at the top of every goroutine call stack.
+// Each goroutine stack is constructed as if goexit called the
+// goroutine's entry point function, so that when the entry point
+// function returns, it will return to goexit, which will call goexit1
+// to perform the actual exit.
+//
+// This function must never be called directly. Call goexit1 instead.
+// gentraceback assumes that goexit terminates the stack. A direct
+// call on the stack will cause gentraceback to stop walking the stack
+// prematurely and if there are leftover stack barriers it may panic.
+func goexit(neverCallThisFunction)
+
+// Not all cgocallback_gofunc frames are actually cgocallback_gofunc,
+// so not all have these arguments. Mark them uintptr so that the GC
+// does not misinterpret memory when the arguments are not present.
+// cgocallback_gofunc is not called from go, only from cgocallback,
+// so the arguments will be found via cgocallback's pointer-declared arguments.
+// See the assembly implementations for more details.
+func cgocallback_gofunc(fv uintptr, frame uintptr, framesize uintptr)
 
 //go:noescape
 func cas(ptr *uint32, old, new uint32) bool
@@ -143,6 +170,39 @@ func atomicloaduintptr(ptr *uintptr) uintptr
 
 //go:noescape
 func atomicloaduint(ptr *uint) uint
+
+// TODO: Write native implementations of int64 atomic ops (or improve
+// inliner). These portable ones can't be inlined right now, so we're
+// taking an extra function call hit.
+
+func atomicstoreint64(ptr *int64, new int64) {
+	atomicstore64((*uint64)(unsafe.Pointer(ptr)), uint64(new))
+}
+
+func atomicloadint64(ptr *int64) int64 {
+	return int64(atomicload64((*uint64)(unsafe.Pointer(ptr))))
+}
+
+func xaddint64(ptr *int64, delta int64) int64 {
+	return int64(xadd64((*uint64)(unsafe.Pointer(ptr)), delta))
+}
+
+// publicationBarrier performs a store/store barrier (a "publication"
+// or "export" barrier). Some form of synchronization is required
+// between initializing an object and making that object accessible to
+// another processor. Without synchronization, the initialization
+// writes and the "publication" write may be reordered, allowing the
+// other processor to follow the pointer and observe an uninitialized
+// object. In general, higher-level synchronization should be used,
+// such as locking or an atomic pointer write. publicationBarrier is
+// for when those aren't an option, such as in the implementation of
+// the memory manager.
+//
+// There's no corresponding barrier for the read side because the read
+// side naturally has a data dependency order. All architectures that
+// Go supports or seems likely to ever support automatically enforce
+// data dependency ordering.
+func publicationBarrier()
 
 //go:noescape
 func setcallerpc(argp unsafe.Pointer, pc uintptr)
@@ -182,16 +242,20 @@ func getcallerpc(argp unsafe.Pointer) uintptr
 func getcallersp(argp unsafe.Pointer) uintptr
 
 //go:noescape
-func asmcgocall(fn, arg unsafe.Pointer)
-
-//go:noescape
-func asmcgocall_errno(fn, arg unsafe.Pointer) int32
+func asmcgocall(fn, arg unsafe.Pointer) int32
 
 // argp used in Defer structs when there is no argp.
 const _NoArgs = ^uintptr(0)
 
 func morestack()
 func rt0_go()
+
+// stackBarrier records that the stack has been unwound past a certain
+// point. It is installed over a return PC on the stack. It must
+// retrieve the original return PC from g.stkbuf, increment
+// g.stkbufPos to record that the barrier was hit, and jump to the
+// original return PC.
+func stackBarrier()
 
 // return0 is a stub used to return 0 from deferproc.
 // It is called at the very end of deferproc to signal
@@ -205,7 +269,6 @@ func time_now() (sec int64, nsec int32)
 
 // in asm_*.s
 // not called directly; definitions here supply type information for traceback.
-func call16(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call32(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call64(fn, arg unsafe.Pointer, n, retoffset uint32)
 func call128(fn, arg unsafe.Pointer, n, retoffset uint32)

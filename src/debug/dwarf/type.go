@@ -268,6 +268,9 @@ type typeReader interface {
 	Next() (*Entry, error)
 	clone() typeReader
 	offset() Offset
+	// AddressSize returns the size in bytes of addresses in the current
+	// compilation unit.
+	AddressSize() int
 }
 
 // Type reads the type at off in the DWARF ``info'' section.
@@ -286,6 +289,7 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 	if err != nil {
 		return nil, err
 	}
+	addressSize := r.AddressSize()
 	if e == nil || e.Offset != off {
 		return nil, DecodeError{name, off, "no type at offset"}
 	}
@@ -668,6 +672,12 @@ func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Off
 		b, ok := e.Val(AttrByteSize).(int64)
 		if !ok {
 			b = -1
+			switch t := typ.(type) {
+			case *TypedefType:
+				b = t.Type.Size()
+			case *PtrType:
+				b = int64(addressSize)
+			}
 		}
 		typ.Common().ByteSize = b
 	}

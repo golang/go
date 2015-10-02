@@ -7,7 +7,7 @@
 // finalizers, etc.) to a file.
 
 // The format of the dumped file is described at
-// http://golang.org/s/go14heapdump.
+// https://golang.org/s/go14heapdump.
 
 package runtime
 
@@ -15,20 +15,13 @@ import "unsafe"
 
 //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
 func runtime_debug_WriteHeapDump(fd uintptr) {
-	semacquire(&worldsema, false)
-	gp := getg()
-	gp.m.preemptoff = "write heap dump"
-	systemstack(stoptheworld)
+	stopTheWorld("write heap dump")
 
 	systemstack(func() {
 		writeheapdump_m(fd)
 	})
 
-	gp.m.preemptoff = ""
-	gp.m.locks++
-	semrelease(&worldsema)
-	systemstack(starttheworld)
-	gp.m.locks--
+	startTheWorld()
 }
 
 const (
@@ -237,18 +230,10 @@ type childInfo struct {
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
 	bv := gobv(*cbv)
-	for i := uintptr(0); i < uintptr(bv.n); i += typeBitsWidth {
-		switch bv.bytedata[i/8] >> (i % 8) & typeMask {
-		default:
-			throw("unexpected pointer bits")
-		case typeDead:
-			// typeDead has already been processed in makeheapobjbv.
-			// We should only see it in stack maps, in which case we should continue processing.
-		case typeScalar:
-			// ok
-		case typePointer:
+	for i := uintptr(0); i < uintptr(bv.n); i++ {
+		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
-			dumpint(uint64(offset + i/typeBitsWidth*ptrSize))
+			dumpint(uint64(offset + i*ptrSize))
 		}
 	}
 }
@@ -278,7 +263,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	var bv bitvector
 	if stkmap != nil && stkmap.n > 0 {
 		bv = stackmapdata(stkmap, pcdata)
-		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n/typeBitsWidth*ptrSize)))
+		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n*ptrSize)))
 	} else {
 		bv.n = -1
 	}
@@ -326,7 +311,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	} else if stkmap.n > 0 {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s.varp-uintptr(bv.n)/typeBitsWidth*ptrSize-s.sp)
+		dumpbv(&bv, s.varp-uintptr(bv.n)*ptrSize-s.sp)
 	}
 	dumpint(fieldKindEol)
 
@@ -431,19 +416,20 @@ func finq_callback(fn *funcval, obj unsafe.Pointer, nret uintptr, fint *_type, o
 }
 
 func dumproots() {
+	// TODO(mwhudson): dump datamask etc from all objects
 	// data segment
-	dumpbvtypes(&gcdatamask, unsafe.Pointer(&data))
+	dumpbvtypes(&firstmoduledata.gcdatamask, unsafe.Pointer(firstmoduledata.data))
 	dumpint(tagData)
-	dumpint(uint64(uintptr(unsafe.Pointer(&data))))
-	dumpmemrange(unsafe.Pointer(&data), uintptr(unsafe.Pointer(&edata))-uintptr(unsafe.Pointer(&data)))
-	dumpfields(gcdatamask)
+	dumpint(uint64(firstmoduledata.data))
+	dumpmemrange(unsafe.Pointer(firstmoduledata.data), firstmoduledata.edata-firstmoduledata.data)
+	dumpfields(firstmoduledata.gcdatamask)
 
 	// bss segment
-	dumpbvtypes(&gcbssmask, unsafe.Pointer(&bss))
+	dumpbvtypes(&firstmoduledata.gcbssmask, unsafe.Pointer(firstmoduledata.bss))
 	dumpint(tagBSS)
-	dumpint(uint64(uintptr(unsafe.Pointer(&bss))))
-	dumpmemrange(unsafe.Pointer(&bss), uintptr(unsafe.Pointer(&ebss))-uintptr(unsafe.Pointer(&bss)))
-	dumpfields(gcbssmask)
+	dumpint(uint64(firstmoduledata.bss))
+	dumpmemrange(unsafe.Pointer(firstmoduledata.bss), firstmoduledata.ebss-firstmoduledata.bss)
+	dumpfields(firstmoduledata.gcbssmask)
 
 	// MSpan.types
 	allspans := h_allspans
@@ -650,7 +636,7 @@ func dumpmemprof() {
 	}
 }
 
-var dumphdr = []byte("go1.4 heap dump\n")
+var dumphdr = []byte("go1.5 heap dump\n")
 
 func mdump() {
 	// make sure we're done sweeping
@@ -719,28 +705,31 @@ func dumpbvtypes(bv *bitvector, base unsafe.Pointer) {
 func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	// Extend the temp buffer if necessary.
 	nptr := size / ptrSize
-	if uintptr(len(tmpbuf)) < nptr*typeBitsWidth/8+1 {
+	if uintptr(len(tmpbuf)) < nptr/8+1 {
 		if tmpbuf != nil {
 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)
 		}
-		n := nptr*typeBitsWidth/8 + 1
+		n := nptr/8 + 1
 		p := sysAlloc(n, &memstats.other_sys)
 		if p == nil {
 			throw("heapdump: out of memory")
 		}
 		tmpbuf = (*[1 << 30]byte)(p)[:n]
 	}
-	// Convert heap bitmap to type bitmap.
+	// Convert heap bitmap to pointer bitmap.
+	for i := uintptr(0); i < nptr/8+1; i++ {
+		tmpbuf[i] = 0
+	}
 	i := uintptr(0)
 	hbits := heapBitsForAddr(p)
 	for ; i < nptr; i++ {
-		bits := hbits.typeBits()
-		if bits == typeDead {
+		if i >= 2 && !hbits.isMarked() {
 			break // end of object
 		}
+		if hbits.isPointer() {
+			tmpbuf[i/8] |= 1 << (i % 8)
+		}
 		hbits = hbits.next()
-		tmpbuf[i*typeBitsWidth/8] &^= (typeMask << ((i * typeBitsWidth) % 8))
-		tmpbuf[i*typeBitsWidth/8] |= bits << ((i * typeBitsWidth) % 8)
 	}
-	return bitvector{int32(i * typeBitsWidth), &tmpbuf[0]}
+	return bitvector{int32(i), &tmpbuf[0]}
 }

@@ -4,6 +4,6 @@
 
 // Test go generate variable substitution.
 
-//go:generate echo $GOARCH $GOFILE $GOPACKAGE xyz$GOPACKAGE/$GOFILE/123
+//go:generate echo $GOARCH $GOFILE:$GOLINE ${GOPACKAGE}abc xyz$GOPACKAGE/$GOFILE/123
 
 package p

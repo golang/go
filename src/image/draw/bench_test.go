@@ -7,6 +7,7 @@ package draw
 import (
 	"image"
 	"image/color"
+	"reflect"
 	"testing"
 )
 
@@ -14,6 +15,11 @@ const (
 	dstw, dsth = 640, 480
 	srcw, srch = 400, 300
 )
+
+var palette = color.Palette{
+	color.Black,
+	color.White,
+}
 
 // bench benchmarks drawing src and mask images onto a dst image with the
 // given op and the color models to create those images from.
@@ -50,13 +56,48 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
 		}
 		dst = dst1
 	default:
-		b.Fatal("unknown destination color model", dcm)
+		// The == operator isn't defined on a color.Palette (a slice), so we
+		// use reflection.
+		if reflect.DeepEqual(dcm, palette) {
+			dst1 := image.NewPaletted(image.Rect(0, 0, dstw, dsth), palette)
+			for y := 0; y < dsth; y++ {
+				for x := 0; x < dstw; x++ {
+					dst1.SetColorIndex(x, y, uint8(x^y)&1)
+				}
+			}
+			dst = dst1
+		} else {
+			b.Fatal("unknown destination color model", dcm)
+		}
 	}
 
 	var src image.Image
 	switch scm {
 	case nil:
 		src = &image.Uniform{C: color.RGBA{0x11, 0x22, 0x33, 0xff}}
+	case color.CMYKModel:
+		src1 := image.NewCMYK(image.Rect(0, 0, srcw, srch))
+		for y := 0; y < srch; y++ {
+			for x := 0; x < srcw; x++ {
+				src1.SetCMYK(x, y, color.CMYK{
+					uint8(13 * x % 0x100),
+					uint8(11 * y % 0x100),
+					uint8((11*x + 13*y) % 0x100),
+					uint8((31*x + 37*y) % 0x100),
+				})
+			}
+		}
+		src = src1
+	case color.GrayModel:
+		src1 := image.NewGray(image.Rect(0, 0, srcw, srch))
+		for y := 0; y < srch; y++ {
+			for x := 0; x < srcw; x++ {
+				src1.SetGray(x, y, color.Gray{
+					uint8((11*x + 13*y) % 0x100),
+				})
+			}
+		}
+		src = src1
 	case color.RGBAModel:
 		src1 := image.NewRGBA(image.Rect(0, 0, srcw, srch))
 		for y := 0; y < srch; y++ {
@@ -179,12 +220,24 @@ func BenchmarkYCbCr(b *testing.B) {
 	bench(b, color.RGBAModel, color.YCbCrModel, nil, Over)
 }
 
+func BenchmarkGray(b *testing.B) {
+	bench(b, color.RGBAModel, color.GrayModel, nil, Over)
+}
+
+func BenchmarkCMYK(b *testing.B) {
+	bench(b, color.RGBAModel, color.CMYKModel, nil, Over)
+}
+
 func BenchmarkGlyphOver(b *testing.B) {
 	bench(b, color.RGBAModel, nil, color.AlphaModel, Over)
 }
 
 func BenchmarkRGBA(b *testing.B) {
 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+}
+
+func BenchmarkPaletted(b *testing.B) {
+	bench(b, palette, color.RGBAModel, nil, Src)
 }
 
 // The BenchmarkGenericFoo functions exercise the generic, slow-path code.

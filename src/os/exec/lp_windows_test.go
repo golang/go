@@ -422,7 +422,7 @@ var commandTests = []commandTest{
 	},
 	// tests commands, like `a.exe`, with c.Dir set
 	{
-		// should not find a.exe in p, becasue LookPath(`a.exe`) will fail
+		// should not find a.exe in p, because LookPath(`a.exe`) will fail
 		files: []string{`p\a.exe`},
 		dir:   `p`,
 		arg0:  `a.exe`,

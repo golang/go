@@ -199,6 +199,10 @@ func (p *Package) loadDefines(f *File) {
 			val = strings.TrimSpace(line[tabIndex:])
 		}
 
+		if key == "__clang__" {
+			p.GccIsClang = true
+		}
+
 		if n := f.Name[key]; n != nil {
 			if *debugDefine {
 				fmt.Fprintf(os.Stderr, "#define %s %s\n", key, val)
@@ -762,7 +766,7 @@ func (p *Package) gccCmd() []string {
 		"-c",          // do not link
 		"-xc",         // input language is C
 	)
-	if strings.Contains(c[0], "clang") {
+	if p.GccIsClang {
 		c = append(c,
 			"-ferror-limit=0",
 			// Apple clang version 1.7 (tags/Apple/clang-77) (based on LLVM 2.9svn)
@@ -777,7 +781,7 @@ func (p *Package) gccCmd() []string {
 			// incorrectly typed unsigned long. We work around that
 			// by disabling the builtin functions (this is safe as
 			// it won't affect the actual compilation of the C code).
-			// See: http://golang.org/issue/6506.
+			// See: https://golang.org/issue/6506.
 			"-fno-builtin",
 		)
 	}
@@ -1042,7 +1046,7 @@ func (tr *TypeRepr) String() string {
 	return fmt.Sprintf(tr.Repr, tr.FormatArgs...)
 }
 
-// Empty returns true if the result of String would be "".
+// Empty reports whether the result of String would be "".
 func (tr *TypeRepr) Empty() bool {
 	return len(tr.Repr) == 0
 }
@@ -1540,14 +1544,16 @@ func (c *typeConv) intExpr(n int64) ast.Expr {
 }
 
 // Add padding of given size to fld.
-func (c *typeConv) pad(fld []*ast.Field, size int64) []*ast.Field {
+func (c *typeConv) pad(fld []*ast.Field, sizes []int64, size int64) ([]*ast.Field, []int64) {
 	n := len(fld)
 	fld = fld[0 : n+1]
 	fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident("_")}, Type: c.Opaque(size)}
-	return fld
+	sizes = sizes[0 : n+1]
+	sizes[n] = size
+	return fld, sizes
 }
 
-// Struct conversion: return Go and (6g) C syntax for type.
+// Struct conversion: return Go and (gc) C syntax for type.
 func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.StructType, csyntax string, align int64) {
 	// Minimum alignment for a struct is 1 byte.
 	align = 1
@@ -1555,6 +1561,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	var buf bytes.Buffer
 	buf.WriteString("struct {")
 	fld := make([]*ast.Field, 0, 2*len(dt.Field)+1) // enough for padding around every field
+	sizes := make([]int64, 0, 2*len(dt.Field)+1)
 	off := int64(0)
 
 	// Rename struct fields that happen to be named Go keywords into
@@ -1590,7 +1597,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	anon := 0
 	for _, f := range dt.Field {
 		if f.ByteOffset > off {
-			fld = c.pad(fld, f.ByteOffset-off)
+			fld, sizes = c.pad(fld, sizes, f.ByteOffset-off)
 			off = f.ByteOffset
 		}
 
@@ -1648,6 +1655,8 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			ident[name] = name
 		}
 		fld[n] = &ast.Field{Names: []*ast.Ident{c.Ident(ident[name])}, Type: tgo}
+		sizes = sizes[0 : n+1]
+		sizes[n] = size
 		off += size
 		buf.WriteString(t.C.String())
 		buf.WriteString(" ")
@@ -1658,9 +1667,22 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 		}
 	}
 	if off < dt.ByteSize {
-		fld = c.pad(fld, dt.ByteSize-off)
+		fld, sizes = c.pad(fld, sizes, dt.ByteSize-off)
 		off = dt.ByteSize
 	}
+
+	// If the last field in a non-zero-sized struct is zero-sized
+	// the compiler is going to pad it by one (see issue 9401).
+	// We can't permit that, because then the size of the Go
+	// struct will not be the same as the size of the C struct.
+	// Our only option in such a case is to remove the field,
+	// which means that it can not be referenced from Go.
+	for off > 0 && sizes[len(sizes)-1] == 0 {
+		n := len(sizes)
+		fld = fld[0 : n-1]
+		sizes = sizes[0 : n-1]
+	}
+
 	if off != dt.ByteSize {
 		fatalf("%s: struct size calculation error off=%d bytesize=%d", lineno(pos), off, dt.ByteSize)
 	}

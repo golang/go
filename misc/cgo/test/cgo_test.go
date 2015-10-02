@@ -23,7 +23,6 @@ func TestCallbackPanic(t *testing.T)         { testCallbackPanic(t) }
 func TestCallbackPanicLoop(t *testing.T)     { testCallbackPanicLoop(t) }
 func TestCallbackPanicLocked(t *testing.T)   { testCallbackPanicLocked(t) }
 func TestPanicFromC(t *testing.T)            { testPanicFromC(t) }
-func TestAllocateFromC(t *testing.T)         { testAllocateFromC(t) }
 func TestZeroArgCallback(t *testing.T)       { testZeroArgCallback(t) }
 func TestBlocking(t *testing.T)              { testBlocking(t) }
 func Test1328(t *testing.T)                  { test1328(t) }
@@ -64,5 +63,8 @@ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
 func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
 func Test9026(t *testing.T)                  { test9026(t) }
 func Test9557(t *testing.T)                  { test9557(t) }
+func Test10303(t *testing.T)                 { test10303(t, 10) }
+func Test11925(t *testing.T)                 { test11925(t) }
+func Test12030(t *testing.T)                 { test12030(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }

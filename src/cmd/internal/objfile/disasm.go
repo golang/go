@@ -15,8 +15,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"cmd/internal/rsc.io/arm/armasm"
-	"cmd/internal/rsc.io/x86/x86asm"
+	"golang.org/x/arch/arm/armasm"
+	"golang.org/x/arch/x86/x86asm"
 )
 
 // Disasm is a disassembler for a given File.
@@ -195,7 +195,7 @@ func disasm_x86(code []byte, pc uint64, lookup lookupFunc, arch int) (string, in
 		size = 1
 		text = "?"
 	} else {
-		text = x86asm.Plan9Syntax(inst, pc, lookup)
+		text = x86asm.GoSyntax(inst, pc, lookup)
 	}
 	return text, size
 }
@@ -228,7 +228,7 @@ func disasm_arm(code []byte, pc uint64, lookup lookupFunc) (string, int) {
 		size = 4
 		text = "?"
 	} else {
-		text = armasm.Plan9Syntax(inst, pc, lookup, textReader{code, pc})
+		text = armasm.GoSyntax(inst, pc, lookup, textReader{code, pc})
 	}
 	return text, size
 }

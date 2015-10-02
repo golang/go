@@ -22,21 +22,16 @@ func GOMAXPROCS(n int) int {
 		return ret
 	}
 
-	semacquire(&worldsema, false)
-	gp := getg()
-	gp.m.preemptoff = "GOMAXPROCS"
-	systemstack(stoptheworld)
+	stopTheWorld("GOMAXPROCS")
 
-	// newprocs will be processed by starttheworld
+	// newprocs will be processed by startTheWorld
 	newprocs = int32(n)
 
-	gp.m.preemptoff = ""
-	semrelease(&worldsema)
-	systemstack(starttheworld)
+	startTheWorld()
 	return ret
 }
 
-// NumCPU returns the number of logical CPUs on the local machine.
+// NumCPU returns the number of logical CPUs usable by the current process.
 func NumCPU() int {
 	return int(ncpu)
 }

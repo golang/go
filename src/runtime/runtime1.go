@@ -80,7 +80,7 @@ func goenvs_unix() {
 
 	envs = make([]string, n)
 	for i := int32(0); i < n; i++ {
-		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
+		envs[i] = gostring(argv_index(argv, argc+1+i))
 	}
 }
 
@@ -299,41 +299,49 @@ type dbgVar struct {
 	value *int32
 }
 
-// TODO(rsc): Make GC respect debug.invalidptr.
-
 // Holds variables parsed from GODEBUG env var,
 // except for "memprofilerate" since there is an
 // existing int var for that value, which may
 // already have an initial value.
 var debug struct {
-	allocfreetrace int32
-	efence         int32
-	gcdead         int32
-	gctrace        int32
-	invalidptr     int32
-	scavenge       int32
-	scheddetail    int32
-	schedtrace     int32
-	wbshadow       int32
-	gccheckmark    int32
+	allocfreetrace    int32
+	efence            int32
+	gccheckmark       int32
+	gcpacertrace      int32
+	gcshrinkstackoff  int32
+	gcstackbarrieroff int32
+	gcstackbarrierall int32
+	gcstoptheworld    int32
+	gctrace           int32
+	invalidptr        int32
+	sbrk              int32
+	scavenge          int32
+	scheddetail       int32
+	schedtrace        int32
+	wbshadow          int32
 }
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
 	{"efence", &debug.efence},
-	{"gcdead", &debug.gcdead},
+	{"gccheckmark", &debug.gccheckmark},
+	{"gcpacertrace", &debug.gcpacertrace},
+	{"gcshrinkstackoff", &debug.gcshrinkstackoff},
+	{"gcstackbarrieroff", &debug.gcstackbarrieroff},
+	{"gcstackbarrierall", &debug.gcstackbarrierall},
+	{"gcstoptheworld", &debug.gcstoptheworld},
 	{"gctrace", &debug.gctrace},
 	{"invalidptr", &debug.invalidptr},
+	{"sbrk", &debug.sbrk},
 	{"scavenge", &debug.scavenge},
 	{"scheddetail", &debug.scheddetail},
 	{"schedtrace", &debug.schedtrace},
 	{"wbshadow", &debug.wbshadow},
-	{"gccheckmark", &debug.gccheckmark},
 }
 
 func parsedebugvars() {
-	// gccheckmark is enabled by default for the 1.5 dev cycle
-	debug.gccheckmark = 1
+	// defaults
+	debug.invalidptr = 1
 
 	for p := gogetenv("GODEBUG"); p != ""; {
 		field := ""
@@ -370,6 +378,15 @@ func parsedebugvars() {
 		traceback_cache = 2<<1 | 1
 	default:
 		traceback_cache = uint32(atoi(p)) << 1
+	}
+	// when C owns the process, simply exit'ing the process on fatal errors
+	// and panics is surprising. Be louder and abort instead.
+	if islibrary || isarchive {
+		traceback_cache |= 1
+	}
+
+	if debug.gcstackbarrierall > 0 {
+		firstStackBarrierOffset = 0
 	}
 }
 
@@ -422,27 +439,12 @@ func gomcache() *mcache {
 	return getg().m.mcache
 }
 
-var typelink, etypelink [0]byte
-
 //go:linkname reflect_typelinks reflect.typelinks
 //go:nosplit
-func reflect_typelinks() []*_type {
-	var ret []*_type
-	sp := (*slice)(unsafe.Pointer(&ret))
-	sp.array = (*byte)(unsafe.Pointer(&typelink))
-	sp.len = uint((uintptr(unsafe.Pointer(&etypelink)) - uintptr(unsafe.Pointer(&typelink))) / unsafe.Sizeof(ret[0]))
-	sp.cap = sp.len
+func reflect_typelinks() [][]*_type {
+	ret := [][]*_type{firstmoduledata.typelinks}
+	for datap := firstmoduledata.next; datap != nil; datap = datap.next {
+		ret = append(ret, datap.typelinks)
+	}
 	return ret
-}
-
-// TODO: move back into mgc0.c when converted to Go
-func readgogc() int32 {
-	p := gogetenv("GOGC")
-	if p == "" {
-		return 100
-	}
-	if p == "off" {
-		return -1
-	}
-	return int32(atoi(p))
 }

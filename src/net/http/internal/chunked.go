@@ -173,14 +173,27 @@ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
 		err = io.ErrShortWrite
 		return
 	}
-	_, err = io.WriteString(cw.Wire, "\r\n")
-
+	if _, err = io.WriteString(cw.Wire, "\r\n"); err != nil {
+		return
+	}
+	if bw, ok := cw.Wire.(*FlushAfterChunkWriter); ok {
+		err = bw.Flush()
+	}
 	return
 }
 
 func (cw *chunkedWriter) Close() error {
 	_, err := io.WriteString(cw.Wire, "0\r\n")
 	return err
+}
+
+// FlushAfterChunkWriter signals from the caller of NewChunkedWriter
+// that each chunk should be followed by a flush. It is used by the
+// http.Transport code to keep the buffering behavior for headers and
+// trailers, but flush out chunks aggressively in the middle for
+// request bodies which may be generated slowly. See Issue 6574.
+type FlushAfterChunkWriter struct {
+	*bufio.Writer
 }
 
 func parseHexUint(v []byte) (n uint64, err error) {

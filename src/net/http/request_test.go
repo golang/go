@@ -178,6 +178,7 @@ func TestParseMultipartForm(t *testing.T) {
 }
 
 func TestRedirect(t *testing.T) {
+	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
 		case "/":
@@ -326,13 +327,31 @@ func TestReadRequestErrors(t *testing.T) {
 	}
 }
 
+var newRequestHostTests = []struct {
+	in, out string
+}{
+	{"http://www.example.com/", "www.example.com"},
+	{"http://www.example.com:8080/", "www.example.com:8080"},
+
+	{"http://192.168.0.1/", "192.168.0.1"},
+	{"http://192.168.0.1:8080/", "192.168.0.1:8080"},
+
+	{"http://[fe80::1]/", "[fe80::1]"},
+	{"http://[fe80::1]:8080/", "[fe80::1]:8080"},
+	{"http://[fe80::1%25en0]/", "[fe80::1%en0]"},
+	{"http://[fe80::1%25en0]:8080/", "[fe80::1%en0]:8080"},
+}
+
 func TestNewRequestHost(t *testing.T) {
-	req, err := NewRequest("GET", "http://localhost:1234/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if req.Host != "localhost:1234" {
-		t.Errorf("Host = %q; want localhost:1234", req.Host)
+	for i, tt := range newRequestHostTests {
+		req, err := NewRequest("GET", tt.in, nil)
+		if err != nil {
+			t.Errorf("#%v: %v", i, err)
+			continue
+		}
+		if req.Host != tt.out {
+			t.Errorf("got %q; want %q", req.Host, tt.out)
+		}
 	}
 }
 
@@ -491,6 +510,82 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
+func TestRequestBadHost(t *testing.T) {
+	got := []string{}
+	req, err := NewRequest("GET", "http://foo.com with spaces/after", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Write(logWrites{t, &got})
+	want := []string{
+		"GET /after HTTP/1.1\r\n",
+		"Host: foo.com\r\n",
+		"User-Agent: " + DefaultUserAgent + "\r\n",
+		"\r\n",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Writes = %q\n  Want = %q", got, want)
+	}
+}
+
+func TestStarRequest(t *testing.T) {
+	req, err := ReadRequest(bufio.NewReader(strings.NewReader("M-SEARCH * HTTP/1.1\r\n\r\n")))
+	if err != nil {
+		return
+	}
+	var out bytes.Buffer
+	if err := req.Write(&out); err != nil {
+		t.Fatal(err)
+	}
+	back, err := ReadRequest(bufio.NewReader(&out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Ignore the Headers (the User-Agent breaks the deep equal,
+	// but we don't care about it)
+	req.Header = nil
+	back.Header = nil
+	if !reflect.DeepEqual(req, back) {
+		t.Errorf("Original request doesn't match Request read back.")
+		t.Logf("Original: %#v", req)
+		t.Logf("Original.URL: %#v", req.URL)
+		t.Logf("Wrote: %s", out.Bytes())
+		t.Logf("Read back (doesn't match Original): %#v", back)
+	}
+}
+
+type responseWriterJustWriter struct {
+	io.Writer
+}
+
+func (responseWriterJustWriter) Header() Header  { panic("should not be called") }
+func (responseWriterJustWriter) WriteHeader(int) { panic("should not be called") }
+
+// delayedEOFReader never returns (n > 0, io.EOF), instead putting
+// off the io.EOF until a subsequent Read call.
+type delayedEOFReader struct {
+	r io.Reader
+}
+
+func (dr delayedEOFReader) Read(p []byte) (n int, err error) {
+	n, err = dr.r.Read(p)
+	if n > 0 && err == io.EOF {
+		err = nil
+	}
+	return
+}
+
+func TestIssue10884_MaxBytesEOF(t *testing.T) {
+	dst := ioutil.Discard
+	_, err := io.Copy(dst, MaxBytesReader(
+		responseWriterJustWriter{dst},
+		ioutil.NopCloser(delayedEOFReader{strings.NewReader("12345")}),
+		5))
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	. "net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/http/internal"
 	"net/url"
 	"os"
 	"os/exec"
@@ -146,6 +147,7 @@ func (ht handlerTest) rawResponse(req string) string {
 }
 
 func TestConsumingBodyOnNextConn(t *testing.T) {
+	defer afterTest(t)
 	conn := new(testConn)
 	for i := 0; i < 2; i++ {
 		conn.readBuf.Write([]byte(
@@ -205,6 +207,7 @@ var handlers = []struct {
 }{
 	{"/", "Default"},
 	{"/someDir/", "someDir"},
+	{"/#/", "hash"},
 	{"someHost.com/someDir/", "someHost.com/someDir"},
 }
 
@@ -213,12 +216,14 @@ var vtests = []struct {
 	expected string
 }{
 	{"http://localhost/someDir/apage", "someDir"},
+	{"http://localhost/%23/apage", "hash"},
 	{"http://localhost/otherDir/apage", "Default"},
 	{"http://someHost.com/someDir/apage", "someHost.com/someDir"},
 	{"http://otherHost.com/someDir/apage", "someDir"},
 	{"http://otherHost.com/aDir/apage", "Default"},
 	// redirections for trees
 	{"http://localhost/someDir", "/someDir/"},
+	{"http://localhost/%23", "/%23/"},
 	{"http://someHost.com/someDir", "/someDir/"},
 }
 
@@ -416,7 +421,7 @@ func TestServeMuxHandlerRedirects(t *testing.T) {
 	}
 }
 
-// Tests for http://golang.org/issue/900
+// Tests for https://golang.org/issue/900
 func TestMuxRedirectLeadingSlashes(t *testing.T) {
 	paths := []string{"//foo.txt", "///foo.txt", "/../../foo.txt"}
 	for _, path := range paths {
@@ -443,7 +448,7 @@ func TestMuxRedirectLeadingSlashes(t *testing.T) {
 
 func TestServerTimeouts(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	reqNum := 0
@@ -522,7 +527,7 @@ func TestServerTimeouts(t *testing.T) {
 // request) that will never happen.
 func TestOnlyWriteTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	var conn net.Conn
@@ -877,7 +882,7 @@ func TestHeadResponses(t *testing.T) {
 
 func TestTLSHandshakeTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
@@ -1105,6 +1110,7 @@ func TestServerExpect(t *testing.T) {
 // Under a ~256KB (maxPostHandlerReadBytes) threshold, the server
 // should consume client request bodies that a handler didn't read.
 func TestServerUnreadRequestBodyLittle(t *testing.T) {
+	defer afterTest(t)
 	conn := new(testConn)
 	body := strings.Repeat("x", 100<<10)
 	conn.readBuf.Write([]byte(fmt.Sprintf(
@@ -1163,6 +1169,365 @@ func TestServerUnreadRequestBodyLarge(t *testing.T) {
 
 	if res := conn.writeBuf.String(); !strings.Contains(res, "Connection: close") {
 		t.Errorf("Expected a Connection: close header; got response: %s", res)
+	}
+}
+
+type handlerBodyCloseTest struct {
+	bodySize     int
+	bodyChunked  bool
+	reqConnClose bool
+
+	wantEOFSearch bool // should Handler's Body.Close do Reads, looking for EOF?
+	wantNextReq   bool // should it find the next request on the same conn?
+}
+
+func (t handlerBodyCloseTest) connectionHeader() string {
+	if t.reqConnClose {
+		return "Connection: close\r\n"
+	}
+	return ""
+}
+
+var handlerBodyCloseTests = [...]handlerBodyCloseTest{
+	// Small enough to slurp past to the next request +
+	// has Content-Length.
+	0: {
+		bodySize:      20 << 10,
+		bodyChunked:   false,
+		reqConnClose:  false,
+		wantEOFSearch: true,
+		wantNextReq:   true,
+	},
+
+	// Small enough to slurp past to the next request +
+	// is chunked.
+	1: {
+		bodySize:      20 << 10,
+		bodyChunked:   true,
+		reqConnClose:  false,
+		wantEOFSearch: true,
+		wantNextReq:   true,
+	},
+
+	// Small enough to slurp past to the next request +
+	// has Content-Length +
+	// declares Connection: close (so pointless to read more).
+	2: {
+		bodySize:      20 << 10,
+		bodyChunked:   false,
+		reqConnClose:  true,
+		wantEOFSearch: false,
+		wantNextReq:   false,
+	},
+
+	// Small enough to slurp past to the next request +
+	// declares Connection: close,
+	// but chunked, so it might have trailers.
+	// TODO: maybe skip this search if no trailers were declared
+	// in the headers.
+	3: {
+		bodySize:      20 << 10,
+		bodyChunked:   true,
+		reqConnClose:  true,
+		wantEOFSearch: true,
+		wantNextReq:   false,
+	},
+
+	// Big with Content-Length, so give up immediately if we know it's too big.
+	4: {
+		bodySize:      1 << 20,
+		bodyChunked:   false, // has a Content-Length
+		reqConnClose:  false,
+		wantEOFSearch: false,
+		wantNextReq:   false,
+	},
+
+	// Big chunked, so read a bit before giving up.
+	5: {
+		bodySize:      1 << 20,
+		bodyChunked:   true,
+		reqConnClose:  false,
+		wantEOFSearch: true,
+		wantNextReq:   false,
+	},
+
+	// Big with Connection: close, but chunked, so search for trailers.
+	// TODO: maybe skip this search if no trailers were declared
+	// in the headers.
+	6: {
+		bodySize:      1 << 20,
+		bodyChunked:   true,
+		reqConnClose:  true,
+		wantEOFSearch: true,
+		wantNextReq:   false,
+	},
+
+	// Big with Connection: close, so don't do any reads on Close.
+	// With Content-Length.
+	7: {
+		bodySize:      1 << 20,
+		bodyChunked:   false,
+		reqConnClose:  true,
+		wantEOFSearch: false,
+		wantNextReq:   false,
+	},
+}
+
+func TestHandlerBodyClose(t *testing.T) {
+	for i, tt := range handlerBodyCloseTests {
+		testHandlerBodyClose(t, i, tt)
+	}
+}
+
+func testHandlerBodyClose(t *testing.T, i int, tt handlerBodyCloseTest) {
+	conn := new(testConn)
+	body := strings.Repeat("x", tt.bodySize)
+	if tt.bodyChunked {
+		conn.readBuf.WriteString("POST / HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			tt.connectionHeader() +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n")
+		cw := internal.NewChunkedWriter(&conn.readBuf)
+		io.WriteString(cw, body)
+		cw.Close()
+		conn.readBuf.WriteString("\r\n")
+	} else {
+		conn.readBuf.Write([]byte(fmt.Sprintf(
+			"POST / HTTP/1.1\r\n"+
+				"Host: test\r\n"+
+				tt.connectionHeader()+
+				"Content-Length: %d\r\n"+
+				"\r\n", len(body))))
+		conn.readBuf.Write([]byte(body))
+	}
+	if !tt.reqConnClose {
+		conn.readBuf.WriteString("GET / HTTP/1.1\r\nHost: test\r\n\r\n")
+	}
+	conn.closec = make(chan bool, 1)
+
+	ls := &oneConnListener{conn}
+	var numReqs int
+	var size0, size1 int
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		numReqs++
+		if numReqs == 1 {
+			size0 = conn.readBuf.Len()
+			req.Body.Close()
+			size1 = conn.readBuf.Len()
+		}
+	}))
+	<-conn.closec
+	if numReqs < 1 || numReqs > 2 {
+		t.Fatalf("%d. bug in test. unexpected number of requests = %d", i, numReqs)
+	}
+	didSearch := size0 != size1
+	if didSearch != tt.wantEOFSearch {
+		t.Errorf("%d. did EOF search = %v; want %v (size went from %d to %d)", i, didSearch, !didSearch, size0, size1)
+	}
+	if tt.wantNextReq && numReqs != 2 {
+		t.Errorf("%d. numReq = %d; want 2", i, numReqs)
+	}
+}
+
+// testHandlerBodyConsumer represents a function injected into a test handler to
+// vary work done on a request Body.
+type testHandlerBodyConsumer struct {
+	name string
+	f    func(io.ReadCloser)
+}
+
+var testHandlerBodyConsumers = []testHandlerBodyConsumer{
+	{"nil", func(io.ReadCloser) {}},
+	{"close", func(r io.ReadCloser) { r.Close() }},
+	{"discard", func(r io.ReadCloser) { io.Copy(ioutil.Discard, r) }},
+}
+
+func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
+	defer afterTest(t)
+	for _, handler := range testHandlerBodyConsumers {
+		conn := new(testConn)
+		conn.readBuf.WriteString("POST /public HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n" +
+			"hax\r\n" + // Invalid chunked encoding
+			"GET /secret HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"\r\n")
+
+		conn.closec = make(chan bool, 1)
+		ls := &oneConnListener{conn}
+		var numReqs int
+		go Serve(ls, HandlerFunc(func(_ ResponseWriter, req *Request) {
+			numReqs++
+			if strings.Contains(req.URL.Path, "secret") {
+				t.Error("Request for /secret encountered, should not have happened.")
+			}
+			handler.f(req.Body)
+		}))
+		<-conn.closec
+		if numReqs != 1 {
+			t.Errorf("Handler %v: got %d reqs; want 1", handler.name, numReqs)
+		}
+	}
+}
+
+func TestInvalidTrailerClosesConnection(t *testing.T) {
+	defer afterTest(t)
+	for _, handler := range testHandlerBodyConsumers {
+		conn := new(testConn)
+		conn.readBuf.WriteString("POST /public HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"Trailer: hack\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"\r\n" +
+			"3\r\n" +
+			"hax\r\n" +
+			"0\r\n" +
+			"I'm not a valid trailer\r\n" +
+			"GET /secret HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"\r\n")
+
+		conn.closec = make(chan bool, 1)
+		ln := &oneConnListener{conn}
+		var numReqs int
+		go Serve(ln, HandlerFunc(func(_ ResponseWriter, req *Request) {
+			numReqs++
+			if strings.Contains(req.URL.Path, "secret") {
+				t.Errorf("Handler %s, Request for /secret encountered, should not have happened.", handler.name)
+			}
+			handler.f(req.Body)
+		}))
+		<-conn.closec
+		if numReqs != 1 {
+			t.Errorf("Handler %s: got %d reqs; want 1", handler.name, numReqs)
+		}
+	}
+}
+
+// slowTestConn is a net.Conn that provides a means to simulate parts of a
+// request being received piecemeal. Deadlines can be set and enforced in both
+// Read and Write.
+type slowTestConn struct {
+	// over multiple calls to Read, time.Durations are slept, strings are read.
+	script []interface{}
+	closec chan bool
+	rd, wd time.Time // read, write deadline
+	noopConn
+}
+
+func (c *slowTestConn) SetDeadline(t time.Time) error {
+	c.SetReadDeadline(t)
+	c.SetWriteDeadline(t)
+	return nil
+}
+
+func (c *slowTestConn) SetReadDeadline(t time.Time) error {
+	c.rd = t
+	return nil
+}
+
+func (c *slowTestConn) SetWriteDeadline(t time.Time) error {
+	c.wd = t
+	return nil
+}
+
+func (c *slowTestConn) Read(b []byte) (n int, err error) {
+restart:
+	if !c.rd.IsZero() && time.Now().After(c.rd) {
+		return 0, syscall.ETIMEDOUT
+	}
+	if len(c.script) == 0 {
+		return 0, io.EOF
+	}
+
+	switch cue := c.script[0].(type) {
+	case time.Duration:
+		if !c.rd.IsZero() {
+			// If the deadline falls in the middle of our sleep window, deduct
+			// part of the sleep, then return a timeout.
+			if remaining := c.rd.Sub(time.Now()); remaining < cue {
+				c.script[0] = cue - remaining
+				time.Sleep(remaining)
+				return 0, syscall.ETIMEDOUT
+			}
+		}
+		c.script = c.script[1:]
+		time.Sleep(cue)
+		goto restart
+
+	case string:
+		n = copy(b, cue)
+		// If cue is too big for the buffer, leave the end for the next Read.
+		if len(cue) > n {
+			c.script[0] = cue[n:]
+		} else {
+			c.script = c.script[1:]
+		}
+
+	default:
+		panic("unknown cue in slowTestConn script")
+	}
+
+	return
+}
+
+func (c *slowTestConn) Close() error {
+	select {
+	case c.closec <- true:
+	default:
+	}
+	return nil
+}
+
+func (c *slowTestConn) Write(b []byte) (int, error) {
+	if !c.wd.IsZero() && time.Now().After(c.wd) {
+		return 0, syscall.ETIMEDOUT
+	}
+	return len(b), nil
+}
+
+func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
+	defer afterTest(t)
+	for _, handler := range testHandlerBodyConsumers {
+		conn := &slowTestConn{
+			script: []interface{}{
+				"POST /public HTTP/1.1\r\n" +
+					"Host: test\r\n" +
+					"Content-Length: 10000\r\n" +
+					"\r\n",
+				"foo bar baz",
+				600 * time.Millisecond, // Request deadline should hit here
+				"GET /secret HTTP/1.1\r\n" +
+					"Host: test\r\n" +
+					"\r\n",
+			},
+			closec: make(chan bool, 1),
+		}
+		ls := &oneConnListener{conn}
+
+		var numReqs int
+		s := Server{
+			Handler: HandlerFunc(func(_ ResponseWriter, req *Request) {
+				numReqs++
+				if strings.Contains(req.URL.Path, "secret") {
+					t.Error("Request for /secret encountered, should not have happened.")
+				}
+				handler.f(req.Body)
+			}),
+			ReadTimeout: 400 * time.Millisecond,
+		}
+		go s.Serve(ls)
+		<-conn.closec
+
+		if numReqs != 1 {
+			t.Errorf("Handler %v: got %d reqs; want 1", handler.name, numReqs)
+		}
 	}
 }
 
@@ -1451,19 +1816,23 @@ func testHandlerPanic(t *testing.T, withHijack bool, panicValue interface{}) {
 	}
 }
 
-func TestNoDate(t *testing.T) {
+func TestServerNoDate(t *testing.T)        { testServerNoHeader(t, "Date") }
+func TestServerNoContentType(t *testing.T) { testServerNoHeader(t, "Content-Type") }
+
+func testServerNoHeader(t *testing.T, header string) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-		w.Header()["Date"] = nil
+		w.Header()[header] = nil
+		io.WriteString(w, "<html>foo</html>") // non-empty
 	}))
 	defer ts.Close()
 	res, err := Get(ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, present := res.Header["Date"]
-	if present {
-		t.Fatalf("Expected no Date header; got %v", res.Header["Date"])
+	res.Body.Close()
+	if got, ok := res.Header[header]; ok {
+		t.Fatalf("Expected no %s header; got %q", header, got)
 	}
 }
 
@@ -1577,7 +1946,7 @@ func TestRequestBodyLimit(t *testing.T) {
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
 func TestClientWriteShutdown(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/7237")
+		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
@@ -1632,7 +2001,7 @@ func TestServerBufferedChunking(t *testing.T) {
 // Tests that the server flushes its response headers out when it's
 // ignoring the response body and waits a bit before forcefully
 // closing the TCP connection, causing the client to get a RST.
-// See http://golang.org/issue/3595
+// See https://golang.org/issue/3595
 func TestServerGracefulClose(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2124,7 +2493,7 @@ func TestDoubleHijack(t *testing.T) {
 	<-conn.closec
 }
 
-// http://golang.org/issue/5955
+// https://golang.org/issue/5955
 // Note that this does not test the "request too large"
 // exit path from the http server. This is intentional;
 // not sending Connection: close is just a minor wire
@@ -2288,17 +2657,13 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 
 	unblockBackend := make(chan bool)
 	backend := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
-		io.CopyN(rw, req.Body, bodySize/2)
+		io.CopyN(rw, req.Body, bodySize)
 		<-unblockBackend
 	}))
 	defer backend.Close()
 
 	backendRespc := make(chan *Response, 1)
 	proxy := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
-		if req.RequestURI == "/foo" {
-			rw.Write([]byte("bar"))
-			return
-		}
 		req2, _ := NewRequest("POST", backend.URL, req.Body)
 		req2.ContentLength = bodySize
 
@@ -2307,7 +2672,7 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 			t.Errorf("Proxy outbound request: %v", err)
 			return
 		}
-		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/4)
+		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/2)
 		if err != nil {
 			t.Errorf("Proxy copy error: %v", err)
 			return
@@ -2321,6 +2686,7 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 	}))
 	defer proxy.Close()
 
+	defer close(unblockBackend)
 	req, _ := NewRequest("POST", proxy.URL, io.LimitReader(neverEnding('a'), bodySize))
 	res, err := DefaultClient.Do(req)
 	if err != nil {
@@ -2329,8 +2695,12 @@ func TestTransportAndServerSharedBodyRace(t *testing.T) {
 
 	// Cleanup, so we don't leak goroutines.
 	res.Body.Close()
-	close(unblockBackend)
-	(<-backendRespc).Body.Close()
+	select {
+	case res := <-backendRespc:
+		res.Body.Close()
+	default:
+		// We failed earlier. (e.g. on DefaultClient.Do(req2))
+	}
 }
 
 // Test that a hanging Request.Body.Read from another goroutine can't
@@ -2762,6 +3132,134 @@ func TestServerKeepAliveAfterWriteError(t *testing.T) {
 	}
 }
 
+// Issue 9987: shouldn't add automatic Content-Length (or
+// Content-Type) if a Transfer-Encoding was set by the handler.
+func TestNoContentLengthIfTransferEncoding(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Transfer-Encoding", "foo")
+		io.WriteString(w, "<html>")
+	}))
+	defer ts.Close()
+	c, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("Dial: %v", err)
+	}
+	defer c.Close()
+	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: foo\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	bs := bufio.NewScanner(c)
+	var got bytes.Buffer
+	for bs.Scan() {
+		if strings.TrimSpace(bs.Text()) == "" {
+			break
+		}
+		got.WriteString(bs.Text())
+		got.WriteByte('\n')
+	}
+	if err := bs.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got.String(), "Content-Length") {
+		t.Errorf("Unexpected Content-Length in response headers: %s", got.String())
+	}
+	if strings.Contains(got.String(), "Content-Type") {
+		t.Errorf("Unexpected Content-Type in response headers: %s", got.String())
+	}
+}
+
+// tolerate extra CRLF(s) before Request-Line on subsequent requests on a conn
+// Issue 10876.
+func TestTolerateCRLFBeforeRequestLine(t *testing.T) {
+	req := []byte("POST / HTTP/1.1\r\nHost: golang.org\r\nContent-Length: 3\r\n\r\nABC" +
+		"\r\n\r\n" + // <-- this stuff is bogus, but we'll ignore it
+		"GET / HTTP/1.1\r\nHost: golang.org\r\n\r\n")
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	numReq := 0
+	go Serve(ln, HandlerFunc(func(rw ResponseWriter, r *Request) {
+		numReq++
+	}))
+	<-conn.closec
+	if numReq != 2 {
+		t.Errorf("num requests = %d; want 2", numReq)
+		t.Logf("Res: %s", buf.Bytes())
+	}
+}
+
+func TestIssue11549_Expect100(t *testing.T) {
+	req := reqBytes(`PUT /readbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+HelloWorldPUT /noreadbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+GET /should-be-ignored HTTP/1.1
+Host: foo
+
+`)
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	numReq := 0
+	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
+		numReq++
+		if r.URL.Path == "/readbody" {
+			ioutil.ReadAll(r.Body)
+		}
+		io.WriteString(w, "Hello world!")
+	}))
+	<-conn.closec
+	if numReq != 2 {
+		t.Errorf("num requests = %d; want 2", numReq)
+	}
+	if !strings.Contains(buf.String(), "Connection: close\r\n") {
+		t.Errorf("expected 'Connection: close' in response; got: %s", buf.String())
+	}
+}
+
+// If a Handler finishes and there's an unread request body,
+// verify the server try to do implicit read on it before replying.
+func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
+	conn := &testConn{closec: make(chan bool)}
+	conn.readBuf.Write([]byte(fmt.Sprintf(
+		"POST / HTTP/1.1\r\n" +
+			"Host: test\r\n" +
+			"Content-Length: 9999999999\r\n" +
+			"\r\n" + strings.Repeat("a", 1<<20))))
+
+	ls := &oneConnListener{conn}
+	var inHandlerLen int
+	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
+		inHandlerLen = conn.readBuf.Len()
+		rw.WriteHeader(404)
+	}))
+	<-conn.closec
+	afterHandlerLen := conn.readBuf.Len()
+
+	if afterHandlerLen != inHandlerLen {
+		t.Errorf("unexpected implicit read. Read buffer went from %d -> %d", inHandlerLen, afterHandlerLen)
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
@@ -3186,4 +3684,36 @@ Host: golang.org
 		Serve(ln, h)
 		<-conn.closec
 	}
+}
+
+func BenchmarkCloseNotifier(b *testing.B) {
+	b.ReportAllocs()
+	b.StopTimer()
+	sawClose := make(chan bool)
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		<-rw.(CloseNotifier).CloseNotify()
+		sawClose <- true
+	}))
+	defer ts.Close()
+	tot := time.NewTimer(5 * time.Second)
+	defer tot.Stop()
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+		if err != nil {
+			b.Fatalf("error dialing: %v", err)
+		}
+		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+		if err != nil {
+			b.Fatal(err)
+		}
+		conn.Close()
+		tot.Reset(5 * time.Second)
+		select {
+		case <-sawClose:
+		case <-tot.C:
+			b.Fatal("timeout")
+		}
+	}
+	b.StopTimer()
 }

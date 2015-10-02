@@ -11,8 +11,9 @@ import "unsafe"
 type mcache struct {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
-	next_sample      int32  // trigger heap sample after allocating this many bytes
-	local_cachealloc intptr // bytes allocated (or freed) from cache since last lock of heap
+	next_sample      int32   // trigger heap sample after allocating this many bytes
+	local_cachealloc uintptr // bytes allocated from cache since last lock of heap
+	local_scan       uintptr // bytes of scannable heap allocated
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
 	tiny             unsafe.Pointer
@@ -23,8 +24,6 @@ type mcache struct {
 	alloc [_NumSizeClasses]*mspan // spans to allocate from
 
 	stackcache [_NumStackOrders]stackfreelist
-
-	sudogcache *sudog
 
 	// Local allocator stats, flushed during GC.
 	local_nlookup    uintptr                  // number of pointer lookups

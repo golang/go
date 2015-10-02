@@ -119,29 +119,29 @@ func raceinit() uintptr {
 	// Round data segment to page boundaries, because it's used in mmap().
 	start := ^uintptr(0)
 	end := uintptr(0)
-	if start > uintptr(unsafe.Pointer(&noptrdata)) {
-		start = uintptr(unsafe.Pointer(&noptrdata))
+	if start > firstmoduledata.noptrdata {
+		start = firstmoduledata.noptrdata
 	}
-	if start > uintptr(unsafe.Pointer(&data)) {
-		start = uintptr(unsafe.Pointer(&data))
+	if start > firstmoduledata.data {
+		start = firstmoduledata.data
 	}
-	if start > uintptr(unsafe.Pointer(&noptrbss)) {
-		start = uintptr(unsafe.Pointer(&noptrbss))
+	if start > firstmoduledata.noptrbss {
+		start = firstmoduledata.noptrbss
 	}
-	if start > uintptr(unsafe.Pointer(&bss)) {
-		start = uintptr(unsafe.Pointer(&bss))
+	if start > firstmoduledata.bss {
+		start = firstmoduledata.bss
 	}
-	if end < uintptr(unsafe.Pointer(&enoptrdata)) {
-		end = uintptr(unsafe.Pointer(&enoptrdata))
+	if end < firstmoduledata.enoptrdata {
+		end = firstmoduledata.enoptrdata
 	}
-	if end < uintptr(unsafe.Pointer(&edata)) {
-		end = uintptr(unsafe.Pointer(&edata))
+	if end < firstmoduledata.edata {
+		end = firstmoduledata.edata
 	}
-	if end < uintptr(unsafe.Pointer(&enoptrbss)) {
-		end = uintptr(unsafe.Pointer(&enoptrbss))
+	if end < firstmoduledata.enoptrbss {
+		end = firstmoduledata.enoptrbss
 	}
-	if end < uintptr(unsafe.Pointer(&ebss)) {
-		end = uintptr(unsafe.Pointer(&ebss))
+	if end < firstmoduledata.ebss {
+		end = firstmoduledata.ebss
 	}
 	size := round(end-start, _PageSize)
 	racecall(&__tsan_map_shadow, start, size, 0, 0)

@@ -14,6 +14,16 @@ import (
 
 // This file implements encryption and decryption using PKCS#1 v1.5 padding.
 
+// PKCS1v15DecrypterOpts is for passing options to PKCS#1 v1.5 decryption using
+// the crypto.Decrypter interface.
+type PKCS1v15DecryptOptions struct {
+	// SessionKeyLen is the length of the session key that is being
+	// decrypted. If not zero, then a padding error during decryption will
+	// cause a random plaintext of this length to be returned rather than
+	// an error. These alternatives happen in constant time.
+	SessionKeyLen int
+}
+
 // EncryptPKCS1v15 encrypts the given message with RSA and the padding scheme from PKCS#1 v1.5.
 // The message must be no longer than the length of the public modulus minus 11 bytes.
 // WARNING: use of this function to encrypt plaintexts other than session keys

@@ -405,6 +405,57 @@ some body`,
 
 		"foobar",
 	},
+
+	// Both keep-alive and close, on the same Connection line. (Issue 8840)
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 256\r\n" +
+			"Connection: keep-alive, close\r\n" +
+			"\r\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("HEAD"),
+			Header: Header{
+				"Content-Length": {"256"},
+			},
+			TransferEncoding: nil,
+			Close:            true,
+			ContentLength:    256,
+		},
+
+		"",
+	},
+
+	// Both keep-alive and close, on different Connection lines. (Issue 8840)
+	{
+		"HTTP/1.1 200 OK\r\n" +
+			"Content-Length: 256\r\n" +
+			"Connection: keep-alive\r\n" +
+			"Connection: close\r\n" +
+			"\r\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.1",
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+			Request:    dummyReq("HEAD"),
+			Header: Header{
+				"Content-Length": {"256"},
+			},
+			TransferEncoding: nil,
+			Close:            true,
+			ContentLength:    256,
+		},
+
+		"",
+	},
 }
 
 func TestReadResponse(t *testing.T) {

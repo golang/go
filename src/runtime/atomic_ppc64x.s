@@ -15,7 +15,7 @@ TEXT ·atomicload(SB),NOSPLIT,$-8-12
 	BC	4, 30, 1(PC) // bne- cr7,0x4
 	ISYNC
 	MOVW	R3, ret+8(FP)
-	RETURN
+	RET
 
 // uint64 runtime·atomicload64(uint64 volatile* addr)
 TEXT ·atomicload64(SB),NOSPLIT,$-8-16
@@ -26,7 +26,7 @@ TEXT ·atomicload64(SB),NOSPLIT,$-8-16
 	BC	4, 30, 1(PC) // bne- cr7,0x4
 	ISYNC
 	MOVD	R3, ret+8(FP)
-	RETURN
+	RET
 
 // void *runtime·atomicloadp(void *volatile *addr)
 TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
@@ -37,4 +37,11 @@ TEXT ·atomicloadp(SB),NOSPLIT,$-8-16
 	BC	4, 30, 1(PC) // bne- cr7,0x4
 	ISYNC
 	MOVD	R3, ret+8(FP)
-	RETURN
+	RET
+
+TEXT ·publicationBarrier(SB),NOSPLIT,$-8-0
+	// LWSYNC is the "export" barrier recommended by Power ISA
+	// v2.07 book II, appendix B.2.2.2.
+	// LWSYNC is a load/load, load/store, and store/store barrier.
+	WORD $0x7c2004ac	// LWSYNC
+	RET

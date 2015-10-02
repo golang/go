@@ -250,11 +250,16 @@ projects at once within a single <code>$GOPATH</code> root directory.</p>
 <h2>Limitations</h2>
 
 <p>As mentioned above, the go command is not a general-purpose build
-tool. In particular, it does not have any facility for generating Go
-source files during a build.  Instead, if you want to use a tool like
-yacc or the protocol buffer compiler, you will need to write a
+tool.
+In particular, it does not have any facility for generating Go
+source files <em>during</em> a build, although it does provide
+<a href="/cmd/go/#hdr-Generate_Go_files_by_processing_source"><code>go</code>
+<code>generate</code></a>,
+which can automate the creation of Go files <em>before</em>
+the build, such as by running <code>yacc</code>.
+For more advanced build setups, you may need to write a
 makefile (or a configuration file for the build tool of your choice)
-to generate the Go files and then check those generated source files
+to run whatever tool creates the Go files and then check those generated source files
 into your repository. This is more work for you, the package author,
 but it is significantly less work for your users, who can use
 "<code>go get</code>" without needing to obtain and build

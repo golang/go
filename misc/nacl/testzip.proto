@@ -10,31 +10,43 @@ usr	src=../misc/nacl/testdata
 go	src=..
 	src
 		cmd
+			api
+				testdata
+					+
 			asm
 				internal
 					asm
 						testdata
 							+
+			doc
+				main.go
+				pkg.go
+				doc_test.go
+				testdata
+					+
 			internal
 				objfile
 					objfile.go
-				rsc.io
-					arm
-						armasm
-							testdata
-								+
-					x86
-						x86asm
-							testdata
-								+
 			gofmt
 				gofmt.go
 				gofmt_test.go
 				testdata
 					+
-			link
+			newlink
 				testdata
 					+
+			vendor
+				golang.org
+						x
+							arch
+								arm
+									armasm
+										testdata
+												+
+								x86
+									x86asm
+										testdata
+												+
 		archive
 			tar
 				testdata

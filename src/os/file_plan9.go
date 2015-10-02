@@ -79,7 +79,7 @@ func syscallMode(i FileMode) (o uint32) {
 // (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
 // methods on the returned File can be used for I/O.
 // If there is an error, it will be of type *PathError.
-func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+func OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	var (
 		fd     int
 		e      error
@@ -159,7 +159,7 @@ func (file *file) close() error {
 
 // Stat returns the FileInfo structure describing file.
 // If there is an error, it will be of type *PathError.
-func (f *File) Stat() (fi FileInfo, err error) {
+func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}
@@ -224,7 +224,7 @@ func (f *File) Chmod(mode FileMode) error {
 // Sync commits the current contents of the file to stable storage.
 // Typically, this means flushing the file system's in-memory copy
 // of recently written data to disk.
-func (f *File) Sync() (err error) {
+func (f *File) Sync() error {
 	if f == nil {
 		return ErrInvalid
 	}
@@ -319,7 +319,7 @@ func hasPrefix(s, prefix string) bool {
 	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
 }
 
-// Variant of LastIndex from the strings package.
+// LastIndexByte from the strings package.
 func lastIndex(s string, sep byte) int {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == sep {

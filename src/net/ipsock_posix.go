@@ -9,17 +9,25 @@
 package net
 
 import (
+	"runtime"
 	"syscall"
 	"time"
 )
 
+// BUG(rsc,mikio): On DragonFly BSD and OpenBSD, listening on the
+// "tcp" and "udp" networks does not listen for both IPv4 and IPv6
+// connections. This is due to the fact that IPv4 traffic will not be
+// routed to an IPv6 socket - two separate sockets are required if
+// both address families are to be supported.
+// See inet6(4) for details.
+
 func probeIPv4Stack() bool {
-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	s, err := socketFunc(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 	switch err {
 	case syscall.EAFNOSUPPORT, syscall.EPROTONOSUPPORT:
 		return false
 	case nil:
-		closesocket(s)
+		closeFunc(s)
 	}
 	return true
 }
@@ -41,20 +49,35 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	var probes = []struct {
 		laddr TCPAddr
 		value int
-		ok    bool
 	}{
 		// IPv6 communication capability
 		{laddr: TCPAddr{IP: ParseIP("::1")}, value: 1},
 		// IPv6 IPv4-mapped address communication capability
 		{laddr: TCPAddr{IP: IPv4(127, 0, 0, 1)}, value: 0},
 	}
+	var supps [2]bool
+	switch runtime.GOOS {
+	case "dragonfly", "openbsd":
+		// Some released versions of DragonFly BSD pretend to
+		// accept IPV6_V6ONLY=0 successfully, but the state
+		// still stays IPV6_V6ONLY=1. Eventually DragonFly BSD
+		// stops preteding, but the transition period would
+		// cause unpredictable behavior and we need to avoid
+		// it.
+		//
+		// OpenBSD also doesn't support IPV6_V6ONLY=0 but it
+		// never pretends to accept IPV6_V6OLY=0. It always
+		// returns an error and we don't need to probe the
+		// capability.
+		probes = probes[:1]
+	}
 
 	for i := range probes {
-		s, err := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		s, err := socketFunc(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
 		if err != nil {
 			continue
 		}
-		defer closesocket(s)
+		defer closeFunc(s)
 		syscall.SetsockoptInt(s, syscall.IPPROTO_IPV6, syscall.IPV6_V6ONLY, probes[i].value)
 		sa, err := probes[i].laddr.sockaddr(syscall.AF_INET6)
 		if err != nil {
@@ -63,10 +86,10 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 		if err := syscall.Bind(s, sa); err != nil {
 			continue
 		}
-		probes[i].ok = true
+		supps[i] = true
 	}
 
-	return probes[0].ok, probes[1].ok
+	return supps[0], supps[1]
 }
 
 // favoriteAddrFamily returns the appropriate address family to
@@ -78,10 +101,11 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 //
 //	1. A wild-wild listen, "tcp" + ""
 //	If the platform supports both IPv6 and IPv6 IPv4-mapping
-//	capabilities, we assume that the user want to listen on
-//	both IPv4 and IPv6 wildcard address over an AF_INET6
-//	socket with IPV6_V6ONLY=0.  Otherwise we prefer an IPv4
-//	wildcard address listen over an AF_INET socket.
+//	capabilities, or does not support IPv4, we assume that
+//	the user wants to listen on both IPv4 and IPv6 wildcard
+//	addresses over an AF_INET6 socket with IPV6_V6ONLY=0.
+//	Otherwise we prefer an IPv4 wildcard address listen over
+//	an AF_INET socket.
 //
 //	2. A wild-ipv4wild listen, "tcp" + "0.0.0.0"
 //	Same as 1.
@@ -114,7 +138,7 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family 
 	}
 
 	if mode == "listen" && (laddr == nil || laddr.isWildcard()) {
-		if supportsIPv4map {
+		if supportsIPv4map || !supportsIPv4 {
 			return syscall.AF_INET6, false
 		}
 		if laddr == nil {
@@ -144,7 +168,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 			ip = IPv4zero
 		}
 		if ip = ip.To4(); ip == nil {
-			return nil, InvalidAddrError("non-IPv4 address")
+			return nil, &AddrError{Err: "non-IPv4 address", Addr: ip.String()}
 		}
 		sa := new(syscall.SockaddrInet4)
 		for i := 0; i < IPv4len; i++ {
@@ -163,7 +187,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 			ip = IPv6zero
 		}
 		if ip = ip.To16(); ip == nil {
-			return nil, InvalidAddrError("non-IPv6 address")
+			return nil, &AddrError{Err: "non-IPv6 address", Addr: ip.String()}
 		}
 		sa := new(syscall.SockaddrInet6)
 		for i := 0; i < IPv6len; i++ {
@@ -173,5 +197,5 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		sa.ZoneId = uint32(zoneToInt(zone))
 		return sa, nil
 	}
-	return nil, InvalidAddrError("unexpected socket family")
+	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}
 }

@@ -8,6 +8,7 @@ package asm
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -33,10 +34,12 @@ type Parser struct {
 	toPatch       []Patch
 	addr          []obj.Addr
 	arch          *arch.Arch
-	linkCtxt      *obj.Link
+	ctxt          *obj.Link
 	firstProg     *obj.Prog
 	lastProg      *obj.Prog
 	dataAddr      map[string]int64 // Most recent address for DATA for this symbol.
+	isJump        bool             // Instruction being assembled is a jump.
+	errorWriter   io.Writer
 }
 
 type Patch struct {
@@ -46,24 +49,34 @@ type Patch struct {
 
 func NewParser(ctxt *obj.Link, ar *arch.Arch, lexer lex.TokenReader) *Parser {
 	return &Parser{
-		linkCtxt: ctxt,
-		arch:     ar,
-		lex:      lexer,
-		labels:   make(map[string]*obj.Prog),
-		dataAddr: make(map[string]int64),
+		ctxt:        ctxt,
+		arch:        ar,
+		lex:         lexer,
+		labels:      make(map[string]*obj.Prog),
+		dataAddr:    make(map[string]int64),
+		errorWriter: os.Stderr,
 	}
 }
 
+// panicOnError is enable when testing to abort execution on the first error
+// and turn it into a recoverable panic.
+var panicOnError bool
+
 func (p *Parser) errorf(format string, args ...interface{}) {
+	if panicOnError {
+		panic(fmt.Errorf(format, args...))
+	}
 	if p.histLineNum == p.errorLine {
 		// Only one error per line.
 		return
 	}
 	p.errorLine = p.histLineNum
-	// Put file and line information on head of message.
-	format = "%s:%d: " + format + "\n"
-	args = append([]interface{}{p.lex.File(), p.lineNum}, args...)
-	fmt.Fprintf(os.Stderr, format, args...)
+	if p.lex != nil {
+		// Put file and line information on head of message.
+		format = "%s:%d: " + format + "\n"
+		args = append([]interface{}{p.lex.File(), p.lineNum}, args...)
+	}
+	fmt.Fprintf(p.errorWriter, format, args...)
 	p.errorCount++
 	if p.errorCount > 10 {
 		log.Fatal("too many errors")
@@ -109,13 +122,14 @@ func (p *Parser) line() bool {
 	operands := make([][]lex.Token, 0, 3)
 	// Zero or more comma-separated operands, one per loop.
 	nesting := 0
+	colon := -1
 	for tok != '\n' && tok != ';' {
 		// Process one operand.
 		items := make([]lex.Token, 0, 3)
 		for {
 			tok = p.lex.Next()
 			if len(operands) == 0 && len(items) == 0 {
-				if p.arch.Thechar == '5' && tok == '.' {
+				if (p.arch.Thechar == '5' || p.arch.Thechar == '7') && tok == '.' {
 					// ARM conditionals.
 					tok = p.lex.Next()
 					str := p.lex.Text()
@@ -135,7 +149,17 @@ func (p *Parser) line() bool {
 				p.errorf("unexpected EOF")
 				return false
 			}
-			if tok == '\n' || tok == ';' || (nesting == 0 && tok == ',') {
+			// Split operands on comma. Also, the old syntax on x86 for a "register pair"
+			// was AX:DX, for which the new syntax is DX, AX. Note the reordering.
+			if tok == '\n' || tok == ';' || (nesting == 0 && (tok == ',' || tok == ':')) {
+				if tok == ':' {
+					// Remember this location so we can swap the operands below.
+					if colon >= 0 {
+						p.errorf("invalid ':' in operand")
+						return true
+					}
+					colon = len(operands)
+				}
 				break
 			}
 			if tok == '(' || tok == '[' {
@@ -148,8 +172,13 @@ func (p *Parser) line() bool {
 		}
 		if len(items) > 0 {
 			operands = append(operands, items)
-		} else if len(operands) > 0 || tok == ',' {
-			// Had a comma with nothing after.
+			if colon >= 0 && len(operands) == colon+2 {
+				// AX:DX becomes DX, AX.
+				operands[colon], operands[colon+1] = operands[colon+1], operands[colon]
+				colon = -1
+			}
+		} else if len(operands) > 0 || tok == ',' || colon >= 0 {
+			// Had a separator with nothing after.
 			p.errorf("missing operand")
 		}
 	}
@@ -169,15 +198,15 @@ func (p *Parser) line() bool {
 
 func (p *Parser) instruction(op int, word, cond string, operands [][]lex.Token) {
 	p.addr = p.addr[0:0]
-	isJump := p.arch.IsJump(word)
+	p.isJump = p.arch.IsJump(word)
 	for _, op := range operands {
 		addr := p.address(op)
-		if !isJump && addr.Reg < 0 { // Jumps refer to PC, a pseudo.
+		if !p.isJump && addr.Reg < 0 { // Jumps refer to PC, a pseudo.
 			p.errorf("illegal use of pseudo-register in %s", word)
 		}
 		p.addr = append(p.addr, addr)
 	}
-	if isJump {
+	if p.isJump {
 		p.asmJump(op, cond, p.addr)
 		return
 	}
@@ -226,7 +255,7 @@ func (p *Parser) parseScale(s string) int8 {
 
 // operand parses a general operand and stores the result in *a.
 func (p *Parser) operand(a *obj.Addr) bool {
-	// fmt.Printf("Operand: %v\n", p.input)
+	//fmt.Printf("Operand: %v\n", p.input)
 	if len(p.input) == 0 {
 		p.errorf("empty operand: cannot happen")
 		return false
@@ -255,7 +284,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
 		// We have a symbol. Parse $sym±offset(symkind)
 		p.symbolReference(a, name, prefix)
-		// fmt.Printf("SYM %s\n", p.arch.Dconv(&emptyProg, 0, a))
+		// fmt.Printf("SYM %s\n", obj.Dconv(&emptyProg, 0, a))
 		if p.peek() == scanner.EOF {
 			return true
 		}
@@ -296,11 +325,11 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			a.Reg = r1
 			if r2 != 0 {
 				// Form is R1:R2. It is on RHS and the second register
-				// needs to go into the LHS. This is a horrible hack. TODO.
-				a.Class = int8(r2)
+				// needs to go into the LHS.
+				panic("cannot happen (Addr.Reg2)")
 			}
 		}
-		// fmt.Printf("REG %s\n", p.arch.Dconv(&emptyProg, 0, a))
+		// fmt.Printf("REG %s\n", obj.Dconv(&emptyProg, 0, a))
 		p.expect(scanner.EOF)
 		return true
 	}
@@ -311,8 +340,13 @@ func (p *Parser) operand(a *obj.Addr) bool {
 	case scanner.Int, scanner.Float, scanner.String, scanner.Char, '+', '-', '~':
 		haveConstant = true
 	case '(':
-		// Could be parenthesized expression or (R).
-		rname := p.next().String()
+		// Could be parenthesized expression or (R). Must be something, though.
+		tok := p.next()
+		if tok.ScanToken == scanner.EOF {
+			p.errorf("missing right parenthesis")
+			return false
+		}
+		rname := tok.String()
 		p.back()
 		haveConstant = !p.atStartOfRegister(rname)
 		if !haveConstant {
@@ -326,22 +360,23 @@ func (p *Parser) operand(a *obj.Addr) bool {
 				p.errorf("floating-point constant must be an immediate")
 			}
 			a.Type = obj.TYPE_FCONST
-			a.U.Dval = p.floatExpr()
-			// fmt.Printf("FCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
+			a.Val = p.floatExpr()
+			// fmt.Printf("FCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
 		}
 		if p.have(scanner.String) {
 			if prefix != '$' {
 				p.errorf("string constant must be an immediate")
+				return false
 			}
 			str, err := strconv.Unquote(p.get(scanner.String).String())
 			if err != nil {
 				p.errorf("string parse error: %s", err)
 			}
 			a.Type = obj.TYPE_SCONST
-			a.U.Sval = str
-			// fmt.Printf("SCONST %s\n", p.arch.Dconv(&emptyProg, 0, a))
+			a.Val = str
+			// fmt.Printf("SCONST %s\n", obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -355,7 +390,7 @@ func (p *Parser) operand(a *obj.Addr) bool {
 			default:
 				a.Type = obj.TYPE_MEM
 			}
-			// fmt.Printf("CONST %d %s\n", a.Offset, p.arch.Dconv(&emptyProg, 0, a))
+			// fmt.Printf("CONST %d %s\n", a.Offset, obj.Dconv(&emptyProg, 0, a))
 			p.expect(scanner.EOF)
 			return true
 		}
@@ -434,28 +469,23 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
 	if !ok {
 		return
 	}
-	if prefix != 0 {
-		p.errorf("prefix %c not allowed for register: $%s", prefix, name)
+	if prefix != 0 && prefix != '*' { // *AX is OK.
+		p.errorf("prefix %c not allowed for register: %c%s", prefix, prefix, name)
 	}
 	c := p.peek()
 	if c == ':' || c == ',' || c == '+' {
-		// 2nd register; syntax (R1:R2) etc. No two architectures agree.
+		// 2nd register; syntax (R1+R2) etc. No two architectures agree.
 		// Check the architectures match the syntax.
 		char := p.arch.Thechar
 		switch p.next().ScanToken {
-		case ':':
-			if char != '6' && char != '8' {
-				p.errorf("illegal register pair syntax")
-				return
-			}
 		case ',':
-			if char != '5' {
-				p.errorf("illegal register pair syntax")
+			if char != '5' && char != '7' {
+				p.errorf("(register,register) not supported on this architecture")
 				return
 			}
 		case '+':
 			if char != '9' {
-				p.errorf("illegal register pair syntax")
+				p.errorf("(register+register) not supported on this architecture")
 				return
 			}
 		}
@@ -544,14 +574,16 @@ func (p *Parser) symbolReference(a *obj.Addr, name string, prefix rune) {
 	if p.peek() == '+' || p.peek() == '-' {
 		a.Offset = int64(p.expr())
 	}
-	a.Sym = obj.Linklookup(p.linkCtxt, name, isStatic)
+	a.Sym = obj.Linklookup(p.ctxt, name, isStatic)
 	if p.peek() == scanner.EOF {
-		if prefix != 0 {
-			p.errorf("illegal addressing mode for symbol %s", name)
+		if prefix == 0 && p.isJump {
+			// Symbols without prefix or suffix are jump labels.
+			return
 		}
+		p.errorf("illegal or missing addressing mode for symbol %s", name)
 		return
 	}
-	// Expect (SB) or (FP), (PC), (SB), or (SP)
+	// Expect (SB), (FP), (PC), or (SP)
 	p.get('(')
 	reg := p.get(scanner.Ident).String()
 	p.get(')')
@@ -588,7 +620,7 @@ func (p *Parser) setPseudoRegister(addr *obj.Addr, reg string, isStatic bool, pr
 
 // registerIndirect parses the general form of a register indirection.
 // It is can be (R1), (R2*scale), or (R1)(R2*scale) where R1 may be a simple
-// register or register pair R:R or (R, R).
+// register or register pair R:R or (R, R) or (R+R).
 // Or it might be a pseudo-indirection like (FP).
 // We are sitting on the opening parenthesis.
 func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
@@ -617,26 +649,28 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 	a.Reg = r1
 	if r2 != 0 {
 		// TODO: Consistency in the encoding would be nice here.
-		if p.arch.Thechar == '5' {
-			// Special form for ARM: destination register pair (R1, R2).
+		if p.arch.Thechar == '5' || p.arch.Thechar == '7' {
+			// Special form
+			// ARM: destination register pair (R1, R2).
+			// ARM64: register pair (R1, R2) for LDP/STP.
 			if prefix != 0 || scale != 0 {
 				p.errorf("illegal address mode for register pair")
 				return
 			}
 			a.Type = obj.TYPE_REGREG
 			a.Offset = int64(r2)
-			// Nothing may follow; this is always a pure destination.
+			// Nothing may follow
 			return
 		}
 		if p.arch.Thechar == '9' {
-			// Special form for PPC64: register pair (R1+R2).
+			// Special form for PPC64: (R1+R2); alias for (R1)(R2*1).
 			if prefix != 0 || scale != 0 {
-				p.errorf("illegal address mode for register pair")
+				p.errorf("illegal address mode for register+register")
 				return
 			}
-			// TODO: This is rewritten in asm. Clumsy.
 			a.Type = obj.TYPE_MEM
-			a.Scale = int8(r2)
+			a.Scale = 1
+			a.Index = r2
 			// Nothing may follow.
 			return
 		}
@@ -662,13 +696,13 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 			p.errorf("unimplemented two-register form")
 		}
 		a.Index = r1
-		a.Scale = scale
+		a.Scale = int16(scale)
 		p.get(')')
 	} else if scale != 0 {
 		// First (R) was missing, all we have is (R*scale).
 		a.Reg = 0
 		a.Index = r1
-		a.Scale = scale
+		a.Scale = int16(scale)
 	}
 }
 
@@ -678,12 +712,19 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
 // The opening bracket has been consumed.
 func (p *Parser) registerList(a *obj.Addr) {
 	// One range per loop.
+	const maxReg = 16
 	var bits uint16
+ListLoop:
 	for {
 		tok := p.next()
-		if tok.ScanToken == ']' {
-			break
+		switch tok.ScanToken {
+		case ']':
+			break ListLoop
+		case scanner.EOF:
+			p.errorf("missing ']' in register list")
+			return
 		}
+		// Parse the upper and lower bounds.
 		lo := p.registerNumber(tok.String())
 		hi := lo
 		if p.peek() == '-' {
@@ -693,7 +734,8 @@ func (p *Parser) registerList(a *obj.Addr) {
 		if hi < lo {
 			lo, hi = hi, lo
 		}
-		for lo <= hi {
+		// Check there are no duplicates in the register list.
+		for i := 0; lo <= hi && i < maxReg; i++ {
 			if bits&(1<<lo) != 0 {
 				p.errorf("register R%d already in list", lo)
 			}
@@ -704,7 +746,7 @@ func (p *Parser) registerList(a *obj.Addr) {
 			p.get(',')
 		}
 	}
-	a.Type = obj.TYPE_CONST
+	a.Type = obj.TYPE_REGLIST
 	a.Offset = int64(bits)
 }
 
@@ -715,16 +757,23 @@ func (p *Parser) registerNumber(name string) uint16 {
 	}
 	if name[0] != 'R' {
 		p.errorf("expected g or R0 through R15; found %s", name)
+		return 0
 	}
 	r, ok := p.registerReference(name)
 	if !ok {
 		return 0
 	}
-	return uint16(r - p.arch.Register["R0"])
+	reg := r - p.arch.Register["R0"]
+	if reg < 0 {
+		// Could happen for an architecture having other registers prefixed by R
+		p.errorf("expected g or R0 through R15; found %s", name)
+		return 0
+	}
+	return uint16(reg)
 }
 
 // Note: There are two changes in the expression handling here
-// compared to the old yacc/C implemenatations. Neither has
+// compared to the old yacc/C implementations. Neither has
 // much practical consequence because the expressions we
 // see in assembly code are simple, but for the record:
 //
@@ -785,30 +834,43 @@ func (p *Parser) term() uint64 {
 			value *= p.factor()
 		case '/':
 			p.next()
-			if value&(1<<63) != 0 {
-				p.errorf("divide with high bit set")
+			if int64(value) < 0 {
+				p.errorf("divide of value with high bit set")
 			}
-			value /= p.factor()
+			divisor := p.factor()
+			if divisor == 0 {
+				p.errorf("division by zero")
+			} else {
+				value /= divisor
+			}
 		case '%':
 			p.next()
-			value %= p.factor()
+			divisor := p.factor()
+			if int64(value) < 0 {
+				p.errorf("modulo of value with high bit set")
+			}
+			if divisor == 0 {
+				p.errorf("modulo by zero")
+			} else {
+				value %= divisor
+			}
 		case lex.LSH:
 			p.next()
 			shift := p.factor()
 			if int64(shift) < 0 {
-				p.errorf("negative left shift %d", shift)
+				p.errorf("negative left shift count")
 			}
 			return value << shift
 		case lex.RSH:
 			p.next()
 			shift := p.term()
-			if shift < 0 {
-				p.errorf("negative right shift %d", shift)
+			if int64(shift) < 0 {
+				p.errorf("negative right shift count")
 			}
-			if shift > 0 && value&(1<<63) != 0 {
-				p.errorf("right shift with high bit set")
+			if int64(value) < 0 {
+				p.errorf("right shift of value with high bit set")
 			}
-			value >>= uint(shift)
+			value >>= shift
 		case '&':
 			p.next()
 			value &= p.factor()
@@ -900,7 +962,11 @@ func (p *Parser) next() lex.Token {
 }
 
 func (p *Parser) back() {
-	p.inputPos--
+	if p.inputPos == 0 {
+		p.errorf("internal error: backing up before BOL")
+	} else {
+		p.inputPos--
+	}
 }
 
 func (p *Parser) peek() lex.ScanToken {

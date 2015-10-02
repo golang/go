@@ -46,7 +46,7 @@ func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 		return syscall.TransmitFile(o.fd.sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
 	})
 	if err != nil {
-		return 0, err, false
+		return 0, os.NewSyscallError("transmitfile", err), false
 	}
 	if lr != nil {
 		lr.N -= int64(done)

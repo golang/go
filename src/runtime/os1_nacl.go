@@ -15,6 +15,9 @@ func mpreinit(mp *m) {
 
 func sigtramp()
 
+func msigsave(mp *m) {
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -46,11 +49,8 @@ func crash() {
 	*(*int32)(nil) = 0
 }
 
-//go:nosplit
-func getRandomData(r []byte) {
-	// TODO: does nacl have a random source we can use?
-	extendRandom(r, 0)
-}
+//go:noescape
+func getRandomData([]byte)
 
 func goenvs() {
 	goenvs_unix()
@@ -70,11 +70,12 @@ func usleep(us uint32) {
 
 func mstart_nacl()
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
-	tls := (*[3]unsafe.Pointer)(unsafe.Pointer(&mp.tls))
-	tls[0] = unsafe.Pointer(mp.g0)
-	tls[1] = unsafe.Pointer(mp)
-	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&tls[2]), nil)
+	mp.tls[0] = uintptr(unsafe.Pointer(mp.g0))
+	mp.tls[1] = uintptr(unsafe.Pointer(mp))
+	ret := nacl_thread_create(funcPC(mstart_nacl), stk, unsafe.Pointer(&mp.tls[2]), nil)
 	if ret < 0 {
 		print("nacl_thread_create: error ", -ret, "\n")
 		throw("newosproc")
@@ -168,6 +169,10 @@ func badsignal2() {
 }
 
 var badsignal1 = []byte("runtime: signal received on thread not created by Go.\n")
+
+func raisebadsignal(sig int32) {
+	badsignal2()
+}
 
 func madvise(addr unsafe.Pointer, n uintptr, flags int32) {}
 func munmap(addr unsafe.Pointer, n uintptr)               {}

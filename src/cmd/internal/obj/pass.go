@@ -90,19 +90,18 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 			return
 		}
 
-		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+		if a.Reg != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
 
-	case TYPE_FCONST,
-		TYPE_SCONST:
+	case TYPE_FCONST, TYPE_SCONST:
 		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Offset != 0 || a.Sym != nil {
 			break
 		}
 		return
 
-		// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
+	// TODO(rsc): After fixing PINSRQ, check a->offset != 0 too.
 	// TODO(rsc): After fixing SHRQ, check a->index != 0 too.
 	case TYPE_REG:
 		if a.Scale != 0 || a.Name != 0 || a.Sym != nil {
@@ -111,7 +110,7 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		return
 
 	case TYPE_ADDR:
-		if a.U.Bits != 0 {
+		if a.Val != nil {
 			break
 		}
 		if a.Reg == 0 && a.Index == 0 && a.Scale == 0 && a.Name == 0 && a.Sym == nil {
@@ -120,13 +119,13 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 		return
 
 	case TYPE_SHIFT:
-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
 
 	case TYPE_REGREG:
-		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.U.Bits != 0 {
+		if a.Index != 0 || a.Scale != 0 || a.Name != 0 || a.Sym != nil || a.Val != nil {
 			break
 		}
 		return
@@ -134,10 +133,13 @@ func checkaddr(ctxt *Link, p *Prog, a *Addr) {
 	case TYPE_REGREG2:
 		return
 
-		// Expect sym and name to be set, nothing else.
+	case TYPE_REGLIST:
+		return
+
+	// Expect sym and name to be set, nothing else.
 	// Technically more is allowed, but this is only used for *name(SB).
 	case TYPE_INDIR:
-		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.U.Bits != 0 {
+		if a.Reg != 0 || a.Index != 0 || a.Scale != 0 || a.Name == 0 || a.Offset != 0 || a.Sym == nil || a.Val != nil {
 			break
 		}
 		return
@@ -155,7 +157,9 @@ func linkpatch(ctxt *Link, sym *LSym) {
 
 	for p := sym.Text; p != nil; p = p.Link {
 		checkaddr(ctxt, p, &p.From)
-		checkaddr(ctxt, p, &p.From3)
+		if p.From3 != nil {
+			checkaddr(ctxt, p, p.From3)
+		}
 		checkaddr(ctxt, p, &p.To)
 
 		if ctxt.Arch.Progedit != nil {
@@ -164,10 +168,9 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		if p.To.Type != TYPE_BRANCH {
 			continue
 		}
-		if p.To.U.Branch != nil {
-			// TODO: Remove to.u.branch in favor of p->pcond.
-			p.Pcond = p.To.U.Branch
-
+		if p.To.Val != nil {
+			// TODO: Remove To.Val.(*Prog) in favor of p->pcond.
+			p.Pcond = p.To.Val.(*Prog)
 			continue
 		}
 
@@ -195,7 +198,7 @@ func linkpatch(ctxt *Link, sym *LSym) {
 			p.To.Type = TYPE_NONE
 		}
 
-		p.To.U.Branch = q
+		p.To.Val = q
 		p.Pcond = q
 	}
 

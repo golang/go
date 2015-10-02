@@ -47,6 +47,10 @@ const (
 	cbTCA16
 )
 
+func cbPaletted(cb int) bool {
+	return cbP1 <= cb && cb <= cbP8
+}
+
 // Filter type, as per the PNG spec.
 const (
 	ftNone    = 0
@@ -81,15 +85,16 @@ var interlacing = []interlaceScan{
 }
 
 // Decoding stage.
-// The PNG specification says that the IHDR, PLTE (if present), IDAT and IEND
-// chunks must appear in that order. There may be multiple IDAT chunks, and
-// IDAT chunks must be sequential (i.e. they may not have any other chunks
-// between them).
+// The PNG specification says that the IHDR, PLTE (if present), tRNS (if
+// present), IDAT and IEND chunks must appear in that order. There may be
+// multiple IDAT chunks, and IDAT chunks must be sequential (i.e. they may not
+// have any other chunks between them).
 // http://www.w3.org/TR/PNG/#5ChunkOrdering
 const (
 	dsStart = iota
 	dsSeenIHDR
 	dsSeenPLTE
+	dsSeentRNS
 	dsSeenIDAT
 	dsSeenIEND
 )
@@ -149,8 +154,8 @@ func (d *decoder) parseIHDR(length uint32) error {
 	d.interlace = int(d.tmp[12])
 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
-	if w < 0 || h < 0 {
-		return FormatError("negative dimension")
+	if w <= 0 || h <= 0 {
+		return FormatError("non-positive dimension")
 	}
 	nPixels := int64(w) * int64(h)
 	if nPixels != int64(int(nPixels)) {
@@ -321,15 +326,23 @@ func (d *decoder) decode() (image.Image, error) {
 	var img image.Image
 	if d.interlace == itNone {
 		img, err = d.readImagePass(r, 0, false)
+		if err != nil {
+			return nil, err
+		}
 	} else if d.interlace == itAdam7 {
 		// Allocate a blank image of the full size.
 		img, err = d.readImagePass(nil, 0, true)
+		if err != nil {
+			return nil, err
+		}
 		for pass := 0; pass < 7; pass++ {
 			imagePass, err := d.readImagePass(r, pass, false)
 			if err != nil {
 				return nil, err
 			}
-			d.mergePassInto(img, imagePass, pass)
+			if imagePass != nil {
+				d.mergePassInto(img, imagePass, pass)
+			}
 		}
 	}
 
@@ -371,6 +384,12 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Add the multiplication factor and subtract one, effectively rounding up.
 		width = (width - p.xOffset + p.xFactor - 1) / p.xFactor
 		height = (height - p.yOffset + p.yFactor - 1) / p.yFactor
+		// A PNG image can't have zero width or height, but for an interlaced
+		// image, an individual pass might have zero width or height. If so, we
+		// shouldn't even read a per-row filter type byte, so return early.
+		if width == 0 || height == 0 {
+			return nil, nil
+		}
 	}
 	switch d.cb {
 	case cbG1, cbG2, cbG4, cbG8:
@@ -425,6 +444,9 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 		// Read the decompressed bytes.
 		_, err := io.ReadFull(r, cr)
 		if err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				return nil, FormatError("not enough pixel data")
+			}
 			return nil, err
 		}
 
@@ -443,6 +465,9 @@ func (d *decoder) readImagePass(r io.Reader, pass int, allocateOnly bool) (image
 				cdat[i] += p
 			}
 		case ftAverage:
+			// The first column has no column to the left of it, so it is a
+			// special case. We know that the first column exists because we
+			// check above that width != 0, and so len(cdat) != 0.
 			for i := 0; i < bytesPerPixel; i++ {
 				cdat[i] += pdat[i] / 2
 			}
@@ -687,9 +712,10 @@ func (d *decoder) parseChunk() error {
 		if d.stage != dsSeenPLTE {
 			return chunkOrderError
 		}
+		d.stage = dsSeentRNS
 		return d.parsetRNS(length)
 	case "IDAT":
-		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.cb == cbP8 && d.stage == dsSeenIHDR) {
+		if d.stage < dsSeenIHDR || d.stage > dsSeenIDAT || (d.stage == dsSeenIHDR && cbPaletted(d.cb)) {
 			return chunkOrderError
 		}
 		d.stage = dsSeenIDAT
@@ -700,6 +726,9 @@ func (d *decoder) parseChunk() error {
 		}
 		d.stage = dsSeenIEND
 		return d.parseIEND(length)
+	}
+	if length > 0x7fffffff {
+		return FormatError(fmt.Sprintf("Bad chunk length: %d", length))
 	}
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte
@@ -779,7 +808,7 @@ func DecodeConfig(r io.Reader) (image.Config, error) {
 			}
 			return image.Config{}, err
 		}
-		paletted := d.cb == cbP8 || d.cb == cbP4 || d.cb == cbP2 || d.cb == cbP1
+		paletted := cbPaletted(d.cb)
 		if d.stage == dsSeenIHDR && !paletted {
 			break
 		}

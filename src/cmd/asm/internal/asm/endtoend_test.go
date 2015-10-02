@@ -33,12 +33,12 @@ func testEndToEnd(t *testing.T, goarch string) {
 	var ok bool
 	testOut = new(bytes.Buffer) // The assembler writes -S output to this buffer.
 	ctxt.Bso = obj.Binitw(os.Stdout)
-	defer obj.Bflush(ctxt.Bso)
+	defer ctxt.Bso.Flush()
 	ctxt.Diag = log.Fatalf
 	obj.Binitw(ioutil.Discard)
 	pList.Firstpc, ok = parser.Parse()
 	if !ok {
-		t.Fatalf("asm: ppc64 assembly failed")
+		t.Fatalf("asm: %s assembly failed", goarch)
 	}
 	result := string(testOut.Bytes())
 	expect, err := ioutil.ReadFile(output)
@@ -56,7 +56,7 @@ func testEndToEnd(t *testing.T, goarch string) {
 		r := strings.Split(result, "\n")
 		e := strings.Split(string(expect), "\n")
 		if len(r) != len(e) {
-			t.Errorf("%s: expected %d lines, got %d", len(e), len(r))
+			t.Errorf("%s: expected %d lines, got %d", goarch, len(e), len(r))
 		}
 		n := len(e)
 		if n > len(r) {
@@ -78,6 +78,14 @@ func TestARMEndToEnd(t *testing.T) {
 	testEndToEnd(t, "arm")
 }
 
+func TestARM64EndToEnd(t *testing.T) {
+	testEndToEnd(t, "arm64")
+}
+
 func TestAMD64EndToEnd(t *testing.T) {
 	testEndToEnd(t, "amd64")
+}
+
+func Test386EndToEnd(t *testing.T) {
+	testEndToEnd(t, "386")
 }

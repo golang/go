@@ -4,6 +4,8 @@
 // Created by cgo -godefs - DO NOT EDIT
 // cgo -godefs -- -m64 _const.go
 
+// +build ppc64,linux
+
 package syscall
 
 const (
@@ -366,9 +368,9 @@ const (
 	F_SETFD                          = 0x2
 	F_SETFL                          = 0x4
 	F_SETLEASE                       = 0x400
-	F_SETLK                          = 0xd
+	F_SETLK                          = 0x6
 	F_SETLK64                        = 0xd
-	F_SETLKW                         = 0xe
+	F_SETLKW                         = 0x7
 	F_SETLKW64                       = 0xe
 	F_SETOWN                         = 0x8
 	F_SETOWN_EX                      = 0xf

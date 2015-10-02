@@ -25,6 +25,7 @@
 
 #include "go_asm.h"
 #include "go_tls.h"
+#include "funcdata.h"
 #include "textflag.h"
 
 /* replaced use of R10 by R11 because the former can be the data segment base register */
@@ -177,22 +178,8 @@ udiv_by_0_or_1:
 	RET
 
 udiv_by_0:
-	// The ARM toolchain expects it can emit references to DIV and MOD
-	// instructions. The linker rewrites each pseudo-instruction into
-	// a sequence that pushes two values onto the stack and then calls
-	// _divu, _modu, _div, or _mod (below), all of which have a 16-byte
-	// frame plus the saved LR. The traceback routine knows the expanded
-	// stack frame size at the pseudo-instruction call site, but it
-	// doesn't know that the frame has a non-standard layout. In particular,
-	// it expects to find a saved LR in the bottom word of the frame.
-	// Unwind the stack back to the pseudo-instruction call site, copy the
-	// saved LR where the traceback routine will look for it, and make it
-	// appear that panicdivide was called from that PC.
-	MOVW	0(R13), LR
-	ADD	$20, R13
-	MOVW	8(R13), R1 // actual saved LR
-	MOVW	R1, 0(R13) // expected here for traceback
-	B 	runtime·panicdivide(SB)
+	MOVW	$runtime·panicdivide(SB), R11
+	B	(R11)
 
 // var tab [64]byte
 // tab[0] = 255; for i := 1; i <= 63; i++ { tab[i] = (1<<14)/(64+i) }
@@ -219,14 +206,27 @@ GLOBL fast_udiv_tab<>(SB), RODATA, $64
 // expects the result in RTMP
 #define RTMP R11
 
-TEXT _divu(SB), NOSPLIT, $16
+TEXT _divu(SB), NOSPLIT, $16-0
+	// It's not strictly true that there are no local pointers.
+	// It could be that the saved registers Rq, Rr, Rs, and Rm
+	// contain pointers. However, the only way this can matter
+	// is if the stack grows (which it can't, udiv is nosplit)
+	// or if a fault happens and more frames are added to
+	// the stack due to deferred functions.
+	// In the latter case, the stack can grow arbitrarily,
+	// and garbage collection can happen, and those
+	// operations care about pointers, but in that case
+	// the calling frame is dead, and so are the saved
+	// registers. So we can claim there are no pointers here.
+	NO_LOCAL_POINTERS
 	MOVW	Rq, 4(R13)
 	MOVW	Rr, 8(R13)
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	den+0(FP), Rq 		/* denominator */
+	MOVW	g_m(g), Rq
+	MOVW	m_divmod(Rq), Rq	/* denominator */
 	BL  	udiv<>(SB)
 	MOVW	Rq, RTMP
 	MOVW	4(R13), Rq
@@ -235,14 +235,16 @@ TEXT _divu(SB), NOSPLIT, $16
 	MOVW	16(R13), RM
 	RET
 
-TEXT _modu(SB), NOSPLIT, $16
+TEXT _modu(SB), NOSPLIT, $16-0
+	NO_LOCAL_POINTERS
 	MOVW	Rq, 4(R13)
 	MOVW	Rr, 8(R13)
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	den+0(FP), Rq 		/* denominator */
+	MOVW	g_m(g), Rq
+	MOVW	m_divmod(Rq), Rq	/* denominator */
 	BL  	udiv<>(SB)
 	MOVW	Rr, RTMP
 	MOVW	4(R13), Rq
@@ -251,13 +253,15 @@ TEXT _modu(SB), NOSPLIT, $16
 	MOVW	16(R13), RM
 	RET
 
-TEXT _div(SB),NOSPLIT,$16
+TEXT _div(SB),NOSPLIT,$16-0
+	NO_LOCAL_POINTERS
 	MOVW	Rq, 4(R13)
 	MOVW	Rr, 8(R13)
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	den+0(FP), Rq 		/* denominator */
+	MOVW	g_m(g), Rq
+	MOVW	m_divmod(Rq), Rq	/* denominator */
 	CMP 	$0, Rr
 	BGE 	d1
 	RSB 	$0, Rr, Rr
@@ -282,13 +286,15 @@ out1:
 	MOVW	16(R13), RM
 	RET
 
-TEXT _mod(SB),NOSPLIT,$16
+TEXT _mod(SB),NOSPLIT,$16-0
+	NO_LOCAL_POINTERS
 	MOVW	Rq, 4(R13)
 	MOVW	Rr, 8(R13)
 	MOVW	Rs, 12(R13)
 	MOVW	RM, 16(R13)
 	MOVW	RTMP, Rr		/* numerator */
-	MOVW	den+0(FP), Rq 		/* denominator */
+	MOVW	g_m(g), Rq
+	MOVW	m_divmod(Rq), Rq	/* denominator */
 	CMP 	$0, Rq
 	RSB.LT	$0, Rq, Rq
 	CMP 	$0, Rr

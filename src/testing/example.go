@@ -43,7 +43,7 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 
 func runExample(eg InternalExample) (ok bool) {
 	if *chatty {
-		fmt.Printf("=== RUN: %s\n", eg.Name)
+		fmt.Printf("=== RUN   %s\n", eg.Name)
 	}
 
 	// Capture stdout.

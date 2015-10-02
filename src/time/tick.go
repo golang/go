@@ -47,7 +47,9 @@ func (t *Ticker) Stop() {
 }
 
 // Tick is a convenience wrapper for NewTicker providing access to the ticking
-// channel only.  Useful for clients that have no need to shut down the ticker.
+// channel only. While Tick is useful for clients that have no need to shut down
+// the Ticker, be aware that without a way to shut it down the underlying
+// Ticker cannot be recovered by the garbage collector; it "leaks".
 func Tick(d Duration) <-chan Time {
 	if d <= 0 {
 		return nil

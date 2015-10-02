@@ -120,6 +120,23 @@ func TestLastIndex(t *testing.T)    { runIndexTests(t, LastIndex, "LastIndex", l
 func TestIndexAny(t *testing.T)     { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
 func TestLastIndexAny(t *testing.T) { runIndexTests(t, LastIndexAny, "LastIndexAny", lastIndexAnyTests) }
 
+func TestLastIndexByte(t *testing.T) {
+	testCases := []IndexTest{
+		{"", "q", -1},
+		{"abcdef", "q", -1},
+		{"abcdefabcdef", "a", len("abcdef")},      // something in the middle
+		{"abcdefabcdef", "f", len("abcdefabcde")}, // last byte
+		{"zabcdefabcdef", "z", 0},                 // first byte
+		{"a☺b☻c☹d", "b", len("a☺")},               // non-ascii
+	}
+	for _, test := range testCases {
+		actual := LastIndexByte(test.s, test.sep[0])
+		if actual != test.out {
+			t.Errorf("LastIndexByte(%q,%c) = %v; want %v", test.s, test.sep[0], actual, test.out)
+		}
+	}
+}
+
 var indexRuneTests = []struct {
 	s    string
 	rune rune
@@ -565,6 +582,35 @@ func TestTrim(t *testing.T) {
 		actual := f(tc.in, tc.arg)
 		if actual != tc.out {
 			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
+		}
+	}
+}
+
+func BenchmarkTrim(b *testing.B) {
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		for _, tc := range trimTests {
+			name := tc.f
+			var f func(string, string) string
+			switch name {
+			case "Trim":
+				f = Trim
+			case "TrimLeft":
+				f = TrimLeft
+			case "TrimRight":
+				f = TrimRight
+			case "TrimPrefix":
+				f = TrimPrefix
+			case "TrimSuffix":
+				f = TrimSuffix
+			default:
+				b.Errorf("Undefined trim function %s", name)
+			}
+			actual := f(tc.in, tc.arg)
+			if actual != tc.out {
+				b.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
+			}
 		}
 	}
 }

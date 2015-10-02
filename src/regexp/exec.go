@@ -35,13 +35,15 @@ type thread struct {
 
 // A machine holds all the state during an NFA simulation for p.
 type machine struct {
-	re       *Regexp      // corresponding Regexp
-	p        *syntax.Prog // compiled program
-	op       *onePassProg // compiled onepass program, or notOnePass
-	q0, q1   queue        // two queues for runq, nextq
-	pool     []*thread    // pool of available threads
-	matched  bool         // whether a match was found
-	matchcap []int        // capture information for the match
+	re             *Regexp      // corresponding Regexp
+	p              *syntax.Prog // compiled program
+	op             *onePassProg // compiled onepass program, or notOnePass
+	maxBitStateLen int          // max length of string to search with bitstate
+	b              *bitState    // state for backtracker, allocated lazily
+	q0, q1         queue        // two queues for runq, nextq
+	pool           []*thread    // pool of available threads
+	matched        bool         // whether a match was found
+	matchcap       []int        // capture information for the match
 
 	// cached inputs, to avoid allocation
 	inputBytes  inputBytes
@@ -75,6 +77,9 @@ func progMachine(p *syntax.Prog, op *onePassProg) *machine {
 	ncap := p.NumCap
 	if ncap < 2 {
 		ncap = 2
+	}
+	if op == notOnePass {
+		m.maxBitStateLen = maxBitStateLen(p)
 	}
 	m.matchcap = make([]int, ncap)
 	return m
@@ -422,15 +427,26 @@ var empty = make([]int, 0)
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int) []int {
 	m := re.get()
 	var i input
+	var size int
 	if r != nil {
 		i = m.newInputReader(r)
 	} else if b != nil {
 		i = m.newInputBytes(b)
+		size = len(b)
 	} else {
 		i = m.newInputString(s)
+		size = len(s)
 	}
 	if m.op != notOnePass {
 		if !m.onepass(i, pos) {
+			re.put(m)
+			return nil
+		}
+	} else if size < m.maxBitStateLen && r == nil {
+		if m.b == nil {
+			m.b = newBitState(m.p)
+		}
+		if !m.backtrack(i, pos, size, ncap) {
 			re.put(m)
 			return nil
 		}

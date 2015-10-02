@@ -48,9 +48,16 @@ import (
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
 //
+// To unmarshal a JSON array into a slice, Unmarshal resets the slice to nil
+// and then appends each element to the slice.
+//
+// To unmarshal a JSON object into a map, Unmarshal replaces the map
+// with an empty map and then adds key-value pairs from the object to
+// the map.
+//
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
-// skips that field and completes the unmarshalling as best it can.
+// skips that field and completes the unmarshaling as best it can.
 // If no more serious errors are encountered, Unmarshal returns
 // an UnmarshalTypeError describing the earliest such error.
 //
@@ -234,7 +241,7 @@ func (d *decodeState) scanWhile(op int) int {
 			newOp = d.scan.eof()
 			d.off = len(d.data) + 1 // mark processed EOF with len+1
 		} else {
-			c := int(d.data[d.off])
+			c := d.data[d.off]
 			d.off++
 			newOp = d.scan.step(&d.scan, c)
 		}
@@ -682,6 +689,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			} else {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 			}
+			return
 		}
 		s, ok := unquoteBytes(item)
 		if !ok {
@@ -739,7 +747,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		default:
 			d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 		case reflect.Slice:
-			if v.Type() != byteSliceType {
+			if v.Type().Elem().Kind() != reflect.Uint8 {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.off)})
 				break
 			}

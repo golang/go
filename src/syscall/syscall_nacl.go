@@ -14,6 +14,7 @@ import (
 //sys	naclFstat(fd int, stat *Stat_t) (err error) = sys_fstat
 //sys	naclRead(fd int, b []byte) (n int, err error) = sys_read
 //sys	naclSeek(fd int, off *int64, whence int) (err error) = sys_lseek
+//sys	naclGetRandomBytes(b []byte) (err error) = sys_get_random_bytes
 
 const direntSize = 8 + 8 + 2 + 256
 

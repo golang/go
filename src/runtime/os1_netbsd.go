@@ -7,8 +7,8 @@ package runtime
 import "unsafe"
 
 const (
-	_ESRCH   = 3
-	_ENOTSUP = 91
+	_ESRCH     = 3
+	_ETIMEDOUT = 60
 
 	// From NetBSD's <sys/time.h>
 	_CLOCK_REALTIME  = 0
@@ -17,7 +17,6 @@ const (
 	_CLOCK_MONOTONIC = 3
 )
 
-var sigset_none = sigset{}
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
 
 // From NetBSD's <sys/sysctl.h>
@@ -46,91 +45,40 @@ func semacreate() uintptr {
 func semasleep(ns int64) int32 {
 	_g_ := getg()
 
-	// spin-mutex lock
-	for {
-		if xchg(&_g_.m.waitsemalock, 1) == 0 {
-			break
-		}
-		osyield()
+	// Compute sleep deadline.
+	var tsp *timespec
+	if ns >= 0 {
+		var ts timespec
+		var nsec int32
+		ns += nanotime()
+		ts.set_sec(timediv(ns, 1000000000, &nsec))
+		ts.set_nsec(nsec)
+		tsp = &ts
 	}
 
 	for {
-		// lock held
-		if _g_.m.waitsemacount == 0 {
-			// sleep until semaphore != 0 or timeout.
-			// thrsleep unlocks m.waitsemalock.
-			if ns < 0 {
-				// TODO(jsing) - potential deadlock!
-				//
-				// There is a potential deadlock here since we
-				// have to release the waitsemalock mutex
-				// before we call lwp_park() to suspend the
-				// thread. This allows another thread to
-				// release the lock and call lwp_unpark()
-				// before the thread is actually suspended.
-				// If this occurs the current thread will end
-				// up sleeping indefinitely. Unfortunately
-				// the NetBSD kernel does not appear to provide
-				// a mechanism for unlocking the userspace
-				// mutex once the thread is actually parked.
-				atomicstore(&_g_.m.waitsemalock, 0)
-				lwp_park(nil, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
-			} else {
-				var ts timespec
-				var nsec int32
-				ns += nanotime()
-				ts.set_sec(timediv(ns, 1000000000, &nsec))
-				ts.set_nsec(nsec)
-				// TODO(jsing) - potential deadlock!
-				// See above for details.
-				atomicstore(&_g_.m.waitsemalock, 0)
-				lwp_park(&ts, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		v := atomicload(&_g_.m.waitsemacount)
+		if v > 0 {
+			if cas(&_g_.m.waitsemacount, v, v-1) {
+				return 0 // semaphore acquired
 			}
-			// reacquire lock
-			for {
-				if xchg(&_g_.m.waitsemalock, 1) == 0 {
-					break
-				}
-				osyield()
-			}
+			continue
 		}
 
-		// lock held (again)
-		if _g_.m.waitsemacount != 0 {
-			// semaphore is available.
-			_g_.m.waitsemacount--
-			// spin-mutex unlock
-			atomicstore(&_g_.m.waitsemalock, 0)
-			return 0
-		}
-
-		// semaphore not available.
-		// if there is a timeout, stop now.
-		// otherwise keep trying.
-		if ns >= 0 {
-			break
+		// Sleep until unparked by semawakeup or timeout.
+		ret := lwp_park(tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
+		if ret == _ETIMEDOUT {
+			return -1
 		}
 	}
-
-	// lock held but giving up
-	// spin-mutex unlock
-	atomicstore(&_g_.m.waitsemalock, 0)
-	return -1
 }
 
 //go:nosplit
 func semawakeup(mp *m) {
-	// spin-mutex lock
-	for {
-		if xchg(&mp.waitsemalock, 1) == 0 {
-			break
-		}
-		osyield()
-	}
-
-	mp.waitsemacount++
-	// TODO(jsing) - potential deadlock, see semasleep() for details.
-	// Confirm that LWP is parked before unparking...
+	xadd(&mp.waitsemacount, 1)
+	// From NetBSD's _lwp_unpark(2) manual:
+	// "If the target LWP is not currently waiting, it will return
+	// immediately upon the next call to _lwp_park()."
 	ret := lwp_unpark(int32(mp.procid), unsafe.Pointer(&mp.waitsemacount))
 	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.
@@ -138,11 +86,10 @@ func semawakeup(mp *m) {
 			print("thrwakeup addr=", &mp.waitsemacount, " sem=", mp.waitsemacount, " ret=", ret, "\n")
 		})
 	}
-
-	// spin-mutex unlock
-	atomicstore(&mp.waitsemalock, 0)
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
@@ -176,7 +123,7 @@ var urandom_dev = []byte("/dev/urandom\x00")
 func getRandomData(r []byte) {
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -191,6 +138,14 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+func msigsave(mp *m) {
+	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
+	sigprocmask(_SIG_SETMASK, nil, smask)
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -198,13 +153,25 @@ func minit() {
 	_g_.m.procid = uint64(lwp_self())
 
 	// Initialize signal handling
-	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+	signalstack(&_g_.m.gsignal.stack)
+
+	// restore signal mask from m.sigmask and unblock essential signals
+	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+		}
+	}
+	sigprocmask(_SIG_SETMASK, &nmask, nil)
 }
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	signalstack(nil, 0)
+	_g_ := getg()
+	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	sigprocmask(_SIG_SETMASK, smask, nil)
+
+	signalstack(nil)
 }
 
 func memlimit() uintptr {
@@ -246,18 +213,26 @@ func getsig(i int32) uintptr {
 	return sa.sa_sigaction
 }
 
-func signalstack(p *byte, n int32) {
+func signalstack(s *stack) {
 	var st sigaltstackt
-
-	st.ss_sp = uintptr(unsafe.Pointer(p))
-	st.ss_size = uintptr(n)
-	st.ss_flags = 0
-	if p == nil {
+	if s == nil {
 		st.ss_flags = _SS_DISABLE
+	} else {
+		st.ss_sp = s.lo
+		st.ss_size = s.hi - s.lo
+		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	sigprocmask(_SIG_SETMASK, &sigset_none, nil)
+func updatesigmask(m sigmask) {
+	var mask sigset
+	copy(mask.__bits[:], m[:])
+	sigprocmask(_SIG_SETMASK, &mask, nil)
+}
+
+func unblocksig(sig int32) {
+	var mask sigset
+	mask.__bits[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	sigprocmask(_SIG_UNBLOCK, &mask, nil)
 }

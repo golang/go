@@ -74,7 +74,7 @@ func (s *HashSet) check(t *testing.T) {
 	pairs := int64(s.n) * int64(s.n-1) / 2
 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
 	stddev := math.Sqrt(expected)
-	if float64(collisions) > expected+SLOP*3*stddev {
+	if float64(collisions) > expected+SLOP*(3*stddev+1) {
 		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f", collisions, expected, stddev)
 	}
 }
@@ -561,3 +561,100 @@ func BenchmarkHash16(b *testing.B)    { benchmarkHash(b, 16) }
 func BenchmarkHash64(b *testing.B)    { benchmarkHash(b, 64) }
 func BenchmarkHash1024(b *testing.B)  { benchmarkHash(b, 1024) }
 func BenchmarkHash65536(b *testing.B) { benchmarkHash(b, 65536) }
+
+func TestArrayHash(t *testing.T) {
+	// Make sure that "" in arrays hash correctly.  The hash
+	// should at least scramble the input seed so that, e.g.,
+	// {"","foo"} and {"foo",""} have different hashes.
+
+	// If the hash is bad, then all (8 choose 4) = 70 keys
+	// have the same hash. If so, we allocate 70/8 = 8
+	// overflow buckets.  If the hash is good we don't
+	// normally allocate any overflow buckets, and the
+	// probability of even one or two overflows goes down rapidly.
+	// (There is always 1 allocation of the bucket array.  The map
+	// header is allocated on the stack.)
+	f := func() {
+		// Make the key type at most 128 bytes.  Otherwise,
+		// we get an allocation per key.
+		type key [8]string
+		m := make(map[key]bool, 70)
+
+		// fill m with keys that have 4 "foo"s and 4 ""s.
+		for i := 0; i < 256; i++ {
+			var k key
+			cnt := 0
+			for j := uint(0); j < 8; j++ {
+				if i>>j&1 != 0 {
+					k[j] = "foo"
+					cnt++
+				}
+			}
+			if cnt == 4 {
+				m[k] = true
+			}
+		}
+		if len(m) != 70 {
+			t.Errorf("bad test: (8 choose 4) should be 70, not %d", len(m))
+		}
+	}
+	if n := testing.AllocsPerRun(10, f); n > 6 {
+		t.Errorf("too many allocs %f - hash not balanced", n)
+	}
+}
+func TestStructHash(t *testing.T) {
+	// See the comment in TestArrayHash.
+	f := func() {
+		type key struct {
+			a, b, c, d, e, f, g, h string
+		}
+		m := make(map[key]bool, 70)
+
+		// fill m with keys that have 4 "foo"s and 4 ""s.
+		for i := 0; i < 256; i++ {
+			var k key
+			cnt := 0
+			if i&1 != 0 {
+				k.a = "foo"
+				cnt++
+			}
+			if i&2 != 0 {
+				k.b = "foo"
+				cnt++
+			}
+			if i&4 != 0 {
+				k.c = "foo"
+				cnt++
+			}
+			if i&8 != 0 {
+				k.d = "foo"
+				cnt++
+			}
+			if i&16 != 0 {
+				k.e = "foo"
+				cnt++
+			}
+			if i&32 != 0 {
+				k.f = "foo"
+				cnt++
+			}
+			if i&64 != 0 {
+				k.g = "foo"
+				cnt++
+			}
+			if i&128 != 0 {
+				k.h = "foo"
+				cnt++
+			}
+			if cnt == 4 {
+				m[k] = true
+			}
+		}
+		if len(m) != 70 {
+			t.Errorf("bad test: (8 choose 4) should be 70, not %d", len(m))
+		}
+	}
+	if n := testing.AllocsPerRun(10, f); n > 6 {
+		t.Errorf("too many allocs %f - hash not balanced", n)
+	}
+}

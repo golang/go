@@ -10,8 +10,16 @@ package http
 import (
 	"net"
 	"net/url"
+	"sync"
 	"time"
 )
+
+func init() {
+	// We only want to pay for this cost during testing.
+	// When not under test, these values are always nil
+	// and never assigned to.
+	testHookMu = new(sync.Mutex)
+}
 
 func NewLoggingConn(baseName string, c net.Conn) net.Conn {
 	return newLoggingConn(baseName, c)
@@ -78,6 +86,20 @@ func (t *Transport) PutIdleTestConn() bool {
 	})
 }
 
+func SetInstallConnClosedHook(f func()) {
+	testHookPersistConnClosedGotRes = f
+}
+
+func SetEnterRoundTripHook(f func()) {
+	testHookEnterRoundTrip = f
+}
+
+func SetReadLoopBeforeNextReadHook(f func()) {
+	testHookMu.Lock()
+	defer testHookMu.Unlock()
+	testHookReadLoopBeforeNextRead = f
+}
+
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
 	f := func() <-chan time.Time {
 		return ch
@@ -106,3 +128,5 @@ func SetPendingDialHooks(before, after func()) {
 var ExportServerNewConn = (*Server).newConn
 
 var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
+
+var ExportErrRequestCanceled = errRequestCanceled

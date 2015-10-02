@@ -17,7 +17,7 @@ import (
 // Template is a specialized Template from "text/template" that produces a safe
 // HTML document fragment.
 type Template struct {
-	// Sticky error if escaping fails.
+	// Sticky error if escaping fails, or escapeOK if succeeded.
 	escapeErr error
 	// We could embed the text/template field, but it's safer not to because
 	// we need to keep our version of the name space and the underlying
@@ -51,11 +51,37 @@ func (t *Template) Templates() []*Template {
 	return m
 }
 
+// Option sets options for the template. Options are described by
+// strings, either a simple string or "key=value". There can be at
+// most one equals sign in an option string. If the option string
+// is unrecognized or otherwise invalid, Option panics.
+//
+// Known options:
+//
+// missingkey: Control the behavior during execution if a map is
+// indexed with a key that is not present in the map.
+//	"missingkey=default" or "missingkey=invalid"
+//		The default behavior: Do nothing and continue execution.
+//		If printed, the result of the index operation is the string
+//		"<no value>".
+//	"missingkey=zero"
+//		The operation returns the zero value for the map type's element.
+//	"missingkey=error"
+//		Execution stops immediately with an error.
+//
+func (t *Template) Option(opt ...string) *Template {
+	t.text.Option(opt...)
+	return t
+}
+
 // escape escapes all associated templates.
 func (t *Template) escape() error {
 	t.nameSpace.mu.Lock()
 	defer t.nameSpace.mu.Unlock()
 	if t.escapeErr == nil {
+		if t.Tree == nil {
+			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.text.DefinedTemplates())
+		}
 		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
 			return err
 		}
@@ -143,6 +169,8 @@ func (t *Template) Parse(src string) (*Template, error) {
 		tmpl := t.set[name]
 		if tmpl == nil {
 			tmpl = t.new(name)
+		} else if tmpl.escapeErr != nil {
+			return nil, fmt.Errorf("html/template: cannot redefine %q after it has executed", name)
 		}
 		// Restore our record of this text/template to its unescaped original state.
 		tmpl.escapeErr = nil
@@ -386,4 +414,11 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 		return nil, fmt.Errorf("html/template: pattern matches no files: %#q", pattern)
 	}
 	return parseFiles(t, filenames...)
+}
+
+// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value. This is the definition of
+// truth used by if and other such actions.
+func IsTrue(val interface{}) (truth, ok bool) {
+	return template.IsTrue(val)
 }

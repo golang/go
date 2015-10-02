@@ -23,8 +23,9 @@ type abbrev struct {
 }
 
 type afield struct {
-	attr Attr
-	fmt  format
+	attr  Attr
+	fmt   format
+	class Class
 }
 
 // a map from entry format ids to their descriptions
@@ -32,7 +33,7 @@ type abbrevTable map[uint32]abbrev
 
 // ParseAbbrev returns the abbreviation table that starts at byte off
 // in the .debug_abbrev section.
-func (d *Data) parseAbbrev(off uint32) (abbrevTable, error) {
+func (d *Data) parseAbbrev(off uint32, vers int) (abbrevTable, error) {
 	if m, ok := d.abbrevCache[off]; ok {
 		return m, nil
 	}
@@ -80,6 +81,7 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, error) {
 		for i := range a.field {
 			a.field[i].attr = Attr(b.uint())
 			a.field[i].fmt = format(b.uint())
+			a.field[i].class = formToClass(a.field[i].fmt, a.field[i].attr, vers, &b)
 		}
 		b.uint()
 		b.uint()
@@ -93,6 +95,117 @@ func (d *Data) parseAbbrev(off uint32) (abbrevTable, error) {
 	return m, nil
 }
 
+// attrIsExprloc indicates attributes that allow exprloc values that
+// are encoded as block values in DWARF 2 and 3. See DWARF 4, Figure
+// 20.
+var attrIsExprloc = map[Attr]bool{
+	AttrLocation:      true,
+	AttrByteSize:      true,
+	AttrBitOffset:     true,
+	AttrBitSize:       true,
+	AttrStringLength:  true,
+	AttrLowerBound:    true,
+	AttrReturnAddr:    true,
+	AttrStrideSize:    true,
+	AttrUpperBound:    true,
+	AttrCount:         true,
+	AttrDataMemberLoc: true,
+	AttrFrameBase:     true,
+	AttrSegment:       true,
+	AttrStaticLink:    true,
+	AttrUseLocation:   true,
+	AttrVtableElemLoc: true,
+	AttrAllocated:     true,
+	AttrAssociated:    true,
+	AttrDataLocation:  true,
+	AttrStride:        true,
+}
+
+// attrPtrClass indicates the *ptr class of attributes that have
+// encoding formSecOffset in DWARF 4 or formData* in DWARF 2 and 3.
+var attrPtrClass = map[Attr]Class{
+	AttrLocation:      ClassLocListPtr,
+	AttrStmtList:      ClassLinePtr,
+	AttrStringLength:  ClassLocListPtr,
+	AttrReturnAddr:    ClassLocListPtr,
+	AttrStartScope:    ClassRangeListPtr,
+	AttrDataMemberLoc: ClassLocListPtr,
+	AttrFrameBase:     ClassLocListPtr,
+	AttrMacroInfo:     ClassMacPtr,
+	AttrSegment:       ClassLocListPtr,
+	AttrStaticLink:    ClassLocListPtr,
+	AttrUseLocation:   ClassLocListPtr,
+	AttrVtableElemLoc: ClassLocListPtr,
+	AttrRanges:        ClassRangeListPtr,
+}
+
+// formToClass returns the DWARF 4 Class for the given form. If the
+// DWARF version is less then 4, it will disambiguate some forms
+// depending on the attribute.
+func formToClass(form format, attr Attr, vers int, b *buf) Class {
+	switch form {
+	default:
+		b.error("cannot determine class of unknown attribute form")
+		return 0
+
+	case formAddr:
+		return ClassAddress
+
+	case formDwarfBlock1, formDwarfBlock2, formDwarfBlock4, formDwarfBlock:
+		// In DWARF 2 and 3, ClassExprLoc was encoded as a
+		// block. DWARF 4 distinguishes ClassBlock and
+		// ClassExprLoc, but there are no attributes that can
+		// be both, so we also promote ClassBlock values in
+		// DWARF 4 that should be ClassExprLoc in case
+		// producers get this wrong.
+		if attrIsExprloc[attr] {
+			return ClassExprLoc
+		}
+		return ClassBlock
+
+	case formData1, formData2, formData4, formData8, formSdata, formUdata:
+		// In DWARF 2 and 3, ClassPtr was encoded as a
+		// constant. Unlike ClassExprLoc/ClassBlock, some
+		// DWARF 4 attributes need to distinguish Class*Ptr
+		// from ClassConstant, so we only do this promotion
+		// for versions 2 and 3.
+		if class, ok := attrPtrClass[attr]; vers < 4 && ok {
+			return class
+		}
+		return ClassConstant
+
+	case formFlag, formFlagPresent:
+		return ClassFlag
+
+	case formRefAddr, formRef1, formRef2, formRef4, formRef8, formRefUdata:
+		return ClassReference
+
+	case formRefSig8:
+		return ClassReferenceSig
+
+	case formString, formStrp:
+		return ClassString
+
+	case formSecOffset:
+		// DWARF 4 defines four *ptr classes, but doesn't
+		// distinguish them in the encoding. Disambiguate
+		// these classes using the attribute.
+		if class, ok := attrPtrClass[attr]; ok {
+			return class
+		}
+		return ClassUnknown
+
+	case formExprloc:
+		return ClassExprLoc
+
+	case formGnuRefAlt:
+		return ClassReferenceAlt
+
+	case formGnuStrpAlt:
+		return ClassStringAlt
+	}
+}
+
 // An entry is a sequence of attribute/value pairs.
 type Entry struct {
 	Offset   Offset // offset of Entry in DWARF info
@@ -102,9 +215,121 @@ type Entry struct {
 }
 
 // A Field is a single attribute/value pair in an Entry.
+//
+// A value can be one of several "attribute classes" defined by DWARF.
+// The Go types corresponding to each class are:
+//
+//    DWARF class       Go type        Class
+//    -----------       -------        -----
+//    address           uint64         ClassAddress
+//    block             []byte         ClassBlock
+//    constant          int64          ClassConstant
+//    flag              bool           ClassFlag
+//    reference
+//      to info         dwarf.Offset   ClassReference
+//      to type unit    uint64         ClassReferenceSig
+//    string            string         ClassString
+//    exprloc           []byte         ClassExprLoc
+//    lineptr           int64          ClassLinePtr
+//    loclistptr        int64          ClassLocListPtr
+//    macptr            int64          ClassMacPtr
+//    rangelistptr      int64          ClassRangeListPtr
+//
+// For unrecognized or vendor-defined attributes, Class may be
+// ClassUnknown.
 type Field struct {
-	Attr Attr
-	Val  interface{}
+	Attr  Attr
+	Val   interface{}
+	Class Class
+}
+
+// A Class is the DWARF 4 class of an attibute value.
+//
+// In general, a given attribute's value may take on one of several
+// possible classes defined by DWARF, each of which leads to a
+// slightly different interpretation of the attribute.
+//
+// DWARF version 4 distinguishes attribute value classes more finely
+// than previous versions of DWARF. The reader will disambiguate
+// coarser classes from earlier versions of DWARF into the appropriate
+// DWARF 4 class. For example, DWARF 2 uses "constant" for constants
+// as well as all types of section offsets, but the reader will
+// canonicalize attributes in DWARF 2 files that refer to section
+// offsets to one of the Class*Ptr classes, even though these classes
+// were only defined in DWARF 3.
+type Class int
+
+const (
+	// ClassUnknown represents values of unknown DWARF class.
+	ClassUnknown Class = iota
+
+	// ClassAddress represents values of type uint64 that are
+	// addresses on the target machine.
+	ClassAddress
+
+	// ClassBlock represents values of type []byte whose
+	// interpretation depends on the attribute.
+	ClassBlock
+
+	// ClassConstant represents values of type int64 that are
+	// constants. The interpretation of this constant depends on
+	// the attribute.
+	ClassConstant
+
+	// ClassExprLoc represents values of type []byte that contain
+	// an encoded DWARF expression or location description.
+	ClassExprLoc
+
+	// ClassFlag represents values of type bool.
+	ClassFlag
+
+	// ClassLinePtr represents values that are an int64 offset
+	// into the "line" section.
+	ClassLinePtr
+
+	// ClassLocListPtr represents values that are an int64 offset
+	// into the "loclist" section.
+	ClassLocListPtr
+
+	// ClassMacPtr represents values that are an int64 offset into
+	// the "mac" section.
+	ClassMacPtr
+
+	// ClassMacPtr represents values that are an int64 offset into
+	// the "rangelist" section.
+	ClassRangeListPtr
+
+	// ClassReference represents values that are an Offset offset
+	// of an Entry in the info section (for use with Reader.Seek).
+	// The DWARF specification combines ClassReference and
+	// ClassReferenceSig into class "reference".
+	ClassReference
+
+	// ClassReferenceSig represents values that are a uint64 type
+	// signature referencing a type Entry.
+	ClassReferenceSig
+
+	// ClassString represents values that are strings. If the
+	// compilation unit specifies the AttrUseUTF8 flag (strongly
+	// recommended), the string value will be encoded in UTF-8.
+	// Otherwise, the encoding is unspecified.
+	ClassString
+
+	// ClassReferenceAlt represents values of type int64 that are
+	// an offset into the DWARF "info" section of an alternate
+	// object file.
+	ClassReferenceAlt
+
+	// ClassStringAlt represents values of type int64 that are an
+	// offset into the DWARF string section of an alternate object
+	// file.
+	ClassStringAlt
+)
+
+//go:generate stringer -type=Class
+
+func (i Class) GoString() string {
+	return "dwarf." + i.String()
 }
 
 // Val returns the value associated with attribute Attr in Entry,
@@ -112,12 +337,21 @@ type Field struct {
 //
 // A common idiom is to merge the check for nil return with
 // the check that the value has the expected dynamic type, as in:
-//	v, ok := e.Val(AttrSibling).(int64);
+//	v, ok := e.Val(AttrSibling).(int64)
 //
 func (e *Entry) Val(a Attr) interface{} {
-	for _, f := range e.Field {
+	if f := e.AttrField(a); f != nil {
+		return f.Val
+	}
+	return nil
+}
+
+// AttrField returns the Field associated with attribute Attr in
+// Entry, or nil if there is no such attribute.
+func (e *Entry) AttrField(a Attr) *Field {
+	for i, f := range e.Field {
 		if f.Attr == a {
-			return f.Val
+			return &e.Field[i]
 		}
 	}
 	return nil
@@ -148,6 +382,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 	}
 	for i := range e.Field {
 		e.Field[i].Attr = a.field[i].attr
+		e.Field[i].Class = a.field[i].class
 		fmt := a.field[i].fmt
 		if fmt == formIndirect {
 			fmt = format(b.uint())
@@ -292,6 +527,12 @@ func (d *Data) Reader() *Reader {
 	return r
 }
 
+// AddressSize returns the size in bytes of addresses in the current compilation
+// unit.
+func (r *Reader) AddressSize() int {
+	return r.d.unit[r.unit].asize
+}
+
 // Seek positions the Reader at offset off in the encoded entry stream.
 // Offset 0 can be used to denote the first entry.
 func (r *Reader) Seek(off Offset) {
@@ -308,18 +549,14 @@ func (r *Reader) Seek(off Offset) {
 		return
 	}
 
-	// TODO(rsc): binary search (maybe a new package)
-	var i int
-	var u *unit
-	for i = range d.unit {
-		u = &d.unit[i]
-		if u.off <= off && off < u.off+Offset(len(u.data)) {
-			r.unit = i
-			r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
-			return
-		}
+	i := d.offsetToUnit(off)
+	if i == -1 {
+		r.err = errors.New("offset out of range")
+		return
 	}
-	r.err = errors.New("offset out of range")
+	u := &d.unit[i]
+	r.unit = i
+	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
 }
 
 // maybeNextUnit advances to the next unit if this one is finished.

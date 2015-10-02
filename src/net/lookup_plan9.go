@@ -101,19 +101,18 @@ func lookupProtocol(name string) (proto int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	unknownProtoError := errors.New("unknown IP protocol specified: " + name)
 	if len(lines) == 0 {
-		return 0, unknownProtoError
+		return 0, UnknownNetworkError(name)
 	}
 	f := getFields(lines[0])
 	if len(f) < 2 {
-		return 0, unknownProtoError
+		return 0, UnknownNetworkError(name)
 	}
 	s := f[1]
 	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
 		return n, nil
 	}
-	return 0, unknownProtoError
+	return 0, UnknownNetworkError(name)
 }
 
 func lookupHost(host string) (addrs []string, err error) {
@@ -147,14 +146,16 @@ loop:
 	return
 }
 
-func lookupIP(host string) (ips []IP, err error) {
-	addrs, err := LookupHost(host)
+func lookupIP(host string) (addrs []IPAddr, err error) {
+	lits, err := LookupHost(host)
 	if err != nil {
 		return
 	}
-	for _, addr := range addrs {
-		if ip := ParseIP(addr); ip != nil {
-			ips = append(ips, ip)
+	for _, lit := range lits {
+		host, zone := splitHostZone(lit)
+		if ip := ParseIP(host); ip != nil {
+			addr := IPAddr{IP: ip, Zone: zone}
+			addrs = append(addrs, addr)
 		}
 	}
 	return
@@ -171,7 +172,7 @@ func lookupPort(network, service string) (port int, err error) {
 	if err != nil {
 		return
 	}
-	unknownPortError := &AddrError{"unknown port", network + "/" + service}
+	unknownPortError := &AddrError{Err: "unknown port", Addr: network + "/" + service}
 	if len(lines) == 0 {
 		return 0, unknownPortError
 	}

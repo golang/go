@@ -7,11 +7,13 @@
 package httputil
 
 import (
+	"bufio"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -43,6 +45,7 @@ func TestReverseProxy(t *testing.T) {
 		if g, e := r.Host, "some-name"; g != e {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
+		w.Header().Set("Trailer", "X-Trailer")
 		w.Header().Set("X-Foo", "bar")
 		w.Header().Set("Upgrade", "foo")
 		w.Header().Set(fakeHopHeader, "foo")
@@ -51,6 +54,7 @@ func TestReverseProxy(t *testing.T) {
 		http.SetCookie(w, &http.Cookie{Name: "flavor", Value: "chocolateChip"})
 		w.WriteHeader(backendStatus)
 		w.Write([]byte(backendResponse))
+		w.Header().Set("X-Trailer", "trailer_value")
 	}))
 	defer backend.Close()
 	backendURL, err := url.Parse(backend.URL)
@@ -85,6 +89,9 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := len(res.Header["Set-Cookie"]), 1; g != e {
 		t.Fatalf("got %d SetCookies, want %d", g, e)
 	}
+	if g, e := res.Trailer, (http.Header{"X-Trailer": nil}); !reflect.DeepEqual(g, e) {
+		t.Errorf("before reading body, Trailer = %#v; want %#v", g, e)
+	}
 	if cookie := res.Cookies()[0]; cookie.Name != "flavor" {
 		t.Errorf("unexpected cookie %q", cookie.Name)
 	}
@@ -92,6 +99,10 @@ func TestReverseProxy(t *testing.T) {
 	if g, e := string(bodyBytes), backendResponse; g != e {
 		t.Errorf("got body %q; expected %q", g, e)
 	}
+	if g, e := res.Trailer.Get("X-Trailer"), "trailer_value"; g != e {
+		t.Errorf("Trailer(X-Trailer) = %q ; want %q", g, e)
+	}
+
 }
 
 func TestXForwardedFor(t *testing.T) {
@@ -214,9 +225,9 @@ func TestReverseProxyFlushInterval(t *testing.T) {
 	}
 }
 
-func TestReverseProxyCancellation(t *testing.T) {
+func TestReverseProxyCancelation(t *testing.T) {
 	if runtime.GOOS == "plan9" {
-		t.Skip("skipping test; see http://golang.org/issue/9554")
+		t.Skip("skipping test; see https://golang.org/issue/9554")
 	}
 	const backendResponse = "I am the backend"
 
@@ -269,5 +280,43 @@ func TestReverseProxyCancellation(t *testing.T) {
 		// Get http://127.0.0.1:58079: read tcp 127.0.0.1:58079:
 		//    use of closed network connection
 		t.Fatal("DefaultClient.Do() returned nil error")
+	}
+}
+
+func req(t *testing.T, v string) *http.Request {
+	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(v)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return req
+}
+
+// Issue 12344
+func TestNilBody(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hi"))
+	}))
+	defer backend.Close()
+
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		backURL, _ := url.Parse(backend.URL)
+		rp := NewSingleHostReverseProxy(backURL)
+		r := req(t, "GET / HTTP/1.0\r\n\r\n")
+		r.Body = nil // this accidentally worked in Go 1.4 and below, so keep it working
+		rp.ServeHTTP(w, r)
+	}))
+	defer frontend.Close()
+
+	res, err := http.Get(frontend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	slurp, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(slurp) != "hi" {
+		t.Errorf("Got %q; want %q", slurp, "hi")
 	}
 }

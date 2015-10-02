@@ -48,8 +48,10 @@ func mmap_fixed(v unsafe.Pointer, n uintptr, prot, flags, fd int32, offset uint3
 	return p
 }
 
+// Don't split the stack as this method may be invoked without a valid G, which
+// prevents us from allocating more stack.
 //go:nosplit
-func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
+func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
 	p := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if uintptr(p) < 4096 {
 		if uintptr(p) == _EACCES {
@@ -62,19 +64,102 @@ func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
 		}
 		return nil
 	}
-	xadd64(stat, int64(n))
+	mSysStatInc(sysStat, n)
 	return p
 }
 
 func sysUnused(v unsafe.Pointer, n uintptr) {
+	// By default, Linux's "transparent huge page" support will
+	// merge pages into a huge page if there's even a single
+	// present regular page, undoing the effects of the DONTNEED
+	// below. On amd64, that means khugepaged can turn a single
+	// 4KB page to 2MB, bloating the process's RSS by as much as
+	// 512X. (See issue #8832 and Linux kernel bug
+	// https://bugzilla.kernel.org/show_bug.cgi?id=93111)
+	//
+	// To work around this, we explicitly disable transparent huge
+	// pages when we release pages of the heap. However, we have
+	// to do this carefully because changing this flag tends to
+	// split the VMA (memory mapping) containing v in to three
+	// VMAs in order to track the different values of the
+	// MADV_NOHUGEPAGE flag in the different regions. There's a
+	// default limit of 65530 VMAs per address space (sysctl
+	// vm.max_map_count), so we must be careful not to create too
+	// many VMAs (see issue #12233).
+	//
+	// Since huge pages are huge, there's little use in adjusting
+	// the MADV_NOHUGEPAGE flag on a fine granularity, so we avoid
+	// exploding the number of VMAs by only adjusting the
+	// MADV_NOHUGEPAGE flag on a large granularity. This still
+	// gets most of the benefit of huge pages while keeping the
+	// number of VMAs under control. With hugePageSize = 2MB, even
+	// a pessimal heap can reach 128GB before running out of VMAs.
+	if hugePageSize != 0 {
+		var s uintptr = hugePageSize // division by constant 0 is a compile-time error :(
+
+		// If it's a large allocation, we want to leave huge
+		// pages enabled. Hence, we only adjust the huge page
+		// flag on the huge pages containing v and v+n-1, and
+		// only if those aren't aligned.
+		var head, tail uintptr
+		if uintptr(v)%s != 0 {
+			// Compute huge page containing v.
+			head = uintptr(v) &^ (s - 1)
+		}
+		if (uintptr(v)+n)%s != 0 {
+			// Compute huge page containing v+n-1.
+			tail = (uintptr(v) + n - 1) &^ (s - 1)
+		}
+
+		// Note that madvise will return EINVAL if the flag is
+		// already set, which is quite likely. We ignore
+		// errors.
+		if head != 0 && head+hugePageSize == tail {
+			// head and tail are different but adjacent,
+			// so do this in one call.
+			madvise(unsafe.Pointer(head), 2*hugePageSize, _MADV_NOHUGEPAGE)
+		} else {
+			// Advise the huge pages containing v and v+n-1.
+			if head != 0 {
+				madvise(unsafe.Pointer(head), hugePageSize, _MADV_NOHUGEPAGE)
+			}
+			if tail != 0 && tail != head {
+				madvise(unsafe.Pointer(tail), hugePageSize, _MADV_NOHUGEPAGE)
+			}
+		}
+	}
+
 	madvise(v, n, _MADV_DONTNEED)
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
+	if hugePageSize != 0 {
+		// Partially undo the NOHUGEPAGE marks from sysUnused
+		// for whole huge pages between v and v+n. This may
+		// leave huge pages off at the end points v and v+n
+		// even though allocations may cover these entire huge
+		// pages. We could detect this and undo NOHUGEPAGE on
+		// the end points as well, but it's probably not worth
+		// the cost because when neighboring allocations are
+		// freed sysUnused will just set NOHUGEPAGE again.
+		var s uintptr = hugePageSize
+
+		// Round v up to a huge page boundary.
+		beg := (uintptr(v) + (s - 1)) &^ (s - 1)
+		// Round v+n down to a huge page boundary.
+		end := (uintptr(v) + n) &^ (s - 1)
+
+		if beg < end {
+			madvise(unsafe.Pointer(beg), end-beg, _MADV_HUGEPAGE)
+		}
+	}
 }
 
-func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
-	xadd64(stat, -int64(n))
+// Don't split the stack as this function may be invoked without a valid G,
+// which prevents us from allocating more stack.
+//go:nosplit
+func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+	mSysStatDec(sysStat, n)
 	munmap(v, n)
 }
 
@@ -108,8 +193,8 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return p
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
-	xadd64(stat, int64(n))
+func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
+	mSysStatInc(sysStat, n)
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.
 	if !reserved {

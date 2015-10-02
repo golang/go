@@ -180,7 +180,7 @@ func (d Weekday) String() string { return days[d] }
 // everywhere.
 //
 // The calendar runs on an exact 400 year cycle: a 400-year calendar
-// printed for 1970-2469 will apply as well to 2470-2869.  Even the days
+// printed for 1970-2469 will apply as well to 2370-2769.  Even the days
 // of the week match up.  It simplifies the computations to choose the
 // cycle boundaries so that the exceptional years are always delayed as
 // long as possible.  That means choosing a year equal to 1 mod 400, so
@@ -935,7 +935,12 @@ func (t Time) MarshalJSON() ([]byte, error) {
 		// See golang.org/issue/4556#c15 for more discussion.
 		return nil, errors.New("Time.MarshalJSON: year outside of range [0,9999]")
 	}
-	return []byte(t.Format(`"` + RFC3339Nano + `"`)), nil
+
+	b := make([]byte, 0, len(RFC3339Nano)+2)
+	b = append(b, '"')
+	b = t.AppendFormat(b, RFC3339Nano)
+	b = append(b, '"')
+	return b, nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -952,7 +957,9 @@ func (t Time) MarshalText() ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {
 		return nil, errors.New("Time.MarshalText: year outside of range [0,9999]")
 	}
-	return []byte(t.Format(RFC3339Nano)), nil
+
+	b := make([]byte, 0, len(RFC3339Nano))
+	return t.AppendFormat(b, RFC3339Nano), nil
 }
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
@@ -966,6 +973,8 @@ func (t *Time) UnmarshalText(data []byte) (err error) {
 // Unix returns the local Time corresponding to the given Unix time,
 // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 // It is valid to pass nsec outside the range [0, 999999999].
+// Not all sec values have a corresponding time value. One such
+// value is 1<<63-1 (the largest int64 value).
 func Unix(sec int64, nsec int64) Time {
 	if nsec < 0 || nsec >= 1e9 {
 		n := nsec / 1e9

@@ -74,6 +74,16 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+// issue 12440.
+func TestFormatSingleDigits(t *testing.T) {
+	time := Date(2001, 2, 3, 4, 5, 6, 700000000, UTC)
+	test := FormatTest{"single digit format", "3:4:5", "4:5:6"}
+	result := time.Format(test.format)
+	if result != test.result {
+		t.Errorf("%s expected %q got %q", test.name, test.result, result)
+	}
+}
+
 func TestFormatShortYear(t *testing.T) {
 	years := []int{
 		-100001, -100000, -99999,
@@ -153,6 +163,9 @@ var parseTests = []ParseTest{
 
 	// GMT with offset.
 	{"GMT-8", UnixDate, "Fri Feb  5 05:00:57 GMT-8 2010", true, true, 1, 0},
+
+	// Day of month can be out of range.
+	{"Jan 36", UnixDate, "Fri Jan 36 05:00:57 GMT-8 2010", true, true, 1, 0},
 
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two

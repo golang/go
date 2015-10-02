@@ -5,6 +5,7 @@
 package gob
 
 import (
+	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -65,6 +66,11 @@ func (enc *Encoder) writeMessage(w io.Writer, b *encBuffer) {
 	// it by hand.
 	message := b.Bytes()
 	messageLen := len(message) - maxLength
+	// Length cannot be bigger than the decoder can handle.
+	if messageLen >= tooBig {
+		enc.setError(errors.New("gob: encoder: message too big"))
+		return
+	}
 	// Encode the length.
 	enc.countState.b.Reset()
 	enc.countState.encodeUint(uint64(messageLen))

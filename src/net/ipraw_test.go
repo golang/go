@@ -5,10 +5,7 @@
 package net
 
 import (
-	"fmt"
-	"os"
 	"reflect"
-	"runtime"
 	"testing"
 )
 
@@ -19,7 +16,7 @@ import (
 //	golang.org/x/net/icmp
 
 type resolveIPAddrTest struct {
-	net           string
+	network       string
 	litAddrOrName string
 	addr          *IPAddr
 	err           error
@@ -41,40 +38,37 @@ var resolveIPAddrTests = []resolveIPAddrTest{
 	{"", "127.0.0.1", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil}, // Go 1.0 behavior
 	{"", "::1", &IPAddr{IP: ParseIP("::1")}, nil},           // Go 1.0 behavior
 
+	{"ip4:icmp", "", &IPAddr{}, nil},
+
 	{"l2tp", "127.0.0.1", nil, UnknownNetworkError("l2tp")},
 	{"l2tp:gre", "127.0.0.1", nil, UnknownNetworkError("l2tp:gre")},
 	{"tcp", "1.2.3.4:123", nil, UnknownNetworkError("tcp")},
 }
 
-func init() {
-	if ifi := loopbackInterface(); ifi != nil {
-		index := fmt.Sprintf("%v", ifi.Index)
-		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
-			{"ip6", "fe80::1%" + ifi.Name, &IPAddr{IP: ParseIP("fe80::1"), Zone: zoneToString(ifi.Index)}, nil},
-			{"ip6", "fe80::1%" + index, &IPAddr{IP: ParseIP("fe80::1"), Zone: index}, nil},
-		}...)
-	}
-	if ips, err := LookupIP("localhost"); err == nil && len(ips) > 1 && supportsIPv4 && supportsIPv6 {
-		resolveIPAddrTests = append(resolveIPAddrTests, []resolveIPAddrTest{
-			{"ip", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
-			{"ip4", "localhost", &IPAddr{IP: IPv4(127, 0, 0, 1)}, nil},
-			{"ip6", "localhost", &IPAddr{IP: IPv6loopback}, nil},
-		}...)
-	}
-}
-
 func TestResolveIPAddr(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl":
-		t.Skipf("skipping test on %q", runtime.GOOS)
+	if !testableNetwork("ip+nopriv") {
+		t.Skip("ip+nopriv test")
 	}
 
-	for _, tt := range resolveIPAddrTests {
-		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
+	origTestHookLookupIP := testHookLookupIP
+	defer func() { testHookLookupIP = origTestHookLookupIP }()
+	testHookLookupIP = lookupLocalhost
+
+	for i, tt := range resolveIPAddrTests {
+		addr, err := ResolveIPAddr(tt.network, tt.litAddrOrName)
 		if err != tt.err {
-			t.Fatalf("ResolveIPAddr(%v, %v) failed: %v", tt.net, tt.litAddrOrName, err)
+			t.Errorf("#%d: %v", i, err)
 		} else if !reflect.DeepEqual(addr, tt.addr) {
-			t.Fatalf("got %#v; expected %#v", addr, tt.addr)
+			t.Errorf("#%d: got %#v; want %#v", i, addr, tt.addr)
+		}
+		if err != nil {
+			continue
+		}
+		rtaddr, err := ResolveIPAddr(addr.Network(), addr.String())
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+		} else if !reflect.DeepEqual(rtaddr, addr) {
+			t.Errorf("#%d: got %#v; want %#v", i, rtaddr, addr)
 		}
 	}
 }
@@ -89,44 +83,34 @@ var ipConnLocalNameTests = []struct {
 }
 
 func TestIPConnLocalName(t *testing.T) {
-	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	default:
-		if os.Getuid() != 0 {
-			t.Skip("skipping test; must be root")
-		}
-	}
-
 	for _, tt := range ipConnLocalNameTests {
+		if !testableNetwork(tt.net) {
+			t.Logf("skipping %s test", tt.net)
+			continue
+		}
 		c, err := ListenIP(tt.net, tt.laddr)
 		if err != nil {
-			t.Fatalf("ListenIP failed: %v", err)
+			t.Fatal(err)
 		}
 		defer c.Close()
 		if la := c.LocalAddr(); la == nil {
-			t.Fatal("IPConn.LocalAddr failed")
+			t.Fatal("should not fail")
 		}
 	}
 }
 
 func TestIPConnRemoteName(t *testing.T) {
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	default:
-		if os.Getuid() != 0 {
-			t.Skip("skipping test; must be root")
-		}
+	if !testableNetwork("ip:tcp") {
+		t.Skip("ip:tcp test")
 	}
 
 	raddr := &IPAddr{IP: IPv4(127, 0, 0, 1).To4()}
 	c, err := DialIP("ip:tcp", &IPAddr{IP: IPv4(127, 0, 0, 1)}, raddr)
 	if err != nil {
-		t.Fatalf("DialIP failed: %v", err)
+		t.Fatal(err)
 	}
 	defer c.Close()
 	if !reflect.DeepEqual(raddr, c.RemoteAddr()) {
-		t.Fatalf("got %#v, expected %#v", c.RemoteAddr(), raddr)
+		t.Fatalf("got %#v; want %#v", c.RemoteAddr(), raddr)
 	}
 }

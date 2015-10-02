@@ -1,0 +1,146 @@
+// errorcheck -0 -l -d=wb
+
+// Copyright 2015 The Go Authors.  All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Test where write barriers are and are not emitted.
+
+package p
+
+import "unsafe"
+
+func f(x **byte, y *byte) {
+	*x = y // ERROR "write barrier"
+
+	z := y // no barrier
+	*x = z // ERROR "write barrier"
+}
+
+func f1(x *[]byte, y []byte) {
+	*x = y // ERROR "write barrier"
+
+	z := y // no barrier
+	*x = z // ERROR "write barrier"
+}
+
+func f1a(x *[]byte, y *[]byte) {
+	*x = *y // ERROR "write barrier"
+
+	z := *y // no barrier
+	*x = z  // ERROR "write barrier"
+}
+
+func f2(x *interface{}, y interface{}) {
+	*x = y // ERROR "write barrier"
+
+	z := y // no barrier
+	*x = z // ERROR "write barrier"
+}
+
+func f2a(x *interface{}, y *interface{}) {
+	*x = *y // ERROR "write barrier"
+
+	z := y // no barrier
+	*x = z // ERROR "write barrier"
+}
+
+func f3(x *string, y string) {
+	*x = y // ERROR "write barrier"
+
+	z := y // no barrier
+	*x = z // ERROR "write barrier"
+}
+
+func f3a(x *string, y *string) {
+	*x = *y // ERROR "write barrier"
+
+	z := *y // no barrier
+	*x = z  // ERROR "write barrier"
+}
+
+func f4(x *[2]string, y [2]string) {
+	*x = y // ERROR "write barrier"
+
+	z := y // no barrier
+	*x = z // ERROR "write barrier"
+}
+
+func f4a(x *[2]string, y *[2]string) {
+	*x = *y // ERROR "write barrier"
+
+	z := *y // no barrier
+	*x = z  // ERROR "write barrier"
+}
+
+type T struct {
+	X *int
+	Y int
+	M map[int]int
+}
+
+func f5(t, u *T) {
+	t.X = &u.Y // ERROR "write barrier"
+}
+
+func f6(t *T) {
+	t.M = map[int]int{1: 2} // ERROR "write barrier"
+}
+
+func f7(x, y *int) []*int {
+	var z [3]*int
+	i := 0
+	z[i] = x // ERROR "write barrier"
+	i++
+	z[i] = y // ERROR "write barrier"
+	i++
+	return z[:i]
+}
+
+func f9(x *interface{}, v *byte) {
+	*x = v // ERROR "write barrier"
+}
+
+func f10(x *byte, f func(interface{})) {
+	f(x)
+}
+
+func f11(x *unsafe.Pointer, y unsafe.Pointer) {
+	*x = unsafe.Pointer(uintptr(y) + 1) // ERROR "write barrier"
+}
+
+func f12(x []*int, y *int) []*int {
+	// write barrier for storing y in x's underlying array
+	x = append(x, y) // ERROR "write barrier"
+	return x
+}
+
+func f12a(x []int, y int) []int {
+	// y not a pointer, so no write barriers in this function
+	x = append(x, y)
+	return x
+}
+
+func f13(x []int, y *[]int) {
+	*y = append(x, 1) // ERROR "write barrier"
+}
+
+func f14(y *[]int) {
+	*y = append(*y, 1) // ERROR "write barrier"
+}
+
+type T1 struct {
+	X *int
+}
+
+func f15(x []T1, y T1) []T1 {
+	return append(x, y) // ERROR "write barrier"
+}
+
+type T8 struct {
+	X [8]*int
+}
+
+func f16(x []T8, y T8) []T8 {
+	return append(x, y) // ERROR "write barrier"
+}

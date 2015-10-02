@@ -136,11 +136,14 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		}
 	}
 	if rand.Intn(10) > 5 {
-		m.signatureAndHashes = supportedSKXSignatureAlgorithms
+		m.signatureAndHashes = supportedSignatureAlgorithms
 	}
 	m.alpnProtocols = make([]string, rand.Intn(5))
 	for i := range m.alpnProtocols {
 		m.alpnProtocols[i] = randomString(rand.Intn(20)+1, rand)
+	}
+	if rand.Intn(10) > 5 {
+		m.scts = true
 	}
 
 	return reflect.ValueOf(m)
@@ -171,6 +174,14 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 		m.ticketSupported = true
 	}
 	m.alpnProtocol = randomString(rand.Intn(32)+1, rand)
+
+	if rand.Intn(10) > 5 {
+		numSCTs := rand.Intn(4)
+		m.scts = make([][]byte, numSCTs)
+		for i := range m.scts {
+			m.scts[i] = randomBytes(rand.Intn(500), rand)
+		}
+	}
 
 	return reflect.ValueOf(m)
 }

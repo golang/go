@@ -10,8 +10,27 @@ import (
 	"strings"
 )
 
+func init() {
+	osInitMime = initMimePlan9
+}
+
+func initMimePlan9() {
+	for _, filename := range typeFiles {
+		loadMimeFile(filename)
+	}
+}
+
 var typeFiles = []string{
 	"/sys/lib/mimetypes",
+}
+
+func initMimeForTests() map[string]string {
+	typeFiles = []string{"testdata/test.types.plan9"}
+	return map[string]string{
+		".t1":  "application/test",
+		".t2":  "text/test; charset=utf-8",
+		".pNg": "image/png",
+	}
 }
 
 func loadMimeFile(filename string) {
@@ -34,20 +53,5 @@ func loadMimeFile(filename string) {
 	}
 	if err := scanner.Err(); err != nil {
 		panic(err)
-	}
-}
-
-func initMime() {
-	for _, filename := range typeFiles {
-		loadMimeFile(filename)
-	}
-}
-
-func initMimeForTests() map[string]string {
-	typeFiles = []string{"testdata/test.types.plan9"}
-	return map[string]string{
-		".t1":  "application/test",
-		".t2":  "text/test; charset=utf-8",
-		".pNg": "image/png",
 	}
 }

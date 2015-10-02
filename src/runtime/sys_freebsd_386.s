@@ -62,24 +62,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
 TEXT runtime·open(SB),NOSPLIT,$-4
 	MOVL	$5, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·close(SB),NOSPLIT,$-4
+TEXT runtime·closefd(SB),NOSPLIT,$-4
 	MOVL	$6, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+4(FP)
 	RET
 
 TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
 TEXT runtime·write(SB),NOSPLIT,$-4
 	MOVL	$4, AX
 	INT	$0x80
+	JAE	2(PC)
+	MOVL	$-1, AX
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -101,6 +109,18 @@ TEXT runtime·raise(SB),NOSPLIT,$16
 	MOVL	sig+0(FP), AX
 	MOVL	AX, 8(SP)
 	MOVL	$433, AX
+	INT	$0x80
+	RET
+
+TEXT runtime·raiseproc(SB),NOSPLIT,$16
+	// getpid
+	MOVL	$20, AX
+	INT	$0x80
+	// kill(self, sig)
+	MOVL	AX, 4(SP)
+	MOVL	sig+0(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	$37, AX
 	INT	$0x80
 	RET
 
@@ -279,7 +299,7 @@ int i386_set_ldt(int, const union ldt_entry *, int);
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	address+4(FP), BX	// aka base
 	// see comment in sys_linux_386.s; freebsd is similar
-	ADDL	$0x8, BX
+	ADDL	$0x4, BX
 
 	// set up data_desc
 	LEAL	16(SP), AX	// struct data_desc
@@ -347,10 +367,11 @@ TEXT runtime·osyield(SB),NOSPLIT,$-4
 
 TEXT runtime·sigprocmask(SB),NOSPLIT,$16
 	MOVL	$0, 0(SP)		// syscall gap
-	MOVL	$3, 4(SP)		// arg 1 - how (SIG_SETMASK)
-	MOVL	new+0(FP), AX
+	MOVL	how+0(FP), AX		// arg 1 - how
+	MOVL	AX, 4(SP)
+	MOVL	new+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - set
-	MOVL	old+4(FP), AX
+	MOVL	old+8(FP), AX
 	MOVL	AX, 12(SP)		// arg 3 - oset
 	MOVL	$340, AX		// sys_sigprocmask
 	INT	$0x80

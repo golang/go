@@ -63,7 +63,7 @@ func removeErrorField(ityp *ast.InterfaceType) {
 }
 
 // filterFieldList removes unexported fields (field names) from the field list
-// in place and returns true if fields were removed. Anonymous fields are
+// in place and reports whether fields were removed. Anonymous fields are
 // recorded with the parent type. filterType is called with the types of
 // all remaining fields.
 //

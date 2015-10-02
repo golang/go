@@ -7,12 +7,13 @@
 package net
 
 import (
+	"strconv"
 	"time"
 )
 
 // Set keep alive period.
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
-	cmd := "keepalive " + string(int64(d/time.Millisecond))
+	cmd := "keepalive " + strconv.Itoa(int(d/time.Millisecond))
 	_, e := fd.ctl.WriteAt([]byte(cmd), 0)
 	return e
 }

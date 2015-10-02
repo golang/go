@@ -866,7 +866,7 @@ var t interface{}
 t = functionOfSomeType()
 switch t := t.(type) {
 default:
-    fmt.Printf("unexpected type %T", t)       // %T prints whatever type t has
+    fmt.Printf("unexpected type %T\n", t)     // %T prints whatever type t has
 case bool:
     fmt.Printf("boolean %t\n", t)             // t has type bool
 case int:
@@ -1382,7 +1382,7 @@ limit of how much data to read.  Here is the signature of the
 <code>os</code>:
 </p>
 <pre>
-func (file *File) Read(buf []byte) (n int, err error)
+func (f *File) Read(buf []byte) (n int, err error)
 </pre>
 <p>
 The method returns the number of bytes read and an error value, if
@@ -1421,7 +1421,7 @@ resulting slice is returned.  The function uses the fact that
 <code>nil</code> slice, and return 0.
 </p>
 <pre>
-func Append(slice, data[]byte) []byte {
+func Append(slice, data []byte) []byte {
     l := len(slice)
     if l + len(data) &gt; cap(slice) {  // reallocate
         // Allocate double what's needed, for future growth.
@@ -3054,7 +3054,7 @@ req := req
 </pre>
 
 <p>
-but it's a legal and idiomatic in Go to do this.
+but it's legal and idiomatic in Go to do this.
 You get a fresh version of the variable with the same name, deliberately
 shadowing the loop variable locally but unique to each goroutine.
 </p>
@@ -3172,40 +3172,44 @@ count the completion signals by draining the channel after
 launching all the goroutines.
 </p>
 <pre>
-const NCPU = 4  // number of CPU cores
+const numCPU = 4 // number of CPU cores
 
 func (v Vector) DoAll(u Vector) {
-    c := make(chan int, NCPU)  // Buffering optional but sensible.
-    for i := 0; i &lt; NCPU; i++ {
-        go v.DoSome(i*len(v)/NCPU, (i+1)*len(v)/NCPU, u, c)
+    c := make(chan int, numCPU)  // Buffering optional but sensible.
+    for i := 0; i &lt; numCPU; i++ {
+        go v.DoSome(i*len(v)/numCPU, (i+1)*len(v)/numCPU, u, c)
     }
     // Drain the channel.
-    for i := 0; i &lt; NCPU; i++ {
+    for i := 0; i &lt; numCPU; i++ {
         &lt;-c    // wait for one task to complete
     }
     // All done.
 }
-
 </pre>
-
 <p>
-The current implementation of the Go runtime
-will not parallelize this code by default.
-It dedicates only a single core to user-level processing.  An
-arbitrary number of goroutines can be blocked in system calls, but
-by default only one can be executing user-level code at any time.
-It should be smarter and one day it will be smarter, but until it
-is if you want CPU parallelism you must tell the run-time
-how many goroutines you want executing code simultaneously.  There
-are two related ways to do this.  Either run your job with environment
-variable <code>GOMAXPROCS</code> set to the number of cores to use
-or import the <code>runtime</code> package and call
-<code>runtime.GOMAXPROCS(NCPU)</code>.
-A helpful value might be <code>runtime.NumCPU()</code>, which reports the number
-of logical CPUs on the local machine.
-Again, this requirement is expected to be retired as the scheduling and run-time improve.
+Rather than create a constant value for numCPU, we can ask the runtime what
+value is appropriate.
+The function <code><a href="/pkg/runtime#NumCPU">runtime.NumCPU</a></code>
+returns the number of hardware CPU cores in the machine, so we could write
 </p>
-
+<pre>
+var numCPU = runtime.NumCPU()
+</pre>
+<p>
+There is also a function
+<code><a href="/pkg/runtime#GOMAXPROCS">runtime.GOMAXPROCS</a></code>,
+which reports (or sets)
+the user-specified number of cores that a Go program can have running
+simultaneously.
+It defaults to the value of <code>runtime.NumCPU</code> but can be
+overridden by setting the similarly named shell environment variable
+or by calling the function with a positive number.  Calling it with
+zero just queries the value.
+Therefore if we want to honor the user's resource request, we should write
+</p>
+<pre>
+var numCPU = runtime.GOMAXPROCS(0)
+</pre>
 <p>
 Be sure not to confuse the ideas of concurrency—structuring a program
 as independently executing components—and parallelism—executing

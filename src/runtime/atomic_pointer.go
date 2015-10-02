@@ -10,7 +10,7 @@ import "unsafe"
 // because while ptr does not escape, new does.
 // If new is marked as not escaping, the compiler will make incorrect
 // escape analysis decisions about the pointer value being stored.
-// Instead, these are wrappers around the actual atomics (xchgp1 and so on)
+// Instead, these are wrappers around the actual atomics (casp1 and so on)
 // that use noescape to convey which arguments do not escape.
 //
 // Additionally, these functions must update the shadow heap for
@@ -20,19 +20,6 @@ import "unsafe"
 func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	atomicstorep1(noescape(ptr), new)
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
-	}
-}
-
-//go:nosplit
-func xchgp(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
-	old := xchgp1(noescape(ptr), new)
-	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
-	}
-	return old
 }
 
 //go:nosplit
@@ -41,9 +28,6 @@ func casp(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
 		return false
 	}
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
-	}
 	return true
 }
 
@@ -60,9 +44,6 @@ func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	sync_atomic_StoreUintptr((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
 	atomicstorep1(noescape(unsafe.Pointer(ptr)), new)
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
-	}
 }
 
 //go:linkname sync_atomic_SwapUintptr sync/atomic.SwapUintptr
@@ -73,9 +54,6 @@ func sync_atomic_SwapUintptr(ptr *uintptr, new uintptr) uintptr
 func sync_atomic_SwapPointer(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer {
 	old := unsafe.Pointer(sync_atomic_SwapUintptr((*uintptr)(noescape(ptr)), uintptr(new)))
 	writebarrierptr_nostore((*uintptr)(ptr), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(ptr)))
-	}
 	return old
 }
 
@@ -89,8 +67,5 @@ func sync_atomic_CompareAndSwapPointer(ptr *unsafe.Pointer, old, new unsafe.Poin
 		return false
 	}
 	writebarrierptr_nostore((*uintptr)(unsafe.Pointer(ptr)), uintptr(new))
-	if mheap_.shadow_enabled {
-		writebarrierptr_noshadow((*uintptr)(noescape(unsafe.Pointer(ptr))))
-	}
 	return true
 }

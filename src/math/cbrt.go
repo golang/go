@@ -4,13 +4,17 @@
 
 package math
 
-/*
-	The algorithm is based in part on "Optimal Partitioning of
-	Newton's Method for Calculating Roots", by Gunter Meinardus
-	and G. D. Taylor, Mathematics of Computation © 1980 American
-	Mathematical Society.
-	(http://www.jstor.org/stable/2006387?seq=9, accessed 11-Feb-2010)
-*/
+// The go code is a modified version of the original C code from
+// http://www.netlib.org/fdlibm/s_cbrt.c and came with this notice.
+//
+// ====================================================
+// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+//
+// Developed at SunSoft, a Sun Microsystems, Inc. business.
+// Permission to use, copy, modify, and distribute this
+// software is freely granted, provided that this notice
+// is preserved.
+// ====================================================
 
 // Cbrt returns the cube root of x.
 //
@@ -20,57 +24,54 @@ package math
 //	Cbrt(NaN) = NaN
 func Cbrt(x float64) float64 {
 	const (
-		A1 = 1.662848358e-01
-		A2 = 1.096040958e+00
-		A3 = 4.105032829e-01
-		A4 = 5.649335816e-01
-		B1 = 2.639607233e-01
-		B2 = 8.699282849e-01
-		B3 = 1.629083358e-01
-		B4 = 2.824667908e-01
-		C1 = 4.190115298e-01
-		C2 = 6.904625373e-01
-		C3 = 6.46502159e-02
-		C4 = 1.412333954e-01
+		B1             = 715094163                   // (682-0.03306235651)*2**20
+		B2             = 696219795                   // (664-0.03306235651)*2**20
+		C              = 5.42857142857142815906e-01  // 19/35     = 0x3FE15F15F15F15F1
+		D              = -7.05306122448979611050e-01 // -864/1225 = 0xBFE691DE2532C834
+		E              = 1.41428571428571436819e+00  // 99/70     = 0x3FF6A0EA0EA0EA0F
+		F              = 1.60714285714285720630e+00  // 45/28     = 0x3FF9B6DB6DB6DB6E
+		G              = 3.57142857142857150787e-01  // 5/14      = 0x3FD6DB6DB6DB6DB7
+		SmallestNormal = 2.22507385850720138309e-308 // 2**-1022  = 0x0010000000000000
 	)
 	// special cases
 	switch {
 	case x == 0 || IsNaN(x) || IsInf(x, 0):
 		return x
 	}
+
 	sign := false
 	if x < 0 {
 		x = -x
 		sign = true
 	}
-	// Reduce argument and estimate cube root
-	f, e := Frexp(x) // 0.5 <= f < 1.0
-	m := e % 3
-	if m > 0 {
-		m -= 3
-		e -= m // e is multiple of 3
-	}
-	switch m {
-	case 0: // 0.5 <= f < 1.0
-		f = A1*f + A2 - A3/(A4+f)
-	case -1:
-		f *= 0.5 // 0.25 <= f < 0.5
-		f = B1*f + B2 - B3/(B4+f)
-	default: // m == -2
-		f *= 0.25 // 0.125 <= f < 0.25
-		f = C1*f + C2 - C3/(C4+f)
-	}
-	y := Ldexp(f, e/3) // e/3 = exponent of cube root
 
-	// Iterate
-	s := y * y * y
-	t := s + x
-	y *= (t + x) / (s + t)
-	// Reiterate
-	s = (y*y*y - x) / x
-	y -= y * (((14.0/81.0)*s-(2.0/9.0))*s + (1.0 / 3.0)) * s
-	if sign {
-		y = -y
+	// rough cbrt to 5 bits
+	t := Float64frombits(Float64bits(x)/3 + B1<<32)
+	if x < SmallestNormal {
+		// subnormal number
+		t = float64(1 << 54) // set t= 2**54
+		t *= x
+		t = Float64frombits(Float64bits(t)/3 + B2<<32)
 	}
-	return y
+
+	// new cbrt to 23 bits
+	r := t * t / x
+	s := C + r*t
+	t *= G + F/(s+E+D/s)
+
+	// chop to 22 bits, make larger than cbrt(x)
+	t = Float64frombits(Float64bits(t)&(0xFFFFFFFFC<<28) + 1<<30)
+
+	// one step newton iteration to 53 bits with error less than 0.667ulps
+	s = t * t // t*t is exact
+	r = x / s
+	w := t + t
+	r = (r - t) / (w + r) // r-s is exact
+	t = t + t*r
+
+	// restore the sign bit
+	if sign {
+		t = -t
+	}
+	return t
 }

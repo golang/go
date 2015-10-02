@@ -7,7 +7,7 @@
 // in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
-// http://golang.org/doc/articles/json_and_go.html
+// https://golang.org/doc/articles/json_and_go.html
 package json
 
 import (
@@ -30,7 +30,10 @@ import (
 // Marshal traverses the value v recursively.
 // If an encountered value implements the Marshaler interface
 // and is not a nil pointer, Marshal calls its MarshalJSON method
-// to produce JSON.  The nil pointer exception is not strictly necessary
+// to produce JSON. If no MarshalJSON method is present but the
+// value implements encoding.TextMarshaler instead, Marshal calls
+// its MarshalText method.
+// The nil pointer exception is not strictly necessary
 // but mimics a similar, necessary exception in the behavior of
 // UnmarshalJSON.
 //
@@ -274,8 +277,6 @@ func (e *encodeState) marshal(v interface{}) (err error) {
 func (e *encodeState) error(err error) {
 	panic(err)
 }
-
-var byteSliceType = reflect.TypeOf([]byte(nil))
 
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
@@ -1045,6 +1046,19 @@ func typeFields(t reflect.Type) []field {
 					ft = ft.Elem()
 				}
 
+				// Only strings, floats, integers, and booleans can be quoted.
+				quoted := false
+				if opts.Contains("string") {
+					switch ft.Kind() {
+					case reflect.Bool,
+						reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+						reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+						reflect.Float32, reflect.Float64,
+						reflect.String:
+						quoted = true
+					}
+				}
+
 				// Record found field and index sequence.
 				if name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct {
 					tagged := name != ""
@@ -1057,7 +1071,7 @@ func typeFields(t reflect.Type) []field {
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
-						quoted:    opts.Contains("string"),
+						quoted:    quoted,
 					}))
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,

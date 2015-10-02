@@ -18,6 +18,8 @@ When filing an issue, make sure to answer these five questions:
 General questions should go to the [golang-nuts mailing list](https://groups.google.com/group/golang-nuts) instead of the issue tracker.
 The gophers there will answer or ask you to file an issue if you've tripped over a bug.
 
+Sensitive security-related issues should be reported to [security@golang.org](mailto:security@golang.org).
+
 ## Contributing code
 
 Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html)

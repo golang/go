@@ -60,7 +60,7 @@ class SliceValue:
 class StringTypePrinter:
 	"Pretty print Go strings."
 
-	pattern = re.compile(r'^struct string$')
+	pattern = re.compile(r'^struct string( \*)?$')
 
 	def __init__(self, val):
 		self.val = val
@@ -114,7 +114,7 @@ class MapTypePrinter:
 		return str(self.val.type)
 
 	def children(self):
-		B = self.val['b']
+		B = self.val['B']
 		buckets = self.val['buckets']
 		oldbuckets = self.val['oldbuckets']
 		flags = self.val['flags']
@@ -446,7 +446,7 @@ class GoroutineCmd(gdb.Command):
 			#python3 / newer versions of gdb
 			pc = int(pc)
 		except gdb.error:
-			pc = int(str(pc), 16)
+			pc = int(str(pc).split(None, 1)[0], 16)
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_pc = $pc')
 		gdb.parse_and_eval('$save_sp = $sp')

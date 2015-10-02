@@ -117,3 +117,32 @@ func TestStatJunctionLink(t *testing.T) {
 		t.Fatalf("link should point to %v but points to %v instead", expected, got)
 	}
 }
+
+func TestStartProcessAttr(t *testing.T) {
+	p, err := os.StartProcess(os.Getenv("COMSPEC"), []string{"/c", "cd"}, new(os.ProcAttr))
+	if err != nil {
+		return
+	}
+	defer p.Wait()
+	t.Fatalf("StartProcess expected to fail, but succeeded.")
+}
+
+func TestShareNotExistError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("slow test that uses network; skipping")
+	}
+	_, err := os.Stat(`\\no_such_server\no_such_share\no_such_file`)
+	if err == nil {
+		t.Fatal("stat succeeded, but expected to fail")
+	}
+	if !os.IsNotExist(err) {
+		t.Fatalf("os.Stat failed with %q, but os.IsNotExist(err) is false", err)
+	}
+}
+
+func TestBadNetPathError(t *testing.T) {
+	const ERROR_BAD_NETPATH = syscall.Errno(53)
+	if !os.IsNotExist(ERROR_BAD_NETPATH) {
+		t.Fatal("os.IsNotExist(syscall.Errno(53)) is false, but want true")
+	}
+}

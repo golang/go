@@ -13,7 +13,7 @@
 // The varint functions encode and decode single integer values using
 // a variable-length encoding; smaller values require fewer bytes.
 // For a specification, see
-// http://code.google.com/apis/protocolbuffers/docs/encoding.html.
+// https://developers.google.com/protocol-buffers/docs/encoding.
 //
 // This package favors simplicity over efficiency. Clients that require
 // high-performance serialization, especially for large data structures,
@@ -135,6 +135,10 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // blank (_) field names is skipped; i.e., blank field names
 // may be used for padding.
 // When reading into a struct, all non-blank fields must be exported.
+//
+// The error is EOF only if no bytes were read.
+// If an EOF happens after reading some but not all the bytes,
+// Read returns ErrUnexpectedEOF.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {
@@ -239,78 +243,62 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
 		}
 		switch v := data.(type) {
 		case *int8:
-			bs = b[:1]
 			b[0] = byte(*v)
 		case int8:
-			bs = b[:1]
 			b[0] = byte(v)
 		case []int8:
 			for i, x := range v {
 				bs[i] = byte(x)
 			}
 		case *uint8:
-			bs = b[:1]
 			b[0] = *v
 		case uint8:
-			bs = b[:1]
 			b[0] = byte(v)
 		case []uint8:
 			bs = v
 		case *int16:
-			bs = b[:2]
 			order.PutUint16(bs, uint16(*v))
 		case int16:
-			bs = b[:2]
 			order.PutUint16(bs, uint16(v))
 		case []int16:
 			for i, x := range v {
 				order.PutUint16(bs[2*i:], uint16(x))
 			}
 		case *uint16:
-			bs = b[:2]
 			order.PutUint16(bs, *v)
 		case uint16:
-			bs = b[:2]
 			order.PutUint16(bs, v)
 		case []uint16:
 			for i, x := range v {
 				order.PutUint16(bs[2*i:], x)
 			}
 		case *int32:
-			bs = b[:4]
 			order.PutUint32(bs, uint32(*v))
 		case int32:
-			bs = b[:4]
 			order.PutUint32(bs, uint32(v))
 		case []int32:
 			for i, x := range v {
 				order.PutUint32(bs[4*i:], uint32(x))
 			}
 		case *uint32:
-			bs = b[:4]
 			order.PutUint32(bs, *v)
 		case uint32:
-			bs = b[:4]
 			order.PutUint32(bs, v)
 		case []uint32:
 			for i, x := range v {
 				order.PutUint32(bs[4*i:], x)
 			}
 		case *int64:
-			bs = b[:8]
 			order.PutUint64(bs, uint64(*v))
 		case int64:
-			bs = b[:8]
 			order.PutUint64(bs, uint64(v))
 		case []int64:
 			for i, x := range v {
 				order.PutUint64(bs[8*i:], uint64(x))
 			}
 		case *uint64:
-			bs = b[:8]
 			order.PutUint64(bs, *v)
 		case uint64:
-			bs = b[:8]
 			order.PutUint64(bs, v)
 		case []uint64:
 			for i, x := range v {

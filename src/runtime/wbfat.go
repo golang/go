@@ -3,74 +3,74 @@
 package runtime
 
 //go:nosplit
-func writebarrierfat01(dst *[2]uintptr, _ *byte, src [2]uintptr) {
+func writebarrierfat01(dst *[2]uintptr, _ uintptr, src [2]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 }
 
 //go:nosplit
-func writebarrierfat10(dst *[2]uintptr, _ *byte, src [2]uintptr) {
+func writebarrierfat10(dst *[2]uintptr, _ uintptr, src [2]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 }
 
 //go:nosplit
-func writebarrierfat11(dst *[2]uintptr, _ *byte, src [2]uintptr) {
+func writebarrierfat11(dst *[2]uintptr, _ uintptr, src [2]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 }
 
 //go:nosplit
-func writebarrierfat001(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat001(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 	writebarrierptr(&dst[2], src[2])
 }
 
 //go:nosplit
-func writebarrierfat010(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat010(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 	dst[2] = src[2]
 }
 
 //go:nosplit
-func writebarrierfat011(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat011(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 	writebarrierptr(&dst[2], src[2])
 }
 
 //go:nosplit
-func writebarrierfat100(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat100(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	dst[2] = src[2]
 }
 
 //go:nosplit
-func writebarrierfat101(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat101(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	writebarrierptr(&dst[2], src[2])
 }
 
 //go:nosplit
-func writebarrierfat110(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat110(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 	dst[2] = src[2]
 }
 
 //go:nosplit
-func writebarrierfat111(dst *[3]uintptr, _ *byte, src [3]uintptr) {
+func writebarrierfat111(dst *[3]uintptr, _ uintptr, src [3]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 	writebarrierptr(&dst[2], src[2])
 }
 
 //go:nosplit
-func writebarrierfat0001(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0001(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 	dst[2] = src[2]
@@ -78,7 +78,7 @@ func writebarrierfat0001(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat0010(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0010(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 	writebarrierptr(&dst[2], src[2])
@@ -86,7 +86,7 @@ func writebarrierfat0010(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat0011(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0011(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	dst[1] = src[1]
 	writebarrierptr(&dst[2], src[2])
@@ -94,7 +94,7 @@ func writebarrierfat0011(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat0100(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0100(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 	dst[2] = src[2]
@@ -102,7 +102,7 @@ func writebarrierfat0100(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat0101(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0101(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 	dst[2] = src[2]
@@ -110,7 +110,7 @@ func writebarrierfat0101(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat0110(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0110(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 	writebarrierptr(&dst[2], src[2])
@@ -118,7 +118,7 @@ func writebarrierfat0110(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat0111(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat0111(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	dst[0] = src[0]
 	writebarrierptr(&dst[1], src[1])
 	writebarrierptr(&dst[2], src[2])
@@ -126,7 +126,7 @@ func writebarrierfat0111(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1000(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1000(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	dst[2] = src[2]
@@ -134,7 +134,7 @@ func writebarrierfat1000(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1001(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1001(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	dst[2] = src[2]
@@ -142,7 +142,7 @@ func writebarrierfat1001(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1010(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1010(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	writebarrierptr(&dst[2], src[2])
@@ -150,7 +150,7 @@ func writebarrierfat1010(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1011(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1011(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	dst[1] = src[1]
 	writebarrierptr(&dst[2], src[2])
@@ -158,7 +158,7 @@ func writebarrierfat1011(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1100(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1100(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 	dst[2] = src[2]
@@ -166,7 +166,7 @@ func writebarrierfat1100(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1101(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1101(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 	dst[2] = src[2]
@@ -174,7 +174,7 @@ func writebarrierfat1101(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1110(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1110(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 	writebarrierptr(&dst[2], src[2])
@@ -182,7 +182,7 @@ func writebarrierfat1110(dst *[4]uintptr, _ *byte, src [4]uintptr) {
 }
 
 //go:nosplit
-func writebarrierfat1111(dst *[4]uintptr, _ *byte, src [4]uintptr) {
+func writebarrierfat1111(dst *[4]uintptr, _ uintptr, src [4]uintptr) {
 	writebarrierptr(&dst[0], src[0])
 	writebarrierptr(&dst[1], src[1])
 	writebarrierptr(&dst[2], src[2])

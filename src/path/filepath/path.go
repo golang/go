@@ -4,6 +4,9 @@
 
 // Package filepath implements utility routines for manipulating filename paths
 // in a way compatible with the target operating system-defined file paths.
+//
+// Functions in this package replace any occurrences of the slash ('/') character
+// with os.PathSeparator when returning paths unless otherwise specified.
 package filepath
 
 import (
@@ -174,7 +177,8 @@ func FromSlash(path string) string {
 
 // SplitList splits a list of paths joined by the OS-specific ListSeparator,
 // usually found in PATH or GOPATH environment variables.
-// Unlike strings.Split, SplitList returns an empty slice when passed an empty string.
+// Unlike strings.Split, SplitList returns an empty slice when passed an empty
+// string. SplitList does not replace slash characters in the returned paths.
 func SplitList(path string) []string {
 	return splitList(path)
 }
@@ -331,10 +335,11 @@ var SkipDir = errors.New("skip this directory")
 // If there was a problem walking to the file or directory named by path, the
 // incoming error will describe the problem and the function can decide how
 // to handle that error (and Walk will not descend into that directory). If
-// an error is returned, processing stops. The sole exception is that if path
-// is a directory and the function returns the special value SkipDir, the
-// contents of the directory are skipped and processing continues as usual on
-// the next file.
+// an error is returned, processing stops. The sole exception is when the function
+// returns the special value SkipDir. If the function returns SkipDir when invoked
+// on a directory, Walk skips the directory's contents entirely.
+// If the function returns SkipDir when invoked on a non-directory file,
+// Walk skips the remaining files in the containing directory.
 type WalkFunc func(path string, info os.FileInfo, err error) error
 
 var lstat = os.Lstat // for testing

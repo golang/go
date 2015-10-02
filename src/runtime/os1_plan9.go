@@ -18,6 +18,9 @@ func mpreinit(mp *m) {
 	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, _FlagNoScan))
 }
 
+func msigsave(mp *m) {
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
@@ -50,7 +53,7 @@ func getproccount() int32 {
 			}
 		}
 	}
-	close(fd)
+	closefd(fd)
 	if ncpu == 0 {
 		ncpu = 1
 	}
@@ -64,7 +67,7 @@ func getpid() uint64 {
 	fd := open(&pid[0], 0, 0)
 	if fd >= 0 {
 		read(fd, unsafe.Pointer(&b), int32(len(b)))
-		close(fd)
+		closefd(fd)
 	}
 	c := b[:]
 	for c[0] == ' ' || c[0] == '\t' {
@@ -85,14 +88,9 @@ func crash() {
 	*(*int)(nil) = 0
 }
 
-var random_dev = []byte("/dev/random\x00")
-
 //go:nosplit
 func getRandomData(r []byte) {
-	fd := open(&random_dev[0], 0 /* O_RDONLY */, 0)
-	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
-	extendRandom(r, int(n))
+	extendRandom(r, 0)
 }
 
 func goenvs() {
@@ -167,10 +165,10 @@ func postnote(pid uint64, msg []byte) int {
 	}
 	len := findnull(&msg[0])
 	if write(uintptr(fd), (unsafe.Pointer)(&msg[0]), int32(len)) != int64(len) {
-		close(fd)
+		closefd(fd)
 		return -1
 	}
-	close(fd)
+	closefd(fd)
 	return 0
 }
 
@@ -182,12 +180,14 @@ func exit(e int) {
 	} else {
 		// build error string
 		var tmp [32]byte
-		status = []byte(gostringnocopy(&itoa(tmp[:len(tmp)-1], uint64(e))[0]))
+		status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
 	}
 	goexitsall(&status[0])
 	exits(&status[0])
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
 		print("newosproc mp=", mp, " ostk=", &mp, "\n")
@@ -252,6 +252,10 @@ var _badsignal = []byte("runtime: signal received on thread not created by Go.\n
 func badsignal2() {
 	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)
 	exits(&_badsignal[0])
+}
+
+func raisebadsignal(sig int32) {
+	badsignal2()
 }
 
 func _atoi(b []byte) int {

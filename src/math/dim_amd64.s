@@ -26,13 +26,13 @@ dim2:	// (-Inf, -Inf) special case
 	JEQ     bothInf
 dim3:	// (NaN, x) or (x, NaN)
 	MOVQ    $~(1<<63), DX
-	MOVQ    $NaN, AX
+	MOVQ    $PosInf, AX
 	ANDQ    DX, BX // x = |x|
 	CMPQ    AX, BX
-	JLE     isDimNaN
+	JLT     isDimNaN
 	ANDQ    DX, CX // y = |y|
 	CMPQ    AX, CX
-	JLE     isDimNaN
+	JLT     isDimNaN
 
 	MOVSD x+0(FP), X0
 	SUBSD y+8(FP), X0
@@ -41,8 +41,8 @@ dim3:	// (NaN, x) or (x, NaN)
 	MOVSD X0, ret+16(FP)
 	RET
 bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
-	MOVQ    $NaN, AX
 isDimNaN:
+	MOVQ    $NaN, AX
 	MOVQ    AX, ret+16(FP)
 	RET
 
@@ -58,15 +58,15 @@ TEXT ·Max(SB),NOSPLIT,$0
 	JEQ     isPosInf
 	// NaN special cases
 	MOVQ    $~(1<<63), DX // bit mask
-	MOVQ    $NaN, AX
+	MOVQ    $PosInf, AX
 	MOVQ    R8, BX
 	ANDQ    DX, BX // x = |x|
 	CMPQ    AX, BX
-	JLE     isMaxNaN
+	JLT     isMaxNaN
 	MOVQ    R9, CX
 	ANDQ    DX, CX // y = |y|
 	CMPQ    AX, CX
-	JLE     isMaxNaN
+	JLT     isMaxNaN
 	// ±0 special cases
 	ORQ     CX, BX
 	JEQ     isMaxZero
@@ -77,6 +77,7 @@ TEXT ·Max(SB),NOSPLIT,$0
 	MOVSD   X0, ret+16(FP)
 	RET
 isMaxNaN: // return NaN
+	MOVQ	$NaN, AX
 isPosInf: // return +Inf
 	MOVQ    AX, ret+16(FP)
 	RET
@@ -88,16 +89,6 @@ isMaxZero:
 	RET
 	MOVQ    R9, ret+16(FP) // return other 0
 	RET
-
-/*
-	MOVQ    $0, AX
-	CMPQ    AX, R8
-	JNE     +3(PC)
-	MOVQ    R8, ret+16(FP) // return 0
-	RET
-	MOVQ    R9, ret+16(FP) // return other 0
-	RET
-*/
 
 // func Min(x, y float64) float64
 TEXT ·Min(SB),NOSPLIT,$0
@@ -111,15 +102,15 @@ TEXT ·Min(SB),NOSPLIT,$0
 	JEQ     isNegInf
 	// NaN special cases
 	MOVQ    $~(1<<63), DX
-	MOVQ    $NaN, AX
+	MOVQ    $PosInf, AX
 	MOVQ    R8, BX
 	ANDQ    DX, BX // x = |x|
 	CMPQ    AX, BX
-	JLE     isMinNaN
+	JLT     isMinNaN
 	MOVQ    R9, CX
 	ANDQ    DX, CX // y = |y|
 	CMPQ    AX, CX
-	JLE     isMinNaN
+	JLT     isMinNaN
 	// ±0 special cases
 	ORQ     CX, BX
 	JEQ     isMinZero
@@ -130,6 +121,7 @@ TEXT ·Min(SB),NOSPLIT,$0
 	MOVSD X0, ret+16(FP)
 	RET
 isMinNaN: // return NaN
+	MOVQ	$NaN, AX
 isNegInf: // return -Inf
 	MOVQ    AX, ret+16(FP)
 	RET

@@ -37,7 +37,8 @@ Run compiles and runs the main package comprising the named Go source files.
 A Go source file is defined to be a file ending in a literal ".go" suffix.
 
 By default, 'go run' runs the compiled binary directly: 'a.out arguments...'.
-If the -exec flag is given, 'go run' invokes the binary using xprog: 'xprog a.out arguments...'.
+If the -exec flag is given, 'go run' invokes the binary using xprog:
+	'xprog a.out arguments...'.
 If the -exec flag is not given, GOOS or GOARCH is different from the system
 default, and a program named go_$GOOS_$GOARCH_exec can be found
 on the current search path, 'go run' invokes the binary using that program,
@@ -64,6 +65,7 @@ func printStderr(args ...interface{}) (int, error) {
 
 func runRun(cmd *Command, args []string) {
 	raceInit()
+	buildModeInit()
 	var b builder
 	b.init()
 	b.print = printStderr
@@ -136,6 +138,7 @@ func runStdin(cmdline []string) {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = origEnv
 	startSigHandlers()
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)

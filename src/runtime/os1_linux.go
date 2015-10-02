@@ -6,7 +6,6 @@ package runtime
 
 import "unsafe"
 
-var sigset_none sigset
 var sigset_all sigset = sigset{^uint32(0), ^uint32(0)}
 
 // Linux futex.
@@ -76,11 +75,20 @@ func futexwakeup(addr *uint32, cnt uint32) {
 }
 
 func getproccount() int32 {
-	var buf [16]uintptr
+	// This buffer is huge (8 kB) but we are on the system stack
+	// and there should be plenty of space (64 kB) -- except on ARM where
+	// the system stack itself is only 8kb (see golang.org/issue/11873).
+	// Also this is a leaf, so we're not holding up the memory for long.
+	// See golang.org/issue/11823.
+	// The suggested behavior here is to keep trying with ever-larger
+	// buffers, but we don't have a dynamic memory allocator at the
+	// moment, so that's a bit tricky and seems like overkill.
+	const maxCPUs = 64*1024*(1-goarch_arm) + 1024*goarch_arm
+	var buf [maxCPUs / (ptrSize * 8)]uintptr
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	n := int32(0)
 	for _, v := range buf[:r/ptrSize] {
-		for i := 0; i < 64; i++ {
+		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1
 		}
@@ -111,18 +119,20 @@ const (
 	_CLONE_STOPPED        = 0x2000000
 	_CLONE_NEWUTS         = 0x4000000
 	_CLONE_NEWIPC         = 0x8000000
-)
 
-func newosproc(mp *m, stk unsafe.Pointer) {
-	/*
-	 * note: strace gets confused if we use CLONE_PTRACE here.
-	 */
-	var flags int32 = _CLONE_VM | /* share memory */
+	cloneFlags = _CLONE_VM | /* share memory */
 		_CLONE_FS | /* share cwd, etc */
 		_CLONE_FILES | /* share fd table */
 		_CLONE_SIGHAND | /* share sig handler table */
 		_CLONE_THREAD /* revisit - okay for now */
+)
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
+func newosproc(mp *m, stk unsafe.Pointer) {
+	/*
+	 * note: strace gets confused if we use CLONE_PTRACE here.
+	 */
 	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
@@ -132,7 +142,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	// with signals disabled.  It will enable them in minit.
 	var oset sigset
 	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
-	ret := clone(flags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
+	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
 	rtsigprocmask(_SIG_SETMASK, &oset, nil, int32(unsafe.Sizeof(oset)))
 
 	if ret < 0 {
@@ -140,6 +150,24 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		throw("newosproc")
 	}
 }
+
+// Version of newosproc that doesn't require a valid G.
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	stack := sysAlloc(stacksize, &memstats.stacks_sys)
+	if stack == nil {
+		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		exit(1)
+	}
+	ret := clone(cloneFlags, unsafe.Pointer(uintptr(stack)+stacksize), nil, nil, fn)
+	if ret < 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+}
+
+var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
 
 func osinit() {
 	ncpu = getproccount()
@@ -155,7 +183,7 @@ func getRandomData(r []byte) {
 	}
 	fd := open(&urandom_dev[0], 0 /* O_RDONLY */, 0)
 	n := read(fd, unsafe.Pointer(&r[0]), int32(len(r)))
-	close(fd)
+	closefd(fd)
 	extendRandom(r, int(n))
 }
 
@@ -170,18 +198,42 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+func msigsave(mp *m) {
+	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
+	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
+}
+
+func gettid() uint32
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the new thread, can not allocate memory.
 func minit() {
 	// Initialize signal handling.
 	_g_ := getg()
-	signalstack((*byte)(unsafe.Pointer(_g_.m.gsignal.stack.lo)), 32*1024)
-	rtsigprocmask(_SIG_SETMASK, &sigset_none, nil, int32(unsafe.Sizeof(sigset_none)))
+	signalstack(&_g_.m.gsignal.stack)
+
+	// for debuggers, in case cgo created the thread
+	_g_.m.procid = uint64(gettid())
+
+	// restore signal mask from m.sigmask and unblock essential signals
+	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	for i := range sigtable {
+		if sigtable[i].flags&_SigUnblock != 0 {
+			nmask[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+		}
+	}
+	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
 }
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	signalstack(nil, 0)
+	_g_ := getg()
+	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
+	signalstack(nil)
 }
 
 func memlimit() uintptr {
@@ -273,17 +325,26 @@ func getsig(i int32) uintptr {
 	return sa.sa_handler
 }
 
-func signalstack(p *byte, n int32) {
+func signalstack(s *stack) {
 	var st sigaltstackt
-	st.ss_sp = p
-	st.ss_size = uintptr(n)
-	st.ss_flags = 0
-	if p == nil {
+	if s == nil {
 		st.ss_flags = _SS_DISABLE
+	} else {
+		st.ss_sp = (*byte)(unsafe.Pointer(s.lo))
+		st.ss_size = s.hi - s.lo
+		st.ss_flags = 0
 	}
 	sigaltstack(&st, nil)
 }
 
-func unblocksignals() {
-	rtsigprocmask(_SIG_SETMASK, &sigset_none, nil, int32(unsafe.Sizeof(sigset_none)))
+func updatesigmask(m sigmask) {
+	var mask sigset
+	copy(mask[:], m[:])
+	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
+}
+
+func unblocksig(sig int32) {
+	var mask sigset
+	mask[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }

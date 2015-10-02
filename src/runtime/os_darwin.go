@@ -6,7 +6,7 @@ package runtime
 
 import "unsafe"
 
-func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
+func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 func bsdthread_register() int32
 
 //go:noescape
@@ -20,7 +20,7 @@ func mach_thread_self() uint32
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
 //go:noescape
-func sigprocmask(sig uint32, new, old *uint32)
+func sigprocmask(how uint32, new, old *uint32)
 
 //go:noescape
 func sigaction(mode uint32, new, old *sigactiont)
@@ -33,5 +33,5 @@ func sigtramp()
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
-func raise(int32)
+func raise(sig int32)
 func raiseproc(int32)
