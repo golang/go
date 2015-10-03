@@ -2986,7 +2986,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 	var followptr bool
 	var rcvr *Type
 	for im := iface.Type; im != nil; im = im.Down {
-		if im.Broke == 1 {
+		if im.Broke {
 			continue
 		}
 		imtype = methodfunc(im.Type, nil)
