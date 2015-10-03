@@ -607,6 +607,10 @@ func (p *Package) rewriteRef(f *File) {
 			if r.Name.Kind != "func" {
 				if r.Name.Kind == "type" {
 					r.Context = "type"
+					if r.Name.Type == nil {
+						error_(r.Pos(), "invalid conversion to C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+						break
+					}
 					expr = r.Name.Type.Go
 					break
 				}
@@ -658,6 +662,10 @@ func (p *Package) rewriteRef(f *File) {
 				}
 			} else if r.Name.Kind == "type" {
 				// Okay - might be new(T)
+				if r.Name.Type == nil {
+					error_(r.Pos(), "expression C.%s: undefined C type '%s'", fixGo(r.Name.Go), r.Name.C)
+					break
+				}
 				expr = r.Name.Type.Go
 			} else if r.Name.Kind == "var" {
 				expr = &ast.StarExpr{Star: (*r.Expr).Pos(), X: expr}
