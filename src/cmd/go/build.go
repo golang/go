@@ -2875,7 +2875,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", obj)
 
 	// cgo
-	// TODO: CGOPKGPATH, CGO_FLAGS?
+	// TODO: CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
 	cfiles := []string{"_cgo_main.c", "_cgo_export.c"}
 	for _, fn := range cgofiles {
