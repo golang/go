@@ -366,7 +366,7 @@ func (mr *Reader) peekBufferSeparatorIndex(peek []byte) (idx int, isEnd bool) {
 	peek = skipLWSPChar(peek)
 	// Don't have a complete line after the peek.
 	if bytes.IndexByte(peek, '\n') == -1 {
-		return -1, false
+		return idx, false
 	}
 	if len(peek) > 0 && peek[0] == '\n' {
 		return idx, true
