@@ -1738,6 +1738,18 @@ func (p *parser) new_name(sym *Sym) *Node {
 	return nil
 }
 
+func (p *parser) dcl_name(sym *Sym) *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("dcl_name")()
+	}
+
+	if sym == nil {
+		yyerrorl(int(prevlineno), "invalid declaration")
+		return nil
+	}
+	return dclname(sym)
+}
+
 func (p *parser) onew_name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("onew_name")()
@@ -2736,9 +2748,9 @@ func (p *parser) dcl_name_list() *NodeList {
 		defer p.trace("dcl_name_list")()
 	}
 
-	l := list1(dclname(p.sym()))
+	l := list1(p.dcl_name(p.sym()))
 	for p.got(',') {
-		l = list(l, dclname(p.sym()))
+		l = list(l, p.dcl_name(p.sym()))
 	}
 	return l
 }
