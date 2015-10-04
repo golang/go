@@ -664,6 +664,38 @@ Content-Type: application/octet-stream
 			},
 		},
 	},
+	// Context: https://github.com/camlistore/camlistore/issues/642
+	// If the file contents in the form happens to have a size such as:
+	// size = peekBufferSize - (len("\n--") + len(boundary) + len("\r") + 1), (modulo peekBufferSize)
+	// then peekBufferSeparatorIndex was wrongly returning (-1, false), which was leading to an nCopy
+	// cut such as:
+	// "somedata\r| |\n--Boundary\r" (instead of "somedata| |\r\n--Boundary\r"), which was making the
+	// subsequent Read miss the boundary.
+	{
+		name: "safeCount off by one",
+		sep:  "08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74",
+		in: strings.Replace(`--08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74
+Content-Disposition: form-data; name="myfile"; filename="my-file.txt"
+Content-Type: application/octet-stream
+
+`, "\n", "\r\n", -1) +
+			strings.Repeat("A", peekBufferSize-(len("\n--")+len("08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74")+len("\r")+1)) +
+			strings.Replace(`
+--08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74
+Content-Disposition: form-data; name="key"
+
+val
+--08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74--
+`, "\n", "\r\n", -1),
+		want: []headerBody{
+			{textproto.MIMEHeader{"Content-Type": {`application/octet-stream`}, "Content-Disposition": {`form-data; name="myfile"; filename="my-file.txt"`}},
+				strings.Repeat("A", peekBufferSize-(len("\n--")+len("08b84578eabc563dcba967a945cdf0d9f613864a8f4a716f0e81caa71a74")+len("\r")+1)),
+			},
+			{textproto.MIMEHeader{"Content-Disposition": {`form-data; name="key"`}},
+				"val",
+			},
+		},
+	},
 
 	roundTripParseTest(),
 }
@@ -700,6 +732,53 @@ Cases:
 					}
 				}
 			}
+		}
+	}
+}
+
+func partsFromReader(r *Reader) ([]headerBody, error) {
+	got := []headerBody{}
+	for {
+		p, err := r.NextPart()
+		if err == io.EOF {
+			return got, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("NextPart: %v", err)
+		}
+		pbody, err := ioutil.ReadAll(p)
+		if err != nil {
+			return nil, fmt.Errorf("error reading part: %v", err)
+		}
+		got = append(got, headerBody{p.Header, string(pbody)})
+	}
+}
+
+func TestParseAllSizes(t *testing.T) {
+	const maxSize = 5 << 10
+	var buf bytes.Buffer
+	body := strings.Repeat("a", maxSize)
+	bodyb := []byte(body)
+	for size := 0; size < maxSize; size++ {
+		buf.Reset()
+		w := NewWriter(&buf)
+		part, _ := w.CreateFormField("f")
+		part.Write(bodyb[:size])
+		part, _ = w.CreateFormField("key")
+		part.Write([]byte("val"))
+		w.Close()
+		r := NewReader(&buf, w.Boundary())
+		got, err := partsFromReader(r)
+		if err != nil {
+			t.Errorf("For size %d: %v", size, err)
+			continue
+		}
+		if len(got) != 2 {
+			t.Errorf("For size %d, num parts = %d; want 2", size, len(got))
+			continue
+		}
+		if got[0].body != body[:size] {
+			t.Errorf("For size %d, got unexpected len %d: %q", size, len(got[0].body), got[0].body)
 		}
 	}
 }
