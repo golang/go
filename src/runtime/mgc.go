@@ -351,7 +351,7 @@ type gcControllerState struct {
 	// dedicated mark workers get started.
 	dedicatedMarkWorkersNeeded int64
 
-	// assistRatio is the ratio of allocated bytes to scan work
+	// assistRatio is the ratio of scan work to allocated bytes
 	// that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heap_scan is updated.
