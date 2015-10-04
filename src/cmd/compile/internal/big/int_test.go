@@ -698,7 +698,9 @@ func TestGcd(t *testing.T) {
 		testGcd(t, d, x, y, a, b)
 	}
 
-	quick.Check(checkGcd, nil)
+	if err := quick.Check(checkGcd, nil); err != nil {
+		t.Error(err)
+	}
 }
 
 var primes = []string{
