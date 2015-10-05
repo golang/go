@@ -589,7 +589,7 @@ var exportlist []*Node
 
 var importlist []*Node // imported functions and methods with inlinable bodies
 
-var funcsyms *NodeList
+var funcsyms []*Node
 
 var dclcontext uint8 // PEXTERN/PAUTO
 
