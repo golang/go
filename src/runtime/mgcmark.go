@@ -549,71 +549,34 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 	}
 }
 
-// TODO(austin): Can we consolidate the gcDrain* functions?
+type gcDrainFlags int
 
-// gcDrain scans objects in work buffers, blackening grey
-// objects until all work buffers have been drained.
+const (
+	gcDrainUntilPreempt gcDrainFlags = 1 << iota
+
+	// gcDrainBlock is the opposite of gcDrainUntilPreempt. This
+	// is the default, but callers should use the constant for
+	// documentation purposes.
+	gcDrainBlock gcDrainFlags = 0
+)
+
+// gcDrain scans objects in work buffers, blackening grey objects
+// until all work buffers have been drained.
+//
+// If flags&gcDrainUntilPreempt != 0, gcDrain also returns if
+// g.preempt is set. Otherwise, this will block until all dedicated
+// workers are blocked in gcDrain.
+//
 // If flushScanCredit != -1, gcDrain flushes accumulated scan work
 // credit to gcController.bgScanCredit whenever gcw's local scan work
 // credit exceeds flushScanCredit.
 //go:nowritebarrier
-func gcDrain(gcw *gcWork, flushScanCredit int64) {
+func gcDrain(gcw *gcWork, flushScanCredit int64, flags gcDrainFlags) {
 	if !writeBarrierEnabled {
 		throw("gcDrain phase incorrect")
 	}
 
-	var lastScanFlush, nextScanFlush int64
-	if flushScanCredit != -1 {
-		lastScanFlush = gcw.scanWork
-		nextScanFlush = lastScanFlush + flushScanCredit
-	} else {
-		nextScanFlush = int64(^uint64(0) >> 1)
-	}
-
-	for {
-		// If another proc wants a pointer, give it some.
-		if work.nwait > 0 && work.full == 0 {
-			gcw.balance()
-		}
-
-		b := gcw.get()
-		if b == 0 {
-			// work barrier reached
-			break
-		}
-		// If the current wbuf is filled by the scan a new wbuf might be
-		// returned that could possibly hold only a single object. This
-		// could result in each iteration draining only a single object
-		// out of the wbuf passed in + a single object placed
-		// into an empty wbuf in scanobject so there could be
-		// a performance hit as we keep fetching fresh wbufs.
-		scanobject(b, gcw)
-
-		// Flush background scan work credit to the global
-		// account if we've accumulated enough locally so
-		// mutator assists can draw on it.
-		if gcw.scanWork >= nextScanFlush {
-			credit := gcw.scanWork - lastScanFlush
-			xaddint64(&gcController.bgScanCredit, credit)
-			lastScanFlush = gcw.scanWork
-			nextScanFlush = lastScanFlush + flushScanCredit
-		}
-	}
-	if flushScanCredit != -1 {
-		credit := gcw.scanWork - lastScanFlush
-		xaddint64(&gcController.bgScanCredit, credit)
-	}
-}
-
-// gcDrainUntilPreempt blackens grey objects until g.preempt is set.
-// This is best-effort, so it will return as soon as it is unable to
-// get work, even though there may be more work in the system.
-//go:nowritebarrier
-func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
-	if !writeBarrierEnabled {
-		println("gcphase =", gcphase)
-		throw("gcDrainUntilPreempt phase incorrect")
-	}
+	blocking := flags&gcDrainUntilPreempt == 0
 
 	var lastScanFlush, nextScanFlush int64
 	if flushScanCredit != -1 {
@@ -624,21 +587,28 @@ func gcDrainUntilPreempt(gcw *gcWork, flushScanCredit int64) {
 	}
 
 	gp := getg()
-	for !gp.preempt {
-		// If the work queue is empty, balance. During
-		// concurrent mark we don't really know if anyone else
-		// can make use of this work, but even if we're the
-		// only worker, the total cost of this per cycle is
-		// only O(_WorkbufSize) pointer copies.
-		if work.full == 0 && work.partial == 0 {
+	for blocking || !gp.preempt {
+		// If another proc wants a pointer, give it some.
+		if work.nwait > 0 && work.full == 0 {
 			gcw.balance()
 		}
 
-		b := gcw.tryGet()
+		var b uintptr
+		if blocking {
+			b = gcw.get()
+		} else {
+			b = gcw.tryGet()
+		}
 		if b == 0 {
-			// No more work
+			// work barrier reached or tryGet failed.
 			break
 		}
+		// If the current wbuf is filled by the scan a new wbuf might be
+		// returned that could possibly hold only a single object. This
+		// could result in each iteration draining only a single object
+		// out of the wbuf passed in + a single object placed
+		// into an empty wbuf in scanobject so there could be
+		// a performance hit as we keep fetching fresh wbufs.
 		scanobject(b, gcw)
 
 		// Flush background scan work credit to the global
