@@ -817,10 +817,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		}
 	}
 
-	// writeTestmain writes _testmain.go. This must happen after recompileForTest,
-	// because recompileForTest modifies XXX.
-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
-		return nil, nil, nil, err
+	if !buildN {
+		// writeTestmain writes _testmain.go. This must happen after recompileForTest,
+		// because recompileForTest modifies XXX.
+		if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
 	computeStale(pmain)
