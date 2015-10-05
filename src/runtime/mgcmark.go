@@ -214,9 +214,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 	}
 
 	// Record allocation.
-	gp.gcalloc += size
+	gp.gcAssistBytes -= int64(size)
 
-	if !allowAssist {
+	if !allowAssist || gp.gcAssistBytes >= 0 {
 		return
 	}
 
@@ -229,13 +229,10 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 		return
 	}
 
-	// Compute the amount of assist scan work we need to do.
-	scanWork := int64(gcController.assistRatio*float64(gp.gcalloc)) - gp.gcscanwork
-	// scanWork can be negative if the last assist scanned a large
-	// object and we're still ahead of our assist goal.
-	if scanWork <= 0 {
-		return
-	}
+	// Compute the amount of scan work we need to do to make the
+	// balance positive.
+	debtBytes := -gp.gcAssistBytes
+	scanWork := int64(gcController.assistWorkPerByte * float64(debtBytes))
 
 retry:
 	// Steal as much credit as we can from the background GC's
@@ -249,15 +246,18 @@ retry:
 	if bgScanCredit > 0 {
 		if bgScanCredit < scanWork {
 			stolen = bgScanCredit
+			gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(stolen))
 		} else {
 			stolen = scanWork
+			gp.gcAssistBytes += debtBytes
 		}
 		xaddint64(&gcController.bgScanCredit, -stolen)
 
 		scanWork -= stolen
-		gp.gcscanwork += stolen
 
 		if scanWork == 0 {
+			// We were able to steal all of the credit we
+			// needed.
 			return
 		}
 	}
@@ -291,14 +291,20 @@ retry:
 		// will be more cache friendly.
 		gcw := &getg().m.p.ptr().gcw
 		workDone := gcDrainN(gcw, scanWork)
-		// Record that we did this much scan work.
-		gp.gcscanwork += workDone
-		scanWork -= workDone
 		// If we are near the end of the mark phase
 		// dispose of the gcw.
 		if gcBlackenPromptly {
 			gcw.dispose()
 		}
+
+		// Record that we did this much scan work.
+		scanWork -= workDone
+		// Back out the number of bytes of assist credit that
+		// this scan work counts for. The "1+" is a poor man's
+		// round-up, to ensure this adds credit even if
+		// assistBytesPerWork is very low.
+		gp.gcAssistBytes += 1 + int64(gcController.assistBytesPerWork*float64(workDone))
+
 		// If this is the last worker and we ran out of work,
 		// signal a completion point.
 		incnwait := xadd(&work.nwait, +1)

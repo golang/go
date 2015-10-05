@@ -423,10 +423,6 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
 	_g_.m.mcache.local_tinyallocs = 0
 
-	if gcBlackenEnabled != 0 {
-		gcController.revise()
-	}
-
 	s := mHeap_AllocSpanLocked(h, npage)
 	if s != nil {
 		// Record span info, because gc needs to be
@@ -464,6 +460,11 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 			}
 		}
 	}
+	// heap_scan and heap_live were updated.
+	if gcBlackenEnabled != 0 {
+		gcController.revise()
+	}
+
 	if trace.enabled {
 		traceHeapAlloc()
 	}
