@@ -68,7 +68,7 @@ type gcWork struct {
 	bytesMarked uint64
 
 	// Scan work performed on this gcWork. This is aggregated into
-	// gcController by dispose.
+	// gcController by dispose and may also be flushed by callers.
 	scanWork int64
 }
 

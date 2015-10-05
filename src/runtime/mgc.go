@@ -295,9 +295,9 @@ var gcController = gcControllerState{
 
 type gcControllerState struct {
 	// scanWork is the total scan work performed this cycle. This
-	// is updated atomically during the cycle. Updates may be
-	// batched arbitrarily, since the value is only read at the
-	// end of the cycle.
+	// is updated atomically during the cycle. Updates occur in
+	// bounded batches, since it is both written and read
+	// throughout the cycle.
 	//
 	// Currently this is the bytes of heap scanned. For most uses,
 	// this is an opaque unit of work, but for estimation the
@@ -682,12 +682,13 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 // marking as a fraction of GOMAXPROCS.
 const gcGoalUtilization = 0.25
 
-// gcBgCreditSlack is the amount of scan work credit background
-// scanning can accumulate locally before updating
-// gcController.bgScanCredit. Lower values give mutator assists more
-// accurate accounting of background scanning. Higher values reduce
-// memory contention.
-const gcBgCreditSlack = 2000
+// gcCreditSlack is the amount of scan work credit that can can
+// accumulate locally before updating gcController.scanWork and,
+// optionally, gcController.bgScanCredit. Lower values give a more
+// accurate assist ratio and make it more likely that assists will
+// successfully steal background credit. Higher values reduce memory
+// contention.
+const gcCreditSlack = 2000
 
 // gcAssistTimeSlack is the nanoseconds of mutator assist time that
 // can accumulate on a P before updating gcController.assistTime.

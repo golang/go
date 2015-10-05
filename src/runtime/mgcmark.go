@@ -290,10 +290,8 @@ retry:
 		// drain own cached work first in the hopes that it
 		// will be more cache friendly.
 		gcw := &getg().m.p.ptr().gcw
-		startScanWork := gcw.scanWork
-		gcDrainN(gcw, scanWork)
+		workDone := gcDrainN(gcw, scanWork)
 		// Record that we did this much scan work.
-		workDone := gcw.scanWork - startScanWork
 		gp.gcscanwork += workDone
 		scanWork -= workDone
 		// If we are near the end of the mark phase
@@ -569,7 +567,7 @@ const (
 // workers are blocked in gcDrain.
 //
 // If flags&gcDrainFlushBgCredit != 0, gcDrain flushes scan work
-// credit to gcController.bgScanCredit every gcBgCreditSlack units of
+// credit to gcController.bgScanCredit every gcCreditSlack units of
 // scan work.
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flags gcDrainFlags) {
@@ -580,13 +578,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	blocking := flags&gcDrainUntilPreempt == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 
-	var lastScanFlush, nextScanFlush int64
-	if flushBgCredit {
-		lastScanFlush = gcw.scanWork
-		nextScanFlush = lastScanFlush + gcBgCreditSlack
-	} else {
-		nextScanFlush = int64(^uint64(0) >> 1)
-	}
+	initScanWork := gcw.scanWork
 
 	gp := getg()
 	for blocking || !gp.preempt {
@@ -616,16 +608,23 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		// Flush background scan work credit to the global
 		// account if we've accumulated enough locally so
 		// mutator assists can draw on it.
-		if gcw.scanWork >= nextScanFlush {
-			credit := gcw.scanWork - lastScanFlush
-			xaddint64(&gcController.bgScanCredit, credit)
-			lastScanFlush = gcw.scanWork
-			nextScanFlush = lastScanFlush + gcBgCreditSlack
+		if gcw.scanWork >= gcCreditSlack {
+			xaddint64(&gcController.scanWork, gcw.scanWork)
+			if flushBgCredit {
+				xaddint64(&gcController.bgScanCredit, gcw.scanWork-initScanWork)
+				initScanWork = 0
+			}
+			gcw.scanWork = 0
 		}
 	}
-	if flushBgCredit {
-		credit := gcw.scanWork - lastScanFlush
-		xaddint64(&gcController.bgScanCredit, credit)
+
+	// Flush remaining scan work credit.
+	if gcw.scanWork > 0 {
+		xaddint64(&gcController.scanWork, gcw.scanWork)
+		if flushBgCredit {
+			xaddint64(&gcController.bgScanCredit, gcw.scanWork-initScanWork)
+		}
+		gcw.scanWork = 0
 	}
 }
 
@@ -633,24 +632,42 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 // scanWork units of scan work. This is best-effort, so it may perform
 // less work if it fails to get a work buffer. Otherwise, it will
 // perform at least n units of work, but may perform more because
-// scanning is always done in whole object increments.
+// scanning is always done in whole object increments. It returns the
+// amount of scan work performed.
 //go:nowritebarrier
-func gcDrainN(gcw *gcWork, scanWork int64) {
+func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 	if !writeBarrierEnabled {
 		throw("gcDrainN phase incorrect")
 	}
-	targetScanWork := gcw.scanWork + scanWork
-	for gcw.scanWork < targetScanWork {
+
+	// There may already be scan work on the gcw, which we don't
+	// want to claim was done by this call.
+	workFlushed := -gcw.scanWork
+
+	for workFlushed+gcw.scanWork < scanWork {
 		// This might be a good place to add prefetch code...
 		// if(wbuf.nobj > 4) {
 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
 		//  }
 		b := gcw.tryGet()
 		if b == 0 {
-			return
+			break
 		}
 		scanobject(b, gcw)
+
+		// Flush background scan work credit.
+		if gcw.scanWork >= gcCreditSlack {
+			xaddint64(&gcController.scanWork, gcw.scanWork)
+			workFlushed += gcw.scanWork
+			gcw.scanWork = 0
+		}
 	}
+
+	// Unlike gcDrain, there's no need to flush remaining work
+	// here because this never flushes to bgScanCredit and
+	// gcw.dispose will flush any remaining work to scanWork.
+
+	return workFlushed + gcw.scanWork
 }
 
 // scanblock scans b as scanobject would, but using an explicit
