@@ -445,9 +445,16 @@ func (c *gcControllerState) startCycle() {
 // improved estimates. This should be called either under STW or
 // whenever memstats.heap_scan is updated (with mheap_.lock held).
 func (c *gcControllerState) revise() {
-	// Compute the expected scan work. This is a strict upper
-	// bound on the possible scan work in the current heap.
+	// Compute the expected scan work.
 	//
+	// Note that the scannable heap size is likely to increase
+	// during the GC cycle. This is why it's important to revise
+	// the assist ratio throughout the cycle: if the scannable
+	// heap size increases, the assist ratio based on the initial
+	// scannable heap size may target too little scan work.
+	//
+	// This particular estimate is a strict upper bound on the
+	// possible scan work in the current heap.
 	// You might consider dividing this by 2 (or by
 	// (100+GOGC)/100) to counter this over-estimation, but
 	// benchmarks show that this has almost no effect on mean
