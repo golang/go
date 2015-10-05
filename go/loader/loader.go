@@ -123,6 +123,15 @@ type Program struct {
 	// filenames were supplied by Config.CreatePkgs[i], followed by
 	// the external test package, if any, of each package in
 	// Config.ImportPkgs ordered by ImportPath.
+	//
+	// NOTE: these files must not import "C".  Cgo preprocessing is
+	// only performed on imported packages, not ad hoc packages.
+	//
+	// TODO(adonovan): we need to copy and adapt the logic of
+	// goFilesPackage (from $GOROOT/src/cmd/go/build.go) and make
+	// Config.Import and Config.Create methods return the same kind
+	// of entity, essentially a build.Package.
+	// Perhaps we can even reuse that type directly.
 	Created []*PackageInfo
 
 	// Imported contains the initially imported packages,
