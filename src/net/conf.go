@@ -9,7 +9,6 @@ package net
 import (
 	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"syscall"
 )
@@ -293,7 +292,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
 			return
 		}
 		if '0' <= s[0] && s[0] <= '9' {
-			debugLevel, _ = strconv.Atoi(s)
+			debugLevel, _, _ = dtoi(s, 0)
 		} else {
 			dnsMode = s
 		}

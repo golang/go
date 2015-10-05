@@ -12,7 +12,6 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -184,14 +183,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
 	// golang.org      mail exchanger = 2 alt1.aspmx.l.google.com.
 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		pref, _ := strconv.Atoi(ans[2])
+		pref, _, _ := dtoi(ans[2], 0)
 		mx = append(mx, &MX{fqdn(ans[3]), uint16(pref)})
 	}
 	// windows nslookup syntax
 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
-		pref, _ := strconv.Atoi(ans[2])
+		pref, _, _ := dtoi(ans[2], 0)
 		mx = append(mx, &MX{fqdn(ans[3]), uint16(pref)})
 	}
 	return
