@@ -1334,7 +1334,7 @@ func gcBgMarkWorker(p *p) {
 		default:
 			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 		case gcMarkWorkerDedicatedMode:
-			gcDrain(&p.gcw, gcBgCreditSlack, gcDrainBlock)
+			gcDrain(&p.gcw, gcDrainBlock|gcDrainFlushBgCredit)
 			// gcDrain did the xadd(&work.nwait +1) to
 			// match the decrement above. It only returns
 			// at a mark completion point.
@@ -1343,7 +1343,7 @@ func gcBgMarkWorker(p *p) {
 				throw("gcDrain returned with buffer")
 			}
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
-			gcDrain(&p.gcw, gcBgCreditSlack, gcDrainUntilPreempt)
+			gcDrain(&p.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
 
 			// If we are nearing the end of mark, dispose
 			// of the cache promptly. We must do this
@@ -1454,7 +1454,7 @@ func gcMark(start_time int64) {
 	parfordo(work.markfor)
 
 	var gcw gcWork
-	gcDrain(&gcw, -1, gcDrainBlock)
+	gcDrain(&gcw, gcDrainBlock)
 	gcw.dispose()
 
 	if work.full != 0 {
@@ -1717,7 +1717,7 @@ func gchelper() {
 	parfordo(work.markfor)
 	if gcphase != _GCscan {
 		var gcw gcWork
-		gcDrain(&gcw, -1, gcDrainBlock) // blocks in getfull
+		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
 		gcw.dispose()
 	}
 

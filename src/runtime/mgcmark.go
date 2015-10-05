@@ -553,6 +553,7 @@ type gcDrainFlags int
 
 const (
 	gcDrainUntilPreempt gcDrainFlags = 1 << iota
+	gcDrainFlushBgCredit
 
 	// gcDrainBlock is the opposite of gcDrainUntilPreempt. This
 	// is the default, but callers should use the constant for
@@ -567,21 +568,22 @@ const (
 // g.preempt is set. Otherwise, this will block until all dedicated
 // workers are blocked in gcDrain.
 //
-// If flushScanCredit != -1, gcDrain flushes accumulated scan work
-// credit to gcController.bgScanCredit whenever gcw's local scan work
-// credit exceeds flushScanCredit.
+// If flags&gcDrainFlushBgCredit != 0, gcDrain flushes scan work
+// credit to gcController.bgScanCredit every gcBgCreditSlack units of
+// scan work.
 //go:nowritebarrier
-func gcDrain(gcw *gcWork, flushScanCredit int64, flags gcDrainFlags) {
+func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	if !writeBarrierEnabled {
 		throw("gcDrain phase incorrect")
 	}
 
 	blocking := flags&gcDrainUntilPreempt == 0
+	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 
 	var lastScanFlush, nextScanFlush int64
-	if flushScanCredit != -1 {
+	if flushBgCredit {
 		lastScanFlush = gcw.scanWork
-		nextScanFlush = lastScanFlush + flushScanCredit
+		nextScanFlush = lastScanFlush + gcBgCreditSlack
 	} else {
 		nextScanFlush = int64(^uint64(0) >> 1)
 	}
@@ -618,10 +620,10 @@ func gcDrain(gcw *gcWork, flushScanCredit int64, flags gcDrainFlags) {
 			credit := gcw.scanWork - lastScanFlush
 			xaddint64(&gcController.bgScanCredit, credit)
 			lastScanFlush = gcw.scanWork
-			nextScanFlush = lastScanFlush + flushScanCredit
+			nextScanFlush = lastScanFlush + gcBgCreditSlack
 		}
 	}
-	if flushScanCredit != -1 {
+	if flushBgCredit {
 		credit := gcw.scanWork - lastScanFlush
 		xaddint64(&gcController.bgScanCredit, credit)
 	}
