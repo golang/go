@@ -351,11 +351,14 @@ type gcControllerState struct {
 	// dedicated mark workers get started.
 	dedicatedMarkWorkersNeeded int64
 
-	// assistRatio is the ratio of scan work to allocated bytes
-	// that should be performed by mutator assists. This is
+	// assistWorkPerByte is the ratio of scan work to allocated
+	// bytes that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heap_scan is updated.
-	assistRatio float64
+	assistWorkPerByte float64
+
+	// assistBytesPerWork is 1/assistWorkPerByte.
+	assistBytesPerWork float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
 	// time that should be spent in the fractional mark worker.
@@ -443,7 +446,7 @@ func (c *gcControllerState) startCycle() {
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		print("pacer: assist ratio=", c.assistRatio,
+		print("pacer: assist ratio=", c.assistWorkPerByte,
 			" (scan ", memstats.heap_scan>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
 			c.heapGoal>>20, " MB)",
@@ -454,13 +457,14 @@ func (c *gcControllerState) startCycle() {
 
 // revise updates the assist ratio during the GC cycle to account for
 // improved estimates. This should be called either under STW or
-// whenever memstats.heap_scan is updated (with mheap_.lock held).
+// whenever memstats.heap_scan or memstats.heap_live is updated (with
+// mheap_.lock held).
 //
 // It should only be called when gcBlackenEnabled != 0 (because this
 // is when assists are enabled and the necessary statistics are
 // available).
 func (c *gcControllerState) revise() {
-	// Compute the expected scan work.
+	// Compute the expected scan work remaining.
 	//
 	// Note that the scannable heap size is likely to increase
 	// during the GC cycle. This is why it's important to revise
@@ -469,24 +473,39 @@ func (c *gcControllerState) revise() {
 	// scannable heap size may target too little scan work.
 	//
 	// This particular estimate is a strict upper bound on the
-	// possible scan work in the current heap.
+	// possible remaining scan work for the current heap.
 	// You might consider dividing this by 2 (or by
 	// (100+GOGC)/100) to counter this over-estimation, but
 	// benchmarks show that this has almost no effect on mean
 	// mutator utilization, heap size, or assist time and it
 	// introduces the danger of under-estimating and letting the
 	// mutator outpace the garbage collector.
-	scanWorkExpected := memstats.heap_scan
+	scanWorkExpected := int64(memstats.heap_scan) - c.scanWork
+	if scanWorkExpected < 1000 {
+		// We set a somewhat arbitrary lower bound on
+		// remaining scan work since if we aim a little high,
+		// we can miss by a little.
+		//
+		// We *do* need to enforce that this is at least 1,
+		// since marking is racy and double-scanning objects
+		// may legitimately make the expected scan work
+		// negative.
+		scanWorkExpected = 1000
+	}
+
+	// Compute the heap distance remaining.
+	heapDistance := int64(c.heapGoal) - int64(memstats.heap_live)
+	if heapDistance <= 0 {
+		// This shouldn't happen, but if it does, avoid
+		// dividing by zero or setting the assist negative.
+		heapDistance = 1
+	}
 
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
-	// have done (or stolen) the estimated amount of scan work.
-	heapDistance := int64(c.heapGoal) - int64(work.initialHeapLive)
-	if heapDistance <= 0 {
-		print("runtime: heap goal=", heapDistance, " initial heap live=", work.initialHeapLive, "\n")
-		throw("negative heap distance")
-	}
-	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
+	// have done (or stolen) the remaining amount of scan work.
+	c.assistWorkPerByte = float64(scanWorkExpected) / float64(heapDistance)
+	c.assistBytesPerWork = float64(heapDistance) / float64(scanWorkExpected)
 }
 
 // endCycle updates the GC controller state at the end of the
@@ -1641,8 +1660,7 @@ func gcResetGState() (numgs int) {
 	for _, gp := range allgs {
 		gp.gcscandone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
-		gp.gcalloc = 0
-		gp.gcscanwork = 0
+		gp.gcAssistBytes = 0
 	}
 	numgs = len(allgs)
 	unlock(&allglock)
