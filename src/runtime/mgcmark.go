@@ -198,28 +198,12 @@ func markrootSpans(gcw *gcWork, shard int) {
 	}
 }
 
-// gcAssistAlloc records and allocation of size bytes and, if
-// allowAssist is true, may assist GC scanning in proportion to the
-// allocations performed by this mutator since the last assist.
+// gcAssistAlloc performs GC work to make gp's assist debt positive.
+// gp must be the calling user gorountine.
 //
-// It should only be called if gcBlackenEnabled != 0.
-//
-// This must be called with preemption disabled.
+// This must be called with preemption enabled.
 //go:nowritebarrier
-func gcAssistAlloc(size uintptr, allowAssist bool) {
-	// Find the G responsible for this assist.
-	gp := getg()
-	if gp.m.curg != nil {
-		gp = gp.m.curg
-	}
-
-	// Record allocation.
-	gp.gcAssistBytes -= int64(size)
-
-	if !allowAssist || gp.gcAssistBytes >= 0 {
-		return
-	}
-
+func gcAssistAlloc(gp *g) {
 	// Don't assist in non-preemptible contexts. These are
 	// generally fragile and won't allow the assist to block.
 	if getg() == gp.m.g0 {
@@ -230,8 +214,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 	}
 
 	// Compute the amount of scan work we need to do to make the
-	// balance positive.
-	debtBytes := -gp.gcAssistBytes
+	// balance positive. We over-assist to build up credit for
+	// future allocations and amortize the cost of assisting.
+	debtBytes := -gp.gcAssistBytes + gcOverAssistBytes
 	scanWork := int64(gcController.assistWorkPerByte * float64(debtBytes))
 
 retry:
@@ -358,7 +343,12 @@ retry:
 		// more, so go around again after performing an
 		// interruptible sleep for 100 us (the same as the
 		// getfull barrier) to let other mutators run.
+
+		// timeSleep may allocate, so avoid recursive assist.
+		gcAssistBytes := gp.gcAssistBytes
+		gp.gcAssistBytes = int64(^uint64(0) >> 1)
 		timeSleep(100 * 1000)
+		gp.gcAssistBytes = gcAssistBytes
 		goto retry
 	}
 }

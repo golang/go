@@ -723,6 +723,12 @@ const gcCreditSlack = 2000
 // can accumulate on a P before updating gcController.assistTime.
 const gcAssistTimeSlack = 5000
 
+// gcOverAssistBytes determines how many extra allocation bytes of
+// assist credit a GC assist builds up when an assist happens. This
+// amortizes the cost of an assist by pre-paying for this many bytes
+// of future allocations.
+const gcOverAssistBytes = 1 << 20
+
 // Determine whether to initiate a GC.
 // If the GC is already working no need to trigger another one.
 // This should establish a feedback loop where if the GC does not
