@@ -1860,18 +1860,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// Evaluate slice
 		slice := s.expr(n.List.N)
 
-		// Evaluate args
-		nargs := int64(count(n.List) - 1)
-		args := make([]*ssa.Value, 0, nargs)
-		for l := n.List.Next; l != nil; l = l.Next {
-			args = append(args, s.expr(l.N))
-		}
-
 		// Allocate new blocks
 		grow := s.f.NewBlock(ssa.BlockPlain)
 		assign := s.f.NewBlock(ssa.BlockPlain)
 
 		// Decide if we need to grow
+		nargs := int64(count(n.List) - 1)
 		p := s.newValue1(ssa.OpSlicePtr, pt, slice)
 		l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
@@ -1901,6 +1895,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// assign new elements to slots
 		s.startBlock(assign)
+
+		// Evaluate args
+		args := make([]*ssa.Value, 0, nargs)
+		for l := n.List.Next; l != nil; l = l.Next {
+			args = append(args, s.expr(l.N))
+		}
+
 		p = s.variable(&ptrVar, pt)          // generates phi for ptr
 		c = s.variable(&capVar, Types[TINT]) // generates phi for cap
 		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
