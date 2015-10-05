@@ -1499,5 +1499,5 @@ func makefuncsym(s *Sym) {
 	s1 := funcsym(s)
 	s1.Def = newfuncname(s1)
 	s1.Def.Func.Shortname = newname(s)
-	funcsyms = list(funcsyms, s1.Def)
+	funcsyms = append(funcsyms, s1.Def)
 }

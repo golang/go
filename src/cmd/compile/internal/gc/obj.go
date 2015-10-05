@@ -104,8 +104,6 @@ func dumpobj() {
 }
 
 func dumpglobls() {
-	var n *Node
-
 	// add globals
 	for _, n := range externdcl {
 		if n.Op != ONAME {
@@ -125,8 +123,7 @@ func dumpglobls() {
 		ggloblnod(n)
 	}
 
-	for l := funcsyms; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range funcsyms {
 		dsymptr(n.Sym, 0, n.Sym.Def.Func.Shortname.Sym, 0)
 		ggloblsym(n.Sym, int32(Widthptr), obj.DUPOK|obj.RODATA)
 	}
