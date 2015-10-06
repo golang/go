@@ -165,18 +165,24 @@ func (tr *Reader) Next() (*Header, error) {
 		if err != nil {
 			return nil, err
 		}
-		hdr, err := tr.Next()
+		hdr, tr.err = tr.Next()
+		if tr.err != nil {
+			return nil, tr.err
+		}
 		hdr.Name = cString(realname)
-		return hdr, err
+		return hdr, nil
 	case TypeGNULongLink:
 		// We have a GNU long link header.
 		realname, err := ioutil.ReadAll(tr)
 		if err != nil {
 			return nil, err
 		}
-		hdr, err := tr.Next()
+		hdr, tr.err = tr.Next()
+		if tr.err != nil {
+			return nil, tr.err
+		}
 		hdr.Linkname = cString(realname)
-		return hdr, err
+		return hdr, nil
 	}
 	return hdr, tr.err
 }
