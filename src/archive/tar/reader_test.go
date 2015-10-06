@@ -300,6 +300,14 @@ var untarTests = []*untarTest{
 		file: "testdata/issue11169.tar",
 		// TODO(dsnet): Currently the library does not detect that this file is
 		// malformed. Instead it incorrectly believes that file just ends.
+		// At least the library doesn't crash anymore.
+		// err:  ErrHeader,
+	},
+	{
+		file: "testdata/issue12435.tar",
+		// TODO(dsnet): Currently the library does not detect that this file is
+		// malformed. Instead, it incorrectly believes that file just ends.
+		// At least the library doesn't crash anymore.
 		// err:  ErrHeader,
 	},
 }
