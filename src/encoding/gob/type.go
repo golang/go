@@ -787,7 +787,7 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 // contain things such as private fields, channels, and functions,
 // which are not usually transmissible in gob streams.
 //
-// Note: Since gobs can be stored permanently, It is good design
+// Note: Since gobs can be stored permanently, it is good design
 // to guarantee the encoding used by a GobEncoder is stable as the
 // software evolves.  For instance, it might make sense for GobEncode
 // to include a version number in the encoding.
