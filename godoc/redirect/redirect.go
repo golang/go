@@ -142,7 +142,11 @@ var prefixHelpers = map[string]string{
 
 func Handler(target string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, target, http.StatusMovedPermanently)
+		url := target
+		if qs := r.URL.RawQuery; qs != "" {
+			url += "?" + qs
+		}
+		http.Redirect(w, r, url, http.StatusMovedPermanently)
 	})
 }
 
