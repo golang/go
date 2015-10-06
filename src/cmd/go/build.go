@@ -3341,6 +3341,10 @@ func raceInit() {
 		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
+	if !buildContext.CgoEnabled {
+		fmt.Fprintf(os.Stderr, "go %s: -race requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0])
+		os.Exit(2)
+	}
 	buildGcflags = append(buildGcflags, "-race")
 	buildLdflags = append(buildLdflags, "-race")
 	if buildContext.InstallSuffix != "" {
