@@ -75,12 +75,14 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 		case syscall.SOCK_STREAM, syscall.SOCK_SEQPACKET:
 			if err := fd.listenStream(laddr, listenerBacklog); err != nil {
 				fd.Close()
+				closeFunc(s)
 				return nil, err
 			}
 			return fd, nil
 		case syscall.SOCK_DGRAM:
 			if err := fd.listenDatagram(laddr); err != nil {
 				fd.Close()
+				closeFunc(s)
 				return nil, err
 			}
 			return fd, nil
@@ -88,6 +90,7 @@ func socket(net string, family, sotype, proto int, ipv6only bool, laddr, raddr s
 	}
 	if err := fd.dial(laddr, raddr, deadline); err != nil {
 		fd.Close()
+		closeFunc(s)
 		return nil, err
 	}
 	return fd, nil
