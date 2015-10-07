@@ -452,6 +452,7 @@ const (
 	Second               = 1000 * Millisecond
 	Minute               = 60 * Second
 	Hour                 = 60 * Minute
+	Day                  = 24 * Hour
 )
 
 // String returns a string representing the duration in the form "72h3m0.5s".
