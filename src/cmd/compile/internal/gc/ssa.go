@@ -1801,6 +1801,31 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OEFACE:
 		tab := s.expr(n.Left)
 		data := s.expr(n.Right)
+		// The frontend allows putting things like struct{*byte} in
+		// the data portion of an eface.  But we don't want struct{*byte}
+		// as a register type because (among other reasons) the liveness
+		// analysis is confused by the "fat" variables that result from
+		// such types being spilled.
+		// So here we ensure that we are selecting the underlying pointer
+		// when we build an eface.
+		for !data.Type.IsPtr() {
+			switch {
+			case data.Type.IsArray():
+				data = s.newValue2(ssa.OpArrayIndex, data.Type.Elem(), data, s.constInt(Types[TINT], 0))
+			case data.Type.IsStruct():
+				for i := data.Type.NumFields() - 1; i >= 0; i-- {
+					f := data.Type.FieldType(i)
+					if f.Size() == 0 {
+						// eface type could also be struct{p *byte; q [0]int}
+						continue
+					}
+					data = s.newValue1I(ssa.OpStructSelect, f, data.Type.FieldOff(i), data)
+					break
+				}
+			default:
+				s.Fatalf("type being put into an eface isn't a pointer")
+			}
+		}
 		return s.newValue2(ssa.OpIMake, n.Type, tab, data)
 
 	case OSLICE, OSLICEARR:
@@ -1898,8 +1923,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		// Evaluate args
 		args := make([]*ssa.Value, 0, nargs)
+		store := make([]bool, 0, nargs)
 		for l := n.List.Next; l != nil; l = l.Next {
-			args = append(args, s.expr(l.N))
+			if canSSAType(l.N.Type) {
+				args = append(args, s.expr(l.N))
+				store = append(store, true)
+			} else {
+				args = append(args, s.addr(l.N))
+				store = append(store, false)
+			}
 		}
 
 		p = s.variable(&ptrVar, pt)          // generates phi for ptr
@@ -1907,7 +1939,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
 		for i, arg := range args {
 			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TUINTPTR], int64(i)))
-			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			if store[i] {
+				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			} else {
+				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+			}
 			if haspointers(et) {
 				// TODO: just one write barrier call for all of these writes?
 				// TODO: maybe just one writeBarrierEnabled check?

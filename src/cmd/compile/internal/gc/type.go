@@ -88,6 +88,10 @@ func (t *Type) IsArray() bool {
 	return t.Etype == TARRAY && t.Bound >= 0
 }
 
+func (t *Type) IsStruct() bool {
+	return t.Etype == TSTRUCT
+}
+
 func (t *Type) IsInterface() bool {
 	return t.Etype == TINTER
 }
@@ -97,6 +101,43 @@ func (t *Type) Elem() ssa.Type {
 }
 func (t *Type) PtrTo() ssa.Type {
 	return Ptrto(t)
+}
+
+func (t *Type) NumFields() int64 {
+	return int64(countfield(t))
+}
+func (t *Type) FieldType(i int64) ssa.Type {
+	// TODO: store fields in a slice so we can
+	// look them up by index in constant time.
+	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		if t1.Etype != TFIELD {
+			panic("non-TFIELD in a TSTRUCT")
+		}
+		if i == 0 {
+			return t1.Type
+		}
+		i--
+	}
+	panic("not enough fields")
+}
+func (t *Type) FieldOff(i int64) int64 {
+	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		if t1.Etype != TFIELD {
+			panic("non-TFIELD in a TSTRUCT")
+		}
+		if i == 0 {
+			return t1.Width
+		}
+		i--
+	}
+	panic("not enough fields")
+}
+
+func (t *Type) NumElem() int64 {
+	if t.Etype != TARRAY {
+		panic("NumElem on non-TARRAY")
+	}
+	return int64(t.Bound)
 }
 
 func (t *Type) IsMemory() bool { return false }
