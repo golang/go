@@ -150,6 +150,7 @@ func TestStdFixed(t *testing.T) {
 		"issue7746.go",   // large constants - consumes too much memory
 		"issue11326.go",  // large constants
 		"issue11326b.go", // large constants
+		"issue11362.go",  // canonical import path check
 	)
 }
 

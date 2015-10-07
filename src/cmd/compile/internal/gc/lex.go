@@ -595,9 +595,7 @@ func findpkg(name string) (file string, ok bool) {
 	// local imports should be canonicalized already.
 	// don't want to see "encoding/../encoding/base64"
 	// as different from "encoding/base64".
-	var q string
-	_ = q
-	if path.Clean(name) != name {
+	if q := path.Clean(name); q != name {
 		Yyerror("non-canonical import path %q (should be %q)", name, q)
 		return "", false
 	}
