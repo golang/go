@@ -277,10 +277,10 @@ func TestRedefinition(t *testing.T) {
 		t.Fatalf("parse 1: %v", err)
 	}
 	if _, err = tmpl.Parse(`{{define "test"}}bar{{end}}`); err != nil {
-		t.Fatal("got error %v, expected nil", err)
+		t.Fatalf("got error %v, expected nil", err)
 	}
 	if _, err = tmpl.New("tmpl2").Parse(`{{define "test"}}bar{{end}}`); err != nil {
-		t.Fatal("got error %v, expected nil", err)
+		t.Fatalf("got error %v, expected nil", err)
 	}
 }
 
