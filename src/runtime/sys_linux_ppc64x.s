@@ -206,8 +206,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R3
 	MOVD	info+16(FP), R4
 	MOVD	ctx+24(FP), R5
-	MOVD	fn+0(FP), R31
-	MOVD	R31, CTR
+	MOVD	fn+0(FP), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 
@@ -235,8 +235,8 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	MOVW	R3, FIXED_FRAME+0(R1)
 	MOVD	R4, FIXED_FRAME+8(R1)
 	MOVD	R5, FIXED_FRAME+16(R1)
-	MOVD	$runtime·sigtrampgo(SB), R31
-	MOVD	R31, CTR
+	MOVD	$runtime·sigtrampgo(SB), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 

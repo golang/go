@@ -29,6 +29,6 @@ dlink:
 	BR	main(SB)
 
 TEXT main(SB),NOSPLIT,$-8
-	MOVD	$runtime·rt0_go(SB), R31
-	MOVD	R31, CTR
+	MOVD	$runtime·rt0_go(SB), R12
+	MOVD	R12, CTR
 	BR	(CTR)

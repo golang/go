@@ -28,6 +28,7 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·reginit(SB)
 	BL	runtime·load_g(SB)
 
+	MOVD	R3, R12
 	MOVD	R3, CTR
 	MOVD	R4, FIXED_FRAME+0(R1)
 	MOVD	R5, FIXED_FRAME+8(R1)
