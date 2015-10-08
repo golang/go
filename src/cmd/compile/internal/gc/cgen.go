@@ -810,10 +810,7 @@ func cgen_wbptr(n, res *Node) {
 	a := &p.To
 	a.Type = obj.TYPE_MEM
 	a.Reg = int16(Thearch.REGSP)
-	a.Offset = 0
-	if HasLinkRegister() {
-		a.Offset += int64(Widthptr)
-	}
+	a.Offset = Ctxt.FixedFrameSize()
 	p2 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, nil)
 	p2.To = p.To
 	p2.To.Offset += int64(Widthptr)
@@ -849,10 +846,7 @@ func cgen_wbfat(n, res *Node) {
 	a := &p.To
 	a.Type = obj.TYPE_MEM
 	a.Reg = int16(Thearch.REGSP)
-	a.Offset = 0
-	if HasLinkRegister() {
-		a.Offset += int64(Widthptr)
-	}
+	a.Offset = Ctxt.FixedFrameSize()
 	if needType {
 		a.Offset += int64(Widthptr)
 	}
@@ -1686,10 +1680,7 @@ func Igen(n *Node, a *Node, res *Node) {
 		a.Op = OINDREG
 		a.Reg = int16(Thearch.REGSP)
 		a.Addable = true
-		a.Xoffset = fp.Width
-		if HasLinkRegister() {
-			a.Xoffset += int64(Ctxt.Arch.Ptrsize)
-		}
+		a.Xoffset = fp.Width + Ctxt.FixedFrameSize()
 		a.Type = n.Type
 		return
 
@@ -2219,11 +2210,7 @@ func stkof(n *Node) int64 {
 		var flist Iter
 		t = Structfirst(&flist, Getoutarg(t))
 		if t != nil {
-			w := t.Width
-			if HasLinkRegister() {
-				w += int64(Ctxt.Arch.Ptrsize)
-			}
-			return w
+			return t.Width + Ctxt.FixedFrameSize()
 		}
 	}
 
@@ -2379,17 +2366,11 @@ func Ginscall(f *Node, proc int) {
 		// size of arguments at 0(SP)
 		stk.Op = OINDREG
 		stk.Reg = int16(Thearch.REGSP)
-		stk.Xoffset = 0
-		if HasLinkRegister() {
-			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
-		}
+		stk.Xoffset = Ctxt.FixedFrameSize()
 		Thearch.Ginscon(Thearch.Optoas(OAS, Types[TINT32]), int64(Argsize(f.Type)), &stk)
 
 		// FuncVal* at 8(SP)
-		stk.Xoffset = int64(Widthptr)
-		if HasLinkRegister() {
-			stk.Xoffset += int64(Ctxt.Arch.Ptrsize)
-		}
+		stk.Xoffset = int64(Widthptr) + Ctxt.FixedFrameSize()
 
 		var reg Node
 		Nodreg(&reg, Types[Tptr], Thearch.REGCALLX2)
@@ -2447,10 +2428,7 @@ func cgen_callinter(n *Node, res *Node, proc int) {
 
 	var nodsp Node
 	Nodindreg(&nodsp, Types[Tptr], Thearch.REGSP)
-	nodsp.Xoffset = 0
-	if HasLinkRegister() {
-		nodsp.Xoffset += int64(Ctxt.Arch.Ptrsize)
-	}
+	nodsp.Xoffset = Ctxt.FixedFrameSize()
 	if proc != 0 {
 		nodsp.Xoffset += 2 * int64(Widthptr) // leave room for size & fn
 	}
@@ -2541,11 +2519,6 @@ func cgen_call(n *Node, proc int) {
 	Ginscall(n.Left, proc)
 }
 
-func HasLinkRegister() bool {
-	c := Ctxt.Arch.Thechar
-	return c != '6' && c != '8'
-}
-
 /*
  * call to n has already been generated.
  * generate:
@@ -2568,10 +2541,7 @@ func cgen_callret(n *Node, res *Node) {
 	nod.Reg = int16(Thearch.REGSP)
 	nod.Addable = true
 
-	nod.Xoffset = fp.Width
-	if HasLinkRegister() {
-		nod.Xoffset += int64(Ctxt.Arch.Ptrsize)
-	}
+	nod.Xoffset = fp.Width + Ctxt.FixedFrameSize()
 	nod.Type = fp.Type
 	Cgen_as(res, &nod)
 }
@@ -2597,10 +2567,7 @@ func cgen_aret(n *Node, res *Node) {
 	nod1.Op = OINDREG
 	nod1.Reg = int16(Thearch.REGSP)
 	nod1.Addable = true
-	nod1.Xoffset = fp.Width
-	if HasLinkRegister() {
-		nod1.Xoffset += int64(Ctxt.Arch.Ptrsize)
-	}
+	nod1.Xoffset = fp.Width + Ctxt.FixedFrameSize()
 	nod1.Type = fp.Type
 
 	if res.Op != OREGISTER {
@@ -2858,10 +2825,7 @@ func cgen_append(n, res *Node) {
 	arg.Op = OINDREG
 	arg.Reg = int16(Thearch.REGSP)
 	arg.Addable = true
-	arg.Xoffset = 0
-	if HasLinkRegister() {
-		arg.Xoffset = int64(Ctxt.Arch.Ptrsize)
-	}
+	arg.Xoffset = Ctxt.FixedFrameSize()
 	arg.Type = Ptrto(Types[TUINT8])
 	Cgen(typename(res.Type), &arg)
 	arg.Xoffset += int64(Widthptr)

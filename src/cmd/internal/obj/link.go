@@ -523,6 +523,19 @@ type Link struct {
 	Etextp             *LSym
 }
 
+// The smallest possible offset from the hardware stack pointer to a local
+// variable on the stack. Architectures that use a link register save its value
+// on the stack in the function prologue and so always have a pointer between
+// the hardware stack pointer and the local variable area.
+func (ctxt *Link) FixedFrameSize() int64 {
+	switch ctxt.Arch.Thechar {
+	case '6', '8':
+		return 0
+	default:
+		return int64(ctxt.Arch.Ptrsize)
+	}
+}
+
 type SymVer struct {
 	Name    string
 	Version int // TODO: make int16 to match LSym.Version?

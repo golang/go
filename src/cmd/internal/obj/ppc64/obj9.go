@@ -337,7 +337,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			if p.From3.Offset&obj.NOFRAME == 0 {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
-				autosize += 8
+				autosize += int32(ctxt.FixedFrameSize())
 			}
 
 			p.To.Offset = int64(autosize)
@@ -445,7 +445,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + 8
+				q.From.Offset = int64(autosize) + ctxt.FixedFrameSize()
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R5
@@ -465,7 +465,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = 8
+				q.From.Offset = ctxt.FixedFrameSize()
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R6

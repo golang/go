@@ -568,9 +568,7 @@ fp:
 		n.Op = OINDREG
 
 		n.Reg = int16(Thearch.REGSP)
-		if HasLinkRegister() {
-			n.Xoffset += int64(Ctxt.Arch.Ptrsize)
-		}
+		n.Xoffset += Ctxt.FixedFrameSize()
 
 	case 1: // input arg
 		n.Class = PPARAM
