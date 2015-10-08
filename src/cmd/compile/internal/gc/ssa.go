@@ -1250,22 +1250,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case OPARAM:
-		// Reach through param to expected ONAME w/ PHEAP|PARAM class
-		// to reference the incoming parameter.  Used in initialization
-		// of heap storage allocated for escaping params, where it appears
-		// as the RHS of an OAS node.  No point doing SSA for this variable,
-		// this is the only use.
-		p := n.Left
-		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
-			s.Fatalf("OPARAM not of ONAME,{PPARAM,PPARAMOUT}|PHEAP, instead %s", nodedump(p, 0))
-		}
-
-		// Recover original offset to address passed-in param value.
-		original_p := *p
-		original_p.Xoffset = n.Xoffset
-		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
-		addr := s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
-		return s.newValue2(ssa.OpLoad, p.Type, addr, s.mem())
+		addr := s.addr(n)
+		return s.newValue2(ssa.OpLoad, n.Left.Type, addr, s.mem())
 	case ONAME:
 		if n.Class == PFUNC {
 			// "value" of a function is the address of the function's closure
@@ -2287,6 +2273,17 @@ func (s *state) addr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
 			s.entryNewValue0(ssa.OpGetClosurePtr, Types[TUINTPTR]),
 			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+	case OPARAM:
+		p := n.Left
+		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
+			s.Fatalf("OPARAM not of ONAME,{PPARAM,PPARAMOUT}|PHEAP, instead %s", nodedump(p, 0))
+		}
+
+		// Recover original offset to address passed-in param value.
+		original_p := *p
+		original_p.Xoffset = n.Xoffset
+		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
+		return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 	default:
 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
 		return nil
@@ -3072,7 +3069,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 		addr := s.decladdrs[name]
 		if addr == nil {
 			// TODO: closure args reach here.
-			s.Unimplementedf("unhandled closure arg")
+			s.Unimplementedf("unhandled closure arg %s at entry to function %s", name, b.Func.Name)
 		}
 		if _, ok := addr.Aux.(*ssa.ArgSymbol); !ok {
 			s.Fatalf("variable live at start of function %s is not an argument %s", b.Func.Name, name)
