@@ -144,8 +144,8 @@ TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	R0, gobuf_lr(R5)
 	MOVD	R0, gobuf_ctxt(R5)
 	CMP	R0, R0 // set condition codes for == test, needed by stack split
-	MOVD	gobuf_pc(R5), R31
-	MOVD	R31, CTR
+	MOVD	gobuf_pc(R5), R12
+	MOVD	R12, CTR
 	BR	(CTR)
 
 // void mcall(fn func(*g))
@@ -169,8 +169,8 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	BNE	2(PC)
 	BR	runtime·badmcall(SB)
 	MOVD	fn+0(FP), R11			// context
-	MOVD	0(R11), R4			// code pointer
-	MOVD	R4, CTR
+	MOVD	0(R11), R12			// code pointer
+	MOVD	R12, CTR
 	MOVD	(g_sched+gobuf_sp)(g), R1	// sp = m->g0->sched.sp
 	MOVDU	R3, -8(R1)
 	MOVDU	R0, -8(R1)
@@ -207,8 +207,8 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 
 	// Bad: g is not gsignal, not g0, not curg. What is it?
 	// Hide call from linker nosplit analysis.
-	MOVD	$runtime·badsystemstack(SB), R3
-	MOVD	R3, CTR
+	MOVD	$runtime·badsystemstack(SB), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 
 switch:
@@ -232,8 +232,8 @@ switch:
 	MOVD	R3, R1
 
 	// call target function
-	MOVD	0(R11), R3	// code pointer
-	MOVD	R3, CTR
+	MOVD	0(R11), R12	// code pointer
+	MOVD	R12, CTR
 	BL	(CTR)
 
 	// switch back to g
@@ -246,8 +246,8 @@ switch:
 
 noswitch:
 	// already on m stack, just call directly
-	MOVD	0(R11), R3	// code pointer
-	MOVD	R3, CTR
+	MOVD	0(R11), R12	// code pointer
+	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 
@@ -333,8 +333,8 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
 	MOVD	$MAXSIZE, R31;		\
 	CMP	R3, R31;		\
 	BGT	4(PC);			\
-	MOVD	$NAME(SB), R31;	\
-	MOVD	R31, CTR;		\
+	MOVD	$NAME(SB), R12;		\
+	MOVD	R12, CTR;		\
 	BR	(CTR)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
 
@@ -371,8 +371,8 @@ TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	DISPATCH(runtime·call268435456, 268435456)
 	DISPATCH(runtime·call536870912, 536870912)
 	DISPATCH(runtime·call1073741824, 1073741824)
-	MOVD	$runtime·badreflectcall(SB), R31
-	MOVD	R31, CTR
+	MOVD	$runtime·badreflectcall(SB), R12
+	MOVD	R12, CTR
 	BR	(CTR)
 
 #define CALLFN(NAME,MAXSIZE)			\
@@ -392,8 +392,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	BR	-4(PC);				\
 	/* call function */			\
 	MOVD	f+8(FP), R11;			\
-	MOVD	(R11), R31;			\
-	MOVD	R31, CTR;			\
+	MOVD	(R11), R12;			\
+	MOVD	R12, CTR;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
 	/* copy return values back */		\
@@ -678,8 +678,8 @@ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	fv+0(FP), R11
 	MOVD	argp+8(FP), R1
 	SUB	$FIXED_FRAME, R1
-	MOVD	0(R11), R3
-	MOVD	R3, CTR
+	MOVD	0(R11), R12
+	MOVD	R12, CTR
 	BR	(CTR)
 
 // Save state of caller into g->sched. Smashes R31.
@@ -700,7 +700,7 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 	MOVD	fn+0(FP), R3
 	MOVD	arg+8(FP), R4
 
-	MOVD	R1, R2		// save original stack pointer
+	MOVD	R1, R7		// save original stack pointer
 	MOVD	g, R5
 
 	// Figure out if we need to switch to m->g0 stack.
@@ -723,7 +723,7 @@ g0:
 	RLDCR	$0, R1, $~15, R1	// 16-byte alignment for gcc ABI
 	MOVD	R5, 40(R1)	// save old g on stack
 	MOVD	(g_stack+stack_hi)(R5), R5
-	SUB	R2, R5
+	SUB	R7, R5
 	MOVD	R5, 32(R1)	// save depth in old g stack (can't just save SP, as stack might be copied during a callback)
 	MOVD	R0, 0(R1)	// clear back chain pointer (TODO can we give it real back trace information?)
 	// This is a "global call", so put the global entry point in r12
@@ -756,8 +756,8 @@ TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
 	MOVD	R3, FIXED_FRAME+8(R1)
 	MOVD	framesize+16(FP), R3
 	MOVD	R3, FIXED_FRAME+16(R1)
-	MOVD	$runtime·cgocallback_gofunc(SB), R3
-	MOVD	R3, CTR
+	MOVD	$runtime·cgocallback_gofunc(SB), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 
@@ -781,8 +781,8 @@ nocgo:
 	CMP	g, $0
 	BNE	havem
 	MOVD	g, savedm-8(SP) // g is zero, so is m.
-	MOVD	$runtime·needm(SB), R3
-	MOVD	R3, CTR
+	MOVD	$runtime·needm(SB), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 
 	// Set m->sched.sp = SP, so that if a panic happens
@@ -857,8 +857,8 @@ havem:
 	MOVD	savedm-8(SP), R6
 	CMP	R6, $0
 	BNE	droppedm
-	MOVD	$runtime·dropm(SB), R3
-	MOVD	R3, CTR
+	MOVD	$runtime·dropm(SB), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 droppedm:
 
