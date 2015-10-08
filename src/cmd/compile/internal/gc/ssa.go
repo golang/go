@@ -30,6 +30,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		fmt.Println("generating SSA for", name)
 		dumplist("buildssa-enter", fn.Func.Enter)
 		dumplist("buildssa-body", fn.Nbody)
+		dumplist("buildssa-exit", fn.Func.Exit)
 	}
 
 	var s state
@@ -43,6 +44,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.config = ssa.NewConfig(Thearch.Thestring, &e)
 	s.f = s.config.NewFunc()
 	s.f.Name = name
+	s.exitCode = fn.Func.Exit
 
 	if name == os.Getenv("GOSSAFUNC") {
 		// TODO: tempfile? it is handy to have the location
@@ -97,8 +99,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
-		case PPARAM | PHEAP: // PPARAMOUT | PHEAP seems to not occur
-			// This ends up wrong, have to do it at the PARAM node instead.
+		case PPARAM | PHEAP, PPARAMOUT | PHEAP:
+		// This ends up wrong, have to do it at the PARAM node instead.
 		case PAUTO, PPARAMOUT:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
@@ -122,6 +124,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// fallthrough to exit
 	if s.curBlock != nil {
+		s.stmtList(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
@@ -155,6 +158,9 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	// Link up variable uses to variable definitions
 	s.linkForwardReferences()
+
+	// Don't carry reference this around longer than necessary
+	s.exitCode = nil
 
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
@@ -207,6 +213,9 @@ type state struct {
 
 	// gotos that jump forward; required for deferred checkgoto calls
 	fwdGotos []*Node
+	// Code that must precede any return
+	// (e.g., copying value of heap-escaped paramout back to true paramout)
+	exitCode *NodeList
 
 	// unlabeled break and continue statement tracking
 	breakTo    *ssa.Block // current target for plain break statement
@@ -641,12 +650,14 @@ func (s *state) stmt(n *Node) {
 
 	case ORETURN:
 		s.stmtList(n.List)
+		s.stmtList(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
 		b.Control = m
 	case ORETJMP:
 		s.stmtList(n.List)
+		s.stmtList(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRetJmp
