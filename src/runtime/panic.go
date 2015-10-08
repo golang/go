@@ -531,8 +531,6 @@ func throw(s string) {
 //uint32 runtime·panicking;
 var paniclk mutex
 
-const hasLinkRegister = GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le"
-
 // Unwind the stack after a deferred function calls recover
 // after a panic.  Then arrange to continue running as though
 // the caller of the deferred function returned normally.

@@ -2256,17 +2256,14 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 		throw("newproc1: new g is not Gdead")
 	}
 
-	totalSize := 4*regSize + uintptr(siz) // extra space in case of reads slightly beyond frame
-	if hasLinkRegister {
-		totalSize += ptrSize
-	}
-	totalSize += -totalSize & (spAlign - 1) // align to spAlign
+	totalSize := 4*regSize + uintptr(siz) + minFrameSize // extra space in case of reads slightly beyond frame
+	totalSize += -totalSize & (spAlign - 1)              // align to spAlign
 	sp := newg.stack.hi - totalSize
 	spArg := sp
-	if hasLinkRegister {
+	if usesLR {
 		// caller's LR
 		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil
-		spArg += ptrSize
+		spArg += minFrameSize
 	}
 	memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
 

@@ -26,9 +26,10 @@ import "unsafe"
 // stores an 8-byte return PC onto the stack. To accommodate this, we use regSize
 // as the size of the architecture-pushed return PC.
 //
-// usesLR is defined below. ptrSize and regSize are defined in stubs.go.
+// usesLR is defined below in terms of minFrameSize, which is defined in
+// arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
 
-const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
+const usesLR = minFrameSize > 0
 
 var (
 	// initialized in tracebackinit
@@ -295,10 +296,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// in package runtime and reflect, and for those we use call-specific
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
-			frame.argp = frame.fp
-			if usesLR {
-				frame.argp += ptrSize
-			}
+			frame.argp = frame.fp + minFrameSize
 			setArgInfo(&frame, f, callback != nil)
 		}
 
@@ -396,7 +394,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// before faking a call to sigpanic.
 		if usesLR && waspanic {
 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
-			frame.sp += ptrSize
+			frame.sp += minFrameSize
 			if GOARCH == "arm64" {
 				// arm64 needs 16-byte aligned SP, always
 				frame.sp += ptrSize
@@ -496,10 +494,7 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
-			arg0 := frame.sp
-			if usesLR {
-				arg0 += ptrSize
-			}
+			arg0 := frame.sp + minFrameSize
 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
 			if fn[0] != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
