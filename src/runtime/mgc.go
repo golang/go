@@ -408,6 +408,17 @@ func (c *gcControllerState) startCycle() {
 	// Compute the heap goal for this cycle
 	c.heapGoal = memstats.heap_reachable + memstats.heap_reachable*uint64(gcpercent)/100
 
+	// Ensure that the heap goal is at least a little larger than
+	// the current live heap size. This may not be the case if GC
+	// start is delayed or if the allocation that pushed heap_live
+	// over next_gc is large or if the trigger is really close to
+	// GOGC. Assist is proportional to this distance, so enforce a
+	// minimum distance, even if it means going over the GOGC goal
+	// by a tiny bit.
+	if c.heapGoal < memstats.heap_live+1024*1024 {
+		c.heapGoal = memstats.heap_live + 1024*1024
+	}
+
 	// Compute the total mark utilization goal and divide it among
 	// dedicated and fractional workers.
 	totalUtilizationGoal := float64(gomaxprocs) * gcGoalUtilization
@@ -444,6 +455,10 @@ func (c *gcControllerState) startCycle() {
 // revise updates the assist ratio during the GC cycle to account for
 // improved estimates. This should be called either under STW or
 // whenever memstats.heap_scan is updated (with mheap_.lock held).
+//
+// It should only be called when gcBlackenEnabled != 0 (because this
+// is when assists are enabled and the necessary statistics are
+// available).
 func (c *gcControllerState) revise() {
 	// Compute the expected scan work.
 	//
@@ -467,14 +482,9 @@ func (c *gcControllerState) revise() {
 	// allocates the remaining heap bytes up to next_gc, it will
 	// have done (or stolen) the estimated amount of scan work.
 	heapDistance := int64(c.heapGoal) - int64(work.initialHeapLive)
-	if heapDistance <= 1024*1024 {
-		// heapDistance can be negative if GC start is delayed
-		// or if the allocation that pushed heap_live over
-		// next_gc is large or if the trigger is really close
-		// to GOGC. We don't want to set the assist negative
-		// (or divide by zero, or set it really high), so
-		// enforce a minimum on the distance.
-		heapDistance = 1024 * 1024
+	if heapDistance <= 0 {
+		print("runtime: heap goal=", heapDistance, " initial heap live=", work.initialHeapLive, "\n")
+		throw("negative heap distance")
 	}
 	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
 }
