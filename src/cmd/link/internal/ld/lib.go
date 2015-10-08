@@ -982,11 +982,14 @@ func hostlink() {
 		if HEADTYPE == obj.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 		} else {
+			// ELF.
 			argv = append(argv, "-Wl,-Bsymbolic")
 			if UseRelro() {
 				argv = append(argv, "-Wl,-z,relro")
 			}
-			argv = append(argv, "-shared")
+			// Pass -z nodelete to mark the shared library as
+			// non-closeable: a dlclose will do nothing.
+			argv = append(argv, "-shared", "-Wl,-z,nodelete")
 		}
 	case BuildmodeShared:
 		// TODO(mwhudson): unless you do this, dynamic relocations fill
