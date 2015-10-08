@@ -264,7 +264,7 @@ func escape(s string, mode encoding) string {
 // Go 1.5 introduced the RawPath field to hold the encoded form of Path.
 // The Parse function sets both Path and RawPath in the URL it returns,
 // and URL's String method uses RawPath if it is a valid encoding of Path,
-// by calling the EncodedPath method.
+// by calling the EscapedPath method.
 //
 // In earlier versions of Go, the more indirect workarounds were that an
 // HTTP server could consult req.RequestURI and an HTTP client could
@@ -449,7 +449,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 		goto Error
 	}
 	// RawPath is a hint as to the encoding of Path to use
-	// in url.EncodedPath. If that method already gets the
+	// in url.EscapedPath. If that method already gets the
 	// right answer without RawPath, leave it empty.
 	// This will help make sure that people don't rely on it in general.
 	if url.EscapedPath() != rest && validEncodedPath(rest) {
@@ -614,7 +614,7 @@ func validOptionalPort(port string) bool {
 //
 // If u.Opaque is non-empty, String uses the first form;
 // otherwise it uses the second form.
-// To obtain the path, String uses u.EncodedPath().
+// To obtain the path, String uses u.EscapedPath().
 //
 // In the second form, the following rules apply:
 //	- if u.Scheme is empty, scheme: is omitted.
