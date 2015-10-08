@@ -12,6 +12,7 @@ const (
 	_PCQuantum     = 4
 	_Int64Align    = 4
 	hugePageSize   = 0
+	minFrameSize   = 4
 )
 
 type uintreg uint32

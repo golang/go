@@ -496,12 +496,10 @@ func scanframeworker(frame *stkframe, unused unsafe.Pointer, gcw *gcWork) {
 	size := frame.varp - frame.sp
 	var minsize uintptr
 	switch thechar {
-	case '6', '8':
-		minsize = 0
 	case '7':
 		minsize = spAlign
 	default:
-		minsize = ptrSize
+		minsize = minFrameSize
 	}
 	if size > minsize {
 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))

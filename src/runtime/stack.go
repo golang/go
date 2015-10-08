@@ -578,12 +578,10 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	size := frame.varp - frame.sp
 	var minsize uintptr
 	switch thechar {
-	case '6', '8':
-		minsize = 0
 	case '7':
 		minsize = spAlign
 	default:
-		minsize = ptrSize
+		minsize = minFrameSize
 	}
 	if size > minsize {
 		var bv bitvector
