@@ -12,6 +12,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "asm_ppc64x.h"
 
 #define SYS_exit		  1
 #define SYS_read		  3
@@ -231,9 +232,9 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	MOVW	R3, 8(R1)
-	MOVD	R4, 16(R1)
-	MOVD	R5, 24(R1)
+	MOVW	R3, FIXED_FRAME+0(R1)
+	MOVD	R4, FIXED_FRAME+8(R1)
+	MOVD	R5, FIXED_FRAME+16(R1)
 	MOVD	$runtime·sigtrampgo(SB), R31
 	MOVD	R31, CTR
 	BL	(CTR)

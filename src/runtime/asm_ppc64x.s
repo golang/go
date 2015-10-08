@@ -8,6 +8,7 @@
 #include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "asm_ppc64x.h"
 
 TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// R1 = stack; R3 = argc; R4 = argv; R13 = C TLS base pointer
@@ -15,9 +16,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	// initialize essential registers
 	BL	runtime·reginit(SB)
 
-	SUB	$24, R1
-	MOVW	R3, 8(R1) // argc
-	MOVD	R4, 16(R1) // argv
+	SUB	$(FIXED_FRAME+16), R1
+	MOVW	R3, FIXED_FRAME+0(R1) // argc
+	MOVD	R4, FIXED_FRAME+8(R1) // argv
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -225,7 +226,7 @@ switch:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R3
 	// make it look like mstart called systemstack on g0, to stop traceback
-	SUB	$8, R3
+	SUB	$FIXED_FRAME, R3
 	MOVD	$runtime·mstart(SB), R4
 	MOVD	R4, 0(R3)
 	MOVD	R3, R1
@@ -381,7 +382,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	MOVD	arg+16(FP), R3;			\
 	MOVWZ	argsize+24(FP), R4;			\
 	MOVD	R1, R5;				\
-	ADD	$(8-1), R5;			\
+	ADD	$(FIXED_FRAME-1), R5;			\
 	SUB	$1, R3;				\
 	ADD	R5, R4;				\
 	CMP	R5, R4;				\
@@ -403,7 +404,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	ADD	R6, R5; 			\
 	ADD	R6, R3;				\
 	SUB	R6, R4;				\
-	ADD	$(8-1), R5;			\
+	ADD	$(FIXED_FRAME-1), R5;			\
 	SUB	$1, R3;				\
 	ADD	R5, R4;				\
 loop:						\
@@ -418,10 +419,10 @@ end:						\
 	MOVD	arg+16(FP), R3;			\
 	MOVWZ	n+24(FP), R4;			\
 	MOVWZ	retoffset+28(FP), R6;		\
-	MOVD	R7, 8(R1);			\
-	MOVD	R3, 16(R1);			\
-	MOVD	R4, 24(R1);			\
-	MOVD	R6, 32(R1);			\
+	MOVD	R7, FIXED_FRAME+0(R1);			\
+	MOVD	R3, FIXED_FRAME+8(R1);			\
+	MOVD	R4, FIXED_FRAME+16(R1);			\
+	MOVD	R6, FIXED_FRAME+24(R1);			\
 	BL	runtime·callwritebarrier(SB);	\
 	RET
 
@@ -676,7 +677,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 
 	MOVD	fv+0(FP), R11
 	MOVD	argp+8(FP), R1
-	SUB	$8, R1
+	SUB	$FIXED_FRAME, R1
 	MOVD	0(R11), R3
 	MOVD	R3, CTR
 	BR	(CTR)
@@ -750,11 +751,11 @@ g0:
 // cgocallback_gofunc.
 TEXT runtime·cgocallback(SB),NOSPLIT,$24-24
 	MOVD	$fn+0(FP), R3
-	MOVD	R3, 8(R1)
+	MOVD	R3, FIXED_FRAME+0(R1)
 	MOVD	frame+8(FP), R3
-	MOVD	R3, 16(R1)
+	MOVD	R3, FIXED_FRAME+8(R1)
 	MOVD	framesize+16(FP), R3
-	MOVD	R3, 24(R1)
+	MOVD	R3, FIXED_FRAME+16(R1)
 	MOVD	$runtime·cgocallback_gofunc(SB), R3
 	MOVD	R3, CTR
 	BL	(CTR)
@@ -831,14 +832,14 @@ havem:
 	BL	runtime·save_g(SB)
 	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -24(R4)
-	MOVD	$-24(R4), R1
+	MOVD	R5, -(FIXED_FRAME+16)(R4)
+	MOVD	$-(FIXED_FRAME+16)(R4), R1
 	BL	runtime·cgocallbackg(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(R1), R5
 	MOVD	R5, (g_sched+gobuf_pc)(g)
-	MOVD	$24(R1), R4
+	MOVD	$(FIXED_FRAME+16)(R1), R4
 	MOVD	R4, (g_sched+gobuf_sp)(g)
 
 	// Switch back to m->g0's stack and restore m->g0->sched.sp.
@@ -890,34 +891,34 @@ TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$8-16
-	MOVD	16(R1), R3		// LR saved by caller
+	MOVD	FIXED_FRAME+8(R1), R3		// LR saved by caller
 	MOVD	runtime·stackBarrierPC(SB), R4
 	CMP	R3, R4
 	BNE	nobar
 	// Get original return PC.
 	BL	runtime·nextBarrierPC(SB)
-	MOVD	8(R1), R3
+	MOVD	FIXED_FRAME+0(R1), R3
 nobar:
 	MOVD	R3, ret+8(FP)
 	RET
 
 TEXT runtime·setcallerpc(SB),NOSPLIT,$8-16
 	MOVD	pc+8(FP), R3
-	MOVD	16(R1), R4
+	MOVD	FIXED_FRAME+8(R1), R4
 	MOVD	runtime·stackBarrierPC(SB), R5
 	CMP	R4, R5
 	BEQ	setbar
-	MOVD	R3, 16(R1)		// set LR in caller
+	MOVD	R3, FIXED_FRAME+8(R1)		// set LR in caller
 	RET
 setbar:
 	// Set the stack barrier return PC.
-	MOVD	R3, 8(R1)
+	MOVD	R3, FIXED_FRAME+0(R1)
 	BL	runtime·setNextBarrierPC(SB)
 	RET
 
 TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
 	MOVD	argp+0(FP), R3
-	SUB	$8, R3
+	SUB	$FIXED_FRAME, R3
 	MOVD	R3, ret+8(FP)
 	RET
 
@@ -949,11 +950,11 @@ TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
 	MOVD	p+0(FP), R3
 	MOVD	h+8(FP), R4
 	MOVD	8(R11), R5
-	MOVD	R3, 8(R1)
-	MOVD	R4, 16(R1)
-	MOVD	R5, 24(R1)
+	MOVD	R3, FIXED_FRAME+0(R1)
+	MOVD	R4, FIXED_FRAME+8(R1)
+	MOVD	R5, FIXED_FRAME+16(R1)
 	BL	runtime·memhash(SB)
-	MOVD	32(R1), R3
+	MOVD	FIXED_FRAME+24(R1), R3
 	MOVD	R3, ret+16(FP)
 	RET
 
@@ -996,11 +997,11 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
 	CMP	R3, R4
 	BEQ	eq
 	MOVD	8(R11), R5    // compiler stores size at offset 8 in the closure
-	MOVD	R3, 8(R1)
-	MOVD	R4, 16(R1)
-	MOVD	R5, 24(R1)
+	MOVD	R3, FIXED_FRAME+0(R1)
+	MOVD	R4, FIXED_FRAME+8(R1)
+	MOVD	R5, FIXED_FRAME+16(R1)
 	BL	runtime·memeq(SB)
-	MOVBZ	32(R1), R3
+	MOVBZ	FIXED_FRAME+24(R1), R3
 	MOVB	R3, ret+16(FP)
 	RET
 eq:
