@@ -595,7 +595,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			return C_LAUTO
 
 		case obj.NAME_PARAM:
-			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 8
+			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + ctxt.FixedFrameSize()
 			if ctxt.Instoffset >= -BIG && ctxt.Instoffset < BIG {
 				return C_SAUTO
 			}
@@ -658,7 +658,7 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			return C_LACON
 
 		case obj.NAME_PARAM:
-			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + 8
+			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset + ctxt.FixedFrameSize()
 			if ctxt.Instoffset >= -BIG && ctxt.Instoffset < BIG {
 				return C_SACON
 			}
