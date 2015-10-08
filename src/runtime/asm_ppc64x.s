@@ -85,19 +85,19 @@ nocgo:
 DATA	runtime·mainPC+0(SB)/8,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$8
 
-TEXT runtime·breakpoint(SB),NOSPLIT,$-8-0
+TEXT runtime·breakpoint(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R0, 2(R0) // TODO: TD
 	RET
 
-TEXT runtime·asminit(SB),NOSPLIT,$-8-0
+TEXT runtime·asminit(SB),NOSPLIT|NOFRAME,$0-0
 	RET
 
-TEXT _cgo_reginit(SB),NOSPLIT,$-8-0
+TEXT _cgo_reginit(SB),NOSPLIT|NOFRAME,$0-0
 	// crosscall_ppc64 and crosscall2 need to reginit, but can't
 	// get at the 'runtime.reginit' symbol.
 	BR	runtime·reginit(SB)
 
-TEXT runtime·reginit(SB),NOSPLIT,$-8-0
+TEXT runtime·reginit(SB),NOSPLIT|NOFRAME,$0-0
 	// set R0 to zero, it's expected by the toolchain
 	XOR R0, R0
 	// initialize essential FP registers
@@ -114,7 +114,7 @@ TEXT runtime·reginit(SB),NOSPLIT,$-8-0
 
 // void gosave(Gobuf*)
 // save state in Gobuf; setjmp
-TEXT runtime·gosave(SB), NOSPLIT, $-8-8
+TEXT runtime·gosave(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	buf+0(FP), R3
 	MOVD	R1, gobuf_sp(R3)
 	MOVD	LR, R31
@@ -127,7 +127,7 @@ TEXT runtime·gosave(SB), NOSPLIT, $-8-8
 
 // void gogo(Gobuf*)
 // restore state from Gobuf; longjmp
-TEXT runtime·gogo(SB), NOSPLIT, $-8-8
+TEXT runtime·gogo(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	buf+0(FP), R5
 	MOVD	gobuf_g(R5), g	// make sure g is not nil
 	BL	runtime·save_g(SB)
@@ -151,7 +151,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-8-8
 // Switch to m->g0's stack, call fn(g).
 // Fn must never return.  It should gogo(&g->sched)
 // to keep running g.
-TEXT runtime·mcall(SB), NOSPLIT, $-8-8
+TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	// Save caller state in g->sched
 	MOVD	R1, (g_sched+gobuf_sp)(g)
 	MOVD	LR, R31
@@ -262,7 +262,7 @@ noswitch:
 // the top of a stack (for example, morestack calling newstack
 // calling the scheduler calling newm calling gc), so we must
 // record an argument size. For that purpose, it has no arguments.
-TEXT runtime·morestack(SB),NOSPLIT,$-8-0
+TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
 	// Cannot grow scheduler stack (m->g0).
 	MOVD	g_m(g), R7
 	MOVD	m_g0(R7), R8
@@ -300,7 +300,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-8-0
 	// is still in this function, and not the beginning of the next.
 	UNDEF
 
-TEXT runtime·morestack_noctxt(SB),NOSPLIT,$-8-0
+TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R0, R11
 	BR	runtime·morestack(SB)
 
@@ -340,7 +340,7 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
 TEXT reflect·call(SB), NOSPLIT, $0-0
 	BR	·reflectcall(SB)
 
-TEXT ·reflectcall(SB), NOSPLIT, $-8-32
+TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWZ argsize+24(FP), R3
 	// NOTE(rsc): No call16, because CALLFN needs four words
 	// of argument space to invoke callwritebarrier.
@@ -511,10 +511,10 @@ cas64_fail:
 TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
 	BR	runtime·cas64(SB)
 
-TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $-8-16
+TEXT runtime·atomicloaduintptr(SB), NOSPLIT|NOFRAME, $0-16
 	BR	runtime·atomicload64(SB)
 
-TEXT runtime·atomicloaduint(SB), NOSPLIT, $-8-16
+TEXT runtime·atomicloaduint(SB), NOSPLIT|NOFRAME, $0-16
 	BR	runtime·atomicload64(SB)
 
 TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
@@ -669,7 +669,7 @@ again:
 // 1. grab stored LR for caller
 // 2. sub 4 bytes to get back to BL deferreturn
 // 3. BR to fn
-TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
+TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	0(R1), R31
 	SUB	$4, R31
 	MOVD	R31, LR
@@ -682,7 +682,7 @@ TEXT runtime·jmpdefer(SB), NOSPLIT, $-8-16
 	BR	(CTR)
 
 // Save state of caller into g->sched. Smashes R31.
-TEXT gosave<>(SB),NOSPLIT,$-8
+TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
 	MOVD	LR, R31
 	MOVD	R31, (g_sched+gobuf_pc)(g)
 	MOVD	R1, (g_sched+gobuf_sp)(g)
@@ -873,7 +873,7 @@ TEXT runtime·setg(SB), NOSPLIT, $0-8
 
 // void setg_gcc(G*); set g in C TLS.
 // Must obey the gcc calling convention.
-TEXT setg_gcc<>(SB),NOSPLIT,$-8-0
+TEXT setg_gcc<>(SB),NOSPLIT|NOFRAME,$0-0
 	// The standard prologue clobbers R31, which is callee-save in
 	// the C ABI, so we have to use $-8-0 and save LR ourselves.
 	MOVD	LR, R4
@@ -921,7 +921,7 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
 	MOVD	R3, ret+8(FP)
 	RET
 
-TEXT runtime·abort(SB),NOSPLIT,$-8-0
+TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
 
@@ -958,16 +958,16 @@ TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
 	RET
 
 // AES hashing not implemented for ppc64
-TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
+TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
 
-TEXT runtime·memeq(SB),NOSPLIT,$-8-25
+TEXT runtime·memeq(SB),NOSPLIT|NOFRAME,$0-25
 	MOVD	a+0(FP), R3
 	MOVD	b+8(FP), R4
 	MOVD	size+16(FP), R5
@@ -1115,7 +1115,7 @@ notfound:
 	MOVD	R3, ret+24(FP)
 	RET
 
-TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
+TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40
 	MOVD	s1_base+0(FP), R5
 	MOVD	s1_len+8(FP), R3
 	MOVD	s2_base+16(FP), R6
@@ -1123,7 +1123,7 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
 	MOVD	$ret+32(FP), R7
 	BR	runtime·cmpbody<>(SB)
 
-TEXT bytes·Compare(SB),NOSPLIT,$-4-56
+TEXT bytes·Compare(SB),NOSPLIT|NOFRAME,$0-56
 	MOVD	s1+0(FP), R5
 	MOVD	s1+8(FP), R3
 	MOVD	s2+24(FP), R6
@@ -1140,7 +1140,7 @@ TEXT bytes·Compare(SB),NOSPLIT,$-4-56
 //
 // On exit:
 // R5, R6, R8, R9 and R10 are clobbered
-TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
+TEXT runtime·cmpbody<>(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	R5, R6
 	BEQ	samebytes // same starting pointers; compare lengths
 	SUB	$1, R5
@@ -1191,7 +1191,7 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
 // Must obey the gcc calling convention.
-TEXT _cgo_topofstack(SB),NOSPLIT,$-8
+TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 	// g (R30) and R31 are callee-save in the C ABI, so save them
 	MOVD	g, R4
 	MOVD	R31, R5
@@ -1209,7 +1209,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$-8
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT,$-8-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit

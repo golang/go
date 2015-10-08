@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // void runtime·memclr(void*, uintptr)
-TEXT runtime·memclr(SB),NOSPLIT,$0-16
+TEXT runtime·memclr(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	ptr+0(FP), R3
 	MOVD	n+8(FP), R4
 	SRADCC	$3, R4, R6	// R6 is the number of words to zero

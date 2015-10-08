@@ -173,11 +173,11 @@ func zeroPPC64x(w io.Writer) {
 	// R0: always zero
 	// R3 (aka REGRT1): ptr to memory to be zeroed - 8
 	// On return, R3 points to the last zeroed dword.
-	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
 	for i := 0; i < 128; i++ {
 		fmt.Fprintln(w, "\tMOVDU\tR0, 8(R3)")
 	}
-	fmt.Fprintln(w, "\tRETURN")
+	fmt.Fprintln(w, "\tRET")
 }
 
 func copyPPC64x(w io.Writer) {

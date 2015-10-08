@@ -412,7 +412,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 		return
 	}
 	ctxt.Cursym = cursym
-	ctxt.Autosize = int32(p.To.Offset + 8)
+	ctxt.Autosize = int32(p.To.Offset)
 
 	if oprange[AANDN&obj.AMask].start == nil {
 		buildop(ctxt)

@@ -7,7 +7,7 @@
 #include "textflag.h"
 
 // void runtime·memmove(void*, void*, uintptr)
-TEXT runtime·memmove(SB), NOSPLIT, $-8-24
+TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
 	MOVD	to+0(FP), R3
 	MOVD	from+8(FP), R4
 	MOVD	n+16(FP), R5
