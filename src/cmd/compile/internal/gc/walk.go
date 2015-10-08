@@ -2674,7 +2674,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = list(nn, Nod(OAS, nodarg(t, 1), nil))
+			nn = list(nn, Nod(OAS, nodarg(t, -1), nil))
 		}
 
 		if v == nil || v.Class&PHEAP == 0 {
