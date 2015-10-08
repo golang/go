@@ -1,16 +1,25 @@
-;;; Copyright 2014 The Go Authors. All rights reserved.
-;;; Use of this source code is governed by a BSD-style
-;;; license that can be found in the LICENSE file.
-;;;
-;;; Integration of the 'gorename' tool into Emacs.
-;;;
-;;; To install:
-;;; % go get golang.org/x/tools/cmd/gorename
-;;; % go build golang.org/x/tools/cmd/gorename
-;;; % mv gorename $HOME/bin/         # or elsewhere on $PATH
-;;;
-;;; The go-rename-command variable can be customized to specify an
-;;; alternative location for the installed command.
+;;; go-rename.el --- Integration of the 'gorename' tool into Emacs.
+
+;; Copyright 2014 The Go Authors. All rights reserved.
+;; Use of this source code is governed by a BSD-style
+;; license that can be found in the LICENSE file.
+
+;; Version: 0.1
+;; Package-Requires: ((go-mode "1.3.1"))
+;; Keywords: tools
+
+;;; Commentary:
+
+;; To install:
+
+;; % go get golang.org/x/tools/cmd/gorename
+;; % go build golang.org/x/tools/cmd/gorename
+;; % mv gorename $HOME/bin/         # or elsewhere on $PATH
+
+;; The go-rename-command variable can be customized to specify an
+;; alternative location for the installed command.
+
+;;; Code:
 
 (require 'compile)
 (require 'go-mode)
@@ -94,3 +103,5 @@ the `gorename' tool. With FORCE, call `gorename' with the
                             (buffer-substring (point-min) (point-max))))
 
 (provide 'go-rename)
+
+;;; go-rename.el ends here
