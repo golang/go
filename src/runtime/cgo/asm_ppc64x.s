@@ -11,7 +11,7 @@
  * Save registers and call fn with two arguments.
  * crosscall2 obeys the C ABI; fn obeys the Go ABI.
  */
-TEXT crosscall2(SB),NOSPLIT,$-8
+TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	// TODO(austin): ABI v1 (fn is probably a function descriptor)
 
 	// Start with standard C stack frame layout and linkage
@@ -41,7 +41,7 @@ TEXT crosscall2(SB),NOSPLIT,$-8
 	MOVD	R0, LR
 	RET
 
-TEXT saveregs2<>(SB),NOSPLIT,$-8
+TEXT saveregs2<>(SB),NOSPLIT|NOFRAME,$0
 	// O=-288; for R in R{14..31}; do echo "\tMOVD\t$R, $O(R1)"|sed s/R30/g/; ((O+=8)); done; for F in F{14..31}; do echo "\tFMOVD\t$F, $O(R1)"; ((O+=8)); done
 	MOVD	R14, -288(R1)
 	MOVD	R15, -280(R1)
@@ -82,7 +82,7 @@ TEXT saveregs2<>(SB),NOSPLIT,$-8
 
 	RET
 
-TEXT restoreregs2<>(SB),NOSPLIT,$-8
+TEXT restoreregs2<>(SB),NOSPLIT|NOFRAME,$0
 	// O=-288; for R in R{14..31}; do echo "\tMOVD\t$O(R1), $R"|sed s/R30/g/; ((O+=8)); done; for F in F{14..31}; do echo "\tFMOVD\t$O(R1), $F"; ((O+=8)); done
 	MOVD	-288(R1), R14
 	MOVD	-280(R1), R15

@@ -39,4 +39,9 @@ const (
 	// Allocate a word of thread local storage and store the offset from the
 	// thread local base to the thread local storage in this variable.
 	TLSBSS = 256
+
+	// Do not insert instructions to allocate a stack frame for this function.
+	// Only valid on functions that declare a frame size of 0.
+	// TODO(mwhudson): only implemented for ppc64x at present.
+	NOFRAME = 512
 )

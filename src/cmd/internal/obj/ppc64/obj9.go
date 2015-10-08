@@ -124,6 +124,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	p := cursym.Text
 	textstksiz := p.To.Offset
+	if textstksiz == -8 {
+		// Compatibility hack.
+		p.From3.Offset |= obj.NOFRAME
+		textstksiz = 0
+	}
+	if textstksiz%8 != 0 {
+		ctxt.Diag("frame size %d not a multiple of 8", textstksiz)
+	}
+	if p.From3.Offset&obj.NOFRAME != 0 {
+		if textstksiz != 0 {
+			ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
+		}
+	}
 
 	cursym.Args = p.To.Val.(int32)
 	cursym.Locals = int32(textstksiz)
@@ -314,13 +327,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		case obj.ATEXT:
 			mov = AMOVD
 			aoffset = 0
-			autosize = int32(textstksiz + 8)
-			if (p.Mark&LEAF != 0) && autosize <= 8 {
-				autosize = 0
-			} else if autosize&4 != 0 {
-				autosize += 4
+			autosize = int32(textstksiz)
+
+			if p.Mark&LEAF != 0 && autosize == 0 && p.From3.Offset&obj.NOFRAME == 0 {
+				// A leaf function with no locals has no frame.
+				p.From3.Offset |= obj.NOFRAME
 			}
-			p.To.Offset = int64(autosize) - 8
+
+			if p.From3.Offset&obj.NOFRAME == 0 {
+				// If there is a stack frame at all, it includes
+				// space to save the LR.
+				autosize += 8
+			}
+
+			p.To.Offset = int64(autosize)
 
 			if p.From3.Offset&obj.NOSPLIT == 0 {
 				p = stacksplit(ctxt, p, autosize) // emit split check
@@ -344,11 +364,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					q.Spadj = +autosize
 				}
 			} else if cursym.Text.Mark&LEAF == 0 {
-				if ctxt.Debugvlog != 0 {
-					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
-					ctxt.Bso.Flush()
-				}
-
+				// A very few functions that do not return to their caller
+				// (e.g. gogo) are not identified as leaves but still have
+				// no frame.
 				cursym.Text.Mark |= LEAF
 			}
 

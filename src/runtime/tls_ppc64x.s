@@ -22,7 +22,7 @@
 // If !iscgo, this is a no-op.
 //
 // NOTE: setg_gcc<> assume this clobbers only R31.
-TEXT runtime·save_g(SB),NOSPLIT,$-8-0
+TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVB	runtime·iscgo(SB), R31
 	CMP	R31, $0
 	BEQ	nocgo
@@ -50,7 +50,7 @@ nocgo:
 // usual Go registers aren't set up.
 //
 // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
-TEXT runtime·load_g(SB),NOSPLIT,$-8-0
+TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	$runtime·tls_g(SB), R31
 	// R13 is the C ABI TLS base pointer + 0x7000
 	ADD	R13, R31
