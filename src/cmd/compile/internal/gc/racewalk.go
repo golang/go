@@ -11,7 +11,7 @@ import (
 
 // The racewalk pass modifies the code tree for the function as follows:
 //
-// 1. It inserts a call to racefuncenter at the beginning of each function.
+// 1. It inserts a call to racefuncenterfp at the beginning of each function.
 // 2. It inserts a call to racefuncexit at the end of each function.
 // 3. It inserts a call to raceread before each memory read.
 // 4. It inserts a call to racewrite before each memory write.
@@ -26,7 +26,7 @@ import (
 // at best instrumentation would cause infinite recursion.
 var omit_pkgs = []string{"runtime", "runtime/race"}
 
-// Only insert racefuncenter/racefuncexit into the following packages.
+// Only insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
 var noinst_pkgs = []string{"sync", "sync/atomic"}
 
@@ -64,15 +64,7 @@ func racewalk(fn *Node) {
 		racewalklist(fn.Func.Exit, nil)
 	}
 
-	// nodpc is the PC of the caller as extracted by
-	// getcallerpc. We use -widthptr(FP) for x86.
-	// BUG: this will not work on arm.
-	nodpc := Nod(OXXX, nil, nil)
-
-	*nodpc = *nodfp
-	nodpc.Type = Types[TUINTPTR]
-	nodpc.Xoffset = int64(-Widthptr)
-	nd := mkcall("racefuncenter", nil, nil, nodpc)
+	nd := mkcall("racefuncenterfp", nil, nil, Nod(OADDR, nodfp, nil))
 	fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
 	nd = mkcall("racefuncexit", nil, nil)
 	fn.Func.Exit = list(fn.Func.Exit, nd)

@@ -189,6 +189,7 @@ func complex128div(num complex128, den complex128) (quo complex128)
 
 // race detection
 func racefuncenter(uintptr)
+func racefuncenterfp(*int32)
 func racefuncexit()
 func raceread(uintptr)
 func racewrite(uintptr)

@@ -54,7 +54,8 @@ func tighten(f *Func) {
 		for _, b := range f.Blocks {
 			for i := 0; i < len(b.Values); i++ {
 				v := b.Values[i]
-				if v.Op == OpPhi {
+				if v.Op == OpPhi || v.Op == OpGetClosurePtr {
+					// GetClosurePtr must stay in entry block
 					continue
 				}
 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {

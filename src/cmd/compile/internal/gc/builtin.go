@@ -151,6 +151,7 @@ const runtimeimport = "" +
 	"func @\"\".uint64tofloat64 (? uint64) (? float64)\n" +
 	"func @\"\".complex128div (@\"\".num·2 complex128, @\"\".den·3 complex128) (@\"\".quo·1 complex128)\n" +
 	"func @\"\".racefuncenter (? uintptr)\n" +
+	"func @\"\".racefuncenterfp (? *int32)\n" +
 	"func @\"\".racefuncexit ()\n" +
 	"func @\"\".raceread (? uintptr)\n" +
 	"func @\"\".racewrite (? uintptr)\n" +
