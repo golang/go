@@ -83,7 +83,6 @@ func Ldmain() {
 	obj.Flagint32("R", "set address rounding `quantum`", &INITRND)
 	obj.Flagint64("T", "set text segment `address`", &INITTEXT)
 	obj.Flagfn0("V", "print version and exit", doversion)
-	obj.Flagcount("W", "disassemble input", &Debug['W'])
 	obj.Flagfn1("X", "add string value `definition` of the form importpath.name=value", addstrdata1)
 	obj.Flagcount("a", "disassemble output", &Debug['a'])
 	obj.Flagstr("buildid", "record `id` as Go toolchain build id", &buildid)
