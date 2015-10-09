@@ -1732,8 +1732,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case ODOT:
-		v := s.expr(n.Left)
-		return s.newValue1I(ssa.OpStructSelect, n.Type, n.Xoffset, v)
+		// TODO: fix when we can SSA struct types.
+		p := s.addr(n)
+		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case ODOTPTR:
 		p := s.expr(n.Left)
@@ -1742,29 +1743,29 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
-		if n.Left.Type.Bound >= 0 { // array or string
+		switch {
+		case n.Left.Type.IsString():
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			if n.Left.Type.IsString() {
-				if !n.Bounded {
-					len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
-					s.boundsCheck(i, len)
-				}
-				ptrtyp := Ptrto(Types[TUINT8])
-				ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
-				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
-				return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
-			} else {
-				if !n.Bounded {
-					len := s.constInt(Types[TINT], n.Left.Type.Bound)
-					s.boundsCheck(i, len)
-				}
-				return s.newValue2(ssa.OpArrayIndex, n.Left.Type.Type, a, i)
+			if !n.Bounded {
+				len := s.newValue1(ssa.OpStringLen, Types[TINT], a)
+				s.boundsCheck(i, len)
 			}
-		} else { // slice
+			ptrtyp := Ptrto(Types[TUINT8])
+			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
+			ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
+		case n.Left.Type.IsSlice():
 			p := s.addr(n)
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+		case n.Left.Type.IsArray():
+			// TODO: fix when we can SSA arrays of length 1.
+			p := s.addr(n)
+			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
+		default:
+			s.Fatalf("bad type for index %v", n.Left.Type)
+			return nil
 		}
 
 	case OLEN, OCAP:
