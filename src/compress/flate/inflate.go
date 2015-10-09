@@ -465,6 +465,14 @@ func (f *decompressor) readHuffman() error {
 		return CorruptInputError(f.roffset)
 	}
 
+	// As an optimization, we can initialize the min bits to read at a time
+	// for the HLIT tree to the length of the EOB marker since we know that
+	// every block must terminate with one. This preserves the property that
+	// we never read any extra bytes after the end of the DEFLATE stream.
+	if f.h1.min < f.bits[endBlockMarker] {
+		f.h1.min = f.bits[endBlockMarker]
+	}
+
 	return nil
 }
 
