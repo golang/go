@@ -247,11 +247,11 @@ func (p *Prog) From3Offset() int64 {
 // by clients such as the compiler. The exact meaning of this
 // data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
 type ProgInfo struct {
+	_        struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
+	Flags    uint32   // flag bits
 	Reguse   uint64   // registers implicitly used by this instruction
 	Regset   uint64   // registers implicitly set by this instruction
 	Regindex uint64   // registers used by addressing mode
-	Flags    uint32   // flag bits
-	_        struct{} // to prevent unkeyed literals
 }
 
 // Prog.as opcodes.
