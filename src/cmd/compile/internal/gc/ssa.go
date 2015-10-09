@@ -1250,7 +1250,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case OPARAM:
-		addr := s.addr(n)
+		addr := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Left.Type, addr, s.mem())
 	case ONAME:
 		if n.Class == PFUNC {
@@ -1262,10 +1262,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if canSSA(n) {
 			return s.variable(n, n.Type)
 		}
-		addr := s.addr(n)
+		addr := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 	case OCLOSUREVAR:
-		addr := s.addr(n)
+		addr := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
 	case OLITERAL:
 		switch n.Val().Ctype() {
@@ -1376,8 +1376,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		}
 
 		if flag_race != 0 {
-			s.Unimplementedf("questionable CONVNOP from race detector %v -> %v\n", from, to)
-			return nil
+			// These appear to be fine, but they fail the
+			// integer constraint below, so okay them here.
+			// Sample non-integer conversion: map[string]string -> *uint8
+			return v
 		}
 
 		if etypesign(from.Etype) == 0 {
@@ -1716,7 +1718,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.expr(n.Left)
 
 	case OADDR:
-		return s.addr(n.Left)
+		return s.addr(n.Left, n.Bounded)
 
 	case OINDREG:
 		if int(n.Reg) != Thearch.REGSP {
@@ -1733,7 +1735,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 	case ODOT:
 		// TODO: fix when we can SSA struct types.
-		p := s.addr(n)
+		p := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case ODOTPTR:
@@ -1757,11 +1759,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
 			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
 		case n.Left.Type.IsSlice():
-			p := s.addr(n)
+			p := s.addr(n, false)
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
 		case n.Left.Type.IsArray():
 			// TODO: fix when we can SSA arrays of length 1.
-			p := s.addr(n)
+			p := s.addr(n, false)
 			return s.newValue2(ssa.OpLoad, n.Left.Type.Type, p, s.mem())
 		default:
 			s.Fatalf("bad type for index %v", n.Left.Type)
@@ -1927,7 +1929,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				args = append(args, s.expr(l.N))
 				store = append(store, true)
 			} else {
-				args = append(args, s.addr(l.N))
+				args = append(args, s.addr(l.N, false))
 				store = append(store, false)
 			}
 		}
@@ -1970,7 +1972,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 		// right == nil means use the zero value of the assigned type.
 		if !canSSA(left) {
 			// if we can't ssa this memory, treat it as just zeroing out the backing memory
-			addr := s.addr(left)
+			addr := s.addr(left, false)
 			if left.Op == ONAME {
 				s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 			}
@@ -1985,7 +1987,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 		return
 	}
 	// not ssa-able.  Treat as a store.
-	addr := s.addr(left)
+	addr := s.addr(left, false)
 	if left.Op == ONAME {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
@@ -2187,7 +2189,9 @@ func etypesign(e uint8) int8 {
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
 // The value that the returned Value represents is guaranteed to be non-nil.
-func (s *state) addr(n *Node) *ssa.Value {
+// If bounded is true then this address does not require a nil check for its operand
+// even if that would otherwise be implied.
+func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 	switch n.Op {
 	case ONAME:
 		switch n.Class {
@@ -2250,7 +2254,7 @@ func (s *state) addr(n *Node) *ssa.Value {
 			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
 		} else { // array
-			a := s.addr(n.Left)
+			a := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
 			len := s.constInt(Types[TINT], n.Left.Type.Bound)
@@ -2261,14 +2265,18 @@ func (s *state) addr(n *Node) *ssa.Value {
 		}
 	case OIND:
 		p := s.expr(n.Left)
-		s.nilCheck(p)
+		if !bounded {
+			s.nilCheck(p)
+		}
 		return p
 	case ODOT:
-		p := s.addr(n.Left)
+		p := s.addr(n.Left, bounded)
 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case ODOTPTR:
 		p := s.expr(n.Left)
-		s.nilCheck(p)
+		if !bounded {
+			s.nilCheck(p)
+		}
 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case OCLOSUREVAR:
 		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
@@ -2285,6 +2293,11 @@ func (s *state) addr(n *Node) *ssa.Value {
 		original_p.Xoffset = n.Xoffset
 		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
 		return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+	case OCONVNOP:
+		addr := s.addr(n.Left, bounded)
+		to := Ptrto(n.Type)
+		return s.newValue1(ssa.OpCopy, to, addr) // ensure that addr has the right type
+
 	default:
 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
 		return nil

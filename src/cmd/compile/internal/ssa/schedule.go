@@ -86,7 +86,7 @@ func schedule(f *Func) {
 				// in the entry block where there are no phi functions, so there is no
 				// conflict or ambiguity here.
 				if b != f.Entry {
-					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block.")
+					f.Fatalf("LoweredGetClosurePtr appeared outside of entry block, b=%s", b.String())
 				}
 				score[v.ID] = ScorePhi
 			case v.Op == OpPhi:
