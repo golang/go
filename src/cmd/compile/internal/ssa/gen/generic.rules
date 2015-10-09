@@ -75,9 +75,9 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(ArrayIndex (Load ptr mem) idx) -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+(ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
 (PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
-(StructSelect [idx] (Load ptr mem)) -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+(StructSelect [idx] (Load ptr mem)) && b == v.Args[0].Block -> (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // complex ops
 (ComplexReal (ComplexMake real _  )) -> real
