@@ -13,7 +13,6 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -439,7 +438,7 @@ func runTest(cmd *Command, args []string) {
 		}
 		for _, p := range testCoverPkgs {
 			if !used[p.ImportPath] {
-				log.Printf("warning: no packages being tested depend on %s", p.ImportPath)
+				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on %s\n", p.ImportPath)
 			}
 		}
 
