@@ -14,6 +14,8 @@ func isExist(err error) bool {
 		err = pe.Err
 	case *LinkError:
 		err = pe.Err
+	case *SyscallError:
+		err = pe.Err
 	}
 	return err == syscall.ERROR_ALREADY_EXISTS ||
 		err == syscall.ERROR_FILE_EXISTS || err == ErrExist
@@ -29,6 +31,8 @@ func isNotExist(err error) bool {
 		err = pe.Err
 	case *LinkError:
 		err = pe.Err
+	case *SyscallError:
+		err = pe.Err
 	}
 	return err == syscall.ERROR_FILE_NOT_FOUND ||
 		err == _ERROR_BAD_NETPATH ||
@@ -42,6 +46,8 @@ func isPermission(err error) bool {
 	case *PathError:
 		err = pe.Err
 	case *LinkError:
+		err = pe.Err
+	case *SyscallError:
 		err = pe.Err
 	}
 	return err == syscall.ERROR_ACCESS_DENIED || err == ErrPermission
