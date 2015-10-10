@@ -369,11 +369,11 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 type RepoRoot struct {
 	VCS *Cmd
 
-	// repo is the repository URL, including scheme
+	// Repo is the repository URL, including scheme.
 	Repo string
 
-	// root is the import path corresponding to the root of the
-	// repository
+	// Root is the import path corresponding to the root of the
+	// repository.
 	Root string
 }
 
