@@ -148,7 +148,7 @@ func (p *RGBA) Opaque() bool {
 	return true
 }
 
-// NewRGBA returns a new RGBA with the given bounds.
+// NewRGBA returns a new RGBA image with the given bounds.
 func NewRGBA(r Rectangle) *RGBA {
 	w, h := r.Dx(), r.Dy()
 	buf := make([]uint8, 4*w*h)
@@ -260,7 +260,7 @@ func (p *RGBA64) Opaque() bool {
 	return true
 }
 
-// NewRGBA64 returns a new RGBA64 with the given bounds.
+// NewRGBA64 returns a new RGBA64 image with the given bounds.
 func NewRGBA64(r Rectangle) *RGBA64 {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 8*w*h)
@@ -359,7 +359,7 @@ func (p *NRGBA) Opaque() bool {
 	return true
 }
 
-// NewNRGBA returns a new NRGBA with the given bounds.
+// NewNRGBA returns a new NRGBA image with the given bounds.
 func NewNRGBA(r Rectangle) *NRGBA {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 4*w*h)
@@ -471,7 +471,7 @@ func (p *NRGBA64) Opaque() bool {
 	return true
 }
 
-// NewNRGBA64 returns a new NRGBA64 with the given bounds.
+// NewNRGBA64 returns a new NRGBA64 image with the given bounds.
 func NewNRGBA64(r Rectangle) *NRGBA64 {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 8*w*h)
@@ -563,7 +563,7 @@ func (p *Alpha) Opaque() bool {
 	return true
 }
 
-// NewAlpha returns a new Alpha with the given bounds.
+// NewAlpha returns a new Alpha image with the given bounds.
 func NewAlpha(r Rectangle) *Alpha {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
@@ -658,7 +658,7 @@ func (p *Alpha16) Opaque() bool {
 	return true
 }
 
-// NewAlpha16 returns a new Alpha16 with the given bounds.
+// NewAlpha16 returns a new Alpha16 image with the given bounds.
 func NewAlpha16(r Rectangle) *Alpha16 {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 2*w*h)
@@ -737,7 +737,7 @@ func (p *Gray) Opaque() bool {
 	return true
 }
 
-// NewGray returns a new Gray with the given bounds.
+// NewGray returns a new Gray image with the given bounds.
 func NewGray(r Rectangle) *Gray {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
@@ -819,7 +819,7 @@ func (p *Gray16) Opaque() bool {
 	return true
 }
 
-// NewGray16 returns a new Gray16 with the given bounds.
+// NewGray16 returns a new Gray16 image with the given bounds.
 func NewGray16(r Rectangle) *Gray16 {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 2*w*h)
@@ -905,7 +905,7 @@ func (p *CMYK) Opaque() bool {
 	return true
 }
 
-// NewCMYK returns a new CMYK with the given bounds.
+// NewCMYK returns a new CMYK image with the given bounds.
 func NewCMYK(r Rectangle) *CMYK {
 	w, h := r.Dx(), r.Dy()
 	buf := make([]uint8, 4*w*h)
@@ -1014,7 +1014,8 @@ func (p *Paletted) Opaque() bool {
 	return true
 }
 
-// NewPaletted returns a new Paletted with the given width, height and palette.
+// NewPaletted returns a new Paletted image with the given width, height and
+// palette.
 func NewPaletted(r Rectangle, p color.Palette) *Paletted {
 	w, h := r.Dx(), r.Dy()
 	pix := make([]uint8, 1*w*h)
