@@ -1941,6 +1941,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OINDEX:
 		switch {
 		case n.Left.Type.IsString():
+			if n.Bounded && Isconst(n.Left, CTSTR) && Isconst(n.Right, CTINT) {
+				// Replace "abc"[1] with 'b'.
+				// Delayed until now because "abc"[1] is not an ideal constant.
+				// See test/fixedbugs/issue11370.go.
+				return s.newValue0I(ssa.OpConst8, Types[TUINT8], int64(int8(n.Left.Val().U.(string)[n.Right.Int64()])))
+			}
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i, panicindex)

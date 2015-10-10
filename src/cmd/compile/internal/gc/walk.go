@@ -1263,18 +1263,8 @@ opswitch:
 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
 				Warn("index bounds check elided")
 			}
-			if smallintconst(n.Right) {
-				if !n.Bounded {
-					yyerror("index out of bounds")
-				} else {
-					// replace "abc"[1] with 'b'.
-					// delayed until now because "abc"[1] is not
-					// an ideal constant.
-					v := n.Right.Int64()
-
-					Nodconst(n, n.Type, int64(n.Left.Val().U.(string)[v]))
-					n.Typecheck = 1
-				}
+			if smallintconst(n.Right) && !n.Bounded {
+				yyerror("index out of bounds")
 			}
 		}
 
