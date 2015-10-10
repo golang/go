@@ -150,7 +150,7 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
 			break
 		}
 		r.buf = append(r.buf, ' ')
-		r.buf = append(r.buf, line...)
+		r.buf = append(r.buf, trim(line)...)
 	}
 	return r.buf, nil
 }
