@@ -207,6 +207,7 @@ type OmitAttrTest struct {
 	Bool  bool    `xml:",attr,omitempty"`
 	Str   string  `xml:",attr,omitempty"`
 	Bytes []byte  `xml:",attr,omitempty"`
+	PStr  *string `xml:",attr,omitempty"`
 }
 
 type OmitFieldTest struct {
@@ -217,6 +218,7 @@ type OmitFieldTest struct {
 	Bool  bool          `xml:",omitempty"`
 	Str   string        `xml:",omitempty"`
 	Bytes []byte        `xml:",omitempty"`
+	PStr  *string       `xml:",omitempty"`
 	Ptr   *PresenceTest `xml:",omitempty"`
 }
 
@@ -377,6 +379,7 @@ var (
 	nameAttr     = "Sarah"
 	ageAttr      = uint(12)
 	contentsAttr = "lorem ipsum"
+	empty = ""
 )
 
 // Unless explicitly stated as such (or *Plain), all of the
@@ -835,9 +838,10 @@ var marshalTests = []struct {
 			Bool:  true,
 			Str:   "str",
 			Bytes: []byte("byt"),
+			PStr:  &empty,
 		},
 		ExpectXML: `<OmitAttrTest Int="8" int="9" Float="23.5" Uint8="255"` +
-			` Bool="true" Str="str" Bytes="byt"></OmitAttrTest>`,
+			` Bool="true" Str="str" Bytes="byt" PStr=""></OmitAttrTest>`,
 	},
 	{
 		Value:     &OmitAttrTest{},
@@ -868,6 +872,7 @@ var marshalTests = []struct {
 			Bool:  true,
 			Str:   "str",
 			Bytes: []byte("byt"),
+			PStr:   &empty,
 			Ptr:   &PresenceTest{},
 		},
 		ExpectXML: `<OmitFieldTest>` +
@@ -878,6 +883,7 @@ var marshalTests = []struct {
 			`<Bool>true</Bool>` +
 			`<Str>str</Str>` +
 			`<Bytes>byt</Bytes>` +
+			`<PStr></PStr>` +
 			`<Ptr></Ptr>` +
 			`</OmitFieldTest>`,
 	},

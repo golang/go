@@ -760,14 +760,6 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		}
 		vf := finfo.value(val)
 
-		// Dereference or skip nil pointer, interface values.
-		switch vf.Kind() {
-		case reflect.Ptr, reflect.Interface:
-			if !vf.IsNil() {
-				vf = vf.Elem()
-			}
-		}
-
 		switch finfo.flags & fMode {
 		case fCDATA, fCharData:
 			emit := EscapeText
@@ -800,6 +792,16 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 					continue
 				}
 			}
+			// Drill into interfaces and pointers.
+			// This can turn into an infinite loop given a cyclic chain,
+			// but it matches the Go 1 behavior.
+			for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Ptr {
+				if vf.IsNil() {
+					return nil
+				}
+				vf = vf.Elem()
+			}
+
 			var scratch [64]byte
 			switch vf.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
