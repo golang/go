@@ -101,7 +101,7 @@ and test commands:
 		arguments to pass on each go tool link invocation.
 	-linkshared
 		link against shared libraries previously created with
-		-buildmode=shared
+		-buildmode=shared.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
@@ -332,6 +332,9 @@ func buildModeInit() {
 	_, gccgo := buildToolchain.(gccgoToolchain)
 	var codegenArg string
 	platform := goos + "/" + goarch
+	if buildBuildmode != "default" {
+		buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_"+strings.Replace(buildBuildmode, "-", "_", -1)+"=1")
+	}
 	switch buildBuildmode {
 	case "archive":
 		pkgsFilter = pkgsNotMain
@@ -375,7 +378,7 @@ func buildModeInit() {
 			fatalf("-buildmode=pie not supported by gccgo")
 		} else {
 			switch platform {
-			case "android/arm", "linux/amd64", "android/amd64":
+			case "android/arm", "linux/amd64", "android/amd64", "linux/ppc64le":
 				codegenArg = "-shared"
 			default:
 				fatalf("-buildmode=pie not supported on %s\n", platform)
@@ -389,7 +392,6 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
-				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				fatalf("-buildmode=shared not supported on %s\n", platform)
 			}
@@ -407,7 +409,7 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
 				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				fatalf("-buildmode=shared not supported on %s\n", platform)
