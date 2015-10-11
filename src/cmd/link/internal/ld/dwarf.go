@@ -1717,10 +1717,7 @@ func writelines() {
 
 			case obj.A_PARAM:
 				dt = DW_ABRV_PARAM
-				offs = int64(a.Aoffset)
-				if haslinkregister() {
-					offs += int64(Thearch.Ptrsize)
-				}
+				offs = int64(a.Aoffset) + Ctxt.FixedFrameSize()
 
 			default:
 				continue
