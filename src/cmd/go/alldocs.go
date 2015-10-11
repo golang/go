@@ -122,7 +122,7 @@ and test commands:
 		arguments to pass on each go tool link invocation.
 	-linkshared
 		link against shared libraries previously created with
-		-buildmode=shared
+		-buildmode=shared.
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,

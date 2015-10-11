@@ -98,6 +98,11 @@ func archinit() {
 		ld.Linkmode = ld.LinkInternal
 	}
 
+	switch ld.Buildmode {
+	case ld.BuildmodePIE:
+		ld.Linkmode = ld.LinkExternal
+	}
+
 	switch ld.HEADTYPE {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
