@@ -1586,7 +1586,7 @@ yydefault:
 				}
 				if yyDollar[1].list.Next != nil {
 					Yyerror("argument count mismatch: %d = %d", count(yyDollar[1].list), 1)
-				} else if (yyDollar[1].list.N.Op != ONAME && yyDollar[1].list.N.Op != OTYPE && yyDollar[1].list.N.Op != ONONAME) || isblank(yyDollar[1].list.N) {
+				} else if (yyDollar[1].list.N.Op != ONAME && yyDollar[1].list.N.Op != OTYPE && yyDollar[1].list.N.Op != ONONAME && (yyDollar[1].list.N.Op != OLITERAL || yyDollar[1].list.N.Name == nil)) || isblank(yyDollar[1].list.N) {
 					Yyerror("invalid variable name %s in type switch", yyDollar[1].list.N)
 				} else {
 					yyVAL.node.Left = dclname(yyDollar[1].list.N.Sym)
