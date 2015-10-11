@@ -510,7 +510,7 @@ simple_stmt:
 			}
 			if $1.Next != nil {
 				Yyerror("argument count mismatch: %d = %d", count($1), 1);
-			} else if ($1.N.Op != ONAME && $1.N.Op != OTYPE && $1.N.Op != ONONAME) || isblank($1.N) {
+			} else if ($1.N.Op != ONAME && $1.N.Op != OTYPE && $1.N.Op != ONONAME && ($1.N.Op != OLITERAL || $1.N.Name == nil)) || isblank($1.N) {
 				Yyerror("invalid variable name %s in type switch", $1.N);
 			} else {
 				$$.Left = dclname($1.N.Sym);
