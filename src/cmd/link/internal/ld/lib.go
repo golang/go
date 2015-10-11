@@ -1518,7 +1518,7 @@ var morestack *LSym
 // allow stack checks here.
 
 func haslinkregister() bool {
-	return Thearch.Thechar == '5' || Thearch.Thechar == '9' || Thearch.Thechar == '7'
+	return Ctxt.FixedFrameSize() != 0
 }
 
 func callsize() int {
@@ -1626,10 +1626,7 @@ func stkcheck(up *Chain, depth int) int {
 			return 0
 		}
 		// Raise limit to allow frame.
-		limit = int(obj.StackLimit + s.Locals)
-		if haslinkregister() {
-			limit += Thearch.Regsize
-		}
+		limit = int(obj.StackLimit+s.Locals) + int(Ctxt.FixedFrameSize())
 	}
 
 	// Walk through sp adjustments in function, consuming relocs.
