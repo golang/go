@@ -132,11 +132,11 @@ func BenchSetType(n int, x interface{}) {
 	var size uintptr
 	var p unsafe.Pointer
 	switch t.kind & kindMask {
-	case _KindPtr:
+	case kindPtr:
 		t = (*ptrtype)(unsafe.Pointer(t)).elem
 		size = t.size
 		p = e.data
-	case _KindSlice:
+	case kindSlice:
 		slice := *(*struct {
 			ptr      unsafe.Pointer
 			len, cap uintptr
