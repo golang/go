@@ -426,7 +426,6 @@ end:						\
 	BL	runtime·callwritebarrier(SB);	\
 	RET
 
-CALLFN(·call16, 16)
 CALLFN(·call32, 32)
 CALLFN(·call64, 64)
 CALLFN(·call128, 128)
@@ -1227,3 +1226,6 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-8
 
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 	RET
+
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
+        RET
