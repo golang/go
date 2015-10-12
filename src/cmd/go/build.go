@@ -501,6 +501,10 @@ func libname(args []string) string {
 }
 
 func runInstall(cmd *Command, args []string) {
+	if gobin != "" && !filepath.IsAbs(gobin) {
+		fatalf("cannot install, GOBIN must be an absolute path")
+	}
+
 	raceInit()
 	buildModeInit()
 	pkgs := pkgsFilter(packagesForBuild(args))
