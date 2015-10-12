@@ -1145,6 +1145,15 @@ func TestInstallFailsWithNoBuildableFiles(t *testing.T) {
 	tg.grepStderr("no buildable Go source files", "go install cgotest did not report 'no buildable Go Source files'")
 }
 
+func TestRelativeGOBINFail(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("triv.go", `package main; func main() {}`)
+	tg.setenv("GOBIN", ".")
+	tg.runFail("install")
+	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
+}
+
 // Test that without $GOBIN set, binaries get installed
 // into the GOPATH bin directory.
 func TestInstallIntoGOPATH(t *testing.T) {
