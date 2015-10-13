@@ -456,6 +456,55 @@ some body`,
 
 		"",
 	},
+
+	// Issue 12785: HTTP/1.0 response with bogus (to be ignored) Transfer-Encoding.
+	// Without a Content-Length.
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Transfer-Encoding: bogus\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.0",
+			ProtoMajor:    1,
+			ProtoMinor:    0,
+			Request:       dummyReq("GET"),
+			Header:        Header{},
+			Close:         true,
+			ContentLength: -1,
+		},
+
+		"Body here\n",
+	},
+
+	// Issue 12785: HTTP/1.0 response with bogus (to be ignored) Transfer-Encoding.
+	// With a Content-Length.
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Transfer-Encoding: bogus\r\n" +
+			"Content-Length: 10\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Content-Length": {"10"},
+			},
+			Close:         true,
+			ContentLength: 10,
+		},
+
+		"Body here\n",
+	},
 }
 
 func TestReadResponse(t *testing.T) {

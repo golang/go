@@ -271,6 +271,10 @@ type transferReader struct {
 	Trailer          Header
 }
 
+func (t *transferReader) protoAtLeast(m, n int) bool {
+	return t.ProtoMajor > m || (t.ProtoMajor == m && t.ProtoMinor >= n)
+}
+
 // bodyAllowedForStatus reports whether a given response status code
 // permits a body.  See RFC2616, section 4.4.
 func bodyAllowedForStatus(status int) bool {
@@ -337,7 +341,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	}
 
 	// Transfer encoding, content length
-	t.TransferEncoding, err = fixTransferEncoding(isResponse, t.RequestMethod, t.Header)
+	err = t.fixTransferEncoding()
 	if err != nil {
 		return err
 	}
@@ -424,13 +428,18 @@ func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
 // Checks whether the encoding is explicitly "identity".
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
 
-// Sanitize transfer encoding
-func fixTransferEncoding(isResponse bool, requestMethod string, header Header) ([]string, error) {
-	raw, present := header["Transfer-Encoding"]
+// fixTransferEncoding sanitizes t.TransferEncoding, if needed.
+func (t *transferReader) fixTransferEncoding() error {
+	raw, present := t.Header["Transfer-Encoding"]
 	if !present {
-		return nil, nil
+		return nil
 	}
-	delete(header, "Transfer-Encoding")
+	delete(t.Header, "Transfer-Encoding")
+
+	// Issue 12785; ignore Transfer-Encoding on HTTP/1.0 requests.
+	if !t.protoAtLeast(1, 1) {
+		return nil
+	}
 
 	encodings := strings.Split(raw[0], ",")
 	te := make([]string, 0, len(encodings))
@@ -445,13 +454,13 @@ func fixTransferEncoding(isResponse bool, requestMethod string, header Header) (
 			break
 		}
 		if encoding != "chunked" {
-			return nil, &badStringError{"unsupported transfer encoding", encoding}
+			return &badStringError{"unsupported transfer encoding", encoding}
 		}
 		te = te[0 : len(te)+1]
 		te[len(te)-1] = encoding
 	}
 	if len(te) > 1 {
-		return nil, &badStringError{"too many transfer encodings", strings.Join(te, ",")}
+		return &badStringError{"too many transfer encodings", strings.Join(te, ",")}
 	}
 	if len(te) > 0 {
 		// RFC 7230 3.3.2 says "A sender MUST NOT send a
@@ -470,11 +479,12 @@ func fixTransferEncoding(isResponse bool, requestMethod string, header Header) (
 		// such a message downstream."
 		//
 		// Reportedly, these appear in the wild.
-		delete(header, "Content-Length")
-		return te, nil
+		delete(t.Header, "Content-Length")
+		t.TransferEncoding = te
+		return nil
 	}
 
-	return nil, nil
+	return nil
 }
 
 // Determine the expected body length, using RFC 2616 Section 4.4. This
