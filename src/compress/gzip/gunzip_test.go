@@ -415,7 +415,7 @@ func TestNilStream(t *testing.T) {
 	// consist of zero or more members. Thus, we test that a nil stream is okay.
 	_, err := NewReader(bytes.NewReader(nil))
 	if err != io.EOF {
-		t.Fatalf("NewReader(nil) on empty stream: got %v, want &v", err, io.EOF)
+		t.Fatalf("NewReader(nil) on empty stream: got %v, want io.EOF", err)
 	}
 }
 
