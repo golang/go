@@ -478,10 +478,8 @@
 // as the original load.  If not, we end up making a value with
 // memory type live in two different blocks, which can lead to
 // multiple memory values alive simultaneously.
-// TODO: somehow have this rewrite rule put the new MOVBQSXload in
-// v.Args[0].Block instead of in v.Block?
-(MOVBQSX (MOVBload [off] {sym} ptr mem)) && b == v.Args[0].Block -> (MOVBQSXload [off] {sym} ptr mem)
-(MOVBQZX (MOVBload [off] {sym} ptr mem)) && b == v.Args[0].Block -> (MOVBQZXload [off] {sym} ptr mem)
+(MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
 // TODO: more
 
 // Don't extend before storing
