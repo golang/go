@@ -3973,59 +3973,59 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		;
 	case OpAMD64MOVBQSX:
 		// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
-		// cond: b == v.Args[0].Block
-		// result: (MOVBQSXload [off] {sym} ptr mem)
+		// cond:
+		// result: @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
 		{
 			if v.Args[0].Op != OpAMD64MOVBload {
-				goto end4fcdab76af223d4a6b942b532ebf860b
+				goto end19c38f3a1a37dca50637c917fa26e4f7
 			}
 			off := v.Args[0].AuxInt
 			sym := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
-			if !(b == v.Args[0].Block) {
-				goto end4fcdab76af223d4a6b942b532ebf860b
-			}
-			v.Op = OpAMD64MOVBQSXload
+			v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQSXload, TypeInvalid)
+			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.AuxInt = off
-			v.Aux = sym
-			v.AddArg(ptr)
-			v.AddArg(mem)
+			v.AddArg(v0)
+			v0.Type = v.Type
+			v0.AuxInt = off
+			v0.Aux = sym
+			v0.AddArg(ptr)
+			v0.AddArg(mem)
 			return true
 		}
-		goto end4fcdab76af223d4a6b942b532ebf860b
-	end4fcdab76af223d4a6b942b532ebf860b:
+		goto end19c38f3a1a37dca50637c917fa26e4f7
+	end19c38f3a1a37dca50637c917fa26e4f7:
 		;
 	case OpAMD64MOVBQZX:
 		// match: (MOVBQZX (MOVBload [off] {sym} ptr mem))
-		// cond: b == v.Args[0].Block
-		// result: (MOVBQZXload [off] {sym} ptr mem)
+		// cond:
+		// result: @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
 		{
 			if v.Args[0].Op != OpAMD64MOVBload {
-				goto endce35c966b0a38aa124a610e5616a220c
+				goto end1169bcf3d56fa24321b002eaebd5a62d
 			}
 			off := v.Args[0].AuxInt
 			sym := v.Args[0].Aux
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
-			if !(b == v.Args[0].Block) {
-				goto endce35c966b0a38aa124a610e5616a220c
-			}
-			v.Op = OpAMD64MOVBQZXload
+			v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQZXload, TypeInvalid)
+			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v.AuxInt = off
-			v.Aux = sym
-			v.AddArg(ptr)
-			v.AddArg(mem)
+			v.AddArg(v0)
+			v0.Type = v.Type
+			v0.AuxInt = off
+			v0.Aux = sym
+			v0.AddArg(ptr)
+			v0.AddArg(mem)
 			return true
 		}
-		goto endce35c966b0a38aa124a610e5616a220c
-	endce35c966b0a38aa124a610e5616a220c:
+		goto end1169bcf3d56fa24321b002eaebd5a62d
+	end1169bcf3d56fa24321b002eaebd5a62d:
 		;
 	case OpAMD64MOVBload:
 		// match: (MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem)

@@ -26,7 +26,7 @@ import (
 )
 
 // rule syntax:
-//  sexpr [&& extra conditions] -> sexpr
+//  sexpr [&& extra conditions] -> [@block] sexpr
 //
 // sexpr are s-expressions (lisp-like parenthesized groupings)
 // sexpr ::= (opcode sexpr*)
@@ -266,7 +266,7 @@ func genRules(arch arch) {
 			if t[1] == "nil" {
 				fmt.Fprintf(w, "b.Control = nil\n")
 			} else {
-				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false))
+				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, "b"))
 			}
 			if len(newsuccs) < len(succs) {
 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
@@ -407,9 +407,16 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 }
 
 func genResult(w io.Writer, arch arch, result string) {
-	genResult0(w, arch, result, new(int), true)
+	loc := "b"
+	if result[0] == '@' {
+		// parse @block directive
+		s := strings.SplitN(result[1:], " ", 2)
+		loc = s[0]
+		result = s[1]
+	}
+	genResult0(w, arch, result, new(int), true, loc)
 }
-func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) string {
+func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc string) string {
 	if result[0] != '(' {
 		// variable
 		if top {
@@ -429,7 +436,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 	s := split(result[1 : len(result)-1]) // remove parens, then split
 	var v string
 	var hasType bool
-	if top {
+	if top && loc == "b" {
 		v = "v"
 		fmt.Fprintf(w, "v.Op = %s\n", opName(s[0], arch))
 		fmt.Fprintf(w, "v.AuxInt = 0\n")
@@ -439,7 +446,15 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 	} else {
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, TypeInvalid)\n", v, opName(s[0], arch))
+		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, TypeInvalid)\n", v, loc, opName(s[0], arch))
+		if top {
+			// Rewrite original into a copy
+			fmt.Fprintf(w, "v.Op = OpCopy\n")
+			fmt.Fprintf(w, "v.AuxInt = 0\n")
+			fmt.Fprintf(w, "v.Aux = nil\n")
+			fmt.Fprintf(w, "v.resetArgs()\n")
+			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
+		}
 	}
 	for _, a := range s[1:] {
 		if a[0] == '<' {
@@ -457,7 +472,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool) str
 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
 		} else {
 			// regular argument (sexpr or variable)
-			x := genResult0(w, arch, a, alloc, false)
+			x := genResult0(w, arch, a, alloc, false, loc)
 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
 		}
 	}

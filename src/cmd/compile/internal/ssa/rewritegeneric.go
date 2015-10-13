@@ -1513,32 +1513,32 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		;
 	case OpStructSelect:
 		// match: (StructSelect [idx] (Load ptr mem))
-		// cond: b == v.Args[0].Block
-		// result: (Load (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+		// cond:
+		// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 		{
 			idx := v.AuxInt
 			if v.Args[0].Op != OpLoad {
-				goto endd1a92da3e00c16a8f5bd3bd30deca298
+				goto end27abc5bf0299ce1bd5457af6ce8e3fba
 			}
 			ptr := v.Args[0].Args[0]
 			mem := v.Args[0].Args[1]
-			if !(b == v.Args[0].Block) {
-				goto endd1a92da3e00c16a8f5bd3bd30deca298
-			}
-			v.Op = OpLoad
+			v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+			v.Op = OpCopy
 			v.AuxInt = 0
 			v.Aux = nil
 			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = v.Type.PtrTo()
-			v0.AuxInt = idx
-			v0.AddArg(ptr)
 			v.AddArg(v0)
-			v.AddArg(mem)
+			v0.Type = v.Type
+			v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+			v1.Type = v.Type.PtrTo()
+			v1.AuxInt = idx
+			v1.AddArg(ptr)
+			v0.AddArg(v1)
+			v0.AddArg(mem)
 			return true
 		}
-		goto endd1a92da3e00c16a8f5bd3bd30deca298
-	endd1a92da3e00c16a8f5bd3bd30deca298:
+		goto end27abc5bf0299ce1bd5457af6ce8e3fba
+	end27abc5bf0299ce1bd5457af6ce8e3fba:
 		;
 	case OpSub16:
 		// match: (Sub16 x x)
