@@ -470,7 +470,6 @@ const debugServerConnections = false
 // Create new connection from rwc.
 func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	c = new(conn)
-	c.remoteAddr = rwc.RemoteAddr().String()
 	c.server = srv
 	c.rwc = rwc
 	c.w = rwc
@@ -1290,6 +1289,7 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 
 // Serve a new connection.
 func (c *conn) serve() {
+	c.remoteAddr = c.rwc.RemoteAddr().String()
 	origConn := c.rwc // copy it before it's set nil on Close or Hijack
 	defer func() {
 		if err := recover(); err != nil {
