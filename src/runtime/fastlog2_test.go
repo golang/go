@@ -15,7 +15,13 @@ func TestFastLog2(t *testing.T) {
 	// implementation over the range of interest for heap sampling.
 	const randomBitCount = 26
 	var e float64
-	for i := 1; i < 1<<randomBitCount; i++ {
+
+	inc := 1
+	if testing.Short() {
+		// Check 1K total values, down from 64M.
+		inc = 1 << 16
+	}
+	for i := 1; i < 1<<randomBitCount; i += inc {
 		l, fl := math.Log2(float64(i)), runtime.Fastlog2(float64(i))
 		d := l - fl
 		e += d * d
