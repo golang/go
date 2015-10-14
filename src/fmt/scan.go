@@ -813,7 +813,7 @@ func (s *ss) scanComplex(verb rune, n int) complex128 {
 // convertString returns the string represented by the next input characters.
 // The format of the input is determined by the verb.
 func (s *ss) convertString(verb rune) (str string) {
-	if !s.okVerb(verb, "svqx", "string") {
+	if !s.okVerb(verb, "svqxX", "string") {
 		return ""
 	}
 	s.skipSpace(false)
@@ -821,7 +821,7 @@ func (s *ss) convertString(verb rune) (str string) {
 	switch verb {
 	case 'q':
 		str = s.quotedString()
-	case 'x':
+	case 'x', 'X':
 		str = s.hexString()
 	default:
 		str = string(s.token(true, notSpace)) // %s and %v just return the next word
