@@ -1806,7 +1806,8 @@ type Server struct {
 	// standard logger.
 	ErrorLog *log.Logger
 
-	disableKeepAlives int32 // accessed atomically.
+	disableKeepAlives int32     // accessed atomically.
+	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
 }
 
 // A ConnState represents the state of a client connection to a server.
@@ -1896,6 +1897,7 @@ func (srv *Server) ListenAndServe() error {
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
 	var tempDelay time.Duration // how long to sleep on accept failure
+	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
 	for {
 		rw, e := l.Accept()
 		if e != nil {
@@ -2050,6 +2052,14 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	tlsListener := tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, config)
 	return srv.Serve(tlsListener)
+}
+
+func (srv *Server) setNextProtoDefaults() {
+	// Enable HTTP/2 by default if the user hasn't otherwise
+	// configured their TLSNextProto map.
+	if srv.TLSNextProto == nil {
+		http2ConfigureServer(srv, nil)
+	}
 }
 
 // TimeoutHandler returns a Handler that runs h with the given time limit.

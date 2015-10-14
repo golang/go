@@ -1068,6 +1068,22 @@ func TestTLSServer(t *testing.T) {
 	})
 }
 
+func TestAutomaticHTTP2(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.Close() // immediately (not a defer!)
+	var s Server
+	if err := s.Serve(ln); err == nil {
+		t.Fatal("expected an error")
+	}
+	on := s.TLSNextProto["h2"] != nil
+	if !on {
+		t.Errorf("http2 wasn't automatically enabled")
+	}
+}
+
 type serverExpectTest struct {
 	contentLength    int // of request body
 	chunked          bool
