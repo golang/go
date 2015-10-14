@@ -77,15 +77,15 @@ type Handler struct {
 //      Env: []string{"SCRIPT_FILENAME=foo.php"},
 //    }
 func removeLeadingDuplicates(env []string) (ret []string) {
-	n := len(env)
-	for i := 0; i < n; i++ {
-		e := env[i]
-		s := strings.SplitN(e, "=", 2)[0]
+	for i, e := range env {
 		found := false
-		for j := i + 1; j < n; j++ {
-			if s == strings.SplitN(env[j], "=", 2)[0] {
-				found = true
-				break
+		if eq := strings.IndexByte(e, '='); eq != -1 {
+			keq := e[:eq+1] // "key="
+			for _, e2 := range env[i+1:] {
+				if strings.HasPrefix(e2, keq) {
+					found = true
+					break
+				}
 			}
 		}
 		if !found {
