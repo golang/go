@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -497,4 +498,26 @@ func TestEnvOverride(t *testing.T) {
 		"env-PATH":            "/wibble",
 	}
 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+}
+
+func TestRemoveLeadingDuplicates(t *testing.T) {
+	tests := []struct {
+		env  []string
+		want []string
+	}{
+		{
+			env:  []string{"a=b", "b=c", "a=b2"},
+			want: []string{"b=c", "a=b2"},
+		},
+		{
+			env:  []string{"a=b", "b=c", "d", "e=f"},
+			want: []string{"a=b", "b=c", "d", "e=f"},
+		},
+	}
+	for _, tt := range tests {
+		got := removeLeadingDuplicates(tt.env)
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("removeLeadingDuplicates(%q) = %q; want %q", tt.env, got, tt.want)
+		}
+	}
 }
