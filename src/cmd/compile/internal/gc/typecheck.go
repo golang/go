@@ -1026,11 +1026,11 @@ OpSwitch:
 				break
 			}
 
-			if Isconst(n.Right, CTINT) {
+			if !n.Bounded && Isconst(n.Right, CTINT) {
 				x := Mpgetfix(n.Right.Val().U.(*Mpint))
 				if x < 0 {
 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
-				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
+				} else if Isfixedarray(t) && x >= t.Bound {
 					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
 					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
