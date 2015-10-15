@@ -80,7 +80,7 @@ func (ww *gcWork) put(obj uintptr) {
 
 	wbuf := w.wbuf.ptr()
 	if wbuf == nil {
-		wbuf = getpartialorempty(42)
+		wbuf = getempty(42)
 		w.wbuf = wbufptrOf(wbuf)
 	}
 
@@ -204,7 +204,7 @@ func (w *gcWork) empty() bool {
 type workbufhdr struct {
 	node  lfnode // must be first
 	nobj  int
-	inuse bool   // This workbuf is in use by some gorotuine and is not on the work.empty/partial/full queues.
+	inuse bool   // This workbuf is in use by some gorotuine and is not on the work.empty/full queues.
 	log   [4]int // line numbers forming a history of ownership changes to workbuf
 }
 
@@ -217,7 +217,7 @@ type workbuf struct {
 // workbuf factory routines. These funcs are used to manage the
 // workbufs.
 // If the GC asks for some work these are the only routines that
-// make partially full wbufs available to the GC.
+// make wbufs available to the GC.
 // Each of the gets and puts also take an distinct integer that is used
 // to record a brief history of changes to ownership of the workbuf.
 // The convention is to use a unique line number but any encoding
@@ -314,54 +314,11 @@ func putfull(b *workbuf, entry int) {
 	lfstackpush(&work.full, &b.node)
 }
 
-// getpartialorempty tries to return a partially empty
-// and if none are available returns an empty one.
-// entry is used to provide a brief history of ownership
-// using entry + xxx00000 to
-// indicating that two line numbers in the call chain.
-//go:nowritebarrier
-func getpartialorempty(entry int) *workbuf {
-	b := (*workbuf)(lfstackpop(&work.partial))
-	if b != nil {
-		b.logget(entry)
-		return b
-	}
-	// Let getempty do the logget check but
-	// use the entry to encode that it passed
-	// through this routine.
-	b = getempty(entry + 80700000)
-	return b
-}
-
-// putpartial puts empty buffers on the work.empty queue,
-// full buffers on the work.full queue and
-// others on the work.partial queue.
-// entry is used to provide a brief history of ownership
-// using entry + xxx00000 to
-// indicating that two call chain line numbers.
-//go:nowritebarrier
-func putpartial(b *workbuf, entry int) {
-	if b.nobj == 0 {
-		putempty(b, entry+81500000)
-	} else if b.nobj < len(b.obj) {
-		b.logput(entry)
-		lfstackpush(&work.partial, &b.node)
-	} else if b.nobj == len(b.obj) {
-		b.logput(entry)
-		lfstackpush(&work.full, &b.node)
-	} else {
-		throw("putpartial: bad Workbuf b.nobj")
-	}
-}
-
 // trygetfull tries to get a full or partially empty workbuffer.
 // If one is not immediately available return nil
 //go:nowritebarrier
 func trygetfull(entry int) *workbuf {
 	b := (*workbuf)(lfstackpop(&work.full))
-	if b == nil {
-		b = (*workbuf)(lfstackpop(&work.partial))
-	}
 	if b != nil {
 		b.logget(entry)
 		b.checknonempty()
@@ -370,10 +327,9 @@ func trygetfull(entry int) *workbuf {
 	return b
 }
 
-// Get a full work buffer off the work.full or a partially
-// filled one off the work.partial list. If nothing is available
-// wait until all the other gc helpers have finished and then
-// return nil.
+// Get a full work buffer off the work.full list.
+// If nothing is available wait until all the other gc helpers have
+// finished and then return nil.
 // getfull acts as a barrier for work.nproc helpers. As long as one
 // gchelper is actively marking objects it
 // may create a workbuffer that the other helpers can work on.
@@ -390,11 +346,6 @@ func getfull(entry int) *workbuf {
 		b.checknonempty()
 		return b
 	}
-	b = (*workbuf)(lfstackpop(&work.partial))
-	if b != nil {
-		b.logget(entry)
-		return b
-	}
 
 	incnwait := xadd(&work.nwait, +1)
 	if incnwait > work.nproc {
@@ -402,16 +353,13 @@ func getfull(entry int) *workbuf {
 		throw("work.nwait > work.nproc")
 	}
 	for i := 0; ; i++ {
-		if work.full != 0 || work.partial != 0 {
+		if work.full != 0 {
 			decnwait := xadd(&work.nwait, -1)
 			if decnwait == work.nproc {
 				println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")
 			}
 			b = (*workbuf)(lfstackpop(&work.full))
-			if b == nil {
-				b = (*workbuf)(lfstackpop(&work.partial))
-			}
 			if b != nil {
 				b.logget(entry)
 				b.checknonempty()

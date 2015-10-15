@@ -622,7 +622,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// else for a while, so kick everything out of its run
 		// queue.
 	} else {
-		if _p_.gcw.wbuf == 0 && work.full == 0 && work.partial == 0 {
+		if _p_.gcw.wbuf == 0 && work.full == 0 {
 			// No work to be done right now. This can
 			// happen at the end of the mark phase when
 			// there are still assists tapering off. Don't
@@ -795,10 +795,8 @@ func (s *bgMarkSignal) clear() {
 }
 
 var work struct {
-	full  uint64 // lock-free list of full blocks workbuf
-	empty uint64 // lock-free list of empty blocks workbuf
-	// TODO(rlh): partial no longer used, remove. (issue #11922)
-	partial uint64                // lock-free list of partially filled blocks workbuf
+	full    uint64                // lock-free list of full blocks workbuf
+	empty   uint64                // lock-free list of empty blocks workbuf
 	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 	nproc   uint32
 	tstart  int64
@@ -1400,7 +1398,7 @@ func gcBgMarkWorker(p *p) {
 					"work.nwait=", incnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")
 			}
-			done = incnwait == work.nproc && work.full == 0 && work.partial == 0
+			done = incnwait == work.nproc && work.full == 0
 		}
 
 		// If this worker reached a background mark completion
@@ -1436,7 +1434,7 @@ func gcMarkWorkAvailable(p *p) bool {
 	if !p.gcw.empty() {
 		return true
 	}
-	if atomicload64(&work.full) != 0 || atomicload64(&work.partial) != 0 {
+	if atomicload64(&work.full) != 0 {
 		return true // global work available
 	}
 	return false
@@ -1496,9 +1494,6 @@ func gcMark(start_time int64) {
 
 	if work.full != 0 {
 		throw("work.full != 0")
-	}
-	if work.partial != 0 {
-		throw("work.partial != 0")
 	}
 
 	if work.nproc > 1 {
