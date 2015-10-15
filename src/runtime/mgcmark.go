@@ -364,7 +364,7 @@ retry:
 			// stack to determine if we should preform an assist.
 
 			// GC is done, so ignore any remaining debt.
-			scanWork = 0
+			gp.gcAssistBytes = 0
 			return
 		}
 		// Track time spent in this assist. Since we're on the
@@ -389,7 +389,7 @@ retry:
 		}
 
 		// Record that we did this much scan work.
-		scanWork -= workDone
+		//
 		// Back out the number of bytes of assist credit that
 		// this scan work counts for. The "1+" is a poor man's
 		// round-up, to ensure this adds credit even if
@@ -432,31 +432,133 @@ retry:
 		// We called complete() above, so we should yield to
 		// the now-runnable GC coordinator.
 		Gosched()
-
-		// It's likely that this assist wasn't able to pay off
-		// its debt, but it's also likely that the Gosched let
-		// the GC finish this cycle and there's no point in
-		// waiting. If the GC finished, skip the delay below.
-		if atomicload(&gcBlackenEnabled) == 0 {
-			scanWork = 0
-		}
 	}
 
-	if scanWork > 0 {
+	if gp.gcAssistBytes < 0 {
 		// We were unable steal enough credit or perform
 		// enough work to pay off the assist debt. We need to
 		// do one of these before letting the mutator allocate
-		// more, so go around again after performing an
-		// interruptible sleep for 100 us (the same as the
-		// getfull barrier) to let other mutators run.
+		// more to prevent over-allocation.
+		//
+		// Add this G to an assist queue and park. When the GC
+		// has more background credit, it will satisfy queued
+		// assists before flushing to the global credit pool.
+		//
+		// Note that this does *not* get woken up when more
+		// work is added to the work list. The theory is that
+		// there wasn't enough work to do anyway, so we might
+		// as well let background marking take care of the
+		// work that is available.
+		lock(&work.assistQueue.lock)
 
-		// timeSleep may allocate, so avoid recursive assist.
-		gcAssistBytes := gp.gcAssistBytes
-		gp.gcAssistBytes = int64(^uint64(0) >> 1)
-		timeSleep(100 * 1000)
-		gp.gcAssistBytes = gcAssistBytes
-		goto retry
+		// If the GC cycle is over, just return. This is the
+		// likely path if we called Gosched above. We do this
+		// under the lock to prevent a GC cycle from ending
+		// between this check and queuing the assist.
+		if atomicload(&gcBlackenEnabled) == 0 {
+			unlock(&work.assistQueue.lock)
+			return
+		}
+
+		oldHead, oldTail := work.assistQueue.head, work.assistQueue.tail
+		if oldHead == 0 {
+			work.assistQueue.head.set(gp)
+		} else {
+			oldTail.ptr().schedlink.set(gp)
+		}
+		work.assistQueue.tail.set(gp)
+		gp.schedlink.set(nil)
+		// Recheck for background credit now that this G is in
+		// the queue, but can still back out. This avoids a
+		// race in case background marking has flushed more
+		// credit since we checked above.
+		if atomicloadint64(&gcController.bgScanCredit) > 0 {
+			work.assistQueue.head = oldHead
+			work.assistQueue.tail = oldTail
+			if oldTail != 0 {
+				oldTail.ptr().schedlink.set(nil)
+			}
+			unlock(&work.assistQueue.lock)
+			goto retry
+		}
+		// Park for real.
+		goparkunlock(&work.assistQueue.lock, "GC assist", traceEvGoBlock, 2)
+
+		// At this point either background GC has satisfied
+		// this G's assist debt, or the GC cycle is over.
 	}
+}
+
+// gcWakeAllAssists wakes all currently blocked assists. This is used
+// at the end of a GC cycle.
+func gcWakeAllAssists() {
+	lock(&work.assistQueue.lock)
+	injectglist(work.assistQueue.head.ptr())
+	work.assistQueue.head.set(nil)
+	work.assistQueue.tail.set(nil)
+	unlock(&work.assistQueue.lock)
+}
+
+// gcFlushBgCredit flushes scanWork units of background scan work
+// credit. This first satisfies blocked assists on the
+// work.assistQueue and then flushes any remaining credit to
+// gcController.bgScanCredit.
+func gcFlushBgCredit(scanWork int64) {
+	if work.assistQueue.head == 0 {
+		// Fast path; there are no blocked assists. There's a
+		// small window here where an assist may add itself to
+		// the blocked queue and park. If that happens, we'll
+		// just get it on the next flush.
+		xaddint64(&gcController.bgScanCredit, scanWork)
+		return
+	}
+
+	scanBytes := int64(float64(scanWork) * gcController.assistBytesPerWork)
+
+	lock(&work.assistQueue.lock)
+	gp := work.assistQueue.head.ptr()
+	for gp != nil && scanBytes > 0 {
+		// Note that gp.gcAssistBytes is negative because gp
+		// is in debt. Think carefully about the signs below.
+		if scanBytes+gp.gcAssistBytes >= 0 {
+			// Satisfy this entire assist debt.
+			scanBytes += gp.gcAssistBytes
+			gp.gcAssistBytes = 0
+			xgp := gp
+			gp = gp.schedlink.ptr()
+			ready(xgp, 0)
+		} else {
+			// Partially satisfy this assist.
+			gp.gcAssistBytes += scanBytes
+			scanBytes = 0
+			// As a heuristic, we move this assist to the
+			// back of the queue so that large assists
+			// can't clog up the assist queue and
+			// substantially delay small assists.
+			xgp := gp
+			gp = gp.schedlink.ptr()
+			if gp == nil {
+				// gp is the only assist in the queue.
+				gp = xgp
+			} else {
+				xgp.schedlink = 0
+				work.assistQueue.tail.ptr().schedlink.set(xgp)
+				work.assistQueue.tail.set(xgp)
+			}
+			break
+		}
+	}
+	work.assistQueue.head.set(gp)
+	if gp == nil {
+		work.assistQueue.tail.set(nil)
+	}
+
+	if scanBytes > 0 {
+		// Convert from scan bytes back to work.
+		scanWork = int64(float64(scanBytes) * gcController.assistWorkPerByte)
+		xaddint64(&gcController.bgScanCredit, scanWork)
+	}
+	unlock(&work.assistQueue.lock)
 }
 
 //go:nowritebarrier
@@ -725,7 +827,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		if gcw.scanWork >= gcCreditSlack {
 			xaddint64(&gcController.scanWork, gcw.scanWork)
 			if flushBgCredit {
-				xaddint64(&gcController.bgScanCredit, gcw.scanWork-initScanWork)
+				gcFlushBgCredit(gcw.scanWork - initScanWork)
 				initScanWork = 0
 			}
 			gcw.scanWork = 0
@@ -736,7 +838,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	if gcw.scanWork > 0 {
 		xaddint64(&gcController.scanWork, gcw.scanWork)
 		if flushBgCredit {
-			xaddint64(&gcController.bgScanCredit, gcw.scanWork-initScanWork)
+			gcFlushBgCredit(gcw.scanWork - initScanWork)
 		}
 		gcw.scanWork = 0
 	}

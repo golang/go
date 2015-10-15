@@ -839,6 +839,14 @@ var work struct {
 	// initialHeapLive is the value of memstats.heap_live at the
 	// beginning of this GC cycle.
 	initialHeapLive uint64
+
+	// assistQueue is a queue of assists that are blocked because
+	// there was neither enough credit to steal or enough work to
+	// do.
+	assistQueue struct {
+		lock       mutex
+		head, tail guintptr
+	}
 }
 
 // GC runs a garbage collection and blocks the caller until the
@@ -1093,6 +1101,10 @@ func gc(mode gcMode) {
 		// endCycle since endCycle depends on statistics kept
 		// in these caches.
 		gcFlushGCWork()
+
+		// Wake all blocked assists. These will run when we
+		// start the world again.
+		gcWakeAllAssists()
 
 		gcController.endCycle()
 	} else {
