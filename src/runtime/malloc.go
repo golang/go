@@ -397,7 +397,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 			// TODO: It would be bad if part of the arena
 			// is reserved and part is not.
 			var reserved bool
-			p := uintptr(sysReserve((unsafe.Pointer)(h.arena_end), p_size, &reserved))
+			p := uintptr(sysReserve(unsafe.Pointer(h.arena_end), p_size, &reserved))
 			if p == 0 {
 				return nil
 			}
@@ -415,7 +415,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 				h.arena_reserved = reserved
 			} else {
 				var stat uint64
-				sysFree((unsafe.Pointer)(p), p_size, &stat)
+				sysFree(unsafe.Pointer(p), p_size, &stat)
 			}
 		}
 	}
@@ -423,18 +423,18 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 	if n <= uintptr(h.arena_end)-uintptr(h.arena_used) {
 		// Keep taking from our reservation.
 		p := h.arena_used
-		sysMap((unsafe.Pointer)(p), n, h.arena_reserved, &memstats.heap_sys)
+		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
 		mHeap_MapBits(h, p+n)
 		mHeap_MapSpans(h, p+n)
 		h.arena_used = p + n
 		if raceenabled {
-			racemapshadow((unsafe.Pointer)(p), n)
+			racemapshadow(unsafe.Pointer(p), n)
 		}
 
 		if uintptr(p)&(_PageSize-1) != 0 {
 			throw("misrounded allocation in MHeap_SysAlloc")
 		}
-		return (unsafe.Pointer)(p)
+		return unsafe.Pointer(p)
 	}
 
 	// If using 64-bit, our reservation is all we have.
@@ -453,7 +453,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 
 	if p < h.arena_start || uintptr(p)+p_size-uintptr(h.arena_start) >= _MaxArena32 {
 		print("runtime: memory allocated by OS (", p, ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
-		sysFree((unsafe.Pointer)(p), p_size, &memstats.heap_sys)
+		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
 		return nil
 	}
 
@@ -467,14 +467,14 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 			h.arena_end = p_end
 		}
 		if raceenabled {
-			racemapshadow((unsafe.Pointer)(p), n)
+			racemapshadow(unsafe.Pointer(p), n)
 		}
 	}
 
 	if uintptr(p)&(_PageSize-1) != 0 {
 		throw("misrounded allocation in MHeap_SysAlloc")
 	}
-	return (unsafe.Pointer)(p)
+	return unsafe.Pointer(p)
 }
 
 // base address for all 0-byte allocations

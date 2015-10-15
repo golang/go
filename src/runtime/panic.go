@@ -417,7 +417,7 @@ func gopanic(e interface{}) {
 		// Record the panic that is running the defer.
 		// If there is a new panic during the deferred call, that panic
 		// will find d in the list and will mark d._panic (this panic) aborted.
-		d._panic = (*_panic)(noescape((unsafe.Pointer)(&p)))
+		d._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
 
 		p.argp = unsafe.Pointer(getargp(0))
 		reflectcall(nil, unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
