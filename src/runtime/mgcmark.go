@@ -440,6 +440,13 @@ retry:
 		// do one of these before letting the mutator allocate
 		// more to prevent over-allocation.
 		//
+		// If this is because we were preempted, reschedule
+		// and try some more.
+		if gp.preempt {
+			Gosched()
+			goto retry
+		}
+
 		// Add this G to an assist queue and park. When the GC
 		// has more background credit, it will satisfy queued
 		// assists before flushing to the global credit pool.
@@ -845,11 +852,11 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 }
 
 // gcDrainN blackens grey objects until it has performed roughly
-// scanWork units of scan work. This is best-effort, so it may perform
-// less work if it fails to get a work buffer. Otherwise, it will
-// perform at least n units of work, but may perform more because
-// scanning is always done in whole object increments. It returns the
-// amount of scan work performed.
+// scanWork units of scan work or the G is preempted. This is
+// best-effort, so it may perform less work if it fails to get a work
+// buffer. Otherwise, it will perform at least n units of work, but
+// may perform more because scanning is always done in whole object
+// increments. It returns the amount of scan work performed.
 //go:nowritebarrier
 func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 	if !writeBarrierEnabled {
@@ -860,7 +867,8 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 	// want to claim was done by this call.
 	workFlushed := -gcw.scanWork
 
-	for workFlushed+gcw.scanWork < scanWork {
+	gp := getg().m.curg
+	for !gp.preempt && workFlushed+gcw.scanWork < scanWork {
 		// This might be a good place to add prefetch code...
 		// if(wbuf.nobj > 4) {
 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
