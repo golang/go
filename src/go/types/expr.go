@@ -618,7 +618,7 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 	x.typ = Typ[UntypedBool]
 }
 
-func (check *Checker) shift(x, y *operand, op token.Token) {
+func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 	untypedx := isUntyped(x.typ)
 
 	// The lhs must be of integer type or be representable
@@ -671,6 +671,14 @@ func (check *Checker) shift(x, y *operand, op token.Token) {
 				x.typ = Typ[UntypedInt]
 			}
 			x.val = constant.Shift(x.val, op, uint(s))
+			// Typed constants must be representable in
+			// their type after each constant operation.
+			if isTyped(x.typ) {
+				if e != nil {
+					x.expr = e // for better error message
+				}
+				check.representable(x, x.typ.Underlying().(*Basic))
+			}
 			return
 		}
 
@@ -753,7 +761,7 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 	}
 
 	if isShift(op) {
-		check.shift(x, &y, op)
+		check.shift(x, &y, e, op)
 		return
 	}
 
