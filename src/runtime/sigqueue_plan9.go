@@ -6,6 +6,8 @@
 
 package runtime
 
+import _ "unsafe"
+
 const qsize = 64
 
 var sig struct {
@@ -92,6 +94,7 @@ func sendNote(s *byte) bool {
 
 // Called to receive the next queued signal.
 // Must only be called from a single goroutine at a time.
+//go:linkname signal_recv os/signal.signal_recv
 func signal_recv() string {
 	for {
 		note := sig.q.pop()
@@ -108,6 +111,7 @@ func signal_recv() string {
 }
 
 // Must only be called from a single goroutine at a time.
+//go:linkname signal_enable os/signal.signal_enable
 func signal_enable(s uint32) {
 	if !sig.inuse {
 		// The first call to signal_enable is for us
@@ -120,9 +124,11 @@ func signal_enable(s uint32) {
 }
 
 // Must only be called from a single goroutine at a time.
+//go:linkname signal_disable os/signal.signal_disable
 func signal_disable(s uint32) {
 }
 
 // Must only be called from a single goroutine at a time.
+//go:linkname signal_ignore os/signal.signal_ignore
 func signal_ignore(s uint32) {
 }
