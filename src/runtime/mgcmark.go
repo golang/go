@@ -152,6 +152,11 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
 	}
 
 	// Record allocation.
+	if gp.gcalloc+size < gp.gcalloc {
+		// gcalloc would overflow, or it's set to a sentinel
+		// value to prevent recursive assist.
+		return
+	}
 	gp.gcalloc += size
 
 	if !allowAssist {
@@ -295,7 +300,7 @@ retry:
 
 		// timeSleep may allocate, so avoid recursive assist.
 		gcalloc := gp.gcalloc
-		gp.gcalloc = 0
+		gp.gcalloc = ^uintptr(0)
 		timeSleep(100 * 1000)
 		gp.gcalloc = gcalloc
 		goto retry
