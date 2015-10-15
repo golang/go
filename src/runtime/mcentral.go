@@ -16,8 +16,8 @@ package runtime
 type mcentral struct {
 	lock      mutex
 	sizeclass int32
-	nonempty  mspan // list of spans with a free object
-	empty     mspan // list of spans with no free objects (or cached in an mcache)
+	nonempty  mSpanList // list of spans with a free object
+	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
 }
 
 // Initialize a single central free list.
@@ -36,9 +36,9 @@ func mCentral_CacheSpan(c *mcentral) *mspan {
 	sg := mheap_.sweepgen
 retry:
 	var s *mspan
-	for s = c.nonempty.next; s != &c.nonempty; s = s.next {
+	for s = c.nonempty.first; s != nil; s = s.next {
 		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
-			mSpanList_Remove(s)
+			mSpanList_Remove(&c.nonempty, s)
 			mSpanList_InsertBack(&c.empty, s)
 			unlock(&c.lock)
 			mSpan_Sweep(s, true)
@@ -49,17 +49,17 @@ retry:
 			continue
 		}
 		// we have a nonempty span that does not require sweeping, allocate from it
-		mSpanList_Remove(s)
+		mSpanList_Remove(&c.nonempty, s)
 		mSpanList_InsertBack(&c.empty, s)
 		unlock(&c.lock)
 		goto havespan
 	}
 
-	for s = c.empty.next; s != &c.empty; s = s.next {
+	for s = c.empty.first; s != nil; s = s.next {
 		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
 			// we have an empty span that requires sweeping,
 			// sweep it and see if we can free some space in it
-			mSpanList_Remove(s)
+			mSpanList_Remove(&c.empty, s)
 			// swept spans are at the end of the list
 			mSpanList_InsertBack(&c.empty, s)
 			unlock(&c.lock)
@@ -119,7 +119,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
 	cap := int32((s.npages << _PageShift) / s.elemsize)
 	n := cap - int32(s.ref)
 	if n > 0 {
-		mSpanList_Remove(s)
+		mSpanList_Remove(&c.empty, s)
 		mSpanList_Insert(&c.nonempty, s)
 	}
 	unlock(&c.lock)
@@ -145,7 +145,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	if preserve {
 		// preserve is set only when called from MCentral_CacheSpan above,
 		// the span must be in the empty list.
-		if s.next == nil {
+		if !mSpan_InList(s) {
 			throw("can't preserve unlinked span")
 		}
 		atomicstore(&s.sweepgen, mheap_.sweepgen)
@@ -156,7 +156,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 
 	// Move to nonempty if necessary.
 	if wasempty {
-		mSpanList_Remove(s)
+		mSpanList_Remove(&c.empty, s)
 		mSpanList_Insert(&c.nonempty, s)
 	}
 
@@ -172,7 +172,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	}
 
 	// s is completely freed, return it to the heap.
-	mSpanList_Remove(s)
+	mSpanList_Remove(&c.nonempty, s)
 	s.needzero = 1
 	s.freelist = 0
 	unlock(&c.lock)
