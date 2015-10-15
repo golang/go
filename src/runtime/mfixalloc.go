@@ -68,7 +68,7 @@ func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
 		f.nchunk = _FixAllocChunk
 	}
 
-	v := (unsafe.Pointer)(f.chunk)
+	v := unsafe.Pointer(f.chunk)
 	if f.first != nil {
 		fn := *(*func(unsafe.Pointer, unsafe.Pointer))(unsafe.Pointer(&f.first))
 		fn(f.arg, v)

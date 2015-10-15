@@ -558,7 +558,7 @@ HaveSpan:
 		throw("still in list")
 	}
 	if s.npreleased > 0 {
-		sysUsed((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
+		sysUsed(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
 		memstats.heap_released -= uint64(s.npreleased << _PageShift)
 		s.npreleased = 0
 	}
@@ -776,7 +776,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 			h_spans[p] = s
 			mSpanList_Remove(t)
 			t.state = _MSpanDead
-			fixAlloc_Free(&h.spanalloc, (unsafe.Pointer)(t))
+			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
 		}
 	}
 	if (p+s.npages)*ptrSize < h.spans_mapped {
@@ -788,7 +788,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 			h_spans[p+s.npages-1] = s
 			mSpanList_Remove(t)
 			t.state = _MSpanDead
-			fixAlloc_Free(&h.spanalloc, (unsafe.Pointer)(t))
+			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
 		}
 	}
 
@@ -821,7 +821,7 @@ func scavengelist(list *mspan, now, limit uint64) uintptr {
 			memstats.heap_released += uint64(released)
 			sumreleased += released
 			s.npreleased = s.npages
-			sysUnused((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
+			sysUnused(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
 		}
 	}
 	return sumreleased
@@ -1064,7 +1064,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 
 	// There was an old finalizer
 	lock(&mheap_.speciallock)
-	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
+	fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(s))
 	unlock(&mheap_.speciallock)
 	return false
 }
@@ -1076,7 +1076,7 @@ func removefinalizer(p unsafe.Pointer) {
 		return // there wasn't a finalizer to remove
 	}
 	lock(&mheap_.speciallock)
-	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
+	fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(s))
 	unlock(&mheap_.speciallock)
 }
 
@@ -1107,14 +1107,14 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
 		sf := (*specialfinalizer)(unsafe.Pointer(s))
 		queuefinalizer(p, sf.fn, sf.nret, sf.fint, sf.ot)
 		lock(&mheap_.speciallock)
-		fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(sf))
+		fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(sf))
 		unlock(&mheap_.speciallock)
 		return false // don't free p until finalizer is done
 	case _KindSpecialProfile:
 		sp := (*specialprofile)(unsafe.Pointer(s))
 		mProf_Free(sp.b, size, freed)
 		lock(&mheap_.speciallock)
-		fixAlloc_Free(&mheap_.specialprofilealloc, (unsafe.Pointer)(sp))
+		fixAlloc_Free(&mheap_.specialprofilealloc, unsafe.Pointer(sp))
 		unlock(&mheap_.speciallock)
 		return true
 	default:

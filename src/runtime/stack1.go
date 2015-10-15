@@ -100,7 +100,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 
 // Adds stack x to the free pool.  Must be called with stackpoolmu held.
 func stackpoolfree(x gclinkptr, order uint8) {
-	s := mHeap_Lookup(&mheap_, (unsafe.Pointer)(x))
+	s := mHeap_Lookup(&mheap_, unsafe.Pointer(x))
 	if s.state != _MSpanStack {
 		throw("freeing stack not in a stack span")
 	}
@@ -251,13 +251,13 @@ func stackalloc(n uint32) (stack, []stkbar) {
 			c.stackcache[order].list = x.ptr().next
 			c.stackcache[order].size -= uintptr(n)
 		}
-		v = (unsafe.Pointer)(x)
+		v = unsafe.Pointer(x)
 	} else {
 		s := mHeap_AllocStack(&mheap_, round(uintptr(n), _PageSize)>>_PageShift)
 		if s == nil {
 			throw("out of memory")
 		}
-		v = (unsafe.Pointer)(s.start << _PageShift)
+		v = unsafe.Pointer(s.start << _PageShift)
 	}
 
 	if raceenabled {
@@ -273,7 +273,7 @@ func stackalloc(n uint32) (stack, []stkbar) {
 
 func stackfree(stk stack, n uintptr) {
 	gp := getg()
-	v := (unsafe.Pointer)(stk.lo)
+	v := unsafe.Pointer(stk.lo)
 	if n&(n-1) != 0 {
 		throw("stack not a power of 2")
 	}
@@ -545,7 +545,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 }
 
 func adjustctxt(gp *g, adjinfo *adjustinfo) {
-	adjustpointer(adjinfo, (unsafe.Pointer)(&gp.sched.ctxt))
+	adjustpointer(adjinfo, unsafe.Pointer(&gp.sched.ctxt))
 }
 
 func adjustdefers(gp *g, adjinfo *adjustinfo) {
@@ -555,30 +555,30 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 	// Adjust pointers in the Defer structs.
 	// Defer structs themselves are never on the stack.
 	for d := gp._defer; d != nil; d = d.link {
-		adjustpointer(adjinfo, (unsafe.Pointer)(&d.fn))
-		adjustpointer(adjinfo, (unsafe.Pointer)(&d.sp))
-		adjustpointer(adjinfo, (unsafe.Pointer)(&d._panic))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.fn))
+		adjustpointer(adjinfo, unsafe.Pointer(&d.sp))
+		adjustpointer(adjinfo, unsafe.Pointer(&d._panic))
 	}
 }
 
 func adjustpanics(gp *g, adjinfo *adjustinfo) {
 	// Panics are on stack and already adjusted.
 	// Update pointer to head of list in G.
-	adjustpointer(adjinfo, (unsafe.Pointer)(&gp._panic))
+	adjustpointer(adjinfo, unsafe.Pointer(&gp._panic))
 }
 
 func adjustsudogs(gp *g, adjinfo *adjustinfo) {
 	// the data elements pointed to by a SudoG structure
 	// might be in the stack.
 	for s := gp.waiting; s != nil; s = s.waitlink {
-		adjustpointer(adjinfo, (unsafe.Pointer)(&s.elem))
-		adjustpointer(adjinfo, (unsafe.Pointer)(&s.selectdone))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.elem))
+		adjustpointer(adjinfo, unsafe.Pointer(&s.selectdone))
 	}
 }
 
 func adjuststkbar(gp *g, adjinfo *adjustinfo) {
 	for i := int(gp.stkbarPos); i < len(gp.stkbar); i++ {
-		adjustpointer(adjinfo, (unsafe.Pointer)(&gp.stkbar[i].savedLRPtr))
+		adjustpointer(adjinfo, unsafe.Pointer(&gp.stkbar[i].savedLRPtr))
 	}
 }
 
@@ -817,11 +817,11 @@ func nilfunc() {
 func gostartcallfn(gobuf *gobuf, fv *funcval) {
 	var fn unsafe.Pointer
 	if fv != nil {
-		fn = (unsafe.Pointer)(fv.fn)
+		fn = unsafe.Pointer(fv.fn)
 	} else {
 		fn = unsafe.Pointer(funcPC(nilfunc))
 	}
-	gostartcall(gobuf, fn, (unsafe.Pointer)(fv))
+	gostartcall(gobuf, fn, unsafe.Pointer(fv))
 }
 
 // Maybe shrink the stack being used by gp.
