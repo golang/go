@@ -167,87 +167,10 @@ func walkrange(n *Node) {
 	default:
 		Fatalf("walkrange")
 
-		// Lower n into runtime·memclr if possible, for
-	// fast zeroing of slices and arrays (issue 5373).
-	// Look for instances of
-	//
-	// for i := range a {
-	// 	a[i] = zero
-	// }
-	//
-	// in which the evaluation of a is side-effect-free.
 	case TARRAY:
-		if Debug['N'] == 0 {
-			if flag_race == 0 {
-				if v1 != nil {
-					if v2 == nil {
-						if n.Nbody != nil {
-							if n.Nbody.N != nil { // at least one statement in body
-								if n.Nbody.Next == nil { // at most one statement in body
-									tmp := n.Nbody.N // first statement of body
-									if tmp.Op == OAS {
-										if tmp.Left.Op == OINDEX {
-											if samesafeexpr(tmp.Left.Left, a) {
-												if samesafeexpr(tmp.Left.Right, v1) {
-													if t.Type.Width > 0 {
-														if iszero(tmp.Right) {
-															// Convert to
-															// if len(a) != 0 {
-															// 	hp = &a[0]
-															// 	hn = len(a)*sizeof(elem(a))
-															// 	memclr(hp, hn)
-															// 	i = len(a) - 1
-															// }
-															n.Op = OIF
-
-															n.Nbody = nil
-															n.Left = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
-
-															// hp = &a[0]
-															hp := temp(Ptrto(Types[TUINT8]))
-
-															tmp := Nod(OINDEX, a, Nodintconst(0))
-															tmp.Bounded = true
-															tmp = Nod(OADDR, tmp, nil)
-															tmp = Nod(OCONVNOP, tmp, nil)
-															tmp.Type = Ptrto(Types[TUINT8])
-															n.Nbody = list(n.Nbody, Nod(OAS, hp, tmp))
-
-															// hn = len(a) * sizeof(elem(a))
-															hn := temp(Types[TUINTPTR])
-
-															tmp = Nod(OLEN, a, nil)
-															tmp = Nod(OMUL, tmp, Nodintconst(t.Type.Width))
-															tmp = conv(tmp, Types[TUINTPTR])
-															n.Nbody = list(n.Nbody, Nod(OAS, hn, tmp))
-
-															// memclr(hp, hn)
-															fn := mkcall("memclr", nil, nil, hp, hn)
-
-															n.Nbody = list(n.Nbody, fn)
-
-															// i = len(a) - 1
-															v1 = Nod(OAS, v1, Nod(OSUB, Nod(OLEN, a, nil), Nodintconst(1)))
-
-															n.Nbody = list(n.Nbody, v1)
-
-															typecheck(&n.Left, Erv)
-															typechecklist(n.Nbody, Etop)
-															walkstmt(&n)
-															lineno = int32(lno)
-															return
-														}
-													}
-												}
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
+		if memclrrange(n, v1, v2, a) {
+			lineno = int32(lno)
+			return
 		}
 
 		// orderstmt arranged for a copy of the array/slice variable if needed.
@@ -403,4 +326,83 @@ func walkrange(n *Node) {
 	walkstmt(&n)
 
 	lineno = int32(lno)
+}
+
+// Lower n into runtime·memclr if possible, for
+// fast zeroing of slices and arrays (issue 5373).
+// Look for instances of
+//
+// for i := range a {
+// 	a[i] = zero
+// }
+//
+// in which the evaluation of a is side-effect-free.
+//
+// Parameters are as in walkrange: "for v1, v2 = range a".
+func memclrrange(n, v1, v2, a *Node) bool {
+	if Debug['N'] != 0 || flag_race != 0 {
+		return false
+	}
+	if v1 == nil || v2 != nil {
+		return false
+	}
+	if n.Nbody == nil || n.Nbody.N == nil || n.Nbody.Next != nil {
+		return false
+	}
+	stmt := n.Nbody.N // only stmt in body
+	if stmt.Op != OAS || stmt.Left.Op != OINDEX {
+		return false
+	}
+	if !samesafeexpr(stmt.Left.Left, a) || !samesafeexpr(stmt.Left.Right, v1) {
+		return false
+	}
+	elemsize := n.Type.Type.Width
+	if elemsize <= 0 || !iszero(stmt.Right) {
+		return false
+	}
+
+	// Convert to
+	// if len(a) != 0 {
+	// 	hp = &a[0]
+	// 	hn = len(a)*sizeof(elem(a))
+	// 	memclr(hp, hn)
+	// 	i = len(a) - 1
+	// }
+	n.Op = OIF
+
+	n.Nbody = nil
+	n.Left = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
+
+	// hp = &a[0]
+	hp := temp(Ptrto(Types[TUINT8]))
+
+	tmp := Nod(OINDEX, a, Nodintconst(0))
+	tmp.Bounded = true
+	tmp = Nod(OADDR, tmp, nil)
+	tmp = Nod(OCONVNOP, tmp, nil)
+	tmp.Type = Ptrto(Types[TUINT8])
+	n.Nbody = list(n.Nbody, Nod(OAS, hp, tmp))
+
+	// hn = len(a) * sizeof(elem(a))
+	hn := temp(Types[TUINTPTR])
+
+	tmp = Nod(OLEN, a, nil)
+	tmp = Nod(OMUL, tmp, Nodintconst(elemsize))
+	tmp = conv(tmp, Types[TUINTPTR])
+	n.Nbody = list(n.Nbody, Nod(OAS, hn, tmp))
+
+	// memclr(hp, hn)
+	fn := mkcall("memclr", nil, nil, hp, hn)
+
+	n.Nbody = list(n.Nbody, fn)
+
+	// i = len(a) - 1
+	v1 = Nod(OAS, v1, Nod(OSUB, Nod(OLEN, a, nil), Nodintconst(1)))
+
+	n.Nbody = list(n.Nbody, v1)
+
+	typecheck(&n.Left, Erv)
+	typechecklist(n.Nbody, Etop)
+	walkstmt(&n)
+	return true
 }
