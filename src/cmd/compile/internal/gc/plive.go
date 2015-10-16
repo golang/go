@@ -1426,7 +1426,14 @@ func livenessepilogue(lv *Liveness) {
 						// the PCDATA must begin one instruction early too.
 						// The instruction before a call to deferreturn is always a
 						// no-op, to keep PC-specific data unambiguous.
-						splicebefore(lv, bb, newpcdataprog(p.Opt.(*obj.Prog), pos), p.Opt.(*obj.Prog))
+						prev := p.Opt.(*obj.Prog)
+						if Ctxt.Arch.Thechar == '9' {
+							// On ppc64 there is an additional instruction
+							// (another no-op or reload of toc pointer) before
+							// the call.
+							prev = prev.Opt.(*obj.Prog)
+						}
+						splicebefore(lv, bb, newpcdataprog(prev, pos), prev)
 					} else {
 						splicebefore(lv, bb, newpcdataprog(p, pos), p)
 					}

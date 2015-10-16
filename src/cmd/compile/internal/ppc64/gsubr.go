@@ -580,9 +580,9 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 	case obj.ACALL:
 		if p.To.Type == obj.TYPE_REG && p.To.Reg != ppc64.REG_CTR {
 			// Allow front end to emit CALL REG, and rewrite into MOV REG, CTR; CALL CTR.
-			if gc.Ctxt.Flag_dynlink {
+			if gc.Ctxt.Flag_shared != 0 {
 				// Make sure function pointer is in R12 as well when
-				// dynamically linking Go.
+				// compiling Go into PIC.
 				// TODO(mwhudson): it would obviously be better to
 				// change the register allocation to put the value in
 				// R12 already, but I don't know how to do that.
@@ -601,6 +601,19 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 			p.From = p.To
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = ppc64.REG_CTR
+
+			if gc.Ctxt.Flag_shared != 0 {
+				// When compiling Go into PIC, the function we just
+				// called via pointer might have been implemented in
+				// a separate module and so overwritten the TOC
+				// pointer in R2; reload it.
+				q := gc.Prog(ppc64.AMOVD)
+				q.From.Type = obj.TYPE_MEM
+				q.From.Offset = 24
+				q.From.Reg = ppc64.REGSP
+				q.To.Type = obj.TYPE_REG
+				q.To.Reg = ppc64.REG_R2
+			}
 
 			if gc.Debug['g'] != 0 {
 				fmt.Printf("%v\n", p)

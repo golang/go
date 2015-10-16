@@ -17,8 +17,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	BL	runtime·reginit(SB)
 
 	SUB	$(FIXED_FRAME+16), R1
-	MOVW	R3, FIXED_FRAME+0(R1) // argc
-	MOVD	R4, FIXED_FRAME+8(R1) // argv
+	MOVD	R2, 24(R1)		// stash the TOC pointer away again now we've created a new frame
+	MOVW	R3, FIXED_FRAME+0(R1)	// argc
+	MOVD	R4, FIXED_FRAME+8(R1)	// argv
 
 	// create istack out of the given (operating system) stack.
 	// _cgo_init may update stackguard.
@@ -45,6 +46,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	RLDCR	$0, R1, $~15, R1	// 16-byte align
 	BL	(CTR)			// may clobber R0, R3-R12
 	MOVD	R14, R1			// restore stack
+	MOVD	24(R1), R2
 	XOR	R0, R0			// fix R0
 
 nocgo:
@@ -181,6 +183,7 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
 	BL	(CTR)
+	MOVD	24(R1), R2
 	BR	runtime·badmcall2(SB)
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
@@ -189,6 +192,11 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
+	// We have several undefs here so that 16 bytes past
+	// $runtime·systemstack_switch lies within them whether or not the
+        // instructions that derive r2 from r12 are there.
+	UNDEF
+	UNDEF
 	UNDEF
 	BL	(LR)	// make sure this function is not leaf
 	RET
@@ -221,7 +229,7 @@ switch:
 	// save our state in g->sched.  Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVD	$runtime·systemstack_switch(SB), R6
-	ADD	$8, R6	// get past prologue
+	ADD     $16, R6 // get past prologue (including r2-setting instructions when they're there)
 	MOVD	R6, (g_sched+gobuf_pc)(g)
 	MOVD	R1, (g_sched+gobuf_sp)(g)
 	MOVD	R0, (g_sched+gobuf_lr)(g)
@@ -242,6 +250,13 @@ switch:
 	MOVD	R12, CTR
 	BL	(CTR)
 
+	// restore TOC pointer. It seems unlikely that we will use systemstack
+	// to call a function defined in another module, but the results of
+	// doing so would be so confusing that it's worth doing this.
+	MOVD	g_m(g), R3
+	MOVD	m_curg(R3), g
+	MOVD	(g_sched+gobuf_sp)(g), R3
+	MOVD	24(R3), R2
 	// switch back to g
 	MOVD	g_m(g), R3
 	MOVD	m_curg(R3), g
@@ -255,6 +270,7 @@ noswitch:
 	MOVD	0(R11), R12	// code pointer
 	MOVD	R12, CTR
 	BL	(CTR)
+	MOVD	24(R1), R2
 	RET
 
 /*
@@ -402,6 +418,7 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-24;		\
 	MOVD	R12, CTR;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
 	BL	(CTR);				\
+	MOVD	24(R1), R2;			\
 	/* copy return values back */		\
 	MOVD	arg+16(FP), R3;			\
 	MOVWZ	n+24(FP), R4;			\
@@ -465,11 +482,15 @@ TEXT runtime·procyield(SB),NOSPLIT,$0-0
 // void jmpdefer(fv, sp);
 // called from deferreturn.
 // 1. grab stored LR for caller
-// 2. sub 4 bytes to get back to BL deferreturn
+// 2. sub 8 bytes to get back to either nop or toc reload before deferreturn
 // 3. BR to fn
+// When dynamically linking Go, it is not sufficient to rewind to the BL
+// deferreturn -- we might be jumping between modules and so we need to reset
+// the TOC pointer in r2. To do this, codegen inserts MOVD 24(R1), R2 *before*
+// the BL deferreturn and jmpdefer rewinds to that.
 TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOVD	0(R1), R31
-	SUB	$4, R31
+	SUB     $8, R31
 	MOVD	R31, LR
 
 	MOVD	fv+0(FP), R11
@@ -532,8 +553,13 @@ g0:
 	// C code can clobber R0, so set it back to 0.  F27-F31 are
 	// callee save, so we don't need to recover those.
 	XOR	R0, R0
-	// Restore g, stack pointer.  R3 is errno, so don't touch it
+	// Restore g, stack pointer, toc pointer.
+	// R3 is errno, so don't touch it
 	MOVD	40(R1), g
+	MOVD    (g_stack+stack_hi)(g), R5
+	MOVD    32(R1), R6
+	SUB     R6, R5
+	MOVD    24(R5), R2
 	BL	runtime·save_g(SB)
 	MOVD	(g_stack+stack_hi)(g), R5
 	MOVD	32(R1), R6
@@ -1007,8 +1033,16 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
+//
+// When dynamically linking Go, it can be returned to from a function
+// implemented in a different module and so needs to reload the TOC pointer
+// from the stack (although this function declares that it does not set up x-a
+// frame, newproc1 does in fact allocate one for goexit and saves the TOC
+// pointer in the correct place).
+// goexit+_PCQuantum is halfway through the usual global entry point prologue
+// that derives r2 from r12 which is a bit silly, but not harmful.
 TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
-	MOVD	R0, R0	// NOP
+	MOVD	24(R1), R2
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	MOVD	R0, R0	// NOP
@@ -1027,3 +1061,12 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
         RET
+
+// prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
+// module containing runtime) to the frame that goexit will execute in when
+// the goroutine exits. It's implemented in assembly mainly because that's the
+// easiest way to get access to R2.
+TEXT runtime·prepGoExitFrame(SB),NOSPLIT,$0-8
+      MOVD    sp+0(FP), R3
+      MOVD    R2, 24(R3)
+      RET
