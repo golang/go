@@ -1417,19 +1417,35 @@ func opform(ctxt *obj.Link, insn int32) int {
 // Encode instructions and create relocation for accessing s+d according to the
 // instruction op with source or destination (as appropriate) register reg.
 func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op int32) (o1, o2 uint32) {
+	var base uint32
 	form := opform(ctxt, op)
-	o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, 0)
+	if ctxt.Flag_shared != 0 {
+		base = REG_R2
+	} else {
+		base = REG_R0
+	}
+	o1 = AOP_IRR(OP_ADDIS, REGTMP, base, 0)
 	o2 = AOP_IRR(uint32(op), uint32(reg), REGTMP, 0)
 	rel := obj.Addrel(ctxt.Cursym)
 	rel.Off = int32(ctxt.Pc)
 	rel.Siz = 8
 	rel.Sym = s
 	rel.Add = d
-	switch form {
-	case D_FORM:
-		rel.Type = obj.R_ADDRPOWER
-	case DS_FORM:
-		rel.Type = obj.R_ADDRPOWER_DS
+	if ctxt.Flag_shared != 0 {
+		switch form {
+		case D_FORM:
+			rel.Type = obj.R_ADDRPOWER_TOCREL
+		case DS_FORM:
+			rel.Type = obj.R_ADDRPOWER_TOCREL_DS
+		}
+
+	} else {
+		switch form {
+		case D_FORM:
+			rel.Type = obj.R_ADDRPOWER
+		case DS_FORM:
+			rel.Type = obj.R_ADDRPOWER_DS
+		}
 	}
 	return
 }
