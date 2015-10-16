@@ -42,6 +42,7 @@ type Package struct {
 	GoFiles     []string // list of Go files
 	GccFiles    []string // list of gcc output files
 	Preamble    string   // collected preamble for _cgo_export.h
+	CgoChecks   []string // see unsafeCheckPointerName
 }
 
 // A File collects information about a single Go input file.
@@ -51,6 +52,7 @@ type File struct {
 	Package  string              // Package name
 	Preamble string              // C preamble (doc comment on import "C")
 	Ref      []*Ref              // all references to C.xxx in AST
+	Calls    []*ast.CallExpr     // all calls to C.xxx in AST
 	ExpFunc  []*ExpFunc          // exported functions for this file
 	Name     map[string]*Name    // map from Go name to Name
 }

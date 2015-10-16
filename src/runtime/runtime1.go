@@ -308,6 +308,7 @@ type dbgVar struct {
 // already have an initial value.
 var debug struct {
 	allocfreetrace    int32
+	cgocheck          int32
 	efence            int32
 	gccheckmark       int32
 	gcpacertrace      int32
@@ -326,6 +327,7 @@ var debug struct {
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
@@ -344,6 +346,7 @@ var dbgvars = []dbgVar{
 
 func parsedebugvars() {
 	// defaults
+	debug.cgocheck = 1
 	debug.invalidptr = 1
 
 	for p := gogetenv("GODEBUG"); p != ""; {
