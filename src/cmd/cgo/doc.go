@@ -189,10 +189,10 @@ by making copies of the data.  In pseudo-Go definitions:
 	// C string to Go string
 	func C.GoString(*C.char) string
 
-	// C string, length to Go string
+	// C data with explicit length to Go string
 	func C.GoStringN(*C.char, C.int) string
 
-	// C pointer, length to Go []byte
+	// C data with explicit length to Go []byte
 	func C.GoBytes(unsafe.Pointer, C.int) []byte
 
 C references to Go
