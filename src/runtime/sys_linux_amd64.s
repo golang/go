@@ -442,3 +442,33 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	$72, AX  // fcntl
 	SYSCALL
 	RET
+
+
+// int access(const char *name, int mode)
+TEXT runtime·access(SB),NOSPLIT,$0
+	MOVQ	name+0(FP), DI
+	MOVL	mode+8(FP), SI
+	MOVL	$21, AX  // syscall entry
+	SYSCALL
+	MOVL	AX, ret+16(FP)
+	RET
+
+// int connect(int fd, const struct sockaddr *addr, socklen_t addrlen)
+TEXT runtime·connect(SB),NOSPLIT,$0-28
+	MOVL	fd+0(FP), DI
+	MOVQ	addr+8(FP), SI
+	MOVL	addrlen+16(FP), DX
+	MOVL	$42, AX  // syscall entry
+	SYSCALL
+	MOVL	AX, ret+24(FP)
+	RET
+
+// int socket(int domain, int type, int protocol)
+TEXT runtime·socket(SB),NOSPLIT,$0-20
+	MOVL	domain+0(FP), DI
+	MOVL	type+4(FP), SI
+	MOVL	protocol+8(FP), DX
+	MOVL	$41, AX  // syscall entry
+	SYSCALL
+	MOVL	AX, ret+16(FP)
+	RET

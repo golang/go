@@ -116,7 +116,7 @@ func initLogd() {
 		exit(2)
 	}
 
-	errno := connect(uintptr(fd), unsafe.Pointer(&logdAddr), int32(unsafe.Sizeof(logdAddr)))
+	errno := connect(fd, unsafe.Pointer(&logdAddr), int32(unsafe.Sizeof(logdAddr)))
 	if errno < 0 {
 		msg := []byte("runtime: cannot connect to /dev/socket/logdw\x00")
 		write(2, unsafe.Pointer(&msg[0]), int32(len(msg)))
