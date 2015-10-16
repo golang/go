@@ -27,8 +27,7 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0-0
 	CMP	R31, $0
 	BEQ	nocgo
 	MOVD	runtime·tls_g(SB), R31
-	ADD	R13, R31
-	MOVD	g, 0(R31)
+	MOVD	g, 0(R13)(R31*1)
 
 nocgo:
 	RET
@@ -44,8 +43,7 @@ nocgo:
 // NOTE: _cgo_topofstack assumes this only clobbers g (R30), and R31.
 TEXT runtime·load_g(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	runtime·tls_g(SB), R31
-	ADD	R13, R31
-	MOVD	0(R31), g
+	MOVD	0(R13)(R31*1), g
 	RET
 
 GLOBL runtime·tls_g+0(SB), TLSBSS, $8

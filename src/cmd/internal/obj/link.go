@@ -480,6 +480,19 @@ const (
 	// instruction word.
 	R_POWER_TLS_LE
 
+	// R_POWER_TLS_IE is used to implement the "initial exec" model for tls access. It
+	// relocates a D-form, DS-form instruction sequence like R_ADDRPOWER_DS. It
+	// inserts to the offset of GOT slot for the thread-local symbol from the TOC (the
+	// GOT slot is filled by the dynamic linker with the offset of the thread-local
+	// symbol from the thread pointer (R13)).
+	R_POWER_TLS_IE
+
+	// R_POWER_TLS marks an X-form instruction such as "MOVD 0(R13)(R31*1), g" as
+	// accessing a particular thread-local symbol. It does not affect code generation
+	// but is used by the system linker when relaxing "initial exec" model code to
+	// "local exec" model code.
+	R_POWER_TLS
+
 	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
 	// instruction is a "DS-form" instruction, which has an immediate field occupying
 	// bits [15:2] of the instruction word. Bits [15:2] of the address of the

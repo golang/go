@@ -310,8 +310,17 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
+	case obj.R_POWER_TLS:
+		ld.Thearch.Vput(ld.R_PPC64_TLS | uint64(elfsym)<<32)
+
 	case obj.R_POWER_TLS_LE:
 		ld.Thearch.Vput(ld.R_PPC64_TPREL16 | uint64(elfsym)<<32)
+
+	case obj.R_POWER_TLS_IE:
+		ld.Thearch.Vput(ld.R_PPC64_GOT_TPREL16_HA | uint64(elfsym)<<32)
+		ld.Thearch.Vput(uint64(r.Xadd))
+		ld.Thearch.Vput(uint64(sectoff + 4))
+		ld.Thearch.Vput(ld.R_PPC64_GOT_TPREL16_LO_DS | uint64(elfsym)<<32)
 
 	case obj.R_ADDRPOWER:
 		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
@@ -444,7 +453,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_POWER_TLS_LE:
+		case obj.R_POWER_TLS, obj.R_POWER_TLS_LE, obj.R_POWER_TLS_IE:
 			r.Done = 0
 			// check Outer is nil, Type is TLSBSS?
 			r.Xadd = r.Add

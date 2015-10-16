@@ -222,6 +222,7 @@ const (
 	C_GOK
 	C_ADDR
 	C_TLS_LE
+	C_TLS_IE
 	C_TEXTSIZE
 
 	C_NCLASS /* must be the last */
