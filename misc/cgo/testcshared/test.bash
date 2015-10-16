@@ -81,7 +81,7 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
 GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
 binpush libgo.$libext
 
-if [ "$goos" == "linux" ]; then
+if [ "$goos" == "linux" ] || [ "$goos" == "android" ] ; then
     if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
         echo "libgo.$libext has TEXTREL set"
         exit 1
