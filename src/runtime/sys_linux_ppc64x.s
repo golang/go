@@ -209,6 +209,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	fn+0(FP), R12
 	MOVD	R12, CTR
 	BL	(CTR)
+	MOVD	24(R1), R2
 	RET
 
 #ifdef GOARCH_ppc64le
@@ -238,6 +239,7 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	MOVD	$runtime·sigtrampgo(SB), R12
 	MOVD	R12, CTR
 	BL	(CTR)
+	MOVD	24(R1), R2
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0

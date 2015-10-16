@@ -486,6 +486,11 @@ const (
 	// relocated symbol are inserted into this field; it is an error if the last two
 	// bits of the address are not 0.
 	R_ADDRPOWER_DS
+
+	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
+	// inserts the displacement from the place being relocated to the address of the
+	// the relocated symbol instead of just its address.
+	R_ADDRPOWER_PCREL
 )
 
 type Auto struct {

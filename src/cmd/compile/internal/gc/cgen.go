@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/internal/obj"
+	"cmd/internal/obj/ppc64"
 	"fmt"
 )
 
@@ -2339,15 +2340,39 @@ func Ginscall(f *Node, proc int) {
 		-1: // normal call but no return
 		if f.Op == ONAME && f.Class == PFUNC {
 			if f == Deferreturn {
-				// Deferred calls will appear to be returning to
-				// the CALL deferreturn(SB) that we are about to emit.
-				// However, the stack trace code will show the line
-				// of the instruction byte before the return PC.
-				// To avoid that being an unrelated instruction,
-				// insert an actual hardware NOP that will have the right line number.
-				// This is different from obj.ANOP, which is a virtual no-op
-				// that doesn't make it into the instruction stream.
+				// Deferred calls will appear to be returning to the CALL
+				// deferreturn(SB) that we are about to emit. However, the
+				// stack scanning code will think that the instruction
+				// before the CALL is executing. To avoid the scanning
+				// code making bad assumptions (both cosmetic such as
+				// showing the wrong line number and fatal, such as being
+				// confused over whether a stack slot contains a pointer
+				// or a scalar) insert an actual hardware NOP that will
+				// have the right line number. This is different from
+				// obj.ANOP, which is a virtual no-op that doesn't make it
+				// into the instruction stream.
 				Thearch.Ginsnop()
+
+				if Thearch.Thechar == '9' {
+					// On ppc64, when compiling Go into position
+					// independent code on ppc64le we insert an
+					// instruction to reload the TOC pointer from the
+					// stack as well. See the long comment near
+					// jmpdefer in runtime/asm_ppc64.s for why.
+					// If the MOVD is not needed, insert a hardware NOP
+					// so that the same number of instructions are used
+					// on ppc64 in both shared and non-shared modes.
+					if Ctxt.Flag_shared != 0 {
+						p := Thearch.Gins(ppc64.AMOVD, nil, nil)
+						p.From.Type = obj.TYPE_MEM
+						p.From.Offset = 24
+						p.From.Reg = ppc64.REGSP
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = ppc64.REG_R2
+					} else {
+						Thearch.Ginsnop()
+					}
+				}
 			}
 
 			p := Thearch.Gins(obj.ACALL, nil, f)

@@ -205,6 +205,7 @@ const (
 	C_DACON /* $n(REG) where int32 < n */
 	C_SBRA
 	C_LBRA
+	C_LBRAPIC
 	C_SAUTO
 	C_LAUTO
 	C_SEXT
