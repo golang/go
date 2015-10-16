@@ -1070,3 +1070,13 @@ TEXT runtime·prepGoExitFrame(SB),NOSPLIT,$0-8
       MOVD    sp+0(FP), R3
       MOVD    R2, 24(R3)
       RET
+
+TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
+	ADD	$-8, R1
+	MOVD	R31, 0(R1)
+	MOVD	runtime·lastmoduledatap(SB), R4
+	MOVD	R3, moduledata_next(R4)
+	MOVD	R3, runtime·lastmoduledatap(SB)
+	MOVD	0(R1), R31
+	ADD	$8, R1
+	RET
