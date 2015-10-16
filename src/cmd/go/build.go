@@ -350,7 +350,8 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/amd64", "linux/arm", "android/arm":
+			case "linux/amd64", "linux/arm",
+				"android/amd64", "android/arm":
 				codegenArg = "-shared"
 			case "darwin/amd64":
 			default:
@@ -3075,7 +3076,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 
 	linkobj = append(linkobj, p.SysoFiles...)
 	dynobj := obj + "_cgo_.o"
-	pie := goarch == "arm" && (goos == "linux" || goos == "android")
+	pie := (goarch == "arm" && goos == "linux") || goos == "android"
 	if pie { // we need to use -pie for Linux/ARM to get accurate imported sym
 		cgoLDFLAGS = append(cgoLDFLAGS, "-pie")
 	}
