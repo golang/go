@@ -500,6 +500,11 @@ const (
 	// bits of the address are not 0.
 	R_ADDRPOWER_DS
 
+	// R_ADDRPOWER_PCREL relocates a D-form, DS-form instruction sequence like
+	// R_ADDRPOWER_DS but inserts the offset of the GOT slot for the referenced symbol
+	// from the TOC rather than the symbol's address.
+	R_ADDRPOWER_GOT
+
 	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
 	// inserts the displacement from the place being relocated to the address of the
 	// the relocated symbol instead of just its address.

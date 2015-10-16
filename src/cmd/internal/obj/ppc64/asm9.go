@@ -248,6 +248,8 @@ var optab = []Optab{
 	{AMOVD, C_TLS_LE, C_NONE, C_NONE, C_REG, 79, 4, 0},
 	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_REG, 80, 8, 0},
 
+	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_REG, 81, 8, 0},
+
 	/* load constant */
 	{AMOVD, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB},
 	{AMOVD, C_SACON, C_NONE, C_NONE, C_REG, 3, 4, REGSP},
@@ -597,6 +599,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				return C_ADDR
 			}
 			return C_LEXT
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 
 		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
@@ -2503,6 +2508,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Type = obj.R_POWER_TLS_IE
 
+	case 81:
+		v := vregoff(ctxt, &p.To)
+		if v != 0 {
+			ctxt.Diag("invalid offset against GOT slot %v", p)
+		}
+
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Type = obj.R_ADDRPOWER_GOT
 	}
 
 	out[0] = o1
