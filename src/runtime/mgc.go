@@ -127,14 +127,6 @@ const (
 	_ConcurrentSweep = true
 	_FinBlockSize    = 4 * 1024
 
-	_RootData        = 0
-	_RootBss         = 1
-	_RootFinalizers  = 2
-	_RootFlushCaches = 3
-	_RootSpans0      = 4
-	_RootSpansShards = 128
-	_RootCount       = _RootSpans0 + _RootSpansShards
-
 	// sweepMinHeapDistance is a lower bound on the heap distance
 	// (in bytes) reserved for concurrent sweeping between GC
 	// cycles. This will be scaled by gcpercent/100.
@@ -804,6 +796,9 @@ var work struct {
 	alldone note
 	markfor *parfor
 
+	// Number of roots of various root types. Set by gcMarkRootPrepare.
+	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+
 	// finalizersDone indicates that finalizers and objects with
 	// finalizers have been scanned by markroot. During concurrent
 	// GC, this happens during the concurrent scan phase. During
@@ -1060,8 +1055,9 @@ func gc(mode gcMode) {
 		// barriers. Rescan some roots and flush work caches.
 		systemstack(func() {
 			// rescan global data and bss.
-			markroot(nil, _RootData)
-			markroot(nil, _RootBss)
+			for i := fixedRootCount; i < fixedRootCount+work.nDataRoots+work.nBSSRoots; i++ {
+				markroot(nil, uint32(i))
+			}
 
 			// Disallow caching workbufs.
 			gcBlackenPromptly = true
@@ -1460,6 +1456,9 @@ func gcMark(start_time int64) {
 	// but must be disposed to the global lists immediately.
 	gcFlushGCWork()
 
+	// Queue root marking jobs.
+	nRoots := gcMarkRootPrepare()
+
 	work.nwait = 0
 	work.ndone = 0
 	work.nproc = uint32(gcprocs())
@@ -1468,7 +1467,7 @@ func gcMark(start_time int64) {
 		traceGCScanStart()
 	}
 
-	parforsetup(work.markfor, work.nproc, uint32(_RootCount+allglen), false, markroot)
+	parforsetup(work.markfor, work.nproc, uint32(nRoots), false, markroot)
 	if work.nproc > 1 {
 		noteclear(&work.alldone)
 		helpgc(int32(work.nproc))
