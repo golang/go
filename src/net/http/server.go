@@ -1472,6 +1472,9 @@ func StripPrefix(prefix string, h Handler) Handler {
 
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
+//
+// The provided code should be in the 3xx range and is usually
+// StatusMovedPermanently, StatusFound or StatusSeeOther.
 func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 	if u, err := url.Parse(urlStr); err == nil {
 		// If url was relative, make absolute by
@@ -1556,6 +1559,9 @@ func (rh *redirectHandler) ServeHTTP(w ResponseWriter, r *Request) {
 // RedirectHandler returns a request handler that redirects
 // each request it receives to the given url using the given
 // status code.
+//
+// The provided code should be in the 3xx range and is usually
+// StatusMovedPermanently, StatusFound or StatusSeeOther.
 func RedirectHandler(url string, code int) Handler {
 	return &redirectHandler{url, code}
 }
