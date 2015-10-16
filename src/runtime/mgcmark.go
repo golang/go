@@ -8,6 +8,64 @@ package runtime
 
 import "unsafe"
 
+const (
+	fixedRootFinalizers = iota
+	fixedRootFlushCaches
+	fixedRootCount
+
+	// rootBlockBytes is the number of bytes to scan per data or
+	// BSS root.
+	rootBlockBytes = 256 << 10
+
+	// rootBlockSpans is the number of spans to scan per span
+	// root.
+	rootBlockSpans = 8 * 1024 // 64MB worth of spans
+)
+
+// gcMarkRootPrepare initializes scanning-related state and returns
+// the number of roots.
+//
+// The caller must have call gcCopySpans().
+//
+//go:nowritebarrier
+func gcMarkRootPrepare() int {
+	// Compute how many data and BSS root blocks there are.
+	nBlocks := func(bytes uintptr) int {
+		return int((bytes + rootBlockBytes - 1) / rootBlockBytes)
+	}
+
+	work.nDataRoots = 0
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		nDataRoots := nBlocks(datap.edata - datap.data)
+		if nDataRoots > work.nDataRoots {
+			work.nDataRoots = nDataRoots
+		}
+	}
+
+	work.nBSSRoots = 0
+	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+		nBSSRoots := nBlocks(datap.ebss - datap.bss)
+		if nBSSRoots > work.nBSSRoots {
+			work.nBSSRoots = nBSSRoots
+		}
+	}
+
+	// Compute number of span roots.
+	work.nSpanRoots = (len(work.spans) + rootBlockSpans - 1) / rootBlockSpans
+
+	// Snapshot of allglen. During concurrent scan, we just need
+	// to be consistent about how many markroot jobs we create and
+	// how many Gs we check. Gs may be created after this point,
+	// but it's okay that we ignore them because they begin life
+	// without any roots, so there's nothing to scan, and any
+	// roots they create during the concurrent phase will be
+	// scanned during mark termination. During mark termination,
+	// allglen isn't changing, so we'll scan all Gs.
+	work.nStackRoots = int(atomicloaduintptr(&allglen))
+
+	return fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots
+}
+
 // Scan all of the stacks, greying (or graying if in America) the referents
 // but not blackening them since the mark write barrier isn't installed.
 //go:nowritebarrier
@@ -26,22 +84,17 @@ func gcscan_m() {
 	// runtime·restartg(mastergp) to make it Grunnable.
 	// At the bottom we will want to return this p back to the scheduler.
 
-	// Snapshot of allglen. During concurrent scan, we just need
-	// to be consistent about how many markroot jobs we create and
-	// how many Gs we check. Gs may be created after this and
-	// they'll be scanned during mark termination. During mark
-	// termination, allglen isn't changing.
-	local_allglen := int(atomicloaduintptr(&allglen))
+	nroots := gcMarkRootPrepare()
 
 	work.ndone = 0
 	useOneP := uint32(1) // For now do not do this in parallel.
 	//	ackgcphase is not needed since we are not scanning running goroutines.
-	parforsetup(work.markfor, useOneP, uint32(_RootCount+local_allglen), false, markroot)
+	parforsetup(work.markfor, useOneP, uint32(nroots), false, markroot)
 	parfordo(work.markfor)
 
 	lock(&allglock)
 	// Check that gc work is done.
-	for i := 0; i < local_allglen; i++ {
+	for i := 0; i < work.nStackRoots; i++ {
 		gp := allgs[i]
 		if !gp.gcscandone {
 			throw("scan missed a g")
@@ -61,40 +114,43 @@ func markroot(desc *parfor, i uint32) {
 	// TODO: Consider using getg().m.p.ptr().gcw.
 	var gcw gcWork
 
+	baseData := uint32(fixedRootCount)
+	baseBSS := baseData + uint32(work.nDataRoots)
+	baseSpans := baseBSS + uint32(work.nBSSRoots)
+	baseStacks := baseSpans + uint32(work.nSpanRoots)
+
 	// Note: if you add a case here, please also update heapdump.go:dumproots.
-	switch i {
-	case _RootData:
+	switch {
+	case baseData <= i && i < baseBSS:
 		for datap := &firstmoduledata; datap != nil; datap = datap.next {
-			scanblock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, &gcw)
+			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, &gcw, int(i-baseData))
 		}
 
-	case _RootBss:
+	case baseBSS <= i && i < baseSpans:
 		for datap := &firstmoduledata; datap != nil; datap = datap.next {
-			scanblock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, &gcw)
+			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, &gcw, int(i-baseBSS))
 		}
 
-	case _RootFinalizers:
+	case i == fixedRootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], &gcw)
 		}
 
-	case _RootFlushCaches:
+	case i == fixedRootFlushCaches:
 		if gcphase != _GCscan { // Do not flush mcaches during GCscan phase.
 			flushallmcaches()
 		}
 
-	default:
-		if _RootSpans0 <= i && i < _RootSpans0+_RootSpansShards {
-			// mark MSpan.specials
-			markrootSpans(&gcw, int(i)-_RootSpans0)
-			break
-		}
+	case baseSpans <= i && i < baseStacks:
+		// mark MSpan.specials
+		markrootSpans(&gcw, int(i-baseSpans))
 
+	default:
 		// the rest is scanning goroutine stacks
-		if uintptr(i-_RootCount) >= allglen {
+		if uintptr(i-baseStacks) >= allglen {
 			throw("markroot: bad index")
 		}
-		gp := allgs[i-_RootCount]
+		gp := allgs[i-baseStacks]
 
 		// remember when we've first observed the G blocked
 		// needed only to output in traceback
@@ -117,8 +173,31 @@ func markroot(desc *parfor, i uint32) {
 	gcw.dispose()
 }
 
-// markrootSpans marks roots for one shard (out of _RootSpansShards)
-// of work.spans.
+// markrootBlock scans the shard'th shard of the block of memory [b0,
+// b0+n0), with the given pointer mask.
+//
+//go:nowritebarrier
+func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
+	if rootBlockBytes%(8*ptrSize) != 0 {
+		// This is necessary to pick byte offsets in ptrmask0.
+		throw("rootBlockBytes must be a multiple of 8*ptrSize")
+	}
+
+	b := b0 + uintptr(shard)*rootBlockBytes
+	if b >= b0+n0 {
+		return
+	}
+	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*ptrSize))))
+	n := uintptr(rootBlockBytes)
+	if b+n > b0+n0 {
+		n = b0 + n0 - b
+	}
+
+	// Scan this shard.
+	scanblock(b, n, ptrmask, gcw)
+}
+
+// markrootSpans marks roots for one shard of work.spans.
 //
 //go:nowritebarrier
 func markrootSpans(gcw *gcWork, shard int) {
@@ -146,8 +225,11 @@ func markrootSpans(gcw *gcWork, shard int) {
 	}
 
 	sg := mheap_.sweepgen
-	startSpan := shard * len(work.spans) / _RootSpansShards
-	endSpan := (shard + 1) * len(work.spans) / _RootSpansShards
+	startSpan := shard * rootBlockSpans
+	endSpan := (shard + 1) * rootBlockSpans
+	if endSpan > len(work.spans) {
+		endSpan = len(work.spans)
+	}
 	// Note that work.spans may not include spans that were
 	// allocated between entering the scan phase and now. This is
 	// okay because any objects with finalizers in those spans
