@@ -1515,7 +1515,7 @@ func gcMark(start_time int64) {
 	work.finalizersDone = true
 
 	for i := 0; i < int(gomaxprocs); i++ {
-		if allp[i].gcw.wbuf != 0 {
+		if !allp[i].gcw.empty() {
 			throw("P has cached GC work at end of mark termination")
 		}
 	}
