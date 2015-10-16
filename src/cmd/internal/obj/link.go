@@ -491,6 +491,16 @@ const (
 	// inserts the displacement from the place being relocated to the address of the
 	// the relocated symbol instead of just its address.
 	R_ADDRPOWER_PCREL
+
+	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
+	// inserts the offset from the TOC to the address of the the relocated symbol
+	// rather than the symbol's address.
+	R_ADDRPOWER_TOCREL
+
+	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
+	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
+	// relocated symbol rather than the symbol's address.
+	R_ADDRPOWER_TOCREL_DS
 )
 
 type Auto struct {
