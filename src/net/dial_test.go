@@ -509,6 +509,9 @@ func TestDialerFallbackDelay(t *testing.T) {
 }
 
 func TestDialSerialAsyncSpuriousConnection(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no deadline support, golang.org/issue/11932")
+	}
 	ln, err := newLocalListener("tcp")
 	if err != nil {
 		t.Fatal(err)

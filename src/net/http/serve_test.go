@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -2980,6 +2981,7 @@ func TestServerConnState(t *testing.T) {
 		if _, err := io.WriteString(c, "BOGUS REQUEST\r\n\r\n"); err != nil {
 			t.Fatal(err)
 		}
+		c.Read(make([]byte, 1)) // block until server hangs up on us
 		c.Close()
 	}
 
@@ -3013,9 +3015,14 @@ func TestServerConnState(t *testing.T) {
 	}
 	logString := func(m map[int][]ConnState) string {
 		var b bytes.Buffer
-		for id, l := range m {
+		var keys []int
+		for id := range m {
+			keys = append(keys, id)
+		}
+		sort.Ints(keys)
+		for _, id := range keys {
 			fmt.Fprintf(&b, "Conn %d: ", id)
-			for _, s := range l {
+			for _, s := range m[id] {
 				fmt.Fprintf(&b, "%s ", s)
 			}
 			b.WriteString("\n")
