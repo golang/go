@@ -208,7 +208,6 @@ func TestListenerClose(t *testing.T) {
 		case "unix", "unixpacket":
 			defer os.Remove(ln.Addr().String())
 		}
-		defer ln.Close()
 
 		if err := ln.Close(); err != nil {
 			if perr := parseCloseError(err); perr != nil {
@@ -220,6 +219,14 @@ func TestListenerClose(t *testing.T) {
 		if err == nil {
 			c.Close()
 			t.Fatal("should fail")
+		}
+
+		if network == "tcp" {
+			cc, err := Dial("tcp", ln.Addr().String())
+			if err == nil {
+				t.Error("Dial to closed TCP listener succeeeded.")
+				cc.Close()
+			}
 		}
 	}
 }
