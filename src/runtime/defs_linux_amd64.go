@@ -87,6 +87,10 @@ const (
 	_EPOLL_CTL_ADD = 0x1
 	_EPOLL_CTL_DEL = 0x2
 	_EPOLL_CTL_MOD = 0x3
+
+	_AF_UNIX    = 0x1
+	_F_SETFL    = 0x4
+	_SOCK_DGRAM = 0x2
 )
 
 type timespec struct {
@@ -252,4 +256,9 @@ type sigcontext struct {
 	cr2         uint64
 	fpstate     *fpstate1
 	__reserved1 [8]uint64
+}
+
+type sockaddr_un struct {
+	family uint16
+	path   [108]byte
 }
