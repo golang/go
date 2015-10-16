@@ -3645,6 +3645,7 @@ func testSchedLocalQueueSteal() {
 	}
 }
 
+//go:linkname setMaxThreads runtime/debug.setMaxThreads
 func setMaxThreads(in int) (out int) {
 	lock(&sched.lock)
 	out = int(sched.maxmcount)
