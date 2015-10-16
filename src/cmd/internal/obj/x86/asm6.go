@@ -1921,6 +1921,8 @@ func instinit() {
 	}
 }
 
+var isAndroid = (obj.Getgoos() == "android")
+
 func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
 		return 0
@@ -1968,6 +1970,10 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 				log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
 
 			case obj.Hlinux:
+				if isAndroid {
+					return 0x64 // FS
+				}
+
 				if ctxt.Flag_shared != 0 {
 					log.Fatalf("unknown TLS base register for linux with -shared")
 				} else {

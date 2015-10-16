@@ -39,6 +39,16 @@ import (
 )
 
 func canuse1insntls(ctxt *obj.Link) bool {
+	if isAndroid {
+		// For android, we use a disgusting hack that assumes
+		// the thread-local storage slot for g is allocated
+		// using pthread_key_create with a fixed offset
+		// (see src/runtime/cgo/gcc_android_amd64.c).
+		// This makes access to the TLS storage (for g) doable
+		// with 1 instruction.
+		return true
+	}
+
 	if ctxt.Arch.Regsize == 4 {
 		switch ctxt.Headtype {
 		case obj.Hlinux,
