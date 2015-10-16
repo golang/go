@@ -381,7 +381,9 @@ func relocsym(s *LSym) {
 			}
 
 		case obj.R_TLS_LE:
-			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+			isAndroidX86 := goos == "android" && (Thearch.Thechar == '6' || Thearch.Thechar == '8')
+
+			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd && !isAndroidX86 {
 				r.Done = 0
 				if r.Sym == nil {
 					r.Sym = Ctxt.Tlsg
@@ -404,7 +406,7 @@ func relocsym(s *LSym) {
 				// related to the fact that our own TLS storage happens
 				// to take up 8 bytes.
 				o = 8 + r.Sym.Value
-			} else if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
+			} else if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin || isAndroidX86 {
 				o = int64(Ctxt.Tlsoffset) + r.Add
 			} else if Ctxt.Headtype == obj.Hwindows {
 				o = r.Add
@@ -413,7 +415,9 @@ func relocsym(s *LSym) {
 			}
 
 		case obj.R_TLS_IE:
-			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+			isAndroidX86 := goos == "android" && (Thearch.Thechar == '6' || Thearch.Thechar == '8')
+
+			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd && !isAndroidX86 {
 				r.Done = 0
 				if r.Sym == nil {
 					r.Sym = Ctxt.Tlsg
