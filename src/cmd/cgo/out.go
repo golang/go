@@ -108,6 +108,13 @@ func (p *Package) writeDefs() {
 		fmt.Fprint(fgo2, goProlog)
 	}
 
+	for i, t := range p.CgoChecks {
+		n := p.unsafeCheckPointerNameIndex(i)
+		fmt.Fprintf(fgo2, "\nfunc %s(p interface{}, args ...interface{}) %s {\n", n, t)
+		fmt.Fprintf(fgo2, "\treturn _cgoCheckPointer(p, args...).(%s)\n", t)
+		fmt.Fprintf(fgo2, "}\n")
+	}
+
 	gccgoSymbolPrefix := p.gccgoSymbolPrefix()
 
 	cVars := make(map[string]bool)
@@ -1241,6 +1248,9 @@ func _cgo_runtime_cmalloc(uintptr) unsafe.Pointer
 
 //go:linkname _cgo_runtime_cgocallback runtime.cgocallback
 func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
+
+//go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+func _cgoCheckPointer(interface{}, ...interface{}) interface{}
 `
 
 const goStringDef = `
