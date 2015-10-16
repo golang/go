@@ -87,17 +87,19 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.startBlock(s.f.Entry)
 	s.vars[&memVar] = s.startmem
 
+	s.varsyms = map[*Node]interface{}{}
+
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
 	for d := fn.Func.Dcl; d != nil; d = d.Next {
 		n := d.N
 		switch n.Class {
 		case PPARAM:
-			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
+			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PAUTO | PHEAP:
 			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
-			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PPARAM | PHEAP, PPARAMOUT | PHEAP:
 		// This ends up wrong, have to do it at the PARAM node instead.
@@ -233,6 +235,9 @@ type state struct {
 
 	// addresses of PPARAM and PPARAMOUT variables.
 	decladdrs map[*Node]*ssa.Value
+
+	// symbols for PEXTERN, PAUTO and PPARAMOUT variables so they can be reused.
+	varsyms map[*Node]interface{}
 
 	// starting values.  Memory, frame pointer, and stack pointer
 	startmem *ssa.Value
@@ -1247,7 +1252,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	s.stmtList(n.Ninit)
 	switch n.Op {
 	case OCFUNC:
-		aux := &ssa.ExternSymbol{n.Type, n.Left.Sym}
+		aux := s.lookupSymbol(n, &ssa.ExternSymbol{n.Type, n.Left.Sym})
 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
 	case OPARAM:
 		addr := s.addr(n, false)
@@ -2187,6 +2192,25 @@ func etypesign(e uint8) int8 {
 	return 0
 }
 
+// lookupSymbol is used to retrieve the symbol (Extern, Arg or Auto) used for a particular node.
+// This improves the effectiveness of cse by using the same Aux values for the
+// same symbols.
+func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
+	switch sym.(type) {
+	default:
+		s.Fatalf("sym %v is of uknown type %T", sym, sym)
+	case *ssa.ExternSymbol, *ssa.ArgSymbol, *ssa.AutoSymbol:
+		// these are the only valid types
+	}
+
+	if lsym, ok := s.varsyms[n]; ok {
+		return lsym
+	} else {
+		s.varsyms[n] = sym
+		return sym
+	}
+}
+
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
 // The value that the returned Value represents is guaranteed to be non-nil.
 // If bounded is true then this address does not require a nil check for its operand
@@ -2226,7 +2250,9 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
 			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
-			aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
+			// ensure that we reuse symbols for out parameters so
+			// that cse works on their addresses
+			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
 			return s.expr(n.Name.Heapaddr)
