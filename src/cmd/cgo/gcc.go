@@ -1227,6 +1227,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Go = c.int32
 		case 8:
 			t.Go = c.int64
+		case 16:
+			t.Go = &ast.ArrayType{
+				Len: c.intExpr(t.Size),
+				Elt: c.uint8,
+			}
 		}
 		if t.Align = t.Size; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize
@@ -1384,6 +1389,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Go = c.uint32
 		case 8:
 			t.Go = c.uint64
+		case 16:
+			t.Go = &ast.ArrayType{
+				Len: c.intExpr(t.Size),
+				Elt: c.uint8,
+			}
 		}
 		if t.Align = t.Size; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize

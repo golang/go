@@ -119,6 +119,7 @@ C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
 C.long, C.ulong (unsigned long), C.longlong (long long),
 C.ulonglong (unsigned long long), C.float, C.double.
 The C type void* is represented by Go's unsafe.Pointer.
+The C types __int128_t and __uint128_t are represented by [16]byte.
 
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
