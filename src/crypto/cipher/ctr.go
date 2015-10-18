@@ -41,13 +41,10 @@ func NewCTR(block Block, iv []byte) Stream {
 
 func (x *ctr) refill() {
 	remain := len(x.out) - x.outUsed
-	if remain > x.outUsed {
-		return
-	}
 	copy(x.out, x.out[x.outUsed:])
 	x.out = x.out[:cap(x.out)]
 	bs := x.b.BlockSize()
-	for remain < len(x.out)-bs {
+	for remain <= len(x.out)-bs {
 		x.b.Encrypt(x.out[remain:], x.ctr)
 		remain += bs
 
