@@ -987,7 +987,6 @@ func gc(mode gcMode) {
 	// reclaimed until the next GC cycle.
 	clearpools()
 
-	gcResetGState()
 	gcResetMarkState()
 
 	work.finalizersDone = false
@@ -1150,7 +1149,6 @@ func gc(mode gcMode) {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
 			// the concurrent mark process.
-			gcResetGState() // Rescan stacks
 			gcResetMarkState()
 			initCheckmarks()
 			gcMark(startTime)
@@ -1166,7 +1164,6 @@ func gc(mode gcMode) {
 			// The g stacks have been scanned so
 			// they have gcscanvalid==true and gcworkdone==true.
 			// Reset these so that all stacks will be rescanned.
-			gcResetGState()
 			gcResetMarkState()
 			finishsweep_m(true)
 
@@ -1649,9 +1646,10 @@ func gcCopySpans() {
 	unlock(&mheap_.lock)
 }
 
-// gcResetGState resets the GC state of all G's. Any Gs created after
-// this will also be in this reset state.
-func gcResetGState() {
+// gcResetMarkState resets global state prior to marking (concurrent
+// or STW) and resets the stack scan state of all Gs. Any Gs created
+// after this will also be in the reset state.
+func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
 	lock(&allglock)
@@ -1661,12 +1659,7 @@ func gcResetGState() {
 		gp.gcAssistBytes = 0
 	}
 	unlock(&allglock)
-}
 
-// gcResetMarkState resets state prior to marking (concurrent or STW).
-//
-// TODO(austin): Merge with gcResetGState. See issue #11427.
-func gcResetMarkState() {
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live
 }
