@@ -943,7 +943,7 @@ func backgroundgc() {
 func gc(mode gcMode) {
 	// Timing/utilization tracking
 	var stwprocs, maxprocs int32
-	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
+	var tSweepTerm, tScan, tMark, tMarkTerm int64
 
 	// debug.gctrace variables
 	var heap0, heap1, heap2, heapGoal uint64
@@ -996,31 +996,30 @@ func gc(mode gcMode) {
 		heapGoal = gcController.heapGoal
 
 		systemstack(func() {
-			// Enter scan phase. This enables write
-			// barriers to track changes to stack frames
-			// above the stack barrier.
+			// Enter scan phase and enable write barriers.
 			//
-			// TODO: This has evolved to the point where
-			// we carefully ensure invariants we no longer
-			// depend on. Either:
+			// Because the world is stopped, all Ps will
+			// observe that write barriers are enabled by
+			// the time we start the world and begin
+			// scanning.
 			//
-			// 1) Enable full write barriers for the scan,
-			// but eliminate the ragged barrier below
-			// (since the start the world ensures all Ps
-			// have observed the write barrier enable) and
-			// consider draining during the scan.
+			// It's necessary to enable write barriers
+			// during the scan phase for several reasons:
 			//
-			// 2) Only enable write barriers for writes to
-			// the stack at this point, and then enable
-			// write barriers for heap writes when we
-			// enter the mark phase. This means we cannot
-			// drain in the scan phase and must perform a
-			// ragged barrier to ensure all Ps have
-			// enabled heap write barriers before we drain
-			// or enable assists.
+			// They must be enabled for writes to higher
+			// stack frames before we scan stacks and
+			// install stack barriers because this is how
+			// we track writes to inactive stack frames.
+			// (Alternatively, we could not install stack
+			// barriers over frame boundaries with
+			// up-pointers).
 			//
-			// 3) Don't install stack barriers over frame
-			// boundaries where there are up-pointers.
+			// They must be enabled before assists are
+			// enabled because they must be enabled before
+			// any non-leaf heap objects are marked. Since
+			// allocations are blocked until assists can
+			// happen, we want enable assists as early as
+			// possible.
 			setGCPhase(_GCscan)
 
 			// markrootSpans uses work.spans, so make sure
@@ -1045,12 +1044,7 @@ func gc(mode gcMode) {
 			gcscan_m()
 
 			// Enter mark phase.
-			tInstallWB = nanotime()
 			setGCPhase(_GCmark)
-			// Ensure all Ps have observed the phase
-			// change and have write barriers enabled
-			// before any blackening occurs.
-			forEachP(func(*p) {})
 		})
 		// Concurrent mark.
 		tMark = nanotime()
@@ -1106,7 +1100,7 @@ func gc(mode gcMode) {
 		gcController.endCycle()
 	} else {
 		t := nanotime()
-		tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
+		tScan, tMark, tMarkTerm = t, t, t
 		heapGoal = heap0
 	}
 
@@ -1201,13 +1195,12 @@ func gc(mode gcMode) {
 
 	// Update work.totaltime.
 	sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
-	scanCpu := tInstallWB - tScan
-	installWBCpu := int64(0)
+	scanCpu := tMark - tScan
 	// We report idle marking time below, but omit it from the
 	// overall utilization here since it's "free".
 	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
 	markTermCpu := int64(stwprocs) * (now - tMarkTerm)
-	cycleCpu := sweepTermCpu + scanCpu + installWBCpu + markCpu + markTermCpu
+	cycleCpu := sweepTermCpu + scanCpu + markCpu + markTermCpu
 	work.totaltime += cycleCpu
 
 	// Compute overall GC CPU utilization.
@@ -1225,6 +1218,10 @@ func gc(mode gcMode) {
 	if debug.gctrace > 0 {
 		tEnd := now
 		util := int(memstats.gc_cpu_fraction * 100)
+
+		// Install WB phase is no longer used.
+		tInstallWB := tMark
+		installWBCpu := int64(0)
 
 		var sbuf [24]byte
 		printlock()
