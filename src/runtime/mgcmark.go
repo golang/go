@@ -26,8 +26,12 @@ func gcscan_m() {
 	// runtime·restartg(mastergp) to make it Grunnable.
 	// At the bottom we will want to return this p back to the scheduler.
 
-	// Prepare flag indicating that the scan has not been completed.
-	local_allglen := gcResetGState()
+	// Snapshot of allglen. During concurrent scan, we just need
+	// to be consistent about how many markroot jobs we create and
+	// how many Gs we check. Gs may be created after this and
+	// they'll be scanned during mark termination. During mark
+	// termination, allglen isn't changing.
+	local_allglen := int(atomicloaduintptr(&allglen))
 
 	work.ndone = 0
 	useOneP := uint32(1) // For now do not do this in parallel.

@@ -987,6 +987,7 @@ func gc(mode gcMode) {
 	// reclaimed until the next GC cycle.
 	clearpools()
 
+	gcResetGState()
 	gcResetMarkState()
 
 	work.finalizersDone = false
@@ -1105,11 +1106,6 @@ func gc(mode gcMode) {
 
 		gcController.endCycle()
 	} else {
-		// For non-concurrent GC (mode != gcBackgroundMode)
-		// The g stacks have not been scanned so clear g state
-		// such that mark termination scans all stacks.
-		gcResetGState()
-
 		t := nanotime()
 		tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
 		heapGoal = heap0
@@ -1653,9 +1649,9 @@ func gcCopySpans() {
 	unlock(&mheap_.lock)
 }
 
-// gcResetGState resets the GC state of all G's and returns the length
-// of allgs.
-func gcResetGState() (numgs int) {
+// gcResetGState resets the GC state of all G's. Any Gs created after
+// this will also be in this reset state.
+func gcResetGState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
 	lock(&allglock)
@@ -1664,9 +1660,7 @@ func gcResetGState() (numgs int) {
 		gp.gcscanvalid = false // stack has not been scanned
 		gp.gcAssistBytes = 0
 	}
-	numgs = len(allgs)
 	unlock(&allglock)
-	return
 }
 
 // gcResetMarkState resets state prior to marking (concurrent or STW).
