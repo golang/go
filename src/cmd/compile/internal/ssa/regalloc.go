@@ -982,7 +982,11 @@ func (v *Value) rematerializeable() bool {
 		// which can't be moved.
 		return false
 	}
-	// TODO: maybe not OpAMD64LoweredGetG?
+	if v.Op == OpAMD64LoweredGetG {
+		// It would almost always be ok to rematerialize this op.
+		// The annoying exception is functions that call runtime.setg.
+		return false
+	}
 	if len(v.Args) == 0 {
 		return true
 	}
