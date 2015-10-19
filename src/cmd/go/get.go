@@ -84,8 +84,12 @@ func runGet(cmd *Command, args []string) {
 	// Disable any prompting for passwords by Git.
 	// Only has an effect for 2.3.0 or later, but avoiding
 	// the prompt in earlier versions is just too hard.
-	// See golang.org/issue/9341.
-	os.Setenv("GIT_TERMINAL_PROMPT", "0")
+	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
+	// prompting.
+	// See golang.org/issue/9341 and golang.org/issue/12706.
+	if v := os.Getenv("GIT_TERMINAL_PROMPT"); v == "" {
+		os.Setenv("GIT_TERMINAL_PROMPT", "0")
+	}
 
 	// Phase 1.  Download/update.
 	var stk importStack
