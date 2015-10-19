@@ -351,7 +351,7 @@ func symtab() {
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *LSym
 	var symtyperel *LSym
-	if UseRelro() && Buildmode == BuildmodeCShared {
+	if UseRelro() && (Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE) {
 		s = Linklookup(Ctxt, "type.*", 0)
 
 		s.Type = obj.STYPE
@@ -512,7 +512,8 @@ func symtab() {
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
 	if len(Ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(outfile)
-		if Buildmode == BuildmodeExe {
+		switch Buildmode {
+		case BuildmodeExe, BuildmodePIE:
 			// When linking an executable, outfile is just "a.out". Make
 			// it something slightly more comprehensible.
 			thismodulename = "the executable"

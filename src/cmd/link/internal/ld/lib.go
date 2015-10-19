@@ -177,7 +177,12 @@ func DynlinkingGo() bool {
 // UseRelro returns whether to make use of "read only relocations" aka
 // relro.
 func UseRelro() bool {
-	return (Buildmode == BuildmodeCShared || Buildmode == BuildmodeShared) && Iself
+	switch Buildmode {
+	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+		return Iself
+	default:
+		return false
+	}
 }
 
 var (
@@ -278,6 +283,7 @@ type BuildMode uint8
 const (
 	BuildmodeUnset BuildMode = iota
 	BuildmodeExe
+	BuildmodePIE
 	BuildmodeCArchive
 	BuildmodeCShared
 	BuildmodeShared
@@ -294,6 +300,13 @@ func (mode *BuildMode) Set(s string) error {
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
 		*mode = BuildmodeExe
+	case "pie":
+		switch goos {
+		case "android":
+		default:
+			return badmode()
+		}
+		*mode = BuildmodePIE
 	case "c-archive":
 		switch goos {
 		case "darwin", "linux":
@@ -321,6 +334,8 @@ func (mode *BuildMode) String() string {
 		return "" // avoid showing a default in usage message
 	case BuildmodeExe:
 		return "exe"
+	case BuildmodePIE:
+		return "pie"
 	case BuildmodeCArchive:
 		return "c-archive"
 	case BuildmodeCShared:
@@ -375,7 +390,7 @@ func libinit() {
 		switch Buildmode {
 		case BuildmodeCShared, BuildmodeCArchive:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
-		case BuildmodeExe:
+		case BuildmodeExe, BuildmodePIE:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
 		case BuildmodeShared:
 			// No INITENTRY for -buildmode=shared
@@ -623,8 +638,11 @@ func loadlib() {
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
-	if Buildmode == BuildmodeExe && havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
-		Debug['d'] = 1
+	switch Buildmode {
+	case BuildmodeExe, BuildmodePIE:
+		if havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
+			Debug['d'] = 1
+		}
 	}
 
 	importcycles()
@@ -978,6 +996,8 @@ func hostlink() {
 		if HEADTYPE == obj.Hdarwin {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
+	case BuildmodePIE:
+		argv = append(argv, "-pie")
 	case BuildmodeCShared:
 		if HEADTYPE == obj.Hdarwin {
 			argv = append(argv, "-dynamiclib")

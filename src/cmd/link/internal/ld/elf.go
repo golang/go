@@ -1697,13 +1697,10 @@ func doelf() {
 	}
 	Addstring(shstrtab, ".elfdata")
 	Addstring(shstrtab, ".rodata")
-	if Buildmode == BuildmodeShared || Buildmode == BuildmodeCShared {
-		Addstring(shstrtab, ".data.rel.ro")
-	}
 	// See the comment about data.rel.ro.FOO section names in data.go.
 	relro_prefix := ""
-
 	if UseRelro() {
+		Addstring(shstrtab, ".data.rel.ro")
 		relro_prefix = ".data.rel.ro"
 	}
 	Addstring(shstrtab, relro_prefix+".typelink")
