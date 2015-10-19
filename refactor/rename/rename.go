@@ -96,11 +96,11 @@ anything else that could cause the resulting program not to compile.
 
 Examples:
 
-% gorename -offset file.go:#123 -to foo
+$ gorename -offset file.go:#123 -to foo
 
   Rename the object whose identifier is at byte offset 123 within file file.go.
 
-% gorename -from \"bytes\".Buffer.Len' -to Size
+$ gorename -from '"bytes".Buffer.Len' -to Size
 
   Rename the "Len" method of the *bytes.Buffer type to "Size".
 
