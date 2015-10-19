@@ -399,6 +399,12 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 			panic("bad register state")
 		}
 		c = s.curBlock.NewValue1(v.Line, OpCopy, v.Type, s.regs[r2].c)
+	} else if v.rematerializeable() {
+		// Rematerialize instead of loading from the spill location.
+		c = s.curBlock.NewValue0(v.Line, v.Op, v.Type)
+		c.Aux = v.Aux
+		c.AuxInt = v.AuxInt
+		c.AddArgs(v.Args...)
 	} else {
 		switch {
 		// It is difficult to spill and reload flags on many architectures.
@@ -433,7 +439,6 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 			c.AddArgs(args...)
 
 		// Load v from its spill location.
-		// TODO: rematerialize if we can.
 		case vi.spill2 != nil:
 			if logSpills {
 				fmt.Println("regalloc: load spill2")
@@ -737,8 +742,13 @@ func (s *regAllocState) regalloc(f *Func) {
 				continue
 			}
 
-			// TODO: If value is rematerializeable, don't issue it here.
-			// Instead, rely on argument loading code to put it in a register when needed.
+			if v.rematerializeable() {
+				// Value is rematerializeable, don't issue it here.
+				// It will get issued just before each use (see
+				// allocValueToReg).
+				pc++
+				continue
+			}
 
 			// Move arguments to registers
 			for _, i := range regspec.inputs {
@@ -960,6 +970,26 @@ func (s *regAllocState) regalloc(f *Func) {
 
 	// Set final regalloc result.
 	f.RegAlloc = s.home
+}
+
+func (v *Value) rematerializeable() bool {
+	// TODO: add a flags field to opInfo for this test?
+
+	// rematerializeable ops must be able to fill any register.
+	outputs := opcodeTable[v.Op].reg.outputs
+	if len(outputs) == 0 || countRegs(outputs[0]) <= 1 {
+		// Note: this case handles OpAMD64LoweredGetClosurePtr
+		// which can't be moved.
+		return false
+	}
+	// TODO: maybe not OpAMD64LoweredGetG?
+	if len(v.Args) == 0 {
+		return true
+	}
+	if len(v.Args) == 1 && (v.Args[0].Op == OpSP || v.Args[0].Op == OpSB) {
+		return true
+	}
+	return false
 }
 
 // live returns a map from block ID and successor edge index to a list
