@@ -335,5 +335,8 @@ func init() {
 		return
 	}
 	getRandomData((*[len(hashkey) * ptrSize]byte)(unsafe.Pointer(&hashkey))[:])
-	hashkey[0] |= 1 // make sure this number is odd
+	hashkey[0] |= 1 // make sure these numbers are odd
+	hashkey[1] |= 1
+	hashkey[2] |= 1
+	hashkey[3] |= 1
 }

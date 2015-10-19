@@ -130,3 +130,5 @@ var ExportServerNewConn = (*Server).newConn
 var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
 
 var ExportErrRequestCanceled = errRequestCanceled
+
+var ExportServeFile = serveFile

@@ -286,25 +286,23 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// Now we can figure out the minimum number of digits required.
 	// Walk along until d has distinguished itself from upper and lower.
 	for i := 0; i < d.nd; i++ {
-		var l, m, u byte // lower, middle, upper digits
+		l := byte('0') // lower digit
 		if i < lower.nd {
 			l = lower.d[i]
-		} else {
-			l = '0'
 		}
-		m = d.d[i]
+		m := d.d[i]    // middle digit
+		u := byte('0') // upper digit
 		if i < upper.nd {
 			u = upper.d[i]
-		} else {
-			u = '0'
 		}
 
 		// Okay to round down (truncate) if lower has a different digit
-		// or if lower is inclusive and is exactly the result of rounding down.
-		okdown := l != m || (inclusive && l == m && i+1 == lower.nd)
+		// or if lower is inclusive and is exactly the result of rounding
+		// down (i.e., and we have reached the final digit of lower).
+		okdown := l != m || inclusive && i+1 == lower.nd
 
-		// Okay to round up if upper has a different digit and
-		// either upper is inclusive or upper is bigger than the result of rounding up.
+		// Okay to round up if upper has a different digit and either upper
+		// is inclusive or upper is bigger than the result of rounding up.
 		okup := m != u && (inclusive || m+1 < u || i+1 < upper.nd)
 
 		// If it's okay to do either, then round to the nearest one.

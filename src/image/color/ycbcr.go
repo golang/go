@@ -137,6 +137,46 @@ func yCbCrModel(c Color) Color {
 	return YCbCr{y, u, v}
 }
 
+// NYCbCrA represents a non-alpha-premultiplied Y'CbCr-with-alpha color, having
+// 8 bits each for one luma, two chroma and one alpha component.
+type NYCbCrA struct {
+	YCbCr
+	A uint8
+}
+
+func (c NYCbCrA) RGBA() (r, g, b, a uint32) {
+	r8, g8, b8 := YCbCrToRGB(c.Y, c.Cb, c.Cr)
+	a = uint32(c.A) * 0x101
+	r = uint32(r8) * 0x101 * a / 0xffff
+	g = uint32(g8) * 0x101 * a / 0xffff
+	b = uint32(b8) * 0x101 * a / 0xffff
+	return
+}
+
+// NYCbCrAModel is the Model for non-alpha-premultiplied Y'CbCr-with-alpha
+// colors.
+var NYCbCrAModel Model = ModelFunc(nYCbCrAModel)
+
+func nYCbCrAModel(c Color) Color {
+	switch c := c.(type) {
+	case NYCbCrA:
+		return c
+	case YCbCr:
+		return NYCbCrA{c, 0xff}
+	}
+	r, g, b, a := c.RGBA()
+
+	// Convert from alpha-premultiplied to non-alpha-premultiplied.
+	if a != 0 {
+		r = (r * 0xffff) / a
+		g = (g * 0xffff) / a
+		b = (b * 0xffff) / a
+	}
+
+	y, u, v := RGBToYCbCr(uint8(r>>8), uint8(g>>8), uint8(b>>8))
+	return NYCbCrA{YCbCr{Y: y, Cb: u, Cr: v}, uint8(a >> 8)}
+}
+
 // RGBToCMYK converts an RGB triple to a CMYK quadruple.
 func RGBToCMYK(r, g, b uint8) (uint8, uint8, uint8, uint8) {
 	rr := uint32(r)

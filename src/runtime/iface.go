@@ -129,6 +129,9 @@ func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
 }
 
 func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
+	}
 	ep := (*eface)(unsafe.Pointer(&e))
 	if isDirectIface(t) {
 		ep._type = t
@@ -147,6 +150,9 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e interface{}) {
 }
 
 func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i fInterface) {
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
+	}
 	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
 	if tab == nil {
 		tab = getitab(inter, t, false)

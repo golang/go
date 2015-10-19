@@ -223,16 +223,11 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 			return -1
 		}
 
-	case obj.R_TLS:
-		if r.Siz == 4 {
-			if ld.Buildmode == ld.BuildmodeCShared {
-				ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
-			} else {
-				ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
-			}
-		} else {
-			return -1
-		}
+	case obj.R_TLS_LE:
+		ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
+
+	case obj.R_TLS_IE:
+		ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
 	}
 
 	return 0
@@ -339,7 +334,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Sect == nil {
+			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
 				ld.Diag("missing section for %s", rs.Name)
 			}
 			r.Xsym = rs

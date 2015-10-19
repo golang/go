@@ -6,6 +6,7 @@ package gzip
 
 import (
 	"bytes"
+	"compress/flate"
 	"io"
 	"io/ioutil"
 	"os"
@@ -406,5 +407,36 @@ Found:
 
 	if err := r.Reset(br); err != io.EOF {
 		t.Fatalf("third reset: err=%v, want io.EOF", err)
+	}
+}
+
+func TestNilStream(t *testing.T) {
+	// Go liberally interprets RFC1952 section 2.2 to mean that a gzip file
+	// consist of zero or more members. Thus, we test that a nil stream is okay.
+	_, err := NewReader(bytes.NewReader(nil))
+	if err != io.EOF {
+		t.Fatalf("NewReader(nil) on empty stream: got %v, want io.EOF", err)
+	}
+}
+
+func TestTruncatedStreams(t *testing.T) {
+	const data = "\x1f\x8b\b\x04\x00\tn\x88\x00\xff\a\x00foo bar\xcbH\xcd\xc9\xc9\xd7Q(\xcf/\xcaI\x01\x04:r\xab\xff\f\x00\x00\x00"
+
+	// Intentionally iterate starting with at least one byte in the stream.
+	for i := 1; i < len(data)-1; i++ {
+		r, err := NewReader(strings.NewReader(data[:i]))
+		if err != nil {
+			if err != io.ErrUnexpectedEOF {
+				t.Errorf("NewReader(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
+			}
+			continue
+		}
+		_, err = io.Copy(ioutil.Discard, r)
+		if ferr, ok := err.(*flate.ReadError); ok {
+			err = ferr.Err
+		}
+		if err != io.ErrUnexpectedEOF {
+			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
+		}
 	}
 }

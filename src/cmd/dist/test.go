@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -389,7 +390,7 @@ func (t *tester) registerTests() {
 		name:    testName,
 		heading: "GOMAXPROCS=2 runtime -cpu=1,2,4",
 		fn: func() error {
-			cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), t.tags(), "runtime", "-cpu=1,2,4")
+			cmd := t.dirCmd("src", "go", "test", "-short", t.timeout(300), t.tags(), "-cpu=1,2,4", "runtime")
 			// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
 			// creation of first goroutines and first garbage collections in the parallel setting.
 			cmd.Env = mergeEnvLists([]string{"GOMAXPROCS=2"}, os.Environ())
@@ -402,7 +403,7 @@ func (t *tester) registerTests() {
 		name:    "sync_cpu",
 		heading: "sync -cpu=10",
 		fn: func() error {
-			return t.dirCmd("src", "go", "test", "sync", "-short", t.timeout(120), t.tags(), "-cpu=10").Run()
+			return t.dirCmd("src", "go", "test", "-short", t.timeout(120), t.tags(), "-cpu=10", "sync").Run()
 		},
 	})
 
@@ -477,6 +478,9 @@ func (t *tester) registerTests() {
 		if t.gohostos == "linux" && t.goarch == "amd64" {
 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
 		}
+		if t.gohostos == "linux" && t.goarch == "amd64" {
+			t.registerTest("testsanitizers", "../misc/cgo/testsanitizers", "./test.bash")
+		}
 		if t.hasBash() && t.goos != "android" && !t.iOS() && t.gohostos != "windows" {
 			t.registerTest("cgo_errors", "../misc/cgo/errors", "./test.bash")
 		}
@@ -488,7 +492,14 @@ func (t *tester) registerTests() {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
-		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")
+		for _, name := range t.shootoutTests() {
+			if name == "spectralnorm" && os.Getenv("GO_BUILDER_NAME") == "linux-arm-arm5" {
+				// Heavy on floating point and takes over 20 minutes with softfloat.
+				// Disabled per Issue 12688.
+				continue
+			}
+			t.registerTest("shootout:"+name, "../test/bench/shootout", "time", "./timing.sh", "-test", name)
+		}
 	}
 	if t.goos != "android" && !t.iOS() {
 		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
@@ -601,7 +612,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			return false
 		}
 		switch pair {
-		case "darwin-amd64", "darwin-arm", "darwin-arm64",
+		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
 			"linux-amd64", "linux-386":
 			return true
 		}
@@ -609,7 +620,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		// TODO(hyangah): add linux-386.
 		switch pair {
-		case "linux-amd64", "darwin-amd64", "android-arm":
+		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm":
 			return true
 		}
 		return false
@@ -884,6 +895,18 @@ func (t *tester) testDirTest(shard, shards int) error {
 		fmt.Sprintf("--shard=%d", shard),
 		fmt.Sprintf("--shards=%d", shards),
 	).Run()
+}
+
+func (t *tester) shootoutTests() []string {
+	sh, err := ioutil.ReadFile(filepath.Join(t.goroot, "test", "bench", "shootout", "timing.sh"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?m)^\s+run="([\w+ ]+)"\s*$`).FindSubmatch(sh)
+	if m == nil {
+		log.Fatal("failed to find run=\"...\" line in test/bench/shootout/timing.sh")
+	}
+	return strings.Fields(string(m[1]))
 }
 
 // mergeEnvLists merges the two environment lists such that

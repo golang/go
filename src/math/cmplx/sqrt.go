@@ -40,7 +40,7 @@ import "math"
 //                       1/2
 // Im w  =  [ (r - x)/2 ]   .
 //
-// Cancellation error in r-x or r+x is avoided by using the
+// Cancelation error in r-x or r+x is avoided by using the
 // identity  2 Re w Im w  =  y.
 //
 // Note that -w is also a square root of z.  The root chosen

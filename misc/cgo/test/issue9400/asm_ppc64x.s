@@ -7,7 +7,7 @@
 
 #include "textflag.h"
 
-TEXT ·RewindAndSetgid(SB),NOSPLIT,$-8-0
+TEXT ·RewindAndSetgid(SB),NOSPLIT|NOFRAME,$0-0
 	// Rewind stack pointer so anything that happens on the stack
 	// will clobber the test pattern created by the caller
 	ADD	$(1024 * 8), R1

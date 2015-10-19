@@ -119,6 +119,41 @@ func TestRouteMonitor(t *testing.T) {
 	<-tmo
 }
 
+var parseInterfaceMessageTests = []*syscall.InterfaceMessage{
+	// with link-layer address
+	{
+		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
+		Data: []uint8{
+			0x11, 0x12, 0x2, 0x0, 0x6, 0x3, 0x6, 0x0,
+			0x77, 0x6d, 0x31, 0x01, 0x23, 0x45, 0xab, 0xcd,
+			0xef, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		},
+	},
+	// without link-layer address
+	{
+		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
+		Data: []uint8{
+			0xe, 0x12, 0x4, 0x0, 0xf5, 0x6, 0x0, 0x0,
+			0x70, 0x66, 0x6c, 0x6f, 0x67, 0x30, 0x0, 0x0,
+		},
+	},
+	// no data
+	{
+		Header: syscall.IfMsghdr{Version: syscall.RTM_VERSION, Addrs: syscall.RTA_IFP},
+		Data: []uint8{
+			0x8, 0xa, 0xb, 0xc, 0xd, 0x0, 0x0, 0x0,
+		},
+	},
+}
+
+func TestParseInterfaceMessage(t *testing.T) {
+	for i, tt := range parseInterfaceMessageTests {
+		if _, err := syscall.ParseRoutingSockaddr(tt); err != nil {
+			t.Errorf("#%d: %v", i, err)
+		}
+	}
+}
+
 type addrFamily byte
 
 func (f addrFamily) String() string {

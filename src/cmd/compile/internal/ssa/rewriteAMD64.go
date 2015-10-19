@@ -10635,14 +10635,48 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 	end282b5e36693f06e2cd1ac563e0d419b5:
 		;
 		// match: (Zero [size] destptr mem)
-		// cond: size <= 1024 && size%8 == 0
-		// result: (DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVQconst [0]) mem)
+		// cond: size <= 1024 && size%8 == 0 && size%16 != 0
+		// result: (Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
 		{
 			size := v.AuxInt
 			destptr := v.Args[0]
 			mem := v.Args[1]
-			if !(size <= 1024 && size%8 == 0) {
-				goto endfae59ebc96f670276efea844c3b302ac
+			if !(size <= 1024 && size%8 == 0 && size%16 != 0) {
+				goto end240266449c3e493db1c3b38a78682ff0
+			}
+			v.Op = OpZero
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AuxInt = size - 8
+			v0 := b.NewValue0(v.Line, OpAMD64ADDQconst, TypeInvalid)
+			v0.AuxInt = 8
+			v0.AddArg(destptr)
+			v0.Type = config.fe.TypeUInt64()
+			v.AddArg(v0)
+			v1 := b.NewValue0(v.Line, OpAMD64MOVQstore, TypeInvalid)
+			v1.AddArg(destptr)
+			v2 := b.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+			v2.AuxInt = 0
+			v2.Type = config.fe.TypeUInt64()
+			v1.AddArg(v2)
+			v1.AddArg(mem)
+			v1.Type = TypeMem
+			v.AddArg(v1)
+			return true
+		}
+		goto end240266449c3e493db1c3b38a78682ff0
+	end240266449c3e493db1c3b38a78682ff0:
+		;
+		// match: (Zero [size] destptr mem)
+		// cond: size <= 1024 && size%16 == 0
+		// result: (DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
+		{
+			size := v.AuxInt
+			destptr := v.Args[0]
+			mem := v.Args[1]
+			if !(size <= 1024 && size%16 == 0) {
+				goto endf508bb887eee9119069b22c23dbca138
 			}
 			v.Op = OpAMD64DUFFZERO
 			v.AuxInt = 0
@@ -10654,15 +10688,15 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 			v0.AddArg(destptr)
 			v0.Type = config.fe.TypeUInt64()
 			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpAMD64MOVQconst, TypeInvalid)
+			v1 := b.NewValue0(v.Line, OpAMD64MOVOconst, TypeInvalid)
 			v1.AuxInt = 0
-			v1.Type = config.fe.TypeUInt64()
+			v1.Type = config.fe.TypeFloat64()
 			v.AddArg(v1)
 			v.AddArg(mem)
 			return true
 		}
-		goto endfae59ebc96f670276efea844c3b302ac
-	endfae59ebc96f670276efea844c3b302ac:
+		goto endf508bb887eee9119069b22c23dbca138
+	endf508bb887eee9119069b22c23dbca138:
 		;
 		// match: (Zero [size] destptr mem)
 		// cond: size > 1024 && size%8 == 0

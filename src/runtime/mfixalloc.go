@@ -20,7 +20,7 @@ import "unsafe"
 // smashed by freeing and reallocating.
 type fixalloc struct {
 	size   uintptr
-	first  unsafe.Pointer // go func(unsafe.pointer, unsafe.pointer); f(arg, p) called first time p is returned
+	first  func(arg, p unsafe.Pointer) // called first time p is returned
 	arg    unsafe.Pointer
 	list   *mlink
 	chunk  *byte
@@ -40,9 +40,9 @@ type mlink struct {
 
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
-func fixAlloc_Init(f *fixalloc, size uintptr, first func(unsafe.Pointer, unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
+func fixAlloc_Init(f *fixalloc, size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
 	f.size = size
-	f.first = *(*unsafe.Pointer)(unsafe.Pointer(&first))
+	f.first = first
 	f.arg = arg
 	f.list = nil
 	f.chunk = nil
@@ -68,10 +68,9 @@ func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
 		f.nchunk = _FixAllocChunk
 	}
 
-	v := (unsafe.Pointer)(f.chunk)
+	v := unsafe.Pointer(f.chunk)
 	if f.first != nil {
-		fn := *(*func(unsafe.Pointer, unsafe.Pointer))(unsafe.Pointer(&f.first))
-		fn(f.arg, v)
+		f.first(f.arg, v)
 	}
 	f.chunk = (*byte)(add(unsafe.Pointer(f.chunk), f.size))
 	f.nchunk -= uint32(f.size)

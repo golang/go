@@ -388,10 +388,11 @@ func init() {
 		{
 			name: "DUFFZERO",
 			reg: regInfo{
-				inputs:   []regMask{buildReg("DI"), buildReg("AX")},
+				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
 				clobbers: buildReg("DI FLAGS"),
 			},
 		},
+		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Float64"},
 
 		// arg0 = address of memory to zero
 		// arg1 = # of 8-byte words to zero

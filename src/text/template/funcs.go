@@ -58,6 +58,9 @@ func createValueFuncs(funcMap FuncMap) map[string]reflect.Value {
 // addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	for name, fn := range in {
+		if !goodName(name) {
+			panic(fmt.Errorf("function name %s is not a valid identifier", name))
+		}
 		v := reflect.ValueOf(fn)
 		if v.Kind() != reflect.Func {
 			panic("value for " + name + " not a function")
@@ -77,7 +80,7 @@ func addFuncs(out, in FuncMap) {
 	}
 }
 
-// goodFunc checks that the function or method has the right result signature.
+// goodFunc reports whether the function or method has the right result signature.
 func goodFunc(typ reflect.Type) bool {
 	// We allow functions with 1 result or 2 results where the second is an error.
 	switch {
@@ -87,6 +90,23 @@ func goodFunc(typ reflect.Type) bool {
 		return true
 	}
 	return false
+}
+
+// goodName reports whether the function name is a valid identifier.
+func goodName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r == '_':
+		case i == 0 && !unicode.IsLetter(r):
+			return false
+		case !unicode.IsLetter(r) && !unicode.IsDigit(r):
+			return false
+		}
+	}
+	return true
 }
 
 // findFunction looks for a function in the template, and global map.
@@ -104,6 +124,21 @@ func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
 	return reflect.Value{}, false
 }
 
+// prepareArg checks if value can be used as an argument of type argType, and
+// converts an invalid value to appropriate zero if possible.
+func prepareArg(value reflect.Value, argType reflect.Type) (reflect.Value, error) {
+	if !value.IsValid() {
+		if !canBeNil(argType) {
+			return reflect.Value{}, fmt.Errorf("value is nil; should be of type %s", argType)
+		}
+		value = reflect.Zero(argType)
+	}
+	if !value.Type().AssignableTo(argType) {
+		return reflect.Value{}, fmt.Errorf("value has type %s; should be %s", value.Type(), argType)
+	}
+	return value, nil
+}
+
 // Indexing.
 
 // index returns the result of indexing its first argument by the following
@@ -111,6 +146,9 @@ func findFunction(name string, tmpl *Template) (reflect.Value, bool) {
 // indexed item must be a map, slice, or array.
 func index(item interface{}, indices ...interface{}) (interface{}, error) {
 	v := reflect.ValueOf(item)
+	if !v.IsValid() {
+		return nil, fmt.Errorf("index of untyped nil")
+	}
 	for _, i := range indices {
 		index := reflect.ValueOf(i)
 		var isNil bool
@@ -125,6 +163,8 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 				x = index.Int()
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 				x = int64(index.Uint())
+			case reflect.Invalid:
+				return nil, fmt.Errorf("cannot index slice/array with nil")
 			default:
 				return nil, fmt.Errorf("cannot index slice/array with type %s", index.Type())
 			}
@@ -133,17 +173,18 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 			}
 			v = v.Index(int(x))
 		case reflect.Map:
-			if !index.IsValid() {
-				index = reflect.Zero(v.Type().Key())
-			}
-			if !index.Type().AssignableTo(v.Type().Key()) {
-				return nil, fmt.Errorf("%s is not index type for %s", index.Type(), v.Type())
+			index, err := prepareArg(index, v.Type().Key())
+			if err != nil {
+				return nil, err
 			}
 			if x := v.MapIndex(index); x.IsValid() {
 				v = x
 			} else {
 				v = reflect.Zero(v.Type().Elem())
 			}
+		case reflect.Invalid:
+			// the loop holds invariant: v.IsValid()
+			panic("unreachable")
 		default:
 			return nil, fmt.Errorf("can't index item of type %s", v.Type())
 		}
@@ -155,7 +196,11 @@ func index(item interface{}, indices ...interface{}) (interface{}, error) {
 
 // length returns the length of the item, with an error if it has no defined length.
 func length(item interface{}) (int, error) {
-	v, isNil := indirect(reflect.ValueOf(item))
+	v := reflect.ValueOf(item)
+	if !v.IsValid() {
+		return 0, fmt.Errorf("len of untyped nil")
+	}
+	v, isNil := indirect(v)
 	if isNil {
 		return 0, fmt.Errorf("len of nil pointer")
 	}
@@ -172,6 +217,9 @@ func length(item interface{}) (int, error) {
 // The function must return 1 result, or 2 results, the second of which is an error.
 func call(fn interface{}, args ...interface{}) (interface{}, error) {
 	v := reflect.ValueOf(fn)
+	if !v.IsValid() {
+		return nil, fmt.Errorf("call of nil")
+	}
 	typ := v.Type()
 	if typ.Kind() != reflect.Func {
 		return nil, fmt.Errorf("non-function of type %s", typ)
@@ -201,13 +249,11 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 		} else {
 			argType = dddType
 		}
-		if !value.IsValid() && canBeNil(argType) {
-			value = reflect.Zero(argType)
+
+		var err error
+		if argv[i], err = prepareArg(value, argType); err != nil {
+			return nil, fmt.Errorf("arg %d: %s", i, err)
 		}
-		if !value.Type().AssignableTo(argType) {
-			return nil, fmt.Errorf("arg %d has type %s; should be %s", i, value.Type(), argType)
-		}
-		argv[i] = value
 	}
 	result := v.Call(argv)
 	if len(result) == 2 && !result[1].IsNil() {
@@ -219,7 +265,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
 // Boolean logic.
 
 func truth(a interface{}) bool {
-	t, _ := isTrue(reflect.ValueOf(a))
+	t, _ := IsTrue(a)
 	return t
 }
 
@@ -254,9 +300,8 @@ func or(arg0 interface{}, args ...interface{}) interface{} {
 }
 
 // not returns the Boolean negation of its argument.
-func not(arg interface{}) (truth bool) {
-	truth, _ = isTrue(reflect.ValueOf(arg))
-	return !truth
+func not(arg interface{}) bool {
+	return !truth(arg)
 }
 
 // Comparison.

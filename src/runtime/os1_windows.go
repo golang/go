@@ -139,6 +139,8 @@ const (
 // in sys_windows_386.s and sys_windows_amd64.s
 func externalthreadhandler()
 
+var timeBeginPeriodRetValue uint32
+
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 
@@ -154,7 +156,7 @@ func osinit() {
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
 
-	stdcall1(_timeBeginPeriod, 1)
+	timeBeginPeriodRetValue = uint32(stdcall1(_timeBeginPeriod, 1))
 
 	ncpu = getproccount()
 

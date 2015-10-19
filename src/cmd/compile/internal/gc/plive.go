@@ -92,14 +92,6 @@ type Liveness struct {
 	livepointers     []Bvec
 }
 
-func xmalloc(size uint32) interface{} {
-	result := (interface{})(make([]byte, size))
-	if result == nil {
-		Fatalf("malloc failed")
-	}
-	return result
-}
-
 // Constructs a new basic block containing a single instruction.
 func newblock(prog *obj.Prog) *BasicBlock {
 	if prog == nil {
@@ -113,13 +105,6 @@ func newblock(prog *obj.Prog) *BasicBlock {
 	result.pred = make([]*BasicBlock, 0, 2)
 	result.succ = make([]*BasicBlock, 0, 2)
 	return result
-}
-
-// Frees a basic block and all of its leaf data structures.
-func freeblock(bb *BasicBlock) {
-	if bb == nil {
-		Fatalf("freeblock: cannot free nil")
-	}
 }
 
 // Adds an edge between two basic blocks by making from a predecessor of to and

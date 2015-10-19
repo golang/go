@@ -101,6 +101,9 @@ func (z *reader) Read(p []byte) (n int, err error) {
 
 	// Finished file; check checksum.
 	if _, err := io.ReadFull(z.r, z.scratch[0:4]); err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		z.err = err
 		return 0, err
 	}
@@ -130,6 +133,9 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 	}
 	_, err := io.ReadFull(z.r, z.scratch[0:2])
 	if err != nil {
+		if err == io.EOF {
+			err = io.ErrUnexpectedEOF
+		}
 		return err
 	}
 	h := uint(z.scratch[0])<<8 | uint(z.scratch[1])
@@ -140,6 +146,9 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 	if haveDict {
 		_, err = io.ReadFull(z.r, z.scratch[0:4])
 		if err != nil {
+			if err == io.EOF {
+				err = io.ErrUnexpectedEOF
+			}
 			return err
 		}
 		checksum := uint32(z.scratch[0])<<24 | uint32(z.scratch[1])<<16 | uint32(z.scratch[2])<<8 | uint32(z.scratch[3])

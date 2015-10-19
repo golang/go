@@ -279,11 +279,7 @@ func main() {
 		if nerrors > 0 {
 			os.Exit(2)
 		}
-		pkg := f.Package
-		if dir := os.Getenv("CGOPKGPATH"); dir != "" {
-			pkg = filepath.Join(dir, pkg)
-		}
-		p.PackagePath = pkg
+		p.PackagePath = f.Package
 		p.Record(f)
 		if *godefs {
 			os.Stdout.WriteString(p.godefs(f, input))

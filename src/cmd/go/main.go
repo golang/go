@@ -285,8 +285,8 @@ func printUsage(w io.Writer) {
 func usage() {
 	// special case "go test -h"
 	if len(os.Args) > 1 && os.Args[1] == "test" {
-		os.Stdout.WriteString(testUsage + "\n\n" +
-			strings.TrimSpace(testFlag1) + "\n\n" +
+		os.Stderr.WriteString(testUsage + "\n\n" +
+			strings.TrimSpace(testFlag1) + "\n\n\t" +
 			strings.TrimSpace(testFlag2) + "\n")
 		os.Exit(2)
 	}

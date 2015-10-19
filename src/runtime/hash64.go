@@ -53,9 +53,9 @@ tail:
 		h = rotl_31(h*m1) * m2
 	default:
 		v1 := h
-		v2 := uint64(hashkey[1])
-		v3 := uint64(hashkey[2])
-		v4 := uint64(hashkey[3])
+		v2 := uint64(seed * hashkey[1])
+		v3 := uint64(seed * hashkey[2])
+		v4 := uint64(seed * hashkey[3])
 		for s >= 32 {
 			v1 ^= readUnaligned64(p)
 			v1 = rotl_31(v1*m1) * m2

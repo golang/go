@@ -640,3 +640,10 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 		t.Errorf("got %d want %d", got, want)
 	}
 }
+
+func TestTimeBeginPeriod(t *testing.T) {
+	const TIMERR_NOERROR = 0
+	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
+		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
+	}
+}

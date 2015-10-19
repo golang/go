@@ -13,6 +13,11 @@ export LC_CTYPE=C
 
 CC=${CC:-gcc}
 
+if [[ "$GOOS" -eq "solaris" ]]; then
+	# Assumes GNU versions of utilities in PATH.
+	export PATH=/usr/gnu/bin:$PATH
+fi
+
 uname=$(uname)
 
 includes_Darwin='
@@ -195,6 +200,7 @@ includes_OpenBSD='
 '
 
 includes_SunOS='
+#include <limits.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>

@@ -624,7 +624,7 @@ func (tab *traceStackTable) put(pcs []uintptr) uint32 {
 	if len(pcs) == 0 {
 		return 0
 	}
-	hash := memhash(unsafe.Pointer(&pcs[0]), uintptr(len(pcs))*unsafe.Sizeof(pcs[0]), 0)
+	hash := memhash(unsafe.Pointer(&pcs[0]), 0, uintptr(len(pcs))*unsafe.Sizeof(pcs[0]))
 	// First, search the hashtable w/o the mutex.
 	if id := tab.find(pcs, hash); id != 0 {
 		return id
@@ -828,7 +828,7 @@ func traceGoUnpark(gp *g, skip int) {
 }
 
 func traceGoSysCall() {
-	traceEvent(traceEvGoSysCall, 4)
+	traceEvent(traceEvGoSysCall, 1)
 }
 
 func traceGoSysExit(seq uint64, ts int64) {

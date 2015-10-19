@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"os"
 	"reflect"
 	"strings"
@@ -18,9 +19,10 @@ import (
 )
 
 type untarTest struct {
-	file    string
-	headers []*Header
-	cksums  []string
+	file    string    // Test input file
+	headers []*Header // Expected output headers
+	chksums []string  // MD5 checksum of files, leave as nil if not checked
+	err     error     // Expected error to occur
 }
 
 var gnuTarTest = &untarTest{
@@ -49,7 +51,7 @@ var gnuTarTest = &untarTest{
 			Gname:    "eng",
 		},
 	},
-	cksums: []string{
+	chksums: []string{
 		"e38b27eaccb4391bdec553a7f3ae6b2f",
 		"c65bd2e50a56a2138bf1716f2fd56fe9",
 	},
@@ -129,7 +131,7 @@ var sparseTarTest = &untarTest{
 			Devminor: 0,
 		},
 	},
-	cksums: []string{
+	chksums: []string{
 		"6f53234398c2449fe67c1812d993012f",
 		"6f53234398c2449fe67c1812d993012f",
 		"6f53234398c2449fe67c1812d993012f",
@@ -286,37 +288,101 @@ var untarTests = []*untarTest{
 			},
 		},
 	},
+	{
+		file: "testdata/neg-size.tar",
+		err:  ErrHeader,
+	},
+	{
+		file: "testdata/issue10968.tar",
+		err:  ErrHeader,
+	},
+	{
+		file: "testdata/issue11169.tar",
+		// TODO(dsnet): Currently the library does not detect that this file is
+		// malformed. Instead it incorrectly believes that file just ends.
+		// At least the library doesn't crash anymore.
+		// err:  ErrHeader,
+	},
+	{
+		file: "testdata/issue12435.tar",
+		// TODO(dsnet): Currently the library does not detect that this file is
+		// malformed. Instead, it incorrectly believes that file just ends.
+		// At least the library doesn't crash anymore.
+		// err:  ErrHeader,
+	},
 }
 
 func TestReader(t *testing.T) {
-testLoop:
-	for i, test := range untarTests {
-		f, err := os.Open(test.file)
+	for i, v := range untarTests {
+		f, err := os.Open(v.file)
 		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err)
+			t.Errorf("file %s, test %d: unexpected error: %v", v.file, i, err)
 			continue
 		}
 		defer f.Close()
-		tr := NewReader(f)
-		for j, header := range test.headers {
-			hdr, err := tr.Next()
-			if err != nil || hdr == nil {
-				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err)
-				f.Close()
-				continue testLoop
+
+		// Capture all headers and checksums.
+		var (
+			tr      = NewReader(f)
+			hdrs    []*Header
+			chksums []string
+			rdbuf   = make([]byte, 8)
+		)
+		for {
+			var hdr *Header
+			hdr, err = tr.Next()
+			if err != nil {
+				if err == io.EOF {
+					err = nil // Expected error
+				}
+				break
 			}
-			if !reflect.DeepEqual(*hdr, *header) {
-				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
-					i, j, *hdr, *header)
+			hdrs = append(hdrs, hdr)
+
+			if v.chksums == nil {
+				continue
+			}
+			h := md5.New()
+			_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
+			if err != nil {
+				break
+			}
+			chksums = append(chksums, fmt.Sprintf("%x", h.Sum(nil)))
+		}
+
+		for j, hdr := range hdrs {
+			if j >= len(v.headers) {
+				t.Errorf("file %s, test %d, entry %d: unexpected header:\ngot %+v",
+					v.file, i, j, *hdr)
+				continue
+			}
+			if !reflect.DeepEqual(*hdr, *v.headers[j]) {
+				t.Errorf("file %s, test %d, entry %d: incorrect header:\ngot  %+v\nwant %+v",
+					v.file, i, j, *hdr, *v.headers[j])
 			}
 		}
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			continue testLoop
+		if len(hdrs) != len(v.headers) {
+			t.Errorf("file %s, test %d: got %d headers, want %d headers",
+				v.file, i, len(hdrs), len(v.headers))
 		}
-		if hdr != nil || err != nil {
-			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, hdr, err)
+
+		for j, sum := range chksums {
+			if j >= len(v.chksums) {
+				t.Errorf("file %s, test %d, entry %d: unexpected sum: got %s",
+					v.file, i, j, sum)
+				continue
+			}
+			if sum != v.chksums[j] {
+				t.Errorf("file %s, test %d, entry %d: incorrect checksum: got %s, want %s",
+					v.file, i, j, sum, v.chksums[j])
+			}
 		}
+
+		if err != v.err {
+			t.Errorf("file %s, test %d: unexpected error: got %v, want %v",
+				v.file, i, err, v.err)
+		}
+		f.Close()
 	}
 }
 
@@ -353,60 +419,6 @@ func TestPartialRead(t *testing.T) {
 	}
 	if expected := []byte("Google"); !bytes.Equal(buf, expected) {
 		t.Errorf("Contents = %v, want %v", buf, expected)
-	}
-}
-
-func TestIncrementalRead(t *testing.T) {
-	test := gnuTarTest
-	f, err := os.Open(test.file)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	defer f.Close()
-
-	tr := NewReader(f)
-
-	headers := test.headers
-	cksums := test.cksums
-	nread := 0
-
-	// loop over all files
-	for ; ; nread++ {
-		hdr, err := tr.Next()
-		if hdr == nil || err == io.EOF {
-			break
-		}
-
-		// check the header
-		if !reflect.DeepEqual(*hdr, *headers[nread]) {
-			t.Errorf("Incorrect header:\nhave %+v\nwant %+v",
-				*hdr, headers[nread])
-		}
-
-		// read file contents in little chunks EOF,
-		// checksumming all the way
-		h := md5.New()
-		rdbuf := make([]uint8, 8)
-		for {
-			nr, err := tr.Read(rdbuf)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				t.Errorf("Read: unexpected error %v\n", err)
-				break
-			}
-			h.Write(rdbuf[0:nr])
-		}
-		// verify checksum
-		have := fmt.Sprintf("%x", h.Sum(nil))
-		want := cksums[nread]
-		if want != have {
-			t.Errorf("Bad checksum on file %s:\nhave %+v\nwant %+v", hdr.Name, have, want)
-		}
-	}
-	if nread != len(headers) {
-		t.Errorf("Didn't process all files\nexpected: %d\nprocessed %d\n", len(headers), nread)
 	}
 }
 
@@ -514,187 +526,232 @@ func TestMergePAX(t *testing.T) {
 	}
 }
 
-func TestSparseEndToEnd(t *testing.T) {
-	test := sparseTarTest
-	f, err := os.Open(test.file)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-	defer f.Close()
-
-	tr := NewReader(f)
-
-	headers := test.headers
-	cksums := test.cksums
-	nread := 0
-
-	// loop over all files
-	for ; ; nread++ {
-		hdr, err := tr.Next()
-		if hdr == nil || err == io.EOF {
-			break
-		}
-
-		// check the header
-		if !reflect.DeepEqual(*hdr, *headers[nread]) {
-			t.Errorf("Incorrect header:\nhave %+v\nwant %+v",
-				*hdr, headers[nread])
-		}
-
-		// read and checksum the file data
-		h := md5.New()
-		_, err = io.Copy(h, tr)
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		// verify checksum
-		have := fmt.Sprintf("%x", h.Sum(nil))
-		want := cksums[nread]
-		if want != have {
-			t.Errorf("Bad checksum on file %s:\nhave %+v\nwant %+v", hdr.Name, have, want)
-		}
-	}
-	if nread != len(headers) {
-		t.Errorf("Didn't process all files\nexpected: %d\nprocessed %d\n", len(headers), nread)
-	}
-}
-
-type sparseFileReadTest struct {
-	sparseData []byte
-	sparseMap  []sparseEntry
-	realSize   int64
-	expected   []byte
-}
-
-var sparseFileReadTests = []sparseFileReadTest{
-	{
-		sparseData: []byte("abcde"),
-		sparseMap: []sparseEntry{
-			{offset: 0, numBytes: 2},
-			{offset: 5, numBytes: 3},
-		},
-		realSize: 8,
-		expected: []byte("ab\x00\x00\x00cde"),
-	},
-	{
-		sparseData: []byte("abcde"),
-		sparseMap: []sparseEntry{
-			{offset: 0, numBytes: 2},
-			{offset: 5, numBytes: 3},
-		},
-		realSize: 10,
-		expected: []byte("ab\x00\x00\x00cde\x00\x00"),
-	},
-	{
-		sparseData: []byte("abcde"),
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 2},
-		},
-		realSize: 8,
-		expected: []byte("\x00abc\x00\x00de"),
-	},
-	{
-		sparseData: []byte("abcde"),
-		sparseMap: []sparseEntry{
-			{offset: 1, numBytes: 3},
-			{offset: 6, numBytes: 2},
-		},
-		realSize: 10,
-		expected: []byte("\x00abc\x00\x00de\x00\x00"),
-	},
-	{
-		sparseData: []byte(""),
-		sparseMap:  nil,
-		realSize:   2,
-		expected:   []byte("\x00\x00"),
-	},
-}
-
 func TestSparseFileReader(t *testing.T) {
-	for i, test := range sparseFileReadTests {
-		r := bytes.NewReader(test.sparseData)
-		nb := int64(r.Len())
-		sfr := &sparseFileReader{
-			rfr: &regFileReader{r: r, nb: nb},
-			sp:  test.sparseMap,
-			pos: 0,
-			tot: test.realSize,
-		}
-		if sfr.numBytes() != nb {
-			t.Errorf("test %d: Before reading, sfr.numBytes() = %d, want %d", i, sfr.numBytes(), nb)
-		}
-		buf, err := ioutil.ReadAll(sfr)
+	var vectors = []struct {
+		realSize   int64         // Real size of the output file
+		sparseMap  []sparseEntry // Input sparse map
+		sparseData string        // Input compact data
+		expected   string        // Expected output data
+		err        error         // Expected error outcome
+	}{{
+		realSize: 8,
+		sparseMap: []sparseEntry{
+			{offset: 0, numBytes: 2},
+			{offset: 5, numBytes: 3},
+		},
+		sparseData: "abcde",
+		expected:   "ab\x00\x00\x00cde",
+	}, {
+		realSize: 10,
+		sparseMap: []sparseEntry{
+			{offset: 0, numBytes: 2},
+			{offset: 5, numBytes: 3},
+		},
+		sparseData: "abcde",
+		expected:   "ab\x00\x00\x00cde\x00\x00",
+	}, {
+		realSize: 8,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 2},
+		},
+		sparseData: "abcde",
+		expected:   "\x00abc\x00\x00de",
+	}, {
+		realSize: 8,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 0},
+			{offset: 6, numBytes: 0},
+			{offset: 6, numBytes: 2},
+		},
+		sparseData: "abcde",
+		expected:   "\x00abc\x00\x00de",
+	}, {
+		realSize: 10,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 2},
+		},
+		sparseData: "abcde",
+		expected:   "\x00abc\x00\x00de\x00\x00",
+	}, {
+		realSize: 10,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 2},
+			{offset: 8, numBytes: 0},
+			{offset: 8, numBytes: 0},
+			{offset: 8, numBytes: 0},
+			{offset: 8, numBytes: 0},
+		},
+		sparseData: "abcde",
+		expected:   "\x00abc\x00\x00de\x00\x00",
+	}, {
+		realSize:   2,
+		sparseMap:  []sparseEntry{},
+		sparseData: "",
+		expected:   "\x00\x00",
+	}, {
+		realSize:  -2,
+		sparseMap: []sparseEntry{},
+		err:       ErrHeader,
+	}, {
+		realSize: -10,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 2},
+		},
+		sparseData: "abcde",
+		err:        ErrHeader,
+	}, {
+		realSize: 10,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 5},
+		},
+		sparseData: "abcde",
+		err:        ErrHeader,
+	}, {
+		realSize: 35,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: 5},
+		},
+		sparseData: "abcde",
+		err:        io.ErrUnexpectedEOF,
+	}, {
+		realSize: 35,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 6, numBytes: -5},
+		},
+		sparseData: "abcde",
+		err:        ErrHeader,
+	}, {
+		realSize: 35,
+		sparseMap: []sparseEntry{
+			{offset: math.MaxInt64, numBytes: 3},
+			{offset: 6, numBytes: -5},
+		},
+		sparseData: "abcde",
+		err:        ErrHeader,
+	}, {
+		realSize: 10,
+		sparseMap: []sparseEntry{
+			{offset: 1, numBytes: 3},
+			{offset: 2, numBytes: 2},
+		},
+		sparseData: "abcde",
+		err:        ErrHeader,
+	}}
+
+	for i, v := range vectors {
+		r := bytes.NewReader([]byte(v.sparseData))
+		rfr := &regFileReader{r: r, nb: int64(len(v.sparseData))}
+
+		var sfr *sparseFileReader
+		var err error
+		var buf []byte
+
+		sfr, err = newSparseFileReader(rfr, v.sparseMap, v.realSize)
 		if err != nil {
-			t.Errorf("test %d: Unexpected error: %v", i, err)
+			goto fail
 		}
-		if e := test.expected; !bytes.Equal(buf, e) {
-			t.Errorf("test %d: Contents = %v, want %v", i, buf, e)
+		if sfr.numBytes() != int64(len(v.sparseData)) {
+			t.Errorf("test %d, numBytes() before reading: got %d, want %d", i, sfr.numBytes(), len(v.sparseData))
+		}
+		buf, err = ioutil.ReadAll(sfr)
+		if err != nil {
+			goto fail
+		}
+		if string(buf) != v.expected {
+			t.Errorf("test %d, ReadAll(): got %q, want %q", i, string(buf), v.expected)
 		}
 		if sfr.numBytes() != 0 {
-			t.Errorf("test %d: After draining the reader, numBytes() was nonzero", i)
+			t.Errorf("test %d, numBytes() after reading: got %d, want %d", i, sfr.numBytes(), 0)
 		}
-	}
-}
 
-func TestSparseIncrementalRead(t *testing.T) {
-	sparseMap := []sparseEntry{{10, 2}}
-	sparseData := []byte("Go")
-	expected := "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00Go\x00\x00\x00\x00\x00\x00\x00\x00"
-
-	r := bytes.NewReader(sparseData)
-	nb := int64(r.Len())
-	sfr := &sparseFileReader{
-		rfr: &regFileReader{r: r, nb: nb},
-		sp:  sparseMap,
-		pos: 0,
-		tot: int64(len(expected)),
-	}
-
-	// We'll read the data 6 bytes at a time, with a hole of size 10 at
-	// the beginning and one of size 8 at the end.
-	var outputBuf bytes.Buffer
-	buf := make([]byte, 6)
-	for {
-		n, err := sfr.Read(buf)
-		if err == io.EOF {
-			break
+	fail:
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
 		}
-		if err != nil {
-			t.Errorf("Read: unexpected error %v\n", err)
-		}
-		if n > 0 {
-			_, err := outputBuf.Write(buf[:n])
-			if err != nil {
-				t.Errorf("Write: unexpected error %v\n", err)
-			}
-		}
-	}
-	got := outputBuf.String()
-	if got != expected {
-		t.Errorf("Contents = %v, want %v", got, expected)
 	}
 }
 
 func TestReadGNUSparseMap0x1(t *testing.T) {
-	headers := map[string]string{
-		paxGNUSparseNumBlocks: "4",
-		paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
-	}
-	expected := []sparseEntry{
-		{offset: 0, numBytes: 5},
-		{offset: 10, numBytes: 5},
-		{offset: 20, numBytes: 5},
-		{offset: 30, numBytes: 5},
-	}
+	const (
+		maxUint = ^uint(0)
+		maxInt  = int(maxUint >> 1)
+	)
+	var (
+		big1 = fmt.Sprintf("%d", int64(maxInt))
+		big2 = fmt.Sprintf("%d", (int64(maxInt)/2)+1)
+		big3 = fmt.Sprintf("%d", (int64(maxInt) / 3))
+	)
 
-	sp, err := readGNUSparseMap0x1(headers)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if !reflect.DeepEqual(sp, expected) {
-		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
+	var vectors = []struct {
+		extHdrs   map[string]string // Input data
+		sparseMap []sparseEntry     // Expected sparse entries to be outputted
+		err       error             // Expected errors that may be raised
+	}{{
+		extHdrs: map[string]string{paxGNUSparseNumBlocks: "-4"},
+		err:     ErrHeader,
+	}, {
+		extHdrs: map[string]string{paxGNUSparseNumBlocks: "fee "},
+		err:     ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: big1,
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: big2,
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: big3,
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0.5,5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,5.5,10,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,fewafewa.5,fewafw,5,20,5,30,5",
+		},
+		err: ErrHeader,
+	}, {
+		extHdrs: map[string]string{
+			paxGNUSparseNumBlocks: "4",
+			paxGNUSparseMap:       "0,5,10,5,20,5,30,5",
+		},
+		sparseMap: []sparseEntry{{0, 5}, {10, 5}, {20, 5}, {30, 5}},
+	}}
+
+	for i, v := range vectors {
+		sp, err := readGNUSparseMap0x1(v.extHdrs)
+		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
+			t.Errorf("test %d, readGNUSparseMap0x1(...): got %v, want %v", i, sp, v.sparseMap)
+		}
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+		}
 	}
 }
 
@@ -745,54 +802,4 @@ func TestUninitializedRead(t *testing.T) {
 		t.Errorf("Unexpected error: %v, wanted %v", err, io.EOF)
 	}
 
-}
-
-// Negative header size should not cause panic.
-// Issues 10959 and 10960.
-func TestNegativeHdrSize(t *testing.T) {
-	f, err := os.Open("testdata/neg-size.tar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	r := NewReader(f)
-	_, err = r.Next()
-	if err != ErrHeader {
-		t.Error("want ErrHeader, got", err)
-	}
-	io.Copy(ioutil.Discard, r)
-}
-
-// This used to hang in (*sparseFileReader).readHole due to missing
-// verification of sparse offsets against file size.
-func TestIssue10968(t *testing.T) {
-	f, err := os.Open("testdata/issue10968.tar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	r := NewReader(f)
-	_, err = r.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = io.Copy(ioutil.Discard, r)
-	if err != io.ErrUnexpectedEOF {
-		t.Fatalf("expected %q, got %q", io.ErrUnexpectedEOF, err)
-	}
-}
-
-// Do not panic if there are errors in header blocks after the pax header.
-// Issue 11169
-func TestIssue11169(t *testing.T) {
-	f, err := os.Open("testdata/issue11169.tar")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	r := NewReader(f)
-	_, err = r.Next()
-	if err == nil {
-		t.Fatal("Unexpected success")
-	}
 }

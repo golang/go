@@ -691,6 +691,9 @@ func packRR(rr dnsRR, msg []byte, off int) (off2 int, ok bool) {
 	// off1 is end of header
 	// off2 is end of rr
 	off1, ok = packStruct(rr.Header(), msg, off)
+	if !ok {
+		return len(msg), false
+	}
 	off2, ok = packStruct(rr, msg, off)
 	if !ok {
 		return len(msg), false

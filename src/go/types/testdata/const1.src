@@ -312,3 +312,11 @@ const (
 	y64 = float64(f64)
 	_ = assert(x64 - y64 == 0)
 )
+
+const (
+	_ = int8(-1) << 7
+	_ = int8 /* ERROR "overflows" */ (-1) << 8
+
+	_ = uint32(1) << 31
+	_ = uint32 /* ERROR "overflows" */ (1) << 32
+)

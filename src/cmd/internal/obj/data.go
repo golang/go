@@ -36,10 +36,6 @@ import (
 	"math"
 )
 
-func mangle(file string) {
-	log.Fatalf("%s: mangled input file", file)
-}
-
 func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 	siz := int(lsiz)
 	if int64(siz) != lsiz {
@@ -48,17 +44,19 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 	if len(s.P) >= siz {
 		return
 	}
+	// TODO(dfc) append cap-len at once, rather than
+	// one byte at a time.
 	for cap(s.P) < siz {
 		s.P = append(s.P[:cap(s.P)], 0)
 	}
 	s.P = s.P[:siz]
 }
 
-func savedata(ctxt *Link, s *LSym, p *Prog, pn string) {
+func savedata(ctxt *Link, s *LSym, p *Prog, file string) {
 	off := int32(p.From.Offset)
 	siz := int32(p.From3.Offset)
 	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
-		mangle(pn)
+		log.Fatalf("%s: mangled input file", file)
 	}
 	if ctxt.Enforce_data_order != 0 && off < int32(len(s.P)) {
 		ctxt.Diag("data out of order (already have %d)\n%v", len(s.P), p)
@@ -141,116 +139,4 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	}
 
 	return off + wid
-}
-
-func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
-	off := s.Size
-	Setuintxx(ctxt, s, off, v, int64(wid))
-	return off
-}
-
-func adduint8(ctxt *Link, s *LSym, v uint8) int64 {
-	return adduintxx(ctxt, s, uint64(v), 1)
-}
-
-func adduint16(ctxt *Link, s *LSym, v uint16) int64 {
-	return adduintxx(ctxt, s, uint64(v), 2)
-}
-
-func Adduint32(ctxt *Link, s *LSym, v uint32) int64 {
-	return adduintxx(ctxt, s, uint64(v), 4)
-}
-
-func Adduint64(ctxt *Link, s *LSym, v uint64) int64 {
-	return adduintxx(ctxt, s, v, 8)
-}
-
-func setuint8(ctxt *Link, s *LSym, r int64, v uint8) int64 {
-	return Setuintxx(ctxt, s, r, uint64(v), 1)
-}
-
-func setuint16(ctxt *Link, s *LSym, r int64, v uint16) int64 {
-	return Setuintxx(ctxt, s, r, uint64(v), 2)
-}
-
-func setuint32(ctxt *Link, s *LSym, r int64, v uint32) int64 {
-	return Setuintxx(ctxt, s, r, uint64(v), 4)
-}
-
-func setuint64(ctxt *Link, s *LSym, r int64, v uint64) int64 {
-	return Setuintxx(ctxt, s, r, v, 8)
-}
-
-func addaddrplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	i := s.Size
-	s.Size += int64(ctxt.Arch.Ptrsize)
-	Symgrow(ctxt, s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Siz = uint8(ctxt.Arch.Ptrsize)
-	r.Type = R_ADDR
-	r.Add = add
-	return i + int64(r.Siz)
-}
-
-func addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	i := s.Size
-	s.Size += 4
-	Symgrow(ctxt, s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Add = add
-	r.Type = R_PCREL
-	r.Siz = 4
-	return i + int64(r.Siz)
-}
-
-func addaddr(ctxt *Link, s *LSym, t *LSym) int64 {
-	return addaddrplus(ctxt, s, t, 0)
-}
-
-func setaddrplus(ctxt *Link, s *LSym, off int64, t *LSym, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	if off+int64(ctxt.Arch.Ptrsize) > s.Size {
-		s.Size = off + int64(ctxt.Arch.Ptrsize)
-		Symgrow(ctxt, s, s.Size)
-	}
-
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(off)
-	r.Siz = uint8(ctxt.Arch.Ptrsize)
-	r.Type = R_ADDR
-	r.Add = add
-	return off + int64(r.Siz)
-}
-
-func setaddr(ctxt *Link, s *LSym, off int64, t *LSym) int64 {
-	return setaddrplus(ctxt, s, off, t, 0)
-}
-
-func addaddrplus4(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
-	if s.Type == 0 {
-		s.Type = SDATA
-	}
-	i := s.Size
-	s.Size += 4
-	Symgrow(ctxt, s, s.Size)
-	r := Addrel(s)
-	r.Sym = t
-	r.Off = int32(i)
-	r.Siz = 4
-	r.Type = R_ADDR
-	r.Add = add
-	return i + int64(r.Siz)
 }

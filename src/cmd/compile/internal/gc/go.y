@@ -2311,6 +2311,6 @@ func fixlbrace(lbr int) {
 	// set up for another one now that we're done.
 	// See comment in lex.C about loophack.
 	if lbr == LBODY {
-		loophack = 1
+		loophack = true
 	}
 }

@@ -30,7 +30,10 @@ import (
 // Marshal traverses the value v recursively.
 // If an encountered value implements the Marshaler interface
 // and is not a nil pointer, Marshal calls its MarshalJSON method
-// to produce JSON.  The nil pointer exception is not strictly necessary
+// to produce JSON. If no MarshalJSON method is present but the
+// value implements encoding.TextMarshaler instead, Marshal calls
+// its MarshalText method.
+// The nil pointer exception is not strictly necessary
 // but mimics a similar, necessary exception in the behavior of
 // UnmarshalJSON.
 //
@@ -445,12 +448,10 @@ func textMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
 	}
 	m := v.Interface().(encoding.TextMarshaler)
 	b, err := m.MarshalText()
-	if err == nil {
-		_, err = e.stringBytes(b)
-	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
 	}
+	e.stringBytes(b)
 }
 
 func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
@@ -461,12 +462,10 @@ func addrTextMarshalerEncoder(e *encodeState, v reflect.Value, quoted bool) {
 	}
 	m := va.Interface().(encoding.TextMarshaler)
 	b, err := m.MarshalText()
-	if err == nil {
-		_, err = e.stringBytes(b)
-	}
 	if err != nil {
 		e.error(&MarshalerError{v.Type(), err})
 	}
+	e.stringBytes(b)
 }
 
 func boolEncoder(e *encodeState, v reflect.Value, quoted bool) {
@@ -780,7 +779,7 @@ func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
 func (sv stringValues) get(i int) string   { return sv[i].String() }
 
 // NOTE: keep in sync with stringBytes below.
-func (e *encodeState) string(s string) (int, error) {
+func (e *encodeState) string(s string) int {
 	len0 := e.Len()
 	e.WriteByte('"')
 	start := 0
@@ -852,11 +851,11 @@ func (e *encodeState) string(s string) (int, error) {
 		e.WriteString(s[start:])
 	}
 	e.WriteByte('"')
-	return e.Len() - len0, nil
+	return e.Len() - len0
 }
 
 // NOTE: keep in sync with string above.
-func (e *encodeState) stringBytes(s []byte) (int, error) {
+func (e *encodeState) stringBytes(s []byte) int {
 	len0 := e.Len()
 	e.WriteByte('"')
 	start := 0
@@ -928,7 +927,7 @@ func (e *encodeState) stringBytes(s []byte) (int, error) {
 		e.Write(s[start:])
 	}
 	e.WriteByte('"')
-	return e.Len() - len0, nil
+	return e.Len() - len0
 }
 
 // A field represents a single field found in a struct.

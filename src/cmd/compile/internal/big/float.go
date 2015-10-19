@@ -1272,7 +1272,7 @@ func (z *Float) usub(x, y *Float) {
 		ex = ey
 	}
 
-	// operands may have cancelled each other out
+	// operands may have canceled each other out
 	if len(z.mant) == 0 {
 		z.acc = Exact
 		z.form = zero

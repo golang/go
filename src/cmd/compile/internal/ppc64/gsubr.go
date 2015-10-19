@@ -545,30 +545,18 @@ hard:
 	return
 }
 
-func intLiteral(n *gc.Node) (x int64, ok bool) {
-	switch {
-	case n == nil:
-		return
-	case gc.Isconst(n, gc.CTINT):
-		return n.Int(), true
-	case gc.Isconst(n, gc.CTBOOL):
-		return int64(obj.Bool2int(n.Bool())), true
-	}
-	return
-}
-
 // gins is called by the front end.
 // It synthesizes some multiple-instruction sequences
 // so the front end can stay simpler.
 func gins(as int, f, t *gc.Node) *obj.Prog {
 	if as >= obj.A_ARCHSPECIFIC {
-		if x, ok := intLiteral(f); ok {
+		if x, ok := f.IntLiteral(); ok {
 			ginscon(as, x, t)
 			return nil // caller must not use
 		}
 	}
 	if as == ppc64.ACMP || as == ppc64.ACMPU {
-		if x, ok := intLiteral(t); ok {
+		if x, ok := t.IntLiteral(); ok {
 			ginscon2(as, f, x)
 			return nil // caller must not use
 		}

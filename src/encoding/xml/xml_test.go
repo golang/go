@@ -750,3 +750,24 @@ func TestIssue5880(t *testing.T) {
 		t.Errorf("Marshal generated invalid UTF-8: %x", data)
 	}
 }
+
+func TestIssue11405(t *testing.T) {
+	testCases := []string{
+		"<root>",
+		"<root><foo>",
+		"<root><foo></foo>",
+	}
+	for _, tc := range testCases {
+		d := NewDecoder(strings.NewReader(tc))
+		var err error
+		for {
+			_, err = d.Token()
+			if err != nil {
+				break
+			}
+		}
+		if _, ok := err.(*SyntaxError); !ok {
+			t.Errorf("%s: Token: Got error %v, want SyntaxError", tc, err)
+		}
+	}
+}

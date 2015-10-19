@@ -6,6 +6,8 @@ package url
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -1226,6 +1228,87 @@ func TestShouldEscape(t *testing.T) {
 	for _, tt := range shouldEscapeTests {
 		if shouldEscape(tt.in, tt.mode) != tt.escape {
 			t.Errorf("shouldEscape(%q, %v) returned %v; expected %v", tt.in, tt.mode, !tt.escape, tt.escape)
+		}
+	}
+}
+
+type timeoutError struct {
+	timeout bool
+}
+
+func (e *timeoutError) Error() string { return "timeout error" }
+func (e *timeoutError) Timeout() bool { return e.timeout }
+
+type temporaryError struct {
+	temporary bool
+}
+
+func (e *temporaryError) Error() string   { return "temporary error" }
+func (e *temporaryError) Temporary() bool { return e.temporary }
+
+type timeoutTemporaryError struct {
+	timeoutError
+	temporaryError
+}
+
+func (e *timeoutTemporaryError) Error() string { return "timeout/temporary error" }
+
+var netErrorTests = []struct {
+	err       error
+	timeout   bool
+	temporary bool
+}{{
+	err:       &Error{"Get", "http://google.com/", &timeoutError{timeout: true}},
+	timeout:   true,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutError{timeout: false}},
+	timeout:   false,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &temporaryError{temporary: true}},
+	timeout:   false,
+	temporary: true,
+}, {
+	err:       &Error{"Get", "http://google.com/", &temporaryError{temporary: false}},
+	timeout:   false,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: true}, temporaryError{temporary: true}}},
+	timeout:   true,
+	temporary: true,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: false}, temporaryError{temporary: true}}},
+	timeout:   false,
+	temporary: true,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: true}, temporaryError{temporary: false}}},
+	timeout:   true,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", &timeoutTemporaryError{timeoutError{timeout: false}, temporaryError{temporary: false}}},
+	timeout:   false,
+	temporary: false,
+}, {
+	err:       &Error{"Get", "http://google.com/", io.EOF},
+	timeout:   false,
+	temporary: false,
+}}
+
+// Test that url.Error implements net.Error and that it forwards
+func TestURLErrorImplementsNetError(t *testing.T) {
+	for i, tt := range netErrorTests {
+		err, ok := tt.err.(net.Error)
+		if !ok {
+			t.Errorf("%d: %T does not implement net.Error", i+1, tt.err)
+			continue
+		}
+		if err.Timeout() != tt.timeout {
+			t.Errorf("%d: err.Timeout(): want %v, have %v", i+1, tt.timeout, err.Timeout())
+			continue
+		}
+		if err.Temporary() != tt.temporary {
+			t.Errorf("%d: err.Temporary(): want %v, have %v", i+1, tt.temporary, err.Temporary())
 		}
 	}
 }

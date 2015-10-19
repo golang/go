@@ -27,6 +27,14 @@ func TestEncodeWord(t *testing.T) {
 		{QEncoding, iso88591, "a", "a"},
 		{QEncoding, utf8, "123 456", "123 456"},
 		{QEncoding, utf8, "\t !\"#$%&'()*+,-./ :;<>?@[\\]^_`{|}~", "\t !\"#$%&'()*+,-./ :;<>?@[\\]^_`{|}~"},
+		{QEncoding, utf8, strings.Repeat("é", 10), "=?utf-8?q?" + strings.Repeat("=C3=A9", 10) + "?="},
+		{QEncoding, utf8, strings.Repeat("é", 11), "=?utf-8?q?" + strings.Repeat("=C3=A9", 10) + "?= =?utf-8?q?=C3=A9?="},
+		{QEncoding, iso88591, strings.Repeat("\xe9", 22), "=?iso-8859-1?q?" + strings.Repeat("=E9", 22) + "?="},
+		{QEncoding, utf8, strings.Repeat("\x80", 22), "=?utf-8?q?" + strings.Repeat("=80", 21) + "?= =?utf-8?q?=80?="},
+		{BEncoding, utf8, strings.Repeat("é", 24), "=?utf-8?b?" + strings.Repeat("w6nDqcOp", 8) + "?="},
+		{BEncoding, utf8, strings.Repeat("é", 27), "=?utf-8?b?" + strings.Repeat("w6nDqcOp", 8) + "?= =?utf-8?b?w6nDqcOp?="},
+		{BEncoding, iso88591, strings.Repeat("\xe9", 45), "=?iso-8859-1?b?" + strings.Repeat("6enp", 15) + "?="},
+		{BEncoding, utf8, strings.Repeat("\x80", 51), "=?utf-8?b?" + strings.Repeat("gICA", 16) + "?= =?utf-8?b?gICA?="},
 	}
 
 	for _, test := range tests {

@@ -369,8 +369,8 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 	}
 	defer f.Close()
 
-	d, err1 := f.Stat()
-	if err1 != nil {
+	d, err := f.Stat()
+	if err != nil {
 		msg, code := toHTTPError(err)
 		Error(w, msg, code)
 		return

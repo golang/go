@@ -309,6 +309,36 @@ func TestReadErrorMsg(t *testing.T) {
 	read(&p)
 }
 
+func TestReadTruncated(t *testing.T) {
+	const data = "0123456789abcdef"
+
+	var b1 = make([]int32, 4)
+	var b2 struct {
+		A, B, C, D byte
+		E          int32
+		F          float64
+	}
+
+	for i := 0; i <= len(data); i++ {
+		var errWant error
+		switch i {
+		case 0:
+			errWant = io.EOF
+		case len(data):
+			errWant = nil
+		default:
+			errWant = io.ErrUnexpectedEOF
+		}
+
+		if err := Read(strings.NewReader(data[:i]), LittleEndian, &b1); err != errWant {
+			t.Errorf("Read(%d) with slice: got %v, want %v", i, err, errWant)
+		}
+		if err := Read(strings.NewReader(data[:i]), LittleEndian, &b2); err != errWant {
+			t.Errorf("Read(%d) with struct: got %v, want %v", i, err, errWant)
+		}
+	}
+}
+
 type byteSliceReader struct {
 	remain []byte
 }

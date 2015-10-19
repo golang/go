@@ -479,7 +479,7 @@ func postProcessTrace(events []*Event) error {
 			p.g = ev.G
 			if g.evCreate != nil {
 				// +1 because symbolizer expects return pc.
-				ev.Stk = []*Frame{&Frame{PC: g.evCreate.Args[1] + 1}}
+				ev.Stk = []*Frame{{PC: g.evCreate.Args[1] + 1}}
 				g.evCreate = nil
 			}
 

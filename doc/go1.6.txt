@@ -1,6 +1,7 @@
 Tools:
 
 cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
+cmd/go: flags for tests must precede package name if present; also makes it easier to pass flags to test binaries (https://golang.org/cl/14826)
 
 Ports:
 
@@ -8,5 +9,15 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 
 API additions and behavior changes:
 
-strconv: QuoteTOGraphic (https://golang.org/cl/14184/)
+bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
+bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
+fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+math/rand: add Read (https://golang.org/cl/14522)
+net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
+strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
+text/template: trimming spaces (https://golang.org/cl/14391/)
+text/template: Funcs check names (https://golang.org/cl/14562/)
+text/template: IsTrue (https://golang.org/cl/14562/)
+text/template: blocks and permit redefinition (https://golang.org/cl/14005)
+time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
