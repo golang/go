@@ -2348,7 +2348,7 @@ func TestHeaderToWire(t *testing.T) {
 					return errors.New("no content-length")
 				}
 				if !strings.Contains(got, "Content-Type: text/plain") {
-					return errors.New("no content-length")
+					return errors.New("no content-type")
 				}
 				return nil
 			},
