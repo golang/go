@@ -228,15 +228,14 @@ var gcBlackenPromptly bool
 
 const (
 	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
-	_GCscan                   // GC collecting roots into workbufs, write barrier ENABLED
-	_GCmark                   // GC marking from workbufs, write barrier ENABLED
+	_GCmark                   // GC marking roots and workbufs, write barrier ENABLED
 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
 )
 
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomicstore(&gcphase, x)
-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination || gcphase == _GCscan
+	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker
@@ -786,9 +785,13 @@ func (s *bgMarkSignal) clear() {
 }
 
 var work struct {
-	full    uint64                // lock-free list of full blocks workbuf
-	empty   uint64                // lock-free list of empty blocks workbuf
-	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+	full  uint64                // lock-free list of full blocks workbuf
+	empty uint64                // lock-free list of empty blocks workbuf
+	pad0  [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+
+	markrootNext uint32 // next markroot job
+	markrootJobs uint32 // number of markroot jobs
+
 	nproc   uint32
 	tstart  int64
 	nwait   uint32
@@ -937,7 +940,7 @@ func backgroundgc() {
 func gc(mode gcMode) {
 	// Timing/utilization tracking
 	var stwprocs, maxprocs int32
-	var tSweepTerm, tScan, tMark, tMarkTerm int64
+	var tSweepTerm, tMark, tMarkTerm int64
 
 	// debug.gctrace variables
 	var heap0, heap1, heap2, heapGoal uint64
@@ -990,7 +993,8 @@ func gc(mode gcMode) {
 		heapGoal = gcController.heapGoal
 
 		systemstack(func() {
-			// Enter scan phase and enable write barriers.
+			// Enter concurrent mark phase and enable
+			// write barriers.
 			//
 			// Because the world is stopped, all Ps will
 			// observe that write barriers are enabled by
@@ -1014,13 +1018,14 @@ func gc(mode gcMode) {
 			// allocations are blocked until assists can
 			// happen, we want enable assists as early as
 			// possible.
-			setGCPhase(_GCscan)
+			setGCPhase(_GCmark)
 
 			// markrootSpans uses work.spans, so make sure
 			// it is up to date.
 			gcCopySpans()
 
 			gcBgMarkPrepare() // Must happen before assist enable.
+			gcMarkRootPrepare()
 
 			// At this point all Ps have enabled the write
 			// barrier, thus maintaining the no white to
@@ -1029,25 +1034,21 @@ func gc(mode gcMode) {
 			// mutators.
 			atomicstore(&gcBlackenEnabled, 1)
 
-			// Concurrent scan.
+			// Concurrent mark.
 			startTheWorldWithSema()
 			now = nanotime()
 			pauseNS += now - pauseStart
-			tScan = now
 			gcController.assistStartTime = now
-			gcscan_m()
-
-			// Enter mark phase.
-			setGCPhase(_GCmark)
 		})
-		// Concurrent mark.
-		tMark = nanotime()
+		tMark = now
 
 		// Enable background mark workers and wait for
 		// background mark completion.
-		gcController.bgMarkStartTime = nanotime()
+		gcController.bgMarkStartTime = now
 		work.bgMark1.clear()
 		work.bgMark1.wait()
+
+		gcMarkRootCheck()
 
 		// The global work list is empty, but there can still be work
 		// sitting in the per-P work caches and there can be more
@@ -1095,7 +1096,7 @@ func gc(mode gcMode) {
 		gcController.endCycle()
 	} else {
 		t := nanotime()
-		tScan, tMark, tMarkTerm = t, t, t
+		tMark, tMarkTerm = t, t
 		heapGoal = heap0
 	}
 
@@ -1189,13 +1190,12 @@ func gc(mode gcMode) {
 	memstats.pause_total_ns += uint64(pauseNS)
 
 	// Update work.totaltime.
-	sweepTermCpu := int64(stwprocs) * (tScan - tSweepTerm)
-	scanCpu := tMark - tScan
+	sweepTermCpu := int64(stwprocs) * (tMark - tSweepTerm)
 	// We report idle marking time below, but omit it from the
 	// overall utilization here since it's "free".
 	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
 	markTermCpu := int64(stwprocs) * (now - tMarkTerm)
-	cycleCpu := sweepTermCpu + scanCpu + markCpu + markTermCpu
+	cycleCpu := sweepTermCpu + markCpu + markTermCpu
 	work.totaltime += cycleCpu
 
 	// Compute overall GC CPU utilization.
@@ -1217,6 +1217,12 @@ func gc(mode gcMode) {
 		// Install WB phase is no longer used.
 		tInstallWB := tMark
 		installWBCpu := int64(0)
+
+		// Scan phase is no longer used.
+		tScan := tInstallWB
+		scanCpu := int64(0)
+
+		// TODO: Clean up the gctrace format.
 
 		var sbuf [24]byte
 		printlock()
@@ -1423,6 +1429,9 @@ func gcMarkWorkAvailable(p *p) bool {
 	if atomicload64(&work.full) != 0 {
 		return true // global work available
 	}
+	if work.markrootNext < work.markrootJobs {
+		return true // root scan work available
+	}
 	return false
 }
 
@@ -1458,7 +1467,7 @@ func gcMark(start_time int64) {
 	gcFlushGCWork()
 
 	// Queue root marking jobs.
-	nRoots := gcMarkRootPrepare()
+	gcMarkRootPrepare()
 
 	work.nwait = 0
 	work.ndone = 0
@@ -1468,19 +1477,18 @@ func gcMark(start_time int64) {
 		traceGCScanStart()
 	}
 
-	parforsetup(work.markfor, work.nproc, uint32(nRoots), false, markroot)
 	if work.nproc > 1 {
 		noteclear(&work.alldone)
 		helpgc(int32(work.nproc))
 	}
 
 	gchelperstart()
-	parfordo(work.markfor)
 
 	var gcw gcWork
 	gcDrain(&gcw, gcDrainBlock)
 	gcw.dispose()
 
+	gcMarkRootCheck()
 	if work.full != 0 {
 		throw("work.full != 0")
 	}
@@ -1727,9 +1735,8 @@ func gchelper() {
 		traceGCScanStart()
 	}
 
-	// parallel mark for over GC roots
-	parfordo(work.markfor)
-	if gcphase != _GCscan {
+	// Parallel mark over GC roots and heap
+	if gcphase == _GCmarktermination {
 		var gcw gcWork
 		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
 		gcw.dispose()

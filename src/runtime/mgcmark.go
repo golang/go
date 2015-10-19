@@ -22,13 +22,13 @@ const (
 	rootBlockSpans = 8 * 1024 // 64MB worth of spans
 )
 
-// gcMarkRootPrepare initializes scanning-related state and returns
-// the number of roots.
+// gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
+// some miscellany) and initializes scanning-related state.
 //
 // The caller must have call gcCopySpans().
 //
 //go:nowritebarrier
-func gcMarkRootPrepare() int {
+func gcMarkRootPrepare() {
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
 		return int((bytes + rootBlockBytes - 1) / rootBlockBytes)
@@ -63,34 +63,17 @@ func gcMarkRootPrepare() int {
 	// allglen isn't changing, so we'll scan all Gs.
 	work.nStackRoots = int(atomicloaduintptr(&allglen))
 
-	return fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots
+	work.markrootNext = 0
+	work.markrootJobs = uint32(fixedRootCount + work.nDataRoots + work.nBSSRoots + work.nSpanRoots + work.nStackRoots)
 }
 
-// Scan all of the stacks, greying (or graying if in America) the referents
-// but not blackening them since the mark write barrier isn't installed.
-//go:nowritebarrier
-func gcscan_m() {
-	_g_ := getg()
-
-	// Grab the g that called us and potentially allow rescheduling.
-	// This allows it to be scanned like other goroutines.
-	mastergp := _g_.m.curg
-	casgstatus(mastergp, _Grunning, _Gwaiting)
-	mastergp.waitreason = "garbage collection scan"
-
-	// Span sweeping has been done by finishsweep_m.
-	// Long term we will want to make this goroutine runnable
-	// by placing it onto a scanenqueue state and then calling
-	// runtime·restartg(mastergp) to make it Grunnable.
-	// At the bottom we will want to return this p back to the scheduler.
-
-	nroots := gcMarkRootPrepare()
-
-	work.ndone = 0
-	useOneP := uint32(1) // For now do not do this in parallel.
-	//	ackgcphase is not needed since we are not scanning running goroutines.
-	parforsetup(work.markfor, useOneP, uint32(nroots), false, markroot)
-	parfordo(work.markfor)
+// gcMarkRootCheck checks that all roots have been scanned. It is
+// purely for debugging.
+func gcMarkRootCheck() {
+	if work.markrootNext < work.markrootJobs {
+		print(work.markrootNext, " of ", work.markrootJobs, " markroot jobs done\n")
+		throw("left over markroot jobs")
+	}
 
 	lock(&allglock)
 	// Check that gc work is done.
@@ -101,14 +84,15 @@ func gcscan_m() {
 		}
 	}
 	unlock(&allglock)
-
-	casgstatus(mastergp, _Gwaiting, _Grunning)
-	// Let the g that called us continue to run.
 }
 
 // ptrmask for an allocation containing a single pointer.
 var oneptrmask = [...]uint8{1}
 
+// markroot scans the i'th root.
+//
+// Preemption must be disabled (because this uses a gcWork).
+//
 //go:nowritebarrier
 func markroot(desc *parfor, i uint32) {
 	// TODO: Consider using getg().m.p.ptr().gcw.
@@ -137,7 +121,7 @@ func markroot(desc *parfor, i uint32) {
 		}
 
 	case i == fixedRootFlushCaches:
-		if gcphase != _GCscan { // Do not flush mcaches during GCscan phase.
+		if gcphase == _GCmarktermination { // Do not flush mcaches during concurrent phase.
 			flushallmcaches()
 		}
 
@@ -167,7 +151,43 @@ func markroot(desc *parfor, i uint32) {
 			shrinkstack(gp)
 		}
 
-		scang(gp)
+		if gcphase != _GCmarktermination && gp.startpc == gcBgMarkWorkerPC {
+			// GC background workers may be
+			// non-preemptible, so we may deadlock if we
+			// try to scan them during a concurrent phase.
+			// They also have tiny stacks, so just ignore
+			// them until mark termination.
+			gp.gcscandone = true
+			break
+		}
+
+		// scang must be done on the system stack in case
+		// we're trying to scan our own stack.
+		systemstack(func() {
+			// If this is a self-scan, put the user G in
+			// _Gwaiting to prevent self-deadlock. It may
+			// already be in _Gwaiting if this is mark
+			// termination.
+			userG := getg().m.curg
+			selfScan := gp == userG && readgstatus(userG) == _Grunning
+			if selfScan {
+				casgstatus(userG, _Grunning, _Gwaiting)
+				userG.waitreason = "garbage collection scan"
+			}
+
+			// TODO: scang blocks until gp's stack has
+			// been scanned, which may take a while for
+			// running goroutines. Consider doing this in
+			// two phases where the first is non-blocking:
+			// we scan the stacks we can and ask running
+			// goroutines to scan themselves; and the
+			// second blocks.
+			scang(gp)
+
+			if selfScan {
+				casgstatus(userG, _Gwaiting, _Grunning)
+			}
+		})
 	}
 
 	gcw.dispose()
@@ -481,7 +501,7 @@ func scanstack(gp *g) {
 		sp = gp.sched.sp
 	}
 	switch gcphase {
-	case _GCscan:
+	case _GCmark:
 		// Install stack barriers during stack scan.
 		barrierOffset = uintptr(firstStackBarrierOffset)
 		nextBarrier = sp + barrierOffset
@@ -505,7 +525,7 @@ func scanstack(gp *g) {
 		} else {
 			// Only re-scan up to the lowest un-hit
 			// barrier. Any frames above this have not
-			// executed since the _GCscan scan of gp and
+			// executed since the concurrent scan of gp and
 			// any writes through up-pointers to above
 			// this barrier had write barriers.
 			nextBarrier = gp.stkbar[gp.stkbarPos].savedLRPtr
@@ -530,7 +550,7 @@ func scanstack(gp *g) {
 			// We skip installing a barrier on bottom-most
 			// frame because on LR machines this LR is not
 			// on the stack.
-			if gcphase == _GCscan && n != 0 {
+			if gcphase == _GCmark && n != 0 {
 				if gcInstallStackBarrier(gp, frame) {
 					barrierOffset *= 2
 					nextBarrier = sp + barrierOffset
@@ -640,8 +660,8 @@ const (
 	gcDrainBlock gcDrainFlags = 0
 )
 
-// gcDrain scans objects in work buffers, blackening grey objects
-// until all work buffers have been drained.
+// gcDrain scans roots and objects in work buffers, blackening grey
+// objects until all roots and work buffers have been drained.
 //
 // If flags&gcDrainUntilPreempt != 0, gcDrain also returns if
 // g.preempt is set. Otherwise, this will block until all dedicated
@@ -656,12 +676,25 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		throw("gcDrain phase incorrect")
 	}
 
+	gp := getg()
 	blocking := flags&gcDrainUntilPreempt == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 
+	// Drain root marking jobs.
+	if work.markrootNext < work.markrootJobs {
+		for blocking || !gp.preempt {
+			job := xadd(&work.markrootNext, +1) - 1
+			if job >= work.markrootJobs {
+				break
+			}
+			// TODO: Pass in gcw.
+			markroot(nil, job)
+		}
+	}
+
 	initScanWork := gcw.scanWork
 
-	gp := getg()
+	// Drain heap marking jobs.
 	for blocking || !gp.preempt {
 		// If another proc wants a pointer, give it some.
 		if work.nwait > 0 && work.full == 0 {

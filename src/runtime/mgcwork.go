@@ -371,7 +371,7 @@ func getfull(entry int) *workbuf {
 				throw("work.nwait > work.nproc")
 			}
 		}
-		if work.nwait == work.nproc {
+		if work.nwait == work.nproc && work.markrootNext >= work.markrootJobs {
 			return nil
 		}
 		_g_ := getg()
