@@ -613,7 +613,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// else for a while, so kick everything out of its run
 		// queue.
 	} else {
-		if _p_.gcw.wbuf == 0 && work.full == 0 {
+		if !gcMarkWorkAvailable(_p_) {
 			// No work to be done right now. This can
 			// happen at the end of the mark phase when
 			// there are still assists tapering off. Don't
@@ -1383,7 +1383,7 @@ func gcBgMarkWorker(p *p) {
 					"work.nwait=", incnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")
 			}
-			done = incnwait == work.nproc && work.full == 0
+			done = incnwait == work.nproc && !gcMarkWorkAvailable(nil)
 		}
 
 		// If this worker reached a background mark completion
@@ -1414,9 +1414,10 @@ func gcBgMarkWorker(p *p) {
 }
 
 // gcMarkWorkAvailable returns true if executing a mark worker
-// on p is potentially useful.
+// on p is potentially useful. p may be nil, in which case it only
+// checks the global sources of work.
 func gcMarkWorkAvailable(p *p) bool {
-	if !p.gcw.empty() {
+	if p != nil && !p.gcw.empty() {
 		return true
 	}
 	if atomicload64(&work.full) != 0 {

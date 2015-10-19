@@ -386,7 +386,7 @@ retry:
 			throw("work.nwait > work.nproc")
 		}
 
-		if incnwait == work.nproc && work.full == 0 {
+		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			// This has reached a background completion
 			// point.
 			if gcBlackenPromptly {
