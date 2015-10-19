@@ -236,7 +236,6 @@ var gcBlackenPromptly bool
 
 const (
 	_GCoff             = iota // GC not running; sweeping in background, write barrier disabled
-	_GCstw                    // unused state
 	_GCscan                   // GC collecting roots into workbufs, write barrier ENABLED
 	_GCmark                   // GC marking from workbufs, write barrier ENABLED
 	_GCmarktermination        // GC mark termination: allocate black, P's help GC, write barrier ENABLED
