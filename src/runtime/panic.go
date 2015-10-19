@@ -568,9 +568,7 @@ func startpanic_m() {
 	switch _g_.m.dying {
 	case 0:
 		_g_.m.dying = 1
-		if _g_ != nil {
-			_g_.writebuf = nil
-		}
+		_g_.writebuf = nil
 		xadd(&panicking, 1)
 		lock(&paniclk)
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
