@@ -353,10 +353,28 @@ func buildModeInit() {
 		}
 		ldBuildmode = "c-shared"
 	case "default":
-		ldBuildmode = "exe"
+		switch platform {
+		case "android/arm":
+			codegenArg = "-shared"
+			ldBuildmode = "pie"
+		default:
+			ldBuildmode = "exe"
+		}
 	case "exe":
 		pkgsFilter = pkgsMain
 		ldBuildmode = "exe"
+	case "pie":
+		if gccgo {
+			fatalf("-buildmode=pie not supported by gccgo")
+		} else {
+			switch platform {
+			case "android/arm":
+				codegenArg = "-shared"
+			default:
+				fatalf("-buildmode=pie not supported on %s\n", platform)
+			}
+		}
+		ldBuildmode = "pie"
 	case "shared":
 		pkgsFilter = pkgsNotMain
 		if gccgo {
