@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"cmd/internal/obj"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -285,12 +286,13 @@ TestCases:
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra bytes.
 				if i == 0 {
-					size += 512 - 128
+					size += (obj.StackGuard - 128) - 128
 					// Noopt builds have a larger stackguard.
-					// See ../cmd/dist/buildruntime.go:stackGuardMultiplier
+					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
+					// This increase is included in obj.StackGuard
 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 						if s == "-N" {
-							size += 640
+							size += obj.StackGuard
 						}
 					}
 				}

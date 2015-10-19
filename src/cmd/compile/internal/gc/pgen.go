@@ -414,7 +414,9 @@ func compile(fn *Node) {
 
 	// Build an SSA backend function.
 	// TODO: get rid of usessa.
-	ssafn, usessa = buildssa(Curfn)
+	if Thearch.Thestring == "amd64" {
+		ssafn, usessa = buildssa(Curfn)
+	}
 
 	continpc = nil
 	breakpc = nil
