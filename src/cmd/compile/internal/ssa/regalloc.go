@@ -567,14 +567,12 @@ func (s *regAllocState) setState(state []regState) {
 	}
 }
 
-// compatReg returns a register compatible with the a value and is used when
-// spilling/loading.
-// TODO: choose a better default register (set of reg by type?).
-func compatReg(v *Value) regMask {
+// compatRegs returns the set of registers which can store v.
+func (v *Value) compatRegs() regMask {
 	if v.Type.IsFloat() {
-		return 1 << 16 // X0
+		return 0xffff << 16 // X0-X15
 	}
-	return 1 << 0 // AX
+	return 0xffef << 0 // AX-R15, except SP
 }
 
 func (s *regAllocState) regalloc(f *Func) {
@@ -688,15 +686,21 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				r := phiRegs[i]
 				if r == noRegister {
-					// stack-based phi
-					// Spills will be inserted in all the predecessors below.
-					s.values[v.ID].spill = v        // v starts life spilled
-					s.values[v.ID].spillUsed = true // use is guaranteed
-					continue
+					m := v.compatRegs() & ^s.used
+					if m == 0 {
+						// stack-based phi
+						// Spills will be inserted in all the predecessors below.
+						s.values[v.ID].spill = v        // v starts life spilled
+						s.values[v.ID].spillUsed = true // use is guaranteed
+						continue
+					}
+					// Allocate phi to an unused register.
+					r = pickReg(m)
+				} else {
+					s.freeReg(r)
 				}
 				// register-based phi
 				// Transfer ownership of register from input arg to phi.
-				s.freeReg(r)
 				s.assignReg(r, v, v)
 				// Spill the phi in case we need to restore it later.
 				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
@@ -872,7 +876,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// This stack-based phi is the argument of some other
 				// phi in this block.  We must make a copy of its
 				// value so that we don't clobber it prematurely.
-				c := s.allocValToReg(v, s.values[v.ID].regs|compatReg(v), false)
+				c := s.allocValToReg(v, v.compatRegs(), false)
 				d := p.NewValue1(v.Line, OpStoreReg, v.Type, c)
 				s.values[v.ID].spill2 = d
 			}
@@ -884,7 +888,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// If already in a register, use that.  If not, pick a compatible
 				// register.
 				w := v.Args[i]
-				c := s.allocValToReg(w, s.values[w.ID].regs|compatReg(w), false)
+				c := s.allocValToReg(w, w.compatRegs(), false)
 				v.Args[i] = p.NewValue1(v.Line, OpStoreReg, v.Type, c)
 			}
 			// Figure out what value goes in each register.
