@@ -2,11 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// No testdata on Android.
+
+// +build !android
+
 package main_test
 
 import (
 	"bytes"
-	"internal/testenv"
+	"flag"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,26 +24,70 @@ const (
 	binary  = "testvet.exe"
 )
 
+// We implement TestMain so remove the test binary when all is done.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	result := m.Run()
+	os.Remove(binary)
+	os.Exit(result)
+}
+
+func CanRun() bool {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		// No Perl installed, can't run errcheck.
+		return false
+	case "nacl":
+		// Minimal and problematic file system.
+		return false
+	}
+	return true
+}
+
+var (
+	built  = false // We have built the binary.
+	failed = false // We have failed to build the binary, don't try again.
+)
+
+func Build(t *testing.T) {
+	if built {
+		return
+	}
+	if !CanRun() || failed {
+		t.Skip("cannot run on this environment")
+		return
+	}
+	cmd := exec.Command("go", "build", "-o", binary)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		failed = true
+		fmt.Fprintf(os.Stderr, "%s\n", output)
+		t.Fatal(err)
+	}
+	built = true
+}
+
+func Vet(t *testing.T, files []string) {
+	errchk := filepath.Join(runtime.GOROOT(), "test", "errchk")
+	flags := []string{
+		"./" + binary,
+		"-printfuncs=Warn:1,Warnf:1",
+		"-test", // TODO: Delete once -shadow is part of -all.
+	}
+	cmd := exec.Command(errchk, append(flags, files...)...)
+	if !run(cmd, t) {
+		t.Fatal("vet command failed")
+	}
+}
+
 // Run this shell script, but do it in Go so it can be run by "go test".
 // 	go build -o testvet
 // 	$(GOROOT)/test/errchk ./testvet -shadow -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
 // 	rm testvet
 //
+
 func TestVet(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	switch runtime.GOOS {
-	case "plan9", "windows":
-		// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
-		t.Skipf("skipping test; no Perl on %q", runtime.GOOS)
-	}
-
-	// go build
-	cmd := exec.Command("go", "build", "-o", binary)
-	run(cmd, t)
-
-	// defer removal of vet
-	defer os.Remove(binary)
+	Build(t)
 
 	// errchk ./testvet
 	gos, err := filepath.Glob(filepath.Join(dataDir, "*.go"))
@@ -50,16 +99,19 @@ func TestVet(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := append(gos, asms...)
-	errchk := filepath.Join(runtime.GOROOT(), "test", "errchk")
-	flags := []string{
-		"./" + binary,
-		"-printfuncs=Warn:1,Warnf:1",
-		"-test", // TODO: Delete once -shadow is part of -all.
-	}
-	cmd = exec.Command(errchk, append(flags, files...)...)
-	if !run(cmd, t) {
-		t.Fatal("vet command failed")
-	}
+	Vet(t, files)
+}
+
+func TestDivergentPackagesExamples(t *testing.T) {
+	Build(t)
+	// errchk ./testvet
+	Vet(t, []string{"testdata/divergent/buf.go", "testdata/divergent/buf_test.go"})
+}
+
+func TestIncompleteExamples(t *testing.T) {
+	Build(t)
+	// errchk ./testvet
+	Vet(t, []string{"testdata/incomplete/examples_test.go"})
 }
 
 func run(c *exec.Cmd, t *testing.T) bool {
@@ -78,21 +130,13 @@ func run(c *exec.Cmd, t *testing.T) bool {
 
 // TestTags verifies that the -tags argument controls which files to check.
 func TestTags(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
-
-	// go build
-	cmd := exec.Command("go", "build", "-o", binary)
-	run(cmd, t)
-
-	// defer removal of vet
-	defer os.Remove(binary)
-
+	Build(t)
 	args := []string{
 		"-tags=testtag",
 		"-v", // We're going to look at the files it examines.
 		"testdata/tagtest",
 	}
-	cmd = exec.Command("./"+binary, args...)
+	cmd := exec.Command("./"+binary, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)

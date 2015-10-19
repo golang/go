@@ -138,8 +138,8 @@
 	formatting considerations apply for operands that implement
 	certain interfaces. In order of application:
 
-	1. If the operand is a reflect.Value, the concrete value it
-	holds is printed as if it was the operand.
+	1. If the operand is a reflect.Value, the operand is replaced by the
+	concrete value that it holds, and printing continues with the next rule.
 
 	2. If an operand implements the Formatter interface, it will
 	be invoked. Formatter provides fine control of formatting.

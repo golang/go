@@ -28,7 +28,7 @@ func indexes() {
 	a0 = a[0]
 	_ = a0
 	var a1 int32
-	a1 = a /* ERROR "cannot assign" */ [1]
+	a1 = a /* ERROR "cannot use .* in assignment" */ [1]
 	_ = a1
 
 	_ = a[9]
@@ -113,7 +113,7 @@ func indexes() {
 	t0 = t[0]
 	_ = t0
 	var t1 rune
-	t1 = t /* ERROR "cannot assign" */ [2]
+	t1 = t /* ERROR "cannot use .* in assignment" */ [2]
 	_ = t1
 	_ = ("foo" + "bar")[5]
 	_ = ("foo" + "bar")[6 /* ERROR "index .* out of bounds" */ ]
@@ -126,7 +126,7 @@ func indexes() {
 	c0 = c[0]
 	_ = c0
 	var c2 float32
-	c2 = c /* ERROR "cannot assign" */ [2]
+	c2 = c /* ERROR "cannot use .* in assignment" */ [2]
 	_ = c[3 /* ERROR "index .* out of bounds" */ ]
 	_ = ""[0 /* ERROR "index .* out of bounds" */ ]
 	_ = c2
@@ -140,8 +140,8 @@ func indexes() {
 	var i, j int
 	ss = "foo"[1:2]
 	ss = "foo"[i:j]
-	ms = "foo" /* ERROR "cannot assign" */ [1:2]
-	ms = "foo" /* ERROR "cannot assign" */ [i:j]
+	ms = "foo" /* ERROR "cannot use .* in assignment" */ [1:2]
+	ms = "foo" /* ERROR "cannot use .* in assignment" */ [i:j]
 	_, _ = ss, ms
 }
 
@@ -253,7 +253,7 @@ func array_literals() {
 	var a13 [3]int
 	var a14 [4]int
 	a13 = a1
-	a14 = a1 /* ERROR "cannot assign" */
+	a14 = a1 /* ERROR "cannot use .* in assignment" */
 	_, _ = a13, a14
 
 	a2 := [...]int{- /* ERROR "negative" */ 1: 0}
@@ -465,7 +465,7 @@ func _calls() {
 	f1(10.0)
 	f1() /* ERROR "too few arguments" */
 	f1(x, y /* ERROR "too many arguments" */ )
-	f1(s /* ERROR "cannot pass" */ )
+	f1(s /* ERROR "cannot use .* in argument" */ )
 	f1(x ... /* ERROR "cannot use ..." */ )
 	f1(g0 /* ERROR "used as value" */ ())
 	f1(g1())
@@ -474,57 +474,57 @@ func _calls() {
 	f2() /* ERROR "too few arguments" */
 	f2(3.14) /* ERROR "too few arguments" */
 	f2(3.14, "foo")
-	f2(x /* ERROR "cannot pass" */ , "foo")
+	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
 	f2(g0 /* ERROR "used as value" */ ())
-	f2(g1 /* ERROR "cannot pass" */ ()) /* ERROR "too few arguments" */
+	f2(g1 /* ERROR "cannot use .* in argument" */ ()) /* ERROR "too few arguments" */
 	f2(g2())
 
 	fs() /* ERROR "too few arguments" */
 	fs(g0 /* ERROR "used as value" */ ())
-	fs(g1 /* ERROR "cannot pass" */ ())
-	fs(g2 /* ERROR "cannot pass" */ /* ERROR "too many arguments" */ ())
+	fs(g1 /* ERROR "cannot use .* in argument" */ ())
+	fs(g2 /* ERROR "cannot use .* in argument" */ /* ERROR "too many arguments" */ ())
 	fs(gs())
 
 	fv()
 	fv(1, 2.0, x)
-	fv(s /* ERROR "cannot pass" */ )
+	fv(s /* ERROR "cannot use .* in argument" */ )
 	fv(s...)
 	fv(x /* ERROR "cannot use" */ ...)
 	fv(1, s... /* ERROR "can only use ... with matching parameter" */ )
-	fv(gs /* ERROR "cannot pass" */ ())
-	fv(gs /* ERROR "cannot pass" */ ()...)
+	fv(gs /* ERROR "cannot use .* in argument" */ ())
+	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
 
 	var t T
 	t.fm()
 	t.fm(1, 2.0, x)
-	t.fm(s /* ERROR "cannot pass" */ )
+	t.fm(s /* ERROR "cannot use .* in argument" */ )
 	t.fm(g1())
 	t.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
-	t.fm(gs /* ERROR "cannot pass" */ ())
-	t.fm(gs /* ERROR "cannot pass" */ ()...)
+	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
+	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 
 	T.fm(t, )
 	T.fm(t, 1, 2.0, x)
-	T.fm(t, s /* ERROR "cannot pass" */ )
+	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
 	T.fm(t, g1())
 	T.fm(t, 1, s... /* ERROR "can only use ... with matching parameter" */ )
-	T.fm(t, gs /* ERROR "cannot pass" */ ())
-	T.fm(t, gs /* ERROR "cannot pass" */ ()...)
+	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
+	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
 
 	var i interface{ fm(x ...int) } = t
 	i.fm()
 	i.fm(1, 2.0, x)
-	i.fm(s /* ERROR "cannot pass" */ )
+	i.fm(s /* ERROR "cannot use .* in argument" */ )
 	i.fm(g1())
 	i.fm(1, s... /* ERROR "can only use ... with matching parameter" */ )
-	i.fm(gs /* ERROR "cannot pass" */ ())
-	i.fm(gs /* ERROR "cannot pass" */ ()...)
+	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
+	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
 
 	fi()
 	fi(1, 2.0, x, 3.14, "foo")
 	fi(g2())
 	fi(0, g2)
-	fi(0, g2 /* ERROR "2-valued expression" */ ())
+	fi(0, g2 /* ERROR "2-valued g2" */ ())
 }
 
 func issue6344() {

@@ -24,20 +24,28 @@ type sweepdata struct {
 }
 
 //go:nowritebarrier
-func finishsweep_m() {
-	// The world is stopped so we should be able to complete the sweeps
-	// quickly.
+func finishsweep_m(stw bool) {
+	// Sweeping must be complete before marking commences, so
+	// sweep any unswept spans. If this is a concurrent GC, there
+	// shouldn't be any spans left to sweep, so this should finish
+	// instantly. If GC was forced before the concurrent sweep
+	// finished, there may be spans to sweep.
 	for sweepone() != ^uintptr(0) {
 		sweep.npausesweep++
 	}
 
 	// There may be some other spans being swept concurrently that
 	// we need to wait for. If finishsweep_m is done with the world stopped
-	// this code is not required.
-	sg := mheap_.sweepgen
-	for _, s := range work.spans {
-		if s.sweepgen != sg && s.state == _MSpanInUse {
-			mSpan_EnsureSwept(s)
+	// this is not required because the STW must have waited for sweeps.
+	//
+	// TODO(austin): As of this writing, we always pass true for stw.
+	// Consider removing this code.
+	if !stw {
+		sg := mheap_.sweepgen
+		for _, s := range work.spans {
+			if s.sweepgen != sg && s.state == _MSpanInUse {
+				mSpan_EnsureSwept(s)
+			}
 		}
 	}
 }
@@ -235,9 +243,6 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			heapBitsForSpan(p).initSpan(s.layout())
 			s.needzero = 1
 
-			// important to set sweepgen before returning it to heap
-			atomicstore(&s.sweepgen, sweepgen)
-
 			// Free the span after heapBitsSweepSpan
 			// returns, since it's not done with the span.
 			freeToHeap = true
@@ -264,10 +269,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	// But we need to set it before we make the span available for allocation
 	// (return it to heap or mcentral), because allocation code assumes that a
 	// span is already swept if available for allocation.
-	//
-	// TODO(austin): Clean this up by consolidating atomicstore in
-	// large span path above with this.
-	if !freeToHeap && nfree == 0 {
+	if freeToHeap || nfree == 0 {
 		// The span must be in our exclusive ownership until we update sweepgen,
 		// check for potential races.
 		if s.state != mSpanInUse || s.sweepgen != sweepgen-1 {

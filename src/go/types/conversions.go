@@ -65,7 +65,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 
 func (x *operand) convertibleTo(conf *Config, T Type) bool {
 	// "x is assignable to T"
-	if x.assignableTo(conf, T) {
+	if x.assignableTo(conf, T, nil) {
 		return true
 	}
 

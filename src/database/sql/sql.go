@@ -229,8 +229,7 @@ type DB struct {
 	mu           sync.Mutex // protects following fields
 	freeConn     []*driverConn
 	connRequests []chan connRequest
-	numOpen      int
-	pendingOpens int
+	numOpen      int // number of opened and pending open connections
 	// Used to signal the need for new connections
 	// a goroutine running connectionOpener() reads on this chan and
 	// maybeOpenNewConnections sends on the chan (one send per needed connection)
@@ -441,7 +440,7 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
 	}
 }
 
-// This is the size of the connectionOpener request chan (dn.openerCh).
+// This is the size of the connectionOpener request chan (DB.openerCh).
 // This value should be larger than the maximum typical value
 // used for db.maxOpen. If maxOpen is significantly larger than
 // connectionRequestQueueSize then it is possible for ALL calls into the *DB
@@ -615,15 +614,15 @@ func (db *DB) Stats() DBStats {
 // If there are connRequests and the connection limit hasn't been reached,
 // then tell the connectionOpener to open new connections.
 func (db *DB) maybeOpenNewConnections() {
-	numRequests := len(db.connRequests) - db.pendingOpens
+	numRequests := len(db.connRequests)
 	if db.maxOpen > 0 {
-		numCanOpen := db.maxOpen - (db.numOpen + db.pendingOpens)
+		numCanOpen := db.maxOpen - db.numOpen
 		if numRequests > numCanOpen {
 			numRequests = numCanOpen
 		}
 	}
 	for numRequests > 0 {
-		db.pendingOpens++
+		db.numOpen++ // optimistically
 		numRequests--
 		db.openerCh <- struct{}{}
 	}
@@ -638,6 +637,9 @@ func (db *DB) connectionOpener() {
 
 // Open one new connection
 func (db *DB) openNewConnection() {
+	// maybeOpenNewConnctions has already executed db.numOpen++ before it sent
+	// on db.openerCh. This function must execute db.numOpen-- if the
+	// connection fails or is closed before returning.
 	ci, err := db.driver.Open(db.dsn)
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -645,11 +647,13 @@ func (db *DB) openNewConnection() {
 		if err == nil {
 			ci.Close()
 		}
+		db.numOpen--
 		return
 	}
-	db.pendingOpens--
 	if err != nil {
+		db.numOpen--
 		db.putConnDBLocked(nil, err)
+		db.maybeOpenNewConnections()
 		return
 	}
 	dc := &driverConn{
@@ -658,8 +662,8 @@ func (db *DB) openNewConnection() {
 	}
 	if db.putConnDBLocked(dc, err) {
 		db.addDepLocked(dc, dc)
-		db.numOpen++
 	} else {
+		db.numOpen--
 		ci.Close()
 	}
 }
@@ -701,7 +705,10 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 		req := make(chan connRequest, 1)
 		db.connRequests = append(db.connRequests, req)
 		db.mu.Unlock()
-		ret := <-req
+		ret, ok := <-req
+		if !ok {
+			return nil, errDBClosed
+		}
 		return ret.conn, ret.err
 	}
 
@@ -711,6 +718,7 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 	if err != nil {
 		db.mu.Lock()
 		db.numOpen-- // correct for earlier optimism
+		db.maybeOpenNewConnections()
 		db.mu.Unlock()
 		return nil, err
 	}
@@ -1576,9 +1584,9 @@ func (s *Stmt) Close() error {
 	s.closed = true
 
 	if s.tx != nil {
-		s.txsi.Close()
+		err := s.txsi.Close()
 		s.mu.Unlock()
-		return nil
+		return err
 	}
 	s.mu.Unlock()
 

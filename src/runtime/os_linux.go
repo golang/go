@@ -19,9 +19,6 @@ func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
 func sigaltstack(new, old *sigaltstackt)
 
 //go:noescape
-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
-
-//go:noescape
 func setitimer(mode int32, new, old *itimerval)
 
 //go:noescape

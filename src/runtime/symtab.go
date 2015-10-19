@@ -284,7 +284,7 @@ func cfuncname(f *_func) *byte {
 	if datap == nil {
 		return nil
 	}
-	return (*byte)(unsafe.Pointer(&datap.pclntable[f.nameoff]))
+	return &datap.pclntable[f.nameoff]
 }
 
 func funcname(f *_func) string {

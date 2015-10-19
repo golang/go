@@ -70,7 +70,7 @@ func dwrite(data unsafe.Pointer, len uintptr) {
 		return
 	}
 
-	write(dumpfd, (unsafe.Pointer)(&buf), int32(nbuf))
+	write(dumpfd, unsafe.Pointer(&buf), int32(nbuf))
 	if len >= bufSize {
 		write(dumpfd, data, int32(len))
 		nbuf = 0
@@ -85,7 +85,7 @@ func dwritebyte(b byte) {
 }
 
 func flush() {
-	write(dumpfd, (unsafe.Pointer)(&buf), int32(nbuf))
+	write(dumpfd, unsafe.Pointer(&buf), int32(nbuf))
 	nbuf = 0
 }
 

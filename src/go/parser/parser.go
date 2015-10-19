@@ -410,9 +410,14 @@ func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 func (p *parser) expectSemi() {
 	// semicolon is optional before a closing ')' or '}'
 	if p.tok != token.RPAREN && p.tok != token.RBRACE {
-		if p.tok == token.SEMICOLON {
+		switch p.tok {
+		case token.COMMA:
+			// permit a ',' instead of a ';' but complain
+			p.errorExpected(p.pos, "';'")
+			fallthrough
+		case token.SEMICOLON:
 			p.next()
-		} else {
+		default:
 			p.errorExpected(p.pos, "';'")
 			syncStmt(p)
 		}
@@ -690,15 +695,18 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 
 	doc := p.leadComment
 
-	// FieldDecl
-	list, typ := p.parseVarList(false)
-
-	// Tag
-	var tag *ast.BasicLit
-	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+	// 1st FieldDecl
+	// A type name used as an anonymous field looks like a field identifier.
+	var list []ast.Expr
+	for {
+		list = append(list, p.parseVarType(false))
+		if p.tok != token.COMMA {
+			break
+		}
 		p.next()
 	}
+
+	typ := p.tryVarType(false)
 
 	// analyze case
 	var idents []*ast.Ident
@@ -708,11 +716,20 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	} else {
 		// ["*"] TypeName (AnonymousField)
 		typ = list[0] // we always have at least one element
-		if n := len(list); n > 1 || !isTypeName(deref(typ)) {
-			pos := typ.Pos()
-			p.errorExpected(pos, "anonymous field")
-			typ = &ast.BadExpr{From: pos, To: p.safePos(list[n-1].End())}
+		if n := len(list); n > 1 {
+			p.errorExpected(p.pos, "type")
+			typ = &ast.BadExpr{From: p.pos, To: p.pos}
+		} else if !isTypeName(deref(typ)) {
+			p.errorExpected(typ.Pos(), "anonymous field")
+			typ = &ast.BadExpr{From: typ.Pos(), To: p.safePos(typ.End())}
 		}
+	}
+
+	// Tag
+	var tag *ast.BasicLit
+	if p.tok == token.STRING {
+		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		p.next()
 	}
 
 	p.expectSemi() // call before accessing p.linecomment
@@ -791,42 +808,27 @@ func (p *parser) parseVarType(isParam bool) ast.Expr {
 	return typ
 }
 
-// If any of the results are identifiers, they are not resolved.
-func (p *parser) parseVarList(isParam bool) (list []ast.Expr, typ ast.Expr) {
-	if p.trace {
-		defer un(trace(p, "VarList"))
-	}
-
-	// a list of identifiers looks like a list of type names
-	//
-	// parse/tryVarType accepts any type (including parenthesized
-	// ones) even though the syntax does not permit them here: we
-	// accept them all for more robust parsing and complain later
-	for typ := p.parseVarType(isParam); typ != nil; {
-		list = append(list, typ)
-		if p.tok != token.COMMA {
-			break
-		}
-		p.next()
-		typ = p.tryVarType(isParam) // maybe nil as in: func f(int,) {}
-	}
-
-	// if we had a list of identifiers, it must be followed by a type
-	typ = p.tryVarType(isParam)
-
-	return
-}
-
 func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
 
-	// ParameterDecl
-	list, typ := p.parseVarList(ellipsisOk)
+	// 1st ParameterDecl
+	// A list of identifiers looks like a list of type names.
+	var list []ast.Expr
+	for {
+		list = append(list, p.parseVarType(ellipsisOk))
+		if p.tok != token.COMMA {
+			break
+		}
+		p.next()
+		if p.tok == token.RPAREN {
+			break
+		}
+	}
 
 	// analyze case
-	if typ != nil {
+	if typ := p.tryVarType(ellipsisOk); typ != nil {
 		// IdentifierList Type
 		idents := p.makeIdentList(list)
 		field := &ast.Field{Names: idents, Type: typ}
@@ -1908,14 +1910,23 @@ func isTypeSwitchAssert(x ast.Expr) bool {
 	return ok && a.Type == nil
 }
 
-func isTypeSwitchGuard(s ast.Stmt) bool {
+func (p *parser) isTypeSwitchGuard(s ast.Stmt) bool {
 	switch t := s.(type) {
 	case *ast.ExprStmt:
-		// x.(nil)
+		// x.(type)
 		return isTypeSwitchAssert(t.X)
 	case *ast.AssignStmt:
-		// v := x.(nil)
-		return len(t.Lhs) == 1 && t.Tok == token.DEFINE && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0])
+		// v := x.(type)
+		if len(t.Lhs) == 1 && len(t.Rhs) == 1 && isTypeSwitchAssert(t.Rhs[0]) {
+			switch t.Tok {
+			case token.ASSIGN:
+				// permit v = x.(type) but complain
+				p.error(t.TokPos, "expected ':=', found '='")
+				fallthrough
+			case token.DEFINE:
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -1961,7 +1972,7 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 		p.exprLev = prevLev
 	}
 
-	typeSwitch := isTypeSwitchGuard(s2)
+	typeSwitch := p.isTypeSwitchGuard(s2)
 	lbrace := p.expect(token.LBRACE)
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {

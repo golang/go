@@ -44,6 +44,9 @@ func rsaAlignOf(salen int) int {
 
 // parseSockaddrLink parses b as a datalink socket address.
 func parseSockaddrLink(b []byte) (*SockaddrDatalink, error) {
+	if len(b) < 8 {
+		return nil, EINVAL
+	}
 	sa, _, err := parseLinkLayerAddr(b[4:])
 	if err != nil {
 		return nil, err
@@ -77,16 +80,16 @@ func parseLinkLayerAddr(b []byte) (*SockaddrDatalink, int, error) {
 		Slen byte
 	}
 	lla := (*linkLayerAddr)(unsafe.Pointer(&b[0]))
-	l := rsaAlignOf(int(4 + lla.Nlen + lla.Alen + lla.Slen))
+	l := 4 + int(lla.Nlen) + int(lla.Alen) + int(lla.Slen)
 	if len(b) < l {
 		return nil, 0, EINVAL
 	}
 	b = b[4:]
 	sa := &SockaddrDatalink{Type: lla.Type, Nlen: lla.Nlen, Alen: lla.Alen, Slen: lla.Slen}
-	for i := 0; len(sa.Data) > i && i < int(lla.Nlen+lla.Alen+lla.Slen); i++ {
+	for i := 0; len(sa.Data) > i && i < l-4; i++ {
 		sa.Data[i] = int8(b[i])
 	}
-	return sa, l, nil
+	return sa, rsaAlignOf(l), nil
 }
 
 // parseSockaddrInet parses b as an internet socket address.

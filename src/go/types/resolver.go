@@ -202,6 +202,11 @@ func (check *Checker) collectObjects() {
 						name := imp.name
 						if s.Name != nil {
 							name = s.Name.Name
+							if path == "C" {
+								// match cmd/compile (not prescribed by spec)
+								check.errorf(s.Name.Pos(), `cannot rename import "C"`)
+								continue
+							}
 							if name == "init" {
 								check.errorf(s.Name.Pos(), "cannot declare init - must be func")
 								continue
@@ -214,6 +219,11 @@ func (check *Checker) collectObjects() {
 							check.recordDef(s.Name, obj)
 						} else {
 							check.recordImplicit(s, obj)
+						}
+
+						if path == "C" {
+							// match cmd/compile (not prescribed by spec)
+							obj.used = true
 						}
 
 						// add import to file scope

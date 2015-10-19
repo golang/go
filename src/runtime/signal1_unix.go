@@ -16,7 +16,7 @@ const (
 // handle a particular signal (e.g., signal occurred on a non-Go thread).
 // See sigfwdgo() for more information on when the signals are forwarded.
 //
-// Signal forwarding is currently available only on Linux.
+// Signal forwarding is currently available only on Darwin and Linux.
 var fwdSig [_NSIG]uintptr
 
 // sigmask represents a general signal mask compatible with the GOOS
@@ -195,7 +195,7 @@ func crash() {
 	raise(_SIGABRT)
 }
 
-// createSigM starts one global, sleeping thread to make sure at least one thread
+// ensureSigM starts one global, sleeping thread to make sure at least one thread
 // is available to catch signals enabled for os/signal.
 func ensureSigM() {
 	if maskUpdatedChan != nil {

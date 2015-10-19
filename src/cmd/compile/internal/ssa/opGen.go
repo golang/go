@@ -261,6 +261,7 @@ const (
 	OpAMD64MOVQstore
 	OpAMD64MOVQstoreidx8
 	OpAMD64DUFFZERO
+	OpAMD64MOVOconst
 	OpAMD64REPSTOSQ
 	OpAMD64CALLstatic
 	OpAMD64CALLclosure
@@ -3039,10 +3040,18 @@ var opcodeTable = [...]opInfo{
 		name: "DUFFZERO",
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 128}, // .DI
-				{1, 1},   // .AX
+				{0, 128},   // .DI
+				{1, 65536}, // .X0
 			},
 			clobbers: 8589934720, // .DI .FLAGS
+		},
+	},
+	{
+		name: "MOVOconst",
+		reg: regInfo{
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
 		},
 	},
 	{

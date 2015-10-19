@@ -438,8 +438,10 @@ func tolerance(a, b, e float64) bool {
 		d = -d
 	}
 
-	if a != 0 {
-		e = e * a
+	// note: b is correct (expected) value, a is actual value.
+	// make error tolerance a fraction of b, not a.
+	if b != 0 {
+		e = e * b
 		if e < 0 {
 			e = -e
 		}
@@ -460,8 +462,8 @@ func alike(a, b float64) bool {
 
 func cTolerance(a, b complex128, e float64) bool {
 	d := Abs(a - b)
-	if a != 0 {
-		e = e * Abs(a)
+	if b != 0 {
+		e = e * Abs(b)
 		if e < 0 {
 			e = -e
 		}

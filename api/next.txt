@@ -1,0 +1,53 @@
+pkg bufio, method (*Scanner) Buffer([]uint8, int)
+pkg bufio, var ErrFinalToken error
+pkg debug/dwarf, const ClassUnknown = 0
+pkg debug/dwarf, const ClassUnknown Class
+pkg html/template, func IsTrue(interface{}) (bool, bool)
+pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA
+pkg image, method (*NYCbCrA) AOffset(int, int) int
+pkg image, method (*NYCbCrA) At(int, int) color.Color
+pkg image, method (*NYCbCrA) Bounds() Rectangle
+pkg image, method (*NYCbCrA) COffset(int, int) int
+pkg image, method (*NYCbCrA) ColorModel() color.Model
+pkg image, method (*NYCbCrA) NYCbCrAAt(int, int) color.NYCbCrA
+pkg image, method (*NYCbCrA) Opaque() bool
+pkg image, method (*NYCbCrA) SubImage(Rectangle) Image
+pkg image, method (*NYCbCrA) YCbCrAt(int, int) color.YCbCr
+pkg image, method (*NYCbCrA) YOffset(int, int) int
+pkg image, type NYCbCrA struct
+pkg image, type NYCbCrA struct, A []uint8
+pkg image, type NYCbCrA struct, AStride int
+pkg image, type NYCbCrA struct, embedded YCbCr
+pkg image/color, method (NYCbCrA) RGBA() (uint32, uint32, uint32, uint32)
+pkg image/color, type NYCbCrA struct
+pkg image/color, type NYCbCrA struct, A uint8
+pkg image/color, type NYCbCrA struct, embedded YCbCr
+pkg image/color, var NYCbCrAModel Model
+pkg math/big, method (*Float) MarshalText() ([]uint8, error)
+pkg math/big, method (*Float) UnmarshalText([]uint8) error
+pkg math/big, method (*Int) Append([]uint8, int) []uint8
+pkg math/big, method (*Int) Text(int) string
+pkg math/rand, func Read([]uint8) (int, error)
+pkg math/rand, method (*Rand) Read([]uint8) (int, error)
+pkg net, type DNSError struct, IsTemporary bool
+pkg net/http, const StatusNetworkAuthenticationRequired = 511
+pkg net/http, const StatusNetworkAuthenticationRequired ideal-int
+pkg net/http, const StatusPreconditionRequired = 428
+pkg net/http, const StatusPreconditionRequired ideal-int
+pkg net/http, const StatusRequestHeaderFieldsTooLarge = 431
+pkg net/http, const StatusRequestHeaderFieldsTooLarge ideal-int
+pkg net/http, const StatusTooManyRequests = 429
+pkg net/http, const StatusTooManyRequests ideal-int
+pkg net/http/httptest, method (*ResponseRecorder) WriteString(string) (int, error)
+pkg net/url, method (*Error) Temporary() bool
+pkg net/url, method (*Error) Timeout() bool
+pkg strconv, func AppendQuoteRuneToGraphic([]uint8, int32) []uint8
+pkg strconv, func AppendQuoteToGraphic([]uint8, string) []uint8
+pkg strconv, func IsGraphic(int32) bool
+pkg strconv, func QuoteRuneToGraphic(int32) string
+pkg strconv, func QuoteToGraphic(string) string
+pkg text/template, func IsTrue(interface{}) (bool, bool)
+pkg text/template, method (ExecError) Error() string
+pkg text/template, type ExecError struct
+pkg text/template, type ExecError struct, Err error
+pkg text/template, type ExecError struct, Name string

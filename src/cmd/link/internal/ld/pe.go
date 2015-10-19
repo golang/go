@@ -684,21 +684,11 @@ func addimports(datsect *IMAGE_SECTION_HEADER) {
 	Cseek(endoff)
 }
 
-type pescmp []*LSym
+type byExtname []*LSym
 
-func (x pescmp) Len() int {
-	return len(x)
-}
-
-func (x pescmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x pescmp) Less(i, j int) bool {
-	s1 := x[i]
-	s2 := x[j]
-	return stringsCompare(s1.Extname, s2.Extname) < 0
-}
+func (s byExtname) Len() int           { return len(s) }
+func (s byExtname) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
 
 func initdynexport() {
 	nexport = 0
@@ -715,7 +705,7 @@ func initdynexport() {
 		nexport++
 	}
 
-	sort.Sort(pescmp(dexport[:nexport]))
+	sort.Sort(byExtname(dexport[:nexport]))
 }
 
 func addexports() {

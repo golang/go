@@ -20,7 +20,7 @@ goarch=$(go env GOARCH)
 # Directory where cgo headers and outputs will be installed.
 # The installation directory format varies depending on the platform.
 installdir=pkg/${goos}_${goarch}_testcshared_shared
-if [ "${goos}/${goarch}" == "android/arm" ] || [ "${goos}/${goarch}" == "darwin/amd64" ]; then
+if [ "${goos}/${goarch}" == "darwin/amd64" ]; then
 	installdir=pkg/${goos}_${goarch}_testcshared
 fi
 
@@ -81,9 +81,21 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
 GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
 binpush libgo.$libext
 
+if [ "$goos" == "linux" ]; then
+    if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
+        echo "libgo.$libext has TEXTREL set"
+        exit 1
+    fi
+fi
+
+GOGCCFLAGS=$(go env GOGCCFLAGS)
+if [ "$goos" == "android" ]; then
+	GOGCCFLAGS="${GOGCCFLAGS} -pie"
+fi
+
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
-$(go env CC) $(go env GOGCCFLAGS) -I ${installdir} -o testp main0.c libgo.$libext
+$(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
 binpush testp
 
 output=$(run LD_LIBRARY_PATH=. ./testp)
@@ -93,7 +105,7 @@ if [ "$output" != "PASS" ]; then
 fi
 
 # test1: shared library can be dynamically loaded and exported symbols are accessible.
-$(go env CC) $(go env GOGCCFLAGS) -o testp main1.c -ldl
+$(go env CC) ${GOGCCFLAGS} -o testp main1.c -ldl
 binpush testp
 output=$(run ./testp ./libgo.$libext)
 if [ "$output" != "PASS" ]; then
@@ -108,7 +120,7 @@ linkflags="-Wl,--no-as-needed"
 if [ "$goos" == "darwin" ]; then
 	linkflags=""
 fi
-$(go env CC) $(go env GOGCCFLAGS) -o testp2 main2.c $linkflags libgo2.$libext
+$(go env CC) ${GOGCCFLAGS} -o testp2 main2.c $linkflags libgo2.$libext
 binpush testp2
 output=$(run LD_LIBRARY_PATH=. ./testp2)
 if [ "$output" != "PASS" ]; then
@@ -118,7 +130,7 @@ fi
 
 # test3: tests main.main is exported on android.
 if [ "$goos" == "android" ]; then
-	$(go env CC) $(go env GOGCCFLAGS) -o testp3 main3.c -ldl
+	$(go env CC) ${GOGCCFLAGS} -o testp3 main3.c -ldl
 	binpush testp3
 	output=$(run ./testp ./libgo.so)
 	if [ "$output" != "PASS" ]; then

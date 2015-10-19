@@ -25,6 +25,11 @@ import (
 
 var emptyParams = make(map[string]string)
 
+// This constant needs to be at least 76 for this package to work correctly.
+// This is because \r\n--separator_of_len_70- would fill the buffer and it
+// wouldn't be safe to consume a single byte from it.
+const peekBufferSize = 4096
+
 // A Part represents a single part in a multipart body.
 type Part struct {
 	// The headers of the body, if any, with the keys canonicalized
@@ -91,7 +96,7 @@ func (p *Part) parseContentDisposition() {
 func NewReader(r io.Reader, boundary string) *Reader {
 	b := []byte("\r\n--" + boundary + "--")
 	return &Reader{
-		bufReader:        bufio.NewReader(r),
+		bufReader:        bufio.NewReaderSize(r, peekBufferSize),
 		nl:               b[:2],
 		nlDashBoundary:   b[:len(b)-2],
 		dashBoundaryDash: b[2:],
@@ -148,7 +153,7 @@ func (pr partReader) Read(d []byte) (n int, err error) {
 		// the read request.  No need to parse more at the moment.
 		return p.buffer.Read(d)
 	}
-	peek, err := p.mr.bufReader.Peek(4096) // TODO(bradfitz): add buffer size accessor
+	peek, err := p.mr.bufReader.Peek(peekBufferSize) // TODO(bradfitz): add buffer size accessor
 
 	// Look for an immediate empty part without a leading \r\n
 	// before the boundary separator.  Some MIME code makes empty
@@ -229,6 +234,7 @@ func (r *Reader) NextPart() (*Part, error) {
 	expectNewPart := false
 	for {
 		line, err := r.bufReader.ReadSlice('\n')
+
 		if err == io.EOF && r.isFinalBoundary(line) {
 			// If the buffer ends in "--boundary--" without the
 			// trailing "\r\n", ReadSlice will return an error
@@ -343,20 +349,24 @@ func (mr *Reader) peekBufferIsEmptyPart(peek []byte) bool {
 // peekBufferSeparatorIndex returns the index of mr.nlDashBoundary in
 // peek and whether it is a real boundary (and not a prefix of an
 // unrelated separator). To be the end, the peek buffer must contain a
-// newline after the boundary.
+// newline after the boundary or contain the ending boundary (--separator--).
 func (mr *Reader) peekBufferSeparatorIndex(peek []byte) (idx int, isEnd bool) {
 	idx = bytes.Index(peek, mr.nlDashBoundary)
 	if idx == -1 {
 		return
 	}
+
 	peek = peek[idx+len(mr.nlDashBoundary):]
+	if len(peek) == 0 || len(peek) == 1 && peek[0] == '-' {
+		return idx, false
+	}
 	if len(peek) > 1 && peek[0] == '-' && peek[1] == '-' {
 		return idx, true
 	}
 	peek = skipLWSPChar(peek)
 	// Don't have a complete line after the peek.
 	if bytes.IndexByte(peek, '\n') == -1 {
-		return -1, false
+		return idx, false
 	}
 	if len(peek) > 0 && peek[0] == '\n' {
 		return idx, true

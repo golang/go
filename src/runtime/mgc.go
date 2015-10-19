@@ -126,32 +126,20 @@ const (
 	_DebugGC         = 0
 	_ConcurrentSweep = true
 	_FinBlockSize    = 4 * 1024
+
 	_RootData        = 0
 	_RootBss         = 1
 	_RootFinalizers  = 2
-	_RootSpans       = 3
-	_RootFlushCaches = 4
-	_RootCount       = 5
-
-	debugStackBarrier = false
+	_RootFlushCaches = 3
+	_RootSpans0      = 4
+	_RootSpansShards = 128
+	_RootCount       = _RootSpans0 + _RootSpansShards
 
 	// sweepMinHeapDistance is a lower bound on the heap distance
 	// (in bytes) reserved for concurrent sweeping between GC
 	// cycles. This will be scaled by gcpercent/100.
 	sweepMinHeapDistance = 1024 * 1024
 )
-
-// firstStackBarrierOffset is the approximate byte offset at
-// which to place the first stack barrier from the current SP.
-// This is a lower bound on how much stack will have to be
-// re-scanned during mark termination. Subsequent barriers are
-// placed at firstStackBarrierOffset * 2^n offsets.
-//
-// For debugging, this can be set to 0, which will install a
-// stack barrier at every frame. If you do this, you may also
-// have to raise _StackMin, since the stack barrier
-// bookkeeping will use a large amount of each stack.
-var firstStackBarrierOffset = 1024
 
 // heapminimum is the minimum heap size at which to trigger GC.
 // For small heaps, this overrides the usual GOGC*live set rule.
@@ -208,6 +196,7 @@ func gcenable() {
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
+//go:linkname setGCPercent runtime/debug.setGCPercent
 func setGCPercent(in int32) (out int32) {
 	lock(&mheap_.lock)
 	out = gcpercent
@@ -307,9 +296,9 @@ var gcController = gcControllerState{
 
 type gcControllerState struct {
 	// scanWork is the total scan work performed this cycle. This
-	// is updated atomically during the cycle. Updates may be
-	// batched arbitrarily, since the value is only read at the
-	// end of the cycle.
+	// is updated atomically during the cycle. Updates occur in
+	// bounded batches, since it is both written and read
+	// throughout the cycle.
 	//
 	// Currently this is the bytes of heap scanned. For most uses,
 	// this is an opaque unit of work, but for estimation the
@@ -363,11 +352,14 @@ type gcControllerState struct {
 	// dedicated mark workers get started.
 	dedicatedMarkWorkersNeeded int64
 
-	// assistRatio is the ratio of allocated bytes to scan work
-	// that should be performed by mutator assists. This is
+	// assistWorkPerByte is the ratio of scan work to allocated
+	// bytes that should be performed by mutator assists. This is
 	// computed at the beginning of each cycle and updated every
 	// time heap_scan is updated.
-	assistRatio float64
+	assistWorkPerByte float64
+
+	// assistBytesPerWork is 1/assistWorkPerByte.
+	assistBytesPerWork float64
 
 	// fractionalUtilizationGoal is the fraction of wall clock
 	// time that should be spent in the fractional mark worker.
@@ -420,6 +412,17 @@ func (c *gcControllerState) startCycle() {
 	// Compute the heap goal for this cycle
 	c.heapGoal = memstats.heap_reachable + memstats.heap_reachable*uint64(gcpercent)/100
 
+	// Ensure that the heap goal is at least a little larger than
+	// the current live heap size. This may not be the case if GC
+	// start is delayed or if the allocation that pushed heap_live
+	// over next_gc is large or if the trigger is really close to
+	// GOGC. Assist is proportional to this distance, so enforce a
+	// minimum distance, even if it means going over the GOGC goal
+	// by a tiny bit.
+	if c.heapGoal < memstats.heap_live+1024*1024 {
+		c.heapGoal = memstats.heap_live + 1024*1024
+	}
+
 	// Compute the total mark utilization goal and divide it among
 	// dedicated and fractional workers.
 	totalUtilizationGoal := float64(gomaxprocs) * gcGoalUtilization
@@ -444,7 +447,7 @@ func (c *gcControllerState) startCycle() {
 	c.revise()
 
 	if debug.gcpacertrace > 0 {
-		print("pacer: assist ratio=", c.assistRatio,
+		print("pacer: assist ratio=", c.assistWorkPerByte,
 			" (scan ", memstats.heap_scan>>20, " MB in ",
 			work.initialHeapLive>>20, "->",
 			c.heapGoal>>20, " MB)",
@@ -455,33 +458,55 @@ func (c *gcControllerState) startCycle() {
 
 // revise updates the assist ratio during the GC cycle to account for
 // improved estimates. This should be called either under STW or
-// whenever memstats.heap_scan is updated (with mheap_.lock held).
+// whenever memstats.heap_scan or memstats.heap_live is updated (with
+// mheap_.lock held).
+//
+// It should only be called when gcBlackenEnabled != 0 (because this
+// is when assists are enabled and the necessary statistics are
+// available).
 func (c *gcControllerState) revise() {
-	// Compute the expected scan work. This is a strict upper
-	// bound on the possible scan work in the current heap.
+	// Compute the expected scan work remaining.
 	//
+	// Note that the scannable heap size is likely to increase
+	// during the GC cycle. This is why it's important to revise
+	// the assist ratio throughout the cycle: if the scannable
+	// heap size increases, the assist ratio based on the initial
+	// scannable heap size may target too little scan work.
+	//
+	// This particular estimate is a strict upper bound on the
+	// possible remaining scan work for the current heap.
 	// You might consider dividing this by 2 (or by
 	// (100+GOGC)/100) to counter this over-estimation, but
 	// benchmarks show that this has almost no effect on mean
 	// mutator utilization, heap size, or assist time and it
 	// introduces the danger of under-estimating and letting the
 	// mutator outpace the garbage collector.
-	scanWorkExpected := memstats.heap_scan
+	scanWorkExpected := int64(memstats.heap_scan) - c.scanWork
+	if scanWorkExpected < 1000 {
+		// We set a somewhat arbitrary lower bound on
+		// remaining scan work since if we aim a little high,
+		// we can miss by a little.
+		//
+		// We *do* need to enforce that this is at least 1,
+		// since marking is racy and double-scanning objects
+		// may legitimately make the expected scan work
+		// negative.
+		scanWorkExpected = 1000
+	}
+
+	// Compute the heap distance remaining.
+	heapDistance := int64(c.heapGoal) - int64(memstats.heap_live)
+	if heapDistance <= 0 {
+		// This shouldn't happen, but if it does, avoid
+		// dividing by zero or setting the assist negative.
+		heapDistance = 1
+	}
 
 	// Compute the mutator assist ratio so by the time the mutator
 	// allocates the remaining heap bytes up to next_gc, it will
-	// have done (or stolen) the estimated amount of scan work.
-	heapDistance := int64(c.heapGoal) - int64(work.initialHeapLive)
-	if heapDistance <= 1024*1024 {
-		// heapDistance can be negative if GC start is delayed
-		// or if the allocation that pushed heap_live over
-		// next_gc is large or if the trigger is really close
-		// to GOGC. We don't want to set the assist negative
-		// (or divide by zero, or set it really high), so
-		// enforce a minimum on the distance.
-		heapDistance = 1024 * 1024
-	}
-	c.assistRatio = float64(scanWorkExpected) / float64(heapDistance)
+	// have done (or stolen) the remaining amount of scan work.
+	c.assistWorkPerByte = float64(scanWorkExpected) / float64(heapDistance)
+	c.assistBytesPerWork = float64(heapDistance) / float64(scanWorkExpected)
 }
 
 // endCycle updates the GC controller state at the end of the
@@ -597,7 +622,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// else for a while, so kick everything out of its run
 		// queue.
 	} else {
-		if _p_.gcw.wbuf == 0 && work.full == 0 && work.partial == 0 {
+		if _p_.gcw.wbuf == 0 && work.full == 0 {
 			// No work to be done right now. This can
 			// happen at the end of the mark phase when
 			// there are still assists tapering off. Don't
@@ -687,16 +712,23 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 // marking as a fraction of GOMAXPROCS.
 const gcGoalUtilization = 0.25
 
-// gcBgCreditSlack is the amount of scan work credit background
-// scanning can accumulate locally before updating
-// gcController.bgScanCredit. Lower values give mutator assists more
-// accurate accounting of background scanning. Higher values reduce
-// memory contention.
-const gcBgCreditSlack = 2000
+// gcCreditSlack is the amount of scan work credit that can can
+// accumulate locally before updating gcController.scanWork and,
+// optionally, gcController.bgScanCredit. Lower values give a more
+// accurate assist ratio and make it more likely that assists will
+// successfully steal background credit. Higher values reduce memory
+// contention.
+const gcCreditSlack = 2000
 
 // gcAssistTimeSlack is the nanoseconds of mutator assist time that
 // can accumulate on a P before updating gcController.assistTime.
 const gcAssistTimeSlack = 5000
+
+// gcOverAssistBytes determines how many extra allocation bytes of
+// assist credit a GC assist builds up when an assist happens. This
+// amortizes the cost of an assist by pre-paying for this many bytes
+// of future allocations.
+const gcOverAssistBytes = 1 << 20
 
 // Determine whether to initiate a GC.
 // If the GC is already working no need to trigger another one.
@@ -763,10 +795,8 @@ func (s *bgMarkSignal) clear() {
 }
 
 var work struct {
-	full  uint64 // lock-free list of full blocks workbuf
-	empty uint64 // lock-free list of empty blocks workbuf
-	// TODO(rlh): partial no longer used, remove. (issue #11922)
-	partial uint64                // lock-free list of partially filled blocks workbuf
+	full    uint64                // lock-free list of full blocks workbuf
+	empty   uint64                // lock-free list of empty blocks workbuf
 	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 	nproc   uint32
 	tstart  int64
@@ -774,6 +804,12 @@ var work struct {
 	ndone   uint32
 	alldone note
 	markfor *parfor
+
+	// finalizersDone indicates that finalizers and objects with
+	// finalizers have been scanned by markroot. During concurrent
+	// GC, this happens during the concurrent scan phase. During
+	// STW GC, this happens during mark termination.
+	finalizersDone bool
 
 	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
@@ -815,10 +851,13 @@ func GC() {
 	startGC(gcForceBlockMode, false)
 }
 
+// gcMode indicates how concurrent a GC cycle should be.
+type gcMode int
+
 const (
-	gcBackgroundMode = iota // concurrent GC
-	gcForceMode             // stop-the-world GC now
-	gcForceBlockMode        // stop-the-world GC now and wait for sweep
+	gcBackgroundMode gcMode = iota // concurrent GC and sweep
+	gcForceMode                    // stop-the-world GC now, concurrent sweep
+	gcForceBlockMode               // stop-the-world GC now and STW sweep
 )
 
 // startGC starts a GC cycle. If mode is gcBackgroundMode, this will
@@ -826,7 +865,7 @@ const (
 // until the new GC cycle is started and finishes. If forceTrigger is
 // true, it indicates that GC should be started regardless of the
 // current heap size.
-func startGC(mode int, forceTrigger bool) {
+func startGC(mode gcMode, forceTrigger bool) {
 	// The gc is turned off (via enablegc) until the bootstrap has completed.
 	// Also, malloc gets called in the guts of a number of libraries that might be
 	// holding locks. To avoid deadlocks during stop-the-world, don't bother
@@ -901,7 +940,7 @@ func backgroundgc() {
 	}
 }
 
-func gc(mode int) {
+func gc(mode gcMode) {
 	// Timing/utilization tracking
 	var stwprocs, maxprocs int32
 	var tSweepTerm, tScan, tInstallWB, tMark, tMarkTerm int64
@@ -940,12 +979,17 @@ func gc(mode int) {
 
 	pauseStart = now
 	systemstack(stopTheWorldWithSema)
-	systemstack(finishsweep_m) // finish sweep before we start concurrent scan.
+	// Finish sweep before we start concurrent scan.
+	systemstack(func() {
+		finishsweep_m(true)
+	})
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
 
 	gcResetMarkState()
+
+	work.finalizersDone = false
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
@@ -978,6 +1022,10 @@ func gc(mode int) {
 			// 3) Don't install stack barriers over frame
 			// boundaries where there are up-pointers.
 			setGCPhase(_GCscan)
+
+			// markrootSpans uses work.spans, so make sure
+			// it is up to date.
+			gcCopySpans()
 
 			gcBgMarkPrepare() // Must happen before assist enable.
 
@@ -1046,6 +1094,10 @@ func gc(mode int) {
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
 
+		// markroot is done now, so record that objects with
+		// finalizers have been scanned.
+		work.finalizersDone = true
+
 		// Flush the gcWork caches. This must be done before
 		// endCycle since endCycle depends on statistics kept
 		// in these caches.
@@ -1053,11 +1105,6 @@ func gc(mode int) {
 
 		gcController.endCycle()
 	} else {
-		// For non-concurrent GC (mode != gcBackgroundMode)
-		// The g stacks have not been scanned so clear g state
-		// such that mark termination scans all stacks.
-		gcResetGState()
-
 		t := nanotime()
 		tScan, tInstallWB, tMark, tMarkTerm = t, t, t, t
 		heapGoal = heap0
@@ -1102,7 +1149,6 @@ func gc(mode int) {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
 			// the concurrent mark process.
-			gcResetGState() // Rescan stacks
 			gcResetMarkState()
 			initCheckmarks()
 			gcMark(startTime)
@@ -1118,9 +1164,8 @@ func gc(mode int) {
 			// The g stacks have been scanned so
 			// they have gcscanvalid==true and gcworkdone==true.
 			// Reset these so that all stacks will be rescanned.
-			gcResetGState()
 			gcResetMarkState()
-			finishsweep_m()
+			finishsweep_m(true)
 
 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
 			// At this point all objects will be found during the gcMark which
@@ -1317,7 +1362,7 @@ func gcBgMarkWorker(p *p) {
 		default:
 			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 		case gcMarkWorkerDedicatedMode:
-			gcDrain(&p.gcw, gcBgCreditSlack)
+			gcDrain(&p.gcw, gcDrainBlock|gcDrainFlushBgCredit)
 			// gcDrain did the xadd(&work.nwait +1) to
 			// match the decrement above. It only returns
 			// at a mark completion point.
@@ -1326,7 +1371,7 @@ func gcBgMarkWorker(p *p) {
 				throw("gcDrain returned with buffer")
 			}
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
-			gcDrainUntilPreempt(&p.gcw, gcBgCreditSlack)
+			gcDrain(&p.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
 
 			// If we are nearing the end of mark, dispose
 			// of the cache promptly. We must do this
@@ -1346,7 +1391,7 @@ func gcBgMarkWorker(p *p) {
 					"work.nwait=", incnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")
 			}
-			done = incnwait == work.nproc && work.full == 0 && work.partial == 0
+			done = incnwait == work.nproc && work.full == 0
 		}
 
 		// If this worker reached a background mark completion
@@ -1382,7 +1427,7 @@ func gcMarkWorkAvailable(p *p) bool {
 	if !p.gcw.empty() {
 		return true
 	}
-	if atomicload64(&work.full) != 0 || atomicload64(&work.partial) != 0 {
+	if atomicload64(&work.full) != 0 {
 		return true // global work available
 	}
 	return false
@@ -1437,19 +1482,20 @@ func gcMark(start_time int64) {
 	parfordo(work.markfor)
 
 	var gcw gcWork
-	gcDrain(&gcw, -1)
+	gcDrain(&gcw, gcDrainBlock)
 	gcw.dispose()
 
 	if work.full != 0 {
 		throw("work.full != 0")
 	}
-	if work.partial != 0 {
-		throw("work.partial != 0")
-	}
 
 	if work.nproc > 1 {
 		notesleep(&work.alldone)
 	}
+
+	// markroot is done now, so record that objects with
+	// finalizers have been scanned.
+	work.finalizersDone = true
 
 	for i := 0; i < int(gomaxprocs); i++ {
 		if allp[i].gcw.wbuf != 0 {
@@ -1525,7 +1571,7 @@ func gcMark(start_time int64) {
 	}
 }
 
-func gcSweep(mode int) {
+func gcSweep(mode gcMode) {
 	if gcphase != _GCoff {
 		throw("gcSweep being done but phase is not GCoff")
 	}
@@ -1554,14 +1600,9 @@ func gcSweep(mode int) {
 		return
 	}
 
-	// Account how much sweeping needs to be done before the next
-	// GC cycle and set up proportional sweep statistics.
-	var pagesToSweep uintptr
-	for _, s := range work.spans {
-		if s.state == mSpanInUse {
-			pagesToSweep += s.npages
-		}
-	}
+	// Concurrent sweep needs to sweep all of the in-use pages by
+	// the time the allocated heap reaches the GC trigger. Compute
+	// the ratio of in-use pages to sweep per byte allocated.
 	heapDistance := int64(memstats.next_gc) - int64(memstats.heap_live)
 	// Add a little margin so rounding errors and concurrent
 	// sweep are less likely to leave pages unswept when GC starts.
@@ -1571,7 +1612,7 @@ func gcSweep(mode int) {
 		heapDistance = _PageSize
 	}
 	lock(&mheap_.lock)
-	mheap_.sweepPagesPerByte = float64(pagesToSweep) / float64(heapDistance)
+	mheap_.sweepPagesPerByte = float64(mheap_.pagesInUse) / float64(heapDistance)
 	mheap_.pagesSwept = 0
 	mheap_.spanBytesAlloc = 0
 	unlock(&mheap_.lock)
@@ -1605,27 +1646,20 @@ func gcCopySpans() {
 	unlock(&mheap_.lock)
 }
 
-// gcResetGState resets the GC state of all G's and returns the length
-// of allgs.
-func gcResetGState() (numgs int) {
+// gcResetMarkState resets global state prior to marking (concurrent
+// or STW) and resets the stack scan state of all Gs. Any Gs created
+// after this will also be in the reset state.
+func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
 	lock(&allglock)
 	for _, gp := range allgs {
 		gp.gcscandone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
-		gp.gcalloc = 0
-		gp.gcscanwork = 0
+		gp.gcAssistBytes = 0
 	}
-	numgs = len(allgs)
 	unlock(&allglock)
-	return
-}
 
-// gcResetMarkState resets state prior to marking (concurrent or STW).
-//
-// TODO(austin): Merge with gcResetGState. See issue #11427.
-func gcResetMarkState() {
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live
 }
@@ -1701,7 +1735,7 @@ func gchelper() {
 	parfordo(work.markfor)
 	if gcphase != _GCscan {
 		var gcw gcWork
-		gcDrain(&gcw, -1) // blocks in getfull
+		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
 		gcw.dispose()
 	}
 

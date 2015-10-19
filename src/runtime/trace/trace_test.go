@@ -129,7 +129,13 @@ func TestTraceStress(t *testing.T) {
 
 	runtime.GC()
 	// Trigger GC from malloc.
-	for i := 0; i < 1e3; i++ {
+	n := int(1e3)
+	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+		// Reduce allocation to avoid running out of
+		// memory on the builder - see issue/12032.
+		n = 512
+	}
+	for i := 0; i < n; i++ {
 		_ = make([]byte, 1<<20)
 	}
 
@@ -260,7 +266,13 @@ func TestTraceStressStartStop(t *testing.T) {
 
 		runtime.GC()
 		// Trigger GC from malloc.
-		for i := 0; i < 1e3; i++ {
+		n := int(1e3)
+		if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
+			// Reduce allocation to avoid running out of
+			// memory on the builder - see issue/12032.
+			n = 512
+		}
+		for i := 0; i < n; i++ {
 			_ = make([]byte, 1<<20)
 		}
 

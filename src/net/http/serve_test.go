@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -755,6 +756,107 @@ func TestSetsRemoteAddr(t *testing.T) {
 	}
 }
 
+type blockingRemoteAddrListener struct {
+	net.Listener
+	conns chan<- net.Conn
+}
+
+func (l *blockingRemoteAddrListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	brac := &blockingRemoteAddrConn{
+		Conn:  c,
+		addrs: make(chan net.Addr, 1),
+	}
+	l.conns <- brac
+	return brac, nil
+}
+
+type blockingRemoteAddrConn struct {
+	net.Conn
+	addrs chan net.Addr
+}
+
+func (c *blockingRemoteAddrConn) RemoteAddr() net.Addr {
+	return <-c.addrs
+}
+
+// Issue 12943
+func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "RA:%s", r.RemoteAddr)
+	}))
+	conns := make(chan net.Conn)
+	ts.Listener = &blockingRemoteAddrListener{
+		Listener: ts.Listener,
+		conns:    conns,
+	}
+	ts.Start()
+	defer ts.Close()
+
+	tr := &Transport{DisableKeepAlives: true}
+	defer tr.CloseIdleConnections()
+	c := &Client{Transport: tr, Timeout: time.Second}
+
+	fetch := func(response chan string) {
+		resp, err := c.Get(ts.URL)
+		if err != nil {
+			t.Error(err)
+			response <- ""
+			return
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Error(err)
+			response <- ""
+			return
+		}
+		response <- string(body)
+	}
+
+	// Start a request. The server will block on getting conn.RemoteAddr.
+	response1c := make(chan string, 1)
+	go fetch(response1c)
+
+	// Wait for the server to accept it; grab the connection.
+	conn1 := <-conns
+
+	// Start another request and grab its connection
+	response2c := make(chan string, 1)
+	go fetch(response2c)
+	var conn2 net.Conn
+
+	select {
+	case conn2 = <-conns:
+	case <-time.After(time.Second):
+		t.Fatal("Second Accept didn't happen")
+	}
+
+	// Send a response on connection 2.
+	conn2.(*blockingRemoteAddrConn).addrs <- &net.TCPAddr{
+		IP: net.ParseIP("12.12.12.12"), Port: 12}
+
+	// ... and see it
+	response2 := <-response2c
+	if g, e := response2, "RA:12.12.12.12:12"; g != e {
+		t.Fatalf("response 2 addr = %q; want %q", g, e)
+	}
+
+	// Finish the first response.
+	conn1.(*blockingRemoteAddrConn).addrs <- &net.TCPAddr{
+		IP: net.ParseIP("21.21.21.21"), Port: 21}
+
+	// ... and see it
+	response1 := <-response1c
+	if g, e := response1, "RA:21.21.21.21:21"; g != e {
+		t.Fatalf("response 1 addr = %q; want %q", g, e)
+	}
+}
+
 func TestChunkedResponseHeaders(t *testing.T) {
 	defer afterTest(t)
 	log.SetOutput(ioutil.Discard) // is noisy otherwise
@@ -965,6 +1067,22 @@ func TestTLSServer(t *testing.T) {
 			t.Errorf("expected X-TLS-HandshakeComplete header")
 		}
 	})
+}
+
+func TestAutomaticHTTP2(t *testing.T) {
+	ln, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln.Close() // immediately (not a defer!)
+	var s Server
+	if err := s.Serve(ln); err == nil {
+		t.Fatal("expected an error")
+	}
+	on := s.TLSNextProto["h2"] != nil
+	if !on {
+		t.Errorf("http2 wasn't automatically enabled")
+	}
 }
 
 type serverExpectTest struct {
@@ -2863,6 +2981,7 @@ func TestServerConnState(t *testing.T) {
 		if _, err := io.WriteString(c, "BOGUS REQUEST\r\n\r\n"); err != nil {
 			t.Fatal(err)
 		}
+		c.Read(make([]byte, 1)) // block until server hangs up on us
 		c.Close()
 	}
 
@@ -2896,9 +3015,14 @@ func TestServerConnState(t *testing.T) {
 	}
 	logString := func(m map[int][]ConnState) string {
 		var b bytes.Buffer
-		for id, l := range m {
+		var keys []int
+		for id := range m {
+			keys = append(keys, id)
+		}
+		sort.Ints(keys)
+		for _, id := range keys {
 			fmt.Fprintf(&b, "Conn %d: ", id)
-			for _, s := range l {
+			for _, s := range m[id] {
 				fmt.Fprintf(&b, "%s ", s)
 			}
 			b.WriteString("\n")

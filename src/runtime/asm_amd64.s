@@ -951,10 +951,14 @@ TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
 // CX: length
 // DX: address to put return value
 TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
-	MOVQ	h+8(FP), X6	// seed to low 64 bits of xmm6
-	PINSRQ	$1, CX, X6	// size to high 64 bits of xmm6
-	PSHUFHW	$0, X6, X6	// replace size with its low 2 bytes repeated 4 times
-	MOVO	runtime·aeskeysched(SB), X7
+	// Fill an SSE register with our seeds.
+	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
+	PINSRW	$4, CX, X0			// 16 bits of length
+	PSHUFHW $0, X0, X0			// repeat length 4 times total
+	MOVO	X0, X1				// save unscrambled seed
+	PXOR	runtime·aeskeysched(SB), X0	// xor in per-process seed
+	AESENC	X0, X0				// scramble seed
+
 	CMPQ	CX, $16
 	JB	aes0to15
 	JE	aes16
@@ -976,218 +980,275 @@ aes0to15:
 
 	// 16 bytes loaded at this address won't cross
 	// a page boundary, so we can load it directly.
-	MOVOU	-16(AX), X0
+	MOVOU	-16(AX), X1
 	ADDQ	CX, CX
 	MOVQ	$masks<>(SB), AX
-	PAND	(AX)(CX*8), X0
-
-	// scramble 3 times
-	AESENC	X6, X0
-	AESENC	X7, X0
-	AESENC	X7, X0
-	MOVQ	X0, (DX)
+	PAND	(AX)(CX*8), X1
+final1:
+	AESENC	X0, X1	// scramble input, xor in seed
+	AESENC	X1, X1  // scramble combo 2 times
+	AESENC	X1, X1
+	MOVQ	X1, (DX)
 	RET
 
 endofpage:
 	// address ends in 1111xxxx.  Might be up against
 	// a page boundary, so load ending at last byte.
 	// Then shift bytes down using pshufb.
-	MOVOU	-32(AX)(CX*1), X0
+	MOVOU	-32(AX)(CX*1), X1
 	ADDQ	CX, CX
 	MOVQ	$shifts<>(SB), AX
-	PSHUFB	(AX)(CX*8), X0
-	AESENC	X6, X0
-	AESENC	X7, X0
-	AESENC	X7, X0
-	MOVQ	X0, (DX)
-	RET
+	PSHUFB	(AX)(CX*8), X1
+	JMP	final1
 
 aes0:
-	// return input seed
-	MOVQ	h+8(FP), AX
-	MOVQ	AX, (DX)
+	// Return scrambled input seed
+	AESENC	X0, X0
+	MOVQ	X0, (DX)
 	RET
 
 aes16:
-	MOVOU	(AX), X0
-	AESENC	X6, X0
-	AESENC	X7, X0
-	AESENC	X7, X0
-	MOVQ	X0, (DX)
-	RET
+	MOVOU	(AX), X1
+	JMP	final1
 
 aes17to32:
+	// make second starting seed
+	PXOR	runtime·aeskeysched+16(SB), X1
+	AESENC	X1, X1
+	
 	// load data to be hashed
-	MOVOU	(AX), X0
-	MOVOU	-16(AX)(CX*1), X1
+	MOVOU	(AX), X2
+	MOVOU	-16(AX)(CX*1), X3
 
 	// scramble 3 times
-	AESENC	X6, X0
-	AESENC	runtime·aeskeysched+16(SB), X1
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X0
-	AESENC	X7, X1
+	AESENC	X0, X2
+	AESENC	X1, X3
+	AESENC	X2, X2
+	AESENC	X3, X3
+	AESENC	X2, X2
+	AESENC	X3, X3
 
 	// combine results
-	PXOR	X1, X0
-	MOVQ	X0, (DX)
+	PXOR	X3, X2
+	MOVQ	X2, (DX)
 	RET
 
 aes33to64:
-	MOVOU	(AX), X0
-	MOVOU	16(AX), X1
-	MOVOU	-32(AX)(CX*1), X2
-	MOVOU	-16(AX)(CX*1), X3
+	// make 3 more starting seeds
+	MOVO	X1, X2
+	MOVO	X1, X3
+	PXOR	runtime·aeskeysched+16(SB), X1
+	PXOR	runtime·aeskeysched+32(SB), X2
+	PXOR	runtime·aeskeysched+48(SB), X3
+	AESENC	X1, X1
+	AESENC	X2, X2
+	AESENC	X3, X3
 	
-	AESENC	X6, X0
-	AESENC	runtime·aeskeysched+16(SB), X1
-	AESENC	runtime·aeskeysched+32(SB), X2
-	AESENC	runtime·aeskeysched+48(SB), X3
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
+	MOVOU	(AX), X4
+	MOVOU	16(AX), X5
+	MOVOU	-32(AX)(CX*1), X6
+	MOVOU	-16(AX)(CX*1), X7
+	
+	AESENC	X0, X4
+	AESENC	X1, X5
+	AESENC	X2, X6
+	AESENC	X3, X7
+	
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
+	
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
 
-	PXOR	X2, X0
-	PXOR	X3, X1
-	PXOR	X1, X0
-	MOVQ	X0, (DX)
+	PXOR	X6, X4
+	PXOR	X7, X5
+	PXOR	X5, X4
+	MOVQ	X4, (DX)
 	RET
 
 aes65to128:
-	MOVOU	(AX), X0
-	MOVOU	16(AX), X1
-	MOVOU	32(AX), X2
-	MOVOU	48(AX), X3
-	MOVOU	-64(AX)(CX*1), X4
-	MOVOU	-48(AX)(CX*1), X5
-	MOVOU	-32(AX)(CX*1), X8
-	MOVOU	-16(AX)(CX*1), X9
-	
-	AESENC	X6, X0
-	AESENC	runtime·aeskeysched+16(SB), X1
-	AESENC	runtime·aeskeysched+32(SB), X2
-	AESENC	runtime·aeskeysched+48(SB), X3
-	AESENC	runtime·aeskeysched+64(SB), X4
-	AESENC	runtime·aeskeysched+80(SB), X5
-	AESENC	runtime·aeskeysched+96(SB), X8
-	AESENC	runtime·aeskeysched+112(SB), X9
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
-	AESENC	X7, X4
-	AESENC	X7, X5
-	AESENC	X7, X8
-	AESENC	X7, X9
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
-	AESENC	X7, X4
-	AESENC	X7, X5
-	AESENC	X7, X8
-	AESENC	X7, X9
+	// make 7 more starting seeds
+	MOVO	X1, X2
+	MOVO	X1, X3
+	MOVO	X1, X4
+	MOVO	X1, X5
+	MOVO	X1, X6
+	MOVO	X1, X7
+	PXOR	runtime·aeskeysched+16(SB), X1
+	PXOR	runtime·aeskeysched+32(SB), X2
+	PXOR	runtime·aeskeysched+48(SB), X3
+	PXOR	runtime·aeskeysched+64(SB), X4
+	PXOR	runtime·aeskeysched+80(SB), X5
+	PXOR	runtime·aeskeysched+96(SB), X6
+	PXOR	runtime·aeskeysched+112(SB), X7
+	AESENC	X1, X1
+	AESENC	X2, X2
+	AESENC	X3, X3
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
 
-	PXOR	X4, X0
-	PXOR	X5, X1
-	PXOR	X8, X2
-	PXOR	X9, X3
-	PXOR	X2, X0
-	PXOR	X3, X1
-	PXOR	X1, X0
-	MOVQ	X0, (DX)
+	// load data
+	MOVOU	(AX), X8
+	MOVOU	16(AX), X9
+	MOVOU	32(AX), X10
+	MOVOU	48(AX), X11
+	MOVOU	-64(AX)(CX*1), X12
+	MOVOU	-48(AX)(CX*1), X13
+	MOVOU	-32(AX)(CX*1), X14
+	MOVOU	-16(AX)(CX*1), X15
+
+	// scramble data, xor in seed
+	AESENC	X0, X8
+	AESENC	X1, X9
+	AESENC	X2, X10
+	AESENC	X3, X11
+	AESENC	X4, X12
+	AESENC	X5, X13
+	AESENC	X6, X14
+	AESENC	X7, X15
+
+	// scramble twice
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
+	
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
+
+	// combine results
+	PXOR	X12, X8
+	PXOR	X13, X9
+	PXOR	X14, X10
+	PXOR	X15, X11
+	PXOR	X10, X8
+	PXOR	X11, X9
+	PXOR	X9, X8
+	MOVQ	X8, (DX)
 	RET
 
 aes129plus:
+	// make 7 more starting seeds
+	MOVO	X1, X2
+	MOVO	X1, X3
+	MOVO	X1, X4
+	MOVO	X1, X5
+	MOVO	X1, X6
+	MOVO	X1, X7
+	PXOR	runtime·aeskeysched+16(SB), X1
+	PXOR	runtime·aeskeysched+32(SB), X2
+	PXOR	runtime·aeskeysched+48(SB), X3
+	PXOR	runtime·aeskeysched+64(SB), X4
+	PXOR	runtime·aeskeysched+80(SB), X5
+	PXOR	runtime·aeskeysched+96(SB), X6
+	PXOR	runtime·aeskeysched+112(SB), X7
+	AESENC	X1, X1
+	AESENC	X2, X2
+	AESENC	X3, X3
+	AESENC	X4, X4
+	AESENC	X5, X5
+	AESENC	X6, X6
+	AESENC	X7, X7
+	
 	// start with last (possibly overlapping) block
-	MOVOU	-128(AX)(CX*1), X0
-	MOVOU	-112(AX)(CX*1), X1
-	MOVOU	-96(AX)(CX*1), X2
-	MOVOU	-80(AX)(CX*1), X3
-	MOVOU	-64(AX)(CX*1), X4
-	MOVOU	-48(AX)(CX*1), X5
-	MOVOU	-32(AX)(CX*1), X8
-	MOVOU	-16(AX)(CX*1), X9
+	MOVOU	-128(AX)(CX*1), X8
+	MOVOU	-112(AX)(CX*1), X9
+	MOVOU	-96(AX)(CX*1), X10
+	MOVOU	-80(AX)(CX*1), X11
+	MOVOU	-64(AX)(CX*1), X12
+	MOVOU	-48(AX)(CX*1), X13
+	MOVOU	-32(AX)(CX*1), X14
+	MOVOU	-16(AX)(CX*1), X15
 
-	// scramble state once
-	AESENC	X6, X0
-	AESENC	runtime·aeskeysched+16(SB), X1
-	AESENC	runtime·aeskeysched+32(SB), X2
-	AESENC	runtime·aeskeysched+48(SB), X3
-	AESENC	runtime·aeskeysched+64(SB), X4
-	AESENC	runtime·aeskeysched+80(SB), X5
-	AESENC	runtime·aeskeysched+96(SB), X8
-	AESENC	runtime·aeskeysched+112(SB), X9
-
+	// scramble input once, xor in seed
+	AESENC	X0, X8
+	AESENC	X1, X9
+	AESENC	X2, X10
+	AESENC	X3, X11
+	AESENC	X4, X12
+	AESENC	X5, X13
+	AESENC	X6, X14
+	AESENC	X7, X15
+	
 	// compute number of remaining 128-byte blocks
 	DECQ	CX
 	SHRQ	$7, CX
 	
 aesloop:
 	// scramble state, xor in a block
-	MOVOU	(AX), X10
-	MOVOU	16(AX), X11
-	MOVOU	32(AX), X12
-	MOVOU	48(AX), X13
-	AESENC	X10, X0
-	AESENC	X11, X1
-	AESENC	X12, X2
-	AESENC	X13, X3
-	MOVOU	64(AX), X10
-	MOVOU	80(AX), X11
-	MOVOU	96(AX), X12
-	MOVOU	112(AX), X13
-	AESENC	X10, X4
-	AESENC	X11, X5
-	AESENC	X12, X8
-	AESENC	X13, X9
+	MOVOU	(AX), X0
+	MOVOU	16(AX), X1
+	MOVOU	32(AX), X2
+	MOVOU	48(AX), X3
+	AESENC	X0, X8
+	AESENC	X1, X9
+	AESENC	X2, X10
+	AESENC	X3, X11
+	MOVOU	64(AX), X4
+	MOVOU	80(AX), X5
+	MOVOU	96(AX), X6
+	MOVOU	112(AX), X7
+	AESENC	X4, X12
+	AESENC	X5, X13
+	AESENC	X6, X14
+	AESENC	X7, X15
 
 	// scramble state
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
-	AESENC	X7, X4
-	AESENC	X7, X5
-	AESENC	X7, X8
-	AESENC	X7, X9
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
 
 	ADDQ	$128, AX
 	DECQ	CX
 	JNE	aesloop
 
 	// 2 more scrambles to finish
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
-	AESENC	X7, X4
-	AESENC	X7, X5
-	AESENC	X7, X8
-	AESENC	X7, X9
-	AESENC	X7, X0
-	AESENC	X7, X1
-	AESENC	X7, X2
-	AESENC	X7, X3
-	AESENC	X7, X4
-	AESENC	X7, X5
-	AESENC	X7, X8
-	AESENC	X7, X9
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
+	AESENC	X8, X8
+	AESENC	X9, X9
+	AESENC	X10, X10
+	AESENC	X11, X11
+	AESENC	X12, X12
+	AESENC	X13, X13
+	AESENC	X14, X14
+	AESENC	X15, X15
 
-	PXOR	X4, X0
-	PXOR	X5, X1
-	PXOR	X8, X2
-	PXOR	X9, X3
-	PXOR	X2, X0
-	PXOR	X3, X1
-	PXOR	X1, X0
-	MOVQ	X0, (DX)
+	PXOR	X12, X8
+	PXOR	X13, X9
+	PXOR	X14, X10
+	PXOR	X15, X11
+	PXOR	X10, X8
+	PXOR	X11, X9
+	PXOR	X9, X8
+	MOVQ	X8, (DX)
 	RET
 	
 TEXT runtime·aeshash32(SB),NOSPLIT,$0-24

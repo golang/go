@@ -63,7 +63,12 @@ func predefine(defines flags.MultiFlag) map[string]*Macro {
 	return macros
 }
 
+var panicOnError bool // For testing.
+
 func (in *Input) Error(args ...interface{}) {
+	if panicOnError {
+		panic(fmt.Errorf("%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...)))
+	}
 	fmt.Fprintf(os.Stderr, "%s:%d: %s", in.File(), in.Line(), fmt.Sprintln(args...))
 	os.Exit(1)
 }
@@ -113,6 +118,10 @@ func (in *Input) Next() ScanToken {
 			}
 			fallthrough
 		default:
+			if tok == scanner.EOF && len(in.ifdefStack) > 0 {
+				// We're skipping text but have run out of input with no #endif.
+				in.Error("unclosed #ifdef or #ifndef")
+			}
 			in.beginningOfLine = tok == '\n'
 			if in.enabled() {
 				in.text = in.Stack.Text()
@@ -251,6 +260,9 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 	var tokens []Token
 	// Scan to newline. Backslashes escape newlines.
 	for tok != '\n' {
+		if tok == scanner.EOF {
+			in.Error("missing newline in macro definition for %q\n", name)
+		}
 		if tok == '\\' {
 			tok = in.Stack.Next()
 			if tok != '\n' && tok != '\\' {

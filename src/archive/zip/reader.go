@@ -376,14 +376,16 @@ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) 
 	}
 	d.comment = string(b[:l])
 
-	p, err := findDirectory64End(r, directoryEndOffset)
-	if err == nil && p >= 0 {
-		err = readDirectory64End(r, p, d)
+	// These values mean that the file can be a zip64 file
+	if d.directoryRecords == 0xffff || d.directorySize == 0xffff || d.directoryOffset == 0xffffffff {
+		p, err := findDirectory64End(r, directoryEndOffset)
+		if err == nil && p >= 0 {
+			err = readDirectory64End(r, p, d)
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	// Make sure directoryOffset points to somewhere in our file.
 	if o := int64(d.directoryOffset); o < 0 || o >= size {
 		return nil, ErrFormat
@@ -407,8 +409,13 @@ func findDirectory64End(r io.ReaderAt, directoryEndOffset int64) (int64, error) 
 	if sig := b.uint32(); sig != directory64LocSignature {
 		return -1, nil
 	}
-	b = b[4:]       // skip number of the disk with the start of the zip64 end of central directory
-	p := b.uint64() // relative offset of the zip64 end of central directory record
+	if b.uint32() != 0 { // number of the disk with the start of the zip64 end of central directory
+		return -1, nil // the file is not a valid zip64-file
+	}
+	p := b.uint64()      // relative offset of the zip64 end of central directory record
+	if b.uint32() != 1 { // total number of disks
+		return -1, nil // the file is not a valid zip64-file
+	}
 	return int64(p), nil
 }
 

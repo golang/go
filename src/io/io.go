@@ -95,14 +95,14 @@ type Closer interface {
 // Seeker is the interface that wraps the basic Seek method.
 //
 // Seek sets the offset for the next Read or Write to offset,
-// interpreted according to whence: 0 means relative to the origin of
+// interpreted according to whence: 0 means relative to the start of
 // the file, 1 means relative to the current offset, and 2 means
-// relative to the end.  Seek returns the new offset and an error, if
-// any.
+// relative to the end. Seek returns the new offset relative to the
+// start of the file and an error, if any.
 //
-// Seeking to a negative offset is an error. Seeking to any positive
-// offset is legal, but the behavior of subsequent I/O operations on
-// the underlying object is implementation-dependent.
+// Seeking to an offset before the start of the file is an error.
+// Seeking to any positive offset is legal, but the behavior of subsequent
+// I/O operations on the underlying object is implementation-dependent.
 type Seeker interface {
 	Seek(offset int64, whence int) (int64, error)
 }
@@ -225,7 +225,6 @@ type WriterAt interface {
 // ByteReader is the interface that wraps the ReadByte method.
 //
 // ReadByte reads and returns the next byte from the input.
-// If no byte is available, err will be set.
 type ByteReader interface {
 	ReadByte() (c byte, err error)
 }

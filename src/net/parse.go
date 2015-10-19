@@ -10,6 +10,7 @@ package net
 import (
 	"io"
 	"os"
+	_ "unsafe" // For go:linkname
 )
 
 type file struct {
@@ -70,14 +71,11 @@ func open(name string) (*file, error) {
 	return &file{fd, make([]byte, 0, os.Getpagesize()), false}, nil
 }
 
-func byteIndex(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == c {
-			return i
-		}
-	}
-	return -1
-}
+// byteIndex is strings.IndexByte. It returns the index of the
+// first instance of c in s, or -1 if c is not present in s.
+// strings.IndexByte is implemented in  runtime/asm_$GOARCH.s
+//go:linkname byteIndex strings.IndexByte
+func byteIndex(s string, c byte) int
 
 // Count occurrences in s of any bytes in t.
 func countAnyByte(s string, t string) int {
@@ -314,14 +312,9 @@ func foreachField(x []byte, fn func(field []byte) error) error {
 
 // bytesIndexByte is bytes.IndexByte. It returns the index of the
 // first instance of c in s, or -1 if c is not present in s.
-func bytesIndexByte(s []byte, c byte) int {
-	for i, b := range s {
-		if b == c {
-			return i
-		}
-	}
-	return -1
-}
+// bytes.IndexByte is implemented in  runtime/asm_$GOARCH.s
+//go:linkname bytesIndexByte bytes.IndexByte
+func bytesIndexByte(s []byte, c byte) int
 
 // stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
 // suffix.

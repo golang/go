@@ -20,7 +20,6 @@ import (
 	"io"
 	"math/rand"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -371,7 +370,7 @@ func (o hostLookupOrder) String() string {
 	if s, ok := lookupOrderName[o]; ok {
 		return s
 	}
-	return "hostLookupOrder=" + strconv.Itoa(int(o)) + "??"
+	return "hostLookupOrder=" + itoa(int(o)) + "??"
 }
 
 // goLookupHost is the native Go implementation of LookupHost.

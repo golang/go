@@ -7,6 +7,7 @@ package syscall
 
 import "unsafe"
 
+//go:cgo_import_dynamic libc_Getcwd getcwd "libc.so"
 //go:cgo_import_dynamic libc_getgroups getgroups "libc.so"
 //go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
 //go:cgo_import_dynamic libc_fcntl fcntl "libc.so"
@@ -89,6 +90,7 @@ import "unsafe"
 //go:cgo_import_dynamic libc_recvfrom recvfrom "libsocket.so"
 //go:cgo_import_dynamic libc_recvmsg recvmsg "libsocket.so"
 
+//go:linkname libc_Getcwd libc_Getcwd
 //go:linkname libc_getgroups libc_getgroups
 //go:linkname libc_setgroups libc_setgroups
 //go:linkname libc_fcntl libc_fcntl
@@ -174,6 +176,7 @@ import "unsafe"
 type libcFunc uintptr
 
 var (
+	libc_Getcwd,
 	libc_getgroups,
 	libc_setgroups,
 	libc_fcntl,
@@ -256,6 +259,19 @@ var (
 	libc_recvfrom,
 	libc_recvmsg libcFunc
 )
+
+func Getcwd(buf []byte) (n int, err error) {
+	var _p0 *byte
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Getcwd)), 2, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0, 0, 0, 0)
+	n = int(r0)
+	if e1 != 0 {
+		err = errnoErr(e1)
+	}
+	return
+}
 
 func getgroups(ngid int, gid *_Gid_t) (n int, err error) {
 	r0, _, e1 := rawSysvicall6(uintptr(unsafe.Pointer(&libc_getgroups)), 2, uintptr(ngid), uintptr(unsafe.Pointer(gid)), 0, 0, 0, 0)

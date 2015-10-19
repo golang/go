@@ -165,6 +165,8 @@ func emitptrargsmap() {
 	ggloblsym(sym, int32(off), obj.RODATA|obj.LOCAL)
 }
 
+// cmpstackvarlt reports whether the stack variable a sorts before b.
+//
 // Sort the list of stack variables. Autos after anything else,
 // within autos, unused after used, within used, things with
 // pointers first, zeroed things first, and then decreasing size.
@@ -173,48 +175,48 @@ func emitptrargsmap() {
 // really means, in memory, things with pointers needing zeroing at
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
-func cmpstackvar(a *Node, b *Node) int {
+func cmpstackvarlt(a, b *Node) bool {
 	if a.Class != b.Class {
 		if a.Class == PAUTO {
-			return +1
+			return false
 		}
-		return -1
+		return true
 	}
 
 	if a.Class != PAUTO {
 		if a.Xoffset < b.Xoffset {
-			return -1
+			return true
 		}
 		if a.Xoffset > b.Xoffset {
-			return +1
+			return false
 		}
-		return 0
+		return false
 	}
 
 	if a.Used != b.Used {
-		return obj.Bool2int(b.Used) - obj.Bool2int(a.Used)
+		return a.Used
 	}
 
-	ap := obj.Bool2int(haspointers(a.Type))
-	bp := obj.Bool2int(haspointers(b.Type))
+	ap := haspointers(a.Type)
+	bp := haspointers(b.Type)
 	if ap != bp {
-		return bp - ap
+		return ap
 	}
 
-	ap = obj.Bool2int(a.Name.Needzero)
-	bp = obj.Bool2int(b.Name.Needzero)
+	ap = a.Name.Needzero
+	bp = b.Name.Needzero
 	if ap != bp {
-		return bp - ap
+		return ap
 	}
 
 	if a.Type.Width < b.Type.Width {
-		return +1
+		return false
 	}
 	if a.Type.Width > b.Type.Width {
-		return -1
+		return true
 	}
 
-	return stringsCompare(a.Sym.Name, b.Sym.Name)
+	return a.Sym.Name < b.Sym.Name
 }
 
 // stkdelta records the stack offset delta for a node
@@ -240,7 +242,7 @@ func allocauto(ptxt *obj.Prog) {
 
 	markautoused(ptxt)
 
-	listsort(&Curfn.Func.Dcl, cmpstackvar)
+	listsort(&Curfn.Func.Dcl, cmpstackvarlt)
 
 	// Unused autos are at the end, chop 'em off.
 	ll := Curfn.Func.Dcl

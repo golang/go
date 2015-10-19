@@ -6,7 +6,7 @@
 
 #include "textflag.h"
 
-TEXT runtime·duffzero(SB), NOSPLIT, $-8-0
+TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	MOVDU	R0, 8(R3)
 	MOVDU	R0, 8(R3)
 	MOVDU	R0, 8(R3)

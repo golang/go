@@ -16,23 +16,28 @@ import (
 var someTime = time.Unix(123, 0)
 var answer int64 = 42
 
+type userDefined float64
+
+type userDefinedSlice []int
+
 type conversionTest struct {
 	s, d interface{} // source and destination
 
 	// following are used if they're non-zero
-	wantint   int64
-	wantuint  uint64
-	wantstr   string
-	wantbytes []byte
-	wantraw   RawBytes
-	wantf32   float32
-	wantf64   float64
-	wanttime  time.Time
-	wantbool  bool // used if d is of type *bool
-	wanterr   string
-	wantiface interface{}
-	wantptr   *int64 // if non-nil, *d's pointed value must be equal to *wantptr
-	wantnil   bool   // if true, *d must be *int64(nil)
+	wantint    int64
+	wantuint   uint64
+	wantstr    string
+	wantbytes  []byte
+	wantraw    RawBytes
+	wantf32    float32
+	wantf64    float64
+	wanttime   time.Time
+	wantbool   bool // used if d is of type *bool
+	wanterr    string
+	wantiface  interface{}
+	wantptr    *int64 // if non-nil, *d's pointed value must be equal to *wantptr
+	wantnil    bool   // if true, *d must be *int64(nil)
+	wantusrdef userDefined
 }
 
 // Target variables for scanning into.
@@ -145,6 +150,12 @@ var conversionTests = []conversionTest{
 	{s: true, d: &scaniface, wantiface: true},
 	{s: nil, d: &scaniface},
 	{s: []byte(nil), d: &scaniface, wantiface: []byte(nil)},
+
+	// To a user-defined type
+	{s: 1.5, d: new(userDefined), wantusrdef: 1.5},
+	{s: int64(123), d: new(userDefined), wantusrdef: 123},
+	{s: "1.5", d: new(userDefined), wantusrdef: 1.5},
+	{s: []byte{1, 2, 3}, d: new(userDefinedSlice), wanterr: `unsupported driver -> Scan pair: []uint8 -> *sql.userDefinedSlice`},
 }
 
 func intPtrValue(intptr interface{}) interface{} {
@@ -227,6 +238,9 @@ func TestConversions(t *testing.T) {
 					errf("copy into interface{} didn't copy []byte data")
 				}
 			}
+		}
+		if ct.wantusrdef != 0 && ct.wantusrdef != *ct.d.(*userDefined) {
+			errf("want userDefined %f, got %f", ct.wantusrdef, *ct.d.(*userDefined))
 		}
 	}
 }

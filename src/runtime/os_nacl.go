@@ -50,10 +50,6 @@ func sigpanic() {
 	panicmem()
 }
 
-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer) {
-	throw("sigfwd not implemented")
-}
-
 func raiseproc(sig int32) {
 }
 

@@ -37,7 +37,7 @@
 147 00037 (testdata/arm64.s:147)	CSEL	LT, R1, R2, ZR
 148 00038 (testdata/arm64.s:148)	CSINC	GT, R1, ZR, R3
 149 00039 (testdata/arm64.s:149)	CSNEG	MI, R1, R2, R3
-150 00040 (testdata/arm64.s:150)	CSINV	0, R1, R2, R3
+150 00040 (testdata/arm64.s:150)	CSINV	HS, R1, R2, R3
 156 00041 (testdata/arm64.s:156)	CSEL	LT, R1, R2
 164 00042 (testdata/arm64.s:164)	CCMN	MI, ZR, R1, $4
 173 00043 (testdata/arm64.s:173)	FADDD	$(0.5), F1

@@ -37,6 +37,8 @@ type Scanner struct {
 	end          int       // End of data in buf.
 	err          error     // Sticky error.
 	empties      int       // Count of successive empty tokens.
+	scanCalled   bool      // Scan has been called; buffer is in use.
+	done         bool      // Scan has finished.
 }
 
 // SplitFunc is the signature of the split function used to tokenize the
@@ -65,10 +67,13 @@ var (
 )
 
 const (
-	// MaxScanTokenSize is the maximum size used to buffer a token.
+	// MaxScanTokenSize is the maximum size used to buffer a token
+	// unless the user provides an explicit buffer with Scan.Buffer.
 	// The actual maximum token size may be smaller as the buffer
 	// may need to include, for instance, a newline.
 	MaxScanTokenSize = 64 * 1024
+
+	startBufSize = 4096 // Size of initial allocation for buffer.
 )
 
 // NewScanner returns a new Scanner to read from r.
@@ -78,7 +83,6 @@ func NewScanner(r io.Reader) *Scanner {
 		r:            r,
 		split:        ScanLines,
 		maxTokenSize: MaxScanTokenSize,
-		buf:          make([]byte, 4096), // Plausible starting size; needn't be large.
 	}
 }
 
@@ -103,6 +107,16 @@ func (s *Scanner) Text() string {
 	return string(s.token)
 }
 
+// ErrFinalToken is a special sentinel error value. It is intended to be
+// returned by a Split function to indicate that the token being delivered
+// with the error is the last token and scanning should stop after this one.
+// After ErrFinalToken is received by Scan, scanning stops with no error.
+// The value is useful to stop processing early or when it is necessary to
+// deliver a final empty token. One could achieve the same behavior
+// with a custom error value but providing one here is tidier.
+// See the emptyFinalToken example for a use of this value.
+var ErrFinalToken = errors.New("final token")
+
 // Scan advances the Scanner to the next token, which will then be
 // available through the Bytes or Text method. It returns false when the
 // scan stops, either by reaching the end of the input or an error.
@@ -112,6 +126,10 @@ func (s *Scanner) Text() string {
 // Scan panics if the split function returns 100 empty tokens without
 // advancing the input. This is a common error mode for scanners.
 func (s *Scanner) Scan() bool {
+	if s.done {
+		return false
+	}
+	s.scanCalled = true
 	// Loop until we have a token.
 	for {
 		// See if we can get a token with what we already have.
@@ -120,6 +138,11 @@ func (s *Scanner) Scan() bool {
 		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
+				if err == ErrFinalToken {
+					s.token = token
+					s.done = true
+					return true
+				}
 				s.setErr(err)
 				return false
 			}
@@ -158,11 +181,16 @@ func (s *Scanner) Scan() bool {
 		}
 		// Is the buffer full? If so, resize.
 		if s.end == len(s.buf) {
-			if len(s.buf) >= s.maxTokenSize {
+			// Guarantee no overflow in the multiplication below.
+			const maxInt = int(^uint(0) >> 1)
+			if len(s.buf) >= s.maxTokenSize || len(s.buf) > maxInt/2 {
 				s.setErr(ErrTooLong)
 				return false
 			}
 			newSize := len(s.buf) * 2
+			if newSize == 0 {
+				newSize = startBufSize
+			}
 			if newSize > s.maxTokenSize {
 				newSize = s.maxTokenSize
 			}
@@ -217,9 +245,31 @@ func (s *Scanner) setErr(err error) {
 	}
 }
 
-// Split sets the split function for the Scanner. If called, it must be
-// called before Scan. The default split function is ScanLines.
+// Buffer sets the initial buffer to use when scanning and the maximum
+// size of buffer that may be allocated during scanning. The maximum
+// token size is the larger of max and cap(buf). If max <= cap(buf),
+// Scan will use this buffer only and do no allocation.
+//
+// By default, Scan uses an internal buffer and sets the
+// maximum token size to MaxScanTokenSize.
+//
+// Buffer panics if it is called after scanning has started.
+func (s *Scanner) Buffer(buf []byte, max int) {
+	if s.scanCalled {
+		panic("Buffer called after Scan")
+	}
+	s.buf = buf[0:cap(buf)]
+	s.maxTokenSize = max
+}
+
+// Split sets the split function for the Scanner.
+// The default split function is ScanLines.
+//
+// Split panics if it is called after scanning has started.
 func (s *Scanner) Split(split SplitFunc) {
+	if s.scanCalled {
+		panic("Split called after Scan")
+	}
 	s.split = split
 }
 

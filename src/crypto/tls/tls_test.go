@@ -104,6 +104,38 @@ func TestX509KeyPair(t *testing.T) {
 	}
 }
 
+func TestX509KeyPairErrors(t *testing.T) {
+	_, err := X509KeyPair([]byte(rsaKeyPEM), []byte(rsaCertPEM))
+	if err == nil {
+		t.Fatalf("X509KeyPair didn't return an error when arguments were switched")
+	}
+	if subStr := "been switched"; !strings.Contains(err.Error(), subStr) {
+		t.Fatalf("Expected %q in the error when switching arguments to X509KeyPair, but the error was %q", subStr, err)
+	}
+
+	_, err = X509KeyPair([]byte(rsaCertPEM), []byte(rsaCertPEM))
+	if err == nil {
+		t.Fatalf("X509KeyPair didn't return an error when both arguments were certificates")
+	}
+	if subStr := "certificate"; !strings.Contains(err.Error(), subStr) {
+		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were certificates, but the error was %q", subStr, err)
+	}
+
+	const nonsensePEM = `
+-----BEGIN NONSENSE-----
+Zm9vZm9vZm9v
+-----END NONSENSE-----
+`
+
+	_, err = X509KeyPair([]byte(nonsensePEM), []byte(nonsensePEM))
+	if err == nil {
+		t.Fatalf("X509KeyPair didn't return an error when both arguments were nonsense")
+	}
+	if subStr := "NONSENSE"; !strings.Contains(err.Error(), subStr) {
+		t.Fatalf("Expected %q in the error when both arguments to X509KeyPair were nonsense, but the error was %q", subStr, err)
+	}
+}
+
 func TestX509MixedKeyPair(t *testing.T) {
 	if _, err := X509KeyPair([]byte(rsaCertPEM), []byte(ecdsaKeyPEM)); err == nil {
 		t.Error("Load of RSA certificate succeeded with ECDSA private key")

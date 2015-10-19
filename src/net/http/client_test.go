@@ -983,13 +983,12 @@ func TestClientTimeout_Headers(t *testing.T) {
 	if err == nil {
 		t.Fatal("got response from Get; expected error")
 	}
-	ue, ok := err.(*url.Error)
-	if !ok {
+	if _, ok := err.(*url.Error); !ok {
 		t.Fatalf("Got error of type %T; want *url.Error", err)
 	}
-	ne, ok := ue.Err.(net.Error)
+	ne, ok := err.(net.Error)
 	if !ok {
-		t.Fatalf("Got url.Error.Err of type %T; want some net.Error", err)
+		t.Fatalf("Got error of type %T; want some net.Error", err)
 	}
 	if !ne.Timeout() {
 		t.Error("net.Error.Timeout = false; want true")

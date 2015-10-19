@@ -25,7 +25,7 @@ var (
 	s, t string
 	array []byte
 	iface interface{}
-	
+
 	blank _ /* ERROR "cannot use _" */
 )
 
@@ -43,33 +43,33 @@ var (
 	s11 = &v
 	s12 = -(u + *t11) / *&v
 	s13 = a /* ERROR "shifted operand" */ << d
-	s14 = i << j /* ERROR "must be unsigned" */ 
+	s14 = i << j /* ERROR "must be unsigned" */
 	s18 = math.Pi * 10.0
 	s19 = s1 /* ERROR "cannot call" */ ()
  	s20 = f0 /* ERROR "no value" */ ()
 	s21 = f6(1, s1, i)
-	s22 = f6(1, s1, uu /* ERROR "cannot pass argument" */ )
-	
+	s22 = f6(1, s1, uu /* ERROR "cannot use .* in argument" */ )
+
 	t1 int = i + j
 	t2 int = i /* ERROR "mismatched types" */ + x
-	t3 int = c /* ERROR "cannot initialize" */ + d
+	t3 int = c /* ERROR "cannot use .* variable declaration" */ + d
 	t4 string = s + t
 	t5 string = s /* ERROR "invalid operation" */ / t
 	t6 byte = array[t1]
 	t7 byte = array[x /* ERROR "must be integer" */]
-	t8 *int = & /* ERROR "cannot initialize" */ a
+	t8 *int = & /* ERROR "cannot use .* variable declaration" */ a
 	t10 *int = &42 /* ERROR "cannot take address" */
 	t11 *complex64 = &v
 	t12 complex64 = -(u + *t11) / *&v
 	t13 int = a /* ERROR "shifted operand" */ << d
-	t14 int = i << j /* ERROR "must be unsigned" */ 
+	t14 int = i << j /* ERROR "must be unsigned" */
 	t15 math /* ERROR "not in selector" */
 	t16 math /* ERROR "not declared" */ .xxx
 	t17 math /* ERROR "not a type" */ .Pi
 	t18 float64 = math.Pi * 10.0
 	t19 int = t1 /* ERROR "cannot call" */ ()
 	t20 int = f0 /* ERROR "no value" */ ()
-	t21 int = a /* ERROR "cannot initialize" */
+	t21 int = a /* ERROR "cannot use .* variable declaration" */
 )
 
 // Various more complex expressions

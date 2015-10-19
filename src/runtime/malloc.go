@@ -397,7 +397,10 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 			// TODO: It would be bad if part of the arena
 			// is reserved and part is not.
 			var reserved bool
-			p := uintptr(sysReserve((unsafe.Pointer)(h.arena_end), p_size, &reserved))
+			p := uintptr(sysReserve(unsafe.Pointer(h.arena_end), p_size, &reserved))
+			if p == 0 {
+				return nil
+			}
 			if p == h.arena_end {
 				h.arena_end = new_end
 				h.arena_reserved = reserved
@@ -412,7 +415,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 				h.arena_reserved = reserved
 			} else {
 				var stat uint64
-				sysFree((unsafe.Pointer)(p), p_size, &stat)
+				sysFree(unsafe.Pointer(p), p_size, &stat)
 			}
 		}
 	}
@@ -420,18 +423,18 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 	if n <= uintptr(h.arena_end)-uintptr(h.arena_used) {
 		// Keep taking from our reservation.
 		p := h.arena_used
-		sysMap((unsafe.Pointer)(p), n, h.arena_reserved, &memstats.heap_sys)
+		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
 		mHeap_MapBits(h, p+n)
 		mHeap_MapSpans(h, p+n)
 		h.arena_used = p + n
 		if raceenabled {
-			racemapshadow((unsafe.Pointer)(p), n)
+			racemapshadow(unsafe.Pointer(p), n)
 		}
 
 		if uintptr(p)&(_PageSize-1) != 0 {
 			throw("misrounded allocation in MHeap_SysAlloc")
 		}
-		return (unsafe.Pointer)(p)
+		return unsafe.Pointer(p)
 	}
 
 	// If using 64-bit, our reservation is all we have.
@@ -450,7 +453,7 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 
 	if p < h.arena_start || uintptr(p)+p_size-uintptr(h.arena_start) >= _MaxArena32 {
 		print("runtime: memory allocated by OS (", p, ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
-		sysFree((unsafe.Pointer)(p), p_size, &memstats.heap_sys)
+		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
 		return nil
 	}
 
@@ -464,14 +467,14 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 			h.arena_end = p_end
 		}
 		if raceenabled {
-			racemapshadow((unsafe.Pointer)(p), n)
+			racemapshadow(unsafe.Pointer(p), n)
 		}
 	}
 
 	if uintptr(p)&(_PageSize-1) != 0 {
 		throw("misrounded allocation in MHeap_SysAlloc")
 	}
-	return (unsafe.Pointer)(p)
+	return unsafe.Pointer(p)
 }
 
 // base address for all 0-byte allocations
@@ -505,6 +508,27 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			align = uintptr(typ.align)
 		}
 		return persistentalloc(size, align, &memstats.other_sys)
+	}
+
+	// assistG is the G to charge for this allocation, or nil if
+	// GC is not currently active.
+	var assistG *g
+	if gcBlackenEnabled != 0 {
+		// Charge the current user G for this allocation.
+		assistG = getg()
+		if assistG.m.curg != nil {
+			assistG = assistG.m.curg
+		}
+		// Charge the allocation against the G. We'll account
+		// for internal fragmentation at the end of mallocgc.
+		assistG.gcAssistBytes -= int64(size)
+
+		if assistG.gcAssistBytes < 0 {
+			// This G is in debt. Assist the GC to correct
+			// this before allocating. This must happen
+			// before disabling preemption.
+			gcAssistAlloc(assistG)
+		}
 	}
 
 	// Set mp.mallocing to keep from being preempted by GC.
@@ -701,15 +725,15 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		}
 	}
 
+	if assistG != nil {
+		// Account for internal fragmentation in the assist
+		// debt now that we know it.
+		assistG.gcAssistBytes -= int64(size - dataSize)
+	}
+
 	if shouldhelpgc && shouldtriggergc() {
 		startGC(gcBackgroundMode, false)
-	} else if gcBlackenEnabled != 0 {
-		// Assist garbage collector. We delay this until the
-		// epilogue so that it doesn't interfere with the
-		// inner working of malloc such as mcache refills that
-		// might happen while doing the gcAssistAlloc.
-		gcAssistAlloc(size, shouldhelpgc)
-	} else if shouldhelpgc && bggc.working != 0 {
+	} else if shouldhelpgc && bggc.working != 0 && gcBlackenEnabled == 0 {
 		// The GC is starting up or shutting down, so we can't
 		// assist, but we also can't allocate unabated. Slow
 		// down this G's allocation and help the GC stay
@@ -789,26 +813,43 @@ func rawmem(size uintptr) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	c := mp.mcache
-	rate := MemProfileRate
-	if size < uintptr(rate) {
-		// pick next profile time
-		// If you change this, also change allocmcache.
-		if rate > 0x3fffffff { // make 2*rate not overflow
-			rate = 0x3fffffff
-		}
-		next := int32(fastrand1()) % (2 * int32(rate))
-		// Subtract the "remainder" of the current allocation.
-		// Otherwise objects that are close in size to sampling rate
-		// will be under-sampled, because we consistently discard this remainder.
-		next -= (int32(size) - c.next_sample)
-		if next < 0 {
-			next = 0
-		}
-		c.next_sample = next
+	mp.mcache.next_sample = nextSample()
+	mProf_Malloc(x, size)
+}
+
+// nextSample returns the next sampling point for heap profiling.
+// It produces a random variable with a geometric distribution and
+// mean MemProfileRate. This is done by generating a uniformly
+// distributed random number and applying the cumulative distribution
+// function for an exponential.
+func nextSample() int32 {
+	period := MemProfileRate
+
+	// make nextSample not overflow. Maximum possible step is
+	// -ln(1/(1<<kRandomBitCount)) * period, approximately 20 * period.
+	switch {
+	case period > 0x7000000:
+		period = 0x7000000
+	case period == 0:
+		return 0
 	}
 
-	mProf_Malloc(x, size)
+	// Let m be the sample rate,
+	// the probability distribution function is m*exp(-mx), so the CDF is
+	// p = 1 - exp(-mx), so
+	// q = 1 - p == exp(-mx)
+	// log_e(q) = -mx
+	// -log_e(q)/m = x
+	// x = -log_e(q) * period
+	// x = log_2(q) * (-log_e(2)) * period    ; Using log_2 for efficiency
+	const randomBitCount = 26
+	q := uint32(fastrand1())%(1<<randomBitCount) + 1
+	qlog := fastlog2(float64(q)) - randomBitCount
+	if qlog > 0 {
+		qlog = 0
+	}
+	const minusLog2 = -0.6931471805599453 // -ln(2)
+	return int32(qlog*(minusLog2*float64(period))) + 1
 }
 
 type persistentAlloc struct {

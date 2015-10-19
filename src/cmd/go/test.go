@@ -13,7 +13,6 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -439,7 +438,7 @@ func runTest(cmd *Command, args []string) {
 		}
 		for _, p := range testCoverPkgs {
 			if !used[p.ImportPath] {
-				log.Printf("warning: no packages being tested depend on %s", p.ImportPath)
+				fmt.Fprintf(os.Stderr, "warning: no packages being tested depend on %s\n", p.ImportPath)
 			}
 		}
 
@@ -817,10 +816,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 		}
 	}
 
-	// writeTestmain writes _testmain.go. This must happen after recompileForTest,
-	// because recompileForTest modifies XXX.
-	if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
-		return nil, nil, nil, err
+	if !buildN {
+		// writeTestmain writes _testmain.go. This must happen after recompileForTest,
+		// because recompileForTest modifies XXX.
+		if err := writeTestmain(filepath.Join(testDir, "_testmain.go"), t); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
 	computeStale(pmain)

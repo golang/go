@@ -257,11 +257,17 @@ type g struct {
 	startpc        uintptr // pc of goroutine function
 	racectx        uintptr
 	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
-	readyg         *g     // scratch for readyExecute
 
 	// Per-G gcController state
-	gcalloc    uintptr // bytes allocated during this GC cycle
-	gcscanwork int64   // scan work done (or stolen) this GC cycle
+
+	// gcAssistBytes is this G's GC assist credit in terms of
+	// bytes allocated. If this is positive, then the G has credit
+	// to allocate gcAssistBytes bytes without assisting. If this
+	// is negative, then the G must correct this by performing
+	// scan work. We track this in bytes to make it fast to update
+	// and check for debt in the malloc hot path. The assist ratio
+	// determines how this corresponds to scan work debt.
+	gcAssistBytes int64
 }
 
 type mts struct {

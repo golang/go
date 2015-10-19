@@ -144,7 +144,7 @@ var (
 	ch10, ok = <-ch
 	// ok is of type bool
 	ch11, myok = <-ch
-	_ mybool = myok /* ERROR "cannot initialize" */
+	_ mybool = myok /* ERROR "cannot use .* in variable declaration" */
 )
 
 // address of composite literals
@@ -172,3 +172,9 @@ var (
 	p3 P = &p2
 )
 
+func g() (a, b int) { return }
+
+func _() {
+	_ = -g /* ERROR 2-valued g */ ()
+	_ = <-g /* ERROR 2-valued g */ ()
+}
