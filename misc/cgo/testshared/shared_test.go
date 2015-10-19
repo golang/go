@@ -359,6 +359,36 @@ func TestCgoExecutable(t *testing.T) {
 	run(t, "cgo executable", "./bin/execgo")
 }
 
+func checkPIE(t *testing.T, name string) {
+	f, err := elf.Open(name)
+	if err != nil {
+		t.Fatal("elf.Open failed: ", err)
+	}
+	defer f.Close()
+	if f.Type != elf.ET_DYN {
+		t.Errorf("%s has type %v, want ET_DYN", name, f.Type)
+	}
+	if hasDynTag(f, elf.DT_TEXTREL) {
+		t.Errorf("%s has DT_TEXTREL set", name)
+	}
+}
+
+func TestTrivialPIE(t *testing.T) {
+	name := "trivial_pie"
+	goCmd(t, "build", "-buildmode=pie", "-o="+name, "trivial")
+	defer os.Remove(name)
+	run(t, name, "./"+name)
+	checkPIE(t, name)
+}
+
+func TestCgoPIE(t *testing.T) {
+	name := "cgo_pie"
+	goCmd(t, "build", "-buildmode=pie", "-o="+name, "execgo")
+	defer os.Remove(name)
+	run(t, name, "./"+name)
+	checkPIE(t, name)
+}
+
 // Build a GOPATH package into a shared library that links against the goroot runtime
 // and an executable that links against both.
 func TestGopathShlib(t *testing.T) {

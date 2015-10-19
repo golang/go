@@ -303,7 +303,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildmodeExe
 	case "pie":
 		switch goos {
-		case "android":
+		case "android", "linux":
 		default:
 			return badmode()
 		}
@@ -513,6 +513,12 @@ func loadlib() {
 
 		// Force external linking for android.
 		if goos == "android" {
+			Linkmode = LinkExternal
+		}
+
+		// Force external linking for PIE executables, as
+		// internal linking does not support TLS_IE.
+		if Buildmode == BuildmodePIE {
 			Linkmode = LinkExternal
 		}
 
