@@ -2487,7 +2487,7 @@ func TestHeaderToWire(t *testing.T) {
 				if !strings.Contains(got, "404") {
 					return errors.New("wrong status")
 				}
-				if strings.Contains(got, "Some-Header") {
+				if strings.Contains(got, "Too-Late") {
 					return errors.New("shouldn't have seen Too-Late")
 				}
 				return nil
