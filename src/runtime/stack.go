@@ -86,7 +86,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 640*stackGuardMultiplier + _StackSystem
+	_StackGuard = 1024*stackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction

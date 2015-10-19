@@ -1670,6 +1670,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		goto endc395c0a53eeccf597e225a07b53047d1
 	endc395c0a53eeccf597e225a07b53047d1:
 		;
+	case OpConvert:
+		// match: (Convert <t> x)
+		// cond:
+		// result: (LEAQ <t> x)
+		{
+			t := v.Type
+			x := v.Args[0]
+			v.Op = OpAMD64LEAQ
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.Type = t
+			v.AddArg(x)
+			return true
+		}
+		goto end1cac40a6074914d6ae3d4aa039a625ed
+	end1cac40a6074914d6ae3d4aa039a625ed:
+		;
 	case OpCvt32Fto32:
 		// match: (Cvt32Fto32 x)
 		// cond:

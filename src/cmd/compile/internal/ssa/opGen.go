@@ -455,6 +455,7 @@ const (
 	OpSqrt
 	OpPhi
 	OpCopy
+	OpConvert
 	OpConstBool
 	OpConstString
 	OpConstNil
@@ -3864,6 +3865,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Copy",
+		generic: true,
+	},
+	{
+		name:    "Convert",
 		generic: true,
 	},
 	{

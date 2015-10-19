@@ -24,7 +24,31 @@ import (
 // it will never return nil, and the bool can be removed.
 func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	name := fn.Func.Nname.Sym.Name
+	gossahash := os.Getenv("GOSSAHASH")
 	usessa = strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
+
+	// Environment variable control of SSA CG
+	// 1. IF GOSSAFUNC == current function name THEN
+	//       compile this function with SSA and log output to ssa.html
+
+	// 2. IF GOSSAHASH == "y" or "Y" THEN
+	//       compile this function (and everything else) with SSA
+
+	// 3. IF GOSSAHASH == "" THEN
+	//       IF GOSSAPKG == current package name THEN
+	//          compile this function (and everything in this package) with SSA
+	//       ELSE
+	//          use the old back end for this function.
+	//       This is for compatibility with existing test harness and should go away.
+
+	// 4. IF GOSSAHASH is a suffix of the binary-rendered SHA1 hash of the function name THEN
+	//          compile this function with SSA
+	//       ELSE
+	//          compile this function with the old back end.
+
+	// Plan is for 3 to be remove, and the 2) dependence on GOSSAHASH changes
+	// from "y"/"Y" to empty -- then SSA is default, and is disabled by setting
+	// GOSSAHASH to a value that is neither 0 nor 1 (e.g., "N" or "X")
 
 	if usessa {
 		fmt.Println("generating SSA for", name)
@@ -55,17 +79,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	defer func() {
 		if !usessa {
 			s.config.HTML.Close()
-		}
-	}()
-
-	// If SSA support for the function is incomplete,
-	// assume that any panics are due to violated
-	// invariants. Swallow them silently.
-	defer func() {
-		if err := recover(); err != nil {
-			if !e.unimplemented {
-				panic(err)
-			}
 		}
 	}()
 
@@ -167,27 +180,17 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	// Calculate stats about what percentage of functions SSA handles.
-	if false {
-		fmt.Printf("SSA implemented: %t\n", !e.unimplemented)
-	}
-
-	if e.unimplemented {
-		return nil, false
-	}
-
-	// TODO: enable codegen more broadly once the codegen stabilizes
-	// and runtime support is in (gc maps, write barriers, etc.)
-	if usessa {
+	if usessa || gossahash == "y" || gossahash == "Y" {
 		return s.f, true
 	}
-	if localpkg.Name != os.Getenv("GOSSAPKG") {
-		return s.f, false
-	}
-	if os.Getenv("GOSSAHASH") == "" {
+	if gossahash == "" {
+		if localpkg.Name != os.Getenv("GOSSAPKG") {
+			return s.f, false
+		}
 		// Use everything in the package
 		return s.f, true
 	}
+
 	// Check the hash of the name against a partial input hash.
 	// We use this feature to do a binary search within a package to
 	// find a function that is incorrectly compiled.
@@ -195,10 +198,26 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	for _, b := range sha1.Sum([]byte(name)) {
 		hstr += fmt.Sprintf("%08b", b)
 	}
-	if strings.HasSuffix(hstr, os.Getenv("GOSSAHASH")) {
+
+	if strings.HasSuffix(hstr, gossahash) {
 		fmt.Printf("GOSSAHASH triggered %s\n", name)
 		return s.f, true
 	}
+
+	// Iteratively try additional hashes to allow tests for multi-point
+	// failure.
+	for i := 0; true; i++ {
+		ev := fmt.Sprintf("GOSSAHASH%d", i)
+		evv := os.Getenv(ev)
+		if evv == "" {
+			break
+		}
+		if strings.HasSuffix(hstr, evv) {
+			fmt.Printf("%s triggered %s\n", ev, name)
+			return s.f, true
+		}
+	}
+
 	return s.f, false
 }
 
@@ -1353,6 +1372,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// Assume everything will work out, so set up our return value.
 		// Anything interesting that happens from here is a fatal.
 		x := s.expr(n.Left)
+
+		// Special case for not confusing GC and liveness.
+		// We don't want pointers accidentally classified
+		// as not-pointers or vice-versa because of copy
+		// elision.
+		if to.IsPtr() != from.IsPtr() {
+			return s.newValue1(ssa.OpConvert, to, x)
+		}
+
 		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
 
 		// CONVNOP closure
@@ -1364,6 +1392,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if from.Etype == to.Etype {
 			return v
 		}
+
 		// unsafe.Pointer <--> *T
 		if to.Etype == TUNSAFEPTR && from.IsPtr() || from.Etype == TUNSAFEPTR && to.IsPtr() {
 			return v

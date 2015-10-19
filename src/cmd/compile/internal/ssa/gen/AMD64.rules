@@ -281,6 +281,9 @@
 (Store [2] ptr val mem) -> (MOVWstore ptr val mem)
 (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
 
+// We want this to stick out so the to/from ptr conversion is obvious
+(Convert <t> x) -> (LEAQ <t> x)
+
 // checks
 (IsNonNil p) -> (SETNE (TESTQ p p))
 (IsInBounds idx len) -> (SETB (CMPQ idx len))

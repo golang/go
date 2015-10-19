@@ -237,8 +237,9 @@ var genericOps = []opData{
 	{name: "Sqrt"}, // sqrt(arg0), float64 only
 
 	// Data movement
-	{name: "Phi"},  // select an argument based on which predecessor block we came from
-	{name: "Copy"}, // output = arg0
+	{name: "Phi"},     // select an argument based on which predecessor block we came from
+	{name: "Copy"},    // output = arg0
+	{name: "Convert"}, // output = arg0 -- a copy that converts to/from a pointer
 
 	// constants.  Constant values are stored in the aux field.
 	// booleans have a bool aux field, strings have a string aux
