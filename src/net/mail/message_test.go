@@ -499,6 +499,10 @@ func TestAddressFormatting(t *testing.T) {
 			&Address{Name: "Rob", Address: "@"},
 			`"Rob" <@>`,
 		},
+		{
+			&Address{Name: "Böb, Jacöb", Address: "bob@example.com"},
+			`=?utf-8?b?QsO2YiwgSmFjw7Zi?= <bob@example.com>`,
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
@@ -593,4 +597,33 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 
 	}
 
+}
+
+func TestAddressFormattingAndParsing(t *testing.T) {
+	tests := []*Address{
+		&Address{Name: "@lïce", Address: "alice@example.com"},
+		&Address{Name: "Böb O'Connor", Address: "bob@example.com"},
+		&Address{Name: "???", Address: "bob@example.com"},
+		&Address{Name: "Böb ???", Address: "bob@example.com"},
+		&Address{Name: "Böb (Jacöb)", Address: "bob@example.com"},
+		&Address{Name: "à#$%&'(),.:;<>@[]^`{|}~'", Address: "bob@example.com"},
+		// https://golang.org/issue/11292
+		&Address{Name: "\"\\\x1f,\"", Address: "0@0"},
+		// https://golang.org/issue/12782
+		&Address{Name: "naé, mée", Address: "test.mail@gmail.com"},
+	}
+
+	for _, test := range tests {
+		parsed, err := ParseAddress(test.String())
+		if err != nil {
+			t.Errorf("ParseAddr(%q) error: %v", test.String(), err)
+			continue
+		}
+		if parsed.Name != test.Name {
+			t.Errorf("Parsed name = %q; want %q", parsed.Name, test.Name)
+		}
+		if parsed.Address != test.Address {
+			t.Errorf("Parsed address = %q; want %q", parsed.Address, test.Address)
+		}
+	}
 }

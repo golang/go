@@ -234,6 +234,12 @@ func (a *Address) String() string {
 		return b.String()
 	}
 
+	// Text in an encoded-word in a display-name must not contain certain
+	// characters like quotes or parentheses (see RFC 2047 section 5.3).
+	// When this is the case encode the name using base64 encoding.
+	if strings.ContainsAny(a.Name, "\"#$%&'(),.:;<>@[]^`{|}~") {
+		return mime.BEncoding.Encode("utf-8", a.Name) + " " + s
+	}
 	return mime.QEncoding.Encode("utf-8", a.Name) + " " + s
 }
 
