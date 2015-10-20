@@ -1750,7 +1750,7 @@ const (
 var (
 	http2errClientDisconnected = errors.New("client disconnected")
 	http2errClosedBody         = errors.New("body closed by handler")
-	http2errStreamBroken       = errors.New("http2: stream broken")
+	http2errStreamClosed       = errors.New("http2: stream closed")
 )
 
 var http2responseWriterStatePool = sync.Pool{
@@ -1819,23 +1819,32 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 	if conf == nil {
 		conf = new(http2Server)
 	}
+
 	if s.TLSConfig == nil {
 		s.TLSConfig = new(tls.Config)
-	}
-
-	if s.TLSConfig.CipherSuites != nil {
+	} else if s.TLSConfig.CipherSuites != nil {
+		// If they already provided a CipherSuite list, return
+		// an error if it has a bad order or is missing
+		// ECDHE_RSA_WITH_AES_128_GCM_SHA256.
 		const requiredCipher = tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
 		haveRequired := false
-		for _, v := range s.TLSConfig.CipherSuites {
-			if v == requiredCipher {
+		sawBad := false
+		for i, cs := range s.TLSConfig.CipherSuites {
+			if cs == requiredCipher {
 				haveRequired = true
-				break
+			}
+			if http2isBadCipher(cs) {
+				sawBad = true
+			} else if sawBad {
+				return fmt.Errorf("http2: TLSConfig.CipherSuites index %d contains an HTTP/2-approved cipher suite (%#04x), but it comes after unapproved cipher suites. With this configuration, clients that don't support previous, approved cipher suites may be given an unapproved one and reject the connection.", i, cs)
 			}
 		}
 		if !haveRequired {
-			s.TLSConfig.CipherSuites = append(s.TLSConfig.CipherSuites, requiredCipher)
+			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing HTTP/2-required TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
 		}
 	}
+
+	s.TLSConfig.PreferServerCipherSuites = true
 
 	haveNPN := false
 	for _, p := range s.TLSConfig.NextProtos {
@@ -1861,7 +1870,7 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 	}
 	s.TLSNextProto[http2NextProtoTLS] = protoHandler
 	s.TLSNextProto["h2-14"] = protoHandler
-	return nil // temporary manual edit to h2_bundle.go, to be deleted once we update from x/net again
+	return nil
 }
 
 func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
@@ -1875,7 +1884,7 @@ func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
 		streams:          make(map[uint32]*http2stream),
 		readFrameCh:      make(chan http2readFrameResult),
 		wantWriteFrameCh: make(chan http2frameWriteMsg, 8),
-		wroteFrameCh:     make(chan struct{}, 1),
+		wroteFrameCh:     make(chan http2frameWriteResult, 1),
 		bodyReadCh:       make(chan http2bodyReadMsg),
 		doneServing:      make(chan struct{}),
 		advMaxStreams:    srv.maxConcurrentStreams(),
@@ -1961,15 +1970,15 @@ type http2serverConn struct {
 	handler          Handler
 	framer           *http2Framer
 	hpackDecoder     *hpack.Decoder
-	doneServing      chan struct{}             // closed when serverConn.serve ends
-	readFrameCh      chan http2readFrameResult // written by serverConn.readFrames
-	wantWriteFrameCh chan http2frameWriteMsg   // from handlers -> serve
-	wroteFrameCh     chan struct{}             // from writeFrameAsync -> serve, tickles more frame writes
-	bodyReadCh       chan http2bodyReadMsg     // from handlers -> serve
-	testHookCh       chan func(int)            // code to run on the serve loop
-	flow             http2flow                 // conn-wide (not stream-specific) outbound flow control
-	inflow           http2flow                 // conn-wide inbound flow control
-	tlsState         *tls.ConnectionState      // shared by all handlers, like net/http
+	doneServing      chan struct{}              // closed when serverConn.serve ends
+	readFrameCh      chan http2readFrameResult  // written by serverConn.readFrames
+	wantWriteFrameCh chan http2frameWriteMsg    // from handlers -> serve
+	wroteFrameCh     chan http2frameWriteResult // from writeFrameAsync -> serve, tickles more frame writes
+	bodyReadCh       chan http2bodyReadMsg      // from handlers -> serve
+	testHookCh       chan func(int)             // code to run on the serve loop
+	flow             http2flow                  // conn-wide (not stream-specific) outbound flow control
+	inflow           http2flow                  // conn-wide inbound flow control
+	tlsState         *tls.ConnectionState       // shared by all handlers, like net/http
 	remoteAddrStr    string
 
 	// Everything following is owned by the serve loop; use serveG.check():
@@ -2084,6 +2093,15 @@ func (sc *http2serverConn) state(streamID uint32) (http2streamState, *http2strea
 		return http2stateClosed, nil
 	}
 	return http2stateIdle, nil
+}
+
+// setConnState calls the net/http ConnState hook for this connection, if configured.
+// Note that the net/http package does StateNew and StateClosed for us.
+// There is currently no plan for StateHijacked or hijacking HTTP/2 connections.
+func (sc *http2serverConn) setConnState(state ConnState) {
+	if sc.hs.ConnState != nil {
+		sc.hs.ConnState(sc.conn, state)
+	}
 }
 
 func (sc *http2serverConn) vlogf(format string, args ...interface{}) {
@@ -2207,20 +2225,19 @@ func (sc *http2serverConn) readFrames() {
 	}
 }
 
+// frameWriteResult is the message passed from writeFrameAsync to the serve goroutine.
+type http2frameWriteResult struct {
+	wm  http2frameWriteMsg // what was written (or attempted)
+	err error              // result of the writeFrame call
+}
+
 // writeFrameAsync runs in its own goroutine and writes a single frame
 // and then reports when it's done.
 // At most one goroutine can be running writeFrameAsync at a time per
 // serverConn.
 func (sc *http2serverConn) writeFrameAsync(wm http2frameWriteMsg) {
 	err := wm.write.writeFrame(sc)
-	if ch := wm.done; ch != nil {
-		select {
-		case ch <- err:
-		default:
-			panic(fmt.Sprintf("unbuffered done channel passed in for type %T", wm.write))
-		}
-	}
-	sc.wroteFrameCh <- struct{}{}
+	sc.wroteFrameCh <- http2frameWriteResult{wm, err}
 }
 
 func (sc *http2serverConn) closeAllStreamsOnConnClose() {
@@ -2275,6 +2292,9 @@ func (sc *http2serverConn) serve() {
 		return
 	}
 
+	sc.setConnState(StateActive)
+	sc.setConnState(StateIdle)
+
 	go sc.readFrames()
 
 	settingsTimer := time.NewTimer(http2firstSettingsTimeout)
@@ -2284,12 +2304,8 @@ func (sc *http2serverConn) serve() {
 		select {
 		case wm := <-sc.wantWriteFrameCh:
 			sc.writeFrame(wm)
-		case <-sc.wroteFrameCh:
-			if sc.writingFrame != true {
-				panic("internal error: expected to be already writing a frame")
-			}
-			sc.writingFrame = false
-			sc.scheduleFrameWrite()
+		case res := <-sc.wroteFrameCh:
+			sc.wroteFrame(res)
 		case res := <-sc.readFrameCh:
 			if !sc.processFrameFromReader(res) {
 				return
@@ -2355,20 +2371,28 @@ var http2errChanPool = sync.Pool{
 // scheduling decisions available.
 func (sc *http2serverConn) writeDataFromHandler(stream *http2stream, writeData *http2writeData) error {
 	ch := http2errChanPool.Get().(chan error)
-	sc.writeFrameFromHandler(http2frameWriteMsg{
+	err := sc.writeFrameFromHandler(http2frameWriteMsg{
 		write:  writeData,
 		stream: stream,
 		done:   ch,
 	})
-	select {
-	case err := <-ch:
-		http2errChanPool.Put(ch)
+	if err != nil {
 		return err
+	}
+	select {
+	case err = <-ch:
 	case <-sc.doneServing:
 		return http2errClientDisconnected
 	case <-stream.cw:
-		return http2errStreamBroken
+
+		select {
+		case err = <-ch:
+		default:
+			return http2errStreamClosed
+		}
 	}
+	http2errChanPool.Put(ch)
+	return err
 }
 
 // writeFrameFromHandler sends wm to sc.wantWriteFrameCh, but aborts
@@ -2378,24 +2402,14 @@ func (sc *http2serverConn) writeDataFromHandler(stream *http2stream, writeData *
 // deadlock writing to sc.wantWriteFrameCh (which is only mildly
 // buffered and is read by serve itself). If you're on the serve
 // goroutine, call writeFrame instead.
-func (sc *http2serverConn) writeFrameFromHandler(wm http2frameWriteMsg) {
+func (sc *http2serverConn) writeFrameFromHandler(wm http2frameWriteMsg) error {
 	sc.serveG.checkNotOn()
-	var scheduled bool
 	select {
 	case sc.wantWriteFrameCh <- wm:
-		scheduled = true
+		return nil
 	case <-sc.doneServing:
 
-	case <-wm.stream.cw:
-
-	}
-
-	if !scheduled && wm.done != nil {
-		select {
-		case wm.done <- http2errStreamBroken:
-		default:
-			panic("expected buffered channel")
-		}
+		return http2errClientDisconnected
 	}
 }
 
@@ -2421,7 +2435,6 @@ func (sc *http2serverConn) startFrameWrite(wm http2frameWriteMsg) {
 	if sc.writingFrame {
 		panic("internal error: can only be writing one frame at a time")
 	}
-	sc.writingFrame = true
 
 	st := wm.stream
 	if st != nil {
@@ -2431,15 +2444,42 @@ func (sc *http2serverConn) startFrameWrite(wm http2frameWriteMsg) {
 		case http2stateClosed:
 			if st.sentReset || st.gotReset {
 
-				sc.wroteFrameCh <- struct{}{}
+				sc.scheduleFrameWrite()
 				return
 			}
 			panic(fmt.Sprintf("internal error: attempt to send a write %v on a closed stream", wm))
 		}
 	}
 
+	sc.writingFrame = true
 	sc.needsFrameFlush = true
-	if http2endsStream(wm.write) {
+	go sc.writeFrameAsync(wm)
+}
+
+// wroteFrame is called on the serve goroutine with the result of
+// whatever happened on writeFrameAsync.
+func (sc *http2serverConn) wroteFrame(res http2frameWriteResult) {
+	sc.serveG.check()
+	if !sc.writingFrame {
+		panic("internal error: expected to be already writing a frame")
+	}
+	sc.writingFrame = false
+
+	wm := res.wm
+	st := wm.stream
+
+	closeStream := http2endsStream(wm.write)
+
+	if ch := wm.done; ch != nil {
+		select {
+		case ch <- res.err:
+		default:
+			panic(fmt.Sprintf("unbuffered done channel passed in for type %T", wm.write))
+		}
+	}
+	wm.write = nil
+
+	if closeStream {
 		if st == nil {
 			panic("internal error: expecting non-nil stream")
 		}
@@ -2453,7 +2493,8 @@ func (sc *http2serverConn) startFrameWrite(wm http2frameWriteMsg) {
 			sc.closeStream(st, nil)
 		}
 	}
-	go sc.writeFrameAsync(wm)
+
+	sc.scheduleFrameWrite()
 }
 
 // scheduleFrameWrite tickles the frame writing scheduler.
@@ -2692,6 +2733,9 @@ func (sc *http2serverConn) closeStream(st *http2stream, err error) {
 	}
 	st.state = http2stateClosed
 	sc.curOpenStreams--
+	if sc.curOpenStreams == 0 {
+		sc.setConnState(StateIdle)
+	}
 	delete(sc.streams, st.id)
 	if p := st.body; p != nil {
 		p.Close(err)
@@ -2838,6 +2882,9 @@ func (sc *http2serverConn) processHeaders(f *http2HeadersFrame) error {
 		http2adjustStreamPriority(sc.streams, st.id, f.Priority)
 	}
 	sc.curOpenStreams++
+	if sc.curOpenStreams == 1 {
+		sc.setConnState(StateActive)
+	}
 	sc.req = http2requestParam{
 		stream: st,
 		header: make(Header),
@@ -3031,29 +3078,32 @@ func http2handleHeaderListTooLong(w ResponseWriter, r *Request) {
 
 // called from handler goroutines.
 // h may be nil.
-func (sc *http2serverConn) writeHeaders(st *http2stream, headerData *http2writeResHeaders) {
+func (sc *http2serverConn) writeHeaders(st *http2stream, headerData *http2writeResHeaders) error {
 	sc.serveG.checkNotOn()
 	var errc chan error
 	if headerData.h != nil {
 
 		errc = http2errChanPool.Get().(chan error)
 	}
-	sc.writeFrameFromHandler(http2frameWriteMsg{
+	if err := sc.writeFrameFromHandler(http2frameWriteMsg{
 		write:  headerData,
 		stream: st,
 		done:   errc,
-	})
+	}); err != nil {
+		return err
+	}
 	if errc != nil {
 		select {
-		case <-errc:
-
+		case err := <-errc:
 			http2errChanPool.Put(errc)
+			return err
 		case <-sc.doneServing:
-
+			return http2errClientDisconnected
 		case <-st.cw:
-
+			return http2errStreamClosed
 		}
 	}
+	return nil
 }
 
 // called from handler goroutines.
@@ -3227,7 +3277,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 			ctype = DetectContentType(p)
 		}
 		endStream := rws.handlerDone && len(p) == 0
-		rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
+		err = rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
 			streamID:      rws.stream.id,
 			httpResCode:   rws.status,
 			h:             rws.snapHeader,
@@ -3235,6 +3285,9 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 			contentType:   ctype,
 			contentLength: clen,
 		})
+		if err != nil {
+			return 0, err
+		}
 		if endStream {
 			return 0, nil
 		}
@@ -3242,6 +3295,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 	if len(p) == 0 && !rws.handlerDone {
 		return 0, nil
 	}
+
 	curWrite := &rws.curWrite
 	curWrite.streamID = rws.stream.id
 	curWrite.p = p
@@ -3603,7 +3657,7 @@ func (t *http2Transport) newClientConn(host, port, key string) (*http2clientConn
 			cc.initialWindowSize = s.Val
 		default:
 
-			log.Printf("Unhandled Setting: %v", s)
+			t.vlogf("Unhandled Setting: %v", s)
 		}
 		return nil
 	})
@@ -3727,7 +3781,6 @@ func (cc *http2clientConn) encodeHeaders(req *Request) []byte {
 }
 
 func (cc *http2clientConn) writeHeader(name, value string) {
-	log.Printf("sending %q = %q", name, value)
 	cc.henc.WriteField(hpack.HeaderField{Name: name, Value: value})
 }
 
@@ -3784,20 +3837,20 @@ func (cc *http2clientConn) readLoop() {
 			cc.readerErr = err
 			return
 		}
-		log.Printf("Transport received %v: %#v", f.Header(), f)
+		cc.vlogf("Transport received %v: %#v", f.Header(), f)
 
 		streamID := f.Header().StreamID
 
 		_, isContinue := f.(*http2ContinuationFrame)
 		if isContinue {
 			if streamID != continueStreamID {
-				log.Printf("Protocol violation: got CONTINUATION with id %d; want %d", streamID, continueStreamID)
+				cc.logf("Protocol violation: got CONTINUATION with id %d; want %d", streamID, continueStreamID)
 				cc.readerErr = http2ConnectionError(http2ErrCodeProtocol)
 				return
 			}
 		} else if continueStreamID != 0 {
 
-			log.Printf("Protocol violation: got %T for stream %d, want CONTINUATION for %d", f, streamID, continueStreamID)
+			cc.logf("Protocol violation: got %T for stream %d, want CONTINUATION for %d", f, streamID, continueStreamID)
 			cc.readerErr = http2ConnectionError(http2ErrCodeProtocol)
 			return
 		}
@@ -3813,7 +3866,7 @@ func (cc *http2clientConn) readLoop() {
 
 		cs := cc.streamByID(streamID, streamEnded)
 		if cs == nil {
-			log.Printf("Received frame for untracked stream ID %d", streamID)
+			cc.logf("Received frame for untracked stream ID %d", streamID)
 			continue
 		}
 
@@ -3829,17 +3882,19 @@ func (cc *http2clientConn) readLoop() {
 		case *http2ContinuationFrame:
 			cc.hdec.Write(f.HeaderBlockFragment())
 		case *http2DataFrame:
-			log.Printf("DATA: %q", f.Data())
+			if http2VerboseLogs {
+				cc.logf("DATA: %q", f.Data())
+			}
 			cs.pw.Write(f.Data())
 		case *http2GoAwayFrame:
 			cc.t.removeClientConn(cc)
 			if f.ErrCode != 0 {
 
-				log.Printf("transport got GOAWAY with error code = %v", f.ErrCode)
+				cc.vlogf("transport got GOAWAY with error code = %v", f.ErrCode)
 			}
 			cc.setGoAway(f)
 		default:
-			log.Printf("Transport: unhandled response frame type %T", f)
+			cc.logf("Transport: unhandled response frame type %T", f)
 		}
 		headersEnded := false
 		if he, ok := f.(http2headersEnder); ok {
@@ -3870,7 +3925,9 @@ func (cc *http2clientConn) readLoop() {
 
 func (cc *http2clientConn) onNewHeaderField(f hpack.HeaderField) {
 
-	log.Printf("Header field: %+v", f)
+	if http2VerboseLogs {
+		cc.logf("Header field: %+v", f)
+	}
 	if f.Name == ":status" {
 		code, err := strconv.Atoi(f.Value)
 		if err != nil {
@@ -3885,6 +3942,24 @@ func (cc *http2clientConn) onNewHeaderField(f hpack.HeaderField) {
 		return
 	}
 	cc.nextRes.Header.Add(CanonicalHeaderKey(f.Name), f.Value)
+}
+
+func (cc *http2clientConn) logf(format string, args ...interface{}) {
+	cc.t.logf(format, args...)
+}
+
+func (cc *http2clientConn) vlogf(format string, args ...interface{}) {
+	cc.t.vlogf(format, args...)
+}
+
+func (t *http2Transport) vlogf(format string, args ...interface{}) {
+	if http2VerboseLogs {
+		t.logf(format, args...)
+	}
+}
+
+func (t *http2Transport) logf(format string, args ...interface{}) {
+	log.Printf(format, args...)
 }
 
 // writeFramer is implemented by any type that is used to write frames.
@@ -3915,6 +3990,9 @@ func http2endsStream(w http2writeFramer) bool {
 		return v.endStream
 	case *http2writeResHeaders:
 		return v.endStream
+	case nil:
+
+		panic("endsStream called on nil writeFramer")
 	}
 	return false
 }
