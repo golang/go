@@ -42,18 +42,8 @@ func ispkgin(pkgs []string) bool {
 	return false
 }
 
-// TODO(rsc): Remove. Put //go:norace on forkAndExecInChild instead.
-func isforkfunc(fn *Node) bool {
-	// Special case for syscall.forkAndExecInChild.
-	// In the child, this function must not acquire any locks, because
-	// they might have been locked at the time of the fork.  This means
-	// no rescheduling, no malloc calls, and no new stack segments.
-	// Race instrumentation does all of the above.
-	return myimportpath != "" && myimportpath == "syscall" && fn.Func.Nname.Sym.Name == "forkAndExecInChild"
-}
-
 func racewalk(fn *Node) {
-	if ispkgin(omit_pkgs) || isforkfunc(fn) || fn.Func.Norace {
+	if ispkgin(omit_pkgs) || fn.Func.Norace {
 		return
 	}
 
