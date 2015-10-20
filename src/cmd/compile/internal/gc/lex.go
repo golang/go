@@ -249,6 +249,7 @@ func Main() {
 	if flag_race != 0 {
 		racepkg = mkpkg("runtime/race")
 		racepkg.Name = "race"
+		instrumenting = true
 	}
 
 	// parse -d argument

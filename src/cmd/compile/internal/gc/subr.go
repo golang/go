@@ -1645,7 +1645,7 @@ func ullmancalc(n *Node) {
 
 		// hard with race detector
 	case OANDAND, OOROR:
-		if flag_race != 0 {
+		if instrumenting {
 			ul = UINF
 			goto out
 		}
@@ -2405,7 +2405,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	dot := adddot(Nod(OXDOT, this.Left, newname(method.Sym)))
 
 	// generate call
-	if flag_race == 0 && Isptr[rcvr.Etype] && Isptr[methodrcvr.Etype] && method.Embedded != 0 && !isifacemethod(method.Type) {
+	if !instrumenting && Isptr[rcvr.Etype] && Isptr[methodrcvr.Etype] && method.Embedded != 0 && !isifacemethod(method.Type) {
 		// generate tail call: adjust pointer receiver and jump to embedded method.
 		dot = dot.Left // skip final .M
 		if !Isptr[dotlist[0].field.Type.Etype] {

@@ -340,7 +340,7 @@ func walkrange(n *Node) {
 //
 // Parameters are as in walkrange: "for v1, v2 = range a".
 func memclrrange(n, v1, v2, a *Node) bool {
-	if Debug['N'] != 0 || flag_race != 0 {
+	if Debug['N'] != 0 || instrumenting {
 		return false
 	}
 	if v1 == nil || v2 != nil {

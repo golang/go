@@ -647,6 +647,10 @@ var flag_race int
 
 var flag_largemodel int
 
+// Whether we are adding any sort of code instrumentation, such as
+// when the race detector is enabled.
+var instrumenting bool
+
 // Pending annotations for next func declaration.
 var (
 	noescape       bool

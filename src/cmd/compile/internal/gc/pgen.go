@@ -399,8 +399,8 @@ func compile(fn *Node) {
 	if nerrors != 0 {
 		goto ret
 	}
-	if flag_race != 0 {
-		racewalk(Curfn)
+	if instrumenting {
+		instrument(Curfn)
 	}
 	if nerrors != 0 {
 		goto ret
