@@ -253,21 +253,12 @@ func dumpexportvar(s *Sym) {
 	}
 }
 
+// methodbyname sorts types by symbol name.
 type methodbyname []*Type
 
-func (x methodbyname) Len() int {
-	return len(x)
-}
-
-func (x methodbyname) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
-func (x methodbyname) Less(i, j int) bool {
-	a := x[i]
-	b := x[j]
-	return stringsCompare(a.Sym.Name, b.Sym.Name) < 0
-}
+func (x methodbyname) Len() int           { return len(x) }
+func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name }
 
 func dumpexporttype(t *Type) {
 	if t == nil {
@@ -289,24 +280,15 @@ func dumpexporttype(t *Type) {
 		return
 	}
 
-	n := 0
+	var m []*Type
 	for f := t.Method; f != nil; f = f.Down {
 		dumpexporttype(f)
-		n++
+		m = append(m, f)
 	}
-
-	m := make([]*Type, n)
-	i := 0
-	for f := t.Method; f != nil; f = f.Down {
-		m[i] = f
-		i++
-	}
-	sort.Sort(methodbyname(m[:n]))
+	sort.Sort(methodbyname(m))
 
 	fmt.Fprintf(bout, "\ttype %v %v\n", Sconv(t.Sym, obj.FmtSharp), Tconv(t, obj.FmtSharp|obj.FmtLong))
-	var f *Type
-	for i := 0; i < n; i++ {
-		f = m[i]
+	for _, f := range m {
 		if f.Nointerface {
 			fmt.Fprintf(bout, "\t//go:nointerface\n")
 		}

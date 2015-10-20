@@ -48,6 +48,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
+			print("runtime: VirtualFree of ", small, " bytes failed with errno=", getlasterror(), "\n")
 			throw("runtime: failed to decommit pages")
 		}
 		v = add(v, small)
@@ -58,6 +59,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 func sysUsed(v unsafe.Pointer, n uintptr) {
 	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if r != uintptr(v) {
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", getlasterror(), "\n")
 		throw("runtime: failed to commit pages")
 	}
 
@@ -69,7 +71,8 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
-			throw("runtime: failed to decommit pages")
+			print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", getlasterror(), "\n")
+			throw("runtime: failed to commit pages")
 		}
 		v = add(v, small)
 		n -= small
@@ -83,6 +86,7 @@ func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatDec(sysStat, n)
 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
 	if r == 0 {
+		print("runtime: VirtualFree of ", n, " bytes failed with errno=", getlasterror(), "\n")
 		throw("runtime: failed to release pages")
 	}
 }
@@ -109,6 +113,7 @@ func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
 	if p != uintptr(v) {
+		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", getlasterror(), "\n")
 		throw("runtime: cannot map pages in arena address space")
 	}
 }

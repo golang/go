@@ -620,12 +620,12 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	MOVL	ptr+0(FP), DI
 	MOVL	n+4(FP), CX
 	MOVQ	CX, BX
-	ANDQ	$7, BX
-	SHRQ	$3, CX
+	ANDQ	$3, BX
+	SHRQ	$2, CX
 	MOVQ	$0, AX
 	CLD
 	REP
-	STOSQ
+	STOSL
 	MOVQ	BX, CX
 	REP
 	STOSB

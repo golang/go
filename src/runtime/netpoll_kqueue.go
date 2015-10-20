@@ -17,8 +17,7 @@ func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timesp
 func closeonexec(fd int32)
 
 var (
-	kq             int32 = -1
-	netpolllasterr int32
+	kq int32 = -1
 )
 
 func netpollinit() {
@@ -75,9 +74,9 @@ func netpoll(block bool) *g {
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {
-		if n != -_EINTR && n != netpolllasterr {
-			netpolllasterr = n
+		if n != -_EINTR {
 			println("runtime: kevent on fd", kq, "failed with", -n)
+			throw("kevent failed")
 		}
 		goto retry
 	}

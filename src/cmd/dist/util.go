@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -109,7 +108,9 @@ func run(dir string, mode int, cmd ...string) string {
 		}
 		outputLock.Unlock()
 		if mode&Background != 0 {
-			bgdied.Done()
+			// Prevent fatal from waiting on our own goroutine's
+			// bghelper to exit:
+			bghelpers.Done()
 		}
 		fatal("FAILED: %v: %v", strings.Join(cmd, " "), err)
 	}
@@ -130,62 +131,60 @@ var (
 	bgwork = make(chan func(), 1e5)
 	bgdone = make(chan struct{}, 1e5)
 
-	bgdied sync.WaitGroup
-	nwork  int32
-	ndone  int32
+	bghelpers sync.WaitGroup
 
-	dying  = make(chan bool)
-	nfatal int32
+	dieOnce sync.Once // guards close of dying
+	dying   = make(chan struct{})
 )
 
 func bginit() {
-	bgdied.Add(maxbg)
+	bghelpers.Add(maxbg)
 	for i := 0; i < maxbg; i++ {
 		go bghelper()
 	}
 }
 
 func bghelper() {
+	defer bghelpers.Done()
 	for {
-		w := <-bgwork
-		w()
-
-		// Stop if we're dying.
-		if atomic.LoadInt32(&nfatal) > 0 {
-			bgdied.Done()
+		select {
+		case <-dying:
 			return
+		case w := <-bgwork:
+			// Dying takes precedence over doing more work.
+			select {
+			case <-dying:
+				return
+			default:
+				w()
+			}
 		}
 	}
 }
 
 // bgrun is like run but runs the command in the background.
 // CheckExit|ShowOutput mode is implied (since output cannot be returned).
-func bgrun(dir string, cmd ...string) {
+// bgrun adds 1 to wg immediately, and calls Done when the work completes.
+func bgrun(wg *sync.WaitGroup, dir string, cmd ...string) {
+	wg.Add(1)
 	bgwork <- func() {
+		defer wg.Done()
 		run(dir, CheckExit|ShowOutput|Background, cmd...)
 	}
 }
 
 // bgwait waits for pending bgruns to finish.
 // bgwait must be called from only a single goroutine at a time.
-func bgwait() {
-	var wg sync.WaitGroup
-	wg.Add(maxbg)
-	done := make(chan bool)
-	for i := 0; i < maxbg; i++ {
-		bgwork <- func() {
-			wg.Done()
-
-			// Hold up bg goroutine until either the wait finishes
-			// or the program starts dying due to a call to fatal.
-			select {
-			case <-dying:
-			case <-done:
-			}
-		}
+func bgwait(wg *sync.WaitGroup) {
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-dying:
 	}
-	wg.Wait()
-	close(done)
 }
 
 // xgetwd returns the current directory.
@@ -355,16 +354,12 @@ func xworkdir() string {
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "go tool dist: %s\n", fmt.Sprintf(format, args...))
 
+	dieOnce.Do(func() { close(dying) })
+
 	// Wait for background goroutines to finish,
 	// so that exit handler that removes the work directory
 	// is not fighting with active writes or open files.
-	if atomic.AddInt32(&nfatal, 1) == 1 {
-		close(dying)
-	}
-	for i := 0; i < maxbg; i++ {
-		bgwork <- func() {} // wake up workers so they notice nfatal > 0
-	}
-	bgdied.Wait()
+	bghelpers.Wait()
 
 	xexit(2)
 }
@@ -480,6 +475,14 @@ func main() {
 		}
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
+		useVFPv1() // might fail with SIGILL
+		println("VFPv1 OK.")
+		useVFPv3() // might fail with SIGILL
+		println("VFPv3 OK.")
+		os.Exit(0)
+	}
+
 	xinit()
 	xmain()
 	xexit(0)
@@ -515,40 +518,21 @@ func xgetgoarm() string {
 		// OpenBSD currently only supports softfloat.
 		return "5"
 	}
-	if goos != "linux" {
-		// All other arm platforms that we support
-		// require ARMv7.
+
+	// Try to exec ourselves in a mode to detect VFP support.
+	// Seeing how far it gets determines which instructions failed.
+	// The test is OS-agnostic.
+	out := run("", 0, os.Args[0], "-check-goarm")
+	v1ok := strings.Contains(out, "VFPv1 OK.")
+	v3ok := strings.Contains(out, "VFPv3 OK.")
+
+	if v1ok && v3ok {
 		return "7"
 	}
-	cpuinfo := readfile("/proc/cpuinfo")
-	goarm := "5"
-	for _, line := range splitlines(cpuinfo) {
-		line := strings.SplitN(line, ":", 2)
-		if len(line) < 2 {
-			continue
-		}
-		if strings.TrimSpace(line[0]) != "Features" {
-			continue
-		}
-		features := splitfields(line[1])
-		sort.Strings(features) // so vfpv3 sorts after vfp
-
-		// Infer GOARM value from the vfp features available
-		// on this host. Values of GOARM detected are:
-		// 5: no vfp support was found
-		// 6: vfp (v1) support was detected, but no higher
-		// 7: vfpv3 support was detected.
-		// This matches the assertions in runtime.checkarm.
-		for _, f := range features {
-			switch f {
-			case "vfp":
-				goarm = "6"
-			case "vfpv3":
-				goarm = "7"
-			}
-		}
+	if v1ok {
+		return "6"
 	}
-	return goarm
+	return "5"
 }
 
 func min(a, b int) int {

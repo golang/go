@@ -271,8 +271,8 @@ var pkgDeps = map[string][]string{
 
 	// Basic networking.
 	// Because net must be used by any package that wants to
-	// do networking portably, it must have a small dependency set: just L1+basic os.
-	"net": {"L1", "CGO", "os", "syscall", "time", "internal/syscall/windows", "internal/singleflight"},
+	// do networking portably, it must have a small dependency set: just L0+basic os.
+	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {
@@ -351,6 +351,7 @@ var pkgDeps = map[string][]string{
 		"L4", "NET", "OS",
 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
 		"net/http/internal",
+		"golang.org/x/net/http2/hpack",
 	},
 	"net/http/internal": {"L4"},
 

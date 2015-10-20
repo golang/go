@@ -444,7 +444,7 @@ func Asmbmacho() {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if Thearch.Thechar == '5' {
+		if Thearch.Thechar == '5' || Buildmode == BuildmodeCArchive {
 			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
 		} else {
 			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
@@ -625,10 +625,10 @@ func (x machoscmp) Less(i, j int) bool {
 	k1 := symkind(s1)
 	k2 := symkind(s2)
 	if k1 != k2 {
-		return k1-k2 < 0
+		return k1 < k2
 	}
 
-	return stringsCompare(s1.Extname, s2.Extname) < 0
+	return s1.Extname < s2.Extname
 }
 
 func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {

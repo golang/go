@@ -13,29 +13,19 @@ import (
 
 // assignment reports whether x can be assigned to a variable of type T,
 // if necessary by attempting to convert untyped values to the appropriate
-// type. If x.mode == invalid upon return, then assignment has already
-// issued an error message and the caller doesn't have to report another.
+// type. context describes the context in which the assignment takes place.
 // Use T == nil to indicate assignment to an untyped blank identifier.
-//
-// TODO(gri) Should find a better way to handle in-band errors.
-//
-func (check *Checker) assignment(x *operand, T Type) bool {
+// x.mode is set to invalid if the assignment failed.
+func (check *Checker) assignment(x *operand, T Type, context string) {
+	check.singleValue(x)
+
 	switch x.mode {
 	case invalid:
-		return true // error reported before
+		return // error reported before
 	case constant_, variable, mapindex, value, commaok:
 		// ok
 	default:
 		unreachable()
-	}
-
-	// x must be a single value
-	// (tuple types are never named - no need for underlying type)
-	if t, _ := x.typ.(*Tuple); t != nil {
-		assert(t.Len() > 1)
-		check.errorf(x.pos(), "%d-valued expression %s used as single value", t.Len(), x)
-		x.mode = invalid
-		return false
 	}
 
 	if isUntyped(x.typ) {
@@ -47,22 +37,34 @@ func (check *Checker) assignment(x *operand, T Type) bool {
 		// or string constant."
 		if T == nil || IsInterface(T) {
 			if T == nil && x.typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil")
+				check.errorf(x.pos(), "use of untyped nil in %s", context)
 				x.mode = invalid
-				return false
+				return
 			}
 			target = defaultType(x.typ)
 		}
 		check.convertUntyped(x, target)
 		if x.mode == invalid {
-			return false
+			return
 		}
 	}
+	// x.typ is typed
 
 	// spec: "If a left-hand side is the blank identifier, any typed or
 	// non-constant value except for the predeclared identifier nil may
 	// be assigned to it."
-	return T == nil || x.assignableTo(check.conf, T)
+	if T == nil {
+		return
+	}
+
+	if reason := ""; !x.assignableTo(check.conf, T, &reason) {
+		if reason != "" {
+			check.errorf(x.pos(), "cannot use %s as %s value in %s: %s", x, T, context, reason)
+		} else {
+			check.errorf(x.pos(), "cannot use %s as %s value in %s", x, T, context)
+		}
+		x.mode = invalid
+	}
 }
 
 func (check *Checker) initConst(lhs *Const, x *operand) {
@@ -88,18 +90,15 @@ func (check *Checker) initConst(lhs *Const, x *operand) {
 		lhs.typ = x.typ
 	}
 
-	if !check.assignment(x, lhs.typ) {
-		if x.mode != invalid {
-			check.errorf(x.pos(), "cannot define constant %s (type %s) as %s", lhs.Name(), lhs.typ, x)
-		}
+	check.assignment(x, lhs.typ, "constant declaration")
+	if x.mode == invalid {
 		return
 	}
 
 	lhs.val = x.val
 }
 
-// If result is set, lhs is a function result parameter and x is a return result.
-func (check *Checker) initVar(lhs *Var, x *operand, result bool) Type {
+func (check *Checker) initVar(lhs *Var, x *operand, context string) Type {
 	if x.mode == invalid || x.typ == Typ[Invalid] || lhs.typ == Typ[Invalid] {
 		if lhs.typ == nil {
 			lhs.typ = Typ[Invalid]
@@ -113,7 +112,7 @@ func (check *Checker) initVar(lhs *Var, x *operand, result bool) Type {
 		if isUntyped(typ) {
 			// convert untyped types to default types
 			if typ == Typ[UntypedNil] {
-				check.errorf(x.pos(), "use of untyped nil")
+				check.errorf(x.pos(), "use of untyped nil in %s", context)
 				lhs.typ = Typ[Invalid]
 				return nil
 			}
@@ -122,15 +121,8 @@ func (check *Checker) initVar(lhs *Var, x *operand, result bool) Type {
 		lhs.typ = typ
 	}
 
-	if !check.assignment(x, lhs.typ) {
-		if x.mode != invalid {
-			if result {
-				// don't refer to lhs.name because it may be an anonymous result parameter
-				check.errorf(x.pos(), "cannot return %s as value of type %s", x, lhs.typ)
-			} else {
-				check.errorf(x.pos(), "cannot initialize %s with %s", lhs, x)
-			}
-		}
+	check.assignment(x, lhs.typ, context)
+	if x.mode == invalid {
 		return nil
 	}
 
@@ -148,9 +140,9 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 	// Don't evaluate lhs if it is the blank identifier.
 	if ident != nil && ident.Name == "_" {
 		check.recordDef(ident, nil)
-		if !check.assignment(x, nil) {
-			assert(x.mode == invalid)
-			x.typ = nil
+		check.assignment(x, nil, "assignment to _ identifier")
+		if x.mode == invalid {
+			return nil
 		}
 		return x.typ
 	}
@@ -191,10 +183,8 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 		return nil
 	}
 
-	if !check.assignment(x, z.typ) {
-		if x.mode != invalid {
-			check.errorf(x.pos(), "cannot assign %s to %s", x, &z)
-		}
+	check.assignment(x, z.typ, "assignment")
+	if x.mode == invalid {
 		return nil
 	}
 
@@ -205,7 +195,7 @@ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
 // return expressions, and returnPos is the position of the return statement.
 func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) {
 	l := len(lhs)
-	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
+	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2 && !returnPos.IsValid())
 	if get == nil || l != r {
 		// invalidate lhs and use rhs
 		for _, obj := range lhs {
@@ -225,12 +215,17 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 		return
 	}
 
+	context := "assignment"
+	if returnPos.IsValid() {
+		context = "return statement"
+	}
+
 	var x operand
 	if commaOk {
 		var a [2]Type
 		for i := range a {
 			get(&x, i)
-			a[i] = check.initVar(lhs[i], &x, returnPos.IsValid())
+			a[i] = check.initVar(lhs[i], &x, context)
 		}
 		check.recordCommaOkTypes(rhs[0], a)
 		return
@@ -238,13 +233,13 @@ func (check *Checker) initVars(lhs []*Var, rhs []ast.Expr, returnPos token.Pos) 
 
 	for i, lhs := range lhs {
 		get(&x, i)
-		check.initVar(lhs, &x, returnPos.IsValid())
+		check.initVar(lhs, &x, context)
 	}
 }
 
 func (check *Checker) assignVars(lhs, rhs []ast.Expr) {
 	l := len(lhs)
-	get, r, commaOk := unpack(func(x *operand, i int) { check.expr(x, rhs[i]) }, len(rhs), l == 2)
+	get, r, commaOk := unpack(func(x *operand, i int) { check.multiExpr(x, rhs[i]) }, len(rhs), l == 2)
 	if get == nil {
 		return // error reported by unpack
 	}

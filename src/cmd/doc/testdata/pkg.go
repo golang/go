@@ -21,6 +21,13 @@ const (
 	constThree = 3 // Comment on line with constThree.
 )
 
+// Const block where first entry is unexported.
+const (
+	constFour = iota
+	ConstFive
+	ConstSix
+)
+
 // Variables
 
 // Comment about exported variable.
@@ -35,6 +42,13 @@ var (
 	VarOne   = 1
 	VarTwo   = 2 // Comment on line with VarTwo.
 	varThree = 3 // Comment on line with varThree.
+)
+
+// Var block where first entry is unexported.
+var (
+	varFour = 4
+	VarFive = 5
+	varSix  = 6
 )
 
 // Comment about exported function.

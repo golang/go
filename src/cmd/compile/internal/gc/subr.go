@@ -59,26 +59,21 @@ func adderr(line int, format string, args ...interface{}) {
 	})
 }
 
+// errcmp sorts errors by line, then seq, then message.
 type errcmp []Error
 
-func (x errcmp) Len() int {
-	return len(x)
-}
-
-func (x errcmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
+func (x errcmp) Len() int      { return len(x) }
+func (x errcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x errcmp) Less(i, j int) bool {
 	a := &x[i]
 	b := &x[j]
 	if a.lineno != b.lineno {
-		return a.lineno-b.lineno < 0
+		return a.lineno < b.lineno
 	}
 	if a.seq != b.seq {
-		return a.seq-b.seq < 0
+		return a.seq < b.seq
 	}
-	return stringsCompare(a.msg, b.msg) < 0
+	return a.msg < b.msg
 }
 
 func Flusherrors() {
@@ -86,7 +81,7 @@ func Flusherrors() {
 	if len(errors) == 0 {
 		return
 	}
-	sort.Sort(errcmp(errors[:len(errors)]))
+	sort.Sort(errcmp(errors))
 	for i := 0; i < len(errors); i++ {
 		if i == 0 || errors[i].msg != errors[i-1].msg {
 			fmt.Printf("%s", errors[i].msg)
@@ -127,7 +122,7 @@ func Yyerror(format string, args ...interface{}) {
 
 		// An unexpected EOF caused a syntax error. Use the previous
 		// line number since getc generated a fake newline character.
-		if curio.eofnl != 0 {
+		if curio.eofnl {
 			lexlineno = prevlineno
 		}
 
@@ -350,23 +345,6 @@ func importdot(opkg *Pkg, pack *Node) {
 		// can't possibly be used - there were no symbols
 		yyerrorl(int(pack.Lineno), "imported and not used: %q", opkg.Path)
 	}
-}
-
-func gethunk() {
-	nh := int32(NHUNK)
-	if thunk >= 10*NHUNK {
-		nh = 10 * NHUNK
-	}
-	h := string(make([]byte, nh))
-	if h == "" {
-		Flusherrors()
-		Yyerror("out of memory")
-		errorexit()
-	}
-
-	hunk = h
-	nhunk = nh
-	thunk += nh
 }
 
 func Nod(op int, nleft *Node, nright *Node) *Node {
@@ -612,16 +590,11 @@ func typ(et int) *Type {
 	return t
 }
 
+// methcmp sorts by symbol, then by package path for unexported symbols.
 type methcmp []*Type
 
-func (x methcmp) Len() int {
-	return len(x)
-}
-
-func (x methcmp) Swap(i, j int) {
-	x[i], x[j] = x[j], x[i]
-}
-
+func (x methcmp) Len() int      { return len(x) }
+func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
 func (x methcmp) Less(i, j int) bool {
 	a := x[i]
 	b := x[j]
@@ -632,16 +605,14 @@ func (x methcmp) Less(i, j int) bool {
 		return true
 	}
 	if b.Sym == nil {
-		return 1 < 0
+		return false
 	}
-	k := stringsCompare(a.Sym.Name, b.Sym.Name)
-	if k != 0 {
-		return k < 0
+	if a.Sym.Name != b.Sym.Name {
+		return a.Sym.Name < b.Sym.Name
 	}
 	if !exportname(a.Sym.Name) {
-		k := stringsCompare(a.Sym.Pkg.Path, b.Sym.Pkg.Path)
-		if k != 0 {
-			return k < 0
+		if a.Sym.Pkg.Path != b.Sym.Pkg.Path {
+			return a.Sym.Pkg.Path < b.Sym.Pkg.Path
 		}
 	}
 
@@ -653,24 +624,19 @@ func sortinter(t *Type) *Type {
 		return t
 	}
 
-	i := 0
+	var a []*Type
 	for f := t.Type; f != nil; f = f.Down {
-		i++
+		a = append(a, f)
 	}
-	a := make([]*Type, i)
-	i = 0
-	var f *Type
-	for f = t.Type; f != nil; f = f.Down {
-		a[i] = f
-		i++
-	}
-	sort.Sort(methcmp(a[:i]))
-	for i--; i >= 0; i-- {
-		a[i].Down = f
-		f = a[i]
-	}
+	sort.Sort(methcmp(a))
 
-	t.Type = f
+	n := len(a) // n > 0 due to initial conditions.
+	for i := 0; i < n-1; i++ {
+		a[i].Down = a[i+1]
+	}
+	a[n-1].Down = nil
+
+	t.Type = a[0]
 	return t
 }
 
@@ -1618,33 +1584,32 @@ func Ptrto(t *Type) *Type {
 }
 
 func frame(context int) {
-	var l *NodeList
-
 	if context != 0 {
 		fmt.Printf("--- external frame ---\n")
-		l = externdcl
-	} else if Curfn != nil {
-		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
-		l = Curfn.Func.Dcl
-	} else {
+		for _, n := range externdcl {
+			printframenode(n)
+		}
 		return
 	}
 
-	var n *Node
-	var w int64
-	for ; l != nil; l = l.Next {
-		n = l.N
-		w = -1
-		if n.Type != nil {
-			w = n.Type.Width
+	if Curfn != nil {
+		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
+		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
+			printframenode(l.N)
 		}
-		switch n.Op {
-		case ONAME:
-			fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
+	}
+}
 
-		case OTYPE:
-			fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
-		}
+func printframenode(n *Node) {
+	w := int64(-1)
+	if n.Type != nil {
+		w = n.Type.Width
+	}
+	switch n.Op {
+	case ONAME:
+		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
+	case OTYPE:
+		fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
 	}
 }
 
@@ -1983,19 +1948,6 @@ func cheapexpr(n *Node, init **NodeList) *Node {
 	return copyexpr(n, n.Type, init)
 }
 
-/*
- * return n in a local variable of type t if it is not already.
- * the value is guaranteed not to change except by direct
- * assignment to it.
- */
-func localexpr(n *Node, t *Type, init **NodeList) *Node {
-	if n.Op == ONAME && (!n.Addrtaken || strings.HasPrefix(n.Sym.Name, "autotmp_")) && (n.Class == PAUTO || n.Class == PPARAM || n.Class == PPARAMOUT) && convertop(n.Type, t, nil) == OCONVNOP {
-		return n
-	}
-
-	return copyexpr(n, t, init)
-}
-
 func Setmaxarg(t *Type, extra int32) {
 	dowidth(t)
 	w := t.Argwid
@@ -2163,17 +2115,17 @@ func adddot(n *Node) *Node {
  */
 type Symlink struct {
 	field     *Type
-	good      uint8
-	followptr uint8
 	link      *Symlink
+	good      bool
+	followptr bool
 }
 
 var slist *Symlink
 
-func expand0(t *Type, followptr int) {
+func expand0(t *Type, followptr bool) {
 	u := t
 	if Isptr[u.Etype] {
-		followptr = 1
+		followptr = true
 		u = u.Type
 	}
 
@@ -2187,7 +2139,7 @@ func expand0(t *Type, followptr int) {
 			sl = new(Symlink)
 			sl.field = f
 			sl.link = slist
-			sl.followptr = uint8(followptr)
+			sl.followptr = followptr
 			slist = sl
 		}
 
@@ -2205,13 +2157,13 @@ func expand0(t *Type, followptr int) {
 			sl = new(Symlink)
 			sl.field = f
 			sl.link = slist
-			sl.followptr = uint8(followptr)
+			sl.followptr = followptr
 			slist = sl
 		}
 	}
 }
 
-func expand1(t *Type, d int, followptr int) {
+func expand1(t *Type, d int, followptr bool) {
 	if t.Trecur != 0 {
 		return
 	}
@@ -2226,7 +2178,7 @@ func expand1(t *Type, d int, followptr int) {
 
 	u := t
 	if Isptr[u.Etype] {
-		followptr = 1
+		followptr = true
 		u = u.Type
 	}
 
@@ -2263,7 +2215,7 @@ func expandmeth(t *Type) {
 	// generate all reachable methods
 	slist = nil
 
-	expand1(t, len(dotlist)-1, 0)
+	expand1(t, len(dotlist)-1, false)
 
 	// check each method to be uniquely reachable
 	var c int
@@ -2278,7 +2230,7 @@ func expandmeth(t *Type) {
 			if c == 1 {
 				// addot1 may have dug out arbitrary fields, we only want methods.
 				if f.Type.Etype == TFUNC && f.Type.Thistuple > 0 {
-					sl.good = 1
+					sl.good = true
 					sl.field = f
 				}
 			}
@@ -2293,13 +2245,13 @@ func expandmeth(t *Type) {
 
 	t.Xmethod = t.Method
 	for sl := slist; sl != nil; sl = sl.link {
-		if sl.good != 0 {
+		if sl.good {
 			// add it to the base type method list
 			f = typ(TFIELD)
 
 			*f = *sl.field
 			f.Embedded = 1 // needs a trampoline
-			if sl.followptr != 0 {
+			if sl.followptr {
 				f.Embedded = 2
 			}
 			f.Down = t.Xmethod
@@ -2615,21 +2567,6 @@ func genhash(sym *Sym, t *Type) {
 		n.Colas = true
 		colasdefn(n.List, n)
 		ni = n.List.N
-
-		// TODO: with aeshash we don't need these shift/mul parts
-
-		// h = h<<3 | h>>61
-		n.Nbody = list(n.Nbody, Nod(OAS, nh, Nod(OOR, Nod(OLSH, nh, Nodintconst(3)), Nod(ORSH, nh, Nodintconst(int64(Widthptr)*8-3)))))
-
-		// h *= mul
-		// Same multipliers as in runtime.memhash.
-		var mul int64
-		if Widthptr == 4 {
-			mul = 3267000013
-		} else {
-			mul = 23344194077549503
-		}
-		n.Nbody = list(n.Nbody, Nod(OAS, nh, Nod(OMUL, nh, Nodintconst(mul))))
 
 		// h = hashel(&p[i], h)
 		call := Nod(OCALL, hashel, nil)
@@ -2968,8 +2905,8 @@ func geneq(sym *Sym, t *Type) {
 	safemode = old_safemode
 }
 
-func ifacelookdot(s *Sym, t *Type, followptr *int, ignorecase int) *Type {
-	*followptr = 0
+func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase int) *Type {
+	*followptr = false
 
 	if t == nil {
 		return nil
@@ -2988,7 +2925,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *int, ignorecase int) *Type {
 		if c == 1 {
 			for i = 0; i < d; i++ {
 				if Isptr[dotlist[i].field.Type.Etype] {
-					*followptr = 1
+					*followptr = true
 					break
 				}
 			}
@@ -3046,9 +2983,12 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 	}
 	var tm *Type
 	var imtype *Type
-	var followptr int
+	var followptr bool
 	var rcvr *Type
 	for im := iface.Type; im != nil; im = im.Down {
+		if im.Broke {
+			continue
+		}
 		imtype = methodfunc(im.Type, nil)
 		tm = ifacelookdot(im.Sym, t, &followptr, 0)
 		if tm == nil || tm.Nointerface || !Eqtype(methodfunc(tm.Type, nil), imtype) {
@@ -3065,7 +3005,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 		// the method does not exist for value types.
 		rcvr = getthisx(tm.Type).Type.Type
 
-		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && followptr == 0 && !isifacemethod(tm.Type) {
+		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
 				Yyerror("interface pointer mismatch")
 			}
@@ -3420,7 +3360,6 @@ func ngotype(n *Node) *Sym {
  * only in the last segment of the path, and it makes for happier
  * users if we escape that as little as possible.
  *
- * If you edit this, edit ../ld/lib.c:/^pathtoprefix too.
  * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
  */
 func pathtoprefix(s string) string {
@@ -3492,17 +3431,13 @@ func isbadimport(path string) bool {
 		return true
 	}
 
-	for i := 0; i < len(reservedimports); i++ {
-		if path == reservedimports[i] {
+	for _, ri := range reservedimports {
+		if path == ri {
 			Yyerror("import path %q is reserved and cannot be used", path)
 			return true
 		}
 	}
 
-	var s string
-	_ = s
-	var r uint
-	_ = r
 	for _, r := range path {
 		if r == utf8.RuneError {
 			Yyerror("import path contains invalid UTF-8 sequence: %q", path)

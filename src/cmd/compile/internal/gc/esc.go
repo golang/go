@@ -248,17 +248,6 @@ func satInc8(x int8) int8 {
 	return x + 1
 }
 
-func satAdd8(x, y int8) int8 {
-	z := x + y
-	if x^y < 0 || x^z >= 0 {
-		return z
-	}
-	if x < 0 {
-		return -128
-	}
-	return 127
-}
-
 func min8(a, b int8) int8 {
 	if a < b {
 		return a
@@ -385,10 +374,9 @@ func escMax(e, etype uint16) uint16 {
 // something whose address is returned -- but that implies stored into the heap,
 // hence EscHeap, which means that the details are not currently relevant. )
 const (
-	bitsPerOutputInTag = 3                                         // For each output, the number of bits for a tag
-	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1         // The bit mask to extract a single tag.
-	outputsPerTag      = (16 - EscReturnBits) / bitsPerOutputInTag // The number of outputs that can be tagged.
-	maxEncodedLevel    = int(bitsMaskForTag - 1)                   // The largest level that can be stored in a tag.
+	bitsPerOutputInTag = 3                                 // For each output, the number of bits for a tag
+	bitsMaskForTag     = uint16(1<<bitsPerOutputInTag) - 1 // The bit mask to extract a single tag.
+	maxEncodedLevel    = int(bitsMaskForTag - 1)           // The largest level that can be stored in a tag.
 )
 
 type EscState struct {
@@ -662,10 +650,15 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		n.Left.Sym.Label = nil
 
-		// Everything but fixed array is a dereference.
 	case ORANGE:
 		if n.List != nil && n.List.Next != nil {
-			if Isfixedarray(n.Type) {
+			// Everything but fixed array is a dereference.
+
+			// If fixed array is really the address of fixed array,
+			// it is also a dereference, because it is implicitly
+			// dereferenced (see #12588)
+			if Isfixedarray(n.Type) &&
+				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
 				escassign(e, n.List.Next.N, n.Right)
 			} else {
 				escassignDereference(e, n.List.Next.N, n.Right)
@@ -958,6 +951,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OMAPLIT,
 		OSTRUCTLIT,
 		OPTRLIT,
+		ODDDARG,
 		OCALLPART:
 		break
 
@@ -1463,8 +1457,9 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 	}
 
+	var src *Node
 	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
-		src := ll.N
+		src = ll.N
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
@@ -1505,17 +1500,17 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		if src != ll.N {
+			// This occurs when function parameter type Isddd and n not Isddd
 			break
 		}
 		t = t.Down
 	}
 
-	// "..." arguments are untracked
 	for ; ll != nil; ll = ll.Next {
-		escassign(e, &e.theSink, ll.N)
 		if Debug['m'] > 2 {
-			fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+			fmt.Printf("%v::esccall:: ... <- %v\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
 		}
+		escassign(e, src, ll.N) // args to slice
 	}
 }
 
@@ -1701,6 +1696,16 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 	case OAPPEND:
 		escwalk(e, level, dst, src.List.N)
 
+	case ODDDARG:
+		if leaks {
+			src.Esc = EscHeap
+			if Debug['m'] != 0 {
+				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
+			}
+		}
+		// similar to a slice arraylit and its args.
+		level = level.dec()
+
 	case OARRAYLIT:
 		if Isfixedarray(src.Type) {
 			break
@@ -1711,8 +1716,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 
 		fallthrough
 
-	case ODDDARG,
-		OMAKECHAN,
+	case OMAKECHAN,
 		OMAKEMAP,
 		OMAKESLICE,
 		OARRAYRUNESTR,

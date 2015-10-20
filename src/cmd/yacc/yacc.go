@@ -1284,8 +1284,9 @@ func dumpprod(curprod []int, max int) {
 func cpyact(curprod []int, max int) {
 
 	if !lflag {
-		fmt.Fprintf(fcode, "\n\t\t//line %v:%v\n\t\t", infile, lineno)
+		fmt.Fprintf(fcode, "\n\t\t//line %v:%v", infile, lineno)
 	}
+	fmt.Fprint(fcode, "\n\t\t")
 
 	lno := lineno
 	brac := 0

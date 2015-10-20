@@ -850,6 +850,28 @@ func TestServeContent(t *testing.T) {
 	}
 }
 
+// Issue 12991
+func TestServerFileStatError(t *testing.T) {
+	rec := httptest.NewRecorder()
+	r, _ := NewRequest("GET", "http://foo/", nil)
+	redirect := false
+	name := "file.txt"
+	fs := issue12991FS{}
+	ExportServeFile(rec, r, fs, name, redirect)
+	if body := rec.Body.String(); !strings.Contains(body, "403") || !strings.Contains(body, "Forbidden") {
+		t.Errorf("wanted 403 forbidden message; got: %s", body)
+	}
+}
+
+type issue12991FS struct{}
+
+func (issue12991FS) Open(string) (File, error) { return issue12991File{}, nil }
+
+type issue12991File struct{ File }
+
+func (issue12991File) Stat() (os.FileInfo, error) { return nil, os.ErrPermission }
+func (issue12991File) Close() error               { return nil }
+
 func TestServeContentErrorMessages(t *testing.T) {
 	defer afterTest(t)
 	fs := fakeFS{

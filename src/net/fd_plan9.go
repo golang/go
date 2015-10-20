@@ -171,6 +171,14 @@ func (fd *netFD) Close() error {
 	if !fd.ok() {
 		return syscall.EINVAL
 	}
+	if fd.net == "tcp" {
+		// The following line is required to unblock Reads.
+		// For some reason, WriteString returns an error:
+		// "write /net/tcp/39/listen: inappropriate use of fd"
+		// But without it, Reads on dead conns hang forever.
+		// See Issue 9554.
+		fd.ctl.WriteString("hangup")
+	}
 	err := fd.ctl.Close()
 	if fd.data != nil {
 		if err1 := fd.data.Close(); err1 != nil && err == nil {

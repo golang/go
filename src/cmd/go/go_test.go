@@ -31,8 +31,7 @@ var (
 
 	exeSuffix string // ".exe" on Windows
 
-	builder             = testenv.Builder()
-	skipExternalBuilder = false // skip external tests on this builder
+	skipExternal = false // skip external tests
 )
 
 func init() {
@@ -44,14 +43,21 @@ func init() {
 		case "arm", "arm64":
 			canRun = false
 		}
-	}
-
-	if strings.HasPrefix(builder+"-", "freebsd-arm-") {
-		skipExternalBuilder = true
-		canRun = false
-	}
-
-	switch runtime.GOOS {
+	case "linux":
+		switch runtime.GOARCH {
+		case "arm":
+			// many linux/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+		}
+	case "freebsd":
+		switch runtime.GOARCH {
+		case "arm":
+			// many freebsd/arm machines are too slow to run
+			// the full set of external tests.
+			skipExternal = true
+			canRun = false
+		}
 	case "windows":
 		exeSuffix = ".exe"
 	}
@@ -138,8 +144,8 @@ type testgoData struct {
 func testgo(t *testing.T) *testgoData {
 	testenv.MustHaveGoBuild(t)
 
-	if skipExternalBuilder {
-		t.Skip("skipping external tests on %s builder", builder)
+	if skipExternal {
+		t.Skip("skipping external tests on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
 	return &testgoData{t: t}
@@ -1139,6 +1145,15 @@ func TestInstallFailsWithNoBuildableFiles(t *testing.T) {
 	tg.grepStderr("no buildable Go source files", "go install cgotest did not report 'no buildable Go Source files'")
 }
 
+func TestRelativeGOBINFail(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("triv.go", `package main; func main() {}`)
+	tg.setenv("GOBIN", ".")
+	tg.runFail("install")
+	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
+}
+
 // Test that without $GOBIN set, binaries get installed
 // into the GOPATH bin directory.
 func TestInstallIntoGOPATH(t *testing.T) {
@@ -1692,7 +1707,7 @@ func TestCoverageUsesSetMode(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-coverprofile=testdata/cover.out", "encoding/binary")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1715,7 +1730,7 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-race", "-coverprofile=testdata/cover.out", "encoding/binary")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1738,7 +1753,7 @@ func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-covermode=count", "-coverprofile=testdata/cover.out")
+	tg.run("test", "-short", "-race", "-covermode=count", "-coverprofile=testdata/cover.out", "encoding/binary")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1833,6 +1848,9 @@ func TestIssue6480(t *testing.T) {
 
 // cmd/cgo: undefined reference when linking a C-library using gccgo
 func TestIssue7573(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
 	if _, err := exec.LookPath("gccgo"); err != nil {
 		t.Skip("skipping because no gccgo compiler found")
 	}
@@ -1929,6 +1947,12 @@ func TestGoTestFooTestWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "testdata/standalone_test.go")
+}
+
+func TestGoTestFlagsAfterPackage(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "-v", "testdata/flag_test.go", "-v=7") // Two distinct -v flags.
 }
 
 func TestGoTestXtestonlyWorks(t *testing.T) {

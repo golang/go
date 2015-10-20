@@ -60,9 +60,11 @@ func readHosts() {
 				continue
 			}
 			for i := 1; i < len(f); i++ {
-				h := f[i]
-				hs[h] = append(hs[h], addr)
-				is[addr] = append(is[addr], h)
+				h := []byte(f[i])
+				lowerASCIIBytes(h)
+				lh := string(h)
+				hs[lh] = append(hs[lh], addr)
+				is[addr] = append(is[addr], lh)
 			}
 		}
 		// Update the data cache.
@@ -80,7 +82,11 @@ func lookupStaticHost(host string) []string {
 	defer hosts.Unlock()
 	readHosts()
 	if len(hosts.byName) != 0 {
-		if ips, ok := hosts.byName[host]; ok {
+		// TODO(jbd,bradfitz): avoid this alloc if host is already all lowercase?
+		// or linear scan the byName map if it's small enough?
+		lowerHost := []byte(host)
+		lowerASCIIBytes(lowerHost)
+		if ips, ok := hosts.byName[string(lowerHost)]; ok {
 			return ips
 		}
 	}

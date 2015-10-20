@@ -124,6 +124,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	p := cursym.Text
 	textstksiz := p.To.Offset
+	if textstksiz == -8 {
+		// Compatibility hack.
+		p.From3.Offset |= obj.NOFRAME
+		textstksiz = 0
+	}
+	if textstksiz%8 != 0 {
+		ctxt.Diag("frame size %d not a multiple of 8", textstksiz)
+	}
+	if p.From3.Offset&obj.NOFRAME != 0 {
+		if textstksiz != 0 {
+			ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
+		}
+	}
 
 	cursym.Args = p.To.Val.(int32)
 	cursym.Locals = int32(textstksiz)
@@ -314,13 +327,20 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 		case obj.ATEXT:
 			mov = AMOVD
 			aoffset = 0
-			autosize = int32(textstksiz + 8)
-			if (p.Mark&LEAF != 0) && autosize <= 8 {
-				autosize = 0
-			} else if autosize&4 != 0 {
-				autosize += 4
+			autosize = int32(textstksiz)
+
+			if p.Mark&LEAF != 0 && autosize == 0 && p.From3.Offset&obj.NOFRAME == 0 {
+				// A leaf function with no locals has no frame.
+				p.From3.Offset |= obj.NOFRAME
 			}
-			p.To.Offset = int64(autosize) - 8
+
+			if p.From3.Offset&obj.NOFRAME == 0 {
+				// If there is a stack frame at all, it includes
+				// space to save the LR.
+				autosize += int32(ctxt.FixedFrameSize())
+			}
+
+			p.To.Offset = int64(autosize)
 
 			if p.From3.Offset&obj.NOSPLIT == 0 {
 				p = stacksplit(ctxt, p, autosize) // emit split check
@@ -344,11 +364,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					q.Spadj = +autosize
 				}
 			} else if cursym.Text.Mark&LEAF == 0 {
-				if ctxt.Debugvlog != 0 {
-					fmt.Fprintf(ctxt.Bso, "save suppressed in: %s\n", cursym.Name)
-					ctxt.Bso.Flush()
-				}
-
+				// A very few functions that do not return to their caller
+				// (e.g. gogo) are not identified as leaves but still have
+				// no frame.
 				cursym.Text.Mark |= LEAF
 			}
 
@@ -427,7 +445,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize) + 8
+				q.From.Offset = int64(autosize) + ctxt.FixedFrameSize()
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R5
@@ -447,7 +465,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				q = obj.Appendp(ctxt, q)
 				q.As = AADD
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = 8
+				q.From.Offset = ctxt.FixedFrameSize()
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REG_R6
@@ -473,18 +491,19 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 				break
 			}
 
-			if p.To.Sym != nil { // retjmp
-				p.As = ABR
-				p.To.Type = obj.TYPE_BRANCH
-				break
-			}
+			retTarget := p.To.Sym
 
 			if cursym.Text.Mark&LEAF != 0 {
 				if autosize == 0 {
 					p.As = ABR
 					p.From = obj.Addr{}
-					p.To.Type = obj.TYPE_REG
-					p.To.Reg = REG_LR
+					if retTarget == nil {
+						p.To.Type = obj.TYPE_REG
+						p.To.Reg = REG_LR
+					} else {
+						p.To.Type = obj.TYPE_BRANCH
+						p.To.Sym = retTarget
+					}
 					p.Mark |= BRANCH
 					break
 				}
@@ -562,14 +581,18 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			q1 = ctxt.NewProg()
 			q1.As = ABR
 			q1.Lineno = p.Lineno
-			q1.To.Type = obj.TYPE_REG
-			q1.To.Reg = REG_LR
+			if retTarget == nil {
+				q1.To.Type = obj.TYPE_REG
+				q1.To.Reg = REG_LR
+			} else {
+				q1.To.Type = obj.TYPE_BRANCH
+				q1.To.Sym = retTarget
+			}
 			q1.Mark |= BRANCH
 			q1.Spadj = +autosize
 
 			q1.Link = q.Link
 			q.Link = q1
-
 		case AADD:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)

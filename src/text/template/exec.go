@@ -135,8 +135,6 @@ func errRecover(errp *error) {
 			*errp = err.Err // Strip the wrapper.
 		case ExecError:
 			*errp = err // Keep the wrapper.
-		case error: // TODO: This should never happen, but it does. Understand and/or fix.
-			*errp = err
 		default:
 			panic(e)
 		}
@@ -259,8 +257,13 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 }
 
-// isTrue reports whether the value is 'true', in the sense of not the zero of its type,
-// and whether the value has a meaningful truth value.
+// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+// and whether the value has a meaningful truth value. This is the definition of
+// truth used by if and other such actions.
+func IsTrue(val interface{}) (truth, ok bool) {
+	return isTrue(reflect.ValueOf(val))
+}
+
 func isTrue(val reflect.Value) (truth, ok bool) {
 	if !val.IsValid() {
 		// Something like var x interface{}, never set. It's a form of nil.
@@ -826,15 +829,10 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 }
 
 // indirect returns the item at the end of indirection, and a bool to indicate if it's nil.
-// We indirect through pointers and empty interfaces (only) because
-// non-empty interfaces have methods we might need.
 func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 	for ; v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface; v = v.Elem() {
 		if v.IsNil() {
 			return v, true
-		}
-		if v.Kind() == reflect.Interface && v.NumMethod() > 0 {
-			break
 		}
 	}
 	return v, false

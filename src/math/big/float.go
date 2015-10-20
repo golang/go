@@ -124,7 +124,7 @@ const (
 // rounding error is described by the Float's Accuracy.
 type RoundingMode byte
 
-// The following rounding modes are supported.
+// These constants define supported rounding modes.
 const (
 	ToNearestEven RoundingMode = iota // == IEEE 754-2008 roundTiesToEven
 	ToNearestAway                     // == IEEE 754-2008 roundTiesToAway
@@ -1272,7 +1272,7 @@ func (z *Float) usub(x, y *Float) {
 		ex = ey
 	}
 
-	// operands may have cancelled each other out
+	// operands may have canceled each other out
 	if len(z.mant) == 0 {
 		z.acc = Exact
 		z.form = zero

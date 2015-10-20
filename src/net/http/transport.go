@@ -36,7 +36,8 @@ var DefaultTransport RoundTripper = &Transport{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).Dial,
-	TLSHandshakeTimeout: 10 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
 }
 
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
@@ -112,6 +113,13 @@ type Transport struct {
 	// writing the request (including its body, if any). This
 	// time does not include the time to read the response body.
 	ResponseHeaderTimeout time.Duration
+
+	// ExpectContinueTimeout, if non-zero, specifies the amount of
+	// time to wait for a server's first response headers after fully
+	// writing the request headers if the request has an
+	// "Expect: 100-continue" header. Zero means no timeout.
+	// This time does not include the time to send the request header.
+	ExpectContinueTimeout time.Duration
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
@@ -894,13 +902,17 @@ func (pc *persistConn) readLoop() {
 		var resp *Response
 		if err == nil {
 			resp, err = ReadResponse(pc.br, rc.req)
-			if err == nil && resp.StatusCode == 100 {
-				// Skip any 100-continue for now.
-				// TODO(bradfitz): if rc.req had "Expect: 100-continue",
-				// actually block the request body write and signal the
-				// writeLoop now to begin sending it. (Issue 2184) For now we
-				// eat it, since we're never expecting one.
-				resp, err = ReadResponse(pc.br, rc.req)
+			if err == nil {
+				if rc.continueCh != nil {
+					if resp.StatusCode == 100 {
+						rc.continueCh <- struct{}{}
+					} else {
+						close(rc.continueCh)
+					}
+				}
+				if resp.StatusCode == 100 {
+					resp, err = ReadResponse(pc.br, rc.req)
+				}
 			}
 		}
 
@@ -1004,6 +1016,28 @@ func (pc *persistConn) readLoop() {
 	pc.close()
 }
 
+// waitForContinue returns the function to block until
+// any response, timeout or connection close. After any of them,
+// the function returns a bool which indicates if the body should be sent.
+func (pc *persistConn) waitForContinue(continueCh <-chan struct{}) func() bool {
+	if continueCh == nil {
+		return nil
+	}
+	return func() bool {
+		timer := time.NewTimer(pc.t.ExpectContinueTimeout)
+		defer timer.Stop()
+
+		select {
+		case _, ok := <-continueCh:
+			return ok
+		case <-timer.C:
+			return true
+		case <-pc.closech:
+			return false
+		}
+	}
+}
+
 func (pc *persistConn) writeLoop() {
 	for {
 		select {
@@ -1012,7 +1046,7 @@ func (pc *persistConn) writeLoop() {
 				wr.ch <- errors.New("http: can't write HTTP request on broken connection")
 				continue
 			}
-			err := wr.req.Request.write(pc.bw, pc.isProxy, wr.req.extra)
+			err := wr.req.Request.write(pc.bw, pc.isProxy, wr.req.extra, pc.waitForContinue(wr.continueCh))
 			if err == nil {
 				err = pc.bw.Flush()
 			}
@@ -1069,6 +1103,12 @@ type requestAndChan struct {
 	// Accept-Encoding gzip header? only if it we set it do
 	// we transparently decode the gzip.
 	addedGzip bool
+
+	// Optional blocking chan for Expect: 100-continue (for send).
+	// If the request has an "Expect: 100-continue" header and
+	// the server responds 100 Continue, readLoop send a value
+	// to writeLoop via this chan.
+	continueCh chan<- struct{}
 }
 
 // A writeRequest is sent by the readLoop's goroutine to the
@@ -1078,6 +1118,11 @@ type requestAndChan struct {
 type writeRequest struct {
 	req *transportRequest
 	ch  chan<- error
+
+	// Optional blocking chan for Expect: 100-continue (for recieve).
+	// If not nil, writeLoop blocks sending request body until
+	// it receives from this chan.
+	continueCh <-chan struct{}
 }
 
 type httpError struct {
@@ -1143,6 +1188,11 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		req.extraHeaders().Set("Accept-Encoding", "gzip")
 	}
 
+	var continueCh chan struct{}
+	if req.ProtoAtLeast(1, 1) && req.Body != nil && req.expectsContinue() {
+		continueCh = make(chan struct{}, 1)
+	}
+
 	if pc.t.DisableKeepAlives {
 		req.extraHeaders().Set("Connection", "close")
 	}
@@ -1151,10 +1201,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	// in case the server decides to reply before reading our full
 	// request body.
 	writeErrCh := make(chan error, 1)
-	pc.writech <- writeRequest{req, writeErrCh}
+	pc.writech <- writeRequest{req, writeErrCh, continueCh}
 
 	resc := make(chan responseAndError, 1)
-	pc.reqch <- requestAndChan{req.Request, resc, requestedGzip}
+	pc.reqch <- requestAndChan{req.Request, resc, requestedGzip, continueCh}
 
 	var re responseAndError
 	var respHeaderTimer <-chan time.Time

@@ -26,6 +26,8 @@ var Xadduintptr = xadduintptr
 
 var FuncPC = funcPC
 
+var Fastlog2 = fastlog2
+
 type LFNode struct {
 	Next    uint64
 	Pushcnt uintptr
@@ -130,11 +132,11 @@ func BenchSetType(n int, x interface{}) {
 	var size uintptr
 	var p unsafe.Pointer
 	switch t.kind & kindMask {
-	case _KindPtr:
+	case kindPtr:
 		t = (*ptrtype)(unsafe.Pointer(t)).elem
 		size = t.size
 		p = e.data
-	case _KindSlice:
+	case kindSlice:
 		slice := *(*struct {
 			ptr      unsafe.Pointer
 			len, cap uintptr
@@ -155,3 +157,5 @@ const PtrSize = ptrSize
 
 var TestingAssertE2I2GC = &testingAssertE2I2GC
 var TestingAssertE2T2GC = &testingAssertE2T2GC
+
+var ForceGCPeriod = &forcegcperiod

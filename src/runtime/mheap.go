@@ -29,9 +29,12 @@ type mheap struct {
 	spans_mapped uintptr
 
 	// Proportional sweep
+	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
 	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
 	pagesSwept        uint64  // pages swept this cycle; updated atomically
 	sweepPagesPerByte float64 // proportional sweep ratio; written with lock, read without
+	// TODO(austin): pagesInUse should be a uintptr, but the 386
+	// compiler can't 8-byte align fields.
 
 	// Malloc stats.
 	largefree  uint64                  // bytes freed for large objects (>maxsmallsize)
@@ -420,8 +423,6 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
 	_g_.m.mcache.local_tinyallocs = 0
 
-	gcController.revise()
-
 	s := mHeap_AllocSpanLocked(h, npage)
 	if s != nil {
 		// Record span info, because gc needs to be
@@ -447,6 +448,7 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 		}
 
 		// update stats, sweep lists
+		h.pagesInUse += uint64(npage)
 		if large {
 			memstats.heap_objects++
 			memstats.heap_live += uint64(npage << _PageShift)
@@ -458,6 +460,11 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 			}
 		}
 	}
+	// heap_scan and heap_live were updated.
+	if gcBlackenEnabled != 0 {
+		gcController.revise()
+	}
+
 	if trace.enabled {
 		traceHeapAlloc()
 	}
@@ -551,7 +558,7 @@ HaveSpan:
 		throw("still in list")
 	}
 	if s.npreleased > 0 {
-		sysUsed((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
+		sysUsed(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
 		memstats.heap_released -= uint64(s.npreleased << _PageShift)
 		s.npreleased = 0
 	}
@@ -614,6 +621,8 @@ func bestFit(list *mspan, npage uintptr, best *mspan) *mspan {
 
 // Try to add at least npage pages of memory to the heap,
 // returning whether it worked.
+//
+// h must be locked.
 func mHeap_Grow(h *mheap, npage uintptr) bool {
 	// Ask for a big chunk, to reduce the number of mappings
 	// the operating system needs to track; also amortizes
@@ -648,6 +657,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 	}
 	atomicstore(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
+	h.pagesInUse += uint64(npage)
 	mHeap_FreeSpanLocked(h, s, false, true, 0)
 	return true
 }
@@ -696,7 +706,9 @@ func mHeap_Free(h *mheap, s *mspan, acct int32) {
 		if acct != 0 {
 			memstats.heap_objects--
 		}
-		gcController.revise()
+		if gcBlackenEnabled != 0 {
+			gcController.revise()
+		}
 		mHeap_FreeSpanLocked(h, s, true, true, 0)
 		if trace.enabled {
 			traceHeapAlloc()
@@ -728,6 +740,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 			print("MHeap_FreeSpanLocked - span ", s, " ptr ", hex(s.start<<_PageShift), " ref ", s.ref, " sweepgen ", s.sweepgen, "/", h.sweepgen, "\n")
 			throw("MHeap_FreeSpanLocked - invalid free")
 		}
+		h.pagesInUse -= uint64(s.npages)
 	default:
 		throw("MHeap_FreeSpanLocked - invalid span state")
 	}
@@ -763,7 +776,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 			h_spans[p] = s
 			mSpanList_Remove(t)
 			t.state = _MSpanDead
-			fixAlloc_Free(&h.spanalloc, (unsafe.Pointer)(t))
+			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
 		}
 	}
 	if (p+s.npages)*ptrSize < h.spans_mapped {
@@ -775,7 +788,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 			h_spans[p+s.npages-1] = s
 			mSpanList_Remove(t)
 			t.state = _MSpanDead
-			fixAlloc_Free(&h.spanalloc, (unsafe.Pointer)(t))
+			fixAlloc_Free(&h.spanalloc, unsafe.Pointer(t))
 		}
 	}
 
@@ -808,7 +821,7 @@ func scavengelist(list *mspan, now, limit uint64) uintptr {
 			memstats.heap_released += uint64(released)
 			sumreleased += released
 			s.npreleased = s.npages
-			sysUnused((unsafe.Pointer)(s.start<<_PageShift), s.npages<<_PageShift)
+			sysUnused(unsafe.Pointer(s.start<<_PageShift), s.npages<<_PageShift)
 		}
 	}
 	return sumreleased
@@ -930,7 +943,8 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	}
 
 	// Ensure that the span is swept.
-	// GC accesses specials list w/o locks. And it's just much safer.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
 	mp := acquirem()
 	mSpan_EnsureSwept(span)
 
@@ -977,7 +991,8 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 	}
 
 	// Ensure that the span is swept.
-	// GC accesses specials list w/o locks. And it's just much safer.
+	// Sweeping accesses the specials list w/o locks, so we have
+	// to synchronize with it. And it's just much safer.
 	mp := acquirem()
 	mSpan_EnsureSwept(span)
 
@@ -1025,12 +1040,31 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 	s.fint = fint
 	s.ot = ot
 	if addspecial(p, &s.special) {
+		// This is responsible for maintaining the same
+		// GC-related invariants as markrootSpans in any
+		// situation where it's possible that markrootSpans
+		// has already run but mark termination hasn't yet.
+		if gcphase != _GCoff {
+			_, base, _ := findObject(p)
+			mp := acquirem()
+			gcw := &mp.p.ptr().gcw
+			// Mark everything reachable from the object
+			// so it's retained for the finalizer.
+			scanobject(uintptr(base), gcw)
+			// Mark the finalizer itself, since the
+			// special isn't part of the GC'd heap.
+			scanblock(uintptr(unsafe.Pointer(&s.fn)), ptrSize, &oneptrmask[0], gcw)
+			if gcBlackenPromptly {
+				gcw.dispose()
+			}
+			releasem(mp)
+		}
 		return true
 	}
 
 	// There was an old finalizer
 	lock(&mheap_.speciallock)
-	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
+	fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(s))
 	unlock(&mheap_.speciallock)
 	return false
 }
@@ -1042,7 +1076,7 @@ func removefinalizer(p unsafe.Pointer) {
 		return // there wasn't a finalizer to remove
 	}
 	lock(&mheap_.speciallock)
-	fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(s))
+	fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(s))
 	unlock(&mheap_.speciallock)
 }
 
@@ -1073,14 +1107,14 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
 		sf := (*specialfinalizer)(unsafe.Pointer(s))
 		queuefinalizer(p, sf.fn, sf.nret, sf.fint, sf.ot)
 		lock(&mheap_.speciallock)
-		fixAlloc_Free(&mheap_.specialfinalizeralloc, (unsafe.Pointer)(sf))
+		fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(sf))
 		unlock(&mheap_.speciallock)
 		return false // don't free p until finalizer is done
 	case _KindSpecialProfile:
 		sp := (*specialprofile)(unsafe.Pointer(s))
 		mProf_Free(sp.b, size, freed)
 		lock(&mheap_.speciallock)
-		fixAlloc_Free(&mheap_.specialprofilealloc, (unsafe.Pointer)(sp))
+		fixAlloc_Free(&mheap_.specialprofilealloc, unsafe.Pointer(sp))
 		unlock(&mheap_.speciallock)
 		return true
 	default:

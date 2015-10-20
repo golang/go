@@ -353,10 +353,28 @@ func buildModeInit() {
 		}
 		ldBuildmode = "c-shared"
 	case "default":
-		ldBuildmode = "exe"
+		switch platform {
+		case "android/arm":
+			codegenArg = "-shared"
+			ldBuildmode = "pie"
+		default:
+			ldBuildmode = "exe"
+		}
 	case "exe":
 		pkgsFilter = pkgsMain
 		ldBuildmode = "exe"
+	case "pie":
+		if gccgo {
+			fatalf("-buildmode=pie not supported by gccgo")
+		} else {
+			switch platform {
+			case "android/arm":
+				codegenArg = "-shared"
+			default:
+				fatalf("-buildmode=pie not supported on %s\n", platform)
+			}
+		}
+		ldBuildmode = "pie"
 	case "shared":
 		pkgsFilter = pkgsNotMain
 		if gccgo {
@@ -501,6 +519,10 @@ func libname(args []string) string {
 }
 
 func runInstall(cmd *Command, args []string) {
+	if gobin != "" && !filepath.IsAbs(gobin) {
+		fatalf("cannot install, GOBIN must be an absolute path")
+	}
+
 	raceInit()
 	buildModeInit()
 	pkgs := pkgsFilter(packagesForBuild(args))
@@ -1233,12 +1255,6 @@ func (b *builder) build(a *action) (err error) {
 
 	if buildV {
 		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
-	}
-
-	if a.p.Standard && a.p.ImportPath == "runtime" && buildContext.Compiler == "gc" &&
-		(!hasString(a.p.GoFiles, "zgoos_"+buildContext.GOOS+".go") ||
-			!hasString(a.p.GoFiles, "zgoarch_"+buildContext.GOARCH+".go")) {
-		return fmt.Errorf("%s/%s must be bootstrapped using make%v", buildContext.GOOS, buildContext.GOARCH, defaultSuffix())
 	}
 
 	// Make build directory.
@@ -2875,7 +2891,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", obj)
 
 	// cgo
-	// TODO: CGOPKGPATH, CGO_FLAGS?
+	// TODO: CGO_FLAGS?
 	gofiles := []string{obj + "_cgo_gotypes.go"}
 	cfiles := []string{"_cgo_main.c", "_cgo_export.c"}
 	for _, fn := range cgofiles {
@@ -2943,7 +2959,9 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	var linkobj []string
 
 	var bareLDFLAGS []string
-	// filter out -lsomelib, -l somelib, *.{so,dll,dylib}, and (on Darwin) -framework X
+	// When linking relocatable objects, various flags need to be
+	// filtered out as they are inapplicable and can cause some linkers
+	// to fail.
 	for i := 0; i < len(cgoLDFLAGS); i++ {
 		f := cgoLDFLAGS[i]
 		switch {
@@ -2959,7 +2977,6 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 		case strings.HasSuffix(f, ".dylib"),
 			strings.HasSuffix(f, ".so"),
 			strings.HasSuffix(f, ".dll"):
-			continue
 		// Remove any -fsanitize=foo flags.
 		// Otherwise the compiler driver thinks that we are doing final link
 		// and links sanitizer runtime into the object file. But we are not doing
@@ -2968,6 +2985,16 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 		// See issue 8788 for details.
 		case strings.HasPrefix(f, "-fsanitize="):
 			continue
+		// runpath flags not applicable unless building a shared
+		// object or executable; see issue 12115 for details.  This
+		// is necessary as Go currently does not offer a way to
+		// specify the set of LDFLAGS that only apply to shared
+		// objects.
+		case strings.HasPrefix(f, "-Wl,-rpath"):
+			if f == "-Wl,-rpath" || f == "-Wl,-rpath-link" {
+				// Skip following argument to -rpath* too.
+				i++
+			}
 		default:
 			bareLDFLAGS = append(bareLDFLAGS, f)
 		}
@@ -3336,6 +3363,10 @@ func raceInit() {
 		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
+	if !buildContext.CgoEnabled {
+		fmt.Fprintf(os.Stderr, "go %s: -race requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0])
+		os.Exit(2)
+	}
 	buildGcflags = append(buildGcflags, "-race")
 	buildLdflags = append(buildLdflags, "-race")
 	if buildContext.InstallSuffix != "" {
@@ -3343,17 +3374,4 @@ func raceInit() {
 	}
 	buildContext.InstallSuffix += "race"
 	buildContext.BuildTags = append(buildContext.BuildTags, "race")
-}
-
-// defaultSuffix returns file extension used for command files in
-// current os environment.
-func defaultSuffix() string {
-	switch runtime.GOOS {
-	case "windows":
-		return ".bat"
-	case "plan9":
-		return ".rc"
-	default:
-		return ".bash"
-	}
 }

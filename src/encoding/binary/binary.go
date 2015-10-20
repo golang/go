@@ -135,6 +135,10 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
 // blank (_) field names is skipped; i.e., blank field names
 // may be used for padding.
 // When reading into a struct, all non-blank fields must be exported.
+//
+// The error is EOF only if no bytes were read.
+// If an EOF happens after reading some but not all the bytes,
+// Read returns ErrUnexpectedEOF.
 func Read(r io.Reader, order ByteOrder, data interface{}) error {
 	// Fast path for basic types and slices.
 	if n := intDataSize(data); n != 0 {

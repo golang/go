@@ -1695,7 +1695,7 @@ func TestRace9796(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		wg.Add(1)
 		go func() {
-			Marshal(B{[]A{A{}}})
+			Marshal(B{[]A{{}}})
 			wg.Done()
 		}()
 	}

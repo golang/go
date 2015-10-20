@@ -193,8 +193,7 @@ func formToClass(form format, attr Attr, vers int, b *buf) Class {
 		if class, ok := attrPtrClass[attr]; ok {
 			return class
 		}
-		b.error("cannot determine class of unknown attribute with formSecOffset")
-		return 0
+		return ClassUnknown
 
 	case formExprloc:
 		return ClassExprLoc
@@ -235,6 +234,9 @@ type Entry struct {
 //    loclistptr        int64          ClassLocListPtr
 //    macptr            int64          ClassMacPtr
 //    rangelistptr      int64          ClassRangeListPtr
+//
+// For unrecognized or vendor-defined attributes, Class may be
+// ClassUnknown.
 type Field struct {
 	Attr  Attr
 	Val   interface{}
@@ -258,9 +260,12 @@ type Field struct {
 type Class int
 
 const (
+	// ClassUnknown represents values of unknown DWARF class.
+	ClassUnknown Class = iota
+
 	// ClassAddress represents values of type uint64 that are
 	// addresses on the target machine.
-	ClassAddress Class = 1 + iota
+	ClassAddress
 
 	// ClassBlock represents values of type []byte whose
 	// interpretation depends on the attribute.

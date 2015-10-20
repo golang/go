@@ -116,6 +116,41 @@ func BenchmarkMemmove1024(b *testing.B) { bmMemmove(b, 1024) }
 func BenchmarkMemmove2048(b *testing.B) { bmMemmove(b, 2048) }
 func BenchmarkMemmove4096(b *testing.B) { bmMemmove(b, 4096) }
 
+func bmMemmoveUnaligned(b *testing.B, n int) {
+	x := make([]byte, n+1)
+	y := make([]byte, n)
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		copy(x[1:], y)
+	}
+}
+
+func BenchmarkMemmoveUnaligned0(b *testing.B)    { bmMemmoveUnaligned(b, 0) }
+func BenchmarkMemmoveUnaligned1(b *testing.B)    { bmMemmoveUnaligned(b, 1) }
+func BenchmarkMemmoveUnaligned2(b *testing.B)    { bmMemmoveUnaligned(b, 2) }
+func BenchmarkMemmoveUnaligned3(b *testing.B)    { bmMemmoveUnaligned(b, 3) }
+func BenchmarkMemmoveUnaligned4(b *testing.B)    { bmMemmoveUnaligned(b, 4) }
+func BenchmarkMemmoveUnaligned5(b *testing.B)    { bmMemmoveUnaligned(b, 5) }
+func BenchmarkMemmoveUnaligned6(b *testing.B)    { bmMemmoveUnaligned(b, 6) }
+func BenchmarkMemmoveUnaligned7(b *testing.B)    { bmMemmoveUnaligned(b, 7) }
+func BenchmarkMemmoveUnaligned8(b *testing.B)    { bmMemmoveUnaligned(b, 8) }
+func BenchmarkMemmoveUnaligned9(b *testing.B)    { bmMemmoveUnaligned(b, 9) }
+func BenchmarkMemmoveUnaligned10(b *testing.B)   { bmMemmoveUnaligned(b, 10) }
+func BenchmarkMemmoveUnaligned11(b *testing.B)   { bmMemmoveUnaligned(b, 11) }
+func BenchmarkMemmoveUnaligned12(b *testing.B)   { bmMemmoveUnaligned(b, 12) }
+func BenchmarkMemmoveUnaligned13(b *testing.B)   { bmMemmoveUnaligned(b, 13) }
+func BenchmarkMemmoveUnaligned14(b *testing.B)   { bmMemmoveUnaligned(b, 14) }
+func BenchmarkMemmoveUnaligned15(b *testing.B)   { bmMemmoveUnaligned(b, 15) }
+func BenchmarkMemmoveUnaligned16(b *testing.B)   { bmMemmoveUnaligned(b, 16) }
+func BenchmarkMemmoveUnaligned32(b *testing.B)   { bmMemmoveUnaligned(b, 32) }
+func BenchmarkMemmoveUnaligned64(b *testing.B)   { bmMemmoveUnaligned(b, 64) }
+func BenchmarkMemmoveUnaligned128(b *testing.B)  { bmMemmoveUnaligned(b, 128) }
+func BenchmarkMemmoveUnaligned256(b *testing.B)  { bmMemmoveUnaligned(b, 256) }
+func BenchmarkMemmoveUnaligned512(b *testing.B)  { bmMemmoveUnaligned(b, 512) }
+func BenchmarkMemmoveUnaligned1024(b *testing.B) { bmMemmoveUnaligned(b, 1024) }
+func BenchmarkMemmoveUnaligned2048(b *testing.B) { bmMemmoveUnaligned(b, 2048) }
+func BenchmarkMemmoveUnaligned4096(b *testing.B) { bmMemmoveUnaligned(b, 4096) }
+
 func TestMemclr(t *testing.T) {
 	size := 512
 	if testing.Short() {

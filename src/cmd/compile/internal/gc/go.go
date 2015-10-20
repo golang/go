@@ -210,7 +210,7 @@ type Type struct {
 	Embedlineno int32 // first use of TFORW as embedded type
 
 	// for TFORW, where to copy the eventual value to
-	Copyto *NodeList
+	Copyto []*Node
 
 	Lastfn *Node // for usefield
 }
@@ -376,18 +376,17 @@ type Sig struct {
 	type_  *Type
 	mtype  *Type
 	offset int32
-	link   *Sig
 }
 
 type Io struct {
 	infile     string
 	bin        *obj.Biobuf
-	nlsemi     int
-	eofnl      int
+	cp         string // used for content when bin==nil
 	last       int
 	peekc      int
-	peekc1     int    // second peekc for ...
-	cp         string // used for content when bin==nil
+	peekc1     int // second peekc for ...
+	nlsemi     bool
+	eofnl      bool
 	importsafe bool
 }
 
@@ -584,13 +583,13 @@ var maxfltval [NTYPE]*Mpflt
 
 var xtop *NodeList
 
-var externdcl *NodeList
+var externdcl []*Node
 
 var exportlist []*Node
 
 var importlist []*Node // imported functions and methods with inlinable bodies
 
-var funcsyms *NodeList
+var funcsyms []*Node
 
 var dclcontext uint8 // PEXTERN/PAUTO
 
@@ -598,7 +597,7 @@ var incannedimport int
 
 var statuniqgen int // name generator for static temps
 
-var loophack int
+var loophack bool
 
 var iota_ int32
 
@@ -629,12 +628,6 @@ var Widthreg int
 var typesw *Node
 
 var nblank *Node
-
-var hunk string
-
-var nhunk int32
-
-var thunk int32
 
 var Funcdepth int32
 

@@ -470,7 +470,6 @@ const debugServerConnections = false
 // Create new connection from rwc.
 func (srv *Server) newConn(rwc net.Conn) (c *conn, err error) {
 	c = new(conn)
-	c.remoteAddr = rwc.RemoteAddr().String()
 	c.server = srv
 	c.rwc = rwc
 	c.w = rwc
@@ -1290,6 +1289,7 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 
 // Serve a new connection.
 func (c *conn) serve() {
+	c.remoteAddr = c.rwc.RemoteAddr().String()
 	origConn := c.rwc // copy it before it's set nil on Close or Hijack
 	defer func() {
 		if err := recover(); err != nil {
@@ -1339,7 +1339,7 @@ func (c *conn) serve() {
 				// responding to them and hanging up
 				// while they're still writing their
 				// request.  Undefined behavior.
-				io.WriteString(c.rwc, "HTTP/1.1 413 Request Entity Too Large\r\n\r\n")
+				io.WriteString(c.rwc, "HTTP/1.1 413 Request Entity Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n413 Request Entity Too Large")
 				c.closeWriteAndWait()
 				break
 			} else if err == io.EOF {
@@ -1347,7 +1347,7 @@ func (c *conn) serve() {
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 				break // Don't reply
 			}
-			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\n\r\n")
+			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n400 Bad Request")
 			break
 		}
 
@@ -1806,7 +1806,8 @@ type Server struct {
 	// standard logger.
 	ErrorLog *log.Logger
 
-	disableKeepAlives int32 // accessed atomically.
+	disableKeepAlives int32     // accessed atomically.
+	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
 }
 
 // A ConnState represents the state of a client connection to a server.
@@ -1896,6 +1897,7 @@ func (srv *Server) ListenAndServe() error {
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
 	var tempDelay time.Duration // how long to sleep on accept failure
+	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
 	for {
 		rw, e := l.Accept()
 		if e != nil {
@@ -2050,6 +2052,14 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 
 	tlsListener := tls.NewListener(tcpKeepAliveListener{ln.(*net.TCPListener)}, config)
 	return srv.Serve(tlsListener)
+}
+
+func (srv *Server) setNextProtoDefaults() {
+	// Enable HTTP/2 by default if the user hasn't otherwise
+	// configured their TLSNextProto map.
+	if srv.TLSNextProto == nil {
+		http2ConfigureServer(srv, nil)
+	}
 }
 
 // TimeoutHandler returns a Handler that runs h with the given time limit.

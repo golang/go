@@ -47,9 +47,6 @@ var sigtable = [...]sigTabT{
 }
 
 //go:noescape
-func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
-
-//go:noescape
 func sigreturn(ctx unsafe.Pointer, infostyle uint32)
 
 //go:nosplit

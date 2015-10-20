@@ -156,6 +156,19 @@ func (r *Rand) Perm(n int) []int {
 	return m
 }
 
+// Read generates len(p) random bytes and writes them into p. It
+// always returns len(p) and a nil error.
+func (r *Rand) Read(p []byte) (n int, err error) {
+	for i := 0; i < len(p); i += 7 {
+		val := r.src.Int63()
+		for j := 0; i+j < len(p) && j < 7; j++ {
+			p[i+j] = byte(val)
+			val >>= 8
+		}
+	}
+	return len(p), nil
+}
+
 /*
  * Top-level convenience functions
  */
@@ -208,6 +221,10 @@ func Float32() float32 { return globalRand.Float32() }
 // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n)
 // from the default Source.
 func Perm(n int) []int { return globalRand.Perm(n) }
+
+// Read generates len(p) random bytes from the default Source and
+// writes them into p. It always returns len(p) and a nil error.
+func Read(p []byte) (n int, err error) { return globalRand.Read(p) }
 
 // NormFloat64 returns a normally distributed float64 in the range
 // [-math.MaxFloat64, +math.MaxFloat64] with

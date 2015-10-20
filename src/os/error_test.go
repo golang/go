@@ -93,6 +93,8 @@ var isExistTests = []struct {
 	{&os.LinkError{Err: os.ErrPermission}, false, false},
 	{&os.LinkError{Err: os.ErrExist}, true, false},
 	{&os.LinkError{Err: os.ErrNotExist}, false, true},
+	{&os.SyscallError{Err: os.ErrNotExist}, false, true},
+	{&os.SyscallError{Err: os.ErrExist}, true, false},
 	{nil, false, false},
 }
 
@@ -103,6 +105,23 @@ func TestIsExist(t *testing.T) {
 		}
 		if isnot := os.IsNotExist(tt.err); isnot != tt.isnot {
 			t.Errorf("os.IsNotExist(%T %v) = %v, want %v", tt.err, tt.err, isnot, tt.isnot)
+		}
+	}
+}
+
+var isPermissionTests = []struct {
+	err  error
+	want bool
+}{
+	{nil, false},
+	{&os.PathError{Err: os.ErrPermission}, true},
+	{&os.SyscallError{Err: os.ErrPermission}, true},
+}
+
+func TestIsPermission(t *testing.T) {
+	for _, tt := range isPermissionTests {
+		if got := os.IsPermission(tt.err); got != tt.want {
+			t.Errorf("os.IsPermission(%#v) = %v; want %v", tt.err, got, tt.want)
 		}
 	}
 }
