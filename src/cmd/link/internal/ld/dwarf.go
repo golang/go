@@ -1187,7 +1187,7 @@ func substitutetype(structdie *DWDie, field string, dwtype *DWDie) {
 }
 
 func synthesizestringtypes(die *DWDie) {
-	prototype := walktypedef(defgotype(lookup_or_diag("type.runtime._string")))
+	prototype := walktypedef(defgotype(lookup_or_diag("type.runtime.stringStructDWARF")))
 	if prototype == nil {
 		return
 	}

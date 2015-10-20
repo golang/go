@@ -67,11 +67,6 @@ type note struct {
 	key uintptr
 }
 
-type _string struct {
-	str *byte
-	len int
-}
-
 type funcval struct {
 	fn uintptr
 	// variable-size, fn-specific data here

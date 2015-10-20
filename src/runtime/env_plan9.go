@@ -40,8 +40,8 @@ func gogetenv(key string) string {
 	}
 
 	var s string
-	sp := (*_string)(unsafe.Pointer(&s))
-	sp.str = &p[0]
+	sp := stringStructOf(&s)
+	sp.str = unsafe.Pointer(&p[0])
 	sp.len = int(r)
 	return s
 }

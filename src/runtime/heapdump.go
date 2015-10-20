@@ -142,7 +142,7 @@ func dumpslice(b []byte) {
 }
 
 func dumpstr(s string) {
-	sp := (*stringStruct)(unsafe.Pointer(&s))
+	sp := stringStructOf(&s)
 	dumpmemrange(sp.str, uintptr(sp.len))
 }
 
@@ -183,8 +183,8 @@ func dumptype(t *_type) {
 	if t.x == nil || t.x.pkgpath == nil || t.x.name == nil {
 		dumpstr(*t._string)
 	} else {
-		pkgpath := (*stringStruct)(unsafe.Pointer(&t.x.pkgpath))
-		name := (*stringStruct)(unsafe.Pointer(&t.x.name))
+		pkgpath := stringStructOf(t.x.pkgpath)
+		name := stringStructOf(t.x.name)
 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
 		dwrite(pkgpath.str, uintptr(pkgpath.len))
 		dwritebyte('.')
