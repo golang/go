@@ -764,7 +764,7 @@ func simpleJoin(dir, path string) string {
 
 func TestEvalSymlinks(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "android", "nacl", "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 
