@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/internal/obj"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -1124,7 +1125,8 @@ func parsetag(note *string) uint16 {
 	if note == nil || !strings.HasPrefix(*note, "esc:") {
 		return EscUnknown
 	}
-	em := uint16(atoi((*note)[4:]))
+	n, _ := strconv.ParseInt((*note)[4:], 0, 0)
+	em := uint16(n)
 	if em == 0 {
 		return EscNone
 	}
