@@ -1808,6 +1808,7 @@ type Server struct {
 
 	disableKeepAlives int32     // accessed atomically.
 	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
+	nextProtoErr      error
 }
 
 // A ConnState represents the state of a client connection to a server.
@@ -1898,6 +1899,10 @@ func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
 	var tempDelay time.Duration // how long to sleep on accept failure
 	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
+	if srv.nextProtoErr != nil {
+		// Error from http2 ConfigureServer (e.g. bad ciphersuites)
+		return srv.nextProtoErr
+	}
 	for {
 		rw, e := l.Accept()
 		if e != nil {
@@ -2054,11 +2059,13 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	return srv.Serve(tlsListener)
 }
 
+// setNextProtoDefaults configures HTTP/2.
+// It must only be called via srv.nextProtoOnce.
 func (srv *Server) setNextProtoDefaults() {
 	// Enable HTTP/2 by default if the user hasn't otherwise
 	// configured their TLSNextProto map.
 	if srv.TLSNextProto == nil {
-		http2ConfigureServer(srv, nil)
+		srv.nextProtoErr = http2ConfigureServer(srv, nil)
 	}
 }
 
