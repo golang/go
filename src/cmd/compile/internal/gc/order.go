@@ -434,7 +434,7 @@ func ordermapassign(n *Node, order *Order) {
 				a = Nod(OAS, m, l.N)
 				typecheck(&a, Etop)
 				post = list(post, a)
-			} else if flag_race != 0 && n.Op == OAS2FUNC && !isblank(l.N) {
+			} else if instrumenting && n.Op == OAS2FUNC && !isblank(l.N) {
 				m = l.N
 				l.N = ordertemp(m.Type, order, false)
 				a = Nod(OAS, m, l.N)
@@ -1093,7 +1093,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		OREAL,
 		ORECOVER:
 		ordercall(n, order)
-		if lhs == nil || lhs.Op != ONAME || flag_race != 0 {
+		if lhs == nil || lhs.Op != ONAME || instrumenting {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 
@@ -1153,7 +1153,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		// TODO(rsc): The Isfat is for consistency with componentgen and walkexpr.
 		// It needs to be removed in all three places.
 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
-		if !isdirectiface(n.Type) || Isfat(n.Type) || flag_race != 0 {
+		if !isdirectiface(n.Type) || Isfat(n.Type) || instrumenting {
 			n = ordercopyexpr(n, n.Type, order, 1)
 		}
 

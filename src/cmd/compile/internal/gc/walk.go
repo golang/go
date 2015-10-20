@@ -237,7 +237,7 @@ func walkstmt(np **Node) {
 			walkprintfunc(&n.Left, &n.Ninit)
 
 		case OCOPY:
-			n.Left = copyany(n.Left, &n.Ninit, 1)
+			n.Left = copyany(n.Left, &n.Ninit, true)
 
 		default:
 			walkexpr(&n.Left, &n.Ninit)
@@ -269,7 +269,7 @@ func walkstmt(np **Node) {
 			walkprintfunc(&n.Left, &n.Ninit)
 
 		case OCOPY:
-			n.Left = copyany(n.Left, &n.Ninit, 1)
+			n.Left = copyany(n.Left, &n.Ninit, true)
 
 		default:
 			walkexpr(&n.Left, &n.Ninit)
@@ -678,7 +678,7 @@ func walkexpr(np **Node, init **NodeList) {
 			goto ret
 		}
 
-		if n.Right == nil || iszero(n.Right) && flag_race == 0 {
+		if n.Right == nil || iszero(n.Right) && !instrumenting {
 			goto ret
 		}
 
@@ -690,7 +690,7 @@ func walkexpr(np **Node, init **NodeList) {
 			// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
 			// It needs to be removed in all three places.
 			// That would allow inlining x.(struct{*int}) the same as x.(*int).
-			if isdirectiface(n.Right.Type) && !Isfat(n.Right.Type) && flag_race == 0 {
+			if isdirectiface(n.Right.Type) && !Isfat(n.Right.Type) && !instrumenting {
 				// handled directly during cgen
 				walkexpr(&n.Right, init)
 				break
@@ -895,7 +895,7 @@ func walkexpr(np **Node, init **NodeList) {
 		// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
 		// It needs to be removed in all three places.
 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
-		if isdirectiface(e.Type) && !Isfat(e.Type) && flag_race == 0 {
+		if isdirectiface(e.Type) && !Isfat(e.Type) && !instrumenting {
 			// handled directly during gen.
 			walkexprlistsafe(n.List, init)
 			walkexpr(&e.Left, init)
@@ -1412,7 +1412,7 @@ func walkexpr(np **Node, init **NodeList) {
 		Fatalf("append outside assignment")
 
 	case OCOPY:
-		n = copyany(n, init, flag_race)
+		n = copyany(n, init, instrumenting)
 		goto ret
 
 		// cannot use chanfn - closechan takes any, not chan any
@@ -2938,7 +2938,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 		substArgTypes(fn, l1.Type, l2.Type)
 		nt := mkcall1(fn, Types[TINT], &l, typename(l1.Type.Type), nptr1, nptr2)
 		l = list(l, nt)
-	} else if flag_race != 0 {
+	} else if instrumenting {
 		// rely on runtime to instrument copy.
 		// copy(s[len(l1):len(l1)+len(l2)], l2)
 		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))))
@@ -3038,7 +3038,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 
 	// General case, with no function calls left as arguments.
 	// Leave for gen, except that race detector requires old form
-	if flag_race == 0 {
+	if !instrumenting {
 		return n
 	}
 
@@ -3091,13 +3091,13 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 //
 // Also works if b is a string.
 //
-func copyany(n *Node, init **NodeList, runtimecall int) *Node {
+func copyany(n *Node, init **NodeList, runtimecall bool) *Node {
 	if haspointers(n.Left.Type.Type) {
 		fn := writebarrierfn("typedslicecopy", n.Left.Type, n.Right.Type)
 		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Type), n.Left, n.Right)
 	}
 
-	if runtimecall != 0 {
+	if runtimecall {
 		var fn *Node
 		if n.Right.Type.Etype == TSTRING {
 			fn = syslook("slicestringcopy", 1)
