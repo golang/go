@@ -174,6 +174,17 @@ func DynlinkingGo() bool {
 	return Buildmode == BuildmodeShared || Linkshared
 }
 
+// UseRelro returns whether to make use of "read only relocations" aka
+// relro.
+func UseRelro() bool {
+	switch Buildmode {
+	case BuildmodeCShared, BuildmodeShared, BuildmodePIE:
+		return Iself
+	default:
+		return false
+	}
+}
+
 var (
 	Thestring          string
 	Thelinkarch        *LinkArch
@@ -272,6 +283,7 @@ type BuildMode uint8
 const (
 	BuildmodeUnset BuildMode = iota
 	BuildmodeExe
+	BuildmodePIE
 	BuildmodeCArchive
 	BuildmodeCShared
 	BuildmodeShared
@@ -288,6 +300,13 @@ func (mode *BuildMode) Set(s string) error {
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
 		*mode = BuildmodeExe
+	case "pie":
+		switch goos {
+		case "android":
+		default:
+			return badmode()
+		}
+		*mode = BuildmodePIE
 	case "c-archive":
 		switch goos {
 		case "darwin", "linux":
@@ -301,7 +320,7 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeCShared
 	case "shared":
-		if goos != "linux" || goarch != "amd64" {
+		if goos != "linux" || (goarch != "amd64" && goarch != "arm") {
 			return badmode()
 		}
 		*mode = BuildmodeShared
@@ -315,6 +334,8 @@ func (mode *BuildMode) String() string {
 		return "" // avoid showing a default in usage message
 	case BuildmodeExe:
 		return "exe"
+	case BuildmodePIE:
+		return "pie"
 	case BuildmodeCArchive:
 		return "c-archive"
 	case BuildmodeCShared:
@@ -369,7 +390,7 @@ func libinit() {
 		switch Buildmode {
 		case BuildmodeCShared, BuildmodeCArchive:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
-		case BuildmodeExe:
+		case BuildmodeExe, BuildmodePIE:
 			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
 		case BuildmodeShared:
 			// No INITENTRY for -buildmode=shared
@@ -543,17 +564,14 @@ func loadlib() {
 
 	tlsg := Linklookup(Ctxt, "runtime.tlsg", 0)
 
-	// For most ports, runtime.tlsg is a placeholder symbol for TLS
-	// relocation. However, the Android and Darwin arm ports need it
-	// to be a real variable.
-	//
-	// TODO(crawshaw): android should require leaving the tlsg->type
-	// alone (as the runtime-provided SNOPTRBSS) just like darwin/arm.
-	// But some other part of the linker is expecting STLSBSS.
-	if tlsg.Type != obj.SDYNIMPORT && (goos != "darwin" || Thearch.Thechar != '5') {
+	// runtime.tlsg is used for external linking on platforms that do not define
+	// a variable to hold g in assembly (currently only intel).
+	if tlsg.Type == 0 {
 		tlsg.Type = obj.STLSBSS
+		tlsg.Size = int64(Thearch.Ptrsize)
+	} else if tlsg.Type != obj.SDYNIMPORT {
+		Diag("internal error: runtime declared tlsg variable %d", tlsg.Type)
 	}
-	tlsg.Size = int64(Thearch.Ptrsize)
 	tlsg.Reachable = true
 	Ctxt.Tlsg = tlsg
 
@@ -620,8 +638,11 @@ func loadlib() {
 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
 	// Also leave it enabled on Solaris which doesn't support
 	// statically linked binaries.
-	if Buildmode == BuildmodeExe && havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
-		Debug['d'] = 1
+	switch Buildmode {
+	case BuildmodeExe, BuildmodePIE:
+		if havedynamic == 0 && HEADTYPE != obj.Hdarwin && HEADTYPE != obj.Hsolaris {
+			Debug['d'] = 1
+		}
 	}
 
 	importcycles()
@@ -975,12 +996,20 @@ func hostlink() {
 		if HEADTYPE == obj.Hdarwin {
 			argv = append(argv, "-Wl,-pagezero_size,4000000")
 		}
+	case BuildmodePIE:
+		argv = append(argv, "-pie")
 	case BuildmodeCShared:
 		if HEADTYPE == obj.Hdarwin {
 			argv = append(argv, "-dynamiclib")
 		} else {
+			// ELF.
 			argv = append(argv, "-Wl,-Bsymbolic")
-			argv = append(argv, "-shared")
+			if UseRelro() {
+				argv = append(argv, "-Wl,-z,relro")
+			}
+			// Pass -z nodelete to mark the shared library as
+			// non-closeable: a dlclose will do nothing.
+			argv = append(argv, "-shared", "-Wl,-z,nodelete")
 		}
 	case BuildmodeShared:
 		// TODO(mwhudson): unless you do this, dynamic relocations fill
@@ -991,10 +1020,13 @@ func hostlink() {
 		// think we may well end up wanting to use -Bsymbolic here
 		// anyway.
 		argv = append(argv, "-Wl,-Bsymbolic-functions")
+		if UseRelro() {
+			argv = append(argv, "-Wl,-z,relro")
+		}
 		argv = append(argv, "-shared")
 	}
 
-	if Linkshared && Iself {
+	if Iself && DynlinkingGo() {
 		// We force all symbol resolution to be done at program startup
 		// because lazy PLT resolution can use large amounts of stack at
 		// times we cannot allow it to do so.
@@ -1771,6 +1803,13 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			obj.SGOSTRING,
 			obj.SGOFUNC,
 			obj.SGCBITS,
+			obj.STYPERELRO,
+			obj.SSTRINGRELRO,
+			obj.SGOSTRINGRELRO,
+			obj.SGOFUNCRELRO,
+			obj.SGCBITSRELRO,
+			obj.SRODATARELRO,
+			obj.STYPELINK,
 			obj.SWINDOWS:
 			if !s.Reachable {
 				continue
@@ -1802,13 +1841,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 
 		case obj.STLSBSS:
 			if Linkmode == LinkExternal && HEADTYPE != obj.Hopenbsd {
-				var type_ int
-				if goos == "android" {
-					type_ = 'B'
-				} else {
-					type_ = 't'
-				}
-				put(s, s.Name, type_, Symaddr(s), s.Size, int(s.Version), s.Gotype)
+				put(s, s.Name, 't', Symaddr(s), s.Size, int(s.Version), s.Gotype)
 			}
 		}
 	}

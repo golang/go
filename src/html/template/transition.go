@@ -169,7 +169,7 @@ func tBeforeValue(c context, s []byte) (context, int) {
 	case '"':
 		delim, i = delimDoubleQuote, i+1
 	}
-	c.state, c.delim, c.attr = attrStartStates[c.attr], delim, attrNone
+	c.state, c.delim = attrStartStates[c.attr], delim
 	return c, i
 }
 

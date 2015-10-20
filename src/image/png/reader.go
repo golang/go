@@ -154,8 +154,8 @@ func (d *decoder) parseIHDR(length uint32) error {
 	d.interlace = int(d.tmp[12])
 	w := int32(binary.BigEndian.Uint32(d.tmp[0:4]))
 	h := int32(binary.BigEndian.Uint32(d.tmp[4:8]))
-	if w < 0 || h < 0 {
-		return FormatError("negative dimension")
+	if w <= 0 || h <= 0 {
+		return FormatError("non-positive dimension")
 	}
 	nPixels := int64(w) * int64(h)
 	if nPixels != int64(int(nPixels)) {
@@ -726,6 +726,9 @@ func (d *decoder) parseChunk() error {
 		}
 		d.stage = dsSeenIEND
 		return d.parseIEND(length)
+	}
+	if length > 0x7fffffff {
+		return FormatError(fmt.Sprintf("Bad chunk length: %d", length))
 	}
 	// Ignore this chunk (of a known length).
 	var ignored [4096]byte

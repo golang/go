@@ -310,7 +310,8 @@ func (e element) String() string {
 	return fmt.Sprintf("illegal element %d", int(e))
 }
 
-// attr identifies the most recent HTML attribute when inside a start tag.
+// attr identifies the current HTML attribute when inside the attribute,
+// that is, starting from stateAttrName until stateTag/stateText (exclusive).
 type attr uint8
 
 const (

@@ -247,11 +247,11 @@ func (p *Prog) From3Offset() int64 {
 // by clients such as the compiler. The exact meaning of this
 // data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
 type ProgInfo struct {
+	_        struct{} // to prevent unkeyed literals. Trailing zero-sized field will take space.
 	Flags    uint32   // flag bits
 	Reguse   uint64   // registers implicitly used by this instruction
 	Regset   uint64   // registers implicitly set by this instruction
 	Regindex uint64   // registers used by addressing mode
-	_        struct{} // to prevent unkeyed literals
 }
 
 // Prog.as opcodes.
@@ -334,6 +334,7 @@ const (
 	Sxxx = iota
 	STEXT
 	SELFRXSECT
+
 	STYPE
 	SSTRING
 	SGOSTRING
@@ -341,6 +342,25 @@ const (
 	SGCBITS
 	SRODATA
 	SFUNCTAB
+
+	// Types STYPE-SFUNCTAB above are written to the .rodata section by default.
+	// When linking a shared object, some conceptually "read only" types need to
+	// be written to by relocations and putting them in a section called
+	// ".rodata" interacts poorly with the system linkers. The GNU linkers
+	// support this situation by arranging for sections of the name
+	// ".data.rel.ro.XXX" to be mprotected read only by the dynamic linker after
+	// relocations have applied, so when the Go linker is creating a shared
+	// object it checks all objects of the above types and bumps any object that
+	// has a relocation to it to the corresponding type below, which are then
+	// written to sections with appropriate magic names.
+	STYPERELRO
+	SSTRINGRELRO
+	SGOSTRINGRELRO
+	SGOFUNCRELRO
+	SGCBITSRELRO
+	SRODATARELRO
+	SFUNCTABRELRO
+
 	STYPELINK
 	SSYMTAB
 	SPCLNTAB
@@ -394,23 +414,16 @@ const (
 	R_CALLPOWER
 	R_CONST
 	R_PCREL
-	// R_TLS (only used on arm currently, and not on android and darwin where tlsg is
-	// a regular variable) resolves to data needed to access the thread-local g. It is
-	// interpreted differently depending on toolchain flags to implement either the
-	// "local exec" or "inital exec" model for tls access.
-	// TODO(mwhudson): change to use R_TLS_LE or R_TLS_IE as appropriate, not having
-	// R_TLS do double duty.
-	R_TLS
-	// R_TLS_LE (only used on 386 and amd64 currently) resolves to the offset of the
-	// thread-local g from the thread local base and is used to implement the "local
-	// exec" model for tls access (r.Sym is not set by the compiler for this case but
-	// is set to Tlsg in the linker when externally linking).
+	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
+	// thread-local symbol from the thread local base and is used to implement the
+	// "local exec" model for tls access (r.Sym is not set on intel platforms but is
+	// set to a TLS symbol -- runtime.tlsg -- in the linker when externally linking).
 	R_TLS_LE
-	// R_TLS_IE (only used on 386 and amd64 currently) resolves to the PC-relative
-	// offset to a GOT slot containing the offset the thread-local g from the thread
-	// local base and is used to implemented the "initial exec" model for tls access
-	// (r.Sym is not set by the compiler for this case but is set to Tlsg in the
-	// linker when externally linking).
+	// R_TLS_IE, used 386, amd64, and ARM resolves to the PC-relative offset to a GOT
+	// slot containing the offset from the thread-local symbol from the thread local
+	// base and is used to implemented the "initial exec" model for tls access (r.Sym
+	// is not set on intel platforms but is set to a TLS symbol -- runtime.tlsg -- in
+	// the linker when externally linking).
 	R_TLS_IE
 	R_GOTOFF
 	R_PLT0
@@ -485,13 +498,13 @@ type Link struct {
 	Sym_divu           *LSym
 	Sym_mod            *LSym
 	Sym_modu           *LSym
-	Tlsg               *LSym
 	Plan9privates      *LSym
 	Curp               *Prog
 	Printp             *Prog
 	Blitrl             *Prog
 	Elitrl             *Prog
 	Rexflag            int
+	Vexflag            int
 	Rep                int
 	Repn               int
 	Lock               int
@@ -508,6 +521,19 @@ type Link struct {
 	Version            int
 	Textp              *LSym
 	Etextp             *LSym
+}
+
+// The smallest possible offset from the hardware stack pointer to a local
+// variable on the stack. Architectures that use a link register save its value
+// on the stack in the function prologue and so always have a pointer between
+// the hardware stack pointer and the local variable area.
+func (ctxt *Link) FixedFrameSize() int64 {
+	switch ctxt.Arch.Thechar {
+	case '6', '8':
+		return 0
+	default:
+		return int64(ctxt.Arch.Ptrsize)
+	}
 }
 
 type SymVer struct {

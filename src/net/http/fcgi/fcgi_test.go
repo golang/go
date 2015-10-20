@@ -254,3 +254,27 @@ func TestChildServeCleansUp(t *testing.T) {
 		<-done
 	}
 }
+
+type rwNopCloser struct {
+	io.Reader
+	io.Writer
+}
+
+func (rwNopCloser) Close() error {
+	return nil
+}
+
+// Verifies it doesn't crash. 	Issue 11824.
+func TestMalformedParams(t *testing.T) {
+	input := []byte{
+		// beginRequest, requestId=1, contentLength=8, role=1, keepConn=1
+		1, 1, 0, 1, 0, 8, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0,
+		// params, requestId=1, contentLength=10, k1Len=50, v1Len=50 (malformed, wrong length)
+		1, 4, 0, 1, 0, 10, 0, 0, 50, 50, 3, 4, 5, 6, 7, 8, 9, 10,
+		// end of params
+		1, 4, 0, 1, 0, 0, 0, 0,
+	}
+	rw := rwNopCloser{bytes.NewReader(input), ioutil.Discard}
+	c := newChild(rw, http.DefaultServeMux)
+	c.serve()
+}

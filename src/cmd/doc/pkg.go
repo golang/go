@@ -16,6 +16,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -44,6 +46,51 @@ type PackageError string // type returned by pkg.Fatalf.
 
 func (p PackageError) Error() string {
 	return string(p)
+}
+
+// prettyPath returns a version of the package path that is suitable for an
+// error message. It obeys the import comment if present. Also, since
+// pkg.build.ImportPath is sometimes the unhelpful "" or ".", it looks for a
+// directory name in GOROOT or GOPATH if that happens.
+func (pkg *Package) prettyPath() string {
+	path := pkg.build.ImportComment
+	if path == "" {
+		path = pkg.build.ImportPath
+	}
+	if path != "." && path != "" {
+		return path
+	}
+	// Convert the source directory into a more useful path.
+	// Also convert everything to slash-separated paths for uniform handling.
+	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
+	// Can we find a decent prefix?
+	goroot := filepath.Join(build.Default.GOROOT, "src")
+	if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
+		return p
+	}
+	for _, gopath := range splitGopath() {
+		if p, ok := trim(path, filepath.ToSlash(gopath)); ok {
+			return p
+		}
+	}
+	return path
+}
+
+// trim trims the directory prefix from the path, paying attention
+// to the path separator. If they are the same string or the prefix
+// is not present the original is returned. The boolean reports whether
+// the prefix is present. That path and prefix have slashes for separators.
+func trim(path, prefix string) (string, bool) {
+	if !strings.HasPrefix(path, prefix) {
+		return path, false
+	}
+	if path == prefix {
+		return path, true
+	}
+	if path[len(prefix)] == '/' {
+		return path[len(prefix)+1:], true
+	}
+	return path, false // Textual prefix but not a path prefix.
 }
 
 // pkg.Fatalf is like log.Fatalf, but panics so it can be recovered in the
@@ -140,10 +187,12 @@ func (pkg *Package) emit(comment string, node ast.Node) {
 			log.Fatal(err)
 		}
 		if comment != "" {
-			pkg.newlines(2) // Guarantee blank line before comment.
+			pkg.newlines(1)
 			doc.ToText(&pkg.buf, comment, "    ", indent, indentedWidth)
+			pkg.newlines(2) // Blank line after comment to separate from next item.
+		} else {
+			pkg.newlines(1)
 		}
-		pkg.newlines(1)
 	}
 }
 
@@ -218,7 +267,7 @@ func (pkg *Package) packageDoc() {
 		return
 	}
 
-	pkg.newlines(1)
+	pkg.newlines(2) // Guarantee blank line before the components.
 	pkg.valueSummary(pkg.doc.Consts)
 	pkg.valueSummary(pkg.doc.Vars)
 	pkg.funcSummary(pkg.doc.Funcs)
@@ -257,18 +306,7 @@ func (pkg *Package) packageClause(checkUserPath bool) {
 // valueSummary prints a one-line summary for each set of values and constants.
 func (pkg *Package) valueSummary(values []*doc.Value) {
 	for _, value := range values {
-		// Only print first item in spec, show ... to stand for the rest.
-		spec := value.Decl.Specs[0].(*ast.ValueSpec) // Must succeed.
-		exported := true
-		for _, name := range spec.Names {
-			if !isExported(name.Name) {
-				exported = false
-				break
-			}
-		}
-		if exported {
-			pkg.oneLineValueGenDecl(value.Decl)
-		}
+		pkg.oneLineValueGenDecl(value.Decl)
 	}
 }
 
@@ -355,7 +393,7 @@ func (pkg *Package) findTypeSpec(decl *ast.GenDecl, symbol string) *ast.TypeSpec
 // symbolDoc prints the docs for symbol. There may be multiple matches.
 // If symbol matches a type, output includes its methods factories and associated constants.
 // If there is no top-level symbol, symbolDoc looks for methods that match.
-func (pkg *Package) symbolDoc(symbol string) {
+func (pkg *Package) symbolDoc(symbol string) bool {
 	defer pkg.flush()
 	found := false
 	// Functions.
@@ -424,9 +462,10 @@ func (pkg *Package) symbolDoc(symbol string) {
 	if !found {
 		// See if there are methods.
 		if !pkg.printMethodDoc("", symbol) {
-			log.Printf("symbol %s not present in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
+			return false
 		}
 	}
+	return true
 }
 
 // trimUnexportedElems modifies spec in place to elide unexported fields from
@@ -467,11 +506,7 @@ func trimUnexportedFields(fields *ast.FieldList, what string) *ast.FieldList {
 	unexportedField := &ast.Field{
 		Type: ast.NewIdent(""), // Hack: printer will treat this as a field with a named type.
 		Comment: &ast.CommentGroup{
-			List: []*ast.Comment{
-				&ast.Comment{
-					Text: fmt.Sprintf("// Has unexported %s.\n", what),
-				},
-			},
+			List: []*ast.Comment{{Text: fmt.Sprintf("// Has unexported %s.\n", what)}},
 		},
 	}
 	return &ast.FieldList{
@@ -508,11 +543,9 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 }
 
 // methodDoc prints the docs for matches of symbol.method.
-func (pkg *Package) methodDoc(symbol, method string) {
+func (pkg *Package) methodDoc(symbol, method string) bool {
 	defer pkg.flush()
-	if !pkg.printMethodDoc(symbol, method) {
-		pkg.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
-	}
+	return pkg.printMethodDoc(symbol, method)
 }
 
 // match reports whether the user's symbol matches the program's.

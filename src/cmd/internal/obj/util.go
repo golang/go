@@ -457,13 +457,25 @@ func Mconv(a *Addr) string {
 		}
 
 	case NAME_EXTERN:
-		str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s%s(SB)", a.Sym.Name, offConv(a.Offset))
+		} else {
+			str = fmt.Sprintf("%s(SB)", offConv(a.Offset))
+		}
 
 	case NAME_GOTREF:
-		str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s%s@GOT(SB)", a.Sym.Name, offConv(a.Offset))
+		} else {
+			str = fmt.Sprintf("%s@GOT(SB)", offConv(a.Offset))
+		}
 
 	case NAME_STATIC:
-		str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
+		if a.Sym != nil {
+			str = fmt.Sprintf("%s<>%s(SB)", a.Sym.Name, offConv(a.Offset))
+		} else {
+			str = fmt.Sprintf("<>%s(SB)", offConv(a.Offset))
+		}
 
 	case NAME_AUTO:
 		if a.Sym != nil {

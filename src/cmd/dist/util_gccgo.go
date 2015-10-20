@@ -18,3 +18,7 @@ int supports_sse2() {
 import "C"
 
 func cansse2() bool { return C.supports_sse2() != 0 }
+
+func useVFPv1() {}
+
+func useVFPv3() {}

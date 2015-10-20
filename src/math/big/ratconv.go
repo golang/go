@@ -188,11 +188,15 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
 
 // String returns a string representation of x in the form "a/b" (even if b == 1).
 func (x *Rat) String() string {
-	s := "/1"
+	var buf []byte
+	buf = x.a.Append(buf, 10)
+	buf = append(buf, '/')
 	if len(x.b.abs) != 0 {
-		s = "/" + x.b.abs.decimalString()
+		buf = x.b.Append(buf, 10)
+	} else {
+		buf = append(buf, '1')
 	}
-	return x.a.String() + s
+	return string(buf)
 }
 
 // RatString returns a string representation of x in the form "a/b" if b != 1,
@@ -208,12 +212,17 @@ func (x *Rat) RatString() string {
 // digits of precision after the decimal point. The last digit is rounded to
 // nearest, with halves rounded away from zero.
 func (x *Rat) FloatString(prec int) string {
+	var buf []byte
+
 	if x.IsInt() {
-		s := x.a.String()
+		buf = x.a.Append(buf, 10)
 		if prec > 0 {
-			s += "." + strings.Repeat("0", prec)
+			buf = append(buf, '.')
+			for i := prec; i > 0; i-- {
+				buf = append(buf, '0')
+			}
 		}
-		return s
+		return string(buf)
 	}
 	// x.b.abs != 0
 
@@ -237,16 +246,19 @@ func (x *Rat) FloatString(prec int) string {
 		}
 	}
 
-	s := q.decimalString()
 	if x.a.neg {
-		s = "-" + s
+		buf = append(buf, '-')
 	}
+	buf = append(buf, q.utoa(10)...) // itoa ignores sign if q == 0
 
 	if prec > 0 {
-		rs := r.decimalString()
-		leadingZeros := prec - len(rs)
-		s += "." + strings.Repeat("0", leadingZeros) + rs
+		buf = append(buf, '.')
+		rs := r.utoa(10)
+		for i := prec - len(rs); i > 0; i-- {
+			buf = append(buf, '0')
+		}
+		buf = append(buf, rs...)
 	}
 
-	return s
+	return string(buf)
 }

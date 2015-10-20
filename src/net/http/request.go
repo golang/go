@@ -354,7 +354,7 @@ const defaultUserAgent = "Go-http-client/1.1"
 // hasn't been set to "identity", Write adds "Transfer-Encoding:
 // chunked" to the header. Body is closed after it is sent.
 func (r *Request) Write(w io.Writer) error {
-	return r.write(w, false, nil)
+	return r.write(w, false, nil, nil)
 }
 
 // WriteProxy is like Write but writes the request in the form
@@ -364,11 +364,12 @@ func (r *Request) Write(w io.Writer) error {
 // In either case, WriteProxy also writes a Host header, using
 // either r.Host or r.URL.Host.
 func (r *Request) WriteProxy(w io.Writer) error {
-	return r.write(w, true, nil)
+	return r.write(w, true, nil, nil)
 }
 
 // extraHeaders may be nil
-func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) error {
+// waitForContinue may be nil
+func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) error {
 	// Find the target host. Prefer the Host: header, but if that
 	// is not given, use the host from the request URL.
 	//
@@ -456,6 +457,21 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
 	_, err = io.WriteString(w, "\r\n")
 	if err != nil {
 		return err
+	}
+
+	// Flush and wait for 100-continue if expected.
+	if waitForContinue != nil {
+		if bw, ok := w.(*bufio.Writer); ok {
+			err = bw.Flush()
+			if err != nil {
+				return err
+			}
+		}
+
+		if !waitForContinue() {
+			req.closeBody()
+			return nil
+		}
 	}
 
 	// Write body and trailer

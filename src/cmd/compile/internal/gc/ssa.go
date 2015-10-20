@@ -2120,10 +2120,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 
 	// Set receiver (for interface calls)
 	if rcvr != nil {
-		var argStart int64
-		if HasLinkRegister() {
-			argStart += int64(Widthptr)
-		}
+		argStart := Ctxt.FixedFrameSize()
 		if k != callNormal {
 			argStart += int64(2 * Widthptr)
 		}
@@ -3737,6 +3734,12 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_ADDR
 		p.To.Sym = Linksym(Pkglookup("duffzero", Runtimepkg))
 		p.To.Offset = v.AuxInt
+	case ssa.OpAMD64MOVOconst:
+		if v.AuxInt != 0 {
+			v.Unimplementedf("MOVOconst can only do constant=0")
+		}
+		r := regnum(v)
+		opregreg(x86.AXORPS, r, r)
 
 	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
 		if v.Type.IsMemory() {

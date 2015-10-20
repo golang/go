@@ -1596,8 +1596,6 @@ func Sconv(s *Sym, flag int) string {
 
 	sf := flag
 	sm := setfmode(&flag)
-	var r int
-	_ = r
 	str := symfmt(s, flag)
 	flag = sf
 	fmtmode = sm
@@ -1632,8 +1630,6 @@ func Tconv(t *Type, flag int) string {
 		flag |= obj.FmtUnsigned
 	}
 
-	var r int
-	_ = r
 	str := typefmt(t, flag)
 
 	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
@@ -1660,8 +1656,6 @@ func Nconv(n *Node, flag int) string {
 	sf := flag
 	sm := setfmode(&flag)
 
-	var r int
-	_ = r
 	var str string
 	switch fmtmode {
 	case FErr, FExp:
@@ -1694,8 +1688,6 @@ func Hconv(l *NodeList, flag int) string {
 
 	sf := flag
 	sm := setfmode(&flag)
-	var r int
-	_ = r
 	sep := "; "
 	if fmtmode == FDbg {
 		sep = "\n"

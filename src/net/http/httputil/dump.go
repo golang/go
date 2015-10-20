@@ -55,9 +55,9 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// DumpRequestOut is like DumpRequest but includes
-// headers that the standard http.Transport adds,
-// such as User-Agent.
+// DumpRequestOut is like DumpRequest but for outgoing client requests. It
+// includes any headers that the standard http.Transport adds, such as
+// User-Agent.
 func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	save := req.Body
 	dummyBody := false
@@ -175,8 +175,10 @@ func dumpAsReceived(req *http.Request, w io.Writer) error {
 	return nil
 }
 
-// DumpRequest returns the as-received wire representation of req,
-// optionally including the request body, for debugging.
+// DumpRequest returns the as-received wire representation of req, optionally
+// including the request body, for debugging. It is for use in servers; use
+// DumpRequestOut for client requests.
+//
 // DumpRequest is semantically a no-op, but in order to
 // dump the body, it reads the body data into memory and
 // changes req.Body to refer to the in-memory copy.

@@ -293,6 +293,7 @@ var armOperandTests = []operandTest{
 	{"[R0,R1,g,R15", ""}, // Issue 11764 - asm hung parsing ']' missing register lists.
 	{"[):[o-FP", ""},     // Issue 12469 - there was no infinite loop for ARM; these are just sanity checks.
 	{"[):[R0-FP", ""},
+	{"(", ""}, // Issue 12466 - backed up before beginning of line.
 }
 
 var ppc64OperandTests = []operandTest{

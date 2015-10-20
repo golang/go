@@ -57,7 +57,7 @@ import (
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
-// skips that field and completes the unmarshalling as best it can.
+// skips that field and completes the unmarshaling as best it can.
 // If no more serious errors are encountered, Unmarshal returns
 // an UnmarshalTypeError describing the earliest such error.
 //
@@ -241,7 +241,7 @@ func (d *decodeState) scanWhile(op int) int {
 			newOp = d.scan.eof()
 			d.off = len(d.data) + 1 // mark processed EOF with len+1
 		} else {
-			c := int(d.data[d.off])
+			c := d.data[d.off]
 			d.off++
 			newOp = d.scan.step(&d.scan, c)
 		}

@@ -12,6 +12,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -182,32 +183,50 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 // X509KeyPair parses a public/private key pair from a pair of
 // PEM encoded data.
 func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
-	var cert Certificate
-	var certDERBlock *pem.Block
 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
+
+	var cert Certificate
+	var skippedBlockTypes []string
 	for {
+		var certDERBlock *pem.Block
 		certDERBlock, certPEMBlock = pem.Decode(certPEMBlock)
 		if certDERBlock == nil {
 			break
 		}
 		if certDERBlock.Type == "CERTIFICATE" {
 			cert.Certificate = append(cert.Certificate, certDERBlock.Bytes)
+		} else {
+			skippedBlockTypes = append(skippedBlockTypes, certDERBlock.Type)
 		}
 	}
 
 	if len(cert.Certificate) == 0 {
-		return fail(errors.New("crypto/tls: failed to parse certificate PEM data"))
+		if len(skippedBlockTypes) == 0 {
+			return fail(errors.New("crypto/tls: failed to find any PEM data in certificate input"))
+		} else if len(skippedBlockTypes) == 1 && strings.HasSuffix(skippedBlockTypes[0], "PRIVATE KEY") {
+			return fail(errors.New("crypto/tls: failed to find certificate PEM data in certificate input, but did find a private key; PEM inputs may have been switched"))
+		} else {
+			return fail(fmt.Errorf("crypto/tls: failed to find \"CERTIFICATE\" PEM block in certificate input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
+		}
 	}
 
+	skippedBlockTypes = skippedBlockTypes[:0]
 	var keyDERBlock *pem.Block
 	for {
 		keyDERBlock, keyPEMBlock = pem.Decode(keyPEMBlock)
 		if keyDERBlock == nil {
-			return fail(errors.New("crypto/tls: failed to parse key PEM data"))
+			if len(skippedBlockTypes) == 0 {
+				return fail(errors.New("crypto/tls: failed to find any PEM data in key input"))
+			} else if len(skippedBlockTypes) == 1 && skippedBlockTypes[0] == "CERTIFICATE" {
+				return fail(errors.New("crypto/tls: found a certificate rather than a key in the PEM for the private key"))
+			} else {
+				return fail(fmt.Errorf("crypto/tls: failed to find PEM block with type ending in \"PRIVATE KEY\" in key input after skipping PEM blocks of the following types: %v", skippedBlockTypes))
+			}
 		}
 		if keyDERBlock.Type == "PRIVATE KEY" || strings.HasSuffix(keyDERBlock.Type, " PRIVATE KEY") {
 			break
 		}
+		skippedBlockTypes = append(skippedBlockTypes, keyDERBlock.Type)
 	}
 
 	var err error

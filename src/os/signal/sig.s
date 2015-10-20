@@ -2,31 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Assembly to get into package runtime without using exported symbols.
-
-// +build amd64 amd64p32 arm arm64 386 ppc64 ppc64le
-
-#include "textflag.h"
-
-#ifdef GOARCH_arm
-#define JMP B
-#endif
-#ifdef GOARCH_ppc64
-#define JMP BR
-#endif
-#ifdef GOARCH_ppc64le
-#define JMP BR
-#endif
-
-TEXT ·signal_disable(SB),NOSPLIT,$0
-	JMP runtime·signal_disable(SB)
-
-TEXT ·signal_enable(SB),NOSPLIT,$0
-	JMP runtime·signal_enable(SB)
-
-TEXT ·signal_ignore(SB),NOSPLIT,$0
-	JMP runtime·signal_ignore(SB)
-
-TEXT ·signal_recv(SB),NOSPLIT,$0
-	JMP runtime·signal_recv(SB)
-
+// The runtime package uses //go:linkname to push a few functions into this
+// package but we still need a .s file so the Go tool does not pass -complete
+// to the go tool compile so the latter does not complain about Go functions
+// with no bodies.

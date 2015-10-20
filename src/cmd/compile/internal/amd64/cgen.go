@@ -80,17 +80,27 @@ func blockcopy(n, ns *gc.Node, osrc, odst, w int64) {
 		gins(x86.ACLD, nil, nil)
 	} else {
 		// normal direction
-		if q > 128 || (gc.Nacl && q >= 4) {
+		if q > 128 || (gc.Nacl && q >= 4) || (obj.Getgoos() == "plan9" && q >= 4) {
 			gconreg(movptr, q, x86.REG_CX)
 			gins(x86.AREP, nil, nil)   // repeat
 			gins(x86.AMOVSQ, nil, nil) // MOVQ *(SI)+,*(DI)+
 		} else if q >= 4 {
+			var oldx0 gc.Node
+			var x0 gc.Node
+			savex(x86.REG_X0, &x0, &oldx0, nil, gc.Types[gc.TFLOAT64])
+
 			p := gins(obj.ADUFFCOPY, nil, nil)
 			p.To.Type = obj.TYPE_ADDR
 			p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
 
-			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
-			p.To.Offset = 14 * (128 - q)
+			// 64 blocks taking 14 bytes each
+			// see ../../../../runtime/mkduff.go
+			p.To.Offset = 14 * (64 - q/2)
+			restx(&x0, &oldx0)
+
+			if q%2 != 0 {
+				gins(x86.AMOVSQ, nil, nil) // MOVQ *(SI)+,*(DI)+
+			}
 		} else if !gc.Nacl && c == 0 {
 			// We don't need the MOVSQ side-effect of updating SI and DI,
 			// and issuing a sequence of MOVQs directly is faster.

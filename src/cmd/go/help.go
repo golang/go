@@ -307,7 +307,7 @@ DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
 so that you can add DIR/bin to your PATH to get at the
 installed commands.  If the GOBIN environment variable is
 set, commands are installed to the directory it names instead
-of DIR/bin.
+of DIR/bin. GOBIN must be an absolute path.
 
 Here's an example directory layout:
 

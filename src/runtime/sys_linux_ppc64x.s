@@ -12,6 +12,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
+#include "asm_ppc64x.h"
 
 #define SYS_exit		  1
 #define SYS_read		  3
@@ -47,17 +48,17 @@
 #define SYS_clock_gettime	246
 #define SYS_epoll_create1	315
 
-TEXT runtime·exit(SB),NOSPLIT,$-8-4
+TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R3
 	SYSCALL	$SYS_exit_group
 	RET
 
-TEXT runtime·exit1(SB),NOSPLIT,$-8-4
+TEXT runtime·exit1(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R3
 	SYSCALL	$SYS_exit
 	RET
 
-TEXT runtime·open(SB),NOSPLIT,$-8-20
+TEXT runtime·open(SB),NOSPLIT|NOFRAME,$0-20
 	MOVD	name+0(FP), R3
 	MOVW	mode+8(FP), R4
 	MOVW	perm+12(FP), R5
@@ -67,7 +68,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
 	MOVW	R3, ret+16(FP)
 	RET
 
-TEXT runtime·closefd(SB),NOSPLIT,$-8-12
+TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	fd+0(FP), R3
 	SYSCALL	$SYS_close
 	BVC	2(PC)
@@ -75,7 +76,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$-8-12
 	MOVW	R3, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-8-28
+TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	fd+0(FP), R3
 	MOVD	p+8(FP), R4
 	MOVW	n+16(FP), R5
@@ -85,7 +86,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8-28
 	MOVW	R3, ret+24(FP)
 	RET
 
-TEXT runtime·read(SB),NOSPLIT,$-8-28
+TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	fd+0(FP), R3
 	MOVD	p+8(FP), R4
 	MOVW	n+16(FP), R5
@@ -95,7 +96,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8-28
 	MOVW	R3, ret+24(FP)
 	RET
 
-TEXT runtime·getrlimit(SB),NOSPLIT,$-8-20
+TEXT runtime·getrlimit(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	kind+0(FP), R3
 	MOVD	limit+8(FP), R4
 	SYSCALL	$SYS_ugetrlimit
@@ -126,28 +127,28 @@ TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	MOVW	R3, ret+0(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$-8
+TEXT runtime·raise(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL	$SYS_gettid
 	MOVW	R3, R3	// arg 1 tid
 	MOVW	sig+0(FP), R4	// arg 2
 	SYSCALL	$SYS_tkill
 	RET
 
-TEXT runtime·raiseproc(SB),NOSPLIT,$-8
+TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL	$SYS_getpid
 	MOVW	R3, R3	// arg 1 pid
 	MOVW	sig+0(FP), R4	// arg 2
 	SYSCALL	$SYS_kill
 	RET
 
-TEXT runtime·setitimer(SB),NOSPLIT,$-8-24
+TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	mode+0(FP), R3
 	MOVD	new+8(FP), R4
 	MOVD	old+16(FP), R5
 	SYSCALL	$SYS_setitimer
 	RET
 
-TEXT runtime·mincore(SB),NOSPLIT,$-8-28
+TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	addr+0(FP), R3
 	MOVD	n+8(FP), R4
 	MOVD	dst+16(FP), R5
@@ -182,7 +183,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
 	MOVD	R3, ret+0(FP)
 	RET
 
-TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
+TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	sig+0(FP), R3
 	MOVD	new+8(FP), R4
 	MOVD	old+16(FP), R5
@@ -192,7 +193,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$-8-28
 	MOVD	R0, 0xf1(R0)	// crash
 	RET
 
-TEXT runtime·rt_sigaction(SB),NOSPLIT,$-8-36
+TEXT runtime·rt_sigaction(SB),NOSPLIT|NOFRAME,$0-36
 	MOVD	sig+0(FP), R3
 	MOVD	new+8(FP), R4
 	MOVD	old+16(FP), R5
@@ -205,8 +206,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVW	sig+8(FP), R3
 	MOVD	info+16(FP), R4
 	MOVD	ctx+24(FP), R5
-	MOVD	fn+0(FP), R31
-	MOVD	R31, CTR
+	MOVD	fn+0(FP), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 
@@ -215,7 +216,7 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 #else
 // function descriptor for the real sigtramp
-TEXT runtime·sigtramp(SB),NOSPLIT,$-8
+TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
 	DWORD	$runtime·_sigtramp(SB)
 	DWORD	$0
 	DWORD	$0
@@ -231,15 +232,15 @@ TEXT runtime·_sigtramp(SB),NOSPLIT,$64
 	BEQ	2(PC)
 	BL	runtime·load_g(SB)
 
-	MOVW	R3, 8(R1)
-	MOVD	R4, 16(R1)
-	MOVD	R5, 24(R1)
-	MOVD	$runtime·sigtrampgo(SB), R31
-	MOVD	R31, CTR
+	MOVW	R3, FIXED_FRAME+0(R1)
+	MOVD	R4, FIXED_FRAME+8(R1)
+	MOVD	R5, FIXED_FRAME+16(R1)
+	MOVD	$runtime·sigtrampgo(SB), R12
+	MOVD	R12, CTR
 	BL	(CTR)
 	RET
 
-TEXT runtime·mmap(SB),NOSPLIT,$-8
+TEXT runtime·mmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R3
 	MOVD	n+8(FP), R4
 	MOVW	prot+16(FP), R5
@@ -251,7 +252,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
 	MOVD	R3, ret+32(FP)
 	RET
 
-TEXT runtime·munmap(SB),NOSPLIT,$-8
+TEXT runtime·munmap(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R3
 	MOVD	n+8(FP), R4
 	SYSCALL	$SYS_munmap
@@ -259,7 +260,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$-8
 	MOVD	R0, 0xf3(R0)
 	RET
 
-TEXT runtime·madvise(SB),NOSPLIT,$-8
+TEXT runtime·madvise(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R3
 	MOVD	n+8(FP), R4
 	MOVW	flags+16(FP), R5
@@ -269,7 +270,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$-8
 
 // int64 futex(int32 *uaddr, int32 op, int32 val,
 //	struct timespec *timeout, int32 *uaddr2, int32 val2);
-TEXT runtime·futex(SB),NOSPLIT,$-8
+TEXT runtime·futex(SB),NOSPLIT|NOFRAME,$0
 	MOVD	addr+0(FP), R3
 	MOVW	op+8(FP), R4
 	MOVW	val+12(FP), R5
@@ -281,7 +282,7 @@ TEXT runtime·futex(SB),NOSPLIT,$-8
 	RET
 
 // int64 clone(int32 flags, void *stk, M *mp, G *gp, void (*fn)(void));
-TEXT runtime·clone(SB),NOSPLIT,$-8
+TEXT runtime·clone(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+0(FP), R3
 	MOVD	stk+8(FP), R4
 
@@ -344,7 +345,7 @@ nog:
 	SYSCALL	$SYS_exit
 	BR	-2(PC)	// keep exiting
 
-TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+TEXT runtime·sigaltstack(SB),NOSPLIT|NOFRAME,$0
 	MOVD	new+0(FP), R3
 	MOVD	old+8(FP), R4
 	SYSCALL	$SYS_sigaltstack
@@ -352,11 +353,11 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVD	R0, 0xf1(R0)  // crash
 	RET
 
-TEXT runtime·osyield(SB),NOSPLIT,$-8
+TEXT runtime·osyield(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL	$SYS_sched_yield
 	RET
 
-TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
+TEXT runtime·sched_getaffinity(SB),NOSPLIT|NOFRAME,$0
 	MOVD	pid+0(FP), R3
 	MOVD	len+8(FP), R4
 	MOVD	buf+16(FP), R5
@@ -365,21 +366,21 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$-8
 	RET
 
 // int32 runtime·epollcreate(int32 size);
-TEXT runtime·epollcreate(SB),NOSPLIT,$-8
+TEXT runtime·epollcreate(SB),NOSPLIT|NOFRAME,$0
 	MOVW    size+0(FP), R3
 	SYSCALL	$SYS_epoll_create
 	MOVW	R3, ret+8(FP)
 	RET
 
 // int32 runtime·epollcreate1(int32 flags);
-TEXT runtime·epollcreate1(SB),NOSPLIT,$-8
+TEXT runtime·epollcreate1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	flags+0(FP), R3
 	SYSCALL	$SYS_epoll_create1
 	MOVW	R3, ret+8(FP)
 	RET
 
 // func epollctl(epfd, op, fd int32, ev *epollEvent) int
-TEXT runtime·epollctl(SB),NOSPLIT,$-8
+TEXT runtime·epollctl(SB),NOSPLIT|NOFRAME,$0
 	MOVW	epfd+0(FP), R3
 	MOVW	op+4(FP), R4
 	MOVW	fd+8(FP), R5
@@ -389,7 +390,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$-8
 	RET
 
 // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout);
-TEXT runtime·epollwait(SB),NOSPLIT,$-8
+TEXT runtime·epollwait(SB),NOSPLIT|NOFRAME,$0
 	MOVW	epfd+0(FP), R3
 	MOVD	ev+8(FP), R4
 	MOVW	nev+16(FP), R5
@@ -399,7 +400,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$-8
 	RET
 
 // void runtime·closeonexec(int32 fd);
-TEXT runtime·closeonexec(SB),NOSPLIT,$-8
+TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R3  // fd
 	MOVD    $2, R4  // F_SETFD
 	MOVD    $1, R5  // FD_CLOEXEC

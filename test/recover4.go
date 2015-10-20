@@ -52,14 +52,14 @@ func main() {
 		log.Fatalf("mmap: %v", err)
 	}
 
+	other := make([]byte, 16*size)
+
 	// Note: Cannot call syscall.Munmap, because Munmap checks
 	// that you are unmapping a whole region returned by Mmap.
 	// We are trying to unmap just a hole in the middle.
 	if _, _, err := syscall.Syscall(syscall.SYS_MUNMAP, uintptr(unsafe.Pointer(&data[8*size])), uintptr(4*size), 0); err != 0 {
 		log.Fatalf("munmap: %v", err)
 	}
-
-	other := make([]byte, 16*size)
 
 	// Check that memcopy returns the actual amount copied
 	// before the fault (8*size - 5, the offset we skip in the argument).

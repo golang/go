@@ -237,10 +237,22 @@ func cgocallbackg1() {
 		// On 386, stack frame is three words, plus caller PC.
 		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
 	case "ppc64", "ppc64le":
-		// On ppc64, stack frame is two words and there's a
-		// saved LR between SP and the stack frame and between
-		// the stack frame and the arguments.
-		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+		// On ppc64, the callback arguments are in the arguments area of
+		// cgocallback's stack frame. The stack looks like this:
+		// +--------------------+------------------------------+
+		// |                    | ...                          |
+		// | cgoexp_$fn         +------------------------------+
+		// |                    | fixed frame area             |
+		// +--------------------+------------------------------+
+		// |                    | arguments area               |
+		// | cgocallback        +------------------------------+ <- sp + 2*minFrameSize + 2*ptrSize
+		// |                    | fixed frame area             |
+		// +--------------------+------------------------------+ <- sp + minFrameSize + 2*ptrSize
+		// |                    | local variables (2 pointers) |
+		// | cgocallback_gofunc +------------------------------+ <- sp + minFrameSize
+		// |                    | fixed frame area             |
+		// +--------------------+------------------------------+ <- sp
+		cb = (*args)(unsafe.Pointer(sp + 2*minFrameSize + 2*ptrSize))
 	}
 
 	// Invoke callback.
@@ -271,14 +283,10 @@ func unwindm(restore *bool) {
 	switch GOARCH {
 	default:
 		throw("unwindm not implemented")
-	case "386", "amd64":
-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp))
-	case "arm":
-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 4))
+	case "386", "amd64", "arm", "ppc64", "ppc64le":
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + minFrameSize))
 	case "arm64":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
-	case "ppc64", "ppc64le":
-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 8))
 	}
 	releasem(mp)
 }

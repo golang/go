@@ -73,7 +73,7 @@ const (
 	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
 )
 
-// The result of Scan is one of the following tokens or a Unicode character.
+// The result of Scan is one of these tokens or a Unicode character.
 const (
 	EOF = -(iota + 1)
 	Ident

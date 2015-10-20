@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"log"
 	"os"
+	"strings"
 )
 
 func Example() {
@@ -119,4 +120,39 @@ func Example_escape() {
 	// \"Fran & Freddie\'s Diner\"32\x3Ctasty@example.com\x3E
 	// %22Fran+%26+Freddie%27s+Diner%2232%3Ctasty%40example.com%3E
 
+}
+
+// The following example is duplicated in text/template; keep them in sync.
+
+func ExampleTemplate_block() {
+	const (
+		master  = `Names:{{block "list" .}}{{"\n"}}{{range .}}{{println "-" .}}{{end}}{{end}}`
+		overlay = `{{define "list"}} {{join . ", "}}{{end}} `
+	)
+	var (
+		funcs     = template.FuncMap{"join": strings.Join}
+		guardians = []string{"Gamora", "Groot", "Nebula", "Rocket", "Star-Lord"}
+	)
+	masterTmpl, err := template.New("master").Funcs(funcs).Parse(master)
+	if err != nil {
+		log.Fatal(err)
+	}
+	overlayTmpl, err := template.Must(masterTmpl.Clone()).Parse(overlay)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := masterTmpl.Execute(os.Stdout, guardians); err != nil {
+		log.Fatal(err)
+	}
+	if err := overlayTmpl.Execute(os.Stdout, guardians); err != nil {
+		log.Fatal(err)
+	}
+	// Output:
+	// Names:
+	// - Gamora
+	// - Groot
+	// - Nebula
+	// - Rocket
+	// - Star-Lord
+	// Names: Gamora, Groot, Nebula, Rocket, Star-Lord
 }

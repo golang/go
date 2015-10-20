@@ -53,8 +53,5 @@ nocgo:
 	RET
 
 #ifdef TLSG_IS_VARIABLE
-// The runtime.tlsg name is being handled specially in the
-// linker. As we just need a regular variable here, don't
-// use that name.
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #endif

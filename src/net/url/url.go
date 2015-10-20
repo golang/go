@@ -24,6 +24,24 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
 
+type timeout interface {
+	Timeout() bool
+}
+
+func (e *Error) Timeout() bool {
+	t, ok := e.Err.(timeout)
+	return ok && t.Timeout()
+}
+
+type temporary interface {
+	Temporary() bool
+}
+
+func (e *Error) Temporary() bool {
+	t, ok := e.Err.(temporary)
+	return ok && t.Temporary()
+}
+
 func ishex(c byte) bool {
 	switch {
 	case '0' <= c && c <= '9':

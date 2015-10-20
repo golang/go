@@ -5,37 +5,37 @@
 package runtime
 
 const (
-	kindBool          = _KindBool
-	kindInt           = _KindInt
-	kindInt8          = _KindInt8
-	kindInt16         = _KindInt16
-	kindInt32         = _KindInt32
-	kindInt64         = _KindInt64
-	kindUint          = _KindUint
-	kindUint8         = _KindUint8
-	kindUint16        = _KindUint16
-	kindUint32        = _KindUint32
-	kindUint64        = _KindUint64
-	kindUintptr       = _KindUintptr
-	kindFloat32       = _KindFloat32
-	kindFloat64       = _KindFloat64
-	kindComplex64     = _KindComplex64
-	kindComplex128    = _KindComplex128
-	kindArray         = _KindArray
-	kindChan          = _KindChan
-	kindFunc          = _KindFunc
-	kindInterface     = _KindInterface
-	kindMap           = _KindMap
-	kindPtr           = _KindPtr
-	kindSlice         = _KindSlice
-	kindString        = _KindString
-	kindStruct        = _KindStruct
-	kindUnsafePointer = _KindUnsafePointer
+	kindBool = 1 + iota
+	kindInt
+	kindInt8
+	kindInt16
+	kindInt32
+	kindInt64
+	kindUint
+	kindUint8
+	kindUint16
+	kindUint32
+	kindUint64
+	kindUintptr
+	kindFloat32
+	kindFloat64
+	kindComplex64
+	kindComplex128
+	kindArray
+	kindChan
+	kindFunc
+	kindInterface
+	kindMap
+	kindPtr
+	kindSlice
+	kindString
+	kindStruct
+	kindUnsafePointer
 
-	kindDirectIface = _KindDirectIface
-	kindGCProg      = _KindGCProg
-	kindNoPointers  = _KindNoPointers
-	kindMask        = _KindMask
+	kindDirectIface = 1 << 5
+	kindGCProg      = 1 << 6
+	kindNoPointers  = 1 << 7
+	kindMask        = (1 << 5) - 1
 )
 
 // isDirectIface reports whether t is stored directly in an interface value.

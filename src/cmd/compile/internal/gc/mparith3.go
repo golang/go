@@ -9,7 +9,6 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"math"
-	"strings"
 )
 
 /// implements float arihmetic
@@ -152,30 +151,6 @@ func mpnegflt(a *Mpflt) {
 func mpatoflt(a *Mpflt, as string) {
 	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
 		as = as[1:]
-	}
-
-	// The spec requires accepting exponents that fit in int32.
-	// Don't accept much more than that.
-	// Count digits in exponent and stop early if there are too many.
-	if i := strings.Index(as, "e"); i >= 0 {
-		i++
-		if i < len(as) && (as[i] == '-' || as[i] == '+') {
-			i++
-		}
-		for i < len(as) && as[i] == '0' {
-			i++
-		}
-		// TODO(rsc): This should be > 10, because we're supposed
-		// to accept any signed 32-bit int as an exponent.
-		// But that's not working terribly well, so we deviate from the
-		// spec in order to make sure that what we accept works.
-		// We can remove this restriction once those larger exponents work.
-		// See golang.org/issue/11326 and test/fixedbugs/issue11326*.go.
-		if len(as)-i > 8 {
-			Yyerror("malformed constant: %s (exponent too large)", as)
-			a.Val.SetUint64(0)
-			return
-		}
 	}
 
 	f, ok := a.Val.SetString(as)

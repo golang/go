@@ -129,24 +129,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.From.Offset = 0
 		}
 	}
-
-	if ctxt.Flag_shared != 0 {
-		// Shared libraries use R_ARM_TLS_IE32 instead of
-		// R_ARM_TLS_LE32, replacing the link time constant TLS offset in
-		// runtime.tlsg with an address to a GOT entry containing the
-		// offset. Rewrite $runtime.tlsg(SB) to runtime.tlsg(SB) to
-		// compensate.
-		if ctxt.Tlsg == nil {
-			ctxt.Tlsg = obj.Linklookup(ctxt, "runtime.tlsg", 0)
-		}
-
-		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && p.From.Sym == ctxt.Tlsg {
-			p.From.Type = obj.TYPE_MEM
-		}
-		if p.To.Type == obj.TYPE_ADDR && p.To.Name == obj.NAME_EXTERN && p.To.Sym == ctxt.Tlsg {
-			p.To.Type = obj.TYPE_MEM
-		}
-	}
 }
 
 // Prog.mark

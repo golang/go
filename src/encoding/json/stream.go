@@ -90,7 +90,7 @@ Input:
 		// Look in the buffer for a new value.
 		for i, c := range dec.buf[scanp:] {
 			dec.scan.bytes++
-			v := dec.scan.step(&dec.scan, int(c))
+			v := dec.scan.step(&dec.scan, c)
 			if v == scanEnd {
 				scanp += i
 				break Input
@@ -157,7 +157,7 @@ func (dec *Decoder) refill() error {
 
 func nonSpace(b []byte) bool {
 	for _, c := range b {
-		if !isSpace(rune(c)) {
+		if !isSpace(c) {
 			return true
 		}
 	}
@@ -433,7 +433,7 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 	case tokenObjectComma:
 		context = " after object key:value pair"
 	}
-	return nil, &SyntaxError{"invalid character " + quoteChar(int(c)) + " " + context, 0}
+	return nil, &SyntaxError{"invalid character " + quoteChar(c) + " " + context, 0}
 }
 
 // More reports whether there is another element in the
@@ -448,7 +448,7 @@ func (dec *Decoder) peek() (byte, error) {
 	for {
 		for i := dec.scanp; i < len(dec.buf); i++ {
 			c := dec.buf[i]
-			if isSpace(rune(c)) {
+			if isSpace(c) {
 				continue
 			}
 			dec.scanp = i

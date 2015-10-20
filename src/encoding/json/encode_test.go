@@ -381,16 +381,10 @@ func TestStringBytes(t *testing.T) {
 		r = append(r, i)
 	}
 	s := string(r) + "\xff\xff\xffhello" // some invalid UTF-8 too
-	_, err := es.string(s)
-	if err != nil {
-		t.Fatal(err)
-	}
+	es.string(s)
 
 	esBytes := &encodeState{}
-	_, err = esBytes.stringBytes([]byte(s))
-	if err != nil {
-		t.Fatal(err)
-	}
+	esBytes.stringBytes([]byte(s))
 
 	enc := es.Buffer.String()
 	encBytes := esBytes.Buffer.String()

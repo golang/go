@@ -11,7 +11,9 @@ package flate
 import (
 	"bytes"
 	"encoding/hex"
+	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -255,6 +257,18 @@ func TestStreams(t *testing.T) {
 				t.Errorf("#%d (%s):\ngot  %q\nwant %q", i, tc.desc, got, tc.want)
 			}
 
+		}
+	}
+}
+
+func TestTruncatedStreams(t *testing.T) {
+	const data = "\x00\f\x00\xf3\xffhello, world\x01\x00\x00\xff\xff"
+
+	for i := 0; i < len(data)-1; i++ {
+		r := NewReader(strings.NewReader(data[:i]))
+		_, err := io.Copy(ioutil.Discard, r)
+		if err != io.ErrUnexpectedEOF {
+			t.Errorf("io.Copy(%d) on truncated stream: got %v, want %v", i, err, io.ErrUnexpectedEOF)
 		}
 	}
 }

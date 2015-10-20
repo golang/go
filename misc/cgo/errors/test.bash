@@ -31,6 +31,8 @@ check err2.go
 check err3.go
 check issue7757.go
 check issue8442.go
+check issue11097a.go
+check issue11097b.go
 
 rm -rf errs _obj
 exit 0

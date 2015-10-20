@@ -567,16 +567,8 @@ func repoRootForImportPath(importPath string, security securityMode) (*repoRoot,
 			lookup = lookup[:i]
 		}
 		rr, err = repoRootForImportDynamic(lookup, security)
-
-		// repoRootForImportDynamic returns error detail
-		// that is irrelevant if the user didn't intend to use a
-		// dynamic import in the first place.
-		// Squelch it.
 		if err != nil {
-			if buildV {
-				log.Printf("import %q: %v", importPath, err)
-			}
-			err = fmt.Errorf("unrecognized import path %q", importPath)
+			err = fmt.Errorf("unrecognized import path %q (%v)", importPath, err)
 		}
 	}
 	if err != nil {

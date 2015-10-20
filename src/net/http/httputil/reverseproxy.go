@@ -60,10 +60,13 @@ func singleJoiningSlash(a, b string) string {
 	return a + b
 }
 
-// NewSingleHostReverseProxy returns a new ReverseProxy that rewrites
+// NewSingleHostReverseProxy returns a new ReverseProxy that routes
 // URLs to the scheme, host, and base path provided in target. If the
 // target's path is "/base" and the incoming request was for "/dir",
 // the target request will be for /base/dir.
+// NewSingleHostReverseProxy does not rewrite the Host header.
+// To rewrite Host headers, use ReverseProxy directly with a custom
+// Director policy.
 func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 	targetQuery := target.RawQuery
 	director := func(req *http.Request) {

@@ -67,6 +67,7 @@ type maptype struct {
 	indirectvalue bool   // store ptr to value instead of value itself
 	bucketsize    uint16 // size of bucket
 	reflexivekey  bool   // true if k==k for all keys
+	needkeyupdate bool   // true if we need to update key on an overwrite
 }
 
 type chantype struct {

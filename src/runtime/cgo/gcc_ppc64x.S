@@ -36,6 +36,7 @@ EXT(crosscall_ppc64):
 	mr	%r30, %r4
 
 	// Call fn
+	mr	%r12, %r3
 	mtctr	%r3
 	bctrl
 

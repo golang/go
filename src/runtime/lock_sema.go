@@ -104,7 +104,7 @@ func unlock(l *mutex) {
 		} else {
 			// Other M's are waiting for the lock.
 			// Dequeue an M.
-			mp = (*m)((unsafe.Pointer)(v &^ locked))
+			mp = (*m)(unsafe.Pointer(v &^ locked))
 			if casuintptr(&l.key, v, mp.nextwaitm) {
 				// Dequeued an M.  Wake it.
 				semawakeup(mp)

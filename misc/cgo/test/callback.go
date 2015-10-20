@@ -177,7 +177,7 @@ func testCallbackCallers(t *testing.T) {
 	for i := 0; i < n; i++ {
 		f := runtime.FuncForPC(pc[i])
 		if f == nil {
-			t.Fatalf("expected non-nil Func for pc %p", pc[i])
+			t.Fatalf("expected non-nil Func for pc %d", pc[i])
 		}
 		fname := f.Name()
 		// Remove the prepended pathname from automatically

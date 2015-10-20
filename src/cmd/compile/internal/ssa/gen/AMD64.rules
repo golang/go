@@ -602,8 +602,10 @@
 				(MOVQstore destptr (MOVQconst [0]) mem))))
 
 // Medium zeroing uses a duff device.
-(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 ->
-	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVQconst [0]) mem)
+(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 ->
+	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
+(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 ->
+	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
 (Zero [size] destptr mem) && size > 1024 && size%8 == 0 ->

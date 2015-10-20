@@ -25,7 +25,7 @@ int main(void) {
     n = read(fd, buf, sizeof buf);
     if (n >= 0)
       break;
-    if (errno != EBADF) {
+    if (errno != EBADF && errno != EINVAL) {
       fprintf(stderr, "BUG: read: %s\n", strerror(errno));
       return 2;
     }

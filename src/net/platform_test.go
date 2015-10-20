@@ -32,7 +32,7 @@ func testableNetwork(network string) bool {
 		}
 	case "unix", "unixgram":
 		switch runtime.GOOS {
-		case "nacl", "plan9", "windows":
+		case "android", "nacl", "plan9", "windows":
 			return false
 		}
 		// iOS does not support unix, unixgram.
