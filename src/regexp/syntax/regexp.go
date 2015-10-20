@@ -166,9 +166,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 	case OpAnyChar:
 		b.WriteString(`(?s:.)`)
 	case OpBeginLine:
-		b.WriteRune('^')
+		b.WriteString(`(?m:^)`)
 	case OpEndLine:
-		b.WriteRune('$')
+		b.WriteString(`(?m:$)`)
 	case OpBeginText:
 		b.WriteString(`\A`)
 	case OpEndText:
