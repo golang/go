@@ -113,7 +113,7 @@ func mpgetflt(a *Mpflt) float64 {
 		Yyerror("mpgetflt ovf")
 	}
 
-	return x
+	return x + 0 // avoid -0 (should not be needed, but be conservative)
 }
 
 func mpgetflt32(a *Mpflt) float64 {
@@ -125,7 +125,7 @@ func mpgetflt32(a *Mpflt) float64 {
 		Yyerror("mpgetflt32 ovf")
 	}
 
-	return x
+	return x + 0 // avoid -0 (should not be needed, but be conservative)
 }
 
 func Mpmovecflt(a *Mpflt, c float64) {
@@ -133,6 +133,10 @@ func Mpmovecflt(a *Mpflt, c float64) {
 		fmt.Printf("\nconst %g", c)
 	}
 
+	// convert -0 to 0
+	if c == 0 {
+		c = 0
+	}
 	a.Val.SetFloat64(c)
 
 	if Mpdebug {
@@ -141,7 +145,10 @@ func Mpmovecflt(a *Mpflt, c float64) {
 }
 
 func mpnegflt(a *Mpflt) {
-	a.Val.Neg(&a.Val)
+	// avoid -0
+	if a.Val.Sign() != 0 {
+		a.Val.Neg(&a.Val)
+	}
 }
 
 //
@@ -163,14 +170,19 @@ func mpatoflt(a *Mpflt, as string) {
 		// - decimal point and binary point in constant
 		// TODO(gri) use different conversion function or check separately
 		Yyerror("malformed constant: %s", as)
-		a.Val.SetUint64(0)
+		a.Val.SetFloat64(0)
 		return
 	}
 
 	if f.IsInf() {
 		Yyerror("constant too large: %s", as)
-		a.Val.SetUint64(0)
+		a.Val.SetFloat64(0)
 		return
+	}
+
+	// -0 becomes 0
+	if f.Sign() == 0 && f.Signbit() {
+		a.Val.SetFloat64(0)
 	}
 }
 
@@ -188,7 +200,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 	// determine sign
 	f := &fvp.Val
 	var sign string
-	if fvp.Val.Signbit() {
+	if f.Sign() < 0 {
 		sign = "-"
 		f = new(big.Float).Abs(f)
 	} else if flag&obj.FmtSign != 0 {
