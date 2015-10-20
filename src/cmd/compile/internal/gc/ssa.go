@@ -1870,7 +1870,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.call(n, callNormal)
 
 	case OGETG:
-		return s.newValue0(ssa.OpGetG, n.Type)
+		return s.newValue1(ssa.OpGetG, n.Type, s.mem())
 
 	case OAPPEND:
 		// append(s, e1, e2, e3).  Compile like:

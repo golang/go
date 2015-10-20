@@ -326,7 +326,7 @@ var genericOps = []opData{
 
 	// Pseudo-ops
 	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
-	{name: "GetG"},          // runtime.getg() (read g pointer)
+	{name: "GetG"},          // runtime.getg() (read g pointer).  arg0=mem
 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
 
 	// Indexing operations

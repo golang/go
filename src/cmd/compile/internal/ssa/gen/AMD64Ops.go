@@ -423,7 +423,7 @@ func init() {
 
 		// Pseudo-ops
 		{name: "LoweredPanicNilCheck", reg: gp10},
-		{name: "LoweredGetG", reg: gp01},
+		{name: "LoweredGetG", reg: gp01}, // arg0=mem
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of DX (the closure pointer)
