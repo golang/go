@@ -1431,9 +1431,6 @@ func gen_as_init(n *Node, reportOnly bool) bool {
 	case OSLICEARR:
 		if nr.Right.Op == OKEY && nr.Right.Left == nil && nr.Right.Right == nil {
 			nr = nr.Left
-			if !reportOnly {
-				gused(nil) // in case the data is the dest of a goto
-			}
 			nl := nr
 			if nr == nil || nr.Op != OADDR {
 				goto no
