@@ -58,6 +58,11 @@ func tighten(f *Func) {
 					// GetClosurePtr must stay in entry block
 					continue
 				}
+				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
+					// We can't move values which have a memory arg - it might
+					// make two memory values live across a block boundary.
+					continue
+				}
 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
 					// v is used in exactly one block, and it is not b.
 					// Furthermore, it takes at most one input,
