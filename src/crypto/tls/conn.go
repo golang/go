@@ -506,6 +506,23 @@ func (hc *halfConn) splitBlock(b *block, n int) (*block, *block) {
 	return b, bb
 }
 
+// RecordHeaderError results when a TLS record header is invalid.
+type RecordHeaderError struct {
+	// Msg contains a human readable string that describes the error.
+	Msg string
+	// RecordHeader contains the five bytes of TLS record header that
+	// triggered the error.
+	RecordHeader [5]byte
+}
+
+func (e RecordHeaderError) Error() string { return "tls: " + e.Msg }
+
+func (c *Conn) newRecordHeaderError(msg string) (err RecordHeaderError) {
+	err.Msg = msg
+	copy(err.RecordHeader[:], c.rawInput.data)
+	return err
+}
+
 // readRecord reads the next TLS record from the connection
 // and updates the record layer state.
 // c.in.Mutex <= L; c.input == nil.
@@ -556,18 +573,20 @@ Again:
 	// an SSLv2 client.
 	if want == recordTypeHandshake && typ == 0x80 {
 		c.sendAlert(alertProtocolVersion)
-		return c.in.setErrorLocked(errors.New("tls: unsupported SSLv2 handshake received"))
+		return c.in.setErrorLocked(c.newRecordHeaderError("unsupported SSLv2 handshake received"))
 	}
 
 	vers := uint16(b.data[1])<<8 | uint16(b.data[2])
 	n := int(b.data[3])<<8 | int(b.data[4])
 	if c.haveVers && vers != c.vers {
 		c.sendAlert(alertProtocolVersion)
-		return c.in.setErrorLocked(fmt.Errorf("tls: received record with version %x when expecting version %x", vers, c.vers))
+		msg := fmt.Sprintf("received record with version %x when expecting version %x", vers, c.vers)
+		return c.in.setErrorLocked(c.newRecordHeaderError(msg))
 	}
 	if n > maxCiphertext {
 		c.sendAlert(alertRecordOverflow)
-		return c.in.setErrorLocked(fmt.Errorf("tls: oversized record received with length %d", n))
+		msg := fmt.Sprintf("oversized record received with length %d", n)
+		return c.in.setErrorLocked(c.newRecordHeaderError(msg))
 	}
 	if !c.haveVers {
 		// First message, be extra suspicious: this might not be a TLS
@@ -576,7 +595,7 @@ Again:
 		// it's probably not real.
 		if (typ != recordTypeAlert && typ != want) || vers >= 0x1000 {
 			c.sendAlert(alertUnexpectedMessage)
-			return c.in.setErrorLocked(fmt.Errorf("tls: first record does not look like a TLS handshake"))
+			return c.in.setErrorLocked(c.newRecordHeaderError("first record does not look like a TLS handshake"))
 		}
 	}
 	if err := b.readFromUntil(c.conn, recordHeaderLen+n); err != nil {
