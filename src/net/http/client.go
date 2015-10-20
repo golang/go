@@ -10,6 +10,7 @@
 package http
 
 import (
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -221,6 +222,14 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
 	if err != nil {
 		if resp != nil {
 			log.Printf("RoundTripper returned a response & error; ignoring response")
+		}
+		if tlsErr, ok := err.(tls.RecordHeaderError); ok {
+			// If we get a bad TLS record header, check to see if the
+			// response looks like HTTP and give a more helpful error.
+			// See golang.org/issue/11111.
+			if string(tlsErr.RecordHeader[:]) == "HTTP/" {
+				err = errors.New("http: server gave HTTP response to HTTPS client")
+			}
 		}
 		return nil, err
 	}

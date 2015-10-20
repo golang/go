@@ -743,6 +743,20 @@ func TestResponseSetsTLSConnectionState(t *testing.T) {
 	}
 }
 
+// Check that an HTTPS client can interpret a particular TLS error
+// to determine that the server is speaking HTTP.
+// See golang.org/issue/11111.
+func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer ts.Close()
+
+	_, err := Get(strings.Replace(ts.URL, "http", "https", 1))
+	if got := err.Error(); !strings.Contains(got, "HTTP response to HTTPS client") {
+		t.Fatalf("error = %q; want error indicating HTTP response to HTTPS request", got)
+	}
+}
+
 // Verify Response.ContentLength is populated. https://golang.org/issue/4126
 func TestClientHeadContentLength(t *testing.T) {
 	defer afterTest(t)
