@@ -456,26 +456,23 @@ func TestDependencies(t *testing.T) {
 	}
 	sort.Strings(all)
 
-	test := func(mustImport bool) {
-		for _, pkg := range all {
-			imports, err := findImports(pkg)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			ok := allowed(pkg)
-			var bad []string
-			for _, imp := range imports {
-				if !ok[imp] {
-					bad = append(bad, imp)
-				}
-			}
-			if bad != nil {
-				t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+	for _, pkg := range all {
+		imports, err := findImports(pkg)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		ok := allowed(pkg)
+		var bad []string
+		for _, imp := range imports {
+			if !ok[imp] {
+				bad = append(bad, imp)
 			}
 		}
+		if bad != nil {
+			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+		}
 	}
-	test(true)
 }
 
 var buildIgnore = []byte("\n// +build ignore")
