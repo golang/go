@@ -155,6 +155,8 @@ func (f *File) idiomaticShortRedecl(a *ast.AssignStmt) bool {
 					return false
 				}
 			}
+		default:
+			return false
 		}
 	}
 	return true
