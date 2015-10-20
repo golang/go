@@ -230,6 +230,7 @@ func (t *Template) Clone() (*Template, error) {
 			set: make(map[string]*Template),
 		},
 	}
+	ret.set[ret.Name()] = ret
 	for _, x := range textClone.Templates() {
 		name := x.Name()
 		src := t.set[name]
