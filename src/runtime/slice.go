@@ -154,6 +154,6 @@ func slicestringcopy(to []byte, fm string) int {
 		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
 	}
 
-	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))
+	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer(stringStructOf(&fm).str), uintptr(n))
 	return n
 }

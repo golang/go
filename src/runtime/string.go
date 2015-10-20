@@ -94,7 +94,7 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
 // stringDataOnStack reports whether the string's data is
 // stored on the current goroutine's stack.
 func stringDataOnStack(s string) bool {
-	ptr := uintptr((*stringStruct)(unsafe.Pointer(&s)).str)
+	ptr := uintptr(stringStructOf(&s).str)
 	stk := getg().stack
 	return stk.lo <= ptr && ptr < stk.hi
 }
@@ -147,7 +147,7 @@ func stringtoslicebytetmp(s string) []byte {
 	// The only such case today is:
 	// for i, c := range []byte(str)
 
-	str := (*stringStruct)(unsafe.Pointer(&s))
+	str := stringStructOf(&s)
 	ret := slice{array: unsafe.Pointer(str.str), len: str.len, cap: str.len}
 	return *(*[]byte)(unsafe.Pointer(&ret))
 }
@@ -207,6 +207,16 @@ type stringStruct struct {
 	len int
 }
 
+// Variant with *byte pointer type for DWARF debugging.
+type stringStructDWARF struct {
+	str *byte
+	len int
+}
+
+func stringStructOf(sp *string) *stringStruct {
+	return (*stringStruct)(unsafe.Pointer(sp))
+}
+
 func intstring(buf *[4]byte, v int64) string {
 	var s string
 	var b []byte
@@ -263,8 +273,8 @@ func stringiter2(s string, k int) (int, rune) {
 func rawstring(size int) (s string, b []byte) {
 	p := mallocgc(uintptr(size), nil, flagNoScan|flagNoZero)
 
-	(*stringStruct)(unsafe.Pointer(&s)).str = p
-	(*stringStruct)(unsafe.Pointer(&s)).len = size
+	stringStructOf(&s).str = p
+	stringStructOf(&s).len = size
 
 	*(*slice)(unsafe.Pointer(&b)) = slice{p, size, size}
 

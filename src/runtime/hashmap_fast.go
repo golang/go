@@ -184,7 +184,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return atomicloadp(unsafe.Pointer(&zeroptr))
 	}
-	key := (*stringStruct)(unsafe.Pointer(&ky))
+	key := stringStructOf(&ky)
 	if h.B == 0 {
 		// One-bucket table.
 		b := (*bmap)(h.buckets)
@@ -286,7 +286,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	if h == nil || h.count == 0 {
 		return atomicloadp(unsafe.Pointer(&zeroptr)), false
 	}
-	key := (*stringStruct)(unsafe.Pointer(&ky))
+	key := stringStructOf(&ky)
 	if h.B == 0 {
 		// One-bucket table.
 		b := (*bmap)(h.buckets)
