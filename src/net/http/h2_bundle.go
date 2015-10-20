@@ -1815,7 +1815,7 @@ func (s *http2Server) maxConcurrentStreams() uint32 {
 // The configuration conf may be nil.
 //
 // ConfigureServer must be called before s begins serving.
-func http2ConfigureServer(s *Server, conf *http2Server) {
+func http2ConfigureServer(s *Server, conf *http2Server) error {
 	if conf == nil {
 		conf = new(http2Server)
 	}
@@ -1861,6 +1861,7 @@ func http2ConfigureServer(s *Server, conf *http2Server) {
 	}
 	s.TLSNextProto[http2NextProtoTLS] = protoHandler
 	s.TLSNextProto["h2-14"] = protoHandler
+	return nil // temporary manual edit to h2_bundle.go, to be deleted once we update from x/net again
 }
 
 func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
