@@ -3638,12 +3638,12 @@ is also allowed and follows from the general rules above.
 </p>
 
 <pre>
-const c = 3 &lt; 4            // c is the untyped bool constant true
+const c = 3 &lt; 4            // c is the untyped boolean constant true
 
 type MyBool bool
 var x, y int
 var (
-	// The result of a comparison is an untyped bool.
+	// The result of a comparison is an untyped boolean.
 	// The usual assignment rules apply.
 	b3        = x == y // b3 has type bool
 	b4 bool   = x == y // b4 has type bool
