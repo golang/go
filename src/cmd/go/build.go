@@ -2893,6 +2893,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 		cgoLDFLAGS = append(cgoLDFLAGS, "-lobjc")
 	}
 
+	if buildMSan && p.ImportPath != "runtime/cgo" {
+		cgoCFLAGS = append([]string{"-fsanitize=memory"}, cgoCFLAGS...)
+		cgoLDFLAGS = append([]string{"-fsanitize=memory"}, cgoLDFLAGS...)
+	}
+
 	// Allows including _cgo_export.h from .[ch] files in the package.
 	cgoCPPFLAGS = append(cgoCPPFLAGS, "-I", obj)
 
