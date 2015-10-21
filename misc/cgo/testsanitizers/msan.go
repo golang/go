@@ -1,9 +1,6 @@
 package main
 
 /*
-#cgo CFLAGS: -fsanitize=memory
-#cgo LDFLAGS: -fsanitize=memory
-
 #include <stdint.h>
 
 void f(int32_t *p, int n) {

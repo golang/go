@@ -90,6 +90,9 @@ and test commands:
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+	-msan
+		enable interoperation with memory sanitizer.
+		Supported only on linux/amd64.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -112,8 +115,9 @@ and test commands:
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
 		If using the -race flag, the install suffix is automatically set to race
-		or, if set explicitly, has _race appended to it.  Using a -buildmode
-		option that requires non-default compile flags has a similar effect.
+		or, if set explicitly, has _race appended to it.  Likewise for the -msan
+		flag.  Using a -buildmode option that requires non-default compile flags
+		has a similar effect.
 	-ldflags 'flag list'
 		arguments to pass on each go tool link invocation.
 	-linkshared

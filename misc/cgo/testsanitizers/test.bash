@@ -31,4 +31,21 @@ if $CC --version | grep clang >& /dev/null; then
   fi
 fi
 
-go run msan.go
+status=0
+
+if ! go run -msan msan.go; then
+  echo "FAIL: msan"
+  status=1
+fi
+
+if ! go run -msan msan2.go; then
+  echo "FAIL: msan2"
+  status=1
+fi
+
+if go run -msan msan_fail.go 2>/dev/null; then
+  echo "FAIL: msan_fail"
+  status=1
+fi
+
+exit $status
