@@ -6,6 +6,8 @@ package runtime
 
 import "unsafe"
 
+type mOS struct{}
+
 func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
 func bsdthread_register() int32
 
