@@ -82,6 +82,10 @@ type eface struct {
 	data  unsafe.Pointer
 }
 
+func efaceOf(ep *interface{}) *eface {
+	return (*eface)(unsafe.Pointer(ep))
+}
+
 // The guintptr, muintptr, and puintptr are all used to bypass write barriers.
 // It is particularly important to avoid write barriers when the current P has
 // been released, because the GC thinks the world is stopped, and an

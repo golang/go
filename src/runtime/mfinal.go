@@ -187,7 +187,7 @@ func runfinq() {
 					if len(ityp.mhdr) != 0 {
 						// convert to interface with methods
 						// this conversion is guaranteed to succeed - we checked in SetFinalizer
-						assertE2I(ityp, *(*interface{})(frame), (*fInterface)(frame))
+						assertE2I(ityp, *(*eface)(frame), (*iface)(frame))
 					}
 				default:
 					throw("bad kind in runfinq")
@@ -264,7 +264,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		// (and we don't have the data structures to record them).
 		return
 	}
-	e := (*eface)(unsafe.Pointer(&obj))
+	e := efaceOf(&obj)
 	etyp := e._type
 	if etyp == nil {
 		throw("runtime.SetFinalizer: first argument is nil")
@@ -313,7 +313,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		}
 	}
 
-	f := (*eface)(unsafe.Pointer(&finalizer))
+	f := efaceOf(&finalizer)
 	ftyp := f._type
 	if ftyp == nil {
 		// switch to system stack and remove finalizer
@@ -347,7 +347,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			// ok - satisfies empty interface
 			goto okarg
 		}
-		if assertE2I2(ityp, obj, nil) {
+		if assertE2I2(ityp, *efaceOf(&obj), nil) {
 			goto okarg
 		}
 	}

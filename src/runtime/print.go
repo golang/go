@@ -220,12 +220,10 @@ func printslice(s []byte) {
 	printpointer(unsafe.Pointer(sp.array))
 }
 
-func printeface(e interface{}) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	print("(", ep._type, ",", ep.data, ")")
+func printeface(e eface) {
+	print("(", e._type, ",", e.data, ")")
 }
 
-func printiface(i fInterface) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	print("(", ip.tab, ",", ip.data, ")")
+func printiface(i iface) {
+	print("(", i.tab, ",", i.data, ")")
 }

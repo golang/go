@@ -127,7 +127,7 @@ var BigEndian = _BigEndian
 // For benchmarking.
 
 func BenchSetType(n int, x interface{}) {
-	e := *(*eface)(unsafe.Pointer(&x))
+	e := *efaceOf(&x)
 	t := e._type
 	var size uintptr
 	var p unsafe.Pointer
