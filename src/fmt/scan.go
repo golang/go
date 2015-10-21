@@ -1108,6 +1108,10 @@ func (s *ss) advance(format string) (i int) {
 			// in the input.
 			inputc := s.getRune()
 			if inputc == eof {
+				if wasNewline {
+					// Newlines are mandatory.
+					return -1
+				}
 				return
 			}
 			if !isSpace(inputc) {
@@ -1148,17 +1152,18 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 	end := len(format) - 1
 	// We process one item per non-trivial format
 	for i := 0; i <= end; {
-		w := s.advance(format[i:])
-		if w > 0 {
+		switch w := s.advance(format[i:]); {
+		case w > 0:
 			i += w
 			continue
+		case w < 0:
+			// Can't advance format. Why not?
+			s.errorString("input does not match format")
 		}
-		// Either we failed to advance, we have a percent character, or we ran out of input.
+
+		// Either we have a percent character, or we ran out of input.
+
 		if format[i] != '%' {
-			// Can't advance format.  Why not?
-			if w < 0 {
-				s.errorString("input does not match format")
-			}
 			// Otherwise at EOF; "too many operands" error handled below
 			break
 		}
