@@ -160,7 +160,7 @@ func runfinq() {
 		}
 		for fb != nil {
 			for i := fb.cnt; i > 0; i-- {
-				f := (*finalizer)(add(unsafe.Pointer(&fb.fin), uintptr(i-1)*unsafe.Sizeof(finalizer{})))
+				f := &fb.fin[i-1]
 
 				framesz := unsafe.Sizeof((interface{})(nil)) + uintptr(f.nret)
 				if framecap < framesz {
