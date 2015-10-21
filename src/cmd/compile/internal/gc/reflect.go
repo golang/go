@@ -1292,6 +1292,9 @@ func dumptypestructs() {
 		if flag_race != 0 {
 			dimportpath(racepkg)
 		}
+		if flag_msan != 0 {
+			dimportpath(msanpkg)
+		}
 		dimportpath(mkpkg("main"))
 	}
 }
