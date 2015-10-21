@@ -3037,7 +3037,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 	}
 
 	// General case, with no function calls left as arguments.
-	// Leave for gen, except that race detector requires old form
+	// Leave for gen, except that instrumentation requires old form.
 	if !instrumenting {
 		return n
 	}

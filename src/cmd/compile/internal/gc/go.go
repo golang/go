@@ -511,6 +511,8 @@ var Runtimepkg *Pkg // package runtime
 
 var racepkg *Pkg // package runtime/race
 
+var msanpkg *Pkg // package runtime/msan
+
 var typepkg *Pkg // fake package for runtime type info (headers)
 
 var typelinkpkg *Pkg // fake package for runtime type info (data)
@@ -644,6 +646,8 @@ var pure_go int
 var flag_installsuffix string
 
 var flag_race int
+
+var flag_msan int
 
 var flag_largemodel int
 

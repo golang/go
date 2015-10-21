@@ -1643,7 +1643,7 @@ func ullmancalc(n *Node) {
 		ul = UINF
 		goto out
 
-		// hard with race detector
+		// hard with instrumented code
 	case OANDAND, OOROR:
 		if instrumenting {
 			ul = UINF

@@ -193,3 +193,7 @@ func raceread(uintptr)
 func racewrite(uintptr)
 func racereadrange(addr, size uintptr)
 func racewriterange(addr, size uintptr)
+
+// memory sanitizer
+func msanread(addr, size uintptr)
+func msanwrite(addr, size uintptr)

@@ -18,6 +18,11 @@ import (
 // 3. It inserts a call to raceread before each memory read.
 // 4. It inserts a call to racewrite before each memory write.
 //
+// For flag_msan:
+//
+// 1. It inserts a call to msanread before each memory read.
+// 2. It inserts a call to msanwrite before each memory write.
+//
 // The rewriting is not yet complete. Certain nodes are not rewritten
 // but should be.
 
@@ -26,11 +31,11 @@ import (
 
 // Do not instrument the following packages at all,
 // at best instrumentation would cause infinite recursion.
-var omit_pkgs = []string{"runtime", "runtime/race"}
+var omit_pkgs = []string{"runtime", "runtime/race", "runtime/msan"}
 
 // Only insert racefuncenter/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
-var noinst_pkgs = []string{"sync", "sync/atomic"}
+var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 
 func ispkgin(pkgs []string) bool {
 	if myimportpath != "" {
@@ -49,25 +54,27 @@ func instrument(fn *Node) {
 		return
 	}
 
-	if !ispkgin(noinst_pkgs) {
+	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
 		instrumentlist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
 		instrumentlist(fn.Func.Exit, nil)
 	}
 
-	// nodpc is the PC of the caller as extracted by
-	// getcallerpc. We use -widthptr(FP) for x86.
-	// BUG: this will not work on arm.
-	nodpc := Nod(OXXX, nil, nil)
+	if flag_race != 0 {
+		// nodpc is the PC of the caller as extracted by
+		// getcallerpc. We use -widthptr(FP) for x86.
+		// BUG: this will not work on arm.
+		nodpc := Nod(OXXX, nil, nil)
 
-	*nodpc = *nodfp
-	nodpc.Type = Types[TUINTPTR]
-	nodpc.Xoffset = int64(-Widthptr)
-	nd := mkcall("racefuncenter", nil, nil, nodpc)
-	fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
-	nd = mkcall("racefuncexit", nil, nil)
-	fn.Func.Exit = list(fn.Func.Exit, nd)
+		*nodpc = *nodfp
+		nodpc.Type = Types[TUINTPTR]
+		nodpc.Xoffset = int64(-Widthptr)
+		nd := mkcall("racefuncenter", nil, nil, nodpc)
+		fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
+		nd = mkcall("racefuncexit", nil, nil)
+		fn.Func.Exit = list(fn.Func.Exit, nd)
+	}
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
@@ -427,7 +434,8 @@ ret:
 
 func isartificial(n *Node) bool {
 	// compiler-emitted artificial things that we do not want to instrument,
-	// cant' possibly participate in a data race.
+	// can't possibly participate in a data race.
+	// can't be seen by C/C++ and therefore irrelevant for msan.
 	if n.Op == ONAME && n.Sym != nil && n.Sym.Name != "" {
 		if n.Sym.Name == "_" {
 			return true
@@ -489,13 +497,19 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 		n = treecopy(n, 0)
 		makeaddable(n)
 		var f *Node
-		if t.Etype == TSTRUCT || Isfixedarray(t) {
+		if flag_msan != 0 {
+			name := "msanread"
+			if wr != 0 {
+				name = "msanwrite"
+			}
+			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
+		} else if flag_race != 0 && (t.Etype == TSTRUCT || Isfixedarray(t)) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
 			}
 			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
-		} else {
+		} else if flag_race != 0 {
 			name := "raceread"
 			if wr != 0 {
 				name = "racewrite"

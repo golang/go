@@ -200,6 +200,7 @@ func Main() {
 	obj.Flagcount("l", "disable inlining", &Debug['l'])
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
+	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
@@ -249,6 +250,14 @@ func Main() {
 	if flag_race != 0 {
 		racepkg = mkpkg("runtime/race")
 		racepkg.Name = "race"
+	}
+	if flag_msan != 0 {
+		msanpkg = mkpkg("runtime/msan")
+		msanpkg.Name = "msan"
+	}
+	if flag_race != 0 && flag_msan != 0 {
+		log.Fatal("can not use both -race and -msan")
+	} else if flag_race != 0 || flag_msan != 0 {
 		instrumenting = true
 	}
 
@@ -623,6 +632,9 @@ func findpkg(name string) (file string, ok bool) {
 		} else if flag_race != 0 {
 			suffixsep = "_"
 			suffix = "race"
+		} else if flag_msan != 0 {
+			suffixsep = "_"
+			suffix = "msan"
 		}
 
 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)

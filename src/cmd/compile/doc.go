@@ -66,6 +66,8 @@ Flags:
 		Write memory profile for the compilation to file.
 	-memprofilerate rate
 		Set runtime.MemProfileRate for the compilation to rate.
+	-msan
+		Insert calls to C/C++ memory sanitizer.
 	-nolocalimports
 		Disallow local (relative) imports.
 	-o file
