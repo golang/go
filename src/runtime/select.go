@@ -459,6 +459,13 @@ loop:
 			raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
 		}
 	}
+	if msanenabled {
+		if cas.kind == caseRecv && cas.elem != nil {
+			msanwrite(cas.elem, c.elemtype.size)
+		} else if cas.kind == caseSend {
+			msanread(cas.elem, c.elemtype.size)
+		}
+	}
 
 	selunlock(sel)
 	goto retc
@@ -471,6 +478,9 @@ asyncrecv:
 		}
 		raceacquire(chanbuf(c, c.recvx))
 		racerelease(chanbuf(c, c.recvx))
+	}
+	if msanenabled && cas.elem != nil {
+		msanwrite(cas.elem, c.elemtype.size)
 	}
 	if cas.receivedp != nil {
 		*cas.receivedp = true
@@ -504,6 +514,9 @@ asyncsend:
 		racerelease(chanbuf(c, c.sendx))
 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
 	}
+	if msanenabled {
+		msanread(cas.elem, c.elemtype.size)
+	}
 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
 	c.sendx++
 	if c.sendx == c.dataqsiz {
@@ -530,6 +543,9 @@ syncrecv:
 			raceWriteObjectPC(c.elemtype, cas.elem, cas.pc, chanrecvpc)
 		}
 		racesync(c, sg)
+	}
+	if msanenabled && cas.elem != nil {
+		msanwrite(cas.elem, c.elemtype.size)
 	}
 	selunlock(sel)
 	if debugSelect {
@@ -569,6 +585,9 @@ syncsend:
 	if raceenabled {
 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
 		racesync(c, sg)
+	}
+	if msanenabled {
+		msanread(cas.elem, c.elemtype.size)
 	}
 	selunlock(sel)
 	if debugSelect {

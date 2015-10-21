@@ -86,6 +86,9 @@ func slicebytetostring(buf *tmpBuf, b []byte) string {
 			getcallerpc(unsafe.Pointer(&b)),
 			funcPC(slicebytetostring))
 	}
+	if msanenabled && l > 0 {
+		msanread(unsafe.Pointer(&b[0]), uintptr(l))
+	}
 	s, c := rawstringtmp(buf, l)
 	copy(c, b)
 	return s
@@ -125,6 +128,9 @@ func slicebytetostringtmp(b []byte) string {
 			uintptr(len(b)),
 			getcallerpc(unsafe.Pointer(&b)),
 			funcPC(slicebytetostringtmp))
+	}
+	if msanenabled && len(b) > 0 {
+		msanread(unsafe.Pointer(&b[0]), uintptr(len(b)))
 	}
 	return *(*string)(unsafe.Pointer(&b))
 }
@@ -184,6 +190,9 @@ func slicerunetostring(buf *tmpBuf, a []rune) string {
 			uintptr(len(a))*unsafe.Sizeof(a[0]),
 			getcallerpc(unsafe.Pointer(&a)),
 			funcPC(slicerunetostring))
+	}
+	if msanenabled && len(a) > 0 {
+		msanread(unsafe.Pointer(&a[0]), uintptr(len(a))*unsafe.Sizeof(a[0]))
 	}
 	var dum [4]byte
 	size1 := 0

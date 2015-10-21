@@ -241,6 +241,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
 	}
+	if msanenabled {
+		msanwrite(dstp, uintptr(n)*typ.size)
+		msanread(srcp, uintptr(n)*typ.size)
+	}
 
 	// Note: No point in checking typ.kind&kindNoPointers here:
 	// compiler only emits calls to typedslicecopy for types with pointers,
