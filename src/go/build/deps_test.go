@@ -263,8 +263,9 @@ var pkgDeps = map[string][]string{
 	// that shows up in programs that use cgo.
 	"C": {},
 
-	// Race detector uses cgo.
+	// Race detector/MSan uses cgo.
 	"runtime/race": {"C"},
+	"runtime/msan": {"C"},
 
 	// Plan 9 alone needs io/ioutil and os.
 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
