@@ -198,6 +198,7 @@ var (
 	elfglobalsymndx    int
 	flag_installsuffix string
 	flag_race          int
+	flag_msan          int
 	Buildmode          BuildMode
 	Linkshared         bool
 	tracksym           string
@@ -373,6 +374,9 @@ func libinit() {
 	} else if flag_race != 0 {
 		suffixsep = "_"
 		suffix = "race"
+	} else if flag_msan != 0 {
+		suffixsep = "_"
+		suffix = "msan"
 	}
 
 	Lflag(fmt.Sprintf("%s/pkg/%s_%s%s%s", goroot, goos, goarch, suffixsep, suffix))
@@ -483,6 +487,9 @@ func loadlib() {
 	if flag_race != 0 {
 		loadinternal("runtime/race")
 	}
+	if flag_msan != 0 {
+		loadinternal("runtime/msan")
+	}
 
 	var i int
 	for i = 0; i < len(Ctxt.Library); i++ {
@@ -515,6 +522,11 @@ func loadlib() {
 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
 		// compiled using external linking.)
 		if (Thearch.Thechar == '5' || Thearch.Thechar == '7') && HEADTYPE == obj.Hdarwin && iscgo {
+			Linkmode = LinkExternal
+		}
+
+		// Force external linking for msan.
+		if flag_msan != 0 {
 			Linkmode = LinkExternal
 		}
 	}
@@ -797,6 +809,7 @@ var internalpkg = []string{
 	"os/user",
 	"runtime/cgo",
 	"runtime/race",
+	"runtime/msan",
 }
 
 func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) {
