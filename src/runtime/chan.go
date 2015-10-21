@@ -108,6 +108,9 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	if raceenabled {
 		raceReadObjectPC(t.elem, ep, callerpc, funcPC(chansend))
 	}
+	if msanenabled {
+		msanread(ep, t.elem.size)
+	}
 
 	if c == nil {
 		if !block {

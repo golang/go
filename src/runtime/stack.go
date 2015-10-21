@@ -364,6 +364,9 @@ func stackalloc(n uint32) (stack, []stkbar) {
 	if raceenabled {
 		racemalloc(v, uintptr(n))
 	}
+	if msanenabled {
+		msanmalloc(v, uintptr(n))
+	}
 	if stackDebug >= 1 {
 		print("  allocated ", v, "\n")
 	}
@@ -392,6 +395,9 @@ func stackfree(stk stack, n uintptr) {
 			sysFree(v, n, &memstats.stacks_sys)
 		}
 		return
+	}
+	if msanenabled {
+		msanfree(v, n)
 	}
 	if stackCache != 0 && n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
 		order := uint8(0)

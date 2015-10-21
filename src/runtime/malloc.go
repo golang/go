@@ -707,6 +707,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	if raceenabled {
 		racemalloc(x, size)
 	}
+	if msanenabled {
+		msanmalloc(x, size)
+	}
 
 	mp.mallocing = 0
 	releasem(mp)

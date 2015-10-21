@@ -2695,6 +2695,9 @@ retry:
 			if raceenabled {
 				racemalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
 			}
+			if msanenabled {
+				msanmalloc(unsafe.Pointer(gp.stack.lo), gp.stackAlloc)
+			}
 		}
 	}
 	return gp

@@ -276,6 +276,9 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 	}
+	if msanenabled && h != nil {
+		msanread(key, t.key.size)
+	}
 	if h == nil || h.count == 0 {
 		return atomicloadp(unsafe.Pointer(&zeroptr))
 	}
@@ -323,6 +326,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 		pc := funcPC(mapaccess2)
 		racereadpc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
+	}
+	if msanenabled && h != nil {
+		msanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
 		return atomicloadp(unsafe.Pointer(&zeroptr)), false
@@ -418,6 +424,10 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
 		raceReadObjectPC(t.elem, val, callerpc, pc)
+	}
+	if msanenabled {
+		msanread(key, t.key.size)
+		msanread(val, t.elem.size)
 	}
 
 	alg := t.key.alg
@@ -516,6 +526,9 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 		pc := funcPC(mapdelete)
 		racewritepc(unsafe.Pointer(h), callerpc, pc)
 		raceReadObjectPC(t.key, key, callerpc, pc)
+	}
+	if msanenabled && h != nil {
+		msanread(key, t.key.size)
 	}
 	if h == nil || h.count == 0 {
 		return

@@ -233,6 +233,9 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		if debug.allocfreetrace != 0 {
 			tracefree(unsafe.Pointer(p), size)
 		}
+		if msanenabled {
+			msanfree(unsafe.Pointer(p), size)
+		}
 
 		// Reset to allocated+noscan.
 		if cl == 0 {
