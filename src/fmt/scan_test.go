@@ -1114,14 +1114,22 @@ func TestScanfNewlineMatchFormat(t *testing.T) {
 		count  int
 		ok     bool
 	}{
-		{"newline in both", "1\n2", "%d\n%d\n", 2, true},
+		{"newline in both", "1\n2", "%d\n%d", 2, true},
 		{"newline in input", "1\n2", "%d %d", 1, false},
+		{"extra newline in format", "1\n2", "%d\n%d\n", 2, false},
+		{"newline-newline in both", "1\n\n2", "%d\n\n%d", 2, true},
+		{"newline-newline in format", "1\n2", "%d\n\n%d", 1, false},
+		{"newline-newline in input", "1\n\n2", "%d\n%d", 1, false},
 		{"space-newline in input", "1 \n2", "%d %d", 1, false},
 		{"newline in format", "1 2", "%d\n%d", 1, false},
 		{"space-newline in format", "1 2", "%d \n%d", 1, false},
 		{"space-newline in both", "1 \n2", "%d \n%d", 2, true},
 		{"extra space in format", "1\n2", "%d\n %d", 2, true},
 		{"two extra spaces in format", "1\n2", "%d \n %d", 2, true},
+		{"newline start in both", "\n1 2", "\n%d %d", 2, true},
+		{"newline start in format", "1 2", "\n%d %d", 0, false},
+		{"newline start in input", "\n1 2", "%d %d", 0, false},
+		{"space-newline start in input", " \n1 2", "\n%d %d", 2, true},
 	}
 	for _, test := range tests {
 		n, err := Sscanf(test.text, test.format, &a, &b)
