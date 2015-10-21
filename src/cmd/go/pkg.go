@@ -710,6 +710,7 @@ func expandScanner(err error) error {
 
 var raceExclude = map[string]bool{
 	"runtime/race": true,
+	"runtime/msan": true,
 	"runtime/cgo":  true,
 	"cmd/cgo":      true,
 	"syscall":      true,
@@ -723,6 +724,7 @@ var cgoExclude = map[string]bool{
 var cgoSyscallExclude = map[string]bool{
 	"runtime/cgo":  true,
 	"runtime/race": true,
+	"runtime/msan": true,
 }
 
 // load populates p using information from bp, err, which should
@@ -837,6 +839,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		// Exclude certain packages to avoid circular dependencies.
 		if buildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
 			importPaths = append(importPaths, "runtime/race")
+		}
+		// MSan uses runtime/msan.
+		if buildMSan && (!p.Standard || !raceExclude[p.ImportPath]) {
+			importPaths = append(importPaths, "runtime/msan")
 		}
 		// On ARM with GOARM=5, everything depends on math for the link.
 		if p.Name == "main" && goarch == "arm" {

@@ -69,6 +69,9 @@ and test commands:
 	-race
 		enable data race detection.
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+	-msan
+		enable interoperation with memory sanitizer.
+		Supported only on linux/amd64.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -91,8 +94,9 @@ and test commands:
 		a suffix to use in the name of the package installation directory,
 		in order to keep output separate from default builds.
 		If using the -race flag, the install suffix is automatically set to race
-		or, if set explicitly, has _race appended to it.  Using a -buildmode
-		option that requires non-default compile flags has a similar effect.
+		or, if set explicitly, has _race appended to it.  Likewise for the -msan
+		flag.  Using a -buildmode option that requires non-default compile flags
+		has a similar effect.
 	-ldflags 'flag list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
@@ -166,6 +170,7 @@ var buildGcflags []string    // -gcflags flag
 var buildLdflags []string    // -ldflags flag
 var buildGccgoflags []string // -gccgoflags flag
 var buildRace bool           // -race flag
+var buildMSan bool           // -msan flag
 var buildToolExec []string   // -toolexec flag
 var buildBuildmode string    // -buildmode flag
 var buildLinkshared bool     // -linkshared flag
@@ -225,6 +230,7 @@ func addBuildFlags(cmd *Command) {
 	cmd.Flag.BoolVar(&buildLinkshared, "linkshared", false, "")
 	cmd.Flag.StringVar(&buildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&buildRace, "race", false, "")
+	cmd.Flag.BoolVar(&buildMSan, "msan", false, "")
 	cmd.Flag.Var((*stringsFlag)(&buildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*stringsFlag)(&buildToolExec), "toolexec", "")
 	cmd.Flag.BoolVar(&buildWork, "work", false, "")
@@ -422,7 +428,7 @@ func buildModeInit() {
 }
 
 func runBuild(cmd *Command, args []string) {
-	raceInit()
+	instrumentInit()
 	buildModeInit()
 	var b builder
 	b.init()
@@ -523,7 +529,7 @@ func runInstall(cmd *Command, args []string) {
 		fatalf("cannot install, GOBIN must be an absolute path")
 	}
 
-	raceInit()
+	instrumentInit()
 	buildModeInit()
 	pkgs := pkgsFilter(packagesForBuild(args))
 
@@ -877,7 +883,7 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 	// using cgo, to make sure we do not overwrite the binary while
 	// a package is using it.  If this is a cross-build, then the cgo we
 	// are writing is not the cgo we need to use.
-	if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
+	if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace && !buildMSan {
 		if (len(p.CgoFiles) > 0 || p.Standard && p.ImportPath == "runtime/cgo") && !buildLinkshared && buildBuildmode != "shared" {
 			var stk importStack
 			p1 := loadPackage("cmd/cgo", &stk)
@@ -2907,7 +2913,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
-	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/cgo") {
+	if p.Standard && (p.ImportPath == "runtime/race" || p.ImportPath == "runtime/msan" || p.ImportPath == "runtime/cgo") {
 		cgoflags = append(cgoflags, "-import_syscall=false")
 	}
 
@@ -3355,23 +3361,38 @@ func (q *actionQueue) pop() *action {
 	return heap.Pop(q).(*action)
 }
 
-func raceInit() {
-	if !buildRace {
+func instrumentInit() {
+	if !buildRace && !buildMSan {
 		return
 	}
+	if buildRace && buildMSan {
+		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously", flag.Args()[0])
+		os.Exit(2)
+	}
 	if goarch != "amd64" || goos != "linux" && goos != "freebsd" && goos != "darwin" && goos != "windows" {
-		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
 	if !buildContext.CgoEnabled {
 		fmt.Fprintf(os.Stderr, "go %s: -race requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0])
 		os.Exit(2)
 	}
-	buildGcflags = append(buildGcflags, "-race")
-	buildLdflags = append(buildLdflags, "-race")
+	if buildRace {
+		buildGcflags = append(buildGcflags, "-race")
+		buildLdflags = append(buildLdflags, "-race")
+	} else {
+		buildGcflags = append(buildGcflags, "-msan")
+		buildLdflags = append(buildLdflags, "-msan")
+	}
 	if buildContext.InstallSuffix != "" {
 		buildContext.InstallSuffix += "_"
 	}
-	buildContext.InstallSuffix += "race"
-	buildContext.BuildTags = append(buildContext.BuildTags, "race")
+
+	if buildRace {
+		buildContext.InstallSuffix += "race"
+		buildContext.BuildTags = append(buildContext.BuildTags, "race")
+	} else {
+		buildContext.InstallSuffix += "msan"
+		buildContext.BuildTags = append(buildContext.BuildTags, "msan")
+	}
 }

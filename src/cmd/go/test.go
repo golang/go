@@ -327,7 +327,7 @@ func runTest(cmd *Command, args []string) {
 
 	findExecCmd() // initialize cached result
 
-	raceInit()
+	instrumentInit()
 	buildModeInit()
 	pkgs := packagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
@@ -395,7 +395,7 @@ func runTest(cmd *Command, args []string) {
 		if deps["C"] {
 			delete(deps, "C")
 			deps["runtime/cgo"] = true
-			if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace {
+			if goos == runtime.GOOS && goarch == runtime.GOARCH && !buildRace && !buildMSan {
 				deps["cmd/cgo"] = true
 			}
 		}
@@ -542,6 +542,9 @@ func runTest(cmd *Command, args []string) {
 		extraOpts := ""
 		if buildRace {
 			extraOpts = "-race "
+		}
+		if buildMSan {
+			extraOpts = "-msan "
 		}
 		fmt.Fprintf(os.Stderr, "installing these packages with 'go test %s-i%s' will speed future tests.\n\n", extraOpts, args)
 	}
