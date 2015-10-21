@@ -13,7 +13,8 @@ void f(int32_t *p, int n) {
 
 void g(int32_t *p, int n) {
   if (p[4] != 1) {
-    abort();
+    // We shouldn't get here; msan should stop us first.
+    exit(0);
   }
 }
 */
