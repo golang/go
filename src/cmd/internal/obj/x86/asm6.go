@@ -1196,7 +1196,7 @@ var optab =
 	{APSRLO, ypsdq, Pq, [23]uint8{0x73, 03}},
 	{APSRLL, yps, Py3, [23]uint8{0xd2, 0x72, 02, Pe, 0xd2, Pe, 0x72, 02}},
 	{APSRLQ, yps, Py3, [23]uint8{0xd3, 0x73, 02, Pe, 0xd3, Pe, 0x73, 02}},
-	{APSRLW, yps, Py3, [23]uint8{0xd1, 0x71, 02, Pe, 0xe1, Pe, 0x71, 02}},
+	{APSRLW, yps, Py3, [23]uint8{0xd1, 0x71, 02, Pe, 0xd1, Pe, 0x71, 02}},
 	{APSUBB, yxm, Pe, [23]uint8{0xf8}},
 	{APSUBL, yxm, Pe, [23]uint8{0xfa}},
 	{APSUBQ, yxm, Pe, [23]uint8{0xfb}},
