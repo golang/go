@@ -1623,7 +1623,7 @@ func getgcmaskcb(frame *stkframe, ctxt unsafe.Pointer) bool {
 //go:linkname reflect_gcbits reflect.gcbits
 func reflect_gcbits(x interface{}) []byte {
 	ret := getgcmask(x)
-	typ := (*ptrtype)(unsafe.Pointer((*eface)(unsafe.Pointer(&x))._type)).elem
+	typ := (*ptrtype)(unsafe.Pointer(efaceOf(&x)._type)).elem
 	nptr := typ.ptrdata / ptrSize
 	for uintptr(len(ret)) > nptr && ret[len(ret)-1] == 0 {
 		ret = ret[:len(ret)-1]
@@ -1633,7 +1633,7 @@ func reflect_gcbits(x interface{}) []byte {
 
 // Returns GC type info for object p for testing.
 func getgcmask(ep interface{}) (mask []byte) {
-	e := *(*eface)(unsafe.Pointer(&ep))
+	e := *efaceOf(&ep)
 	p := e.data
 	t := e._type
 	// data or bss

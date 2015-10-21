@@ -226,18 +226,12 @@ func strequal(p, q unsafe.Pointer) bool {
 	return *(*string)(p) == *(*string)(q)
 }
 func interequal(p, q unsafe.Pointer) bool {
-	return ifaceeq(*(*interface {
-		f()
-	})(p), *(*interface {
-		f()
-	})(q))
+	return ifaceeq(*(*iface)(p), *(*iface)(q))
 }
 func nilinterequal(p, q unsafe.Pointer) bool {
-	return efaceeq(*(*interface{})(p), *(*interface{})(q))
+	return efaceeq(*(*eface)(p), *(*eface)(q))
 }
-func efaceeq(p, q interface{}) bool {
-	x := (*eface)(unsafe.Pointer(&p))
-	y := (*eface)(unsafe.Pointer(&q))
+func efaceeq(x, y eface) bool {
 	t := x._type
 	if t != y._type {
 		return false
@@ -254,11 +248,7 @@ func efaceeq(p, q interface{}) bool {
 	}
 	return eq(x.data, y.data)
 }
-func ifaceeq(p, q interface {
-	f()
-}) bool {
-	x := (*iface)(unsafe.Pointer(&p))
-	y := (*iface)(unsafe.Pointer(&q))
+func ifaceeq(x, y iface) bool {
 	xtab := x.tab
 	if xtab != y.tab {
 		return false

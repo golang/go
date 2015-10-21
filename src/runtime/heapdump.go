@@ -379,7 +379,7 @@ func dumpgoroutine(gp *g) {
 		dumpint(tagPanic)
 		dumpint(uint64(uintptr(unsafe.Pointer(p))))
 		dumpint(uint64(uintptr(unsafe.Pointer(gp))))
-		eface := (*eface)(unsafe.Pointer(&p.arg))
+		eface := efaceOf(&p.arg)
 		dumpint(uint64(uintptr(unsafe.Pointer(eface._type))))
 		dumpint(uint64(uintptr(unsafe.Pointer(eface.data))))
 		dumpint(0) // was p->defer, no longer recorded
