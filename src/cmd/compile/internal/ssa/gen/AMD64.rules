@@ -557,6 +557,26 @@
 (MOVSDstore [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVSDstore [addOff(off1, off2)] {sym} ptr val mem)
 (MOVOstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVOstore  [addOff(off1, off2)] {sym} ptr val mem)
 
+// Fold constants into stores.
+(MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validStoreConst(c,off) ->
+	(MOVQstoreconst [makeStoreConst(c,off)] {sym} ptr mem)
+(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validStoreConstOff(off) ->
+	(MOVLstoreconst [makeStoreConst(int64(int32(c)),off)] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVWconst [c]) mem) && validStoreConstOff(off) ->
+	(MOVWstoreconst [makeStoreConst(int64(int16(c)),off)] {sym} ptr mem)
+(MOVBstore [off] {sym} ptr (MOVBconst [c]) mem) && validStoreConstOff(off) ->
+	(MOVBstoreconst [makeStoreConst(int64(int8(c)),off)] {sym} ptr mem)
+
+// Fold address offsets into constant stores.
+(MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+	(MOVQstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+(MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+	(MOVLstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+(MOVWstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+	(MOVWstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+(MOVBstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
+	(MOVBstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
 (MOVQload  [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
@@ -589,6 +609,15 @@
 (MOVOstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVOstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 
+(MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+	(MOVQstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVLstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+	(MOVLstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVWstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+	(MOVWstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
+	(MOVBstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+
 // indexed loads and stores
 (MOVQloadidx8 [off1] {sym} (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)
 (MOVQstoreidx8 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] {sym} ptr idx val mem)
@@ -616,42 +645,42 @@
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> mem
-(Zero [1] destptr mem) -> (MOVBstore destptr (MOVBconst [0]) mem)
-(Zero [2] destptr mem) -> (MOVWstore destptr (MOVWconst [0]) mem)
-(Zero [4] destptr mem) -> (MOVLstore destptr (MOVLconst [0]) mem)
-(Zero [8] destptr mem) -> (MOVQstore destptr (MOVQconst [0]) mem)
+(Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
+(Zero [2] destptr mem) -> (MOVWstoreconst [0] destptr mem)
+(Zero [4] destptr mem) -> (MOVLstoreconst [0] destptr mem)
+(Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
 
 (Zero [3] destptr mem) ->
-	(MOVBstore (ADDQconst [2] destptr) (MOVBconst [0])
-		(MOVWstore destptr (MOVWconst [0]) mem))
+	(MOVBstoreconst [makeStoreConst(0,2)] destptr
+		(MOVWstoreconst [0] destptr mem))
 (Zero [5] destptr mem) ->
-	(MOVBstore (ADDQconst [4] destptr) (MOVBconst [0])
-		(MOVLstore destptr (MOVLconst [0]) mem))
+	(MOVBstoreconst [makeStoreConst(0,4)] destptr
+		(MOVLstoreconst [0] destptr mem))
 (Zero [6] destptr mem) ->
-	(MOVWstore (ADDQconst [4] destptr) (MOVWconst [0])
-		(MOVLstore destptr (MOVLconst [0]) mem))
+	(MOVWstoreconst [makeStoreConst(0,4)] destptr
+		(MOVLstoreconst [0] destptr mem))
 (Zero [7] destptr mem) ->
-	(MOVLstore (ADDQconst [3] destptr) (MOVLconst [0])
-		(MOVLstore destptr (MOVLconst [0]) mem))
+	(MOVLstoreconst [makeStoreConst(0,3)] destptr
+		(MOVLstoreconst [0] destptr mem))
 
 // Strip off any fractional word zeroing.
 (Zero [size] destptr mem) && size%8 != 0 && size > 8 ->
 	(Zero [size-size%8] (ADDQconst destptr [size%8])
-		(MOVQstore destptr (MOVQconst [0]) mem))
+		(MOVQstoreconst [0] destptr mem))
 
 // Zero small numbers of words directly.
 (Zero [16] destptr mem) ->
-	(MOVQstore (ADDQconst [8] destptr) (MOVQconst [0])
-		(MOVQstore destptr (MOVQconst [0]) mem))
+	(MOVQstoreconst [makeStoreConst(0,8)] destptr
+		(MOVQstoreconst [0] destptr mem))
 (Zero [24] destptr mem) ->
-	(MOVQstore (ADDQconst [16] destptr) (MOVQconst [0])
-		(MOVQstore (ADDQconst [8] destptr) (MOVQconst [0])
-			(MOVQstore destptr (MOVQconst [0]) mem)))
+	(MOVQstoreconst [makeStoreConst(0,16)] destptr
+		(MOVQstoreconst [makeStoreConst(0,8)] destptr
+			(MOVQstoreconst [0] destptr mem)))
 (Zero [32] destptr mem) ->
-	(MOVQstore (ADDQconst [24] destptr) (MOVQconst [0])
-		(MOVQstore (ADDQconst [16] destptr) (MOVQconst [0])
-			(MOVQstore (ADDQconst [8] destptr) (MOVQconst [0])
-				(MOVQstore destptr (MOVQconst [0]) mem))))
+	(MOVQstoreconst [makeStoreConst(0,24)] destptr
+		(MOVQstoreconst [makeStoreConst(0,16)] destptr
+			(MOVQstoreconst [makeStoreConst(0,8)] destptr
+				(MOVQstoreconst [0] destptr mem))))
 
 // Medium zeroing uses a duff device.
 (Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 ->

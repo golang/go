@@ -116,8 +116,9 @@ func init() {
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
 
-		gpstore    = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+		gpstore      = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
+		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
 
 		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -381,6 +382,14 @@ func init() {
 
 		{name: "MOVOload", reg: fpload, asm: "MOVUPS", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
 		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+
+		// For storeconst ops, the AuxInt field encodes both
+		// the value to store and an address offset of the store.
+		// Cast AuxInt to a StoreConst to extract Val and Off fields.
+		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of StoreConst(AuxInt).Val() to arg0+StoreConst(AuxInt).Off()+aux.  arg1=mem
+		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", typ: "Mem"}, // store low 2 bytes of ...
+		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", typ: "Mem"}, // store low 4 bytes of ...
+		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", typ: "Mem"}, // store 8 bytes of ...
 
 		// arg0 = (duff-adjusted) pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)

@@ -3747,6 +3747,24 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Scale = 4
 		p.To.Index = regnum(v.Args[1])
 		addAux(&p.To, v)
+	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		sc := ssa.StoreConst(v.AuxInt)
+		i := sc.Val()
+		switch v.Op {
+		case ssa.OpAMD64MOVBstoreconst:
+			i = int64(int8(i))
+		case ssa.OpAMD64MOVWstoreconst:
+			i = int64(int16(i))
+		case ssa.OpAMD64MOVLstoreconst:
+			i = int64(int32(i))
+		case ssa.OpAMD64MOVQstoreconst:
+		}
+		p.From.Offset = i
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		addAux2(&p.To, v, sc.Off())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
 		ssa.OpAMD64CVTSL2SS, ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSQ2SD,
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
@@ -3990,6 +4008,11 @@ func (s *genState) genValue(v *ssa.Value) {
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					return
 				}
+			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
+				off := ssa.StoreConst(v.AuxInt).Off()
+				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+					return
+				}
 			}
 			if w.Type.IsMemory() {
 				// We can't delay the nil check past the next store.
@@ -4202,11 +4225,14 @@ func (s *genState) deferReturn() {
 
 // addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
 func addAux(a *obj.Addr, v *ssa.Value) {
+	addAux2(a, v, v.AuxInt)
+}
+func addAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	if a.Type != obj.TYPE_MEM {
 		v.Fatalf("bad addAux addr %s", a)
 	}
 	// add integer offset
-	a.Offset += v.AuxInt
+	a.Offset += offset
 
 	// If no additional symbol offset, we're done.
 	if v.Aux == nil {
