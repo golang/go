@@ -84,8 +84,8 @@ type slicetype struct {
 type functype struct {
 	typ       _type
 	dotdotdot bool
-	in        slice
-	out       slice
+	in        []*_type
+	out       []*_type
 }
 
 type ptrtype struct {
