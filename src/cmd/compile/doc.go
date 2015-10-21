@@ -107,7 +107,7 @@ The //line directive is an historical special case; all other directives are of 
 The //go:noescape directive specifies that the next declaration in the file, which
 must be a func without a body (meaning that it has an implementation not written
 in Go) does not allow any of the pointers passed as arguments to escape into the
-heap or into the values returned from the function. This information can be used as
+heap or into the values returned from the function. This information can be used
 during the compiler's escape analysis of Go code calling the function.
 
 	//go:nosplit
