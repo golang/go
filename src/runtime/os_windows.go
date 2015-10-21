@@ -6,6 +6,8 @@ package runtime
 
 import "unsafe"
 
+type mOS struct{}
+
 type stdFunction *byte
 
 //go:linkname os_sigpipe os.sigpipe

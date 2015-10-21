@@ -26,7 +26,7 @@ TEXT runtime·miniterrno(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	AX,	m_perrno(BX)
+	MOVQ	AX,	(m_mOS+mOS_perrno)(BX)
 	RET
 
 // int64 runtime·nanotime1(void);
@@ -81,7 +81,7 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	m_perrno(BX), DX
+	MOVQ	(m_mOS+mOS_perrno)(BX), DX
 	CMPQ	DX, $0
 	JEQ	skiperrno1
 	MOVL	$0, 0(DX)
@@ -109,7 +109,7 @@ skipargs:
 	get_tls(CX)
 	MOVQ	g(CX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	m_perrno(BX), AX
+	MOVQ	(m_mOS+mOS_perrno)(BX), AX
 	CMPQ	AX, $0
 	JEQ	skiperrno2
 	MOVL	0(AX), AX
@@ -196,7 +196,7 @@ allgood:
 	MOVQ    R10, 176(SP)
 
 	// save m->scratch
-	LEAQ	m_scratch(BP), R11
+	LEAQ	(m_mOS+mOS_scratch)(BP), R11
 	MOVQ	0(R11), R10
 	MOVQ	R10, 112(SP)
 	MOVQ	8(R11), R10
@@ -211,7 +211,7 @@ allgood:
 	MOVQ	R10, 152(SP)
 
 	// save errno, it might be EINTR; stuff we do here might reset it.
-	MOVQ	m_perrno(BP), R10
+	MOVQ	(m_mOS+mOS_perrno)(BP), R10
 	MOVL	0(R10), R10
 	MOVQ	R10, 160(SP)
 
@@ -244,7 +244,7 @@ allgood:
 	MOVQ    R10, libcall_r2(R11)
 
 	// restore scratch
-	LEAQ	m_scratch(BP), R11
+	LEAQ	(m_mOS+mOS_scratch)(BP), R11
 	MOVQ	112(SP), R10
 	MOVQ	R10, 0(R11)
 	MOVQ	120(SP), R10
@@ -259,7 +259,7 @@ allgood:
 	MOVQ	R10, 40(R11)
 
 	// restore errno
-	MOVQ	m_perrno(BP), R11
+	MOVQ	(m_mOS+mOS_perrno)(BP), R11
 	MOVQ	160(SP), R10
 	MOVL	R10, 0(R11)
 

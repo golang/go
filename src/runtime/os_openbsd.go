@@ -4,6 +4,8 @@
 
 package runtime
 
+type mOS struct{}
+
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 

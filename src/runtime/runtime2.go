@@ -269,15 +269,6 @@ type g struct {
 	gcAssistBytes int64
 }
 
-type mts struct {
-	tv_sec  int64
-	tv_nsec int64
-}
-
-type mscratch struct {
-	v [6]uintptr
-}
-
 type m struct {
 	g0      *g     // goroutine with scheduling stack
 	morebuf gobuf  // gobuf arg to morestack
@@ -343,18 +334,7 @@ type m struct {
 	libcallg  guintptr
 	syscall   libcall // stores syscall parameters on windows
 	//#endif
-	//#ifdef GOOS_solaris
-	perrno *int32 // pointer to tls errno
-	// these are here because they are too large to be on the stack
-	// of low-level NOSPLIT functions.
-	//LibCall	libcall;
-	ts      mts
-	scratch mscratch
-	//#endif
-	//#ifdef GOOS_plan9
-	notesig *int8
-	errstr  *byte
-	//#endif
+	mOS
 }
 
 type p struct {

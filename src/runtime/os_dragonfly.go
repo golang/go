@@ -6,6 +6,8 @@ package runtime
 
 import "unsafe"
 
+type mOS struct{}
+
 //go:noescape
 func lwp_create(param *lwpparams) int32
 
