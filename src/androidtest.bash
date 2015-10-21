@@ -56,7 +56,16 @@ mkdir -p $FAKE_GOROOT/pkg
 cp -a "${GOROOT}/src" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/test" "${FAKE_GOROOT}/"
 cp -a "${GOROOT}/lib" "${FAKE_GOROOT}/"
-cp -a "${GOROOT}/pkg/android_$GOARCH" "${FAKE_GOROOT}/pkg/"
+
+# For android, the go tool will install the compiled package in
+# pkg/android_${GOARCH}_shared directory by default, not in
+# the usual pkg/${GOOS}_${GOARCH}. Some tests in src/go/* assume
+# the compiled packages were installed in the usual places.
+# Instead of reflecting this exception into the go/* packages,
+# we copy the compiled packages into the usual places.
+cp -a "${GOROOT}/pkg/android_${GOARCH}_shared" "${FAKE_GOROOT}/pkg/"
+mv "${FAKE_GOROOT}/pkg/android_${GOARCH}_shared" "${FAKE_GOROOT}/pkg/android_${GOARCH}"
+
 echo '# Syncing test files to android device'
 adb shell mkdir -p /data/local/tmp/goroot
 time adb sync data &> /dev/null
