@@ -13,18 +13,16 @@ import (
 
 // This implementation depends on OS-specific implementations of
 //
-//	uintptr runtime·semacreate(void)
-//		Create a semaphore, which will be assigned to m->waitsema.
-//		The zero value is treated as absence of any semaphore,
-//		so be sure to return a non-zero value.
+//	func semacreate(mp *m)
+//		Create a semaphore for mp, if it does not already have one.
 //
-//	int32 runtime·semasleep(int64 ns)
-//		If ns < 0, acquire m->waitsema and return 0.
-//		If ns >= 0, try to acquire m->waitsema for at most ns nanoseconds.
+//	func semasleep(ns int64) int32
+//		If ns < 0, acquire m's semaphore and return 0.
+//		If ns >= 0, try to acquire m's semaphore for at most ns nanoseconds.
 //		Return 0 if the semaphore was acquired, -1 if interrupted or timed out.
 //
-//	int32 runtime·semawakeup(M *mp)
-//		Wake up mp, which is or will soon be sleeping on mp->waitsema.
+//	func semawakeup(mp *m)
+//		Wake up mp, which is or will soon be sleeping on its semaphore.
 //
 const (
 	locked uintptr = 1
@@ -45,9 +43,7 @@ func lock(l *mutex) {
 	if atomic.Casuintptr(&l.key, 0, locked) {
 		return
 	}
-	if gp.m.waitsema == 0 {
-		gp.m.waitsema = semacreate()
-	}
+	semacreate(gp.m)
 
 	// On uniprocessor's, no point spinning.
 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
@@ -157,9 +153,7 @@ func notesleep(n *note) {
 	if gp != gp.m.g0 {
 		throw("notesleep not on g0")
 	}
-	if gp.m.waitsema == 0 {
-		gp.m.waitsema = semacreate()
-	}
+	semacreate(gp.m)
 	if !atomic.Casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
 		// Must be locked (got wakeup).
 		if n.key != locked {
@@ -248,9 +242,7 @@ func notetsleep(n *note, ns int64) bool {
 	if gp != gp.m.g0 && gp.m.preemptoff != "" {
 		throw("notetsleep not on g0")
 	}
-	if gp.m.waitsema == 0 {
-		gp.m.waitsema = semacreate()
-	}
+	semacreate(gp.m)
 	return notetsleep_internal(n, ns, nil, 0)
 }
 
@@ -261,9 +253,7 @@ func notetsleepg(n *note, ns int64) bool {
 	if gp == gp.m.g0 {
 		throw("notetsleepg on g0")
 	}
-	if gp.m.waitsema == 0 {
-		gp.m.waitsema = semacreate()
-	}
+	semacreate(gp.m)
 	entersyscallblock(0)
 	ok := notetsleep_internal(n, ns, nil, 0)
 	exitsyscall(0)

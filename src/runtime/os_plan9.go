@@ -7,8 +7,9 @@ package runtime
 import "unsafe"
 
 type mOS struct {
-	notesig *int8
-	errstr  *byte
+	waitsemacount uint32
+	notesig       *int8
+	errstr        *byte
 }
 
 func closefd(fd int32) int32
