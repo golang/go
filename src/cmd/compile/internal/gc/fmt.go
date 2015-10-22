@@ -816,7 +816,7 @@ func stmtfmt(n *Node) string {
 			f += Nconv(n.Right, 0)
 		}
 
-		// Don't export "v = <N>" initializing statements, hope they're always
+	// Don't export "v = <N>" initializing statements, hope they're always
 	// preceded by the DCL which will be re-parsed and typecheck to reproduce
 	// the "v = <N>" again.
 	case OAS, OASWB:
@@ -1127,7 +1127,7 @@ func exprfmt(n *Node, prec int) string {
 
 		return Vconv(n.Val(), 0)
 
-		// Special case: name used as local variable in export.
+	// Special case: name used as local variable in export.
 	// _ becomes ~b%d internally; print as _ for export
 	case ONAME:
 		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
@@ -1149,7 +1149,6 @@ func exprfmt(n *Node, prec int) string {
 		}
 		fallthrough
 
-		//fallthrough
 	case OPACK, ONONAME:
 		return Sconv(n.Sym, 0)
 
