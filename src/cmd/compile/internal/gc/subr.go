@@ -846,10 +846,8 @@ func isideal(t *Type) bool {
 	return false
 }
 
-/*
- * given receiver of type t (t == r or t == *r)
- * return type to hang methods off (r).
- */
+// given receiver of type t (t == r or t == *r)
+// return type to hang methods off (r).
 func methtype(t *Type, mustname int) *Type {
 	if t == nil {
 		return nil
@@ -1383,9 +1381,7 @@ func substAny(tp **Type, types *[]*Type) {
 	}
 }
 
-/*
- * Is this a 64-bit type?
- */
+// Is this a 64-bit type?
 func Is64(t *Type) bool {
 	if t == nil {
 		return false
@@ -1398,9 +1394,7 @@ func Is64(t *Type) bool {
 	return false
 }
 
-/*
- * Is a conversion between t1 and t2 a no-op?
- */
+// Is a conversion between t1 and t2 a no-op?
 func Noconv(t1 *Type, t2 *Type) bool {
 	e1 := int(Simtype[t1.Etype])
 	e2 := int(Simtype[t2.Etype])
@@ -1501,18 +1495,16 @@ func syslook(name string, copy int) *Node {
 	return n
 }
 
-/*
- * compute a hash value for type t.
- * if t is a method type, ignore the receiver
- * so that the hash can be used in interface checks.
- * %T already contains
- * all the necessary logic to generate a representation
- * of the type that completely describes it.
- * using smprint here avoids duplicating that code.
- * using md5 here is overkill, but i got tired of
- * accidental collisions making the runtime think
- * two types are equal when they really aren't.
- */
+// compute a hash value for type t.
+// if t is a method type, ignore the receiver
+// so that the hash can be used in interface checks.
+// %T already contains
+// all the necessary logic to generate a representation
+// of the type that completely describes it.
+// using smprint here avoids duplicating that code.
+// using md5 here is overkill, but i got tired of
+// accidental collisions making the runtime think
+// two types are equal when they really aren't.
 func typehash(t *Type) uint32 {
 	var p string
 
@@ -1613,12 +1605,10 @@ func printframenode(n *Node) {
 	}
 }
 
-/*
- * calculate sethi/ullman number
- * roughly how many registers needed to
- * compile a node. used to compile the
- * hardest side first to minimize registers.
- */
+// calculate sethi/ullman number
+// roughly how many registers needed to
+// compile a node. used to compile the
+// hardest side first to minimize registers.
 func ullmancalc(n *Node) {
 	if n == nil {
 		return
@@ -1695,9 +1685,7 @@ func badtype(o int, tl *Type, tr *Type) {
 	Yyerror("illegal types for operand: %v%s", Oconv(int(o), 0), s)
 }
 
-/*
- * iterator to walk a structure declaration
- */
+// iterator to walk a structure declaration
 func Structfirst(s *Iter, nn **Type) *Type {
 	var t *Type
 
@@ -1749,9 +1737,7 @@ func structnext(s *Iter) *Type {
 	return t
 }
 
-/*
- * iterator to this and inargs in a function
- */
+// iterator to this and inargs in a function
 func funcfirst(s *Iter, t *Type) *Type {
 	var fp *Type
 
@@ -1863,10 +1849,8 @@ func Brrev(a int) int {
 	return a
 }
 
-/*
- * return side effect-free n, appending side effects to init.
- * result is assignable if n is.
- */
+// return side effect-free n, appending side effects to init.
+// result is assignable if n is.
 func safeexpr(n *Node, init **NodeList) *Node {
 	if n == nil {
 		return nil
@@ -1935,10 +1919,8 @@ func copyexpr(n *Node, t *Type, init **NodeList) *Node {
 	return l
 }
 
-/*
- * return side-effect free and cheap n, appending side effects to init.
- * result may not be assignable.
- */
+// return side-effect free and cheap n, appending side effects to init.
+// result may not be assignable.
 func cheapexpr(n *Node, init **NodeList) *Node {
 	switch n.Op {
 	case ONAME, OLITERAL:
@@ -1963,14 +1945,10 @@ func Setmaxarg(t *Type, extra int32) {
 	}
 }
 
-/*
- * unicode-aware case-insensitive strcmp
- */
+// unicode-aware case-insensitive strcmp
 
-/*
- * code to resolve elided DOTs
- * in embedded types
- */
+// code to resolve elided DOTs
+// in embedded types
 
 // search depth 0 --
 // return count of fields+methods
@@ -2103,16 +2081,14 @@ func adddot(n *Node) *Node {
 	return n
 }
 
-/*
- * code to help generate trampoline
- * functions for methods on embedded
- * subtypes.
- * these are approx the same as
- * the corresponding adddot routines
- * except that they expect to be called
- * with unique tasks and they return
- * the actual methods.
- */
+// code to help generate trampoline
+// functions for methods on embedded
+// subtypes.
+// these are approx the same as
+// the corresponding adddot routines
+// except that they expect to be called
+// with unique tasks and they return
+// the actual methods.
 type Symlink struct {
 	field     *Type
 	link      *Symlink
@@ -2260,9 +2236,7 @@ func expandmeth(t *Type) {
 	}
 }
 
-/*
- * Given funarg struct list, return list of ODCLFIELD Node fn args.
- */
+// Given funarg struct list, return list of ODCLFIELD Node fn args.
 func structargs(tl **Type, mustname int) *NodeList {
 	var savet Iter
 	var a *Node
@@ -2293,29 +2267,27 @@ func structargs(tl **Type, mustname int) *NodeList {
 	return args
 }
 
-/*
- * Generate a wrapper function to convert from
- * a receiver of type T to a receiver of type U.
- * That is,
- *
- *	func (t T) M() {
- *		...
- *	}
- *
- * already exists; this function generates
- *
- *	func (u U) M() {
- *		u.M()
- *	}
- *
- * where the types T and U are such that u.M() is valid
- * and calls the T.M method.
- * The resulting function is for use in method tables.
- *
- *	rcvr - U
- *	method - M func (t T)(), a TFIELD type struct
- *	newnam - the eventual mangled name of this function
- */
+// Generate a wrapper function to convert from
+// a receiver of type T to a receiver of type U.
+// That is,
+//
+//	func (t T) M() {
+//		...
+//	}
+//
+// already exists; this function generates
+//
+//	func (u U) M() {
+//		u.M()
+//	}
+//
+// where the types T and U are such that u.M() is valid
+// and calls the T.M method.
+// The resulting function is for use in method tables.
+//
+//	rcvr - U
+//	method - M func (t T)(), a TFIELD type struct
+//	newnam - the eventual mangled name of this function
 
 var genwrapper_linehistdone int = 0
 
@@ -2511,9 +2483,7 @@ func hashfor(t *Type) *Node {
 	return n
 }
 
-/*
- * Generate a helper function to compute the hash of a value of type t.
- */
+// Generate a helper function to compute the hash of a value of type t.
 func genhash(sym *Sym, t *Type) {
 	if Debug['r'] != 0 {
 		fmt.Printf("genhash %v %v\n", sym, t)
@@ -2748,9 +2718,7 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	return nif
 }
 
-/*
- * Generate a helper function to check equality of two values of type t.
- */
+// Generate a helper function to check equality of two values of type t.
 func geneq(sym *Sym, t *Type) {
 	if Debug['r'] != 0 {
 		fmt.Printf("geneq %v %v\n", sym, t)
@@ -3020,11 +2988,9 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 	return true
 }
 
-/*
- * even simpler simtype; get rid of ptr, bool.
- * assuming that the front end has rejected
- * all the invalid conversions (like ptr -> bool)
- */
+// even simpler simtype; get rid of ptr, bool.
+// assuming that the front end has rejected
+// all the invalid conversions (like ptr -> bool)
 func Simsimtype(t *Type) int {
 	if t == nil {
 		return 0
@@ -3062,9 +3028,7 @@ func liststmt(l *NodeList) *Node {
 	return n
 }
 
-/*
- * return nelem of list
- */
+// return nelem of list
 func structcount(t *Type) int {
 	var s Iter
 
@@ -3075,11 +3039,9 @@ func structcount(t *Type) int {
 	return v
 }
 
-/*
- * return power of 2 of the constant
- * operand. -1 if it is not a power of 2.
- * 1000+ if it is a -(power of 2)
- */
+// return power of 2 of the constant
+// operand. -1 if it is not a power of 2.
+// 1000+ if it is a -(power of 2)
 func powtwo(n *Node) int {
 	if n == nil || n.Op != OLITERAL || n.Type == nil {
 		return -1
@@ -3113,12 +3075,10 @@ func powtwo(n *Node) int {
 	return -1
 }
 
-/*
- * return the unsigned type for
- * a signed integer type.
- * returns T if input is not a
- * signed integer type.
- */
+// return the unsigned type for
+// a signed integer type.
+// returns T if input is not a
+// signed integer type.
 func tounsigned(t *Type) *Type {
 	// this is types[et+1], but not sure
 	// that this relation is immutable
@@ -3146,10 +3106,8 @@ func tounsigned(t *Type) *Type {
 	return t
 }
 
-/*
- * magic number for signed division
- * see hacker's delight chapter 10
- */
+// magic number for signed division
+// see hacker's delight chapter 10
 func Smagic(m *Magic) {
 	var mask uint64
 
@@ -3243,10 +3201,8 @@ func Smagic(m *Magic) {
 	m.S = p - m.W
 }
 
-/*
- * magic number for unsigned division
- * see hacker's delight chapter 10
- */
+// magic number for unsigned division
+// see hacker's delight chapter 10
 func Umagic(m *Magic) {
 	var mask uint64
 
@@ -3353,15 +3309,13 @@ func ngotype(n *Node) *Sym {
 	return nil
 }
 
-/*
- * Convert raw string to the prefix that will be used in the symbol
- * table.  All control characters, space, '%' and '"', as well as
- * non-7-bit clean bytes turn into %xx.  The period needs escaping
- * only in the last segment of the path, and it makes for happier
- * users if we escape that as little as possible.
- *
- * If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
- */
+// Convert raw string to the prefix that will be used in the symbol
+// table.  All control characters, space, '%' and '"', as well as
+// non-7-bit clean bytes turn into %xx.  The period needs escaping
+// only in the last segment of the path, and it makes for happier
+// users if we escape that as little as possible.
+//
+// If you edit this, edit ../../debug/goobj/read.go:/importPathToPrefix too.
 func pathtoprefix(s string) string {
 	slash := strings.LastIndex(s, "/")
 	for i := 0; i < len(s); i++ {
@@ -3479,10 +3433,8 @@ func checknil(x *Node, init **NodeList) {
 	*init = list(*init, n)
 }
 
-/*
- * Can this type be stored directly in an interface word?
- * Yes, if the representation is a single pointer.
- */
+// Can this type be stored directly in an interface word?
+// Yes, if the representation is a single pointer.
 func isdirectiface(t *Type) bool {
 	switch t.Etype {
 	case TPTR32,

@@ -47,9 +47,9 @@ import (
 //		Flags: those of %N
 //			','  separate items with ',' instead of ';'
 //
-//   In mparith1.c:
-//      %B Mpint*	Big integers
-//	%F Mpflt*	Big floats
+//   In mparith2.go and mparith3.go:
+//		%B Mpint*	Big integers
+//		%F Mpflt*	Big floats
 //
 //   %S, %T and %N obey use the following flags to set the format mode:
 const (
@@ -713,7 +713,7 @@ func typefmt(t *Type, flag int) string {
 				}
 			} else if fmtmode == FExp {
 				// TODO(rsc) this breaks on the eliding of unused arguments in the backend
-				// when this is fixed, the special case in dcl.c checkarglist can go.
+				// when this is fixed, the special case in dcl.go checkarglist can go.
 				//if(t->funarg)
 				//	fmtstrcpy(fp, "_ ");
 				//else

@@ -43,9 +43,7 @@ var dfirst *obj.Prog
 
 var dpc *obj.Prog
 
-/*
- * Is this node a memory operand?
- */
+// Is this node a memory operand?
 func Ismem(n *Node) bool {
 	switch n.Op {
 	case OITAB,
@@ -662,11 +660,9 @@ func Anyregalloc() bool {
 	return n > len(Thearch.ReservedRegs)
 }
 
-/*
- * allocate register of type t, leave in n.
- * if o != N, o may be reusable register.
- * caller must Regfree(n).
- */
+// allocate register of type t, leave in n.
+// if o != N, o may be reusable register.
+// caller must Regfree(n).
 func Regalloc(n *Node, t *Type, o *Node) {
 	if t == nil {
 		Fatalf("regalloc: t nil")

@@ -59,10 +59,8 @@ func (n *Node) Bool() bool {
 	return n.Val().U.(bool)
 }
 
-/*
- * truncate float literal fv to 32-bit or 64-bit precision
- * according to type; return truncated value.
- */
+// truncate float literal fv to 32-bit or 64-bit precision
+// according to type; return truncated value.
 func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	if t == nil {
 		return oldv
@@ -90,19 +88,15 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	return fv
 }
 
-/*
- * convert n, if literal, to type t.
- * implicit conversion.
- */
+// convert n, if literal, to type t.
+// implicit conversion.
 func Convlit(np **Node, t *Type) {
 	convlit1(np, t, false)
 }
 
-/*
- * convert n, if literal, to type t.
- * return a new node if necessary
- * (if n is a named constant, can't edit n->type directly).
- */
+// convert n, if literal, to type t.
+// return a new node if necessary
+//(if n is a named constant, can't edit n->type directly).
 func convlit1(np **Node, t *Type, explicit bool) {
 	n := *np
 	if n == nil || t == nil || n.Type == nil || isideal(t) || n.Type == t {
@@ -501,9 +495,7 @@ func saveorig(n *Node) *Node {
 	return n.Orig
 }
 
-/*
- * if n is constant, rewrite as OLITERAL node.
- */
+// if n is constant, rewrite as OLITERAL node.
 func evconst(n *Node) {
 	// pick off just the opcodes that can be
 	// constant evaluated.
@@ -1300,12 +1292,10 @@ num:
 	return
 }
 
-/*
- * defaultlit on both nodes simultaneously;
- * if they're both ideal going in they better
- * get the same type going out.
- * force means must assign concrete (non-ideal) type.
- */
+// defaultlit on both nodes simultaneously;
+// if they're both ideal going in they better
+// get the same type going out.
+// force means must assign concrete (non-ideal) type.
 func defaultlit2(lp **Node, rp **Node, force int) {
 	l := *lp
 	r := *rp
@@ -1406,10 +1396,8 @@ func nonnegconst(n *Node) int {
 	return -1
 }
 
-/*
- * convert x to type et and back to int64
- * for sign extension and truncation.
- */
+// convert x to type et and back to int64
+// for sign extension and truncation.
 func iconv(x int64, et int) int64 {
 	switch et {
 	case TINT8:

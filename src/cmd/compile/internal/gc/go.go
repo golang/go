@@ -325,8 +325,8 @@ const (
 )
 
 const (
-	/* types of channel */
-	/* must match ../../pkg/nreflect/type.go:/Chandir */
+	// types of channel
+	// must match ../../pkg/nreflect/type.go:/Chandir
 	Cxxx  = 0
 	Crecv = 1 << 0
 	Csend = 1 << 1
@@ -399,10 +399,8 @@ type Idir struct {
 	dir  string
 }
 
-/*
- * argument passing to/from
- * smagic and umagic
- */
+// argument passing to/from
+// smagic and umagic
 type Magic struct {
 	W   int // input for both - width
 	S   int // output for both - shift
@@ -418,17 +416,15 @@ type Magic struct {
 	Ua int    // output - adder
 }
 
-/*
- * note this is the runtime representation
- * of the compilers arrays.
- *
- * typedef	struct
- * {				// must not move anything
- *	uchar	array[8];	// pointer to data
- *	uchar	nel[4];		// number of elements
- *	uchar	cap[4];		// allocated number of elements
- * } Array;
- */
+// note this is the runtime representation
+// of the compilers arrays.
+//
+// typedef	struct
+// {					// must not move anything
+// 	uchar	array[8];	// pointer to data
+// 	uchar	nel[4];		// number of elements
+// 	uchar	cap[4];		// allocated number of elements
+// } Array;
 var Array_array int // runtime offsetof(Array,array) - same for String
 
 var Array_nel int // runtime offsetof(Array,nel) - same for String
@@ -437,16 +433,14 @@ var Array_cap int // runtime offsetof(Array,cap)
 
 var sizeof_Array int // runtime sizeof(Array)
 
-/*
- * note this is the runtime representation
- * of the compilers strings.
- *
- * typedef	struct
- * {				// must not move anything
- *	uchar	array[8];	// pointer to data
- *	uchar	nel[4];		// number of elements
- * } String;
- */
+// note this is the runtime representation
+// of the compilers strings.
+//
+// typedef	struct
+// {					// must not move anything
+// 	uchar	array[8];	// pointer to data
+// 	uchar	nel[4];		// number of elements
+// } String;
 var sizeof_String int // runtime sizeof(String)
 
 var dotlist [10]Dlist // size is max depth of embeddeds
@@ -714,9 +708,7 @@ type Graph struct {
 	Rpo []*Flow
 }
 
-/*
- *	interface to back end
- */
+// interface to back end
 
 const (
 	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.

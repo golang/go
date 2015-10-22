@@ -9,10 +9,8 @@ import (
 	"fmt"
 )
 
-/*
- * portable half of code generator.
- * mainly statements and control flow.
- */
+// portable half of code generator.
+// mainly statements and control flow.
 var labellist *Label
 
 var lastlabel *Label
@@ -211,18 +209,14 @@ func stmtlabel(n *Node) *Label {
 	return nil
 }
 
-/*
- * compile statements
- */
+// compile statements
 func Genlist(l *NodeList) {
 	for ; l != nil; l = l.Next {
 		gen(l.N)
 	}
 }
 
-/*
- * generate code to start new proc running call n.
- */
+// generate code to start new proc running call n.
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
@@ -239,11 +233,9 @@ func cgen_proc(n *Node, proc int) {
 	}
 }
 
-/*
- * generate declaration.
- * have to allocate heap copy
- * for escaped variables.
- */
+// generate declaration.
+// have to allocate heap copy
+// for escaped variables.
 func cgen_dcl(n *Node) {
 	if Debug['g'] != 0 {
 		Dump("\ncgen-dcl", n)
@@ -265,9 +257,7 @@ func cgen_dcl(n *Node) {
 	Cgen_as(n.Name.Heapaddr, prealloc[n])
 }
 
-/*
- * generate discard of value
- */
+// generate discard of value
 func cgen_discard(nr *Node) {
 	if nr == nil {
 		return
@@ -322,9 +312,7 @@ func cgen_discard(nr *Node) {
 	}
 }
 
-/*
- * clearslim generates code to zero a slim node.
- */
+// clearslim generates code to zero a slim node.
 func Clearslim(n *Node) {
 	var z Node
 	z.Op = OLITERAL
@@ -367,17 +355,13 @@ func Clearslim(n *Node) {
 	Cgen(&z, n)
 }
 
-/*
- * generate:
- *	res = iface{typ, data}
- * n->left is typ
- * n->right is data
- */
+// generate:
+//	res = iface{typ, data}
+// n->left is typ
+// n->right is data
 func Cgen_eface(n *Node, res *Node) {
-	/*
-	 * the right node of an eface may contain function calls that uses res as an argument,
-	 * so it's important that it is done first
-	 */
+	// the right node of an eface may contain function calls that uses res as an argument,
+	// so it's important that it is done first
 
 	tmp := temp(Types[Tptr])
 	Cgen(n.Right, tmp)
@@ -393,13 +377,11 @@ func Cgen_eface(n *Node, res *Node) {
 	Cgen(n.Left, &dst)
 }
 
-/*
- * generate one of:
- *	res, resok = x.(T)
- *	res = x.(T) (when resok == nil)
- * n.Left is x
- * n.Type is T
- */
+// generate one of:
+//	res, resok = x.(T)
+//	res = x.(T) (when resok == nil)
+// n.Left is x
+// n.Type is T
 func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	if Debug_typeassert > 0 {
 		Warn("type assertion inlined")
@@ -485,12 +467,10 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 	}
 }
 
-/*
- * generate:
- *	res, resok = x.(T)
- * n.Left is x
- * n.Type is T
- */
+// generate:
+//	res, resok = x.(T)
+// n.Left is x
+// n.Type is T
 func Cgen_As2dottype(n, res, resok *Node) {
 	if Debug_typeassert > 0 {
 		Warn("type assertion inlined")
@@ -549,11 +529,9 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	Patch(q, Pc)
 }
 
-/*
- * gather series of offsets
- * >=0 is direct addressed field
- * <0 is pointer to next field (+1)
- */
+// gather series of offsets
+// >=0 is direct addressed field
+// <0 is pointer to next field (+1)
 func Dotoffset(n *Node, oary []int64, nn **Node) int {
 	var i int
 
@@ -602,9 +580,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
 	return i
 }
 
-/*
- * make a new off the books
- */
+// make a new off the books
 func Tempname(nn *Node, t *Type) {
 	if Curfn == nil {
 		Fatalf("no curfn for tempname")

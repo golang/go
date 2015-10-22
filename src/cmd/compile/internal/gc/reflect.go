@@ -12,9 +12,7 @@ import (
 	"sort"
 )
 
-/*
- * runtime interface and reflection data structures
- */
+// runtime interface and reflection data structures
 var signatlist *NodeList
 
 // byMethodNameAndPackagePath sorts method signatures by name, then package path.
@@ -237,10 +235,8 @@ func hiter(t *Type) *Type {
 	return i
 }
 
-/*
- * f is method type, with receiver.
- * return function type, receiver as first argument (or not).
- */
+// f is method type, with receiver.
+// return function type, receiver as first argument (or not).
 func methodfunc(f *Type, receiver *Type) *Type {
 	var in *NodeList
 	if receiver != nil {
@@ -477,10 +473,8 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
 	return dsymptr(s, ot, pkg.Pathsym, 0)
 }
 
-/*
- * uncommonType
- * ../../runtime/type.go:/uncommonType
- */
+// uncommonType
+// ../../runtime/type.go:/uncommonType
 func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 	m := methods(t)
 	if t.Sym == nil && len(m) == 0 {
@@ -686,10 +680,8 @@ func typeptrdata(t *Type) int64 {
 	}
 }
 
-/*
- * commonType
- * ../../runtime/type.go:/commonType
- */
+// commonType
+// ../../runtime/type.go:/commonType
 
 var dcommontype_algarray *Sym
 
@@ -1040,7 +1032,7 @@ ok:
 			ot = dsymptr(s, ot, s1, 0)
 		}
 
-		// ../../runtime/type.go:/ChanType
+	// ../../runtime/type.go:/ChanType
 	case TCHAN:
 		s1 := dtypesym(t.Type)
 
@@ -1114,7 +1106,7 @@ ok:
 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
 		}
 
-		// ../../../runtime/type.go:/MapType
+	// ../../../runtime/type.go:/MapType
 	case TMAP:
 		s1 := dtypesym(t.Down)
 
@@ -1162,7 +1154,7 @@ ok:
 		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 
-		// ../../runtime/type.go:/StructType
+	// ../../runtime/type.go:/StructType
 	// for security, only the exported fields.
 	case TSTRUCT:
 		n := 0

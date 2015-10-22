@@ -9,9 +9,7 @@ import (
 	"fmt"
 )
 
-/*
- * function literals aka closures
- */
+// function literals aka closures
 func closurehdr(ntype *Node) {
 	var name *Node
 	var a *Node
@@ -179,10 +177,8 @@ func closurename(n *Node) *Sym {
 }
 
 func makeclosure(func_ *Node) *Node {
-	/*
-	 * wrap body in external function
-	 * that begins by reading closure parameters.
-	 */
+	// wrap body in external function
+	// that begins by reading closure parameters.
 	xtype := Nod(OTFUNC, nil, nil)
 
 	xtype.List = func_.List

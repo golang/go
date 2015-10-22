@@ -10,9 +10,7 @@ import (
 	"strconv"
 )
 
-/*
- * architecture-independent object file output
- */
+// architecture-independent object file output
 const (
 	ArhdrSize = 60
 )

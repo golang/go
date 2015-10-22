@@ -88,7 +88,7 @@ func Noreturn(p *obj.Prog) bool {
 // longer and more difficult to follow during debugging.
 // Remove them.
 
-/* what instruction does a JMP to p eventually land on? */
+// what instruction does a JMP to p eventually land on?
 func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
 	n := 0
 	for p != nil && p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH {
@@ -104,14 +104,12 @@ func chasejmp(p *obj.Prog, jmploop *int) *obj.Prog {
 	return p
 }
 
-/*
- * reuse reg pointer for mark/sweep state.
- * leave reg==nil at end because alive==nil.
- */
+// reuse reg pointer for mark/sweep state.
+// leave reg==nil at end because alive==nil.
 var alive interface{} = nil
 var dead interface{} = 1
 
-/* mark all code reachable from firstp as alive */
+// mark all code reachable from firstp as alive
 func mark(firstp *obj.Prog) {
 	for p := firstp; p != nil; p = p.Link {
 		if p.Opt != dead {
@@ -335,21 +333,19 @@ func Flowend(graph *Graph) {
 	}
 }
 
-/*
- * find looping structure
- *
- * 1) find reverse postordering
- * 2) find approximate dominators,
- *	the actual dominators if the flow graph is reducible
- *	otherwise, dominators plus some other non-dominators.
- *	See Matthew S. Hecht and Jeffrey D. Ullman,
- *	"Analysis of a Simple Algorithm for Global Data Flow Problems",
- *	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
- *	Oct. 1-3, 1973, pp.  207-217.
- * 3) find all nodes with a predecessor dominated by the current node.
- *	such a node is a loop head.
- *	recursively, all preds with a greater rpo number are in the loop
- */
+// find looping structure
+//
+// 1) find reverse postordering
+// 2) find approximate dominators,
+//	the actual dominators if the flow graph is reducible
+//	otherwise, dominators plus some other non-dominators.
+//	See Matthew S. Hecht and Jeffrey D. Ullman,
+//	"Analysis of a Simple Algorithm for Global Data Flow Problems",
+//	Conf.  Record of ACM Symp. on Principles of Prog. Langs, Boston, Massachusetts,
+//	Oct. 1-3, 1973, pp.  207-217.
+// 3) find all nodes with a predecessor dominated by the current node.
+//	such a node is a loop head.
+//	recursively, all preds with a greater rpo number are in the loop
 func postorder(r *Flow, rpo2r []*Flow, n int32) int32 {
 	r.Rpo = 1
 	r1 := r.S1
@@ -903,7 +899,7 @@ func nilopt(firstp *obj.Prog) {
 		return
 	}
 
-	if Debug_checknil > 1 { /* || strcmp(curfn->nname->sym->name, "f1") == 0 */
+	if Debug_checknil > 1 { // || strcmp(curfn->nname->sym->name, "f1") == 0
 		Dumpit("nilopt", g.Start, 0)
 	}
 
