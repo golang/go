@@ -262,6 +262,8 @@ const (
 	OpAMD64MOVLstore
 	OpAMD64MOVQstore
 	OpAMD64MOVQstoreidx8
+	OpAMD64MOVOload
+	OpAMD64MOVOstore
 	OpAMD64DUFFZERO
 	OpAMD64MOVOconst
 	OpAMD64REPSTOSQ
@@ -270,7 +272,8 @@ const (
 	OpAMD64CALLdefer
 	OpAMD64CALLgo
 	OpAMD64CALLinter
-	OpAMD64REPMOVSB
+	OpAMD64DUFFCOPY
+	OpAMD64REPMOVSQ
 	OpAMD64InvertFlags
 	OpAMD64LoweredGetG
 	OpAMD64LoweredGetClosurePtr
@@ -3040,6 +3043,28 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "MOVOload",
+		asm:  x86.AMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name: "MOVOstore",
+		asm:  x86.AMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
 		name: "DUFFZERO",
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3106,7 +3131,17 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "REPMOVSB",
+		name: "DUFFCOPY",
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 128}, // .DI
+				{1, 64},  // .SI
+			},
+			clobbers: 65728, // .SI .DI .X0
+		},
+	},
+	{
+		name: "REPMOVSQ",
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // .DI
