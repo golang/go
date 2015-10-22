@@ -71,20 +71,12 @@ func printnl() {
 	print("\n")
 }
 
-func printpc(p unsafe.Pointer) {
-	print("PC=", hex(uintptr(p)))
-}
-
 func printbool(v bool) {
 	if v {
 		print("true")
 	} else {
 		print("false")
 	}
-}
-
-func printbyte(c byte) {
-	gwrite((*[1]byte)(unsafe.Pointer(&c))[:])
 }
 
 func printfloat(v float64) {
