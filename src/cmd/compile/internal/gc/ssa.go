@@ -304,14 +304,14 @@ func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimp
 
 var (
 	// dummy node for the memory variable
-	memVar = Node{Op: ONAME, Sym: &Sym{Name: "mem"}}
+	memVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "mem"}}
 
 	// dummy nodes for temporary variables
-	ptrVar   = Node{Op: ONAME, Sym: &Sym{Name: "ptr"}}
-	capVar   = Node{Op: ONAME, Sym: &Sym{Name: "cap"}}
-	typVar   = Node{Op: ONAME, Sym: &Sym{Name: "typ"}}
-	idataVar = Node{Op: ONAME, Sym: &Sym{Name: "idata"}}
-	okVar    = Node{Op: ONAME, Sym: &Sym{Name: "ok"}}
+	ptrVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ptr"}}
+	capVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "cap"}}
+	typVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
+	idataVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
+	okVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
 )
 
 // startBlock sets the current block we're generating code in to b.
@@ -2021,6 +2021,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	if left.Op == ONAME && canSSA(left) {
 		// Update variable assignment.
 		s.vars[left] = right
+		s.addNamedValue(left, right)
 		return
 	}
 	// not ssa-able.  Treat as a store.
@@ -2245,13 +2246,14 @@ func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
 // If bounded is true then this address does not require a nil check for its operand
 // even if that would otherwise be implied.
 func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+	t := Ptrto(n.Type)
 	switch n.Op {
 	case ONAME:
 		switch n.Class {
 		case PEXTERN:
 			// global variable
 			aux := &ssa.ExternSymbol{n.Type, n.Sym}
-			v := s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
+			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if n.Xoffset != 0 {
 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
@@ -2277,12 +2279,12 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			// getting lucky.  We might need a real dependency edge
 			// between vardef and addr ops.
 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
-			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
 			// that cse works on their addresses
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
-			return s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
 		case PAUTO | PHEAP, PPARAM | PHEAP, PPARAMOUT | PHEAP, PPARAMREF:
 			return s.expr(n.Name.Heapaddr)
 		default:
@@ -2296,18 +2298,18 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			s.Unimplementedf("OINDREG of non-SP register %s in addr: %v", obj.Rconv(int(n.Reg)), n)
 			return nil
 		}
-		return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(n.Type), n.Xoffset, s.sp)
+		return s.entryNewValue1I(ssa.OpOffPtr, t, n.Xoffset, s.sp)
 	case OINDEX:
 		if n.Left.Type.IsSlice() {
 			a := s.expr(n.Left)
 			i := s.expr(n.Right)
 			i = s.extendIndex(i)
-			len := s.newValue1(ssa.OpSliceLen, Types[TUINTPTR], a)
+			len := s.newValue1(ssa.OpSliceLen, Types[TINT], a)
 			if !n.Bounded {
 				s.boundsCheck(i, len)
 			}
-			p := s.newValue1(ssa.OpSlicePtr, Ptrto(n.Left.Type.Type), a)
-			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), p, i)
+			p := s.newValue1(ssa.OpSlicePtr, t, a)
+			return s.newValue2(ssa.OpPtrIndex, t, p, i)
 		} else { // array
 			a := s.addr(n.Left, bounded)
 			i := s.expr(n.Right)
@@ -2326,15 +2328,15 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		return p
 	case ODOT:
 		p := s.addr(n.Left, bounded)
-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, t, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		if !bounded {
 			s.nilCheck(p)
 		}
-		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, t, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case OCLOSUREVAR:
-		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
+		return s.newValue2(ssa.OpAddPtr, t,
 			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])),
 			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case OPARAM:
@@ -2347,11 +2349,10 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		original_p := *p
 		original_p.Xoffset = n.Xoffset
 		aux := &ssa.ArgSymbol{Typ: n.Type, Node: &original_p}
-		return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
 	case OCONVNOP:
 		addr := s.addr(n.Left, bounded)
-		to := Ptrto(n.Type)
-		return s.newValue1(ssa.OpCopy, to, addr) // ensure that addr has the right type
+		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
 
 	default:
 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
@@ -3155,6 +3156,7 @@ func (s *state) lookupVarIncoming(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 			// need a phi value
 			v := b.NewValue0(s.peekLine(), ssa.OpPhi, t)
 			v.AddArgs(vals...)
+			s.addNamedValue(name, v)
 			return v
 		}
 	}
@@ -3181,6 +3183,33 @@ func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node) *ssa.Val
 }
 
 // TODO: the above mutually recursive functions can lead to very deep stacks.  Fix that.
+
+func (s *state) addNamedValue(n *Node, v *ssa.Value) {
+	if n.Class == Pxxx {
+		// Don't track our dummy nodes (&memVar etc.).
+		return
+	}
+	if n.Sym == nil {
+		// TODO: What the heck is this?
+		return
+	}
+	if strings.HasPrefix(n.Sym.Name, "autotmp_") {
+		// Don't track autotmp_ variables.
+		return
+	}
+	if n.Class == PPARAM || n.Class == PPARAMOUT {
+		// TODO: Remove this
+		return
+	}
+	if n.Class == PAUTO && n.Xoffset != 0 {
+		s.Fatalf("AUTO var with offset %s %d", n, n.Xoffset)
+	}
+	values, ok := s.f.NamedValues[n]
+	if !ok {
+		s.f.Names = append(s.f.Names, n)
+	}
+	s.f.NamedValues[n] = append(values, v)
+}
 
 // an unresolved branch
 type branch struct {
@@ -4441,7 +4470,7 @@ func (*ssaExport) StringData(s string) interface{} {
 	return &ssa.ExternSymbol{Typ: idealstring, Sym: data}
 }
 
-func (e *ssaExport) Auto(t ssa.Type) fmt.Stringer {
+func (e *ssaExport) Auto(t ssa.Type) ssa.GCNode {
 	n := temp(t.(*Type))   // Note: adds new auto to Curfn.Func.Dcl list
 	e.mustImplement = true // This modifies the input to SSA, so we want to make sure we succeed from here!
 	return n
@@ -4479,4 +4508,8 @@ func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
 		fmt.Printf("SSA unimplemented: "+msg+"\n", args...)
 	}
 	e.unimplemented = true
+}
+
+func (n *Node) Typ() ssa.Type {
+	return n.Type
 }

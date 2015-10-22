@@ -4,10 +4,6 @@
 
 package ssa
 
-import (
-	"fmt"
-)
-
 // A place that an ssa variable can reside.
 type Location interface {
 	Name() string // name to use in assembly templates: %rax, 16(%rsp), ...
@@ -26,7 +22,7 @@ func (r *Register) Name() string {
 
 // A LocalSlot is a location in the stack frame.
 type LocalSlot struct {
-	N fmt.Stringer // a *gc.Node for an auto variable
+	N GCNode // a *gc.Node for an auto variable
 }
 
 func (s *LocalSlot) Name() string {

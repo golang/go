@@ -604,6 +604,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Ullman = 1
 	ptr.Used = true
 	ptr.Name.Curfn = xfunc
+	ptr.Xoffset = 0
 	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
 	var body *NodeList
 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {

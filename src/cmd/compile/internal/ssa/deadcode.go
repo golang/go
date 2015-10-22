@@ -162,6 +162,25 @@ func deadcode(f *Func) {
 	}
 	f.Blocks = f.Blocks[:i]
 
+	// Remove dead entries from namedValues map.
+	for name, values := range f.NamedValues {
+		i := 0
+		for _, v := range values {
+			for v.Op == OpCopy {
+				v = v.Args[0]
+			}
+			if live[v.ID] {
+				values[i] = v
+				i++
+			}
+		}
+		f.NamedValues[name] = values[:i]
+		tail := values[i:]
+		for j := range tail {
+			tail[j] = nil
+		}
+	}
+
 	// TODO: renumber Blocks and Values densely?
 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
 }
