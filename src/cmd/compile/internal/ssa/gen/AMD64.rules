@@ -293,7 +293,50 @@
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 
-(Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+// Small moves
+(Move [0] _ _ mem) -> mem
+(Move [1] dst src mem) -> (MOVBstore dst (MOVBload src mem) mem)
+(Move [2] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
+(Move [4] dst src mem) -> (MOVLstore dst (MOVLload src mem) mem)
+(Move [8] dst src mem) -> (MOVQstore dst (MOVQload src mem) mem)
+(Move [16] dst src mem) -> (MOVOstore dst (MOVOload src mem) mem)
+(Move [3] dst src mem) ->
+	(MOVBstore [2] dst (MOVBload [2] src mem)
+		(MOVWstore dst (MOVWload src mem) mem))
+(Move [5] dst src mem) ->
+	(MOVBstore [4] dst (MOVBload [4] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+(Move [6] dst src mem) ->
+	(MOVWstore [4] dst (MOVWload [4] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+(Move [7] dst src mem) ->
+	(MOVLstore [3] dst (MOVLload [3] src mem)
+		(MOVLstore dst (MOVLload src mem) mem))
+(Move [size] dst src mem) && size > 8 && size < 16 ->
+	(MOVQstore [size-8] dst (MOVQload [size-8] src mem)
+		(MOVQstore dst (MOVQload src mem) mem))
+
+// Adjust moves to be a multiple of 16 bytes.
+(Move [size] dst src mem) && size > 16 && size%16 != 0 && size%16 <= 8 ->
+	(Move [size-size%16] (ADDQconst <dst.Type> dst [size%16]) (ADDQconst <src.Type> src [size%16])
+		(MOVQstore dst (MOVQload src mem) mem))
+(Move [size] dst src mem) && size > 16 && size%16 != 0 && size%16 > 8 ->
+	(Move [size-size%16] (ADDQconst <dst.Type> dst [size%16]) (ADDQconst <src.Type> src [size%16])
+		(MOVOstore dst (MOVOload src mem) mem))
+
+// Medium copying uses a duff device.
+(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 ->
+	(DUFFCOPY [14*(64-size/16)] dst src mem)
+// 14 and 64 are magic constants.  14 is the number of bytes to encode:
+//	MOVUPS	(SI), X0
+//	ADDQ	$16, SI
+//	MOVUPS	X0, (DI)
+//	ADDQ	$16, DI
+// and 64 is the number of such blocks.  See src/runtime/duff_amd64.s:duffcopy.
+
+// Large copying uses REP MOVSQ.
+(Move [size] dst src mem) && size > 16*64 && size%8 == 0 ->
+	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
 
 (Not x) -> (XORBconst [1] x)
 
@@ -504,6 +547,7 @@
 (MOVBload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVBload  [addOff(off1, off2)] {sym} ptr mem)
 (MOVSSload [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVSSload [addOff(off1, off2)] {sym} ptr mem)
 (MOVSDload [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVSDload [addOff(off1, off2)] {sym} ptr mem)
+(MOVOload  [off1] {sym} (ADDQconst [off2] ptr) mem) -> (MOVOload  [addOff(off1, off2)] {sym} ptr mem)
 
 (MOVQstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVQstore  [addOff(off1, off2)] {sym} ptr val mem)
 (MOVLstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVLstore  [addOff(off1, off2)] {sym} ptr val mem)
@@ -511,6 +555,7 @@
 (MOVBstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVBstore  [addOff(off1, off2)] {sym} ptr val mem)
 (MOVSSstore [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVSSstore [addOff(off1, off2)] {sym} ptr val mem)
 (MOVSDstore [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVSDstore [addOff(off1, off2)] {sym} ptr val mem)
+(MOVOstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVOstore  [addOff(off1, off2)] {sym} ptr val mem)
 
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
@@ -526,6 +571,8 @@
 	(MOVSSload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
 (MOVSDload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVOload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVOload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
 
 (MOVQstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVQstore  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
@@ -539,6 +586,8 @@
 	(MOVSSstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 (MOVSDstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
+(MOVOstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVOstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 
 // indexed loads and stores
 (MOVQloadidx8 [off1] {sym} (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)

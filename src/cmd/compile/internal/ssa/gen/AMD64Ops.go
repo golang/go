@@ -366,18 +366,21 @@ func init() {
 		{name: "LEAQ8", reg: gp21sb}, // arg0 + 8*arg1 + auxint
 
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
-		{name: "MOVBload", reg: gpload, asm: "MOVB"},               // load byte from arg0+auxint+aux. arg1=mem
-		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},         // ditto, extend to int64
-		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},         // ditto, extend to uint64
-		{name: "MOVWload", reg: gpload, asm: "MOVW"},               // load 2 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVLload", reg: gpload, asm: "MOVL"},               // load 4 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVQload", reg: gpload, asm: "MOVQ"},               // load 8 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},        // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
-		{name: "MOVBstore", reg: gpstore, asm: "MOVB", typ: "Mem"}, // store byte in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVWstore", reg: gpstore, asm: "MOVW", typ: "Mem"}, // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVLstore", reg: gpstore, asm: "MOVL", typ: "Mem"}, // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", typ: "Mem"}, // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"},      // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVBload", reg: gpload, asm: "MOVB", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
+		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},          // ditto, extend to int64
+		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},          // ditto, extend to uint64
+		{name: "MOVWload", reg: gpload, asm: "MOVW", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVLload", reg: gpload, asm: "MOVL", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVQload", reg: gpload, asm: "MOVQ", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+		{name: "MOVBstore", reg: gpstore, asm: "MOVB", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVWstore", reg: gpstore, asm: "MOVW", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVLstore", reg: gpstore, asm: "MOVL", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"},       // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+
+		{name: "MOVOload", reg: fpload, asm: "MOVUPS", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
 
 		// arg0 = (duff-adjusted) pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)
@@ -391,7 +394,7 @@ func init() {
 				clobbers: buildReg("DI FLAGS"),
 			},
 		},
-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Float64"},
+		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128"},
 
 		// arg0 = address of memory to zero
 		// arg1 = # of 8-byte words to zero
@@ -412,7 +415,31 @@ func init() {
 		{name: "CALLgo", reg: regInfo{clobbers: callerSave}},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
 		{name: "CALLinter", reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
-		{name: "REPMOVSB", reg: regInfo{[]regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")}, buildReg("DI SI CX"), nil}}, // move arg2 bytes from arg1 to arg0.  arg3=mem, returns memory
+		// arg0 = destination pointer
+		// arg1 = source pointer
+		// arg2 = mem
+		// auxint = offset from duffcopy symbol to call
+		// returns memory
+		{
+			name: "DUFFCOPY",
+			reg: regInfo{
+				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
+				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
+			},
+		},
+
+		// arg0 = destination pointer
+		// arg1 = source pointer
+		// arg2 = # of 8-byte words to copy
+		// arg3 = mem
+		// returns memory
+		{
+			name: "REPMOVSQ",
+			reg: regInfo{
+				inputs:   []regMask{buildReg("DI"), buildReg("SI"), buildReg("CX")},
+				clobbers: buildReg("DI SI CX"),
+			},
+		},
 
 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,

@@ -48,6 +48,7 @@ type CompilerType struct {
 	Memory bool
 	Flags  bool
 	Void   bool
+	Int128 bool
 }
 
 func (t *CompilerType) Size() int64            { return 0 } // Size in bytes
@@ -88,4 +89,5 @@ var (
 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
 	TypeFlags   = &CompilerType{Name: "flags", Flags: true}
 	TypeVoid    = &CompilerType{Name: "void", Void: true}
+	TypeInt128  = &CompilerType{Name: "int128", Int128: true}
 )
