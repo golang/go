@@ -59,7 +59,12 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 		buf.WriteRune(i.Rune[0])
 		pc, i = i.Out, &p.Inst[i.Out]
 	}
-	return buf.String(), i.Op == syntax.InstEmptyWidth && (syntax.EmptyOp(i.Arg))&syntax.EmptyBeginText != 0, pc
+	if i.Op == syntax.InstEmptyWidth &&
+		syntax.EmptyOp(i.Arg)&syntax.EmptyEndText != 0 &&
+		p.Inst[i.Out].Op == syntax.InstMatch {
+		complete = true
+	}
+	return buf.String(), complete, pc
 }
 
 // OnePassNext selects the next actionable state of the prog, based on the input character.
