@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/obj"
+	"fmt"
+)
 
 type Config struct {
 	arch       string                     // "amd64", etc.
@@ -14,6 +17,7 @@ type Config struct {
 	lowerValue func(*Value, *Config) bool // lowering function
 	fe         Frontend                   // callbacks into compiler frontend
 	HTML       *HTMLWriter                // html writer, for debugging
+	ctxt       *obj.Link                  // Generic arch information
 
 	// TODO: more stuff.  Compiler flags of interest, ...
 }
@@ -63,7 +67,7 @@ type Frontend interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, fe Frontend) *Config {
+func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
 	c := &Config{arch: arch, fe: fe}
 	switch arch {
 	case "amd64":
@@ -79,6 +83,7 @@ func NewConfig(arch string, fe Frontend) *Config {
 	default:
 		fe.Unimplementedf("arch %s not implemented", arch)
 	}
+	c.ctxt = ctxt
 
 	return c
 }

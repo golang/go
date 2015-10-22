@@ -100,6 +100,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj"
 	"fmt"
 	"unsafe"
 )
@@ -386,6 +387,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 	}
 
 	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
+	mask &^= s.reserved()
 
 	// Allocate a register.
 	r := s.allocReg(mask)
@@ -568,11 +570,14 @@ func (s *regAllocState) setState(state []regState) {
 }
 
 // compatRegs returns the set of registers which can store v.
-func (v *Value) compatRegs() regMask {
+func (s *regAllocState) compatRegs(v *Value) regMask {
+	var m regMask
 	if v.Type.IsFloat() {
-		return 0xffff << 16 // X0-X15
+		m = 0xffff << 16 // X0-X15
+	} else {
+		m = 0xffef << 0 // AX-R15, except SP
 	}
-	return 0xffef << 0 // AX-R15, except SP
+	return m &^ s.reserved()
 }
 
 func (s *regAllocState) regalloc(f *Func) {
@@ -686,7 +691,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 				r := phiRegs[i]
 				if r == noRegister {
-					m := v.compatRegs() & ^s.used
+					m := s.compatRegs(v) & ^s.used
 					if m == 0 {
 						// stack-based phi
 						// Spills will be inserted in all the predecessors below.
@@ -774,7 +779,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			var r register
 			var mask regMask
 			if len(regspec.outputs) > 0 {
-				mask = regspec.outputs[0]
+				mask = regspec.outputs[0] &^ s.reserved()
 			}
 			if mask != 0 {
 				r = s.allocReg(mask)
@@ -876,7 +881,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// This stack-based phi is the argument of some other
 				// phi in this block.  We must make a copy of its
 				// value so that we don't clobber it prematurely.
-				c := s.allocValToReg(v, v.compatRegs(), false)
+				c := s.allocValToReg(v, s.compatRegs(v), false)
 				d := p.NewValue1(v.Line, OpStoreReg, v.Type, c)
 				s.values[v.ID].spill2 = d
 			}
@@ -888,7 +893,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// If already in a register, use that.  If not, pick a compatible
 				// register.
 				w := v.Args[i]
-				c := s.allocValToReg(w, w.compatRegs(), false)
+				c := s.allocValToReg(w, s.compatRegs(w), false)
 				v.Args[i] = p.NewValue1(v.Line, OpStoreReg, v.Type, c)
 			}
 			// Figure out what value goes in each register.
@@ -1110,4 +1115,16 @@ func (f *Func) live() [][][]ID {
 	}
 
 	return live
+}
+
+// reserved returns a mask of reserved registers.
+func (s *regAllocState) reserved() regMask {
+	var m regMask
+	if obj.Framepointer_enabled != 0 {
+		m |= 1 << 5 // BP
+	}
+	if s.f.Config.ctxt.Flag_dynlink {
+		m |= 1 << 15 // R15
+	}
+	return m
 }

@@ -41,7 +41,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 
 	var e ssaExport
 	e.log = usessa
-	s.config = ssa.NewConfig(Thearch.Thestring, &e)
+	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt)
 	s.f = s.config.NewFunc()
 	s.f.Name = name
 	s.exitCode = fn.Func.Exit
@@ -239,7 +239,7 @@ type state struct {
 	// symbols for PEXTERN, PAUTO and PPARAMOUT variables so they can be reused.
 	varsyms map[*Node]interface{}
 
-	// starting values.  Memory, frame pointer, and stack pointer
+	// starting values.  Memory, stack pointer, and globals pointer
 	startmem *ssa.Value
 	sp       *ssa.Value
 	sb       *ssa.Value
@@ -4367,7 +4367,7 @@ func (e *ssaExport) Auto(t ssa.Type) fmt.Stringer {
 	return n
 }
 
-func (e ssaExport) CanSSA(t ssa.Type) bool {
+func (e *ssaExport) CanSSA(t ssa.Type) bool {
 	return canSSAType(t.(*Type))
 }
 
