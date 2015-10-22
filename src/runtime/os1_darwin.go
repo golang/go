@@ -17,16 +17,17 @@ func unimplemented(name string) {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	mach_semrelease(uint32(mp.waitsema))
+	mach_semrelease(mp.waitsema)
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	var x uintptr
+func semacreate(mp *m) {
+	if mp.waitsema != 0 {
+		return
+	}
 	systemstack(func() {
-		x = uintptr(mach_semcreate())
+		mp.waitsema = mach_semcreate()
 	})
-	return x
 }
 
 // BSD interface for threading.
@@ -370,7 +371,7 @@ func semasleep1(ns int64) int32 {
 	if ns >= 0 {
 		var nsecs int32
 		secs := timediv(ns, 1000000000, &nsecs)
-		r := mach_semaphore_timedwait(uint32(_g_.m.waitsema), uint32(secs), uint32(nsecs))
+		r := mach_semaphore_timedwait(_g_.m.waitsema, uint32(secs), uint32(nsecs))
 		if r == _KERN_ABORTED || r == _KERN_OPERATION_TIMED_OUT {
 			return -1
 		}
@@ -381,7 +382,7 @@ func semasleep1(ns int64) int32 {
 	}
 
 	for {
-		r := mach_semaphore_wait(uint32(_g_.m.waitsema))
+		r := mach_semaphore_wait(_g_.m.waitsema)
 		if r == 0 {
 			break
 		}

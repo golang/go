@@ -308,9 +308,6 @@ type m struct {
 	fflag         uint32      // floating point compare flags
 	locked        uint32      // tracking for lockosthread
 	nextwaitm     uintptr     // next m waiting for lock
-	waitsema      uintptr     // semaphore for parking on locks
-	waitsemacount uint32
-	waitsemalock  uint32
 	gcstats       gcstats
 	needextram    bool
 	traceback     uint8

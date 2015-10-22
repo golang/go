@@ -365,8 +365,11 @@ func semawakeup(mp *m) {
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	return stdcall4(_CreateEventA, 0, 0, 0, 0)
+func semacreate(mp *m) {
+	if mp.waitsema != 0 {
+		return
+	}
+	mp.waitsema = stdcall4(_CreateEventA, 0, 0, 0, 0)
 }
 
 // May run with m.p==nil, so write barriers are not allowed.
