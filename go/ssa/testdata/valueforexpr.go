@@ -12,7 +12,11 @@ func f(spilled, unspilled int) {
 	_ = /*@Parameter*/ (unspilled)
 	_ = /*@<nil>*/ (1 + 2) // (constant)
 	i := 0
+
+	f := func() (int, int) { return 0, 0 }
+
 	/*@Call*/ (print( /*@BinOp*/ (i + 1)))
+	_, _ = /*@Call*/ (f())
 	ch := /*@MakeChan*/ (make(chan int))
 	/*@UnOp*/ (<-ch)
 	x := /*@UnOp*/ (<-ch)
