@@ -366,13 +366,11 @@ func isSmallMakeSlice(n *Node) bool {
 	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val().U.(*Mpint)) < (1<<16)/t.Type.Width)
 }
 
-/*
- * walk the whole tree of the body of an
- * expression or simple statement.
- * the types expressions are calculated.
- * compile-time constants are evaluated.
- * complex side effects like statements are appended to init
- */
+// walk the whole tree of the body of an
+// expression or simple statement.
+// the types expressions are calculated.
+// compile-time constants are evaluated.
+// complex side effects like statements are appended to init
 func walkexprlist(l *NodeList, init **NodeList) {
 	for ; l != nil; l = l.Next {
 		walkexpr(&l.N, init)
@@ -1015,16 +1013,15 @@ func walkexpr(np **Node, init **NodeList) {
 			ll = list(ll, l)
 
 			if isdirectiface(n.Left.Type) {
-				/* For pointer types, we can make a special form of optimization
-				 *
-				 * These statements are put onto the expression init list:
-				 * 	Itab *tab = atomicloadtype(&cache);
-				 * 	if(tab == nil)
-				 * 		tab = typ2Itab(type, itype, &cache);
-				 *
-				 * The CONVIFACE expression is replaced with this:
-				 * 	OEFACE{tab, ptr};
-				 */
+				// For pointer types, we can make a special form of optimization
+				//
+				// These statements are put onto the expression init list:
+				// 	Itab *tab = atomicloadtype(&cache);
+				// 	if(tab == nil)
+				// 		tab = typ2Itab(type, itype, &cache);
+				//
+				// The CONVIFACE expression is replaced with this:
+				// 	OEFACE{tab, ptr};
 				l := temp(Ptrto(Types[TUINT8]))
 
 				n1 := Nod(OAS, l, sym.Def)
@@ -1140,9 +1137,7 @@ func walkexpr(np **Node, init **NodeList) {
 		walkexpr(&n.Left, init)
 		walkexpr(&n.Right, init)
 
-		/*
-		 * rewrite complex div into function call.
-		 */
+		// rewrite complex div into function call.
 		et := int(n.Left.Type.Etype)
 
 		if Iscomplex[et] && n.Op == ODIV {
@@ -1160,10 +1155,8 @@ func walkexpr(np **Node, init **NodeList) {
 		// Try rewriting as shifts or magic multiplies.
 		walkdiv(&n, init)
 
-		/*
-		 * rewrite 64-bit div and mod into function calls
-		 * on 32-bit architectures.
-		 */
+		// rewrite 64-bit div and mod into function calls
+		// on 32-bit architectures.
 		switch n.Op {
 		case OMOD, ODIV:
 			if Widthreg >= 8 || (et != TUINT64 && et != TINT64) {
@@ -1683,11 +1676,9 @@ func ascompatee1(op int, l *Node, r *Node, init **NodeList) *Node {
 }
 
 func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
-	/*
-	 * check assign expression list to
-	 * a expression list. called in
-	 *	expr-list = expr-list
-	 */
+	// check assign expression list to
+	// a expression list. called in
+	//	expr-list = expr-list
 
 	// ensure order of evaluation for function calls
 	for ll := nl; ll != nil; ll = ll.Next {
@@ -1715,12 +1706,10 @@ func ascompatee(op int, nl *NodeList, nr *NodeList, init **NodeList) *NodeList {
 	return nn
 }
 
-/*
- * l is an lv and rt is the type of an rv
- * return 1 if this implies a function call
- * evaluating the lv or a function call
- * in the conversion of the types
- */
+// l is an lv and rt is the type of an rv
+// return 1 if this implies a function call
+// evaluating the lv or a function call
+// in the conversion of the types
 func fncall(l *Node, rt *Type) bool {
 	if l.Ullman >= UINF || l.Op == OINDEXMAP {
 		return true
@@ -1742,11 +1731,9 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
 	var ll *NodeList
 	var saver Iter
 
-	/*
-	 * check assign type list to
-	 * a expression list. called in
-	 *	expr-list = func()
-	 */
+	// check assign type list to
+	// a expression list. called in
+	//	expr-list = func()
 	r := Structfirst(&saver, nr)
 
 	var nn *NodeList
@@ -1796,9 +1783,7 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
 	return concat(nn, mm)
 }
 
-/*
-* package all the arguments that match a ... T parameter into a []T.
- */
+// package all the arguments that match a ... T parameter into a []T.
 func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
 	esc := uint16(EscUnknown)
 	if ddd != nil {
@@ -1832,9 +1817,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
 	return nn
 }
 
-/*
- * helpers for shape errors
- */
+// helpers for shape errors
 func dumptypes(nl **Type, what string) string {
 	var savel Iter
 
@@ -1878,12 +1861,10 @@ func dumpnodetypes(l *NodeList, what string) string {
 	return fmt_
 }
 
-/*
- * check assign expression list to
- * a type list. called in
- *	return expr-list
- *	func(expr-list)
- */
+// check assign expression list to
+// a type list. called in
+//	return expr-list
+//	func(expr-list)
 func ascompatte(op int, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
 	var savel Iter
 
@@ -2286,14 +2267,12 @@ out:
 	return n
 }
 
-/*
- * from ascompat[te]
- * evaluating actual function arguments.
- *	f(a,b)
- * if there is exactly one function expr,
- * then it is done first. otherwise must
- * make temp variables
- */
+// from ascompat[te]
+// evaluating actual function arguments.
+//	f(a,b)
+// if there is exactly one function expr,
+// then it is done first. otherwise must
+// make temp variables
 func reorder1(all *NodeList) *NodeList {
 	var n *Node
 
@@ -2350,14 +2329,12 @@ func reorder1(all *NodeList) *NodeList {
 	return concat(g, r)
 }
 
-/*
- * from ascompat[ee]
- *	a,b = c,d
- * simultaneous assignment. there cannot
- * be later use of an earlier lvalue.
- *
- * function calls have been removed.
- */
+// from ascompat[ee]
+//	a,b = c,d
+// simultaneous assignment. there cannot
+// be later use of an earlier lvalue.
+//
+// function calls have been removed.
 func reorder3(all *NodeList) *NodeList {
 	var l *Node
 
@@ -2413,12 +2390,10 @@ func reorder3(all *NodeList) *NodeList {
 	return concat(early, all)
 }
 
-/*
- * if the evaluation of *np would be affected by the
- * assignments in all up to but not including stop,
- * copy into a temporary during *early and
- * replace *np with that temp.
- */
+// if the evaluation of *np would be affected by the
+// assignments in all up to but not including stop,
+// copy into a temporary during *early and
+// replace *np with that temp.
 func reorder3save(np **Node, all *NodeList, stop *NodeList, early **NodeList) {
 	n := *np
 	if !aliased(n, all, stop) {
@@ -2432,10 +2407,8 @@ func reorder3save(np **Node, all *NodeList, stop *NodeList, early **NodeList) {
 	*np = q.Left
 }
 
-/*
- * what's the outer value that a write to n affects?
- * outer value means containing struct or array.
- */
+// what's the outer value that a write to n affects?
+// outer value means containing struct or array.
 func outervalue(n *Node) *Node {
 	for {
 		if n.Op == OXDOT {
@@ -2457,10 +2430,8 @@ func outervalue(n *Node) *Node {
 	return n
 }
 
-/*
- * Is it possible that the computation of n might be
- * affected by writes in as up to but not including stop?
- */
+// Is it possible that the computation of n might be
+// affected by writes in as up to but not including stop?
 func aliased(n *Node, all *NodeList, stop *NodeList) bool {
 	if n == nil {
 		return false
@@ -2521,11 +2492,9 @@ func aliased(n *Node, all *NodeList, stop *NodeList) bool {
 	return true
 }
 
-/*
- * does the evaluation of n only refer to variables
- * whose addresses have not been taken?
- * (and no other memory)
- */
+// does the evaluation of n only refer to variables
+// whose addresses have not been taken?
+// (and no other memory)
 func varexpr(n *Node) bool {
 	if n == nil {
 		return true
@@ -2574,9 +2543,7 @@ func varexpr(n *Node) bool {
 	return false
 }
 
-/*
- * is the name l mentioned in r?
- */
+// is the name l mentioned in r?
 func vmatch2(l *Node, r *Node) bool {
 	if r == nil {
 		return false
@@ -2604,14 +2571,10 @@ func vmatch2(l *Node, r *Node) bool {
 	return false
 }
 
-/*
- * is any name mentioned in l also mentioned in r?
- * called by sinit.go
- */
+// is any name mentioned in l also mentioned in r?
+// called by sinit.go
 func vmatch1(l *Node, r *Node) bool {
-	/*
-	 * isolate all left sides
-	 */
+	// isolate all left sides
 	if l == nil || r == nil {
 		return false
 	}
@@ -2649,11 +2612,9 @@ func vmatch1(l *Node, r *Node) bool {
 	return false
 }
 
-/*
- * walk through argin parameters.
- * generate and return code to allocate
- * copies of escaped parameters to the heap.
- */
+// walk through argin parameters.
+// generate and return code to allocate
+// copies of escaped parameters to the heap.
 func paramstoheap(argin **Type, out int) *NodeList {
 	var savet Iter
 	var v *Node
@@ -2699,9 +2660,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 	return nn
 }
 
-/*
- * walk through argout parameters copying back to stack
- */
+// walk through argout parameters copying back to stack
 func returnsfromheap(argin **Type) *NodeList {
 	var savet Iter
 	var v *Node
@@ -2718,11 +2677,9 @@ func returnsfromheap(argin **Type) *NodeList {
 	return nn
 }
 
-/*
- * take care of migrating any function in/out args
- * between the stack and the heap.  adds code to
- * curfn's before and after lists.
- */
+// take care of migrating any function in/out args
+// between the stack and the heap.  adds code to
+// curfn's before and after lists.
 func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
@@ -3455,9 +3412,7 @@ func walkrotate(np **Node) {
 	return
 }
 
-/*
- * walkmul rewrites integer multiplication by powers of two as shifts.
- */
+// walkmul rewrites integer multiplication by powers of two as shifts.
 func walkmul(np **Node, init **NodeList) {
 	n := *np
 	if !Isint[n.Type.Etype] {
@@ -3526,10 +3481,8 @@ ret:
 	*np = n
 }
 
-/*
- * walkdiv rewrites division by a constant as less expensive
- * operations.
- */
+// walkdiv rewrites division by a constant as less expensive
+// operations.
 func walkdiv(np **Node, init **NodeList) {
 	// if >= 0, nr is 1<<pow // 1 if nr is negative.
 

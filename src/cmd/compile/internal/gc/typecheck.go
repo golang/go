@@ -11,18 +11,14 @@ import (
 	"strings"
 )
 
-/*
- * type check the whole tree of an expression.
- * calculates expression types.
- * evaluates compile time constants.
- * marks variables that escape the local frame.
- * rewrites n->op to be more specific in some cases.
- */
+// type check the whole tree of an expression.
+// calculates expression types.
+// evaluates compile time constants.
+// marks variables that escape the local frame.
+// rewrites n->op to be more specific in some cases.
 var typecheckdefstack []*Node
 
-/*
- * resolve ONONAME to definition, if any.
- */
+// resolve ONONAME to definition, if any.
 func resolve(n *Node) *Node {
 	if n != nil && n.Op == ONONAME && n.Sym != nil {
 		r := n.Sym.Def
@@ -194,9 +190,7 @@ func typecheck(np **Node, top int) *Node {
 	return n
 }
 
-/*
- * does n contain a call or receive operation?
- */
+// does n contain a call or receive operation?
 func callrecv(n *Node) bool {
 	if n == nil {
 		return false
@@ -275,9 +269,7 @@ OpSwitch:
 
 		Fatalf("typecheck %v", Oconv(int(n.Op), 0))
 
-		/*
-		 * names
-		 */
+	// names
 	case OLITERAL:
 		ok |= Erv
 
@@ -327,9 +319,7 @@ OpSwitch:
 	case ODDD:
 		break
 
-		/*
-		 * types (OIND is with exprs)
-		 */
+	// types (OIND is with exprs)
 	case OTYPE:
 		ok |= Etype
 
@@ -454,9 +444,7 @@ OpSwitch:
 			return
 		}
 
-		/*
-		 * type or expr
-		 */
+	// type or expr
 	case OIND:
 		ntop := Erv | Etype
 
@@ -492,9 +480,7 @@ OpSwitch:
 		n.Type = t.Type
 		break OpSwitch
 
-		/*
-		 * arithmetic exprs
-		 */
+	// arithmetic exprs
 	case OASOP,
 		OADD,
 		OAND,
@@ -778,9 +764,7 @@ OpSwitch:
 		n.Type = t
 		break OpSwitch
 
-		/*
-		 * exprs
-		 */
+	// exprs
 	case OADDR:
 		ok |= Erv
 
@@ -1247,9 +1231,7 @@ OpSwitch:
 		}
 		break OpSwitch
 
-		/*
-		 * call and call like
-		 */
+	// call and call like
 	case OCALL:
 		l := n.Left
 
@@ -2024,9 +2006,7 @@ OpSwitch:
 		typecheck(&n.Left, Erv)
 		break OpSwitch
 
-		/*
-		 * statements
-		 */
+	// statements
 	case OAS:
 		ok |= Etop
 
@@ -2616,9 +2596,7 @@ func downcount(t *Type) int {
 	return n
 }
 
-/*
- * typecheck assignment: type list = expression list
- */
+// typecheck assignment: type list = expression list
 func typecheckaste(op int, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
 	var t *Type
 	var n *Node
@@ -2795,9 +2773,7 @@ toomany:
 	goto out
 }
 
-/*
- * type check composite
- */
+// type check composite
 func fielddup(n *Node, hash map[string]bool) {
 	if n.Op != ONAME {
 		Fatalf("fielddup: not ONAME")
@@ -2944,7 +2920,7 @@ func typecheckcomplit(np **Node) {
 	*norig = *n
 
 	setlineno(n.Right)
-	l := typecheck(&n.Right, Etype|Ecomplit) /* sic */
+	l := typecheck(&n.Right, Etype|Ecomplit) // sic
 	t := l.Type
 	if t == nil {
 		n.Type = nil
@@ -3180,9 +3156,7 @@ func typecheckcomplit(np **Node) {
 	return
 }
 
-/*
- * lvalue etc
- */
+// lvalue etc
 func islvalue(n *Node) bool {
 	switch n.Op {
 	case OINDEX:
@@ -3281,11 +3255,9 @@ func samesafeexpr(l *Node, r *Node) bool {
 	return false
 }
 
-/*
- * type check assignment.
- * if this assignment is the definition of a var on the left side,
- * fill in the var's type.
- */
+// type check assignment.
+// if this assignment is the definition of a var on the left side,
+// fill in the var's type.
 func typecheckas(n *Node) {
 	// delicate little dance.
 	// the definition of n may refer to this assignment
@@ -3454,9 +3426,7 @@ out:
 	}
 }
 
-/*
- * type check function definition
- */
+// type check function definition
 func typecheckfunc(n *Node) {
 	typecheck(&n.Func.Nname, Erv|Easgn)
 	t := n.Func.Nname.Type

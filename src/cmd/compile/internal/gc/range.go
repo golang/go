@@ -6,9 +6,7 @@ package gc
 
 import "cmd/internal/obj"
 
-/*
- * range
- */
+// range
 func typecheckrange(n *Node) {
 	var toomany int
 	var why string

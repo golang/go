@@ -218,10 +218,8 @@ func walkvardef(n *Node, f *Flow, active int) {
 	}
 }
 
-/*
- * add mov b,rn
- * just after r
- */
+// add mov b,rn
+// just after r
 func addmove(r *Flow, bn int, rn int, f int) {
 	p1 := Ctxt.NewProg()
 	Clearp(p1)
@@ -282,9 +280,7 @@ func overlap_reg(o1 int64, w1 int, o2 int64, w2 int) bool {
 }
 
 func mkvar(f *Flow, a *obj.Addr) Bits {
-	/*
-	 * mark registers used
-	 */
+	// mark registers used
 	if a.Type == obj.TYPE_NONE {
 		return zbits
 	}
@@ -460,7 +456,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	}
 
 	// Treat values with their address taken as live at calls,
-	// because the garbage collector's liveness analysis in ../gc/plive.c does.
+	// because the garbage collector's liveness analysis in plive.go does.
 	// These must be consistent or else we will elide stores and the garbage
 	// collector will see uninitialized data.
 	// The typical case where our own analysis is out of sync is when the
@@ -473,7 +469,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
 	// sets addrtaken, even though it ends up not being actually shared.
 	// If we were better about _ elision, _ = &x would suffice too.
 	// The broader := in a closure problem is mentioned in a comment in
-	// closure.c:/^typecheckclosure and dcl.c:/^oldname.
+	// closure.go:/^typecheckclosure and dcl.go:/^oldname.
 	if node.Addrtaken {
 		v.addr = 1
 	}
@@ -1036,11 +1032,9 @@ func Dumpit(str string, r0 *Flow, isreg int) {
 func regopt(firstp *obj.Prog) {
 	mergetemp(firstp)
 
-	/*
-	 * control flow is more complicated in generated go code
-	 * than in generated c code.  define pseudo-variables for
-	 * registers, so we have complete register usage information.
-	 */
+	// control flow is more complicated in generated go code
+	// than in generated c code.  define pseudo-variables for
+	// registers, so we have complete register usage information.
 	var nreg int
 	regnames := Thearch.Regnames(&nreg)
 
@@ -1063,12 +1057,10 @@ func regopt(firstp *obj.Prog) {
 	ivar = zbits
 	ovar = zbits
 
-	/*
-	 * pass 1
-	 * build aux data structure
-	 * allocate pcs
-	 * find use and set of variables
-	 */
+	// pass 1
+	// build aux data structure
+	// allocate pcs
+	// find use and set of variables
 	g := Flowstart(firstp, func() interface{} { return new(Reg) })
 	if g == nil {
 		for i := 0; i < nvar; i++ {
@@ -1159,23 +1151,19 @@ func regopt(firstp *obj.Prog) {
 		Dumpit("pass1", firstf, 1)
 	}
 
-	/*
-	 * pass 2
-	 * find looping structure
-	 */
+	// pass 2
+	// find looping structure
 	flowrpo(g)
 
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		Dumpit("pass2", firstf, 1)
 	}
 
-	/*
-	 * pass 2.5
-	 * iterate propagating fat vardef covering forward
-	 * r->act records vars with a VARDEF since the last CALL.
-	 * (r->act will be reused in pass 5 for something else,
-	 * but we'll be done with it by then.)
-	 */
+	// pass 2.5
+	// iterate propagating fat vardef covering forward
+	// r->act records vars with a VARDEF since the last CALL.
+	// (r->act will be reused in pass 5 for something else,
+	// but we'll be done with it by then.)
 	active := 0
 
 	for f := firstf; f != nil; f = f.Link {
@@ -1192,11 +1180,9 @@ func regopt(firstp *obj.Prog) {
 		}
 	}
 
-	/*
-	 * pass 3
-	 * iterate propagating usage
-	 * 	back until flow graph is complete
-	 */
+	// pass 3
+	// iterate propagating usage
+	// 	back until flow graph is complete
 	var f1 *Flow
 	var i int
 	var f *Flow
@@ -1212,7 +1198,7 @@ loop1:
 		}
 	}
 
-	/* pick up unreachable code */
+	// pick up unreachable code
 loop11:
 	i = 0
 
@@ -1235,11 +1221,9 @@ loop11:
 		Dumpit("pass3", firstf, 1)
 	}
 
-	/*
-	 * pass 4
-	 * iterate propagating register/variable synchrony
-	 * 	forward until graph is complete
-	 */
+	// pass 4
+	// iterate propagating register/variable synchrony
+	// 	forward until graph is complete
 loop2:
 	change = 0
 
@@ -1255,10 +1239,8 @@ loop2:
 		Dumpit("pass4", firstf, 1)
 	}
 
-	/*
-	 * pass 4.5
-	 * move register pseudo-variables into regu.
-	 */
+	// pass 4.5
+	// move register pseudo-variables into regu.
 	mask := uint64((1 << uint(nreg)) - 1)
 	for f := firstf; f != nil; f = f.Link {
 		r := f.Data.(*Reg)
@@ -1278,11 +1260,9 @@ loop2:
 		Dumpit("pass4.5", firstf, 1)
 	}
 
-	/*
-	 * pass 5
-	 * isolate regions
-	 * calculate costs (paint1)
-	 */
+	// pass 5
+	// isolate regions
+	// calculate costs (paint1)
 	var bit Bits
 	if f := firstf; f != nil {
 		r := f.Data.(*Reg)
@@ -1358,11 +1338,9 @@ loop2:
 		Dumpit("pass5", firstf, 1)
 	}
 
-	/*
-	 * pass 6
-	 * determine used registers (paint2)
-	 * replace code (paint3)
-	 */
+	// pass 6
+	// determine used registers (paint2)
+	// replace code (paint3)
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\nregisterizing\n")
 	}
@@ -1386,9 +1364,7 @@ loop2:
 		}
 	}
 
-	/*
-	 * free aux structures. peep allocates new ones.
-	 */
+	// free aux structures. peep allocates new ones.
 	for i := 0; i < nvar; i++ {
 		vars[i].node.SetOpt(nil)
 	}
@@ -1404,17 +1380,13 @@ loop2:
 		firstf = nil
 	}
 
-	/*
-	 * pass 7
-	 * peep-hole on basic block
-	 */
+	// pass 7
+	// peep-hole on basic block
 	if Debug['R'] == 0 || Debug['P'] != 0 {
 		Thearch.Peep(firstp)
 	}
 
-	/*
-	 * eliminate nops
-	 */
+	// eliminate nops
 	for p := firstp; p != nil; p = p.Link {
 		for p.Link != nil && p.Link.As == obj.ANOP {
 			p.Link = p.Link.Link

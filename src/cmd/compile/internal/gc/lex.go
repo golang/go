@@ -535,7 +535,7 @@ func arsize(b *obj.Biobuf, name string) int {
 }
 
 func skiptopkgdef(b *obj.Biobuf) bool {
-	/* archive header */
+	// archive header
 	p := obj.Brdline(b, '\n')
 	if p == "" {
 		return false
@@ -547,7 +547,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 		return false
 	}
 
-	/* symbol table may be first; skip it */
+	// symbol table may be first; skip it
 	sz := arsize(b, "__.GOSYMDEF")
 
 	if sz >= 0 {
@@ -556,7 +556,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 		obj.Bseek(b, 8, 0)
 	}
 
-	/* package export block is next */
+	// package export block is next
 	sz = arsize(b, "__.PKGDEF")
 
 	if sz <= 0 {
@@ -946,10 +946,10 @@ l0:
 		goto l0
 	}
 
-	lineno = lexlineno /* start of token */
+	lineno = lexlineno // start of token
 
 	if c >= utf8.RuneSelf {
-		/* all multibyte runes are alpha */
+		// all multibyte runes are alpha
 		cp = &lexbuf
 		cp.Reset()
 
@@ -1073,7 +1073,7 @@ l0:
 			c1 = '.'
 		}
 
-		/* "..." */
+		// "..."
 	case '"':
 		lexbuf.Reset()
 		lexbuf.WriteString(`"<string>"`)
@@ -1094,7 +1094,7 @@ l0:
 
 		goto strlit
 
-		/* `...` */
+		// `...`
 	case '`':
 		lexbuf.Reset()
 		lexbuf.WriteString("`<string>`")
@@ -1120,7 +1120,7 @@ l0:
 
 		goto strlit
 
-		/* '.' */
+		// '.'
 	case '\'':
 		if escchar('\'', &escflag, &v) {
 			Yyerror("empty character literal or unescaped ' in character literal")
@@ -1336,24 +1336,22 @@ l0:
 			goto asop
 		}
 
-		/*
-		 * clumsy dance:
-		 * to implement rule that disallows
-		 *	if T{1}[0] { ... }
-		 * but allows
-		 * 	if (T{1}[0]) { ... }
-		 * the block bodies for if/for/switch/select
-		 * begin with an LBODY token, not '{'.
-		 *
-		 * when we see the keyword, the next
-		 * non-parenthesized '{' becomes an LBODY.
-		 * loophack is normally false.
-		 * a keyword sets it to true.
-		 * parens push loophack onto a stack and go back to false.
-		 * a '{' with loophack == true becomes LBODY and disables loophack.
-		 *
-		 * i said it was clumsy.
-		 */
+		// clumsy dance:
+		// to implement rule that disallows
+		//	if T{1}[0] { ... }
+		// but allows
+		// 	if (T{1}[0]) { ... }
+		// the block bodies for if/for/switch/select
+		// begin with an LBODY token, not '{'.
+		//
+		// when we see the keyword, the next
+		// non-parenthesized '{' becomes an LBODY.
+		// loophack is normally false.
+		// a keyword sets it to true.
+		// parens push loophack onto a stack and go back to false.
+		// a '{' with loophack == true becomes LBODY and disables loophack.
+		//
+		// I said it was clumsy.
 	case '(', '[':
 		if loophack || _yylex_lstk != nil {
 			h = new(Loophack)
@@ -1426,10 +1424,8 @@ asop:
 	}
 	return LASOP
 
-	/*
-	 * cp is set to lexbuf and some
-	 * prefix has been stored
-	 */
+	// cp is set to lexbuf and some
+	// prefix has been stored
 talph:
 	for {
 		if c >= utf8.RuneSelf {
@@ -1594,12 +1590,10 @@ func more(pp *string) bool {
 	return p != ""
 }
 
-/*
- * read and interpret syntax that looks like
- * //line parse.y:15
- * as a discontinuity in sequential line numbers.
- * the next line of input comes from parse.y:15
- */
+// read and interpret syntax that looks like
+// //line parse.y:15
+// as a discontinuity in sequential line numbers.
+// the next line of input comes from parse.y:15
 func getlinepragma() int {
 	var cmd, verb, name string
 
@@ -2161,7 +2155,7 @@ var syms = []struct {
 	etype   int
 	op      int
 }{
-	/* basic types */
+	// basic types
 	{"int8", LNAME, TINT8, OXXX},
 	{"int16", LNAME, TINT16, OXXX},
 	{"int32", LNAME, TINT32, OXXX},

@@ -856,7 +856,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		var v *Node
 		for ll := n.Func.Cvars; ll != nil; ll = ll.Next {
 			v = ll.N
-			if v.Op == OXXX { // unnamed out argument; see dcl.c:/^funcargs
+			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
 			a = v.Name.Param.Closure

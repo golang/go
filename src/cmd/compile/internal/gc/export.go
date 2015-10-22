@@ -435,13 +435,9 @@ func dumpexport() {
 	}
 }
 
-/*
- * import
- */
+// import
 
-/*
- * return the sym for ss, which should match lexical
- */
+// return the sym for ss, which should match lexical
 func importsym(s *Sym, op int) *Sym {
 	if s.Def != nil && int(s.Def.Op) != op {
 		pkgstr := fmt.Sprintf("during import %q", importpkg.Path)
@@ -460,9 +456,7 @@ func importsym(s *Sym, op int) *Sym {
 	return s
 }
 
-/*
- * return the type pkg.name, forward declaring if needed
- */
+// return the type pkg.name, forward declaring if needed
 func pkgtype(s *Sym) *Type {
 	importsym(s, OTYPE)
 	if s.Def == nil || s.Def.Op != OTYPE {

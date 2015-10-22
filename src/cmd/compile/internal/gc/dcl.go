@@ -23,9 +23,7 @@ func dflag() bool {
 	return true
 }
 
-/*
- * declaration stack & operations
- */
+// declaration stack & operations
 func dcopy(a *Sym, b *Sym) {
 	a.Pkg = b.Pkg
 	a.Name = b.Name
@@ -149,9 +147,7 @@ func redeclare(s *Sym, where string) {
 
 var vargen int
 
-/*
- * declare individual names - var, typ, const
- */
+// declare individual names - var, typ, const
 
 var declare_typegen int
 
@@ -236,10 +232,8 @@ func addvar(n *Node, t *Type, ctxt uint8) {
 	n.Type = t
 }
 
-/*
- * declare variables from grammar
- * new_name_list (type | [type] = expr_list)
- */
+// declare variables from grammar
+// new_name_list (type | [type] = expr_list)
 func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 	var init *NodeList
 	doexpr := el != nil
@@ -302,10 +296,8 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 	return init
 }
 
-/*
- * declare constants from grammar
- * new_name_list [[type] = expr_list]
- */
+// declare constants from grammar
+// new_name_list [[type] = expr_list]
 func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 	lno := int32(0) // default is to leave line number alone in listtreecopy
 	if cl == nil {
@@ -350,10 +342,8 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 	return vv
 }
 
-/*
- * this generates a new name node,
- * typically for labels or other one-off names.
- */
+// this generates a new name node,
+// typically for labels or other one-off names.
 func newname(s *Sym) *Node {
 	if s == nil {
 		Fatalf("newname nil")
@@ -377,10 +367,8 @@ func newfuncname(s *Sym) *Node {
 	return n
 }
 
-/*
- * this generates a new name node for a name
- * being declared.
- */
+// this generates a new name node for a name
+// being declared.
 func dclname(s *Sym) *Node {
 	n := newname(s)
 	n.Op = ONONAME // caller will correct it
@@ -400,12 +388,10 @@ func typenod(t *Type) *Node {
 	return t.Nod
 }
 
-/*
- * this will return an old name
- * that has already been pushed on the
- * declaration list. a diagnostic is
- * generated if no name has been defined.
- */
+// this will return an old name
+// that has already been pushed on the
+// declaration list. a diagnostic is
+// generated if no name has been defined.
 func oldname(s *Sym) *Node {
 	n := s.Def
 	if n == nil {
@@ -450,9 +436,7 @@ func oldname(s *Sym) *Node {
 	return n
 }
 
-/*
- * := declarations
- */
+// := declarations
 func colasname(n *Node) bool {
 	switch n.Op {
 	case ONAME,
@@ -532,10 +516,8 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
 	return as
 }
 
-/*
- * declare the arguments in an
- * interface field declaration.
- */
+// declare the arguments in an
+// interface field declaration.
 func ifacedcl(n *Node) {
 	if n.Op != ODCLFIELD || n.Right == nil {
 		Fatalf("ifacedcl")
@@ -563,12 +545,10 @@ func ifacedcl(n *Node) {
 	funcbody(n)
 }
 
-/*
- * declare the function proper
- * and declare the arguments.
- * called in extern-declaration context
- * returns in auto-declaration context.
- */
+// declare the function proper
+// and declare the arguments.
+// called in extern-declaration context
+// returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
 	if Funcdepth == 0 && dclcontext != PEXTERN {
@@ -688,11 +668,9 @@ func funcargs(nt *Node) {
 	}
 }
 
-/*
- * Same as funcargs, except run over an already constructed TFUNC.
- * This happens during import, where the hidden_fndcl rule has
- * used functype directly to parse the function's type.
- */
+// Same as funcargs, except run over an already constructed TFUNC.
+// This happens during import, where the hidden_fndcl rule has
+// used functype directly to parse the function's type.
 func funcargs2(t *Type) {
 	if t.Etype != TFUNC {
 		Fatalf("funcargs2 %v", t)
@@ -735,11 +713,9 @@ func funcargs2(t *Type) {
 	}
 }
 
-/*
- * finish the body.
- * called in auto-declaration context.
- * returns in extern-declaration context.
- */
+// finish the body.
+// called in auto-declaration context.
+// returns in extern-declaration context.
 func funcbody(n *Node) {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
@@ -754,9 +730,7 @@ func funcbody(n *Node) {
 	}
 }
 
-/*
- * new type being defined with name s.
- */
+// new type being defined with name s.
 func typedcl0(s *Sym) *Node {
 	n := newname(s)
 	n.Op = OTYPE
@@ -764,21 +738,17 @@ func typedcl0(s *Sym) *Node {
 	return n
 }
 
-/*
- * node n, which was returned by typedcl0
- * is being declared to have uncompiled type t.
- * return the ODCLTYPE node to use.
- */
+// node n, which was returned by typedcl0
+// is being declared to have uncompiled type t.
+// return the ODCLTYPE node to use.
 func typedcl1(n *Node, t *Node, local bool) *Node {
 	n.Name.Param.Ntype = t
 	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
 
-/*
- * structs, functions, and methods.
- * they don't belong here, but where do they belong?
- */
+// structs, functions, and methods.
+// they don't belong here, but where do they belong?
 func checkembeddedtype(t *Type) {
 	if t == nil {
 		return
@@ -869,10 +839,8 @@ func checkdupfields(t *Type, what string) {
 	lineno = int32(lno)
 }
 
-/*
- * convert a parsed id/type list into
- * a type for struct/interface/arglist
- */
+// convert a parsed id/type list into
+// a type for struct/interface/arglist
 func tostruct(l *NodeList) *Type {
 	t := typ(TSTRUCT)
 	tostruct0(t, l)
@@ -915,7 +883,7 @@ func tofunargs(l *NodeList) *Type {
 		f = structfield(l.N)
 		f.Funarg = true
 
-		// esc.c needs to find f given a PPARAM to add the tag.
+		// esc.go needs to find f given a PPARAM to add the tag.
 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
 			l.N.Left.Name.Param.Field = f
 		}
@@ -1075,9 +1043,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 	return n
 }
 
-/*
- * check that the list of declarations is either all anonymous or all named
- */
+// check that the list of declarations is either all anonymous or all named
 func findtype(l *NodeList) *Node {
 	for ; l != nil; l = l.Next {
 		if l.N.Op == OKEY {
@@ -1142,7 +1108,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 		// declarations, which are parsed by rules that don't
 		// use checkargs, but can happen for func literals in
 		// the inline bodies.
-		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.c prints _ instead of ?
+		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.go prints _ instead of ?
 		if importpkg != nil && n.Sym == nil {
 			n = nil
 		}
@@ -1182,12 +1148,9 @@ func fakethis() *Node {
 	return n
 }
 
-/*
- * Is this field a method on an interface?
- * Those methods have an anonymous
- * *struct{} as the receiver.
- * (See fakethis above.)
- */
+// Is this field a method on an interface?
+// Those methods have an anonymous *struct{} as the receiver.
+// (See fakethis above.)
 func isifacemethod(f *Type) bool {
 	rcvr := getthisx(f).Type
 	if rcvr.Sym != nil {
@@ -1204,10 +1167,7 @@ func isifacemethod(f *Type) bool {
 	return true
 }
 
-/*
- * turn a parsed function declaration
- * into a type
- */
+// turn a parsed function declaration into a type
 func functype(this *Node, in *NodeList, out *NodeList) *Type {
 	t := typ(TFUNC)
 	functype0(t, this, in, out)
@@ -1355,10 +1315,8 @@ func methodname1(n *Node, t *Node) *Node {
 	return n
 }
 
-/*
- * add a method, declared as a function,
- * n is fieldname, pa is base type, t is function type
- */
+// add a method, declared as a function,
+// n is fieldname, pa is base type, t is function type
 func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	// get field sym
 	if sf == nil {

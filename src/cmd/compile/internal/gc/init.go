@@ -17,13 +17,11 @@ package gc
 //		a->offset += v;
 //		break;
 
-/*
- * a function named init is a special case.
- * it is called by the initialization before
- * main is run. to make it unique within a
- * package and also uncallable, the name,
- * normally "pkg.init", is altered to "pkg.init.1".
- */
+// a function named init is a special case.
+// it is called by the initialization before
+// main is run. to make it unique within a
+// package and also uncallable, the name,
+// normally "pkg.init", is altered to "pkg.init.1".
 
 var renameinit_initgen int
 
@@ -32,24 +30,22 @@ func renameinit() *Sym {
 	return Lookupf("init.%d", renameinit_initgen)
 }
 
-/*
- * hand-craft the following initialization code
- *	var initdone· uint8 				(1)
- *	func init()					(2)
- *		if initdone· != 0 {			(3)
- *			if initdone· == 2		(4)
- *				return
- *			throw();			(5)
- *		}
- *		initdone· = 1;				(6)
- *		// over all matching imported symbols
- *			<pkg>.init()			(7)
- *		{ <init stmts> }			(8)
- *		init.<n>() // if any			(9)
- *		initdone· = 2;				(10)
- *		return					(11)
- *	}
- */
+// hand-craft the following initialization code
+//	var initdone· uint8 				(1)
+//	func init()					(2)
+//		if initdone· != 0 {			(3)
+//			if initdone· == 2		(4)
+//				return
+//			throw();			(5)
+//		}
+//		initdone· = 1;				(6)
+//		// over all matching imported symbols
+//			<pkg>.init()			(7)
+//		{ <init stmts> }			(8)
+//		init.<n>() // if any			(9)
+//		initdone· = 2;				(10)
+//		return					(11)
+//	}
 func anyinit(n *NodeList) bool {
 	// are there any interesting init statements
 	for l := n; l != nil; l = l.Next {

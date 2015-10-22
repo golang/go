@@ -9,12 +9,10 @@ import (
 	"fmt"
 )
 
-/*
- * generate:
- *	res = n;
- * simplifies and calls Thearch.Gmove.
- * if wb is true, need to emit write barriers.
- */
+// generate:
+//	res = n;
+// simplifies and calls Thearch.Gmove.
+// if wb is true, need to emit write barriers.
 func Cgen(n, res *Node) {
 	cgen_wb(n, res, false)
 }
@@ -687,22 +685,20 @@ func cgen_wb(n, res *Node, wb bool) {
 
 	return
 
-	/*
-	 * put simplest on right - we'll generate into left
-	 * and then adjust it using the computation of right.
-	 * constants and variables have the same ullman
-	 * count, so look for constants specially.
-	 *
-	 * an integer constant we can use as an immediate
-	 * is simpler than a variable - we can use the immediate
-	 * in the adjustment instruction directly - so it goes
-	 * on the right.
-	 *
-	 * other constants, like big integers or floating point
-	 * constants, require a mov into a register, so those
-	 * might as well go on the left, so we can reuse that
-	 * register for the computation.
-	 */
+	// put simplest on right - we'll generate into left
+	// and then adjust it using the computation of right.
+	// constants and variables have the same ullman
+	// count, so look for constants specially.
+	//
+	// an integer constant we can use as an immediate
+	// is simpler than a variable - we can use the immediate
+	// in the adjustment instruction directly - so it goes
+	// on the right.
+	//
+	// other constants, like big integers or floating point
+	// constants, require a mov into a register, so those
+	// might as well go on the left, so we can reuse that
+	// register for the computation.
 sbop: // symmetric binary
 	if nl.Ullman < nr.Ullman || (nl.Ullman == nr.Ullman && (Smallintconst(nl) || (nr.Op == OLITERAL && !Smallintconst(nr)))) {
 		nl, nr = nr, nl
@@ -909,11 +905,9 @@ func Mfree(n *Node) {
 	}
 }
 
-/*
- * allocate a register (reusing res if possible) and generate
- *  a = n
- * The caller must call Regfree(a).
- */
+// allocate a register (reusing res if possible) and generate
+//	a = n
+// The caller must call Regfree(a).
 func Cgenr(n *Node, a *Node, res *Node) {
 	if Debug['g'] != 0 {
 		Dump("cgenr-n", n)
@@ -949,12 +943,10 @@ func Cgenr(n *Node, a *Node, res *Node) {
 	}
 }
 
-/*
- * allocate a register (reusing res if possible) and generate
- * a = &n
- * The caller must call Regfree(a).
- * The generated code checks that the result is not nil.
- */
+// allocate a register (reusing res if possible) and generate
+//	a = &n
+// The caller must call Regfree(a).
+// The generated code checks that the result is not nil.
 func Agenr(n *Node, a *Node, res *Node) {
 	if Debug['g'] != 0 {
 		Dump("\nagenr-n", n)
@@ -1468,11 +1460,9 @@ func log2(n uint64) int {
 	return x
 }
 
-/*
- * generate:
- *	res = &n;
- * The generated code checks that the result is not nil.
- */
+// generate:
+//	res = &n;
+// The generated code checks that the result is not nil.
 func Agen(n *Node, res *Node) {
 	if Debug['g'] != 0 {
 		Dump("\nagen-res", res)
@@ -2219,11 +2209,9 @@ func stkof(n *Node) int64 {
 	return -1000 // not on stack
 }
 
-/*
- * block copy:
- *	memmove(&ns, &n, w);
- * if wb is true, needs write barrier.
- */
+// block copy:
+//	memmove(&ns, &n, w);
+// if wb is true, needs write barrier.
 func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 	if Debug['g'] != 0 {
 		op := "sgen"
@@ -2301,15 +2289,13 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 	Thearch.Blockcopy(n, ns, osrc, odst, w)
 }
 
-/*
- * generate:
- *	call f
- *	proc=-1	normal call but no return
- *	proc=0	normal call
- *	proc=1	goroutine run in new proc
- *	proc=2	defer call save away stack
-  *	proc=3	normal call to C pointer (not Go func value)
-*/
+// generate:
+//	call f
+//	proc=-1	normal call but no return
+//	proc=0	normal call
+//	proc=1	goroutine run in new proc
+//	proc=2	defer call save away stack
+//	proc=3	normal call to C pointer (not Go func value)
 func Ginscall(f *Node, proc int) {
 	if f.Type != nil {
 		extra := int32(0)
@@ -2395,10 +2381,8 @@ func Ginscall(f *Node, proc int) {
 	}
 }
 
-/*
- * n is call to interface method.
- * generate res = n.
- */
+// n is call to interface method.
+// generate res = n.
 func cgen_callinter(n *Node, res *Node, proc int) {
 	i := n.Left
 	if i.Op != ODOTINTER {
@@ -2468,12 +2452,10 @@ func cgen_callinter(n *Node, res *Node, proc int) {
 	Regfree(&nodo)
 }
 
-/*
- * generate function call;
- *	proc=0	normal call
- *	proc=1	goroutine run in new proc
- *	proc=2	defer call save away stack
- */
+// generate function call;
+//	proc=0	normal call
+//	proc=1	goroutine run in new proc
+//	proc=2	defer call save away stack
 func cgen_call(n *Node, proc int) {
 	if n == nil {
 		return
@@ -2519,11 +2501,9 @@ func cgen_call(n *Node, proc int) {
 	Ginscall(n.Left, proc)
 }
 
-/*
- * call to n has already been generated.
- * generate:
- *	res = return value from call.
- */
+// call to n has already been generated.
+// generate:
+//	res = return value from call.
 func cgen_callret(n *Node, res *Node) {
 	t := n.Left.Type
 	if t.Etype == TPTR32 || t.Etype == TPTR64 {
@@ -2546,11 +2526,9 @@ func cgen_callret(n *Node, res *Node) {
 	Cgen_as(res, &nod)
 }
 
-/*
- * call to n has already been generated.
- * generate:
- *	res = &return value from call.
- */
+// call to n has already been generated.
+// generate:
+//	res = &return value from call.
 func cgen_aret(n *Node, res *Node) {
 	t := n.Left.Type
 	if Isptr[t.Etype] {
@@ -2581,10 +2559,8 @@ func cgen_aret(n *Node, res *Node) {
 	}
 }
 
-/*
- * generate return.
- * n->left is assignments to return values.
- */
+// generate return.
+// n->left is assignments to return values.
 func cgen_ret(n *Node) {
 	if n != nil {
 		Genlist(n.List) // copy out args
@@ -2601,11 +2577,9 @@ func cgen_ret(n *Node) {
 	}
 }
 
-/*
- * generate division according to op, one of:
- *	res = nl / nr
- *	res = nl % nr
- */
+// generate division according to op, one of:
+//	res = nl / nr
+//	res = nl % nr
 func cgen_div(op int, nl *Node, nr *Node, res *Node) {
 	var w int
 

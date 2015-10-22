@@ -396,7 +396,7 @@ func ordercall(n *Node, order *Order) {
 // contain m or k. They are usually unnecessary, but in the unnecessary
 // cases they are also typically registerizable, so not much harm done.
 // And this only applies to the multiple-assignment form.
-// We could do a more precise analysis if needed, like in walk.c.
+// We could do a more precise analysis if needed, like in walk.go.
 //
 // Ordermapassign also inserts these temporaries if needed for
 // calling writebarrierfat with a pointer to n->right.
@@ -408,7 +408,7 @@ func ordermapassign(n *Node, order *Order) {
 	case OAS:
 		order.out = list(order.out, n)
 
-		// We call writebarrierfat only for values > 4 pointers long. See walk.c.
+		// We call writebarrierfat only for values > 4 pointers long. See walk.go.
 		if (n.Left.Op == OINDEXMAP || (needwritebarrier(n.Left, n.Right) && n.Left.Type.Width > int64(4*Widthptr))) && !isaddrokay(n.Right) {
 			m := n.Left
 			n.Left = ordertemp(m.Type, order, false)
@@ -756,7 +756,7 @@ func orderstmt(n *Node, order *Order) {
 		ordercallargs(&n.List, order)
 		order.out = list(order.out, n)
 
-		// Special: clean case temporaries in each block entry.
+	// Special: clean case temporaries in each block entry.
 	// Select must enter one of its blocks, so there is no
 	// need for a cleaning at the end.
 	// Doubly special: evaluation order for select is stricter
