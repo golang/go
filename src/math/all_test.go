@@ -1363,7 +1363,7 @@ var vfmodfSC = []float64{
 var modfSC = [][2]float64{
 	{Inf(-1), NaN()}, // [2]float64{Copysign(0, -1), Inf(-1)},
 	{Copysign(0, -1), Copysign(0, -1)},
-	{Inf(1), NaN()},  // [2]float64{0, Inf(1)},
+	{Inf(1), NaN()}, // [2]float64{0, Inf(1)},
 	{NaN(), NaN()},
 }
 
@@ -1611,6 +1611,7 @@ var vfsqrtSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	Float64frombits(2), // subnormal; see https://golang.org/issue/13013
 }
 var sqrtSC = []float64{
 	NaN(),
@@ -1619,6 +1620,7 @@ var sqrtSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	3.1434555694052576e-162,
 }
 
 var vftanhSC = []float64{
