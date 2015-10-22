@@ -36,7 +36,7 @@ func decompose(f *Func) {
 func decomposeStringPhi(v *Value) {
 	fe := v.Block.Func.Config.fe
 	ptrType := fe.TypeBytePtr()
-	lenType := fe.TypeUintptr()
+	lenType := fe.TypeInt()
 
 	ptr := v.Block.NewValue0(v.Line, OpPhi, ptrType)
 	len := v.Block.NewValue0(v.Line, OpPhi, lenType)
@@ -55,7 +55,7 @@ func decomposeStringPhi(v *Value) {
 func decomposeSlicePhi(v *Value) {
 	fe := v.Block.Func.Config.fe
 	ptrType := fe.TypeBytePtr()
-	lenType := fe.TypeUintptr()
+	lenType := fe.TypeInt()
 
 	ptr := v.Block.NewValue0(v.Line, OpPhi, ptrType)
 	len := v.Block.NewValue0(v.Line, OpPhi, lenType)

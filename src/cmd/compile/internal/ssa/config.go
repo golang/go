@@ -4,10 +4,7 @@
 
 package ssa
 
-import (
-	"cmd/internal/obj"
-	"fmt"
-)
+import "cmd/internal/obj"
 
 type Config struct {
 	arch       string                     // "amd64", etc.
@@ -63,7 +60,14 @@ type Frontend interface {
 
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
-	Auto(Type) fmt.Stringer // returns *gc.Node
+	Auto(Type) GCNode
+}
+
+// interface used to hold *gc.Node.  We'd use *gc.Node directly but
+// that would lead to an import cycle.
+type GCNode interface {
+	Typ() Type
+	String() string
 }
 
 // NewConfig returns a new configuration object for the given architecture.
@@ -93,7 +97,7 @@ func (c *Config) Frontend() Frontend { return c.fe }
 // NewFunc returns a new, empty function object
 func (c *Config) NewFunc() *Func {
 	// TODO(khr): should this function take name, type, etc. as arguments?
-	return &Func{Config: c}
+	return &Func{Config: c, NamedValues: map[GCNode][]*Value{}}
 }
 
 func (c *Config) Logf(msg string, args ...interface{})           { c.fe.Logf(msg, args...) }

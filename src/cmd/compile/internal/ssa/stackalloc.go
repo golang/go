@@ -36,7 +36,8 @@ func stackalloc(f *Func) {
 			case v.Op == OpStoreReg, v.isStackPhi():
 				s.remove(v.ID)
 				for _, id := range s.contents() {
-					if v.Type == types[id] {
+					if v.Type.Equal(types[id]) {
+						// Only need interferences between equivalent types.
 						interfere[v.ID] = append(interfere[v.ID], id)
 						interfere[id] = append(interfere[id], v.ID)
 					}
@@ -44,6 +45,18 @@ func stackalloc(f *Func) {
 			case v.Op == OpLoadReg:
 				s.add(v.Args[0].ID)
 			}
+		}
+	}
+
+	// Build map from values to their names, if any.
+	// A value may be associated with more than one name (e.g. after
+	// the assignment i=j). This step picks one name per value arbitrarily.
+	names := make([]GCNode, f.NumValues())
+	for _, name := range f.Names {
+		// Note: not "range f.NamedValues" above, because
+		// that would be nondeterministic.
+		for _, v := range f.NamedValues[name] {
+			names[v.ID] = name
 		}
 	}
 
@@ -67,6 +80,7 @@ func stackalloc(f *Func) {
 
 	// Each time we assign a stack slot to a value v, we remember
 	// the slot we used via an index into locations[v.Type].
+	// TODO: share slots among equivalent types.
 	slots := make([]int, f.NumValues())
 	for i := f.NumValues() - 1; i >= 0; i-- {
 		slots[i] = -1
@@ -82,6 +96,45 @@ func stackalloc(f *Func) {
 			if phiArg[v.ID] {
 				continue
 			}
+
+			// If this is a named value, try to use the name as
+			// the spill location.
+			var name GCNode
+			if v.Op == OpStoreReg {
+				name = names[v.Args[0].ID]
+			} else {
+				name = names[v.ID]
+			}
+			if name != nil && v.Type.Equal(name.Typ()) {
+				for _, id := range interfere[v.ID] {
+					h := f.getHome(id)
+					if h != nil && h.(*LocalSlot).N == name {
+						// A variable can interfere with itself.
+						// It is rare, but but it can happen.
+						goto noname
+					}
+				}
+				if v.Op == OpPhi {
+					for _, a := range v.Args {
+						for _, id := range interfere[a.ID] {
+							h := f.getHome(id)
+							if h != nil && h.(*LocalSlot).N == name {
+								goto noname
+							}
+						}
+					}
+				}
+				loc := &LocalSlot{name}
+				f.setHome(v, loc)
+				if v.Op == OpPhi {
+					for _, a := range v.Args {
+						f.setHome(a, loc)
+					}
+				}
+				continue
+			}
+
+		noname:
 			// Set of stack slots we could reuse.
 			locs := locations[v.Type]
 			// Mark all positions in locs used by interfering values.
@@ -96,7 +149,7 @@ func stackalloc(f *Func) {
 			}
 			if v.Op == OpPhi {
 				// Stack phi and args must get the same stack slot, so
-				// anything they interfere with is something v the phi
+				// anything the args interfere with is something the phi
 				// interferes with.
 				for _, a := range v.Args {
 					for _, xid := range interfere[a.ID] {
@@ -209,11 +262,11 @@ func (f *Func) liveSpills() [][][]ID {
 	return live
 }
 
-func (f *Func) getHome(v *Value) Location {
-	if int(v.ID) >= len(f.RegAlloc) {
+func (f *Func) getHome(vid ID) Location {
+	if int(vid) >= len(f.RegAlloc) {
 		return nil
 	}
-	return f.RegAlloc[v.ID]
+	return f.RegAlloc[vid]
 }
 
 func (f *Func) setHome(v *Value, loc Location) {

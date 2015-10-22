@@ -6,7 +6,6 @@ package ssa
 
 import (
 	"cmd/internal/obj"
-	"fmt"
 	"testing"
 )
 
@@ -29,7 +28,7 @@ type DummyFrontend struct {
 func (DummyFrontend) StringData(s string) interface{} {
 	return nil
 }
-func (DummyFrontend) Auto(t Type) fmt.Stringer {
+func (DummyFrontend) Auto(t Type) GCNode {
 	return nil
 }
 
