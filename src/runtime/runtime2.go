@@ -612,16 +612,12 @@ const (
 
 var (
 	emptystring string
-	allg        **g
 	allglen     uintptr
-	lastg       *g
 	allm        *m
 	allp        [_MaxGomaxprocs + 1]*p
 	gomaxprocs  int32
 	panicking   uint32
-	goos        *int8
 	ncpu        int32
-	signote     note
 	forcegc     forcegcstate
 	sched       schedt
 	newprocs    int32

@@ -336,7 +336,6 @@ func allgadd(gp *g) {
 
 	lock(&allglock)
 	allgs = append(allgs, gp)
-	allg = &allgs[0]
 	allglen = uintptr(len(allgs))
 	unlock(&allglock)
 }
