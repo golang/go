@@ -87,13 +87,14 @@ func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int)
 		return
 	}
 
+	// \n$$B marks the beginning of binary export data - don't skip over the B
 	p0 += 3
-	for p0 < len(data) && data[p0] != '\n' {
+	for p0 < len(data) && data[p0] != '\n' && data[p0] != 'B' {
 		p0++
 	}
 
 	// second marks end of exports / beginning of local data
-	p1 = strings.Index(data[p0:], "\n$$")
+	p1 = strings.Index(data[p0:], "\n$$\n")
 	if p1 < 0 {
 		fmt.Fprintf(os.Stderr, "%s: cannot find end of exports in %s\n", os.Args[0], filename)
 		if Debug['u'] != 0 {
@@ -103,10 +104,12 @@ func ldpkg(f *obj.Biobuf, pkg string, length int64, filename string, whence int)
 	}
 	p1 += p0
 
-	for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
+	for p0 < p1 && data[p0] != 'B' && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
 		p0++
 	}
-	if p0 < p1 {
+	// don't check this section if we have binary (B) export data
+	// TODO fix this eventually
+	if p0 < p1 && data[p0] != 'B' {
 		if !strings.HasPrefix(data[p0:], "package ") {
 			fmt.Fprintf(os.Stderr, "%s: bad package section in %s - %.20s\n", os.Args[0], filename, data[p0:])
 			if Debug['u'] != 0 {
