@@ -713,20 +713,11 @@ func (p *exporter) value(x Val) {
 }
 
 func (p *exporter) float(x *Mpflt) {
-	// extract sign, treat -0 as < 0
+	// extract sign (there is no -0)
 	f := &x.Val
 	sign := f.Sign()
 	if sign == 0 {
-		// ±0
-		// TODO(gri) remove 'if' below if #12577 gets accepted
-		if f.Signbit() {
-			// -0 (uncommon)
-			p.int(-1)
-			p.int(0)
-			p.string("")
-			return
-		}
-		// +0
+		// x == 0
 		p.int(0)
 		return
 	}
