@@ -564,7 +564,9 @@ func (r *objReader) parseObject(prefix []byte) error {
 	var c1, c2, c3 byte
 	for {
 		c1, c2, c3 = c2, c3, r.readByte()
-		if c3 == 0 { // NUL or EOF, either is bad
+		// The new export format can contain 0 bytes.
+		// Don't consider them errors, only look for r.err != nil.
+		if r.err != nil {
 			return errCorruptObject
 		}
 		if c1 == '\n' && c2 == '!' && c3 == '\n' {
