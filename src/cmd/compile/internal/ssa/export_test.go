@@ -5,6 +5,7 @@
 package ssa
 
 import (
+	"cmd/internal/obj"
 	"fmt"
 	"testing"
 )
@@ -15,7 +16,8 @@ var Opt = opt
 var Deadcode = deadcode
 
 func testConfig(t *testing.T) *Config {
-	return NewConfig("amd64", DummyFrontend{t})
+	testCtxt := &obj.Link{}
+	return NewConfig("amd64", DummyFrontend{t}, testCtxt)
 }
 
 // DummyFrontend is a test-only frontend.
