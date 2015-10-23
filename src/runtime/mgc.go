@@ -631,28 +631,6 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// the end of the mark phase when there are still
 		// assists tapering off. Don't bother running a worker
 		// now because it'll just return immediately.
-		if work.nwait == work.nproc {
-			// There are also no workers, which
-			// means we've reached a completion point.
-			// There may not be any workers to
-			// signal it, so signal it here.
-			readied := false
-			if gcBlackenPromptly {
-				if work.bgMark1.done == 0 {
-					throw("completing mark 2, but bgMark1.done == 0")
-				}
-				readied = work.bgMark2.complete()
-			} else {
-				readied = work.bgMark1.complete()
-			}
-			if readied {
-				// complete just called ready,
-				// but we're inside the
-				// scheduler. Let it know that
-				// that's okay.
-				resetspinning()
-			}
-		}
 		return nil
 	}
 
@@ -1167,6 +1145,10 @@ func gc(mode gcMode) {
 			// Rescan global data and BSS. Bump "jobs"
 			// down before "next" so workers won't try
 			// running root jobs until we set "next".
+			//
+			// This also ensures there will be queued mark
+			// work, which ensures some mark worker will
+			// run and signal mark 2 completion.
 			atomicstore(&work.markrootJobs, uint32(fixedRootCount+work.nDataRoots+work.nBSSRoots))
 			atomicstore(&work.markrootNext, fixedRootCount)
 		})
