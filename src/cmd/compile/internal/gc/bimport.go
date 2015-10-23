@@ -573,10 +573,8 @@ func (p *importer) string() string {
 		} else {
 			p.buf = p.buf[:n]
 		}
-		r := obj.Bread(p.in, p.buf)
-		p.read += r
-		if r != n {
-			Fatalf("read error: read %d bytes of %d", r, n)
+		for i := 0; i < n; i++ {
+			p.buf[i] = p.byte()
 		}
 		return string(p.buf)
 	}
@@ -595,15 +593,6 @@ func (p *importer) marker(want byte) {
 	}
 }
 
-func (p *importer) byte() byte {
-	if c := obj.Bgetc(p.in); c >= 0 {
-		p.read++
-		return byte(c)
-	}
-	Fatalf("read error")
-	return 0
-}
-
 // rawInt64 should only be used by low-level decoders
 func (p *importer) rawInt64() int64 {
 	i, err := binary.ReadVarint(p)
@@ -616,4 +605,30 @@ func (p *importer) rawInt64() int64 {
 // needed for binary.ReadVarint in rawInt64
 func (p *importer) ReadByte() (byte, error) {
 	return p.byte(), nil
+}
+
+// byte is the bottleneck interface for reading from p.in.
+// It unescapes '|' 'S' to '$' and '|' '|' to '|'.
+func (p *importer) byte() byte {
+	c := obj.Bgetc(p.in)
+	p.read++
+	if c < 0 {
+		Fatalf("read error")
+	}
+	if c == '|' {
+		c = obj.Bgetc(p.in)
+		p.read++
+		if c < 0 {
+			Fatalf("read error")
+		}
+		switch c {
+		case 'S':
+			c = '$'
+		case '|':
+			// nothing to do
+		default:
+			Fatalf("unexpected escape sequence in export data")
+		}
+	}
+	return byte(c)
 }

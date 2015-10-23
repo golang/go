@@ -20,26 +20,23 @@ import (
 // If data is obviously malformed, an error is returned but in
 // general it is not recommended to call BImportData on untrusted data.
 func BImportData(imports map[string]*types.Package, data []byte, path string) (int, *types.Package, error) {
-	// determine low-level encoding format
-	read := 0
-	var format byte = 'm' // missing format
-	if len(data) > 0 {
-		format = data[0]
-		data = data[1:]
-		read++
+	p := importer{
+		imports: imports,
+		data:    data,
 	}
-	if format != 'c' && format != 'd' {
-		return read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
+	p.buf = p.bufarray[:]
+
+	// read low-level encoding format
+	switch format := p.byte(); format {
+	case 'c':
+		// compact format - nothing to do
+	case 'd':
+		p.debugFormat = true
+	default:
+		return p.read, nil, fmt.Errorf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
 
 	// --- generic export data ---
-
-	p := importer{
-		imports:     imports,
-		data:        data,
-		debugFormat: format == 'd',
-		read:        read,
-	}
 
 	if v := p.string(); v != "v0" {
 		return p.read, nil, fmt.Errorf("unknown version: %s", v)
@@ -103,6 +100,8 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 		_ = p.typ().(*types.Named)
 	}
 
+	// ignore compiler-specific import data
+
 	// complete interfaces
 	for _, typ := range p.typList {
 		if it, ok := typ.(*types.Interface); ok {
@@ -122,10 +121,12 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 }
 
 type importer struct {
-	imports map[string]*types.Package
-	data    []byte
-	pkgList []*types.Package
-	typList []types.Type
+	imports  map[string]*types.Package
+	data     []byte
+	buf      []byte   // for reading strings
+	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
+	pkgList  []*types.Package
+	typList  []types.Type
 
 	debugFormat bool
 	read        int // bytes read
@@ -440,7 +441,7 @@ func exported(name string) bool {
 }
 
 func (p *importer) value() constant.Value {
-	switch kind := constant.Kind(p.int()); kind {
+	switch tag := p.tagOrIndex(); tag {
 	case falseTag:
 		return constant.MakeBool(false)
 	case trueTag:
@@ -456,7 +457,7 @@ func (p *importer) value() constant.Value {
 	case stringTag:
 		return constant.MakeString(p.string())
 	default:
-		panic(fmt.Sprintf("unexpected value kind %d", kind))
+		panic(fmt.Sprintf("unexpected value tag %d", tag))
 	}
 }
 
@@ -517,7 +518,11 @@ func (p *importer) tagOrIndex() int {
 }
 
 func (p *importer) int() int {
-	return int(p.int64())
+	x := p.int64()
+	if int64(int(x)) != x {
+		panic("exported integer too large")
+	}
+	return int(x)
 }
 
 func (p *importer) int64() int64 {
@@ -533,21 +538,25 @@ func (p *importer) string() string {
 		p.marker('s')
 	}
 
-	var b []byte
 	if n := int(p.rawInt64()); n > 0 {
-		b = p.data[:n]
-		p.data = p.data[n:]
-		p.read += n
+		if cap(p.buf) < n {
+			p.buf = make([]byte, n)
+		} else {
+			p.buf = p.buf[:n]
+		}
+		for i := 0; i < n; i++ {
+			p.buf[i] = p.byte()
+		}
+		return string(p.buf)
 	}
-	return string(b)
+
+	return ""
 }
 
 func (p *importer) marker(want byte) {
-	if got := p.data[0]; got != want {
+	if got := p.byte(); got != want {
 		panic(fmt.Sprintf("incorrect marker: got %c; want %c (pos = %d)", got, want, p.read))
 	}
-	p.data = p.data[1:]
-	p.read++
 
 	pos := p.read
 	if n := int(p.rawInt64()); n != pos {
@@ -557,10 +566,39 @@ func (p *importer) marker(want byte) {
 
 // rawInt64 should only be used by low-level decoders
 func (p *importer) rawInt64() int64 {
-	i, n := binary.Varint(p.data)
-	p.data = p.data[n:]
-	p.read += n
+	i, err := binary.ReadVarint(p)
+	if err != nil {
+		panic(fmt.Sprintf("read error: %v", err))
+	}
 	return i
+}
+
+// needed for binary.ReadVarint in rawInt64
+func (p *importer) ReadByte() (byte, error) {
+	return p.byte(), nil
+}
+
+// byte is the bottleneck interface for reading p.data.
+// It unescapes '|' 'S' to '$' and '|' '|' to '|'.
+func (p *importer) byte() byte {
+	b := p.data[0]
+	r := 1
+	if b == '|' {
+		b = p.data[1]
+		r = 2
+		switch b {
+		case 'S':
+			b = '$'
+		case '|':
+			// nothing to do
+		default:
+			panic("unexpected escape sequence in export data")
+		}
+	}
+	p.data = p.data[r:]
+	p.read += r
+	return b
+
 }
 
 // ----------------------------------------------------------------------------
