@@ -773,7 +773,7 @@ func traceProcStop(pp *p) {
 }
 
 func traceGCStart() {
-	traceEvent(traceEvGCStart, 4)
+	traceEvent(traceEvGCStart, 5)
 }
 
 func traceGCDone() {

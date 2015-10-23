@@ -171,7 +171,7 @@ func forcegchelper() {
 		if debug.gctrace > 0 {
 			println("GC forced")
 		}
-		startGC(gcBackgroundMode, true)
+		gcStart(gcBackgroundMode, true)
 	}
 }
 

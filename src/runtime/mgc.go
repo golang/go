@@ -165,6 +165,7 @@ func gcinit() {
 		datap.gcbssmask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcbss)), datap.ebss-datap.bss)
 	}
 	memstats.next_gc = heapminimum
+	work.startSema = 1
 }
 
 func readgogc() int32 {
@@ -752,19 +753,6 @@ const gcAssistTimeSlack = 5000
 // of future allocations.
 const gcOverAssistBytes = 1 << 20
 
-// Determine whether to initiate a GC.
-// If the GC is already working no need to trigger another one.
-// This should establish a feedback loop where if the GC does not
-// have sufficient time to complete then more memory will be
-// requested from the OS increasing heap size thus allow future
-// GCs more time to complete.
-// memstat.heap_live read has a benign race.
-// A false negative simple does not start a GC, a false positive
-// will start a GC needlessly. Neither have correctness issues.
-func shouldtriggergc() bool {
-	return memstats.heap_live >= memstats.next_gc && atomicloaduint(&bggc.working) == 0
-}
-
 // bgMarkSignal synchronizes the GC coordinator and background mark workers.
 type bgMarkSignal struct {
 	// Workers race to cas to 1. Winner signals coordinator.
@@ -840,6 +828,22 @@ var work struct {
 	// STW GC, this happens during mark termination.
 	finalizersDone bool
 
+	// Each type of GC state transition is protected by a lock.
+	// Since multiple threads can simultaneously detect the state
+	// transition condition, any thread that detects a transition
+	// condition must acquire the appropriate transition lock,
+	// re-check the transition condition and return if it no
+	// longer holds or perform the transition if it does.
+	// Likewise, any transition must invalidate the transition
+	// condition before releasing the lock. This ensures that each
+	// transition is performed by exactly one thread and threads
+	// that need the transition to happen block until it has
+	// happened.
+	//
+	// startSema protects the transition from "off" to mark or
+	// mark termination.
+	startSema uint32
+
 	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
 	// Background mark completion signaling
@@ -898,7 +902,7 @@ var work struct {
 // garbage collection is complete. It may also block the entire
 // program.
 func GC() {
-	startGC(gcForceBlockMode, false)
+	gcStart(gcForceBlockMode, false)
 }
 
 // gcMode indicates how concurrent a GC cycle should be.
@@ -910,34 +914,14 @@ const (
 	gcForceBlockMode               // stop-the-world GC now and STW sweep
 )
 
-// startGC starts a GC cycle. If mode is gcBackgroundMode, this will
+// startGCCoordinator starts and readies the GC coordinator goroutine.
+// If mode is gcBackgroundMode, this will
 // start GC in the background and return. Otherwise, this will block
-// until the new GC cycle is started and finishes. If forceTrigger is
-// true, it indicates that GC should be started regardless of the
-// current heap size.
-func startGC(mode gcMode, forceTrigger bool) {
-	// The gc is turned off (via enablegc) until the bootstrap has completed.
-	// Also, malloc gets called in the guts of a number of libraries that might be
-	// holding locks. To avoid deadlocks during stop-the-world, don't bother
-	// trying to run gc while holding a lock. The next mallocgc without a lock
-	// will do the gc instead.
-	mp := acquirem()
-	if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" || !memstats.enablegc || panicking != 0 || gcpercent < 0 {
-		releasem(mp)
-		return
-	}
-	releasem(mp)
-	mp = nil
-
-	// TODO: In gcstoptheworld debug mode, multiple goroutines may
-	// detect the heap trigger simultaneously and then start
-	// multiple STW GCs, which will run sequentially.
-	if debug.gcstoptheworld == 1 {
-		mode = gcForceMode
-	} else if debug.gcstoptheworld == 2 {
-		mode = gcForceBlockMode
-	}
-
+// until the new GC cycle is started and finishes.
+//
+// TODO(austin): This function is temporary and will go away when we
+// finish the transition to the decentralized state machine.
+func startGCCoordinator(mode gcMode) {
 	if mode != gcBackgroundMode {
 		// special synchronous cases
 		gc(mode)
@@ -947,14 +931,6 @@ func startGC(mode gcMode, forceTrigger bool) {
 	// trigger concurrent GC
 	readied := false
 	lock(&bggc.lock)
-	// The trigger was originally checked speculatively, so
-	// recheck that this really should trigger GC. (For example,
-	// we may have gone through a whole GC cycle since the
-	// speculative check.)
-	if !(forceTrigger || shouldtriggergc()) {
-		unlock(&bggc.lock)
-		return
-	}
 	if !bggc.started {
 		bggc.working = 1
 		bggc.started = true
@@ -990,6 +966,74 @@ func backgroundgc() {
 		lock(&bggc.lock)
 		bggc.working = 0
 		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock, 1)
+	}
+}
+
+// gcShouldStart returns true if the exit condition for the _GCoff
+// phase has been met. The exit condition should be tested when
+// allocating.
+//
+// If forceTrigger is true, it ignores the current heap size, but
+// checks all other conditions. In general this should be false.
+func gcShouldStart(forceTrigger bool) bool {
+	return gcphase == _GCoff && (forceTrigger || memstats.heap_live >= memstats.next_gc) && memstats.enablegc && panicking == 0 && gcpercent >= 0
+}
+
+// gcStart transitions the GC from _GCoff to _GCmark (if mode ==
+// gcBackgroundMode) or _GCmarktermination (if mode !=
+// gcBackgroundMode) by performing sweep termination and GC
+// initialization.
+//
+// This may return without performing this transition in some cases,
+// such as when called on a system stack or with locks held.
+func gcStart(mode gcMode, forceTrigger bool) {
+	// Since this is called from malloc and malloc is called in
+	// the guts of a number of libraries that might be holding
+	// locks, don't attempt to start GC in non-preemptible or
+	// potentially unstable situations.
+	mp := acquirem()
+	if gp := getg(); gp == mp.g0 || mp.locks > 1 || mp.preemptoff != "" {
+		releasem(mp)
+		return
+	}
+	releasem(mp)
+	mp = nil
+
+	// Perform GC initialization and the sweep termination
+	// transition.
+	//
+	// If this is a forced GC, don't acquire the transition lock
+	// or re-check the transition condition because we
+	// specifically *don't* want to share the transition with
+	// another thread.
+	useStartSema := mode == gcBackgroundMode
+	if useStartSema {
+		semacquire(&work.startSema, false)
+		// Re-check transition condition under transition lock.
+		if !gcShouldStart(forceTrigger) {
+			semrelease(&work.startSema)
+			return
+		}
+	}
+
+	// In gcstoptheworld debug mode, upgrade the mode accordingly.
+	// We do this after re-checking the transition condition so
+	// that multiple goroutines that detect the heap trigger don't
+	// start multiple STW GCs.
+	if mode == gcBackgroundMode {
+		if debug.gcstoptheworld == 1 {
+			mode = gcForceMode
+		} else if debug.gcstoptheworld == 2 {
+			mode = gcForceBlockMode
+		}
+	}
+
+	// TODO: Move sweep termination and initialization from the
+	// coordinator to here.
+	startGCCoordinator(mode)
+
+	if useStartSema {
+		semrelease(&work.startSema)
 	}
 }
 
