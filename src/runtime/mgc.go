@@ -999,6 +999,20 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	releasem(mp)
 	mp = nil
 
+	// Pick up the remaining unswept/not being swept spans concurrently
+	//
+	// This shouldn't happen if we're being invoked in background
+	// mode since proportional sweep should have just finished
+	// sweeping everything, but rounding errors, etc, may leave a
+	// few spans unswept. In forced mode, this is necessary since
+	// GC can be forced at any point in the sweeping cycle.
+	//
+	// We check the transition condition continuously here in case
+	// this G gets delayed in to the next GC cycle.
+	for (mode != gcBackgroundMode || gcShouldStart(forceTrigger)) && gosweepone() != ^uintptr(0) {
+		sweep.nbgsweep++
+	}
+
 	// Perform GC initialization and the sweep termination
 	// transition.
 	//
@@ -1040,17 +1054,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
 func gc(mode gcMode) {
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
-
-	// Pick up the remaining unswept/not being swept spans concurrently
-	//
-	// This shouldn't happen if we're being invoked in background
-	// mode since proportional sweep should have just finished
-	// sweeping everything, but rounding errors, etc, may leave a
-	// few spans unswept. In forced mode, this is necessary since
-	// GC can be forced at any point in the sweeping cycle.
-	for gosweepone() != ^uintptr(0) {
-		sweep.nbgsweep++
-	}
 
 	if trace.enabled {
 		traceGCStart()
