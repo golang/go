@@ -916,6 +916,9 @@ func startGC(mode gcMode, forceTrigger bool) {
 	releasem(mp)
 	mp = nil
 
+	// TODO: In gcstoptheworld debug mode, multiple goroutines may
+	// detect the heap trigger simultaneously and then start
+	// multiple STW GCs, which will run sequentially.
 	if debug.gcstoptheworld == 1 {
 		mode = gcForceMode
 	} else if debug.gcstoptheworld == 2 {
