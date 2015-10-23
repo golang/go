@@ -1765,19 +1765,18 @@ func (p *parser) chan_elem() *Node {
 	return nil
 }
 
-func (p *parser) new_dotname(pkg *Node) *Node {
+func (p *parser) new_dotname(obj *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_dotname")()
 	}
 
 	sel := p.sym()
-	if pkg.Op == OPACK {
-		s := restrictlookup(sel.Name, pkg.Name.Pkg)
-		pkg.Used = true
+	if obj.Op == OPACK {
+		s := restrictlookup(sel.Name, obj.Name.Pkg)
+		obj.Used = true
 		return oldname(s)
 	}
-	return Nod(OXDOT, pkg, newname(sel))
-
+	return Nod(OXDOT, obj, newname(sel))
 }
 
 func (p *parser) dotname() *Node {

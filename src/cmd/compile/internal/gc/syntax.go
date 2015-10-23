@@ -195,7 +195,7 @@ const (
 	OSUB             // Left - Right
 	OOR              // Left | Right
 	OXOR             // Left ^ Right
-	OADDSTR          // Left + Right (string addition)
+	OADDSTR          // +{List} (string addition, list elements are strings)
 	OADDR            // &Left
 	OANDAND          // Left && Right
 	OAPPEND          // append(List)
