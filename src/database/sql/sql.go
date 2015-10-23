@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	driversMu sync.Mutex
+	driversMu sync.RWMutex
 	drivers   = make(map[string]driver.Driver)
 )
 
@@ -52,8 +52,8 @@ func unregisterAllDrivers() {
 
 // Drivers returns a sorted list of the names of the registered drivers.
 func Drivers() []string {
-	driversMu.Lock()
-	defer driversMu.Unlock()
+	driversMu.RLock()
+	defer driversMu.RUnlock()
 	var list []string
 	for name := range drivers {
 		list = append(list, name)
@@ -465,9 +465,9 @@ var connectionRequestQueueSize = 1000000
 // function should be called just once. It is rarely necessary to
 // close a DB.
 func Open(driverName, dataSourceName string) (*DB, error) {
-	driversMu.Lock()
+	driversMu.RLock()
 	driveri, ok := drivers[driverName]
-	driversMu.Unlock()
+	driversMu.RUnlock()
 	if !ok {
 		return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driverName)
 	}
