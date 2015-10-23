@@ -298,7 +298,7 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 // not require 0.5 <= |mant| < 1.0. Specifically:
 //
 //	mant := new(Float)
-//	new(Float).SetMantExp(mant, x.SetMantExp(mant)).Cmp(x).Eql() is true
+//	new(Float).SetMantExp(mant, x.MantExp(mant)).Cmp(x) == 0
 //
 // Special cases are:
 //
