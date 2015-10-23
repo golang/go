@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/big"
 	"cmd/internal/obj"
 	"encoding/binary"
+	"fmt"
 )
 
 // The overall structure of Import is symmetric to Export: For each
@@ -30,13 +31,13 @@ func Import(in *obj.Biobuf) {
 	case 'd':
 		p.debugFormat = true
 	default:
-		Fatalf("invalid encoding format in export data: got %q; want 'c' or 'd'", format)
+		Fatalf("importer: invalid encoding format in export data: got %q; want 'c' or 'd'", format)
 	}
 
 	// --- generic export data ---
 
 	if v := p.string(); v != exportVersion {
-		Fatalf("unknown export data version: %s", v)
+		Fatalf("importer: unknown export data version: %s", v)
 	}
 
 	// populate typList with predeclared "known" types
@@ -45,7 +46,7 @@ func Import(in *obj.Biobuf) {
 	// read package data
 	p.pkg()
 	if p.pkgList[0] != importpkg {
-		Fatalf("imported package not found in pkgList[0]")
+		Fatalf("importer: imported package not found in pkgList[0]")
 	}
 
 	// read compiler-specific flags
@@ -62,11 +63,7 @@ func Import(in *obj.Biobuf) {
 		sym := p.localname()
 		typ := p.typ()
 		val := p.value(typ)
-		if isideal(typ) {
-			// canonicalize ideal types
-			typ = Types[TIDEAL]
-		}
-		importconst(sym, typ, nodlit(val))
+		importconst(sym, idealType(typ), nodlit(val))
 	}
 
 	// read vars
@@ -81,12 +78,11 @@ func Import(in *obj.Biobuf) {
 		// go.y:hidden_fndcl
 		sym := p.localname()
 		typ := p.typ()
-		// TODO(gri) fix this
-		p.int() // read and discard index of inlined function body for now
+		inl := p.int()
 
 		importsym(sym, ONAME)
 		if sym.Def != nil && sym.Def.Op == ONAME && !Eqtype(typ, sym.Def.Type) {
-			Fatalf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, typ)
+			Fatalf("importer: inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, typ)
 		}
 
 		n := newfuncname(sym)
@@ -96,6 +92,12 @@ func Import(in *obj.Biobuf) {
 
 		// go.y:hidden_import
 		n.Func.Inl.Set(nil)
+		if inl >= 0 {
+			if inl != len(p.inlined) {
+				panic("inlined body list inconsistent")
+			}
+			p.inlined = append(p.inlined, n.Func)
+		}
 		funcbody(n)
 		importlist = append(importlist, n) // TODO(gri) do this only if body is inlineable?
 	}
@@ -108,8 +110,14 @@ func Import(in *obj.Biobuf) {
 
 	// --- compiler-specific export data ---
 
-	for i := p.int(); i > 0; i-- {
-		p.body()
+	// read inlined functions bodies
+	n := p.int()
+	for i := 0; i < n; i++ {
+		body := p.nodeSlice()
+		const hookup = false // TODO(gri) enable and remove this condition
+		if hookup {
+			p.inlined[i].Inl.Set(body)
+		}
 	}
 
 	// --- end of export data ---
@@ -120,12 +128,21 @@ func Import(in *obj.Biobuf) {
 	testdclstack() // debugging only
 }
 
+func idealType(typ *Type) *Type {
+	if isideal(typ) {
+		// canonicalize ideal types
+		typ = Types[TIDEAL]
+	}
+	return typ
+}
+
 type importer struct {
 	in       *obj.Biobuf
 	buf      []byte   // for reading strings
 	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
 	pkgList  []*Pkg
 	typList  []*Type
+	inlined  []*Func
 
 	debugFormat bool
 	read        int // bytes read
@@ -140,7 +157,7 @@ func (p *importer) pkg() *Pkg {
 
 	// otherwise, i is the package tag (< 0)
 	if i != packageTag {
-		Fatalf("expected package tag, found tag = %d", i)
+		Fatalf("importer: expected package tag, found tag = %d", i)
 	}
 
 	// read package data
@@ -149,12 +166,12 @@ func (p *importer) pkg() *Pkg {
 
 	// we should never see an empty package name
 	if name == "" {
-		Fatalf("empty package name in import")
+		Fatalf("importer: empty package name in import")
 	}
 
 	// we should never see a bad import path
 	if isbadimport(path) {
-		Fatalf("bad path in import: %q", path)
+		Fatalf("importer: bad path in import: %q", path)
 	}
 
 	// an empty path denotes the package we are currently importing
@@ -165,7 +182,7 @@ func (p *importer) pkg() *Pkg {
 	if pkg.Name == "" {
 		pkg.Name = name
 	} else if pkg.Name != name {
-		Fatalf("inconsistent package names: got %s; want %s (path = %s)", pkg.Name, name, path)
+		Fatalf("importer: inconsistent package names: got %s; want %s (path = %s)", pkg.Name, name, path)
 	}
 	p.pkgList = append(p.pkgList, pkg)
 
@@ -176,7 +193,7 @@ func (p *importer) localname() *Sym {
 	// go.y:hidden_importsym
 	name := p.string()
 	if name == "" {
-		Fatalf("unexpected anonymous name")
+		Fatalf("importer: unexpected anonymous name")
 	}
 	structpkg = importpkg // go.y:hidden_pkg_importsym
 	return importpkg.Lookup(name)
@@ -224,8 +241,7 @@ func (p *importer) typ() *Type {
 			recv := p.paramList() // TODO(gri) do we need a full param list for the receiver?
 			params := p.paramList()
 			result := p.paramList()
-			// TODO(gri) fix this
-			p.int() // read and discard index of inlined function body for now
+			inl := p.int()
 
 			pkg := localpkg
 			if !exportname(name) {
@@ -254,6 +270,12 @@ func (p *importer) typ() *Type {
 
 			// go.y:hidden_import
 			n.Func.Inl.Set(nil)
+			if inl >= 0 {
+				if inl != len(p.inlined) {
+					panic("inlined body list inconsistent")
+				}
+				p.inlined = append(p.inlined, n.Func)
+			}
 			funcbody(n)
 			importlist = append(importlist, n) // TODO(gri) do this only if body is inlineable?
 		}
@@ -288,7 +310,7 @@ func (p *importer) typ() *Type {
 	case interfaceTag:
 		t = p.newtyp(TINTER)
 		if p.int() != 0 {
-			Fatalf("unexpected embedded interface")
+			Fatalf("importer: unexpected embedded interface")
 		}
 		tointerface0(t, p.methodList())
 
@@ -303,11 +325,11 @@ func (p *importer) typ() *Type {
 		t.Type = p.typ()
 
 	default:
-		Fatalf("unexpected type (tag = %d)", i)
+		Fatalf("importer: unexpected type (tag = %d)", i)
 	}
 
 	if t == nil {
-		Fatalf("nil type (type tag = %d)", i)
+		Fatalf("importer: nil type (type tag = %d)", i)
 	}
 
 	return t
@@ -443,7 +465,7 @@ func (p *importer) param(named bool) *Node {
 	if named {
 		name := p.string()
 		if name == "" {
-			Fatalf("expected named parameter")
+			Fatalf("importer: expected named parameter")
 		}
 		// The parameter package doesn't matter; it's never consulted.
 		// We use the builtinpkg per go.y:sym (line 1181).
@@ -461,13 +483,16 @@ func (p *importer) value(typ *Type) (x Val) {
 	switch tag := p.tagOrIndex(); tag {
 	case falseTag:
 		x.U = false
+
 	case trueTag:
 		x.U = true
+
 	case int64Tag:
 		u := new(Mpint)
 		Mpmovecfix(u, p.int64())
 		u.Rune = typ == idealrune
 		x.U = u
+
 	case floatTag:
 		f := newMpflt()
 		p.float(f)
@@ -479,20 +504,26 @@ func (p *importer) value(typ *Type) (x Val) {
 			break
 		}
 		x.U = f
+
 	case complexTag:
 		u := new(Mpcplx)
 		p.float(&u.Real)
 		p.float(&u.Imag)
 		x.U = u
+
 	case stringTag:
 		x.U = p.string()
+
+	case nilTag:
+		x.U = new(NilVal)
+
 	default:
-		Fatalf("unexpected value tag %d", tag)
+		Fatalf("importer: unexpected value tag %d", tag)
 	}
 
 	// verify ideal type
 	if isideal(typ) && untype(x.Ctype()) != typ {
-		Fatalf("value %v and type %v don't match", x, typ)
+		Fatalf("importer: value %v and type %v don't match", x, typ)
 	}
 
 	return
@@ -518,20 +549,242 @@ func (p *importer) float(x *Mpflt) {
 // ----------------------------------------------------------------------------
 // Inlined function bodies
 
-func (p *importer) body() {
-	p.int()
-	p.block()
-}
-
-func (p *importer) block() {
+// go.y:stmt_list
+func (p *importer) nodeSlice() []*Node {
+	var l []*Node
 	for i := p.int(); i > 0; i-- {
-		p.stmt()
+		l = append(l, p.node())
 	}
+	return l
 }
 
-func (p *importer) stmt() {
-	// TODO(gri) do something sensible here
-	p.string()
+func (p *importer) nodeList() *NodeList {
+	var l *NodeList
+	for i := p.int(); i > 0; i-- {
+		l = list(l, p.node())
+	}
+	return l
+}
+
+func (p *importer) node() *Node {
+	// TODO(gri) eventually we may need to allocate in each branch
+	n := Nod(p.op(), nil, nil)
+
+	switch n.Op {
+	// names
+	case ONAME, OPACK, ONONAME:
+		name := mkname(p.sym())
+		// TODO(gri) decide what to do here (this code throws away n)
+		/*
+			if name.Op != n.Op {
+				Fatalf("importer: got node op = %s; want %s", opnames[name.Op], opnames[n.Op])
+			}
+		*/
+		n = name
+
+	case OTYPE:
+		if p.bool() {
+			n.Sym = p.sym()
+		} else {
+			n.Type = p.typ()
+		}
+
+	case OLITERAL:
+		typ := p.typ()
+		n.Type = idealType(typ)
+		n.SetVal(p.value(typ))
+
+	// expressions
+	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+		if p.bool() {
+			n.List = p.nodeList()
+		}
+		n.Left, n.Right = p.nodesOrNil()
+		n.Type = p.typ()
+
+	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+		n.Left = p.node()
+
+	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
+		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND,
+		OSUB, OXOR:
+		n.Left = p.node()
+		n.Right = p.node()
+
+	case OADDSTR:
+		n.List = p.nodeList()
+
+	case OPTRLIT:
+		n.Left = p.node()
+
+	case OSTRUCTLIT:
+		n.Type = p.typ()
+		n.List = p.nodeList()
+		n.Implicit = p.bool()
+
+	case OARRAYLIT, OMAPLIT:
+		n.Type = p.typ()
+		n.List = p.nodeList()
+		n.Implicit = p.bool()
+
+	case OKEY:
+		n.Left, n.Right = p.nodesOrNil()
+
+	case OCOPY, OCOMPLEX:
+		n.Left = p.node()
+		n.Right = p.node()
+
+	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+		// n.Type = p.typ()
+		// if p.bool() {
+		// 	n.Left = p.node()
+		// } else {
+		// 	n.List = p.nodeList()
+		// }
+		x := Nod(OCALL, p.typ().Nod, nil)
+		if p.bool() {
+			x.List = list1(p.node())
+		} else {
+			x.List = p.nodeList()
+		}
+		return x
+
+	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
+		// see parser.new_dotname
+		obj := p.node()
+		sel := p.sym()
+		if obj.Op == OPACK {
+			s := restrictlookup(sel.Name, obj.Name.Pkg)
+			obj.Used = true
+			return oldname(s)
+		}
+		return Nod(OXDOT, obj, newname(sel))
+
+	case ODOTTYPE, ODOTTYPE2:
+		n.Left = p.node()
+		if p.bool() {
+			n.Right = p.node()
+		} else {
+			n.Type = p.typ()
+		}
+
+	case OINDEX, OINDEXMAP, OSLICE, OSLICESTR, OSLICEARR, OSLICE3, OSLICE3ARR:
+		n.Left = p.node()
+		n.Right = p.node()
+
+	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC,
+		ORECOVER, OPRINT, OPRINTN:
+		n.Left, _ = p.nodesOrNil()
+		n.List = p.nodeList()
+		n.Isddd = p.bool()
+
+	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+		n.Left = p.node()
+		n.List = p.nodeList()
+		n.Isddd = p.bool()
+
+	case OCMPSTR, OCMPIFACE:
+		n.Left = p.node()
+		n.Right = p.node()
+		n.Etype = EType(p.int())
+
+	case OPAREN:
+		n.Left = p.node()
+
+	// statements
+	case ODCL:
+		n.Left = p.node() // TODO(gri) compare with fmt code
+		n.Left.Type = p.typ()
+
+	case OAS:
+		n.Left, n.Right = p.nodesOrNil()
+		n.Colas = p.bool() // TODO(gri) what about complexinit?
+
+	case OASOP:
+		n.Left = p.node()
+		n.Right = p.node()
+		n.Etype = EType(p.int())
+
+	case OAS2, OASWB:
+		n.List = p.nodeList()
+		n.Rlist = p.nodeList()
+
+	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+		n.List = p.nodeList()
+		n.Rlist = p.nodeList()
+
+	case ORETURN:
+		n.List = p.nodeList()
+
+	case OPROC, ODEFER:
+		n.Left = p.node()
+
+	case OIF:
+		n.Ninit = p.nodeList()
+		n.Left = p.node()
+		n.Nbody.Set(p.nodeSlice())
+		n.Rlist = p.nodeList()
+
+	case OFOR:
+		n.Ninit = p.nodeList()
+		n.Left, n.Right = p.nodesOrNil()
+		n.Nbody.Set(p.nodeSlice())
+
+	case ORANGE:
+		if p.bool() {
+			n.List = p.nodeList()
+		}
+		n.Right = p.node()
+		n.Nbody.Set(p.nodeSlice())
+
+	case OSELECT, OSWITCH:
+		n.Ninit = p.nodeList()
+		n.Left, _ = p.nodesOrNil()
+		n.List = p.nodeList()
+
+	case OCASE, OXCASE:
+		if p.bool() {
+			n.List = p.nodeList()
+		}
+		n.Nbody.Set(p.nodeSlice())
+
+	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
+		n.Left, _ = p.nodesOrNil()
+
+	case OEMPTY:
+		// nothing to do
+
+	case OLABEL:
+		n.Left = p.node()
+
+	default:
+		panic(fmt.Sprintf("importer: %s (%d) node not yet supported", opnames[n.Op], n.Op))
+	}
+
+	return n
+}
+
+func (p *importer) nodesOrNil() (a, b *Node) {
+	ab := p.int()
+	if ab&1 != 0 {
+		a = p.node()
+	}
+	if ab&2 != 0 {
+		b = p.node()
+	}
+	return
+}
+
+func (p *importer) sym() *Sym {
+	return p.fieldName()
+}
+
+func (p *importer) bool() bool {
+	return p.int() != 0
+}
+
+func (p *importer) op() Op {
+	return Op(p.int())
 }
 
 // ----------------------------------------------------------------------------
@@ -548,7 +801,7 @@ func (p *importer) tagOrIndex() int {
 func (p *importer) int() int {
 	x := p.int64()
 	if int64(int(x)) != x {
-		Fatalf("exported integer too large")
+		Fatalf("importer: exported integer too large")
 	}
 	return int(x)
 }
@@ -583,12 +836,12 @@ func (p *importer) string() string {
 
 func (p *importer) marker(want byte) {
 	if got := p.byte(); got != want {
-		Fatalf("incorrect marker: got %c; want %c (pos = %d)", got, want, p.read)
+		Fatalf("importer: incorrect marker: got %c; want %c (pos = %d)", got, want, p.read)
 	}
 
 	pos := p.read
 	if n := int(p.rawInt64()); n != pos {
-		Fatalf("incorrect position: got %d; want %d", n, pos)
+		Fatalf("importer: incorrect position: got %d; want %d", n, pos)
 	}
 }
 
@@ -596,7 +849,7 @@ func (p *importer) marker(want byte) {
 func (p *importer) rawInt64() int64 {
 	i, err := binary.ReadVarint(p)
 	if err != nil {
-		Fatalf("read error: %v", err)
+		Fatalf("importer: read error: %v", err)
 	}
 	return i
 }
@@ -612,13 +865,13 @@ func (p *importer) byte() byte {
 	c := obj.Bgetc(p.in)
 	p.read++
 	if c < 0 {
-		Fatalf("read error")
+		Fatalf("importer: read error")
 	}
 	if c == '|' {
 		c = obj.Bgetc(p.in)
 		p.read++
 		if c < 0 {
-			Fatalf("read error")
+			Fatalf("importer: read error")
 		}
 		switch c {
 		case 'S':
@@ -626,7 +879,7 @@ func (p *importer) byte() byte {
 		case '|':
 			// nothing to do
 		default:
-			Fatalf("unexpected escape sequence in export data")
+			Fatalf("importer: unexpected escape sequence in export data")
 		}
 	}
 	return byte(c)
