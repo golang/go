@@ -1943,6 +1943,46 @@ func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
 }
 
+var (
+	cdataStart  = []byte("<![CDATA[")
+	cdataEnd    = []byte("]]>")
+	cdataEscape = []byte("]]]]><![CDATA[>")
+)
+
+// emitCDATA writes to w the CDATA-wrapped plain text data s.
+// It escapes CDATA directives nested in s.
+func emitCDATA(w io.Writer, s []byte) error {
+	if len(s) == 0 {
+		return nil
+	}
+	if _, err := w.Write(cdataStart); err != nil {
+		return err
+	}
+	for {
+		i := bytes.Index(s, cdataEnd)
+		if i >= 0 && i+len(cdataEnd) <= len(s) {
+			// Found a nested CDATA directive end.
+			if _, err := w.Write(s[:i]); err != nil {
+				return err
+			}
+			if _, err := w.Write(cdataEscape); err != nil {
+				return err
+			}
+			i += len(cdataEnd)
+		} else {
+			if _, err := w.Write(s); err != nil {
+				return err
+			}
+			break
+		}
+		s = s[i:]
+	}
+	if _, err := w.Write(cdataEnd); err != nil {
+		return err
+	}
+	return nil
+}
+
 // procInst parses the `param="..."` or `param='...'`
 // value out of the provided string, returning "" if not found.
 func procInst(param, s string) string {

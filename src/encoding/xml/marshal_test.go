@@ -356,6 +356,15 @@ type NestedAndComment struct {
 	Comment string   `xml:",comment"`
 }
 
+type CDataTest struct {
+	Chardata string `xml:",cdata"`
+}
+
+type NestedAndCData struct {
+	AB    []string `xml:"A>B"`
+	CDATA string   `xml:",cdata"`
+}
+
 func ifaceptr(x interface{}) interface{} {
 	return &x
 }
@@ -978,6 +987,42 @@ var marshalTests = []struct {
 			MyInt: 42,
 		},
 	},
+	// Test outputting CDATA-wrapped text.
+	{
+		ExpectXML: `<CDataTest></CDataTest>`,
+		Value:     &CDataTest{},
+	},
+	{
+		ExpectXML: `<CDataTest><![CDATA[http://example.com/tests/1?foo=1&bar=baz]]></CDataTest>`,
+		Value: &CDataTest{
+			Chardata: "http://example.com/tests/1?foo=1&bar=baz",
+		},
+	},
+	{
+		ExpectXML: `<CDataTest><![CDATA[Literal <![CDATA[Nested]]]]><![CDATA[>!]]></CDataTest>`,
+		Value: &CDataTest{
+			Chardata: "Literal <![CDATA[Nested]]>!",
+		},
+	},
+	{
+		ExpectXML: `<CDataTest><![CDATA[<![CDATA[Nested]]]]><![CDATA[> Literal!]]></CDataTest>`,
+		Value: &CDataTest{
+			Chardata: "<![CDATA[Nested]]> Literal!",
+		},
+	},
+	{
+		ExpectXML: `<CDataTest><![CDATA[<![CDATA[Nested]]]]><![CDATA[> Literal! <![CDATA[Nested]]]]><![CDATA[> Literal!]]></CDataTest>`,
+		Value: &CDataTest{
+			Chardata: "<![CDATA[Nested]]> Literal! <![CDATA[Nested]]> Literal!",
+		},
+	},
+	{
+		ExpectXML: `<CDataTest><![CDATA[<![CDATA[<![CDATA[Nested]]]]><![CDATA[>]]]]><![CDATA[>]]></CDataTest>`,
+		Value: &CDataTest{
+			Chardata: "<![CDATA[<![CDATA[Nested]]>]]>",
+		},
+	},
+
 	// Test omitempty with parent chain; see golang.org/issue/4168.
 	{
 		ExpectXML: `<Strings><A></A></Strings>`,
@@ -1015,6 +1060,10 @@ var marshalTests = []struct {
 	{
 		ExpectXML: `<NestedAndComment><A><B></B><B></B></A><!--test--></NestedAndComment>`,
 		Value:     &NestedAndComment{AB: make([]string, 2), Comment: "test"},
+	},
+	{
+		ExpectXML: `<NestedAndCData><A><B></B><B></B></A><![CDATA[test]]></NestedAndCData>`,
+		Value:     &NestedAndCData{AB: make([]string, 2), CDATA: "test"},
 	},
 }
 
