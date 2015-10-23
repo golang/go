@@ -915,31 +915,23 @@ const (
 )
 
 // startGCCoordinator starts and readies the GC coordinator goroutine.
-// If mode is gcBackgroundMode, this will
-// start GC in the background and return. Otherwise, this will block
-// until the new GC cycle is started and finishes.
 //
 // TODO(austin): This function is temporary and will go away when we
 // finish the transition to the decentralized state machine.
-func startGCCoordinator(mode gcMode) {
-	if mode != gcBackgroundMode {
-		// special synchronous cases
-		gc(mode)
-		return
-	}
-
+func startGCCoordinator() {
 	// trigger concurrent GC
 	readied := false
 	lock(&bggc.lock)
 	if !bggc.started {
 		bggc.working = 1
 		bggc.started = true
+		bggc.wakeSema = 1
 		readied = true
 		go backgroundgc()
-	} else if bggc.working == 0 {
-		bggc.working = 1
+	} else {
+		bggc.working++
 		readied = true
-		ready(bggc.g, 0)
+		semrelease(&bggc.wakeSema)
 	}
 	unlock(&bggc.lock)
 	if readied {
@@ -952,20 +944,21 @@ func startGCCoordinator(mode gcMode) {
 // State of the background concurrent GC goroutine.
 var bggc struct {
 	lock    mutex
-	g       *g
 	working uint
 	started bool
+
+	wakeSema uint32
 }
 
 // backgroundgc is running in a goroutine and does the concurrent GC work.
 // bggc holds the state of the backgroundgc.
 func backgroundgc() {
-	bggc.g = getg()
 	for {
 		gc(gcBackgroundMode)
 		lock(&bggc.lock)
-		bggc.working = 0
-		goparkunlock(&bggc.lock, "Concurrent GC wait", traceEvGoBlock, 1)
+		bggc.working--
+		unlock(&bggc.lock)
+		semacquire(&bggc.wakeSema, false)
 	}
 }
 
@@ -1042,16 +1035,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
 		}
 	}
 
-	// TODO: Move sweep termination and initialization from the
-	// coordinator to here.
-	startGCCoordinator(mode)
-
-	if useStartSema {
-		semrelease(&work.startSema)
-	}
-}
-
-func gc(mode gcMode) {
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
 
@@ -1135,10 +1118,33 @@ func gc(mode gcMode) {
 		gcController.assistStartTime = now
 		work.tMark = now
 
-		// Enable background mark workers and wait for
-		// background mark completion.
+		// Enable background mark workers.
 		gcController.bgMarkStartTime = now
 		work.bgMark1.clear()
+
+		// TODO: Make mark 1 completion handle the transition.
+		startGCCoordinator()
+	} else {
+		t := nanotime()
+		work.tMark, work.tMarkTerm = t, t
+		work.heapGoal = work.heap0
+
+		// Perform mark termination. This will restart the world.
+		gc(mode)
+	}
+
+	if useStartSema {
+		semrelease(&work.startSema)
+	}
+}
+
+func gc(mode gcMode) {
+	// If mode == gcBackgroundMode, world is not stopped.
+	// If mode != gcBackgroundMode, world is stopped.
+	// TODO(austin): This is temporary.
+
+	if mode == gcBackgroundMode {
+		// Wait for background mark completion.
 		work.bgMark1.wait()
 
 		gcMarkRootCheck()
@@ -1170,7 +1176,7 @@ func gc(mode gcMode) {
 		work.bgMark2.wait()
 
 		// Begin mark termination.
-		now = nanotime()
+		now := nanotime()
 		work.tMarkTerm = now
 		work.pauseStart = now
 		systemstack(stopTheWorldWithSema)
@@ -1192,10 +1198,6 @@ func gc(mode gcMode) {
 		gcWakeAllAssists()
 
 		gcController.endCycle()
-	} else {
-		t := nanotime()
-		work.tMark, work.tMarkTerm = t, t
-		work.heapGoal = work.heap0
 	}
 
 	// World is stopped.
