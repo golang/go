@@ -185,3 +185,6 @@
 (If (Not cond) yes no) -> (If cond no yes)
 (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
 (If (ConstBool [c]) yes no) && c == 0 -> (First nil no yes)
+
+// Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
+(Convert (Add64 (Convert ptr) off)) -> (Add64 ptr off)
