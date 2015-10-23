@@ -354,6 +354,30 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		goto end2eb756398dd4c6b6d126012a26284c89
 	end2eb756398dd4c6b6d126012a26284c89:
 		;
+	case OpConvert:
+		// match: (Convert (Add64 (Convert ptr) off))
+		// cond:
+		// result: (Add64 ptr off)
+		{
+			if v.Args[0].Op != OpAdd64 {
+				goto end913a7ecf456c00ffbee36c2dbbf0e1af
+			}
+			if v.Args[0].Args[0].Op != OpConvert {
+				goto end913a7ecf456c00ffbee36c2dbbf0e1af
+			}
+			ptr := v.Args[0].Args[0].Args[0]
+			off := v.Args[0].Args[1]
+			v.Op = OpAdd64
+			v.AuxInt = 0
+			v.Aux = nil
+			v.resetArgs()
+			v.AddArg(ptr)
+			v.AddArg(off)
+			return true
+		}
+		goto end913a7ecf456c00ffbee36c2dbbf0e1af
+	end913a7ecf456c00ffbee36c2dbbf0e1af:
+		;
 	case OpEq16:
 		// match: (Eq16 x x)
 		// cond:
