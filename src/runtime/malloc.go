@@ -737,7 +737,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	if shouldhelpgc && gcShouldStart(false) {
 		gcStart(gcBackgroundMode, false)
 	} else if shouldhelpgc && bggc.working != 0 && gcBlackenEnabled == 0 {
-		// The GC is starting up or shutting down, so we can't
+		// The GC shutting down, so we can't
 		// assist, but we also can't allocate unabated. Slow
 		// down this G's allocation and help the GC stay
 		// scheduled by yielding.
