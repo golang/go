@@ -828,10 +828,8 @@ func (p *exporter) string(s string) {
 		p.tracef("%q ", s)
 	}
 	p.rawInt64(int64(len(s)))
-	w, err := obj.Bwritestring(p.out, s)
-	p.written += w
-	if w != len(s) || err != nil {
-		Fatalf("write error: %v (wrote %d bytes of %d)", err, w, len(s))
+	for i := 0; i < len(s); i++ {
+		p.byte(s[i])
 	}
 }
 
@@ -843,20 +841,37 @@ func (p *exporter) marker(m byte) {
 	p.rawInt64(int64(p.written))
 }
 
-func (p *exporter) byte(b byte) {
-	obj.Bputc(p.out, b)
-	p.written++
-}
-
 // rawInt64 should only be used by low-level encoders
 func (p *exporter) rawInt64(x int64) {
 	var tmp [binary.MaxVarintLen64]byte
 	n := binary.PutVarint(tmp[:], x)
-	w, err := p.out.Write(tmp[:n])
-	p.written += w
-	if err != nil {
-		Fatalf("write error: %v", err)
+	for i := 0; i < n; i++ {
+		p.byte(tmp[i])
 	}
+}
+
+// byte is the bottleneck interface to write to p.out.
+// byte escapes b as follows (any encoding does that
+// hides '$'):
+//
+//	'$'  => '|' 'S'
+//	'|'  => '|' '|'
+//
+// Necessary so other tools can find the end of the
+// export data by searching for "$$".
+func (p *exporter) byte(b byte) {
+	switch b {
+	case '$':
+		// write '$' as '|' 'S'
+		b = 'S'
+		fallthrough
+	case '|':
+		// write '|' as '|' '|'
+		obj.Bputc(p.out, '|')
+		p.written++
+	}
+	obj.Bputc(p.out, b)
+	p.written++
 }
 
 // tracef is like fmt.Printf but it rewrites the format string
