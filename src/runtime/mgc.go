@@ -848,6 +848,9 @@ var work struct {
 	bgMark1 bgMarkSignal
 	bgMark2 bgMarkSignal
 
+	// mode is the concurrency mode of the current GC cycle.
+	mode gcMode
+
 	// Copy of mheap.allspans for marker or sweeper.
 	spans []*mspan
 
@@ -879,6 +882,16 @@ var work struct {
 		lock       mutex
 		head, tail guintptr
 	}
+
+	// Timing/utilization stats for this cycle.
+	stwprocs, maxprocs                 int32
+	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
+
+	pauseNS    int64 // total STW time this cycle
+	pauseStart int64 // nanotime() of last STW
+
+	// debug.gctrace heap sizes for this cycle.
+	heap0, heap1, heap2, heapGoal uint64
 }
 
 // GC runs a garbage collection and blocks the caller until the
@@ -981,16 +994,6 @@ func backgroundgc() {
 }
 
 func gc(mode gcMode) {
-	// Timing/utilization tracking
-	var stwprocs, maxprocs int32
-	var tSweepTerm, tMark, tMarkTerm int64
-
-	// debug.gctrace variables
-	var heap0, heap1, heap2, heapGoal uint64
-
-	// memstats statistics
-	var now, pauseStart, pauseNS int64
-
 	// Ok, we're doing it!  Stop everybody else
 	semacquire(&worldsema, false)
 
@@ -1012,12 +1015,14 @@ func gc(mode gcMode) {
 	if mode == gcBackgroundMode {
 		gcBgMarkStartWorkers()
 	}
-	now = nanotime()
-	stwprocs, maxprocs = gcprocs(), gomaxprocs
-	tSweepTerm = now
-	heap0 = memstats.heap_live
+	now := nanotime()
+	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
+	work.tSweepTerm = now
+	work.heap0 = memstats.heap_live
+	work.pauseNS = 0
+	work.mode = mode
 
-	pauseStart = now
+	work.pauseStart = now
 	systemstack(stopTheWorldWithSema)
 	// Finish sweep before we start concurrent scan.
 	systemstack(func() {
@@ -1033,7 +1038,7 @@ func gc(mode gcMode) {
 
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
-		heapGoal = gcController.heapGoal
+		work.heapGoal = gcController.heapGoal
 
 		systemstack(func() {
 			// Enter concurrent mark phase and enable
@@ -1080,10 +1085,10 @@ func gc(mode gcMode) {
 			// Concurrent mark.
 			startTheWorldWithSema()
 			now = nanotime()
-			pauseNS += now - pauseStart
+			work.pauseNS += now - work.pauseStart
 			gcController.assistStartTime = now
 		})
-		tMark = now
+		work.tMark = now
 
 		// Enable background mark workers and wait for
 		// background mark completion.
@@ -1121,8 +1126,8 @@ func gc(mode gcMode) {
 
 		// Begin mark termination.
 		now = nanotime()
-		tMarkTerm = now
-		pauseStart = now
+		work.tMarkTerm = now
+		work.pauseStart = now
 		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
@@ -1144,8 +1149,8 @@ func gc(mode gcMode) {
 		gcController.endCycle()
 	} else {
 		t := nanotime()
-		tMark, tMarkTerm = t, t
-		heapGoal = heap0
+		work.tMark, work.tMarkTerm = t, t
+		work.heapGoal = work.heap0
 	}
 
 	// World is stopped.
@@ -1154,7 +1159,7 @@ func gc(mode gcMode) {
 	gcBlackenPromptly = false
 	setGCPhase(_GCmarktermination)
 
-	heap1 = memstats.heap_live
+	work.heap1 = memstats.heap_live
 	startTime := nanotime()
 
 	mp := acquirem()
@@ -1182,7 +1187,7 @@ func gc(mode gcMode) {
 	})
 
 	systemstack(func() {
-		heap2 = work.bytesMarked
+		work.heap2 = work.bytesMarked
 		if debug.gccheckmark > 0 {
 			// Run a full stop-the-world mark using checkmark bits,
 			// to check that we didn't forget to mark anything during
@@ -1195,7 +1200,7 @@ func gc(mode gcMode) {
 
 		// marking is complete so we can turn the write barrier off
 		setGCPhase(_GCoff)
-		gcSweep(mode)
+		gcSweep(work.mode)
 
 		if debug.gctrace > 1 {
 			startTime = nanotime()
@@ -1211,7 +1216,7 @@ func gc(mode gcMode) {
 			setGCPhase(_GCmarktermination)
 			gcMark(startTime)
 			setGCPhase(_GCoff) // marking is done, turn off wb.
-			gcSweep(mode)
+			gcSweep(work.mode)
 		}
 	})
 
@@ -1231,18 +1236,19 @@ func gc(mode gcMode) {
 
 	// Update timing memstats
 	now, unixNow := nanotime(), unixnanotime()
-	pauseNS += now - pauseStart
+	work.pauseNS += now - work.pauseStart
+	work.tEnd = now
 	atomicstore64(&memstats.last_gc, uint64(unixNow)) // must be Unix time to make sense to user
-	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(pauseNS)
+	memstats.pause_ns[memstats.numgc%uint32(len(memstats.pause_ns))] = uint64(work.pauseNS)
 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
-	memstats.pause_total_ns += uint64(pauseNS)
+	memstats.pause_total_ns += uint64(work.pauseNS)
 
 	// Update work.totaltime.
-	sweepTermCpu := int64(stwprocs) * (tMark - tSweepTerm)
+	sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
 	// We report idle marking time below, but omit it from the
 	// overall utilization here since it's "free".
 	markCpu := gcController.assistTime + gcController.dedicatedMarkTime + gcController.fractionalMarkTime
-	markTermCpu := int64(stwprocs) * (now - tMarkTerm)
+	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
 	cycleCpu := sweepTermCpu + markCpu + markTermCpu
 	work.totaltime += cycleCpu
 
@@ -1259,11 +1265,10 @@ func gc(mode gcMode) {
 	mp = nil
 
 	if debug.gctrace > 0 {
-		tEnd := now
 		util := int(memstats.gc_cpu_fraction * 100)
 
 		// Install WB phase is no longer used.
-		tInstallWB := tMark
+		tInstallWB := work.tMark
 		installWBCpu := int64(0)
 
 		// Scan phase is no longer used.
@@ -1275,10 +1280,10 @@ func gc(mode gcMode) {
 		var sbuf [24]byte
 		printlock()
 		print("gc ", memstats.numgc,
-			" @", string(itoaDiv(sbuf[:], uint64(tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
+			" @", string(itoaDiv(sbuf[:], uint64(work.tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
 			util, "%: ")
-		prev := tSweepTerm
-		for i, ns := range []int64{tScan, tInstallWB, tMark, tMarkTerm, tEnd} {
+		prev := work.tSweepTerm
+		for i, ns := range []int64{tScan, tInstallWB, work.tMark, work.tMarkTerm, work.tEnd} {
 			if i != 0 {
 				print("+")
 			}
@@ -1296,10 +1301,10 @@ func gc(mode gcMode) {
 			print(string(fmtNSAsMS(sbuf[:], uint64(ns))))
 		}
 		print(" ms cpu, ",
-			heap0>>20, "->", heap1>>20, "->", heap2>>20, " MB, ",
-			heapGoal>>20, " MB goal, ",
-			maxprocs, " P")
-		if mode != gcBackgroundMode {
+			work.heap0>>20, "->", work.heap1>>20, "->", work.heap2>>20, " MB, ",
+			work.heapGoal>>20, " MB goal, ",
+			work.maxprocs, " P")
+		if work.mode != gcBackgroundMode {
 			print(" (forced)")
 		}
 		print("\n")
