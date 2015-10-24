@@ -25,6 +25,7 @@ const (
 	BlockPlain
 	BlockIf
 	BlockCall
+	BlockCheck
 	BlockRet
 	BlockRetJmp
 	BlockExit
@@ -53,6 +54,7 @@ var blockString = [...]string{
 	BlockPlain:  "Plain",
 	BlockIf:     "If",
 	BlockCall:   "Call",
+	BlockCheck:  "Check",
 	BlockRet:    "Ret",
 	BlockRetJmp: "RetJmp",
 	BlockExit:   "Exit",
@@ -270,9 +272,9 @@ const (
 	OpAMD64CALLinter
 	OpAMD64REPMOVSB
 	OpAMD64InvertFlags
-	OpAMD64LoweredPanicNilCheck
 	OpAMD64LoweredGetG
 	OpAMD64LoweredGetClosurePtr
+	OpAMD64LoweredNilCheck
 
 	OpAdd8
 	OpAdd16
@@ -513,7 +515,7 @@ const (
 	OpIsNonNil
 	OpIsInBounds
 	OpIsSliceInBounds
-	OpPanicNilCheck
+	OpNilCheck
 	OpGetG
 	OpGetClosurePtr
 	OpArrayIndex
@@ -3119,14 +3121,6 @@ var opcodeTable = [...]opInfo{
 		reg:  regInfo{},
 	},
 	{
-		name: "LoweredPanicNilCheck",
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
 		name: "LoweredGetG",
 		reg: regInfo{
 			outputs: []regMask{
@@ -3140,6 +3134,15 @@ var opcodeTable = [...]opInfo{
 			outputs: []regMask{
 				4, // .DX
 			},
+		},
+	},
+	{
+		name: "LoweredNilCheck",
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934592, // .FLAGS
 		},
 	},
 
@@ -4100,7 +4103,7 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "PanicNilCheck",
+		name:    "NilCheck",
 		generic: true,
 	},
 	{

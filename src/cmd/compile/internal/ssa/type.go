@@ -26,6 +26,7 @@ type Type interface {
 
 	IsMemory() bool // special ssa-package-only types
 	IsFlags() bool
+	IsVoid() bool
 
 	Elem() Type  // given []T or *T or [n]T, return T
 	PtrTo() Type // given T, return *T
@@ -46,6 +47,7 @@ type CompilerType struct {
 	Name   string
 	Memory bool
 	Flags  bool
+	Void   bool
 }
 
 func (t *CompilerType) Size() int64            { return 0 } // Size in bytes
@@ -63,6 +65,7 @@ func (t *CompilerType) IsStruct() bool         { return false }
 func (t *CompilerType) IsInterface() bool      { return false }
 func (t *CompilerType) IsMemory() bool         { return t.Memory }
 func (t *CompilerType) IsFlags() bool          { return t.Flags }
+func (t *CompilerType) IsVoid() bool           { return t.Void }
 func (t *CompilerType) String() string         { return t.Name }
 func (t *CompilerType) SimpleString() string   { return t.Name }
 func (t *CompilerType) Elem() Type             { panic("not implemented") }
@@ -84,4 +87,5 @@ var (
 	TypeInvalid = &CompilerType{Name: "invalid"}
 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
 	TypeFlags   = &CompilerType{Name: "flags", Flags: true}
+	TypeVoid    = &CompilerType{Name: "void", Void: true}
 )

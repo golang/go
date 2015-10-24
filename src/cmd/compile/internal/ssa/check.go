@@ -122,6 +122,16 @@ func checkFunc(f *Func) {
 			if !b.Control.Type.IsMemory() {
 				f.Fatalf("call block %s has non-memory control value %s", b, b.Control.LongString())
 			}
+		case BlockCheck:
+			if len(b.Succs) != 1 {
+				f.Fatalf("check block %s len(Succs)==%d, want 1", b, len(b.Succs))
+			}
+			if b.Control == nil {
+				f.Fatalf("check block %s has no control value", b)
+			}
+			if !b.Control.Type.IsVoid() {
+				f.Fatalf("check block %s has non-void control value %s", b, b.Control.LongString())
+			}
 		case BlockFirst:
 			if len(b.Succs) != 2 {
 				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))

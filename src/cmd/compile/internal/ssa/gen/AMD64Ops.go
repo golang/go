@@ -106,7 +106,6 @@ func init() {
 			clobbers: ax | flags}
 		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
 			clobbers: ax | flags}
-		gp10 = regInfo{inputs: []regMask{gp}}
 
 		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
 		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
@@ -423,12 +422,13 @@ func init() {
 		{name: "InvertFlags"}, // reverse direction of arg0
 
 		// Pseudo-ops
-		{name: "LoweredPanicNilCheck", reg: gp10},
 		{name: "LoweredGetG", reg: gp01}, // arg0=mem
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of DX (the closure pointer)
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
+		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+		{name: "LoweredNilCheck", reg: regInfo{inputs: []regMask{gpsp}, clobbers: flags}},
 	}
 
 	var AMD64blocks = []blockData{

@@ -324,9 +324,9 @@ var genericOps = []opData{
 	{name: "IsNonNil", typ: "Bool"},        // arg0 != nil
 	{name: "IsInBounds", typ: "Bool"},      // 0 <= arg0 < arg1
 	{name: "IsSliceInBounds", typ: "Bool"}, // 0 <= arg0 <= arg1
+	{name: "NilCheck", typ: "Void"},        // arg0=ptr, arg1=mem.  Panics if arg0 is nil, returns void.
 
 	// Pseudo-ops
-	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
 	{name: "GetG"},          // runtime.getg() (read g pointer).  arg0=mem
 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
 
@@ -379,12 +379,14 @@ var genericOps = []opData{
 //    Plain               nil            [next]
 //       If   a boolean Value      [then, else]
 //     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
+//    Check              void            [next]             yes  (control opcode should be Op{Lowered}NilCheck)
 //    First               nil    [always,never]
 
 var genericBlocks = []blockData{
 	{name: "Plain"},  // a single successor
 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
 	{name: "Call"},   // 1 successor, control is call op (of memory type)
+	{name: "Check"},  // 1 successor, control is nilcheck op (of void type)
 	{name: "Ret"},    // no successors, control value is memory result
 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
 	{name: "Exit"},   // no successors, control value generates a panic

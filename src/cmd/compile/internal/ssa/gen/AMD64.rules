@@ -288,8 +288,8 @@
 (IsNonNil p) -> (SETNE (TESTQ p p))
 (IsInBounds idx len) -> (SETB (CMPQ idx len))
 (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
+(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
 
-(PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
 (GetG mem) -> (LoweredGetG mem)
 (GetClosurePtr) -> (LoweredGetClosurePtr)
 

@@ -180,7 +180,7 @@
 (Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) -> (Move [size] dst src mem)
 (Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) -> (Move [size] dst src (VarDef {x} mem))
 
-(If (IsNonNil (GetG _)) yes no) -> (First nil yes no)
+(Check (NilCheck (GetG _) _) next) -> (Plain nil next)
 
 (If (Not cond) yes no) -> (If cond no yes)
 (If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
