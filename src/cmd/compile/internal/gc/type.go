@@ -142,3 +142,4 @@ func (t *Type) NumElem() int64 {
 
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
+func (t *Type) IsVoid() bool   { return false }

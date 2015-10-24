@@ -4,6 +4,8 @@
 
 package ssa
 
+// TODO: return value from newobject/newarray is non-nil.
+
 // nilcheckelim eliminates unnecessary nil checks.
 func nilcheckelim(f *Func) {
 	// A nil check is redundant if the same nil check was successful in a
@@ -86,8 +88,16 @@ func nilcheckelim(f *Func) {
 					// Eliminate the nil check.
 					// The deadcode pass will remove vestigial values,
 					// and the fuse pass will join this block with its successor.
-					node.block.Kind = BlockFirst
-					node.block.Control = nil
+					switch node.block.Kind {
+					case BlockIf:
+						node.block.Kind = BlockFirst
+						node.block.Control = nil
+					case BlockCheck:
+						node.block.Kind = BlockPlain
+						node.block.Control = nil
+					default:
+						f.Fatalf("bad block kind in nilcheck %s", node.block.Kind)
+					}
 				}
 			}
 
@@ -119,6 +129,9 @@ func nilcheckelim(f *Func) {
 // checkedptr returns the Value, if any,
 // that is used in a nil check in b's Control op.
 func checkedptr(b *Block) *Value {
+	if b.Kind == BlockCheck {
+		return b.Control.Args[0]
+	}
 	if b.Kind == BlockIf && b.Control.Op == OpIsNonNil {
 		return b.Control.Args[0]
 	}
@@ -126,12 +139,15 @@ func checkedptr(b *Block) *Value {
 }
 
 // nonnilptr returns the Value, if any,
-// that is non-nil due to b being the success block
-// of an OpIsNonNil block for the value and having a single
+// that is non-nil due to b being the successor block
+// of an OpIsNonNil or OpNilCheck block for the value and having a single
 // predecessor.
 func nonnilptr(b *Block) *Value {
 	if len(b.Preds) == 1 {
 		bp := b.Preds[0]
+		if bp.Kind == BlockCheck {
+			return bp.Control.Args[0]
+		}
 		if bp.Kind == BlockIf && bp.Control.Op == OpIsNonNil && bp.Succs[0] == b {
 			return bp.Control.Args[0]
 		}

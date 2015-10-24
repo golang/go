@@ -39,6 +39,7 @@ func (t *TypeImpl) IsStruct() bool         { return t.struct_ }
 func (t *TypeImpl) IsInterface() bool      { return t.inter }
 func (t *TypeImpl) IsMemory() bool         { return false }
 func (t *TypeImpl) IsFlags() bool          { return false }
+func (t *TypeImpl) IsVoid() bool           { return false }
 func (t *TypeImpl) String() string         { return t.Name }
 func (t *TypeImpl) SimpleString() string   { return t.Name }
 func (t *TypeImpl) Elem() Type             { return t.Elem_ }

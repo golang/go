@@ -120,7 +120,7 @@ func postDominators(f *Func) []*Block {
 	var exits []*Block
 	for i := len(f.Blocks) - 1; i >= 0; i-- {
 		switch f.Blocks[i].Kind {
-		case BlockExit, BlockRet, BlockRetJmp, BlockCall:
+		case BlockExit, BlockRet, BlockRetJmp, BlockCall, BlockCheck:
 			exits = append(exits, f.Blocks[i])
 			break
 		}

@@ -802,7 +802,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		}
 
 		// Load control value into reg
-		if b.Control != nil && !b.Control.Type.IsMemory() {
+		if b.Control != nil && !b.Control.Type.IsMemory() && !b.Control.Type.IsVoid() {
 			// TODO: regspec for block control values, instead of using
 			// register set from the control op's output.
 			s.allocValToReg(b.Control, opcodeTable[b.Control.Op].reg.outputs[0], false)

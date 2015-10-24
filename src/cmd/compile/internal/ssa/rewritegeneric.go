@@ -1720,29 +1720,29 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 }
 func rewriteBlockgeneric(b *Block) bool {
 	switch b.Kind {
-	case BlockIf:
-		// match: (If (IsNonNil (GetG _)) yes no)
+	case BlockCheck:
+		// match: (Check (NilCheck (GetG _) _) next)
 		// cond:
-		// result: (First nil yes no)
+		// result: (Plain nil next)
 		{
 			v := b.Control
-			if v.Op != OpIsNonNil {
-				goto end41b95d88b4cebdb0ce392bd3c1c89e95
+			if v.Op != OpNilCheck {
+				goto end6e20d932d6961903b0dcf16eac513826
 			}
 			if v.Args[0].Op != OpGetG {
-				goto end41b95d88b4cebdb0ce392bd3c1c89e95
+				goto end6e20d932d6961903b0dcf16eac513826
 			}
-			yes := b.Succs[0]
-			no := b.Succs[1]
-			b.Kind = BlockFirst
+			next := b.Succs[0]
+			b.Kind = BlockPlain
 			b.Control = nil
-			b.Succs[0] = yes
-			b.Succs[1] = no
+			b.Succs[0] = next
+			b.Likely = BranchUnknown
 			return true
 		}
-		goto end41b95d88b4cebdb0ce392bd3c1c89e95
-	end41b95d88b4cebdb0ce392bd3c1c89e95:
+		goto end6e20d932d6961903b0dcf16eac513826
+	end6e20d932d6961903b0dcf16eac513826:
 		;
+	case BlockIf:
 		// match: (If (Not cond) yes no)
 		// cond:
 		// result: (If cond no yes)

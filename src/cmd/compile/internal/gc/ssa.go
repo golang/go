@@ -18,6 +18,9 @@ import (
 	"cmd/internal/obj/x86"
 )
 
+// Smallest possible faulting page at address zero.
+const minZeroPage = 4096
+
 // buildssa builds an SSA function
 // and reports whether it should be used.
 // Once the SSA implementation is complete,
@@ -2428,21 +2431,12 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	if Disable_checknil != 0 {
 		return
 	}
-	c := s.newValue1(ssa.OpIsNonNil, Types[TBOOL], ptr)
+	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
 	b := s.endBlock()
-	b.Kind = ssa.BlockIf
-	b.Control = c
-	b.Likely = ssa.BranchLikely
+	b.Kind = ssa.BlockCheck
+	b.Control = chk
 	bNext := s.f.NewBlock(ssa.BlockPlain)
-	bPanic := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
-	b.AddEdgeTo(bPanic)
-	s.startBlock(bPanic)
-	// TODO: implicit nil checks somehow?
-	chk := s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
-	s.endBlock()
-	bPanic.Kind = ssa.BlockExit
-	bPanic.Control = chk
 	s.startBlock(bNext)
 }
 
@@ -3827,18 +3821,6 @@ func (s *genState) genValue(v *ssa.Value) {
 	case ssa.OpArg:
 		// memory arg needs no code
 		// TODO: check that only mem arg goes here.
-	case ssa.OpAMD64LoweredPanicNilCheck:
-		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
-			Warnl(int(v.Line), "generated nil check")
-		}
-		// Write to memory address 0. It doesn't matter what we write; use AX.
-		// Input 0 is the pointer we just checked, use it as the destination.
-		r := regnum(v.Args[0])
-		q := Prog(x86.AMOVL)
-		q.From.Type = obj.TYPE_REG
-		q.From.Reg = x86.REG_AX
-		q.To.Type = obj.TYPE_MEM
-		q.To.Reg = r
 	case ssa.OpAMD64LoweredGetClosurePtr:
 		// Output is hardwired to DX only,
 		// and DX contains the closure pointer on
@@ -3986,6 +3968,44 @@ func (s *genState) genValue(v *ssa.Value) {
 		Gvardef(v.Aux.(*Node))
 	case ssa.OpVarKill:
 		gvarkill(v.Aux.(*Node))
+	case ssa.OpAMD64LoweredNilCheck:
+		// Optimization - if the subsequent block has a load or store
+		// at the same address, we don't need to issue this instruction.
+		for _, w := range v.Block.Succs[0].Values {
+			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
+				// w doesn't use a store - can't be a memory op.
+				continue
+			}
+			if w.Args[len(w.Args)-1] != v.Args[1] {
+				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
+			}
+			switch w.Op {
+			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
+				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
+				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+					return
+				}
+			}
+			if w.Type.IsMemory() {
+				// We can't delay the nil check past the next store.
+				break
+			}
+		}
+		// Issue a load which will fault if the input is nil.
+		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
+		// Should we use the 3-byte TESTB $0, (reg) instead?  It is larger
+		// but it doesn't have false dependency on AX.
+		// Or maybe allocate an output register and use MOVL (reg),reg2 ?
+		// That trades clobbering flags for clobbering a register.
+		p := Prog(x86.ATESTB)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_AX
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		addAux(&p.To, v)
+		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+			Warnl(int(v.Line), "generated nil check")
+		}
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
@@ -4088,7 +4108,7 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 	lineno = b.Line
 
 	switch b.Kind {
-	case ssa.BlockPlain, ssa.BlockCall:
+	case ssa.BlockPlain, ssa.BlockCall, ssa.BlockCheck:
 		if b.Succs[0] != next {
 			p := Prog(obj.AJMP)
 			p.To.Type = obj.TYPE_BRANCH
