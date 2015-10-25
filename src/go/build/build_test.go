@@ -267,11 +267,33 @@ var expandSrcDirTests = []struct {
 
 func TestExpandSrcDir(t *testing.T) {
 	for _, test := range expandSrcDirTests {
-		output := expandSrcDir(test.input, expandSrcDirPath)
+		output, _ := expandSrcDir(test.input, expandSrcDirPath)
 		if output != test.expected {
 			t.Errorf("%q expands to %q with SRCDIR=%q when %q is expected", test.input, output, expandSrcDirPath, test.expected)
 		} else {
 			t.Logf("%q expands to %q with SRCDIR=%q", test.input, output, expandSrcDirPath)
+		}
+	}
+}
+
+func TestShellSafety(t *testing.T) {
+	tests := []struct {
+		input, srcdir, expected string
+		result                  bool
+	}{
+		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
+		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
+		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", false},
+		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},
+		{"-I${SRCDIR}/dir", "/tmp/[0]", "-I/tmp/[0]/dir", false},
+	}
+	for _, test := range tests {
+		output, ok := expandSrcDir(test.input, test.srcdir)
+		if ok != test.result {
+			t.Errorf("Expected %t while %q expands to %q with SRCDIR=%q; got %t", test.result, test.input, output, test.srcdir, ok)
+		}
+		if output != test.expected {
+			t.Errorf("Expected %q while %q expands with SRCDIR=%q; got %q", test.expected, test.input, test.srcdir, output)
 		}
 	}
 }
