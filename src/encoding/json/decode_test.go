@@ -1253,6 +1253,27 @@ func TestByteKind(t *testing.T) {
 	}
 }
 
+// The fix for issue 8962 introduced a regression.
+// Issue 12921.
+func TestSliceOfCustomByte(t *testing.T) {
+	type Uint8 uint8
+
+	a := []Uint8("hello")
+
+	data, err := Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b []Uint8
+	err = Unmarshal(data, &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, b) {
+		t.Fatal("expected %v == %v", a, b)
+	}
+}
+
 var decodeTypeErrorTests = []struct {
 	dest interface{}
 	src  string
