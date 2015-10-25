@@ -1116,6 +1116,27 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	}
 }
 
+// gcMarkDone transitions the GC from mark 1 to mark 2 and from mark 2
+// to mark termination.
+//
+// This should be called when all mark work has been drained. In mark
+// 1, this includes all root marking jobs, global work buffers, and
+// active work buffers in assists and background workers; however,
+// work may still be cached in per-P work buffers. In mark 2, per-P
+// caches are disabled.
+func gcMarkDone() {
+	// TODO(austin): This should perform the transition rather
+	// than handing it off to the coordinator.
+	if gcBlackenPromptly {
+		if work.bgMark1.done == 0 {
+			throw("completing mark 2, but bgMark1.done == 0")
+		}
+		work.bgMark2.complete()
+	} else {
+		work.bgMark1.complete()
+	}
+}
+
 func gc(mode gcMode) {
 	// If mode == gcBackgroundMode, world is not stopped.
 	// If mode != gcBackgroundMode, world is stopped.
@@ -1468,14 +1489,7 @@ func gcBgMarkWorker(p *p) {
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			if gcBlackenPromptly {
-				if work.bgMark1.done == 0 {
-					throw("completing mark 2, but bgMark1.done == 0")
-				}
-				work.bgMark2.complete()
-			} else {
-				work.bgMark1.complete()
-			}
+			gcMarkDone()
 		}
 
 		duration := nanotime() - startTime

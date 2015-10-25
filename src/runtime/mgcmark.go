@@ -409,14 +409,7 @@ retry:
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			// This has reached a background completion
 			// point.
-			if gcBlackenPromptly {
-				if work.bgMark1.done == 0 {
-					throw("completing mark 2, but bgMark1.done == 0")
-				}
-				work.bgMark2.complete()
-			} else {
-				work.bgMark1.complete()
-			}
+			gcMarkDone()
 			completed = true
 		}
 		duration := nanotime() - startTime
