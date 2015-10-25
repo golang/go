@@ -1040,54 +1040,52 @@ func gc(mode gcMode) {
 		gcController.startCycle()
 		work.heapGoal = gcController.heapGoal
 
-		systemstack(func() {
-			// Enter concurrent mark phase and enable
-			// write barriers.
-			//
-			// Because the world is stopped, all Ps will
-			// observe that write barriers are enabled by
-			// the time we start the world and begin
-			// scanning.
-			//
-			// It's necessary to enable write barriers
-			// during the scan phase for several reasons:
-			//
-			// They must be enabled for writes to higher
-			// stack frames before we scan stacks and
-			// install stack barriers because this is how
-			// we track writes to inactive stack frames.
-			// (Alternatively, we could not install stack
-			// barriers over frame boundaries with
-			// up-pointers).
-			//
-			// They must be enabled before assists are
-			// enabled because they must be enabled before
-			// any non-leaf heap objects are marked. Since
-			// allocations are blocked until assists can
-			// happen, we want enable assists as early as
-			// possible.
-			setGCPhase(_GCmark)
+		// Enter concurrent mark phase and enable
+		// write barriers.
+		//
+		// Because the world is stopped, all Ps will
+		// observe that write barriers are enabled by
+		// the time we start the world and begin
+		// scanning.
+		//
+		// It's necessary to enable write barriers
+		// during the scan phase for several reasons:
+		//
+		// They must be enabled for writes to higher
+		// stack frames before we scan stacks and
+		// install stack barriers because this is how
+		// we track writes to inactive stack frames.
+		// (Alternatively, we could not install stack
+		// barriers over frame boundaries with
+		// up-pointers).
+		//
+		// They must be enabled before assists are
+		// enabled because they must be enabled before
+		// any non-leaf heap objects are marked. Since
+		// allocations are blocked until assists can
+		// happen, we want enable assists as early as
+		// possible.
+		setGCPhase(_GCmark)
 
-			// markrootSpans uses work.spans, so make sure
-			// it is up to date.
-			gcCopySpans()
+		// markrootSpans uses work.spans, so make sure
+		// it is up to date.
+		gcCopySpans()
 
-			gcBgMarkPrepare() // Must happen before assist enable.
-			gcMarkRootPrepare()
+		gcBgMarkPrepare() // Must happen before assist enable.
+		gcMarkRootPrepare()
 
-			// At this point all Ps have enabled the write
-			// barrier, thus maintaining the no white to
-			// black invariant. Enable mutator assists to
-			// put back-pressure on fast allocating
-			// mutators.
-			atomicstore(&gcBlackenEnabled, 1)
+		// At this point all Ps have enabled the write
+		// barrier, thus maintaining the no white to
+		// black invariant. Enable mutator assists to
+		// put back-pressure on fast allocating
+		// mutators.
+		atomicstore(&gcBlackenEnabled, 1)
 
-			// Concurrent mark.
-			startTheWorldWithSema()
-			now = nanotime()
-			work.pauseNS += now - work.pauseStart
-			gcController.assistStartTime = now
-		})
+		// Concurrent mark.
+		systemstack(startTheWorldWithSema)
+		now = nanotime()
+		work.pauseNS += now - work.pauseStart
+		gcController.assistStartTime = now
 		work.tMark = now
 
 		// Enable background mark workers and wait for
