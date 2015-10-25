@@ -529,3 +529,22 @@ func TestFormatSecondsInTimeZone(t *testing.T) {
 		}
 	}
 }
+
+// Issue 11334.
+func TestUnderscoreTwoThousand(t *testing.T) {
+	format := "15:04_20060102"
+	input := "14:38_20150618"
+	time, err := Parse(format, input)
+	if err != nil {
+		t.Error(err)
+	}
+	if y, m, d := time.Date(); y != 2015 || m != 6 || d != 18 {
+		t.Errorf("Incorrect y/m/d, got %d/%d/%d", y, m, d)
+	}
+	if h := time.Hour(); h != 14 {
+		t.Errorf("Incorrect hour, got %d", h)
+	}
+	if m := time.Minute(); m != 38 {
+		t.Errorf("Incorrect minute, got %d", m)
+	}
+}
