@@ -761,24 +761,29 @@ type gcDrainFlags int
 
 const (
 	gcDrainUntilPreempt gcDrainFlags = 1 << iota
+	gcDrainNoBlock
 	gcDrainFlushBgCredit
 
-	// gcDrainBlock is the opposite of gcDrainUntilPreempt. This
-	// is the default, but callers should use the constant for
-	// documentation purposes.
+	// gcDrainBlock means neither gcDrainUntilPreempt or
+	// gcDrainNoBlock. It is the default, but callers should use
+	// the constant for documentation purposes.
 	gcDrainBlock gcDrainFlags = 0
 )
 
 // gcDrain scans roots and objects in work buffers, blackening grey
 // objects until all roots and work buffers have been drained.
 //
-// If flags&gcDrainUntilPreempt != 0, gcDrain also returns if
-// g.preempt is set. Otherwise, this will block until all dedicated
-// workers are blocked in gcDrain.
+// If flags&gcDrainUntilPreempt != 0, gcDrain returns when g.preempt
+// is set. This implies gcDrainNoBlock.
+//
+// If flags&gcDrainNoBlock != 0, gcDrain returns as soon as it is
+// unable to get more work. Otherwise, it will block until all
+// blocking calls are blocked in gcDrain.
 //
 // If flags&gcDrainFlushBgCredit != 0, gcDrain flushes scan work
 // credit to gcController.bgScanCredit every gcCreditSlack units of
 // scan work.
+//
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	if !writeBarrierEnabled {
@@ -786,7 +791,8 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	}
 
 	gp := getg()
-	blocking := flags&gcDrainUntilPreempt == 0
+	preemtible := flags&gcDrainUntilPreempt != 0
+	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 
 	// Drain root marking jobs.
@@ -804,7 +810,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	initScanWork := gcw.scanWork
 
 	// Drain heap marking jobs.
-	for blocking || !gp.preempt {
+	for !(preemtible && gp.preempt) {
 		// If another proc wants a pointer, give it some.
 		if work.nwait > 0 && work.full == 0 {
 			gcw.balance()
