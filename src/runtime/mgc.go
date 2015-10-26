@@ -1477,6 +1477,19 @@ func gcBgMarkWorker(p *p) {
 			p.gcw.dispose()
 		}
 
+		// Account for time.
+		duration := nanotime() - startTime
+		switch p.gcMarkWorkerMode {
+		case gcMarkWorkerDedicatedMode:
+			xaddint64(&gcController.dedicatedMarkTime, duration)
+			xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
+		case gcMarkWorkerFractionalMode:
+			xaddint64(&gcController.fractionalMarkTime, duration)
+			xaddint64(&gcController.fractionalMarkWorkersNeeded, 1)
+		case gcMarkWorkerIdleMode:
+			xaddint64(&gcController.idleMarkTime, duration)
+		}
+
 		// Was this the last worker and did we run out
 		// of work?
 		incnwait := xadd(&work.nwait, +1)
@@ -1490,18 +1503,6 @@ func gcBgMarkWorker(p *p) {
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			gcMarkDone()
-		}
-
-		duration := nanotime() - startTime
-		switch p.gcMarkWorkerMode {
-		case gcMarkWorkerDedicatedMode:
-			xaddint64(&gcController.dedicatedMarkTime, duration)
-			xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
-		case gcMarkWorkerFractionalMode:
-			xaddint64(&gcController.fractionalMarkTime, duration)
-			xaddint64(&gcController.fractionalMarkWorkersNeeded, 1)
-		case gcMarkWorkerIdleMode:
-			xaddint64(&gcController.idleMarkTime, duration)
 		}
 	}
 }
