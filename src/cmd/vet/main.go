@@ -32,9 +32,8 @@ var (
 
 var exitCode = 0
 
-// "all" is here only for the appearance of backwards compatibility.
-// It has no effect; the triState flags do the work.
-var all = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
+// "-all" flag enables all non-experimental checks
+var all = triStateFlag("all", unset, "enable all non-experimental checks")
 
 // Flags to control which individual checks to perform.
 var report = map[string]*triState{
@@ -169,7 +168,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
-	fmt.Fprintf(os.Stderr, "\tgodoc golang.org/x/tools/cmd/vet\n\n")
+	fmt.Fprintf(os.Stderr, "\tgodoc cmd/vet\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)
@@ -198,8 +197,9 @@ func main() {
 	flag.Parse()
 
 	// If any flag is set, we run only those checks requested.
-	// If no flags are set true, set all the non-experimental ones not explicitly set (in effect, set the "-all" flag).
-	if setTrueCount == 0 {
+	// If all flag is set true or if no flags are set true, set all the non-experimental ones
+	// not explicitly set (in effect, set the "-all" flag).
+	if setTrueCount == 0 || *all == setTrue {
 		for name, setting := range report {
 			if *setting == unset && !experimental[name] {
 				*setting = setTrue
