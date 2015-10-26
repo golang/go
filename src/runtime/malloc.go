@@ -742,8 +742,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		// down this G's allocation and help the GC stay
 		// scheduled by yielding.
 		//
-		// TODO: This is a workaround. Either help the GC make
-		// the transition or block.
+		// TODO: This is unused. Remove.
 		gp := getg()
 		if gp != gp.m.g0 && gp.m.locks == 0 && gp.m.preemptoff == "" {
 			Gosched()

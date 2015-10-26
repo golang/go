@@ -409,7 +409,6 @@ retry:
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			// This has reached a background completion
 			// point.
-			gcMarkDone()
 			completed = true
 		}
 		duration := nanotime() - startTime
@@ -422,9 +421,7 @@ retry:
 	})
 
 	if completed {
-		// We called complete() above, so we should yield to
-		// the now-runnable GC coordinator.
-		Gosched()
+		gcMarkDone()
 	}
 
 	if gp.gcAssistBytes < 0 {
@@ -452,7 +449,7 @@ retry:
 		lock(&work.assistQueue.lock)
 
 		// If the GC cycle is over, just return. This is the
-		// likely path if we called Gosched above. We do this
+		// likely path if we completed above. We do this
 		// under the lock to prevent a GC cycle from ending
 		// between this check and queuing the assist.
 		if atomicload(&gcBlackenEnabled) == 0 {
