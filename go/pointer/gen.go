@@ -1050,11 +1050,32 @@ func (a *analysis) genInstr(cgn *cgnode, instr ssa.Instruction) {
 			// Assumes that Next is always directly applied to a Range result.
 			theMap := instr.Iter.(*ssa.Range).X
 			tMap := theMap.Type().Underlying().(*types.Map)
+
 			ksize := a.sizeof(tMap.Key())
 			vsize := a.sizeof(tMap.Elem())
 
+			// The k/v components of the Next tuple may each be invalid.
+			tTuple := instr.Type().(*types.Tuple)
+
 			// Load from the map's (k,v) into the tuple's (ok, k, v).
-			a.genLoad(cgn, a.valueNode(instr)+1, theMap, 0, ksize+vsize)
+			osrc := uint32(0) // offset within map object
+			odst := uint32(1) // offset within tuple (initially just after 'ok bool')
+			sz := uint32(0)   // amount to copy
+
+			// Is key valid?
+			if tTuple.At(1).Type() != tInvalid {
+				sz += ksize
+			} else {
+				odst += ksize
+				osrc += ksize
+			}
+
+			// Is value valid?
+			if tTuple.At(2).Type() != tInvalid {
+				sz += vsize
+			}
+
+			a.genLoad(cgn, a.valueNode(instr)+nodeid(odst), theMap, osrc, sz)
 		}
 
 	case *ssa.Lookup:

@@ -45,7 +45,30 @@ func maps2() {
 	print(m2[nil]) // @pointsto main.c
 }
 
+var g int
+
+func maps3() {
+	// Regression test for a constraint generation bug for map range
+	// loops in which the key is unused: the (ok, k, v) tuple
+	// returned by ssa.Next may have type 'invalid' for the k and/or
+	// v components, so copying the map key or value may cause
+	// miswiring if the key has >1 components.  In the worst case,
+	// this causes a crash.  The test below used to report that
+	// pts(v) includes not just main.g but new(float64) too, which
+	// is ill-typed.
+
+	// sizeof(K) > 1, abstractly
+	type K struct{ a, b *float64 }
+	k := K{new(float64), nil}
+	m := map[K]*int{k: &g}
+
+	for _, v := range m {
+		print(v) // @pointsto main.g
+	}
+}
+
 func main() {
 	maps1()
 	maps2()
+	maps3()
 }
