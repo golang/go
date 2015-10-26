@@ -74,6 +74,17 @@ func (t *Arith) Error(args *Args, reply *Reply) error {
 	panic("ERROR")
 }
 
+type hidden int
+
+func (t *hidden) Exported(args Args, reply *Reply) error {
+	reply.C = args.A + args.B
+	return nil
+}
+
+type Embed struct {
+	hidden
+}
+
 func listenTCP() (net.Listener, string) {
 	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
 	if e != nil {
@@ -84,6 +95,7 @@ func listenTCP() (net.Listener, string) {
 
 func startServer() {
 	Register(new(Arith))
+	Register(new(Embed))
 	RegisterName("net.rpc.Arith", new(Arith))
 
 	var l net.Listener
@@ -98,6 +110,7 @@ func startServer() {
 func startNewServer() {
 	newServer = NewServer()
 	newServer.Register(new(Arith))
+	newServer.Register(new(Embed))
 	newServer.RegisterName("net.rpc.Arith", new(Arith))
 	newServer.RegisterName("newServer.Arith", new(Arith))
 
@@ -135,6 +148,17 @@ func testRPC(t *testing.T, addr string) {
 	args := &Args{7, 8}
 	reply := new(Reply)
 	err = client.Call("Arith.Add", args, reply)
+	if err != nil {
+		t.Errorf("Add: expected no error but got string %q", err.Error())
+	}
+	if reply.C != args.A+args.B {
+		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+	}
+
+	// Methods exported from unexported embedded structs
+	args = &Args{7, 0}
+	reply = new(Reply)
+	err = client.Call("Embed.Exported", args, reply)
 	if err != nil {
 		t.Errorf("Add: expected no error but got string %q", err.Error())
 	}
