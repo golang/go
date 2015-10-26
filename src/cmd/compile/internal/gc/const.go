@@ -249,7 +249,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		if n.Type.Etype == TUNSAFEPTR && t.Etype != TUINTPTR {
 			goto bad
 		}
-		ct := int(n.Val().Ctype())
+		ct := n.Val().Ctype()
 		if Isint[et] {
 			switch ct {
 			default:
@@ -468,14 +468,14 @@ func tostr(v Val) Val {
 	return v
 }
 
-func consttype(n *Node) int {
+func consttype(n *Node) Ctype {
 	if n == nil || n.Op != OLITERAL {
 		return -1
 	}
-	return int(n.Val().Ctype())
+	return n.Val().Ctype()
 }
 
-func Isconst(n *Node, ct int) bool {
+func Isconst(n *Node, ct Ctype) bool {
 	t := consttype(n)
 
 	// If the caller is asking for CTINT, allow CTRUNE too.
@@ -588,6 +588,17 @@ func evconst(n *Node) {
 		wl = TIDEAL
 	}
 
+	// avoid constant conversions in switches below
+	const (
+		CTINT_  = uint32(CTINT)
+		CTRUNE_ = uint32(CTRUNE)
+		CTFLT_  = uint32(CTFLT)
+		CTCPLX_ = uint32(CTCPLX)
+		CTSTR_  = uint32(CTSTR)
+		CTBOOL_ = uint32(CTBOOL)
+		CTNIL_  = uint32(CTNIL)
+	)
+
 	nr := n.Right
 	var rv Val
 	var lno int
@@ -609,11 +620,10 @@ func evconst(n *Node) {
 				Yyerror("illegal constant expression %v %v", Oconv(int(n.Op), 0), nl.Type)
 				n.Diag = 1
 			}
-
 			return
 
-		case OCONV<<16 | CTNIL,
-			OARRAYBYTESTR<<16 | CTNIL:
+		case OCONV<<16 | CTNIL_,
+			OARRAYBYTESTR<<16 | CTNIL_:
 			if n.Type.Etype == TSTRING {
 				v = tostr(v)
 				nl.Type = n.Type
@@ -622,24 +632,24 @@ func evconst(n *Node) {
 			fallthrough
 
 			// fall through
-		case OCONV<<16 | CTINT,
-			OCONV<<16 | CTRUNE,
-			OCONV<<16 | CTFLT,
-			OCONV<<16 | CTSTR:
+		case OCONV<<16 | CTINT_,
+			OCONV<<16 | CTRUNE_,
+			OCONV<<16 | CTFLT_,
+			OCONV<<16 | CTSTR_:
 			convlit1(&nl, n.Type, true)
 
 			v = nl.Val()
 
-		case OPLUS<<16 | CTINT,
-			OPLUS<<16 | CTRUNE:
+		case OPLUS<<16 | CTINT_,
+			OPLUS<<16 | CTRUNE_:
 			break
 
-		case OMINUS<<16 | CTINT,
-			OMINUS<<16 | CTRUNE:
+		case OMINUS<<16 | CTINT_,
+			OMINUS<<16 | CTRUNE_:
 			mpnegfix(v.U.(*Mpint))
 
-		case OCOM<<16 | CTINT,
-			OCOM<<16 | CTRUNE:
+		case OCOM<<16 | CTINT_,
+			OCOM<<16 | CTRUNE_:
 			et := Txxx
 			if nl.Type != nil {
 				et = int(nl.Type.Etype)
@@ -665,20 +675,20 @@ func evconst(n *Node) {
 
 			mpxorfixfix(v.U.(*Mpint), &b)
 
-		case OPLUS<<16 | CTFLT:
+		case OPLUS<<16 | CTFLT_:
 			break
 
-		case OMINUS<<16 | CTFLT:
+		case OMINUS<<16 | CTFLT_:
 			mpnegflt(v.U.(*Mpflt))
 
-		case OPLUS<<16 | CTCPLX:
+		case OPLUS<<16 | CTCPLX_:
 			break
 
-		case OMINUS<<16 | CTCPLX:
+		case OMINUS<<16 | CTCPLX_:
 			mpnegflt(&v.U.(*Mpcplx).Real)
 			mpnegflt(&v.U.(*Mpcplx).Imag)
 
-		case ONOT<<16 | CTBOOL:
+		case ONOT<<16 | CTBOOL_:
 			if !v.U.(bool) {
 				goto settrue
 			}
@@ -789,20 +799,20 @@ func evconst(n *Node) {
 	default:
 		goto illegal
 
-	case OADD<<16 | CTINT,
-		OADD<<16 | CTRUNE:
+	case OADD<<16 | CTINT_,
+		OADD<<16 | CTRUNE_:
 		mpaddfixfix(v.U.(*Mpint), rv.U.(*Mpint), 0)
 
-	case OSUB<<16 | CTINT,
-		OSUB<<16 | CTRUNE:
+	case OSUB<<16 | CTINT_,
+		OSUB<<16 | CTRUNE_:
 		mpsubfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OMUL<<16 | CTINT,
-		OMUL<<16 | CTRUNE:
+	case OMUL<<16 | CTINT_,
+		OMUL<<16 | CTRUNE_:
 		mpmulfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case ODIV<<16 | CTINT,
-		ODIV<<16 | CTRUNE:
+	case ODIV<<16 | CTINT_,
+		ODIV<<16 | CTRUNE_:
 		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
 			Yyerror("division by zero")
 			mpsetovf(v.U.(*Mpint))
@@ -811,8 +821,8 @@ func evconst(n *Node) {
 
 		mpdivfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OMOD<<16 | CTINT,
-		OMOD<<16 | CTRUNE:
+	case OMOD<<16 | CTINT_,
+		OMOD<<16 | CTRUNE_:
 		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
 			Yyerror("division by zero")
 			mpsetovf(v.U.(*Mpint))
@@ -821,40 +831,40 @@ func evconst(n *Node) {
 
 		mpmodfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OLSH<<16 | CTINT,
-		OLSH<<16 | CTRUNE:
+	case OLSH<<16 | CTINT_,
+		OLSH<<16 | CTRUNE_:
 		mplshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case ORSH<<16 | CTINT,
-		ORSH<<16 | CTRUNE:
+	case ORSH<<16 | CTINT_,
+		ORSH<<16 | CTRUNE_:
 		mprshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OOR<<16 | CTINT,
-		OOR<<16 | CTRUNE:
+	case OOR<<16 | CTINT_,
+		OOR<<16 | CTRUNE_:
 		mporfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OAND<<16 | CTINT,
-		OAND<<16 | CTRUNE:
+	case OAND<<16 | CTINT_,
+		OAND<<16 | CTRUNE_:
 		mpandfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OANDNOT<<16 | CTINT,
-		OANDNOT<<16 | CTRUNE:
+	case OANDNOT<<16 | CTINT_,
+		OANDNOT<<16 | CTRUNE_:
 		mpandnotfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OXOR<<16 | CTINT,
-		OXOR<<16 | CTRUNE:
+	case OXOR<<16 | CTINT_,
+		OXOR<<16 | CTRUNE_:
 		mpxorfixfix(v.U.(*Mpint), rv.U.(*Mpint))
 
-	case OADD<<16 | CTFLT:
+	case OADD<<16 | CTFLT_:
 		mpaddfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
 
-	case OSUB<<16 | CTFLT:
+	case OSUB<<16 | CTFLT_:
 		mpsubfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
 
-	case OMUL<<16 | CTFLT:
+	case OMUL<<16 | CTFLT_:
 		mpmulfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
 
-	case ODIV<<16 | CTFLT:
+	case ODIV<<16 | CTFLT_:
 		if mpcmpfltc(rv.U.(*Mpflt), 0) == 0 {
 			Yyerror("division by zero")
 			Mpmovecflt(v.U.(*Mpflt), 1.0)
@@ -865,7 +875,7 @@ func evconst(n *Node) {
 
 		// The default case above would print 'ideal % ideal',
 	// which is not quite an ideal error.
-	case OMOD<<16 | CTFLT:
+	case OMOD<<16 | CTFLT_:
 		if n.Diag == 0 {
 			Yyerror("illegal constant expression: floating-point %% operation")
 			n.Diag = 1
@@ -873,18 +883,18 @@ func evconst(n *Node) {
 
 		return
 
-	case OADD<<16 | CTCPLX:
+	case OADD<<16 | CTCPLX_:
 		mpaddfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
 		mpaddfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
 
-	case OSUB<<16 | CTCPLX:
+	case OSUB<<16 | CTCPLX_:
 		mpsubfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
 		mpsubfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
 
-	case OMUL<<16 | CTCPLX:
+	case OMUL<<16 | CTCPLX_:
 		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
 
-	case ODIV<<16 | CTCPLX:
+	case ODIV<<16 | CTCPLX_:
 		if mpcmpfltc(&rv.U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&rv.U.(*Mpcplx).Imag, 0) == 0 {
 			Yyerror("complex division by zero")
 			Mpmovecflt(&rv.U.(*Mpcplx).Real, 1.0)
@@ -894,157 +904,157 @@ func evconst(n *Node) {
 
 		cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx))
 
-	case OEQ<<16 | CTNIL:
+	case OEQ<<16 | CTNIL_:
 		goto settrue
 
-	case ONE<<16 | CTNIL:
+	case ONE<<16 | CTNIL_:
 		goto setfalse
 
-	case OEQ<<16 | CTINT,
-		OEQ<<16 | CTRUNE:
+	case OEQ<<16 | CTINT_,
+		OEQ<<16 | CTRUNE_:
 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case ONE<<16 | CTINT,
-		ONE<<16 | CTRUNE:
+	case ONE<<16 | CTINT_,
+		ONE<<16 | CTRUNE_:
 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) != 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLT<<16 | CTINT,
-		OLT<<16 | CTRUNE:
+	case OLT<<16 | CTINT_,
+		OLT<<16 | CTRUNE_:
 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) < 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLE<<16 | CTINT,
-		OLE<<16 | CTRUNE:
+	case OLE<<16 | CTINT_,
+		OLE<<16 | CTRUNE_:
 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) <= 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGE<<16 | CTINT,
-		OGE<<16 | CTRUNE:
+	case OGE<<16 | CTINT_,
+		OGE<<16 | CTRUNE_:
 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) >= 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGT<<16 | CTINT,
-		OGT<<16 | CTRUNE:
+	case OGT<<16 | CTINT_,
+		OGT<<16 | CTRUNE_:
 		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) > 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OEQ<<16 | CTFLT:
+	case OEQ<<16 | CTFLT_:
 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case ONE<<16 | CTFLT:
+	case ONE<<16 | CTFLT_:
 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) != 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLT<<16 | CTFLT:
+	case OLT<<16 | CTFLT_:
 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) < 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLE<<16 | CTFLT:
+	case OLE<<16 | CTFLT_:
 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) <= 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGE<<16 | CTFLT:
+	case OGE<<16 | CTFLT_:
 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) >= 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGT<<16 | CTFLT:
+	case OGT<<16 | CTFLT_:
 		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) > 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OEQ<<16 | CTCPLX:
+	case OEQ<<16 | CTCPLX_:
 		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) == 0 && mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case ONE<<16 | CTCPLX:
+	case ONE<<16 | CTCPLX_:
 		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) != 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) != 0 {
 			goto settrue
 		}
 		goto setfalse
 
-	case OEQ<<16 | CTSTR:
+	case OEQ<<16 | CTSTR_:
 		if strlit(nl) == strlit(nr) {
 			goto settrue
 		}
 		goto setfalse
 
-	case ONE<<16 | CTSTR:
+	case ONE<<16 | CTSTR_:
 		if strlit(nl) != strlit(nr) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLT<<16 | CTSTR:
+	case OLT<<16 | CTSTR_:
 		if strlit(nl) < strlit(nr) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OLE<<16 | CTSTR:
+	case OLE<<16 | CTSTR_:
 		if strlit(nl) <= strlit(nr) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGE<<16 | CTSTR:
+	case OGE<<16 | CTSTR_:
 		if strlit(nl) >= strlit(nr) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OGT<<16 | CTSTR:
+	case OGT<<16 | CTSTR_:
 		if strlit(nl) > strlit(nr) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OOROR<<16 | CTBOOL:
+	case OOROR<<16 | CTBOOL_:
 		if v.U.(bool) || rv.U.(bool) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OANDAND<<16 | CTBOOL:
+	case OANDAND<<16 | CTBOOL_:
 		if v.U.(bool) && rv.U.(bool) {
 			goto settrue
 		}
 		goto setfalse
 
-	case OEQ<<16 | CTBOOL:
+	case OEQ<<16 | CTBOOL_:
 		if v.U.(bool) == rv.U.(bool) {
 			goto settrue
 		}
 		goto setfalse
 
-	case ONE<<16 | CTBOOL:
+	case ONE<<16 | CTBOOL_:
 		if v.U.(bool) != rv.U.(bool) {
 			goto settrue
 		}
@@ -1091,8 +1101,6 @@ illegal:
 		Yyerror("illegal constant expression: %v %v %v", nl.Type, Oconv(int(n.Op), 0), nr.Type)
 		n.Diag = 1
 	}
-
-	return
 }
 
 func nodlit(v Val) *Node {
@@ -1138,7 +1146,7 @@ func nodcplxlit(r Val, i Val) *Node {
 
 // idealkind returns a constant kind like consttype
 // but for an arbitrary "ideal" (untyped constant) expression.
-func idealkind(n *Node) int {
+func idealkind(n *Node) Ctype {
 	if n == nil || !isideal(n.Type) {
 		return CTxxx
 	}
@@ -1148,7 +1156,7 @@ func idealkind(n *Node) int {
 		return CTxxx
 
 	case OLITERAL:
-		return int(n.Val().Ctype())
+		return n.Val().Ctype()
 
 		// numeric kinds.
 	case OADD,

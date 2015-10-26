@@ -10,8 +10,6 @@ import (
 	"cmd/internal/obj"
 )
 
-// avoid <ctype.h>
-
 // The parser's maximum stack size.
 // We have to use a #define macro here since yacc
 // or bison will check for its definition and use
@@ -95,7 +93,7 @@ type Val struct {
 
 type NilVal struct{}
 
-func (v Val) Ctype() int {
+func (v Val) Ctype() Ctype {
 	switch x := v.U.(type) {
 	default:
 		Fatalf("unexpected Ctype for %T", v.U)
@@ -312,8 +310,11 @@ const (
 	NTYPE
 )
 
+// Ctype describes the constant kind of an "ideal" (untyped) constant.
+type Ctype int8
+
 const (
-	CTxxx = iota
+	CTxxx Ctype = iota
 
 	CTINT
 	CTRUNE
