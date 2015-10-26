@@ -37,6 +37,7 @@ var (
 	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary        = flag.Bool("summary", false, "show summary of results")
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
+	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 
@@ -328,6 +329,9 @@ type context struct {
 // shouldTest looks for build tags in a source file and returns
 // whether the file should be used according to the tags.
 func shouldTest(src string, goos, goarch string) (ok bool, whyNot string) {
+	if *runSkips {
+		return true, ""
+	}
 	for _, line := range strings.Split(src, "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "//") {
@@ -470,6 +474,9 @@ func (t *test) run() {
 			args = args[1:]
 		}
 	case "skip":
+		if *runSkips {
+			break
+		}
 		t.action = "skip"
 		return
 	default:
