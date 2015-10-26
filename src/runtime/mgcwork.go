@@ -363,6 +363,12 @@ func putfull(b *workbuf, entry int) {
 	b.checknonempty()
 	b.logput(entry)
 	lfstackpush(&work.full, &b.node)
+
+	// We just made more work available. Let the GC controller
+	// know so it can encourage more workers to run.
+	if gcphase == _GCmark {
+		gcController.enlistWorker()
+	}
 }
 
 // trygetfull tries to get a full or partially empty workbuffer.

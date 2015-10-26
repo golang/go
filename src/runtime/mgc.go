@@ -574,6 +574,39 @@ func (c *gcControllerState) endCycle() {
 	}
 }
 
+// enlistWorker encourages another dedicated mark worker to start on
+// another P if there are spare worker slots. It is used by putfull
+// when more work is made available.
+//
+//go:nowritebarrier
+func (c *gcControllerState) enlistWorker() {
+	if c.dedicatedMarkWorkersNeeded <= 0 {
+		return
+	}
+	// Pick a random other P to preempt.
+	if gomaxprocs <= 1 {
+		return
+	}
+	gp := getg()
+	if gp == nil || gp.m == nil || gp.m.p == 0 {
+		return
+	}
+	myID := gp.m.p.ptr().id
+	for tries := 0; tries < 5; tries++ {
+		id := int32(fastrand1() % uint32(gomaxprocs-1))
+		if id >= myID {
+			id++
+		}
+		p := allp[id]
+		if p.status != _Prunning {
+			continue
+		}
+		if preemptone(p) {
+			return
+		}
+	}
+}
+
 // findRunnableGCWorker returns the background mark worker for _p_ if it
 // should be run. This must only be called when gcBlackenEnabled != 0.
 func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
