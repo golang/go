@@ -37,6 +37,11 @@ fi
 
 status=0
 
+if ! go build -msan std; then
+  echo "FAIL: build -msan std"
+  status=1
+fi
+
 if ! go run -msan msan.go; then
   echo "FAIL: msan"
   status=1

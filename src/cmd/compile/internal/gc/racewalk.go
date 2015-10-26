@@ -502,13 +502,25 @@ func callinstr(np **Node, init **NodeList, wr int, skip int) bool {
 			if wr != 0 {
 				name = "msanwrite"
 			}
-			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
+			// dowidth may not have been called for PEXTERN.
+			dowidth(t)
+			w := t.Width
+			if w == BADWIDTH {
+				Fatalf("instrument: %v badwidth", t)
+			}
+			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
 		} else if flag_race != 0 && (t.Etype == TSTRUCT || Isfixedarray(t)) {
 			name := "racereadrange"
 			if wr != 0 {
 				name = "racewriterange"
 			}
-			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(t.Width))
+			// dowidth may not have been called for PEXTERN.
+			dowidth(t)
+			w := t.Width
+			if w == BADWIDTH {
+				Fatalf("instrument: %v badwidth", t)
+			}
+			f = mkcall(name, nil, init, uintptraddr(n), Nodintconst(w))
 		} else if flag_race != 0 {
 			name := "raceread"
 			if wr != 0 {
