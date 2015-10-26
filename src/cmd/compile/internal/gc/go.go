@@ -333,19 +333,23 @@ const (
 	Cboth = Crecv | Csend
 )
 
-// declaration context
+// The Class of a variable/function describes the "storage class"
+// of a variable or function. During parsing, storage classes are
+// called declaration contexts.
+type Class uint8
+
 const (
-	Pxxx      = uint8(iota)
-	PEXTERN   // global variable
-	PAUTO     // local variables
-	PPARAM    // input arguments
-	PPARAMOUT // output results
-	PPARAMREF // closure variable reference
-	PFUNC     // global function
+	Pxxx      Class = iota
+	PEXTERN         // global variable
+	PAUTO           // local variables
+	PPARAM          // input arguments
+	PPARAMOUT       // output results
+	PPARAMREF       // closure variable reference
+	PFUNC           // global function
 
 	PDISCARD // discard during parse of duplicate import
 
-	PHEAP = uint8(1 << 7) // an extra bit to identify an escaped variable
+	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
 )
 
 const (
@@ -587,7 +591,7 @@ var importlist []*Node // imported functions and methods with inlinable bodies
 
 var funcsyms []*Node
 
-var dclcontext uint8 // PEXTERN/PAUTO
+var dclcontext Class // PEXTERN/PAUTO
 
 var incannedimport int
 
