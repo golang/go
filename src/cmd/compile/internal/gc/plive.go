@@ -818,7 +818,7 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 		return
 	}
 	var a *Node
-	var class uint8
+	var class Class
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		a = l.N
 		class = a.Class &^ PHEAP

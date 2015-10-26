@@ -48,7 +48,7 @@ type Node struct {
 	Addable     bool  // addressable
 	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
 	Bounded     bool  // bounds check unnecessary
-	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
+	Class       Class // PPARAM, PAUTO, PEXTERN, etc
 	Embedded    uint8 // ODCLFIELD embedded type
 	Colas       bool  // OAS resulting from :=
 	Diag        uint8 // already printed error about this
