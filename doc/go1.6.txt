@@ -10,6 +10,12 @@ Ports:
 
 NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 
+Reflect change:
+cmd/compile/internal/gc: make embedded unexported structs RO (https://golang.org/cl/14085)
+encoding/json: check for exported fields in embedded structs (https://golang.org/cl/14011)
+encoding/xml: check for exported fields in embedded structs (https://golang.org/cl/14012)
+reflect: adjust access to unexported embedded structs (https://golang.org/cl/14010)
+
 API additions and behavior changes:
 
 bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
