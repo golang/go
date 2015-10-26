@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: syscall.SIGABRT is not defined for Plan 9 (issue #11975)
-
-// +build !plan9
-
 // The stress utility is intended for catching of episodic failures.
 // It runs a given process in parallel in a loop and collects any failures.
 // Usage:
