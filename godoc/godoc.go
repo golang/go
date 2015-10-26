@@ -434,7 +434,7 @@ func (p *Presentation) example_textFunc(info *PageInfo, funcName, indent string)
 		buf.WriteString(indent)
 		buf.WriteString("Example:\n\t")
 		buf.WriteString(code)
-		buf.WriteString("\n")
+		buf.WriteString("\n\n")
 	}
 	return buf.String()
 }
