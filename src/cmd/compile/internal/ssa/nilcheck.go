@@ -88,6 +88,13 @@ func nilcheckelim(f *Func) {
 					// Eliminate the nil check.
 					// The deadcode pass will remove vestigial values,
 					// and the fuse pass will join this block with its successor.
+
+					// Logging in the style of the former compiler -- and omit line 1,
+					// which is usually in generated code.
+					if f.Config.Debug_checknil() && int(node.block.Control.Line) > 1 {
+						f.Config.Warnl(int(node.block.Control.Line), "removed nil check")
+					}
+
 					switch node.block.Kind {
 					case BlockIf:
 						node.block.Kind = BlockFirst

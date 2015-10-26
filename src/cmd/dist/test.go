@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -276,31 +275,6 @@ func (t *tester) registerStdTest(pkg string) {
 	})
 }
 
-// TODO: Remove when SSA codegen is used by default.
-func (t *tester) registerSSATest(pkg string) {
-	t.tests = append(t.tests, distTest{
-		name:    "go_test_ssa:" + pkg,
-		heading: "Testing packages with SSA codegen.",
-		fn: func() error {
-			args := []string{
-				"test",
-				"-short",
-				t.timeout(180 * 3), // SSA generates slower code right now
-				"-gcflags=" + os.Getenv("GO_GCFLAGS"),
-			}
-			if t.race {
-				args = append(args, "-race")
-			}
-			args = append(args, pkg)
-			cmd := exec.Command("go", args...)
-			cmd.Env = mergeEnvLists([]string{"GOSSAPKG=" + path.Base(pkg)}, os.Environ())
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			return cmd.Run()
-		},
-	})
-}
-
 func (t *tester) registerRaceBenchTest(pkg string) {
 	testName := "go_test_bench:" + pkg
 	if t.runRx == nil || t.runRx.MatchString(testName) {
@@ -344,9 +318,6 @@ func (t *tester) registerTests() {
 			if strings.HasPrefix(name, "go_test_bench:") {
 				t.registerRaceBenchTest(strings.TrimPrefix(name, "go_test_bench:"))
 			}
-			if t.goarch == "amd64" && strings.HasPrefix(name, "go_test_ssa:") {
-				t.registerSSATest(strings.TrimPrefix(name, "go_test_ssa:"))
-			}
 		}
 	} else {
 		// Use a format string to only list packages and commands that have tests.
@@ -362,11 +333,6 @@ func (t *tester) registerTests() {
 		pkgs := strings.Fields(string(all))
 		for _, pkg := range pkgs {
 			t.registerStdTest(pkg)
-		}
-		if t.goarch == "amd64" {
-			for _, pkg := range pkgs {
-				t.registerSSATest(pkg)
-			}
 		}
 		if t.race {
 			for _, pkg := range pkgs {

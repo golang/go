@@ -1,4 +1,4 @@
-// +build !amd64
+// +build amd64
 // errorcheck -0 -N -d=nil
 
 // Copyright 2013 The Go Authors.  All rights reserved.
@@ -67,12 +67,12 @@ func f2() {
 	_ = *intp       // ERROR "nil check"
 	_ = *arrayp     // ERROR "nil check"
 	_ = *array0p    // ERROR "nil check"
-	_ = *array0p    // ERROR "nil check"
-	_ = *intp       // ERROR "nil check"
-	_ = *arrayp     // ERROR "nil check"
+	_ = *array0p    // ERROR "removed nil check"
+	_ = *intp       // ERROR "removed nil check"
+	_ = *arrayp     // ERROR "removed nil check"
 	_ = *structp    // ERROR "nil check"
 	_ = *emptyp     // ERROR "nil check"
-	_ = *arrayp     // ERROR "nil check"
+	_ = *arrayp     // ERROR "removed nil check"
 	_ = *bigarrayp  // ERROR "nil check"
 	_ = *bigstructp // ERROR "nil check"
 	_ = *empty1p    // ERROR "nil check"
@@ -88,7 +88,7 @@ func f3(x *[10000]int) {
 	_ = x[9999] // ERROR "nil check"
 
 	for {
-		if x[9999] != 0 { // ERROR "nil check"
+		if x[9999] != 0 { // ERROR "removed nil check"
 			break
 		}
 	}
@@ -96,11 +96,11 @@ func f3(x *[10000]int) {
 	x = fx10k()
 	_ = x[9999] // ERROR "nil check"
 	if b {
-		_ = x[9999] // ERROR "nil check"
+		_ = x[9999] // ERROR "removed nil check"
 	} else {
-		_ = x[9999] // ERROR "nil check"
+		_ = x[9999] // ERROR "removed nil check"
 	}
-	_ = x[9999] // ERROR "nil check"
+	_ = x[9999] // ERROR "removed nil check"
 
 	x = fx10k()
 	if b {
@@ -111,11 +111,8 @@ func f3(x *[10000]int) {
 	_ = x[9999] // ERROR "nil check"
 
 	fx10k()
-	// This one is a bit redundant, if we figured out that
-	// x wasn't going to change across the function call.
-	// But it's a little complex to do and in practice doesn't
-	// matter enough.
-	_ = x[9999] // ERROR "nil check"
+	// SSA nilcheck removal works across calls.
+	_ = x[9999] // ERROR "removed nil check"
 }
 
 func f3a() {
@@ -124,7 +121,7 @@ func f3a() {
 	z := fx10k()
 	_ = &x[9] // ERROR "nil check"
 	y = z
-	_ = &x[9] // ERROR "nil check"
+	_ = &x[9] // ERROR "removed nil check"
 	x = y
 	_ = &x[9] // ERROR "nil check"
 }
@@ -134,9 +131,9 @@ func f3b() {
 	y := fx10k()
 	_ = &x[9] // ERROR "nil check"
 	y = x
-	_ = &x[9] // ERROR "nil check"
+	_ = &x[9] // ERROR "removed nil check"
 	x = y
-	_ = &x[9] // ERROR "nil check"
+	_ = &x[9] // ERROR "removed nil check"
 }
 
 func fx10() *[10]int
@@ -149,7 +146,7 @@ func f4(x *[10]int) {
 	_ = x[9] // ERROR "nil check"
 
 	for {
-		if x[9] != 0 { // ERROR "nil check"
+		if x[9] != 0 { // ERROR "removed nil check"
 			break
 		}
 	}
@@ -157,11 +154,11 @@ func f4(x *[10]int) {
 	x = fx10()
 	_ = x[9] // ERROR "nil check"
 	if b {
-		_ = x[9] // ERROR "nil check"
+		_ = x[9] // ERROR "removed nil check"
 	} else {
-		_ = x[9] // ERROR "nil check"
+		_ = x[9] // ERROR "removed nil check"
 	}
-	_ = x[9] // ERROR "nil check"
+	_ = x[9] // ERROR "removed nil check"
 
 	x = fx10()
 	if b {
@@ -172,15 +169,15 @@ func f4(x *[10]int) {
 	_ = x[9] // ERROR "nil check"
 
 	fx10()
-	_ = x[9] // ERROR "nil check"
+	_ = x[9] // ERROR "removed nil check"
 
 	x = fx10()
 	y := fx10()
 	_ = &x[9] // ERROR "nil check"
 	y = x
-	_ = &x[9] // ERROR "nil check"
+	_ = &x[9] // ERROR "removed nil check"
 	x = y
-	_ = &x[9] // ERROR "nil check"
+	_ = &x[9] // ERROR "removed nil check"
 }
 
 func f5(m map[string]struct{}) bool {

@@ -34,10 +34,10 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// 1. IF GOSSAFUNC == current function name THEN
 	//       compile this function with SSA and log output to ssa.html
 
-	// 2. IF GOSSAHASH == "y" or "Y" THEN
+	// 2. IF GOSSAHASH == "" THEN
 	//       compile this function (and everything else) with SSA
 
-	// 3. IF GOSSAHASH == "" THEN
+	// 3. IF GOSSAHASH == "n" or "N"
 	//       IF GOSSAPKG == current package name THEN
 	//          compile this function (and everything in this package) with SSA
 	//       ELSE
@@ -49,9 +49,10 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	//       ELSE
 	//          compile this function with the old back end.
 
-	// Plan is for 3 to be remove, and the 2) dependence on GOSSAHASH changes
-	// from "y"/"Y" to empty -- then SSA is default, and is disabled by setting
-	// GOSSAHASH to a value that is neither 0 nor 1 (e.g., "N" or "X")
+	// Plan is for 3 to be removed when the tests are revised.
+	// SSA is now default, and is disabled by setting
+	// GOSSAHASH to n or N, or selectively with strings of
+	// 0 and 1.
 
 	if usessa {
 		fmt.Println("generating SSA for", name)
@@ -183,10 +184,11 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	if usessa || gossahash == "y" || gossahash == "Y" {
+	// gossahash = "y" is historical/symmetric-with-"n" -- i.e., not really needed.
+	if usessa || gossahash == "" || gossahash == "y" || gossahash == "Y" {
 		return s.f, true
 	}
-	if gossahash == "" {
+	if gossahash == "n" || gossahash == "N" {
 		if localpkg.Name != os.Getenv("GOSSAPKG") {
 			return s.f, false
 		}
@@ -298,9 +300,11 @@ func (s *state) label(sym *Sym) *ssaLabel {
 	return lab
 }
 
-func (s *state) Logf(msg string, args ...interface{})           { s.config.Logf(msg, args...) }
-func (s *state) Fatalf(msg string, args ...interface{})         { s.config.Fatalf(msg, args...) }
-func (s *state) Unimplementedf(msg string, args ...interface{}) { s.config.Unimplementedf(msg, args...) }
+func (s *state) Logf(msg string, args ...interface{})            { s.config.Logf(msg, args...) }
+func (s *state) Fatalf(msg string, args ...interface{})          { s.config.Fatalf(msg, args...) }
+func (s *state) Unimplementedf(msg string, args ...interface{})  { s.config.Unimplementedf(msg, args...) }
+func (s *state) Warnl(line int, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
+func (s *state) Debug_checknil() bool                            { return s.config.Debug_checknil() }
 
 var (
 	// dummy node for the memory variable
@@ -1997,7 +2001,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			if haspointers(et) {
 				// TODO: just one write barrier call for all of these writes?
 				// TODO: maybe just one writeBarrierEnabled check?
-				s.insertWB(et, addr)
+				s.insertWB(et, addr, n.Lineno)
 			}
 		}
 
@@ -2044,7 +2048,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	}
 	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
 	if wb {
-		s.insertWB(left.Type, addr)
+		s.insertWB(left.Type, addr, left.Lineno)
 	}
 }
 
@@ -2566,7 +2570,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 // been stored at location p.  Tell the runtime about this write.
 // Note: there must be no GC suspension points between the write and
 // the call that this function inserts.
-func (s *state) insertWB(t *Type, p *ssa.Value) {
+func (s *state) insertWB(t *Type, p *ssa.Value, line int32) {
 	// if writeBarrierEnabled {
 	//   typedmemmove_nostore(&t, p)
 	// }
@@ -2585,6 +2589,10 @@ func (s *state) insertWB(t *Type, p *ssa.Value) {
 	// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
 	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(t)}, s.sb)
 	s.rtcall(typedmemmove_nostore, true, nil, taddr, p)
+
+	if Debug_wb > 0 {
+		Warnl(int(line), "write barrier")
+	}
 
 	b.AddEdgeTo(s.curBlock)
 }
@@ -2983,6 +2991,10 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	if !isdirectiface(n.Type) {
 		// walk rewrites ODOTTYPE/OAS2DOTTYPE into runtime calls except for this case.
 		Fatalf("dottype needs a direct iface type %s", n.Type)
+	}
+
+	if Debug_typeassert > 0 {
+		Warnl(int(n.Lineno), "type assertion inlined")
 	}
 
 	// TODO:  If we have a nonempty interface and its itab field is nil,
@@ -4521,6 +4533,16 @@ func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
 		fmt.Printf("SSA unimplemented: "+msg+"\n", args...)
 	}
 	e.unimplemented = true
+}
+
+// Warnl reports a "warning", which is usually flag-triggered
+// logging output for the benefit of tests.
+func (e *ssaExport) Warnl(line int, fmt_ string, args ...interface{}) {
+	Warnl(line, fmt_, args...)
+}
+
+func (e *ssaExport) Debug_checknil() bool {
+	return Debug_checknil != 0
 }
 
 func (n *Node) Typ() ssa.Type {

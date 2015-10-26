@@ -49,6 +49,12 @@ type Logger interface {
 	// Unimplemented reports that the function cannot be compiled.
 	// It will be removed once SSA work is complete.
 	Unimplementedf(msg string, args ...interface{})
+
+	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+	Warnl(line int, fmt_ string, args ...interface{})
+
+	// Fowards the Debug_checknil flag from gc
+	Debug_checknil() bool
 }
 
 type Frontend interface {
@@ -100,9 +106,11 @@ func (c *Config) NewFunc() *Func {
 	return &Func{Config: c, NamedValues: map[GCNode][]*Value{}}
 }
 
-func (c *Config) Logf(msg string, args ...interface{})           { c.fe.Logf(msg, args...) }
-func (c *Config) Fatalf(msg string, args ...interface{})         { c.fe.Fatalf(msg, args...) }
-func (c *Config) Unimplementedf(msg string, args ...interface{}) { c.fe.Unimplementedf(msg, args...) }
+func (c *Config) Logf(msg string, args ...interface{})            { c.fe.Logf(msg, args...) }
+func (c *Config) Fatalf(msg string, args ...interface{})          { c.fe.Fatalf(msg, args...) }
+func (c *Config) Unimplementedf(msg string, args ...interface{})  { c.fe.Unimplementedf(msg, args...) }
+func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
 
 // TODO(khr): do we really need a separate Config, or can we just
 // store all its fields inside a Func?
