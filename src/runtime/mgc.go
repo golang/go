@@ -250,8 +250,7 @@ type gcMarkWorkerMode int
 const (
 	// gcMarkWorkerDedicatedMode indicates that the P of a mark
 	// worker is dedicated to running that mark worker. The mark
-	// worker should run without preemption until concurrent mark
-	// is done.
+	// worker should run without preemption.
 	gcMarkWorkerDedicatedMode gcMarkWorkerMode = iota
 
 	// gcMarkWorkerFractionalMode indicates that a P is currently
@@ -593,6 +592,36 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		return nil
 	}
 
+	if !gcMarkWorkAvailable(_p_) {
+		// No work to be done right now. This can happen at
+		// the end of the mark phase when there are still
+		// assists tapering off. Don't bother running a worker
+		// now because it'll just return immediately.
+		if work.nwait == work.nproc {
+			// There are also no workers, which
+			// means we've reached a completion point.
+			// There may not be any workers to
+			// signal it, so signal it here.
+			readied := false
+			if gcBlackenPromptly {
+				if work.bgMark1.done == 0 {
+					throw("completing mark 2, but bgMark1.done == 0")
+				}
+				readied = work.bgMark2.complete()
+			} else {
+				readied = work.bgMark1.complete()
+			}
+			if readied {
+				// complete just called ready,
+				// but we're inside the
+				// scheduler. Let it know that
+				// that's okay.
+				resetspinning()
+			}
+		}
+		return nil
+	}
+
 	decIfPositive := func(ptr *int64) bool {
 		if *ptr > 0 {
 			if xaddint64(ptr, -1) >= 0 {
@@ -612,36 +641,6 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// else for a while, so kick everything out of its run
 		// queue.
 	} else {
-		if !gcMarkWorkAvailable(_p_) {
-			// No work to be done right now. This can
-			// happen at the end of the mark phase when
-			// there are still assists tapering off. Don't
-			// bother running background mark because
-			// it'll just return immediately.
-			if work.nwait == work.nproc {
-				// There are also no workers, which
-				// means we've reached a completion point.
-				// There may not be any workers to
-				// signal it, so signal it here.
-				readied := false
-				if gcBlackenPromptly {
-					if work.bgMark1.done == 0 {
-						throw("completing mark 2, but bgMark1.done == 0")
-					}
-					readied = work.bgMark2.complete()
-				} else {
-					readied = work.bgMark1.complete()
-				}
-				if readied {
-					// complete just called ready,
-					// but we're inside the
-					// scheduler. Let it know that
-					// that's okay.
-					resetspinning()
-				}
-			}
-			return nil
-		}
 		if !decIfPositive(&c.fractionalMarkWorkersNeeded) {
 			// No more workers are need right now.
 			return nil
@@ -1368,46 +1367,37 @@ func gcBgMarkWorker(p *p) {
 			throw("work.nwait was > work.nproc")
 		}
 
-		done := false
 		switch p.gcMarkWorkerMode {
 		default:
 			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 		case gcMarkWorkerDedicatedMode:
-			gcDrain(&p.gcw, gcDrainBlock|gcDrainFlushBgCredit)
-			// gcDrain did the xadd(&work.nwait +1) to
-			// match the decrement above. It only returns
-			// at a mark completion point.
-			done = true
-			if !p.gcw.empty() {
-				throw("gcDrain returned with buffer")
-			}
+			gcDrain(&p.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
 			gcDrain(&p.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+		}
 
-			// If we are nearing the end of mark, dispose
-			// of the cache promptly. We must do this
-			// before signaling that we're no longer
-			// working so that other workers can't observe
-			// no workers and no work while we have this
-			// cached, and before we compute done.
-			if gcBlackenPromptly {
-				p.gcw.dispose()
-			}
+		// If we are nearing the end of mark, dispose
+		// of the cache promptly. We must do this
+		// before signaling that we're no longer
+		// working so that other workers can't observe
+		// no workers and no work while we have this
+		// cached, and before we compute done.
+		if gcBlackenPromptly {
+			p.gcw.dispose()
+		}
 
-			// Was this the last worker and did we run out
-			// of work?
-			incnwait := xadd(&work.nwait, +1)
-			if incnwait > work.nproc {
-				println("runtime: p.gcMarkWorkerMode=", p.gcMarkWorkerMode,
-					"work.nwait=", incnwait, "work.nproc=", work.nproc)
-				throw("work.nwait > work.nproc")
-			}
-			done = incnwait == work.nproc && !gcMarkWorkAvailable(nil)
+		// Was this the last worker and did we run out
+		// of work?
+		incnwait := xadd(&work.nwait, +1)
+		if incnwait > work.nproc {
+			println("runtime: p.gcMarkWorkerMode=", p.gcMarkWorkerMode,
+				"work.nwait=", incnwait, "work.nproc=", work.nproc)
+			throw("work.nwait > work.nproc")
 		}
 
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
-		if done {
+		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
 			if gcBlackenPromptly {
 				if work.bgMark1.done == 0 {
 					throw("completing mark 2, but bgMark1.done == 0")
