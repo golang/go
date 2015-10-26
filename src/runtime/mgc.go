@@ -166,6 +166,7 @@ func gcinit() {
 	}
 	memstats.next_gc = heapminimum
 	work.startSema = 1
+	work.markDoneSema = 1
 }
 
 func readgogc() int32 {
@@ -615,14 +616,9 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		throw("gcControllerState.findRunnable: blackening not enabled")
 	}
 	if _p_.gcBgMarkWorker == nil {
-		throw("gcControllerState.findRunnable: no background mark worker")
-	}
-	if work.bgMark1.done != 0 && work.bgMark2.done != 0 {
-		// Background mark is done. Don't schedule background
-		// mark worker any more. (This is not just an
-		// optimization. Without this we can spin scheduling
-		// the background worker and having it return
-		// immediately with no work to do.)
+		// The mark worker associated with this P is blocked
+		// performing a mark transition. We can't run it
+		// because it may be on some other run or wait queue.
 		return nil
 	}
 
@@ -821,12 +817,16 @@ var work struct {
 	// startSema protects the transition from "off" to mark or
 	// mark termination.
 	startSema uint32
+	// markDoneSema protects transitions from mark 1 to mark 2 and
+	// from mark 2 to mark termination.
+	markDoneSema uint32
 
 	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
 	// Background mark completion signaling
 
 	// Coordination for the 2 parts of the mark phase.
+	// TODO(austin): Unused. Remove.
 	bgMark1 bgMarkSignal
 	bgMark2 bgMarkSignal
 
@@ -894,8 +894,7 @@ const (
 
 // startGCCoordinator starts and readies the GC coordinator goroutine.
 //
-// TODO(austin): This function is temporary and will go away when we
-// finish the transition to the decentralized state machine.
+// TODO(austin): This function unused. Remove it and backgroundgc.
 func startGCCoordinator() {
 	// trigger concurrent GC
 	readied := false
@@ -932,7 +931,7 @@ var bggc struct {
 // bggc holds the state of the backgroundgc.
 func backgroundgc() {
 	for {
-		gc(gcBackgroundMode)
+		gcMarkTermination()
 		lock(&bggc.lock)
 		bggc.working--
 		unlock(&bggc.lock)
@@ -1089,26 +1088,23 @@ func gcStart(mode gcMode, forceTrigger bool) {
 		// mutators.
 		atomicstore(&gcBlackenEnabled, 1)
 
+		// Assists and workers can start the moment we start
+		// the world.
+		gcController.assistStartTime = now
+		gcController.bgMarkStartTime = now
+
 		// Concurrent mark.
 		systemstack(startTheWorldWithSema)
 		now = nanotime()
 		work.pauseNS += now - work.pauseStart
-		gcController.assistStartTime = now
 		work.tMark = now
-
-		// Enable background mark workers.
-		gcController.bgMarkStartTime = now
-		work.bgMark1.clear()
-
-		// TODO: Make mark 1 completion handle the transition.
-		startGCCoordinator()
 	} else {
 		t := nanotime()
 		work.tMark, work.tMarkTerm = t, t
 		work.heapGoal = work.heap0
 
 		// Perform mark termination. This will restart the world.
-		gc(mode)
+		gcMarkTermination()
 	}
 
 	if useStartSema {
@@ -1125,60 +1121,74 @@ func gcStart(mode gcMode, forceTrigger bool) {
 // work may still be cached in per-P work buffers. In mark 2, per-P
 // caches are disabled.
 func gcMarkDone() {
-	// TODO(austin): This should perform the transition rather
-	// than handing it off to the coordinator.
-	if gcBlackenPromptly {
-		if work.bgMark1.done == 0 {
-			throw("completing mark 2, but bgMark1.done == 0")
-		}
-		work.bgMark2.complete()
-	} else {
-		work.bgMark1.complete()
+	semacquire(&work.markDoneSema, false)
+
+	// Re-check transition condition under transition lock.
+	if !(gcphase == _GCmark && work.nwait == work.nproc && !gcMarkWorkAvailable(nil)) {
+		semrelease(&work.markDoneSema)
+		return
 	}
-}
 
-func gc(mode gcMode) {
-	// If mode == gcBackgroundMode, world is not stopped.
-	// If mode != gcBackgroundMode, world is stopped.
-	// TODO(austin): This is temporary.
+	// Disallow starting new workers so that any remaining workers
+	// in the current mark phase will drain out.
+	//
+	// TODO(austin): Should dedicated workers keep an eye on this
+	// and exit gcDrain promptly?
+	xaddint64(&gcController.dedicatedMarkWorkersNeeded, -0xffffffff)
+	xaddint64(&gcController.fractionalMarkWorkersNeeded, -0xffffffff)
 
-	if mode == gcBackgroundMode {
-		// Wait for background mark completion.
-		work.bgMark1.wait()
-
-		gcMarkRootCheck()
-
+	if !gcBlackenPromptly {
+		// Transition from mark 1 to mark 2.
+		//
 		// The global work list is empty, but there can still be work
 		// sitting in the per-P work caches and there can be more
 		// objects reachable from global roots since they don't have write
 		// barriers. Rescan some roots and flush work caches.
-		systemstack(func() {
-			// Disallow caching workbufs.
-			gcBlackenPromptly = true
 
-			// Flush all currently cached workbufs. This
-			// also forces any remaining background
-			// workers out of their loop.
+		gcMarkRootCheck()
+
+		// Disallow caching workbufs and indicate that we're in mark 2.
+		gcBlackenPromptly = true
+
+		// Prevent completion of mark 2 until we've flushed
+		// cached workbufs.
+		xadd(&work.nwait, -1)
+
+		// Rescan global data and BSS. There may still work
+		// workers running at this point, so bump "jobs" down
+		// before "next" so they won't try running root jobs
+		// until we set next.
+		atomicstore(&work.markrootJobs, uint32(fixedRootCount+work.nDataRoots+work.nBSSRoots))
+		atomicstore(&work.markrootNext, fixedRootCount)
+
+		// GC is set up for mark 2. Let Gs blocked on the
+		// transition lock go while we flush caches.
+		semrelease(&work.markDoneSema)
+
+		systemstack(func() {
+			// Flush all currently cached workbufs and
+			// ensure all Ps see gcBlackenPromptly. This
+			// also blocks until any remaining mark 1
+			// workers have exited their loop so we can
+			// start new mark 2 workers that will observe
+			// the new root marking jobs.
 			forEachP(func(_p_ *p) {
 				_p_.gcw.dispose()
 			})
-
-			// Rescan global data and BSS. Bump "jobs"
-			// down before "next" so workers won't try
-			// running root jobs until we set "next".
-			//
-			// This also ensures there will be queued mark
-			// work, which ensures some mark worker will
-			// run and signal mark 2 completion.
-			atomicstore(&work.markrootJobs, uint32(fixedRootCount+work.nDataRoots+work.nBSSRoots))
-			atomicstore(&work.markrootNext, fixedRootCount)
 		})
 
-		// Wait for this more aggressive background mark to complete.
-		work.bgMark2.clear()
-		work.bgMark2.wait()
+		// Now we can start up mark 2 workers.
+		xaddint64(&gcController.dedicatedMarkWorkersNeeded, 0xffffffff)
+		xaddint64(&gcController.fractionalMarkWorkersNeeded, 0xffffffff)
 
-		// Begin mark termination.
+		incnwait := xadd(&work.nwait, +1)
+		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+			// This recursion is safe because the call
+			// can't take this same "if" branch.
+			gcMarkDone()
+		}
+	} else {
+		// Transition to mark termination.
 		now := nanotime()
 		work.tMarkTerm = now
 		work.pauseStart = now
@@ -1200,9 +1210,19 @@ func gc(mode gcMode) {
 		// start the world again.
 		gcWakeAllAssists()
 
-		gcController.endCycle()
-	}
+		// Likewise, release the transition lock. Blocked
+		// workers and assists will run when we start the
+		// world again.
+		semrelease(&work.markDoneSema)
 
+		gcController.endCycle()
+
+		// Perform mark termination. This will restart the world.
+		gcMarkTermination()
+	}
+}
+
+func gcMarkTermination() {
 	// World is stopped.
 	// Start marktermination which includes enabling the write barrier.
 	atomicstore(&gcBlackenEnabled, 0)
@@ -1411,13 +1431,13 @@ func gcBgMarkPrepare() {
 
 func gcBgMarkWorker(p *p) {
 	// Register this G as the background mark worker for p.
-	if p.gcBgMarkWorker != nil {
-		throw("P already has a background mark worker")
+	casgp := func(gpp **g, old, new *g) bool {
+		return casp((*unsafe.Pointer)(unsafe.Pointer(gpp)), unsafe.Pointer(old), unsafe.Pointer(new))
 	}
-	gp := getg()
 
+	gp := getg()
 	mp := acquirem()
-	p.gcBgMarkWorker = gp
+	owned := casgp(&p.gcBgMarkWorker, nil, gp)
 	// After this point, the background mark worker is scheduled
 	// cooperatively by gcController.findRunnable. Hence, it must
 	// never be preempted, as this would put it into _Grunnable
@@ -1425,6 +1445,13 @@ func gcBgMarkWorker(p *p) {
 	// is set, this puts itself into _Gwaiting to be woken up by
 	// gcController.findRunnable at the appropriate time.
 	notewakeup(&work.bgMarkReady)
+	if !owned {
+		// A sleeping worker came back and reassociated with
+		// the P. That's fine.
+		releasem(mp)
+		return
+	}
+
 	for {
 		// Go to sleep until woken by gcContoller.findRunnable.
 		// We can't releasem yet since even the call to gopark
@@ -1502,7 +1529,25 @@ func gcBgMarkWorker(p *p) {
 		// If this worker reached a background mark completion
 		// point, signal the main GC goroutine.
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+			// Make this G preemptible and disassociate it
+			// as the worker for this P so
+			// findRunnableGCWorker doesn't try to
+			// schedule it.
+			p.gcBgMarkWorker = nil
+			releasem(mp)
+
 			gcMarkDone()
+
+			// Disable preemption and reassociate with the P.
+			//
+			// We may be running on a different P at this
+			// point, so this has to be done carefully.
+			mp = acquirem()
+			if !casgp(&p.gcBgMarkWorker, nil, gp) {
+				// The P got a new worker.
+				releasem(mp)
+				break
+			}
 		}
 	}
 }
