@@ -615,7 +615,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			(*[2]uint64)(x)[1] = 0
 			// See if we need to replace the existing tiny block with the new one
 			// based on amount of remaining free space.
-			if size < c.tinyoffset {
+			if size < c.tinyoffset || c.tiny == nil {
 				c.tiny = x
 				c.tinyoffset = size
 			}
