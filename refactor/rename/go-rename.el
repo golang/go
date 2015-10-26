@@ -34,6 +34,7 @@
   :type 'string
   :group 'go-rename)
 
+;;;###autoload
 (defun go-rename (new-name &optional force)
   "Rename the entity denoted by the identifier at point, using
 the `gorename' tool. With FORCE, call `gorename' with the
