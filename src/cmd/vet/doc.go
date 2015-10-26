@@ -178,7 +178,7 @@ Other flags
 These flags configure the behavior of vet:
 
 	-all (default true)
-		Check everything; disabled if any explicit check is requested.
+		Enable all non-experimental checks.
 	-v
 		Verbose mode
 	-printfuncs
