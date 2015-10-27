@@ -150,7 +150,25 @@ func (s *Server) Close() {
 		s.Listener.Close()
 		s.Config.SetKeepAlivesEnabled(false)
 		for c, st := range s.conns {
-			if st == http.StateIdle {
+			// Force-close any idle connections (those between
+			// requests) and new connections (those which connected
+			// but never sent a request). StateNew connections are
+			// super rare and have only been seen (in
+			// previously-flaky tests) in the case of
+			// socket-late-binding races from the http Client
+			// dialing this server and then getting an idle
+			// connection before the dial completed.  There is thus
+			// a connected connection in StateNew with no
+			// associated Request. We only close StateIdle and
+			// StateNew because they're not doing anything. It's
+			// possible StateNew is about to do something in a few
+			// milliseconds, but a previous CL to check again in a
+			// few milliseconds wasn't liked (early versions of
+			// https://golang.org/cl/15151) so now we just
+			// forcefully close StateNew. The docs for Server.Close say
+			// we wait for "oustanding requests", so we don't close things
+			// in StateActive.
+			if st == http.StateIdle || st == http.StateNew {
 				s.closeConn(c)
 			}
 		}
