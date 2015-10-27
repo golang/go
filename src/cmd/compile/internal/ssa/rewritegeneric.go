@@ -6,1716 +6,2058 @@ import "math"
 
 var _ = math.MinInt8 // in case not otherwise used
 func rewriteValuegeneric(v *Value, config *Config) bool {
-	b := v.Block
 	switch v.Op {
 	case OpAdd64:
-		// match: (Add64 (Const64 [c]) (Const64 [d]))
-		// cond:
-		// result: (Const64 [c+d])
-		{
-			if v.Args[0].Op != OpConst64 {
-				goto end8c46df6f85a11cb1d594076b0e467908
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConst64 {
-				goto end8c46df6f85a11cb1d594076b0e467908
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConst64
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = c + d
-			return true
-		}
-		goto end8c46df6f85a11cb1d594076b0e467908
-	end8c46df6f85a11cb1d594076b0e467908:
-		;
+		return rewriteValuegeneric_OpAdd64(v, config)
 	case OpAddPtr:
-		// match: (AddPtr (ConstPtr [c]) (ConstPtr [d]))
-		// cond:
-		// result: (ConstPtr [c+d])
-		{
-			if v.Args[0].Op != OpConstPtr {
-				goto end145c1aec793b2befff34bc8983b48a38
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConstPtr {
-				goto end145c1aec793b2befff34bc8983b48a38
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConstPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = c + d
-			return true
-		}
-		goto end145c1aec793b2befff34bc8983b48a38
-	end145c1aec793b2befff34bc8983b48a38:
-		;
+		return rewriteValuegeneric_OpAddPtr(v, config)
 	case OpAnd16:
-		// match: (And16 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end69ed6ee2a4fb0491b56c17f3c1926b10
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end69ed6ee2a4fb0491b56c17f3c1926b10
-	end69ed6ee2a4fb0491b56c17f3c1926b10:
-		;
+		return rewriteValuegeneric_OpAnd16(v, config)
 	case OpAnd32:
-		// match: (And32 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto endbbe8c3c5b2ca8f013aa178d856f3a99c
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto endbbe8c3c5b2ca8f013aa178d856f3a99c
-	endbbe8c3c5b2ca8f013aa178d856f3a99c:
-		;
+		return rewriteValuegeneric_OpAnd32(v, config)
 	case OpAnd64:
-		// match: (And64 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto endc9736bf24d2e5cd8d662e1bcf3164640
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto endc9736bf24d2e5cd8d662e1bcf3164640
-	endc9736bf24d2e5cd8d662e1bcf3164640:
-		;
+		return rewriteValuegeneric_OpAnd64(v, config)
 	case OpAnd8:
-		// match: (And8 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto endeaf127389bd0d4b0e0e297830f8f463b
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto endeaf127389bd0d4b0e0e297830f8f463b
-	endeaf127389bd0d4b0e0e297830f8f463b:
-		;
+		return rewriteValuegeneric_OpAnd8(v, config)
 	case OpArrayIndex:
-		// match: (ArrayIndex (Load ptr mem) idx)
-		// cond: b == v.Args[0].Block
-		// result: (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
-		{
-			if v.Args[0].Op != OpLoad {
-				goto end68b373270d9d605c420497edefaa71df
-			}
-			ptr := v.Args[0].Args[0]
-			mem := v.Args[0].Args[1]
-			idx := v.Args[1]
-			if !(b == v.Args[0].Block) {
-				goto end68b373270d9d605c420497edefaa71df
-			}
-			v.Op = OpLoad
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpPtrIndex, TypeInvalid)
-			v0.Type = v.Type.PtrTo()
-			v0.AddArg(ptr)
-			v0.AddArg(idx)
-			v.AddArg(v0)
-			v.AddArg(mem)
-			return true
-		}
-		goto end68b373270d9d605c420497edefaa71df
-	end68b373270d9d605c420497edefaa71df:
-		;
+		return rewriteValuegeneric_OpArrayIndex(v, config)
 	case OpCom16:
-		// match: (Com16 (Com16 x))
-		// cond:
-		// result: x
-		{
-			if v.Args[0].Op != OpCom16 {
-				goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
-			}
-			x := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
-	end1ea17710dd4dd7ba4e710e0e4c7b5a56:
-		;
+		return rewriteValuegeneric_OpCom16(v, config)
 	case OpCom32:
-		// match: (Com32 (Com32 x))
-		// cond:
-		// result: x
-		{
-			if v.Args[0].Op != OpCom32 {
-				goto end9a04ed536496e292c27bef4414128cbf
-			}
-			x := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end9a04ed536496e292c27bef4414128cbf
-	end9a04ed536496e292c27bef4414128cbf:
-		;
+		return rewriteValuegeneric_OpCom32(v, config)
 	case OpCom64:
-		// match: (Com64 (Com64 x))
-		// cond:
-		// result: x
-		{
-			if v.Args[0].Op != OpCom64 {
-				goto ended44e29d5968f0f7b86972b7bf417ab3
-			}
-			x := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto ended44e29d5968f0f7b86972b7bf417ab3
-	ended44e29d5968f0f7b86972b7bf417ab3:
-		;
+		return rewriteValuegeneric_OpCom64(v, config)
 	case OpCom8:
-		// match: (Com8 (Com8 x))
-		// cond:
-		// result: x
-		{
-			if v.Args[0].Op != OpCom8 {
-				goto end4d92ff3ba567d9afd38fc9ca113602ad
-			}
-			x := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end4d92ff3ba567d9afd38fc9ca113602ad
-	end4d92ff3ba567d9afd38fc9ca113602ad:
-		;
+		return rewriteValuegeneric_OpCom8(v, config)
 	case OpComplexImag:
-		// match: (ComplexImag (ComplexMake _ imag ))
-		// cond:
-		// result: imag
-		{
-			if v.Args[0].Op != OpComplexMake {
-				goto endec3009fd8727d03002021997936e091f
-			}
-			imag := v.Args[0].Args[1]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = imag.Type
-			v.AddArg(imag)
-			return true
-		}
-		goto endec3009fd8727d03002021997936e091f
-	endec3009fd8727d03002021997936e091f:
-		;
+		return rewriteValuegeneric_OpComplexImag(v, config)
 	case OpComplexReal:
-		// match: (ComplexReal (ComplexMake real _  ))
-		// cond:
-		// result: real
-		{
-			if v.Args[0].Op != OpComplexMake {
-				goto end8db3e16bd59af1adaa4b734c8adcc71d
-			}
-			real := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = real.Type
-			v.AddArg(real)
-			return true
-		}
-		goto end8db3e16bd59af1adaa4b734c8adcc71d
-	end8db3e16bd59af1adaa4b734c8adcc71d:
-		;
+		return rewriteValuegeneric_OpComplexReal(v, config)
 	case OpConstInterface:
-		// match: (ConstInterface)
-		// cond:
-		// result: (IMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstNil <config.fe.TypeBytePtr()>))
-		{
-			v.Op = OpIMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr()
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-			v1.Type = config.fe.TypeBytePtr()
-			v.AddArg(v1)
-			return true
-		}
-		goto end0367bd8f20a320cc41568f2b28657f6b
-	end0367bd8f20a320cc41568f2b28657f6b:
-		;
+		return rewriteValuegeneric_OpConstInterface(v, config)
 	case OpConstSlice:
-		// match: (ConstSlice)
-		// cond:
-		// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstPtr [0])     (ConstPtr [0]))
-		{
-			v.Op = OpSliceMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr()
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.AuxInt = 0
-			v1.Type = config.fe.TypeUintptr()
-			v.AddArg(v1)
-			v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v2.AuxInt = 0
-			v2.Type = config.fe.TypeUintptr()
-			v.AddArg(v2)
-			return true
-		}
-		goto endc587abac76a5fd9b1284ba891a178e63
-	endc587abac76a5fd9b1284ba891a178e63:
-		;
+		return rewriteValuegeneric_OpConstSlice(v, config)
 	case OpConstString:
-		// match: (ConstString {s})
-		// cond:
-		// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (ConstPtr [int64(len(s.(string)))]))
-		{
-			s := v.Aux
-			v.Op = OpStringMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpAddr, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr()
-			v0.Aux = config.fe.StringData(s.(string))
-			v1 := b.NewValue0(v.Line, OpSB, TypeInvalid)
-			v1.Type = config.fe.TypeUintptr()
-			v0.AddArg(v1)
-			v.AddArg(v0)
-			v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v2.AuxInt = int64(len(s.(string)))
-			v2.Type = config.fe.TypeUintptr()
-			v.AddArg(v2)
-			return true
-		}
-		goto end2eb756398dd4c6b6d126012a26284c89
-	end2eb756398dd4c6b6d126012a26284c89:
-		;
+		return rewriteValuegeneric_OpConstString(v, config)
 	case OpConvert:
-		// match: (Convert (Add64 (Convert ptr) off))
-		// cond:
-		// result: (Add64 ptr off)
-		{
-			if v.Args[0].Op != OpAdd64 {
-				goto end913a7ecf456c00ffbee36c2dbbf0e1af
-			}
-			if v.Args[0].Args[0].Op != OpConvert {
-				goto end913a7ecf456c00ffbee36c2dbbf0e1af
-			}
-			ptr := v.Args[0].Args[0].Args[0]
-			off := v.Args[0].Args[1]
-			v.Op = OpAdd64
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(ptr)
-			v.AddArg(off)
-			return true
-		}
-		goto end913a7ecf456c00ffbee36c2dbbf0e1af
-	end913a7ecf456c00ffbee36c2dbbf0e1af:
-		;
+		return rewriteValuegeneric_OpConvert(v, config)
 	case OpEq16:
-		// match: (Eq16 x x)
-		// cond:
-		// result: (ConstBool [1])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end0c0fe5fdfba3821add3448fd3f1fc6b7
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 1
-			return true
-		}
-		goto end0c0fe5fdfba3821add3448fd3f1fc6b7
-	end0c0fe5fdfba3821add3448fd3f1fc6b7:
-		;
+		return rewriteValuegeneric_OpEq16(v, config)
 	case OpEq32:
-		// match: (Eq32 x x)
-		// cond:
-		// result: (ConstBool [1])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end6da547ec4ee93d787434f3bda873e4a0
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 1
-			return true
-		}
-		goto end6da547ec4ee93d787434f3bda873e4a0
-	end6da547ec4ee93d787434f3bda873e4a0:
-		;
+		return rewriteValuegeneric_OpEq32(v, config)
 	case OpEq64:
-		// match: (Eq64 x x)
-		// cond:
-		// result: (ConstBool [1])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto endb1d471cc503ba8bb05440f01dbf33d81
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 1
-			return true
-		}
-		goto endb1d471cc503ba8bb05440f01dbf33d81
-	endb1d471cc503ba8bb05440f01dbf33d81:
-		;
+		return rewriteValuegeneric_OpEq64(v, config)
 	case OpEq8:
-		// match: (Eq8 x x)
-		// cond:
-		// result: (ConstBool [1])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto enda66da0d3e7e51624ee46527727c48a9a
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 1
-			return true
-		}
-		goto enda66da0d3e7e51624ee46527727c48a9a
-	enda66da0d3e7e51624ee46527727c48a9a:
-		;
+		return rewriteValuegeneric_OpEq8(v, config)
 	case OpEqInter:
-		// match: (EqInter x y)
-		// cond:
-		// result: (EqPtr  (ITab x) (ITab y))
-		{
-			x := v.Args[0]
-			y := v.Args[1]
-			v.Op = OpEqPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
-			v0.AddArg(x)
-			v0.Type = config.fe.TypeUintptr()
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
-			v1.AddArg(y)
-			v1.Type = config.fe.TypeUintptr()
-			v.AddArg(v1)
-			return true
-		}
-		goto end1cc40483caab33ece971ab7e6c8fdfca
-	end1cc40483caab33ece971ab7e6c8fdfca:
-		;
+		return rewriteValuegeneric_OpEqInter(v, config)
 	case OpEqPtr:
-		// match: (EqPtr p (ConstNil))
-		// cond:
-		// result: (Not (IsNonNil p))
-		{
-			p := v.Args[0]
-			if v.Args[1].Op != OpConstNil {
-				goto ende701cdb6a2c1fff4d4b283b7f8f6178b
-			}
-			v.Op = OpNot
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
-			v0.AddArg(p)
-			v0.Type = config.fe.TypeBool()
-			v.AddArg(v0)
-			return true
-		}
-		goto ende701cdb6a2c1fff4d4b283b7f8f6178b
-	ende701cdb6a2c1fff4d4b283b7f8f6178b:
-		;
-		// match: (EqPtr (ConstNil) p)
-		// cond:
-		// result: (Not (IsNonNil p))
-		{
-			if v.Args[0].Op != OpConstNil {
-				goto end7cdc0d5c38fbffe6287c8928803b038e
-			}
-			p := v.Args[1]
-			v.Op = OpNot
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
-			v0.AddArg(p)
-			v0.Type = config.fe.TypeBool()
-			v.AddArg(v0)
-			return true
-		}
-		goto end7cdc0d5c38fbffe6287c8928803b038e
-	end7cdc0d5c38fbffe6287c8928803b038e:
-		;
+		return rewriteValuegeneric_OpEqPtr(v, config)
 	case OpEqSlice:
-		// match: (EqSlice x y)
-		// cond:
-		// result: (EqPtr  (SlicePtr x) (SlicePtr y))
-		{
-			x := v.Args[0]
-			y := v.Args[1]
-			v.Op = OpEqPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
-			v0.AddArg(x)
-			v0.Type = config.fe.TypeUintptr()
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
-			v1.AddArg(y)
-			v1.Type = config.fe.TypeUintptr()
-			v.AddArg(v1)
-			return true
-		}
-		goto end9cd53ca57ee90aa09c54f8071c8e8769
-	end9cd53ca57ee90aa09c54f8071c8e8769:
-		;
+		return rewriteValuegeneric_OpEqSlice(v, config)
 	case OpIData:
-		// match: (IData (IMake _ data))
-		// cond:
-		// result: data
-		{
-			if v.Args[0].Op != OpIMake {
-				goto endbfa1bb944cdc07933effb16a35152e12
-			}
-			data := v.Args[0].Args[1]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = data.Type
-			v.AddArg(data)
-			return true
-		}
-		goto endbfa1bb944cdc07933effb16a35152e12
-	endbfa1bb944cdc07933effb16a35152e12:
-		;
+		return rewriteValuegeneric_OpIData(v, config)
 	case OpITab:
-		// match: (ITab (IMake itab _))
-		// cond:
-		// result: itab
-		{
-			if v.Args[0].Op != OpIMake {
-				goto endfcbb9414a776ff9c8512da3e0f4d8fbd
-			}
-			itab := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = itab.Type
-			v.AddArg(itab)
-			return true
-		}
-		goto endfcbb9414a776ff9c8512da3e0f4d8fbd
-	endfcbb9414a776ff9c8512da3e0f4d8fbd:
-		;
+		return rewriteValuegeneric_OpITab(v, config)
 	case OpIsInBounds:
-		// match: (IsInBounds (Const32 [c]) (Const32 [d]))
-		// cond:
-		// result: (ConstBool [b2i(inBounds32(c,d))])
-		{
-			if v.Args[0].Op != OpConst32 {
-				goto endf0a2ecfe84b293de6ff0919e45d19d9d
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConst32 {
-				goto endf0a2ecfe84b293de6ff0919e45d19d9d
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = b2i(inBounds32(c, d))
-			return true
-		}
-		goto endf0a2ecfe84b293de6ff0919e45d19d9d
-	endf0a2ecfe84b293de6ff0919e45d19d9d:
-		;
-		// match: (IsInBounds (Const64 [c]) (Const64 [d]))
-		// cond:
-		// result: (ConstBool [b2i(inBounds64(c,d))])
-		{
-			if v.Args[0].Op != OpConst64 {
-				goto end4b406f402c135f50f71effcc904ecb2b
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConst64 {
-				goto end4b406f402c135f50f71effcc904ecb2b
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = b2i(inBounds64(c, d))
-			return true
-		}
-		goto end4b406f402c135f50f71effcc904ecb2b
-	end4b406f402c135f50f71effcc904ecb2b:
-		;
-		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
-		// cond: config.PtrSize == 4
-		// result: (ConstBool [b2i(inBounds32(c,d))])
-		{
-			if v.Args[0].Op != OpConstPtr {
-				goto end4323278ec7a053034fcf7033697d7b3b
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConstPtr {
-				goto end4323278ec7a053034fcf7033697d7b3b
-			}
-			d := v.Args[1].AuxInt
-			if !(config.PtrSize == 4) {
-				goto end4323278ec7a053034fcf7033697d7b3b
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = b2i(inBounds32(c, d))
-			return true
-		}
-		goto end4323278ec7a053034fcf7033697d7b3b
-	end4323278ec7a053034fcf7033697d7b3b:
-		;
-		// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
-		// cond: config.PtrSize == 8
-		// result: (ConstBool [b2i(inBounds64(c,d))])
-		{
-			if v.Args[0].Op != OpConstPtr {
-				goto endb550b8814df20b5eeda4f43cc94e902b
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConstPtr {
-				goto endb550b8814df20b5eeda4f43cc94e902b
-			}
-			d := v.Args[1].AuxInt
-			if !(config.PtrSize == 8) {
-				goto endb550b8814df20b5eeda4f43cc94e902b
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = b2i(inBounds64(c, d))
-			return true
-		}
-		goto endb550b8814df20b5eeda4f43cc94e902b
-	endb550b8814df20b5eeda4f43cc94e902b:
-		;
+		return rewriteValuegeneric_OpIsInBounds(v, config)
 	case OpLoad:
-		// match: (Load <t> ptr mem)
-		// cond: t.IsComplex() && t.Size() == 8
-		// result: (ComplexMake     (Load <config.fe.TypeFloat32()> ptr mem)     (Load <config.fe.TypeFloat32()>       (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)       mem)     )
-		{
-			t := v.Type
-			ptr := v.Args[0]
-			mem := v.Args[1]
-			if !(t.IsComplex() && t.Size() == 8) {
-				goto end665854b31b828893d90b36bb462ff381
-			}
-			v.Op = OpComplexMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v0.Type = config.fe.TypeFloat32()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v1.Type = config.fe.TypeFloat32()
-			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v2.Type = config.fe.TypeFloat32().PtrTo()
-			v2.AuxInt = 4
-			v2.AddArg(ptr)
-			v1.AddArg(v2)
-			v1.AddArg(mem)
-			v.AddArg(v1)
-			return true
-		}
-		goto end665854b31b828893d90b36bb462ff381
-	end665854b31b828893d90b36bb462ff381:
-		;
-		// match: (Load <t> ptr mem)
-		// cond: t.IsComplex() && t.Size() == 16
-		// result: (ComplexMake     (Load <config.fe.TypeFloat64()> ptr mem)     (Load <config.fe.TypeFloat64()>       (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)       mem)     )
-		{
-			t := v.Type
-			ptr := v.Args[0]
-			mem := v.Args[1]
-			if !(t.IsComplex() && t.Size() == 16) {
-				goto end1b106f89e0e3e26c613b957a7c98d8ad
-			}
-			v.Op = OpComplexMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v0.Type = config.fe.TypeFloat64()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v1.Type = config.fe.TypeFloat64()
-			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v2.Type = config.fe.TypeFloat64().PtrTo()
-			v2.AuxInt = 8
-			v2.AddArg(ptr)
-			v1.AddArg(v2)
-			v1.AddArg(mem)
-			v.AddArg(v1)
-			return true
-		}
-		goto end1b106f89e0e3e26c613b957a7c98d8ad
-	end1b106f89e0e3e26c613b957a7c98d8ad:
-		;
-		// match: (Load <t> ptr mem)
-		// cond: t.IsString()
-		// result: (StringMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem))
-		{
-			t := v.Type
-			ptr := v.Args[0]
-			mem := v.Args[1]
-			if !(t.IsString()) {
-				goto end7c75255555bf9dd796298d9f6eaf9cf2
-			}
-			v.Op = OpStringMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v1.Type = config.fe.TypeUintptr()
-			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v2.Type = config.fe.TypeUintptr().PtrTo()
-			v2.AuxInt = config.PtrSize
-			v2.AddArg(ptr)
-			v1.AddArg(v2)
-			v1.AddArg(mem)
-			v.AddArg(v1)
-			return true
-		}
-		goto end7c75255555bf9dd796298d9f6eaf9cf2
-	end7c75255555bf9dd796298d9f6eaf9cf2:
-		;
-		// match: (Load <t> ptr mem)
-		// cond: t.IsSlice()
-		// result: (SliceMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] ptr)       mem))
-		{
-			t := v.Type
-			ptr := v.Args[0]
-			mem := v.Args[1]
-			if !(t.IsSlice()) {
-				goto end12c46556d962198680eb3238859e3016
-			}
-			v.Op = OpSliceMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v1.Type = config.fe.TypeUintptr()
-			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v2.Type = config.fe.TypeUintptr().PtrTo()
-			v2.AuxInt = config.PtrSize
-			v2.AddArg(ptr)
-			v1.AddArg(v2)
-			v1.AddArg(mem)
-			v.AddArg(v1)
-			v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v3.Type = config.fe.TypeUintptr()
-			v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v4.Type = config.fe.TypeUintptr().PtrTo()
-			v4.AuxInt = 2 * config.PtrSize
-			v4.AddArg(ptr)
-			v3.AddArg(v4)
-			v3.AddArg(mem)
-			v.AddArg(v3)
-			return true
-		}
-		goto end12c46556d962198680eb3238859e3016
-	end12c46556d962198680eb3238859e3016:
-		;
-		// match: (Load <t> ptr mem)
-		// cond: t.IsInterface()
-		// result: (IMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeBytePtr()>       (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)       mem))
-		{
-			t := v.Type
-			ptr := v.Args[0]
-			mem := v.Args[1]
-			if !(t.IsInterface()) {
-				goto end12671c83ebe3ccbc8e53383765ee7675
-			}
-			v.Op = OpIMake
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr()
-			v0.AddArg(ptr)
-			v0.AddArg(mem)
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v1.Type = config.fe.TypeBytePtr()
-			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v2.Type = config.fe.TypeBytePtr().PtrTo()
-			v2.AuxInt = config.PtrSize
-			v2.AddArg(ptr)
-			v1.AddArg(v2)
-			v1.AddArg(mem)
-			v.AddArg(v1)
-			return true
-		}
-		goto end12671c83ebe3ccbc8e53383765ee7675
-	end12671c83ebe3ccbc8e53383765ee7675:
-		;
+		return rewriteValuegeneric_OpLoad(v, config)
 	case OpMul64:
-		// match: (Mul64 (Const64 [c]) (Const64 [d]))
-		// cond:
-		// result: (Const64 [c*d])
-		{
-			if v.Args[0].Op != OpConst64 {
-				goto end7aea1048b5d1230974b97f17238380ae
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConst64 {
-				goto end7aea1048b5d1230974b97f17238380ae
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConst64
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = c * d
-			return true
-		}
-		goto end7aea1048b5d1230974b97f17238380ae
-	end7aea1048b5d1230974b97f17238380ae:
-		;
+		return rewriteValuegeneric_OpMul64(v, config)
 	case OpMulPtr:
-		// match: (MulPtr (ConstPtr [c]) (ConstPtr [d]))
-		// cond:
-		// result: (ConstPtr [c*d])
-		{
-			if v.Args[0].Op != OpConstPtr {
-				goto end808c190f346658bb1ad032bf37a1059f
-			}
-			c := v.Args[0].AuxInt
-			if v.Args[1].Op != OpConstPtr {
-				goto end808c190f346658bb1ad032bf37a1059f
-			}
-			d := v.Args[1].AuxInt
-			v.Op = OpConstPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = c * d
-			return true
-		}
-		goto end808c190f346658bb1ad032bf37a1059f
-	end808c190f346658bb1ad032bf37a1059f:
-		;
+		return rewriteValuegeneric_OpMulPtr(v, config)
 	case OpNeq16:
-		// match: (Neq16 x x)
-		// cond:
-		// result: (ConstBool [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto ende76a50b524aeb16c7aeccf5f5cc60c06
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto ende76a50b524aeb16c7aeccf5f5cc60c06
-	ende76a50b524aeb16c7aeccf5f5cc60c06:
-		;
+		return rewriteValuegeneric_OpNeq16(v, config)
 	case OpNeq32:
-		// match: (Neq32 x x)
-		// cond:
-		// result: (ConstBool [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end3713a608cffd29b40ff7c3b3f2585cbb
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end3713a608cffd29b40ff7c3b3f2585cbb
-	end3713a608cffd29b40ff7c3b3f2585cbb:
-		;
+		return rewriteValuegeneric_OpNeq32(v, config)
 	case OpNeq64:
-		// match: (Neq64 x x)
-		// cond:
-		// result: (ConstBool [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end3601ad382705ea12b79d2008c1e5725c
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end3601ad382705ea12b79d2008c1e5725c
-	end3601ad382705ea12b79d2008c1e5725c:
-		;
+		return rewriteValuegeneric_OpNeq64(v, config)
 	case OpNeq8:
-		// match: (Neq8 x x)
-		// cond:
-		// result: (ConstBool [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end09a0deaf3c42627d0d2d3efa96e30745
-			}
-			v.Op = OpConstBool
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end09a0deaf3c42627d0d2d3efa96e30745
-	end09a0deaf3c42627d0d2d3efa96e30745:
-		;
+		return rewriteValuegeneric_OpNeq8(v, config)
 	case OpNeqInter:
-		// match: (NeqInter x y)
-		// cond:
-		// result: (NeqPtr (ITab x) (ITab y))
-		{
-			x := v.Args[0]
-			y := v.Args[1]
-			v.Op = OpNeqPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
-			v0.AddArg(x)
-			v0.Type = config.fe.TypeUintptr()
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
-			v1.AddArg(y)
-			v1.Type = config.fe.TypeUintptr()
-			v.AddArg(v1)
-			return true
-		}
-		goto end17b2333bf57e9fe81a671be02f9c4c14
-	end17b2333bf57e9fe81a671be02f9c4c14:
-		;
+		return rewriteValuegeneric_OpNeqInter(v, config)
 	case OpNeqPtr:
-		// match: (NeqPtr p (ConstNil))
-		// cond:
-		// result: (IsNonNil p)
-		{
-			p := v.Args[0]
-			if v.Args[1].Op != OpConstNil {
-				goto endba798520b4d41172b110347158c44791
-			}
-			v.Op = OpIsNonNil
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(p)
-			return true
-		}
-		goto endba798520b4d41172b110347158c44791
-	endba798520b4d41172b110347158c44791:
-		;
-		// match: (NeqPtr (ConstNil) p)
-		// cond:
-		// result: (IsNonNil p)
-		{
-			if v.Args[0].Op != OpConstNil {
-				goto enddd95e9c3606d9fd48034f1a703561e45
-			}
-			p := v.Args[1]
-			v.Op = OpIsNonNil
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(p)
-			return true
-		}
-		goto enddd95e9c3606d9fd48034f1a703561e45
-	enddd95e9c3606d9fd48034f1a703561e45:
-		;
+		return rewriteValuegeneric_OpNeqPtr(v, config)
 	case OpNeqSlice:
-		// match: (NeqSlice x y)
-		// cond:
-		// result: (NeqPtr (SlicePtr x) (SlicePtr y))
-		{
-			x := v.Args[0]
-			y := v.Args[1]
-			v.Op = OpNeqPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
-			v0.AddArg(x)
-			v0.Type = config.fe.TypeUintptr()
-			v.AddArg(v0)
-			v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
-			v1.AddArg(y)
-			v1.Type = config.fe.TypeUintptr()
-			v.AddArg(v1)
-			return true
-		}
-		goto endc6bc83c506e491236ca66ea1081231a2
-	endc6bc83c506e491236ca66ea1081231a2:
-		;
+		return rewriteValuegeneric_OpNeqSlice(v, config)
 	case OpOr16:
-		// match: (Or16 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end47a2f25fd31a76807aced3e2b126acdc
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end47a2f25fd31a76807aced3e2b126acdc
-	end47a2f25fd31a76807aced3e2b126acdc:
-		;
+		return rewriteValuegeneric_OpOr16(v, config)
 	case OpOr32:
-		// match: (Or32 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end231e283e568e90bd9a3e6a4fa328c8a4
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end231e283e568e90bd9a3e6a4fa328c8a4
-	end231e283e568e90bd9a3e6a4fa328c8a4:
-		;
+		return rewriteValuegeneric_OpOr32(v, config)
 	case OpOr64:
-		// match: (Or64 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end6b0efc212016dc97d0e3939db04c81d9
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end6b0efc212016dc97d0e3939db04c81d9
-	end6b0efc212016dc97d0e3939db04c81d9:
-		;
+		return rewriteValuegeneric_OpOr64(v, config)
 	case OpOr8:
-		// match: (Or8 x x)
-		// cond:
-		// result: x
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end05295dbfafd6869af79b4daee9fda000
-			}
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = x.Type
-			v.AddArg(x)
-			return true
-		}
-		goto end05295dbfafd6869af79b4daee9fda000
-	end05295dbfafd6869af79b4daee9fda000:
-		;
+		return rewriteValuegeneric_OpOr8(v, config)
 	case OpPtrIndex:
-		// match: (PtrIndex <t> ptr idx)
-		// cond:
-		// result: (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
-		{
-			t := v.Type
-			ptr := v.Args[0]
-			idx := v.Args[1]
-			v.Op = OpAddPtr
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(ptr)
-			v0 := b.NewValue0(v.Line, OpMulPtr, TypeInvalid)
-			v0.AddArg(idx)
-			v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
-			v1.AuxInt = t.Elem().Size()
-			v1.Type = config.fe.TypeUintptr()
-			v0.AddArg(v1)
-			v0.Type = config.fe.TypeUintptr()
-			v.AddArg(v0)
-			return true
-		}
-		goto end502555083d57a877982955070cda7530
-	end502555083d57a877982955070cda7530:
-		;
+		return rewriteValuegeneric_OpPtrIndex(v, config)
 	case OpSliceCap:
-		// match: (SliceCap (SliceMake _ _ cap))
-		// cond:
-		// result: cap
-		{
-			if v.Args[0].Op != OpSliceMake {
-				goto end1bd11616743632b33b410964667fb3c6
-			}
-			cap := v.Args[0].Args[2]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = cap.Type
-			v.AddArg(cap)
-			return true
-		}
-		goto end1bd11616743632b33b410964667fb3c6
-	end1bd11616743632b33b410964667fb3c6:
-		;
+		return rewriteValuegeneric_OpSliceCap(v, config)
 	case OpSliceLen:
-		// match: (SliceLen (SliceMake _ len _))
-		// cond:
-		// result: len
-		{
-			if v.Args[0].Op != OpSliceMake {
-				goto endebb2090199d13e4c2ae52fb3e778f7fd
-			}
-			len := v.Args[0].Args[1]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = len.Type
-			v.AddArg(len)
-			return true
-		}
-		goto endebb2090199d13e4c2ae52fb3e778f7fd
-	endebb2090199d13e4c2ae52fb3e778f7fd:
-		;
+		return rewriteValuegeneric_OpSliceLen(v, config)
 	case OpSlicePtr:
-		// match: (SlicePtr (SliceMake ptr _ _ ))
-		// cond:
-		// result: ptr
-		{
-			if v.Args[0].Op != OpSliceMake {
-				goto end526acc0a705137a5d25577499206720b
-			}
-			ptr := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = ptr.Type
-			v.AddArg(ptr)
-			return true
-		}
-		goto end526acc0a705137a5d25577499206720b
-	end526acc0a705137a5d25577499206720b:
-		;
+		return rewriteValuegeneric_OpSlicePtr(v, config)
 	case OpStore:
-		// match: (Store [8] dst (ComplexMake real imag) mem)
-		// cond:
-		// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store [4] dst real mem))
-		{
-			if v.AuxInt != 8 {
-				goto endced898cb0a165662afe48ea44ad3318a
-			}
-			dst := v.Args[0]
-			if v.Args[1].Op != OpComplexMake {
-				goto endced898cb0a165662afe48ea44ad3318a
-			}
-			real := v.Args[1].Args[0]
-			imag := v.Args[1].Args[1]
-			mem := v.Args[2]
-			v.Op = OpStore
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 4
-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = config.fe.TypeFloat32().PtrTo()
-			v0.AuxInt = 4
-			v0.AddArg(dst)
-			v.AddArg(v0)
-			v.AddArg(imag)
-			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.AuxInt = 4
-			v1.AddArg(dst)
-			v1.AddArg(real)
-			v1.AddArg(mem)
-			v1.Type = TypeMem
-			v.AddArg(v1)
-			return true
-		}
-		goto endced898cb0a165662afe48ea44ad3318a
-	endced898cb0a165662afe48ea44ad3318a:
-		;
-		// match: (Store [16] dst (ComplexMake real imag) mem)
-		// cond:
-		// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store [8] dst real mem))
-		{
-			if v.AuxInt != 16 {
-				goto end3851a482d7bd37a93c4d81581e85b3ab
-			}
-			dst := v.Args[0]
-			if v.Args[1].Op != OpComplexMake {
-				goto end3851a482d7bd37a93c4d81581e85b3ab
-			}
-			real := v.Args[1].Args[0]
-			imag := v.Args[1].Args[1]
-			mem := v.Args[2]
-			v.Op = OpStore
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 8
-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = config.fe.TypeFloat64().PtrTo()
-			v0.AuxInt = 8
-			v0.AddArg(dst)
-			v.AddArg(v0)
-			v.AddArg(imag)
-			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.AuxInt = 8
-			v1.AddArg(dst)
-			v1.AddArg(real)
-			v1.AddArg(mem)
-			v1.Type = TypeMem
-			v.AddArg(v1)
-			return true
-		}
-		goto end3851a482d7bd37a93c4d81581e85b3ab
-	end3851a482d7bd37a93c4d81581e85b3ab:
-		;
-		// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
-		// cond:
-		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] dst ptr mem))
-		{
-			if v.AuxInt != 2*config.PtrSize {
-				goto end12abe4021d24e76ed56d64b18730bffb
-			}
-			dst := v.Args[0]
-			if v.Args[1].Op != OpStringMake {
-				goto end12abe4021d24e76ed56d64b18730bffb
-			}
-			ptr := v.Args[1].Args[0]
-			len := v.Args[1].Args[1]
-			mem := v.Args[2]
-			v.Op = OpStore
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = config.PtrSize
-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = config.fe.TypeUintptr().PtrTo()
-			v0.AuxInt = config.PtrSize
-			v0.AddArg(dst)
-			v.AddArg(v0)
-			v.AddArg(len)
-			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.AuxInt = config.PtrSize
-			v1.AddArg(dst)
-			v1.AddArg(ptr)
-			v1.AddArg(mem)
-			v1.Type = TypeMem
-			v.AddArg(v1)
-			return true
-		}
-		goto end12abe4021d24e76ed56d64b18730bffb
-	end12abe4021d24e76ed56d64b18730bffb:
-		;
-		// match: (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem)
-		// cond:
-		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize]       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] dst ptr mem)))
-		{
-			if v.AuxInt != 3*config.PtrSize {
-				goto end7498d25e17db5398cf073a8590e35cc2
-			}
-			dst := v.Args[0]
-			if v.Args[1].Op != OpSliceMake {
-				goto end7498d25e17db5398cf073a8590e35cc2
-			}
-			ptr := v.Args[1].Args[0]
-			len := v.Args[1].Args[1]
-			cap := v.Args[1].Args[2]
-			mem := v.Args[2]
-			v.Op = OpStore
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = config.PtrSize
-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = config.fe.TypeUintptr().PtrTo()
-			v0.AuxInt = 2 * config.PtrSize
-			v0.AddArg(dst)
-			v.AddArg(v0)
-			v.AddArg(cap)
-			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.AuxInt = config.PtrSize
-			v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v2.Type = config.fe.TypeUintptr().PtrTo()
-			v2.AuxInt = config.PtrSize
-			v2.AddArg(dst)
-			v1.AddArg(v2)
-			v1.AddArg(len)
-			v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v3.AuxInt = config.PtrSize
-			v3.AddArg(dst)
-			v3.AddArg(ptr)
-			v3.AddArg(mem)
-			v3.Type = TypeMem
-			v1.AddArg(v3)
-			v1.Type = TypeMem
-			v.AddArg(v1)
-			return true
-		}
-		goto end7498d25e17db5398cf073a8590e35cc2
-	end7498d25e17db5398cf073a8590e35cc2:
-		;
-		// match: (Store [2*config.PtrSize] dst (IMake itab data) mem)
-		// cond:
-		// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)     data     (Store [config.PtrSize] dst itab mem))
-		{
-			if v.AuxInt != 2*config.PtrSize {
-				goto endaa801a871178ae3256b3f6f5d9f13514
-			}
-			dst := v.Args[0]
-			if v.Args[1].Op != OpIMake {
-				goto endaa801a871178ae3256b3f6f5d9f13514
-			}
-			itab := v.Args[1].Args[0]
-			data := v.Args[1].Args[1]
-			mem := v.Args[2]
-			v.Op = OpStore
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = config.PtrSize
-			v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v0.Type = config.fe.TypeBytePtr().PtrTo()
-			v0.AuxInt = config.PtrSize
-			v0.AddArg(dst)
-			v.AddArg(v0)
-			v.AddArg(data)
-			v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
-			v1.AuxInt = config.PtrSize
-			v1.AddArg(dst)
-			v1.AddArg(itab)
-			v1.AddArg(mem)
-			v1.Type = TypeMem
-			v.AddArg(v1)
-			return true
-		}
-		goto endaa801a871178ae3256b3f6f5d9f13514
-	endaa801a871178ae3256b3f6f5d9f13514:
-		;
-		// match: (Store [size] dst (Load <t> src mem) mem)
-		// cond: !config.fe.CanSSA(t)
-		// result: (Move [size] dst src mem)
-		{
-			size := v.AuxInt
-			dst := v.Args[0]
-			if v.Args[1].Op != OpLoad {
-				goto end45295326269ba18413dceb7b608a0b9d
-			}
-			t := v.Args[1].Type
-			src := v.Args[1].Args[0]
-			mem := v.Args[1].Args[1]
-			if v.Args[2] != mem {
-				goto end45295326269ba18413dceb7b608a0b9d
-			}
-			if !(!config.fe.CanSSA(t)) {
-				goto end45295326269ba18413dceb7b608a0b9d
-			}
-			v.Op = OpMove
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = size
-			v.AddArg(dst)
-			v.AddArg(src)
-			v.AddArg(mem)
-			return true
-		}
-		goto end45295326269ba18413dceb7b608a0b9d
-	end45295326269ba18413dceb7b608a0b9d:
-		;
-		// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
-		// cond: !config.fe.CanSSA(t)
-		// result: (Move [size] dst src (VarDef {x} mem))
-		{
-			size := v.AuxInt
-			dst := v.Args[0]
-			if v.Args[1].Op != OpLoad {
-				goto end7f3cc0baffb82ba3ee879599b189a512
-			}
-			t := v.Args[1].Type
-			src := v.Args[1].Args[0]
-			mem := v.Args[1].Args[1]
-			if v.Args[2].Op != OpVarDef {
-				goto end7f3cc0baffb82ba3ee879599b189a512
-			}
-			x := v.Args[2].Aux
-			if v.Args[2].Args[0] != mem {
-				goto end7f3cc0baffb82ba3ee879599b189a512
-			}
-			if !(!config.fe.CanSSA(t)) {
-				goto end7f3cc0baffb82ba3ee879599b189a512
-			}
-			v.Op = OpMove
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = size
-			v.AddArg(dst)
-			v.AddArg(src)
-			v0 := b.NewValue0(v.Line, OpVarDef, TypeInvalid)
-			v0.Aux = x
-			v0.AddArg(mem)
-			v0.Type = TypeMem
-			v.AddArg(v0)
-			return true
-		}
-		goto end7f3cc0baffb82ba3ee879599b189a512
-	end7f3cc0baffb82ba3ee879599b189a512:
-		;
+		return rewriteValuegeneric_OpStore(v, config)
 	case OpStringLen:
-		// match: (StringLen (StringMake _ len))
-		// cond:
-		// result: len
-		{
-			if v.Args[0].Op != OpStringMake {
-				goto end0d922460b7e5ca88324034f4bd6c027c
-			}
-			len := v.Args[0].Args[1]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = len.Type
-			v.AddArg(len)
-			return true
-		}
-		goto end0d922460b7e5ca88324034f4bd6c027c
-	end0d922460b7e5ca88324034f4bd6c027c:
-		;
+		return rewriteValuegeneric_OpStringLen(v, config)
 	case OpStringPtr:
-		// match: (StringPtr (StringMake ptr _))
-		// cond:
-		// result: ptr
-		{
-			if v.Args[0].Op != OpStringMake {
-				goto end061edc5d85c73ad909089af2556d9380
-			}
-			ptr := v.Args[0].Args[0]
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.Type = ptr.Type
-			v.AddArg(ptr)
-			return true
-		}
-		goto end061edc5d85c73ad909089af2556d9380
-	end061edc5d85c73ad909089af2556d9380:
-		;
+		return rewriteValuegeneric_OpStringPtr(v, config)
 	case OpStructSelect:
-		// match: (StructSelect [idx] (Load ptr mem))
-		// cond:
-		// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
-		{
-			idx := v.AuxInt
-			if v.Args[0].Op != OpLoad {
-				goto end27abc5bf0299ce1bd5457af6ce8e3fba
-			}
-			ptr := v.Args[0].Args[0]
-			mem := v.Args[0].Args[1]
-			v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, TypeInvalid)
-			v.Op = OpCopy
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AddArg(v0)
-			v0.Type = v.Type
-			v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-			v1.Type = v.Type.PtrTo()
-			v1.AuxInt = idx
-			v1.AddArg(ptr)
-			v0.AddArg(v1)
-			v0.AddArg(mem)
-			return true
-		}
-		goto end27abc5bf0299ce1bd5457af6ce8e3fba
-	end27abc5bf0299ce1bd5457af6ce8e3fba:
-		;
+		return rewriteValuegeneric_OpStructSelect(v, config)
 	case OpSub16:
-		// match: (Sub16 x x)
-		// cond:
-		// result: (Const16 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end83da541391be564f2a08464e674a49e7
-			}
-			v.Op = OpConst16
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end83da541391be564f2a08464e674a49e7
-	end83da541391be564f2a08464e674a49e7:
-		;
+		return rewriteValuegeneric_OpSub16(v, config)
 	case OpSub32:
-		// match: (Sub32 x x)
-		// cond:
-		// result: (Const32 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto enda747581e798f199e07f4ad69747cd069
-			}
-			v.Op = OpConst32
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto enda747581e798f199e07f4ad69747cd069
-	enda747581e798f199e07f4ad69747cd069:
-		;
+		return rewriteValuegeneric_OpSub32(v, config)
 	case OpSub64:
-		// match: (Sub64 x x)
-		// cond:
-		// result: (Const64 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end0387dc2b7bbe57d4aa54eab5d959da4b
-			}
-			v.Op = OpConst64
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end0387dc2b7bbe57d4aa54eab5d959da4b
-	end0387dc2b7bbe57d4aa54eab5d959da4b:
-		;
+		return rewriteValuegeneric_OpSub64(v, config)
 	case OpSub8:
-		// match: (Sub8 x x)
-		// cond:
-		// result: (Const8 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end4e2ee15ef17611919a1a6b5f80bbfe18
-			}
-			v.Op = OpConst8
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end4e2ee15ef17611919a1a6b5f80bbfe18
-	end4e2ee15ef17611919a1a6b5f80bbfe18:
-		;
+		return rewriteValuegeneric_OpSub8(v, config)
 	case OpXor16:
-		// match: (Xor16 x x)
-		// cond:
-		// result: (Const16 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end5733ceb1903b8140248d8e2cac02fefe
-			}
-			v.Op = OpConst16
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end5733ceb1903b8140248d8e2cac02fefe
-	end5733ceb1903b8140248d8e2cac02fefe:
-		;
+		return rewriteValuegeneric_OpXor16(v, config)
 	case OpXor32:
-		// match: (Xor32 x x)
-		// cond:
-		// result: (Const32 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end268ca02df6515d648e0bfb4e90981d25
-			}
-			v.Op = OpConst32
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end268ca02df6515d648e0bfb4e90981d25
-	end268ca02df6515d648e0bfb4e90981d25:
-		;
+		return rewriteValuegeneric_OpXor32(v, config)
 	case OpXor64:
-		// match: (Xor64 x x)
-		// cond:
-		// result: (Const64 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto endaf44e7f9fc58af30df69070953fb45ce
-			}
-			v.Op = OpConst64
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto endaf44e7f9fc58af30df69070953fb45ce
-	endaf44e7f9fc58af30df69070953fb45ce:
-		;
+		return rewriteValuegeneric_OpXor64(v, config)
 	case OpXor8:
-		// match: (Xor8 x x)
-		// cond:
-		// result: (Const8 [0])
-		{
-			x := v.Args[0]
-			if v.Args[1] != x {
-				goto end949b3a60b7d181688e6f79f93c782fc8
-			}
-			v.Op = OpConst8
-			v.AuxInt = 0
-			v.Aux = nil
-			v.resetArgs()
-			v.AuxInt = 0
-			return true
-		}
-		goto end949b3a60b7d181688e6f79f93c782fc8
-	end949b3a60b7d181688e6f79f93c782fc8:
+		return rewriteValuegeneric_OpXor8(v, config)
 	}
+	return false
+}
+func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add64 (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const64 [c+d])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto end8c46df6f85a11cb1d594076b0e467908
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end8c46df6f85a11cb1d594076b0e467908
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c + d
+		return true
+	}
+	goto end8c46df6f85a11cb1d594076b0e467908
+end8c46df6f85a11cb1d594076b0e467908:
+	;
+	return false
+}
+func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (AddPtr (ConstPtr [c]) (ConstPtr [d]))
+	// cond:
+	// result: (ConstPtr [c+d])
+	{
+		if v.Args[0].Op != OpConstPtr {
+			goto end145c1aec793b2befff34bc8983b48a38
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConstPtr {
+			goto end145c1aec793b2befff34bc8983b48a38
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConstPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c + d
+		return true
+	}
+	goto end145c1aec793b2befff34bc8983b48a38
+end145c1aec793b2befff34bc8983b48a38:
+	;
+	return false
+}
+func rewriteValuegeneric_OpAnd16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And16 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end69ed6ee2a4fb0491b56c17f3c1926b10
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end69ed6ee2a4fb0491b56c17f3c1926b10
+end69ed6ee2a4fb0491b56c17f3c1926b10:
+	;
+	return false
+}
+func rewriteValuegeneric_OpAnd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And32 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto endbbe8c3c5b2ca8f013aa178d856f3a99c
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endbbe8c3c5b2ca8f013aa178d856f3a99c
+endbbe8c3c5b2ca8f013aa178d856f3a99c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpAnd64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And64 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto endc9736bf24d2e5cd8d662e1bcf3164640
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endc9736bf24d2e5cd8d662e1bcf3164640
+endc9736bf24d2e5cd8d662e1bcf3164640:
+	;
+	return false
+}
+func rewriteValuegeneric_OpAnd8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (And8 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto endeaf127389bd0d4b0e0e297830f8f463b
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endeaf127389bd0d4b0e0e297830f8f463b
+endeaf127389bd0d4b0e0e297830f8f463b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpArrayIndex(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ArrayIndex (Load ptr mem) idx)
+	// cond: b == v.Args[0].Block
+	// result: (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+	{
+		if v.Args[0].Op != OpLoad {
+			goto end68b373270d9d605c420497edefaa71df
+		}
+		ptr := v.Args[0].Args[0]
+		mem := v.Args[0].Args[1]
+		idx := v.Args[1]
+		if !(b == v.Args[0].Block) {
+			goto end68b373270d9d605c420497edefaa71df
+		}
+		v.Op = OpLoad
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpPtrIndex, TypeInvalid)
+		v0.Type = v.Type.PtrTo()
+		v0.AddArg(ptr)
+		v0.AddArg(idx)
+		v.AddArg(v0)
+		v.AddArg(mem)
+		return true
+	}
+	goto end68b373270d9d605c420497edefaa71df
+end68b373270d9d605c420497edefaa71df:
+	;
+	return false
+}
+func rewriteValuegeneric_OpCom16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com16 (Com16 x))
+	// cond:
+	// result: x
+	{
+		if v.Args[0].Op != OpCom16 {
+			goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end1ea17710dd4dd7ba4e710e0e4c7b5a56
+end1ea17710dd4dd7ba4e710e0e4c7b5a56:
+	;
+	return false
+}
+func rewriteValuegeneric_OpCom32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com32 (Com32 x))
+	// cond:
+	// result: x
+	{
+		if v.Args[0].Op != OpCom32 {
+			goto end9a04ed536496e292c27bef4414128cbf
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end9a04ed536496e292c27bef4414128cbf
+end9a04ed536496e292c27bef4414128cbf:
+	;
+	return false
+}
+func rewriteValuegeneric_OpCom64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com64 (Com64 x))
+	// cond:
+	// result: x
+	{
+		if v.Args[0].Op != OpCom64 {
+			goto ended44e29d5968f0f7b86972b7bf417ab3
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto ended44e29d5968f0f7b86972b7bf417ab3
+ended44e29d5968f0f7b86972b7bf417ab3:
+	;
+	return false
+}
+func rewriteValuegeneric_OpCom8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Com8 (Com8 x))
+	// cond:
+	// result: x
+	{
+		if v.Args[0].Op != OpCom8 {
+			goto end4d92ff3ba567d9afd38fc9ca113602ad
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end4d92ff3ba567d9afd38fc9ca113602ad
+end4d92ff3ba567d9afd38fc9ca113602ad:
+	;
+	return false
+}
+func rewriteValuegeneric_OpComplexImag(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ComplexImag (ComplexMake _ imag ))
+	// cond:
+	// result: imag
+	{
+		if v.Args[0].Op != OpComplexMake {
+			goto endec3009fd8727d03002021997936e091f
+		}
+		imag := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = imag.Type
+		v.AddArg(imag)
+		return true
+	}
+	goto endec3009fd8727d03002021997936e091f
+endec3009fd8727d03002021997936e091f:
+	;
+	return false
+}
+func rewriteValuegeneric_OpComplexReal(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ComplexReal (ComplexMake real _  ))
+	// cond:
+	// result: real
+	{
+		if v.Args[0].Op != OpComplexMake {
+			goto end8db3e16bd59af1adaa4b734c8adcc71d
+		}
+		real := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = real.Type
+		v.AddArg(real)
+		return true
+	}
+	goto end8db3e16bd59af1adaa4b734c8adcc71d
+end8db3e16bd59af1adaa4b734c8adcc71d:
+	;
+	return false
+}
+func rewriteValuegeneric_OpConstInterface(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstInterface)
+	// cond:
+	// result: (IMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstNil <config.fe.TypeBytePtr()>))
+	{
+		v.Op = OpIMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
+		v1.Type = config.fe.TypeBytePtr()
+		v.AddArg(v1)
+		return true
+	}
+	goto end0367bd8f20a320cc41568f2b28657f6b
+end0367bd8f20a320cc41568f2b28657f6b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstSlice)
+	// cond:
+	// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstPtr [0])     (ConstPtr [0]))
+	{
+		v.Op = OpSliceMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v1.AuxInt = 0
+		v1.Type = config.fe.TypeUintptr()
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v2.AuxInt = 0
+		v2.Type = config.fe.TypeUintptr()
+		v.AddArg(v2)
+		return true
+	}
+	goto endc587abac76a5fd9b1284ba891a178e63
+endc587abac76a5fd9b1284ba891a178e63:
+	;
+	return false
+}
+func rewriteValuegeneric_OpConstString(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ConstString {s})
+	// cond:
+	// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (ConstPtr [int64(len(s.(string)))]))
+	{
+		s := v.Aux
+		v.Op = OpStringMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpAddr, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.Aux = config.fe.StringData(s.(string))
+		v1 := b.NewValue0(v.Line, OpSB, TypeInvalid)
+		v1.Type = config.fe.TypeUintptr()
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v2.AuxInt = int64(len(s.(string)))
+		v2.Type = config.fe.TypeUintptr()
+		v.AddArg(v2)
+		return true
+	}
+	goto end2eb756398dd4c6b6d126012a26284c89
+end2eb756398dd4c6b6d126012a26284c89:
+	;
+	return false
+}
+func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Convert (Add64 (Convert ptr) off))
+	// cond:
+	// result: (Add64 ptr off)
+	{
+		if v.Args[0].Op != OpAdd64 {
+			goto end913a7ecf456c00ffbee36c2dbbf0e1af
+		}
+		if v.Args[0].Args[0].Op != OpConvert {
+			goto end913a7ecf456c00ffbee36c2dbbf0e1af
+		}
+		ptr := v.Args[0].Args[0].Args[0]
+		off := v.Args[0].Args[1]
+		v.Op = OpAdd64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(ptr)
+		v.AddArg(off)
+		return true
+	}
+	goto end913a7ecf456c00ffbee36c2dbbf0e1af
+end913a7ecf456c00ffbee36c2dbbf0e1af:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq16 x x)
+	// cond:
+	// result: (ConstBool [1])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end0c0fe5fdfba3821add3448fd3f1fc6b7
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 1
+		return true
+	}
+	goto end0c0fe5fdfba3821add3448fd3f1fc6b7
+end0c0fe5fdfba3821add3448fd3f1fc6b7:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq32 x x)
+	// cond:
+	// result: (ConstBool [1])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end6da547ec4ee93d787434f3bda873e4a0
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 1
+		return true
+	}
+	goto end6da547ec4ee93d787434f3bda873e4a0
+end6da547ec4ee93d787434f3bda873e4a0:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEq64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq64 x x)
+	// cond:
+	// result: (ConstBool [1])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto endb1d471cc503ba8bb05440f01dbf33d81
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 1
+		return true
+	}
+	goto endb1d471cc503ba8bb05440f01dbf33d81
+endb1d471cc503ba8bb05440f01dbf33d81:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Eq8 x x)
+	// cond:
+	// result: (ConstBool [1])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto enda66da0d3e7e51624ee46527727c48a9a
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 1
+		return true
+	}
+	goto enda66da0d3e7e51624ee46527727c48a9a
+enda66da0d3e7e51624ee46527727c48a9a:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqInter x y)
+	// cond:
+	// result: (EqPtr  (ITab x) (ITab y))
+	{
+		x := v.Args[0]
+		y := v.Args[1]
+		v.Op = OpEqPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v0.AddArg(x)
+		v0.Type = config.fe.TypeUintptr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v1.AddArg(y)
+		v1.Type = config.fe.TypeUintptr()
+		v.AddArg(v1)
+		return true
+	}
+	goto end1cc40483caab33ece971ab7e6c8fdfca
+end1cc40483caab33ece971ab7e6c8fdfca:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEqPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqPtr p (ConstNil))
+	// cond:
+	// result: (Not (IsNonNil p))
+	{
+		p := v.Args[0]
+		if v.Args[1].Op != OpConstNil {
+			goto ende701cdb6a2c1fff4d4b283b7f8f6178b
+		}
+		v.Op = OpNot
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
+		v0.AddArg(p)
+		v0.Type = config.fe.TypeBool()
+		v.AddArg(v0)
+		return true
+	}
+	goto ende701cdb6a2c1fff4d4b283b7f8f6178b
+ende701cdb6a2c1fff4d4b283b7f8f6178b:
+	;
+	// match: (EqPtr (ConstNil) p)
+	// cond:
+	// result: (Not (IsNonNil p))
+	{
+		if v.Args[0].Op != OpConstNil {
+			goto end7cdc0d5c38fbffe6287c8928803b038e
+		}
+		p := v.Args[1]
+		v.Op = OpNot
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
+		v0.AddArg(p)
+		v0.Type = config.fe.TypeBool()
+		v.AddArg(v0)
+		return true
+	}
+	goto end7cdc0d5c38fbffe6287c8928803b038e
+end7cdc0d5c38fbffe6287c8928803b038e:
+	;
+	return false
+}
+func rewriteValuegeneric_OpEqSlice(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (EqSlice x y)
+	// cond:
+	// result: (EqPtr  (SlicePtr x) (SlicePtr y))
+	{
+		x := v.Args[0]
+		y := v.Args[1]
+		v.Op = OpEqPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v0.AddArg(x)
+		v0.Type = config.fe.TypeUintptr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v1.AddArg(y)
+		v1.Type = config.fe.TypeUintptr()
+		v.AddArg(v1)
+		return true
+	}
+	goto end9cd53ca57ee90aa09c54f8071c8e8769
+end9cd53ca57ee90aa09c54f8071c8e8769:
+	;
+	return false
+}
+func rewriteValuegeneric_OpIData(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IData (IMake _ data))
+	// cond:
+	// result: data
+	{
+		if v.Args[0].Op != OpIMake {
+			goto endbfa1bb944cdc07933effb16a35152e12
+		}
+		data := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = data.Type
+		v.AddArg(data)
+		return true
+	}
+	goto endbfa1bb944cdc07933effb16a35152e12
+endbfa1bb944cdc07933effb16a35152e12:
+	;
+	return false
+}
+func rewriteValuegeneric_OpITab(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (ITab (IMake itab _))
+	// cond:
+	// result: itab
+	{
+		if v.Args[0].Op != OpIMake {
+			goto endfcbb9414a776ff9c8512da3e0f4d8fbd
+		}
+		itab := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = itab.Type
+		v.AddArg(itab)
+		return true
+	}
+	goto endfcbb9414a776ff9c8512da3e0f4d8fbd
+endfcbb9414a776ff9c8512da3e0f4d8fbd:
+	;
+	return false
+}
+func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsInBounds (Const32 [c]) (Const32 [d]))
+	// cond:
+	// result: (ConstBool [b2i(inBounds32(c,d))])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto endf0a2ecfe84b293de6ff0919e45d19d9d
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			goto endf0a2ecfe84b293de6ff0919e45d19d9d
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = b2i(inBounds32(c, d))
+		return true
+	}
+	goto endf0a2ecfe84b293de6ff0919e45d19d9d
+endf0a2ecfe84b293de6ff0919e45d19d9d:
+	;
+	// match: (IsInBounds (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (ConstBool [b2i(inBounds64(c,d))])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto end4b406f402c135f50f71effcc904ecb2b
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end4b406f402c135f50f71effcc904ecb2b
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = b2i(inBounds64(c, d))
+		return true
+	}
+	goto end4b406f402c135f50f71effcc904ecb2b
+end4b406f402c135f50f71effcc904ecb2b:
+	;
+	// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+	// cond: config.PtrSize == 4
+	// result: (ConstBool [b2i(inBounds32(c,d))])
+	{
+		if v.Args[0].Op != OpConstPtr {
+			goto end4323278ec7a053034fcf7033697d7b3b
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConstPtr {
+			goto end4323278ec7a053034fcf7033697d7b3b
+		}
+		d := v.Args[1].AuxInt
+		if !(config.PtrSize == 4) {
+			goto end4323278ec7a053034fcf7033697d7b3b
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = b2i(inBounds32(c, d))
+		return true
+	}
+	goto end4323278ec7a053034fcf7033697d7b3b
+end4323278ec7a053034fcf7033697d7b3b:
+	;
+	// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
+	// cond: config.PtrSize == 8
+	// result: (ConstBool [b2i(inBounds64(c,d))])
+	{
+		if v.Args[0].Op != OpConstPtr {
+			goto endb550b8814df20b5eeda4f43cc94e902b
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConstPtr {
+			goto endb550b8814df20b5eeda4f43cc94e902b
+		}
+		d := v.Args[1].AuxInt
+		if !(config.PtrSize == 8) {
+			goto endb550b8814df20b5eeda4f43cc94e902b
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = b2i(inBounds64(c, d))
+		return true
+	}
+	goto endb550b8814df20b5eeda4f43cc94e902b
+endb550b8814df20b5eeda4f43cc94e902b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Load <t> ptr mem)
+	// cond: t.IsComplex() && t.Size() == 8
+	// result: (ComplexMake     (Load <config.fe.TypeFloat32()> ptr mem)     (Load <config.fe.TypeFloat32()>       (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)       mem)     )
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsComplex() && t.Size() == 8) {
+			goto end665854b31b828893d90b36bb462ff381
+		}
+		v.Op = OpComplexMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = config.fe.TypeFloat32()
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = config.fe.TypeFloat32()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = config.fe.TypeFloat32().PtrTo()
+		v2.AuxInt = 4
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	goto end665854b31b828893d90b36bb462ff381
+end665854b31b828893d90b36bb462ff381:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsComplex() && t.Size() == 16
+	// result: (ComplexMake     (Load <config.fe.TypeFloat64()> ptr mem)     (Load <config.fe.TypeFloat64()>       (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] ptr)       mem)     )
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsComplex() && t.Size() == 16) {
+			goto end1b106f89e0e3e26c613b957a7c98d8ad
+		}
+		v.Op = OpComplexMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = config.fe.TypeFloat64()
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = config.fe.TypeFloat64()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = config.fe.TypeFloat64().PtrTo()
+		v2.AuxInt = 8
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	goto end1b106f89e0e3e26c613b957a7c98d8ad
+end1b106f89e0e3e26c613b957a7c98d8ad:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsString()
+	// result: (StringMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsString()) {
+			goto end7c75255555bf9dd796298d9f6eaf9cf2
+		}
+		v.Op = OpStringMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = config.fe.TypeUintptr()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = config.fe.TypeUintptr().PtrTo()
+		v2.AuxInt = config.PtrSize
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	goto end7c75255555bf9dd796298d9f6eaf9cf2
+end7c75255555bf9dd796298d9f6eaf9cf2:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsSlice()
+	// result: (SliceMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] ptr)       mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsSlice()) {
+			goto end12c46556d962198680eb3238859e3016
+		}
+		v.Op = OpSliceMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = config.fe.TypeUintptr()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = config.fe.TypeUintptr().PtrTo()
+		v2.AuxInt = config.PtrSize
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v3.Type = config.fe.TypeUintptr()
+		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v4.Type = config.fe.TypeUintptr().PtrTo()
+		v4.AuxInt = 2 * config.PtrSize
+		v4.AddArg(ptr)
+		v3.AddArg(v4)
+		v3.AddArg(mem)
+		v.AddArg(v3)
+		return true
+	}
+	goto end12c46556d962198680eb3238859e3016
+end12c46556d962198680eb3238859e3016:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsInterface()
+	// result: (IMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeBytePtr()>       (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)       mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsInterface()) {
+			goto end12671c83ebe3ccbc8e53383765ee7675
+		}
+		v.Op = OpIMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = config.fe.TypeBytePtr()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = config.fe.TypeBytePtr().PtrTo()
+		v2.AuxInt = config.PtrSize
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	goto end12671c83ebe3ccbc8e53383765ee7675
+end12671c83ebe3ccbc8e53383765ee7675:
+	;
+	return false
+}
+func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul64 (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const64 [c*d])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto end7aea1048b5d1230974b97f17238380ae
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end7aea1048b5d1230974b97f17238380ae
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c * d
+		return true
+	}
+	goto end7aea1048b5d1230974b97f17238380ae
+end7aea1048b5d1230974b97f17238380ae:
+	;
+	return false
+}
+func rewriteValuegeneric_OpMulPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (MulPtr (ConstPtr [c]) (ConstPtr [d]))
+	// cond:
+	// result: (ConstPtr [c*d])
+	{
+		if v.Args[0].Op != OpConstPtr {
+			goto end808c190f346658bb1ad032bf37a1059f
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConstPtr {
+			goto end808c190f346658bb1ad032bf37a1059f
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConstPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c * d
+		return true
+	}
+	goto end808c190f346658bb1ad032bf37a1059f
+end808c190f346658bb1ad032bf37a1059f:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeq16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq16 x x)
+	// cond:
+	// result: (ConstBool [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto ende76a50b524aeb16c7aeccf5f5cc60c06
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto ende76a50b524aeb16c7aeccf5f5cc60c06
+ende76a50b524aeb16c7aeccf5f5cc60c06:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeq32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq32 x x)
+	// cond:
+	// result: (ConstBool [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end3713a608cffd29b40ff7c3b3f2585cbb
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end3713a608cffd29b40ff7c3b3f2585cbb
+end3713a608cffd29b40ff7c3b3f2585cbb:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeq64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq64 x x)
+	// cond:
+	// result: (ConstBool [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end3601ad382705ea12b79d2008c1e5725c
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end3601ad382705ea12b79d2008c1e5725c
+end3601ad382705ea12b79d2008c1e5725c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Neq8 x x)
+	// cond:
+	// result: (ConstBool [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end09a0deaf3c42627d0d2d3efa96e30745
+		}
+		v.Op = OpConstBool
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end09a0deaf3c42627d0d2d3efa96e30745
+end09a0deaf3c42627d0d2d3efa96e30745:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqInter x y)
+	// cond:
+	// result: (NeqPtr (ITab x) (ITab y))
+	{
+		x := v.Args[0]
+		y := v.Args[1]
+		v.Op = OpNeqPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v0.AddArg(x)
+		v0.Type = config.fe.TypeUintptr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v1.AddArg(y)
+		v1.Type = config.fe.TypeUintptr()
+		v.AddArg(v1)
+		return true
+	}
+	goto end17b2333bf57e9fe81a671be02f9c4c14
+end17b2333bf57e9fe81a671be02f9c4c14:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeqPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqPtr p (ConstNil))
+	// cond:
+	// result: (IsNonNil p)
+	{
+		p := v.Args[0]
+		if v.Args[1].Op != OpConstNil {
+			goto endba798520b4d41172b110347158c44791
+		}
+		v.Op = OpIsNonNil
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(p)
+		return true
+	}
+	goto endba798520b4d41172b110347158c44791
+endba798520b4d41172b110347158c44791:
+	;
+	// match: (NeqPtr (ConstNil) p)
+	// cond:
+	// result: (IsNonNil p)
+	{
+		if v.Args[0].Op != OpConstNil {
+			goto enddd95e9c3606d9fd48034f1a703561e45
+		}
+		p := v.Args[1]
+		v.Op = OpIsNonNil
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(p)
+		return true
+	}
+	goto enddd95e9c3606d9fd48034f1a703561e45
+enddd95e9c3606d9fd48034f1a703561e45:
+	;
+	return false
+}
+func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (NeqSlice x y)
+	// cond:
+	// result: (NeqPtr (SlicePtr x) (SlicePtr y))
+	{
+		x := v.Args[0]
+		y := v.Args[1]
+		v.Op = OpNeqPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v0.AddArg(x)
+		v0.Type = config.fe.TypeUintptr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v1.AddArg(y)
+		v1.Type = config.fe.TypeUintptr()
+		v.AddArg(v1)
+		return true
+	}
+	goto endc6bc83c506e491236ca66ea1081231a2
+endc6bc83c506e491236ca66ea1081231a2:
+	;
+	return false
+}
+func rewriteValuegeneric_OpOr16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or16 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end47a2f25fd31a76807aced3e2b126acdc
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end47a2f25fd31a76807aced3e2b126acdc
+end47a2f25fd31a76807aced3e2b126acdc:
+	;
+	return false
+}
+func rewriteValuegeneric_OpOr32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or32 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end231e283e568e90bd9a3e6a4fa328c8a4
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end231e283e568e90bd9a3e6a4fa328c8a4
+end231e283e568e90bd9a3e6a4fa328c8a4:
+	;
+	return false
+}
+func rewriteValuegeneric_OpOr64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or64 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end6b0efc212016dc97d0e3939db04c81d9
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end6b0efc212016dc97d0e3939db04c81d9
+end6b0efc212016dc97d0e3939db04c81d9:
+	;
+	return false
+}
+func rewriteValuegeneric_OpOr8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Or8 x x)
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end05295dbfafd6869af79b4daee9fda000
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end05295dbfafd6869af79b4daee9fda000
+end05295dbfafd6869af79b4daee9fda000:
+	;
+	return false
+}
+func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (PtrIndex <t> ptr idx)
+	// cond:
+	// result: (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		idx := v.Args[1]
+		v.Op = OpAddPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpMulPtr, TypeInvalid)
+		v0.AddArg(idx)
+		v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v1.AuxInt = t.Elem().Size()
+		v1.Type = config.fe.TypeUintptr()
+		v0.AddArg(v1)
+		v0.Type = config.fe.TypeUintptr()
+		v.AddArg(v0)
+		return true
+	}
+	goto end502555083d57a877982955070cda7530
+end502555083d57a877982955070cda7530:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SliceCap (SliceMake _ _ cap))
+	// cond:
+	// result: cap
+	{
+		if v.Args[0].Op != OpSliceMake {
+			goto end1bd11616743632b33b410964667fb3c6
+		}
+		cap := v.Args[0].Args[2]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = cap.Type
+		v.AddArg(cap)
+		return true
+	}
+	goto end1bd11616743632b33b410964667fb3c6
+end1bd11616743632b33b410964667fb3c6:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SliceLen (SliceMake _ len _))
+	// cond:
+	// result: len
+	{
+		if v.Args[0].Op != OpSliceMake {
+			goto endebb2090199d13e4c2ae52fb3e778f7fd
+		}
+		len := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = len.Type
+		v.AddArg(len)
+		return true
+	}
+	goto endebb2090199d13e4c2ae52fb3e778f7fd
+endebb2090199d13e4c2ae52fb3e778f7fd:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (SlicePtr (SliceMake ptr _ _ ))
+	// cond:
+	// result: ptr
+	{
+		if v.Args[0].Op != OpSliceMake {
+			goto end526acc0a705137a5d25577499206720b
+		}
+		ptr := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = ptr.Type
+		v.AddArg(ptr)
+		return true
+	}
+	goto end526acc0a705137a5d25577499206720b
+end526acc0a705137a5d25577499206720b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Store [8] dst (ComplexMake real imag) mem)
+	// cond:
+	// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store [4] dst real mem))
+	{
+		if v.AuxInt != 8 {
+			goto endced898cb0a165662afe48ea44ad3318a
+		}
+		dst := v.Args[0]
+		if v.Args[1].Op != OpComplexMake {
+			goto endced898cb0a165662afe48ea44ad3318a
+		}
+		real := v.Args[1].Args[0]
+		imag := v.Args[1].Args[1]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 4
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = config.fe.TypeFloat32().PtrTo()
+		v0.AuxInt = 4
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(imag)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = 4
+		v1.AddArg(dst)
+		v1.AddArg(real)
+		v1.AddArg(mem)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto endced898cb0a165662afe48ea44ad3318a
+endced898cb0a165662afe48ea44ad3318a:
+	;
+	// match: (Store [16] dst (ComplexMake real imag) mem)
+	// cond:
+	// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store [8] dst real mem))
+	{
+		if v.AuxInt != 16 {
+			goto end3851a482d7bd37a93c4d81581e85b3ab
+		}
+		dst := v.Args[0]
+		if v.Args[1].Op != OpComplexMake {
+			goto end3851a482d7bd37a93c4d81581e85b3ab
+		}
+		real := v.Args[1].Args[0]
+		imag := v.Args[1].Args[1]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 8
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = config.fe.TypeFloat64().PtrTo()
+		v0.AuxInt = 8
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(imag)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = 8
+		v1.AddArg(dst)
+		v1.AddArg(real)
+		v1.AddArg(mem)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto end3851a482d7bd37a93c4d81581e85b3ab
+end3851a482d7bd37a93c4d81581e85b3ab:
+	;
+	// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
+	// cond:
+	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] dst ptr mem))
+	{
+		if v.AuxInt != 2*config.PtrSize {
+			goto end12abe4021d24e76ed56d64b18730bffb
+		}
+		dst := v.Args[0]
+		if v.Args[1].Op != OpStringMake {
+			goto end12abe4021d24e76ed56d64b18730bffb
+		}
+		ptr := v.Args[1].Args[0]
+		len := v.Args[1].Args[1]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = config.PtrSize
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = config.fe.TypeUintptr().PtrTo()
+		v0.AuxInt = config.PtrSize
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(len)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = config.PtrSize
+		v1.AddArg(dst)
+		v1.AddArg(ptr)
+		v1.AddArg(mem)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto end12abe4021d24e76ed56d64b18730bffb
+end12abe4021d24e76ed56d64b18730bffb:
+	;
+	// match: (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem)
+	// cond:
+	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize]       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] dst ptr mem)))
+	{
+		if v.AuxInt != 3*config.PtrSize {
+			goto end7498d25e17db5398cf073a8590e35cc2
+		}
+		dst := v.Args[0]
+		if v.Args[1].Op != OpSliceMake {
+			goto end7498d25e17db5398cf073a8590e35cc2
+		}
+		ptr := v.Args[1].Args[0]
+		len := v.Args[1].Args[1]
+		cap := v.Args[1].Args[2]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = config.PtrSize
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = config.fe.TypeUintptr().PtrTo()
+		v0.AuxInt = 2 * config.PtrSize
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(cap)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = config.PtrSize
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = config.fe.TypeUintptr().PtrTo()
+		v2.AuxInt = config.PtrSize
+		v2.AddArg(dst)
+		v1.AddArg(v2)
+		v1.AddArg(len)
+		v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v3.AuxInt = config.PtrSize
+		v3.AddArg(dst)
+		v3.AddArg(ptr)
+		v3.AddArg(mem)
+		v3.Type = TypeMem
+		v1.AddArg(v3)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto end7498d25e17db5398cf073a8590e35cc2
+end7498d25e17db5398cf073a8590e35cc2:
+	;
+	// match: (Store [2*config.PtrSize] dst (IMake itab data) mem)
+	// cond:
+	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)     data     (Store [config.PtrSize] dst itab mem))
+	{
+		if v.AuxInt != 2*config.PtrSize {
+			goto endaa801a871178ae3256b3f6f5d9f13514
+		}
+		dst := v.Args[0]
+		if v.Args[1].Op != OpIMake {
+			goto endaa801a871178ae3256b3f6f5d9f13514
+		}
+		itab := v.Args[1].Args[0]
+		data := v.Args[1].Args[1]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = config.PtrSize
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr().PtrTo()
+		v0.AuxInt = config.PtrSize
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(data)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = config.PtrSize
+		v1.AddArg(dst)
+		v1.AddArg(itab)
+		v1.AddArg(mem)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto endaa801a871178ae3256b3f6f5d9f13514
+endaa801a871178ae3256b3f6f5d9f13514:
+	;
+	// match: (Store [size] dst (Load <t> src mem) mem)
+	// cond: !config.fe.CanSSA(t)
+	// result: (Move [size] dst src mem)
+	{
+		size := v.AuxInt
+		dst := v.Args[0]
+		if v.Args[1].Op != OpLoad {
+			goto end45295326269ba18413dceb7b608a0b9d
+		}
+		t := v.Args[1].Type
+		src := v.Args[1].Args[0]
+		mem := v.Args[1].Args[1]
+		if v.Args[2] != mem {
+			goto end45295326269ba18413dceb7b608a0b9d
+		}
+		if !(!config.fe.CanSSA(t)) {
+			goto end45295326269ba18413dceb7b608a0b9d
+		}
+		v.Op = OpMove
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = size
+		v.AddArg(dst)
+		v.AddArg(src)
+		v.AddArg(mem)
+		return true
+	}
+	goto end45295326269ba18413dceb7b608a0b9d
+end45295326269ba18413dceb7b608a0b9d:
+	;
+	// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
+	// cond: !config.fe.CanSSA(t)
+	// result: (Move [size] dst src (VarDef {x} mem))
+	{
+		size := v.AuxInt
+		dst := v.Args[0]
+		if v.Args[1].Op != OpLoad {
+			goto end7f3cc0baffb82ba3ee879599b189a512
+		}
+		t := v.Args[1].Type
+		src := v.Args[1].Args[0]
+		mem := v.Args[1].Args[1]
+		if v.Args[2].Op != OpVarDef {
+			goto end7f3cc0baffb82ba3ee879599b189a512
+		}
+		x := v.Args[2].Aux
+		if v.Args[2].Args[0] != mem {
+			goto end7f3cc0baffb82ba3ee879599b189a512
+		}
+		if !(!config.fe.CanSSA(t)) {
+			goto end7f3cc0baffb82ba3ee879599b189a512
+		}
+		v.Op = OpMove
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = size
+		v.AddArg(dst)
+		v.AddArg(src)
+		v0 := b.NewValue0(v.Line, OpVarDef, TypeInvalid)
+		v0.Aux = x
+		v0.AddArg(mem)
+		v0.Type = TypeMem
+		v.AddArg(v0)
+		return true
+	}
+	goto end7f3cc0baffb82ba3ee879599b189a512
+end7f3cc0baffb82ba3ee879599b189a512:
+	;
+	return false
+}
+func rewriteValuegeneric_OpStringLen(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (StringLen (StringMake _ len))
+	// cond:
+	// result: len
+	{
+		if v.Args[0].Op != OpStringMake {
+			goto end0d922460b7e5ca88324034f4bd6c027c
+		}
+		len := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = len.Type
+		v.AddArg(len)
+		return true
+	}
+	goto end0d922460b7e5ca88324034f4bd6c027c
+end0d922460b7e5ca88324034f4bd6c027c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpStringPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (StringPtr (StringMake ptr _))
+	// cond:
+	// result: ptr
+	{
+		if v.Args[0].Op != OpStringMake {
+			goto end061edc5d85c73ad909089af2556d9380
+		}
+		ptr := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = ptr.Type
+		v.AddArg(ptr)
+		return true
+	}
+	goto end061edc5d85c73ad909089af2556d9380
+end061edc5d85c73ad909089af2556d9380:
+	;
+	return false
+}
+func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (StructSelect [idx] (Load ptr mem))
+	// cond:
+	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+	{
+		idx := v.AuxInt
+		if v.Args[0].Op != OpLoad {
+			goto end27abc5bf0299ce1bd5457af6ce8e3fba
+		}
+		ptr := v.Args[0].Args[0]
+		mem := v.Args[0].Args[1]
+		v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(v0)
+		v0.Type = v.Type
+		v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v1.Type = v.Type.PtrTo()
+		v1.AuxInt = idx
+		v1.AddArg(ptr)
+		v0.AddArg(v1)
+		v0.AddArg(mem)
+		return true
+	}
+	goto end27abc5bf0299ce1bd5457af6ce8e3fba
+end27abc5bf0299ce1bd5457af6ce8e3fba:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSub16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sub16 x x)
+	// cond:
+	// result: (Const16 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end83da541391be564f2a08464e674a49e7
+		}
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end83da541391be564f2a08464e674a49e7
+end83da541391be564f2a08464e674a49e7:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSub32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sub32 x x)
+	// cond:
+	// result: (Const32 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto enda747581e798f199e07f4ad69747cd069
+		}
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto enda747581e798f199e07f4ad69747cd069
+enda747581e798f199e07f4ad69747cd069:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sub64 x x)
+	// cond:
+	// result: (Const64 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end0387dc2b7bbe57d4aa54eab5d959da4b
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end0387dc2b7bbe57d4aa54eab5d959da4b
+end0387dc2b7bbe57d4aa54eab5d959da4b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Sub8 x x)
+	// cond:
+	// result: (Const8 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end4e2ee15ef17611919a1a6b5f80bbfe18
+		}
+		v.Op = OpConst8
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end4e2ee15ef17611919a1a6b5f80bbfe18
+end4e2ee15ef17611919a1a6b5f80bbfe18:
+	;
+	return false
+}
+func rewriteValuegeneric_OpXor16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Xor16 x x)
+	// cond:
+	// result: (Const16 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end5733ceb1903b8140248d8e2cac02fefe
+		}
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end5733ceb1903b8140248d8e2cac02fefe
+end5733ceb1903b8140248d8e2cac02fefe:
+	;
+	return false
+}
+func rewriteValuegeneric_OpXor32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Xor32 x x)
+	// cond:
+	// result: (Const32 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end268ca02df6515d648e0bfb4e90981d25
+		}
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end268ca02df6515d648e0bfb4e90981d25
+end268ca02df6515d648e0bfb4e90981d25:
+	;
+	return false
+}
+func rewriteValuegeneric_OpXor64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Xor64 x x)
+	// cond:
+	// result: (Const64 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto endaf44e7f9fc58af30df69070953fb45ce
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto endaf44e7f9fc58af30df69070953fb45ce
+endaf44e7f9fc58af30df69070953fb45ce:
+	;
+	return false
+}
+func rewriteValuegeneric_OpXor8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Xor8 x x)
+	// cond:
+	// result: (Const8 [0])
+	{
+		x := v.Args[0]
+		if v.Args[1] != x {
+			goto end949b3a60b7d181688e6f79f93c782fc8
+		}
+		v.Op = OpConst8
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end949b3a60b7d181688e6f79f93c782fc8
+end949b3a60b7d181688e6f79f93c782fc8:
+	;
 	return false
 }
 func rewriteBlockgeneric(b *Block) bool {
