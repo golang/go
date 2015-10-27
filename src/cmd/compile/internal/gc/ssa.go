@@ -2335,7 +2335,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		return s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case OCLOSUREVAR:
 		return s.newValue2(ssa.OpAddPtr, Ptrto(n.Type),
-			s.entryNewValue0(ssa.OpGetClosurePtr, Types[TUINTPTR]),
+			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])),
 			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
 	case OPARAM:
 		p := n.Left
