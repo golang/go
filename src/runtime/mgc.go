@@ -727,57 +727,6 @@ const gcAssistTimeSlack = 5000
 // of future allocations.
 const gcOverAssistBytes = 1 << 20
 
-// bgMarkSignal synchronizes the GC coordinator and background mark workers.
-type bgMarkSignal struct {
-	// Workers race to cas to 1. Winner signals coordinator.
-	done uint32
-	// Coordinator to wake up.
-	lock mutex
-	g    *g
-	wake bool
-}
-
-func (s *bgMarkSignal) wait() {
-	lock(&s.lock)
-	if s.wake {
-		// Wakeup already happened
-		unlock(&s.lock)
-	} else {
-		s.g = getg()
-		goparkunlock(&s.lock, "mark wait (idle)", traceEvGoBlock, 1)
-	}
-	s.wake = false
-	s.g = nil
-}
-
-// complete signals the completion of this phase of marking. This can
-// be called multiple times during a cycle; only the first call has
-// any effect.
-//
-// The caller should arrange to deschedule itself as soon as possible
-// after calling complete in order to let the coordinator goroutine
-// run.
-func (s *bgMarkSignal) complete() bool {
-	if cas(&s.done, 0, 1) {
-		// This is the first worker to reach this completion point.
-		// Signal the main GC goroutine.
-		lock(&s.lock)
-		if s.g == nil {
-			// It hasn't parked yet.
-			s.wake = true
-		} else {
-			ready(s.g, 0)
-		}
-		unlock(&s.lock)
-		return true
-	}
-	return false
-}
-
-func (s *bgMarkSignal) clear() {
-	s.done = 0
-}
-
 var work struct {
 	full  uint64                // lock-free list of full blocks workbuf
 	empty uint64                // lock-free list of empty blocks workbuf
@@ -824,11 +773,6 @@ var work struct {
 	bgMarkReady note   // signal background mark worker has started
 	bgMarkDone  uint32 // cas to 1 when at a background mark completion point
 	// Background mark completion signaling
-
-	// Coordination for the 2 parts of the mark phase.
-	// TODO(austin): Unused. Remove.
-	bgMark1 bgMarkSignal
-	bgMark2 bgMarkSignal
 
 	// mode is the concurrency mode of the current GC cycle.
 	mode gcMode
@@ -891,53 +835,6 @@ const (
 	gcForceMode                    // stop-the-world GC now, concurrent sweep
 	gcForceBlockMode               // stop-the-world GC now and STW sweep
 )
-
-// startGCCoordinator starts and readies the GC coordinator goroutine.
-//
-// TODO(austin): This function unused. Remove it and backgroundgc.
-func startGCCoordinator() {
-	// trigger concurrent GC
-	readied := false
-	lock(&bggc.lock)
-	if !bggc.started {
-		bggc.working = 1
-		bggc.started = true
-		bggc.wakeSema = 1
-		readied = true
-		go backgroundgc()
-	} else {
-		bggc.working++
-		readied = true
-		semrelease(&bggc.wakeSema)
-	}
-	unlock(&bggc.lock)
-	if readied {
-		// This G just started or ready()d the GC goroutine.
-		// Switch directly to it by yielding.
-		Gosched()
-	}
-}
-
-// State of the background concurrent GC goroutine.
-var bggc struct {
-	lock    mutex
-	working uint
-	started bool
-
-	wakeSema uint32
-}
-
-// backgroundgc is running in a goroutine and does the concurrent GC work.
-// bggc holds the state of the backgroundgc.
-func backgroundgc() {
-	for {
-		gcMarkTermination()
-		lock(&bggc.lock)
-		bggc.working--
-		unlock(&bggc.lock)
-		semacquire(&bggc.wakeSema, false)
-	}
-}
 
 // gcShouldStart returns true if the exit condition for the _GCoff
 // phase has been met. The exit condition should be tested when
@@ -1423,10 +1320,6 @@ func gcBgMarkPrepare() {
 	// there are no workers.
 	work.nproc = ^uint32(0)
 	work.nwait = ^uint32(0)
-
-	// Reset background mark completion points.
-	work.bgMark1.done = 1
-	work.bgMark2.done = 1
 }
 
 func gcBgMarkWorker(p *p) {

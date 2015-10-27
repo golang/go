@@ -41,7 +41,6 @@ var (
 	rt0_goPC             uintptr
 	sigpanicPC           uintptr
 	runfinqPC            uintptr
-	backgroundgcPC       uintptr
 	bgsweepPC            uintptr
 	forcegchelperPC      uintptr
 	timerprocPC          uintptr
@@ -69,7 +68,6 @@ func tracebackinit() {
 	rt0_goPC = funcPC(rt0_go)
 	sigpanicPC = funcPC(sigpanic)
 	runfinqPC = funcPC(runfinq)
-	backgroundgcPC = funcPC(backgroundgc)
 	bgsweepPC = funcPC(bgsweep)
 	forcegchelperPC = funcPC(forcegchelper)
 	timerprocPC = funcPC(timerproc)
@@ -706,7 +704,6 @@ func topofstack(f *_func) bool {
 func isSystemGoroutine(gp *g) bool {
 	pc := gp.startpc
 	return pc == runfinqPC && !fingRunning ||
-		pc == backgroundgcPC ||
 		pc == bgsweepPC ||
 		pc == forcegchelperPC ||
 		pc == timerprocPC ||

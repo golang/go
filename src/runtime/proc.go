@@ -3366,7 +3366,7 @@ func sysmon() {
 		}
 		// check if we need to force a GC
 		lastgc := int64(atomicload64(&memstats.last_gc))
-		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 && atomicloaduint(&bggc.working) == 0 {
+		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomicload(&forcegc.idle) != 0 {
 			lock(&forcegc.lock)
 			forcegc.idle = 0
 			forcegc.g.schedlink = 0
