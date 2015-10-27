@@ -90,8 +90,8 @@ var passes = [...]pass{
 	{"generic cse", cse},
 	{"nilcheckelim", nilcheckelim},
 	{"generic deadcode", deadcode},
-	{"dse", dse},
 	{"fuse", fuse},
+	{"dse", dse},
 	{"tighten", tighten}, // move values closer to their uses
 	{"lower", lower},
 	{"lowered cse", cse},
