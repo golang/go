@@ -10,17 +10,23 @@
 #include "go_tls.h"
 #include "textflag.h"
 
+#ifdef shared
+#define INVOKE_SYSINFO CALL 0x10(GS)
+#else
+#define INVOKE_SYSINFO CALL *runtime·_vdso(SB)
+#endif
+
 TEXT runtime·exit(SB),NOSPLIT,$0
 	MOVL	$252, AX	// syscall number
 	MOVL	code+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	INT $3	// not reached
 	RET
 
 TEXT runtime·exit1(SB),NOSPLIT,$0
 	MOVL	$1, AX	// exit - exit the current os thread
 	MOVL	code+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	INT $3	// not reached
 	RET
 
@@ -29,7 +35,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 	MOVL	name+0(FP), BX
 	MOVL	mode+4(FP), CX
 	MOVL	perm+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	MOVL	$-1, AX
@@ -39,7 +45,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
 TEXT runtime·closefd(SB),NOSPLIT,$0
 	MOVL	$6, AX		// syscall - close
 	MOVL	fd+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	MOVL	$-1, AX
@@ -51,7 +57,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	MOVL	$-1, AX
@@ -63,7 +69,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX
 	MOVL	p+4(FP), CX
 	MOVL	n+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	MOVL	$-1, AX
@@ -74,7 +80,7 @@ TEXT runtime·getrlimit(SB),NOSPLIT,$0
 	MOVL	$191, AX		// syscall - ugetrlimit
 	MOVL	kind+0(FP), BX
 	MOVL	limit+4(FP), CX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+8(FP)
 	RET
 
@@ -93,31 +99,31 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
 	MOVL	$0, DX
 	MOVL	$0, SI
 	LEAL	0(SP), DI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	RET
 
 TEXT runtime·gettid(SB),NOSPLIT,$0-4
 	MOVL	$224, AX	// syscall - gettid
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+0(FP)
 	RET
 
 TEXT runtime·raise(SB),NOSPLIT,$12
 	MOVL	$224, AX	// syscall - gettid
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, BX	// arg 1 tid
 	MOVL	sig+0(FP), CX	// arg 2 signal
 	MOVL	$238, AX	// syscall - tkill
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	RET
 
 TEXT runtime·raiseproc(SB),NOSPLIT,$12
 	MOVL	$20, AX	// syscall - getpid
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, BX	// arg 1 pid
 	MOVL	sig+0(FP), CX	// arg 2 signal
 	MOVL	$37, AX	// syscall - kill
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	RET
 
 TEXT runtime·setitimer(SB),NOSPLIT,$0-12
@@ -125,7 +131,7 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0-12
 	MOVL	mode+0(FP), BX
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	RET
 
 TEXT runtime·mincore(SB),NOSPLIT,$0-16
@@ -133,7 +139,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
 	MOVL	addr+0(FP), BX
 	MOVL	n+4(FP), CX
 	MOVL	dst+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -143,7 +149,7 @@ TEXT time·now(SB), NOSPLIT, $32
 	MOVL	$0, BX		// CLOCK_REALTIME
 	LEAL	8(SP), CX
 	MOVL	$0, DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// nsec
 
@@ -160,7 +166,7 @@ TEXT runtime·nanotime(SB), NOSPLIT, $32
 	MOVL	$1, BX		// CLOCK_MONOTONIC
 	LEAL	8(SP), CX
 	MOVL	$0, DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	8(SP), AX	// sec
 	MOVL	12(SP), BX	// nsec
 
@@ -181,7 +187,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	MOVL	size+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT $3
@@ -193,7 +199,7 @@ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
 	MOVL	new+4(FP), CX
 	MOVL	old+8(FP), DX
 	MOVL	size+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -235,7 +241,7 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
 	MOVL	fd+16(FP), DI
 	MOVL	off+20(FP), BP
 	SHRL	$12, BP
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	3(PC)
 	NOTL	AX
@@ -247,7 +253,7 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
 	MOVL	$91, AX	// munmap
 	MOVL	addr+0(FP), BX
 	MOVL	n+4(FP), CX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT $3
@@ -258,7 +264,7 @@ TEXT runtime·madvise(SB),NOSPLIT,$0
 	MOVL	addr+0(FP), BX
 	MOVL	n+4(FP), CX
 	MOVL	flags+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	// ignore failure - maybe pages are locked
 	RET
 
@@ -272,7 +278,7 @@ TEXT runtime·futex(SB),NOSPLIT,$0
 	MOVL	ts+12(FP), SI
 	MOVL	addr2+16(FP), DI
 	MOVL	val3+20(FP), BP
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+24(FP)
 	RET
 
@@ -314,7 +320,7 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 
 	// Initialize AX to Linux tid
 	MOVL	$224, AX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 
 	MOVL	0(SP), BX	    // m
 	MOVL	4(SP), DX	    // g
@@ -366,7 +372,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 	MOVL	$186, AX	// sigaltstack
 	MOVL	new+4(SP), BX
 	MOVL	old+8(SP), CX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	CMPL	AX, $0xfffff001
 	JLS	2(PC)
 	INT	$3
@@ -427,7 +433,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	AX, CX	// user_desc
 	MOVL	$16, DX	// sizeof(user_desc)
 	MOVL	$123, AX	// syscall - modify_ldt
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 
 	// breakpoint on error
 	CMPL AX, $0xfffff001
@@ -444,7 +450,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 
 TEXT runtime·osyield(SB),NOSPLIT,$0
 	MOVL	$158, AX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	RET
 
 TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
@@ -452,7 +458,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 	MOVL	pid+0(FP), BX
 	MOVL	len+4(FP), CX
 	MOVL	buf+8(FP), DX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -460,7 +466,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
 TEXT runtime·epollcreate(SB),NOSPLIT,$0
 	MOVL    $254, AX
 	MOVL	size+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -468,7 +474,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
 TEXT runtime·epollcreate1(SB),NOSPLIT,$0
 	MOVL    $329, AX
 	MOVL	flags+0(FP), BX
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+4(FP)
 	RET
 
@@ -479,7 +485,7 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
 	MOVL	op+4(FP), CX
 	MOVL	fd+8(FP), DX
 	MOVL	ev+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -490,7 +496,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
 	MOVL	ev+4(FP), CX
 	MOVL	nev+8(FP), DX
 	MOVL	timeout+12(FP), SI
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	MOVL	AX, ret+16(FP)
 	RET
 
@@ -500,5 +506,5 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	fd+0(FP), BX  // fd
 	MOVL	$2, CX  // F_SETFD
 	MOVL	$1, DX  // FD_CLOEXEC
-	CALL	*runtime·_vdso(SB)
+	INVOKE_SYSINFO
 	RET
