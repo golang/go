@@ -145,7 +145,7 @@ func FullRuneInString(s string) bool {
 // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and
 // its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
 // the encoding is invalid, it returns (RuneError, 1). Both are impossible
-// results for correct UTF-8.
+// results for correct, non-empty UTF-8.
 //
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
@@ -192,7 +192,8 @@ func DecodeRune(p []byte) (r rune, size int) {
 
 // DecodeRuneInString is like DecodeRune but its input is a string. If s is
 // empty it returns (RuneError, 0). Otherwise, if the encoding is invalid, it
-// returns (RuneError, 1). Both are impossible results for correct UTF-8.
+// returns (RuneError, 1). Both are impossible results for correct, non-empty
+// UTF-8.
 //
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
@@ -240,7 +241,7 @@ func DecodeRuneInString(s string) (r rune, size int) {
 // DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and
 // its width in bytes. If p is empty it returns (RuneError, 0). Otherwise, if
 // the encoding is invalid, it returns (RuneError, 1). Both are impossible
-// results for correct UTF-8.
+// results for correct, non-empty UTF-8.
 //
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
@@ -279,7 +280,8 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 
 // DecodeLastRuneInString is like DecodeLastRune but its input is a string. If
 // s is empty it returns (RuneError, 0). Otherwise, if the encoding is invalid,
-// it returns (RuneError, 1). Both are impossible results for correct UTF-8.
+// it returns (RuneError, 1). Both are impossible results for correct,
+// non-empty UTF-8.
 //
 // An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
 // out of range, or is not the shortest possible UTF-8 encoding for the
