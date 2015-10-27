@@ -835,15 +835,17 @@ func readpkglist(shlibpath string) (pkgs []*Package) {
 
 // action returns the action for applying the given operation (mode) to the package.
 // depMode is the action to use when building dependencies.
-// action never looks for p in a shared library.
+// action never looks for p in a shared library, but may find p's dependencies in a
+// shared library if buildLinkshared is true.
 func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action {
-	return b.action1(mode, depMode, p, false)
+	return b.action1(mode, depMode, p, false, "")
 }
 
 // action1 returns the action for applying the given operation (mode) to the package.
 // depMode is the action to use when building dependencies.
 // action1 will look for p in a shared library if lookshared is true.
-func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, lookshared bool) *action {
+// forShlib is the shared library that p will become part of, if any.
+func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, lookshared bool, forShlib string) *action {
 	shlib := ""
 	if lookshared {
 		shlib = p.Shlib
@@ -875,13 +877,23 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 	b.actionCache[key] = a
 
 	for _, p1 := range p.imports {
-		ls := buildLinkshared
-		// If p1 is part of the same shared library as p, we need the action
-		// that builds p here, not the shared libary or we get action loops.
-		if p1.Shlib == p.Shlib {
-			ls = false
+		if forShlib != "" {
+			// p is part of a shared library.
+			if p1.Shlib != "" && p1.Shlib != forShlib {
+				// p1 is explicitly part of a different shared library.
+				// Put the action for that shared library into a.deps.
+				a.deps = append(a.deps, b.action1(depMode, depMode, p1, true, p1.Shlib))
+			} else {
+				// p1 is (implicitly or not) part of this shared library.
+				// Put the action for p1 into a.deps.
+				a.deps = append(a.deps, b.action1(depMode, depMode, p1, false, forShlib))
+			}
+		} else {
+			// p is not part of a shared library.
+			// If p1 is in a shared library, put the action for that into
+			// a.deps, otherwise put the action for p1 into a.deps.
+			a.deps = append(a.deps, b.action1(depMode, depMode, p1, buildLinkshared, p1.Shlib))
 		}
-		a.deps = append(a.deps, b.action1(depMode, depMode, p1, ls))
 	}
 
 	// If we are not doing a cross-build, then record the binary we'll
@@ -937,7 +949,7 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 	switch mode {
 	case modeInstall:
 		a.f = (*builder).install
-		a.deps = []*action{b.action1(modeBuild, depMode, p, lookshared)}
+		a.deps = []*action{b.action1(modeBuild, depMode, p, lookshared, forShlib)}
 		a.target = a.p.target
 
 		// Install header for cgo in c-archive and c-shared modes.
@@ -1079,7 +1091,7 @@ func (b *builder) libaction(libname string, pkgs []*Package, mode, depMode build
 			if err != nil || lstat.ModTime().After(built) {
 				stale = true
 			}
-			a.deps = append(a.deps, b.action(depMode, depMode, p))
+			a.deps = append(a.deps, b.action1(depMode, depMode, p, false, a.target))
 		}
 
 		if stale {
