@@ -384,8 +384,8 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	}
 
 	// find span
-	arena_start := uintptr(unsafe.Pointer(mheap_.arena_start))
-	arena_used := uintptr(unsafe.Pointer(mheap_.arena_used))
+	arena_start := mheap_.arena_start
+	arena_used := mheap_.arena_used
 	if uintptr(v) < arena_start || uintptr(v) >= arena_used {
 		return
 	}
