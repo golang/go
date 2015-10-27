@@ -38,6 +38,30 @@ import (
 )
 
 func gentext() {
+	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE {
+		return
+	}
+
+	thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0)
+	thunkfunc.Type = obj.STEXT
+	thunkfunc.Local = true
+	thunkfunc.Reachable = true
+	o := func(op ...uint8) {
+		for _, op1 := range op {
+			ld.Adduint8(ld.Ctxt, thunkfunc, op1)
+		}
+	}
+	// 8b 0c 24	mov    (%esp),%ecx
+	o(0x8b, 0x0c, 0x24)
+	// c3		ret
+	o(0xc3)
+
+	if ld.Ctxt.Etextp != nil {
+		ld.Ctxt.Etextp.Next = thunkfunc
+	} else {
+		ld.Ctxt.Textp = thunkfunc
+	}
+	ld.Ctxt.Etextp = thunkfunc
 }
 
 func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
@@ -254,6 +278,15 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	case obj.R_TLS_LE:
 		if r.Siz == 4 {
 			ld.Thearch.Lput(ld.R_386_TLS_LE | uint32(elfsym)<<8)
+		} else {
+			return -1
+		}
+
+	case obj.R_TLS_IE:
+		if r.Siz == 4 {
+			ld.Thearch.Lput(ld.R_386_GOTPC)
+			ld.Thearch.Lput(uint32(sectoff))
+			ld.Thearch.Lput(ld.R_386_TLS_GOTIE | uint32(elfsym)<<8)
 		} else {
 			return -1
 		}
