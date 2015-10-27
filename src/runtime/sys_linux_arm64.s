@@ -43,6 +43,9 @@
 #define SYS_epoll_ctl		21
 #define SYS_epoll_pwait		22
 #define SYS_clock_gettime	113
+#define SYS_faccessat		48
+#define SYS_socket		198
+#define SYS_connect		203
 
 TEXT runtime·exit(SB),NOSPLIT,$-8-4
 	MOVW	code+0(FP), R0
@@ -444,4 +447,34 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$-8
 	MOVD	$1, R2	// FD_CLOEXEC
 	MOVD	$SYS_fcntl, R8
 	SVC
+	RET
+
+// int access(const char *name, int mode)
+TEXT runtime·access(SB),NOSPLIT,$0-20
+	MOVD	$AT_FDCWD, R0
+	MOVD	name+0(FP), R1
+	MOVW	mode+8(FP), R2
+	MOVD	$SYS_faccessat, R8
+	SVC
+	MOVW	R0, ret+16(FP)
+	RET
+
+// int connect(int fd, const struct sockaddr *addr, socklen_t len)
+TEXT runtime·connect(SB),NOSPLIT,$0-28
+	MOVW	fd+0(FP), R0
+	MOVD	addr+8(FP), R1
+	MOVW	len+16(FP), R2
+	MOVD	$SYS_connect, R8
+	SVC
+	MOVW	R0, ret+24(FP)
+	RET
+
+// int socket(int domain, int typ, int prot)
+TEXT runtime·socket(SB),NOSPLIT,$0-20
+	MOVW	domain+0(FP), R0
+	MOVW	typ+4(FP), R1
+	MOVW	prot+8(FP), R2
+	MOVD	$SYS_socket, R8
+	SVC
+	MOVW	R0, ret+16(FP)
 	RET
