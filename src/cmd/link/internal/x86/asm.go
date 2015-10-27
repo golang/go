@@ -37,6 +37,19 @@ import (
 	"log"
 )
 
+// Append 4 bytes to s and create a R_CALL relocation targeting t to fill them in.
+func addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) {
+	s.Reachable = true
+	i := s.Size
+	s.Size += 4
+	ld.Symgrow(ctxt, s, s.Size)
+	r := ld.Addrel(s)
+	r.Sym = t
+	r.Off = int32(i)
+	r.Type = obj.R_CALL
+	r.Siz = 4
+}
+
 func gentext() {
 	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE {
 		return
@@ -62,6 +75,68 @@ func gentext() {
 		ld.Ctxt.Textp = thunkfunc
 	}
 	ld.Ctxt.Etextp = thunkfunc
+
+	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
+	if addmoduledata.Type == obj.STEXT {
+		// we're linking a module containing the runtime -> no need for
+		// an init function
+		return
+	}
+
+	addmoduledata.Reachable = true
+
+	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+	initfunc.Type = obj.STEXT
+	initfunc.Local = true
+	initfunc.Reachable = true
+	o = func(op ...uint8) {
+		for _, op1 := range op {
+			ld.Adduint8(ld.Ctxt, initfunc, op1)
+		}
+	}
+
+	// go.link.addmoduledata:
+	//      53                      push %ebx
+	//      e8 00 00 00 00          call __x86.get_pc_thunk.cx + R_CALL __x86.get_pc_thunk.cx
+	//      8d 81 00 00 00 00       lea 0x0(%ecx), %eax + R_PCREL ld.Ctxt.Moduledata
+	//      8d 99 00 00 00 00       lea 0x0(%ecx), %ebx + R_GOTPC _GLOBAL_OFFSET_TABLE_
+	//      e8 00 00 00 00          call runtime.addmoduledata@plt + R_CALL runtime.addmoduledata
+	//      5b                      pop %ebx
+	//      c3                      ret
+
+	o(0x53)
+
+	o(0xe8)
+	addcall(ld.Ctxt, initfunc, ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0))
+
+	o(0x8d, 0x81)
+	ld.Addpcrelplus(ld.Ctxt, initfunc, ld.Ctxt.Moduledata, 6)
+
+	o(0x8d, 0x99)
+	i := initfunc.Size
+	initfunc.Size += 4
+	ld.Symgrow(ld.Ctxt, initfunc, initfunc.Size)
+	r := ld.Addrel(initfunc)
+	r.Sym = ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+	r.Off = int32(i)
+	r.Type = obj.R_PCREL
+	r.Add = 12
+	r.Siz = 4
+
+	o(0xe8)
+	addcall(ld.Ctxt, initfunc, addmoduledata)
+
+	o(0x5b)
+
+	o(0xc3)
+
+	ld.Ctxt.Etextp.Next = initfunc
+	ld.Ctxt.Etextp = initfunc
+	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+	initarray_entry.Reachable = true
+	initarray_entry.Local = true
+	initarray_entry.Type = obj.SINITARR
+	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
 
 func adddynrela(rela *ld.LSym, s *ld.LSym, r *ld.Reloc) {
