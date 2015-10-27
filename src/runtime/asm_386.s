@@ -1546,3 +1546,14 @@ TEXT runtime·prefetcht2(SB),NOSPLIT,$0-4
 
 TEXT runtime·prefetchnta(SB),NOSPLIT,$0-4
 	RET
+
+// Add a module's moduledata to the linked list of moduledata objects.  This
+// is called from .init_array by a function generated in the linker and so
+// follows the platform ABI wrt register preservation -- it only touches AX,
+// CX (implicitly) and DX, but it does not follow the ABI wrt arguments:
+// instead the pointer to the moduledata is passed in AX.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+       MOVL    runtime·lastmoduledatap(SB), DX
+       MOVL    AX, moduledata_next(DX)
+       MOVL    AX, runtime·lastmoduledatap(SB)
+       RET
