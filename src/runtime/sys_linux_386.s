@@ -408,7 +408,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 // setldt(int entry, int address, int limit)
 TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	entry+0(FP), BX	// entry
-	MOVL	address+4(FP), CX	// base address
+	MOVL	address+4(FP), DX	// base address
 
 #ifdef GOOS_android
 	/*
@@ -416,8 +416,8 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * address currently holds m->tls, which must be %gs:0xf8.
 	 * See cgo/gcc_android_386.c for the derivation of the constant.
 	 */
-	SUBL	$0xf8, CX
-	MOVL	CX, 0(CX)
+	SUBL	$0xf8, DX
+	MOVL	DX, 0(DX)
 #else
 	/*
 	 * When linking against the system libraries,
@@ -429,23 +429,23 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 * To accommodate that rewrite, we translate
 	 * the address here and bump the limit to 0xffffffff (no limit)
 	 * so that -4(GS) maps to 0(address).
-	 * Also, the final 0(GS) (current 4(CX)) has to point
+	 * Also, the final 0(GS) (current 4(DX)) has to point
 	 * to itself, to mimic ELF.
 	 */
-	ADDL	$0x4, CX	// address
-	MOVL	CX, 0(CX)
+	ADDL	$0x4, DX	// address
+	MOVL	DX, 0(DX)
         // We copy the glibc dynamic linker behaviour of storing the
         // __kernel_vsyscall entry point at 0x10(GS) so that it can be invoked
         // by "CALL 0x10(GS)" in all situations, not only those where the
         // binary is actually dynamically linked.
 	MOVL	runtime·_vdso(SB), AX
-	MOVL	AX, 0x10(CX)
+	MOVL	AX, 0x10(DX)
 #endif
 
 	// set up user_desc
 	LEAL	16(SP), AX	// struct user_desc
 	MOVL	BX, 0(AX)
-	MOVL	CX, 4(AX)
+	MOVL	DX, 4(AX)
 	MOVL	$0xfffff, 8(AX)
 	MOVL	$(SEG_32BIT|LIMIT_IN_PAGES|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
 
