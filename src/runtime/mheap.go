@@ -581,7 +581,7 @@ HaveSpan:
 		mSpan_Init(t, s.start+pageID(npage), s.npages-npage)
 		s.npages = npage
 		p := uintptr(t.start)
-		p -= (uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift)
+		p -= (h.arena_start >> _PageShift)
 		if p > 0 {
 			h_spans[p-1] = s
 		}
@@ -596,7 +596,7 @@ HaveSpan:
 	s.unusedsince = 0
 
 	p := uintptr(s.start)
-	p -= (uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift)
+	p -= (h.arena_start >> _PageShift)
 	for n := uintptr(0); n < npage; n++ {
 		h_spans[p+n] = s
 	}
@@ -663,7 +663,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 	s := (*mspan)(fixAlloc_Alloc(&h.spanalloc))
 	mSpan_Init(s, pageID(uintptr(v)>>_PageShift), ask>>_PageShift)
 	p := uintptr(s.start)
-	p -= (uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift)
+	p -= (h.arena_start >> _PageShift)
 	for i := p; i < p+s.npages; i++ {
 		h_spans[i] = s
 	}
@@ -679,7 +679,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 // and is guaranteed to be start or end of span.
 func mHeap_Lookup(h *mheap, v unsafe.Pointer) *mspan {
 	p := uintptr(v)
-	p -= uintptr(unsafe.Pointer(h.arena_start))
+	p -= h.arena_start
 	return h_spans[p>>_PageShift]
 }
 
@@ -691,12 +691,12 @@ func mHeap_Lookup(h *mheap, v unsafe.Pointer) *mspan {
 // other garbage in their middles, so we have to
 // check for that.
 func mHeap_LookupMaybe(h *mheap, v unsafe.Pointer) *mspan {
-	if uintptr(v) < uintptr(unsafe.Pointer(h.arena_start)) || uintptr(v) >= uintptr(unsafe.Pointer(h.arena_used)) {
+	if uintptr(v) < h.arena_start || uintptr(v) >= h.arena_used {
 		return nil
 	}
 	p := uintptr(v) >> _PageShift
 	q := p
-	q -= uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift
+	q -= h.arena_start >> _PageShift
 	s := h_spans[q]
 	if s == nil || p < uintptr(s.start) || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != _MSpanInUse {
 		return nil
@@ -779,7 +779,7 @@ func mHeap_FreeSpanLocked(h *mheap, s *mspan, acctinuse, acctidle bool, unusedsi
 
 	// Coalesce with earlier, later spans.
 	p := uintptr(s.start)
-	p -= uintptr(unsafe.Pointer(h.arena_start)) >> _PageShift
+	p -= h.arena_start >> _PageShift
 	if p > 0 {
 		t := h_spans[p-1]
 		if t != nil && t.state == _MSpanFree {
