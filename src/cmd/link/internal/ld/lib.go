@@ -316,7 +316,7 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeCArchive
 	case "c-shared":
-		if goarch != "amd64" && goarch != "arm" {
+		if goarch != "amd64" && goarch != "arm" && goarch != "arm64" {
 			return badmode()
 		}
 		*mode = BuildmodeCShared

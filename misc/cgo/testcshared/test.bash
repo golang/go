@@ -114,7 +114,7 @@ if [ "$output" != "PASS" ]; then
 fi
 
 # test2: tests libgo2 which does not export any functions.
-GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext src/libgo2/libgo2.go
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext libgo2
 binpush libgo2.$libext
 linkflags="-Wl,--no-as-needed"
 if [ "$goos" == "darwin" ]; then
