@@ -826,6 +826,13 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
 // distributed random number and applying the cumulative distribution
 // function for an exponential.
 func nextSample() int32 {
+	if GOOS == "plan9" {
+		// Plan 9 doesn't support floating point in note handler.
+		if g := getg(); g == g.m.gsignal {
+			return nextSampleNoFP()
+		}
+	}
+
 	period := MemProfileRate
 
 	// make nextSample not overflow. Maximum possible step is
@@ -853,6 +860,20 @@ func nextSample() int32 {
 	}
 	const minusLog2 = -0.6931471805599453 // -ln(2)
 	return int32(qlog*(minusLog2*float64(period))) + 1
+}
+
+// nextSampleNoFP is similar to nextSample, but uses older,
+// simpler code to avoid floating point.
+func nextSampleNoFP() int32 {
+	// Set first allocation sample size.
+	rate := MemProfileRate
+	if rate > 0x3fffffff { // make 2*rate not overflow
+		rate = 0x3fffffff
+	}
+	if rate != 0 {
+		return int32(int(fastrand1()) % (2 * rate))
+	}
+	return 0
 }
 
 type persistentAlloc struct {
