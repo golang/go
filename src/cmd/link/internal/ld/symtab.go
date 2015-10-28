@@ -155,11 +155,6 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		bind = STB_LOCAL
 	}
 
-	if bind != elfbind {
-		return
-	}
-
-	off := putelfstr(s)
 	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
 		addr -= int64(xo.Sect.Vaddr)
 	}
@@ -167,7 +162,24 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	putelfsyment(off, addr, size, bind<<4|type_&0xf, elfshnum, other)
+
+	if DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
+		// When dynamically linking, we want references to functions defined
+		// in this module to always be to the function object, not to the
+		// PLT. We force this by writing an additional local symbol for every
+		// global function symbol and making all relocations against the
+		// global symbol refer to this local symbol instead (see
+		// (*LSym).ElfsymForReloc). This is approximately equivalent to the
+		// ELF linker -Bsymbolic-functions option, but that is buggy on
+		// several platforms.
+		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
+		x.LocalElfsym = int32(numelfsym)
+		numelfsym++
+	} else if bind != elfbind {
+		return
+	}
+
+	putelfsyment(putelfstr(s), addr, size, bind<<4|type_&0xf, elfshnum, other)
 	x.Elfsym = int32(numelfsym)
 	numelfsym++
 }
