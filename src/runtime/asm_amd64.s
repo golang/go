@@ -42,11 +42,37 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 	JNE	notintel
 	MOVB	$1, runtime·lfenceBeforeRdtsc(SB)
 notintel:
+	// Do nothing.
 
 	MOVQ	$1, AX
 	CPUID
 	MOVL	CX, runtime·cpuid_ecx(SB)
 	MOVL	DX, runtime·cpuid_edx(SB)
+	// Detect AVX and AVX2 as per 14.7.1  Detection of AVX2 chapter of [1]
+	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf
+	// http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-software-developer-manual-325462.pdf
+	ANDL    $0x18000000, CX // check for OSXSAVE and AVX bits
+	CMPL    CX, $0x18000000
+	JNE     noavx
+	MOVL    $0, CX
+	// For XGETBV, OSXSAVE bit is required and sufficient
+	BYTE $0x0F; BYTE $0x01; BYTE $0xD0
+	ANDL    $6, AX
+	CMPL    AX, $6 // Check for OS support of YMM registers
+	JNE     noavx
+	MOVB    $1, runtime·support_avx(SB)
+	MOVL    $7, AX
+	MOVL    $0, CX
+	CPUID
+	ANDL    $0x20, BX // check for AVX2 bit
+	CMPL    BX, $0x20
+	JNE     noavx2
+	MOVB    $1, runtime·support_avx2(SB)
+	JMP     nocpuinfo
+noavx:
+	MOVB    $0, runtime·support_avx(SB)
+noavx2:
+	MOVB    $0, runtime·support_avx2(SB)
 nocpuinfo:	
 	
 	// if there is an _cgo_init, call it.
@@ -1508,7 +1534,10 @@ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	JB	small
 
 	CMPQ	R8, $63
-	JA	big_loop
+	JBE	loop
+	CMPB    runtime·support_avx2(SB), $1
+	JEQ     big_loop_avx2
+	JMP	big_loop
 loop:
 	CMPQ	R8, $16
 	JBE	_0through16
@@ -1656,6 +1685,45 @@ big_loop:
 	CMPQ	R8, $64
 	JBE	loop
 	JMP	big_loop
+
+	// Compare 64-bytes per loop iteration.
+	// Loop is unrolled and uses AVX2.
+big_loop_avx2:
+	MOVHDU	(SI), X2
+	MOVHDU	(DI), X3
+	MOVHDU	32(SI), X4
+	MOVHDU	32(DI), X5
+	VPCMPEQB X2, X3, X0
+	VPMOVMSKB X0, AX
+	XORL	$0xffffffff, AX
+	JNE	diff32_avx2
+	VPCMPEQB X4, X5, X6
+	VPMOVMSKB X6, AX
+	XORL	$0xffffffff, AX
+	JNE	diff64_avx2
+
+	ADDQ	$64, SI
+	ADDQ	$64, DI
+	SUBQ	$64, R8
+	CMPQ	R8, $64
+	JB	big_loop_avx2_exit
+	JMP	big_loop_avx2
+
+	// Avoid AVX->SSE transition penalty and search first 32 bytes of 64 byte chunk.
+diff32_avx2:
+	VZEROUPPER
+	JMP diff16
+
+	// Same as diff32_avx2, but for last 32 bytes.
+diff64_avx2:
+	VZEROUPPER
+	JMP diff48
+
+	// For <64 bytes remainder jump to normal loop.
+big_loop_avx2_exit:
+	VZEROUPPER
+	JMP loop
+
 
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), SI

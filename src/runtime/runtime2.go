@@ -627,6 +627,8 @@ var (
 	cpuid_ecx         uint32
 	cpuid_edx         uint32
 	lfenceBeforeRdtsc bool
+	support_avx       bool
+	support_avx2      bool
 
 	goarm uint8 // set by cmd/link on arm systems
 )
