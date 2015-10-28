@@ -362,6 +362,7 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int, doc *D
 				var l []string
 				for ok && strings.TrimSpace(text) != "" {
 					if text[0] == '.' { // Command breaks text block.
+						lines.back()
 						break
 					}
 					if strings.HasPrefix(text, `\.`) { // Backslash escapes initial period.
