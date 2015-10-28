@@ -76,6 +76,12 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	case obj.R_ARM64_TLS_LE:
 		ld.Thearch.Vput(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
 
+	case obj.R_ARM64_TLS_IE:
+		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
+		ld.Thearch.Vput(uint64(r.Xadd))
+		ld.Thearch.Vput(uint64(sectoff + 4))
+		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
+
 	case obj.R_CALLARM64:
 		if r.Siz != 4 {
 			return -1
@@ -229,7 +235,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 			return 0
 
 		case obj.R_CALLARM64,
-			obj.R_ARM64_TLS_LE:
+			obj.R_ARM64_TLS_LE,
+			obj.R_ARM64_TLS_IE:
 			r.Done = 0
 			r.Xsym = r.Sym
 			r.Xadd = r.Add

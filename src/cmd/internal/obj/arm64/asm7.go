@@ -270,7 +270,8 @@ var optab = []Optab{
 	{AMOVH, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
 	{AMOVW, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
 	{AMOVD, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
-	{AMOVD, C_TLS, C_NONE, C_REG, 69, 4, 0, 0, 0},
+	{AMOVD, C_TLS_LE, C_NONE, C_REG, 69, 4, 0, 0, 0},
+	{AMOVD, C_TLS_IE, C_NONE, C_REG, 70, 8, 0, 0, 0},
 	{AMUL, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
 	{AMUL, C_REG, C_NONE, C_REG, 15, 4, 0, 0, 0},
 	{AMADD, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
@@ -970,7 +971,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			ctxt.Instoffset = a.Offset
 			if a.Sym != nil { // use relocation
 				if a.Sym.Type == obj.STLSBSS {
-					return C_TLS
+					if ctxt.Flag_shared != 0 {
+						return C_TLS_IE
+					} else {
+						return C_TLS_LE
+					}
 				}
 				return C_ADDR
 			}
@@ -1045,9 +1050,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			s := a.Sym
-			if s == nil {
+			if a.Sym == nil {
 				break
+			}
+			if a.Sym.Type == obj.STLSBSS {
+				ctxt.Diag("taking address of TLS variable is not supported")
 			}
 			ctxt.Instoffset = a.Offset
 			return C_VCONADDR
@@ -2757,7 +2764,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Add = p.From.Offset
 		rel.Type = obj.R_ADDRARM64
 
-	case 69: /* movd $tlsvar, reg -> movz reg, 0 + reloc */
+	case 69: /* LE model movd $tlsvar, reg -> movz reg, 0 + reloc */
 		o1 = opirr(ctxt, AMOVZ)
 		o1 |= uint32(p.To.Reg & 31)
 		rel := obj.Addrel(ctxt.Cursym)
@@ -2765,6 +2772,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 4
 		rel.Sym = p.From.Sym
 		rel.Type = obj.R_ARM64_TLS_LE
+		if p.From.Offset != 0 {
+			ctxt.Diag("invalid offset on MOVW $tlsvar")
+		}
+
+	case 70: /* IE model movd $tlsvar, reg -> adrp REGTMP, 0; ldr reg, [REGTMP, #0] + relocs */
+		o1 = ADR(1, 0, REGTMP)
+		o2 = olsr12u(ctxt, int32(opldr12(ctxt, AMOVD)), 0, REGTMP, int(p.To.Reg))
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Add = 0
+		rel.Type = obj.R_ARM64_TLS_IE
 		if p.From.Offset != 0 {
 			ctxt.Diag("invalid offset on MOVW $tlsvar")
 		}

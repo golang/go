@@ -446,6 +446,11 @@ const (
 	// local base to the thread local variable defined by the referenced (thread
 	// local) symbol. Error if the offset does not fit into 16 bits.
 	R_ARM64_TLS_LE
+
+	// Relocates an ADRP; LD64 instruction sequence to load the offset between
+	// the thread local base and the thread local variable defined by the
+	// referenced (thread local) symbol from the GOT.
+	R_ARM64_TLS_IE
 )
 
 type Auto struct {
