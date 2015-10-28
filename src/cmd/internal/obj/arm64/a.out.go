@@ -321,7 +321,16 @@ const (
 	C_LOREG
 
 	C_ADDR // TODO(aram): explain difference from C_VCONADDR
-	C_TLS  // TLS var, i.e. memory address containing offset for the var
+
+	// TLS "var" in local exec mode: will become a constant offset from
+	// thread local base that is ultimately chosen by the program linker.
+	C_TLS_LE
+
+	// TLS "var" in initial exec mode: will become a memory address (chosen
+	// by the program linker) that the dynamic linker will fill with the
+	// offset from the thread local base.
+	C_TLS_IE
+
 	C_ROFF // register offset (including register extended)
 
 	C_GOK
