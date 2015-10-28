@@ -77,11 +77,39 @@ func testExtStore() {
 	}
 }
 
+var b int
+
+// testDeadStorePanic_ssa ensures that we don't optimize away stores
+// that could be read by after recover().  Modeled after fixedbugs/issue1304.
+func testDeadStorePanic_ssa(a int) (r int) {
+	switch {
+	}
+	defer func() {
+		recover()
+		r = a
+	}()
+	a = 2      // store
+	b := a - a // optimized to zero
+	c := 4
+	a = c / b // store, but panics
+	a = 3     // store
+	r = a
+	return
+}
+
+func testDeadStorePanic() {
+	if want, got := 2, testDeadStorePanic_ssa(1); want != got {
+		fmt.Println("testDeadStorePanic failed.  want =", want, ", got =", got)
+		failed = true
+	}
+}
+
 func main() {
 
 	testLoadStoreOrder()
 	testStoreSize()
 	testExtStore()
+	testDeadStorePanic()
 
 	if failed {
 		panic("failed")

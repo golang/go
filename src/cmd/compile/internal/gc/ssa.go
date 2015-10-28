@@ -2265,7 +2265,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		switch n.Class {
 		case PEXTERN:
 			// global variable
-			aux := &ssa.ExternSymbol{n.Type, n.Sym}
+			aux := s.lookupSymbol(n, &ssa.ExternSymbol{n.Type, n.Sym})
 			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
 			// TODO: Make OpAddr use AuxInt as well as Aux.
 			if n.Xoffset != 0 {
