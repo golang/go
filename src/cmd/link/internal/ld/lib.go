@@ -46,6 +46,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Data layout and relocation.
@@ -916,28 +917,41 @@ func hostlinksetup() {
 // hostobjCopy creates a copy of the object files in hostobj in a
 // temporary directory.
 func hostobjCopy() (paths []string) {
+	var wg sync.WaitGroup
+	sema := make(chan struct{}, runtime.NumCPU()) // limit open file descriptors
 	for i, h := range hostobj {
-		f, err := os.Open(h.file)
-		if err != nil {
-			Exitf("cannot reopen %s: %v", h.pn, err)
-		}
-		if _, err := f.Seek(h.off, 0); err != nil {
-			Exitf("cannot seek %s: %v", h.pn, err)
-		}
+		h := h
+		dst := fmt.Sprintf("%s/%06d.o", tmpdir, i)
+		paths = append(paths, dst)
 
-		p := fmt.Sprintf("%s/%06d.o", tmpdir, i)
-		paths = append(paths, p)
-		w, err := os.Create(p)
-		if err != nil {
-			Exitf("cannot create %s: %v", p, err)
-		}
-		if _, err := io.CopyN(w, f, h.length); err != nil {
-			Exitf("cannot write %s: %v", p, err)
-		}
-		if err := w.Close(); err != nil {
-			Exitf("cannot close %s: %v", p, err)
-		}
+		wg.Add(1)
+		go func() {
+			sema <- struct{}{}
+			defer func() {
+				<-sema
+				wg.Done()
+			}()
+			f, err := os.Open(h.file)
+			if err != nil {
+				Exitf("cannot reopen %s: %v", h.pn, err)
+			}
+			if _, err := f.Seek(h.off, 0); err != nil {
+				Exitf("cannot seek %s: %v", h.pn, err)
+			}
+
+			w, err := os.Create(dst)
+			if err != nil {
+				Exitf("cannot create %s: %v", dst, err)
+			}
+			if _, err := io.CopyN(w, f, h.length); err != nil {
+				Exitf("cannot write %s: %v", dst, err)
+			}
+			if err := w.Close(); err != nil {
+				Exitf("cannot close %s: %v", dst, err)
+			}
+		}()
 	}
+	wg.Wait()
 	return paths
 }
 
