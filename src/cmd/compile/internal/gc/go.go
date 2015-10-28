@@ -858,6 +858,8 @@ var Panicindex *Node
 
 var panicslice *Node
 
+var panicdivide *Node
+
 var throwreturn *Node
 
 var growslice *Node

@@ -339,6 +339,7 @@ func compile(fn *Node) {
 		Deferreturn = Sysfunc("deferreturn")
 		Panicindex = Sysfunc("panicindex")
 		panicslice = Sysfunc("panicslice")
+		panicdivide = Sysfunc("panicdivide")
 		throwreturn = Sysfunc("throwreturn")
 		growslice = Sysfunc("growslice")
 		typedmemmove_nostore = Sysfunc("typedmemmove_nostore")

@@ -1655,9 +1655,22 @@ func (s *state) expr(n *Node) *ssa.Value {
 				xreal = s.newValue1(ssa.OpCvt64Fto32F, pt, xreal)
 				ximag = s.newValue1(ssa.OpCvt64Fto32F, pt, ximag)
 			}
-
 			return s.newValue2(ssa.OpComplexMake, n.Type, xreal, ximag)
 		}
+		if n.Type.IsFloat() {
+			return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+		} else {
+			// do a size-appropriate check for zero
+			cmp := s.newValue2(s.ssaOp(ONE, n.Type), Types[TBOOL], b, s.zeroVal(n.Type))
+			s.check(cmp, panicdivide)
+			return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+		}
+	case OMOD:
+		a := s.expr(n.Left)
+		b := s.expr(n.Right)
+		// do a size-appropriate check for zero
+		cmp := s.newValue2(s.ssaOp(ONE, n.Type), Types[TBOOL], b, s.zeroVal(n.Type))
+		s.check(cmp, panicdivide)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
 	case OADD, OSUB:
 		a := s.expr(n.Left)
@@ -1670,7 +1683,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue2(op, pt, s.newValue1(ssa.OpComplexImag, pt, a), s.newValue1(ssa.OpComplexImag, pt, b)))
 		}
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
-	case OAND, OOR, OMOD, OHMUL, OXOR:
+	case OAND, OOR, OHMUL, OXOR:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
