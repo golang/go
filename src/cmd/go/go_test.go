@@ -458,7 +458,7 @@ func (tg *testgoData) grepCountBoth(match string) int {
 // removed if it exists.
 func (tg *testgoData) creatingTemp(path string) {
 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
-		tg.t.Fatal("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
+		tg.t.Fatalf("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
 	}
 	// If we have changed the working directory, make sure we have
 	// an absolute path, because we are going to change directory
@@ -2235,7 +2235,7 @@ func TestGoTestImportErrorStack(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("test", "testdep/p1")
 	if !strings.Contains(tg.stderr.String(), out) {
-		t.Fatal("did not give full import stack:\n\n%s", tg.stderr.String())
+		t.Fatalf("did not give full import stack:\n\n%s", tg.stderr.String())
 	}
 }
 
