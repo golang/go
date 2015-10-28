@@ -3,10 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // +build !windows
+// +build !plan9
 
 package os
 
 import (
+	"syscall"
 	"time"
 )
 
@@ -16,10 +18,10 @@ type fileStat struct {
 	size    int64
 	mode    FileMode
 	modTime time.Time
-	sys     interface{}
+	sys     syscall.Stat_t
 }
 
 func (fs *fileStat) Size() int64        { return fs.size }
 func (fs *fileStat) Mode() FileMode     { return fs.mode }
 func (fs *fileStat) ModTime() time.Time { return fs.modTime }
-func (fs *fileStat) Sys() interface{}   { return fs.sys }
+func (fs *fileStat) Sys() interface{}   { return &fs.sys }
