@@ -323,7 +323,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	ld.Thearch.Vput(uint64(sectoff))
 
-	elfsym := r.Xsym.Elfsym
+	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
 		return -1

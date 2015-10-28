@@ -1031,14 +1031,6 @@ func hostlink() {
 			argv = append(argv, "-shared", "-Wl,-z,nodelete")
 		}
 	case BuildmodeShared:
-		// TODO(mwhudson): unless you do this, dynamic relocations fill
-		// out the findfunctab table and for some reason shared libraries
-		// and the executable both define a main function and putting the
-		// address of executable's main into the shared libraries
-		// findfunctab violates the assumptions of the runtime.  TBH, I
-		// think we may well end up wanting to use -Bsymbolic here
-		// anyway.
-		argv = append(argv, "-Wl,-Bsymbolic-functions")
 		if UseRelro() {
 			argv = append(argv, "-Wl,-z,relro")
 		}

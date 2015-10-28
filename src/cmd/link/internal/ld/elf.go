@@ -1615,7 +1615,7 @@ func elfrelocsect(sect *Section, first *LSym) {
 				continue
 			}
 
-			if r.Xsym.Elfsym == 0 {
+			if r.Xsym.ElfsymForReloc() == 0 {
 				Diag("reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
 			if Thearch.Elfreloc1(r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
