@@ -56,7 +56,11 @@
         {{end}}
       </div>
     </div>
+
+    {{if .PlayEnabled}}
     <script src='/play.js'></script>
+    {{end}}
+
     <script>
       (function() {
         // Load Google Analytics tracking code on production site only.
