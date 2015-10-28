@@ -12,6 +12,10 @@ import (
 	"syscall"
 )
 
+func sameFile(fs1, fs2 *fileStat) bool {
+	return fs1.sys.Dev == fs2.sys.Dev && fs1.sys.Ino == fs2.sys.Ino
+}
+
 func rename(oldname, newname string) error {
 	e := syscall.Rename(oldname, newname)
 	if e != nil {
@@ -152,23 +156,25 @@ func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}
-	var stat syscall.Stat_t
-	err := syscall.Fstat(f.fd, &stat)
+	var fs fileStat
+	err := syscall.Fstat(f.fd, &fs.sys)
 	if err != nil {
 		return nil, &PathError{"stat", f.name, err}
 	}
-	return fileInfoFromStat(&stat, f.name), nil
+	fillFileStatFromSys(&fs, f.name)
+	return &fs, nil
 }
 
 // Stat returns a FileInfo describing the named file.
 // If there is an error, it will be of type *PathError.
 func Stat(name string) (FileInfo, error) {
-	var stat syscall.Stat_t
-	err := syscall.Stat(name, &stat)
+	var fs fileStat
+	err := syscall.Stat(name, &fs.sys)
 	if err != nil {
 		return nil, &PathError{"stat", name, err}
 	}
-	return fileInfoFromStat(&stat, name), nil
+	fillFileStatFromSys(&fs, name)
+	return &fs, nil
 }
 
 // Lstat returns a FileInfo describing the named file.
@@ -176,12 +182,13 @@ func Stat(name string) (FileInfo, error) {
 // describes the symbolic link.  Lstat makes no attempt to follow the link.
 // If there is an error, it will be of type *PathError.
 func Lstat(name string) (FileInfo, error) {
-	var stat syscall.Stat_t
-	err := syscall.Lstat(name, &stat)
+	var fs fileStat
+	err := syscall.Lstat(name, &fs.sys)
 	if err != nil {
 		return nil, &PathError{"lstat", name, err}
 	}
-	return fileInfoFromStat(&stat, name), nil
+	fillFileStatFromSys(&fs, name)
+	return &fs, nil
 }
 
 func (f *File) readdir(n int) (fi []FileInfo, err error) {

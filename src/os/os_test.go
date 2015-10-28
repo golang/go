@@ -296,6 +296,48 @@ func TestReaddir(t *testing.T) {
 	testReaddir(sysdir.name, sysdir.files, t)
 }
 
+func benchmarkReaddirname(path string, b *testing.B) {
+	var nentries int
+	for i := 0; i < b.N; i++ {
+		f, err := Open(path)
+		if err != nil {
+			b.Fatalf("open %q failed: %v", path, err)
+		}
+		ns, err := f.Readdirnames(-1)
+		f.Close()
+		if err != nil {
+			b.Fatalf("readdirnames %q failed: %v", path, err)
+		}
+		nentries = len(ns)
+	}
+	b.Logf("benchmarkReaddirname %q: %d entries", path, nentries)
+}
+
+func benchmarkReaddir(path string, b *testing.B) {
+	var nentries int
+	for i := 0; i < b.N; i++ {
+		f, err := Open(path)
+		if err != nil {
+			b.Fatalf("open %q failed: %v", path, err)
+		}
+		fs, err := f.Readdir(-1)
+		f.Close()
+		if err != nil {
+			b.Fatalf("readdir %q failed: %v", path, err)
+		}
+		nentries = len(fs)
+	}
+	b.Logf("benchmarkReaddir %q: %d entries", path, nentries)
+}
+
+func BenchmarkReaddirname(b *testing.B) {
+	benchmarkReaddirname(".", b)
+}
+
+func BenchmarkReaddir(b *testing.B) {
+	benchmarkReaddir(".", b)
+}
+
 // Read the directory one entry at a time.
 func smallReaddirnames(file *File, length int, t *testing.T) []string {
 	names := make([]string, length)
