@@ -31,7 +31,7 @@ import "unsafe"
 // Dealing with memory ordering:
 //
 // Dijkstra pointed out that maintaining the no black to white
-// pointers means that white to white pointers not need
+// pointers means that white to white pointers do not need
 // to be noted by the write barrier. Furthermore if either
 // white object dies before it is reached by the
 // GC then the object can be collected during this GC cycle
