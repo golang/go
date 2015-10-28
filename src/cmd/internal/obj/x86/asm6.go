@@ -195,6 +195,7 @@ const (
 	Zr_m
 	Zr_m_xm
 	Zr_m_xm_vex
+	Zr_r_r_vex
 	Zrp_
 	Z_ib
 	Z_il
@@ -630,6 +631,11 @@ var yxr_ml_vex = []ytab{
 	{Yxr, Ynone, Yml, Zr_m_xm_vex, 1},
 }
 
+var yxm_xm_xm = []ytab{
+	{Yxr, Yxr, Yxr, Zr_r_r_vex, 1},
+	{Yxm, Yxr, Yxr, Zr_r_r_vex, 1},
+}
+
 var ymr = []ytab{
 	{Ymr, Ynone, Ymr, Zm_r, 1},
 }
@@ -723,6 +729,10 @@ var ypsdq = []ytab{
 var ymskb = []ytab{
 	{Yxr, Ynone, Yrl, Zm_r_xm, 2},
 	{Ymr, Ynone, Yrl, Zm_r_xm, 1},
+}
+
+var ymskb_vex = []ytab{
+	{Yxr, Ynone, Yrl, Zm_r_xm_vex, 2},
 }
 
 var ycrc32l = []ytab{
@@ -1497,6 +1507,8 @@ var optab =
 	{AMOVHDU, yxmov_vex, Pvex2, [23]uint8{0x6f, 0x7f}},
 	{AMOVNTHD, yxr_ml_vex, Pvex1, [23]uint8{0xe7}},
 	{AMOVHDA, yxmov_vex, Pvex1, [23]uint8{0x6f, 0x7f}},
+	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
+	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
 	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
@@ -2943,11 +2955,15 @@ var bpduff2 = []byte{
 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
 }
 
-func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, pref uint8) {
+// Assemble vex prefix, from 3 operands and prefix.
+// For details about vex prefix see:
+// https://en.wikipedia.org/wiki/VEX_prefix#Technical_description
+func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, from3 *obj.Addr, pref uint8) {
 	rexR := regrex[to.Reg]
 	rexB := regrex[from.Reg]
 	rexX := regrex[from.Index]
 	var prefBit uint8
+	// This will go into VEX.PP field.
 	if pref == Pvex1 {
 		prefBit = 1
 	} else if pref == Pvex2 {
@@ -2955,21 +2971,36 @@ func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, pref uint8) {
 	} // TODO add Pvex0,Pvex3
 
 	if rexX == 0 && rexB == 0 { // 2-byte vex prefix
+		// In 2-byte case, first byte is always C5
 		ctxt.Andptr[0] = 0xc5
 		ctxt.Andptr = ctxt.Andptr[1:]
 
-		if rexR != 0 {
+		if from3 == nil {
+			// If this is a 2-operand instruction fill VEX.VVVV with 1111
+			// We are also interested only in 256-bit version, so VEX.L=1
 			ctxt.Andptr[0] = 0x7c
 		} else {
-			ctxt.Andptr[0] = 0xfc
+			// VEX.L=1
+			ctxt.Andptr[0] = 0x4
+			// VEX.VVVV (bits 3:6) is a inversed register number
+			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
+		}
+
+		// VEX encodes REX.R as inversed upper bit
+		if rexR == 0 {
+			ctxt.Andptr[0] |= 0x80
 		}
 		ctxt.Andptr[0] |= prefBit
 		ctxt.Andptr = ctxt.Andptr[1:]
-	} else {
+	} else { // 3-byte case
+		// First byte is always C$
 		ctxt.Andptr[0] = 0xc4
 		ctxt.Andptr = ctxt.Andptr[1:]
 
+		// Encode VEX.mmmmm with prefix value, for now assume 0F 38,
+		// which encodes as 1.
 		ctxt.Andptr[0] = 0x1 // TODO handle different prefix
+		// REX.[RXB] are inverted and encoded in 3 upper bits
 		if rexR == 0 {
 			ctxt.Andptr[0] |= 0x80
 		}
@@ -2981,7 +3012,13 @@ func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, pref uint8) {
 		}
 		ctxt.Andptr = ctxt.Andptr[1:]
 
-		ctxt.Andptr[0] = 0x7c
+		// Fill VEX.VVVV, same as 2-operand VEX instruction.
+		if from3 == nil {
+			ctxt.Andptr[0] = 0x7c
+		} else {
+			ctxt.Andptr[0] = 0x4
+			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
+		}
 		ctxt.Andptr[0] |= prefBit
 		ctxt.Andptr = ctxt.Andptr[1:]
 	}
@@ -3222,7 +3259,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zm_r_xm_vex:
 				ctxt.Vexflag = 1
-				vexprefix(ctxt, &p.To, &p.From, o.prefix)
+				vexprefix(ctxt, &p.To, &p.From, nil, o.prefix)
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
 				asmand(ctxt, p, &p.From, &p.To)
@@ -3284,10 +3321,17 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			case Zr_m_xm_vex:
 				ctxt.Vexflag = 1
-				vexprefix(ctxt, &p.From, &p.To, o.prefix)
+				vexprefix(ctxt, &p.From, &p.To, nil, o.prefix)
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
 				asmand(ctxt, p, &p.To, &p.From)
+
+			case Zr_r_r_vex:
+				ctxt.Vexflag = 1
+				vexprefix(ctxt, &p.To, &p.From, p.From3, o.prefix)
+				ctxt.Andptr[0] = byte(op)
+				ctxt.Andptr = ctxt.Andptr[1:]
+				asmand(ctxt, p, &p.From, &p.To)
 
 			case Zr_m_xm:
 				mediaop(ctxt, o, op, int(yt.zoffset), z)
