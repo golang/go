@@ -1725,6 +1725,168 @@ big_loop_avx2_exit:
 	JMP loop
 
 
+// TODO: Also use this in bytes.Index
+TEXT strings·indexShortStr(SB),NOSPLIT,$0-40
+	MOVQ s+0(FP), DI
+	MOVQ s_len+8(FP), CX
+	MOVQ c+16(FP), AX
+	MOVQ c_len+24(FP), BX
+	CMPQ BX, CX
+	JA fail
+	CMPQ BX, $2
+	JA   _3_or_more
+	MOVW (AX), AX
+	LEAQ -1(DI)(CX*1), CX
+loop2:
+	MOVW (DI), SI
+	CMPW SI,AX
+	JZ success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop2
+	JMP fail
+_3_or_more:
+	CMPQ BX, $3
+	JA   _4_or_more
+	MOVW 1(AX), DX
+	MOVW (AX), AX
+	LEAQ -2(DI)(CX*1), CX
+loop3:
+	MOVW (DI), SI
+	CMPW SI,AX
+	JZ   partial_success3
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop3
+	JMP fail
+partial_success3:
+	MOVW 1(DI), SI
+	CMPW SI,DX
+	JZ success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop3
+	JMP fail
+_4_or_more:
+	CMPQ BX, $4
+	JA   _5_or_more
+	MOVL (AX), AX
+	LEAQ -3(DI)(CX*1), CX
+loop4:
+	MOVL (DI), SI
+	CMPL SI,AX
+	JZ   success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop4
+	JMP fail
+_5_or_more:
+	CMPQ BX, $7
+	JA   _8_or_more
+	LEAQ 1(DI)(CX*1), CX
+	SUBQ BX, CX
+	MOVL -4(AX)(BX*1), DX
+	MOVL (AX), AX
+loop5to7:
+	MOVL (DI), SI
+	CMPL SI,AX
+	JZ   partial_success5to7
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop5to7
+	JMP fail
+partial_success5to7:
+	MOVL -4(BX)(DI*1), SI
+	CMPL SI,DX
+	JZ success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop5to7
+	JMP fail
+_8_or_more:
+	CMPQ BX, $8
+	JA   _9_or_more
+	MOVQ (AX), AX
+	LEAQ -7(DI)(CX*1), CX
+loop8:
+	MOVQ (DI), SI
+	CMPQ SI,AX
+	JZ   success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop8
+	JMP fail
+_9_or_more:
+	CMPQ BX, $16
+	JA   _16_or_more
+	LEAQ 1(DI)(CX*1), CX
+	SUBQ BX, CX
+	MOVQ -8(AX)(BX*1), DX
+	MOVQ (AX), AX
+loop9to15:
+	MOVQ (DI), SI
+	CMPQ SI,AX
+	JZ   partial_success9to15
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop9to15
+	JMP fail
+partial_success9to15:
+	MOVQ -8(BX)(DI*1), SI
+	CMPQ SI,DX
+	JZ success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop9to15
+	JMP fail
+_16_or_more:
+	CMPQ BX, $16
+	JA   _17_to_31
+	MOVOU (AX), X1
+	LEAQ -15(DI)(CX*1), CX
+loop16:
+	MOVOU (DI), X2
+	PCMPEQB X1, X2
+	PMOVMSKB X2, SI
+	CMPQ  SI, $0xffff
+	JE   success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop16
+	JMP fail
+_17_to_31:
+	LEAQ 1(DI)(CX*1), CX
+	SUBQ BX, CX
+	MOVOU -16(AX)(BX*1), X0
+	MOVOU (AX), X1
+loop17to31:
+	MOVOU (DI), X2
+	PCMPEQB X1,X2
+	PMOVMSKB X2, SI
+	CMPQ  SI, $0xffff
+	JE   partial_success17to31
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop17to31
+	JMP fail
+partial_success17to31:
+	MOVOU -16(BX)(DI*1), X3
+	PCMPEQB X0, X3
+	PMOVMSKB X3, SI
+	CMPQ  SI, $0xffff
+	JE success
+	ADDQ $1,DI
+	CMPQ DI,CX
+	JB loop17to31
+fail:
+	MOVQ $-1, ret+32(FP)
+	RET
+success:
+	SUBQ s+0(FP), DI
+	MOVQ DI, ret+32(FP)
+	RET
+
+
 TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
 	MOVQ s+0(FP), SI
 	MOVQ s_len+8(FP), BX
