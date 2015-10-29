@@ -219,8 +219,9 @@ const (
 	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
 	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
 	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
-	Pvex1 = 0xc5 /* 66 escape, vex encoding */
-	Pvex2 = 0xc6 /* f3 escape, vex encoding */
+	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
+	Pvex2 = 0xc6 /* f3.0f escape, vex encoding */
+	Pvex3 = 0xc7 /* 66.0f38 escape, vex encoding */
 	Pw    = 0x48 /* Rex.w */
 	Pw8   = 0x90 // symbolic; exact value doesn't matter
 	Py    = 0x80 /* defaults to 64-bit mode */
@@ -629,6 +630,11 @@ var yxr_ml = []ytab{
 
 var yxr_ml_vex = []ytab{
 	{Yxr, Ynone, Yml, Zr_m_xm_vex, 1},
+}
+
+var yml_xr_vex = []ytab{
+	{Yml, Ynone, Yxr, Zm_r_xm_vex, 1},
+	{Yxr, Ynone, Yxr, Zm_r_xm_vex, 1},
 }
 
 var yxm_xm_xm = []ytab{
@@ -1510,6 +1516,8 @@ var optab =
 	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
 	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
 	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
+	{AVPBROADCASTB, yml_xr_vex, Pvex3, [23]uint8{0x78, 0x78}},
+	{AVPTEST, yml_xr_vex, Pvex3, [23]uint8{0x17, 0x17}},
 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
 	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
@@ -2965,13 +2973,13 @@ func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, from3 *obj.Addr, pr
 	rexX := regrex[from.Index]
 	var prefBit uint8
 	// This will go into VEX.PP field.
-	if pref == Pvex1 {
+	if pref == Pvex1 || pref == Pvex3 {
 		prefBit = 1
 	} else if pref == Pvex2 {
 		prefBit = 2
-	} // TODO add Pvex0,Pvex3
+	} // TODO add Pvex0
 
-	if rexX == 0 && rexB == 0 { // 2-byte vex prefix
+	if rexX == 0 && rexB == 0 && pref != Pvex3 { // 2-byte vex prefix
 		// In 2-byte case, first byte is always C5
 		ctxt.Andptr[0] = 0xc5
 		ctxt.Andptr = ctxt.Andptr[1:]
@@ -2998,9 +3006,13 @@ func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, from3 *obj.Addr, pr
 		ctxt.Andptr[0] = 0xc4
 		ctxt.Andptr = ctxt.Andptr[1:]
 
-		// Encode VEX.mmmmm with prefix value, for now assume 0F 38,
-		// which encodes as 1.
-		ctxt.Andptr[0] = 0x1 // TODO handle different prefix
+		// Encode VEX.mmmmm with prefix value, assume 0F,
+		// which encodes as 1, unless 0F38 was specified with pvex3.
+		ctxt.Andptr[0] = 0x1 // TODO handle 0F3A
+		if pref == Pvex3 {
+			ctxt.Andptr[0] = 0x2
+		}
+
 		// REX.[RXB] are inverted and encoded in 3 upper bits
 		if rexR == 0 {
 			ctxt.Andptr[0] |= 0x80
