@@ -1509,6 +1509,7 @@ var optab =
 	{AMOVHDA, yxmov_vex, Pvex1, [23]uint8{0x6f, 0x7f}},
 	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
 	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
+	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
 	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
