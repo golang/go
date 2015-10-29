@@ -10,7 +10,7 @@
 #include "go_tls.h"
 #include "textflag.h"
 
-#ifdef shared
+#ifdef GOBUILDMODE_shared
 #define INVOKE_SYSINFO CALL 0x10(GS)
 #else
 #define INVOKE_SYSINFO CALL *runtime·_vdso(SB)

@@ -389,7 +389,7 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
-				buildAsmflags = append(buildAsmflags, "-D=shared=1")
+				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				fatalf("-buildmode=shared not supported on %s\n", platform)
 			}
@@ -408,7 +408,7 @@ func buildModeInit() {
 		} else {
 			switch platform {
 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
-				buildAsmflags = append(buildAsmflags, "-D=shared=1")
+				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				fatalf("-buildmode=shared not supported on %s\n", platform)
 			}
