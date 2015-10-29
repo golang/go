@@ -451,6 +451,14 @@ const (
 	// the thread local base and the thread local variable defined by the
 	// referenced (thread local) symbol from the GOT.
 	R_ARM64_TLS_IE
+
+	// PPC64.
+
+	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
+	// access. It resolves to the offset of the thread-local symbol from the
+	// thread pointer (R13) and inserts this value into the low 16 bits of an
+	// instruction word.
+	R_POWER_TLS_LE
 )
 
 type Auto struct {

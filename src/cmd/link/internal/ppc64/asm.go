@@ -408,6 +408,18 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - symtoc(s)
 
 		return 0
+
+	case obj.R_POWER_TLS_LE:
+		// The thread pointer points 0x7000 bytes after the start of the the
+		// thread local storage area as documented in section "3.7.2 TLS
+		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
+		// Specification".
+		v := r.Sym.Value - 0x7000
+		if int64(int16(v)) != v {
+			ld.Diag("TLS offset out of range %d", v)
+		}
+		*val = (*val &^ 0xffff) | (v & 0xffff)
+		return 0
 	}
 
 	return -1
