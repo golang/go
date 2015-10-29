@@ -74,8 +74,11 @@ nocgo:
 	MOVDU	R3, -8(R1)
 	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
+	MOVDU	R0, -8(R1)
+	MOVDU	R0, -8(R1)
+	MOVDU	R0, -8(R1)
 	BL	runtime·newproc(SB)
-	ADD	$24, R1
+	ADD	$(16+FIXED_FRAME), R1
 
 	// start this M
 	BL	runtime·mstart(SB)
@@ -173,6 +176,9 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 	MOVD	R12, CTR
 	MOVD	(g_sched+gobuf_sp)(g), R1	// sp = m->g0->sched.sp
 	MOVDU	R3, -8(R1)
+	MOVDU	R0, -8(R1)
+	MOVDU	R0, -8(R1)
+	MOVDU	R0, -8(R1)
 	MOVDU	R0, -8(R1)
 	BL	(CTR)
 	BR	runtime·badmcall2(SB)
