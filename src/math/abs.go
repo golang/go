@@ -9,9 +9,10 @@ package math
 // Special cases are:
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN
-func Abs(x float64) float64
-
-func abs(x float64) float64 {
+func Abs(x float64) float64 {
+	// TODO: once golang.org/issue/13905 is fixed, change this to:
+	// return Float64frombits(Float64bits(x) &^ (1 << 63))
+	// But for now, this generates better code and can also be inlined:
 	switch {
 	case x < 0:
 		return -x
