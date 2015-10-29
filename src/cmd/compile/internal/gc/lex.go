@@ -1535,7 +1535,7 @@ casei:
 	mpatoflt(&yylval.val.U.(*Mpcplx).Imag, str)
 	if yylval.val.U.(*Mpcplx).Imag.Val.IsInf() {
 		Yyerror("overflow in imaginary constant")
-		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
+		Mpmovecflt(&yylval.val.U.(*Mpcplx).Imag, 0.0)
 	}
 
 	if Debug['x'] != 0 {
