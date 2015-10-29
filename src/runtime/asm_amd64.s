@@ -1416,6 +1416,10 @@ eq:
 TEXT runtime·memeqbody(SB),NOSPLIT,$0-0
 	CMPQ	BX, $8
 	JB	small
+	CMPQ	BX, $64
+	JB	bigloop
+	CMPB    runtime·support_avx2(SB), $1
+	JE	hugeloop_avx2
 	
 	// 64 bytes at a time using xmm registers
 hugeloop:
@@ -1444,6 +1448,30 @@ hugeloop:
 	JEQ	hugeloop
 	MOVB	$0, (AX)
 	RET
+
+	// 64 bytes at a time using ymm registers
+hugeloop_avx2:
+	CMPQ	BX, $64
+	JB	bigloop_avx2
+	MOVHDU	(SI), X0
+	MOVHDU	(DI), X1
+	MOVHDU	32(SI), X2
+	MOVHDU	32(DI), X3
+	VPCMPEQB	X1, X0, X4
+	VPCMPEQB	X2, X3, X5
+	VPAND	X4, X5, X6
+	VPMOVMSKB X6, DX
+	ADDQ	$64, SI
+	ADDQ	$64, DI
+	SUBQ	$64, BX
+	CMPL	DX, $0xffffffff
+	JEQ	hugeloop_avx2
+	VZEROUPPER
+	MOVB	$0, (AX)
+	RET
+
+bigloop_avx2:
+	VZEROUPPER
 
 	// 8 bytes at a time using 64-bit register
 bigloop:
