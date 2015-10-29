@@ -241,6 +241,10 @@ type regAllocState struct {
 	// current state of each (preregalloc) Value
 	values []valState
 
+	// For each Value, map from its value ID back to the
+	// preregalloc Value it was derived from.
+	orig []*Value
+
 	// current state of each register
 	regs []regState
 
@@ -296,6 +300,18 @@ func (s *regAllocState) getHome(v *Value) register {
 		return noRegister
 	}
 	return register(s.home[v.ID].(*Register).Num)
+}
+
+// setOrig records that c's original value is the same as
+// v's original value.
+func (s *regAllocState) setOrig(c *Value, v *Value) {
+	for int(c.ID) >= len(s.orig) {
+		s.orig = append(s.orig, nil)
+	}
+	if s.orig[c.ID] != nil {
+		s.f.Fatalf("orig value set twice %s %s", c, v)
+	}
+	s.orig[c.ID] = s.orig[v.ID]
 }
 
 // assignReg assigns register r to hold c, a copy of v.
@@ -421,11 +437,8 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 			args := make([]*Value, 0, len(v.Args))
 			regspec := opcodeTable[v.Op].reg
 			for _, i := range regspec.inputs {
-				a := v.Args[i.idx]
 				// Extract the original arguments to v
-				for a.Op == OpLoadReg || a.Op == OpStoreReg || a.Op == OpCopy {
-					a = a.Args[0]
-				}
+				a := s.orig[v.Args[i.idx].ID]
 				if a.Type.IsFlags() {
 					s.f.Fatalf("cannot load flags value with flags arg: %v has unwrapped arg %v", v.LongString(), a.LongString())
 				}
@@ -457,6 +470,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 			s.f.Fatalf("attempt to load unspilled value %v", v.LongString())
 		}
 	}
+	s.setOrig(c, v)
 	s.assignReg(r, v, c)
 	if nospill {
 		s.nospill |= regMask(1) << r
@@ -474,6 +488,12 @@ func (s *regAllocState) init(f *Func) {
 	s.values = make([]valState, f.NumValues())
 	for i := range s.values {
 		s.values[i].uses = s.values[i].usestorage[:0]
+	}
+	s.orig = make([]*Value, f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			s.orig[v.ID] = v
+		}
 	}
 	s.live = f.live()
 
@@ -709,6 +729,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.assignReg(r, v, v)
 				// Spill the phi in case we need to restore it later.
 				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+				s.setOrig(spill, v)
 				s.values[v.ID].spill = spill
 				s.values[v.ID].spillUsed = false
 			}
@@ -793,6 +814,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// then at the end of regalloc delete the ones we never use.
 			if !v.Type.IsFlags() {
 				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
+				s.setOrig(spill, v)
 				s.values[v.ID].spill = spill
 				s.values[v.ID].spillUsed = false
 			}
@@ -883,6 +905,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				// value so that we don't clobber it prematurely.
 				c := s.allocValToReg(v, s.compatRegs(v), false)
 				d := p.NewValue1(v.Line, OpStoreReg, v.Type, c)
+				s.setOrig(d, v)
 				s.values[v.ID].spill2 = d
 			}
 
@@ -895,6 +918,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				w := v.Args[i]
 				c := s.allocValToReg(w, s.compatRegs(w), false)
 				v.Args[i] = p.NewValue1(v.Line, OpStoreReg, v.Type, c)
+				s.setOrig(v.Args[i], w)
 			}
 			// Figure out what value goes in each register.
 			for r := register(0); r < numRegs; r++ {
