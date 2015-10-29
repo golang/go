@@ -1940,6 +1940,9 @@ TEXT runtime·indexbytebody(SB),NOSPLIT,$0
 	CMPQ BX, $16
 	JLT small
 
+	CMPQ BX, $32
+	JA avx2
+no_avx2:
 	// round up to first 16-byte boundary
 	TESTQ $15, SI
 	JZ aligned
@@ -2001,6 +2004,38 @@ small:
 	REPN; SCASB
 	JZ success
 	MOVQ $-1, (R8)
+	RET
+
+avx2:
+	CMPB   runtime·support_avx2(SB), $1
+	JNE no_avx2
+	MOVD AX, X0
+	LEAQ -32(SI)(BX*1), R11
+	VPBROADCASTB  X0, X1
+avx2_loop:
+	MOVHDU (DI), X2
+	VPCMPEQB X1, X2, X3
+	VPTEST X3, X3
+	JNZ avx2success
+	ADDQ $32, DI
+	CMPQ DI, R11
+	JLT avx2_loop
+	MOVQ R11, DI
+	MOVHDU (DI), X2
+	VPCMPEQB X1, X2, X3
+	VPTEST X3, X3
+	JNZ avx2success
+	VZEROUPPER
+	MOVQ $-1, (R8)
+	RET
+
+avx2success:
+	VPMOVMSKB X3, DX
+	BSFL DX, DX
+	SUBQ SI, DI
+	ADDQ DI, DX
+	MOVQ DX, (R8)
+	VZEROUPPER
 	RET
 
 // we've found the chunk containing the byte
