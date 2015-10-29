@@ -220,6 +220,7 @@ const (
 	C_ANY
 	C_GOK
 	C_ADDR
+	C_TLS_LE
 	C_TEXTSIZE
 
 	C_NCLASS /* must be the last */
