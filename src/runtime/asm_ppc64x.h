@@ -18,14 +18,8 @@
 // with arguments (the arguments should be stored at FIXED_FRAME+0(R1),
 // FIXED_FRAME+8(R1) etc) and some other low-level places.
 //
-// The reason for using a constant is when code is compiled as PIC on ppc64le
-// the fixed part of the stack is 32 bytes large (although PIC is not actually
-// supported yet).
+// The reason for using a constant is to make supporting PIC easier (although
+// we only support PIC on ppc64le which has a minimum 32 bytes of stack frame,
+// and currently always use that much, PIC on ppc64 would need to use 48).
 
-#ifdef GOARCH_ppc64
-#define FIXED_FRAME 8
-#endif
-
-#ifdef GOARCH_ppc64le
-#define FIXED_FRAME 8
-#endif
+#define FIXED_FRAME 32

@@ -168,6 +168,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	switch ctxt.Arch.Thechar {
 	case '6', '8':
 		return 0
+	case '9':
+		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
+		// just use that much stack always on ppc64x.
+		return int64(4 * ctxt.Arch.Ptrsize)
 	default:
 		return int64(ctxt.Arch.Ptrsize)
 	}
