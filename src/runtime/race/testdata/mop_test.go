@@ -1356,14 +1356,8 @@ type InterImpl struct {
 	x, y int
 }
 
+//go:noinline
 func (p InterImpl) Foo(x int) {
-	// prevent inlining
-	z := 42
-	x = 85
-	y := x / z
-	z = y * z
-	x = z * y
-	_, _, _ = x, y, z
 }
 
 type InterImpl2 InterImpl
