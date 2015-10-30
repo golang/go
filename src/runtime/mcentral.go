@@ -101,6 +101,10 @@ havespan:
 	if n == 0 {
 		throw("empty span")
 	}
+	usedBytes := uintptr(s.ref) * s.elemsize
+	if usedBytes > 0 {
+		reimburseSweepCredit(usedBytes)
+	}
 	if s.freelist.ptr() == nil {
 		throw("freelist empty")
 	}

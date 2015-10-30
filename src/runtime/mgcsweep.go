@@ -354,6 +354,11 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 // also sweep pages (e.g., for a large allocation), it can pass a
 // non-zero callerSweepPages to leave that many pages unswept.
 //
+// deductSweepCredit makes a worst-case assumption that all spanBytes
+// bytes of the ultimately allocated span will be available for object
+// allocation. The caller should call reimburseSweepCredit if that
+// turns out not to be the case once the span is allocated.
+//
 // deductSweepCredit is the core of the "proportional sweep" system.
 // It uses statistics gathered by the garbage collector to perform
 // enough sweeping so that all pages are swept during the concurrent
@@ -377,6 +382,17 @@ func deductSweepCredit(spanBytes uintptr, callerSweepPages uintptr) {
 			break
 		}
 	}
+}
+
+// reimburseSweepCredit records that unusableBytes bytes of a
+// just-allocated span are not available for object allocation. This
+// offsets the worst-case charge performed by deductSweepCredit.
+func reimburseSweepCredit(unusableBytes uintptr) {
+	if mheap_.sweepPagesPerByte == 0 {
+		// Nobody cares about the credit. Avoid the atomic.
+		return
+	}
+	xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
 }
 
 func dumpFreeList(s *mspan) {
