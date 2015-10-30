@@ -1070,10 +1070,7 @@ func TestTLSServer(t *testing.T) {
 }
 
 func TestAutomaticHTTP2(t *testing.T) {
-	ln, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	ln := newLocalListener(t)
 	ln.Close() // immediately (not a defer!)
 	var s Server
 	if err := s.Serve(ln); err == nil {
