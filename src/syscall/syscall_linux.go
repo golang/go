@@ -881,7 +881,7 @@ func Setuid(uid int) (err error) {
 	return EOPNOTSUPP
 }
 
-func Setgid(uid int) (err error) {
+func Setgid(gid int) (err error) {
 	return EOPNOTSUPP
 }
 
