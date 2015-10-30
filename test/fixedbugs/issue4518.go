@@ -10,15 +10,13 @@
 
 package main
 
-func DontInline() {}
-
+//go:noinline
 func F(e interface{}) (int, int) {
-	DontInline()
 	return 3, 7
 }
 
+//go:noinline
 func G() (int, int) {
-	DontInline()
 	return 3, 7
 }
 

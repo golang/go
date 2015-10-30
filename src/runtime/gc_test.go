@@ -511,9 +511,11 @@ func TestAssertE2T2Liveness(t *testing.T) {
 	testIfaceEqual(io.EOF)
 }
 
+var a bool
+
+//go:noinline
 func testIfaceEqual(x interface{}) {
 	if x == "abc" {
-		// Prevent inlining
-		panic("")
+		a = true
 	}
 }

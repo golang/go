@@ -23,20 +23,14 @@ package main
 
 import "runtime"
 
-var c bool
-
+//go:noinline
 func f() interface{} {
-	if c { // disable inlining
-		f()
-	}
 	runtime.GC()
 	return nil
 }
 
+//go:noinline
 func g() {
-	if c { // disable inlining
-		g()
-	}
 	var s interface{}
 	_ = func() {
 		s := f()
@@ -47,31 +41,25 @@ func g() {
 	useiface(s)
 }
 
+//go:noinline
 func useiface(x interface{}) {
-	if c {	// disable inlining
-		useiface(x)
-	}
 }
 
+//go:noinline
 func h() {
-	if c { // disable inlining
-		h()
-	}
 	var x [16]uintptr
 	for i := range x {
 		x[i] = 1
 	}
-	
+
 	useint(x[0])
 	useint(x[1])
 	useint(x[2])
 	useint(x[3])
 }
 
+//go:noinline
 func useint(x uintptr) {
-	if c {	// disable inlining
-		useint(x)
-	}
 }
 
 func main() {
@@ -85,6 +73,6 @@ func main() {
 
 func big(x int) {
 	if x >= 0 {
-		big(x-1)
+		big(x - 1)
 	}
 }
