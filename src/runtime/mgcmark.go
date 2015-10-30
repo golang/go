@@ -482,7 +482,7 @@ retry:
 			goto retry
 		}
 		// Park for real.
-		goparkunlock(&work.assistQueue.lock, "GC assist", traceEvGoBlock, 2)
+		goparkunlock(&work.assistQueue.lock, "GC assist wait", traceEvGoBlock, 2)
 
 		// At this point either background GC has satisfied
 		// this G's assist debt, or the GC cycle is over.

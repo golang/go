@@ -1359,7 +1359,7 @@ func gcBgMarkWorker(p *p) {
 		gopark(func(g *g, mp unsafe.Pointer) bool {
 			releasem((*m)(mp))
 			return true
-		}, unsafe.Pointer(mp), "mark worker (idle)", traceEvGoBlock, 0)
+		}, unsafe.Pointer(mp), "GC worker (idle)", traceEvGoBlock, 0)
 
 		// Loop until the P dies and disassociates this
 		// worker. (The P may later be reused, in which case
