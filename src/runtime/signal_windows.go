@@ -134,8 +134,8 @@ func lastcontinuehandler(info *exceptionrecord, r *context, gp *g) int32 {
 	}
 	print("\n")
 
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash := gotraceback()
+	if level > 0 {
 		tracebacktrap(r.ip(), r.sp(), 0, gp)
 		tracebackothers(gp)
 		dumpregs(r)

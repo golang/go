@@ -605,18 +605,21 @@ func dopanic_m(gp *g, pc, sp uintptr) {
 		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
 	}
 
-	var docrash bool
+	level, all, docrash := gotraceback()
 	_g_ := getg()
-	if t := gotraceback(&docrash); t > 0 {
+	if level > 0 {
+		if gp != gp.m.curg {
+			all = true
+		}
 		if gp != gp.m.g0 {
 			print("\n")
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
-		} else if t >= 2 || _g_.m.throwing > 0 {
+		} else if level >= 2 || _g_.m.throwing > 0 {
 			print("\nruntime stack:\n")
 			traceback(pc, sp, 0, gp)
 		}
-		if !didothers {
+		if !didothers && all {
 			didothers = true
 			tracebackothers(gp)
 		}
