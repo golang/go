@@ -14,8 +14,11 @@ API additions and behavior changes:
 
 bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
 bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
+crypto/aes: dedicated asm version of AES-GCM (https://golang.org/cl/10484)
 fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+image: add NYCbCrA types (https://golang.org/cl/15671)
 math/rand: add Read (https://golang.org/cl/14522)
+net/http: HTTP/2.0 support (many CLs)
 net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
