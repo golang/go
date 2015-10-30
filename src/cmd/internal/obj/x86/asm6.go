@@ -1514,6 +1514,7 @@ var optab =
 	{AMOVNTHD, yxr_ml_vex, Pvex1, [23]uint8{0xe7}},
 	{AMOVHDA, yxmov_vex, Pvex1, [23]uint8{0x6f, 0x7f}},
 	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
+	{AVPXOR, yxm_xm_xm, Pvex1, [23]uint8{0xef, 0xef}},
 	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
 	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
 	{AVPBROADCASTB, yml_xr_vex, Pvex3, [23]uint8{0x78, 0x78}},
