@@ -196,6 +196,11 @@ func BenchmarkMemclr64(b *testing.B)    { bmMemclr(b, 64) }
 func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
 func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
 func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
+func BenchmarkMemclr1M(b *testing.B)    { bmMemclr(b, 1<<20) }
+func BenchmarkMemclr4M(b *testing.B)    { bmMemclr(b, 4<<20) }
+func BenchmarkMemclr8M(b *testing.B)    { bmMemclr(b, 8<<20) }
+func BenchmarkMemclr16M(b *testing.B)   { bmMemclr(b, 16<<20) }
+func BenchmarkMemclr64M(b *testing.B)   { bmMemclr(b, 64<<20) }
 
 func bmGoMemclr(b *testing.B, n int) {
 	x := make([]byte, n)

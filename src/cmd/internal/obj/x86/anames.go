@@ -688,6 +688,7 @@ var Anames = []string{
 	"MOVNTHD",
 	"MOVHDA",
 	"VPCMPEQB",
+	"VPXOR",
 	"VPMOVMSKB",
 	"VPAND",
 	"VPTEST",
