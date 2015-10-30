@@ -14,6 +14,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	var docrash bool
 	var sig int
 	var flags int
+	var level int32
 
 	c := &sigctxt{_ureg}
 	notestr := gostringnocopy(note)
@@ -97,7 +98,8 @@ Throw:
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")
 	print("\n")
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash = gotraceback()
+	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(c.pc(), c.sp(), 0, gp)
 		tracebackothers(gp)

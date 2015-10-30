@@ -139,7 +139,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// instead on the g0 stack.
 		throw("gentraceback cannot trace user goroutine on its own stack")
 	}
-	gotraceback := gotraceback(nil)
+	level, _, _ := gotraceback()
 
 	// Fix up returns to the stack barrier by fetching the
 	// original return PC from gp.stkbar.
@@ -367,7 +367,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
 				}
-				if g.m.throwing > 0 && gp == g.m.curg || gotraceback >= 2 {
+				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp))
 				}
 				print("\n")
@@ -582,7 +582,7 @@ func showframe(f *_func, gp *g) bool {
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
-	traceback := gotraceback(nil)
+	level, _, _ := gotraceback()
 	name := funcname(f)
 
 	// Special case: always show runtime.panic frame, so that we can
@@ -592,7 +592,7 @@ func showframe(f *_func, gp *g) bool {
 		return true
 	}
 
-	return traceback > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+	return level > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -658,7 +658,7 @@ func goroutineheader(gp *g) {
 }
 
 func tracebackothers(me *g) {
-	level := gotraceback(nil)
+	level, _, _ := gotraceback()
 
 	// Show the current goroutine first, if we haven't already.
 	g := getg()

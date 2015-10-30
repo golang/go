@@ -131,8 +131,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 	print("\n")
 
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash := gotraceback()
+	if level > 0 {
 		goroutineheader(gp)
 
 		// On Linux/386, all system calls go through the vdso kernel_vsyscall routine.

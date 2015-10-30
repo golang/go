@@ -106,15 +106,20 @@ the limit.
 
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
-By default, a failure prints a stack trace for every extant goroutine, eliding functions
-internal to the run-time system, and then exits with exit code 2.
-If GOTRACEBACK=0, the per-goroutine stack traces are omitted entirely.
-If GOTRACEBACK=1, the default behavior is used.
-If GOTRACEBACK=2, the per-goroutine stack traces include run-time functions.
-If GOTRACEBACK=crash, the per-goroutine stack traces include run-time functions,
-and if possible the program crashes in an operating-specific manner instead of
-exiting. For example, on Unix systems, the program raises SIGABRT to trigger a
-core dump.
+By default, a failure prints a stack trace for the current goroutine,
+eliding functions internal to the run-time system, and then exits with exit code 2.
+The failure prints stack traces for all goroutines if there is no current goroutine
+or the failure is internal to the run-time.
+GOTRACEBACK=none omits the goroutine stack traces entirely.
+GOTRACEBACK=single (the default) behaves as described above.
+GOTRACEBACK=all adds stack traces for all user-created goroutines.
+GOTRACEBACK=system is like ``all'' but adds stack frames for run-time functions
+and shows goroutines created internally by the run-time.
+GOTRACEBACK=crash is like ``system'' but crashes in an operating system-specific
+manner instead of exiting. For example, on Unix systems, the crash raises
+SIGABRT to trigger a core dump.
+For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
+none, all, and system, respectively.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs
