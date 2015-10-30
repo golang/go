@@ -255,25 +255,28 @@ func limiter(in <-chan *Message, p killer) <-chan *Message {
 // buffer returns a channel that wraps the given channel. It receives messages
 // from the given channel and sends them to the returned channel.
 // Message bodies are gathered over the period msgDelay and coalesced into a
-// single Message before they are passed on.
-// When the given channel is closed, buffer flushes the remaining buffered
-// messages and closes the returned channel.
+// single Message before they are passed on. Messages of the same kind are
+// coalesced; when a message of a different kind is received, any buffered
+// messages are flushed. When the given channel is closed, buffer flushes the
+// remaining buffered messages and closes the returned channel.
 func buffer(in <-chan *Message) <-chan *Message {
 	out := make(chan *Message)
 	go func() {
 		defer close(out)
-		buf := make(map[string][]byte) // [kind]buffer
-		flush := func() {
-			for kind, b := range buf {
-				if len(b) == 0 {
-					continue
+		var (
+			t     = time.NewTimer(msgDelay)
+			tc    <-chan time.Time
+			buf   []byte
+			kind  string
+			flush = func() {
+				if len(buf) == 0 {
+					return
 				}
-				out <- &Message{Kind: kind, Body: safeString(b)}
-				buf[kind] = b[:0] // recycle buffer
+				out <- &Message{Kind: kind, Body: safeString(buf)}
+				buf = buf[:0] // recycle buffer
+				kind = ""
 			}
-		}
-		t := time.NewTimer(msgDelay)
-		var tc <-chan time.Time
+		)
 		for {
 			select {
 			case m, ok := <-in:
@@ -286,11 +289,15 @@ func buffer(in <-chan *Message) <-chan *Message {
 					out <- m
 					return
 				}
-				buf[m.Kind] = append(buf[m.Kind], m.Body...)
-				if tc == nil {
-					tc = t.C
-					t.Reset(msgDelay)
+				if kind != m.Kind {
+					flush()
+					kind = m.Kind
+					if tc == nil {
+						tc = t.C
+						t.Reset(msgDelay)
+					}
 				}
+				buf = append(buf, m.Body...)
 			case <-tc:
 				flush()
 				tc = nil
