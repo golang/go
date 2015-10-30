@@ -227,7 +227,7 @@ func expm1(x float64) float64 {
 			y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
 			return y
 		}
-		t := Float64frombits(uint64((0x3ff - k) << 52)) // 2**-k
+		t := Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
 		y := x - (e + t)
 		y += 1
 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
