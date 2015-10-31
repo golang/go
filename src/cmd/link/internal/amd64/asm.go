@@ -139,7 +139,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 
 		return
 
-	case 256 + ld.R_X86_64_GOTPCREL:
+	case 256 + ld.R_X86_64_GOTPCREL, 256 + ld.R_X86_64_GOTPCRELX, 256 + ld.R_X86_64_REX_GOTPCRELX:
 		if targ.Type != obj.SDYNIMPORT {
 			// have symbol
 			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
