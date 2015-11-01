@@ -7,6 +7,7 @@ package net
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -500,4 +501,57 @@ func srvString(srvs []*SRV) string {
 	}
 	fmt.Fprintf(&buf, "]")
 	return buf.String()
+}
+
+var lookupPortTests = []struct {
+	network string
+	name    string
+	port    int
+	ok      bool
+}{
+	{"tcp", "0", 0, true},
+	{"tcp", "echo", 7, true},
+	{"tcp", "discard", 9, true},
+	{"tcp", "systat", 11, true},
+	{"tcp", "daytime", 13, true},
+	{"tcp", "chargen", 19, true},
+	{"tcp", "ftp-data", 20, true},
+	{"tcp", "ftp", 21, true},
+	{"tcp", "telnet", 23, true},
+	{"tcp", "smtp", 25, true},
+	{"tcp", "time", 37, true},
+	{"tcp", "domain", 53, true},
+	{"tcp", "finger", 79, true},
+	{"tcp", "42", 42, true},
+
+	{"udp", "0", 0, true},
+	{"udp", "echo", 7, true},
+	{"udp", "tftp", 69, true},
+	{"udp", "bootpc", 68, true},
+	{"udp", "bootps", 67, true},
+	{"udp", "domain", 53, true},
+	{"udp", "ntp", 123, true},
+	{"udp", "snmp", 161, true},
+	{"udp", "syslog", 514, true},
+	{"udp", "42", 42, true},
+
+	{"--badnet--", "zzz", 0, false},
+	{"tcp", "--badport--", 0, false},
+	{"tcp", "-1", 0, false},
+	{"tcp", "65536", 0, false},
+	{"udp", "-1", 0, false},
+	{"udp", "65536", 0, false},
+}
+
+func TestLookupPort(t *testing.T) {
+	switch runtime.GOOS {
+	case "nacl":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	for _, tt := range lookupPortTests {
+		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
+			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d", tt.network, tt.name, port, err, tt.port)
+		}
+	}
 }
