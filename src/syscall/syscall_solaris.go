@@ -509,6 +509,21 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error) = libsocket.setsockopt
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error) = libsocket.recvfrom
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = libsocket.__xnet_recvmsg
+//sys	getexecname() (path unsafe.Pointer, err error) = libc.getexecname
+
+func Getexecname() (path string, err error) {
+	ptr, err := getexecname()
+	if err != nil {
+		return "", err
+	}
+	bytes := (*[1 << 29]byte)(ptr)[:]
+	for i, b := range bytes {
+		if b == 0 {
+			return string(bytes[:i]), nil
+		}
+	}
+	panic("unreachable")
+}
 
 func readlen(fd int, buf *byte, nbuf int) (n int, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_read)), 3, uintptr(fd), uintptr(unsafe.Pointer(buf)), uintptr(nbuf), 0, 0, 0)
