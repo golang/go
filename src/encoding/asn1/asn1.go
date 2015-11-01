@@ -475,6 +475,11 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 				return
 			}
 		}
+		// Short lengths must be encoded in short form.
+		if ret.length < 0x80 {
+			err = StructuralError{"non-minimal length"}
+			return
+		}
 	}
 
 	return
