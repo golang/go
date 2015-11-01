@@ -44,6 +44,7 @@ var (
 	procGetAdaptersAddresses  = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetComputerNameExW    = modkernel32.NewProc("GetComputerNameExW")
 	procMoveFileExW           = modkernel32.NewProc("MoveFileExW")
+	procGetModuleFileNameW    = modkernel32.NewProc("GetModuleFileNameW")
 	procGetACP                = modkernel32.NewProc("GetACP")
 	procGetConsoleCP          = modkernel32.NewProc("GetConsoleCP")
 	procMultiByteToWideChar   = modkernel32.NewProc("MultiByteToWideChar")
@@ -80,6 +81,19 @@ func GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) {
 func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procMoveFileExW.Addr(), 3, uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(to)), uintptr(flags))
 	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(fn)), uintptr(len))
+	n = uint32(r0)
+	if n == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
