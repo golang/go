@@ -241,8 +241,38 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		default:
 			return -1
 
-		case obj.R_ADDRARM64,
-			obj.R_ARM64_GOTPCREL:
+		case obj.R_ARM64_GOTPCREL:
+			var o1, o2 uint32
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+				o1 = uint32(*val >> 32)
+				o2 = uint32(*val)
+			} else {
+				o1 = uint32(*val)
+				o2 = uint32(*val >> 32)
+			}
+			// Any relocation against a function symbol is redirected to
+			// be against a local symbol instead (see putelfsym in
+			// symtab.go) but unfortunately the system linker was buggy
+			// when confronted with a R_AARCH64_ADR_GOT_PAGE relocation
+			// against a local symbol until May 2015
+			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+			// add + R_ADDRARM64.
+			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Local) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
+				if o2&0xffc00000 != 0xf9400000 {
+					ld.Ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+				}
+				o2 = 0x91000000 | (o2 & 0x000003ff)
+				r.Type = obj.R_ADDRARM64
+			}
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+				*val = int64(o1)<<32 | int64(o2)
+			} else {
+				*val = int64(o2)<<32 | int64(o1)
+			}
+			fallthrough
+
+		case obj.R_ADDRARM64:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
