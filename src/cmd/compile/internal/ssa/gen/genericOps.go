@@ -260,7 +260,8 @@ var genericOps = []opData{
 	// TODO: Const32F, ...
 
 	// Constant-like things
-	{name: "Arg"}, // memory input to the function.
+	{name: "InitMem"}, // memory input to the function.
+	{name: "Arg"},     // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
 	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
 	// on whether it is a global or stack variable).  The Aux field identifies the

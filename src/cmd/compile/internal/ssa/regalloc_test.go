@@ -10,7 +10,7 @@ func TestLiveControlOps(t *testing.T) {
 	c := testConfig(t)
 	f := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("x", OpAMD64MOVBconst, TypeInt8, 0, 1),
 			Valu("y", OpAMD64MOVBconst, TypeInt8, 0, 2),
 			Valu("a", OpAMD64TESTB, TypeBool, 0, nil, "x", "y"),

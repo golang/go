@@ -44,6 +44,13 @@ func stackalloc(f *Func) {
 				}
 			case v.Op == OpLoadReg:
 				s.add(v.Args[0].ID)
+			case v.Op == OpArg:
+				// This is an input argument which is pre-spilled.  It is kind of
+				// like a StoreReg, but we don't remove v.ID here because we want
+				// this value to appear live even before this point.  Being live
+				// all the way to the start of the entry block prevents other
+				// values from being allocated to the same slot and clobbering
+				// the input value before we have a chance to load it.
 			}
 		}
 	}
@@ -51,7 +58,7 @@ func stackalloc(f *Func) {
 	// Build map from values to their names, if any.
 	// A value may be associated with more than one name (e.g. after
 	// the assignment i=j). This step picks one name per value arbitrarily.
-	names := make([]GCNode, f.NumValues())
+	names := make([]LocalSlot, f.NumValues())
 	for _, name := range f.Names {
 		// Note: not "range f.NamedValues" above, because
 		// that would be nondeterministic.
@@ -74,9 +81,17 @@ func stackalloc(f *Func) {
 		}
 	}
 
+	// Allocate args to their assigned locations.
+	for _, v := range f.Entry.Values {
+		if v.Op != OpArg {
+			continue
+		}
+		f.setHome(v, LocalSlot{v.Aux.(GCNode), v.Type, v.AuxInt})
+	}
+
 	// For each type, we keep track of all the stack slots we
 	// have allocated for that type.
-	locations := map[Type][]*LocalSlot{}
+	locations := map[Type][]LocalSlot{}
 
 	// Each time we assign a stack slot to a value v, we remember
 	// the slot we used via an index into locations[v.Type].
@@ -99,16 +114,16 @@ func stackalloc(f *Func) {
 
 			// If this is a named value, try to use the name as
 			// the spill location.
-			var name GCNode
+			var name LocalSlot
 			if v.Op == OpStoreReg {
 				name = names[v.Args[0].ID]
 			} else {
 				name = names[v.ID]
 			}
-			if name != nil && v.Type.Equal(name.Typ()) {
+			if name.N != nil && v.Type.Equal(name.Type) {
 				for _, id := range interfere[v.ID] {
 					h := f.getHome(id)
-					if h != nil && h.(*LocalSlot).N == name {
+					if h != nil && h.(LocalSlot) == name {
 						// A variable can interfere with itself.
 						// It is rare, but but it can happen.
 						goto noname
@@ -118,17 +133,16 @@ func stackalloc(f *Func) {
 					for _, a := range v.Args {
 						for _, id := range interfere[a.ID] {
 							h := f.getHome(id)
-							if h != nil && h.(*LocalSlot).N == name {
+							if h != nil && h.(LocalSlot) == name {
 								goto noname
 							}
 						}
 					}
 				}
-				loc := &LocalSlot{name}
-				f.setHome(v, loc)
+				f.setHome(v, name)
 				if v.Op == OpPhi {
 					for _, a := range v.Args {
-						f.setHome(a, loc)
+						f.setHome(a, name)
 					}
 				}
 				continue
@@ -169,7 +183,7 @@ func stackalloc(f *Func) {
 			}
 			// If there is no unused stack slot, allocate a new one.
 			if i == len(locs) {
-				locs = append(locs, &LocalSlot{f.Config.fe.Auto(v.Type)})
+				locs = append(locs, LocalSlot{N: f.Config.fe.Auto(v.Type), Type: v.Type, Off: 0})
 				locations[v.Type] = locs
 			}
 			// Use the stack variable at that index for v.

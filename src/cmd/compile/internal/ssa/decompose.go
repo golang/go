@@ -29,8 +29,75 @@ func decompose(f *Func) {
 			}
 		}
 	}
-	// TODO: decompose complex?
 	// TODO: decompose 64-bit ops on 32-bit archs?
+
+	// Split up named values into their components.
+	// NOTE: the component values we are making are dead at this point.
+	// We must do the opt pass before any deadcode elimination or we will
+	// lose the name->value correspondence.
+	for _, name := range f.Names {
+		t := name.Type
+		switch {
+		case t.IsComplex():
+			var elemType Type
+			if t.Size() == 16 {
+				elemType = f.Config.fe.TypeFloat64()
+			} else {
+				elemType = f.Config.fe.TypeFloat32()
+			}
+			rName := LocalSlot{name.N, elemType, name.Off}
+			iName := LocalSlot{name.N, elemType, name.Off + elemType.Size()}
+			f.Names = append(f.Names, rName, iName)
+			for _, v := range f.NamedValues[name] {
+				r := v.Block.NewValue1(v.Line, OpComplexReal, elemType, v)
+				i := v.Block.NewValue1(v.Line, OpComplexImag, elemType, v)
+				f.NamedValues[rName] = append(f.NamedValues[rName], r)
+				f.NamedValues[iName] = append(f.NamedValues[iName], i)
+			}
+		case t.IsString():
+			ptrType := f.Config.fe.TypeBytePtr()
+			lenType := f.Config.fe.TypeInt()
+			ptrName := LocalSlot{name.N, ptrType, name.Off}
+			lenName := LocalSlot{name.N, lenType, name.Off + f.Config.PtrSize}
+			f.Names = append(f.Names, ptrName, lenName)
+			for _, v := range f.NamedValues[name] {
+				ptr := v.Block.NewValue1(v.Line, OpStringPtr, ptrType, v)
+				len := v.Block.NewValue1(v.Line, OpStringLen, lenType, v)
+				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], ptr)
+				f.NamedValues[lenName] = append(f.NamedValues[lenName], len)
+			}
+		case t.IsSlice():
+			ptrType := f.Config.fe.TypeBytePtr()
+			lenType := f.Config.fe.TypeInt()
+			ptrName := LocalSlot{name.N, ptrType, name.Off}
+			lenName := LocalSlot{name.N, lenType, name.Off + f.Config.PtrSize}
+			capName := LocalSlot{name.N, lenType, name.Off + 2*f.Config.PtrSize}
+			f.Names = append(f.Names, ptrName, lenName, capName)
+			for _, v := range f.NamedValues[name] {
+				ptr := v.Block.NewValue1(v.Line, OpSlicePtr, ptrType, v)
+				len := v.Block.NewValue1(v.Line, OpSliceLen, lenType, v)
+				cap := v.Block.NewValue1(v.Line, OpSliceCap, lenType, v)
+				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], ptr)
+				f.NamedValues[lenName] = append(f.NamedValues[lenName], len)
+				f.NamedValues[capName] = append(f.NamedValues[capName], cap)
+			}
+		case t.IsInterface():
+			ptrType := f.Config.fe.TypeBytePtr()
+			typeName := LocalSlot{name.N, ptrType, name.Off}
+			dataName := LocalSlot{name.N, ptrType, name.Off + f.Config.PtrSize}
+			f.Names = append(f.Names, typeName, dataName)
+			for _, v := range f.NamedValues[name] {
+				typ := v.Block.NewValue1(v.Line, OpITab, ptrType, v)
+				data := v.Block.NewValue1(v.Line, OpIData, ptrType, v)
+				f.NamedValues[typeName] = append(f.NamedValues[typeName], typ)
+				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
+			}
+			//case t.IsStruct():
+			// TODO
+		case t.Size() > f.Config.IntSize:
+			f.Unimplementedf("undecomposed type %s", t)
+		}
+	}
 }
 
 func decomposeStringPhi(v *Value) {

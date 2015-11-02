@@ -11,7 +11,7 @@ func TestSchedule(t *testing.T) {
 	cases := []fun{
 		Fun(c, "entry",
 			Bloc("entry",
-				Valu("mem0", OpArg, TypeMem, 0, ".mem"),
+				Valu("mem0", OpInitMem, TypeMem, 0, ".mem"),
 				Valu("ptr", OpConst64, TypeInt64, 0xABCD, nil),
 				Valu("v", OpConst64, TypeInt64, 12, nil),
 				Valu("mem1", OpStore, TypeMem, 8, nil, "ptr", "v", "mem0"),

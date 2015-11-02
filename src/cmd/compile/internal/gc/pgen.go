@@ -484,6 +484,9 @@ func compile(fn *Node) {
 
 	if ssafn != nil && usessa {
 		genssa(ssafn, ptxt, gcargs, gclocals)
+		if Curfn.Func.Endlineno != 0 {
+			lineno = Curfn.Func.Endlineno
+		}
 		return
 	}
 	Genlist(Curfn.Func.Enter)
