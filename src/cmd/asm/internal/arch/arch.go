@@ -87,7 +87,7 @@ func Set(GOARCH string) *Arch {
 }
 
 func jumpX86(word string) bool {
-	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP")
+	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
 }
 
 func archX86(linkArch *obj.LinkArch) *Arch {
