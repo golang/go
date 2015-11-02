@@ -1669,7 +1669,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode, force b
 		if fi.IsDir() {
 			return fmt.Errorf("build output %q already exists and is a directory", dst)
 		}
-		if !force && !isObject(dst) {
+		if !force && fi.Mode().IsRegular() && !isObject(dst) {
 			return fmt.Errorf("build output %q already exists and is not an object file", dst)
 		}
 	}
@@ -1681,7 +1681,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode, force b
 		}
 	}
 
-	os.Remove(dst)
+	mayberemovefile(dst)
 	df, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil && toolIsWindows {
 		// Windows does not allow deletion of a binary file
@@ -1700,7 +1700,7 @@ func (b *builder) copyFile(a *action, dst, src string, perm os.FileMode, force b
 	_, err = io.Copy(df, sf)
 	df.Close()
 	if err != nil {
-		os.Remove(dst)
+		mayberemovefile(dst)
 		return fmt.Errorf("copying %s to %s: %v", src, dst, err)
 	}
 	return nil
@@ -1763,6 +1763,16 @@ func isObject(s string) bool {
 		}
 	}
 	return false
+}
+
+// mayberemovefile removes a file only if it is a regular file
+// When running as a user with sufficient privileges, we may delete
+// even device files, for example, which is not intended.
+func mayberemovefile(s string) {
+	if fi, err := os.Lstat(s); err == nil && !fi.Mode().IsRegular() {
+		return
+	}
+	os.Remove(s)
 }
 
 // fmtcmd formats a command in the manner of fmt.Sprintf but also:
