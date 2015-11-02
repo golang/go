@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	hashSize = 1009
@@ -43,7 +46,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if locked != 0 {
 			lock(&ifaceLock)
 		}
-		for m = (*itab)(atomicloadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
+		for m = (*itab)(atomic.Loadp(unsafe.Pointer(&hash[h]))); m != nil; m = m.link {
 			if m.inter == inter && m._type == typ {
 				if m.bad != 0 {
 					m = nil
@@ -151,7 +154,7 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, 
 	if msanenabled {
 		msanread(elem, t.size)
 	}
-	tab := (*itab)(atomicloadp(unsafe.Pointer(cache)))
+	tab := (*itab)(atomic.Loadp(unsafe.Pointer(cache)))
 	if tab == nil {
 		tab = getitab(inter, t, false)
 		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))

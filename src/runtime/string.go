@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -289,7 +290,7 @@ func rawstring(size int) (s string, b []byte) {
 
 	for {
 		ms := maxstring
-		if uintptr(size) <= uintptr(ms) || casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
+		if uintptr(size) <= uintptr(ms) || atomic.Casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
 			return
 		}
 	}
@@ -413,7 +414,7 @@ func gostringnocopy(str *byte) string {
 	s := *(*string)(unsafe.Pointer(&ss))
 	for {
 		ms := maxstring
-		if uintptr(len(s)) <= ms || casuintptr(&maxstring, ms, uintptr(len(s))) {
+		if uintptr(len(s)) <= ms || atomic.Casuintptr(&maxstring, ms, uintptr(len(s))) {
 			break
 		}
 	}

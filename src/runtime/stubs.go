@@ -151,42 +151,6 @@ func goexit(neverCallThisFunction)
 // See the assembly implementations for more details.
 func cgocallback_gofunc(fv uintptr, frame uintptr, framesize uintptr)
 
-//go:noescape
-func cas(ptr *uint32, old, new uint32) bool
-
-// NO go:noescape annotation; see atomic_pointer.go.
-func casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
-
-func nop() // call to prevent inlining of function body
-
-//go:noescape
-func casuintptr(ptr *uintptr, old, new uintptr) bool
-
-//go:noescape
-func atomicstoreuintptr(ptr *uintptr, new uintptr)
-
-//go:noescape
-func atomicloaduintptr(ptr *uintptr) uintptr
-
-//go:noescape
-func atomicloaduint(ptr *uint) uint
-
-// TODO: Write native implementations of int64 atomic ops (or improve
-// inliner). These portable ones can't be inlined right now, so we're
-// taking an extra function call hit.
-
-func atomicstoreint64(ptr *int64, new int64) {
-	atomicstore64((*uint64)(unsafe.Pointer(ptr)), uint64(new))
-}
-
-func atomicloadint64(ptr *int64) int64 {
-	return int64(atomicload64((*uint64)(unsafe.Pointer(ptr))))
-}
-
-func xaddint64(ptr *int64, delta int64) int64 {
-	return int64(xadd64((*uint64)(unsafe.Pointer(ptr)), delta))
-}
-
 // publicationBarrier performs a store/store barrier (a "publication"
 // or "export" barrier). Some form of synchronization is required
 // between initializing an object and making that object accessible to

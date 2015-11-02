@@ -8,7 +8,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Main malloc heap.
 // The heap itself is the "free[]" and "large" arrays,
@@ -334,7 +337,7 @@ func mHeap_ReclaimList(h *mheap, list *mSpanList, npages uintptr) uintptr {
 	sg := mheap_.sweepgen
 retry:
 	for s := list.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			mSpanList_Remove(list, s)
 			// swept spans are at the end of the list
 			mSpanList_InsertBack(list, s)
@@ -436,7 +439,7 @@ func mHeap_Alloc_m(h *mheap, npage uintptr, sizeclass int32, large bool) *mspan 
 	if s != nil {
 		// Record span info, because gc needs to be
 		// able to map interior pointer to containing span.
-		atomicstore(&s.sweepgen, h.sweepgen)
+		atomic.Store(&s.sweepgen, h.sweepgen)
 		s.state = _MSpanInUse
 		s.freelist = 0
 		s.ref = 0
@@ -667,7 +670,7 @@ func mHeap_Grow(h *mheap, npage uintptr) bool {
 	for i := p; i < p+s.npages; i++ {
 		h_spans[i] = s
 	}
-	atomicstore(&s.sweepgen, h.sweepgen)
+	atomic.Store(&s.sweepgen, h.sweepgen)
 	s.state = _MSpanInUse
 	h.pagesInUse += uint64(npage)
 	mHeap_FreeSpanLocked(h, s, false, true, 0)

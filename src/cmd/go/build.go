@@ -2155,7 +2155,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool, 
 	if p.Name == "main" {
 		gcargs[1] = "main"
 	}
-	if p.Standard && p.ImportPath == "runtime" {
+	if p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
 		// runtime compiles with a special gc flag to emit
 		// additional reflect type data.
 		gcargs = append(gcargs, "-+")

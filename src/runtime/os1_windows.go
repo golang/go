@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -311,7 +312,7 @@ func msigsave(mp *m) {
 func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
-	atomicstoreuintptr(&getg().m.thread, thandle)
+	atomic.Storeuintptr(&getg().m.thread, thandle)
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -510,9 +511,9 @@ func profileloop1(param uintptr) uint32 {
 
 	for {
 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
-		first := (*m)(atomicloadp(unsafe.Pointer(&allm)))
+		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
-			thread := atomicloaduintptr(&mp.thread)
+			thread := atomic.Loaduintptr(&mp.thread)
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
 			// idle timer thread, idle heap scavenger, etc.
@@ -534,7 +535,7 @@ func resetcpuprofiler(hz int32) {
 	lock(&cpuprofilerlock)
 	if profiletimer == 0 {
 		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
-		atomicstoreuintptr(&profiletimer, timer)
+		atomic.Storeuintptr(&profiletimer, timer)
 		thread := stdcall6(_CreateThread, 0, 0, funcPC(profileloop), 0, 0, 0)
 		stdcall2(_SetThreadPriority, thread, _THREAD_PRIORITY_HIGHEST)
 		stdcall1(_CloseHandle, thread)
@@ -551,7 +552,7 @@ func resetcpuprofiler(hz int32) {
 		due = int64(ms) * -10000
 	}
 	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
-	atomicstore((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
+	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
 func memlimit() uintptr {

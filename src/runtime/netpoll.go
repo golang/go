@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Integrated network poller (platform-independent part).
 // A particular implementation (epoll/kqueue) must define the following functions:
@@ -77,11 +80,11 @@ var (
 //go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
 func net_runtime_pollServerInit() {
 	netpollinit()
-	atomicstore(&netpollInited, 1)
+	atomic.Store(&netpollInited, 1)
 }
 
 func netpollinited() bool {
-	return atomicload(&netpollInited) != 0
+	return atomic.Load(&netpollInited) != 0
 }
 
 //go:linkname net_runtime_pollOpen net.runtime_pollOpen
@@ -305,7 +308,7 @@ func netpollcheckerr(pd *pollDesc, mode int32) int {
 }
 
 func netpollblockcommit(gp *g, gpp unsafe.Pointer) bool {
-	return casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
+	return atomic.Casuintptr((*uintptr)(gpp), pdWait, uintptr(unsafe.Pointer(gp)))
 }
 
 // returns true if IO is ready, or false if timedout or closed
@@ -326,7 +329,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 		if old != 0 {
 			throw("netpollblock: double wait")
 		}
-		if casuintptr(gpp, 0, pdWait) {
+		if atomic.Casuintptr(gpp, 0, pdWait) {
 			break
 		}
 	}
@@ -338,7 +341,7 @@ func netpollblock(pd *pollDesc, mode int32, waitio bool) bool {
 		gopark(netpollblockcommit, unsafe.Pointer(gpp), "IO wait", traceEvGoBlockNet, 5)
 	}
 	// be careful to not lose concurrent READY notification
-	old := xchguintptr(gpp, 0)
+	old := atomic.Xchguintptr(gpp, 0)
 	if old > pdWait {
 		throw("netpollblock: corrupted state")
 	}
@@ -365,7 +368,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 		if ioready {
 			new = pdReady
 		}
-		if casuintptr(gpp, old, new) {
+		if atomic.Casuintptr(gpp, old, new) {
 			if old == pdReady || old == pdWait {
 				old = 0
 			}

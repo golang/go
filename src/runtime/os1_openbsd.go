@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	_ESRCH       = 3
@@ -64,9 +67,9 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		v := atomicload(&_g_.m.waitsemacount)
+		v := atomic.Load(&_g_.m.waitsemacount)
 		if v > 0 {
-			if cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -88,7 +91,7 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	xadd(&mp.waitsemacount, 1)
+	atomic.Xadd(&mp.waitsemacount, 1)
 	ret := thrwakeup(uintptr(unsafe.Pointer(&mp.waitsemacount)), 1)
 	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.

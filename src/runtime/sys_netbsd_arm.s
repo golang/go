@@ -338,20 +338,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	SWI $0xa0005c	// sys_fcntl
 	RET
 
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
-
-// TODO(minux): this is only valid for ARMv6+
-// bool armcas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B runtime·armcas(SB)
-
 // TODO: this is only valid for ARMv7+
 TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
 	B	runtime·armPublicationBarrier(SB)

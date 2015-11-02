@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 /*
 Stack layout parameters.
@@ -806,7 +809,7 @@ func newstack() {
 	// NOTE: stackguard0 may change underfoot, if another thread
 	// is about to try to preempt gp. Read it just once and use that same
 	// value now and below.
-	preempt := atomicloaduintptr(&gp.stackguard0) == stackPreempt
+	preempt := atomic.Loaduintptr(&gp.stackguard0) == stackPreempt
 
 	// Be conservative about where we preempt.
 	// We are interested in preempting user Go code, not runtime code.

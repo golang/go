@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Statistics.
 // If you edit this structure, also edit type MemStats below.
@@ -367,10 +370,10 @@ func purgecachedstats(c *mcache) {
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
 	if _BigEndian != 0 {
-		xadd64(sysStat, int64(n))
+		atomic.Xadd64(sysStat, int64(n))
 		return
 	}
-	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
+	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
 		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
 		exit(2)
 	}
@@ -381,10 +384,10 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
 	if _BigEndian != 0 {
-		xadd64(sysStat, -int64(n))
+		atomic.Xadd64(sysStat, -int64(n))
 		return
 	}
-	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
+	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
 		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
 		exit(2)
 	}

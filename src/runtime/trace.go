@@ -12,7 +12,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Event types in the trace, args are given in square brackets.
 const (
@@ -123,12 +126,12 @@ var traceseq uint64 // global trace sequence number
 // that used to call xadd64 and cputicks are sensitive to that.
 //go:nosplit
 func tracestamp() (seq uint64, ts int64) {
-	seq = atomicload64(&traceseq)
-	for seq&1 != 0 || !cas64(&traceseq, seq, seq+1) {
-		seq = atomicload64(&traceseq)
+	seq = atomic.Load64(&traceseq)
+	for seq&1 != 0 || !atomic.Cas64(&traceseq, seq, seq+1) {
+		seq = atomic.Load64(&traceseq)
 	}
 	ts = cputicks()
-	atomicstore64(&traceseq, seq+2)
+	atomic.Store64(&traceseq, seq+2)
 	return seq >> 1, ts
 }
 
