@@ -175,6 +175,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
 		x.LocalElfsym = int32(numelfsym)
 		numelfsym++
+		return
 	} else if bind != elfbind {
 		return
 	}
