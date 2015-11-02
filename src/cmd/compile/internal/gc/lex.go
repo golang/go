@@ -479,6 +479,10 @@ func Main() {
 		fninit(xtop)
 	}
 
+	if compiling_runtime != 0 {
+		checknowritebarrierrec()
+	}
+
 	// Phase 9: Check external declarations.
 	for i, n := range externdcl {
 		if n.Op == ONAME {
@@ -1680,6 +1684,15 @@ func getlinepragma() int {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
 			nowritebarrier = true
+			return c
+		}
+
+		if verb == "go:nowritebarrierrec" {
+			if compiling_runtime == 0 {
+				Yyerror("//go:nowritebarrierrec only allowed in runtime")
+			}
+			nowritebarrierrec = true
+			nowritebarrier = true // Implies nowritebarrier
 			return c
 		}
 		return c

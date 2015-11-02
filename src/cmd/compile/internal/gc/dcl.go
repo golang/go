@@ -1475,3 +1475,116 @@ func makefuncsym(s *Sym) {
 	s1.Def.Func.Shortname = newname(s)
 	funcsyms = append(funcsyms, s1.Def)
 }
+
+type nowritebarrierrecChecker struct {
+	curfn  *Node
+	stable bool
+
+	// best maps from the ODCLFUNC of each visited function that
+	// recursively invokes a write barrier to the called function
+	// on the shortest path to a write barrier.
+	best map[*Node]nowritebarrierrecCall
+}
+
+type nowritebarrierrecCall struct {
+	target *Node
+	depth  int
+	lineno int32
+}
+
+func checknowritebarrierrec() {
+	c := nowritebarrierrecChecker{
+		best: make(map[*Node]nowritebarrierrecCall),
+	}
+	visitBottomUp(xtop, func(list []*Node, recursive bool) {
+		// Functions with write barriers have depth 0.
+		for _, n := range list {
+			if n.Func.WBLineno != 0 {
+				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
+			}
+		}
+
+		// Propagate write barrier depth up from callees. In
+		// the recursive case, we have to update this at most
+		// len(list) times and can stop when we an iteration
+		// that doesn't change anything.
+		for _ = range list {
+			c.stable = false
+			for _, n := range list {
+				if n.Func.WBLineno == 0 {
+					c.curfn = n
+					c.visitcodelist(n.Nbody)
+				}
+			}
+			if c.stable {
+				break
+			}
+		}
+
+		// Check nowritebarrierrec functions.
+		for _, n := range list {
+			if !n.Func.Nowritebarrierrec {
+				continue
+			}
+			call, hasWB := c.best[n]
+			if !hasWB {
+				continue
+			}
+
+			// Build the error message in reverse.
+			err := ""
+			for call.target != nil {
+				err = fmt.Sprintf("\n\t%v: called by %v%s", Ctxt.Line(int(call.lineno)), n.Func.Nname, err)
+				n = call.target
+				call = c.best[n]
+			}
+			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
+			yyerrorl(int(n.Func.WBLineno), err)
+		}
+	})
+}
+
+func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
+	for ; l != nil; l = l.Next {
+		c.visitcode(l.N)
+	}
+}
+
+func (c *nowritebarrierrecChecker) visitcode(n *Node) {
+	if n == nil {
+		return
+	}
+
+	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
+		c.visitcall(n)
+	}
+
+	c.visitcodelist(n.Ninit)
+	c.visitcode(n.Left)
+	c.visitcode(n.Right)
+	c.visitcodelist(n.List)
+	c.visitcodelist(n.Nbody)
+	c.visitcodelist(n.Rlist)
+}
+
+func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+	fn := n.Left
+	if n.Op == OCALLMETH {
+		fn = n.Left.Right.Sym.Def
+	}
+	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+		return
+	}
+	defn := fn.Name.Defn
+
+	fnbest, ok := c.best[defn]
+	if !ok {
+		return
+	}
+	best, ok := c.best[c.curfn]
+	if ok && fnbest.depth+1 >= best.depth {
+		return
+	}
+	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Lineno}
+	c.stable = false
+}

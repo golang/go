@@ -779,8 +779,13 @@ abop: // asymmetric binary
 var sys_wbptr *Node
 
 func cgen_wbptr(n, res *Node) {
-	if Curfn != nil && Curfn.Func.Nowritebarrier {
-		Yyerror("write barrier prohibited")
+	if Curfn != nil {
+		if Curfn.Func.Nowritebarrier {
+			Yyerror("write barrier prohibited")
+		}
+		if Curfn.Func.WBLineno == 0 {
+			Curfn.Func.WBLineno = lineno
+		}
 	}
 	if Debug_wb > 0 {
 		Warn("write barrier")
@@ -822,8 +827,13 @@ func cgen_wbptr(n, res *Node) {
 }
 
 func cgen_wbfat(n, res *Node) {
-	if Curfn != nil && Curfn.Func.Nowritebarrier {
-		Yyerror("write barrier prohibited")
+	if Curfn != nil {
+		if Curfn.Func.Nowritebarrier {
+			Yyerror("write barrier prohibited")
+		}
+		if Curfn.Func.WBLineno == 0 {
+			Curfn.Func.WBLineno = lineno
+		}
 	}
 	if Debug_wb > 0 {
 		Warn("write barrier")

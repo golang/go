@@ -2544,6 +2544,7 @@ yydefault:
 			yyVAL.node.Func.Nosplit = nosplit
 			yyVAL.node.Func.Noinline = noinline
 			yyVAL.node.Func.Nowritebarrier = nowritebarrier
+			yyVAL.node.Func.Nowritebarrierrec = nowritebarrierrec
 			yyVAL.node.Func.Systemstack = systemstack
 			funcbody(yyVAL.node)
 		}
@@ -2745,6 +2746,7 @@ yydefault:
 			norace = false
 			nosplit = false
 			nowritebarrier = false
+			nowritebarrierrec = false
 			systemstack = false
 		}
 	case 221:

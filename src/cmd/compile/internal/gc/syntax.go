@@ -169,14 +169,17 @@ type Func struct {
 
 	Endlineno int32
 
-	Norace         bool // func must not have race detector annotations
-	Nosplit        bool // func should not execute on separate stack
-	Noinline       bool // func should not be inlined
-	Nowritebarrier bool // emit compiler error instead of write barrier
-	Dupok          bool // duplicate definitions ok
-	Wrapper        bool // is method wrapper
-	Needctxt       bool // function uses context register (has closure variables)
-	Systemstack    bool // must run on system stack
+	Norace            bool // func must not have race detector annotations
+	Nosplit           bool // func should not execute on separate stack
+	Noinline          bool // func should not be inlined
+	Nowritebarrier    bool // emit compiler error instead of write barrier
+	Nowritebarrierrec bool // error on write barrier in this or recursive callees
+	Dupok             bool // duplicate definitions ok
+	Wrapper           bool // is method wrapper
+	Needctxt          bool // function uses context register (has closure variables)
+	Systemstack       bool // must run on system stack
+
+	WBLineno int32 // line number of first write barrier
 }
 
 type Op uint8
