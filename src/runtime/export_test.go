@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 var Fadd64 = fadd64
 var Fsub64 = fsub64
@@ -22,7 +25,7 @@ var Sqrt = sqrt
 var Entersyscall = entersyscall
 var Exitsyscall = exitsyscall
 var LockedOSThread = lockedOSThread
-var Xadduintptr = xadduintptr
+var Xadduintptr = atomic.Xadduintptr
 
 var FuncPC = funcPC
 

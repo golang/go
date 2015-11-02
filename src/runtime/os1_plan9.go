@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
@@ -143,7 +146,7 @@ func goexitsall(status *byte) {
 	n := copy(buf[:], goexits)
 	n = copy(buf[n:], gostringnocopy(status))
 	pid := getpid()
-	for mp := (*m)(atomicloadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+	for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
 		if mp.procid != pid {
 			postnote(mp.procid, buf[:])
 		}

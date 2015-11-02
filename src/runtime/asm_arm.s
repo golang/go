@@ -695,63 +695,6 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
 
-// bool armcas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	}else
-//		return 0;
-//
-// To implement runtime·cas in sys_$GOOS_arm.s
-// using the native instructions, use:
-//
-//	TEXT runtime·cas(SB),NOSPLIT,$0
-//		B	runtime·armcas(SB)
-//
-TEXT runtime·armcas(SB),NOSPLIT,$0-13
-	MOVW	valptr+0(FP), R1
-	MOVW	old+4(FP), R2
-	MOVW	new+8(FP), R3
-casl:
-	LDREX	(R1), R0
-	CMP	R0, R2
-	BNE	casfail
-
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	WORD	$0xf57ff05a	// dmb ishst
-
-	STREX	R3, (R1), R0
-	CMP	$0, R0
-	BNE	casl
-	MOVW	$1, R0
-
-	MOVB	runtime·goarm(SB), R11
-	CMP	$7, R11
-	BLT	2(PC)
-	WORD	$0xf57ff05b	// dmb ish
-
-	MOVB	R0, ret+12(FP)
-	RET
-casfail:
-	MOVW	$0, R0
-	MOVB	R0, ret+12(FP)
-	RET
-
-TEXT runtime·casuintptr(SB),NOSPLIT,$0-13
-	B	runtime·cas(SB)
-
-TEXT runtime·atomicloaduintptr(SB),NOSPLIT,$0-8
-	B	runtime·atomicload(SB)
-
-TEXT runtime·atomicloaduint(SB),NOSPLIT,$0-8
-	B	runtime·atomicload(SB)
-
-TEXT runtime·atomicstoreuintptr(SB),NOSPLIT,$0-8
-	B	runtime·atomicstore(SB)
-
 // armPublicationBarrier is a native store/store barrier for ARMv7+.
 // On earlier ARM revisions, armPublicationBarrier is a no-op.
 // This will not work on SMP ARMv6 machines, if any are in use.

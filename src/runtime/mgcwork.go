@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	_Debugwbufs  = false // if true check wbufs consistency
@@ -218,11 +221,11 @@ func (w *gcWork) dispose() {
 		// atomic becomes a problem, we should first try to
 		// dispose less and if necessary aggregate in a per-P
 		// counter.
-		xadd64(&work.bytesMarked, int64(w.bytesMarked))
+		atomic.Xadd64(&work.bytesMarked, int64(w.bytesMarked))
 		w.bytesMarked = 0
 	}
 	if w.scanWork != 0 {
-		xaddint64(&gcController.scanWork, w.scanWork)
+		atomic.Xaddint64(&gcController.scanWork, w.scanWork)
 		w.scanWork = 0
 	}
 }
@@ -404,14 +407,14 @@ func getfull(entry int) *workbuf {
 		return b
 	}
 
-	incnwait := xadd(&work.nwait, +1)
+	incnwait := atomic.Xadd(&work.nwait, +1)
 	if incnwait > work.nproc {
 		println("runtime: work.nwait=", incnwait, "work.nproc=", work.nproc)
 		throw("work.nwait > work.nproc")
 	}
 	for i := 0; ; i++ {
 		if work.full != 0 {
-			decnwait := xadd(&work.nwait, -1)
+			decnwait := atomic.Xadd(&work.nwait, -1)
 			if decnwait == work.nproc {
 				println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")
@@ -422,7 +425,7 @@ func getfull(entry int) *workbuf {
 				b.checknonempty()
 				return b
 			}
-			incnwait := xadd(&work.nwait, +1)
+			incnwait := atomic.Xadd(&work.nwait, +1)
 			if incnwait > work.nproc {
 				println("runtime: work.nwait=", incnwait, "work.nproc=", work.nproc)
 				throw("work.nwait > work.nproc")

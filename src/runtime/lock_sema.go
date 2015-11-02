@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // This implementation depends on OS-specific implementations of
 //
@@ -39,7 +42,7 @@ func lock(l *mutex) {
 	gp.m.locks++
 
 	// Speculative grab for lock.
-	if casuintptr(&l.key, 0, locked) {
+	if atomic.Casuintptr(&l.key, 0, locked) {
 		return
 	}
 	if gp.m.waitsema == 0 {
@@ -54,10 +57,10 @@ func lock(l *mutex) {
 	}
 Loop:
 	for i := 0; ; i++ {
-		v := atomicloaduintptr(&l.key)
+		v := atomic.Loaduintptr(&l.key)
 		if v&locked == 0 {
 			// Unlocked. Try to lock.
-			if casuintptr(&l.key, v, v|locked) {
+			if atomic.Casuintptr(&l.key, v, v|locked) {
 				return
 			}
 			i = 0
@@ -73,10 +76,10 @@ Loop:
 			// Queue this M.
 			for {
 				gp.m.nextwaitm = v &^ locked
-				if casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
+				if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
 					break
 				}
-				v = atomicloaduintptr(&l.key)
+				v = atomic.Loaduintptr(&l.key)
 				if v&locked == 0 {
 					continue Loop
 				}
@@ -96,16 +99,16 @@ func unlock(l *mutex) {
 	gp := getg()
 	var mp *m
 	for {
-		v := atomicloaduintptr(&l.key)
+		v := atomic.Loaduintptr(&l.key)
 		if v == locked {
-			if casuintptr(&l.key, locked, 0) {
+			if atomic.Casuintptr(&l.key, locked, 0) {
 				break
 			}
 		} else {
 			// Other M's are waiting for the lock.
 			// Dequeue an M.
 			mp = (*m)(unsafe.Pointer(v &^ locked))
-			if casuintptr(&l.key, v, mp.nextwaitm) {
+			if atomic.Casuintptr(&l.key, v, mp.nextwaitm) {
 				// Dequeued an M.  Wake it.
 				semawakeup(mp)
 				break
@@ -129,8 +132,8 @@ func noteclear(n *note) {
 func notewakeup(n *note) {
 	var v uintptr
 	for {
-		v = atomicloaduintptr(&n.key)
-		if casuintptr(&n.key, v, locked) {
+		v = atomic.Loaduintptr(&n.key)
+		if atomic.Casuintptr(&n.key, v, locked) {
 			break
 		}
 	}
@@ -157,7 +160,7 @@ func notesleep(n *note) {
 	if gp.m.waitsema == 0 {
 		gp.m.waitsema = semacreate()
 	}
-	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
+	if !atomic.Casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
 		// Must be locked (got wakeup).
 		if n.key != locked {
 			throw("notesleep - waitm out of sync")
@@ -179,7 +182,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 	gp = getg()
 
 	// Register for wakeup on n->waitm.
-	if !casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
+	if !atomic.Casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
 		// Must be locked (got wakeup).
 		if n.key != locked {
 			throw("notetsleep - waitm out of sync")
@@ -218,11 +221,11 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 	// so that any notewakeup racing with the return does not
 	// try to grant us the semaphore when we don't expect it.
 	for {
-		v := atomicloaduintptr(&n.key)
+		v := atomic.Loaduintptr(&n.key)
 		switch v {
 		case uintptr(unsafe.Pointer(gp.m)):
 			// No wakeup yet; unregister if possible.
-			if casuintptr(&n.key, v, 0) {
+			if atomic.Casuintptr(&n.key, v, 0) {
 				return false
 			}
 		case locked:

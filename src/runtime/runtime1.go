@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
@@ -99,36 +102,36 @@ func testAtomic64() {
 	prefetcht1(uintptr(unsafe.Pointer(&test_z64)))
 	prefetcht2(uintptr(unsafe.Pointer(&test_z64)))
 	prefetchnta(uintptr(unsafe.Pointer(&test_z64)))
-	if cas64(&test_z64, test_x64, 1) {
+	if atomic.Cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
 	if test_x64 != 0 {
 		throw("cas64 failed")
 	}
 	test_x64 = 42
-	if !cas64(&test_z64, test_x64, 1) {
+	if !atomic.Cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
 	if test_x64 != 42 || test_z64 != 1 {
 		throw("cas64 failed")
 	}
-	if atomicload64(&test_z64) != 1 {
+	if atomic.Load64(&test_z64) != 1 {
 		throw("load64 failed")
 	}
-	atomicstore64(&test_z64, (1<<40)+1)
-	if atomicload64(&test_z64) != (1<<40)+1 {
+	atomic.Store64(&test_z64, (1<<40)+1)
+	if atomic.Load64(&test_z64) != (1<<40)+1 {
 		throw("store64 failed")
 	}
-	if xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
+	if atomic.Xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if atomicload64(&test_z64) != (2<<40)+2 {
+	if atomic.Load64(&test_z64) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
+	if atomic.Xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
 		throw("xchg64 failed")
 	}
-	if atomicload64(&test_z64) != (3<<40)+3 {
+	if atomic.Load64(&test_z64) != (3<<40)+3 {
 		throw("xchg64 failed")
 	}
 }
@@ -211,7 +214,7 @@ func check() {
 
 	var z uint32
 	z = 1
-	if !cas(&z, 1, 2) {
+	if !atomic.Cas(&z, 1, 2) {
 		throw("cas1")
 	}
 	if z != 2 {
@@ -219,7 +222,7 @@ func check() {
 	}
 
 	z = 4
-	if cas(&z, 5, 6) {
+	if atomic.Cas(&z, 5, 6) {
 		throw("cas3")
 	}
 	if z != 4 {
@@ -227,7 +230,7 @@ func check() {
 	}
 
 	z = 0xffffffff
-	if !cas(&z, 0xffffffff, 0xfffffffe) {
+	if !atomic.Cas(&z, 0xffffffff, 0xfffffffe) {
 		throw("cas5")
 	}
 	if z != 0xfffffffe {
@@ -250,7 +253,7 @@ func check() {
 	}
 
 	m = [4]byte{1, 1, 1, 1}
-	atomicor8(&m[1], 0xf0)
+	atomic.Or8(&m[1], 0xf0)
 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
 		throw("atomicor8")
 	}

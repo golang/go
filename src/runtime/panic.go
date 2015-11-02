@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 var indexError = error(errorString("index out of range"))
 
@@ -569,7 +572,7 @@ func startpanic_m() {
 	case 0:
 		_g_.m.dying = 1
 		_g_.writebuf = nil
-		xadd(&panicking, 1)
+		atomic.Xadd(&panicking, 1)
 		lock(&paniclk)
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
 			schedtrace(true)
@@ -626,7 +629,7 @@ func dopanic_m(gp *g, pc, sp uintptr) {
 	}
 	unlock(&paniclk)
 
-	if xadd(&panicking, -1) != 0 {
+	if atomic.Xadd(&panicking, -1) != 0 {
 		// Some other m is panicking too.
 		// Let it print what it needs to print.
 		// Wait forever without chewing up cpu.

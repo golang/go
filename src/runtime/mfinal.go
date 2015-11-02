@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 type finblock struct {
 	alllink *finblock
@@ -131,7 +134,7 @@ var (
 
 func createfing() {
 	// start the finalizer goroutine exactly once
-	if fingCreate == 0 && cas(&fingCreate, 0, 1) {
+	if fingCreate == 0 && atomic.Cas(&fingCreate, 0, 1) {
 		go runfinq()
 	}
 }

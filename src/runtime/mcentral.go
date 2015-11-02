@@ -12,6 +12,8 @@
 
 package runtime
 
+import "runtime/internal/atomic"
+
 // Central list of free objects of a given size.
 type mcentral struct {
 	lock      mutex
@@ -37,7 +39,7 @@ func mCentral_CacheSpan(c *mcentral) *mspan {
 retry:
 	var s *mspan
 	for s = c.nonempty.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			mSpanList_Remove(&c.nonempty, s)
 			mSpanList_InsertBack(&c.empty, s)
 			unlock(&c.lock)
@@ -56,7 +58,7 @@ retry:
 	}
 
 	for s = c.empty.first; s != nil; s = s.next {
-		if s.sweepgen == sg-2 && cas(&s.sweepgen, sg-2, sg-1) {
+		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			// we have an empty span that requires sweeping,
 			// sweep it and see if we can free some space in it
 			mSpanList_Remove(&c.empty, s)
@@ -148,7 +150,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 		if !mSpan_InList(s) {
 			throw("can't preserve unlinked span")
 		}
-		atomicstore(&s.sweepgen, mheap_.sweepgen)
+		atomic.Store(&s.sweepgen, mheap_.sweepgen)
 		return false
 	}
 
@@ -164,7 +166,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	// the span may be used in an MCache, so it must come after the
 	// linked list operations above (actually, just after the
 	// lock of c above.)
-	atomicstore(&s.sweepgen, mheap_.sweepgen)
+	atomic.Store(&s.sweepgen, mheap_.sweepgen)
 
 	if s.ref != 0 {
 		unlock(&c.lock)

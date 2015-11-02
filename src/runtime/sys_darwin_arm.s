@@ -297,12 +297,6 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
 	SWI	$0x80
 	RET
 
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B	runtime·armcas(SB)
-
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	B	runtime·cas(SB)
-
 TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
 	B	runtime·armPublicationBarrier(SB)
 
