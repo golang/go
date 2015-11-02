@@ -3064,7 +3064,7 @@ func procresize(nprocs int32) *p {
 		for p.runqhead != p.runqtail {
 			// pop from tail of local queue
 			p.runqtail--
-			gp := p.runq[p.runqtail%uint32(len(p.runq))]
+			gp := p.runq[p.runqtail%uint32(len(p.runq))].ptr()
 			// push onto head of global queue
 			globrunqputhead(gp)
 		}
@@ -3753,7 +3753,7 @@ retry:
 	h := atomicload(&_p_.runqhead) // load-acquire, synchronize with consumers
 	t := _p_.runqtail
 	if t-h < uint32(len(_p_.runq)) {
-		_p_.runq[t%uint32(len(_p_.runq))] = gp
+		_p_.runq[t%uint32(len(_p_.runq))].set(gp)
 		atomicstore(&_p_.runqtail, t+1) // store-release, makes the item available for consumption
 		return
 	}
@@ -3776,7 +3776,7 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 		throw("runqputslow: queue is not full")
 	}
 	for i := uint32(0); i < n; i++ {
-		batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))]
+		batch[i] = _p_.runq[(h+i)%uint32(len(_p_.runq))].ptr()
 	}
 	if !cas(&_p_.runqhead, h, h+n) { // cas-release, commits consume
 		return false
@@ -3824,7 +3824,7 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 		if t == h {
 			return nil, false
 		}
-		gp := _p_.runq[h%uint32(len(_p_.runq))]
+		gp := _p_.runq[h%uint32(len(_p_.runq))].ptr()
 		if cas(&_p_.runqhead, h, h+1) { // cas-release, commits consume
 			return gp, false
 		}
@@ -3835,7 +3835,7 @@ func runqget(_p_ *p) (gp *g, inheritTime bool) {
 // Batch is a ring buffer starting at batchHead.
 // Returns number of grabbed goroutines.
 // Can be executed by any P.
-func runqgrab(_p_ *p, batch *[256]*g, batchHead uint32, stealRunNextG bool) uint32 {
+func runqgrab(_p_ *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool) uint32 {
 	for {
 		h := atomicload(&_p_.runqhead) // load-acquire, synchronize with other consumers
 		t := atomicload(&_p_.runqtail) // load-acquire, synchronize with the producer
@@ -3856,7 +3856,7 @@ func runqgrab(_p_ *p, batch *[256]*g, batchHead uint32, stealRunNextG bool) uint
 					if !_p_.runnext.cas(next, 0) {
 						continue
 					}
-					batch[batchHead%uint32(len(batch))] = next.ptr()
+					batch[batchHead%uint32(len(batch))] = next
 					return 1
 				}
 			}
@@ -3885,7 +3885,7 @@ func runqsteal(_p_, p2 *p, stealRunNextG bool) *g {
 		return nil
 	}
 	n--
-	gp := _p_.runq[(t+n)%uint32(len(_p_.runq))]
+	gp := _p_.runq[(t+n)%uint32(len(_p_.runq))].ptr()
 	if n == 0 {
 		return gp
 	}
