@@ -103,7 +103,7 @@ func main() {
 func getenv(envvar string) string {
 	s := os.Getenv(envvar)
 	if s == "" {
-		log.Fatalf("%s not set\nrun $GOROOT/misc/ios/detect.go to attempt to autodetect", s)
+		log.Fatalf("%s not set\nrun $GOROOT/misc/ios/detect.go to attempt to autodetect", envvar)
 	}
 	return s
 }
