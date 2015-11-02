@@ -84,7 +84,7 @@ import "unsafe"
 // frames that have potentially been active since the concurrent scan,
 // so it depends on write barriers to track changes to pointers in
 // stack frames that have not been active.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 	if writeBarrierEnabled {
 		if ptr != 0 && inheap(ptr) {

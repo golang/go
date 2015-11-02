@@ -658,12 +658,13 @@ var instrumenting bool
 
 // Pending annotations for next func declaration.
 var (
-	noescape       bool
-	noinline       bool
-	norace         bool
-	nosplit        bool
-	nowritebarrier bool
-	systemstack    bool
+	noescape          bool
+	noinline          bool
+	norace            bool
+	nosplit           bool
+	nowritebarrier    bool
+	nowritebarrierrec bool
+	systemstack       bool
 )
 
 var debuglive int
