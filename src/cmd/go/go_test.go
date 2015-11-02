@@ -2035,6 +2035,20 @@ func TestGoGenerateRunFlag(t *testing.T) {
 	tg.grepStdoutNot("no", "go generate -run yes ./testdata/generate/test4.go selected no")
 }
 
+func TestGoGenerateEnv(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("skipping because windows does not have the env command")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("env.go", "package main\n\n//go:generate env")
+	tg.run("generate", tg.path("env.go"))
+	for _, v := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
+		tg.grepStdout("^"+v+"=", "go generate environment missing "+v)
+	}
+}
+
 func TestGoGetCustomDomainWildcard(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 

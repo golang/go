@@ -39,6 +39,7 @@ func TestGenerateCommandParse(t *testing.T) {
 		pkg:      "sys",
 		commands: make(map[string][]string),
 	}
+	g.setEnv()
 	g.setShorthand([]string{"-command", "yacc", "go", "tool", "yacc"})
 	for _, test := range splitTests {
 		// First with newlines.
