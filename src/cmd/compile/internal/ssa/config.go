@@ -103,7 +103,7 @@ func (c *Config) Frontend() Frontend { return c.fe }
 // NewFunc returns a new, empty function object
 func (c *Config) NewFunc() *Func {
 	// TODO(khr): should this function take name, type, etc. as arguments?
-	return &Func{Config: c, NamedValues: map[GCNode][]*Value{}}
+	return &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
 }
 
 func (c *Config) Logf(msg string, args ...interface{})            { c.fe.Logf(msg, args...) }

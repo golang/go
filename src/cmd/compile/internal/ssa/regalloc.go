@@ -759,6 +759,16 @@ func (s *regAllocState) regalloc(f *Func) {
 				pc++
 				continue
 			}
+			if v.Op == OpArg {
+				// Args are "pre-spilled" values.  We don't allocate
+				// any register here.  We just set up the spill pointer to
+				// point at itself and any later user will restore it to use it.
+				s.values[v.ID].spill = v
+				s.values[v.ID].spillUsed = true // use is guaranteed
+				b.Values = append(b.Values, v)
+				pc++
+				continue
+			}
 			s.clearUses(pc*2 - 1)
 			regspec := opcodeTable[v.Op].reg
 			if regDebug {

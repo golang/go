@@ -21,7 +21,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	var blocs []bloc
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto(blockn(0)),
 		),
@@ -67,7 +67,7 @@ func TestNilcheckSimple(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -104,7 +104,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -140,7 +140,7 @@ func TestNilcheckAddr(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -173,7 +173,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -207,7 +207,7 @@ func TestNilcheckPhi(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Valu("sp", OpSP, TypeInvalid, 0, nil),
 			Valu("baddr", OpAddr, TypeBool, 0, "b", "sp"),
@@ -251,7 +251,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -299,7 +299,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -350,7 +350,7 @@ func TestNilcheckUser(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
@@ -389,7 +389,7 @@ func TestNilcheckBug(t *testing.T) {
 	c := NewConfig("amd64", DummyFrontend{t}, nil)
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpArg, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",

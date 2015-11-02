@@ -28,6 +28,7 @@ type funcPrinter interface {
 	value(v *Value, live bool)
 	startDepCycle()
 	endDepCycle()
+	named(n LocalSlot, vals []*Value)
 }
 
 type stringFuncPrinter struct {
@@ -72,6 +73,10 @@ func (p stringFuncPrinter) startDepCycle() {
 }
 
 func (p stringFuncPrinter) endDepCycle() {}
+
+func (p stringFuncPrinter) named(n LocalSlot, vals []*Value) {
+	fmt.Fprintf(p.w, "name %s: %v\n", n.Name(), vals)
+}
 
 func fprintFunc(p funcPrinter, f *Func) {
 	reachable, live := findlive(f)
@@ -135,5 +140,8 @@ func fprintFunc(p funcPrinter, f *Func) {
 		}
 
 		p.endBlock(b)
+	}
+	for name, vals := range f.NamedValues {
+		p.named(name, vals)
 	}
 }

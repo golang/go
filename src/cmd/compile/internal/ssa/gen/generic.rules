@@ -188,12 +188,12 @@
 (Load <t> ptr mem) && t.IsString() ->
   (StringMake
     (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeUintptr()>
-      (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)
+    (Load <config.fe.TypeInt()>
+      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
       mem))
 (Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
   (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)
+    (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
     len
     (Store [config.PtrSize] dst ptr mem))
 
@@ -215,18 +215,18 @@
 (Load <t> ptr mem) && t.IsSlice() ->
   (SliceMake
     (Load <config.fe.TypeBytePtr()> ptr mem)
-    (Load <config.fe.TypeUintptr()>
-      (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)
+    (Load <config.fe.TypeInt()>
+      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
       mem)
-    (Load <config.fe.TypeUintptr()>
-      (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] ptr)
+    (Load <config.fe.TypeInt()>
+      (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)
       mem))
 (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
   (Store [config.PtrSize]
-    (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)
+    (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)
     cap
     (Store [config.PtrSize]
-      (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)
+      (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
       len
       (Store [config.PtrSize] dst ptr mem)))
 
@@ -261,3 +261,30 @@
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add64 (Convert ptr) off)) -> (Add64 ptr off)
+
+// Decompose compound argument values
+(Arg {n} [off]) && v.Type.IsString() ->
+  (StringMake
+    (Arg <config.fe.TypeBytePtr()> {n} [off])
+    (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize]))
+
+(Arg {n} [off]) && v.Type.IsSlice() ->
+  (SliceMake
+    (Arg <config.fe.TypeBytePtr()> {n} [off])
+    (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize])
+    (Arg <config.fe.TypeInt()> {n} [off+2*config.PtrSize]))
+
+(Arg {n} [off]) && v.Type.IsInterface() ->
+  (IMake
+    (Arg <config.fe.TypeBytePtr()> {n} [off])
+    (Arg <config.fe.TypeBytePtr()> {n} [off+config.PtrSize]))
+
+(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 16 ->
+  (ComplexMake
+    (Arg <config.fe.TypeFloat64()> {n} [off])
+    (Arg <config.fe.TypeFloat64()> {n} [off+8]))
+
+(Arg {n} [off]) && v.Type.IsComplex() && v.Type.Size() == 8 ->
+  (ComplexMake
+    (Arg <config.fe.TypeFloat32()> {n} [off])
+    (Arg <config.fe.TypeFloat32()> {n} [off+4]))

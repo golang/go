@@ -83,8 +83,8 @@ type pass struct {
 var passes = [...]pass{
 	{"phielim", phielim},
 	{"copyelim", copyelim},
-	{"decompose", decompose},
 	{"early deadcode", deadcode}, // remove generated dead code to avoid doing pointless work during opt
+	{"decompose", decompose},
 	{"opt", opt},
 	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
 	{"generic cse", cse},

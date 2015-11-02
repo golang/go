@@ -162,24 +162,38 @@ func deadcode(f *Func) {
 	}
 	f.Blocks = f.Blocks[:i]
 
-	// Remove dead entries from namedValues map.
-	for name, values := range f.NamedValues {
-		i := 0
+	// Remove dead & duplicate entries from namedValues map.
+	s := newSparseSet(f.NumValues())
+	i = 0
+	for _, name := range f.Names {
+		j := 0
+		s.clear()
+		values := f.NamedValues[name]
 		for _, v := range values {
 			for v.Op == OpCopy {
 				v = v.Args[0]
 			}
-			if live[v.ID] {
-				values[i] = v
-				i++
+			if live[v.ID] && !s.contains(v.ID) {
+				values[j] = v
+				j++
+				s.add(v.ID)
 			}
 		}
-		f.NamedValues[name] = values[:i]
-		tail := values[i:]
-		for j := range tail {
-			tail[j] = nil
+		if j == 0 {
+			delete(f.NamedValues, name)
+		} else {
+			f.Names[i] = name
+			i++
+			for k := len(values) - 1; k >= j; k-- {
+				values[k] = nil
+			}
+			f.NamedValues[name] = values[:j]
 		}
 	}
+	for k := len(f.Names) - 1; k >= i; k-- {
+		f.Names[k] = LocalSlot{}
+	}
+	f.Names = f.Names[:i]
 
 	// TODO: renumber Blocks and Values densely?
 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?

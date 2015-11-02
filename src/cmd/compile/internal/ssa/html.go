@@ -472,3 +472,7 @@ func (p htmlFuncPrinter) startDepCycle() {
 func (p htmlFuncPrinter) endDepCycle() {
 	fmt.Fprintln(p.w, "</span>")
 }
+
+func (p htmlFuncPrinter) named(n LocalSlot, vals []*Value) {
+	// TODO
+}

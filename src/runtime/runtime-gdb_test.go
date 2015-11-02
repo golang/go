@@ -94,9 +94,6 @@ func TestGdbPython(t *testing.T) {
 		"-ex", "echo END\n",
 		"-ex", "echo BEGIN print strvar\n",
 		"-ex", "print strvar",
-		"-ex", "echo END\n",
-		"-ex", "echo BEGIN print ptrvar\n",
-		"-ex", "print ptrvar",
 		"-ex", "echo END\n"}
 
 	// without framepointer, gdb cannot backtrace our non-standard
@@ -149,10 +146,6 @@ func TestGdbPython(t *testing.T) {
 	strVarRe := regexp.MustCompile(`\Q = "abc"\E$`)
 	if bl := blocks["print strvar"]; !strVarRe.MatchString(bl) {
 		t.Fatalf("print strvar failed: %s", bl)
-	}
-
-	if bl := blocks["print ptrvar"]; !strVarRe.MatchString(bl) {
-		t.Fatalf("print ptrvar failed: %s", bl)
 	}
 
 	btGoroutineRe := regexp.MustCompile(`^#0\s+runtime.+at`)

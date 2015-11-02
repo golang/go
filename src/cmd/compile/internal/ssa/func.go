@@ -26,12 +26,11 @@ type Func struct {
 	// when register allocation is done, maps value ids to locations
 	RegAlloc []Location
 
-	// map from *gc.Node to set of Values that represent that Node.
-	// The Node must be an ONAME with PPARAM, PPARAMOUT, or PAUTO class.
-	NamedValues map[GCNode][]*Value
+	// map from LocalSlot to set of Values that we want to store in that slot.
+	NamedValues map[LocalSlot][]*Value
 	// Names is a copy of NamedValues.Keys.  We keep a separate list
 	// of keys to make iteration order deterministic.
-	Names []GCNode
+	Names []LocalSlot
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.

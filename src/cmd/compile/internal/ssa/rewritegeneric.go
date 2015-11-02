@@ -23,6 +23,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpAnd64(v, config)
 	case OpAnd8:
 		return rewriteValuegeneric_OpAnd8(v, config)
+	case OpArg:
+		return rewriteValuegeneric_OpArg(v, config)
 	case OpArrayIndex:
 		return rewriteValuegeneric_OpArrayIndex(v, config)
 	case OpCom16:
@@ -399,6 +401,156 @@ func rewriteValuegeneric_OpAnd8(v *Value, config *Config) bool {
 	}
 	goto endeaf127389bd0d4b0e0e297830f8f463b
 endeaf127389bd0d4b0e0e297830f8f463b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Arg {n} [off])
+	// cond: v.Type.IsString()
+	// result: (StringMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize]))
+	{
+		n := v.Aux
+		off := v.AuxInt
+		if !(v.Type.IsString()) {
+			goto end939d3f946bf61eb85b46b374e7afa9e9
+		}
+		v.Op = OpStringMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.Aux = n
+		v0.AuxInt = off
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = config.fe.TypeInt()
+		v1.Aux = n
+		v1.AuxInt = off + config.PtrSize
+		v.AddArg(v1)
+		return true
+	}
+	goto end939d3f946bf61eb85b46b374e7afa9e9
+end939d3f946bf61eb85b46b374e7afa9e9:
+	;
+	// match: (Arg {n} [off])
+	// cond: v.Type.IsSlice()
+	// result: (SliceMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeInt()> {n} [off+config.PtrSize])     (Arg <config.fe.TypeInt()> {n} [off+2*config.PtrSize]))
+	{
+		n := v.Aux
+		off := v.AuxInt
+		if !(v.Type.IsSlice()) {
+			goto endab4b93ad3b1cf55e5bf25d1fd9cd498e
+		}
+		v.Op = OpSliceMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.Aux = n
+		v0.AuxInt = off
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = config.fe.TypeInt()
+		v1.Aux = n
+		v1.AuxInt = off + config.PtrSize
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v2.Type = config.fe.TypeInt()
+		v2.Aux = n
+		v2.AuxInt = off + 2*config.PtrSize
+		v.AddArg(v2)
+		return true
+	}
+	goto endab4b93ad3b1cf55e5bf25d1fd9cd498e
+endab4b93ad3b1cf55e5bf25d1fd9cd498e:
+	;
+	// match: (Arg {n} [off])
+	// cond: v.Type.IsInterface()
+	// result: (IMake     (Arg <config.fe.TypeBytePtr()> {n} [off])     (Arg <config.fe.TypeBytePtr()> {n} [off+config.PtrSize]))
+	{
+		n := v.Aux
+		off := v.AuxInt
+		if !(v.Type.IsInterface()) {
+			goto end851de8e588a39e81b4e2aef06566bf3e
+		}
+		v.Op = OpIMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.Aux = n
+		v0.AuxInt = off
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = config.fe.TypeBytePtr()
+		v1.Aux = n
+		v1.AuxInt = off + config.PtrSize
+		v.AddArg(v1)
+		return true
+	}
+	goto end851de8e588a39e81b4e2aef06566bf3e
+end851de8e588a39e81b4e2aef06566bf3e:
+	;
+	// match: (Arg {n} [off])
+	// cond: v.Type.IsComplex() && v.Type.Size() == 16
+	// result: (ComplexMake     (Arg <config.fe.TypeFloat64()> {n} [off])     (Arg <config.fe.TypeFloat64()> {n} [off+8]))
+	{
+		n := v.Aux
+		off := v.AuxInt
+		if !(v.Type.IsComplex() && v.Type.Size() == 16) {
+			goto end0988fc6a62c810b2f4976cb6cf44387f
+		}
+		v.Op = OpComplexMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = config.fe.TypeFloat64()
+		v0.Aux = n
+		v0.AuxInt = off
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = config.fe.TypeFloat64()
+		v1.Aux = n
+		v1.AuxInt = off + 8
+		v.AddArg(v1)
+		return true
+	}
+	goto end0988fc6a62c810b2f4976cb6cf44387f
+end0988fc6a62c810b2f4976cb6cf44387f:
+	;
+	// match: (Arg {n} [off])
+	// cond: v.Type.IsComplex() && v.Type.Size() == 8
+	// result: (ComplexMake     (Arg <config.fe.TypeFloat32()> {n} [off])     (Arg <config.fe.TypeFloat32()> {n} [off+4]))
+	{
+		n := v.Aux
+		off := v.AuxInt
+		if !(v.Type.IsComplex() && v.Type.Size() == 8) {
+			goto enda348e93e0036873dd7089a2939c22e3e
+		}
+		v.Op = OpComplexMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = config.fe.TypeFloat32()
+		v0.Aux = n
+		v0.AuxInt = off
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = config.fe.TypeFloat32()
+		v1.Aux = n
+		v1.AuxInt = off + 4
+		v.AddArg(v1)
+		return true
+	}
+	goto enda348e93e0036873dd7089a2939c22e3e
+enda348e93e0036873dd7089a2939c22e3e:
 	;
 	return false
 }
@@ -2115,13 +2267,13 @@ end1b106f89e0e3e26c613b957a7c98d8ad:
 	;
 	// match: (Load <t> ptr mem)
 	// cond: t.IsString()
-	// result: (StringMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem))
+	// result: (StringMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeInt()>       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)       mem))
 	{
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
 		if !(t.IsString()) {
-			goto end7c75255555bf9dd796298d9f6eaf9cf2
+			goto enddd15a6f3d53a6ce7a19d4e181dd1c13a
 		}
 		v.Op = OpStringMake
 		v.AuxInt = 0
@@ -2133,9 +2285,9 @@ end1b106f89e0e3e26c613b957a7c98d8ad:
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeUintptr()
+		v1.Type = config.fe.TypeInt()
 		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeUintptr().PtrTo()
+		v2.Type = config.fe.TypeInt().PtrTo()
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -2143,18 +2295,18 @@ end1b106f89e0e3e26c613b957a7c98d8ad:
 		v.AddArg(v1)
 		return true
 	}
-	goto end7c75255555bf9dd796298d9f6eaf9cf2
-end7c75255555bf9dd796298d9f6eaf9cf2:
+	goto enddd15a6f3d53a6ce7a19d4e181dd1c13a
+enddd15a6f3d53a6ce7a19d4e181dd1c13a:
 	;
 	// match: (Load <t> ptr mem)
 	// cond: t.IsSlice()
-	// result: (SliceMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] ptr)       mem)     (Load <config.fe.TypeUintptr()>       (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] ptr)       mem))
+	// result: (SliceMake     (Load <config.fe.TypeBytePtr()> ptr mem)     (Load <config.fe.TypeInt()>       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)       mem)     (Load <config.fe.TypeInt()>       (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)       mem))
 	{
 		t := v.Type
 		ptr := v.Args[0]
 		mem := v.Args[1]
 		if !(t.IsSlice()) {
-			goto end12c46556d962198680eb3238859e3016
+			goto end65e8b0055aa7491b9b6066d9fe1b2c13
 		}
 		v.Op = OpSliceMake
 		v.AuxInt = 0
@@ -2166,18 +2318,18 @@ end7c75255555bf9dd796298d9f6eaf9cf2:
 		v0.AddArg(mem)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeUintptr()
+		v1.Type = config.fe.TypeInt()
 		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeUintptr().PtrTo()
+		v2.Type = config.fe.TypeInt().PtrTo()
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
 		v1.AddArg(mem)
 		v.AddArg(v1)
 		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v3.Type = config.fe.TypeUintptr()
+		v3.Type = config.fe.TypeInt()
 		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v4.Type = config.fe.TypeUintptr().PtrTo()
+		v4.Type = config.fe.TypeInt().PtrTo()
 		v4.AuxInt = 2 * config.PtrSize
 		v4.AddArg(ptr)
 		v3.AddArg(v4)
@@ -2185,8 +2337,8 @@ end7c75255555bf9dd796298d9f6eaf9cf2:
 		v.AddArg(v3)
 		return true
 	}
-	goto end12c46556d962198680eb3238859e3016
-end12c46556d962198680eb3238859e3016:
+	goto end65e8b0055aa7491b9b6066d9fe1b2c13
+end65e8b0055aa7491b9b6066d9fe1b2c13:
 	;
 	// match: (Load <t> ptr mem)
 	// cond: t.IsInterface()
@@ -2916,14 +3068,14 @@ end3851a482d7bd37a93c4d81581e85b3ab:
 	;
 	// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
 	// cond:
-	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] dst ptr mem))
+	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] dst ptr mem))
 	{
 		if v.AuxInt != 2*config.PtrSize {
-			goto end12abe4021d24e76ed56d64b18730bffb
+			goto endd3a6ecebdad5899570a79fe5c62f34f1
 		}
 		dst := v.Args[0]
 		if v.Args[1].Op != OpStringMake {
-			goto end12abe4021d24e76ed56d64b18730bffb
+			goto endd3a6ecebdad5899570a79fe5c62f34f1
 		}
 		ptr := v.Args[1].Args[0]
 		len := v.Args[1].Args[1]
@@ -2934,7 +3086,7 @@ end3851a482d7bd37a93c4d81581e85b3ab:
 		v.resetArgs()
 		v.AuxInt = config.PtrSize
 		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeUintptr().PtrTo()
+		v0.Type = config.fe.TypeInt().PtrTo()
 		v0.AuxInt = config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
@@ -2948,19 +3100,19 @@ end3851a482d7bd37a93c4d81581e85b3ab:
 		v.AddArg(v1)
 		return true
 	}
-	goto end12abe4021d24e76ed56d64b18730bffb
-end12abe4021d24e76ed56d64b18730bffb:
+	goto endd3a6ecebdad5899570a79fe5c62f34f1
+endd3a6ecebdad5899570a79fe5c62f34f1:
 	;
 	// match: (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem)
 	// cond:
-	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeUintptr().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize]       (OffPtr <config.fe.TypeUintptr().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] dst ptr mem)))
+	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize]       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] dst ptr mem)))
 	{
 		if v.AuxInt != 3*config.PtrSize {
-			goto end7498d25e17db5398cf073a8590e35cc2
+			goto endd5cc8c3dad7d24c845b0b88fc51487ae
 		}
 		dst := v.Args[0]
 		if v.Args[1].Op != OpSliceMake {
-			goto end7498d25e17db5398cf073a8590e35cc2
+			goto endd5cc8c3dad7d24c845b0b88fc51487ae
 		}
 		ptr := v.Args[1].Args[0]
 		len := v.Args[1].Args[1]
@@ -2972,7 +3124,7 @@ end12abe4021d24e76ed56d64b18730bffb:
 		v.resetArgs()
 		v.AuxInt = config.PtrSize
 		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeUintptr().PtrTo()
+		v0.Type = config.fe.TypeInt().PtrTo()
 		v0.AuxInt = 2 * config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
@@ -2980,7 +3132,7 @@ end12abe4021d24e76ed56d64b18730bffb:
 		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
 		v1.AuxInt = config.PtrSize
 		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeUintptr().PtrTo()
+		v2.Type = config.fe.TypeInt().PtrTo()
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(dst)
 		v1.AddArg(v2)
@@ -2996,8 +3148,8 @@ end12abe4021d24e76ed56d64b18730bffb:
 		v.AddArg(v1)
 		return true
 	}
-	goto end7498d25e17db5398cf073a8590e35cc2
-end7498d25e17db5398cf073a8590e35cc2:
+	goto endd5cc8c3dad7d24c845b0b88fc51487ae
+endd5cc8c3dad7d24c845b0b88fc51487ae:
 	;
 	// match: (Store [2*config.PtrSize] dst (IMake itab data) mem)
 	// cond:
