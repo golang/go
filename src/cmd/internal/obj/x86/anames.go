@@ -706,5 +706,11 @@ var Anames = []string{
 	"FCOMIP",
 	"FUCOMI",
 	"FUCOMIP",
+	"XACQUIRE",
+	"XRELEASE",
+	"XBEGIN",
+	"XEND",
+	"XABORT",
+	"XTEST",
 	"LAST",
 }

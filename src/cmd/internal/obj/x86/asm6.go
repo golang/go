@@ -757,6 +757,14 @@ var yaes2 = []ytab{
 	{Yu8, Yxm, Yxr, Zibm_r, 2},
 }
 
+var yxbegin = []ytab{
+	{Ynone, Ynone, Ybr, Zjmp, 1},
+}
+
+var yxabort = []ytab{
+	{Yu8, Ynone, Ynone, Zib_, 1},
+}
+
 /*
  * You are doasm, holding in your hand a Prog* with p->as set to, say, ACRC32,
  * and p->from and p->to as operands (Addr*).  The linker scans optab to find
@@ -1519,6 +1527,12 @@ var optab =
 	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
 	{AVPBROADCASTB, yml_xr_vex, Pvex3, [23]uint8{0x78, 0x78}},
 	{AVPTEST, yml_xr_vex, Pvex3, [23]uint8{0x17, 0x17}},
+	{AXACQUIRE, ynone, Px, [23]uint8{0xf2}},
+	{AXRELEASE, ynone, Px, [23]uint8{0xf3}},
+	{AXBEGIN, yxbegin, Px, [23]uint8{0xc7, 0xf8}},
+	{AXABORT, yxabort, Px, [23]uint8{0xc6, 0xf8}},
+	{AXEND, ynone, Px, [23]uint8{0x0f, 01, 0xd5}},
+	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
 	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
@@ -1729,7 +1743,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 						q.Back ^= 2
 					}
 
-					if q.As == AJCXZL {
+					if q.As == AJCXZL || q.As == AXBEGIN {
 						s.P[q.Pc+2] = byte(v)
 					} else {
 						s.P[q.Pc+1] = byte(v)
@@ -3432,6 +3446,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				}
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
+				if p.As == AXABORT {
+					ctxt.Andptr[0] = byte(o.op[z+1])
+					ctxt.Andptr = ctxt.Andptr[1:]
+				}
 				ctxt.Andptr[0] = byte(vaddr(ctxt, p, a, nil))
 				ctxt.Andptr = ctxt.Andptr[1:]
 
@@ -3653,6 +3671,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 			// TODO: jump across functions needs reloc
 			case Zbr, Zjmp, Zloop:
+				if p.As == AXBEGIN {
+					ctxt.Andptr[0] = byte(op)
+					ctxt.Andptr = ctxt.Andptr[1:]
+				}
 				if p.To.Sym != nil {
 					if yt.zcase != Zjmp {
 						ctxt.Diag("branch to ATEXT")
@@ -3683,7 +3705,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 
 				if p.Back&1 != 0 {
 					v = q.Pc - (p.Pc + 2)
-					if v >= -128 {
+					if v >= -128 && p.As != AXBEGIN {
 						if p.As == AJCXZL {
 							ctxt.Andptr[0] = 0x67
 							ctxt.Andptr = ctxt.Andptr[1:]
@@ -3696,6 +3718,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 						ctxt.Diag("loop too far: %v", p)
 					} else {
 						v -= 5 - 2
+						if p.As == AXBEGIN {
+							v--
+						}
 						if yt.zcase == Zbr {
 							ctxt.Andptr[0] = 0x0f
 							ctxt.Andptr = ctxt.Andptr[1:]
@@ -3721,7 +3746,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				p.Forwd = q.Rel
 
 				q.Rel = p
-				if p.Back&2 != 0 { // short
+				if p.Back&2 != 0 && p.As != AXBEGIN { // short
 					if p.As == AJCXZL {
 						ctxt.Andptr[0] = 0x67
 						ctxt.Andptr = ctxt.Andptr[1:]
