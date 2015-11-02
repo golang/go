@@ -4,6 +4,10 @@ package gc
 
 const runtimeimport = "" +
 	"package runtime safe\n" +
+	"type @\"\".hbucket uint8\n" +
+	"type @\"\".hmap struct { @\"\".count int; @\"\".flags uint8; B uint8; @\"\".hash0 uint32; @\"\".buckets *@\"\".hbucket; @\"\".oldbuckets *@\"\".hbucket; @\"\".nevacuate uintptr; @\"\".overflow *[2]*[]*@\"\".hbucket }\n" +
+	"type @\"\".hiter struct { @\"\".key *byte; @\"\".value *byte; @\"\".t *byte; @\"\".h *@\"\".hmap; @\"\".buckets *@\"\".hbucket; @\"\".bptr *@\"\".hbucket; @\"\".overflow [2]*[]*@\"\".hbucket; @\"\".startBucket uintptr; @\"\".offset uint8; @\"\".wrapped bool; B uint8; @\"\".i uint8; @\"\".bucket uintptr; @\"\".checkBucket uintptr }\n" +
+	"type @\"\".scase struct { @\"\".elem *byte; @\"\".c *byte; @\"\".pc uintptr; @\"\".kind uint16; @\"\".so uint16; @\"\".receivedp *bool; @\"\".releasetime int64 }\n" +
 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
 	"func @\"\".panicindex ()\n" +
 	"func @\"\".panicslice ()\n" +
@@ -66,7 +70,7 @@ const runtimeimport = "" +
 	"func @\"\".panicdottype (@\"\".have·1 *byte, @\"\".want·2 *byte, @\"\".iface·3 *byte)\n" +
 	"func @\"\".ifaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
-	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64, @\"\".mapbuf·4 *any, @\"\".bucketbuf·5 *any) (@\"\".hmap·1 map[any]any)\n" +
+	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64, @\"\".mapbuf·4 *@\"\".hmap, @\"\".bucketbuf·5 *any) (@\"\".hmap·1 map[any]any)\n" +
 	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any) (@\"\".val·1 *any)\n" +
 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
 	"func @\"\".mapaccess1_fast64 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
@@ -76,9 +80,9 @@ const runtimeimport = "" +
 	"func @\"\".mapaccess2_fast64 (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
 	"func @\"\".mapaccess2_faststr (@\"\".mapType·3 *byte, @\"\".hmap·4 map[any]any, @\"\".key·5 any) (@\"\".val·1 *any, @\"\".pres·2 bool)\n" +
 	"func @\"\".mapassign1 (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any, @\"\".val·4 *any)\n" +
-	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *any)\n" +
+	"func @\"\".mapiterinit (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".hiter·3 *@\"\".hiter)\n" +
 	"func @\"\".mapdelete (@\"\".mapType·1 *byte, @\"\".hmap·2 map[any]any, @\"\".key·3 *any)\n" +
-	"func @\"\".mapiternext (@\"\".hiter·1 *any)\n" +
+	"func @\"\".mapiternext (@\"\".hiter·1 *@\"\".hiter)\n" +
 	"func @\"\".makechan (@\"\".chanType·2 *byte, @\"\".hint·3 int64) (@\"\".hchan·1 chan any)\n" +
 	"func @\"\".chanrecv1 (@\"\".chanType·1 *byte, @\"\".hchan·2 <-chan any, @\"\".elem·3 *any)\n" +
 	"func @\"\".chanrecv2 (@\"\".chanType·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any) (? bool)\n" +

@@ -160,8 +160,6 @@ type gobuf struct {
 	bp   uintptr // for GOEXPERIMENT=framepointer
 }
 
-// Known to compiler.
-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
 type sudog struct {
 	g           *g
 	selectdone  *uint32

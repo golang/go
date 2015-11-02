@@ -12,6 +12,49 @@ package runtime
 
 // emitted by compiler, not referred to by go programs
 
+type hbucket byte // placeholder
+
+// Changes here must also be made in src/runtime/hashmap.go.
+type hmap struct {
+	count      int
+	flags      uint8
+	B          uint8
+	hash0      uint32
+	buckets    *hbucket
+	oldbuckets *hbucket
+	nevacuate  uintptr
+	overflow   *[2]*[]*hbucket
+}
+
+// Changes here must also be made in src/runtime/hashmap.go.
+type hiter struct {
+	key         *byte // field name known to walkrange
+	value       *byte // field name known to walkrange
+	t           *byte // *maptype
+	h           *hmap
+	buckets     *hbucket
+	bptr        *hbucket
+	overflow    [2]*[]*hbucket
+	startBucket uintptr
+	offset      uint8
+	wrapped     bool
+	B           uint8
+	i           uint8
+	bucket      uintptr
+	checkBucket uintptr
+}
+
+// Changes here must also be made in src/runtime/select.go.
+type scase struct {
+	elem        *byte
+	c           *byte
+	pc          uintptr
+	kind        uint16
+	so          uint16
+	receivedp   *bool
+	releasetime int64
+}
+
 func newobject(typ *byte) *any
 func panicindex()
 func panicslice()
@@ -85,7 +128,7 @@ func ifaceeq(i1 any, i2 any) (ret bool)
 func efaceeq(i1 any, i2 any) (ret bool)
 
 // *byte is really *runtime.Type
-func makemap(mapType *byte, hint int64, mapbuf *any, bucketbuf *any) (hmap map[any]any)
+func makemap(mapType *byte, hint int64, mapbuf *hmap, bucketbuf *any) (hmap map[any]any)
 func mapaccess1(mapType *byte, hmap map[any]any, key *any) (val *any)
 func mapaccess1_fast32(mapType *byte, hmap map[any]any, key any) (val *any)
 func mapaccess1_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
@@ -95,9 +138,9 @@ func mapaccess2_fast32(mapType *byte, hmap map[any]any, key any) (val *any, pres
 func mapaccess2_fast64(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapaccess2_faststr(mapType *byte, hmap map[any]any, key any) (val *any, pres bool)
 func mapassign1(mapType *byte, hmap map[any]any, key *any, val *any)
-func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+func mapiterinit(mapType *byte, hmap map[any]any, hiter *hiter)
 func mapdelete(mapType *byte, hmap map[any]any, key *any)
-func mapiternext(hiter *any)
+func mapiternext(hiter *hiter)
 
 // *byte is really *runtime.Type
 func makechan(chanType *byte, hint int64) (hchan chan any)

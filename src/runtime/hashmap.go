@@ -102,6 +102,7 @@ const (
 )
 
 // A header for a Go map.
+// Changes here must also be made in src/cmd/compile/internal/gc/builtin/runtime.go.
 type hmap struct {
 	// Note: the format of the Hmap is encoded in ../../cmd/internal/gc/reflect.go and
 	// ../reflect/type.go.  Don't change this structure without also changing that code!
@@ -137,11 +138,10 @@ type bmap struct {
 }
 
 // A hash iteration structure.
-// If you modify hiter, also change cmd/internal/gc/reflect.go to indicate
-// the layout of this structure.
+// Changes here must also be made in src/cmd/compile/internal/gc/builtin/runtime.go.
 type hiter struct {
-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/internal/gc/range.go).
-	value       unsafe.Pointer // Must be in second position (see cmd/internal/gc/range.go).
+	key         unsafe.Pointer // Write nil to indicate iteration end (see cmd/compile/internal/gc/range.go).
+	value       unsafe.Pointer
 	t           *maptype
 	h           *hmap
 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
@@ -188,11 +188,10 @@ func (h *hmap) createOverflow() {
 // If h != nil, the map can be created directly in h.
 // If bucket != nil, bucket can be used as the first bucket.
 func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
-	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
-		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
+	if sz := unsafe.Sizeof(hmap{}); sz > 48 {
+		println("runtime: sizeof(hmap) =", sz)
 		throw("bad hmap size")
 	}
-
 	if hint < 0 || int64(int32(hint)) != hint {
 		panic("makemap: size out of range")
 		// TODO: make hint an int, then none of this nonsense
@@ -254,7 +253,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 
 	// initialize Hmap
 	if h == nil {
-		h = (*hmap)(newobject(t.hmap))
+		h = &hmap{}
 	}
 	h.count = 0
 	h.B = B

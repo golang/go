@@ -340,7 +340,6 @@ type mapType struct {
 	key           *rtype // map key type
 	elem          *rtype // map element (value) type
 	bucket        *rtype // internal bucket structure
-	hmap          *rtype // internal map header
 	keysize       uint8  // size of key slot
 	indirectkey   uint8  // store ptr to key instead of key itself
 	valuesize     uint8  // size of value slot

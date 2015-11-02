@@ -60,7 +60,6 @@ type maptype struct {
 	key           *_type
 	elem          *_type
 	bucket        *_type // internal type representing a hash bucket
-	hmap          *_type // internal type representing a hmap
 	keysize       uint8  // size of key slot
 	indirectkey   bool   // store ptr to key instead of key itself
 	valuesize     uint8  // size of value slot
