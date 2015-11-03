@@ -233,7 +233,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 					y := special
 					special = special.next
 					*specialp = special
-					freespecial(y, unsafe.Pointer(p), size, false)
+					freespecial(y, unsafe.Pointer(p), size)
 				} else {
 					// This is profile record, but the object has finalizers (so kept alive).
 					// Keep special record.
