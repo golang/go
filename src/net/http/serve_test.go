@@ -3381,6 +3381,31 @@ func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 	}
 }
 
+func TestHandlerSetsBodyNil(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		r.Body = nil
+		fmt.Fprintf(w, "%v", r.RemoteAddr)
+	}))
+	defer ts.Close()
+	get := func() string {
+		res, err := Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		slurp, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(slurp)
+	}
+	a, b := get(), get()
+	if a != b {
+		t.Errorf("Failed to reuse connections between requests: %v vs %v", a, b)
+	}
+}
+
 func BenchmarkClientServer(b *testing.B) {
 	b.ReportAllocs()
 	b.StopTimer()
