@@ -132,3 +132,5 @@ var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
 var ExportErrRequestCanceled = errRequestCanceled
 
 var ExportServeFile = serveFile
+
+func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
