@@ -197,6 +197,13 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	}
 
 	// Unlink & free special records for any objects we're about to free.
+	// Two complications here:
+	// 1. An object can have both finalizer and profile special records.
+	//    In such case we need to queue finalizer for execution,
+	//    mark the object as live and preserve the profile special.
+	// 2. A tiny object can have several finalizers setup for different offsets.
+	//    If such object is not marked, we need to queue all finalizers at once.
+	// Both 1 and 2 are possible at the same time.
 	specialp := &s.specials
 	special := *specialp
 	for special != nil {
@@ -204,16 +211,35 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 		p := uintptr(s.start<<_PageShift) + uintptr(special.offset)/size*size
 		hbits := heapBitsForAddr(p)
 		if !hbits.isMarked() {
-			// Find the exact byte for which the special was setup
-			// (as opposed to object beginning).
-			p := uintptr(s.start<<_PageShift) + uintptr(special.offset)
-			// about to free object: splice out special record
-			y := special
-			special = special.next
-			*specialp = special
-			if !freespecial(y, unsafe.Pointer(p), size, false) {
-				// stop freeing of object if it has a finalizer
-				hbits.setMarkedNonAtomic()
+			// This object is not marked and has at least one special record.
+			// Pass 1: see if it has at least one finalizer.
+			hasFin := false
+			endOffset := p - uintptr(s.start<<_PageShift) + size
+			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
+				if tmp.kind == _KindSpecialFinalizer {
+					// Stop freeing of object if it has a finalizer.
+					hbits.setMarkedNonAtomic()
+					hasFin = true
+					break
+				}
+			}
+			// Pass 2: queue all finalizers _or_ handle profile record.
+			for special != nil && uintptr(special.offset) < endOffset {
+				// Find the exact byte for which the special was setup
+				// (as opposed to object beginning).
+				p := uintptr(s.start<<_PageShift) + uintptr(special.offset)
+				if special.kind == _KindSpecialFinalizer || !hasFin {
+					// Splice out special record.
+					y := special
+					special = special.next
+					*specialp = special
+					freespecial(y, unsafe.Pointer(p), size, false)
+				} else {
+					// This is profile record, but the object has finalizers (so kept alive).
+					// Keep special record.
+					specialp = &special.next
+					special = *specialp
+				}
 			}
 		} else {
 			// object is still live: keep special record

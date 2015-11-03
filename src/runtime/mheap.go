@@ -1143,8 +1143,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
 
 // Do whatever cleanup needs to be done to deallocate s.  It has
 // already been unlinked from the MSpan specials list.
-// Returns true if we should keep working on deallocating p.
-func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
+func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) {
 	switch s.kind {
 	case _KindSpecialFinalizer:
 		sf := (*specialfinalizer)(unsafe.Pointer(s))
@@ -1152,14 +1151,12 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr, freed bool) bool {
 		lock(&mheap_.speciallock)
 		fixAlloc_Free(&mheap_.specialfinalizeralloc, unsafe.Pointer(sf))
 		unlock(&mheap_.speciallock)
-		return false // don't free p until finalizer is done
 	case _KindSpecialProfile:
 		sp := (*specialprofile)(unsafe.Pointer(s))
 		mProf_Free(sp.b, size, freed)
 		lock(&mheap_.speciallock)
 		fixAlloc_Free(&mheap_.specialprofilealloc, unsafe.Pointer(sp))
 		unlock(&mheap_.speciallock)
-		return true
 	default:
 		throw("bad special kind")
 		panic("not reached")
