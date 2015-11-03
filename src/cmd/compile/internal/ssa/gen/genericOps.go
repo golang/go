@@ -12,7 +12,7 @@ var genericOps = []opData{
 	{name: "Add16"},
 	{name: "Add32"},
 	{name: "Add64"},
-	{name: "AddPtr"},
+	{name: "AddPtr"}, // For address calculations.  arg0 is a pointer and arg1 is an int.
 	{name: "Add32F"},
 	{name: "Add64F"},
 	// TODO: Add64C, Add128C
@@ -29,7 +29,6 @@ var genericOps = []opData{
 	{name: "Mul16"},
 	{name: "Mul32"},
 	{name: "Mul64"},
-	{name: "MulPtr", typ: "Uintptr"}, // MulPtr is used for address calculations
 	{name: "Mul32F"},
 	{name: "Mul64F"},
 
@@ -256,9 +255,8 @@ var genericOps = []opData{
 	{name: "Const64"},
 	{name: "Const32F"},
 	{name: "Const64F"},
-	{name: "ConstPtr", typ: "Uintptr"}, // pointer-sized integer constant
-	{name: "ConstInterface"},           // nil interface
-	{name: "ConstSlice"},               // nil slice
+	{name: "ConstInterface"}, // nil interface
+	{name: "ConstSlice"},     // nil slice
 	// TODO: Const32F, ...
 
 	// Constant-like things
@@ -338,7 +336,7 @@ var genericOps = []opData{
 
 	// Slices
 	{name: "SliceMake"},                // arg0=ptr, arg1=len, arg2=cap
-	{name: "SlicePtr", typ: "Uintptr"}, // ptr(arg0)
+	{name: "SlicePtr", typ: "BytePtr"}, // ptr(arg0)
 	{name: "SliceLen"},                 // len(arg0)
 	{name: "SliceCap"},                 // cap(arg0)
 
@@ -354,7 +352,7 @@ var genericOps = []opData{
 
 	// Interfaces
 	{name: "IMake"},                // arg0=itab, arg1=data
-	{name: "ITab", typ: "Uintptr"}, // arg0=interface, returns itable field
+	{name: "ITab", typ: "BytePtr"}, // arg0=interface, returns itable field
 	{name: "IData"},                // arg0=interface, returns data field
 
 	// Spill&restore ops for the register allocator.  These are

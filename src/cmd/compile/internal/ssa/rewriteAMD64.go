@@ -97,8 +97,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpConstBool(v, config)
 	case OpConstNil:
 		return rewriteValueAMD64_OpConstNil(v, config)
-	case OpConstPtr:
-		return rewriteValueAMD64_OpConstPtr(v, config)
 	case OpConvert:
 		return rewriteValueAMD64_OpConvert(v, config)
 	case OpCvt32Fto32:
@@ -405,8 +403,6 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpMul64F(v, config)
 	case OpMul8:
 		return rewriteValueAMD64_OpMul8(v, config)
-	case OpMulPtr:
-		return rewriteValueAMD64_OpMulPtr(v, config)
 	case OpAMD64NEGB:
 		return rewriteValueAMD64_OpAMD64NEGB(v, config)
 	case OpAMD64NEGL:
@@ -2523,26 +2519,6 @@ func rewriteValueAMD64_OpConstNil(v *Value, config *Config) bool {
 	}
 	goto endea557d921056c25b945a49649e4b9b91
 endea557d921056c25b945a49649e4b9b91:
-	;
-	return false
-}
-func rewriteValueAMD64_OpConstPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (ConstPtr [val])
-	// cond:
-	// result: (MOVQconst [val])
-	{
-		val := v.AuxInt
-		v.Op = OpAMD64MOVQconst
-		v.AuxInt = 0
-		v.Aux = nil
-		v.resetArgs()
-		v.AuxInt = val
-		return true
-	}
-	goto endc395c0a53eeccf597e225a07b53047d1
-endc395c0a53eeccf597e225a07b53047d1:
 	;
 	return false
 }
@@ -8322,28 +8298,6 @@ func rewriteValueAMD64_OpMul8(v *Value, config *Config) bool {
 	}
 	goto endd876d6bc42a2285b801f42dadbd8757c
 endd876d6bc42a2285b801f42dadbd8757c:
-	;
-	return false
-}
-func rewriteValueAMD64_OpMulPtr(v *Value, config *Config) bool {
-	b := v.Block
-	_ = b
-	// match: (MulPtr x y)
-	// cond:
-	// result: (MULQ x y)
-	{
-		x := v.Args[0]
-		y := v.Args[1]
-		v.Op = OpAMD64MULQ
-		v.AuxInt = 0
-		v.Aux = nil
-		v.resetArgs()
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	goto endbbedad106c011a93243e2062afdcc75f
-endbbedad106c011a93243e2062afdcc75f:
 	;
 	return false
 }

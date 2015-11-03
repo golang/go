@@ -27,7 +27,6 @@
 (Sub64F x y) -> (SUBSD x y)
 
 (Mul64 x y) -> (MULQ x y)
-(MulPtr x y) -> (MULQ x y)
 (Mul32 x y) -> (MULL x y)
 (Mul16 x y) -> (MULW x y)
 (Mul8 x y) -> (MULB x y)
@@ -348,7 +347,6 @@
 (Const64 [val]) -> (MOVQconst [val])
 (Const32F [val]) -> (MOVSSconst [val])
 (Const64F [val]) -> (MOVSDconst [val])
-(ConstPtr [val]) -> (MOVQconst [val])
 (ConstNil) -> (MOVQconst [0])
 (ConstBool [b]) -> (MOVBconst [b])
 

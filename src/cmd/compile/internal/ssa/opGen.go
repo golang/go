@@ -301,7 +301,6 @@ const (
 	OpMul16
 	OpMul32
 	OpMul64
-	OpMulPtr
 	OpMul32F
 	OpMul64F
 	OpDiv32F
@@ -474,7 +473,6 @@ const (
 	OpConst64
 	OpConst32F
 	OpConst64F
-	OpConstPtr
 	OpConstInterface
 	OpConstSlice
 	OpArg
@@ -3294,10 +3292,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "MulPtr",
-		generic: true,
-	},
-	{
 		name:    "Mul32F",
 		generic: true,
 	},
@@ -3983,10 +3977,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Const64F",
-		generic: true,
-	},
-	{
-		name:    "ConstPtr",
 		generic: true,
 	},
 	{

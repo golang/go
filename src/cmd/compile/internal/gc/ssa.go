@@ -471,12 +471,6 @@ func (s *state) constFloat32(t ssa.Type, c float64) *ssa.Value {
 func (s *state) constFloat64(t ssa.Type, c float64) *ssa.Value {
 	return s.f.ConstFloat64(s.peekLine(), t, c)
 }
-func (s *state) constIntPtr(t ssa.Type, c int64) *ssa.Value {
-	if s.config.PtrSize == 4 && int64(int32(c)) != c {
-		s.Fatalf("pointer constant too big %d", c)
-	}
-	return s.f.ConstIntPtr(s.peekLine(), t, c)
-}
 func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
 	if s.config.IntSize == 8 {
 		return s.constInt64(t, c)
@@ -1781,7 +1775,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(Types[TINT], n.Xoffset))
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
@@ -1978,7 +1972,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		c = s.variable(&capVar, Types[TINT]) // generates phi for cap
 		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
 		for i, arg := range args {
-			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TUINTPTR], int64(i)))
+			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
 			if store[i] {
 				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
 			} else {
@@ -2370,17 +2364,17 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		return p
 	case ODOT:
 		p := s.addr(n.Left, bounded)
-		return s.newValue2(ssa.OpAddPtr, t, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, t, p, s.constInt(Types[TINT], n.Xoffset))
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		if !bounded {
 			s.nilCheck(p)
 		}
-		return s.newValue2(ssa.OpAddPtr, t, p, s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+		return s.newValue2(ssa.OpAddPtr, t, p, s.constInt(Types[TINT], n.Xoffset))
 	case OCLOSUREVAR:
 		return s.newValue2(ssa.OpAddPtr, t,
 			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])),
-			s.constIntPtr(Types[TUINTPTR], n.Xoffset))
+			s.constInt(Types[TINT], n.Xoffset))
 	case OPARAM:
 		p := n.Left
 		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
@@ -2682,14 +2676,17 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	// Generate the following code assuming that indexes are in bounds.
 	// The conditional is to make sure that we don't generate a slice
 	// that points to the next object in memory.
-	// rlen = (SubPtr j i)
-	// rcap = (SubPtr k i)
+	// rlen = (Sub64 j i)
+	// rcap = (Sub64 k i)
 	// p = ptr
 	// if rcap != 0 {
-	//    p = (AddPtr ptr (MulPtr low (ConstPtr size)))
+	//    p = (AddPtr ptr (Mul64 low (Const64 size)))
 	// }
 	// result = (SliceMake p size)
-	rlen := s.newValue2(ssa.OpSubPtr, Types[TINT], j, i)
+	subOp := s.ssaOp(OSUB, Types[TINT])
+	neqOp := s.ssaOp(ONE, Types[TINT])
+	mulOp := s.ssaOp(OMUL, Types[TINT])
+	rlen := s.newValue2(subOp, Types[TINT], j, i)
 	var rcap *ssa.Value
 	switch {
 	case t.IsString():
@@ -2700,18 +2697,13 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	case j == k:
 		rcap = rlen
 	default:
-		rcap = s.newValue2(ssa.OpSubPtr, Types[TINT], k, i)
+		rcap = s.newValue2(subOp, Types[TINT], k, i)
 	}
 
 	s.vars[&ptrVar] = ptr
 
 	// Generate code to test the resulting slice length.
-	var cmp *ssa.Value
-	if s.config.IntSize == 8 {
-		cmp = s.newValue2(ssa.OpNeq64, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
-	} else {
-		cmp = s.newValue2(ssa.OpNeq32, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
-	}
+	cmp := s.newValue2(neqOp, Types[TBOOL], rcap, s.constInt(Types[TINT], 0))
 
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
@@ -2726,7 +2718,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	if elemtype.Width == 1 {
 		inc = i
 	} else {
-		inc = s.newValue2(ssa.OpMulPtr, Types[TUINTPTR], i, s.constInt(Types[TINT], elemtype.Width))
+		inc = s.newValue2(mulOp, Types[TINT], i, s.constInt(Types[TINT], elemtype.Width))
 	}
 	s.vars[&ptrVar] = s.newValue2(ssa.OpAddPtr, ptrtype, ptr, inc)
 	s.endBlock()
@@ -4338,13 +4330,13 @@ func addAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	}
 }
 
-// extendIndex extends v to a full pointer width.
+// extendIndex extends v to a full int width.
 func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 	size := v.Type.Size()
-	if size == s.config.PtrSize {
+	if size == s.config.IntSize {
 		return v
 	}
-	if size > s.config.PtrSize {
+	if size > s.config.IntSize {
 		// TODO: truncate 64-bit indexes on 32-bit pointer archs.  We'd need to test
 		// the high word and branch to out-of-bounds failure if it is not 0.
 		s.Unimplementedf("64->32 index truncation not implemented")
@@ -4354,7 +4346,7 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 	// Extend value to the required size
 	var op ssa.Op
 	if v.Type.IsSigned() {
-		switch 10*size + s.config.PtrSize {
+		switch 10*size + s.config.IntSize {
 		case 14:
 			op = ssa.OpSignExt8to32
 		case 18:
@@ -4369,7 +4361,7 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 			s.Fatalf("bad signed index extension %s", v.Type)
 		}
 	} else {
-		switch 10*size + s.config.PtrSize {
+		switch 10*size + s.config.IntSize {
 		case 14:
 			op = ssa.OpZeroExt8to32
 		case 18:
@@ -4384,7 +4376,7 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 			s.Fatalf("bad unsigned index extension %s", v.Type)
 		}
 	}
-	return s.newValue1(op, Types[TUINTPTR], v)
+	return s.newValue1(op, Types[TINT], v)
 }
 
 // ssaRegToReg maps ssa register numbers to obj register numbers.
