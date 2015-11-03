@@ -317,8 +317,9 @@ func (cw *chunkWriter) close() {
 type response struct {
 	conn          *conn
 	req           *Request // request for this response
-	wroteHeader   bool     // reply header has been (logically) written
-	wroteContinue bool     // 100 Continue response was written
+	reqBody       io.ReadCloser
+	wroteHeader   bool // reply header has been (logically) written
+	wroteContinue bool // 100 Continue response was written
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
@@ -658,6 +659,7 @@ func (c *conn) readRequest() (w *response, err error) {
 	w = &response{
 		conn:          c,
 		req:           req,
+		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
 	}
@@ -1167,7 +1169,7 @@ func (w *response) finishRequest() {
 
 	// Close the body (regardless of w.closeAfterReply) so we can
 	// re-use its bufio.Reader later safely.
-	w.req.Body.Close()
+	w.reqBody.Close()
 
 	if w.req.MultipartForm != nil {
 		w.req.MultipartForm.RemoveAll()
