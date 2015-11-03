@@ -297,10 +297,6 @@ func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
 	// TODO: cache?
 	return f.Entry.NewValue0I(line, OpConst64, t, c)
 }
-func (f *Func) ConstIntPtr(line int32, t Type, c int64) *Value {
-	// TODO: cache?
-	return f.Entry.NewValue0I(line, OpConstPtr, t, c)
-}
 func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
 	// TODO: cache?
 	return f.Entry.NewValue0I(line, OpConst32F, t, int64(math.Float64bits(c)))

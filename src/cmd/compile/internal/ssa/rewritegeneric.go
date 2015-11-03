@@ -7,10 +7,14 @@ import "math"
 var _ = math.MinInt8 // in case not otherwise used
 func rewriteValuegeneric(v *Value, config *Config) bool {
 	switch v.Op {
+	case OpAdd16:
+		return rewriteValuegeneric_OpAdd16(v, config)
+	case OpAdd32:
+		return rewriteValuegeneric_OpAdd32(v, config)
 	case OpAdd64:
 		return rewriteValuegeneric_OpAdd64(v, config)
-	case OpAddPtr:
-		return rewriteValuegeneric_OpAddPtr(v, config)
+	case OpAdd8:
+		return rewriteValuegeneric_OpAdd8(v, config)
 	case OpAnd16:
 		return rewriteValuegeneric_OpAnd16(v, config)
 	case OpAnd32:
@@ -93,6 +97,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpITab(v, config)
 	case OpIsInBounds:
 		return rewriteValuegeneric_OpIsInBounds(v, config)
+	case OpIsSliceInBounds:
+		return rewriteValuegeneric_OpIsSliceInBounds(v, config)
 	case OpLeq16:
 		return rewriteValuegeneric_OpLeq16(v, config)
 	case OpLeq16U:
@@ -127,10 +133,14 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpLess8U(v, config)
 	case OpLoad:
 		return rewriteValuegeneric_OpLoad(v, config)
+	case OpMul16:
+		return rewriteValuegeneric_OpMul16(v, config)
+	case OpMul32:
+		return rewriteValuegeneric_OpMul32(v, config)
 	case OpMul64:
 		return rewriteValuegeneric_OpMul64(v, config)
-	case OpMulPtr:
-		return rewriteValuegeneric_OpMulPtr(v, config)
+	case OpMul8:
+		return rewriteValuegeneric_OpMul8(v, config)
 	case OpNeq16:
 		return rewriteValuegeneric_OpNeq16(v, config)
 	case OpNeq32:
@@ -188,6 +198,60 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValuegeneric_OpAdd16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add16 (Const16 [c]) (Const16 [d]))
+	// cond:
+	// result: (Const16 [c+d])
+	{
+		if v.Args[0].Op != OpConst16 {
+			goto end359c546ef662b7990116329cb30d6892
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst16 {
+			goto end359c546ef662b7990116329cb30d6892
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c + d
+		return true
+	}
+	goto end359c546ef662b7990116329cb30d6892
+end359c546ef662b7990116329cb30d6892:
+	;
+	return false
+}
+func rewriteValuegeneric_OpAdd32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Add32 (Const32 [c]) (Const32 [d]))
+	// cond:
+	// result: (Const32 [c+d])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto enda3edaa9a512bd1d7a95f002c890bfb88
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			goto enda3edaa9a512bd1d7a95f002c890bfb88
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c + d
+		return true
+	}
+	goto enda3edaa9a512bd1d7a95f002c890bfb88
+enda3edaa9a512bd1d7a95f002c890bfb88:
+	;
+	return false
+}
 func rewriteValuegeneric_OpAdd64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -215,30 +279,30 @@ end8c46df6f85a11cb1d594076b0e467908:
 	;
 	return false
 }
-func rewriteValuegeneric_OpAddPtr(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpAdd8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (AddPtr (ConstPtr [c]) (ConstPtr [d]))
+	// match: (Add8 (Const8 [c]) (Const8 [d]))
 	// cond:
-	// result: (ConstPtr [c+d])
+	// result: (Const8 [c+d])
 	{
-		if v.Args[0].Op != OpConstPtr {
-			goto end145c1aec793b2befff34bc8983b48a38
+		if v.Args[0].Op != OpConst8 {
+			goto end60c66721511a442aade8e4da2fb326bd
 		}
 		c := v.Args[0].AuxInt
-		if v.Args[1].Op != OpConstPtr {
-			goto end145c1aec793b2befff34bc8983b48a38
+		if v.Args[1].Op != OpConst8 {
+			goto end60c66721511a442aade8e4da2fb326bd
 		}
 		d := v.Args[1].AuxInt
-		v.Op = OpConstPtr
+		v.Op = OpConst8
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = c + d
 		return true
 	}
-	goto end145c1aec793b2befff34bc8983b48a38
-end145c1aec793b2befff34bc8983b48a38:
+	goto end60c66721511a442aade8e4da2fb326bd
+end60c66721511a442aade8e4da2fb326bd:
 	;
 	return false
 }
@@ -543,9 +607,12 @@ func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (ConstSlice)
-	// cond:
-	// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (ConstPtr [0])     (ConstPtr [0]))
+	// cond: config.PtrSize == 4
+	// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (Const32 <config.fe.TypeInt()> [0])     (Const32 <config.fe.TypeInt()> [0]))
 	{
+		if !(config.PtrSize == 4) {
+			goto end9ba6baf9c7247b1f5ba4099c0c3910ce
+		}
 		v.Op = OpSliceMake
 		v.AuxInt = 0
 		v.Aux = nil
@@ -553,18 +620,45 @@ func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
 		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
+		v1.Type = config.fe.TypeInt()
 		v1.AuxInt = 0
-		v1.Type = config.fe.TypeUintptr()
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v2 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
+		v2.Type = config.fe.TypeInt()
 		v2.AuxInt = 0
-		v2.Type = config.fe.TypeUintptr()
 		v.AddArg(v2)
 		return true
 	}
-	goto endc587abac76a5fd9b1284ba891a178e63
-endc587abac76a5fd9b1284ba891a178e63:
+	goto end9ba6baf9c7247b1f5ba4099c0c3910ce
+end9ba6baf9c7247b1f5ba4099c0c3910ce:
+	;
+	// match: (ConstSlice)
+	// cond: config.PtrSize == 8
+	// result: (SliceMake     (ConstNil <config.fe.TypeBytePtr()>)     (Const64 <config.fe.TypeInt()> [0])     (Const64 <config.fe.TypeInt()> [0]))
+	{
+		if !(config.PtrSize == 8) {
+			goto endabee2aa6bd3e3261628f677221ad2640
+		}
+		v.Op = OpSliceMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
+		v1.Type = config.fe.TypeInt()
+		v1.AuxInt = 0
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
+		v2.Type = config.fe.TypeInt()
+		v2.AuxInt = 0
+		v.AddArg(v2)
+		return true
+	}
+	goto endabee2aa6bd3e3261628f677221ad2640
+endabee2aa6bd3e3261628f677221ad2640:
 	;
 	return false
 }
@@ -572,10 +666,13 @@ func rewriteValuegeneric_OpConstString(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (ConstString {s})
-	// cond:
-	// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (ConstPtr [int64(len(s.(string)))]))
+	// cond: config.PtrSize == 4
+	// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (Const32 <config.fe.TypeInt()> [int64(len(s.(string)))]))
 	{
 		s := v.Aux
+		if !(config.PtrSize == 4) {
+			goto endaa2b20a40588873f370c5a12f084505a
+		}
 		v.Op = OpStringMake
 		v.AuxInt = 0
 		v.Aux = nil
@@ -587,14 +684,42 @@ func rewriteValuegeneric_OpConstString(v *Value, config *Config) bool {
 		v1.Type = config.fe.TypeUintptr()
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v2 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
+		v2.Type = config.fe.TypeInt()
 		v2.AuxInt = int64(len(s.(string)))
-		v2.Type = config.fe.TypeUintptr()
 		v.AddArg(v2)
 		return true
 	}
-	goto end2eb756398dd4c6b6d126012a26284c89
-end2eb756398dd4c6b6d126012a26284c89:
+	goto endaa2b20a40588873f370c5a12f084505a
+endaa2b20a40588873f370c5a12f084505a:
+	;
+	// match: (ConstString {s})
+	// cond: config.PtrSize == 8
+	// result: (StringMake     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}       (SB))     (Const64 <config.fe.TypeInt()> [int64(len(s.(string)))]))
+	{
+		s := v.Aux
+		if !(config.PtrSize == 8) {
+			goto endab37d89f3959d3cf1e71b57a3c61b8eb
+		}
+		v.Op = OpStringMake
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpAddr, TypeInvalid)
+		v0.Type = config.fe.TypeBytePtr()
+		v0.Aux = config.fe.StringData(s.(string))
+		v1 := b.NewValue0(v.Line, OpSB, TypeInvalid)
+		v1.Type = config.fe.TypeUintptr()
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		v2 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
+		v2.Type = config.fe.TypeInt()
+		v2.AuxInt = int64(len(s.(string)))
+		v.AddArg(v2)
+		return true
+	}
+	goto endab37d89f3959d3cf1e71b57a3c61b8eb
+endab37d89f3959d3cf1e71b57a3c61b8eb:
 	;
 	return false
 }
@@ -821,11 +946,11 @@ func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
 		v.resetArgs()
 		v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeUintptr()
+		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeUintptr()
+		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -896,11 +1021,11 @@ func rewriteValuegeneric_OpEqSlice(v *Value, config *Config) bool {
 		v.resetArgs()
 		v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeUintptr()
+		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeUintptr()
+		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -1436,55 +1561,54 @@ endf0a2ecfe84b293de6ff0919e45d19d9d:
 	goto end4b406f402c135f50f71effcc904ecb2b
 end4b406f402c135f50f71effcc904ecb2b:
 	;
-	// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
-	// cond: config.PtrSize == 4
-	// result: (ConstBool [b2i(inBounds32(c,d))])
+	return false
+}
+func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (IsSliceInBounds (Const32 [c]) (Const32 [d]))
+	// cond:
+	// result: (ConstBool [b2i(sliceInBounds32(c,d))])
 	{
-		if v.Args[0].Op != OpConstPtr {
-			goto end4323278ec7a053034fcf7033697d7b3b
+		if v.Args[0].Op != OpConst32 {
+			goto end5e84a230c28cac987437cfed8f432cc3
 		}
 		c := v.Args[0].AuxInt
-		if v.Args[1].Op != OpConstPtr {
-			goto end4323278ec7a053034fcf7033697d7b3b
+		if v.Args[1].Op != OpConst32 {
+			goto end5e84a230c28cac987437cfed8f432cc3
 		}
 		d := v.Args[1].AuxInt
-		if !(config.PtrSize == 4) {
-			goto end4323278ec7a053034fcf7033697d7b3b
-		}
 		v.Op = OpConstBool
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v.AuxInt = b2i(inBounds32(c, d))
+		v.AuxInt = b2i(sliceInBounds32(c, d))
 		return true
 	}
-	goto end4323278ec7a053034fcf7033697d7b3b
-end4323278ec7a053034fcf7033697d7b3b:
+	goto end5e84a230c28cac987437cfed8f432cc3
+end5e84a230c28cac987437cfed8f432cc3:
 	;
-	// match: (IsInBounds (ConstPtr [c]) (ConstPtr [d]))
-	// cond: config.PtrSize == 8
-	// result: (ConstBool [b2i(inBounds64(c,d))])
+	// match: (IsSliceInBounds (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (ConstBool [b2i(sliceInBounds64(c,d))])
 	{
-		if v.Args[0].Op != OpConstPtr {
-			goto endb550b8814df20b5eeda4f43cc94e902b
+		if v.Args[0].Op != OpConst64 {
+			goto end3880a6fe20ad4152e98f76d84da233a7
 		}
 		c := v.Args[0].AuxInt
-		if v.Args[1].Op != OpConstPtr {
-			goto endb550b8814df20b5eeda4f43cc94e902b
+		if v.Args[1].Op != OpConst64 {
+			goto end3880a6fe20ad4152e98f76d84da233a7
 		}
 		d := v.Args[1].AuxInt
-		if !(config.PtrSize == 8) {
-			goto endb550b8814df20b5eeda4f43cc94e902b
-		}
 		v.Op = OpConstBool
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v.AuxInt = b2i(inBounds64(c, d))
+		v.AuxInt = b2i(sliceInBounds64(c, d))
 		return true
 	}
-	goto endb550b8814df20b5eeda4f43cc94e902b
-endb550b8814df20b5eeda4f43cc94e902b:
+	goto end3880a6fe20ad4152e98f76d84da233a7
+end3880a6fe20ad4152e98f76d84da233a7:
 	;
 	return false
 }
@@ -2099,6 +2223,60 @@ end12671c83ebe3ccbc8e53383765ee7675:
 	;
 	return false
 }
+func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul16 (Const16 [c]) (Const16 [d]))
+	// cond:
+	// result: (Const16 [c*d])
+	{
+		if v.Args[0].Op != OpConst16 {
+			goto ende8dd468add3015aea24531cf3c89ccb7
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst16 {
+			goto ende8dd468add3015aea24531cf3c89ccb7
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c * d
+		return true
+	}
+	goto ende8dd468add3015aea24531cf3c89ccb7
+ende8dd468add3015aea24531cf3c89ccb7:
+	;
+	return false
+}
+func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Mul32 (Const32 [c]) (Const32 [d]))
+	// cond:
+	// result: (Const32 [c*d])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto end60b4523099fa7b55e2e872e05bd497a7
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			goto end60b4523099fa7b55e2e872e05bd497a7
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c * d
+		return true
+	}
+	goto end60b4523099fa7b55e2e872e05bd497a7
+end60b4523099fa7b55e2e872e05bd497a7:
+	;
+	return false
+}
 func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -2126,30 +2304,30 @@ end7aea1048b5d1230974b97f17238380ae:
 	;
 	return false
 }
-func rewriteValuegeneric_OpMulPtr(v *Value, config *Config) bool {
+func rewriteValuegeneric_OpMul8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (MulPtr (ConstPtr [c]) (ConstPtr [d]))
+	// match: (Mul8 (Const8 [c]) (Const8 [d]))
 	// cond:
-	// result: (ConstPtr [c*d])
+	// result: (Const8 [c*d])
 	{
-		if v.Args[0].Op != OpConstPtr {
-			goto end808c190f346658bb1ad032bf37a1059f
+		if v.Args[0].Op != OpConst8 {
+			goto end2f1952fd654c4a62ff00511041728809
 		}
 		c := v.Args[0].AuxInt
-		if v.Args[1].Op != OpConstPtr {
-			goto end808c190f346658bb1ad032bf37a1059f
+		if v.Args[1].Op != OpConst8 {
+			goto end2f1952fd654c4a62ff00511041728809
 		}
 		d := v.Args[1].AuxInt
-		v.Op = OpConstPtr
+		v.Op = OpConst8
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = c * d
 		return true
 	}
-	goto end808c190f346658bb1ad032bf37a1059f
-end808c190f346658bb1ad032bf37a1059f:
+	goto end2f1952fd654c4a62ff00511041728809
+end2f1952fd654c4a62ff00511041728809:
 	;
 	return false
 }
@@ -2348,11 +2526,11 @@ func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
 		v.resetArgs()
 		v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeUintptr()
+		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeUintptr()
+		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -2417,11 +2595,11 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		v.resetArgs()
 		v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeUintptr()
+		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeUintptr()
+		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -2530,29 +2708,60 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (PtrIndex <t> ptr idx)
-	// cond:
-	// result: (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
+	// cond: config.PtrSize == 4
+	// result: (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
 	{
 		t := v.Type
 		ptr := v.Args[0]
 		idx := v.Args[1]
+		if !(config.PtrSize == 4) {
+			goto endd902622aaa1e7545b5a2a0c08b47d287
+		}
 		v.Op = OpAddPtr
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
 		v.AddArg(ptr)
-		v0 := b.NewValue0(v.Line, OpMulPtr, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpMul32, TypeInvalid)
+		v0.Type = config.fe.TypeInt()
 		v0.AddArg(idx)
-		v1 := b.NewValue0(v.Line, OpConstPtr, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
+		v1.Type = config.fe.TypeInt()
 		v1.AuxInt = t.Elem().Size()
-		v1.Type = config.fe.TypeUintptr()
 		v0.AddArg(v1)
-		v0.Type = config.fe.TypeUintptr()
 		v.AddArg(v0)
 		return true
 	}
-	goto end502555083d57a877982955070cda7530
-end502555083d57a877982955070cda7530:
+	goto endd902622aaa1e7545b5a2a0c08b47d287
+endd902622aaa1e7545b5a2a0c08b47d287:
+	;
+	// match: (PtrIndex <t> ptr idx)
+	// cond: config.PtrSize == 8
+	// result: (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		idx := v.Args[1]
+		if !(config.PtrSize == 8) {
+			goto end47a5f1d1b158914fa383de024bbe3b08
+		}
+		v.Op = OpAddPtr
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(ptr)
+		v0 := b.NewValue0(v.Line, OpMul64, TypeInvalid)
+		v0.Type = config.fe.TypeInt()
+		v0.AddArg(idx)
+		v1 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
+		v1.Type = config.fe.TypeInt()
+		v1.AuxInt = t.Elem().Size()
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+	goto end47a5f1d1b158914fa383de024bbe3b08
+end47a5f1d1b158914fa383de024bbe3b08:
 	;
 	return false
 }
@@ -2983,6 +3192,28 @@ end27abc5bf0299ce1bd5457af6ce8e3fba:
 func rewriteValuegeneric_OpSub16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Sub16 (Const16 [c]) (Const16 [d]))
+	// cond:
+	// result: (Const16 [c-d])
+	{
+		if v.Args[0].Op != OpConst16 {
+			goto end5c6fab95c9dbeff5973119096bfd4e78
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst16 {
+			goto end5c6fab95c9dbeff5973119096bfd4e78
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c - d
+		return true
+	}
+	goto end5c6fab95c9dbeff5973119096bfd4e78
+end5c6fab95c9dbeff5973119096bfd4e78:
+	;
 	// match: (Sub16 x x)
 	// cond:
 	// result: (Const16 [0])
@@ -3006,6 +3237,28 @@ end83da541391be564f2a08464e674a49e7:
 func rewriteValuegeneric_OpSub32(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Sub32 (Const32 [c]) (Const32 [d]))
+	// cond:
+	// result: (Const32 [c-d])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto end7623799db780e1bcc42c6ea0df9c49d3
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			goto end7623799db780e1bcc42c6ea0df9c49d3
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c - d
+		return true
+	}
+	goto end7623799db780e1bcc42c6ea0df9c49d3
+end7623799db780e1bcc42c6ea0df9c49d3:
+	;
 	// match: (Sub32 x x)
 	// cond:
 	// result: (Const32 [0])
@@ -3029,6 +3282,28 @@ enda747581e798f199e07f4ad69747cd069:
 func rewriteValuegeneric_OpSub64(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Sub64 (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const64 [c-d])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto end5a84a285ff0ff48b8ad3c64b15e3459f
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end5a84a285ff0ff48b8ad3c64b15e3459f
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c - d
+		return true
+	}
+	goto end5a84a285ff0ff48b8ad3c64b15e3459f
+end5a84a285ff0ff48b8ad3c64b15e3459f:
+	;
 	// match: (Sub64 x x)
 	// cond:
 	// result: (Const64 [0])
@@ -3052,6 +3327,28 @@ end0387dc2b7bbe57d4aa54eab5d959da4b:
 func rewriteValuegeneric_OpSub8(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Sub8 (Const8 [c]) (Const8 [d]))
+	// cond:
+	// result: (Const8 [c-d])
+	{
+		if v.Args[0].Op != OpConst8 {
+			goto endc00ea11c7535529e211710574f5cff24
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst8 {
+			goto endc00ea11c7535529e211710574f5cff24
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst8
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c - d
+		return true
+	}
+	goto endc00ea11c7535529e211710574f5cff24
+endc00ea11c7535529e211710574f5cff24:
+	;
 	// match: (Sub8 x x)
 	// cond:
 	// result: (Const8 [0])

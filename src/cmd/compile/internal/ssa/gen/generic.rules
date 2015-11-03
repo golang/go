@@ -20,14 +20,25 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
+(Add8 (Const8 [c]) (Const8 [d])) -> (Const8 [c+d])
+(Add16 (Const16 [c]) (Const16 [d])) -> (Const16 [c+d])
+(Add32 (Const32 [c]) (Const32 [d])) -> (Const32 [c+d])
 (Add64 (Const64 [c]) (Const64 [d])) -> (Const64 [c+d])
-(AddPtr (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr [c+d])
+
+(Sub8 (Const8 [c]) (Const8 [d])) -> (Const8 [c-d])
+(Sub16 (Const16 [c]) (Const16 [d])) -> (Const16 [c-d])
+(Sub32 (Const32 [c]) (Const32 [d])) -> (Const32 [c-d])
+(Sub64 (Const64 [c]) (Const64 [d])) -> (Const64 [c-d])
+
+(Mul8 (Const8 [c]) (Const8 [d])) -> (Const8 [c*d])
+(Mul16 (Const16 [c]) (Const16 [d])) -> (Const16 [c*d])
+(Mul32 (Const32 [c]) (Const32 [d])) -> (Const32 [c*d])
 (Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
-(MulPtr (ConstPtr [c]) (ConstPtr [d])) -> (ConstPtr [c*d])
+
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
-(IsInBounds (ConstPtr [c]) (ConstPtr [d])) && config.PtrSize == 4 -> (ConstBool [b2i(inBounds32(c,d))])
-(IsInBounds (ConstPtr [c]) (ConstPtr [d])) && config.PtrSize == 8 -> (ConstBool [b2i(inBounds64(c,d))])
+(IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
+(IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
 (Eq64 x x) -> (ConstBool [1])
 (Eq32 x x) -> (ConstBool [1])
 (Eq16 x x) -> (ConstBool [1])
@@ -127,7 +138,8 @@
 // indexing operations
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
-(PtrIndex <t> ptr idx) -> (AddPtr ptr (MulPtr idx (ConstPtr [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
+(PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
 (StructSelect [idx] (Load ptr mem)) -> @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
 
 // complex ops
@@ -163,11 +175,16 @@
 // string ops
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len
-(ConstString {s}) ->
+(ConstString {s}) && config.PtrSize == 4 ->
   (StringMake
     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
       (SB))
-    (ConstPtr [int64(len(s.(string)))]))
+    (Const32 <config.fe.TypeInt()> [int64(len(s.(string)))]))
+(ConstString {s}) && config.PtrSize == 8 ->
+  (StringMake
+    (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
+      (SB))
+    (Const64 <config.fe.TypeInt()> [int64(len(s.(string)))]))
 (Load <t> ptr mem) && t.IsString() ->
   (StringMake
     (Load <config.fe.TypeBytePtr()> ptr mem)
@@ -184,11 +201,16 @@
 (SlicePtr (SliceMake ptr _ _ )) -> ptr
 (SliceLen (SliceMake _ len _)) -> len
 (SliceCap (SliceMake _ _ cap)) -> cap
-(ConstSlice) ->
+(ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
     (ConstNil <config.fe.TypeBytePtr()>)
-    (ConstPtr [0])
-    (ConstPtr [0]))
+    (Const32 <config.fe.TypeInt()> [0])
+    (Const32 <config.fe.TypeInt()> [0]))
+(ConstSlice) && config.PtrSize == 8 ->
+  (SliceMake
+    (ConstNil <config.fe.TypeBytePtr()>)
+    (Const64 <config.fe.TypeInt()> [0])
+    (Const64 <config.fe.TypeInt()> [0]))
 
 (Load <t> ptr mem) && t.IsSlice() ->
   (SliceMake
