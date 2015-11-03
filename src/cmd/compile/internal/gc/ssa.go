@@ -2026,6 +2026,11 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 		// If likely==1, then we don't have enough info to decide
 		// the likelihood of the first branch.
 	}
+	if cond.Op == ONOT {
+		s.stmtList(cond.Ninit)
+		s.condBranch(cond.Left, no, yes, -likely)
+		return
+	}
 	c := s.expr(cond)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
