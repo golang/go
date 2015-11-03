@@ -645,23 +645,14 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.Left, r, n.Op == OASWB)
 
 	case OIF:
-		cond := s.expr(n.Left)
-		b := s.endBlock()
-		b.Kind = ssa.BlockIf
-		b.Control = cond
-		b.Likely = ssa.BranchPrediction(n.Likely) // gc and ssa both use -1/0/+1 for likeliness
-
 		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var bElse *ssa.Block
-
-		if n.Rlist == nil {
-			b.AddEdgeTo(bThen)
-			b.AddEdgeTo(bEnd)
-		} else {
+		if n.Rlist != nil {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
-			b.AddEdgeTo(bThen)
-			b.AddEdgeTo(bElse)
+			s.condBranch(n.Left, bThen, bElse, n.Likely)
+		} else {
+			s.condBranch(n.Left, bThen, bEnd, n.Likely)
 		}
 
 		s.startBlock(bThen)
@@ -760,18 +751,13 @@ func (s *state) stmt(n *Node) {
 
 		// generate code to test condition
 		s.startBlock(bCond)
-		var cond *ssa.Value
 		if n.Left != nil {
-			cond = s.expr(n.Left)
+			s.condBranch(n.Left, bBody, bEnd, 1)
 		} else {
-			cond = s.constBool(true)
+			b := s.endBlock()
+			b.Kind = ssa.BlockPlain
+			b.AddEdgeTo(bBody)
 		}
-		b = s.endBlock()
-		b.Kind = ssa.BlockIf
-		b.Control = cond
-		b.Likely = ssa.BranchLikely
-		b.AddEdgeTo(bBody)
-		b.AddEdgeTo(bEnd)
 
 		// set up for continue/break in body
 		prevContinue := s.continueTo
@@ -2014,6 +2000,45 @@ func (s *state) expr(n *Node) *ssa.Value {
 		s.Unimplementedf("unhandled expr %s", opnames[n.Op])
 		return nil
 	}
+}
+
+// condBranch evaluates the boolean expression cond and branches to yes
+// if cond is true and no if cond is false.
+// This function is intended to handle && and || better than just calling
+// s.expr(cond) and branching on the result.
+func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
+	if cond.Op == OANDAND {
+		mid := s.f.NewBlock(ssa.BlockPlain)
+		s.stmtList(cond.Ninit)
+		s.condBranch(cond.Left, mid, no, max8(likely, 0))
+		s.startBlock(mid)
+		s.condBranch(cond.Right, yes, no, likely)
+		return
+		// Note: if likely==1, then both recursive calls pass 1.
+		// If likely==-1, then we don't have enough information to decide
+		// whether the first branch is likely or not.  So we pass 0 for
+		// the likeliness of the first branch.
+		// TODO: have the frontend give us branch prediction hints for
+		// OANDAND and OOROR nodes (if it ever has such info).
+	}
+	if cond.Op == OOROR {
+		mid := s.f.NewBlock(ssa.BlockPlain)
+		s.stmtList(cond.Ninit)
+		s.condBranch(cond.Left, yes, mid, min8(likely, 0))
+		s.startBlock(mid)
+		s.condBranch(cond.Right, yes, no, likely)
+		return
+		// Note: if likely==-1, then both recursive calls pass -1.
+		// If likely==1, then we don't have enough info to decide
+		// the likelihood of the first branch.
+	}
+	c := s.expr(cond)
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Control = c
+	b.Likely = ssa.BranchPrediction(likely) // gc and ssa both use -1/0/+1 for likeliness
+	b.AddEdgeTo(yes)
+	b.AddEdgeTo(no)
 }
 
 func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
