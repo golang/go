@@ -1899,17 +1899,20 @@ func (srv *Server) ListenAndServe() error {
 	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
 
+var testHookServerServe func(*Server, net.Listener) // used if non-nil
+
 // Serve accepts incoming connections on the Listener l, creating a
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
 // Serve always returns a non-nil error.
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
+	if fn := testHookServerServe; fn != nil {
+		fn(srv, l)
+	}
 	var tempDelay time.Duration // how long to sleep on accept failure
-	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
-	if srv.nextProtoErr != nil {
-		// Error from http2 ConfigureServer (e.g. bad ciphersuites)
-		return srv.nextProtoErr
+	if err := srv.setupHTTP2(); err != nil {
+		return err
 	}
 	for {
 		rw, e := l.Accept()
@@ -2044,9 +2047,16 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	if addr == "" {
 		addr = ":https"
 	}
+
+	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
+	// before we clone it and create the TLS Listener.
+	if err := srv.setupHTTP2(); err != nil {
+		return err
+	}
+
 	config := cloneTLSConfig(srv.TLSConfig)
-	if config.NextProtos == nil {
-		config.NextProtos = []string{"http/1.1"}
+	if !strSliceContains(config.NextProtos, "http/1.1") {
+		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
 	if len(config.Certificates) == 0 || certFile != "" || keyFile != "" {
@@ -2067,9 +2077,15 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	return srv.Serve(tlsListener)
 }
 
-// setNextProtoDefaults configures HTTP/2.
-// It must only be called via srv.nextProtoOnce.
-func (srv *Server) setNextProtoDefaults() {
+func (srv *Server) setupHTTP2() error {
+	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
+	return srv.nextProtoErr
+}
+
+// onceSetNextProtoDefaults configures HTTP/2, if the user hasn't
+// configured otherwise. (by setting srv.TLSNextProto non-nil)
+// It must only be called via srv.nextProtoOnce (use srv.setupHTTP2).
+func (srv *Server) onceSetNextProtoDefaults() {
 	// Enable HTTP/2 by default if the user hasn't otherwise
 	// configured their TLSNextProto map.
 	if srv.TLSNextProto == nil {
@@ -2303,4 +2319,13 @@ func numLeadingCRorLF(v []byte) (n int) {
 	}
 	return
 
+}
+
+func strSliceContains(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
