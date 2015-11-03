@@ -15,10 +15,14 @@ if test "$(type -p clang)" != ""; then
 fi
 export CC
 
-if $CC -fsanitize=memory 2>&1 | grep "unrecognized" >& /dev/null; then
+TMPDIR=${TMPDIR:-/tmp}
+echo > ${TMPDIR}/testsanitizers$$.c
+if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c 2>&1 | grep "unrecognized" >& /dev/null; then
   echo "skipping msan test: -fsanitize=memory not supported"
+  rm -f ${TMPDIR}/testsanitizers$$.*
   exit 0
 fi
+rm -f ${TMPDIR}/testsanitizers$$.*
 
 # The memory sanitizer in versions of clang before 3.6 don't work with Go.
 if $CC --version | grep clang >& /dev/null; then
