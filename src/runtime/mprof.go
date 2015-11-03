@@ -250,16 +250,11 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 }
 
 // Called when freeing a profiled block.
-func mProf_Free(b *bucket, size uintptr, freed bool) {
+func mProf_Free(b *bucket, size uintptr) {
 	lock(&proflock)
 	mp := b.mp()
-	if freed {
-		mp.recent_frees++
-		mp.recent_free_bytes += size
-	} else {
-		mp.prev_frees++
-		mp.prev_free_bytes += size
-	}
+	mp.prev_frees++
+	mp.prev_free_bytes += size
 	unlock(&proflock)
 }
 
