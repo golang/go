@@ -34,7 +34,7 @@ func errorexit() {
 }
 
 func parserline() int {
-	if parsing && theparser.Lookahead() > 0 {
+	if oldparser != 0 && parsing && theparser.Lookahead() > 0 {
 		// parser has one symbol lookahead
 		return int(prevlineno)
 	}
