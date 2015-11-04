@@ -2753,43 +2753,6 @@ func gccgoCleanPkgpath(p *Package) string {
 	return strings.Map(clean, gccgoPkgpath(p))
 }
 
-// libgcc returns the filename for libgcc, as determined by invoking gcc with
-// the -print-libgcc-file-name option.
-func (b *builder) libgcc(p *Package) (string, error) {
-	var buf bytes.Buffer
-
-	gccCmd := b.gccCmd(p.Dir)
-
-	prev := b.print
-	if buildN {
-		// In -n mode we temporarily swap out the builder's
-		// print function to capture the command-line. This
-		// let's us assign it to $LIBGCC and produce a valid
-		// buildscript for cgo packages.
-		b.print = func(a ...interface{}) (int, error) {
-			return fmt.Fprint(&buf, a...)
-		}
-	}
-	f, err := b.runOut(p.Dir, p.ImportPath, nil, gccCmd, "-print-libgcc-file-name")
-	if err != nil {
-		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
-	}
-	if buildN {
-		s := fmt.Sprintf("LIBGCC=$(%s)\n", buf.Next(buf.Len()-1))
-		b.print = prev
-		b.print(s)
-		return "$LIBGCC", nil
-	}
-
-	// The compiler might not be able to find libgcc, and in that case,
-	// it will simply return "libgcc.a", which is of no use to us.
-	if !filepath.IsAbs(string(f)) {
-		return "", nil
-	}
-
-	return strings.Trim(string(f), "\r\n"), nil
-}
-
 // gcc runs the gcc C compiler to create an object from a single C file.
 func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
 	return b.ccompile(p, out, flags, cfile, b.gccCmd(p.Dir))
@@ -2914,12 +2877,6 @@ func (b *builder) cflags(p *Package, def bool) (cppflags, cflags, cxxflags, ldfl
 }
 
 var cgoRe = regexp.MustCompile(`[/\\:]`)
-
-var (
-	cgoLibGccFile     string
-	cgoLibGccErr      error
-	cgoLibGccFileOnce sync.Once
-)
 
 func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoLDFLAGS := b.cflags(p, true)
@@ -3049,21 +3006,11 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 		}
 	}
 
-	cgoLibGccFileOnce.Do(func() {
-		cgoLibGccFile, cgoLibGccErr = b.libgcc(p)
-	})
-	if cgoLibGccFile == "" && cgoLibGccErr != nil {
-		return nil, nil, err
-	}
-
 	var staticLibs []string
 	if goos == "windows" {
-		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last,
-		// and they also have some inter-dependencies, so must use linker groups.
+		// libmingw32 and libmingwex have some inter-dependencies,
+		// so must use linker groups.
 		staticLibs = []string{"-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group"}
-	}
-	if cgoLibGccFile != "" {
-		staticLibs = append(staticLibs, cgoLibGccFile)
 	}
 
 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)

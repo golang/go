@@ -642,6 +642,22 @@ func loadlib() {
 	// In internal link mode, read the host object files.
 	if Linkmode == LinkInternal {
 		hostobjs()
+
+		// If we have any undefined symbols in external
+		// objects, try to read them from our copy of the C
+		// compiler support library, libgcc.a.
+		any := false
+		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+			for _, r := range s.R {
+				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
+					any = true
+					break
+				}
+			}
+		}
+		if any {
+			hostArchive(fmt.Sprintf("%s/pkg/libgcc/%s_%s/libgcc", goroot, goos, goarch))
+		}
 	} else {
 		hostlinksetup()
 	}
@@ -819,7 +835,7 @@ var internalpkg = []string{
 	"runtime/msan",
 }
 
-func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) {
+func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) *Hostobj {
 	isinternal := false
 	for i := 0; i < len(internalpkg); i++ {
 		if pkg == internalpkg[i] {
@@ -852,6 +868,7 @@ func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg s
 	h.file = file
 	h.off = obj.Boffset(f)
 	h.length = length
+	return h
 }
 
 func hostobjs() {
@@ -1190,7 +1207,10 @@ func hostlink() {
 	}
 }
 
-func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) {
+// ldobj loads an input object.  If it is a host object (an object
+// compiled by a non-Go compiler) it returns the Hostobj pointer.  If
+// it is a Go object, it returns nil.
+func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
 	eof := obj.Boffset(f) + length
 
 	start := obj.Boffset(f)
@@ -1202,18 +1222,15 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
-		ldhostobj(ldelf, f, pkg, length, pn, file)
-		return
+		return ldhostobj(ldelf, f, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
-		ldhostobj(ldmacho, f, pkg, length, pn, file)
-		return
+		return ldhostobj(ldmacho, f, pkg, length, pn, file)
 	}
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
-		ldhostobj(ldpe, f, pkg, length, pn, file)
-		return
+		return ldhostobj(ldpe, f, pkg, length, pn, file)
 	}
 
 	/* check the header */
@@ -1221,10 +1238,10 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 	if line == "" {
 		if obj.Blinelen(f) > 0 {
 			Diag("%s: not an object file", pn)
-			return
+			return nil
 		}
 		Diag("truncated object file: %s", pn)
-		return
+		return nil
 	}
 
 	if !strings.HasPrefix(line, "go object ") {
@@ -1235,11 +1252,11 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 		if line == Thestring {
 			// old header format: just $GOOS
 			Diag("%s: stale object file", pn)
-			return
+			return nil
 		}
 
 		Diag("%s: not an object file", pn)
-		return
+		return nil
 	}
 
 	// First, check that the basic goos, goarch, and version match.
@@ -1248,7 +1265,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 	line = strings.TrimRight(line, "\n")
 	if !strings.HasPrefix(line[10:]+" ", t) && Debug['f'] == 0 {
 		Diag("%s: object is [%s] expected [%s]", pn, line[10:], t)
-		return
+		return nil
 	}
 
 	// Second, check that longer lines match each other exactly,
@@ -1259,7 +1276,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 			theline = line[10:]
 		} else if theline != line[10:] {
 			Diag("%s: object is [%s] expected [%s]", pn, line[10:], theline)
-			return
+			return nil
 		}
 	}
 
@@ -1275,7 +1292,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 		c3 = obj.Bgetc(f)
 		if c3 == obj.Beof {
 			Diag("truncated object file: %s", pn)
-			return
+			return nil
 		}
 	}
 
@@ -1286,6 +1303,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
 	obj.Bseek(f, import1, 0)
 
 	ldobjfile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
+	return nil
 }
 
 func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {
