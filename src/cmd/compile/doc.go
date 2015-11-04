@@ -79,6 +79,8 @@ Flags:
 		Write a package (archive) file rather than an object file
 	-race
 		Compile with race detector enabled.
+	-trimpath prefix
+		Remove prefix from recorded source file paths.
 	-u
 		Disallow importing packages not marked as safe; implies -nolocalimports.
 
