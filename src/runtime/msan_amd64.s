@@ -24,9 +24,9 @@
 #define RARG3 CX
 #endif
 
-// func runtime·msanread(addr unsafe.Pointer, sz uintptr)
-// Called from instrumented code.
-TEXT	runtime·msanread(SB), NOSPLIT, $0-16
+// func runtime·domsanread(addr unsafe.Pointer, sz uintptr)
+// Called from msanread.
+TEXT	runtime·domsanread(SB), NOSPLIT, $0-16
 	MOVQ	addr+0(FP), RARG0
 	MOVQ	size+8(FP), RARG1
 	// void __msan_read_go(void *addr, uintptr_t sz);

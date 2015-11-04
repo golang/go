@@ -57,6 +57,11 @@ if ! go run -msan msan3.go; then
   status=1
 fi
 
+if ! go run -msan msan4.go; then
+  echo "FAIL: msan4"
+  status=1
+fi
+
 if go run -msan msan_fail.go 2>/dev/null; then
   echo "FAIL: msan_fail"
   status=1
