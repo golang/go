@@ -404,6 +404,9 @@ func main() {
 		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
 			gohostarch = "amd64"
 		}
+	case "freebsd":
+		// Since FreeBSD 10 gcc is no longer part of the base system.
+		defaultclang = true
 	case "solaris":
 		// Even on 64-bit platform, solaris uname -m prints i86pc.
 		out := run("", CheckExit, "isainfo", "-n")
