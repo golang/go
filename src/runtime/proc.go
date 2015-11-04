@@ -1772,10 +1772,11 @@ top:
 
 stop:
 
-	// We have nothing to do. If we're in the GC mark phase and can
-	// safely scan and blacken objects, run idle-time marking
-	// rather than give up the P.
-	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil && gcMarkWorkAvailable(_p_) {
+	// We have nothing to do. If we're in the GC mark phase, can
+	// safely scan and blacken objects, can start a worker, and
+	// have work to do, run idle-time marking rather than give up
+	// the P.
+	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil && (work.bgMark1.done == 0 || work.bgMark2.done == 0) && gcMarkWorkAvailable(_p_) {
 		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
 		gp := _p_.gcBgMarkWorker
 		casgstatus(gp, _Gwaiting, _Grunnable)
