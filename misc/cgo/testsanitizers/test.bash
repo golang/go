@@ -17,7 +17,7 @@ export CC
 
 TMPDIR=${TMPDIR:-/tmp}
 echo > ${TMPDIR}/testsanitizers$$.c
-if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c 2>&1 | grep "unrecognized" >& /dev/null; then
+if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$.o 2>&1 | grep "unrecognized" >& /dev/null; then
   echo "skipping msan test: -fsanitize=memory not supported"
   rm -f ${TMPDIR}/testsanitizers$$.*
   exit 0
@@ -49,6 +49,11 @@ fi
 
 if ! go run -msan msan2.go; then
   echo "FAIL: msan2"
+  status=1
+fi
+
+if ! go run -msan msan3.go; then
+  echo "FAIL: msan3"
   status=1
 fi
 

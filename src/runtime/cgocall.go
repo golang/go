@@ -266,6 +266,13 @@ func cgocallbackg1() {
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
 	}
+	if msanenabled {
+		// Tell msan that we wrote to the entire argument block.
+		// This tells msan that we set the results.
+		// Since we have already called the function it doesn't
+		// matter that we are writing to the non-result parameters.
+		msanwrite(cb.arg, cb.argsize)
+	}
 
 	// Do not unwind m->g0->sched.sp.
 	// Our caller, cgocallback, will do that.
