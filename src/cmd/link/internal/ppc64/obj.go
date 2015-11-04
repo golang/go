@@ -99,7 +99,11 @@ func archinit() {
 	}
 
 	switch ld.Buildmode {
-	case ld.BuildmodePIE:
+	case ld.BuildmodePIE, ld.BuildmodeShared:
+		ld.Linkmode = ld.LinkExternal
+	}
+
+	if ld.Linkshared {
 		ld.Linkmode = ld.LinkExternal
 	}
 
