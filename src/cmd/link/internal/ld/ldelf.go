@@ -1076,7 +1076,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = linknewsym(Ctxt, sym.name, 0)
+				s = Linklookup(Ctxt, sym.name, 0)
 				if sym.other == 2 {
 					s.Type |= obj.SHIDDEN
 				}
