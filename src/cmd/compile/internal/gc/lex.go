@@ -1469,6 +1469,9 @@ talph:
 			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && (importpkg == nil || r != 0xb7) {
 				Yyerror("invalid identifier character U+%04x", r)
 			}
+			if cp.Len() == 0 && unicode.IsDigit(r) {
+				Yyerror("identifier cannot begin with digit U+%04x", r)
+			}
 			cp.WriteRune(r)
 		} else if !isAlnum(c) && c != '_' {
 			break
