@@ -526,8 +526,8 @@ func (f *netFile) listen(backlog int) error {
 	if f.listener != nil {
 		return EINVAL
 	}
-	_, ok := net.listener[netAddr{f.proto, f.sotype, f.addr.key()}]
-	if ok {
+	old, ok := net.listener[netAddr{f.proto, f.sotype, f.addr.key()}]
+	if ok && !old.listenerClosed() {
 		return EADDRINUSE
 	}
 	net.listener[netAddr{f.proto, f.sotype, f.addr.key()}] = f
