@@ -202,7 +202,8 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
-	obj.Flagcount("newexport", "use new export format", &newexport) // TODO remove eventually
+	obj.Flagcount("newexport", "use new export format", &newexport) // TODO(gri) remove eventually
+	obj.Flagcount("oldparser", "use old parser", &oldparser)        // TODO(gri) remove eventually
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
@@ -317,7 +318,19 @@ func Main() {
 	lexlineno = 1
 	const BOM = 0xFEFF
 
+	// Uncomment the line below to temporarily switch the compiler back
+	// to the yacc-based parser. Short-term work-around for issues with
+	// the new recursive-descent parser for which setting -oldparser is
+	// not sufficient.
+	// TODO(gri) remove this eventually
+	//
+	// oldparser = 1
+
 	for _, infile = range flag.Args() {
+		if trace && Debug['x'] != 0 && oldparser == 0 {
+			fmt.Printf("--- %s ---\n", infile)
+		}
+
 		linehistpush(infile)
 
 		curio.infile = infile
@@ -831,6 +844,10 @@ func importfile(f *Val, line int) {
 		curio.nlsemi = false
 		typecheckok = true
 
+		if oldparser == 0 {
+			push_parser()
+		}
+
 	case 'B':
 		// new export format
 		obj.Bgetc(imp) // skip \n after $$B
@@ -850,6 +867,10 @@ func importfile(f *Val, line int) {
 }
 
 func unimportfile() {
+	if oldparser == 0 {
+		pop_parser()
+	}
+
 	if curio.bin != nil {
 		obj.Bterm(curio.bin)
 		curio.bin = nil
@@ -879,6 +900,10 @@ func cannedimports(file string, cp string) {
 
 	typecheckok = true
 	incannedimport = 1
+
+	if oldparser == 0 {
+		push_parser()
+	}
 }
 
 func isSpace(c int) bool {
@@ -1358,8 +1383,10 @@ l0:
 		// a '{' with loophack == true becomes LBODY and disables loophack.
 		//
 		// I said it was clumsy.
+		//
+		// We only need the loophack when running with -oldparser.
 	case '(', '[':
-		if loophack || _yylex_lstk != nil {
+		if oldparser != 0 && (loophack || _yylex_lstk != nil) {
 			h = new(Loophack)
 			if h == nil {
 				Flusherrors()
@@ -1376,7 +1403,7 @@ l0:
 		goto lx
 
 	case ')', ']':
-		if _yylex_lstk != nil {
+		if oldparser != 0 && _yylex_lstk != nil {
 			h = _yylex_lstk
 			loophack = h.v
 			_yylex_lstk = h.next
@@ -1385,7 +1412,7 @@ l0:
 		goto lx
 
 	case '{':
-		if loophack {
+		if oldparser != 0 && loophack {
 			if Debug['x'] != 0 {
 				fmt.Printf("%v lex: LBODY\n", Ctxt.Line(int(lexlineno)))
 			}
@@ -1460,7 +1487,9 @@ talph:
 		goto l0
 
 	case LFOR, LIF, LSWITCH, LSELECT:
-		loophack = true // see comment about loophack above
+		if oldparser != 0 {
+			loophack = true // see comment about loophack above
+		}
 	}
 
 	if Debug['x'] != 0 {
@@ -1902,13 +1931,18 @@ func (yy) Error(msg string) {
 	Yyerror("%s", msg)
 }
 
+var oldparser int // if set, theparser is used (otherwise we use the recursive-descent parser)
 var theparser yyParser
 var parsing bool
 
 func yyparse() {
-	theparser = yyNewParser()
 	parsing = true
-	theparser.Parse(yy{})
+	if oldparser != 0 {
+		theparser = yyNewParser()
+		theparser.Parse(yy{})
+	} else {
+		parse_file()
+	}
 	parsing = false
 }
 
