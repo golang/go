@@ -901,3 +901,46 @@ func TestReadTruncation(t *testing.T) {
 		}
 	}
 }
+
+// TestReadHeaderOnly tests that Reader does not attempt to read special
+// header-only files.
+func TestReadHeaderOnly(t *testing.T) {
+	f, err := os.Open("testdata/hdr-only.tar")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer f.Close()
+
+	var hdrs []*Header
+	tr := NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Errorf("Next(): got %v, want %v", err, nil)
+			continue
+		}
+		hdrs = append(hdrs, hdr)
+
+		// If a special flag, we should read nothing.
+		cnt, _ := io.ReadFull(tr, []byte{0})
+		if cnt > 0 && hdr.Typeflag != TypeReg {
+			t.Errorf("ReadFull(...): got %d bytes, want 0 bytes", cnt)
+		}
+	}
+
+	// File is crafted with 16 entries. The later 8 are identical to the first
+	// 8 except that the size is set.
+	if len(hdrs) != 16 {
+		t.Fatalf("len(hdrs): got %d, want %d", len(hdrs), 16)
+	}
+	for i := 0; i < 8; i++ {
+		var hdr1, hdr2 = hdrs[i+0], hdrs[i+8]
+		hdr1.Size, hdr2.Size = 0, 0
+		if !reflect.DeepEqual(*hdr1, *hdr2) {
+			t.Errorf("incorrect header:\ngot  %+v\nwant %+v", *hdr1, *hdr2)
+		}
+	}
+}

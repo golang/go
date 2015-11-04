@@ -151,6 +151,13 @@ func (tr *Reader) Next() (*Header, error) {
 			return nil, err
 		}
 		if sp != nil {
+			// Sparse files do not make sense when applied to the special header
+			// types that never have a data section.
+			if isHeaderOnlyType(hdr.Typeflag) {
+				tr.err = ErrHeader
+				return nil, tr.err
+			}
+
 			// Current file is a PAX format GNU sparse file.
 			// Set the current file reader to a sparse file reader.
 			tr.curr, tr.err = newSparseFileReader(tr.curr, sp, hdr.Size)
@@ -539,10 +546,6 @@ func (tr *Reader) readHeader() *Header {
 	hdr.Uid = int(tr.octal(s.next(8)))
 	hdr.Gid = int(tr.octal(s.next(8)))
 	hdr.Size = tr.octal(s.next(12))
-	if hdr.Size < 0 {
-		tr.err = ErrHeader
-		return nil
-	}
 	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
 	s.next(8) // chksum
 	hdr.Typeflag = s.next(1)[0]
@@ -593,12 +596,17 @@ func (tr *Reader) readHeader() *Header {
 		return nil
 	}
 
-	// Maximum value of hdr.Size is 64 GB (12 octal digits),
-	// so there's no risk of int64 overflowing.
-	nb := int64(hdr.Size)
-	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
+	nb := hdr.Size
+	if isHeaderOnlyType(hdr.Typeflag) {
+		nb = 0
+	}
+	if nb < 0 {
+		tr.err = ErrHeader
+		return nil
+	}
 
 	// Set the current file reader.
+	tr.pad = -nb & (blockSize - 1) // blockSize is a power of two
 	tr.curr = &regFileReader{r: tr.r, nb: nb}
 
 	// Check for old GNU sparse format entry.
