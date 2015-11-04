@@ -129,6 +129,9 @@ func gcsymdup(s *Sym) {
 }
 
 func emitptrargsmap() {
+	if Curfn.Func.Nname.Sym.Name == "_" {
+		return
+	}
 	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
 
 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
