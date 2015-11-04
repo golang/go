@@ -259,7 +259,6 @@ func convlit1(np **Node, t *Type, explicit bool) {
 				n.SetVal(toint(n.Val()))
 				fallthrough
 
-				// flowthrough
 			case CTINT:
 				overflow(n.Val(), t)
 			}
@@ -272,7 +271,6 @@ func convlit1(np **Node, t *Type, explicit bool) {
 				n.SetVal(toflt(n.Val()))
 				fallthrough
 
-				// flowthrough
 			case CTFLT:
 				n.SetVal(Val{truncfltlit(n.Val().U.(*Mpflt), t)})
 			}
@@ -283,6 +281,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 
 			case CTFLT, CTINT, CTRUNE:
 				n.SetVal(tocplx(n.Val()))
+				fallthrough
 
 			case CTCPLX:
 				overflow(n.Val(), t)
