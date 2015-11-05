@@ -2506,7 +2506,7 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles 
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	return b.run(p.Dir, p.ImportPath, nil, "ar", "cru", mkAbs(objDir, afile), absOfiles)
+	return b.run(p.Dir, p.ImportPath, nil, "ar", "rc", mkAbs(objDir, afile), absOfiles)
 }
 
 func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions []*action, mainpkg string, ofiles []string) error {
