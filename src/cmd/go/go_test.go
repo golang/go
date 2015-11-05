@@ -2036,8 +2036,9 @@ func TestGoGenerateRunFlag(t *testing.T) {
 }
 
 func TestGoGenerateEnv(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping because windows does not have the env command")
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping because %s does not have the env command", runtime.GOOS)
 	}
 	tg := testgo(t)
 	defer tg.cleanup()
