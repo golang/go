@@ -102,10 +102,18 @@ func linknew(arch *LinkArch) *Link {
 		obj.Hopenbsd,
 		obj.Hdragonfly,
 		obj.Hsolaris:
-		if obj.Getgoos() == "android" && ctxt.Arch.Thechar == '6' {
-			// Android/x86 constant - offset from 0(FS) to our
-			// TLS slot. Explained in src/runtime/cgo/gcc_android_*.c
-			ctxt.Tlsoffset = 0x1d0
+		if obj.Getgoos() == "android" {
+			switch ctxt.Arch.Thechar {
+			case '6':
+				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
+				// Explained in src/runtime/cgo/gcc_android_*.c
+				ctxt.Tlsoffset = 0x1d0
+			case '8':
+				// Android/386 constant - offset from 0(GS) to our TLS slot.
+				ctxt.Tlsoffset = 0xf8
+			default:
+				ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
+			}
 		} else {
 			ctxt.Tlsoffset = -1 * ctxt.Arch.Ptrsize
 		}
