@@ -44,23 +44,21 @@ var DefaultTransport RoundTripper = &Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
+// Wire up HTTP/2 support to the DefaultTransport, unless GODEBUG=h2client=0.
 func init() {
-	// TODO(bradfitz,adg): remove the following line before Go 1.6
-	// ships.  This just gives us a mechanism to temporarily
-	// enable the http2 client during development.
-	if !strings.Contains(os.Getenv("GODEBUG"), "h2client=1") {
+	if strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
 		return
 	}
-
 	t := DefaultTransport.(*Transport)
-
-	// TODO(bradfitz,adg): move all this up to DefaultTransport before Go 1.6:
 	t.RegisterProtocol("https", noDialH2Transport{h2DefaultTransport})
 	t.TLSClientConfig = &tls.Config{
 		NextProtos: []string{"h2"},
 	}
 	t.TLSNextProto = map[string]func(string, *tls.Conn) RoundTripper{
-		"h2": http2TransportForConn,
+		"h2": func(authority string, c *tls.Conn) RoundTripper {
+			h2DefaultTransport.AddIdleConn(authority, c)
+			return h2DefaultTransport
+		},
 	}
 }
 
@@ -69,14 +67,11 @@ func init() {
 type noDialH2Transport struct{ rt *http2Transport }
 
 func (t noDialH2Transport) RoundTrip(req *Request) (*Response, error) {
-	// TODO(bradfitz): wire up http2.Transport
-	return nil, ErrSkipAltProtocol
-}
-
-func http2TransportForConn(authority string, c *tls.Conn) RoundTripper {
-	// TODO(bradfitz): donate c to h2DefaultTransport:
-	// h2DefaultTransport.AddIdleConn(authority, c)
-	return h2DefaultTransport
+	res, err := t.rt.RoundTripOpt(req, http2RoundTripOpt{OnlyCachedConn: true})
+	if err == http2ErrNoCachedConn {
+		return nil, ErrSkipAltProtocol
+	}
+	return res, err
 }
 
 // DefaultMaxIdleConnsPerHost is the default value of Transport's

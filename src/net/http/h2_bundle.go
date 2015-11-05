@@ -3585,7 +3585,23 @@ func (sew http2stickyErrWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
+var http2ErrNoCachedConn = errors.New("http2: no cached connection was available")
+
+// RoundTripOpt are options for the Transport.RoundTripOpt method.
+type http2RoundTripOpt struct {
+	// OnlyCachedConn controls whether RoundTripOpt may
+	// create a new TCP connection. If set true and
+	// no cached connection is available, RoundTripOpt
+	// will return ErrNoCachedConn.
+	OnlyCachedConn bool
+}
+
 func (t *http2Transport) RoundTrip(req *Request) (*Response, error) {
+	return t.RoundTripOpt(req, http2RoundTripOpt{})
+}
+
+// RoundTripOpt is like RoundTrip, but takes options.
+func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Response, error) {
 	if req.URL.Scheme != "https" {
 		return nil, errors.New("http2: unsupported scheme")
 	}
@@ -3597,7 +3613,7 @@ func (t *http2Transport) RoundTrip(req *Request) (*Response, error) {
 	}
 
 	for {
-		cc, err := t.getClientConn(host, port)
+		cc, err := t.getClientConn(host, port, opt.OnlyCachedConn)
 		if err != nil {
 			return nil, err
 		}
@@ -3692,7 +3708,7 @@ func (t *http2Transport) addConn(key string, cc *http2clientConn) {
 	t.conns[key] = append(t.conns[key], cc)
 }
 
-func (t *http2Transport) getClientConn(host, port string) (*http2clientConn, error) {
+func (t *http2Transport) getClientConn(host, port string, onlyCached bool) (*http2clientConn, error) {
 	key := net.JoinHostPort(host, port)
 
 	t.connMu.Lock()
@@ -3703,6 +3719,9 @@ func (t *http2Transport) getClientConn(host, port string) (*http2clientConn, err
 		}
 	}
 	t.connMu.Unlock()
+	if onlyCached {
+		return nil, http2ErrNoCachedConn
+	}
 
 	cc, err := t.dialClientConn(host, port, key)
 	if err != nil {
