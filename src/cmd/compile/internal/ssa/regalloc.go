@@ -202,31 +202,32 @@ func pickReg(r regMask) register {
 	}
 }
 
-// A use is a record of a position (2*pc for value uses, odd numbers for other uses)
-// and a value ID that is used at that position.
 type use struct {
-	idx int32
-	vid ID
+	dist int32 // distance from start of the block to a use of a value
+	next *use  // linked list of uses of a value in nondecreasing dist order
 }
 
 type valState struct {
 	regs       regMask // the set of registers holding a Value (usually just one)
-	uses       []int32 // sorted list of places where Value is used
-	usestorage [2]int32
-	spill      *Value // spilled copy of the Value
-	spill2     *Value // special alternate spill location used for phi resolution
+	uses       *use    // list of uses in this block
+	spill      *Value  // spilled copy of the Value
+	spill2     *Value  // special alternate spill location used for phi resolution
 	spillUsed  bool
 	spill2used bool
 }
 
 type regState struct {
 	v *Value // Original (preregalloc) Value stored in this register.
-	c *Value // A Value equal to v which is currently in register.  Might be v or a copy of it.
+	c *Value // A Value equal to v which is currently in a register.  Might be v or a copy of it.
 	// If a register is unused, v==c==nil
 }
 
 type regAllocState struct {
 	f *Func
+
+	// For each value, whether it needs a register or not.
+	// Cached value of !v.Type.IsMemory() && !v.Type.IsVoid().
+	needReg []bool
 
 	// for each block, its primary predecessor.
 	// A predecessor of b is primary if it is the closest
@@ -234,9 +235,10 @@ type regAllocState struct {
 	// We record the index in the Preds list where the primary predecessor sits.
 	primary []int32
 
-	// live values on each edge.  live[b.ID][idx] is a list of value IDs
-	// which are live on b's idx'th successor edge.
-	live [][][]ID
+	// live values at the end of each block.  live[b.ID] is a list of value IDs
+	// which are live at the end of b, together with a count of how many instructions
+	// forward to the next use.
+	live [][]liveInfo
 
 	// current state of each (preregalloc) Value
 	values []valState
@@ -254,14 +256,14 @@ type regAllocState struct {
 	// mask of registers currently in use
 	used regMask
 
-	// An ordered list (by idx) of all uses in the function
-	uses []use
-
 	// Home locations (registers) for Values
 	home []Location
 
 	// current block we're working on
 	curBlock *Block
+
+	// cache of use records
+	freeUseRecords *use
 }
 
 // freeReg frees up register r.  Any current user of r is kicked out.
@@ -350,18 +352,25 @@ func (s *regAllocState) allocReg(mask regMask) register {
 	// farthest-in-the-future use.
 	// TODO: Prefer registers with already spilled Values?
 	// TODO: Modify preference using affinity graph.
+	// TODO: if a single value is in multiple registers, spill one of them
+	// before spilling a value in just a single register.
 
 	// SP and SB are allocated specially.  No regular value should
 	// be allocated to them.
 	mask &^= 1<<4 | 1<<32
 
+	// Find a register to spill.  We spill the register containing the value
+	// whose next use is as far in the future as possible.
+	// https://en.wikipedia.org/wiki/Page_replacement_algorithm#The_theoretically_optimal_page_replacement_algorithm
 	maxuse := int32(-1)
 	for t := register(0); t < numRegs; t++ {
 		if mask>>t&1 == 0 {
 			continue
 		}
 		v := s.regs[t].v
-		if len(s.values[v.ID].uses) == 0 {
+
+		if s.values[v.ID].uses == nil {
+			// No subsequent use.
 			// This can happen when fixing up merge blocks at the end.
 			// We've already run through the use lists so they are empty.
 			// Any register would be ok at this point.
@@ -369,7 +378,9 @@ func (s *regAllocState) allocReg(mask regMask) register {
 			maxuse = 0
 			break
 		}
-		if n := s.values[v.ID].uses[0]; n > maxuse {
+		if n := s.values[v.ID].uses.dist; n > maxuse {
+			// v's next use is farther in the future than any value
+			// we've seen so far.  A new best spill candidate.
 			r = t
 			maxuse = n
 		}
@@ -402,7 +413,12 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 		return s.regs[r].c
 	}
 
-	mask &^= 1<<4 | 1<<32 // don't spill SP or SB
+	if v.Op != OpSP {
+		mask &^= 1 << 4 // dont' spill SP
+	}
+	if v.Op != OpSB {
+		mask &^= 1 << 32 // don't spill SB
+	}
 	mask &^= s.reserved()
 
 	// Allocate a register.
@@ -484,18 +500,20 @@ func (s *regAllocState) init(f *Func) {
 	}
 
 	s.f = f
+	s.needReg = make([]bool, f.NumValues())
 	s.regs = make([]regState, numRegs)
 	s.values = make([]valState, f.NumValues())
-	for i := range s.values {
-		s.values[i].uses = s.values[i].usestorage[:0]
-	}
 	s.orig = make([]*Value, f.NumValues())
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+			if v.Type.IsMemory() || v.Type.IsVoid() {
+				continue
+			}
+			s.needReg[v.ID] = true
 			s.orig[v.ID] = v
 		}
 	}
-	s.live = f.live()
+	s.computeLive()
 
 	// Compute block order.  This array allows us to distinguish forward edges
 	// from backward edges and compute how far they go.
@@ -518,63 +536,41 @@ func (s *regAllocState) init(f *Func) {
 		}
 		s.primary[b.ID] = int32(best)
 	}
+}
 
-	// Compute uses.  We assign a PC to each Value in the program, in f.Blocks
-	// and then b.Values order.  Uses are recorded using this numbering.
-	// Uses by Values are recorded as 2*PC.  Special uses (block control values,
-	// pseudo-uses for backedges) are recorded as 2*(last PC in block)+1.
-	var pc int32
-	for _, b := range f.Blocks {
-		// uses in regular Values
-		for _, v := range b.Values {
-			for _, a := range v.Args {
-				s.values[a.ID].uses = append(s.values[a.ID].uses, pc*2)
-				s.uses = append(s.uses, use{pc * 2, a.ID})
-			}
-			pc++
-		}
-		// use as a block control value
-		endIdx := pc*2 - 1
-		if b.Control != nil {
-			s.values[b.Control.ID].uses = append(s.values[b.Control.ID].uses, endIdx)
-			s.uses = append(s.uses, use{endIdx, b.Control.ID})
-		}
-		// uses by backedges
-		// Backedges are treated as uses so that the uses span the entire live
-		// range of the value.
-		for i, c := range b.Succs {
-			if blockOrder[c.ID] > blockOrder[b.ID] {
-				continue // forward edge
-			}
-			for _, vid := range s.live[b.ID][i] {
-				s.values[vid].uses = append(s.values[vid].uses, endIdx)
-				s.uses = append(s.uses, use{endIdx, vid})
-			}
-		}
+// Adds a use record for id at distance dist from the start of the block.
+// All calls to addUse must happen with nonincreasing dist.
+func (s *regAllocState) addUse(id ID, dist int32) {
+	r := s.freeUseRecords
+	if r != nil {
+		s.freeUseRecords = r.next
+	} else {
+		r = &use{}
 	}
-	if pc*2 < 0 {
-		f.Fatalf("pc too large: function too big")
+	r.dist = dist
+	r.next = s.values[id].uses
+	s.values[id].uses = r
+	if r.next != nil && dist > r.next.dist {
+		s.f.Fatalf("uses added in wrong order")
 	}
 }
 
-// clearUses drops any uses <= useIdx.  Any values which have no future
-// uses are dropped from registers.
-func (s *regAllocState) clearUses(useIdx int32) {
-	for len(s.uses) > 0 && s.uses[0].idx <= useIdx {
-		idx := s.uses[0].idx
-		vid := s.uses[0].vid
-		s.uses = s.uses[1:]
-
-		vi := &s.values[vid]
-		if vi.uses[0] != idx {
-			s.f.Fatalf("use mismatch for v%d\n", vid)
-		}
-		vi.uses = vi.uses[1:]
-		if len(vi.uses) != 0 {
+// advanceUses advances the uses of v's args from the state before v to the state after v.
+// Any values which have no more uses are deallocated from registers.
+func (s *regAllocState) advanceUses(v *Value) {
+	for _, a := range v.Args {
+		if !s.needReg[a.ID] {
 			continue
 		}
-		// Value is dead, free all registers that hold it (except SP & SB).
-		s.freeRegs(vi.regs &^ (1<<4 | 1<<32))
+		ai := &s.values[a.ID]
+		r := ai.uses
+		ai.uses = r.next
+		if r.next == nil {
+			// Value is dead, free all registers that hold it.
+			s.freeRegs(ai.regs)
+		}
+		r.next = s.freeUseRecords
+		s.freeUseRecords = r
 	}
 }
 
@@ -601,27 +597,68 @@ func (s *regAllocState) compatRegs(v *Value) regMask {
 }
 
 func (s *regAllocState) regalloc(f *Func) {
-	liveset := newSparseSet(f.NumValues())
+	liveSet := newSparseSet(f.NumValues())
 	argset := newSparseSet(f.NumValues())
 	var oldSched []*Value
 	var phis []*Value
 	var stackPhis []*Value
 	var regPhis []*Value
+	var phiRegs []register
+	var args []*Value
 
 	if f.Entry != f.Blocks[0] {
 		f.Fatalf("entry block must be first")
 	}
-
-	var phiRegs []register
 
 	// For each merge block, we record the starting register state (after phi ops)
 	// for that merge block.  Indexed by blockid/regnum.
 	startRegs := make([][]*Value, f.NumBlocks())
 	// end state of registers for each block, idexed by blockid/regnum.
 	endRegs := make([][]regState, f.NumBlocks())
-	var pc int32
 	for _, b := range f.Blocks {
 		s.curBlock = b
+
+		// Initialize liveSet and uses fields for this block.
+		// Walk backwards through the block doing liveness analysis.
+		liveSet.clear()
+		for _, e := range s.live[b.ID] {
+			s.addUse(e.ID, int32(len(b.Values))+e.dist) // pseudo-uses from beyond end of block
+			liveSet.add(e.ID)
+		}
+		if c := b.Control; c != nil && s.needReg[c.ID] {
+			s.addUse(c.ID, int32(len(b.Values))) // psuedo-use by control value
+			liveSet.add(c.ID)
+		}
+		for i := len(b.Values) - 1; i >= 0; i-- {
+			v := b.Values[i]
+			if v.Op == OpPhi {
+				break // Don't process phi ops.
+			}
+			liveSet.remove(v.ID)
+			for _, a := range v.Args {
+				if !s.needReg[a.ID] {
+					continue
+				}
+				s.addUse(a.ID, int32(i))
+				liveSet.add(a.ID)
+			}
+		}
+		if regDebug {
+			fmt.Printf("uses for %s:%s\n", s.f.Name, b)
+			for i := range s.values {
+				vi := &s.values[i]
+				u := vi.uses
+				if u == nil {
+					continue
+				}
+				fmt.Printf("v%d:", i)
+				for u != nil {
+					fmt.Printf(" %d", u.dist)
+					u = u.next
+				}
+				fmt.Println()
+			}
+		}
 
 		// Make a copy of the block schedule so we can generate a new one in place.
 		// We make a separate copy for phis and regular values.
@@ -648,6 +685,15 @@ func (s *regAllocState) regalloc(f *Func) {
 			if nphi > 0 {
 				f.Fatalf("phis in single-predecessor block")
 			}
+			// Drop any values which are no longer live.
+			// This may happen because at the end of p, a value may be
+			// live but only used by some other successor of p.
+			for r := register(0); r < numRegs; r++ {
+				v := s.regs[r].v
+				if v != nil && !liveSet.contains(v.ID) {
+					s.freeReg(r)
+				}
+			}
 		} else {
 			// This is the complicated case.  We have more than one predecessor,
 			// which means we may have Phi ops.
@@ -662,25 +708,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 			p := b.Preds[idx]
 			s.setState(endRegs[p.ID])
-
-			// Drop anything not live on the c->b edge.
-			var idx2 int
-			for idx2 = 0; idx2 < len(p.Succs); idx2++ {
-				if p.Succs[idx2] == b {
-					break
-				}
-			}
-			liveset.clear()
-			liveset.addAll(s.live[p.ID][idx2])
-			for r := register(0); r < numRegs; r++ {
-				v := s.regs[r].v
-				if v == nil {
-					continue
-				}
-				if !liveset.contains(v.ID) {
-					s.freeReg(r)
-				}
-			}
 
 			// Decide on registers for phi ops.  Use the registers determined
 			// by the primary predecessor if we can.
@@ -742,21 +769,20 @@ func (s *regAllocState) regalloc(f *Func) {
 		}
 
 		// Process all the non-phi values.
-		pc += int32(nphi)
-		for _, v := range oldSched {
+		for idx, v := range oldSched {
 			if v.Op == OpPhi {
 				f.Fatalf("phi %s not at start of block", v)
 			}
 			if v.Op == OpSP {
 				s.assignReg(4, v, v) // TODO: arch-dependent
 				b.Values = append(b.Values, v)
-				pc++
+				s.advanceUses(v)
 				continue
 			}
 			if v.Op == OpSB {
 				s.assignReg(32, v, v) // TODO: arch-dependent
 				b.Values = append(b.Values, v)
-				pc++
+				s.advanceUses(v)
 				continue
 			}
 			if v.Op == OpArg {
@@ -766,19 +792,17 @@ func (s *regAllocState) regalloc(f *Func) {
 				s.values[v.ID].spill = v
 				s.values[v.ID].spillUsed = true // use is guaranteed
 				b.Values = append(b.Values, v)
-				pc++
+				s.advanceUses(v)
 				continue
 			}
-			s.clearUses(pc*2 - 1)
 			regspec := opcodeTable[v.Op].reg
 			if regDebug {
-				fmt.Printf("%d: working on %s %s %v\n", pc, v, v.LongString(), regspec)
+				fmt.Printf("%d: working on %s %s %v\n", idx, v, v.LongString(), regspec)
 			}
 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
 				// No register allocation required (or none specified yet)
 				s.freeRegs(regspec.clobbers)
 				b.Values = append(b.Values, v)
-				pc++
 				continue
 			}
 
@@ -786,22 +810,23 @@ func (s *regAllocState) regalloc(f *Func) {
 				// Value is rematerializeable, don't issue it here.
 				// It will get issued just before each use (see
 				// allocValueToReg).
-				pc++
+				s.advanceUses(v)
 				continue
 			}
 
-			// Move arguments to registers
+			// Move arguments to registers.  Process in an ordering defined
+			// by the register specification (most constrained first).
+			args = append(args[:0], v.Args...)
 			for _, i := range regspec.inputs {
-				a := v.Args[i.idx]
-				v.Args[i.idx] = s.allocValToReg(a, i.regs, true)
+				args[i.idx] = s.allocValToReg(v.Args[i.idx], i.regs, true)
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
-			// Before we pick a register for the value, allow input registers
+			// Before we pick a register for the output value, allow input registers
 			// to be deallocated. We do this here so that the output can use the
 			// same register as a dying input.
 			s.nospill = 0
-			s.clearUses(pc * 2)
+			s.advanceUses(v) // frees any registers holding args that are no longer live
 
 			// Dump any registers which will be clobbered
 			s.freeRegs(regspec.clobbers)
@@ -818,34 +843,60 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 
 			// Issue the Value itself.
+			for i, a := range args {
+				v.Args[i] = a // use register version of arguments
+			}
 			b.Values = append(b.Values, v)
 
 			// Issue a spill for this value.  We issue spills unconditionally,
 			// then at the end of regalloc delete the ones we never use.
+			// TODO: schedule the spill at a point that dominates all restores.
+			// The restore may be off in an unlikely branch somewhere and it
+			// would be better to have the spill in that unlikely branch as well.
+			// v := ...
+			// if unlikely {
+			//     f()
+			// }
+			// It would be good to have both spill and restore inside the IF.
 			if !v.Type.IsFlags() {
 				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
 				s.setOrig(spill, v)
 				s.values[v.ID].spill = spill
 				s.values[v.ID].spillUsed = false
 			}
-
-			// Increment pc for next Value.
-			pc++
 		}
 
-		// Load control value into reg
-		if b.Control != nil && !b.Control.Type.IsMemory() && !b.Control.Type.IsVoid() {
+		if c := b.Control; c != nil && s.needReg[c.ID] {
+			// Load control value into reg.
 			// TODO: regspec for block control values, instead of using
 			// register set from the control op's output.
-			s.allocValToReg(b.Control, opcodeTable[b.Control.Op].reg.outputs[0], false)
+			s.allocValToReg(c, opcodeTable[c.Op].reg.outputs[0], false)
+			// Remove this use from the uses list.
+			u := s.values[c.ID].uses
+			s.values[c.ID].uses = u.next
+			u.next = s.freeUseRecords
+			s.freeUseRecords = u
 		}
 
 		// Record endRegs
 		endRegs[b.ID] = make([]regState, numRegs)
 		copy(endRegs[b.ID], s.regs)
 
-		// Allow control Values and Values live only on backedges to be dropped.
-		s.clearUses(pc*2 - 1)
+		// Clear any final uses.
+		// All that is left should be the pseudo-uses added for values which
+		// are live at the end of b.
+		for _, e := range s.live[b.ID] {
+			u := s.values[e.ID].uses
+			if u == nil {
+				f.Fatalf("live at end, no uses v%d", e.ID)
+			}
+			if u.next != nil {
+				f.Fatalf("live at end, too many uses v%d", e.ID)
+			}
+			s.values[e.ID].uses = nil
+			u.next = s.freeUseRecords
+			s.freeUseRecords = u
+		}
 	}
 
 	// Process merge block input edges.  They are the tricky ones.
@@ -1034,20 +1085,24 @@ func (v *Value) rematerializeable() bool {
 	return false
 }
 
-// live returns a map from block ID and successor edge index to a list
-// of value IDs live on that edge.
+type liveInfo struct {
+	ID   ID    // ID of variable
+	dist int32 // # of instructions before next use
+}
+
+// computeLive computes a map from block ID to a list of value IDs live at the end
+// of that block.  Together with the value ID is a count of how many instructions
+// to the next use of that value.  The resulting map is stored at s.live.
 // TODO: this could be quadratic if lots of variables are live across lots of
 // basic blocks.  Figure out a way to make this function (or, more precisely, the user
 // of this function) require only linear size & time.
-func (f *Func) live() [][][]ID {
-	live := make([][][]ID, f.NumBlocks())
-	for _, b := range f.Blocks {
-		live[b.ID] = make([][]ID, len(b.Succs))
-	}
+func (s *regAllocState) computeLive() {
+	f := s.f
+	s.live = make([][]liveInfo, f.NumBlocks())
 	var phis []*Value
 
-	s := newSparseSet(f.NumValues())
-	t := newSparseSet(f.NumValues())
+	live := newSparseMap(f.NumValues())
+	t := newSparseMap(f.NumValues())
 
 	// Instead of iterating over f.Blocks, iterate over their postordering.
 	// Liveness information flows backward, so starting at the end
@@ -1061,20 +1116,22 @@ func (f *Func) live() [][][]ID {
 	po := postorder(f)
 	for {
 		for _, b := range po {
-			f.Logf("live %s %v\n", b, live[b.ID])
+			f.Logf("live %s %v\n", b, s.live[b.ID])
 		}
 		changed := false
 
 		for _, b := range po {
-			// Start with known live values at the end of the block
-			s.clear()
-			for i := 0; i < len(b.Succs); i++ {
-				s.addAll(live[b.ID][i])
+			// Start with known live values at the end of the block.
+			// Add len(b.Values) to adjust from end-of-block distance
+			// to beginning-of-block distance.
+			live.clear()
+			for _, e := range s.live[b.ID] {
+				live.set(e.ID, e.dist+int32(len(b.Values)))
 			}
 
 			// Mark control value as live
-			if b.Control != nil {
-				s.add(b.Control.ID)
+			if b.Control != nil && s.needReg[b.Control.ID] {
+				live.set(b.Control.ID, int32(len(b.Values)))
 			}
 
 			// Propagate backwards to the start of the block
@@ -1082,36 +1139,75 @@ func (f *Func) live() [][][]ID {
 			phis := phis[:0]
 			for i := len(b.Values) - 1; i >= 0; i-- {
 				v := b.Values[i]
-				s.remove(v.ID)
+				live.remove(v.ID)
 				if v.Op == OpPhi {
 					// save phi ops for later
 					phis = append(phis, v)
 					continue
 				}
-				s.addAllValues(v.Args)
-			}
-
-			// for each predecessor of b, expand its list of live-at-end values
-			// invariant: s contains the values live at the start of b (excluding phi inputs)
-			for i, p := range b.Preds {
-				// Find index of b in p's successors.
-				var j int
-				for j = 0; j < len(p.Succs); j++ {
-					if p.Succs[j] == b {
-						break
+				for _, a := range v.Args {
+					if s.needReg[a.ID] {
+						live.set(a.ID, int32(i))
 					}
 				}
-				t.clear()
-				t.addAll(live[p.ID][j])
-				t.addAll(s.contents())
-				for _, v := range phis {
-					t.add(v.Args[i].ID)
+			}
+
+			// For each predecessor of b, expand its list of live-at-end values.
+			// invariant: live contains the values live at the start of b (excluding phi inputs)
+			for i, p := range b.Preds {
+				// Compute additional distance for the edge.
+				const normalEdge = 10
+				const likelyEdge = 1
+				const unlikelyEdge = 100
+				// Note: delta must be at least 1 to distinguish the control
+				// value use from the first user in a successor block.
+				delta := int32(normalEdge)
+				if len(p.Succs) == 2 {
+					if p.Succs[0] == b && p.Likely == BranchLikely ||
+						p.Succs[1] == b && p.Likely == BranchUnlikely {
+						delta = likelyEdge
+					}
+					if p.Succs[0] == b && p.Likely == BranchUnlikely ||
+						p.Succs[1] == b && p.Likely == BranchLikely {
+						delta = unlikelyEdge
+					}
 				}
-				if t.size() == len(live[p.ID][j]) {
+
+				// Start t off with the previously known live values at the end of p.
+				t.clear()
+				for _, e := range s.live[p.ID] {
+					t.set(e.ID, e.dist)
+				}
+				update := false
+
+				// Add new live values from scanning this block.
+				for _, e := range live.contents() {
+					d := e.val + delta
+					if !t.contains(e.key) || d < t.get(e.key) {
+						update = true
+						t.set(e.key, d)
+					}
+				}
+				// Also add the correct arg from the saved phi values.
+				// All phis are at distance delta (we consider them
+				// simultaneously happening at the start of the block).
+				for _, v := range phis {
+					id := v.Args[i].ID
+					if s.needReg[id] && !t.contains(id) || delta < t.get(id) {
+						update = true
+						t.set(id, delta)
+					}
+				}
+
+				if !update {
 					continue
 				}
-				// grow p's live set
-				live[p.ID][j] = append(live[p.ID][j][:0], t.contents()...)
+				// The live set has changed, update it.
+				l := s.live[p.ID][:0]
+				for _, e := range t.contents() {
+					l = append(l, liveInfo{e.key, e.val})
+				}
+				s.live[p.ID] = l
 				changed = true
 			}
 		}
@@ -1120,35 +1216,6 @@ func (f *Func) live() [][][]ID {
 			break
 		}
 	}
-
-	// Make sure that there is only one live memory variable in each set.
-	// Ideally we should check this at every instructiom, but at every
-	// edge seems good enough for now.
-	isMem := make([]bool, f.NumValues())
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			isMem[v.ID] = v.Type.IsMemory()
-		}
-	}
-	for _, b := range f.Blocks {
-		for i, c := range b.Succs {
-			nmem := 0
-			for _, id := range live[b.ID][i] {
-				if isMem[id] {
-					nmem++
-				}
-			}
-			if nmem > 1 {
-				f.Fatalf("more than one mem live on edge %v->%v: %v", b, c, live[b.ID][i])
-			}
-			// TODO: figure out why we get nmem==0 occasionally.
-			//if nmem == 0 {
-			//	f.Fatalf("no mem live on edge %v->%v: %v", b, c, live[b.ID][i])
-			//}
-		}
-	}
-
-	return live
 }
 
 // reserved returns a mask of reserved registers.
