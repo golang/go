@@ -518,3 +518,34 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVL	$1, DX  // FD_CLOEXEC
 	INVOKE_SYSINFO
 	RET
+
+// int access(const char *name, int mode)
+TEXT runtime·access(SB),NOSPLIT,$0
+	MOVL	$33, AX  // syscall - access
+	MOVL	name+0(FP), BX
+	MOVL	mode+4(FP), CX
+	INVOKE_SYSINFO
+	MOVL	AX, ret+8(FP)
+	RET
+
+// int connect(int fd, const struct sockaddr *addr, socklen_t addrlen)
+TEXT runtime·connect(SB),NOSPLIT,$0-16
+	// connect is implemented as socketcall(NR_socket, 3, *(rest of args))
+	// stack already should have fd, addr, addrlen.
+	MOVL	$102, AX  // syscall - socketcall
+	MOVL	$3, BX  // connect
+	LEAL	fd+0(FP), CX
+	INVOKE_SYSINFO
+	MOVL	AX, ret+12(FP)
+	RET
+
+// int socket(int domain, int type, int protocol)
+TEXT runtime·socket(SB),NOSPLIT,$0-16
+	// socket is implemented as socketcall(NR_socket, 1, *(rest of args))
+	// stack already should have domain, type, protocol.
+	MOVL	$102, AX  // syscall - socketcall
+	MOVL	$1, BX  // socket
+	LEAL	domain+0(FP), CX
+	INVOKE_SYSINFO
+	MOVL	AX, ret+12(FP)
+	RET
