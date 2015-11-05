@@ -629,6 +629,9 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	MOVQ	BX, CX
 	REP
 	STOSB
+	// Note: we zero only 4 bytes at a time so that the tail is at most
+	// 3 bytes.  That guarantees that we aren't zeroing pointers with STOSB.
+	// See issue 13160.
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12

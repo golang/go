@@ -39,7 +39,8 @@ tail:
 	CMPL	BX, $2
 	JBE	move_1or2
 	CMPL	BX, $4
-	JBE	move_3or4
+	JB	move_3
+	JE	move_4
 	CMPL	BX, $8
 	JBE	move_5through8
 	CMPL	BX, $16
@@ -104,11 +105,16 @@ move_1or2:
 	RET
 move_0:
 	RET
-move_3or4:
+move_3:
 	MOVW	(SI), AX
-	MOVW	-2(SI)(BX*1), CX
+	MOVB	2(SI), CX
 	MOVW	AX, (DI)
-	MOVW	CX, -2(DI)(BX*1)
+	MOVB	CX, 2(DI)
+	RET
+move_4:
+	// We need a separate case for 4 to make sure we write pointers atomically.
+	MOVL	(SI), AX
+	MOVL	AX, (DI)
 	RET
 move_5through8:
 	MOVL	(SI), AX
