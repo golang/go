@@ -1167,6 +1167,9 @@ func TestInstallIntoGOPATH(t *testing.T) {
 
 // Issue 12407
 func TestBuildOutputToDevNull(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping because /dev/null is a regular file on plan9")
+	}
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
