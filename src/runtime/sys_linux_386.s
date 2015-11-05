@@ -405,6 +405,15 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	MOVL	entry+0(FP), BX	// entry
 	MOVL	address+4(FP), CX	// base address
 
+#ifdef GOOS_android
+	/*
+	 * Same as in sys_darwin_386.s:/ugliness, different constant.
+	 * address currently holds m->tls, which must be %gs:0xf8.
+	 * See cgo/gcc_android_386.c for the derivation of the constant.
+	 */
+	SUBL	$0xf8, CX
+	MOVL	CX, 0(CX)
+#else
 	/*
 	 * When linking against the system libraries,
 	 * we use its pthread_create and let it set up %gs
@@ -420,6 +429,7 @@ TEXT runtime·setldt(SB),NOSPLIT,$32
 	 */
 	ADDL	$0x4, CX	// address
 	MOVL	CX, 0(CX)
+#endif
 
 	// set up user_desc
 	LEAL	16(SP), AX	// struct user_desc

@@ -1975,6 +1975,9 @@ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			if p.Mode == 32 {
 				switch ctxt.Headtype {
 				default:
+					if isAndroid {
+						return 0x65 // GS
+					}
 					log.Fatalf("unknown TLS base register for %s", obj.Headstr(ctxt.Headtype))
 
 				case obj.Hdarwin,
