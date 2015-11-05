@@ -2175,7 +2175,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(r), uint32(p.To.Reg), uint32(v)&31)
-		if p.As == ASRAD && (v&0x20 != 0) {
+		if (p.As == ASRAD || p.As == ASRADCC) && (v&0x20 != 0) {
 			o1 |= 1 << 1 /* mb[5] */
 		}
 
