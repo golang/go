@@ -226,7 +226,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.ASTOSL:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
 	x86.ASTOSQ:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
 	x86.ASTOSW:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
-	obj.ADUFFZERO: {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+	obj.ADUFFZERO: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
 	x86.ASUBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.ASUBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.ASUBQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},
