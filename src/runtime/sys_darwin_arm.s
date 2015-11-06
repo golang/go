@@ -24,9 +24,9 @@
 #define	SYS_kill           37
 #define	SYS_getpid         20
 #define	SYS___pthread_kill 328
+#define	SYS_pthread_sigmask 329
 #define	SYS_setitimer      83
 #define	SYS___sysctl       202
-#define	SYS_sigprocmask    48
 #define	SYS_sigaction      46
 #define	SYS_sigreturn      184
 #define	SYS_select         93
@@ -268,7 +268,7 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVW	sig+0(FP), R0
 	MOVW	new+4(FP), R1
 	MOVW	old+8(FP), R2
-	MOVW	$SYS_sigprocmask, R12
+	MOVW	$SYS_pthread_sigmask, R12
 	SWI	$0x80
 	BL.CS	notok<>(SB)
 	RET
