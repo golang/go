@@ -6,10 +6,13 @@ package net
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"sort"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -161,5 +164,55 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
 	}
 	if s != "abc" {
 		t.Fatalf(`"%s" received from recv, but "abc" expected`, s)
+	}
+}
+
+func isWindowsXP(t *testing.T) bool {
+	v, err := syscall.GetVersion()
+	if err != nil {
+		t.Fatalf("GetVersion failed: %v", err)
+	}
+	major := byte(v)
+	return major < 6
+}
+
+func listInterfacesWithNetsh() ([]string, error) {
+	out, err := exec.Command("netsh", "interface", "ip", "show", "config").CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("netsh failed: %v: %q", err, string(out))
+	}
+	lines := bytes.Split(out, []byte{'\r', '\n'})
+	names := make([]string, 0)
+	for _, line := range lines {
+		f := bytes.Split(line, []byte{'"'})
+		if len(f) == 3 {
+			names = append(names, string(f[1]))
+		}
+	}
+	return names, nil
+}
+
+func TestInterfaceList(t *testing.T) {
+	if isWindowsXP(t) {
+		t.Skip("Windows XP netsh command does not provide required functionality")
+	}
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := make([]string, 0)
+	for _, ifi := range ift {
+		have = append(have, ifi.Name)
+	}
+	sort.Strings(have)
+
+	want, err := listInterfacesWithNetsh()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(want)
+
+	if strings.Join(want, "/") != strings.Join(have, "/") {
+		t.Fatalf("unexpected interface list %q, want %q", have, want)
 	}
 }
