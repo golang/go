@@ -823,6 +823,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 2
 	}
 
+	if (p.Info.Reguse|p.Info.Regset)&FtoB(int(v.Reg)) != 0 {
+		return 2
+	}
+
 	if p.Info.Flags&gc.LeftAddr != 0 {
 		if copyas(&p.From, v) {
 			return 2
