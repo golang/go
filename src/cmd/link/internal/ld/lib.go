@@ -325,7 +325,14 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeCShared
 	case "shared":
-		if goos != "linux" || (goarch != "386" && goarch != "amd64" && goarch != "arm" && goarch != "arm64" && goarch != "ppc64le") {
+		switch goos {
+		case "linux":
+			switch goarch {
+			case "386", "amd64", "arm", "arm64", "ppc64le":
+			default:
+				return badmode()
+			}
+		default:
 			return badmode()
 		}
 		*mode = BuildmodeShared
