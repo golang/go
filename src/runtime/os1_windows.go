@@ -21,6 +21,7 @@ import (
 //go:cgo_import_dynamic runtime._DuplicateHandle DuplicateHandle%7 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ExitProcess ExitProcess%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetConsoleMode GetConsoleMode%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
@@ -44,6 +45,7 @@ import (
 //go:cgo_import_dynamic runtime._VirtualFree VirtualFree%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WSAGetOverlappedResult WSAGetOverlappedResult%5 "ws2_32.dll"
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
 
@@ -63,6 +65,7 @@ var (
 	_DuplicateHandle,
 	_ExitProcess,
 	_FreeEnvironmentStringsW,
+	_GetConsoleMode,
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
@@ -86,6 +89,7 @@ var (
 	_VirtualFree,
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
+	_WriteConsoleW,
 	_WriteFile,
 	_timeBeginPeriod stdFunction
 
@@ -254,9 +258,88 @@ func write(fd uintptr, buf unsafe.Pointer, n int32) int32 {
 		// assume fd is real windows handle.
 		handle = fd
 	}
+	isASCII := true
+	b := (*[1 << 30]byte)(buf)[:n]
+	for _, x := range b {
+		if x >= 0x80 {
+			isASCII = false
+			break
+		}
+	}
+
+	if !isASCII {
+		var m uint32
+		isConsole := stdcall2(_GetConsoleMode, handle, uintptr(unsafe.Pointer(&m))) != 0
+		// If this is a console output, various non-unicode code pages can be in use.
+		// Use the dedicated WriteConsole call to ensure unicode is printed correctly.
+		if isConsole {
+			return int32(writeConsole(handle, buf, n))
+		}
+	}
 	var written uint32
 	stdcall5(_WriteFile, handle, uintptr(buf), uintptr(n), uintptr(unsafe.Pointer(&written)), 0)
 	return int32(written)
+}
+
+var (
+	utf16ConsoleBack     [1000]uint16
+	utf16ConsoleBackLock mutex
+)
+
+// writeConsole writes bufLen bytes from buf to the console File.
+// It returns the number of bytes written.
+func writeConsole(handle uintptr, buf unsafe.Pointer, bufLen int32) int {
+	const surr2 = (surrogateMin + surrogateMax + 1) / 2
+
+	// Do not use defer for unlock. May cause issues when printing a panic.
+	lock(&utf16ConsoleBackLock)
+
+	b := (*[1 << 30]byte)(buf)[:bufLen]
+	s := *(*string)(unsafe.Pointer(&b))
+
+	utf16tmp := utf16ConsoleBack[:]
+
+	total := len(s)
+	w := 0
+	for len(s) > 0 {
+		if w >= len(utf16tmp)-2 {
+			writeConsoleUTF16(handle, utf16tmp[:w])
+			w = 0
+		}
+		r, n := charntorune(s)
+		s = s[n:]
+		if r < 0x10000 {
+			utf16tmp[w] = uint16(r)
+			w++
+		} else {
+			r -= 0x10000
+			utf16tmp[w] = surrogateMin + uint16(r>>10)&0x3ff
+			utf16tmp[w+1] = surr2 + uint16(r)&0x3ff
+			w += 2
+		}
+	}
+	writeConsoleUTF16(handle, utf16tmp[:w])
+	unlock(&utf16ConsoleBackLock)
+	return total
+}
+
+// writeConsoleUTF16 is the dedicated windows calls that correctly prints
+// to the console regardless of the current code page. Input is utf-16 code points.
+// The handle must be a console handle.
+func writeConsoleUTF16(handle uintptr, b []uint16) {
+	l := uint32(len(b))
+	if l == 0 {
+		return
+	}
+	var written uint32
+	stdcall5(_WriteConsoleW,
+		handle,
+		uintptr(unsafe.Pointer(&b[0])),
+		uintptr(l),
+		uintptr(unsafe.Pointer(&written)),
+		0,
+	)
+	return
 }
 
 //go:nosplit
