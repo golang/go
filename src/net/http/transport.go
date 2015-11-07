@@ -25,9 +25,27 @@ import (
 	"time"
 )
 
-// h2DefaultTransport is the HTTP/2 version of DefaultTransport.
-// DefaultTransport and h2DefaultTransport are wired up together.
-var h2DefaultTransport = &http2Transport{}
+// HTTP/2 transport, integrated with the DefaultTransport.
+var (
+	// h2ConnPool is the connection pool for HTTP/2 connections.
+	h2ConnPool = &http2clientConnPool{}
+	// h2Transport is the HTTP/2 version of DefaultTransport.
+	h2Transport = &http2Transport{ConnPool: noDialClientConnPool{h2ConnPool}}
+)
+
+func init() {
+	h2ConnPool.t = h2Transport // avoid decalaration loop
+}
+
+// noDialClientConnPool is an implementation of http2.ClientConnPool
+// which never dials.  We let the HTTP/1.1 client dial and use its TLS
+// connection instead.
+type noDialClientConnPool struct{ *http2clientConnPool }
+
+func (p noDialClientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
+	const doDial = false
+	return p.getClientConn(req, addr, doDial)
+}
 
 // DefaultTransport is the default implementation of Transport and is
 // used by DefaultClient. It establishes network connections as needed
@@ -50,24 +68,33 @@ func init() {
 		return
 	}
 	t := DefaultTransport.(*Transport)
-	t.RegisterProtocol("https", noDialH2Transport{h2DefaultTransport})
+	t.RegisterProtocol("https", noDialH2RoundTripper{})
 	t.TLSClientConfig = &tls.Config{
 		NextProtos: []string{"h2"},
 	}
 	t.TLSNextProto = map[string]func(string, *tls.Conn) RoundTripper{
 		"h2": func(authority string, c *tls.Conn) RoundTripper {
-			h2DefaultTransport.AddIdleConn(authority, c)
-			return h2DefaultTransport
+			cc, err := h2Transport.NewClientConn(c)
+			if err != nil {
+				c.Close()
+				return erringRoundTripper{err}
+			}
+			h2ConnPool.addConn(http2authorityAddr(authority), cc)
+			return h2Transport
 		},
 	}
 }
 
-// noDialH2Transport is a RoundTripper which only tries to complete the request if
-// the wrapped *http2Transport already has a cached connection to the host.
-type noDialH2Transport struct{ rt *http2Transport }
+type erringRoundTripper struct{ err error }
 
-func (t noDialH2Transport) RoundTrip(req *Request) (*Response, error) {
-	res, err := t.rt.RoundTripOpt(req, http2RoundTripOpt{OnlyCachedConn: true})
+func (rt erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
+
+// noDialH2RoundTripper is a RoundTripper which only tries to complete the request
+// if there's already has a cached connection to the host.
+type noDialH2RoundTripper struct{}
+
+func (noDialH2RoundTripper) RoundTrip(req *Request) (*Response, error) {
+	res, err := h2Transport.RoundTrip(req)
 	if err == http2ErrNoCachedConn {
 		return nil, ErrSkipAltProtocol
 	}
