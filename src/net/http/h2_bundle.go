@@ -832,6 +832,8 @@ type http2PingFrame struct {
 	Data [8]byte
 }
 
+func (f *http2PingFrame) IsAck() bool { return f.Flags.Has(http2FlagPingAck) }
+
 func http2parsePingFrame(fh http2FrameHeader, payload []byte) (http2Frame, error) {
 	if len(payload) != 8 {
 		return nil, http2ConnectionError(http2ErrCodeFrameSize)
@@ -2824,7 +2826,7 @@ func (sc *http2serverConn) processFrame(f http2Frame) error {
 
 func (sc *http2serverConn) processPing(f *http2PingFrame) error {
 	sc.serveG.check()
-	if f.Flags.Has(http2FlagSettingsAck) {
+	if f.IsAck() {
 
 		return nil
 	}
@@ -4279,6 +4281,8 @@ func (rl *http2clientConnReadLoop) run() error {
 			err = rl.processPushPromise(f)
 		case *http2WindowUpdateFrame:
 			err = rl.processWindowUpdate(f)
+		case *http2PingFrame:
+			err = rl.processPing(f)
 		default:
 			cc.logf("Transport: unhandled response frame type %T", f)
 		}
@@ -4494,6 +4498,20 @@ func (rl *http2clientConnReadLoop) processResetStream(f *http2RSTStreamFrame) er
 	}
 	delete(rl.activeRes, cs.ID)
 	return nil
+}
+
+func (rl *http2clientConnReadLoop) processPing(f *http2PingFrame) error {
+	if f.IsAck() {
+
+		return nil
+	}
+	cc := rl.cc
+	cc.wmu.Lock()
+	defer cc.wmu.Unlock()
+	if err := cc.fr.WritePing(true, f.Data); err != nil {
+		return err
+	}
+	return cc.bw.Flush()
 }
 
 func (rl *http2clientConnReadLoop) processPushPromise(f *http2PushPromiseFrame) error {
