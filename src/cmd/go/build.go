@@ -1287,11 +1287,11 @@ func (b *builder) build(a *action) (err error) {
 		// different sections of the bootstrap script have to
 		// be merged, the banners give patch something
 		// to use to find its context.
-		fmt.Printf("\n#\n# %s\n#\n\n", a.p.ImportPath)
+		b.print("\n#\n# " + a.p.ImportPath + "\n#\n\n")
 	}
 
 	if buildV {
-		fmt.Fprintf(os.Stderr, "%s\n", a.p.ImportPath)
+		b.print(a.p.ImportPath + "\n")
 	}
 
 	// Make build directory.
