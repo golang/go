@@ -9,20 +9,31 @@ package main
 import (
 	"errors"
 	"go/ast"
+	"go/token"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 func init() {
 	register("structtags",
 		"check that struct field tags have canonical format and apply to exported fields as needed",
-		checkCanonicalFieldTag,
-		field)
+		checkStructFieldTags,
+		structType)
 }
 
-// checkCanonicalFieldTag checks a struct field tag.
-func checkCanonicalFieldTag(f *File, node ast.Node) {
-	field := node.(*ast.Field)
+// checkStructFieldTags checks all the field tags of a struct, including checking for duplicates.
+func checkStructFieldTags(f *File, node ast.Node) {
+	var seen map[[2]string]token.Pos
+	for _, field := range node.(*ast.StructType).Fields.List {
+		checkCanonicalFieldTag(f, field, &seen)
+	}
+}
+
+var checkTagDups = []string{"json", "xml"}
+
+// checkCanonicalFieldTag checks a single struct field tag.
+func checkCanonicalFieldTag(f *File, field *ast.Field, seen *map[[2]string]token.Pos) {
 	if field.Tag == nil {
 		return
 	}
@@ -38,6 +49,24 @@ func checkCanonicalFieldTag(f *File, node ast.Node) {
 		f.Badf(field.Pos(), "struct field tag %q not compatible with reflect.StructTag.Get: %s", raw, err)
 	}
 
+	for _, key := range checkTagDups {
+		val := reflect.StructTag(tag).Get(key)
+		if val == "" || val == "-" || val[0] == ',' {
+			continue
+		}
+		if i := strings.Index(val, ","); i >= 0 {
+			val = val[:i]
+		}
+		if *seen == nil {
+			*seen = map[[2]string]token.Pos{}
+		}
+		if pos, ok := (*seen)[[2]string{key, val}]; ok {
+			f.Badf(field.Pos(), "struct field %s repeats %s tag %q also at %s", field.Names[0].Name, key, val, f.loc(pos))
+		} else {
+			(*seen)[[2]string{key, val}] = field.Pos()
+		}
+	}
+
 	// Check for use of json or xml tags with unexported fields.
 
 	// Embedded struct. Nothing to do for now, but that
@@ -50,9 +79,8 @@ func checkCanonicalFieldTag(f *File, node ast.Node) {
 		return
 	}
 
-	st := reflect.StructTag(tag)
 	for _, enc := range [...]string{"json", "xml"} {
-		if st.Get(enc) != "" {
+		if reflect.StructTag(tag).Get(enc) != "" {
 			f.Badf(field.Pos(), "struct field %s has %s tag but is not exported", field.Names[0].Name, enc)
 			return
 		}
