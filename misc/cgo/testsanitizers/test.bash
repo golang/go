@@ -10,7 +10,7 @@ set -e
 
 # The sanitizers were originally developed with clang, so prefer it.
 CC=cc
-if test "$(type -p clang)" != ""; then
+if test -x "$(type -p clang)"; then
   CC=clang
 fi
 export CC
