@@ -154,7 +154,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyMaxDepth = 200
 
-//line go.y:2311
+//line go.y:2315
 func fixlbrace(lbr int) {
 	// If the opening brace was an LBODY,
 	// set up for another one now that we're done.
@@ -1602,19 +1602,21 @@ yydefault:
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
 			yyVAL.node.Implicit = true
+			// TODO(marvin): Fix Node.EType type union.
 			yyVAL.node.Etype = EType(OADD)
 		}
 	case 54:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:530
+		//line go.y:531
 		{
 			yyVAL.node = Nod(OASOP, yyDollar[1].node, Nodintconst(1))
 			yyVAL.node.Implicit = true
+			// TODO(marvin): Fix Node.EType type union.
 			yyVAL.node.Etype = EType(OSUB)
 		}
 	case 55:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:538
+		//line go.y:540
 		{
 			var n, nn *Node
 
@@ -1639,7 +1641,7 @@ yydefault:
 		}
 	case 56:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:561
+		//line go.y:563
 		{
 			var n *Node
 
@@ -1659,7 +1661,7 @@ yydefault:
 		}
 	case 57:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:579
+		//line go.y:581
 		{
 			// will be converted to OCASE
 			// right will point to next case
@@ -1670,7 +1672,7 @@ yydefault:
 		}
 	case 58:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:588
+		//line go.y:590
 		{
 			var n, nn *Node
 
@@ -1691,13 +1693,13 @@ yydefault:
 		}
 	case 59:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:609
+		//line go.y:611
 		{
 			markdcl()
 		}
 	case 60:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:613
+		//line go.y:615
 		{
 			if yyDollar[3].list == nil {
 				yyVAL.node = Nod(OEMPTY, nil, nil)
@@ -1708,7 +1710,7 @@ yydefault:
 		}
 	case 61:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:624
+		//line go.y:626
 		{
 			// If the last token read by the lexer was consumed
 			// as part of the case, clear it (parser has cleared yychar).
@@ -1721,7 +1723,7 @@ yydefault:
 		}
 	case 62:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:635
+		//line go.y:637
 		{
 			// This is the only place in the language where a statement
 			// list is not allowed to drop the final semicolon, because
@@ -1741,32 +1743,32 @@ yydefault:
 		}
 	case 63:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:654
+		//line go.y:656
 		{
 			yyVAL.list = nil
 		}
 	case 64:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:658
+		//line go.y:660
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[2].node)
 		}
 	case 65:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:664
+		//line go.y:666
 		{
 			markdcl()
 		}
 	case 66:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:668
+		//line go.y:670
 		{
 			yyVAL.list = yyDollar[3].list
 			popdcl()
 		}
 	case 67:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:675
+		//line go.y:677
 		{
 			yyVAL.node = Nod(ORANGE, nil, yyDollar[4].node)
 			yyVAL.node.List = yyDollar[1].list
@@ -1774,7 +1776,7 @@ yydefault:
 		}
 	case 68:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:681
+		//line go.y:683
 		{
 			yyVAL.node = Nod(ORANGE, nil, yyDollar[4].node)
 			yyVAL.node.List = yyDollar[1].list
@@ -1783,14 +1785,14 @@ yydefault:
 		}
 	case 69:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:688
+		//line go.y:690
 		{
 			yyVAL.node = Nod(ORANGE, nil, yyDollar[2].node)
 			yyVAL.node.Etype = 0 // := flag
 		}
 	case 70:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:695
+		//line go.y:697
 		{
 			// init ; test ; incr
 			if yyDollar[5].node != nil && yyDollar[5].node.Colas {
@@ -1805,7 +1807,7 @@ yydefault:
 		}
 	case 71:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:708
+		//line go.y:710
 		{
 			// normal test
 			yyVAL.node = Nod(OFOR, nil, nil)
@@ -1813,27 +1815,27 @@ yydefault:
 		}
 	case 73:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:717
+		//line go.y:719
 		{
 			yyVAL.node = yyDollar[1].node
 			yyVAL.node.Nbody = concat(yyVAL.node.Nbody, yyDollar[2].list)
 		}
 	case 74:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:724
+		//line go.y:726
 		{
 			markdcl()
 		}
 	case 75:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:728
+		//line go.y:730
 		{
 			yyVAL.node = yyDollar[3].node
 			popdcl()
 		}
 	case 76:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:735
+		//line go.y:737
 		{
 			// test
 			yyVAL.node = Nod(OIF, nil, nil)
@@ -1841,7 +1843,7 @@ yydefault:
 		}
 	case 77:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:741
+		//line go.y:743
 		{
 			// init ; test
 			yyVAL.node = Nod(OIF, nil, nil)
@@ -1852,13 +1854,13 @@ yydefault:
 		}
 	case 78:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:753
+		//line go.y:755
 		{
 			markdcl()
 		}
 	case 79:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:757
+		//line go.y:759
 		{
 			if yyDollar[3].node.Left == nil {
 				Yyerror("missing condition in if statement")
@@ -1866,13 +1868,13 @@ yydefault:
 		}
 	case 80:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:763
+		//line go.y:765
 		{
 			yyDollar[3].node.Nbody = yyDollar[5].list
 		}
 	case 81:
 		yyDollar = yyS[yypt-8 : yypt+1]
-		//line go.y:767
+		//line go.y:769
 		{
 			var n *Node
 			var nn *NodeList
@@ -1890,13 +1892,13 @@ yydefault:
 		}
 	case 82:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:785
+		//line go.y:787
 		{
 			markdcl()
 		}
 	case 83:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:789
+		//line go.y:791
 		{
 			if yyDollar[4].node.Left == nil {
 				Yyerror("missing condition in if statement")
@@ -1906,25 +1908,25 @@ yydefault:
 		}
 	case 84:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:798
+		//line go.y:800
 		{
 			yyVAL.list = nil
 		}
 	case 85:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:802
+		//line go.y:804
 		{
 			yyVAL.list = concat(yyDollar[1].list, yyDollar[2].list)
 		}
 	case 86:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:807
+		//line go.y:809
 		{
 			yyVAL.list = nil
 		}
 	case 87:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:811
+		//line go.y:813
 		{
 			l := &NodeList{N: yyDollar[2].node}
 			l.End = l
@@ -1932,13 +1934,13 @@ yydefault:
 		}
 	case 88:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:819
+		//line go.y:821
 		{
 			markdcl()
 		}
 	case 89:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:823
+		//line go.y:825
 		{
 			var n *Node
 			n = yyDollar[3].node.Left
@@ -1949,7 +1951,7 @@ yydefault:
 		}
 	case 90:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line go.y:832
+		//line go.y:834
 		{
 			yyVAL.node = yyDollar[3].node
 			yyVAL.node.Op = OSWITCH
@@ -1959,13 +1961,13 @@ yydefault:
 		}
 	case 91:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:842
+		//line go.y:844
 		{
 			typesw = Nod(OXXX, typesw, nil)
 		}
 	case 92:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:846
+		//line go.y:848
 		{
 			yyVAL.node = Nod(OSELECT, nil, nil)
 			yyVAL.node.Lineno = typesw.Lineno
@@ -1974,133 +1976,133 @@ yydefault:
 		}
 	case 94:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:859
+		//line go.y:861
 		{
 			yyVAL.node = Nod(OOROR, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 95:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:863
+		//line go.y:865
 		{
 			yyVAL.node = Nod(OANDAND, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 96:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:867
+		//line go.y:869
 		{
 			yyVAL.node = Nod(OEQ, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 97:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:871
+		//line go.y:873
 		{
 			yyVAL.node = Nod(ONE, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 98:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:875
+		//line go.y:877
 		{
 			yyVAL.node = Nod(OLT, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 99:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:879
+		//line go.y:881
 		{
 			yyVAL.node = Nod(OLE, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 100:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:883
+		//line go.y:885
 		{
 			yyVAL.node = Nod(OGE, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 101:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:887
+		//line go.y:889
 		{
 			yyVAL.node = Nod(OGT, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 102:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:891
+		//line go.y:893
 		{
 			yyVAL.node = Nod(OADD, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 103:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:895
+		//line go.y:897
 		{
 			yyVAL.node = Nod(OSUB, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 104:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:899
+		//line go.y:901
 		{
 			yyVAL.node = Nod(OOR, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 105:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:903
+		//line go.y:905
 		{
 			yyVAL.node = Nod(OXOR, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 106:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:907
+		//line go.y:909
 		{
 			yyVAL.node = Nod(OMUL, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 107:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:911
+		//line go.y:913
 		{
 			yyVAL.node = Nod(ODIV, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 108:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:915
+		//line go.y:917
 		{
 			yyVAL.node = Nod(OMOD, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 109:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:919
+		//line go.y:921
 		{
 			yyVAL.node = Nod(OAND, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 110:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:923
+		//line go.y:925
 		{
 			yyVAL.node = Nod(OANDNOT, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 111:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:927
+		//line go.y:929
 		{
 			yyVAL.node = Nod(OLSH, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 112:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:931
+		//line go.y:933
 		{
 			yyVAL.node = Nod(ORSH, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 113:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:936
+		//line go.y:938
 		{
 			yyVAL.node = Nod(OSEND, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 115:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:943
+		//line go.y:945
 		{
 			yyVAL.node = Nod(OIND, yyDollar[2].node, nil)
 		}
 	case 116:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:947
+		//line go.y:949
 		{
 			if yyDollar[2].node.Op == OCOMPLIT {
 				// Special case for &T{...}: turn into (*T){...}.
@@ -2113,57 +2115,57 @@ yydefault:
 		}
 	case 117:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:958
+		//line go.y:960
 		{
 			yyVAL.node = Nod(OPLUS, yyDollar[2].node, nil)
 		}
 	case 118:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:962
+		//line go.y:964
 		{
 			yyVAL.node = Nod(OMINUS, yyDollar[2].node, nil)
 		}
 	case 119:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:966
+		//line go.y:968
 		{
 			yyVAL.node = Nod(ONOT, yyDollar[2].node, nil)
 		}
 	case 120:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:970
+		//line go.y:972
 		{
 			Yyerror("the bitwise complement operator is ^")
 			yyVAL.node = Nod(OCOM, yyDollar[2].node, nil)
 		}
 	case 121:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:975
+		//line go.y:977
 		{
 			yyVAL.node = Nod(OCOM, yyDollar[2].node, nil)
 		}
 	case 122:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:979
+		//line go.y:981
 		{
 			yyVAL.node = Nod(ORECV, yyDollar[2].node, nil)
 		}
 	case 123:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:989
+		//line go.y:991
 		{
 			yyVAL.node = Nod(OCALL, yyDollar[1].node, nil)
 		}
 	case 124:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:993
+		//line go.y:995
 		{
 			yyVAL.node = Nod(OCALL, yyDollar[1].node, nil)
 			yyVAL.node.List = yyDollar[3].list
 		}
 	case 125:
 		yyDollar = yyS[yypt-6 : yypt+1]
-		//line go.y:998
+		//line go.y:1000
 		{
 			yyVAL.node = Nod(OCALL, yyDollar[1].node, nil)
 			yyVAL.node.List = yyDollar[3].list
@@ -2171,13 +2173,13 @@ yydefault:
 		}
 	case 126:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1006
+		//line go.y:1008
 		{
 			yyVAL.node = nodlit(yyDollar[1].val)
 		}
 	case 128:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1011
+		//line go.y:1013
 		{
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
@@ -2190,31 +2192,31 @@ yydefault:
 		}
 	case 129:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1022
+		//line go.y:1024
 		{
 			yyVAL.node = Nod(ODOTTYPE, yyDollar[1].node, yyDollar[4].node)
 		}
 	case 130:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1026
+		//line go.y:1028
 		{
 			yyVAL.node = Nod(OTYPESW, nil, yyDollar[1].node)
 		}
 	case 131:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1030
+		//line go.y:1032
 		{
 			yyVAL.node = Nod(OINDEX, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 132:
 		yyDollar = yyS[yypt-6 : yypt+1]
-		//line go.y:1034
+		//line go.y:1036
 		{
 			yyVAL.node = Nod(OSLICE, yyDollar[1].node, Nod(OKEY, yyDollar[3].node, yyDollar[5].node))
 		}
 	case 133:
 		yyDollar = yyS[yypt-8 : yypt+1]
-		//line go.y:1038
+		//line go.y:1040
 		{
 			if yyDollar[5].node == nil {
 				Yyerror("middle index required in 3-index slice")
@@ -2226,7 +2228,7 @@ yydefault:
 		}
 	case 135:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1049
+		//line go.y:1051
 		{
 			// conversion
 			yyVAL.node = Nod(OCALL, yyDollar[1].node, nil)
@@ -2234,7 +2236,7 @@ yydefault:
 		}
 	case 136:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1055
+		//line go.y:1057
 		{
 			yyVAL.node = yyDollar[3].node
 			yyVAL.node.Right = yyDollar[1].node
@@ -2243,7 +2245,7 @@ yydefault:
 		}
 	case 137:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1062
+		//line go.y:1064
 		{
 			yyVAL.node = yyDollar[3].node
 			yyVAL.node.Right = yyDollar[1].node
@@ -2251,7 +2253,7 @@ yydefault:
 		}
 	case 138:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line go.y:1068
+		//line go.y:1070
 		{
 			Yyerror("cannot parenthesize type in composite literal")
 			yyVAL.node = yyDollar[5].node
@@ -2260,7 +2262,7 @@ yydefault:
 		}
 	case 140:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1077
+		//line go.y:1079
 		{
 			// composite expression.
 			// make node early so we get the right line number.
@@ -2268,13 +2270,13 @@ yydefault:
 		}
 	case 141:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1085
+		//line go.y:1087
 		{
 			yyVAL.node = Nod(OKEY, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 142:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1091
+		//line go.y:1093
 		{
 			// These nodes do not carry line numbers.
 			// Since a composite literal commonly spans several lines,
@@ -2289,21 +2291,21 @@ yydefault:
 		}
 	case 143:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1104
+		//line go.y:1106
 		{
 			yyVAL.node = yyDollar[2].node
 			yyVAL.node.List = yyDollar[3].list
 		}
 	case 145:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1112
+		//line go.y:1114
 		{
 			yyVAL.node = yyDollar[2].node
 			yyVAL.node.List = yyDollar[3].list
 		}
 	case 147:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1120
+		//line go.y:1122
 		{
 			yyVAL.node = yyDollar[2].node
 
@@ -2317,19 +2319,19 @@ yydefault:
 		}
 	case 151:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1141
+		//line go.y:1143
 		{
 			yyVAL.i = LBODY
 		}
 	case 152:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1145
+		//line go.y:1147
 		{
 			yyVAL.i = '{'
 		}
 	case 153:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1156
+		//line go.y:1158
 		{
 			if yyDollar[1].sym == nil {
 				yyVAL.node = nil
@@ -2339,19 +2341,19 @@ yydefault:
 		}
 	case 154:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1166
+		//line go.y:1168
 		{
 			yyVAL.node = dclname(yyDollar[1].sym)
 		}
 	case 155:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1171
+		//line go.y:1173
 		{
 			yyVAL.node = nil
 		}
 	case 157:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1178
+		//line go.y:1180
 		{
 			yyVAL.sym = yyDollar[1].sym
 			// during imports, unqualified non-exported identifiers are from builtinpkg
@@ -2361,13 +2363,13 @@ yydefault:
 		}
 	case 159:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1187
+		//line go.y:1189
 		{
 			yyVAL.sym = nil
 		}
 	case 160:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1193
+		//line go.y:1195
 		{
 			var p *Pkg
 
@@ -2383,7 +2385,7 @@ yydefault:
 		}
 	case 161:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1207
+		//line go.y:1209
 		{
 			var p *Pkg
 
@@ -2399,7 +2401,7 @@ yydefault:
 		}
 	case 162:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1223
+		//line go.y:1225
 		{
 			yyVAL.node = oldname(yyDollar[1].sym)
 			if yyVAL.node.Name != nil && yyVAL.node.Name.Pack != nil {
@@ -2408,38 +2410,38 @@ yydefault:
 		}
 	case 164:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1244
+		//line go.y:1246
 		{
 			Yyerror("final argument in variadic function missing type")
 			yyVAL.node = Nod(ODDD, typenod(typ(TINTER)), nil)
 		}
 	case 165:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1249
+		//line go.y:1251
 		{
 			yyVAL.node = Nod(ODDD, yyDollar[2].node, nil)
 		}
 	case 171:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1260
+		//line go.y:1262
 		{
 			yyVAL.node = yyDollar[2].node
 		}
 	case 175:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1269
+		//line go.y:1271
 		{
 			yyVAL.node = Nod(OIND, yyDollar[2].node, nil)
 		}
 	case 180:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1279
+		//line go.y:1281
 		{
 			yyVAL.node = yyDollar[2].node
 		}
 	case 190:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1300
+		//line go.y:1302
 		{
 			if yyDollar[1].node.Op == OPACK {
 				var s *Sym
@@ -2452,53 +2454,53 @@ yydefault:
 		}
 	case 191:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1313
+		//line go.y:1315
 		{
 			yyVAL.node = Nod(OTARRAY, yyDollar[2].node, yyDollar[4].node)
 		}
 	case 192:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1317
+		//line go.y:1319
 		{
 			// array literal of nelem
 			yyVAL.node = Nod(OTARRAY, Nod(ODDD, nil, nil), yyDollar[4].node)
 		}
 	case 193:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1322
+		//line go.y:1324
 		{
 			yyVAL.node = Nod(OTCHAN, yyDollar[2].node, nil)
 			yyVAL.node.Etype = Cboth
 		}
 	case 194:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1327
+		//line go.y:1329
 		{
 			yyVAL.node = Nod(OTCHAN, yyDollar[3].node, nil)
 			yyVAL.node.Etype = Csend
 		}
 	case 195:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1332
+		//line go.y:1334
 		{
 			yyVAL.node = Nod(OTMAP, yyDollar[3].node, yyDollar[5].node)
 		}
 	case 198:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1340
+		//line go.y:1342
 		{
 			yyVAL.node = Nod(OIND, yyDollar[2].node, nil)
 		}
 	case 199:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1346
+		//line go.y:1348
 		{
 			yyVAL.node = Nod(OTCHAN, yyDollar[3].node, nil)
 			yyVAL.node.Etype = Crecv
 		}
 	case 200:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1353
+		//line go.y:1355
 		{
 			yyVAL.node = Nod(OTSTRUCT, nil, nil)
 			yyVAL.node.List = yyDollar[3].list
@@ -2506,14 +2508,14 @@ yydefault:
 		}
 	case 201:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1359
+		//line go.y:1361
 		{
 			yyVAL.node = Nod(OTSTRUCT, nil, nil)
 			fixlbrace(yyDollar[2].i)
 		}
 	case 202:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1366
+		//line go.y:1368
 		{
 			yyVAL.node = Nod(OTINTER, nil, nil)
 			yyVAL.node.List = yyDollar[3].list
@@ -2521,14 +2523,14 @@ yydefault:
 		}
 	case 203:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1372
+		//line go.y:1374
 		{
 			yyVAL.node = Nod(OTINTER, nil, nil)
 			fixlbrace(yyDollar[2].i)
 		}
 	case 204:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1383
+		//line go.y:1385
 		{
 			yyVAL.node = yyDollar[2].node
 			if yyVAL.node == nil {
@@ -2550,7 +2552,7 @@ yydefault:
 		}
 	case 205:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1404
+		//line go.y:1407
 		{
 			var t *Node
 
@@ -2583,7 +2585,7 @@ yydefault:
 		}
 	case 206:
 		yyDollar = yyS[yypt-8 : yypt+1]
-		//line go.y:1435
+		//line go.y:1438
 		{
 			var rcvr, t *Node
 
@@ -2621,7 +2623,7 @@ yydefault:
 		}
 	case 207:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1473
+		//line go.y:1476
 		{
 			var s *Sym
 			var t *Type
@@ -2648,7 +2650,7 @@ yydefault:
 		}
 	case 208:
 		yyDollar = yyS[yypt-8 : yypt+1]
-		//line go.y:1498
+		//line go.y:1501
 		{
 			yyVAL.node = methodname1(newname(yyDollar[4].sym), yyDollar[2].list.N.Right)
 			yyVAL.node.Type = functype(yyDollar[2].list.N, yyDollar[6].list, yyDollar[8].list)
@@ -2666,7 +2668,7 @@ yydefault:
 		}
 	case 209:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1516
+		//line go.y:1519
 		{
 			yyDollar[3].list = checkarglist(yyDollar[3].list, 1)
 			yyVAL.node = Nod(OTFUNC, nil, nil)
@@ -2675,13 +2677,13 @@ yydefault:
 		}
 	case 210:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1524
+		//line go.y:1527
 		{
 			yyVAL.list = nil
 		}
 	case 211:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1528
+		//line go.y:1531
 		{
 			yyVAL.list = yyDollar[2].list
 			if yyVAL.list == nil {
@@ -2690,51 +2692,51 @@ yydefault:
 		}
 	case 212:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1537
+		//line go.y:1540
 		{
 			yyVAL.list = nil
 		}
 	case 213:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1541
+		//line go.y:1544
 		{
 			yyVAL.list = list1(Nod(ODCLFIELD, nil, yyDollar[1].node))
 		}
 	case 214:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1545
+		//line go.y:1548
 		{
 			yyDollar[2].list = checkarglist(yyDollar[2].list, 0)
 			yyVAL.list = yyDollar[2].list
 		}
 	case 215:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1552
+		//line go.y:1555
 		{
 			closurehdr(yyDollar[1].node)
 		}
 	case 216:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1558
+		//line go.y:1561
 		{
 			yyVAL.node = closurebody(yyDollar[3].list)
 			fixlbrace(yyDollar[2].i)
 		}
 	case 217:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1563
+		//line go.y:1566
 		{
 			yyVAL.node = closurebody(nil)
 		}
 	case 218:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1574
+		//line go.y:1577
 		{
 			yyVAL.list = nil
 		}
 	case 219:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1578
+		//line go.y:1581
 		{
 			yyVAL.list = concat(yyDollar[1].list, yyDollar[2].list)
 			if nsyntaxerrors == 0 {
@@ -2751,49 +2753,49 @@ yydefault:
 		}
 	case 221:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1595
+		//line go.y:1599
 		{
 			yyVAL.list = concat(yyDollar[1].list, yyDollar[3].list)
 		}
 	case 223:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1602
+		//line go.y:1606
 		{
 			yyVAL.list = concat(yyDollar[1].list, yyDollar[3].list)
 		}
 	case 224:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1608
+		//line go.y:1612
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 225:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1612
+		//line go.y:1616
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 227:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1619
+		//line go.y:1623
 		{
 			yyVAL.list = concat(yyDollar[1].list, yyDollar[3].list)
 		}
 	case 228:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1625
+		//line go.y:1629
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 229:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1629
+		//line go.y:1633
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 230:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1635
+		//line go.y:1639
 		{
 			var l *NodeList
 
@@ -2819,14 +2821,14 @@ yydefault:
 		}
 	case 231:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1659
+		//line go.y:1663
 		{
 			yyDollar[1].node.SetVal(yyDollar[2].val)
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 232:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1664
+		//line go.y:1668
 		{
 			yyDollar[2].node.SetVal(yyDollar[4].val)
 			yyVAL.list = list1(yyDollar[2].node)
@@ -2834,7 +2836,7 @@ yydefault:
 		}
 	case 233:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1670
+		//line go.y:1674
 		{
 			yyDollar[2].node.Right = Nod(OIND, yyDollar[2].node.Right, nil)
 			yyDollar[2].node.SetVal(yyDollar[3].val)
@@ -2842,7 +2844,7 @@ yydefault:
 		}
 	case 234:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1676
+		//line go.y:1680
 		{
 			yyDollar[3].node.Right = Nod(OIND, yyDollar[3].node.Right, nil)
 			yyDollar[3].node.SetVal(yyDollar[5].val)
@@ -2851,7 +2853,7 @@ yydefault:
 		}
 	case 235:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:1683
+		//line go.y:1687
 		{
 			yyDollar[3].node.Right = Nod(OIND, yyDollar[3].node.Right, nil)
 			yyDollar[3].node.SetVal(yyDollar[5].val)
@@ -2860,7 +2862,7 @@ yydefault:
 		}
 	case 236:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1692
+		//line go.y:1696
 		{
 			var n *Node
 
@@ -2872,7 +2874,7 @@ yydefault:
 		}
 	case 237:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1702
+		//line go.y:1706
 		{
 			var pkg *Pkg
 
@@ -2887,33 +2889,33 @@ yydefault:
 		}
 	case 238:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1717
+		//line go.y:1721
 		{
 			yyVAL.node = embedded(yyDollar[1].sym, localpkg)
 		}
 	case 239:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1723
+		//line go.y:1727
 		{
 			yyVAL.node = Nod(ODCLFIELD, yyDollar[1].node, yyDollar[2].node)
 			ifacedcl(yyVAL.node)
 		}
 	case 240:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1728
+		//line go.y:1732
 		{
 			yyVAL.node = Nod(ODCLFIELD, nil, oldname(yyDollar[1].sym))
 		}
 	case 241:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1732
+		//line go.y:1736
 		{
 			yyVAL.node = Nod(ODCLFIELD, nil, oldname(yyDollar[2].sym))
 			Yyerror("cannot parenthesize embedded type")
 		}
 	case 242:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1739
+		//line go.y:1743
 		{
 			// without func keyword
 			yyDollar[2].list = checkarglist(yyDollar[2].list, 1)
@@ -2923,7 +2925,7 @@ yydefault:
 		}
 	case 244:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1753
+		//line go.y:1757
 		{
 			yyVAL.node = Nod(ONONAME, nil, nil)
 			yyVAL.node.Sym = yyDollar[1].sym
@@ -2931,7 +2933,7 @@ yydefault:
 		}
 	case 245:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1759
+		//line go.y:1763
 		{
 			yyVAL.node = Nod(ONONAME, nil, nil)
 			yyVAL.node.Sym = yyDollar[1].sym
@@ -2939,56 +2941,56 @@ yydefault:
 		}
 	case 247:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1768
+		//line go.y:1772
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 248:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1772
+		//line go.y:1776
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 249:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1777
+		//line go.y:1781
 		{
 			yyVAL.list = nil
 		}
 	case 250:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1781
+		//line go.y:1785
 		{
 			yyVAL.list = yyDollar[1].list
 		}
 	case 251:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1789
+		//line go.y:1793
 		{
 			yyVAL.node = nil
 		}
 	case 253:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1794
+		//line go.y:1798
 		{
 			yyVAL.node = liststmt(yyDollar[1].list)
 		}
 	case 255:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1799
+		//line go.y:1803
 		{
 			yyVAL.node = nil
 		}
 	case 261:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1810
+		//line go.y:1814
 		{
 			yyDollar[1].node = Nod(OLABEL, yyDollar[1].node, nil)
 			yyDollar[1].node.Sym = dclstack // context, for goto restrictions
 		}
 	case 262:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:1815
+		//line go.y:1819
 		{
 			var l *NodeList
 
@@ -3001,7 +3003,7 @@ yydefault:
 		}
 	case 263:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1826
+		//line go.y:1830
 		{
 			// will be converted to OFALL
 			yyVAL.node = Nod(OXFALL, nil, nil)
@@ -3009,38 +3011,38 @@ yydefault:
 		}
 	case 264:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1832
+		//line go.y:1836
 		{
 			yyVAL.node = Nod(OBREAK, yyDollar[2].node, nil)
 		}
 	case 265:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1836
+		//line go.y:1840
 		{
 			yyVAL.node = Nod(OCONTINUE, yyDollar[2].node, nil)
 		}
 	case 266:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1840
+		//line go.y:1844
 		{
 			yyVAL.node = Nod(OPROC, yyDollar[2].node, nil)
 		}
 	case 267:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1844
+		//line go.y:1848
 		{
 			yyVAL.node = Nod(ODEFER, yyDollar[2].node, nil)
 		}
 	case 268:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1848
+		//line go.y:1852
 		{
 			yyVAL.node = Nod(OGOTO, yyDollar[2].node, nil)
 			yyVAL.node.Sym = dclstack // context, for goto restrictions
 		}
 	case 269:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1853
+		//line go.y:1857
 		{
 			yyVAL.node = Nod(ORETURN, nil, nil)
 			yyVAL.node.List = yyDollar[2].list
@@ -3062,7 +3064,7 @@ yydefault:
 		}
 	case 270:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1875
+		//line go.y:1879
 		{
 			yyVAL.list = nil
 			if yyDollar[1].node != nil {
@@ -3071,7 +3073,7 @@ yydefault:
 		}
 	case 271:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1882
+		//line go.y:1886
 		{
 			yyVAL.list = yyDollar[1].list
 			if yyDollar[3].node != nil {
@@ -3080,163 +3082,163 @@ yydefault:
 		}
 	case 272:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1891
+		//line go.y:1895
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 273:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1895
+		//line go.y:1899
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 274:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1901
+		//line go.y:1905
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 275:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1905
+		//line go.y:1909
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 276:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1911
+		//line go.y:1915
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 277:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1915
+		//line go.y:1919
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 278:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1921
+		//line go.y:1925
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 279:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1925
+		//line go.y:1929
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 280:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1934
+		//line go.y:1938
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 281:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:1938
+		//line go.y:1942
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 282:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1942
+		//line go.y:1946
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 283:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:1946
+		//line go.y:1950
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 284:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1951
+		//line go.y:1955
 		{
 			yyVAL.list = nil
 		}
 	case 285:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:1955
+		//line go.y:1959
 		{
 			yyVAL.list = yyDollar[1].list
 		}
 	case 290:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1969
+		//line go.y:1973
 		{
 			yyVAL.node = nil
 		}
 	case 292:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1975
+		//line go.y:1979
 		{
 			yyVAL.list = nil
 		}
 	case 294:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1981
+		//line go.y:1985
 		{
 			yyVAL.node = nil
 		}
 	case 296:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1987
+		//line go.y:1991
 		{
 			yyVAL.list = nil
 		}
 	case 298:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1993
+		//line go.y:1997
 		{
 			yyVAL.list = nil
 		}
 	case 300:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:1999
+		//line go.y:2003
 		{
 			yyVAL.list = nil
 		}
 	case 302:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:2005
+		//line go.y:2009
 		{
 			yyVAL.val.U = nil
 		}
 	case 304:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2015
+		//line go.y:2019
 		{
 			importimport(yyDollar[2].sym, yyDollar[3].val.U.(string))
 		}
 	case 305:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2019
+		//line go.y:2023
 		{
 			importvar(yyDollar[2].sym, yyDollar[3].typ)
 		}
 	case 306:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:2023
+		//line go.y:2027
 		{
 			importconst(yyDollar[2].sym, Types[TIDEAL], yyDollar[4].node)
 		}
 	case 307:
 		yyDollar = yyS[yypt-6 : yypt+1]
-		//line go.y:2027
+		//line go.y:2031
 		{
 			importconst(yyDollar[2].sym, yyDollar[3].typ, yyDollar[5].node)
 		}
 	case 308:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2031
+		//line go.y:2035
 		{
 			importtype(yyDollar[2].typ, yyDollar[3].typ)
 		}
 	case 309:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2035
+		//line go.y:2039
 		{
 			if yyDollar[2].node == nil {
 				dclcontext = PEXTERN // since we skip the funcbody below
@@ -3257,27 +3259,27 @@ yydefault:
 		}
 	case 310:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2056
+		//line go.y:2060
 		{
 			yyVAL.sym = yyDollar[1].sym
 			structpkg = yyVAL.sym.Pkg
 		}
 	case 311:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2063
+		//line go.y:2067
 		{
 			yyVAL.typ = pkgtype(yyDollar[1].sym)
 			importsym(yyDollar[1].sym, OTYPE)
 		}
 	case 317:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2083
+		//line go.y:2087
 		{
 			yyVAL.typ = pkgtype(yyDollar[1].sym)
 		}
 	case 318:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2087
+		//line go.y:2091
 		{
 			// predefined name like uint8
 			yyDollar[1].sym = Pkglookup(yyDollar[1].sym.Name, builtinpkg)
@@ -3290,43 +3292,43 @@ yydefault:
 		}
 	case 319:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2098
+		//line go.y:2102
 		{
 			yyVAL.typ = aindex(nil, yyDollar[3].typ)
 		}
 	case 320:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2102
+		//line go.y:2106
 		{
 			yyVAL.typ = aindex(nodlit(yyDollar[2].val), yyDollar[4].typ)
 		}
 	case 321:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:2106
+		//line go.y:2110
 		{
 			yyVAL.typ = maptype(yyDollar[3].typ, yyDollar[5].typ)
 		}
 	case 322:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2110
+		//line go.y:2114
 		{
 			yyVAL.typ = tostruct(yyDollar[3].list)
 		}
 	case 323:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2114
+		//line go.y:2118
 		{
 			yyVAL.typ = tointerface(yyDollar[3].list)
 		}
 	case 324:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:2118
+		//line go.y:2122
 		{
 			yyVAL.typ = Ptrto(yyDollar[2].typ)
 		}
 	case 325:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:2122
+		//line go.y:2126
 		{
 			yyVAL.typ = typ(TCHAN)
 			yyVAL.typ.Type = yyDollar[2].typ
@@ -3334,7 +3336,7 @@ yydefault:
 		}
 	case 326:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2128
+		//line go.y:2132
 		{
 			yyVAL.typ = typ(TCHAN)
 			yyVAL.typ.Type = yyDollar[3].typ
@@ -3342,7 +3344,7 @@ yydefault:
 		}
 	case 327:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2134
+		//line go.y:2138
 		{
 			yyVAL.typ = typ(TCHAN)
 			yyVAL.typ.Type = yyDollar[3].typ
@@ -3350,7 +3352,7 @@ yydefault:
 		}
 	case 328:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2142
+		//line go.y:2146
 		{
 			yyVAL.typ = typ(TCHAN)
 			yyVAL.typ.Type = yyDollar[3].typ
@@ -3358,13 +3360,13 @@ yydefault:
 		}
 	case 329:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:2150
+		//line go.y:2154
 		{
 			yyVAL.typ = functype(nil, yyDollar[3].list, yyDollar[5].list)
 		}
 	case 330:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2156
+		//line go.y:2160
 		{
 			yyVAL.node = Nod(ODCLFIELD, nil, typenod(yyDollar[2].typ))
 			if yyDollar[1].sym != nil {
@@ -3374,7 +3376,7 @@ yydefault:
 		}
 	case 331:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line go.y:2164
+		//line go.y:2168
 		{
 			var t *Type
 
@@ -3391,7 +3393,7 @@ yydefault:
 		}
 	case 332:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2181
+		//line go.y:2185
 		{
 			var s *Sym
 			var p *Pkg
@@ -3415,43 +3417,43 @@ yydefault:
 		}
 	case 333:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:2205
+		//line go.y:2209
 		{
 			yyVAL.node = Nod(ODCLFIELD, newname(yyDollar[1].sym), typenod(functype(fakethis(), yyDollar[3].list, yyDollar[5].list)))
 		}
 	case 334:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2209
+		//line go.y:2213
 		{
 			yyVAL.node = Nod(ODCLFIELD, nil, typenod(yyDollar[1].typ))
 		}
 	case 335:
 		yyDollar = yyS[yypt-0 : yypt+1]
-		//line go.y:2214
+		//line go.y:2218
 		{
 			yyVAL.list = nil
 		}
 	case 337:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2221
+		//line go.y:2225
 		{
 			yyVAL.list = yyDollar[2].list
 		}
 	case 338:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2225
+		//line go.y:2229
 		{
 			yyVAL.list = list1(Nod(ODCLFIELD, nil, typenod(yyDollar[1].typ)))
 		}
 	case 339:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2235
+		//line go.y:2239
 		{
 			yyVAL.node = nodlit(yyDollar[1].val)
 		}
 	case 340:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line go.y:2239
+		//line go.y:2243
 		{
 			yyVAL.node = nodlit(yyDollar[2].val)
 			switch yyVAL.node.Val().Ctype() {
@@ -3471,7 +3473,7 @@ yydefault:
 		}
 	case 341:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2257
+		//line go.y:2261
 		{
 			yyVAL.node = oldname(Pkglookup(yyDollar[1].sym.Name, builtinpkg))
 			if yyVAL.node.Op != OLITERAL {
@@ -3480,7 +3482,7 @@ yydefault:
 		}
 	case 343:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line go.y:2267
+		//line go.y:2271
 		{
 			if yyDollar[2].node.Val().Ctype() == CTRUNE && yyDollar[4].node.Val().Ctype() == CTINT {
 				yyVAL.node = yyDollar[2].node
@@ -3493,37 +3495,37 @@ yydefault:
 		}
 	case 346:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2283
+		//line go.y:2287
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 347:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2287
+		//line go.y:2291
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 348:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2293
+		//line go.y:2297
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 349:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2297
+		//line go.y:2301
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
 	case 350:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line go.y:2303
+		//line go.y:2307
 		{
 			yyVAL.list = list1(yyDollar[1].node)
 		}
 	case 351:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line go.y:2307
+		//line go.y:2311
 		{
 			yyVAL.list = list(yyDollar[1].list, yyDollar[3].node)
 		}
