@@ -600,3 +600,30 @@ func TestHandshakClientSCTs(t *testing.T) {
 	}
 	runClientTestTLS12(t, test)
 }
+
+func TestNoIPAddressesInSNI(t *testing.T) {
+	for _, ipLiteral := range []string{"1.2.3.4", "::1"} {
+		c, s := net.Pipe()
+
+		go func() {
+			client := Client(c, &Config{ServerName: ipLiteral})
+			client.Handshake()
+		}()
+
+		var header [5]byte
+		if _, err := io.ReadFull(s, header[:]); err != nil {
+			t.Fatal(err)
+		}
+		recordLen := int(header[3])<<8 | int(header[4])
+
+		record := make([]byte, recordLen)
+		if _, err := io.ReadFull(s, record[:]); err != nil {
+			t.Fatal(err)
+		}
+		s.Close()
+
+		if bytes.Index(record, []byte(ipLiteral)) != -1 {
+			t.Errorf("IP literal %q found in ClientHello: %x", ipLiteral, record)
+		}
+	}
+}
