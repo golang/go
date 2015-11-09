@@ -2264,33 +2264,26 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
 	for _, f := range ofiles {
 		absOfiles = append(absOfiles, mkAbs(objDir, f))
 	}
-	cmd := "c"
 	absAfile := mkAbs(objDir, afile)
-	appending := false
-	if _, err := os.Stat(absAfile); err == nil {
-		appending = true
-		cmd = "r"
+
+	// The archive file should have been created by the compiler.
+	// Since it used to not work that way, verify.
+	if _, err := os.Stat(absAfile); err != nil {
+		fatalf("os.Stat of archive file failed: %v", err)
 	}
 
-	cmdline := stringList("pack", cmd, absAfile, absOfiles)
-
-	if appending {
-		if buildN || buildX {
-			b.showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
-		}
-		if buildN {
-			return nil
-		}
-		if err := packInternal(b, absAfile, absOfiles); err != nil {
-			b.showOutput(p.Dir, p.ImportPath, err.Error()+"\n")
-			return errPrintedOutput
-		}
+	if buildN || buildX {
+		cmdline := stringList("pack", "r", absAfile, absOfiles)
+		b.showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
+	}
+	if buildN {
 		return nil
 	}
-
-	// Need actual pack.
-	cmdline[0] = tool("pack")
-	return b.run(p.Dir, p.ImportPath, nil, buildToolExec, cmdline)
+	if err := packInternal(b, absAfile, absOfiles); err != nil {
+		b.showOutput(p.Dir, p.ImportPath, err.Error()+"\n")
+		return errPrintedOutput
+	}
+	return nil
 }
 
 func packInternal(b *builder, afile string, ofiles []string) error {
