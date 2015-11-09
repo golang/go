@@ -1191,6 +1191,17 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("test", "main_test")
 }
 
+// Issue 12690
+func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	goroot := runtime.GOROOT()
+	tg.setenv("GOROOT", goroot+"/")
+	tg.wantNotStale("runtime", "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", "with trailing slash in GOROOT, io listed as stale")
+}
+
 // With $GOBIN set, binaries get installed to $GOBIN.
 func TestInstallIntoGOBIN(t *testing.T) {
 	tg := testgo(t)
