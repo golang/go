@@ -289,7 +289,7 @@ func defaultContext() Context {
 
 	c.GOARCH = envOr("GOARCH", runtime.GOARCH)
 	c.GOOS = envOr("GOOS", runtime.GOOS)
-	c.GOROOT = runtime.GOROOT()
+	c.GOROOT = pathpkg.Clean(runtime.GOROOT())
 	c.GOPATH = envOr("GOPATH", "")
 	c.Compiler = runtime.Compiler
 
