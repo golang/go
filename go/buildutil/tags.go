@@ -8,7 +8,7 @@ const TagsFlagDoc = "a list of `build tags` to consider satisfied during the bui
 	"For more information about build tags, see the description of " +
 	"build constraints in the documentation for the go/build package"
 
-// TagsFlag is an implementation of the flag.Value interface that parses
+// TagsFlag is an implementation of the flag.Value and flag.Getter interfaces that parses
 // a flag value in the same manner as go build's -tags flag and
 // populates a []string slice.
 //
@@ -27,6 +27,8 @@ func (v *TagsFlag) Set(s string) error {
 	}
 	return err
 }
+
+func (v *TagsFlag) Get() interface{} { return *v }
 
 func splitQuotedFields(s string) ([]string, error) {
 	// Split fields allowing '' or "" around elements.
