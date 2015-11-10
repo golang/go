@@ -2585,22 +2585,24 @@ endea557d921056c25b945a49649e4b9b91:
 func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Convert <t> x)
+	// match: (Convert <t> x mem)
 	// cond:
-	// result: (LEAQ <t> x)
+	// result: (MOVQconvert <t> x mem)
 	{
 		t := v.Type
 		x := v.Args[0]
-		v.Op = OpAMD64LEAQ
+		mem := v.Args[1]
+		v.Op = OpAMD64MOVQconvert
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
 		v.Type = t
 		v.AddArg(x)
+		v.AddArg(mem)
 		return true
 	}
-	goto end1cac40a6074914d6ae3d4aa039a625ed
-end1cac40a6074914d6ae3d4aa039a625ed:
+	goto end0aa5cd28888761ffab21bce45db361c8
+end0aa5cd28888761ffab21bce45db361c8:
 	;
 	return false
 }

@@ -282,6 +282,7 @@ const (
 	OpAMD64LoweredGetG
 	OpAMD64LoweredGetClosurePtr
 	OpAMD64LoweredNilCheck
+	OpAMD64MOVQconvert
 
 	OpAdd8
 	OpAdd16
@@ -3217,6 +3218,18 @@ var opcodeTable = [...]opInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 			clobbers: 8589934592, // .FLAGS
+		},
+	},
+	{
+		name: "MOVQconvert",
+		asm:  x86.AMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
 		},
 	},
 

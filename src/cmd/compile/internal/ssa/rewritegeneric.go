@@ -926,18 +926,22 @@ end7ce9db29d17866f26d21e6e12f442e54:
 func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (Convert (Add64 (Convert ptr) off))
+	// match: (Convert (Add64 (Convert ptr mem) off) mem)
 	// cond:
 	// result: (Add64 ptr off)
 	{
 		if v.Args[0].Op != OpAdd64 {
-			goto end913a7ecf456c00ffbee36c2dbbf0e1af
+			goto endbbc9f1666b4d39a130e1b86f109e7c1b
 		}
 		if v.Args[0].Args[0].Op != OpConvert {
-			goto end913a7ecf456c00ffbee36c2dbbf0e1af
+			goto endbbc9f1666b4d39a130e1b86f109e7c1b
 		}
 		ptr := v.Args[0].Args[0].Args[0]
+		mem := v.Args[0].Args[0].Args[1]
 		off := v.Args[0].Args[1]
+		if v.Args[1] != mem {
+			goto endbbc9f1666b4d39a130e1b86f109e7c1b
+		}
 		v.Op = OpAdd64
 		v.AuxInt = 0
 		v.Aux = nil
@@ -946,8 +950,31 @@ func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
 		v.AddArg(off)
 		return true
 	}
-	goto end913a7ecf456c00ffbee36c2dbbf0e1af
-end913a7ecf456c00ffbee36c2dbbf0e1af:
+	goto endbbc9f1666b4d39a130e1b86f109e7c1b
+endbbc9f1666b4d39a130e1b86f109e7c1b:
+	;
+	// match: (Convert (Convert ptr mem) mem)
+	// cond:
+	// result: ptr
+	{
+		if v.Args[0].Op != OpConvert {
+			goto end98c5e0ca257eb216989171786f91b42d
+		}
+		ptr := v.Args[0].Args[0]
+		mem := v.Args[0].Args[1]
+		if v.Args[1] != mem {
+			goto end98c5e0ca257eb216989171786f91b42d
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = ptr.Type
+		v.AddArg(ptr)
+		return true
+	}
+	goto end98c5e0ca257eb216989171786f91b42d
+end98c5e0ca257eb216989171786f91b42d:
 	;
 	return false
 }

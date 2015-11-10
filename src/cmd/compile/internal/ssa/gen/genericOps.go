@@ -236,9 +236,14 @@ var genericOps = []opData{
 	{name: "Sqrt"}, // sqrt(arg0), float64 only
 
 	// Data movement
-	{name: "Phi"},     // select an argument based on which predecessor block we came from
-	{name: "Copy"},    // output = arg0
-	{name: "Convert"}, // output = arg0 -- a copy that converts to/from a pointer
+	{name: "Phi"},  // select an argument based on which predecessor block we came from
+	{name: "Copy"}, // output = arg0
+	// Convert converts between pointers and integers.
+	// We have a special op for this so as to not confuse GC
+	// (particularly stack maps).  It takes a memory arg so it
+	// gets correctly ordered with respect to GC safepoints.
+	// arg0=ptr/int arg1=mem, output=int/ptr
+	{name: "Convert"},
 
 	// constants.  Constant values are stored in the aux field.
 	// booleans have a bool aux field, strings have a string aux
