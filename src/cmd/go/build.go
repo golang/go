@@ -2599,17 +2599,9 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 		}
 	}
 
-	switch ldBuildmode {
-	case "c-archive", "c-shared":
-		ldflags = append(ldflags, "-Wl,--whole-archive")
-	}
-
+	ldflags = append(ldflags, "-Wl,--whole-archive")
 	ldflags = append(ldflags, afiles...)
-
-	switch ldBuildmode {
-	case "c-archive", "c-shared":
-		ldflags = append(ldflags, "-Wl,--no-whole-archive")
-	}
+	ldflags = append(ldflags, "-Wl,--no-whole-archive")
 
 	ldflags = append(ldflags, cgoldflags...)
 	ldflags = append(ldflags, envList("CGO_LDFLAGS", "")...)
