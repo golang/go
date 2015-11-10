@@ -3274,11 +3274,12 @@ func checkdead() {
 		}
 		mp := mget()
 		if mp == nil {
-			newm(nil, _p_)
-		} else {
-			mp.nextp.set(_p_)
-			notewakeup(&mp.park)
+			// There should always be a free M since
+			// nothing is running.
+			throw("checkdead: no m for timer")
 		}
+		mp.nextp.set(_p_)
+		notewakeup(&mp.park)
 		return
 	}
 
