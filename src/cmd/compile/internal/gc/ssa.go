@@ -1375,7 +1375,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// as not-pointers or vice-versa because of copy
 		// elision.
 		if to.IsPtr() != from.IsPtr() {
-			return s.newValue1(ssa.OpConvert, to, x)
+			return s.newValue2(ssa.OpConvert, to, x, s.mem())
 		}
 
 		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
@@ -3886,7 +3886,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Sym = Linksym(Pkglookup("duffcopy", Runtimepkg))
 		p.To.Offset = v.AuxInt
 
-	case ssa.OpCopy: // TODO: lower to MOVQ earlier?
+	case ssa.OpCopy, ssa.OpAMD64MOVQconvert: // TODO: lower Copy to MOVQ earlier?
 		if v.Type.IsMemory() {
 			return
 		}

@@ -465,6 +465,13 @@ func init() {
 		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("DX")}}},
 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
 		{name: "LoweredNilCheck", reg: regInfo{inputs: []regMask{gpsp}, clobbers: flags}},
+
+		// MOVQconvert converts between pointers and integers.
+		// We have a special op for this so as to not confuse GC
+		// (particularly stack maps).  It takes a memory arg so it
+		// gets correctly ordered with respect to GC safepoints.
+		// arg0=ptr/int arg1=mem, output=int/ptr
+		{name: "MOVQconvert", reg: gp11nf, asm: "MOVQ"},
 	}
 
 	var AMD64blocks = []blockData{
