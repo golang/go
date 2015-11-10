@@ -248,7 +248,7 @@ var genericOps = []opData{
 	// bits of the AuxInt field matter.
 	{name: "ConstBool"},
 	{name: "ConstString"},
-	{name: "ConstNil"},
+	{name: "ConstNil", typ: "BytePtr"},
 	{name: "Const8"},
 	{name: "Const16"},
 	{name: "Const32"},

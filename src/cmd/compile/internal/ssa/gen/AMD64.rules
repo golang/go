@@ -639,8 +639,6 @@
 (MOVSDstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
 
-(ADDQconst [0] x) -> x
-
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> mem
 (Zero [1] destptr mem) -> (MOVBstoreconst [0] destptr mem)
@@ -719,6 +717,16 @@
 (SBBLcarrymask (CMPWconst [c] (MOVWconst [d]))) && !inBounds16(d, c) -> (MOVLconst [0])
 (SBBLcarrymask (CMPBconst [c] (MOVBconst [d]))) &&  inBounds8(d, c)  -> (MOVLconst [-1])
 (SBBLcarrymask (CMPBconst [c] (MOVBconst [d]))) && !inBounds8(d, c)  -> (MOVLconst [0])
+
+// Remove redundant *const ops
+(ADDQconst [0] x) -> x
+(ADDLconst [c] x) && int32(c)==0 -> x
+(ADDWconst [c] x) && int16(c)==0 -> x
+(ADDBconst [c] x) && int8(c)==0 -> x
+(SUBQconst [0] x) -> x
+(SUBLconst [c] x) && int32(c) == 0 -> x
+(SUBWconst [c] x) && int16(c) == 0 -> x
+(SUBBconst [c] x) && int8(c) == 0 -> x
 (ANDQconst [0] _)                 -> (MOVQconst [0])
 (ANDLconst [c] _) && int32(c)==0  -> (MOVLconst [0])
 (ANDWconst [c] _) && int16(c)==0  -> (MOVWconst [0])
@@ -735,6 +743,10 @@
 (ORLconst [c] _) && int32(c)==-1  -> (MOVLconst [-1])
 (ORWconst [c] _) && int16(c)==-1  -> (MOVWconst [-1])
 (ORBconst [c] _) && int8(c)==-1   -> (MOVBconst [-1])
+(XORQconst [0] x)                  -> x
+(XORLconst [c] x) && int32(c)==0   -> x
+(XORWconst [c] x) && int16(c)==0   -> x
+(XORBconst [c] x) && int8(c)==0    -> x
 
 // generic constant folding
 // TODO: more of this
@@ -805,3 +817,4 @@
 (XORL x x) -> (MOVLconst [0])
 (XORW x x) -> (MOVWconst [0])
 (XORB x x) -> (MOVBconst [0])
+

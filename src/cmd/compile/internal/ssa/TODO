@@ -6,11 +6,7 @@ Coverage
 
 Correctness
 -----------
-- Write barriers
-- Debugging info
-- Can/should we move control values out of their basic block?
-- Anything to do for the race detector?
-- Slicing details (avoid ptr to next object) [done for string]
+- Debugging info (check & fix as much as we can)
 
 Optimizations (better compiled code)
 ------------------------------------
@@ -19,14 +15,15 @@ Optimizations (better compiled code)
 - Strength reduction: constant divides -> multiply
 - Expand current optimizations to all bit widths
 - Add a value range propagation pass (for bounds elim & bitwidth reduction)
-- Combining nil checks with subsequent load
-- Implement memory zeroing with REPSTOSQ and DuffZero
-- Implement memory copying with REPMOVSQ and DuffCopy
-- Stackalloc: organize values to allow good packing
-- Regalloc: use arg slots as the home for arguments (don't copy args to locals)
-- Reuse stack slots for noninterfering & compatible values (but see issue 8740)
+- Make dead store pass inter-block
 - (x86) Combine loads into other ops
 - (x86) More combining address arithmetic into loads/stores
+- (x86) use ADDQ instead of LEAQ when we can
+- redundant CMP in sequences like this:
+  SUBQ $8, AX
+  CMP AX, $0
+  JEQ ...
+- Use better write barrier calls
 
 Optimizations (better compiler)
 -------------------------------
@@ -42,10 +39,9 @@ Optimizations (better compiler)
 Regalloc
 --------
 - Make less arch-dependent
-- Allow args and return values to be ssa-able
+- Allow return values to be ssa-able
 - Handle 2-address instructions
 - Make liveness analysis non-quadratic
-- Materialization of constants
 
 Future/other
 ------------
