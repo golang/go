@@ -49,13 +49,20 @@ func (c *Conn) clientHandshake() error {
 		return errors.New("tls: NextProtos values too large")
 	}
 
+	sni := c.config.ServerName
+	// IP address literals are not permitted as SNI values. See
+	// https://tools.ietf.org/html/rfc6066#section-3.
+	if net.ParseIP(sni) != nil {
+		sni = ""
+	}
+
 	hello := &clientHelloMsg{
 		vers:                c.config.maxVersion(),
 		compressionMethods:  []uint8{compressionNone},
 		random:              make([]byte, 32),
 		ocspStapling:        true,
 		scts:                true,
-		serverName:          c.config.ServerName,
+		serverName:          sni,
 		supportedCurves:     c.config.curvePreferences(),
 		supportedPoints:     []uint8{pointFormatUncompressed},
 		nextProtoNeg:        len(c.config.NextProtos) > 0,
