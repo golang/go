@@ -73,6 +73,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	s.f = s.config.NewFunc()
 	s.f.Name = name
 	s.exitCode = fn.Func.Exit
+	s.panics = map[funcLine]*ssa.Block{}
 
 	if name == os.Getenv("GOSSAFUNC") {
 		// TODO: tempfile? it is handy to have the location
@@ -270,6 +271,15 @@ type state struct {
 
 	// line number stack.  The current line number is top of stack
 	line []int32
+
+	// list of panic calls by function name and line number.
+	// Used to deduplicate panic calls.
+	panics map[funcLine]*ssa.Block
+}
+
+type funcLine struct {
+	f    *Node
+	line int32
 }
 
 type ssaLabel struct {
@@ -2517,14 +2527,18 @@ func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b.Control = cmp
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
-	bPanic := s.f.NewBlock(ssa.BlockPlain)
+	line := s.peekLine()
+	bPanic := s.panics[funcLine{fn, line}]
+	if bPanic == nil {
+		bPanic = s.f.NewBlock(ssa.BlockPlain)
+		s.panics[funcLine{fn, line}] = bPanic
+		s.startBlock(bPanic)
+		// The panic call takes/returns memory to ensure that the right
+		// memory state is observed if the panic happens.
+		s.rtcall(fn, false, nil)
+	}
 	b.AddEdgeTo(bNext)
 	b.AddEdgeTo(bPanic)
-	s.startBlock(bPanic)
-	// The panic call takes/returns memory to ensure that the right
-	// memory state is observed if the panic happens.
-	s.rtcall(fn, false, nil)
-
 	s.startBlock(bNext)
 }
 
