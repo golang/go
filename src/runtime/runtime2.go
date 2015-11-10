@@ -380,7 +380,7 @@ type p struct {
 	sudogcache []*sudog
 	sudogbuf   [128]*sudog
 
-	tracebuf *traceBuf
+	tracebuf traceBufPtr
 
 	palloc persistentAlloc // per-P to avoid mutex
 
