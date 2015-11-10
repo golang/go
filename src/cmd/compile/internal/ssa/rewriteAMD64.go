@@ -764,6 +764,26 @@ end9464509b8874ffb00b43b843da01f0bc:
 func rewriteValueAMD64_OpAMD64ADDBconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ADDBconst [c] x)
+	// cond: int8(c)==0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int8(c) == 0) {
+			goto end3fbe38dfc1de8f48c755862c4c8b6bac
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end3fbe38dfc1de8f48c755862c4c8b6bac
+end3fbe38dfc1de8f48c755862c4c8b6bac:
+	;
 	// match: (ADDBconst [c] (MOVBconst [d]))
 	// cond:
 	// result: (MOVBconst [c+d])
@@ -874,6 +894,26 @@ end9596df31f2685a49df67c6fb912a521d:
 func rewriteValueAMD64_OpAMD64ADDLconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ADDLconst [c] x)
+	// cond: int32(c)==0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int32(c) == 0) {
+			goto endf04fb6232fbd3b460bb0d1bdcdc57d65
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endf04fb6232fbd3b460bb0d1bdcdc57d65
+endf04fb6232fbd3b460bb0d1bdcdc57d65:
+	;
 	// match: (ADDLconst [c] (MOVLconst [d]))
 	// cond:
 	// result: (MOVLconst [c+d])
@@ -1165,6 +1205,26 @@ end55cf2af0d75f3ec413528eeb799e94d5:
 func rewriteValueAMD64_OpAMD64ADDWconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ADDWconst [c] x)
+	// cond: int16(c)==0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int16(c) == 0) {
+			goto end8564670ff18b2a91eb92d5e5775464cd
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end8564670ff18b2a91eb92d5e5775464cd
+end8564670ff18b2a91eb92d5e5775464cd:
+	;
 	// match: (ADDWconst [c] (MOVWconst [d]))
 	// cond:
 	// result: (MOVWconst [c+d])
@@ -11706,6 +11766,26 @@ ende8904403d937d95b0d6133d3ec92bb45:
 func rewriteValueAMD64_OpAMD64SUBBconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SUBBconst [c] x)
+	// cond: int8(c) == 0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int8(c) == 0) {
+			goto end974a26e947badc62fc104581f49138e6
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end974a26e947badc62fc104581f49138e6
+end974a26e947badc62fc104581f49138e6:
+	;
 	// match: (SUBBconst [c] (MOVBconst [d]))
 	// cond:
 	// result: (MOVBconst [d-c])
@@ -11817,6 +11897,26 @@ end332f1f641f875c69bea7289191e69133:
 func rewriteValueAMD64_OpAMD64SUBLconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SUBLconst [c] x)
+	// cond: int32(c) == 0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int32(c) == 0) {
+			goto end3fa10eaa42f9e283cf1757e1b2d3cac2
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end3fa10eaa42f9e283cf1757e1b2d3cac2
+end3fa10eaa42f9e283cf1757e1b2d3cac2:
+	;
 	// match: (SUBLconst [c] (MOVLconst [d]))
 	// cond:
 	// result: (MOVLconst [d-c])
@@ -11934,6 +12034,25 @@ endd87d1d839d2dc54d9c90fa4f73383480:
 func rewriteValueAMD64_OpAMD64SUBQconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SUBQconst [0] x)
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 0 {
+			goto endfce1d3cec7c543c9dd80a27d944eb09e
+		}
+		x := v.Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endfce1d3cec7c543c9dd80a27d944eb09e
+endfce1d3cec7c543c9dd80a27d944eb09e:
+	;
 	// match: (SUBQconst [c] (MOVQconst [d]))
 	// cond:
 	// result: (MOVQconst [d-c])
@@ -12045,6 +12164,26 @@ endb970e7c318d04a1afe1dfe08a7ca0d9c:
 func rewriteValueAMD64_OpAMD64SUBWconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (SUBWconst [c] x)
+	// cond: int16(c) == 0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int16(c) == 0) {
+			goto end1e7a493992465c9cc8314e3256ed6394
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end1e7a493992465c9cc8314e3256ed6394
+end1e7a493992465c9cc8314e3256ed6394:
+	;
 	// match: (SUBWconst [c] (MOVWconst [d]))
 	// cond:
 	// result: (MOVWconst [d-c])
@@ -12740,6 +12879,26 @@ end2afddc39503d04d572a3a07878f6c9c9:
 func rewriteValueAMD64_OpAMD64XORBconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (XORBconst [c] x)
+	// cond: int8(c)==0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int8(c) == 0) {
+			goto end14b03b70e5579dfe3f9b243e02a887c3
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end14b03b70e5579dfe3f9b243e02a887c3
+end14b03b70e5579dfe3f9b243e02a887c3:
+	;
 	// match: (XORBconst [c] (MOVBconst [d]))
 	// cond:
 	// result: (MOVBconst [c^d])
@@ -12827,6 +12986,26 @@ end7bcf9cfeb69a0d7647389124eb53ce2a:
 func rewriteValueAMD64_OpAMD64XORLconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (XORLconst [c] x)
+	// cond: int32(c)==0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int32(c) == 0) {
+			goto end99808ca9fb8e3220e42f5678e1042a08
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end99808ca9fb8e3220e42f5678e1042a08
+end99808ca9fb8e3220e42f5678e1042a08:
+	;
 	// match: (XORLconst [c] (MOVLconst [d]))
 	// cond:
 	// result: (MOVLconst [c^d])
@@ -12920,6 +13099,25 @@ end10575a5d711cf14e6d4dffbb0e8dfaeb:
 func rewriteValueAMD64_OpAMD64XORQconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (XORQconst [0] x)
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 0 {
+			goto end0ee8d195a97eff476cf1f69a4dc0ec75
+		}
+		x := v.Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end0ee8d195a97eff476cf1f69a4dc0ec75
+end0ee8d195a97eff476cf1f69a4dc0ec75:
+	;
 	// match: (XORQconst [c] (MOVQconst [d]))
 	// cond:
 	// result: (MOVQconst [c^d])
@@ -13007,6 +13205,26 @@ end07f332e857be0c2707797ed480a2faf4:
 func rewriteValueAMD64_OpAMD64XORWconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (XORWconst [c] x)
+	// cond: int16(c)==0
+	// result: x
+	{
+		c := v.AuxInt
+		x := v.Args[0]
+		if !(int16(c) == 0) {
+			goto enda371132353dee83828836da851240f0a
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto enda371132353dee83828836da851240f0a
+enda371132353dee83828836da851240f0a:
+	;
 	// match: (XORWconst [c] (MOVWconst [d]))
 	// cond:
 	// result: (MOVWconst [c^d])

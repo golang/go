@@ -121,6 +121,16 @@
 (Com32 (Com32 x)) -> x
 (Com64 (Com64 x)) -> x
 
+// simplifications often used for lengths.  e.g. len(s[i:i+5])==5
+(Sub64 (Add64 x y) x) -> y
+(Sub64 (Add64 x y) y) -> x
+(Sub32 (Add32 x y) x) -> y
+(Sub32 (Add32 x y) y) -> x
+(Sub16 (Add16 x y) x) -> y
+(Sub16 (Add16 x y) y) -> x
+(Sub8 (Add8 x y) x) -> y
+(Sub8 (Add8 x y) y) -> x
+
 // user nil checks
 (NeqPtr p (ConstNil)) -> (IsNonNil p)
 (NeqPtr (ConstNil) p) -> (IsNonNil p)
@@ -175,12 +185,16 @@
 // string ops
 (StringPtr (StringMake ptr _)) -> ptr
 (StringLen (StringMake _ len)) -> len
-(ConstString {s}) && config.PtrSize == 4 ->
+(ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
+  (StringMake (ConstNil) (Const32 <config.fe.TypeInt()> [0]))
+(ConstString {s}) && config.PtrSize == 8 && s.(string) == "" ->
+  (StringMake (ConstNil) (Const64 <config.fe.TypeInt()> [0]))
+(ConstString {s}) && config.PtrSize == 4 && s.(string) != "" ->
   (StringMake
     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
       (SB))
     (Const32 <config.fe.TypeInt()> [int64(len(s.(string)))]))
-(ConstString {s}) && config.PtrSize == 8 ->
+(ConstString {s}) && config.PtrSize == 8 && s.(string) != "" ->
   (StringMake
     (Addr <config.fe.TypeBytePtr()> {config.fe.StringData(s.(string))}
       (SB))
