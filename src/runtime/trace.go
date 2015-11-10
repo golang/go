@@ -140,7 +140,7 @@ type traceBufHeader struct {
 	link      traceBufPtr             // in trace.empty/full
 	lastSeq   uint64                  // sequence number of last event
 	lastTicks uint64                  // when we wrote the last event
-	buf       []byte                  // trace data, always points to traceBuf.arr
+	pos       int                     // next write offset in arr
 	stk       [traceStackSize]uintptr // scratch buffer for traceback
 }
 
@@ -253,7 +253,7 @@ func StopTrace() {
 			p.tracebuf = 0
 		}
 	}
-	if trace.buf != 0 && len(trace.buf.ptr().buf) != 0 {
+	if trace.buf != 0 && trace.buf.ptr().pos != 0 {
 		buf := trace.buf
 		trace.buf = 0
 		traceFullQueue(buf)
@@ -361,7 +361,7 @@ func ReadTrace() []byte {
 		trace.reading = buf
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return buf.ptr().buf
+		return buf.ptr().arr[:buf.ptr().pos]
 	}
 	// Write footer with timer frequency.
 	if !trace.footerWritten {
@@ -477,7 +477,7 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	}
 	buf := (*bufp).ptr()
 	const maxSize = 2 + 5*traceBytesPerNumber // event type, length, sequence, timestamp, stack id and two add params
-	if buf == nil || cap(buf.buf)-len(buf.buf) < maxSize {
+	if buf == nil || len(buf.arr)-buf.pos < maxSize {
 		buf = traceFlush(traceBufPtrOf(buf)).ptr()
 		(*bufp).set(buf)
 	}
@@ -486,13 +486,11 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	seqDiff := seq - buf.lastSeq
 	ticks := uint64(ticksraw) / traceTickDiv
 	tickDiff := ticks - buf.lastTicks
-	if len(buf.buf) == 0 {
-		data := buf.buf
-		data = append(data, traceEvBatch|1<<traceArgCountShift)
-		data = traceAppend(data, uint64(pid))
-		data = traceAppend(data, seq)
-		data = traceAppend(data, ticks)
-		buf.buf = data
+	if buf.pos == 0 {
+		buf.byte(traceEvBatch | 1<<traceArgCountShift)
+		buf.varint(uint64(pid))
+		buf.varint(seq)
+		buf.varint(ticks)
 		seqDiff = 0
 		tickDiff = 0
 	}
@@ -507,21 +505,21 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	if narg > 3 {
 		narg = 3
 	}
-	data := buf.buf
-	data = append(data, ev|narg<<traceArgCountShift)
+	startPos := buf.pos
+	buf.byte(ev | narg<<traceArgCountShift)
 	var lenp *byte
 	if narg == 3 {
 		// Reserve the byte for length assuming that length < 128.
-		data = append(data, 0)
-		lenp = &data[len(data)-1]
+		buf.varint(0)
+		lenp = &buf.arr[buf.pos-1]
 	}
-	data = traceAppend(data, seqDiff)
-	data = traceAppend(data, tickDiff)
+	buf.varint(seqDiff)
+	buf.varint(tickDiff)
 	for _, a := range args {
-		data = traceAppend(data, a)
+		buf.varint(a)
 	}
 	if skip == 0 {
-		data = append(data, 0)
+		buf.varint(0)
 	} else if skip > 0 {
 		_g_ := getg()
 		gp := mp.curg
@@ -539,9 +537,9 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 			nstk-- // skip runtime.main
 		}
 		id := trace.stackTab.put(buf.stk[:nstk])
-		data = traceAppend(data, uint64(id))
+		buf.varint(uint64(id))
 	}
-	evSize := len(data) - len(buf.buf)
+	evSize := buf.pos - startPos
 	if evSize > maxSize {
 		throw("invalid length of trace event")
 	}
@@ -549,7 +547,6 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 		// Fill in actual length.
 		*lenp = byte(evSize - 2)
 	}
-	buf.buf = data
 	traceReleaseBuffer(pid)
 }
 
@@ -579,9 +576,6 @@ func traceFlush(buf traceBufPtr) traceBufPtr {
 		lock(&trace.lock)
 	}
 	if buf != 0 {
-		if buf := buf.ptr(); &buf.buf[0] != &buf.arr[0] {
-			throw("trace buffer overflow")
-		}
 		traceFullQueue(buf)
 	}
 	if trace.empty != 0 {
@@ -595,7 +589,7 @@ func traceFlush(buf traceBufPtr) traceBufPtr {
 	}
 	bufp := buf.ptr()
 	bufp.link.set(nil)
-	bufp.buf = bufp.arr[:0]
+	bufp.pos = 0
 	bufp.lastTicks = 0
 	if dolock {
 		unlock(&trace.lock)
@@ -610,6 +604,24 @@ func traceAppend(buf []byte, v uint64) []byte {
 	}
 	buf = append(buf, byte(v))
 	return buf
+}
+
+// varint appends v to buf in little-endian-base-128 encoding.
+func (buf *traceBuf) varint(v uint64) {
+	pos := buf.pos
+	for ; v >= 0x80; v >>= 7 {
+		buf.arr[pos] = 0x80 | byte(v)
+		pos++
+	}
+	buf.arr[pos] = byte(v)
+	pos++
+	buf.pos = pos
+}
+
+// byte appends v to buf.
+func (buf *traceBuf) byte(v byte) {
+	buf.arr[buf.pos] = v
+	buf.pos++
 }
 
 // traceStackTable maps stack traces (arrays of PC's) to unique uint32 ids.
@@ -704,7 +716,7 @@ func (tab *traceStackTable) dump() {
 		stk := stk.ptr()
 		for ; stk != nil; stk = stk.link.ptr() {
 			maxSize := 1 + (3+stk.n)*traceBytesPerNumber
-			if cap(buf.buf)-len(buf.buf) < maxSize {
+			if len(buf.arr)-buf.pos < maxSize {
 				buf = traceFlush(traceBufPtrOf(buf)).ptr()
 			}
 			// Form the event in the temp buffer, we need to know the actual length.
@@ -715,11 +727,9 @@ func (tab *traceStackTable) dump() {
 				tmpbuf = traceAppend(tmpbuf, uint64(pc))
 			}
 			// Now copy to the buffer.
-			data := buf.buf
-			data = append(data, traceEvStack|3<<traceArgCountShift)
-			data = traceAppend(data, uint64(len(tmpbuf)))
-			data = append(data, tmpbuf...)
-			buf.buf = data
+			buf.byte(traceEvStack | 3<<traceArgCountShift)
+			buf.varint(uint64(len(tmpbuf)))
+			buf.pos += copy(buf.arr[buf.pos:], tmpbuf)
 		}
 	}
 
