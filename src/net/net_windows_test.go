@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"sort"
@@ -177,10 +178,39 @@ func isWindowsXP(t *testing.T) bool {
 }
 
 func listInterfacesWithNetsh() ([]string, error) {
-	out, err := exec.Command("netsh", "interface", "ip", "show", "config").CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("netsh failed: %v: %q", err, string(out))
+	removeUTF8BOM := func(b []byte) []byte {
+		if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
+			return b[3:]
+		}
+		return b
 	}
+	f, err := ioutil.TempFile("", "netsh")
+	if err != nil {
+		return nil, err
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+	cmd := fmt.Sprintf(`netsh interface ip show config | Out-File "%s" -encoding UTF8`, f.Name())
+	out, err := exec.Command("powershell", "-Command", cmd).CombinedOutput()
+	if err != nil {
+		if len(out) != 0 {
+			return nil, fmt.Errorf("netsh failed: %v: %q", err, string(removeUTF8BOM(out)))
+		}
+		var err2 error
+		out, err2 = ioutil.ReadFile(f.Name())
+		if err2 != nil {
+			return nil, err2
+		}
+		if len(out) != 0 {
+			return nil, fmt.Errorf("netsh failed: %v: %q", err, string(removeUTF8BOM(out)))
+		}
+		return nil, fmt.Errorf("netsh failed: %v", err)
+	}
+	out, err = ioutil.ReadFile(f.Name())
+	if err != nil {
+		return nil, err
+	}
+	out = removeUTF8BOM(out)
 	lines := bytes.Split(out, []byte{'\r', '\n'})
 	names := make([]string, 0)
 	for _, line := range lines {
