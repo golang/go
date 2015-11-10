@@ -618,17 +618,21 @@ type traceStackTable struct {
 	lock mutex
 	seq  uint32
 	mem  traceAlloc
-	tab  [1 << 13]*traceStack
+	tab  [1 << 13]traceStackPtr
 }
 
 // traceStack is a single stack in traceStackTable.
 type traceStack struct {
-	link *traceStack
+	link traceStackPtr
 	hash uintptr
 	id   uint32
 	n    int
 	stk  [0]uintptr // real type [n]uintptr
 }
+
+type traceStackPtr uintptr
+
+func (tp traceStackPtr) ptr() *traceStack { return (*traceStack)(unsafe.Pointer(tp)) }
 
 // stack returns slice of PCs.
 func (ts *traceStack) stack() []uintptr {
@@ -673,7 +677,7 @@ func (tab *traceStackTable) put(pcs []uintptr) uint32 {
 func (tab *traceStackTable) find(pcs []uintptr, hash uintptr) uint32 {
 	part := int(hash % uintptr(len(tab.tab)))
 Search:
-	for stk := tab.tab[part]; stk != nil; stk = stk.link {
+	for stk := tab.tab[part].ptr(); stk != nil; stk = stk.link.ptr() {
 		if stk.hash == hash && stk.n == len(pcs) {
 			for i, stkpc := range stk.stack() {
 				if stkpc != pcs[i] {
@@ -697,7 +701,8 @@ func (tab *traceStackTable) dump() {
 	var tmp [(2 + traceStackSize) * traceBytesPerNumber]byte
 	buf := traceFlush(0).ptr()
 	for _, stk := range tab.tab {
-		for ; stk != nil; stk = stk.link {
+		stk := stk.ptr()
+		for ; stk != nil; stk = stk.link.ptr() {
 			maxSize := 1 + (3+stk.n)*traceBytesPerNumber
 			if cap(buf.buf)-len(buf.buf) < maxSize {
 				buf = traceFlush(traceBufPtrOf(buf)).ptr()
