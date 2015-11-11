@@ -44,3 +44,7 @@ func join(elem []string) string {
 	}
 	return ""
 }
+
+func sameWord(a, b string) bool {
+	return a == b
+}
