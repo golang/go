@@ -308,7 +308,19 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	if ctxt.Flag_dynlink && (p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO) {
+	if ctxt.Flag_dynlink {
+		rewriteToUseGot(ctxt, p)
+	}
+}
+
+// Rewrite p, if necessary, to access global data via the global offset table.
+func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+		//     ADUFFxxx $offset
+		// becomes
+		//     MOVQ runtime.duffxxx@GOT, R15
+		//     ADDQ $offset, R15
+		//     CALL R15
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
@@ -336,80 +348,82 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		p2.To.Reg = REG_R15
 	}
 
-	if ctxt.Flag_dynlink {
-		if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-			p.As = AMOVQ
-			p.From.Type = obj.TYPE_ADDR
-		}
-		if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-			if p.As != AMOVQ {
-				ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
-			}
-			if p.To.Type != obj.TYPE_REG {
-				ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
-			}
-			p.From.Type = obj.TYPE_MEM
-			p.From.Name = obj.NAME_GOTREF
-			if p.From.Offset != 0 {
-				q := obj.Appendp(ctxt, p)
-				q.As = AADDQ
-				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = p.From.Offset
-				q.To = p.To
-				p.From.Offset = 0
-			}
-		}
-		if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
-			ctxt.Diag("don't know how to handle %v with -dynlink", p)
-		}
-		var source *obj.Addr
-		if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-			if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
-				ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
-			}
-			source = &p.From
-		} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
-			source = &p.To
-		} else {
-			return
-		}
-		if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
-			return
-		}
-		if source.Type != obj.TYPE_MEM {
-			ctxt.Diag("don't know how to handle %v with -dynlink", p)
-		}
-		p1 := obj.Appendp(ctxt, p)
-		p2 := obj.Appendp(ctxt, p1)
-
-		p1.As = AMOVQ
-		p1.From.Type = obj.TYPE_MEM
-		p1.From.Sym = source.Sym
-		p1.From.Name = obj.NAME_GOTREF
-		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REG_R15
-
-		p2.As = p.As
-		p2.From = p.From
-		p2.To = p.To
-		if p.From.Name == obj.NAME_EXTERN {
-			p2.From.Reg = REG_R15
-			p2.From.Name = obj.NAME_NONE
-			p2.From.Sym = nil
-		} else if p.To.Name == obj.NAME_EXTERN {
-			p2.To.Reg = REG_R15
-			p2.To.Name = obj.NAME_NONE
-			p2.To.Sym = nil
-		} else {
-			return
-		}
-		l := p.Link
-		l2 := p2.Link
-		*p = *p1
-		*p1 = *p2
-		p.Link = l
-		p1.Link = l2
+	// We only care about global data: NAME_EXTERN means a global
+	// symbol in the Go sense, and p.Sym.Local is true for a few
+	// internally defined symbols.
+	if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+		// LEAQ sym, Rx becomes MOVQ $sym, Rx which will be rewritten below
+		p.As = AMOVQ
+		p.From.Type = obj.TYPE_ADDR
 	}
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+		// MOVQ $sym, Rx becomes MOVQ sym@GOT, Rx
+		// MOVQ $sym+<off>, Rx becomes MOVQ sym@GOT, Rx; ADDQ <off>, Rx
+		if p.As != AMOVQ {
+			ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
+		}
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		if p.From.Offset != 0 {
+			q := obj.Appendp(ctxt, p)
+			q.As = AADDQ
+			q.From.Type = obj.TYPE_CONST
+			q.From.Offset = p.From.Offset
+			q.To = p.To
+			p.From.Offset = 0
+		}
+	}
+	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	}
+	var source *obj.Addr
+	// MOVx sym, Ry becomes MOVW sym@GOT, R15; MOVx (R15), Ry
+	// MOVx Ry, sym becomes MOVW sym@GOT, R15; MOVx Ry, (R15)
+	// An addition may be inserted between the two MOVs if there is an offset.
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+		}
+		source = &p.From
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+		source = &p.To
+	} else {
+		return
+	}
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+		return
+	}
+	if source.Type != obj.TYPE_MEM {
+		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	}
+	p1 := obj.Appendp(ctxt, p)
+	p2 := obj.Appendp(ctxt, p1)
+
+	p1.As = AMOVQ
+	p1.From.Type = obj.TYPE_MEM
+	p1.From.Sym = source.Sym
+	p1.From.Name = obj.NAME_GOTREF
+	p1.To.Type = obj.TYPE_REG
+	p1.To.Reg = REG_R15
+
+	p2.As = p.As
+	p2.From = p.From
+	p2.To = p.To
+	if p.From.Name == obj.NAME_EXTERN {
+		p2.From.Reg = REG_R15
+		p2.From.Name = obj.NAME_NONE
+		p2.From.Sym = nil
+	} else if p.To.Name == obj.NAME_EXTERN {
+		p2.To.Reg = REG_R15
+		p2.To.Name = obj.NAME_NONE
+		p2.To.Sym = nil
+	} else {
+		return
+	}
+	obj.Nopout(p)
 }
 
 func nacladdr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
