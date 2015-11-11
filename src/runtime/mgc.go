@@ -161,7 +161,6 @@ func gcinit() {
 		throw("size of Workbuf is suboptimal")
 	}
 
-	work.markfor = parforalloc(_MaxGcproc)
 	_ = setGCPercent(readgogc())
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
 		datap.gcdatamask = progToPointerMask((*byte)(unsafe.Pointer(datap.gcdata)), datap.edata-datap.data)
@@ -743,7 +742,6 @@ var work struct {
 	nwait   uint32
 	ndone   uint32
 	alldone note
-	markfor *parfor
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int

@@ -97,7 +97,7 @@ var oneptrmask = [...]uint8{1}
 // Preemption must be disabled (because this uses a gcWork).
 //
 //go:nowritebarrier
-func markroot(desc *parfor, i uint32) {
+func markroot(i uint32) {
 	// TODO: Consider using getg().m.p.ptr().gcw.
 	var gcw gcWork
 
@@ -796,7 +796,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 				break
 			}
 			// TODO: Pass in gcw.
-			markroot(nil, job)
+			markroot(job)
 		}
 	}
 
