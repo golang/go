@@ -274,7 +274,7 @@ type m struct {
 	procid        uint64     // for debuggers, but offset not hard-coded
 	gsignal       *g         // signal-handling g
 	sigmask       [4]uintptr // storage for saved signal mask
-	tls           [4]uintptr // thread-local storage (for x86 extern register)
+	tls           [6]uintptr // thread-local storage (for x86 extern register)
 	mstartfn      func()
 	curg          *g       // current running goroutine
 	caughtsig     guintptr // goroutine running during fatal signal
