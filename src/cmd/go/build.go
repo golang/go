@@ -332,9 +332,6 @@ func buildModeInit() {
 	_, gccgo := buildToolchain.(gccgoToolchain)
 	var codegenArg string
 	platform := goos + "/" + goarch
-	if buildBuildmode != "default" {
-		buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_"+strings.Replace(buildBuildmode, "-", "_", -1)+"=1")
-	}
 	switch buildBuildmode {
 	case "archive":
 		pkgsFilter = pkgsNotMain
