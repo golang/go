@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -196,12 +197,12 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 				if x == empty {
 					continue
 				}
-				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
+				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
 				if k.len != key.len {
 					continue
 				}
 				if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
+					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 				}
 			}
 			return atomic.Loadp(unsafe.Pointer(&zeroptr))
@@ -213,12 +214,12 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 			if x == empty {
 				continue
 			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
 			if k.len != key.len {
 				continue
 			}
 			if k.str == key.str {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 			}
 			// check first 4 bytes
 			// TODO: on amd64/386 at least, make this compile to one 4-byte comparison instead of
@@ -237,9 +238,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 			keymaybe = i
 		}
 		if keymaybe != bucketCnt {
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*sys.PtrSize))
 			if memeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.valuesize))
 			}
 		}
 		return atomic.Loadp(unsafe.Pointer(&zeroptr))
@@ -254,7 +255,7 @@ dohash:
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (ptrSize*8 - 8))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
 	if top < minTopHash {
 		top += minTopHash
 	}
@@ -264,12 +265,12 @@ dohash:
 			if x != top {
 				continue
 			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
 			if k.len != key.len {
 				continue
 			}
 			if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize))
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize))
 			}
 		}
 		b = b.overflow(t)
@@ -298,12 +299,12 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 				if x == empty {
 					continue
 				}
-				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
+				k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
 				if k.len != key.len {
 					continue
 				}
 				if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
-					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
+					return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
 				}
 			}
 			return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
@@ -315,12 +316,12 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 			if x == empty {
 				continue
 			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
 			if k.len != key.len {
 				continue
 			}
 			if k.str == key.str {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
 			}
 			// check first 4 bytes
 			if *((*[4]byte)(key.str)) != *((*[4]byte)(k.str)) {
@@ -337,9 +338,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 			keymaybe = i
 		}
 		if keymaybe != bucketCnt {
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*ptrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+keymaybe*2*sys.PtrSize))
 			if memeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+keymaybe*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+keymaybe*uintptr(t.valuesize)), true
 			}
 		}
 		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
@@ -354,7 +355,7 @@ dohash:
 			b = oldb
 		}
 	}
-	top := uint8(hash >> (ptrSize*8 - 8))
+	top := uint8(hash >> (sys.PtrSize*8 - 8))
 	if top < minTopHash {
 		top += minTopHash
 	}
@@ -364,12 +365,12 @@ dohash:
 			if x != top {
 				continue
 			}
-			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*ptrSize))
+			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
 			if k.len != key.len {
 				continue
 			}
 			if k.str == key.str || memeq(k.str, key.str, uintptr(key.len)) {
-				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*ptrSize+i*uintptr(t.valuesize)), true
+				return add(unsafe.Pointer(b), dataOffset+bucketCnt*2*sys.PtrSize+i*uintptr(t.valuesize)), true
 			}
 		}
 		b = b.overflow(t)

@@ -21,6 +21,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -38,7 +39,7 @@ const semTabSize = 251
 
 var semtable [semTabSize]struct {
 	root semaRoot
-	pad  [_CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
+	pad  [sys.CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire

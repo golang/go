@@ -29,7 +29,7 @@ src/cmd/cgo/zdefaultcc.go
 src/cmd/go/zdefaultcc.go
 src/cmd/internal/obj/zbootstrap.go
 src/go/doc/headscan
-src/runtime/zversion.go
+src/runtime/internal/sys/zversion.go
 src/unicode/maketables
 src/*.*/
 test/pass.out

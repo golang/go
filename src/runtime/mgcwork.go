@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -265,7 +266,7 @@ type workbufhdr struct {
 type workbuf struct {
 	workbufhdr
 	// account for the above fields
-	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / ptrSize]uintptr
+	obj [(_WorkbufSize - unsafe.Sizeof(workbufhdr{})) / sys.PtrSize]uintptr
 }
 
 // workbuf factory routines. These funcs are used to manage the
@@ -343,7 +344,7 @@ func getempty(entry int) *workbuf {
 		}
 	}
 	if b == nil {
-		b = (*workbuf)(persistentalloc(unsafe.Sizeof(*b), _CacheLineSize, &memstats.gc_sys))
+		b = (*workbuf)(persistentalloc(unsafe.Sizeof(*b), sys.CacheLineSize, &memstats.gc_sys))
 	}
 	b.logget(entry)
 	return b

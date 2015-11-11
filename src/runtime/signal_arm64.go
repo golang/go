@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("r0      ", hex(c.r0()), "\n")
@@ -78,7 +81,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// functions are correctly handled. This smashes
 		// the stack frame but we're not going back there
 		// anyway.
-		sp := c.sp() - spAlign // needs only sizeof uint64, but must align the stack
+		sp := c.sp() - sys.SpAlign // needs only sizeof uint64, but must align the stack
 		c.set_sp(sp)
 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
 

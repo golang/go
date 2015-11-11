@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // NOTE: Func does not expose the actual unexported fields, because we return *Func
 // values to users, and we want to keep them from being able to overwrite the data
@@ -105,7 +108,7 @@ func moduledataverify1(datap *moduledata) {
 	// and a byte giving the pointer width in bytes.
 	pcln := *(**[8]byte)(unsafe.Pointer(&datap.pclntable))
 	pcln32 := *(**[2]uint32)(unsafe.Pointer(&datap.pclntable))
-	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != _PCQuantum || pcln[7] != ptrSize {
+	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != sys.PCQuantum || pcln[7] != sys.PtrSize {
 		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
 		throw("invalid function symbol table\n")
 	}
@@ -358,7 +361,7 @@ func funcline(f *_func, targetpc uintptr) (file string, line int32) {
 
 func funcspdelta(f *_func, targetpc uintptr, cache *pcvalueCache) int32 {
 	x := pcvalue(f, f.pcsp, targetpc, cache, true)
-	if x&(ptrSize-1) != 0 {
+	if x&(sys.PtrSize-1) != 0 {
 		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
 	}
 	return x
@@ -377,13 +380,13 @@ func funcdata(f *_func, i int32) unsafe.Pointer {
 		return nil
 	}
 	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
-	if ptrSize == 8 && uintptr(p)&4 != 0 {
+	if sys.PtrSize == 8 && uintptr(p)&4 != 0 {
 		if uintptr(unsafe.Pointer(f))&4 != 0 {
 			println("runtime: misaligned func", f)
 		}
 		p = add(p, 4)
 	}
-	return *(*unsafe.Pointer)(add(p, uintptr(i)*ptrSize))
+	return *(*unsafe.Pointer)(add(p, uintptr(i)*sys.PtrSize))
 }
 
 // step advances to the next pc, value pair in the encoded table.
@@ -399,7 +402,7 @@ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) 
 	}
 	vdelta := int32(uvdelta)
 	p, pcdelta := readvarint(p)
-	*pc += uintptr(pcdelta * _PCQuantum)
+	*pc += uintptr(pcdelta * sys.PCQuantum)
 	*val += vdelta
 	return p, true
 }

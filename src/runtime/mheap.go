@@ -10,6 +10,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -58,7 +59,7 @@ type mheap struct {
 	// gets its own cache line.
 	central [_NumSizeClasses]struct {
 		mcentral mcentral
-		pad      [_CacheLineSize]byte
+		pad      [sys.CacheLineSize]byte
 	}
 
 	spanalloc             fixalloc // allocator for span*
@@ -169,13 +170,13 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 	h := (*mheap)(vh)
 	s := (*mspan)(p)
 	if len(h_allspans) >= cap(h_allspans) {
-		n := 64 * 1024 / ptrSize
+		n := 64 * 1024 / sys.PtrSize
 		if n < cap(h_allspans)*3/2 {
 			n = cap(h_allspans) * 3 / 2
 		}
 		var new []*mspan
 		sp := (*slice)(unsafe.Pointer(&new))
-		sp.array = sysAlloc(uintptr(n)*ptrSize, &memstats.other_sys)
+		sp.array = sysAlloc(uintptr(n)*sys.PtrSize, &memstats.other_sys)
 		if sp.array == nil {
 			throw("runtime: cannot allocate memory")
 		}
@@ -186,7 +187,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 			// Don't free the old array if it's referenced by sweep.
 			// See the comment in mgc.go.
 			if h.allspans != mheap_.gcspans {
-				sysFree(unsafe.Pointer(h.allspans), uintptr(cap(h_allspans))*ptrSize, &memstats.other_sys)
+				sysFree(unsafe.Pointer(h.allspans), uintptr(cap(h_allspans))*sys.PtrSize, &memstats.other_sys)
 			}
 		}
 		h_allspans = new
@@ -239,7 +240,7 @@ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
 	_g_ := getg()
 
 	_g_.m.mcache.local_nlookup++
-	if ptrSize == 4 && _g_.m.mcache.local_nlookup >= 1<<30 {
+	if sys.PtrSize == 4 && _g_.m.mcache.local_nlookup >= 1<<30 {
 		// purge cache stats to prevent overflow
 		lock(&mheap_.lock)
 		purgecachedstats(_g_.m.mcache)
@@ -305,8 +306,8 @@ func (h *mheap) init(spans_size uintptr) {
 
 	sp := (*slice)(unsafe.Pointer(&h_spans))
 	sp.array = unsafe.Pointer(h.spans)
-	sp.len = int(spans_size / ptrSize)
-	sp.cap = int(spans_size / ptrSize)
+	sp.len = int(spans_size / sys.PtrSize)
+	sp.cap = int(spans_size / sys.PtrSize)
 }
 
 // mHeap_MapSpans makes sure that the spans are mapped
@@ -321,8 +322,8 @@ func (h *mheap) mapSpans(arena_used uintptr) {
 	// Map spans array, PageSize at a time.
 	n := arena_used
 	n -= h.arena_start
-	n = n / _PageSize * ptrSize
-	n = round(n, _PhysPageSize)
+	n = n / _PageSize * sys.PtrSize
+	n = round(n, sys.PhysPageSize)
 	if h.spans_mapped >= n {
 		return
 	}
@@ -797,7 +798,7 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
 			h.spanalloc.free(unsafe.Pointer(t))
 		}
 	}
-	if (p+s.npages)*ptrSize < h.spans_mapped {
+	if (p+s.npages)*sys.PtrSize < h.spans_mapped {
 		t := h_spans[p+s.npages]
 		if t != nil && t.state == _MSpanFree {
 			s.npages += t.npages
@@ -829,7 +830,7 @@ func (h *mheap) busyList(npages uintptr) *mSpanList {
 }
 
 func scavengelist(list *mSpanList, now, limit uint64) uintptr {
-	if _PhysPageSize > _PageSize {
+	if sys.PhysPageSize > _PageSize {
 		// golang.org/issue/9993
 		// If the physical page size of the machine is larger than
 		// our logical heap page size the kernel may round up the
@@ -1098,7 +1099,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
 			scanobject(uintptr(base), gcw)
 			// Mark the finalizer itself, since the
 			// special isn't part of the GC'd heap.
-			scanblock(uintptr(unsafe.Pointer(&s.fn)), ptrSize, &oneptrmask[0], gcw)
+			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw)
 			if gcBlackenPromptly {
 				gcw.dispose()
 			}

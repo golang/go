@@ -79,7 +79,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Call from Go to C.
 //go:nosplit
@@ -220,22 +223,22 @@ func cgocallbackg1() {
 	case "arm":
 		// On arm, stack frame is two words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
-		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
 	case "arm64":
 		// On arm64, stack frame is four words and there's a saved LR between
 		// SP and the stack frame and between the stack frame and the arguments.
-		cb = (*args)(unsafe.Pointer(sp + 5*ptrSize))
+		cb = (*args)(unsafe.Pointer(sp + 5*sys.PtrSize))
 	case "amd64":
 		// On amd64, stack frame is one word, plus caller PC.
 		if framepointer_enabled {
 			// In this case, there's also saved BP.
-			cb = (*args)(unsafe.Pointer(sp + 3*ptrSize))
+			cb = (*args)(unsafe.Pointer(sp + 3*sys.PtrSize))
 			break
 		}
-		cb = (*args)(unsafe.Pointer(sp + 2*ptrSize))
+		cb = (*args)(unsafe.Pointer(sp + 2*sys.PtrSize))
 	case "386":
 		// On 386, stack frame is three words, plus caller PC.
-		cb = (*args)(unsafe.Pointer(sp + 4*ptrSize))
+		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
 	case "ppc64", "ppc64le":
 		// On ppc64, the callback arguments are in the arguments area of
 		// cgocallback's stack frame. The stack looks like this:
@@ -252,7 +255,7 @@ func cgocallbackg1() {
 		// | cgocallback_gofunc +------------------------------+ <- sp + minFrameSize
 		// |                    | fixed frame area             |
 		// +--------------------+------------------------------+ <- sp
-		cb = (*args)(unsafe.Pointer(sp + 2*minFrameSize + 2*ptrSize))
+		cb = (*args)(unsafe.Pointer(sp + 2*sys.MinFrameSize + 2*sys.PtrSize))
 	}
 
 	// Invoke callback.
@@ -291,7 +294,7 @@ func unwindm(restore *bool) {
 	default:
 		throw("unwindm not implemented")
 	case "386", "amd64", "arm", "ppc64", "ppc64le":
-		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + minFrameSize))
+		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
 	case "arm64":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
 	}
@@ -437,7 +440,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
 		if inheap(uintptr(unsafe.Pointer(it))) {
 			panic(errorString(cgoCheckPointerFail))
 		}
-		p = *(*unsafe.Pointer)(unsafe.Pointer(uintptr(p) + ptrSize))
+		p = *(*unsafe.Pointer)(unsafe.Pointer(uintptr(p) + sys.PtrSize))
 		if !cgoIsGoPointer(p) {
 			return
 		}
@@ -505,9 +508,9 @@ func cgoCheckUnknownPointer(p unsafe.Pointer) {
 			return
 		}
 		n := span.elemsize
-		for i := uintptr(0); i < n; i += ptrSize {
+		for i := uintptr(0); i < n; i += sys.PtrSize {
 			bits := hbits.bits()
-			if i >= 2*ptrSize && bits&bitMarked == 0 {
+			if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
 				// No more possible pointers.
 				break
 			}

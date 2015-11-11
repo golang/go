@@ -122,6 +122,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -370,7 +371,7 @@ type gcControllerState struct {
 	// at the end of of each cycle.
 	triggerRatio float64
 
-	_ [_CacheLineSize]byte
+	_ [sys.CacheLineSize]byte
 
 	// fractionalMarkWorkersNeeded is the number of fractional
 	// mark workers that need to be started. This is either 0 or
@@ -378,7 +379,7 @@ type gcControllerState struct {
 	// scheduling point (hence it gets its own cache line).
 	fractionalMarkWorkersNeeded int64
 
-	_ [_CacheLineSize]byte
+	_ [sys.CacheLineSize]byte
 }
 
 // startCycle resets the GC controller's state and computes estimates
@@ -730,9 +731,9 @@ const gcAssistTimeSlack = 5000
 const gcOverAssistBytes = 1 << 20
 
 var work struct {
-	full  uint64                // lock-free list of full blocks workbuf
-	empty uint64                // lock-free list of empty blocks workbuf
-	pad0  [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+	full  uint64                   // lock-free list of full blocks workbuf
+	empty uint64                   // lock-free list of empty blocks workbuf
+	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
 
 	markrootNext uint32 // next markroot job
 	markrootJobs uint32 // number of markroot jobs
