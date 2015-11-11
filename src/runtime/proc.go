@@ -2913,7 +2913,14 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// This is especially important on windows, since all syscalls are cgo calls.
 		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
 	} else if traceback {
-		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap|_TraceJumpStack)
+		flags := uint(_TraceTrap | _TraceJumpStack)
+		if gp.m.curg != nil && readgstatus(gp.m.curg) == _Gcopystack {
+			// We can traceback the system stack, but
+			// don't jump to the potentially inconsistent
+			// user stack.
+			flags &^= _TraceJumpStack
+		}
+		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
 	}
 	if !traceback || n <= 0 {
 		// Normal traceback is impossible or has failed.
