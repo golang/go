@@ -4,7 +4,6 @@ package gc
 
 const runtimeimport = "" +
 	"package runtime\n" +
-	"import runtime \"runtime\"\n" +
 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
 	"func @\"\".panicindex ()\n" +
 	"func @\"\".panicslice ()\n" +
@@ -162,7 +161,6 @@ const runtimeimport = "" +
 
 const unsafeimport = "" +
 	"package unsafe\n" +
-	"import runtime \"runtime\"\n" +
 	"type @\"\".Pointer uintptr\n" +
 	"func @\"\".Offsetof (? any) (? uintptr)\n" +
 	"func @\"\".Sizeof (? any) (? uintptr)\n" +
