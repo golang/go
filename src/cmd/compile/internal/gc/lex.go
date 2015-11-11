@@ -222,7 +222,7 @@ func Main() {
 	var flag_shared int
 	var flag_dynlink bool
 	switch Thearch.Thechar {
-	case '5', '6', '7', '9':
+	case '5', '6', '7', '8', '9':
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
 	}
 	if Thearch.Thechar == '6' {

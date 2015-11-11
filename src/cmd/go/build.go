@@ -361,7 +361,7 @@ func buildModeInit() {
 		ldBuildmode = "c-shared"
 	case "default":
 		switch platform {
-		case "android/arm", "android/arm64", "android/amd64":
+		case "android/arm", "android/arm64", "android/amd64", "android/386":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
 		default:
@@ -375,7 +375,8 @@ func buildModeInit() {
 			fatalf("-buildmode=pie not supported by gccgo")
 		} else {
 			switch platform {
-			case "linux/arm", "android/arm", "linux/amd64", "android/amd64", "linux/arm64", "android/arm64", "linux/ppc64le":
+			case "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
+				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			default:
 				fatalf("-buildmode=pie not supported on %s\n", platform)
