@@ -392,7 +392,7 @@ func reimburseSweepCredit(unusableBytes uintptr) {
 		// Nobody cares about the credit. Avoid the atomic.
 		return
 	}
-	xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
+	atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
 }
 
 func dumpFreeList(s *mspan) {
