@@ -2090,8 +2090,11 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 
 	case obj.TYPE_ADDR:
 		switch a.Name {
+		case obj.NAME_GOTREF:
+			ctxt.Diag("unexpected TYPE_ADDR with NAME_GOTREF")
+			return Yxxx
+
 		case obj.NAME_EXTERN,
-			obj.NAME_GOTREF,
 			obj.NAME_STATIC:
 			if a.Sym != nil && isextern(a.Sym) || p.Mode == 32 {
 				return Yi32
