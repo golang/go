@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -16,14 +17,14 @@ type finblock struct {
 	next    *finblock
 	cnt     int32
 	_       int32
-	fin     [(_FinBlockSize - 2*ptrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
+	fin     [(_FinBlockSize - 2*sys.PtrSize - 2*4) / unsafe.Sizeof(finalizer{})]finalizer
 }
 
 var finlock mutex  // protects the following variables
 var fing *g        // goroutine that runs finalizers
 var finq *finblock // list of finalizers that are to be executed
 var finc *finblock // cache of free blocks
-var finptrmask [_FinBlockSize / ptrSize / 8]byte
+var finptrmask [_FinBlockSize / sys.PtrSize / 8]byte
 var fingwait bool
 var fingwake bool
 var allfin *finblock // list of all blocks
@@ -76,12 +77,12 @@ func queuefinalizer(p unsafe.Pointer, fn *funcval, nret uintptr, fint *_type, ot
 			if finptrmask[0] == 0 {
 				// Build pointer mask for Finalizer array in block.
 				// Check assumptions made in finalizer1 array above.
-				if (unsafe.Sizeof(finalizer{}) != 5*ptrSize ||
+				if (unsafe.Sizeof(finalizer{}) != 5*sys.PtrSize ||
 					unsafe.Offsetof(finalizer{}.fn) != 0 ||
-					unsafe.Offsetof(finalizer{}.arg) != ptrSize ||
-					unsafe.Offsetof(finalizer{}.nret) != 2*ptrSize ||
-					unsafe.Offsetof(finalizer{}.fint) != 3*ptrSize ||
-					unsafe.Offsetof(finalizer{}.ot) != 4*ptrSize) {
+					unsafe.Offsetof(finalizer{}.arg) != sys.PtrSize ||
+					unsafe.Offsetof(finalizer{}.nret) != 2*sys.PtrSize ||
+					unsafe.Offsetof(finalizer{}.fint) != 3*sys.PtrSize ||
+					unsafe.Offsetof(finalizer{}.ot) != 4*sys.PtrSize) {
 					throw("finalizer out of sync")
 				}
 				for i := range finptrmask {
@@ -361,7 +362,7 @@ okarg:
 	for _, t := range ft.out {
 		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
 	}
-	nret = round(nret, ptrSize)
+	nret = round(nret, sys.PtrSize)
 
 	// make sure we have a finalizer goroutine
 	createfing()
@@ -379,7 +380,7 @@ okarg:
 func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	c := gomcache()
 	c.local_nlookup++
-	if ptrSize == 4 && c.local_nlookup >= 1<<30 {
+	if sys.PtrSize == 4 && c.local_nlookup >= 1<<30 {
 		// purge cache stats to prevent overflow
 		lock(&mheap_.lock)
 		purgecachedstats(c)
@@ -394,7 +395,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	}
 	p := uintptr(v) >> pageShift
 	q := p - arena_start>>pageShift
-	s = *(**mspan)(add(unsafe.Pointer(mheap_.spans), q*ptrSize))
+	s = *(**mspan)(add(unsafe.Pointer(mheap_.spans), q*sys.PtrSize))
 	if s == nil {
 		return
 	}

@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -47,14 +48,6 @@ const (
 	_Pgcstop
 	_Pdead
 )
-
-// The next line makes 'go generate' write the zgen_*.go files with
-// per-OS and per-arch information, including constants
-// named goos_$GOOS and goarch_$GOARCH for every
-// known GOOS and GOARCH. The constant is 1 on the
-// current system, 0 otherwise; multiplying by them is
-// useful for defining GOOS- or GOARCH-specific constants.
-//go:generate go run gengoos.go
 
 type mutex struct {
 	// Futex-based impl treats it as uint32 key,
@@ -151,7 +144,7 @@ type gobuf struct {
 	pc   uintptr
 	g    guintptr
 	ctxt unsafe.Pointer // this has to be a pointer so that gc scans it
-	ret  uintreg
+	ret  sys.Uintreg
 	lr   uintptr
 	bp   uintptr // for GOEXPERIMENT=framepointer
 }
@@ -533,7 +526,7 @@ type forcegcstate struct {
  * known to compiler
  */
 const (
-	_Structrnd = regSize
+	_Structrnd = sys.RegSize
 )
 
 // startup_random_data holds random bytes initialized at startup.  These come from
@@ -553,7 +546,7 @@ func extendRandom(r []byte, n int) {
 			w = 16
 		}
 		h := memhash(unsafe.Pointer(&r[n-w]), uintptr(nanotime()), uintptr(w))
-		for i := 0; i < ptrSize && n < len(r); i++ {
+		for i := 0; i < sys.PtrSize && n < len(r); i++ {
 			r[n] = byte(h)
 			n++
 			h >>= 8

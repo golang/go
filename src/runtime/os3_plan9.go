@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrier
@@ -69,11 +72,11 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		// to sigpanic instead. (Otherwise the trace will end at
 		// sigpanic and we won't get to see who faulted).
 		if pc != 0 {
-			if regSize > ptrSize {
-				sp -= ptrSize
+			if sys.RegSize > sys.PtrSize {
+				sp -= sys.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = 0
 			}
-			sp -= ptrSize
+			sp -= sys.PtrSize
 			*(*uintptr)(unsafe.Pointer(sp)) = pc
 			c.setsp(sp)
 		}

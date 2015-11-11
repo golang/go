@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -369,7 +370,7 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
-	if _BigEndian != 0 {
+	if sys.BigEndian != 0 {
 		atomic.Xadd64(sysStat, int64(n))
 		return
 	}
@@ -383,7 +384,7 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
-	if _BigEndian != 0 {
+	if sys.BigEndian != 0 {
 		atomic.Xadd64(sysStat, -int64(n))
 		return
 	}

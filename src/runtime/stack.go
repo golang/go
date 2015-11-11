@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -64,7 +65,7 @@ const (
 	// to each stack below the usual guard area for OS-specific
 	// purposes like signal handling. Used on Windows, Plan 9,
 	// and Darwin/ARM because they do not use a separate stack.
-	_StackSystem = goos_windows*512*ptrSize + goos_plan9*512 + goos_darwin*goarch_arm*1024
+	_StackSystem = sys.GoosWindows*512*sys.PtrSize + sys.GoosPlan9*512 + sys.GoosDarwin*sys.GoarchArm*1024
 
 	// The minimum size of stack used by Go code
 	_StackMin = 2048
@@ -89,7 +90,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 640*stackGuardMultiplier + _StackSystem
+	_StackGuard = 640*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard.  This saves an instruction
@@ -125,7 +126,7 @@ const (
 )
 
 const (
-	uintptrMask = 1<<(8*ptrSize) - 1
+	uintptrMask = 1<<(8*sys.PtrSize) - 1
 	poisonStack = uintptrMask & 0x6868686868686868
 
 	// Goroutine preemption request.
@@ -536,10 +537,10 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
 	num := uintptr(bv.n)
 	for i := uintptr(0); i < num; i++ {
 		if stackDebug >= 4 {
-			print("        ", add(scanp, i*ptrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*ptrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
+			print("        ", add(scanp, i*sys.PtrSize), ":", ptrnames[ptrbit(&bv, i)], ":", hex(*(*uintptr)(add(scanp, i*sys.PtrSize))), " # ", i, " ", bv.bytedata[i/8], "\n")
 		}
 		if ptrbit(&bv, i) == 1 {
-			pp := (*uintptr)(add(scanp, i*ptrSize))
+			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
 			p := *pp
 			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 || p == poisonStack {
 				// Looks like a junk value in a pointer slot.
@@ -587,11 +588,11 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 	// Adjust local variables if stack frame has been allocated.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	switch thechar {
+	switch sys.TheChar {
 	case '7':
-		minsize = spAlign
+		minsize = sys.SpAlign
 	default:
-		minsize = minFrameSize
+		minsize = sys.MinFrameSize
 	}
 	if size > minsize {
 		var bv bitvector
@@ -607,15 +608,15 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 			throw("bad symbol table")
 		}
 		bv = stackmapdata(stackmap, pcdata)
-		size = uintptr(bv.n) * ptrSize
+		size = uintptr(bv.n) * sys.PtrSize
 		if stackDebug >= 3 {
-			print("      locals ", pcdata, "/", stackmap.n, " ", size/ptrSize, " words ", bv.bytedata, "\n")
+			print("      locals ", pcdata, "/", stackmap.n, " ", size/sys.PtrSize, " words ", bv.bytedata, "\n")
 		}
 		adjustpointers(unsafe.Pointer(frame.varp-size), &bv, adjinfo, f)
 	}
 
 	// Adjust saved base pointer if there is one.
-	if thechar == '6' && frame.argp-frame.varp == 2*regSize {
+	if sys.TheChar == '6' && frame.argp-frame.varp == 2*sys.RegSize {
 		if !framepointer_enabled {
 			print("runtime: found space for saved base pointer, but no framepointer experiment\n")
 			print("argp=", hex(frame.argp), " varp=", hex(frame.varp), "\n")
@@ -841,9 +842,9 @@ func newstack() {
 		throw("missing stack in newstack")
 	}
 	sp := gp.sched.sp
-	if thechar == '6' || thechar == '8' {
+	if sys.TheChar == '6' || sys.TheChar == '8' {
 		// The call to morestack cost a word.
-		sp -= ptrSize
+		sp -= sys.PtrSize
 	}
 	if stackDebug >= 1 || sp < gp.stack.lo {
 		print("runtime: newstack sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n",
@@ -978,7 +979,7 @@ func shrinkstack(gp *g) {
 	if gp.syscallsp != 0 {
 		return
 	}
-	if goos_windows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
+	if sys.GoosWindows != 0 && gp.m != nil && gp.m.libcallsp != 0 {
 		return
 	}
 

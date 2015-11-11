@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // From FreeBSD's <sys/sysctl.h>
 const (
@@ -133,7 +136,7 @@ func minit() {
 
 	// m.procid is a uint64, but thr_new writes a uint32 on 32-bit systems.
 	// Fix it up. (Only matters on big-endian, but be clean anyway.)
-	if ptrSize == 4 {
+	if sys.PtrSize == 4 {
 		_g_.m.procid = uint64(*(*uint32)(unsafe.Pointer(&_g_.m.procid)))
 	}
 

@@ -6,7 +6,10 @@ package runtime
 
 // This file contains the implementation of Go select statements.
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
 	debugSelect = false
@@ -51,7 +54,7 @@ func selectsize(size uintptr) uintptr {
 		(size-1)*unsafe.Sizeof(hselect{}.scase[0]) +
 		size*unsafe.Sizeof(*hselect{}.lockorder) +
 		size*unsafe.Sizeof(*hselect{}.pollorder)
-	return round(selsize, _Int64Align)
+	return round(selsize, sys.Int64Align)
 }
 
 func newselect(sel *hselect, selsize int64, size int32) {

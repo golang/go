@@ -36,7 +36,8 @@ var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
 	"errors":                  {},
 	"io":                      {"errors", "sync"},
-	"runtime":                 {"unsafe", "runtime/internal/atomic"},
+	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
+	"runtime/internal/sys":    {},
 	"runtime/internal/atomic": {"unsafe"},
 	"sync":        {"runtime", "sync/atomic", "unsafe"},
 	"sync/atomic": {"unsafe"},

@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -55,7 +56,7 @@ func main() {
 	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
 	// Using decimal instead of binary GB and MB because
 	// they look nicer in the stack overflow failure message.
-	if ptrSize == 8 {
+	if sys.PtrSize == 8 {
 		maxstacksize = 1000000000
 	} else {
 		maxstacksize = 250000000
@@ -306,7 +307,7 @@ func releaseSudog(s *sudog) {
 // It assumes that f is a func value. Otherwise the behavior is undefined.
 //go:nosplit
 func funcPC(f interface{}) uintptr {
-	return **(**uintptr)(add(unsafe.Pointer(&f), ptrSize))
+	return **(**uintptr)(add(unsafe.Pointer(&f), sys.PtrSize))
 }
 
 // called from assembly
@@ -393,10 +394,10 @@ func schedinit() {
 		throw("unknown runnable goroutine during bootstrap")
 	}
 
-	if buildVersion == "" {
+	if sys.BuildVersion == "" {
 		// Condition should never trigger.  This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
-		buildVersion = "unknown"
+		sys.BuildVersion = "unknown"
 	}
 }
 
@@ -999,7 +1000,7 @@ func mstart() {
 		// Cgo may have left stack size in stack.hi.
 		size := _g_.stack.hi
 		if size == 0 {
-			size = 8192 * stackGuardMultiplier
+			size = 8192 * sys.StackGuardMultiplier
 		}
 		_g_.stack.hi = uintptr(noescape(unsafe.Pointer(&size)))
 		_g_.stack.lo = _g_.stack.hi - size + 1024
@@ -1202,7 +1203,7 @@ func allocm(_p_ *p, fn func()) *m {
 	if iscgo || GOOS == "solaris" || GOOS == "windows" || GOOS == "plan9" {
 		mp.g0 = malg(-1)
 	} else {
-		mp.g0 = malg(8192 * stackGuardMultiplier)
+		mp.g0 = malg(8192 * sys.StackGuardMultiplier)
 	}
 	mp.g0.m = mp
 
@@ -1305,9 +1306,9 @@ func newextram() {
 	// the goroutine stack ends.
 	mp := allocm(nil, nil)
 	gp := malg(4096)
-	gp.sched.pc = funcPC(goexit) + _PCQuantum
+	gp.sched.pc = funcPC(goexit) + sys.PCQuantum
 	gp.sched.sp = gp.stack.hi
-	gp.sched.sp -= 4 * regSize // extra space in case of reads slightly beyond frame
+	gp.sched.sp -= 4 * sys.RegSize // extra space in case of reads slightly beyond frame
 	gp.sched.lr = 0
 	gp.sched.g = guintptr(unsafe.Pointer(gp))
 	gp.syscallpc = gp.sched.pc
@@ -2535,7 +2536,7 @@ func malg(stacksize int32) *g {
 // copied if a stack split occurred.
 //go:nosplit
 func newproc(siz int32, fn *funcval) {
-	argp := add(unsafe.Pointer(&fn), ptrSize)
+	argp := add(unsafe.Pointer(&fn), sys.PtrSize)
 	pc := getcallerpc(unsafe.Pointer(&siz))
 	systemstack(func() {
 		newproc1(fn, (*uint8)(argp), siz, 0, pc)
@@ -2561,7 +2562,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	// Not worth it: this is almost always an error.
 	// 4*sizeof(uintreg): extra space added below
 	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
-	if siz >= _StackMin-4*regSize-regSize {
+	if siz >= _StackMin-4*sys.RegSize-sys.RegSize {
 		throw("newproc: function arguments too large for new goroutine")
 	}
 
@@ -2580,21 +2581,21 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 		throw("newproc1: new g is not Gdead")
 	}
 
-	totalSize := 4*regSize + uintptr(siz) + minFrameSize // extra space in case of reads slightly beyond frame
-	totalSize += -totalSize & (spAlign - 1)              // align to spAlign
+	totalSize := 4*sys.RegSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
+	totalSize += -totalSize & (sys.SpAlign - 1)                  // align to spAlign
 	sp := newg.stack.hi - totalSize
 	spArg := sp
 	if usesLR {
 		// caller's LR
 		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil
-		spArg += minFrameSize
+		spArg += sys.MinFrameSize
 	}
 	memmove(unsafe.Pointer(spArg), unsafe.Pointer(argp), uintptr(narg))
 
 	memclr(unsafe.Pointer(&newg.sched), unsafe.Sizeof(newg.sched))
 	newg.sched.sp = sp
 	newg.stktopsp = sp
-	newg.sched.pc = funcPC(goexit) + _PCQuantum // +PCQuantum so that previous instruction is in same function
+	newg.sched.pc = funcPC(goexit) + sys.PCQuantum // +PCQuantum so that previous instruction is in same function
 	newg.sched.g = guintptr(unsafe.Pointer(newg))
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
@@ -2928,13 +2929,13 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			n = 2
 			// "ExternalCode" is better than "etext".
 			if pc > firstmoduledata.etext {
-				pc = funcPC(_ExternalCode) + _PCQuantum
+				pc = funcPC(_ExternalCode) + sys.PCQuantum
 			}
 			stk[0] = pc
 			if mp.preemptoff != "" || mp.helpgc != 0 {
-				stk[1] = funcPC(_GC) + _PCQuantum
+				stk[1] = funcPC(_GC) + sys.PCQuantum
 			} else {
-				stk[1] = funcPC(_System) + _PCQuantum
+				stk[1] = funcPC(_System) + sys.PCQuantum
 			}
 		}
 	}
@@ -3981,7 +3982,7 @@ func setMaxThreads(in int) (out int) {
 }
 
 func haveexperiment(name string) bool {
-	x := goexperiment
+	x := sys.Goexperiment
 	for x != "" {
 		xname := ""
 		i := index(x, ",")

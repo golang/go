@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // The code in this file implements stack trace walking for all architectures.
 // The most important fact about a given architecture is whether it uses a link register.
@@ -29,7 +32,7 @@ import "unsafe"
 // usesLR is defined below in terms of minFrameSize, which is defined in
 // arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
 
-const usesLR = minFrameSize > 0
+const usesLR = sys.MinFrameSize > 0
 
 var (
 	// initialized in tracebackinit
@@ -181,8 +184,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.lr = 0
 		} else {
-			frame.pc = uintptr(*(*uintreg)(unsafe.Pointer(frame.sp)))
-			frame.sp += regSize
+			frame.pc = uintptr(*(*sys.Uintreg)(unsafe.Pointer(frame.sp)))
+			frame.sp += sys.RegSize
 		}
 	}
 
@@ -222,7 +225,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
-				frame.fp += regSize
+				frame.fp += sys.RegSize
 			}
 		}
 		var flr *_func
@@ -249,8 +252,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 			} else {
 				if frame.lr == 0 {
-					lrPtr = frame.fp - regSize
-					frame.lr = uintptr(*(*uintreg)(unsafe.Pointer(lrPtr)))
+					lrPtr = frame.fp - sys.RegSize
+					frame.lr = uintptr(*(*sys.Uintreg)(unsafe.Pointer(lrPtr)))
 				}
 			}
 			if frame.lr == stackBarrierPC {
@@ -280,13 +283,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.varp = frame.fp
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
-			frame.varp -= regSize
+			frame.varp -= sys.RegSize
 		}
 
 		// If framepointer_enabled and there's a frame, then
 		// there's a saved bp here.
 		if framepointer_enabled && GOARCH == "amd64" && frame.varp > frame.sp {
-			frame.varp -= regSize
+			frame.varp -= sys.RegSize
 		}
 
 		// Derive size of arguments.
@@ -296,7 +299,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// in package runtime and reflect, and for those we use call-specific
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
-			frame.argp = frame.fp + minFrameSize
+			frame.argp = frame.fp + sys.MinFrameSize
 			setArgInfo(&frame, f, callback != nil)
 		}
 
@@ -349,7 +352,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 				print(funcname(f), "(")
 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
-				for i := uintptr(0); i < frame.arglen/ptrSize; i++ {
+				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
 					if i >= 10 {
 						print(", ...")
 						break
@@ -394,10 +397,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// before faking a call to sigpanic.
 		if usesLR && waspanic {
 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
-			frame.sp += minFrameSize
+			frame.sp += sys.MinFrameSize
 			if GOARCH == "arm64" {
 				// arm64 needs 16-byte aligned SP, always
-				frame.sp += ptrSize
+				frame.sp += sys.PtrSize
 			}
 			f = findfunc(frame.pc)
 			frame.fn = f
@@ -494,14 +497,14 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
-			arg0 := frame.sp + minFrameSize
+			arg0 := frame.sp + sys.MinFrameSize
 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
 			if fn[0] != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
-			frame.arglen = uintptr(bv.n * ptrSize)
+			frame.arglen = uintptr(bv.n * sys.PtrSize)
 			frame.argmap = bv
 		}
 	}
@@ -515,7 +518,7 @@ func printcreatedby(gp *g) {
 		print("created by ", funcname(f), "\n")
 		tracepc := pc // back up to CALL instruction for funcline.
 		if pc > f.entry {
-			tracepc -= _PCQuantum
+			tracepc -= sys.PCQuantum
 		}
 		file, line := funcline(f, tracepc)
 		print("\t", file, ":", line)

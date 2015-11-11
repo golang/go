@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 type sigctxt struct {
 	info *siginfo
@@ -57,5 +60,5 @@ func (c *sigctxt) set_lr(x uint64)  { c.regs().regs[30] = x }
 func (c *sigctxt) set_r28(x uint64) { c.regs().regs[28] = x }
 
 func (c *sigctxt) set_sigaddr(x uint64) {
-	*(*uintptr)(add(unsafe.Pointer(c.info), 2*ptrSize)) = uintptr(x)
+	*(*uintptr)(add(unsafe.Pointer(c.info), 2*sys.PtrSize)) = uintptr(x)
 }

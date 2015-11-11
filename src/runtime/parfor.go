@@ -6,7 +6,10 @@
 
 package runtime
 
-import "runtime/internal/atomic"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+)
 
 // A parfor holds state for the parallel for operation.
 type parfor struct {
@@ -38,7 +41,7 @@ type parforthread struct {
 	nprocyield uint64
 	nosyield   uint64
 	nsleep     uint64
-	pad        [_CacheLineSize]byte
+	pad        [sys.CacheLineSize]byte
 }
 
 func parforalloc(nthrmax uint32) *parfor {

@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -201,7 +202,7 @@ func markroot(i uint32) {
 //
 //go:nowritebarrier
 func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
-	if rootBlockBytes%(8*ptrSize) != 0 {
+	if rootBlockBytes%(8*sys.PtrSize) != 0 {
 		// This is necessary to pick byte offsets in ptrmask0.
 		throw("rootBlockBytes must be a multiple of 8*ptrSize")
 	}
@@ -210,7 +211,7 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 	if b >= b0+n0 {
 		return
 	}
-	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*ptrSize))))
+	ptrmask := (*uint8)(add(unsafe.Pointer(ptrmask0), uintptr(shard)*(rootBlockBytes/(8*sys.PtrSize))))
 	n := uintptr(rootBlockBytes)
 	if b+n > b0+n0 {
 		n = b0 + n0 - b
@@ -300,7 +301,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 			scanobject(p, gcw)
 
 			// The special itself is a root.
-			scanblock(uintptr(unsafe.Pointer(&spf.fn)), ptrSize, &oneptrmask[0], gcw)
+			scanblock(uintptr(unsafe.Pointer(&spf.fn)), sys.PtrSize, &oneptrmask[0], gcw)
 		}
 
 		unlock(&s.speciallock)
@@ -704,11 +705,11 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 	// Scan local variables if stack frame has been allocated.
 	size := frame.varp - frame.sp
 	var minsize uintptr
-	switch thechar {
+	switch sys.TheChar {
 	case '7':
-		minsize = spAlign
+		minsize = sys.SpAlign
 	default:
-		minsize = minFrameSize
+		minsize = sys.MinFrameSize
 	}
 	if size > minsize {
 		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
@@ -724,7 +725,7 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 			throw("scanframe: bad symbol table")
 		}
 		bv := stackmapdata(stkmap, pcdata)
-		size = uintptr(bv.n) * ptrSize
+		size = uintptr(bv.n) * sys.PtrSize
 		scanblock(frame.varp-size, size, bv.bytedata, gcw)
 	}
 
@@ -746,7 +747,7 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 			}
 			bv = stackmapdata(stkmap, pcdata)
 		}
-		scanblock(frame.argp, uintptr(bv.n)*ptrSize, bv.bytedata, gcw)
+		scanblock(frame.argp, uintptr(bv.n)*sys.PtrSize, bv.bytedata, gcw)
 	}
 }
 
@@ -912,9 +913,9 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 
 	for i := uintptr(0); i < n; {
 		// Find bits for the next word.
-		bits := uint32(*addb(ptrmask, i/(ptrSize*8)))
+		bits := uint32(*addb(ptrmask, i/(sys.PtrSize*8)))
 		if bits == 0 {
-			i += ptrSize * 8
+			i += sys.PtrSize * 8
 			continue
 		}
 		for j := 0; j < 8 && i < n; j++ {
@@ -928,7 +929,7 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 				}
 			}
 			bits >>= 1
-			i += ptrSize
+			i += sys.PtrSize
 		}
 	}
 }
@@ -962,7 +963,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 	}
 
 	var i uintptr
-	for i = 0; i < n; i += ptrSize {
+	for i = 0; i < n; i += sys.PtrSize {
 		// Find bits for this word.
 		if i != 0 {
 			// Avoid needless hbits.next() on last iteration.
@@ -973,7 +974,7 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// are pointers, or else they'd be merged with other non-pointer
 		// data into larger allocations.
 		bits := hbits.bits()
-		if i >= 2*ptrSize && bits&bitMarked == 0 {
+		if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
 			break // no more pointers in this object
 		}
 		if bits&bitPointer == 0 {
@@ -1019,7 +1020,7 @@ func shade(b uintptr) {
 //go:nowritebarrier
 func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
-	if obj&(ptrSize-1) != 0 {
+	if obj&(sys.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
 	}
 
@@ -1087,11 +1088,11 @@ func gcDumpObject(label string, obj, off uintptr) {
 	}
 	print(" s.start*_PageSize=", hex(s.start*_PageSize), " s.limit=", hex(s.limit), " s.sizeclass=", s.sizeclass, " s.elemsize=", s.elemsize, "\n")
 	skipped := false
-	for i := uintptr(0); i < s.elemsize; i += ptrSize {
+	for i := uintptr(0); i < s.elemsize; i += sys.PtrSize {
 		// For big objects, just print the beginning (because
 		// that usually hints at the object's type) and the
 		// fields around off.
-		if !(i < 128*ptrSize || off-16*ptrSize < i && i < off+16*ptrSize) {
+		if !(i < 128*sys.PtrSize || off-16*sys.PtrSize < i && i < off+16*sys.PtrSize) {
 			skipped = true
 			continue
 		}

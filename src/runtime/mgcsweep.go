@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -280,10 +281,10 @@ func (s *mspan) sweep(preserve bool) bool {
 			freeToHeap = true
 		} else {
 			// Free small object.
-			if size > 2*ptrSize {
-				*(*uintptr)(unsafe.Pointer(p + ptrSize)) = uintptrMask & 0xdeaddeaddeaddead // mark as "needs to be zeroed"
-			} else if size > ptrSize {
-				*(*uintptr)(unsafe.Pointer(p + ptrSize)) = 0
+			if size > 2*sys.PtrSize {
+				*(*uintptr)(unsafe.Pointer(p + sys.PtrSize)) = uintptrMask & 0xdeaddeaddeaddead // mark as "needs to be zeroed"
+			} else if size > sys.PtrSize {
+				*(*uintptr)(unsafe.Pointer(p + sys.PtrSize)) = 0
 			}
 			if head.ptr() == nil {
 				head = gclinkptr(p)

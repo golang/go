@@ -11,7 +11,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 //go:linkname runtime_debug_WriteHeapDump runtime/debug.WriteHeapDump
 func runtime_debug_WriteHeapDump(fd uintptr) {
@@ -233,7 +236,7 @@ func dumpbv(cbv *bitvector, offset uintptr) {
 	for i := uintptr(0); i < uintptr(bv.n); i++ {
 		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
-			dumpint(uint64(offset + i*ptrSize))
+			dumpint(uint64(offset + i*sys.PtrSize))
 		}
 	}
 }
@@ -263,7 +266,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	var bv bitvector
 	if stkmap != nil && stkmap.n > 0 {
 		bv = stackmapdata(stkmap, pcdata)
-		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n*ptrSize)))
+		dumpbvtypes(&bv, unsafe.Pointer(s.varp-uintptr(bv.n*sys.PtrSize)))
 	} else {
 		bv.n = -1
 	}
@@ -288,7 +291,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 		dumpbv(&child.args, child.argoff)
 	} else {
 		// conservative - everything might be a pointer
-		for off := child.argoff; off < child.argoff+child.arglen; off += ptrSize {
+		for off := child.argoff; off < child.argoff+child.arglen; off += sys.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
@@ -297,21 +300,21 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	// Dump fields in the local vars section
 	if stkmap == nil {
 		// No locals information, dump everything.
-		for off := child.arglen; off < s.varp-s.sp; off += ptrSize {
+		for off := child.arglen; off < s.varp-s.sp; off += sys.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
 	} else if stkmap.n < 0 {
 		// Locals size information, dump just the locals.
 		size := uintptr(-stkmap.n)
-		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += ptrSize {
+		for off := s.varp - size - s.sp; off < s.varp-s.sp; off += sys.PtrSize {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(off))
 		}
 	} else if stkmap.n > 0 {
 		// Locals bitmap information, scan just the pointers in
 		// locals.
-		dumpbv(&bv, s.varp-uintptr(bv.n)*ptrSize-s.sp)
+		dumpbv(&bv, s.varp-uintptr(bv.n)*sys.PtrSize-s.sp)
 	}
 	dumpint(fieldKindEol)
 
@@ -489,11 +492,11 @@ func dumpparams() {
 	} else {
 		dumpbool(true) // big-endian ptrs
 	}
-	dumpint(ptrSize)
+	dumpint(sys.PtrSize)
 	dumpint(uint64(mheap_.arena_start))
 	dumpint(uint64(mheap_.arena_used))
-	dumpint(thechar)
-	dumpstr(goexperiment)
+	dumpint(sys.TheChar)
+	dumpstr(sys.Goexperiment)
 	dumpint(uint64(ncpu))
 }
 
@@ -704,7 +707,7 @@ func dumpbvtypes(bv *bitvector, base unsafe.Pointer) {
 
 func makeheapobjbv(p uintptr, size uintptr) bitvector {
 	// Extend the temp buffer if necessary.
-	nptr := size / ptrSize
+	nptr := size / sys.PtrSize
 	if uintptr(len(tmpbuf)) < nptr/8+1 {
 		if tmpbuf != nil {
 			sysFree(unsafe.Pointer(&tmpbuf[0]), uintptr(len(tmpbuf)), &memstats.other_sys)

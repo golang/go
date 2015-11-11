@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -52,7 +53,7 @@ var (
 // nosplit for use in linux/386 startup linux_setup_vdso
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*ptrSize))
+	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
 }
 
 func args(c int32, v **byte) {
@@ -192,10 +193,10 @@ func check() {
 	if unsafe.Sizeof(j) != 8 {
 		throw("bad j")
 	}
-	if unsafe.Sizeof(k) != ptrSize {
+	if unsafe.Sizeof(k) != sys.PtrSize {
 		throw("bad k")
 	}
-	if unsafe.Sizeof(l) != ptrSize {
+	if unsafe.Sizeof(l) != sys.PtrSize {
 		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {
@@ -238,7 +239,7 @@ func check() {
 	}
 
 	k = unsafe.Pointer(uintptr(0xfedcb123))
-	if ptrSize == 8 {
+	if sys.PtrSize == 8 {
 		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
 	}
 	if casp(&k, nil, nil) {

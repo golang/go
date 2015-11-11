@@ -79,7 +79,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
 	debugMalloc = false
@@ -143,7 +146,7 @@ const (
 	//   windows/32       | 4KB        | 3
 	//   windows/64       | 8KB        | 2
 	//   plan9            | 4KB        | 3
-	_NumStackOrders = 4 - ptrSize/4*goos_windows - 1*goos_plan9
+	_NumStackOrders = 4 - sys.PtrSize/4*sys.GoosWindows - 1*sys.GoosPlan9
 
 	// Number of bits in page to span calculations (4k pages).
 	// On Windows 64-bit we limit the arena to 32GB or 35 bits.
@@ -155,7 +158,7 @@ const (
 	// On Darwin/arm64, we cannot reserve more than ~5GB of virtual memory,
 	// but as most devices have less than 4GB of physical memory anyway, we
 	// try to be conservative here, and only ask for a 2GB heap.
-	_MHeapMap_TotalBits = (_64bit*goos_windows)*35 + (_64bit*(1-goos_windows)*(1-goos_darwin*goarch_arm64))*39 + goos_darwin*goarch_arm64*31 + (1-_64bit)*32
+	_MHeapMap_TotalBits = (_64bit*sys.GoosWindows)*35 + (_64bit*(1-sys.GoosWindows)*(1-sys.GoosDarwin*sys.GoarchArm64))*39 + sys.GoosDarwin*sys.GoarchArm64*31 + (1-_64bit)*32
 	_MHeapMap_Bits      = _MHeapMap_TotalBits - _PageShift
 
 	_MaxMem = uintptr(1<<_MHeapMap_TotalBits - 1)
@@ -228,7 +231,7 @@ func mallocinit() {
 	// Set up the allocation arena, a contiguous area of memory where
 	// allocated data will be found.  The arena begins with a bitmap large
 	// enough to hold 4 bits per allocated word.
-	if ptrSize == 8 && (limit == 0 || limit > 1<<30) {
+	if sys.PtrSize == 8 && (limit == 0 || limit > 1<<30) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
 		// 512 GB (MaxMem) should be big enough for now.
 		//
@@ -259,8 +262,8 @@ func mallocinit() {
 		// translation buffers, the user address space is limited to 39 bits
 		// On darwin/arm64, the address space is even smaller.
 		arenaSize := round(_MaxMem, _PageSize)
-		bitmapSize = arenaSize / (ptrSize * 8 / 4)
-		spansSize = arenaSize / _PageSize * ptrSize
+		bitmapSize = arenaSize / (sys.PtrSize * 8 / 4)
+		spansSize = arenaSize / _PageSize * sys.PtrSize
 		spansSize = round(spansSize, _PageSize)
 		for i := 0; i <= 0x7f; i++ {
 			switch {
@@ -308,12 +311,12 @@ func mallocinit() {
 		}
 
 		for _, arenaSize := range arenaSizes {
-			bitmapSize = _MaxArena32 / (ptrSize * 8 / 4)
-			spansSize = _MaxArena32 / _PageSize * ptrSize
+			bitmapSize = _MaxArena32 / (sys.PtrSize * 8 / 4)
+			spansSize = _MaxArena32 / _PageSize * sys.PtrSize
 			if limit > 0 && arenaSize+bitmapSize+spansSize > limit {
 				bitmapSize = (limit / 9) &^ ((1 << _PageShift) - 1)
 				arenaSize = bitmapSize * 8
-				spansSize = arenaSize / _PageSize * ptrSize
+				spansSize = arenaSize / _PageSize * sys.PtrSize
 			}
 			spansSize = round(spansSize, _PageSize)
 
@@ -368,7 +371,7 @@ func mallocinit() {
 // needed. This doesn't work well with the "let the kernel pick an address"
 // mode, so don't do that. Pick a high address instead.
 func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
-	if ptrSize == 4 {
+	if sys.PtrSize == 4 {
 		return sysReserve(nil, n, reserved)
 	}
 
@@ -642,7 +645,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			x = unsafe.Pointer(v)
 			if flags&flagNoZero == 0 {
 				v.ptr().next = 0
-				if size > 2*ptrSize && ((*[2]uintptr)(x))[1] != 0 {
+				if size > 2*sys.PtrSize && ((*[2]uintptr)(x))[1] != 0 {
 					memclr(unsafe.Pointer(v), size)
 				}
 			}

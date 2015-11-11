@@ -13,7 +13,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // markwb is the mark-phase write barrier, the only barrier we have.
 // The rest of this file exists only to make calls to this function.
@@ -128,7 +131,7 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 	if !writeBarrierEnabled {
 		return
 	}
-	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+	if src != 0 && (src < sys.PhysPageSize || src == poisonStack) {
 		systemstack(func() {
 			print("runtime: writebarrierptr *", dst, " = ", hex(src), "\n")
 			throw("bad pointer in write barrier")
@@ -144,7 +147,7 @@ func writebarrierptr_nostore(dst *uintptr, src uintptr) {
 	if !writeBarrierEnabled {
 		return
 	}
-	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+	if src != 0 && (src < sys.PhysPageSize || src == poisonStack) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 	writebarrierptr_nostore1(dst, src)
@@ -195,15 +198,15 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 	memmove(dst, src, size)
-	if !writeBarrierEnabled || typ.kind&kindNoPointers != 0 || size < ptrSize || !inheap(uintptr(dst)) {
+	if !writeBarrierEnabled || typ.kind&kindNoPointers != 0 || size < sys.PtrSize || !inheap(uintptr(dst)) {
 		return
 	}
 
-	if frag := -off & (ptrSize - 1); frag != 0 {
+	if frag := -off & (sys.PtrSize - 1); frag != 0 {
 		dst = add(dst, frag)
 		size -= frag
 	}
-	heapBitsBulkBarrier(uintptr(dst), size&^(ptrSize-1))
+	heapBitsBulkBarrier(uintptr(dst), size&^(sys.PtrSize-1))
 }
 
 // callwritebarrier is invoked at the end of reflectcall, to execute
@@ -215,7 +218,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 // not to be preempted before the write barriers have been run.
 //go:nosplit
 func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < ptrSize || !inheap(uintptr(frame)) {
+	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize || !inheap(uintptr(frame)) {
 		return
 	}
 	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)

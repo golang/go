@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -69,7 +70,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		}
 	}
 
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*ptrSize, 0, &memstats.other_sys))
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
 
@@ -90,7 +91,7 @@ search:
 			t := &x.mhdr[j]
 			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
 				if m != nil {
-					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*ptrSize)) = t.ifn
+					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
 				}
 				goto nextimethod
 			}
