@@ -9,6 +9,7 @@ cmd/link: add -msan option (https://golang.org/cl/16161)
 
 Ports:
 
+Add new experimental ports for linux/mips64 and linux/mips64le: no cgo, external linking or disasm yet (https://golang.org/cl/14460 and others)
 NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
 
 Reflect change:
