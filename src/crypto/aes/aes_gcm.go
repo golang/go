@@ -14,11 +14,23 @@ import (
 
 // The following functions are defined in gcm_amd64.s.
 func hasGCMAsm() bool
+
+//go:noescape
 func aesEncBlock(dst, src *[16]byte, ks []uint32)
+
+//go:noescape
 func gcmAesInit(productTable *[256]byte, ks []uint32)
+
+//go:noescape
 func gcmAesData(productTable *[256]byte, data []byte, T *[16]byte)
+
+//go:noescape
 func gcmAesEnc(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
+
+//go:noescape
 func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []uint32)
+
+//go:noescape
 func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
 
 const (
