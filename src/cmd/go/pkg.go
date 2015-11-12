@@ -832,8 +832,9 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		importPaths = append(importPaths, "runtime/cgo")
 	}
 
-	// Everything depends on runtime, except runtime, its subpackages, and unsafe.
-	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/") && p.ImportPath != "unsafe") {
+	// Everything depends on runtime, except runtime, its internal
+	// subpackages, and unsafe.
+	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/internal/") && p.ImportPath != "unsafe") {
 		importPaths = append(importPaths, "runtime")
 		// When race detection enabled everything depends on runtime/race.
 		// Exclude certain packages to avoid circular dependencies.
