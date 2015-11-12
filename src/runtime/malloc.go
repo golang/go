@@ -76,9 +76,6 @@
 //	   or the page heap can avoid zeroing altogether.
 //	2. the cost of zeroing when reusing a small object is
 //	   charged to the mutator, not the garbage collector.
-//
-// This code was written with an eye toward translating to Go
-// in the future.  Methods have the form Type_Method(Type *t, ...).
 
 package runtime
 
@@ -359,7 +356,7 @@ func mallocinit() {
 	}
 
 	// Initialize the rest of the allocator.
-	mHeap_Init(&mheap_, spansSize)
+	mheap_.init(spansSize)
 	_g_ := getg()
 	_g_.m.mcache = allocmcache()
 }
@@ -387,7 +384,7 @@ func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
 	return sysReserve(nil, n, reserved)
 }
 
-func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
+func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	if n > h.arena_end-h.arena_used {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
 		// Reserve some more space.
@@ -409,8 +406,8 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
 				used := p + (-uintptr(p) & (_PageSize - 1))
-				mHeap_MapBits(h, used)
-				mHeap_MapSpans(h, used)
+				h.mapBits(used)
+				h.mapSpans(used)
 				h.arena_used = used
 				h.arena_reserved = reserved
 			} else {
@@ -424,8 +421,8 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 		// Keep taking from our reservation.
 		p := h.arena_used
 		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
-		mHeap_MapBits(h, p+n)
-		mHeap_MapSpans(h, p+n)
+		h.mapBits(p + n)
+		h.mapSpans(p + n)
 		h.arena_used = p + n
 		if raceenabled {
 			racemapshadow(unsafe.Pointer(p), n)
@@ -460,8 +457,8 @@ func mHeap_SysAlloc(h *mheap, n uintptr) unsafe.Pointer {
 	p_end := p + p_size
 	p += -p & (_PageSize - 1)
 	if uintptr(p)+n > h.arena_used {
-		mHeap_MapBits(h, p+n)
-		mHeap_MapSpans(h, p+n)
+		h.mapBits(p + n)
+		h.mapSpans(p + n)
 		h.arena_used = p + n
 		if p_end > h.arena_end {
 			h.arena_end = p_end
@@ -600,7 +597,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			v := s.freelist
 			if v.ptr() == nil {
 				systemstack(func() {
-					mCache_Refill(c, tinySizeClass)
+					c.refill(tinySizeClass)
 				})
 				shouldhelpgc = true
 				s = c.alloc[tinySizeClass]
@@ -632,7 +629,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			v := s.freelist
 			if v.ptr() == nil {
 				systemstack(func() {
-					mCache_Refill(c, int32(sizeclass))
+					c.refill(int32(sizeclass))
 				})
 				shouldhelpgc = true
 				s = c.alloc[sizeclass]
@@ -757,7 +754,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 	// pays the debt down to npage pages.
 	deductSweepCredit(npages*_PageSize, npages)
 
-	s := mHeap_Alloc(&mheap_, npages, 0, true, flag&_FlagNoZero == 0)
+	s := mheap_.alloc(npages, 0, true, flag&_FlagNoZero == 0)
 	if s == nil {
 		throw("out of memory")
 	}

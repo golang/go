@@ -23,14 +23,14 @@ type mcentral struct {
 }
 
 // Initialize a single central free list.
-func mCentral_Init(c *mcentral, sizeclass int32) {
+func (c *mcentral) init(sizeclass int32) {
 	c.sizeclass = sizeclass
-	mSpanList_Init(&c.nonempty)
-	mSpanList_Init(&c.empty)
+	c.nonempty.init()
+	c.empty.init()
 }
 
 // Allocate a span to use in an MCache.
-func mCentral_CacheSpan(c *mcentral) *mspan {
+func (c *mcentral) cacheSpan() *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
 	deductSweepCredit(uintptr(class_to_size[c.sizeclass]), 0)
 
@@ -40,10 +40,10 @@ retry:
 	var s *mspan
 	for s = c.nonempty.first; s != nil; s = s.next {
 		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-			mSpanList_Remove(&c.nonempty, s)
-			mSpanList_InsertBack(&c.empty, s)
+			c.nonempty.remove(s)
+			c.empty.insertBack(s)
 			unlock(&c.lock)
-			mSpan_Sweep(s, true)
+			s.sweep(true)
 			goto havespan
 		}
 		if s.sweepgen == sg-1 {
@@ -51,8 +51,8 @@ retry:
 			continue
 		}
 		// we have a nonempty span that does not require sweeping, allocate from it
-		mSpanList_Remove(&c.nonempty, s)
-		mSpanList_InsertBack(&c.empty, s)
+		c.nonempty.remove(s)
+		c.empty.insertBack(s)
 		unlock(&c.lock)
 		goto havespan
 	}
@@ -61,11 +61,11 @@ retry:
 		if s.sweepgen == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
 			// we have an empty span that requires sweeping,
 			// sweep it and see if we can free some space in it
-			mSpanList_Remove(&c.empty, s)
+			c.empty.remove(s)
 			// swept spans are at the end of the list
-			mSpanList_InsertBack(&c.empty, s)
+			c.empty.insertBack(s)
 			unlock(&c.lock)
-			mSpan_Sweep(s, true)
+			s.sweep(true)
 			if s.freelist.ptr() != nil {
 				goto havespan
 			}
@@ -85,12 +85,12 @@ retry:
 	unlock(&c.lock)
 
 	// Replenish central list if empty.
-	s = mCentral_Grow(c)
+	s = c.grow()
 	if s == nil {
 		return nil
 	}
 	lock(&c.lock)
-	mSpanList_InsertBack(&c.empty, s)
+	c.empty.insertBack(s)
 	unlock(&c.lock)
 
 	// At this point s is a non-empty span, queued at the end of the empty list,
@@ -113,7 +113,7 @@ havespan:
 }
 
 // Return span from an MCache.
-func mCentral_UncacheSpan(c *mcentral, s *mspan) {
+func (c *mcentral) uncacheSpan(s *mspan) {
 	lock(&c.lock)
 
 	s.incache = false
@@ -125,8 +125,8 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
 	cap := int32((s.npages << _PageShift) / s.elemsize)
 	n := cap - int32(s.ref)
 	if n > 0 {
-		mSpanList_Remove(&c.empty, s)
-		mSpanList_Insert(&c.nonempty, s)
+		c.empty.remove(s)
+		c.nonempty.insert(s)
 	}
 	unlock(&c.lock)
 }
@@ -137,7 +137,7 @@ func mCentral_UncacheSpan(c *mcentral, s *mspan) {
 // the latest generation.
 // If preserve=true, don't return the span to heap nor relink in MCentral lists;
 // caller takes care of it.
-func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
+func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool) bool {
 	if s.incache {
 		throw("freespan into cached span")
 	}
@@ -151,7 +151,7 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	if preserve {
 		// preserve is set only when called from MCentral_CacheSpan above,
 		// the span must be in the empty list.
-		if !mSpan_InList(s) {
+		if !s.inList() {
 			throw("can't preserve unlinked span")
 		}
 		atomic.Store(&s.sweepgen, mheap_.sweepgen)
@@ -162,8 +162,8 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 
 	// Move to nonempty if necessary.
 	if wasempty {
-		mSpanList_Remove(&c.empty, s)
-		mSpanList_Insert(&c.nonempty, s)
+		c.empty.remove(s)
+		c.nonempty.insert(s)
 	}
 
 	// delay updating sweepgen until here.  This is the signal that
@@ -178,22 +178,22 @@ func mCentral_FreeSpan(c *mcentral, s *mspan, n int32, start gclinkptr, end gcli
 	}
 
 	// s is completely freed, return it to the heap.
-	mSpanList_Remove(&c.nonempty, s)
+	c.nonempty.remove(s)
 	s.needzero = 1
 	s.freelist = 0
 	unlock(&c.lock)
 	heapBitsForSpan(s.base()).initSpan(s.layout())
-	mHeap_Free(&mheap_, s, 0)
+	mheap_.freeSpan(s, 0)
 	return true
 }
 
 // Fetch a new span from the heap and carve into objects for the free list.
-func mCentral_Grow(c *mcentral) *mspan {
+func (c *mcentral) grow() *mspan {
 	npages := uintptr(class_to_allocnpages[c.sizeclass])
 	size := uintptr(class_to_size[c.sizeclass])
 	n := (npages << _PageShift) / size
 
-	s := mHeap_Alloc(&mheap_, npages, c.sizeclass, false, true)
+	s := mheap_.alloc(npages, c.sizeclass, false, true)
 	if s == nil {
 		return nil
 	}

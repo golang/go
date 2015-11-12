@@ -131,7 +131,7 @@ func subtract1(p *byte) *byte {
 // after observing the change to arena_used.
 //
 //go:nowritebarrier
-func mHeap_MapBits(h *mheap, arena_used uintptr) {
+func (h *mheap) mapBits(arena_used uintptr) {
 	// Caller has added extra mappings to the arena.
 	// Add extra mappings of bitmap words as needed.
 	// We allocate extra bitmap pieces in chunks of bitmapChunk.

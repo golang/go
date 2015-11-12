@@ -47,7 +47,7 @@ func finishsweep_m(stw bool) {
 		sg := mheap_.sweepgen
 		for _, s := range work.spans {
 			if s.sweepgen != sg && s.state == _MSpanInUse {
-				mSpan_EnsureSwept(s)
+				s.ensureSwept()
 			}
 		}
 	}
@@ -105,7 +105,7 @@ func sweepone() uintptr {
 			continue
 		}
 		npages := s.npages
-		if !mSpan_Sweep(s, false) {
+		if !s.sweep(false) {
 			npages = 0
 		}
 		_g_.m.locks--
@@ -129,7 +129,7 @@ func gosweepdone() bool {
 
 // Returns only when span s has been swept.
 //go:nowritebarrier
-func mSpan_EnsureSwept(s *mspan) {
+func (s *mspan) ensureSwept() {
 	// Caller must disable preemption.
 	// Otherwise when this function returns the span can become unswept again
 	// (if GC is triggered on another goroutine).
@@ -144,7 +144,7 @@ func mSpan_EnsureSwept(s *mspan) {
 	}
 	// The caller must be sure that the span is a MSpanInUse span.
 	if atomic.Cas(&s.sweepgen, sg-2, sg-1) {
-		mSpan_Sweep(s, false)
+		s.sweep(false)
 		return
 	}
 	// unfortunate condition, and we don't have efficient means to wait
@@ -159,7 +159,7 @@ func mSpan_EnsureSwept(s *mspan) {
 // If preserve=true, don't return it to heap nor relink in MCentral lists;
 // caller takes care of it.
 //TODO go:nowritebarrier
-func mSpan_Sweep(s *mspan, preserve bool) bool {
+func (s *mspan) sweep(preserve bool) bool {
 	// It's critical that we enter this function with preemption disabled,
 	// GC must not start while we are in the middle of this function.
 	_g_ := getg()
@@ -312,7 +312,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 	}
 	if nfree > 0 {
 		c.local_nsmallfree[cl] += uintptr(nfree)
-		res = mCentral_FreeSpan(&mheap_.central[cl].mcentral, s, int32(nfree), head, end, preserve)
+		res = mheap_.central[cl].mcentral.freeSpan(s, int32(nfree), head, end, preserve)
 		// MCentral_FreeSpan updates sweepgen
 	} else if freeToHeap {
 		// Free large span to heap
@@ -335,7 +335,7 @@ func mSpan_Sweep(s *mspan, preserve bool) bool {
 			s.limit = 0 // prevent mlookup from finding this span
 			sysFault(unsafe.Pointer(uintptr(s.start<<_PageShift)), size)
 		} else {
-			mHeap_Free(&mheap_, s, 1)
+			mheap_.freeSpan(s, 1)
 		}
 		c.local_nlargefree++
 		c.local_largefree += size
