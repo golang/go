@@ -84,7 +84,7 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 			}
 		}
 	}
-	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+	if runtime.GOARCH == "ppc64" {
 		// TODO(austin) External linking not implemented on
 		// ppc64 (issue #8912)
 		t.Skipf("no external linking on ppc64")
