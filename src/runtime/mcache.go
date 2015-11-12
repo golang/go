@@ -63,7 +63,7 @@ var emptymspan mspan
 
 func allocmcache() *mcache {
 	lock(&mheap_.lock)
-	c := (*mcache)(fixAlloc_Alloc(&mheap_.cachealloc))
+	c := (*mcache)(mheap_.cachealloc.alloc())
 	unlock(&mheap_.lock)
 	memclr(unsafe.Pointer(c), unsafe.Sizeof(*c))
 	for i := 0; i < _NumSizeClasses; i++ {
@@ -75,7 +75,7 @@ func allocmcache() *mcache {
 
 func freemcache(c *mcache) {
 	systemstack(func() {
-		mCache_ReleaseAll(c)
+		c.releaseAll()
 		stackcache_clear(c)
 
 		// NOTE(rsc,rlh): If gcworkbuffree comes back, we need to coordinate
@@ -85,14 +85,14 @@ func freemcache(c *mcache) {
 
 		lock(&mheap_.lock)
 		purgecachedstats(c)
-		fixAlloc_Free(&mheap_.cachealloc, unsafe.Pointer(c))
+		mheap_.cachealloc.free(unsafe.Pointer(c))
 		unlock(&mheap_.lock)
 	})
 }
 
 // Gets a span that has a free object in it and assigns it
 // to be the cached span for the given sizeclass.  Returns this span.
-func mCache_Refill(c *mcache, sizeclass int32) *mspan {
+func (c *mcache) refill(sizeclass int32) *mspan {
 	_g_ := getg()
 
 	_g_.m.locks++
@@ -106,7 +106,7 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
 	}
 
 	// Get a new cached span from the central lists.
-	s = mCentral_CacheSpan(&mheap_.central[sizeclass].mcentral)
+	s = mheap_.central[sizeclass].mcentral.cacheSpan()
 	if s == nil {
 		throw("out of memory")
 	}
@@ -119,11 +119,11 @@ func mCache_Refill(c *mcache, sizeclass int32) *mspan {
 	return s
 }
 
-func mCache_ReleaseAll(c *mcache) {
+func (c *mcache) releaseAll() {
 	for i := 0; i < _NumSizeClasses; i++ {
 		s := c.alloc[i]
 		if s != &emptymspan {
-			mCentral_UncacheSpan(&mheap_.central[i].mcentral, s)
+			mheap_.central[i].mcentral.uncacheSpan(s)
 			c.alloc[i] = &emptymspan
 		}
 	}

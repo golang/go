@@ -325,7 +325,7 @@ func flushallmcaches() {
 		if c == nil {
 			continue
 		}
-		mCache_ReleaseAll(c)
+		c.releaseAll()
 		stackcache_clear(c)
 	}
 }

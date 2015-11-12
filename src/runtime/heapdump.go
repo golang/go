@@ -643,7 +643,7 @@ func mdump() {
 	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
 		s := h_allspans[i]
 		if s.state == _MSpanInUse {
-			mSpan_EnsureSwept(s)
+			s.ensureSwept()
 		}
 	}
 	memclr(unsafe.Pointer(&typecache), unsafe.Sizeof(typecache))
