@@ -73,7 +73,7 @@ func thr_start()
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	// NOTE(rsc): This code is confused. stackbase is the top of the stack
@@ -88,7 +88,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		tls_base:   unsafe.Pointer(&mp.tls[0]),
 		tls_size:   unsafe.Sizeof(mp.tls),
 	}
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 
 	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)

@@ -78,9 +78,8 @@ func goenvs() {
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int(mp.tls[0]), " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	var oset uint32

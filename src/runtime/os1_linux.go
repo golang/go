@@ -133,9 +133,8 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	// Disable signals during clone, so that the new thread starts
