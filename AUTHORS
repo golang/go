@@ -2,9 +2,11 @@
 # This file is distinct from the CONTRIBUTORS files.
 # See the latter for an explanation.
 
-# Names should be added to this file as
-#	Name or Organization <email address>
-# The email address is not required for organizations.
+# Names should be added to this file as one of
+#     Organization's name
+#     Individual's name <submission email address>
+#     Individual's name <submission email address> <email2> <emailN>
+# See CONTRIBUTORS for the meaning of multiple email addresses.
 
 # Please keep the list sorted.
 
@@ -528,7 +530,7 @@ Sanjay Menakuru <balasanjay@gmail.com>
 Scott Barron <scott.barron@github.com>
 Scott Ferguson <scottwferg@gmail.com>
 Scott Lawrence <bytbox@gmail.com>
-Sebastien Binet	<seb.binet@gmail.com>
+Sebastien Binet <seb.binet@gmail.com>
 Sébastien Paolacci <sebastien.paolacci@gmail.com>
 Sergei Skorobogatov <skorobo@rambler.ru>
 Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
