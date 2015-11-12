@@ -547,6 +547,23 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 	return major, minor, true
 }
 
+func validMethod(method string) bool {
+	/*
+	     Method         = "OPTIONS"                ; Section 9.2
+	                    | "GET"                    ; Section 9.3
+	                    | "HEAD"                   ; Section 9.4
+	                    | "POST"                   ; Section 9.5
+	                    | "PUT"                    ; Section 9.6
+	                    | "DELETE"                 ; Section 9.7
+	                    | "TRACE"                  ; Section 9.8
+	                    | "CONNECT"                ; Section 9.9
+	                    | extension-method
+	   extension-method = token
+	     token          = 1*<any CHAR except CTLs or separators>
+	*/
+	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
+}
+
 // NewRequest returns a new Request given a method, URL, and optional body.
 //
 // If the provided body is also an io.Closer, the returned
@@ -560,6 +577,9 @@ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
 // type's documentation for the difference between inbound and outbound
 // request fields.
 func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+	if !validMethod(method) {
+		return nil, fmt.Errorf("net/http: invalid method %q", method)
+	}
 	u, err := url.Parse(urlStr)
 	if err != nil {
 		return nil, err
