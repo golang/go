@@ -105,10 +105,8 @@ func semawakeup(mp *m) {
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
-
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),

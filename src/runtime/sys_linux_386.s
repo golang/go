@@ -334,9 +334,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
 	MOVL	AX, m_procid(BX)	// save tid as m->procid
 
 	// set up ldt 7+id to point at m->tls.
-	// newosproc left the id in tls[0].
 	LEAL	m_tls(BX), BP
-	MOVL	0(BP), DI
+	MOVL	m_id(BX), DI
 	ADDL	$7, DI	// m0 is LDT#7. count up.
 	// setldt(tls#, &tls, sizeof tls)
 	PUSHAL	// save registers
