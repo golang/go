@@ -909,6 +909,8 @@ func clean() {
 		// Remove installed packages and tools.
 		xremoveall(pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch))
 		xremoveall(pathf("%s/pkg/%s_%s", goroot, goos, goarch))
+		xremoveall(pathf("%s/pkg/%s_%s_race", goroot, gohostos, gohostarch))
+		xremoveall(pathf("%s/pkg/%s_%s_race", goroot, goos, goarch))
 		xremoveall(tooldir)
 
 		// Remove cached version info.
