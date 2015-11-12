@@ -41,7 +41,7 @@ var builddeps = map[string][]string{
 	"regexp":                  {"bytes", "errors", "io", "math", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
 	"regexp/syntax":           {"bytes", "errors", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
 	"runtime":                 {"runtime/internal/atomic", "runtime/internal/sys"},
-	"runtime/internal/atomic": {},
+	"runtime/internal/atomic": {"runtime/internal/sys"},
 	"runtime/internal/sys":    {},
 	"sort":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
 	"strconv":                 {"errors", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "unicode/utf8"},
