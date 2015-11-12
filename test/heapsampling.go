@@ -25,8 +25,6 @@ var a64k *[64 * 1024]byte
 // vary for run to run. This test only checks that the resulting
 // values appear reasonable.
 func main() {
-	return // TODO: fix this flaky test; golang.org/issue/13098
-
 	const countInterleaved = 10000
 	allocInterleaved(countInterleaved)
 	checkAllocations(getMemProfileRecords(), "main.allocInterleaved", countInterleaved, []int64{256 * 1024, 1024, 256 * 1024, 512, 256 * 1024, 256})
@@ -93,6 +91,9 @@ func checkValue(fname string, ln int, name string, want, got int64) {
 }
 
 func getMemProfileRecords() []runtime.MemProfileRecord {
+	// Force the runtime to update the object and byte counts.
+	runtime.GC()
+
 	// Find out how many records there are (MemProfile(nil, true)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between
