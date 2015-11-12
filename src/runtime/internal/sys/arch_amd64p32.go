@@ -16,4 +16,3 @@ const (
 )
 
 type Uintreg uint64
-type Intptr int32 // TODO(rsc): remove
