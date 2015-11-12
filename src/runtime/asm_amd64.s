@@ -104,13 +104,13 @@ needtls:
 	JMP ok
 #endif
 
-	LEAQ	runtime·tls0(SB), DI
+	LEAQ	runtime·m0+m_tls(SB), DI
 	CALL	runtime·settls(SB)
 
 	// store through it, to make sure it works
 	get_tls(BX)
 	MOVQ	$0x123, g(BX)
-	MOVQ	runtime·tls0(SB), AX
+	MOVQ	runtime·m0+m_tls(SB), AX
 	CMPQ	AX, $0x123
 	JEQ 2(PC)
 	MOVL	AX, 0	// abort

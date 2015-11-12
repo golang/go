@@ -83,7 +83,7 @@ needtls:
 	// store through it, to make sure it works
 	get_tls(BX)
 	MOVL	$0x123, g(BX)
-	MOVL	runtime·tls0(SB), AX
+	MOVL	runtime·m0+m_tls(SB), AX
 	CMPL	AX, $0x123
 	JEQ	ok
 	MOVL	AX, 0	// abort
@@ -765,11 +765,11 @@ done:
 	RET
 
 TEXT runtime·ldt0setup(SB),NOSPLIT,$16-0
-	// set up ldt 7 to point at tls0
+	// set up ldt 7 to point at m0.tls
 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
 	// the entry number is just a hint.  setldt will set up GS with what it used.
 	MOVL	$7, 0(SP)
-	LEAL	runtime·tls0(SB), AX
+	LEAL	runtime·m0+m_tls(SB), AX
 	MOVL	AX, 4(SP)
 	MOVL	$32, 8(SP)	// sizeof(tls array)
 	CALL	runtime·setldt(SB)

@@ -577,9 +577,6 @@ func profilem(mp *m) {
 	rbuf := make([]byte, unsafe.Sizeof(*r)+15)
 
 	tls := &mp.tls[0]
-	if mp == &m0 {
-		tls = &tls0[0]
-	}
 	gp := *((**g)(unsafe.Pointer(tls)))
 
 	// align Context to 16 bytes
