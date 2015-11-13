@@ -192,12 +192,24 @@ func mpreinit(mp *m) {
 
 func miniterrno()
 
+//go:nosplit
 func msigsave(mp *m) {
 	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
 	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
 		throw("insufficient storage for signal mask")
 	}
 	sigprocmask(_SIG_SETMASK, nil, smask)
+}
+
+//go:nosplit
+func msigrestore(mp *m) {
+	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+	sigprocmask(_SIG_SETMASK, smask, nil)
+}
+
+//go:nosplit
+func sigblock() {
+	sigprocmask(_SIG_SETMASK, &sigset_all, nil)
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -220,10 +232,6 @@ func minit() {
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	_g_ := getg()
-	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
-	sigprocmask(_SIG_SETMASK, smask, nil)
-
 	signalstack(nil)
 }
 
@@ -289,6 +297,7 @@ func getsig(i int32) uintptr {
 	return *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
 }
 
+//go:nosplit
 func signalstack(s *stack) {
 	var st sigaltstackt
 	if s == nil {
@@ -497,6 +506,7 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
 	sysvicall2(&libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
 }
 
+//go:nosplit
 func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
 }
