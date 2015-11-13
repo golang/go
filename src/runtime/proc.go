@@ -1276,6 +1276,15 @@ func needm(x byte) {
 	mp.needextram = mp.schedlink == 0
 	unlockextra(mp.schedlink.ptr())
 
+	// Save and block signals before installing g.
+	// Once g is installed, any incoming signals will try to execute,
+	// but we won't have the sigaltstack settings and other data
+	// set up appropriately until the end of minit, which will
+	// unblock the signals. This is the same dance as when
+	// starting a new m to run Go code via newosproc.
+	msigsave(mp)
+	sigblock()
+
 	// Install g (= m->g0) and set the stack bounds
 	// to match the current stack. We don't actually know
 	// how big the stack is, like we don't know how big any
@@ -1287,7 +1296,6 @@ func needm(x byte) {
 	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 
-	msigsave(mp)
 	// Initialize this thread to use the m.
 	asminit()
 	minit()
@@ -1359,9 +1367,6 @@ func newextram() {
 // We may have to keep the current version on systems with cgo
 // but without pthreads, like Windows.
 func dropm() {
-	// Undo whatever initialization minit did during needm.
-	unminit()
-
 	// Clear m and g, and return m to the extra list.
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
@@ -1369,7 +1374,16 @@ func dropm() {
 	mnext := lockextra(true)
 	mp.schedlink.set(mnext)
 
+	// Block signals before unminit.
+	// Unminit unregisters the signal handling stack (but needs g on some systems).
+	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
+	// It's important not to try to handle a signal between those two steps.
+	sigblock()
+	unminit()
 	setg(nil)
+	msigrestore(mp)
+
+	// Commit the release of mp.
 	unlockextra(mp)
 }
 
