@@ -463,7 +463,7 @@ func (t *tester) registerTests() {
 		}
 	}
 	if t.goos != "android" && !t.iOS() {
-		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
+		t.registerTest("bench_go1", "../test/bench/go1", "go", "test", t.timeout(600))
 	}
 	if t.goos != "android" && !t.iOS() {
 		const nShards = 5
