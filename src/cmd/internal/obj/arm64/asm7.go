@@ -535,9 +535,9 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		buildop(ctxt)
 	}
 
-	bflag := 0
-	c := int32(0)
-	p.Pc = int64(c)
+	bflag := 1
+	c := int64(0)
+	p.Pc = c
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
@@ -545,7 +545,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		if p.As == ADWORD && (c&7) != 0 {
 			c += 4
 		}
-		p.Pc = int64(c)
+		p.Pc = c
 		o = oplook(ctxt, p)
 		m = int(o.size)
 		if m == 0 {
@@ -567,13 +567,13 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
 			checkpool(ctxt, p, 0)
 		}
-		c += int32(m)
+		c += int64(m)
 		if ctxt.Blitrl != nil {
 			checkpool(ctxt, p, 1)
 		}
 	}
 
-	cursym.Size = int64(c)
+	cursym.Size = c
 
 	/*
 	 * if any procedure is large enough to
@@ -582,38 +582,38 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	 * around jmps to fix. this is rare.
 	 */
 	for bflag != 0 {
+		if ctxt.Debugvlog != 0 {
+			fmt.Fprintf(ctxt.Bso, "%5.2f span1\n", obj.Cputime())
+		}
 		bflag = 0
 		c = 0
-		for p = cursym.Text; p != nil; p = p.Link {
+		for p = cursym.Text.Link; p != nil; p = p.Link {
 			if p.As == ADWORD && (c&7) != 0 {
 				c += 4
 			}
-			p.Pc = int64(c)
+			p.Pc = c
 			o = oplook(ctxt, p)
 
-			/* very large branches
-			if(o->type == 6 && p->cond) {
-				otxt = p->cond->pc - c;
-				if(otxt < 0)
-					otxt = -otxt;
-				if(otxt >= (1L<<17) - 10) {
-					q = ctxt->arch->prg();
-					q->link = p->link;
-					p->link = q;
-					q->as = AB;
-					q->to.type = obj.TYPE_BRANCH;
-					q->cond = p->cond;
-					p->cond = q;
-					q = ctxt->arch->prg();
-					q->link = p->link;
-					p->link = q;
-					q->as = AB;
-					q->to.type = obj.TYPE_BRANCH;
-					q->cond = q->link->link;
-					bflag = 1;
+			/* very large branches */
+			if o.type_ == 7 && p.Pcond != nil {
+				otxt := p.Pcond.Pc - c
+				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
+					q := ctxt.NewProg()
+					q.Link = p.Link
+					p.Link = q
+					q.As = AB
+					q.To.Type = obj.TYPE_BRANCH
+					q.Pcond = p.Pcond
+					p.Pcond = q
+					q = ctxt.NewProg()
+					q.Link = p.Link
+					p.Link = q
+					q.As = AB
+					q.To.Type = obj.TYPE_BRANCH
+					q.Pcond = q.Link.Link
+					bflag = 1
 				}
 			}
-			*/
 			m = int(o.size)
 
 			if m == 0 {
@@ -623,12 +623,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 				continue
 			}
 
-			c += int32(m)
+			c += int64(m)
 		}
 	}
 
 	c += -c & (FuncAlign - 1)
-	cursym.Size = int64(c)
+	cursym.Size = c
 
 	/*
 	 * lay out the code, emitting code and data relocations.
