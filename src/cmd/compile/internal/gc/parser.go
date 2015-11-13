@@ -1231,9 +1231,7 @@ var prectab = map[int32]struct {
 }
 
 func (p *parser) bexpr(prec int) *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("expr")()
-	}
+	// don't trace bexpr - only leads to overly nested trace output
 
 	x := p.uexpr()
 	t := prectab[p.tok]
@@ -1251,6 +1249,10 @@ func (p *parser) bexpr(prec int) *Node {
 
 // go.y:expr
 func (p *parser) expr() *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("expr")()
+	}
+
 	return p.bexpr(1)
 }
 
@@ -1373,7 +1375,7 @@ func (p *parser) operand(keep_parens bool) *Node {
 		return x
 
 	case LFUNC:
-		t := p.fntype()
+		t := p.ntype() // fntype
 		if p.tok == '{' {
 			// fnlitdcl
 			closurehdr(t)
@@ -1388,7 +1390,7 @@ func (p *parser) operand(keep_parens bool) *Node {
 		return t
 
 	case '[', LCHAN, LMAP, LSTRUCT, LINTERFACE:
-		return p.othertype()
+		return p.ntype() // othertype
 
 	case '{':
 		// common case: p.header is missing simple_stmt before { in if, for, switch
@@ -1420,7 +1422,6 @@ loop:
 			case LNAME, '@', '?':
 				// pexpr '.' sym
 				sel := p.sym()
-
 				if x.Op == OPACK {
 					s := restrictlookup(sel.Name, x.Name.Pkg)
 					x.Used = true
@@ -1706,117 +1707,24 @@ func (p *parser) ntype() *Node {
 
 	switch p.tok {
 	case LCOMM:
-		return p.recvchantype()
-
-	case LFUNC:
-		return p.fntype()
-
-	case '[', LCHAN, LMAP, LSTRUCT, LINTERFACE:
-		return p.othertype()
-
-	case '*':
-		return p.ptrtype()
-
-	case LNAME, '@', '?':
-		return p.dotname()
-
-	case '(':
+		// recvchantype
 		p.next()
-		t := p.ntype()
-		p.want(')')
+		p.want(LCHAN)
+		t := Nod(OTCHAN, p.chan_elem(), nil)
+		t.Etype = Crecv
 		return t
 
-	case LDDD:
-		// permit ...T but complain
-		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
-		p.syntax_error("")
-		p.advance()
-		return p.ntype()
-
-	default:
-		p.syntax_error("")
-		p.advance()
-		return nil
-	}
-}
-
-func (p *parser) chan_elem() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("chan_elem")()
-	}
-
-	switch p.tok {
-	case LCOMM, LFUNC,
-		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE,
-		'*',
-		LNAME, '@', '?',
-		'(',
-		LDDD:
-		return p.ntype()
-	default:
-		p.syntax_error("missing channel element type")
-		// assume element type is simply absent - don't advance
-		return nil
-	}
-}
-
-// go.y:fnret_type
-func (p *parser) fnret_type() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("fnret_type")()
-	}
-
-	switch p.tok {
-	case LCOMM:
-		return p.recvchantype()
-
 	case LFUNC:
-		return p.fntype()
-
-	case '[', LCHAN, LMAP, LSTRUCT, LINTERFACE:
-		return p.othertype()
-
-	case '*':
-		return p.ptrtype()
-
-	default:
-		return p.dotname()
-	}
-}
-
-// go.y:dotname
-func (p *parser) dotname() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("dotname")()
-	}
-
-	s1 := p.name()
-
-	switch p.tok {
-	default:
-		return s1
-
-	case '.':
+		// fntype
 		p.next()
-		s3 := p.sym()
+		params := p.param_list()
+		result := p.fnres()
+		params = checkarglist(params, 1)
+		t := Nod(OTFUNC, nil, nil)
+		t.List = params
+		t.Rlist = result
+		return t
 
-		if s1.Op == OPACK {
-			var s *Sym
-			s = restrictlookup(s3.Name, s1.Name.Pkg)
-			s1.Used = true
-			return oldname(s)
-		}
-		return Nod(OXDOT, s1, newname(s3))
-	}
-}
-
-// go.y:othertype
-func (p *parser) othertype() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("othertype")()
-	}
-
-	switch p.tok {
 	case '[':
 		// '[' oexpr ']' ntype
 		// '[' LDDD ']' ntype
@@ -1856,39 +1764,101 @@ func (p *parser) othertype() *Node {
 		return Nod(OTMAP, key, val)
 
 	case LSTRUCT:
-		// structtype
 		return p.structtype()
 
 	case LINTERFACE:
-		// interfacetype
 		return p.interfacetype()
 
+	case '*':
+		// ptrtype
+		p.next()
+		return Nod(OIND, p.ntype(), nil)
+
+	case LNAME, '@', '?':
+		return p.dotname()
+
+	case '(':
+		p.next()
+		t := p.ntype()
+		p.want(')')
+		return t
+
+	case LDDD:
+		// permit ...T but complain
+		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
+		p.syntax_error("")
+		p.advance()
+		return p.ntype()
+
 	default:
-		panic("unreachable")
+		p.syntax_error("")
+		p.advance()
+		return nil
 	}
 }
 
-// go.y:ptrtype
-func (p *parser) ptrtype() *Node {
+func (p *parser) chan_elem() *Node {
 	if trace && Debug['x'] != 0 {
-		defer p.trace("ptrtype")()
+		defer p.trace("chan_elem")()
 	}
 
-	p.want('*')
-	return Nod(OIND, p.ntype(), nil)
+	switch p.tok {
+	case LCOMM, LFUNC,
+		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE,
+		'*',
+		LNAME, '@', '?',
+		'(',
+		LDDD:
+		return p.ntype()
+
+	default:
+		p.syntax_error("missing channel element type")
+		// assume element type is simply absent - don't advance
+		return nil
+	}
 }
 
-// go.y:recvchantype
-func (p *parser) recvchantype() *Node {
+// go.y:fnret_type
+// TODO(gri) only called from fnres - inline and remove this one
+func (p *parser) fnret_type() *Node {
 	if trace && Debug['x'] != 0 {
-		defer p.trace("recvchantype")()
+		defer p.trace("fnret_type")()
 	}
 
-	p.want(LCOMM)
-	p.want(LCHAN)
-	t := Nod(OTCHAN, p.chan_elem(), nil)
-	t.Etype = Crecv
-	return t
+	switch p.tok {
+	case LFUNC, // fntype
+		LCOMM,                                 // recvchantype
+		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE, // othertype
+		'*': // ptrtype
+		return p.ntype()
+
+	default:
+		return p.dotname()
+	}
+}
+
+// go.y:dotname
+func (p *parser) dotname() *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("dotname")()
+	}
+
+	name := p.name()
+
+	switch p.tok {
+	default:
+		return name
+
+	case '.':
+		p.next()
+		sel := p.sym()
+		if name.Op == OPACK {
+			s := restrictlookup(sel.Name, name.Name.Pkg)
+			name.Used = true
+			return oldname(s)
+		}
+		return Nod(OXDOT, name, newname(sel))
+	}
 }
 
 // go.y:structtype
@@ -2114,24 +2084,6 @@ func (p *parser) hidden_fndcl() *Node {
 		ss.Type.Nname = ss
 		return ss
 	}
-}
-
-// go.y:fntype
-func (p *parser) fntype() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("fntype")()
-	}
-
-	p.want(LFUNC)
-	params := p.param_list()
-	result := p.fnres()
-
-	params = checkarglist(params, 1)
-	t := Nod(OTFUNC, nil, nil)
-	t.List = params
-	t.Rlist = result
-
-	return t
 }
 
 // go.y:fnbody
@@ -2470,38 +2422,36 @@ func (p *parser) arg_type() *Node {
 
 	switch p.tok {
 	case LNAME, '@', '?':
-		s1 := p.sym()
+		name := p.sym()
 		switch p.tok {
 		case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?', '(':
 			// sym name_or_type
-			s2 := p.ntype()
-			ss := Nod(ONONAME, nil, nil)
-			ss.Sym = s1
-			return Nod(OKEY, ss, s2)
+			typ := p.ntype()
+			nn := Nod(ONONAME, nil, nil)
+			nn.Sym = name
+			return Nod(OKEY, nn, typ)
 
 		case LDDD:
 			// sym dotdotdot
-			s2 := p.dotdotdot()
-			ss := Nod(ONONAME, nil, nil)
-			ss.Sym = s1
-			return Nod(OKEY, ss, s2)
+			typ := p.dotdotdot()
+			nn := Nod(ONONAME, nil, nil)
+			nn.Sym = name
+			return Nod(OKEY, nn, typ)
 
 		default:
 			// name_or_type
-			s1 := mkname(s1)
+			name := mkname(name)
 			// from dotname
 			if p.got('.') {
-				s3 := p.sym()
-
-				if s1.Op == OPACK {
-					var s *Sym
-					s = restrictlookup(s3.Name, s1.Name.Pkg)
-					s1.Used = true
+				sel := p.sym()
+				if name.Op == OPACK {
+					s := restrictlookup(sel.Name, name.Name.Pkg)
+					name.Used = true
 					return oldname(s)
 				}
-				return Nod(OXDOT, s1, newname(s3))
+				return Nod(OXDOT, name, newname(sel))
 			}
-			return s1
+			return name
 		}
 
 	case LDDD:
