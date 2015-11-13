@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const trace = true // if set, parse tracing can be enabled with -x
+const trace = false // if set, parse tracing can be enabled with -x
 
 // TODO(gri) Once we handle imports w/o redirecting the underlying
 // source of the lexer we can get rid of these. They are here for
@@ -31,22 +31,6 @@ func pop_parser() {
 }
 
 func parse_file() {
-	// This doesn't quite work w/ the trybots. Fun experiment but we need to find a better way.
-	// go func() {
-	// 	prev := lexlineno
-	// 	for {
-	// 		time.Sleep(5 * time.Second)
-	// 		t := lexlineno // racy but we don't care - any new value will do
-	// 		if prev == t {
-	// 			// If lexlineno doesn't change anymore we probably have an endless
-	// 			// loop somewhere. Terminate before process becomes unresponsive.
-	// 			Yyerror("internal error: compiler makes no progress (workaround: -oldparser)")
-	// 			errorexit()
-	// 		}
-	// 		prev = t
-	// 	}
-	// }()
-
 	thenewparser = parser{}
 	thenewparser.loadsys()
 	thenewparser.next()
@@ -105,38 +89,70 @@ func (p *parser) got(tok int32) bool {
 
 func (p *parser) want(tok int32) {
 	if p.tok != EOF && !p.got(tok) {
-		p.error("")
+		p.syntax_error("")
+		p.advance()
 	}
 }
 
 // ----------------------------------------------------------------------------
 // Syntax error handling
 
-// TODO(gri) Approach this more systematically. For now it passes all tests.
+func (p *parser) syntax_error(msg string) {
+	if p.tok == EOF && nerrors > 0 {
+		return // avoid meaningless follow-up errors
+	}
 
-func syntax_error(msg string) {
-	Yyerror("syntax error: " + msg)
-}
-
-func (p *parser) error(context string) {
-	if p.tok == EOF {
+	// add punctuation etc. as needed to msg
+	switch {
+	case msg == "":
+		// nothing to do
+	case strings.HasPrefix(msg, "in"), strings.HasPrefix(msg, "at"), strings.HasPrefix(msg, "after"):
+		msg = " " + msg
+	case strings.HasPrefix(msg, "expecting"):
+		msg = ", " + msg
+	default:
+		// plain error - we don't care about current token
+		Yyerror("syntax error: " + msg)
 		return
 	}
-	syntax_error("unexpected " + tokstring(p.tok) + context)
-	// TODO(gri) keep also track of nesting below
+
+	// determine token string
+	var tok string
 	switch p.tok {
-	case '(':
-		// skip to closing ')'
-		for p.tok != EOF && p.tok != ')' {
-			p.next()
+	case LLITERAL:
+		// this is also done in Yyerror but it's cleaner to do it here
+		tok = litbuf
+	case LNAME:
+		if p.sym_ != nil && p.sym_.Name != "" {
+			tok = p.sym_.Name
+		} else {
+			tok = "name"
 		}
-	case '{':
-		// skip to closing '}'
-		for p.tok != EOF && p.tok != '}' {
-			p.next()
-		}
+	case LASOP:
+		tok = goopnames[p.op] + "="
+	default:
+		tok = tokstring(p.tok)
 	}
-	p.next() // make progress
+
+	Yyerror("syntax error: unexpected " + tok + msg)
+}
+
+// Advance consumes tokens until it finds one in the stoplist.
+// If the stoplist is empty, the next token is consumed.
+func (p *parser) advance(stoplist ...int32) {
+	if len(stoplist) == 0 {
+		p.next()
+		return
+	}
+
+	for p.tok != EOF {
+		for _, stop := range stoplist {
+			if p.tok == stop {
+				return
+			}
+		}
+		p.next()
+	}
 }
 
 func tokstring(tok int32) string {
@@ -186,7 +202,7 @@ var tokstrings = map[int32]string{
 	LIMPORT:            "import",
 	LINTERFACE:         "interface",
 	LMAP:               "map",
-	LNAME:              "<name>",
+	LNAME:              "LNAME",
 	LPACKAGE:           "package",
 	LRANGE:             "range",
 	LRETURN:            "return",
@@ -279,17 +295,12 @@ func (p *parser) package_() {
 		mkpackage(p.sym().Name)
 		p.want(';')
 	} else {
-		prevlineno = lineno // TODO(gri) do we still need this? (e.g., not needed for test/fixedbugs/bug050.go)
-		Yyerror("package statement must be first")
+		p.syntax_error("package statement must be first")
 		errorexit()
 	}
 }
 
-// import:
-// 	LIMPORT import_stmt
-// |	LIMPORT '(' import_stmt_list osemi ')'
-// |	LIMPORT '(' ')'
-
+// go.y:import
 func (p *parser) import_() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_")()
@@ -388,7 +399,8 @@ func (p *parser) import_here() int {
 		path = p.val
 		p.next()
 	} else {
-		syntax_error("missing import path; require quoted string")
+		p.syntax_error("missing import path; require quoted string")
+		p.advance(';', ')')
 	}
 
 	line := parserline() // TODO(gri) check correct placement of this
@@ -550,7 +562,8 @@ func (p *parser) typedcl() *NodeList {
 	if p.tok != ';' {
 		typ = p.ntype()
 	} else {
-		p.error(" in type declaration")
+		p.syntax_error("in type declaration")
+		p.advance(';', ')')
 	}
 
 	return list1(typedcl1(name, typ, true))
@@ -612,7 +625,8 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 				if lhs.Op == ONAME || lhs.Op == ONONAME || lhs.Op == OTYPE {
 					lhs = newname(lhs.Sym)
 				} else {
-					p.error(", expecting semicolon or newline or }")
+					p.syntax_error("expecting semicolon or newline or }")
+					// we already progressed, no need to advance
 				}
 				lhs := Nod(OLABEL, lhs, nil)
 				lhs.Sym = dclstack // context, for goto restrictions
@@ -677,7 +691,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		rhs := p.expr_list()
 
 		if rhs.N.Op == OTYPESW {
-			ss := Nod(OTYPESW, nil, rhs.N.Right)
+			ts := Nod(OTYPESW, nil, rhs.N.Right)
 			if rhs.Next != nil {
 				Yyerror("expr.(type) must be alone in list")
 			}
@@ -686,14 +700,15 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			} else if (lhs.N.Op != ONAME && lhs.N.Op != OTYPE && lhs.N.Op != ONONAME && (lhs.N.Op != OLITERAL || lhs.N.Name == nil)) || isblank(lhs.N) {
 				Yyerror("invalid variable name %s in type switch", lhs.N)
 			} else {
-				ss.Left = dclname(lhs.N.Sym)
-			} // it's a colas, so must not re-use an oldname.
-			return ss
+				ts.Left = dclname(lhs.N.Sym)
+			} // it's a colas, so must not re-use an oldname
+			return ts
 		}
 		return colas(lhs, rhs, int32(line))
 
 	default:
-		p.error(", expecting := or = or comma")
+		p.syntax_error("expecting := or = or comma")
+		p.advance(';', '}')
 		return nil
 	}
 }
@@ -711,7 +726,8 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 			// report error at line of ':' token
 			saved := lexlineno
 			lexlineno = prevlineno
-			syntax_error("missing statement after label")
+			p.syntax_error("missing statement after label")
+			// we are already at the end of the labeled statement - no need to advance
 			lexlineno = saved
 			return missing_stmt
 		}
@@ -799,7 +815,8 @@ func (p *parser) case_(tswitch *Node) *Node {
 			return stmt
 
 		default:
-			p.error(", expecting := or = or : or comma")
+			p.syntax_error("expecting := or = or : or comma")
+			p.advance(LCASE, LDEFAULT, '}')
 			return nil
 		}
 
@@ -825,7 +842,8 @@ func (p *parser) case_(tswitch *Node) *Node {
 		return stmt
 
 	default:
-		p.error(", expecting case or default or }")
+		p.syntax_error("expecting case or default or }")
+		p.advance(LCASE, LDEFAULT, '}')
 		return nil
 	}
 }
@@ -840,12 +858,8 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 		markdcl()
 		p.next() // consume ';' after markdcl() for correct lineno
 	} else if else_clause {
-		syntax_error("else must be followed by if or statement block")
-		// skip through closing }
-		for p.tok != EOF && p.tok != '}' {
-			p.next()
-		}
-		p.next()
+		p.syntax_error("else must be followed by if or statement block")
+		p.advance('}')
 		return nil
 	} else {
 		panic("unreachable")
@@ -911,12 +925,8 @@ func (p *parser) caseblock_list(tswitch *Node) (l *NodeList) {
 	}
 
 	if !p.got('{') {
-		syntax_error("missing { after switch clause")
-		// skip through closing }
-		for p.tok != EOF && p.tok != '}' {
-			p.next()
-		}
-		p.next()
+		p.syntax_error("missing { after switch clause")
+		p.advance('}')
 		return nil
 	}
 
@@ -937,12 +947,8 @@ func (p *parser) loop_body(context string) *NodeList {
 		markdcl()
 		p.next() // consume ';' after markdcl() for correct lineno
 	} else {
-		syntax_error("missing { after " + context)
-		// skip through closing }
-		for p.tok != EOF && p.tok != '}' {
-			p.next()
-		}
-		p.next()
+		p.syntax_error("missing { after " + context)
+		p.advance('}')
 		return nil
 	}
 
@@ -1386,12 +1392,13 @@ func (p *parser) operand(keep_parens bool) *Node {
 
 	case '{':
 		// common case: p.header is missing simple_stmt before { in if, for, switch
-		syntax_error("missing operand")
+		p.syntax_error("missing operand")
 		// '{' will be consumed in pexpr - no need to consume it here
 		return nil
 
 	default:
-		p.error(" in operand")
+		p.syntax_error("in operand")
+		p.advance(';', '}')
 		return nil
 	}
 }
@@ -1439,7 +1446,8 @@ loop:
 				}
 
 			default:
-				p.error(", expecting name or (")
+				p.syntax_error("expecting name or (")
+				p.advance(';', '}')
 			}
 
 		case '[':
@@ -1522,7 +1530,8 @@ loop:
 				break loop
 			}
 			if t != x {
-				syntax_error("cannot parenthesize type in composite literal")
+				p.syntax_error("cannot parenthesize type in composite literal")
+				// already progressed, no need to advance
 			}
 			n := p.complitexpr()
 			n.Right = x
@@ -1650,7 +1659,8 @@ func (p *parser) sym() *Sym {
 		return nil
 
 	default:
-		p.error("")
+		p.syntax_error("")
+		p.advance()
 		return new(Sym)
 	}
 }
@@ -1719,11 +1729,13 @@ func (p *parser) ntype() *Node {
 	case LDDD:
 		// permit ...T but complain
 		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
-		p.error(" in type")
+		p.syntax_error("")
+		p.advance()
 		return p.ntype()
 
 	default:
-		p.error(" in type")
+		p.syntax_error("")
+		p.advance()
 		return nil
 	}
 }
@@ -1742,7 +1754,8 @@ func (p *parser) chan_elem() *Node {
 		LDDD:
 		return p.ntype()
 	default:
-		syntax_error("missing channel element type")
+		p.syntax_error("missing channel element type")
+		// assume element type is simply absent - don't advance
 		return nil
 	}
 }
@@ -2035,7 +2048,8 @@ func (p *parser) fndcl() *Node {
 		return f
 
 	default:
-		p.error(", expecting name or (")
+		p.syntax_error("expecting name or (")
+		p.advance('{', ';')
 		return nil
 	}
 }
@@ -2176,20 +2190,12 @@ loop:
 		default:
 			if p.tok == '{' && l != nil && l.End.N.Op == ODCLFUNC && l.End.N.Nbody == nil {
 				// opening { of function declaration on next line
-				syntax_error("unexpected semicolon or newline before {")
+				p.syntax_error("unexpected semicolon or newline before {")
 			} else {
-				syntax_error("non-declaration statement outside function body")
+				p.syntax_error("non-declaration statement outside function body")
 			}
-			// skip over tokens until we find a new top-level declaration
-			// TODO(gri) keep track of {} nesting as well?
-			for {
-				p.next()
-				switch p.tok {
-				case LVAR, LCONST, LTYPE, LFUNC, EOF:
-					continue loop
-				}
-			}
-
+			p.advance(LVAR, LCONST, LTYPE, LFUNC)
+			goto loop
 		}
 
 		if nsyntaxerrors == 0 {
@@ -2209,15 +2215,9 @@ loop:
 		// it may read the subsequent comment line which may
 		// set the flags for the next function declaration.
 		if p.tok != EOF && !p.got(';') {
-			p.error(" after top level declaration")
-			// TODO(gri) same code above - factor!
-			for {
-				p.next()
-				switch p.tok {
-				case LVAR, LCONST, LTYPE, LFUNC, EOF:
-					continue loop
-				}
-			}
+			p.syntax_error("after top level declaration")
+			p.advance(LVAR, LCONST, LTYPE, LFUNC)
+			goto loop
 		}
 	}
 	return
@@ -2329,7 +2329,8 @@ func (p *parser) structdcl() *NodeList {
 		}
 
 	default:
-		p.error(", expecting field name or embedded type")
+		p.syntax_error("expecting field name or embedded type")
+		p.advance(';', '}')
 		return nil
 	}
 }
@@ -2355,7 +2356,8 @@ func (p *parser) packname(name *Sym) *Sym {
 		name = p.sym_
 		p.next()
 	} else {
-		p.error(", expecting name")
+		p.syntax_error("expecting name")
+		p.advance('.', ';', '}')
 		name = new(Sym)
 	}
 
@@ -2409,7 +2411,8 @@ func (p *parser) interfacedcl() *Node {
 			hasNameList = true
 		}
 		if hasNameList {
-			syntax_error("name list not allowed in interface type")
+			p.syntax_error("name list not allowed in interface type")
+			// already progressed, no need to advance
 		}
 
 		if p.tok != '(' {
@@ -2435,7 +2438,8 @@ func (p *parser) interfacedcl() *Node {
 		return n
 
 	default:
-		p.error("")
+		p.syntax_error("")
+		p.advance(';', '}')
 		return nil
 	}
 }
@@ -2509,7 +2513,8 @@ func (p *parser) arg_type() *Node {
 		return p.ntype()
 
 	default:
-		p.error(", expecting )")
+		p.syntax_error("expecting )")
+		p.advance(',', ')')
 		return nil
 	}
 }
@@ -2677,7 +2682,8 @@ func (p *parser) stmt_list() (l *NodeList) {
 			continue
 		}
 		if !p.got(';') {
-			p.error(" at end of statement")
+			p.syntax_error("at end of statement")
+			p.advance(';', '}')
 		}
 	}
 	return
@@ -2760,8 +2766,8 @@ func (p *parser) ocomma(context string) {
 		// ',' is optional before a closing ')' or '}'
 		return
 	case ';':
-		syntax_error("need trailing comma before newline in " + context)
-		p.next()
+		p.syntax_error("need trailing comma before newline in " + context)
+		p.next() // interpret ';' as comma
 		return
 	}
 	p.want(',')
@@ -2771,7 +2777,8 @@ func (p *parser) ocomma(context string) {
 // Importing packages
 
 func (p *parser) import_error() {
-	p.error(" in export data of imported package")
+	p.syntax_error("in export data of imported package")
+	p.next()
 }
 
 // The methods below reflect a 1:1 translation of the corresponding go.y yacc

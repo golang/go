@@ -484,8 +484,7 @@ var nolocalimports int
 
 var lexbuf bytes.Buffer
 var strbuf bytes.Buffer
-
-var litbuf string
+var litbuf string // LLITERAL value for use in syntax error messages
 
 var Debug [256]int
 
