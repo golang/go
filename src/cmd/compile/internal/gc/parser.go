@@ -2553,31 +2553,6 @@ func (p *parser) stmt() *Node {
 	case LNAME, '@', '?', LLITERAL, LFUNC, '(', // operands
 		'[', LSTRUCT, LMAP, LCHAN, LINTERFACE, // composite types
 		'+', '-', '*', '&', '^', '~', LCOMM, '!': // unary operators
-		// simple_stmt
-		fallthrough
-
-	case LFOR, LSWITCH, LSELECT, LIF, LFALL, LBREAK, LCONTINUE, LGO, LDEFER, LGOTO, LRETURN:
-		return p.non_dcl_stmt()
-
-	case ';':
-		return nil
-
-	default:
-		return missing_stmt
-	}
-}
-
-// TODO(gri) inline non_dcl_stmt into stmt
-// go.y:non_dcl_stmt
-func (p *parser) non_dcl_stmt() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("non_dcl_stmt")()
-	}
-
-	switch p.tok {
-	case LNAME, '@', '?', LLITERAL, LFUNC, '(', // operands
-		'[', LSTRUCT, LMAP, LCHAN, LINTERFACE, // composite types
-		'+', '-', '*', '&', '^', '~', LCOMM, '!': // unary operators
 		return p.simple_stmt(true, false)
 
 	case LFOR:
@@ -2594,57 +2569,44 @@ func (p *parser) non_dcl_stmt() *Node {
 
 	case LFALL:
 		p.next()
-
 		// will be converted to OFALL
-		ss := Nod(OXFALL, nil, nil)
-		ss.Xoffset = int64(block)
-		return ss
+		stmt := Nod(OXFALL, nil, nil)
+		stmt.Xoffset = int64(block)
+		return stmt
 
 	case LBREAK:
 		p.next()
-		s2 := p.onew_name()
-
-		return Nod(OBREAK, s2, nil)
+		return Nod(OBREAK, p.onew_name(), nil)
 
 	case LCONTINUE:
 		p.next()
-		s2 := p.onew_name()
-
-		return Nod(OCONTINUE, s2, nil)
+		return Nod(OCONTINUE, p.onew_name(), nil)
 
 	case LGO:
 		p.next()
-		s2 := p.pseudocall()
-
-		return Nod(OPROC, s2, nil)
+		return Nod(OPROC, p.pseudocall(), nil)
 
 	case LDEFER:
 		p.next()
-		s2 := p.pseudocall()
-
-		return Nod(ODEFER, s2, nil)
+		return Nod(ODEFER, p.pseudocall(), nil)
 
 	case LGOTO:
 		p.next()
-		s2 := p.new_name(p.sym())
-
-		ss := Nod(OGOTO, s2, nil)
-		ss.Sym = dclstack // context, for goto restrictions
-		return ss
+		stmt := Nod(OGOTO, p.new_name(p.sym()), nil)
+		stmt.Sym = dclstack // context, for goto restrictions
+		return stmt
 
 	case LRETURN:
 		p.next()
-		var s2 *NodeList
+		var results *NodeList
 		if p.tok != ';' && p.tok != '}' {
-			s2 = p.expr_list()
+			results = p.expr_list()
 		}
 
-		ss := Nod(ORETURN, nil, nil)
-		ss.List = s2
-		if ss.List == nil && Curfn != nil {
-			var l *NodeList
-
-			for l = Curfn.Func.Dcl; l != nil; l = l.Next {
+		stmt := Nod(ORETURN, nil, nil)
+		stmt.List = results
+		if stmt.List == nil && Curfn != nil {
+			for l := Curfn.Func.Dcl; l != nil; l = l.Next {
 				if l.N.Class == PPARAM {
 					continue
 				}
@@ -2657,10 +2619,13 @@ func (p *parser) non_dcl_stmt() *Node {
 			}
 		}
 
-		return ss
+		return stmt
+
+	case ';':
+		return nil
 
 	default:
-		panic("unreachable")
+		return missing_stmt
 	}
 }
 
