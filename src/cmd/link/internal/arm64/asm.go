@@ -133,30 +133,6 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
 
-	case obj.R_ARM64_LOAD8:
-		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_LDST8_ABS_LO12_NC | uint64(elfsym)<<32)
-
-	case obj.R_ARM64_LOAD16:
-		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_LDST16_ABS_LO12_NC | uint64(elfsym)<<32)
-
-	case obj.R_ARM64_LOAD32:
-		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_LDST32_ABS_LO12_NC | uint64(elfsym)<<32)
-
-	case obj.R_ARM64_LOAD64:
-		ld.Thearch.Vput(ld.R_AARCH64_ADR_PREL_PG_HI21 | uint64(elfsym)<<32)
-		ld.Thearch.Vput(uint64(r.Xadd))
-		ld.Thearch.Vput(uint64(sectoff + 4))
-		ld.Thearch.Vput(ld.R_AARCH64_LDST64_ABS_LO12_NC | uint64(elfsym)<<32)
-
 	case obj.R_CALLARM64:
 		if r.Siz != 4 {
 			return -1
@@ -253,72 +229,13 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	return 0
 }
 
-func archrelocaddr(r *ld.Reloc, s *ld.LSym, val *int64) int {
-	var o1, o2 uint32
-	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-		o1 = uint32(*val >> 32)
-		o2 = uint32(*val)
-	} else {
-		o1 = uint32(*val)
-		o2 = uint32(*val >> 32)
-	}
-
-	// We are inserting an address into two instructions: adrp and
-	// then either addi or a load.
-	address := ld.Symaddr(r.Sym) + r.Add
-	pgaddress := (address &^ 0xfff) - ((s.Value + int64(r.Off)) &^ 0xfff)
-	if pgaddress < -1<<31 || pgaddress >= 1<<31 {
-		ld.Ctxt.Diag("relocation for %s is too big (>=2G): %d", s.Name, pgaddress)
-	}
-	pgoff := uint32(address & 0xfff)
-	o1 |= uint32((((pgaddress >> 12) & 3) << 29) | (((pgaddress >> 12 >> 2) & 0x7ffff) << 5))
-
-	switch r.Type {
-	case obj.R_ADDRARM64, obj.R_ARM64_LOAD8:
-		o2 |= pgoff << 10
-
-	case obj.R_ARM64_LOAD16:
-		if pgoff&0x1 != 0 {
-			ld.Diag("offset for 16-byte load/store has unaligned value %d", pgoff)
-		}
-		o2 |= pgoff << 9
-
-	case obj.R_ARM64_LOAD32:
-		if pgoff&0x3 != 0 {
-			ld.Diag("offset for 32-byte load/store has unaligned value %d", pgoff)
-		}
-		o2 |= pgoff << 8
-
-	case obj.R_ARM64_LOAD64:
-		if pgoff&0x7 != 0 {
-			ld.Diag("offset for 64-byte load/store has unaligned value %d", pgoff)
-		}
-		o2 |= pgoff << 7
-
-	default:
-		return -1
-	}
-
-	if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
-		*val = int64(o1)<<32 | int64(o2)
-	} else {
-		*val = int64(o2)<<32 | int64(o1)
-	}
-	return 0
-}
-
 func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 	if ld.Linkmode == ld.LinkExternal {
 		switch r.Type {
 		default:
 			return -1
 
-		case obj.R_ADDRARM64,
-			obj.R_ARM64_LOAD8,
-			obj.R_ARM64_LOAD16,
-			obj.R_ARM64_LOAD32,
-			obj.R_ARM64_LOAD64:
-
+		case obj.R_ADDRARM64:
 			r.Done = 0
 
 			// set up addend for eventual relocation via outer symbol.
@@ -387,8 +304,32 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		*val = ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ld.Linklookup(ld.Ctxt, ".got", 0))
 		return 0
 
-	case obj.R_ADDRARM64, obj.R_ARM64_LOAD8, obj.R_ARM64_LOAD16, obj.R_ARM64_LOAD32, obj.R_ARM64_LOAD64:
-		return archrelocaddr(r, s, val)
+	case obj.R_ADDRARM64:
+		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
+		if t >= 1<<32 || t < -1<<32 {
+			ld.Diag("program too large, address relocation distance = %d", t)
+		}
+
+		var o0, o1 uint32
+
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+			o0 = uint32(*val >> 32)
+			o1 = uint32(*val)
+		} else {
+			o0 = uint32(*val)
+			o1 = uint32(*val >> 32)
+		}
+
+		o0 |= (uint32((t>>12)&3) << 29) | (uint32((t>>12>>2)&0x7ffff) << 5)
+		o1 |= uint32(t&0xfff) << 10
+
+		// when laid out, the instruction order must always be o1, o2.
+		if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+			*val = int64(o0)<<32 | int64(o1)
+		} else {
+			*val = int64(o1)<<32 | int64(o0)
+		}
+		return 0
 
 	case obj.R_ARM64_TLS_LE:
 		r.Done = 0
