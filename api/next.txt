@@ -2,6 +2,105 @@ pkg bufio, method (*Scanner) Buffer([]uint8, int)
 pkg bufio, var ErrFinalToken error
 pkg debug/dwarf, const ClassUnknown = 0
 pkg debug/dwarf, const ClassUnknown Class
+pkg debug/elf, const R_MIPS_16 = 1
+pkg debug/elf, const R_MIPS_16 R_MIPS
+pkg debug/elf, const R_MIPS_26 = 4
+pkg debug/elf, const R_MIPS_26 R_MIPS
+pkg debug/elf, const R_MIPS_32 = 2
+pkg debug/elf, const R_MIPS_32 R_MIPS
+pkg debug/elf, const R_MIPS_64 = 18
+pkg debug/elf, const R_MIPS_64 R_MIPS
+pkg debug/elf, const R_MIPS_ADD_IMMEDIATE = 34
+pkg debug/elf, const R_MIPS_ADD_IMMEDIATE R_MIPS
+pkg debug/elf, const R_MIPS_CALL16 = 11
+pkg debug/elf, const R_MIPS_CALL16 R_MIPS
+pkg debug/elf, const R_MIPS_CALL_HI16 = 30
+pkg debug/elf, const R_MIPS_CALL_HI16 R_MIPS
+pkg debug/elf, const R_MIPS_CALL_LO16 = 31
+pkg debug/elf, const R_MIPS_CALL_LO16 R_MIPS
+pkg debug/elf, const R_MIPS_DELETE = 27
+pkg debug/elf, const R_MIPS_DELETE R_MIPS
+pkg debug/elf, const R_MIPS_GOT16 = 9
+pkg debug/elf, const R_MIPS_GOT16 R_MIPS
+pkg debug/elf, const R_MIPS_GOT_DISP = 19
+pkg debug/elf, const R_MIPS_GOT_DISP R_MIPS
+pkg debug/elf, const R_MIPS_GOT_HI16 = 22
+pkg debug/elf, const R_MIPS_GOT_HI16 R_MIPS
+pkg debug/elf, const R_MIPS_GOT_LO16 = 23
+pkg debug/elf, const R_MIPS_GOT_LO16 R_MIPS
+pkg debug/elf, const R_MIPS_GOT_OFST = 21
+pkg debug/elf, const R_MIPS_GOT_OFST R_MIPS
+pkg debug/elf, const R_MIPS_GOT_PAGE = 20
+pkg debug/elf, const R_MIPS_GOT_PAGE R_MIPS
+pkg debug/elf, const R_MIPS_GPREL16 = 7
+pkg debug/elf, const R_MIPS_GPREL16 R_MIPS
+pkg debug/elf, const R_MIPS_GPREL32 = 12
+pkg debug/elf, const R_MIPS_GPREL32 R_MIPS
+pkg debug/elf, const R_MIPS_HI16 = 5
+pkg debug/elf, const R_MIPS_HI16 R_MIPS
+pkg debug/elf, const R_MIPS_HIGHER = 28
+pkg debug/elf, const R_MIPS_HIGHER R_MIPS
+pkg debug/elf, const R_MIPS_HIGHEST = 29
+pkg debug/elf, const R_MIPS_HIGHEST R_MIPS
+pkg debug/elf, const R_MIPS_INSERT_A = 25
+pkg debug/elf, const R_MIPS_INSERT_A R_MIPS
+pkg debug/elf, const R_MIPS_INSERT_B = 26
+pkg debug/elf, const R_MIPS_INSERT_B R_MIPS
+pkg debug/elf, const R_MIPS_JALR = 37
+pkg debug/elf, const R_MIPS_JALR R_MIPS
+pkg debug/elf, const R_MIPS_LITERAL = 8
+pkg debug/elf, const R_MIPS_LITERAL R_MIPS
+pkg debug/elf, const R_MIPS_LO16 = 6
+pkg debug/elf, const R_MIPS_LO16 R_MIPS
+pkg debug/elf, const R_MIPS_NONE = 0
+pkg debug/elf, const R_MIPS_NONE R_MIPS
+pkg debug/elf, const R_MIPS_PC16 = 10
+pkg debug/elf, const R_MIPS_PC16 R_MIPS
+pkg debug/elf, const R_MIPS_PJUMP = 35
+pkg debug/elf, const R_MIPS_PJUMP R_MIPS
+pkg debug/elf, const R_MIPS_REL16 = 33
+pkg debug/elf, const R_MIPS_REL16 R_MIPS
+pkg debug/elf, const R_MIPS_REL32 = 3
+pkg debug/elf, const R_MIPS_REL32 R_MIPS
+pkg debug/elf, const R_MIPS_RELGOT = 36
+pkg debug/elf, const R_MIPS_RELGOT R_MIPS
+pkg debug/elf, const R_MIPS_SCN_DISP = 32
+pkg debug/elf, const R_MIPS_SCN_DISP R_MIPS
+pkg debug/elf, const R_MIPS_SHIFT5 = 16
+pkg debug/elf, const R_MIPS_SHIFT5 R_MIPS
+pkg debug/elf, const R_MIPS_SHIFT6 = 17
+pkg debug/elf, const R_MIPS_SHIFT6 R_MIPS
+pkg debug/elf, const R_MIPS_SUB = 24
+pkg debug/elf, const R_MIPS_SUB R_MIPS
+pkg debug/elf, const R_MIPS_TLS_DTPMOD32 = 38
+pkg debug/elf, const R_MIPS_TLS_DTPMOD32 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_DTPMOD64 = 40
+pkg debug/elf, const R_MIPS_TLS_DTPMOD64 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_DTPREL32 = 39
+pkg debug/elf, const R_MIPS_TLS_DTPREL32 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_DTPREL64 = 41
+pkg debug/elf, const R_MIPS_TLS_DTPREL64 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_DTPREL_HI16 = 44
+pkg debug/elf, const R_MIPS_TLS_DTPREL_HI16 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_DTPREL_LO16 = 45
+pkg debug/elf, const R_MIPS_TLS_DTPREL_LO16 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_GD = 42
+pkg debug/elf, const R_MIPS_TLS_GD R_MIPS
+pkg debug/elf, const R_MIPS_TLS_GOTTPREL = 46
+pkg debug/elf, const R_MIPS_TLS_GOTTPREL R_MIPS
+pkg debug/elf, const R_MIPS_TLS_LDM = 43
+pkg debug/elf, const R_MIPS_TLS_LDM R_MIPS
+pkg debug/elf, const R_MIPS_TLS_TPREL32 = 47
+pkg debug/elf, const R_MIPS_TLS_TPREL32 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_TPREL64 = 48
+pkg debug/elf, const R_MIPS_TLS_TPREL64 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_TPREL_HI16 = 49
+pkg debug/elf, const R_MIPS_TLS_TPREL_HI16 R_MIPS
+pkg debug/elf, const R_MIPS_TLS_TPREL_LO16 = 50
+pkg debug/elf, const R_MIPS_TLS_TPREL_LO16 R_MIPS
+pkg debug/elf, method (R_MIPS) GoString() string
+pkg debug/elf, method (R_MIPS) String() string
+pkg debug/elf, type R_MIPS int
 pkg html/template, func IsTrue(interface{}) (bool, bool)
 pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA
 pkg image, method (*NYCbCrA) AOffset(int, int) int
@@ -38,9 +137,17 @@ pkg net/http, const StatusRequestHeaderFieldsTooLarge = 431
 pkg net/http, const StatusRequestHeaderFieldsTooLarge ideal-int
 pkg net/http, const StatusTooManyRequests = 429
 pkg net/http, const StatusTooManyRequests ideal-int
+pkg net/http, type Transport struct, ExpectContinueTimeout time.Duration
+pkg net/http, type Transport struct, TLSNextProto map[string]func(string, *tls.Conn) RoundTripper
+pkg net/http, var ErrSkipAltProtocol error
 pkg net/http/httptest, method (*ResponseRecorder) WriteString(string) (int, error)
+pkg net/http/httputil, type BufferPool interface { Get, Put }
+pkg net/http/httputil, type BufferPool interface, Get() []uint8
+pkg net/http/httputil, type BufferPool interface, Put([]uint8)
+pkg net/http/httputil, type ReverseProxy struct, BufferPool BufferPool
 pkg net/url, method (*Error) Temporary() bool
 pkg net/url, method (*Error) Timeout() bool
+pkg os/exec, type ExitError struct, Stderr []uint8
 pkg strconv, func AppendQuoteRuneToGraphic([]uint8, int32) []uint8
 pkg strconv, func AppendQuoteToGraphic([]uint8, string) []uint8
 pkg strconv, func IsGraphic(int32) bool
