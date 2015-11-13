@@ -198,12 +198,24 @@ func mpreinit(mp *m) {
 	mp.gsignal.m = mp
 }
 
+//go:nosplit
 func msigsave(mp *m) {
 	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
 	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
 		throw("insufficient storage for signal mask")
 	}
 	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
+}
+
+//go:nosplit
+func msigrestore(mp *m) {
+	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
+}
+
+//go:nosplit
+func sigblock() {
+	rtsigprocmask(_SIG_SETMASK, &sigset_all, nil, int32(unsafe.Sizeof(sigset_all)))
 }
 
 func gettid() uint32
@@ -229,10 +241,8 @@ func minit() {
 }
 
 // Called from dropm to undo the effect of an minit.
+//go:nosplit
 func unminit() {
-	_g_ := getg()
-	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
-	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
 	signalstack(nil)
 }
 
@@ -326,6 +336,7 @@ func getsig(i int32) uintptr {
 	return sa.sa_handler
 }
 
+//go:nosplit
 func signalstack(s *stack) {
 	var st sigaltstackt
 	if s == nil {

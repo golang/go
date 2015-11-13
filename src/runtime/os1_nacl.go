@@ -15,7 +15,16 @@ func mpreinit(mp *m) {
 
 func sigtramp()
 
+//go:nosplit
 func msigsave(mp *m) {
+}
+
+//go:nosplit
+func msigrestore(mp *m) {
+}
+
+//go:nosplit
+func sigblock() {
 }
 
 // Called to initialize a new m (including the bootstrap m).
