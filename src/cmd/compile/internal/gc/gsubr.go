@@ -404,6 +404,17 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		a.Sym = Linksym(s)
 
+	case ODOT:
+		// A special case to make write barriers more efficient.
+		// Taking the address of the first field of a named struct
+		// is the same as taking the address of the struct.
+		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Type.Sym != n.Right.Sym {
+			Debug['h'] = 1
+			Dump("naddr", n)
+			Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+		}
+		Naddr(a, n.Left)
+
 	case OLITERAL:
 		if Thearch.Thechar == '8' {
 			a.Width = 0
