@@ -98,6 +98,10 @@ func (p *parser) want(tok int32) {
 // Syntax error handling
 
 func (p *parser) syntax_error(msg string) {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("syntax_error (" + msg + ")")()
+	}
+
 	if p.tok == EOF && nerrors > 0 {
 		return // avoid meaningless follow-up errors
 	}
@@ -1421,14 +1425,7 @@ loop:
 			switch p.tok {
 			case LNAME, '@', '?':
 				// pexpr '.' sym
-				sel := p.sym()
-				if x.Op == OPACK {
-					s := restrictlookup(sel.Name, x.Name.Pkg)
-					x.Used = true
-					x = oldname(s)
-					break
-				}
-				x = Nod(OXDOT, x, newname(sel))
+				x = p.new_dotname(x)
 
 			case '(':
 				p.next()
@@ -1837,6 +1834,22 @@ func (p *parser) fnret_type() *Node {
 	}
 }
 
+// go.y:dotname (partial)
+func (p *parser) new_dotname(pkg *Node) *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("new_dotname")()
+	}
+
+	sel := p.sym()
+	if pkg.Op == OPACK {
+		s := restrictlookup(sel.Name, pkg.Name.Pkg)
+		pkg.Used = true
+		return oldname(s)
+	}
+	return Nod(OXDOT, pkg, newname(sel))
+
+}
+
 // go.y:dotname
 func (p *parser) dotname() *Node {
 	if trace && Debug['x'] != 0 {
@@ -1844,21 +1857,10 @@ func (p *parser) dotname() *Node {
 	}
 
 	name := p.name()
-
-	switch p.tok {
-	default:
-		return name
-
-	case '.':
-		p.next()
-		sel := p.sym()
-		if name.Op == OPACK {
-			s := restrictlookup(sel.Name, name.Name.Pkg)
-			name.Used = true
-			return oldname(s)
-		}
-		return Nod(OXDOT, name, newname(sel))
+	if p.got('.') {
+		return p.new_dotname(name)
 	}
+	return name
 }
 
 // go.y:structtype
@@ -2443,13 +2445,7 @@ func (p *parser) arg_type() *Node {
 			name := mkname(name)
 			// from dotname
 			if p.got('.') {
-				sel := p.sym()
-				if name.Op == OPACK {
-					s := restrictlookup(sel.Name, name.Name.Pkg)
-					name.Used = true
-					return oldname(s)
-				}
-				return Nod(OXDOT, name, newname(sel))
+				return p.new_dotname(name)
 			}
 			return name
 		}
