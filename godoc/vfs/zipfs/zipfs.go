@@ -86,21 +86,35 @@ func (fs *zipFS) Close() error {
 	return fs.ReadCloser.Close()
 }
 
-func zipPath(name string) string {
+func zipPath(name string) (string, error) {
 	name = path.Clean(name)
 	if !path.IsAbs(name) {
-		panic(fmt.Sprintf("stat: not an absolute path: %s", name))
+		return "", fmt.Errorf("stat: not an absolute path: %s", name)
 	}
-	return name[1:] // strip leading '/'
+	return name[1:], nil // strip leading '/'
+}
+
+func isRoot(abspath string) bool {
+	return path.Clean(abspath) == "/"
 }
 
 func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
-	i, exact := fs.list.lookup(abspath)
-	if i < 0 {
-		// abspath has leading '/' stripped - print it explicitly
-		return -1, zipFI{}, fmt.Errorf("file not found: /%s", abspath)
+	if isRoot(abspath) {
+		return 0, zipFI{
+			name: "",
+			file: nil,
+		}, nil
 	}
-	_, name := path.Split(abspath)
+	zippath, err := zipPath(abspath)
+	if err != nil {
+		return 0, zipFI{}, err
+	}
+	i, exact := fs.list.lookup(zippath)
+	if i < 0 {
+		// zippath has leading '/' stripped - print it explicitly
+		return -1, zipFI{}, fmt.Errorf("file not found: /%s", zippath)
+	}
+	_, name := path.Split(zippath)
 	var file *zip.File
 	if exact {
 		file = fs.list[i] // exact match found - must be a file
@@ -109,7 +123,7 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
 }
 
 func (fs *zipFS) Open(abspath string) (vfs.ReadSeekCloser, error) {
-	_, fi, err := fs.stat(zipPath(abspath))
+	_, fi, err := fs.stat(abspath)
 	if err != nil {
 		return nil, err
 	}
@@ -142,18 +156,17 @@ func (f *zipSeek) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (fs *zipFS) Lstat(abspath string) (os.FileInfo, error) {
-	_, fi, err := fs.stat(zipPath(abspath))
+	_, fi, err := fs.stat(abspath)
 	return fi, err
 }
 
 func (fs *zipFS) Stat(abspath string) (os.FileInfo, error) {
-	_, fi, err := fs.stat(zipPath(abspath))
+	_, fi, err := fs.stat(abspath)
 	return fi, err
 }
 
 func (fs *zipFS) ReadDir(abspath string) ([]os.FileInfo, error) {
-	path := zipPath(abspath)
-	i, fi, err := fs.stat(path)
+	i, fi, err := fs.stat(abspath)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +175,21 @@ func (fs *zipFS) ReadDir(abspath string) ([]os.FileInfo, error) {
 	}
 
 	var list []os.FileInfo
-	dirname := path + "/"
+
+	// make dirname the prefix that file names must start with to be considered
+	// in this directory. we must special case the root directory because, per
+	// the spec of this package, zip file entries MUST NOT start with /, so we
+	// should not append /, as we would in every other case.
+	var dirname string
+	if isRoot(abspath) {
+		dirname = ""
+	} else {
+		zippath, err := zipPath(abspath)
+		if err != nil {
+			return nil, err
+		}
+		dirname = zippath + "/"
+	}
 	prevname := ""
 	for _, e := range fs.list[i:] {
 		if !strings.HasPrefix(e.Name, dirname) {
