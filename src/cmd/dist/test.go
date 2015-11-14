@@ -454,10 +454,15 @@ func (t *tester) registerTests() {
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
 		for _, name := range t.shootoutTests() {
-			if name == "spectralnorm" && os.Getenv("GO_BUILDER_NAME") == "linux-arm-arm5" {
-				// Heavy on floating point and takes over 20 minutes with softfloat.
-				// Disabled per Issue 12688.
-				continue
+			if name == "spectralnorm" {
+				switch os.Getenv("GO_BUILDER_NAME") {
+				case "linux-arm-arm5", "linux-mips64-minux":
+					// Heavy on floating point and takes over 20 minutes with
+					// softfloat on arm5 builder and over 33 minutes on MIPS64
+					// builder with kernel FPU emulator.
+					// Disabled per Issue 12688.
+					continue
+				}
 			}
 			t.registerTest("shootout:"+name, "../test/bench/shootout", "time", "./timing.sh", "-test", name)
 		}
