@@ -14,7 +14,7 @@ const trace = false // if set, parse tracing can be enabled with -x
 
 // TODO(gri) Once we handle imports w/o redirecting the underlying
 // source of the lexer we can get rid of these. They are here for
-// compatibility with the existing yacc-based parser setup.
+// compatibility with the existing yacc-based parser setup (issue 13242).
 var thenewparser parser // the parser in use
 var savedstate []parser // saved parser state, used during import
 
@@ -184,6 +184,7 @@ func tokstring(tok int32) string {
 }
 
 // TODO(gri) figure out why yyTokname doesn't work for us as expected
+// (issue 13243)
 var tokstrings = map[int32]string{
 	LLITERAL:           "LLITERAL",
 	LASOP:              "op=",
@@ -242,6 +243,7 @@ func (p *parser) print_trace(msg ...interface{}) {
 	fmt.Printf("%5d: ", lineno)
 
 	// TODO(gri) imports screw up p.indent - fix this
+	// (issue 13243)
 	if p.indent < 0 {
 		p.indent = 0
 	}
@@ -407,7 +409,7 @@ func (p *parser) import_here() int {
 		p.advance(';', ')')
 	}
 
-	line := parserline() // TODO(gri) check correct placement of this
+	line := parserline() // TODO(gri) check correct placement of this (issue 13243)
 	importfile(&path, line)
 	return line
 }
@@ -879,7 +881,7 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 	}
 	popdcl()
 
-	p.want('}') // TODO(gri) is this correct location w/ respect to popdcl()?
+	p.want('}') // TODO(gri) is this correct location w/ respect to popdcl()? (issue 13243)
 
 	return stmt
 }
@@ -903,7 +905,7 @@ func (p *parser) caseblock(tswitch *Node) *Node {
 
 	stmt.Nbody = p.stmt_list()
 
-	// TODO(gri) what do we need to do here?
+	// TODO(gri) what do we need to do here? (issue 13243)
 	// // This is the only place in the language where a statement
 	// // list is not allowed to drop the final semicolon, because
 	// // it's the only place where a statement list is not followed
@@ -1201,6 +1203,7 @@ func (p *parser) select_stmt() *Node {
 }
 
 // TODO(gri) should have lexer return this info - no need for separate lookup
+// (issue 13244)
 var prectab = map[int32]struct {
 	prec int // > 0 (0 indicates not found)
 	op   Op
@@ -1293,7 +1296,7 @@ func (p *parser) uexpr() *Node {
 		op = ONOT
 
 	case '~':
-		// TODO(gri) do this in the lexer instead
+		// TODO(gri) do this in the lexer instead (issue 13244)
 		p.next()
 		x := p.uexpr()
 		Yyerror("the bitwise complement operator is ^")
@@ -1369,6 +1372,9 @@ func (p *parser) operand(keep_parens bool) *Node {
 		//
 		// TODO(gri) could simplify this if we parse complits
 		// in operand (see respective comment in pexpr).
+		//
+		// (We can probably not do this because of qualified types
+		// as in pkg.Type{}) (issue 13243).
 		if keep_parens || p.tok == '{' {
 			return Nod(OPAREN, x, nil)
 		}
@@ -1508,6 +1514,7 @@ loop:
 		case '{':
 			// TODO(gri) should this (complit acceptance) be in operand?
 			// accept ()'s around the complit type but complain if we have a complit
+			// (issue 13243)
 			t := x
 			for t.Op == OPAREN {
 				t = t.Left
@@ -1580,6 +1587,7 @@ func (p *parser) bare_complitexpr() *Node {
 	// 	x = Nod(OPAREN, x, nil)
 	// 	x.Implicit = true
 	// }
+	// (issue 13243)
 	return x
 }
 
@@ -1783,6 +1791,7 @@ func (p *parser) ntype() *Node {
 	case LDDD:
 		// permit ...T but complain
 		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
+		// (issue 13243)
 		p.syntax_error("")
 		p.advance()
 		return p.ntype()
@@ -1817,6 +1826,7 @@ func (p *parser) chan_elem() *Node {
 
 // go.y:fnret_type
 // TODO(gri) only called from fnres - inline and remove this one
+// (issue 13243)
 func (p *parser) fnret_type() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fnret_type")()
@@ -2650,7 +2660,7 @@ func (p *parser) arg_list() (l *NodeList, ddd bool) {
 	}
 
 	// TODO(gri) make this more tolerant in the presence of LDDD
-	// that is not at the end.
+	// that is not at the end (issue 13243).
 
 	for p.tok != EOF && p.tok != ')' && !ddd {
 		l = list(l, p.expr()) // expr_or_type
@@ -3167,6 +3177,8 @@ func (p *parser) hidden_interfacedcl() *Node {
 	}
 
 	// TODO(gri) possible conflict here: both cases may start with '@' per grammar
+	// (issue 13245).
+
 	switch p.tok {
 	case LNAME, '@', '?':
 		s1 := p.sym()

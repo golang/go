@@ -202,8 +202,8 @@ func Main() {
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
-	obj.Flagcount("newexport", "use new export format", &newexport) // TODO(gri) remove eventually
-	obj.Flagcount("oldparser", "use old parser", &oldparser)        // TODO(gri) remove eventually
+	obj.Flagcount("newexport", "use new export format", &newexport) // TODO(gri) remove eventually (issue 13241)
+	obj.Flagcount("oldparser", "use old parser", &oldparser)        // TODO(gri) remove eventually (issue 13240)
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
@@ -322,7 +322,7 @@ func Main() {
 	// to the yacc-based parser. Short-term work-around for issues with
 	// the new recursive-descent parser for which setting -oldparser is
 	// not sufficient.
-	// TODO(gri) remove this eventually
+	// TODO(gri) remove this eventually (issue 13240)
 	//
 	// oldparser = 1
 
