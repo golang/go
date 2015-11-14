@@ -141,17 +141,21 @@ func (p *parser) syntax_error(msg string) {
 	Yyerror("syntax error: unexpected " + tok + msg)
 }
 
-// Advance consumes tokens until it finds one in the stoplist.
-// If the stoplist is empty, the next token is consumed.
+// Advance consumes tokens until it finds a token of the stoplist.
+// If the stoplist is empty or no advance was necessary, the next
+// token is consumed.
 func (p *parser) advance(stoplist ...int32) {
 	if len(stoplist) == 0 {
 		p.next()
 		return
 	}
 
-	for p.tok != EOF {
+	for n := 0; p.tok != EOF; n++ {
 		for _, stop := range stoplist {
 			if p.tok == stop {
+				if n == 0 {
+					p.next() // consume at least one token
+				}
 				return
 			}
 		}
@@ -1409,8 +1413,8 @@ func (p *parser) operand(keep_parens bool) *Node {
 		return nil
 
 	default:
-		p.syntax_error("in operand")
-		p.advance(';', '}')
+		p.syntax_error("expecting expression")
+		p.advance()
 		return nil
 	}
 }
