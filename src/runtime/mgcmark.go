@@ -780,7 +780,7 @@ const (
 //
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flags gcDrainFlags) {
-	if !writeBarrierEnabled {
+	if !writeBarrier.needed {
 		throw("gcDrain phase incorrect")
 	}
 
@@ -859,7 +859,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 // increments. It returns the amount of scan work performed.
 //go:nowritebarrier
 func gcDrainN(gcw *gcWork, scanWork int64) int64 {
-	if !writeBarrierEnabled {
+	if !writeBarrier.needed {
 		throw("gcDrainN phase incorrect")
 	}
 

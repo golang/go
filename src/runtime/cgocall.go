@@ -390,7 +390,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 
 const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"
 
-// cgoCheckArg is the real work of cgoCheckPointer.  The argument p,
+// cgoCheckArg is the real work of cgoCheckPointer.  The argument p
 // is either a pointer to the value (of type t), or the value itself,
 // depending on indir.  The top parameter is whether we are at the top
 // level, where Go pointers are allowed.
@@ -414,7 +414,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
 		}
 		for i := uintptr(0); i < at.len; i++ {
 			cgoCheckArg(at.elem, p, true, top)
-			p = unsafe.Pointer(uintptr(p) + at.elem.size)
+			p = add(p, at.elem.size)
 		}
 	case kindChan, kindMap:
 		// These types contain internal pointers that will
@@ -440,7 +440,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
 		if inheap(uintptr(unsafe.Pointer(it))) {
 			panic(errorString(cgoCheckPointerFail))
 		}
-		p = *(*unsafe.Pointer)(unsafe.Pointer(uintptr(p) + sys.PtrSize))
+		p = *(*unsafe.Pointer)(add(p, sys.PtrSize))
 		if !cgoIsGoPointer(p) {
 			return
 		}
@@ -460,7 +460,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
 		}
 		for i := 0; i < s.cap; i++ {
 			cgoCheckArg(st.elem, p, true, false)
-			p = unsafe.Pointer(uintptr(p) + st.elem.size)
+			p = add(p, st.elem.size)
 		}
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
@@ -472,7 +472,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool) {
 			return
 		}
 		for _, f := range st.fields {
-			cgoCheckArg(f.typ, unsafe.Pointer(uintptr(p)+f.offset), true, top)
+			cgoCheckArg(f.typ, add(p, f.offset), true, top)
 		}
 	case kindPtr, kindUnsafePointer:
 		if indir {
@@ -539,6 +539,8 @@ func cgoCheckUnknownPointer(p unsafe.Pointer) {
 // cgoIsGoPointer returns whether the pointer is a Go pointer--a
 // pointer to Go memory.  We only care about Go memory that might
 // contain pointers.
+//go:nosplit
+//go:nowritebarrierrec
 func cgoIsGoPointer(p unsafe.Pointer) bool {
 	if p == nil {
 		return false
@@ -558,6 +560,8 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
 }
 
 // cgoInRange returns whether p is between start and end.
+//go:nosplit
+//go:nowritebarrierrec
 func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 	return start <= uintptr(p) && uintptr(p) < end
 }

@@ -108,7 +108,11 @@ func chanrecv2(chanType *byte, hchan <-chan any, elem *any) bool
 func chansend1(chanType *byte, hchan chan<- any, elem *any)
 func closechan(hchan any)
 
-var writeBarrierEnabled bool
+var writeBarrier struct {
+	enabled bool
+	needed  bool
+	cgo     bool
+}
 
 func writebarrierptr(dst *any, src any)
 func writebarrierstring(dst *any, src any)
