@@ -401,6 +401,13 @@ func parsedebugvars() {
 	if debug.gcstackbarrierall > 0 {
 		firstStackBarrierOffset = 0
 	}
+
+	// For cgocheck > 1, we turn on the write barrier at all times
+	// and check all pointer writes.
+	if debug.cgocheck > 1 {
+		writeBarrier.cgo = true
+		writeBarrier.enabled = true
+	}
 }
 
 // Poor mans 64-bit division.

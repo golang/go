@@ -209,7 +209,14 @@ func setGCPercent(in int32) (out int32) {
 // Garbage collector phase.
 // Indicates to write barrier and sychronization task to preform.
 var gcphase uint32
-var writeBarrierEnabled bool // compiler emits references to this in write barriers
+
+// The compiler knows about this variable.
+// If you change it, you must change the compiler too.
+var writeBarrier struct {
+	enabled bool // compiler emits a check of this before calling write barrier
+	needed  bool // whether we need a write barrier for current GC phase
+	cgo     bool // whether we need a write barrier for a cgo check
+}
 
 // gcBlackenEnabled is 1 if mutator assists and background mark
 // workers are allowed to blacken objects. This must only be set when
@@ -240,7 +247,8 @@ const (
 //go:nosplit
 func setGCPhase(x uint32) {
 	atomic.Store(&gcphase, x)
-	writeBarrierEnabled = gcphase == _GCmark || gcphase == _GCmarktermination
+	writeBarrier.needed = gcphase == _GCmark || gcphase == _GCmarktermination
+	writeBarrier.enabled = writeBarrier.needed || writeBarrier.cgo
 }
 
 // gcMarkWorkerMode represents the mode that a concurrent mark worker

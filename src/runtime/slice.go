@@ -98,7 +98,7 @@ func growslice(t *slicetype, old slice, cap int) slice {
 	} else {
 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan uninitialized memory.
 		p = newarray(et, uintptr(newcap))
-		if !writeBarrierEnabled {
+		if !writeBarrier.enabled {
 			memmove(p, old.array, lenmem)
 		} else {
 			for i := uintptr(0); i < lenmem; i += et.size {

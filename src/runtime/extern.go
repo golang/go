@@ -27,6 +27,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
 	profiled and a stack trace printed on each object's allocation and free.
 
+	cgocheck: setting cgocheck=0 disables all checks for packages
+	using cgo to incorrectly pass Go pointers to non-Go code.
+	Setting cgocheck=1 (the default) enables relatively cheap
+	checks that may miss some errors.  Setting cgocheck=2 enables
+	expensive checks that should not miss any errors, but will
+	cause your program to run slower.
+
 	efence: setting efence=1 causes the allocator to run in a mode
 	where each object is allocated on a unique page and addresses are
 	never recycled.

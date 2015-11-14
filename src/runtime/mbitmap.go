@@ -399,7 +399,7 @@ func heapBitsBulkBarrier(p, size uintptr) {
 	if (p|size)&(sys.PtrSize-1) != 0 {
 		throw("heapBitsBulkBarrier: unaligned arguments")
 	}
-	if !writeBarrierEnabled {
+	if !writeBarrier.needed {
 		return
 	}
 	if !inheap(p) {
@@ -466,7 +466,7 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
 		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
-	if !writeBarrierEnabled {
+	if !writeBarrier.needed {
 		return
 	}
 	ptrmask := typ.gcdata
