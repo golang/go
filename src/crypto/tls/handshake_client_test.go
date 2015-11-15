@@ -297,6 +297,22 @@ func TestHandshakeClientRSARC4(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientRSAAES128GCM(t *testing.T) {
+	test := &clientTest{
+		name:    "AES128-GCM-SHA256",
+		command: []string{"openssl", "s_server", "-cipher", "AES128-GCM-SHA256"},
+	}
+	runClientTestTLS12(t, test)
+}
+
+func TestHandshakeClientRSAAES256GCM(t *testing.T) {
+	test := &clientTest{
+		name:    "AES256-GCM-SHA384",
+		command: []string{"openssl", "s_server", "-cipher", "AES256-GCM-SHA384"},
+	}
+	runClientTestTLS12(t, test)
+}
+
 func TestHandshakeClientECDHERSAAES(t *testing.T) {
 	test := &clientTest{
 		name:    "ECDHE-RSA-AES",
