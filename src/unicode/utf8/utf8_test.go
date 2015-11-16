@@ -300,6 +300,8 @@ var runecounttests = []RuneCountTest{
 	{"☺☻☹", 3},
 	{"1,2,3,4", 7},
 	{"\xe2\x00", 2},
+	{"\xe2\x80", 2},
+	{"a\xe2\x80", 3},
 }
 
 func TestRuneCount(t *testing.T) {
@@ -352,6 +354,7 @@ var validTests = []ValidTest{
 	{"ЖЖ", true},
 	{"брэд-ЛГТМ", true},
 	{"☺☻☹", true},
+	{"aa\xe2", false},
 	{string([]byte{66, 250}), false},
 	{string([]byte{66, 250, 67}), false},
 	{"a\uFFFDb", true},
