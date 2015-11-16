@@ -116,7 +116,7 @@ func (p *parser) syntax_error(msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		Yyerror("syntax error: " + msg)
+		Yyerror("syntax error: %s", msg)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (p *parser) syntax_error(msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	Yyerror("syntax error: unexpected " + tok + msg)
+	Yyerror("syntax error: unexpected %s", tok + msg)
 }
 
 // Advance consumes tokens until it finds a token of the stoplist.
@@ -1669,7 +1669,7 @@ func (p *parser) sym() *Sym {
 		return nil
 
 	default:
-		p.syntax_error("")
+		p.syntax_error("expecting name")
 		p.advance()
 		return new(Sym)
 	}
