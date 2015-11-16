@@ -404,7 +404,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			if p == h.arena_end {
 				h.arena_end = new_end
 				h.arena_reserved = reserved
-			} else if p+p_size <= h.arena_start+_MaxArena32 {
+			} else if h.arena_start <= p && p+p_size <= h.arena_start+_MaxArena32 {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
