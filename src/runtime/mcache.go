@@ -8,14 +8,25 @@ import "unsafe"
 
 // Per-thread (in Go, per-P) cache for small objects.
 // No locking needed because it is per-thread (per-P).
+//
+// mcaches are allocated from non-GC'd memory, so any heap pointers
+// must be specially handled.
 type mcache struct {
 	// The following members are accessed on every malloc,
 	// so they are grouped here for better caching.
 	next_sample      int32   // trigger heap sample after allocating this many bytes
 	local_cachealloc uintptr // bytes allocated from cache since last lock of heap
 	local_scan       uintptr // bytes of scannable heap allocated
+
 	// Allocator cache for tiny objects w/o pointers.
 	// See "Tiny allocator" comment in malloc.go.
+
+	// tiny points to the beginning of the current tiny block, or
+	// nil if there is no current tiny block.
+	//
+	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
+	// we handle it by clearing it in releaseAll during mark
+	// termination.
 	tiny             unsafe.Pointer
 	tinyoffset       uintptr
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
@@ -127,4 +138,7 @@ func (c *mcache) releaseAll() {
 			c.alloc[i] = &emptymspan
 		}
 	}
+	// Clear tinyalloc pool.
+	c.tiny = nil
+	c.tinyoffset = 0
 }
