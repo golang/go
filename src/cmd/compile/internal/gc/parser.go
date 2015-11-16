@@ -88,7 +88,7 @@ func (p *parser) got(tok int32) bool {
 }
 
 func (p *parser) want(tok int32) {
-	if p.tok != EOF && !p.got(tok) {
+	if !p.got(tok) {
 		p.syntax_error("")
 		p.advance()
 	}
@@ -293,6 +293,8 @@ func (p *parser) file() {
 	}
 
 	xtop = concat(xtop, p.xdcl_list())
+
+	p.want(EOF)
 }
 
 // go.y:package
