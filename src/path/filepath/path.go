@@ -270,7 +270,7 @@ func Rel(basepath, targpath string) (string, error) {
 	baseSlashed := len(base) > 0 && base[0] == Separator
 	targSlashed := len(targ) > 0 && targ[0] == Separator
 	if baseSlashed != targSlashed || !sameWord(baseVol, targVol) {
-		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
+		return "", errors.New("Rel: can't make " + targpath + " relative to " + basepath)
 	}
 	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
 	bl := len(base)
@@ -296,7 +296,7 @@ func Rel(basepath, targpath string) (string, error) {
 		t0 = ti
 	}
 	if base[b0:bi] == ".." {
-		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
+		return "", errors.New("Rel: can't make " + targpath + " relative to " + basepath)
 	}
 	if b0 != bl {
 		// Base elements left. Must go up before going down.
