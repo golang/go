@@ -886,8 +886,8 @@ func archive() {
 
 	mayberemoveoutfile()
 	argv := []string{"ar", "-q", "-c", "-s", outfile}
-	argv = append(argv, hostobjCopy()...)
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+	argv = append(argv, hostobjCopy()...)
 
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "archive: %s\n", strings.Join(argv, " "))
@@ -1012,8 +1012,8 @@ func hostlink() {
 		argv = append(argv, "-Qunused-arguments")
 	}
 
-	argv = append(argv, hostobjCopy()...)
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
+	argv = append(argv, hostobjCopy()...)
 
 	if Linkshared {
 		seenDirs := make(map[string]bool)
