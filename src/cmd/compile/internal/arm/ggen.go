@@ -173,7 +173,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl << nr
  *	res = nl >> nr
  */
-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if nl.Type.Width > 4 {
 		gc.Fatalf("cgen_shift %v", nl.Type)
 	}
@@ -477,7 +477,7 @@ func ginscon(as int, c int64, n *gc.Node) {
 	gc.Regfree(&n2)
 }
 
-func ginscmp(op int, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	if gc.Isint[t.Etype] && n1.Op == gc.OLITERAL && n1.Int() == 0 && n2.Op != gc.OLITERAL {
 		op = gc.Brrev(op)
 		n1, n2 = n2, n1

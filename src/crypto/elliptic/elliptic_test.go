@@ -441,6 +441,18 @@ func BenchmarkBaseMultP256(b *testing.B) {
 	}
 }
 
+func BenchmarkScalarMultP256(b *testing.B) {
+	b.ResetTimer()
+	p256 := P256()
+	_, x, y, _ := GenerateKey(p256, rand.Reader)
+	priv, _, _, _ := GenerateKey(p256, rand.Reader)
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		p256.ScalarMult(x, y, priv)
+	}
+}
+
 func TestMarshal(t *testing.T) {
 	p224 := P224()
 	_, x, y, err := GenerateKey(p224, rand.Reader)

@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 // This implementation depends on OS-specific implementations of
 //
@@ -48,7 +51,7 @@ func lock(l *mutex) {
 	gp.m.locks++
 
 	// Speculative grab for lock.
-	v := xchg(key32(&l.key), mutex_locked)
+	v := atomic.Xchg(key32(&l.key), mutex_locked)
 	if v == mutex_unlocked {
 		return
 	}
@@ -72,7 +75,7 @@ func lock(l *mutex) {
 		// Try for lock, spinning.
 		for i := 0; i < spin; i++ {
 			for l.key == mutex_unlocked {
-				if cas(key32(&l.key), mutex_unlocked, wait) {
+				if atomic.Cas(key32(&l.key), mutex_unlocked, wait) {
 					return
 				}
 			}
@@ -82,7 +85,7 @@ func lock(l *mutex) {
 		// Try for lock, rescheduling.
 		for i := 0; i < passive_spin; i++ {
 			for l.key == mutex_unlocked {
-				if cas(key32(&l.key), mutex_unlocked, wait) {
+				if atomic.Cas(key32(&l.key), mutex_unlocked, wait) {
 					return
 				}
 			}
@@ -90,7 +93,7 @@ func lock(l *mutex) {
 		}
 
 		// Sleep.
-		v = xchg(key32(&l.key), mutex_sleeping)
+		v = atomic.Xchg(key32(&l.key), mutex_sleeping)
 		if v == mutex_unlocked {
 			return
 		}
@@ -100,7 +103,7 @@ func lock(l *mutex) {
 }
 
 func unlock(l *mutex) {
-	v := xchg(key32(&l.key), mutex_unlocked)
+	v := atomic.Xchg(key32(&l.key), mutex_unlocked)
 	if v == mutex_unlocked {
 		throw("unlock of unlocked lock")
 	}
@@ -124,7 +127,7 @@ func noteclear(n *note) {
 }
 
 func notewakeup(n *note) {
-	old := xchg(key32(&n.key), 1)
+	old := atomic.Xchg(key32(&n.key), 1)
 	if old != 0 {
 		print("notewakeup - double wakeup (", old, ")\n")
 		throw("notewakeup - double wakeup")
@@ -137,7 +140,7 @@ func notesleep(n *note) {
 	if gp != gp.m.g0 {
 		throw("notesleep not on g0")
 	}
-	for atomicload(key32(&n.key)) == 0 {
+	for atomic.Load(key32(&n.key)) == 0 {
 		gp.m.blocked = true
 		futexsleep(key32(&n.key), 0, -1)
 		gp.m.blocked = false
@@ -153,7 +156,7 @@ func notetsleep_internal(n *note, ns int64) bool {
 	gp := getg()
 
 	if ns < 0 {
-		for atomicload(key32(&n.key)) == 0 {
+		for atomic.Load(key32(&n.key)) == 0 {
 			gp.m.blocked = true
 			futexsleep(key32(&n.key), 0, -1)
 			gp.m.blocked = false
@@ -161,7 +164,7 @@ func notetsleep_internal(n *note, ns int64) bool {
 		return true
 	}
 
-	if atomicload(key32(&n.key)) != 0 {
+	if atomic.Load(key32(&n.key)) != 0 {
 		return true
 	}
 
@@ -170,7 +173,7 @@ func notetsleep_internal(n *note, ns int64) bool {
 		gp.m.blocked = true
 		futexsleep(key32(&n.key), 0, ns)
 		gp.m.blocked = false
-		if atomicload(key32(&n.key)) != 0 {
+		if atomic.Load(key32(&n.key)) != 0 {
 			break
 		}
 		now := nanotime()
@@ -179,7 +182,7 @@ func notetsleep_internal(n *note, ns int64) bool {
 		}
 		ns = deadline - now
 	}
-	return atomicload(key32(&n.key)) != 0
+	return atomic.Load(key32(&n.key)) != 0
 }
 
 func notetsleep(n *note, ns int64) bool {

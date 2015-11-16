@@ -89,3 +89,7 @@ func TestAMD64EndToEnd(t *testing.T) {
 func Test386EndToEnd(t *testing.T) {
 	testEndToEnd(t, "386")
 }
+
+func TestMIPS64EndToEnd(t *testing.T) {
+	testEndToEnd(t, "mips64")
+}

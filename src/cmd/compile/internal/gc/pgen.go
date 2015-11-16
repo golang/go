@@ -130,6 +130,9 @@ func gcsymdup(s *Sym) {
 }
 
 func emitptrargsmap() {
+	if Curfn.Func.Nname.Sym.Name == "_" {
+		return
+	}
 	sym := Lookup(fmt.Sprintf("%s.args_stackmap", Curfn.Func.Nname.Sym.Name))
 
 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
@@ -283,7 +286,7 @@ func allocauto(ptxt *obj.Prog) {
 		if haspointers(n.Type) {
 			stkptrsize = Stksize
 		}
-		if Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
+		if Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9' {
 			Stksize = Rnd(Stksize, int64(Widthptr))
 		}
 		if Stksize >= 1<<31 {
@@ -320,7 +323,7 @@ func Cgen_checknil(n *Node) {
 		Fatalf("bad checknil")
 	}
 
-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
+	if ((Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
 		var reg Node
 		Regalloc(&reg, Types[Tptr], n)
 		Cgen(n, &reg)
@@ -406,8 +409,8 @@ func compile(fn *Node) {
 	if nerrors != 0 {
 		goto ret
 	}
-	if flag_race != 0 {
-		racewalk(Curfn)
+	if instrumenting {
+		instrument(Curfn)
 	}
 	if nerrors != 0 {
 		goto ret

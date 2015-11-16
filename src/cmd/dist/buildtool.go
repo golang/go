@@ -34,6 +34,7 @@ var bootstrapDirs = []string{
 	"compile/internal/arm64",
 	"compile/internal/big",
 	"compile/internal/gc",
+	"compile/internal/mips64",
 	"compile/internal/ppc64",
 	"compile/internal/ssa",
 	"compile/internal/x86",
@@ -41,6 +42,7 @@ var bootstrapDirs = []string{
 	"internal/obj",
 	"internal/obj/arm",
 	"internal/obj/arm64",
+	"internal/obj/mips",
 	"internal/obj/ppc64",
 	"internal/obj/x86",
 	"link",
@@ -48,6 +50,7 @@ var bootstrapDirs = []string{
 	"link/internal/arm",
 	"link/internal/arm64",
 	"link/internal/ld",
+	"link/internal/mips64",
 	"link/internal/ppc64",
 	"link/internal/x86",
 }

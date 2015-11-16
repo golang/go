@@ -167,6 +167,7 @@ func (p *Package) Translate(f *File) {
 	if len(needType) > 0 {
 		p.loadDWARF(f, needType)
 	}
+	p.rewriteCalls(f)
 	p.rewriteRef(f)
 }
 
@@ -568,6 +569,278 @@ func (p *Package) mangleName(n *Name) {
 		prefix = "C"
 	}
 	n.Mangle = prefix + n.Kind + "_" + n.Go
+}
+
+// rewriteCalls rewrites all calls that pass pointers to check that
+// they follow the rules for passing pointers between Go and C.
+func (p *Package) rewriteCalls(f *File) {
+	for _, call := range f.Calls {
+		// This is a call to C.xxx; set goname to "xxx".
+		goname := call.Fun.(*ast.SelectorExpr).Sel.Name
+		if goname == "malloc" {
+			continue
+		}
+		name := f.Name[goname]
+		if name.Kind != "func" {
+			// Probably a type conversion.
+			continue
+		}
+		p.rewriteCall(f, call, name)
+	}
+}
+
+// rewriteCall rewrites one call to add pointer checks.  We replace
+// each pointer argument x with _cgoCheckPointer(x).(T).
+func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
+	for i, param := range name.FuncType.Params {
+		// An untyped nil does not need a pointer check, and
+		// when _cgoCheckPointer returns the untyped nil the
+		// type assertion we are going to insert will fail.
+		// Easier to just skip nil arguments.
+		// TODO: Note that this fails if nil is shadowed.
+		if id, ok := call.Args[i].(*ast.Ident); ok && id.Name == "nil" {
+			continue
+		}
+
+		if !p.needsPointerCheck(f, param.Go) {
+			continue
+		}
+
+		if len(call.Args) <= i {
+			// Avoid a crash; this will be caught when the
+			// generated file is compiled.
+			return
+		}
+
+		c := &ast.CallExpr{
+			Fun: ast.NewIdent("_cgoCheckPointer"),
+			Args: []ast.Expr{
+				call.Args[i],
+			},
+		}
+
+		// Add optional additional arguments for an address
+		// expression.
+		if u, ok := call.Args[i].(*ast.UnaryExpr); ok && u.Op == token.AND {
+			c.Args = p.checkAddrArgs(f, c.Args, u.X)
+		}
+
+		// _cgoCheckPointer returns interface{}.
+		// We need to type assert that to the type we want.
+		// If the Go version of this C type uses
+		// unsafe.Pointer, we can't use a type assertion,
+		// because the Go file might not import unsafe.
+		// Instead we use a local variant of _cgoCheckPointer.
+
+		var arg ast.Expr
+		if n := p.unsafeCheckPointerName(param.Go); n != "" {
+			c.Fun = ast.NewIdent(n)
+			arg = c
+		} else {
+			// In order for the type assertion to succeed,
+			// we need it to match the actual type of the
+			// argument.  The only type we have is the
+			// type of the function parameter.  We know
+			// that the argument type must be assignable
+			// to the function parameter type, or the code
+			// would not compile, but there is nothing
+			// requiring that the types be exactly the
+			// same.  Add a type conversion to the
+			// argument so that the type assertion will
+			// succeed.
+			c.Args[0] = &ast.CallExpr{
+				Fun: param.Go,
+				Args: []ast.Expr{
+					c.Args[0],
+				},
+			}
+
+			arg = &ast.TypeAssertExpr{
+				X:    c,
+				Type: param.Go,
+			}
+		}
+
+		call.Args[i] = arg
+	}
+}
+
+// needsPointerCheck returns whether the type t needs a pointer check.
+// This is true if t is a pointer and if the value to which it points
+// might contain a pointer.
+func (p *Package) needsPointerCheck(f *File, t ast.Expr) bool {
+	return p.hasPointer(f, t, true)
+}
+
+// hasPointer is used by needsPointerCheck.  If top is true it returns
+// whether t is or contains a pointer that might point to a pointer.
+// If top is false it returns whether t is or contains a pointer.
+func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
+	switch t := t.(type) {
+	case *ast.ArrayType:
+		if t.Len == nil {
+			if !top {
+				return true
+			}
+			return p.hasPointer(f, t.Elt, false)
+		}
+		return p.hasPointer(f, t.Elt, top)
+	case *ast.StructType:
+		for _, field := range t.Fields.List {
+			if p.hasPointer(f, field.Type, top) {
+				return true
+			}
+		}
+		return false
+	case *ast.StarExpr: // Pointer type.
+		if !top {
+			return true
+		}
+		return p.hasPointer(f, t.X, false)
+	case *ast.FuncType, *ast.InterfaceType, *ast.MapType, *ast.ChanType:
+		return true
+	case *ast.Ident:
+		// TODO: Handle types defined within function.
+		for _, d := range p.Decl {
+			gd, ok := d.(*ast.GenDecl)
+			if !ok || gd.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range gd.Specs {
+				ts, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				if ts.Name.Name == t.Name {
+					return p.hasPointer(f, ts.Type, top)
+				}
+			}
+		}
+		if def := typedef[t.Name]; def != nil {
+			return p.hasPointer(f, def.Go, top)
+		}
+		if t.Name == "string" {
+			return !top
+		}
+		if t.Name == "error" {
+			return true
+		}
+		if goTypes[t.Name] != nil {
+			return false
+		}
+		// We can't figure out the type.  Conservative
+		// approach is to assume it has a pointer.
+		return true
+	case *ast.SelectorExpr:
+		if l, ok := t.X.(*ast.Ident); !ok || l.Name != "C" {
+			// Type defined in a different package.
+			// Conservative approach is to assume it has a
+			// pointer.
+			return true
+		}
+		name := f.Name[t.Sel.Name]
+		if name != nil && name.Kind == "type" && name.Type != nil && name.Type.Go != nil {
+			return p.hasPointer(f, name.Type.Go, top)
+		}
+		// We can't figure out the type.  Conservative
+		// approach is to assume it has a pointer.
+		return true
+	default:
+		error_(t.Pos(), "could not understand type %s", gofmt(t))
+		return true
+	}
+}
+
+// checkAddrArgs tries to add arguments to the call of
+// _cgoCheckPointer when the argument is an address expression.  We
+// pass true to mean that the argument is an address operation of
+// something other than a slice index, which means that it's only
+// necessary to check the specific element pointed to, not the entire
+// object.  This is for &s.f, where f is a field in a struct.  We can
+// pass a slice or array, meaning that we should check the entire
+// slice or array but need not check any other part of the object.
+// This is for &s.a[i], where we need to check all of a.  However, we
+// only pass the slice or array if we can refer to it without side
+// effects.
+func (p *Package) checkAddrArgs(f *File, args []ast.Expr, x ast.Expr) []ast.Expr {
+	index, ok := x.(*ast.IndexExpr)
+	if !ok {
+		// This is the address of something that is not an
+		// index expression.  We only need to examine the
+		// single value to which it points.
+		// TODO: what is true is shadowed?
+		return append(args, ast.NewIdent("true"))
+	}
+	if !p.hasSideEffects(f, index.X) {
+		// Examine the entire slice.
+		return append(args, index.X)
+	}
+	// Treat the pointer as unknown.
+	return args
+}
+
+// hasSideEffects returns whether the expression x has any side
+// effects.  x is an expression, not a statement, so the only side
+// effect is a function call.
+func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
+	found := false
+	f.walk(x, "expr",
+		func(f *File, x interface{}, context string) {
+			switch x.(type) {
+			case *ast.CallExpr:
+				found = true
+			}
+		})
+	return found
+}
+
+// unsafeCheckPointerName is given the Go version of a C type.  If the
+// type uses unsafe.Pointer, we arrange to build a version of
+// _cgoCheckPointer that returns that type.  This avoids using a type
+// assertion to unsafe.Pointer in our copy of user code.  We return
+// the name of the _cgoCheckPointer function we are going to build, or
+// the empty string if the type does not use unsafe.Pointer.
+func (p *Package) unsafeCheckPointerName(t ast.Expr) string {
+	if !p.hasUnsafePointer(t) {
+		return ""
+	}
+	var buf bytes.Buffer
+	conf.Fprint(&buf, fset, t)
+	s := buf.String()
+	for i, t := range p.CgoChecks {
+		if s == t {
+			return p.unsafeCheckPointerNameIndex(i)
+		}
+	}
+	p.CgoChecks = append(p.CgoChecks, s)
+	return p.unsafeCheckPointerNameIndex(len(p.CgoChecks) - 1)
+}
+
+// hasUnsafePointer returns whether the Go type t uses unsafe.Pointer.
+// t is the Go version of a C type, so we don't need to handle every case.
+// We only care about direct references, not references via typedefs.
+func (p *Package) hasUnsafePointer(t ast.Expr) bool {
+	switch t := t.(type) {
+	case *ast.Ident:
+		return t.Name == "unsafe.Pointer"
+	case *ast.ArrayType:
+		return p.hasUnsafePointer(t.Elt)
+	case *ast.StructType:
+		for _, f := range t.Fields.List {
+			if p.hasUnsafePointer(f.Type) {
+				return true
+			}
+		}
+	case *ast.StarExpr: // Pointer type.
+		return p.hasUnsafePointer(t.X)
+	}
+	return false
+}
+
+// unsafeCheckPointerNameIndex returns the name to use for a
+// _cgoCheckPointer variant based on the index in the CgoChecks slice.
+func (p *Package) unsafeCheckPointerNameIndex(i int) string {
+	return fmt.Sprintf("_cgoCheckPointer%d", i)
 }
 
 // rewriteRef rewrites all the C.xxx references in f.AST to refer to the
@@ -1227,6 +1500,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Go = c.int32
 		case 8:
 			t.Go = c.int64
+		case 16:
+			t.Go = &ast.ArrayType{
+				Len: c.intExpr(t.Size),
+				Elt: c.uint8,
+			}
 		}
 		if t.Align = t.Size; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize
@@ -1384,6 +1662,11 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Go = c.uint32
 		case 8:
 			t.Go = c.uint64
+		case 16:
+			t.Go = &ast.ArrayType{
+				Len: c.intExpr(t.Size),
+				Elt: c.uint8,
+			}
 		}
 		if t.Align = t.Size; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize

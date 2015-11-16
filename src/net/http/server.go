@@ -317,8 +317,9 @@ func (cw *chunkWriter) close() {
 type response struct {
 	conn          *conn
 	req           *Request // request for this response
-	wroteHeader   bool     // reply header has been (logically) written
-	wroteContinue bool     // 100 Continue response was written
+	reqBody       io.ReadCloser
+	wroteHeader   bool // reply header has been (logically) written
+	wroteContinue bool // 100 Continue response was written
 
 	w  *bufio.Writer // buffers output in chunks to chunkWriter
 	cw chunkWriter
@@ -658,6 +659,7 @@ func (c *conn) readRequest() (w *response, err error) {
 	w = &response{
 		conn:          c,
 		req:           req,
+		reqBody:       req.Body,
 		handlerHeader: make(Header),
 		contentLength: -1,
 	}
@@ -1167,7 +1169,7 @@ func (w *response) finishRequest() {
 
 	// Close the body (regardless of w.closeAfterReply) so we can
 	// re-use its bufio.Reader later safely.
-	w.req.Body.Close()
+	w.reqBody.Close()
 
 	if w.req.MultipartForm != nil {
 		w.req.MultipartForm.RemoveAll()
@@ -1472,6 +1474,9 @@ func StripPrefix(prefix string, h Handler) Handler {
 
 // Redirect replies to the request with a redirect to url,
 // which may be a path relative to the request path.
+//
+// The provided code should be in the 3xx range and is usually
+// StatusMovedPermanently, StatusFound or StatusSeeOther.
 func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
 	if u, err := url.Parse(urlStr); err == nil {
 		// If url was relative, make absolute by
@@ -1556,6 +1561,9 @@ func (rh *redirectHandler) ServeHTTP(w ResponseWriter, r *Request) {
 // RedirectHandler returns a request handler that redirects
 // each request it receives to the given url using the given
 // status code.
+//
+// The provided code should be in the 3xx range and is usually
+// StatusMovedPermanently, StatusFound or StatusSeeOther.
 func RedirectHandler(url string, code int) Handler {
 	return &redirectHandler{url, code}
 }
@@ -1808,6 +1816,7 @@ type Server struct {
 
 	disableKeepAlives int32     // accessed atomically.
 	nextProtoOnce     sync.Once // guards initialization of TLSNextProto in Serve
+	nextProtoErr      error
 }
 
 // A ConnState represents the state of a client connection to a server.
@@ -1890,14 +1899,21 @@ func (srv *Server) ListenAndServe() error {
 	return srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
 
+var testHookServerServe func(*Server, net.Listener) // used if non-nil
+
 // Serve accepts incoming connections on the Listener l, creating a
 // new service goroutine for each. The service goroutines read requests and
 // then call srv.Handler to reply to them.
 // Serve always returns a non-nil error.
 func (srv *Server) Serve(l net.Listener) error {
 	defer l.Close()
+	if fn := testHookServerServe; fn != nil {
+		fn(srv, l)
+	}
 	var tempDelay time.Duration // how long to sleep on accept failure
-	srv.nextProtoOnce.Do(srv.setNextProtoDefaults)
+	if err := srv.setupHTTP2(); err != nil {
+		return err
+	}
 	for {
 		rw, e := l.Accept()
 		if e != nil {
@@ -2031,9 +2047,16 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	if addr == "" {
 		addr = ":https"
 	}
+
+	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
+	// before we clone it and create the TLS Listener.
+	if err := srv.setupHTTP2(); err != nil {
+		return err
+	}
+
 	config := cloneTLSConfig(srv.TLSConfig)
-	if config.NextProtos == nil {
-		config.NextProtos = []string{"http/1.1"}
+	if !strSliceContains(config.NextProtos, "http/1.1") {
+		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
 	if len(config.Certificates) == 0 || certFile != "" || keyFile != "" {
@@ -2054,11 +2077,19 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 	return srv.Serve(tlsListener)
 }
 
-func (srv *Server) setNextProtoDefaults() {
+func (srv *Server) setupHTTP2() error {
+	srv.nextProtoOnce.Do(srv.onceSetNextProtoDefaults)
+	return srv.nextProtoErr
+}
+
+// onceSetNextProtoDefaults configures HTTP/2, if the user hasn't
+// configured otherwise. (by setting srv.TLSNextProto non-nil)
+// It must only be called via srv.nextProtoOnce (use srv.setupHTTP2).
+func (srv *Server) onceSetNextProtoDefaults() {
 	// Enable HTTP/2 by default if the user hasn't otherwise
 	// configured their TLSNextProto map.
 	if srv.TLSNextProto == nil {
-		http2ConfigureServer(srv, nil)
+		srv.nextProtoErr = http2ConfigureServer(srv, nil)
 	}
 }
 
@@ -2288,4 +2319,13 @@ func numLeadingCRorLF(v []byte) (n int) {
 	}
 	return
 
+}
+
+func strSliceContains(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }

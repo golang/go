@@ -63,11 +63,11 @@ type LSym struct {
 	Got         int32
 	Align       int32
 	Elfsym      int32
+	LocalElfsym int32
 	Args        int32
 	Locals      int32
 	Value       int64
 	Size        int64
-	Hash        *LSym
 	Allsym      *LSym
 	Next        *LSym
 	Sub         *LSym
@@ -93,6 +93,16 @@ func (s *LSym) String() string {
 	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
 }
 
+func (s *LSym) ElfsymForReloc() int32 {
+	// If putelfsym created a local version of this symbol, use that in all
+	// relocations.
+	if s.LocalElfsym != 0 {
+		return s.LocalElfsym
+	} else {
+		return s.Elfsym
+	}
+}
+
 type Reloc struct {
 	Off     int32
 	Siz     uint8
@@ -114,10 +124,11 @@ type Auto struct {
 }
 
 type Shlib struct {
-	Path string
-	Hash []byte
-	Deps []string
-	File *elf.File
+	Path             string
+	Hash             []byte
+	Deps             []string
+	File             *elf.File
+	gcdata_addresses map[*LSym]uint64
 }
 
 type Link struct {
@@ -147,6 +158,23 @@ type Link struct {
 	Nhistfile  int32
 	Filesyms   *LSym
 	Moduledata *LSym
+}
+
+// The smallest possible offset from the hardware stack pointer to a local
+// variable on the stack. Architectures that use a link register save its value
+// on the stack in the function prologue and so always have a pointer between
+// the hardware stack pointer and the local variable area.
+func (ctxt *Link) FixedFrameSize() int64 {
+	switch ctxt.Arch.Thechar {
+	case '6', '8':
+		return 0
+	case '9':
+		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
+		// just use that much stack always on ppc64x.
+		return int64(4 * ctxt.Arch.Ptrsize)
+	default:
+		return int64(ctxt.Arch.Ptrsize)
+	}
 }
 
 type LinkArch struct {

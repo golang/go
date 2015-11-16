@@ -6,12 +6,6 @@ package runtime
 
 import "unsafe"
 
-// Declarations for runtime services implemented in C or assembly.
-
-const ptrSize = 4 << (^uintptr(0) >> 63)             // unsafe.Sizeof(uintptr(0)) but an ideal const
-const regSize = 4 << (^uintreg(0) >> 63)             // unsafe.Sizeof(uintreg(0)) but an ideal const
-const spAlign = 1*(1-goarch_arm64) + 16*goarch_arm64 // SP alignment: 1 normally, 16 for ARM64
-
 // Should be a built-in for unsafe.Pointer?
 //go:nosplit
 func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
@@ -150,42 +144,6 @@ func goexit(neverCallThisFunction)
 // so the arguments will be found via cgocallback's pointer-declared arguments.
 // See the assembly implementations for more details.
 func cgocallback_gofunc(fv uintptr, frame uintptr, framesize uintptr)
-
-//go:noescape
-func cas(ptr *uint32, old, new uint32) bool
-
-// NO go:noescape annotation; see atomic_pointer.go.
-func casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
-
-func nop() // call to prevent inlining of function body
-
-//go:noescape
-func casuintptr(ptr *uintptr, old, new uintptr) bool
-
-//go:noescape
-func atomicstoreuintptr(ptr *uintptr, new uintptr)
-
-//go:noescape
-func atomicloaduintptr(ptr *uintptr) uintptr
-
-//go:noescape
-func atomicloaduint(ptr *uint) uint
-
-// TODO: Write native implementations of int64 atomic ops (or improve
-// inliner). These portable ones can't be inlined right now, so we're
-// taking an extra function call hit.
-
-func atomicstoreint64(ptr *int64, new int64) {
-	atomicstore64((*uint64)(unsafe.Pointer(ptr)), uint64(new))
-}
-
-func atomicloadint64(ptr *int64) int64 {
-	return int64(atomicload64((*uint64)(unsafe.Pointer(ptr))))
-}
-
-func xaddint64(ptr *int64, delta int64) int64 {
-	return int64(xadd64((*uint64)(unsafe.Pointer(ptr)), delta))
-}
 
 // publicationBarrier performs a store/store barrier (a "publication"
 // or "export" barrier). Some form of synchronization is required

@@ -1069,11 +1069,9 @@ func TestTLSServer(t *testing.T) {
 	})
 }
 
-func TestAutomaticHTTP2(t *testing.T) {
-	ln, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestAutomaticHTTP2_Serve(t *testing.T) {
+	defer afterTest(t)
+	ln := newLocalListener(t)
 	ln.Close() // immediately (not a defer!)
 	var s Server
 	if err := s.Serve(ln); err == nil {
@@ -1082,6 +1080,65 @@ func TestAutomaticHTTP2(t *testing.T) {
 	on := s.TLSNextProto["h2"] != nil
 	if !on {
 		t.Errorf("http2 wasn't automatically enabled")
+	}
+}
+
+func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
+	defer afterTest(t)
+	defer SetTestHookServerServe(nil)
+	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ok bool
+	var s *Server
+	const maxTries = 5
+	var ln net.Listener
+Try:
+	for try := 0; try < maxTries; try++ {
+		ln = newLocalListener(t)
+		addr := ln.Addr().String()
+		ln.Close()
+		t.Logf("Got %v", addr)
+		lnc := make(chan net.Listener, 1)
+		SetTestHookServerServe(func(s *Server, ln net.Listener) {
+			lnc <- ln
+		})
+		s = &Server{
+			Addr: addr,
+			TLSConfig: &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			},
+		}
+		errc := make(chan error, 1)
+		go func() { errc <- s.ListenAndServeTLS("", "") }()
+		select {
+		case err := <-errc:
+			t.Logf("On try #%v: %v", try+1, err)
+			continue
+		case ln = <-lnc:
+			ok = true
+			t.Logf("Listening on %v", ln.Addr().String())
+			break Try
+		}
+	}
+	if !ok {
+		t.Fatal("Failed to start up after %d tries", maxTries)
+	}
+	defer ln.Close()
+	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+		InsecureSkipVerify: true,
+		NextProtos:         []string{"h2", "http/1.1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if got, want := c.ConnectionState().NegotiatedProtocol, "h2"; got != want {
+		t.Errorf("NegotiatedProtocol = %q; want %q", got, want)
+	}
+	if got, want := c.ConnectionState().NegotiatedProtocolIsMutual, true; got != want {
+		t.Errorf("NegotiatedProtocolIsMutual = %v; want %v", got, want)
 	}
 }
 
@@ -2348,7 +2405,7 @@ func TestHeaderToWire(t *testing.T) {
 					return errors.New("no content-length")
 				}
 				if !strings.Contains(got, "Content-Type: text/plain") {
-					return errors.New("no content-length")
+					return errors.New("no content-type")
 				}
 				return nil
 			},
@@ -2487,7 +2544,7 @@ func TestHeaderToWire(t *testing.T) {
 				if !strings.Contains(got, "404") {
 					return errors.New("wrong status")
 				}
-				if strings.Contains(got, "Some-Header") {
+				if strings.Contains(got, "Too-Late") {
 					return errors.New("shouldn't have seen Too-Late")
 				}
 				return nil
@@ -3381,6 +3438,31 @@ func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
 
 	if afterHandlerLen != inHandlerLen {
 		t.Errorf("unexpected implicit read. Read buffer went from %d -> %d", inHandlerLen, afterHandlerLen)
+	}
+}
+
+func TestHandlerSetsBodyNil(t *testing.T) {
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		r.Body = nil
+		fmt.Fprintf(w, "%v", r.RemoteAddr)
+	}))
+	defer ts.Close()
+	get := func() string {
+		res, err := Get(ts.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		slurp, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(slurp)
+	}
+	a, b := get(), get()
+	if a != b {
+		t.Errorf("Failed to reuse connections between requests: %v vs %v", a, b)
 	}
 }
 

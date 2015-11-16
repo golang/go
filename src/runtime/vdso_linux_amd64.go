@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Look up symbols in the Linux vDSO.
 
@@ -303,7 +306,7 @@ func sysargs(argc int32, argv **byte) {
 	n++
 
 	// now argv+n is auxv
-	auxv := (*[1 << 32]elf64Auxv)(add(unsafe.Pointer(argv), uintptr(n)*ptrSize))
+	auxv := (*[1 << 32]elf64Auxv)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
 
 	for i := 0; auxv[i].a_type != _AT_NULL; i++ {
 		av := &auxv[i]

@@ -254,6 +254,7 @@ import_stmt:
 			break;
 		}
 		if my.Name == "init" {
+			lineno = int32($1)
 			Yyerror("cannot import package as init - init must be a func");
 			break;
 		}
@@ -315,7 +316,9 @@ import_package:
 		} else if importpkg.Name != $2.Name {
 			Yyerror("conflicting names %s and %s for package %q", importpkg.Name, $2.Name, importpkg.Path);
 		}
-		importpkg.Direct = true;
+		if incannedimport == 0 {
+			importpkg.Direct = true;
+		}
 		importpkg.Safe = curio.importsafe
 
 		if safemode != 0 && !curio.importsafe {
@@ -487,7 +490,7 @@ simple_stmt:
 |	expr LASOP expr
 	{
 		$$ = Nod(OASOP, $1, $3);
-		$$.Etype = uint8($2);			// rathole to pass opcode
+		$$.Etype = EType($2);			// rathole to pass opcode
 	}
 |	expr_list '=' expr_list
 	{
@@ -510,7 +513,7 @@ simple_stmt:
 			}
 			if $1.Next != nil {
 				Yyerror("argument count mismatch: %d = %d", count($1), 1);
-			} else if ($1.N.Op != ONAME && $1.N.Op != OTYPE && $1.N.Op != ONONAME) || isblank($1.N) {
+			} else if ($1.N.Op != ONAME && $1.N.Op != OTYPE && $1.N.Op != ONONAME && ($1.N.Op != OLITERAL || $1.N.Name == nil)) || isblank($1.N) {
 				Yyerror("invalid variable name %s in type switch", $1.N);
 			} else {
 				$$.Left = dclname($1.N.Sym);
@@ -523,13 +526,15 @@ simple_stmt:
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
 		$$.Implicit = true;
-		$$.Etype = OADD;
+		// TODO(marvin): Fix Node.EType type union.
+		$$.Etype = EType(OADD);
 	}
 |	expr LDEC
 	{
 		$$ = Nod(OASOP, $1, Nodintconst(1));
 		$$.Implicit = true;
-		$$.Etype = OSUB;
+		// TODO(marvin): Fix Node.EType type union.
+		$$.Etype = EType(OSUB);
 	}
 
 case:
@@ -1392,7 +1397,9 @@ xfndcl:
 		$$.Noescape = noescape;
 		$$.Func.Norace = norace;
 		$$.Func.Nosplit = nosplit;
+		$$.Func.Noinline = noinline;
 		$$.Func.Nowritebarrier = nowritebarrier;
+		$$.Func.Nowritebarrierrec = nowritebarrierrec;
 		$$.Func.Systemstack = systemstack;
 		funcbody($$);
 	}
@@ -1578,11 +1585,13 @@ xdcl_list:
 		if nsyntaxerrors == 0 {
 			testdclstack();
 		}
-		nointerface = false
 		noescape = false
+		noinline = false
+		nointerface = false
 		norace = false
 		nosplit = false
 		nowritebarrier = false
+		nowritebarrierrec = false
 		systemstack = false
 	}
 

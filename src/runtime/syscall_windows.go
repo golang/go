@@ -45,16 +45,16 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
 		panic("compileCallback: not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(fn._type))
-	if ft.out.len != 1 {
+	if len(ft.out) != 1 {
 		panic("compileCallback: function must have one output parameter")
 	}
 	uintptrSize := unsafe.Sizeof(uintptr(0))
-	if t := (**_type)(unsafe.Pointer(ft.out.array)); (*t).size != uintptrSize {
+	if ft.out[0].size != uintptrSize {
 		panic("compileCallback: output parameter size is wrong")
 	}
 	argsize := uintptr(0)
-	for _, t := range (*[1024](*_type))(unsafe.Pointer(ft.in.array))[:ft.in.len] {
-		if (*t).size > uintptrSize {
+	for _, t := range ft.in {
+		if t.size > uintptrSize {
 			panic("compileCallback: input parameter size is wrong")
 		}
 		argsize += uintptrSize

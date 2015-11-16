@@ -9,9 +9,7 @@ import (
 	"fmt"
 )
 
-/*
- * static initialization
- */
+// static initialization
 const (
 	InitNotStarted = 0
 	InitDone       = 1
@@ -248,10 +246,8 @@ func initfix(l *NodeList) *NodeList {
 	return lout
 }
 
-/*
- * compilation of top-level (static) assignments
- * into DATA statements if at all possible.
- */
+// compilation of top-level (static) assignments
+// into DATA statements if at all possible.
 func staticinit(n *Node, out **NodeList) bool {
 	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
 		Fatalf("staticinit")
@@ -489,13 +485,11 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 	return false
 }
 
-/*
- * from here down is the walk analysis
- * of composite literals.
- * most of the work is to generate
- * data statements for the constant
- * part of the composite literal.
- */
+// from here down is the walk analysis
+// of composite literals.
+// most of the work is to generate
+// data statements for the constant
+// part of the composite literal.
 func staticname(t *Type, ctxt int) *Node {
 	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
 	statuniqgen++
@@ -765,7 +759,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	// set auto to point at new temp or heap (3 assign)
 	var a *Node
 	if x := prealloc[n]; x != nil {
-		// temp allocated during order.c for dddarg
+		// temp allocated during order.go for dddarg
 		x.Type = t
 
 		if vstat == nil {

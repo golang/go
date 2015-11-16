@@ -46,3 +46,13 @@ var (
 	EACCES       = NewError("access permission denied")
 	EAFNOSUPPORT = NewError("address family not supported by protocol")
 )
+
+// Notes
+const (
+	SIGABRT = Note("abort")
+	SIGALRM = Note("alarm")
+	SIGHUP  = Note("hangup")
+	SIGINT  = Note("interrupt")
+	SIGKILL = Note("kill")
+	SIGTERM = Note("interrupt")
+)

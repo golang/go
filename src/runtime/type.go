@@ -70,6 +70,13 @@ type maptype struct {
 	needkeyupdate bool   // true if we need to update key on an overwrite
 }
 
+type arraytype struct {
+	typ   _type
+	elem  *_type
+	slice *_type
+	len   uintptr
+}
+
 type chantype struct {
 	typ  _type
 	elem *_type
@@ -84,11 +91,24 @@ type slicetype struct {
 type functype struct {
 	typ       _type
 	dotdotdot bool
-	in        slice
-	out       slice
+	in        []*_type
+	out       []*_type
 }
 
 type ptrtype struct {
 	typ  _type
 	elem *_type
+}
+
+type structfield struct {
+	name    *string
+	pkgpath *string
+	typ     *_type
+	tag     *string
+	offset  uintptr
+}
+
+type structtype struct {
+	typ    _type
+	fields []structfield
 }

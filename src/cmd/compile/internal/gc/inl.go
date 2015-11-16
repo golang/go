@@ -106,6 +106,11 @@ func caninl(fn *Node) {
 		Fatalf("caninl no nname %v", Nconv(fn, obj.FmtSign))
 	}
 
+	// If marked "go:noinline", don't inline
+	if fn.Func.Noinline {
+		return
+	}
+
 	// If fn has no body (is defined outside of Go), cannot inline it.
 	if fn.Nbody == nil {
 		return
@@ -124,13 +129,13 @@ func caninl(fn *Node) {
 		}
 	}
 
-	// Runtime package must not be race instrumented.
-	// Racewalk skips runtime package. However, some runtime code can be
+	// Runtime package must not be instrumented.
+	// Instrument skips runtime package. However, some runtime code can be
 	// inlined into other packages and instrumented there. To avoid this,
-	// we disable inlining of runtime functions in race mode.
+	// we disable inlining of runtime functions when instrumenting.
 	// The example that we observed is inlining of LockOSThread,
 	// which lead to false race reports on m contents.
-	if flag_race != 0 && myimportpath == "runtime" {
+	if instrumenting && myimportpath == "runtime" {
 		return
 	}
 
@@ -345,7 +350,8 @@ func inlnode(np **Node) {
 	case ODEFER, OPROC:
 		switch n.Left.Op {
 		case OCALLFUNC, OCALLMETH:
-			n.Left.Etype = n.Op
+			// TODO(marvin): Fix Node.EType type union.
+			n.Left.Etype = EType(n.Op)
 		}
 		fallthrough
 
@@ -445,7 +451,8 @@ func inlnode(np **Node) {
 	// switch at the top of this function.
 	switch n.Op {
 	case OCALLFUNC, OCALLMETH:
-		if n.Etype == OPROC || n.Etype == ODEFER {
+		// TODO(marvin): Fix Node.EType type union.
+		if n.Etype == EType(OPROC) || n.Etype == EType(ODEFER) {
 			return
 		}
 	}

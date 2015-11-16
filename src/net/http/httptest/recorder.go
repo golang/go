@@ -44,11 +44,36 @@ func (rw *ResponseRecorder) Header() http.Header {
 	return m
 }
 
+// writeHeader writes a header if it was not written yet and
+// detects Content-Type if needed.
+//
+// bytes or str are the beginning of the response body.
+// We pass both to avoid unnecessarily generate garbage
+// in rw.WriteString which was created for performance reasons.
+// Non-nil bytes win.
+func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
+	if rw.wroteHeader {
+		return
+	}
+	if len(str) > 512 {
+		str = str[:512]
+	}
+
+	_, hasType := rw.HeaderMap["Content-Type"]
+	hasTE := rw.HeaderMap.Get("Transfer-Encoding") != ""
+	if !hasType && !hasTE {
+		if b == nil {
+			b = []byte(str)
+		}
+		rw.HeaderMap.Set("Content-Type", http.DetectContentType(b))
+	}
+
+	rw.WriteHeader(200)
+}
+
 // Write always succeeds and writes to rw.Body, if not nil.
 func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
-	if !rw.wroteHeader {
-		rw.WriteHeader(200)
-	}
+	rw.writeHeader(buf, "")
 	if rw.Body != nil {
 		rw.Body.Write(buf)
 	}
@@ -57,9 +82,7 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
 
 // WriteString always succeeds and writes to rw.Body, if not nil.
 func (rw *ResponseRecorder) WriteString(str string) (int, error) {
-	if !rw.wroteHeader {
-		rw.WriteHeader(200)
-	}
+	rw.writeHeader(nil, str)
 	if rw.Body != nil {
 		rw.Body.WriteString(str)
 	}
@@ -70,8 +93,8 @@ func (rw *ResponseRecorder) WriteString(str string) (int, error) {
 func (rw *ResponseRecorder) WriteHeader(code int) {
 	if !rw.wroteHeader {
 		rw.Code = code
+		rw.wroteHeader = true
 	}
-	rw.wroteHeader = true
 }
 
 // Flush sets rw.Flushed to true.

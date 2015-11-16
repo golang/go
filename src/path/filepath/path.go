@@ -269,7 +269,7 @@ func Rel(basepath, targpath string) (string, error) {
 	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
 	baseSlashed := len(base) > 0 && base[0] == Separator
 	targSlashed := len(targ) > 0 && targ[0] == Separator
-	if baseSlashed != targSlashed || baseVol != targVol {
+	if baseSlashed != targSlashed || !sameWord(baseVol, targVol) {
 		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
 	}
 	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
@@ -283,7 +283,7 @@ func Rel(basepath, targpath string) (string, error) {
 		for ti < tl && targ[ti] != Separator {
 			ti++
 		}
-		if targ[t0:ti] != base[b0:bi] {
+		if !sameWord(targ[t0:ti], base[b0:bi]) {
 			break
 		}
 		if bi < bl {

@@ -7,7 +7,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("r0   ", hex(c.r0()), "\t")
@@ -82,7 +85,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// functions are correctly handled. This smashes
 		// the stack frame but we're not going back there
 		// anyway.
-		sp := c.sp() - minFrameSize
+		sp := c.sp() - sys.MinFrameSize
 		c.set_sp(sp)
 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
 
@@ -144,8 +147,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 	print("\n")
 
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash := gotraceback()
+	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp)
 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {

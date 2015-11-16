@@ -404,14 +404,27 @@ type Reloc struct {
 // Reloc.type
 const (
 	R_ADDR = 1 + iota
+	// R_ADDRPOWER relocates a pair of "D-form" instructions (instructions with 16-bit
+	// immediates in the low half of the instruction word), usually addis followed by
+	// another add or a load, inserting the "high adjusted" 16 bits of the address of
+	// the referenced symbol into the immediate field of the first instruction and the
+	// low 16 bits into that of the second instruction.
 	R_ADDRPOWER
+	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
+	// referenced symbol.
 	R_ADDRARM64
+	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
+	// by loading the address into a register with two instructions (lui, ori).
+	R_ADDRMIPS
 	R_SIZE
 	R_CALL
 	R_CALLARM
 	R_CALLARM64
 	R_CALLIND
 	R_CALLPOWER
+	// R_CALLMIPS (only used on mips64) resolves to non-PC-relative target address
+	// of a CALL (JAL) instruction, by encoding the address into the instruction.
+	R_CALLMIPS
 	R_CONST
 	R_PCREL
 	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
@@ -432,6 +445,81 @@ const (
 	R_USEFIELD
 	R_POWER_TOC
 	R_GOTPCREL
+	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
+	// of a JMP instruction, by encoding the address into the instruction.
+	// The stack nosplit check ignores this since it is not a function call.
+	R_JMPMIPS
+
+	// Platform dependent relocations. Architectures with fixed width instructions
+	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
+	// stuffed into a 32-bit instruction, so an address needs to be spread across
+	// several instructions, and in turn this requires a sequence of relocations, each
+	// updating a part of an instruction.  This leads to relocation codes that are
+	// inherently processor specific.
+
+	// Arm64.
+
+	// Set a MOV[NZ] immediate field to bits [15:0] of the offset from the thread
+	// local base to the thread local variable defined by the referenced (thread
+	// local) symbol. Error if the offset does not fit into 16 bits.
+	R_ARM64_TLS_LE
+
+	// Relocates an ADRP; LD64 instruction sequence to load the offset between
+	// the thread local base and the thread local variable defined by the
+	// referenced (thread local) symbol from the GOT.
+	R_ARM64_TLS_IE
+
+	// R_ARM64_GOTPCREL relocates an adrp, ld64 pair to compute the address of the GOT
+	// slot of the referenced symbol.
+	R_ARM64_GOTPCREL
+
+	// PPC64.
+
+	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
+	// access. It resolves to the offset of the thread-local symbol from the
+	// thread pointer (R13) and inserts this value into the low 16 bits of an
+	// instruction word.
+	R_POWER_TLS_LE
+
+	// R_POWER_TLS_IE is used to implement the "initial exec" model for tls access. It
+	// relocates a D-form, DS-form instruction sequence like R_ADDRPOWER_DS. It
+	// inserts to the offset of GOT slot for the thread-local symbol from the TOC (the
+	// GOT slot is filled by the dynamic linker with the offset of the thread-local
+	// symbol from the thread pointer (R13)).
+	R_POWER_TLS_IE
+
+	// R_POWER_TLS marks an X-form instruction such as "MOVD 0(R13)(R31*1), g" as
+	// accessing a particular thread-local symbol. It does not affect code generation
+	// but is used by the system linker when relaxing "initial exec" model code to
+	// "local exec" model code.
+	R_POWER_TLS
+
+	// R_ADDRPOWER_DS is similar to R_ADDRPOWER above, but assumes the second
+	// instruction is a "DS-form" instruction, which has an immediate field occupying
+	// bits [15:2] of the instruction word. Bits [15:2] of the address of the
+	// relocated symbol are inserted into this field; it is an error if the last two
+	// bits of the address are not 0.
+	R_ADDRPOWER_DS
+
+	// R_ADDRPOWER_PCREL relocates a D-form, DS-form instruction sequence like
+	// R_ADDRPOWER_DS but inserts the offset of the GOT slot for the referenced symbol
+	// from the TOC rather than the symbol's address.
+	R_ADDRPOWER_GOT
+
+	// R_ADDRPOWER_PCREL relocates two D-form instructions like R_ADDRPOWER, but
+	// inserts the displacement from the place being relocated to the address of the
+	// the relocated symbol instead of just its address.
+	R_ADDRPOWER_PCREL
+
+	// R_ADDRPOWER_TOCREL relocates two D-form instructions like R_ADDRPOWER, but
+	// inserts the offset from the TOC to the address of the the relocated symbol
+	// rather than the symbol's address.
+	R_ADDRPOWER_TOCREL
+
+	// R_ADDRPOWER_TOCREL relocates a D-form, DS-form instruction sequence like
+	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
+	// relocated symbol rather than the symbol's address.
+	R_ADDRPOWER_TOCREL_DS
 )
 
 type Auto struct {
@@ -531,6 +619,10 @@ func (ctxt *Link) FixedFrameSize() int64 {
 	switch ctxt.Arch.Thechar {
 	case '6', '8':
 		return 0
+	case '9':
+		// PIC code on ppc64le requires 32 bytes of stack, and it's easier to
+		// just use that much stack always on ppc64x.
+		return int64(4 * ctxt.Arch.Ptrsize)
 	default:
 		return int64(ctxt.Arch.Ptrsize)
 	}

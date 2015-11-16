@@ -119,6 +119,7 @@ C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
 C.long, C.ulong (unsigned long), C.longlong (long long),
 C.ulonglong (unsigned long long), C.float, C.double.
 The C type void* is represented by Go's unsafe.Pointer.
+The C types __int128_t and __uint128_t are represented by [16]byte.
 
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
@@ -188,10 +189,10 @@ by making copies of the data.  In pseudo-Go definitions:
 	// C string to Go string
 	func C.GoString(*C.char) string
 
-	// C string, length to Go string
+	// C data with explicit length to Go string
 	func C.GoStringN(*C.char, C.int) string
 
-	// C pointer, length to Go []byte
+	// C data with explicit length to Go []byte
 	func C.GoBytes(unsafe.Pointer, C.int) []byte
 
 C references to Go
@@ -220,6 +221,51 @@ contain any definitions, only declarations. If a file contains both
 definitions and declarations, then the two output files will produce
 duplicate symbols and the linker will fail. To avoid this, definitions
 must be placed in preambles in other files, or in C source files.
+
+Passing pointers
+
+Go is a garbage collected language, and the garbage collector needs to
+know the location of every pointer to Go memory.  Because of this,
+there are restrictions on passing pointers between Go and C.
+
+In this section the term Go pointer means a pointer to memory
+allocated by Go (such as by using the & operator or calling the
+predefined new function) and the term C pointer means a pointer to
+memory allocated by C (such as by a call to C.malloc).  Whether a
+pointer is a Go pointer or a C pointer is a dynamic property
+determined by how the memory was allocated; it has nothing to do with
+the type of the pointer.
+
+Go code may pass a Go pointer to C provided the Go memory to which it
+points does not contain any Go pointers.  The C code must preserve
+this property: it must not store any Go pointers into Go memory, even
+temporarily.  When passing a pointer to a field in a struct, the Go
+memory in question is the memory occupied by the field, not the entire
+struct.  When passing a pointer to an element in an array or slice,
+the Go memory in question is the entire array or the entire backing
+array of the slice.
+
+C code may not keep a copy of a Go pointer after the call returns.
+
+If Go code passes a Go pointer to a C function, the C function must
+return.  There is no specific time limit, but a C function that simply
+blocks holding a Go pointer while other goroutines are running may
+eventually cause the program to run out of memory and fail (because
+the garbage collector may not be able to make progress).
+
+A Go function called by C code may not return a Go pointer.  A Go
+function called by C code may take C pointers as arguments, and it may
+store non-pointer or C pointer data through those pointers, but it may
+not store a Go pointer into memory pointed to by a C pointer.  A Go
+function called by C code may take a Go pointer as an argument, but it
+must preserve the property that the Go memory to which it points does
+not contain any Go pointers.
+
+These rules are partially enforced by cgo by default.  It is possible
+to defeat this enforcement by using the unsafe package, and of course
+there is nothing stopping the C code from doing anything it likes.
+However, programs that break these rules are likely to fail in
+unexpected and unpredictable ways.
 
 Using cgo directly
 

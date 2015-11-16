@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // May run during STW, so write barriers are not allowed.
 //go:nowritebarrier
@@ -14,6 +17,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	var docrash bool
 	var sig int
 	var flags int
+	var level int32
 
 	c := &sigctxt{_ureg}
 	notestr := gostringnocopy(note)
@@ -68,11 +72,11 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		// to sigpanic instead. (Otherwise the trace will end at
 		// sigpanic and we won't get to see who faulted).
 		if pc != 0 {
-			if regSize > ptrSize {
-				sp -= ptrSize
+			if sys.RegSize > sys.PtrSize {
+				sp -= sys.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = 0
 			}
-			sp -= ptrSize
+			sp -= sys.PtrSize
 			*(*uintptr)(unsafe.Pointer(sp)) = pc
 			c.setsp(sp)
 		}
@@ -97,7 +101,8 @@ Throw:
 	print(notestr, "\n")
 	print("PC=", hex(c.pc()), "\n")
 	print("\n")
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash = gotraceback()
+	if level > 0 {
 		goroutineheader(gp)
 		tracebacktrap(c.pc(), c.sp(), 0, gp)
 		tracebackothers(gp)

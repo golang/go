@@ -245,6 +245,11 @@ var optab = []Optab{
 	{AMOVBZ, C_ADDR, C_NONE, C_NONE, C_REG, 75, 8, 0},
 	{AMOVB, C_ADDR, C_NONE, C_NONE, C_REG, 76, 12, 0},
 
+	{AMOVD, C_TLS_LE, C_NONE, C_NONE, C_REG, 79, 4, 0},
+	{AMOVD, C_TLS_IE, C_NONE, C_NONE, C_REG, 80, 8, 0},
+
+	{AMOVD, C_GOTADDR, C_NONE, C_NONE, C_REG, 81, 8, 0},
+
 	/* load constant */
 	{AMOVD, C_SECON, C_NONE, C_NONE, C_REG, 3, 4, REGSB},
 	{AMOVD, C_SACON, C_NONE, C_NONE, C_REG, 3, 4, REGSP},
@@ -279,6 +284,7 @@ var optab = []Optab{
 	{ABEQ, C_NONE, C_NONE, C_NONE, C_SBRA, 16, 4, 0},
 	{ABEQ, C_CREG, C_NONE, C_NONE, C_SBRA, 16, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_LBRA, 11, 4, 0},
+	{ABR, C_NONE, C_NONE, C_NONE, C_LBRAPIC, 11, 8, 0},
 	{ABC, C_SCON, C_REG, C_NONE, C_SBRA, 16, 4, 0},
 	{ABC, C_SCON, C_REG, C_NONE, C_LBRA, 17, 4, 0},
 	{ABR, C_NONE, C_NONE, C_NONE, C_LR, 18, 4, 0},
@@ -583,9 +589,19 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 			ctxt.Instoffset = a.Offset
 			if a.Sym != nil { // use relocation
+				if a.Sym.Type == obj.STLSBSS {
+					if ctxt.Flag_shared != 0 {
+						return C_TLS_IE
+					} else {
+						return C_TLS_LE
+					}
+				}
 				return C_ADDR
 			}
 			return C_LEXT
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 
 		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
@@ -699,6 +715,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 		return C_DCON
 
 	case obj.TYPE_BRANCH:
+		if a.Sym != nil && ctxt.Flag_dynlink {
+			return C_LBRAPIC
+		}
 		return C_SBRA
 	}
 
@@ -1372,14 +1391,73 @@ func oclass(a *obj.Addr) int {
 	return int(a.Class) - 1
 }
 
-// add R_ADDRPOWER relocation to symbol s for the two instructions o1 and o2.
-func addaddrreloc(ctxt *obj.Link, s *obj.LSym, o1 *uint32, o2 *uint32) {
+const (
+	D_FORM = iota
+	DS_FORM
+)
+
+// opform returns the form (D_FORM or DS_FORM) of an instruction. Used to decide on
+// which relocation to use with a load or store and only supports the needed
+// instructions.
+func opform(ctxt *obj.Link, insn int32) int {
+	switch uint32(insn) {
+	default:
+		ctxt.Diag("bad insn in loadform: %x", insn)
+	case OPVCC(58, 0, 0, 0), // ld
+		OPVCC(58, 0, 0, 0) | 1<<1, // lwa
+		OPVCC(62, 0, 0, 0):        // std
+		return DS_FORM
+	case OP_ADDI, // add
+		OPVCC(32, 0, 0, 0), // lwz
+		OPVCC(42, 0, 0, 0), // lha
+		OPVCC(40, 0, 0, 0), // lhz
+		OPVCC(34, 0, 0, 0), // lbz
+		OPVCC(50, 0, 0, 0), // lfd
+		OPVCC(48, 0, 0, 0), // lfs
+		OPVCC(36, 0, 0, 0), // stw
+		OPVCC(44, 0, 0, 0), // sth
+		OPVCC(38, 0, 0, 0), // stb
+		OPVCC(54, 0, 0, 0), // stfd
+		OPVCC(52, 0, 0, 0): // stfs
+		return D_FORM
+	}
+	return 0
+}
+
+// Encode instructions and create relocation for accessing s+d according to the
+// instruction op with source or destination (as appropriate) register reg.
+func symbolAccess(ctxt *obj.Link, s *obj.LSym, d int64, reg int16, op int32) (o1, o2 uint32) {
+	var base uint32
+	form := opform(ctxt, op)
+	if ctxt.Flag_shared != 0 {
+		base = REG_R2
+	} else {
+		base = REG_R0
+	}
+	o1 = AOP_IRR(OP_ADDIS, REGTMP, base, 0)
+	o2 = AOP_IRR(uint32(op), uint32(reg), REGTMP, 0)
 	rel := obj.Addrel(ctxt.Cursym)
 	rel.Off = int32(ctxt.Pc)
 	rel.Siz = 8
 	rel.Sym = s
-	rel.Add = int64(uint64(*o1)<<32 | uint64(uint32(*o2)))
-	rel.Type = obj.R_ADDRPOWER
+	rel.Add = d
+	if ctxt.Flag_shared != 0 {
+		switch form {
+		case D_FORM:
+			rel.Type = obj.R_ADDRPOWER_TOCREL
+		case DS_FORM:
+			rel.Type = obj.R_ADDRPOWER_TOCREL_DS
+		}
+
+	} else {
+		switch form {
+		case D_FORM:
+			rel.Type = obj.R_ADDRPOWER
+		case DS_FORM:
+			rel.Type = obj.R_ADDRPOWER_DS
+		}
+	}
+	return
 }
 
 /*
@@ -1584,6 +1662,18 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
 			}
+			if ctxt.Flag_shared != 0 && r == REG_R13 {
+				rel := obj.Addrel(ctxt.Cursym)
+				rel.Off = int32(ctxt.Pc)
+				rel.Siz = 4
+				// This (and the matching part in the load case
+				// below) are the only places in the ppc64 toolchain
+				// that knows the name of the tls variable. Possibly
+				// we could add some assembly syntax so that the name
+				// of the variable does not have to be assumed.
+				rel.Sym = obj.Linklookup(ctxt, "runtime.tls_g", 0)
+				rel.Type = obj.R_POWER_TLS
+			}
 			o1 = AOP_RRR(uint32(opstorex(ctxt, int(p.As))), uint32(p.From.Reg), uint32(p.To.Index), uint32(r))
 		} else {
 			if int32(int16(v)) != v {
@@ -1602,6 +1692,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if p.From.Type == obj.TYPE_MEM && p.From.Index != 0 {
 			if v != 0 {
 				ctxt.Diag("illegal indexed instruction\n%v", p)
+			}
+			if ctxt.Flag_shared != 0 && r == REG_R13 {
+				rel := obj.Addrel(ctxt.Cursym)
+				rel.Off = int32(ctxt.Pc)
+				rel.Siz = 4
+				rel.Sym = obj.Linklookup(ctxt, "runtime.tls_g", 0)
+				rel.Type = obj.R_POWER_TLS
 			}
 			o1 = AOP_RRR(uint32(oploadx(ctxt, int(p.As))), uint32(p.To.Reg), uint32(p.From.Index), uint32(r))
 		} else {
@@ -1666,6 +1763,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			rel.Add = int64(v)
 			rel.Type = obj.R_CALLPOWER
 		}
+		o2 = 0x60000000 // nop, sometimes overwritten by ld r2, 24(r1) when dynamic linking
 
 	case 12: /* movb r,r (extsb); movw r,r (extsw) */
 		if p.To.Reg == REGZERO && p.From.Type == obj.TYPE_CONST {
@@ -1805,9 +1903,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			o1 = loadu32(int(p.To.Reg), d)
 			o2 = LOP_IRR(OP_ORI, uint32(p.To.Reg), uint32(p.To.Reg), uint32(int32(d)))
 		} else {
-			o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, uint32(high16adjusted(int32(d))))
-			o2 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGTMP, uint32(d))
-			addaddrreloc(ctxt, p.From.Sym, &o1, &o2)
+			o1, o2 = symbolAccess(ctxt, p.From.Sym, d, p.To.Reg, OP_ADDI)
 		}
 
 	//if(dlm) reloc(&p->from, p->pc, 0);
@@ -2170,7 +2266,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(p.To.Reg)
 		}
 		o1 = AOP_RRR(uint32(opirr(ctxt, int(p.As))), uint32(r), uint32(p.To.Reg), uint32(v)&31)
-		if p.As == ASRAD && (v&0x20 != 0) {
+		if (p.As == ASRAD || p.As == ASRADCC) && (v&0x20 != 0) {
 			o1 |= 1 << 1 /* mb[5] */
 		}
 
@@ -2369,33 +2465,62 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = 0 /* "An instruction consisting entirely of binary 0s is guaranteed
 		   always to be an illegal instruction."  */
 
-		/* relocation operations */
+	/* relocation operations */
 	case 74:
-		v := regoff(ctxt, &p.To)
-
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, uint32(high16adjusted(v)))
-		o2 = AOP_IRR(uint32(opstore(ctxt, int(p.As))), uint32(p.From.Reg), REGTMP, uint32(v))
-		addaddrreloc(ctxt, p.To.Sym, &o1, &o2)
+		v := vregoff(ctxt, &p.To)
+		o1, o2 = symbolAccess(ctxt, p.To.Sym, v, p.From.Reg, opstore(ctxt, int(p.As)))
 
 	//if(dlm) reloc(&p->to, p->pc, 1);
 
 	case 75:
-		v := regoff(ctxt, &p.From)
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, uint32(high16adjusted(v)))
-		o2 = AOP_IRR(uint32(opload(ctxt, int(p.As))), uint32(p.To.Reg), REGTMP, uint32(v))
-		addaddrreloc(ctxt, p.From.Sym, &o1, &o2)
+		v := vregoff(ctxt, &p.From)
+		o1, o2 = symbolAccess(ctxt, p.From.Sym, v, p.To.Reg, opload(ctxt, int(p.As)))
 
 	//if(dlm) reloc(&p->from, p->pc, 1);
 
 	case 76:
-		v := regoff(ctxt, &p.From)
-		o1 = AOP_IRR(OP_ADDIS, REGTMP, REGZERO, uint32(high16adjusted(v)))
-		o2 = AOP_IRR(uint32(opload(ctxt, int(p.As))), uint32(p.To.Reg), REGTMP, uint32(v))
-		addaddrreloc(ctxt, p.From.Sym, &o1, &o2)
+		v := vregoff(ctxt, &p.From)
+		o1, o2 = symbolAccess(ctxt, p.From.Sym, v, p.To.Reg, opload(ctxt, int(p.As)))
 		o3 = LOP_RRR(OP_EXTSB, uint32(p.To.Reg), uint32(p.To.Reg), 0)
 
 		//if(dlm) reloc(&p->from, p->pc, 1);
 
+	case 79:
+		if p.From.Offset != 0 {
+			ctxt.Diag("invalid offset against tls var %v", p)
+		}
+		o1 = AOP_IRR(OP_ADDI, uint32(p.To.Reg), REGZERO, 0)
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = obj.R_POWER_TLS_LE
+
+	case 80:
+		if p.From.Offset != 0 {
+			ctxt.Diag("invalid offset against tls var %v", p)
+		}
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Type = obj.R_POWER_TLS_IE
+
+	case 81:
+		v := vregoff(ctxt, &p.To)
+		if v != 0 {
+			ctxt.Diag("invalid offset against GOT slot %v", p)
+		}
+
+		o1 = AOP_IRR(OP_ADDIS, uint32(p.To.Reg), REG_R2, 0)
+		o2 = AOP_IRR(uint32(opload(ctxt, AMOVD)), uint32(p.To.Reg), uint32(p.To.Reg), 0)
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Type = obj.R_ADDRPOWER_GOT
 	}
 
 	out[0] = o1

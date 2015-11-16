@@ -11,6 +11,7 @@ import "io/ioutil"
 // Possible directories with certificate files; stop after successfully
 // reading at least one file from a directory.
 var certDirectories = []string{
+	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
 	"/system/etc/security/cacerts", // Android
 }
 

@@ -72,6 +72,8 @@ Flags:
 		Write memory profile to file.
 	-memprofilerate rate
 		Set runtime.MemProfileRate to rate.
+	-msan
+		Link with C/C++ memory sanitizer support.
 	-o file
 		Write output to file (default a.out, or a.out.exe on Windows).
 	-r dir1:dir2:...

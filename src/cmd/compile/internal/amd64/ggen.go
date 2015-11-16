@@ -192,7 +192,7 @@ var panicdiv *gc.Node
  *	res = nl % nr
  * according to op.
  */
-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// Have to be careful about handling
 	// most negative int divided by -1 correctly.
 	// The hardware will trap.
@@ -335,7 +335,8 @@ func savex(dr int, x *gc.Node, oldx *gc.Node, res *gc.Node, t *gc.Type) {
 		x.Type = gc.Types[gc.TINT64]
 		gmove(x, oldx)
 		x.Type = t
-		oldx.Etype = r // squirrel away old r value
+		// TODO(marvin): Fix Node.EType type union.
+		oldx.Etype = gc.EType(r) // squirrel away old r value
 		gc.SetReg(dr, 1)
 	}
 }
@@ -389,7 +390,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl << nr
  *	res = nl >> nr
  */
-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	a := optoas(op, nl.Type)
 
 	if nr.Op == gc.OLITERAL {
@@ -508,7 +509,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  * there is no 2-operand byte multiply instruction so
  * we do a full-width multiplication and truncate afterwards.
  */
-func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 	if optoas(op, nl.Type) != x86.AIMULB {
 		return false
 	}

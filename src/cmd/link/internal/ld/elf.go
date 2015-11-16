@@ -325,285 +325,328 @@ const (
  * Relocation types.
  */
 const (
-	R_X86_64_NONE              = 0
-	R_X86_64_64                = 1
-	R_X86_64_PC32              = 2
-	R_X86_64_GOT32             = 3
-	R_X86_64_PLT32             = 4
-	R_X86_64_COPY              = 5
-	R_X86_64_GLOB_DAT          = 6
-	R_X86_64_JMP_SLOT          = 7
-	R_X86_64_RELATIVE          = 8
-	R_X86_64_GOTPCREL          = 9
-	R_X86_64_32                = 10
-	R_X86_64_32S               = 11
-	R_X86_64_16                = 12
-	R_X86_64_PC16              = 13
-	R_X86_64_8                 = 14
-	R_X86_64_PC8               = 15
-	R_X86_64_DTPMOD64          = 16
-	R_X86_64_DTPOFF64          = 17
-	R_X86_64_TPOFF64           = 18
-	R_X86_64_TLSGD             = 19
-	R_X86_64_TLSLD             = 20
-	R_X86_64_DTPOFF32          = 21
-	R_X86_64_GOTTPOFF          = 22
-	R_X86_64_TPOFF32           = 23
-	R_X86_64_COUNT             = 24
-	R_AARCH64_ABS64            = 257
-	R_AARCH64_ABS32            = 258
-	R_AARCH64_CALL26           = 283
-	R_AARCH64_ADR_PREL_PG_HI21 = 275
-	R_AARCH64_ADD_ABS_LO12_NC  = 277
-	R_ALPHA_NONE               = 0
-	R_ALPHA_REFLONG            = 1
-	R_ALPHA_REFQUAD            = 2
-	R_ALPHA_GPREL32            = 3
-	R_ALPHA_LITERAL            = 4
-	R_ALPHA_LITUSE             = 5
-	R_ALPHA_GPDISP             = 6
-	R_ALPHA_BRADDR             = 7
-	R_ALPHA_HINT               = 8
-	R_ALPHA_SREL16             = 9
-	R_ALPHA_SREL32             = 10
-	R_ALPHA_SREL64             = 11
-	R_ALPHA_OP_PUSH            = 12
-	R_ALPHA_OP_STORE           = 13
-	R_ALPHA_OP_PSUB            = 14
-	R_ALPHA_OP_PRSHIFT         = 15
-	R_ALPHA_GPVALUE            = 16
-	R_ALPHA_GPRELHIGH          = 17
-	R_ALPHA_GPRELLOW           = 18
-	R_ALPHA_IMMED_GP_16        = 19
-	R_ALPHA_IMMED_GP_HI32      = 20
-	R_ALPHA_IMMED_SCN_HI32     = 21
-	R_ALPHA_IMMED_BR_HI32      = 22
-	R_ALPHA_IMMED_LO32         = 23
-	R_ALPHA_COPY               = 24
-	R_ALPHA_GLOB_DAT           = 25
-	R_ALPHA_JMP_SLOT           = 26
-	R_ALPHA_RELATIVE           = 27
-	R_ALPHA_COUNT              = 28
-	R_ARM_NONE                 = 0
-	R_ARM_PC24                 = 1
-	R_ARM_ABS32                = 2
-	R_ARM_REL32                = 3
-	R_ARM_PC13                 = 4
-	R_ARM_ABS16                = 5
-	R_ARM_ABS12                = 6
-	R_ARM_THM_ABS5             = 7
-	R_ARM_ABS8                 = 8
-	R_ARM_SBREL32              = 9
-	R_ARM_THM_PC22             = 10
-	R_ARM_THM_PC8              = 11
-	R_ARM_AMP_VCALL9           = 12
-	R_ARM_SWI24                = 13
-	R_ARM_THM_SWI8             = 14
-	R_ARM_XPC25                = 15
-	R_ARM_THM_XPC22            = 16
-	R_ARM_COPY                 = 20
-	R_ARM_GLOB_DAT             = 21
-	R_ARM_JUMP_SLOT            = 22
-	R_ARM_RELATIVE             = 23
-	R_ARM_GOTOFF               = 24
-	R_ARM_GOTPC                = 25
-	R_ARM_GOT32                = 26
-	R_ARM_PLT32                = 27
-	R_ARM_CALL                 = 28
-	R_ARM_JUMP24               = 29
-	R_ARM_V4BX                 = 40
-	R_ARM_GOT_PREL             = 96
-	R_ARM_GNU_VTENTRY          = 100
-	R_ARM_GNU_VTINHERIT        = 101
-	R_ARM_TLS_IE32             = 107
-	R_ARM_TLS_LE32             = 108
-	R_ARM_RSBREL32             = 250
-	R_ARM_THM_RPC22            = 251
-	R_ARM_RREL32               = 252
-	R_ARM_RABS32               = 253
-	R_ARM_RPC24                = 254
-	R_ARM_RBASE                = 255
-	R_ARM_COUNT                = 38
-	R_386_NONE                 = 0
-	R_386_32                   = 1
-	R_386_PC32                 = 2
-	R_386_GOT32                = 3
-	R_386_PLT32                = 4
-	R_386_COPY                 = 5
-	R_386_GLOB_DAT             = 6
-	R_386_JMP_SLOT             = 7
-	R_386_RELATIVE             = 8
-	R_386_GOTOFF               = 9
-	R_386_GOTPC                = 10
-	R_386_TLS_TPOFF            = 14
-	R_386_TLS_IE               = 15
-	R_386_TLS_GOTIE            = 16
-	R_386_TLS_LE               = 17
-	R_386_TLS_GD               = 18
-	R_386_TLS_LDM              = 19
-	R_386_TLS_GD_32            = 24
-	R_386_TLS_GD_PUSH          = 25
-	R_386_TLS_GD_CALL          = 26
-	R_386_TLS_GD_POP           = 27
-	R_386_TLS_LDM_32           = 28
-	R_386_TLS_LDM_PUSH         = 29
-	R_386_TLS_LDM_CALL         = 30
-	R_386_TLS_LDM_POP          = 31
-	R_386_TLS_LDO_32           = 32
-	R_386_TLS_IE_32            = 33
-	R_386_TLS_LE_32            = 34
-	R_386_TLS_DTPMOD32         = 35
-	R_386_TLS_DTPOFF32         = 36
-	R_386_TLS_TPOFF32          = 37
-	R_386_COUNT                = 38
-	R_PPC_NONE                 = 0
-	R_PPC_ADDR32               = 1
-	R_PPC_ADDR24               = 2
-	R_PPC_ADDR16               = 3
-	R_PPC_ADDR16_LO            = 4
-	R_PPC_ADDR16_HI            = 5
-	R_PPC_ADDR16_HA            = 6
-	R_PPC_ADDR14               = 7
-	R_PPC_ADDR14_BRTAKEN       = 8
-	R_PPC_ADDR14_BRNTAKEN      = 9
-	R_PPC_REL24                = 10
-	R_PPC_REL14                = 11
-	R_PPC_REL14_BRTAKEN        = 12
-	R_PPC_REL14_BRNTAKEN       = 13
-	R_PPC_GOT16                = 14
-	R_PPC_GOT16_LO             = 15
-	R_PPC_GOT16_HI             = 16
-	R_PPC_GOT16_HA             = 17
-	R_PPC_PLTREL24             = 18
-	R_PPC_COPY                 = 19
-	R_PPC_GLOB_DAT             = 20
-	R_PPC_JMP_SLOT             = 21
-	R_PPC_RELATIVE             = 22
-	R_PPC_LOCAL24PC            = 23
-	R_PPC_UADDR32              = 24
-	R_PPC_UADDR16              = 25
-	R_PPC_REL32                = 26
-	R_PPC_PLT32                = 27
-	R_PPC_PLTREL32             = 28
-	R_PPC_PLT16_LO             = 29
-	R_PPC_PLT16_HI             = 30
-	R_PPC_PLT16_HA             = 31
-	R_PPC_SDAREL16             = 32
-	R_PPC_SECTOFF              = 33
-	R_PPC_SECTOFF_LO           = 34
-	R_PPC_SECTOFF_HI           = 35
-	R_PPC_SECTOFF_HA           = 36
-	R_PPC_COUNT                = 37
-	R_PPC_TLS                  = 67
-	R_PPC_DTPMOD32             = 68
-	R_PPC_TPREL16              = 69
-	R_PPC_TPREL16_LO           = 70
-	R_PPC_TPREL16_HI           = 71
-	R_PPC_TPREL16_HA           = 72
-	R_PPC_TPREL32              = 73
-	R_PPC_DTPREL16             = 74
-	R_PPC_DTPREL16_LO          = 75
-	R_PPC_DTPREL16_HI          = 76
-	R_PPC_DTPREL16_HA          = 77
-	R_PPC_DTPREL32             = 78
-	R_PPC_GOT_TLSGD16          = 79
-	R_PPC_GOT_TLSGD16_LO       = 80
-	R_PPC_GOT_TLSGD16_HI       = 81
-	R_PPC_GOT_TLSGD16_HA       = 82
-	R_PPC_GOT_TLSLD16          = 83
-	R_PPC_GOT_TLSLD16_LO       = 84
-	R_PPC_GOT_TLSLD16_HI       = 85
-	R_PPC_GOT_TLSLD16_HA       = 86
-	R_PPC_GOT_TPREL16          = 87
-	R_PPC_GOT_TPREL16_LO       = 88
-	R_PPC_GOT_TPREL16_HI       = 89
-	R_PPC_GOT_TPREL16_HA       = 90
-	R_PPC_EMB_NADDR32          = 101
-	R_PPC_EMB_NADDR16          = 102
-	R_PPC_EMB_NADDR16_LO       = 103
-	R_PPC_EMB_NADDR16_HI       = 104
-	R_PPC_EMB_NADDR16_HA       = 105
-	R_PPC_EMB_SDAI16           = 106
-	R_PPC_EMB_SDA2I16          = 107
-	R_PPC_EMB_SDA2REL          = 108
-	R_PPC_EMB_SDA21            = 109
-	R_PPC_EMB_MRKREF           = 110
-	R_PPC_EMB_RELSEC16         = 111
-	R_PPC_EMB_RELST_LO         = 112
-	R_PPC_EMB_RELST_HI         = 113
-	R_PPC_EMB_RELST_HA         = 114
-	R_PPC_EMB_BIT_FLD          = 115
-	R_PPC_EMB_RELSDA           = 116
-	R_PPC_EMB_COUNT            = R_PPC_EMB_RELSDA - R_PPC_EMB_NADDR32 + 1
-	R_PPC64_REL24              = R_PPC_REL24
-	R_PPC64_JMP_SLOT           = R_PPC_JMP_SLOT
-	R_PPC64_ADDR64             = 38
-	R_PPC64_TOC16              = 47
-	R_PPC64_TOC16_LO           = 48
-	R_PPC64_TOC16_HI           = 49
-	R_PPC64_TOC16_HA           = 50
-	R_PPC64_TOC16_DS           = 63
-	R_PPC64_TOC16_LO_DS        = 64
-	R_PPC64_REL16_LO           = 250
-	R_PPC64_REL16_HI           = 251
-	R_PPC64_REL16_HA           = 252
-	R_SPARC_NONE               = 0
-	R_SPARC_8                  = 1
-	R_SPARC_16                 = 2
-	R_SPARC_32                 = 3
-	R_SPARC_DISP8              = 4
-	R_SPARC_DISP16             = 5
-	R_SPARC_DISP32             = 6
-	R_SPARC_WDISP30            = 7
-	R_SPARC_WDISP22            = 8
-	R_SPARC_HI22               = 9
-	R_SPARC_22                 = 10
-	R_SPARC_13                 = 11
-	R_SPARC_LO10               = 12
-	R_SPARC_GOT10              = 13
-	R_SPARC_GOT13              = 14
-	R_SPARC_GOT22              = 15
-	R_SPARC_PC10               = 16
-	R_SPARC_PC22               = 17
-	R_SPARC_WPLT30             = 18
-	R_SPARC_COPY               = 19
-	R_SPARC_GLOB_DAT           = 20
-	R_SPARC_JMP_SLOT           = 21
-	R_SPARC_RELATIVE           = 22
-	R_SPARC_UA32               = 23
-	R_SPARC_PLT32              = 24
-	R_SPARC_HIPLT22            = 25
-	R_SPARC_LOPLT10            = 26
-	R_SPARC_PCPLT32            = 27
-	R_SPARC_PCPLT22            = 28
-	R_SPARC_PCPLT10            = 29
-	R_SPARC_10                 = 30
-	R_SPARC_11                 = 31
-	R_SPARC_64                 = 32
-	R_SPARC_OLO10              = 33
-	R_SPARC_HH22               = 34
-	R_SPARC_HM10               = 35
-	R_SPARC_LM22               = 36
-	R_SPARC_PC_HH22            = 37
-	R_SPARC_PC_HM10            = 38
-	R_SPARC_PC_LM22            = 39
-	R_SPARC_WDISP16            = 40
-	R_SPARC_WDISP19            = 41
-	R_SPARC_GLOB_JMP           = 42
-	R_SPARC_7                  = 43
-	R_SPARC_5                  = 44
-	R_SPARC_6                  = 45
-	R_SPARC_DISP64             = 46
-	R_SPARC_PLT64              = 47
-	R_SPARC_HIX22              = 48
-	R_SPARC_LOX10              = 49
-	R_SPARC_H44                = 50
-	R_SPARC_M44                = 51
-	R_SPARC_L44                = 52
-	R_SPARC_REGISTER           = 53
-	R_SPARC_UA64               = 54
-	R_SPARC_UA16               = 55
-	ARM_MAGIC_TRAMP_NUMBER     = 0x5c000003
+	R_X86_64_NONE           = 0
+	R_X86_64_64             = 1
+	R_X86_64_PC32           = 2
+	R_X86_64_GOT32          = 3
+	R_X86_64_PLT32          = 4
+	R_X86_64_COPY           = 5
+	R_X86_64_GLOB_DAT       = 6
+	R_X86_64_JMP_SLOT       = 7
+	R_X86_64_RELATIVE       = 8
+	R_X86_64_GOTPCREL       = 9
+	R_X86_64_32             = 10
+	R_X86_64_32S            = 11
+	R_X86_64_16             = 12
+	R_X86_64_PC16           = 13
+	R_X86_64_8              = 14
+	R_X86_64_PC8            = 15
+	R_X86_64_DTPMOD64       = 16
+	R_X86_64_DTPOFF64       = 17
+	R_X86_64_TPOFF64        = 18
+	R_X86_64_TLSGD          = 19
+	R_X86_64_TLSLD          = 20
+	R_X86_64_DTPOFF32       = 21
+	R_X86_64_GOTTPOFF       = 22
+	R_X86_64_TPOFF32        = 23
+	R_X86_64_PC64           = 24
+	R_X86_64_GOTOFF64       = 25
+	R_X86_64_GOTPC32        = 26
+	R_X86_64_GOT64          = 27
+	R_X86_64_GOTPCREL64     = 28
+	R_X86_64_GOTPC64        = 29
+	R_X86_64_GOTPLT64       = 30
+	R_X86_64_PLTOFF64       = 31
+	R_X86_64_SIZE32         = 32
+	R_X86_64_SIZE64         = 33
+	R_X86_64_GOTPC32_TLSDEC = 34
+	R_X86_64_TLSDESC_CALL   = 35
+	R_X86_64_TLSDESC        = 36
+	R_X86_64_IRELATIVE      = 37
+	R_X86_64_PC32_BND       = 40
+	R_X86_64_GOTPCRELX      = 41
+	R_X86_64_REX_GOTPCRELX  = 42
+
+	R_AARCH64_ABS64                       = 257
+	R_AARCH64_ABS32                       = 258
+	R_AARCH64_CALL26                      = 283
+	R_AARCH64_ADR_PREL_PG_HI21            = 275
+	R_AARCH64_ADD_ABS_LO12_NC             = 277
+	R_AARCH64_LDST8_ABS_LO12_NC           = 278
+	R_AARCH64_LDST16_ABS_LO12_NC          = 284
+	R_AARCH64_LDST32_ABS_LO12_NC          = 285
+	R_AARCH64_LDST64_ABS_LO12_NC          = 286
+	R_AARCH64_ADR_GOT_PAGE                = 311
+	R_AARCH64_LD64_GOT_LO12_NC            = 312
+	R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21   = 541
+	R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC = 542
+	R_AARCH64_TLSLE_MOVW_TPREL_G0         = 547
+
+	R_ALPHA_NONE           = 0
+	R_ALPHA_REFLONG        = 1
+	R_ALPHA_REFQUAD        = 2
+	R_ALPHA_GPREL32        = 3
+	R_ALPHA_LITERAL        = 4
+	R_ALPHA_LITUSE         = 5
+	R_ALPHA_GPDISP         = 6
+	R_ALPHA_BRADDR         = 7
+	R_ALPHA_HINT           = 8
+	R_ALPHA_SREL16         = 9
+	R_ALPHA_SREL32         = 10
+	R_ALPHA_SREL64         = 11
+	R_ALPHA_OP_PUSH        = 12
+	R_ALPHA_OP_STORE       = 13
+	R_ALPHA_OP_PSUB        = 14
+	R_ALPHA_OP_PRSHIFT     = 15
+	R_ALPHA_GPVALUE        = 16
+	R_ALPHA_GPRELHIGH      = 17
+	R_ALPHA_GPRELLOW       = 18
+	R_ALPHA_IMMED_GP_16    = 19
+	R_ALPHA_IMMED_GP_HI32  = 20
+	R_ALPHA_IMMED_SCN_HI32 = 21
+	R_ALPHA_IMMED_BR_HI32  = 22
+	R_ALPHA_IMMED_LO32     = 23
+	R_ALPHA_COPY           = 24
+	R_ALPHA_GLOB_DAT       = 25
+	R_ALPHA_JMP_SLOT       = 26
+	R_ALPHA_RELATIVE       = 27
+
+	R_ARM_NONE          = 0
+	R_ARM_PC24          = 1
+	R_ARM_ABS32         = 2
+	R_ARM_REL32         = 3
+	R_ARM_PC13          = 4
+	R_ARM_ABS16         = 5
+	R_ARM_ABS12         = 6
+	R_ARM_THM_ABS5      = 7
+	R_ARM_ABS8          = 8
+	R_ARM_SBREL32       = 9
+	R_ARM_THM_PC22      = 10
+	R_ARM_THM_PC8       = 11
+	R_ARM_AMP_VCALL9    = 12
+	R_ARM_SWI24         = 13
+	R_ARM_THM_SWI8      = 14
+	R_ARM_XPC25         = 15
+	R_ARM_THM_XPC22     = 16
+	R_ARM_COPY          = 20
+	R_ARM_GLOB_DAT      = 21
+	R_ARM_JUMP_SLOT     = 22
+	R_ARM_RELATIVE      = 23
+	R_ARM_GOTOFF        = 24
+	R_ARM_GOTPC         = 25
+	R_ARM_GOT32         = 26
+	R_ARM_PLT32         = 27
+	R_ARM_CALL          = 28
+	R_ARM_JUMP24        = 29
+	R_ARM_V4BX          = 40
+	R_ARM_GOT_PREL      = 96
+	R_ARM_GNU_VTENTRY   = 100
+	R_ARM_GNU_VTINHERIT = 101
+	R_ARM_TLS_IE32      = 107
+	R_ARM_TLS_LE32      = 108
+	R_ARM_RSBREL32      = 250
+	R_ARM_THM_RPC22     = 251
+	R_ARM_RREL32        = 252
+	R_ARM_RABS32        = 253
+	R_ARM_RPC24         = 254
+	R_ARM_RBASE         = 255
+
+	R_386_NONE          = 0
+	R_386_32            = 1
+	R_386_PC32          = 2
+	R_386_GOT32         = 3
+	R_386_PLT32         = 4
+	R_386_COPY          = 5
+	R_386_GLOB_DAT      = 6
+	R_386_JMP_SLOT      = 7
+	R_386_RELATIVE      = 8
+	R_386_GOTOFF        = 9
+	R_386_GOTPC         = 10
+	R_386_TLS_TPOFF     = 14
+	R_386_TLS_IE        = 15
+	R_386_TLS_GOTIE     = 16
+	R_386_TLS_LE        = 17
+	R_386_TLS_GD        = 18
+	R_386_TLS_LDM       = 19
+	R_386_TLS_GD_32     = 24
+	R_386_TLS_GD_PUSH   = 25
+	R_386_TLS_GD_CALL   = 26
+	R_386_TLS_GD_POP    = 27
+	R_386_TLS_LDM_32    = 28
+	R_386_TLS_LDM_PUSH  = 29
+	R_386_TLS_LDM_CALL  = 30
+	R_386_TLS_LDM_POP   = 31
+	R_386_TLS_LDO_32    = 32
+	R_386_TLS_IE_32     = 33
+	R_386_TLS_LE_32     = 34
+	R_386_TLS_DTPMOD32  = 35
+	R_386_TLS_DTPOFF32  = 36
+	R_386_TLS_TPOFF32   = 37
+	R_386_TLS_GOTDESC   = 39
+	R_386_TLS_DESC_CALL = 40
+	R_386_TLS_DESC      = 41
+	R_386_IRELATIVE     = 42
+	R_386_GOT32X        = 43
+
+	R_PPC_NONE            = 0
+	R_PPC_ADDR32          = 1
+	R_PPC_ADDR24          = 2
+	R_PPC_ADDR16          = 3
+	R_PPC_ADDR16_LO       = 4
+	R_PPC_ADDR16_HI       = 5
+	R_PPC_ADDR16_HA       = 6
+	R_PPC_ADDR14          = 7
+	R_PPC_ADDR14_BRTAKEN  = 8
+	R_PPC_ADDR14_BRNTAKEN = 9
+	R_PPC_REL24           = 10
+	R_PPC_REL14           = 11
+	R_PPC_REL14_BRTAKEN   = 12
+	R_PPC_REL14_BRNTAKEN  = 13
+	R_PPC_GOT16           = 14
+	R_PPC_GOT16_LO        = 15
+	R_PPC_GOT16_HI        = 16
+	R_PPC_GOT16_HA        = 17
+	R_PPC_PLTREL24        = 18
+	R_PPC_COPY            = 19
+	R_PPC_GLOB_DAT        = 20
+	R_PPC_JMP_SLOT        = 21
+	R_PPC_RELATIVE        = 22
+	R_PPC_LOCAL24PC       = 23
+	R_PPC_UADDR32         = 24
+	R_PPC_UADDR16         = 25
+	R_PPC_REL32           = 26
+	R_PPC_PLT32           = 27
+	R_PPC_PLTREL32        = 28
+	R_PPC_PLT16_LO        = 29
+	R_PPC_PLT16_HI        = 30
+	R_PPC_PLT16_HA        = 31
+	R_PPC_SDAREL16        = 32
+	R_PPC_SECTOFF         = 33
+	R_PPC_SECTOFF_LO      = 34
+	R_PPC_SECTOFF_HI      = 35
+	R_PPC_SECTOFF_HA      = 36
+	R_PPC_TLS             = 67
+	R_PPC_DTPMOD32        = 68
+	R_PPC_TPREL16         = 69
+	R_PPC_TPREL16_LO      = 70
+	R_PPC_TPREL16_HI      = 71
+	R_PPC_TPREL16_HA      = 72
+	R_PPC_TPREL32         = 73
+	R_PPC_DTPREL16        = 74
+	R_PPC_DTPREL16_LO     = 75
+	R_PPC_DTPREL16_HI     = 76
+	R_PPC_DTPREL16_HA     = 77
+	R_PPC_DTPREL32        = 78
+	R_PPC_GOT_TLSGD16     = 79
+	R_PPC_GOT_TLSGD16_LO  = 80
+	R_PPC_GOT_TLSGD16_HI  = 81
+	R_PPC_GOT_TLSGD16_HA  = 82
+	R_PPC_GOT_TLSLD16     = 83
+	R_PPC_GOT_TLSLD16_LO  = 84
+	R_PPC_GOT_TLSLD16_HI  = 85
+	R_PPC_GOT_TLSLD16_HA  = 86
+	R_PPC_GOT_TPREL16     = 87
+	R_PPC_GOT_TPREL16_LO  = 88
+	R_PPC_GOT_TPREL16_HI  = 89
+	R_PPC_GOT_TPREL16_HA  = 90
+	R_PPC_EMB_NADDR32     = 101
+	R_PPC_EMB_NADDR16     = 102
+	R_PPC_EMB_NADDR16_LO  = 103
+	R_PPC_EMB_NADDR16_HI  = 104
+	R_PPC_EMB_NADDR16_HA  = 105
+	R_PPC_EMB_SDAI16      = 106
+	R_PPC_EMB_SDA2I16     = 107
+	R_PPC_EMB_SDA2REL     = 108
+	R_PPC_EMB_SDA21       = 109
+	R_PPC_EMB_MRKREF      = 110
+	R_PPC_EMB_RELSEC16    = 111
+	R_PPC_EMB_RELST_LO    = 112
+	R_PPC_EMB_RELST_HI    = 113
+	R_PPC_EMB_RELST_HA    = 114
+	R_PPC_EMB_BIT_FLD     = 115
+	R_PPC_EMB_RELSDA      = 116
+
+	R_PPC64_ADDR32            = R_PPC_ADDR32
+	R_PPC64_ADDR16_LO         = R_PPC_ADDR16_LO
+	R_PPC64_ADDR16_HA         = R_PPC_ADDR16_HA
+	R_PPC64_REL24             = R_PPC_REL24
+	R_PPC64_GOT16_HA          = R_PPC_GOT16_HA
+	R_PPC64_JMP_SLOT          = R_PPC_JMP_SLOT
+	R_PPC64_TPREL16           = R_PPC_TPREL16
+	R_PPC64_ADDR64            = 38
+	R_PPC64_TOC16             = 47
+	R_PPC64_TOC16_LO          = 48
+	R_PPC64_TOC16_HI          = 49
+	R_PPC64_TOC16_HA          = 50
+	R_PPC64_ADDR16_LO_DS      = 57
+	R_PPC64_GOT16_LO_DS       = 59
+	R_PPC64_TOC16_DS          = 63
+	R_PPC64_TOC16_LO_DS       = 64
+	R_PPC64_TLS               = 67
+	R_PPC64_GOT_TPREL16_LO_DS = 88
+	R_PPC64_GOT_TPREL16_HA    = 90
+	R_PPC64_REL16_LO          = 250
+	R_PPC64_REL16_HI          = 251
+	R_PPC64_REL16_HA          = 252
+
+	R_SPARC_NONE     = 0
+	R_SPARC_8        = 1
+	R_SPARC_16       = 2
+	R_SPARC_32       = 3
+	R_SPARC_DISP8    = 4
+	R_SPARC_DISP16   = 5
+	R_SPARC_DISP32   = 6
+	R_SPARC_WDISP30  = 7
+	R_SPARC_WDISP22  = 8
+	R_SPARC_HI22     = 9
+	R_SPARC_22       = 10
+	R_SPARC_13       = 11
+	R_SPARC_LO10     = 12
+	R_SPARC_GOT10    = 13
+	R_SPARC_GOT13    = 14
+	R_SPARC_GOT22    = 15
+	R_SPARC_PC10     = 16
+	R_SPARC_PC22     = 17
+	R_SPARC_WPLT30   = 18
+	R_SPARC_COPY     = 19
+	R_SPARC_GLOB_DAT = 20
+	R_SPARC_JMP_SLOT = 21
+	R_SPARC_RELATIVE = 22
+	R_SPARC_UA32     = 23
+	R_SPARC_PLT32    = 24
+	R_SPARC_HIPLT22  = 25
+	R_SPARC_LOPLT10  = 26
+	R_SPARC_PCPLT32  = 27
+	R_SPARC_PCPLT22  = 28
+	R_SPARC_PCPLT10  = 29
+	R_SPARC_10       = 30
+	R_SPARC_11       = 31
+	R_SPARC_64       = 32
+	R_SPARC_OLO10    = 33
+	R_SPARC_HH22     = 34
+	R_SPARC_HM10     = 35
+	R_SPARC_LM22     = 36
+	R_SPARC_PC_HH22  = 37
+	R_SPARC_PC_HM10  = 38
+	R_SPARC_PC_LM22  = 39
+	R_SPARC_WDISP16  = 40
+	R_SPARC_WDISP19  = 41
+	R_SPARC_GLOB_JMP = 42
+	R_SPARC_7        = 43
+	R_SPARC_5        = 44
+	R_SPARC_6        = 45
+	R_SPARC_DISP64   = 46
+	R_SPARC_PLT64    = 47
+	R_SPARC_HIX22    = 48
+	R_SPARC_LOX10    = 49
+	R_SPARC_H44      = 50
+	R_SPARC_M44      = 51
+	R_SPARC_L44      = 52
+	R_SPARC_REGISTER = 53
+	R_SPARC_UA64     = 54
+	R_SPARC_UA16     = 55
+
+	ARM_MAGIC_TRAMP_NUMBER = 0x5c000003
 )
 
 /*
@@ -768,7 +811,10 @@ func Elfinit() {
 		}
 		fallthrough
 
-	case '6', '7':
+	case '0', '6', '7':
+		if Thearch.Thechar == '0' {
+			ehdr.flags = 0x20000000 /* MIPS 3 */
+		}
 		elf64 = true
 
 		ehdr.phoff = ELF64HDRSIZE      /* Must be be ELF64HDRSIZE: first PHdr must follow ELF header */
@@ -1398,7 +1444,7 @@ func elfdynhash() {
 	}
 
 	switch Thearch.Thechar {
-	case '6', '7', '9':
+	case '0', '6', '7', '9':
 		sy := Linklookup(Ctxt, ".rela.plt", 0)
 		if sy.Size > 0 {
 			Elfwritedynent(s, DT_PLTREL, DT_RELA)
@@ -1538,7 +1584,7 @@ func elfshreloc(sect *Section) *ElfShdr {
 	var prefix string
 	var typ int
 	switch Thearch.Thechar {
-	case '6', '7', '9':
+	case '0', '6', '7', '9':
 		prefix = ".rela"
 		typ = SHT_RELA
 	default:
@@ -1604,7 +1650,7 @@ func elfrelocsect(sect *Section, first *LSym) {
 				continue
 			}
 
-			if r.Xsym.Elfsym == 0 {
+			if r.Xsym.ElfsymForReloc() == 0 {
 				Diag("reloc %d to non-elf symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
 			}
 			if Thearch.Elfreloc1(r, int64(uint64(sym.Value+int64(r.Off))-sect.Vaddr)) < 0 {
@@ -1711,7 +1757,7 @@ func doelf() {
 		Debug['d'] = 1
 
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			Addstring(shstrtab, ".rela.text")
 			Addstring(shstrtab, ".rela.rodata")
 			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
@@ -1757,7 +1803,7 @@ func doelf() {
 	if hasinitarr {
 		Addstring(shstrtab, ".init_array")
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			Addstring(shstrtab, ".rela.init_array")
 		default:
 			Addstring(shstrtab, ".rel.init_array")
@@ -1784,7 +1830,7 @@ func doelf() {
 		Addstring(shstrtab, ".dynsym")
 		Addstring(shstrtab, ".dynstr")
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			Addstring(shstrtab, ".rela")
 			Addstring(shstrtab, ".rela.plt")
 		default:
@@ -1802,7 +1848,7 @@ func doelf() {
 		s.Type = obj.SELFROSECT
 		s.Reachable = true
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			s.Size += ELF64SYMSIZE
 		default:
 			s.Size += ELF32SYMSIZE
@@ -1820,7 +1866,7 @@ func doelf() {
 
 		/* relocation table */
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			s = Linklookup(Ctxt, ".rela", 0)
 		default:
 			s = Linklookup(Ctxt, ".rel", 0)
@@ -1865,7 +1911,7 @@ func doelf() {
 		Thearch.Elfsetupplt()
 
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			s = Linklookup(Ctxt, ".rela.plt", 0)
 		default:
 			s = Linklookup(Ctxt, ".rel.plt", 0)
@@ -1894,7 +1940,7 @@ func doelf() {
 
 		elfwritedynentsym(s, DT_SYMTAB, Linklookup(Ctxt, ".dynsym", 0))
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			Elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE)
 		default:
 			Elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE)
@@ -1902,7 +1948,7 @@ func doelf() {
 		elfwritedynentsym(s, DT_STRTAB, Linklookup(Ctxt, ".dynstr", 0))
 		elfwritedynentsymsize(s, DT_STRSZ, Linklookup(Ctxt, ".dynstr", 0))
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			elfwritedynentsym(s, DT_RELA, Linklookup(Ctxt, ".rela", 0))
 			elfwritedynentsymsize(s, DT_RELASZ, Linklookup(Ctxt, ".rela", 0))
 			Elfwritedynent(s, DT_RELAENT, ELF64RELASIZE)
@@ -2001,6 +2047,8 @@ func Asmbelf(symo int64) {
 	switch Thearch.Thechar {
 	default:
 		Exitf("unknown architecture in asmbelf: %v", Thearch.Thechar)
+	case '0':
+		eh.machine = EM_MIPS
 	case '5':
 		eh.machine = EM_ARM
 	case '6':

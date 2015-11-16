@@ -105,7 +105,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const debugStackBarrier = false
 
@@ -170,9 +173,9 @@ func gcInstallStackBarrier(gp *g, frame *stkframe) bool {
 	if usesLR {
 		lrUintptr = frame.sp
 	} else {
-		lrUintptr = frame.fp - regSize
+		lrUintptr = frame.fp - sys.RegSize
 	}
-	lrPtr := (*uintreg)(unsafe.Pointer(lrUintptr))
+	lrPtr := (*sys.Uintreg)(unsafe.Pointer(lrUintptr))
 	if debugStackBarrier {
 		print("install stack barrier at ", hex(lrUintptr), " over ", hex(*lrPtr), ", goid=", gp.goid, "\n")
 		if uintptr(*lrPtr) != frame.lr {
@@ -185,7 +188,7 @@ func gcInstallStackBarrier(gp *g, frame *stkframe) bool {
 	stkbar := &gp.stkbar[len(gp.stkbar)-1]
 	stkbar.savedLRPtr = lrUintptr
 	stkbar.savedLRVal = uintptr(*lrPtr)
-	*lrPtr = uintreg(stackBarrierPC)
+	*lrPtr = sys.Uintreg(stackBarrierPC)
 	return true
 }
 
@@ -218,8 +221,8 @@ func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
 	if debugStackBarrier {
 		print("remove stack barrier at ", hex(stkbar.savedLRPtr), " with ", hex(stkbar.savedLRVal), ", goid=", gp.goid, "\n")
 	}
-	lrPtr := (*uintreg)(unsafe.Pointer(stkbar.savedLRPtr))
-	if val := *lrPtr; val != uintreg(stackBarrierPC) {
+	lrPtr := (*sys.Uintreg)(unsafe.Pointer(stkbar.savedLRPtr))
+	if val := *lrPtr; val != sys.Uintreg(stackBarrierPC) {
 		printlock()
 		print("at *", hex(stkbar.savedLRPtr), " expected stack barrier PC ", hex(stackBarrierPC), ", found ", hex(val), ", goid=", gp.goid, "\n")
 		print("gp.stkbar=")
@@ -227,7 +230,7 @@ func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
 		print(", gp.stkbarPos=", gp.stkbarPos, ", gp.stack=[", hex(gp.stack.lo), ",", hex(gp.stack.hi), ")\n")
 		throw("stack barrier lost")
 	}
-	*lrPtr = uintreg(stkbar.savedLRVal)
+	*lrPtr = sys.Uintreg(stkbar.savedLRVal)
 }
 
 // gcPrintStkbars prints a []stkbar for debugging.

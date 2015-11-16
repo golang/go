@@ -10,15 +10,19 @@ set -e
 
 # The sanitizers were originally developed with clang, so prefer it.
 CC=cc
-if test "$(type -p clang)" != ""; then
+if test -x "$(type -p clang)"; then
   CC=clang
 fi
 export CC
 
-if $CC -fsanitize=memory 2>&1 | grep "unrecognized" >& /dev/null; then
+TMPDIR=${TMPDIR:-/tmp}
+echo > ${TMPDIR}/testsanitizers$$.c
+if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$.o 2>&1 | grep "unrecognized" >& /dev/null; then
   echo "skipping msan test: -fsanitize=memory not supported"
+  rm -f ${TMPDIR}/testsanitizers$$.*
   exit 0
 fi
+rm -f ${TMPDIR}/testsanitizers$$.*
 
 # The memory sanitizer in versions of clang before 3.6 don't work with Go.
 if $CC --version | grep clang >& /dev/null; then
@@ -31,4 +35,36 @@ if $CC --version | grep clang >& /dev/null; then
   fi
 fi
 
-go run msan.go
+status=0
+
+if ! go build -msan std; then
+  echo "FAIL: build -msan std"
+  status=1
+fi
+
+if ! go run -msan msan.go; then
+  echo "FAIL: msan"
+  status=1
+fi
+
+if ! go run -msan msan2.go; then
+  echo "FAIL: msan2"
+  status=1
+fi
+
+if ! go run -msan msan3.go; then
+  echo "FAIL: msan3"
+  status=1
+fi
+
+if ! go run -msan msan4.go; then
+  echo "FAIL: msan4"
+  status=1
+fi
+
+if go run -msan msan_fail.go 2>/dev/null; then
+  echo "FAIL: msan_fail"
+  status=1
+fi
+
+exit $status

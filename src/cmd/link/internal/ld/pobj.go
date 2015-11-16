@@ -98,6 +98,7 @@ func Ldmain() {
 	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
+	obj.Flagcount("msan", "enable MSan interface", &flag_msan)
 	obj.Flagcount("n", "dump symbol table", &Debug['n'])
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")

@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	_ESRCH       = 3
@@ -44,8 +47,7 @@ func getncpu() int32 {
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	return 1
+func semacreate(mp *m) {
 }
 
 //go:nosplit
@@ -64,9 +66,9 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		v := atomicload(&_g_.m.waitsemacount)
+		v := atomic.Load(&_g_.m.waitsemacount)
 		if v > 0 {
-			if cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -88,7 +90,7 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	xadd(&mp.waitsemacount, 1)
+	atomic.Xadd(&mp.waitsemacount, 1)
 	ret := thrwakeup(uintptr(unsafe.Pointer(&mp.waitsemacount)), 1)
 	if ret != 0 && ret != _ESRCH {
 		// semawakeup can be called on signal stack.
@@ -102,10 +104,8 @@ func semawakeup(mp *m) {
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
-
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 
 	param := tforkt{
 		tf_tcb:   unsafe.Pointer(&mp.tls[0]),

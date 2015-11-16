@@ -98,6 +98,20 @@ func archinit() {
 		ld.Linkmode = ld.LinkInternal
 	}
 
+	switch ld.Buildmode {
+	case ld.BuildmodePIE, ld.BuildmodeShared:
+		ld.Linkmode = ld.LinkExternal
+	}
+
+	if ld.Linkshared {
+		ld.Linkmode = ld.LinkExternal
+	}
+
+	if ld.Linkmode == ld.LinkExternal {
+		toc := ld.Linklookup(ld.Ctxt, ".TOC.", 0)
+		toc.Type = obj.SDYNIMPORT
+	}
+
 	switch ld.HEADTYPE {
 	default:
 		if ld.Linkmode == ld.LinkAuto {
@@ -106,6 +120,9 @@ func archinit() {
 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
 		}
+
+	case obj.Hlinux:
+		break
 	}
 
 	switch ld.HEADTYPE {

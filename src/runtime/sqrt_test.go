@@ -74,6 +74,7 @@ var vfsqrtSC = []float64{
 	0,
 	math.Inf(1),
 	math.NaN(),
+	math.Float64frombits(2),
 }
 var sqrtSC = []float64{
 	math.NaN(),
@@ -82,4 +83,5 @@ var sqrtSC = []float64{
 	0,
 	math.Inf(1),
 	math.NaN(),
+	3.1434555694052576e-162,
 }

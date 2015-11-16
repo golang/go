@@ -6,6 +6,10 @@ package runtime
 
 import "unsafe"
 
+type mOS struct {
+	waitsema uintptr // semaphore for parking on locks
+}
+
 type stdFunction *byte
 
 //go:linkname os_sigpipe os.sigpipe

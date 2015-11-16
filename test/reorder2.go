@@ -58,9 +58,8 @@ func f(x, y string) {
 	log += "f(" + x + ", " + y + ")"
 }
 
+//go:noinline
 func ff(x, y string) {
-	for false {
-	} // prevent inl
 	log += "ff(" + x + ", " + y + ")"
 }
 
@@ -69,9 +68,8 @@ func h(x string) string {
 	return x
 }
 
+//go:noinline
 func g(x string) string {
-	for false {
-	} // prevent inl
 	log += "g(" + x + ")"
 	return x
 }
@@ -167,7 +165,7 @@ func main() {
 		err++
 	}
 	log = ""
-	
+
 	x := 0
 	switch x {
 	case 0:
@@ -176,7 +174,7 @@ func main() {
 			err++
 		}
 		log = ""
-	
+
 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
 			println("in switch, expecting a(1)b(2)a(2), got ", log)
 			err++
@@ -194,7 +192,7 @@ func main() {
 		}
 		log = ""
 	}
-	
+
 	c := make(chan int, 1)
 	c <- 1
 	select {
@@ -206,7 +204,7 @@ func main() {
 			err++
 		}
 		log = ""
-	
+
 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
 			println("in select1, expecting a(1)b(2)a(2), got ", log)
 			err++
@@ -233,7 +231,7 @@ func main() {
 			err++
 		}
 		log = ""
-	
+
 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
 			println("in select2, expecting a(1)b(2)a(2), got ", log)
 			err++
@@ -255,14 +253,14 @@ func main() {
 	c <- 1
 	select {
 	default:
-	case c<-1:
+	case c <- 1:
 	case <-c:
 		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
 			println("in select3, expecting a(1)a(2)a(3) , got ", log)
 			err++
 		}
 		log = ""
-	
+
 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
 			println("in select3, expecting a(1)b(2)a(2), got ", log)
 			err++
@@ -290,7 +288,7 @@ func main() {
 			err++
 		}
 		log = ""
-	
+
 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
 			println("in select4, expecting a(1)b(2)a(2), got ", log)
 			err++
@@ -318,7 +316,7 @@ func main() {
 			err++
 		}
 		log = ""
-	
+
 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
 			println("in select5, expecting a(1)b(2)a(2), got ", log)
 			err++

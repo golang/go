@@ -314,7 +314,11 @@ func unblocksig(sig int32) {
 }
 
 //go:nosplit
-func semacreate() uintptr {
+func semacreate(mp *m) {
+	if mp.waitsema != 0 {
+		return
+	}
+
 	var sem *semt
 	_g_ := getg()
 
@@ -331,7 +335,7 @@ func semacreate() uintptr {
 	if sem_init(sem, 0, 0) != 0 {
 		throw("sem_init")
 	}
-	return uintptr(unsafe.Pointer(sem))
+	mp.waitsema = uintptr(unsafe.Pointer(sem))
 }
 
 //go:nosplit

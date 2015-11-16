@@ -39,6 +39,14 @@ func TestRecorder(t *testing.T) {
 			return nil
 		}
 	}
+	hasHeader := func(key, want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
+			if got := rec.HeaderMap.Get(key); got != want {
+				return fmt.Errorf("header %s = %q; want %q", key, got, want)
+			}
+			return nil
+		}
+	}
 
 	tests := []struct {
 		name   string
@@ -73,7 +81,12 @@ func TestRecorder(t *testing.T) {
 			func(w http.ResponseWriter, r *http.Request) {
 				io.WriteString(w, "hi first")
 			},
-			check(hasStatus(200), hasContents("hi first"), hasFlush(false)),
+			check(
+				hasStatus(200),
+				hasContents("hi first"),
+				hasFlush(false),
+				hasHeader("Content-Type", "text/plain; charset=utf-8"),
+			),
 		},
 		{
 			"flush",
@@ -82,6 +95,29 @@ func TestRecorder(t *testing.T) {
 				w.WriteHeader(201)
 			},
 			check(hasStatus(200), hasFlush(true)),
+		},
+		{
+			"Content-Type detection",
+			func(w http.ResponseWriter, r *http.Request) {
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
+		},
+		{
+			"no Content-Type detection with Transfer-Encoding",
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Transfer-Encoding", "some encoding")
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "")), // no header
+		},
+		{
+			"no Content-Type detection if set explicitly",
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "some/type")
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "some/type")),
 		},
 	}
 	r, _ := http.NewRequest("GET", "http://foo.com/", nil)

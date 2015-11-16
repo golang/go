@@ -38,7 +38,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 #ifdef TLSG_IS_VARIABLE
 	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
-	MOVD	0, R2		        // arg 2: not used when using platform's TLS
+	MOVD	$0, R2		        // arg 2: not used when using platform's TLS
 #endif
 	MOVD	$setg_gcc<>(SB), R1	// arg 1: setg
 	MOVD	g, R0			// arg 0: G
@@ -453,40 +453,6 @@ CALLFN(·call268435456, 268435464 )
 CALLFN(·call536870912, 536870920 )
 CALLFN(·call1073741824, 1073741832 )
 
-// bool cas(uint32 *ptr, uint32 old, uint32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
-TEXT runtime·cas(SB), NOSPLIT, $0-17
-	MOVD	ptr+0(FP), R0
-	MOVW	old+8(FP), R1
-	MOVW	new+12(FP), R2
-again:
-	LDAXRW	(R0), R3
-	CMPW	R1, R3
-	BNE	ok
-	STLXRW	R2, (R0), R3
-	CBNZ	R3, again
-ok:
-	CSET	EQ, R0
-	MOVB	R0, ret+16(FP)
-	RET
-
-TEXT runtime·casuintptr(SB), NOSPLIT, $0-25
-	B	runtime·cas64(SB)
-
-TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $-8-16
-	B	runtime·atomicload64(SB)
-
-TEXT runtime·atomicloaduint(SB), NOSPLIT, $-8-16
-	B	runtime·atomicload64(SB)
-
-TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-16
-	B	runtime·atomicstore64(SB)
-
 // AES hashing not implemented for ARM64, issue #10109.
 TEXT runtime·aeshash(SB),NOSPLIT,$-8-0
 	MOVW	$0, R0
@@ -500,17 +466,7 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
 TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
 	MOVW	$0, R0
 	MOVW	(R0), R1
-
-// bool casp(void **val, void *old, void *new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
-TEXT runtime·casp1(SB), NOSPLIT, $0-25
-	B runtime·cas64(SB)
-
+	
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	MOVWU	cycles+0(FP), R0
 again:
@@ -1030,3 +986,14 @@ TEXT runtime·prefetchnta(SB),NOSPLIT,$0-8
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$0-8
         RET
+
+// This is called from .init_array and follows the platform, not Go, ABI.
+TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
+	SUB	$0x10, RSP
+	MOVD	R27, 8(RSP) // The access to global variables below implicitly uses R27, which is callee-save
+	MOVD	runtime·lastmoduledatap(SB), R1
+	MOVD	R0, moduledata_next(R1)
+	MOVD	R0, runtime·lastmoduledatap(SB)
+	MOVD	8(RSP), R27
+	ADD	$0x10, RSP
+	RET

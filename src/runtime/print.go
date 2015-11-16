@@ -12,8 +12,8 @@ type hex uint64
 
 func bytes(s string) (ret []byte) {
 	rp := (*slice)(unsafe.Pointer(&ret))
-	sp := (*_string)(noescape(unsafe.Pointer(&s)))
-	rp.array = unsafe.Pointer(sp.str)
+	sp := stringStructOf(&s)
+	rp.array = sp.str
 	rp.len = sp.len
 	rp.cap = sp.len
 	return
@@ -71,20 +71,12 @@ func printnl() {
 	print("\n")
 }
 
-func printpc(p unsafe.Pointer) {
-	print("PC=", hex(uintptr(p)))
-}
-
 func printbool(v bool) {
 	if v {
 		print("true")
 	} else {
 		print("false")
 	}
-}
-
-func printbyte(c byte) {
-	gwrite((*[1]byte)(unsafe.Pointer(&c))[:])
 }
 
 func printfloat(v float64) {
@@ -220,12 +212,10 @@ func printslice(s []byte) {
 	printpointer(unsafe.Pointer(sp.array))
 }
 
-func printeface(e interface{}) {
-	ep := (*eface)(unsafe.Pointer(&e))
-	print("(", ep._type, ",", ep.data, ")")
+func printeface(e eface) {
+	print("(", e._type, ",", e.data, ")")
 }
 
-func printiface(i fInterface) {
-	ip := (*iface)(unsafe.Pointer(&i))
-	print("(", ip.tab, ",", ip.data, ")")
+func printiface(i iface) {
+	print("(", i.tab, ",", i.data, ")")
 }

@@ -13,7 +13,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // markwb is the mark-phase write barrier, the only barrier we have.
 // The rest of this file exists only to make calls to this function.
@@ -31,12 +34,12 @@ import "unsafe"
 // Dealing with memory ordering:
 //
 // Dijkstra pointed out that maintaining the no black to white
-// pointers means that white to white pointers not need
+// pointers means that white to white pointers do not need
 // to be noted by the write barrier. Furthermore if either
 // white object dies before it is reached by the
 // GC then the object can be collected during this GC cycle
 // instead of waiting for the next cycle. Unfortunately the cost of
-// ensure that the object holding the slot doesn't concurrently
+// ensuring that the object holding the slot doesn't concurrently
 // change to black without the mutator noticing seems prohibitive.
 //
 // Consider the following example where the mutator writes into
@@ -84,9 +87,9 @@ import "unsafe"
 // frames that have potentially been active since the concurrent scan,
 // so it depends on write barriers to track changes to pointers in
 // stack frames that have not been active.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func gcmarkwb_m(slot *uintptr, ptr uintptr) {
-	if writeBarrierEnabled {
+	if writeBarrier.needed {
 		if ptr != 0 && inheap(ptr) {
 			shade(ptr)
 		}
@@ -125,10 +128,13 @@ func writebarrierptr_nostore1(dst *uintptr, src uintptr) {
 //go:nosplit
 func writebarrierptr(dst *uintptr, src uintptr) {
 	*dst = src
-	if !writeBarrierEnabled {
+	if writeBarrier.cgo {
+		cgoCheckWriteBarrier(dst, src)
+	}
+	if !writeBarrier.needed {
 		return
 	}
-	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+	if src != 0 && (src < sys.PhysPageSize || src == poisonStack) {
 		systemstack(func() {
 			print("runtime: writebarrierptr *", dst, " = ", hex(src), "\n")
 			throw("bad pointer in write barrier")
@@ -141,10 +147,13 @@ func writebarrierptr(dst *uintptr, src uintptr) {
 // Do not reapply.
 //go:nosplit
 func writebarrierptr_nostore(dst *uintptr, src uintptr) {
-	if !writeBarrierEnabled {
+	if writeBarrier.cgo {
+		cgoCheckWriteBarrier(dst, src)
+	}
+	if !writeBarrier.needed {
 		return
 	}
-	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+	if src != 0 && (src < sys.PhysPageSize || src == poisonStack) {
 		systemstack(func() { throw("bad pointer in write barrier") })
 	}
 	writebarrierptr_nostore1(dst, src)
@@ -179,6 +188,9 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
 //go:nosplit
 func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	memmove(dst, src, typ.size)
+	if writeBarrier.cgo {
+		cgoCheckMemmove(typ, dst, src, 0, typ.size)
+	}
 	if typ.kind&kindNoPointers != 0 {
 		return
 	}
@@ -203,15 +215,18 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
 	memmove(dst, src, size)
-	if !writeBarrierEnabled || typ.kind&kindNoPointers != 0 || size < ptrSize || !inheap(uintptr(dst)) {
+	if writeBarrier.cgo {
+		cgoCheckMemmove(typ, dst, src, off, size)
+	}
+	if !writeBarrier.needed || typ.kind&kindNoPointers != 0 || size < sys.PtrSize || !inheap(uintptr(dst)) {
 		return
 	}
 
-	if frag := -off & (ptrSize - 1); frag != 0 {
+	if frag := -off & (sys.PtrSize - 1); frag != 0 {
 		dst = add(dst, frag)
 		size -= frag
 	}
-	heapBitsBulkBarrier(uintptr(dst), size&^(ptrSize-1))
+	heapBitsBulkBarrier(uintptr(dst), size&^(sys.PtrSize-1))
 }
 
 // callwritebarrier is invoked at the end of reflectcall, to execute
@@ -223,7 +238,7 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 // not to be preempted before the write barriers have been run.
 //go:nosplit
 func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
-	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < ptrSize || !inheap(uintptr(frame)) {
+	if !writeBarrier.needed || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < sys.PtrSize || !inheap(uintptr(frame)) {
 		return
 	}
 	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize-retoffset)
@@ -249,12 +264,20 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
 	}
+	if msanenabled {
+		msanwrite(dstp, uintptr(n)*typ.size)
+		msanread(srcp, uintptr(n)*typ.size)
+	}
+
+	if writeBarrier.cgo {
+		cgoCheckSliceCopy(typ, dst, src, n)
+	}
 
 	// Note: No point in checking typ.kind&kindNoPointers here:
 	// compiler only emits calls to typedslicecopy for types with pointers,
 	// and growslice and reflect_typedslicecopy check for pointers
 	// before calling typedslicecopy.
-	if !writeBarrierEnabled {
+	if !writeBarrier.needed {
 		memmove(dstp, srcp, uintptr(n)*typ.size)
 		return n
 	}

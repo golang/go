@@ -6,6 +6,12 @@ package runtime
 
 import "unsafe"
 
+type mOS struct {
+	waitsemacount uint32
+	notesig       *int8
+	errstr        *byte
+}
+
 func closefd(fd int32) int32
 
 //go:noescape

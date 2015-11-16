@@ -22,3 +22,12 @@ func add1(p unsafe.Pointer, x uintptr) unsafe.Pointer { // ERROR "can inline add
 func f(x *byte) *byte { // ERROR "can inline f" "leaking param: x to result"
 	return add2(x, 1) // ERROR "inlining call to add2" "inlining call to add1"
 }
+
+//go:noinline
+func g(x int) int {
+	return x + 1
+}
+
+func h(x int) int { // ERROR "can inline h"
+	return x + 2
+}

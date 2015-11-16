@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -291,7 +292,7 @@ func TestPax(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Simple test to make sure PAX extensions are in effect
-	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
 		t.Fatal("Expected at least one PAX header to be written.")
 	}
 	// Test that we can get a long name back out of the archive.
@@ -330,7 +331,7 @@ func TestPaxSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Simple test to make sure PAX extensions are in effect
-	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
 		t.Fatal("Expected at least one PAX header to be written.")
 	}
 	// Test that we can get a long name back out of the archive.
@@ -380,7 +381,7 @@ func TestPaxNonAscii(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Simple test to make sure PAX extensions are in effect
-	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.")) {
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
 		t.Fatal("Expected at least one PAX header to be written.")
 	}
 	// Test that we can get a long name back out of the archive.
@@ -436,6 +437,52 @@ func TestPaxXattrs(t *testing.T) {
 	if !reflect.DeepEqual(hdr.Xattrs, xattrs) {
 		t.Fatalf("xattrs did not survive round trip: got %+v, want %+v",
 			hdr.Xattrs, xattrs)
+	}
+}
+
+func TestPaxHeadersSorted(t *testing.T) {
+	fileinfo, err := os.Stat("testdata/small.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hdr, err := FileInfoHeader(fileinfo, "")
+	if err != nil {
+		t.Fatalf("os.Stat: %v", err)
+	}
+	contents := strings.Repeat(" ", int(hdr.Size))
+
+	hdr.Xattrs = map[string]string{
+		"foo": "foo",
+		"bar": "bar",
+		"baz": "baz",
+		"qux": "qux",
+	}
+
+	var buf bytes.Buffer
+	writer := NewWriter(&buf)
+	if err := writer.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = writer.Write([]byte(contents)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// Simple test to make sure PAX extensions are in effect
+	if !bytes.Contains(buf.Bytes(), []byte("PaxHeaders.0")) {
+		t.Fatal("Expected at least one PAX header to be written.")
+	}
+
+	// xattr bar should always appear before others
+	indices := []int{
+		bytes.Index(buf.Bytes(), []byte("bar=bar")),
+		bytes.Index(buf.Bytes(), []byte("baz=baz")),
+		bytes.Index(buf.Bytes(), []byte("foo=foo")),
+		bytes.Index(buf.Bytes(), []byte("qux=qux")),
+	}
+	if !sort.IntsAreSorted(indices) {
+		t.Fatal("PAX headers are not sorted")
 	}
 }
 

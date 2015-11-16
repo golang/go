@@ -145,11 +145,12 @@ func prfForVersion(version uint16, suite *cipherSuite) func(result, secret, labe
 // masterFromPreMasterSecret generates the master secret from the pre-master
 // secret. See http://tools.ietf.org/html/rfc5246#section-8.1
 func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecret, clientRandom, serverRandom []byte) []byte {
-	var seed [tlsRandomLength * 2]byte
-	copy(seed[0:len(clientRandom)], clientRandom)
-	copy(seed[len(clientRandom):], serverRandom)
+	seed := make([]byte, 0, len(clientRandom)+len(serverRandom))
+	seed = append(seed, clientRandom...)
+	seed = append(seed, serverRandom...)
+
 	masterSecret := make([]byte, masterSecretLength)
-	prfForVersion(version, suite)(masterSecret, preMasterSecret, masterSecretLabel, seed[0:])
+	prfForVersion(version, suite)(masterSecret, preMasterSecret, masterSecretLabel, seed)
 	return masterSecret
 }
 
@@ -157,13 +158,13 @@ func masterFromPreMasterSecret(version uint16, suite *cipherSuite, preMasterSecr
 // secret, given the lengths of the MAC key, cipher key and IV, as defined in
 // RFC 2246, section 6.3.
 func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clientRandom, serverRandom []byte, macLen, keyLen, ivLen int) (clientMAC, serverMAC, clientKey, serverKey, clientIV, serverIV []byte) {
-	var seed [tlsRandomLength * 2]byte
-	copy(seed[0:len(clientRandom)], serverRandom)
-	copy(seed[len(serverRandom):], clientRandom)
+	seed := make([]byte, 0, len(serverRandom)+len(clientRandom))
+	seed = append(seed, serverRandom...)
+	seed = append(seed, clientRandom...)
 
 	n := 2*macLen + 2*keyLen + 2*ivLen
 	keyMaterial := make([]byte, n)
-	prfForVersion(version, suite)(keyMaterial, masterSecret, keyExpansionLabel, seed[0:])
+	prfForVersion(version, suite)(keyMaterial, masterSecret, keyExpansionLabel, seed)
 	clientMAC = keyMaterial[:macLen]
 	keyMaterial = keyMaterial[macLen:]
 	serverMAC = keyMaterial[:macLen]

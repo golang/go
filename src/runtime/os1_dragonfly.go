@@ -74,7 +74,7 @@ func lwp_start(uintptr)
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	var oset sigset
@@ -87,8 +87,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		tid1:       unsafe.Pointer(&mp.procid),
 		tid2:       nil,
 	}
-
-	mp.tls[0] = uintptr(mp.id) // XXX so 386 asm can find it
 
 	lwp_create(&params)
 	sigprocmask(_SIG_SETMASK, &oset, nil)

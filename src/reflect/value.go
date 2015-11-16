@@ -44,7 +44,8 @@ type Value struct {
 
 	// flag holds metadata about the value.
 	// The lowest bits are flag bits:
-	//	- flagRO: obtained via unexported field, so read-only
+	//	- flagStickyRO: obtained via unexported not embedded field, so read-only
+	//	- flagEmbedRO: obtained via unexported embedded field, so read-only
 	//	- flagIndir: val holds a pointer to the data
 	//	- flagAddr: v.CanAddr is true (implies flagIndir)
 	//	- flagMethod: v is a method value.
@@ -67,11 +68,13 @@ type flag uintptr
 const (
 	flagKindWidth        = 5 // there are 27 kinds
 	flagKindMask    flag = 1<<flagKindWidth - 1
-	flagRO          flag = 1 << 5
-	flagIndir       flag = 1 << 6
-	flagAddr        flag = 1 << 7
-	flagMethod      flag = 1 << 8
-	flagMethodShift      = 9
+	flagStickyRO    flag = 1 << 5
+	flagEmbedRO     flag = 1 << 6
+	flagIndir       flag = 1 << 7
+	flagAddr        flag = 1 << 8
+	flagMethod      flag = 1 << 9
+	flagMethodShift      = 10
+	flagRO          flag = flagStickyRO | flagEmbedRO
 )
 
 func (f flag) kind() Kind {
@@ -745,11 +748,15 @@ func (v Value) Field(i int) Value {
 	field := &tt.fields[i]
 	typ := field.typ
 
-	// Inherit permission bits from v.
-	fl := v.flag&(flagRO|flagIndir|flagAddr) | flag(typ.Kind())
+	// Inherit permission bits from v, but clear flagEmbedRO.
+	fl := v.flag&(flagStickyRO|flagIndir|flagAddr) | flag(typ.Kind())
 	// Using an unexported field forces flagRO.
 	if field.pkgPath != nil {
-		fl |= flagRO
+		if field.name == nil {
+			fl |= flagEmbedRO
+		} else {
+			fl |= flagStickyRO
+		}
 	}
 	// Either flagIndir is set and v.ptr points at struct,
 	// or flagIndir is not set and v.ptr is the actual struct data.
@@ -1104,7 +1111,7 @@ func (v Value) Method(i int) Value {
 	if v.typ.Kind() == Interface && v.IsNil() {
 		panic("reflect: Method on nil interface value")
 	}
-	fl := v.flag & (flagRO | flagIndir)
+	fl := v.flag & (flagStickyRO | flagIndir) // Clear flagEmbedRO
 	fl |= flag(Func)
 	fl |= flag(i)<<flagMethodShift | flagMethod
 	return Value{v.typ, v.ptr, fl}

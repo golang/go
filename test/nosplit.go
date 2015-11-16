@@ -116,10 +116,15 @@ main 132
 main 136
 
 # A nosplit leaf can use the whole 128-CallSize bytes available on entry.
-main 112 nosplit
-main 116 nosplit
-main 120 nosplit
-main 124 nosplit
+# (CallSize is 32 on ppc64)
+main 96 nosplit
+main 100 nosplit; REJECT ppc64 ppc64le
+main 104 nosplit; REJECT ppc64 ppc64le
+main 108 nosplit; REJECT ppc64 ppc64le
+main 112 nosplit; REJECT ppc64 ppc64le
+main 116 nosplit; REJECT ppc64 ppc64le
+main 120 nosplit; REJECT ppc64 ppc64le
+main 124 nosplit; REJECT ppc64 ppc64le
 main 128 nosplit; REJECT
 main 132 nosplit; REJECT
 main 136 nosplit; REJECT
@@ -127,11 +132,16 @@ main 136 nosplit; REJECT
 # Calling a nosplit function from a nosplit function requires
 # having room for the saved caller PC and the called frame.
 # Because ARM doesn't save LR in the leaf, it gets an extra 4 bytes.
-# Because ppc64 doesn't save LR in the leaf, it gets an extra 8 bytes.
-main 112 nosplit call f; f 0 nosplit
-main 116 nosplit call f; f 0 nosplit
-main 120 nosplit call f; f 0 nosplit; REJECT amd64
-main 124 nosplit call f; f 0 nosplit; REJECT amd64 386
+# Because arm64 doesn't save LR in the leaf, it gets an extra 8 bytes.
+# ppc64 doesn't save LR in the leaf, but CallSize is 32, so it gets 24 fewer bytes than amd64.
+main 96 nosplit call f; f 0 nosplit
+main 100 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 104 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 108 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 112 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 116 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le
+main 120 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64
+main 124 nosplit call f; f 0 nosplit; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 nosplit; REJECT
 main 132 nosplit call f; f 0 nosplit; REJECT
 main 136 nosplit call f; f 0 nosplit; REJECT
@@ -139,24 +149,28 @@ main 136 nosplit call f; f 0 nosplit; REJECT
 # Calling a splitting function from a nosplit function requires
 # having room for the saved caller PC of the call but also the
 # saved caller PC for the call to morestack.
-# Again the ARM and ppc64 work in less space.
-main 104 nosplit call f; f 0 call f
-main 108 nosplit call f; f 0 call f
-main 112 nosplit call f; f 0 call f; REJECT amd64
-main 116 nosplit call f; f 0 call f; REJECT amd64
-main 120 nosplit call f; f 0 call f; REJECT amd64 386
-main 124 nosplit call f; f 0 call f; REJECT amd64 386
+# RISC architectures differ in the same way as before.
+main 96 nosplit call f; f 0 call f
+main 100 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
+main 104 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
+main 108 nosplit call f; f 0 call f; REJECT ppc64 ppc64le
+main 112 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 116 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64
+main 120 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
+main 124 nosplit call f; f 0 call f; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit call f; f 0 call f; REJECT
 main 132 nosplit call f; f 0 call f; REJECT
 main 136 nosplit call f; f 0 call f; REJECT
 
 # Indirect calls are assumed to be splitting functions.
-main 104 nosplit callind
-main 108 nosplit callind
-main 112 nosplit callind; REJECT amd64
-main 116 nosplit callind; REJECT amd64
-main 120 nosplit callind; REJECT amd64 386
-main 124 nosplit callind; REJECT amd64 386
+main 96 nosplit callind
+main 100 nosplit callind; REJECT ppc64 ppc64le
+main 104 nosplit callind; REJECT ppc64 ppc64le
+main 108 nosplit callind; REJECT ppc64 ppc64le
+main 112 nosplit callind; REJECT ppc64 ppc64le amd64
+main 116 nosplit callind; REJECT ppc64 ppc64le amd64
+main 120 nosplit callind; REJECT ppc64 ppc64le amd64 386
+main 124 nosplit callind; REJECT ppc64 ppc64le amd64 386
 main 128 nosplit callind; REJECT
 main 132 nosplit callind; REJECT
 main 136 nosplit callind; REJECT
@@ -248,6 +262,9 @@ TestCases:
 		var buf bytes.Buffer
 		ptrSize := 4
 		switch goarch {
+		case "mips64", "mips64le":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define CALL JAL\n#define REGISTER (R0)\n")
 		case "ppc64", "ppc64le":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define CALL BL\n#define REGISTER (CTR)\n")
@@ -282,7 +299,7 @@ TestCases:
 				name := m[1]
 				size, _ := strconv.Atoi(m[2])
 
-				// The limit was originally 128 but is now 512.
+				// The limit was originally 128 but is now 592.
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra bytes.
 				if i == 0 {

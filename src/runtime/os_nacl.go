@@ -6,6 +6,12 @@ package runtime
 
 import "unsafe"
 
+type mOS struct {
+	waitsema      int32 // semaphore for parking on locks
+	waitsemacount int32
+	waitsemalock  int32
+}
+
 func nacl_exception_stack(p uintptr, size int32) int32
 func nacl_exception_handler(fn uintptr, arg unsafe.Pointer) int32
 func nacl_sem_create(flag int32) int32

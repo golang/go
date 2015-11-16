@@ -710,6 +710,7 @@ func expandScanner(err error) error {
 
 var raceExclude = map[string]bool{
 	"runtime/race": true,
+	"runtime/msan": true,
 	"runtime/cgo":  true,
 	"cmd/cgo":      true,
 	"syscall":      true,
@@ -723,6 +724,7 @@ var cgoExclude = map[string]bool{
 var cgoSyscallExclude = map[string]bool{
 	"runtime/cgo":  true,
 	"runtime/race": true,
+	"runtime/msan": true,
 }
 
 // load populates p using information from bp, err, which should
@@ -823,20 +825,25 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		importPaths = append(importPaths, "syscall")
 	}
 
-	// Currently build mode c-shared, or -linkshared, forces
+	// Currently build modes c-shared, pie, and -linkshared force
 	// external linking mode, and external linking mode forces an
 	// import of runtime/cgo.
-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildLinkshared) {
+	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "pie" || buildLinkshared) {
 		importPaths = append(importPaths, "runtime/cgo")
 	}
 
-	// Everything depends on runtime, except runtime and unsafe.
-	if !p.Standard || (p.ImportPath != "runtime" && p.ImportPath != "unsafe") {
+	// Everything depends on runtime, except runtime, its internal
+	// subpackages, and unsafe.
+	if !p.Standard || (p.ImportPath != "runtime" && !strings.HasPrefix(p.ImportPath, "runtime/internal/") && p.ImportPath != "unsafe") {
 		importPaths = append(importPaths, "runtime")
 		// When race detection enabled everything depends on runtime/race.
 		// Exclude certain packages to avoid circular dependencies.
 		if buildRace && (!p.Standard || !raceExclude[p.ImportPath]) {
 			importPaths = append(importPaths, "runtime/race")
+		}
+		// MSan uses runtime/msan.
+		if buildMSan && (!p.Standard || !raceExclude[p.ImportPath]) {
+			importPaths = append(importPaths, "runtime/msan")
 		}
 		// On ARM with GOARM=5, everything depends on math for the link.
 		if p.Name == "main" && goarch == "arm" {
@@ -1604,15 +1611,24 @@ func packagesAndErrors(args []string) []*Package {
 	}
 
 	args = importPaths(args)
-	var pkgs []*Package
-	var stk importStack
-	var set = make(map[string]bool)
+	var (
+		pkgs    []*Package
+		stk     importStack
+		seenArg = make(map[string]bool)
+		seenPkg = make(map[*Package]bool)
+	)
 
 	for _, arg := range args {
-		if !set[arg] {
-			pkgs = append(pkgs, loadPackage(arg, &stk))
-			set[arg] = true
+		if seenArg[arg] {
+			continue
 		}
+		seenArg[arg] = true
+		pkg := loadPackage(arg, &stk)
+		if seenPkg[pkg] {
+			continue
+		}
+		seenPkg[pkg] = true
+		pkgs = append(pkgs, pkg)
 	}
 	computeStale(pkgs...)
 

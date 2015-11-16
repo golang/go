@@ -78,7 +78,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 
 		return
 
-	case 256 + ld.R_386_GOT32:
+	case 256 + ld.R_386_GOT32, 256 + ld.R_386_GOT32X:
 		if targ.Type != obj.SDYNIMPORT {
 			// have symbol
 			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
@@ -231,7 +231,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	ld.Thearch.Lput(uint32(sectoff))
 
-	elfsym := r.Xsym.Elfsym
+	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
 		return -1

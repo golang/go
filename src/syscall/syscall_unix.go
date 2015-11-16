@@ -166,6 +166,9 @@ func Read(fd int, p []byte) (n int, err error) {
 			raceAcquire(unsafe.Pointer(&ioSync))
 		}
 	}
+	if msanenabled && n > 0 {
+		msanWrite(unsafe.Pointer(&p[0]), n)
+	}
 	return
 }
 
@@ -176,6 +179,9 @@ func Write(fd int, p []byte) (n int, err error) {
 	n, err = write(fd, p)
 	if raceenabled && n > 0 {
 		raceReadRange(unsafe.Pointer(&p[0]), n)
+	}
+	if msanenabled && n > 0 {
+		msanRead(unsafe.Pointer(&p[0]), n)
 	}
 	return
 }

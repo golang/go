@@ -9,7 +9,10 @@ package syscall
 
 import "unsafe"
 
-const _SYS_dup = SYS_DUP2
+const (
+	_SYS_dup      = SYS_DUP2
+	_SYS_getdents = SYS_GETDENTS64
+)
 
 func Getpagesize() int { return 4096 }
 

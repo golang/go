@@ -23,7 +23,7 @@ type fixalloc struct {
 	first  func(arg, p unsafe.Pointer) // called first time p is returned
 	arg    unsafe.Pointer
 	list   *mlink
-	chunk  *byte
+	chunk  unsafe.Pointer
 	nchunk uint32
 	inuse  uintptr // in-use bytes now
 	stat   *uint64
@@ -40,7 +40,7 @@ type mlink struct {
 
 // Initialize f to allocate objects of the given size,
 // using the allocator to obtain chunks of memory.
-func fixAlloc_Init(f *fixalloc, size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
+func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
 	f.size = size
 	f.first = first
 	f.arg = arg
@@ -51,7 +51,7 @@ func fixAlloc_Init(f *fixalloc, size uintptr, first func(arg, p unsafe.Pointer),
 	f.stat = stat
 }
 
-func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
+func (f *fixalloc) alloc() unsafe.Pointer {
 	if f.size == 0 {
 		print("runtime: use of FixAlloc_Alloc before FixAlloc_Init\n")
 		throw("runtime: internal error")
@@ -64,21 +64,21 @@ func fixAlloc_Alloc(f *fixalloc) unsafe.Pointer {
 		return v
 	}
 	if uintptr(f.nchunk) < f.size {
-		f.chunk = (*uint8)(persistentalloc(_FixAllocChunk, 0, f.stat))
+		f.chunk = persistentalloc(_FixAllocChunk, 0, f.stat)
 		f.nchunk = _FixAllocChunk
 	}
 
-	v := unsafe.Pointer(f.chunk)
+	v := f.chunk
 	if f.first != nil {
 		f.first(f.arg, v)
 	}
-	f.chunk = (*byte)(add(unsafe.Pointer(f.chunk), f.size))
+	f.chunk = add(f.chunk, f.size)
 	f.nchunk -= uint32(f.size)
 	f.inuse += f.size
 	return v
 }
 
-func fixAlloc_Free(f *fixalloc, p unsafe.Pointer) {
+func (f *fixalloc) free(p unsafe.Pointer) {
 	f.inuse -= f.size
 	v := (*mlink)(p)
 	v.next = f.list

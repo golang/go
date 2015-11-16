@@ -50,7 +50,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	numBuckets      = 1 << 10
@@ -173,7 +176,7 @@ func SetCPUProfileRate(hz int) {
 			if n&0x80000000 != 0 {
 				print("runtime: setcpuprofile(off) twice\n")
 			}
-			if cas(&cpuprof.handoff, n, n|0x80000000) {
+			if atomic.Cas(&cpuprof.handoff, n, n|0x80000000) {
 				if n == 0 {
 					// we did the transition from 0 -> nonzero so we wake getprofile
 					notewakeup(&cpuprof.wait)
@@ -276,7 +279,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
 // so it cannot allocate memory or block.  It can try to swap logs with
 // the writing goroutine, as explained in the comment at the top of this file.
 func (p *cpuProfile) flushlog() bool {
-	if !cas(&p.handoff, 0, uint32(p.nlog)) {
+	if !atomic.Cas(&p.handoff, 0, uint32(p.nlog)) {
 		return false
 	}
 	notewakeup(&p.wait)
@@ -318,7 +321,7 @@ func (p *cpuProfile) getprofile() []byte {
 				p.flushing = true
 				goto Flush
 			}
-			if cas(&p.handoff, n, 0) {
+			if atomic.Cas(&p.handoff, n, 0) {
 				break
 			}
 		}
@@ -389,7 +392,7 @@ Flush:
 
 	// Finally done.  Clean up and return nil.
 	p.flushing = false
-	if !cas(&p.handoff, p.handoff, 0) {
+	if !atomic.Cas(&p.handoff, p.handoff, 0) {
 		print("runtime: profile flush racing with something\n")
 	}
 	return nil

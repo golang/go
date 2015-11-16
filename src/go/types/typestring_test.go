@@ -148,6 +148,7 @@ func TestQualifiedTypeString(t *testing.T) {
 		this *Package
 		want string
 	}{
+		{nil, nil, "<nil>"},
 		{pT, nil, "p.T"},
 		{pT, p, "T"},
 		{pT, q, "p.T"},

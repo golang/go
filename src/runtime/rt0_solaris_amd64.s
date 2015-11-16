@@ -13,6 +13,3 @@ TEXT _rt0_amd64_solaris(SB),NOSPLIT,$-8
 TEXT main(SB),NOSPLIT,$-8
 	MOVQ	$runtime·rt0_go(SB), AX
 	JMP	AX
-
-DATA runtime·issolaris(SB)/4, $1
-GLOBL runtime·issolaris(SB), NOPTR, $4

@@ -118,6 +118,7 @@ type Top struct {
 	Loop
 	Embed0p // has Point with X, Y, used
 	Embed0q // has Point with Z, used
+	embed   // contains exported field
 }
 
 type Embed0 struct {
@@ -146,6 +147,10 @@ type Embed0p struct {
 
 type Embed0q struct {
 	Point
+}
+
+type embed struct {
+	Q int
 }
 
 type Loop struct {
@@ -331,7 +336,8 @@ var unmarshalTests = []unmarshalTest{
 			"Loop2": 14,
 			"X": 15,
 			"Y": 16,
-			"Z": 17
+			"Z": 17,
+			"Q": 18
 		}`,
 		ptr: new(Top),
 		out: Top{
@@ -360,6 +366,9 @@ var unmarshalTests = []unmarshalTest{
 			},
 			Embed0q: Embed0q{
 				Point: Point{Z: 17},
+			},
+			embed: embed{
+				Q: 18,
 			},
 		},
 	},
@@ -507,12 +516,15 @@ func TestMarshalEmbeds(t *testing.T) {
 		Embed0q: Embed0q{
 			Point: Point{Z: 17},
 		},
+		embed: embed{
+			Q: 18,
+		},
 	}
 	b, err := Marshal(top)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17}"
+	want := "{\"Level0\":1,\"Level1b\":2,\"Level1c\":3,\"Level1a\":5,\"LEVEL1B\":6,\"e\":{\"Level1a\":8,\"Level1b\":9,\"Level1c\":10,\"Level1d\":11,\"x\":12},\"Loop1\":13,\"Loop2\":14,\"X\":15,\"Y\":16,\"Z\":17,\"Q\":18}"
 	if string(b) != want {
 		t.Errorf("Wrong marshal result.\n got: %q\nwant: %q", b, want)
 	}
@@ -1238,6 +1250,27 @@ func TestByteKind(t *testing.T) {
 	}
 	if !reflect.DeepEqual(a, b) {
 		t.Errorf("expected %v == %v", a, b)
+	}
+}
+
+// The fix for issue 8962 introduced a regression.
+// Issue 12921.
+func TestSliceOfCustomByte(t *testing.T) {
+	type Uint8 uint8
+
+	a := []Uint8("hello")
+
+	data, err := Marshal(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b []Uint8
+	err = Unmarshal(data, &b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(a, b) {
+		t.Fatal("expected %v == %v", a, b)
 	}
 }
 

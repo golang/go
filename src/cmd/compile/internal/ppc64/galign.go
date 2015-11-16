@@ -43,6 +43,11 @@ func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
 	gc.Widthreg = 8
+
+	if gc.Ctxt.Flag_shared != 0 {
+		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R2)
+		gc.Thearch.ReservedRegs = append(gc.Thearch.ReservedRegs, ppc64.REG_R12)
+	}
 }
 
 func Main() {

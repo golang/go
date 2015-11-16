@@ -71,7 +71,7 @@ func TypeString(typ Type, qf Qualifier) string {
 // The Qualifier controls the printing of
 // package-level objects, and may be nil.
 func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
-	writeType(buf, typ, qf, make([]Type, 8))
+	writeType(buf, typ, qf, make([]Type, 0, 8))
 }
 
 func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
@@ -272,7 +272,7 @@ func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visi
 // The Qualifier controls the printing of
 // package-level objects, and may be nil.
 func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
-	writeSignature(buf, sig, qf, make([]Type, 8))
+	writeSignature(buf, sig, qf, make([]Type, 0, 8))
 }
 
 func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {

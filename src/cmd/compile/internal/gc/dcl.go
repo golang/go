@@ -23,9 +23,7 @@ func dflag() bool {
 	return true
 }
 
-/*
- * declaration stack & operations
- */
+// declaration stack & operations
 func dcopy(a *Sym, b *Sym) {
 	a.Pkg = b.Pkg
 	a.Name = b.Name
@@ -149,13 +147,11 @@ func redeclare(s *Sym, where string) {
 
 var vargen int
 
-/*
- * declare individual names - var, typ, const
- */
+// declare individual names - var, typ, const
 
 var declare_typegen int
 
-func declare(n *Node, ctxt uint8) {
+func declare(n *Node, ctxt Class) {
 	if ctxt == PDISCARD {
 		return
 	}
@@ -221,12 +217,12 @@ func declare(n *Node, ctxt uint8) {
 	s.Def = n
 	n.Name.Vargen = int32(gen)
 	n.Name.Funcdepth = Funcdepth
-	n.Class = uint8(ctxt)
+	n.Class = ctxt
 
 	autoexport(n, ctxt)
 }
 
-func addvar(n *Node, t *Type, ctxt uint8) {
+func addvar(n *Node, t *Type, ctxt Class) {
 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
 		Fatalf("addvar: n=%v t=%v nil", n, t)
 	}
@@ -236,10 +232,8 @@ func addvar(n *Node, t *Type, ctxt uint8) {
 	n.Type = t
 }
 
-/*
- * declare variables from grammar
- * new_name_list (type | [type] = expr_list)
- */
+// declare variables from grammar
+// new_name_list (type | [type] = expr_list)
 func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 	var init *NodeList
 	doexpr := el != nil
@@ -302,10 +296,8 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 	return init
 }
 
-/*
- * declare constants from grammar
- * new_name_list [[type] = expr_list]
- */
+// declare constants from grammar
+// new_name_list [[type] = expr_list]
 func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 	lno := int32(0) // default is to leave line number alone in listtreecopy
 	if cl == nil {
@@ -350,10 +342,8 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 	return vv
 }
 
-/*
- * this generates a new name node,
- * typically for labels or other one-off names.
- */
+// this generates a new name node,
+// typically for labels or other one-off names.
 func newname(s *Sym) *Node {
 	if s == nil {
 		Fatalf("newname nil")
@@ -377,10 +367,8 @@ func newfuncname(s *Sym) *Node {
 	return n
 }
 
-/*
- * this generates a new name node for a name
- * being declared.
- */
+// this generates a new name node for a name
+// being declared.
 func dclname(s *Sym) *Node {
 	n := newname(s)
 	n.Op = ONONAME // caller will correct it
@@ -400,12 +388,10 @@ func typenod(t *Type) *Node {
 	return t.Nod
 }
 
-/*
- * this will return an old name
- * that has already been pushed on the
- * declaration list. a diagnostic is
- * generated if no name has been defined.
- */
+// this will return an old name
+// that has already been pushed on the
+// declaration list. a diagnostic is
+// generated if no name has been defined.
 func oldname(s *Sym) *Node {
 	n := s.Def
 	if n == nil {
@@ -450,9 +436,7 @@ func oldname(s *Sym) *Node {
 	return n
 }
 
-/*
- * := declarations
- */
+// := declarations
 func colasname(n *Node) bool {
 	switch n.Op {
 	case ONAME,
@@ -532,10 +516,8 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
 	return as
 }
 
-/*
- * declare the arguments in an
- * interface field declaration.
- */
+// declare the arguments in an
+// interface field declaration.
 func ifacedcl(n *Node) {
 	if n.Op != ODCLFIELD || n.Right == nil {
 		Fatalf("ifacedcl")
@@ -563,12 +545,10 @@ func ifacedcl(n *Node) {
 	funcbody(n)
 }
 
-/*
- * declare the function proper
- * and declare the arguments.
- * called in extern-declaration context
- * returns in auto-declaration context.
- */
+// declare the function proper
+// and declare the arguments.
+// called in extern-declaration context
+// returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
 	if Funcdepth == 0 && dclcontext != PEXTERN {
@@ -688,11 +668,9 @@ func funcargs(nt *Node) {
 	}
 }
 
-/*
- * Same as funcargs, except run over an already constructed TFUNC.
- * This happens during import, where the hidden_fndcl rule has
- * used functype directly to parse the function's type.
- */
+// Same as funcargs, except run over an already constructed TFUNC.
+// This happens during import, where the hidden_fndcl rule has
+// used functype directly to parse the function's type.
 func funcargs2(t *Type) {
 	if t.Etype != TFUNC {
 		Fatalf("funcargs2 %v", t)
@@ -735,11 +713,9 @@ func funcargs2(t *Type) {
 	}
 }
 
-/*
- * finish the body.
- * called in auto-declaration context.
- * returns in extern-declaration context.
- */
+// finish the body.
+// called in auto-declaration context.
+// returns in extern-declaration context.
 func funcbody(n *Node) {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
@@ -754,9 +730,7 @@ func funcbody(n *Node) {
 	}
 }
 
-/*
- * new type being defined with name s.
- */
+// new type being defined with name s.
 func typedcl0(s *Sym) *Node {
 	n := newname(s)
 	n.Op = OTYPE
@@ -764,21 +738,17 @@ func typedcl0(s *Sym) *Node {
 	return n
 }
 
-/*
- * node n, which was returned by typedcl0
- * is being declared to have uncompiled type t.
- * return the ODCLTYPE node to use.
- */
+// node n, which was returned by typedcl0
+// is being declared to have uncompiled type t.
+// return the ODCLTYPE node to use.
 func typedcl1(n *Node, t *Node, local bool) *Node {
 	n.Name.Param.Ntype = t
 	n.Local = local
 	return Nod(ODCLTYPE, n, nil)
 }
 
-/*
- * structs, functions, and methods.
- * they don't belong here, but where do they belong?
- */
+// structs, functions, and methods.
+// they don't belong here, but where do they belong?
 func checkembeddedtype(t *Type) {
 	if t == nil {
 		return
@@ -869,16 +839,21 @@ func checkdupfields(t *Type, what string) {
 	lineno = int32(lno)
 }
 
-/*
- * convert a parsed id/type list into
- * a type for struct/interface/arglist
- */
+// convert a parsed id/type list into
+// a type for struct/interface/arglist
 func tostruct(l *NodeList) *Type {
-	var f *Type
 	t := typ(TSTRUCT)
+	tostruct0(t, l)
+	return t
+}
+
+func tostruct0(t *Type, l *NodeList) {
+	if t == nil || t.Etype != TSTRUCT {
+		Fatalf("struct expected")
+	}
 
 	for tp := &t.Type; l != nil; l = l.Next {
-		f = structfield(l.N)
+		f := structfield(l.N)
 
 		*tp = f
 		tp = &f.Down
@@ -896,8 +871,6 @@ func tostruct(l *NodeList) *Type {
 	if !t.Broke {
 		checkwidth(t)
 	}
-
-	return t
 }
 
 func tofunargs(l *NodeList) *Type {
@@ -910,7 +883,7 @@ func tofunargs(l *NodeList) *Type {
 		f = structfield(l.N)
 		f.Funarg = true
 
-		// esc.c needs to find f given a PPARAM to add the tag.
+		// esc.go needs to find f given a PPARAM to add the tag.
 		if l.N.Left != nil && l.N.Left.Class == PPARAM {
 			l.N.Left.Name.Param.Field = f
 		}
@@ -996,18 +969,23 @@ func interfacefield(n *Node) *Type {
 }
 
 func tointerface(l *NodeList) *Type {
-	var f *Type
-	var t1 *Type
-
 	t := typ(TINTER)
+	tointerface0(t, l)
+	return t
+}
+
+func tointerface0(t *Type, l *NodeList) *Type {
+	if t == nil || t.Etype != TINTER {
+		Fatalf("interface expected")
+	}
 
 	tp := &t.Type
 	for ; l != nil; l = l.Next {
-		f = interfacefield(l.N)
+		f := interfacefield(l.N)
 
 		if l.N.Left == nil && f.Type.Etype == TINTER {
 			// embedded interface, inline methods
-			for t1 = f.Type.Type; t1 != nil; t1 = t1.Down {
+			for t1 := f.Type.Type; t1 != nil; t1 = t1.Down {
 				f = typ(TFIELD)
 				f.Type = t1.Type
 				f.Broke = t1.Broke
@@ -1065,9 +1043,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 	return n
 }
 
-/*
- * check that the list of declarations is either all anonymous or all named
- */
+// check that the list of declarations is either all anonymous or all named
 func findtype(l *NodeList) *Node {
 	for ; l != nil; l = l.Next {
 		if l.N.Op == OKEY {
@@ -1132,7 +1108,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 		// declarations, which are parsed by rules that don't
 		// use checkargs, but can happen for func literals in
 		// the inline bodies.
-		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.c prints _ instead of ?
+		// TODO(rsc) this can go when typefmt case TFIELD in exportmode fmt.go prints _ instead of ?
 		if importpkg != nil && n.Sym == nil {
 			n = nil
 		}
@@ -1172,12 +1148,9 @@ func fakethis() *Node {
 	return n
 }
 
-/*
- * Is this field a method on an interface?
- * Those methods have an anonymous
- * *struct{} as the receiver.
- * (See fakethis above.)
- */
+// Is this field a method on an interface?
+// Those methods have an anonymous *struct{} as the receiver.
+// (See fakethis above.)
 func isifacemethod(f *Type) bool {
 	rcvr := getthisx(f).Type
 	if rcvr.Sym != nil {
@@ -1194,12 +1167,17 @@ func isifacemethod(f *Type) bool {
 	return true
 }
 
-/*
- * turn a parsed function declaration
- * into a type
- */
+// turn a parsed function declaration into a type
 func functype(this *Node, in *NodeList, out *NodeList) *Type {
 	t := typ(TFUNC)
+	functype0(t, this, in, out)
+	return t
+}
+
+func functype0(t *Type, this *Node, in *NodeList, out *NodeList) {
+	if t == nil || t.Etype != TFUNC {
+		Fatalf("function type expected")
+	}
 
 	var rcvr *NodeList
 	if this != nil {
@@ -1230,8 +1208,6 @@ func functype(this *Node, in *NodeList, out *NodeList) *Type {
 			t.Outnamed = true
 		}
 	}
-
-	return t
 }
 
 var methodsym_toppkg *Pkg
@@ -1339,10 +1315,8 @@ func methodname1(n *Node, t *Node) *Node {
 	return n
 }
 
-/*
- * add a method, declared as a function,
- * n is fieldname, pa is base type, t is function type
- */
+// add a method, declared as a function,
+// n is fieldname, pa is base type, t is function type
 func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	// get field sym
 	if sf == nil {
@@ -1500,4 +1474,117 @@ func makefuncsym(s *Sym) {
 	s1.Def = newfuncname(s1)
 	s1.Def.Func.Shortname = newname(s)
 	funcsyms = append(funcsyms, s1.Def)
+}
+
+type nowritebarrierrecChecker struct {
+	curfn  *Node
+	stable bool
+
+	// best maps from the ODCLFUNC of each visited function that
+	// recursively invokes a write barrier to the called function
+	// on the shortest path to a write barrier.
+	best map[*Node]nowritebarrierrecCall
+}
+
+type nowritebarrierrecCall struct {
+	target *Node
+	depth  int
+	lineno int32
+}
+
+func checknowritebarrierrec() {
+	c := nowritebarrierrecChecker{
+		best: make(map[*Node]nowritebarrierrecCall),
+	}
+	visitBottomUp(xtop, func(list []*Node, recursive bool) {
+		// Functions with write barriers have depth 0.
+		for _, n := range list {
+			if n.Func.WBLineno != 0 {
+				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
+			}
+		}
+
+		// Propagate write barrier depth up from callees. In
+		// the recursive case, we have to update this at most
+		// len(list) times and can stop when we an iteration
+		// that doesn't change anything.
+		for _ = range list {
+			c.stable = false
+			for _, n := range list {
+				if n.Func.WBLineno == 0 {
+					c.curfn = n
+					c.visitcodelist(n.Nbody)
+				}
+			}
+			if c.stable {
+				break
+			}
+		}
+
+		// Check nowritebarrierrec functions.
+		for _, n := range list {
+			if !n.Func.Nowritebarrierrec {
+				continue
+			}
+			call, hasWB := c.best[n]
+			if !hasWB {
+				continue
+			}
+
+			// Build the error message in reverse.
+			err := ""
+			for call.target != nil {
+				err = fmt.Sprintf("\n\t%v: called by %v%s", Ctxt.Line(int(call.lineno)), n.Func.Nname, err)
+				n = call.target
+				call = c.best[n]
+			}
+			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
+			yyerrorl(int(n.Func.WBLineno), err)
+		}
+	})
+}
+
+func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
+	for ; l != nil; l = l.Next {
+		c.visitcode(l.N)
+	}
+}
+
+func (c *nowritebarrierrecChecker) visitcode(n *Node) {
+	if n == nil {
+		return
+	}
+
+	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
+		c.visitcall(n)
+	}
+
+	c.visitcodelist(n.Ninit)
+	c.visitcode(n.Left)
+	c.visitcode(n.Right)
+	c.visitcodelist(n.List)
+	c.visitcodelist(n.Nbody)
+	c.visitcodelist(n.Rlist)
+}
+
+func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+	fn := n.Left
+	if n.Op == OCALLMETH {
+		fn = n.Left.Right.Sym.Def
+	}
+	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+		return
+	}
+	defn := fn.Name.Defn
+
+	fnbest, ok := c.best[defn]
+	if !ok {
+		return
+	}
+	best, ok := c.best[c.curfn]
+	if ok && fnbest.depth+1 >= best.depth {
+		return
+	}
+	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Lineno}
+	c.stable = false
 }

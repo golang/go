@@ -27,7 +27,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package ppc64
+package mips
 
 import (
 	"cmd/internal/obj"
@@ -35,8 +35,8 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, Rconv)
-	obj.RegisterOpcode(obj.ABasePPC64, Anames)
+	obj.RegisterRegister(obj.RBaseMIPS64, REG_FCR0+1024, Rconv)
+	obj.RegisterOpcode(obj.ABaseMIPS64, Anames)
 }
 
 func Rconv(r int) string {
@@ -53,44 +53,26 @@ func Rconv(r int) string {
 	if REG_F0 <= r && r <= REG_F31 {
 		return fmt.Sprintf("F%d", r-REG_F0)
 	}
-	if REG_CR0 <= r && r <= REG_CR7 {
-		return fmt.Sprintf("CR%d", r-REG_CR0)
+	if REG_M0 <= r && r <= REG_M31 {
+		return fmt.Sprintf("M%d", r-REG_M0)
 	}
-	if r == REG_CR {
-		return "CR"
+	if REG_FCR0 <= r && r <= REG_FCR31 {
+		return fmt.Sprintf("FCR%d", r-REG_FCR0)
 	}
-	if REG_SPR0 <= r && r <= REG_SPR0+1023 {
-		switch r {
-		case REG_XER:
-			return "XER"
-
-		case REG_LR:
-			return "LR"
-
-		case REG_CTR:
-			return "CTR"
-		}
-
-		return fmt.Sprintf("SPR(%d)", r-REG_SPR0)
+	if r == REG_HI {
+		return "HI"
+	}
+	if r == REG_LO {
+		return "LO"
 	}
 
-	if REG_DCR0 <= r && r <= REG_DCR0+1023 {
-		return fmt.Sprintf("DCR(%d)", r-REG_DCR0)
-	}
-	if r == REG_FPSCR {
-		return "FPSCR"
-	}
-	if r == REG_MSR {
-		return "MSR"
-	}
-
-	return fmt.Sprintf("Rgok(%d)", r-obj.RBasePPC64)
+	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseMIPS64)
 }
 
 func DRconv(a int) string {
 	s := "C_??"
 	if a >= C_NONE && a <= C_NCLASS {
-		s = cnames9[a]
+		s = cnames0[a]
 	}
 	var fp string
 	fp += s

@@ -6,6 +6,10 @@ package runtime
 
 import "unsafe"
 
+type mOS struct {
+	waitsemacount uint32
+}
+
 //go:noescape
 func setitimer(mode int32, new, old *itimerval)
 

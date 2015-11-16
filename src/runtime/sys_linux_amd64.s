@@ -371,8 +371,14 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 // set tls base to DI
 TEXT runtime·settls(SB),NOSPLIT,$32
+#ifdef GOOS_android
+	// Same as in sys_darwin_386.s:/ugliness, different constant.
+	// DI currently holds m->tls, which must be fs:0x1d0.
+	// See cgo/gcc_android_amd64.c for the derivation of the constant.
+	SUBQ	$0x1d0, DI  // In android, the tls base 
+#else
 	ADDQ	$8, DI	// ELF wants to use -8(FS)
-
+#endif
 	MOVQ	DI, SI
 	MOVQ	$0x1002, DI	// ARCH_SET_FS
 	MOVQ	$158, AX	// arch_prctl
@@ -441,4 +447,34 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVQ    $1, DX  // FD_CLOEXEC
 	MOVL	$72, AX  // fcntl
 	SYSCALL
+	RET
+
+
+// int access(const char *name, int mode)
+TEXT runtime·access(SB),NOSPLIT,$0
+	MOVQ	name+0(FP), DI
+	MOVL	mode+8(FP), SI
+	MOVL	$21, AX  // syscall entry
+	SYSCALL
+	MOVL	AX, ret+16(FP)
+	RET
+
+// int connect(int fd, const struct sockaddr *addr, socklen_t addrlen)
+TEXT runtime·connect(SB),NOSPLIT,$0-28
+	MOVL	fd+0(FP), DI
+	MOVQ	addr+8(FP), SI
+	MOVL	addrlen+16(FP), DX
+	MOVL	$42, AX  // syscall entry
+	SYSCALL
+	MOVL	AX, ret+24(FP)
+	RET
+
+// int socket(int domain, int type, int protocol)
+TEXT runtime·socket(SB),NOSPLIT,$0-20
+	MOVL	domain+0(FP), DI
+	MOVL	type+4(FP), SI
+	MOVL	protocol+8(FP), DX
+	MOVL	$41, AX  // syscall entry
+	SYSCALL
+	MOVL	AX, ret+16(FP)
 	RET

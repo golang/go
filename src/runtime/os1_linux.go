@@ -4,9 +4,10 @@
 
 package runtime
 
-import "unsafe"
-
-var sigset_all sigset = sigset{^uint32(0), ^uint32(0)}
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Linux futex.
 //
@@ -46,7 +47,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 	// But on real 64-bit systems, where words are larger but the stack limit
 	// is not, even timediv is too heavy, and we really need to use just an
 	// ordinary machine instruction.
-	if ptrSize == 8 {
+	if sys.PtrSize == 8 {
 		ts.set_sec(ns / 1000000000)
 		ts.set_nsec(int32(ns % 1000000000))
 	} else {
@@ -76,18 +77,17 @@ func futexwakeup(addr *uint32, cnt uint32) {
 
 func getproccount() int32 {
 	// This buffer is huge (8 kB) but we are on the system stack
-	// and there should be plenty of space (64 kB) -- except on ARM where
-	// the system stack itself is only 8kb (see golang.org/issue/11873).
+	// and there should be plenty of space (64 kB).
 	// Also this is a leaf, so we're not holding up the memory for long.
 	// See golang.org/issue/11823.
 	// The suggested behavior here is to keep trying with ever-larger
 	// buffers, but we don't have a dynamic memory allocator at the
 	// moment, so that's a bit tricky and seems like overkill.
-	const maxCPUs = 64*1024*(1-goarch_arm) + 1024*goarch_arm
-	var buf [maxCPUs / (ptrSize * 8)]uintptr
+	const maxCPUs = 64 * 1024
+	var buf [maxCPUs / (sys.PtrSize * 8)]uintptr
 	r := sched_getaffinity(0, unsafe.Sizeof(buf), &buf[0])
 	n := int32(0)
-	for _, v := range buf[:r/ptrSize] {
+	for _, v := range buf[:r/sys.PtrSize] {
 		for v != 0 {
 			n += int32(v & 1)
 			v >>= 1
@@ -133,9 +133,8 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, "/", mp.tls[0], " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
 	// Disable signals during clone, so that the new thread starts
@@ -222,7 +221,7 @@ func minit() {
 	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
-			nmask[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
+			sigdelset(&nmask, i)
 		}
 	}
 	rtsigprocmask(_SIG_SETMASK, &nmask, nil, int32(unsafe.Sizeof(nmask)))
@@ -282,7 +281,7 @@ func setsig(i int32, fn uintptr, restart bool) {
 	if restart {
 		sa.sa_flags |= _SA_RESTART
 	}
-	sa.sa_mask = ^uint64(0)
+	sigfillset(&sa.sa_mask)
 	// Although Linux manpage says "sa_restorer element is obsolete and
 	// should not be used". x86_64 kernel requires it. Only use it on
 	// x86.
@@ -293,7 +292,8 @@ func setsig(i int32, fn uintptr, restart bool) {
 		fn = funcPC(sigtramp)
 	}
 	sa.sa_handler = fn
-	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
+	// Qemu rejects rt_sigaction of SIGRTMAX (64).
+	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 && i != 64 {
 		throw("rt_sigaction failure")
 	}
 }
@@ -339,12 +339,12 @@ func signalstack(s *stack) {
 
 func updatesigmask(m sigmask) {
 	var mask sigset
-	copy(mask[:], m[:])
+	sigcopyset(&mask, m)
 	rtsigprocmask(_SIG_SETMASK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }
 
 func unblocksig(sig int32) {
 	var mask sigset
-	mask[(sig-1)/32] |= 1 << ((uint32(sig) - 1) & 31)
+	sigaddset(&mask, int(sig))
 	rtsigprocmask(_SIG_UNBLOCK, &mask, nil, int32(unsafe.Sizeof(mask)))
 }

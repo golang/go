@@ -25,7 +25,7 @@ TEXT runtime·thr_start(SB),NOSPLIT,$0
 	MOVL	mm+0(FP), AX
 	MOVL	m_g0(AX), BX
 	LEAL	m_tls(AX), BP
-	MOVL	0(BP), DI
+	MOVL	m_id(AX), DI
 	ADDL	$7, DI
 	PUSHAL
 	PUSHL	$32

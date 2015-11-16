@@ -48,7 +48,6 @@ func syscall_unsetenv_c(k string) {
 
 func cstring(s string) unsafe.Pointer {
 	p := make([]byte, len(s)+1)
-	sp := (*_string)(unsafe.Pointer(&s))
-	memmove(unsafe.Pointer(&p[0]), unsafe.Pointer(sp.str), uintptr(len(s)))
+	copy(p, s)
 	return unsafe.Pointer(&p[0])
 }

@@ -22,11 +22,8 @@ func allocateTransient1M() {
 	}
 }
 
+//go:noinline
 func allocateTransient2M() {
-	// prevent inlining
-	if memSink == nil {
-		panic("bad")
-	}
 	memSink = make([]byte, 2<<20)
 }
 
@@ -76,18 +73,18 @@ func TestMemoryProfiler(t *testing.T) {
 
 	tests := []string{
 		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:43
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:66
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:40
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:63
 `, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
 
 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
 #	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:64
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:61
 `, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
 
 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
-#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:30
-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:65
+#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
+#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:62
 `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
 	}
 

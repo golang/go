@@ -6,6 +6,25 @@ package runtime
 
 import "unsafe"
 
+type mts struct {
+	tv_sec  int64
+	tv_nsec int64
+}
+
+type mscratch struct {
+	v [6]uintptr
+}
+
+type mOS struct {
+	waitsema uintptr // semaphore for parking on locks
+	perrno   *int32  // pointer to tls errno
+	// these are here because they are too large to be on the stack
+	// of low-level NOSPLIT functions.
+	//LibCall       libcall;
+	ts      mts
+	scratch mscratch
+}
+
 type libcFunc uintptr
 
 var asmsysvicall6 libcFunc

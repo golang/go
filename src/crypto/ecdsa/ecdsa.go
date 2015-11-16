@@ -27,6 +27,17 @@ import (
 	"math/big"
 )
 
+// A invertible implements fast inverse mod Curve.Params().N
+type invertible interface {
+	// Inverse returns the inverse of k in GF(P)
+	Inverse(k *big.Int) *big.Int
+}
+
+// combinedMult implements fast multiplication S1*g + S2*p (g - generator, p - arbitrary point)
+type combinedMult interface {
+	CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int)
+}
+
 const (
 	aesIV = "IV for ECDSA CTR"
 )
@@ -179,7 +190,12 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
 				return
 			}
 
-			kInv = fermatInverse(k, N)
+			if in, ok := priv.Curve.(invertible); ok {
+				kInv = in.Inverse(k)
+			} else {
+				kInv = fermatInverse(k, N)
+			}
+
 			r, _ = priv.Curve.ScalarBaseMult(k.Bytes())
 			r.Mod(r, N)
 			if r.Sign() != 0 {
@@ -214,16 +230,29 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
 		return false
 	}
 	e := hashToInt(hash, c)
-	w := new(big.Int).ModInverse(s, N)
+
+	var w *big.Int
+	if in, ok := c.(invertible); ok {
+		w = in.Inverse(s)
+	} else {
+		w = new(big.Int).ModInverse(s, N)
+	}
 
 	u1 := e.Mul(e, w)
 	u1.Mod(u1, N)
 	u2 := w.Mul(r, w)
 	u2.Mod(u2, N)
 
-	x1, y1 := c.ScalarBaseMult(u1.Bytes())
-	x2, y2 := c.ScalarMult(pub.X, pub.Y, u2.Bytes())
-	x, y := c.Add(x1, y1, x2, y2)
+	// Check if implements S1*g + S2*p
+	var x, y *big.Int
+	if opt, ok := c.(combinedMult); ok {
+		x, y = opt.CombinedMult(pub.X, pub.Y, u1.Bytes(), u2.Bytes())
+	} else {
+		x1, y1 := c.ScalarBaseMult(u1.Bytes())
+		x2, y2 := c.ScalarMult(pub.X, pub.Y, u2.Bytes())
+		x, y = c.Add(x1, y1, x2, y2)
+	}
+
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}

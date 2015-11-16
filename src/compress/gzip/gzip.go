@@ -25,7 +25,7 @@ const (
 // A Writer is an io.WriteCloser.
 // Writes to a Writer are compressed and written to w.
 type Writer struct {
-	Header
+	Header      // written at first call to Write, Flush, or Close
 	w           io.Writer
 	level       int
 	wroteHeader bool

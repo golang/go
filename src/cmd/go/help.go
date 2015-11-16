@@ -576,5 +576,10 @@ are:
 	-buildmode=exe
 		Build the listed main packages and everything they import into
 		executables. Packages not named main are ignored.
+
+	-buildmode=pie
+		Build the listed main packages and everything they import into
+		position independent executables (PIE). Packages not named
+		main are ignored.
 `,
 }

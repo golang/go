@@ -34,5 +34,9 @@ check issue8442.go
 check issue11097a.go
 check issue11097b.go
 
+if ! go run ptr.go; then
+	exit 1
+fi
+
 rm -rf errs _obj
 exit 0

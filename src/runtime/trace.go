@@ -12,7 +12,11 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Event types in the trace, args are given in square brackets.
 const (
@@ -66,7 +70,7 @@ const (
 	// and ppc64le.
 	// Tracing won't work reliably for architectures where cputicks is emulated
 	// by nanotime, so the value doesn't matter for those architectures.
-	traceTickDiv = 16 + 48*(goarch_386|goarch_amd64|goarch_amd64p32)
+	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64|sys.GoarchAmd64p32)
 	// Maximum number of PCs in a single stack trace.
 	// Since events contain only stack id rather than whole stack trace,
 	// we can allow quite large values here.
@@ -88,27 +92,27 @@ const (
 
 // trace is global tracing context.
 var trace struct {
-	lock          mutex     // protects the following members
-	lockOwner     *g        // to avoid deadlocks during recursive lock locks
-	enabled       bool      // when set runtime traces events
-	shutdown      bool      // set when we are waiting for trace reader to finish after setting enabled to false
-	headerWritten bool      // whether ReadTrace has emitted trace header
-	footerWritten bool      // whether ReadTrace has emitted trace footer
-	shutdownSema  uint32    // used to wait for ReadTrace completion
-	seqStart      uint64    // sequence number when tracing was started
-	ticksStart    int64     // cputicks when tracing was started
-	ticksEnd      int64     // cputicks when tracing was stopped
-	timeStart     int64     // nanotime when tracing was started
-	timeEnd       int64     // nanotime when tracing was stopped
-	reading       *traceBuf // buffer currently handed off to user
-	empty         *traceBuf // stack of empty buffers
-	fullHead      *traceBuf // queue of full buffers
-	fullTail      *traceBuf
+	lock          mutex       // protects the following members
+	lockOwner     *g          // to avoid deadlocks during recursive lock locks
+	enabled       bool        // when set runtime traces events
+	shutdown      bool        // set when we are waiting for trace reader to finish after setting enabled to false
+	headerWritten bool        // whether ReadTrace has emitted trace header
+	footerWritten bool        // whether ReadTrace has emitted trace footer
+	shutdownSema  uint32      // used to wait for ReadTrace completion
+	seqStart      uint64      // sequence number when tracing was started
+	ticksStart    int64       // cputicks when tracing was started
+	ticksEnd      int64       // cputicks when tracing was stopped
+	timeStart     int64       // nanotime when tracing was started
+	timeEnd       int64       // nanotime when tracing was stopped
+	reading       traceBufPtr // buffer currently handed off to user
+	empty         traceBufPtr // stack of empty buffers
+	fullHead      traceBufPtr // queue of full buffers
+	fullTail      traceBufPtr
 	reader        *g              // goroutine that called ReadTrace, or nil
 	stackTab      traceStackTable // maps stack traces to unique ids
 
-	bufLock mutex     // protects buf
-	buf     *traceBuf // global trace buffer, used when running without a p
+	bufLock mutex       // protects buf
+	buf     traceBufPtr // global trace buffer, used when running without a p
 }
 
 var traceseq uint64 // global trace sequence number
@@ -123,21 +127,21 @@ var traceseq uint64 // global trace sequence number
 // that used to call xadd64 and cputicks are sensitive to that.
 //go:nosplit
 func tracestamp() (seq uint64, ts int64) {
-	seq = atomicload64(&traceseq)
-	for seq&1 != 0 || !cas64(&traceseq, seq, seq+1) {
-		seq = atomicload64(&traceseq)
+	seq = atomic.Load64(&traceseq)
+	for seq&1 != 0 || !atomic.Cas64(&traceseq, seq, seq+1) {
+		seq = atomic.Load64(&traceseq)
 	}
 	ts = cputicks()
-	atomicstore64(&traceseq, seq+2)
+	atomic.Store64(&traceseq, seq+2)
 	return seq >> 1, ts
 }
 
 // traceBufHeader is per-P tracing buffer.
 type traceBufHeader struct {
-	link      *traceBuf               // in trace.empty/full
+	link      traceBufPtr             // in trace.empty/full
 	lastSeq   uint64                  // sequence number of last event
 	lastTicks uint64                  // when we wrote the last event
-	buf       []byte                  // trace data, always points to traceBuf.arr
+	pos       int                     // next write offset in arr
 	stk       [traceStackSize]uintptr // scratch buffer for traceback
 }
 
@@ -145,6 +149,19 @@ type traceBufHeader struct {
 type traceBuf struct {
 	traceBufHeader
 	arr [64<<10 - unsafe.Sizeof(traceBufHeader{})]byte // underlying buffer for traceBufHeader.buf
+}
+
+// traceBufPtr is a *traceBuf that is not traced by the garbage
+// collector and doesn't have write barriers. traceBufs are not
+// allocated from the GC'd heap, so this is safe, and are often
+// manipulated in contexts where write barriers are not allowed, so
+// this is necessary.
+type traceBufPtr uintptr
+
+func (tp traceBufPtr) ptr() *traceBuf   { return (*traceBuf)(unsafe.Pointer(tp)) }
+func (tp *traceBufPtr) set(b *traceBuf) { *tp = traceBufPtr(unsafe.Pointer(b)) }
+func traceBufPtrOf(b *traceBuf) traceBufPtr {
+	return traceBufPtr(unsafe.Pointer(b))
 }
 
 // StartTrace enables tracing for the current process.
@@ -232,14 +249,14 @@ func StopTrace() {
 			break
 		}
 		buf := p.tracebuf
-		if buf != nil {
+		if buf != 0 {
 			traceFullQueue(buf)
-			p.tracebuf = nil
+			p.tracebuf = 0
 		}
 	}
-	if trace.buf != nil && len(trace.buf.buf) != 0 {
+	if trace.buf != 0 && trace.buf.ptr().pos != 0 {
 		buf := trace.buf
-		trace.buf = nil
+		trace.buf = 0
 		traceFullQueue(buf)
 	}
 
@@ -274,23 +291,23 @@ func StopTrace() {
 		if p == nil {
 			break
 		}
-		if p.tracebuf != nil {
+		if p.tracebuf != 0 {
 			throw("trace: non-empty trace buffer in proc")
 		}
 	}
-	if trace.buf != nil {
+	if trace.buf != 0 {
 		throw("trace: non-empty global trace buffer")
 	}
-	if trace.fullHead != nil || trace.fullTail != nil {
+	if trace.fullHead != 0 || trace.fullTail != 0 {
 		throw("trace: non-empty full trace buffer")
 	}
-	if trace.reading != nil || trace.reader != nil {
+	if trace.reading != 0 || trace.reader != nil {
 		throw("trace: reading after shutdown")
 	}
-	for trace.empty != nil {
+	for trace.empty != 0 {
 		buf := trace.empty
-		trace.empty = buf.link
-		sysFree(unsafe.Pointer(buf), unsafe.Sizeof(*buf), &memstats.other_sys)
+		trace.empty = buf.ptr().link
+		sysFree(unsafe.Pointer(buf), unsafe.Sizeof(*buf.ptr()), &memstats.other_sys)
 	}
 	trace.shutdown = false
 	unlock(&trace.lock)
@@ -321,10 +338,10 @@ func ReadTrace() []byte {
 		return nil
 	}
 	// Recycle the old buffer.
-	if buf := trace.reading; buf != nil {
-		buf.link = trace.empty
+	if buf := trace.reading; buf != 0 {
+		buf.ptr().link = trace.empty
 		trace.empty = buf
-		trace.reading = nil
+		trace.reading = 0
 	}
 	// Write trace header.
 	if !trace.headerWritten {
@@ -334,18 +351,18 @@ func ReadTrace() []byte {
 		return []byte("go 1.5 trace\x00\x00\x00\x00")
 	}
 	// Wait for new data.
-	if trace.fullHead == nil && !trace.shutdown {
+	if trace.fullHead == 0 && !trace.shutdown {
 		trace.reader = getg()
 		goparkunlock(&trace.lock, "trace reader (blocked)", traceEvGoBlock, 2)
 		lock(&trace.lock)
 	}
 	// Write a buffer.
-	if trace.fullHead != nil {
+	if trace.fullHead != 0 {
 		buf := traceFullDequeue()
 		trace.reading = buf
 		trace.lockOwner = nil
 		unlock(&trace.lock)
-		return buf.buf
+		return buf.ptr().arr[:buf.ptr().pos]
 	}
 	// Write footer with timer frequency.
 	if !trace.footerWritten {
@@ -388,11 +405,11 @@ func ReadTrace() []byte {
 
 // traceReader returns the trace reader that should be woken up, if any.
 func traceReader() *g {
-	if trace.reader == nil || (trace.fullHead == nil && !trace.shutdown) {
+	if trace.reader == nil || (trace.fullHead == 0 && !trace.shutdown) {
 		return nil
 	}
 	lock(&trace.lock)
-	if trace.reader == nil || (trace.fullHead == nil && !trace.shutdown) {
+	if trace.reader == nil || (trace.fullHead == 0 && !trace.shutdown) {
 		unlock(&trace.lock)
 		return nil
 	}
@@ -405,8 +422,8 @@ func traceReader() *g {
 // traceProcFree frees trace buffer associated with pp.
 func traceProcFree(pp *p) {
 	buf := pp.tracebuf
-	pp.tracebuf = nil
-	if buf == nil {
+	pp.tracebuf = 0
+	if buf == 0 {
 		return
 	}
 	lock(&trace.lock)
@@ -415,27 +432,27 @@ func traceProcFree(pp *p) {
 }
 
 // traceFullQueue queues buf into queue of full buffers.
-func traceFullQueue(buf *traceBuf) {
-	buf.link = nil
-	if trace.fullHead == nil {
+func traceFullQueue(buf traceBufPtr) {
+	buf.ptr().link = 0
+	if trace.fullHead == 0 {
 		trace.fullHead = buf
 	} else {
-		trace.fullTail.link = buf
+		trace.fullTail.ptr().link = buf
 	}
 	trace.fullTail = buf
 }
 
 // traceFullDequeue dequeues from queue of full buffers.
-func traceFullDequeue() *traceBuf {
+func traceFullDequeue() traceBufPtr {
 	buf := trace.fullHead
-	if buf == nil {
-		return nil
+	if buf == 0 {
+		return 0
 	}
-	trace.fullHead = buf.link
-	if trace.fullHead == nil {
-		trace.fullTail = nil
+	trace.fullHead = buf.ptr().link
+	if trace.fullHead == 0 {
+		trace.fullTail = 0
 	}
-	buf.link = nil
+	buf.ptr().link = 0
 	return buf
 }
 
@@ -459,24 +476,22 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 		traceReleaseBuffer(pid)
 		return
 	}
-	buf := *bufp
+	buf := (*bufp).ptr()
 	const maxSize = 2 + 5*traceBytesPerNumber // event type, length, sequence, timestamp, stack id and two add params
-	if buf == nil || cap(buf.buf)-len(buf.buf) < maxSize {
-		buf = traceFlush(buf)
-		*bufp = buf
+	if buf == nil || len(buf.arr)-buf.pos < maxSize {
+		buf = traceFlush(traceBufPtrOf(buf)).ptr()
+		(*bufp).set(buf)
 	}
 
 	seq, ticksraw := tracestamp()
 	seqDiff := seq - buf.lastSeq
 	ticks := uint64(ticksraw) / traceTickDiv
 	tickDiff := ticks - buf.lastTicks
-	if len(buf.buf) == 0 {
-		data := buf.buf
-		data = append(data, traceEvBatch|1<<traceArgCountShift)
-		data = traceAppend(data, uint64(pid))
-		data = traceAppend(data, seq)
-		data = traceAppend(data, ticks)
-		buf.buf = data
+	if buf.pos == 0 {
+		buf.byte(traceEvBatch | 1<<traceArgCountShift)
+		buf.varint(uint64(pid))
+		buf.varint(seq)
+		buf.varint(ticks)
 		seqDiff = 0
 		tickDiff = 0
 	}
@@ -491,21 +506,21 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 	if narg > 3 {
 		narg = 3
 	}
-	data := buf.buf
-	data = append(data, ev|narg<<traceArgCountShift)
+	startPos := buf.pos
+	buf.byte(ev | narg<<traceArgCountShift)
 	var lenp *byte
 	if narg == 3 {
 		// Reserve the byte for length assuming that length < 128.
-		data = append(data, 0)
-		lenp = &data[len(data)-1]
+		buf.varint(0)
+		lenp = &buf.arr[buf.pos-1]
 	}
-	data = traceAppend(data, seqDiff)
-	data = traceAppend(data, tickDiff)
+	buf.varint(seqDiff)
+	buf.varint(tickDiff)
 	for _, a := range args {
-		data = traceAppend(data, a)
+		buf.varint(a)
 	}
 	if skip == 0 {
-		data = append(data, 0)
+		buf.varint(0)
 	} else if skip > 0 {
 		_g_ := getg()
 		gp := mp.curg
@@ -523,9 +538,9 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 			nstk-- // skip runtime.main
 		}
 		id := trace.stackTab.put(buf.stk[:nstk])
-		data = traceAppend(data, uint64(id))
+		buf.varint(uint64(id))
 	}
-	evSize := len(data) - len(buf.buf)
+	evSize := buf.pos - startPos
 	if evSize > maxSize {
 		throw("invalid length of trace event")
 	}
@@ -533,12 +548,11 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 		// Fill in actual length.
 		*lenp = byte(evSize - 2)
 	}
-	buf.buf = data
 	traceReleaseBuffer(pid)
 }
 
 // traceAcquireBuffer returns trace buffer to use and, if necessary, locks it.
-func traceAcquireBuffer() (mp *m, pid int32, bufp **traceBuf) {
+func traceAcquireBuffer() (mp *m, pid int32, bufp *traceBufPtr) {
 	mp = acquirem()
 	if p := mp.p.ptr(); p != nil {
 		return mp, p.id, &p.tracebuf
@@ -556,30 +570,28 @@ func traceReleaseBuffer(pid int32) {
 }
 
 // traceFlush puts buf onto stack of full buffers and returns an empty buffer.
-func traceFlush(buf *traceBuf) *traceBuf {
+func traceFlush(buf traceBufPtr) traceBufPtr {
 	owner := trace.lockOwner
 	dolock := owner == nil || owner != getg().m.curg
 	if dolock {
 		lock(&trace.lock)
 	}
-	if buf != nil {
-		if &buf.buf[0] != &buf.arr[0] {
-			throw("trace buffer overflow")
-		}
+	if buf != 0 {
 		traceFullQueue(buf)
 	}
-	if trace.empty != nil {
+	if trace.empty != 0 {
 		buf = trace.empty
-		trace.empty = buf.link
+		trace.empty = buf.ptr().link
 	} else {
-		buf = (*traceBuf)(sysAlloc(unsafe.Sizeof(traceBuf{}), &memstats.other_sys))
-		if buf == nil {
+		buf = traceBufPtr(sysAlloc(unsafe.Sizeof(traceBuf{}), &memstats.other_sys))
+		if buf == 0 {
 			throw("trace: out of memory")
 		}
 	}
-	buf.link = nil
-	buf.buf = buf.arr[:0]
-	buf.lastTicks = 0
+	bufp := buf.ptr()
+	bufp.link.set(nil)
+	bufp.pos = 0
+	bufp.lastTicks = 0
 	if dolock {
 		unlock(&trace.lock)
 	}
@@ -595,23 +607,45 @@ func traceAppend(buf []byte, v uint64) []byte {
 	return buf
 }
 
+// varint appends v to buf in little-endian-base-128 encoding.
+func (buf *traceBuf) varint(v uint64) {
+	pos := buf.pos
+	for ; v >= 0x80; v >>= 7 {
+		buf.arr[pos] = 0x80 | byte(v)
+		pos++
+	}
+	buf.arr[pos] = byte(v)
+	pos++
+	buf.pos = pos
+}
+
+// byte appends v to buf.
+func (buf *traceBuf) byte(v byte) {
+	buf.arr[buf.pos] = v
+	buf.pos++
+}
+
 // traceStackTable maps stack traces (arrays of PC's) to unique uint32 ids.
 // It is lock-free for reading.
 type traceStackTable struct {
 	lock mutex
 	seq  uint32
 	mem  traceAlloc
-	tab  [1 << 13]*traceStack
+	tab  [1 << 13]traceStackPtr
 }
 
 // traceStack is a single stack in traceStackTable.
 type traceStack struct {
-	link *traceStack
+	link traceStackPtr
 	hash uintptr
 	id   uint32
 	n    int
 	stk  [0]uintptr // real type [n]uintptr
 }
+
+type traceStackPtr uintptr
+
+func (tp traceStackPtr) ptr() *traceStack { return (*traceStack)(unsafe.Pointer(tp)) }
 
 // stack returns slice of PCs.
 func (ts *traceStack) stack() []uintptr {
@@ -656,7 +690,7 @@ func (tab *traceStackTable) put(pcs []uintptr) uint32 {
 func (tab *traceStackTable) find(pcs []uintptr, hash uintptr) uint32 {
 	part := int(hash % uintptr(len(tab.tab)))
 Search:
-	for stk := tab.tab[part]; stk != nil; stk = stk.link {
+	for stk := tab.tab[part].ptr(); stk != nil; stk = stk.link.ptr() {
 		if stk.hash == hash && stk.n == len(pcs) {
 			for i, stkpc := range stk.stack() {
 				if stkpc != pcs[i] {
@@ -671,19 +705,20 @@ Search:
 
 // newStack allocates a new stack of size n.
 func (tab *traceStackTable) newStack(n int) *traceStack {
-	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*ptrSize))
+	return (*traceStack)(tab.mem.alloc(unsafe.Sizeof(traceStack{}) + uintptr(n)*sys.PtrSize))
 }
 
 // dump writes all previously cached stacks to trace buffers,
 // releases all memory and resets state.
 func (tab *traceStackTable) dump() {
 	var tmp [(2 + traceStackSize) * traceBytesPerNumber]byte
-	buf := traceFlush(nil)
+	buf := traceFlush(0).ptr()
 	for _, stk := range tab.tab {
-		for ; stk != nil; stk = stk.link {
+		stk := stk.ptr()
+		for ; stk != nil; stk = stk.link.ptr() {
 			maxSize := 1 + (3+stk.n)*traceBytesPerNumber
-			if cap(buf.buf)-len(buf.buf) < maxSize {
-				buf = traceFlush(buf)
+			if len(buf.arr)-buf.pos < maxSize {
+				buf = traceFlush(traceBufPtrOf(buf)).ptr()
 			}
 			// Form the event in the temp buffer, we need to know the actual length.
 			tmpbuf := tmp[:0]
@@ -693,16 +728,14 @@ func (tab *traceStackTable) dump() {
 				tmpbuf = traceAppend(tmpbuf, uint64(pc))
 			}
 			// Now copy to the buffer.
-			data := buf.buf
-			data = append(data, traceEvStack|3<<traceArgCountShift)
-			data = traceAppend(data, uint64(len(tmpbuf)))
-			data = append(data, tmpbuf...)
-			buf.buf = data
+			buf.byte(traceEvStack | 3<<traceArgCountShift)
+			buf.varint(uint64(len(tmpbuf)))
+			buf.pos += copy(buf.arr[buf.pos:], tmpbuf)
 		}
 	}
 
 	lock(&trace.lock)
-	traceFullQueue(buf)
+	traceFullQueue(traceBufPtrOf(buf))
 	unlock(&trace.lock)
 
 	tab.mem.drop()
@@ -719,12 +752,12 @@ type traceAlloc struct {
 // traceAllocBlock is a block in traceAlloc.
 type traceAllocBlock struct {
 	next *traceAllocBlock
-	data [64<<10 - ptrSize]byte
+	data [64<<10 - sys.PtrSize]byte
 }
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
-	n = round(n, ptrSize)
+	n = round(n, sys.PtrSize)
 	if a.head == nil || a.off+n > uintptr(len(a.head.data)) {
 		if n > uintptr(len(a.head.data)) {
 			throw("trace: alloc too large")
@@ -773,7 +806,7 @@ func traceProcStop(pp *p) {
 }
 
 func traceGCStart() {
-	traceEvent(traceEvGCStart, 4)
+	traceEvent(traceEvGCStart, 3)
 }
 
 func traceGCDone() {

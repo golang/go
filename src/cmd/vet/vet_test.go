@@ -2,16 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// No testdata on Android.
-
-// +build !android
-
 package main_test
 
 import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,16 +29,11 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-func CanRun() bool {
+func MustHavePerl(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
-		// No Perl installed, can't run errcheck.
-		return false
-	case "nacl":
-		// Minimal and problematic file system.
-		return false
+		t.Skipf("skipping test: perl not available on %s", runtime.GOOS)
 	}
-	return true
 }
 
 var (
@@ -53,9 +45,10 @@ func Build(t *testing.T) {
 	if built {
 		return
 	}
-	if !CanRun() || failed {
+	testenv.MustHaveGoBuild(t)
+	MustHavePerl(t)
+	if failed {
 		t.Skip("cannot run on this environment")
-		return
 	}
 	cmd := exec.Command("go", "build", "-o", binary)
 	output, err := cmd.CombinedOutput()

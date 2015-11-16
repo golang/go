@@ -39,13 +39,13 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
 nocpuinfo:	
 	
 needtls:
-	LEAL	runtime·tls0(SB), DI
+	LEAL	runtime·m0+m_tls(SB), DI
 	CALL	runtime·settls(SB)
 
 	// store through it, to make sure it works
 	get_tls(BX)
 	MOVQ	$0x123, g(BX)
-	MOVQ	runtime·tls0(SB), AX
+	MOVQ	runtime·m0+m_tls(SB), AX
 	CMPQ	AX, $0x123
 	JEQ 2(PC)
 	MOVL	AX, 0	// abort
@@ -415,151 +415,12 @@ CALLFN(·call268435456, 268435456)
 CALLFN(·call536870912, 536870912)
 CALLFN(·call1073741824, 1073741824)
 
-// bool cas(int32 *val, int32 old, int32 new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
-TEXT runtime·cas(SB), NOSPLIT, $0-17
-	MOVL	ptr+0(FP), BX
-	MOVL	old+4(FP), AX
-	MOVL	new+8(FP), CX
-	LOCK
-	CMPXCHGL	CX, 0(BX)
-	SETEQ	ret+16(FP)
-	RET
-
-TEXT runtime·casuintptr(SB), NOSPLIT, $0-17
-	JMP	runtime·cas(SB)
-
-TEXT runtime·atomicloaduintptr(SB), NOSPLIT, $0-12
-	JMP	runtime·atomicload(SB)
-
-TEXT runtime·atomicloaduint(SB), NOSPLIT, $0-12
-	JMP	runtime·atomicload(SB)
-
-TEXT runtime·atomicstoreuintptr(SB), NOSPLIT, $0-12
-	JMP	runtime·atomicstore(SB)
-
-// bool	runtime·cas64(uint64 *val, uint64 old, uint64 new)
-// Atomically:
-//	if(*val == *old){
-//		*val = new;
-//		return 1;
-//	} else {
-//		return 0;
-//	}
-TEXT runtime·cas64(SB), NOSPLIT, $0-25
-	MOVL	ptr+0(FP), BX
-	MOVQ	old+8(FP), AX
-	MOVQ	new+16(FP), CX
-	LOCK
-	CMPXCHGQ	CX, 0(BX)
-	SETEQ	ret+24(FP)
-	RET
-
-// bool casp(void **val, void *old, void *new)
-// Atomically:
-//	if(*val == old){
-//		*val = new;
-//		return 1;
-//	} else
-//		return 0;
-TEXT runtime·casp1(SB), NOSPLIT, $0-17
-	MOVL	ptr+0(FP), BX
-	MOVL	old+4(FP), AX
-	MOVL	new+8(FP), CX
-	LOCK
-	CMPXCHGL	CX, 0(BX)
-	SETEQ	ret+16(FP)
-	RET
-
-// uint32 xadd(uint32 volatile *val, int32 delta)
-// Atomically:
-//	*val += delta;
-//	return *val;
-TEXT runtime·xadd(SB), NOSPLIT, $0-12
-	MOVL	ptr+0(FP), BX
-	MOVL	delta+4(FP), AX
-	MOVL	AX, CX
-	LOCK
-	XADDL	AX, 0(BX)
-	ADDL	CX, AX
-	MOVL	AX, ret+8(FP)
-	RET
-
-TEXT runtime·xadd64(SB), NOSPLIT, $0-24
-	MOVL	ptr+0(FP), BX
-	MOVQ	delta+8(FP), AX
-	MOVQ	AX, CX
-	LOCK
-	XADDQ	AX, 0(BX)
-	ADDQ	CX, AX
-	MOVQ	AX, ret+16(FP)
-	RET
-
-TEXT runtime·xadduintptr(SB), NOSPLIT, $0-12
-	JMP	runtime·xadd(SB)
-
-TEXT runtime·xchg(SB), NOSPLIT, $0-12
-	MOVL	ptr+0(FP), BX
-	MOVL	new+4(FP), AX
-	XCHGL	AX, 0(BX)
-	MOVL	AX, ret+8(FP)
-	RET
-
-TEXT runtime·xchg64(SB), NOSPLIT, $0-24
-	MOVL	ptr+0(FP), BX
-	MOVQ	new+8(FP), AX
-	XCHGQ	AX, 0(BX)
-	MOVQ	AX, ret+16(FP)
-	RET
-
-TEXT runtime·xchguintptr(SB), NOSPLIT, $0-12
-	JMP	runtime·xchg(SB)
-
 TEXT runtime·procyield(SB),NOSPLIT,$0-0
 	MOVL	cycles+0(FP), AX
 again:
 	PAUSE
 	SUBL	$1, AX
 	JNZ	again
-	RET
-
-TEXT runtime·atomicstorep1(SB), NOSPLIT, $0-8
-	MOVL	ptr+0(FP), BX
-	MOVL	val+4(FP), AX
-	XCHGL	AX, 0(BX)
-	RET
-
-TEXT runtime·atomicstore(SB), NOSPLIT, $0-8
-	MOVL	ptr+0(FP), BX
-	MOVL	val+4(FP), AX
-	XCHGL	AX, 0(BX)
-	RET
-
-TEXT runtime·atomicstore64(SB), NOSPLIT, $0-16
-	MOVL	ptr+0(FP), BX
-	MOVQ	val+8(FP), AX
-	XCHGQ	AX, 0(BX)
-	RET
-
-// void	runtime·atomicor8(byte volatile*, byte);
-TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
-	MOVL	ptr+0(FP), BX
-	MOVB	val+4(FP), AX
-	LOCK
-	ORB	AX, 0(BX)
-	RET
-
-// void	runtime·atomicand8(byte volatile*, byte);
-TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
-	MOVL	ptr+0(FP), BX
-	MOVB	val+4(FP), AX
-	LOCK
-	ANDB	AX, 0(BX)
 	RET
 
 TEXT ·publicationBarrier(SB),NOSPLIT,$0-0
@@ -629,6 +490,9 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	MOVQ	BX, CX
 	REP
 	STOSB
+	// Note: we zero only 4 bytes at a time so that the tail is at most
+	// 3 bytes.  That guarantees that we aren't zeroing pointers with STOSB.
+	// See issue 13160.
 	RET
 
 TEXT runtime·getcallerpc(SB),NOSPLIT,$8-12

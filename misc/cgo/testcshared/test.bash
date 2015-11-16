@@ -81,7 +81,7 @@ GOPATH=$(pwd) go install -buildmode=c-shared $suffix libgo
 GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo.$libext src/libgo/libgo.go
 binpush libgo.$libext
 
-if [ "$goos" == "linux" ]; then
+if [ "$goos" == "linux" ] || [ "$goos" == "android" ] ; then
     if readelf -d libgo.$libext | grep TEXTREL >/dev/null; then
         echo "libgo.$libext has TEXTREL set"
         exit 1
@@ -114,7 +114,7 @@ if [ "$output" != "PASS" ]; then
 fi
 
 # test2: tests libgo2 which does not export any functions.
-GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext src/libgo2/libgo2.go
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo2.$libext libgo2
 binpush libgo2.$libext
 linkflags="-Wl,--no-as-needed"
 if [ "$goos" == "darwin" ]; then
