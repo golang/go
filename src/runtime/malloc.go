@@ -414,7 +414,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 				h.arena_used = used
 				h.arena_reserved = reserved
 			} else {
-				var stat uint64
+				// We haven't added this allocation to
+				// the stats, so subtract it from a
+				// fake stat (but avoid underflow).
+				stat := uint64(p_size)
 				sysFree(unsafe.Pointer(p), p_size, &stat)
 			}
 		}
