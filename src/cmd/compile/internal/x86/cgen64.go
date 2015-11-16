@@ -113,19 +113,18 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		gins(x86.ASUBL, &lo2, &ax)
 		gins(x86.ASBBL, &hi2, &dx)
 
-		// let's call the next two EX and FX.
 	case gc.OMUL:
-		var ex gc.Node
+		// let's call the next three EX, FX and GX
+		var ex, fx, gx gc.Node
 		gc.Regalloc(&ex, gc.Types[gc.TPTR32], nil)
-
-		var fx gc.Node
 		gc.Regalloc(&fx, gc.Types[gc.TPTR32], nil)
+		gc.Regalloc(&gx, gc.Types[gc.TPTR32], nil)
 
-		// load args into DX:AX and EX:CX.
+		// load args into DX:AX and EX:GX.
 		gins(x86.AMOVL, &lo1, &ax)
 
 		gins(x86.AMOVL, &hi1, &dx)
-		gins(x86.AMOVL, &lo2, &cx)
+		gins(x86.AMOVL, &lo2, &gx)
 		gins(x86.AMOVL, &hi2, &ex)
 
 		// if DX and EX are zero, use 32 x 32 -> 64 unsigned multiply.
@@ -133,25 +132,26 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		gins(x86.AORL, &ex, &fx)
 		p1 := gc.Gbranch(x86.AJNE, nil, 0)
-		gins(x86.AMULL, &cx, nil) // implicit &ax
+		gins(x86.AMULL, &gx, nil) // implicit &ax
 		p2 := gc.Gbranch(obj.AJMP, nil, 0)
 		gc.Patch(p1, gc.Pc)
 
 		// full 64x64 -> 64, from 32x32 -> 64.
-		gins(x86.AIMULL, &cx, &dx)
+		gins(x86.AIMULL, &gx, &dx)
 
 		gins(x86.AMOVL, &ax, &fx)
 		gins(x86.AIMULL, &ex, &fx)
 		gins(x86.AADDL, &dx, &fx)
-		gins(x86.AMOVL, &cx, &dx)
+		gins(x86.AMOVL, &gx, &dx)
 		gins(x86.AMULL, &dx, nil) // implicit &ax
 		gins(x86.AADDL, &fx, &dx)
 		gc.Patch(p2, gc.Pc)
 
 		gc.Regfree(&ex)
 		gc.Regfree(&fx)
+		gc.Regfree(&gx)
 
-		// We only rotate by a constant c in [0,64).
+	// We only rotate by a constant c in [0,64).
 	// if c >= 32:
 	//	lo, hi = hi, lo
 	//	c -= 32
@@ -486,8 +486,8 @@ func cgen64(n *gc.Node, res *gc.Node) {
 
 		gins(x86.AMOVL, &lo1, &ax)
 		gins(x86.AMOVL, &hi1, &dx)
-		gins(optoas(int(n.Op), lo1.Type), &lo2, &ax)
-		gins(optoas(int(n.Op), lo1.Type), &hi2, &dx)
+		gins(optoas(n.Op, lo1.Type), &lo2, &ax)
+		gins(optoas(n.Op, lo1.Type), &hi2, &dx)
 	}
 
 	if gc.Is64(r.Type) {
@@ -505,7 +505,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
  * generate comparison of nl, nr, both 64-bit.
  * nl is memory; nr is constant or memory.
  */
-func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+func cmp64(nl *gc.Node, nr *gc.Node, op gc.Op, likely int, to *obj.Prog) {
 	var lo1 gc.Node
 	var hi1 gc.Node
 	var lo2 gc.Node

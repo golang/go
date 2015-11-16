@@ -91,6 +91,12 @@ func checkValue(fname string, ln int, name string, want, got int64) {
 }
 
 func getMemProfileRecords() []runtime.MemProfileRecord {
+	// Force the runtime to update the object and byte counts.
+	// This can take up to two GC cycles to get a complete
+	// snapshot of the current point in time.
+	runtime.GC()
+	runtime.GC()
+
 	// Find out how many records there are (MemProfile(nil, true)),
 	// allocate that many records, and get the data.
 	// There's a race—more records might be added between

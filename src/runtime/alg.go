@@ -4,11 +4,14 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
-	c0 = uintptr((8-ptrSize)/4*2860486313 + (ptrSize-4)/4*33054211828000289)
-	c1 = uintptr((8-ptrSize)/4*3267000013 + (ptrSize-4)/4*23344194077549503)
+	c0 = uintptr((8-sys.PtrSize)/4*2860486313 + (sys.PtrSize-4)/4*33054211828000289)
+	c1 = uintptr((8-sys.PtrSize)/4*3267000013 + (sys.PtrSize-4)/4*23344194077549503)
 )
 
 // type algorithms - known to compiler
@@ -226,18 +229,12 @@ func strequal(p, q unsafe.Pointer) bool {
 	return *(*string)(p) == *(*string)(q)
 }
 func interequal(p, q unsafe.Pointer) bool {
-	return ifaceeq(*(*interface {
-		f()
-	})(p), *(*interface {
-		f()
-	})(q))
+	return ifaceeq(*(*iface)(p), *(*iface)(q))
 }
 func nilinterequal(p, q unsafe.Pointer) bool {
-	return efaceeq(*(*interface{})(p), *(*interface{})(q))
+	return efaceeq(*(*eface)(p), *(*eface)(q))
 }
-func efaceeq(p, q interface{}) bool {
-	x := (*eface)(unsafe.Pointer(&p))
-	y := (*eface)(unsafe.Pointer(&q))
+func efaceeq(x, y eface) bool {
 	t := x._type
 	if t != y._type {
 		return false
@@ -254,11 +251,7 @@ func efaceeq(p, q interface{}) bool {
 	}
 	return eq(x.data, y.data)
 }
-func ifaceeq(p, q interface {
-	f()
-}) bool {
-	x := (*iface)(unsafe.Pointer(&p))
-	y := (*iface)(unsafe.Pointer(&q))
+func ifaceeq(x, y iface) bool {
 	xtab := x.tab
 	if xtab != y.tab {
 		return false
@@ -311,7 +304,7 @@ func memclrBytes(b []byte) {
 	memclr(s.array, uintptr(s.len))
 }
 
-const hashRandomBytes = ptrSize / 4 * 64
+const hashRandomBytes = sys.PtrSize / 4 * 64
 
 // used in asm_{386,amd64}.s to seed the hash function
 var aeskeysched [hashRandomBytes]byte
@@ -334,7 +327,7 @@ func init() {
 		getRandomData(aeskeysched[:])
 		return
 	}
-	getRandomData((*[len(hashkey) * ptrSize]byte)(unsafe.Pointer(&hashkey))[:])
+	getRandomData((*[len(hashkey) * sys.PtrSize]byte)(unsafe.Pointer(&hashkey))[:])
 	hashkey[0] |= 1 // make sure these numbers are odd
 	hashkey[1] |= 1
 	hashkey[2] |= 1

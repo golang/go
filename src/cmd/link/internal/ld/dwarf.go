@@ -1187,7 +1187,7 @@ func substitutetype(structdie *DWDie, field string, dwtype *DWDie) {
 }
 
 func synthesizestringtypes(die *DWDie) {
-	prototype := walktypedef(defgotype(lookup_or_diag("type.runtime._string")))
+	prototype := walktypedef(defgotype(lookup_or_diag("type.runtime.stringStructDWARF")))
 	if prototype == nil {
 		return
 	}
@@ -1717,10 +1717,7 @@ func writelines() {
 
 			case obj.A_PARAM:
 				dt = DW_ABRV_PARAM
-				offs = int64(a.Aoffset)
-				if haslinkregister() {
-					offs += int64(Thearch.Ptrsize)
-				}
+				offs = int64(a.Aoffset) + Ctxt.FixedFrameSize()
 
 			default:
 				continue
@@ -2312,7 +2309,7 @@ func dwarfaddshstrings(shstrtab *LSym) {
 	elfstrdbg[ElfStrGDBScripts] = Addstring(shstrtab, ".debug_gdb_scripts")
 	if Linkmode == LinkExternal {
 		switch Thearch.Thechar {
-		case '6', '7', '9':
+		case '0', '6', '7', '9':
 			elfstrdbg[ElfStrRelDebugInfo] = Addstring(shstrtab, ".rela.debug_info")
 			elfstrdbg[ElfStrRelDebugAranges] = Addstring(shstrtab, ".rela.debug_aranges")
 			elfstrdbg[ElfStrRelDebugLine] = Addstring(shstrtab, ".rela.debug_line")
@@ -2365,7 +2362,7 @@ func dwarfaddelfsectionsyms() {
 func dwarfaddelfrelocheader(elfstr int, shdata *ElfShdr, off int64, size int64) {
 	sh := newElfShdr(elfstrdbg[elfstr])
 	switch Thearch.Thechar {
-	case '6', '7', '9':
+	case '0', '6', '7', '9':
 		sh.type_ = SHT_RELA
 	default:
 		sh.type_ = SHT_REL

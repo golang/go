@@ -65,10 +65,8 @@ type Image struct {
 	min, max Rect
 }
 
+//go:noinline
 func NewImage() Image {
-	var pleaseDoNotInlineMe stack
-	pleaseDoNotInlineMe.push(1)
-	_ = pleaseDoNotInlineMe.pop()
 	return Image{}
 }
 
@@ -113,11 +111,8 @@ type RpcChan struct {
 
 var makeChanCalls int
 
+//go:noinline
 func makeChan() *RpcChan {
-	var pleaseDoNotInlineMe stack
-	pleaseDoNotInlineMe.push(1)
-	_ = pleaseDoNotInlineMe.pop()
-
 	makeChanCalls++
 	c := &RpcChan{make(chan bool, 1)}
 	c.c <- true

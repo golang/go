@@ -243,7 +243,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
 	get_tls(AX)
 	MOVQ	g(AX), BX
 	MOVQ	g_m(BX), BX
-	MOVQ	m_errstr(BX), CX
+	MOVQ	(m_mOS+mOS_errstr)(BX), CX
 	MOVQ	CX, 0(SP)
 	MOVQ	$ERRMAX, 8(SP)
 	CALL	errstr<>(SB)

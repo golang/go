@@ -261,7 +261,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
 	// Scan to newline. Backslashes escape newlines.
 	for tok != '\n' {
 		if tok == scanner.EOF {
-			in.Error("missing newline in macro definition for %q\n", name)
+			in.Error("missing newline in definition for macro:", name)
 		}
 		if tok == '\\' {
 			tok = in.Stack.Next()

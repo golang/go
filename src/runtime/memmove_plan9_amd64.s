@@ -43,7 +43,8 @@ tail:
 	CMPQ	BX, $4
 	JBE	move_3or4
 	CMPQ	BX, $8
-	JBE	move_5through8
+	JB	move_5through7
+	JE	move_8
 	CMPQ	BX, $16
 	JBE	move_9through16
 
@@ -113,11 +114,16 @@ move_3or4:
 	MOVW	AX, (DI)
 	MOVW	CX, -2(DI)(BX*1)
 	RET
-move_5through8:
+move_5through7:
 	MOVL	(SI), AX
 	MOVL	-4(SI)(BX*1), CX
 	MOVL	AX, (DI)
 	MOVL	CX, -4(DI)(BX*1)
+	RET
+move_8:
+	// We need a separate case for 8 to make sure we write pointers atomically.
+	MOVQ	(SI), AX
+	MOVQ	AX, (DI)
 	RET
 move_9through16:
 	MOVQ	(SI), AX

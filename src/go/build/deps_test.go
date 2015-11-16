@@ -34,9 +34,11 @@ import (
 //
 var pkgDeps = map[string][]string{
 	// L0 is the lowest level, core, nearly unavoidable packages.
-	"errors":      {},
-	"io":          {"errors", "sync"},
-	"runtime":     {"unsafe"},
+	"errors":                  {},
+	"io":                      {"errors", "sync"},
+	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
+	"runtime/internal/sys":    {},
+	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
 	"sync":        {"runtime", "sync/atomic", "unsafe"},
 	"sync/atomic": {"unsafe"},
 	"unsafe":      {},
@@ -45,6 +47,7 @@ var pkgDeps = map[string][]string{
 		"errors",
 		"io",
 		"runtime",
+		"runtime/internal/atomic",
 		"sync",
 		"sync/atomic",
 		"unsafe",
@@ -263,8 +266,9 @@ var pkgDeps = map[string][]string{
 	// that shows up in programs that use cgo.
 	"C": {},
 
-	// Race detector uses cgo.
+	// Race detector/MSan uses cgo.
 	"runtime/race": {"C"},
+	"runtime/msan": {"C"},
 
 	// Plan 9 alone needs io/ioutil and os.
 	"os/user": {"L4", "CGO", "io/ioutil", "os", "syscall"},
@@ -360,7 +364,7 @@ var pkgDeps = map[string][]string{
 	"net/http/cgi":       {"L4", "NET", "OS", "crypto/tls", "net/http", "regexp"},
 	"net/http/cookiejar": {"L4", "NET", "net/http"},
 	"net/http/fcgi":      {"L4", "NET", "OS", "net/http", "net/http/cgi"},
-	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http"},
+	"net/http/httptest":  {"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal"},
 	"net/http/httputil":  {"L4", "NET", "OS", "net/http", "net/http/internal"},
 	"net/http/pprof":     {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
 	"net/rpc":            {"L4", "NET", "encoding/gob", "html/template", "net/http"},
@@ -455,26 +459,23 @@ func TestDependencies(t *testing.T) {
 	}
 	sort.Strings(all)
 
-	test := func(mustImport bool) {
-		for _, pkg := range all {
-			imports, err := findImports(pkg)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-			ok := allowed(pkg)
-			var bad []string
-			for _, imp := range imports {
-				if !ok[imp] {
-					bad = append(bad, imp)
-				}
-			}
-			if bad != nil {
-				t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+	for _, pkg := range all {
+		imports, err := findImports(pkg)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		ok := allowed(pkg)
+		var bad []string
+		for _, imp := range imports {
+			if !ok[imp] {
+				bad = append(bad, imp)
 			}
 		}
+		if bad != nil {
+			t.Errorf("unexpected dependency: %s imports %v", pkg, bad)
+		}
 	}
-	test(true)
 }
 
 var buildIgnore = []byte("\n// +build ignore")

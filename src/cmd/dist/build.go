@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,8 +45,7 @@ var (
 	rebuildall       bool
 	defaultclang     bool
 
-	sflag bool // build static binaries
-	vflag int  // verbosity
+	vflag int // verbosity
 )
 
 // The known architectures.
@@ -55,6 +55,8 @@ var okgoarch = []string{
 	"amd64p32",
 	"arm",
 	"arm64",
+	"mips64",
+	"mips64le",
 	"ppc64",
 	"ppc64le",
 }
@@ -462,7 +464,7 @@ var deptab = []struct {
 	{"cmd/go", []string{
 		"zdefaultcc.go",
 	}},
-	{"runtime", []string{
+	{"runtime/internal/sys", []string{
 		"zversion.go",
 	}},
 }
@@ -619,7 +621,7 @@ func install(dir string) {
 	}
 
 	// For package runtime, copy some files into the work space.
-	if dir == "runtime" {
+	if dir == "runtime" || strings.HasPrefix(dir, "runtime/internal/") {
 		xmkdirall(pathf("%s/pkg/include", goroot))
 		// For use by assembly and C files.
 		copyfile(pathf("%s/pkg/include/textflag.h", goroot),
@@ -908,6 +910,8 @@ func clean() {
 		// Remove installed packages and tools.
 		xremoveall(pathf("%s/pkg/%s_%s", goroot, gohostos, gohostarch))
 		xremoveall(pathf("%s/pkg/%s_%s", goroot, goos, goarch))
+		xremoveall(pathf("%s/pkg/%s_%s_race", goroot, gohostos, gohostarch))
+		xremoveall(pathf("%s/pkg/%s_%s_race", goroot, goos, goarch))
 		xremoveall(tooldir)
 
 		// Remove cached version info.
@@ -980,7 +984,6 @@ func cmdenv() {
 // stopping at having installed the go_bootstrap command.
 func cmdbootstrap() {
 	flag.BoolVar(&rebuildall, "a", rebuildall, "rebuild all")
-	flag.BoolVar(&sflag, "s", sflag, "build static binaries")
 	xflagparse(0)
 
 	if isdir(pathf("%s/src/pkg", goroot)) {
@@ -1000,6 +1003,7 @@ func cmdbootstrap() {
 	setup()
 
 	checkCC()
+	copyLibgcc()
 	bootstrapBuildTools()
 
 	// For the main bootstrap, building for host os/arch.
@@ -1108,6 +1112,53 @@ func checkCC() {
 	}
 }
 
+// copyLibgcc copies the C compiler's libgcc into the pkg directory.
+func copyLibgcc() {
+	if !needCC() {
+		return
+	}
+	var args []string
+	switch goarch {
+	case "386":
+		args = []string{"-m32"}
+	case "amd64", "amd64p32":
+		args = []string{"-m64"}
+	case "arm":
+		args = []string{"-marm"}
+	}
+	args = append(args, "--print-libgcc-file-name")
+	output, err := exec.Command(defaultcctarget, args...).Output()
+	if err != nil {
+		fatal("cannot find libgcc file name: %v", err)
+	}
+	libgcc := strings.TrimSpace(string(output))
+	if len(libgcc) == 0 {
+		return
+	}
+	in, err := os.Open(libgcc)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		fatal("cannot open libgcc for copying: %v", err)
+	}
+	defer in.Close()
+	outdir := filepath.Join(goroot, "pkg", "libgcc", goos+"_"+goarch)
+	if err := os.MkdirAll(outdir, 0777); err != nil {
+		fatal("cannot create libgcc.a directory: %v", err)
+	}
+	out, err := os.Create(filepath.Join(outdir, "libgcc"))
+	if err != nil {
+		fatal("cannot create libgcc.a for copying: %v", err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		fatal("error copying libgcc: %v", err)
+	}
+	if err := out.Close(); err != nil {
+		fatal("error closing new libgcc: %v", err)
+	}
+}
+
 func defaulttarg() string {
 	// xgetwd might return a path with symlinks fully resolved, and if
 	// there happens to be symlinks in goroot, then the hasprefix test
@@ -1128,7 +1179,6 @@ func defaulttarg() string {
 
 // Install installs the list of packages named on the command line.
 func cmdinstall() {
-	flag.BoolVar(&sflag, "s", sflag, "build static binaries")
 	xflagparse(-1)
 
 	if flag.NArg() == 0 {

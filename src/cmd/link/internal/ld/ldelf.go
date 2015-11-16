@@ -551,6 +551,12 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 		Diag("%s: elf %s unimplemented", pn, Thestring)
 		return
 
+	case '0':
+		if elfobj.machine != ElfMachMips || hdr.Ident[4] != ElfClass64 {
+			Diag("%s: elf object but not mips64", pn)
+			return
+		}
+
 	case '5':
 		if e != binary.LittleEndian || elfobj.machine != ElfMachArm || hdr.Ident[4] != ElfClass32 {
 			Diag("%s: elf object but not arm", pn)
@@ -765,6 +771,13 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
 				continue
 			}
+
+			if sym.name == "" && sym.type_ == 0 && sect.name == ".debug_str" {
+				// This reportedly happens with clang 3.7 on ARM.
+				// See issue 13139.
+				continue
+			}
+
 			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
 			continue
 		}
@@ -1063,7 +1076,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = linknewsym(Ctxt, sym.name, 0)
+				s = Linklookup(Ctxt, sym.name, 0)
 				if sym.other == 2 {
 					s.Type |= obj.SHIDDEN
 				}
@@ -1137,12 +1150,15 @@ func reltype(pn string, elftype int, siz *uint8) int {
 		'6' | R_X86_64_PC32<<24,
 		'6' | R_X86_64_PLT32<<24,
 		'6' | R_X86_64_GOTPCREL<<24,
+		'6' | R_X86_64_GOTPCRELX<<24,
+		'6' | R_X86_64_REX_GOTPCRELX<<24,
 		'8' | R_386_32<<24,
 		'8' | R_386_PC32<<24,
 		'8' | R_386_GOT32<<24,
 		'8' | R_386_PLT32<<24,
 		'8' | R_386_GOTOFF<<24,
 		'8' | R_386_GOTPC<<24,
+		'8' | R_386_GOT32X<<24,
 		'9' | R_PPC64_REL24<<24:
 		*siz = 4
 

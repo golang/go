@@ -4,10 +4,13 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
-	_PAGE_SIZE = _PhysPageSize
+	_PAGE_SIZE = sys.PhysPageSize
 	_EACCES    = 13
 )
 
@@ -94,8 +97,8 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 	// gets most of the benefit of huge pages while keeping the
 	// number of VMAs under control. With hugePageSize = 2MB, even
 	// a pessimal heap can reach 128GB before running out of VMAs.
-	if hugePageSize != 0 {
-		var s uintptr = hugePageSize // division by constant 0 is a compile-time error :(
+	if sys.HugePageSize != 0 {
+		var s uintptr = sys.HugePageSize // division by constant 0 is a compile-time error :(
 
 		// If it's a large allocation, we want to leave huge
 		// pages enabled. Hence, we only adjust the huge page
@@ -114,17 +117,17 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 		// Note that madvise will return EINVAL if the flag is
 		// already set, which is quite likely. We ignore
 		// errors.
-		if head != 0 && head+hugePageSize == tail {
+		if head != 0 && head+sys.HugePageSize == tail {
 			// head and tail are different but adjacent,
 			// so do this in one call.
-			madvise(unsafe.Pointer(head), 2*hugePageSize, _MADV_NOHUGEPAGE)
+			madvise(unsafe.Pointer(head), 2*sys.HugePageSize, _MADV_NOHUGEPAGE)
 		} else {
 			// Advise the huge pages containing v and v+n-1.
 			if head != 0 {
-				madvise(unsafe.Pointer(head), hugePageSize, _MADV_NOHUGEPAGE)
+				madvise(unsafe.Pointer(head), sys.HugePageSize, _MADV_NOHUGEPAGE)
 			}
 			if tail != 0 && tail != head {
-				madvise(unsafe.Pointer(tail), hugePageSize, _MADV_NOHUGEPAGE)
+				madvise(unsafe.Pointer(tail), sys.HugePageSize, _MADV_NOHUGEPAGE)
 			}
 		}
 	}
@@ -133,7 +136,7 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
-	if hugePageSize != 0 {
+	if sys.HugePageSize != 0 {
 		// Partially undo the NOHUGEPAGE marks from sysUnused
 		// for whole huge pages between v and v+n. This may
 		// leave huge pages off at the end points v and v+n
@@ -142,7 +145,7 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 		// the end points as well, but it's probably not worth
 		// the cost because when neighboring allocations are
 		// freed sysUnused will just set NOHUGEPAGE again.
-		var s uintptr = hugePageSize
+		var s uintptr = sys.HugePageSize
 
 		// Round v up to a huge page boundary.
 		beg := (uintptr(v) + (s - 1)) &^ (s - 1)
@@ -172,7 +175,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	// much address space.  Instead, assume that the reservation is okay
 	// if we can reserve at least 64K and check the assumption in SysMap.
 	// Only user-mode Linux (UML) rejects these requests.
-	if ptrSize == 8 && uint64(n) > 1<<32 {
+	if sys.PtrSize == 8 && uint64(n) > 1<<32 {
 		p := mmap_fixed(v, 64<<10, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 		if p != v {
 			if uintptr(p) >= 4096 {

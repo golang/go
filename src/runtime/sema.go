@@ -19,7 +19,11 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Asynchronous semaphore for sync.Mutex.
 
@@ -35,7 +39,7 @@ const semTabSize = 251
 
 var semtable [semTabSize]struct {
 	root semaRoot
-	pad  [_CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
+	pad  [sys.CacheLineSize - unsafe.Sizeof(semaRoot{})]byte
 }
 
 //go:linkname sync_runtime_Semacquire sync.runtime_Semacquire
@@ -87,10 +91,10 @@ func semacquire(addr *uint32, profile bool) {
 	for {
 		lock(&root.lock)
 		// Add ourselves to nwait to disable "easy case" in semrelease.
-		xadd(&root.nwait, 1)
+		atomic.Xadd(&root.nwait, 1)
 		// Check cansemacquire to avoid missed wakeup.
 		if cansemacquire(addr) {
-			xadd(&root.nwait, -1)
+			atomic.Xadd(&root.nwait, -1)
 			unlock(&root.lock)
 			break
 		}
@@ -110,18 +114,18 @@ func semacquire(addr *uint32, profile bool) {
 
 func semrelease(addr *uint32) {
 	root := semroot(addr)
-	xadd(addr, 1)
+	atomic.Xadd(addr, 1)
 
 	// Easy case: no waiters?
 	// This check must happen after the xadd, to avoid a missed wakeup
 	// (see loop in semacquire).
-	if atomicload(&root.nwait) == 0 {
+	if atomic.Load(&root.nwait) == 0 {
 		return
 	}
 
 	// Harder case: search for a waiter and wake it.
 	lock(&root.lock)
-	if atomicload(&root.nwait) == 0 {
+	if atomic.Load(&root.nwait) == 0 {
 		// The count is already consumed by another goroutine,
 		// so no need to wake up another goroutine.
 		unlock(&root.lock)
@@ -130,7 +134,7 @@ func semrelease(addr *uint32) {
 	s := root.head
 	for ; s != nil; s = s.next {
 		if s.elem == unsafe.Pointer(addr) {
-			xadd(&root.nwait, -1)
+			atomic.Xadd(&root.nwait, -1)
 			root.dequeue(s)
 			break
 		}
@@ -150,11 +154,11 @@ func semroot(addr *uint32) *semaRoot {
 
 func cansemacquire(addr *uint32) bool {
 	for {
-		v := atomicload(addr)
+		v := atomic.Load(addr)
 		if v == 0 {
 			return false
 		}
-		if cas(addr, v, v-1) {
+		if atomic.Cas(addr, v, v-1) {
 			return true
 		}
 	}

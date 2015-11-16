@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 const (
 	_ESRCH     = 3
@@ -37,8 +40,7 @@ func getncpu() int32 {
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	return 1
+func semacreate(mp *m) {
 }
 
 //go:nosplit
@@ -57,9 +59,9 @@ func semasleep(ns int64) int32 {
 	}
 
 	for {
-		v := atomicload(&_g_.m.waitsemacount)
+		v := atomic.Load(&_g_.m.waitsemacount)
 		if v > 0 {
-			if cas(&_g_.m.waitsemacount, v, v-1) {
+			if atomic.Cas(&_g_.m.waitsemacount, v, v-1) {
 				return 0 // semaphore acquired
 			}
 			continue
@@ -75,7 +77,7 @@ func semasleep(ns int64) int32 {
 
 //go:nosplit
 func semawakeup(mp *m) {
-	xadd(&mp.waitsemacount, 1)
+	atomic.Xadd(&mp.waitsemacount, 1)
 	// From NetBSD's _lwp_unpark(2) manual:
 	// "If the target LWP is not currently waiting, it will return
 	// immediately upon the next call to _lwp_park()."
@@ -92,10 +94,8 @@ func semawakeup(mp *m) {
 //go:nowritebarrier
 func newosproc(mp *m, stk unsafe.Pointer) {
 	if false {
-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, "/", int32(mp.tls[0]), " ostk=", &mp, "\n")
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
-
-	mp.tls[0] = uintptr(mp.id) // so 386 asm can find it
 
 	var uc ucontextt
 	getcontext(unsafe.Pointer(&uc))

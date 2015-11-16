@@ -124,7 +124,7 @@ func (f *File) ReadGo(name string) {
 	if f.Ref == nil {
 		f.Ref = make([]*Ref, 0, 8)
 	}
-	f.walk(ast2, "prog", (*File).saveRef)
+	f.walk(ast2, "prog", (*File).saveExprs)
 
 	// Accumulate exported functions.
 	// The comments are only on ast1 but we need to
@@ -163,52 +163,72 @@ func commentText(g *ast.CommentGroup) string {
 	return strings.Join(pieces, "")
 }
 
+// Save various references we are going to need later.
+func (f *File) saveExprs(x interface{}, context string) {
+	switch x := x.(type) {
+	case *ast.Expr:
+		switch (*x).(type) {
+		case *ast.SelectorExpr:
+			f.saveRef(x, context)
+		}
+	case *ast.CallExpr:
+		f.saveCall(x)
+	}
+}
+
 // Save references to C.xxx for later processing.
-func (f *File) saveRef(x interface{}, context string) {
-	n, ok := x.(*ast.Expr)
+func (f *File) saveRef(n *ast.Expr, context string) {
+	sel := (*n).(*ast.SelectorExpr)
+	// For now, assume that the only instance of capital C is when
+	// used as the imported package identifier.
+	// The parser should take care of scoping in the future, so
+	// that we will be able to distinguish a "top-level C" from a
+	// local C.
+	if l, ok := sel.X.(*ast.Ident); !ok || l.Name != "C" {
+		return
+	}
+	if context == "as2" {
+		context = "expr"
+	}
+	if context == "embed-type" {
+		error_(sel.Pos(), "cannot embed C type")
+	}
+	goname := sel.Sel.Name
+	if goname == "errno" {
+		error_(sel.Pos(), "cannot refer to errno directly; see documentation")
+		return
+	}
+	if goname == "_CMalloc" {
+		error_(sel.Pos(), "cannot refer to C._CMalloc; use C.malloc")
+		return
+	}
+	if goname == "malloc" {
+		goname = "_CMalloc"
+	}
+	name := f.Name[goname]
+	if name == nil {
+		name = &Name{
+			Go: goname,
+		}
+		f.Name[goname] = name
+	}
+	f.Ref = append(f.Ref, &Ref{
+		Name:    name,
+		Expr:    n,
+		Context: context,
+	})
+}
+
+// Save calls to C.xxx for later processing.
+func (f *File) saveCall(call *ast.CallExpr) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
 		return
 	}
-	if sel, ok := (*n).(*ast.SelectorExpr); ok {
-		// For now, assume that the only instance of capital C is
-		// when used as the imported package identifier.
-		// The parser should take care of scoping in the future,
-		// so that we will be able to distinguish a "top-level C"
-		// from a local C.
-		if l, ok := sel.X.(*ast.Ident); ok && l.Name == "C" {
-			if context == "as2" {
-				context = "expr"
-			}
-			if context == "embed-type" {
-				error_(sel.Pos(), "cannot embed C type")
-			}
-			goname := sel.Sel.Name
-			if goname == "errno" {
-				error_(sel.Pos(), "cannot refer to errno directly; see documentation")
-				return
-			}
-			if goname == "_CMalloc" {
-				error_(sel.Pos(), "cannot refer to C._CMalloc; use C.malloc")
-				return
-			}
-			if goname == "malloc" {
-				goname = "_CMalloc"
-			}
-			name := f.Name[goname]
-			if name == nil {
-				name = &Name{
-					Go: goname,
-				}
-				f.Name[goname] = name
-			}
-			f.Ref = append(f.Ref, &Ref{
-				Name:    name,
-				Expr:    n,
-				Context: context,
-			})
-			return
-		}
+	if l, ok := sel.X.(*ast.Ident); !ok || l.Name != "C" {
+		return
 	}
+	f.Calls = append(f.Calls, call)
 }
 
 // If a function should be exported add it to ExpFunc.

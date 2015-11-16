@@ -261,3 +261,26 @@ func TestPacketConnClose(t *testing.T) {
 		}
 	}
 }
+
+// nacl was previous failing to reuse an address.
+func TestListenCloseListen(t *testing.T) {
+	const maxTries = 10
+	for tries := 0; tries < maxTries; tries++ {
+		ln, err := newLocalListener("tcp")
+		if err != nil {
+			t.Fatal(err)
+		}
+		addr := ln.Addr().String()
+		if err := ln.Close(); err != nil {
+			t.Fatal(err)
+		}
+		ln, err = Listen("tcp", addr)
+		if err == nil {
+			// Success. nacl couldn't do this before.
+			ln.Close()
+			return
+		}
+		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
+	}
+	t.Fatal("failed to listen/close/listen on same address after %d tries", maxTries)
+}

@@ -6,7 +6,11 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Statistics.
 // If you edit this structure, also edit type MemStats below.
@@ -322,7 +326,7 @@ func flushallmcaches() {
 		if c == nil {
 			continue
 		}
-		mCache_ReleaseAll(c)
+		c.releaseAll()
 		stackcache_clear(c)
 	}
 }
@@ -366,11 +370,11 @@ func purgecachedstats(c *mcache) {
 // overflow errors.
 //go:nosplit
 func mSysStatInc(sysStat *uint64, n uintptr) {
-	if _BigEndian != 0 {
-		xadd64(sysStat, int64(n))
+	if sys.BigEndian != 0 {
+		atomic.Xadd64(sysStat, int64(n))
 		return
 	}
-	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
+	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
 		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
 		exit(2)
 	}
@@ -380,11 +384,11 @@ func mSysStatInc(sysStat *uint64, n uintptr) {
 // mSysStatInc apply.
 //go:nosplit
 func mSysStatDec(sysStat *uint64, n uintptr) {
-	if _BigEndian != 0 {
-		xadd64(sysStat, -int64(n))
+	if sys.BigEndian != 0 {
+		atomic.Xadd64(sysStat, -int64(n))
 		return
 	}
-	if val := xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
+	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
 		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
 		exit(2)
 	}

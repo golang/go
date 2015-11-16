@@ -104,6 +104,10 @@ func archinit() {
 		break
 	}
 
+	if ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
+		ld.Linkmode = ld.LinkExternal
+	}
+
 	switch ld.HEADTYPE {
 	default:
 		ld.Exitf("unknown -H option: %v", ld.HEADTYPE)

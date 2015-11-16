@@ -28,12 +28,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package ppc64
+package mips64
 
 import (
 	"cmd/compile/internal/gc"
 	"cmd/internal/obj"
-	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/mips"
 	"fmt"
 )
 
@@ -64,11 +64,11 @@ loop1:
 		// can eliminate moves that don't care without
 		// breaking moves that do care.  This might let us
 		// simplify or remove the next peep loop, too.
-		if p.As == ppc64.AMOVD || p.As == ppc64.AFMOVD {
+		if p.As == mips.AMOVV || p.As == mips.AMOVF || p.As == mips.AMOVD {
 			if regtyp(&p.To) {
 				// Try to eliminate reg->reg moves
 				if regtyp(&p.From) {
-					if p.From.Type == p.To.Type {
+					if isfreg(&p.From) == isfreg(&p.To) {
 						if copyprop(r) {
 							excise(r)
 							t++
@@ -82,9 +82,9 @@ loop1:
 				// Convert uses to $0 to uses of R0 and
 				// propagate R0
 				if regzer(&p.From) != 0 {
-					if p.To.Type == obj.TYPE_REG {
+					if p.To.Type == obj.TYPE_REG && !isfreg(&p.To) {
 						p.From.Type = obj.TYPE_REG
-						p.From.Reg = ppc64.REGZERO
+						p.From.Reg = mips.REGZERO
 						if copyprop(r) {
 							excise(r)
 							t++
@@ -113,12 +113,12 @@ loop1:
 		default:
 			continue
 
-		case ppc64.AMOVH,
-			ppc64.AMOVHZ,
-			ppc64.AMOVB,
-			ppc64.AMOVBZ,
-			ppc64.AMOVW,
-			ppc64.AMOVWZ:
+		case mips.AMOVH,
+			mips.AMOVHU,
+			mips.AMOVB,
+			mips.AMOVBU,
+			mips.AMOVW,
+			mips.AMOVWU:
 			if p.To.Type != obj.TYPE_REG {
 				continue
 			}
@@ -141,209 +141,6 @@ loop1:
 		excise(r1)
 	}
 
-	if gc.Debug['D'] > 1 {
-		goto ret /* allow following code improvement to be suppressed */
-	}
-
-	/*
-	 * look for OP x,y,R; CMP R, $0 -> OPCC x,y,R
-	 * when OP can set condition codes correctly
-	 */
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
-		p = r.Prog
-		switch p.As {
-		case ppc64.ACMP,
-			ppc64.ACMPW: /* always safe? */
-			if regzer(&p.To) == 0 {
-				continue
-			}
-			r1 = r.S1
-			if r1 == nil {
-				continue
-			}
-			switch r1.Prog.As {
-			default:
-				continue
-
-				/* the conditions can be complex and these are currently little used */
-			case ppc64.ABCL,
-				ppc64.ABC:
-				continue
-
-			case ppc64.ABEQ,
-				ppc64.ABGE,
-				ppc64.ABGT,
-				ppc64.ABLE,
-				ppc64.ABLT,
-				ppc64.ABNE,
-				ppc64.ABVC,
-				ppc64.ABVS:
-				break
-			}
-
-			r1 = r
-			for {
-				r1 = gc.Uniqp(r1)
-				if r1 == nil || r1.Prog.As != obj.ANOP {
-					break
-				}
-			}
-
-			if r1 == nil {
-				continue
-			}
-			p1 = r1.Prog
-			if p1.To.Type != obj.TYPE_REG || p1.To.Reg != p.From.Reg {
-				continue
-			}
-			switch p1.As {
-			/* irregular instructions */
-			case ppc64.ASUB,
-				ppc64.AADD,
-				ppc64.AXOR,
-				ppc64.AOR:
-				if p1.From.Type == obj.TYPE_CONST || p1.From.Type == obj.TYPE_ADDR {
-					continue
-				}
-			}
-
-			switch p1.As {
-			default:
-				continue
-
-			case ppc64.AMOVW,
-				ppc64.AMOVD:
-				if p1.From.Type != obj.TYPE_REG {
-					continue
-				}
-				continue
-
-			case ppc64.AANDCC,
-				ppc64.AANDNCC,
-				ppc64.AORCC,
-				ppc64.AORNCC,
-				ppc64.AXORCC,
-				ppc64.ASUBCC,
-				ppc64.ASUBECC,
-				ppc64.ASUBMECC,
-				ppc64.ASUBZECC,
-				ppc64.AADDCC,
-				ppc64.AADDCCC,
-				ppc64.AADDECC,
-				ppc64.AADDMECC,
-				ppc64.AADDZECC,
-				ppc64.ARLWMICC,
-				ppc64.ARLWNMCC,
-				/* don't deal with floating point instructions for now */
-				/*
-					case AFABS:
-					case AFADD:
-					case AFADDS:
-					case AFCTIW:
-					case AFCTIWZ:
-					case AFDIV:
-					case AFDIVS:
-					case AFMADD:
-					case AFMADDS:
-					case AFMOVD:
-					case AFMSUB:
-					case AFMSUBS:
-					case AFMUL:
-					case AFMULS:
-					case AFNABS:
-					case AFNEG:
-					case AFNMADD:
-					case AFNMADDS:
-					case AFNMSUB:
-					case AFNMSUBS:
-					case AFRSP:
-					case AFSUB:
-					case AFSUBS:
-					case ACNTLZW:
-					case AMTFSB0:
-					case AMTFSB1:
-				*/
-				ppc64.AADD,
-				ppc64.AADDV,
-				ppc64.AADDC,
-				ppc64.AADDCV,
-				ppc64.AADDME,
-				ppc64.AADDMEV,
-				ppc64.AADDE,
-				ppc64.AADDEV,
-				ppc64.AADDZE,
-				ppc64.AADDZEV,
-				ppc64.AAND,
-				ppc64.AANDN,
-				ppc64.ADIVW,
-				ppc64.ADIVWV,
-				ppc64.ADIVWU,
-				ppc64.ADIVWUV,
-				ppc64.ADIVD,
-				ppc64.ADIVDV,
-				ppc64.ADIVDU,
-				ppc64.ADIVDUV,
-				ppc64.AEQV,
-				ppc64.AEXTSB,
-				ppc64.AEXTSH,
-				ppc64.AEXTSW,
-				ppc64.AMULHW,
-				ppc64.AMULHWU,
-				ppc64.AMULLW,
-				ppc64.AMULLWV,
-				ppc64.AMULHD,
-				ppc64.AMULHDU,
-				ppc64.AMULLD,
-				ppc64.AMULLDV,
-				ppc64.ANAND,
-				ppc64.ANEG,
-				ppc64.ANEGV,
-				ppc64.ANOR,
-				ppc64.AOR,
-				ppc64.AORN,
-				ppc64.AREM,
-				ppc64.AREMV,
-				ppc64.AREMU,
-				ppc64.AREMUV,
-				ppc64.AREMD,
-				ppc64.AREMDV,
-				ppc64.AREMDU,
-				ppc64.AREMDUV,
-				ppc64.ARLWMI,
-				ppc64.ARLWNM,
-				ppc64.ASLW,
-				ppc64.ASRAW,
-				ppc64.ASRW,
-				ppc64.ASLD,
-				ppc64.ASRAD,
-				ppc64.ASRD,
-				ppc64.ASUB,
-				ppc64.ASUBV,
-				ppc64.ASUBC,
-				ppc64.ASUBCV,
-				ppc64.ASUBME,
-				ppc64.ASUBMEV,
-				ppc64.ASUBE,
-				ppc64.ASUBEV,
-				ppc64.ASUBZE,
-				ppc64.ASUBZEV,
-				ppc64.AXOR:
-				t = variant2as(int(p1.As), as2variant(int(p1.As))|V_CC)
-			}
-
-			if gc.Debug['D'] != 0 {
-				fmt.Printf("cmp %v; %v -> ", p1, p)
-			}
-			p1.As = int16(t)
-			if gc.Debug['D'] != 0 {
-				fmt.Printf("%v\n", p1)
-			}
-			excise(r)
-			continue
-		}
-	}
-
-ret:
 	gc.Flowend(g)
 }
 
@@ -368,7 +165,7 @@ func regzer(a *obj.Addr) int {
 		}
 	}
 	if a.Type == obj.TYPE_REG {
-		if a.Reg == ppc64.REGZERO {
+		if a.Reg == mips.REGZERO {
 			return 1
 		}
 	}
@@ -377,7 +174,11 @@ func regzer(a *obj.Addr) int {
 
 func regtyp(a *obj.Addr) bool {
 	// TODO(rsc): Floating point register exclusions?
-	return a.Type == obj.TYPE_REG && ppc64.REG_R0 <= a.Reg && a.Reg <= ppc64.REG_F31 && a.Reg != ppc64.REGZERO
+	return a.Type == obj.TYPE_REG && mips.REG_R0 <= a.Reg && a.Reg <= mips.REG_F31 && a.Reg != mips.REGZERO
+}
+
+func isfreg(a *obj.Addr) bool {
+	return mips.REG_F0 <= a.Reg && a.Reg <= mips.REG_F31
 }
 
 /*
@@ -607,7 +408,7 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 //	0 otherwise (not touched)
 func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	if p.From3Type() != obj.TYPE_NONE {
-		// 9g never generates a from3
+		// never generates a from3
 		fmt.Printf("copyu: from3 (%v) not implemented\n", gc.Ctxt.Dconv(p.From3))
 	}
 
@@ -617,34 +418,29 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		return 2
 
 	case obj.ANOP, /* read p->from, write p->to */
-		ppc64.AMOVH,
-		ppc64.AMOVHZ,
-		ppc64.AMOVB,
-		ppc64.AMOVBZ,
-		ppc64.AMOVW,
-		ppc64.AMOVWZ,
-		ppc64.AMOVD,
-		ppc64.ANEG,
-		ppc64.ANEGCC,
-		ppc64.AADDME,
-		ppc64.AADDMECC,
-		ppc64.AADDZE,
-		ppc64.AADDZECC,
-		ppc64.ASUBME,
-		ppc64.ASUBMECC,
-		ppc64.ASUBZE,
-		ppc64.ASUBZECC,
-		ppc64.AFCTIW,
-		ppc64.AFCTIWZ,
-		ppc64.AFCTID,
-		ppc64.AFCTIDZ,
-		ppc64.AFCFID,
-		ppc64.AFCFIDCC,
-		ppc64.AFMOVS,
-		ppc64.AFMOVD,
-		ppc64.AFRSP,
-		ppc64.AFNEG,
-		ppc64.AFNEGCC:
+		mips.AMOVV,
+		mips.AMOVF,
+		mips.AMOVD,
+		mips.AMOVH,
+		mips.AMOVHU,
+		mips.AMOVB,
+		mips.AMOVBU,
+		mips.AMOVW,
+		mips.AMOVWU,
+		mips.AMOVFD,
+		mips.AMOVDF,
+		mips.AMOVDW,
+		mips.AMOVWD,
+		mips.AMOVFW,
+		mips.AMOVWF,
+		mips.AMOVDV,
+		mips.AMOVVD,
+		mips.AMOVFV,
+		mips.AMOVVF,
+		mips.ATRUNCFV,
+		mips.ATRUNCDV,
+		mips.ATRUNCFW,
+		mips.ATRUNCDW:
 		if s != nil {
 			if copysub(&p.From, v, s, 1) != 0 {
 				return 1
@@ -680,103 +476,37 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 		return 0
 
-	case ppc64.AMOVBU, /* rar p->from, write p->to or read p->from, rar p->to */
-		ppc64.AMOVBZU,
-		ppc64.AMOVHU,
-		ppc64.AMOVHZU,
-		ppc64.AMOVWZU,
-		ppc64.AMOVDU:
-		if p.From.Type == obj.TYPE_MEM {
-			if copyas(&p.From, v) {
-				// No s!=nil check; need to fail
-				// anyway in that case
-				return 2
-			}
+	case mips.ASGT, /* read p->from, read p->reg, write p->to */
+		mips.ASGTU,
 
-			if s != nil {
-				if copysub(&p.To, v, s, 1) != 0 {
-					return 1
-				}
-				return 0
-			}
+		mips.AADD,
+		mips.AADDU,
+		mips.ASUB,
+		mips.ASUBU,
+		mips.ASLL,
+		mips.ASRL,
+		mips.ASRA,
+		mips.AOR,
+		mips.ANOR,
+		mips.AAND,
+		mips.AXOR,
 
-			if copyas(&p.To, v) {
-				return 3
-			}
-		} else if p.To.Type == obj.TYPE_MEM {
-			if copyas(&p.To, v) {
-				return 2
-			}
-			if s != nil {
-				if copysub(&p.From, v, s, 1) != 0 {
-					return 1
-				}
-				return 0
-			}
+		mips.AADDV,
+		mips.AADDVU,
+		mips.ASUBV,
+		mips.ASUBVU,
+		mips.ASLLV,
+		mips.ASRLV,
+		mips.ASRAV,
 
-			if copyau(&p.From, v) {
-				return 1
-			}
-		} else {
-			fmt.Printf("copyu: bad %v\n", p)
-		}
-
-		return 0
-
-	case ppc64.ARLWMI, /* read p->from, read p->reg, rar p->to */
-		ppc64.ARLWMICC:
-		if copyas(&p.To, v) {
-			return 2
-		}
-		fallthrough
-
-		/* fall through */
-	case ppc64.AADD,
-		/* read p->from, read p->reg, write p->to */
-		ppc64.AADDC,
-		ppc64.AADDE,
-		ppc64.ASUB,
-		ppc64.ASLW,
-		ppc64.ASRW,
-		ppc64.ASRAW,
-		ppc64.ASLD,
-		ppc64.ASRD,
-		ppc64.ASRAD,
-		ppc64.AOR,
-		ppc64.AORCC,
-		ppc64.AORN,
-		ppc64.AORNCC,
-		ppc64.AAND,
-		ppc64.AANDCC,
-		ppc64.AANDN,
-		ppc64.AANDNCC,
-		ppc64.ANAND,
-		ppc64.ANANDCC,
-		ppc64.ANOR,
-		ppc64.ANORCC,
-		ppc64.AXOR,
-		ppc64.AMULHW,
-		ppc64.AMULHWU,
-		ppc64.AMULLW,
-		ppc64.AMULLD,
-		ppc64.ADIVW,
-		ppc64.ADIVD,
-		ppc64.ADIVWU,
-		ppc64.ADIVDU,
-		ppc64.AREM,
-		ppc64.AREMU,
-		ppc64.AREMD,
-		ppc64.AREMDU,
-		ppc64.ARLWNM,
-		ppc64.ARLWNMCC,
-		ppc64.AFADDS,
-		ppc64.AFADD,
-		ppc64.AFSUBS,
-		ppc64.AFSUB,
-		ppc64.AFMULS,
-		ppc64.AFMUL,
-		ppc64.AFDIVS,
-		ppc64.AFDIV:
+		mips.AADDF,
+		mips.AADDD,
+		mips.ASUBF,
+		mips.ASUBD,
+		mips.AMULF,
+		mips.AMULD,
+		mips.ADIVF,
+		mips.ADIVD:
 		if s != nil {
 			if copysub(&p.From, v, s, 1) != 0 {
 				return 1
@@ -822,42 +552,47 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 		return 0
 
-	case ppc64.ABEQ,
-		ppc64.ABGT,
-		ppc64.ABGE,
-		ppc64.ABLT,
-		ppc64.ABLE,
-		ppc64.ABNE,
-		ppc64.ABVC,
-		ppc64.ABVS:
-		return 0
-
 	case obj.ACHECKNIL, /* read p->from */
-		ppc64.ACMP, /* read p->from, read p->to */
-		ppc64.ACMPU,
-		ppc64.ACMPW,
-		ppc64.ACMPWU,
-		ppc64.AFCMPO,
-		ppc64.AFCMPU:
+		mips.ABEQ, /* read p->from, read p->reg */
+		mips.ABNE,
+		mips.ABGTZ,
+		mips.ABGEZ,
+		mips.ABLTZ,
+		mips.ABLEZ,
+
+		mips.ACMPEQD,
+		mips.ACMPEQF,
+		mips.ACMPGED,
+		mips.ACMPGEF,
+		mips.ACMPGTD,
+		mips.ACMPGTF,
+		mips.ABFPF,
+		mips.ABFPT,
+
+		mips.AMUL,
+		mips.AMULU,
+		mips.ADIV,
+		mips.ADIVU,
+		mips.AMULV,
+		mips.AMULVU,
+		mips.ADIVV,
+		mips.ADIVVU:
 		if s != nil {
 			if copysub(&p.From, v, s, 1) != 0 {
 				return 1
 			}
-			return copysub(&p.To, v, s, 1)
+			return copysub1(p, v, s, 1)
 		}
 
 		if copyau(&p.From, v) {
 			return 1
 		}
-		if copyau(&p.To, v) {
+		if copyau1(p, v) {
 			return 1
 		}
 		return 0
 
-		// 9g never generates a branch to a GPR (this isn't
-	// even a normal instruction; liblink turns it in to a
-	// mov and a branch).
-	case ppc64.ABR: /* read p->to */
+	case mips.AJMP: /* read p->to */
 		if s != nil {
 			if copysub(&p.To, v, s, 1) != 0 {
 				return 1
@@ -870,7 +605,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 		return 0
 
-	case obj.ARET: /* funny */
+	case mips.ARET: /* funny */
 		if s != nil {
 			return 0
 		}
@@ -879,20 +614,20 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		// everything is set (and not used).
 		return 3
 
-	case ppc64.ABL: /* funny */
+	case mips.AJAL: /* funny */
 		if v.Type == obj.TYPE_REG {
 			// TODO(rsc): REG_R0 and REG_F0 used to be
 			// (when register numbers started at 0) exregoffset and exfregoffset,
 			// which are unset entirely.
 			// It's strange that this handles R0 and F0 differently from the other
 			// registers. Possible failure to optimize?
-			if ppc64.REG_R0 < v.Reg && v.Reg <= ppc64.REGEXT {
+			if mips.REG_R0 < v.Reg && v.Reg <= mips.REG_R31 {
 				return 2
 			}
-			if v.Reg == ppc64.REGARG {
+			if v.Reg == mips.REGARG {
 				return 2
 			}
-			if ppc64.REG_F0 < v.Reg && v.Reg <= ppc64.FREGEXT {
+			if mips.REG_F0 < v.Reg && v.Reg <= mips.REG_F31 {
 				return 2
 			}
 		}
@@ -913,28 +648,28 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 		return 3
 
-		// R0 is zero, used by DUFFZERO, cannot be substituted.
-	// R3 is ptr to memory, used and set, cannot be substituted.
+	// R0 is zero, used by DUFFZERO, cannot be substituted.
+	// R1 is ptr to memory, used and set, cannot be substituted.
 	case obj.ADUFFZERO:
 		if v.Type == obj.TYPE_REG {
 			if v.Reg == 0 {
 				return 1
 			}
-			if v.Reg == 3 {
+			if v.Reg == 1 {
 				return 2
 			}
 		}
 
 		return 0
 
-		// R3, R4 are ptr to src, dst, used and set, cannot be substituted.
-	// R5 is scratch, set by DUFFCOPY, cannot be substituted.
+	// R1, R2 are ptr to src, dst, used and set, cannot be substituted.
+	// R3 is scratch, set by DUFFCOPY, cannot be substituted.
 	case obj.ADUFFCOPY:
 		if v.Type == obj.TYPE_REG {
-			if v.Reg == 3 || v.Reg == 4 {
+			if v.Reg == 1 || v.Reg == 2 {
 				return 2
 			}
-			if v.Reg == 5 {
+			if v.Reg == 3 {
 				return 3
 			}
 		}
@@ -943,7 +678,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	case obj.ATEXT: /* funny */
 		if v.Type == obj.TYPE_REG {
-			if v.Reg == ppc64.REGARG {
+			if v.Reg == mips.REGARG {
 				return 3
 			}
 		}
@@ -1006,7 +741,7 @@ func copyau1(p *obj.Prog, v *obj.Addr) bool {
 }
 
 // copysub replaces v with s in a if f!=0 or indicates it if could if f==0.
-// Returns 1 on failure to substitute (it always succeeds on ppc64).
+// Returns 1 on failure to substitute (it always succeeds on mips).
 func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 	if f != 0 {
 		if copyau(a, v) {
@@ -1017,7 +752,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 }
 
 // copysub1 replaces v with s in p1->reg if f!=0 or indicates if it could if f==0.
-// Returns 1 on failure to substitute (it always succeeds on ppc64).
+// Returns 1 on failure to substitute (it always succeeds on mips).
 func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f int) int {
 	if f != 0 {
 		if copyau1(p1, v) {
@@ -1047,5 +782,5 @@ func smallindir(a *obj.Addr, reg *obj.Addr) bool {
 }
 
 func stackaddr(a *obj.Addr) bool {
-	return a.Type == obj.TYPE_REG && a.Reg == ppc64.REGSP
+	return a.Type == obj.TYPE_REG && a.Reg == mips.REGSP
 }

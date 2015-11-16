@@ -24,7 +24,7 @@ func (t *Type) Alignment() int64 {
 }
 
 func (t *Type) SimpleString() string {
-	return Econv(int(t.Etype), 0)
+	return Econv(t.Etype)
 }
 
 func (t *Type) Equal(u ssa.Type) bool {

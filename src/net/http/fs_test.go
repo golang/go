@@ -917,8 +917,16 @@ func TestLinuxSendfile(t *testing.T) {
 	}
 	defer ln.Close()
 
+	syscalls := "sendfile,sendfile64"
+	switch runtime.GOARCH {
+	case "mips64", "mips64le":
+		// mips64 strace doesn't support sendfile64 and will error out
+		// if we specify that with `-e trace='.
+		syscalls = "sendfile"
+	}
+
 	var buf bytes.Buffer
-	child := exec.Command("strace", "-f", "-q", "-e", "trace=sendfile,sendfile64", os.Args[0], "-test.run=TestLinuxSendfileChild")
+	child := exec.Command("strace", "-f", "-q", "-e", "trace="+syscalls, os.Args[0], "-test.run=TestLinuxSendfileChild")
 	child.ExtraFiles = append(child.ExtraFiles, lnf)
 	child.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
 	child.Stdout = &buf

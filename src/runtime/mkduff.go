@@ -37,6 +37,7 @@ func main() {
 	gen("arm", notags, zeroARM, copyARM)
 	gen("arm64", notags, zeroARM64, copyARM64)
 	gen("ppc64x", tagsPPC64x, zeroPPC64x, copyPPC64x)
+	gen("mips64x", tagsMIPS64x, zeroMIPS64x, copyMIPS64x)
 }
 
 func gen(arch string, tags, zero, copy func(io.Writer)) {
@@ -181,5 +182,27 @@ func zeroPPC64x(w io.Writer) {
 }
 
 func copyPPC64x(w io.Writer) {
+	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
+}
+
+func tagsMIPS64x(w io.Writer) {
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "// +build mips64 mips64le")
+	fmt.Fprintln(w)
+}
+
+func zeroMIPS64x(w io.Writer) {
+	// R0: always zero
+	// R1 (aka REGRT1): ptr to memory to be zeroed - 8
+	// On return, R1 points to the last zeroed dword.
+	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT, $-8-0")
+	for i := 0; i < 128; i++ {
+		fmt.Fprintln(w, "\tMOVV\tR0, 8(R1)")
+		fmt.Fprintln(w, "\tADDV\t$8, R1")
+	}
+	fmt.Fprintln(w, "\tRET")
+}
+
+func copyMIPS64x(w io.Writer) {
 	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
 }

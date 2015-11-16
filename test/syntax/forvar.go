@@ -7,4 +7,5 @@
 package main
 
 func main() {
+	var x int // avoid undefined: x error below with recursive-descent parser
 	for var x = 0; x < 10; x++ {	// ERROR "var declaration not allowed in for initializer"

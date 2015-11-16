@@ -205,6 +205,7 @@ const (
 	C_DACON /* $n(REG) where int32 < n */
 	C_SBRA
 	C_LBRA
+	C_LBRAPIC
 	C_SAUTO
 	C_LAUTO
 	C_SEXT
@@ -220,6 +221,9 @@ const (
 	C_ANY
 	C_GOK
 	C_ADDR
+	C_GOTADDR
+	C_TLS_LE
+	C_TLS_IE
 	C_TEXTSIZE
 
 	C_NCLASS /* must be the last */

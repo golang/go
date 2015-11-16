@@ -760,6 +760,9 @@ func TestHelperProcess(*testing.T) {
 		}
 		fmt.Print(p)
 		os.Exit(0)
+	case "stderrfail":
+		fmt.Fprintf(os.Stderr, "some stderr text\n")
+		os.Exit(1)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
 		os.Exit(2)
@@ -814,5 +817,21 @@ func TestClosePipeOnCopyError(t *testing.T) {
 		// ok
 	case <-time.After(5 * time.Second):
 		t.Fatalf("yes got stuck writing to bad writer")
+	}
+}
+
+func TestOutputStderrCapture(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := helperCommand(t, "stderrfail")
+	_, err := cmd.Output()
+	ee, ok := err.(*exec.ExitError)
+	if !ok {
+		t.Fatalf("Output error type = %T; want ExitError", err)
+	}
+	got := string(ee.Stderr)
+	want := "some stderr text\n"
+	if got != want {
+		t.Errorf("ExitError.Stderr = %q; want %q", got, want)
 	}
 }

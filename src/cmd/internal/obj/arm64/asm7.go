@@ -270,6 +270,9 @@ var optab = []Optab{
 	{AMOVH, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
 	{AMOVW, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
 	{AMOVD, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
+	{AMOVD, C_GOTADDR, C_NONE, C_REG, 71, 8, 0, 0, 0},
+	{AMOVD, C_TLS_LE, C_NONE, C_REG, 69, 4, 0, 0, 0},
+	{AMOVD, C_TLS_IE, C_NONE, C_REG, 70, 8, 0, 0, 0},
 	{AMUL, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
 	{AMUL, C_REG, C_NONE, C_REG, 15, 4, 0, 0, 0},
 	{AMADD, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
@@ -533,9 +536,9 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		buildop(ctxt)
 	}
 
-	bflag := 0
-	c := int32(0)
-	p.Pc = int64(c)
+	bflag := 1
+	c := int64(0)
+	p.Pc = c
 	var m int
 	var o *Optab
 	for p = p.Link; p != nil; p = p.Link {
@@ -543,7 +546,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		if p.As == ADWORD && (c&7) != 0 {
 			c += 4
 		}
-		p.Pc = int64(c)
+		p.Pc = c
 		o = oplook(ctxt, p)
 		m = int(o.size)
 		if m == 0 {
@@ -565,13 +568,13 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 		if p.As == AB || p.As == obj.ARET || p.As == AERET { /* TODO: other unconditional operations */
 			checkpool(ctxt, p, 0)
 		}
-		c += int32(m)
+		c += int64(m)
 		if ctxt.Blitrl != nil {
 			checkpool(ctxt, p, 1)
 		}
 	}
 
-	cursym.Size = int64(c)
+	cursym.Size = c
 
 	/*
 	 * if any procedure is large enough to
@@ -580,38 +583,38 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	 * around jmps to fix. this is rare.
 	 */
 	for bflag != 0 {
+		if ctxt.Debugvlog != 0 {
+			fmt.Fprintf(ctxt.Bso, "%5.2f span1\n", obj.Cputime())
+		}
 		bflag = 0
 		c = 0
-		for p = cursym.Text; p != nil; p = p.Link {
+		for p = cursym.Text.Link; p != nil; p = p.Link {
 			if p.As == ADWORD && (c&7) != 0 {
 				c += 4
 			}
-			p.Pc = int64(c)
+			p.Pc = c
 			o = oplook(ctxt, p)
 
-			/* very large branches
-			if(o->type == 6 && p->cond) {
-				otxt = p->cond->pc - c;
-				if(otxt < 0)
-					otxt = -otxt;
-				if(otxt >= (1L<<17) - 10) {
-					q = ctxt->arch->prg();
-					q->link = p->link;
-					p->link = q;
-					q->as = AB;
-					q->to.type = obj.TYPE_BRANCH;
-					q->cond = p->cond;
-					p->cond = q;
-					q = ctxt->arch->prg();
-					q->link = p->link;
-					p->link = q;
-					q->as = AB;
-					q->to.type = obj.TYPE_BRANCH;
-					q->cond = q->link->link;
-					bflag = 1;
+			/* very large branches */
+			if o.type_ == 7 && p.Pcond != nil {
+				otxt := p.Pcond.Pc - c
+				if otxt <= -(1<<18)+10 || otxt >= (1<<18)-10 {
+					q := ctxt.NewProg()
+					q.Link = p.Link
+					p.Link = q
+					q.As = AB
+					q.To.Type = obj.TYPE_BRANCH
+					q.Pcond = p.Pcond
+					p.Pcond = q
+					q = ctxt.NewProg()
+					q.Link = p.Link
+					p.Link = q
+					q.As = AB
+					q.To.Type = obj.TYPE_BRANCH
+					q.Pcond = q.Link.Link
+					bflag = 1
 				}
 			}
-			*/
 			m = int(o.size)
 
 			if m == 0 {
@@ -621,12 +624,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 				continue
 			}
 
-			c += int32(m)
+			c += int64(m)
 		}
 	}
 
 	c += -c & (FuncAlign - 1)
-	cursym.Size = int64(c)
+	cursym.Size = c
 
 	/*
 	 * lay out the code, emitting code and data relocations.
@@ -968,9 +971,19 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 			}
 			ctxt.Instoffset = a.Offset
 			if a.Sym != nil { // use relocation
+				if a.Sym.Type == obj.STLSBSS {
+					if ctxt.Flag_shared != 0 {
+						return C_TLS_IE
+					} else {
+						return C_TLS_LE
+					}
+				}
 				return C_ADDR
 			}
 			return C_LEXT
+
+		case obj.NAME_GOTREF:
+			return C_GOTADDR
 
 		case obj.NAME_AUTO:
 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
@@ -1041,9 +1054,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			s := a.Sym
-			if s == nil {
+			if a.Sym == nil {
 				break
+			}
+			if a.Sym.Type == obj.STLSBSS {
+				ctxt.Diag("taking address of TLS variable is not supported")
 			}
 			ctxt.Instoffset = a.Offset
 			return C_VCONADDR
@@ -2752,6 +2767,41 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
 		rel.Type = obj.R_ADDRARM64
+
+	case 69: /* LE model movd $tlsvar, reg -> movz reg, 0 + reloc */
+		o1 = opirr(ctxt, AMOVZ)
+		o1 |= uint32(p.To.Reg & 31)
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 4
+		rel.Sym = p.From.Sym
+		rel.Type = obj.R_ARM64_TLS_LE
+		if p.From.Offset != 0 {
+			ctxt.Diag("invalid offset on MOVW $tlsvar")
+		}
+
+	case 70: /* IE model movd $tlsvar, reg -> adrp REGTMP, 0; ldr reg, [REGTMP, #0] + relocs */
+		o1 = ADR(1, 0, REGTMP)
+		o2 = olsr12u(ctxt, int32(opldr12(ctxt, AMOVD)), 0, REGTMP, int(p.To.Reg))
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Add = 0
+		rel.Type = obj.R_ARM64_TLS_IE
+		if p.From.Offset != 0 {
+			ctxt.Diag("invalid offset on MOVW $tlsvar")
+		}
+
+	case 71: /* movd sym@GOT, reg -> adrp REGTMP, #0; ldr reg, [REGTMP, #0] + relocs */
+		o1 = ADR(1, 0, REGTMP)
+		o2 = olsr12u(ctxt, int32(opldr12(ctxt, AMOVD)), 0, REGTMP, int(p.To.Reg))
+		rel := obj.Addrel(ctxt.Cursym)
+		rel.Off = int32(ctxt.Pc)
+		rel.Siz = 8
+		rel.Sym = p.From.Sym
+		rel.Add = 0
+		rel.Type = obj.R_ARM64_GOTPCREL
 
 	// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd

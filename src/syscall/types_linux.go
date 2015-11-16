@@ -91,6 +91,8 @@ typedef struct user_regs PtraceRegs;
 typedef struct user_pt_regs PtraceRegs;
 #elif defined(__powerpc64__)
 typedef struct pt_regs PtraceRegs;
+#elif defined(__mips__)
+typedef struct user PtraceRegs;
 #else
 typedef struct user_regs_struct PtraceRegs;
 #endif

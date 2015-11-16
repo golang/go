@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 func dumpregs(c *sigctxt) {
 	print("eax    ", hex(c.eax()), "\n")
@@ -85,11 +88,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// (Otherwise the trace will end at runtime.sigpanic and we
 		// won't get to see who faulted.)
 		if pc != 0 {
-			if regSize > ptrSize {
-				sp -= ptrSize
+			if sys.RegSize > sys.PtrSize {
+				sp -= sys.PtrSize
 				*(*uintptr)(unsafe.Pointer(sp)) = 0
 			}
-			sp -= ptrSize
+			sp -= sys.PtrSize
 			*(*uintptr)(unsafe.Pointer(sp)) = pc
 			c.set_esp(uint32(sp))
 		}
@@ -131,8 +134,8 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 	print("\n")
 
-	var docrash bool
-	if gotraceback(&docrash) > 0 {
+	level, _, docrash := gotraceback()
+	if level > 0 {
 		goroutineheader(gp)
 
 		// On Linux/386, all system calls go through the vdso kernel_vsyscall routine.

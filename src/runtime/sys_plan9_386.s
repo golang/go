@@ -238,7 +238,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
 	get_tls(AX)
 	MOVL	g(AX), BX
 	MOVL	g_m(BX), BX
-	MOVL	m_errstr(BX), CX
+	MOVL	(m_mOS+mOS_errstr)(BX), CX
 	MOVL	CX, 0(SP)
 	MOVL	$ERRMAX, 4(SP)
 	CALL	errstr<>(SB)

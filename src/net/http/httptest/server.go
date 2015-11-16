@@ -7,13 +7,18 @@
 package httptest
 
 import (
+	"bytes"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
+	"net/http/internal"
 	"os"
+	"runtime"
 	"sync"
+	"time"
 )
 
 // A Server is an HTTP server listening on a system-chosen port on the
@@ -34,24 +39,10 @@ type Server struct {
 	// wg counts the number of outstanding HTTP requests on this server.
 	// Close blocks until all requests are finished.
 	wg sync.WaitGroup
-}
 
-// historyListener keeps track of all connections that it's ever
-// accepted.
-type historyListener struct {
-	net.Listener
-	sync.Mutex // protects history
-	history    []net.Conn
-}
-
-func (hs *historyListener) Accept() (c net.Conn, err error) {
-	c, err = hs.Listener.Accept()
-	if err == nil {
-		hs.Lock()
-		hs.history = append(hs.history, c)
-		hs.Unlock()
-	}
-	return
+	mu     sync.Mutex // guards closed and conns
+	closed bool
+	conns  map[net.Conn]http.ConnState // except terminal states
 }
 
 func newLocalListener() net.Listener {
@@ -103,10 +94,9 @@ func (s *Server) Start() {
 	if s.URL != "" {
 		panic("Server already started")
 	}
-	s.Listener = &historyListener{Listener: s.Listener}
 	s.URL = "http://" + s.Listener.Addr().String()
-	s.wrapHandler()
-	go s.Config.Serve(s.Listener)
+	s.wrap()
+	s.goServe()
 	if *serve != "" {
 		fmt.Fprintln(os.Stderr, "httptest: serving on", s.URL)
 		select {}
@@ -118,7 +108,7 @@ func (s *Server) StartTLS() {
 	if s.URL != "" {
 		panic("Server already started")
 	}
-	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
 	if err != nil {
 		panic(fmt.Sprintf("httptest: NewTLSServer: %v", err))
 	}
@@ -134,23 +124,10 @@ func (s *Server) StartTLS() {
 	if len(s.TLS.Certificates) == 0 {
 		s.TLS.Certificates = []tls.Certificate{cert}
 	}
-	tlsListener := tls.NewListener(s.Listener, s.TLS)
-
-	s.Listener = &historyListener{Listener: tlsListener}
+	s.Listener = tls.NewListener(s.Listener, s.TLS)
 	s.URL = "https://" + s.Listener.Addr().String()
-	s.wrapHandler()
-	go s.Config.Serve(s.Listener)
-}
-
-func (s *Server) wrapHandler() {
-	h := s.Config.Handler
-	if h == nil {
-		h = http.DefaultServeMux
-	}
-	s.Config.Handler = &waitGroupHandler{
-		s: s,
-		h: h,
-	}
+	s.wrap()
+	s.goServe()
 }
 
 // NewTLSServer starts and returns a new Server using TLS.
@@ -161,78 +138,155 @@ func NewTLSServer(handler http.Handler) *Server {
 	return ts
 }
 
+type closeIdleTransport interface {
+	CloseIdleConnections()
+}
+
 // Close shuts down the server and blocks until all outstanding
 // requests on this server have completed.
 func (s *Server) Close() {
-	s.Listener.Close()
-	s.wg.Wait()
-	s.CloseClientConnections()
-	if t, ok := http.DefaultTransport.(*http.Transport); ok {
+	s.mu.Lock()
+	if !s.closed {
+		s.closed = true
+		s.Listener.Close()
+		s.Config.SetKeepAlivesEnabled(false)
+		for c, st := range s.conns {
+			// Force-close any idle connections (those between
+			// requests) and new connections (those which connected
+			// but never sent a request). StateNew connections are
+			// super rare and have only been seen (in
+			// previously-flaky tests) in the case of
+			// socket-late-binding races from the http Client
+			// dialing this server and then getting an idle
+			// connection before the dial completed.  There is thus
+			// a connected connection in StateNew with no
+			// associated Request. We only close StateIdle and
+			// StateNew because they're not doing anything. It's
+			// possible StateNew is about to do something in a few
+			// milliseconds, but a previous CL to check again in a
+			// few milliseconds wasn't liked (early versions of
+			// https://golang.org/cl/15151) so now we just
+			// forcefully close StateNew. The docs for Server.Close say
+			// we wait for "oustanding requests", so we don't close things
+			// in StateActive.
+			if st == http.StateIdle || st == http.StateNew {
+				s.closeConn(c)
+			}
+		}
+		// If this server doesn't shut down in 5 seconds, tell the user why.
+		t := time.AfterFunc(5*time.Second, s.logCloseHangDebugInfo)
+		defer t.Stop()
+	}
+	s.mu.Unlock()
+
+	// Not part of httptest.Server's correctness, but assume most
+	// users of httptest.Server will be using the standard
+	// transport, so help them out and close any idle connections for them.
+	if t, ok := http.DefaultTransport.(closeIdleTransport); ok {
 		t.CloseIdleConnections()
 	}
+
+	s.wg.Wait()
 }
 
-// CloseClientConnections closes any currently open HTTP connections
-// to the test Server.
+func (s *Server) logCloseHangDebugInfo() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var buf bytes.Buffer
+	buf.WriteString("httptest.Server blocked in Close after 5 seconds, waiting for connections:\n")
+	for c, st := range s.conns {
+		fmt.Fprintf(&buf, "  %T %p %v in state %v\n", c, c, c.RemoteAddr(), st)
+	}
+	log.Print(buf.String())
+}
+
+// CloseClientConnections closes any open HTTP connections to the test Server.
 func (s *Server) CloseClientConnections() {
-	hl, ok := s.Listener.(*historyListener)
-	if !ok {
-		return
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for c := range s.conns {
+		s.closeConn(c)
 	}
-	hl.Lock()
-	for _, conn := range hl.history {
-		conn.Close()
+}
+
+func (s *Server) goServe() {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.Config.Serve(s.Listener)
+	}()
+}
+
+// wrap installs the connection state-tracking hook to know which
+// connections are idle.
+func (s *Server) wrap() {
+	oldHook := s.Config.ConnState
+	s.Config.ConnState = func(c net.Conn, cs http.ConnState) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		switch cs {
+		case http.StateNew:
+			s.wg.Add(1)
+			if _, exists := s.conns[c]; exists {
+				panic("invalid state transition")
+			}
+			if s.conns == nil {
+				s.conns = make(map[net.Conn]http.ConnState)
+			}
+			s.conns[c] = cs
+			if s.closed {
+				// Probably just a socket-late-binding dial from
+				// the default transport that lost the race (and
+				// thus this connection is now idle and will
+				// never be used).
+				s.closeConn(c)
+			}
+		case http.StateActive:
+			if oldState, ok := s.conns[c]; ok {
+				if oldState != http.StateNew && oldState != http.StateIdle {
+					panic("invalid state transition")
+				}
+				s.conns[c] = cs
+			}
+		case http.StateIdle:
+			if oldState, ok := s.conns[c]; ok {
+				if oldState != http.StateActive {
+					panic("invalid state transition")
+				}
+				s.conns[c] = cs
+			}
+			if s.closed {
+				s.closeConn(c)
+			}
+		case http.StateHijacked, http.StateClosed:
+			s.forgetConn(c)
+		}
+		if oldHook != nil {
+			oldHook(c, cs)
+		}
 	}
-	hl.Unlock()
 }
 
-// waitGroupHandler wraps a handler, incrementing and decrementing a
-// sync.WaitGroup on each request, to enable Server.Close to block
-// until outstanding requests are finished.
-type waitGroupHandler struct {
-	s *Server
-	h http.Handler // non-nil
+// closeConn closes c. Except on plan9, which is special. See comment below.
+// s.mu must be held.
+func (s *Server) closeConn(c net.Conn) {
+	if runtime.GOOS == "plan9" {
+		// Go's Plan 9 net package isn't great at unblocking reads when
+		// their underlying TCP connections are closed.  Don't trust
+		// that that the ConnState state machine will get to
+		// StateClosed. Instead, just go there directly. Plan 9 may leak
+		// resources if the syscall doesn't end up returning. Oh well.
+		s.forgetConn(c)
+	}
+	go c.Close()
 }
 
-func (h *waitGroupHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.s.wg.Add(1)
-	defer h.s.wg.Done() // a defer, in case ServeHTTP below panics
-	h.h.ServeHTTP(w, r)
+// forgetConn removes c from the set of tracked conns and decrements it from the
+// waitgroup, unless it was previously removed.
+// s.mu must be held.
+func (s *Server) forgetConn(c net.Conn) {
+	if _, ok := s.conns[c]; ok {
+		delete(s.conns, c)
+		s.wg.Done()
+	}
 }
-
-// localhostCert is a PEM-encoded TLS cert with SAN IPs
-// "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
-// of ASN.1 time).
-// generated from src/crypto/tls:
-// go run generate_cert.go  --rsa-bits 1024 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
-var localhostCert = []byte(`-----BEGIN CERTIFICATE-----
-MIICEzCCAXygAwIBAgIQMIMChMLGrR+QvmQvpwAU6zANBgkqhkiG9w0BAQsFADAS
-MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
-MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
-iQKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9SjY1bIw4
-iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZBl2+XsDul
-rKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQABo2gwZjAO
-BgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH/BAUw
-AwEB/zAuBgNVHREEJzAlggtleGFtcGxlLmNvbYcEfwAAAYcQAAAAAAAAAAAAAAAA
-AAAAATANBgkqhkiG9w0BAQsFAAOBgQCEcetwO59EWk7WiJsG4x8SY+UIAA+flUI9
-tyC4lNhbcF2Idq9greZwbYCqTTTr2XiRNSMLCOjKyI7ukPoPjo16ocHj+P3vZGfs
-h1fIw3cSS2OolhloGw/XM6RWPWtPAlGykKLciQrBru5NAPvCMsb/I1DAceTiotQM
-fblo6RBxUQ==
------END CERTIFICATE-----`)
-
-// localhostKey is the private key for localhostCert.
-var localhostKey = []byte(`-----BEGIN RSA PRIVATE KEY-----
-MIICXgIBAAKBgQDuLnQAI3mDgey3VBzWnB2L39JUU4txjeVE6myuDqkM/uGlfjb9
-SjY1bIw4iA5sBBZzHi3z0h1YV8QPuxEbi4nW91IJm2gsvvZhIrCHS3l6afab4pZB
-l2+XsDulrKBxKKtD1rGxlG4LjncdabFn9gvLZad2bSysqz/qTAUStTvqJQIDAQAB
-AoGAGRzwwir7XvBOAy5tM/uV6e+Zf6anZzus1s1Y1ClbjbE6HXbnWWF/wbZGOpet
-3Zm4vD6MXc7jpTLryzTQIvVdfQbRc6+MUVeLKwZatTXtdZrhu+Jk7hx0nTPy8Jcb
-uJqFk541aEw+mMogY/xEcfbWd6IOkp+4xqjlFLBEDytgbIECQQDvH/E6nk+hgN4H
-qzzVtxxr397vWrjrIgPbJpQvBsafG7b0dA4AFjwVbFLmQcj2PprIMmPcQrooz8vp
-jy4SHEg1AkEA/v13/5M47K9vCxmb8QeD/asydfsgS5TeuNi8DoUBEmiSJwma7FXY
-fFUtxuvL7XvjwjN5B30pNEbc6Iuyt7y4MQJBAIt21su4b3sjXNueLKH85Q+phy2U
-fQtuUE9txblTu14q3N7gHRZB4ZMhFYyDy8CKrN2cPg/Fvyt0Xlp/DoCzjA0CQQDU
-y2ptGsuSmgUtWj3NM9xuwYPm+Z/F84K6+ARYiZ6PYj013sovGKUFfYAqVXVlxtIX
-qyUBnu3X9ps8ZfjLZO7BAkEAlT4R5Yl6cGhaJQYZHOde3JEMhNRcVFMO8dJDaFeo
-f9Oeos0UUothgiDktdQHxdNEwLjQf7lJJBzV+5OtwswCWA==
------END RSA PRIVATE KEY-----`)

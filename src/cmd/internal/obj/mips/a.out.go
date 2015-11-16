@@ -27,14 +27,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package ppc64
+package mips
 
 import "cmd/internal/obj"
 
-//go:generate go run ../stringer.go -i $GOFILE -o anames.go -p ppc64
+//go:generate go run ../stringer.go -i $GOFILE -o anames.go -p mips
 
 /*
- * powerpc 64
+ * mips 64
  */
 const (
 	NSNAME = 8
@@ -44,7 +44,7 @@ const (
 )
 
 const (
-	REG_R0 = obj.RBasePPC64 + iota
+	REG_R0 = obj.RBaseMIPS64 + iota
 	REG_R1
 	REG_R2
 	REG_R3
@@ -110,90 +110,128 @@ const (
 	REG_F30
 	REG_F31
 
-	REG_CR0
-	REG_CR1
-	REG_CR2
-	REG_CR3
-	REG_CR4
-	REG_CR5
-	REG_CR6
-	REG_CR7
+	REG_HI
+	REG_LO
 
-	REG_MSR
-	REG_FPSCR
-	REG_CR
+	// co-processor 0 control registers
+	REG_M0 = obj.RBaseMIPS64 + 1024 + iota
+	REG_M1
+	REG_M2
+	REG_M3
+	REG_M4
+	REG_M5
+	REG_M6
+	REG_M7
+	REG_M8
+	REG_M9
+	REG_M10
+	REG_M11
+	REG_M12
+	REG_M13
+	REG_M14
+	REG_M15
+	REG_M16
+	REG_M17
+	REG_M18
+	REG_M19
+	REG_M20
+	REG_M21
+	REG_M22
+	REG_M23
+	REG_M24
+	REG_M25
+	REG_M26
+	REG_M27
+	REG_M28
+	REG_M29
+	REG_M30
+	REG_M31
 
-	REG_SPECIAL = REG_CR0
+	// FPU control registers
+	REG_FCR0 = obj.RBaseMIPS64 + 2048 + iota
+	REG_FCR1
+	REG_FCR2
+	REG_FCR3
+	REG_FCR4
+	REG_FCR5
+	REG_FCR6
+	REG_FCR7
+	REG_FCR8
+	REG_FCR9
+	REG_FCR10
+	REG_FCR11
+	REG_FCR12
+	REG_FCR13
+	REG_FCR14
+	REG_FCR15
+	REG_FCR16
+	REG_FCR17
+	REG_FCR18
+	REG_FCR19
+	REG_FCR20
+	REG_FCR21
+	REG_FCR22
+	REG_FCR23
+	REG_FCR24
+	REG_FCR25
+	REG_FCR26
+	REG_FCR27
+	REG_FCR28
+	REG_FCR29
+	REG_FCR30
+	REG_FCR31
 
-	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
-	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
-
-	REG_XER = REG_SPR0 + 1
-	REG_LR  = REG_SPR0 + 8
-	REG_CTR = REG_SPR0 + 9
+	REG_SPECIAL = REG_M0
 
 	REGZERO  = REG_R0 /* set to zero */
-	REGSP    = REG_R1
-	REGSB    = REG_R2
-	REGRET   = REG_R3
+	REGSP    = REG_R29
+	REGSB    = REG_R30
+	REGLINK  = REG_R31
+	REGRET   = REG_R1
 	REGARG   = -1      /* -1 disables passing the first argument in register */
-	REGRT1   = REG_R3  /* reserved for runtime, duffzero and duffcopy */
-	REGRT2   = REG_R4  /* reserved for runtime, duffcopy */
-	REGMIN   = REG_R7  /* register variables allocated from here to REGMAX */
-	REGCTXT  = REG_R11 /* context for closures */
-	REGTLS   = REG_R13 /* C ABI TLS base pointer */
-	REGMAX   = REG_R27
-	REGEXT   = REG_R30 /* external registers allocated from here down */
+	REGRT1   = REG_R1  /* reserved for runtime, duffzero and duffcopy */
+	REGRT2   = REG_R2  /* reserved for runtime, duffcopy */
+	REGCTXT  = REG_R22 /* context for closures */
 	REGG     = REG_R30 /* G */
-	REGTMP   = REG_R31 /* used by the linker */
+	REGTMP   = REG_R28 /* used by the linker */
 	FREGRET  = REG_F0
-	FREGMIN  = REG_F17 /* first register variable */
-	FREGMAX  = REG_F26 /* last register variable for 9g only */
-	FREGEXT  = REG_F26 /* first external register */
-	FREGCVI  = REG_F27 /* floating conversion constant */
-	FREGZERO = REG_F28 /* both float and double */
-	FREGHALF = REG_F29 /* double */
-	FREGONE  = REG_F30 /* double */
-	FREGTWO  = REG_F31 /* double */
+	FREGZERO = REG_F24 /* both float and double */
+	FREGHALF = REG_F26 /* double */
+	FREGONE  = REG_F28 /* double */
+	FREGTWO  = REG_F30 /* double */
 )
 
-/*
- * GENERAL:
- *
- * compiler allocates R3 up as temps
- * compiler allocates register variables R7-R27
- * compiler allocates external registers R30 down
- *
- * compiler allocates register variables F17-F26
- * compiler allocates external registers F26 down
- */
 const (
-	BIG = 32768 - 8
+	BIG = 32766
 )
 
 const (
 	/* mark flags */
-	LABEL   = 1 << 0
-	LEAF    = 1 << 1
-	FLOAT   = 1 << 2
-	BRANCH  = 1 << 3
-	LOAD    = 1 << 4
-	FCMP    = 1 << 5
-	SYNC    = 1 << 6
-	LIST    = 1 << 7
-	FOLL    = 1 << 8
-	NOSCHED = 1 << 9
+	FOLL    = 1 << 0
+	LABEL   = 1 << 1
+	LEAF    = 1 << 2
+	SYNC    = 1 << 3
+	BRANCH  = 1 << 4
+	LOAD    = 1 << 5
+	FCMP    = 1 << 6
+	NOSCHED = 1 << 7
+
+	NSCHED = 20
 )
 
 const (
 	C_NONE = iota
 	C_REG
 	C_FREG
-	C_CREG
-	C_SPR /* special processor register */
+	C_FCREG
+	C_MREG /* special processor register */
+	C_HI
+	C_LO
 	C_ZCON
-	C_SCON   /* 16 bit signed */
-	C_UCON   /* 32 bit signed, low 16 bits 0 */
+	C_SCON /* 16 bit signed */
+	C_UCON /* 32 bit signed, low 16 bits 0 */
+	C_ADD0CON
+	C_AND0CON
 	C_ADDCON /* -0x8000 <= v < 0 */
 	C_ANDCON /* 0 < v <= 0xFFFF */
 	C_LCON   /* other 32 */
@@ -212,12 +250,6 @@ const (
 	C_ZOREG
 	C_SOREG
 	C_LOREG
-	C_FPSCR
-	C_MSR
-	C_XER
-	C_LR
-	C_CTR
-	C_ANY
 	C_GOK
 	C_ADDR
 	C_TEXTSIZE
@@ -226,313 +258,117 @@ const (
 )
 
 const (
-	AADD = obj.ABasePPC64 + obj.A_ARCHSPECIFIC + iota
-	AADDCC
-	AADDV
-	AADDVCC
-	AADDC
-	AADDCCC
-	AADDCV
-	AADDCVCC
-	AADDME
-	AADDMECC
-	AADDMEVCC
-	AADDMEV
-	AADDE
-	AADDECC
-	AADDEVCC
-	AADDEV
-	AADDZE
-	AADDZECC
-	AADDZEVCC
-	AADDZEV
+	AABSD = obj.ABaseMIPS64 + obj.A_ARCHSPECIFIC + iota
+	AABSF
+	AABSW
+	AADD
+	AADDD
+	AADDF
+	AADDU
+	AADDW
 	AAND
-	AANDCC
-	AANDN
-	AANDNCC
-	ABC
-	ABCL
 	ABEQ
-	ABGE
-	ABGT
-	ABLE
-	ABLT
+	ABFPF
+	ABFPT
+	ABGEZ
+	ABGEZAL
+	ABGTZ
+	ABLEZ
+	ABLTZ
+	ABLTZAL
 	ABNE
-	ABVC
-	ABVS
-	ACMP
-	ACMPU
-	ACNTLZW
-	ACNTLZWCC
-	ACRAND
-	ACRANDN
-	ACREQV
-	ACRNAND
-	ACRNOR
-	ACROR
-	ACRORN
-	ACRXOR
+	ABREAK
+	ACMPEQD
+	ACMPEQF
+	ACMPGED
+	ACMPGEF
+	ACMPGTD
+	ACMPGTF
+	ADIV
+	ADIVD
+	ADIVF
+	ADIVU
 	ADIVW
-	ADIVWCC
-	ADIVWVCC
-	ADIVWV
-	ADIVWU
-	ADIVWUCC
-	ADIVWUVCC
-	ADIVWUV
-	AEQV
-	AEQVCC
-	AEXTSB
-	AEXTSBCC
-	AEXTSH
-	AEXTSHCC
-	AFABS
-	AFABSCC
-	AFADD
-	AFADDCC
-	AFADDS
-	AFADDSCC
-	AFCMPO
-	AFCMPU
-	AFCTIW
-	AFCTIWCC
-	AFCTIWZ
-	AFCTIWZCC
-	AFDIV
-	AFDIVCC
-	AFDIVS
-	AFDIVSCC
-	AFMADD
-	AFMADDCC
-	AFMADDS
-	AFMADDSCC
-	AFMOVD
-	AFMOVDCC
-	AFMOVDU
-	AFMOVS
-	AFMOVSU
-	AFMSUB
-	AFMSUBCC
-	AFMSUBS
-	AFMSUBSCC
-	AFMUL
-	AFMULCC
-	AFMULS
-	AFMULSCC
-	AFNABS
-	AFNABSCC
-	AFNEG
-	AFNEGCC
-	AFNMADD
-	AFNMADDCC
-	AFNMADDS
-	AFNMADDSCC
-	AFNMSUB
-	AFNMSUBCC
-	AFNMSUBS
-	AFNMSUBSCC
-	AFRSP
-	AFRSPCC
-	AFSUB
-	AFSUBCC
-	AFSUBS
-	AFSUBSCC
-	AMOVMW
-	ALSW
-	ALWAR
-	AMOVWBR
+	AGOK
 	AMOVB
 	AMOVBU
-	AMOVBZ
-	AMOVBZU
+	AMOVD
+	AMOVDF
+	AMOVDW
+	AMOVF
+	AMOVFD
+	AMOVFW
 	AMOVH
-	AMOVHBR
 	AMOVHU
-	AMOVHZ
-	AMOVHZU
 	AMOVW
-	AMOVWU
-	AMOVFL
-	AMOVCRFS
-	AMTFSB0
-	AMTFSB0CC
-	AMTFSB1
-	AMTFSB1CC
-	AMULHW
-	AMULHWCC
-	AMULHWU
-	AMULHWUCC
-	AMULLW
-	AMULLWCC
-	AMULLWVCC
-	AMULLWV
-	ANAND
-	ANANDCC
-	ANEG
-	ANEGCC
-	ANEGVCC
-	ANEGV
+	AMOVWD
+	AMOVWF
+	AMOVWL
+	AMOVWR
+	AMUL
+	AMULD
+	AMULF
+	AMULU
+	AMULW
+	ANEGD
+	ANEGF
+	ANEGW
 	ANOR
-	ANORCC
 	AOR
-	AORCC
-	AORN
-	AORNCC
 	AREM
-	AREMCC
-	AREMV
-	AREMVCC
 	AREMU
-	AREMUCC
-	AREMUV
-	AREMUVCC
-	ARFI
-	ARLWMI
-	ARLWMICC
-	ARLWNM
-	ARLWNMCC
-	ASLW
-	ASLWCC
-	ASRW
-	ASRAW
-	ASRAWCC
-	ASRWCC
-	ASTSW
-	ASTWCCC
+	ARFE
+	ASGT
+	ASGTU
+	ASLL
+	ASRA
+	ASRL
 	ASUB
-	ASUBCC
-	ASUBVCC
-	ASUBC
-	ASUBCCC
-	ASUBCV
-	ASUBCVCC
-	ASUBME
-	ASUBMECC
-	ASUBMEVCC
-	ASUBMEV
-	ASUBV
-	ASUBE
-	ASUBECC
-	ASUBEV
-	ASUBEVCC
-	ASUBZE
-	ASUBZECC
-	ASUBZEVCC
-	ASUBZEV
-	ASYNC
-	AXOR
-	AXORCC
-
-	ADCBF
-	ADCBI
-	ADCBST
-	ADCBT
-	ADCBTST
-	ADCBZ
-	AECIWX
-	AECOWX
-	AEIEIO
-	AICBI
-	AISYNC
-	APTESYNC
-	ATLBIE
-	ATLBIEL
-	ATLBSYNC
-	ATW
-
+	ASUBD
+	ASUBF
+	ASUBU
+	ASUBW
 	ASYSCALL
+	ATLBP
+	ATLBR
+	ATLBWI
+	ATLBWR
 	AWORD
-
-	ARFCI
-
-	/* optional on 32-bit */
-	AFRES
-	AFRESCC
-	AFRSQRTE
-	AFRSQRTECC
-	AFSEL
-	AFSELCC
-	AFSQRT
-	AFSQRTCC
-	AFSQRTS
-	AFSQRTSCC
+	AXOR
 
 	/* 64-bit */
+	AMOVV
+	AMOVVL
+	AMOVVR
+	ASLLV
+	ASRAV
+	ASRLV
+	ADIVV
+	ADIVVU
+	AREMV
+	AREMVU
+	AMULV
+	AMULVU
+	AADDV
+	AADDVU
+	ASUBV
+	ASUBVU
 
-	ACNTLZD
-	ACNTLZDCC
-	ACMPW /* CMP with L=0 */
-	ACMPWU
-	ADIVD
-	ADIVDCC
-	ADIVDVCC
-	ADIVDV
-	ADIVDU
-	ADIVDUCC
-	ADIVDUVCC
-	ADIVDUV
-	AEXTSW
-	AEXTSWCC
-	/* AFCFIW; AFCFIWCC */
-	AFCFID
-	AFCFIDCC
-	AFCTID
-	AFCTIDCC
-	AFCTIDZ
-	AFCTIDZCC
-	ALDAR
-	AMOVD
-	AMOVDU
-	AMOVWZ
-	AMOVWZU
-	AMULHD
-	AMULHDCC
-	AMULHDU
-	AMULHDUCC
-	AMULLD
-	AMULLDCC
-	AMULLDVCC
-	AMULLDV
-	ARFID
-	ARLDMI
-	ARLDMICC
-	ARLDC
-	ARLDCCC
-	ARLDCR
-	ARLDCRCC
-	ARLDCL
-	ARLDCLCC
-	ASLBIA
-	ASLBIE
-	ASLBMFEE
-	ASLBMFEV
-	ASLBMTE
-	ASLD
-	ASLDCC
-	ASRD
-	ASRAD
-	ASRADCC
-	ASRDCC
-	ASTDCCC
-	ATD
-
-	/* 64-bit pseudo operation */
-	ADWORD
-	AREMD
-	AREMDCC
-	AREMDV
-	AREMDVCC
-	AREMDU
-	AREMDUCC
-	AREMDUV
-	AREMDUVCC
-
-	/* more 64-bit operations */
-	AHRFID
+	/* 64-bit FP */
+	ATRUNCFV
+	ATRUNCDV
+	ATRUNCFW
+	ATRUNCDW
+	AMOVWU
+	AMOVFV
+	AMOVDV
+	AMOVVF
+	AMOVVD
 
 	ALAST
 
 	// aliases
-	ABR = obj.AJMP
-	ABL = obj.ACALL
+	AJMP = obj.AJMP
+	AJAL = obj.ACALL
+	ARET = obj.ARET
 )

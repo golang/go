@@ -4,9 +4,7 @@
 
 package gc
 
-/*
- * select
- */
+// select
 func typecheckselect(sel *Node) {
 	var ncase *Node
 	var n *Node
@@ -109,7 +107,7 @@ func walkselect(sel *Node) {
 	}
 
 	// optimization: one-case select: single op.
-	// TODO(rsc): Reenable optimization once order.c can handle it.
+	// TODO(rsc): Reenable optimization once order.go can handle it.
 	// golang.org/issue/7672.
 	if i == 1 {
 		cas := sel.List.N

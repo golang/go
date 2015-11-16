@@ -373,13 +373,6 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·casp1(SB),NOSPLIT,$0
-	//B	runtime·armcas(SB)
-	B	runtime·cas(SB)
-
-TEXT runtime·cas(SB),NOSPLIT,$0
-	B	runtime·armcas(SB)
-
 TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
 	B	runtime·armPublicationBarrier(SB)
 

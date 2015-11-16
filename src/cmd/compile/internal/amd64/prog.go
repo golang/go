@@ -141,7 +141,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AMOVSL:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
 	x86.AMOVSQ:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
 	x86.AMOVSW:     {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI},
-	obj.ADUFFCOPY:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | CX},
+	obj.ADUFFCOPY:  {Flags: gc.OK, Reguse: DI | SI, Regset: DI | SI | X0},
 	x86.AMOVSD:     {Flags: gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Move},
 	x86.AMOVSS:     {Flags: gc.SizeF | gc.LeftRead | gc.RightWrite | gc.Move},
 
@@ -228,7 +228,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.ASTOSL:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
 	x86.ASTOSQ:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
 	x86.ASTOSW:    {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
-	obj.ADUFFZERO: {Flags: gc.OK, Reguse: AX | DI, Regset: DI},
+	obj.ADUFFZERO: {Flags: gc.OK, Reguse: X0 | DI, Regset: DI},
 	x86.ASUBB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.ASUBL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.ASUBQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.SetCarry},

@@ -116,8 +116,10 @@ var dialErrorTests = []struct {
 	{"tcp", "no-such-name:80"},
 	{"tcp", "mh/astro/r70:http"},
 
-	{"tcp", "127.0.0.1:0"},
-	{"udp", "127.0.0.1:0"},
+	{"tcp", JoinHostPort("127.0.0.1", "-1")},
+	{"tcp", JoinHostPort("127.0.0.1", "123456789")},
+	{"udp", JoinHostPort("127.0.0.1", "-1")},
+	{"udp", JoinHostPort("127.0.0.1", "123456789")},
 	{"ip:icmp", "127.0.0.1"},
 
 	{"unix", "/path/to/somewhere"},
@@ -145,9 +147,22 @@ func TestDialError(t *testing.T) {
 	for i, tt := range dialErrorTests {
 		c, err := d.Dial(tt.network, tt.address)
 		if err == nil {
-			t.Errorf("#%d: should fail; %s:%s->%s", i, tt.network, c.LocalAddr(), c.RemoteAddr())
+			t.Errorf("#%d: should fail; %s:%s->%s", i, c.LocalAddr().Network(), c.LocalAddr(), c.RemoteAddr())
 			c.Close()
 			continue
+		}
+		if tt.network == "tcp" || tt.network == "udp" {
+			nerr := err
+			if op, ok := nerr.(*OpError); ok {
+				nerr = op.Err
+			}
+			if sys, ok := nerr.(*os.SyscallError); ok {
+				nerr = sys.Err
+			}
+			if nerr == errOpNotSupported {
+				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
+				continue
+			}
 		}
 		if c != nil {
 			t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
@@ -198,7 +213,8 @@ var listenErrorTests = []struct {
 	{"tcp", "no-such-name:80"},
 	{"tcp", "mh/astro/r70:http"},
 
-	{"tcp", "127.0.0.1:0"},
+	{"tcp", JoinHostPort("127.0.0.1", "-1")},
+	{"tcp", JoinHostPort("127.0.0.1", "123456789")},
 
 	{"unix", "/path/to/somewhere"},
 	{"unixpacket", "/path/to/somewhere"},
@@ -223,9 +239,22 @@ func TestListenError(t *testing.T) {
 	for i, tt := range listenErrorTests {
 		ln, err := Listen(tt.network, tt.address)
 		if err == nil {
-			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, ln.Addr())
+			t.Errorf("#%d: should fail; %s:%s->", i, ln.Addr().Network(), ln.Addr())
 			ln.Close()
 			continue
+		}
+		if tt.network == "tcp" {
+			nerr := err
+			if op, ok := nerr.(*OpError); ok {
+				nerr = op.Err
+			}
+			if sys, ok := nerr.(*os.SyscallError); ok {
+				nerr = sys.Err
+			}
+			if nerr == errOpNotSupported {
+				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
+				continue
+			}
 		}
 		if ln != nil {
 			t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
@@ -246,6 +275,9 @@ var listenPacketErrorTests = []struct {
 	{"udp", "127.0.0.1:☺"},
 	{"udp", "no-such-name:80"},
 	{"udp", "mh/astro/r70:http"},
+
+	{"udp", JoinHostPort("127.0.0.1", "-1")},
+	{"udp", JoinHostPort("127.0.0.1", "123456789")},
 }
 
 func TestListenPacketError(t *testing.T) {
@@ -263,7 +295,7 @@ func TestListenPacketError(t *testing.T) {
 	for i, tt := range listenPacketErrorTests {
 		c, err := ListenPacket(tt.network, tt.address)
 		if err == nil {
-			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, c.LocalAddr())
+			t.Errorf("#%d: should fail; %s:%s->", i, c.LocalAddr().Network(), c.LocalAddr())
 			c.Close()
 			continue
 		}

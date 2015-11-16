@@ -25,8 +25,9 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 		_ = i
 	}
 	if f != nil {
+		x := one()               // ERROR "declaration of x shadows declaration at testdata/shadow.go:14"
 		var _, err = f.Read(buf) // ERROR "declaration of err shadows declaration at testdata/shadow.go:13"
-		if err != nil {
+		if x == 1 && err != nil {
 			return err
 		}
 	}
@@ -51,4 +52,8 @@ func ShadowRead(f *os.File, buf []byte) (err error) {
 	// Use a couple of variables to trigger shadowing errors.
 	_, _ = err, x
 	return
+}
+
+func one() int {
+	return 1
 }

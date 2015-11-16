@@ -63,6 +63,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 4
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -75,6 +76,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -87,6 +89,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			s.Size = 8
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = s
+			p.From.Sym.Local = true
 			p.From.Name = obj.NAME_EXTERN
 			p.From.Offset = 0
 		}
@@ -112,6 +115,130 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 			p.As = AADD
 		}
 	}
+	if ctxt.Flag_dynlink {
+		rewriteToUseGot(ctxt, p)
+	}
+}
+
+// Rewrite p, if necessary, to access global data via the global offset table.
+func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+		//     ADUFFxxx $offset
+		// becomes
+		//     MOVD runtime.duffxxx@GOT, R12
+		//     ADD $offset, R12
+		//     MOVD R12, CTR
+		//     BL (CTR)
+		var sym *obj.LSym
+		if p.As == obj.ADUFFZERO {
+			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
+		} else {
+			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
+		}
+		offset := p.To.Offset
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		p.From.Sym = sym
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R12
+		p.To.Name = obj.NAME_NONE
+		p.To.Offset = 0
+		p.To.Sym = nil
+		p1 := obj.Appendp(ctxt, p)
+		p1.As = AADD
+		p1.From.Type = obj.TYPE_CONST
+		p1.From.Offset = offset
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_R12
+		p2 := obj.Appendp(ctxt, p1)
+		p2.As = AMOVD
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = REG_R12
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = REG_CTR
+		p3 := obj.Appendp(ctxt, p2)
+		p3.As = obj.ACALL
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = REG_R12
+		p3.To.Type = obj.TYPE_REG
+		p3.To.Reg = REG_CTR
+	}
+
+	// We only care about global data: NAME_EXTERN means a global
+	// symbol in the Go sense, and p.Sym.Local is true for a few
+	// internally defined symbols.
+	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
+		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
+		if p.As != AMOVD {
+			ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
+		}
+		if p.To.Type != obj.TYPE_REG {
+			ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
+		}
+		p.From.Type = obj.TYPE_MEM
+		p.From.Name = obj.NAME_GOTREF
+		if p.From.Offset != 0 {
+			q := obj.Appendp(ctxt, p)
+			q.As = AADD
+			q.From.Type = obj.TYPE_CONST
+			q.From.Offset = p.From.Offset
+			q.To = p.To
+			p.From.Offset = 0
+		}
+	}
+	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	}
+	var source *obj.Addr
+	// MOVx sym, Ry becomes MOVD sym@GOT, REGTMP; MOVx (REGTMP), Ry
+	// MOVx Ry, sym becomes MOVD sym@GOT, REGTMP; MOVx Ry, (REGTMP)
+	// An addition may be inserted between the two MOVs if there is an offset.
+	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
+		}
+		source = &p.From
+	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
+		source = &p.To
+	} else {
+		return
+	}
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+		return
+	}
+	if source.Sym.Type == obj.STLSBSS {
+		return
+	}
+	if source.Type != obj.TYPE_MEM {
+		ctxt.Diag("don't know how to handle %v with -dynlink", p)
+	}
+	p1 := obj.Appendp(ctxt, p)
+	p2 := obj.Appendp(ctxt, p1)
+
+	p1.As = AMOVD
+	p1.From.Type = obj.TYPE_MEM
+	p1.From.Sym = source.Sym
+	p1.From.Name = obj.NAME_GOTREF
+	p1.To.Type = obj.TYPE_REG
+	p1.To.Reg = REGTMP
+
+	p2.As = p.As
+	p2.From = p.From
+	p2.To = p.To
+	if p.From.Name == obj.NAME_EXTERN {
+		p2.From.Reg = REGTMP
+		p2.From.Name = obj.NAME_NONE
+		p2.From.Sym = nil
+	} else if p.To.Name == obj.NAME_EXTERN {
+		p2.To.Reg = REGTMP
+		p2.To.Name = obj.NAME_NONE
+		p2.To.Sym = nil
+	} else {
+		return
+	}
+	obj.Nopout(p)
 }
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
@@ -342,11 +469,45 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 			p.To.Offset = int64(autosize)
 
-			if p.From3.Offset&obj.NOSPLIT == 0 {
-				p = stacksplit(ctxt, p, autosize) // emit split check
+			q = p
+
+			if ctxt.Flag_shared != 0 && cursym.Name != "runtime.duffzero" && cursym.Name != "runtime.duffcopy" {
+				// When compiling Go into PIC, all functions must start
+				// with instructions to load the TOC pointer into r2:
+				//
+				//	addis r2, r12, .TOC.-func@ha
+				//	addi r2, r2, .TOC.-func@l+4
+				//
+				// We could probably skip this prologue in some situations
+				// but it's a bit subtle. However, it is both safe and
+				// necessary to leave the prologue off duffzero and
+				// duffcopy as we rely on being able to jump to a specific
+				// instruction offset for them.
+				//
+				// These are AWORDS because there is no (afaict) way to
+				// generate the addis instruction except as part of the
+				// load of a large constant, and in that case there is no
+				// way to use r12 as the source.
+				q = obj.Appendp(ctxt, q)
+				q.As = AWORD
+				q.Lineno = p.Lineno
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = 0x3c4c0000
+				q = obj.Appendp(ctxt, q)
+				q.As = AWORD
+				q.Lineno = p.Lineno
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = 0x38420000
+				rel := obj.Addrel(ctxt.Cursym)
+				rel.Off = 0
+				rel.Siz = 8
+				rel.Sym = obj.Linklookup(ctxt, ".TOC.", 0)
+				rel.Type = obj.R_ADDRPOWER_PCREL
 			}
 
-			q = p
+			if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
+				q = stacksplit(ctxt, q, autosize) // emit split check
+			}
 
 			if autosize != 0 {
 				/* use MOVDU to adjust R1 when saving R31, if autosize is small */
@@ -354,7 +515,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 					mov = AMOVDU
 					aoffset = int(-autosize)
 				} else {
-					q = obj.Appendp(ctxt, p)
+					q = obj.Appendp(ctxt, q)
 					q.As = AADD
 					q.Lineno = p.Lineno
 					q.From.Type = obj.TYPE_CONST
@@ -393,6 +554,17 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			q.To.Reg = REGSP
 			if q.As == AMOVDU {
 				q.Spadj = int32(-aoffset)
+			}
+
+			if ctxt.Flag_shared != 0 {
+				q = obj.Appendp(ctxt, q)
+				q.As = AMOVD
+				q.Lineno = p.Lineno
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REG_R2
+				q.To.Type = obj.TYPE_MEM
+				q.To.Reg = REGSP
+				q.To.Offset = 24
 			}
 
 			if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
@@ -768,19 +940,62 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
 		q.Pcond = p
 	}
 
-	// BL	runtime.morestack(SB)
-	p = obj.Appendp(ctxt, p)
-
-	p.As = ABL
-	p.To.Type = obj.TYPE_BRANCH
+	var morestacksym *obj.LSym
 	if ctxt.Cursym.Cfunc != 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+		morestacksym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
 	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+		morestacksym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
 	} else {
-		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+		morestacksym = obj.Linklookup(ctxt, "runtime.morestack", 0)
 	}
 
+	if ctxt.Flag_dynlink {
+		// Avoid calling morestack via a PLT when dynamically linking.  The
+		// PLT stubs generated by the system linker on ppc64le when "std r2,
+		// 24(r1)" to save the TOC pointer in their callers stack
+		// frame. Unfortunately (and necessarily) morestack is called before
+		// the function that calls it sets up its frame and so the PLT ends
+		// up smashing the saved TOC pointer for its caller's caller.
+		//
+		// According to the ABI documentation there is a mechanism to avoid
+		// the TOC save that the PLT stub does (put a R_PPC64_TOCSAVE
+		// relocation on the nop after the call to morestack) but at the time
+		// of writing it is not supported at all by gold and my attempt to
+		// use it with ld.bfd caused an internal linker error. So this hack
+		// seems preferable.
+
+		// MOVD $runtime.morestack(SB), R12
+		p = obj.Appendp(ctxt, p)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_MEM
+		p.From.Sym = morestacksym
+		p.From.Name = obj.NAME_GOTREF
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_R12
+
+		// MOVD R12, CTR
+		p = obj.Appendp(ctxt, p)
+		p.As = AMOVD
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_R12
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_CTR
+
+		// BL CTR
+		p = obj.Appendp(ctxt, p)
+		p.As = obj.ACALL
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = REG_R12
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = REG_CTR
+	} else {
+		// BL	runtime.morestack(SB)
+		p = obj.Appendp(ctxt, p)
+
+		p.As = ABL
+		p.To.Type = obj.TYPE_BRANCH
+		p.To.Sym = morestacksym
+	}
 	// BR	start
 	p = obj.Appendp(ctxt, p)
 

@@ -4,6 +4,8 @@
 
 // +build !arm
 // +build !arm64
+// +build !mips64
+// +build !mips64le
 
 package runtime
 

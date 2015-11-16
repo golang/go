@@ -44,7 +44,7 @@ type chunkedReader struct {
 func (cr *chunkedReader) beginChunk() {
 	// chunk-size CRLF
 	var line []byte
-	line, cr.err = readLine(cr.r)
+	line, cr.err = readChunkLine(cr.r)
 	if cr.err != nil {
 		return
 	}
@@ -104,10 +104,11 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err error) {
 
 // Read a line of bytes (up to \n) from b.
 // Give up if the line exceeds maxLineLength.
-// The returned bytes are a pointer into storage in
-// the bufio, so they are only valid until the next bufio read.
-func readLine(b *bufio.Reader) (p []byte, err error) {
-	if p, err = b.ReadSlice('\n'); err != nil {
+// The returned bytes are owned by the bufio.Reader
+// so they are only valid until the next bufio read.
+func readChunkLine(b *bufio.Reader) ([]byte, error) {
+	p, err := b.ReadSlice('\n')
+	if err != nil {
 		// We always know when EOF is coming.
 		// If the caller asked for a line, there should be a line.
 		if err == io.EOF {
@@ -120,7 +121,12 @@ func readLine(b *bufio.Reader) (p []byte, err error) {
 	if len(p) >= maxLineLength {
 		return nil, ErrLineTooLong
 	}
-	return trimTrailingWhitespace(p), nil
+	p = trimTrailingWhitespace(p)
+	p, err = removeChunkExtension(p)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func trimTrailingWhitespace(b []byte) []byte {
@@ -132,6 +138,23 @@ func trimTrailingWhitespace(b []byte) []byte {
 
 func isASCIISpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+// removeChunkExtension removes any chunk-extension from p.
+// For example,
+//     "0" => "0"
+//     "0;token" => "0"
+//     "0;token=val" => "0"
+//     `0;token="quoted string"` => "0"
+func removeChunkExtension(p []byte) ([]byte, error) {
+	semi := bytes.IndexByte(p, ';')
+	if semi == -1 {
+		return p, nil
+	}
+	// TODO: care about exact syntax of chunk extensions? We're
+	// ignoring and stripping them anyway. For now just never
+	// return an error.
+	return p[:semi], nil
 }
 
 // NewChunkedWriter returns a new chunkedWriter that translates writes into HTTP

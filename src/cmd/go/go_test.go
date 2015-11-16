@@ -458,7 +458,7 @@ func (tg *testgoData) grepCountBoth(match string) int {
 // removed if it exists.
 func (tg *testgoData) creatingTemp(path string) {
 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
-		tg.t.Fatal("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
+		tg.t.Fatalf("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
 	}
 	// If we have changed the working directory, make sure we have
 	// an absolute path, because we are going to change directory
@@ -1165,6 +1165,17 @@ func TestInstallIntoGOPATH(t *testing.T) {
 	tg.wantExecutable("testdata/bin/go-cmd-test"+exeSuffix, "go install go-cmd-test did not write to testdata/bin/go-cmd-test")
 }
 
+// Issue 12407
+func TestBuildOutputToDevNull(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping because /dev/null is a regular file on plan9")
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("build", "-o", os.DevNull, "go-cmd-test")
+}
+
 func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1178,6 +1189,17 @@ func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg.run("install", "main_test")
 	tg.wantNotStale("main_test", "after go install, main listed as stale")
 	tg.run("test", "main_test")
+}
+
+// Issue 12690
+func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	goroot := runtime.GOROOT()
+	tg.setenv("GOROOT", goroot+"/")
+	tg.wantNotStale("runtime", "with trailing slash in GOROOT, runtime listed as stale")
+	tg.wantNotStale("os", "with trailing slash in GOROOT, os listed as stale")
+	tg.wantNotStale("io", "with trailing slash in GOROOT, io listed as stale")
 }
 
 // With $GOBIN set, binaries get installed to $GOBIN.
@@ -1369,6 +1391,18 @@ func TestGoListCmdOnlyShowsCommands(t *testing.T) {
 			t.Error("go list cmd shows non-commands")
 			break
 		}
+	}
+}
+
+func TestGoListDedupsPackages(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.run("list", "xtestonly", "./testdata/src/xtestonly/...")
+	got := strings.TrimSpace(tg.getStdout())
+	const want = "xtestonly"
+	if got != want {
+		t.Errorf("got %q; want %q", got, want)
 	}
 }
 
@@ -2015,6 +2049,21 @@ func TestGoGenerateRunFlag(t *testing.T) {
 	tg.grepStdoutNot("no", "go generate -run yes ./testdata/generate/test4.go selected no")
 }
 
+func TestGoGenerateEnv(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping because %s does not have the env command", runtime.GOOS)
+	}
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempFile("env.go", "package main\n\n//go:generate env")
+	tg.run("generate", tg.path("env.go"))
+	for _, v := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
+		tg.grepStdout("^"+v+"=", "go generate environment missing "+v)
+	}
+}
+
 func TestGoGetCustomDomainWildcard(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 
@@ -2223,7 +2272,7 @@ func TestGoTestImportErrorStack(t *testing.T) {
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
 	tg.runFail("test", "testdep/p1")
 	if !strings.Contains(tg.stderr.String(), out) {
-		t.Fatal("did not give full import stack:\n\n%s", tg.stderr.String())
+		t.Fatalf("did not give full import stack:\n\n%s", tg.stderr.String())
 	}
 }
 

@@ -27,6 +27,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	allocfreetrace: setting allocfreetrace=1 causes every allocation to be
 	profiled and a stack trace printed on each object's allocation and free.
 
+	cgocheck: setting cgocheck=0 disables all checks for packages
+	using cgo to incorrectly pass Go pointers to non-Go code.
+	Setting cgocheck=1 (the default) enables relatively cheap
+	checks that may miss some errors.  Setting cgocheck=2 enables
+	expensive checks that should not miss any errors, but will
+	cause your program to run slower.
+
 	efence: setting efence=1 causes the allocator to run in a mode
 	where each object is allocated on a unique page and addresses are
 	never recycled.
@@ -106,15 +113,20 @@ the limit.
 
 The GOTRACEBACK variable controls the amount of output generated when a Go
 program fails due to an unrecovered panic or an unexpected runtime condition.
-By default, a failure prints a stack trace for every extant goroutine, eliding functions
-internal to the run-time system, and then exits with exit code 2.
-If GOTRACEBACK=0, the per-goroutine stack traces are omitted entirely.
-If GOTRACEBACK=1, the default behavior is used.
-If GOTRACEBACK=2, the per-goroutine stack traces include run-time functions.
-If GOTRACEBACK=crash, the per-goroutine stack traces include run-time functions,
-and if possible the program crashes in an operating-specific manner instead of
-exiting. For example, on Unix systems, the program raises SIGABRT to trigger a
-core dump.
+By default, a failure prints a stack trace for the current goroutine,
+eliding functions internal to the run-time system, and then exits with exit code 2.
+The failure prints stack traces for all goroutines if there is no current goroutine
+or the failure is internal to the run-time.
+GOTRACEBACK=none omits the goroutine stack traces entirely.
+GOTRACEBACK=single (the default) behaves as described above.
+GOTRACEBACK=all adds stack traces for all user-created goroutines.
+GOTRACEBACK=system is like ``all'' but adds stack frames for run-time functions
+and shows goroutines created internally by the run-time.
+GOTRACEBACK=crash is like ``system'' but crashes in an operating system-specific
+manner instead of exiting. For example, on Unix systems, the crash raises
+SIGABRT to trigger a core dump.
+For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
+none, all, and system, respectively.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs
@@ -124,6 +136,8 @@ constants or functions in this package, but they do not influence the execution
 of the run-time system.
 */
 package runtime
+
+import "runtime/internal/sys"
 
 // Caller reports file and line number information about function invocations on
 // the calling goroutine's stack.  The argument skip is the number of stack frames
@@ -194,20 +208,20 @@ func GOROOT() string {
 	if s != "" {
 		return s
 	}
-	return defaultGoroot
+	return sys.DefaultGoroot
 }
 
 // Version returns the Go tree's version string.
 // It is either the commit hash and date at the time of the build or,
 // when possible, a release tag like "go1.3".
 func Version() string {
-	return theVersion
+	return sys.TheVersion
 }
 
 // GOOS is the running program's operating system target:
 // one of darwin, freebsd, linux, and so on.
-const GOOS string = theGoos
+const GOOS string = sys.TheGoos
 
 // GOARCH is the running program's architecture target:
 // 386, amd64, or arm.
-const GOARCH string = theGoarch
+const GOARCH string = sys.TheGoarch

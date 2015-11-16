@@ -42,13 +42,13 @@ type Node struct {
 
 	Esc uint16 // EscXXX
 
-	Op          uint8
+	Op          Op
 	Nointerface bool
 	Ullman      uint8 // sethi/ullman number
 	Addable     bool  // addressable
-	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
+	Etype       EType // op for OASOP, etype for OTYPE, exclam for export, 6g saved reg
 	Bounded     bool  // bounds check unnecessary
-	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
+	Class       Class // PPARAM, PAUTO, PEXTERN, etc
 	Embedded    uint8 // ODCLFIELD embedded type
 	Colas       bool  // OAS resulting from :=
 	Diag        uint8 // already printed error about this
@@ -169,18 +169,24 @@ type Func struct {
 
 	Endlineno int32
 
-	Norace         bool // func must not have race detector annotations
-	Nosplit        bool // func should not execute on separate stack
-	Nowritebarrier bool // emit compiler error instead of write barrier
-	Dupok          bool // duplicate definitions ok
-	Wrapper        bool // is method wrapper
-	Needctxt       bool // function uses context register (has closure variables)
-	Systemstack    bool // must run on system stack
+	Norace            bool // func must not have race detector annotations
+	Nosplit           bool // func should not execute on separate stack
+	Noinline          bool // func should not be inlined
+	Nowritebarrier    bool // emit compiler error instead of write barrier
+	Nowritebarrierrec bool // error on write barrier in this or recursive callees
+	Dupok             bool // duplicate definitions ok
+	Wrapper           bool // is method wrapper
+	Needctxt          bool // function uses context register (has closure variables)
+	Systemstack       bool // must run on system stack
+
+	WBLineno int32 // line number of first write barrier
 }
+
+type Op uint8
 
 // Node ops.
 const (
-	OXXX = iota
+	OXXX = Op(iota)
 
 	// names
 	ONAME    // var, const or func name

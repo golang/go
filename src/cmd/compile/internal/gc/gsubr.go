@@ -43,9 +43,7 @@ var dfirst *obj.Prog
 
 var dpc *obj.Prog
 
-/*
- * Is this node a memory operand?
- */
+// Is this node a memory operand?
 func Ismem(n *Node) bool {
 	switch n.Op {
 	case OITAB,
@@ -85,7 +83,7 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Val = nil
-	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' {
+	if as != obj.AJMP && likely != 0 && Thearch.Thechar != '9' && Thearch.Thechar != '7' && Thearch.Thechar != '0' {
 		p.From.Type = obj.TYPE_CONST
 		if likely > 0 {
 			p.From.Offset = 1
@@ -337,7 +335,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		// n->left is PHEAP ONAME for stack parameter.
 	// compute address of actual parameter on stack.
 	case OPARAM:
-		a.Etype = Simtype[n.Left.Type.Etype]
+		a.Etype = uint8(Simtype[n.Left.Type.Etype])
 
 		a.Width = n.Left.Type.Width
 		a.Offset = n.Xoffset
@@ -362,7 +360,7 @@ func Naddr(a *obj.Addr, n *Node) {
 	case ONAME:
 		a.Etype = 0
 		if n.Type != nil {
-			a.Etype = Simtype[n.Type.Etype]
+			a.Etype = uint8(Simtype[n.Type.Etype])
 		}
 		a.Offset = n.Xoffset
 		s := n.Sym
@@ -406,6 +404,17 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		a.Sym = Linksym(s)
 
+	case ODOT:
+		// A special case to make write barriers more efficient.
+		// Taking the address of the first field of a named struct
+		// is the same as taking the address of the struct.
+		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Type.Sym != n.Right.Sym {
+			Debug['h'] = 1
+			Dump("naddr", n)
+			Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+		}
+		Naddr(a, n.Left)
+
 	case OLITERAL:
 		if Thearch.Thechar == '8' {
 			a.Width = 0
@@ -440,7 +449,7 @@ func Naddr(a *obj.Addr, n *Node) {
 	case OADDR:
 		Naddr(a, n.Left)
 		a.Etype = uint8(Tptr)
-		if Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
+		if Thearch.Thechar != '0' && Thearch.Thechar != '5' && Thearch.Thechar != '7' && Thearch.Thechar != '9' { // TODO(rsc): Do this even for arm, ppc64.
 			a.Width = int64(Widthptr)
 		}
 		if a.Type != obj.TYPE_MEM {
@@ -466,7 +475,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // ptr(nil)
 		}
-		a.Etype = Simtype[Tptr]
+		a.Etype = uint8(Simtype[Tptr])
 		a.Offset += int64(Array_array)
 		a.Width = int64(Widthptr)
 
@@ -477,7 +486,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // len(nil)
 		}
-		a.Etype = Simtype[TUINT]
+		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_nel)
 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
@@ -490,7 +499,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
 			break // cap(nil)
 		}
-		a.Etype = Simtype[TUINT]
+		a.Etype = uint8(Simtype[TUINT])
 		a.Offset += int64(Array_cap)
 		if Thearch.Thechar != '5' { // TODO(rsc): Do this even on arm.
 			a.Width = int64(Widthint)
@@ -675,16 +684,14 @@ func Anyregalloc() bool {
 	return n > len(Thearch.ReservedRegs)
 }
 
-/*
- * allocate register of type t, leave in n.
- * if o != N, o may be reusable register.
- * caller must Regfree(n).
- */
+// allocate register of type t, leave in n.
+// if o != N, o may be reusable register.
+// caller must Regfree(n).
 func Regalloc(n *Node, t *Type, o *Node) {
 	if t == nil {
 		Fatalf("regalloc: t nil")
 	}
-	et := int(Simtype[t.Etype])
+	et := Simtype[t.Etype]
 	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
 		Fatalf("regalloc 64bit")
 	}

@@ -8,6 +8,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"unsafe"
 )
 
@@ -250,16 +251,11 @@ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
 }
 
 // Called when freeing a profiled block.
-func mProf_Free(b *bucket, size uintptr, freed bool) {
+func mProf_Free(b *bucket, size uintptr) {
 	lock(&proflock)
 	mp := b.mp()
-	if freed {
-		mp.recent_frees++
-		mp.recent_free_bytes += size
-	} else {
-		mp.prev_frees++
-		mp.prev_free_bytes += size
-	}
+	mp.prev_frees++
+	mp.prev_free_bytes += size
 	unlock(&proflock)
 }
 
@@ -285,14 +281,14 @@ func SetBlockProfileRate(rate int) {
 		}
 	}
 
-	atomicstore64(&blockprofilerate, uint64(r))
+	atomic.Store64(&blockprofilerate, uint64(r))
 }
 
 func blockevent(cycles int64, skip int) {
 	if cycles <= 0 {
 		cycles = 1
 	}
-	rate := int64(atomicload64(&blockprofilerate))
+	rate := int64(atomic.Load64(&blockprofilerate))
 	if rate <= 0 || (rate > cycles && int64(fastrand1())%rate > cycles) {
 		return
 	}
@@ -493,7 +489,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 // Most clients should use the runtime/pprof package instead
 // of calling ThreadCreateProfile directly.
 func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
-	first := (*m)(atomicloadp(unsafe.Pointer(&allm)))
+	first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 	for mp := first; mp != nil; mp = mp.alllink {
 		n++
 	}

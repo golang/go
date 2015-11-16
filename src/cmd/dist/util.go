@@ -6,6 +6,8 @@ package main
 
 import (
 	"bytes"
+	"debug/elf"
+	"encoding/binary"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -402,6 +404,9 @@ func main() {
 		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
 			gohostarch = "amd64"
 		}
+	case "freebsd":
+		// Since FreeBSD 10 gcc is no longer part of the base system.
+		defaultclang = true
 	case "solaris":
 		// Even on 64-bit platform, solaris uname -m prints i86pc.
 		out := run("", CheckExit, "isainfo", "-n")
@@ -438,6 +443,16 @@ func main() {
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):
 			gohostarch = "ppc64"
+		case strings.Contains(out, "mips64"):
+			file, err := elf.Open(os.Args[0])
+			if err != nil {
+				fatal("failed to open %s to determine endianness: %v", os.Args[0], err)
+			}
+			if file.FileHeader.ByteOrder == binary.BigEndian {
+				gohostarch = "mips64"
+			} else {
+				gohostarch = "mips64le"
+			}
 		case gohostos == "darwin":
 			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
 				gohostarch = "arm"

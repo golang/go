@@ -361,10 +361,8 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
 //	SP = stack - C_32_STK_ALIGN
 TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	// set up ldt 7+id to point at m->tls.
-	// m->tls is at m+40.  newosproc left
-	// the m->id in tls[0].
 	LEAL	m_tls(DX), BP
-	MOVL	0(BP), DI
+	MOVL	m_id(DX), DI
 	ADDL	$7, DI	// m0 is LDT#7. count up.
 	// setldt(tls#, &tls, sizeof tls)
 	PUSHAL	// save registers

@@ -6,6 +6,8 @@
 
 package cgotest
 
+import "runtime"
+
 /*
 typedef int *intptr;
 
@@ -39,6 +41,10 @@ import (
 )
 
 func test10303(t *testing.T, n int) {
+	if runtime.Compiler == "gccgo" {
+		t.Skip("gccgo permits C pointers on the stack")
+	}
+
 	// Run at a few different stack depths just to avoid an unlucky pass
 	// due to variables ending up on different pages.
 	if n > 0 {

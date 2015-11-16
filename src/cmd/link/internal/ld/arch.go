@@ -68,3 +68,21 @@ var Linkppc64le = LinkArch{
 	Ptrsize:   8,
 	Regsize:   8,
 }
+
+var Linkmips64 = LinkArch{
+	ByteOrder: binary.BigEndian,
+	Name:      "mips64",
+	Thechar:   '0',
+	Minlc:     4,
+	Ptrsize:   8,
+	Regsize:   8,
+}
+
+var Linkmips64le = LinkArch{
+	ByteOrder: binary.LittleEndian,
+	Name:      "mips64le",
+	Thechar:   '0',
+	Minlc:     4,
+	Ptrsize:   8,
+	Regsize:   8,
+}

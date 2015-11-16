@@ -6,13 +6,11 @@ package gc
 
 import "cmd/internal/obj"
 
-/*
- * look for
- *	unsafe.Sizeof
- *	unsafe.Offsetof
- *	unsafe.Alignof
- * rewrite with a constant
- */
+// look for
+//	unsafe.Sizeof
+//	unsafe.Offsetof
+//	unsafe.Alignof
+// rewrite with a constant
 func unsafenmagic(nn *Node) *Node {
 	fn := nn.Left
 	args := nn.List

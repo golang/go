@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -203,11 +204,14 @@ func TestNoTextrel(t *testing.T) {
 }
 
 // The install command should have created a "shlibname" file for the
-// listed packages (and runtime/cgo) indicating the name of the shared
-// library containing it.
+// listed packages (and runtime/cgo, and math on arm) indicating the
+// name of the shared library containing it.
 func TestShlibnameFiles(t *testing.T) {
 	pkgs := append([]string{}, minpkgs...)
 	pkgs = append(pkgs, "runtime/cgo")
+	if runtime.GOARCH == "arm" {
+		pkgs = append(pkgs, "math")
+	}
 	for _, pkg := range pkgs {
 		shlibnamefile := filepath.Join(gorootInstallDir, pkg+".shlibname")
 		contentsb, err := ioutil.ReadFile(shlibnamefile)
@@ -357,6 +361,36 @@ func TestTrivialExecutable(t *testing.T) {
 func TestCgoExecutable(t *testing.T) {
 	goCmd(t, "install", "-linkshared", "execgo")
 	run(t, "cgo executable", "./bin/execgo")
+}
+
+func checkPIE(t *testing.T, name string) {
+	f, err := elf.Open(name)
+	if err != nil {
+		t.Fatal("elf.Open failed: ", err)
+	}
+	defer f.Close()
+	if f.Type != elf.ET_DYN {
+		t.Errorf("%s has type %v, want ET_DYN", name, f.Type)
+	}
+	if hasDynTag(f, elf.DT_TEXTREL) {
+		t.Errorf("%s has DT_TEXTREL set", name)
+	}
+}
+
+func TestTrivialPIE(t *testing.T) {
+	name := "trivial_pie"
+	goCmd(t, "build", "-buildmode=pie", "-o="+name, "trivial")
+	defer os.Remove(name)
+	run(t, name, "./"+name)
+	checkPIE(t, name)
+}
+
+func TestCgoPIE(t *testing.T) {
+	name := "cgo_pie"
+	goCmd(t, "build", "-buildmode=pie", "-o="+name, "execgo")
+	defer os.Remove(name)
+	run(t, name, "./"+name)
+	checkPIE(t, name)
 }
 
 // Build a GOPATH package into a shared library that links against the goroot runtime

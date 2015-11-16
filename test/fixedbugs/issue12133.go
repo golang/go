@@ -19,8 +19,8 @@ func main() {
 		panic("bad")
 	}
 }
+
+//go:noinline
 func f1(v1 uint) uint {
-	switch {
-	} // prevent inlining
 	return v1 >> ((1 >> v1) + (1 >> v1))
 }

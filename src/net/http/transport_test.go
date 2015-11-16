@@ -1775,6 +1775,7 @@ func TestTransportNoHost(t *testing.T) {
 	defer afterTest(t)
 	tr := &Transport{}
 	_, err := tr.RoundTrip(&Request{
+		Method: "GET",
 		Header: make(Header),
 		URL: &url.URL{
 			Scheme: "http",

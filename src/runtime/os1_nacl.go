@@ -83,8 +83,10 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 }
 
 //go:nosplit
-func semacreate() uintptr {
-	var cond uintptr
+func semacreate(mp *m) {
+	if mp.waitsema != 0 {
+		return
+	}
 	systemstack(func() {
 		mu := nacl_mutex_create(0)
 		if mu < 0 {
@@ -93,14 +95,12 @@ func semacreate() uintptr {
 		}
 		c := nacl_cond_create(0)
 		if c < 0 {
-			print("nacl_cond_create: error ", -cond, "\n")
+			print("nacl_cond_create: error ", -c, "\n")
 			throw("semacreate")
 		}
-		cond = uintptr(c)
-		_g_ := getg()
-		_g_.m.waitsemalock = uint32(mu)
+		mp.waitsema = c
+		mp.waitsemalock = mu
 	})
-	return cond
 }
 
 //go:nosplit
@@ -109,13 +109,13 @@ func semasleep(ns int64) int32 {
 
 	systemstack(func() {
 		_g_ := getg()
-		if nacl_mutex_lock(int32(_g_.m.waitsemalock)) < 0 {
+		if nacl_mutex_lock(_g_.m.waitsemalock) < 0 {
 			throw("semasleep")
 		}
 
 		for _g_.m.waitsemacount == 0 {
 			if ns < 0 {
-				if nacl_cond_wait(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock)) < 0 {
+				if nacl_cond_wait(_g_.m.waitsema, _g_.m.waitsemalock) < 0 {
 					throw("semasleep")
 				}
 			} else {
@@ -123,9 +123,9 @@ func semasleep(ns int64) int32 {
 				end := ns + nanotime()
 				ts.tv_sec = end / 1e9
 				ts.tv_nsec = int32(end % 1e9)
-				r := nacl_cond_timed_wait_abs(int32(_g_.m.waitsema), int32(_g_.m.waitsemalock), &ts)
+				r := nacl_cond_timed_wait_abs(_g_.m.waitsema, _g_.m.waitsemalock, &ts)
 				if r == -_ETIMEDOUT {
-					nacl_mutex_unlock(int32(_g_.m.waitsemalock))
+					nacl_mutex_unlock(_g_.m.waitsemalock)
 					ret = -1
 					return
 				}
@@ -136,7 +136,7 @@ func semasleep(ns int64) int32 {
 		}
 
 		_g_.m.waitsemacount = 0
-		nacl_mutex_unlock(int32(_g_.m.waitsemalock))
+		nacl_mutex_unlock(_g_.m.waitsemalock)
 		ret = 0
 	})
 	return ret
@@ -145,15 +145,15 @@ func semasleep(ns int64) int32 {
 //go:nosplit
 func semawakeup(mp *m) {
 	systemstack(func() {
-		if nacl_mutex_lock(int32(mp.waitsemalock)) < 0 {
+		if nacl_mutex_lock(mp.waitsemalock) < 0 {
 			throw("semawakeup")
 		}
 		if mp.waitsemacount != 0 {
 			throw("semawakeup")
 		}
 		mp.waitsemacount = 1
-		nacl_cond_signal(int32(mp.waitsema))
-		nacl_mutex_unlock(int32(mp.waitsemalock))
+		nacl_cond_signal(mp.waitsema)
+		nacl_mutex_unlock(mp.waitsemalock)
 	})
 }
 

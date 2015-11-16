@@ -117,7 +117,7 @@ func sqrt(ix uint64) uint64 {
 	// normalize x
 	exp := int((ix >> float64Shift) & float64Mask)
 	if exp == 0 { // subnormal x
-		for ix&1<<float64Shift == 0 {
+		for ix&(1<<float64Shift) == 0 {
 			ix <<= 1
 			exp--
 		}

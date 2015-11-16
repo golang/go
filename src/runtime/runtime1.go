@@ -4,34 +4,45 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Keep a cached value to make gotraceback fast,
 // since we call it on every call to gentraceback.
-// The cached value is a uint32 in which the low bit
-// is the "crash" setting and the top 31 bits are the
-// gotraceback value.
-var traceback_cache uint32 = 2 << 1
+// The cached value is a uint32 in which the low bits
+// are the "crash" and "all" settings and the remaining
+// bits are the traceback value (0 off, 1 on, 2 include system).
+const (
+	tracebackCrash = 1 << iota
+	tracebackAll
+	tracebackShift = iota
+)
 
-// The GOTRACEBACK environment variable controls the
-// behavior of a Go program that is crashing and exiting.
-//	GOTRACEBACK=0   suppress all tracebacks
-//	GOTRACEBACK=1   default behavior - show tracebacks but exclude runtime frames
-//	GOTRACEBACK=2   show tracebacks including runtime frames
-//	GOTRACEBACK=crash   show tracebacks including runtime frames, then crash (core dump etc)
+var traceback_cache uint32 = 2 << tracebackShift
+
+// gotraceback returns the current traceback settings.
+//
+// If level is 0, suppress all tracebacks.
+// If level is 1, show tracebacks, but exclude runtime frames.
+// If level is 2, show tracebacks including runtime frames.
+// If all is set, print all goroutine stacks. Otherwise, print just the current goroutine.
+// If crash is set, crash (core dump, etc) after tracebacking.
+//
 //go:nosplit
-func gotraceback(crash *bool) int32 {
+func gotraceback() (level int32, all, crash bool) {
 	_g_ := getg()
-	if crash != nil {
-		*crash = false
-	}
+	all = _g_.m.throwing > 0
 	if _g_.m.traceback != 0 {
-		return int32(_g_.m.traceback)
+		level = int32(_g_.m.traceback)
+		return
 	}
-	if crash != nil {
-		*crash = traceback_cache&1 != 0
-	}
-	return int32(traceback_cache >> 1)
+	crash = traceback_cache&tracebackCrash != 0
+	all = all || traceback_cache&tracebackAll != 0
+	level = int32(traceback_cache >> tracebackShift)
+	return
 }
 
 var (
@@ -42,7 +53,7 @@ var (
 // nosplit for use in linux/386 startup linux_setup_vdso
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
-	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*ptrSize))
+	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
 }
 
 func args(c int32, v **byte) {
@@ -50,13 +61,6 @@ func args(c int32, v **byte) {
 	argv = v
 	sysargs(c, v)
 }
-
-var (
-	// TODO: Retire in favor of GOOS== checks.
-	isplan9   int32
-	issolaris int32
-	iswindows int32
-)
 
 func goargs() {
 	if GOOS == "windows" {
@@ -99,36 +103,36 @@ func testAtomic64() {
 	prefetcht1(uintptr(unsafe.Pointer(&test_z64)))
 	prefetcht2(uintptr(unsafe.Pointer(&test_z64)))
 	prefetchnta(uintptr(unsafe.Pointer(&test_z64)))
-	if cas64(&test_z64, test_x64, 1) {
+	if atomic.Cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
 	if test_x64 != 0 {
 		throw("cas64 failed")
 	}
 	test_x64 = 42
-	if !cas64(&test_z64, test_x64, 1) {
+	if !atomic.Cas64(&test_z64, test_x64, 1) {
 		throw("cas64 failed")
 	}
 	if test_x64 != 42 || test_z64 != 1 {
 		throw("cas64 failed")
 	}
-	if atomicload64(&test_z64) != 1 {
+	if atomic.Load64(&test_z64) != 1 {
 		throw("load64 failed")
 	}
-	atomicstore64(&test_z64, (1<<40)+1)
-	if atomicload64(&test_z64) != (1<<40)+1 {
+	atomic.Store64(&test_z64, (1<<40)+1)
+	if atomic.Load64(&test_z64) != (1<<40)+1 {
 		throw("store64 failed")
 	}
-	if xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
+	if atomic.Xadd64(&test_z64, (1<<40)+1) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if atomicload64(&test_z64) != (2<<40)+2 {
+	if atomic.Load64(&test_z64) != (2<<40)+2 {
 		throw("xadd64 failed")
 	}
-	if xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
+	if atomic.Xchg64(&test_z64, (3<<40)+3) != (2<<40)+2 {
 		throw("xchg64 failed")
 	}
-	if atomicload64(&test_z64) != (3<<40)+3 {
+	if atomic.Load64(&test_z64) != (3<<40)+3 {
 		throw("xchg64 failed")
 	}
 }
@@ -189,10 +193,10 @@ func check() {
 	if unsafe.Sizeof(j) != 8 {
 		throw("bad j")
 	}
-	if unsafe.Sizeof(k) != ptrSize {
+	if unsafe.Sizeof(k) != sys.PtrSize {
 		throw("bad k")
 	}
-	if unsafe.Sizeof(l) != ptrSize {
+	if unsafe.Sizeof(l) != sys.PtrSize {
 		throw("bad l")
 	}
 	if unsafe.Sizeof(x1) != 1 {
@@ -211,7 +215,7 @@ func check() {
 
 	var z uint32
 	z = 1
-	if !cas(&z, 1, 2) {
+	if !atomic.Cas(&z, 1, 2) {
 		throw("cas1")
 	}
 	if z != 2 {
@@ -219,7 +223,7 @@ func check() {
 	}
 
 	z = 4
-	if cas(&z, 5, 6) {
+	if atomic.Cas(&z, 5, 6) {
 		throw("cas3")
 	}
 	if z != 4 {
@@ -227,7 +231,7 @@ func check() {
 	}
 
 	z = 0xffffffff
-	if !cas(&z, 0xffffffff, 0xfffffffe) {
+	if !atomic.Cas(&z, 0xffffffff, 0xfffffffe) {
 		throw("cas5")
 	}
 	if z != 0xfffffffe {
@@ -235,7 +239,7 @@ func check() {
 	}
 
 	k = unsafe.Pointer(uintptr(0xfedcb123))
-	if ptrSize == 8 {
+	if sys.PtrSize == 8 {
 		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
 	}
 	if casp(&k, nil, nil) {
@@ -250,7 +254,7 @@ func check() {
 	}
 
 	m = [4]byte{1, 1, 1, 1}
-	atomicor8(&m[1], 0xf0)
+	atomic.Or8(&m[1], 0xf0)
 	if m[0] != 1 || m[1] != 0xf1 || m[2] != 1 || m[3] != 1 {
 		throw("atomicor8")
 	}
@@ -305,6 +309,7 @@ type dbgVar struct {
 // already have an initial value.
 var debug struct {
 	allocfreetrace    int32
+	cgocheck          int32
 	efence            int32
 	gccheckmark       int32
 	gcpacertrace      int32
@@ -323,6 +328,7 @@ var debug struct {
 
 var dbgvars = []dbgVar{
 	{"allocfreetrace", &debug.allocfreetrace},
+	{"cgocheck", &debug.cgocheck},
 	{"efence", &debug.efence},
 	{"gccheckmark", &debug.gccheckmark},
 	{"gcpacertrace", &debug.gcpacertrace},
@@ -341,6 +347,7 @@ var dbgvars = []dbgVar{
 
 func parsedebugvars() {
 	// defaults
+	debug.cgocheck = 1
 	debug.invalidptr = 1
 
 	for p := gogetenv("GODEBUG"); p != ""; {
@@ -372,21 +379,34 @@ func parsedebugvars() {
 	}
 
 	switch p := gogetenv("GOTRACEBACK"); p {
-	case "":
-		traceback_cache = 1 << 1
+	case "none":
+		traceback_cache = 0
+	case "single", "":
+		traceback_cache = 1 << tracebackShift
+	case "all":
+		traceback_cache = 1<<tracebackShift | tracebackAll
+	case "system":
+		traceback_cache = 2<<tracebackShift | tracebackAll
 	case "crash":
-		traceback_cache = 2<<1 | 1
+		traceback_cache = 2<<tracebackShift | tracebackAll | tracebackCrash
 	default:
-		traceback_cache = uint32(atoi(p)) << 1
+		traceback_cache = uint32(atoi(p))<<tracebackShift | tracebackAll
 	}
 	// when C owns the process, simply exit'ing the process on fatal errors
 	// and panics is surprising. Be louder and abort instead.
 	if islibrary || isarchive {
-		traceback_cache |= 1
+		traceback_cache |= tracebackCrash
 	}
 
 	if debug.gcstackbarrierall > 0 {
 		firstStackBarrierOffset = 0
+	}
+
+	// For cgocheck > 1, we turn on the write barrier at all times
+	// and check all pointer writes.
+	if debug.cgocheck > 1 {
+		writeBarrier.cgo = true
+		writeBarrier.enabled = true
 	}
 }
 
@@ -440,7 +460,6 @@ func gomcache() *mcache {
 }
 
 //go:linkname reflect_typelinks reflect.typelinks
-//go:nosplit
 func reflect_typelinks() [][]*_type {
 	ret := [][]*_type{firstmoduledata.typelinks}
 	for datap := firstmoduledata.next; datap != nil; datap = datap.next {

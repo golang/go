@@ -496,7 +496,7 @@ func (t *uncommonType) Method(i int) (m Method) {
 	fl := flag(Func)
 	if p.pkgPath != nil {
 		m.PkgPath = *p.pkgPath
-		fl |= flagRO
+		fl |= flagStickyRO
 	}
 	mt := p.typ
 	m.Type = mt
@@ -735,10 +735,10 @@ func (t *interfaceType) MethodByName(name string) (m Method, ok bool) {
 // A StructField describes a single field in a struct.
 type StructField struct {
 	// Name is the field name.
+	Name string
 	// PkgPath is the package path that qualifies a lower case (unexported)
 	// field name.  It is empty for upper case (exported) field names.
 	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
-	Name    string
 	PkgPath string
 
 	Type      Type      // field type

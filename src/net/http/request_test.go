@@ -355,6 +355,22 @@ func TestNewRequestHost(t *testing.T) {
 	}
 }
 
+func TestRequestInvalidMethod(t *testing.T) {
+	_, err := NewRequest("bad method", "http://foo.com/", nil)
+	if err == nil {
+		t.Error("expected error from NewRequest with invalid method")
+	}
+	req, err := NewRequest("GET", "http://foo.example/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Method = "bad method"
+	_, err = DefaultClient.Do(req)
+	if err == nil || !strings.Contains(err.Error(), "invalid method") {
+		t.Errorf("Transport error = %v; want invalid method", err)
+	}
+}
+
 func TestNewRequestContentLength(t *testing.T) {
 	readByte := func(r io.Reader) io.Reader {
 		var b [1]byte

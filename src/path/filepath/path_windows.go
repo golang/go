@@ -145,3 +145,7 @@ func joinNonEmpty(elem []string) string {
 func isUNC(path string) bool {
 	return volumeNameLen(path) > 2
 }
+
+func sameWord(a, b string) bool {
+	return strings.EqualFold(a, b)
+}

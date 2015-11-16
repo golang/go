@@ -4,7 +4,6 @@ package gc
 
 const runtimeimport = "" +
 	"package runtime\n" +
-	"import runtime \"runtime\"\n" +
 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
 	"func @\"\".panicindex ()\n" +
 	"func @\"\".panicslice ()\n" +
@@ -87,7 +86,7 @@ const runtimeimport = "" +
 	"func @\"\".chanrecv2 (@\"\".chanType·2 *byte, @\"\".hchan·3 <-chan any, @\"\".elem·4 *any) (? bool)\n" +
 	"func @\"\".chansend1 (@\"\".chanType·1 *byte, @\"\".hchan·2 chan<- any, @\"\".elem·3 *any)\n" +
 	"func @\"\".closechan (@\"\".hchan·1 any)\n" +
-	"var @\"\".writeBarrierEnabled bool\n" +
+	"var @\"\".writeBarrier struct { @\"\".enabled bool; @\"\".needed bool; @\"\".cgo bool }\n" +
 	"func @\"\".writebarrierptr (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
 	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
 	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
@@ -157,12 +156,13 @@ const runtimeimport = "" +
 	"func @\"\".racewrite (? uintptr)\n" +
 	"func @\"\".racereadrange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
 	"func @\"\".racewriterange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
+	"func @\"\".msanread (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
+	"func @\"\".msanwrite (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
 	"\n" +
 	"$$\n"
 
 const unsafeimport = "" +
 	"package unsafe\n" +
-	"import runtime \"runtime\"\n" +
 	"type @\"\".Pointer uintptr\n" +
 	"func @\"\".Offsetof (? any) (? uintptr)\n" +
 	"func @\"\".Sizeof (? any) (? uintptr)\n" +

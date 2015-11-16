@@ -118,14 +118,26 @@ const big = 0xFFFFFF
 // Returns number, new offset, success.
 func dtoi(s string, i0 int) (n int, i int, ok bool) {
 	n = 0
+	neg := false
+	if len(s) > 0 && s[0] == '-' {
+		neg = true
+		s = s[1:]
+	}
 	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
 		n = n*10 + int(s[i]-'0')
 		if n >= big {
-			return 0, i, false
+			if neg {
+				return -big, i + 1, false
+			}
+			return big, i, false
 		}
 	}
 	if i == i0 {
 		return 0, i, false
+	}
+	if neg {
+		n = -n
+		i++
 	}
 	return n, i, true
 }

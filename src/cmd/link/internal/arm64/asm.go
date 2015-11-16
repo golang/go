@@ -38,7 +38,58 @@ import (
 	"log"
 )
 
-func gentext() {}
+func gentext() {
+	if !ld.DynlinkingGo() {
+		return
+	}
+	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
+	if addmoduledata.Type == obj.STEXT {
+		// we're linking a module containing the runtime -> no need for
+		// an init function
+		return
+	}
+	addmoduledata.Reachable = true
+	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
+	initfunc.Type = obj.STEXT
+	initfunc.Local = true
+	initfunc.Reachable = true
+	o := func(op uint32) {
+		ld.Adduint32(ld.Ctxt, initfunc, op)
+	}
+	// 0000000000000000 <local.dso_init>:
+	// 0:	90000000 	adrp	x0, 0 <runtime.firstmoduledata>
+	// 	0: R_AARCH64_ADR_PREL_PG_HI21	local.moduledata
+	// 4:	91000000 	add	x0, x0, #0x0
+	// 	4: R_AARCH64_ADD_ABS_LO12_NC	local.moduledata
+	o(0x90000000)
+	o(0x91000000)
+	rel := ld.Addrel(initfunc)
+	rel.Off = 0
+	rel.Siz = 8
+	rel.Sym = ld.Ctxt.Moduledata
+	rel.Type = obj.R_ADDRARM64
+
+	// 8:	14000000 	bl	0 <runtime.addmoduledata>
+	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
+	o(0x14000000)
+	rel = ld.Addrel(initfunc)
+	rel.Off = 8
+	rel.Siz = 4
+	rel.Sym = ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
+	rel.Type = obj.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
+
+	if ld.Ctxt.Etextp != nil {
+		ld.Ctxt.Etextp.Next = initfunc
+	} else {
+		ld.Ctxt.Textp = initfunc
+	}
+	ld.Ctxt.Etextp = initfunc
+	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
+	initarray_entry.Reachable = true
+	initarray_entry.Local = true
+	initarray_entry.Type = obj.SINITARR
+	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
+}
 
 func adddynrela(rel *ld.LSym, s *ld.LSym, r *ld.Reloc) {
 	log.Fatalf("adddynrela not implemented")
@@ -51,7 +102,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 func elfreloc1(r *ld.Reloc, sectoff int64) int {
 	ld.Thearch.Vput(uint64(sectoff))
 
-	elfsym := r.Xsym.Elfsym
+	elfsym := r.Xsym.ElfsymForReloc()
 	switch r.Type {
 	default:
 		return -1
@@ -72,6 +123,21 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
 		ld.Thearch.Vput(uint64(r.Xadd))
 		ld.Thearch.Vput(uint64(sectoff + 4))
 		ld.Thearch.Vput(ld.R_AARCH64_ADD_ABS_LO12_NC | uint64(elfsym)<<32)
+
+	case obj.R_ARM64_TLS_LE:
+		ld.Thearch.Vput(ld.R_AARCH64_TLSLE_MOVW_TPREL_G0 | uint64(elfsym)<<32)
+
+	case obj.R_ARM64_TLS_IE:
+		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 | uint64(elfsym)<<32)
+		ld.Thearch.Vput(uint64(r.Xadd))
+		ld.Thearch.Vput(uint64(sectoff + 4))
+		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
+
+	case obj.R_ARM64_GOTPCREL:
+		ld.Thearch.Vput(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
+		ld.Thearch.Vput(uint64(r.Xadd))
+		ld.Thearch.Vput(uint64(sectoff + 4))
+		ld.Thearch.Vput(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
 
 	case obj.R_CALLARM64:
 		if r.Siz != 4 {
@@ -175,6 +241,37 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		default:
 			return -1
 
+		case obj.R_ARM64_GOTPCREL:
+			var o1, o2 uint32
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+				o1 = uint32(*val >> 32)
+				o2 = uint32(*val)
+			} else {
+				o1 = uint32(*val)
+				o2 = uint32(*val >> 32)
+			}
+			// Any relocation against a function symbol is redirected to
+			// be against a local symbol instead (see putelfsym in
+			// symtab.go) but unfortunately the system linker was buggy
+			// when confronted with a R_AARCH64_ADR_GOT_PAGE relocation
+			// against a local symbol until May 2015
+			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
+			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
+			// add + R_ADDRARM64.
+			if !(r.Sym.Version != 0 || (r.Sym.Type&obj.SHIDDEN != 0) || r.Sym.Local) && r.Sym.Type == obj.STEXT && ld.DynlinkingGo() {
+				if o2&0xffc00000 != 0xf9400000 {
+					ld.Ctxt.Diag("R_ARM64_GOTPCREL against unexpected instruction %x", o2)
+				}
+				o2 = 0x91000000 | (o2 & 0x000003ff)
+				r.Type = obj.R_ADDRARM64
+			}
+			if ld.Ctxt.Arch.ByteOrder == binary.BigEndian {
+				*val = int64(o1)<<32 | int64(o2)
+			} else {
+				*val = int64(o2)<<32 | int64(o1)
+			}
+			fallthrough
+
 		case obj.R_ADDRARM64:
 			r.Done = 0
 
@@ -186,7 +283,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 				rs = rs.Outer
 			}
 
-			if rs.Type != obj.SHOSTOBJ && rs.Sect == nil {
+			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
 				ld.Diag("missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -225,7 +322,9 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 
 			return 0
 
-		case obj.R_CALLARM64:
+		case obj.R_CALLARM64,
+			obj.R_ARM64_TLS_LE,
+			obj.R_ARM64_TLS_IE:
 			r.Done = 0
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
@@ -267,6 +366,20 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
 		} else {
 			*val = int64(o1)<<32 | int64(o0)
 		}
+		return 0
+
+	case obj.R_ARM64_TLS_LE:
+		r.Done = 0
+		if ld.HEADTYPE != obj.Hlinux {
+			ld.Diag("TLS reloc on unsupported OS %s", ld.Headstr(int(ld.HEADTYPE)))
+		}
+		// The TCB is two pointers. This is not documented anywhere, but is
+		// de facto part of the ABI.
+		v := r.Sym.Value + int64(2*ld.Thearch.Ptrsize)
+		if v < 0 || v >= 32678 {
+			ld.Diag("TLS offset out of range %d", v)
+		}
+		*val |= v << 5
 		return 0
 
 	case obj.R_CALLARM64:

@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
@@ -43,7 +46,7 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	// On 64-bit, people with ulimit -v set complain if we reserve too
 	// much address space.  Instead, assume that the reservation is okay
 	// and check the assumption in SysMap.
-	if ptrSize == 8 && uint64(n) > 1<<32 || goos_nacl != 0 {
+	if sys.PtrSize == 8 && uint64(n) > 1<<32 || sys.GoosNacl != 0 {
 		*reserved = false
 		return v
 	}

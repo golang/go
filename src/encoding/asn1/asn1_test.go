@@ -948,7 +948,7 @@ func TestMarshalNilValue(t *testing.T) {
 	}
 	for i, test := range nilValueTestData {
 		if _, err := Marshal(test); err == nil {
-			t.Fatal("#%d: successfully marshaled nil value", i)
+			t.Fatalf("#%d: successfully marshaled nil value", i)
 		}
 	}
 }

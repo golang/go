@@ -67,7 +67,7 @@ func putelfstr(s string) int {
 
 func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
 	switch Thearch.Thechar {
-	case '6', '7', '9':
+	case '0', '6', '7', '9':
 		Thearch.Lput(uint32(off))
 		Cput(uint8(info))
 		Cput(uint8(other))
@@ -155,11 +155,6 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 		bind = STB_LOCAL
 	}
 
-	if bind != elfbind {
-		return
-	}
-
-	off := putelfstr(s)
 	if Linkmode == LinkExternal && elfshnum != SHN_UNDEF {
 		addr -= int64(xo.Sect.Vaddr)
 	}
@@ -167,7 +162,31 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	if x.Type&obj.SHIDDEN != 0 {
 		other = STV_HIDDEN
 	}
-	putelfsyment(off, addr, size, bind<<4|type_&0xf, elfshnum, other)
+	if (Buildmode == BuildmodePIE || DynlinkingGo()) && Thearch.Thechar == '9' && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+		// On ppc64 the top three bits of the st_other field indicate how
+		// many instructions separate the global and local entry points. In
+		// our case it is two instructions, indicated by the value 3.
+		other |= 3 << 5
+	}
+
+	if DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == obj.STEXT {
+		// When dynamically linking, we want references to functions defined
+		// in this module to always be to the function object, not to the
+		// PLT. We force this by writing an additional local symbol for every
+		// global function symbol and making all relocations against the
+		// global symbol refer to this local symbol instead (see
+		// (*LSym).ElfsymForReloc). This is approximately equivalent to the
+		// ELF linker -Bsymbolic-functions option, but that is buggy on
+		// several platforms.
+		putelfsyment(putelfstr("local."+s), addr, size, STB_LOCAL<<4|type_&0xf, elfshnum, other)
+		x.LocalElfsym = int32(numelfsym)
+		numelfsym++
+		return
+	} else if bind != elfbind {
+		return
+	}
+
+	putelfsyment(putelfstr(s), addr, size, bind<<4|type_&0xf, elfshnum, other)
 	x.Elfsym = int32(numelfsym)
 	numelfsym++
 }
@@ -485,8 +504,8 @@ func symtab() {
 	adduint(Ctxt, moduledata, uint64(pclntabNfunc+1))
 	// The filetab slice
 	Addaddrplus(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0), int64(pclntabFiletabOffset))
-	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile))
-	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile))
+	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile)+1)
+	adduint(Ctxt, moduledata, uint64(Ctxt.Nhistfile)+1)
 	// findfunctab
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.findfunctab", 0))
 	// minpc, maxpc

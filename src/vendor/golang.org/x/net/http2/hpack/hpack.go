@@ -282,6 +282,11 @@ func (d *Decoder) Write(p []byte) (n int, err error) {
 	for len(d.buf) > 0 {
 		err = d.parseHeaderFieldRepr()
 		if err == errNeedMore {
+			// Extra paranoia, making sure saveBuf won't
+			// get too large.  All the varint and string
+			// reading code earlier should already catch
+			// overlong things and return ErrStringLength,
+			// but keep this as a last resort.
 			const varIntOverhead = 8 // conservative
 			if d.maxStrLen != 0 && int64(len(d.buf)) > 2*(int64(d.maxStrLen)+varIntOverhead) {
 				return 0, ErrStringLength
@@ -503,6 +508,7 @@ func (d *Decoder) readString(p []byte, wantStr bool) (s string, remain []byte, e
 		buf.Reset() // don't trust others
 		defer bufPool.Put(buf)
 		if err := huffmanDecode(buf, d.maxStrLen, p[:strLen]); err != nil {
+			buf.Reset()
 			return "", nil, err
 		}
 		s = buf.String()

@@ -21,16 +21,14 @@ func g() int {
 
 var xy string
 
+//go:noinline
 func x() bool {
-	for false {
-	} // no inlining
 	xy += "x"
 	return false
 }
 
+//go:noinline
 func y() string {
-	for false {
-	} // no inlining
 	xy += "y"
 	return "abc"
 }

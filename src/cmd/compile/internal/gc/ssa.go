@@ -134,9 +134,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 			s.Unimplementedf("local variable with class %s%s unimplemented", classnames[n.Class&^PHEAP], str)
 		}
 	}
-	// nodfp is a special argument which is the function's FP.
-	aux := &ssa.ArgSymbol{Typ: Types[TUINTPTR], Node: nodfp}
-	s.decladdrs[nodfp] = s.entryNewValue1A(ssa.OpAddr, Types[TUINTPTR], aux, s.sp)
 
 	// Convert the AST-based IR to the SSA-based IR
 	s.stmtList(fn.Func.Enter)
@@ -847,8 +844,8 @@ func (s *state) stmt(n *Node) {
 }
 
 type opAndType struct {
-	op    uint8
-	etype uint8
+	op    Op
+	etype EType
 }
 
 var opToSSA = map[opAndType]ssa.Op{
@@ -1061,7 +1058,7 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OSQRT, TFLOAT64}: ssa.OpSqrt,
 }
 
-func (s *state) concreteEtype(t *Type) uint8 {
+func (s *state) concreteEtype(t *Type) EType {
 	e := t.Etype
 	switch e {
 	default:
@@ -1084,11 +1081,11 @@ func (s *state) concreteEtype(t *Type) uint8 {
 	}
 }
 
-func (s *state) ssaOp(op uint8, t *Type) ssa.Op {
+func (s *state) ssaOp(op Op, t *Type) ssa.Op {
 	etype := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype}]
 	if !ok {
-		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(int(etype), 0))
+		s.Unimplementedf("unhandled binary op %s %s", opnames[op], Econv(etype))
 	}
 	return x
 }
@@ -1102,20 +1099,20 @@ func floatForComplex(t *Type) *Type {
 }
 
 type opAndTwoTypes struct {
-	op     uint8
-	etype1 uint8
-	etype2 uint8
+	op     Op
+	etype1 EType
+	etype2 EType
 }
 
 type twoTypes struct {
-	etype1 uint8
-	etype2 uint8
+	etype1 EType
+	etype2 EType
 }
 
 type twoOpsAndType struct {
 	op1              ssa.Op
 	op2              ssa.Op
-	intermediateType uint8
+	intermediateType EType
 }
 
 var fpConvOpToSSA = map[twoTypes]twoOpsAndType{
@@ -1241,21 +1238,21 @@ var shiftOpToSSA = map[opAndTwoTypes]ssa.Op{
 	opAndTwoTypes{ORSH, TUINT64, TUINT64}: ssa.OpRsh64Ux64,
 }
 
-func (s *state) ssaShiftOp(op uint8, t *Type, u *Type) ssa.Op {
+func (s *state) ssaShiftOp(op Op, t *Type, u *Type) ssa.Op {
 	etype1 := s.concreteEtype(t)
 	etype2 := s.concreteEtype(u)
 	x, ok := shiftOpToSSA[opAndTwoTypes{op, etype1, etype2}]
 	if !ok {
-		s.Unimplementedf("unhandled shift op %s etype=%s/%s", opnames[op], Econv(int(etype1), 0), Econv(int(etype2), 0))
+		s.Unimplementedf("unhandled shift op %s etype=%s/%s", opnames[op], Econv(etype1), Econv(etype2))
 	}
 	return x
 }
 
-func (s *state) ssaRotateOp(op uint8, t *Type) ssa.Op {
+func (s *state) ssaRotateOp(op Op, t *Type) ssa.Op {
 	etype1 := s.concreteEtype(t)
 	x, ok := opToSSA[opAndType{op, etype1}]
 	if !ok {
-		s.Unimplementedf("unhandled rotate op %s etype=%s", opnames[op], Econv(int(etype1), 0))
+		s.Unimplementedf("unhandled rotate op %s etype=%s", opnames[op], Econv(etype1))
 	}
 	return x
 }
@@ -1402,7 +1399,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return nil
 		}
 		if etypesign(from.Etype) != etypesign(to.Etype) {
-			s.Fatalf("CONVNOP sign mismatch %v (%s) -> %v (%s)\n", from, Econv(int(from.Etype), 0), to, Econv(int(to.Etype), 0))
+			s.Fatalf("CONVNOP sign mismatch %v (%s) -> %v (%s)\n", from, Econv(from.Etype), to, Econv(to.Etype))
 			return nil
 		}
 
@@ -1547,7 +1544,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.newValue1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, x)))
 		}
 
-		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
+		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(n.Left.Type.Etype), Econv(n.Type.Etype))
 		return nil
 
 	case ODOTTYPE:
@@ -1990,7 +1987,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			if haspointers(et) {
 				// TODO: just one write barrier call for all of these writes?
-				// TODO: maybe just one writeBarrierEnabled check?
+				// TODO: maybe just one writeBarrier.enabled check?
 				s.insertWB(et, addr, n.Lineno)
 			}
 		}
@@ -2263,7 +2260,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
 // -1 means signed, +1 means unsigned, 0 means non-integer/non-pointer.
-func etypesign(e uint8) int8 {
+func etypesign(e EType) int8 {
 	switch e {
 	case TINT8, TINT16, TINT32, TINT64, TINT:
 		return -1
@@ -2313,13 +2310,17 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		case PPARAM:
 			// parameter slot
 			v := s.decladdrs[n]
-			if v == nil {
-				if flag_race != 0 && n.String() == ".fp" {
-					s.Unimplementedf("race detector mishandles nodfp")
-				}
-				s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+			if v != nil {
+				return v
 			}
-			return v
+			if n.String() == ".fp" {
+				// Special arg that points to the frame pointer.
+				// (Used by the race detector, others?)
+				aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+				return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
+			}
+			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+			return nil
 		case PAUTO:
 			// We need to regenerate the address of autos
 			// at every use.  This prevents LEA instructions
@@ -2609,13 +2610,14 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 // Note: there must be no GC suspension points between the write and
 // the call that this function inserts.
 func (s *state) insertWB(t *Type, p *ssa.Value, line int32) {
-	// if writeBarrierEnabled {
+	// if writeBarrier.enabled {
 	//   typedmemmove_nostore(&t, p)
 	// }
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 
-	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrierEnabled", 0).Sym}
+	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+	// TODO: select the .enabled field.  It is currently first, so not needed for now.
 	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -108,6 +109,68 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
 			if err != nil {
 				t.Fatalf("Remove test command failed: %v", err)
 			}
+		}
+	}
+}
+
+// TestEvalSymlinksCanonicalNames verify that EvalSymlinks
+// returns "canonical" path names on windows.
+func TestEvalSymlinksCanonicalNames(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "evalsymlinkcanonical")
+	if err != nil {
+		t.Fatal("creating temp dir:", err)
+	}
+	defer os.RemoveAll(tmp)
+
+	// ioutil.TempDir might return "non-canonical" name.
+	cTmpName, err := filepath.EvalSymlinks(tmp)
+	if err != nil {
+		t.Errorf("EvalSymlinks(%q) error: %v", tmp, err)
+	}
+
+	dirs := []string{
+		"test",
+		"test/dir",
+		"testing_long_dir",
+		"TEST2",
+	}
+
+	for _, d := range dirs {
+		dir := filepath.Join(cTmpName, d)
+		err := os.Mkdir(dir, 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cname, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			t.Errorf("EvalSymlinks(%q) error: %v", dir, err)
+			continue
+		}
+		if dir != cname {
+			t.Errorf("EvalSymlinks(%q) returns %q, but should return %q", dir, cname, dir)
+			continue
+		}
+		// test non-canonical names
+		test := strings.ToUpper(dir)
+		p, err := filepath.EvalSymlinks(test)
+		if err != nil {
+			t.Errorf("EvalSymlinks(%q) error: %v", test, err)
+			continue
+		}
+		if p != cname {
+			t.Errorf("EvalSymlinks(%q) returns %q, but should return %q", test, p, cname)
+			continue
+		}
+		// another test
+		test = strings.ToLower(dir)
+		p, err = filepath.EvalSymlinks(test)
+		if err != nil {
+			t.Errorf("EvalSymlinks(%q) error: %v", test, err)
+			continue
+		}
+		if p != cname {
+			t.Errorf("EvalSymlinks(%q) returns %q, but should return %q", test, p, cname)
+			continue
 		}
 	}
 }

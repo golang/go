@@ -8,13 +8,16 @@ package httputil
 
 import (
 	"bufio"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -314,5 +317,70 @@ func TestNilBody(t *testing.T) {
 	}
 	if string(slurp) != "hi" {
 		t.Errorf("Got %q; want %q", slurp, "hi")
+	}
+}
+
+type bufferPool struct {
+	get func() []byte
+	put func([]byte)
+}
+
+func (bp bufferPool) Get() []byte  { return bp.get() }
+func (bp bufferPool) Put(v []byte) { bp.put(v) }
+
+func TestReverseProxyGetPutBuffer(t *testing.T) {
+	const msg = "hi"
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, msg)
+	}))
+	defer backend.Close()
+
+	backendURL, err := url.Parse(backend.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		mu  sync.Mutex
+		log []string
+	)
+	addLog := func(event string) {
+		mu.Lock()
+		defer mu.Unlock()
+		log = append(log, event)
+	}
+	rp := NewSingleHostReverseProxy(backendURL)
+	const size = 1234
+	rp.BufferPool = bufferPool{
+		get: func() []byte {
+			addLog("getBuf")
+			return make([]byte, size)
+		},
+		put: func(p []byte) {
+			addLog("putBuf-" + strconv.Itoa(len(p)))
+		},
+	}
+	frontend := httptest.NewServer(rp)
+	defer frontend.Close()
+
+	req, _ := http.NewRequest("GET", frontend.URL, nil)
+	req.Close = true
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	slurp, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		t.Fatalf("reading body: %v", err)
+	}
+	if string(slurp) != msg {
+		t.Errorf("msg = %q; want %q", slurp, msg)
+	}
+	wantLog := []string{"getBuf", "putBuf-" + strconv.Itoa(size)}
+	mu.Lock()
+	defer mu.Unlock()
+	if !reflect.DeepEqual(log, wantLog) {
+		t.Errorf("Log events = %q; want %q", log, wantLog)
 	}
 }

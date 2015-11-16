@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/atomic"
+	"unsafe"
+)
 
 var indexError = error(errorString("index out of range"))
 
@@ -569,7 +572,7 @@ func startpanic_m() {
 	case 0:
 		_g_.m.dying = 1
 		_g_.writebuf = nil
-		xadd(&panicking, 1)
+		atomic.Xadd(&panicking, 1)
 		lock(&paniclk)
 		if debug.schedtrace > 0 || debug.scheddetail > 0 {
 			schedtrace(true)
@@ -605,25 +608,28 @@ func dopanic_m(gp *g, pc, sp uintptr) {
 		print("[signal ", hex(gp.sig), " code=", hex(gp.sigcode0), " addr=", hex(gp.sigcode1), " pc=", hex(gp.sigpc), "]\n")
 	}
 
-	var docrash bool
+	level, all, docrash := gotraceback()
 	_g_ := getg()
-	if t := gotraceback(&docrash); t > 0 {
+	if level > 0 {
+		if gp != gp.m.curg {
+			all = true
+		}
 		if gp != gp.m.g0 {
 			print("\n")
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
-		} else if t >= 2 || _g_.m.throwing > 0 {
+		} else if level >= 2 || _g_.m.throwing > 0 {
 			print("\nruntime stack:\n")
 			traceback(pc, sp, 0, gp)
 		}
-		if !didothers {
+		if !didothers && all {
 			didothers = true
 			tracebackothers(gp)
 		}
 	}
 	unlock(&paniclk)
 
-	if xadd(&panicking, -1) != 0 {
+	if atomic.Xadd(&panicking, -1) != 0 {
 		// Some other m is panicking too.
 		// Let it print what it needs to print.
 		// Wait forever without chewing up cpu.

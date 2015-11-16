@@ -746,6 +746,11 @@ const (
 	AMOVHDU
 	AMOVNTHD
 	AMOVHDA
+	AVPCMPEQB
+	AVPMOVMSKB
+	AVPAND
+	AVPTEST
+	AVPBROADCASTB
 
 	// from 386
 	AJCXZW
@@ -904,7 +909,6 @@ const (
 	REGRET   = REG_AX
 	FREGRET  = REG_X0
 	REGSP    = REG_SP
-	REGTMP   = REG_DI
 	REGCTXT  = REG_DX
 	REGEXT   = REG_R15     /* compiler allocates external registers R15 down */
 	FREGMIN  = REG_X0 + 5  /* first register variable */

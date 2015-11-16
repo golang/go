@@ -485,7 +485,11 @@ func MainStart(matchString func(pat, str string) (bool, error), tests []Internal
 
 // Run runs the tests. It returns an exit code to pass to os.Exit.
 func (m *M) Run() int {
-	flag.Parse()
+	// TestMain may have already called flag.Parse.
+	if !flag.Parsed() {
+		flag.Parse()
+	}
+
 	parseCpuList()
 
 	before()

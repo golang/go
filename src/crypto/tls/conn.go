@@ -98,12 +98,13 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 type halfConn struct {
 	sync.Mutex
 
-	err     error       // first permanent error
-	version uint16      // protocol version
-	cipher  interface{} // cipher algorithm
-	mac     macFunction
-	seq     [8]byte // 64-bit sequence number
-	bfree   *block  // list of free blocks
+	err            error       // first permanent error
+	version        uint16      // protocol version
+	cipher         interface{} // cipher algorithm
+	mac            macFunction
+	seq            [8]byte  // 64-bit sequence number
+	bfree          *block   // list of free blocks
+	additionalData [13]byte // to avoid allocs; interface method args escape
 
 	nextCipher interface{} // next encryption state
 	nextMac    macFunction // next MAC algorithm
@@ -262,14 +263,13 @@ func (hc *halfConn) decrypt(b *block) (ok bool, prefixLen int, alertValue alert)
 			nonce := payload[:8]
 			payload = payload[8:]
 
-			var additionalData [13]byte
-			copy(additionalData[:], hc.seq[:])
-			copy(additionalData[8:], b.data[:3])
+			copy(hc.additionalData[:], hc.seq[:])
+			copy(hc.additionalData[8:], b.data[:3])
 			n := len(payload) - c.Overhead()
-			additionalData[11] = byte(n >> 8)
-			additionalData[12] = byte(n)
+			hc.additionalData[11] = byte(n >> 8)
+			hc.additionalData[12] = byte(n)
 			var err error
-			payload, err = c.Open(payload[:0], nonce, payload, additionalData[:])
+			payload, err = c.Open(payload[:0], nonce, payload, hc.additionalData[:])
 			if err != nil {
 				return false, 0, alertBadRecordMAC
 			}
@@ -378,13 +378,12 @@ func (hc *halfConn) encrypt(b *block, explicitIVLen int) (bool, alert) {
 			payload := b.data[recordHeaderLen+explicitIVLen:]
 			payload = payload[:payloadLen]
 
-			var additionalData [13]byte
-			copy(additionalData[:], hc.seq[:])
-			copy(additionalData[8:], b.data[:3])
-			additionalData[11] = byte(payloadLen >> 8)
-			additionalData[12] = byte(payloadLen)
+			copy(hc.additionalData[:], hc.seq[:])
+			copy(hc.additionalData[8:], b.data[:3])
+			hc.additionalData[11] = byte(payloadLen >> 8)
+			hc.additionalData[12] = byte(payloadLen)
 
-			c.Seal(payload[:0], nonce, payload, additionalData[:])
+			c.Seal(payload[:0], nonce, payload, hc.additionalData[:])
 		case cbcMode:
 			blockSize := c.BlockSize()
 			if explicitIVLen > 0 {

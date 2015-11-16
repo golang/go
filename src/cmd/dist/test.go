@@ -454,16 +454,21 @@ func (t *tester) registerTests() {
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
 		for _, name := range t.shootoutTests() {
-			if name == "spectralnorm" && os.Getenv("GO_BUILDER_NAME") == "linux-arm-arm5" {
-				// Heavy on floating point and takes over 20 minutes with softfloat.
-				// Disabled per Issue 12688.
-				continue
+			if name == "spectralnorm" {
+				switch os.Getenv("GO_BUILDER_NAME") {
+				case "linux-arm-arm5", "linux-mips64-minux":
+					// Heavy on floating point and takes over 20 minutes with
+					// softfloat on arm5 builder and over 33 minutes on MIPS64
+					// builder with kernel FPU emulator.
+					// Disabled per Issue 12688.
+					continue
+				}
 			}
 			t.registerTest("shootout:"+name, "../test/bench/shootout", "time", "./timing.sh", "-test", name)
 		}
 	}
 	if t.goos != "android" && !t.iOS() {
-		t.registerTest("bench_go1", "../test/bench/go1", "go", "test")
+		t.registerTest("bench_go1", "../test/bench/go1", "go", "test", t.timeout(600))
 	}
 	if t.goos != "android" && !t.iOS() {
 		const nShards = 5
@@ -547,7 +552,7 @@ func (t *tester) extLink() bool {
 		"darwin-arm", "darwin-arm64",
 		"dragonfly-386", "dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
-		"linux-386", "linux-amd64", "linux-arm", "linux-arm64",
+		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le",
 		"netbsd-386", "netbsd-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
@@ -581,13 +586,13 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		// TODO(hyangah): add linux-386.
 		switch pair {
-		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm":
+		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm", "linux-arm64":
 			return true
 		}
 		return false
 	case "shared":
 		switch pair {
-		case "linux-amd64":
+		case "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le":
 			return true
 		}
 		return false
@@ -741,8 +746,12 @@ func (t *tester) cgoTestSOSupported() bool {
 		// No exec facility on Android or iOS.
 		return false
 	}
-	if t.goarch == "ppc64le" || t.goarch == "ppc64" {
+	if t.goarch == "ppc64" {
 		// External linking not implemented on ppc64 (issue #8912).
+		return false
+	}
+	if t.goarch == "mips64le" || t.goarch == "mips64" {
+		// External linking not implemented on mips64.
 		return false
 	}
 	return true

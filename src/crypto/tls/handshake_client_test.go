@@ -297,6 +297,22 @@ func TestHandshakeClientRSARC4(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
+func TestHandshakeClientRSAAES128GCM(t *testing.T) {
+	test := &clientTest{
+		name:    "AES128-GCM-SHA256",
+		command: []string{"openssl", "s_server", "-cipher", "AES128-GCM-SHA256"},
+	}
+	runClientTestTLS12(t, test)
+}
+
+func TestHandshakeClientRSAAES256GCM(t *testing.T) {
+	test := &clientTest{
+		name:    "AES256-GCM-SHA384",
+		command: []string{"openssl", "s_server", "-cipher", "AES256-GCM-SHA384"},
+	}
+	runClientTestTLS12(t, test)
+}
+
 func TestHandshakeClientECDHERSAAES(t *testing.T) {
 	test := &clientTest{
 		name:    "ECDHE-RSA-AES",
@@ -599,4 +615,31 @@ func TestHandshakClientSCTs(t *testing.T) {
 		},
 	}
 	runClientTestTLS12(t, test)
+}
+
+func TestNoIPAddressesInSNI(t *testing.T) {
+	for _, ipLiteral := range []string{"1.2.3.4", "::1"} {
+		c, s := net.Pipe()
+
+		go func() {
+			client := Client(c, &Config{ServerName: ipLiteral})
+			client.Handshake()
+		}()
+
+		var header [5]byte
+		if _, err := io.ReadFull(s, header[:]); err != nil {
+			t.Fatal(err)
+		}
+		recordLen := int(header[3])<<8 | int(header[4])
+
+		record := make([]byte, recordLen)
+		if _, err := io.ReadFull(s, record[:]); err != nil {
+			t.Fatal(err)
+		}
+		s.Close()
+
+		if bytes.Index(record, []byte(ipLiteral)) != -1 {
+			t.Errorf("IP literal %q found in ClientHello: %x", ipLiteral, record)
+		}
+	}
 }

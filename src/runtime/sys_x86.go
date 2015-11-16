@@ -6,17 +6,20 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // adjust Gobuf as it if executed a call to fn with context ctxt
 // and then did an immediate gosave.
 func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
 	sp := buf.sp
-	if regSize > ptrSize {
-		sp -= ptrSize
+	if sys.RegSize > sys.PtrSize {
+		sp -= sys.PtrSize
 		*(*uintptr)(unsafe.Pointer(sp)) = 0
 	}
-	sp -= ptrSize
+	sp -= sys.PtrSize
 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
 	buf.sp = sp
 	buf.pc = uintptr(fn)

@@ -140,7 +140,7 @@ var panicdiv *gc.Node
  *	res = nl % nr
  * according to op.
  */
-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// Have to be careful about handling
 	// most negative int divided by -1 correctly.
 	// The hardware will generate undefined result.
@@ -310,7 +310,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl << nr
  *	res = nl >> nr
  */
-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	a := int(optoas(op, nl.Type))
 
 	if nr.Op == gc.OLITERAL {

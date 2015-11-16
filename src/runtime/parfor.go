@@ -6,6 +6,11 @@
 
 package runtime
 
+import (
+	"runtime/internal/atomic"
+	"runtime/internal/sys"
+)
+
 // A parfor holds state for the parallel for operation.
 type parfor struct {
 	body   func(*parfor, uint32) // executed for each element
@@ -36,7 +41,7 @@ type parforthread struct {
 	nprocyield uint64
 	nosyield   uint64
 	nsleep     uint64
-	pad        [_CacheLineSize]byte
+	pad        [sys.CacheLineSize]byte
 }
 
 func parforalloc(nthrmax uint32) *parfor {
@@ -82,7 +87,7 @@ func parforsetup(desc *parfor, nthr, n uint32, wait bool, body func(*parfor, uin
 
 func parfordo(desc *parfor) {
 	// Obtain 0-based thread index.
-	tid := xadd(&desc.thrseq, 1) - 1
+	tid := atomic.Xadd(&desc.thrseq, 1) - 1
 	if tid >= desc.nthr {
 		print("tid=", tid, " nthr=", desc.nthr, "\n")
 		throw("parfor: invalid tid")
@@ -103,7 +108,7 @@ func parfordo(desc *parfor) {
 		for {
 			// While there is local work,
 			// bump low index and execute the iteration.
-			pos := xadd64(mypos, 1)
+			pos := atomic.Xadd64(mypos, 1)
 			begin := uint32(pos) - 1
 			end := uint32(pos >> 32)
 			if begin < end {
@@ -120,7 +125,7 @@ func parfordo(desc *parfor) {
 			// increment the done counter...
 			if try > desc.nthr*4 && !idle {
 				idle = true
-				xadd(&desc.done, 1)
+				atomic.Xadd(&desc.done, 1)
 			}
 
 			// ...if all threads have incremented the counter,
@@ -131,7 +136,7 @@ func parfordo(desc *parfor) {
 			}
 			if desc.done+extra == desc.nthr {
 				if !idle {
-					xadd(&desc.done, 1)
+					atomic.Xadd(&desc.done, 1)
 				}
 				goto exit
 			}
@@ -145,7 +150,7 @@ func parfordo(desc *parfor) {
 			victimpos := &desc.thr[victim].pos
 			for {
 				// See if it has any work.
-				pos := atomicload64(victimpos)
+				pos := atomic.Load64(victimpos)
 				begin = uint32(pos)
 				end = uint32(pos >> 32)
 				if begin+1 >= end {
@@ -154,12 +159,12 @@ func parfordo(desc *parfor) {
 					break
 				}
 				if idle {
-					xadd(&desc.done, -1)
+					atomic.Xadd(&desc.done, -1)
 					idle = false
 				}
 				begin2 := begin + (end-begin)/2
 				newpos := uint64(begin) | uint64(begin2)<<32
-				if cas64(victimpos, pos, newpos) {
+				if atomic.Cas64(victimpos, pos, newpos) {
 					begin = begin2
 					break
 				}
@@ -169,7 +174,7 @@ func parfordo(desc *parfor) {
 				if idle {
 					throw("parfor: should not be idle")
 				}
-				atomicstore64(mypos, uint64(begin)|uint64(end)<<32)
+				atomic.Store64(mypos, uint64(begin)|uint64(end)<<32)
 				me.nsteal++
 				me.nstealcnt += uint64(end) - uint64(begin)
 				break
@@ -185,7 +190,7 @@ func parfordo(desc *parfor) {
 				// If a caller asked not to wait for the others, exit now
 				// (assume that most work is already done at this point).
 				if !idle {
-					xadd(&desc.done, 1)
+					atomic.Xadd(&desc.done, 1)
 				}
 				goto exit
 			} else if try < 6*desc.nthr {
@@ -199,11 +204,11 @@ func parfordo(desc *parfor) {
 	}
 
 exit:
-	xadd64(&desc.nsteal, int64(me.nsteal))
-	xadd64(&desc.nstealcnt, int64(me.nstealcnt))
-	xadd64(&desc.nprocyield, int64(me.nprocyield))
-	xadd64(&desc.nosyield, int64(me.nosyield))
-	xadd64(&desc.nsleep, int64(me.nsleep))
+	atomic.Xadd64(&desc.nsteal, int64(me.nsteal))
+	atomic.Xadd64(&desc.nstealcnt, int64(me.nstealcnt))
+	atomic.Xadd64(&desc.nprocyield, int64(me.nprocyield))
+	atomic.Xadd64(&desc.nosyield, int64(me.nosyield))
+	atomic.Xadd64(&desc.nsleep, int64(me.nsleep))
 	me.nsteal = 0
 	me.nstealcnt = 0
 	me.nprocyield = 0

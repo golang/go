@@ -191,7 +191,7 @@ var panicdiv *gc.Node
  *	res = nl % nr
  * according to op.
  */
-func dodiv(op int, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.Node) {
+func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node, ax *gc.Node, dx *gc.Node) {
 	// Have to be careful about handling
 	// most negative int divided by -1 correctly.
 	// The hardware will trap.
@@ -338,7 +338,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
  *	res = nl / nr
  *	res = nl % nr
  */
-func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_div(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if gc.Is64(nl.Type) {
 		gc.Fatalf("cgen_div %v", nl.Type)
 	}
@@ -365,7 +365,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl << nr
  *	res = nl >> nr
  */
-func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	if nl.Type.Width > 4 {
 		gc.Fatalf("cgen_shift %v", nl.Type)
 	}
@@ -489,7 +489,7 @@ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
  * there is no 2-operand byte multiply instruction so
  * we do a full-width multiplication and truncate afterwards.
  */
-func cgen_bmul(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
+func cgen_bmul(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) bool {
 	if optoas(op, nl.Type) != x86.AIMULB {
 		return false
 	}
@@ -628,18 +628,18 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 		if nl.Ullman >= nr.Ullman {
 			gc.Cgen(nl, &f0)
 			if nr.Addable {
-				gins(foptoas(int(n.Op), n.Type, 0), nr, &f0)
+				gins(foptoas(n.Op, n.Type, 0), nr, &f0)
 			} else {
 				gc.Cgen(nr, &f0)
-				gins(foptoas(int(n.Op), n.Type, Fpop), &f0, &f1)
+				gins(foptoas(n.Op, n.Type, Fpop), &f0, &f1)
 			}
 		} else {
 			gc.Cgen(nr, &f0)
 			if nl.Addable {
-				gins(foptoas(int(n.Op), n.Type, Frev), nl, &f0)
+				gins(foptoas(n.Op, n.Type, Frev), nl, &f0)
 			} else {
 				gc.Cgen(nl, &f0)
-				gins(foptoas(int(n.Op), n.Type, Frev|Fpop), &f0, &f1)
+				gins(foptoas(n.Op, n.Type, Frev|Fpop), &f0, &f1)
 			}
 		}
 
@@ -651,7 +651,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 	gc.Cgen(nl, &f0)
 
 	if n.Op != gc.OCONV && n.Op != gc.OPLUS {
-		gins(foptoas(int(n.Op), n.Type, 0), nil, nil)
+		gins(foptoas(n.Op, n.Type, 0), nil, nil)
 	}
 	gmove(&f0, res)
 	return
@@ -678,7 +678,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 		// symmetric binary
 	case gc.OADD,
 		gc.OMUL:
-		a = foptoas(int(n.Op), nl.Type, 0)
+		a = foptoas(n.Op, nl.Type, 0)
 
 		goto sbop
 
@@ -686,7 +686,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 	case gc.OSUB,
 		gc.OMOD,
 		gc.ODIV:
-		a = foptoas(int(n.Op), nl.Type, 0)
+		a = foptoas(n.Op, nl.Type, 0)
 
 		goto abop
 	}
@@ -729,7 +729,7 @@ abop: // asymmetric binary
 func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 	nl := n.Left
 	nr := n.Right
-	a := int(n.Op)
+	op := n.Op
 	if !wantTrue {
 		// brcom is not valid on floats when NaN is involved.
 		p1 := gc.Gbranch(obj.AJMP, nil, 0)
@@ -745,11 +745,11 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if gc.Thearch.Use387 {
-		a = gc.Brrev(a) // because the args are stacked
-		if a == gc.OGE || a == gc.OGT {
+		op = gc.Brrev(op) // because the args are stacked
+		if op == gc.OGE || op == gc.OGT {
 			// only < and <= work right with NaN; reverse if needed
 			nl, nr = nr, nl
-			a = gc.Brrev(a)
+			op = gc.Brrev(op)
 		}
 
 		var ax, n2, tmp gc.Node
@@ -808,10 +808,10 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 			nl = &n3
 		}
 
-		if a == gc.OGE || a == gc.OGT {
-			// only < and <= work right with NaN; reverse if needed
+		if op == gc.OGE || op == gc.OGT {
+			// only < and <= work right with NopN; reverse if needed
 			nl, nr = nr, nl
-			a = gc.Brrev(a)
+			op = gc.Brrev(op)
 		}
 
 		gins(foptoas(gc.OCMP, nr.Type, 0), nl, nr)
@@ -821,7 +821,7 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 		gc.Regfree(nr)
 	}
 
-	switch a {
+	switch op {
 	case gc.OEQ:
 		// neither NE nor P
 		p1 := gc.Gbranch(x86.AJNE, nil, -likely)
@@ -834,7 +834,7 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 		gc.Patch(gc.Gbranch(x86.AJNE, nil, likely), to)
 		gc.Patch(gc.Gbranch(x86.AJPS, nil, likely), to)
 	default:
-		gc.Patch(gc.Gbranch(optoas(a, nr.Type), nil, likely), to)
+		gc.Patch(gc.Gbranch(optoas(op, nr.Type), nil, likely), to)
 	}
 }
 

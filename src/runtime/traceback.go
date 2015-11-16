@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 // The code in this file implements stack trace walking for all architectures.
 // The most important fact about a given architecture is whether it uses a link register.
@@ -29,7 +32,7 @@ import "unsafe"
 // usesLR is defined below in terms of minFrameSize, which is defined in
 // arch_$GOARCH.go. ptrSize and regSize are defined in stubs.go.
 
-const usesLR = minFrameSize > 0
+const usesLR = sys.MinFrameSize > 0
 
 var (
 	// initialized in tracebackinit
@@ -41,7 +44,6 @@ var (
 	rt0_goPC             uintptr
 	sigpanicPC           uintptr
 	runfinqPC            uintptr
-	backgroundgcPC       uintptr
 	bgsweepPC            uintptr
 	forcegchelperPC      uintptr
 	timerprocPC          uintptr
@@ -69,7 +71,6 @@ func tracebackinit() {
 	rt0_goPC = funcPC(rt0_go)
 	sigpanicPC = funcPC(sigpanic)
 	runfinqPC = funcPC(runfinq)
-	backgroundgcPC = funcPC(backgroundgc)
 	bgsweepPC = funcPC(bgsweep)
 	forcegchelperPC = funcPC(forcegchelper)
 	timerprocPC = funcPC(timerproc)
@@ -139,7 +140,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// instead on the g0 stack.
 		throw("gentraceback cannot trace user goroutine on its own stack")
 	}
-	gotraceback := gotraceback(nil)
+	level, _, _ := gotraceback()
 
 	// Fix up returns to the stack barrier by fetching the
 	// original return PC from gp.stkbar.
@@ -183,8 +184,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
 			frame.lr = 0
 		} else {
-			frame.pc = uintptr(*(*uintreg)(unsafe.Pointer(frame.sp)))
-			frame.sp += regSize
+			frame.pc = uintptr(*(*sys.Uintreg)(unsafe.Pointer(frame.sp)))
+			frame.sp += sys.RegSize
 		}
 	}
 
@@ -197,6 +198,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		return 0
 	}
 	frame.fn = f
+
+	var cache pcvalueCache
 
 	n := 0
 	for n < max {
@@ -219,10 +222,10 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				sp = gp.m.curg.sched.sp
 				stkbar = gp.m.curg.stkbar[gp.m.curg.stkbarPos:]
 			}
-			frame.fp = sp + uintptr(funcspdelta(f, frame.pc))
+			frame.fp = sp + uintptr(funcspdelta(f, frame.pc, &cache))
 			if !usesLR {
 				// On x86, call instruction pushes return PC before entering new function.
-				frame.fp += regSize
+				frame.fp += sys.RegSize
 			}
 		}
 		var flr *_func
@@ -249,8 +252,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 			} else {
 				if frame.lr == 0 {
-					lrPtr = frame.fp - regSize
-					frame.lr = uintptr(*(*uintreg)(unsafe.Pointer(lrPtr)))
+					lrPtr = frame.fp - sys.RegSize
+					frame.lr = uintptr(*(*sys.Uintreg)(unsafe.Pointer(lrPtr)))
 				}
 			}
 			if frame.lr == stackBarrierPC {
@@ -280,13 +283,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		frame.varp = frame.fp
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
-			frame.varp -= regSize
+			frame.varp -= sys.RegSize
 		}
 
 		// If framepointer_enabled and there's a frame, then
 		// there's a saved bp here.
 		if framepointer_enabled && GOARCH == "amd64" && frame.varp > frame.sp {
-			frame.varp -= regSize
+			frame.varp -= sys.RegSize
 		}
 
 		// Derive size of arguments.
@@ -296,7 +299,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// in package runtime and reflect, and for those we use call-specific
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
-			frame.argp = frame.fp + minFrameSize
+			frame.argp = frame.fp + sys.MinFrameSize
 			setArgInfo(&frame, f, callback != nil)
 		}
 
@@ -349,7 +352,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				}
 				print(funcname(f), "(")
 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
-				for i := uintptr(0); i < frame.arglen/ptrSize; i++ {
+				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
 					if i >= 10 {
 						print(", ...")
 						break
@@ -365,7 +368,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if frame.pc > f.entry {
 					print(" +", hex(frame.pc-f.entry))
 				}
-				if g.m.throwing > 0 && gp == g.m.curg || gotraceback >= 2 {
+				if g.m.throwing > 0 && gp == g.m.curg || level >= 2 {
 					print(" fp=", hex(frame.fp), " sp=", hex(frame.sp))
 				}
 				print("\n")
@@ -394,16 +397,16 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// before faking a call to sigpanic.
 		if usesLR && waspanic {
 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
-			frame.sp += minFrameSize
+			frame.sp += sys.MinFrameSize
 			if GOARCH == "arm64" {
 				// arm64 needs 16-byte aligned SP, always
-				frame.sp += ptrSize
+				frame.sp += sys.PtrSize
 			}
 			f = findfunc(frame.pc)
 			frame.fn = f
 			if f == nil {
 				frame.pc = x
-			} else if funcspdelta(f, frame.pc) == 0 {
+			} else if funcspdelta(f, frame.pc, &cache) == 0 {
 				frame.lr = x
 			}
 		}
@@ -494,14 +497,14 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
 		case "reflect.makeFuncStub", "reflect.methodValueCall":
-			arg0 := frame.sp + minFrameSize
+			arg0 := frame.sp + sys.MinFrameSize
 			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
 			if fn[0] != f.entry {
 				print("runtime: confused by ", funcname(f), "\n")
 				throw("reflect mismatch")
 			}
 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
-			frame.arglen = uintptr(bv.n * ptrSize)
+			frame.arglen = uintptr(bv.n * sys.PtrSize)
 			frame.argmap = bv
 		}
 	}
@@ -515,7 +518,7 @@ func printcreatedby(gp *g) {
 		print("created by ", funcname(f), "\n")
 		tracepc := pc // back up to CALL instruction for funcline.
 		if pc > f.entry {
-			tracepc -= _PCQuantum
+			tracepc -= sys.PCQuantum
 		}
 		file, line := funcline(f, tracepc)
 		print("\t", file, ":", line)
@@ -580,7 +583,7 @@ func showframe(f *_func, gp *g) bool {
 	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig.ptr()) {
 		return true
 	}
-	traceback := gotraceback(nil)
+	level, _, _ := gotraceback()
 	name := funcname(f)
 
 	// Special case: always show runtime.panic frame, so that we can
@@ -590,7 +593,7 @@ func showframe(f *_func, gp *g) bool {
 		return true
 	}
 
-	return traceback > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
+	return level > 1 || f != nil && contains(name, ".") && (!hasprefix(name, "runtime.") || isExportedRuntime(name))
 }
 
 // isExportedRuntime reports whether name is an exported runtime function.
@@ -656,7 +659,7 @@ func goroutineheader(gp *g) {
 }
 
 func tracebackothers(me *g) {
-	level := gotraceback(nil)
+	level, _, _ := gotraceback()
 
 	// Show the current goroutine first, if we haven't already.
 	g := getg()
@@ -704,7 +707,6 @@ func topofstack(f *_func) bool {
 func isSystemGoroutine(gp *g) bool {
 	pc := gp.startpc
 	return pc == runfinqPC && !fingRunning ||
-		pc == backgroundgcPC ||
 		pc == bgsweepPC ||
 		pc == forcegchelperPC ||
 		pc == timerprocPC ||

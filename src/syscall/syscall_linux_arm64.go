@@ -4,7 +4,10 @@
 
 package syscall
 
-const _SYS_dup = SYS_DUP3
+const (
+	_SYS_dup      = SYS_DUP3
+	_SYS_getdents = SYS_GETDENTS64
+)
 
 //sys	Fchown(fd int, uid int, gid int) (err error)
 //sys	Fstat(fd int, stat *Stat_t) (err error)

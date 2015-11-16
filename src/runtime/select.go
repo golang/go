@@ -6,7 +6,10 @@ package runtime
 
 // This file contains the implementation of Go select statements.
 
-import "unsafe"
+import (
+	"runtime/internal/sys"
+	"unsafe"
+)
 
 const (
 	debugSelect = false
@@ -51,7 +54,7 @@ func selectsize(size uintptr) uintptr {
 		(size-1)*unsafe.Sizeof(hselect{}.scase[0]) +
 		size*unsafe.Sizeof(*hselect{}.lockorder) +
 		size*unsafe.Sizeof(*hselect{}.pollorder)
-	return round(selsize, _Int64Align)
+	return round(selsize, sys.Int64Align)
 }
 
 func newselect(sel *hselect, selsize int64, size int32) {
@@ -304,7 +307,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 		k      *scase
 		sglist *sudog
 		sgnext *sudog
-		futile byte
+		qp     unsafe.Pointer
 	)
 
 loop:
@@ -317,15 +320,12 @@ loop:
 
 		switch cas.kind {
 		case caseRecv:
-			if c.dataqsiz > 0 {
-				if c.qcount > 0 {
-					goto asyncrecv
-				}
-			} else {
-				sg = c.sendq.dequeue()
-				if sg != nil {
-					goto syncrecv
-				}
+			sg = c.sendq.dequeue()
+			if sg != nil {
+				goto recv
+			}
+			if c.qcount > 0 {
+				goto bufrecv
 			}
 			if c.closed != 0 {
 				goto rclose
@@ -338,15 +338,12 @@ loop:
 			if c.closed != 0 {
 				goto sclose
 			}
-			if c.dataqsiz > 0 {
-				if c.qcount < c.dataqsiz {
-					goto asyncsend
-				}
-			} else {
-				sg = c.recvq.dequeue()
-				if sg != nil {
-					goto syncsend
-				}
+			sg = c.recvq.dequeue()
+			if sg != nil {
+				goto send
+			}
+			if c.qcount < c.dataqsiz {
+				goto bufsend
 			}
 
 		case caseDefault:
@@ -363,6 +360,9 @@ loop:
 	// pass 2 - enqueue on all chans
 	gp = getg()
 	done = 0
+	if gp.waiting != nil {
+		throw("gp.waiting != nil")
+	}
 	for i := 0; i < int(sel.ncase); i++ {
 		cas = &scases[pollorder[i]]
 		c = cas.c
@@ -389,7 +389,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect|futile, 2)
+	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
 
 	// someone woke us up
 	sellock(sel)
@@ -432,15 +432,12 @@ loop:
 	}
 
 	if cas == nil {
-		futile = traceFutileWakeup
+		// This can happen if we were woken up by a close().
+		// TODO: figure that out explicitly so we don't need this loop.
 		goto loop
 	}
 
 	c = cas.c
-
-	if c.dataqsiz > 0 {
-		throw("selectgo: shouldn't happen")
-	}
 
 	if debugSelect {
 		print("wait-return: sel=", sel, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
@@ -459,11 +456,18 @@ loop:
 			raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
 		}
 	}
+	if msanenabled {
+		if cas.kind == caseRecv && cas.elem != nil {
+			msanwrite(cas.elem, c.elemtype.size)
+		} else if cas.kind == caseSend {
+			msanread(cas.elem, c.elemtype.size)
+		}
+	}
 
 	selunlock(sel)
 	goto retc
 
-asyncrecv:
+bufrecv:
 	// can receive from buffer
 	if raceenabled {
 		if cas.elem != nil {
@@ -472,37 +476,34 @@ asyncrecv:
 		raceacquire(chanbuf(c, c.recvx))
 		racerelease(chanbuf(c, c.recvx))
 	}
+	if msanenabled && cas.elem != nil {
+		msanwrite(cas.elem, c.elemtype.size)
+	}
 	if cas.receivedp != nil {
 		*cas.receivedp = true
 	}
+	qp = chanbuf(c, c.recvx)
 	if cas.elem != nil {
-		typedmemmove(c.elemtype, cas.elem, chanbuf(c, c.recvx))
+		typedmemmove(c.elemtype, cas.elem, qp)
 	}
-	memclr(chanbuf(c, c.recvx), uintptr(c.elemsize))
+	memclr(qp, uintptr(c.elemsize))
 	c.recvx++
 	if c.recvx == c.dataqsiz {
 		c.recvx = 0
 	}
 	c.qcount--
-	sg = c.sendq.dequeue()
-	if sg != nil {
-		gp = sg.g
-		selunlock(sel)
-		if sg.releasetime != 0 {
-			sg.releasetime = cputicks()
-		}
-		goready(gp, 3)
-	} else {
-		selunlock(sel)
-	}
+	selunlock(sel)
 	goto retc
 
-asyncsend:
+bufsend:
 	// can send to buffer
 	if raceenabled {
 		raceacquire(chanbuf(c, c.sendx))
 		racerelease(chanbuf(c, c.sendx))
 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
+	}
+	if msanenabled {
+		msanread(cas.elem, c.elemtype.size)
 	}
 	typedmemmove(c.elemtype, chanbuf(c, c.sendx), cas.elem)
 	c.sendx++
@@ -510,44 +511,18 @@ asyncsend:
 		c.sendx = 0
 	}
 	c.qcount++
-	sg = c.recvq.dequeue()
-	if sg != nil {
-		gp = sg.g
-		selunlock(sel)
-		if sg.releasetime != 0 {
-			sg.releasetime = cputicks()
-		}
-		goready(gp, 3)
-	} else {
-		selunlock(sel)
-	}
+	selunlock(sel)
 	goto retc
 
-syncrecv:
+recv:
 	// can receive from sleeping sender (sg)
-	if raceenabled {
-		if cas.elem != nil {
-			raceWriteObjectPC(c.elemtype, cas.elem, cas.pc, chanrecvpc)
-		}
-		racesync(c, sg)
-	}
-	selunlock(sel)
+	recv(c, sg, cas.elem, func() { selunlock(sel) })
 	if debugSelect {
 		print("syncrecv: sel=", sel, " c=", c, "\n")
 	}
 	if cas.receivedp != nil {
 		*cas.receivedp = true
 	}
-	if cas.elem != nil {
-		typedmemmove(c.elemtype, cas.elem, sg.elem)
-	}
-	sg.elem = nil
-	gp = sg.g
-	gp.param = unsafe.Pointer(sg)
-	if sg.releasetime != 0 {
-		sg.releasetime = cputicks()
-	}
-	goready(gp, 3)
 	goto retc
 
 rclose:
@@ -564,26 +539,19 @@ rclose:
 	}
 	goto retc
 
-syncsend:
-	// can send to sleeping receiver (sg)
+send:
+	// can send to a sleeping receiver (sg)
 	if raceenabled {
 		raceReadObjectPC(c.elemtype, cas.elem, cas.pc, chansendpc)
-		racesync(c, sg)
 	}
-	selunlock(sel)
+	if msanenabled {
+		msanread(cas.elem, c.elemtype.size)
+	}
+	send(c, sg, cas.elem, func() { selunlock(sel) })
 	if debugSelect {
 		print("syncsend: sel=", sel, " c=", c, "\n")
 	}
-	if sg.elem != nil {
-		syncsend(c, sg, cas.elem)
-	}
-	sg.elem = nil
-	gp = sg.g
-	gp.param = unsafe.Pointer(sg)
-	if sg.releasetime != 0 {
-		sg.releasetime = cputicks()
-	}
-	goready(gp, 3)
+	goto retc
 
 retc:
 	if cas.releasetime > 0 {

@@ -56,7 +56,7 @@ func (b *bulkBvec) next() Bvec {
 	return out
 }
 
-/* difference */
+// difference
 func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
 	for i, x := range src1.b {
 		dst.b[i] = x &^ src2.b[i]
@@ -151,14 +151,14 @@ func bvnot(bv Bvec) {
 	}
 }
 
-/* union */
+// union
 func bvor(dst Bvec, src1 Bvec, src2 Bvec) {
 	for i, x := range src1.b {
 		dst.b[i] = x | src2.b[i]
 	}
 }
 
-/* intersection */
+// intersection
 func bvand(dst Bvec, src1 Bvec, src2 Bvec) {
 	for i, x := range src1.b {
 		dst.b[i] = x & src2.b[i]

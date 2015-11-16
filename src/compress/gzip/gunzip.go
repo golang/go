@@ -69,7 +69,7 @@ type Header struct {
 // returned by Read as tentative until they receive the io.EOF
 // marking the end of the data.
 type Reader struct {
-	Header
+	Header       // valid after NewReader or Reader.Reset
 	r            flate.Reader
 	decompressor io.ReadCloser
 	digest       hash.Hash32
@@ -83,7 +83,10 @@ type Reader struct {
 // NewReader creates a new Reader reading the given reader.
 // If r does not also implement io.ByteReader,
 // the decompressor may read more data than necessary from r.
+//
 // It is the caller's responsibility to call Close on the Reader when done.
+//
+// The Reader.Header fields will be valid in the Reader returned.
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
 	z.r = makeReader(r)

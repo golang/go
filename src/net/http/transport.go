@@ -40,6 +40,15 @@ var DefaultTransport RoundTripper = &Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
+func init() {
+	if !strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
+		err := http2ConfigureTransport(DefaultTransport.(*Transport))
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
 // MaxIdleConnsPerHost.
 const DefaultMaxIdleConnsPerHost = 2
@@ -121,6 +130,16 @@ type Transport struct {
 	// This time does not include the time to send the request header.
 	ExpectContinueTimeout time.Duration
 
+	// TLSNextProto specifies how the Transport switches to an
+	// alternate protocol (such as HTTP/2) after a TLS NPN/ALPN
+	// protocol negotiation.  If Transport dials an TLS connection
+	// with a non-empty protocol name and TLSNextProto contains a
+	// map entry for that key (such as "h2"), then the func is
+	// called with the request's authority (such as "example.com"
+	// or "example.com:1234") and the TLS connection. The function
+	// must return a RoundTripper that then handles the request.
+	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
+
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
 }
@@ -196,7 +215,7 @@ func (tr *transportRequest) extraHeaders() Header {
 //
 // For higher-level HTTP client support (such as handling of cookies
 // and redirects), see Get, Post, and the Client type.
-func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
+func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
@@ -205,18 +224,21 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.Header")
 	}
-	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-		t.altMu.RLock()
-		var rt RoundTripper
-		if t.altProto != nil {
-			rt = t.altProto[req.URL.Scheme]
+	// TODO(bradfitz): switch to atomic.Value for this map instead of RWMutex
+	t.altMu.RLock()
+	altRT := t.altProto[req.URL.Scheme]
+	t.altMu.RUnlock()
+	if altRT != nil {
+		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+			return resp, err
 		}
-		t.altMu.RUnlock()
-		if rt == nil {
-			req.closeBody()
-			return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
-		}
-		return rt.RoundTrip(req)
+	}
+	if s := req.URL.Scheme; s != "http" && s != "https" {
+		req.closeBody()
+		return nil, &badStringError{"unsupported protocol scheme", s}
+	}
+	if !validMethod(req.Method) {
+		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
 	}
 	if req.URL.Host == "" {
 		req.closeBody()
@@ -239,9 +261,15 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 		req.closeBody()
 		return nil, err
 	}
-
+	if pconn.alt != nil {
+		// HTTP/2 path.
+		return pconn.alt.RoundTrip(req)
+	}
 	return pconn.roundTrip(treq)
 }
+
+// ErrSkipAltProtocol is a sentinel error value defined by Transport.RegisterProtocol.
+var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
 
 // RegisterProtocol registers a new protocol with scheme.
 // The Transport will pass requests using the given scheme to rt.
@@ -249,10 +277,11 @@ func (t *Transport) RoundTrip(req *Request) (resp *Response, err error) {
 //
 // RegisterProtocol can be used by other packages to provide
 // implementations of protocol schemes like "ftp" or "file".
+//
+// If rt.RoundTrip returns ErrSkipAltProtocol, the Transport will
+// handle the RoundTrip itself for that one request, as if the
+// protocol were not registered.
 func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
-	if scheme == "http" || scheme == "https" {
-		panic("protocol " + scheme + " already registered")
-	}
 	t.altMu.Lock()
 	defer t.altMu.Unlock()
 	if t.altProto == nil {
@@ -688,6 +717,12 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 		pconn.conn = tlsConn
 	}
 
+	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
+			return &persistConn{alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
+		}
+	}
+
 	pconn.br = bufio.NewReader(noteEOFReader{pconn.conn, &pconn.sawEOF})
 	pconn.bw = bufio.NewWriter(pconn.conn)
 	go pconn.readLoop()
@@ -817,6 +852,11 @@ func (k connectMethodKey) String() string {
 // persistConn wraps a connection, usually a persistent one
 // (but may be used for non-keep-alive requests as well)
 type persistConn struct {
+	// alt optionally specifies the TLS NextProto RoundTripper.
+	// This is used for HTTP/2 today and future protocol laters.
+	// If it's non-nil, the rest of the fields are unused.
+	alt RoundTripper
+
 	t        *Transport
 	cacheKey connectMethodKey
 	conn     net.Conn
@@ -888,8 +928,8 @@ func (pc *persistConn) readLoop() {
 			if !pc.closed {
 				pc.closeLocked()
 				if len(pb) > 0 {
-					log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v",
-						string(pb), err)
+					buf, _ := pc.br.Peek(pc.br.Buffered())
+					log.Printf("Unsolicited response received on idle HTTP channel starting with %q; err=%v", buf, err)
 				}
 			}
 			pc.lk.Unlock()

@@ -58,6 +58,7 @@ var debugtab = []struct {
 	{"slice", &Debug_slice},           // print information about slice compilation
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"wb", &Debug_wb},                 // print information about write barriers
+	{"export", &Debug_export},         // print export data
 }
 
 const (
@@ -200,6 +201,9 @@ func Main() {
 	obj.Flagcount("l", "disable inlining", &Debug['l'])
 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
+	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
+	obj.Flagcount("newexport", "use new export format", &newexport) // TODO(gri) remove eventually (issue 13241)
+	obj.Flagcount("oldparser", "use old parser", &oldparser)        // TODO(gri) remove eventually (issue 13240)
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
@@ -217,11 +221,15 @@ func Main() {
 	obj.Flagcount("y", "debug declarations in canned imports (with -d)", &Debug['y'])
 	var flag_shared int
 	var flag_dynlink bool
-	if Thearch.Thechar == '6' || Thearch.Thechar == '5' {
+	switch Thearch.Thechar {
+	case '5', '6', '7', '9':
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
 	}
 	if Thearch.Thechar == '6' {
 		obj.Flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel)
+	}
+	switch Thearch.Thechar {
+	case '5', '6', '7', '8', '9':
 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
 	}
 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
@@ -247,6 +255,15 @@ func Main() {
 	if flag_race != 0 {
 		racepkg = mkpkg("runtime/race")
 		racepkg.Name = "race"
+	}
+	if flag_msan != 0 {
+		msanpkg = mkpkg("runtime/msan")
+		msanpkg.Name = "msan"
+	}
+	if flag_race != 0 && flag_msan != 0 {
+		log.Fatal("can not use both -race and -msan")
+	} else if flag_race != 0 || flag_msan != 0 {
+		instrumenting = true
 	}
 
 	// parse -d argument
@@ -301,7 +318,19 @@ func Main() {
 	lexlineno = 1
 	const BOM = 0xFEFF
 
+	// Uncomment the line below to temporarily switch the compiler back
+	// to the yacc-based parser. Short-term work-around for issues with
+	// the new recursive-descent parser for which setting -oldparser is
+	// not sufficient.
+	// TODO(gri) remove this eventually (issue 13240)
+	//
+	// oldparser = 1
+
 	for _, infile = range flag.Args() {
+		if trace && Debug['x'] != 0 && oldparser == 0 {
+			fmt.Printf("--- %s ---\n", infile)
+		}
+
 		linehistpush(infile)
 
 		curio.infile = infile
@@ -463,6 +492,10 @@ func Main() {
 		fninit(xtop)
 	}
 
+	if compiling_runtime != 0 {
+		checknowritebarrierrec()
+	}
+
 	// Phase 9: Check external declarations.
 	for i, n := range externdcl {
 		if n.Op == ONAME {
@@ -521,7 +554,7 @@ func arsize(b *obj.Biobuf, name string) int {
 }
 
 func skiptopkgdef(b *obj.Biobuf) bool {
-	/* archive header */
+	// archive header
 	p := obj.Brdline(b, '\n')
 	if p == "" {
 		return false
@@ -533,7 +566,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 		return false
 	}
 
-	/* symbol table may be first; skip it */
+	// symbol table may be first; skip it
 	sz := arsize(b, "__.GOSYMDEF")
 
 	if sz >= 0 {
@@ -542,7 +575,7 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 		obj.Bseek(b, 8, 0)
 	}
 
-	/* package export block is next */
+	// package export block is next
 	sz = arsize(b, "__.PKGDEF")
 
 	if sz <= 0 {
@@ -620,6 +653,9 @@ func findpkg(name string) (file string, ok bool) {
 		} else if flag_race != 0 {
 			suffixsep = "_"
 			suffix = "race"
+		} else if flag_msan != 0 {
+			suffixsep = "_"
+			suffix = "msan"
 		}
 
 		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
@@ -640,6 +676,7 @@ func fakeimport() {
 	cannedimports("fake.o", "$$\n")
 }
 
+// TODO(gri) line argument doesn't appear to be used
 func importfile(f *Val, line int) {
 	if _, ok := f.U.(string); !ok {
 		Yyerror("import statement not a string")
@@ -771,42 +808,69 @@ func importfile(f *Val, line int) {
 	// so don't record the full path.
 	linehistpragma(file[len(file)-len(path_)-2:]) // acts as #pragma lib
 
-	/*
-	 * position the input right
-	 * after $$ and return
-	 */
-	pushedio = curio
+	// In the importfile, if we find:
+	// $$\n  (old format): position the input right after $$\n and return
+	// $$B\n (new format): import directly, then feed the lexer a dummy statement
 
-	curio.bin = imp
-	curio.peekc = 0
-	curio.peekc1 = 0
-	curio.infile = file
-	curio.nlsemi = false
-	typecheckok = true
-
+	// look for $$
+	var c int
 	for {
-		c := getc()
-		if c == EOF {
+		c = obj.Bgetc(imp)
+		if c < 0 {
 			break
 		}
-		if c != '$' {
-			continue
+		if c == '$' {
+			c = obj.Bgetc(imp)
+			if c == '$' || c < 0 {
+				break
+			}
 		}
-		c = getc()
-		if c == EOF {
-			break
-		}
-		if c != '$' {
-			continue
-		}
-		return
 	}
 
-	Yyerror("no import in %q", f.U.(string))
-	unimportfile()
+	// get character after $$
+	if c >= 0 {
+		c = obj.Bgetc(imp)
+	}
+
+	switch c {
+	case '\n':
+		// old export format
+		pushedio = curio
+
+		curio.bin = imp
+		curio.peekc = 0
+		curio.peekc1 = 0
+		curio.infile = file
+		curio.nlsemi = false
+		typecheckok = true
+
+		if oldparser == 0 {
+			push_parser()
+		}
+
+	case 'B':
+		// new export format
+		obj.Bgetc(imp) // skip \n after $$B
+		Import(imp)
+
+		// continue as if the package was imported before (see above)
+		tag := ""
+		if importpkg.Safe {
+			tag = "safe"
+		}
+		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
+		cannedimports(file, p)
+
+	default:
+		Yyerror("no import in %q", f.U.(string))
+	}
 }
 
 func unimportfile() {
+	if oldparser == 0 {
+		pop_parser()
+	}
+
 	if curio.bin != nil {
 		obj.Bterm(curio.bin)
 		curio.bin = nil
@@ -836,6 +900,10 @@ func cannedimports(file string, cp string) {
 
 	typecheckok = true
 	incannedimport = 1
+
+	if oldparser == 0 {
+		push_parser()
+	}
 }
 
 func isSpace(c int) bool {
@@ -909,10 +977,10 @@ l0:
 		goto l0
 	}
 
-	lineno = lexlineno /* start of token */
+	lineno = lexlineno // start of token
 
 	if c >= utf8.RuneSelf {
-		/* all multibyte runes are alpha */
+		// all multibyte runes are alpha
 		cp = &lexbuf
 		cp.Reset()
 
@@ -1036,7 +1104,7 @@ l0:
 			c1 = '.'
 		}
 
-		/* "..." */
+		// "..."
 	case '"':
 		lexbuf.Reset()
 		lexbuf.WriteString(`"<string>"`)
@@ -1057,7 +1125,7 @@ l0:
 
 		goto strlit
 
-		/* `...` */
+		// `...`
 	case '`':
 		lexbuf.Reset()
 		lexbuf.WriteString("`<string>`")
@@ -1083,7 +1151,7 @@ l0:
 
 		goto strlit
 
-		/* '.' */
+		// '.'
 	case '\'':
 		if escchar('\'', &escflag, &v) {
 			Yyerror("empty character literal or unescaped ' in character literal")
@@ -1148,14 +1216,14 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = ODIV
+			c = int(ODIV)
 			goto asop
 		}
 
 	case ':':
 		c1 = getc()
 		if c1 == '=' {
-			c = LCOLAS
+			c = int(LCOLAS)
 			yylval.i = int(lexlineno)
 			goto lx
 		}
@@ -1163,48 +1231,48 @@ l0:
 	case '*':
 		c1 = getc()
 		if c1 == '=' {
-			c = OMUL
+			c = int(OMUL)
 			goto asop
 		}
 
 	case '%':
 		c1 = getc()
 		if c1 == '=' {
-			c = OMOD
+			c = int(OMOD)
 			goto asop
 		}
 
 	case '+':
 		c1 = getc()
 		if c1 == '+' {
-			c = LINC
+			c = int(LINC)
 			goto lx
 		}
 
 		if c1 == '=' {
-			c = OADD
+			c = int(OADD)
 			goto asop
 		}
 
 	case '-':
 		c1 = getc()
 		if c1 == '-' {
-			c = LDEC
+			c = int(LDEC)
 			goto lx
 		}
 
 		if c1 == '=' {
-			c = OSUB
+			c = int(OSUB)
 			goto asop
 		}
 
 	case '>':
 		c1 = getc()
 		if c1 == '>' {
-			c = LRSH
+			c = int(LRSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = ORSH
+				c = int(ORSH)
 				goto asop
 			}
 
@@ -1212,19 +1280,19 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = LGE
+			c = int(LGE)
 			goto lx
 		}
 
-		c = LGT
+		c = int(LGT)
 
 	case '<':
 		c1 = getc()
 		if c1 == '<' {
-			c = LLSH
+			c = int(LLSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = OLSH
+				c = int(OLSH)
 				goto asop
 			}
 
@@ -1232,43 +1300,43 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = LLE
+			c = int(LLE)
 			goto lx
 		}
 
 		if c1 == '-' {
-			c = LCOMM
+			c = int(LCOMM)
 			goto lx
 		}
 
-		c = LLT
+		c = int(LLT)
 
 	case '=':
 		c1 = getc()
 		if c1 == '=' {
-			c = LEQ
+			c = int(LEQ)
 			goto lx
 		}
 
 	case '!':
 		c1 = getc()
 		if c1 == '=' {
-			c = LNE
+			c = int(LNE)
 			goto lx
 		}
 
 	case '&':
 		c1 = getc()
 		if c1 == '&' {
-			c = LANDAND
+			c = int(LANDAND)
 			goto lx
 		}
 
 		if c1 == '^' {
-			c = LANDNOT
+			c = int(LANDNOT)
 			c1 = getc()
 			if c1 == '=' {
-				c = OANDNOT
+				c = int(OANDNOT)
 				goto asop
 			}
 
@@ -1276,49 +1344,49 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = OAND
+			c = int(OAND)
 			goto asop
 		}
 
 	case '|':
 		c1 = getc()
 		if c1 == '|' {
-			c = LOROR
+			c = int(LOROR)
 			goto lx
 		}
 
 		if c1 == '=' {
-			c = OOR
+			c = int(OOR)
 			goto asop
 		}
 
 	case '^':
 		c1 = getc()
 		if c1 == '=' {
-			c = OXOR
+			c = int(OXOR)
 			goto asop
 		}
 
-		/*
-		 * clumsy dance:
-		 * to implement rule that disallows
-		 *	if T{1}[0] { ... }
-		 * but allows
-		 * 	if (T{1}[0]) { ... }
-		 * the block bodies for if/for/switch/select
-		 * begin with an LBODY token, not '{'.
-		 *
-		 * when we see the keyword, the next
-		 * non-parenthesized '{' becomes an LBODY.
-		 * loophack is normally false.
-		 * a keyword sets it to true.
-		 * parens push loophack onto a stack and go back to false.
-		 * a '{' with loophack == true becomes LBODY and disables loophack.
-		 *
-		 * i said it was clumsy.
-		 */
+		// clumsy dance:
+		// to implement rule that disallows
+		//	if T{1}[0] { ... }
+		// but allows
+		// 	if (T{1}[0]) { ... }
+		// the block bodies for if/for/switch/select
+		// begin with an LBODY token, not '{'.
+		//
+		// when we see the keyword, the next
+		// non-parenthesized '{' becomes an LBODY.
+		// loophack is normally false.
+		// a keyword sets it to true.
+		// parens push loophack onto a stack and go back to false.
+		// a '{' with loophack == true becomes LBODY and disables loophack.
+		//
+		// I said it was clumsy.
+		//
+		// We only need the loophack when running with -oldparser.
 	case '(', '[':
-		if loophack || _yylex_lstk != nil {
+		if oldparser != 0 && (loophack || _yylex_lstk != nil) {
 			h = new(Loophack)
 			if h == nil {
 				Flusherrors()
@@ -1335,7 +1403,7 @@ l0:
 		goto lx
 
 	case ')', ']':
-		if _yylex_lstk != nil {
+		if oldparser != 0 && _yylex_lstk != nil {
 			h = _yylex_lstk
 			loophack = h.v
 			_yylex_lstk = h.next
@@ -1344,7 +1412,7 @@ l0:
 		goto lx
 
 	case '{':
-		if loophack {
+		if oldparser != 0 && loophack {
 			if Debug['x'] != 0 {
 				fmt.Printf("%v lex: LBODY\n", Ctxt.Line(int(lexlineno)))
 			}
@@ -1389,10 +1457,8 @@ asop:
 	}
 	return LASOP
 
-	/*
-	 * cp is set to lexbuf and some
-	 * prefix has been stored
-	 */
+	// cp is set to lexbuf and some
+	// prefix has been stored
 talph:
 	for {
 		if c >= utf8.RuneSelf {
@@ -1402,6 +1468,9 @@ talph:
 			// 0xb7 · is used for internal names
 			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && (importpkg == nil || r != 0xb7) {
 				Yyerror("invalid identifier character U+%04x", r)
+			}
+			if cp.Len() == 0 && unicode.IsDigit(r) {
+				Yyerror("identifier cannot begin with digit U+%04x", r)
 			}
 			cp.WriteRune(r)
 		} else if !isAlnum(c) && c != '_' {
@@ -1421,7 +1490,9 @@ talph:
 		goto l0
 
 	case LFOR, LIF, LSWITCH, LSELECT:
-		loophack = true // see comment about loophack above
+		if oldparser != 0 {
+			loophack = true // see comment about loophack above
+		}
 	}
 
 	if Debug['x'] != 0 {
@@ -1500,7 +1571,7 @@ casei:
 	mpatoflt(&yylval.val.U.(*Mpcplx).Imag, str)
 	if yylval.val.U.(*Mpcplx).Imag.Val.IsInf() {
 		Yyerror("overflow in imaginary constant")
-		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
+		Mpmovecflt(&yylval.val.U.(*Mpcplx).Imag, 0.0)
 	}
 
 	if Debug['x'] != 0 {
@@ -1557,12 +1628,10 @@ func more(pp *string) bool {
 	return p != ""
 }
 
-/*
- * read and interpret syntax that looks like
- * //line parse.y:15
- * as a discontinuity in sequential line numbers.
- * the next line of input comes from parse.y:15
- */
+// read and interpret syntax that looks like
+// //line parse.y:15
+// as a discontinuity in sequential line numbers.
+// the next line of input comes from parse.y:15
 func getlinepragma() int {
 	var cmd, verb, name string
 
@@ -1629,6 +1698,11 @@ func getlinepragma() int {
 			return c
 		}
 
+		if verb == "go:noinline" {
+			noinline = true
+			return c
+		}
+
 		if verb == "go:systemstack" {
 			if compiling_runtime == 0 {
 				Yyerror("//go:systemstack only allowed in runtime")
@@ -1642,6 +1716,15 @@ func getlinepragma() int {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
 			nowritebarrier = true
+			return c
+		}
+
+		if verb == "go:nowritebarrierrec" {
+			if compiling_runtime == 0 {
+				Yyerror("//go:nowritebarrierrec only allowed in runtime")
+			}
+			nowritebarrierrec = true
+			nowritebarrier = true // Implies nowritebarrier
 			return c
 		}
 		return c
@@ -1851,13 +1934,18 @@ func (yy) Error(msg string) {
 	Yyerror("%s", msg)
 }
 
+var oldparser int // if set, theparser is used (otherwise we use the recursive-descent parser)
 var theparser yyParser
 var parsing bool
 
 func yyparse() {
-	theparser = yyNewParser()
 	parsing = true
-	theparser.Parse(yy{})
+	if oldparser != 0 {
+		theparser = yyNewParser()
+		theparser.Parse(yy{})
+	} else {
+		parse_file()
+	}
 	parsing = false
 }
 
@@ -2121,10 +2209,10 @@ hex:
 var syms = []struct {
 	name    string
 	lexical int
-	etype   int
-	op      int
+	etype   EType
+	op      Op
 }{
-	/* basic types */
+	// basic types
 	{"int8", LNAME, TINT8, OXXX},
 	{"int16", LNAME, TINT16, OXXX},
 	{"int32", LNAME, TINT32, OXXX},
@@ -2195,7 +2283,7 @@ func lexinit() {
 		s1.Lexical = uint16(lex)
 
 		if etype := s.etype; etype != Txxx {
-			if etype < 0 || etype >= len(Types) {
+			if int(etype) >= len(Types) {
 				Fatalf("lexinit: %s bad etype", s.name)
 			}
 			s2 := Pkglookup(s.name, builtinpkg)
@@ -2216,12 +2304,13 @@ func lexinit() {
 			continue
 		}
 
+		// TODO(marvin): Fix Node.EType type union.
 		if etype := s.op; etype != OXXX {
 			s2 := Pkglookup(s.name, builtinpkg)
 			s2.Lexical = LNAME
 			s2.Def = Nod(ONAME, nil, nil)
 			s2.Def.Sym = s2
-			s2.Def.Etype = uint8(etype)
+			s2.Def.Etype = EType(etype)
 		}
 	}
 
@@ -2330,38 +2419,34 @@ func lexinit1() {
 }
 
 func lexfini() {
-	var s *Sym
-	var lex int
-	var etype int
-	var i int
-
-	for i = 0; i < len(syms); i++ {
-		lex = syms[i].lexical
+	for i := range syms {
+		lex := syms[i].lexical
 		if lex != LNAME {
 			continue
 		}
-		s = Lookup(syms[i].name)
+		s := Lookup(syms[i].name)
 		s.Lexical = uint16(lex)
 
-		etype = syms[i].etype
+		etype := syms[i].etype
 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
 			s.Def = typenod(Types[etype])
 			s.Def.Name = new(Name)
 			s.Origpkg = builtinpkg
 		}
 
-		etype = syms[i].op
-		if etype != OXXX && s.Def == nil {
+		// TODO(marvin): Fix Node.EType type union.
+		etype = EType(syms[i].op)
+		if etype != EType(OXXX) && s.Def == nil {
 			s.Def = Nod(ONAME, nil, nil)
 			s.Def.Sym = s
-			s.Def.Etype = uint8(etype)
+			s.Def.Etype = etype
 			s.Origpkg = builtinpkg
 		}
 	}
 
 	// backend-specific builtin types (e.g. int).
-	for i = range Thearch.Typedefs {
-		s = Lookup(Thearch.Typedefs[i].Name)
+	for i := range Thearch.Typedefs {
+		s := Lookup(Thearch.Typedefs[i].Name)
 		if s.Def == nil {
 			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
 			s.Def.Name = new(Name)
@@ -2371,30 +2456,25 @@ func lexfini() {
 
 	// there's only so much table-driven we can handle.
 	// these are special cases.
-	s = Lookup("byte")
-
-	if s.Def == nil {
+	if s := Lookup("byte"); s.Def == nil {
 		s.Def = typenod(bytetype)
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("error")
-	if s.Def == nil {
+	if s := Lookup("error"); s.Def == nil {
 		s.Def = typenod(errortype)
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("rune")
-	if s.Def == nil {
+	if s := Lookup("rune"); s.Def == nil {
 		s.Def = typenod(runetype)
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("nil")
-	if s.Def == nil {
+	if s := Lookup("nil"); s.Def == nil {
 		var v Val
 		v.U = new(NilVal)
 		s.Def = nodlit(v)
@@ -2403,23 +2483,20 @@ func lexfini() {
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("iota")
-	if s.Def == nil {
+	if s := Lookup("iota"); s.Def == nil {
 		s.Def = Nod(OIOTA, nil, nil)
 		s.Def.Sym = s
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("true")
-	if s.Def == nil {
+	if s := Lookup("true"); s.Def == nil {
 		s.Def = Nodbool(true)
 		s.Def.Sym = s
 		s.Def.Name = new(Name)
 		s.Origpkg = builtinpkg
 	}
 
-	s = Lookup("false")
-	if s.Def == nil {
+	if s := Lookup("false"); s.Def == nil {
 		s.Def = Nodbool(false)
 		s.Def.Sym = s
 		s.Def.Name = new(Name)
