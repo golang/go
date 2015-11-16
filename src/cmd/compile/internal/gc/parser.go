@@ -307,6 +307,7 @@ func (p *parser) package_() {
 		mkpackage(p.sym().Name)
 		p.want(';')
 	} else {
+		prevlineno = lineno // see issue #13267
 		p.syntax_error("package statement must be first")
 		errorexit()
 	}
