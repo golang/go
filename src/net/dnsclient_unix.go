@@ -182,7 +182,11 @@ func tryOneName(cfg *dnsConfig, name string, qtype uint16) (string, []dnsRR, err
 				continue
 			}
 			cname, rrs, err := answer(name, server, msg, qtype)
-			if err == nil || msg.rcode == dnsRcodeSuccess || msg.rcode == dnsRcodeNameError && msg.recursion_available {
+			// If answer errored for rcodes dnsRcodeSuccess or dnsRcodeNameError,
+			// it means the response in msg was not useful and trying another
+			// server probably won't help. Return now in those cases.
+			// TODO: indicate this in a more obvious way, such as a field on DNSError?
+			if err == nil || msg.rcode == dnsRcodeSuccess || msg.rcode == dnsRcodeNameError {
 				return cname, rrs, err
 			}
 			lastErr = err

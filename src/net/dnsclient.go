@@ -40,7 +40,7 @@ func reverseaddr(addr string) (arpa string, err error) {
 func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err error) {
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
-	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
+	if dns.rcode == dnsRcodeNameError {
 		return "", nil, &DNSError{Err: errNoSuchHost.Error(), Name: name, Server: server}
 	}
 	if dns.rcode != dnsRcodeSuccess {

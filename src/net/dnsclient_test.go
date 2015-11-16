@@ -92,3 +92,26 @@ func TestIssue8434(t *testing.T) {
 		t.Fatalf("IsTemporary = false for err = %#v; want IsTemporary == true", err)
 	}
 }
+
+// Issue 12778: verify that NXDOMAIN without RA bit errors as
+// "no such host" and not "server misbehaving"
+func TestIssue12778(t *testing.T) {
+	msg := &dnsMsg{
+		dnsMsgHdr: dnsMsgHdr{
+			rcode:               dnsRcodeNameError,
+			recursion_available: false,
+		},
+	}
+
+	_, _, err := answer("golang.org", "foo:53", msg, uint16(dnsTypeSRV))
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	de, ok := err.(*DNSError)
+	if !ok {
+		t.Fatalf("err = %#v; wanted a *net.DNSError", err)
+	}
+	if de.Err != errNoSuchHost.Error() {
+		t.Fatalf("Err = %#v; wanted %q", de.Err, errNoSuchHost.Error())
+	}
+}
