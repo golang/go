@@ -27,7 +27,7 @@ type mcache struct {
 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
 	// we handle it by clearing it in releaseAll during mark
 	// termination.
-	tiny             unsafe.Pointer
+	tiny             uintptr
 	tinyoffset       uintptr
 	local_tinyallocs uintptr // number of tiny allocs not counted in other stats
 
@@ -139,6 +139,6 @@ func (c *mcache) releaseAll() {
 		}
 	}
 	// Clear tinyalloc pool.
-	c.tiny = nil
+	c.tiny = 0
 	c.tinyoffset = 0
 }
