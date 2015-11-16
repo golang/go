@@ -392,8 +392,8 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
 		// Reserve some more space.
 		p_size := round(n+_PageSize, 256<<20)
-		new_end := h.arena_end + p_size
-		if new_end <= h.arena_start+_MaxArena32 {
+		new_end := h.arena_end + p_size // Careful: can overflow
+		if h.arena_end <= new_end && new_end <= h.arena_start+_MaxArena32 {
 			// TODO: It would be bad if part of the arena
 			// is reserved and part is not.
 			var reserved bool
