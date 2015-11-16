@@ -258,7 +258,7 @@ func Rel(basepath, targpath string) (string, error) {
 	targVol := VolumeName(targpath)
 	base := Clean(basepath)
 	targ := Clean(targpath)
-	if targ == base {
+	if sameWord(targ, base) {
 		return ".", nil
 	}
 	base = base[len(baseVol):]
