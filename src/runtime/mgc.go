@@ -1744,17 +1744,6 @@ func clearpools() {
 		sched.deferpool[i] = nil
 	}
 	unlock(&sched.deferlock)
-
-	for _, p := range &allp {
-		if p == nil {
-			break
-		}
-		// clear tinyalloc pool
-		if c := p.mcache; c != nil {
-			c.tiny = nil
-			c.tinyoffset = 0
-		}
-	}
 }
 
 // Timing
