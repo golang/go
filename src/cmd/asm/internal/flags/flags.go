@@ -36,6 +36,9 @@ func init() {
 type MultiFlag []string
 
 func (m *MultiFlag) String() string {
+	if len(*m) == 0 {
+		return ""
+	}
 	return fmt.Sprint(*m)
 }
 
