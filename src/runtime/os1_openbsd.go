@@ -22,9 +22,11 @@ const (
 	_CLOCK_MONOTONIC = 3
 )
 
+type sigset uint32
+
 const (
-	sigset_none = uint32(0)
-	sigset_all  = ^uint32(0)
+	sigset_none = sigset(0)
+	sigset_all  = ^sigset(0)
 )
 
 // From OpenBSD's <sys/sysctl.h>
@@ -149,11 +151,7 @@ func mpreinit(mp *m) {
 }
 
 func msigsave(mp *m) {
-	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
-		throw("insufficient storage for signal mask")
-	}
-	*smask = sigprocmask(_SIG_BLOCK, 0)
+	mp.sigmask = sigprocmask(_SIG_BLOCK, 0)
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -168,7 +166,7 @@ func minit() {
 	signalstack(&_g_.m.gsignal.stack)
 
 	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	nmask := _g_.m.sigmask
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
 			nmask &^= 1 << (uint32(i) - 1)
@@ -180,8 +178,7 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 func unminit() {
 	_g_ := getg()
-	smask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
-	sigprocmask(_SIG_SETMASK, smask)
+	sigprocmask(_SIG_SETMASK, _g_.m.sigmask)
 	signalstack(nil)
 }
 
@@ -203,7 +200,7 @@ func setsig(i int32, fn uintptr, restart bool) {
 	if restart {
 		sa.sa_flags |= _SA_RESTART
 	}
-	sa.sa_mask = sigset_all
+	sa.sa_mask = uint32(sigset_all)
 	if fn == funcPC(sighandler) {
 		fn = funcPC(sigtramp)
 	}
@@ -237,10 +234,10 @@ func signalstack(s *stack) {
 }
 
 func updatesigmask(m sigmask) {
-	sigprocmask(_SIG_SETMASK, m[0])
+	sigprocmask(_SIG_SETMASK, sigset(m[0]))
 }
 
 func unblocksig(sig int32) {
-	mask := uint32(1) << (uint32(sig) - 1)
+	mask := sigset(1) << (uint32(sig) - 1)
 	sigprocmask(_SIG_UNBLOCK, mask)
 }
