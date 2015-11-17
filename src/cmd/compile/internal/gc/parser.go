@@ -89,7 +89,7 @@ func (p *parser) got(tok int32) bool {
 
 func (p *parser) want(tok int32) {
 	if !p.got(tok) {
-		p.syntax_error("")
+		p.syntax_error("expecting " + tokstring(tok))
 		p.advance()
 	}
 }
@@ -138,7 +138,16 @@ func (p *parser) syntax_error(msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	Yyerror("syntax error: unexpected %s", tok + msg)
+	Yyerror("syntax error: unexpected %s", tok+msg)
+}
+
+// Like syntax_error, but reports error at given line rather than current lexer line.
+func (p *parser) syntax_error_at(lineno int32, msg string) {
+	defer func(lineno int32) {
+		lexlineno = lineno
+	}(lexlineno)
+	lexlineno = lineno
+	p.syntax_error(msg)
 }
 
 // Advance consumes tokens until it finds a token of the stoplist.
@@ -737,11 +746,8 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 		ls = p.stmt()
 		if ls == missing_stmt {
 			// report error at line of ':' token
-			saved := lexlineno
-			lexlineno = prevlineno
-			p.syntax_error("missing statement after label")
+			p.syntax_error_at(prevlineno, "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
-			lexlineno = saved
 			return missing_stmt
 		}
 	}
@@ -1313,15 +1319,49 @@ func (p *parser) uexpr() *Node {
 		op = OCOM
 
 	case LCOMM:
-		// receive operation (<-s2) or receive-only channel type (<-chan s3)
+		// receive op (<-x) or receive-only channel (<-chan E)
 		p.next()
-		if p.got(LCHAN) {
-			// <-chan T
-			t := Nod(OTCHAN, p.chan_elem(), nil)
-			t.Etype = Crecv
-			return t
+
+		// If the next token is LCHAN we still don't know if it is
+		// a channel (<-chan int) or a receive op (<-chan int(ch)).
+		// We only know once we have found the end of the uexpr.
+
+		x := p.uexpr()
+
+		// There are two cases:
+		//
+		//   <-chan...  => <-x is a channel type
+		//   <-x        => <-x is a receive operation
+		//
+		// In the first case, <- must be re-associated with
+		// the channel type parsed already:
+		//
+		//   <-(chan E)   =>  (<-chan E)
+		//   <-(chan<-E)  =>  (<-chan (<-E))
+
+		if x.Op == OTCHAN {
+			// x is a channel type => re-associate <-
+			dir := EType(Csend)
+			t := x
+			for ; t.Op == OTCHAN && dir == Csend; t = t.Left {
+				dir = t.Etype
+				if dir == Crecv {
+					// t is type <-chan E but <-<-chan E is not permitted
+					// (report same error as for "type _ <-<-chan E")
+					p.syntax_error("unexpected <-, expecting chan")
+				}
+				t.Etype = Crecv
+			}
+			if dir == Csend {
+				// channel dir is <- but channel element E is not a channel
+				// (report same error as for "type _ <-chan<-E")
+				p.syntax_error(fmt.Sprintf("unexpected %v, expecting chan", t))
+			}
+			return x
 		}
-		return Nod(ORECV, p.uexpr(), nil)
+
+		// x is not a channel type => we have a receive op
+		return Nod(ORECV, x, nil)
 
 	default:
 		return p.pexpr(false)
