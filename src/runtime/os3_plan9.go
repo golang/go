@@ -10,7 +10,8 @@ import (
 )
 
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//
+//go:nowritebarrierrec
 func sighandler(_ureg *ureg, note *byte, gp *g) int {
 	_g_ := getg()
 	var t sigTabT
