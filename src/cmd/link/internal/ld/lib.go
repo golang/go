@@ -207,6 +207,7 @@ var (
 	tmpdir             string
 	extld              string
 	extldflags         string
+	libgccfile         string
 	debug_s            int // backup old value of debug['s']
 	Ctxt               *Link
 	HEADR              int32
@@ -644,19 +645,41 @@ func loadlib() {
 		hostobjs()
 
 		// If we have any undefined symbols in external
-		// objects, try to read them from our copy of the C
-		// compiler support library, libgcc.a.
+		// objects, try to read them from the libgcc file.
 		any := false
 		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 			for _, r := range s.R {
-				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
+				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF && r.Sym.Name != ".got" {
 					any = true
 					break
 				}
 			}
 		}
 		if any {
-			hostArchive(fmt.Sprintf("%s/pkg/libgcc/%s_%s/libgcc", goroot, goos, goarch))
+			if libgccfile == "" {
+				if extld == "" {
+					extld = "gcc"
+				}
+				args := hostlinkArchArgs()
+				args = append(args, "--print-libgcc-file-name")
+				if Debug['v'] != 0 {
+					fmt.Fprintf(&Bso, "%s %v\n", extld, args)
+				}
+				out, err := exec.Command(extld, args...).Output()
+				if err != nil {
+					if Debug['v'] != 0 {
+						fmt.Fprintln(&Bso, "not using a libgcc file because compiler failed")
+						fmt.Fprintf(&Bso, "%v\n%s\n", err, out)
+					}
+					libgccfile = "none"
+				} else {
+					libgccfile = strings.TrimSpace(string(out))
+				}
+			}
+
+			if libgccfile != "none" {
+				hostArchive(libgccfile)
+			}
 		}
 	} else {
 		hostlinksetup()
@@ -1007,19 +1030,7 @@ func hostlink() {
 
 	var argv []string
 	argv = append(argv, extld)
-	switch Thearch.Thechar {
-	case '8':
-		argv = append(argv, "-m32")
-
-	case '6', '9':
-		argv = append(argv, "-m64")
-
-	case '5':
-		argv = append(argv, "-marm")
-
-	case '7':
-		// nothing needed
-	}
+	argv = append(argv, hostlinkArchArgs()...)
 
 	if Debug['s'] == 0 && debug_s == 0 {
 		argv = append(argv, "-gdwarf-2")
@@ -1205,6 +1216,22 @@ func hostlink() {
 			}
 		}
 	}
+}
+
+// hostlinkArchArgs returns arguments to pass to the external linker
+// based on the architecture.
+func hostlinkArchArgs() []string {
+	switch Thearch.Thechar {
+	case '8':
+		return []string{"-m32"}
+	case '6', '9':
+		return []string{"-m64"}
+	case '5':
+		return []string{"-marm"}
+	case '7':
+		// nothing needed
+	}
+	return nil
 }
 
 // ldobj loads an input object.  If it is a host object (an object

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1003,7 +1002,6 @@ func cmdbootstrap() {
 	setup()
 
 	checkCC()
-	copyLibgcc()
 	bootstrapBuildTools()
 
 	// For the main bootstrap, building for host os/arch.
@@ -1109,53 +1107,6 @@ func checkCC() {
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, export CC=the-compiler.\n"+
 			"To disable cgo, export CGO_ENABLED=0.\n", defaultcc, err)
-	}
-}
-
-// copyLibgcc copies the C compiler's libgcc into the pkg directory.
-func copyLibgcc() {
-	if !needCC() {
-		return
-	}
-	var args []string
-	switch goarch {
-	case "386":
-		args = []string{"-m32"}
-	case "amd64", "amd64p32":
-		args = []string{"-m64"}
-	case "arm":
-		args = []string{"-marm"}
-	}
-	args = append(args, "--print-libgcc-file-name")
-	output, err := exec.Command(defaultcctarget, args...).Output()
-	if err != nil {
-		fatal("cannot find libgcc file name: %v", err)
-	}
-	libgcc := strings.TrimSpace(string(output))
-	if len(libgcc) == 0 {
-		return
-	}
-	in, err := os.Open(libgcc)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return
-		}
-		fatal("cannot open libgcc for copying: %v", err)
-	}
-	defer in.Close()
-	outdir := filepath.Join(goroot, "pkg", "libgcc", goos+"_"+goarch)
-	if err := os.MkdirAll(outdir, 0777); err != nil {
-		fatal("cannot create libgcc.a directory: %v", err)
-	}
-	out, err := os.Create(filepath.Join(outdir, "libgcc"))
-	if err != nil {
-		fatal("cannot create libgcc.a for copying: %v", err)
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		fatal("error copying libgcc: %v", err)
-	}
-	if err := out.Close(); err != nil {
-		fatal("error closing new libgcc: %v", err)
 	}
 }
 
