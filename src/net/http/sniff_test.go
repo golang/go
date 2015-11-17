@@ -40,9 +40,7 @@ var sniffTests = []struct {
 	{"GIF 87a", []byte(`GIF87a`), "image/gif"},
 	{"GIF 89a", []byte(`GIF89a...`), "image/gif"},
 
-	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
-	//{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
-	//{"MP4 audio", []byte("\x00\x00\x00\x20ftypM4A \x00\x00\x00\x00M4A mp42isom\x00\x00\x00\x00"), "audio/mp4"},
+	{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
 }
 
 func TestDetectContentType(t *testing.T) {
