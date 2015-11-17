@@ -2096,7 +2096,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 
 		case obj.NAME_EXTERN,
 			obj.NAME_STATIC:
-			if a.Sym != nil && isextern(a.Sym) || p.Mode == 32 {
+			if a.Sym != nil && isextern(a.Sym) || (p.Mode == 32 && ctxt.Flag_shared == 0) {
 				return Yi32
 			}
 			return Yiauto // use pc-relative addressing
@@ -2515,7 +2515,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
 		if a.Name == obj.NAME_GOTREF {
 			r.Siz = 4
 			r.Type = obj.R_GOTPCREL
-		} else if isextern(s) || p.Mode != 64 {
+		} else if isextern(s) || (p.Mode != 64 && ctxt.Flag_shared == 0) {
 			r.Siz = 4
 			r.Type = obj.R_ADDR
 		} else {
@@ -2592,7 +2592,11 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 			if !isextern(a.Sym) && p.Mode == 64 {
 				goto bad
 			}
-			base = REG_NONE
+			if p.Mode == 32 && ctxt.Flag_shared != 0 {
+				base = REG_CX
+			} else {
+				base = REG_NONE
+			}
 			v = int32(vaddr(ctxt, p, a, &rel))
 
 		case obj.NAME_AUTO,
@@ -2638,7 +2642,11 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		if a.Sym == nil {
 			ctxt.Diag("bad addr: %v", p)
 		}
-		base = REG_NONE
+		if p.Mode == 32 && ctxt.Flag_shared != 0 {
+			base = REG_CX
+		} else {
+			base = REG_NONE
+		}
 		v = int32(vaddr(ctxt, p, a, &rel))
 
 	case obj.NAME_AUTO,
@@ -4550,14 +4558,22 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 			r.Off++
 		}
 		if r.Type == obj.R_PCREL {
-			// PC-relative addressing is relative to the end of the instruction,
-			// but the relocations applied by the linker are relative to the end
-			// of the relocation. Because immediate instruction
-			// arguments can follow the PC-relative memory reference in the
-			// instruction encoding, the two may not coincide. In this case,
-			// adjust addend so that linker can keep relocating relative to the
-			// end of the relocation.
-			r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
+			if p.Mode == 64 || p.As == obj.AJMP || p.As == obj.ACALL {
+				// PC-relative addressing is relative to the end of the instruction,
+				// but the relocations applied by the linker are relative to the end
+				// of the relocation. Because immediate instruction
+				// arguments can follow the PC-relative memory reference in the
+				// instruction encoding, the two may not coincide. In this case,
+				// adjust addend so that linker can keep relocating relative to the
+				// end of the relocation.
+				r.Add -= p.Pc + int64(n) - (int64(r.Off) + int64(r.Siz))
+			} else if p.Mode == 32 {
+				// On 386 PC-relative addressing (for non-call/jmp instructions)
+				// assumes that the previous instruction loaded the PC of the end
+				// of that instruction into CX, so the adjustment is relative to
+				// that.
+				r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
+			}
 		}
 	}
 
