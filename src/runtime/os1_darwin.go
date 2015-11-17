@@ -8,7 +8,9 @@ import "unsafe"
 
 //extern SigTabTT runtime·sigtab[];
 
-var sigset_all = ^uint32(0)
+type sigset uint32
+
+var sigset_all = ^sigset(0)
 
 func unimplemented(name string) {
 	println(name, "not implemented")
@@ -83,7 +85,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
-	var oset uint32
+	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -109,7 +111,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
 	}
 	stk := unsafe.Pointer(uintptr(stack) + stacksize)
 
-	var oset uint32
+	var oset sigset
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	errno := bsdthread_create(stk, fn, fnarg)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -132,17 +134,12 @@ func mpreinit(mp *m) {
 
 //go:nosplit
 func msigsave(mp *m) {
-	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
-		throw("insufficient storage for signal mask")
-	}
-	sigprocmask(_SIG_SETMASK, nil, smask)
+	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
 }
 
 //go:nosplit
 func msigrestore(mp *m) {
-	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
-	sigprocmask(_SIG_SETMASK, smask, nil)
+	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
 }
 
 //go:nosplit
@@ -158,7 +155,7 @@ func minit() {
 	signalstack(&_g_.m.gsignal.stack)
 
 	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	nmask := _g_.m.sigmask
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
 			nmask &^= 1 << (uint32(i) - 1)
@@ -483,10 +480,11 @@ func signalstack(s *stack) {
 }
 
 func updatesigmask(m sigmask) {
-	sigprocmask(_SIG_SETMASK, &m[0], nil)
+	s := sigset(m[0])
+	sigprocmask(_SIG_SETMASK, &s, nil)
 }
 
 func unblocksig(sig int32) {
-	mask := uint32(1) << (uint32(sig) - 1)
+	mask := sigset(1) << (uint32(sig) - 1)
 	sigprocmask(_SIG_UNBLOCK, &mask, nil)
 }

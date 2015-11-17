@@ -140,17 +140,12 @@ func mpreinit(mp *m) {
 
 //go:nosplit
 func msigsave(mp *m) {
-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
-	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
-		throw("insufficient storage for signal mask")
-	}
-	sigprocmask(_SIG_SETMASK, nil, smask)
+	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
 }
 
 //go:nosplit
 func msigrestore(mp *m) {
-	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
-	sigprocmask(_SIG_SETMASK, smask, nil)
+	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
 }
 
 //go:nosplit
@@ -168,7 +163,7 @@ func minit() {
 	signalstack(&_g_.m.gsignal.stack)
 
 	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+	nmask := _g_.m.sigmask
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
 			nmask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
