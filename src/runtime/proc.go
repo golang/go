@@ -3321,6 +3321,9 @@ func checkdead() {
 // This is a variable for testing purposes. It normally doesn't change.
 var forcegcperiod int64 = 2 * 60 * 1e9
 
+// Always runs without a P, so write barriers are not allowed.
+//
+//go:nowritebarrierrec
 func sysmon() {
 	// If a heap span goes unused for 5 minutes after a garbage collection,
 	// we hand it back to the operating system.
