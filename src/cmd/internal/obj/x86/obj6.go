@@ -311,6 +311,10 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	if ctxt.Flag_dynlink {
 		rewriteToUseGot(ctxt, p)
 	}
+
+	if ctxt.Flag_shared != 0 && p.Mode == 32 {
+		rewriteToPcrel(ctxt, p)
+	}
 }
 
 // Rewrite p, if necessary, to access global data via the global offset table.
@@ -423,6 +427,67 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	} else {
 		return
 	}
+	obj.Nopout(p)
+}
+
+func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+	// RegTo2 is set on the instructions we insert here so they don't get
+	// processed twice.
+	if p.RegTo2 != 0 {
+		return
+	}
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+		return
+	}
+	// Any Prog (aside from the above special cases) with an Addr with Name ==
+	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.cx
+	// inserted before it.
+	isName := func(a *obj.Addr) bool {
+		if a.Sym == nil || (a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR) || a.Reg != 0 {
+			return false
+		}
+		if a.Sym.Type == obj.STLSBSS {
+			return false
+		}
+		return a.Name == obj.NAME_EXTERN || a.Name == obj.NAME_STATIC || a.Name == obj.NAME_GOTREF
+	}
+
+	if isName(&p.From) && p.From.Type == obj.TYPE_ADDR {
+		// Handle things like "MOVL $sym, (SP)" or "PUSHL $sym" by rewriting
+		// to "MOVL $sym, CX; MOVL CX, (SP)" or "MOVL $sym, CX; PUSHL CX"
+		// respectively.
+		if p.To.Type != obj.TYPE_REG {
+			q := obj.Appendp(ctxt, p)
+			q.As = p.As
+			q.From.Type = obj.TYPE_REG
+			q.From.Reg = REG_CX
+			q.To = p.To
+			p.As = AMOVL
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_CX
+			p.To.Sym = nil
+			p.To.Name = obj.NAME_NONE
+		}
+	}
+
+	if !isName(&p.From) && !isName(&p.To) && (p.From3 == nil || !isName(p.From3)) {
+		return
+	}
+	q := obj.Appendp(ctxt, p)
+	q.RegTo2 = 1
+	r := obj.Appendp(ctxt, q)
+	r.RegTo2 = 1
+	q.As = obj.ACALL
+	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
+	q.To.Type = obj.TYPE_MEM
+	q.To.Name = obj.NAME_EXTERN
+	q.To.Sym.Local = true
+	r.As = p.As
+	r.Scond = p.Scond
+	r.From = p.From
+	r.From3 = p.From3
+	r.Reg = p.Reg
+	r.To = p.To
 	obj.Nopout(p)
 }
 
