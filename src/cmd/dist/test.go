@@ -359,6 +359,27 @@ func (t *tester) registerTests() {
 		},
 	})
 
+	// Test that internal linking of standard packages does not
+	// require libgcc.  This ensures that we can install a Go
+	// release on a system that does not have a C compiler
+	// installed and still build Go programs (that don't use cgo).
+	for _, pkg := range cgoPackages {
+
+		// Internal linking is not currently supported on Dragonfly.
+		if t.goos == "dragonfly" {
+			break
+		}
+
+		pkg := pkg
+		t.tests = append(t.tests, distTest{
+			name:    "nolibgcc:" + pkg,
+			heading: "Testing without libgcc.",
+			fn: func() error {
+				return t.dirCmd("src", "go", "test", "-short", "-ldflags=-linkmode=internal -libgcc=none", t.tags(), pkg).Run()
+			},
+		})
+	}
+
 	// sync tests
 	t.tests = append(t.tests, distTest{
 		name:    "sync_cpu",
@@ -895,4 +916,11 @@ NextVar:
 		out = append(out, inkv)
 	}
 	return out
+}
+
+// cgoPackages is the standard packages that use cgo.
+var cgoPackages = []string{
+	"crypto/x509",
+	"net",
+	"os/user",
 }

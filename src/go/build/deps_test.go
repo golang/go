@@ -259,6 +259,8 @@ var pkgDeps = map[string][]string{
 	},
 
 	// Cgo.
+	// If you add a dependency on CGO, you must add the package to
+	// cgoPackages in cmd/dist/test.go.
 	"runtime/cgo": {"L0", "C"},
 	"CGO":         {"C", "runtime/cgo"},
 
