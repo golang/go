@@ -672,6 +672,7 @@ func benchmark(b *testing.B, re string, n int) {
 
 const (
 	easy0  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
+	easy0i = "(?i)ABCDEFGHIJklmnopqrstuvwxyz$"
 	easy1  = "A[AB]B[BC]C[CD]D[DE]E[EF]F[FG]G[GH]H[HI]I[IJ]J$"
 	medium = "[XYZ]ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
 	hard   = "[ -~]*ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
@@ -682,6 +683,11 @@ func BenchmarkMatchEasy0_1K(b *testing.B)   { benchmark(b, easy0, 1<<10) }
 func BenchmarkMatchEasy0_32K(b *testing.B)  { benchmark(b, easy0, 32<<10) }
 func BenchmarkMatchEasy0_1M(b *testing.B)   { benchmark(b, easy0, 1<<20) }
 func BenchmarkMatchEasy0_32M(b *testing.B)  { benchmark(b, easy0, 32<<20) }
+func BenchmarkMatchEasy0i_32(b *testing.B)  { benchmark(b, easy0i, 32<<0) }
+func BenchmarkMatchEasy0i_1K(b *testing.B)  { benchmark(b, easy0i, 1<<10) }
+func BenchmarkMatchEasy0i_32K(b *testing.B) { benchmark(b, easy0i, 32<<10) }
+func BenchmarkMatchEasy0i_1M(b *testing.B)  { benchmark(b, easy0i, 1<<20) }
+func BenchmarkMatchEasy0i_32M(b *testing.B) { benchmark(b, easy0i, 32<<20) }
 func BenchmarkMatchEasy1_32(b *testing.B)   { benchmark(b, easy1, 32<<0) }
 func BenchmarkMatchEasy1_1K(b *testing.B)   { benchmark(b, easy1, 1<<10) }
 func BenchmarkMatchEasy1_32K(b *testing.B)  { benchmark(b, easy1, 32<<10) }
