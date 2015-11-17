@@ -106,7 +106,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 			}
 			frame.fn = f
 			frame.argp = uintptr(deferArgs(d))
-			setArgInfo(&frame, f, true)
+			frame.arglen, frame.argmap = getArgInfo(&frame, f, true)
 		}
 		frame.continpc = frame.pc
 		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
@@ -328,7 +328,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		// metadata recorded by f's caller.
 		if callback != nil || printing {
 			frame.argp = frame.fp + sys.MinFrameSize
-			setArgInfo(&frame, f, callback != nil)
+			frame.arglen, frame.argmap = getArgInfo(&frame, f, callback != nil)
 		}
 
 		// Determine frame's 'continuation PC', where it can continue.
@@ -519,8 +519,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	return n
 }
 
-func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
-	frame.arglen = uintptr(f.args)
+func getArgInfo(frame *stkframe, f *_func, needArgMap bool) (arglen uintptr, argmap *bitvector) {
+	arglen = uintptr(f.args)
 	if needArgMap && f.args == _ArgsSizeUnknown {
 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
 		switch funcname(f) {
@@ -532,10 +532,11 @@ func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
 				throw("reflect mismatch")
 			}
 			bv := (*bitvector)(unsafe.Pointer(fn[1]))
-			frame.arglen = uintptr(bv.n * sys.PtrSize)
-			frame.argmap = bv
+			arglen = uintptr(bv.n * sys.PtrSize)
+			argmap = bv
 		}
 	}
+	return
 }
 
 func printcreatedby(gp *g) {
