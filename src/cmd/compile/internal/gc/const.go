@@ -1305,20 +1305,28 @@ func defaultlit(np **Node, t *Type) {
 	return
 
 num:
+	// Note: n.Val().Ctype() can be CTxxx (not a constant) here
+	// in the case of an untyped non-constant value, like 1<<i.
+	v1 := n.Val()
 	if t != nil {
 		if Isint[t.Etype] {
 			t1 = t
-			n.SetVal(toint(n.Val()))
+			v1 = toint(n.Val())
 		} else if Isfloat[t.Etype] {
 			t1 = t
-			n.SetVal(toflt(n.Val()))
+			v1 = toflt(n.Val())
 		} else if Iscomplex[t.Etype] {
 			t1 = t
-			n.SetVal(tocplx(n.Val()))
+			v1 = tocplx(n.Val())
+		}
+		if n.Val().Ctype() != CTxxx {
+			n.SetVal(v1)
 		}
 	}
 
-	overflow(n.Val(), t1)
+	if n.Val().Ctype() != CTxxx {
+		overflow(n.Val(), t1)
+	}
 	Convlit(np, t1)
 	lineno = int32(lno)
 	return
