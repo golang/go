@@ -1575,6 +1575,9 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
 		return
 	}
+	if (compiling_runtime != 0 || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
+		return
+	}
 	defn := fn.Name.Defn
 
 	fnbest, ok := c.best[defn]
