@@ -102,10 +102,9 @@ var sniffSignatures = []sniffSig{
 	&exactSig{[]byte("\x50\x4B\x03\x04"), "application/zip"},
 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
 
-	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
-	//mp4Sig(0),
+	mp4Sig{},
 
-	textSig(0), // should be last
+	textSig{}, // should be last
 }
 
 type exactSig struct {
@@ -166,12 +165,14 @@ func (h htmlSig) match(data []byte, firstNonWS int) string {
 }
 
 var mp4ftype = []byte("ftyp")
+var mp4 = []byte("mp4")
 
-type mp4Sig int
+type mp4Sig struct{}
 
 func (mp4Sig) match(data []byte, firstNonWS int) string {
-	// c.f. section 6.1.
-	if len(data) < 8 {
+	// https://mimesniff.spec.whatwg.org/#signature-for-mp4
+	// c.f. section 6.2.1
+	if len(data) < 12 {
 		return ""
 	}
 	boxSize := int(binary.BigEndian.Uint32(data[:4]))
@@ -186,24 +187,14 @@ func (mp4Sig) match(data []byte, firstNonWS int) string {
 			// minor version number
 			continue
 		}
-		seg := string(data[st : st+3])
-		switch seg {
-		case "mp4", "iso", "M4V", "M4P", "M4B":
+		if bytes.Equal(data[st:st+3], mp4) {
 			return "video/mp4"
-			/* The remainder are not in the spec.
-			case "M4A":
-				return "audio/mp4"
-			case "3gp":
-				return "video/3gpp"
-			case "jp2":
-				return "image/jp2" // JPEG 2000
-			*/
 		}
 	}
 	return ""
 }
 
-type textSig int
+type textSig struct{}
 
 func (textSig) match(data []byte, firstNonWS int) string {
 	// c.f. section 5, step 4.
