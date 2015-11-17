@@ -4575,6 +4575,11 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 				r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
 			}
 		}
+		if r.Type == obj.R_GOTPCREL && p.Mode == 32 {
+			// On 386, R_GOTPCREL makes the same assumptions as R_PCREL.
+			r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
+		}
+
 	}
 
 	if p.Mode == 64 && ctxt.Headtype == obj.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {

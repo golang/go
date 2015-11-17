@@ -319,12 +319,25 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 
 // Rewrite p, if necessary, to access global data via the global offset table.
 func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+	var add, lea, mov, reg int16
+	if p.Mode == 64 {
+		add = AADDQ
+		lea = ALEAQ
+		mov = AMOVQ
+		reg = REG_R15
+	} else {
+		add = AADDL
+		lea = ALEAL
+		mov = AMOVL
+		reg = REG_CX
+	}
+
 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
 		//     ADUFFxxx $offset
 		// becomes
-		//     MOVQ runtime.duffxxx@GOT, R15
-		//     ADDQ $offset, R15
-		//     CALL R15
+		//     $MOV runtime.duffxxx@GOT, $reg
+		//     $ADD $offset, $reg
+		//     CALL $reg
 		var sym *obj.LSym
 		if p.As == obj.ADUFFZERO {
 			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
@@ -332,60 +345,78 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
 		}
 		offset := p.To.Offset
-		p.As = AMOVQ
+		p.As = mov
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_GOTREF
 		p.From.Sym = sym
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = REG_R15
+		p.To.Reg = reg
 		p.To.Offset = 0
 		p.To.Sym = nil
 		p1 := obj.Appendp(ctxt, p)
-		p1.As = AADDQ
+		p1.As = add
 		p1.From.Type = obj.TYPE_CONST
 		p1.From.Offset = offset
 		p1.To.Type = obj.TYPE_REG
-		p1.To.Reg = REG_R15
+		p1.To.Reg = reg
 		p2 := obj.Appendp(ctxt, p1)
 		p2.As = obj.ACALL
 		p2.To.Type = obj.TYPE_REG
-		p2.To.Reg = REG_R15
+		p2.To.Reg = reg
 	}
 
 	// We only care about global data: NAME_EXTERN means a global
 	// symbol in the Go sense, and p.Sym.Local is true for a few
 	// internally defined symbols.
-	if p.As == ALEAQ && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		// LEAQ sym, Rx becomes MOVQ $sym, Rx which will be rewritten below
-		p.As = AMOVQ
+	if p.As == lea && p.From.Type == obj.TYPE_MEM && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
+		// $LEA sym, Rx becomes $MOV $sym, Rx which will be rewritten below
+		p.As = mov
 		p.From.Type = obj.TYPE_ADDR
 	}
 	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
-		// MOVQ $sym, Rx becomes MOVQ sym@GOT, Rx
-		// MOVQ $sym+<off>, Rx becomes MOVQ sym@GOT, Rx; ADDQ <off>, Rx
-		if p.As != AMOVQ {
-			ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
-		}
-		if p.To.Type != obj.TYPE_REG {
-			ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
+		// $MOV $sym, Rx becomes $MOV sym@GOT, Rx
+		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $ADD <off>, Rx
+		// On 386 only, more complicated things like PUSHL $sym become $MOV sym@GOT, CX; PUSHL CX
+		cmplxdest := false
+		pAs := p.As
+		var dest obj.Addr
+		if p.To.Type != obj.TYPE_REG || pAs != mov {
+			if p.Mode == 64 {
+				ctxt.Diag("do not know how to handle LEA-type insn to non-register in %v with -dynlink", p)
+			}
+			cmplxdest = true
+			dest = p.To
+			p.As = mov
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = REG_CX
+			p.To.Sym = nil
+			p.To.Name = obj.NAME_NONE
 		}
 		p.From.Type = obj.TYPE_MEM
 		p.From.Name = obj.NAME_GOTREF
+		q := p
 		if p.From.Offset != 0 {
-			q := obj.Appendp(ctxt, p)
-			q.As = AADDQ
+			q = obj.Appendp(ctxt, p)
+			q.As = add
 			q.From.Type = obj.TYPE_CONST
 			q.From.Offset = p.From.Offset
 			q.To = p.To
 			p.From.Offset = 0
+		}
+		if cmplxdest {
+			q = obj.Appendp(ctxt, q)
+			q.As = pAs
+			q.To = dest
+			q.From.Type = obj.TYPE_REG
+			q.From.Reg = REG_CX
 		}
 	}
 	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
 		ctxt.Diag("don't know how to handle %v with -dynlink", p)
 	}
 	var source *obj.Addr
-	// MOVx sym, Ry becomes MOVW sym@GOT, R15; MOVx (R15), Ry
-	// MOVx Ry, sym becomes MOVW sym@GOT, R15; MOVx Ry, (R15)
+	// MOVx sym, Ry becomes $MOV sym@GOT, R15; MOVx (R15), Ry
+	// MOVx Ry, sym becomes $MOV sym@GOT, R15; MOVx Ry, (R15)
 	// An addition may be inserted between the two MOVs if there is an offset.
 	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
 		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
@@ -397,7 +428,41 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	} else {
 		return
 	}
-	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
+	if p.As == obj.ACALL {
+		// When dynlinking on 386, almost any call might end up being a call
+		// to a PLT, so make sure the GOT pointer is loaded into BX.
+		// RegTo2 is set on the replacement call insn to stop it being
+		// processed when it is in turn passed to progedit.
+		if p.Mode == 64 || (p.To.Sym != nil && p.To.Sym.Local) || p.RegTo2 != 0 {
+			return
+		}
+		p1 := obj.Appendp(ctxt, p)
+		p2 := obj.Appendp(ctxt, p1)
+
+		p1.As = ALEAL
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Name = obj.NAME_STATIC
+		p1.From.Sym = obj.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = REG_BX
+
+		p2.As = p.As
+		p2.Scond = p.Scond
+		p2.From = p.From
+		p2.From3 = p.From3
+		p2.Reg = p.Reg
+		p2.To = p.To
+		// p.To.Type was set to TYPE_BRANCH above, but that makes checkaddr
+		// in ../pass.go complain, so set it back to TYPE_MEM here, until p2
+		// itself gets passed to progedit.
+		p2.To.Type = obj.TYPE_MEM
+		p2.RegTo2 = 1
+
+		obj.Nopout(p)
+		return
+
+	}
+	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ARET || p.As == obj.AJMP {
 		return
 	}
 	if source.Type != obj.TYPE_MEM {
@@ -406,22 +471,22 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	p1 := obj.Appendp(ctxt, p)
 	p2 := obj.Appendp(ctxt, p1)
 
-	p1.As = AMOVQ
+	p1.As = mov
 	p1.From.Type = obj.TYPE_MEM
 	p1.From.Sym = source.Sym
 	p1.From.Name = obj.NAME_GOTREF
 	p1.To.Type = obj.TYPE_REG
-	p1.To.Reg = REG_R15
+	p1.To.Reg = reg
 
 	p2.As = p.As
 	p2.From = p.From
 	p2.To = p.To
 	if p.From.Name == obj.NAME_EXTERN {
-		p2.From.Reg = REG_R15
+		p2.From.Reg = reg
 		p2.From.Name = obj.NAME_NONE
 		p2.From.Sym = nil
 	} else if p.To.Name == obj.NAME_EXTERN {
-		p2.To.Reg = REG_R15
+		p2.To.Reg = reg
 		p2.To.Name = obj.NAME_NONE
 		p2.To.Sym = nil
 	} else {
