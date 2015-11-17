@@ -1182,6 +1182,9 @@ type cgothreadstart struct {
 // Allocate a new m unassociated with any thread.
 // Can use p for allocation context if needed.
 // fn is recorded as the new m's m.mstartfn.
+//
+// This function it known to the compiler to inhibit the
+// go:nowritebarrierrec annotation because it uses P for allocation.
 func allocm(_p_ *p, fn func()) *m {
 	_g_ := getg()
 	_g_.m.locks++ // disable GC because it can be called from sysmon
