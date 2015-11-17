@@ -375,7 +375,7 @@ func buildModeInit() {
 			fatalf("-buildmode=pie not supported by gccgo")
 		} else {
 			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			default:
