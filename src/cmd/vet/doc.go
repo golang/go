@@ -67,6 +67,12 @@ Flag: -buildtags
 
 Badly formed or misplaced +build tags.
 
+Invalid uses of cgo
+
+Flag: -cgocall
+
+Detect some violations of the cgo pointer passing rules.
+
 Unkeyed composite literals
 
 Flag: -composites
