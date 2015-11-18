@@ -1482,6 +1482,11 @@ func (p *parser) operand(keep_parens bool) *Node {
 		p.advance()
 		return nil
 	}
+
+	// Syntactically, composite literals are operands. Because a complit
+	// type may be a qualified identifier which is handled by pexpr
+	// (together with selector expressions), complits are parsed there
+	// as well (operand is only called from pexpr).
 }
 
 // go.y:pexpr, pexpr_no_paren
@@ -1581,13 +1586,9 @@ loop:
 			x.Isddd = ddd
 
 		case '{':
-			// TODO(gri) should this (complit acceptance) be in operand?
-			// accept ()'s around the complit type but complain if we have a complit
-			// (issue 13243)
-			t := x
-			for t.Op == OPAREN {
-				t = t.Left
-			}
+			// operand may have returned a parenthesized complit
+			// type; accept it but complain if we have a complit
+			t := unparen(x)
 			// determine if '{' belongs to a complit or a compound_stmt
 			complit_ok := false
 			switch t.Op {
