@@ -11,6 +11,20 @@ import (
 )
 
 func TestNoteReading(t *testing.T) {
+	testNoteReading(t)
+}
+
+func TestNoteReading2K(t *testing.T) {
+	// Set BuildIDReadSize to 2kB to exercise Mach-O parsing more strictly.
+	defer func(old int) {
+		main.BuildIDReadSize = old
+	}(main.BuildIDReadSize)
+	main.BuildIDReadSize = 2 * 1024
+
+	testNoteReading(t)
+}
+
+func testNoteReading(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("hello.go", `package main; func main() { print("hello, world\n") }`)

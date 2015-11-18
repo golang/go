@@ -1799,7 +1799,16 @@ var (
 	goBuildEnd    = []byte("\"\n \xff")
 
 	elfPrefix = []byte("\x7fELF")
+
+	machoPrefixes = [][]byte{
+		{0xfe, 0xed, 0xfa, 0xce},
+		{0xfe, 0xed, 0xfa, 0xcf},
+		{0xce, 0xfa, 0xed, 0xfe},
+		{0xcf, 0xfa, 0xed, 0xfe},
+	}
 )
+
+var BuildIDReadSize = 32 * 1024 // changed for testing
 
 // ReadBuildIDFromBinary reads the build ID from a binary.
 //
@@ -1815,10 +1824,11 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
 	}
 
-	// Read the first 16 kB of the binary file.
+	// Read the first 32 kB of the binary file.
 	// That should be enough to find the build ID.
 	// In ELF files, the build ID is in the leading headers,
-	// which are typically less than 4 kB, not to mention 16 kB.
+	// which are typically less than 4 kB, not to mention 32 kB.
+	// In Mach-O files, there's no limit, so we have to parse the file.
 	// On other systems, we're trying to read enough that
 	// we get the beginning of the text segment in the read.
 	// The offset where the text segment begins in a hello
@@ -1826,7 +1836,6 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 	//
 	//	Plan 9: 0x20
 	//	Windows: 0x600
-	//	Mach-O: 0x2000
 	//
 	f, err := os.Open(filename)
 	if err != nil {
@@ -1834,7 +1843,7 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 	}
 	defer f.Close()
 
-	data := make([]byte, 16*1024)
+	data := make([]byte, BuildIDReadSize)
 	_, err = io.ReadFull(f, data)
 	if err == io.ErrUnexpectedEOF {
 		err = nil
@@ -1846,7 +1855,17 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
 	if bytes.HasPrefix(data, elfPrefix) {
 		return readELFGoBuildID(filename, f, data)
 	}
+	for _, m := range machoPrefixes {
+		if bytes.HasPrefix(data, m) {
+			return readMachoGoBuildID(filename, f, data)
+		}
+	}
 
+	return readRawGoBuildID(filename, data)
+}
+
+// readRawGoBuildID finds the raw build ID stored in text segment data.
+func readRawGoBuildID(filename string, data []byte) (id string, err error) {
 	i := bytes.Index(data, goBuildPrefix)
 	if i < 0 {
 		// Missing. Treat as successful but build ID empty.
