@@ -4965,3 +4965,32 @@ func TestPtrToMethods(t *testing.T) {
 		t.Fatal("does not implement Stringer, but should")
 	}
 }
+
+func TestMapAlloc(t *testing.T) {
+	m := ValueOf(make(map[int]int, 10))
+	k := ValueOf(5)
+	v := ValueOf(7)
+	allocs := testing.AllocsPerRun(100, func() {
+		m.SetMapIndex(k, v)
+	})
+	if allocs > 0.5 {
+		t.Errorf("allocs per map assignment: want 0 got %f", allocs)
+	}
+}
+
+func TestChanAlloc(t *testing.T) {
+	// Note: for a chan int, the return Value must be allocated, so we
+	// use a chan *int instead.
+	c := ValueOf(make(chan *int, 1))
+	v := ValueOf(new(int))
+	allocs := testing.AllocsPerRun(100, func() {
+		c.Send(v)
+		_, _ = c.Recv()
+	})
+	if allocs < 0.5 || allocs > 1.5 {
+		t.Errorf("allocs per chan send/recv: want 1 got %f", allocs)
+	}
+	// Note: there is one allocation in reflect.recv which seems to be
+	// a limitation of escape analysis.  If that is ever fixed the
+	// allocs < 0.5 condition will trigger and this test should be fixed.
+}
