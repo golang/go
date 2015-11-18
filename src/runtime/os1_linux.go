@@ -198,7 +198,10 @@ func mpreinit(mp *m) {
 }
 
 func msigsave(mp *m) {
-	smask := &mp.sigmask
+	smask := (*sigset)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
 	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
 }
 
@@ -215,7 +218,7 @@ func minit() {
 	_g_.m.procid = uint64(gettid())
 
 	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
+	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
 			sigdelset(&nmask, i)
@@ -227,7 +230,7 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 func unminit() {
 	_g_ := getg()
-	smask := &_g_.m.sigmask
+	smask := (*sigset)(unsafe.Pointer(&_g_.m.sigmask))
 	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
 	signalstack(nil)
 }
