@@ -659,15 +659,10 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 
 		default:
 			// expr
-			// These nodes do not carry line numbers.
 			// Since a bare name used as an expression is an error,
-			// introduce a wrapper node to give the correct line.
-			switch lhs.Op {
-			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
-				lhs = Nod(OPAREN, lhs, nil)
-				lhs.Implicit = true
-			}
-			return lhs
+			// introduce a wrapper node where necessary to give the
+			// correct line.
+			return wrapname(lhs)
 		}
 	}
 
@@ -1626,9 +1621,29 @@ func (p *parser) keyval() *Node {
 		defer p.trace("keyval")()
 	}
 
+	// A composite literal commonly spans several lines,
+	// so the line number on errors may be misleading.
+	// Wrap values (but not keys!) that don't carry line
+	// numbers.
+
 	x := p.bare_complitexpr()
+
 	if p.got(':') {
-		x = Nod(OKEY, x, p.bare_complitexpr())
+		// key ':' value
+		return Nod(OKEY, x, wrapname(p.bare_complitexpr()))
+	}
+
+	// value
+	return wrapname(x)
+}
+
+func wrapname(x *Node) *Node {
+	// These nodes do not carry line numbers.
+	// Introduce a wrapper node to give the correct line.
+	switch x.Op {
+	case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+		x = Nod(OPAREN, x, nil)
+		x.Implicit = true
 	}
 	return x
 }
@@ -1644,21 +1659,7 @@ func (p *parser) bare_complitexpr() *Node {
 		return p.complitexpr()
 	}
 
-	x := p.expr()
-
-	// These nodes do not carry line numbers.
-	// Since a composite literal commonly spans several lines,
-	// the line number on errors may be misleading.
-	// Introduce a wrapper node to give the correct line.
-
-	// TODO(gri) This is causing trouble when used for keys. Need to fix complit parsing.
-	// switch x.Op {
-	// case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
-	// 	x = Nod(OPAREN, x, nil)
-	// 	x.Implicit = true
-	// }
-	// (issue 13243)
-	return x
+	return p.expr()
 }
 
 // go.y:complitexpr
