@@ -71,9 +71,28 @@ func parseBool(bytes []byte) (ret bool, err error) {
 
 // INTEGER
 
+// checkInteger returns nil if the given bytes are a valid DER-encoded
+// INTEGER and an error otherwise.
+func checkInteger(bytes []byte) error {
+	if len(bytes) == 0 {
+		return StructuralError{"empty integer"}
+	}
+	if len(bytes) == 1 {
+		return nil
+	}
+	if (bytes[0] == 0 && bytes[1]&0x80 == 0) || (bytes[0] == 0xff && bytes[1]&0x80 == 0x80) {
+		return StructuralError{"integer not minimally-encoded"}
+	}
+	return nil
+}
+
 // parseInt64 treats the given bytes as a big-endian, signed integer and
 // returns the result.
 func parseInt64(bytes []byte) (ret int64, err error) {
+	err = checkInteger(bytes)
+	if err != nil {
+		return
+	}
 	if len(bytes) > 8 {
 		// We'll overflow an int64 in this case.
 		err = StructuralError{"integer too large"}
@@ -93,6 +112,9 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 // parseInt treats the given bytes as a big-endian, signed integer and returns
 // the result.
 func parseInt32(bytes []byte) (int32, error) {
+	if err := checkInteger(bytes); err != nil {
+		return 0, err
+	}
 	ret64, err := parseInt64(bytes)
 	if err != nil {
 		return 0, err
@@ -107,7 +129,10 @@ var bigOne = big.NewInt(1)
 
 // parseBigInt treats the given bytes as a big-endian, signed integer and returns
 // the result.
-func parseBigInt(bytes []byte) *big.Int {
+func parseBigInt(bytes []byte) (*big.Int, error) {
+	if err := checkInteger(bytes); err != nil {
+		return nil, err
+	}
 	ret := new(big.Int)
 	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 {
 		// This is a negative number.
@@ -118,10 +143,10 @@ func parseBigInt(bytes []byte) *big.Int {
 		ret.SetBytes(notBytes)
 		ret.Add(ret, bigOne)
 		ret.Neg(ret)
-		return ret
+		return ret, nil
 	}
 	ret.SetBytes(bytes)
-	return ret
+	return ret, nil
 }
 
 // BIT STRING
@@ -777,8 +802,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		v.SetBool(true)
 		return
 	case bigIntType:
-		parsedInt := parseBigInt(innerBytes)
-		v.Set(reflect.ValueOf(parsedInt))
+		parsedInt, err1 := parseBigInt(innerBytes)
+		if err1 == nil {
+			v.Set(reflect.ValueOf(parsedInt))
+		}
+		err = err1
 		return
 	}
 	switch val := v; val.Kind() {
