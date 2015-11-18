@@ -5,8 +5,10 @@
 package http_test
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"runtime"
 	"sort"
@@ -110,4 +112,44 @@ func afterTest(t testing.TB) {
 		time.Sleep(250 * time.Millisecond)
 	}
 	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
+}
+
+type clientServerTest struct {
+	t  *testing.T
+	h2 bool
+	h  http.Handler
+	ts *httptest.Server
+	tr *http.Transport
+	c  *http.Client
+}
+
+func (t *clientServerTest) close() {
+	t.tr.CloseIdleConnections()
+	t.ts.Close()
+}
+
+func newClientServerTest(t *testing.T, h2 bool, h http.Handler) *clientServerTest {
+	cst := &clientServerTest{
+		t:  t,
+		h2: h2,
+		h:  h,
+		tr: &http.Transport{},
+	}
+	cst.c = &http.Client{Transport: cst.tr}
+	if !h2 {
+		cst.ts = httptest.NewServer(h)
+		return cst
+	}
+	cst.ts = httptest.NewUnstartedServer(h)
+	http.ExportHttp2ConfigureServer(cst.ts.Config, nil)
+	cst.ts.TLS = cst.ts.Config.TLSConfig
+	cst.ts.StartTLS()
+
+	cst.tr.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	if err := http.ExportHttp2ConfigureTransport(cst.tr); err != nil {
+		t.Fatal(err)
+	}
+	return cst
 }
