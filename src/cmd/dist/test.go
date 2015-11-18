@@ -370,6 +370,16 @@ func (t *tester) registerTests() {
 			break
 		}
 
+		// ARM libgcc may be Thumb, which internal linking does not support.
+		if t.goarch == "arm" {
+			break
+		}
+
+		// Darwin ARM64 fails with internal linking.
+		if t.goos == "darwin" && t.goarch == "arm64" {
+			break
+		}
+
 		pkg := pkg
 		t.tests = append(t.tests, distTest{
 			name:    "nolibgcc:" + pkg,
