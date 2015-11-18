@@ -735,13 +735,7 @@ func scang(gp *g) {
 			// the goroutine until we're done.
 			if castogscanstatus(gp, s, s|_Gscan) {
 				if !gp.gcscandone {
-					// Coordinate with traceback
-					// in sigprof.
-					for !atomic.Cas(&gp.stackLock, 0, 1) {
-						osyield()
-					}
 					scanstack(gp)
-					atomic.Store(&gp.stackLock, 0)
 					gp.gcscandone = true
 				}
 				restartg(gp)
@@ -2846,11 +2840,6 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// Profiling runs concurrently with GC, so it must not allocate.
 	mp.mallocing++
 
-	// Coordinate with stack barrier insertion in scanstack.
-	for !atomic.Cas(&gp.stackLock, 0, 1) {
-		osyield()
-	}
-
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal.
 	//
@@ -2917,8 +2906,18 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
 	traceback := true
+	haveStackLock := false
 	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
 		traceback = false
+	} else if gp.m.curg != nil {
+		if gcTryLockStackBarriers(gp.m.curg) {
+			haveStackLock = true
+		} else {
+			// Stack barriers are being inserted or
+			// removed, so we can't get a consistent
+			// traceback right now.
+			traceback = false
+		}
 	}
 	var stk [maxCPUProfStack]uintptr
 	n := 0
@@ -2961,7 +2960,9 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			}
 		}
 	}
-	atomic.Store(&gp.stackLock, 0)
+	if haveStackLock {
+		gcUnlockStackBarriers(gp.m.curg)
+	}
 
 	if prof.hz != 0 {
 		// Simple cas-lock to coordinate with setcpuprofilerate.

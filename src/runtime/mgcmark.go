@@ -620,6 +620,8 @@ func scanstack(gp *g) {
 			throw("g already has stack barriers")
 		}
 
+		gcLockStackBarriers(gp)
+
 	case _GCmarktermination:
 		if int(gp.stkbarPos) == len(gp.stkbar) {
 			// gp hit all of the stack barriers (or there
@@ -674,6 +676,9 @@ func scanstack(gp *g) {
 	tracebackdefers(gp, scanframe, nil)
 	if gcphase == _GCmarktermination {
 		gcw.dispose()
+	}
+	if gcphase == _GCmark {
+		gcUnlockStackBarriers(gp)
 	}
 	gp.gcscanvalid = true
 }
