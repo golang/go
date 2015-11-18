@@ -53,10 +53,12 @@ var int64TestData = []int64Test{
 	{[]byte{0x01, 0x00}, true, 256},
 	{[]byte{0x80}, true, -128},
 	{[]byte{0xff, 0x7f}, true, -129},
-	{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
 	{[]byte{0xff}, true, -1},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{}, false, 0},
+	{[]byte{0x00, 0x7f}, false, 0},
+	{[]byte{0xff, 0xf0}, false, 0},
 }
 
 func TestParseInt64(t *testing.T) {
@@ -84,10 +86,12 @@ var int32TestData = []int32Test{
 	{[]byte{0x01, 0x00}, true, 256},
 	{[]byte{0x80}, true, -128},
 	{[]byte{0xff, 0x7f}, true, -129},
-	{[]byte{0xff, 0xff, 0xff, 0xff}, true, -1},
 	{[]byte{0xff}, true, -1},
 	{[]byte{0x80, 0x00, 0x00, 0x00}, true, -2147483648},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{}, false, 0},
+	{[]byte{0x00, 0x7f}, false, 0},
+	{[]byte{0xff, 0xf0}, false, 0},
 }
 
 func TestParseInt32(t *testing.T) {
@@ -104,27 +108,36 @@ func TestParseInt32(t *testing.T) {
 
 var bigIntTests = []struct {
 	in     []byte
+	ok     bool
 	base10 string
 }{
-	{[]byte{0xff}, "-1"},
-	{[]byte{0x00}, "0"},
-	{[]byte{0x01}, "1"},
-	{[]byte{0x00, 0xff}, "255"},
-	{[]byte{0xff, 0x00}, "-256"},
-	{[]byte{0x01, 0x00}, "256"},
+	{[]byte{0xff}, true, "-1"},
+	{[]byte{0x00}, true, "0"},
+	{[]byte{0x01}, true, "1"},
+	{[]byte{0x00, 0xff}, true, "255"},
+	{[]byte{0xff, 0x00}, true, "-256"},
+	{[]byte{0x01, 0x00}, true, "256"},
+	{[]byte{}, false, ""},
+	{[]byte{0x00, 0x7f}, false, ""},
+	{[]byte{0xff, 0xf0}, false, ""},
 }
 
 func TestParseBigInt(t *testing.T) {
 	for i, test := range bigIntTests {
-		ret := parseBigInt(test.in)
-		if ret.String() != test.base10 {
-			t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+		ret, err := parseBigInt(test.in)
+		if (err == nil) != test.ok {
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
-		fw := newForkableWriter()
-		marshalBigInt(fw, ret)
-		result := fw.Bytes()
-		if !bytes.Equal(result, test.in) {
-			t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+		if test.ok {
+			if ret.String() != test.base10 {
+				t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+			}
+			fw := newForkableWriter()
+			marshalBigInt(fw, ret)
+			result := fw.Bytes()
+			if !bytes.Equal(result, test.in) {
+				t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+			}
 		}
 	}
 }
