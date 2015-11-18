@@ -99,8 +99,6 @@ var (
 	_GetQueuedCompletionStatusEx stdFunction
 )
 
-type sigset struct{}
-
 // Call a Windows function with stdcall conventions,
 // and switch to os stack during the call.
 func asmstdcall(fn unsafe.Pointer)

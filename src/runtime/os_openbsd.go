@@ -18,7 +18,7 @@ func sigaction(sig int32, new, old *sigactiont)
 func sigaltstack(new, old *stackt)
 
 //go:noescape
-func sigprocmask(mode int32, new sigset) sigset
+func sigprocmask(mode int32, new uint32) uint32
 
 //go:noescape
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32

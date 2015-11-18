@@ -8,9 +8,7 @@ import "unsafe"
 
 //extern SigTabTT runtime·sigtab[];
 
-type sigset uint32
-
-var sigset_all = ^sigset(0)
+var sigset_all = ^uint32(0)
 
 func unimplemented(name string) {
 	println(name, "not implemented")
@@ -85,7 +83,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
 
-	var oset sigset
+	var oset uint32
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	errno := bsdthread_create(stk, unsafe.Pointer(mp), funcPC(mstart))
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -111,7 +109,7 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer, fnarg uintptr) {
 	}
 	stk := unsafe.Pointer(uintptr(stack) + stacksize)
 
-	var oset sigset
+	var oset uint32
 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
 	errno := bsdthread_create(stk, fn, fnarg)
 	sigprocmask(_SIG_SETMASK, &oset, nil)
@@ -133,7 +131,11 @@ func mpreinit(mp *m) {
 }
 
 func msigsave(mp *m) {
-	sigprocmask(_SIG_SETMASK, nil, &mp.sigmask)
+	smask := (*uint32)(unsafe.Pointer(&mp.sigmask))
+	if unsafe.Sizeof(*smask) > unsafe.Sizeof(mp.sigmask) {
+		throw("insufficient storage for signal mask")
+	}
+	sigprocmask(_SIG_SETMASK, nil, smask)
 }
 
 // Called to initialize a new m (including the bootstrap m).
@@ -144,7 +146,7 @@ func minit() {
 	signalstack(&_g_.m.gsignal.stack)
 
 	// restore signal mask from m.sigmask and unblock essential signals
-	nmask := _g_.m.sigmask
+	nmask := *(*uint32)(unsafe.Pointer(&_g_.m.sigmask))
 	for i := range sigtable {
 		if sigtable[i].flags&_SigUnblock != 0 {
 			nmask &^= 1 << (uint32(i) - 1)
@@ -156,7 +158,8 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 func unminit() {
 	_g_ := getg()
-	sigprocmask(_SIG_SETMASK, &_g_.m.sigmask, nil)
+	smask := (*uint32)(unsafe.Pointer(&_g_.m.sigmask))
+	sigprocmask(_SIG_SETMASK, smask, nil)
 	signalstack(nil)
 }
 
@@ -469,11 +472,10 @@ func signalstack(s *stack) {
 }
 
 func updatesigmask(m sigmask) {
-	s := sigset(m[0])
-	sigprocmask(_SIG_SETMASK, &s, nil)
+	sigprocmask(_SIG_SETMASK, &m[0], nil)
 }
 
 func unblocksig(sig int32) {
-	mask := sigset(1) << (uint32(sig) - 1)
+	mask := uint32(1) << (uint32(sig) - 1)
 	sigprocmask(_SIG_UNBLOCK, &mask, nil)
 }
