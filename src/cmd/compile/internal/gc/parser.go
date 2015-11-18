@@ -1391,13 +1391,18 @@ func (p *parser) pseudocall() *Node {
 		defer p.trace("pseudocall")()
 	}
 
-	// The expression in go/defer must not be parenthesized;
-	// don't drop ()'s so we can report an error.
-	x := p.pexpr(true /* keep_parens */)
-	if x.Op != OCALL {
-		Yyerror("argument to go/defer must be function call")
+	x := p.pexpr(true) // keep_parens so we can report error below
+	switch x.Op {
+	case OCALL:
+		return x
+	case OPAREN:
+		Yyerror("expression in go/defer must not be parenthesized")
+		// already progressed, no need to advance
+	default:
+		Yyerror("expression in go/defer must be function call")
+		// already progressed, no need to advance
 	}
-	return x
+	return nil
 }
 
 // go.y:pexpr (partial)
