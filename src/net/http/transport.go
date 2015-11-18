@@ -237,7 +237,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		req.closeBody()
 		return nil, &badStringError{"unsupported protocol scheme", s}
 	}
-	if !validMethod(req.Method) {
+	if req.Method != "" && !validMethod(req.Method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
 	}
 	if req.URL.Host == "" {

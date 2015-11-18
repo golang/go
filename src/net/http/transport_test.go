@@ -20,6 +20,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"reflect"
@@ -1775,7 +1776,6 @@ func TestTransportNoHost(t *testing.T) {
 	defer afterTest(t)
 	tr := &Transport{}
 	_, err := tr.RoundTrip(&Request{
-		Method: "GET",
 		Header: make(Header),
 		URL: &url.URL{
 			Scheme: "http",
@@ -1784,6 +1784,19 @@ func TestTransportNoHost(t *testing.T) {
 	want := "http: no Host in request URL"
 	if got := fmt.Sprint(err); got != want {
 		t.Errorf("error = %v; want %q", err, want)
+	}
+}
+
+// Issue 13311
+func TestTransportEmptyMethod(t *testing.T) {
+	req, _ := NewRequest("GET", "http://foo.com/", nil)
+	req.Method = ""                                 // docs say "For client requests an empty string means GET"
+	got, err := httputil.DumpRequestOut(req, false) // DumpRequestOut uses Transport
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "GET ") {
+		t.Fatalf("expected substring 'GET '; got: %s", got)
 	}
 }
 
