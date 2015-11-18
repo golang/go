@@ -40,6 +40,7 @@ var xMap = map[string]xRepo{
 	"sync":       {"https://go.googlesource.com/sync", "git"},
 	"sys":        {"https://go.googlesource.com/sys", "git"},
 	"talks":      {"https://go.googlesource.com/talks", "git"},
+	"term":       {"https://go.googlesource.com/term", "git"},
 	"text":       {"https://go.googlesource.com/text", "git"},
 	"time":       {"https://go.googlesource.com/time", "git"},
 	"tools":      {"https://go.googlesource.com/tools", "git"},
