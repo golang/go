@@ -282,5 +282,5 @@ func TestListenCloseListen(t *testing.T) {
 		}
 		t.Errorf("failed on try %d/%d: %v", tries+1, maxTries, err)
 	}
-	t.Fatal("failed to listen/close/listen on same address after %d tries", maxTries)
+	t.Fatalf("failed to listen/close/listen on same address after %d tries", maxTries)
 }
