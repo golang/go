@@ -160,6 +160,10 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 					have[i] += count
 				}
 			}
+			if strings.Contains(f.Name(), "stackBarrier") {
+				// The runtime should have unwound this.
+				t.Fatalf("profile includes stackBarrier")
+			}
 		}
 	})
 	t.Logf("total %d CPU profile samples collected", samples)
@@ -322,6 +326,47 @@ func TestMathBigDivide(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestStackBarrierProfiling(t *testing.T) {
+	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
+		// Re-execute this test with constant GC and stack
+		// barriers at every frame.
+		cmd := exec.Command(os.Args[0], "-test.run=TestStackBarrierProfiling")
+		cmd.Env = append([]string{"GODEBUG=gcstackbarrierall=1", "GOGC=1"}, os.Environ()...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("subprocess failed with %v:\n%s", err, out)
+		}
+		return
+	}
+
+	testCPUProfile(t, nil, func() {
+		// This is long enough that we're likely to get one or
+		// two samples in stackBarrier.
+		duration := 5 * time.Second
+		if testing.Short() {
+			duration = 1 * time.Second
+		}
+		t := time.After(duration)
+		for {
+			deepStack(1000)
+			select {
+			case <-t:
+				return
+			default:
+			}
+		}
+	})
+}
+
+var x []byte
+
+func deepStack(depth int) int {
+	if depth == 0 {
+		return 0
+	}
+	x = make([]byte, 1024)
+	return deepStack(depth-1) + 1
 }
 
 // Operating systems that are expected to fail the tests. See issue 6047.
