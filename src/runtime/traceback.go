@@ -190,6 +190,34 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 
 	f := findfunc(frame.pc)
+	if f.entry == stackBarrierPC {
+		// We got caught in the middle of a stack barrier
+		// (presumably by a signal), so stkbar may be
+		// inconsistent with the barriers on the stack.
+		// Simulate the completion of the barrier.
+		//
+		// On x86, SP will be exactly one word above
+		// savedLRPtr. On LR machines, SP will be above
+		// savedLRPtr by some frame size.
+		var stkbarPos uintptr
+		if len(stkbar) > 0 && stkbar[0].savedLRPtr < sp0 {
+			// stackBarrier has not incremented stkbarPos.
+			stkbarPos = gp.stkbarPos
+		} else if gp.stkbarPos > 0 && gp.stkbar[gp.stkbarPos-1].savedLRPtr < sp0 {
+			// stackBarrier has incremented stkbarPos.
+			stkbarPos = gp.stkbarPos - 1
+		} else {
+			printlock()
+			print("runtime: failed to unwind through stackBarrier at SP ", hex(sp0), " index ", gp.stkbarPos, "; ")
+			gcPrintStkbars(gp.stkbar)
+			print("\n")
+			throw("inconsistent state in stackBarrier")
+		}
+
+		frame.pc = gp.stkbar[stkbarPos].savedLRVal
+		stkbar = gp.stkbar[stkbarPos+1:]
+		f = findfunc(frame.pc)
+	}
 	if f == nil {
 		if callback != nil {
 			print("runtime: unknown pc ", hex(frame.pc), "\n")
