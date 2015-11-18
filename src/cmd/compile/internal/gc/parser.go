@@ -1276,6 +1276,13 @@ func (p *parser) expr() *Node {
 	return p.bexpr(1)
 }
 
+func unparen(x *Node) *Node {
+	for x.Op == OPAREN {
+		x = x.Left
+	}
+	return x
+}
+
 // go.y:uexpr
 func (p *parser) uexpr() *Node {
 	if trace && Debug['x'] != 0 {
@@ -1289,7 +1296,9 @@ func (p *parser) uexpr() *Node {
 
 	case '&':
 		p.next()
-		x := p.uexpr()
+		// uexpr may have returned a parenthesized composite literal
+		// (see comment in operand) - remove parentheses if any
+		x := unparen(p.uexpr())
 		if x.Op == OCOMPLIT {
 			// Special case for &T{...}: turn into (*T){...}.
 			x.Right = Nod(OIND, x.Right, nil)
@@ -1349,6 +1358,7 @@ func (p *parser) uexpr() *Node {
 					// t is type <-chan E but <-<-chan E is not permitted
 					// (report same error as for "type _ <-<-chan E")
 					p.syntax_error("unexpected <-, expecting chan")
+					// already progressed, no need to advance
 				}
 				t.Etype = Crecv
 			}
@@ -1356,6 +1366,7 @@ func (p *parser) uexpr() *Node {
 				// channel dir is <- but channel element E is not a channel
 				// (report same error as for "type _ <-chan<-E")
 				p.syntax_error(fmt.Sprintf("unexpected %v, expecting chan", t))
+				// already progressed, no need to advance
 			}
 			return x
 		}
@@ -1380,7 +1391,9 @@ func (p *parser) pseudocall() *Node {
 		defer p.trace("pseudocall")()
 	}
 
-	x := p.pexpr(true)
+	// The expression in go/defer must not be parenthesized;
+	// don't drop ()'s so we can report an error.
+	x := p.pexpr(true /* keep_parens */)
 	if x.Op != OCALL {
 		Yyerror("argument to go/defer must be function call")
 	}
@@ -1409,25 +1422,29 @@ func (p *parser) operand(keep_parens bool) *Node {
 		p.nest--
 		p.want(')')
 
-		// Need to know on lhs of := whether there are ( ).
-		// Don't bother with the OPAREN in other cases:
-		// it's just a waste of memory and time.
-		//
-		// But if the next token is a { , introduce OPAREN since
-		// we may have a composite literal and we need to know
-		// if there were ()'s'.
-		//
-		// TODO(gri) could simplify this if we parse complits
-		// in operand (see respective comment in pexpr).
-		//
-		// (We can probably not do this because of qualified types
-		// as in pkg.Type{}) (issue 13243).
-		if keep_parens || p.tok == '{' {
-			return Nod(OPAREN, x, nil)
-		}
+		// Optimization: Record presence of ()'s only where needed
+		// for error reporting. Don't bother in other cases; it is
+		// just a waste of memory and time.
+
+		// Parentheses are not permitted on lhs of := .
 		switch x.Op {
 		case ONAME, ONONAME, OPACK, OTYPE, OLITERAL, OTYPESW:
-			return Nod(OPAREN, x, nil)
+			keep_parens = true
+		}
+
+		// Parentheses are not permitted around T in a composite
+		// literal T{}. If the next token is a {, assume x is a
+		// composite literal type T (it may not be, { could be
+		// the opening brace of a block, but we don't know yet).
+		if p.tok == '{' {
+			keep_parens = true
+		}
+
+		// Parentheses are also not permitted around the expression
+		// in a go/defer statement. In that case, operand is called
+		// with keep_parens set.
+		if keep_parens {
+			x = Nod(OPAREN, x, nil)
 		}
 		return x
 
