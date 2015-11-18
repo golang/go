@@ -857,19 +857,24 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
 	}
 }
 
-func TestChunkedResponseHeaders(t *testing.T) {
+func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, false) }
+func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, true) }
+
+func testChunkedResponseHeaders(t *testing.T, h2 bool) {
+	if h2 {
+		t.Skip("known failing test; golang.org/issue/13316")
+	}
 	defer afterTest(t)
 	log.SetOutput(ioutil.Discard) // is noisy otherwise
 	defer log.SetOutput(os.Stderr)
-
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Length", "intentional gibberish") // we check that this is deleted
 		w.(Flusher).Flush()
 		fmt.Fprintf(w, "I am a chunked response.")
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	res, err := Get(ts.URL)
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
 	}
@@ -880,8 +885,8 @@ func TestChunkedResponseHeaders(t *testing.T) {
 	if g, e := res.TransferEncoding, []string{"chunked"}; !reflect.DeepEqual(g, e) {
 		t.Errorf("expected TransferEncoding of %v; got %v", e, g)
 	}
-	if _, haveCL := res.Header["Content-Length"]; haveCL {
-		t.Errorf("Unexpected Content-Length")
+	if got, haveCL := res.Header["Content-Length"]; haveCL {
+		t.Errorf("Unexpected Content-Length: %q", got)
 	}
 }
 
@@ -914,22 +919,52 @@ func TestIdentityResponseHeaders(t *testing.T) {
 	}
 }
 
+// Testing the newClientServerTest helper.
+func TestNewClientServerTest(t *testing.T) {
+	var got struct {
+		sync.Mutex
+		log []string
+	}
+	h := HandlerFunc(func(w ResponseWriter, r *Request) {
+		got.Lock()
+		defer got.Unlock()
+		got.log = append(got.log, r.Proto)
+	})
+	for _, v := range [2]bool{false, true} {
+		cst := newClientServerTest(t, v, h)
+		if _, err := cst.c.Head(cst.ts.URL); err != nil {
+			t.Fatal(err)
+		}
+		cst.close()
+	}
+	got.Lock() // no need to unlock
+	if want := []string{"HTTP/1.1", "HTTP/2.0"}; !reflect.DeepEqual(got.log, want) {
+		t.Errorf("got %q; want %q", got.log, want)
+	}
+}
+
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce
 // output.
-func Test304Responses(t *testing.T) {
+func Test304Responses_h1(t *testing.T) { test304Responses(t, false) }
+func Test304Responses_h2(t *testing.T) { test304Responses(t, true) }
+
+func test304Responses(t *testing.T, h2 bool) {
+	if h2 {
+		t.Skip("known failing test; golang.org/issue/13317")
+	}
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.WriteHeader(StatusNotModified)
 		_, err := w.Write([]byte("illegal body"))
 		if err != ErrBodyNotAllowed {
 			t.Errorf("on Write, expected ErrBodyNotAllowed, got %v", err)
 		}
 	}))
-	defer ts.Close()
-	res, err := Get(ts.URL)
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if len(res.TransferEncoding) > 0 {
 		t.Errorf("expected no TransferEncoding; got %v", res.TransferEncoding)
