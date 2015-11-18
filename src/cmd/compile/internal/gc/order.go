@@ -1092,7 +1092,10 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		OMAKESLICE,
 		ONEW,
 		OREAL,
-		ORECOVER:
+		ORECOVER,
+		OSTRARRAYBYTE,
+		OSTRARRAYBYTETMP,
+		OSTRARRAYRUNE:
 		ordercall(n, order)
 		if lhs == nil || lhs.Op != ONAME || instrumenting {
 			n = ordercopyexpr(n, n.Type, order, 0)
