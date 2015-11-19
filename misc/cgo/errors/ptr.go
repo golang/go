@@ -209,6 +209,24 @@ var ptrTests = []ptrTest{
 		fail:      true,
 		expensive: true,
 	},
+	{
+		// Exported functions may not return Go pointers.
+		name: "export1",
+		c:    `extern unsigned char *GoFn();`,
+		support: `//export GoFn
+                          func GoFn() *byte { return new(byte) }`,
+		body: `C.GoFn()`,
+		fail: true,
+	},
+	{
+		// Returning a C pointer is fine.
+		name: "exportok",
+		c: `#include <stdlib.h>
+                    extern unsigned char *GoFn();`,
+		support: `//export GoFn
+                          func GoFn() *byte { return (*byte)(C.malloc(1)) }`,
+		body: `C.GoFn()`,
+	},
 }
 
 func main() {

@@ -5,13 +5,14 @@
 package main
 
 /*
-extern int *GoFn(void);
+extern int *GoFn(int *);
 
 // Yes, you can have definitions if you use //export, as long as they are weak.
 int f(void) __attribute__ ((weak));
 
 int f() {
-  int *p = GoFn();
+  int i;
+  int *p = GoFn(&i);
   if (*p != 12345)
     return 0;
   return 1;
@@ -20,9 +21,9 @@ int f() {
 import "C"
 
 //export GoFn
-func GoFn() *C.int {
-	i := C.int(12345)
-	return &i
+func GoFn(p *C.int) *C.int {
+	*p = C.int(12345)
+	return p
 }
 
 func main() {
