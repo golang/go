@@ -15,6 +15,9 @@ func TestNoteReading(t *testing.T) {
 }
 
 func TestNoteReading2K(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("2kB is not enough on %s", runtime.GOOS)
+	}
 	// Set BuildIDReadSize to 2kB to exercise Mach-O parsing more strictly.
 	defer func(old int) {
 		main.BuildIDReadSize = old
