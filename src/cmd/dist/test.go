@@ -615,9 +615,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		return false
 	case "c-shared":
-		// TODO(hyangah): add linux-386.
 		switch pair {
-		case "linux-amd64", "darwin-amd64", "android-arm", "linux-arm", "linux-arm64":
+		case "linux-386", "linux-amd64", "darwin-amd64", "android-arm", "linux-arm", "linux-arm64":
 			return true
 		}
 		return false
