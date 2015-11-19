@@ -2001,10 +2001,12 @@ func getc() int {
 	} else {
 	loop:
 		c = obj.Bgetc(curio.bin)
+		// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
 		if c == 0xef {
 			buf, err := curio.bin.Peek(2)
 			if err != nil {
-				log.Fatalf("getc: peeking: %v", err)
+				yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
+				errorexit()
 			}
 			if buf[0] == 0xbb && buf[1] == 0xbf {
 				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
