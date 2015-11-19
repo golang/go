@@ -451,7 +451,7 @@ Go generate accepts one specific flag:
 		any trailing spaces and final newline) matches the
 		expression.
 
-It also accepts the standard build flags -v, -n, and -x.
+It also accepts the standard build flags including -v, -n, and -x.
 The -v flag prints the names of packages and files as they are
 processed.
 The -n flag prints commands that would be executed.
