@@ -772,7 +772,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// will be converted to OCASE
 			// right will point to next case
 			// done in casebody()
-			markdcl()
+			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
 			stmt.List = cases
 			if tswitch != nil {
@@ -798,7 +798,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// will be converted to OCASE
 			// right will point to next case
 			// done in casebody()
-			markdcl()
+			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
 			var n *Node
 			if cases.Next == nil {
@@ -821,7 +821,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// will be converted to OCASE
 			// right will point to next case
 			// done in casebody()
-			markdcl()
+			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
 			stmt.List = list1(colas(cases, list1(rhs), int32(p.op)))
 
@@ -829,16 +829,18 @@ func (p *parser) case_(tswitch *Node) *Node {
 			return stmt
 
 		default:
+			markdcl()                     // for matching popdcl in caseblock
+			stmt := Nod(OXCASE, nil, nil) // don't return nil
 			p.syntax_error("expecting := or = or : or comma")
 			p.advance(LCASE, LDEFAULT, '}')
-			return nil
+			return stmt
 		}
 
 	case LDEFAULT:
 		// LDEFAULT ':'
 		p.next()
 
-		markdcl()
+		markdcl() // matching popdcl in caseblock
 		stmt := Nod(OXCASE, nil, nil)
 		if tswitch != nil {
 			if n := tswitch.Left; n != nil {
@@ -856,9 +858,11 @@ func (p *parser) case_(tswitch *Node) *Node {
 		return stmt
 
 	default:
+		markdcl()                     // matching popdcl in caseblock
+		stmt := Nod(OXCASE, nil, nil) // don't return nil
 		p.syntax_error("expecting case or default or }")
 		p.advance(LCASE, LDEFAULT, '}')
-		return nil
+		return stmt
 	}
 }
 
@@ -900,7 +904,7 @@ func (p *parser) caseblock(tswitch *Node) *Node {
 		defer p.trace("caseblock")()
 	}
 
-	stmt := p.case_(tswitch)
+	stmt := p.case_(tswitch) // does markdcl
 
 	// If the last token read by the lexer was consumed
 	// as part of the case, clear it (parser has cleared yychar).
@@ -1110,7 +1114,7 @@ func (p *parser) if_stmt() *Node {
 
 	stmt.Nbody = p.loop_body("if clause")
 
-	l := p.elseif_list_else()
+	l := p.elseif_list_else() // does markdcl
 
 	n := stmt
 	popdcl()
@@ -1132,7 +1136,7 @@ func (p *parser) elseif() *NodeList {
 	}
 
 	// LELSE LIF already consumed
-	markdcl()
+	markdcl() // matching popdcl in if_stmt
 
 	stmt := p.if_header()
 	if stmt.Left == nil {
