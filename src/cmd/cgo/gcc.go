@@ -675,6 +675,7 @@ func (p *Package) needsPointerCheck(f *File, t ast.Expr) bool {
 // hasPointer is used by needsPointerCheck.  If top is true it returns
 // whether t is or contains a pointer that might point to a pointer.
 // If top is false it returns whether t is or contains a pointer.
+// f may be nil.
 func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 	switch t := t.(type) {
 	case *ast.ArrayType:
@@ -738,6 +739,10 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 			// pointer.
 			return true
 		}
+		if f == nil {
+			// Conservative approach: assume pointer.
+			return true
+		}
 		name := f.Name[t.Sel.Name]
 		if name != nil && name.Kind == "type" && name.Type != nil && name.Type.Go != nil {
 			return p.hasPointer(f, name.Type.Go, top)
@@ -768,7 +773,7 @@ func (p *Package) checkAddrArgs(f *File, args []ast.Expr, x ast.Expr) []ast.Expr
 		// This is the address of something that is not an
 		// index expression.  We only need to examine the
 		// single value to which it points.
-		// TODO: what is true is shadowed?
+		// TODO: what if true is shadowed?
 		return append(args, ast.NewIdent("true"))
 	}
 	if !p.hasSideEffects(f, index.X) {

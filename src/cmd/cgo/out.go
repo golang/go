@@ -811,12 +811,13 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fmt.Fprintf(fgcc, "}\n")
 
-		// Build the wrapper function compiled by gc.
-		goname := exp.Func.Name.Name
+		// Build the wrapper function compiled by cmd/compile.
+		goname := "_cgoexpwrap" + cPrefix + "_"
 		if fn.Recv != nil {
-			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+			goname += fn.Recv.List[0].Names[0].Name + "_"
 		}
-		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", goname)
+		goname += exp.Func.Name.Name
+		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.Func.Name.Name)
 		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:nosplit\n") // no split stack, so no use of m or g
@@ -829,44 +830,75 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
 
-		// Calling a function with a receiver from C requires
-		// a Go wrapper function.
+		// This code uses printer.Fprint, not conf.Fprint,
+		// because we don't want //line comments in the middle
+		// of the function types.
+		fmt.Fprintf(fgo2, "\n")
+		fmt.Fprintf(fgo2, "func %s(", goname)
+		comma := false
 		if fn.Recv != nil {
-			fmt.Fprintf(fgo2, "func %s(recv ", goname)
-			conf.Fprint(fgo2, fset, fn.Recv.List[0].Type)
-			forFieldList(fntype.Params,
-				func(i int, aname string, atype ast.Expr) {
-					fmt.Fprintf(fgo2, ", p%d ", i)
-					conf.Fprint(fgo2, fset, atype)
-				})
-			fmt.Fprintf(fgo2, ")")
-			if gccResult != "void" {
-				fmt.Fprint(fgo2, " (")
-				forFieldList(fntype.Results,
-					func(i int, aname string, atype ast.Expr) {
-						if i > 0 {
-							fmt.Fprint(fgo2, ", ")
-						}
-						conf.Fprint(fgo2, fset, atype)
-					})
-				fmt.Fprint(fgo2, ")")
-			}
-			fmt.Fprint(fgo2, " {\n")
-			fmt.Fprint(fgo2, "\t")
-			if gccResult != "void" {
-				fmt.Fprint(fgo2, "return ")
-			}
-			fmt.Fprintf(fgo2, "recv.%s(", exp.Func.Name)
-			forFieldList(fntype.Params,
+			fmt.Fprintf(fgo2, "recv ")
+			printer.Fprint(fgo2, fset, fn.Recv.List[0].Type)
+			comma = true
+		}
+		forFieldList(fntype.Params,
+			func(i int, aname string, atype ast.Expr) {
+				if comma {
+					fmt.Fprintf(fgo2, ", ")
+				}
+				fmt.Fprintf(fgo2, "p%d ", i)
+				printer.Fprint(fgo2, fset, atype)
+				comma = true
+			})
+		fmt.Fprintf(fgo2, ")")
+		if gccResult != "void" {
+			fmt.Fprint(fgo2, " (")
+			forFieldList(fntype.Results,
 				func(i int, aname string, atype ast.Expr) {
 					if i > 0 {
 						fmt.Fprint(fgo2, ", ")
 					}
-					fmt.Fprintf(fgo2, "p%d", i)
+					fmt.Fprintf(fgo2, "r%d ", i)
+					printer.Fprint(fgo2, fset, atype)
 				})
-			fmt.Fprint(fgo2, ")\n")
-			fmt.Fprint(fgo2, "}\n")
+			fmt.Fprint(fgo2, ")")
 		}
+		fmt.Fprint(fgo2, " {\n")
+		if gccResult == "void" {
+			fmt.Fprint(fgo2, "\t")
+		} else {
+			// Verify that any results don't contain any
+			// Go pointers.
+			addedDefer := false
+			forFieldList(fntype.Results,
+				func(i int, aname string, atype ast.Expr) {
+					if !p.hasPointer(nil, atype, false) {
+						return
+					}
+					if !addedDefer {
+						fmt.Fprint(fgo2, "\tdefer func() {\n")
+						addedDefer = true
+					}
+					fmt.Fprintf(fgo2, "\t\t_cgoCheckResult(r%d)\n", i)
+				})
+			if addedDefer {
+				fmt.Fprint(fgo2, "\t}()\n")
+			}
+			fmt.Fprint(fgo2, "\treturn ")
+		}
+		if fn.Recv != nil {
+			fmt.Fprintf(fgo2, "recv.")
+		}
+		fmt.Fprintf(fgo2, "%s(", exp.Func.Name)
+		forFieldList(fntype.Params,
+			func(i int, aname string, atype ast.Expr) {
+				if i > 0 {
+					fmt.Fprint(fgo2, ", ")
+				}
+				fmt.Fprintf(fgo2, "p%d", i)
+			})
+		fmt.Fprint(fgo2, ")\n")
+		fmt.Fprint(fgo2, "}\n")
 	}
 
 	fmt.Fprintf(fgcch, "%s", gccExportHeaderEpilog)
@@ -1251,6 +1283,9 @@ func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
 func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+
+//go:linkname _cgoCheckResult runtime.cgoCheckResult
+func _cgoCheckResult(interface{})
 `
 
 const goStringDef = `
