@@ -9,32 +9,35 @@ package cgotest
 /*
 #include <dlfcn.h>
 #cgo linux LDFLAGS: -ldl
+
+extern void call4029(void *arg);
 */
 import "C"
 
 import (
-	"fmt"
 	"testing"
 )
 
+var callbacks int
+
 //export IMPIsOpaque
 func IMPIsOpaque() {
-	fmt.Println("isOpaque")
+	callbacks++
 }
 
 //export IMPInitWithFrame
 func IMPInitWithFrame() {
-	fmt.Println("IInitWithFrame")
+	callbacks++
 }
 
 //export IMPDrawRect
 func IMPDrawRect() {
-	fmt.Println("drawRect:")
+	callbacks++
 }
 
 //export IMPWindowResize
 func IMPWindowResize() {
-	fmt.Println("windowDidResize:")
+	callbacks++
 }
 
 func test4029(t *testing.T) {
@@ -42,6 +45,9 @@ func test4029(t *testing.T) {
 	loadThySelf(t, "IMPDrawRect")
 	loadThySelf(t, "IMPInitWithFrame")
 	loadThySelf(t, "IMPIsOpaque")
+	if callbacks != 4 {
+		t.Errorf("got %d callbacks, expected 4", callbacks)
+	}
 }
 
 func loadThySelf(t *testing.T, symbol string) {
@@ -58,4 +64,5 @@ func loadThySelf(t *testing.T, symbol string) {
 		return
 	}
 	t.Log(symbol, symbol_address)
+	C.call4029(symbol_address)
 }

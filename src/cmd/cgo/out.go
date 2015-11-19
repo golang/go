@@ -817,7 +817,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 			goname += fn.Recv.List[0].Names[0].Name + "_"
 		}
 		goname += exp.Func.Name.Name
-		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.Func.Name.Name)
+		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:nosplit\n") // no split stack, so no use of m or g
