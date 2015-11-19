@@ -424,6 +424,57 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	defer conf.teardown()
 }
 
+// Issue 12712.
+// When using search domains, return the error encountered
+// querying the original name instead of an error encountered
+// querying a generated name.
+func TestErrorForOriginalNameWhenSearching(t *testing.T) {
+	const fqdn = "doesnotexist.domain"
+
+	origTestHookDNSDialer := testHookDNSDialer
+	defer func() { testHookDNSDialer = origTestHookDNSDialer }()
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	if err := conf.writeAndUpdate([]string{"search servfail"}); err != nil {
+		t.Fatal(err)
+	}
+
+	d := &fakeDNSConn{}
+	testHookDNSDialer = func(time.Duration) dnsDialer { return d }
+
+	d.rh = func(q *dnsMsg) (*dnsMsg, error) {
+		r := &dnsMsg{
+			dnsMsgHdr: dnsMsgHdr{
+				id: q.id,
+			},
+		}
+
+		switch q.question[0].Name {
+		case fqdn + ".servfail.":
+			r.rcode = dnsRcodeServerFailure
+		default:
+			r.rcode = dnsRcodeNameError
+		}
+
+		return r, nil
+	}
+
+	_, err = goLookupIP(fqdn)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+
+	want := &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}
+	if err, ok := err.(*DNSError); !ok || err.Name != want.Name || err.Err != want.Err {
+		t.Errorf("got %v; want %v", err, want)
+	}
+}
+
 func BenchmarkGoLookupIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
@@ -460,4 +511,32 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		goLookupIP("www.example.com")
 	}
+}
+
+type fakeDNSConn struct {
+	// last query
+	q *dnsMsg
+	// reply handler
+	rh func(*dnsMsg) (*dnsMsg, error)
+}
+
+func (f *fakeDNSConn) dialDNS(n, s string) (dnsConn, error) {
+	return f, nil
+}
+
+func (f *fakeDNSConn) Close() error {
+	return nil
+}
+
+func (f *fakeDNSConn) SetDeadline(time.Time) error {
+	return nil
+}
+
+func (f *fakeDNSConn) writeDNSQuery(q *dnsMsg) error {
+	f.q = q
+	return nil
+}
+
+func (f *fakeDNSConn) readDNSResponse() (*dnsMsg, error) {
+	return f.rh(f.q)
 }
