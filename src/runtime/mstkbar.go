@@ -300,16 +300,26 @@ func setNextBarrierPC(pc uintptr) {
 // This is necessary because a sigprof during barrier installation or
 // removal could observe inconsistencies between the stkbar array and
 // the stack itself and crash.
+//
+//go:nosplit
 func gcLockStackBarriers(gp *g) {
+	acquirem()
 	for !atomic.Cas(&gp.stackLock, 0, 1) {
 		osyield()
 	}
 }
 
+//go:nosplit
 func gcTryLockStackBarriers(gp *g) bool {
-	return atomic.Cas(&gp.stackLock, 0, 1)
+	mp := acquirem()
+	result := atomic.Cas(&gp.stackLock, 0, 1)
+	if !result {
+		releasem(mp)
+	}
+	return result
 }
 
 func gcUnlockStackBarriers(gp *g) {
 	atomic.Store(&gp.stackLock, 0)
+	releasem(getg().m)
 }
