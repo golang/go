@@ -24,9 +24,16 @@ import (
 	"time"
 )
 
+// A dnsDialer provides dialing suitable for DNS queries.
+type dnsDialer interface {
+	dialDNS(string, string) (dnsConn, error)
+}
+
 // A dnsConn represents a DNS transport endpoint.
 type dnsConn interface {
-	Conn
+	io.Closer
+
+	SetDeadline(time.Time) error
 
 	// readDNSResponse reads a DNS response message from the DNS
 	// transport endpoint and returns the received DNS response
@@ -121,7 +128,7 @@ func (d *Dialer) dialDNS(network, server string) (dnsConn, error) {
 
 // exchange sends a query on the connection and hopes for a response.
 func exchange(server, name string, qtype uint16, timeout time.Duration) (*dnsMsg, error) {
-	d := Dialer{Timeout: timeout}
+	d := testHookDNSDialer(timeout)
 	out := dnsMsg{
 		dnsMsgHdr: dnsMsgHdr{
 			recursion_desired: true,
@@ -440,7 +447,8 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
 	conf := resolvConf.dnsConfig
 	resolvConf.mu.RUnlock()
 	type racer struct {
-		rrs []dnsRR
+		fqdn string
+		rrs  []dnsRR
 		error
 	}
 	lane := make(chan racer, 1)
@@ -450,13 +458,16 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
 		for _, qtype := range qtypes {
 			go func(qtype uint16) {
 				_, rrs, err := tryOneName(conf, fqdn, qtype)
-				lane <- racer{rrs, err}
+				lane <- racer{fqdn, rrs, err}
 			}(qtype)
 		}
 		for range qtypes {
 			racer := <-lane
 			if racer.error != nil {
-				lastErr = racer.error
+				// Prefer error for original name.
+				if lastErr == nil || racer.fqdn == name+"." {
+					lastErr = racer.error
+				}
 				continue
 			}
 			addrs = append(addrs, addrRecordList(racer.rrs)...)
