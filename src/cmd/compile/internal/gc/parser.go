@@ -1386,7 +1386,7 @@ func (p *parser) pseudocall() *Node {
 		defer p.trace("pseudocall")()
 	}
 
-	x := p.pexpr(true) // keep_parens so we can report error below
+	x := p.pexpr(p.tok == '(') // keep_parens so we can report error below
 	switch x.Op {
 	case OCALL:
 		return x
