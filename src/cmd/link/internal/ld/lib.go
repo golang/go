@@ -318,7 +318,9 @@ func (mode *BuildMode) Set(s string) error {
 		}
 		*mode = BuildmodeCArchive
 	case "c-shared":
-		if goarch != "amd64" && goarch != "arm" && goarch != "arm64" {
+		switch goarch {
+		case "386", "amd64", "arm", "arm64":
+		default:
 			return badmode()
 		}
 		*mode = BuildmodeCShared
@@ -1696,7 +1698,8 @@ func stkcheck(up *Chain, depth int) int {
 		// should never be called directly.
 		// only diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
-		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() && Buildmode != BuildmodePIE {
+		if depth == 1 && s.Type != obj.SXREF && !DynlinkingGo() &&
+			Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
 			Diag("call to external function %s", s.Name)
 		}
 		return -1
