@@ -51,7 +51,7 @@ func addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) {
 }
 
 func gentext() {
-	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE {
+	if !ld.DynlinkingGo() && ld.Buildmode != ld.BuildmodePIE && ld.Buildmode != ld.BuildmodeCShared {
 		return
 	}
 
