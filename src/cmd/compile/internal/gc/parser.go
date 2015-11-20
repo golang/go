@@ -67,7 +67,8 @@ type parser struct {
 	op     Op        // valid if tok == LASOP
 	val    Val       // valid if tok == LLITERAL
 	sym_   *Sym      // valid if tok == LNAME
-	nest   int       // expression nesting level (for complit ambiguity resolution)
+	fnest  int       // function nesting level (for error handling)
+	xnest  int       // expression nesting level (for complit ambiguity resolution)
 	yy     yySymType // for temporary use by next
 	indent int       // tracing support
 }
@@ -150,21 +151,42 @@ func (p *parser) syntax_error_at(lineno int32, msg string) {
 	p.syntax_error(msg)
 }
 
-// Advance consumes tokens until it finds a token of the stoplist.
-// If the stoplist is empty or no advance was necessary, the next
-// token is consumed.
-func (p *parser) advance(stoplist ...int32) {
-	if len(stoplist) == 0 {
+// The stoplist contains keywords that start a statement.
+// They are good synchronization points in case of syntax
+// errors and (usually) shouldn't be skipped over.
+var stoplist = map[int32]bool{
+	LBREAK:    true,
+	LCONST:    true,
+	LCONTINUE: true,
+	LDEFER:    true,
+	LFALL:     true,
+	LFOR:      true,
+	LFUNC:     true,
+	LGO:       true,
+	LGOTO:     true,
+	LIF:       true,
+	LRETURN:   true,
+	LSELECT:   true,
+	LSWITCH:   true,
+	LTYPE:     true,
+	LVAR:      true,
+}
+
+// Advance consumes tokens until it finds a token of the stop- or followlist.
+// The stoplist is only considered if we are inside a function (p.fnest > 0).
+// The followlist is the list of valid tokens that can follow a production;
+// if it is empty, exactly one token is consumed to ensure progress.
+func (p *parser) advance(followlist ...int32) {
+	if len(followlist) == 0 {
 		p.next()
 		return
 	}
-
-	for n := 0; p.tok != EOF; n++ {
-		for _, stop := range stoplist {
-			if p.tok == stop {
-				if n == 0 {
-					p.next() // consume at least one token
-				}
+	for p.tok != EOF {
+		if p.fnest > 0 && stoplist[p.tok] {
+			return
+		}
+		for _, follow := range followlist {
+			if p.tok == follow {
 				return
 			}
 		}
@@ -332,7 +354,9 @@ func (p *parser) import_() {
 	if p.got('(') {
 		for p.tok != EOF && p.tok != ')' {
 			p.import_stmt()
-			p.osemi()
+			if !p.osemi(')') {
+				break
+			}
 		}
 		p.want(')')
 	} else {
@@ -516,7 +540,9 @@ func (p *parser) common_dcl() *NodeList {
 	if p.got('(') {
 		for p.tok != EOF && p.tok != ')' {
 			l = concat(l, dcl())
-			p.osemi()
+			if !p.osemi(')') {
+				break
+			}
 		}
 		p.want(')')
 	} else {
@@ -872,13 +898,12 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 		defer p.trace("compound_stmt")()
 	}
 
-	if p.tok == '{' {
-		markdcl()
-		p.next() // consume ';' after markdcl() for correct lineno
+	markdcl()
+	if p.got('{') {
+		// ok
 	} else if else_clause {
 		p.syntax_error("else must be followed by if or statement block")
-		p.advance('}')
-		return nil
+		p.advance(LNAME, '}')
 	} else {
 		panic("unreachable")
 	}
@@ -944,11 +969,10 @@ func (p *parser) caseblock_list(tswitch *Node) (l *NodeList) {
 
 	if !p.got('{') {
 		p.syntax_error("missing { after switch clause")
-		p.advance('}')
-		return nil
+		p.advance(LCASE, LDEFAULT, '}')
 	}
 
-	for p.tok != '}' {
+	for p.tok != EOF && p.tok != '}' {
 		l = list(l, p.caseblock(tswitch))
 	}
 	p.want('}')
@@ -961,13 +985,10 @@ func (p *parser) loop_body(context string) *NodeList {
 		defer p.trace("loop_body")()
 	}
 
-	if p.tok == '{' {
-		markdcl()
-		p.next() // consume ';' after markdcl() for correct lineno
-	} else {
+	markdcl()
+	if !p.got('{') {
 		p.syntax_error("missing { after " + context)
-		p.advance('}')
-		return nil
+		p.advance(LNAME, '}')
 	}
 
 	body := p.stmt_list()
@@ -1042,8 +1063,8 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 		return
 	}
 
-	nest := p.nest
-	p.nest = -1
+	outer := p.xnest
+	p.xnest = -1
 
 	if p.tok != ';' {
 		// accept potential vardcl but complain
@@ -1058,7 +1079,7 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 			cond = init
 			init = nil
 
-			p.nest = nest
+			p.xnest = outer
 			return
 		}
 	}
@@ -1079,8 +1100,7 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 		init = nil
 	}
 
-	p.nest = nest
-
+	p.xnest = outer
 	return
 }
 
@@ -1421,9 +1441,9 @@ func (p *parser) operand(keep_parens bool) *Node {
 
 	case '(':
 		p.next()
-		p.nest++
+		p.xnest++
 		x := p.expr() // expr_or_type
-		p.nest--
+		p.xnest--
 		p.want(')')
 
 		// Optimization: Record presence of ()'s only where needed
@@ -1459,9 +1479,11 @@ func (p *parser) operand(keep_parens bool) *Node {
 			closurehdr(t)
 			// fnliteral
 			p.next() // consume '{'
-			p.nest++
+			p.fnest++
+			p.xnest++
 			body := p.stmt_list()
-			p.nest--
+			p.xnest--
+			p.fnest--
 			p.want('}')
 			return closurebody(body)
 		}
@@ -1529,7 +1551,7 @@ loop:
 
 		case '[':
 			p.next()
-			p.nest++
+			p.xnest++
 			var index [3]*Node
 			if p.tok != ':' {
 				index[0] = p.expr()
@@ -1541,7 +1563,7 @@ loop:
 					index[ncol] = p.expr()
 				}
 			}
-			p.nest--
+			p.xnest--
 			p.want(']')
 
 			switch ncol {
@@ -1573,11 +1595,7 @@ loop:
 
 		case '(':
 			// convtype '(' expr ocomma ')'
-			p.next()
-			p.nest++
 			args, ddd := p.arg_list()
-			p.nest--
-			p.want(')')
 
 			// call or conversion
 			x = Nod(OCALL, x, nil)
@@ -1592,7 +1610,7 @@ loop:
 			complit_ok := false
 			switch t.Op {
 			case ONAME, ONONAME, OTYPE, OPACK, OXDOT, ODOT:
-				if p.nest >= 0 {
+				if p.xnest >= 0 {
 					// x is considered a comptype
 					complit_ok = true
 				}
@@ -1676,15 +1694,17 @@ func (p *parser) complitexpr() *Node {
 	n := Nod(OCOMPLIT, nil, nil)
 
 	p.want('{')
-	p.nest++
+	p.xnest++
 
 	var l *NodeList
 	for p.tok != EOF && p.tok != '}' {
 		l = list(l, p.keyval())
-		p.ocomma("composite literal")
+		if !p.ocomma('}') {
+			break
+		}
 	}
 
-	p.nest--
+	p.xnest--
 	p.want('}')
 
 	n.List = l
@@ -1809,7 +1829,7 @@ func (p *parser) ntype() *Node {
 		// '[' oexpr ']' ntype
 		// '[' LDDD ']' ntype
 		p.next()
-		p.nest++
+		p.xnest++
 		var len *Node
 		if p.tok != ']' {
 			if p.got(LDDD) {
@@ -1818,7 +1838,7 @@ func (p *parser) ntype() *Node {
 				len = p.expr()
 			}
 		}
-		p.nest--
+		p.xnest--
 		p.want(']')
 		return Nod(OTARRAY, len, p.ntype())
 
@@ -1959,7 +1979,9 @@ func (p *parser) structtype() *Node {
 	var l *NodeList
 	for p.tok != EOF && p.tok != '}' {
 		l = concat(l, p.structdcl())
-		p.osemi()
+		if !p.osemi('}') {
+			break
+		}
 	}
 	p.want('}')
 
@@ -1979,7 +2001,9 @@ func (p *parser) interfacetype() *Node {
 	var l *NodeList
 	for p.tok != EOF && p.tok != '}' {
 		l = list(l, p.interfacedcl())
-		p.osemi()
+		if !p.osemi('}') {
+			break
+		}
 	}
 	p.want('}')
 
@@ -2180,7 +2204,9 @@ func (p *parser) fnbody() *NodeList {
 	}
 
 	if p.got('{') {
+		p.fnest++
 		body := p.stmt_list()
+		p.fnest--
 		p.want('}')
 		if body == nil {
 			body = list1(Nod(OEMPTY, nil, nil))
@@ -2557,10 +2583,14 @@ func (p *parser) param_list() (l *NodeList) {
 	}
 
 	p.want('(')
+
 	for p.tok != EOF && p.tok != ')' {
 		l = list(l, p.arg_type())
-		p.ocomma("parameter list")
+		if !p.ocomma(')') {
+			break
+		}
 	}
+
 	p.want(')')
 	return
 }
@@ -2737,36 +2767,55 @@ func (p *parser) arg_list() (l *NodeList, ddd bool) {
 	// TODO(gri) make this more tolerant in the presence of LDDD
 	// that is not at the end (issue 13243).
 
+	p.want('(')
+	p.xnest++
+
 	for p.tok != EOF && p.tok != ')' && !ddd {
 		l = list(l, p.expr()) // expr_or_type
 		ddd = p.got(LDDD)
-		p.ocomma("argument list")
+		if !p.ocomma(')') {
+			break
+		}
 	}
+
+	p.xnest--
+	p.want(')')
 
 	return
 }
 
 // go.y:osemi
-func (p *parser) osemi() {
-	// ';' is optional before a closing ')' or '}'
-	if p.tok == ')' || p.tok == '}' {
-		return
+func (p *parser) osemi(follow int32) bool {
+	switch p.tok {
+	case ';':
+		p.next()
+		return true
+
+	case ')', '}':
+		// semicolon is optional before ) or }
+		return true
 	}
-	p.want(';')
+
+	p.syntax_error("expecting semicolon, newline, or " + tokstring(follow))
+	p.advance(follow)
+	return false
 }
 
 // go.y:ocomma
-func (p *parser) ocomma(context string) {
+func (p *parser) ocomma(follow int32) bool {
 	switch p.tok {
+	case ',':
+		p.next()
+		return true
+
 	case ')', '}':
-		// ',' is optional before a closing ')' or '}'
-		return
-	case ';':
-		p.syntax_error("need trailing comma before newline in " + context)
-		p.next() // interpret ';' as comma
-		return
+		// comma is optional before ) or }
+		return true
 	}
-	p.want(',')
+
+	p.syntax_error("expecting comma or " + tokstring(follow))
+	p.advance(follow)
+	return false
 }
 
 // ----------------------------------------------------------------------------
