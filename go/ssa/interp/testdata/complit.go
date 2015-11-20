@@ -164,5 +164,21 @@ func init() {
 	}
 }
 
+// Regression test for https://github.com/golang/go/issues/13341:
+// within a map literal, if a key expression is a composite literal,
+// Go 1.5 allows its type to be omitted.  An & operation may be implied.
+func init() {
+	type S struct{ x int }
+	// same as map[*S]bool{&S{x: 1}: true}
+	m := map[*S]bool{{x: 1}: true}
+	for s := range m {
+		if s.x != 1 {
+			panic(s) // wrong key
+		}
+		return
+	}
+	panic("map is empty")
+}
+
 func main() {
 }

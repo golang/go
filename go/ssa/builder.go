@@ -1194,9 +1194,26 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 		fn.emit(m)
 		for _, e := range e.Elts {
 			e := e.(*ast.KeyValueExpr)
+
+			// If a key expression in a map literal is  itself a
+			// composite literal, the type may be omitted.
+			// For example:
+			//	map[*struct{}]bool{{}: true}
+			// An &-operation may be implied:
+			//	map[*struct{}]bool{&struct{}{}: true}
+			var key Value
+			if _, ok := unparen(e.Key).(*ast.CompositeLit); ok && isPointer(t.Key()) {
+				// A CompositeLit never evaluates to a pointer,
+				// so if the type of the location is a pointer,
+				// an &-operation is implied.
+				key = b.addr(fn, e.Key, true).address(fn)
+			} else {
+				key = b.expr(fn, e.Key)
+			}
+
 			loc := element{
 				m:   m,
-				k:   emitConv(fn, b.expr(fn, e.Key), t.Key()),
+				k:   emitConv(fn, key, t.Key()),
 				t:   t.Elem(),
 				pos: e.Colon,
 			}

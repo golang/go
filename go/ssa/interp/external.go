@@ -80,6 +80,7 @@ func init() {
 		"math.Ldexp":                       ext۰math۰Ldexp,
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
+		"math.hasSSE4":                     ext۰math۰hasSSE4,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"os.runtime_beforeExit":            ext۰os۰runtime_beforeExit,
 		"reflect.New":                      ext۰reflect۰New,
@@ -218,6 +219,10 @@ func ext۰math۰Float32bits(fr *frame, args []value) value {
 
 func ext۰math۰Min(fr *frame, args []value) value {
 	return math.Min(args[0].(float64), args[1].(float64))
+}
+
+func ext۰math۰hasSSE4(fr *frame, args []value) value {
+	return false
 }
 
 func ext۰math۰Ldexp(fr *frame, args []value) value {
