@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const trace = false // if set, parse tracing can be enabled with -x
+const trace = true // if set, parse tracing can be enabled with -x
 
 // TODO(gri) Once we handle imports w/o redirecting the underlying
 // source of the lexer we can get rid of these. They are here for
@@ -19,14 +19,24 @@ var thenewparser parser // the parser in use
 var savedstate []parser // saved parser state, used during import
 
 func push_parser() {
+	// Indentation (for tracing) must be preserved across parsers
+	// since we are changing the lexer source (and parser state)
+	// under foot, in the middle of productions. This won't be
+	// needed anymore once we fix issue 13242, but neither will
+	// be the push/pop_parser functionality.
+	// (Instead we could just use a global variable indent, but
+	// but eventually indent should be parser-specific anyway.)
+	indent := thenewparser.indent
 	savedstate = append(savedstate, thenewparser)
-	thenewparser = parser{}
+	thenewparser = parser{indent: indent} // preserve indentation
 	thenewparser.next()
 }
 
 func pop_parser() {
+	indent := thenewparser.indent
 	n := len(savedstate) - 1
 	thenewparser = savedstate[n]
+	thenewparser.indent = indent // preserve indentation
 	savedstate = savedstate[:n]
 }
 
@@ -277,18 +287,13 @@ func (p *parser) print_trace(msg ...interface{}) {
 	const n = len(dots)
 	fmt.Printf("%5d: ", lineno)
 
-	// TODO(gri) imports screw up p.indent - fix this
-	// (issue 13243)
-	if p.indent < 0 {
-		p.indent = 0
-	}
-
 	i := 2 * p.indent
 	for i > n {
 		fmt.Print(dots)
 		i -= n
 	}
 	// i <= n
+
 	fmt.Print(dots[0:i])
 	fmt.Println(msg...)
 }
