@@ -80,6 +80,8 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVQ	g(CX), BX
+	CMPQ	BX, $0
+	JEQ	skiperrno1
 	MOVQ	g_m(BX), BX
 	MOVQ	(m_mOS+mOS_perrno)(BX), DX
 	CMPQ	DX, $0
@@ -108,6 +110,8 @@ skipargs:
 
 	get_tls(CX)
 	MOVQ	g(CX), BX
+	CMPQ	BX, $0
+	JEQ	skiperrno2
 	MOVQ	g_m(BX), BX
 	MOVQ	(m_mOS+mOS_perrno)(BX), AX
 	CMPQ	AX, $0
