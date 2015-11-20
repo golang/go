@@ -47,10 +47,10 @@ var sysdir = func() *sysDir {
 	switch runtime.GOOS {
 	case "android":
 		return &sysDir{
-			"/system/etc",
+			"/system/framework",
 			[]string{
-				"audio_policy.conf",
-				"system_fonts.xml",
+				"ext.jar",
+				"framework.jar",
 			},
 		}
 	case "darwin":
