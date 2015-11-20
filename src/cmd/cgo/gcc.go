@@ -490,6 +490,11 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
 			if name == "" || typOff == 0 {
+				if e.Val(dwarf.AttrSpecification) != nil {
+					// Since we are reading all the DWARF,
+					// assume we will see the variable elsewhere.
+					break
+				}
 				fatalf("malformed DWARF TagVariable entry")
 			}
 			if !strings.HasPrefix(name, "__cgo__") {
