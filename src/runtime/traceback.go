@@ -190,7 +190,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 	}
 
 	f := findfunc(frame.pc)
-	if f.entry == stackBarrierPC {
+	if f != nil && f.entry == stackBarrierPC {
 		// We got caught in the middle of a stack barrier
 		// (presumably by a signal), so stkbar may be
 		// inconsistent with the barriers on the stack.
