@@ -12,6 +12,7 @@ void callPanic(void);
 int callGoReturnVal(void);
 int returnAfterGrow(void);
 int returnAfterGrowFromGo(void);
+void callGoWithString(void);
 */
 import "C"
 
@@ -274,6 +275,22 @@ func goReturnVal() (r C.int) {
 	}
 	r = C.int(f(128))
 	return
+}
+
+// Test that C can pass in a Go string from a string constant.
+func testCallGoWithString(t *testing.T) {
+	C.callGoWithString()
+	want := "string passed from C to Go"
+	if stringFromGo != want {
+		t.Errorf("string passed through C is %s, want %s", stringFromGo, want)
+	}
+}
+
+var stringFromGo string
+
+//export goWithString
+func goWithString(s string) {
+	stringFromGo = s
 }
 
 func testCallbackStack(t *testing.T) {

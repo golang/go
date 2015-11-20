@@ -1429,7 +1429,7 @@ typedef __complex double GoComplex128;
 */
 typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
 
-typedef struct { char *p; GoInt n; } GoString;
+typedef struct { const char *p; GoInt n; } GoString;
 typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;
