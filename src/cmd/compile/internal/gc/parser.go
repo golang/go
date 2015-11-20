@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const trace = true // if set, parse tracing can be enabled with -x
+const trace = false // if set, parse tracing can be enabled with -x
 
 // TODO(gri) Once we handle imports w/o redirecting the underlying
 // source of the lexer we can get rid of these. They are here for
@@ -80,7 +80,7 @@ type parser struct {
 	fnest  int       // function nesting level (for error handling)
 	xnest  int       // expression nesting level (for complit ambiguity resolution)
 	yy     yySymType // for temporary use by next
-	indent int       // tracing support
+	indent []byte    // tracing support
 }
 
 func (p *parser) next() {
@@ -282,32 +282,17 @@ var tokstrings = map[int32]string{
 	PreferToRightParen: "PreferToRightParen", // we should never see this one
 }
 
-func (p *parser) print_trace(msg ...interface{}) {
-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
-	const n = len(dots)
-	fmt.Printf("%5d: ", lineno)
-
-	i := 2 * p.indent
-	for i > n {
-		fmt.Print(dots)
-		i -= n
-	}
-	// i <= n
-
-	fmt.Print(dots[0:i])
-	fmt.Println(msg...)
-}
-
 // usage: defer p.trace(msg)()
 func (p *parser) trace(msg string) func() {
-	p.print_trace(msg, "(")
-	p.indent++
+	fmt.Printf("%5d: %s%s (\n", lineno, p.indent, msg)
+	const tab = ". "
+	p.indent = append(p.indent, tab...)
 	return func() {
-		p.indent--
+		p.indent = p.indent[:len(p.indent)-len(tab)]
 		if x := recover(); x != nil {
 			panic(x) // skip print_trace
 		}
-		p.print_trace(")")
+		fmt.Printf("%5d: %s)\n", lineno, p.indent)
 	}
 }
 
