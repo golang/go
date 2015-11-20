@@ -57,9 +57,9 @@ var IEEETable = makeTable(IEEE)
 // slicing8Table is array of 8 Tables
 type slicing8Table [8]Table
 
-// iEEETable8 is the slicing8Table for IEEE
-var iEEETable8 *slicing8Table
-var iEEETable8Once sync.Once
+// ieeeTable8 is the slicing8Table for IEEE
+var ieeeTable8 *slicing8Table
+var ieeeTable8Once sync.Once
 
 // MakeTable returns a Table constructed from the specified polynomial.
 // The contents of this Table must not be modified.
