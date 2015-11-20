@@ -333,6 +333,9 @@ func TestStackBarrierProfiling(t *testing.T) {
 		// Re-execute this test with constant GC and stack
 		// barriers at every frame.
 		testenv.MustHaveExec(t)
+		if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+			t.Skip("gcstackbarrierall doesn't work on ppc64")
+		}
 		cmd := exec.Command(os.Args[0], "-test.run=TestStackBarrierProfiling")
 		cmd.Env = append([]string{"GODEBUG=gcstackbarrierall=1", "GOGC=1"}, os.Environ()...)
 		if out, err := cmd.CombinedOutput(); err != nil {
