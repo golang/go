@@ -574,9 +574,7 @@ func (p *parser) constdcl() *NodeList {
 	var typ *Node
 	var exprs *NodeList
 	if p.tok != EOF && p.tok != ';' && p.tok != ')' {
-		if p.tok != '=' {
-			typ = p.ntype()
-		}
+		typ = p.try_ntype()
 		if p.got('=') {
 			exprs = p.expr_list()
 		}
@@ -593,11 +591,9 @@ func (p *parser) typedcl() *NodeList {
 
 	name := typedcl0(p.sym())
 
+	typ := p.try_ntype()
 	// handle case where type is missing
-	var typ *Node
-	if p.tok != ';' {
-		typ = p.ntype()
-	} else {
+	if typ == nil {
 		p.syntax_error("in type declaration")
 		p.advance(';', ')')
 	}
@@ -1754,9 +1750,8 @@ func (p *parser) dotdotdot() *Node {
 	}
 
 	p.want(LDDD)
-	switch p.tok {
-	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?', '(':
-		return Nod(ODDD, p.ntype(), nil)
+	if typ := p.try_ntype(); typ != nil {
+		return Nod(ODDD, typ, nil)
 	}
 
 	Yyerror("final argument in variadic function missing type")
@@ -1767,6 +1762,22 @@ func (p *parser) dotdotdot() *Node {
 func (p *parser) ntype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ntype")()
+	}
+
+	if typ := p.try_ntype(); typ != nil {
+		return typ
+	}
+
+	p.syntax_error("")
+	p.advance()
+	return nil
+}
+
+// try_ntype is like ntype but it returns nil if there was no type
+// instead of reporting an error.
+func (p *parser) try_ntype() *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("try_ntype")()
 	}
 
 	switch p.tok {
@@ -1848,8 +1859,6 @@ func (p *parser) ntype() *Node {
 		return t
 
 	default:
-		p.syntax_error("")
-		p.advance()
 		return nil
 	}
 }
@@ -1859,19 +1868,13 @@ func (p *parser) chan_elem() *Node {
 		defer p.trace("chan_elem")()
 	}
 
-	switch p.tok {
-	case LCOMM, LFUNC,
-		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE,
-		'*',
-		LNAME, '@', '?',
-		'(':
-		return p.ntype()
-
-	default:
-		p.syntax_error("missing channel element type")
-		// assume element type is simply absent - don't advance
-		return nil
+	if typ := p.try_ntype(); typ != nil {
+		return typ
 	}
+
+	p.syntax_error("missing channel element type")
+	// assume element type is simply absent - don't advance
+	return nil
 }
 
 // go.y:dotname (partial)
@@ -2158,18 +2161,16 @@ func (p *parser) fnres() *NodeList {
 		defer p.trace("fnres")()
 	}
 
-	switch p.tok {
-	default:
-		return nil
-
-	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?':
-		result := p.ntype()
-		return list1(Nod(ODCLFIELD, nil, result))
-
-	case '(':
+	if p.tok == '(' {
 		result := p.param_list()
 		return checkarglist(result, 0)
 	}
+
+	if result := p.try_ntype(); result != nil {
+		return list1(Nod(ODCLFIELD, nil, result))
+	}
+
+	return nil
 }
 
 // go.y:xdcl_list
