@@ -225,11 +225,9 @@ func tokstring(tok int32) string {
 		return s
 	}
 	// catchall
-	return yyTokname(int(tok))
+	return fmt.Sprintf("tok-%v", tok)
 }
 
-// TODO(gri) figure out why yyTokname doesn't work for us as expected
-// (issue 13243)
 var tokstrings = map[int32]string{
 	LLITERAL:           "LLITERAL",
 	LASOP:              "op=",
@@ -439,7 +437,7 @@ func (p *parser) import_here() int {
 		p.advance(';', ')')
 	}
 
-	line := parserline() // TODO(gri) check correct placement of this (issue 13243)
+	line := parserline()
 	importfile(&path, line)
 	return line
 }
@@ -899,6 +897,7 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 	}
 
 	l := p.stmt_list()
+	p.want('}')
 
 	var stmt *Node
 	if l == nil {
@@ -907,8 +906,6 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 		stmt = liststmt(l)
 	}
 	popdcl()
-
-	p.want('}') // TODO(gri) is this correct location w/ respect to popdcl()? (issue 13243)
 
 	return stmt
 }
@@ -920,31 +917,8 @@ func (p *parser) caseblock(tswitch *Node) *Node {
 	}
 
 	stmt := p.case_(tswitch) // does markdcl
-
-	// If the last token read by the lexer was consumed
-	// as part of the case, clear it (parser has cleared yychar).
-	// If the last token read by the lexer was the lookahead
-	// leave it alone (parser has it cached in yychar).
-	// This is so that the stmt_list action doesn't look at
-	// the case tokens if the stmt_list is empty.
-	//yylast = yychar;
 	stmt.Xoffset = int64(block)
-
 	stmt.Nbody = p.stmt_list()
-
-	// TODO(gri) what do we need to do here? (issue 13243)
-	// // This is the only place in the language where a statement
-	// // list is not allowed to drop the final semicolon, because
-	// // it's the only place where a statement list is not followed
-	// // by a closing brace.  Handle the error for pedantry.
-
-	// // Find the final token of the statement list.
-	// // yylast is lookahead; yyprev is last of stmt_list
-	// last := yyprev;
-
-	// if last > 0 && last != ';' && yychar != '}' {
-	// 	Yyerror("missing statement after label");
-	// }
 
 	popdcl()
 
@@ -1873,14 +1847,6 @@ func (p *parser) ntype() *Node {
 		p.want(')')
 		return t
 
-	case LDDD:
-		// permit ...T but complain
-		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
-		// (issue 13243)
-		p.syntax_error("")
-		p.advance()
-		return p.ntype()
-
 	default:
 		p.syntax_error("")
 		p.advance()
@@ -1898,34 +1864,13 @@ func (p *parser) chan_elem() *Node {
 		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE,
 		'*',
 		LNAME, '@', '?',
-		'(',
-		LDDD:
+		'(':
 		return p.ntype()
 
 	default:
 		p.syntax_error("missing channel element type")
 		// assume element type is simply absent - don't advance
 		return nil
-	}
-}
-
-// go.y:fnret_type
-// TODO(gri) only called from fnres - inline and remove this one
-// (issue 13243)
-func (p *parser) fnret_type() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("fnret_type")()
-	}
-
-	switch p.tok {
-	case LFUNC, // fntype
-		LCOMM,                                 // recvchantype
-		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE, // othertype
-		'*': // ptrtype
-		return p.ntype()
-
-	default:
-		return p.dotname()
 	}
 }
 
@@ -2218,7 +2163,7 @@ func (p *parser) fnres() *NodeList {
 		return nil
 
 	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?':
-		result := p.fnret_type()
+		result := p.ntype()
 		return list1(Nod(ODCLFIELD, nil, result))
 
 	case '(':
@@ -2753,9 +2698,6 @@ func (p *parser) arg_list() (l *NodeList, ddd bool) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("arg_list")()
 	}
-
-	// TODO(gri) make this more tolerant in the presence of LDDD
-	// that is not at the end (issue 13243).
 
 	p.want('(')
 	p.xnest++

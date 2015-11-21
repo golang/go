@@ -4,11 +4,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Check various syntax errors with switches.
+// Verify that erroneous switch statements are detected by the compiler.
+// Does not compile.
 
 package main
 
-func _() {
+func f() {
 	switch {
 	case 0; // ERROR "expecting := or = or : or comma"
 	}
@@ -16,6 +17,20 @@ func _() {
 	switch {
 	case 0; // ERROR "expecting := or = or : or comma"
 	default:
+	}
+
+	switch {
+	case 0: case 0: default:
+	}
+
+	switch {
+	case 0: f(); case 0:
+	case 0: f() case 0: // ERROR "unexpected case at end of statement"
+	}
+
+	switch {
+	case 0: f(); default:
+	case 0: f() default: // ERROR "unexpected default at end of statement"
 	}
 
 	switch {
