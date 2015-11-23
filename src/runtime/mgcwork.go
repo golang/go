@@ -44,14 +44,6 @@ func (wp wbufptr) ptr() *workbuf {
 //
 // A gcWork can be used on the stack as follows:
 //
-//     var gcw gcWork
-//     disable preemption
-//     .. call gcw.put() to produce and gcw.get() to consume ..
-//     gcw.dispose()
-//     enable preemption
-//
-// Or from the per-P gcWork cache:
-//
 //     (preemption must be disabled)
 //     gcw := &getg().m.p.ptr().gcw
 //     .. call gcw.put() to produce and gcw.get() to consume ..
