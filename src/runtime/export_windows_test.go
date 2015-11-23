@@ -8,10 +8,7 @@ package runtime
 
 import "unsafe"
 
-var (
-	TestingWER              = &testingWER
-	TimeBeginPeriodRetValue = &timeBeginPeriodRetValue
-)
+var TestingWER = &testingWER
 
 func NumberOfProcessors() int32 {
 	var info systeminfo

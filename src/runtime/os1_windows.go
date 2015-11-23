@@ -47,7 +47,6 @@ import (
 //go:cgo_import_dynamic runtime._WaitForSingleObject WaitForSingleObject%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteConsoleW WriteConsoleW%5 "kernel32.dll"
 //go:cgo_import_dynamic runtime._WriteFile WriteFile%5 "kernel32.dll"
-//go:cgo_import_dynamic runtime._timeBeginPeriod timeBeginPeriod%1 "winmm.dll"
 
 var (
 	// Following syscalls are available on every Windows PC.
@@ -90,8 +89,7 @@ var (
 	_WSAGetOverlappedResult,
 	_WaitForSingleObject,
 	_WriteConsoleW,
-	_WriteFile,
-	_timeBeginPeriod stdFunction
+	_WriteFile stdFunction
 
 	// Following syscalls are only available on some Windows PCs.
 	// We will load syscalls, if available, before using them.
@@ -161,8 +159,6 @@ const (
 // in sys_windows_386.s and sys_windows_amd64.s
 func externalthreadhandler()
 
-var timeBeginPeriodRetValue uint32
-
 func osinit() {
 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
 
@@ -177,8 +173,6 @@ func osinit() {
 	initExceptionHandler()
 
 	stdcall2(_SetConsoleCtrlHandler, funcPC(ctrlhandler), 1)
-
-	timeBeginPeriodRetValue = uint32(stdcall1(_timeBeginPeriod, 1))
 
 	ncpu = getproccount()
 
