@@ -296,6 +296,16 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 
 		return
 
+	case 256 + ld.R_PPC_REL32:
+		r.Type = obj.R_PCREL
+		r.Add += 4
+
+		if targ.Type == obj.SDYNIMPORT {
+			ld.Diag("unexpected R_PPC_REL32 for dyn import")
+		}
+
+		return
+
 	case 256 + ld.R_PPC64_ADDR64:
 		r.Type = obj.R_ADDR
 		if targ.Type == obj.SDYNIMPORT {
