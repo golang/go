@@ -122,20 +122,31 @@ func efaceOf(ep *interface{}) *eface {
 // alternate arena. Using guintptr doesn't make that problem any worse.
 type guintptr uintptr
 
-func (gp guintptr) ptr() *g   { return (*g)(unsafe.Pointer(gp)) }
+//go:nosplit
+func (gp guintptr) ptr() *g { return (*g)(unsafe.Pointer(gp)) }
+
+//go:nosplit
 func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
+
+//go:nosplit
 func (gp *guintptr) cas(old, new guintptr) bool {
 	return atomic.Casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
 }
 
 type puintptr uintptr
 
-func (pp puintptr) ptr() *p   { return (*p)(unsafe.Pointer(pp)) }
+//go:nosplit
+func (pp puintptr) ptr() *p { return (*p)(unsafe.Pointer(pp)) }
+
+//go:nosplit
 func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
 
 type muintptr uintptr
 
-func (mp muintptr) ptr() *m   { return (*m)(unsafe.Pointer(mp)) }
+//go:nosplit
+func (mp muintptr) ptr() *m { return (*m)(unsafe.Pointer(mp)) }
+
+//go:nosplit
 func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
 
 type gobuf struct {
