@@ -231,21 +231,35 @@ func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
 		printlock()
 		print("at *", hex(stkbar.savedLRPtr), " expected stack barrier PC ", hex(stackBarrierPC), ", found ", hex(val), ", goid=", gp.goid, "\n")
 		print("gp.stkbar=")
-		gcPrintStkbars(gp.stkbar)
-		print(", gp.stkbarPos=", gp.stkbarPos, ", gp.stack=[", hex(gp.stack.lo), ",", hex(gp.stack.hi), ")\n")
+		gcPrintStkbars(gp, -1)
+		print(", gp.stack=[", hex(gp.stack.lo), ",", hex(gp.stack.hi), ")\n")
 		throw("stack barrier lost")
 	}
 	*lrPtr = sys.Uintreg(stkbar.savedLRVal)
 }
 
-// gcPrintStkbars prints a []stkbar for debugging.
-func gcPrintStkbars(stkbar []stkbar) {
+// gcPrintStkbars prints the stack barriers of gp for debugging. It
+// places a "@@@" marker at gp.stkbarPos. If marker >= 0, it will also
+// place a "==>" marker before the marker'th entry.
+func gcPrintStkbars(gp *g, marker int) {
 	print("[")
-	for i, s := range stkbar {
+	for i, s := range gp.stkbar {
 		if i > 0 {
 			print(" ")
 		}
+		if i == int(gp.stkbarPos) {
+			print("@@@ ")
+		}
+		if i == marker {
+			print("==> ")
+		}
 		print("*", hex(s.savedLRPtr), "=", hex(s.savedLRVal))
+	}
+	if int(gp.stkbarPos) == len(gp.stkbar) {
+		print(" @@@")
+	}
+	if marker == len(gp.stkbar) {
+		print(" ==>")
 	}
 	print("]")
 }
@@ -271,7 +285,9 @@ func gcUnwindBarriers(gp *g, sp uintptr) {
 	gcUnlockStackBarriers(gp)
 	if debugStackBarrier && gp.stkbarPos != before {
 		print("skip barriers below ", hex(sp), " in goid=", gp.goid, ": ")
-		gcPrintStkbars(gp.stkbar[before:gp.stkbarPos])
+		// We skipped barriers between the "==>" marker
+		// (before) and the "@@@" marker (gp.stkbarPos).
+		gcPrintStkbars(gp, int(before))
 		print("\n")
 	}
 }
