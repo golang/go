@@ -2978,18 +2978,25 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// To recap, there are no constraints on the assembly being used for the
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
-	traceback := true
+	traceback, tracebackUser := true, true
 	haveStackLock := false
 	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
 		traceback = false
 	} else if gp.m.curg != nil {
+		// The user stack is safe to scan only if we can
+		// acquire the stack barrier lock.
 		if gcTryLockStackBarriers(gp.m.curg) {
 			haveStackLock = true
 		} else {
 			// Stack barriers are being inserted or
 			// removed, so we can't get a consistent
-			// traceback right now.
-			traceback = false
+			// traceback of the user stack right now.
+			tracebackUser = false
+			if gp == gp.m.curg {
+				// We're on the user stack, so don't
+				// do any traceback.
+				traceback = false
+			}
 		}
 	}
 	var stk [maxCPUProfStack]uintptr
@@ -3000,12 +3007,9 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// This is especially important on windows, since all syscalls are cgo calls.
 		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
 	} else if traceback {
-		flags := uint(_TraceTrap | _TraceJumpStack)
-		if gp.m.curg != nil && readgstatus(gp.m.curg) == _Gcopystack {
-			// We can traceback the system stack, but
-			// don't jump to the potentially inconsistent
-			// user stack.
-			flags &^= _TraceJumpStack
+		var flags uint = _TraceTrap
+		if tracebackUser {
+			flags |= _TraceJumpStack
 		}
 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
 	}
