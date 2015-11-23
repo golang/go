@@ -719,6 +719,10 @@ func copystack(gp *g, newsize uintptr) {
 		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
 	}
 
+	// Disallow sigprof scans of this stack and block if there's
+	// one in progress.
+	gcLockStackBarriers(gp)
+
 	// adjust pointers in the to-be-copied frames
 	var adjinfo adjustinfo
 	adjinfo.old = old
@@ -750,6 +754,8 @@ func copystack(gp *g, newsize uintptr) {
 	gp.stackAlloc = newsize
 	gp.stkbar = newstkbar
 	gp.stktopsp += adjinfo.delta
+
+	gcUnlockStackBarriers(gp)
 
 	// free old stack
 	if stackPoisonCopy != 0 {
