@@ -521,15 +521,15 @@ type adjustinfo struct {
 // Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
 // If so, it rewrites *vpp to point into the new stack.
 func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
-	pp := (*unsafe.Pointer)(vpp)
+	pp := (*uintptr)(vpp)
 	p := *pp
 	if stackDebug >= 4 {
-		print("        ", pp, ":", p, "\n")
+		print("        ", pp, ":", hex(p), "\n")
 	}
-	if adjinfo.old.lo <= uintptr(p) && uintptr(p) < adjinfo.old.hi {
-		*pp = add(p, adjinfo.delta)
+	if adjinfo.old.lo <= p && p < adjinfo.old.hi {
+		*pp = p + adjinfo.delta
 		if stackDebug >= 3 {
-			print("        adjust ptr ", pp, ":", p, " -> ", *pp, "\n")
+			print("        adjust ptr ", pp, ":", hex(p), " -> ", hex(*pp), "\n")
 		}
 	}
 }
