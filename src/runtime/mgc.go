@@ -1027,7 +1027,15 @@ func gcStart(mode gcMode, forceTrigger bool) {
 // active work buffers in assists and background workers; however,
 // work may still be cached in per-P work buffers. In mark 2, per-P
 // caches are disabled.
+//
+// The calling context must be preemptible.
+//
+// Note that it is explicitly okay to have write barriers in this
+// function because completion of concurrent mark is best-effort
+// anyway. Any work created by write barriers here will be cleaned up
+// by mark termination.
 func gcMarkDone() {
+top:
 	semacquire(&work.markDoneSema, false)
 
 	// Re-check transition condition under transition lock.
@@ -1090,15 +1098,17 @@ func gcMarkDone() {
 
 		incnwait := atomic.Xadd(&work.nwait, +1)
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			// This recursion is safe because the call
-			// can't take this same "if" branch.
-			gcMarkDone()
+			// This loop will make progress because
+			// gcBlackenPromptly is now true, so it won't
+			// take this same "if" branch.
+			goto top
 		}
 	} else {
 		// Transition to mark termination.
 		now := nanotime()
 		work.tMarkTerm = now
 		work.pauseStart = now
+		getg().m.preemptoff = "gcing"
 		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
