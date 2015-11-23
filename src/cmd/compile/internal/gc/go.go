@@ -627,8 +627,6 @@ var Widthint int
 
 var Widthreg int
 
-var typesw *Node // TODO(gri) remove when yacc-based parser is gone
-
 var nblank *Node
 
 var Funcdepth int32
