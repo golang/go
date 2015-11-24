@@ -180,7 +180,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
 }
 
 // DefinedTemplates returns a string listing the defined templates,
-// prefixed by the string "defined templates are: ". If there are none,
+// prefixed by the string "; defined templates are: ". If there are none,
 // it returns the empty string. For generating an error message here
 // and in html/template.
 func (t *Template) DefinedTemplates() string {
