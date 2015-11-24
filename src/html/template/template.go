@@ -144,7 +144,7 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 }
 
 // DefinedTemplates returns a string listing the defined templates,
-// prefixed by the string "defined templates are: ". If there are none,
+// prefixed by the string "; defined templates are: ". If there are none,
 // it returns the empty string. Used to generate an error message.
 func (t *Template) DefinedTemplates() string {
 	return t.text.DefinedTemplates()
