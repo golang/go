@@ -140,7 +140,8 @@ Strings and slices of bytes are sent as an unsigned count followed by that many
 uninterpreted bytes of the value.
 
 All other slices and arrays are sent as an unsigned count followed by that many
-elements using the standard gob encoding for their type, recursively.
+elements using the standard gob encoding for their type, recursively. In slices
+and arrays, elements with the zero value are transmitted.
 
 Maps are sent as an unsigned count followed by that many key, element
 pairs. Empty but non-nil maps are sent, so if the receiver has not allocated
