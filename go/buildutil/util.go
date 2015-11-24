@@ -15,6 +15,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -72,13 +73,21 @@ func ContainingPackage(ctxt *build.Context, dir, filename string) (*build.Packag
 	// We assume that no source root (GOPATH[i] or GOROOT) contains any other.
 	for _, srcdir := range ctxt.SrcDirs() {
 		srcdirSlash := filepath.ToSlash(srcdir) + "/"
-		if strings.HasPrefix(dirSlash, srcdirSlash) {
+		if dirHasPrefix(dirSlash, srcdirSlash) {
 			importPath := dirSlash[len(srcdirSlash) : len(dirSlash)-len("/")]
 			return ctxt.Import(importPath, dir, build.FindOnly)
 		}
 	}
 
 	return nil, fmt.Errorf("can't find package containing %s", filename)
+}
+
+// dirHasPrefix tests whether the directory dir begins with prefix.
+func dirHasPrefix(dir, prefix string) bool {
+	if runtime.GOOS != "windows" {
+		return strings.HasPrefix(dir, prefix)
+	}
+	return len(dir) >= len(prefix) && strings.EqualFold(dir[:len(prefix)], prefix)
 }
 
 // -- Effective methods of file system interface -------------------------
