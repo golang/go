@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Tests for transport.go
+// Tests for transport.go.
+//
+// More tests are in clientserver_test.go (for things testing both client & server for both
+// HTTP/1 and HTTP/2). This
 
 package http_test
 
@@ -2841,70 +2844,6 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	}
 	if fail > 0 {
 		t.Errorf("Failed %v out of %v\n", fail, count)
-	}
-}
-
-func TestTransportResponse_h12(t *testing.T) {
-	t.Skip("known failing test; golang.org/issue/13315")
-	tests := []Handler{
-		HandlerFunc(func(w ResponseWriter, r *Request) {
-			// no body.
-		}),
-		HandlerFunc(func(w ResponseWriter, r *Request) {
-			io.WriteString(w, "small body")
-		}),
-		HandlerFunc(func(w ResponseWriter, r *Request) {
-			w.Header().Set("Content-Length", "3") // w/ content length
-			io.WriteString(w, "foo")
-		}),
-		HandlerFunc(func(w ResponseWriter, r *Request) {
-			w.(Flusher).Flush()
-			io.WriteString(w, "foo")
-		}),
-	}
-	handlerc := make(chan Handler, 1)
-	testHandler := HandlerFunc(func(w ResponseWriter, r *Request) {
-		(<-handlerc).ServeHTTP(w, r)
-	})
-
-	normalizeRes := func(res *Response, wantProto string) {
-		if res.Proto == wantProto {
-			res.Proto, res.ProtoMajor, res.ProtoMinor = "", 0, 0
-		} else {
-			t.Errorf("got %q response; want %q", res.Proto, wantProto)
-		}
-		slurp, err := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		if err != nil {
-			t.Errorf("ReadAll(Body) = %v", err)
-		}
-		res.Body = ioutil.NopCloser(bytes.NewReader(slurp))
-	}
-
-	cst1 := newClientServerTest(t, false, testHandler)
-	defer cst1.close()
-	cst2 := newClientServerTest(t, true, testHandler)
-	defer cst2.close()
-	for i, h := range tests {
-		handlerc <- h
-		res1, err := cst1.c.Get(cst1.ts.URL)
-		if err != nil {
-			t.Errorf("%d. HTTP/1 get: %v", i, err)
-			continue
-		}
-		normalizeRes(res1, "HTTP/1.1")
-
-		handlerc <- h
-		res2, err := cst2.c.Get(cst2.ts.URL)
-		if err != nil {
-			t.Errorf("%d. HTTP/2 get: %v", i, err)
-			continue
-		}
-		normalizeRes(res2, "HTTP/2.0")
-
-		if !reflect.DeepEqual(res1, res2) {
-			t.Errorf("\nhttp/1 (%v): %#v\nhttp/2 (%v): %#v", cst1.ts.URL, res1, cst2.ts.URL, res2)
-		}
 	}
 }
 
