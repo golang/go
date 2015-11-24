@@ -21,10 +21,6 @@ import (
 	"unicode/utf8"
 )
 
-var yyprev int
-
-var yylast int
-
 var imported_unsafe bool
 
 var (
@@ -308,7 +304,6 @@ func Main() {
 	lexinit()
 	typeinit()
 	lexinit1()
-	// TODO(rsc): Restore yytinit?
 
 	blockgen = 1
 	dclcontext = PEXTERN
@@ -347,7 +342,7 @@ func Main() {
 
 		imported_unsafe = false
 
-		yyparse()
+		parse_file()
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
@@ -972,7 +967,6 @@ const (
 	LVAR
 	LANDAND
 	LANDNOT
-	LBODY
 	LCOMM
 	LDEC
 	LEQ
@@ -1898,26 +1892,8 @@ func pragcgo(text string) {
 	}
 }
 
-type yy struct{}
-
-func (yy) Lex(v *yySymType) int {
-	return int(yylex(v))
-}
-
-func (yy) Error(msg string) {
-	Yyerror("%s", msg)
-}
-
-var parsing bool
-
-func yyparse() {
-	parsing = true
-	parse_file()
-	parsing = false
-}
-
 func yylex(yylval *yySymType) int32 {
-	lx := int(_yylex(yylval))
+	lx := _yylex(yylval)
 
 	if curio.nlsemi && lx == EOF {
 		// Treat EOF as "end of line" for the purposes
@@ -1943,11 +1919,7 @@ func yylex(yylval *yySymType) int32 {
 		curio.nlsemi = false
 	}
 
-	// Track last two tokens returned by yylex.
-	yyprev = yylast
-
-	yylast = lx
-	return int32(lx)
+	return lx
 }
 
 func getc() int {
@@ -2531,57 +2503,6 @@ func lexname(lex int) string {
 		return s
 	}
 	return fmt.Sprintf("LEX-%d", lex)
-}
-
-var yytfix = map[string]string{
-	"$end":       "EOF",
-	"LASOP":      "op=",
-	"LBREAK":     "break",
-	"LCASE":      "case",
-	"LCHAN":      "chan",
-	"LCOLAS":     ":=",
-	"LCONST":     "const",
-	"LCONTINUE":  "continue",
-	"LDDD":       "...",
-	"LDEFAULT":   "default",
-	"LDEFER":     "defer",
-	"LELSE":      "else",
-	"LFALL":      "fallthrough",
-	"LFOR":       "for",
-	"LFUNC":      "func",
-	"LGO":        "go",
-	"LGOTO":      "goto",
-	"LIF":        "if",
-	"LIMPORT":    "import",
-	"LINTERFACE": "interface",
-	"LMAP":       "map",
-	"LNAME":      "name",
-	"LPACKAGE":   "package",
-	"LRANGE":     "range",
-	"LRETURN":    "return",
-	"LSELECT":    "select",
-	"LSTRUCT":    "struct",
-	"LSWITCH":    "switch",
-	"LTYPE":      "type",
-	"LVAR":       "var",
-	"LANDAND":    "&&",
-	"LANDNOT":    "&^",
-	"LBODY":      "{",
-	"LCOMM":      "<-",
-	"LDEC":       "--",
-	"LINC":       "++",
-	"LEQ":        "==",
-	"LGE":        ">=",
-	"LGT":        ">",
-	"LLE":        "<=",
-	"LLT":        "<",
-	"LLSH":       "<<",
-	"LRSH":       ">>",
-	"LOROR":      "||",
-	"LNE":        "!=",
-	// spell out to avoid confusion with punctuation in error messages
-	"';'": "semicolon or newline",
-	"','": "comma",
 }
 
 func pkgnotused(lineno int, path string, name string) {

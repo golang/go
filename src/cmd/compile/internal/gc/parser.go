@@ -261,7 +261,6 @@ var tokstrings = map[int32]string{
 	LVAR:       "var",
 	LANDAND:    "&&",
 	LANDNOT:    "&^",
-	LBODY:      "LBODY", // we should never see this one
 	LCOMM:      "<-",
 	LDEC:       "--",
 	LEQ:        "==",
