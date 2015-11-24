@@ -32,7 +32,7 @@ var testfiles = []string{
 	// does not repeat, but there are only 10 possible digits, so it should be
 	// reasonably compressible.
 	digits: "../testdata/e.txt",
-	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
+	// Twain is Mark Twain's classic English novel.
 	twain: "../testdata/Mark.Twain-Tom.Sawyer.txt",
 }
 
