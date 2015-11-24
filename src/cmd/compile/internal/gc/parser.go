@@ -4,6 +4,14 @@
 
 package gc
 
+// The recursive-descent parser is built around a slighty modified grammar
+// of Go to accomodate for the constraints imposed by strict one token look-
+// ahead, and for better error handling. Subsequent checks of the constructed
+// syntax tree restrict the language accepted by the compiler to proper Go.
+//
+// Semicolons are inserted by the lexer. The parser uses one-token look-ahead
+// to handle optional commas and semicolons before a closing ) or } .
+
 import (
 	"fmt"
 	"strconv"
@@ -40,6 +48,7 @@ func pop_parser() {
 	savedstate = savedstate[:n]
 }
 
+// parse_file sets up a new parser and parses a single Go source file.
 func parse_file() {
 	thenewparser = parser{}
 	thenewparser.loadsys()
@@ -47,11 +56,9 @@ func parse_file() {
 	thenewparser.file()
 }
 
-// This loads the definitions for the low-level runtime functions,
+// loadsys loads the definitions for the low-level runtime functions,
 // so that the compiler can generate calls to them,
 // but does not make the name "runtime" visible as a package.
-//
-// go.y:loadsys
 func (p *parser) loadsys() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("loadsys")()
@@ -292,16 +299,20 @@ func (p *parser) trace(msg string) func() {
 
 // ----------------------------------------------------------------------------
 // Parsing package files
+//
+// Parse methods are annotated with matching Go productions as appropriate.
+// The annotations are intended as guidelines only since a single Go grammar
+// rule may be covered by multiple parse methods and vice versa.
 
-// go.y:file
+// SourceFile = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
 func (p *parser) file() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("file")()
 	}
 
 	p.package_()
+	p.want(';')
 
-	//go.y:imports
 	for p.tok == LIMPORT {
 		p.import_()
 		p.want(';')
@@ -312,7 +323,8 @@ func (p *parser) file() {
 	p.want(EOF)
 }
 
-// go.y:package
+// PackageClause = "package" PackageName .
+// PackageName   = identifier .
 func (p *parser) package_() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("package_")()
@@ -320,7 +332,6 @@ func (p *parser) package_() {
 
 	if p.got(LPACKAGE) {
 		mkpackage(p.sym().Name)
-		p.want(';')
 	} else {
 		prevlineno = lineno // see issue #13267
 		p.syntax_error("package statement must be first")
@@ -328,7 +339,7 @@ func (p *parser) package_() {
 	}
 }
 
-// go.y:import
+// ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
 func (p *parser) import_() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_")()
@@ -348,7 +359,6 @@ func (p *parser) import_() {
 	}
 }
 
-// go.y:import_stmt
 func (p *parser) import_stmt() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_stmt")()
@@ -406,7 +416,11 @@ func (p *parser) import_stmt() {
 	}
 }
 
-// go.y:import_here
+// ImportSpec = [ "." | PackageName ] ImportPath .
+// ImportPath = string_lit .
+//
+// import_here switches the underlying lexed source to the export data
+// of the imported package.
 func (p *parser) import_here() int {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_here")()
@@ -438,7 +452,8 @@ func (p *parser) import_here() int {
 	return line
 }
 
-// go.y:import_package
+// import_package parses the header of an imported package as exported
+// in textual format from another package.
 func (p *parser) import_package() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_package")()
@@ -453,7 +468,6 @@ func (p *parser) import_package() {
 		p.import_error()
 	}
 
-	// go.y:import_safety
 	if p.tok == LNAME {
 		if p.sym_.Name == "safe" {
 			curio.importsafe = true
@@ -478,7 +492,8 @@ func (p *parser) import_package() {
 	}
 }
 
-// go.y:import_there
+// import_there parses the imported package definitions and then switches
+// the underlying lexed source back to the importing package.
 func (p *parser) import_there() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_there")()
@@ -497,7 +512,10 @@ func (p *parser) import_there() {
 	unimportfile()
 }
 
-// go.y:common_dcl
+// Declaration = ConstDecl | TypeDecl | VarDecl .
+// ConstDecl   = "const" ( ConstSpec | "(" { ConstSpec ";" } ")" ) .
+// TypeDecl    = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
+// VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
 func (p *parser) common_dcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("common_dcl")()
@@ -539,7 +557,7 @@ func (p *parser) common_dcl() *NodeList {
 	return l
 }
 
-// go.y:vardcl
+// VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 func (p *parser) vardcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("vardcl")()
@@ -560,7 +578,7 @@ func (p *parser) vardcl() *NodeList {
 	return variter(names, typ, exprs)
 }
 
-// go.y:constdcl
+// ConstSpec = IdentifierList [ [ Type ] "=" ExpressionList ] .
 func (p *parser) constdcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("constdcl")()
@@ -579,7 +597,7 @@ func (p *parser) constdcl() *NodeList {
 	return constiter(names, typ, exprs)
 }
 
-// go.y:typedcl
+// TypeSpec = identifier Type .
 func (p *parser) typedcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("typedcl")()
@@ -597,8 +615,9 @@ func (p *parser) typedcl() *NodeList {
 	return list1(typedcl1(name, typ, true))
 }
 
-// go.y:simple_stmt
-// may return missing_stmt if labelOk is set
+// SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
+//
+// simple_stmt may return missing_stmt if labelOk is set.
 func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("simple_stmt")()
@@ -736,7 +755,8 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 	}
 }
 
-// may return missing_stmt
+// LabeledStmt = Label ":" Statement .
+// Label       = identifier .
 func (p *parser) labeled_stmt(label *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("labeled_stmt")()
@@ -761,7 +781,15 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	return liststmt(l)
 }
 
-// go.y:case
+// case_ parses a superset of switch and select statement cases.
+// Later checks restrict the syntax to valid forms.
+//
+// ExprSwitchCase = "case" ExpressionList | "default" .
+// TypeSwitchCase = "case" TypeList | "default" .
+// TypeList       = Type { "," Type } .
+// CommCase       = "case" ( SendStmt | RecvStmt ) | "default" .
+// RecvStmt       = [ ExpressionList "=" | IdentifierList ":=" ] RecvExpr .
+// RecvExpr       = Expression .
 func (p *parser) case_(tswitch *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("case_")()
@@ -872,7 +900,8 @@ func (p *parser) case_(tswitch *Node) *Node {
 	}
 }
 
-// go.y:compound_stmt
+// Block         = "{" StatementList "}" .
+// StatementList = { Statement ";" } .
 func (p *parser) compound_stmt(else_clause bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("compound_stmt")()
@@ -902,7 +931,11 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 	return stmt
 }
 
-// go.y:caseblock
+// caseblock parses a superset of switch and select clauses.
+//
+// ExprCaseClause = ExprSwitchCase ":" StatementList .
+// TypeCaseClause = TypeSwitchCase ":" StatementList .
+// CommClause     = CommCase ":" StatementList .
 func (p *parser) caseblock(tswitch *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("caseblock")()
@@ -917,7 +950,7 @@ func (p *parser) caseblock(tswitch *Node) *Node {
 	return stmt
 }
 
-// go.y:caseblock_list
+// caseblock_list parses a superset of switch and select clause lists.
 func (p *parser) caseblock_list(tswitch *Node) (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("caseblock_list")()
@@ -935,7 +968,7 @@ func (p *parser) caseblock_list(tswitch *Node) (l *NodeList) {
 	return
 }
 
-// go.y:loop_body
+// loop_body parses if and for statement bodies.
 func (p *parser) loop_body(context string) *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("loop_body")()
@@ -954,7 +987,10 @@ func (p *parser) loop_body(context string) *NodeList {
 	return body
 }
 
-// go.y:for_header
+// for_header parses the header portion of a for statement.
+//
+// ForStmt   = "for" [ Condition | ForClause | RangeClause ] Block .
+// Condition = Expression .
 func (p *parser) for_header() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("for_header")()
@@ -987,7 +1023,6 @@ func (p *parser) for_header() *Node {
 	return h
 }
 
-// go.y:for_body
 func (p *parser) for_body() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("for_body")()
@@ -1000,7 +1035,7 @@ func (p *parser) for_body() *Node {
 	return stmt
 }
 
-// go.y:for_stmt
+// ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
 func (p *parser) for_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("for_stmt")()
@@ -1014,6 +1049,12 @@ func (p *parser) for_stmt() *Node {
 	return body
 }
 
+// header parses a combination of if, switch, and for statement headers:
+//
+// Header   = [ InitStmt ";" ] [ Expression ] .
+// Header   = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .  // for_stmt only
+// InitStmt = SimpleStmt .
+// PostStmt = SimpleStmt .
 func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 	if p.tok == '{' {
 		return
@@ -1060,7 +1101,6 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 	return
 }
 
-// go.y:if_header
 func (p *parser) if_header() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("if_header")()
@@ -1073,7 +1113,7 @@ func (p *parser) if_header() *Node {
 	return h
 }
 
-// go.y:if_stmt
+// IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
 func (p *parser) if_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("if_stmt")()
@@ -1105,7 +1145,6 @@ func (p *parser) if_stmt() *Node {
 	return stmt
 }
 
-// go.y:elsif
 func (p *parser) elseif() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("elseif")()
@@ -1124,8 +1163,6 @@ func (p *parser) elseif() *NodeList {
 	return list1(stmt)
 }
 
-// go.y:elsif_list
-// go.y:else
 func (p *parser) elseif_list_else() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("elseif_list_else")()
@@ -1143,7 +1180,6 @@ func (p *parser) elseif_list_else() (l *NodeList) {
 	return l
 }
 
-// go.y:else
 func (p *parser) else_() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("else")()
@@ -1155,7 +1191,11 @@ func (p *parser) else_() *NodeList {
 
 }
 
-// go.y:switch_stmt
+// switch_stmt parses both expression and type switch statements.
+//
+// SwitchStmt     = ExprSwitchStmt | TypeSwitchStmt .
+// ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+// TypeSwitchStmt = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 func (p *parser) switch_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("switch_stmt")()
@@ -1178,7 +1218,7 @@ func (p *parser) switch_stmt() *Node {
 	return hdr
 }
 
-// go.y:select_stmt
+// SelectStmt = "select" "{" { CommClause } "}" .
 func (p *parser) select_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("select_stmt")()
@@ -1225,6 +1265,7 @@ var prectab = map[int32]struct {
 	LANDNOT: {6, OANDNOT},
 }
 
+// Expression = UnaryExpr | Expression binary_op Expression .
 func (p *parser) bexpr(prec int) *Node {
 	// don't trace bexpr - only leads to overly nested trace output
 
@@ -1242,7 +1283,6 @@ func (p *parser) bexpr(prec int) *Node {
 	return x
 }
 
-// go.y:expr
 func (p *parser) expr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("expr")()
@@ -1258,7 +1298,7 @@ func unparen(x *Node) *Node {
 	return x
 }
 
-// go.y:uexpr
+// UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
 func (p *parser) uexpr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("uexpr")()
@@ -1358,9 +1398,7 @@ func (p *parser) uexpr() *Node {
 	return Nod(op, p.uexpr(), nil)
 }
 
-// call-like statements that can be preceded by 'defer' and 'go'
-//
-// go.y:pseudocall
+// pseudocall parses call-like statements that can be preceded by 'defer' and 'go'.
 func (p *parser) pseudocall() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("pseudocall")()
@@ -1380,7 +1418,10 @@ func (p *parser) pseudocall() *Node {
 	return nil
 }
 
-// go.y:pexpr (partial)
+// Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
+// Literal     = BasicLit | CompositeLit | FunctionLit .
+// BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
+// OperandName = identifier | QualifiedIdent.
 func (p *parser) operand(keep_parens bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("operand")()
@@ -1466,7 +1507,22 @@ func (p *parser) operand(keep_parens bool) *Node {
 	// as well (operand is only called from pexpr).
 }
 
-// go.y:pexpr, pexpr_no_paren
+// PrimaryExpr =
+// 	Operand |
+// 	Conversion |
+// 	PrimaryExpr Selector |
+// 	PrimaryExpr Index |
+// 	PrimaryExpr Slice |
+// 	PrimaryExpr TypeAssertion |
+// 	PrimaryExpr Arguments .
+//
+// Selector       = "." identifier .
+// Index          = "[" Expression "]" .
+// Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
+//                      ( [ Expression ] ":" Expression ":" Expression )
+//                  "]" .
+// TypeAssertion  = "." "(" Type ")" .
+// Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 func (p *parser) pexpr(keep_parens bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("pexpr")()
@@ -1593,7 +1649,7 @@ loop:
 	return x
 }
 
-// go.y:keyval
+// KeyedElement = [ Key ":" ] Element .
 func (p *parser) keyval() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("keyval")()
@@ -1626,7 +1682,7 @@ func wrapname(x *Node) *Node {
 	return x
 }
 
-// go.y:bare_complitexpr
+// Element = Expression | LiteralValue .
 func (p *parser) bare_complitexpr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("bare_complitexpr")()
@@ -1640,7 +1696,7 @@ func (p *parser) bare_complitexpr() *Node {
 	return p.expr()
 }
 
-// go.y:complitexpr
+// LiteralValue = "{" [ ElementList [ "," ] ] "}" .
 func (p *parser) complitexpr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("complitexpr")()
@@ -1670,8 +1726,6 @@ func (p *parser) complitexpr() *Node {
 // names and types
 //	newname is used before declared
 //	oldname is used after declared
-//
-// go.y:new_name:
 func (p *parser) new_name(sym *Sym) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_name")()
@@ -1683,7 +1737,6 @@ func (p *parser) new_name(sym *Sym) *Node {
 	return nil
 }
 
-// go.y:onew_name:
 func (p *parser) onew_name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("onew_name")()
@@ -1696,7 +1749,6 @@ func (p *parser) onew_name() *Node {
 	return nil
 }
 
-// go.y:sym
 func (p *parser) sym() *Sym {
 	switch p.tok {
 	case LNAME:
@@ -1730,7 +1782,6 @@ func mkname(sym *Sym) *Node {
 	return n
 }
 
-// go.y:name
 func (p *parser) name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("name")()
@@ -1739,7 +1790,7 @@ func (p *parser) name() *Node {
 	return mkname(p.sym())
 }
 
-// go.y:dotdotdot
+// [ "..." ] Type
 func (p *parser) dotdotdot() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dotdotdot")()
@@ -1754,7 +1805,6 @@ func (p *parser) dotdotdot() *Node {
 	return Nod(ODDD, typenod(typ(TINTER)), nil)
 }
 
-// go.y:ntype
 func (p *parser) ntype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ntype")()
@@ -1771,6 +1821,11 @@ func (p *parser) ntype() *Node {
 
 // try_ntype is like ntype but it returns nil if there was no type
 // instead of reporting an error.
+//
+// Type     = TypeName | TypeLit | "(" Type ")" .
+// TypeName = identifier | QualifiedIdent .
+// TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+// 	      SliceType | MapType | ChannelType .
 func (p *parser) try_ntype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("try_ntype")()
@@ -1873,7 +1928,6 @@ func (p *parser) chan_elem() *Node {
 	return nil
 }
 
-// go.y:dotname (partial)
 func (p *parser) new_dotname(pkg *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_dotname")()
@@ -1889,7 +1943,6 @@ func (p *parser) new_dotname(pkg *Node) *Node {
 
 }
 
-// go.y:dotname
 func (p *parser) dotname() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dotname")()
@@ -1902,7 +1955,7 @@ func (p *parser) dotname() *Node {
 	return name
 }
 
-// go.y:structtype
+// StructType = "struct" "{" { FieldDecl ";" } "}" .
 func (p *parser) structtype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("structtype")()
@@ -1924,7 +1977,7 @@ func (p *parser) structtype() *Node {
 	return t
 }
 
-// go.y:interfacetype
+// InterfaceType = "interface" "{" { MethodSpec ";" } "}" .
 func (p *parser) interfacetype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("interfacetype")()
@@ -1948,8 +2001,7 @@ func (p *parser) interfacetype() *Node {
 
 // Function stuff.
 // All in one place to show how crappy it all is.
-//
-// go.y:xfndcl
+
 func (p *parser) xfndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("xfndcl")()
@@ -1980,7 +2032,11 @@ func (p *parser) xfndcl() *Node {
 	return f
 }
 
-// go.y:fndcl
+// FunctionDecl = "func" FunctionName ( Function | Signature ) .
+// FunctionName = identifier .
+// Function     = Signature FunctionBody .
+// MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
+// Receiver     = Parameters .
 func (p *parser) fndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fndcl")()
@@ -2069,7 +2125,6 @@ func (p *parser) fndcl() *Node {
 	}
 }
 
-// go.y:hidden_fndcl
 func (p *parser) hidden_fndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_fndcl")()
@@ -2131,7 +2186,7 @@ func (p *parser) hidden_fndcl() *Node {
 	}
 }
 
-// go.y:fnbody
+// FunctionBody = Block .
 func (p *parser) fnbody() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fnbody")()
@@ -2151,7 +2206,7 @@ func (p *parser) fnbody() *NodeList {
 	return nil
 }
 
-// go.y:fnres
+// Result = Parameters | Type .
 func (p *parser) fnres() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fnres")()
@@ -2169,7 +2224,8 @@ func (p *parser) fnres() *NodeList {
 	return nil
 }
 
-// go.y:xdcl_list
+// Declaration  = ConstDecl | TypeDecl | VarDecl .
+// TopLevelDecl = Declaration | FunctionDecl | MethodDecl .
 func (p *parser) xdcl_list() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("xdcl_list")()
@@ -2220,7 +2276,9 @@ loop:
 	return
 }
 
-// go.y:structdcl
+// FieldDecl      = (IdentifierList Type | AnonymousField) [ Tag ] .
+// AnonymousField = [ "*" ] TypeName .
+// Tag            = string_lit .
 func (p *parser) structdcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("structdcl")()
@@ -2332,7 +2390,6 @@ func (p *parser) structdcl() *NodeList {
 	}
 }
 
-// go.y:oliteral
 func (p *parser) oliteral() (v Val) {
 	if p.tok == LLITERAL {
 		v = p.val
@@ -2341,7 +2398,6 @@ func (p *parser) oliteral() (v Val) {
 	return
 }
 
-// go.y:packname
 func (p *parser) packname(name *Sym) *Sym {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("embed")()
@@ -2380,7 +2436,6 @@ func (p *parser) packname(name *Sym) *Sym {
 	return name
 }
 
-// go.y:embed
 func (p *parser) embed(sym *Sym) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("embed")()
@@ -2390,7 +2445,9 @@ func (p *parser) embed(sym *Sym) *Node {
 	return embedded(pkgname, localpkg)
 }
 
-// go.y: interfacedcl
+// MethodSpec        = MethodName Signature | InterfaceTypeName .
+// MethodName        = identifier .
+// InterfaceTypeName = TypeName .
 func (p *parser) interfacedcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("interfacedcl")()
@@ -2441,7 +2498,8 @@ func (p *parser) interfacedcl() *Node {
 	}
 }
 
-// go.y:indcl
+// MethodSpec = MethodName Signature .
+// MethodName = identifier .
 func (p *parser) indcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("indcl")()
@@ -2459,7 +2517,7 @@ func (p *parser) indcl() *Node {
 	return t
 }
 
-// go.y:arg_type
+// ParameterDecl = [ IdentifierList ] [ "..." ] Type .
 func (p *parser) arg_type() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("arg_type")()
@@ -2508,7 +2566,8 @@ func (p *parser) arg_type() *Node {
 	}
 }
 
-// go.y:oarg_type_list_ocomma + surrounding ()'s
+// Parameters    = "(" [ ParameterList [ "," ] ] ")" .
+// ParameterList = ParameterDecl { "," ParameterDecl } .
 func (p *parser) param_list() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("param_list")()
@@ -2529,8 +2588,13 @@ func (p *parser) param_list() (l *NodeList) {
 
 var missing_stmt = Nod(OXXX, nil, nil)
 
-// go.y:stmt
-// maty return missing_stmt
+// Statement =
+// 	Declaration | LabeledStmt | SimpleStmt |
+// 	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+// 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+// 	DeferStmt .
+//
+// stmt may return missing_stmt.
 func (p *parser) stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("stmt")()
@@ -2622,7 +2686,7 @@ func (p *parser) stmt() *Node {
 	}
 }
 
-// go.y:stmt_list
+// StatementList = { Statement ";" } .
 func (p *parser) stmt_list() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("stmt_list")()
@@ -2647,8 +2711,9 @@ func (p *parser) stmt_list() (l *NodeList) {
 	return
 }
 
-// go.y:new_name_list
-// if first != nil we have the first symbol already
+// IdentifierList = identifier { "," identifier } .
+//
+// If first != nil we have the first symbol already.
 func (p *parser) new_name_list(first *Sym) *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_name_list")()
@@ -2664,7 +2729,7 @@ func (p *parser) new_name_list(first *Sym) *NodeList {
 	return l
 }
 
-// go.y:dcl_name_list
+// IdentifierList = identifier { "," identifier } .
 func (p *parser) dcl_name_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dcl_name_list")()
@@ -2677,7 +2742,7 @@ func (p *parser) dcl_name_list() *NodeList {
 	return l
 }
 
-// go.y:expr_list
+// ExpressionList = Expression { "," Expression } .
 func (p *parser) expr_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("expr_list")()
@@ -2690,7 +2755,7 @@ func (p *parser) expr_list() *NodeList {
 	return l
 }
 
-// go.y:expr_or_type_list
+// Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 func (p *parser) arg_list() (l *NodeList, ddd bool) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("arg_list")()
@@ -2713,7 +2778,7 @@ func (p *parser) arg_list() (l *NodeList, ddd bool) {
 	return
 }
 
-// go.y:osemi
+// osemi parses an optional semicolon.
 func (p *parser) osemi(follow int32) bool {
 	switch p.tok {
 	case ';':
@@ -2730,7 +2795,7 @@ func (p *parser) osemi(follow int32) bool {
 	return false
 }
 
-// go.y:ocomma
+// ocomma parses an optional comma.
 func (p *parser) ocomma(follow int32) bool {
 	switch p.tok {
 	case ',':
@@ -2755,12 +2820,11 @@ func (p *parser) import_error() {
 	p.next()
 }
 
-// The methods below reflect a 1:1 translation of the corresponding go.y yacc
-// productions They could be simplified significantly and also use better
+// The methods below reflect a 1:1 translation of the original (and now defunct)
+// go.y yacc productions. They could be simplified significantly and also use better
 // variable names. However, we will be able to delete them once we enable the
-// new export format by default, so it's not worth the effort.
+// new export format by default, so it's not worth the effort (issue 13241).
 
-// go.y:hidden_importsym:
 func (p *parser) hidden_importsym() *Sym {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_importsym")()
@@ -2814,7 +2878,6 @@ func (p *parser) hidden_importsym() *Sym {
 	}
 }
 
-// go.y:ohidden_funarg_list
 func (p *parser) ohidden_funarg_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_funarg_list")()
@@ -2827,7 +2890,6 @@ func (p *parser) ohidden_funarg_list() *NodeList {
 	return ss
 }
 
-// go.y:ohidden_structdcl_list
 func (p *parser) ohidden_structdcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_structdcl_list")()
@@ -2840,7 +2902,6 @@ func (p *parser) ohidden_structdcl_list() *NodeList {
 	return ss
 }
 
-// go.y:ohidden_interfacedcl_list
 func (p *parser) ohidden_interfacedcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_interfacedcl_list")()
@@ -2854,8 +2915,6 @@ func (p *parser) ohidden_interfacedcl_list() *NodeList {
 }
 
 // import syntax from package header
-//
-// go.y:hidden_import
 func (p *parser) hidden_import() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_import")()
@@ -2945,7 +3004,6 @@ func (p *parser) hidden_import() {
 	}
 }
 
-// go.y:hidden_pkg_importsym
 func (p *parser) hidden_pkg_importsym() *Sym {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_pkg_importsym")()
@@ -2959,7 +3017,6 @@ func (p *parser) hidden_pkg_importsym() *Sym {
 	return ss
 }
 
-// go.y:hidden_pkgtype
 func (p *parser) hidden_pkgtype() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_pkgtype")()
@@ -2976,7 +3033,6 @@ func (p *parser) hidden_pkgtype() *Type {
 // ----------------------------------------------------------------------------
 // Importing types
 
-// go.y:hidden_type
 func (p *parser) hidden_type() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type")()
@@ -2992,7 +3048,6 @@ func (p *parser) hidden_type() *Type {
 	}
 }
 
-// go.y:hidden_type_non_recv_chan
 func (p *parser) hidden_type_non_recv_chan() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_non_recv_chan")()
@@ -3006,7 +3061,6 @@ func (p *parser) hidden_type_non_recv_chan() *Type {
 	}
 }
 
-// go.y:hidden_type_misc
 func (p *parser) hidden_type_misc() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_misc")()
@@ -3117,7 +3171,6 @@ func (p *parser) hidden_type_misc() *Type {
 	}
 }
 
-// go.y:hidden_type_recv_chan
 func (p *parser) hidden_type_recv_chan() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_recv_chan")()
@@ -3133,7 +3186,6 @@ func (p *parser) hidden_type_recv_chan() *Type {
 	return ss
 }
 
-// go.y:hidden_type_func
 func (p *parser) hidden_type_func() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_func")()
@@ -3148,7 +3200,6 @@ func (p *parser) hidden_type_func() *Type {
 	return functype(nil, s3, s5)
 }
 
-// go.y:hidden_funarg
 func (p *parser) hidden_funarg() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_funarg")()
@@ -3189,7 +3240,6 @@ func (p *parser) hidden_funarg() *Node {
 	}
 }
 
-// go.y:hidden_structdcl
 func (p *parser) hidden_structdcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_structdcl")()
@@ -3223,7 +3273,6 @@ func (p *parser) hidden_structdcl() *Node {
 	return ss
 }
 
-// go.y:hidden_interfacedcl
 func (p *parser) hidden_interfacedcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_interfacedcl")()
@@ -3249,7 +3298,6 @@ func (p *parser) hidden_interfacedcl() *Node {
 	}
 }
 
-// go.y:ohidden_funres
 func (p *parser) ohidden_funres() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_funres")()
@@ -3264,7 +3312,6 @@ func (p *parser) ohidden_funres() *NodeList {
 	}
 }
 
-// go.y:hidden_funres
 func (p *parser) hidden_funres() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_funres")()
@@ -3286,7 +3333,6 @@ func (p *parser) hidden_funres() *NodeList {
 // ----------------------------------------------------------------------------
 // Importing constants
 
-// go.y:hidden_literal
 func (p *parser) hidden_literal() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_literal")()
@@ -3337,7 +3383,6 @@ func (p *parser) hidden_literal() *Node {
 	}
 }
 
-// go.y:hidden_constant
 func (p *parser) hidden_constant() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_constant")()
@@ -3364,7 +3409,6 @@ func (p *parser) hidden_constant() *Node {
 	}
 }
 
-// go.y:hidden_import_list
 func (p *parser) hidden_import_list() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_import_list")()
@@ -3375,7 +3419,6 @@ func (p *parser) hidden_import_list() {
 	}
 }
 
-// go.y:hidden_funarg_list
 func (p *parser) hidden_funarg_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_funarg_list")()
@@ -3390,7 +3433,6 @@ func (p *parser) hidden_funarg_list() *NodeList {
 	return ss
 }
 
-// go.y:hidden_structdcl_list
 func (p *parser) hidden_structdcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_structdcl_list")()
@@ -3405,7 +3447,6 @@ func (p *parser) hidden_structdcl_list() *NodeList {
 	return ss
 }
 
-// go.y:hidden_interfacedcl_list
 func (p *parser) hidden_interfacedcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_interfacedcl_list")()
