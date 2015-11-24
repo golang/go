@@ -181,7 +181,7 @@ var testfiles = []string{
 	// does not repeat, but there are only 10 possible digits, so it should be
 	// reasonably compressible.
 	digits: "testdata/e.txt.bz2",
-	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
+	// Twain is Mark Twain's classic English novel.
 	twain: "testdata/Mark.Twain-Tom.Sawyer.txt.bz2",
 	// 16KB of random data from /dev/urandom
 	random: "testdata/random.data.bz2",
