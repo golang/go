@@ -3279,24 +3279,32 @@ func (p *parser) hidden_interfacedcl() *Node {
 		defer p.trace("hidden_interfacedcl")()
 	}
 
-	// TODO(gri) possible conflict here: both cases may start with '@' per grammar
-	// (issue 13245).
+	// The original (now defunct) grammar in go.y accepted both a method
+	// or an (embedded) type:
+	//
+	// hidden_interfacedcl:
+	// 	sym '(' ohidden_funarg_list ')' ohidden_funres
+	// 	{
+	// 		$$ = Nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+	// 	}
+	// |	hidden_type
+	// 	{
+	// 		$$ = Nod(ODCLFIELD, nil, typenod($1));
+	// 	}
+	//
+	// But the current textual export code only exports (inlined) methods,
+	// even if the methods came from embedded interfaces. Furthermore, in
+	// the original grammar, hidden_type may also start with a sym (LNAME
+	// or '@'), complicating matters further. Since we never have embedded
+	// types, only parse methods here.
 
-	switch p.tok {
-	case LNAME, '@', '?':
-		s1 := p.sym()
-		p.want('(')
-		s3 := p.ohidden_funarg_list()
-		p.want(')')
-		s5 := p.ohidden_funres()
+	s1 := p.sym()
+	p.want('(')
+	s3 := p.ohidden_funarg_list()
+	p.want(')')
+	s5 := p.ohidden_funres()
 
-		return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
-
-	default:
-		s1 := p.hidden_type()
-
-		return Nod(ODCLFIELD, nil, typenod(s1))
-	}
+	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
 }
 
 func (p *parser) ohidden_funres() *NodeList {
