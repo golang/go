@@ -333,7 +333,7 @@ func (h heapBits) hasPointers(size uintptr) bool {
 		return true
 	}
 	// Otherwise, at least a 2-word object, and at least 2-word aligned,
-	// so h.shift is either 0 or 4, so we know we can get the bits for the
+	// so h.shift is either 0 or 2, so we know we can get the bits for the
 	// first two words out of *h.bitp.
 	// If either of the first two words is a pointer, not pointer free.
 	b := uint32(*h.bitp >> h.shift)
