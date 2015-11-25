@@ -60,7 +60,7 @@ import (
 // If the JSON array is smaller than the Go array,
 // the additional Go array elements are set to zero values.
 //
-// To unmarshal a JSON object into a string-keyed map, Unmarshal first 
+// To unmarshal a JSON object into a string-keyed map, Unmarshal first
 // establishes a map to use, If the map is nil, Unmarshal allocates a new map.
 // Otherwise Unmarshal reuses the existing map, keeping existing entries.
 // Unmarshal then stores key-value pairs from the JSON object into the map.
@@ -184,122 +184,64 @@ func (n Number) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
-// IsValid returns if the number is a valid JSON number literal.
-func (n Number) IsValid() bool {
+// isValidNumber reports whether s is a valid JSON number literal.
+func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
 	// and http://json.org/number.gif
 
-	l := len(n)
-	if l == 0 {
+	if s == "" {
 		return false
 	}
-
-	i := 0
-	c := n[i]
-	i++
 
 	// Optional -
-	if c == '-' {
-		if i == l {
+	if s[0] == '-' {
+		s = s[1:]
+		if s == "" {
 			return false
 		}
-
-		c = n[i]
-		i++
 	}
 
-	// 1-9
-	if c >= '1' && c <= '9' {
-		// Eat digits.
-		for ; i < l; i++ {
-			c = n[i]
-			if c < '0' || c > '9' {
-				break
-			}
-		}
-		i++
-	} else if c != '0' {
-		// If it's not 0 or 1-9 it's invalid.
+	// Digits
+	switch {
+	default:
 		return false
-	} else {
-		if i == l {
-			// Just 0
-			return true
-		}
 
-		// Skip the 0
-		c = n[i]
-		i++
+	case s[0] == '0':
+		s = s[1:]
+
+	case '1' <= s[0] && s[0] <= '9':
+		s = s[1:]
+		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+			s = s[1:]
+		}
 	}
 
 	// . followed by 1 or more digits.
-	if c == '.' {
-		if i == l {
-			// Just 1. is invalid.
-			return false
+	if len(s) >= 2 && s[0] == '.' && '0' <= s[1] && s[1] <= '9' {
+		s = s[2:]
+		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+			s = s[1:]
 		}
-
-		// . needs to be followed by at least one digit.
-		c = n[i]
-		i++
-		if c < '0' || c > '9' {
-			return false
-		}
-
-		// Eat digits.
-		for ; i < l; i++ {
-			c = n[i]
-			if c < '0' || c > '9' {
-				break
-			}
-		}
-		i++
 	}
 
 	// e or E followed by an optional - or + and
 	// 1 or more digits.
-	if c == 'e' || c == 'E' {
-		if i == l {
-			// Just 1e is invalid.
-			return false
-		}
-
-		c = n[i]
-		i++
-
-		// Optional - or +
-		if c == '-' || c == '+' {
-			if i == l {
-				// Just 1e+ is invalid.
+	if len(s) >= 2 && (s[0] == 'e' || s[0] == 'E') {
+		s = s[1:]
+		if s[0] == '+' || s[0] == '-' {
+			s = s[1:]
+			if s == "" {
 				return false
 			}
-
-			c = n[i]
-			i++
 		}
-
-		// Need to have a digit.
-		if c < '0' || c > '9' {
-			return false
+		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+			s = s[1:]
 		}
-
-		// Eat digits.
-		for ; i < l; i++ {
-			c = n[i]
-			if c < '0' || c > '9' {
-				break
-			}
-		}
-		i++
 	}
 
 	// Make sure we are at the end.
-	if i <= l {
-		return false
-	}
-
-	return true
+	return s == ""
 }
 
 // decodeState represents the state while decoding a JSON value.
@@ -909,7 +851,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		default:
 			if v.Kind() == reflect.String && v.Type() == numberType {
 				v.SetString(s)
-				if !Number(s).IsValid() {
+				if !isValidNumber(s) {
 					d.error(fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item))
 				}
 				break
