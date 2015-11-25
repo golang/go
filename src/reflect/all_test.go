@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	. "reflect"
@@ -647,6 +648,8 @@ var (
 	fn3 = func() { fn1() } // Not nil.
 )
 
+type self struct{}
+
 var deepEqualTests = []DeepEqualTest{
 	// Equalities
 	{nil, nil, true},
@@ -681,6 +684,13 @@ var deepEqualTests = []DeepEqualTest{
 	{fn1, fn3, false},
 	{fn3, fn3, false},
 	{[][]int{{1}}, [][]int{{2}}, false},
+	{math.NaN(), math.NaN(), false},
+	{&[1]float64{math.NaN()}, &[1]float64{math.NaN()}, false},
+	{&[1]float64{math.NaN()}, self{}, true},
+	{[]float64{math.NaN()}, []float64{math.NaN()}, false},
+	{[]float64{math.NaN()}, self{}, true},
+	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
+	{map[float64]float64{math.NaN(): 1}, self{}, true},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},
@@ -702,6 +712,9 @@ var deepEqualTests = []DeepEqualTest{
 
 func TestDeepEqual(t *testing.T) {
 	for _, test := range deepEqualTests {
+		if test.b == (self{}) {
+			test.b = test.a
+		}
 		if r := DeepEqual(test.a, test.b); r != test.eq {
 			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq)
 		}
