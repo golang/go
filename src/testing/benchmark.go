@@ -33,6 +33,17 @@ type InternalBenchmark struct {
 
 // B is a type passed to Benchmark functions to manage benchmark
 // timing and to specify the number of iterations to run.
+//
+// A benchmark ends when its Benchmark function returns or calls any of the methods
+// FailNow, Fatal, Fatalf, SkipNow, Skip, or Skipf. Those methods must be called
+// only from the goroutine running the Benchmark function.
+// The other reporting methods, such as the variations of Log and Error,
+// may be called simultaneously from multiple goroutines.
+//
+// Like in tests, benchmark logs are accumulated during execution
+// and dumped to standard error when done. Unlike in tests, benchmark logs
+// are always printed, so as not to hide output whose existence may be
+// affecting benchmark results.
 type B struct {
 	common
 	N                int
