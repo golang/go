@@ -48,12 +48,22 @@ import (
 //	map[string]interface{}, for JSON objects
 //	nil for JSON null
 //
-// To unmarshal a JSON array into a slice, Unmarshal resets the slice to nil
-// and then appends each element to the slice.
+// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
+// to zero and then appends each element to the slice.
+// As a special case, to unmarshal an empty JSON array into a slice,
+// Unmarshal replaces the slice with a new empty slice.
 //
-// To unmarshal a JSON object into a map, Unmarshal replaces the map
-// with an empty map and then adds key-value pairs from the object to
-// the map.
+// To unmarshal a JSON array into a Go array, Unmarshal decodes
+// JSON array elements into corresponding Go array elements.
+// If the Go array is smaller than the JSON array,
+// the additional JSON array elements are discarded.
+// If the JSON array is smaller than the Go array,
+// the additional Go array elements are set to zero values.
+//
+// To unmarshal a JSON object into a string-keyed map, Unmarshal first 
+// establishes a map to use, If the map is nil, Unmarshal allocates a new map.
+// Otherwise Unmarshal reuses the existing map, keeping existing entries.
+// Unmarshal then stores key-value pairs from the JSON object into the map.
 //
 // If a JSON value is not appropriate for a given target type,
 // or if a JSON number overflows the target type, Unmarshal
