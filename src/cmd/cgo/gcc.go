@@ -1314,6 +1314,7 @@ var dwarfToName = map[string]string{
 	"long unsigned int":      "ulong",
 	"unsigned int":           "uint",
 	"short unsigned int":     "ushort",
+	"unsigned short":         "ushort", // Used by Clang; issue 13129.
 	"short int":              "short",
 	"long long int":          "longlong",
 	"long long unsigned int": "ulonglong",
