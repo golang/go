@@ -38,8 +38,8 @@ var nameToC = map[string]string{
 	"ulong":         "unsigned long",
 	"longlong":      "long long",
 	"ulonglong":     "unsigned long long",
-	"complexfloat":  "float complex",
-	"complexdouble": "double complex",
+	"complexfloat":  "__complex float",
+	"complexdouble": "__complex double",
 }
 
 // cname returns the C name to use for C.s.
@@ -1319,8 +1319,6 @@ var dwarfToName = map[string]string{
 	"long long int":          "longlong",
 	"long long unsigned int": "ulonglong",
 	"signed char":            "schar",
-	"float complex":          "complexfloat",
-	"double complex":         "complexdouble",
 }
 
 const signedDelta = 64
@@ -1690,7 +1688,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 	}
 
 	switch dtype.(type) {
-	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
+	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.ComplexType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
 		s := dtype.Common().Name
 		if s != "" {
 			if ss, ok := dwarfToName[s]; ok {
