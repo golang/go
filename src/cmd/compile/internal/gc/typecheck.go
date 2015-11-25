@@ -2971,9 +2971,8 @@ func typecheckcomplit(np **Node) {
 		}
 		length := int64(0)
 		i := 0
-		var l *Node
 		for ll := n.List; ll != nil; ll = ll.Next {
-			l = ll.N
+			l := ll.N
 			setlineno(l)
 			if l.Op != OKEY {
 				l = Nod(OKEY, Nodintconst(int64(i)), l)
@@ -2986,7 +2985,7 @@ func typecheckcomplit(np **Node) {
 			evconst(l.Left)
 			i = nonnegconst(l.Left)
 			if i < 0 && l.Left.Diag == 0 {
-				Yyerror("array index must be non-negative integer constant")
+				Yyerror("index must be non-negative integer constant")
 				l.Left.Diag = 1
 				i = -(1 << 30) // stay negative for a while
 			}
@@ -3008,7 +3007,7 @@ func typecheckcomplit(np **Node) {
 			pushtype(r, t.Type)
 			typecheck(&r, Erv)
 			defaultlit(&r, t.Type)
-			l.Right = assignconv(r, t.Type, "array element")
+			l.Right = assignconv(r, t.Type, "array or slice literal")
 		}
 
 		if t.Bound == -100 {
