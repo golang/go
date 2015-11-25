@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 20, 2015",
+	"Subtitle": "Version of November 25, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -1789,26 +1789,27 @@ It can be used to construct a set of related constants:
 </p>
 
 <pre>
-const (  // iota is reset to 0
+const ( // iota is reset to 0
 	c0 = iota  // c0 == 0
 	c1 = iota  // c1 == 1
 	c2 = iota  // c2 == 2
 )
 
-const (
-	a = 1 &lt;&lt; iota  // a == 1 (iota has been reset)
+const ( // iota is reset to 0
+	a = 1 &lt;&lt; iota  // a == 1
 	b = 1 &lt;&lt; iota  // b == 2
-	c = 1 &lt;&lt; iota  // c == 4
+	c = 3          // c == 3  (iota is not used but still incremented)
+	d = 1 &lt;&lt; iota  // d == 8
 )
 
-const (
+const ( // iota is reset to 0
 	u         = iota * 42  // u == 0     (untyped integer constant)
 	v float64 = iota * 42  // v == 42.0  (float64 constant)
 	w         = iota * 42  // w == 84    (untyped integer constant)
 )
 
-const x = iota  // x == 0 (iota has been reset)
-const y = iota  // y == 0 (iota has been reset)
+const x = iota  // x == 0  (iota has been reset)
+const y = iota  // y == 0  (iota has been reset)
 </pre>
 
 <p>
