@@ -63,17 +63,17 @@ func TestNumberIsValid(t *testing.T) {
 	}
 
 	for _, test := range validTests {
-		if !Number(test).IsValid() {
+		if !isValidNumber(test) {
 			t.Errorf("%s should be valid", test)
 		}
 
 		var f float64
 		if err := Unmarshal([]byte(test), &f); err != nil {
-			t.Errorf("%s should be invalid: %v", test, err)
+			t.Errorf("%s should be valid but Unmarshal failed: %v", test, err)
 		}
 
 		if !jsonNumberRegexp.MatchString(test) {
-			t.Errorf("%s should be invalid", test)
+			t.Errorf("%s should be valid but regexp does not match", test)
 		}
 	}
 
@@ -102,32 +102,32 @@ func TestNumberIsValid(t *testing.T) {
 	}
 
 	for _, test := range invalidTests {
-		if Number(test).IsValid() {
+		if isValidNumber(test) {
 			t.Errorf("%s should be invalid", test)
 		}
 
 		var f float64
 		if err := Unmarshal([]byte(test), &f); err == nil {
-			t.Errorf("%s should be valid: %v", test, f)
+			t.Errorf("%s should be invalid but unmarshal wrote %v", test, f)
 		}
 
 		if jsonNumberRegexp.MatchString(test) {
-			t.Errorf("%s should be valid", test)
+			t.Errorf("%s should be invalid but matches regexp", test)
 		}
 	}
 }
 
 func BenchmarkNumberIsValid(b *testing.B) {
-	n := Number("-61657.61667E+61673")
+	s := "-61657.61667E+61673"
 	for i := 0; i < b.N; i++ {
-		n.IsValid()
+		isValidNumber(s)
 	}
 }
 
 func BenchmarkNumberIsValidRegexp(b *testing.B) {
 	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
-	n := "-61657.61667E+61673"
+	s := "-61657.61667E+61673"
 	for i := 0; i < b.N; i++ {
-		jsonNumberRegexp.MatchString(n)
+		jsonNumberRegexp.MatchString(s)
 	}
 }
