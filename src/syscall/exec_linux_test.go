@@ -15,12 +15,29 @@ import (
 	"testing"
 )
 
+// Check if we are in a chroot by checking if the inode of / is
+// different from 2 (there is no better test available to non-root on
+// linux).
+func isChrooted(t *testing.T) bool {
+	root, err := os.Stat("/")
+	if err != nil {
+		t.Fatalf("cannot stat /: %v", err)
+	}
+	return root.Sys().(*syscall.Stat_t).Ino != 2
+}
+
 func whoamiCmd(t *testing.T, uid, gid int, setgroups bool) *exec.Cmd {
 	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
 		if os.IsNotExist(err) {
 			t.Skip("kernel doesn't support user namespaces")
 		}
 		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
+	}
+	if isChrooted(t) {
+		// create_user_ns in the kernel (see
+		// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c)
+		// forbids the creation of user namespaces when chrooted.
+		t.Skip("cannot create user namespaces when chrooted")
 	}
 	// On some systems, there is a sysctl setting.
 	if os.Getuid() != 0 {
