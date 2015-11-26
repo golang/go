@@ -8,6 +8,7 @@ package http_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -154,10 +155,12 @@ func (tt h12Compare) run(t *testing.T) {
 	tt.normalizeRes(t, res1, "HTTP/1.1")
 	tt.normalizeRes(t, res2, "HTTP/2.0")
 	res1body, res2body := res1.Body, res2.Body
-	res1.Body, res2.Body = nil, nil
-	if !reflect.DeepEqual(res1, res2) {
+
+	eres1 := mostlyCopy(res1)
+	eres2 := mostlyCopy(res2)
+	if !reflect.DeepEqual(eres1, eres2) {
 		t.Errorf("Response headers to handler differed:\nhttp/1 (%v):\n\t%#v\nhttp/2 (%v):\n\t%#v",
-			cst1.ts.URL, res1, cst2.ts.URL, res2)
+			cst1.ts.URL, eres1, cst2.ts.URL, eres2)
 	}
 	if !reflect.DeepEqual(res1body, res2body) {
 		t.Errorf("Response bodies to handler differed.\nhttp1: %v\nhttp2: %v\n", res1body, res2body)
@@ -167,6 +170,15 @@ func (tt h12Compare) run(t *testing.T) {
 		fn("HTTP/1.1", res1)
 		fn("HTTP/2.0", res2)
 	}
+}
+
+func mostlyCopy(r *Response) *Response {
+	c := *r
+	c.Body = nil
+	c.TransferEncoding = nil
+	c.TLS = nil
+	c.Request = nil
+	return &c
 }
 
 type slurpResult struct {
@@ -193,18 +205,11 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
 	for i, v := range res.Header["Date"] {
 		res.Header["Date"][i] = strings.Repeat("x", len(v))
 	}
-	res.Request = nil
-	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
-		t.Errorf("%d. TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
+	if res.Request == nil {
+		t.Errorf("for %s, no request", wantProto)
 	}
-	res.TLS = nil
-	// For now the HTTP/2 code isn't lying and saying
-	// things are "chunked", since that's an HTTP/1.1
-	// thing. I'd prefer not to lie and it shouldn't break
-	// people.  I hope nobody's relying on that as a
-	// heuristic for anything.
-	if wantProto == "HTTP/2.0" && res.ContentLength == -1 && res.TransferEncoding == nil {
-		res.TransferEncoding = []string{"chunked"}
+	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
+		t.Errorf("TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
 	}
 }
 
@@ -318,7 +323,22 @@ func TestH12_HandlerWritesTooMuch(t *testing.T) {
 }
 
 // TODO: TestH12_Trailers
-// TODO: TestH12_AutoGzip (golang.org/issue/13298)
+
+// Verify that both our HTTP/1 and HTTP/2 request and auto-decompress gzip.
+// Some hosts send gzip even if you don't ask for it; see golang.org/issue/13298
+func TestH12_AutoGzip(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			if ae := r.Header.Get("Accept-Encoding"); ae != "gzip" {
+				t.Errorf("%s Accept-Encoding = %q; want gzip", r.Proto, ae)
+			}
+			w.Header().Set("Content-Encoding", "gzip")
+			gz := gzip.NewWriter(w)
+			io.WriteString(gz, "I am some gzipped content. Go go go go go go go go go go go go should compress well.")
+			gz.Close()
+		},
+	}.run(t)
+}
 
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce

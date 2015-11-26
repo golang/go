@@ -18,6 +18,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
@@ -3721,8 +3722,26 @@ type http2Transport struct {
 	// If nil, the default is used.
 	ConnPool http2ClientConnPool
 
+	// DisableCompression, if true, prevents the Transport from
+	// requesting compression with an "Accept-Encoding: gzip"
+	// request header when the Request contains no existing
+	// Accept-Encoding value. If the Transport requests gzip on
+	// its own and gets a gzipped response, it's transparently
+	// decoded in the Response.Body. However, if the user
+	// explicitly requested gzip it is not automatically
+	// uncompressed.
+	DisableCompression bool
+
 	connPoolOnce  sync.Once
 	connPoolOrDef http2ClientConnPool // non-nil version of ConnPool
+}
+
+func (t *http2Transport) disableCompression() bool {
+	if t.DisableCompression {
+		return true
+	}
+
+	return false
 }
 
 var http2errTransportVersion = errors.New("http2: ConfigureTransport is only supported starting at Go 1.6")
@@ -3784,11 +3803,12 @@ type http2ClientConn struct {
 // clientStream is the state for a single HTTP/2 stream. One of these
 // is created for each Transport.RoundTrip call.
 type http2clientStream struct {
-	cc      *http2ClientConn
-	req     *Request
-	ID      uint32
-	resc    chan http2resAndError
-	bufPipe http2pipe // buffered pipe with the flow-controlled response payload
+	cc            *http2ClientConn
+	req           *Request
+	ID            uint32
+	resc          chan http2resAndError
+	bufPipe       http2pipe // buffered pipe with the flow-controlled response payload
+	requestedGzip bool
 
 	flow        http2flow // guarded by cc.mu
 	inflow      http2flow // guarded by cc.mu
@@ -4097,7 +4117,15 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	cs.req = req
 	hasBody := req.Body != nil
 
-	hdrs := cc.encodeHeaders(req)
+	if !cc.t.disableCompression() &&
+		req.Header.Get("Accept-Encoding") == "" &&
+		req.Header.Get("Range") == "" &&
+		req.Method != "HEAD" {
+
+		cs.requestedGzip = true
+	}
+
+	hdrs := cc.encodeHeaders(req, cs.requestedGzip)
 	first := true
 
 	cc.wmu.Lock()
@@ -4253,7 +4281,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int32) (taken int32, err 
 }
 
 // requires cc.mu be held.
-func (cc *http2ClientConn) encodeHeaders(req *Request) []byte {
+func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool) []byte {
 	cc.hbuf.Reset()
 
 	host := req.Host
@@ -4274,6 +4302,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request) []byte {
 		for _, v := range vv {
 			cc.writeHeader(lowKey, v)
 		}
+	}
+	if addGzipHeader {
+		cc.writeHeader("accept-encoding", "gzip")
 	}
 	return cc.hbuf.Bytes()
 }
@@ -4489,6 +4520,13 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 		cs.bufPipe = http2pipe{b: buf}
 		cs.bytesRemain = res.ContentLength
 		res.Body = http2transportResponseBody{cs}
+
+		if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
+			res.Header.Del("Content-Encoding")
+			res.Header.Del("Content-Length")
+			res.ContentLength = -1
+			res.Body = &http2gzipReader{body: res.Body}
+		}
 	}
 
 	rl.activeRes[cs.ID] = cs
@@ -4764,6 +4802,27 @@ func http2strSliceContains(ss []string, s string) bool {
 type http2erringRoundTripper struct{ err error }
 
 func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
+
+// gzipReader wraps a response body so it can lazily
+// call gzip.NewReader on the first call to Read
+type http2gzipReader struct {
+	body io.ReadCloser // underlying Response.Body
+	zr   io.Reader     // lazily-initialized gzip reader
+}
+
+func (gz *http2gzipReader) Read(p []byte) (n int, err error) {
+	if gz.zr == nil {
+		gz.zr, err = gzip.NewReader(gz.body)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return gz.zr.Read(p)
+}
+
+func (gz *http2gzipReader) Close() error {
+	return gz.body.Close()
+}
 
 // writeFramer is implemented by any type that is used to write frames.
 type http2writeFramer interface {
