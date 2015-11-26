@@ -4,6 +4,7 @@
 
 #ifdef GOOS_android
 #define TLS_linux
+#define TLSG_IS_VARIABLE
 #endif
 #ifdef GOOS_linux
 #define TLS_linux
