@@ -599,8 +599,6 @@ var incannedimport int
 
 var statuniqgen int // name generator for static temps
 
-var loophack bool
-
 var iota_ int32
 
 var lastconst *NodeList
