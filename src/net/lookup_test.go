@@ -209,6 +209,30 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 	}
 }
 
+func TestLookupIPv6LinkLocalAddr(t *testing.T) {
+	if !supportsIPv6 {
+		t.Skip("IPv6 is required")
+	}
+
+	addrs, err := LookupHost("localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, addr := range addrs {
+		if addr == "fe80::1%lo0" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+	if _, err := LookupAddr("fe80::1%lo0"); err != nil {
+		t.Error(err)
+	}
+}
+
 var lookupIANACNAMETests = []struct {
 	name, cname string
 }{
