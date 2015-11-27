@@ -395,17 +395,42 @@ func TestLookupIPDeadline(t *testing.T) {
 	t.Logf("%v succeeded, %v failed (%v timeout, %v temporary, %v other, %v unknown)", qstats.succeeded, qstats.failed, qstats.timeout, qstats.temporary, qstats.other, qstats.unknown)
 }
 
-func TestLookupDots(t *testing.T) {
+func TestLookupDotsWithLocalSoruce(t *testing.T) {
+	if !supportsIPv4 {
+		t.Skip("IPv4 is required")
+	}
+
+	for i, fn := range []func() func(){forceGoDNS, forceCgoDNS} {
+		fixup := fn()
+		if fixup == nil {
+			continue
+		}
+		names, err := LookupAddr("127.0.0.1")
+		fixup()
+		if err != nil {
+			t.Errorf("#%d: %v", i, err)
+			continue
+		}
+		for _, name := range names {
+			if !strings.HasSuffix(name, ".") {
+				t.Errorf("#%d: got %s; want name ending with trailing dot", i, name)
+			}
+		}
+	}
+}
+
+func TestLookupDotsWithRemoteSource(t *testing.T) {
 	if testing.Short() || !*testExternal {
 		t.Skipf("skipping external network test")
 	}
 
-	fixup := forceGoDNS()
-	defer fixup()
-	testDots(t, "go")
-
-	if forceCgoDNS() {
+	if fixup := forceGoDNS(); fixup != nil {
+		testDots(t, "go")
+		fixup()
+	}
+	if fixup := forceCgoDNS(); fixup != nil {
 		testDots(t, "cgo")
+		fixup()
 	}
 }
 

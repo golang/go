@@ -421,11 +421,17 @@ func forceGoDNS() func() {
 }
 
 // forceCgoDNS forces the resolver configuration to use the cgo resolver
-// and returns true to indicate that it did so.
-// (On non-Unix systems forceCgoDNS returns false.)
-func forceCgoDNS() bool {
+// and returns a fixup function to restore the old settings.
+// (On non-Unix systems forceCgoDNS returns nil.)
+func forceCgoDNS() func() {
 	c := systemConf()
+	oldGo := c.netGo
+	oldCgo := c.netCgo
+	fixup := func() {
+		c.netGo = oldGo
+		c.netCgo = oldCgo
+	}
 	c.netGo = false
 	c.netCgo = true
-	return true
+	return fixup
 }

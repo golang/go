@@ -161,6 +161,17 @@ func isDomainName(s string) bool {
 	return ok
 }
 
+// absDomainName returns an absoulte domain name which ends with a
+// trailing dot to match pure Go reverse resolver and all other lookup
+// routines.
+// See golang.org/issue/12189.
+func absDomainName(b []byte) string {
+	if len(b) > 0 && b[len(b)-1] != '.' {
+		b = append(b, '.')
+	}
+	return string(b)
+}
+
 // An SRV represents a single DNS SRV record.
 type SRV struct {
 	Target   string
