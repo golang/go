@@ -717,7 +717,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		return stmt
 
 	case LCOLAS:
-		line := lineno
+		lno := lineno
 		p.next()
 
 		if rangeOk && p.got(LRANGE) {
@@ -746,7 +746,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			} // it's a colas, so must not re-use an oldname
 			return ts
 		}
-		return colas(lhs, rhs, int32(line))
+		return colas(lhs, rhs, int32(lno))
 
 	default:
 		p.syntax_error("expecting := or = or comma")
@@ -849,6 +849,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 
 		case LCOLAS:
 			// LCASE expr_or_type_list LCOLAS expr ':'
+			lno := lineno
 			p.next()
 			rhs := p.expr()
 
@@ -857,7 +858,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			stmt.List = list1(colas(cases, list1(rhs), int32(p.op)))
+			stmt.List = list1(colas(cases, list1(rhs), int32(lno)))
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
