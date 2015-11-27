@@ -1253,7 +1253,6 @@ l0:
 		c1 = getc()
 		if c1 == '=' {
 			c = int(LCOLAS)
-			yylval.i = int(lexlineno)
 			goto lx
 		}
 
