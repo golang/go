@@ -1,8 +1,6 @@
 255.255.255.255	broadcasthost
 127.0.0.2	odin
 127.0.0.3	odin  # inline comment 
-# case insensitivity
-127.0.0.4	Bor
 ::2             odin
 127.1.1.1	thor
 # aliases

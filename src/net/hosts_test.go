@@ -6,6 +6,7 @@ package net
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -48,6 +49,13 @@ var lookupStaticHostTests = []struct {
 			{"localhost.localdomain", []string{"fe80::3%lo0"}},
 		},
 	},
+	{
+		"testdata/case-hosts", // see golang.org/issue/12806
+		[]staticHostEntry{
+			{"PreserveMe", []string{"127.0.0.1", "::1"}},
+			{"PreserveMe.local", []string{"127.0.0.1", "::1"}},
+		},
+	},
 }
 
 func TestLookupStaticHost(t *testing.T) {
@@ -56,9 +64,12 @@ func TestLookupStaticHost(t *testing.T) {
 	for _, tt := range lookupStaticHostTests {
 		testHookHostsPath = tt.name
 		for _, ent := range tt.ents {
-			addrs := lookupStaticHost(ent.in)
-			if !reflect.DeepEqual(addrs, ent.out) {
-				t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", tt.name, ent.in, addrs, ent.out)
+			ins := []string{ent.in, strings.ToLower(ent.in), strings.ToUpper(ent.in)}
+			for _, in := range ins {
+				addrs := lookupStaticHost(in)
+				if !reflect.DeepEqual(addrs, ent.out) {
+					t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", tt.name, in, addrs, ent.out)
+				}
 			}
 		}
 	}
@@ -74,7 +85,6 @@ var lookupStaticAddrTests = []struct {
 			{"255.255.255.255", []string{"broadcasthost"}},
 			{"127.0.0.2", []string{"odin"}},
 			{"127.0.0.3", []string{"odin"}},
-			{"127.0.0.4", []string{"bor"}},
 			{"::2", []string{"odin"}},
 			{"127.1.1.1", []string{"thor"}},
 			{"127.1.1.2", []string{"ullr", "ullrhost"}},
@@ -102,6 +112,13 @@ var lookupStaticAddrTests = []struct {
 			{"fe80::1", []string{"localhost"}},
 			{"fe80::2%lo0", []string{"localhost"}},
 			{"fe80::3%lo0", []string{"localhost", "localhost.localdomain"}},
+		},
+	},
+	{
+		"testdata/case-hosts", // see golang.org/issue/12806
+		[]staticHostEntry{
+			{"127.0.0.1", []string{"PreserveMe", "PreserveMe.local"}},
+			{"::1", []string{"PreserveMe", "PreserveMe.local"}},
 		},
 	},
 }
