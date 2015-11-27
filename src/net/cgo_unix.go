@@ -186,11 +186,15 @@ func cgoLookupPTR(addr string) ([]string, error, bool) {
 	acquireThread()
 	defer releaseThread()
 
-	ip := ParseIP(addr)
+	var zone string
+	ip := parseIPv4(addr)
+	if ip == nil {
+		ip, zone = parseIPv6(addr, true)
+	}
 	if ip == nil {
 		return nil, &DNSError{Err: "invalid address", Name: addr}, true
 	}
-	sa, salen := cgoSockaddr(ip)
+	sa, salen := cgoSockaddr(ip, zone)
 	if sa == nil {
 		return nil, &DNSError{Err: "invalid address " + ip.String(), Name: addr}, true
 	}
@@ -225,12 +229,12 @@ func cgoLookupPTR(addr string) ([]string, error, bool) {
 	return []string{absDomainName(b)}, nil, true
 }
 
-func cgoSockaddr(ip IP) (*C.struct_sockaddr, C.socklen_t) {
+func cgoSockaddr(ip IP, zone string) (*C.struct_sockaddr, C.socklen_t) {
 	if ip4 := ip.To4(); ip4 != nil {
 		return cgoSockaddrInet4(ip4), C.socklen_t(syscall.SizeofSockaddrInet4)
 	}
 	if ip6 := ip.To16(); ip6 != nil {
-		return cgoSockaddrInet6(ip6), C.socklen_t(syscall.SizeofSockaddrInet6)
+		return cgoSockaddrInet6(ip6, zoneToInt(zone)), C.socklen_t(syscall.SizeofSockaddrInet6)
 	}
 	return nil, 0
 }
