@@ -27,11 +27,21 @@ func parseLiteralIP(addr string) string {
 	return ip.String() + "%" + zone
 }
 
-// Simple cache.
+// hosts contains known host entries.
 var hosts struct {
 	sync.Mutex
+
+	// Key for the list of literal IP addresses must be a host
+	// name. It would be part of DNS labels, a FQDN or an absolute
+	// FQDN.
+	// For now the key is converted to lower case for convenience.
 	byName map[string][]string
+
+	// Key for the list of host names must be a literal IP address
+	// including IPv6 address with zone identifier.
+	// We don't support old-classful IP address notation.
 	byAddr map[string][]string
+
 	expire time.Time
 	path   string
 }
@@ -60,11 +70,12 @@ func readHosts() {
 				continue
 			}
 			for i := 1; i < len(f); i++ {
+				name := f[i]
 				h := []byte(f[i])
 				lowerASCIIBytes(h)
-				lh := string(h)
-				hs[lh] = append(hs[lh], addr)
-				is[addr] = append(is[addr], lh)
+				key := string(h)
+				hs[key] = append(hs[key], addr)
+				is[addr] = append(is[addr], name)
 			}
 		}
 		// Update the data cache.
