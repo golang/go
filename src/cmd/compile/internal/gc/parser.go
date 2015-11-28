@@ -92,7 +92,7 @@ type parser struct {
 
 func (p *parser) next() {
 	p.tok = yylex(&p.yy)
-	p.op = Op(p.yy.i)
+	p.op = p.yy.op
 	p.val = p.yy.val
 	p.sym_ = p.yy.sym
 }
