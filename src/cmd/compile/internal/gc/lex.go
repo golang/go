@@ -931,7 +931,7 @@ type yySymType struct {
 	typ  *Type
 	sym  *Sym
 	val  Val
-	i    int
+	op   Op
 }
 
 const (
@@ -984,6 +984,7 @@ const (
 
 func _yylex(yylval *yySymType) int32 {
 	var c1 int
+	var op Op
 	var escflag int
 	var v int64
 	var cp *bytes.Buffer
@@ -1245,7 +1246,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(ODIV)
+			op = ODIV
 			goto asop
 		}
 
@@ -1259,14 +1260,14 @@ l0:
 	case '*':
 		c1 = getc()
 		if c1 == '=' {
-			c = int(OMUL)
+			op = OMUL
 			goto asop
 		}
 
 	case '%':
 		c1 = getc()
 		if c1 == '=' {
-			c = int(OMOD)
+			op = OMOD
 			goto asop
 		}
 
@@ -1278,7 +1279,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OADD)
+			op = OADD
 			goto asop
 		}
 
@@ -1290,7 +1291,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OSUB)
+			op = OSUB
 			goto asop
 		}
 
@@ -1300,7 +1301,7 @@ l0:
 			c = int(LRSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = int(ORSH)
+				op = ORSH
 				goto asop
 			}
 
@@ -1320,7 +1321,7 @@ l0:
 			c = int(LLSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = int(OLSH)
+				op = OLSH
 				goto asop
 			}
 
@@ -1364,7 +1365,7 @@ l0:
 			c = int(LANDNOT)
 			c1 = getc()
 			if c1 == '=' {
-				c = int(OANDNOT)
+				op = OANDNOT
 				goto asop
 			}
 
@@ -1372,7 +1373,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OAND)
+			op = OAND
 			goto asop
 		}
 
@@ -1384,14 +1385,14 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OOR)
+			op = OOR
 			goto asop
 		}
 
 	case '^':
 		c1 = getc()
 		if c1 == '=' {
-			c = int(OXOR)
+			op = OXOR
 			goto asop
 		}
 
@@ -1402,12 +1403,10 @@ l0:
 	ungetc(c1)
 
 lx:
-	if c > 0xff {
-		if Debug['x'] != 0 {
+	if Debug['x'] != 0 {
+		if c > 0xff {
 			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lexlineno)), lexname(c))
-		}
-	} else {
-		if Debug['x'] != 0 {
+		} else {
 			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lexlineno)), c)
 		}
 	}
@@ -1424,9 +1423,9 @@ lx:
 	return int32(c)
 
 asop:
-	yylval.i = c // rathole to hold which asop
+	yylval.op = op
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: TOKEN ASOP %c\n", c)
+		fmt.Printf("lex: TOKEN ASOP %s=\n", goopnames[op])
 	}
 	return LASOP
 
