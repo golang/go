@@ -395,7 +395,7 @@ func TestLookupIPDeadline(t *testing.T) {
 	t.Logf("%v succeeded, %v failed (%v timeout, %v temporary, %v other, %v unknown)", qstats.succeeded, qstats.failed, qstats.timeout, qstats.temporary, qstats.other, qstats.unknown)
 }
 
-func TestLookupDotsWithLocalSoruce(t *testing.T) {
+func TestLookupDotsWithLocalSource(t *testing.T) {
 	if !supportsIPv4 {
 		t.Skip("IPv4 is required")
 	}
