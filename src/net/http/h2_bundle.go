@@ -45,11 +45,12 @@ type http2ClientConnPool interface {
 
 type http2clientConnPool struct {
 	t  *http2Transport
-	mu sync.Mutex // TODO: switch to RWMutex
+	mu sync.Mutex // TODO: maybe switch to RWMutex
 	// TODO: add support for sharing conns based on cert names
 	// (e.g. share conn for googleapis.com and appspot.com)
-	conns map[string][]*http2ClientConn // key is host:port
-	keys  map[*http2ClientConn][]string
+	conns   map[string][]*http2ClientConn // key is host:port
+	dialing map[string]*http2dialCall     // currently in-flight dials
+	keys    map[*http2ClientConn][]string
 }
 
 func (p *http2clientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
@@ -64,22 +65,65 @@ func (p *http2clientConnPool) getClientConn(req *Request, addr string, dialOnMis
 			return cc, nil
 		}
 	}
-	p.mu.Unlock()
 	if !dialOnMiss {
+		p.mu.Unlock()
 		return nil, http2ErrNoCachedConn
 	}
+	call := p.getStartDialLocked(addr)
+	p.mu.Unlock()
+	<-call.done
+	return call.res, call.err
+}
 
-	cc, err := p.t.dialClientConn(addr)
-	if err != nil {
-		return nil, err
+// dialCall is an in-flight Transport dial call to a host.
+type http2dialCall struct {
+	p    *http2clientConnPool
+	done chan struct{}    // closed when done
+	res  *http2ClientConn // valid after done is closed
+	err  error            // valid after done is closed
+}
+
+// requires p.mu is held.
+func (p *http2clientConnPool) getStartDialLocked(addr string) *http2dialCall {
+	if call, ok := p.dialing[addr]; ok {
+
+		return call
 	}
-	p.addConn(addr, cc)
-	return cc, nil
+	call := &http2dialCall{p: p, done: make(chan struct{})}
+	if p.dialing == nil {
+		p.dialing = make(map[string]*http2dialCall)
+	}
+	p.dialing[addr] = call
+	go call.dial(addr)
+	return call
+}
+
+// run in its own goroutine.
+func (c *http2dialCall) dial(addr string) {
+	c.res, c.err = c.p.t.dialClientConn(addr)
+	close(c.done)
+
+	c.p.mu.Lock()
+	delete(c.p.dialing, addr)
+	if c.err == nil {
+		c.p.addConnLocked(addr, c.res)
+	}
+	c.p.mu.Unlock()
 }
 
 func (p *http2clientConnPool) addConn(key string, cc *http2ClientConn) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.addConnLocked(key, cc)
+	p.mu.Unlock()
+}
+
+// p.mu must be held
+func (p *http2clientConnPool) addConnLocked(key string, cc *http2ClientConn) {
+	for _, v := range p.conns[key] {
+		if v == cc {
+			return
+		}
+	}
 	if p.conns == nil {
 		p.conns = make(map[string][]*http2ClientConn)
 	}
