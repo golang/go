@@ -19,18 +19,21 @@ import (
 // When any of the arguments result in a standard violation then
 // FormatMediaType returns the empty string.
 func FormatMediaType(t string, param map[string]string) string {
-	slash := strings.Index(t, "/")
-	if slash == -1 {
-		return ""
-	}
-	major, sub := t[:slash], t[slash+1:]
-	if !isToken(major) || !isToken(sub) {
-		return ""
-	}
 	var b bytes.Buffer
-	b.WriteString(strings.ToLower(major))
-	b.WriteByte('/')
-	b.WriteString(strings.ToLower(sub))
+	if slash := strings.Index(t, "/"); slash == -1 {
+		if !isToken(t) {
+			return ""
+		}
+		b.WriteString(strings.ToLower(t))
+	} else {
+		major, sub := t[:slash], t[slash+1:]
+		if !isToken(major) || !isToken(sub) {
+			return ""
+		}
+		b.WriteString(strings.ToLower(major))
+		b.WriteByte('/')
+		b.WriteString(strings.ToLower(sub))
+	}
 
 	attrs := make([]string, 0, len(param))
 	for a := range param {

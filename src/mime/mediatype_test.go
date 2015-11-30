@@ -281,7 +281,7 @@ type formatTest struct {
 }
 
 var formatTests = []formatTest{
-	{"noslash", nil, ""},
+	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
 	{"foo bar/baz", nil, ""},
 	{"foo/bar baz", nil, ""},
 	{"foo/BAR", nil, "foo/bar"},
