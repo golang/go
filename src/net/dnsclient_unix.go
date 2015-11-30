@@ -473,11 +473,11 @@ func goLookupIPOrder(name string, order hostLookupOrder) (addrs []IPAddr, err er
 	}
 	sortByRFC6724(addrs)
 	if len(addrs) == 0 {
-		if lastErr != nil {
-			return nil, lastErr
-		}
 		if order == hostLookupDNSFiles {
 			addrs = goLookupIPFiles(name)
+		}
+		if lastErr != nil {
+			return nil, lastErr
 		}
 	}
 	return addrs, nil
