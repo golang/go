@@ -237,24 +237,23 @@ func consumeToken(v string) (token, rest string) {
 // quoted-string) and the rest of the string.  On failure, returns
 // ("", v).
 func consumeValue(v string) (value, rest string) {
-	if !strings.HasPrefix(v, `"`) && !strings.HasPrefix(v, `'`) {
+	if v == "" {
+		return
+	}
+	if v[0] != '"' {
 		return consumeToken(v)
 	}
-
-	leadQuote := rune(v[0])
 
 	// parse a quoted-string
 	rest = v[1:] // consume the leading quote
 	buffer := new(bytes.Buffer)
-	var idx int
-	var r rune
 	var nextIsLiteral bool
-	for idx, r = range rest {
+	for idx, r := range rest {
 		switch {
 		case nextIsLiteral:
 			buffer.WriteRune(r)
 			nextIsLiteral = false
-		case r == leadQuote:
+		case r == '"':
 			return buffer.String(), rest[idx+1:]
 		case r == '\\':
 			nextIsLiteral = true

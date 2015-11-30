@@ -159,7 +159,7 @@ func TestParseMediaType(t *testing.T) {
 			m("filename", "foo.html")},
 		{`attachment; filename='foo.html'`,
 			"attachment",
-			m("filename", "foo.html")},
+			m("filename", "'foo.html'")},
 		{`attachment; filename="foo-%41.html"`,
 			"attachment",
 			m("filename", "foo-%41.html")},
@@ -294,6 +294,7 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
+	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
 }
 
 func TestFormatMediaType(t *testing.T) {
