@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 25, 2015",
+	"Subtitle": "Version of November 30, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -1051,12 +1051,18 @@ but are otherwise ignored.
 </p>
 
 <pre>
-// A struct corresponding to the TimeStamp protocol buffer.
-// The tag strings define the protocol buffer field numbers.
 struct {
-	microsec  uint64 "field 1"
-	serverIP6 uint64 "field 2"
-	process   string "field 3"
+	x, y float64 ""  // an empty tag string is like an absent tag
+	name string  "any string is permitted as a tag"
+	_    [4]byte "ceci n'est pas un champ de structure"
+}
+
+// A struct corresponding to a TimeStamp protocol buffer.
+// The tag strings define the protocol buffer field numbers;
+// they follow the convention outlined by the reflect package.
+struct {
+	microsec  uint64 `protobuf:"1"`
+	serverIP6 uint64 `protobuf:"2"`
 }
 </pre>
 
