@@ -884,7 +884,6 @@ func cannedimports(file string, cp string) {
 	curio.infile = file
 	curio.cp = cp
 	curio.nlsemi = false
-	curio.importsafe = false
 
 	typecheckok = true
 	incannedimport = 1

@@ -71,7 +71,6 @@ func (p *parser) loadsys() {
 	} else {
 		cannedimports("runtime.Builtin", runtimeimport)
 	}
-	curio.importsafe = true
 
 	p.import_package()
 	p.import_there()
@@ -467,9 +466,10 @@ func (p *parser) import_package() {
 		p.import_error()
 	}
 
+	importsafe := false
 	if p.tok == LNAME {
 		if p.sym_.Name == "safe" {
-			curio.importsafe = true
+			importsafe = true
 		}
 		p.next()
 	}
@@ -484,9 +484,9 @@ func (p *parser) import_package() {
 	if incannedimport == 0 {
 		importpkg.Direct = true
 	}
-	importpkg.Safe = curio.importsafe
+	importpkg.Safe = importsafe
 
-	if safemode != 0 && !curio.importsafe {
+	if safemode != 0 && !importsafe {
 		Yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
 }
