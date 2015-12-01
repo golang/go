@@ -323,108 +323,92 @@ func (p *parser) import_() {
 	p.want(LIMPORT)
 	if p.got('(') {
 		for p.tok != EOF && p.tok != ')' {
-			p.import_stmt()
+			p.importdcl()
 			if !p.osemi(')') {
 				break
 			}
 		}
 		p.want(')')
 	} else {
-		p.import_stmt()
-	}
-}
-
-func (p *parser) import_stmt() {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("import_stmt")()
-	}
-
-	line := int32(p.import_here())
-	if p.tok == LPACKAGE {
-		p.import_package()
-		p.import_there()
-
-		ipkg := importpkg
-		my := importmyname
-		importpkg = nil
-		importmyname = nil
-
-		if my == nil {
-			my = Lookup(ipkg.Name)
-		}
-
-		pack := Nod(OPACK, nil, nil)
-		pack.Sym = my
-		pack.Name.Pkg = ipkg
-		pack.Lineno = line
-
-		if strings.HasPrefix(my.Name, ".") {
-			importdot(ipkg, pack)
-			return
-		}
-		if my.Name == "init" {
-			lineno = line
-			Yyerror("cannot import package as init - init must be a func")
-			return
-		}
-		if my.Name == "_" {
-			return
-		}
-		if my.Def != nil {
-			lineno = line
-			redeclare(my, "as imported package name")
-		}
-		my.Def = pack
-		my.Lastlineno = line
-		my.Block = 1 // at top level
-
-		return
-	}
-
-	p.import_there()
-	// When an invalid import path is passed to importfile,
-	// it calls Yyerror and then sets up a fake import with
-	// no package statement. This allows us to test more
-	// than one invalid import statement in a single file.
-	if nerrors == 0 {
-		Fatalf("phase error in import")
+		p.importdcl()
 	}
 }
 
 // ImportSpec = [ "." | PackageName ] ImportPath .
 // ImportPath = string_lit .
-//
-// import_here switches the underlying lexed source to the export data
-// of the imported package.
-func (p *parser) import_here() int {
+func (p *parser) importdcl() {
 	if trace && Debug['x'] != 0 {
-		defer p.trace("import_here")()
+		defer p.trace("importdcl")()
 	}
 
-	importmyname = nil
+	var my *Sym
 	switch p.tok {
 	case LNAME, '@', '?':
 		// import with given name
-		importmyname = p.sym()
+		my = p.sym()
 
 	case '.':
 		// import into my name space
-		importmyname = Lookup(".")
+		my = Lookup(".")
 		p.next()
 	}
 
-	var path Val
-	if p.tok == LLITERAL {
-		path = p.val
-		p.next()
-	} else {
+	if p.tok != LLITERAL {
 		p.syntax_error("missing import path; require quoted string")
 		p.advance(';', ')')
+		return
 	}
 
-	line := parserline()
-	importfile(&path, line)
-	return line
+	line := int32(parserline())
+	path := p.val
+	p.next()
+
+	importfile(&path)
+	if p.tok != LPACKAGE {
+		// When an invalid import path is passed to importfile,
+		// it calls Yyerror and then sets up a fake import with
+		// no package statement. This allows us to test more
+		// than one invalid import statement in a single file.
+		p.import_there()
+		if nerrors == 0 {
+			Fatalf("phase error in import")
+		}
+		return
+	}
+	p.import_package()
+	p.import_there()
+
+	ipkg := importpkg
+	importpkg = nil
+
+	if my == nil {
+		my = Lookup(ipkg.Name)
+	}
+
+	pack := Nod(OPACK, nil, nil)
+	pack.Sym = my
+	pack.Name.Pkg = ipkg
+	pack.Lineno = line
+
+	if strings.HasPrefix(my.Name, ".") {
+		importdot(ipkg, pack)
+		return
+	}
+	if my.Name == "init" {
+		lineno = line
+		Yyerror("cannot import package as init - init must be a func")
+		return
+	}
+	if my.Name == "_" {
+		return
+	}
+	if my.Def != nil {
+		lineno = line
+		redeclare(my, "as imported package name")
+	}
+	my.Def = pack
+	my.Lastlineno = line
+	my.Block = 1 // at top level
 }
 
 // import_package parses the header of an imported package as exported
