@@ -110,6 +110,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// In case we are panicking from external C code
 		c.set_r0(0)
 		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+		c.set_r12(uint64(funcPC(sigpanic)))
 		c.set_pc(uint64(funcPC(sigpanic)))
 		return
 	}
