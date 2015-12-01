@@ -51,31 +51,8 @@ func pop_parser() {
 // parse_file sets up a new parser and parses a single Go source file.
 func parse_file() {
 	thenewparser = parser{}
-	thenewparser.loadsys()
 	thenewparser.next()
 	thenewparser.file()
-}
-
-// loadsys loads the definitions for the low-level runtime functions,
-// so that the compiler can generate calls to them,
-// but does not make the name "runtime" visible as a package.
-func (p *parser) loadsys() {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("loadsys")()
-	}
-
-	importpkg = Runtimepkg
-
-	if Debug['A'] != 0 {
-		cannedimports("runtime.Builtin", "package runtime safe\n\n$$\n\n")
-	} else {
-		cannedimports("runtime.Builtin", runtimeimport)
-	}
-
-	p.import_package()
-	p.import_there()
-
-	importpkg = nil
 }
 
 type parser struct {
