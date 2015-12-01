@@ -530,17 +530,17 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		switch t.tag {
-		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
-			t.tag = tagPrintableString
-		case tagGeneralizedTime, tagUTCTime:
+			t.tag = TagPrintableString
+		case TagGeneralizedTime, TagUTCTime:
 			// Likewise, both time types are treated the same.
-			t.tag = tagUTCTime
+			t.tag = TagUTCTime
 		}
 
-		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+		if t.class != ClassUniversal || t.isCompound != compoundType || t.tag != expectedTag {
 			err = StructuralError{"sequence tag mismatch"}
 			return
 		}
@@ -624,28 +624,28 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			return
 		}
 		var result interface{}
-		if !t.isCompound && t.class == classUniversal {
+		if !t.isCompound && t.class == ClassUniversal {
 			innerBytes := bytes[offset : offset+t.length]
 			switch t.tag {
-			case tagPrintableString:
+			case TagPrintableString:
 				result, err = parsePrintableString(innerBytes)
-			case tagIA5String:
+			case TagIA5String:
 				result, err = parseIA5String(innerBytes)
-			case tagT61String:
+			case TagT61String:
 				result, err = parseT61String(innerBytes)
-			case tagUTF8String:
+			case TagUTF8String:
 				result, err = parseUTF8String(innerBytes)
-			case tagInteger:
+			case TagInteger:
 				result, err = parseInt64(innerBytes)
-			case tagBitString:
+			case TagBitString:
 				result, err = parseBitString(innerBytes)
-			case tagOID:
+			case TagOID:
 				result, err = parseObjectIdentifier(innerBytes)
-			case tagUTCTime:
+			case TagUTCTime:
 				result, err = parseUTCTime(innerBytes)
-			case tagGeneralizedTime:
+			case TagGeneralizedTime:
 				result, err = parseGeneralizedTime(innerBytes)
-			case tagOctetString:
+			case TagOctetString:
 				result = innerBytes
 			default:
 				// If we don't know how to handle the type, we just leave Value as nil.
@@ -671,9 +671,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 	if params.explicit {
-		expectedClass := classContextSpecific
+		expectedClass := ClassContextSpecific
 		if params.application {
-			expectedClass = classApplication
+			expectedClass = ClassApplication
 		}
 		if offset == len(bytes) {
 			err = StructuralError{"explicit tag has no child"}
@@ -709,10 +709,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	// type string. getUniversalType returns the tag for PrintableString
 	// when it sees a string, so if we see a different string type on the
 	// wire, we change the universal type to match.
-	if universalTag == tagPrintableString {
-		if t.class == classUniversal {
+	if universalTag == TagPrintableString {
+		if t.class == ClassUniversal {
 			switch t.tag {
-			case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
+			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {
@@ -722,24 +722,24 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	// Special case for time: UTCTime and GeneralizedTime both map to the
 	// Go type time.Time.
-	if universalTag == tagUTCTime && t.tag == tagGeneralizedTime && t.class == classUniversal {
-		universalTag = tagGeneralizedTime
+	if universalTag == TagUTCTime && t.tag == TagGeneralizedTime && t.class == ClassUniversal {
+		universalTag = TagGeneralizedTime
 	}
 
 	if params.set {
-		universalTag = tagSet
+		universalTag = TagSet
 	}
 
-	expectedClass := classUniversal
+	expectedClass := ClassUniversal
 	expectedTag := universalTag
 
 	if !params.explicit && params.tag != nil {
-		expectedClass = classContextSpecific
+		expectedClass = ClassContextSpecific
 		expectedTag = *params.tag
 	}
 
 	if !params.explicit && params.application && params.tag != nil {
-		expectedClass = classApplication
+		expectedClass = ClassApplication
 		expectedTag = *params.tag
 	}
 
@@ -781,7 +781,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	case timeType:
 		var time time.Time
 		var err1 error
-		if universalTag == tagUTCTime {
+		if universalTag == TagUTCTime {
 			time, err1 = parseUTCTime(innerBytes)
 		} else {
 			time, err1 = parseGeneralizedTime(innerBytes)
@@ -873,15 +873,15 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	case reflect.String:
 		var v string
 		switch universalTag {
-		case tagPrintableString:
+		case TagPrintableString:
 			v, err = parsePrintableString(innerBytes)
-		case tagIA5String:
+		case TagIA5String:
 			v, err = parseIA5String(innerBytes)
-		case tagT61String:
+		case TagT61String:
 			v, err = parseT61String(innerBytes)
-		case tagUTF8String:
+		case TagUTF8String:
 			v, err = parseUTF8String(innerBytes)
-		case tagGeneralString:
+		case TagGeneralString:
 			// GeneralString is specified in ISO-2022/ECMA-35,
 			// A brief review suggests that it includes structures
 			// that allow the encoding to change midstring and
