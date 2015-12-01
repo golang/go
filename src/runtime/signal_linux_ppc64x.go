@@ -63,6 +63,7 @@ func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 func (c *sigctxt) fault() uint64   { return c.regs().dar }
 
 func (c *sigctxt) set_r0(x uint64)   { c.regs().gpr[0] = x }
+func (c *sigctxt) set_r12(x uint64)  { c.regs().gpr[12] = x }
 func (c *sigctxt) set_r30(x uint64)  { c.regs().gpr[30] = x }
 func (c *sigctxt) set_pc(x uint64)   { c.regs().nip = x }
 func (c *sigctxt) set_sp(x uint64)   { c.regs().gpr[1] = x }
