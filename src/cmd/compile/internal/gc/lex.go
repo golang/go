@@ -311,6 +311,8 @@ func Main() {
 	lexlineno = 1
 	const BOM = 0xFEFF
 
+	loadsys()
+
 	for _, infile = range flag.Args() {
 		if trace && Debug['x'] != 0 {
 			fmt.Printf("--- %s ---\n", infile)
@@ -656,6 +658,30 @@ func findpkg(name string) (file string, ok bool) {
 	return "", false
 }
 
+// loadsys loads the definitions for the low-level runtime and unsafe functions,
+// so that the compiler can generate calls to them,
+// but does not make the names "runtime" or "unsafe" visible as packages.
+func loadsys() {
+	if Debug['A'] != 0 {
+		return
+	}
+
+	block = 1
+	iota_ = -1000000
+
+	importpkg = Runtimepkg
+	cannedimports("runtime.Builtin", runtimeimport)
+	thenewparser.import_package()
+	thenewparser.import_there()
+
+	importpkg = unsafepkg
+	cannedimports("unsafe.o", unsafeimport)
+	thenewparser.import_package()
+	thenewparser.import_there()
+
+	importpkg = nil
+}
+
 func fakeimport() {
 	importpkg = mkpkg("fake")
 	cannedimports("fake.o", "$$\n")
@@ -706,8 +732,8 @@ func importfile(f *Val, line int) {
 			errorexit()
 		}
 
-		importpkg = mkpkg(f.U.(string))
-		cannedimports("unsafe.o", unsafeimport)
+		importpkg = unsafepkg
+		cannedimports("unsafe.o", "package unsafe\n\n$$\n\n")
 		imported_unsafe = true
 		return
 	}
