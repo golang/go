@@ -134,7 +134,7 @@ slash ('/') as path separator; and they must be unrooted. $GOROOT (or -goroot)
 must be set to the .zip file directory path containing the Go root directory.
 For instance, for a .zip file created by the command:
 
-	zip go.zip $HOME/go
+	zip -r go.zip $HOME/go
 
 one may run godoc as follows:
 
