@@ -442,7 +442,7 @@ func importsym(s *Sym, op Op) *Sym {
 
 	// mark the symbol so it is not reexported
 	if s.Def == nil {
-		if exportname(s.Name) || initname(s.Name) {
+		if Debug['A'] != 0 || exportname(s.Name) || initname(s.Name) {
 			s.Flags |= SymExport
 		} else {
 			s.Flags |= SymPackage // package scope

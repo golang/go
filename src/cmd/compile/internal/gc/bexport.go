@@ -1035,6 +1035,9 @@ func predeclared() []*Type {
 
 			// package unsafe
 			Types[TUNSAFEPTR],
+
+			// any type, for builtin export data
+			Types[TANY],
 		}
 	}
 	return predecl
