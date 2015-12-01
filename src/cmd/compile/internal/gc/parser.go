@@ -20,13 +20,11 @@ import (
 
 const trace = false // if set, parse tracing can be enabled with -x
 
-// TODO(gri) Once we handle imports w/o redirecting the underlying
-// source of the lexer we can get rid of these. They are here for
-// compatibility with the existing yacc-based parser setup (issue 13242).
-var thenewparser parser // the parser in use
-var savedstate []parser // saved parser state, used during import
+// TODO(gri) Once we stop supporting the legacy export data format
+// we can get rid of this (issue 13242).
+var fileparser parser // the Go source file parser in use
 
-func push_parser() {
+func parse_import() {
 	// Indentation (for tracing) must be preserved across parsers
 	// since we are changing the lexer source (and parser state)
 	// under foot, in the middle of productions. This won't be
@@ -34,25 +32,16 @@ func push_parser() {
 	// be the push/pop_parser functionality.
 	// (Instead we could just use a global variable indent, but
 	// but eventually indent should be parser-specific anyway.)
-	indent := thenewparser.indent
-	savedstate = append(savedstate, thenewparser)
-	thenewparser = parser{indent: indent} // preserve indentation
-	thenewparser.next()
-}
-
-func pop_parser() {
-	indent := thenewparser.indent
-	n := len(savedstate) - 1
-	thenewparser = savedstate[n]
-	thenewparser.indent = indent // preserve indentation
-	savedstate = savedstate[:n]
+	importparser := parser{indent: fileparser.indent} // preserve indentation
+	importparser.next()
+	importparser.import_package()
 }
 
 // parse_file sets up a new parser and parses a single Go source file.
 func parse_file() {
-	thenewparser = parser{}
-	thenewparser.next()
-	thenewparser.file()
+	fileparser = parser{}
+	fileparser.next()
+	fileparser.file()
 }
 
 type parser struct {
@@ -364,22 +353,17 @@ func (p *parser) importdcl() {
 	p.next()
 
 	importfile(&path)
-	if p.tok != LPACKAGE {
-		// When an invalid import path is passed to importfile,
-		// it calls Yyerror and then sets up a fake import with
-		// no package statement. This allows us to test more
-		// than one invalid import statement in a single file.
-		p.import_there()
+	if importpkg == nil {
 		if nerrors == 0 {
 			Fatalf("phase error in import")
 		}
 		return
 	}
-	p.import_package()
-	p.import_there()
 
 	ipkg := importpkg
 	importpkg = nil
+
+	ipkg.Direct = true
 
 	if my == nil {
 		my = Lookup(ipkg.Name)
@@ -442,22 +426,7 @@ func (p *parser) import_package() {
 	} else if importpkg.Name != name {
 		Yyerror("conflicting names %s and %s for package %q", importpkg.Name, name, importpkg.Path)
 	}
-	if incannedimport == 0 {
-		importpkg.Direct = true
-	}
 	importpkg.Safe = importsafe
-
-	if safemode != 0 && !importsafe {
-		Yyerror("cannot import unsafe package %q", importpkg.Path)
-	}
-}
-
-// import_there parses the imported package definitions and then switches
-// the underlying lexed source back to the importing package.
-func (p *parser) import_there() {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("import_there")()
-	}
 
 	defercheckwidth()
 
@@ -469,7 +438,6 @@ func (p *parser) import_there() {
 	}
 
 	resumecheckwidth()
-	unimportfile()
 }
 
 // Declaration = ConstDecl | TypeDecl | VarDecl .

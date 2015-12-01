@@ -9,9 +9,9 @@
 
 package a
 import""  // ERROR "import path is empty"
-var?      // ERROR "invalid declaration"
+var?      // ERROR "unexpected \?"
 
-var x int // ERROR "unexpected var"
+var x int // ERROR "unexpected var" "cannot declare name"
 
 func main() {
 }
