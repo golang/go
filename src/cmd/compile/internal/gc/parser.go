@@ -67,7 +67,7 @@ func (p *parser) loadsys() {
 	importpkg = Runtimepkg
 
 	if Debug['A'] != 0 {
-		cannedimports("runtime.Builtin", "package runtime\n\n$$\n\n")
+		cannedimports("runtime.Builtin", "package runtime safe\n\n$$\n\n")
 	} else {
 		cannedimports("runtime.Builtin", runtimeimport)
 	}

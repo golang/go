@@ -3,7 +3,7 @@
 package gc
 
 const runtimeimport = "" +
-	"package runtime\n" +
+	"package runtime safe\n" +
 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
 	"func @\"\".panicindex ()\n" +
 	"func @\"\".panicslice ()\n" +

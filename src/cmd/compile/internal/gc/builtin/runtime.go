@@ -8,7 +8,7 @@
 
 // +build ignore
 
-package PACKAGE
+package runtime
 
 // emitted by compiler, not referred to by go programs
 
