@@ -492,8 +492,6 @@ var debugstr string
 var Debug_checknil int
 var Debug_typeassert int
 
-var importmyname *Sym // my name for package
-
 var localpkg *Pkg // package being compiled
 
 var importpkg *Pkg // package being imported

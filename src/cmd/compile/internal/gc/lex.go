@@ -687,21 +687,21 @@ func fakeimport() {
 	cannedimports("fake.o", "$$\n")
 }
 
-// TODO(gri) line argument doesn't appear to be used
-func importfile(f *Val, line int) {
-	if _, ok := f.U.(string); !ok {
+func importfile(f *Val) {
+	path_, ok := f.U.(string)
+	if !ok {
 		Yyerror("import statement not a string")
 		fakeimport()
 		return
 	}
 
-	if len(f.U.(string)) == 0 {
+	if len(path_) == 0 {
 		Yyerror("import path is empty")
 		fakeimport()
 		return
 	}
 
-	if isbadimport(f.U.(string)) {
+	if isbadimport(path_) {
 		fakeimport()
 		return
 	}
@@ -710,17 +710,15 @@ func importfile(f *Val, line int) {
 	// but we reserve the import path "main" to identify
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
-	if f.U.(string) == "main" {
+	if path_ == "main" {
 		Yyerror("cannot import \"main\"")
 		errorexit()
 	}
 
-	if myimportpath != "" && f.U.(string) == myimportpath {
-		Yyerror("import %q while compiling that package (import cycle)", f.U.(string))
+	if myimportpath != "" && path_ == myimportpath {
+		Yyerror("import %q while compiling that package (import cycle)", path_)
 		errorexit()
 	}
-
-	path_ := f.U.(string)
 
 	if mapped, ok := importMap[path_]; ok {
 		path_ = mapped
@@ -763,7 +761,7 @@ func importfile(f *Val, line int) {
 
 	file, found := findpkg(path_)
 	if !found {
-		Yyerror("can't find import: %q", f.U.(string))
+		Yyerror("can't find import: %q", path_)
 		errorexit()
 	}
 
@@ -788,7 +786,7 @@ func importfile(f *Val, line int) {
 	var imp *obj.Biobuf
 	imp, err = obj.Bopenr(file)
 	if err != nil {
-		Yyerror("can't open import: %q: %v", f.U.(string), err)
+		Yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
 
@@ -878,7 +876,7 @@ func importfile(f *Val, line int) {
 		incannedimport = 0
 
 	default:
-		Yyerror("no import in %q", f.U.(string))
+		Yyerror("no import in %q", path_)
 	}
 }
 
