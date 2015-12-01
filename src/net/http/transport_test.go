@@ -2921,6 +2921,27 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	}
 }
 
+func TestTransportAutomaticHTTP2(t *testing.T) {
+	tr := &Transport{}
+	_, err := tr.RoundTrip(new(Request))
+	if err == nil {
+		t.Error("expected error from RoundTrip")
+	}
+	if tr.TLSNextProto["h2"] == nil {
+		t.Errorf("HTTP/2 not registered.")
+	}
+
+	// Now with TLSNextProto set:
+	tr = &Transport{TLSNextProto: make(map[string]func(string, *tls.Conn) RoundTripper)}
+	_, err = tr.RoundTrip(new(Request))
+	if err == nil {
+		t.Error("expected error from RoundTrip")
+	}
+	if tr.TLSNextProto["h2"] != nil {
+		t.Errorf("HTTP/2 registered, despite non-nil TLSNextProto field")
+	}
+}
+
 func wantBody(res *Response, err error, want string) error {
 	if err != nil {
 		return err

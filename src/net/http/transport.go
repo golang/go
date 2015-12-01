@@ -40,15 +40,6 @@ var DefaultTransport RoundTripper = &Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
-func init() {
-	if !strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
-		err := http2ConfigureTransport(DefaultTransport.(*Transport))
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
 // MaxIdleConnsPerHost.
 const DefaultMaxIdleConnsPerHost = 2
@@ -138,10 +129,28 @@ type Transport struct {
 	// called with the request's authority (such as "example.com"
 	// or "example.com:1234") and the TLS connection. The function
 	// must return a RoundTripper that then handles the request.
+	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
+
+	nextProtoOnce sync.Once // guards initialization of TLSNextProto (onceSetNextProtoDefaults)
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
+}
+
+// onceSetNextProtoDefaults initializes TLSNextProto.
+// It must be called via t.nextProtoOnce.Do.
+func (t *Transport) onceSetNextProtoDefaults() {
+	if strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
+		return
+	}
+	if t.TLSNextProto != nil {
+		return
+	}
+	err := http2ConfigureTransport(t)
+	if err != nil {
+		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
+	}
 }
 
 // ProxyFromEnvironment returns the URL of the proxy to use for a
@@ -216,6 +225,7 @@ func (tr *transportRequest) extraHeaders() Header {
 // For higher-level HTTP client support (such as handling of cookies
 // and redirects), see Get, Post, and the Client type.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
