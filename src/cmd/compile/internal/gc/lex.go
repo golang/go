@@ -671,38 +671,30 @@ func loadsys() {
 
 	importpkg = Runtimepkg
 	cannedimports("runtime.Builtin", runtimeimport)
-	thenewparser.import_package()
-	thenewparser.import_there()
 
 	importpkg = unsafepkg
 	cannedimports("unsafe.o", unsafeimport)
-	thenewparser.import_package()
-	thenewparser.import_there()
 
 	importpkg = nil
 }
 
-func fakeimport() {
-	importpkg = mkpkg("fake")
-	cannedimports("fake.o", "$$\n")
-}
-
 func importfile(f *Val) {
+	if importpkg != nil {
+		Fatalf("importpkg not nil")
+	}
+
 	path_, ok := f.U.(string)
 	if !ok {
 		Yyerror("import statement not a string")
-		fakeimport()
 		return
 	}
 
 	if len(path_) == 0 {
 		Yyerror("import path is empty")
-		fakeimport()
 		return
 	}
 
 	if isbadimport(path_) {
-		fakeimport()
 		return
 	}
 
@@ -731,7 +723,6 @@ func importfile(f *Val) {
 		}
 
 		importpkg = unsafepkg
-		cannedimports("unsafe.o", "package unsafe\n\n$$\n\n")
 		imported_unsafe = true
 		return
 	}
@@ -739,7 +730,6 @@ func importfile(f *Val) {
 	if islocalname(path_) {
 		if path_[0] == '/' {
 			Yyerror("import path cannot be absolute path")
-			fakeimport()
 			return
 		}
 
@@ -754,7 +744,6 @@ func importfile(f *Val) {
 		path_ = cleanbuf
 
 		if isbadimport(path_) {
-			fakeimport()
 			return
 		}
 	}
@@ -767,28 +756,18 @@ func importfile(f *Val) {
 
 	importpkg = mkpkg(path_)
 
-	// If we already saw that package, feed a dummy statement
-	// to the lexer to avoid parsing export data twice.
 	if importpkg.Imported {
-		tag := ""
-		if importpkg.Safe {
-			tag = "safe"
-		}
-
-		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
-		cannedimports(file, p)
 		return
 	}
 
 	importpkg.Imported = true
 
-	var err error
-	var imp *obj.Biobuf
-	imp, err = obj.Bopenr(file)
+	imp, err := obj.Bopenr(file)
 	if err != nil {
 		Yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
+	defer obj.Bterm(imp)
 
 	if strings.HasSuffix(file, ".a") {
 		if !skiptopkgdef(imp) {
@@ -845,74 +824,44 @@ func importfile(f *Val) {
 	case '\n':
 		// old export format
 		pushedio = curio
-
-		curio.bin = imp
-		curio.peekc = 0
-		curio.peekc1 = 0
-		curio.infile = file
-		curio.nlsemi = false
+		curio = Io{bin: imp, infile: file}
 		typecheckok = true
 
-		push_parser()
+		parse_import()
+
+		typecheckok = false
+		curio = pushedio
+		pushedio.bin = nil
 
 	case 'B':
 		// new export format
 		obj.Bgetc(imp) // skip \n after $$B
 		Import(imp)
 
-		// continue as if the package was imported before (see above)
-		tag := ""
-		if importpkg.Safe {
-			tag = "safe"
-		}
-		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
-		cannedimports(file, p)
-		// Reset incannedimport flag (we are not truly in a
-		// canned import) - this will cause importpkg.Direct to
-		// be set via parser.import_package (was issue #13977).
-		//
-		// TODO(gri) Remove this global variable and convoluted
-		// code in the process of streamlining the import code.
-		incannedimport = 0
-
 	default:
 		Yyerror("no import in %q", path_)
-	}
-}
-
-func unimportfile() {
-	pop_parser()
-
-	if curio.bin != nil {
-		obj.Bterm(curio.bin)
-		curio.bin = nil
-	} else {
-		lexlineno-- // re correct sys.6 line number
+		errorexit()
 	}
 
-	curio = pushedio
-
-	pushedio.bin = nil
-	incannedimport = 0
-	typecheckok = false
+	if safemode != 0 && !importpkg.Safe {
+		Yyerror("cannot import unsafe package %q", importpkg.Path)
+	}
 }
 
 func cannedimports(file string, cp string) {
 	lexlineno++ // if sys.6 is included on line 1,
-
 	pushedio = curio
-
-	curio.bin = nil
-	curio.peekc = 0
-	curio.peekc1 = 0
-	curio.infile = file
-	curio.cp = cp
-	curio.nlsemi = false
-
+	curio = Io{infile: file, cp: cp}
 	typecheckok = true
 	incannedimport = 1
 
-	push_parser()
+	parse_import()
+
+	typecheckok = false
+	incannedimport = 0
+	curio = pushedio
+	pushedio.bin = nil
+	lexlineno-- // re correct sys.6 line number
 }
 
 func isSpace(c int) bool {
