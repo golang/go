@@ -97,6 +97,7 @@ func (c *rwTestConn) Close() error {
 }
 
 type testConn struct {
+	readMu   sync.Mutex // for TestHandlerBodyClose
 	readBuf  bytes.Buffer
 	writeBuf bytes.Buffer
 	closec   chan bool // if non-nil, send value to it on close
@@ -104,6 +105,8 @@ type testConn struct {
 }
 
 func (c *testConn) Read(b []byte) (int, error) {
+	c.readMu.Lock()
+	defer c.readMu.Unlock()
 	return c.readBuf.Read(b)
 }
 
@@ -1246,15 +1249,21 @@ func TestServerUnreadRequestBodyLittle(t *testing.T) {
 
 	done := make(chan bool)
 
+	readBufLen := func() int {
+		conn.readMu.Lock()
+		defer conn.readMu.Unlock()
+		return conn.readBuf.Len()
+	}
+
 	ls := &oneConnListener{conn}
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		defer close(done)
-		if conn.readBuf.Len() < len(body)/2 {
-			t.Errorf("on request, read buffer length is %d; expected about 100 KB", conn.readBuf.Len())
+		if bufLen := readBufLen(); bufLen < len(body)/2 {
+			t.Errorf("on request, read buffer length is %d; expected about 100 KB", bufLen)
 		}
 		rw.WriteHeader(200)
 		rw.(Flusher).Flush()
-		if g, e := conn.readBuf.Len(), 0; g != e {
+		if g, e := readBufLen(), 0; g != e {
 			t.Errorf("after WriteHeader, read buffer length is %d; want %d", g, e)
 		}
 		if c := rw.Header().Get("Connection"); c != "" {
@@ -1430,15 +1439,21 @@ func testHandlerBodyClose(t *testing.T, i int, tt handlerBodyCloseTest) {
 	}
 	conn.closec = make(chan bool, 1)
 
+	readBufLen := func() int {
+		conn.readMu.Lock()
+		defer conn.readMu.Unlock()
+		return conn.readBuf.Len()
+	}
+
 	ls := &oneConnListener{conn}
 	var numReqs int
 	var size0, size1 int
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
 		numReqs++
 		if numReqs == 1 {
-			size0 = conn.readBuf.Len()
+			size0 = readBufLen()
 			req.Body.Close()
-			size1 = conn.readBuf.Len()
+			size1 = readBufLen()
 		}
 	}))
 	<-conn.closec
@@ -1538,7 +1553,9 @@ type slowTestConn struct {
 	// over multiple calls to Read, time.Durations are slept, strings are read.
 	script []interface{}
 	closec chan bool
-	rd, wd time.Time // read, write deadline
+
+	mu     sync.Mutex // guards rd/wd
+	rd, wd time.Time  // read, write deadline
 	noopConn
 }
 
@@ -1549,16 +1566,22 @@ func (c *slowTestConn) SetDeadline(t time.Time) error {
 }
 
 func (c *slowTestConn) SetReadDeadline(t time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.rd = t
 	return nil
 }
 
 func (c *slowTestConn) SetWriteDeadline(t time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.wd = t
 	return nil
 }
 
 func (c *slowTestConn) Read(b []byte) (n int, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 restart:
 	if !c.rd.IsZero() && time.Now().After(c.rd) {
 		return 0, syscall.ETIMEDOUT
@@ -2330,6 +2353,49 @@ For:
 	ts.Close()
 }
 
+// Tests that a pipelined request causes the first request's Handler's CloseNotify
+// channel to fire. Previously it deadlocked.
+//
+// Issue 13165
+func TestCloseNotifierPipelined(t *testing.T) {
+	defer afterTest(t)
+	gotReq := make(chan bool, 2)
+	sawClose := make(chan bool, 2)
+	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
+		gotReq <- true
+		cc := rw.(CloseNotifier).CloseNotify()
+		<-cc
+		sawClose <- true
+	}))
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatalf("error dialing: %v", err)
+	}
+	diec := make(chan bool, 2)
+	go func() {
+		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
+		_, err = io.WriteString(conn, req+req) // two requests
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-diec
+		conn.Close()
+	}()
+For:
+	for {
+		select {
+		case <-gotReq:
+			diec <- true
+		case <-sawClose:
+			break For
+		case <-time.After(5 * time.Second):
+			ts.CloseClientConnections()
+			t.Fatal("timeout")
+		}
+	}
+	ts.Close()
+}
+
 func TestCloseNotifierChanLeak(t *testing.T) {
 	defer afterTest(t)
 	req := reqBytes("GET / HTTP/1.0\nHost: golang.org")
@@ -2349,6 +2415,61 @@ func TestCloseNotifierChanLeak(t *testing.T) {
 		})
 		go Serve(ln, handler)
 		<-conn.closec
+	}
+}
+
+// Tests that we can use CloseNotifier in one request, and later call Hijack
+// on a second request on the same connection.
+//
+// It also tests that the connReader stitches together its background
+// 1-byte read for CloseNotifier when CloseNotifier doesn't fire with
+// the rest of the second HTTP later.
+//
+// Issue 9763.
+// HTTP/1-only test. (http2 doesn't have Hijack)
+func TestHijackAfterCloseNotifier(t *testing.T) {
+	defer afterTest(t)
+	script := make(chan string, 2)
+	script <- "closenotify"
+	script <- "hijack"
+	close(script)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		plan := <-script
+		switch plan {
+		default:
+			panic("bogus plan; too many requests")
+		case "closenotify":
+			w.(CloseNotifier).CloseNotify() // discard result
+			w.Header().Set("X-Addr", r.RemoteAddr)
+		case "hijack":
+			c, _, err := w.(Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("Hijack in Handler: %v", err)
+				return
+			}
+			if _, ok := c.(*net.TCPConn); !ok {
+				// Verify it's not wrapped in some type.
+				// Not strictly a go1 compat issue, but in practice it probably is.
+				t.Errorf("type of hijacked conn is %T; want *net.TCPConn", c)
+			}
+			fmt.Fprintf(c, "HTTP/1.0 200 OK\r\nX-Addr: %v\r\nContent-Length: 0\r\n\r\n", r.RemoteAddr)
+			c.Close()
+			return
+		}
+	}))
+	defer ts.Close()
+	res1, err := Get(ts.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	res2, err := Get(ts.URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	addr1 := res1.Header.Get("X-Addr")
+	addr2 := res2.Header.Get("X-Addr")
+	if addr1 == "" || addr1 != addr2 {
+		t.Errorf("addr1, addr2 = %q, %q; want same", addr1, addr2)
 	}
 }
 
@@ -2702,7 +2823,7 @@ func TestHTTP10ConnectionHeader(t *testing.T) {
 	defer afterTest(t)
 
 	mux := NewServeMux()
-	mux.Handle("/", HandlerFunc(func(resp ResponseWriter, req *Request) {}))
+	mux.Handle("/", HandlerFunc(func(ResponseWriter, *Request) {}))
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
@@ -3248,10 +3369,7 @@ func (c *closeWriteTestConn) CloseWrite() error {
 func TestCloseWrite(t *testing.T) {
 	var srv Server
 	var testConn closeWriteTestConn
-	c, err := ExportServerNewConn(&srv, &testConn)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c := ExportServerNewConn(&srv, &testConn)
 	ExportCloseWriteAndWait(c)
 	if !testConn.didCloseWrite {
 		t.Error("didn't see CloseWrite call")
