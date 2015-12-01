@@ -18,29 +18,31 @@ import (
 
 // Here are some standard tags and classes
 
+// ASN.1 tags represent the type of the following object.
 const (
-	tagBoolean         = 1
-	tagInteger         = 2
-	tagBitString       = 3
-	tagOctetString     = 4
-	tagOID             = 6
-	tagEnum            = 10
-	tagUTF8String      = 12
-	tagSequence        = 16
-	tagSet             = 17
-	tagPrintableString = 19
-	tagT61String       = 20
-	tagIA5String       = 22
-	tagUTCTime         = 23
-	tagGeneralizedTime = 24
-	tagGeneralString   = 27
+	TagBoolean         = 1
+	TagInteger         = 2
+	TagBitString       = 3
+	TagOctetString     = 4
+	TagOID             = 6
+	TagEnum            = 10
+	TagUTF8String      = 12
+	TagSequence        = 16
+	TagSet             = 17
+	TagPrintableString = 19
+	TagT61String       = 20
+	TagIA5String       = 22
+	TagUTCTime         = 23
+	TagGeneralizedTime = 24
+	TagGeneralString   = 27
 )
 
+// ASN.1 class types represent the namespace of the tag.
 const (
-	classUniversal       = 0
-	classApplication     = 1
-	classContextSpecific = 2
-	classPrivate         = 3
+	ClassUniversal       = 0
+	ClassApplication     = 1
+	ClassContextSpecific = 2
+	ClassPrivate         = 3
 )
 
 type tagAndLength struct {
@@ -96,15 +98,15 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 				ret.tag = new(int)
 			}
 		case part == "generalized":
-			ret.timeType = tagGeneralizedTime
+			ret.timeType = TagGeneralizedTime
 		case part == "utc":
-			ret.timeType = tagUTCTime
+			ret.timeType = TagUTCTime
 		case part == "ia5":
-			ret.stringType = tagIA5String
+			ret.stringType = TagIA5String
 		case part == "printable":
-			ret.stringType = tagPrintableString
+			ret.stringType = TagPrintableString
 		case part == "utf8":
-			ret.stringType = tagUTF8String
+			ret.stringType = TagUTF8String
 		case strings.HasPrefix(part, "default:"):
 			i, err := strconv.ParseInt(part[8:], 10, 64)
 			if err == nil {
@@ -136,33 +138,33 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
 	switch t {
 	case objectIdentifierType:
-		return tagOID, false, true
+		return TagOID, false, true
 	case bitStringType:
-		return tagBitString, false, true
+		return TagBitString, false, true
 	case timeType:
-		return tagUTCTime, false, true
+		return TagUTCTime, false, true
 	case enumeratedType:
-		return tagEnum, false, true
+		return TagEnum, false, true
 	case bigIntType:
-		return tagInteger, false, true
+		return TagInteger, false, true
 	}
 	switch t.Kind() {
 	case reflect.Bool:
-		return tagBoolean, false, true
+		return TagBoolean, false, true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return tagInteger, false, true
+		return TagInteger, false, true
 	case reflect.Struct:
-		return tagSequence, true, true
+		return TagSequence, true, true
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
-			return tagOctetString, false, true
+			return TagOctetString, false, true
 		}
 		if strings.HasSuffix(t.Name(), "SET") {
-			return tagSet, true, true
+			return TagSet, true, true
 		}
-		return tagSequence, true, true
+		return TagSequence, true, true
 	case reflect.String:
-		return tagPrintableString, false, true
+		return TagPrintableString, false, true
 	}
 	return 0, false, false
 }
