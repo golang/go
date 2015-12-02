@@ -40,6 +40,7 @@ check issue8442.go
 check issue11097a.go
 check issue11097b.go
 expect issue13129.go C.ushort
+check issue13423.go
 
 if ! go run ptr.go; then
 	exit 1
