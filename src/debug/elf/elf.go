@@ -411,6 +411,7 @@ const (
 	SHF_OS_NONCONFORMING SectionFlag = 0x100      /* OS-specific processing required. */
 	SHF_GROUP            SectionFlag = 0x200      /* Member of section group. */
 	SHF_TLS              SectionFlag = 0x400      /* Section contains TLS data. */
+	SHF_COMPRESSED       SectionFlag = 0x800      /* Section is compressed. */
 	SHF_MASKOS           SectionFlag = 0x0ff00000 /* OS-specific semantics. */
 	SHF_MASKPROC         SectionFlag = 0xf0000000 /* Processor-specific semantics. */
 )
@@ -426,10 +427,33 @@ var shfStrings = []intName{
 	{0x100, "SHF_OS_NONCONFORMING"},
 	{0x200, "SHF_GROUP"},
 	{0x400, "SHF_TLS"},
+	{0x800, "SHF_COMPRESSED"},
 }
 
 func (i SectionFlag) String() string   { return flagName(uint32(i), shfStrings, false) }
 func (i SectionFlag) GoString() string { return flagName(uint32(i), shfStrings, true) }
+
+// Section compression type.
+type CompressionType int
+
+const (
+	COMPRESS_ZLIB   CompressionType = 1          /* ZLIB compression. */
+	COMPRESS_LOOS   CompressionType = 0x60000000 /* First OS-specific. */
+	COMPRESS_HIOS   CompressionType = 0x6fffffff /* Last OS-specific. */
+	COMPRESS_LOPROC CompressionType = 0x70000000 /* First processor-specific type. */
+	COMPRESS_HIPROC CompressionType = 0x7fffffff /* Last processor-specific type. */
+)
+
+var compressionStrings = []intName{
+	{0, "COMPRESS_ZLIB"},
+	{0x60000000, "COMPRESS_LOOS"},
+	{0x6fffffff, "COMPRESS_HIOS"},
+	{0x70000000, "COMPRESS_LOPROC"},
+	{0x7fffffff, "COMPRESS_HIPROC"},
+}
+
+func (i CompressionType) String() string   { return stringName(uint32(i), compressionStrings, false) }
+func (i CompressionType) GoString() string { return stringName(uint32(i), compressionStrings, true) }
 
 // Prog.Type
 type ProgType int
@@ -1878,6 +1902,13 @@ type Dyn32 struct {
 	Val uint32 /* Integer/Address value. */
 }
 
+// ELF32 Compression header.
+type Chdr32 struct {
+	Type      uint32
+	Size      uint32
+	Addralign uint32
+}
+
 /*
  * Relocation entries.
  */
@@ -1970,6 +2001,14 @@ type Prog64 struct {
 type Dyn64 struct {
 	Tag int64  /* Entry type. */
 	Val uint64 /* Integer/address value */
+}
+
+// ELF64 Compression header.
+type Chdr64 struct {
+	Type      uint32
+	Reserved  uint32
+	Size      uint64
+	Addralign uint64
 }
 
 /*
