@@ -58,6 +58,12 @@ type SectionHeader struct {
 	Info      uint32
 	Addralign uint64
 	Entsize   uint64
+
+	// FileSize is the size of this section in the file in bytes.
+	// If a section is compressed, FileSize is the size of the
+	// compressed data, while Size (above) is the size of the
+	// uncompressed data.
+	FileSize uint64
 }
 
 // A Section represents a single section in an ELF file.
@@ -70,17 +76,23 @@ type Section struct {
 	// If a client wants Read and Seek it must use
 	// Open() to avoid fighting over the seek offset
 	// with other clients.
+	//
+	// ReaderAt may be nil if the section is not easily available
+	// in a random-access form. For example, a compressed section
+	// may have a nil ReaderAt.
 	io.ReaderAt
 	sr *io.SectionReader
+
+	compressionType   CompressionType
+	compressionOffset int64
 }
 
 // Data reads and returns the contents of the ELF section.
+// Even if the section is stored compressed in the ELF file,
+// Data returns uncompressed data.
 func (s *Section) Data() ([]byte, error) {
-	dat := make([]byte, s.sr.Size())
-	n, err := s.sr.ReadAt(dat, 0)
-	if n == len(dat) {
-		err = nil
-	}
+	dat := make([]byte, s.Size)
+	n, err := io.ReadFull(s.Open(), dat)
 	return dat[0:n], err
 }
 
@@ -94,7 +106,24 @@ func (f *File) stringTable(link uint32) ([]byte, error) {
 }
 
 // Open returns a new ReadSeeker reading the ELF section.
-func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
+// Even if the section is stored compressed in the ELF file,
+// the ReadSeeker reads uncompressed data.
+func (s *Section) Open() io.ReadSeeker {
+	if s.Flags&SHF_COMPRESSED == 0 {
+		return io.NewSectionReader(s.sr, 0, 1<<63-1)
+	}
+	if s.compressionType == COMPRESS_ZLIB {
+		return &readSeekerFromReader{
+			reset: func() (io.Reader, error) {
+				fr := io.NewSectionReader(s.sr, s.compressionOffset, int64(s.FileSize)-s.compressionOffset)
+				return zlib.NewReader(fr)
+			},
+			size: int64(s.Size),
+		}
+	}
+	err := &FormatError{int64(s.Offset), "unknown compression type", s.compressionType}
+	return errorReader{err}
+}
 
 // A ProgHeader represents a single ELF program header.
 type ProgHeader struct {
@@ -344,7 +373,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Flags:     SectionFlag(sh.Flags),
 				Addr:      uint64(sh.Addr),
 				Offset:    uint64(sh.Off),
-				Size:      uint64(sh.Size),
+				FileSize:  uint64(sh.Size),
 				Link:      uint32(sh.Link),
 				Info:      uint32(sh.Info),
 				Addralign: uint64(sh.Addralign),
@@ -360,7 +389,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Type:      SectionType(sh.Type),
 				Flags:     SectionFlag(sh.Flags),
 				Offset:    uint64(sh.Off),
-				Size:      uint64(sh.Size),
+				FileSize:  uint64(sh.Size),
 				Addr:      uint64(sh.Addr),
 				Link:      uint32(sh.Link),
 				Info:      uint32(sh.Info),
@@ -368,8 +397,35 @@ func NewFile(r io.ReaderAt) (*File, error) {
 				Entsize:   uint64(sh.Entsize),
 			}
 		}
-		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Size))
-		s.ReaderAt = s.sr
+		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.FileSize))
+
+		if s.Flags&SHF_COMPRESSED == 0 {
+			s.ReaderAt = s.sr
+			s.Size = s.FileSize
+		} else {
+			// Read the compression header.
+			switch f.Class {
+			case ELFCLASS32:
+				ch := new(Chdr32)
+				if err := binary.Read(s.sr, f.ByteOrder, ch); err != nil {
+					return nil, err
+				}
+				s.compressionType = CompressionType(ch.Type)
+				s.Size = uint64(ch.Size)
+				s.Addralign = uint64(ch.Addralign)
+				s.compressionOffset = int64(binary.Size(ch))
+			case ELFCLASS64:
+				ch := new(Chdr64)
+				if err := binary.Read(s.sr, f.ByteOrder, ch); err != nil {
+					return nil, err
+				}
+				s.compressionType = CompressionType(ch.Type)
+				s.Size = ch.Size
+				s.Addralign = ch.Addralign
+				s.compressionOffset = int64(binary.Size(ch))
+			}
+		}
+
 		f.Sections[i] = s
 	}
 
