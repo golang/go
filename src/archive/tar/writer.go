@@ -94,13 +94,31 @@ func (f *formatter) formatOctal(b []byte, x int64) {
 	f.formatString(b, s)
 }
 
+// fitsInBase256 reports whether x can be encoded into n bytes using base-256
+// encoding. Unlike octal encoding, base-256 encoding does not require that the
+// string ends with a NUL character. Thus, all n bytes are available for output.
+//
+// If operating in binary mode, this assumes strict GNU binary mode; which means
+// that the first byte can only be either 0x80 or 0xff. Thus, the first byte is
+// equivalent to the sign bit in two's complement form.
+func fitsInBase256(n int, x int64) bool {
+	var binBits = uint(n-1) * 8
+	return n >= 9 || (x >= -1<<binBits && x < 1<<binBits)
+}
+
 // Write x into b, as binary (GNUtar/star extension).
 func (f *formatter) formatNumeric(b []byte, x int64) {
-	for i := len(b) - 1; x > 0 && i >= 0; i-- {
-		b[i] = byte(x)
-		x >>= 8
+	if fitsInBase256(len(b), x) {
+		for i := len(b) - 1; i >= 0; i-- {
+			b[i] = byte(x)
+			x >>= 8
+		}
+		b[0] |= 0x80 // Highest bit indicates binary format
+		return
 	}
-	b[0] |= 0x80 // highest bit indicates binary format
+
+	f.formatOctal(b, 0) // Last resort, just write zero
+	f.err = ErrFieldTooLong
 }
 
 var (
