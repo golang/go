@@ -375,8 +375,8 @@ func (t *tester) registerTests() {
 			break
 		}
 
-		// Darwin ARM64 fails with internal linking.
-		if t.goos == "darwin" && t.goarch == "arm64" {
+		// Darwin/Android ARM64 fails with internal linking.
+		if (t.goos == "darwin" || t.goos == "android") && t.goarch == "arm64" {
 			break
 		}
 
@@ -618,7 +618,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
 			"darwin-amd64",
-			"android-arm", "android-386":
+			"android-arm", "android-arm64", "android-386":
 			return true
 		}
 		return false
