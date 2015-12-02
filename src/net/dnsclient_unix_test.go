@@ -413,7 +413,11 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 			t.Errorf("%s: expected to successfully lookup host entry", name)
 			continue
 		}
-		if got, want := addrs, []IPAddr{IPAddr{IP: IP{127, 0, 0, 1}}}; !reflect.DeepEqual(got, want) {
+		if len(addrs) != 1 {
+			t.Errorf("%s: expected exactly one result, but got %v", name, addrs)
+			continue
+		}
+		if got, want := addrs[0].String(), "127.1.1.1"; got != want {
 			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
 		}
 	}
