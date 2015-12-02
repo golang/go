@@ -320,7 +320,6 @@ func Main() {
 
 		linehistpush(infile)
 
-		curio.infile = infile
 		var err error
 		curio.bin, err = obj.Bopenr(infile)
 		if err != nil {
@@ -824,7 +823,7 @@ func importfile(f *Val) {
 	case '\n':
 		// old export format
 		pushedio = curio
-		curio = Io{bin: imp, infile: file}
+		curio = Io{bin: imp}
 		typecheckok = true
 
 		parse_import()
@@ -851,7 +850,7 @@ func importfile(f *Val) {
 func cannedimports(file string, cp string) {
 	lexlineno++ // if sys.6 is included on line 1,
 	pushedio = curio
-	curio = Io{infile: file, bin: obj.Binitr(strings.NewReader(cp))}
+	curio = Io{bin: obj.Binitr(strings.NewReader(cp))}
 	typecheckok = true
 	incannedimport = 1
 
@@ -1903,42 +1902,29 @@ func getc() int {
 		goto check
 	}
 
-	if curio.bin == nil {
-		if len(curio.cp) == 0 {
-			c = 0
-		} else {
-			c = int(curio.cp[0])
-			curio.cp = curio.cp[1:]
+loop:
+	c = obj.Bgetc(curio.bin)
+	// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
+	if c == 0xef {
+		buf, err := curio.bin.Peek(2)
+		if err != nil {
+			yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
+			errorexit()
 		}
-	} else {
-	loop:
-		c = obj.Bgetc(curio.bin)
-		// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
-		if c == 0xef {
-			buf, err := curio.bin.Peek(2)
-			if err != nil {
-				yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
-				errorexit()
-			}
-			if buf[0] == 0xbb && buf[1] == 0xbf {
-				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+		if buf[0] == 0xbb && buf[1] == 0xbf {
+			yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
 
-				// consume BOM bytes
-				obj.Bgetc(curio.bin)
-				obj.Bgetc(curio.bin)
-				goto loop
-			}
+			// consume BOM bytes
+			obj.Bgetc(curio.bin)
+			obj.Bgetc(curio.bin)
+			goto loop
 		}
 	}
 
 check:
 	switch c {
 	case 0:
-		if curio.bin != nil {
-			Yyerror("illegal NUL byte")
-			break
-		}
-		fallthrough
+		Yyerror("illegal NUL byte")
 
 		// insert \n at EOF
 	case EOF:
