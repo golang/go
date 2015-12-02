@@ -386,9 +386,7 @@ type Sig struct {
 }
 
 type Io struct {
-	infile string
 	bin    *obj.Biobuf
-	cp     string // used for content when bin==nil
 	last   int
 	peekc  int
 	peekc1 int // second peekc for ...
