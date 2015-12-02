@@ -274,6 +274,18 @@
 				"name": "lib.Type",
 				"pos": "testdata/src/lib/lib.go:3:6",
 				"kind": "basic"
+			},
+			{
+				"name": "main.I",
+				"pos": "testdata/src/implements-methods-json/main.go:35:6",
+				"kind": "interface"
+			}
+		],
+		"from": [
+			{
+				"name": "main.I",
+				"pos": "testdata/src/implements-methods-json/main.go:35:6",
+				"kind": "interface"
 			}
 		],
 		"method": {
@@ -284,6 +296,16 @@
 			{
 				"name": "method (lib.Type) Method(x *int) *int",
 				"pos": "testdata/src/lib/lib.go:5:13"
+			},
+			{
+				"name": "method (main.I) Method(*int) *int",
+				"pos": "testdata/src/implements-methods-json/main.go:36:2"
+			}
+		],
+		"from_method": [
+			{
+				"name": "method (main.I) Method(*int) *int",
+				"pos": "testdata/src/implements-methods-json/main.go:36:2"
 			}
 		]
 	}

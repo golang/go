@@ -33,7 +33,7 @@ func freevars(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 	allowErrors(&lconf)
 
-	if err := importQueryPackage(q.Pos, &lconf); err != nil {
+	if _, err := importQueryPackage(q.Pos, &lconf); err != nil {
 		return err
 	}
 

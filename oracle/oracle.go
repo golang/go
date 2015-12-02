@@ -190,10 +190,11 @@ func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflec
 
 // importQueryPackage finds the package P containing the
 // query position and tells conf to import it.
-func importQueryPackage(pos string, conf *loader.Config) error {
+// It returns the package's path.
+func importQueryPackage(pos string, conf *loader.Config) (string, error) {
 	fqpos, err := fastQueryPos(pos)
 	if err != nil {
-		return err // bad query
+		return "", err // bad query
 	}
 	filename := fqpos.fset.File(fqpos.start).Name()
 
@@ -202,10 +203,10 @@ func importQueryPackage(pos string, conf *loader.Config) error {
 	// TODO(adonovan): ensure we report a clear error.
 	_, importPath, err := guessImportPath(filename, conf.Build)
 	if err != nil {
-		return err // can't find GOPATH dir
+		return "", err // can't find GOPATH dir
 	}
 	if importPath == "" {
-		return fmt.Errorf("can't guess import path from %s", filename)
+		return "", fmt.Errorf("can't guess import path from %s", filename)
 	}
 
 	// Check that it's possible to load the queried package.
@@ -215,7 +216,7 @@ func importQueryPackage(pos string, conf *loader.Config) error {
 	cfg2.CgoEnabled = false
 	bp, err := cfg2.Import(importPath, "", 0)
 	if err != nil {
-		return err // no files for package
+		return "", err // no files for package
 	}
 
 	switch pkgContainsFile(bp, filename) {
@@ -227,13 +228,13 @@ func importQueryPackage(pos string, conf *loader.Config) error {
 	case 'G':
 		conf.Import(importPath)
 	default:
-		return fmt.Errorf("package %q doesn't contain file %s",
+		return "", fmt.Errorf("package %q doesn't contain file %s",
 			importPath, filename)
 	}
 
 	conf.TypeCheckFuncBodies = func(p string) bool { return p == importPath }
 
-	return nil
+	return importPath, nil
 }
 
 // pkgContainsFile reports whether file was among the packages Go

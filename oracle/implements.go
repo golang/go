@@ -16,10 +16,11 @@ import (
 	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/oracle/serial"
+	"golang.org/x/tools/refactor/importgraph"
 )
 
 // Implements displays the "implements" relation as it pertains to the
-// selected type within a single package.
+// selected type.
 // If the selection is a method, 'implements' displays
 // the corresponding methods of the types that would have been reported
 // by an implements query on the receiver type.
@@ -28,8 +29,33 @@ func implements(q *Query) error {
 	lconf := loader.Config{Build: q.Build}
 	allowErrors(&lconf)
 
-	if err := importQueryPackage(q.Pos, &lconf); err != nil {
+	qpkg, err := importQueryPackage(q.Pos, &lconf)
+	if err != nil {
 		return err
+	}
+
+	// Set the packages to search.
+	if len(q.Scope) > 0 {
+		// Inspect all packages in the analysis scope, if specified.
+		if err := setPTAScope(&lconf, q.Scope); err != nil {
+			return err
+		}
+	} else {
+		// Otherwise inspect the forward and reverse
+		// transitive closure of the selected package.
+		// (In theory even this is incomplete.)
+		_, rev, _ := importgraph.Build(q.Build)
+		for path := range rev.Search(qpkg) {
+			lconf.ImportWithTests(path)
+		}
+
+		// TODO(adonovan): for completeness, we should also
+		// type-check and inspect function bodies in all
+		// imported packages.  This would be expensive, but we
+		// could optimize by skipping functions that do not
+		// contain type declarations.  This would require
+		// changing the loader's TypeCheckFuncBodies hook to
+		// provide the []*ast.File.
 	}
 
 	// Load/parse/type-check the program.
@@ -72,10 +98,6 @@ func implements(q *Query) error {
 
 	// Find all named types, even local types (which can have
 	// methods via promotion) and the built-in "error".
-	//
-	// TODO(adonovan): include all packages in PTA scope too?
-	// i.e. don't reduceScope?
-	//
 	var allNamed []types.Type
 	for _, info := range lprog.AllPackages {
 		for _, obj := range info.Defs {
