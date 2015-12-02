@@ -598,6 +598,12 @@ func (p *Package) rewriteCalls(f *File) {
 // each pointer argument x with _cgoCheckPointer(x).(T).
 func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
 	for i, param := range name.FuncType.Params {
+		if len(call.Args) <= i {
+			// Avoid a crash; this will be caught when the
+			// generated file is compiled.
+			return
+		}
+
 		// An untyped nil does not need a pointer check, and
 		// when _cgoCheckPointer returns the untyped nil the
 		// type assertion we are going to insert will fail.
@@ -609,12 +615,6 @@ func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
 
 		if !p.needsPointerCheck(f, param.Go) {
 			continue
-		}
-
-		if len(call.Args) <= i {
-			// Avoid a crash; this will be caught when the
-			// generated file is compiled.
-			return
 		}
 
 		c := &ast.CallExpr{
