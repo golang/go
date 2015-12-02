@@ -613,17 +613,17 @@ func TestAddressFormattingAndParsing(t *testing.T) {
 		&Address{Name: "naé, mée", Address: "test.mail@gmail.com"},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		parsed, err := ParseAddress(test.String())
 		if err != nil {
-			t.Errorf("ParseAddr(%q) error: %v", test.String(), err)
+			t.Errorf("test #%d: ParseAddr(%q) error: %v", i, test.String(), err)
 			continue
 		}
 		if parsed.Name != test.Name {
-			t.Errorf("Parsed name = %q; want %q", parsed.Name, test.Name)
+			t.Errorf("test #%d: Parsed name = %q; want %q", i, parsed.Name, test.Name)
 		}
 		if parsed.Address != test.Address {
-			t.Errorf("Parsed address = %q; want %q", parsed.Address, test.Address)
+			t.Errorf("test #%d: Parsed address = %q; want %q", i, parsed.Address, test.Address)
 		}
 	}
 }
