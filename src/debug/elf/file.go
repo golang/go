@@ -7,6 +7,7 @@ package elf
 
 import (
 	"bytes"
+	"compress/zlib"
 	"debug/dwarf"
 	"encoding/binary"
 	"errors"
@@ -863,6 +864,22 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 			return nil, err
 		}
 
+		if len(b) >= 12 && string(b[:4]) == "ZLIB" {
+			dlen := binary.BigEndian.Uint64(b[4:12])
+			dbuf := make([]byte, dlen)
+			r, err := zlib.NewReader(bytes.NewBuffer(b[12:]))
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.ReadFull(r, dbuf); err != nil {
+				return nil, err
+			}
+			if err := r.Close(); err != nil {
+				return nil, err
+			}
+			b = dbuf
+		}
+
 		for _, r := range f.Sections {
 			if r.Type != SHT_RELA && r.Type != SHT_REL {
 				continue
@@ -887,17 +904,23 @@ func (f *File) DWARF() (*dwarf.Data, error) {
 	// Don't bother loading others.
 	var dat = map[string][]byte{"abbrev": nil, "info": nil, "str": nil, "line": nil}
 	for i, s := range f.Sections {
-		if !strings.HasPrefix(s.Name, ".debug_") {
+		suffix := ""
+		switch {
+		case strings.HasPrefix(s.Name, ".debug_"):
+			suffix = s.Name[7:]
+		case strings.HasPrefix(s.Name, ".zdebug_"):
+			suffix = s.Name[8:]
+		default:
 			continue
 		}
-		if _, ok := dat[s.Name[7:]]; !ok {
+		if _, ok := dat[suffix]; !ok {
 			continue
 		}
 		b, err := sectionData(i, s)
 		if err != nil {
 			return nil, err
 		}
-		dat[s.Name[7:]] = b
+		dat[suffix] = b
 	}
 
 	d, err := dwarf.New(dat["abbrev"], nil, nil, dat["info"], dat["line"], nil, nil, dat["str"])

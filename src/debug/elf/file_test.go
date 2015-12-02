@@ -514,6 +514,34 @@ func TestDWARFRelocations(t *testing.T) {
 	}
 }
 
+func TestCompressedDWARF(t *testing.T) {
+	// Test file built with GCC 4.8.4 and as 2.24 using:
+	// gcc -Wa,--compress-debug-sections -g -c -o zdebug-test-gcc484-x86-64.obj hello.c
+	f, err := Open("testdata/zdebug-test-gcc484-x86-64.obj")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dwarf, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := dwarf.Reader()
+	n := 0
+	for {
+		entry, err := reader.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
+		n++
+	}
+	if n != 18 {
+		t.Fatalf("want %d DWARF entries, got %d", 18, n)
+	}
+}
+
 func TestNoSectionOverlaps(t *testing.T) {
 	// Ensure 6l outputs sections without overlaps.
 	if runtime.GOOS != "linux" && runtime.GOOS != "freebsd" {
