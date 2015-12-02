@@ -326,10 +326,7 @@ var untarTests = []*untarTest{
 	},
 	{
 		file: "testdata/issue12435.tar",
-		// TODO(dsnet): Currently the library does not detect that this file is
-		// malformed. Instead, it incorrectly believes that file just ends.
-		// At least the library doesn't crash anymore.
-		// err:  ErrHeader,
+		err:  ErrHeader,
 	},
 }
 
@@ -1061,6 +1058,68 @@ func TestParsePAXRecord(t *testing.T) {
 		if res != v.residual {
 			t.Errorf("parsePAXRecord(%q): got residual %q, want residual %q",
 				v.input, res, v.residual)
+		}
+	}
+}
+
+func TestParseNumeric(t *testing.T) {
+	var vectors = []struct {
+		input  string
+		output int64
+		ok     bool
+	}{
+		// Test base-256 (binary) encoded values.
+		{"", 0, true},
+		{"\x80", 0, true},
+		{"\x80\x00", 0, true},
+		{"\x80\x00\x00", 0, true},
+		{"\xbf", (1 << 6) - 1, true},
+		{"\xbf\xff", (1 << 14) - 1, true},
+		{"\xbf\xff\xff", (1 << 22) - 1, true},
+		{"\xff", -1, true},
+		{"\xff\xff", -1, true},
+		{"\xff\xff\xff", -1, true},
+		{"\xc0", -1 * (1 << 6), true},
+		{"\xc0\x00", -1 * (1 << 14), true},
+		{"\xc0\x00\x00", -1 * (1 << 22), true},
+		{"\x87\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
+		{"\x80\x00\x00\x00\x07\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
+		{"\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
+		{"\xff\xff\xff\xff\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
+		{"\x80\x7f\xff\xff\xff\xff\xff\xff\xff", math.MaxInt64, true},
+		{"\x80\x80\x00\x00\x00\x00\x00\x00\x00", 0, false},
+		{"\xff\x80\x00\x00\x00\x00\x00\x00\x00", math.MinInt64, true},
+		{"\xff\x7f\xff\xff\xff\xff\xff\xff\xff", 0, false},
+		{"\xf5\xec\xd1\xc7\x7e\x5f\x26\x48\x81\x9f\x8f\x9b", 0, false},
+
+		// Test base-8 (octal) encoded values.
+		{"0000000\x00", 0, true},
+		{" \x0000000\x00", 0, true},
+		{" \x0000003\x00", 3, true},
+		{"00000000227\x00", 0227, true},
+		{"032033\x00 ", 032033, true},
+		{"320330\x00 ", 0320330, true},
+		{"0000660\x00 ", 0660, true},
+		{"\x00 0000660\x00 ", 0660, true},
+		{"0123456789abcdef", 0, false},
+		{"0123456789\x00abcdef", 0, false},
+		{"01234567\x0089abcdef", 342391, true},
+		{"0123\x7e\x5f\x264123", 0, false},
+	}
+
+	for _, v := range vectors {
+		var p parser
+		num := p.parseNumeric([]byte(v.input))
+		ok := (p.err == nil)
+		if v.ok != ok {
+			if v.ok {
+				t.Errorf("parseNumeric(%q): got parsing failure, want success", v.input)
+			} else {
+				t.Errorf("parseNumeric(%q): got parsing success, want failure", v.input)
+			}
+		}
+		if ok && num != v.output {
+			t.Errorf("parseNumeric(%q): got %d, want %d", v.input, num, v.output)
 		}
 	}
 }
