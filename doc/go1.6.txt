@@ -7,6 +7,7 @@ cmd/go: add -msan option (https://golang.org/cl/16169)
 cmd/compile: add -msan option (https://golang.org/cl/16160)
 cmd/link: add -msan option (https://golang.org/cl/16161)
 cmd/cgo: fix C.complexfloat and C.complexdouble and treat as separate types from complex64 and complex128 (https://golang.org/cl/17208)
+cmd/cgo: new pointer passing rules defined and enforced (https://golang.org/issue/12416)
 
 Ports:
 
