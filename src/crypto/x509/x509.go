@@ -541,6 +541,10 @@ type Certificate struct {
 // involves algorithms that are not currently implemented.
 var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
+// ErrInsecureAlgorithm results from attempting to perform an operation that
+// involves algorithms that are deemed insecure, notably MD5.
+var ErrInsecureAlgorithm = errors.New("x509: cannot verify signature: insecure algorithm")
+
 // ConstraintViolationError results when a requested usage is not permitted by
 // a certificate. For example: checking a signature when the public key isn't a
 // certificate signing key.
@@ -651,6 +655,8 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		hashType = crypto.SHA384
 	case SHA512WithRSA, ECDSAWithSHA512:
 		hashType = crypto.SHA512
+	case MD2WithRSA, MD5WithRSA:
+		return ErrInsecureAlgorithm
 	default:
 		return ErrUnsupportedAlgorithm
 	}
