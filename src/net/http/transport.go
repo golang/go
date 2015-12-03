@@ -288,9 +288,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		if err := checkTransportResend(err, req, pconn); err != nil {
 			return nil, err
 		}
-		if retried != nil {
-			retried()
-		}
+		testHookRoundTripRetried()
 	}
 }
 
@@ -600,9 +598,6 @@ func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
 	return net.Dial(network, addr)
 }
 
-// Testing hooks:
-var prePendingDial, postPendingDial, retried func()
-
 // getConn dials and creates a new persistConn to the target as
 // specified in the connectMethod.  This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
@@ -624,20 +619,16 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 
 	// Copy these hooks so we don't race on the postPendingDial in
 	// the goroutine we launch. Issue 11136.
-	prePendingDial := prePendingDial
-	postPendingDial := postPendingDial
+	testHookPrePendingDial := testHookPrePendingDial
+	testHookPostPendingDial := testHookPostPendingDial
 
 	handlePendingDial := func() {
-		if prePendingDial != nil {
-			prePendingDial()
-		}
+		testHookPrePendingDial()
 		go func() {
 			if v := <-dialc; v.err == nil {
 				t.putIdleConn(v.pc)
 			}
-			if postPendingDial != nil {
-				postPendingDial()
-			}
+			testHookPostPendingDial()
 		}()
 	}
 
@@ -1128,10 +1119,7 @@ func (pc *persistConn) readLoop() {
 				pc.wroteRequest() &&
 				pc.t.putIdleConn(pc)
 		}
-
-		if hook := testHookReadLoopBeforeNextRead; hook != nil {
-			hook()
-		}
+		testHookReadLoopBeforeNextRead()
 	}
 	pc.close()
 }
@@ -1258,12 +1246,19 @@ var errTimeout error = &httpError{err: "net/http: timeout awaiting response head
 var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
 var errRequestCanceled = errors.New("net/http: request canceled")
 
-// nil except for tests
+func nop() {}
+
+// testHooks. Always non-nil.
 var (
-	testHookPersistConnClosedGotRes func()
-	testHookEnterRoundTrip          func()
-	testHookMu                      sync.Locker = fakeLocker{} // guards following
-	testHookReadLoopBeforeNextRead  func()
+	testHookPersistConnClosedGotRes = nop
+	testHookEnterRoundTrip          = nop
+	testHookWaitResLoop             = nop
+	testHookRoundTripRetried        = nop
+	testHookPrePendingDial          = nop
+	testHookPostPendingDial         = nop
+
+	testHookMu                     sync.Locker = fakeLocker{} // guards following
+	testHookReadLoopBeforeNextRead             = nop
 )
 
 // beforeRespHeaderError is used to indicate when an IO error has occurred before
@@ -1273,9 +1268,7 @@ type beforeRespHeaderError struct {
 }
 
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
-	if hook := testHookEnterRoundTrip; hook != nil {
-		hook()
-	}
+	testHookEnterRoundTrip()
 	if !pc.t.replaceReqCanceler(req.Request, pc.cancelRequest) {
 		pc.t.putIdleConn(pc)
 		return nil, errRequestCanceled
@@ -1337,6 +1330,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	cancelChan := req.Request.Cancel
 WaitResponse:
 	for {
+		testHookWaitResLoop()
 		select {
 		case err := <-writeErrCh:
 			if isNetWriteError(err) {
@@ -1375,9 +1369,7 @@ WaitResponse:
 			// with a non-blocking receive.
 			select {
 			case re = <-resc:
-				if fn := testHookPersistConnClosedGotRes; fn != nil {
-					fn()
-				}
+				testHookPersistConnClosedGotRes()
 			default:
 				re = responseAndError{err: beforeRespHeaderError{errClosed}}
 				if pc.isCanceled() {
