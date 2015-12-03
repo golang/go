@@ -379,8 +379,13 @@ func toint(v Val) Val {
 
 	case CTFLT:
 		i := new(Mpint)
-		if mpmovefltfix(i, v.U.(*Mpflt)) < 0 {
-			Yyerror("constant %v truncated to integer", Fconv(v.U.(*Mpflt), obj.FmtSharp))
+		if f := v.U.(*Mpflt); mpmovefltfix(i, f) < 0 {
+			msg := "constant %v truncated to integer"
+			// provide better error message if mpmovefltfix failed because f was too large
+			if f.Val.IsInt() {
+				msg = "constant %v overflows integer"
+			}
+			Yyerror(msg, Fconv(f, obj.FmtSharp))
 		}
 		v.U = i
 
