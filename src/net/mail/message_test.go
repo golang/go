@@ -457,7 +457,7 @@ func TestAddressParser(t *testing.T) {
 	}
 }
 
-func TestAddressFormatting(t *testing.T) {
+func TestAddressString(t *testing.T) {
 	tests := []struct {
 		addr *Address
 		exp  string
@@ -503,11 +503,36 @@ func TestAddressFormatting(t *testing.T) {
 			&Address{Name: "Böb, Jacöb", Address: "bob@example.com"},
 			`=?utf-8?b?QsO2YiwgSmFjw7Zi?= <bob@example.com>`,
 		},
+		{
+			&Address{Name: "=??Q?x?=", Address: "hello@world.com"},
+			`"=??Q?x?=" <hello@world.com>`,
+		},
+		{
+			&Address{Name: "=?hello", Address: "hello@world.com"},
+			`"=?hello" <hello@world.com>`,
+		},
+		{
+			&Address{Name: "world?=", Address: "hello@world.com"},
+			`"world?=" <hello@world.com>`,
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
 		if s != test.exp {
 			t.Errorf("Address%+v.String() = %v, want %v", *test.addr, s, test.exp)
+			continue
+		}
+
+		// Check round-trip.
+		if test.addr.Address != "" && test.addr.Address != "@" {
+			a, err := ParseAddress(test.exp)
+			if err != nil {
+				t.Errorf("ParseAddress(%#q): %v", test.exp, err)
+				continue
+			}
+			if a.Name != test.addr.Name || a.Address != test.addr.Address {
+				t.Errorf("ParseAddress(%#q) = %#v, want %#v", test.exp, a, test.addr)
+			}
 		}
 	}
 }
