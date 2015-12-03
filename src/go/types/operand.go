@@ -166,13 +166,6 @@ func (x *operand) String() string {
 
 // setConst sets x to the untyped constant for literal lit.
 func (x *operand) setConst(tok token.Token, lit string) {
-	val := constant.MakeFromLiteral(lit, tok, 0)
-	if val == nil {
-		// TODO(gri) Should we make it an unknown constant instead?
-		x.mode = invalid
-		return
-	}
-
 	var kind BasicKind
 	switch tok {
 	case token.INT:
@@ -185,11 +178,13 @@ func (x *operand) setConst(tok token.Token, lit string) {
 		kind = UntypedRune
 	case token.STRING:
 		kind = UntypedString
+	default:
+		unreachable()
 	}
 
 	x.mode = constant_
 	x.typ = Typ[kind]
-	x.val = val
+	x.val = constant.MakeFromLiteral(lit, tok, 0)
 }
 
 // isNil reports whether x is the nil value.
@@ -229,7 +224,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 				return true
 			}
 			if x.mode == constant_ {
-				return representableConst(x.val, conf, t.kind, nil)
+				return representableConst(x.val, conf, t, nil)
 			}
 			// The result of a comparison is an untyped boolean,
 			// but may not be a constant.
@@ -275,12 +270,4 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 	}
 
 	return false
-}
-
-// isInteger reports whether x is value of integer type
-// or an untyped constant representable as an integer.
-func (x *operand) isInteger() bool {
-	return x.mode == invalid ||
-		isInteger(x.typ) ||
-		isUntyped(x.typ) && x.mode == constant_ && representableConst(x.val, nil, UntypedInt, nil) // no *Config required for UntypedInt
 }

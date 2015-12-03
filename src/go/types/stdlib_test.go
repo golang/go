@@ -144,14 +144,9 @@ func TestStdFixed(t *testing.T) {
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
-		"bug459.go",      // possibly incorrect test - see issue 6703 (pending spec clarification)
-		"issue3924.go",   // possibly incorrect test - see issue 6671 (pending spec clarification)
-		"issue6889.go",   // gc-specific test
-		"issue7746.go",   // large constants - consumes too much memory
-		"issue11326.go",  // large constants
-		"issue11326b.go", // large constants
-		"issue11362.go",  // canonical import path check
-		"issue13471.go",  // large constants - remove once issue 11327 is fixed
+		"issue6889.go",  // gc-specific test
+		"issue7746.go",  // large constants - consumes too much memory
+		"issue11362.go", // canonical import path check
 	)
 }
 

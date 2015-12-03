@@ -21,8 +21,8 @@ func f(x int, m map[string]int) {
 	const c2 float32 = 0.5
 	0 /* ERROR "0 \(untyped int constant\) is not used" */
 	c1 /* ERROR "c1 \(untyped int constant 991\) is not used" */
-	c2 /* ERROR "c2 \(constant 1/2 of type float32\) is not used" */
-	c1 /* ERROR "c1 \+ c2 \(constant 1983/2 of type float32\) is not used" */ + c2
+	c2 /* ERROR "c2 \(constant 0.5 of type float32\) is not used" */
+	c1 /* ERROR "c1 \+ c2 \(constant 991.5 of type float32\) is not used" */ + c2
 
 	// variables
 	x /* ERROR "x \(variable of type int\) is not used" */
