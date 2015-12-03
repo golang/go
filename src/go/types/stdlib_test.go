@@ -151,6 +151,7 @@ func TestStdFixed(t *testing.T) {
 		"issue11326.go",  // large constants
 		"issue11326b.go", // large constants
 		"issue11362.go",  // canonical import path check
+		"issue13471.go",  // large constants - remove once issue 11327 is fixed
 	)
 }
 
