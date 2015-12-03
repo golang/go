@@ -9,9 +9,21 @@ package http
 
 import (
 	"net"
-	"net/url"
 	"sync"
 	"time"
+)
+
+var (
+	DefaultUserAgent              = defaultUserAgent
+	NewLoggingConn                = newLoggingConn
+	ExportAppendTime              = appendTime
+	ExportRefererForURL           = refererForURL
+	ExportServerNewConn           = (*Server).newConn
+	ExportCloseWriteAndWait       = (*conn).closeWriteAndWait
+	ExportErrRequestCanceled      = errRequestCanceled
+	ExportServeFile               = serveFile
+	ExportHttp2ConfigureTransport = http2ConfigureTransport
+	ExportHttp2ConfigureServer    = http2ConfigureServer
 )
 
 func init() {
@@ -21,11 +33,42 @@ func init() {
 	testHookMu = new(sync.Mutex)
 }
 
-func NewLoggingConn(baseName string, c net.Conn) net.Conn {
-	return newLoggingConn(baseName, c)
+var (
+	SetInstallConnClosedHook = hookSetter(&testHookPersistConnClosedGotRes)
+	SetEnterRoundTripHook    = hookSetter(&testHookEnterRoundTrip)
+	SetTestHookWaitResLoop   = hookSetter(&testHookWaitResLoop)
+	SetRoundTripRetried      = hookSetter(&testHookRoundTripRetried)
+)
+
+func SetReadLoopBeforeNextReadHook(f func()) {
+	testHookMu.Lock()
+	defer testHookMu.Unlock()
+	unnilTestHook(&f)
+	testHookReadLoopBeforeNextRead = f
 }
 
-var ExportAppendTime = appendTime
+// SetPendingDialHooks sets the hooks that run before and after handling
+// pending dials.
+func SetPendingDialHooks(before, after func()) {
+	unnilTestHook(&before)
+	unnilTestHook(&after)
+	testHookPrePendingDial, testHookPostPendingDial = before, after
+}
+
+func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
+
+func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+	f := func() <-chan time.Time {
+		return ch
+	}
+	return &timeoutHandler{handler, f, ""}
+}
+
+func ResetCachedEnvironment() {
+	httpProxyEnv.reset()
+	httpsProxyEnv.reset()
+	noProxyEnv.reset()
+}
 
 func (t *Transport) NumPendingRequestsForTesting() int {
 	t.reqMu.Lock()
@@ -86,60 +129,17 @@ func (t *Transport) PutIdleTestConn() bool {
 	})
 }
 
-func SetInstallConnClosedHook(f func()) {
-	testHookPersistConnClosedGotRes = f
-}
-
-func SetEnterRoundTripHook(f func()) {
-	testHookEnterRoundTrip = f
-}
-
-func SetReadLoopBeforeNextReadHook(f func()) {
-	testHookMu.Lock()
-	defer testHookMu.Unlock()
-	testHookReadLoopBeforeNextRead = f
-}
-
-func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
-	f := func() <-chan time.Time {
-		return ch
+// All test hooks must be non-nil so they can be called directly,
+// but the tests use nil to mean hook disabled.
+func unnilTestHook(f *func()) {
+	if *f == nil {
+		*f = nop
 	}
-	return &timeoutHandler{handler, f, ""}
 }
 
-func ResetCachedEnvironment() {
-	httpProxyEnv.reset()
-	httpsProxyEnv.reset()
-	noProxyEnv.reset()
+func hookSetter(dst *func()) func(func()) {
+	return func(fn func()) {
+		unnilTestHook(&fn)
+		*dst = fn
+	}
 }
-
-var DefaultUserAgent = defaultUserAgent
-
-func ExportRefererForURL(lastReq, newReq *url.URL) string {
-	return refererForURL(lastReq, newReq)
-}
-
-// SetPendingDialHooks sets the hooks that run before and after handling
-// pending dials.
-func SetPendingDialHooks(before, after func()) {
-	prePendingDial, postPendingDial = before, after
-}
-
-// SetRetriedHook sets the hook that runs when an idempotent retry occurs.
-func SetRetriedHook(hook func()) {
-	retried = hook
-}
-
-var ExportServerNewConn = (*Server).newConn
-
-var ExportCloseWriteAndWait = (*conn).closeWriteAndWait
-
-var ExportErrRequestCanceled = errRequestCanceled
-
-var ExportServeFile = serveFile
-
-var ExportHttp2ConfigureTransport = http2ConfigureTransport
-
-var ExportHttp2ConfigureServer = http2ConfigureServer
-
-func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }

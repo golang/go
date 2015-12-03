@@ -2431,10 +2431,10 @@ func TestRetryIdempotentRequestsOnError(t *testing.T) {
 
 	const N = 2
 	retryc := make(chan struct{}, N)
-	SetRetriedHook(func() {
+	SetRoundTripRetried(func() {
 		retryc <- struct{}{}
 	})
-	defer SetRetriedHook(nil)
+	defer SetRoundTripRetried(nil)
 
 	for n := 0; n < 100; n++ {
 		// open 2 conns
@@ -2681,6 +2681,15 @@ func TestTransportResponseCloseRace(t *testing.T) {
 		sawRace = true
 	})
 	defer SetInstallConnClosedHook(nil)
+
+	SetTestHookWaitResLoop(func() {
+		// Make the select race much more likely by blocking before
+		// the select, so both will be ready by the time the
+		// select runs.
+		time.Sleep(50 * time.Millisecond)
+	})
+	defer SetTestHookWaitResLoop(nil)
+
 	tr := &Transport{
 		DisableKeepAlives: true,
 	}
@@ -2698,6 +2707,7 @@ func TestTransportResponseCloseRace(t *testing.T) {
 		}
 		resp.Body.Close()
 		if sawRace {
+			t.Logf("saw race after %d iterations", i+1)
 			break
 		}
 	}
