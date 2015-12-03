@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"internal/testenv"
 	"math/big"
 	"net"
@@ -1089,8 +1090,8 @@ func TestCriticalFlagInCSRRequestedExtensions(t *testing.T) {
 		t.Fatalf("failed to parse CSR: %s", err)
 	}
 
-	expected := []struct{
-		Id asn1.ObjectIdentifier
+	expected := []struct {
+		Id    asn1.ObjectIdentifier
 		Value []byte
 	}{
 		{oidExtensionBasicConstraints, fromBase64("MAYBAf8CAQA=")},
@@ -1203,6 +1204,23 @@ func TestVerifyEmptyCertificate(t *testing.T) {
 	}
 }
 
+func TestInsecureAlgorithmErrorString(t *testing.T) {
+	tests := []struct {
+		sa   SignatureAlgorithm
+		want string
+	}{
+		{MD2WithRSA, "x509: cannot verify signature: insecure algorithm MD2-RSA"},
+		{-1, "x509: cannot verify signature: insecure algorithm -1"},
+		{0, "x509: cannot verify signature: insecure algorithm 0"},
+		{9999, "x509: cannot verify signature: insecure algorithm 9999"},
+	}
+	for i, tt := range tests {
+		if got := fmt.Sprint(InsecureAlgorithmError(tt.sa)); got != tt.want {
+			t.Errorf("%d. mismatch.\n got: %s\nwant: %s\n", i, got, tt.want)
+		}
+	}
+}
+
 // These CSR was generated with OpenSSL:
 //  openssl req -out CSR.csr -new -sha256 -nodes -keyout privateKey.key -config openssl.cnf
 //
@@ -1249,7 +1267,7 @@ func TestMD5(t *testing.T) {
 	if err = cert.CheckSignatureFrom(cert); err == nil {
 		t.Fatalf("certificate verification succeeded incorrectly")
 	}
-	if err != ErrInsecureAlgorithm {
-		t.Fatalf("certificate verification returned %q, wanted %q", err, ErrInsecureAlgorithm)
+	if _, ok := err.(InsecureAlgorithmError); !ok {
+		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
 	}
 }
