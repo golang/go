@@ -172,7 +172,7 @@ func (c *Client) send(req *Request) (*Response, error) {
 //
 // Generally Get, Post, or PostForm will be used instead of Do.
 func (c *Client) Do(req *Request) (resp *Response, err error) {
-	if req.Method == "GET" || req.Method == "HEAD" {
+	if req.Method == "" || req.Method == "GET" || req.Method == "HEAD" {
 		return c.doFollowingRedirects(req, shouldRedirectGet)
 	}
 	if req.Method == "POST" || req.Method == "PUT" {
@@ -423,6 +423,9 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 	}
 
 	method := ireq.Method
+	if method == "" {
+		method = "GET"
+	}
 	urlErr := &url.Error{
 		Op:  method[0:1] + strings.ToLower(method[1:]),
 		URL: urlStr,

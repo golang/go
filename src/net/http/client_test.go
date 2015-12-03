@@ -230,6 +230,13 @@ func TestClientRedirects(t *testing.T) {
 		t.Errorf("with default client Do, expected error %q, got %q", e, g)
 	}
 
+	// Requests with an empty Method should also redirect (Issue 12705)
+	greq.Method = ""
+	_, err = c.Do(greq)
+	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+		t.Errorf("with default client Do and empty Method, expected error %q, got %q", e, g)
+	}
+
 	var checkErr error
 	var lastVia []*Request
 	c = &Client{CheckRedirect: func(_ *Request, via []*Request) error {
