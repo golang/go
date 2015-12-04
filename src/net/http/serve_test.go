@@ -1654,7 +1654,10 @@ func TestRequestBodyTimeoutClosesConnection(t *testing.T) {
 	}
 }
 
-func TestTimeoutHandler(t *testing.T) {
+func TestTimeoutHandler_h1(t *testing.T) { testTimeoutHandler(t, false) }
+func TestTimeoutHandler_h2(t *testing.T) { testTimeoutHandler(t, true) }
+
+func testTimeoutHandler(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	sendHi := make(chan bool, 1)
 	writeErrors := make(chan error, 1)
@@ -1664,12 +1667,12 @@ func TestTimeoutHandler(t *testing.T) {
 		writeErrors <- werr
 	})
 	timeout := make(chan time.Time, 1) // write to this to force timeouts
-	ts := httptest.NewServer(NewTestTimeoutHandler(sayHi, timeout))
-	defer ts.Close()
+	cst := newClientServerTest(t, h2, NewTestTimeoutHandler(sayHi, timeout))
+	defer cst.close()
 
 	// Succeed without timing out:
 	sendHi <- true
-	res, err := Get(ts.URL)
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1686,7 +1689,7 @@ func TestTimeoutHandler(t *testing.T) {
 
 	// Times out:
 	timeout <- time.Time{}
-	res, err = Get(ts.URL)
+	res, err = cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
