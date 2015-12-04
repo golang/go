@@ -483,6 +483,34 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// golang.org/issue/7991 and golang.org/issue/12719 (non-ascii %-encoded in host)
+	{
+		"http://hello.世界.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+	},
+	{
+		"http://hello.%e4%b8%96%e7%95%8c.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+	},
+	{
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1184,11 +1212,11 @@ func TestParseAuthority(t *testing.T) {
 		{"http://[::1]%23", true},
 		{"http://[::1%25en0]", false},     // valid zone id
 		{"http://[::1]:", false},          // colon, but no port OK
-		{"http://[::1]:%38%30", true},     // no hex in port
-		{"http://[::1%25%10]", false},     // TODO: reject the %10 after the valid zone %25 separator?
+		{"http://[::1]:%38%30", true},     // not allowed: % encoding only for non-ASCII
+		{"http://[::1%25%41]", false},     // RFC 6874 allows over-escaping in zone
 		{"http://[%10::1]", true},         // no %xx escapes in IP address
 		{"http://[::1]/%48", false},       // %xx in path is fine
-		{"http://%41:8080/", true},        // TODO: arguably we should accept reg-name with %xx
+		{"http://%41:8080/", true},        // not allowed: % encoding only for non-ASCII
 		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
 		{"mysql://x@y(1.2.3.4:123)/foo", false},
 		{"mysql://x@y([2001:db8::1]:123)/foo", false},
