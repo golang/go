@@ -52,9 +52,12 @@ func TestDetectContentType(t *testing.T) {
 	}
 }
 
-func TestServerContentType(t *testing.T) {
+func TestServerContentType_h1(t *testing.T) { testServerContentType(t, false) }
+func TestServerContentType_h2(t *testing.T) { testServerContentType(t, true) }
+
+func testServerContentType(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		i, _ := strconv.Atoi(r.FormValue("i"))
 		tt := sniffTests[i]
 		n, err := w.Write(tt.data)
@@ -62,10 +65,10 @@ func TestServerContentType(t *testing.T) {
 			log.Fatalf("%v: Write(%q) = %v, %v want %d, nil", tt.desc, tt.data, n, err, len(tt.data))
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
 	for i, tt := range sniffTests {
-		resp, err := Get(ts.URL + "/?i=" + strconv.Itoa(i))
+		resp, err := cst.c.Get(cst.ts.URL + "/?i=" + strconv.Itoa(i))
 		if err != nil {
 			t.Errorf("%v: %v", tt.desc, err)
 			continue
@@ -106,7 +109,10 @@ func TestServerIssue5953(t *testing.T) {
 	resp.Body.Close()
 }
 
-func TestContentTypeWithCopy(t *testing.T) {
+func TestContentTypeWithCopy_h1(t *testing.T) { testContentTypeWithCopy(t, false) }
+func TestContentTypeWithCopy_h2(t *testing.T) { testContentTypeWithCopy(t, true) }
+
+func testContentTypeWithCopy(t *testing.T, h2 bool) {
 	defer afterTest(t)
 
 	const (
@@ -114,7 +120,7 @@ func TestContentTypeWithCopy(t *testing.T) {
 		expected = "text/html; charset=utf-8"
 	)
 
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
 		buf := bytes.NewBuffer([]byte(input))
 		n, err := io.Copy(w, buf)
@@ -122,9 +128,9 @@ func TestContentTypeWithCopy(t *testing.T) {
 			t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	resp, err := Get(ts.URL)
+	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
