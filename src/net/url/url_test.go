@@ -511,6 +511,16 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// golang.org/issue/10433 (path beginning with //)
+	{
+		"http://example.com//foo",
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Path:   "//foo",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1177,6 +1187,14 @@ var requritests = []RequestURITest{
 			RawQuery: "q=go+language",
 		},
 		"opaque?q=go+language",
+	},
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Path:   "//foo",
+		},
+		"//foo",
 	},
 }
 
