@@ -21,7 +21,7 @@ import (
 // that the C code can also use.
 
 const (
-	fd = 10
+	fd = 100
 )
 
 func init() {
