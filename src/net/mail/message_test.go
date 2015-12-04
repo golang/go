@@ -601,16 +601,16 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 
 func TestAddressFormattingAndParsing(t *testing.T) {
 	tests := []*Address{
-		&Address{Name: "@lïce", Address: "alice@example.com"},
-		&Address{Name: "Böb O'Connor", Address: "bob@example.com"},
-		&Address{Name: "???", Address: "bob@example.com"},
-		&Address{Name: "Böb ???", Address: "bob@example.com"},
-		&Address{Name: "Böb (Jacöb)", Address: "bob@example.com"},
-		&Address{Name: "à#$%&'(),.:;<>@[]^`{|}~'", Address: "bob@example.com"},
+		{Name: "@lïce", Address: "alice@example.com"},
+		{Name: "Böb O'Connor", Address: "bob@example.com"},
+		{Name: "???", Address: "bob@example.com"},
+		{Name: "Böb ???", Address: "bob@example.com"},
+		{Name: "Böb (Jacöb)", Address: "bob@example.com"},
+		{Name: "à#$%&'(),.:;<>@[]^`{|}~'", Address: "bob@example.com"},
 		// https://golang.org/issue/11292
-		&Address{Name: "\"\\\x1f,\"", Address: "0@0"},
+		{Name: "\"\\\x1f,\"", Address: "0@0"},
 		// https://golang.org/issue/12782
-		&Address{Name: "naé, mée", Address: "test.mail@gmail.com"},
+		{Name: "naé, mée", Address: "test.mail@gmail.com"},
 	}
 
 	for i, test := range tests {
