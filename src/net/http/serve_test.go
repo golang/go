@@ -735,14 +735,17 @@ func TestHandlersCanSetConnectionClose10(t *testing.T) {
 	}))
 }
 
-func TestSetsRemoteAddr(t *testing.T) {
+func TestSetsRemoteAddr_h1(t *testing.T) { testSetsRemoteAddr(t, false) }
+func TestSetsRemoteAddr_h2(t *testing.T) { testSetsRemoteAddr(t, true) }
+
+func testSetsRemoteAddr(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		fmt.Fprintf(w, "%s", r.RemoteAddr)
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	res, err := Get(ts.URL)
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatalf("Get error: %v", err)
 	}
