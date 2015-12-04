@@ -890,9 +890,12 @@ func TestIdentityResponseHeaders(t *testing.T) {
 
 // TestHeadResponses verifies that all MIME type sniffing and Content-Length
 // counting of GET requests also happens on HEAD requests.
-func TestHeadResponses(t *testing.T) {
+func TestHeadResponses_h1(t *testing.T) { testHeadResponses(t, false) }
+func TestHeadResponses_h2(t *testing.T) { testHeadResponses(t, true) }
+
+func testHeadResponses(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		_, err := w.Write([]byte("<html>"))
 		if err != nil {
 			t.Errorf("ResponseWriter.Write: %v", err)
@@ -904,8 +907,8 @@ func TestHeadResponses(t *testing.T) {
 			t.Errorf("Copy(ResponseWriter, ...): %v", err)
 		}
 	}))
-	defer ts.Close()
-	res, err := Head(ts.URL)
+	defer cst.close()
+	res, err := cst.c.Head(cst.ts.URL)
 	if err != nil {
 		t.Error(err)
 	}
