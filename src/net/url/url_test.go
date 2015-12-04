@@ -521,6 +521,16 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// test that we can reparse the host names we accept.
+	{
+		"myscheme://authority<\"hi\">/foo",
+		&URL{
+			Scheme: "myscheme",
+			Host:   "authority<\"hi\">",
+			Path:   "/foo",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1239,6 +1249,7 @@ func TestParseAuthority(t *testing.T) {
 		{"mysql://x@y(1.2.3.4:123)/foo", false},
 		{"mysql://x@y([2001:db8::1]:123)/foo", false},
 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
+		{"http://a b.com/", true},                                                                       // no space in host name please
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)

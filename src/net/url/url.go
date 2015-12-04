@@ -83,6 +83,12 @@ func (e EscapeError) Error() string {
 	return "invalid URL escape " + strconv.Quote(string(e))
 }
 
+type InvalidHostError string
+
+func (e InvalidHostError) Error() string {
+	return "invalid character " + strconv.Quote(string(e)) + " in host name"
+}
+
 // Return true if the specified character should be escaped when
 // appearing in a URL string, according to RFC 3986.
 //
@@ -99,9 +105,13 @@ func shouldEscape(c byte, mode encoding) bool {
 		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
 		// as part of reg-name.
 		// We add : because we include :port as part of host.
-		// We add [ ] because we include [ipv6]:port as part of host
+		// We add [ ] because we include [ipv6]:port as part of host.
+		// We add < > because they're the only characters left that
+		// we could possibly allow, and Parse will reject them if we
+		// escape them (because hosts can't use %-encoding for
+		// ASCII bytes).
 		switch c {
-		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']':
+		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']', '<', '>', '"':
 			return false
 		}
 	}
@@ -193,6 +203,9 @@ func unescape(s string, mode encoding) (string, error) {
 			hasPlus = mode == encodeQueryComponent
 			i++
 		default:
+			if (mode == encodeHost || mode == encodeZone) && s[i] < 0x80 && shouldEscape(s[i], mode) {
+				return "", InvalidHostError(s[i : i+1])
+			}
 			i++
 		}
 	}
