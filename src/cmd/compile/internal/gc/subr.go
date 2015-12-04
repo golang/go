@@ -760,17 +760,11 @@ func treecopy(n *Node, lineno int32) *Node {
 	return m
 }
 
+// isnil reports whether n represents the universal untyped zero value "nil".
 func isnil(n *Node) bool {
-	if n == nil {
-		return false
-	}
-	if n.Op != OLITERAL {
-		return false
-	}
-	if n.Val().Ctype() != CTNIL {
-		return false
-	}
-	return true
+	// Check n.Orig because constant propagation may produce typed nil constants,
+	// which don't exist in the Go spec.
+	return Isconst(n.Orig, CTNIL)
 }
 
 func isptrto(t *Type, et EType) bool {
