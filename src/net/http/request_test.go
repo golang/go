@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	. "net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -177,9 +176,12 @@ func TestParseMultipartForm(t *testing.T) {
 	}
 }
 
-func TestRedirect(t *testing.T) {
+func TestRedirect_h1(t *testing.T) { testRedirect(t, false) }
+func TestRedirect_h2(t *testing.T) { testRedirect(t, true) }
+
+func testRedirect(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
 		case "/":
 			w.Header().Set("Location", "/foo/")
@@ -190,10 +192,10 @@ func TestRedirect(t *testing.T) {
 			w.WriteHeader(StatusBadRequest)
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
 	var end = regexp.MustCompile("/foo/$")
-	r, err := Get(ts.URL)
+	r, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
