@@ -260,6 +260,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 
 // if the Transport's DisableKeepAlives is set, all requests should
 // send Connection: close.
+// HTTP/1-only (Connection: close doesn't exist in h2)
 func TestTransportConnectionCloseOnRequestDisableKeepAlive(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
