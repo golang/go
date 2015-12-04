@@ -315,13 +315,12 @@ func netshInterfaceIPv6ShowAddress(name string) ([]string, error) {
 		}
 		// remove scope ID if present
 		f = bytes.Split(f[1], []byte{'%'})
-		addrs = append(addrs, string(bytes.TrimSpace(f[0])))
+		addrs = append(addrs, string(bytes.ToLower(bytes.TrimSpace(f[0]))))
 	}
 	return addrs, nil
 }
 
 func TestInterfaceAddrsWithNetsh(t *testing.T) {
-	t.Skip("skipping test; see https://golang.org/issue/12811")
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}
@@ -375,7 +374,6 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 }
 
 func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
-	t.Skip("skipping test; see https://golang.org/issue/12691")
 	if isWindowsXP(t) {
 		t.Skip("Windows XP does not have powershell command")
 	}
@@ -386,7 +384,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	have := make([]string, 0)
 	for _, ifi := range ift {
 		if ifi.Flags&FlagLoopback != 0 {
-			// no MAC for loopback interfaces
+			// no MAC address for loopback interfaces
 			continue
 		}
 		have = append(have, ifi.Name+"="+ifi.HardwareAddr.String())
@@ -436,7 +434,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 			if len(f) != 2 {
 				t.Fatal("unexpected \"Physical Address\" line: %q", line)
 			}
-			addr := string(bytes.TrimSpace(f[1]))
+			addr := string(bytes.ToLower(bytes.TrimSpace(f[1])))
 			if addr == "" {
 				t.Fatal("empty address on \"Physical Address\" line: %q", line)
 			}
