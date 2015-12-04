@@ -426,6 +426,63 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// golang.org/issue/12200 (colon with empty port)
+	{
+		"http://192.168.0.2:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.2:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://192.168.0.2:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.2:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		// Malformed IPv6 but still accepted.
+		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		// Malformed IPv6 but still accepted.
+		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:",
+			Path:   "/foo",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer
@@ -1126,7 +1183,7 @@ func TestParseAuthority(t *testing.T) {
 		{"http://[::1]a", true},
 		{"http://[::1]%23", true},
 		{"http://[::1%25en0]", false},     // valid zone id
-		{"http://[::1]:", true},           // colon, but no port
+		{"http://[::1]:", false},          // colon, but no port OK
 		{"http://[::1]:%38%30", true},     // no hex in port
 		{"http://[::1%25%10]", false},     // TODO: reject the %10 after the valid zone %25 separator?
 		{"http://[%10::1]", true},         // no %xx escapes in IP address
