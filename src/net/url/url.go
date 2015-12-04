@@ -590,12 +590,12 @@ func validEncodedPath(s string) bool {
 }
 
 // validOptionalPort reports whether port is either an empty string
-// or matches /^:\d+$/
+// or matches /^:\d*$/
 func validOptionalPort(port string) bool {
 	if port == "" {
 		return true
 	}
-	if port[0] != ':' || len(port) == 1 {
+	if port[0] != ':' {
 		return false
 	}
 	for _, b := range port[1:] {
