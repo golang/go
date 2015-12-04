@@ -103,6 +103,7 @@ func (p *Package) writeDefs() {
 	}
 
 	if *gccgo {
+		fmt.Fprint(fgo2, gccgoGoProlog)
 		fmt.Fprint(fc, p.cPrologGccgo())
 	} else {
 		fmt.Fprint(fgo2, goProlog)
@@ -1288,6 +1289,12 @@ func _cgoCheckPointer(interface{}, ...interface{}) interface{}
 func _cgoCheckResult(interface{})
 `
 
+const gccgoGoProlog = `
+func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+
+func _cgoCheckResult(interface{})
+`
+
 const goStringDef = `
 //go:linkname _cgo_runtime_gostring runtime.gostring
 func _cgo_runtime_gostring(*_Ctype_char) string
@@ -1340,7 +1347,8 @@ var builtinDefs = map[string]string{
 }
 
 func (p *Package) cPrologGccgo() string {
-	return strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1)
+	return strings.Replace(strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1),
+		"GCCGOSYMBOLPREF", p.gccgoSymbolPrefix(), -1)
 }
 
 const cPrologGccgo = `
@@ -1394,6 +1402,39 @@ void *_cgoPREFIX_Cfunc__CMalloc(size_t n) {
         if(p == NULL)
                 runtime_throw("runtime: C malloc failed");
         return p;
+}
+
+struct __go_type_descriptor;
+typedef struct __go_empty_interface {
+	const struct __go_type_descriptor *__type_descriptor;
+	void *__object;
+} Eface;
+
+extern Eface runtimeCgoCheckPointer(Eface, Slice)
+	__asm__("runtime.cgoCheckPointer")
+	__attribute__((weak));
+
+extern Eface localCgoCheckPointer(Eface, Slice)
+	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
+
+Eface localCgoCheckPointer(Eface ptr, Slice args) {
+	if(runtimeCgoCheckPointer) {
+		return runtimeCgoCheckPointer(ptr, args);
+	}
+	return ptr;
+}
+
+extern void runtimeCgoCheckResult(Eface)
+	__asm__("runtime.cgoCheckResult")
+	__attribute__((weak));
+
+extern void localCgoCheckResult(Eface)
+	__asm__("GCCGOSYMBOLPREF._cgoCheckResult");
+
+void localCgoCheckResult(Eface val) {
+	if(runtimeCgoCheckResult) {
+		runtimeCgoCheckResult(val);
+	}
 }
 `
 
