@@ -400,6 +400,10 @@ func (ctxt *context) match(name string) bool {
 		return true
 	}
 
+	if name == "test_run" {
+		return true
+	}
+
 	return false
 }
 
