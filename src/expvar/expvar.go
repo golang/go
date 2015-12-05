@@ -148,6 +148,17 @@ func (v *Map) Set(key string, av Var) {
 	v.updateKeys()
 }
 
+func (v *Map) Remove(key string) Var {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	val, ok := v.m[key]
+	if ok {
+	    delete(v.m, key)
+	    v.updateKeys()
+    }
+    return val
+}
+
 func (v *Map) Add(key string, delta int64) {
 	v.mu.RLock()
 	av, ok := v.m[key]
