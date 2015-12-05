@@ -217,6 +217,9 @@ func TestParseMediaType(t *testing.T) {
 		{`form-data; firstname="Брэд"; lastname="Фицпатрик"`,
 			"form-data",
 			m("firstname", "Брэд", "lastname", "Фицпатрик")},
+
+		// Empty string used to be mishandled.
+		{`foo; bar=""`, "foo", m("bar", "")},
 	}
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
@@ -295,6 +298,7 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
 	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
+	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
 }
 
 func TestFormatMediaType(t *testing.T) {
