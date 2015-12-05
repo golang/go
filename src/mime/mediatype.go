@@ -289,10 +289,11 @@ func consumeMediaParam(v string) (param, value, rest string) {
 	}
 	rest = rest[1:] // consume equals sign
 	rest = strings.TrimLeftFunc(rest, unicode.IsSpace)
-	value, rest = consumeValue(rest)
-	if value == "" {
+	value, rest2 := consumeValue(rest)
+	if value == "" && rest2 == rest {
 		return "", "", v
 	}
+	rest = rest2
 	return param, value, rest
 }
 
