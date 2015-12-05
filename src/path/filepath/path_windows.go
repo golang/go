@@ -120,6 +120,11 @@ func join(elem []string) string {
 
 // joinNonEmpty is like join, but it assumes that the first element is non-empty.
 func joinNonEmpty(elem []string) string {
+	if len(elem[0]) == 2 && elem[0][1] == ':' {
+		// First element is drive leter without terminating slash.
+		// Keep path relative to current directory on that drive.
+		return Clean(elem[0] + strings.Join(elem[1:], string(Separator)))
+	}
 	// The following logic prevents Join from inadvertently creating a
 	// UNC path on Windows. Unless the first element is a UNC path, Join
 	// shouldn't create a UNC path. See golang.org/issue/9167.
