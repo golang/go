@@ -146,9 +146,12 @@ func testContentTypeWithCopy(t *testing.T, h2 bool) {
 	resp.Body.Close()
 }
 
-func TestSniffWriteSize(t *testing.T) {
+func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, false) }
+func TestSniffWriteSize_h2(t *testing.T) { testSniffWriteSize(t, true) }
+
+func testSniffWriteSize(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		size, _ := strconv.Atoi(r.FormValue("size"))
 		written, err := io.WriteString(w, strings.Repeat("a", size))
 		if err != nil {
@@ -159,9 +162,9 @@ func TestSniffWriteSize(t *testing.T) {
 			t.Errorf("write of %d bytes wrote %d bytes", size, written)
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 	for _, size := range []int{0, 1, 200, 600, 999, 1000, 1023, 1024, 512 << 10, 1 << 20} {
-		res, err := Get(fmt.Sprintf("%s/?size=%d", ts.URL, size))
+		res, err := cst.c.Get(fmt.Sprintf("%s/?size=%d", cst.ts.URL, size))
 		if err != nil {
 			t.Fatalf("size %d: %v", size, err)
 		}
