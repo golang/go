@@ -43,12 +43,6 @@ func (cmsg *Cmsghdr) SetLen(length int) {
 	cmsg.Len = uint32(length)
 }
 
-func (d *IfData) fillEpochLastChange(data11 *ifData11Raw) {
-	d.Epoch = *(*int32)(unsafe.Pointer(&data11.X__ifi_epoch[0]))
-	d.Lastchange.Sec = *(*int32)(unsafe.Pointer(&data11.X__ifi_lastchange[0:4][0]))
-	d.Lastchange.Usec = *(*int32)(unsafe.Pointer(&data11.X__ifi_lastchange[4:8][0]))
-}
-
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	var writtenOut uint64 = 0
 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)

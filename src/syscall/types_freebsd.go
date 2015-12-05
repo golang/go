@@ -104,169 +104,47 @@ struct stat8 {
 #endif
 };
 
-// This structure is a duplicate of if_data on FreeBSD 11-CURRENT 7b9bab6fbb69066f6e2ca96e5ca5b62fe834a2bb.
-// See sys/net/if.h.
-struct if_data11_raw {
-	uint8_t	ifi_type;
-	uint8_t	ifi_physical;
-	uint8_t	ifi_addrlen;
-	uint8_t	ifi_hdrlen;
-	uint8_t	ifi_link_state;
-	uint8_t	ifi_vhid;
-	uint16_t	ifi_datalen;
-	uint32_t	ifi_mtu;
-	uint32_t	ifi_metric;
-	uint64_t	ifi_baudrate;
-
-	uint64_t	ifi_ipackets;
-	uint64_t	ifi_ierrors;
-	uint64_t	ifi_opackets;
-	uint64_t	ifi_oerrors;
-	uint64_t	ifi_collisions;
-	uint64_t	ifi_ibytes;
-	uint64_t	ifi_obytes;
-	uint64_t	ifi_imcasts;
-	uint64_t	ifi_omcasts;
-	uint64_t	ifi_iqdrops;
-	uint64_t	ifi_oqdrops;
-	uint64_t	ifi_noproto;
-	uint64_t	ifi_hwassist;
-
-	union {
-		time_t		tt;
-		uint64_t	ph;
-	} __ifi_epoch;
-//#define	ifi_epoch	__ifi_epoch.tt
-	union {
-		struct timeval	tv;
-		struct {
-			uint64_t ph1;
-			uint64_t ph2;
-		} ph;
-	} __ifi_lastchange;
-//#define	ifi_lastchange	__ifi_lastchange.tv
+// This structure is a duplicate of if_data on FreeBSD 8-STABLE.
+// See /usr/include/net/if.h.
+struct if_data8 {
+	u_char  ifi_type;
+	u_char  ifi_physical;
+	u_char  ifi_addrlen;
+	u_char  ifi_hdrlen;
+	u_char  ifi_link_state;
+	u_char  ifi_spare_char1;
+	u_char  ifi_spare_char2;
+	u_char  ifi_datalen;
+	u_long  ifi_mtu;
+	u_long  ifi_metric;
+	u_long  ifi_baudrate;
+	u_long  ifi_ipackets;
+	u_long  ifi_ierrors;
+	u_long  ifi_opackets;
+	u_long  ifi_oerrors;
+	u_long  ifi_collisions;
+	u_long  ifi_ibytes;
+	u_long  ifi_obytes;
+	u_long  ifi_imcasts;
+	u_long  ifi_omcasts;
+	u_long  ifi_iqdrops;
+	u_long  ifi_noproto;
+	u_long  ifi_hwassist;
+	time_t  ifi_epoch;
+	struct  timeval ifi_lastchange;
 };
 
-// same as if_data11_raw with the unions removed
-struct if_data11 {
-	uint8_t	ifi_type;
-	uint8_t	ifi_physical;
-	uint8_t	ifi_addrlen;
-	uint8_t	ifi_hdrlen;
-	uint8_t	ifi_link_state;
-	uint8_t	ifi_vhid;
-	uint16_t	ifi_datalen;
-	uint32_t	ifi_mtu;
-	uint32_t	ifi_metric;
-	uint64_t	ifi_baudrate;
-
-	uint64_t	ifi_ipackets;
-	uint64_t	ifi_ierrors;
-	uint64_t	ifi_opackets;
-	uint64_t	ifi_oerrors;
-	uint64_t	ifi_collisions;
-	uint64_t	ifi_ibytes;
-	uint64_t	ifi_obytes;
-	uint64_t	ifi_imcasts;
-	uint64_t	ifi_omcasts;
-	uint64_t	ifi_iqdrops;
-	uint64_t	ifi_oqdrops;
-	uint64_t	ifi_noproto;
-	uint64_t	ifi_hwassist;
-
-	time_t		ifi_epoch;
-	struct timeval	ifi_lastchange;
+// This structure is a duplicate of if_msghdr on FreeBSD 8-STABLE.
+// See /usr/include/net/if.h.
+struct if_msghdr8 {
+	u_short ifm_msglen;
+	u_char  ifm_version;
+	u_char  ifm_type;
+	int     ifm_addrs;
+	int     ifm_flags;
+	u_short ifm_index;
+	struct  if_data8 ifm_data;
 };
-
-// This structure is a duplicate of if_msghdrl on FreeBSD 11-CURRENT 7b9bab6fbb69066f6e2ca96e5ca5b62fe834a2bb.
-// See sys/net/if.h.
-struct if_msghdrl11 {
-	u_short	ifm_msglen;
-	u_char	ifm_version;
-	u_char	ifm_type;
-	int	ifm_addrs;
-	int	ifm_flags;
-	u_short	ifm_index;
-	u_short _ifm_spare1;
-	u_short	ifm_len;
-	u_short	ifm_data_off;
-	struct	if_data11 ifm_data;
-};
-
-struct if_msghdrl_fixed {
-	u_short	ifm_msglen;
-	u_char	ifm_version;
-	u_char	ifm_type;
-	int	ifm_addrs;
-	int	ifm_flags;
-	u_short	ifm_index;
-	u_short _ifm_spare1;
-	u_short	ifm_len;
-	u_short	ifm_data_off;
-};
-
-
-// This structure is a duplicate of ifa_msghdrl on FreeBSD 11-CURRENT 7b9bab6fbb69066f6e2ca96e5ca5b62fe834a2bb.
-// See sys/net/if.h.
-struct ifa_msghdrl11 {
-	u_short	ifam_msglen;
-	u_char	ifam_version;
-	u_char	ifam_type;
-	int	ifam_addrs;
-	int	ifam_flags;
-	u_short	ifam_index;
-	u_short _ifam_spare1;
-	u_short	ifam_len;
-	u_short	ifam_data_off;
-	int	ifam_metric;
-	struct	if_data11 ifam_data;
-};
-
-struct ifa_msghdrl_fixed {
-	u_short	ifam_msglen;
-	u_char	ifam_version;
-	u_char	ifam_type;
-	int	ifam_addrs;
-	int	ifam_flags;
-	u_short	ifam_index;
-	u_short _ifam_spare1;
-	u_short	ifam_len;
-	u_short	ifam_data_off;
-	int	ifam_metric;
-};
-
-// This structure is a duplicate of if_data on FreeBSD 10.2-RELEASE 1e3b3008927ebb2708c3f6a87ba9f302ad3c0c66.
-// See sys/net/if.h.
-struct if_data10 {
-	u_char	ifi_type;
-	u_char	ifi_physical;
-	u_char	ifi_addrlen;
-	u_char	ifi_hdrlen;
-	u_char	ifi_link_state;
-	u_char	ifi_vhid;
-	u_char	ifi_baudrate_pf;
-	u_char	ifi_datalen;
-	u_long	ifi_mtu;
-	u_long	ifi_metric;
-	u_long	ifi_baudrate;
-	u_long	ifi_ipackets;
-	u_long	ifi_ierrors;
-	u_long	ifi_opackets;
-	u_long	ifi_oerrors;
-	u_long	ifi_collisions;
-	u_long	ifi_ibytes;
-	u_long	ifi_obytes;
-	u_long	ifi_imcasts;
-	u_long	ifi_omcasts;
-	u_long	ifi_iqdrops;
-	u_long	ifi_noproto;
-	uint64_t ifi_hwassist;
-	time_t	ifi_epoch;
-	struct	timeval ifi_lastchange;
-	u_long	ifi_oqdrops;
-};
-
-
 */
 import "C"
 
@@ -404,25 +282,26 @@ type FdSet C.fd_set
 // Routing and interface messages
 
 const (
+	sizeofIfMsghdr         = C.sizeof_struct_if_msghdr
+	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr8
+	sizeofIfData           = C.sizeof_struct_if_data
+	SizeofIfData           = C.sizeof_struct_if_data8
+	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
 	SizeofIfmaMsghdr       = C.sizeof_struct_ifma_msghdr
 	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
 	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
 	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
 )
 
-type IfData C.struct_if_data11
+type ifMsghdr C.struct_if_msghdr
 
-type IfMsghdr C.struct_if_msghdrl11
+type IfMsghdr C.struct_if_msghdr8
 
-type ifMsghdrFixed C.struct_if_msghdrl_fixed
+type ifData C.struct_if_data
 
-type IfaMsghdr C.struct_ifa_msghdrl11
+type IfData C.struct_if_data8
 
-type ifaMsghdrFixed C.struct_ifa_msghdrl_fixed
-
-type ifData11Raw C.struct_if_data11_raw
-
-type ifData10 C.struct_if_data10
+type IfaMsghdr C.struct_ifa_msghdr
 
 type IfmaMsghdr C.struct_ifma_msghdr
 
