@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"log"
 	. "net/http"
-	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"strings"
@@ -88,15 +87,18 @@ func testServerContentType(t *testing.T, h2 bool) {
 
 // Issue 5953: shouldn't sniff if the handler set a Content-Type header,
 // even if it's the empty string.
-func TestServerIssue5953(t *testing.T) {
+func TestServerIssue5953_h1(t *testing.T) { testServerIssue5953(t, false) }
+func TestServerIssue5953_h2(t *testing.T) { testServerIssue5953(t, true) }
+
+func testServerIssue5953(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Type"] = []string{""}
 		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	resp, err := Get(ts.URL)
+	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
