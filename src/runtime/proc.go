@@ -10,6 +10,8 @@ import (
 	"unsafe"
 )
 
+var buildVersion = sys.TheVersion
+
 // Goroutine scheduler
 // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
 //
@@ -445,10 +447,10 @@ func schedinit() {
 		throw("unknown runnable goroutine during bootstrap")
 	}
 
-	if sys.BuildVersion == "" {
+	if buildVersion == "" {
 		// Condition should never trigger.  This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
-		sys.BuildVersion = "unknown"
+		buildVersion = "unknown"
 	}
 }
 
