@@ -16,12 +16,11 @@ import (
 
 // mkzversion writes zversion.go:
 //
-//	package runtime
+//	package sys
 //	const DefaultGoroot = <goroot>
 //	const TheVersion = <version>
 //	const Goexperiment = <goexperiment>
 //	const StackGuardMultiplier = <multiplier value>
-//	const BuildVersion = <build version>
 //
 func mkzversion(dir, file string) {
 	out := fmt.Sprintf(
@@ -32,8 +31,7 @@ func mkzversion(dir, file string) {
 			"const DefaultGoroot = `%s`\n"+
 			"const TheVersion = `%s`\n"+
 			"const Goexperiment = `%s`\n"+
-			"const StackGuardMultiplier = %d\n\n"+
-			"var BuildVersion = TheVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
+			"const StackGuardMultiplier = %d\n\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
 
 	writefile(out, file, writeSkipSame)
 }
