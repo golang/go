@@ -9,16 +9,13 @@ import "fmt"
 
 var failed = false
 
+//go:noinline
 func lenChan_ssa(v chan int) int {
-	switch { // prevent inlining
-
-	}
 	return len(v)
 }
-func capChan_ssa(v chan int) int {
-	switch { // prevent inlining
 
-	}
+//go:noinline
+func capChan_ssa(v chan int) int {
 	return cap(v)
 }
 

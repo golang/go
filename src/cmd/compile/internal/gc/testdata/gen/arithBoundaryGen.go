@@ -109,8 +109,8 @@ func main() {
 
 	// the function being tested
 	testFunc, err := template.New("testFunc").Parse(
-		`func {{.Name}}_{{.Stype}}_ssa(a, b {{.Stype}}) {{.Stype}} {
-	switch{} // prevent inlining
+		`//go:noinline
+		func {{.Name}}_{{.Stype}}_ssa(a, b {{.Stype}}) {{.Stype}} {
 	return a {{.SymFirst}} b
 }
 `)

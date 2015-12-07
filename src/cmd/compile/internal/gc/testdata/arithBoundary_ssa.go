@@ -35,204 +35,203 @@ type itd8 struct {
 	add, sub, mul, div, mod int8
 }
 
+//go:noinline
 func add_uint64_ssa(a, b uint64) uint64 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_uint64_ssa(a, b uint64) uint64 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_uint64_ssa(a, b uint64) uint64 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_uint64_ssa(a, b uint64) uint64 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_uint64_ssa(a, b uint64) uint64 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_int64_ssa(a, b int64) int64 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_int64_ssa(a, b int64) int64 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_int64_ssa(a, b int64) int64 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_int64_ssa(a, b int64) int64 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_int64_ssa(a, b int64) int64 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_uint32_ssa(a, b uint32) uint32 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_uint32_ssa(a, b uint32) uint32 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_uint32_ssa(a, b uint32) uint32 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_uint32_ssa(a, b uint32) uint32 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_uint32_ssa(a, b uint32) uint32 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_int32_ssa(a, b int32) int32 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_int32_ssa(a, b int32) int32 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_int32_ssa(a, b int32) int32 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_int32_ssa(a, b int32) int32 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_int32_ssa(a, b int32) int32 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_uint16_ssa(a, b uint16) uint16 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_uint16_ssa(a, b uint16) uint16 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_uint16_ssa(a, b uint16) uint16 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_uint16_ssa(a, b uint16) uint16 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_uint16_ssa(a, b uint16) uint16 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_int16_ssa(a, b int16) int16 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_int16_ssa(a, b int16) int16 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_int16_ssa(a, b int16) int16 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_int16_ssa(a, b int16) int16 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_int16_ssa(a, b int16) int16 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_uint8_ssa(a, b uint8) uint8 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_uint8_ssa(a, b uint8) uint8 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_uint8_ssa(a, b uint8) uint8 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_uint8_ssa(a, b uint8) uint8 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_uint8_ssa(a, b uint8) uint8 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
+
+//go:noinline
 func add_int8_ssa(a, b int8) int8 {
-	switch {
-	} // prevent inlining
 	return a + b
 }
+
+//go:noinline
 func sub_int8_ssa(a, b int8) int8 {
-	switch {
-	} // prevent inlining
 	return a - b
 }
+
+//go:noinline
 func div_int8_ssa(a, b int8) int8 {
-	switch {
-	} // prevent inlining
 	return a / b
 }
+
+//go:noinline
 func mod_int8_ssa(a, b int8) int8 {
-	switch {
-	} // prevent inlining
 	return a % b
 }
+
+//go:noinline
 func mul_int8_ssa(a, b int8) int8 {
-	switch {
-	} // prevent inlining
 	return a * b
 }
 

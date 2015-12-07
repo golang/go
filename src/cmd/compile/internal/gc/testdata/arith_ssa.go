@@ -17,9 +17,9 @@ func test64BitConstMult() {
 		failed = true
 	}
 }
+
+//go:noinline
 func test64BitConstMult_ssa(a, b int64) int64 {
-	switch { // prevent inlining
-	}
 	return 34359738369*a + b*34359738370
 }
 
@@ -32,9 +32,9 @@ func test64BitConstAdd() {
 		failed = true
 	}
 }
+
+//go:noinline
 func test64BitConstAdd_ssa(a, b int64) int64 {
-	switch { // prevent inlining
-	}
 	return a + 575815584948629622 + b + 2991856197886747025
 }
 
@@ -47,9 +47,9 @@ func testRegallocCVSpill() {
 		failed = true
 	}
 }
+
+//go:noinline
 func testRegallocCVSpill_ssa(a, b, c, d int8) int8 {
-	switch { // prevent inlining
-	}
 	return a + -32 + b + 63*c*-87*d
 }
 
@@ -105,45 +105,38 @@ func testBitwiseLogic() {
 	}
 }
 
+//go:noinline
 func testBitwiseAnd_ssa(a, b uint32) uint32 {
-	switch { // prevent inlining
-	}
 	return a & b
 }
 
+//go:noinline
 func testBitwiseOr_ssa(a, b uint32) uint32 {
-	switch { // prevent inlining
-	}
 	return a | b
 }
 
+//go:noinline
 func testBitwiseXor_ssa(a, b uint32) uint32 {
-	switch { // prevent inlining
-	}
 	return a ^ b
 }
 
+//go:noinline
 func testBitwiseLsh_ssa(a int32, b, c uint32) int32 {
-	switch { // prevent inlining
-	}
 	return a << b << c
 }
 
+//go:noinline
 func testBitwiseRsh_ssa(a int32, b, c uint32) int32 {
-	switch { // prevent inlining
-	}
 	return a >> b >> c
 }
 
+//go:noinline
 func testBitwiseRshU_ssa(a uint32, b, c uint32) uint32 {
-	switch { // prevent inlining
-	}
 	return a >> b >> c
 }
 
+//go:noinline
 func testShiftCX_ssa() int {
-	switch {
-	} // prevent inlining
 	v1 := uint8(3)
 	v4 := (v1 * v1) ^ v1 | v1 - v1 - v1&v1 ^ uint8(3+2) + v1*1>>0 - v1 | 1 | v1<<(2*3|0-0*0^1)
 	v5 := v4>>(3-0-uint(3)) | v1 | v1 + v1 ^ v4<<(0+1|3&1)<<(uint64(1)<<0*2*0<<0) ^ v1
@@ -172,9 +165,8 @@ func testSubqToNegq() {
 	}
 }
 
+//go:noinline
 func testSubqToNegq_ssa(a, b, c, d, e, f, g, h, i, j, k int64) int64 {
-	switch { // prevent inlining
-	}
 	return a + 8207351403619448057 - b - 1779494519303207690 + c*8810076340510052032*d - 4465874067674546219 - e*4361839741470334295 - f + 8688847565426072650*g*8065564729145417479
 }
 
@@ -187,9 +179,8 @@ func testOcom() {
 	}
 }
 
+//go:noinline
 func testOcom_ssa(a, b int32) (int32, int32) {
-	switch { // prevent inlining
-	}
 	return ^^^^a, ^^^^^b
 }
 
@@ -201,21 +192,19 @@ func lrot1_ssa(w uint8, x uint16, y uint32, z uint64) (a uint8, b uint16, c uint
 	return
 }
 
+//go:noinline
 func lrot2_ssa(w, n uint32) uint32 {
 	// Want to be sure that a "rotate by 32" which
 	// is really 0 | (w >> 0) == w
 	// is correctly compiled.
-	switch { // prevents inlining
-	}
 	return (w << n) | (w >> (32 - n))
 }
 
+//go:noinline
 func lrot3_ssa(w uint32) uint32 {
 	// Want to be sure that a "rotate by 32" which
 	// is really 0 | (w >> 0) == w
 	// is correctly compiled.
-	switch { // prevents inlining
-	}
 	return (w << 32) | (w >> (32 - 32))
 }
 
@@ -244,9 +233,8 @@ func testLrot() {
 
 }
 
+//go:noinline
 func sub1_ssa() uint64 {
-	switch {
-	} // prevent inlining
 	v1 := uint64(3) // uint64
 	return v1*v1 - (v1&v1)&v1
 }

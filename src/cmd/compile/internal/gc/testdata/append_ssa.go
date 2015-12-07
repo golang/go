@@ -9,14 +9,13 @@ import "fmt"
 
 var failed = false
 
+//go:noinline
 func appendOne_ssa(a []int, x int) []int {
-	switch { // prevent inlining
-	}
 	return append(a, x)
 }
+
+//go:noinline
 func appendThree_ssa(a []int, x, y, z int) []int {
-	switch { // prevent inlining
-	}
 	return append(a, x, y, z)
 }
 

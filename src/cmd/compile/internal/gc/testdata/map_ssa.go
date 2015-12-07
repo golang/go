@@ -9,10 +9,8 @@ import "fmt"
 
 var failed = false
 
+//go:noinline
 func lenMap_ssa(v map[int]int) int {
-	switch { // prevent inlining
-
-	}
 	return len(v)
 }
 
