@@ -1062,7 +1062,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	x = rr
 
 	// Ideally the precomputations would be performed outside, and reused
-	// k0 = -mˆ-1 mod 2ˆ_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+	// k0 = -m**-1 mod 2**_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
 	// Iteration for Multiplicative Inverses Modulo Prime Powers".
 	k0 := 2 - m[0]
 	t := m[0] - 1
@@ -1072,7 +1072,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	}
 	k0 = -k0
 
-	// RR = 2ˆ(2*_W*len(m)) mod m
+	// RR = 2**(2*_W*len(m)) mod m
 	RR = RR.setWord(1)
 	zz = zz.shl(RR, uint(2*numWords*_W))
 	_, RR = RR.div(RR, zz, m)
