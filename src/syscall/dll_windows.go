@@ -115,7 +115,7 @@ func (p *Proc) Addr() uintptr {
 	return p.addr
 }
 
-// Call executes procedure p with arguments a. It will panic, if more then 15 arguments
+// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
 // are supplied.
 //
 // The returned error is always non-nil, constructed from the result of GetLastError.
@@ -267,7 +267,7 @@ func (p *LazyProc) Addr() uintptr {
 	return p.proc.Addr()
 }
 
-// Call executes procedure p with arguments a. It will panic, if more then 15 arguments
+// Call executes procedure p with arguments a. It will panic, if more than 15 arguments
 // are supplied.
 //
 // The returned error is always non-nil, constructed from the result of GetLastError.
