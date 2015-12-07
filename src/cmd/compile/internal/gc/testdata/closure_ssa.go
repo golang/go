@@ -9,9 +9,8 @@ import "fmt"
 
 var failed = false
 
+//go:noinline
 func testCFunc_ssa() int {
-	switch { // prevent inlining
-	}
 	a := 0
 	b := func() {
 		switch {

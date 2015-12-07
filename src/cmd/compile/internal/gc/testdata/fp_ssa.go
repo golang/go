@@ -1466,118 +1466,99 @@ func expectCx64(s string, x, expected complex64) int {
 	return 0
 }
 
+//go:noinline
 func cx128sum_ssa(a, b complex128) complex128 {
-	switch { // prevent inlining
-	}
 	return a + b
 }
 
+//go:noinline
 func cx128diff_ssa(a, b complex128) complex128 {
-	switch { // prevent inlining
-	}
 	return a - b
 }
 
+//go:noinline
 func cx128prod_ssa(a, b complex128) complex128 {
-	switch { // prevent inlining
-	}
 	return a * b
 }
 
+//go:noinline
 func cx128quot_ssa(a, b complex128) complex128 {
-	switch { // prevent inlining
-	}
 	return a / b
 }
 
+//go:noinline
 func cx128neg_ssa(a complex128) complex128 {
-	switch { // prevent inlining
-	}
 	return -a
 }
 
+//go:noinline
 func cx128real_ssa(a complex128) float64 {
-	switch { // prevent inlining
-	}
 	return real(a)
 }
 
+//go:noinline
 func cx128imag_ssa(a complex128) float64 {
-	switch { // prevent inlining
-	}
 	return imag(a)
 }
 
+//go:noinline
 func cx128cnst_ssa(a complex128) complex128 {
-	switch { // prevent inlining
-	}
 	b := 2 + 3i
 	return a * b
 }
 
+//go:noinline
 func cx64sum_ssa(a, b complex64) complex64 {
-	switch { // prevent inlining
-	}
 	return a + b
 }
 
+//go:noinline
 func cx64diff_ssa(a, b complex64) complex64 {
-	switch { // prevent inlining
-	}
 	return a - b
 }
 
+//go:noinline
 func cx64prod_ssa(a, b complex64) complex64 {
-	switch { // prevent inlining
-	}
 	return a * b
 }
 
+//go:noinline
 func cx64quot_ssa(a, b complex64) complex64 {
-	switch { // prevent inlining
-	}
 	return a / b
 }
 
+//go:noinline
 func cx64neg_ssa(a complex64) complex64 {
-	switch { // prevent inlining
-	}
 	return -a
 }
 
+//go:noinline
 func cx64real_ssa(a complex64) float32 {
-	switch { // prevent inlining
-	}
 	return real(a)
 }
 
+//go:noinline
 func cx64imag_ssa(a complex64) float32 {
-	switch { // prevent inlining
-	}
 	return imag(a)
 }
 
+//go:noinline
 func cx128eq_ssa(a, b complex128) bool {
-	switch { // prevent inlining
-	}
 	return a == b
 }
 
+//go:noinline
 func cx128ne_ssa(a, b complex128) bool {
-	switch { // prevent inlining
-	}
 	return a != b
 }
 
+//go:noinline
 func cx64eq_ssa(a, b complex64) bool {
-	switch { // prevent inlining
-	}
 	return a == b
 }
 
+//go:noinline
 func cx64ne_ssa(a, b complex64) bool {
-	switch { // prevent inlining
-	}
 	return a != b
 }
 

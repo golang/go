@@ -18,10 +18,10 @@ func or_ssa(arg1, arg2 bool) bool {
 
 var rightCalled bool
 
+//go:noinline
 func rightCall(v bool) bool {
 	rightCalled = true
 	return v
-	select {} // hack to prevent inlining
 	panic("unreached")
 }
 

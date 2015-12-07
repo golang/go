@@ -7,21 +7,18 @@ package main
 
 var failed = false
 
+//go:noinline
 func testStringSlice1_ssa(a string, i, j int) string {
-	switch { // prevent inlining
-	}
 	return a[i:]
 }
 
+//go:noinline
 func testStringSlice2_ssa(a string, i, j int) string {
-	switch { // prevent inlining
-	}
 	return a[:j]
 }
 
+//go:noinline
 func testStringSlice12_ssa(a string, i, j int) string {
-	switch { // prevent inlining
-	}
 	return a[i:j]
 }
 
@@ -91,9 +88,8 @@ const _Accuracy_name = "BelowExactAbove"
 
 var _Accuracy_index = [...]uint8{0, 5, 10, 15}
 
+//go:noinline
 func testSmallIndexType_ssa(i int) string {
-	switch { // prevent inlining
-	}
 	return _Accuracy_name[_Accuracy_index[i]:_Accuracy_index[i+1]]
 }
 
@@ -115,9 +111,8 @@ func testSmallIndexType() {
 	}
 }
 
+//go:noinline
 func testStringElem_ssa(s string, i int) byte {
-	switch { // prevent inlining
-	}
 	return s[i]
 }
 
@@ -139,9 +134,8 @@ func testStringElem() {
 	}
 }
 
+//go:noinline
 func testStringElemConst_ssa(i int) byte {
-	switch { // prevent inlining
-	}
 	s := "foobar"
 	return s[i]
 }

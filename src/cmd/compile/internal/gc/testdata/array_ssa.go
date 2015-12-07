@@ -2,23 +2,20 @@ package main
 
 var failed = false
 
+//go:noinline
 func testSliceLenCap12_ssa(a [10]int, i, j int) (int, int) {
-	switch { // prevent inlining
-	}
 	b := a[i:j]
 	return len(b), cap(b)
 }
 
+//go:noinline
 func testSliceLenCap1_ssa(a [10]int, i, j int) (int, int) {
-	switch { // prevent inlining
-	}
 	b := a[i:]
 	return len(b), cap(b)
 }
 
+//go:noinline
 func testSliceLenCap2_ssa(a [10]int, i, j int) (int, int) {
-	switch { // prevent inlining
-	}
 	b := a[:j]
 	return len(b), cap(b)
 }
@@ -55,9 +52,8 @@ func testSliceLenCap() {
 	}
 }
 
+//go:noinline
 func testSliceGetElement_ssa(a [10]int, i, j, p int) int {
-	switch { // prevent inlining
-	}
 	return a[i:j][p]
 }
 
@@ -81,9 +77,8 @@ func testSliceGetElement() {
 	}
 }
 
+//go:noinline
 func testSliceSetElement_ssa(a *[10]int, i, j, p, x int) {
-	switch { // prevent inlining
-	}
 	(*a)[i:j][p] = x
 }
 
