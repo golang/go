@@ -787,14 +787,12 @@ opswitch:
 		t := r.Left.Type
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch Simsimtype(t.Down) {
-			case TINT32, TUINT32:
+			switch algtype(t.Down) {
+			case AMEM32:
 				p = "mapaccess2_fast32"
-
-			case TINT64, TUINT64:
+			case AMEM64:
 				p = "mapaccess2_fast64"
-
-			case TSTRING:
+			case ASTRING:
 				p = "mapaccess2_faststr"
 			}
 		}
@@ -1203,14 +1201,12 @@ opswitch:
 		t := n.Left.Type
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch Simsimtype(t.Down) {
-			case TINT32, TUINT32:
+			switch algtype(t.Down) {
+			case AMEM32:
 				p = "mapaccess1_fast32"
-
-			case TINT64, TUINT64:
+			case AMEM64:
 				p = "mapaccess1_fast64"
-
-			case TSTRING:
+			case ASTRING:
 				p = "mapaccess1_faststr"
 			}
 		}
