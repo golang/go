@@ -18,7 +18,7 @@ import (
 // Internally, we treat functions like methods and collect them in method sets.
 
 // A methodSet describes a set of methods. Entries where Decl == nil are conflict
-// entries (more then one method with the same name at the same embedding level).
+// entries (more than one method with the same name at the same embedding level).
 //
 type methodSet map[string]*Func
 
@@ -71,7 +71,7 @@ func (mset methodSet) set(f *ast.FuncDecl) {
 
 // add adds method m to the method set; m is ignored if the method set
 // already contains a method with the same name at the same or a higher
-// level then m.
+// level than m.
 //
 func (mset methodSet) add(m *Func) {
 	old := mset[m.Name]
@@ -208,7 +208,7 @@ func (r *reader) recordAnonymousField(parent *namedType, fieldType ast.Expr) (fn
 
 func (r *reader) readDoc(comment *ast.CommentGroup) {
 	// By convention there should be only one package comment
-	// but collect all of them if there are more then one.
+	// but collect all of them if there are more than one.
 	text := comment.Text()
 	if r.doc == "" {
 		r.doc = text
