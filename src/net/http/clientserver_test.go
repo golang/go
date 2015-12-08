@@ -121,15 +121,17 @@ func testChunkedResponseHeaders(t *testing.T, h2 bool) {
 	}
 }
 
+type reqFunc func(c *Client, url string) (*Response, error)
+
 // h12Compare is a test that compares HTTP/1 and HTTP/2 behavior
 // against each other.
 type h12Compare struct {
-	Handler       func(ResponseWriter, *Request)                 // required
-	ReqFunc       func(c *Client, url string) (*Response, error) // optional
-	CheckResponse func(proto string, res *Response)              // optional
+	Handler       func(ResponseWriter, *Request)    // required
+	ReqFunc       reqFunc                           // optional
+	CheckResponse func(proto string, res *Response) // optional
 }
 
-func (tt h12Compare) reqFunc() func(c *Client, url string) (*Response, error) {
+func (tt h12Compare) reqFunc() reqFunc {
 	if tt.ReqFunc == nil {
 		return (*Client).Get
 	}
@@ -211,6 +213,36 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
 	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
 		t.Errorf("TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
 	}
+}
+
+// Issue 13532
+func TestH12_HeadContentLengthNoBody(t *testing.T) {
+	h12Compare{
+		ReqFunc: (*Client).Head,
+		Handler: func(w ResponseWriter, r *Request) {
+		},
+	}.run(t)
+}
+
+func TestH12_HeadContentLengthSmallBody(t *testing.T) {
+	h12Compare{
+		ReqFunc: (*Client).Head,
+		Handler: func(w ResponseWriter, r *Request) {
+			io.WriteString(w, "small")
+		},
+	}.run(t)
+}
+
+func TestH12_HeadContentLengthLargeBody(t *testing.T) {
+	h12Compare{
+		ReqFunc: (*Client).Head,
+		Handler: func(w ResponseWriter, r *Request) {
+			chunk := strings.Repeat("x", 512<<10)
+			for i := 0; i < 10; i++ {
+				io.WriteString(w, chunk)
+			}
+		},
+	}.run(t)
 }
 
 func TestH12_200NoBody(t *testing.T) {
@@ -370,4 +402,13 @@ func test304Responses(t *testing.T, h2 bool) {
 	if len(body) > 0 {
 		t.Errorf("got unexpected body %q", string(body))
 	}
+}
+
+func TestH12_ServerEmptyContentLength(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			w.Header()["Content-Type"] = []string{""}
+			io.WriteString(w, "<html><body>hi</body></html>")
+		},
+	}.run(t)
 }
