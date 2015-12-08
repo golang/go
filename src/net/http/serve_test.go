@@ -1825,9 +1825,16 @@ func TestRedirectBadPath(t *testing.T) {
 // connection immediately. But when it re-uses the connection, it typically closes
 // the previous request's body, which is not optimal for zero-lengthed bodies,
 // as the client would then see http.ErrBodyReadAfterClose and not 0, io.EOF.
-func TestZeroLengthPostAndResponse(t *testing.T) {
+func TestZeroLengthPostAndResponse_h1(t *testing.T) {
+	testZeroLengthPostAndResponse(t, false)
+}
+func TestZeroLengthPostAndResponse_h2(t *testing.T) {
+	testZeroLengthPostAndResponse(t, true)
+}
+
+func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, r *Request) {
 		all, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			t.Fatalf("handler ReadAll: %v", err)
@@ -1837,9 +1844,9 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
 		}
 		rw.Header().Set("Content-Length", "0")
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	req, err := NewRequest("POST", ts.URL, strings.NewReader(""))
+	req, err := NewRequest("POST", cst.ts.URL, strings.NewReader(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1847,7 +1854,7 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
 
 	var resp [5]*Response
 	for i := range resp {
-		resp[i], err = DefaultClient.Do(req)
+		resp[i], err = cst.c.Do(req)
 		if err != nil {
 			t.Fatalf("client post #%d: %v", i, err)
 		}
