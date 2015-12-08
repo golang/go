@@ -493,20 +493,23 @@ func (j *RecordingJar) logf(format string, args ...interface{}) {
 	fmt.Fprintf(&j.log, format, args...)
 }
 
-func TestStreamingGet(t *testing.T) {
+func TestStreamingGet_h1(t *testing.T) { testStreamingGet(t, false) }
+func TestStreamingGet_h2(t *testing.T) { testStreamingGet(t, true) }
+
+func testStreamingGet(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	say := make(chan string)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.(Flusher).Flush()
 		for str := range say {
 			w.Write([]byte(str))
 			w.(Flusher).Flush()
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	c := &Client{}
-	res, err := c.Get(ts.URL)
+	c := cst.c
+	res, err := c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
