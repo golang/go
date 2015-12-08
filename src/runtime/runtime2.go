@@ -419,7 +419,7 @@ type schedt struct {
 
 	pidle      puintptr // idle p's
 	npidle     uint32
-	nmspinning uint32 // limited to [0, 2^31-1]
+	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.
 	runqhead guintptr
