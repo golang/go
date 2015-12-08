@@ -1026,18 +1026,26 @@ func TestClientTimeout_Headers(t *testing.T) {
 	}
 }
 
-func TestClientRedirectEatsBody(t *testing.T) {
+func TestClientRedirectEatsBody_h1(t *testing.T) {
+	testClientRedirectEatsBody(t, false)
+}
+
+func TestClientRedirectEatsBody_h2(t *testing.T) {
+	testClientRedirectEatsBody(t, true)
+}
+
+func testClientRedirectEatsBody(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	saw := make(chan string, 2)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		saw <- r.RemoteAddr
 		if r.URL.Path == "/" {
 			Redirect(w, r, "/foo", StatusFound) // which includes a body
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	res, err := Get(ts.URL)
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
