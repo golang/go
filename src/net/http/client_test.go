@@ -768,14 +768,22 @@ func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
 }
 
 // Verify Response.ContentLength is populated. https://golang.org/issue/4126
-func TestClientHeadContentLength(t *testing.T) {
+func TestClientHeadContentLength_h1(t *testing.T) {
+	testClientHeadContentLength(t, false)
+}
+
+func TestClientHeadContentLength_h2(t *testing.T) {
+	testClientHeadContentLength(t, true)
+}
+
+func testClientHeadContentLength(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if v := r.FormValue("cl"); v != "" {
 			w.Header().Set("Content-Length", v)
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 	tests := []struct {
 		suffix string
 		want   int64
@@ -785,8 +793,8 @@ func TestClientHeadContentLength(t *testing.T) {
 		{"", -1},
 	}
 	for _, tt := range tests {
-		req, _ := NewRequest("HEAD", ts.URL+tt.suffix, nil)
-		res, err := DefaultClient.Do(req)
+		req, _ := NewRequest("HEAD", cst.ts.URL+tt.suffix, nil)
+		res, err := cst.c.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
