@@ -83,12 +83,15 @@ func TestClient(t *testing.T) {
 	}
 }
 
-func TestClientHead(t *testing.T) {
-	defer afterTest(t)
-	ts := httptest.NewServer(robotsTxtHandler)
-	defer ts.Close()
+func TestClientHead_h1(t *testing.T) { testClientHead(t, false) }
+func TestClientHead_h2(t *testing.T) { testClientHead(t, true) }
 
-	r, err := Head(ts.URL)
+func testClientHead(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, robotsTxtHandler)
+	defer cst.close()
+
+	r, err := cst.c.Head(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
