@@ -177,7 +177,7 @@ func isWindowsXP(t *testing.T) bool {
 	return major < 6
 }
 
-func listInterfacesWithNetsh() ([]string, error) {
+func runNetsh(args ...string) ([]byte, error) {
 	removeUTF8BOM := func(b []byte) []byte {
 		if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
 			return b[3:]
@@ -190,7 +190,7 @@ func listInterfacesWithNetsh() ([]string, error) {
 	}
 	f.Close()
 	defer os.Remove(f.Name())
-	cmd := fmt.Sprintf(`netsh interface ip show config | Out-File "%s" -encoding UTF8`, f.Name())
+	cmd := fmt.Sprintf(`%s | Out-File "%s" -encoding UTF8`, strings.Join(args, " "), f.Name())
 	out, err := exec.Command("powershell", "-Command", cmd).CombinedOutput()
 	if err != nil {
 		if len(out) != 0 {
@@ -210,7 +210,14 @@ func listInterfacesWithNetsh() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out = removeUTF8BOM(out)
+	return removeUTF8BOM(out), nil
+}
+
+func netshInterfaceIPShowConfig() ([]string, error) {
+	out, err := runNetsh("netsh", "interface", "ip", "show", "config")
+	if err != nil {
+		return nil, err
+	}
 	lines := bytes.Split(out, []byte{'\r', '\n'})
 	names := make([]string, 0)
 	for _, line := range lines {
@@ -222,7 +229,7 @@ func listInterfacesWithNetsh() ([]string, error) {
 	return names, nil
 }
 
-func TestInterfaceList(t *testing.T) {
+func TestInterfacesWithNetsh(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}
@@ -236,7 +243,7 @@ func TestInterfaceList(t *testing.T) {
 	}
 	sort.Strings(have)
 
-	want, err := listInterfacesWithNetsh()
+	want, err := netshInterfaceIPShowConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,5 +251,125 @@ func TestInterfaceList(t *testing.T) {
 
 	if strings.Join(want, "/") != strings.Join(have, "/") {
 		t.Fatalf("unexpected interface list %q, want %q", have, want)
+	}
+}
+
+func netshInterfaceIPv4ShowAddress(name string) ([]string, error) {
+	out, err := runNetsh("netsh", "interface", "ipv4", "show", "address", "name=\""+name+"\"")
+	if err != nil {
+		return nil, err
+	}
+	// adress information is listed like:
+	//    IP Address:                           10.0.0.2
+	//    Subnet Prefix:                        10.0.0.0/24 (mask 255.255.255.0)
+	//    IP Address:                           10.0.0.3
+	//    Subnet Prefix:                        10.0.0.0/24 (mask 255.255.255.0)
+	addrs := make([]string, 0)
+	var addr, subnetprefix string
+	lines := bytes.Split(out, []byte{'\r', '\n'})
+	for _, line := range lines {
+		if bytes.Contains(line, []byte("Subnet Prefix:")) {
+			f := bytes.Split(line, []byte{':'})
+			if len(f) == 2 {
+				f = bytes.Split(f[1], []byte{'('})
+				if len(f) == 2 {
+					f = bytes.Split(f[0], []byte{'/'})
+					if len(f) == 2 {
+						subnetprefix = string(bytes.TrimSpace(f[1]))
+						if addr != "" && subnetprefix != "" {
+							addrs = append(addrs, addr+"/"+subnetprefix)
+						}
+					}
+				}
+			}
+		}
+		addr = ""
+		if bytes.Contains(line, []byte("IP Address:")) {
+			f := bytes.Split(line, []byte{':'})
+			if len(f) == 2 {
+				addr = string(bytes.TrimSpace(f[1]))
+			}
+		}
+	}
+	return addrs, nil
+}
+
+func netshInterfaceIPv6ShowAddress(name string) ([]string, error) {
+	// TODO: need to test ipv6 netmask too, but netsh does not outputs it
+	out, err := runNetsh("netsh", "interface", "ipv6", "show", "address", "interface=\""+name+"\"")
+	if err != nil {
+		return nil, err
+	}
+	addrs := make([]string, 0)
+	lines := bytes.Split(out, []byte{'\r', '\n'})
+	for _, line := range lines {
+		if !bytes.HasPrefix(line, []byte("Address")) {
+			continue
+		}
+		if !bytes.HasSuffix(line, []byte("Parameters")) {
+			continue
+		}
+		f := bytes.Split(line, []byte{' '})
+		if len(f) != 3 {
+			continue
+		}
+		// remove scope ID if present
+		f = bytes.Split(f[1], []byte{'%'})
+		addrs = append(addrs, string(bytes.TrimSpace(f[0])))
+	}
+	return addrs, nil
+}
+
+func TestInterfaceAddrsWithNetsh(t *testing.T) {
+	t.Skip("skipping test; see https://golang.org/issue/12811")
+	if isWindowsXP(t) {
+		t.Skip("Windows XP netsh command does not provide required functionality")
+	}
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ifi := range ift {
+		have := make([]string, 0)
+		addrs, err := ifi.Addrs()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, addr := range addrs {
+			switch addr := addr.(type) {
+			case *IPNet:
+				if addr.IP.To4() != nil {
+					have = append(have, addr.String())
+				}
+				if addr.IP.To16() != nil && addr.IP.To4() == nil {
+					// netsh does not output netmask for ipv6, so ignore ipv6 mask
+					have = append(have, addr.IP.String())
+				}
+			case *IPAddr:
+				if addr.IP.To4() != nil {
+					have = append(have, addr.String())
+				}
+				if addr.IP.To16() != nil && addr.IP.To4() == nil {
+					// netsh does not output netmask for ipv6, so ignore ipv6 mask
+					have = append(have, addr.IP.String())
+				}
+			}
+		}
+		sort.Strings(have)
+
+		want, err := netshInterfaceIPv4ShowAddress(ifi.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantIPv6, err := netshInterfaceIPv6ShowAddress(ifi.Name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want = append(want, wantIPv6...)
+		sort.Strings(want)
+
+		if strings.Join(want, "/") != strings.Join(have, "/") {
+			t.Errorf("%s: unexpected addresses list %q, want %q", ifi.Name, have, want)
+		}
 	}
 }
