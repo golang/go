@@ -83,8 +83,8 @@ func TestClient(t *testing.T) {
 	}
 }
 
-func TestClientHead_h1(t *testing.T) { testClientHead(t, false) }
-func TestClientHead_h2(t *testing.T) { testClientHead(t, true) }
+func TestClientHead_h1(t *testing.T) { testClientHead(t, h1Mode) }
+func TestClientHead_h2(t *testing.T) { testClientHead(t, h2Mode) }
 
 func testClientHead(t *testing.T, h2 bool) {
 	defer afterTest(t)
@@ -496,8 +496,8 @@ func (j *RecordingJar) logf(format string, args ...interface{}) {
 	fmt.Fprintf(&j.log, format, args...)
 }
 
-func TestStreamingGet_h1(t *testing.T) { testStreamingGet(t, false) }
-func TestStreamingGet_h2(t *testing.T) { testStreamingGet(t, true) }
+func TestStreamingGet_h1(t *testing.T) { testStreamingGet(t, h1Mode) }
+func TestStreamingGet_h2(t *testing.T) { testStreamingGet(t, h2Mode) }
 
 func testStreamingGet(t *testing.T, h2 bool) {
 	defer afterTest(t)
@@ -772,11 +772,11 @@ func TestHTTPSClientDetectsHTTPServer(t *testing.T) {
 
 // Verify Response.ContentLength is populated. https://golang.org/issue/4126
 func TestClientHeadContentLength_h1(t *testing.T) {
-	testClientHeadContentLength(t, false)
+	testClientHeadContentLength(t, h1Mode)
 }
 
 func TestClientHeadContentLength_h2(t *testing.T) {
-	testClientHeadContentLength(t, true)
+	testClientHeadContentLength(t, h2Mode)
 }
 
 func testClientHeadContentLength(t *testing.T, h2 bool) {
@@ -1037,14 +1037,8 @@ func TestClientTimeout_Headers(t *testing.T) {
 	}
 }
 
-func TestClientRedirectEatsBody_h1(t *testing.T) {
-	testClientRedirectEatsBody(t, false)
-}
-
-func TestClientRedirectEatsBody_h2(t *testing.T) {
-	testClientRedirectEatsBody(t, true)
-}
-
+func TestClientRedirectEatsBody_h1(t *testing.T) { testClientRedirectEatsBody(t, h1Mode) }
+func TestClientRedirectEatsBody_h2(t *testing.T) { testClientRedirectEatsBody(t, h2Mode) }
 func testClientRedirectEatsBody(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	saw := make(chan string, 2)
@@ -1093,9 +1087,14 @@ func (f eofReaderFunc) Read(p []byte) (n int, err error) {
 	return 0, io.EOF
 }
 
-func TestClientTrailers(t *testing.T) {
+func TestClientTrailers_h1(t *testing.T) { testClientTrailers(t, h1Mode) }
+func TestClientTrailers_h2(t *testing.T) {
+	t.Skip("skipping in http2 mode; golang.org/issue/13557")
+	testClientTrailers(t, h2Mode)
+}
+func testClientTrailers(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Connection", "close")
 		w.Header().Set("Trailer", "Server-Trailer-A, Server-Trailer-B")
 		w.Header().Add("Trailer", "Server-Trailer-C")
@@ -1129,10 +1128,10 @@ func TestClientTrailers(t *testing.T) {
 		w.Header().Set("Server-Trailer-A", "valuea")
 		w.Header().Set("Server-Trailer-C", "valuec") // skipping B
 	}))
-	defer ts.Close()
+	defer cst.close()
 
 	var req *Request
-	req, _ = NewRequest("POST", ts.URL, io.MultiReader(
+	req, _ = NewRequest("POST", cst.ts.URL, io.MultiReader(
 		eofReaderFunc(func() {
 			req.Trailer["Client-Trailer-A"] = []string{"valuea"}
 		}),
@@ -1146,7 +1145,7 @@ func TestClientTrailers(t *testing.T) {
 		"Client-Trailer-B": nil, //  to be set later
 	}
 	req.ContentLength = -1
-	res, err := DefaultClient.Do(req)
+	res, err := cst.c.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

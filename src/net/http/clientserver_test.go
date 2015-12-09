@@ -37,6 +37,11 @@ func (t *clientServerTest) close() {
 	t.ts.Close()
 }
 
+const (
+	h1Mode = false
+	h2Mode = true
+)
+
 func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
 	cst := &clientServerTest{
 		t:  t,
@@ -87,8 +92,8 @@ func TestNewClientServerTest(t *testing.T) {
 	}
 }
 
-func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, false) }
-func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, true) }
+func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, h1Mode) }
+func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, h2Mode) }
 
 func testChunkedResponseHeaders(t *testing.T, h2 bool) {
 	defer afterTest(t)
@@ -354,8 +359,6 @@ func TestH12_HandlerWritesTooMuch(t *testing.T) {
 	}.run(t)
 }
 
-// TODO: TestH12_Trailers
-
 // Verify that both our HTTP/1 and HTTP/2 request and auto-decompress gzip.
 // Some hosts send gzip even if you don't ask for it; see golang.org/issue/13298
 func TestH12_AutoGzip(t *testing.T) {
@@ -375,8 +378,8 @@ func TestH12_AutoGzip(t *testing.T) {
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce
 // output.
-func Test304Responses_h1(t *testing.T) { test304Responses(t, false) }
-func Test304Responses_h2(t *testing.T) { test304Responses(t, true) }
+func Test304Responses_h1(t *testing.T) { test304Responses(t, h1Mode) }
+func Test304Responses_h2(t *testing.T) { test304Responses(t, h2Mode) }
 
 func test304Responses(t *testing.T, h2 bool) {
 	defer afterTest(t)
