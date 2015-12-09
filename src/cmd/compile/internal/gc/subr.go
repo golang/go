@@ -134,16 +134,6 @@ func Yyerror(format string, args ...interface{}) {
 			return
 		}
 
-		// The grammar has { and LBRACE but both show up as {.
-		// Rewrite syntax error referring to "{ or {" to say just "{".
-		// The grammar has ? and @ but only for reading imports.
-		// Silence them in ordinary errors.
-		msg = strings.Replace(msg, "{ or {", "{", -1)
-		msg = strings.Replace(msg, " or ?", "", -1)
-		msg = strings.Replace(msg, " or @", "", -1)
-
-		msg = strings.Replace(msg, "LLITERAL", litbuf, -1)
-
 		yyerrorl(int(lexlineno), "%s", msg)
 		return
 	}

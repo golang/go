@@ -142,7 +142,6 @@ func (p *parser) syntax_error(msg string) {
 	var tok string
 	switch p.tok {
 	case LLITERAL:
-		// this is also done in Yyerror but it's cleaner to do it here
 		tok = litbuf
 	case LNAME:
 		if p.sym_ != nil && p.sym_.Name != "" {
