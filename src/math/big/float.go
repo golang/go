@@ -1123,7 +1123,7 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 
 // Rat returns the rational number corresponding to x;
 // or nil if x is an infinity.
-// The result is Exact is x is not an Inf.
+// The result is Exact if x is not an Inf.
 // If a non-nil *Rat argument z is provided, Rat stores
 // the result in z instead of allocating a new Rat.
 func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
