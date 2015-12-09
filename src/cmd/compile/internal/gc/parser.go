@@ -668,10 +668,11 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			// labelname ':' stmt
 			if labelOk {
 				// If we have a labelname, it was parsed by operand
-				// (calling p.name()) and given an ONAME, ONONAME, or OTYPE node.
-				if lhs.Op == ONAME || lhs.Op == ONONAME || lhs.Op == OTYPE {
+				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, or OPACK node.
+				switch lhs.Op {
+				case ONAME, ONONAME, OTYPE, OPACK:
 					lhs = newname(lhs.Sym)
-				} else {
+				default:
 					p.syntax_error("expecting semicolon or newline or }")
 					// we already progressed, no need to advance
 				}
