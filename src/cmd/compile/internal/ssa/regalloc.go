@@ -38,12 +38,6 @@
 // x3 can then be used wherever x is referenced again.
 // If the spill (x2) is never used, it will be removed at the end of regalloc.
 //
-// Flags values are special. Instead of attempting to spill and restore the flags
-// register, we recalculate it if needed.
-// There are more efficient schemes (see the discussion in CL 13844),
-// but flag restoration is empirically rare, and this approach is simple
-// and architecture-independent.
-//
 // Phi values are special, as always.  We define two kinds of phis, those
 // where the merge happens in a register (a "register" phi) and those where
 // the merge happens in a stack location (a "stack" phi).
@@ -173,7 +167,6 @@ var registers = [...]Register{
 	Register{30, "X14"},
 	Register{31, "X15"},
 	Register{32, "SB"}, // pseudo-register for global base pointer (aka %rip)
-	Register{33, "FLAGS"},
 
 	// TODO: make arch-dependent
 }
@@ -226,7 +219,7 @@ type regAllocState struct {
 	f *Func
 
 	// For each value, whether it needs a register or not.
-	// Cached value of !v.Type.IsMemory() && !v.Type.IsVoid().
+	// Cached value of !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags().
 	needReg []bool
 
 	// for each block, its primary predecessor.
@@ -435,40 +428,9 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 		c = s.curBlock.NewValue1(v.Line, OpCopy, v.Type, s.regs[r2].c)
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
-		c = s.curBlock.NewValue0(v.Line, v.Op, v.Type)
-		c.Aux = v.Aux
-		c.AuxInt = v.AuxInt
-		c.AddArgs(v.Args...)
+		c = v.copyInto(s.curBlock)
 	} else {
 		switch {
-		// It is difficult to spill and reload flags on many architectures.
-		// Instead, we regenerate the flags register by issuing the same instruction again.
-		// This requires (possibly) spilling and reloading that instruction's args.
-		case v.Type.IsFlags():
-			if logSpills {
-				fmt.Println("regalloc: regenerating flags")
-			}
-			ns := s.nospill
-			// Place v's arguments in registers, spilling and loading as needed
-			args := make([]*Value, 0, len(v.Args))
-			regspec := opcodeTable[v.Op].reg
-			for _, i := range regspec.inputs {
-				// Extract the original arguments to v
-				a := s.orig[v.Args[i.idx].ID]
-				if a.Type.IsFlags() {
-					s.f.Fatalf("cannot load flags value with flags arg: %v has unwrapped arg %v", v.LongString(), a.LongString())
-				}
-				cc := s.allocValToReg(a, i.regs, true)
-				args = append(args, cc)
-			}
-			s.nospill = ns
-			// Recalculate v
-			c = s.curBlock.NewValue0(v.Line, v.Op, v.Type)
-			c.Aux = v.Aux
-			c.AuxInt = v.AuxInt
-			c.resetArgs()
-			c.AddArgs(args...)
-
 		// Load v from its spill location.
 		case vi.spill2 != nil:
 			if logSpills {
@@ -506,7 +468,7 @@ func (s *regAllocState) init(f *Func) {
 	s.orig = make([]*Value, f.NumValues())
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			if v.Type.IsMemory() || v.Type.IsVoid() {
+			if v.Type.IsMemory() || v.Type.IsVoid() || v.Type.IsFlags() {
 				continue
 			}
 			s.needReg[v.ID] = true
@@ -818,6 +780,10 @@ func (s *regAllocState) regalloc(f *Func) {
 			// by the register specification (most constrained first).
 			args = append(args[:0], v.Args...)
 			for _, i := range regspec.inputs {
+				if i.regs == flagRegMask {
+					// TODO: remove flag input from regspec.inputs.
+					continue
+				}
 				args[i.idx] = s.allocValToReg(v.Args[i.idx], i.regs, true)
 			}
 
@@ -834,8 +800,11 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Pick register for output.
 			var r register
 			var mask regMask
-			if len(regspec.outputs) > 0 {
+			if s.needReg[v.ID] {
 				mask = regspec.outputs[0] &^ s.reserved()
+				if mask>>33&1 != 0 {
+					s.f.Fatalf("bad mask %s\n", v.LongString())
+				}
 			}
 			if mask != 0 {
 				r = s.allocReg(mask)
@@ -858,7 +827,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			//     f()
 			// }
 			// It would be good to have both spill and restore inside the IF.
-			if !v.Type.IsFlags() {
+			if s.needReg[v.ID] {
 				spill := b.NewValue1(v.Line, OpStoreReg, v.Type, v)
 				s.setOrig(spill, v)
 				s.values[v.ID].spill = spill

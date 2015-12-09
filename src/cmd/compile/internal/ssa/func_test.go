@@ -232,6 +232,11 @@ func Exit(arg string) ctrl {
 	return ctrl{BlockExit, arg, []string{}}
 }
 
+// Eq specifies a BlockAMD64EQ.
+func Eq(cond, sub, alt string) ctrl {
+	return ctrl{BlockAMD64EQ, cond, []string{sub, alt}}
+}
+
 // bloc, ctrl, and valu are internal structures used by Bloc, Valu, Goto,
 // If, and Exit to help define blocks.
 
