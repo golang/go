@@ -126,6 +126,15 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+// copyInto makes a new value identical to v and adds it to the end of b.
+func (v *Value) copyInto(b *Block) *Value {
+	c := b.NewValue0(v.Line, v.Op, v.Type)
+	c.Aux = v.Aux
+	c.AuxInt = v.AuxInt
+	c.AddArgs(v.Args...)
+	return c
+}
+
 func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
 func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
 func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }
