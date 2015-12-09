@@ -1994,6 +1994,7 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 
 // ListenAndServe listens on the TCP network address srv.Addr and then
 // calls Serve to handle requests on incoming connections.
+// Accepted connections are configured to enable TCP keep-alives.
 // If srv.Addr is blank, ":http" is used.
 // ListenAndServe always returns a non-nil error.
 func (srv *Server) ListenAndServe() error {
@@ -2074,8 +2075,10 @@ func (s *Server) logf(format string, args ...interface{}) {
 
 // ListenAndServe listens on the TCP network address addr
 // and then calls Serve with handler to handle requests
-// on incoming connections.  Handler is typically nil,
-// in which case the DefaultServeMux is used.
+// on incoming connections.
+// Accepted connections are configured to enable TCP keep-alives.
+// Handler is typically nil, in which case the DefaultServeMux is
+// used.
 //
 // A trivial example server is:
 //
@@ -2131,13 +2134,14 @@ func ListenAndServe(addr string, handler Handler) error {
 // One can use generate_cert.go in crypto/tls to generate cert.pem and key.pem.
 //
 // ListenAndServeTLS always returns a non-nil error.
-func ListenAndServeTLS(addr string, certFile string, keyFile string, handler Handler) error {
+func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 	server := &Server{Addr: addr, Handler: handler}
 	return server.ListenAndServeTLS(certFile, keyFile)
 }
 
 // ListenAndServeTLS listens on the TCP network address srv.Addr and
 // then calls Serve to handle requests on incoming TLS connections.
+// Accepted connections are configured to enable TCP keep-alives.
 //
 // Filenames containing a certificate and matching private key for the
 // server must be provided if the Server's TLSConfig.Certificates is
