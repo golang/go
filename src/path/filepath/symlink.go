@@ -59,8 +59,7 @@ func walkLinks(path string, linksWalked *int) (string, error) {
 		return newpath, err
 	case file == "":
 		if isDriveLetter(dir) {
-			// appending "." to avoid bug in Join (see issue 11551)
-			return dir + ".", nil
+			return dir, nil
 		}
 		if os.IsPathSeparator(dir[len(dir)-1]) {
 			if isRoot(dir) {
