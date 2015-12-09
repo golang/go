@@ -477,14 +477,27 @@ func TestServeFileFromCWD(t *testing.T) {
 	}
 }
 
-func TestServeFileWithContentEncoding(t *testing.T) {
+// Tests that ServeFile doesn't add a Content-Length if a Content-Encoding is
+// specified.
+func TestServeFileWithContentEncoding_h1(t *testing.T) { testServeFileWithContentEncoding(t, h1Mode) }
+func TestServeFileWithContentEncoding_h2(t *testing.T) { testServeFileWithContentEncoding(t, h2Mode) }
+func testServeFileWithContentEncoding(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header().Set("Content-Encoding", "foo")
 		ServeFile(w, r, "testdata/file")
+
+		// Because the testdata is so small, it would fit in
+		// both the h1 and h2 Server's write buffers. For h1,
+		// sendfile is used, though, forcing a header flush at
+		// the io.Copy. http2 doesn't do a header flush so
+		// buffers all 11 bytes and then adds its own
+		// Content-Length. To prevent the Server's
+		// Content-Length and test ServeFile only, flush here.
+		w.(Flusher).Flush()
 	}))
-	defer ts.Close()
-	resp, err := Get(ts.URL)
+	defer cst.close()
+	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}

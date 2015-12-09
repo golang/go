@@ -1341,7 +1341,7 @@ func (c *conn) serve() {
 				// responding to them and hanging up
 				// while they're still writing their
 				// request.  Undefined behavior.
-				io.WriteString(c.rwc, "HTTP/1.1 413 Request Entity Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n413 Request Entity Too Large")
+				io.WriteString(c.rwc, "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large")
 				c.closeWriteAndWait()
 				break
 			} else if err == io.EOF {
