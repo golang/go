@@ -33,6 +33,7 @@ net/http: HTTP/2.0 support (many CLs)
 net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
 path/filepath: Join("c:", "a") now returns `c:a` instead of `c:\a` on windows (https://golang.org/cl/17470)
 runtime: only one goroutine in traceback (https://golang.org/cl/16512) maybe
+runtime: best-effort detection of concurrent misuse of maps (https://golang.org/cl/17501)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
 text/template: ExecError (https://golang.org/cl/13957/)
 text/template: trimming spaces (https://golang.org/cl/14391/)
