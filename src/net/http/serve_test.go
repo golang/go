@@ -2181,20 +2181,24 @@ func TestServerGracefulClose(t *testing.T) {
 	<-writeErr
 }
 
-func TestCaseSensitiveMethod(t *testing.T) {
+func TestCaseSensitiveMethod_h1(t *testing.T) { testCaseSensitiveMethod(t, false) }
+func TestCaseSensitiveMethod_h2(t *testing.T) { testCaseSensitiveMethod(t, true) }
+
+func testCaseSensitiveMethod(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.Method != "get" {
 			t.Errorf(`Got method %q; want "get"`, r.Method)
 		}
 	}))
-	defer ts.Close()
-	req, _ := NewRequest("get", ts.URL, nil)
-	res, err := DefaultClient.Do(req)
+	defer cst.close()
+	req, _ := NewRequest("get", cst.ts.URL, nil)
+	res, err := cst.c.Do(req)
 	if err != nil {
 		t.Error(err)
 		return
 	}
+
 	res.Body.Close()
 }
 
