@@ -177,14 +177,14 @@ func isWindowsXP(t *testing.T) bool {
 	return major < 6
 }
 
-func runNetsh(args ...string) ([]byte, error) {
+func runCmd(args ...string) ([]byte, error) {
 	removeUTF8BOM := func(b []byte) []byte {
 		if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
 			return b[3:]
 		}
 		return b
 	}
-	f, err := ioutil.TempFile("", "netsh")
+	f, err := ioutil.TempFile("", "netcmd")
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func runNetsh(args ...string) ([]byte, error) {
 	out, err := exec.Command("powershell", "-Command", cmd).CombinedOutput()
 	if err != nil {
 		if len(out) != 0 {
-			return nil, fmt.Errorf("netsh failed: %v: %q", err, string(removeUTF8BOM(out)))
+			return nil, fmt.Errorf("%s failed: %v: %q", args[0], err, string(removeUTF8BOM(out)))
 		}
 		var err2 error
 		out, err2 = ioutil.ReadFile(f.Name())
@@ -202,9 +202,9 @@ func runNetsh(args ...string) ([]byte, error) {
 			return nil, err2
 		}
 		if len(out) != 0 {
-			return nil, fmt.Errorf("netsh failed: %v: %q", err, string(removeUTF8BOM(out)))
+			return nil, fmt.Errorf("%s failed: %v: %q", args[0], err, string(removeUTF8BOM(out)))
 		}
-		return nil, fmt.Errorf("netsh failed: %v", err)
+		return nil, fmt.Errorf("%s failed: %v", args[0], err)
 	}
 	out, err = ioutil.ReadFile(f.Name())
 	if err != nil {
@@ -214,7 +214,7 @@ func runNetsh(args ...string) ([]byte, error) {
 }
 
 func netshInterfaceIPShowConfig() ([]string, error) {
-	out, err := runNetsh("netsh", "interface", "ip", "show", "config")
+	out, err := runCmd("netsh", "interface", "ip", "show", "config")
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
 }
 
 func netshInterfaceIPv4ShowAddress(name string) ([]string, error) {
-	out, err := runNetsh("netsh", "interface", "ipv4", "show", "address", "name=\""+name+"\"")
+	out, err := runCmd("netsh", "interface", "ipv4", "show", "address", "name=\""+name+"\"")
 	if err != nil {
 		return nil, err
 	}
@@ -296,7 +296,7 @@ func netshInterfaceIPv4ShowAddress(name string) ([]string, error) {
 
 func netshInterfaceIPv6ShowAddress(name string) ([]string, error) {
 	// TODO: need to test ipv6 netmask too, but netsh does not outputs it
-	out, err := runNetsh("netsh", "interface", "ipv6", "show", "address", "interface=\""+name+"\"")
+	out, err := runCmd("netsh", "interface", "ipv6", "show", "address", "interface=\""+name+"\"")
 	if err != nil {
 		return nil, err
 	}
@@ -371,5 +371,83 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 		if strings.Join(want, "/") != strings.Join(have, "/") {
 			t.Errorf("%s: unexpected addresses list %q, want %q", ifi.Name, have, want)
 		}
+	}
+}
+
+func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+	t.Skip("skipping test; see https://golang.org/issue/12691")
+	if isWindowsXP(t) {
+		t.Skip("Windows XP does not have powershell command")
+	}
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := make([]string, 0)
+	for _, ifi := range ift {
+		if ifi.Flags&FlagLoopback != 0 {
+			// no MAC for loopback interfaces
+			continue
+		}
+		have = append(have, ifi.Name+"="+ifi.HardwareAddr.String())
+	}
+	sort.Strings(have)
+
+	out, err := runCmd("getmac", "/fo", "list", "/v")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// getmac output looks like:
+	//
+	//Connection Name:  Local Area Connection
+	//Network Adapter:  Intel Gigabit Network Connection
+	//Physical Address: XX-XX-XX-XX-XX-XX
+	//Transport Name:   \Device\Tcpip_{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
+	//
+	//Connection Name:  Wireless Network Connection
+	//Network Adapter:  Wireles WLAN Card
+	//Physical Address: XX-XX-XX-XX-XX-XX
+	//Transport Name:   Media disconnected
+	//
+	//Connection Name:  Bluetooth Network Connection
+	//Network Adapter:  Bluetooth Device (Personal Area Network)
+	//Physical Address: XX-XX-XX-XX-XX-XX
+	//Transport Name:   Media disconnected
+	//
+	want := make([]string, 0)
+	var name string
+	lines := bytes.Split(out, []byte{'\r', '\n'})
+	for _, line := range lines {
+		if bytes.Contains(line, []byte("Connection Name:")) {
+			f := bytes.Split(line, []byte{':'})
+			if len(f) != 2 {
+				t.Fatal("unexpected \"Connection Name\" line: %q", line)
+			}
+			name = string(bytes.TrimSpace(f[1]))
+			if name == "" {
+				t.Fatal("empty name on \"Connection Name\" line: %q", line)
+			}
+		}
+		if bytes.Contains(line, []byte("Physical Address:")) {
+			if name == "" {
+				t.Fatal("no matching name found: %q", string(out))
+			}
+			f := bytes.Split(line, []byte{':'})
+			if len(f) != 2 {
+				t.Fatal("unexpected \"Physical Address\" line: %q", line)
+			}
+			addr := string(bytes.TrimSpace(f[1]))
+			if addr == "" {
+				t.Fatal("empty address on \"Physical Address\" line: %q", line)
+			}
+			addr = strings.Replace(addr, "-", ":", -1)
+			want = append(want, name+"="+addr)
+			name = ""
+		}
+	}
+	sort.Strings(want)
+
+	if strings.Join(want, "/") != strings.Join(have, "/") {
+		t.Fatalf("unexpected MAC addresses %q, want %q", have, want)
 	}
 }
