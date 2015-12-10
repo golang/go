@@ -370,6 +370,13 @@ func TestRequestInvalidMethod(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "invalid method") {
 		t.Errorf("Transport error = %v; want invalid method", err)
 	}
+
+	req, err = NewRequest("", "http://foo.com/", nil)
+	if err != nil {
+		t.Errorf("NewRequest(empty method) = %v; want nil", err)
+	} else if req.Method != "GET" {
+		t.Errorf("NewRequest(empty method) has method %q; want GET", req.Method)
+	}
 }
 
 func TestNewRequestContentLength(t *testing.T) {
