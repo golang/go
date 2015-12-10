@@ -3413,7 +3413,7 @@ func sysmon() {
 			lastscavenge = now
 			nscavenge++
 		}
-		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace*1000000) <= now {
+		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace)*1000000 <= now {
 			lasttrace = now
 			schedtrace(debug.scheddetail > 0)
 		}
