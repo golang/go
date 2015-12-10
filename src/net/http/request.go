@@ -581,6 +581,12 @@ func validMethod(method string) bool {
 // type's documentation for the difference between inbound and outbound
 // request fields.
 func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+	if method == "" {
+		// We document that "" means "GET" for Request.Method, and people have
+		// relied on that from NewRequest, so keep that working.
+		// We still enforce validMethod for non-empty methods.
+		method = "GET"
+	}
 	if !validMethod(method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", method)
 	}
