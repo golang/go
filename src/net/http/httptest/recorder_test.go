@@ -119,6 +119,17 @@ func TestRecorder(t *testing.T) {
 			},
 			check(hasHeader("Content-Type", "some/type")),
 		},
+		{
+			"Content-Type detection doesn't crash if HeaderMap is nil",
+			func(w http.ResponseWriter, r *http.Request) {
+				// Act as if the user wrote new(httptest.ResponseRecorder)
+				// rather than using NewRecorder (which initializes
+				// HeaderMap)
+				w.(*ResponseRecorder).HeaderMap = nil
+				io.WriteString(w, "<html>")
+			},
+			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
+		},
 	}
 	r, _ := http.NewRequest("GET", "http://foo.com/", nil)
 	for _, tt := range tests {
