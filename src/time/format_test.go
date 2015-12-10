@@ -164,9 +164,6 @@ var parseTests = []ParseTest{
 	// GMT with offset.
 	{"GMT-8", UnixDate, "Fri Feb  5 05:00:57 GMT-8 2010", true, true, 1, 0},
 
-	// Day of month can be out of range.
-	{"Jan 36", UnixDate, "Fri Jan 36 05:00:57 GMT-8 2010", true, true, 1, 0},
-
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two
 	// cases would succeed, but the next four would not. Go 1.1 accepts all six.
@@ -192,6 +189,57 @@ func TestParse(t *testing.T) {
 			t.Errorf("%s error: %v", test.name, err)
 		} else {
 			checkTime(time, &test, t)
+		}
+	}
+}
+
+// All parsed with ANSIC.
+var dayOutOfRangeTests = []struct {
+	date string
+	ok   bool
+}{
+	{"Thu Jan 99 21:00:57 2010", false},
+	{"Thu Jan 31 21:00:57 2010", true},
+	{"Thu Jan 32 21:00:57 2010", false},
+	{"Thu Feb 28 21:00:57 2012", true},
+	{"Thu Feb 29 21:00:57 2012", true},
+	{"Thu Feb 29 21:00:57 2010", false},
+	{"Thu Mar 31 21:00:57 2010", true},
+	{"Thu Mar 32 21:00:57 2010", false},
+	{"Thu Apr 30 21:00:57 2010", true},
+	{"Thu Apr 31 21:00:57 2010", false},
+	{"Thu May 31 21:00:57 2010", true},
+	{"Thu May 32 21:00:57 2010", false},
+	{"Thu Jun 30 21:00:57 2010", true},
+	{"Thu Jun 31 21:00:57 2010", false},
+	{"Thu Jul 31 21:00:57 2010", true},
+	{"Thu Jul 32 21:00:57 2010", false},
+	{"Thu Aug 31 21:00:57 2010", true},
+	{"Thu Aug 32 21:00:57 2010", false},
+	{"Thu Sep 30 21:00:57 2010", true},
+	{"Thu Sep 31 21:00:57 2010", false},
+	{"Thu Oct 31 21:00:57 2010", true},
+	{"Thu Oct 32 21:00:57 2010", false},
+	{"Thu Nov 30 21:00:57 2010", true},
+	{"Thu Nov 31 21:00:57 2010", false},
+	{"Thu Dec 31 21:00:57 2010", true},
+	{"Thu Dec 32 21:00:57 2010", false},
+}
+
+func TestParseDayOutOfRange(t *testing.T) {
+	for _, test := range dayOutOfRangeTests {
+		_, err := Parse(ANSIC, test.date)
+		switch {
+		case test.ok && err == nil:
+			// OK
+		case !test.ok && err != nil:
+			if !strings.Contains(err.Error(), "day of month out of range") {
+				t.Errorf("%q: expected 'day of month' error, got %v", test.date, err)
+			}
+		case test.ok && err != nil:
+			t.Errorf("%q: unexpected error: %v", test.date, err)
+		case !test.ok && err == nil:
+			t.Errorf("%q: expected 'day of month' error, got none", test.date)
 		}
 	}
 }
