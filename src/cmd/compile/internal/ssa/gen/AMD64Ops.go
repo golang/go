@@ -433,7 +433,7 @@ func init() {
 			name: "DUFFCOPY",
 			reg: regInfo{
 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
-				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
+				clobbers: buildReg("DI SI X0 FLAGS"), // uses X0 as a temporary
 			},
 		},
 

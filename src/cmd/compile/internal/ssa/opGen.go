@@ -3177,7 +3177,7 @@ var opcodeTable = [...]opInfo{
 				{0, 128}, // .DI
 				{1, 64},  // .SI
 			},
-			clobbers: 65728, // .SI .DI .X0
+			clobbers: 8590000320, // .SI .DI .X0 .FLAGS
 		},
 	},
 	{
