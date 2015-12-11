@@ -102,7 +102,7 @@ func TestVendorImportError(t *testing.T) {
 
 	re := regexp.MustCompile(`cannot find package "notfound" in any of:
 	.*[\\/]testdata[\\/]src[\\/]vend[\\/]x[\\/]vendor[\\/]notfound \(vendor tree\)
-	.*[\\/]testdata[\\/]src[\\/]vend[\\/]vendor[\\/]notfound \(vendor tree\)
+	.*[\\/]testdata[\\/]src[\\/]vend[\\/]vendor[\\/]notfound
 	.*[\\/]src[\\/]notfound \(from \$GOROOT\)
 	.*[\\/]testdata[\\/]src[\\/]notfound \(from \$GOPATH\)`)
 
