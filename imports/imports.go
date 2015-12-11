@@ -35,6 +35,10 @@ type Options struct {
 
 // Process formats and adjusts imports for the provided file.
 // If opt is nil the defaults are used.
+//
+// Note that filename's directory influences which imports can be chosen,
+// so it is important that filename be accurate.
+// To process data ``as if'' it were in filename, pass the data as a non-nil src.
 func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 	if opt == nil {
 		opt = &Options{Comments: true, TabIndent: true, TabWidth: 8}
@@ -46,7 +50,7 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 		return nil, err
 	}
 
-	_, err = fixImports(fileSet, file)
+	_, err = fixImports(fileSet, file, filename)
 	if err != nil {
 		return nil, err
 	}

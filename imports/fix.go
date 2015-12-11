@@ -45,7 +45,7 @@ func importGroup(importPath string) int {
 	return 0
 }
 
-func fixImports(fset *token.FileSet, f *ast.File) (added []string, err error) {
+func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []string, err error) {
 	// refs are a set of possible package references currently unsatisfied by imports.
 	// first key: either base package (e.g. "fmt") or renamed package
 	// second key: referenced package symbol (e.g. "Println")
@@ -117,7 +117,7 @@ func fixImports(fset *token.FileSet, f *ast.File) (added []string, err error) {
 			continue // skip over packages already imported
 		}
 		go func(pkgName string, symbols map[string]bool) {
-			ipath, rename, err := findImport(pkgName, symbols)
+			ipath, rename, err := findImport(pkgName, symbols, filename)
 			r := result{ipath: ipath, err: err}
 			if rename {
 				r.name = pkgName
@@ -304,7 +304,7 @@ func loadExportsGoPath(dir string) map[string]bool {
 // extended by adding a file with an init function.
 var findImport = findImportGoPath
 
-func findImportGoPath(pkgName string, symbols map[string]bool) (string, bool, error) {
+func findImportGoPath(pkgName string, symbols map[string]bool, filename string) (string, bool, error) {
 	// Fast path for the standard library.
 	// In the common case we hopefully never have to scan the GOPATH, which can
 	// be slow with moving disks.
@@ -320,49 +320,77 @@ func findImportGoPath(pkgName string, symbols map[string]bool) (string, bool, er
 	pkgIndexOnce.Do(loadPkgIndex)
 
 	// Collect exports for packages with matching names.
-	var wg sync.WaitGroup
-	var pkgsMu sync.Mutex // guards pkgs
-	// full importpath => exported symbol => True
-	// e.g. "net/http" => "Client" => True
-	pkgs := make(map[string]map[string]bool)
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		shortest string
+	)
 	pkgIndex.Lock()
 	for _, pkg := range pkgIndex.m[pkgName] {
+		if !canUse(filename, pkg.dir) {
+			continue
+		}
 		wg.Add(1)
 		go func(importpath, dir string) {
 			defer wg.Done()
 			exports := loadExports(dir)
-			if exports != nil {
-				pkgsMu.Lock()
-				pkgs[importpath] = exports
-				pkgsMu.Unlock()
+			if exports == nil {
+				return
 			}
+			// If it doesn't have the right symbols, stop.
+			for symbol := range symbols {
+				if !exports[symbol] {
+					return
+				}
+			}
+
+			// Devendorize for use in import statement.
+			if i := strings.LastIndex(importpath, "/vendor/"); i >= 0 {
+				importpath = importpath[i+len("/vendor/"):]
+			} else if strings.HasPrefix(importpath, "vendor/") {
+				importpath = importpath[len("vendor/"):]
+			}
+
+			// Save as the answer.
+			// If there are multiple candidates, the shortest wins,
+			// to prefer "bytes" over "github.com/foo/bytes".
+			mu.Lock()
+			if shortest == "" || len(importpath) < len(shortest) || len(importpath) == len(shortest) && importpath < shortest {
+				shortest = importpath
+			}
+			mu.Unlock()
 		}(pkg.importpath, pkg.dir)
 	}
 	pkgIndex.Unlock()
 	wg.Wait()
 
-	// Filter out packages missing required exported symbols.
-	for symbol := range symbols {
-		for importpath, exports := range pkgs {
-			if !exports[symbol] {
-				delete(pkgs, importpath)
-			}
-		}
-	}
-	if len(pkgs) == 0 {
-		return "", false, nil
-	}
-
-	// If there are multiple candidate packages, the shortest one wins.
-	// This is a heuristic to prefer the standard library (e.g. "bytes")
-	// over e.g. "github.com/foo/bar/bytes".
-	shortest := ""
-	for importPath := range pkgs {
-		if shortest == "" || len(importPath) < len(shortest) {
-			shortest = importPath
-		}
-	}
 	return shortest, false, nil
+}
+
+func canUse(filename, dir string) bool {
+	dirSlash := filepath.ToSlash(dir)
+	if !strings.Contains(dirSlash, "/vendor/") && !strings.Contains(dirSlash, "/internal/") && !strings.HasSuffix(dirSlash, "/internal") {
+		return true
+	}
+	// Vendor or internal directory only visible from children of parent.
+	// That means the path from the current directory to the target directory
+	// can contain ../vendor or ../internal but not ../foo/vendor or ../foo/internal
+	// or bar/vendor or bar/internal.
+	// After stripping all the leading ../, the only okay place to see vendor or internal
+	// is at the very beginning of the path.
+	abs, err := filepath.Abs(filename)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(abs, dir)
+	if err != nil {
+		return false
+	}
+	relSlash := filepath.ToSlash(rel)
+	if i := strings.LastIndex(relSlash, "../"); i >= 0 {
+		relSlash = relSlash[i+len("../"):]
+	}
+	return !strings.Contains(relSlash, "/vendor/") && !strings.Contains(relSlash, "/internal/") && !strings.HasSuffix(relSlash, "/internal")
 }
 
 type visitFn func(node ast.Node) ast.Visitor

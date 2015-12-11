@@ -25,6 +25,7 @@ var (
 	list   = flag.Bool("l", false, "list files whose formatting differs from goimport's")
 	write  = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	doDiff = flag.Bool("d", false, "display diffs instead of rewriting files")
+	srcdir = flag.String("srcdir", "", "choose imports as if source code is from `dir`")
 
 	options = &imports.Options{
 		TabWidth:  8,
@@ -78,7 +79,14 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		return err
 	}
 
-	res, err := imports.Process(filename, src, opt)
+	target := filename
+	if *srcdir != "" {
+		// Pretend that file is from *srcdir in order to decide
+		// visible imports correctly.
+		target = filepath.Join(*srcdir, filepath.Base(filename))
+	}
+
+	res, err := imports.Process(target, src, opt)
 	if err != nil {
 		return err
 	}
