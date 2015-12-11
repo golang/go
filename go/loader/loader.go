@@ -458,8 +458,9 @@ func (conf *Config) Load() (*Program, error) {
 		conf.FindPackage = func(ctxt *build.Context, path string) (*build.Package, error) {
 			// TODO(adonovan): cache calls to build.Import
 			// so we don't do it three times per test package.
+			// (Note that this is difficult due to vendoring.)
 			ioLimit <- true
-			bp, err := ctxt.Import(path, conf.Cwd, 0)
+			bp, err := ctxt.Import(path, conf.Cwd, importMode)
 			<-ioLimit
 			if _, ok := err.(*build.NoGoError); ok {
 				return bp, nil // empty directory is not an error
