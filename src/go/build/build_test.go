@@ -297,3 +297,30 @@ func TestShellSafety(t *testing.T) {
 		}
 	}
 }
+
+func TestImportVendor(t *testing.T) {
+	ctxt := Default
+	ctxt.GOPATH = ""
+	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+	if err != nil {
+		t.Fatalf("cannot find vendored golang.org/x/net/http2/hpack from net/http directory: %v", err)
+	}
+	want := "vendor/golang.org/x/net/http2/hpack"
+	if p.ImportPath != want {
+		t.Fatalf("Import succeeded but found %q, want %q", p.ImportPath, want)
+	}
+}
+
+func TestImportVendorFailure(t *testing.T) {
+	ctxt := Default
+	ctxt.GOPATH = ""
+	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+	if err == nil {
+		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
+	}
+
+	e := err.Error()
+	if !strings.Contains(e, " (vendor tree)") {
+		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
+	}
+}

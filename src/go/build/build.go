@@ -110,7 +110,7 @@ func (ctxt *Context) splitPathList(s string) []string {
 	return filepath.SplitList(s)
 }
 
-// isAbsPath calls ctxt.IsAbsSPath (if not nil) or else filepath.IsAbs.
+// isAbsPath calls ctxt.IsAbsPath (if not nil) or else filepath.IsAbs.
 func (ctxt *Context) isAbsPath(path string) bool {
 	if f := ctxt.IsAbsPath; f != nil {
 		return f(path)
@@ -343,6 +343,19 @@ const (
 	// or finds conflicting comments in multiple source files.
 	// See golang.org/s/go14customimport for more information.
 	ImportComment
+
+	// If AllowVendor is set, Import searches vendor directories
+	// that apply in the given source directory before searching
+	// the GOROOT and GOPATH roots.
+	// If an Import finds and returns a package using a vendor
+	// directory, the resulting ImportPath is the complete path
+	// to the package, including the path elements leading up
+	// to and including "vendor".
+	// For example, if Import("y", "x/subdir", AllowVendor) finds
+	// "x/vendor/y", the returned package's ImportPath is "x/vendor/y",
+	// not plain "y".
+	// See golang.org/s/go15vendor for more information.
+	AllowVendor
 )
 
 // A Package describes the Go package found in a directory.
@@ -474,15 +487,22 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 	switch ctxt.Compiler {
 	case "gccgo":
 		pkgtargetroot = "pkg/gccgo_" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
-		dir, elem := pathpkg.Split(p.ImportPath)
-		pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
 	case "gc":
 		pkgtargetroot = "pkg/" + ctxt.GOOS + "_" + ctxt.GOARCH + suffix
-		pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
 	default:
 		// Save error for end of function.
 		pkgerr = fmt.Errorf("import %q: unknown compiler %q", path, ctxt.Compiler)
 	}
+	setPkga := func() {
+		switch ctxt.Compiler {
+		case "gccgo":
+			dir, elem := pathpkg.Split(p.ImportPath)
+			pkga = pkgtargetroot + "/" + dir + "lib" + elem + ".a"
+		case "gc":
+			pkga = pkgtargetroot + "/" + p.ImportPath + ".a"
+		}
+	}
+	setPkga()
 
 	binaryOnly := false
 	if IsLocalImport(path) {
@@ -543,8 +563,49 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		// tried records the location of unsuccessful package lookups
 		var tried struct {
+			vendor []string
 			goroot string
 			gopath []string
+		}
+		gopath := ctxt.gopath()
+
+		// Vendor directories get first chance to satisfy import.
+		if mode&AllowVendor != 0 && srcDir != "" {
+			searchVendor := func(root string, isGoroot bool) bool {
+				sub, ok := ctxt.hasSubdir(root, srcDir)
+				if !ok || !strings.HasPrefix(sub, "src/") || strings.Contains(sub, "/testdata/") {
+					return false
+				}
+				for {
+					vendor := ctxt.joinPath(root, sub, "vendor")
+					if ctxt.isDir(vendor) {
+						dir := ctxt.joinPath(vendor, path)
+						if ctxt.isDir(dir) {
+							p.Dir = dir
+							p.ImportPath = strings.TrimPrefix(pathpkg.Join(sub, "vendor", path), "src/")
+							p.Goroot = isGoroot
+							p.Root = root
+							setPkga() // p.ImportPath changed
+							return true
+						}
+						tried.vendor = append(tried.vendor, dir)
+					}
+					i := strings.LastIndex(sub, "/")
+					if i < 0 {
+						break
+					}
+					sub = sub[:i]
+				}
+				return false
+			}
+			if searchVendor(ctxt.GOROOT, true) {
+				goto Found
+			}
+			for _, root := range gopath {
+				if searchVendor(root, false) {
+					goto Found
+				}
+			}
 		}
 
 		// Determine directory from import path.
@@ -560,7 +621,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 			}
 			tried.goroot = dir
 		}
-		for _, root := range ctxt.gopath() {
+		for _, root := range gopath {
 			dir := ctxt.joinPath(root, "src", path)
 			isDir := ctxt.isDir(dir)
 			binaryOnly = !isDir && mode&AllowBinary != 0 && pkga != "" && ctxt.isFile(ctxt.joinPath(root, pkga))
@@ -574,20 +635,22 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 
 		// package was not found
 		var paths []string
+		format := "\t%s (vendor tree)"
+		for _, dir := range tried.vendor {
+			paths = append(paths, fmt.Sprintf(format, dir))
+			format = "\t%s"
+		}
 		if tried.goroot != "" {
 			paths = append(paths, fmt.Sprintf("\t%s (from $GOROOT)", tried.goroot))
 		} else {
 			paths = append(paths, "\t($GOROOT not set)")
 		}
-		var i int
-		var format = "\t%s (from $GOPATH)"
-		for ; i < len(tried.gopath); i++ {
-			if i > 0 {
-				format = "\t%s"
-			}
-			paths = append(paths, fmt.Sprintf(format, tried.gopath[i]))
+		format = "\t%s (from $GOPATH)"
+		for _, dir := range tried.gopath {
+			paths = append(paths, fmt.Sprintf(format, dir))
+			format = "\t%s"
 		}
-		if i == 0 {
+		if len(tried.gopath) == 0 {
 			paths = append(paths, "\t($GOPATH not set)")
 		}
 		return p, fmt.Errorf("cannot find package %q in any of:\n%s", path, strings.Join(paths, "\n"))
