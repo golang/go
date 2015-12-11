@@ -32,7 +32,8 @@ func (c *mcentral) init(sizeclass int32) {
 // Allocate a span to use in an MCache.
 func (c *mcentral) cacheSpan() *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
-	deductSweepCredit(uintptr(class_to_size[c.sizeclass]), 0)
+	spanBytes := uintptr(class_to_allocnpages[c.sizeclass]) * _PageSize
+	deductSweepCredit(spanBytes, 0)
 
 	lock(&c.lock)
 	sg := mheap_.sweepgen
