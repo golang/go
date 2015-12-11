@@ -1570,6 +1570,11 @@ func gcMark(start_time int64) {
 	// is approximately the amount of heap that was allocated
 	// since marking began).
 	allocatedDuringCycle := memstats.heap_live - work.initialHeapLive
+	if memstats.heap_live < work.initialHeapLive {
+		// This can happen if mCentral_UncacheSpan tightens
+		// the heap_live approximation.
+		allocatedDuringCycle = 0
+	}
 	if work.bytesMarked >= allocatedDuringCycle {
 		memstats.heap_reachable = work.bytesMarked - allocatedDuringCycle
 	} else {
@@ -1593,7 +1598,9 @@ func gcMark(start_time int64) {
 		throw("next_gc underflow")
 	}
 
-	// Update other GC heap size stats.
+	// Update other GC heap size stats. This must happen after
+	// cachestats (which flushes local statistics to these) and
+	// flushallmcaches (which modifies heap_live).
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_marked = work.bytesMarked
 	memstats.heap_scan = uint64(gcController.scanWork)
