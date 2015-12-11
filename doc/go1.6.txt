@@ -1,19 +1,28 @@
 Tools:
 
+cmd/cgo: fix C.complexfloat and C.complexdouble and treat as separate types from complex64 and complex128 (https://golang.org/cl/17208)
+cmd/cgo: new pointer passing rules defined and enforced (https://golang.org/issue/12416, https://golang.org/issue/17064)
+cmd/compile: parser now hand-written
+cmd/compile: add -msan option (https://golang.org/cl/16160)
 cmd/dist: use clang on FreeBSD (https://golang.org/cl/16635)
 cmd/doc: search packages in breadth-first order (https://golang.org/cl/17691)
 cmd/go: vendoring enabled by default (https://golang.org/cl/13967/)
 cmd/go: flags for tests must precede package name if present; also makes it easier to pass flags to test binaries (https://golang.org/cl/14826)
 cmd/go: add -msan option (https://golang.org/cl/16169)
-cmd/compile: add -msan option (https://golang.org/cl/16160)
+cmd/go: -buildmode=pie now default on android/arm (https://golang.org/cl/16055)
+cmd/link: add -libgcc option (https://golang.org/cl/16993)
 cmd/link: add -msan option (https://golang.org/cl/16161)
-cmd/cgo: fix C.complexfloat and C.complexdouble and treat as separate types from complex64 and complex128 (https://golang.org/cl/17208)
-cmd/cgo: new pointer passing rules defined and enforced (https://golang.org/issue/12416)
+cmd/vet: diagnose using Printf on a func value
+cmd/vet: -all -shadow means all the default checks and the shadow check (https://golang.org/cl/16325)
 
 Ports:
 
 Add new experimental ports for linux/mips64 and linux/mips64le: no cgo, external linking or disasm yet (https://golang.org/cl/14460 and others)
 NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+
+cmd/go: new -buildmode=shared, -buildmode=pie
+
+CX no longer available for 386 assembly? (https://golang.org/cl/16386)
 
 Reflect change:
 cmd/compile/internal/gc: make embedded unexported structs RO (https://golang.org/cl/14085)
@@ -23,21 +32,65 @@ reflect: adjust access to unexported embedded structs (https://golang.org/cl/140
 
 API additions and behavior changes:
 
+archive/zip: per-file compressors (https://golang.org/cl/16669)
 bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
 bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
+compress/bzip2: about 20% faster to decode (https://golang.org/cl/13853)
+compress/flate: deprecate ReadError, WriteError (https://golang.org/cl/14834)
+compress/flate: detect truncated streams (https://golang.org/cl/14833)
+compress/gzip: detect truncated streams (https://golang.org/cl/14832)
+compress/zlib: detect truncated streams (https://golang.org/cl/14835)
 crypto/aes: dedicated asm version of AES-GCM (https://golang.org/cl/10484)
+crypto/elliptic, ecrypto/ecdsa: P256 assembly (https://golang.org/cl/8968)
+crypto/tls: allow tls.Listen when only GetCertifite is provided (https://golang.org/cl/13801)
+crypto/tls: support for TSA_RSA_WITH_AES_128_GCM_SHA256 and TLS_RSA_WITH_AES_256_GCM_SHA384 (https://golang.org/cl/16924)
+crypto/tls: RecordHeaderError (https://golang.org/cl/16078)
+crypto/x509: permit negative serial numbers (https://golang.org/cl/17247)
+crypto/x509: InsecureAlgorithmError (https://golang.org/cl/17400)
+debug/elf: supports old-style compressed DWARF (https://golang.org/cl/17340)
+debug/elf: transparent decompress of compressed sections (https://golang.org/cl/17341)
+encoding/asn1: export tag and class constants (https://golang.org/cl/17311)
+encoding/asn1: enforce use of short form lengths (https://golang.org/cl/16517)
+encoding/asn1: reject invalid integers (https://golang.org/cl/17008)
+encoding/json: Number marshaling check validity (https://golang.org/cl/12250)
+encoding/xml: ,cdata attribute (https://golang.org/cl/16047)
+encoding/xml: SyntaxError for prematurely ended XML (https://golang.org/cl/14315)
 fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
+fmt: scan %X for strings (https://golang.org/cl/15689)
 image: add NYCbCrA types (https://golang.org/cl/15671)
+io: MultiWriter now supports WriteString (https://golang.org/cl/12485)
+math/big: new API Int.Text, Int.Append (https://golang.org/cl/14994)
+math/big: Float implements TextMarshaler, TextUnmarshaler (https://golang.org/cl/15050)
+math/big: -1 precision now works for float.Append
 math/rand: add Read (https://golang.org/cl/14522)
+net: ParseMAC now accepts 20-byte IPoIB link-layer addresses
+net: DNS server error now reported as Temporary (https://golang.org/cl/14169)
+net: rooted DNS names on Windows (https://golang.org/cl/13887), Plan 9 (https://golang.org/cl/15581)
+net: https://golang.org/cl/17216 is "localhost." (possible bug; see https://golang.org/issue/13564)
+net/http: new error codes from RFC 6585 (https://golang.org/cl/15732)
+net/http: Client supports Expect: 100-continue (https://golang.org/cl/10091)
 net/http: HTTP/2.0 support (many CLs)
+net/http: FileServer now sorts directory entries (https://golang.org/cl/14161)
+net/http: ResponseRecorder detects Content-Type (https://golang.org/cl/16096)
+net/http: req.Method=="" now follows redirects like req.Method=="GET" (https://golang.org/cl/17318)
+net/http: make NewRequest with empty method set Method==GET (https://golang.org/cl/17699)
 net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
+net/url: processing of host name stricter, more spec compliant (https://golang.org/cl/17387)
+os: IsPermission, IsExist, and IsNotExist now handle *os.SyscallError (https://golang.org/cl/15730)
+os/exec: ExitError includes stderr (https://golang.org/cl/11415)
+path/filepath: EvalSymlinks changed (https://golang.org/cl/16192); possible bug (https://golang.org/issue/13582)
 path/filepath: Join("c:", "a") now returns `c:a` instead of `c:\a` on windows (https://golang.org/cl/17470)
+regexp: Copy method (https://golang.org/cl/16110)
+runtime: GODEBUG=cgocheck=2 (https://golang.org/cl/16899)
 runtime: only one goroutine in traceback (https://golang.org/cl/16512) maybe
 runtime: best-effort detection of concurrent misuse of maps (https://golang.org/cl/17501)
+sort: faster but different order (https://golang.org/cl/15688, https://golang.org/cl/17389)
 strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+testing: pause test timer during t.Parallel (https://golang.org/cl/16989)
+testing/quick: terminates for recursive types (https://golang.org/cl/13830)
 text/template: ExecError (https://golang.org/cl/13957/)
 text/template: trimming spaces (https://golang.org/cl/14391/)
 text/template: Funcs check names (https://golang.org/cl/14562/)
 text/template: IsTrue (https://golang.org/cl/14562/)
 text/template: blocks and permit redefinition (https://golang.org/cl/14005)
-time: allow one and two-digit days of the month during Parse (https://golang.org/cl/14123/)
+time: reject invalid day of month in Parse (https://golang.org/cl/17710)
