@@ -497,7 +497,7 @@ type _func struct {
 	nameoff int32   // function name
 
 	args int32 // in/out args size
-	_    int32 // Previously: legacy frame size. TODO: Remove this.
+	_    int32 // previously legacy frame size; kept for layout compatibility
 
 	pcsp      int32
 	pcfile    int32
