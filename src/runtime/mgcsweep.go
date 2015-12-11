@@ -393,7 +393,9 @@ func reimburseSweepCredit(unusableBytes uintptr) {
 		// Nobody cares about the credit. Avoid the atomic.
 		return
 	}
-	atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
+	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
+		throw("spanBytesAlloc underflow")
+	}
 }
 
 func dumpFreeList(s *mspan) {
