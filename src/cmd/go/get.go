@@ -87,7 +87,7 @@ func runGet(cmd *Command, args []string) {
 	// If user has explicitly set GIT_TERMINAL_PROMPT=1, keep
 	// prompting.
 	// See golang.org/issue/9341 and golang.org/issue/12706.
-	if v := os.Getenv("GIT_TERMINAL_PROMPT"); v == "" {
+	if os.Getenv("GIT_TERMINAL_PROMPT") == "" {
 		os.Setenv("GIT_TERMINAL_PROMPT", "0")
 	}
 
