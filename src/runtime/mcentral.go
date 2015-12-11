@@ -106,6 +106,15 @@ havespan:
 	if usedBytes > 0 {
 		reimburseSweepCredit(usedBytes)
 	}
+	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
+	if trace.enabled {
+		// heap_live changed.
+		traceHeapAlloc()
+	}
+	if gcBlackenEnabled != 0 {
+		// heap_live changed.
+		gcController.revise()
+	}
 	if s.freelist.ptr() == nil {
 		throw("freelist empty")
 	}
@@ -128,6 +137,9 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 	if n > 0 {
 		c.empty.remove(s)
 		c.nonempty.insert(s)
+		// mCentral_CacheSpan conservatively counted
+		// unallocated slots in heap_live. Undo this.
+		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
 	}
 	unlock(&c.lock)
 }
