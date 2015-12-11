@@ -14213,23 +14213,23 @@ func rewriteBlockAMD64(b *Block) bool {
 		;
 		// match: (If (SETNEF cmp) yes no)
 		// cond:
-		// result: (EQF  cmp yes no)
+		// result: (NEF  cmp yes no)
 		{
 			v := b.Control
 			if v.Op != OpAMD64SETNEF {
-				goto endfe25939ca97349543bc2d2ce4f97ba41
+				goto endaa989df10b5bbc5fdf8f7f0b81767e86
 			}
 			cmp := v.Args[0]
 			yes := b.Succs[0]
 			no := b.Succs[1]
-			b.Kind = BlockAMD64EQF
+			b.Kind = BlockAMD64NEF
 			b.Control = cmp
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
 		}
-		goto endfe25939ca97349543bc2d2ce4f97ba41
-	endfe25939ca97349543bc2d2ce4f97ba41:
+		goto endaa989df10b5bbc5fdf8f7f0b81767e86
+	endaa989df10b5bbc5fdf8f7f0b81767e86:
 		;
 		// match: (If cond yes no)
 		// cond:

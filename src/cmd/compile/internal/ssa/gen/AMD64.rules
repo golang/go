@@ -370,7 +370,7 @@
 (If (SETGF  cmp) yes no) -> (UGT  cmp yes no)
 (If (SETGEF cmp) yes no) -> (UGE  cmp yes no)
 (If (SETEQF cmp) yes no) -> (EQF  cmp yes no)
-(If (SETNEF cmp) yes no) -> (EQF  cmp yes no)
+(If (SETNEF cmp) yes no) -> (NEF  cmp yes no)
 
 (If cond yes no) -> (NE (TESTB cond cond) yes no)
 

@@ -153,7 +153,6 @@ func cse(f *Func) {
 					i++
 				}
 			}
-			// TODO(khr): if value is a control value, do we need to keep it block-local?
 		}
 	}
 
@@ -164,6 +163,16 @@ func cse(f *Func) {
 				if x := rewrite[w.ID]; x != nil {
 					v.SetArg(i, x)
 				}
+			}
+		}
+		if v := b.Control; v != nil {
+			if x := rewrite[v.ID]; x != nil {
+				if v.Op == OpNilCheck {
+					// nilcheck pass will remove the nil checks and log
+					// them appropriately, so don't mess with them here.
+					continue
+				}
+				b.Control = x
 			}
 		}
 	}
