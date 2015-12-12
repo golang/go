@@ -361,6 +361,10 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	BL	(R11)
 	RET
 
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	MOVW  	$runtime·sigtramp(SB), R11
+	B	(R11)
+
 TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
 	MOVW	sig+0(FP), R0
 	MOVW	new+4(FP), R1

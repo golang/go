@@ -232,6 +232,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	CALL	runtime·sigtrampgo(SB)
 	RET
 
+TEXT runtime·cgoSigtramp(SB),NOSPLIT,$0
+	JMP	runtime·sigtramp(SB)
+
 TEXT runtime·sigreturn(SB),NOSPLIT,$0
 	MOVL	$173, AX	// rt_sigreturn
 	// Sigreturn expects same SP as signal handler,
