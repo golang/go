@@ -21,14 +21,10 @@ import (
 // Smallest possible faulting page at address zero.
 const minZeroPage = 4096
 
-// buildssa builds an SSA function
-// and reports whether it should be used.
-// Once the SSA implementation is complete,
-// it will never return nil, and the bool can be removed.
-func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
-	name := fn.Func.Nname.Sym.Name
-	gossahash := os.Getenv("GOSSAHASH")
-	usessa = strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
+func shouldssa(fn *Node) bool {
+	if Thearch.Thestring != "amd64" {
+		return false
+	}
 
 	// Environment variable control of SSA CG
 	// 1. IF GOSSAFUNC == current function name THEN
@@ -54,7 +50,63 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// GOSSAHASH to n or N, or selectively with strings of
 	// 0 and 1.
 
-	if usessa {
+	name := fn.Func.Nname.Sym.Name
+
+	funcname := os.Getenv("GOSSAFUNC")
+	if funcname != "" {
+		// If GOSSAFUNC is set, compile only that function.
+		return name == funcname
+	}
+
+	pkg := os.Getenv("GOSSAPKG")
+	if pkg != "" {
+		// If GOSSAPKG is set, compile only that package.
+		return localpkg.Name == pkg
+	}
+
+	gossahash := os.Getenv("GOSSAHASH")
+	if gossahash == "" || gossahash == "y" || gossahash == "Y" {
+		return true
+	}
+	if gossahash == "n" || gossahash == "N" {
+		return false
+	}
+
+	// Check the hash of the name against a partial input hash.
+	// We use this feature to do a binary search within a package to
+	// find a function that is incorrectly compiled.
+	hstr := ""
+	for _, b := range sha1.Sum([]byte(name)) {
+		hstr += fmt.Sprintf("%08b", b)
+	}
+
+	if strings.HasSuffix(hstr, gossahash) {
+		fmt.Printf("GOSSAHASH triggered %s\n", name)
+		return true
+	}
+
+	// Iteratively try additional hashes to allow tests for multi-point
+	// failure.
+	for i := 0; true; i++ {
+		ev := fmt.Sprintf("GOSSAHASH%d", i)
+		evv := os.Getenv(ev)
+		if evv == "" {
+			break
+		}
+		if strings.HasSuffix(hstr, evv) {
+			fmt.Printf("%s triggered %s\n", ev, name)
+			return true
+		}
+	}
+
+	return false
+}
+
+// buildssa builds an SSA function.
+func buildssa(fn *Node) *ssa.Func {
+	name := fn.Func.Nname.Sym.Name
+	printssa := strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
+	if printssa {
 		fmt.Println("generating SSA for", name)
 		dumplist("buildssa-enter", fn.Func.Enter)
 		dumplist("buildssa-body", fn.Nbody)
@@ -68,7 +120,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// TODO(khr): build config just once at the start of the compiler binary
 
 	var e ssaExport
-	e.log = usessa
+	e.log = printssa
 	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt)
 	s.f = s.config.NewFunc()
 	s.f.Name = name
@@ -82,7 +134,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 		// TODO: generate and print a mapping from nodes to values and blocks
 	}
 	defer func() {
-		if !usessa {
+		if !printssa {
 			s.config.HTML.Close()
 		}
 	}()
@@ -170,7 +222,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	}
 
 	if nerrors > 0 {
-		return nil, false
+		return nil
 	}
 
 	// Link up variable uses to variable definitions
@@ -182,46 +234,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
 
-	// gossahash = "y" is historical/symmetric-with-"n" -- i.e., not really needed.
-	if usessa || gossahash == "" || gossahash == "y" || gossahash == "Y" {
-		return s.f, true
-	}
-	if gossahash == "n" || gossahash == "N" {
-		if localpkg.Name != os.Getenv("GOSSAPKG") {
-			return s.f, false
-		}
-		// Use everything in the package
-		return s.f, true
-	}
-
-	// Check the hash of the name against a partial input hash.
-	// We use this feature to do a binary search within a package to
-	// find a function that is incorrectly compiled.
-	hstr := ""
-	for _, b := range sha1.Sum([]byte(name)) {
-		hstr += fmt.Sprintf("%08b", b)
-	}
-
-	if strings.HasSuffix(hstr, gossahash) {
-		fmt.Printf("GOSSAHASH triggered %s\n", name)
-		return s.f, true
-	}
-
-	// Iteratively try additional hashes to allow tests for multi-point
-	// failure.
-	for i := 0; true; i++ {
-		ev := fmt.Sprintf("GOSSAHASH%d", i)
-		evv := os.Getenv(ev)
-		if evv == "" {
-			break
-		}
-		if strings.HasSuffix(hstr, evv) {
-			fmt.Printf("%s triggered %s\n", ev, name)
-			return s.f, true
-		}
-	}
-
-	return s.f, false
+	return s.f
 }
 
 type state struct {
