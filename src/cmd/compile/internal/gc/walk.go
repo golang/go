@@ -322,6 +322,9 @@ func walkstmt(np **Node) {
 
 			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
 			n.List = reorder3(ll)
+			for lr := n.List; lr != nil; lr = lr.Next {
+				lr.N = applywritebarrier(lr.N, &n.Ninit)
+			}
 			break
 		}
 
