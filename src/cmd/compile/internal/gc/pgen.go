@@ -364,7 +364,6 @@ func compile(fn *Node) {
 	var gcargs *Sym
 	var gclocals *Sym
 	var ssafn *ssa.Func
-	var usessa bool
 	if fn.Nbody == nil {
 		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
@@ -417,9 +416,8 @@ func compile(fn *Node) {
 	}
 
 	// Build an SSA backend function.
-	// TODO: get rid of usessa.
-	if Thearch.Thestring == "amd64" {
-		ssafn, usessa = buildssa(Curfn)
+	if shouldssa(Curfn) {
+		ssafn = buildssa(Curfn)
 	}
 
 	continpc = nil
@@ -485,7 +483,7 @@ func compile(fn *Node) {
 		}
 	}
 
-	if ssafn != nil && usessa {
+	if ssafn != nil {
 		genssa(ssafn, ptxt, gcargs, gclocals)
 		if Curfn.Func.Endlineno != 0 {
 			lineno = Curfn.Func.Endlineno
