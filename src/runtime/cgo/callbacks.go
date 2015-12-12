@@ -92,5 +92,13 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 var x_cgo_notify_runtime_init_done byte
 var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
 
+// Calls the traceback function passed to SetCgoTraceback.
+
+//go:cgo_import_static x_cgo_callers
+//go:linkname x_cgo_callers x_cgo_callers
+//go:linkname _cgo_callers _cgo_callers
+var x_cgo_callers byte
+var _cgo_callers = &x_cgo_callers
+
 //go:cgo_export_static _cgo_topofstack
 //go:cgo_export_dynamic _cgo_topofstack

@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -579,6 +580,22 @@ func tracebacktrap(pc, sp, lr uintptr, gp *g) {
 }
 
 func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
+	// If the goroutine is in cgo, and we have a cgo traceback, print that.
+	if iscgo && gp.m != nil && gp.m.ncgo > 0 && gp.syscallsp != 0 && gp.m.cgoCallers != nil && gp.m.cgoCallers[0] != 0 {
+		// Lock cgoCallers so that a signal handler won't
+		// change it, copy the array, reset it, unlock it.
+		// We are locked to the thread and are not running
+		// concurrently with a signal handler.
+		// We just have to stop a signal handler from interrupting
+		// in the middle of our copy.
+		atomic.Store(&gp.m.cgoCallersUse, 1)
+		cgoCallers := *gp.m.cgoCallers
+		gp.m.cgoCallers[0] = 0
+		atomic.Store(&gp.m.cgoCallersUse, 0)
+
+		printCgoTraceback(&cgoCallers)
+	}
+
 	var n int
 	if readgstatus(gp)&^_Gscan == _Gsyscall {
 		// Override registers if blocked in system call.
@@ -738,4 +755,234 @@ func isSystemGoroutine(gp *g) bool {
 		pc == forcegchelperPC ||
 		pc == timerprocPC ||
 		pc == gcBgMarkWorkerPC
+}
+
+// SetCgoTraceback records three C functions to use to gather
+// traceback information from C code and to convert that traceback
+// information into symbolic information. These are used when printing
+// stack traces for a program that uses cgo.
+//
+// The traceback and context functions may be called from a signal
+// handler, and must therefore use only async-signal safe functions.
+// The symbolizer function may be called while the program is
+// crashing, and so must be cautious about using memory.  None of the
+// functions may call back into Go.
+//
+// The context function will be called with a single argument, a
+// pointer to a struct:
+//
+// struct {
+//	Context uintptr
+// }
+//
+// In C syntax, this struct will be
+//
+// struct {
+//   uintptr_t Context;
+// };
+//
+// If the Context field is 0, the context function is being called to
+// record the current traceback context. It should record whatever
+// information is needed about the current point of execution to later
+// produce a stack trace, probably the stack pointer and PC. In this
+// case the context function will be called from C code.
+//
+// If the Context field is not 0, then it is a value returned by a
+// previous call to the context function. This case is called when the
+// context is no longer needed; that is, when the Go code is returning
+// to its C code caller. This permits permits the context function to
+// release any associated resources.
+//
+// While it would be correct for the context function to record a
+// complete a stack trace whenever it is called, and simply copy that
+// out in the traceback function, in a typical program the context
+// function will be called many times without ever recording a
+// traceback for that context. Recording a complete stack trace in a
+// call to the context function is likely to be inefficient.
+//
+// The traceback function will be called with a single argument, a
+// pointer to a struct:
+//
+// struct {
+//	Context uintptr
+//	Buf     *uintptr
+//	Max     uintptr
+// }
+//
+// In C syntax, this struct will be
+//
+// struct {
+//   uintptr_t  Context;
+//   uintptr_t* Buf;
+//   uintptr_t  Max;
+// };
+//
+// The Context field will be zero to gather a traceback from the
+// current program execution point. In this case, the traceback
+// function will be called from C code.
+//
+// Otherwise Context will be a value previously returned by a call to
+// the context function. The traceback function should gather a stack
+// trace from that saved point in the program execution. The traceback
+// function may be called from an execution thread other than the one
+// that recorded the context, but only when the context is known to be
+// valid and unchanging. The traceback function may also be called
+// deeper in the call stack on the same thread that recorded the
+// context. The traceback function may be called multiple times with
+// the same Context value; it will usually be appropriate to cache the
+// result, if possible, the first time this is called for a specific
+// context value.
+//
+// Buf is where the traceback information should be stored. It should
+// be PC values, such that Buf[0] is the PC of the caller, Buf[1] is
+// the PC of that function's caller, and so on.  Max is the maximum
+// number of entries to store.  The function should store a zero to
+// indicate the top of the stack, or that the caller is on a different
+// stack, presumably a Go stack.
+//
+// Unlike runtime.Callers, the PC values returned should, when passed
+// to the symbolizer function, return the file/line of the call
+// instruction.  No additional subtraction is required or appropriate.
+//
+// The symbolizer function will be called with a single argument, a
+// pointer to a struct:
+//
+// struct {
+//	PC      uintptr // program counter to fetch information for
+//	File    *byte   // file name (NUL terminated)
+//	Lineno  uintptr // line number
+//	Func    *byte   // function name (NUL terminated)
+//	Entry   uintptr // function entry point
+//	More    uintptr // set non-zero if more info for this PC
+//	Data    uintptr // unused by runtime, available for function
+// }
+//
+// In C syntax, this struct will be
+//
+// struct {
+//   uintptr_t PC;
+//   char*     File;
+//   uintptr_t Lineno;
+//   char*     Func;
+//   uintptr_t Entry;
+//   uintptr_t More;
+//   uintptr_t Data;
+// };
+//
+// The PC field will be a value returned by a call to the traceback
+// function.
+//
+// The first time the function is called for a particular traceback,
+// all the fields except PC will be 0. The function should fill in the
+// other fields if possible, setting them to 0/nil if the information
+// is not available. The Data field may be used to store any useful
+// information across calls. The More field should be set to non-zero
+// if there is more information for this PC, zero otherwise. If More
+// is set non-zero, the function will be called again with the same
+// PC, and may return different information (this is intended for use
+// with inlined functions). If More is zero, the function will be
+// called with the next PC value in the traceback. When the traceback
+// is complete, the function will be called once more with PC set to
+// zero; this may be used to free any information. Each call will
+// leave the fields of the struct set to the same values they had upon
+// return, except for the PC field when the More field is zero. The
+// function must not keep a copy of the struct pointer between calls.
+//
+// When calling SetCgoTraceback, the version argument is the version
+// number of the structs that the functions expect to receive.
+// Currently this must be zero.
+//
+// The symbolizer function may be nil, in which case the results of
+// the traceback function will be displayed as numbers. If the
+// traceback function is nil, the symbolizer function will never be
+// called. The context function may be nil, in which case the
+// traceback function will only be called with the context field set
+// to zero.  If the context function is nil, then calls from Go to C
+// to Go will not show a traceback for the C portion of the call stack.
+func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
+	if version != 0 {
+		panic("unsupported version")
+	}
+	if context != nil {
+		panic("SetCgoTraceback: context function not yet implemented")
+	}
+	cgoTraceback = traceback
+	cgoContext = context
+	cgoSymbolizer = symbolizer
+}
+
+var cgoTraceback unsafe.Pointer
+var cgoContext unsafe.Pointer
+var cgoSymbolizer unsafe.Pointer
+
+// cgoTracebackArg is the type passed to cgoTraceback.
+type cgoTracebackArg struct {
+	context uintptr
+	buf     *uintptr
+	max     uintptr
+}
+
+// cgoContextArg is the type passed to cgoContext.
+type cgoContextArg struct {
+	context uintptr
+}
+
+// cgoSymbolizerArg is the type passed to cgoSymbolizer.
+type cgoSymbolizerArg struct {
+	pc       uintptr
+	file     *byte
+	lineno   uintptr
+	funcName *byte
+	entry    uintptr
+	more     uintptr
+	data     uintptr
+}
+
+// cgoTraceback prints a traceback of callers.
+func printCgoTraceback(callers *cgoCallers) {
+	if cgoSymbolizer == nil {
+		for _, c := range callers {
+			if c == 0 {
+				break
+			}
+			print("non-Go function at pc=", hex(c), "\n")
+		}
+		return
+	}
+
+	call := cgocall
+	if panicking > 0 {
+		// We do not want to call into the scheduler when panicking.
+		call = asmcgocall
+	}
+
+	var arg cgoSymbolizerArg
+	for _, c := range callers {
+		if c == 0 {
+			break
+		}
+		arg.pc = c
+		for {
+			call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
+			if arg.funcName != nil {
+				// Note that we don't print any argument
+				// information here, not even parentheses.
+				// The symbolizer must add that if
+				// appropriate.
+				println(gostringnocopy(arg.funcName))
+			} else {
+				println("non-Go function")
+			}
+			print("\t")
+			if arg.file != nil {
+				print(gostringnocopy(arg.file), ":", arg.lineno, " ")
+			}
+			print("pc=", hex(c), "\n")
+			if arg.more == 0 {
+				break
+			}
+		}
+	}
+	arg.pc = 0
+	call(cgoSymbolizer, noescape(unsafe.Pointer(&arg)))
 }

@@ -209,3 +209,15 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 		t.Errorf("expected %q got %v", want, got)
 	}
 }
+
+func TestCgoCrashTraceback(t *testing.T) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	got := runTestProg(t, "testprogcgo", "CrashTraceback")
+	for i := 1; i <= 3; i++ {
+		if !strings.Contains(got, fmt.Sprintf("cgo symbolizer:%d", i)) {
+			t.Errorf("missing cgo symbolizer:%d", i)
+		}
+	}
+}
