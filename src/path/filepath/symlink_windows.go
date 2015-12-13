@@ -47,15 +47,10 @@ func toLong(path string) (string, error) {
 }
 
 func evalSymlinks(path string) (string, error) {
-	newpath, err := walkSymlinks(path)
+	path, err := walkSymlinks(path)
 	if err != nil {
 		return "", err
 	}
-	// discard the walk if path is "." and link destination is relative path (just like unix does)
-	if path != "." || IsAbs(newpath) {
-		path = newpath
-	}
-
 	p, err := toShort(path)
 	if err != nil {
 		return "", err
