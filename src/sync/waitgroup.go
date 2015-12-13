@@ -136,3 +136,11 @@ func (wg *WaitGroup) Wait() {
 		}
 	}
 }
+
+// Return the net delta added to the wait counter.
+func (wg *WaitGroup) Delta() int {
+	statep := wg.state()
+	state := atomic.AddUint64(statep, uint64(0)<<32)
+	v := int32(state >> 32)
+	return v
+}
