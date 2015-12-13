@@ -667,7 +667,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
-			"linux-amd64", "linux-386":
+			"linux-amd64", "linux-386", "windows-amd64", "windows-386":
 			return true
 		}
 		return false
