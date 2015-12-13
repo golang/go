@@ -324,6 +324,12 @@ func (mode *BuildMode) Set(s string) error {
 	case "c-archive":
 		switch goos {
 		case "darwin", "linux":
+		case "windows":
+			switch goarch {
+			case "amd64", "386":
+			default:
+				return badmode()
+			}
 		default:
 			return badmode()
 		}
@@ -1020,6 +1026,15 @@ func archive() {
 	}
 
 	mayberemoveoutfile()
+
+	// Force the buffer to flush here so that external
+	// tools will see a complete file.
+	Cflush()
+	if err := coutbuf.f.Close(); err != nil {
+		Exitf("close: %v", err)
+	}
+	coutbuf.f = nil
+
 	argv := []string{extar, "-q", "-c", "-s", outfile}
 	argv = append(argv, filepath.Join(tmpdir, "go.o"))
 	argv = append(argv, hostobjCopy()...)
@@ -1890,7 +1905,6 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	// These symbols won't show up in the first loop below because we
 	// skip STEXT symbols. Normal STEXT symbols are emitted by walking textp.
 	s := Linklookup(Ctxt, "runtime.text", 0)
-
 	if s.Type == obj.STEXT {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
 	}

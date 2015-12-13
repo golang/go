@@ -1745,6 +1745,9 @@ func textaddress() {
 	sect.Align = int32(Funcalign)
 	Linklookup(Ctxt, "runtime.text", 0).Sect = sect
 	Linklookup(Ctxt, "runtime.etext", 0).Sect = sect
+	if HEADTYPE == obj.Hwindows {
+		Linklookup(Ctxt, ".text", 0).Sect = sect
+	}
 	va := uint64(INITTEXT)
 	sect.Vaddr = va
 	for sym := Ctxt.Textp; sym != nil; sym = sym.Next {
@@ -1891,6 +1894,9 @@ func address() {
 
 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
+	if HEADTYPE == obj.Hwindows {
+		xdefine(".text", obj.STEXT, int64(text.Vaddr))
+	}
 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
