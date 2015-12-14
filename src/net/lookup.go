@@ -123,6 +123,11 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 
 // LookupPort looks up the port for the given network and service.
 func LookupPort(network, service string) (port int, err error) {
+	if service == "" {
+		// Lock in the legacy behavior that an empty string
+		// means port 0. See Issue 13610.
+		return 0, nil
+	}
 	port, _, ok := dtoi(service, 0)
 	if !ok && port != big && port != -big {
 		port, err = lookupPort(network, service)
