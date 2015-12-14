@@ -591,6 +591,12 @@ var lookupPortTests = []struct {
 	{"tcp", "65536", 0, false},
 	{"udp", "-1", 0, false},
 	{"udp", "65536", 0, false},
+
+	// Issue 13610: LookupPort("tcp", "")
+	{"tcp", "", 0, true},
+	{"tcp6", "", 0, true},
+	{"tcp4", "", 0, true},
+	{"udp", "", 0, true},
 }
 
 func TestLookupPort(t *testing.T) {
