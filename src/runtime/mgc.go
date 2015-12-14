@@ -1245,6 +1245,10 @@ func gcMarkTermination() {
 
 	memstats.numgc++
 
+	// Reset sweep state.
+	sweep.nbgsweep = 0
+	sweep.npausesweep = 0
+
 	systemstack(startTheWorldWithSema)
 
 	// Free stack spans. This must be done between GC cycles.
@@ -1301,8 +1305,6 @@ func gcMarkTermination() {
 		print("\n")
 		printunlock()
 	}
-	sweep.nbgsweep = 0
-	sweep.npausesweep = 0
 
 	// now that gc is done, kick off finalizer thread if needed
 	if !concurrentSweep {
