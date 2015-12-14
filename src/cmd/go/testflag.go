@@ -87,6 +87,7 @@ func init() {
 func testFlags(args []string) (packageNames, passToTest []string) {
 	inPkg := false
 	outputDir := ""
+	var explicitArgs []string
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
 			if !inPkg && packageNames == nil {
@@ -113,6 +114,12 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			if packageNames == nil {
 				// make non-nil: we have seen the empty package list
 				packageNames = []string{}
+			}
+			if args[i] == "-args" || args[i] == "--args" {
+				// -args or --args signals that everything that follows
+				// should be passed to the test.
+				explicitArgs = args[i+1:]
+				break
 			}
 			passToTest = append(passToTest, args[i])
 			continue
@@ -191,6 +198,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 		passToTest = append(passToTest, "-test.outputdir", dir)
 	}
+
+	passToTest = append(passToTest, explicitArgs...)
 	return
 }
 

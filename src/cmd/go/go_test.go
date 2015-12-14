@@ -1983,6 +1983,13 @@ func TestGoTestFooTestWorks(t *testing.T) {
 	tg.run("test", "testdata/standalone_test.go")
 }
 
+func TestGoTestFlagsAfterPackage(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.run("test", "testdata/flag_test.go", "-v", "-args", "-v=7") // Two distinct -v flags.
+	tg.run("test", "-v", "testdata/flag_test.go", "-args", "-v=7") // Two distinct -v flags.
+}
+
 func TestGoTestXtestonlyWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

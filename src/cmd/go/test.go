@@ -32,7 +32,7 @@ func init() {
 	cmdTest.Run = runTest
 }
 
-const testUsage = "test [-c] [-i] [build and test flags] [packages] [flags for test binary]"
+const testUsage = "test [build/test flags] [packages] [build/test flags & test binary flags]"
 
 var cmdTest = &Command{
 	CustomFlags: true,
@@ -67,11 +67,6 @@ non-test installation.
 
 ` + strings.TrimSpace(testFlag1) + ` See 'go help testflag' for details.
 
-If the test binary needs any other flags, they should be presented after the
-package names. The go tool treats as a flag the first argument that begins with
-a minus sign that it does not recognize itself; that argument and all subsequent
-arguments are passed as arguments to the test binary.
-
 For more about build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
 
@@ -82,10 +77,16 @@ See also: go build, go vet.
 const testFlag1 = `
 In addition to the build flags, the flags handled by 'go test' itself are:
 
+	-args
+	    Pass the remainder of the command line (everything after -args)
+	    to the test binary, uninterpreted and unchanged.
+	    Because this flag consumes the remainder of the command line,
+	    the package list (if present) must appear before this flag.
+
 	-c
-		Compile the test binary to pkg.test but do not run it
-		(where pkg is the last element of the package's import path).
-		The file name can be changed with the -o flag.
+	    Compile the test binary to pkg.test but do not run it
+	    (where pkg is the last element of the package's import path).
+	    The file name can be changed with the -o flag.
 
 	-exec xprog
 	    Run the test binary using xprog. The behavior is the same as
@@ -96,8 +97,8 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    Do not run the test.
 
 	-o file
-		Compile the test binary to the named file.
-		The test still runs (unless -c or -i is specified).
+	    Compile the test binary to the named file.
+	    The test still runs (unless -c or -i is specified).
 
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'.
@@ -229,25 +230,58 @@ const testFlag2 = `
 	    Verbose output: log all tests as they are run. Also print all
 	    text from Log and Logf calls even if the test succeeds.
 
-The test binary, called pkg.test where pkg is the name of the
-directory containing the package sources, can be invoked directly
-after building it with 'go test -c'. When invoking the test binary
-directly, each of the standard flag names must be prefixed with 'test.',
-as in -test.run=TestMyFunc or -test.v.
+Each of these flags is also recognized with an optional 'test.' prefix,
+as in -test.v. When invoking the generated test binary (the result of
+'go test -c') directly, however, the prefix is mandatory.
 
-When running 'go test', flags not listed above are passed through
-unaltered. For instance, the command
+The 'go test' command rewrites or removes recognized flags,
+as appropriate, both before and after the optional package list,
+before invoking the test binary.
 
-	go test -x -v -cpuprofile=prof.out -dir=testdata -update
+For instance, the command
+
+	go test -v -myflag testdata -cpuprofile=prof.out -x
 
 will compile the test binary and then run it as
 
-	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+	pkg.test -test.v -myflag testdata -test.cpuprofile=prof.out
+
+(The -x flag is removed because it applies only to the go command's
+execution, not to the test itself.)
 
 The test flags that generate profiles (other than for coverage) also
 leave the test binary in pkg.test for use when analyzing the profiles.
 
-Flags not recognized by 'go test' must be placed after any specified packages.
+The command-line package list, if present, must appear before any
+flag not known to the go test command. Continuing the example above,
+the package list would have to appear before -myflag, but could appear
+on either side of -v.
+
+To keep an argument for a test binary from being interpreted as a
+known flag or a package name, use -args (see 'go help test') which
+passes the remainder of the command line through to the test binary
+uninterpreted and unaltered.
+
+For instance, the command
+
+	go test -v -args -x -v
+
+will compile the test binary and then run it as
+
+	pkg.test -test.v -x -v
+
+Similarly,
+
+	go test -args math
+
+will compile the test binary and then run it as
+
+	pkg.test math
+
+In the first example, the -x and the second -v are passed through to the
+test binary unchanged and with no effect on the go command itself.
+In the second example, the argument math is passed through to the test
+binary, instead of being interpreted as the package list.
 `
 
 var helpTestfunc = &Command{
