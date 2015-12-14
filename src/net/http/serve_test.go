@@ -1785,6 +1785,60 @@ func TestTimeoutHandlerRaceHeader(t *testing.T) {
 	wg.Wait()
 }
 
+// Issue 9162
+func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
+	defer afterTest(t)
+	sendHi := make(chan bool, 1)
+	writeErrors := make(chan error, 1)
+	sayHi := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		<-sendHi
+		_, werr := w.Write([]byte("hi"))
+		writeErrors <- werr
+	})
+	timeout := make(chan time.Time, 1) // write to this to force timeouts
+	cst := newClientServerTest(t, h1Mode, NewTestTimeoutHandler(sayHi, timeout))
+	defer cst.close()
+
+	// Succeed without timing out:
+	sendHi <- true
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if g, e := res.StatusCode, StatusOK; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	body, _ := ioutil.ReadAll(res.Body)
+	if g, e := string(body), "hi"; g != e {
+		t.Errorf("got body %q; expected %q", g, e)
+	}
+	if g := <-writeErrors; g != nil {
+		t.Errorf("got unexpected Write error on first request: %v", g)
+	}
+
+	// Times out:
+	timeout <- time.Time{}
+	res, err = cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Error(err)
+	}
+	if g, e := res.StatusCode, StatusServiceUnavailable; g != e {
+		t.Errorf("got res.StatusCode %d; expected %d", g, e)
+	}
+	body, _ = ioutil.ReadAll(res.Body)
+	if !strings.Contains(string(body), "<title>Timeout</title>") {
+		t.Errorf("expected timeout body; got %q", string(body))
+	}
+
+	// Now make the previously-timed out handler speak again,
+	// which verifies the panic is handled:
+	sendHi <- true
+	if g, e := <-writeErrors, ErrHandlerTimeout; g != e {
+		t.Errorf("expected Write error of %v; got %v", e, g)
+	}
+}
+
 // Verifies we don't path.Clean() on the wrong parts in redirects.
 func TestRedirectMunging(t *testing.T) {
 	req, _ := NewRequest("GET", "http://example.com/", nil)

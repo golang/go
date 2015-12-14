@@ -58,10 +58,11 @@ func SetPendingDialHooks(before, after func()) {
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
 func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
-	f := func() <-chan time.Time {
-		return ch
+	return &timeoutHandler{
+		handler: handler,
+		timeout: func() <-chan time.Time { return ch },
+		// (no body and nil cancelTimer)
 	}
-	return &timeoutHandler{handler, f, ""}
 }
 
 func ResetCachedEnvironment() {

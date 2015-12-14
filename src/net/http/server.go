@@ -8,6 +8,7 @@ package http
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -2101,11 +2102,20 @@ func (srv *Server) onceSetNextProtoDefaults() {
 // (If msg is empty, a suitable default message will be sent.)
 // After such a timeout, writes by h to its ResponseWriter will return
 // ErrHandlerTimeout.
+//
+// TimeoutHandler buffers all Handler writes to memory and does not
+// support the Hijacker or Flusher interfaces.
 func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
-	f := func() <-chan time.Time {
-		return time.After(dt)
+	t := time.NewTimer(dt)
+	return &timeoutHandler{
+		handler: h,
+		body:    msg,
+
+		// Effectively storing a *time.Timer, but decomposed
+		// for testing:
+		timeout:     func() <-chan time.Time { return t.C },
+		cancelTimer: t.Stop,
 	}
-	return &timeoutHandler{h, f, msg}
 }
 
 // ErrHandlerTimeout is returned on ResponseWriter Write calls
@@ -2114,8 +2124,13 @@ var ErrHandlerTimeout = errors.New("http: Handler timeout")
 
 type timeoutHandler struct {
 	handler Handler
-	timeout func() <-chan time.Time // returns channel producing a timeout
 	body    string
+
+	// timeout returns the channel of a *time.Timer and
+	// cancelTimer cancels it.  They're stored separately for
+	// testing purposes.
+	timeout     func() <-chan time.Time // returns channel producing a timeout
+	cancelTimer func() bool             // optional
 }
 
 func (h *timeoutHandler) errorBody() string {
@@ -2126,46 +2141,61 @@ func (h *timeoutHandler) errorBody() string {
 }
 
 func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
-	done := make(chan bool, 1)
-	tw := &timeoutWriter{w: w}
+	done := make(chan struct{})
+	tw := &timeoutWriter{
+		w: w,
+		h: make(Header),
+	}
 	go func() {
 		h.handler.ServeHTTP(tw, r)
-		done <- true
+		close(done)
 	}()
 	select {
 	case <-done:
-		return
+		tw.mu.Lock()
+		defer tw.mu.Unlock()
+		dst := w.Header()
+		for k, vv := range tw.h {
+			dst[k] = vv
+		}
+		w.WriteHeader(tw.code)
+		w.Write(tw.wbuf.Bytes())
+		if h.cancelTimer != nil {
+			h.cancelTimer()
+		}
 	case <-h.timeout():
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
-		if !tw.wroteHeader {
-			tw.w.WriteHeader(StatusServiceUnavailable)
-			tw.w.Write([]byte(h.errorBody()))
-		}
+		w.WriteHeader(StatusServiceUnavailable)
+		io.WriteString(w, h.errorBody())
 		tw.timedOut = true
+		return
 	}
 }
 
 type timeoutWriter struct {
-	w ResponseWriter
+	w    ResponseWriter
+	h    Header
+	wbuf bytes.Buffer
 
 	mu          sync.Mutex
 	timedOut    bool
 	wroteHeader bool
+	code        int
 }
 
-func (tw *timeoutWriter) Header() Header {
-	return tw.w.Header()
-}
+func (tw *timeoutWriter) Header() Header { return tw.h }
 
 func (tw *timeoutWriter) Write(p []byte) (int, error) {
 	tw.mu.Lock()
 	defer tw.mu.Unlock()
-	tw.wroteHeader = true // implicitly at least
 	if tw.timedOut {
 		return 0, ErrHandlerTimeout
 	}
-	return tw.w.Write(p)
+	if !tw.wroteHeader {
+		tw.writeHeader(StatusOK)
+	}
+	return tw.wbuf.Write(p)
 }
 
 func (tw *timeoutWriter) WriteHeader(code int) {
@@ -2174,8 +2204,12 @@ func (tw *timeoutWriter) WriteHeader(code int) {
 	if tw.timedOut || tw.wroteHeader {
 		return
 	}
+	tw.writeHeader(code)
+}
+
+func (tw *timeoutWriter) writeHeader(code int) {
 	tw.wroteHeader = true
-	tw.w.WriteHeader(code)
+	tw.code = code
 }
 
 // tcpKeepAliveListener sets TCP keep-alive timeouts on accepted
