@@ -189,6 +189,9 @@ func http2configureTransport(t1 *Transport) error {
 	if !http2strSliceContains(t1.TLSClientConfig.NextProtos, "h2") {
 		t1.TLSClientConfig.NextProtos = append([]string{"h2"}, t1.TLSClientConfig.NextProtos...)
 	}
+	if !http2strSliceContains(t1.TLSClientConfig.NextProtos, "http/1.1") {
+		t1.TLSClientConfig.NextProtos = append(t1.TLSClientConfig.NextProtos, "http/1.1")
+	}
 	upgradeFn := func(authority string, c *tls.Conn) RoundTripper {
 		cc, err := t2.NewClientConn(c)
 		if err != nil {
@@ -1688,7 +1691,7 @@ func http2lowerHeader(v string) string {
 	return strings.ToLower(v)
 }
 
-var http2VerboseLogs = false
+var http2VerboseLogs = strings.Contains(os.Getenv("GODEBUG"), "h2debug=1")
 
 const (
 	// ClientPreface is the string that must be sent by new
@@ -3932,6 +3935,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 	for {
 		cc, err := t.connPool().GetClientConn(req, addr)
 		if err != nil {
+			t.vlogf("failed to get client conn: %v", err)
 			return nil, err
 		}
 		res, err := cc.RoundTrip(req)
@@ -3939,6 +3943,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 			continue
 		}
 		if err != nil {
+			t.vlogf("RoundTrip failure: %v", err)
 			return nil, err
 		}
 		return res, nil
@@ -4017,7 +4022,11 @@ func (t *http2Transport) dialTLSDefault(network, addr string, cfg *tls.Config) (
 }
 
 func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
+	if http2VerboseLogs {
+		t.vlogf("creating client conn to %v", c.RemoteAddr())
+	}
 	if _, err := c.Write(http2clientPreface); err != nil {
+		t.vlogf("client preface write error: %v", err)
 		return nil, err
 	}
 
@@ -4468,6 +4477,9 @@ func (rl *http2clientConnReadLoop) run() error {
 	cc := rl.cc
 	for {
 		f, err := cc.fr.ReadFrame()
+		if err != nil {
+			cc.vlogf("Transport readFrame error: (%T) %v", err, err)
+		}
 		if se, ok := err.(http2StreamError); ok {
 
 			return se
