@@ -151,7 +151,7 @@ func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
 		for l := n.List; l != nil; l = l.Next {
 			switch l.N.Op {
 			case OCALLFUNC, OCALLMETH, OCALLINTER:
-				instrumentnode(&l.N, &out, 0, 0)
+				instrumentnode(&l.N, &l.N.Ninit, 0, 0)
 				out = list(out, l.N)
 				// Scan past OAS nodes copying results off stack.
 				// Those must not be instrumented, because the
