@@ -202,6 +202,9 @@ func setGCPercent(in int32) (out int32) {
 	}
 	gcpercent = in
 	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
+	if gcController.triggerRatio > float64(gcpercent)/100 {
+		gcController.triggerRatio = float64(gcpercent) / 100
+	}
 	unlock(&mheap_.lock)
 	return out
 }
