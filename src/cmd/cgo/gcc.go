@@ -38,8 +38,8 @@ var nameToC = map[string]string{
 	"ulong":         "unsigned long",
 	"longlong":      "long long",
 	"ulonglong":     "unsigned long long",
-	"complexfloat":  "__complex float",
-	"complexdouble": "__complex double",
+	"complexfloat":  "float _Complex",
+	"complexdouble": "double _Complex",
 }
 
 // cname returns the C name to use for C.s.
