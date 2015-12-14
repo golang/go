@@ -1254,11 +1254,9 @@ func gcMarkTermination() {
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
 
-	semrelease(&worldsema)
-
-	releasem(mp)
-	mp = nil
-
+	// Print gctrace before dropping worldsema. As soon as we drop
+	// worldsema another cycle could start and smash the stats
+	// we're trying to print.
 	if debug.gctrace > 0 {
 		util := int(memstats.gc_cpu_fraction * 100)
 
@@ -1305,6 +1303,12 @@ func gcMarkTermination() {
 		print("\n")
 		printunlock()
 	}
+
+	semrelease(&worldsema)
+	// Careful: another GC cycle may start now.
+
+	releasem(mp)
+	mp = nil
 
 	// now that gc is done, kick off finalizer thread if needed
 	if !concurrentSweep {
