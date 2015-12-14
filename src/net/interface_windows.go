@@ -71,7 +71,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 	var ift []Interface
 	for _, aa := range aas {
 		index := aa.IfIndex
-		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
+		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
 			index = aa.Ipv6IfIndex
 		}
 		if ifindex == 0 || ifindex == int(index) {
@@ -128,7 +128,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 	var ifat []Addr
 	for _, aa := range aas {
 		index := aa.IfIndex
-		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
+		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
 			index = aa.Ipv6IfIndex
 		}
 		var pfx4, pfx6 []IPNet
@@ -250,7 +250,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 	var ifat []Addr
 	for _, aa := range aas {
 		index := aa.IfIndex
-		if index == 0 { // ipv6IfIndex is a sustitute for ifIndex
+		if index == 0 { // ipv6IfIndex is a substitute for ifIndex
 			index = aa.Ipv6IfIndex
 		}
 		if ifi == nil || ifi.Index == int(index) {
