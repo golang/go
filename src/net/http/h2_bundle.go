@@ -1935,10 +1935,11 @@ func http2bodyAllowedForStatus(status int) bool {
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
 // underlying buffer is an interface. (io.Pipe is always unbuffered)
 type http2pipe struct {
-	mu  sync.Mutex
-	c   sync.Cond // c.L must point to
-	b   http2pipeBuffer
-	err error // read error once empty. non-nil means closed.
+	mu    sync.Mutex
+	c     sync.Cond // c.L must point to
+	b     http2pipeBuffer
+	err   error         // read error once empty. non-nil means closed.
+	donec chan struct{} // closed on error
 }
 
 type http2pipeBuffer interface {
@@ -1999,6 +2000,9 @@ func (p *http2pipe) CloseWithError(err error) {
 	defer p.c.Signal()
 	if p.err == nil {
 		p.err = err
+		if p.donec != nil {
+			close(p.donec)
+		}
 	}
 }
 
@@ -2008,6 +2012,21 @@ func (p *http2pipe) Err() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.err
+}
+
+// Done returns a channel which is closed if and when this pipe is closed
+// with CloseWithError.
+func (p *http2pipe) Done() <-chan struct{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.donec == nil {
+		p.donec = make(chan struct{})
+		if p.err != nil {
+
+			close(p.donec)
+		}
+	}
+	return p.donec
 }
 
 const (
@@ -3868,6 +3887,18 @@ type http2clientStream struct {
 	resetErr  error         // populated before peerReset is closed
 }
 
+// awaitRequestCancel runs in its own goroutine and waits for the user's
+func (cs *http2clientStream) awaitRequestCancel(cancel <-chan struct{}) {
+	if cancel == nil {
+		return
+	}
+	select {
+	case <-cancel:
+		cs.bufPipe.CloseWithError(http2errRequestCanceled)
+	case <-cs.bufPipe.Done():
+	}
+}
+
 // checkReset reports any error sent in a RST_STREAM frame by the
 // server.
 func (cs *http2clientStream) checkReset() error {
@@ -4168,6 +4199,10 @@ func (cc *http2ClientConn) putFrameScratchBuffer(buf []byte) {
 
 }
 
+// errRequestCanceled is a copy of net/http's errRequestCanceled because it's not
+// exported. At least they'll be DeepEqual for h1-vs-h2 comparisons tests.
+var http2errRequestCanceled = errors.New("net/http: request canceled")
+
 func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	cc.mu.Lock()
 
@@ -4212,6 +4247,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			cc.fr.WriteContinuation(cs.ID, endHeaders, chunk)
 		}
 	}
+
 	cc.bw.Flush()
 	werr := cc.werr
 	cc.wmu.Unlock()
@@ -4243,6 +4279,9 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			res.Request = req
 			res.TLS = cc.tlsState
 			return res, nil
+		case <-req.Cancel:
+			cs.abortRequestBodyWrite()
+			return nil, http2errRequestCanceled
 		case err := <-bodyCopyErrc:
 			if err != nil {
 				return nil, err
@@ -4591,6 +4630,7 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 		cs.bufPipe = http2pipe{b: buf}
 		cs.bytesRemain = res.ContentLength
 		res.Body = http2transportResponseBody{cs}
+		go cs.awaitRequestCancel(cs.req.Cancel)
 
 		if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
 			res.Header.Del("Content-Encoding")

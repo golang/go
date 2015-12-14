@@ -415,3 +415,43 @@ func TestH12_ServerEmptyContentLength(t *testing.T) {
 		},
 	}.run(t)
 }
+
+// Tests that closing the Request.Cancel channel also while still
+// reading the response body. Issue 13159.
+func TestCancelRequestMidBody_h1(t *testing.T) { testCancelRequestMidBody(t, h1Mode) }
+func TestCancelRequestMidBody_h2(t *testing.T) { testCancelRequestMidBody(t, h2Mode) }
+func testCancelRequestMidBody(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	unblock := make(chan bool)
+	didFlush := make(chan bool, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, "Hello")
+		w.(Flusher).Flush()
+		didFlush <- true
+		<-unblock
+		io.WriteString(w, ", world.")
+		<-unblock
+	}))
+	defer cst.close()
+	defer close(unblock)
+
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	cancel := make(chan struct{})
+	req.Cancel = cancel
+
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	<-didFlush
+	close(cancel)
+
+	slurp, err := ioutil.ReadAll(res.Body)
+	if string(slurp) != "Hello" {
+		t.Errorf("Read %q; want Hello", slurp)
+	}
+	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
+		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
+	}
+}
