@@ -1297,7 +1297,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		// check indices
 		var ind [3]int64
-		for i, expr := range []ast.Expr{e.Low, e.High, sliceMax(e)} {
+		for i, expr := range []ast.Expr{e.Low, e.High, e.Max} {
 			x := int64(-1)
 			switch {
 			case expr != nil:
