@@ -107,13 +107,14 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
 // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is
 // used as the local address for the connection.
 func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
-	return dialTCP(net, laddr, raddr, noDeadline)
+	return dialTCP(net, laddr, raddr, noDeadline, noCancel)
 }
 
-func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
+func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
 	if !deadline.IsZero() {
 		panic("net.dialTCP: deadline not implemented on Plan 9")
 	}
+	// TODO(bradfitz,0intro): also use the cancel channel.
 	switch net {
 	case "tcp", "tcp4", "tcp6":
 	default:

@@ -57,6 +57,11 @@ type Dialer struct {
 	// If zero, keep-alives are not enabled. Network protocols
 	// that do not support keep-alives ignore this field.
 	KeepAlive time.Duration
+
+	// Cancel is an optional channel whose closure indicates that
+	// the dial should be canceled. Not all types of dials support
+	// cancelation.
+	Cancel <-chan struct{}
 }
 
 // Return either now+Timeout or Deadline, whichever comes first.
@@ -361,7 +366,7 @@ func dialSingle(ctx *dialContext, ra Addr, deadline time.Time) (c Conn, err erro
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		c, err = testHookDialTCP(ctx.network, la, ra, deadline)
+		c, err = testHookDialTCP(ctx.network, la, ra, deadline, ctx.Cancel)
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
 		c, err = dialUDP(ctx.network, la, ra, deadline)
