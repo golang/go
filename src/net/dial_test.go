@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/testenv"
 	"io"
 	"net/internal/socktest"
 	"runtime"
@@ -236,8 +237,8 @@ const (
 // In some environments, the slow IPs may be explicitly unreachable, and fail
 // more quickly than expected. This test hook prevents dialTCP from returning
 // before the deadline.
-func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
-	c, err := dialTCP(net, laddr, raddr, deadline)
+func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
+	c, err := dialTCP(net, laddr, raddr, deadline, cancel)
 	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
 		time.Sleep(deadline.Sub(time.Now()))
 	}
@@ -713,6 +714,67 @@ func TestDialerKeepAlive(t *testing.T) {
 		c.Close()
 		if got != keepAlive {
 			t.Errorf("Dialer.KeepAlive = %v: SetKeepAlive called = %v, want %v", d.KeepAlive, got, !got)
+		}
+	}
+}
+
+func TestDialCancel(t *testing.T) {
+	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
+		// plan9 is not implemented and nacl doesn't have
+		// external network access.
+		t.Skip("skipping on %s", runtime.GOOS)
+	}
+	onGoBuildFarm := testenv.Builder() != ""
+	if testing.Short() && !onGoBuildFarm {
+		t.Skip("skipping in short mode")
+	}
+
+	blackholeIPPort := JoinHostPort(slowDst4, "1234")
+	if !supportsIPv4 {
+		blackholeIPPort = JoinHostPort(slowDst6, "1234")
+	}
+
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	const cancelTick = 5 // the timer tick we cancel the dial at
+	const timeoutTick = 100
+
+	var d Dialer
+	cancel := make(chan struct{})
+	d.Cancel = cancel
+	errc := make(chan error, 1)
+	connc := make(chan Conn, 1)
+	go func() {
+		if c, err := d.Dial("tcp", blackholeIPPort); err != nil {
+			errc <- err
+		} else {
+			connc <- c
+		}
+	}()
+	ticks := 0
+	for {
+		select {
+		case <-ticker.C:
+			ticks++
+			if ticks == cancelTick {
+				close(cancel)
+			}
+			if ticks == timeoutTick {
+				t.Fatal("timeout waiting for dial to fail")
+			}
+		case c := <-connc:
+			c.Close()
+			t.Fatal("unexpected successful connection")
+		case err := <-errc:
+			if ticks < cancelTick {
+				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
+					ticks, cancelTick-ticks, err)
+			}
+			if oe, ok := err.(*OpError); !ok || oe.Err != errCanceled {
+				t.Fatalf("dial error = %v (%T); want OpError with Err == errCanceled", err, err)
+			}
+			return // success.
 		}
 	}
 }

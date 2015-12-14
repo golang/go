@@ -42,7 +42,7 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
 		return nil, errors.New("unknown mode: " + mode)
 	}
 
-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline)
+	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, noCancel)
 	if err != nil {
 		return nil, err
 	}

@@ -68,7 +68,7 @@ func (fd *netFD) name() string {
 	return fd.net + ":" + ls + "->" + rs
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-chan struct{}) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
@@ -102,6 +102,19 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		fd.setWriteDeadline(deadline)
 		defer fd.setWriteDeadline(noDeadline)
 	}
+	if cancel != nil {
+		done := make(chan bool)
+		defer close(done)
+		go func() {
+			select {
+			case <-cancel:
+				// Force the runtime's poller to immediately give
+				// up waiting for writability.
+				fd.setWriteDeadline(aLongTimeAgo)
+			case <-done:
+			}
+		}()
+	}
 	for {
 		// Performing multiple connect system calls on a
 		// non-blocking socket under Unix variants does not
@@ -112,6 +125,11 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 		// succeeded or failed. See issue 7474 for further
 		// details.
 		if err := fd.pd.WaitWrite(); err != nil {
+			select {
+			case <-cancel:
+				return errCanceled
+			default:
+			}
 			return err
 		}
 		nerr, err := getsockoptIntFunc(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_ERROR)

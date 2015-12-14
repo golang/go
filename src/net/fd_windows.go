@@ -320,7 +320,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-chan struct{}) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
@@ -351,14 +351,38 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 	// Call ConnectEx API.
 	o := &fd.wop
 	o.sa = ra
+	if cancel != nil {
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			select {
+			case <-cancel:
+				// TODO(bradfitz,brainman): cancel the dial operation
+				// somehow. Brad doesn't know Windows but is going to
+				// try this:
+				if canCancelIO {
+					syscall.CancelIoEx(o.fd.sysfd, &o.o)
+				} else {
+					wsrv.req <- ioSrvReq{o, nil}
+					<-o.errc
+				}
+			case <-done:
+			}
+		}()
+	}
 	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
 		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
-		if _, ok := err.(syscall.Errno); ok {
-			err = os.NewSyscallError("connectex", err)
+		select {
+		case <-cancel:
+			return errCanceled
+		default:
+			if _, ok := err.(syscall.Errno); ok {
+				err = os.NewSyscallError("connectex", err)
+			}
+			return err
 		}
-		return err
 	}
 	// Refresh socket properties.
 	return os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd))))
