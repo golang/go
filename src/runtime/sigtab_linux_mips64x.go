@@ -20,7 +20,7 @@ var sigtable = [...]sigTabT{
 	/* 4 */ {_SigThrow + _SigUnblock, "SIGILL: illegal instruction"},
 	/* 5 */ {_SigThrow + _SigUnblock, "SIGTRAP: trace trap"},
 	/* 6 */ {_SigNotify + _SigThrow, "SIGABRT: abort"},
-	/* 7 */ {_SigNotify, "SIGEMT"},
+	/* 7 */ {_SigThrow, "SIGEMT"},
 	/* 8 */ {_SigPanic + _SigUnblock, "SIGFPE: floating-point exception"},
 	/* 9 */ {0, "SIGKILL: kill"},
 	/* 10 */ {_SigPanic + _SigUnblock, "SIGBUS: bus error"},
