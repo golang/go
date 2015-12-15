@@ -249,15 +249,25 @@ func makeComplex(re, im Value) Value {
 
 func makeFloatFromLiteral(lit string) Value {
 	if f, ok := newFloat().SetString(lit); ok {
-		if f.MantExp(nil) < maxExp {
+		if smallRat(f) {
 			// ok to use rationals
 			r, _ := newRat().SetString(lit)
-			return makeRat(r)
+			return ratVal{r}
 		}
 		// otherwise use floats
 		return makeFloat(f)
 	}
 	return nil
+}
+
+// smallRat reports whether x would lead to "reasonably"-sized fraction
+// if converted to a *big.Rat.
+func smallRat(x *big.Float) bool {
+	if !x.IsInf() {
+		e := x.MantExp(nil)
+		return -maxExp < e && e < maxExp
+	}
+	return false
 }
 
 // ----------------------------------------------------------------------------
@@ -572,35 +582,6 @@ func MakeFromBytes(bytes []byte) Value {
 	return makeInt(newInt().SetBits(words[:i]))
 }
 
-// toRat returns the fraction corresponding to x, or nil
-// if x cannot be represented as a fraction a/b because
-// its components a or b are too large.
-func toRat(x *big.Float) *big.Rat {
-	m := newFloat()
-	e := x.MantExp(m)
-
-	// fail to convert if fraction components are too large
-	if e <= maxExp || e >= maxExp {
-		return nil
-	}
-
-	// convert mantissa to big.Int value by shifting by ecorr
-	ecorr := int(m.MinPrec())
-	a, _ := m.SetMantExp(m, ecorr).Int(nil)
-	e -= ecorr // correct exponent
-
-	// compute actual fraction
-	b := big.NewInt(1)
-	switch {
-	case e < 0:
-		b.Lsh(b, uint(-e))
-	case e > 0:
-		a.Lsh(a, uint(e))
-	}
-
-	return new(big.Rat).SetFrac(a, b)
-}
-
 // Num returns the numerator of x; x must be Int, Float, or Unknown.
 // If x is Unknown, or if it is too large or small to represent as a
 // fraction, the result is Unknown. Otherwise the result is an Int
@@ -612,7 +593,8 @@ func Num(x Value) Value {
 	case ratVal:
 		return makeInt(x.val.Num())
 	case floatVal:
-		if r := toRat(x.val); r != nil {
+		if smallRat(x.val) {
+			r, _ := x.val.Rat(nil)
 			return makeInt(r.Num())
 		}
 	case unknownVal:
@@ -633,7 +615,8 @@ func Denom(x Value) Value {
 	case ratVal:
 		return makeInt(x.val.Denom())
 	case floatVal:
-		if r := toRat(x.val); r != nil {
+		if smallRat(x.val) {
+			r, _ := x.val.Rat(nil)
 			return makeInt(r.Denom())
 		}
 	case unknownVal:
@@ -703,8 +686,9 @@ func ToInt(x Value) Value {
 
 	case floatVal:
 		// avoid creation of huge integers
-		// (existing tests require permitting exponents of at least 1024)
-		if x.val.MantExp(nil) <= 1024 {
+		// (Existing tests require permitting exponents of at least 1024;
+		// allow any value that would also be permissible as a fraction.)
+		if smallRat(x.val) {
 			i := newInt()
 			if _, acc := x.val.Int(i); acc == big.Exact {
 				return makeInt(i)
