@@ -1000,17 +1000,23 @@ func testClientTimeout(t *testing.T, h2 bool) {
 	}
 }
 
+func TestClientTimeout_Headers_h1(t *testing.T) { testClientTimeout_Headers(t, h1Mode) }
+func TestClientTimeout_Headers_h2(t *testing.T) {
+	t.Skip("skipping in http2 mode; golang.org/issue/13540")
+	testClientTimeout_Headers(t, h2Mode)
+}
+
 // Client.Timeout firing before getting to the body
-func TestClientTimeout_Headers(t *testing.T) {
+func testClientTimeout_Headers(t *testing.T, h2 bool) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	defer afterTest(t)
 	donec := make(chan bool)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		<-donec
 	}))
-	defer ts.Close()
+	defer cst.close()
 	// Note that we use a channel send here and not a close.
 	// The race detector doesn't know that we're waiting for a timeout
 	// and thinks that the waitgroup inside httptest.Server is added to concurrently
@@ -1020,9 +1026,8 @@ func TestClientTimeout_Headers(t *testing.T) {
 	// doesn't know this, so synchronize explicitly.
 	defer func() { donec <- true }()
 
-	c := &Client{Timeout: 500 * time.Millisecond}
-
-	_, err := c.Get(ts.URL)
+	cst.c.Timeout = 500 * time.Millisecond
+	_, err := cst.c.Get(cst.ts.URL)
 	if err == nil {
 		t.Fatal("got response from Get; expected error")
 	}
