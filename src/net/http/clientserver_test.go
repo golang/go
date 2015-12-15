@@ -430,7 +430,6 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 		didFlush <- true
 		<-unblock
 		io.WriteString(w, ", world.")
-		<-unblock
 	}))
 	defer cst.close()
 	defer close(unblock)
@@ -445,11 +444,22 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 	}
 	defer res.Body.Close()
 	<-didFlush
+
+	// Read a bit before we cancel. (Issue 13626)
+	// We should have "Hello" at least sitting there.
+	firstRead := make([]byte, 10)
+	n, err := res.Body.Read(firstRead)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstRead = firstRead[:n]
+
 	close(cancel)
 
-	slurp, err := ioutil.ReadAll(res.Body)
-	if string(slurp) != "Hello" {
-		t.Errorf("Read %q; want Hello", slurp)
+	rest, err := ioutil.ReadAll(res.Body)
+	all := string(firstRead) + string(rest)
+	if all != "Hello" {
+		t.Errorf("Read %q (%q + %q); want Hello", all, firstRead, rest)
 	}
 	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
 		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
