@@ -18,6 +18,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
@@ -44,11 +45,12 @@ type http2ClientConnPool interface {
 
 type http2clientConnPool struct {
 	t  *http2Transport
-	mu sync.Mutex // TODO: switch to RWMutex
+	mu sync.Mutex // TODO: maybe switch to RWMutex
 	// TODO: add support for sharing conns based on cert names
 	// (e.g. share conn for googleapis.com and appspot.com)
-	conns map[string][]*http2ClientConn // key is host:port
-	keys  map[*http2ClientConn][]string
+	conns   map[string][]*http2ClientConn // key is host:port
+	dialing map[string]*http2dialCall     // currently in-flight dials
+	keys    map[*http2ClientConn][]string
 }
 
 func (p *http2clientConnPool) GetClientConn(req *Request, addr string) (*http2ClientConn, error) {
@@ -63,22 +65,65 @@ func (p *http2clientConnPool) getClientConn(req *Request, addr string, dialOnMis
 			return cc, nil
 		}
 	}
-	p.mu.Unlock()
 	if !dialOnMiss {
+		p.mu.Unlock()
 		return nil, http2ErrNoCachedConn
 	}
+	call := p.getStartDialLocked(addr)
+	p.mu.Unlock()
+	<-call.done
+	return call.res, call.err
+}
 
-	cc, err := p.t.dialClientConn(addr)
-	if err != nil {
-		return nil, err
+// dialCall is an in-flight Transport dial call to a host.
+type http2dialCall struct {
+	p    *http2clientConnPool
+	done chan struct{}    // closed when done
+	res  *http2ClientConn // valid after done is closed
+	err  error            // valid after done is closed
+}
+
+// requires p.mu is held.
+func (p *http2clientConnPool) getStartDialLocked(addr string) *http2dialCall {
+	if call, ok := p.dialing[addr]; ok {
+
+		return call
 	}
-	p.addConn(addr, cc)
-	return cc, nil
+	call := &http2dialCall{p: p, done: make(chan struct{})}
+	if p.dialing == nil {
+		p.dialing = make(map[string]*http2dialCall)
+	}
+	p.dialing[addr] = call
+	go call.dial(addr)
+	return call
+}
+
+// run in its own goroutine.
+func (c *http2dialCall) dial(addr string) {
+	c.res, c.err = c.p.t.dialClientConn(addr)
+	close(c.done)
+
+	c.p.mu.Lock()
+	delete(c.p.dialing, addr)
+	if c.err == nil {
+		c.p.addConnLocked(addr, c.res)
+	}
+	c.p.mu.Unlock()
 }
 
 func (p *http2clientConnPool) addConn(key string, cc *http2ClientConn) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.addConnLocked(key, cc)
+	p.mu.Unlock()
+}
+
+// p.mu must be held
+func (p *http2clientConnPool) addConnLocked(key string, cc *http2ClientConn) {
+	for _, v := range p.conns[key] {
+		if v == cc {
+			return
+		}
+	}
 	if p.conns == nil {
 		p.conns = make(map[string][]*http2ClientConn)
 	}
@@ -143,6 +188,9 @@ func http2configureTransport(t1 *Transport) error {
 	}
 	if !http2strSliceContains(t1.TLSClientConfig.NextProtos, "h2") {
 		t1.TLSClientConfig.NextProtos = append([]string{"h2"}, t1.TLSClientConfig.NextProtos...)
+	}
+	if !http2strSliceContains(t1.TLSClientConfig.NextProtos, "http/1.1") {
+		t1.TLSClientConfig.NextProtos = append(t1.TLSClientConfig.NextProtos, "http/1.1")
 	}
 	upgradeFn := func(authority string, c *tls.Conn) RoundTripper {
 		cc, err := t2.NewClientConn(c)
@@ -1425,6 +1473,8 @@ type http2headersEnder interface {
 	HeadersEnded() bool
 }
 
+func http2requestCancel(req *Request) <-chan struct{} { return req.Cancel }
+
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
 
 type http2goroutineLock uint64
@@ -1643,7 +1693,7 @@ func http2lowerHeader(v string) string {
 	return strings.ToLower(v)
 }
 
-var http2VerboseLogs = false
+var http2VerboseLogs = strings.Contains(os.Getenv("GODEBUG"), "h2debug=1")
 
 const (
 	// ClientPreface is the string that must be sent by new
@@ -1887,10 +1937,11 @@ func http2bodyAllowedForStatus(status int) bool {
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
 // underlying buffer is an interface. (io.Pipe is always unbuffered)
 type http2pipe struct {
-	mu  sync.Mutex
-	c   sync.Cond // c.L must point to
-	b   http2pipeBuffer
-	err error // read error once empty. non-nil means closed.
+	mu    sync.Mutex
+	c     sync.Cond // c.L must point to
+	b     http2pipeBuffer
+	err   error         // read error once empty. non-nil means closed.
+	donec chan struct{} // closed on error
 }
 
 type http2pipeBuffer interface {
@@ -1951,6 +2002,9 @@ func (p *http2pipe) CloseWithError(err error) {
 	defer p.c.Signal()
 	if p.err == nil {
 		p.err = err
+		if p.donec != nil {
+			close(p.donec)
+		}
 	}
 }
 
@@ -1960,6 +2014,21 @@ func (p *http2pipe) Err() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.err
+}
+
+// Done returns a channel which is closed if and when this pipe is closed
+// with CloseWithError.
+func (p *http2pipe) Done() <-chan struct{} {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.donec == nil {
+		p.donec = make(chan struct{})
+		if p.err != nil {
+
+			close(p.donec)
+		}
+	}
+	return p.donec
 }
 
 const (
@@ -2478,6 +2547,7 @@ func (sc *http2serverConn) stopShutdownTimer() {
 }
 
 func (sc *http2serverConn) notePanic() {
+
 	if http2testHookOnPanicMu != nil {
 		http2testHookOnPanicMu.Lock()
 		defer http2testHookOnPanicMu.Unlock()
@@ -2685,6 +2755,11 @@ func (sc *http2serverConn) startFrameWrite(wm http2frameWriteMsg) {
 	go sc.writeFrameAsync(wm)
 }
 
+// errHandlerPanicked is the error given to any callers blocked in a read from
+// Request.Body when the main goroutine panics. Since most handlers read in the
+// the main ServeHTTP goroutine, this will show up rarely.
+var http2errHandlerPanicked = errors.New("http2: handler panicked")
+
 // wroteFrame is called on the serve goroutine with the result of
 // whatever happened on writeFrameAsync.
 func (sc *http2serverConn) wroteFrame(res http2frameWriteResult) {
@@ -2698,6 +2773,10 @@ func (sc *http2serverConn) wroteFrame(res http2frameWriteResult) {
 	st := wm.stream
 
 	closeStream := http2endsStream(wm.write)
+
+	if _, ok := wm.write.(http2handlerPanicRST); ok {
+		sc.closeStream(st, http2errHandlerPanicked)
+	}
 
 	if ch := wm.done; ch != nil {
 		select {
@@ -3293,9 +3372,25 @@ func (sc *http2serverConn) newWriterAndRequest() (*http2responseWriter, *Request
 
 // Run on its own goroutine.
 func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, handler func(ResponseWriter, *Request)) {
-	defer rw.handlerDone()
-
+	didPanic := true
+	defer func() {
+		if didPanic {
+			e := recover()
+			// Same as net/http:
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			sc.writeFrameFromHandler(http2frameWriteMsg{
+				write:  http2handlerPanicRST{rw.rws.stream.id},
+				stream: rw.rws.stream,
+			})
+			sc.logf("http2: panic serving %v: %v\n%s", sc.conn.RemoteAddr(), e, buf)
+			return
+		}
+		rw.handlerDone()
+	}()
 	handler(rw, req)
+	didPanic = false
 }
 
 func http2handleHeaderListTooLong(w ResponseWriter, r *Request) {
@@ -3517,10 +3612,11 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 				clen = ""
 			}
 		}
-		if clen == "" && rws.handlerDone && http2bodyAllowedForStatus(rws.status) {
+		if clen == "" && rws.handlerDone && http2bodyAllowedForStatus(rws.status) && (len(p) > 0 || !isHeadResp) {
 			clen = strconv.Itoa(len(p))
 		}
-		if rws.snapHeader.Get("Content-Type") == "" && http2bodyAllowedForStatus(rws.status) {
+		_, hasContentType := rws.snapHeader["Content-Type"]
+		if !hasContentType && http2bodyAllowedForStatus(rws.status) {
 			ctype = DetectContentType(p)
 		}
 		var date string
@@ -3675,9 +3771,6 @@ func (w *http2responseWriter) write(lenData int, dataB []byte, dataS string) (n 
 
 func (w *http2responseWriter) handlerDone() {
 	rws := w.rws
-	if rws == nil {
-		panic("handlerDone called twice")
-	}
 	rws.handlerDone = true
 	w.Flush()
 	w.rws = nil
@@ -3721,8 +3814,26 @@ type http2Transport struct {
 	// If nil, the default is used.
 	ConnPool http2ClientConnPool
 
+	// DisableCompression, if true, prevents the Transport from
+	// requesting compression with an "Accept-Encoding: gzip"
+	// request header when the Request contains no existing
+	// Accept-Encoding value. If the Transport requests gzip on
+	// its own and gets a gzipped response, it's transparently
+	// decoded in the Response.Body. However, if the user
+	// explicitly requested gzip it is not automatically
+	// uncompressed.
+	DisableCompression bool
+
 	connPoolOnce  sync.Once
 	connPoolOrDef http2ClientConnPool // non-nil version of ConnPool
+}
+
+func (t *http2Transport) disableCompression() bool {
+	if t.DisableCompression {
+		return true
+	}
+
+	return false
 }
 
 var http2errTransportVersion = errors.New("http2: ConfigureTransport is only supported starting at Go 1.6")
@@ -3784,19 +3895,33 @@ type http2ClientConn struct {
 // clientStream is the state for a single HTTP/2 stream. One of these
 // is created for each Transport.RoundTrip call.
 type http2clientStream struct {
-	cc      *http2ClientConn
-	req     *Request
-	ID      uint32
-	resc    chan http2resAndError
-	bufPipe http2pipe // buffered pipe with the flow-controlled response payload
+	cc            *http2ClientConn
+	req           *Request
+	ID            uint32
+	resc          chan http2resAndError
+	bufPipe       http2pipe // buffered pipe with the flow-controlled response payload
+	requestedGzip bool
 
 	flow        http2flow // guarded by cc.mu
 	inflow      http2flow // guarded by cc.mu
 	bytesRemain int64     // -1 means unknown; owned by transportResponseBody.Read
 	readErr     error     // sticky read error; owned by transportResponseBody.Read
+	stopReqBody bool      // stop writing req body; guarded by cc.mu
 
 	peerReset chan struct{} // closed on peer reset
 	resetErr  error         // populated before peerReset is closed
+}
+
+// awaitRequestCancel runs in its own goroutine and waits for the user's
+func (cs *http2clientStream) awaitRequestCancel(cancel <-chan struct{}) {
+	if cancel == nil {
+		return
+	}
+	select {
+	case <-cancel:
+		cs.bufPipe.CloseWithError(http2errRequestCanceled)
+	case <-cs.bufPipe.Done():
+	}
 }
 
 // checkReset reports any error sent in a RST_STREAM frame by the
@@ -3808,6 +3933,14 @@ func (cs *http2clientStream) checkReset() error {
 	default:
 		return nil
 	}
+}
+
+func (cs *http2clientStream) abortRequestBodyWrite() {
+	cc := cs.cc
+	cc.mu.Lock()
+	cs.stopReqBody = true
+	cc.cond.Broadcast()
+	cc.mu.Unlock()
 }
 
 type http2stickyErrWriter struct {
@@ -3858,6 +3991,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 	for {
 		cc, err := t.connPool().GetClientConn(req, addr)
 		if err != nil {
+			t.vlogf("failed to get client conn: %v", err)
 			return nil, err
 		}
 		res, err := cc.RoundTrip(req)
@@ -3865,6 +3999,7 @@ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Res
 			continue
 		}
 		if err != nil {
+			t.vlogf("RoundTrip failure: %v", err)
 			return nil, err
 		}
 		return res, nil
@@ -3943,7 +4078,11 @@ func (t *http2Transport) dialTLSDefault(network, addr string, cfg *tls.Config) (
 }
 
 func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
+	if http2VerboseLogs {
+		t.vlogf("creating client conn to %v", c.RemoteAddr())
+	}
 	if _, err := c.Write(http2clientPreface); err != nil {
+		t.vlogf("client preface write error: %v", err)
 		return nil, err
 	}
 
@@ -4085,6 +4224,10 @@ func (cc *http2ClientConn) putFrameScratchBuffer(buf []byte) {
 
 }
 
+// errRequestCanceled is a copy of net/http's errRequestCanceled because it's not
+// exported. At least they'll be DeepEqual for h1-vs-h2 comparisons tests.
+var http2errRequestCanceled = errors.New("net/http: request canceled")
+
 func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	cc.mu.Lock()
 
@@ -4097,7 +4240,15 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	cs.req = req
 	hasBody := req.Body != nil
 
-	hdrs := cc.encodeHeaders(req)
+	if !cc.t.disableCompression() &&
+		req.Header.Get("Accept-Encoding") == "" &&
+		req.Header.Get("Range") == "" &&
+		req.Method != "HEAD" {
+
+		cs.requestedGzip = true
+	}
+
+	hdrs := cc.encodeHeaders(req, cs.requestedGzip)
 	first := true
 
 	cc.wmu.Lock()
@@ -4121,6 +4272,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			cc.fr.WriteContinuation(cs.ID, endHeaders, chunk)
 		}
 	}
+
 	cc.bw.Flush()
 	werr := cc.werr
 	cc.wmu.Unlock()
@@ -4130,29 +4282,33 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		return nil, werr
 	}
 
-	var bodyCopyErrc chan error
-	var gotResHeaders chan struct{} // closed on resheaders
+	var bodyCopyErrc chan error // result of body copy
 	if hasBody {
 		bodyCopyErrc = make(chan error, 1)
-		gotResHeaders = make(chan struct{})
 		go func() {
-			bodyCopyErrc <- cs.writeRequestBody(req.Body, gotResHeaders)
+			bodyCopyErrc <- cs.writeRequestBody(req.Body)
 		}()
 	}
 
 	for {
 		select {
 		case re := <-cs.resc:
-			if gotResHeaders != nil {
-				close(gotResHeaders)
+			res := re.res
+			if re.err != nil || res.StatusCode > 299 {
+
+				cs.abortRequestBodyWrite()
 			}
 			if re.err != nil {
 				return nil, re.err
 			}
-			res := re.res
 			res.Request = req
 			res.TLS = cc.tlsState
 			return res, nil
+		case <-http2requestCancel(req):
+			cs.abortRequestBodyWrite()
+			return nil, http2errRequestCanceled
+		case <-cs.peerReset:
+			return nil, cs.resetErr
 		case err := <-bodyCopyErrc:
 			if err != nil {
 				return nil, err
@@ -4161,45 +4317,49 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	}
 }
 
-var http2errServerResponseBeforeRequestBody = errors.New("http2: server sent response while still writing request body")
+// errAbortReqBodyWrite is an internal error value.
+// It doesn't escape to callers.
+var http2errAbortReqBodyWrite = errors.New("http2: aborting request body write")
 
-func (cs *http2clientStream) writeRequestBody(body io.Reader, gotResHeaders <-chan struct{}) error {
+func (cs *http2clientStream) writeRequestBody(body io.ReadCloser) (err error) {
 	cc := cs.cc
 	sentEnd := false
 	buf := cc.frameScratchBuffer()
 	defer cc.putFrameScratchBuffer(buf)
 
-	for !sentEnd {
-		var sawEOF bool
-		n, err := io.ReadFull(body, buf)
-		if err == io.ErrUnexpectedEOF {
+	defer func() {
+
+		cerr := body.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	var sawEOF bool
+	for !sawEOF {
+		n, err := body.Read(buf)
+		if err == io.EOF {
 			sawEOF = true
 			err = nil
-		} else if err == io.EOF {
-			break
 		} else if err != nil {
 			return err
 		}
 
-		toWrite := buf[:n]
-		for len(toWrite) > 0 && err == nil {
+		remain := buf[:n]
+		for len(remain) > 0 && err == nil {
 			var allowed int32
-			allowed, err = cs.awaitFlowControl(int32(len(toWrite)))
+			allowed, err = cs.awaitFlowControl(len(remain))
 			if err != nil {
 				return err
 			}
-
 			cc.wmu.Lock()
-			select {
-			case <-gotResHeaders:
-				err = http2errServerResponseBeforeRequestBody
-			case <-cs.peerReset:
-				err = cs.resetErr
-			default:
-				data := toWrite[:allowed]
-				toWrite = toWrite[allowed:]
-				sentEnd = sawEOF && len(toWrite) == 0
-				err = cc.fr.WriteData(cs.ID, sentEnd, data)
+			data := remain[:allowed]
+			remain = remain[allowed:]
+			sentEnd = sawEOF && len(remain) == 0
+			err = cc.fr.WriteData(cs.ID, sentEnd, data)
+			if err == nil {
+
+				err = cc.bw.Flush()
 			}
 			cc.wmu.Unlock()
 		}
@@ -4207,8 +4367,6 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, gotResHeaders <-ch
 			return err
 		}
 	}
-
-	var err error
 
 	cc.wmu.Lock()
 	if !sentEnd {
@@ -4226,7 +4384,7 @@ func (cs *http2clientStream) writeRequestBody(body io.Reader, gotResHeaders <-ch
 // control tokens from the server.
 // It returns either the non-zero number of tokens taken or an error
 // if the stream is dead.
-func (cs *http2clientStream) awaitFlowControl(maxBytes int32) (taken int32, err error) {
+func (cs *http2clientStream) awaitFlowControl(maxBytes int) (taken int32, err error) {
 	cc := cs.cc
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
@@ -4234,13 +4392,17 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int32) (taken int32, err 
 		if cc.closed {
 			return 0, http2errClientConnClosed
 		}
+		if cs.stopReqBody {
+			return 0, http2errAbortReqBodyWrite
+		}
 		if err := cs.checkReset(); err != nil {
 			return 0, err
 		}
 		if a := cs.flow.available(); a > 0 {
 			take := a
-			if take > maxBytes {
-				take = maxBytes
+			if int(take) > maxBytes {
+
+				take = int32(maxBytes)
 			}
 			if take > int32(cc.maxFrameSize) {
 				take = int32(cc.maxFrameSize)
@@ -4253,7 +4415,7 @@ func (cs *http2clientStream) awaitFlowControl(maxBytes int32) (taken int32, err 
 }
 
 // requires cc.mu be held.
-func (cc *http2ClientConn) encodeHeaders(req *Request) []byte {
+func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool) []byte {
 	cc.hbuf.Reset()
 
 	host := req.Host
@@ -4274,6 +4436,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request) []byte {
 		for _, v := range vv {
 			cc.writeHeader(lowKey, v)
 		}
+	}
+	if addGzipHeader {
+		cc.writeHeader("accept-encoding", "gzip")
 	}
 	return cc.hbuf.Bytes()
 }
@@ -4378,6 +4543,9 @@ func (rl *http2clientConnReadLoop) run() error {
 	cc := rl.cc
 	for {
 		f, err := cc.fr.ReadFrame()
+		if err != nil {
+			cc.vlogf("Transport readFrame error: (%T) %v", err, err)
+		}
 		if se, ok := err.(http2StreamError); ok {
 
 			return se
@@ -4489,6 +4657,14 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 		cs.bufPipe = http2pipe{b: buf}
 		cs.bytesRemain = res.ContentLength
 		res.Body = http2transportResponseBody{cs}
+		go cs.awaitRequestCancel(http2requestCancel(cs.req))
+
+		if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
+			res.Header.Del("Content-Encoding")
+			res.Header.Del("Content-Length")
+			res.ContentLength = -1
+			res.Body = &http2gzipReader{body: res.Body}
+		}
 	}
 
 	rl.activeRes[cs.ID] = cs
@@ -4669,6 +4845,7 @@ func (rl *http2clientConnReadLoop) processResetStream(f *http2RSTStreamFrame) er
 		cs.resetErr = err
 		close(cs.peerReset)
 		cs.bufPipe.CloseWithError(err)
+		cs.cc.cond.Broadcast()
 	}
 	delete(rl.activeRes, cs.ID)
 	return nil
@@ -4765,6 +4942,27 @@ type http2erringRoundTripper struct{ err error }
 
 func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { return nil, rt.err }
 
+// gzipReader wraps a response body so it can lazily
+// call gzip.NewReader on the first call to Read
+type http2gzipReader struct {
+	body io.ReadCloser // underlying Response.Body
+	zr   io.Reader     // lazily-initialized gzip reader
+}
+
+func (gz *http2gzipReader) Read(p []byte) (n int, err error) {
+	if gz.zr == nil {
+		gz.zr, err = gzip.NewReader(gz.body)
+		if err != nil {
+			return 0, err
+		}
+	}
+	return gz.zr.Read(p)
+}
+
+func (gz *http2gzipReader) Close() error {
+	return gz.body.Close()
+}
+
 // writeFramer is implemented by any type that is used to write frames.
 type http2writeFramer interface {
 	writeFrame(http2writeContext) error
@@ -4843,6 +5041,16 @@ func (w *http2writeData) String() string {
 
 func (w *http2writeData) writeFrame(ctx http2writeContext) error {
 	return ctx.Framer().WriteData(w.streamID, w.endStream, w.p)
+}
+
+// handlerPanicRST is the message sent from handler goroutines when
+// the handler panics.
+type http2handlerPanicRST struct {
+	StreamID uint32
+}
+
+func (hp http2handlerPanicRST) writeFrame(ctx http2writeContext) error {
+	return ctx.Framer().WriteRSTStream(hp.StreamID, http2ErrCodeInternal)
 }
 
 func (se http2StreamError) writeFrame(ctx http2writeContext) error {

@@ -289,6 +289,30 @@ var untarTests = []*untarTest{
 		},
 	},
 	{
+		// Matches the behavior of GNU, BSD, and STAR tar utilities.
+		file: "testdata/gnu-multi-hdrs.tar",
+		headers: []*Header{
+			{
+				Name:     "GNU2/GNU2/long-path-name",
+				Linkname: "GNU4/GNU4/long-linkpath-name",
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '2',
+			},
+		},
+	},
+	{
+		// Matches the behavior of GNU and BSD tar utilities.
+		file: "testdata/pax-multi-hdrs.tar",
+		headers: []*Header{
+			{
+				Name:     "bar",
+				Linkname: "PAX4/PAX4/long-linkpath-name",
+				ModTime:  time.Unix(0, 0),
+				Typeflag: '2',
+			},
+		},
+	},
+	{
 		file: "testdata/neg-size.tar",
 		err:  ErrHeader,
 	},
@@ -298,17 +322,11 @@ var untarTests = []*untarTest{
 	},
 	{
 		file: "testdata/issue11169.tar",
-		// TODO(dsnet): Currently the library does not detect that this file is
-		// malformed. Instead it incorrectly believes that file just ends.
-		// At least the library doesn't crash anymore.
-		// err:  ErrHeader,
+		err:  ErrHeader,
 	},
 	{
 		file: "testdata/issue12435.tar",
-		// TODO(dsnet): Currently the library does not detect that this file is
-		// malformed. Instead, it incorrectly believes that file just ends.
-		// At least the library doesn't crash anymore.
-		// err:  ErrHeader,
+		err:  ErrHeader,
 	},
 }
 
@@ -727,35 +745,82 @@ func TestReadGNUSparseMap0x1(t *testing.T) {
 }
 
 func TestReadGNUSparseMap1x0(t *testing.T) {
-	// This test uses lots of holes so the sparse header takes up more than two blocks
-	numEntries := 100
-	expected := make([]sparseEntry, 0, numEntries)
-	sparseMap := new(bytes.Buffer)
-
-	fmt.Fprintf(sparseMap, "%d\n", numEntries)
-	for i := 0; i < numEntries; i++ {
-		offset := int64(2048 * i)
-		numBytes := int64(1024)
-		expected = append(expected, sparseEntry{offset: offset, numBytes: numBytes})
-		fmt.Fprintf(sparseMap, "%d\n%d\n", offset, numBytes)
+	var sp = []sparseEntry{{1, 2}, {3, 4}}
+	for i := 0; i < 98; i++ {
+		sp = append(sp, sparseEntry{54321, 12345})
 	}
 
-	// Make the header the smallest multiple of blockSize that fits the sparseMap
-	headerBlocks := (sparseMap.Len() + blockSize - 1) / blockSize
-	bufLen := blockSize * headerBlocks
-	buf := make([]byte, bufLen)
-	copy(buf, sparseMap.Bytes())
+	var vectors = []struct {
+		input     string        // Input data
+		sparseMap []sparseEntry // Expected sparse entries to be outputted
+		cnt       int           // Expected number of bytes read
+		err       error         // Expected errors that may be raised
+	}{{
+		input: "",
+		cnt:   0,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: "ab",
+		cnt:   2,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: strings.Repeat("\x00", 512),
+		cnt:   512,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: strings.Repeat("\x00", 511) + "\n",
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input: strings.Repeat("\n", 512),
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input:     "0\n" + strings.Repeat("\x00", 510) + strings.Repeat("a", 512),
+		sparseMap: []sparseEntry{},
+		cnt:       512,
+	}, {
+		input:     strings.Repeat("0", 512) + "0\n" + strings.Repeat("\x00", 510),
+		sparseMap: []sparseEntry{},
+		cnt:       1024,
+	}, {
+		input:     strings.Repeat("0", 1024) + "1\n2\n3\n" + strings.Repeat("\x00", 506),
+		sparseMap: []sparseEntry{{2, 3}},
+		cnt:       1536,
+	}, {
+		input: strings.Repeat("0", 1024) + "1\n2\n\n" + strings.Repeat("\x00", 509),
+		cnt:   1536,
+		err:   ErrHeader,
+	}, {
+		input: strings.Repeat("0", 1024) + "1\n2\n" + strings.Repeat("\x00", 508),
+		cnt:   1536,
+		err:   io.ErrUnexpectedEOF,
+	}, {
+		input: "-1\n2\n\n" + strings.Repeat("\x00", 506),
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input: "1\nk\n2\n" + strings.Repeat("\x00", 506),
+		cnt:   512,
+		err:   ErrHeader,
+	}, {
+		input:     "100\n1\n2\n3\n4\n" + strings.Repeat("54321\n0000000000000012345\n", 98) + strings.Repeat("\x00", 512),
+		cnt:       2560,
+		sparseMap: sp,
+	}}
 
-	// Get an reader to read the sparse map
-	r := bytes.NewReader(buf)
-
-	// Read the sparse map
-	sp, err := readGNUSparseMap1x0(r)
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	}
-	if !reflect.DeepEqual(sp, expected) {
-		t.Errorf("Incorrect sparse map: got %v, wanted %v", sp, expected)
+	for i, v := range vectors {
+		r := strings.NewReader(v.input)
+		sp, err := readGNUSparseMap1x0(r)
+		if !reflect.DeepEqual(sp, v.sparseMap) && !(len(sp) == 0 && len(v.sparseMap) == 0) {
+			t.Errorf("test %d, readGNUSparseMap1x0(...): got %v, want %v", i, sp, v.sparseMap)
+		}
+		if numBytes := len(v.input) - r.Len(); numBytes != v.cnt {
+			t.Errorf("test %d, bytes read: got %v, want %v", i, numBytes, v.cnt)
+		}
+		if err != v.err {
+			t.Errorf("test %d, unexpected error: got %v, want %v", i, err, v.err)
+		}
 	}
 }
 
@@ -898,6 +963,163 @@ func TestReadTruncation(t *testing.T) {
 				t.Errorf("test %d, NewReader(%s(...)) with %s discard: got %d headers, want %d headers",
 					i, s1, s2, cnt, v.cnt)
 			}
+		}
+	}
+}
+
+// TestReadHeaderOnly tests that Reader does not attempt to read special
+// header-only files.
+func TestReadHeaderOnly(t *testing.T) {
+	f, err := os.Open("testdata/hdr-only.tar")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer f.Close()
+
+	var hdrs []*Header
+	tr := NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Errorf("Next(): got %v, want %v", err, nil)
+			continue
+		}
+		hdrs = append(hdrs, hdr)
+
+		// If a special flag, we should read nothing.
+		cnt, _ := io.ReadFull(tr, []byte{0})
+		if cnt > 0 && hdr.Typeflag != TypeReg {
+			t.Errorf("ReadFull(...): got %d bytes, want 0 bytes", cnt)
+		}
+	}
+
+	// File is crafted with 16 entries. The later 8 are identical to the first
+	// 8 except that the size is set.
+	if len(hdrs) != 16 {
+		t.Fatalf("len(hdrs): got %d, want %d", len(hdrs), 16)
+	}
+	for i := 0; i < 8; i++ {
+		var hdr1, hdr2 = hdrs[i+0], hdrs[i+8]
+		hdr1.Size, hdr2.Size = 0, 0
+		if !reflect.DeepEqual(*hdr1, *hdr2) {
+			t.Errorf("incorrect header:\ngot  %+v\nwant %+v", *hdr1, *hdr2)
+		}
+	}
+}
+
+func TestParsePAXRecord(t *testing.T) {
+	var medName = strings.Repeat("CD", 50)
+	var longName = strings.Repeat("AB", 100)
+
+	var vectors = []struct {
+		input     string
+		residual  string
+		outputKey string
+		outputVal string
+		ok        bool
+	}{
+		{"6 k=v\n\n", "\n", "k", "v", true},
+		{"19 path=/etc/hosts\n", "", "path", "/etc/hosts", true},
+		{"210 path=" + longName + "\nabc", "abc", "path", longName, true},
+		{"110 path=" + medName + "\n", "", "path", medName, true},
+		{"9 foo=ba\n", "", "foo", "ba", true},
+		{"11 foo=bar\n\x00", "\x00", "foo", "bar", true},
+		{"18 foo=b=\nar=\n==\x00\n", "", "foo", "b=\nar=\n==\x00", true},
+		{"27 foo=hello9 foo=ba\nworld\n", "", "foo", "hello9 foo=ba\nworld", true},
+		{"27 ☺☻☹=日a本b語ç\nmeow mix", "meow mix", "☺☻☹", "日a本b語ç", true},
+		{"17 \x00hello=\x00world\n", "", "\x00hello", "\x00world", true},
+		{"1 k=1\n", "1 k=1\n", "", "", false},
+		{"6 k~1\n", "6 k~1\n", "", "", false},
+		{"6_k=1\n", "6_k=1\n", "", "", false},
+		{"6 k=1 ", "6 k=1 ", "", "", false},
+		{"632 k=1\n", "632 k=1\n", "", "", false},
+		{"16 longkeyname=hahaha\n", "16 longkeyname=hahaha\n", "", "", false},
+		{"3 somelongkey=\n", "3 somelongkey=\n", "", "", false},
+		{"50 tooshort=\n", "50 tooshort=\n", "", "", false},
+	}
+
+	for _, v := range vectors {
+		key, val, res, err := parsePAXRecord(v.input)
+		ok := (err == nil)
+		if v.ok != ok {
+			if v.ok {
+				t.Errorf("parsePAXRecord(%q): got parsing failure, want success", v.input)
+			} else {
+				t.Errorf("parsePAXRecord(%q): got parsing success, want failure", v.input)
+			}
+		}
+		if ok && (key != v.outputKey || val != v.outputVal) {
+			t.Errorf("parsePAXRecord(%q): got (%q: %q), want (%q: %q)",
+				v.input, key, val, v.outputKey, v.outputVal)
+		}
+		if res != v.residual {
+			t.Errorf("parsePAXRecord(%q): got residual %q, want residual %q",
+				v.input, res, v.residual)
+		}
+	}
+}
+
+func TestParseNumeric(t *testing.T) {
+	var vectors = []struct {
+		input  string
+		output int64
+		ok     bool
+	}{
+		// Test base-256 (binary) encoded values.
+		{"", 0, true},
+		{"\x80", 0, true},
+		{"\x80\x00", 0, true},
+		{"\x80\x00\x00", 0, true},
+		{"\xbf", (1 << 6) - 1, true},
+		{"\xbf\xff", (1 << 14) - 1, true},
+		{"\xbf\xff\xff", (1 << 22) - 1, true},
+		{"\xff", -1, true},
+		{"\xff\xff", -1, true},
+		{"\xff\xff\xff", -1, true},
+		{"\xc0", -1 * (1 << 6), true},
+		{"\xc0\x00", -1 * (1 << 14), true},
+		{"\xc0\x00\x00", -1 * (1 << 22), true},
+		{"\x87\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
+		{"\x80\x00\x00\x00\x07\x76\xa2\x22\xeb\x8a\x72\x61", 537795476381659745, true},
+		{"\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
+		{"\xff\xff\xff\xff\xf7\x76\xa2\x22\xeb\x8a\x72\x61", -615126028225187231, true},
+		{"\x80\x7f\xff\xff\xff\xff\xff\xff\xff", math.MaxInt64, true},
+		{"\x80\x80\x00\x00\x00\x00\x00\x00\x00", 0, false},
+		{"\xff\x80\x00\x00\x00\x00\x00\x00\x00", math.MinInt64, true},
+		{"\xff\x7f\xff\xff\xff\xff\xff\xff\xff", 0, false},
+		{"\xf5\xec\xd1\xc7\x7e\x5f\x26\x48\x81\x9f\x8f\x9b", 0, false},
+
+		// Test base-8 (octal) encoded values.
+		{"0000000\x00", 0, true},
+		{" \x0000000\x00", 0, true},
+		{" \x0000003\x00", 3, true},
+		{"00000000227\x00", 0227, true},
+		{"032033\x00 ", 032033, true},
+		{"320330\x00 ", 0320330, true},
+		{"0000660\x00 ", 0660, true},
+		{"\x00 0000660\x00 ", 0660, true},
+		{"0123456789abcdef", 0, false},
+		{"0123456789\x00abcdef", 0, false},
+		{"01234567\x0089abcdef", 342391, true},
+		{"0123\x7e\x5f\x264123", 0, false},
+	}
+
+	for _, v := range vectors {
+		var p parser
+		num := p.parseNumeric([]byte(v.input))
+		ok := (p.err == nil)
+		if v.ok != ok {
+			if v.ok {
+				t.Errorf("parseNumeric(%q): got parsing failure, want success", v.input)
+			} else {
+				t.Errorf("parseNumeric(%q): got parsing success, want failure", v.input)
+			}
+		}
+		if ok && num != v.output {
+			t.Errorf("parseNumeric(%q): got %d, want %d", v.input, num, v.output)
 		}
 	}
 }

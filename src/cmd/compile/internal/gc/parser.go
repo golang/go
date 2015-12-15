@@ -92,7 +92,7 @@ type parser struct {
 
 func (p *parser) next() {
 	p.tok = yylex(&p.yy)
-	p.op = Op(p.yy.i)
+	p.op = p.yy.op
 	p.val = p.yy.val
 	p.sym_ = p.yy.sym
 }
@@ -142,7 +142,6 @@ func (p *parser) syntax_error(msg string) {
 	var tok string
 	switch p.tok {
 	case LLITERAL:
-		// this is also done in Yyerror but it's cleaner to do it here
 		tok = litbuf
 	case LNAME:
 		if p.sym_ != nil && p.sym_.Name != "" {
@@ -668,10 +667,11 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			// labelname ':' stmt
 			if labelOk {
 				// If we have a labelname, it was parsed by operand
-				// (calling p.name()) and given an ONAME, ONONAME, or OTYPE node.
-				if lhs.Op == ONAME || lhs.Op == ONONAME || lhs.Op == OTYPE {
+				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, or OPACK node.
+				switch lhs.Op {
+				case ONAME, ONONAME, OTYPE, OPACK:
 					lhs = newname(lhs.Sym)
-				} else {
+				default:
 					p.syntax_error("expecting semicolon or newline or }")
 					// we already progressed, no need to advance
 				}
@@ -717,7 +717,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		return stmt
 
 	case LCOLAS:
-		line := lineno
+		lno := lineno
 		p.next()
 
 		if rangeOk && p.got(LRANGE) {
@@ -746,7 +746,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			} // it's a colas, so must not re-use an oldname
 			return ts
 		}
-		return colas(lhs, rhs, int32(line))
+		return colas(lhs, rhs, int32(lno))
 
 	default:
 		p.syntax_error("expecting := or = or comma")
@@ -849,6 +849,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 
 		case LCOLAS:
 			// LCASE expr_or_type_list LCOLAS expr ':'
+			lno := lineno
 			p.next()
 			rhs := p.expr()
 
@@ -857,7 +858,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			stmt.List = list1(colas(cases, list1(rhs), int32(p.op)))
+			stmt.List = list1(colas(cases, list1(rhs), int32(lno)))
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -1735,6 +1736,18 @@ func (p *parser) new_name(sym *Sym) *Node {
 		return newname(sym)
 	}
 	return nil
+}
+
+func (p *parser) dcl_name(sym *Sym) *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("dcl_name")()
+	}
+
+	if sym == nil {
+		yyerrorl(int(prevlineno), "invalid declaration")
+		return nil
+	}
+	return dclname(sym)
 }
 
 func (p *parser) onew_name() *Node {
@@ -2735,9 +2748,9 @@ func (p *parser) dcl_name_list() *NodeList {
 		defer p.trace("dcl_name_list")()
 	}
 
-	l := list1(dclname(p.sym()))
+	l := list1(p.dcl_name(p.sym()))
 	for p.got(',') {
-		l = list(l, dclname(p.sym()))
+		l = list(l, p.dcl_name(p.sym()))
 	}
 	return l
 }
@@ -3278,24 +3291,32 @@ func (p *parser) hidden_interfacedcl() *Node {
 		defer p.trace("hidden_interfacedcl")()
 	}
 
-	// TODO(gri) possible conflict here: both cases may start with '@' per grammar
-	// (issue 13245).
+	// The original (now defunct) grammar in go.y accepted both a method
+	// or an (embedded) type:
+	//
+	// hidden_interfacedcl:
+	// 	sym '(' ohidden_funarg_list ')' ohidden_funres
+	// 	{
+	// 		$$ = Nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+	// 	}
+	// |	hidden_type
+	// 	{
+	// 		$$ = Nod(ODCLFIELD, nil, typenod($1));
+	// 	}
+	//
+	// But the current textual export code only exports (inlined) methods,
+	// even if the methods came from embedded interfaces. Furthermore, in
+	// the original grammar, hidden_type may also start with a sym (LNAME
+	// or '@'), complicating matters further. Since we never have embedded
+	// types, only parse methods here.
 
-	switch p.tok {
-	case LNAME, '@', '?':
-		s1 := p.sym()
-		p.want('(')
-		s3 := p.ohidden_funarg_list()
-		p.want(')')
-		s5 := p.ohidden_funres()
+	s1 := p.sym()
+	p.want('(')
+	s3 := p.ohidden_funarg_list()
+	p.want(')')
+	s5 := p.ohidden_funres()
 
-		return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
-
-	default:
-		s1 := p.hidden_type()
-
-		return Nod(ODCLFIELD, nil, typenod(s1))
-	}
+	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
 }
 
 func (p *parser) ohidden_funres() *NodeList {

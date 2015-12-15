@@ -378,6 +378,52 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 	}
 }
 
+// Test that goLookupIPOrder falls back to the host file when no DNS servers are available.
+func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+
+	// Add a config that simulates no dns servers being available.
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conf.writeAndUpdate([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	conf.tryUpdate(conf.path)
+	// Redirect host file lookups.
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	testHookHostsPath = "testdata/hosts"
+
+	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
+		name := fmt.Sprintf("order %v", order)
+
+		// First ensure that we get an error when contacting a non-existant host.
+		_, err := goLookupIPOrder("notarealhost", order)
+		if err == nil {
+			t.Errorf("%s: expected error while looking up name not in hosts file", name)
+			continue
+		}
+
+		// Now check that we get an address when the name appears in the hosts file.
+		addrs, err := goLookupIPOrder("thor", order) // entry is in "testdata/hosts"
+		if err != nil {
+			t.Errorf("%s: expected to successfully lookup host entry", name)
+			continue
+		}
+		if len(addrs) != 1 {
+			t.Errorf("%s: expected exactly one result, but got %v", name, addrs)
+			continue
+		}
+		if got, want := addrs[0].String(), "127.1.1.1"; got != want {
+			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
+		}
+	}
+	defer conf.teardown()
+}
+
 func BenchmarkGoLookupIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 

@@ -11,6 +11,7 @@
 package sync
 
 import (
+	"internal/race"
 	"sync/atomic"
 	"unsafe"
 )
@@ -41,8 +42,8 @@ const (
 func (m *Mutex) Lock() {
 	// Fast path: grab unlocked mutex.
 	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
-		if raceenabled {
-			raceAcquire(unsafe.Pointer(m))
+		if race.Enabled {
+			race.Acquire(unsafe.Pointer(m))
 		}
 		return
 	}
@@ -85,8 +86,8 @@ func (m *Mutex) Lock() {
 		}
 	}
 
-	if raceenabled {
-		raceAcquire(unsafe.Pointer(m))
+	if race.Enabled {
+		race.Acquire(unsafe.Pointer(m))
 	}
 }
 
@@ -97,9 +98,9 @@ func (m *Mutex) Lock() {
 // It is allowed for one goroutine to lock a Mutex and then
 // arrange for another goroutine to unlock it.
 func (m *Mutex) Unlock() {
-	if raceenabled {
+	if race.Enabled {
 		_ = m.state
-		raceRelease(unsafe.Pointer(m))
+		race.Release(unsafe.Pointer(m))
 	}
 
 	// Fast path: drop lock bit.

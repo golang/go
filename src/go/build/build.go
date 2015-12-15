@@ -1127,9 +1127,9 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		if err != nil {
 			return fmt.Errorf("%s: invalid #cgo line: %s", filename, orig)
 		}
+		var ok bool
 		for i, arg := range args {
-			arg = expandSrcDir(arg, di.Dir)
-			if !safeCgoName(arg) {
+			if arg, ok = expandSrcDir(arg, di.Dir); !ok {
 				return fmt.Errorf("%s: malformed #cgo argument: %s", filename, arg)
 			}
 			args[i] = arg
@@ -1153,25 +1153,46 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 	return nil
 }
 
-func expandSrcDir(str string, srcdir string) string {
+// expandSrcDir expands any occurrence of ${SRCDIR}, making sure
+// the result is safe for the shell.
+func expandSrcDir(str string, srcdir string) (string, bool) {
 	// "\" delimited paths cause safeCgoName to fail
 	// so convert native paths with a different delimeter
-	// to "/" before starting (eg: on windows)
+	// to "/" before starting (eg: on windows).
 	srcdir = filepath.ToSlash(srcdir)
-	return strings.Replace(str, "${SRCDIR}", srcdir, -1)
+
+	// Spaces are tolerated in ${SRCDIR}, but not anywhere else.
+	chunks := strings.Split(str, "${SRCDIR}")
+	if len(chunks) < 2 {
+		return str, safeCgoName(str, false)
+	}
+	ok := true
+	for _, chunk := range chunks {
+		ok = ok && (chunk == "" || safeCgoName(chunk, false))
+	}
+	ok = ok && (srcdir == "" || safeCgoName(srcdir, true))
+	res := strings.Join(chunks, srcdir)
+	return res, ok && res != ""
 }
 
 // NOTE: $ is not safe for the shell, but it is allowed here because of linker options like -Wl,$ORIGIN.
 // We never pass these arguments to a shell (just to programs we construct argv for), so this should be okay.
 // See golang.org/issue/6038.
-var safeBytes = []byte("+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$")
+const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$"
+const safeSpaces = " "
 
-func safeCgoName(s string) bool {
+var safeBytes = []byte(safeSpaces + safeString)
+
+func safeCgoName(s string, spaces bool) bool {
 	if s == "" {
 		return false
 	}
+	safe := safeBytes
+	if !spaces {
+		safe = safe[len(safeSpaces):]
+	}
 	for i := 0; i < len(s); i++ {
-		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
+		if c := s[i]; c < 0x80 && bytes.IndexByte(safe, c) < 0 {
 			return false
 		}
 	}

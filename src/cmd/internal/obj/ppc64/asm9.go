@@ -435,7 +435,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 		o = oplook(ctxt, p)
 		m = int(o.size)
 		if m == 0 {
-			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+			if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
 				ctxt.Diag("zero-width instruction\n%v", p)
 			}
 			continue
@@ -492,7 +492,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
 
 			m = int(o.size)
 			if m == 0 {
-				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
+				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.AUSEFIELD {
 					ctxt.Diag("zero-width instruction\n%v", p)
 				}
 				continue

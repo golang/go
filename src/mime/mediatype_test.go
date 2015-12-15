@@ -159,7 +159,7 @@ func TestParseMediaType(t *testing.T) {
 			m("filename", "foo.html")},
 		{`attachment; filename='foo.html'`,
 			"attachment",
-			m("filename", "foo.html")},
+			m("filename", "'foo.html'")},
 		{`attachment; filename="foo-%41.html"`,
 			"attachment",
 			m("filename", "foo-%41.html")},
@@ -217,6 +217,9 @@ func TestParseMediaType(t *testing.T) {
 		{`form-data; firstname="Брэд"; lastname="Фицпатрик"`,
 			"form-data",
 			m("firstname", "Брэд", "lastname", "Фицпатрик")},
+
+		// Empty string used to be mishandled.
+		{`foo; bar=""`, "foo", m("bar", "")},
 	}
 	for _, test := range tests {
 		mt, params, err := ParseMediaType(test.in)
@@ -281,7 +284,7 @@ type formatTest struct {
 }
 
 var formatTests = []formatTest{
-	{"noslash", nil, ""},
+	{"noslash", map[string]string{"X": "Y"}, "noslash; x=Y"}, // e.g. Content-Disposition values (RFC 2183); issue 11289
 	{"foo bar/baz", nil, ""},
 	{"foo/bar baz", nil, ""},
 	{"foo/BAR", nil, "foo/bar"},
@@ -294,6 +297,8 @@ var formatTests = []formatTest{
 	{"foo/BAR", map[string]string{"bad attribute": "baz"}, ""},
 	{"foo/BAR", map[string]string{"nonascii": "not an ascii character: ä"}, ""},
 	{"foo/bar", map[string]string{"a": "av", "b": "bv", "c": "cv"}, "foo/bar; a=av; b=bv; c=cv"},
+	{"foo/bar", map[string]string{"0": "'", "9": "'"}, "foo/bar; 0='; 9='"},
+	{"foo", map[string]string{"bar": ""}, `foo; bar=""`},
 }
 
 func TestFormatMediaType(t *testing.T) {

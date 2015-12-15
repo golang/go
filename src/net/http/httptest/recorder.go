@@ -65,6 +65,9 @@ func (rw *ResponseRecorder) writeHeader(b []byte, str string) {
 		if b == nil {
 			b = []byte(str)
 		}
+		if rw.HeaderMap == nil {
+			rw.HeaderMap = make(http.Header)
+		}
 		rw.HeaderMap.Set("Content-Type", http.DetectContentType(b))
 	}
 

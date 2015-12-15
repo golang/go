@@ -260,6 +260,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 
 // if the Transport's DisableKeepAlives is set, all requests should
 // send Connection: close.
+// HTTP/1-only (Connection: close doesn't exist in h2)
 func TestTransportConnectionCloseOnRequestDisableKeepAlive(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
@@ -2410,6 +2411,80 @@ type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
 
+// Issue 4677. If we try to reuse a connection that the server is in the
+// process of closing, we may end up successfully writing out our request (or a
+// portion of our request) only to find a connection error when we try to read
+// from (or finish writing to) the socket.
+//
+// NOTE: we resend a request only if the request is idempotent, we reused a
+// keep-alive connection, and we haven't yet received any header data.  This
+// automatically prevents an infinite resend loop because we'll run out of the
+// cached keep-alive connections eventually.
+func TestRetryIdempotentRequestsOnError(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+
+	const N = 2
+	retryc := make(chan struct{}, N)
+	SetRoundTripRetried(func() {
+		retryc <- struct{}{}
+	})
+	defer SetRoundTripRetried(nil)
+
+	for n := 0; n < 100; n++ {
+		// open 2 conns
+		errc := make(chan error, N)
+		for i := 0; i < N; i++ {
+			// start goroutines, send on errc
+			go func() {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					res.Body.Close()
+				}
+				errc <- err
+			}()
+		}
+		for i := 0; i < N; i++ {
+			if err := <-errc; err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		ts.CloseClientConnections()
+		for i := 0; i < N; i++ {
+			go func() {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					res.Body.Close()
+				}
+				errc <- err
+			}()
+		}
+
+		for i := 0; i < N; i++ {
+			if err := <-errc; err != nil {
+				t.Fatal(err)
+			}
+		}
+		for i := 0; i < N; i++ {
+			select {
+			case <-retryc:
+				// we triggered a retry, test was successful
+				t.Logf("finished after %d runs\n", n)
+				return
+			default:
+			}
+		}
+	}
+	t.Fatal("did not trigger any retries")
+}
+
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
 	defer afterTest(t)
@@ -2607,6 +2682,15 @@ func TestTransportResponseCloseRace(t *testing.T) {
 		sawRace = true
 	})
 	defer SetInstallConnClosedHook(nil)
+
+	SetTestHookWaitResLoop(func() {
+		// Make the select race much more likely by blocking before
+		// the select, so both will be ready by the time the
+		// select runs.
+		time.Sleep(50 * time.Millisecond)
+	})
+	defer SetTestHookWaitResLoop(nil)
+
 	tr := &Transport{
 		DisableKeepAlives: true,
 	}
@@ -2624,6 +2708,7 @@ func TestTransportResponseCloseRace(t *testing.T) {
 		}
 		resp.Body.Close()
 		if sawRace {
+			t.Logf("saw race after %d iterations", i+1)
 			break
 		}
 	}
@@ -2844,6 +2929,27 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	}
 	if fail > 0 {
 		t.Errorf("Failed %v out of %v\n", fail, count)
+	}
+}
+
+func TestTransportAutomaticHTTP2(t *testing.T) {
+	tr := &Transport{}
+	_, err := tr.RoundTrip(new(Request))
+	if err == nil {
+		t.Error("expected error from RoundTrip")
+	}
+	if tr.TLSNextProto["h2"] == nil {
+		t.Errorf("HTTP/2 not registered.")
+	}
+
+	// Now with TLSNextProto set:
+	tr = &Transport{TLSNextProto: make(map[string]func(string, *tls.Conn) RoundTripper)}
+	_, err = tr.RoundTrip(new(Request))
+	if err == nil {
+		t.Error("expected error from RoundTrip")
+	}
+	if tr.TLSNextProto["h2"] != nil {
+		t.Errorf("HTTP/2 registered, despite non-nil TLSNextProto field")
 	}
 }
 

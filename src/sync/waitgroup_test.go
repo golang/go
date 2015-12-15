@@ -5,6 +5,7 @@
 package sync_test
 
 import (
+	"internal/race"
 	"runtime"
 	. "sync"
 	"sync/atomic"
@@ -48,7 +49,7 @@ func TestWaitGroup(t *testing.T) {
 }
 
 func knownRacy(t *testing.T) {
-	if RaceEnabled {
+	if race.Enabled {
 		t.Skip("skipping known-racy test under the race detector")
 	}
 }

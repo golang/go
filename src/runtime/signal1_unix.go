@@ -228,11 +228,11 @@ func ensureSigM() {
 		for {
 			select {
 			case sig := <-enableSigChan:
-				if b := sig - 1; b >= 0 {
+				if b := sig - 1; sig > 0 {
 					sigBlocked[b/32] &^= (1 << (b & 31))
 				}
 			case sig := <-disableSigChan:
-				if b := sig - 1; b >= 0 {
+				if b := sig - 1; sig > 0 {
 					sigBlocked[b/32] |= (1 << (b & 31))
 				}
 			}

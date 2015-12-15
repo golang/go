@@ -95,6 +95,7 @@ const (
 	// flags
 	iterator    = 1 // there may be an iterator using buckets
 	oldIterator = 2 // there may be an iterator using oldbuckets
+	hashWriting = 4 // a goroutine is writing to the map
 
 	// sentinel bucket ID for iterator checks
 	noCheck = 1<<(8*sys.PtrSize) - 1
@@ -284,6 +285,9 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr))
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
+	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
@@ -335,6 +339,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
+	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
 	m := uintptr(1)<<h.B - 1
@@ -377,6 +384,9 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return nil, nil
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
 	}
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
@@ -431,6 +441,10 @@ func mapassign1(t *maptype, h *hmap, key unsafe.Pointer, val unsafe.Pointer) {
 		msanread(key, t.key.size)
 		msanread(val, t.elem.size)
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	h.flags |= hashWriting
 
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
@@ -481,7 +495,7 @@ again:
 				v2 = *((*unsafe.Pointer)(v2))
 			}
 			typedmemmove(t.elem, v2, val)
-			return
+			goto done
 		}
 		ovf := b.overflow(t)
 		if ovf == nil {
@@ -520,6 +534,12 @@ again:
 	typedmemmove(t.elem, insertv, val)
 	*inserti = top
 	h.count++
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
 }
 
 func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
@@ -535,6 +555,11 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map writes")
+	}
+	h.flags |= hashWriting
+
 	alg := t.key.alg
 	hash := alg.hash(key, uintptr(h.hash0))
 	bucket := hash & (uintptr(1)<<h.B - 1)
@@ -564,13 +589,19 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
 			memclr(v, uintptr(t.valuesize))
 			b.tophash[i] = empty
 			h.count--
-			return
+			goto done
 		}
 		b = b.overflow(t)
 		if b == nil {
-			return
+			goto done
 		}
 	}
+
+done:
+	if h.flags&hashWriting == 0 {
+		throw("concurrent map writes")
+	}
+	h.flags &^= hashWriting
 }
 
 func mapiterinit(t *maptype, h *hmap, it *hiter) {

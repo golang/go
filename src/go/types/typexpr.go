@@ -373,16 +373,19 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 		}
 		return 0
 	}
-	if !x.isInteger() {
-		check.errorf(x.pos(), "array length %s must be integer", &x)
-		return 0
+	if isUntyped(x.typ) || isInteger(x.typ) {
+		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
+			if representableConst(val, check.conf, Typ[Int], nil) {
+				if n, ok := constant.Int64Val(val); ok && n >= 0 {
+					return n
+				}
+				check.errorf(x.pos(), "invalid array length %s", &x)
+				return 0
+			}
+		}
 	}
-	n, ok := constant.Int64Val(x.val)
-	if !ok || n < 0 {
-		check.errorf(x.pos(), "invalid array length %s", &x)
-		return 0
-	}
-	return n
+	check.errorf(x.pos(), "array length %s must be integer", &x)
+	return 0
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {

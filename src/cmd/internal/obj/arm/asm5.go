@@ -614,7 +614,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			}
 		}
 
-		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP && p.As != obj.AUSEFIELD) {
 			ctxt.Diag("zero-width instruction\n%v", p)
 			continue
 		}
@@ -710,7 +710,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 			if m/4 > len(out) {
 				ctxt.Diag("instruction size too large: %d > %d", m/4, len(out))
 			}
-			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP && p.As != obj.AUSEFIELD) {
 				if p.As == obj.ATEXT {
 					ctxt.Autosize = int32(p.To.Offset + 4)
 					continue

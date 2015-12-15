@@ -367,6 +367,10 @@ func (r *Request) WriteProxy(w io.Writer) error {
 	return r.write(w, true, nil, nil)
 }
 
+// errMissingHost is returned by Write when there is no Host or URL present in
+// the Request.
+var errMissingHost = errors.New("http: Request.Write on Request with no Host or URL set")
+
 // extraHeaders may be nil
 // waitForContinue may be nil
 func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitForContinue func() bool) error {
@@ -377,7 +381,7 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 	host := cleanHost(req.Host)
 	if host == "" {
 		if req.URL == nil {
-			return errors.New("http: Request.Write on Request with no Host or URL set")
+			return errMissingHost
 		}
 		host = cleanHost(req.URL.Host)
 	}
@@ -577,6 +581,12 @@ func validMethod(method string) bool {
 // type's documentation for the difference between inbound and outbound
 // request fields.
 func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+	if method == "" {
+		// We document that "" means "GET" for Request.Method, and people have
+		// relied on that from NewRequest, so keep that working.
+		// We still enforce validMethod for non-empty methods.
+		method = "GET"
+	}
 	if !validMethod(method) {
 		return nil, fmt.Errorf("net/http: invalid method %q", method)
 	}
@@ -1041,4 +1051,12 @@ func (r *Request) closeBody() {
 	if r.Body != nil {
 		r.Body.Close()
 	}
+}
+
+func (r *Request) isReplayable() bool {
+	return r.Body == nil &&
+		(r.Method == "GET" ||
+			r.Method == "HEAD" ||
+			r.Method == "OPTIONS" ||
+			r.Method == "TRACE")
 }

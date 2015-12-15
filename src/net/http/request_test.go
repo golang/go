@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	. "net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
@@ -177,9 +176,11 @@ func TestParseMultipartForm(t *testing.T) {
 	}
 }
 
-func TestRedirect(t *testing.T) {
+func TestRedirect_h1(t *testing.T) { testRedirect(t, h1Mode) }
+func TestRedirect_h2(t *testing.T) { testRedirect(t, h2Mode) }
+func testRedirect(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		switch r.URL.Path {
 		case "/":
 			w.Header().Set("Location", "/foo/")
@@ -190,10 +191,10 @@ func TestRedirect(t *testing.T) {
 			w.WriteHeader(StatusBadRequest)
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
 	var end = regexp.MustCompile("/foo/$")
-	r, err := Get(ts.URL)
+	r, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,6 +370,13 @@ func TestRequestInvalidMethod(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "invalid method") {
 		t.Errorf("Transport error = %v; want invalid method", err)
 	}
+
+	req, err = NewRequest("", "http://foo.com/", nil)
+	if err != nil {
+		t.Errorf("NewRequest(empty method) = %v; want nil", err)
+	} else if req.Method != "GET" {
+		t.Errorf("NewRequest(empty method) has method %q; want GET", req.Method)
+	}
 }
 
 func TestNewRequestContentLength(t *testing.T) {
@@ -531,10 +539,12 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 
 func TestRequestBadHost(t *testing.T) {
 	got := []string{}
-	req, err := NewRequest("GET", "http://foo.com with spaces/after", nil)
+	req, err := NewRequest("GET", "http://foo/after", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	req.Host = "foo.com with spaces"
+	req.URL.Host = "foo.com with spaces"
 	req.Write(logWrites{t, &got})
 	want := []string{
 		"GET /after HTTP/1.1\r\n",

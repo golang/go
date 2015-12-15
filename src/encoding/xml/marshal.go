@@ -48,6 +48,8 @@ const (
 //       field name in the XML element.
 //     - a field with tag ",chardata" is written as character data,
 //       not as an XML element.
+//     - a field with tag ",cdata" is written as character data
+//       wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
 //     - a field with tag ",innerxml" is written verbatim, not subject
 //       to the usual marshalling procedure.
 //     - a field with tag ",comment" is written as an XML comment, not

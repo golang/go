@@ -5,6 +5,7 @@
 package httputil
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -135,6 +136,14 @@ var dumpTests = []dumpTest{
 			"Accept-Encoding: gzip\r\n\r\n" +
 			strings.Repeat("a", 8193),
 	},
+
+	{
+		Req: *mustReadRequest("GET http://foo.com/ HTTP/1.1\r\n" +
+			"User-Agent: blah\r\n\r\n"),
+		NoBody: true,
+		WantDump: "GET http://foo.com/ HTTP/1.1\r\n" +
+			"User-Agent: blah\r\n\r\n",
+	},
 }
 
 func TestDumpRequest(t *testing.T) {
@@ -207,6 +216,14 @@ func mustNewRequest(method, url string, body io.Reader) *http.Request {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		panic(fmt.Sprintf("NewRequest(%q, %q, %p) err = %v", method, url, body, err))
+	}
+	return req
+}
+
+func mustReadRequest(s string) *http.Request {
+	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(s)))
+	if err != nil {
+		panic(err)
 	}
 	return req
 }

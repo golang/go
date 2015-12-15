@@ -40,15 +40,6 @@ var DefaultTransport RoundTripper = &Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
-func init() {
-	if !strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
-		err := http2ConfigureTransport(DefaultTransport.(*Transport))
-		if err != nil {
-			panic(err)
-		}
-	}
-}
-
 // DefaultMaxIdleConnsPerHost is the default value of Transport's
 // MaxIdleConnsPerHost.
 const DefaultMaxIdleConnsPerHost = 2
@@ -138,10 +129,28 @@ type Transport struct {
 	// called with the request's authority (such as "example.com"
 	// or "example.com:1234") and the TLS connection. The function
 	// must return a RoundTripper that then handles the request.
+	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
+
+	nextProtoOnce sync.Once // guards initialization of TLSNextProto (onceSetNextProtoDefaults)
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
+}
+
+// onceSetNextProtoDefaults initializes TLSNextProto.
+// It must be called via t.nextProtoOnce.Do.
+func (t *Transport) onceSetNextProtoDefaults() {
+	if strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
+		return
+	}
+	if t.TLSNextProto != nil {
+		return
+	}
+	err := http2ConfigureTransport(t)
+	if err != nil {
+		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
+	}
 }
 
 // ProxyFromEnvironment returns the URL of the proxy to use for a
@@ -216,6 +225,7 @@ func (tr *transportRequest) extraHeaders() Header {
 // For higher-level HTTP client support (such as handling of cookies
 // and redirects), see Get, Post, and the Client type.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	if req.URL == nil {
 		req.closeBody()
 		return nil, errors.New("http: nil Request.URL")
@@ -244,28 +254,77 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		req.closeBody()
 		return nil, errors.New("http: no Host in request URL")
 	}
-	treq := &transportRequest{Request: req}
-	cm, err := t.connectMethodForRequest(treq)
-	if err != nil {
-		req.closeBody()
-		return nil, err
-	}
 
-	// Get the cached or newly-created connection to either the
-	// host (for http or https), the http proxy, or the http proxy
-	// pre-CONNECTed to https server.  In any case, we'll be ready
-	// to send it requests.
-	pconn, err := t.getConn(req, cm)
-	if err != nil {
-		t.setReqCanceler(req, nil)
-		req.closeBody()
-		return nil, err
+	for {
+		// treq gets modified by roundTrip, so we need to recreate for each retry.
+		treq := &transportRequest{Request: req}
+		cm, err := t.connectMethodForRequest(treq)
+		if err != nil {
+			req.closeBody()
+			return nil, err
+		}
+
+		// Get the cached or newly-created connection to either the
+		// host (for http or https), the http proxy, or the http proxy
+		// pre-CONNECTed to https server.  In any case, we'll be ready
+		// to send it requests.
+		pconn, err := t.getConn(req, cm)
+		if err != nil {
+			t.setReqCanceler(req, nil)
+			req.closeBody()
+			return nil, err
+		}
+
+		var resp *Response
+		if pconn.alt != nil {
+			// HTTP/2 path.
+			resp, err = pconn.alt.RoundTrip(req)
+		} else {
+			resp, err = pconn.roundTrip(treq)
+		}
+		if err == nil {
+			return resp, nil
+		}
+		if err := checkTransportResend(err, req, pconn); err != nil {
+			return nil, err
+		}
+		testHookRoundTripRetried()
 	}
-	if pconn.alt != nil {
-		// HTTP/2 path.
-		return pconn.alt.RoundTrip(req)
+}
+
+// checkTransportResend checks whether a failed HTTP request can be
+// resent on a new connection. The non-nil input error is the error from
+// roundTrip, which might be wrapped in a beforeRespHeaderError error.
+//
+// The return value is err or the unwrapped error inside a
+// beforeRespHeaderError.
+func checkTransportResend(err error, req *Request, pconn *persistConn) error {
+	brhErr, ok := err.(beforeRespHeaderError)
+	if !ok {
+		return err
 	}
-	return pconn.roundTrip(treq)
+	err = brhErr.error // unwrap the custom error in case we return it
+	if err != errMissingHost && pconn.isReused() && req.isReplayable() {
+		// If we try to reuse a connection that the server is in the process of
+		// closing, we may end up successfully writing out our request (or a
+		// portion of our request) only to find a connection error when we try to
+		// read from (or finish writing to) the socket.
+
+		// There can be a race between the socket pool checking whether a socket
+		// is still connected, receiving the FIN, and sending/reading data on a
+		// reused socket. If we receive the FIN between the connectedness check
+		// and writing/reading from the socket, we may first learn the socket is
+		// disconnected when we get a ERR_SOCKET_NOT_CONNECTED. This will most
+		// likely happen when trying to retrieve its IP address. See
+		// http://crbug.com/105824 for more details.
+
+		// We resend a request only if we reused a keep-alive connection and did
+		// not yet receive any header data. This automatically prevents an
+		// infinite resend loop because we'll run out of the cached keep-alive
+		// connections eventually.
+		return nil
+	}
+	return err
 }
 
 // ErrSkipAltProtocol is a sentinel error value defined by Transport.RegisterProtocol.
@@ -408,6 +467,7 @@ func (t *Transport) putIdleConn(pconn *persistConn) bool {
 	if max == 0 {
 		max = DefaultMaxIdleConnsPerHost
 	}
+	pconn.markReused()
 	t.idleMu.Lock()
 
 	waitingDialer := t.idleConnCh[key]
@@ -538,9 +598,6 @@ func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
 	return net.Dial(network, addr)
 }
 
-// Testing hooks:
-var prePendingDial, postPendingDial func()
-
 // getConn dials and creates a new persistConn to the target as
 // specified in the connectMethod.  This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
@@ -562,20 +619,16 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 
 	// Copy these hooks so we don't race on the postPendingDial in
 	// the goroutine we launch. Issue 11136.
-	prePendingDial := prePendingDial
-	postPendingDial := postPendingDial
+	testHookPrePendingDial := testHookPrePendingDial
+	testHookPostPendingDial := testHookPostPendingDial
 
 	handlePendingDial := func() {
-		if prePendingDial != nil {
-			prePendingDial()
-		}
+		testHookPrePendingDial()
 		go func() {
 			if v := <-dialc; v.err == nil {
 				t.putIdleConn(v.pc)
 			}
-			if postPendingDial != nil {
-				postPendingDial()
-			}
+			testHookPostPendingDial()
 		}()
 	}
 
@@ -879,6 +932,7 @@ type persistConn struct {
 	closed               bool // whether conn has been closed
 	broken               bool // an error has happened on this connection; marked broken so it's not reused.
 	canceled             bool // whether this conn was broken due a CancelRequest
+	reused               bool // whether conn has had successful request/response and is being reused.
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
 	// original Request given to RoundTrip is not modified)
@@ -898,6 +952,14 @@ func (pc *persistConn) isCanceled() bool {
 	pc.lk.Lock()
 	defer pc.lk.Unlock()
 	return pc.canceled
+}
+
+// isReused reports whether this connection is in a known broken state.
+func (pc *persistConn) isReused() bool {
+	pc.lk.Lock()
+	r := pc.reused
+	pc.lk.Unlock()
+	return r
 }
 
 func (pc *persistConn) cancelRequest() {
@@ -922,6 +984,9 @@ func (pc *persistConn) readLoop() {
 	alive := true
 	for alive {
 		pb, err := pc.br.Peek(1)
+		if err != nil {
+			err = beforeRespHeaderError{err}
+		}
 
 		pc.lk.Lock()
 		if pc.numExpectedResponses == 0 {
@@ -1004,7 +1069,13 @@ func (pc *persistConn) readLoop() {
 			// on t from this persistConn while the Transport
 			// potentially spins up a different persistConn for the
 			// caller's subsequent request.
-			pc.t.setReqCanceler(rc.req, nil)
+			//
+			// If this request will be retried, don't clear the reqCanceler
+			// yet or else roundTrip thinks it's been canceled.
+			if err == nil ||
+				checkTransportResend(err, rc.req, pc) != nil {
+				pc.t.setReqCanceler(rc.req, nil)
+			}
 		}
 
 		pc.lk.Lock()
@@ -1048,10 +1119,7 @@ func (pc *persistConn) readLoop() {
 				pc.wroteRequest() &&
 				pc.t.putIdleConn(pc)
 		}
-
-		if hook := testHookReadLoopBeforeNextRead; hook != nil {
-			hook()
-		}
+		testHookReadLoopBeforeNextRead()
 	}
 	pc.close()
 }
@@ -1178,18 +1246,29 @@ var errTimeout error = &httpError{err: "net/http: timeout awaiting response head
 var errClosed error = &httpError{err: "net/http: transport closed before response was received"}
 var errRequestCanceled = errors.New("net/http: request canceled")
 
-// nil except for tests
+func nop() {}
+
+// testHooks. Always non-nil.
 var (
-	testHookPersistConnClosedGotRes func()
-	testHookEnterRoundTrip          func()
-	testHookMu                      sync.Locker = fakeLocker{} // guards following
-	testHookReadLoopBeforeNextRead  func()
+	testHookPersistConnClosedGotRes = nop
+	testHookEnterRoundTrip          = nop
+	testHookWaitResLoop             = nop
+	testHookRoundTripRetried        = nop
+	testHookPrePendingDial          = nop
+	testHookPostPendingDial         = nop
+
+	testHookMu                     sync.Locker = fakeLocker{} // guards following
+	testHookReadLoopBeforeNextRead             = nop
 )
 
+// beforeRespHeaderError is used to indicate when an IO error has occurred before
+// any header data was received.
+type beforeRespHeaderError struct {
+	error
+}
+
 func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
-	if hook := testHookEnterRoundTrip; hook != nil {
-		hook()
-	}
+	testHookEnterRoundTrip()
 	if !pc.t.replaceReqCanceler(req.Request, pc.cancelRequest) {
 		pc.t.putIdleConn(pc)
 		return nil, errRequestCanceled
@@ -1251,6 +1330,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	cancelChan := req.Request.Cancel
 WaitResponse:
 	for {
+		testHookWaitResLoop()
 		select {
 		case err := <-writeErrCh:
 			if isNetWriteError(err) {
@@ -1267,7 +1347,7 @@ WaitResponse:
 				}
 			}
 			if err != nil {
-				re = responseAndError{nil, err}
+				re = responseAndError{nil, beforeRespHeaderError{err}}
 				pc.close()
 				break WaitResponse
 			}
@@ -1289,11 +1369,9 @@ WaitResponse:
 			// with a non-blocking receive.
 			select {
 			case re = <-resc:
-				if fn := testHookPersistConnClosedGotRes; fn != nil {
-					fn()
-				}
+				testHookPersistConnClosedGotRes()
 			default:
-				re = responseAndError{err: errClosed}
+				re = responseAndError{err: beforeRespHeaderError{errClosed}}
 				if pc.isCanceled() {
 					re = responseAndError{err: errRequestCanceled}
 				}
@@ -1324,6 +1402,14 @@ func (pc *persistConn) markBroken() {
 	pc.lk.Lock()
 	defer pc.lk.Unlock()
 	pc.broken = true
+}
+
+// markReused marks this connection as having been successfully used for a
+// request and response.
+func (pc *persistConn) markReused() {
+	pc.lk.Lock()
+	pc.reused = true
+	pc.lk.Unlock()
 }
 
 func (pc *persistConn) close() {

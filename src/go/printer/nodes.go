@@ -1185,6 +1185,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 			case *ast.BlockStmt, *ast.IfStmt:
 				p.stmt(s.Else, nextIsRBrace)
 			default:
+				// This can only happen with an incorrectly
+				// constructed AST. Permit it but print so
+				// that it can be parsed without errors.
 				p.print(token.LBRACE, indent, formfeed)
 				p.stmt(s.Else, true)
 				p.print(unindent, formfeed, token.RBRACE)

@@ -8,6 +8,7 @@ package http_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -35,6 +36,11 @@ func (t *clientServerTest) close() {
 	t.tr.CloseIdleConnections()
 	t.ts.Close()
 }
+
+const (
+	h1Mode = false
+	h2Mode = true
+)
 
 func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
 	cst := &clientServerTest{
@@ -86,8 +92,8 @@ func TestNewClientServerTest(t *testing.T) {
 	}
 }
 
-func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, false) }
-func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, true) }
+func TestChunkedResponseHeaders_h1(t *testing.T) { testChunkedResponseHeaders(t, h1Mode) }
+func TestChunkedResponseHeaders_h2(t *testing.T) { testChunkedResponseHeaders(t, h2Mode) }
 
 func testChunkedResponseHeaders(t *testing.T, h2 bool) {
 	defer afterTest(t)
@@ -120,15 +126,17 @@ func testChunkedResponseHeaders(t *testing.T, h2 bool) {
 	}
 }
 
+type reqFunc func(c *Client, url string) (*Response, error)
+
 // h12Compare is a test that compares HTTP/1 and HTTP/2 behavior
 // against each other.
 type h12Compare struct {
-	Handler       func(ResponseWriter, *Request)                 // required
-	ReqFunc       func(c *Client, url string) (*Response, error) // optional
-	CheckResponse func(proto string, res *Response)              // optional
+	Handler       func(ResponseWriter, *Request)    // required
+	ReqFunc       reqFunc                           // optional
+	CheckResponse func(proto string, res *Response) // optional
 }
 
-func (tt h12Compare) reqFunc() func(c *Client, url string) (*Response, error) {
+func (tt h12Compare) reqFunc() reqFunc {
 	if tt.ReqFunc == nil {
 		return (*Client).Get
 	}
@@ -154,10 +162,12 @@ func (tt h12Compare) run(t *testing.T) {
 	tt.normalizeRes(t, res1, "HTTP/1.1")
 	tt.normalizeRes(t, res2, "HTTP/2.0")
 	res1body, res2body := res1.Body, res2.Body
-	res1.Body, res2.Body = nil, nil
-	if !reflect.DeepEqual(res1, res2) {
+
+	eres1 := mostlyCopy(res1)
+	eres2 := mostlyCopy(res2)
+	if !reflect.DeepEqual(eres1, eres2) {
 		t.Errorf("Response headers to handler differed:\nhttp/1 (%v):\n\t%#v\nhttp/2 (%v):\n\t%#v",
-			cst1.ts.URL, res1, cst2.ts.URL, res2)
+			cst1.ts.URL, eres1, cst2.ts.URL, eres2)
 	}
 	if !reflect.DeepEqual(res1body, res2body) {
 		t.Errorf("Response bodies to handler differed.\nhttp1: %v\nhttp2: %v\n", res1body, res2body)
@@ -167,6 +177,15 @@ func (tt h12Compare) run(t *testing.T) {
 		fn("HTTP/1.1", res1)
 		fn("HTTP/2.0", res2)
 	}
+}
+
+func mostlyCopy(r *Response) *Response {
+	c := *r
+	c.Body = nil
+	c.TransferEncoding = nil
+	c.TLS = nil
+	c.Request = nil
+	return &c
 }
 
 type slurpResult struct {
@@ -193,19 +212,42 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
 	for i, v := range res.Header["Date"] {
 		res.Header["Date"][i] = strings.Repeat("x", len(v))
 	}
-	res.Request = nil
+	if res.Request == nil {
+		t.Errorf("for %s, no request", wantProto)
+	}
 	if (res.TLS != nil) != (wantProto == "HTTP/2.0") {
-		t.Errorf("%d. TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
+		t.Errorf("TLS set = %v; want %v", res.TLS != nil, res.TLS == nil)
 	}
-	res.TLS = nil
-	// For now the HTTP/2 code isn't lying and saying
-	// things are "chunked", since that's an HTTP/1.1
-	// thing. I'd prefer not to lie and it shouldn't break
-	// people.  I hope nobody's relying on that as a
-	// heuristic for anything.
-	if wantProto == "HTTP/2.0" && res.ContentLength == -1 && res.TransferEncoding == nil {
-		res.TransferEncoding = []string{"chunked"}
-	}
+}
+
+// Issue 13532
+func TestH12_HeadContentLengthNoBody(t *testing.T) {
+	h12Compare{
+		ReqFunc: (*Client).Head,
+		Handler: func(w ResponseWriter, r *Request) {
+		},
+	}.run(t)
+}
+
+func TestH12_HeadContentLengthSmallBody(t *testing.T) {
+	h12Compare{
+		ReqFunc: (*Client).Head,
+		Handler: func(w ResponseWriter, r *Request) {
+			io.WriteString(w, "small")
+		},
+	}.run(t)
+}
+
+func TestH12_HeadContentLengthLargeBody(t *testing.T) {
+	h12Compare{
+		ReqFunc: (*Client).Head,
+		Handler: func(w ResponseWriter, r *Request) {
+			chunk := strings.Repeat("x", 512<<10)
+			for i := 0; i < 10; i++ {
+				io.WriteString(w, chunk)
+			}
+		},
+	}.run(t)
 }
 
 func TestH12_200NoBody(t *testing.T) {
@@ -317,14 +359,27 @@ func TestH12_HandlerWritesTooMuch(t *testing.T) {
 	}.run(t)
 }
 
-// TODO: TestH12_Trailers
-// TODO: TestH12_AutoGzip (golang.org/issue/13298)
+// Verify that both our HTTP/1 and HTTP/2 request and auto-decompress gzip.
+// Some hosts send gzip even if you don't ask for it; see golang.org/issue/13298
+func TestH12_AutoGzip(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			if ae := r.Header.Get("Accept-Encoding"); ae != "gzip" {
+				t.Errorf("%s Accept-Encoding = %q; want gzip", r.Proto, ae)
+			}
+			w.Header().Set("Content-Encoding", "gzip")
+			gz := gzip.NewWriter(w)
+			io.WriteString(gz, "I am some gzipped content. Go go go go go go go go go go go go should compress well.")
+			gz.Close()
+		},
+	}.run(t)
+}
 
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce
 // output.
-func Test304Responses_h1(t *testing.T) { test304Responses(t, false) }
-func Test304Responses_h2(t *testing.T) { test304Responses(t, true) }
+func Test304Responses_h1(t *testing.T) { test304Responses(t, h1Mode) }
+func Test304Responses_h2(t *testing.T) { test304Responses(t, h2Mode) }
 
 func test304Responses(t *testing.T, h2 bool) {
 	defer afterTest(t)
@@ -349,5 +404,54 @@ func test304Responses(t *testing.T, h2 bool) {
 	}
 	if len(body) > 0 {
 		t.Errorf("got unexpected body %q", string(body))
+	}
+}
+
+func TestH12_ServerEmptyContentLength(t *testing.T) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			w.Header()["Content-Type"] = []string{""}
+			io.WriteString(w, "<html><body>hi</body></html>")
+		},
+	}.run(t)
+}
+
+// Tests that closing the Request.Cancel channel also while still
+// reading the response body. Issue 13159.
+func TestCancelRequestMidBody_h1(t *testing.T) { testCancelRequestMidBody(t, h1Mode) }
+func TestCancelRequestMidBody_h2(t *testing.T) { testCancelRequestMidBody(t, h2Mode) }
+func testCancelRequestMidBody(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	unblock := make(chan bool)
+	didFlush := make(chan bool, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, "Hello")
+		w.(Flusher).Flush()
+		didFlush <- true
+		<-unblock
+		io.WriteString(w, ", world.")
+		<-unblock
+	}))
+	defer cst.close()
+	defer close(unblock)
+
+	req, _ := NewRequest("GET", cst.ts.URL, nil)
+	cancel := make(chan struct{})
+	req.Cancel = cancel
+
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	<-didFlush
+	close(cancel)
+
+	slurp, err := ioutil.ReadAll(res.Body)
+	if string(slurp) != "Hello" {
+		t.Errorf("Read %q; want Hello", slurp)
+	}
+	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
+		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
 	}
 }

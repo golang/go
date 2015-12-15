@@ -1420,8 +1420,8 @@ typedef GoUintGOINTBITS GoUint;
 typedef __SIZE_TYPE__ GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;
-typedef __complex float GoComplex64;
-typedef __complex double GoComplex128;
+typedef float _Complex GoComplex64;
+typedef double _Complex GoComplex128;
 
 /*
   static assertion to make sure the file is being used on architecture
@@ -1429,7 +1429,7 @@ typedef __complex double GoComplex128;
 */
 typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
 
-typedef struct { char *p; GoInt n; } GoString;
+typedef struct { const char *p; GoInt n; } GoString;
 typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;

@@ -18,14 +18,14 @@ func main() {
 
 	// Any implementation must be able to handle these constants at
 	// compile time (even though they cannot be assigned to a float64).
-	var _ = 1e646456992  // ERROR "1.00000e\+646456992 overflows float64"
-	var _ = 1e64645699   // ERROR "1.00000e\+64645699 overflows float64"
-	var _ = 1e6464569    // ERROR "1.00000e\+6464569 overflows float64"
-	var _ = 1e646456     // ERROR "1.00000e\+646456 overflows float64"
-	var _ = 1e64645      // ERROR "1.00000e\+64645 overflows float64"
-	var _ = 1e6464       // ERROR "1.00000e\+6464 overflows float64"
-	var _ = 1e646        // ERROR "1.00000e\+646 overflows float64"
-	var _ = 1e309        // ERROR "1.00000e\+309 overflows float64"
+	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64"
+	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64"
+	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64"
+	var _ = 1e646456     // ERROR "1e\+646456 overflows float64"
+	var _ = 1e64645      // ERROR "1e\+64645 overflows float64"
+	var _ = 1e6464       // ERROR "1e\+6464 overflows float64"
+	var _ = 1e646        // ERROR "1e\+646 overflows float64"
+	var _ = 1e309        // ERROR "1e\+309 overflows float64"
 
 	var _ = 1e308
 }

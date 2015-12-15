@@ -534,8 +534,9 @@ func stringEncoder(e *encodeState, v reflect.Value, quoted bool) {
 		// we keep compatibility so check validity after this.
 		if numStr == "" {
 			numStr = "0" // Number's zero-val
-		} else if !Number(numStr).IsValid() {
-			e.error(fmt.Errorf("json: invalid number literal, trying to marshal %s", v.String()))
+		}
+		if !isValidNumber(numStr) {
+			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
 		}
 		e.WriteString(numStr)
 		return

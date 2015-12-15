@@ -90,13 +90,11 @@ func lengthCode(len uint32) uint32 { return lengthCodes[len] }
 
 // Returns the offset code corresponding to a specific offset
 func offsetCode(off uint32) uint32 {
-	const n = uint32(len(offsetCodes))
-	switch {
-	case off < n:
+	if off < uint32(len(offsetCodes)) {
 		return offsetCodes[off]
-	case off>>7 < n:
-		return offsetCodes[off>>7] + 14
-	default:
-		return offsetCodes[off>>14] + 28
 	}
+	if off>>7 < uint32(len(offsetCodes)) {
+		return offsetCodes[off>>7] + 14
+	}
+	return offsetCodes[off>>14] + 28
 }

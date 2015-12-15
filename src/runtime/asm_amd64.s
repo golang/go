@@ -378,8 +378,9 @@ TEXT runtime·stackBarrier(SB),NOSPLIT,$0
 	MOVQ	stkbar_savedLRPtr(DX)(BX*1), R8
 	MOVQ	stkbar_savedLRVal(DX)(BX*1), BX
 	// Assert that we're popping the right saved LR.
+	ADDQ	$8, R8
 	CMPQ	R8, SP
-	JNE	2(PC)
+	JEQ	2(PC)
 	MOVL	$0, 0
 	// Record that this stack barrier was hit.
 	ADDQ	$1, g_stkbarPos(CX)

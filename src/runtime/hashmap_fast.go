@@ -18,6 +18,9 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr))
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
+	}
 	var b *bmap
 	if h.B == 0 {
 		// One-bucket table.  No need to hash.
@@ -59,6 +62,9 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 	}
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
 	}
 	var b *bmap
 	if h.B == 0 {
@@ -102,6 +108,9 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr))
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
+	}
 	var b *bmap
 	if h.B == 0 {
 		// One-bucket table.  No need to hash.
@@ -144,6 +153,9 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
 	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
+	}
 	var b *bmap
 	if h.B == 0 {
 		// One-bucket table.  No need to hash.
@@ -185,6 +197,9 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 	}
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr))
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
 	}
 	key := stringStructOf(&ky)
 	if h.B == 0 {
@@ -287,6 +302,9 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 	}
 	if h == nil || h.count == 0 {
 		return atomic.Loadp(unsafe.Pointer(&zeroptr)), false
+	}
+	if h.flags&hashWriting != 0 {
+		throw("concurrent map read and map write")
 	}
 	key := stringStructOf(&ky)
 	if h.B == 0 {

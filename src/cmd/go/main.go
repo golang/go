@@ -353,7 +353,7 @@ func importPathsNoDotExpansion(args []string) []string {
 		} else {
 			a = path.Clean(a)
 		}
-		if a == "all" || a == "std" || a == "cmd" {
+		if isMetaPackage(a) {
 			out = append(out, allPackages(a)...)
 			continue
 		}
@@ -554,7 +554,7 @@ func allPackages(pattern string) []string {
 func matchPackages(pattern string) []string {
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
-	if pattern != "all" && pattern != "std" && pattern != "cmd" {
+	if !isMetaPackage(pattern) {
 		match = matchPattern(pattern)
 		treeCanMatch = treeCanMatchPattern(pattern)
 	}

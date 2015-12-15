@@ -155,20 +155,28 @@ func TestFuzz(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		err := Encode(&buf, &block)
-		decoded, rest := Decode(buf.Bytes())
-
-		switch {
-		case err != nil:
+		if err := Encode(&buf, &block); err != nil {
 			t.Errorf("Encode of %#v resulted in error: %s", &block, err)
-		case !reflect.DeepEqual(&block, decoded):
-			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
-		case len(rest) != 0:
-			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
-		default:
-			return true
+			return false
 		}
-		return false
+		decoded, rest := Decode(buf.Bytes())
+		if block.Headers == nil {
+			// Encoder supports nil Headers but decoder returns initialized.
+			block.Headers = make(map[string]string)
+		}
+		if block.Bytes == nil {
+			// Encoder supports nil Bytes but decoder returns initialized.
+			block.Bytes = make([]byte, 0)
+		}
+		if !reflect.DeepEqual(decoded, &block) {
+			t.Errorf("Encode of %#v decoded as %#v", &block, decoded)
+			return false
+		}
+		if len(rest) != 0 {
+			t.Errorf("Encode of %#v decoded correctly, but with %x left over", block, rest)
+			return false
+		}
+		return true
 	}
 
 	// Explicitly test the empty block.

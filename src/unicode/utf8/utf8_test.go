@@ -100,6 +100,15 @@ func TestFullRune(t *testing.T) {
 			t.Errorf("FullRune(%q) = true, want false", s1)
 		}
 	}
+	for _, s := range []string{"\xc0", "\xc1"} {
+		b := []byte(s)
+		if !FullRune(b) {
+			t.Errorf("FullRune(%q) = false, want true", s)
+		}
+		if !FullRuneInString(s) {
+			t.Errorf("FullRuneInString(%q) = false, want true", s)
+		}
+	}
 }
 
 func TestEncodeRune(t *testing.T) {
