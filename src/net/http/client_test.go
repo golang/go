@@ -923,14 +923,20 @@ func TestBasicAuthHeadersPreserved(t *testing.T) {
 
 }
 
-func TestClientTimeout(t *testing.T) {
+func TestClientTimeout_h1(t *testing.T) { testClientTimeout(t, h1Mode) }
+func TestClientTimeout_h2(t *testing.T) {
+	t.Skip("skipping in http2 mode; golang.org/issue/13540")
+	testClientTimeout(t, h2Mode)
+}
+
+func testClientTimeout(t *testing.T, h2 bool) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
 	defer afterTest(t)
 	sawRoot := make(chan bool, 1)
 	sawSlow := make(chan bool, 1)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		if r.URL.Path == "/" {
 			sawRoot <- true
 			Redirect(w, r, "/slow", StatusFound)
@@ -944,13 +950,11 @@ func TestClientTimeout(t *testing.T) {
 			return
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 	const timeout = 500 * time.Millisecond
-	c := &Client{
-		Timeout: timeout,
-	}
+	cst.c.Timeout = timeout
 
-	res, err := c.Get(ts.URL)
+	res, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
