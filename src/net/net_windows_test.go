@@ -177,6 +177,18 @@ func isWindowsXP(t *testing.T) bool {
 	return major < 6
 }
 
+var (
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+	procGetACP  = modkernel32.NewProc("GetACP")
+)
+
+func isEnglishOS(t *testing.T) bool {
+	const windows_1252 = 1252 // ANSI Latin 1; Western European (Windows)
+	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
+	acp := uint32(r0)
+	return acp == windows_1252
+}
+
 func runCmd(args ...string) ([]byte, error) {
 	removeUTF8BOM := func(b []byte) []byte {
 		if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
@@ -213,39 +225,86 @@ func runCmd(args ...string) ([]byte, error) {
 	return removeUTF8BOM(out), nil
 }
 
-func netshInterfaceIPShowConfig() ([]string, error) {
-	out, err := runCmd("netsh", "interface", "ip", "show", "config")
+func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
+	out, err := runCmd("netsh", "interface", ipver, "show", "interface", "level=verbose")
 	if err != nil {
-		return nil, err
+		return err
 	}
+	// interface information is listed like:
+	//
+	//Interface Local Area Connection Parameters
+	//----------------------------------------------
+	//IfLuid                             : ethernet_6
+	//IfIndex                            : 11
+	//State                              : connected
+	//Metric                             : 10
+	//...
+	var name string
 	lines := bytes.Split(out, []byte{'\r', '\n'})
-	names := make([]string, 0)
 	for _, line := range lines {
-		f := bytes.Split(line, []byte{'"'})
-		if len(f) == 3 {
-			names = append(names, string(f[1]))
+		if bytes.HasPrefix(line, []byte("Interface ")) && bytes.HasSuffix(line, []byte(" Parameters")) {
+			f := line[len("Interface "):]
+			f = f[:len(f)-len(" Parameters")]
+			name = string(f)
+			continue
+		}
+		var isup bool
+		switch string(line) {
+		case "State                              : connected":
+			isup = true
+		case "State                              : disconnected":
+			isup = false
+		default:
+			continue
+		}
+		if name != "" {
+			if v, ok := ifaces[name]; ok && v != isup {
+				return fmt.Errorf("%s:%s isup=%v: ipv4 and ipv6 report different interface state", ipver, name, isup)
+			}
+			ifaces[name] = isup
+			name = ""
 		}
 	}
-	return names, nil
+	return nil
 }
 
 func TestInterfacesWithNetsh(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}
+	if !isEnglishOS(t) {
+		t.Skip("English version of OS required for this test")
+	}
+
+	toString := func(name string, isup bool) string {
+		if isup {
+			return name + ":up"
+		}
+		return name + ":down"
+	}
+
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
 	}
 	have := make([]string, 0)
 	for _, ifi := range ift {
-		have = append(have, ifi.Name)
+		have = append(have, toString(ifi.Name, ifi.Flags&FlagUp != 0))
 	}
 	sort.Strings(have)
 
-	want, err := netshInterfaceIPShowConfig()
+	ifaces := make(map[string]bool)
+	err = netshInterfaceIPShowInterface("ipv6", ifaces)
 	if err != nil {
 		t.Fatal(err)
+	}
+	err = netshInterfaceIPShowInterface("ipv4", ifaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make([]string, 0)
+	for name, isup := range ifaces {
+		want = append(want, toString(name, isup))
 	}
 	sort.Strings(want)
 
@@ -324,6 +383,9 @@ func TestInterfaceAddrsWithNetsh(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}
+	if !isEnglishOS(t) {
+		t.Skip("English version of OS required for this test")
+	}
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
@@ -377,6 +439,10 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	if isWindowsXP(t) {
 		t.Skip("Windows XP does not have powershell command")
 	}
+	if !isEnglishOS(t) {
+		t.Skip("English version of OS required for this test")
+	}
+
 	ift, err := Interfaces()
 	if err != nil {
 		t.Fatal(err)
