@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of November 30, 2015",
+	"Subtitle": "Version of December 15, 2015",
 	"Path": "/ref/spec"
 }-->
 
@@ -1114,7 +1114,7 @@ one unnamed result it may be written as an unparenthesized type.
 </p>
 
 <p>
-The final parameter in a function signature may have
+The final incoming parameter in a function signature may have
 a type prefixed with <code>...</code>.
 A function with such a parameter is called <i>variadic</i> and
 may be invoked with zero or more arguments for that parameter.
@@ -2090,7 +2090,7 @@ Receiver     = Parameters .
 
 <p>
 The receiver is specified via an extra parameter section preceding the method
-name. That parameter section must declare a single parameter, the receiver.
+name. That parameter section must declare a single non-variadic parameter, the receiver.
 Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
 parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
 the receiver <i>base type</i>; it must not be a pointer or interface type and
