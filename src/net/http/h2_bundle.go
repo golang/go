@@ -1473,6 +1473,8 @@ type http2headersEnder interface {
 	HeadersEnded() bool
 }
 
+func http2requestCancel(req *Request) <-chan struct{} { return req.Cancel }
+
 var http2DebugGoroutines = os.Getenv("DEBUG_HTTP2_GOROUTINES") == "1"
 
 type http2goroutineLock uint64
@@ -2545,6 +2547,7 @@ func (sc *http2serverConn) stopShutdownTimer() {
 }
 
 func (sc *http2serverConn) notePanic() {
+
 	if http2testHookOnPanicMu != nil {
 		http2testHookOnPanicMu.Lock()
 		defer http2testHookOnPanicMu.Unlock()
@@ -2752,6 +2755,11 @@ func (sc *http2serverConn) startFrameWrite(wm http2frameWriteMsg) {
 	go sc.writeFrameAsync(wm)
 }
 
+// errHandlerPanicked is the error given to any callers blocked in a read from
+// Request.Body when the main goroutine panics. Since most handlers read in the
+// the main ServeHTTP goroutine, this will show up rarely.
+var http2errHandlerPanicked = errors.New("http2: handler panicked")
+
 // wroteFrame is called on the serve goroutine with the result of
 // whatever happened on writeFrameAsync.
 func (sc *http2serverConn) wroteFrame(res http2frameWriteResult) {
@@ -2765,6 +2773,10 @@ func (sc *http2serverConn) wroteFrame(res http2frameWriteResult) {
 	st := wm.stream
 
 	closeStream := http2endsStream(wm.write)
+
+	if _, ok := wm.write.(http2handlerPanicRST); ok {
+		sc.closeStream(st, http2errHandlerPanicked)
+	}
 
 	if ch := wm.done; ch != nil {
 		select {
@@ -3360,9 +3372,25 @@ func (sc *http2serverConn) newWriterAndRequest() (*http2responseWriter, *Request
 
 // Run on its own goroutine.
 func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, handler func(ResponseWriter, *Request)) {
-	defer rw.handlerDone()
-
+	didPanic := true
+	defer func() {
+		if didPanic {
+			e := recover()
+			// Same as net/http:
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			sc.writeFrameFromHandler(http2frameWriteMsg{
+				write:  http2handlerPanicRST{rw.rws.stream.id},
+				stream: rw.rws.stream,
+			})
+			sc.logf("http2: panic serving %v: %v\n%s", sc.conn.RemoteAddr(), e, buf)
+			return
+		}
+		rw.handlerDone()
+	}()
 	handler(rw, req)
+	didPanic = false
 }
 
 func http2handleHeaderListTooLong(w ResponseWriter, r *Request) {
@@ -3743,9 +3771,6 @@ func (w *http2responseWriter) write(lenData int, dataB []byte, dataS string) (n 
 
 func (w *http2responseWriter) handlerDone() {
 	rws := w.rws
-	if rws == nil {
-		panic("handlerDone called twice")
-	}
 	rws.handlerDone = true
 	w.Flush()
 	w.rws = nil
@@ -4279,9 +4304,11 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 			res.Request = req
 			res.TLS = cc.tlsState
 			return res, nil
-		case <-req.Cancel:
+		case <-http2requestCancel(req):
 			cs.abortRequestBodyWrite()
 			return nil, http2errRequestCanceled
+		case <-cs.peerReset:
+			return nil, cs.resetErr
 		case err := <-bodyCopyErrc:
 			if err != nil {
 				return nil, err
@@ -4630,7 +4657,7 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 		cs.bufPipe = http2pipe{b: buf}
 		cs.bytesRemain = res.ContentLength
 		res.Body = http2transportResponseBody{cs}
-		go cs.awaitRequestCancel(cs.req.Cancel)
+		go cs.awaitRequestCancel(http2requestCancel(cs.req))
 
 		if cs.requestedGzip && res.Header.Get("Content-Encoding") == "gzip" {
 			res.Header.Del("Content-Encoding")
@@ -5014,6 +5041,16 @@ func (w *http2writeData) String() string {
 
 func (w *http2writeData) writeFrame(ctx http2writeContext) error {
 	return ctx.Framer().WriteData(w.streamID, w.endStream, w.p)
+}
+
+// handlerPanicRST is the message sent from handler goroutines when
+// the handler panics.
+type http2handlerPanicRST struct {
+	StreamID uint32
+}
+
+func (hp http2handlerPanicRST) writeFrame(ctx http2writeContext) error {
+	return ctx.Framer().WriteRSTStream(hp.StreamID, http2ErrCodeInternal)
 }
 
 func (se http2StreamError) writeFrame(ctx http2writeContext) error {
