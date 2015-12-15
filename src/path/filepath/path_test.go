@@ -953,13 +953,13 @@ func TestIssue13582(t *testing.T) {
 		{link1, realFile},
 		{link2, realFile},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
 		have, err := filepath.EvalSymlinks(test.path)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if have != test.want {
-			t.Errorf("EvalSymlinks(%q) returns %q, want %q", test.path, have, test.want)
+			t.Errorf("test#%d: EvalSymlinks(%q) returns %q, want %q", i, test.path, have, test.want)
 		}
 	}
 }
