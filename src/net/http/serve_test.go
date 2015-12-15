@@ -1926,16 +1926,12 @@ func testZeroLengthPostAndResponse(t *testing.T, h2 bool) {
 }
 
 func TestHandlerPanicNil_h1(t *testing.T) { testHandlerPanic(t, false, h1Mode, nil) }
-func TestHandlerPanicNil_h2(t *testing.T) {
-	t.Skip("known failure; golang.org/issue/13555")
-	testHandlerPanic(t, false, h2Mode, nil)
-}
+func TestHandlerPanicNil_h2(t *testing.T) { testHandlerPanic(t, false, h2Mode, nil) }
 
 func TestHandlerPanic_h1(t *testing.T) {
 	testHandlerPanic(t, false, h1Mode, "intentional death for testing")
 }
 func TestHandlerPanic_h2(t *testing.T) {
-	t.Skip("known failure; golang.org/issue/13555")
 	testHandlerPanic(t, false, h2Mode, "intentional death for testing")
 }
 
