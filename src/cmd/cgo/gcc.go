@@ -1319,6 +1319,7 @@ var dwarfToName = map[string]string{
 	"long long int":          "longlong",
 	"long long unsigned int": "ulonglong",
 	"signed char":            "schar",
+	"unsigned char":          "uchar",
 }
 
 const signedDelta = 64
