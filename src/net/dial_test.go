@@ -722,7 +722,7 @@ func TestDialCancel(t *testing.T) {
 	if runtime.GOOS == "plan9" || runtime.GOOS == "nacl" {
 		// plan9 is not implemented and nacl doesn't have
 		// external network access.
-		t.Skip("skipping on %s", runtime.GOOS)
+		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 	onGoBuildFarm := testenv.Builder() != ""
 	if testing.Short() && !onGoBuildFarm {
@@ -767,6 +767,9 @@ func TestDialCancel(t *testing.T) {
 			c.Close()
 			t.Fatal("unexpected successful connection")
 		case err := <-errc:
+			if perr := parseDialError(err); perr != nil {
+				t.Error(perr)
+			}
 			if ticks < cancelTick {
 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
 					ticks, cancelTick-ticks, err)
