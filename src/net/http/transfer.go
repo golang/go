@@ -577,21 +577,29 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 
 // Parse the trailer header
 func fixTrailer(header Header, te []string) (Header, error) {
-	raw := header.get("Trailer")
-	if raw == "" {
+	vv, ok := header["Trailer"]
+	if !ok {
 		return nil, nil
 	}
-
 	header.Del("Trailer")
+
 	trailer := make(Header)
-	keys := strings.Split(raw, ",")
-	for _, key := range keys {
-		key = CanonicalHeaderKey(strings.TrimSpace(key))
-		switch key {
-		case "Transfer-Encoding", "Trailer", "Content-Length":
-			return nil, &badStringError{"bad trailer key", key}
-		}
-		trailer[key] = nil
+	var err error
+	for _, v := range vv {
+		foreachHeaderElement(v, func(key string) {
+			key = CanonicalHeaderKey(key)
+			switch key {
+			case "Transfer-Encoding", "Trailer", "Content-Length":
+				if err == nil {
+					err = &badStringError{"bad trailer key", key}
+					return
+				}
+			}
+			trailer[key] = nil
+		})
+	}
+	if err != nil {
+		return nil, err
 	}
 	if len(trailer) == 0 {
 		return nil, nil
