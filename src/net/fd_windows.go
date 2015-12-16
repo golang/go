@@ -357,15 +357,9 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 		go func() {
 			select {
 			case <-cancel:
-				// TODO(bradfitz,brainman): cancel the dial operation
-				// somehow. Brad doesn't know Windows but is going to
-				// try this:
-				if canCancelIO {
-					syscall.CancelIoEx(o.fd.sysfd, &o.o)
-				} else {
-					wsrv.req <- ioSrvReq{o, nil}
-					<-o.errc
-				}
+				// Force the runtime's poller to immediately give
+				// up waiting for writability.
+				fd.setWriteDeadline(aLongTimeAgo)
 			case <-done:
 			}
 		}()
