@@ -28,9 +28,9 @@ fi
 androidpath=/data/local/tmp/testcshared-$$
 
 function cleanup() {
-	rm -rf libgo.$libext libgo2.$libext libgo.h testp testp2 testp3 pkg
-
-	rm -rf $(go env GOROOT)/${installdir}
+	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo.h libgo4.h
+	rm -f testp testp2 testp3 testp4
+	rm -rf pkg $(go env GOROOT)/${installdir}
 
 	if [ "$goos" == "android" ]; then
 		adb shell rm -rf $androidpath
@@ -93,6 +93,8 @@ if [ "$goos" == "android" ]; then
 	GOGCCFLAGS="${GOGCCFLAGS} -pie"
 fi
 
+status=0
+
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
 $(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
@@ -101,7 +103,7 @@ binpush testp
 output=$(run LD_LIBRARY_PATH=. ./testp)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test0 got ${output}"
-	exit 1
+	status=1
 fi
 
 # test1: shared library can be dynamically loaded and exported symbols are accessible.
@@ -110,7 +112,7 @@ binpush testp
 output=$(run ./testp ./libgo.$libext)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test1 got ${output}"
-	exit 1
+	status=1
 fi
 
 # test2: tests libgo2 which does not export any functions.
@@ -125,7 +127,7 @@ binpush testp2
 output=$(run LD_LIBRARY_PATH=. ./testp2)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test2 got ${output}"
-	exit 1
+	status=1
 fi
 
 # test3: tests main.main is exported on android.
@@ -135,7 +137,27 @@ if [ "$goos" == "android" ]; then
 	output=$(run ./testp ./libgo.so)
 	if [ "$output" != "PASS" ]; then
 		echo "FAIL test3 got ${output}"
-		exit 1
+		status=1
 	fi
 fi
-echo "ok"
+
+# test4: tests signal handlers
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo4.$libext libgo4
+binpush libgo4.$libext
+$(go env CC) ${GOGCCFLAGS} -pthread -o testp4 main4.c -ldl
+binpush testp4
+output=$(run ./testp4 ./libgo4.$libext 2>&1)
+if test "$output" != "PASS"; then
+    echo "FAIL test4 got ${output}"
+    if test "$goos" != "android"; then
+	echo "re-running test4 in verbose mode"
+	./testp4 ./libgo4.$libext verbose
+    fi
+    status=1
+fi
+
+if test $status = 0; then
+    echo "ok"
+fi
+
+exit $status

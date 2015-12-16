@@ -23,11 +23,16 @@ fi
 
 rm -rf libgo.a libgo.h testp pkg
 
+status=0
+
 # Installing first will create the header files we want.
 
 GOPATH=$(pwd) go install -buildmode=c-archive libgo
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c pkg/$(go env GOOS)_$(go env GOARCH)/libgo.a
-$bin arg1 arg2
+if ! $bin arg1 arg2; then
+    echo "FAIL test1"
+    status=1
+fi
 rm -f libgo.a libgo.h testp
 
 # Test building libgo other than installing it.
@@ -35,10 +40,26 @@ rm -f libgo.a libgo.h testp
 
 GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
-$bin arg1 arg2
+if ! $bin arg1 arg2; then
+    echo "FAIL test2"
+    status=1
+fi
 rm -f libgo.a libgo.h testp
 
 GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
-$bin arg1 arg2
+if ! $bin arg1 arg2; then
+    echo "FAIL test3"
+    status=1
+fi
 rm -rf libgo.a libgo.h testp pkg
+
+GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
+$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
+if ! $bin; then
+    echo "FAIL test4"
+    status=1
+fi
+rm -rf libgo2.a libgo2.h testp pkg
+
+exit $status
