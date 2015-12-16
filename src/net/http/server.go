@@ -686,7 +686,7 @@ func (c *conn) readRequest() (w *response, err error) {
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
-	req, err := ReadRequest(c.bufr)
+	req, err := readRequest(c.bufr, false)
 	c.mu.Unlock()
 	if err != nil {
 		if c.r.hitReadLimit() {
@@ -696,6 +696,18 @@ func (c *conn) readRequest() (w *response, err error) {
 	}
 	c.lastMethod = req.Method
 	c.r.setInfiniteReadLimit()
+
+	hosts, haveHost := req.Header["Host"]
+	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) {
+		return nil, badRequestError("missing required Host header")
+	}
+	if len(hosts) > 1 {
+		return nil, badRequestError("too many Host headers")
+	}
+	if len(hosts) == 1 && !validHostHeader(hosts[0]) {
+		return nil, badRequestError("malformed Host header")
+	}
+	delete(req.Header, "Host")
 
 	req.RemoteAddr = c.remoteAddr
 	req.TLS = c.tlsState
@@ -1334,6 +1346,13 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 	}
 }
 
+// badRequestError is a literal string (used by in the server in HTML,
+// unescaped) to tell the user why their request was bad. It should
+// be plain text without user info or other embeddded errors.
+type badRequestError string
+
+func (e badRequestError) Error() string { return "Bad Request: " + string(e) }
+
 // Serve a new connection.
 func (c *conn) serve() {
 	c.remoteAddr = c.rwc.RemoteAddr().String()
@@ -1399,7 +1418,11 @@ func (c *conn) serve() {
 			if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 				return // don't reply
 			}
-			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n400 Bad Request")
+			var publicErr string
+			if v, ok := err.(badRequestError); ok {
+				publicErr = ": " + string(v)
+			}
+			io.WriteString(c.rwc, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n400 Bad Request"+publicErr)
 			return
 		}
 

@@ -2201,7 +2201,7 @@ func TestClientWriteShutdown(t *testing.T) {
 // buffered before chunk headers are added, not after chunk headers.
 func TestServerBufferedChunking(t *testing.T) {
 	conn := new(testConn)
-	conn.readBuf.Write([]byte("GET / HTTP/1.1\r\n\r\n"))
+	conn.readBuf.Write([]byte("GET / HTTP/1.1\r\nHost: foo\r\n\r\n"))
 	conn.closec = make(chan bool, 1)
 	ls := &oneConnListener{conn}
 	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
@@ -2934,9 +2934,9 @@ func TestCodesPreventingContentTypeAndBody(t *testing.T) {
 			"GET / HTTP/1.0",
 			"GET /header HTTP/1.0",
 			"GET /more HTTP/1.0",
-			"GET / HTTP/1.1",
-			"GET /header HTTP/1.1",
-			"GET /more HTTP/1.1",
+			"GET / HTTP/1.1\nHost: foo",
+			"GET /header HTTP/1.1\nHost: foo",
+			"GET /more HTTP/1.1\nHost: foo",
 		} {
 			got := ht.rawResponse(req)
 			wantStatus := fmt.Sprintf("%d %s", code, StatusText(code))
@@ -2957,7 +2957,7 @@ func TestContentTypeOkayOn204(t *testing.T) {
 		w.Header().Set("Content-Type", "foo/bar")
 		w.WriteHeader(204)
 	}))
-	got := ht.rawResponse("GET / HTTP/1.1")
+	got := ht.rawResponse("GET / HTTP/1.1\nHost: foo")
 	if !strings.Contains(got, "Content-Type: foo/bar") {
 		t.Errorf("Response = %q; want Content-Type: foo/bar", got)
 	}
@@ -3625,6 +3625,54 @@ func testHandlerSetsBodyNil(t *testing.T, h2 bool) {
 	a, b := get(), get()
 	if a != b {
 		t.Errorf("Failed to reuse connections between requests: %v vs %v", a, b)
+	}
+}
+
+// Test that we validate the Host header.
+func TestServerValidatesHostHeader(t *testing.T) {
+	tests := []struct {
+		proto string
+		host  string
+		want  int
+	}{
+		{"HTTP/1.1", "", 400},
+		{"HTTP/1.1", "Host: \r\n", 200},
+		{"HTTP/1.1", "Host: 1.2.3.4\r\n", 200},
+		{"HTTP/1.1", "Host: foo.com\r\n", 200},
+		{"HTTP/1.1", "Host: foo-bar_baz.com\r\n", 200},
+		{"HTTP/1.1", "Host: foo.com:80\r\n", 200},
+		{"HTTP/1.1", "Host: ::1\r\n", 200},
+		{"HTTP/1.1", "Host: [::1]\r\n", 200}, // questionable without port, but accept it
+		{"HTTP/1.1", "Host: [::1]:80\r\n", 200},
+		{"HTTP/1.1", "Host: [::1%25en0]:80\r\n", 200},
+		{"HTTP/1.1", "Host: 1.2.3.4\r\n", 200},
+		{"HTTP/1.1", "Host: \x06\r\n", 400},
+		{"HTTP/1.1", "Host: \xff\r\n", 400},
+		{"HTTP/1.1", "Host: {\r\n", 400},
+		{"HTTP/1.1", "Host: }\r\n", 400},
+		{"HTTP/1.1", "Host: first\r\nHost: second\r\n", 400},
+
+		// HTTP/1.0 can lack a host header, but if present
+		// must play by the rules too:
+		{"HTTP/1.0", "", 200},
+		{"HTTP/1.0", "Host: first\r\nHost: second\r\n", 400},
+		{"HTTP/1.0", "Host: \xff\r\n", 400},
+	}
+	for _, tt := range tests {
+		conn := &testConn{closec: make(chan bool)}
+		io.WriteString(&conn.readBuf, "GET / "+tt.proto+"\r\n"+tt.host+"\r\n")
+
+		ln := &oneConnListener{conn}
+		go Serve(ln, HandlerFunc(func(ResponseWriter, *Request) {}))
+		<-conn.closec
+		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
+		if err != nil {
+			t.Errorf("For %s %q, ReadResponse: %v", tt.proto, tt.host, res)
+			continue
+		}
+		if res.StatusCode != tt.want {
+			t.Errorf("For %s %q, Status = %d; want %d", tt.proto, tt.host, res.StatusCode, tt.want)
+		}
 	}
 }
 

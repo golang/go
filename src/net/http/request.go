@@ -689,8 +689,9 @@ func putTextprotoReader(r *textproto.Reader) {
 }
 
 // ReadRequest reads and parses an incoming request from b.
-func ReadRequest(b *bufio.Reader) (req *Request, err error) {
+func ReadRequest(b *bufio.Reader) (req *Request, err error) { return readRequest(b, true) }
 
+func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err error) {
 	tp := newTextprotoReader(b)
 	req = new(Request)
 
@@ -757,7 +758,9 @@ func ReadRequest(b *bufio.Reader) (req *Request, err error) {
 	if req.Host == "" {
 		req.Host = req.Header.get("Host")
 	}
-	delete(req.Header, "Host")
+	if deleteHostHeader {
+		delete(req.Header, "Host")
+	}
 
 	fixPragmaCacheControl(req.Header)
 
@@ -1059,4 +1062,60 @@ func (r *Request) isReplayable() bool {
 			r.Method == "HEAD" ||
 			r.Method == "OPTIONS" ||
 			r.Method == "TRACE")
+}
+
+func validHostHeader(h string) bool {
+	// The latests spec is actually this:
+	//
+	// http://tools.ietf.org/html/rfc7230#section-5.4
+	//     Host = uri-host [ ":" port ]
+	//
+	// Where uri-host is:
+	//     http://tools.ietf.org/html/rfc3986#section-3.2.2
+	//
+	// But we're going to be much more lenient for now and just
+	// search for any byte that's not a valid byte in any of those
+	// expressions.
+	for i := 0; i < len(h); i++ {
+		if !validHostByte[h[i]] {
+			return false
+		}
+	}
+	return true
+}
+
+// See the validHostHeader comment.
+var validHostByte = [256]bool{
+	'0': true, '1': true, '2': true, '3': true, '4': true, '5': true, '6': true, '7': true,
+	'8': true, '9': true,
+
+	'a': true, 'b': true, 'c': true, 'd': true, 'e': true, 'f': true, 'g': true, 'h': true,
+	'i': true, 'j': true, 'k': true, 'l': true, 'm': true, 'n': true, 'o': true, 'p': true,
+	'q': true, 'r': true, 's': true, 't': true, 'u': true, 'v': true, 'w': true, 'x': true,
+	'y': true, 'z': true,
+
+	'A': true, 'B': true, 'C': true, 'D': true, 'E': true, 'F': true, 'G': true, 'H': true,
+	'I': true, 'J': true, 'K': true, 'L': true, 'M': true, 'N': true, 'O': true, 'P': true,
+	'Q': true, 'R': true, 'S': true, 'T': true, 'U': true, 'V': true, 'W': true, 'X': true,
+	'Y': true, 'Z': true,
+
+	'!':  true, // sub-delims
+	'$':  true, // sub-delims
+	'%':  true, // pct-encoded (and used in IPv6 zones)
+	'&':  true, // sub-delims
+	'(':  true, // sub-delims
+	')':  true, // sub-delims
+	'*':  true, // sub-delims
+	'+':  true, // sub-delims
+	',':  true, // sub-delims
+	'-':  true, // unreserved
+	'.':  true, // unreserved
+	':':  true, // IPv6address + Host expression's optional port
+	';':  true, // sub-delims
+	'=':  true, // sub-delims
+	'[':  true,
+	'\'': true, // sub-delims
+	']':  true,
+	'_':  true, // unreserved
+	'~':  true, // unreserved
 }
