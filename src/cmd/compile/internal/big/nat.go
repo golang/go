@@ -2,31 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package big implements multi-precision arithmetic (big numbers).
-// The following numeric types are supported:
-//
-//   Int    signed integers
-//   Rat    rational numbers
-//   Float  floating-point numbers
-//
-// Methods are typically of the form:
-//
-//   func (z *T) Unary(x *T) *T        // z = op x
-//   func (z *T) Binary(x, y *T) *T    // z = x op y
-//   func (x *T) M() T1                // v = x.M()
-//
-// with T one of Int, Rat, or Float. For unary and binary operations, the
-// result is the receiver (usually named z in that case); if it is one of
-// the operands x or y it may be overwritten (and its memory reused).
-// To enable chaining of operations, the result is also returned. Methods
-// returning a result other than *Int, *Rat, or *Float take an operand as
-// the receiver (usually named x in that case).
-//
-package big
+// This file implements unsigned multi-precision integers (natural
+// numbers). They are the building blocks for the implementation
+// of signed integers, rationals, and floating-point numbers.
 
-// This file contains operations on unsigned multi-precision integers.
-// These are the building blocks for the operations on signed integers
-// and rationals.
+package big
 
 import "math/rand"
 
@@ -216,23 +196,36 @@ func basicMul(z, x, y nat) {
 	}
 }
 
-// montgomery computes x*y*2^(-n*_W) mod m,
-// assuming k = -1/m mod 2^_W.
+// montgomery computes z mod m = x*y*2**(-n*_W) mod m,
+// assuming k = -1/m mod 2**_W.
 // z is used for storing the result which is returned;
 // z must not alias x, y or m.
+// See Gueron, "Efficient Software Implementations of Modular Exponentiation".
+// https://eprint.iacr.org/2011/239.pdf
+// In the terminology of that paper, this is an "Almost Montgomery Multiplication":
+// x and y are required to satisfy 0 <= z < 2**(n*_W) and then the result
+// z is guaranteed to satisfy 0 <= z < 2**(n*_W), but it may not be < m.
 func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
-	var c1, c2 Word
+	// This code assumes x, y, m are all the same length, n.
+	// (required by addMulVVW and the for loop).
+	// It also assumes that x, y are already reduced mod m,
+	// or else the result will not be properly reduced.
+	if len(x) != n || len(y) != n || len(m) != n {
+		panic("math/big: mismatched montgomery number lengths")
+	}
+	var c1, c2, c3 Word
 	z = z.make(n)
 	z.clear()
 	for i := 0; i < n; i++ {
 		d := y[i]
-		c1 += addMulVVW(z, x, d)
+		c2 = addMulVVW(z, x, d)
 		t := z[0] * k
-		c2 = addMulVVW(z, m, t)
-
+		c3 = addMulVVW(z, m, t)
 		copy(z, z[1:])
-		z[n-1] = c1 + c2
-		if z[n-1] < c1 {
+		cx := c1 + c2
+		cy := cx + c3
+		z[n-1] = cy
+		if cx < c2 || cy < c3 {
 			c1 = 1
 		} else {
 			c1 = 0
@@ -1082,7 +1075,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	x = rr
 
 	// Ideally the precomputations would be performed outside, and reused
-	// k0 = -mˆ-1 mod 2ˆ_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
+	// k0 = -m**-1 mod 2**_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
 	// Iteration for Multiplicative Inverses Modulo Prime Powers".
 	k0 := 2 - m[0]
 	t := m[0] - 1
@@ -1092,7 +1085,7 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	}
 	k0 = -k0
 
-	// RR = 2ˆ(2*_W*len(m)) mod m
+	// RR = 2**(2*_W*len(m)) mod m
 	RR = RR.setWord(1)
 	zz = zz.shl(RR, uint(2*numWords*_W))
 	_, RR = RR.div(RR, zz, m)
@@ -1141,9 +1134,12 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	return zz.norm()
 }
 
-// probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
-// If it returns true, n is prime with probability 1 - 1/4^reps.
-// If it returns false, n is not prime.
+// probablyPrime performs n Miller-Rabin tests to check whether x is prime.
+// If x is prime, it returns true.
+// If x is not prime, it returns false with probability at least 1 - ¼ⁿ.
+//
+// It is not suitable for judging primes that an adversary may have crafted
+// to fool this test.
 func (n nat) probablyPrime(reps int) bool {
 	if len(n) == 0 {
 		return false
