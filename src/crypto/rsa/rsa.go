@@ -506,6 +506,21 @@ func decrypt(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err er
 	return
 }
 
+func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int, err error) {
+	m, err = decrypt(random, priv, c)
+	if err != nil {
+		return nil, err
+	}
+
+	// In order to defend against errors in the CRT computation, m^e is
+	// calculated, which should match the original ciphertext.
+	check := encrypt(new(big.Int), &priv.PublicKey, m)
+	if c.Cmp(check) != 0 {
+		return nil, errors.New("rsa: internal error")
+	}
+	return m, nil
+}
+
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
 // If random != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
 func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
