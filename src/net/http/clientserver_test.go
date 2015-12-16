@@ -18,6 +18,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -463,5 +464,130 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 	}
 	if !reflect.DeepEqual(err, ExportErrRequestCanceled) {
 		t.Errorf("ReadAll error = %v; want %v", err, ExportErrRequestCanceled)
+	}
+}
+
+// Tests that clients can send trailers to a server and that the server can read them.
+func TestTrailersClientToServer_h1(t *testing.T) { testTrailersClientToServer(t, h1Mode) }
+func TestTrailersClientToServer_h2(t *testing.T) {
+	t.Skip("skipping in http2 mode; golang.org/issue/13557")
+	testTrailersClientToServer(t, h2Mode)
+}
+
+func testTrailersClientToServer(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		var decl []string
+		for k := range r.Trailer {
+			decl = append(decl, k)
+		}
+		sort.Strings(decl)
+
+		slurp, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("Server reading request body: %v", err)
+		}
+		if string(slurp) != "foo" {
+			t.Errorf("Server read request body %q; want foo", slurp)
+		}
+		if r.Trailer == nil {
+			io.WriteString(w, "nil Trailer")
+		} else {
+			fmt.Fprintf(w, "decl: %v, vals: %s, %s",
+				decl,
+				r.Trailer.Get("Client-Trailer-A"),
+				r.Trailer.Get("Client-Trailer-B"))
+		}
+	}))
+	defer cst.close()
+
+	var req *Request
+	req, _ = NewRequest("POST", cst.ts.URL, io.MultiReader(
+		eofReaderFunc(func() {
+			req.Trailer["Client-Trailer-A"] = []string{"valuea"}
+		}),
+		strings.NewReader("foo"),
+		eofReaderFunc(func() {
+			req.Trailer["Client-Trailer-B"] = []string{"valueb"}
+		}),
+	))
+	req.Trailer = Header{
+		"Client-Trailer-A": nil, //  to be set later
+		"Client-Trailer-B": nil, //  to be set later
+	}
+	req.ContentLength = -1
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := wantBody(res, err, "decl: [Client-Trailer-A Client-Trailer-B], vals: valuea, valueb"); err != nil {
+		t.Error(err)
+	}
+}
+
+// Tests that servers send trailers to a client and that the client can read them.
+func TestTrailersServerToClient_h1(t *testing.T) { testTrailersServerToClient(t, h1Mode, false) }
+func TestTrailersServerToClient_h2(t *testing.T) {
+	t.Skip("skipping in http2 mode; golang.org/issue/13557")
+	testTrailersServerToClient(t, h2Mode, false)
+}
+func TestTrailersServerToClient_Flush_h1(t *testing.T) { testTrailersServerToClient(t, h1Mode, true) }
+func TestTrailersServerToClient_Flush_h2(t *testing.T) {
+	t.Skip("skipping in http2 mode; golang.org/issue/13557")
+	testTrailersServerToClient(t, h2Mode, true)
+}
+
+func testTrailersServerToClient(t *testing.T, h2, flush bool) {
+	defer afterTest(t)
+	const body = "Some body"
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("Trailer", "Server-Trailer-A, Server-Trailer-B")
+		w.Header().Add("Trailer", "Server-Trailer-C")
+
+		io.WriteString(w, body)
+		if flush {
+			w.(Flusher).Flush()
+		}
+
+		// How handlers set Trailers: declare it ahead of time
+		// with the Trailer header, and then mutate the
+		// Header() of those values later, after the response
+		// has been written (we wrote to w above).
+		w.Header().Set("Server-Trailer-A", "valuea")
+		w.Header().Set("Server-Trailer-C", "valuec") // skipping B
+		w.Header().Set("Server-Trailer-NotDeclared", "should be omitted")
+	}))
+	defer cst.close()
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	delete(res.Header, "Date") // irrelevant for test
+	if got, want := res.Header, (Header{
+		"Content-Type": {"text/plain; charset=utf-8"},
+	}); !reflect.DeepEqual(got, want) {
+		t.Errorf("Header = %v; want %v", got, want)
+	}
+
+	if got, want := res.Trailer, (Header{
+		"Server-Trailer-A": nil,
+		"Server-Trailer-B": nil,
+		"Server-Trailer-C": nil,
+	}); !reflect.DeepEqual(got, want) {
+		t.Errorf("Trailer before body read = %v; want %v", got, want)
+	}
+
+	if err := wantBody(res, nil, body); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := res.Trailer, (Header{
+		"Server-Trailer-A": {"valuea"},
+		"Server-Trailer-B": nil,
+		"Server-Trailer-C": {"valuec"},
+	}); !reflect.DeepEqual(got, want) {
+		t.Errorf("Trailer after body read = %v; want %v", got, want)
 	}
 }
