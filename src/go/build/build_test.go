@@ -5,6 +5,7 @@
 package build
 
 import (
+	"internal/testenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -299,6 +300,7 @@ func TestShellSafety(t *testing.T) {
 }
 
 func TestImportVendor(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""
 	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
@@ -312,6 +314,7 @@ func TestImportVendor(t *testing.T) {
 }
 
 func TestImportVendorFailure(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""
 	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
