@@ -602,6 +602,7 @@ func TestTransportHeadChunkedResponse(t *testing.T) {
 
 	tr := &Transport{DisableKeepAlives: false}
 	c := &Client{Transport: tr}
+	defer tr.CloseIdleConnections()
 
 	// Ensure that we wait for the readLoop to complete before
 	// calling Head again
@@ -2661,62 +2662,6 @@ func TestTransportRangeAndGzip(t *testing.T) {
 	res.Body.Close()
 }
 
-// Previously, we used to handle a logical race within RoundTrip by waiting for 100ms
-// in the case of an error. Changing the order of the channel operations got rid of this
-// race.
-//
-// In order to test that the channel op reordering works, we install a hook into the
-// roundTrip function which gets called if we saw the connection go away and
-// we subsequently received a response.
-func TestTransportResponseCloseRace(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-	defer afterTest(t)
-
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-	}))
-	defer ts.Close()
-	sawRace := false
-	SetInstallConnClosedHook(func() {
-		sawRace = true
-	})
-	defer SetInstallConnClosedHook(nil)
-
-	SetTestHookWaitResLoop(func() {
-		// Make the select race much more likely by blocking before
-		// the select, so both will be ready by the time the
-		// select runs.
-		time.Sleep(50 * time.Millisecond)
-	})
-	defer SetTestHookWaitResLoop(nil)
-
-	tr := &Transport{
-		DisableKeepAlives: true,
-	}
-	req, err := NewRequest("GET", ts.URL, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// selects are not deterministic, so do this a bunch
-	// and see if we handle the logical race at least once.
-	for i := 0; i < 10000; i++ {
-		resp, err := tr.RoundTrip(req)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-			continue
-		}
-		resp.Body.Close()
-		if sawRace {
-			t.Logf("saw race after %d iterations", i+1)
-			break
-		}
-	}
-	if !sawRace {
-		t.Errorf("didn't see response/connection going away race")
-	}
-}
-
 // Test for issue 10474
 func TestTransportResponseCancelRace(t *testing.T) {
 	defer afterTest(t)
@@ -2950,6 +2895,40 @@ func TestTransportAutomaticHTTP2(t *testing.T) {
 	}
 	if tr.TLSNextProto["h2"] != nil {
 		t.Errorf("HTTP/2 registered, despite non-nil TLSNextProto field")
+	}
+}
+
+// Issue 13633: there was a race where we returned bodyless responses
+// to callers before recycling the persistent connection, which meant
+// a client doing two subsequent requests could end up on different
+// connections. It's somewhat harmless but enough tests assume it's
+// not true in order to test other things that it's worth fixing.
+// Plus it's nice to be consistent and not have timing-dependent
+// behavior.
+func TestTransportReuseConnEmptyResponseBody(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+		// Empty response body.
+	}))
+	defer cst.close()
+	n := 100
+	if testing.Short() {
+		n = 10
+	}
+	var firstAddr string
+	for i := 0; i < n; i++ {
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			log.Fatal(err)
+		}
+		addr := res.Header.Get("X-Addr")
+		if i == 0 {
+			firstAddr = addr
+		} else if addr != firstAddr {
+			t.Fatalf("On request %d, addr %q != original addr %q", i+1, addr, firstAddr)
+		}
+		res.Body.Close()
 	}
 }
 

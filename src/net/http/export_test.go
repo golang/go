@@ -34,10 +34,9 @@ func init() {
 }
 
 var (
-	SetInstallConnClosedHook = hookSetter(&testHookPersistConnClosedGotRes)
-	SetEnterRoundTripHook    = hookSetter(&testHookEnterRoundTrip)
-	SetTestHookWaitResLoop   = hookSetter(&testHookWaitResLoop)
-	SetRoundTripRetried      = hookSetter(&testHookRoundTripRetried)
+	SetEnterRoundTripHook  = hookSetter(&testHookEnterRoundTrip)
+	SetTestHookWaitResLoop = hookSetter(&testHookWaitResLoop)
+	SetRoundTripRetried    = hookSetter(&testHookRoundTripRetried)
 )
 
 func SetReadLoopBeforeNextReadHook(f func()) {
