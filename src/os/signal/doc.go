@@ -156,14 +156,19 @@ If the Go runtime sees an existing signal handler for the SIGCANCEL or
 SIGSETXID signals (which are used only on GNU/Linux), it will turn on
 the SA_ONSTACK flag and otherwise keep the signal handler.
 
-For other signals listed above, the Go runtime will install a signal
+For the synchronous signals, the Go runtime will install a signal
 handler. It will save any existing signal handler. If a synchronous
 signal arrives while executing non-Go code, the Go runtime will invoke
 the existing signal handler instead of the Go signal handler.
 
-If a signal is delivered to a non-Go thread, it will act as described
-above, except that if there is an existing non-Go signal handler, that
-handler will be installed before raising the signal.
+Go code built with -buildmode=c-archive or -buildmode=c-shared will
+not install any other signal handlers. TODO: Describe Notify behavior.
+
+Go code built otherwise will install a signal handler for the
+asynchronous signals listed above, and save any existing signal
+handler. If a signal is delivered to a non-Go thread, it will act as
+described above, except that if there is an existing non-Go signal
+handler, that handler will be installed before raising the signal.
 
 Windows
 

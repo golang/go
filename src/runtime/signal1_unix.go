@@ -65,6 +65,14 @@ func initsig() {
 			continue
 		}
 
+		// When built using c-archive or c-shared, only
+		// install signal handlers for synchronous signals.
+		// Set SA_ONSTACK for other signals if necessary.
+		if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
+			setsigstack(i)
+			continue
+		}
+
 		t.flags |= _SigHandling
 		setsig(i, funcPC(sighandler), true)
 	}

@@ -16,8 +16,6 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 // signal was forwarded.
 //go:nosplit
 func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
-	g := getg()
-	c := &sigctxt{info, ctx}
 	if sig >= uint32(len(sigtable)) {
 		return false
 	}
@@ -28,13 +26,22 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if fwdFn == _SIG_DFL {
 		return false
 	}
+
+	// If we aren't handling the signal, forward it.
+	if flags&_SigHandling == 0 {
+		sigfwd(fwdFn, sig, info, ctx)
+		return true
+	}
+
 	// Only forward synchronous signals.
+	c := &sigctxt{info, ctx}
 	if c.sigcode() == _SI_USER || flags&_SigPanic == 0 {
 		return false
 	}
 	// Determine if the signal occurred inside Go code.  We test that:
 	//   (1) we were in a goroutine (i.e., m.curg != nil), and
 	//   (2) we weren't in CGO (i.e., m.curg.syscallsp == 0).
+	g := getg()
 	if g != nil && g.m != nil && g.m.curg != nil && g.m.curg.syscallsp == 0 {
 		return false
 	}
