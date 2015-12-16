@@ -102,6 +102,13 @@ func (d *Decoder) SetMaxStringLength(n int) {
 	d.maxStrLen = n
 }
 
+// SetEmitFunc changes the callback used when new header fields
+// are decoded.
+// It must be non-nil. It does not affect EmitEnabled.
+func (d *Decoder) SetEmitFunc(emitFunc func(f HeaderField)) {
+	d.emit = emitFunc
+}
+
 // SetEmitEnabled controls whether the emitFunc provided to NewDecoder
 // should be called. The default is true.
 //
