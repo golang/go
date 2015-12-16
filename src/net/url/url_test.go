@@ -332,7 +332,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// host subcomponent; IPv6 address with zone identifier in RFC 6847
+	// host subcomponent; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25en0]/", // alphanum zone identifier
 		&URL{
@@ -342,7 +342,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25en0]:8080/", // alphanum zone identifier
 		&URL{
@@ -352,7 +352,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// host subcomponent; IPv6 address with zone identifier in RFC 6847
+	// host subcomponent; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25%65%6e%301-._~]/", // percent-encoded+unreserved zone identifier
 		&URL{
@@ -362,7 +362,7 @@ var urltests = []URLTest{
 		},
 		"http://[fe80::1%25en01-._~]/",
 	},
-	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25%65%6e%301-._~]:8080/", // percent-encoded+unreserved zone identifier
 		&URL{
