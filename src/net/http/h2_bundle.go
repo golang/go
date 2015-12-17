@@ -1940,12 +1940,13 @@ func http2bodyAllowedForStatus(status int) bool {
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
 // underlying buffer is an interface. (io.Pipe is always unbuffered)
 type http2pipe struct {
-	mu     sync.Mutex
-	c      sync.Cond // c.L must point to
-	b      http2pipeBuffer
-	err    error         // read error once empty. non-nil means closed.
-	donec  chan struct{} // closed on error
-	readFn func()        // optional code to run in Read before error
+	mu       sync.Mutex
+	c        sync.Cond // c.L lazily initialized to &p.mu
+	b        http2pipeBuffer
+	err      error         // read error once empty. non-nil means closed.
+	breakErr error         // immediate read error (caller doesn't see rest of b)
+	donec    chan struct{} // closed on error
+	readFn   func()        // optional code to run in Read before error
 }
 
 type http2pipeBuffer interface {
@@ -1963,6 +1964,9 @@ func (p *http2pipe) Read(d []byte) (n int, err error) {
 		p.c.L = &p.mu
 	}
 	for {
+		if p.breakErr != nil {
+			return 0, p.breakErr
+		}
 		if p.b.Len() > 0 {
 			return p.b.Read(d)
 		}
@@ -1999,13 +2003,20 @@ func (p *http2pipe) Write(d []byte) (n int, err error) {
 // read.
 //
 // The error must be non-nil.
-func (p *http2pipe) CloseWithError(err error) { p.closeWithErrorAndCode(err, nil) }
+func (p *http2pipe) CloseWithError(err error) { p.closeWithError(&p.err, err, nil) }
+
+// BreakWithError causes the next Read (waking up a current blocked
+// Read if needed) to return the provided err immediately, without
+// waiting for unread data.
+func (p *http2pipe) BreakWithError(err error) { p.closeWithError(&p.breakErr, err, nil) }
 
 // closeWithErrorAndCode is like CloseWithError but also sets some code to run
 // in the caller's goroutine before returning the error.
-func (p *http2pipe) closeWithErrorAndCode(err error, fn func()) {
+func (p *http2pipe) closeWithErrorAndCode(err error, fn func()) { p.closeWithError(&p.err, err, fn) }
+
+func (p *http2pipe) closeWithError(dst *error, err error, fn func()) {
 	if err == nil {
-		panic("CloseWithError err must be non-nil")
+		panic("err must be non-nil")
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -2013,22 +2024,35 @@ func (p *http2pipe) closeWithErrorAndCode(err error, fn func()) {
 		p.c.L = &p.mu
 	}
 	defer p.c.Signal()
-	if p.err != nil {
+	if *dst != nil {
 
 		return
 	}
 	p.readFn = fn
-	p.err = err
-	if p.donec != nil {
+	*dst = err
+	p.closeDoneLocked()
+}
+
+// requires p.mu be held.
+func (p *http2pipe) closeDoneLocked() {
+	if p.donec == nil {
+		return
+	}
+
+	select {
+	case <-p.donec:
+	default:
 		close(p.donec)
 	}
 }
 
-// Err returns the error (if any) first set with CloseWithError.
-// This is the error which will be returned after the reader is exhausted.
+// Err returns the error (if any) first set by BreakWithError or CloseWithError.
 func (p *http2pipe) Err() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.breakErr != nil {
+		return p.breakErr
+	}
 	return p.err
 }
 
@@ -2039,9 +2063,9 @@ func (p *http2pipe) Done() <-chan struct{} {
 	defer p.mu.Unlock()
 	if p.donec == nil {
 		p.donec = make(chan struct{})
-		if p.err != nil {
+		if p.err != nil || p.breakErr != nil {
 
-			close(p.donec)
+			p.closeDoneLocked()
 		}
 	}
 	return p.donec
@@ -5024,11 +5048,15 @@ func (b http2transportResponseBody) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (b http2transportResponseBody) Close() error {
-	if b.cs.bufPipe.Err() != io.EOF {
+var http2errClosedResponseBody = errors.New("http2: response body closed")
 
-		b.cs.cc.writeStreamReset(b.cs.ID, http2ErrCodeCancel, nil)
+func (b http2transportResponseBody) Close() error {
+	cs := b.cs
+	if cs.bufPipe.Err() != io.EOF {
+
+		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
 	}
+	cs.bufPipe.BreakWithError(http2errClosedResponseBody)
 	return nil
 }
 
