@@ -1102,11 +1102,15 @@ func checkCC() {
 	if !needCC() {
 		return
 	}
-	if _, err := exec.Command(defaultcc, "--help").Output(); err != nil {
+	if output, err := exec.Command(defaultcc, "--help").CombinedOutput(); err != nil {
+		outputHdr := ""
+		if len(output) > 0 {
+			outputHdr = "\nCommand output:\n\n"
+		}
 		fatal("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, export CC=the-compiler.\n"+
-			"To disable cgo, export CGO_ENABLED=0.\n", defaultcc, err)
+			"To disable cgo, export CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
 	}
 }
 
