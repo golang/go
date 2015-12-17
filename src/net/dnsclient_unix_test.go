@@ -515,7 +515,8 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 
 type fakeDNSConn struct {
 	// last query
-	q *dnsMsg
+	qmu sync.Mutex // guards q
+	q   *dnsMsg
 	// reply handler
 	rh func(*dnsMsg) (*dnsMsg, error)
 }
@@ -533,10 +534,15 @@ func (f *fakeDNSConn) SetDeadline(time.Time) error {
 }
 
 func (f *fakeDNSConn) writeDNSQuery(q *dnsMsg) error {
+	f.qmu.Lock()
+	defer f.qmu.Unlock()
 	f.q = q
 	return nil
 }
 
 func (f *fakeDNSConn) readDNSResponse() (*dnsMsg, error) {
-	return f.rh(f.q)
+	f.qmu.Lock()
+	q := f.q
+	f.qmu.Unlock()
+	return f.rh(q)
 }
