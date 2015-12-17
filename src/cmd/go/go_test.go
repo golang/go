@@ -763,6 +763,18 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
 }
 
+func TestWildcardMatchesSyntaxErrorDirs(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/mypkg/x.go", `package mypkg`)
+	tg.tempFile("src/mypkg/y.go", `pkg mypackage`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.cd(tg.path("src/mypkg"))
+	tg.runFail("list", "./...")
+	tg.runFail("build", "./...")
+	tg.runFail("install", "./...")
+}
+
 func TestGoListWithTags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

@@ -379,6 +379,7 @@ type Package struct {
 	GoFiles        []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
 	CgoFiles       []string // .go source files that import "C"
 	IgnoredGoFiles []string // .go source files ignored for this build
+	InvalidGoFiles []string // .go source files with detected problems (parse error, wrong package name, and so on)
 	CFiles         []string // .c source files
 	CXXFiles       []string // .cc, .cpp and .cxx source files
 	MFiles         []string // .m (Objective-C) source files
@@ -679,6 +680,7 @@ Found:
 		return p, err
 	}
 
+	var badGoError error
 	var Sfiles []string // files with ".S" (capital S)
 	var firstFile, firstCommentFile string
 	imported := make(map[string][]token.Position)
@@ -694,9 +696,17 @@ Found:
 		name := d.Name()
 		ext := nameExt(name)
 
+		badFile := func(err error) {
+			if badGoError == nil {
+				badGoError = err
+			}
+			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
+		}
+
 		match, data, filename, err := ctxt.matchFile(p.Dir, name, true, allTags)
 		if err != nil {
-			return p, err
+			badFile(err)
+			continue
 		}
 		if !match {
 			if ext == ".go" {
@@ -741,7 +751,8 @@ Found:
 
 		pf, err := parser.ParseFile(fset, filename, data, parser.ImportsOnly|parser.ParseComments)
 		if err != nil {
-			return p, err
+			badFile(err)
+			continue
 		}
 
 		pkg := pf.Name.Name
@@ -761,11 +772,12 @@ Found:
 			p.Name = pkg
 			firstFile = name
 		} else if pkg != p.Name {
-			return p, &MultiplePackageError{
+			badFile(&MultiplePackageError{
 				Dir:      p.Dir,
 				Packages: []string{p.Name, pkg},
 				Files:    []string{firstFile, name},
-			}
+			})
+			p.InvalidGoFiles = append(p.InvalidGoFiles, name)
 		}
 		if pf.Doc != nil && p.Doc == "" {
 			p.Doc = doc.Synopsis(pf.Doc.Text())
@@ -776,13 +788,12 @@ Found:
 			if line != 0 {
 				com, err := strconv.Unquote(qcom)
 				if err != nil {
-					return p, fmt.Errorf("%s:%d: cannot parse import comment", filename, line)
-				}
-				if p.ImportComment == "" {
+					badFile(fmt.Errorf("%s:%d: cannot parse import comment", filename, line))
+				} else if p.ImportComment == "" {
 					p.ImportComment = com
 					firstCommentFile = name
 				} else if p.ImportComment != com {
-					return p, fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir)
+					badFile(fmt.Errorf("found import comments %q (%s) and %q (%s) in %s", p.ImportComment, firstCommentFile, com, name, p.Dir))
 				}
 			}
 		}
@@ -813,18 +824,19 @@ Found:
 				}
 				if path == "C" {
 					if isTest {
-						return p, fmt.Errorf("use of cgo in test %s not supported", filename)
-					}
-					cg := spec.Doc
-					if cg == nil && len(d.Specs) == 1 {
-						cg = d.Doc
-					}
-					if cg != nil {
-						if err := ctxt.saveCgo(filename, p, cg); err != nil {
-							return p, err
+						badFile(fmt.Errorf("use of cgo in test %s not supported", filename))
+					} else {
+						cg := spec.Doc
+						if cg == nil && len(d.Specs) == 1 {
+							cg = d.Doc
 						}
+						if cg != nil {
+							if err := ctxt.saveCgo(filename, p, cg); err != nil {
+								badFile(err)
+							}
+						}
+						isCgo = true
 					}
-					isCgo = true
 				}
 			}
 		}
@@ -842,6 +854,9 @@ Found:
 		} else {
 			p.GoFiles = append(p.GoFiles, name)
 		}
+	}
+	if badGoError != nil {
+		return p, badGoError
 	}
 	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
 		return p, &NoGoError{p.Dir}
