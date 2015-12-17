@@ -526,16 +526,10 @@ func testTrailersClientToServer(t *testing.T, h2 bool) {
 }
 
 // Tests that servers send trailers to a client and that the client can read them.
-func TestTrailersServerToClient_h1(t *testing.T) { testTrailersServerToClient(t, h1Mode, false) }
-func TestTrailersServerToClient_h2(t *testing.T) {
-	t.Skip("skipping in http2 mode; golang.org/issue/13557")
-	testTrailersServerToClient(t, h2Mode, false)
-}
+func TestTrailersServerToClient_h1(t *testing.T)       { testTrailersServerToClient(t, h1Mode, false) }
+func TestTrailersServerToClient_h2(t *testing.T)       { testTrailersServerToClient(t, h2Mode, false) }
 func TestTrailersServerToClient_Flush_h1(t *testing.T) { testTrailersServerToClient(t, h1Mode, true) }
-func TestTrailersServerToClient_Flush_h2(t *testing.T) {
-	t.Skip("skipping in http2 mode; golang.org/issue/13557")
-	testTrailersServerToClient(t, h2Mode, true)
-}
+func TestTrailersServerToClient_Flush_h2(t *testing.T) { testTrailersServerToClient(t, h2Mode, true) }
 
 func testTrailersServerToClient(t *testing.T, h2, flush bool) {
 	defer afterTest(t)
@@ -564,11 +558,26 @@ func testTrailersServerToClient(t *testing.T, h2, flush bool) {
 		t.Fatal(err)
 	}
 
-	delete(res.Header, "Date") // irrelevant for test
-	if got, want := res.Header, (Header{
+	wantHeader := Header{
 		"Content-Type": {"text/plain; charset=utf-8"},
-	}); !reflect.DeepEqual(got, want) {
-		t.Errorf("Header = %v; want %v", got, want)
+	}
+	wantLen := -1
+	if h2 && !flush {
+		// In HTTP/1.1, any use of trailers forces HTTP/1.1
+		// chunking and a flush at the first write. That's
+		// unnecessary with HTTP/2's framing, so the server
+		// is able to calculate the length while still sending
+		// trailers afterwards.
+		wantLen = len(body)
+		wantHeader["Content-Length"] = []string{fmt.Sprint(wantLen)}
+	}
+	if res.ContentLength != int64(wantLen) {
+		t.Errorf("ContentLength = %v; want %v", res.ContentLength, wantLen)
+	}
+
+	delete(res.Header, "Date") // irrelevant for test
+	if !reflect.DeepEqual(res.Header, wantHeader) {
+		t.Errorf("Header = %v; want %v", res.Header, wantHeader)
 	}
 
 	if got, want := res.Trailer, (Header{
