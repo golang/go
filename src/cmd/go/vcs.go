@@ -122,7 +122,7 @@ var vcsGit = &vcsCmd{
 	name: "Git",
 	cmd:  "git",
 
-	createCmd:   []string{"clone {repo} {dir}", "--git-dir={dir}/.git submodule update --init --recursive"},
+	createCmd:   []string{"clone {repo} {dir}", "-C {dir} submodule update --init --recursive"},
 	downloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
 
 	tagCmd: []tagCmd{
