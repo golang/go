@@ -256,6 +256,11 @@ execution, not to the test itself.)
 The test flags that generate profiles (other than for coverage) also
 leave the test binary in pkg.test for use when analyzing the profiles.
 
+When 'go test' runs a test binary, it does so from within the 
+corresponding package's source code directory. Depending on the test,
+it may be necessary to do the same when invoking a generated test
+binary directly.
+
 The command-line package list, if present, must appear before any
 flag not known to the go test command. Continuing the example above,
 the package list would have to appear before -myflag, but could appear
