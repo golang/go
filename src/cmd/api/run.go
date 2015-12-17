@@ -26,7 +26,7 @@ func main() {
 	}
 
 	out, err := exec.Command("go", "tool", "api",
-		"-c", file("go1", "go1.1", "go1.2", "go1.3", "go1.4", "go1.5"),
+		"-c", file("go1", "go1.1", "go1.2", "go1.3", "go1.4", "go1.5", "go1.6"),
 		"-next", file("next"),
 		"-except", file("except")).CombinedOutput()
 	if err != nil {
