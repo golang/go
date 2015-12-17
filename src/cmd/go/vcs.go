@@ -885,7 +885,7 @@ var vcsPaths = []*vcsPath{
 	// General syntax for any server.
 	// Must be last.
 	{
-		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?/[A-Za-z0-9_.\-/]*?)\.(?P<vcs>bzr|git|hg|svn))(/[A-Za-z0-9_.\-]+)*$`,
+		re:   `^(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`,
 		ping: true,
 	},
 }
