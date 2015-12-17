@@ -674,7 +674,7 @@ func matchPackagesInFS(pattern string) []string {
 		if !match(name) {
 			return nil
 		}
-		if _, err = build.ImportDir(path, 0); err != nil {
+		if _, err = buildContext.ImportDir(path, 0); err != nil {
 			if _, noGo := err.(*build.NoGoError); !noGo {
 				log.Print(err)
 			}

@@ -781,6 +781,16 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
 }
 
+func TestGoListWithTags(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/mypkg/x.go", "// +build thetag\n\npackage mypkg\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.cd(tg.path("./src"))
+	tg.run("list", "-tags=thetag", "./my...")
+	tg.grepStdout("mypkg", "did not find mypkg")
+}
+
 func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't install into GOROOT in short mode")
