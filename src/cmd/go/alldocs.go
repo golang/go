@@ -84,7 +84,8 @@ and test commands:
 	-n
 		print the commands but do not run them.
 	-p n
-		the number of builds that can be run in parallel.
+		the number of programs, such as build commands or
+		test binaries, that can be run in parallel.
 		The default is the number of CPUs available, except
 		on darwin/arm which defaults to 1.
 	-race
@@ -1420,6 +1421,10 @@ control the execution of any test:
 	    Allow parallel execution of test functions that call t.Parallel.
 	    The value of this flag is the maximum number of tests to run
 	    simultaneously; by default, it is set to the value of GOMAXPROCS.
+	    Note that -parallel only applies within a single test binary.
+	    The 'go test' command may run tests for different packages
+	    in parallel as well, according to the setting of the -p flag
+	    (see 'go help build').
 
 	-run regexp
 	    Run only those tests and examples matching the regular
