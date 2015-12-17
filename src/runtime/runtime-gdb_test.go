@@ -60,6 +60,9 @@ func TestGdbPython(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("gdb does not work on darwin")
 	}
+	if final := os.Getenv("GOROOT_FINAL"); final != "" && runtime.GOROOT() != final {
+		t.Skip("gdb test can fail with GOROOT_FINAL pending")
+	}
 
 	checkGdbPython(t)
 
