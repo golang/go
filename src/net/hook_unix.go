@@ -6,14 +6,10 @@
 
 package net
 
-import (
-	"syscall"
-	"time"
-)
+import "syscall"
 
 var (
 	testHookDialChannel = func() {} // see golang.org/issue/5349
-	testHookDNSDialer   = func(d time.Duration) dnsDialer { return &Dialer{Timeout: d} }
 
 	// Placeholders for socket system calls.
 	socketFunc        func(int, int, int) (int, error)         = syscall.Socket

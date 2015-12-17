@@ -29,6 +29,8 @@ type dnsDialer interface {
 	dialDNS(string, string) (dnsConn, error)
 }
 
+var testHookDNSDialer = func(d time.Duration) dnsDialer { return &Dialer{Timeout: d} }
+
 // A dnsConn represents a DNS transport endpoint.
 type dnsConn interface {
 	io.Closer
