@@ -56,7 +56,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		if rr.ContentLength != 0 && rr.Body == nil {
 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
 		}
-		t.Method = rr.Method
+		t.Method = valueOrDefault(rr.Method, "GET")
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength

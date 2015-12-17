@@ -179,10 +179,11 @@ func (c *Client) send(req *Request) (*Response, error) {
 //
 // Generally Get, Post, or PostForm will be used instead of Do.
 func (c *Client) Do(req *Request) (resp *Response, err error) {
-	if req.Method == "" || req.Method == "GET" || req.Method == "HEAD" {
+	method := valueOrDefault(req.Method, "GET")
+	if method == "" || method == "GET" || method == "HEAD" {
 		return c.doFollowingRedirects(req, shouldRedirectGet)
 	}
-	if req.Method == "POST" || req.Method == "PUT" {
+	if method == "POST" || method == "PUT" {
 		return c.doFollowingRedirects(req, shouldRedirectPost)
 	}
 	return c.send(req)
