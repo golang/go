@@ -72,14 +72,18 @@ type Response struct {
 	// ReadResponse nor Response.Write ever closes a connection.
 	Close bool
 
-	// Trailer maps trailer keys to values, in the same
-	// format as the header.
+	// Trailer maps trailer keys to values in the same
+	// format as Header.
 	//
-	// The Trailer initially contains only the server's
-	// pre-declared trailer keys, but with nil values. Trailer
-	// must not be access concurrently with Read calls on the
-	// Body. After Body.Read has returned io.EOF, Trailer can be read
-	// again and will contain any values sent by the server.
+	// The Trailer initially contains only nil values, one for
+	// each key specified in the server's "Trailer" header
+	// value. Those values are not added to Header.
+	//
+	// Trailer must not be accessed concurrently with Read calls
+	// on the Body.
+	//
+	// After Body.Read has returned io.EOF, Trailer will contain
+	// any trailer values sent by the server.
 	Trailer Header
 
 	// The Request that was sent to obtain this Response.
