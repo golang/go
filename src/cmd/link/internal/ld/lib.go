@@ -809,9 +809,7 @@ func objfile(lib *Library) {
 
 	off += l
 
-	if Debug['u'] != 0 {
-		ldpkg(f, pkg, atolwhex(arhdr.size), lib.File, Pkgdef)
-	}
+	ldpkg(f, pkg, atolwhex(arhdr.size), lib.File, Pkgdef)
 
 	/*
 	 * load all the object files from the archive now.
