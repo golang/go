@@ -36,26 +36,33 @@ var (
 	ErrContentLength   = errors.New("Conn.Write wrote more than the declared Content-Length")
 )
 
-// Objects implementing the Handler interface can be
-// registered to serve a particular path or subtree
-// in the HTTP server.
+// A Handler responds to an HTTP request.
 //
 // ServeHTTP should write reply headers and data to the ResponseWriter
-// and then return.  Returning signals that the request is finished
-// and that the HTTP server can move on to the next request on
-// the connection.
+// and then return. Returning signals that the request is finished; it
+// is not valid to use the ResponseWriter or read from the
+// Request.Body after or concurrently with the completion of the
+// ServeHTTP call.
+//
+// Depending on the HTTP client software, HTTP protocol version, and
+// any intermediaries between the client and the Go server, it may not
+// be possible to read from the Request.Body after writing to the
+// ResponseWriter. Cautious handlers should read the Request.Body
+// first, and then reply.
 //
 // If ServeHTTP panics, the server (the caller of ServeHTTP) assumes
 // that the effect of the panic was isolated to the active request.
 // It recovers the panic, logs a stack trace to the server error log,
 // and hangs up the connection.
-//
 type Handler interface {
 	ServeHTTP(ResponseWriter, *Request)
 }
 
 // A ResponseWriter interface is used by an HTTP handler to
 // construct an HTTP response.
+//
+// A ResponseWriter may not be used after the Handler.ServeHTTP method
+// has returned.
 type ResponseWriter interface {
 	// Header returns the header map that will be sent by
 	// WriteHeader. Changing the header after a call to
@@ -1546,7 +1553,7 @@ func (w *response) CloseNotify() <-chan bool {
 // The HandlerFunc type is an adapter to allow the use of
 // ordinary functions as HTTP handlers.  If f is a function
 // with the appropriate signature, HandlerFunc(f) is a
-// Handler object that calls f.
+// Handler that calls f.
 type HandlerFunc func(ResponseWriter, *Request)
 
 // ServeHTTP calls f(w, r).

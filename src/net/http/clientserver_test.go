@@ -619,3 +619,59 @@ func testResponseBodyReadAfterClose(t *testing.T, h2 bool) {
 		t.Fatalf("ReadAll returned %q, %v; want error", data, err)
 	}
 }
+
+func TestConcurrentReadWriteReqBody_h1(t *testing.T) { testConcurrentReadWriteReqBody(t, h1Mode) }
+func TestConcurrentReadWriteReqBody_h2(t *testing.T) {
+	t.Skip("known failing; golang.org/issue/13659")
+	testConcurrentReadWriteReqBody(t, h2Mode)
+}
+func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	const reqBody = "some request body"
+	const resBody = "some response body"
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		didRead := make(chan bool, 1)
+		// Read in one goroutine.
+		go func() {
+			defer wg.Done()
+			data, err := ioutil.ReadAll(r.Body)
+			if string(data) != reqBody {
+				t.Errorf("Handler read %q; want %q", data, reqBody)
+			}
+			if err != nil {
+				t.Errorf("Handler Read: %v", err)
+			}
+			didRead <- true
+		}()
+		// Write in another goroutine.
+		go func() {
+			defer wg.Done()
+			if !h2 {
+				// our HTTP/1 implementation intentionally
+				// doesn't permit writes during read (mostly
+				// due to it being undefined); if that is ever
+				// relaxed, fix this.
+				<-didRead
+			}
+			io.WriteString(w, resBody)
+		}()
+		wg.Wait()
+	}))
+	defer cst.close()
+	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader(reqBody))
+	req.Header.Add("Expect", "100-continue") // just to complicate things
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != resBody {
+		t.Errorf("read %q; want %q", data, resBody)
+	}
+}
