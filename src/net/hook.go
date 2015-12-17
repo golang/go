@@ -4,11 +4,8 @@
 
 package net
 
-import "time"
-
 var (
 	testHookDialTCP      = dialTCP
-	testHookDNSDialer    = func(d time.Duration) dnsDialer { return &Dialer{Timeout: d} }
 	testHookHostsPath    = "/etc/hosts"
 	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
 	testHookSetKeepAlive = func() {}
