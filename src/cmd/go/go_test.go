@@ -89,8 +89,6 @@ func TestMain(m *testing.M) {
 		case "linux", "darwin", "freebsd", "windows":
 			canRace = canCgo && runtime.GOARCH == "amd64"
 		}
-
-		measureTick("./testgo" + exeSuffix)
 	}
 
 	// Don't let these environment variables confuse the test.
@@ -109,24 +107,8 @@ func TestMain(m *testing.M) {
 // The length of an mtime tick on this system.  This is an estimate of
 // how long we need to sleep to ensure that the mtime of two files is
 // different.
-var mtimeTick time.Duration
-
-// measureTick sets mtimeTick by looking at the rounding of the mtime
-// of a file.
-func measureTick(path string) {
-	st, err := os.Stat(path)
-	if err != nil {
-		// Default to one second, the most conservative value.
-		mtimeTick = time.Second
-		return
-	}
-	mtime := st.ModTime()
-	t := time.Microsecond
-	for mtime.Round(t).Equal(mtime) && t < time.Second {
-		t *= 10
-	}
-	mtimeTick = t
-}
+// We used to try to be clever but that didn't always work (see golang.org/issue/12205).
+var mtimeTick time.Duration = 1 * time.Second
 
 // Manage a single run of the testgo binary.
 type testgoData struct {
@@ -1189,6 +1171,7 @@ func TestBuildOutputToDevNull(t *testing.T) {
 func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	gobin := filepath.Join(tg.pwd(), "testdata", "bin")
 	tg.creatingTemp(gobin)
 	tg.setenv("GOBIN", gobin)
