@@ -27,7 +27,7 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 func sigprocmask(how uint32, new, old *sigset)
 
 //go:noescape
-func sigaction(mode uint32, new, old *sigactiont)
+func sigaction(mode uint32, new *sigactiont, old *usigactiont)
 
 //go:noescape
 func sigaltstack(new, old *stackt)
