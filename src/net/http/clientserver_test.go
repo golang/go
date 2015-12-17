@@ -597,3 +597,25 @@ func testTrailersServerToClient(t *testing.T, h2, flush bool) {
 		t.Errorf("Trailer after body read = %v; want %v", got, want)
 	}
 }
+
+// Don't allow a Body.Read after Body.Close. Issue 13648.
+func TestResponseBodyReadAfterClose_h1(t *testing.T) { testResponseBodyReadAfterClose(t, h1Mode) }
+func TestResponseBodyReadAfterClose_h2(t *testing.T) { testResponseBodyReadAfterClose(t, h2Mode) }
+
+func testResponseBodyReadAfterClose(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	const body = "Some body"
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		io.WriteString(w, body)
+	}))
+	defer cst.close()
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	data, err := ioutil.ReadAll(res.Body)
+	if len(data) != 0 || err == nil {
+		t.Fatalf("ReadAll returned %q, %v; want error", data, err)
+	}
+}
