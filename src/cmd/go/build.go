@@ -1476,17 +1476,17 @@ func (b *builder) build(a *action) (err error) {
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		}
@@ -1575,7 +1575,7 @@ func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err e
 
 func (b *builder) installShlibname(a *action) error {
 	a1 := a.deps[0]
-	err := ioutil.WriteFile(a.target, []byte(filepath.Base(a1.target)+"\n"), 0644)
+	err := ioutil.WriteFile(a.target, []byte(filepath.Base(a1.target)+"\n"), 0666)
 	if err != nil {
 		return err
 	}
@@ -1599,12 +1599,12 @@ func (b *builder) install(a *action) (err error) {
 		}
 	}()
 	a1 := a.deps[0]
-	perm := os.FileMode(0644)
+	perm := os.FileMode(0666)
 	if a1.link {
 		switch buildBuildmode {
 		case "c-archive", "c-shared":
 		default:
-			perm = 0755
+			perm = 0777
 		}
 	}
 
@@ -1678,7 +1678,25 @@ func (b *builder) moveOrCopyFile(a *action, dst, src string, perm os.FileMode, f
 
 	// If we can update the mode and rename to the dst, do it.
 	// Otherwise fall back to standard copy.
-	if err := os.Chmod(src, perm); err == nil {
+
+	// The perm argument is meant to be adjusted according to umask,
+	// but we don't know what the umask is.
+	// Create a dummy file to find out.
+	// This avoids build tags and works even on systems like Plan 9
+	// where the file mask computation incorporates other information.
+	mode := perm
+	f, err := os.OpenFile(filepath.Clean(dst)+"-go-tmp-umask", os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err == nil {
+		fi, err := f.Stat()
+		if err == nil {
+			mode = fi.Mode() & 0777
+		}
+		name := f.Name()
+		f.Close()
+		os.Remove(name)
+	}
+
+	if err := os.Chmod(src, mode); err == nil {
 		if err := os.Rename(src, dst); err == nil {
 			if buildX {
 				b.showcmd("", "mv %s %s", src, dst)
@@ -1765,7 +1783,7 @@ func (b *builder) installHeader(a *action) error {
 		}
 	}
 
-	return b.moveOrCopyFile(a, a.target, src, 0644, true)
+	return b.moveOrCopyFile(a, a.target, src, 0666, true)
 }
 
 // cover runs, in effect,
@@ -3258,7 +3276,7 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
 		return "$INTBITS", nil
 	}
 	src := filepath.Join(b.work, "swig_intsize.go")
-	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0644); err != nil {
+	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0666); err != nil {
 		return
 	}
 	srcs := []string{src}
