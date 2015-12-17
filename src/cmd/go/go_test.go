@@ -2118,6 +2118,17 @@ func TestGoGetRscIoToolstash(t *testing.T) {
 	tg.run("get", "./toolstash")
 }
 
+// Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
+func TestGoGetHTTPS404(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "bazil.org/fuse/fs/fstestutil")
+}
+
 // Test that you can not import a main package.
 func TestIssue4210(t *testing.T) {
 	tg := testgo(t)
