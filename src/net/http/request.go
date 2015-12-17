@@ -1057,11 +1057,13 @@ func (r *Request) closeBody() {
 }
 
 func (r *Request) isReplayable() bool {
-	return r.Body == nil &&
-		(r.Method == "GET" ||
-			r.Method == "HEAD" ||
-			r.Method == "OPTIONS" ||
-			r.Method == "TRACE")
+	if r.Body == nil {
+		switch valueOrDefault(r.Method, "GET") {
+		case "GET", "HEAD", "OPTIONS", "TRACE":
+			return true
+		}
+	}
+	return false
 }
 
 func validHostHeader(h string) bool {
