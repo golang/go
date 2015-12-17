@@ -6,6 +6,7 @@ package main_test
 
 import (
 	main "cmd/go"
+	"go/build"
 	"runtime"
 	"testing"
 )
@@ -42,6 +43,8 @@ func testNoteReading(t *testing.T) {
 	}
 
 	switch {
+	case !build.Default.CgoEnabled:
+		t.Skipf("skipping - no cgo, so assuming external linking not available")
 	case runtime.GOOS == "linux" && (runtime.GOARCH == "ppc64le" || runtime.GOARCH == "ppc64"):
 		t.Skipf("skipping - external linking not supported, golang.org/issue/11184")
 	case runtime.GOOS == "linux" && (runtime.GOARCH == "mips64le" || runtime.GOARCH == "mips64"):
