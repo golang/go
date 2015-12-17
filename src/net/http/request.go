@@ -1121,3 +1121,24 @@ var validHostByte = [256]bool{
 	'_':  true, // unreserved
 	'~':  true, // unreserved
 }
+
+func validHeaderName(v string) bool {
+	if len(v) == 0 {
+		return false
+	}
+	return strings.IndexFunc(v, isNotToken) == -1
+}
+
+func validHeaderValue(v string) bool {
+	for i := 0; i < len(v); i++ {
+		b := v[i]
+		if b == '\t' {
+			continue
+		}
+		if ' ' <= b && b <= '~' {
+			continue
+		}
+		return false
+	}
+	return true
+}
