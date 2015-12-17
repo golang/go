@@ -147,7 +147,7 @@ var vcsGit = &vcsCmd{
 
 // scpSyntaxRe matches the SCP-like addresses used by Git to access
 // repositories by SSH.
-var scpSyntaxRe = regexp.MustCompile(`^([a-zA-Z0-9_]+)@([a-zA-Z0-9._-]+):(.*)$`)
+var scpSyntaxRe = regexp.MustCompile(`^(?:([a-zA-Z0-9_]+)@)?([a-zA-Z0-9._-]+):(.*)$`)
 
 func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error) {
 	cmd := "config remote.origin.url"
@@ -171,9 +171,11 @@ func gitRemoteRepo(vcsGit *vcsCmd, rootDir string) (remoteRepo string, err error
 		// "ssh://git@github.com/user/repo".
 		repoURL = &url.URL{
 			Scheme:  "ssh",
-			User:    url.User(m[1]),
 			Host:    m[2],
 			RawPath: m[3],
+		}
+		if m[1] != "" {
+			repoURL.User = url.User(m[1])
 		}
 	} else {
 		repoURL, err = url.Parse(out)
