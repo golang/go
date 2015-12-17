@@ -362,7 +362,7 @@ Generate Go files by processing source
 
 Usage:
 
-	go generate [-run regexp] [file.go... | packages]
+	go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]
 
 Generate runs commands described by directives within existing
 files. Those commands can run any process but the intent is to
@@ -459,6 +459,8 @@ The -v flag prints the names of packages and files as they are
 processed.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
+
+For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -1315,6 +1317,14 @@ unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
+
+Packages in a program need not have unique package names,
+but there are two reserved package names with special meaning.
+The name main indicates a command, not a library.
+Commands are built into binaries and cannot be imported.
+The name documentation indicates documentation for
+a non-Go program in the directory. Files in package documentation
+are ignored by the go command.
 
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized

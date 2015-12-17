@@ -22,7 +22,7 @@ import (
 
 var cmdGenerate = &Command{
 	Run:       runGenerate,
-	UsageLine: "generate [-run regexp] [file.go... | packages]",
+	UsageLine: "generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]",
 	Short:     "generate Go files by processing source",
 	Long: `
 Generate runs commands described by directives within existing
@@ -120,6 +120,8 @@ The -v flag prints the names of packages and files as they are
 processed.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
+
+For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 	`,
