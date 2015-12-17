@@ -305,7 +305,9 @@ func nextBarrierPC() uintptr {
 //go:nosplit
 func setNextBarrierPC(pc uintptr) {
 	gp := getg()
+	gcLockStackBarriers(gp)
 	gp.stkbar[gp.stkbarPos].savedLRVal = pc
+	gcUnlockStackBarriers(gp)
 }
 
 // gcLockStackBarriers synchronizes with tracebacks of gp's stack
