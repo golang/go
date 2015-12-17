@@ -21,15 +21,6 @@ func flagalloc(f *Func) {
 		// Walk blocks backwards.  Poor-man's postorder traversal.
 		for i := len(f.Blocks) - 1; i >= 0; i-- {
 			b := f.Blocks[i]
-			if len(b.Preds) > 1 {
-				// Don't use any flags register at the start
-				// of a merge block.  This causes problems
-				// in regalloc because some of the rematerialization
-				// instructions used on incoming merge edges clobber
-				// the flags register.
-				// TODO: only for architectures where this matters?
-				continue
-			}
 			// Walk values backwards to figure out what flag
 			// value we want in the flag register at the start
 			// of the block.

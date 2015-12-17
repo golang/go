@@ -102,7 +102,6 @@ var passes = [...]pass{
 	{"schedule", schedule},   // schedule values
 	{"flagalloc", flagalloc}, // allocate flags register
 	{"regalloc", regalloc},
-	{"stackalloc", stackalloc},
 }
 
 // Double-check phase ordering constraints.
@@ -138,8 +137,6 @@ var passOrder = [...]constraint{
 	{"critical", "regalloc"},
 	// regalloc requires all the values in a block to be scheduled
 	{"schedule", "regalloc"},
-	// stack allocation requires register allocation
-	{"regalloc", "stackalloc"},
 	// checkLower must run after lowering & subsequent dead code elim
 	{"lower", "checkLower"},
 	{"lowered deadcode", "checkLower"},
