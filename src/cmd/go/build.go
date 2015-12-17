@@ -63,7 +63,8 @@ and test commands:
 	-n
 		print the commands but do not run them.
 	-p n
-		the number of builds that can be run in parallel.
+		the number of programs, such as build commands or
+		test binaries, that can be run in parallel.
 		The default is the number of CPUs available, except
 		on darwin/arm which defaults to 1.
 	-race
