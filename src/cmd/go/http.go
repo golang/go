@@ -83,14 +83,11 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 		}
 	}
 	urlStr, res, err := fetch("https")
-	if err != nil || res.StatusCode != 200 {
-		if buildV && err != nil {
+	if err != nil {
+		if buildV {
 			log.Printf("https fetch failed: %v", err)
 		}
 		if security == insecure {
-			if buildV && res.StatusCode != 200 {
-				log.Printf("https fetch: status %s", res.Status)
-			}
 			closeBody(res)
 			urlStr, res, err = fetch("http")
 		}
