@@ -29,7 +29,7 @@ func run(cmdline string) {
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("$ %s\n", strings.Join(args, " "))
+		fmt.Printf("$ %s\n", cmdline)
 		fmt.Println(string(out))
 		fmt.Println(err)
 		cleanup()
@@ -37,11 +37,12 @@ func run(cmdline string) {
 	}
 }
 
-func runFail(args ...string) {
+func runFail(cmdline string) {
+	args := strings.Fields(cmdline)
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
-		fmt.Printf("$ %s\n", strings.Join(args, " "))
+		fmt.Printf("$ %s\n", cmdline)
 		fmt.Println(string(out))
 		fmt.Println("SHOULD HAVE FAILED!")
 		cleanup()
@@ -57,8 +58,8 @@ func main() {
 	run("go tool link -o linkmain.exe linkmain.a")
 
 	// linkmain.go is not
-	run("go tool compile -o linkmain.o linkmain.go")
-	run("go tool compile -pack -o linkmain.a linkmain.go")
+	run("go tool compile -o linkmain1.o linkmain.go")
+	run("go tool compile -pack -o linkmain1.a linkmain.go")
 	runFail("go tool link -o linkmain.exe linkmain1.o")
 	runFail("go tool link -o linkmain.exe linkmain1.a")
 	cleanup()
