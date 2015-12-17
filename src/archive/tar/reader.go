@@ -857,6 +857,10 @@ func (tr *Reader) numBytes() int64 {
 // Read reads from the current entry in the tar archive.
 // It returns 0, io.EOF when it reaches the end of that entry,
 // until Next is called to advance to the next entry.
+//
+// Calling Read on special types like TypeLink, TypeSymLink, TypeChar,
+// TypeBlock, TypeDir, and TypeFifo returns 0, io.EOF regardless of what
+// the Header.Size claims.
 func (tr *Reader) Read(b []byte) (n int, err error) {
 	if tr.err != nil {
 		return 0, tr.err
