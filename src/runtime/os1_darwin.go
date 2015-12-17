@@ -444,7 +444,6 @@ func memlimit() uintptr {
 
 func setsig(i int32, fn uintptr, restart bool) {
 	var sa sigactiont
-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
 	if restart {
 		sa.sa_flags |= _SA_RESTART
@@ -456,12 +455,22 @@ func setsig(i int32, fn uintptr, restart bool) {
 }
 
 func setsigstack(i int32) {
-	throw("setsigstack")
+	var osa usigactiont
+	sigaction(uint32(i), nil, &osa)
+	handler := *(*uintptr)(unsafe.Pointer(&osa.__sigaction_u))
+	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || osa.sa_flags&_SA_ONSTACK != 0 {
+		return
+	}
+	var sa sigactiont
+	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = handler
+	sa.sa_tramp = unsafe.Pointer(funcPC(sigtramp))
+	sa.sa_mask = osa.sa_mask
+	sa.sa_flags = osa.sa_flags | _SA_ONSTACK
+	sigaction(uint32(i), &sa, nil)
 }
 
 func getsig(i int32) uintptr {
-	var sa sigactiont
-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+	var sa usigactiont
 	sigaction(uint32(i), nil, &sa)
 	return *(*uintptr)(unsafe.Pointer(&sa.__sigaction_u))
 }

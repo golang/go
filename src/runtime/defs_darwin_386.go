@@ -167,6 +167,12 @@ type sigactiont struct {
 	sa_flags      int32
 }
 
+type usigactiont struct {
+	__sigaction_u [4]byte
+	sa_mask       uint32
+	sa_flags      int32
+}
+
 type siginfo struct {
 	si_signo  int32
 	si_errno  int32
