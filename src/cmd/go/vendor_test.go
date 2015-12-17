@@ -187,6 +187,18 @@ func TestVendorGetUpdate(t *testing.T) {
 	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
 }
 
+func TestGetSubmodules(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.run("get", "-d", "github.com/rsc/go-get-issue-12612")
+	tg.run("get", "-u", "-d", "github.com/rsc/go-get-issue-12612")
+}
+
 func TestVendorCache(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
