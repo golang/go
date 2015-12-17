@@ -74,6 +74,12 @@ type Response struct {
 
 	// Trailer maps trailer keys to values, in the same
 	// format as the header.
+	//
+	// The Trailer initially contains only the server's
+	// pre-declared trailer keys, but with nil values. Trailer
+	// must not be access concurrently with Read calls on the
+	// Body. After Body.Read has returned io.EOF, Trailer can be read
+	// again and will contain any values sent by the server.
 	Trailer Header
 
 	// The Request that was sent to obtain this Response.

@@ -28,6 +28,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/textproto"
 	"net/url"
 	"os"
 	"runtime"
@@ -3706,12 +3707,13 @@ type http2responseWriterState struct {
 	bw *bufio.Writer // writing to a chunkWriter{this *responseWriterState}
 
 	// mutated by http.Handler goroutine:
-	handlerHeader Header // nil until called
-	snapHeader    Header // snapshot of handlerHeader at WriteHeader time
-	status        int    // status code passed to WriteHeader
-	wroteHeader   bool   // WriteHeader called (explicitly or implicitly). Not necessarily sent to user yet.
-	sentHeader    bool   // have we sent the header frame?
-	handlerDone   bool   // handler has finished
+	handlerHeader Header   // nil until called
+	snapHeader    Header   // snapshot of handlerHeader at WriteHeader time
+	trailers      []string // set in writeChunk
+	status        int      // status code passed to WriteHeader
+	wroteHeader   bool     // WriteHeader called (explicitly or implicitly). Not necessarily sent to user yet.
+	sentHeader    bool     // have we sent the header frame?
+	handlerDone   bool     // handler has finished
 
 	sentContentLen int64 // non-zero if handler set a Content-Length header
 	wroteBytes     int64
@@ -3724,6 +3726,21 @@ type http2chunkWriter struct{ rws *http2responseWriterState }
 
 func (cw http2chunkWriter) Write(p []byte) (n int, err error) { return cw.rws.writeChunk(p) }
 
+func (rws *http2responseWriterState) hasTrailers() bool { return len(rws.trailers) != 0 }
+
+// declareTrailer is called for each Trailer header when the
+// response header is written. It notes that a header will need to be
+// written in the trailers at the end of the response.
+func (rws *http2responseWriterState) declareTrailer(k string) {
+	k = CanonicalHeaderKey(k)
+	switch k {
+	case "Transfer-Encoding", "Content-Length", "Trailer":
+
+		return
+	}
+	rws.trailers = append(rws.trailers, k)
+}
+
 // writeChunk writes chunks from the bufio.Writer. But because
 // bufio.Writer may bypass its chunking, sometimes p may be
 // arbitrarily large.
@@ -3734,6 +3751,7 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 	if !rws.wroteHeader {
 		rws.writeHeader(200)
 	}
+
 	isHeadResp := rws.req.Method == "HEAD"
 	if !rws.sentHeader {
 		rws.sentHeader = true
@@ -3759,7 +3777,12 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 
 			date = time.Now().UTC().Format(TimeFormat)
 		}
-		endStream := (rws.handlerDone && len(p) == 0) || isHeadResp
+
+		for _, v := range rws.snapHeader["Trailer"] {
+			http2foreachHeaderElement(v, rws.declareTrailer)
+		}
+
+		endStream := (rws.handlerDone && !rws.hasTrailers() && len(p) == 0) || isHeadResp
 		err = rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
 			streamID:      rws.stream.id,
 			httpResCode:   rws.status,
@@ -3783,8 +3806,22 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	if err := rws.conn.writeDataFromHandler(rws.stream, p, rws.handlerDone); err != nil {
-		return 0, err
+	endStream := rws.handlerDone && !rws.hasTrailers()
+	if len(p) > 0 || endStream {
+
+		if err := rws.conn.writeDataFromHandler(rws.stream, p, endStream); err != nil {
+			return 0, err
+		}
+	}
+
+	if rws.handlerDone && rws.hasTrailers() {
+		err = rws.conn.writeHeaders(rws.stream, &http2writeResHeaders{
+			streamID:  rws.stream.id,
+			h:         rws.handlerHeader,
+			trailers:  rws.trailers,
+			endStream: true,
+		})
+		return len(p), err
 	}
 	return len(p), nil
 }
@@ -3910,6 +3947,24 @@ func (w *http2responseWriter) handlerDone() {
 	w.Flush()
 	w.rws = nil
 	http2responseWriterStatePool.Put(rws)
+}
+
+// foreachHeaderElement splits v according to the "#rule" construction
+// in RFC 2616 section 2.1 and calls fn for each non-empty element.
+func http2foreachHeaderElement(v string, fn func(string)) {
+	v = textproto.TrimString(v)
+	if v == "" {
+		return
+	}
+	if !strings.Contains(v, ",") {
+		fn(v)
+		return
+	}
+	for _, f := range strings.Split(v, ",") {
+		if f = textproto.TrimString(f); f != "" {
+			fn(f)
+		}
+	}
 }
 
 const (
@@ -4045,6 +4100,13 @@ type http2clientStream struct {
 
 	peerReset chan struct{} // closed on peer reset
 	resetErr  error         // populated before peerReset is closed
+
+	// owned by clientConnReadLoop:
+	headersDone  bool // got HEADERS w/ END_HEADERS
+	trailersDone bool // got second HEADERS frame w/ END_HEADERS
+
+	trailer    Header // accumulated trailers
+	resTrailer Header // client's Response.Trailer
 }
 
 // awaitRequestCancel runs in its own goroutine and waits for the user's
@@ -4753,9 +4815,14 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 
 		return nil
 	}
+	if cs.headersDone {
+		rl.hdec.SetEmitFunc(cs.onNewTrailerField)
+	} else {
+		rl.hdec.SetEmitFunc(rl.onNewHeaderField)
+	}
 	_, err := rl.hdec.Write(frag)
 	if err != nil {
-		return err
+		return http2ConnectionError(http2ErrCodeCompression)
 	}
 	if !headersEnded {
 		rl.continueStreamID = cs.ID
@@ -4763,6 +4830,23 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 	}
 
 	rl.continueStreamID = 0
+
+	if !cs.headersDone {
+		cs.headersDone = true
+	} else {
+
+		if cs.trailersDone {
+
+			return http2ConnectionError(http2ErrCodeProtocol)
+		}
+		cs.trailersDone = true
+		if !streamEnded {
+
+			return http2ConnectionError(http2ErrCodeProtocol)
+		}
+		rl.endStream(cs)
+		return nil
+	}
 
 	if rl.reqMalformed != nil {
 		cs.resc <- http2resAndError{err: rl.reqMalformed}
@@ -4802,6 +4886,7 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 		}
 	}
 
+	cs.resTrailer = res.Trailer
 	rl.activeRes[cs.ID] = cs
 	cs.resc <- http2resAndError{res: res}
 	rl.nextRes = nil
@@ -4907,10 +4992,21 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 	}
 
 	if f.StreamEnded() {
-		cs.bufPipe.CloseWithError(io.EOF)
-		delete(rl.activeRes, cs.ID)
+		rl.endStream(cs)
 	}
 	return nil
+}
+
+func (rl *http2clientConnReadLoop) endStream(cs *http2clientStream) {
+
+	cs.bufPipe.closeWithErrorAndCode(io.EOF, cs.copyTrailers)
+	delete(rl.activeRes, cs.ID)
+}
+
+func (cs *http2clientStream) copyTrailers() {
+	for k, vv := range cs.trailer {
+		cs.resTrailer[k] = vv
+	}
 }
 
 func (rl *http2clientConnReadLoop) processGoAway(f *http2GoAwayFrame) error {
@@ -5019,6 +5115,7 @@ func (rl *http2clientConnReadLoop) onNewHeaderField(f hpack.HeaderField) {
 	if http2VerboseLogs {
 		cc.logf("Header field: %+v", f)
 	}
+
 	isPseudo := strings.HasPrefix(f.Name, ":")
 	if isPseudo {
 		if rl.sawRegHeader {
@@ -5040,7 +5137,37 @@ func (rl *http2clientConnReadLoop) onNewHeaderField(f hpack.HeaderField) {
 		}
 	} else {
 		rl.sawRegHeader = true
-		rl.nextRes.Header.Add(CanonicalHeaderKey(f.Name), f.Value)
+		key := CanonicalHeaderKey(f.Name)
+		if key == "Trailer" {
+			t := rl.nextRes.Trailer
+			if t == nil {
+				t = make(Header)
+				rl.nextRes.Trailer = t
+			}
+			http2foreachHeaderElement(f.Value, func(v string) {
+				t[CanonicalHeaderKey(v)] = nil
+			})
+		} else {
+			rl.nextRes.Header.Add(key, f.Value)
+		}
+	}
+}
+
+func (cs *http2clientStream) onNewTrailerField(f hpack.HeaderField) {
+	isPseudo := strings.HasPrefix(f.Name, ":")
+	if isPseudo {
+
+		return
+	}
+	key := CanonicalHeaderKey(f.Name)
+	if _, ok := cs.resTrailer[key]; ok {
+		if cs.trailer == nil {
+			cs.trailer = make(Header)
+		}
+		const tooBig = 1000 // TODO: arbitrary; use max header list size limits
+		if cur := cs.trailer[key]; len(cur) < tooBig {
+			cs.trailer[key] = append(cur, f.Value)
+		}
 	}
 }
 
@@ -5205,11 +5332,12 @@ func (http2writeSettingsAck) writeFrame(ctx http2writeContext) error {
 }
 
 // writeResHeaders is a request to write a HEADERS and 0+ CONTINUATION frames
-// for HTTP response headers from a server handler.
+// for HTTP response headers or trailers from a server handler.
 type http2writeResHeaders struct {
 	streamID    uint32
-	httpResCode int
-	h           Header // may be nil
+	httpResCode int      // 0 means no ":status" line
+	h           Header   // may be nil
+	trailers    []string // if non-nil, which keys of h to write. nil means all.
 	endStream   bool
 
 	date          string
@@ -5220,25 +5348,16 @@ type http2writeResHeaders struct {
 func (w *http2writeResHeaders) writeFrame(ctx http2writeContext) error {
 	enc, buf := ctx.HeaderEncoder()
 	buf.Reset()
-	enc.WriteField(hpack.HeaderField{Name: ":status", Value: http2httpCodeString(w.httpResCode)})
 
-	keys := make([]string, 0, len(w.h))
-	for k := range w.h {
-		keys = append(keys, k)
+	if w.httpResCode != 0 {
+		enc.WriteField(hpack.HeaderField{
+			Name:  ":status",
+			Value: http2httpCodeString(w.httpResCode),
+		})
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		vv := w.h[k]
-		k = http2lowerHeader(k)
-		isTE := k == "transfer-encoding"
-		for _, v := range vv {
 
-			if isTE && v != "trailers" {
-				continue
-			}
-			enc.WriteField(hpack.HeaderField{Name: k, Value: v})
-		}
-	}
+	http2encodeHeaders(enc, w.h, w.trailers)
+
 	if w.contentType != "" {
 		enc.WriteField(hpack.HeaderField{Name: "content-type", Value: w.contentType})
 	}
@@ -5250,7 +5369,7 @@ func (w *http2writeResHeaders) writeFrame(ctx http2writeContext) error {
 	}
 
 	headerBlock := buf.Bytes()
-	if len(headerBlock) == 0 {
+	if len(headerBlock) == 0 && w.trailers == nil {
 		panic("unexpected empty hpack")
 	}
 
@@ -5312,6 +5431,29 @@ type http2writeWindowUpdate struct {
 
 func (wu http2writeWindowUpdate) writeFrame(ctx http2writeContext) error {
 	return ctx.Framer().WriteWindowUpdate(wu.streamID, wu.n)
+}
+
+func http2encodeHeaders(enc *hpack.Encoder, h Header, keys []string) {
+
+	if keys == nil {
+		keys = make([]string, 0, len(h))
+		for k := range h {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+	}
+	for _, k := range keys {
+		vv := h[k]
+		k = http2lowerHeader(k)
+		isTE := k == "transfer-encoding"
+		for _, v := range vv {
+
+			if isTE && v != "trailers" {
+				continue
+			}
+			enc.WriteField(hpack.HeaderField{Name: k, Value: v})
+		}
+	}
 }
 
 // frameWriteMsg is a request to write a frame.
