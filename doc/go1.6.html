@@ -33,7 +33,7 @@ We expect almost all Go programs to continue to compile and run as before.
 <p>
 The release adds new ports to <a href="#ports">Linux on 64-bit MIPS and Android on 32-bit x86</a>;
 defined and enforced <a href="#cgo">rules for sharing Go pointers with C</a>;
-transparent, automatic <a href="#http">support for HTTP/2</a>;
+transparent, automatic <a href="#http2">support for HTTP/2</a>;
 and a new mechanism for <a href="#template">template reuse</a>.
 </p>
 
@@ -258,7 +258,7 @@ to implementations of the
 
 <h2 id="library">Core library</h2>
 
-<h3 id="http">HTTP</h3>
+<h3 id="http2">HTTP/2</h3>
 
 <p>
 Go 1.6 adds transparent support in the
@@ -697,7 +697,7 @@ and
 
 <li>
 Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
-there are a few change related to the handling of a
+there are a few changes related to the handling of a
 <a href="/pkg/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
 An empty <code>Method</code> field has always been documented as an alias for <code>"GET"</code>
 and it remains so.
