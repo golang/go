@@ -707,6 +707,16 @@ func (c *conn) readRequest() (w *response, err error) {
 	if len(hosts) == 1 && !validHostHeader(hosts[0]) {
 		return nil, badRequestError("malformed Host header")
 	}
+	for k, vv := range req.Header {
+		if !validHeaderName(k) {
+			return nil, badRequestError("invalid header name")
+		}
+		for _, v := range vv {
+			if !validHeaderValue(v) {
+				return nil, badRequestError("invalid header value")
+			}
+		}
+	}
 	delete(req.Header, "Host")
 
 	req.RemoteAddr = c.remoteAddr

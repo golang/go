@@ -3629,6 +3629,7 @@ func testHandlerSetsBodyNil(t *testing.T, h2 bool) {
 }
 
 // Test that we validate the Host header.
+// Issue 11206 (invalid bytes in Host) and 13624 (Host present in HTTP/1.1)
 func TestServerValidatesHostHeader(t *testing.T) {
 	tests := []struct {
 		proto string
@@ -3672,6 +3673,43 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		}
 		if res.StatusCode != tt.want {
 			t.Errorf("For %s %q, Status = %d; want %d", tt.proto, tt.host, res.StatusCode, tt.want)
+		}
+	}
+}
+
+// Test that we validate the valid bytes in HTTP/1 headers.
+// Issue 11207.
+func TestServerValidatesHeaders(t *testing.T) {
+	tests := []struct {
+		header string
+		want   int
+	}{
+		{"", 200},
+		{"Foo: bar\r\n", 200},
+		{"X-Foo: bar\r\n", 200},
+		{"Foo: a space\r\n", 200},
+
+		{"A space: foo\r\n", 400},    // space in header
+		{"foo\xffbar: foo\r\n", 400}, // binary in header
+		{"foo\x00bar: foo\r\n", 400}, // binary in header
+
+		{"foo: foo\x00foo\r\n", 400}, // binary in value
+		{"foo: foo\xfffoo\r\n", 400}, // binary in value
+	}
+	for _, tt := range tests {
+		conn := &testConn{closec: make(chan bool)}
+		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
+
+		ln := &oneConnListener{conn}
+		go Serve(ln, HandlerFunc(func(ResponseWriter, *Request) {}))
+		<-conn.closec
+		res, err := ReadResponse(bufio.NewReader(&conn.writeBuf), nil)
+		if err != nil {
+			t.Errorf("For %q, ReadResponse: %v", tt.header, res)
+			continue
+		}
+		if res.StatusCode != tt.want {
+			t.Errorf("For %q, Status = %d; want %d", tt.header, res.StatusCode, tt.want)
 		}
 	}
 }
