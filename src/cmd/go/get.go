@@ -45,6 +45,10 @@ missing packages but does not use it to look for updates to existing packages.
 
 Get also accepts build flags to control the installation. See 'go help build'.
 
+When checking out a new package, get creates the target directory 
+GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+get uses the first one. See 'go help gopath'.
+
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important
 rule is that if the local installation is running version "go1", get
@@ -54,6 +58,8 @@ retrieves the most recent version of the package.
 Unless vendoring support is disabled (see 'go help gopath'),
 when go get checks out or updates a Git repository,
 it also updates any git submodules referenced by the repository.
+
+Get never checks out or updates code stored in vendor directories.
 
 For more about specifying packages, see 'go help packages'.
 
