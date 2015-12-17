@@ -2454,3 +2454,12 @@ func TestGoBuildARM(t *testing.T) {
 	tg.run("build", "hello.go")
 	tg.grepStderrNot("unable to find math.a", "did not build math.a correctly")
 }
+
+func TestIssue13655(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	for _, pkg := range []string{"runtime", "runtime/internal/atomic"} {
+		tg.run("list", "-f", "{{.Deps}}", pkg)
+		tg.grepStdout("runtime/internal/sys", "did not find required dependency of "+pkg+" on runtime/internal/sys")
+	}
+}
