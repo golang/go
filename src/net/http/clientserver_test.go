@@ -469,10 +469,7 @@ func testCancelRequestMidBody(t *testing.T, h2 bool) {
 
 // Tests that clients can send trailers to a server and that the server can read them.
 func TestTrailersClientToServer_h1(t *testing.T) { testTrailersClientToServer(t, h1Mode) }
-func TestTrailersClientToServer_h2(t *testing.T) {
-	t.Skip("skipping in http2 mode; golang.org/issue/13557")
-	testTrailersClientToServer(t, h2Mode)
-}
+func TestTrailersClientToServer_h2(t *testing.T) { testTrailersClientToServer(t, h2Mode) }
 
 func testTrailersClientToServer(t *testing.T, h2 bool) {
 	defer afterTest(t)
