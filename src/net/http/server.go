@@ -1695,6 +1695,14 @@ func RedirectHandler(url string, code int) Handler {
 // the pattern "/" matches all paths not matched by other registered
 // patterns, not just the URL with Path == "/".
 //
+// If a subtree has been registered and a request is received naming the
+// subtree root without its trailing slash, ServeMux redirects that
+// request to the subtree root (adding the trailing slash). This behavior can
+// be overridden with a separate registration for the path without
+// the trailing slash. For example, registering "/images/" causes ServeMux
+// to redirect a request for "/images" to "/images/", unless "/images" has
+// been registered separately.
+//
 // Patterns may optionally begin with a host name, restricting matches to
 // URLs on that host only.  Host-specific patterns take precedence over
 // general patterns, so that a handler might register for the two patterns
@@ -1702,8 +1710,8 @@ func RedirectHandler(url string, code int) Handler {
 // requests for "http://www.google.com/".
 //
 // ServeMux also takes care of sanitizing the URL request path,
-// redirecting any request containing . or .. elements to an
-// equivalent .- and ..-free URL.
+// redirecting any request containing . or .. elements or repeated slashes
+// to an equivalent, cleaner URL.
 type ServeMux struct {
 	mu    sync.RWMutex
 	m     map[string]muxEntry
