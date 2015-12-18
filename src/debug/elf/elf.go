@@ -2006,7 +2006,7 @@ type Dyn64 struct {
 // ELF64 Compression header.
 type Chdr64 struct {
 	Type      uint32
-	Reserved  uint32
+	_         uint32 /* Reserved. */
 	Size      uint64
 	Addralign uint64
 }
