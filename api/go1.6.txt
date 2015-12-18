@@ -135,7 +135,6 @@ pkg debug/elf, type Chdr32 struct, Size uint32
 pkg debug/elf, type Chdr32 struct, Type uint32
 pkg debug/elf, type Chdr64 struct
 pkg debug/elf, type Chdr64 struct, Addralign uint64
-pkg debug/elf, type Chdr64 struct, Reserved uint32
 pkg debug/elf, type Chdr64 struct, Size uint64
 pkg debug/elf, type Chdr64 struct, Type uint32
 pkg debug/elf, type CompressionType int
