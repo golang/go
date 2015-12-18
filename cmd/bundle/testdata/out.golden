@@ -3,6 +3,7 @@
 
 // The package doc comment
 //
+
 package dest
 
 import (
