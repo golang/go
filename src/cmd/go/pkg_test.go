@@ -57,6 +57,15 @@ var parseMetaGoImportsTests = []struct {
 		<body>`,
 		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
 	},
+	{
+		`<!doctype html><meta name="go-import" content="foo/bar git https://github.com/rsc/foo/bar">`,
+		[]metaImport{{"foo/bar", "git", "https://github.com/rsc/foo/bar"}},
+	},
+	{
+		// XML doesn't like <div style=position:relative>.
+		`<!doctype html><title>Page Not Found</title><meta name=go-import content="chitin.io/chitin git https://github.com/chitin-io/chitin"><div style=position:relative>DRAFT</div>`,
+		[]metaImport{{"chitin.io/chitin", "git", "https://github.com/chitin-io/chitin"}},
+	},
 }
 
 func TestParseMetaGoImports(t *testing.T) {
