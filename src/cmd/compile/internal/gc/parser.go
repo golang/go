@@ -667,9 +667,9 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			// labelname ':' stmt
 			if labelOk {
 				// If we have a labelname, it was parsed by operand
-				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, or OPACK node.
+				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, OPACK, or OLITERAL node.
 				switch lhs.Op {
-				case ONAME, ONONAME, OTYPE, OPACK:
+				case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 					lhs = newname(lhs.Sym)
 				default:
 					p.syntax_error("expecting semicolon or newline or }")
