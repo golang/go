@@ -47,6 +47,8 @@ func main() {
 	http.Handle("/", p)
 	http.HandleFunc("/_ah/health", p.serveHealthCheck)
 
+	log.Print("Starting up")
+
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		p.stop()
 		log.Fatal(err)
@@ -90,14 +92,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, s, http.StatusInternalServerError)
 		return
 	}
-	if r.URL.Path == "/_ah/health" {
-		if err := p.builder.HealthCheck(p.hostport); err != nil {
-			http.Error(w, "Health check failde: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		fmt.Fprintln(w, "OK")
-		return
-	}
 	proxy.ServeHTTP(w, r)
 }
 
@@ -110,8 +104,17 @@ func (p *Proxy) serveStatus(w http.ResponseWriter, r *http.Request) {
 func (p *Proxy) serveHealthCheck(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	// NOTE: Status 502, 503, 504 are the only status codes that signify an unhealthy app.
+	// So long as this handler returns one of those codes, this instance will not be sent any requests.
 	if p.proxy == nil {
-		http.Error(w, "not ready", 500)
+		log.Printf("Health check: not ready")
+		http.Error(w, "Not ready", http.StatusServiceUnavailable)
+		return
+	}
+
+	if err := p.builder.HealthCheck(p.hostport); err != nil {
+		log.Printf("Health check failed: %v", err)
+		http.Error(w, "Health check failed", http.StatusServiceUnavailable)
 		return
 	}
 	io.WriteString(w, "ok")
