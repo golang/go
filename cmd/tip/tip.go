@@ -45,6 +45,7 @@ func main() {
 	p := &Proxy{builder: b}
 	go p.run()
 	http.Handle("/", p)
+	http.HandleFunc("/_ah/health", p.serveHealthCheck)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		p.stop()
@@ -104,6 +105,16 @@ func (p *Proxy) serveStatus(w http.ResponseWriter, r *http.Request) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	fmt.Fprintf(w, "side=%v\ncurrent=%v\nerror=%v\n", p.side, p.cur, p.err)
+}
+
+func (p *Proxy) serveHealthCheck(w http.ResponseWriter, r *http.Request) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.proxy == nil {
+		http.Error(w, "not ready", 500)
+		return
+	}
+	io.WriteString(w, "ok")
 }
 
 // run runs in its own goroutine.
