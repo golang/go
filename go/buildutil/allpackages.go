@@ -18,9 +18,10 @@ import (
 	"sync"
 )
 
-// AllPackages returns the import path of each Go package in any source
+// AllPackages returns the package path of each Go package in any source
 // directory of the specified build context (e.g. $GOROOT or an element
 // of $GOPATH).  Errors are ignored.  The results are sorted.
+// All package paths are canonical, and thus may contain "/vendor/".
 //
 // The result may include import paths for directories that contain no
 // *.go files, such as "archive" (in $GOROOT/src).
@@ -37,9 +38,10 @@ func AllPackages(ctxt *build.Context) []string {
 	return list
 }
 
-// ForEachPackage calls the found function with the import path of
+// ForEachPackage calls the found function with the package path of
 // each Go package it finds in any source directory of the specified
 // build context (e.g. $GOROOT or an element of $GOPATH).
+// All package paths are canonical, and thus may contain "/vendor/".
 //
 // If the package directory exists but could not be read, the second
 // argument to the found function provides the error.
