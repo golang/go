@@ -53,9 +53,10 @@ func (g Graph) Search(roots ...string) map[string]bool {
 
 // Build scans the specified Go workspace and builds the forward and
 // reverse import dependency graphs for all its packages.
-// It also returns a mapping from import paths to errors for packages
+// It also returns a mapping from canonical import paths to errors for packages
 // whose loading was not entirely successful.
 // A package may appear in the graph and in the errors mapping.
+// All package paths are canonical and may contain "/vendor/".
 func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error) {
 	type importEdge struct {
 		from, to string
@@ -67,6 +68,7 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 
 	ch := make(chan interface{})
 
+	sema := make(chan int, 20) // I/O concurrency limiting semaphore
 	var wg sync.WaitGroup
 	buildutil.ForEachPackage(ctxt, func(path string, err error) {
 		wg.Add(1)
@@ -77,7 +79,10 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 				return
 			}
 
-			bp, err := ctxt.Import(path, "", 0)
+			sema <- 1
+			bp, err := ctxt.Import(path, "", buildutil.AllowVendor)
+			<-sema
+
 			if err != nil {
 				if _, ok := err.(*build.NoGoError); ok {
 					// empty directory is not an error
@@ -86,15 +91,43 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 				}
 				// Even in error cases, Import usually returns a package.
 			}
+
+			// absolutize resolves an import path relative
+			// to the current package bp.
+			// The absolute form may contain "vendor".
+			// TODO(adonovan): opt: experiment with
+			// overriding the IsDir method with a caching version
+			// to avoid a huge number of redundant I/O calls.
+			absolutize := func(path string) string { return path }
+			if buildutil.AllowVendor != 0 {
+				memo := make(map[string]string)
+				absolutize = func(path string) string {
+					canon, ok := memo[path]
+					if !ok {
+						sema <- 1
+						bp2, _ := ctxt.Import(path, bp.Dir, build.FindOnly|buildutil.AllowVendor)
+						<-sema
+
+						if bp2 != nil {
+							canon = bp2.ImportPath
+						} else {
+							canon = path
+						}
+						memo[path] = canon
+					}
+					return canon
+				}
+			}
+
 			if bp != nil {
 				for _, imp := range bp.Imports {
-					ch <- importEdge{path, imp}
+					ch <- importEdge{path, absolutize(imp)}
 				}
 				for _, imp := range bp.TestImports {
-					ch <- importEdge{path, imp}
+					ch <- importEdge{path, absolutize(imp)}
 				}
 				for _, imp := range bp.XTestImports {
-					ch <- importEdge{path, imp}
+					ch <- importEdge{path, absolutize(imp)}
 				}
 			}
 		}()
