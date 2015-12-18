@@ -1935,6 +1935,7 @@ type Server struct {
 	// handle HTTP requests and will initialize the Request's TLS
 	// and RemoteAddr if not already set.  The connection is
 	// automatically closed when the function returns.
+	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
 
 	// ConnState specifies an optional callback function that is
