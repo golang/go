@@ -185,6 +185,10 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
 				t.Errorf("unexpected value: %#v", ifa)
 				continue
 			}
+			if len(ifa.IP) != IPv6len {
+				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
+				continue
+			}
 			prefixLen, maxPrefixLen := ifa.Mask.Size()
 			if ifa.IP.To4() != nil {
 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
@@ -211,7 +215,11 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
 			t.Logf("interface address %q", ifa.String())
 		case *IPAddr:
 			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() {
-				t.Errorf("unexpected value: %+v", ifa)
+				t.Errorf("unexpected value: %#v", ifa)
+				continue
+			}
+			if len(ifa.IP) != IPv6len {
+				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
 				continue
 			}
 			if ifa.IP.To4() != nil {
@@ -233,7 +241,11 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
 		switch ifma := ifma.(type) {
 		case *IPAddr:
 			if ifma == nil || ifma.IP == nil || ifma.IP.IsUnspecified() || !ifma.IP.IsMulticast() {
-				t.Errorf("unexpected value: %#v", ifma)
+				t.Errorf("unexpected value: %+v", ifma)
+				continue
+			}
+			if len(ifma.IP) != IPv6len {
+				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifma)
 				continue
 			}
 			if ifma.IP.To4() != nil {
