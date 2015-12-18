@@ -102,6 +102,26 @@
 // enabling write barriers globally during the concurrent scan phase.
 // However, traditionally, write barriers are not enabled during this
 // phase.
+//
+// Synchronization
+// ---------------
+//
+// For the most part, accessing and modifying stack barriers is
+// synchronized around GC safe points. Installing stack barriers
+// forces the G to a safe point, while all other operations that
+// modify stack barriers run on the G and prevent it from reaching a
+// safe point.
+//
+// Subtlety arises when a G may be tracebacked when *not* at a safe
+// point. This happens during sigprof. For this, each G has a "stack
+// barrier lock" (see gcLockStackBarriers, gcUnlockStackBarriers).
+// Operations that manipulate stack barriers acquire this lock, while
+// sigprof tries to acquire it and simply skips the traceback if it
+// can't acquire it. There is one exception for performance and
+// complexity reasons: hitting a stack barrier manipulates the stack
+// barrier list without acquiring the stack barrier lock. For this,
+// gentraceback performs a special fix up if the traceback starts in
+// the stack barrier function.
 
 package runtime
 
@@ -321,6 +341,8 @@ func setNextBarrierPC(pc uintptr) {
 //
 //go:nosplit
 func gcLockStackBarriers(gp *g) {
+	// Disable preemption so scanstack cannot run while the caller
+	// is manipulating the stack barriers.
 	acquirem()
 	for !atomic.Cas(&gp.stackLock, 0, 1) {
 		osyield()
