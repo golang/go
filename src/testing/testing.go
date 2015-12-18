@@ -149,6 +149,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"runtime/pprof"
 	"runtime/trace"
 	"strconv"
@@ -714,6 +715,7 @@ var timer *time.Timer
 func startAlarm() {
 	if *timeout > 0 {
 		timer = time.AfterFunc(*timeout, func() {
+			debug.SetTraceback("all")
 			panic(fmt.Sprintf("test timed out after %v", *timeout))
 		})
 	}
