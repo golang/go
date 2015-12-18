@@ -33,7 +33,7 @@ We expect almost all Go programs to continue to compile and run as before.
 <p>
 The release adds new ports to <a href="#ports">Linux on 64-bit MIPS and Android on 32-bit x86</a>;
 defined and enforced <a href="#cgo">rules for sharing Go pointers with C</a>;
-transparent, automatic <a href="#http2">support for HTTP/2</a>;
+transparent, automatic <a href="#http">support for HTTP/2</a>;
 and a new mechanism for <a href="#template">template reuse</a>.
 </p>
 
@@ -258,7 +258,7 @@ to implementations of the
 
 <h2 id="library">Core library</h2>
 
-<h3 id="http2">HTTP/2</h3>
+<h3 id="http">HTTP</h3>
 
 <p>
 Go 1.6 adds transparent support in the
@@ -290,19 +290,6 @@ functions.
 <h3 id="runtime">Runtime</h3>
 
 <p>
-For program-ending panics, the runtime now by default
-prints only the stack of the running goroutine,
-not all existing goroutines.
-Usually only the current goroutine is relevant to a panic,
-so omitting the others significantly reduces irrelevant output
-in a crash message.
-To see the stacks from all goroutines in crash messages, set the environment variable
-<code>GOTRACEBACK</code> to <code>all</code>
-and rerun the program.
-See the <a href="/pkg/runtime/#hdr-Environment_Variables">runtime documentation</a> for details.
-</p>
-
-<p>
 The runtime has added lightweight, best-effort detection of concurrent misuse of maps.
 As always, if one goroutine is writing to a map, no other goroutine should be
 reading or writing the map concurrently.
@@ -312,6 +299,30 @@ under the
 <a href="https://blog.golang.org/race-detector">race detector</a>,
 which will more reliably identify the race
 and give more detail.
+</p>
+
+<p>
+For program-ending panics, the runtime now by default
+prints only the stack of the running goroutine,
+not all existing goroutines.
+Usually only the current goroutine is relevant to a panic,
+so omitting the others significantly reduces irrelevant output
+in a crash message.
+To see the stacks from all goroutines in crash messages, set the environment variable
+<code>GOTRACEBACK</code> to <code>all</code>
+or call
+<a href="/pkg/runtime/debug/#SetTraceback"><code>debug.SetTraceback</code></a>
+before the crash, and rerun the program.
+See the <a href="/pkg/runtime/#hdr-Environment_Variables">runtime documentation</a> for details.
+</p>
+
+<p>
+<em>Updating</em>:
+Uncaught panics intended to dump the state of the entire program,
+such as when a timeout is detected or when explicitly handling a received signal,
+should now call <code>debug.SetTraceback("all")</code> before panicking.
+Searching for uses of
+<a href="/pkg/os/signal/#Notify"><code>signal.Notify</code></a> may help identify such code.
 </p>
 
 <h3 id="reflect">Reflect</h3>
@@ -686,7 +697,7 @@ and
 
 <li>
 Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
-there are a few changes related to the handling of a
+there are a few change related to the handling of a
 <a href="/pkg/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
 An empty <code>Method</code> field has always been documented as an alias for <code>"GET"</code>
 and it remains so.
