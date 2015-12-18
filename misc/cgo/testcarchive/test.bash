@@ -30,7 +30,7 @@ status=0
 GOPATH=$(pwd) go install -buildmode=c-archive libgo
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c pkg/$(go env GOOS)_$(go env GOARCH)/libgo.a
 if ! $bin arg1 arg2; then
-    echo "FAIL test1"
+    echo "FAIL test1a"
     status=1
 fi
 rm -f libgo.a libgo.h testp
@@ -41,7 +41,7 @@ rm -f libgo.a libgo.h testp
 GOPATH=$(pwd) go build -buildmode=c-archive src/libgo/libgo.go
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
 if ! $bin arg1 arg2; then
-    echo "FAIL test2"
+    echo "FAIL test1b"
     status=1
 fi
 rm -f libgo.a libgo.h testp
@@ -49,24 +49,32 @@ rm -f libgo.a libgo.h testp
 GOPATH=$(pwd) go build -buildmode=c-archive -o libgo.a libgo
 $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main.c libgo.a
 if ! $bin arg1 arg2; then
-    echo "FAIL test3"
+    echo "FAIL test1c"
     status=1
 fi
 rm -rf libgo.a libgo.h testp pkg
 
 case "$(go env GOOS)/$(go env GOARCH)" in
 "darwin/arm" | "darwin/arm64")
-    echo "Skipping test4; see https://golang.org/issue/13701"
+    echo "Skipping test2; see https://golang.org/issue/13701"
     ;;
 *)
     GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
     $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
     if ! $bin; then
-        echo "FAIL test4"
+        echo "FAIL test2"
         status=1
     fi
     rm -rf libgo2.a libgo2.h testp pkg
     ;;
 esac
+
+GOPATH=$(pwd) go build -buildmode=c-archive -o libgo3.a libgo3
+$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main3.c libgo3.a
+if ! $bin; then
+    echo "FAIL test3"
+    status=1
+fi
+rm -rf libgo3.a libgo3.h testp pkg
 
 exit $status

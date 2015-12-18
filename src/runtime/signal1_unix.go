@@ -49,13 +49,13 @@ func initsig() {
 			continue
 		}
 		fwdSig[i] = getsig(i)
+
 		// For some signals, we respect an inherited SIG_IGN handler
 		// rather than insist on installing our own default handler.
 		// Even these signals can be fetched using the os/signal package.
 		switch i {
 		case _SIGHUP, _SIGINT:
-			if getsig(i) == _SIG_IGN {
-				t.flags = _SigNotify | _SigIgnored
+			if fwdSig[i] == _SIG_IGN {
 				continue
 			}
 		}
@@ -90,9 +90,6 @@ func sigenable(sig uint32) {
 		<-maskUpdatedChan
 		if t.flags&_SigHandling == 0 {
 			t.flags |= _SigHandling
-			if getsig(int32(sig)) == _SIG_IGN {
-				t.flags |= _SigIgnored
-			}
 			setsig(int32(sig), funcPC(sighandler), true)
 		}
 	}
@@ -110,11 +107,7 @@ func sigdisable(sig uint32) {
 		<-maskUpdatedChan
 		if t.flags&_SigHandling != 0 {
 			t.flags &^= _SigHandling
-			if t.flags&_SigIgnored != 0 {
-				setsig(int32(sig), _SIG_IGN, true)
-			} else {
-				setsig(int32(sig), _SIG_DFL, true)
-			}
+			setsig(int32(sig), fwdSig[sig], true)
 		}
 	}
 }
