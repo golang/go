@@ -3003,7 +3003,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	}
 	var stk [maxCPUProfStack]uintptr
 	n := 0
-	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
+	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 && tracebackUser {
 		// Cgo, we can't unwind and symbolize arbitrary C code,
 		// so instead collect Go stack that leads to the cgo call.
 		// This is especially important on windows, since all syscalls are cgo calls.
@@ -3019,7 +3019,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
-		if GOOS == "windows" && n == 0 && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+		if GOOS == "windows" && n == 0 && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 && tracebackUser {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
