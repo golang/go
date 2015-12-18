@@ -95,9 +95,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 			case windows.IF_TYPE_SOFTWARE_LOOPBACK:
 				ifi.Flags |= FlagLoopback | FlagMulticast
 			case windows.IF_TYPE_ATM:
-				ifi.Flags |= FlagBroadcast |
-					FlagPointToPoint |
-					FlagMulticast // assume all services available; LANE, point-to-point and point-to-multipoint
+				ifi.Flags |= FlagBroadcast | FlagPointToPoint | FlagMulticast // assume all services available; LANE, point-to-point and point-to-multipoint
 			}
 			if aa.Mtu == 0xffffffff {
 				ifi.MTU = -1
@@ -152,9 +150,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 					} else {
 						l = addrPrefixLen(pfx4, IP(sa.Addr[:]))
 					}
-					ifa := &IPNet{IP: make(IP, IPv4len), Mask: CIDRMask(l, 8*IPv4len)}
-					copy(ifa.IP, sa.Addr[:])
-					ifat = append(ifat, ifa)
+					ifat = append(ifat, &IPNet{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3]), Mask: CIDRMask(l, 8*IPv4len)})
 				case *syscall.SockaddrInet6:
 					if supportsVistaIP {
 						l = int(puni.OnLinkPrefixLength)
@@ -173,9 +169,7 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
 				}
 				switch sa := sa.(type) {
 				case *syscall.SockaddrInet4:
-					ifa := &IPAddr{IP: make(IP, IPv4len)}
-					copy(ifa.IP, sa.Addr[:])
-					ifat = append(ifat, ifa)
+					ifat = append(ifat, &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])})
 				case *syscall.SockaddrInet6:
 					ifa := &IPAddr{IP: make(IP, IPv6len)}
 					copy(ifa.IP, sa.Addr[:])
@@ -261,9 +255,7 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
 				}
 				switch sa := sa.(type) {
 				case *syscall.SockaddrInet4:
-					ifa := &IPAddr{IP: make(IP, IPv4len)}
-					copy(ifa.IP, sa.Addr[:])
-					ifat = append(ifat, ifa)
+					ifat = append(ifat, &IPAddr{IP: IPv4(sa.Addr[0], sa.Addr[1], sa.Addr[2], sa.Addr[3])})
 				case *syscall.SockaddrInet6:
 					ifa := &IPAddr{IP: make(IP, IPv6len)}
 					copy(ifa.IP, sa.Addr[:])
