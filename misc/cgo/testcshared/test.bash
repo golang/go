@@ -33,8 +33,9 @@ fi
 androidpath=/data/local/tmp/testcshared-$$
 
 function cleanup() {
-	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo.h libgo4.h
-	rm -f testp testp2 testp3 testp4
+	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo5.$libext
+	rm -f libgo.h libgo4.h libgo5.h
+	rm -f testp testp2 testp3 testp4 testp5
 	rm -rf pkg "${goroot}/${installdir}"
 
 	if [ "$goos" == "android" ]; then
@@ -157,6 +158,21 @@ if test "$output" != "PASS"; then
     if test "$goos" != "android"; then
 	echo "re-running test4 in verbose mode"
 	./testp4 ./libgo4.$libext verbose
+    fi
+    status=1
+fi
+
+# test5: tests signal handlers with os/signal.Notify
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo5.$libext libgo5
+binpush libgo5.$libext
+$(go env CC) ${GOGCCFLAGS} -pthread -o testp5 main5.c -ldl
+binpush testp5
+output=$(run ./testp5 ./libgo5.$libext 2>&1)
+if test "$output" != "PASS"; then
+    echo "FAIL test5 got ${output}"
+    if test "$goos" != "android"; then
+	echo "re-running test5 in verbose mode"
+	./testp5 ./libgo5.$libext verbose
     fi
     status=1
 fi
