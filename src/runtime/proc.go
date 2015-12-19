@@ -98,6 +98,9 @@ func main_main()
 // runtimeInitTime is the nanotime() at which the runtime started.
 var runtimeInitTime int64
 
+// Value to use for signal mask for newly created M's.
+var initSigmask sigset
+
 // The main goroutine.
 func main() {
 	g := getg()
@@ -429,6 +432,9 @@ func schedinit() {
 	stackinit()
 	mallocinit()
 	mcommoninit(_g_.m)
+
+	msigsave(_g_.m)
+	initSigmask = _g_.m.sigmask
 
 	goargs()
 	goenvs()
@@ -1480,7 +1486,7 @@ func unlockextra(mp *m) {
 func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_, fn)
 	mp.nextp.set(_p_)
-	msigsave(mp)
+	mp.sigmask = initSigmask
 	if iscgo {
 		var ts cgothreadstart
 		if _cgo_thread_start == nil {
