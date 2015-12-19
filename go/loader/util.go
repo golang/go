@@ -88,7 +88,7 @@ func parseFiles(fset *token.FileSet, ctxt *build.Context, displayPath func(strin
 	return parsed, errors
 }
 
-// scanImports returns the set of all package import paths from all
+// scanImports returns the set of all import paths from all
 // import specs in the specified files.
 func scanImports(files []*ast.File) map[string]bool {
 	imports := make(map[string]bool)

@@ -50,6 +50,11 @@
 //
 // CONCEPTS AND TERMINOLOGY
 //
+// The WORKSPACE is the set of packages accessible to the loader.  The
+// workspace is defined by Config.Build, a *build.Context.  The
+// default context treats subdirectories of $GOROOT and $GOPATH as
+// packages, but this behavior may be overridden.
+//
 // An AD HOC package is one specified as a set of source files on the
 // command line.  In the simplest case, it may consist of a single file
 // such as $GOROOT/src/net/http/triv.go.
@@ -59,14 +64,25 @@
 // same directory.  (go/build.Package calls these files XTestFiles.)
 //
 // An IMPORTABLE package is one that can be referred to by some import
-// spec.  The Path() of each importable package is unique within a
-// Program.
+// spec.  Every importable package is uniquely identified by its
+// PACKAGE PATH or just PATH, a string such as "fmt", "encoding/json",
+// or "cmd/vendor/golang.org/x/arch/x86/x86asm".  A package path
+// typically denotes a subdirectory of the workspace.
+//
+// An import declaration uses an IMPORT PATH to refer to a package.
+// Most import declarations use the package path as the import path.
+//
+// Due to VENDORING (https://golang.org/s/go15vendor), the
+// interpretation of an import path may depend on the directory in which
+// it appears.  To resolve an import path to a package path, go/build
+// must search the enclosing directories for a subdirectory named
+// "vendor".
 //
 // ad hoc packages and external test packages are NON-IMPORTABLE.  The
-// Path() of an ad hoc package is inferred from the package
+// path of an ad hoc package is inferred from the package
 // declarations of its files and is therefore not a unique package key.
 // For example, Config.CreatePkgs may specify two initial ad hoc
-// packages both called "main".
+// packages, both with path "main".
 //
 // An AUGMENTED package is an importable package P plus all the
 // *_test.go files with same 'package foo' declaration as P.
@@ -125,7 +141,7 @@ package loader
 // Let us define the import dependency graph as follows.  Each node is a
 // list of files passed to (Checker).Files at once.  Many of these lists
 // are the production code of an importable Go package, so those nodes
-// are labelled by the package's import path.  The remaining nodes are
+// are labelled by the package's path.  The remaining nodes are
 // ad hoc packages and lists of in-package *_test.go files that augment
 // an importable package; those nodes have no label.
 //

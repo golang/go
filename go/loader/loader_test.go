@@ -393,6 +393,39 @@ func TestCwd(t *testing.T) {
 	}
 }
 
+func TestLoad_vendor(t *testing.T) {
+	pkgs := map[string]string{
+		"a":          `package a; import _ "x"`,
+		"a/vendor":   ``, // mkdir a/vendor
+		"a/vendor/x": `package xa`,
+		"b":          `package b; import _ "x"`,
+		"b/vendor":   ``, // mkdir b/vendor
+		"b/vendor/x": `package xb`,
+		"c":          `package c; import _ "x"`,
+		"x":          `package xc`,
+	}
+	conf := loader.Config{Build: fakeContext(pkgs)}
+	conf.Import("a")
+	conf.Import("b")
+	conf.Import("c")
+
+	prog, err := conf.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that a, b, and c see different versions of x.
+	for _, r := range "abc" {
+		name := string(r)
+		got := prog.Package(name).Pkg.Imports()[0]
+		want := "x" + name
+		if got.Name() != want {
+			t.Errorf("package %s import %q = %s, want %s",
+				name, "x", got.Name(), want)
+		}
+	}
+}
+
 // TODO(adonovan): more Load tests:
 //
 // failures:
