@@ -447,15 +447,14 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	have := make([]string, 0)
+	have := make(map[string]string)
 	for _, ifi := range ift {
 		if ifi.Flags&FlagLoopback != 0 {
 			// no MAC address for loopback interfaces
 			continue
 		}
-		have = append(have, ifi.Name+"="+ifi.HardwareAddr.String())
+		have[ifi.Name] = ifi.HardwareAddr.String()
 	}
-	sort.Strings(have)
 
 	out, err := runCmd("getmac", "/fo", "list", "/v")
 	if err != nil {
@@ -478,7 +477,7 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	//Physical Address: XX-XX-XX-XX-XX-XX
 	//Transport Name:   Media disconnected
 	//
-	want := make([]string, 0)
+	want := make(map[string]string)
 	var name string
 	lines := bytes.Split(out, []byte{'\r', '\n'})
 	for _, line := range lines {
@@ -505,13 +504,20 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 				t.Fatal("empty address on \"Physical Address\" line: %q", line)
 			}
 			addr = strings.Replace(addr, "-", ":", -1)
-			want = append(want, name+"="+addr)
+			want[name] = addr
 			name = ""
 		}
 	}
-	sort.Strings(want)
 
-	if strings.Join(want, "/") != strings.Join(have, "/") {
-		t.Fatalf("unexpected MAC addresses %q, want %q", have, want)
+	for name, wantAddr := range want {
+		haveAddr, ok := have[name]
+		if !ok {
+			t.Errorf("getmac lists %q, but it could not be found among Go interfaces %v", name, have)
+			continue
+		}
+		if haveAddr != wantAddr {
+			t.Errorf("unexpected MAC address for %q - %v, want %v", name, haveAddr, wantAddr)
+			continue
+		}
 	}
 }
