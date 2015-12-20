@@ -37,7 +37,7 @@ call env.bat
 del env.bat
 echo.
 
-go tool dist test --no-rebuild
+go tool dist test
 if errorlevel 1 goto fail
 echo.
 

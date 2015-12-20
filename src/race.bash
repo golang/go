@@ -41,4 +41,4 @@ if [ ! -f make.bash ]; then
 fi
 . ./make.bash --no-banner
 go install -race std
-go tool dist test -no-rebuild -race
+go tool dist test -race

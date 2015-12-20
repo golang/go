@@ -10,4 +10,4 @@ eval `{go env}
 GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
             # to be under $GOPATH, then some tests below will fail
 
-exec go tool dist test $*
+exec go tool dist test -rebuild $*

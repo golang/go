@@ -35,4 +35,4 @@ if ulimit -T &> /dev/null; then
 	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
 fi
 
-exec go tool dist test "$@"
+exec go tool dist test -rebuild "$@"
