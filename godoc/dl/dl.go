@@ -434,7 +434,7 @@ var prettyStrings = map[string]string{
 	"386":   "32-bit",
 	"amd64": "64-bit",
 
-	"arm6": "ARMv6",
+	"armv6l": "ARMv6",
 
 	"archive":   "Archive",
 	"installer": "Installer",
