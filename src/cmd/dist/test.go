@@ -22,8 +22,10 @@ import (
 
 func cmdtest() {
 	var t tester
+	var noRebuild bool
 	flag.BoolVar(&t.listMode, "list", false, "list available tests")
-	flag.BoolVar(&t.noRebuild, "no-rebuild", false, "don't rebuild std and cmd packages")
+	flag.BoolVar(&t.rebuild, "rebuild", false, "rebuild everything first")
+	flag.BoolVar(&noRebuild, "no-rebuild", false, "overrides -rebuild (historical dreg)")
 	flag.BoolVar(&t.keepGoing, "k", false, "keep going even when error occurred")
 	flag.BoolVar(&t.race, "race", false, "run in race builder mode (different set of tests)")
 	flag.StringVar(&t.banner, "banner", "##### ", "banner prefix; blank means no section banners")
@@ -31,6 +33,9 @@ func cmdtest() {
 		"run only those tests matching the regular expression; empty means to run all. "+
 			"Special exception: if the string begins with '!', the match is inverted.")
 	xflagparse(-1) // any number of args
+	if noRebuild {
+		t.rebuild = false
+	}
 	t.run()
 }
 
@@ -38,7 +43,7 @@ func cmdtest() {
 type tester struct {
 	race      bool
 	listMode  bool
-	noRebuild bool
+	rebuild   bool
 	keepGoing bool
 	runRxStr  string
 	runRx     *regexp.Regexp
@@ -97,7 +102,7 @@ func (t *tester) run() {
 		}
 	}
 
-	if !t.noRebuild {
+	if t.rebuild {
 		t.out("Building packages and commands.")
 		cmd := exec.Command("go", "install", "-a", "-v", "std", "cmd")
 		cmd.Stdout = os.Stdout
