@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"log"
@@ -454,6 +455,7 @@ func TestServerTimeouts(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
+	t.Parallel()
 	defer afterTest(t)
 	reqNum := 0
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
@@ -937,6 +939,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
+	t.Parallel()
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	errc := make(chanWriter, 10) // but only expecting 1
@@ -1277,6 +1280,9 @@ func TestServerUnreadRequestBodyLittle(t *testing.T) {
 // should ignore client request bodies that a handler didn't read
 // and close the connection.
 func TestServerUnreadRequestBodyLarge(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Log("skipping in short mode")
+	}
 	conn := new(testConn)
 	body := strings.Repeat("x", 1<<20)
 	conn.readBuf.Write([]byte(fmt.Sprintf(
@@ -1407,6 +1413,9 @@ var handlerBodyCloseTests = [...]handlerBodyCloseTest{
 }
 
 func TestHandlerBodyClose(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in -short mode")
+	}
 	for i, tt := range handlerBodyCloseTests {
 		testHandlerBodyClose(t, i, tt)
 	}

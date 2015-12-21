@@ -7,6 +7,7 @@ package rand
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math"
 	"os"
 	"runtime"
@@ -327,9 +328,10 @@ func TestExpTables(t *testing.T) {
 func TestFloat32(t *testing.T) {
 	// For issue 6721, the problem came after 7533753 calls, so check 10e6.
 	num := int(10e6)
+	// But do the full amount only on builders (not locally).
 	// But ARM5 floating point emulation is slow (Issue 10749), so
 	// do less for that builder:
-	if testing.Short() && runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5" {
+	if testing.Short() && (testenv.Builder() == "" || runtime.GOARCH == "arm" && os.Getenv("GOARM") == "5") {
 		num /= 100 // 1.72 seconds instead of 172 seconds
 	}
 

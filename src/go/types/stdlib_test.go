@@ -127,6 +127,10 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
 func TestStdTest(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
+
 	// test/recover4.go is only built for Linux and Darwin.
 	// TODO(gri) Remove once tests consider +build tags (issue 10370).
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
@@ -141,6 +145,10 @@ func TestStdTest(t *testing.T) {
 
 func TestStdFixed(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
 
 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test", "fixedbugs"),
 		"bug248.go", "bug302.go", "bug369.go", // complex test instructions - ignore
@@ -247,7 +255,7 @@ func pkgFilenames(dir string) ([]string, error) {
 
 func walkDirs(t *testing.T, dir string) {
 	// limit run time for short tests
-	if testing.Short() && time.Since(start) >= 750*time.Millisecond {
+	if testing.Short() && time.Since(start) >= 10*time.Millisecond {
 		return
 	}
 
