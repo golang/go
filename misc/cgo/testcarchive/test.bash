@@ -54,12 +54,19 @@ if ! $bin arg1 arg2; then
 fi
 rm -rf libgo.a libgo.h testp pkg
 
-GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
-$(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
-if ! $bin; then
-    echo "FAIL test4"
-    status=1
-fi
-rm -rf libgo2.a libgo2.h testp pkg
+case "$(go env GOOS)/$(go env GOARCH)" in
+"darwin/arm" | "darwin/arm64")
+    echo "Skipping test4; see https://golang.org/issue/13701"
+    ;;
+*)
+    GOPATH=$(pwd) go build -buildmode=c-archive -o libgo2.a libgo2
+    $(go env CC) $(go env GOGCCFLAGS) $ccargs -o testp main2.c libgo2.a
+    if ! $bin; then
+        echo "FAIL test4"
+        status=1
+    fi
+    rm -rf libgo2.a libgo2.h testp pkg
+    ;;
+esac
 
 exit $status
