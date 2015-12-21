@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"hash"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"sort"
@@ -19,6 +20,9 @@ import (
 )
 
 func TestOver65kFiles(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
 	buf := new(bytes.Buffer)
 	w := NewWriter(buf)
 	const nFiles = (1 << 16) + 42

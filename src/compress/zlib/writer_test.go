@@ -7,6 +7,7 @@ package zlib
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
@@ -14,6 +15,7 @@ import (
 )
 
 var filenames = []string{
+	"../testdata/gettysburg.txt",
 	"../testdata/e.txt",
 	"../testdata/pi.txt",
 }
@@ -152,22 +154,34 @@ func TestWriter(t *testing.T) {
 }
 
 func TestWriterBig(t *testing.T) {
-	for _, fn := range filenames {
+	for i, fn := range filenames {
 		testFileLevelDict(t, fn, DefaultCompression, "")
 		testFileLevelDict(t, fn, NoCompression, "")
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, "")
+			if level >= 1 && testing.Short() && testenv.Builder() == "" {
+				break
+			}
+		}
+		if i == 0 && testing.Short() && testenv.Builder() == "" {
+			break
 		}
 	}
 }
 
 func TestWriterDict(t *testing.T) {
 	const dictionary = "0123456789."
-	for _, fn := range filenames {
+	for i, fn := range filenames {
 		testFileLevelDict(t, fn, DefaultCompression, dictionary)
 		testFileLevelDict(t, fn, NoCompression, dictionary)
 		for level := BestSpeed; level <= BestCompression; level++ {
 			testFileLevelDict(t, fn, level, dictionary)
+			if level >= 1 && testing.Short() && testenv.Builder() == "" {
+				break
+			}
+		}
+		if i == 0 && testing.Short() && testenv.Builder() == "" {
+			break
 		}
 	}
 }
@@ -179,10 +193,11 @@ func TestWriterReset(t *testing.T) {
 		testFileLevelDictReset(t, fn, DefaultCompression, nil)
 		testFileLevelDictReset(t, fn, NoCompression, []byte(dictionary))
 		testFileLevelDictReset(t, fn, DefaultCompression, []byte(dictionary))
-		if !testing.Short() {
-			for level := BestSpeed; level <= BestCompression; level++ {
-				testFileLevelDictReset(t, fn, level, nil)
-			}
+		if testing.Short() {
+			break
+		}
+		for level := BestSpeed; level <= BestCompression; level++ {
+			testFileLevelDictReset(t, fn, level, nil)
 		}
 	}
 }

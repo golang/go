@@ -1378,6 +1378,14 @@ func TestModSqrt(t *testing.T) {
 				t.Errorf("#%d: failed (sqrt(e) = %s)", i, &sqrt)
 			}
 		}
+
+		if testing.Short() && i > 2 {
+			break
+		}
+	}
+
+	if testing.Short() {
+		return
 	}
 
 	// exhaustive test for small values

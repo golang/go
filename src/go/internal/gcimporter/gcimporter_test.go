@@ -164,7 +164,11 @@ func TestImportStdLib(t *testing.T) {
 		return
 	}
 
-	nimports := testDir(t, "", time.Now().Add(maxTime)) // installed packages
+	dt := maxTime
+	if testing.Short() && testenv.Builder() == "" {
+		dt = 10 * time.Millisecond
+	}
+	nimports := testDir(t, "", time.Now().Add(dt)) // installed packages
 	t.Logf("tested %d imports", nimports)
 }
 
