@@ -499,7 +499,10 @@ func (t *tester) registerTests() {
 			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")
 		}
 	}
-	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !t.iOS() {
+
+	// Doc and shootout tests only run on builders.
+	// They find problems approximately never.
+	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
@@ -517,6 +520,7 @@ func (t *tester) registerTests() {
 			t.registerSeqTest("shootout:"+name, "../test/bench/shootout", "time", "./timing.sh", "-test", name)
 		}
 	}
+
 	if t.goos != "android" && !t.iOS() {
 		t.registerTest("bench_go1", "../test/bench/go1", "go", "test", t.timeout(600))
 	}
