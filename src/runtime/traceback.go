@@ -645,41 +645,34 @@ var gStatusStrings = [...]string{
 	_Gcopystack: "copystack",
 }
 
-var gScanStatusStrings = [...]string{
-	0:          "scan",
-	_Grunnable: "scanrunnable",
-	_Grunning:  "scanrunning",
-	_Gsyscall:  "scansyscall",
-	_Gwaiting:  "scanwaiting",
-	_Gdead:     "scandead",
-	_Genqueue:  "scanenqueue",
-}
-
 func goroutineheader(gp *g) {
 	gpstatus := readgstatus(gp)
+
+	isScan := gpstatus&_Gscan != 0
+	gpstatus &^= _Gscan // drop the scan bit
 
 	// Basic string status
 	var status string
 	if 0 <= gpstatus && gpstatus < uint32(len(gStatusStrings)) {
 		status = gStatusStrings[gpstatus]
-	} else if gpstatus&_Gscan != 0 && 0 <= gpstatus&^_Gscan && gpstatus&^_Gscan < uint32(len(gStatusStrings)) {
-		status = gStatusStrings[gpstatus&^_Gscan]
 	} else {
 		status = "???"
 	}
 
 	// Override.
-	if (gpstatus == _Gwaiting || gpstatus == _Gscanwaiting) && gp.waitreason != "" {
+	if gpstatus == _Gwaiting && gp.waitreason != "" {
 		status = gp.waitreason
 	}
 
 	// approx time the G is blocked, in minutes
 	var waitfor int64
-	gpstatus &^= _Gscan // drop the scan bit
 	if (gpstatus == _Gwaiting || gpstatus == _Gsyscall) && gp.waitsince != 0 {
 		waitfor = (nanotime() - gp.waitsince) / 60e9
 	}
 	print("goroutine ", gp.goid, " [", status)
+	if isScan {
+		print(" (scan)")
+	}
 	if waitfor >= 1 {
 		print(", ", waitfor, " minutes")
 	}
