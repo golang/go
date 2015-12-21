@@ -386,11 +386,15 @@ func (t *tester) registerTests() {
 		}
 
 		pkg := pkg
+		var run string
+		if pkg == "net" {
+			run = "TestTCPStress"
+		}
 		t.tests = append(t.tests, distTest{
 			name:    "nolibgcc:" + pkg,
 			heading: "Testing without libgcc.",
 			fn: func() error {
-				return t.dirCmd("src", "go", "test", "-short", "-ldflags=-linkmode=internal -libgcc=none", t.tags(), pkg).Run()
+				return t.dirCmd("src", "go", "test", "-short", "-ldflags=-linkmode=internal -libgcc=none", t.tags(), pkg, "-run="+run).Run()
 			},
 		})
 	}
@@ -869,7 +873,7 @@ func (t *tester) raceTest() error {
 	if err := t.dirCmd("src", "go", "test", "-race", "-run=Output", "runtime/race").Run(); err != nil {
 		return err
 	}
-	if err := t.dirCmd("src", "go", "test", "-race", "-short", "flag", "os/exec").Run(); err != nil {
+	if err := t.dirCmd("src", "go", "test", "-race", "-short", "-run=TestParse|TestEcho", "flag", "os/exec").Run(); err != nil {
 		return err
 	}
 	if t.cgoEnabled {
@@ -882,7 +886,7 @@ func (t *tester) raceTest() error {
 	}
 	if t.extLink() {
 		// Test with external linking; see issue 9133.
-		if err := t.dirCmd("src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "flag", "os/exec").Run(); err != nil {
+		if err := t.dirCmd("src", "go", "test", "-race", "-short", "-ldflags=-linkmode=external", "-run=TestParse|TestEcho", "flag", "os/exec").Run(); err != nil {
 			return err
 		}
 	}
