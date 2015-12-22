@@ -47,6 +47,7 @@ const (
 	StatusPreconditionRequired         = 428
 	StatusTooManyRequests              = 429
 	StatusRequestHeaderFieldsTooLarge  = 431
+	StatusUnavailableForLegalReasons   = 451
 
 	StatusInternalServerError           = 500
 	StatusNotImplemented                = 501
@@ -99,6 +100,7 @@ var statusText = map[int]string{
 	StatusPreconditionRequired:         "Precondition Required",
 	StatusTooManyRequests:              "Too Many Requests",
 	StatusRequestHeaderFieldsTooLarge:  "Request Header Fields Too Large",
+	StatusUnavailableForLegalReasons:   "Unavailable For Legal Reasons",
 
 	StatusInternalServerError:           "Internal Server Error",
 	StatusNotImplemented:                "Not Implemented",
