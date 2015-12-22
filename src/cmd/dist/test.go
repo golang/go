@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -195,6 +196,7 @@ func (t *tester) run() {
 		}
 		dt := dt // dt used in background after this iteration
 		if err := dt.fn(&dt); err != nil {
+			t.runPending(dt) // in case that hasn't been done yet
 			t.failed = true
 			if t.keepGoing {
 				log.Printf("Failed: %v", err)
@@ -788,8 +790,11 @@ func (t *tester) cgoTest(dt *distTest) error {
 }
 
 // run pending test commands, in parallel, emitting headers as appropriate.
-// When finished, emit header for dt, which is going to run after the
+// When finished, emit header for nextTest, which is going to run after the
 // pending commands are done (and runPending returns).
+// A test should call runPending if it wants to make sure that it is not
+// running in parallel with earlier tests, or if it has some other reason
+// for needing the earlier tests to be done.
 func (t *tester) runPending(nextTest *distTest) {
 	worklist := t.worklist
 	t.worklist = nil
@@ -961,20 +966,35 @@ func (t *tester) raceTest(dt *distTest) error {
 	return nil
 }
 
+var runtest struct {
+	sync.Once
+	exe string
+	err error
+}
+
 func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
-	t.runPending(dt)
-	const runExe = "runtest.exe" // named exe for Windows, but harmless elsewhere
-	cmd := t.dirCmd("test", "go", "build", "-o", runExe, "run.go")
-	cmd.Env = mergeEnvLists([]string{"GOOS=" + t.gohostos, "GOARCH=" + t.gohostarch, "GOMAXPROCS="}, os.Environ())
-	if err := cmd.Run(); err != nil {
-		return err
+	runtest.Do(func() {
+		const exe = "runtest.exe" // named exe for Windows, but harmless elsewhere
+		cmd := t.dirCmd("test", "go", "build", "-o", exe, "run.go")
+		cmd.Env = mergeEnvLists([]string{"GOOS=" + t.gohostos, "GOARCH=" + t.gohostarch, "GOMAXPROCS="}, os.Environ())
+		runtest.exe = filepath.Join(cmd.Dir, exe)
+		if err := cmd.Run(); err != nil {
+			runtest.err = err
+			return
+		}
+		xatexit(func() {
+			os.Remove(runtest.exe)
+		})
+	})
+	if runtest.err != nil {
+		return runtest.err
 	}
-	absExe := filepath.Join(cmd.Dir, runExe)
-	defer os.Remove(absExe)
-	return t.dirCmd("test", absExe,
+
+	t.addCmd(dt, "test", runtest.exe,
 		fmt.Sprintf("--shard=%d", shard),
 		fmt.Sprintf("--shards=%d", shards),
-	).Run()
+	)
+	return nil
 }
 
 func (t *tester) shootoutTests() []string {
