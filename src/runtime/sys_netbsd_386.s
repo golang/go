@@ -215,42 +215,25 @@ TEXT runtime·sigaction(SB),NOSPLIT,$24
 	MOVL	$0xf1, 0xf1		// crash
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$44
-	get_tls(CX)
-
-	// check that g exists
-	MOVL	g(CX), DI
-	CMPL	DI, $0
-	JNE	6(PC)
-	MOVL	signo+0(FP), BX
-	MOVL	BX, 0(SP)
-	MOVL	$runtime·badsignal(SB), AX
+TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
+	MOVL	sig+4(FP), AX
+	MOVL	AX, 0(SP)
+	MOVL	info+8(FP), AX
+	MOVL	AX, 4(SP)
+	MOVL	ctx+12(FP), AX
+	MOVL	AX, 8(SP)
+	MOVL	fn+0(FP), AX
 	CALL	AX
 	RET
 
-	// save g
-	MOVL	DI, 20(SP)
-
-	// g = m->gsignal
-	MOVL	g_m(DI), BX
-	MOVL	m_gsignal(BX), BX
-	MOVL	BX, g(CX)
-
-	// copy arguments for call to sighandler
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVL	signo+0(FP), BX
 	MOVL	BX, 0(SP)
 	MOVL	info+4(FP), BX
 	MOVL	BX, 4(SP)
 	MOVL	context+8(FP), BX
 	MOVL	BX, 8(SP)
-	MOVL	DI, 12(SP)
-
-	CALL	runtime·sighandler(SB)
-
-	// restore g
-	get_tls(CX)
-	MOVL	20(SP), BX
-	MOVL	BX, g(CX)
+	CALL	runtime·sigtrampgo(SB)
 	RET
 
 // int32 lwp_create(void *context, uintptr flags, void *lwpid);

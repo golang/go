@@ -213,7 +213,19 @@ TEXT runtime·sigaction(SB),NOSPLIT,$4
 	MOVW.CS R8, (R8)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -222,30 +234,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	CMP 	$0, R0
 	BL.NE	runtime·load_g(SB)
 
-	CMP $0, g
-	BNE 4(PC)
-	// signal number is already prepared in 4(R13)
-	MOVW $runtime·badsignal(SB), R11
-	BL (R11)
-	RET
-
-	// save g
-	MOVW g, R4
-	MOVW g, 20(R13)
-
-	// g = m->signal
-	MOVW g_m(g), R8
-	MOVW m_gsignal(R8), g
-
-	// R0 is already saved
-	MOVW R1, 8(R13) // info
-	MOVW R2, 12(R13) // context
-	MOVW R4, 16(R13) // gp
-
-	BL runtime·sighandler(SB)
-
-	// restore g
-	MOVW 20(R13), g
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·sigtrampgo(SB)
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$12

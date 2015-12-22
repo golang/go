@@ -180,6 +180,14 @@ TEXT runtime·nanotime(SB),NOSPLIT,$40
 	MOVD	R0, ret+0(FP)
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+	MOVW	sig+8(FP), R0
+	MOVD	info+16(FP), R1
+	MOVD	ctx+24(FP), R2
+	MOVD	fn+0(FP), R11
+	BL	(R11)
+	RET
+
 // Sigtramp's job is to call the actual signal handler.
 // It is called with the following arguments on the stack:
 //	LR	"return address" - ignored

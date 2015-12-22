@@ -224,6 +224,8 @@ allgood:
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
 
+	// TODO: If current SP is not in gsignal.stack, then adjust.
+
 	// prepare call
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
