@@ -970,7 +970,7 @@ func TestBadRecursiveType(t *testing.T) {
 	err := NewEncoder(b).Encode(&rec)
 	if err == nil {
 		t.Error("expected error; got none")
-	} else if strings.Index(err.Error(), "recursive") < 0 {
+	} else if !strings.Contains(err.Error(), "recursive") {
 		t.Error("expected recursive type error; got", err)
 	}
 	// Can't test decode easily because we can't encode one, so we can't pass one to a Decoder.

@@ -252,7 +252,7 @@ const meta = `\.+*?()|[]{}^$`
 
 func escape(b *bytes.Buffer, r rune, force bool) {
 	if unicode.IsPrint(r) {
-		if strings.IndexRune(meta, r) >= 0 || force {
+		if strings.ContainsRune(meta, r) || force {
 			b.WriteRune('\\')
 		}
 		b.WriteRune(r)

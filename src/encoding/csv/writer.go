@@ -130,7 +130,7 @@ func (w *Writer) fieldNeedsQuotes(field string) bool {
 	if field == "" {
 		return false
 	}
-	if field == `\.` || strings.IndexRune(field, w.Comma) >= 0 || strings.IndexAny(field, "\"\r\n") >= 0 {
+	if field == `\.` || strings.ContainsRune(field, w.Comma) || strings.ContainsAny(field, "\"\r\n") {
 		return true
 	}
 

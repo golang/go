@@ -511,7 +511,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		return nil, host, nil
 	}
 	userinfo := authority[:i]
-	if strings.Index(userinfo, ":") < 0 {
+	if !strings.Contains(userinfo, ":") {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return nil, "", err
 		}

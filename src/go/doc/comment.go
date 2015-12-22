@@ -225,7 +225,7 @@ func heading(line string) string {
 	}
 
 	// exclude lines with illegal characters
-	if strings.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
+	if strings.ContainsAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") {
 		return ""
 	}
 

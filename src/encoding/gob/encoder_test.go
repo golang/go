@@ -280,7 +280,7 @@ func TestValueError(t *testing.T) {
 	}
 	t4p := &Type4{3}
 	var t4 Type4 // note: not a pointer.
-	if err := encAndDec(t4p, t4); err == nil || strings.Index(err.Error(), "pointer") < 0 {
+	if err := encAndDec(t4p, t4); err == nil || !strings.Contains(err.Error(), "pointer") {
 		t.Error("expected error about pointer; got", err)
 	}
 }
@@ -388,7 +388,7 @@ func TestSingletons(t *testing.T) {
 			t.Errorf("expected error decoding %v: %s", test.in, test.err)
 			continue
 		case err != nil && test.err != "":
-			if strings.Index(err.Error(), test.err) < 0 {
+			if !strings.Contains(err.Error(), test.err) {
 				t.Errorf("wrong error decoding %v: wanted %s, got %v", test.in, test.err, err)
 			}
 			continue
@@ -414,7 +414,7 @@ func TestStructNonStruct(t *testing.T) {
 	var ns NonStruct
 	if err := encAndDec(s, &ns); err == nil {
 		t.Error("should get error for struct/non-struct")
-	} else if strings.Index(err.Error(), "type") < 0 {
+	} else if !strings.Contains(err.Error(), "type") {
 		t.Error("for struct/non-struct expected type error; got", err)
 	}
 	// Now try the other way
@@ -424,7 +424,7 @@ func TestStructNonStruct(t *testing.T) {
 	}
 	if err := encAndDec(ns, &s); err == nil {
 		t.Error("should get error for non-struct/struct")
-	} else if strings.Index(err.Error(), "type") < 0 {
+	} else if !strings.Contains(err.Error(), "type") {
 		t.Error("for non-struct/struct expected type error; got", err)
 	}
 }

@@ -454,7 +454,7 @@ func Match(pattern string, b []byte) (matched bool, err error) {
 // in Expand, so for instance $1 represents the text of the first submatch.
 func (re *Regexp) ReplaceAllString(src, repl string) string {
 	n := 2
-	if strings.Index(repl, "$") >= 0 {
+	if strings.Contains(repl, "$") {
 		n = 2 * (re.numSubexp + 1)
 	}
 	b := re.replaceAll(nil, src, n, func(dst []byte, match []int) []byte {
