@@ -196,7 +196,7 @@ func (t *tester) run() {
 		}
 		dt := dt // dt used in background after this iteration
 		if err := dt.fn(&dt); err != nil {
-			t.runPending(dt) // in case that hasn't been done yet
+			t.runPending(&dt) // in case that hasn't been done yet
 			t.failed = true
 			if t.keepGoing {
 				log.Printf("Failed: %v", err)
