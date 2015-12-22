@@ -249,3 +249,19 @@ func ensureSigM() {
 		}
 	}()
 }
+
+// This is called when we receive a signal when there is no signal stack.
+// This can only happen if non-Go code calls sigaltstack to disable the
+// signal stack.  This is called via cgocallback to establish a stack.
+func noSignalStack(sig uint32) {
+	println("signal", sig, "received on thread with no signal stack")
+	throw("non-Go code disabled sigaltstack")
+}
+
+// This is called if we receive a signal when there is a signal stack
+// but we are not on it.  This can only happen if non-Go code called
+// sigaction without setting the SS_ONSTACK flag.
+func sigNotOnStack(sig uint32) {
+	println("signal", sig, "received but handler not on signal stack")
+	throw("non-Go code set up signal handler without SA_ONSTACK flag")
+}
