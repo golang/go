@@ -37,7 +37,7 @@ type AEAD interface {
 	// value passed to Seal.
 	//
 	// The ciphertext and dst may alias exactly or not at all. To reuse
-	// ciphertext's storage for the encrypted output, use ciphertext[:0] as dst.
+	// ciphertext's storage for the decrypted output, use ciphertext[:0] as dst.
 	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
 }
 
