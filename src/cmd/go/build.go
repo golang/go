@@ -520,11 +520,14 @@ func isMetaPackage(name string) bool {
 // Use arguments for special 'meta' packages:
 //	std --> libstd.so
 //	std cmd --> libstd,cmd.so
+// A single non-meta argument with trailing "/..." is special cased:
+//	foo/... --> libfoo.so
+//	(A relative path like "./..."  expands the "." first)
 // Use import paths for other cases, changing '/' to '-':
 //	somelib --> libsubdir-somelib.so
 //	./ or ../ --> libsubdir-somelib.so
 //	gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
-//	./... ---> libpkg1,pkg2.so - subset of all import paths
+//	a/... b/... ---> liba/c,b/d.so - all matching import paths
 // Name parts are joined with ','.
 func libname(args []string, pkgs []*Package) (string, error) {
 	var libname string
@@ -544,8 +547,21 @@ func libname(args []string, pkgs []*Package) (string, error) {
 		}
 	}
 	if len(libname) == 0 { // non-meta packages only. use import paths
-		for _, pkg := range pkgs {
-			appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
+		if len(args) == 1 && strings.HasSuffix(args[0], "/...") {
+			// Special case of "foo/..." as mentioned above.
+			arg := strings.TrimSuffix(args[0], "/...")
+			if build.IsLocalImport(arg) {
+				cwd, _ := os.Getwd()
+				bp, _ := buildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
+				if bp.ImportPath != "" && bp.ImportPath != "." {
+					arg = bp.ImportPath
+				}
+			}
+			appendName(strings.Replace(arg, "/", "-", -1))
+		} else {
+			for _, pkg := range pkgs {
+				appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
+			}
 		}
 	} else if haveNonMeta { // have both meta package and a non-meta one
 		return "", errors.New("mixing of meta and non-meta packages is not allowed")
