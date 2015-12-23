@@ -478,7 +478,7 @@ type readResult struct {
 // connReader is the io.Reader wrapper used by *conn. It combines a
 // selectively-activated io.LimitedReader (to bound request header
 // read sizes) with support for selectively keeping an io.Reader.Read
-// call blocked in a background goroutine to wait for activitiy and
+// call blocked in a background goroutine to wait for activity and
 // trigger a CloseNotifier channel.
 type connReader struct {
 	r      io.Reader
