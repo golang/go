@@ -67,7 +67,31 @@ func TestYCbCrToRGBConsistency(t *testing.T) {
 // TestYCbCrGray tests that YCbCr colors are a superset of Gray colors.
 func TestYCbCrGray(t *testing.T) {
 	for i := 0; i < 256; i++ {
-		if err := eq(YCbCr{uint8(i), 0x80, 0x80}, Gray{uint8(i)}); err != nil {
+		c0 := YCbCr{uint8(i), 0x80, 0x80}
+		c1 := Gray{uint8(i)}
+		if err := eq(c0, c1); err != nil {
+			t.Errorf("i=0x%02x:\n%v", i, err)
+		}
+	}
+}
+
+// TestNYCbCrAAlpha tests that NYCbCrA colors are a superset of Alpha colors.
+func TestNYCbCrAAlpha(t *testing.T) {
+	for i := 0; i < 256; i++ {
+		c0 := NYCbCrA{YCbCr{0xff, 0x80, 0x80}, uint8(i)}
+		c1 := Alpha{uint8(i)}
+		if err := eq(c0, c1); err != nil {
+			t.Errorf("i=0x%02x:\n%v", i, err)
+		}
+	}
+}
+
+// TestNYCbCrAYCbCr tests that NYCbCrA colors are a superset of YCbCr colors.
+func TestNYCbCrAYCbCr(t *testing.T) {
+	for i := 0; i < 256; i++ {
+		c0 := NYCbCrA{YCbCr{uint8(i), 0x40, 0xc0}, 0xff}
+		c1 := YCbCr{uint8(i), 0x40, 0xc0}
+		if err := eq(c0, c1); err != nil {
 			t.Errorf("i=0x%02x:\n%v", i, err)
 		}
 	}
