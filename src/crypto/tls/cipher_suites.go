@@ -131,7 +131,7 @@ func macSHA1(version uint16, key []byte) macFunction {
 		copy(mac.key, key)
 		return mac
 	}
-	return tls10MAC{hmac.New(sha1.New, key)}
+	return tls10MAC{hmac.New(newConstantTimeHash(sha1.New), key)}
 }
 
 // macSHA256 returns a SHA-256 based MAC. These are only supported in TLS 1.2
@@ -142,7 +142,7 @@ func macSHA256(version uint16, key []byte) macFunction {
 
 type macFunction interface {
 	Size() int
-	MAC(digestBuf, seq, header, data []byte) []byte
+	MAC(digestBuf, seq, header, data, extra []byte) []byte
 }
 
 // fixedNonceAEAD wraps an AEAD and prefixes a fixed portion of the nonce to
@@ -200,7 +200,9 @@ var ssl30Pad1 = [48]byte{0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0x36, 0
 
 var ssl30Pad2 = [48]byte{0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c, 0x5c}
 
-func (s ssl30MAC) MAC(digestBuf, seq, header, data []byte) []byte {
+// MAC does not offer constant timing guarantees for SSL v3.0, since it's deemed
+// useless considering the similar, protocol-level POODLE vulnerability.
+func (s ssl30MAC) MAC(digestBuf, seq, header, data, extra []byte) []byte {
 	padLength := 48
 	if s.h.Size() == 20 {
 		padLength = 40
@@ -222,6 +224,29 @@ func (s ssl30MAC) MAC(digestBuf, seq, header, data []byte) []byte {
 	return s.h.Sum(digestBuf[:0])
 }
 
+type constantTimeHash interface {
+	hash.Hash
+	ConstantTimeSum(b []byte) []byte
+}
+
+// cthWrapper wraps any hash.Hash that implements ConstantTimeSum, and replaces
+// with that all calls to Sum. It's used to obtain a ConstantTimeSum-based HMAC.
+type cthWrapper struct {
+	h constantTimeHash
+}
+
+func (c *cthWrapper) Size() int                   { return c.h.Size() }
+func (c *cthWrapper) BlockSize() int              { return c.h.BlockSize() }
+func (c *cthWrapper) Reset()                      { c.h.Reset() }
+func (c *cthWrapper) Write(p []byte) (int, error) { return c.h.Write(p) }
+func (c *cthWrapper) Sum(b []byte) []byte         { return c.h.ConstantTimeSum(b) }
+
+func newConstantTimeHash(h func() hash.Hash) func() hash.Hash {
+	return func() hash.Hash {
+		return &cthWrapper{h().(constantTimeHash)}
+	}
+}
+
 // tls10MAC implements the TLS 1.0 MAC function. RFC 2246, section 6.2.3.
 type tls10MAC struct {
 	h hash.Hash
@@ -231,12 +256,19 @@ func (s tls10MAC) Size() int {
 	return s.h.Size()
 }
 
-func (s tls10MAC) MAC(digestBuf, seq, header, data []byte) []byte {
+// MAC is guaranteed to take constant time, as long as
+// len(seq)+len(header)+len(data)+len(extra) is constant. extra is not fed into
+// the MAC, but is only provided to make the timing profile constant.
+func (s tls10MAC) MAC(digestBuf, seq, header, data, extra []byte) []byte {
 	s.h.Reset()
 	s.h.Write(seq)
 	s.h.Write(header)
 	s.h.Write(data)
-	return s.h.Sum(digestBuf[:0])
+	res := s.h.Sum(digestBuf[:0])
+	if extra != nil {
+		s.h.Write(extra)
+	}
+	return res
 }
 
 func rsaKA(version uint16) keyAgreement {
