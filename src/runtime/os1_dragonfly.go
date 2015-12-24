@@ -141,7 +141,21 @@ func minit() {
 	_g_.m.procid = uint64(*(*int32)(unsafe.Pointer(&_g_.m.procid)))
 
 	// Initialize signal handling
-	signalstack(&_g_.m.gsignal.stack)
+	var st sigaltstackt
+	sigaltstack(nil, &st)
+	if st.ss_flags&_SS_DISABLE != 0 {
+		signalstack(&_g_.m.gsignal.stack)
+		_g_.m.newSigstack = true
+	} else {
+		// Use existing signal stack.
+		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+		_g_.m.gsignal.stack.lo = stsp
+		_g_.m.gsignal.stack.hi = stsp + st.ss_size
+		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+		_g_.m.gsignal.stackAlloc = st.ss_size
+		_g_.m.newSigstack = false
+	}
 
 	// restore signal mask from m.sigmask and unblock essential signals
 	nmask := _g_.m.sigmask
@@ -155,7 +169,9 @@ func minit() {
 
 // Called from dropm to undo the effect of an minit.
 func unminit() {
-	signalstack(nil)
+	if getg().m.newSigstack {
+		signalstack(nil)
+	}
 }
 
 func memlimit() uintptr {

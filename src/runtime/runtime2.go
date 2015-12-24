@@ -303,6 +303,7 @@ type m struct {
 	spinning      bool // m is out of work and is actively looking for work
 	blocked       bool // m is blocked on a note
 	inwb          bool // m is executing a write barrier
+	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
 	fastrand      uint32
 	ncgocall      uint64 // number of cgo calls in total
