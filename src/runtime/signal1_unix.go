@@ -34,15 +34,33 @@ var (
 	maskUpdatedChan chan struct{}
 )
 
-func initsig() {
+func init() {
 	// _NSIG is the number of signals on this operating system.
 	// sigtable should describe what to do for all the possible signals.
 	if len(sigtable) != _NSIG {
 		print("runtime: len(sigtable)=", len(sigtable), " _NSIG=", _NSIG, "\n")
-		throw("initsig")
+		throw("bad sigtable len")
+	}
+}
+
+var signalsOK bool
+
+// Initialize signals.
+// Called by libpreinit so runtime may not be initialized.
+//go:nosplit
+//go:nowritebarrierrec
+func initsig(preinit bool) {
+	if !preinit {
+		// It's now OK for signal handlers to run.
+		signalsOK = true
 	}
 
-	// First call: basic setup.
+	// For c-archive/c-shared this is called by libpreinit with
+	// preinit == true.
+	if (isarchive || islibrary) && !preinit {
+		return
+	}
+
 	for i := int32(0); i < _NSIG; i++ {
 		t := &sigtable[i]
 		if t.flags == 0 || t.flags&_SigDefault != 0 {
@@ -64,6 +82,8 @@ func initsig() {
 	}
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func sigInstallGoHandler(sig int32) bool {
 	// For some signals, we respect an inherited SIG_IGN handler
 	// rather than insist on installing our own default handler.
@@ -101,6 +121,7 @@ func sigenable(sig uint32) {
 		<-maskUpdatedChan
 		if t.flags&_SigHandling == 0 {
 			t.flags |= _SigHandling
+			fwdSig[sig] = getsig(int32(sig))
 			setsig(int32(sig), funcPC(sighandler), true)
 		}
 	}
@@ -163,6 +184,8 @@ func sigpipe() {
 // dieFromSignal kills the program with a signal.
 // This provides the expected exit status for the shell.
 // This is only called with fatal signals expected to kill the process.
+//go:nosplit
+//go:nowritebarrierrec
 func dieFromSignal(sig int32) {
 	setsig(sig, _SIG_DFL, false)
 	updatesigmask(sigmask{})

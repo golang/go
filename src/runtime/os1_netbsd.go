@@ -206,6 +206,8 @@ type sigactiont struct {
 	sa_flags     int32
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsig(i int32, fn uintptr, restart bool) {
 	var sa sigactiont
 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK
@@ -220,10 +222,14 @@ func setsig(i int32, fn uintptr, restart bool) {
 	sigaction(i, &sa, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsigstack(i int32) {
 	throw("setsigstack")
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func getsig(i int32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
@@ -246,6 +252,8 @@ func signalstack(s *stack) {
 	sigaltstack(&st, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func updatesigmask(m sigmask) {
 	var mask sigset
 	copy(mask.__bits[:], m[:])

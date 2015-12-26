@@ -26,6 +26,10 @@ TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
 	MOVW	R0, _rt0_arm_linux_lib_argc<>(SB)
 	MOVW	R1, _rt0_arm_linux_lib_argv<>(SB)
 
+	// Synchronous initialization.
+	MOVW	$runtime·libpreinit(SB), R2
+	CALL	(R2)
+
 	// Create a new thread to do the runtime initialization.
 	MOVW	_cgo_sys_thread_create(SB), R2
 	CMP	$0, R2

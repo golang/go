@@ -22,6 +22,20 @@ func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 		return false
 	}
 	fwdFn := fwdSig[sig]
+
+	if !signalsOK {
+		// The only way we can get here is if we are in a
+		// library or archive, we installed a signal handler
+		// at program startup, but the Go runtime has not yet
+		// been initialized.
+		if fwdFn == _SIG_DFL {
+			dieFromSignal(int32(sig))
+		} else {
+			sigfwd(fwdFn, sig, info, ctx)
+		}
+		return true
+	}
+
 	flags := sigtable[sig].flags
 
 	// If there is no handler to forward to, no need to forward.

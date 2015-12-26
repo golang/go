@@ -190,6 +190,15 @@ func goenvs() {
 	goenvs_unix()
 }
 
+// Called to do synchronous initialization of Go code built with
+// -buildmode=c-archive or -buildmode=c-shared.
+// None of the Go runtime is initialized.
+//go:nosplit
+//go:nowritebarrierrec
+func libpreinit() {
+	initsig(true)
+}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
@@ -298,6 +307,8 @@ func memlimit() uintptr {
 func sigreturn()
 func sigtramp()
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsig(i int32, fn uintptr, restart bool) {
 	var sa sigactiont
 	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
@@ -316,12 +327,11 @@ func setsig(i int32, fn uintptr, restart bool) {
 		fn = funcPC(sigtramp)
 	}
 	sa.sa_handler = fn
-	// Qemu rejects rt_sigaction of SIGRTMAX (64).
-	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 && i != 64 {
-		throw("rt_sigaction failure")
-	}
+	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsigstack(i int32) {
 	var sa sigactiont
 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
@@ -336,6 +346,8 @@ func setsigstack(i int32) {
 	}
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func getsig(i int32) uintptr {
 	var sa sigactiont
 
@@ -362,6 +374,8 @@ func signalstack(s *stack) {
 	sigaltstack(&st, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func updatesigmask(m sigmask) {
 	var mask sigset
 	sigcopyset(&mask, m)

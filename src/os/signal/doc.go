@@ -172,7 +172,10 @@ When Go code is built with options like -buildmode=c-shared, it will
 be run as part of an existing non-Go program. The non-Go code may
 have already installed signal handlers when the Go code starts (that
 may also happen in unusual cases when using cgo or SWIG; in that case,
-the discussion here applies).
+the discussion here applies).  For -buildmode=c-archive the Go runtime
+will initialize signals at global constructor time.  For
+-buildmode=c-shared the Go runtime will initialize signals when the
+shared library is loaded.
 
 If the Go runtime sees an existing signal handler for the SIGCANCEL or
 SIGSETXID signals (which are used only on GNU/Linux), it will turn on

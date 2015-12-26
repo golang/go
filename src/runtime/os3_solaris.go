@@ -279,6 +279,8 @@ func memlimit() uintptr {
 
 func sigtramp()
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsig(i int32, fn uintptr, restart bool) {
 	var sa sigactiont
 
@@ -295,6 +297,8 @@ func setsig(i int32, fn uintptr, restart bool) {
 	sigaction(i, &sa, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func setsigstack(i int32) {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
@@ -306,6 +310,8 @@ func setsigstack(i int32) {
 	sigaction(i, &sa, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func getsig(i int32) uintptr {
 	var sa sigactiont
 	sigaction(i, nil, &sa)
@@ -328,6 +334,8 @@ func signalstack(s *stack) {
 	sigaltstack(&st, nil)
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func updatesigmask(m sigmask) {
 	var mask sigset
 	copy(mask.__sigbits[:], m[:])
@@ -478,6 +486,8 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
 	return int32(sysvicall4(&libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func raise(sig int32) /* int32 */ {
 	sysvicall1(&libc_raise, uintptr(sig))
 }
@@ -516,6 +526,8 @@ func setitimer(which int32, value *itimerval, ovalue *itimerval) /* int32 */ {
 	sysvicall3(&libc_setitimer, uintptr(which), uintptr(unsafe.Pointer(value)), uintptr(unsafe.Pointer(ovalue)))
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
 	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
 }
@@ -527,6 +539,7 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
 }
 
 //go:nosplit
+//go:nowritebarrierrec
 func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
 }
