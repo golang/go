@@ -107,7 +107,7 @@ func createEnv(dir, PATH, PATHEXT string) []string {
 	env := os.Environ()
 	env = updateEnv(env, "PATHEXT", PATHEXT)
 	// Add dir in front of every directory in the PATH.
-	dirs := splitList(PATH)
+	dirs := filepath.SplitList(PATH)
 	for i := range dirs {
 		dirs[i] = filepath.Join(dir, dirs[i])
 	}

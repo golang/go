@@ -7,6 +7,7 @@ package exec
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -56,20 +57,22 @@ func findExecutable(file string, exts []string) (string, error) {
 // a suitable candidate.
 // The result may be an absolute path or a path relative to the current directory.
 func LookPath(file string) (string, error) {
+	var exts []string
 	x := os.Getenv(`PATHEXT`)
-	if x == "" {
-		x = `.COM;.EXE;.BAT;.CMD`
-	}
-	exts := []string{}
-	for _, e := range strings.Split(strings.ToLower(x), `;`) {
-		if e == "" {
-			continue
+	if x != "" {
+		for _, e := range strings.Split(strings.ToLower(x), `;`) {
+			if e == "" {
+				continue
+			}
+			if e[0] != '.' {
+				e = "." + e
+			}
+			exts = append(exts, e)
 		}
-		if e[0] != '.' {
-			e = "." + e
-		}
-		exts = append(exts, e)
+	} else {
+		exts = []string{".com", ".exe", ".bat", ".cmd"}
 	}
+
 	if strings.ContainsAny(file, `:\/`) {
 		if f, err := findExecutable(file, exts); err == nil {
 			return f, nil
@@ -77,48 +80,14 @@ func LookPath(file string) (string, error) {
 			return "", &Error{file, err}
 		}
 	}
-	if f, err := findExecutable(`.\`+file, exts); err == nil {
+	if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
 		return f, nil
 	}
-	if pathenv := os.Getenv(`PATH`); pathenv != "" {
-		for _, dir := range splitList(pathenv) {
-			if f, err := findExecutable(dir+`\`+file, exts); err == nil {
-				return f, nil
-			}
+	path := os.Getenv("path")
+	for _, dir := range filepath.SplitList(path) {
+		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
+			return f, nil
 		}
 	}
 	return "", &Error{file, ErrNotFound}
-}
-
-func splitList(path string) []string {
-	// The same implementation is used in SplitList in path/filepath;
-	// consider changing path/filepath when changing this.
-
-	if path == "" {
-		return []string{}
-	}
-
-	// Split path, respecting but preserving quotes.
-	list := []string{}
-	start := 0
-	quo := false
-	for i := 0; i < len(path); i++ {
-		switch c := path[i]; {
-		case c == '"':
-			quo = !quo
-		case c == os.PathListSeparator && !quo:
-			list = append(list, path[start:i])
-			start = i + 1
-		}
-	}
-	list = append(list, path[start:])
-
-	// Remove quotes.
-	for i, s := range list {
-		if strings.Contains(s, `"`) {
-			list[i] = strings.Replace(s, `"`, "", -1)
-		}
-	}
-
-	return list
 }
