@@ -1088,7 +1088,7 @@ func mstart1() {
 			cgoHasExtraM = true
 			newextram()
 		}
-		initsig()
+		initsig(false)
 	}
 
 	if fn := _g_.m.mstartfn; fn != nil {

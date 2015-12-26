@@ -191,7 +191,7 @@ func setBadSignalMsg() {
 
 // Following are not implemented.
 
-func initsig() {
+func initsig(preinit bool) {
 }
 
 func sigenable(sig uint32) {

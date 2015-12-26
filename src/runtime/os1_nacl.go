@@ -67,7 +67,7 @@ func goenvs() {
 	goenvs_unix()
 }
 
-func initsig() {
+func initsig(preinit bool) {
 }
 
 //go:nosplit
