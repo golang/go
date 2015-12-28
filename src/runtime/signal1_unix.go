@@ -139,6 +139,9 @@ func resetcpuprofiler(hz int32) {
 }
 
 func sigpipe() {
+	if sigsend(_SIGPIPE) {
+		return
+	}
 	setsig(_SIGPIPE, _SIG_DFL, false)
 	raise(_SIGPIPE)
 }
