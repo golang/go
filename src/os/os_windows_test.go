@@ -150,3 +150,32 @@ func TestBadNetPathError(t *testing.T) {
 		t.Fatal("os.IsNotExist(syscall.Errno(53)) is false, but want true")
 	}
 }
+
+func TestStatDir(t *testing.T) {
+	defer chtmpdir(t)()
+
+	f, err := os.Open(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Chdir("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fi2, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi, fi2) {
+		t.Fatal("race condition occured")
+	}
+}
