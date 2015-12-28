@@ -119,6 +119,11 @@ func TestImportStdLib(t *testing.T) {
 		if testing.Short() && time.Since(start) >= 750*time.Millisecond {
 			return
 		}
+		if lib == "cmd/internal/objfile" || lib == "net/http" {
+			// gcimporter doesn't support vendored imports.
+			// TODO(gri): fix.
+			continue
+		}
 
 		pkg, err := pkgForPath(lib)
 		switch err := err.(type) {
