@@ -167,7 +167,7 @@ func ExampleConfig_Import() {
 	// created: [strconv_test]
 	// imported: [errors strconv unicode/utf8]
 	// initial: [errors strconv strconv_test unicode/utf8]
-	// all: [bufio bytes errors flag fmt internal/race io log math math/rand os reflect runtime runtime/internal/atomic runtime/internal/sys runtime/pprof runtime/trace sort strconv strconv_test strings sync sync/atomic syscall testing text/tabwriter time unicode unicode/utf8]
+	// all: [bufio bytes errors flag fmt internal/race io log math math/rand os reflect runtime runtime/debug runtime/internal/atomic runtime/internal/sys runtime/pprof runtime/trace sort strconv strconv_test strings sync sync/atomic syscall testing text/tabwriter time unicode unicode/utf8]
 	// strconv.Files: [atob.go atof.go atoi.go decimal.go doc.go extfloat.go ftoa.go isprint.go itoa.go quote.go internal_test.go]
 	// strconv_test.Files: [atob_test.go atof_test.go atoi_test.go decimal_test.go example_test.go fp_test.go ftoa_test.go itoa_test.go quote_test.go strconv_test.go]
 }
