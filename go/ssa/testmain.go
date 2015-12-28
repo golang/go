@@ -241,6 +241,12 @@ func testMainSlice(fn *Function, testfuncs []*Function, slice types.Type) Value 
 	tPtrElem := types.NewPointer(tElem)
 	tPtrFunc := types.NewPointer(funcField(slice))
 
+	// TODO(adonovan): fix: populate the
+	// testing.InternalExample.Output field correctly so that tests
+	// work correctly under the interpreter.  This requires that we
+	// do this step using ASTs, not *ssa.Functions---quite a
+	// redesign.  See also the fake runExample in go/ssa/interp.
+
 	// Emit: array = new [n]testing.InternalTest
 	tArray := types.NewArray(tElem, int64(len(testfuncs)))
 	array := emitNew(fn, tArray, token.NoPos)

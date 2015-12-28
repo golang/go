@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 	"unsafe"
@@ -81,6 +82,7 @@ func init() {
 		"math.Log":                         ext۰math۰Log,
 		"math.Min":                         ext۰math۰Min,
 		"math.hasSSE4":                     ext۰math۰hasSSE4,
+		"os.Pipe":                          ext۰os۰Pipe,
 		"os.runtime_args":                  ext۰os۰runtime_args,
 		"os.runtime_beforeExit":            ext۰os۰runtime_beforeExit,
 		"reflect.New":                      ext۰reflect۰New,
@@ -107,6 +109,7 @@ func init() {
 		"(*runtime.Func).Name":             ext۰runtime۰Func۰Name,
 		"runtime.environ":                  ext۰runtime۰environ,
 		"runtime.getgoroot":                ext۰runtime۰getgoroot,
+		"strings.Index":                    ext۰strings۰Index,
 		"strings.IndexByte":                ext۰strings۰IndexByte,
 		"sync.runtime_Semacquire":          ext۰sync۰runtime_Semacquire,
 		"sync.runtime_Semrelease":          ext۰sync۰runtime_Semrelease,
@@ -135,6 +138,7 @@ func init() {
 		"syscall.Stat":                     ext۰syscall۰Stat,
 		"syscall.Write":                    ext۰syscall۰Write,
 		"syscall.runtime_envs":             ext۰runtime۰environ,
+		"testing.runExample":               ext۰testing۰runExample,
 		"time.Sleep":                       ext۰time۰Sleep,
 		"time.now":                         ext۰time۰now,
 	}
@@ -233,6 +237,21 @@ func ext۰math۰Log(fr *frame, args []value) value {
 	return math.Log(args[0].(float64))
 }
 
+func ext۰os۰Pipe(fr *frame, args []value) value {
+	// This is an inlining of linux's os.Pipe.
+	// func os.Pipe() (r *File, w *File, err error)
+	var p [2]int
+	if err := syscall.Pipe2(p[:], syscall.O_CLOEXEC); err != nil {
+		// TODO(adonovan): fix: return an *os.SyscallError.
+		return tuple{nil, nil, wrapError(err)}
+	}
+
+	NewFile := fr.i.prog.ImportedPackage("os").Func("NewFile")
+	r := call(fr.i, fr, 0, NewFile, []value{uintptr(p[0]), "|0"})
+	w := call(fr.i, fr, 0, NewFile, []value{uintptr(p[1]), "|1"})
+	return tuple{r, w, wrapError(nil)}
+}
+
 func ext۰os۰runtime_args(fr *frame, args []value) value {
 	return fr.i.osArgs
 }
@@ -261,6 +280,7 @@ func ext۰runtime۰Caller(fr *frame, args []value) value {
 	if fr != nil {
 		fn := fr.fn
 		// TODO(adonovan): use pc/posn of current instruction, not start of fn.
+		// (Required to interpret the log package's tests.)
 		pc = uintptr(unsafe.Pointer(fn))
 		posn := fn.Prog.Fset.Position(fn.Pos())
 		file = posn.Filename
@@ -319,6 +339,11 @@ func ext۰strings۰IndexByte(fr *frame, args []value) value {
 		}
 	}
 	return -1
+}
+
+func ext۰strings۰Index(fr *frame, args []value) value {
+	// Call compiled version to avoid tricky asm dependency.
+	return strings.Index(args[0].(string), args[1].(string))
 }
 
 func ext۰sync۰runtime_Syncsemcheck(fr *frame, args []value) value {
@@ -463,6 +488,22 @@ func ext۰runtime۰Func۰Entry(fr *frame, args []value) value {
 	// func (*runtime.Func) Entry() uintptr
 	f, _ := (*args[0].(*value)).(structure)[0].(*ssa.Function)
 	return uintptr(unsafe.Pointer(f))
+}
+
+// This is a workaround for a bug in go/ssa/testmain.go: it creates
+// InternalExamples even for Example functions with no Output comment.
+// TODO(adonovan): fix (and redesign) testmain.go after Go 1.6.
+func ext۰testing۰runExample(fr *frame, args []value) value {
+	// This is a stripped down runExample that simply calls the function.
+	// It does not capture and compare output nor recover from panic.
+	//
+	// func runExample(eg testing.InternalExample) bool {
+	//     eg.F()
+	//     return true
+	// }
+	F := args[0].(structure)[1]
+	call(fr.i, fr, 0, F, nil)
+	return true
 }
 
 func ext۰time۰now(fr *frame, args []value) value {
