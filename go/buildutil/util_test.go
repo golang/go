@@ -23,15 +23,21 @@ func TestContainingPackage(t *testing.T) {
 	goroot := runtime.GOROOT()
 	gopath := filepath.SplitList(os.Getenv("GOPATH"))[0]
 
-	for _, test := range [][2]string{
+	tests := [][2]string{
 		{goroot + "/src/fmt/print.go", "fmt"},
 		{goroot + "/src/encoding/json/foo.go", "encoding/json"},
 		{goroot + "/src/encoding/missing/foo.go", "(not found)"},
 		{gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
 			"golang.org/x/tools/go/buildutil"},
-		{gopath + "/src/vendor/golang.org/x/net/http2/hpack/hpack.go",
-			"vendor/golang.org/x/net/http2/hpack"},
-	} {
+	}
+	// TODO(adonovan): simplify after Go 1.6.
+	if buildutil.AllowVendor != 0 {
+		tests = append(tests, [2]string{
+			gopath + "/src/vendor/golang.org/x/net/http2/hpack/hpack.go",
+			"vendor/golang.org/x/net/http2/hpack",
+		})
+	}
+	for _, test := range tests {
 		file, want := test[0], test[1]
 		bp, err := buildutil.ContainingPackage(&build.Default, ".", file)
 		got := bp.ImportPath

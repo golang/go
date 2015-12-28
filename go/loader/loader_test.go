@@ -394,6 +394,11 @@ func TestCwd(t *testing.T) {
 }
 
 func TestLoad_vendor(t *testing.T) {
+	if buildutil.AllowVendor == 0 {
+		// Vendoring requires Go 1.6.
+		// TODO(adonovan): delete in due course.
+		t.Skip()
+	}
 	pkgs := map[string]string{
 		"a":          `package a; import _ "x"`,
 		"a/vendor":   ``, // mkdir a/vendor
