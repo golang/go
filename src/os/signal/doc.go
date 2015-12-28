@@ -87,6 +87,18 @@ for a blocked signal, it will be unblocked. If, later, Reset is
 called for that signal, or Stop is called on all channels passed to
 Notify for that signal, the signal will once again be blocked.
 
+SIGPIPE
+
+When a Go program receives an EPIPE error from the kernel while
+writing to file descriptors 1 or 2 (standard output or standard
+error), it will raise a SIGPIPE signal.  If the program is not
+currently receiving SIGPIPE via a call to Notify, this will cause the
+program to exit with SIGPIPE.  On descriptors other than 1 or 2, the
+write will return the EPIPE error.  This means that, by default,
+command line programs will behave like typical Unix command line
+programs, while other programs will not crash with SIGPIPE when
+writing to a closed network connection.
+
 Go programs that use cgo or SWIG
 
 In a Go program that includes non-Go code, typically C/C++ code
