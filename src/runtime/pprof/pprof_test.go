@@ -311,7 +311,11 @@ func TestGoroutineSwitch(t *testing.T) {
 // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
 func TestMathBigDivide(t *testing.T) {
 	testCPUProfile(t, nil, func() {
-		t := time.After(5 * time.Second)
+		duration := 5 * time.Second
+		if testing.Short() {
+			duration = 200 * time.Millisecond
+		}
+		t := time.After(duration)
 		pi := new(big.Int)
 		for {
 			for i := 0; i < 100; i++ {
@@ -336,7 +340,11 @@ func TestStackBarrierProfiling(t *testing.T) {
 		if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
 			t.Skip("gcstackbarrierall doesn't work on ppc64")
 		}
-		cmd := exec.Command(os.Args[0], "-test.run=TestStackBarrierProfiling")
+		args := []string{"-test.run=TestStackBarrierProfiling"}
+		if testing.Short() {
+			args = append(args, "-test.short")
+		}
+		cmd := exec.Command(os.Args[0], args...)
 		cmd.Env = append([]string{"GODEBUG=gcstackbarrierall=1", "GOGC=1"}, os.Environ()...)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("subprocess failed with %v:\n%s", err, out)
@@ -349,7 +357,7 @@ func TestStackBarrierProfiling(t *testing.T) {
 		// two samples in stackBarrier.
 		duration := 5 * time.Second
 		if testing.Short() {
-			duration = 1 * time.Second
+			duration = 200 * time.Millisecond
 		}
 		t := time.After(duration)
 		for {
