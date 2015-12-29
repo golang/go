@@ -5,12 +5,8 @@
 package rename
 
 import (
-	"bytes"
 	"fmt"
-	"go/ast"
 	"go/build"
-	"go/format"
-	"go/token"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -79,12 +75,8 @@ var _ foo.T
 		ctxt := test.ctxt
 
 		got := make(map[string]string)
-		rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) error {
-			var out bytes.Buffer
-			if err := format.Node(&out, fset, f); err != nil {
-				return err
-			}
-			got[orig] = out.String()
+		writeFile = func(filename string, content []byte) error {
+			got[filename] = string(content)
 			return nil
 		}
 		moveDirectory = func(from, to string) error {
@@ -304,12 +296,8 @@ var _ bar.T
 			}
 			got[path] = string(bytes)
 		})
-		rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) error {
-			var out bytes.Buffer
-			if err := format.Node(&out, fset, f); err != nil {
-				return err
-			}
-			got[orig] = out.String()
+		writeFile = func(filename string, content []byte) error {
+			got[filename] = string(content)
 			return nil
 		}
 		moveDirectory = func(from, to string) error {

@@ -7,10 +7,9 @@ package rename
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
 	"go/build"
-	"go/format"
 	"go/token"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -22,11 +21,11 @@ import (
 // TODO(adonovan): test reported source positions, somehow.
 
 func TestConflicts(t *testing.T) {
-	defer func(savedDryRun bool, savedReportError func(token.Position, string)) {
-		DryRun = savedDryRun
+	defer func(savedWriteFile func(string, []byte) error, savedReportError func(token.Position, string)) {
+		writeFile = savedWriteFile
 		reportError = savedReportError
-	}(DryRun, reportError)
-	DryRun = true
+	}(writeFile, reportError)
+	writeFile = func(string, []byte) error { return nil }
 
 	var ctxt *build.Context
 	for _, test := range []struct {
@@ -417,9 +416,9 @@ var _ I = E{}
 }
 
 func TestRewrites(t *testing.T) {
-	defer func(savedRewriteFile func(*token.FileSet, *ast.File, string) error) {
-		rewriteFile = savedRewriteFile
-	}(rewriteFile)
+	defer func(savedWriteFile func(string, []byte) error) {
+		writeFile = savedWriteFile
+	}(writeFile)
 
 	var ctxt *build.Context
 	for _, test := range []struct {
@@ -977,12 +976,8 @@ var _ = I(C(0)).(J)
 		}
 
 		got := make(map[string]string)
-		rewriteFile = func(fset *token.FileSet, f *ast.File, orig string) error {
-			var out bytes.Buffer
-			if err := format.Node(&out, fset, f); err != nil {
-				return err
-			}
-			got[filepath.ToSlash(orig)] = out.String()
+		writeFile = func(filename string, content []byte) error {
+			got[filepath.ToSlash(filename)] = string(content)
 			return nil
 		}
 
@@ -1015,6 +1010,34 @@ var _ = I(C(0)).(J)
 			t.Errorf("%s: unexpected rewrite of file %s", prefix, file)
 		}
 	}
+}
+
+func TestDiff(t *testing.T) {
+	defer func() {
+		Diff = false
+		stdout = os.Stdout
+	}()
+	Diff = true
+	stdout = new(bytes.Buffer)
+
+	if err := Main(&build.Default, "", `"golang.org/x/tools/refactor/rename".justHereForTestingDiff`, "Foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	// NB: there are tabs in the string literal!
+	if !strings.Contains(stdout.(fmt.Stringer).String(), `
+-func justHereForTestingDiff() {
+-	justHereForTestingDiff()
++func Foo() {
++	Foo()
+ }
+`) {
+		t.Errorf("unexpected diff:\n<<%s>>", stdout)
+	}
+}
+
+func justHereForTestingDiff() {
+	justHereForTestingDiff()
 }
 
 // ---------------------------------------------------------------------

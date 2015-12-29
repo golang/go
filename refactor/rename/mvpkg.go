@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/format"
 	"go/token"
 	"log"
 	"os"
@@ -321,8 +322,13 @@ func (m *mover) move() error {
 	}
 
 	for f := range filesToUpdate {
+		var buf bytes.Buffer
+		if err := format.Node(&buf, m.iprog.Fset, f); err != nil {
+			log.Printf("failed to pretty-print syntax tree: %v", err)
+			continue
+		}
 		tokenFile := m.iprog.Fset.File(f.Pos())
-		rewriteFile(m.iprog.Fset, f, tokenFile.Name())
+		writeFile(tokenFile.Name(), buf.Bytes())
 	}
 
 	// Move the directories.

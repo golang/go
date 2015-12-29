@@ -11,8 +11,8 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"log"
 	"os"
-	"runtime"
 
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/refactor/rename"
@@ -28,25 +28,17 @@ var (
 func init() {
 	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
 	flag.BoolVar(&rename.Force, "force", false, "proceed, even if conflicts were reported")
-	flag.BoolVar(&rename.DryRun, "dryrun", false, "show the change, but do not apply it")
 	flag.BoolVar(&rename.Verbose, "v", false, "print verbose information")
-
-	// If $GOMAXPROCS isn't set, use the full capacity of the machine.
-	// For small machines, use at least 4 threads.
-	if os.Getenv("GOMAXPROCS") == "" {
-		n := runtime.NumCPU()
-		if n < 4 {
-			n = 4
-		}
-		runtime.GOMAXPROCS(n)
-	}
+	flag.BoolVar(&rename.Diff, "d", false, "display diffs instead of rewriting files")
+	flag.StringVar(&rename.DiffCmd, "diffcmd", "diff", "diff command invoked when using -d")
 }
 
 func main() {
+	log.SetPrefix("gorename: ")
+	log.SetFlags(0)
 	flag.Parse()
 	if len(flag.Args()) > 0 {
-		fmt.Fprintln(os.Stderr, "gorename: surplus arguments.")
-		os.Exit(1)
+		log.Fatal("surplus arguments")
 	}
 
 	if *helpFlag || (*offsetFlag == "" && *fromFlag == "" && *toFlag == "") {
@@ -56,7 +48,7 @@ func main() {
 
 	if err := rename.Main(&build.Default, *offsetFlag, *fromFlag, *toFlag); err != nil {
 		if err != rename.ConflictError {
-			fmt.Fprintf(os.Stderr, "gorename: %s\n", err)
+			log.Fatal(err)
 		}
 		os.Exit(1)
 	}
