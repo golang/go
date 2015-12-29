@@ -428,13 +428,14 @@ func (c *common) Skipped() bool {
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests.
 func (t *T) Parallel() {
-	// We don't want to include the time we spend waiting for serial tests
-	// in the test duration. Record the elapsed time thus far and reset the
-	// timer afterwards.
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
 	}
 	t.isParallel = true
+
+	// We don't want to include the time we spend waiting for serial tests
+	// in the test duration. Record the elapsed time thus far and reset the
+	// timer afterwards.
 	t.duration += time.Since(t.start)
 	t.signal <- (*T)(nil) // Release main testing loop
 	<-t.startParallel     // Wait for serial tests to finish
