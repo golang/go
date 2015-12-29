@@ -8,6 +8,8 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 )
 
 // funcpctab writes to dst a pc-value table mapping the code in func to the values
@@ -150,6 +152,7 @@ func renumberfiles(ctxt *Link, files []*LSym, d *Pcdata) {
 			f.Value = int64(ctxt.Nhistfile)
 			f.Type = obj.SFILEPATH
 			f.Next = ctxt.Filesyms
+			f.Name = expandGoroot(f.Name)
 			ctxt.Filesyms = f
 		}
 	}
@@ -374,6 +377,18 @@ func pclntab() {
 	if Debug['v'] != 0 {
 		fmt.Fprintf(&Bso, "%5.2f pclntab=%d bytes, funcdata total %d bytes\n", obj.Cputime(), int64(ftab.Size), int64(funcdata_bytes))
 	}
+}
+
+func expandGoroot(s string) string {
+	const n = len("$GOROOT")
+	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
+		root := goroot
+		if final := os.Getenv("GOROOT_FINAL"); final != "" {
+			root = final
+		}
+		return filepath.ToSlash(filepath.Join(root, s[n:]))
+	}
+	return s
 }
 
 const (

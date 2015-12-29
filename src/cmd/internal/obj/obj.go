@@ -74,15 +74,15 @@ func (h *LineHist) setFile(stk *LineStack, file string) {
 		abs = filepath.Join(h.Dir, file)
 	}
 
-	// Remove leading TrimPathPrefix, or else rewrite $GOROOT to $GOROOT_FINAL.
+	// Remove leading TrimPathPrefix, or else rewrite $GOROOT to literal $GOROOT.
 	if h.TrimPathPrefix != "" && hasPathPrefix(abs, h.TrimPathPrefix) {
 		if abs == h.TrimPathPrefix {
 			abs = ""
 		} else {
 			abs = abs[len(h.TrimPathPrefix)+1:]
 		}
-	} else if h.GOROOT_FINAL != "" && h.GOROOT_FINAL != h.GOROOT && hasPathPrefix(abs, h.GOROOT) {
-		abs = h.GOROOT_FINAL + abs[len(h.GOROOT):]
+	} else if hasPathPrefix(abs, h.GOROOT) {
+		abs = "$GOROOT" + abs[len(h.GOROOT):]
 	}
 	if abs == "" {
 		abs = "??"
