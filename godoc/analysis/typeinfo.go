@@ -22,12 +22,12 @@ package analysis
 
 import (
 	"fmt"
+	"go/types"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

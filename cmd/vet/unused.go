@@ -11,9 +11,8 @@ import (
 	"flag"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"strings"
-
-	"golang.org/x/tools/go/types"
 )
 
 var unusedFuncsFlag = flag.String("unusedfuncs",

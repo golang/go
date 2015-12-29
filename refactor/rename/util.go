@@ -8,6 +8,7 @@ package rename
 
 import (
 	"go/ast"
+	"go/types"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,7 +17,6 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/types"
 )
 
 func objectKind(obj types.Object) string {

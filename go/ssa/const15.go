@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.6
+// +build go1.5,!go1.6
 
 package ssa
 
@@ -123,7 +123,7 @@ func (c *Const) IsNil() bool {
 // a signed 64-bit integer.
 //
 func (c *Const) Int64() int64 {
-	switch x := exact.ToInt(c.Value); x.Kind() {
+	switch x := c.Value; x.Kind() {
 	case exact.Int:
 		if i, ok := exact.Int64Val(x); ok {
 			return i
@@ -140,7 +140,7 @@ func (c *Const) Int64() int64 {
 // an unsigned 64-bit integer.
 //
 func (c *Const) Uint64() uint64 {
-	switch x := exact.ToInt(c.Value); x.Kind() {
+	switch x := c.Value; x.Kind() {
 	case exact.Int:
 		if u, ok := exact.Uint64Val(x); ok {
 			return u

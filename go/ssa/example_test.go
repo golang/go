@@ -8,16 +8,16 @@ package ssa_test
 
 import (
 	"fmt"
-	"os"
-
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
+	"os"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 )
 
 const hello = `
@@ -66,7 +66,7 @@ func ExampleBuildPackage() {
 	// Type-check the package, load dependencies.
 	// Create and build the SSA program.
 	hello, _, err := ssautil.BuildPackage(
-		new(types.Config), fset, pkg, files, ssa.SanityCheckFunctions)
+		&types.Config{Importer: importer.Default()}, fset, pkg, files, ssa.SanityCheckFunctions)
 	if err != nil {
 		fmt.Print(err) // type error in some package
 		return

@@ -9,8 +9,10 @@ package ssa_test
 import (
 	"bytes"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"reflect"
 	"sort"
 	"strings"
@@ -19,9 +21,6 @@ import (
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
-
-	_ "golang.org/x/tools/go/gcimporter"
 )
 
 func isEmpty(f *ssa.Function) bool { return f.Blocks == nil }
@@ -59,7 +58,7 @@ func main() {
 
 	// Build an SSA program from the parsed file.
 	// Load its dependencies from gc binary export data.
-	mainPkg, _, err := ssautil.BuildPackage(new(types.Config), fset,
+	mainPkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset,
 		types.NewPackage("main", ""), []*ast.File{f}, ssa.SanityCheckFunctions)
 	if err != nil {
 		t.Error(err)
@@ -227,7 +226,7 @@ func TestRuntimeTypes(t *testing.T) {
 
 		// Create a single-file main package.
 		// Load dependencies from gc binary export data.
-		ssapkg, _, err := ssautil.BuildPackage(new(types.Config), fset,
+		ssapkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset,
 			types.NewPackage("p", ""), []*ast.File{f}, ssa.SanityCheckFunctions)
 		if err != nil {
 			t.Errorf("test %q: %s", test.input[:15], err)

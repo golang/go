@@ -2,15 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
+// +build !go1.5
 
 // This file implements a cache of method sets.
 
 package typeutil
 
 import (
-	"go/types"
 	"sync"
+
+	"golang.org/x/tools/go/types"
 )
 
 // A MethodSetCache records the method set of each type T for which

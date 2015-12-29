@@ -38,6 +38,7 @@ package interp
 import (
 	"bytes"
 	"fmt"
+	"go/types"
 	"io"
 	"reflect"
 	"strings"
@@ -45,7 +46,6 @@ import (
 	"unsafe"
 
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

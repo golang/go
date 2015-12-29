@@ -13,8 +13,10 @@ package eg_test
 import (
 	"bytes"
 	"flag"
+	exact "go/constant"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,9 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/refactor/eg"
 )
 

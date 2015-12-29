@@ -47,8 +47,10 @@ package analysis // import "golang.org/x/tools/godoc/analysis"
 import (
 	"fmt"
 	"go/build"
+	exact "go/constant"
 	"go/scanner"
 	"go/token"
+	"go/types"
 	"html"
 	"io"
 	"log"
@@ -59,12 +61,10 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 )
 
 // -- links ------------------------------------------------------------

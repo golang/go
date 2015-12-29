@@ -11,8 +11,10 @@ package ssa_test
 import (
 	"fmt"
 	"go/ast"
+	exact "go/constant"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"regexp"
 	"runtime"
@@ -20,11 +22,9 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 )
 
 func TestObjValueLookup(t *testing.T) {

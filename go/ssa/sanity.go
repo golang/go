@@ -11,11 +11,10 @@ package ssa
 
 import (
 	"fmt"
+	"go/types"
 	"io"
 	"os"
 	"strings"
-
-	"golang.org/x/tools/go/types"
 )
 
 type sanity struct {

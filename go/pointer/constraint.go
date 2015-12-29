@@ -6,9 +6,7 @@
 
 package pointer
 
-import (
-	"golang.org/x/tools/go/types"
-)
+import "go/types"
 
 type constraint interface {
 	// For a complex constraint, returns the nodeid of the pointer

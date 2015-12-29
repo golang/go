@@ -12,13 +12,12 @@ package ssa
 
 import (
 	"go/ast"
+	exact "go/constant"
 	"go/token"
+	"go/types"
 	"os"
 	"sort"
 	"strings"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 // FindTests returns the list of packages that define at least one Test,

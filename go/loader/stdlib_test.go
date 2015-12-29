@@ -16,6 +16,7 @@ import (
 	"go/ast"
 	"go/build"
 	"go/token"
+	"go/types"
 	"io/ioutil"
 	"path/filepath"
 	"runtime"
@@ -25,7 +26,6 @@ import (
 
 	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
 )
 
 func TestStdlib(t *testing.T) {

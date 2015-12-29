@@ -10,8 +10,7 @@ package ssa
 
 import (
 	"fmt"
-
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 // MethodValue returns the Function implementing method sel, building

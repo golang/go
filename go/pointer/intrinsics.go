@@ -19,9 +19,9 @@ package pointer
 
 import (
 	"fmt"
+	"go/types"
 
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 // Instances of 'intrinsic' generate analysis constraints for calls to

@@ -34,12 +34,11 @@ package ssa
 import (
 	"fmt"
 	"go/ast"
+	exact "go/constant"
 	"go/token"
+	"go/types"
 	"os"
 	"sync"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 type opaqueType struct {
@@ -244,7 +243,7 @@ func (b *builder) builtin(fn *Function, obj *types.Builtin, args []ast.Expr, typ
 			}
 			if m, ok := m.(*Const); ok {
 				// treat make([]T, n, m) as new([m]T)[:n]
-				cap, _ := exact.Int64Val(m.Value)
+				cap := m.Int64()
 				at := types.NewArray(typ.Underlying().(*types.Slice).Elem(), cap)
 				alloc := emitNew(fn, at, pos)
 				alloc.Comment = "makeslice"

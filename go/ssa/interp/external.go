@@ -10,6 +10,7 @@ package interp
 // external or because they use "unsafe" or "reflect" operations.
 
 import (
+	"go/types"
 	"math"
 	"os"
 	"runtime"
@@ -19,7 +20,6 @@ import (
 	"unsafe"
 
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 type externalFn func(fr *frame, args []value) value

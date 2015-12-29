@@ -11,10 +11,10 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"sort"
 
 	"golang.org/x/tools/go/loader"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/oracle/serial"
 )
 

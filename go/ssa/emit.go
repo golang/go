@@ -12,8 +12,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 // emitNew emits to f a new (heap Alloc) instruction allocating an

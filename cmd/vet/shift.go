@@ -10,10 +10,9 @@ package main
 
 import (
 	"go/ast"
+	exact "go/constant"
 	"go/token"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 func init() {

@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.5
+
 package typeutil_test
 
 import (
 	"fmt"
-	"sort"
-
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
+	"sort"
 
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

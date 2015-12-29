@@ -15,9 +15,8 @@ import (
 	"go/format"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"os"
-
-	"golang.org/x/tools/go/types"
 )
 
 const Help = `

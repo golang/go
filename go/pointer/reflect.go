@@ -32,11 +32,11 @@ package pointer
 
 import (
 	"fmt"
+	exact "go/constant"
+	"go/types"
 	"reflect"
 
-	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 func init() {

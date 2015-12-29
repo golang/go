@@ -50,10 +50,10 @@ package rta // import "golang.org/x/tools/go/callgraph/rta"
 
 import (
 	"fmt"
+	"go/types"
 
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

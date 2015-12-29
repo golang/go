@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
+	"go/types"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -31,7 +32,6 @@ import (
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

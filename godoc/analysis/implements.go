@@ -13,9 +13,9 @@ package analysis
 // belong to different packages and at least one is not exported?
 
 import (
+	"go/types"
 	"sort"
 
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

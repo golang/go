@@ -8,15 +8,14 @@ package ssautil_test
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"testing"
 
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
-
-	_ "golang.org/x/tools/go/gcimporter"
 )
 
 const hello = `package main
@@ -39,7 +38,7 @@ func TestBuildPackage(t *testing.T) {
 	}
 
 	pkg := types.NewPackage("hello", "")
-	ssapkg, _, err := ssautil.BuildPackage(new(types.Config), fset, pkg, []*ast.File{f}, 0)
+	ssapkg, _, err := ssautil.BuildPackage(&types.Config{Importer: importer.Default()}, fset, pkg, []*ast.File{f}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

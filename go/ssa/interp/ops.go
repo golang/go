@@ -9,14 +9,14 @@ package interp
 import (
 	"bytes"
 	"fmt"
+	exact "go/constant"
 	"go/token"
+	"go/types"
 	"strings"
 	"sync"
 	"unsafe"
 
-	"golang.org/x/tools/go/exact"
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 // If the target program panics, the interpreter panics with this type.

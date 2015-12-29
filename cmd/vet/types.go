@@ -8,9 +8,9 @@ package main
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/token"
-
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 // imports is the canonical map of imported packages we need for typechecking.
@@ -18,6 +18,8 @@ import (
 var imports = make(map[string]*types.Package)
 
 var (
+	defaultImporter = importer.Default()
+
 	errorType     *types.Interface
 	stringerType  *types.Interface // possibly nil
 	formatterType *types.Interface // possibly nil
@@ -39,7 +41,7 @@ func init() {
 // path.name, and adds the respective package to the imports map
 // as a side effect. In case of an error, importType returns nil.
 func importType(path, name string) types.Type {
-	pkg, err := types.DefaultImport(imports, path)
+	pkg, err := defaultImporter.Import(path)
 	if err != nil {
 		// This can happen if the package at path hasn't been compiled yet.
 		warnf("import failed: %v", err)
@@ -59,9 +61,7 @@ func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
 	pkg.spans = make(map[types.Object]Span)
 	pkg.types = make(map[ast.Expr]types.TypeAndValue)
 	config := types.Config{
-		// We provide the same packages map for all imports to ensure
-		// that everybody sees identical packages for the given paths.
-		Packages: imports,
+		Importer: defaultImporter,
 		// By providing a Config with our own error function, it will continue
 		// past the first error. There is no need for that function to do anything.
 		Error: func(error) {},

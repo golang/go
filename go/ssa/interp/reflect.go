@@ -15,11 +15,11 @@ package interp
 import (
 	"fmt"
 	"go/token"
+	"go/types"
 	"reflect"
 	"unsafe"
 
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 type opaqueType struct {

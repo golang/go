@@ -15,6 +15,7 @@ import (
 	"go/build"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"sort"
 	"strings"
@@ -23,7 +24,6 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/types"
 )
 
 const trace = false // show timing info for type-checking
@@ -1005,9 +1005,7 @@ func (imp *importer) newPackageInfo(path, dir string) *PackageInfo {
 	if f := imp.conf.TypeCheckFuncBodies; f != nil {
 		tc.IgnoreFuncBodies = !f(path)
 	}
-	tc.Import = func(_ map[string]*types.Package, to string) (*types.Package, error) {
-		return imp.doImport(info, to)
-	}
+	tc.Importer = closure{imp, info}
 	tc.Error = info.appendError // appendError wraps the user's Error function
 
 	info.checker = types.NewChecker(&tc, imp.conf.fset(), pkg, &info.Info)
@@ -1016,3 +1014,10 @@ func (imp *importer) newPackageInfo(path, dir string) *PackageInfo {
 	imp.progMu.Unlock()
 	return info
 }
+
+type closure struct {
+	imp  *importer
+	info *PackageInfo
+}
+
+func (c closure) Import(to string) (*types.Package, error) { return c.imp.doImport(c.info, to) }

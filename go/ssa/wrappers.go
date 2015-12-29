@@ -24,7 +24,7 @@ package ssa
 import (
 	"fmt"
 
-	"golang.org/x/tools/go/types"
+	"go/types"
 )
 
 // -- wrappers -----------------------------------------------------------

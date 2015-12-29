@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"go/types"
 	"log"
 	"os"
 	"reflect"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 // matchExpr reports whether pattern x matches y.

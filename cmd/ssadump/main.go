@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"go/types"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -20,7 +21,6 @@ import (
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/interp"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 )
 
 var (

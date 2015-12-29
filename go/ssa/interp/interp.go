@@ -49,12 +49,12 @@ package interp // import "golang.org/x/tools/go/ssa/interp"
 import (
 	"fmt"
 	"go/token"
+	"go/types"
 	"os"
 	"reflect"
 	"runtime"
 
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 type continuation int

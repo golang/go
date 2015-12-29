@@ -46,10 +46,9 @@ package ssa
 import (
 	"fmt"
 	"go/token"
+	"go/types"
 	"math/big"
 	"os"
-
-	"golang.org/x/tools/go/types"
 )
 
 // If true, perform sanity checking and show diagnostic information at

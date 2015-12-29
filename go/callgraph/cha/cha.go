@@ -26,10 +26,11 @@
 package cha // import "golang.org/x/tools/go/callgraph/cha"
 
 import (
+	"go/types"
+
 	"golang.org/x/tools/go/callgraph"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
 

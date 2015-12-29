@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
+// +build !go1.5
 
 package typeutil_test
 
@@ -11,20 +11,19 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"testing"
 
+	"golang.org/x/tools/go/types"
 	"golang.org/x/tools/go/types/typeutil"
 )
-
-type closure map[string]*types.Package
-
-func (c closure) Import(path string) (*types.Package, error) { return c[path], nil }
 
 func TestDependencies(t *testing.T) {
 	packages := make(map[string]*types.Package)
 	conf := types.Config{
-		Importer: closure(packages),
+		Packages: packages,
+		Import: func(_ map[string]*types.Package, path string) (*types.Package, error) {
+			return packages[path], nil
+		},
 	}
 	fset := token.NewFileSet()
 

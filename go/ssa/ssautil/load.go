@@ -11,10 +11,10 @@ package ssautil
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
-	"golang.org/x/tools/go/types"
 )
 
 // CreateProgram returns a new program in SSA form, given a program

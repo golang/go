@@ -10,8 +10,8 @@ definition of package "describe"
 	type  cake   float64
 	var   global *string
 	func  main   func()
-	const pi     untyped float = 3141/1000
-	const pie    cake = 1768225803696341/562949953421312
+	const pi     untyped float = 3.141
+	const pie    cake = 3.141
 
 -------- @describe badimport1 --------
 
@@ -32,7 +32,7 @@ definition of const pi untyped float
 definition of const pie cake
 
 -------- @describe const-ref-pi --------
-reference to const pi untyped float of constant value 3141/1000
+reference to const pi untyped float of constant value 3.141
 defined here
 
 -------- @describe func-def-main --------
@@ -120,7 +120,7 @@ definition of const localpi untyped float
 definition of const localpie cake
 
 -------- @describe const-ref-localpi --------
-reference to const localpi untyped float of constant value 3141/1000
+reference to const localpi untyped float of constant value 3.141
 defined here
 
 -------- @describe type-def-T --------
