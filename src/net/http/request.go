@@ -90,8 +90,11 @@ type Request struct {
 	// request.
 	URL *url.URL
 
-	// The protocol version for incoming requests.
-	// Client requests always use HTTP/1.1.
+	// The protocol version for incoming server requests.
+	//
+	// For client requests these fields are ignored. The HTTP
+	// transport code uses either HTTP/1.1 or HTTP/2.0 by default,
+	// depending on what the server supports.
 	Proto      string // "HTTP/1.0"
 	ProtoMajor int    // 1
 	ProtoMinor int    // 0
