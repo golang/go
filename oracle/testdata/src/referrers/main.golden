@@ -36,3 +36,7 @@
 	_ = s{}.f // @referrers ref-field "f"
 	s2.f = 1
 
+-------- @referrers ref-type-U --------
+2 references to type U int
+open testdata/src/referrers/nosuchfile.y: no such file or directory (+ 1 more refs in this file)
+

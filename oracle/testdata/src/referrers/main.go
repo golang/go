@@ -24,3 +24,11 @@ func main() {
 	var s2 s
 	s2.f = 1
 }
+
+// Test //line directives:
+
+type U int // @referrers ref-type-U "U"
+
+//line nosuchfile.y:123
+var u1 U
+var u2 U
