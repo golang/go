@@ -1137,7 +1137,7 @@ func (db *DB) queryConn(dc *driverConn, releaseConn func(error), query string, a
 }
 
 // QueryRow executes a query that is expected to return at most one row.
-// QueryRow always return a non-nil value. Errors are deferred until
+// QueryRow always returns a non-nil value. Errors are deferred until
 // Row's Scan method is called.
 func (db *DB) QueryRow(query string, args ...interface{}) *Row {
 	rows, err := db.Query(query, args...)
@@ -1411,7 +1411,7 @@ func (tx *Tx) Query(query string, args ...interface{}) (*Rows, error) {
 }
 
 // QueryRow executes a query that is expected to return at most one row.
-// QueryRow always return a non-nil value. Errors are deferred until
+// QueryRow always returns a non-nil value. Errors are deferred until
 // Row's Scan method is called.
 func (tx *Tx) QueryRow(query string, args ...interface{}) *Row {
 	rows, err := tx.Query(query, args...)
