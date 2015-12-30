@@ -513,11 +513,15 @@ func describePackage(qpos *queryPos, path []ast.Node) (*describePackageResult, e
 	var pkg *types.Package
 	switch n := path[0].(type) {
 	case *ast.ImportSpec:
-		var pkgname *types.PkgName
+		var obj types.Object
 		if n.Name != nil {
-			pkgname = qpos.info.Defs[n.Name].(*types.PkgName)
-		} else if p := qpos.info.Implicits[n]; p != nil {
-			pkgname = p.(*types.PkgName)
+			obj = qpos.info.Defs[n.Name]
+		} else {
+			obj = qpos.info.Implicits[n]
+		}
+		pkgname, _ := obj.(*types.PkgName)
+		if pkgname == nil {
+			return nil, fmt.Errorf("can't import package %s", n.Path.Value)
 		}
 		pkg = pkgname.Imported()
 		description = fmt.Sprintf("import of package %q", pkg.Path())

@@ -13,6 +13,12 @@ definition of package "describe"
 	const pi     untyped float = 3141/1000
 	const pie    cake = 1768225803696341/562949953421312
 
+-------- @describe badimport1 --------
+
+Error: can't import package "nosuchpkg"
+-------- @describe badimport2 --------
+
+Error: can't import package "nosuchpkg"
 -------- @describe type-ref-builtin --------
 reference to built-in type float64
 
