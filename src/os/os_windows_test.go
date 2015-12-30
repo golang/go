@@ -9,6 +9,7 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -177,5 +178,48 @@ func TestStatDir(t *testing.T) {
 
 	if !os.SameFile(fi, fi2) {
 		t.Fatal("race condition occured")
+	}
+}
+
+func TestOpenVolumeName(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestOpenVolumeName")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+
+	want := []string{"file1", "file2", "file3", "gopher.txt"}
+	sort.Strings(want)
+	for _, name := range want {
+		err := ioutil.WriteFile(filepath.Join(tmpdir, name), nil, 0777)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	f, err := os.Open(filepath.VolumeName(tmpdir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	have, err := f.Readdirnames(-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(have)
+
+	if strings.Join(want, "/") != strings.Join(have, "/") {
+		t.Fatalf("unexpected file list %q, want %q", have, want)
 	}
 }
