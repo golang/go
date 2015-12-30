@@ -73,8 +73,8 @@ const (
 var outputLock sync.Mutex
 
 // run runs the command line cmd in dir.
-// If mode has ShowOutput set, run collects cmd's output and returns it as a string;
-// otherwise, run prints cmd's output to standard output after the command finishes.
+// If mode has ShowOutput set and Background unset, run passes cmd's output to
+// stdout/stderr directly. Otherwise, run returns cmd's output as a string.
 // If mode has CheckExit set and the command fails, run calls fatal.
 // If mode has Background set, this command is being run as a
 // Background job. Only bgrun should use the Background mode,
