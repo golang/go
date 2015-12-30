@@ -95,9 +95,14 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 			// absolutize resolves an import path relative
 			// to the current package bp.
 			// The absolute form may contain "vendor".
-			// TODO(adonovan): opt: experiment with
-			// overriding the IsDir method with a caching version
-			// to avoid a huge number of redundant I/O calls.
+			//
+			// The vendoring feature slows down Build by 3×.
+			// Here are timings from a 1400 package workspace:
+			//    1100ms: current code (with vendor check)
+			//     880ms: with a nonblocking cache around ctxt.IsDir
+			//     840ms: nonblocking cache with duplicate suppression
+			//     340ms: original code (no vendor check)
+			// TODO(adonovan): optimize, somehow.
 			absolutize := func(path string) string { return path }
 			if buildutil.AllowVendor != 0 {
 				memo := make(map[string]string)
