@@ -488,7 +488,7 @@ func reallyWriteFile(filename string, content []byte) error {
 }
 
 func diff(filename string, content []byte) error {
-	renamed := filename + ".renamed"
+	renamed := fmt.Sprintf("%s.%d.renamed", filename, os.Getpid())
 	if err := ioutil.WriteFile(renamed, content, 0644); err != nil {
 		return err
 	}
