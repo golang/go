@@ -90,7 +90,13 @@ func openFile(name string, flag int, perm FileMode) (file *File, err error) {
 }
 
 func openDir(name string) (file *File, err error) {
-	maskp, e := syscall.UTF16PtrFromString(name + `\*`)
+	var mask string
+	if len(name) == 2 && name[1] == ':' { // it is a drive letter, like C:
+		mask = name + `*`
+	} else {
+		mask = name + `\*`
+	}
+	maskp, e := syscall.UTF16PtrFromString(mask)
 	if e != nil {
 		return nil, e
 	}
