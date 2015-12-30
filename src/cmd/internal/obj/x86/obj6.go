@@ -1080,7 +1080,11 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
 	}
 
-	call := obj.Appendp(ctxt, last)
+	spfix := obj.Appendp(ctxt, last)
+	spfix.As = obj.ANOP
+	spfix.Spadj = -framesize
+
+	call := obj.Appendp(ctxt, spfix)
 	call.Lineno = ctxt.Cursym.Text.Lineno
 	call.Mode = ctxt.Cursym.Text.Mode
 	call.As = obj.ACALL
@@ -1098,6 +1102,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = ctxt.Cursym.Text.Link
+	jmp.Spadj = +framesize
 
 	jls.Pcond = call
 	if q1 != nil {
