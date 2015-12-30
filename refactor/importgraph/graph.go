@@ -68,76 +68,78 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 
 	ch := make(chan interface{})
 
-	sema := make(chan int, 20) // I/O concurrency limiting semaphore
-	var wg sync.WaitGroup
-	buildutil.ForEachPackage(ctxt, func(path string, err error) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	go func() {
+		sema := make(chan int, 20) // I/O concurrency limiting semaphore
+		var wg sync.WaitGroup
+		buildutil.ForEachPackage(ctxt, func(path string, err error) {
 			if err != nil {
 				ch <- pathError{path, err}
 				return
 			}
 
-			sema <- 1
-			bp, err := ctxt.Import(path, "", buildutil.AllowVendor)
-			<-sema
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
 
-			if err != nil {
-				if _, ok := err.(*build.NoGoError); ok {
-					// empty directory is not an error
-				} else {
-					ch <- pathError{path, err}
-				}
-				// Even in error cases, Import usually returns a package.
-			}
+				sema <- 1
+				bp, err := ctxt.Import(path, "", buildutil.AllowVendor)
+				<-sema
 
-			// absolutize resolves an import path relative
-			// to the current package bp.
-			// The absolute form may contain "vendor".
-			//
-			// The vendoring feature slows down Build by 3×.
-			// Here are timings from a 1400 package workspace:
-			//    1100ms: current code (with vendor check)
-			//     880ms: with a nonblocking cache around ctxt.IsDir
-			//     840ms: nonblocking cache with duplicate suppression
-			//     340ms: original code (no vendor check)
-			// TODO(adonovan): optimize, somehow.
-			absolutize := func(path string) string { return path }
-			if buildutil.AllowVendor != 0 {
-				memo := make(map[string]string)
-				absolutize = func(path string) string {
-					canon, ok := memo[path]
-					if !ok {
-						sema <- 1
-						bp2, _ := ctxt.Import(path, bp.Dir, build.FindOnly|buildutil.AllowVendor)
-						<-sema
-
-						if bp2 != nil {
-							canon = bp2.ImportPath
-						} else {
-							canon = path
-						}
-						memo[path] = canon
+				if err != nil {
+					if _, ok := err.(*build.NoGoError); ok {
+						// empty directory is not an error
+					} else {
+						ch <- pathError{path, err}
 					}
-					return canon
+					// Even in error cases, Import usually returns a package.
 				}
-			}
 
-			if bp != nil {
-				for _, imp := range bp.Imports {
-					ch <- importEdge{path, absolutize(imp)}
+				// absolutize resolves an import path relative
+				// to the current package bp.
+				// The absolute form may contain "vendor".
+				//
+				// The vendoring feature slows down Build by 3×.
+				// Here are timings from a 1400 package workspace:
+				//    1100ms: current code (with vendor check)
+				//     880ms: with a nonblocking cache around ctxt.IsDir
+				//     840ms: nonblocking cache with duplicate suppression
+				//     340ms: original code (no vendor check)
+				// TODO(adonovan): optimize, somehow.
+				absolutize := func(path string) string { return path }
+				if buildutil.AllowVendor != 0 {
+					memo := make(map[string]string)
+					absolutize = func(path string) string {
+						canon, ok := memo[path]
+						if !ok {
+							sema <- 1
+							bp2, _ := ctxt.Import(path, bp.Dir, build.FindOnly|buildutil.AllowVendor)
+							<-sema
+
+							if bp2 != nil {
+								canon = bp2.ImportPath
+							} else {
+								canon = path
+							}
+							memo[path] = canon
+						}
+						return canon
+					}
 				}
-				for _, imp := range bp.TestImports {
-					ch <- importEdge{path, absolutize(imp)}
+
+				if bp != nil {
+					for _, imp := range bp.Imports {
+						ch <- importEdge{path, absolutize(imp)}
+					}
+					for _, imp := range bp.TestImports {
+						ch <- importEdge{path, absolutize(imp)}
+					}
+					for _, imp := range bp.XTestImports {
+						ch <- importEdge{path, absolutize(imp)}
+					}
 				}
-				for _, imp := range bp.XTestImports {
-					ch <- importEdge{path, absolutize(imp)}
-				}
-			}
-		}()
-	})
-	go func() {
+
+			}()
+		})
 		wg.Wait()
 		close(ch)
 	}()
