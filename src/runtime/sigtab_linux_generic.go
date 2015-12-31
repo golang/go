@@ -32,7 +32,7 @@ var sigtable = [...]sigTabT{
 	/* 15 */ {_SigNotify + _SigKill, "SIGTERM: termination"},
 	/* 16 */ {_SigThrow + _SigUnblock, "SIGSTKFLT: stack fault"},
 	/* 17 */ {_SigNotify + _SigUnblock, "SIGCHLD: child status has changed"},
-	/* 18 */ {0, "SIGCONT: continue"},
+	/* 18 */ {_SigNotify + _SigDefault, "SIGCONT: continue"},
 	/* 19 */ {0, "SIGSTOP: stop, unblockable"},
 	/* 20 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
 	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
