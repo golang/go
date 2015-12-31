@@ -278,3 +278,12 @@ func TestNohup(t *testing.T) {
 		}
 	}
 }
+
+// Test that SIGCONT works (issue 8953).
+func TestSIGCONT(t *testing.T) {
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGCONT)
+	defer Stop(c)
+	syscall.Kill(syscall.Getpid(), syscall.SIGCONT)
+	waitSig(t, c, syscall.SIGCONT)
+}

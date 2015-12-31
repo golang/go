@@ -35,7 +35,7 @@ var sigtable = [...]sigTabT{
 	/* 22 */ {_SigNotify, "SIGPOLL: pollable event occured"},
 	/* 23 */ {_SigNotify + _SigDefault, "SIGSTOP: stop (cannot be caught or ignored)"},
 	/* 24 */ {_SigNotify + _SigDefault, "SIGTSTP: user stop requested from tty"},
-	/* 25 */ {0, "SIGCONT: stopped process has been continued"},
+	/* 25 */ {_SigNotify + _SigDefault, "SIGCONT: stopped process has been continued"},
 	/* 26 */ {_SigNotify + _SigDefault, "SIGTTIN: background tty read attempted"},
 	/* 27 */ {_SigNotify + _SigDefault, "SIGTTOU: background tty write attempted"},
 	/* 28 */ {_SigNotify, "SIGVTALRM: virtual timer expired"},

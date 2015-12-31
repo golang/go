@@ -38,7 +38,7 @@ var sigtable = [...]sigTabT{
 	/* 22 */ {_SigNotify, "SIGIO: i/o now possible"},
 	/* 23 */ {0, "SIGSTOP: stop, unblockable"},
 	/* 24 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
-	/* 25 */ {0, "SIGCONT: continue"},
+	/* 25 */ {_SigNotify + _SigDefault, "SIGCONT: continue"},
 	/* 26 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
 	/* 27 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},
 	/* 28 */ {_SigNotify, "SIGVTALRM: virtual alarm clock"},
