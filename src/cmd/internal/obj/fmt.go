@@ -24,4 +24,5 @@ const (
 	FmtLong
 	FmtComma
 	FmtByte
+	FmtBody // for printing export bodies
 )
