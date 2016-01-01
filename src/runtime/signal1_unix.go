@@ -142,8 +142,18 @@ func sigpipe() {
 	if sigsend(_SIGPIPE) {
 		return
 	}
-	setsig(_SIGPIPE, _SIG_DFL, false)
-	raise(_SIGPIPE)
+	dieFromSignal(_SIGPIPE)
+}
+
+// dieFromSignal kills the program with a signal.
+// This provides the expected exit status for the shell.
+// This is only called with fatal signals expected to kill the process.
+func dieFromSignal(sig int32) {
+	setsig(sig, _SIG_DFL, false)
+	updatesigmask(sigmask{})
+	raise(sig)
+	// That should have killed us; call exit just in case.
+	exit(2)
 }
 
 // raisebadsignal is called when a signal is received on a non-Go
@@ -196,9 +206,7 @@ func crash() {
 		}
 	}
 
-	updatesigmask(sigmask{})
-	setsig(_SIGABRT, _SIG_DFL, false)
-	raise(_SIGABRT)
+	dieFromSignal(_SIGABRT)
 }
 
 // ensureSigM starts one global, sleeping thread to make sure at least one thread
