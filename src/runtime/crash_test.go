@@ -264,19 +264,6 @@ func TestBreakpoint(t *testing.T) {
 	}
 }
 
-const crashSource = `
-package main
-
-import (
-	"fmt"
-	"runtime"
-)
-
-{{if .Cgo}}
-import "C"
-{{end}}
-`
-
 func TestGoexitInPanic(t *testing.T) {
 	// see issue 8774: this code used to trigger an infinite recursion
 	output := runTestProg(t, "testprog", "GoexitInPanic")
@@ -330,23 +317,3 @@ func TestNetpollDeadlock(t *testing.T) {
 		t.Fatalf("output does not start with %q:\n%s", want, output)
 	}
 }
-
-const netpollDeadlockSource = `
-package main
-import (
-	"fmt"
-	"net"
-)
-func init() {
-	fmt.Println("dialing")
-	c, err := net.Dial("tcp", "localhost:14356")
-	if err == nil {
-		c.Close()
-	} else {
-		fmt.Println("error: ", err)
-	}
-}
-func main() {
-	fmt.Println("done")
-}
-`
