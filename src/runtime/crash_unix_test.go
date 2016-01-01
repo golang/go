@@ -133,3 +133,21 @@ func loop(i int, c chan bool) {
 	}
 }
 `
+
+func TestSignalExitStatus(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	exe, err := buildTestProg(t, "testprog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = testEnv(exec.Command(exe, "SignalExitStatus")).Run()
+	if err == nil {
+		t.Error("test program succeeded unexpectedly")
+	} else if ee, ok := err.(*exec.ExitError); !ok {
+		t.Errorf("error (%v) has type %T; expected exec.ExitError", err, err)
+	} else if ws, ok := ee.Sys().(syscall.WaitStatus); !ok {
+		t.Errorf("error.Sys (%v) has type %T; expected syscall.WaitStatus", ee.Sys(), ee.Sys())
+	} else if !ws.Signaled() || ws.Signal() != syscall.SIGTERM {
+		t.Errorf("got %v; expected SIGTERM", ee)
+	}
+}
