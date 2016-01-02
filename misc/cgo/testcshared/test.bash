@@ -16,6 +16,11 @@ fi
 
 goos=$(go env GOOS)
 goarch=$(go env GOARCH)
+goroot=$(go env GOROOT)
+if [ ! -d "$goroot" ]; then
+	echo 'misc/cgo/testcshared/test.bash cannnot find GOROOT' 1>&2
+	exit 1
+fi
 
 # Directory where cgo headers and outputs will be installed.
 # The installation directory format varies depending on the platform.
@@ -30,10 +35,10 @@ androidpath=/data/local/tmp/testcshared-$$
 function cleanup() {
 	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo.h libgo4.h
 	rm -f testp testp2 testp3 testp4
-	rm -rf pkg $(go env GOROOT)/${installdir}
+	rm -rf pkg "${goroot}/${installdir}"
 
 	if [ "$goos" == "android" ]; then
-		adb shell rm -rf $androidpath
+		adb shell rm -rf "$androidpath"
 	fi
 }
 trap cleanup EXIT
