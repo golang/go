@@ -507,6 +507,8 @@ some body`,
 	},
 }
 
+// tests successful calls to ReadResponse, and inspects the returned Response.
+// For error cases, see TestReadResponseErrors below.
 func TestReadResponse(t *testing.T) {
 	for i, tt := range respTests {
 		resp, err := ReadResponse(bufio.NewReader(strings.NewReader(tt.Raw)), tt.Resp.Request)
@@ -673,6 +675,7 @@ var responseLocationTests = []responseLocationTest{
 	{"/foo", "http://bar.com/baz", "http://bar.com/foo", nil},
 	{"http://foo.com/", "http://bar.com/baz", "http://foo.com/", nil},
 	{"", "http://bar.com/baz", "", ErrNoLocation},
+	{"/bar", "", "/bar", nil},
 }
 
 func TestLocationResponse(t *testing.T) {
@@ -751,13 +754,97 @@ func TestResponseContentLengthShortBody(t *testing.T) {
 	}
 }
 
-func TestReadResponseUnexpectedEOF(t *testing.T) {
-	br := bufio.NewReader(strings.NewReader("HTTP/1.1 301 Moved Permanently\r\n" +
-		"Location: http://example.com"))
-	_, err := ReadResponse(br, nil)
-	if err != io.ErrUnexpectedEOF {
-		t.Errorf("ReadResponse = %v; want io.ErrUnexpectedEOF", err)
+// Test various ReadResponse error cases. (also tests success cases, but mostly
+// it's about errors).  This does not test anything involving the bodies. Only
+// the return value from ReadResponse itself.
+func TestReadResponseErrors(t *testing.T) {
+	type testCase struct {
+		name    string // optional, defaults to in
+		in      string
+		wantErr interface{} // nil, err value, or string substring
 	}
+
+	status := func(s string, wantErr interface{}) testCase {
+		if wantErr == true {
+			wantErr = "malformed HTTP status code"
+		}
+		return testCase{
+			name:    fmt.Sprintf("status %q", s),
+			in:      "HTTP/1.1 " + s + "\r\nFoo: bar\r\n\r\n",
+			wantErr: wantErr,
+		}
+	}
+
+	version := func(s string, wantErr interface{}) testCase {
+		if wantErr == true {
+			wantErr = "malformed HTTP version"
+		}
+		return testCase{
+			name:    fmt.Sprintf("version %q", s),
+			in:      s + " 200 OK\r\n\r\n",
+			wantErr: wantErr,
+		}
+	}
+
+	tests := []testCase{
+		{"", "", io.ErrUnexpectedEOF},
+		{"", "HTTP/1.1 301 Moved Permanently\r\nFoo: bar", io.ErrUnexpectedEOF},
+		{"", "HTTP/1.1", "malformed HTTP response"},
+		{"", "HTTP/2.0", "malformed HTTP response"},
+		status("20X Unknown", true),
+		status("abcd Unknown", true),
+		status("二百/两百 OK", true),
+		status(" Unknown", true),
+		status("c8 OK", true),
+		status("0x12d Moved Permanently", true),
+		status("200 OK", nil),
+		status("20 OK", nil), // TODO: wrong. we should reject non-three digit
+		version("HTTP/1.2", nil),
+		version("HTTP/2.0", nil),
+		version("HTTP/1.100000000002", true),
+		version("HTTP/1.-1", true),
+		version("HTTP/A.B", true),
+		version("HTTP/1", true),
+		version("http/1.1", true),
+	}
+	for i, tt := range tests {
+		br := bufio.NewReader(strings.NewReader(tt.in))
+		_, rerr := ReadResponse(br, nil)
+		if err := matchErr(rerr, tt.wantErr); err != nil {
+			name := tt.name
+			if name == "" {
+				name = fmt.Sprintf("%i. input %q", i, tt.in)
+			}
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+}
+
+// wantErr can be nil, an error value to match exactly, or type string to
+// match a substring.
+func matchErr(err error, wantErr interface{}) error {
+	if err == nil {
+		if wantErr == nil {
+			return nil
+		}
+		if sub, ok := wantErr.(string); ok {
+			return fmt.Errorf("unexpected success; want error with substring %q", sub)
+		}
+		return fmt.Errorf("unexpected success; want error %v", wantErr)
+	}
+	if wantErr == nil {
+		return fmt.Errorf("%v; want success", err)
+	}
+	if sub, ok := wantErr.(string); ok {
+		if strings.Contains(err.Error(), sub) {
+			return nil
+		}
+		return fmt.Errorf("error = %v; want an error with substring %q", err, sub)
+	}
+	if err == wantErr {
+		return nil
+	}
+	return fmt.Errorf("%v; want %v", err, wantErr)
 }
 
 func TestNeedsSniff(t *testing.T) {
