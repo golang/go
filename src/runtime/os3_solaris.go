@@ -280,7 +280,14 @@ func setsig(i int32, fn uintptr, restart bool) {
 }
 
 func setsigstack(i int32) {
-	throw("setsigstack")
+	var sa sigactiont
+	sigaction(i, nil, &sa)
+	handler := *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
+	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
+		return
+	}
+	sa.sa_flags |= _SA_ONSTACK
+	sigaction(i, &sa, nil)
 }
 
 func getsig(i int32) uintptr {
