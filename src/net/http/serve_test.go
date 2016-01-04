@@ -2482,6 +2482,59 @@ func TestHijackAfterCloseNotifier(t *testing.T) {
 	}
 }
 
+func TestHijackBeforeRequestBodyRead(t *testing.T) {
+	defer afterTest(t)
+	var requestBody = bytes.Repeat([]byte("a"), 1<<20)
+	bodyOkay := make(chan bool, 1)
+	gotCloseNotify := make(chan bool, 1)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		defer close(bodyOkay) // caller will read false if nothing else
+
+		reqBody := r.Body
+		r.Body = nil // to test that server.go doesn't use this value.
+
+		gone := w.(CloseNotifier).CloseNotify()
+		slurp, err := ioutil.ReadAll(reqBody)
+		if err != nil {
+			t.Error("Body read: %v", err)
+			return
+		}
+		if len(slurp) != len(requestBody) {
+			t.Errorf("Backend read %d request body bytes; want %d", len(slurp), len(requestBody))
+			return
+		}
+		if !bytes.Equal(slurp, requestBody) {
+			t.Error("Backend read wrong request body.") // 1MB; omitting details
+			return
+		}
+		bodyOkay <- true
+		select {
+		case <-gone:
+			gotCloseNotify <- true
+		case <-time.After(5 * time.Second):
+			gotCloseNotify <- false
+		}
+	}))
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	fmt.Fprintf(conn, "POST / HTTP/1.1\r\nHost: foo\r\nContent-Length: %d\r\n\r\n%s",
+		len(requestBody), requestBody)
+	if !<-bodyOkay {
+		// already failed.
+		return
+	}
+	conn.Close()
+	if !<-gotCloseNotify {
+		t.Error("timeout waiting for CloseNotify")
+	}
+}
+
 func TestOptions(t *testing.T) {
 	uric := make(chan string, 2) // only expect 1, but leave space for 2
 	mux := NewServeMux()
