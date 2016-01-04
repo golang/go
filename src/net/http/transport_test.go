@@ -436,7 +436,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 }
 
 func TestTransportServerClosingUnexpectedly(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
@@ -969,7 +969,7 @@ func TestTransportGzipShort(t *testing.T) {
 
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	gotReqCh := make(chan bool)
 	unblockCh := make(chan bool)
@@ -1036,7 +1036,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 // golang.org/issue/4531: Transport leaks goroutines when
 // request.ContentLength is explicitly short
 func TestTransportPersistConnLeakShortBody(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 	}))
@@ -1377,7 +1377,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 }
 
 func TestTransportResponseHeaderTimeout(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	if testing.Short() {
 		t.Skip("skipping timeout test in -short mode")
@@ -1449,7 +1449,7 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 }
 
 func TestTransportCancelRequest(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	if testing.Short() {
 		t.Skip("skipping test in -short mode")
@@ -1559,7 +1559,7 @@ Get = Get http://something.no-network.tld/: net/http: request canceled while wai
 }
 
 func TestCancelRequestWithChannel(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	if testing.Short() {
 		t.Skip("skipping test in -short mode")
@@ -1617,7 +1617,7 @@ func TestCancelRequestWithChannel(t *testing.T) {
 }
 
 func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	unblockc := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2495,7 +2495,7 @@ func TestRetryIdempotentRequestsOnError(t *testing.T) {
 
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	readBody := make(chan error, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

@@ -79,6 +79,15 @@ func goroutineLeaked() bool {
 	return true
 }
 
+// setParallel marks t as a parallel test if we're in short mode
+// (all.bash), but as a serial test otherwise. Using t.Parallel isn't
+// compatible with the afterTest func in non-short mode.
+func setParallel(t *testing.T) {
+	if testing.Short() {
+		t.Parallel()
+	}
+}
+
 func afterTest(t testing.TB) {
 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
 	if testing.Short() {
