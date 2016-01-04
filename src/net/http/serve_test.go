@@ -455,7 +455,7 @@ func TestServerTimeouts(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	reqNum := 0
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(res ResponseWriter, req *Request) {
@@ -939,7 +939,7 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/7237")
 	}
-	t.Parallel()
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {}))
 	errc := make(chanWriter, 10) // but only expecting 1
