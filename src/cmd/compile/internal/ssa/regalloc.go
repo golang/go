@@ -1223,7 +1223,10 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 			r := e.findRegFor(v.Type)
 			x = v.copyInto(e.p)
 			e.set(r, vid, x, false)
-			x = e.p.NewValue1(x.Line, OpStoreReg, x.Type, x)
+			// Make sure we spill with the size of the slot, not the
+			// size of x (which might be wider due to our dropping
+			// of narrowing conversions).
+			x = e.p.NewValue1(x.Line, OpStoreReg, loc.(LocalSlot).Type, x)
 		}
 	} else {
 		// Emit move from src to dst.
@@ -1232,7 +1235,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 			if dstReg {
 				x = e.p.NewValue1(c.Line, OpCopy, c.Type, c)
 			} else {
-				x = e.p.NewValue1(c.Line, OpStoreReg, c.Type, c)
+				x = e.p.NewValue1(c.Line, OpStoreReg, loc.(LocalSlot).Type, c)
 			}
 		} else {
 			if dstReg {
@@ -1255,7 +1258,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 				r := e.findRegFor(c.Type)
 				t := e.p.NewValue1(c.Line, OpLoadReg, c.Type, c)
 				e.set(r, vid, t, false)
-				x = e.p.NewValue1(c.Line, OpStoreReg, c.Type, t)
+				x = e.p.NewValue1(c.Line, OpStoreReg, loc.(LocalSlot).Type, t)
 			}
 		}
 	}

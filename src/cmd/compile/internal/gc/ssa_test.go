@@ -95,3 +95,5 @@ func TestAddressed(t *testing.T) { runTest(t, "addressed_ssa.go") }
 func TestCopy(t *testing.T) { runTest(t, "copy_ssa.go") }
 
 func TestUnsafe(t *testing.T) { runTest(t, "unsafe_ssa.go") }
+
+func TestPhi(t *testing.T) { runTest(t, "phi_ssa.go") }

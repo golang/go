@@ -4536,6 +4536,9 @@ func regnum(v *ssa.Value) int16 {
 // where v should be spilled.
 func autoVar(v *ssa.Value) (*Node, int64) {
 	loc := v.Block.Func.RegAlloc[v.ID].(ssa.LocalSlot)
+	if v.Type.Size() > loc.Type.Size() {
+		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
+	}
 	return loc.N.(*Node), loc.Off
 }
 
