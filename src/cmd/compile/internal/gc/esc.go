@@ -299,12 +299,13 @@ func (l Level) guaranteedDereference() int {
 }
 
 type NodeEscState struct {
-	Curfn        *Node
-	Escflowsrc   *NodeList // flow(this, src)
-	Escretval    *NodeList // on OCALLxxx, list of dummy return values
-	Escloopdepth int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
-	Esclevel     Level
-	Walkgen      uint32
+	Curfn             *Node
+	Escflowsrc        *NodeList // flow(this, src)
+	Escretval         *NodeList // on OCALLxxx, list of dummy return values
+	Escloopdepth      int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+	Esclevel          Level
+	Walkgen           uint32
+	Maxextraloopdepth int32
 }
 
 func (e *EscState) nodeEscState(n *Node) *NodeEscState {
@@ -1579,7 +1580,13 @@ func funcOutputAndInput(dst, src *Node) bool {
 		src.Op == ONAME && src.Class == PPARAM && src.Name.Curfn == dst.Name.Curfn
 }
 
+const NOTALOOPDEPTH = -1
+
 func escwalk(e *EscState, level Level, dst *Node, src *Node) {
+	escwalkBody(e, level, dst, src, NOTALOOPDEPTH)
+}
+
+func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth int32) {
 	if src.Op == OLITERAL {
 		return
 	}
@@ -1590,16 +1597,29 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 		// convergence.
 		level = level.min(srcE.Esclevel)
 		if level == srcE.Esclevel {
-			return
+			// Have we been here already with an extraloopdepth,
+			// or is the extraloopdepth provided no improvement on
+			// what's already been seen?
+			if srcE.Maxextraloopdepth >= extraloopdepth || srcE.Escloopdepth >= extraloopdepth {
+				return
+			}
+			srcE.Maxextraloopdepth = extraloopdepth
 		}
+	} else { // srcE.Walkgen < e.walkgen -- first time, reset this.
+		srcE.Maxextraloopdepth = NOTALOOPDEPTH
 	}
 
 	srcE.Walkgen = e.walkgen
 	srcE.Esclevel = level
+	modSrcLoopdepth := srcE.Escloopdepth
+
+	if extraloopdepth > modSrcLoopdepth {
+		modSrcLoopdepth = extraloopdepth
+	}
 
 	if Debug['m'] > 1 {
-		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d]\n",
-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth)
+		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d] extraloopdepth=%v\n",
+			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
 	}
 
 	e.pdepth++
@@ -1638,7 +1658,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 		}
 	}
 
-	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dstE.Escloopdepth < srcE.Escloopdepth
+	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dstE.Escloopdepth < modSrcLoopdepth
 
 	switch src.Op {
 	case ONAME:
@@ -1650,7 +1670,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 						Warnl(int(src.Lineno), "leaking param content: %v", Nconv(src, obj.FmtShort))
 					} else {
 						Warnl(int(src.Lineno), "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
-							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, srcE.Escloopdepth, Nconv(dst, obj.FmtShort))
+							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
 					}
 				}
 			} else {
@@ -1660,7 +1680,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 						Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
 					} else {
 						Warnl(int(src.Lineno), "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
-							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, srcE.Escloopdepth, Nconv(dst, obj.FmtShort))
+							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
 					}
 				}
 			}
@@ -1686,14 +1706,16 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 				}
 				if Debug['m'] > 1 {
 					Warnl(int(src.Lineno), "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
-						Nconv(p, obj.FmtShort), level, dstE.Escloopdepth, srcE.Escloopdepth)
+						Nconv(p, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
 				} else {
 					Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
 				}
 			}
+			escwalkBody(e, level.dec(), dst, src.Left, modSrcLoopdepth)
+			extraloopdepth = modSrcLoopdepth // passes to recursive case, seems likely a no-op
+		} else {
+			escwalk(e, level.dec(), dst, src.Left)
 		}
-
-		escwalk(e, level.dec(), dst, src.Left)
 
 	case OAPPEND:
 		escwalk(e, level, dst, src.List.N)
@@ -1704,6 +1726,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 			if Debug['m'] != 0 {
 				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
 			}
+			extraloopdepth = modSrcLoopdepth
 		}
 		// similar to a slice arraylit and its args.
 		level = level.dec()
@@ -1737,6 +1760,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 			if Debug['m'] != 0 {
 				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
 			}
+			extraloopdepth = modSrcLoopdepth
 		}
 
 	case ODOT,
@@ -1778,7 +1802,7 @@ func escwalk(e *EscState, level Level, dst *Node, src *Node) {
 recurse:
 	level = level.copy()
 	for ll := srcE.Escflowsrc; ll != nil; ll = ll.Next {
-		escwalk(e, level, dst, ll.N)
+		escwalkBody(e, level, dst, ll.N, extraloopdepth)
 	}
 
 	e.pdepth--
