@@ -1052,6 +1052,9 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	for k := range e.contents {
 		delete(e.contents, k)
 	}
+	e.usedRegs = 0
+	e.uniqueRegs = 0
+	e.finalRegs = 0
 
 	// Live registers can be sources.
 	for _, x := range srcReg {
@@ -1384,6 +1387,12 @@ func (e *edgeState) findRegFor(typ Type) Location {
 		}
 	}
 
+	fmt.Printf("m:%d unique:%d final:%d\n", m, e.uniqueRegs, e.finalRegs)
+	for vid, a := range e.cache {
+		for _, c := range a {
+			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID).Name())
+		}
+	}
 	e.s.f.Fatalf("can't find empty register on edge %s->%s", e.p, e.b)
 	return nil
 }
