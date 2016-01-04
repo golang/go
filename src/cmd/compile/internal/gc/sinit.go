@@ -124,10 +124,10 @@ func init1(n *Node, out **NodeList) {
 			}
 
 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
-			if defn.Initorder != InitNotStarted {
+			if defn.Initorder == InitDone {
 				break
 			}
-			defn.Initorder = InitDone
+			defn.Initorder = InitPending
 			for l := defn.Rlist; l != nil; l = l.Next {
 				init1(l.N, out)
 			}
@@ -135,6 +135,7 @@ func init1(n *Node, out **NodeList) {
 				Dump("nonstatic", defn)
 			}
 			*out = list(*out, defn)
+			defn.Initorder = InitDone
 		}
 	}
 
