@@ -126,7 +126,7 @@ type CloseNotifier interface {
 	// single value (true) when the client connection has gone
 	// away.
 	//
-	// CloseNotify is undefined before Request.Body has been
+	// CloseNotify may wait to notify until Request.Body has been
 	// fully read.
 	//
 	// After the Handler has returned, there is no guarantee
@@ -135,7 +135,7 @@ type CloseNotifier interface {
 	// If the protocol is HTTP/1.1 and CloseNotify is called while
 	// processing an idempotent request (such a GET) while
 	// HTTP/1.1 pipelining is in use, the arrival of a subsequent
-	// pipelined request will cause a value to be sent on the
+	// pipelined request may cause a value to be sent on the
 	// returned channel. In practice HTTP/1.1 pipelining is not
 	// enabled in browsers and not seen often in the wild. If this
 	// is a problem, use HTTP/2 or only use CloseNotify on methods
@@ -353,7 +353,9 @@ type response struct {
 	dateBuf [len(TimeFormat)]byte
 	clenBuf [10]byte
 
-	closeNotifyCh <-chan bool // guarded by conn.mu
+	// closeNotifyCh is non-nil once CloseNotify is called.
+	// Guarded by conn.mu
+	closeNotifyCh <-chan bool
 }
 
 // declareTrailer is called for each Trailer header when the
@@ -693,7 +695,7 @@ func (c *conn) readRequest() (w *response, err error) {
 		peek, _ := c.bufr.Peek(4) // ReadRequest will get err below
 		c.bufr.Discard(numLeadingCRorLF(peek))
 	}
-	req, err := readRequest(c.bufr, false)
+	req, err := readRequest(c.bufr, keepHostHeader)
 	c.mu.Unlock()
 	if err != nil {
 		if c.r.hitReadLimit() {
@@ -986,7 +988,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		}
 
 		if discard {
-			_, err := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+			_, err := io.CopyN(ioutil.Discard, w.reqBody, maxPostHandlerReadBytes+1)
 			switch err {
 			case nil:
 				// There must be even more data left over.
@@ -995,7 +997,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 				// Body was already consumed and closed.
 			case io.EOF:
 				// The remaining body was just consumed, close it.
-				err = w.req.Body.Close()
+				err = w.reqBody.Close()
 				if err != nil {
 					w.closeAfterReply = true
 				}
@@ -1540,14 +1542,57 @@ func (w *response) CloseNotify() <-chan bool {
 	var once sync.Once
 	notify := func() { once.Do(func() { ch <- true }) }
 
+	if requestBodyRemains(w.reqBody) {
+		// They're still consuming the request body, so we
+		// shouldn't notify yet.
+		registerOnHitEOF(w.reqBody, func() {
+			c.mu.Lock()
+			defer c.mu.Unlock()
+			startCloseNotifyBackgroundRead(c, notify)
+		})
+	} else {
+		startCloseNotifyBackgroundRead(c, notify)
+	}
+	return ch
+}
+
+// c.mu must be held.
+func startCloseNotifyBackgroundRead(c *conn, notify func()) {
 	if c.bufr.Buffered() > 0 {
-		// A pipelined request or unread request body data is available
-		// unread. Per the CloseNotifier docs, fire immediately.
+		// They've consumed the request body, so anything
+		// remaining is a pipelined request, which we
+		// document as firing on.
 		notify()
 	} else {
 		c.r.startBackgroundRead(notify)
 	}
-	return ch
+}
+
+func registerOnHitEOF(rc io.ReadCloser, fn func()) {
+	switch v := rc.(type) {
+	case *expectContinueReader:
+		registerOnHitEOF(v.readCloser, fn)
+	case *body:
+		v.registerOnHitEOF(fn)
+	default:
+		panic("unexpected type " + fmt.Sprintf("%T", rc))
+	}
+}
+
+// requestBodyRemains reports whether future calls to Read
+// on rc might yield more data.
+func requestBodyRemains(rc io.ReadCloser) bool {
+	if rc == eofReader {
+		return false
+	}
+	switch v := rc.(type) {
+	case *expectContinueReader:
+		return requestBodyRemains(v.readCloser)
+	case *body:
+		return v.bodyRemains()
+	default:
+		panic("unexpected type " + fmt.Sprintf("%T", rc))
+	}
 }
 
 // The HandlerFunc type is an adapter to allow the use of

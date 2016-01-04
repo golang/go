@@ -692,7 +692,13 @@ func putTextprotoReader(r *textproto.Reader) {
 }
 
 // ReadRequest reads and parses an incoming request from b.
-func ReadRequest(b *bufio.Reader) (req *Request, err error) { return readRequest(b, true) }
+func ReadRequest(b *bufio.Reader) (req *Request, err error) { return readRequest(b, deleteHostHeader) }
+
+// Constants for readRequest's deleteHostHeader parameter.
+const (
+	deleteHostHeader = true
+	keepHostHeader   = false
+)
 
 func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err error) {
 	tp := newTextprotoReader(b)

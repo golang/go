@@ -621,10 +621,11 @@ type body struct {
 	closing      bool          // is the connection to be closed after reading body?
 	doEarlyClose bool          // whether Close should stop early
 
-	mu         sync.Mutex // guards closed, and calls to Read and Close
+	mu         sync.Mutex // guards following, and calls to Read and Close
 	sawEOF     bool
 	closed     bool
-	earlyClose bool // Close called and we didn't read to the end of src
+	earlyClose bool   // Close called and we didn't read to the end of src
+	onHitEOF   func() // if non-nil, func to call when EOF is Read
 }
 
 // ErrBodyReadAfterClose is returned when reading a Request or Response
@@ -682,6 +683,10 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 			err = io.EOF
 			b.sawEOF = true
 		}
+	}
+
+	if b.sawEOF && b.onHitEOF != nil {
+		b.onHitEOF()
 	}
 
 	return n, err
@@ -816,6 +821,20 @@ func (b *body) didEarlyClose() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.earlyClose
+}
+
+// bodyRemains reports whether future Read calls might
+// yield data.
+func (b *body) bodyRemains() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return !b.sawEOF
+}
+
+func (b *body) registerOnHitEOF(fn func()) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.onHitEOF = fn
 }
 
 // bodyLocked is a io.Reader reading from a *body when its mutex is
