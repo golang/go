@@ -844,9 +844,6 @@ func (t *tester) runPending(nextTest *distTest) {
 		if w.err != nil {
 			log.Printf("Failed: %v", w.err)
 			t.failed = true
-			if !t.keepGoing {
-				break
-			}
 		}
 	}
 	if t.failed && !t.keepGoing {
