@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build appengine
+
 // Package proxy proxies requests to the sandbox compiler service and the
 // playground share handler.
 // It is designed to run only on the instance of godoc that serves golang.org.
@@ -155,10 +157,8 @@ func share(w http.ResponseWriter, r *http.Request) {
 	p.ServeHTTP(w, r)
 }
 
-var onAppengine = false // will be overriden by appengine.go and appenginevm.go
-
 func allowShare(r *http.Request) bool {
-	if !onAppengine {
+	if appengine.IsDevAppServer() {
 		return true
 	}
 	switch r.Header.Get("X-AppEngine-Country") {

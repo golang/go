@@ -2,6 +2,8 @@
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
+// +build appengine
+
 // Package short implements a simple URL shortener, serving an administrative
 // interface at /s and shortened urls from /s/key.
 // It is designed to run only on the instance of godoc that serves golang.org.

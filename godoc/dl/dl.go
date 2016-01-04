@@ -2,6 +2,8 @@
 // Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
+// +build appengine
+
 // Package dl implements a simple downloads frontend server.
 //
 // It accepts HTTP POST requests to create a new download metadata entity, and
