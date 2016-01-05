@@ -50,32 +50,43 @@ func initsig() {
 		}
 		fwdSig[i] = getsig(i)
 
-		// For some signals, we respect an inherited SIG_IGN handler
-		// rather than insist on installing our own default handler.
-		// Even these signals can be fetched using the os/signal package.
-		switch i {
-		case _SIGHUP, _SIGINT:
-			if fwdSig[i] == _SIG_IGN {
-				continue
+		if !sigInstallGoHandler(i) {
+			// Even if we are not installing a signal handler,
+			// set SA_ONSTACK if necessary.
+			if fwdSig[i] != _SIG_DFL && fwdSig[i] != _SIG_IGN {
+				setsigstack(i)
 			}
-		}
-
-		if t.flags&_SigSetStack != 0 {
-			setsigstack(i)
-			continue
-		}
-
-		// When built using c-archive or c-shared, only
-		// install signal handlers for synchronous signals.
-		// Set SA_ONSTACK for other signals if necessary.
-		if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
-			setsigstack(i)
 			continue
 		}
 
 		t.flags |= _SigHandling
 		setsig(i, funcPC(sighandler), true)
 	}
+}
+
+func sigInstallGoHandler(sig int32) bool {
+	// For some signals, we respect an inherited SIG_IGN handler
+	// rather than insist on installing our own default handler.
+	// Even these signals can be fetched using the os/signal package.
+	switch sig {
+	case _SIGHUP, _SIGINT:
+		if fwdSig[sig] == _SIG_IGN {
+			return false
+		}
+	}
+
+	t := &sigtable[sig]
+	if t.flags&_SigSetStack != 0 {
+		return false
+	}
+
+	// When built using c-archive or c-shared, only install signal
+	// handlers for synchronous signals.
+	if (isarchive || islibrary) && t.flags&_SigPanic == 0 {
+		return false
+	}
+
+	return true
 }
 
 func sigenable(sig uint32) {
@@ -105,7 +116,11 @@ func sigdisable(sig uint32) {
 		ensureSigM()
 		disableSigChan <- sig
 		<-maskUpdatedChan
-		if t.flags&_SigHandling != 0 {
+
+		// If initsig does not install a signal handler for a
+		// signal, then to go back to the state before Notify
+		// we should remove the one we installed.
+		if !sigInstallGoHandler(int32(sig)) {
 			t.flags &^= _SigHandling
 			setsig(int32(sig), fwdSig[sig], true)
 		}
