@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of December 15, 2015",
+	"Subtitle": "Version of January 5, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -101,15 +101,14 @@ The following terms are used to denote specific Unicode character classes:
 newline        = /* the Unicode code point U+000A */ .
 unicode_char   = /* an arbitrary Unicode code point except newline */ .
 unicode_letter = /* a Unicode code point classified as "Letter" */ .
-unicode_digit  = /* a Unicode code point classified as "Decimal Digit" */ .
+unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
 </pre>
 
 <p>
-In <a href="http://www.unicode.org/versions/Unicode6.3.0/">The Unicode Standard 6.3</a>,
-Section 4.5 "General Category"
-defines a set of character categories.  Go treats
-those characters in category Lu, Ll, Lt, Lm, or Lo as Unicode letters,
-and those in category Nd as Unicode digits.
+In <a href="http://www.unicode.org/versions/Unicode8.0.0/">The Unicode Standard 8.0</a>,
+Section 4.5 "General Category" defines a set of character categories.
+Go treats all characters in any of the Letter categories Lu, Ll, Lt, Lm, or Lo
+as Unicode letters, and those in the Number category Nd as Unicode digits.
 </p>
 
 <h3 id="Letters_and_digits">Letters and digits</h3>
