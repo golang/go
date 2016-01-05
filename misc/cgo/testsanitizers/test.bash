@@ -61,7 +61,12 @@ if ! go run -msan msan.go; then
   status=1
 fi
 
-if ! go run -msan msan2.go; then
+if ! CGO_LDFLAGS="-fsanitize=memory" CGO_CPPFLAGS="-fsanitize=memory" go run -msan -a msan2.go; then
+  echo "FAIL: msan2 with -fsanitize=memory"
+  status=1
+fi
+
+if ! go run -msan -a msan2.go; then
   echo "FAIL: msan2"
   status=1
 fi
