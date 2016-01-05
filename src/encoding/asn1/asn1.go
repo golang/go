@@ -294,7 +294,7 @@ type Flag bool
 func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) {
 	offset = initOffset
 	for shifted := 0; offset < len(bytes); shifted++ {
-		if shifted > 4 {
+		if shifted == 4 {
 			err = StructuralError{"base 128 integer too large"}
 			return
 		}
