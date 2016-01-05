@@ -13,7 +13,6 @@ import (
 	"os"
 	osexec "os/exec"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"testing"
 )
