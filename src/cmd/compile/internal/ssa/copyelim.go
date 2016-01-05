@@ -26,4 +26,18 @@ func copyelim(f *Func) {
 			b.Control = v
 		}
 	}
+
+	// Update named values.
+	for _, name := range f.Names {
+		values := f.NamedValues[name]
+		for i, v := range values {
+			x := v
+			for x.Op == OpCopy {
+				x = x.Args[0]
+			}
+			if x != v {
+				values[i] = v
+			}
+		}
+	}
 }

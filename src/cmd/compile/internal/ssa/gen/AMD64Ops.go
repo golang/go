@@ -472,6 +472,19 @@ func init() {
 		// gets correctly ordered with respect to GC safepoints.
 		// arg0=ptr/int arg1=mem, output=int/ptr
 		{name: "MOVQconvert", reg: gp11nf, asm: "MOVQ"},
+
+		// Constant flag values.  For any comparison, there are 5 possible
+		// outcomes: the three from the signed total order (<,==,>) and the
+		// three from the unsigned total order.  The == cases overlap.
+		// Note: there's a sixth "unordered" outcome for floating-point
+		// comparisons, but we don't use such a beast yet.
+		// These ops are for temporary use by rewrite rules.  They
+		// cannot appear in the generated assembly.
+		{name: "FlagEQ"},     // equal
+		{name: "FlagLT_ULT"}, // signed < and unsigned <
+		{name: "FlagLT_UGT"}, // signed < and unsigned >
+		{name: "FlagGT_UGT"}, // signed > and unsigned <
+		{name: "FlagGT_ULT"}, // signed > and unsigned >
 	}
 
 	var AMD64blocks = []blockData{

@@ -283,6 +283,11 @@ const (
 	OpAMD64LoweredGetClosurePtr
 	OpAMD64LoweredNilCheck
 	OpAMD64MOVQconvert
+	OpAMD64FlagEQ
+	OpAMD64FlagLT_ULT
+	OpAMD64FlagLT_UGT
+	OpAMD64FlagGT_UGT
+	OpAMD64FlagGT_ULT
 
 	OpAdd8
 	OpAdd16
@@ -3231,6 +3236,26 @@ var opcodeTable = [...]opInfo{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
+	},
+	{
+		name: "FlagEQ",
+		reg:  regInfo{},
+	},
+	{
+		name: "FlagLT_ULT",
+		reg:  regInfo{},
+	},
+	{
+		name: "FlagLT_UGT",
+		reg:  regInfo{},
+	},
+	{
+		name: "FlagGT_UGT",
+		reg:  regInfo{},
+	},
+	{
+		name: "FlagGT_ULT",
+		reg:  regInfo{},
 	},
 
 	{
