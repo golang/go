@@ -333,6 +333,19 @@ func TestMathBigDivide(t *testing.T) {
 }
 
 func TestStackBarrierProfiling(t *testing.T) {
+	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" {
+		// This test currently triggers a large number of
+		// usleep(100)s. These kernels/arches have poor
+		// resolution timers, so this gives up a whole
+		// scheduling quantum. On Linux and OpenBSD (and
+		// probably Solaris), profiling signals are only
+		// generated when a process completes a whole
+		// scheduling quantum, so this test often gets zero
+		// profiling signals and fails.
+		t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405)")
+		return
+	}
+
 	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
 		// Re-execute this test with constant GC and stack
 		// barriers at every frame.
