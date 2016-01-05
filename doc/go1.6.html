@@ -748,6 +748,26 @@ now return correct results when inquiring about an
 </li>
 
 <li>
+On Unix-like systems, when a write
+to <a href="/pkg/os/#pkg-variables"><code>os.Stdout</code>
+or <code>os.Stderr</code></a> (more precisely, an <code>os.File</code>
+opened for file descriptor 1 or 2) fails due to a broken pipe error,
+the program will raise a <code>SIGPIPE</code> signal.
+By default this will cause the program to exit; this may be changed by
+calling the
+<a href="/pkg/os/signal"><code>os/signal</code></a>
+<a href="/pkg/os/signal/#Notify"><code>Notify</code></a> function
+for <code>syscall.SIGPIPE</code>.
+A write to a broken pipe on a file descriptor other 1 or 2 will simply
+return <code>syscall.EPIPE</code> (possibly wrapped in
+<a href="/pkg/os#PathError"><code>os.PathError</code></a>
+and/or <a href="/pkg/os#SyscallError"><code>os.SyscallError</code></a>)
+to the caller.
+The old behavior of raising an uncatchable <code>SIGPIPE</code> signal
+after 10 consecutive writes to a broken pipe no longer occurs.
+</li>
+
+<li>
 In the <a href="/pkg/os/exec/"><code>os/exec</code></a> package,
 <a href="/pkg/os/exec/#Cmd"><code>Cmd</code></a>'s
 <a href="/pkg/os/exec/#Cmd.Output"><code>Output</code></a> method continues to return an
