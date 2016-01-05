@@ -610,6 +610,12 @@ type Link struct {
 	Version            int
 	Textp              *LSym
 	Etextp             *LSym
+
+	// state for writing objects
+	Text  *LSym
+	Data  *LSym
+	Etext *LSym
+	Edata *LSym
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
