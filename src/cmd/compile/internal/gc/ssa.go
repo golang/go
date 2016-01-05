@@ -4108,6 +4108,8 @@ func (s *genState) genValue(v *ssa.Value) {
 
 	case ssa.OpAMD64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v)
+	case ssa.OpAMD64FlagEQ, ssa.OpAMD64FlagLT_ULT, ssa.OpAMD64FlagLT_UGT, ssa.OpAMD64FlagGT_ULT, ssa.OpAMD64FlagGT_UGT:
+		v.Fatalf("Flag* ops should never make it to codegen %v", v)
 	case ssa.OpAMD64REPSTOSQ:
 		Prog(x86.AREP)
 		Prog(x86.ASTOSQ)

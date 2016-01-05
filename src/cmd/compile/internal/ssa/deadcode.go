@@ -6,22 +6,14 @@ package ssa
 
 // findlive returns the reachable blocks and live values in f.
 func findlive(f *Func) (reachable []bool, live []bool) {
-	// After regalloc, consider all blocks and values to be reachable and live.
-	// See the comment at the top of regalloc.go and in deadcode for details.
-	if f.RegAlloc != nil {
-		reachable = make([]bool, f.NumBlocks())
-		for i := range reachable {
-			reachable[i] = true
-		}
-		live = make([]bool, f.NumValues())
-		for i := range live {
-			live[i] = true
-		}
-		return reachable, live
-	}
+	reachable = reachableBlocks(f)
+	live = liveValues(f, reachable)
+	return
+}
 
-	// Find all reachable basic blocks.
-	reachable = make([]bool, f.NumBlocks())
+// reachableBlocks returns the reachable blocks in f.
+func reachableBlocks(f *Func) []bool {
+	reachable := make([]bool, f.NumBlocks())
 	reachable[f.Entry.ID] = true
 	p := []*Block{f.Entry} // stack-like worklist
 	for len(p) > 0 {
@@ -40,10 +32,25 @@ func findlive(f *Func) (reachable []bool, live []bool) {
 			}
 		}
 	}
+	return reachable
+}
+
+// liveValues returns the live values in f.
+// reachable is a map from block ID to whether the block is reachable.
+func liveValues(f *Func, reachable []bool) []bool {
+	live := make([]bool, f.NumValues())
+
+	// After regalloc, consider all values to be live.
+	// See the comment at the top of regalloc.go and in deadcode for details.
+	if f.RegAlloc != nil {
+		for i := range live {
+			live[i] = true
+		}
+		return live
+	}
 
 	// Find all live values
-	live = make([]bool, f.NumValues()) // flag to set for each live value
-	var q []*Value                     // stack-like worklist of unscanned values
+	var q []*Value // stack-like worklist of unscanned values
 
 	// Starting set: all control values of reachable blocks are live.
 	for _, b := range f.Blocks {
@@ -72,7 +79,7 @@ func findlive(f *Func) (reachable []bool, live []bool) {
 		}
 	}
 
-	return reachable, live
+	return live
 }
 
 // deadcode removes dead code from f.
@@ -85,27 +92,8 @@ func deadcode(f *Func) {
 		f.Fatalf("deadcode after regalloc")
 	}
 
-	reachable, live := findlive(f)
-
-	// Remove dead values from blocks' value list.  Return dead
-	// value ids to the allocator.
-	for _, b := range f.Blocks {
-		i := 0
-		for _, v := range b.Values {
-			if live[v.ID] {
-				b.Values[i] = v
-				i++
-			} else {
-				f.vid.put(v.ID)
-			}
-		}
-		// aid GC
-		tail := b.Values[i:]
-		for j := range tail {
-			tail[j] = nil
-		}
-		b.Values = b.Values[:i]
-	}
+	// Find reachable blocks.
+	reachable := reachableBlocks(f)
 
 	// Get rid of edges from dead to live code.
 	for _, b := range f.Blocks {
@@ -131,6 +119,7 @@ func deadcode(f *Func) {
 		b.Succs[1] = nil
 		b.Succs = b.Succs[:1]
 		b.Kind = BlockPlain
+		b.Likely = BranchUnknown
 
 		if reachable[c.ID] {
 			// Note: c must be reachable through some other edge.
@@ -138,41 +127,20 @@ func deadcode(f *Func) {
 		}
 	}
 
-	// Remove unreachable blocks.  Return dead block ids to allocator.
-	i := 0
-	for _, b := range f.Blocks {
-		if reachable[b.ID] {
-			f.Blocks[i] = b
-			i++
-		} else {
-			if len(b.Values) > 0 {
-				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
-			}
-			b.Preds = nil
-			b.Succs = nil
-			b.Control = nil
-			b.Kind = BlockDead
-			f.bid.put(b.ID)
-		}
-	}
-	// zero remainder to help GC
-	tail := f.Blocks[i:]
-	for j := range tail {
-		tail[j] = nil
-	}
-	f.Blocks = f.Blocks[:i]
+	// Splice out any copies introduced during dead block removal.
+	copyelim(f)
+
+	// Find live values.
+	live := liveValues(f, reachable)
 
 	// Remove dead & duplicate entries from namedValues map.
 	s := newSparseSet(f.NumValues())
-	i = 0
+	i := 0
 	for _, name := range f.Names {
 		j := 0
 		s.clear()
 		values := f.NamedValues[name]
 		for _, v := range values {
-			for v.Op == OpCopy {
-				v = v.Args[0]
-			}
 			if live[v.ID] && !s.contains(v.ID) {
 				values[j] = v
 				j++
@@ -194,6 +162,50 @@ func deadcode(f *Func) {
 		f.Names[k] = LocalSlot{}
 	}
 	f.Names = f.Names[:i]
+
+	// Remove dead values from blocks' value list.  Return dead
+	// value ids to the allocator.
+	for _, b := range f.Blocks {
+		i := 0
+		for _, v := range b.Values {
+			if live[v.ID] {
+				b.Values[i] = v
+				i++
+			} else {
+				f.vid.put(v.ID)
+			}
+		}
+		// aid GC
+		tail := b.Values[i:]
+		for j := range tail {
+			tail[j] = nil
+		}
+		b.Values = b.Values[:i]
+	}
+
+	// Remove unreachable blocks.  Return dead block ids to allocator.
+	i = 0
+	for _, b := range f.Blocks {
+		if reachable[b.ID] {
+			f.Blocks[i] = b
+			i++
+		} else {
+			if len(b.Values) > 0 {
+				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
+			}
+			b.Preds = nil
+			b.Succs = nil
+			b.Control = nil
+			b.Kind = BlockDead
+			f.bid.put(b.ID)
+		}
+	}
+	// zero remainder to help GC
+	tail := f.Blocks[i:]
+	for j := range tail {
+		tail[j] = nil
+	}
+	f.Blocks = f.Blocks[:i]
 
 	// TODO: renumber Blocks and Values densely?
 	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
