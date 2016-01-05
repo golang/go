@@ -372,6 +372,8 @@ func (t *Transport) CloseIdleConnections() {
 
 // CancelRequest cancels an in-flight request by closing its connection.
 // CancelRequest should only be called after RoundTrip has returned.
+//
+// Deprecated: Use Request.Cancel instead.
 func (t *Transport) CancelRequest(req *Request) {
 	t.reqMu.Lock()
 	cancel := t.reqCanceler[req]
