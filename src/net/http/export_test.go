@@ -121,12 +121,12 @@ func (t *Transport) RequestIdleConnChForTesting() {
 
 func (t *Transport) PutIdleTestConn() bool {
 	c, _ := net.Pipe()
-	return t.putIdleConn(&persistConn{
+	return t.tryPutIdleConn(&persistConn{
 		t:        t,
 		conn:     c,                   // dummy
 		closech:  make(chan struct{}), // so it can be closed
 		cacheKey: connectMethodKey{"", "http", "example.com"},
-	})
+	}) == nil
 }
 
 // All test hooks must be non-nil so they can be called directly,
