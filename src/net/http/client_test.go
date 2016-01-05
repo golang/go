@@ -922,10 +922,7 @@ func TestBasicAuthHeadersPreserved(t *testing.T) {
 }
 
 func TestClientTimeout_h1(t *testing.T) { testClientTimeout(t, h1Mode) }
-func TestClientTimeout_h2(t *testing.T) {
-	t.Skip("skipping in http2 mode; golang.org/issue/13540")
-	testClientTimeout(t, h2Mode)
-}
+func TestClientTimeout_h2(t *testing.T) { testClientTimeout(t, h2Mode) }
 
 func testClientTimeout(t *testing.T, h2 bool) {
 	if testing.Short() {
@@ -999,10 +996,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
 }
 
 func TestClientTimeout_Headers_h1(t *testing.T) { testClientTimeout_Headers(t, h1Mode) }
-func TestClientTimeout_Headers_h2(t *testing.T) {
-	t.Skip("skipping in http2 mode; golang.org/issue/13540")
-	testClientTimeout_Headers(t, h2Mode)
-}
+func TestClientTimeout_Headers_h2(t *testing.T) { testClientTimeout_Headers(t, h2Mode) }
 
 // Client.Timeout firing before getting to the body
 func testClientTimeout_Headers(t *testing.T, h2 bool) {
