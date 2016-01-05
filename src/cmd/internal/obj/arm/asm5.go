@@ -1561,7 +1561,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 5: /* bra s */
-		o1 = opbra(ctxt, int(p.As), int(p.Scond))
+		o1 = opbra(ctxt, p, int(p.As), int(p.Scond))
 
 		v := int32(-8)
 		if p.To.Sym != nil {
@@ -2594,9 +2594,9 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 	return 0
 }
 
-func opbra(ctxt *obj.Link, a int, sc int) uint32 {
+func opbra(ctxt *obj.Link, p *obj.Prog, a int, sc int) uint32 {
 	if sc&(C_SBIT|C_PBIT|C_WBIT) != 0 {
-		ctxt.Diag(".nil/.nil/.W on bra instruction")
+		ctxt.Diag("%v: .nil/.nil/.W on bra instruction", p)
 	}
 	sc &= C_SCOND
 	sc ^= C_SCOND_XOR
@@ -2604,7 +2604,7 @@ func opbra(ctxt *obj.Link, a int, sc int) uint32 {
 		return uint32(sc)<<28 | 0x5<<25 | 0x1<<24
 	}
 	if sc != 0xe {
-		ctxt.Diag(".COND on bcond instruction")
+		ctxt.Diag("%v: .COND on bcond instruction", p)
 	}
 	switch a {
 	case ABEQ:
