@@ -380,6 +380,8 @@ var tagAndLengthData = []tagAndLengthTest{
 	{[]byte{0xa0, 0x84, 0x80, 0x00, 0x00, 0x00}, false, tagAndLength{}},
 	// Long length form may not be used for lengths that fit in short form.
 	{[]byte{0xa0, 0x81, 0x7f}, false, tagAndLength{}},
+	// Tag numbers which would overflow int32 are rejected. (The value below is 2^31.)
+	{[]byte{0x1f, 0x88, 0x80, 0x80, 0x80, 0x00, 0x00}, false, tagAndLength{}},
 }
 
 func TestParseTagAndLength(t *testing.T) {
