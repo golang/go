@@ -8,9 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -25,48 +25,122 @@ import (
 func testEndToEnd(t *testing.T, goarch string) {
 	lex.InitHist()
 	input := filepath.Join("testdata", goarch+".s")
-	output := filepath.Join("testdata", goarch+".out")
 	architecture, ctxt := setArch(goarch)
 	lexer := lex.NewLexer(input, ctxt)
 	parser := NewParser(ctxt, architecture, lexer)
 	pList := obj.Linknewplist(ctxt)
 	var ok bool
-	testOut = new(bytes.Buffer) // The assembler writes -S output to this buffer.
+	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
 	ctxt.Bso = obj.Binitw(os.Stdout)
 	defer ctxt.Bso.Flush()
-	ctxt.Diag = log.Fatalf
+	ctxt.Diag = t.Errorf
 	obj.Binitw(ioutil.Discard)
 	pList.Firstpc, ok = parser.Parse()
-	if !ok {
+	if !ok || t.Failed() {
 		t.Fatalf("asm: %s assembly failed", goarch)
 	}
-	result := string(testOut.Bytes())
-	expect, err := ioutil.ReadFile(output)
-	// For Windows.
-	result = strings.Replace(result, `testdata\`, `testdata/`, -1)
+	output := strings.Split(testOut.String(), "\n")
+
+	// Reconstruct expected output by independently "parsing" the input.
+	data, err := ioutil.ReadFile(input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result != string(expect) {
-		if false { // Enable to capture output.
-			fmt.Printf("%s", result)
-			os.Exit(1)
+	lineno := 0
+	seq := 0
+Diff:
+	for _, line := range strings.SplitAfter(string(data), "\n") {
+		lineno++
+
+		// The general form of a test input line is:
+		//	// comment
+		//	INST args [// printed form] [// hex encoding]
+		parts := strings.Split(line, "//")
+		printed := strings.TrimSpace(parts[0])
+		if printed == "" || strings.HasSuffix(printed, ":") { // empty or label
+			continue
 		}
-		t.Errorf("%s failed: output differs", goarch)
-		r := strings.Split(result, "\n")
-		e := strings.Split(string(expect), "\n")
-		if len(r) != len(e) {
-			t.Errorf("%s: expected %d lines, got %d", goarch, len(e), len(r))
+		seq++
+
+		switch len(parts) {
+		default:
+			t.Errorf("%s:%d: unable to understand comments: %s", input, lineno, line)
+		case 1:
+			// no comment
+		case 2:
+			// one comment, printed form
+			printed = strings.TrimSpace(parts[1])
 		}
-		n := len(e)
-		if n > len(r) {
-			n = len(r)
+
+		// Canonicalize spacing in printed form.
+		// First field is opcode, then tab, then arguments separated by spaces.
+		// Canonicalize spaces after commas first.
+		// Comma to separate argument gets a space; comma within does not.
+		var buf []byte
+		nest := 0
+		for i := 0; i < len(printed); i++ {
+			c := printed[i]
+			switch c {
+			case '{', '[':
+				nest++
+			case '}', ']':
+				nest--
+			case ',':
+				buf = append(buf, ',')
+				if nest == 0 {
+					buf = append(buf, ' ')
+				}
+				for i+1 < len(printed) && (printed[i+1] == ' ' || printed[i+1] == '\t') {
+					i++
+				}
+				continue
+			}
+			buf = append(buf, c)
 		}
-		for i := 0; i < n; i++ {
-			if r[i] != e[i] {
-				t.Errorf("%s:%d:\nexpected\n\t%s\ngot\n\t%s", output, i, e[i], r[i])
+
+		f := strings.Fields(string(buf))
+
+		// Turn relative (PC) into absolute (PC) automatically,
+		// so that most branch instructions don't need comments
+		// giving the absolute form.
+		if len(f) > 0 && strings.HasSuffix(printed, "(PC)") {
+			last := f[len(f)-1]
+			n, err := strconv.Atoi(last[:len(last)-len("(PC)")])
+			if err == nil {
+				f[len(f)-1] = fmt.Sprintf("%d(PC)", seq+n)
 			}
 		}
+
+		if len(f) == 1 {
+			printed = f[0]
+		} else {
+			printed = f[0] + "\t" + strings.Join(f[1:], " ")
+		}
+
+		want := fmt.Sprintf("%05d (%s:%d)\t%s", seq, input, lineno, printed)
+		for len(output) > 0 && (output[0] < want || output[0] != want && len(output[0]) >= 5 && output[0][:5] == want[:5]) {
+			if len(output[0]) >= 5 && output[0][:5] == want[:5] {
+				t.Errorf("mismatched output:\nhave %s\nwant %s", output[0], want)
+				output = output[1:]
+				continue Diff
+			}
+			t.Errorf("unexpected output: %q", output[0])
+			output = output[1:]
+		}
+		if len(output) > 0 && output[0] == want {
+			output = output[1:]
+		} else {
+			t.Errorf("missing output: %q", want)
+		}
+	}
+	for len(output) > 0 {
+		if output[0] == "" {
+			// spurious blank caused by Split on "\n"
+			output = output[1:]
+			continue
+		}
+		t.Errorf("unexpected output: %q", output[0])
+		output = output[1:]
 	}
 }
 

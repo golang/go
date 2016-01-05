@@ -6,7 +6,7 @@
 // the old assembler's (5a's) grammar and hand-writing complete
 // instructions for each rule, to guarantee we cover the same space.
 
-TEXT	foo(SB), 0, $0
+TEXT	foo(SB), 7, $0
 
 // ADD
 //
@@ -21,7 +21,7 @@ TEXT	foo(SB), 0, $0
 	ADD	R1@>R2, R3, R4
 	ADD	R1->R2, R3, R4
 	ADD	R1, R2, R3
-	ADD	R(1)<<R(2), R(3), R(4)
+	ADD	R(1)<<R(2), R(3), R(4) // ADD	R1<<R2, R3, R4
 
 //	LTYPE1 cond imsr ',' spreg ',' // asm doesn't support trailing comma.
 //	{
@@ -65,15 +65,16 @@ TEXT	foo(SB), 0, $0
 //	{
 //		outcode($1, $2, &nullgen, 0, &$4);
 //	}
-	B.S	1(PC)
+	B.EQ	1(PC) // BEQ 1(PC)
 
 //	LTYPE4 cond comma nireg
 //	{
 //		outcode($1, $2, &nullgen, 0, &$4);
 //	}
-	B.S	(R2)
-	B.S	foo(SB)
-	B.S	bar<>(SB)
+	BEQ	2(PC)
+	B	foo(SB) // JMP foo(SB)
+	BEQ	2(PC)
+	B	bar<>(SB) // JMP bar<>(SB)
 
 //
 // BX
@@ -82,7 +83,7 @@ TEXT	foo(SB), 0, $0
 //	{
 //		outcode($1, Always, &nullgen, 0, &$3);
 //	}
-	BX	(R2)
+	BX	(R0)
 
 //
 // BEQ
@@ -100,9 +101,9 @@ TEXT	foo(SB), 0, $0
 //	{
 //		outcode($1, $2, &nullgen, 0, &$4);
 //	}
-	SWI.S	R1
+	SWI.S	$2
 	SWI.S	(R1)
-	SWI.S	foo(SB)
+//	SWI.S	foo(SB) - TODO: classifying foo(SB) as C_TLS_LE
 
 //
 // CMP
@@ -127,8 +128,8 @@ TEXT	foo(SB), 0, $0
 //		g.Offset = int64($6);
 //		outcode($1, $2, &$3, 0, &g);
 //	}
-	MOVM	0(R1), [R2,R5,R8,g]
-	MOVM	0(R1), [R2-R5]
+	MOVM	0(R1), [R2,R5,R8,g] // MOVM	(R1), [R2,R5,R8,g]
+	MOVM	(R1), [R2-R5] // MOVM (R1), [R2,R3,R4,R5]
 	MOVM.S	(R1), [R2]
 
 //	LTYPE8 cond '[' reglist ']' ',' ioreg
@@ -140,8 +141,8 @@ TEXT	foo(SB), 0, $0
 //		g.Offset = int64($4);
 //		outcode($1, $2, &g, 0, &$7);
 //	}
-	MOVM	[R2,R5,R8,g], 0(R1)
-	MOVM	[R2-R5], 0(R1)
+	MOVM	[R2,R5,R8,g], 0(R1) // MOVM	[R2,R5,R8,g], (R1)
+	MOVM	[R2-R5], (R1) // MOVM [R2,R3,R4,R5], (R1)
 	MOVM.S	[R2], (R1)
 
 //
@@ -151,19 +152,19 @@ TEXT	foo(SB), 0, $0
 //	{
 //		outcode($1, $2, &$5, int32($3.Reg), &$7);
 //	}
-	STREX.S	R1, (R2), R3
+	STREX.S	R1, (R2), R3 // STREX.S (R2), R1, R3
 
 //	LTYPE9 cond reg ',' ireg
 //	{
 //		outcode($1, $2, &$5, int32($3.Reg), &$3);
 //	}
-	STREX.S	R1, (R2)
+	STREX.S	R1, (R2) // STREX.S (R2), R1, R1
 
 //	LTYPE9 cond comma ireg ',' reg
 //	{
 //		outcode($1, $2, &$4, int32($6.Reg), &$6);
 //	}
-	STREX.S	(R2), R3
+	STREX.S	(R2), R3 // STREX.S (R2), R3, R3
 
 //
 // word
@@ -188,14 +189,13 @@ TEXT	foo(SB), 0, $0
 //		outcode($1, $2, &$3, 0, &$5);
 //	}
 	ADDD.S	F1, F2
-	ADDD.S	$0.5, F2
+	MOVF.S	$0.5, F2 // MOVF.S $(0.5), F2
 
 //	LTYPEK cond frcon ',' LFREG ',' freg
 //	{
 //		outcode($1, $2, &$3, $5, &$7);
 //	}
 	ADDD.S	F1, F2, F3
-	ADDD.S	$0.5, F2, F3
 
 //	LTYPEL cond freg ',' freg
 //	{
@@ -225,8 +225,8 @@ TEXT	foo(SB), 0, $0
 //			(1<<4));			/* must be set */
 //		outcode(AMRC, Always, &nullgen, 0, &g);
 //	}
-	MRC.S	4, 6, R1, C2, C3, 7
-	MCR.S	4, 6, R1, C2, C3, 7
+	MRC.S	4, 6, R1, C2, C3, 7 // MRC $8301712627
+	MCR.S	4, 6, R1, C2, C3, 7 // MRC $8300664051
 
 //
 // MULL r1,r2,(hi,lo)
@@ -265,12 +265,15 @@ TEXT	foo(SB), 0, $0
 //	{
 //		outcode($1, $2, &nullgen, 0, &nullgen);
 //	}
+	BEQ	2(PC)
 	RET
 
 // More B/BL cases, and canonical names JMP, CALL.
 
-	B	foo(SB)
-	BL	foo(SB)
+	BEQ	2(PC)
+	B	foo(SB) // JMP foo(SB)
+	BL	foo(SB) // CALL foo(SB)
+	BEQ	2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
 
