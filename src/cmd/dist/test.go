@@ -9,7 +9,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -502,25 +501,12 @@ func (t *tester) registerTests() {
 		}
 	}
 
-	// Doc and shootout tests only run on builders.
+	// Doc tests only run on builders.
 	// They find problems approximately never.
 	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !t.iOS() && os.Getenv("GO_BUILDER_NAME") != "" {
 		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
-		for _, name := range t.shootoutTests() {
-			if name == "spectralnorm" {
-				switch os.Getenv("GO_BUILDER_NAME") {
-				case "linux-arm-arm5", "linux-mips64-minux":
-					// Heavy on floating point and takes over 20 minutes with
-					// softfloat on arm5 builder and over 33 minutes on MIPS64
-					// builder with kernel FPU emulator.
-					// Disabled per Issue 12688.
-					continue
-				}
-			}
-			t.registerSeqTest("shootout:"+name, "../test/bench/shootout", "time", "./timing.sh", "-test", name)
-		}
 	}
 
 	if t.goos != "android" && !t.iOS() {
@@ -992,18 +978,6 @@ func (t *tester) testDirTest(dt *distTest, shard, shards int) error {
 		fmt.Sprintf("--shards=%d", shards),
 	)
 	return nil
-}
-
-func (t *tester) shootoutTests() []string {
-	sh, err := ioutil.ReadFile(filepath.Join(t.goroot, "test", "bench", "shootout", "timing.sh"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	m := regexp.MustCompile(`(?m)^\s+run="([\w+ ]+)"\s*$`).FindSubmatch(sh)
-	if m == nil {
-		log.Fatal("failed to find run=\"...\" line in test/bench/shootout/timing.sh")
-	}
-	return strings.Fields(string(m[1]))
 }
 
 // mergeEnvLists merges the two environment lists such that
