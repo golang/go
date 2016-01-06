@@ -283,39 +283,59 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	f.Extra = d[filenameLen : filenameLen+extraLen]
 	f.Comment = string(d[filenameLen+extraLen:])
 
+	needUSize := f.UncompressedSize == ^uint32(0)
+	needCSize := f.CompressedSize == ^uint32(0)
+	needHeaderOffset := f.headerOffset == int64(^uint32(0))
+
 	if len(f.Extra) > 0 {
+		// Best effort to find what we need.
+		// Other zip authors might not even follow the basic format,
+		// and we'll just ignore the Extra content in that case.
 		b := readBuf(f.Extra)
 		for len(b) >= 4 { // need at least tag and size
 			tag := b.uint16()
 			size := b.uint16()
 			if int(size) > len(b) {
-				return ErrFormat
+				break
 			}
 			if tag == zip64ExtraId {
-				// update directory values from the zip64 extra block
+				// update directory values from the zip64 extra block.
+				// They should only be consulted if the sizes read earlier
+				// are maxed out.
+				// See golang.org/issue/13367.
 				eb := readBuf(b[:size])
-				if len(eb) >= 8 {
+
+				if needUSize {
+					needUSize = false
+					if len(eb) < 8 {
+						return ErrFormat
+					}
 					f.UncompressedSize64 = eb.uint64()
 				}
-				if len(eb) >= 8 {
+				if needCSize {
+					needCSize = false
+					if len(eb) < 8 {
+						return ErrFormat
+					}
 					f.CompressedSize64 = eb.uint64()
 				}
-				if len(eb) >= 8 {
+				if needHeaderOffset {
+					needHeaderOffset = false
+					if len(eb) < 8 {
+						return ErrFormat
+					}
 					f.headerOffset = int64(eb.uint64())
 				}
+				break
 			}
 			b = b[size:]
 		}
-		// Should have consumed the whole header.
-		// But popular zip & JAR creation tools are broken and
-		// may pad extra zeros at the end, so accept those
-		// too. See golang.org/issue/8186.
-		for _, v := range b {
-			if v != 0 {
-				return ErrFormat
-			}
-		}
 	}
+
+	if needUSize || needCSize || needHeaderOffset {
+		return ErrFormat
+	}
+
 	return nil
 }
 
