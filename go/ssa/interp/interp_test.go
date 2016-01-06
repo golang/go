@@ -165,7 +165,6 @@ var gorootSrcTests = []string{
 	// "container/ring",
 	// "hash/adler32",
 
-	// TODO(adonovan): packages with Examples require os.Pipe (unimplemented):
 	"unicode/utf8",
 	"path",
 	"flag",
