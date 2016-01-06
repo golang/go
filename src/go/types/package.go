@@ -36,6 +36,9 @@ func (pkg *Package) Path() string { return pkg.path }
 // Name returns the package name.
 func (pkg *Package) Name() string { return pkg.name }
 
+// SetName sets the package name.
+func (pkg *Package) SetName(name string) { pkg.name = name }
+
 // Scope returns the (complete or incomplete) package scope
 // holding the objects declared at package level (TypeNames,
 // Consts, Vars, and Funcs).

@@ -349,8 +349,10 @@ func (p *parser) parseQualifiedName() (id, name string) {
 }
 
 // getPkg returns the package for a given id. If the package is
-// not found but we have a package name, create the package and
-// add it to the p.localPkgs and p.sharedPkgs maps.
+// not found, create the package and add it to the p.localPkgs
+// and p.sharedPkgs maps. name is the (expected) name of the
+// package. If name == "", the package name is expected to be
+// set later via an import clause in the export data.
 //
 // id identifies a package, usually by a canonical package path like
 // "encoding/json" but possibly by a non-canonical import path like
@@ -363,19 +365,28 @@ func (p *parser) getPkg(id, name string) *types.Package {
 	}
 
 	pkg := p.localPkgs[id]
-	if pkg == nil && name != "" {
+	if pkg == nil {
 		// first import of id from this package
 		pkg = p.sharedPkgs[id]
 		if pkg == nil {
-			// first import of id by this importer
+			// first import of id by this importer;
+			// add (possibly unnamed) pkg to shared packages
 			pkg = types.NewPackage(id, name)
 			p.sharedPkgs[id] = pkg
 		}
-
+		// add (possibly unnamed) pkg to local packages
 		if p.localPkgs == nil {
 			p.localPkgs = make(map[string]*types.Package)
 		}
 		p.localPkgs[id] = pkg
+	} else if name != "" {
+		// package exists already and we have an expected package name;
+		// make sure names match or set package name if necessary
+		if pname := pkg.Name(); pname == "" {
+			pkg.SetName(name)
+		} else if pname != name {
+			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
+		}
 	}
 	return pkg
 }
@@ -386,9 +397,6 @@ func (p *parser) getPkg(id, name string) *types.Package {
 func (p *parser) parseExportedName() (pkg *types.Package, name string) {
 	id, name := p.parseQualifiedName()
 	pkg = p.getPkg(id, "")
-	if pkg == nil {
-		p.errorf("%s package not found", id)
-	}
 	return
 }
 
@@ -434,13 +442,11 @@ func (p *parser) parseMapType() types.Type {
 
 // Name = identifier | "?" | QualifiedName .
 //
-// If materializePkg is set, the returned package is guaranteed to be set.
-// For fully qualified names, the returned package may be a fake package
-// (without name, scope, and not in the p.sharedPkgs map), created for the
-// sole purpose of providing a package path. Fake packages are created
-// when the package id is not found in the p.sharedPkgs map; in that case
-// we cannot create a real package because we don't have a package name.
-// For non-qualified names, the returned package is the imported package.
+// For unqualified names, the returned package is the imported package.
+// For qualified names, the returned package is nil (and not created if
+// it doesn't exist yet) unless materializePkg is set (which creates an
+// unnamed package). In the latter case, a subequent import clause is
+// expected to provide a name for the package.
 //
 func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string) {
 	switch p.tok {
@@ -457,12 +463,7 @@ func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string
 		var id string
 		id, name = p.parseQualifiedName()
 		if materializePkg {
-			// we don't have a package name - if the package
-			// doesn't exist yet, create a fake package instead
 			pkg = p.getPkg(id, "")
-			if pkg == nil {
-				pkg = types.NewPackage(id, "")
-			}
 		}
 	default:
 		p.error("name expected")
@@ -904,7 +905,7 @@ func (p *parser) parseMethodDecl() {
 	base := deref(recv.Type()).(*types.Named)
 
 	// parse method name, signature, and possibly inlined body
-	_, name := p.parseName(true)
+	_, name := p.parseName(false)
 	sig := p.parseFunc(recv)
 
 	// methods always belong to the same package as the base type object
@@ -981,9 +982,12 @@ func (p *parser) parseExport() *types.Package {
 		p.errorf("expected no scanner errors, got %d", n)
 	}
 
-	// Record all referenced packages as imports.
+	// Record all locally referenced packages as imports.
 	var imports []*types.Package
 	for id, pkg2 := range p.localPkgs {
+		if pkg2.Name() == "" {
+			p.errorf("%s package has no name", id)
+		}
 		if id == p.id {
 			continue // avoid self-edge
 		}
