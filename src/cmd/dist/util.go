@@ -401,9 +401,8 @@ func main() {
 	switch gohostos {
 	case "darwin":
 		// Even on 64-bit platform, darwin uname -m prints i386.
-		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
-			gohostarch = "amd64"
-		}
+		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
+		gohostarch = "amd64"
 	case "freebsd":
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true
