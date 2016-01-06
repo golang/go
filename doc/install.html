@@ -220,19 +220,29 @@ and building a simple program, as follows.
 
 <p>
 Create a directory to contain your <a href="code.html#Workspaces">workspace</a>,
-<code>$HOME/work</code> for example, and set the <code>GOPATH</code> environment
+<code class="testUnix">$HOME/work</code>
+<code class="testWindows" style="display: none">%HOME%\work</code>
+for example, and set the <code>GOPATH</code> environment
 variable to point to that location.
 </p>
 
-<pre>
+<pre class="testUnix">
 $ <b>export GOPATH=$HOME/work</b>
 </pre>
 
+<pre class="testWindows" style="display: none">
+C:\&gt; <b>set GOPATH=%HOME%\work</b>
+</pre>
+
 <p>
+<span class="testUnix">
 You should put the above command in your shell startup script
-(<code>$HOME/.profile</code> for example) or, if you use Windows,
-follow the <a href="#windows_env">instructions above</a> to set the
+(<code>$HOME/.profile</code> for example).
+</span>
+<span class="testWindows">
+On Windows, follow the <a href="#windows_env">instructions above</a> to set the
 <code>GOPATH</code> environment variable on your system.
+</span>
 </p>
 
 <p>
@@ -256,18 +266,27 @@ func main() {
 Then compile it with the <code>go</code> tool:
 </p>
 
-<pre>
+<pre class="testUnix">
 $ <b>go install github.com/user/hello</b>
 </pre>
 
+<pre class="testWindows" style="display: none">
+C:\&gt; <b>go install github.com/user/hello</b>
+</pre>
+
 <p>
-The above command will put an executable command named <code>hello</code> 
+The command above will put an executable command named <code>hello</code> 
 (or <code>hello.exe</code>) inside the <code>bin</code> directory of your workspace.
 Execute the command to see the greeting:
 </p>
 
-<pre>
+<pre class="testUnix">
 $ <b>$GOPATH/bin/hello</b>
+hello, world
+</pre>
+
+<pre class="testWindows" style="display: none">
+C:\&gt; <b>%GOPATH%\bin\hello</b>
 hello, world
 </pre>
 
