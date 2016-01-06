@@ -569,6 +569,17 @@ Also in the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package
 </li>
 
 <li>
+The <a href="/pkg/encoding/base64"><code>encoding/base64</code></a> package's
+<a href="/pkg/encoding/base64/#Decoder"><code>Decoder</code></a> has been fixed
+to process the final bytes of its input. Previously it processed as many four-byte tokens as
+possible but ignore the remainder, up to three bytes.
+The <code>Decoder</code> therefore now handles inputs in unpadded encodings (like
+<a href="/pkg/encoding/base64/#RawURLEncoding">RawURLEncoding</a>) correctly,
+but it also rejects inputs in padded encodings that are truncated or end with invalid bytes,
+such as trailing spaces.
+</li>
+
+<li>
 The <a href="/pkg/encoding/json/"><code>encoding/json</code></a> package
 now checks the syntax of a
 <a href="/pkg/encoding/json/#Number"><code>Number</code></a>
