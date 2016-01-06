@@ -16,6 +16,7 @@ import (
 	"log"
 	. "net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"sort"
@@ -673,5 +674,63 @@ func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
 	}
 	if string(data) != resBody {
 		t.Errorf("read %q; want %q", data, resBody)
+	}
+}
+
+func TestConnectRequest_h1(t *testing.T) { testConnectRequest(t, h1Mode) }
+func TestConnectRequest_h2(t *testing.T) { testConnectRequest(t, h2Mode) }
+func testConnectRequest(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	gotc := make(chan *Request, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		gotc <- r
+	}))
+	defer cst.close()
+
+	u, err := url.Parse(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		req  *Request
+		want string
+	}{
+		{
+			req: &Request{
+				Method: "CONNECT",
+				Header: Header{},
+				URL:    u,
+			},
+			want: u.Host,
+		},
+		{
+			req: &Request{
+				Method: "CONNECT",
+				Header: Header{},
+				URL:    u,
+				Host:   "example.com:123",
+			},
+			want: "example.com:123",
+		},
+	}
+
+	for i, tt := range tests {
+		res, err := cst.c.Do(tt.req)
+		if err != nil {
+			t.Errorf("%d. RoundTrip = %v", i, err)
+			continue
+		}
+		res.Body.Close()
+		req := <-gotc
+		if req.Method != "CONNECT" {
+			t.Errorf("method = %q; want CONNECT", req.Method)
+		}
+		if req.Host != tt.want {
+			t.Errorf("Host = %q; want %q", req.Host, tt.want)
+		}
+		if req.URL.Host != tt.want {
+			t.Errorf("URL.Host = %q; want %q", req.URL.Host, tt.want)
+		}
 	}
 }
