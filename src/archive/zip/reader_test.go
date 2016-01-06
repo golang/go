@@ -65,13 +65,13 @@ var tests = []ZipTest{
 			{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
-				Mtime:   "09-05-10 12:12:02",
+				Mtime:   "09-05-10 02:12:00",
 				Mode:    0644,
 			},
 			{
 				Name:  "gophercolor16x16.png",
 				File:  "gophercolor16x16.png",
-				Mtime: "09-05-10 15:52:58",
+				Mtime: "09-05-10 05:52:58",
 				Mode:  0644,
 			},
 		},
@@ -83,13 +83,13 @@ var tests = []ZipTest{
 			{
 				Name:    "test.txt",
 				Content: []byte("This is a test text file.\n"),
-				Mtime:   "09-05-10 12:12:02",
+				Mtime:   "09-05-10 02:12:00",
 				Mode:    0644,
 			},
 			{
 				Name:  "gophercolor16x16.png",
 				File:  "gophercolor16x16.png",
-				Mtime: "09-05-10 15:52:58",
+				Mtime: "09-05-10 05:52:58",
 				Mode:  0644,
 			},
 		},
@@ -145,6 +145,17 @@ var tests = []ZipTest{
 		File: crossPlatform,
 	},
 	{
+		Name: "extra-timestamp.zip",
+		File: []ZipTestFile{
+			{
+				Name:    "hello.txt",
+				Content: []byte(""),
+				Mtime:   "01-06-16 12:25:56",
+				Mode:    0666,
+			},
+		},
+	},
+	{
 		// created by Go, before we wrote the "optional" data
 		// descriptor signatures (which are required by OS X)
 		Name: "go-no-datadesc-sig.zip",
@@ -152,13 +163,13 @@ var tests = []ZipTest{
 			{
 				Name:    "foo.txt",
 				Content: []byte("foo\n"),
-				Mtime:   "03-08-12 16:59:10",
+				Mtime:   "03-09-12 00:59:10",
 				Mode:    0644,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
+				Mtime:   "03-09-12 00:59:12",
 				Mode:    0644,
 			},
 		},
@@ -205,13 +216,13 @@ var tests = []ZipTest{
 			{
 				Name:    "foo.txt",
 				Content: []byte("foo\n"),
-				Mtime:   "03-08-12 16:59:10",
+				Mtime:   "03-09-12 00:59:10",
 				Mode:    0644,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
+				Mtime:   "03-09-12 00:59:12",
 				Mode:    0644,
 			},
 		},
@@ -225,14 +236,14 @@ var tests = []ZipTest{
 			{
 				Name:       "foo.txt",
 				Content:    []byte("foo\n"),
-				Mtime:      "03-08-12 16:59:10",
+				Mtime:      "03-09-12 00:59:10",
 				Mode:       0644,
 				ContentErr: ErrChecksum,
 			},
 			{
 				Name:    "bar.txt",
 				Content: []byte("bar\n"),
-				Mtime:   "03-08-12 16:59:12",
+				Mtime:   "03-09-12 00:59:12",
 				Mode:    0644,
 			},
 		},

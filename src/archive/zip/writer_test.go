@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"os"
 	"testing"
+	"time"
 )
 
 // TODO(adg): a more sophisticated test suite
@@ -20,6 +21,7 @@ type WriteTest struct {
 	Data   []byte
 	Method uint16
 	Mode   os.FileMode
+	Mtime  string
 }
 
 var writeTests = []WriteTest{
@@ -28,30 +30,35 @@ var writeTests = []WriteTest{
 		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
 		Method: Store,
 		Mode:   0666,
+		Mtime:  "02-01-08 00:01:02",
 	},
 	{
 		Name:   "bar",
 		Data:   nil, // large data set in the test
 		Method: Deflate,
 		Mode:   0644,
+		Mtime:  "03-02-08 01:02:03",
 	},
 	{
 		Name:   "setuid",
 		Data:   []byte("setuid file"),
 		Method: Deflate,
 		Mode:   0755 | os.ModeSetuid,
+		Mtime:  "04-03-08 02:03:04",
 	},
 	{
 		Name:   "setgid",
 		Data:   []byte("setgid file"),
 		Method: Deflate,
 		Mode:   0755 | os.ModeSetgid,
+		Mtime:  "05-04-08 03:04:04",
 	},
 	{
 		Name:   "symlink",
 		Data:   []byte("../link/target"),
 		Method: Deflate,
 		Mode:   0755 | os.ModeSymlink,
+		Mtime:  "03-02-08 11:22:33",
 	},
 }
 
@@ -148,6 +155,11 @@ func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
 	if wt.Mode != 0 {
 		header.SetMode(wt.Mode)
 	}
+	mtime, err := time.Parse("01-02-06 15:04:05", wt.Mtime)
+	if err != nil {
+		t.Fatal("time.Parse:", err)
+	}
+	header.SetModTime(mtime)
 	f, err := w.CreateHeader(header)
 	if err != nil {
 		t.Fatal(err)
@@ -177,6 +189,21 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
 	}
 	if !bytes.Equal(b, wt.Data) {
 		t.Errorf("File contents %q, want %q", b, wt.Data)
+	}
+
+	mtime, err := time.Parse("01-02-06 15:04:05", wt.Mtime)
+	if err != nil {
+		t.Fatal("time.Parse:", err)
+	}
+
+	diff := mtime.Sub(f.ModTime())
+	if diff < 0 {
+		diff = -diff
+	}
+
+	// allow several time span
+	if diff > 5*time.Second {
+		t.Errorf("File modtime %v, want %v", mtime, f.ModTime())
 	}
 }
 
