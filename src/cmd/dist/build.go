@@ -322,12 +322,18 @@ func findgoversion() string {
 
 // isGitRepo reports whether the working directory is inside a Git repository.
 func isGitRepo() bool {
-	// NB: simply checking the exit code of `git rev-parse --git-dir` would
-	// suffice here, but that requires deviating from the infrastructure
-	// provided by `run`.
-	gitDir := chomp(run(goroot, 0, "git", "rev-parse", "--git-dir"))
-	fi, err := os.Stat(gitDir)
-	return err == nil && fi.IsDir()
+	p := ".git"
+	for {
+		fi, err := os.Stat(p)
+		if os.IsNotExist(err) {
+			p = filepath.Join("..", p)
+			continue
+		}
+		if err != nil || !fi.IsDir() {
+			return false
+		}
+		return true
+	}
 }
 
 /*
