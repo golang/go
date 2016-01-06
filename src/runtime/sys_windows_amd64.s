@@ -243,7 +243,7 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	LEAQ	g__size(SP), BX
 	MOVQ	BX, g_m(SP)
 
-	LEAQ	-8192(SP), CX
+	LEAQ	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
 	MOVQ	CX, (g_stack+stack_lo)(SP)
 	ADDQ	$const__StackGuard, CX
 	MOVQ	CX, g_stackguard0(SP)
