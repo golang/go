@@ -1649,7 +1649,7 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
 
 // Issue 11020. The returned error message should be errRequestCanceled
 func TestTransportCancelBeforeResponseHeaders(t *testing.T) {
-	t.Skip("Skipping flaky test; see Issue 11894")
+	setFlaky(t, 11894)
 	defer afterTest(t)
 
 	serverConnCh := make(chan net.Conn, 1)
