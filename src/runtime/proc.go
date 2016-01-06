@@ -3024,7 +3024,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		}
 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
 	}
-	if !traceback || n <= 0 {
+	if n <= 0 {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
