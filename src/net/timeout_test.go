@@ -996,7 +996,6 @@ func TestReadWriteDeadlineRace(t *testing.T) {
 	if testing.Short() {
 		N = 50
 	}
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
 
 	ln, err := newLocalListener("tcp")
 	if err != nil {
