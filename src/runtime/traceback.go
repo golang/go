@@ -241,6 +241,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 		//	stk is the stack containing sp.
 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
 		f = frame.fn
+		if f.pcsp == 0 {
+			// No frame information, must be external function, like race support.
+			// See golang.org/issue/13568.
+			break
+		}
 
 		// Found an actual function.
 		// Derive frame pointer and link register.
