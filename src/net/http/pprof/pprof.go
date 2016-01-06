@@ -80,6 +80,17 @@ func Cmdline(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, strings.Join(os.Args, "\x00"))
 }
 
+func sleep(w http.ResponseWriter, d time.Duration) {
+	var clientGone <-chan bool
+	if cn, ok := w.(http.CloseNotifier); ok {
+		clientGone = cn.CloseNotify()
+	}
+	select {
+	case <-time.After(d):
+	case <-clientGone:
+	}
+}
+
 // Profile responds with the pprof-formatted cpu profile.
 // The package initialization registers it as /debug/pprof/profile.
 func Profile(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +111,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
 		return
 	}
-	time.Sleep(time.Duration(sec) * time.Second)
+	sleep(w, time.Duration(sec)*time.Second)
 	pprof.StopCPUProfile()
 }
 
@@ -124,7 +135,7 @@ func Trace(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Could not enable tracing: %s\n", err)
 		return
 	}
-	time.Sleep(time.Duration(sec) * time.Second)
+	sleep(w, time.Duration(sec)*time.Second)
 	trace.Stop()
 }
 
