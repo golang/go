@@ -1063,7 +1063,6 @@ func TestImportCommentConflict(t *testing.T) {
 // cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
-
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("skipping because git binary not found")
 	}
@@ -1079,6 +1078,34 @@ func TestIssue10952(t *testing.T) {
 	defer tg.resetReadOnlyFlagAll(repoDir)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
 	tg.run("get", "-d", "-u", importPath)
+}
+
+func TestGetGitDefaultBranch(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+
+	// This repo has two branches, master and another-branch.
+	// The another-branch is the default that you get from 'git clone'.
+	// The go get command variants should not override this.
+	const importPath = "github.com/rsc/go-get-default-branch"
+
+	tg.run("get", "-d", importPath)
+	repoDir := tg.path("src/" + importPath)
+	defer tg.resetReadOnlyFlagAll(repoDir)
+	tg.runGit(repoDir, "branch", "--contains", "HEAD")
+	tg.grepStdout(`\* another-branch`, "not on correct default branch")
+
+	tg.run("get", "-d", "-u", importPath)
+	tg.runGit(repoDir, "branch", "--contains", "HEAD")
+	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 }
 
 func TestDisallowedCSourceFiles(t *testing.T) {
@@ -2219,6 +2246,9 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 
 func TestIssue10193(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("hg"); err != nil {
+		t.Skip("skipping because hg binary not found")
+	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
