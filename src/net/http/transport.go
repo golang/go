@@ -1423,6 +1423,9 @@ WaitResponse:
 		select {
 		case err := <-writeErrCh:
 			if err != nil {
+				if pc.isCanceled() {
+					err = errRequestCanceled
+				}
 				re = responseAndError{err: beforeRespHeaderError{err}}
 				pc.close(fmt.Errorf("write error: %v", err))
 				break WaitResponse
@@ -1446,6 +1449,9 @@ WaitResponse:
 			re = responseAndError{err: errTimeout}
 			break WaitResponse
 		case re = <-resc:
+			if re.err != nil && pc.isCanceled() {
+				re.err = errRequestCanceled
+			}
 			break WaitResponse
 		case <-cancelChan:
 			pc.t.CancelRequest(req.Request)
