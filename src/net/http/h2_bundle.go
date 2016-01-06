@@ -24,7 +24,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/net/http2/hpack"
 	"io"
 	"io/ioutil"
 	"log"
@@ -38,6 +37,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/http2/hpack"
 )
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
@@ -4095,6 +4096,8 @@ const (
 	// transportDefaultStreamMinRefresh is the minimum number of bytes we'll send
 	// a stream-level WINDOW_UPDATE for at a time.
 	http2transportDefaultStreamMinRefresh = 4 << 10
+
+	http2defaultUserAgent = "Go-http-client/2.0"
 )
 
 // Transport is an HTTP/2 Transport.
@@ -4794,10 +4797,22 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 		cc.writeHeader("trailer", trailers)
 	}
 
+	var didUA bool
 	for k, vv := range req.Header {
 		lowKey := strings.ToLower(k)
 		if lowKey == "host" {
 			continue
+		}
+		if lowKey == "user-agent" {
+
+			didUA = true
+			if len(vv) < 1 {
+				continue
+			}
+			vv = vv[:1]
+			if vv[0] == "" {
+				continue
+			}
 		}
 		for _, v := range vv {
 			cc.writeHeader(lowKey, v)
@@ -4805,6 +4820,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	}
 	if addGzipHeader {
 		cc.writeHeader("accept-encoding", "gzip")
+	}
+	if !didUA {
+		cc.writeHeader("user-agent", http2defaultUserAgent)
 	}
 	return cc.hbuf.Bytes()
 }

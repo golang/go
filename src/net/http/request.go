@@ -427,10 +427,8 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
 	// Use the defaultUserAgent unless the Header contains one, which
 	// may be blank to not send the header.
 	userAgent := defaultUserAgent
-	if req.Header != nil {
-		if ua := req.Header["User-Agent"]; len(ua) > 0 {
-			userAgent = ua[0]
-		}
+	if _, ok := req.Header["User-Agent"]; ok {
+		userAgent = req.Header.Get("User-Agent")
 	}
 	if userAgent != "" {
 		_, err = fmt.Fprintf(w, "User-Agent: %s\r\n", userAgent)

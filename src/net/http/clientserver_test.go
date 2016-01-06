@@ -734,3 +734,64 @@ func testConnectRequest(t *testing.T, h2 bool) {
 		}
 	}
 }
+
+func TestTransportUserAgent_h1(t *testing.T) { testTransportUserAgent(t, h1Mode) }
+func TestTransportUserAgent_h2(t *testing.T) { testTransportUserAgent(t, h2Mode) }
+func testTransportUserAgent(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "%q", r.Header["User-Agent"])
+	}))
+	defer cst.close()
+
+	either := func(a, b string) string {
+		if h2 {
+			return b
+		}
+		return a
+	}
+
+	tests := []struct {
+		setup func(*Request)
+		want  string
+	}{
+		{
+			func(r *Request) {},
+			either(`["Go-http-client/1.1"]`, `["Go-http-client/2.0"]`),
+		},
+		{
+			func(r *Request) { r.Header.Set("User-Agent", "foo/1.2.3") },
+			`["foo/1.2.3"]`,
+		},
+		{
+			func(r *Request) { r.Header["User-Agent"] = []string{"single", "or", "multiple"} },
+			`["single"]`,
+		},
+		{
+			func(r *Request) { r.Header.Set("User-Agent", "") },
+			`[]`,
+		},
+		{
+			func(r *Request) { r.Header["User-Agent"] = nil },
+			`[]`,
+		},
+	}
+	for i, tt := range tests {
+		req, _ := NewRequest("GET", cst.ts.URL, nil)
+		tt.setup(req)
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Errorf("%d. RoundTrip = %v", i, err)
+			continue
+		}
+		slurp, err := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Errorf("%d. read body = %v", i, err)
+			continue
+		}
+		if string(slurp) != tt.want {
+			t.Errorf("%d. body mismatch.\n got: %s\nwant: %s\n", i, slurp, tt.want)
+		}
+	}
+}
