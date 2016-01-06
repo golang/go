@@ -333,7 +333,7 @@ func TestMathBigDivide(t *testing.T) {
 }
 
 func TestStackBarrierProfiling(t *testing.T) {
-	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" {
+	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" || runtime.GOOS == "dragonfly" {
 		// This test currently triggers a large number of
 		// usleep(100)s. These kernels/arches have poor
 		// resolution timers, so this gives up a whole
