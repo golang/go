@@ -132,7 +132,14 @@ and it may be set to <code>none</code> to disable the use of a support library.
 </p>
 
 <p>
-TODO: Something about build modes.
+The implementation of <a href="/doc/go1.5#link">build modes started in Go 1.5</a> has been expanded to more systems.
+This release adds support for the <code>c-shared</code> mode on <code>android/386</code>, <code>android/amd64</code>,
+<code>android/arm64</code>, <code>linux/386</code>, and <code>linux/arm64</code>;
+for the <code>shared</code> mode on <code>linux/386</code>, <code>linux/arm</code>, <code>linux/amd64</code>, and <code>linux/ppc64le</code>;
+and for the new <code>pie</code> mode (generating position-independent executables) on
+<code>android/386</code>, <code>android/amd64</code>, <code>android/arm</code>, <code>android/arm64</code>, <code>linux/386</code>,
+<code>linux/amd64</code>, <code>linux/arm</code>, <code>linux/arm64</code>, and <code>linux/ppc64le</code>.
+See the <a href="https://golang.org/s/execmodes">design document</a> for details.
 </p>
 
 <p>
