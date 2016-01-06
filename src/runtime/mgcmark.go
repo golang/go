@@ -796,7 +796,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	}
 
 	gp := getg()
-	preemtible := flags&gcDrainUntilPreempt != 0
+	preemptible := flags&gcDrainUntilPreempt != 0
 	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 
@@ -815,9 +815,13 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	initScanWork := gcw.scanWork
 
 	// Drain heap marking jobs.
-	for !(preemtible && gp.preempt) {
-		// If another proc wants a pointer, give it some.
-		if work.nwait > 0 && work.full == 0 {
+	for !(preemptible && gp.preempt) {
+		// Try to keep work available on the global queue. We used to
+		// check if there were waiting workers, but it's better to
+		// just keep work available than to make workers wait. In the
+		// worst case, we'll do O(log(_WorkbufSize)) unnecessary
+		// balances.
+		if work.full == 0 {
 			gcw.balance()
 		}
 
@@ -884,10 +888,16 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 
 	gp := getg().m.curg
 	for !gp.preempt && workFlushed+gcw.scanWork < scanWork {
+		// See gcDrain comment.
+		if work.full == 0 {
+			gcw.balance()
+		}
+
 		// This might be a good place to add prefetch code...
 		// if(wbuf.nobj > 4) {
 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
 		//  }
+		//
 		b := gcw.tryGet()
 		if b == 0 {
 			break
