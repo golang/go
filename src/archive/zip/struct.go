@@ -63,6 +63,9 @@ const (
 
 	// extra header id's
 	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
+	ntfsExtraId  = 0x000a // NTFS Extra Field
+	unixExtraId  = 0x000d // UNIX Extra Field
+	exttsExtraId = 0x5455 // Extra Timestamp Extra Field
 )
 
 // FileHeader describes a file within a zip file.
