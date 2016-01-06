@@ -842,6 +842,8 @@ function personalizeInstallInstructions() {
   }
   if (os != 'windows') {
     $('#windowsInstructions').hide();
+    $('.testUnix').show();
+    $('.testWindows').hide();
   } else {
     if (ext != 'msi') {
       $('#windowsInstallerInstructions').hide();
@@ -849,6 +851,8 @@ function personalizeInstallInstructions() {
     if (ext != 'zip') {
       $('#windowsZipInstructions').hide();
     }
+    $('.testUnix').hide();
+    $('.testWindows').show();
   }
 
   var download = "https://storage.googleapis.com/golang/" + filename;
