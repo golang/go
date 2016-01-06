@@ -26,6 +26,15 @@ Optimizations (better compiled code)
   CMP AX, $0
   JEQ ...
 - Use better write barrier calls
+- If there are a lot of MOVQ $0, ..., then load
+  0 into a register and use the register as the source instead.
+- Allow structs (and arrays of length 1?) to be SSAable.
+- Figure out how to make PARAMOUT variables ssa-able.
+  They need to get spilled automatically at end-of-function somehow.
+- If strings are being passed around without being interpreted (ptr
+  and len feilds being accessed) pass them in xmm registers?
+  Same for interfaces?
+- boolean logic: movb/xorb$1/testb/jeq -> movb/testb/jne
 
 Optimizations (better compiler)
 -------------------------------
