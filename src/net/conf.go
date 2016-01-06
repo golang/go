@@ -220,7 +220,7 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
 	var first string
 	for _, src := range srcs {
 		if src.source == "myhostname" {
-			if hasDot {
+			if hostname == "" || hasDot {
 				continue
 			}
 			return fallbackOrder

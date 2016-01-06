@@ -257,6 +257,7 @@ func TestConfHostLookupOrder(t *testing.T) {
 			hostTests: []nssHostTest{
 				{"x.com", hostLookupFilesDNS},
 				{"somehostname", hostLookupCgo},
+				{"", hostLookupFilesDNS}, // Issue 13623
 			},
 		},
 		{
