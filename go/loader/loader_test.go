@@ -431,6 +431,45 @@ func TestLoad_vendor(t *testing.T) {
 	}
 }
 
+func TestVendorCwd(t *testing.T) {
+	// Test the interaction of cwd and vendor directories.
+	ctxt := fakeContext(map[string]string{
+		"net":          ``, // mkdir net
+		"net/http":     `package http; import _ "hpack"`,
+		"vendor":       ``, // mkdir vendor
+		"vendor/hpack": `package vendorhpack`,
+		"hpack":        `package hpack`,
+	})
+	for i, test := range []struct {
+		cwd, arg, want string
+	}{
+		{cwd: "/go/src/net", arg: "http"}, // not found
+		{cwd: "/go/src/net", arg: "./http", want: "net/http vendor/hpack"},
+		{cwd: "/go/src/net", arg: "hpack", want: "hpack"},
+		{cwd: "/go/src/vendor", arg: "hpack", want: "hpack"},
+		{cwd: "/go/src/vendor", arg: "./hpack", want: "vendor/hpack"},
+	} {
+		conf := loader.Config{
+			Cwd:   test.cwd,
+			Build: ctxt,
+		}
+		conf.Import(test.arg)
+
+		var got string
+		prog, err := conf.Load()
+		if prog != nil {
+			got = strings.Join(all(prog), " ")
+		}
+		if got != test.want {
+			t.Errorf("#%d: Load(%s) from %s: got %s, want %s",
+				i, test.arg, test.cwd, got, test.want)
+			if err != nil {
+				t.Errorf("Load failed: %v", err)
+			}
+		}
+	}
+}
+
 // TODO(adonovan): more Load tests:
 //
 // failures:
