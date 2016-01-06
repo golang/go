@@ -8,6 +8,22 @@ package interp
 
 import "syscall"
 
+func ext۰os۰Pipe(fr *frame, args []value) value {
+	// func os.Pipe() (r *File, w *File, err error)
+
+	// The portable POSIX pipe(2) call is good enough for our needs.
+	var p [2]int
+	if err := syscall.Pipe(p[:]); err != nil {
+		// TODO(adonovan): fix: return an *os.SyscallError.
+		return tuple{nil, nil, wrapError(err)}
+	}
+
+	NewFile := fr.i.prog.ImportedPackage("os").Func("NewFile")
+	r := call(fr.i, fr, 0, NewFile, []value{uintptr(p[0]), "|0"})
+	w := call(fr.i, fr, 0, NewFile, []value{uintptr(p[1]), "|1"})
+	return tuple{r, w, wrapError(nil)}
+}
+
 func fillStat(st *syscall.Stat_t, stat structure) {
 	stat[0] = st.Dev
 	stat[1] = st.Ino

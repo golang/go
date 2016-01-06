@@ -237,21 +237,6 @@ func ext۰math۰Log(fr *frame, args []value) value {
 	return math.Log(args[0].(float64))
 }
 
-func ext۰os۰Pipe(fr *frame, args []value) value {
-	// This is an inlining of linux's os.Pipe.
-	// func os.Pipe() (r *File, w *File, err error)
-	var p [2]int
-	if err := syscall.Pipe2(p[:], syscall.O_CLOEXEC); err != nil {
-		// TODO(adonovan): fix: return an *os.SyscallError.
-		return tuple{nil, nil, wrapError(err)}
-	}
-
-	NewFile := fr.i.prog.ImportedPackage("os").Func("NewFile")
-	r := call(fr.i, fr, 0, NewFile, []value{uintptr(p[0]), "|0"})
-	w := call(fr.i, fr, 0, NewFile, []value{uintptr(p[1]), "|1"})
-	return tuple{r, w, wrapError(nil)}
-}
-
 func ext۰os۰runtime_args(fr *frame, args []value) value {
 	return fr.i.osArgs
 }
