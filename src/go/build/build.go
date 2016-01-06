@@ -1256,7 +1256,8 @@ func expandSrcDir(str string, srcdir string) (string, bool) {
 // NOTE: $ is not safe for the shell, but it is allowed here because of linker options like -Wl,$ORIGIN.
 // We never pass these arguments to a shell (just to programs we construct argv for), so this should be okay.
 // See golang.org/issue/6038.
-const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$"
+// The @ is for OS X. See golang.org/issue/13720.
+const safeString = "+-.,/0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz:$@"
 const safeSpaces = " "
 
 var safeBytes = []byte(safeSpaces + safeString)
