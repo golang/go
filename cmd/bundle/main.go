@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.5
+
 // The bundle command concatenates the source files of a package,
 // renaming package-level names by adding a prefix and renaming
 // identifiers as needed to preserve referential integrity.

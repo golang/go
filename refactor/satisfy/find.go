@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.5
+
 // Package satisfy inspects the type-checked ASTs of Go packages and
 // reports the set of discovered type constraints of the form (lhs, rhs
 // Type) where lhs is a non-trivial interface, rhs satisfies this

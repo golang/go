@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.5
+
 // No testdata on Android.
 
 // +build !android
@@ -432,6 +434,11 @@ func TestLoad_vendor(t *testing.T) {
 }
 
 func TestVendorCwd(t *testing.T) {
+	if buildutil.AllowVendor == 0 {
+		// Vendoring requires Go 1.6.
+		// TODO(adonovan): delete in due course.
+		t.Skip()
+	}
 	// Test the interaction of cwd and vendor directories.
 	ctxt := fakeContext(map[string]string{
 		"net":          ``, // mkdir net

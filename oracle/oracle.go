@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.5
+
 // Package oracle contains the implementation of the oracle tool whose
 // command-line is provided by golang.org/x/tools/cmd/oracle.
 //
