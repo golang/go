@@ -6,10 +6,11 @@ package main
 
 import (
 	"go/ast"
-	"go/types"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"golang.org/x/tools/go/types"
 )
 
 func init() {

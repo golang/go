@@ -18,12 +18,14 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"go/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	_ "golang.org/x/tools/go/gcimporter"
+	"golang.org/x/tools/go/types"
 )
 
 var (
