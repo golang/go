@@ -392,7 +392,7 @@ func TestReverseProxy_Post(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slurp, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			t.Error("Backend body read = %v", err)
+			t.Errorf("Backend body read = %v", err)
 		}
 		if len(slurp) != len(requestBody) {
 			t.Errorf("Backend read %d request body bytes; want %d", len(slurp), len(requestBody))
