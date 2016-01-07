@@ -27,6 +27,7 @@ import (
 	"os/exec"
 	"reflect"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -3038,7 +3039,6 @@ func TestTransportAndServerSharedBodyRace_h1(t *testing.T) {
 	testTransportAndServerSharedBodyRace(t, h1Mode)
 }
 func TestTransportAndServerSharedBodyRace_h2(t *testing.T) {
-	t.Skip("failing in http2 mode; golang.org/issue/13556")
 	testTransportAndServerSharedBodyRace(t, h2Mode)
 }
 func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
@@ -3046,11 +3046,40 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 
 	const bodySize = 1 << 20
 
+	// errorf is like t.Errorf, but also writes to println.  When
+	// this test fails, it hangs. This helps debugging and I've
+	// added this enough times "temporarily".  It now gets added
+	// full time.
+	errorf := func(format string, args ...interface{}) {
+		v := fmt.Sprintf(format, args...)
+		println(v)
+		t.Error(v)
+	}
+
 	unblockBackend := make(chan bool)
 	backend := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, req *Request) {
-		io.CopyN(rw, req.Body, bodySize)
+		gone := rw.(CloseNotifier).CloseNotify()
+		didCopy := make(chan interface{})
+		go func() {
+			n, err := io.CopyN(rw, req.Body, bodySize)
+			didCopy <- []interface{}{n, err}
+		}()
+		isGone := false
+	Loop:
+		for {
+			select {
+			case <-didCopy:
+				break Loop
+			case <-gone:
+				isGone = true
+			case <-time.After(time.Second):
+				println("1 second passes in backend, proxygone=", isGone)
+			}
+		}
 		<-unblockBackend
 	}))
+	var quitTimer *time.Timer
+	defer func() { quitTimer.Stop() }()
 	defer backend.close()
 
 	backendRespc := make(chan *Response, 1)
@@ -3063,17 +3092,17 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 
 		bresp, err := proxy.c.Do(req2)
 		if err != nil {
-			t.Errorf("Proxy outbound request: %v", err)
+			errorf("Proxy outbound request: %v", err)
 			return
 		}
 		_, err = io.CopyN(ioutil.Discard, bresp.Body, bodySize/2)
 		if err != nil {
-			t.Errorf("Proxy copy error: %v", err)
+			errorf("Proxy copy error: %v", err)
 			return
 		}
 		backendRespc <- bresp // to close later
 
-		// Try to cause a race: Both the DefaultTransport and the proxy handler's Server
+		// Try to cause a race: Both the Transport and the proxy handler's Server
 		// will try to read/close req.Body (aka req2.Body)
 		if h2 {
 			close(cancel)
@@ -3083,6 +3112,20 @@ func testTransportAndServerSharedBodyRace(t *testing.T, h2 bool) {
 		rw.Write([]byte("OK"))
 	}))
 	defer proxy.close()
+	defer func() {
+		// Before we shut down our two httptest.Servers, start a timer.
+		// We choose 7 seconds because httptest.Server starts logging
+		// warnings to stderr at 5 seconds. If we don't disarm this bomb
+		// in 7 seconds (after the two httptest.Server.Close calls above),
+		// then we explode with stacks.
+		quitTimer = time.AfterFunc(7*time.Second, func() {
+			debug.SetTraceback("ALL")
+			stacks := make([]byte, 1<<20)
+			stacks = stacks[:runtime.Stack(stacks, true)]
+			fmt.Fprintf(os.Stderr, "%s", stacks)
+			log.Fatalf("Timeout.")
+		})
+	}()
 
 	defer close(unblockBackend)
 	req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))

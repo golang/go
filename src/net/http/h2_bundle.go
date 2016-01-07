@@ -4219,6 +4219,8 @@ type http2clientStream struct {
 	peerReset chan struct{} // closed on peer reset
 	resetErr  error         // populated before peerReset is closed
 
+	done chan struct{} // closed when stream remove from cc.streams map; close calls guarded by cc.mu
+
 	// owned by clientConnReadLoop:
 	headersDone  bool // got HEADERS w/ END_HEADERS
 	trailersDone bool // got second HEADERS frame w/ END_HEADERS
@@ -4227,7 +4229,11 @@ type http2clientStream struct {
 	resTrailer Header // client's Response.Trailer
 }
 
-// awaitRequestCancel runs in its own goroutine and waits for the user's
+// awaitRequestCancel runs in its own goroutine and waits for the user
+// to either cancel a RoundTrip request (using the provided
+// Request.Cancel channel), or for the request to be done (any way it
+// might be removed from the cc.streams map: peer reset, successful
+// completion, TCP connection breakage, etc)
 func (cs *http2clientStream) awaitRequestCancel(cancel <-chan struct{}) {
 	if cancel == nil {
 		return
@@ -4235,7 +4241,8 @@ func (cs *http2clientStream) awaitRequestCancel(cancel <-chan struct{}) {
 	select {
 	case <-cancel:
 		cs.bufPipe.CloseWithError(http2errRequestCanceled)
-	case <-cs.bufPipe.Done():
+		cs.cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+	case <-cs.done:
 	}
 }
 
@@ -4594,6 +4601,11 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	cc.mu.Unlock()
 
 	if werr != nil {
+		if hasBody {
+			req.Body.Close()
+		}
+		cc.forgetStreamID(cs.ID)
+
 		return nil, werr
 	}
 
@@ -4605,26 +4617,47 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		}()
 	}
 
+	readLoopResCh := cs.resc
+	requestCanceledCh := http2requestCancel(req)
+	requestCanceled := false
 	for {
 		select {
-		case re := <-cs.resc:
+		case re := <-readLoopResCh:
 			res := re.res
 			if re.err != nil || res.StatusCode > 299 {
 
 				cs.abortRequestBodyWrite()
 			}
 			if re.err != nil {
+				cc.forgetStreamID(cs.ID)
 				return nil, re.err
 			}
 			res.Request = req
 			res.TLS = cc.tlsState
 			return res, nil
-		case <-http2requestCancel(req):
+		case <-requestCanceledCh:
+			cc.forgetStreamID(cs.ID)
 			cs.abortRequestBodyWrite()
-			return nil, http2errRequestCanceled
+			if !hasBody {
+				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+				return nil, http2errRequestCanceled
+			}
+
+			requestCanceled = true
+			requestCanceledCh = nil
+			readLoopResCh = nil
 		case <-cs.peerReset:
+			if requestCanceled {
+
+				return nil, http2errRequestCanceled
+			}
+
 			return nil, cs.resetErr
 		case err := <-bodyCopyErrc:
+			if requestCanceled {
+				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, nil)
+				return nil, http2errRequestCanceled
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -4856,6 +4889,7 @@ func (cc *http2ClientConn) newStream() *http2clientStream {
 		ID:        cc.nextStreamID,
 		resc:      make(chan http2resAndError, 1),
 		peerReset: make(chan struct{}),
+		done:      make(chan struct{}),
 	}
 	cs.flow.add(int32(cc.initialWindowSize))
 	cs.flow.setConnFlow(&cc.flow)
@@ -4866,12 +4900,17 @@ func (cc *http2ClientConn) newStream() *http2clientStream {
 	return cs
 }
 
+func (cc *http2ClientConn) forgetStreamID(id uint32) {
+	cc.streamByID(id, true)
+}
+
 func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStream {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	cs := cc.streams[id]
-	if andRemove {
+	if andRemove && cs != nil {
 		delete(cc.streams, id)
+		close(cs.done)
 	}
 	return cs
 }
@@ -4926,6 +4965,7 @@ func (rl *http2clientConnReadLoop) cleanup() {
 		case cs.resc <- http2resAndError{err: err}:
 		default:
 		}
+		close(cs.done)
 	}
 	cc.closed = true
 	cc.cond.Broadcast()
@@ -5291,6 +5331,7 @@ func (cc *http2ClientConn) writeStreamReset(streamID uint32, code http2ErrCode, 
 
 	cc.wmu.Lock()
 	cc.fr.WriteRSTStream(streamID, code)
+	cc.bw.Flush()
 	cc.wmu.Unlock()
 }
 
