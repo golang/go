@@ -773,9 +773,6 @@ func TestRename(t *testing.T) {
 }
 
 func TestRenameOverwriteDest(t *testing.T) {
-	if runtime.GOOS == "plan9" {
-		t.Skip("skipping on plan9")
-	}
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
 	// Just in case.
