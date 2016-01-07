@@ -20,3 +20,5 @@ var x4 = x1 && b2   // ERROR "mismatched types B and B2"
 var x5 = x2 && b2   // ERROR "mismatched types B and B2"
 var x6 = b2 && x1   // ERROR "mismatched types B2 and B"
 var x7 = b2 && x2   // ERROR "mismatched types B2 and B"
+
+var x8 = b && !B2(true) // ERROR "mismatched types B and B2"

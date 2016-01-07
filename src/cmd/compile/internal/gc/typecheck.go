@@ -687,8 +687,6 @@ OpSwitch:
 				n.Left = l
 				n.Right = r
 			}
-		} else if n.Op == OANDAND || n.Op == OOROR {
-			evconst(n)
 		}
 
 		if et == TSTRING {
