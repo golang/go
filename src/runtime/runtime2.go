@@ -418,6 +418,8 @@ type schedt struct {
 	mcount       int32    // number of m's that have been created
 	maxmcount    int32    // maximum number of m's allowed (or die)
 
+	ngsys uint32 // number of system goroutines; updated atomically
+
 	pidle      puintptr // idle p's
 	npidle     uint32
 	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
