@@ -540,3 +540,48 @@ func TestIPAddrScope(t *testing.T) {
 		}
 	}
 }
+
+func TestLookupBadName(t *testing.T) {
+	// Check that we get the same error for invalid names regardless of lookup algorithm.
+
+	mode := ""
+	check := func(fn string, err error) {
+		if e, ok := err.(*DNSError); !ok || e.Err != "invalid domain name" {
+			t.Errorf("%s: %s(\"!!!.local\") = %T(%v), want DNSError(invalid domain name)", mode, fn, err, err)
+		}
+	}
+
+	for i, fn := range []func() func(){forceGoDNS, forceCgoDNS} {
+		fixup := fn()
+		if fixup == nil {
+			continue
+		}
+		mode = "netgo"
+		if i == 1 {
+			mode = "netcgo"
+		}
+
+		_, err := LookupHost("!!!.local")
+		check("LookupHost", err)
+
+		_, err = LookupIP("!!!.local")
+		check("LookupIP", err)
+
+		_, err = LookupCNAME("!!!.local")
+		check("LookupCNAME", err)
+
+		_, _, err = LookupSRV("x", "tcp", "!!!.local")
+		check("LookupSRV", err)
+
+		_, err = LookupMX("!!!.local")
+		check("LookupMX", err)
+
+		_, err = LookupNS("!!!.local")
+		check("LookupNS", err)
+
+		_, err = LookupTXT("!!!.local")
+		check("LookupTXT", err)
+
+		fixup()
+	}
+}
