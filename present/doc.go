@@ -58,6 +58,7 @@ After that come slides/sections, each after a blank line:
 	.code x.go /^func main/,/^}/
 	.play y.go
 	.image image.jpg
+	.background image.jpg
 	.iframe http://foo
 	.link http://foo label
 	.html file.html
@@ -177,6 +178,12 @@ preserves the aspect ratio of the image when scaling.
 
 	.image images/janet.jpg _ 300
 
+background:
+
+The template uses the function "background" to set the background image for
+a slide.  The only argument is the file name of the image.
+
+	.background images/susan.jpg
 
 caption:
 

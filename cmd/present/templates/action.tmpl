@@ -37,6 +37,12 @@ It determines how the formatting actions are rendered.
 </div>
 {{end}}
 
+{{define "background"}}
+<div class="background">
+  <img src="{{.URL}}">
+</div>
+{{end}}
+
 {{define "iframe"}}
 <iframe src="{{.URL}}"{{with .Height}} height="{{.}}"{{end}}{{with .Width}} width="{{.}}"{{end}}></iframe>
 {{end}}
