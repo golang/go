@@ -470,9 +470,14 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 	}
 	sub = out
 
-	// Round 2: Factor out common complex prefixes,
-	// just the first piece of each concatenation,
-	// whatever it is.  This is good enough a lot of the time.
+	// Round 2: Factor out common simple prefixes,
+	// just the first piece of each concatenation.
+	// This will be good enough a lot of the time.
+	//
+	// Complex subexpressions (e.g. involving quantifiers)
+	// are not safe to factor because that collapses their
+	// distinct paths through the automaton, which affects
+	// correctness in some cases.
 	start = 0
 	out = sub[:0]
 	var first *Regexp
@@ -485,7 +490,9 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
 		var ifirst *Regexp
 		if i < len(sub) {
 			ifirst = p.leadingRegexp(sub[i])
-			if first != nil && first.Equal(ifirst) {
+			if first != nil && first.Equal(ifirst) &&
+				// first must be a character class OR a fixed repeat of a character class.
+				(isCharClass(first) || (first.Op == OpRepeat && first.Min == first.Max && isCharClass(first.Sub[0]))) {
 				continue
 			}
 		}
