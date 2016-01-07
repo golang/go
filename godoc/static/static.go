@@ -2816,7 +2816,7 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
-p {
+p, li {
 	max-width: 800px;
 	word-wrap: break-word;
 }
