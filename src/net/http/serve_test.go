@@ -2685,7 +2685,7 @@ func TestHeaderToWire(t *testing.T) {
 					return errors.New("header appeared from after WriteHeader")
 				}
 				if !strings.Contains(got, "Content-Type: some/type") {
-					return errors.New("wrong content-length")
+					return errors.New("wrong content-type")
 				}
 				return nil
 			},
@@ -2698,7 +2698,7 @@ func TestHeaderToWire(t *testing.T) {
 			},
 			check: func(got string) error {
 				if !strings.Contains(got, "Content-Type: text/html") {
-					return errors.New("wrong content-length; want html")
+					return errors.New("wrong content-type; want html")
 				}
 				return nil
 			},
@@ -2711,7 +2711,7 @@ func TestHeaderToWire(t *testing.T) {
 			},
 			check: func(got string) error {
 				if !strings.Contains(got, "Content-Type: some/type") {
-					return errors.New("wrong content-length; want html")
+					return errors.New("wrong content-type; want html")
 				}
 				return nil
 			},
@@ -2722,7 +2722,7 @@ func TestHeaderToWire(t *testing.T) {
 			},
 			check: func(got string) error {
 				if !strings.Contains(got, "Content-Type: text/plain") {
-					return errors.New("wrong content-length; want text/plain")
+					return errors.New("wrong content-type; want text/plain")
 				}
 				if !strings.Contains(got, "Content-Length: 0") {
 					return errors.New("want 0 content-length")
