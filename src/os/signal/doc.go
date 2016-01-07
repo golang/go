@@ -42,17 +42,18 @@ causes the program to exit with a stack dump. A SIGTSTP, SIGTTIN, or
 SIGTTOU signal gets the system default behavior (these signals are
 used by the shell for job control). The SIGPROF signal is handled
 directly by the Go runtime to implement runtime.CPUProfile. Other
-signals are ignored.
+signals will be caught but no action will be taken.
 
-If the Go program is started with either SIGHUP or SIGINT ignored,
-they will remain ignored. Go always registers a handler for the other
-signals.
+If the Go program is started with either SIGHUP or SIGINT ignored
+(signal handler set to SIG_IGN), they will remain ignored.
 
 If the Go program is started with a non-empty signal mask, that will
 generally be honored. However, some signals are explicitly unblocked:
 the synchronous signals, SIGILL, SIGTRAP, SIGSTKFLT, SIGCHLD, SIGPROF,
 and, on GNU/Linux, signals 32 (SIGCANCEL) and 33 (SIGSETXID)
-(SIGCANCEL and SIGSETXID are used internally by glibc).
+(SIGCANCEL and SIGSETXID are used internally by glibc). Subprocesses
+started by os.Exec, or by the os/exec package, will inherit the
+modified signal mask.
 
 Changing the behavior of signals in Go programs
 
@@ -65,12 +66,12 @@ channels. Specifically, it applies to the signals SIGHUP, SIGINT,
 SIGQUIT, SIGABRT, and SIGTERM. It also applies to the job control
 signals SIGTSTP, SIGTTIN, and SIGTTOU, in which case the system
 default behavior does not occur. It also applies to some signals that
-are otherwise ignored: SIGUSR1, SIGUSR2, SIGPIPE, SIGALRM, SIGCHLD,
-SIGURG, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGWINCH, SIGIO, SIGPWR, SIGSYS,
-SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE, SIGTHAW, SIGLOST,
-SIGXRES, SIGJVM1, SIGJVM2, and any real time signals used on the
-system. Note that not all of these signals are available on all
-systems.
+otherwise cause no action: SIGUSR1, SIGUSR2, SIGPIPE, SIGALRM,
+SIGCHLD, SIGCONT, SIGURG, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGWINCH,
+SIGIO, SIGPWR, SIGSYS, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
+SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
+used on the system. Note that not all of these signals are available
+on all systems.
 
 If the program was started with SIGHUP or SIGINT ignored, and Notify
 is called for either signal, a signal handler will be installed for
@@ -89,15 +90,24 @@ Notify for that signal, the signal will once again be blocked.
 
 SIGPIPE
 
-When a Go program receives an EPIPE error from the kernel while
-writing to file descriptors 1 or 2 (standard output or standard
-error), it will raise a SIGPIPE signal.  If the program is not
-currently receiving SIGPIPE via a call to Notify, this will cause the
-program to exit with SIGPIPE.  On descriptors other than 1 or 2, the
-write will return the EPIPE error.  This means that, by default,
-command line programs will behave like typical Unix command line
-programs, while other programs will not crash with SIGPIPE when
-writing to a closed network connection.
+When a Go program writes to a broken pipe, the kernel will raise a
+SIGPIPE signal.
+
+If the program has not called Notify to receive SIGPIPE signals, then
+the behavior depends on the file descriptor number. A write to a
+broken pipe on file descriptors 1 or 2 (standard output or standard
+error) will cause the program to exit with a SIGPIPE signal. A write
+to a broken pipe on some other file descriptor will take no action on
+the SIGPIPE signal, and the write will fail with an EPIPE error.
+
+If the program has called Notify to receive SIGPIPE signals, the file
+descriptor number does not matter. The SIGPIPE signal will be
+delivered to the Notify channel, and the write will fail with an EPIPE
+error.
+
+This means that, by default, command line programs will behave like
+typical Unix command line programs, while other programs will not
+crash with SIGPIPE when writing to a closed network connection.
 
 Go programs that use cgo or SWIG
 
