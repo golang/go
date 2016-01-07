@@ -792,3 +792,72 @@ func testTransportUserAgent(t *testing.T, h2 bool) {
 		}
 	}
 }
+
+func TestStarRequestFoo_h1(t *testing.T)     { testStarRequest(t, "FOO", h1Mode) }
+func TestStarRequestFoo_h2(t *testing.T)     { testStarRequest(t, "FOO", h2Mode) }
+func TestStarRequestOptions_h1(t *testing.T) { testStarRequest(t, "OPTIONS", h1Mode) }
+func TestStarRequestOptions_h2(t *testing.T) { testStarRequest(t, "OPTIONS", h2Mode) }
+func testStarRequest(t *testing.T, method string, h2 bool) {
+	defer afterTest(t)
+	gotc := make(chan *Request, 1)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("foo", "bar")
+		gotc <- r
+		w.(Flusher).Flush()
+	}))
+	defer cst.close()
+
+	u, err := url.Parse(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.Path = "*"
+
+	req := &Request{
+		Method: method,
+		Header: Header{},
+		URL:    u,
+	}
+
+	res, err := cst.c.Do(req)
+	if err != nil {
+		t.Fatalf("RoundTrip = %v", err)
+	}
+	res.Body.Close()
+
+	wantFoo := "bar"
+	wantLen := int64(-1)
+	if method == "OPTIONS" {
+		wantFoo = ""
+		wantLen = 0
+	}
+	if res.StatusCode != 200 {
+		t.Errorf("status code = %v; want %d", res.Status, 200)
+	}
+	if res.ContentLength != wantLen {
+		t.Errorf("content length = %v; want %d", res.ContentLength, wantLen)
+	}
+	if got := res.Header.Get("foo"); got != wantFoo {
+		t.Errorf("response \"foo\" header = %q; want %q", got, wantFoo)
+	}
+	select {
+	case req = <-gotc:
+	default:
+		req = nil
+	}
+	if req == nil {
+		if method != "OPTIONS" {
+			t.Fatalf("handler never got request")
+		}
+		return
+	}
+	if req.Method != method {
+		t.Errorf("method = %q; want %q", req.Method, method)
+	}
+	if req.URL.Path != "*" {
+		t.Errorf("URL.Path = %q; want *", req.URL.Path)
+	}
+	if req.RequestURI != "*" {
+		t.Errorf("RequestURI = %q; want *", req.RequestURI)
+	}
+}
