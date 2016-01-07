@@ -151,7 +151,7 @@ type Transport struct {
 // onceSetNextProtoDefaults initializes TLSNextProto.
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
-	if strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
+	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
 		return
 	}
 	if t.TLSNextProto != nil {
