@@ -2267,6 +2267,9 @@ func (srv *Server) setupHTTP2() error {
 // configured otherwise. (by setting srv.TLSNextProto non-nil)
 // It must only be called via srv.nextProtoOnce (use srv.setupHTTP2).
 func (srv *Server) onceSetNextProtoDefaults() {
+	if strings.Contains(os.Getenv("GODEBUG"), "http2server=0") {
+		return
+	}
 	// Enable HTTP/2 by default if the user hasn't otherwise
 	// configured their TLSNextProto map.
 	if srv.TLSNextProto == nil {
