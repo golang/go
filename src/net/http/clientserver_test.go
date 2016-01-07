@@ -622,10 +622,7 @@ func testResponseBodyReadAfterClose(t *testing.T, h2 bool) {
 }
 
 func TestConcurrentReadWriteReqBody_h1(t *testing.T) { testConcurrentReadWriteReqBody(t, h1Mode) }
-func TestConcurrentReadWriteReqBody_h2(t *testing.T) {
-	t.Skip("known failing; golang.org/issue/13659")
-	testConcurrentReadWriteReqBody(t, h2Mode)
-}
+func TestConcurrentReadWriteReqBody_h2(t *testing.T) { testConcurrentReadWriteReqBody(t, h2Mode) }
 func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
 	defer afterTest(t)
 	const reqBody = "some request body"
@@ -653,7 +650,7 @@ func testConcurrentReadWriteReqBody(t *testing.T, h2 bool) {
 				// our HTTP/1 implementation intentionally
 				// doesn't permit writes during read (mostly
 				// due to it being undefined); if that is ever
-				// relaxed, fix this.
+				// relaxed, change this.
 				<-didRead
 			}
 			io.WriteString(w, resBody)
