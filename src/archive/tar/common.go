@@ -327,3 +327,14 @@ func toASCII(s string) string {
 	}
 	return buf.String()
 }
+
+// isHeaderOnlyType checks if the given type flag is of the type that has no
+// data section even if a size is specified.
+func isHeaderOnlyType(flag byte) bool {
+	switch flag {
+	case TypeLink, TypeSymlink, TypeChar, TypeBlock, TypeDir, TypeFifo:
+		return true
+	default:
+		return false
+	}
+}

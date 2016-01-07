@@ -7,6 +7,7 @@ package flate
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -343,6 +344,9 @@ var deflateInflateStringTests = []deflateInflateStringTest{
 }
 
 func TestDeflateInflateString(t *testing.T) {
+	if testing.Short() && testenv.Builder() == "" {
+		t.Skip("skipping in short mode")
+	}
 	for _, test := range deflateInflateStringTests {
 		gold, err := ioutil.ReadFile(test.filename)
 		if err != nil {
@@ -436,7 +440,11 @@ func TestWriterReset(t *testing.T) {
 			t.Fatalf("NewWriter: %v", err)
 		}
 		buf := []byte("hello world")
-		for i := 0; i < 1024; i++ {
+		n := 1024
+		if testing.Short() {
+			n = 10
+		}
+		for i := 0; i < n; i++ {
 			w.Write(buf)
 		}
 		w.Reset(ioutil.Discard)

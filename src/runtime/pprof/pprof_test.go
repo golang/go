@@ -160,6 +160,10 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
 					have[i] += count
 				}
 			}
+			if strings.Contains(f.Name(), "stackBarrier") {
+				// The runtime should have unwound this.
+				t.Fatalf("profile includes stackBarrier")
+			}
 		}
 	})
 	t.Logf("total %d CPU profile samples collected", samples)
@@ -307,7 +311,11 @@ func TestGoroutineSwitch(t *testing.T) {
 // Test that profiling of division operations is okay, especially on ARM. See issue 6681.
 func TestMathBigDivide(t *testing.T) {
 	testCPUProfile(t, nil, func() {
-		t := time.After(5 * time.Second)
+		duration := 5 * time.Second
+		if testing.Short() {
+			duration = 200 * time.Millisecond
+		}
+		t := time.After(duration)
 		pi := new(big.Int)
 		for {
 			for i := 0; i < 100; i++ {
@@ -322,6 +330,73 @@ func TestMathBigDivide(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestStackBarrierProfiling(t *testing.T) {
+	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" || runtime.GOOS == "dragonfly" {
+		// This test currently triggers a large number of
+		// usleep(100)s. These kernels/arches have poor
+		// resolution timers, so this gives up a whole
+		// scheduling quantum. On Linux and OpenBSD (and
+		// probably Solaris), profiling signals are only
+		// generated when a process completes a whole
+		// scheduling quantum, so this test often gets zero
+		// profiling signals and fails.
+		t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405)")
+		return
+	}
+	if true {
+		// TODO(khr): remove
+		t.Skipf("skipping for SSA branch, flaky")
+		return
+	}
+
+	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
+		// Re-execute this test with constant GC and stack
+		// barriers at every frame.
+		testenv.MustHaveExec(t)
+		if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+			t.Skip("gcstackbarrierall doesn't work on ppc64")
+		}
+		args := []string{"-test.run=TestStackBarrierProfiling"}
+		if testing.Short() {
+			args = append(args, "-test.short")
+		}
+		cmd := exec.Command(os.Args[0], args...)
+		cmd.Env = append([]string{"GODEBUG=gcstackbarrierall=1", "GOGC=1"}, os.Environ()...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("subprocess failed with %v:\n%s", err, out)
+		}
+		return
+	}
+
+	testCPUProfile(t, nil, func() {
+		// This is long enough that we're likely to get one or
+		// two samples in stackBarrier.
+		duration := 5 * time.Second
+		if testing.Short() {
+			duration = 200 * time.Millisecond
+		}
+		t := time.After(duration)
+		for {
+			deepStack(1000)
+			select {
+			case <-t:
+				return
+			default:
+			}
+		}
+	})
+}
+
+var x []byte
+
+func deepStack(depth int) int {
+	if depth == 0 {
+		return 0
+	}
+	x = make([]byte, 1024)
+	return deepStack(depth-1) + 1
 }
 
 // Operating systems that are expected to fail the tests. See issue 6047.

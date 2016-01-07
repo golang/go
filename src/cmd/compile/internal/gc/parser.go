@@ -4,6 +4,14 @@
 
 package gc
 
+// The recursive-descent parser is built around a slighty modified grammar
+// of Go to accomodate for the constraints imposed by strict one token look-
+// ahead, and for better error handling. Subsequent checks of the constructed
+// syntax tree restrict the language accepted by the compiler to proper Go.
+//
+// Semicolons are inserted by the lexer. The parser uses one-token look-ahead
+// to handle optional commas and semicolons before a closing ) or } .
+
 import (
 	"fmt"
 	"strconv"
@@ -19,17 +27,28 @@ var thenewparser parser // the parser in use
 var savedstate []parser // saved parser state, used during import
 
 func push_parser() {
+	// Indentation (for tracing) must be preserved across parsers
+	// since we are changing the lexer source (and parser state)
+	// under foot, in the middle of productions. This won't be
+	// needed anymore once we fix issue 13242, but neither will
+	// be the push/pop_parser functionality.
+	// (Instead we could just use a global variable indent, but
+	// but eventually indent should be parser-specific anyway.)
+	indent := thenewparser.indent
 	savedstate = append(savedstate, thenewparser)
-	thenewparser = parser{}
+	thenewparser = parser{indent: indent} // preserve indentation
 	thenewparser.next()
 }
 
 func pop_parser() {
+	indent := thenewparser.indent
 	n := len(savedstate) - 1
 	thenewparser = savedstate[n]
+	thenewparser.indent = indent // preserve indentation
 	savedstate = savedstate[:n]
 }
 
+// parse_file sets up a new parser and parses a single Go source file.
 func parse_file() {
 	thenewparser = parser{}
 	thenewparser.loadsys()
@@ -37,11 +56,9 @@ func parse_file() {
 	thenewparser.file()
 }
 
-// This loads the definitions for the low-level runtime functions,
+// loadsys loads the definitions for the low-level runtime functions,
 // so that the compiler can generate calls to them,
 // but does not make the name "runtime" visible as a package.
-//
-// go.y:loadsys
 func (p *parser) loadsys() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("loadsys")()
@@ -67,14 +84,15 @@ type parser struct {
 	op     Op        // valid if tok == LASOP
 	val    Val       // valid if tok == LLITERAL
 	sym_   *Sym      // valid if tok == LNAME
-	nest   int       // expression nesting level (for complit ambiguity resolution)
+	fnest  int       // function nesting level (for error handling)
+	xnest  int       // expression nesting level (for complit ambiguity resolution)
 	yy     yySymType // for temporary use by next
-	indent int       // tracing support
+	indent []byte    // tracing support
 }
 
 func (p *parser) next() {
 	p.tok = yylex(&p.yy)
-	p.op = Op(p.yy.i)
+	p.op = p.yy.op
 	p.val = p.yy.val
 	p.sym_ = p.yy.sym
 }
@@ -88,8 +106,8 @@ func (p *parser) got(tok int32) bool {
 }
 
 func (p *parser) want(tok int32) {
-	if p.tok != EOF && !p.got(tok) {
-		p.syntax_error("")
+	if !p.got(tok) {
+		p.syntax_error("expecting " + tokstring(tok))
 		p.advance()
 	}
 }
@@ -116,7 +134,7 @@ func (p *parser) syntax_error(msg string) {
 		msg = ", " + msg
 	default:
 		// plain error - we don't care about current token
-		Yyerror("syntax error: " + msg)
+		Yyerror("syntax error: %s", msg)
 		return
 	}
 
@@ -124,7 +142,6 @@ func (p *parser) syntax_error(msg string) {
 	var tok string
 	switch p.tok {
 	case LLITERAL:
-		// this is also done in Yyerror but it's cleaner to do it here
 		tok = litbuf
 	case LNAME:
 		if p.sym_ != nil && p.sym_.Name != "" {
@@ -138,24 +155,54 @@ func (p *parser) syntax_error(msg string) {
 		tok = tokstring(p.tok)
 	}
 
-	Yyerror("syntax error: unexpected " + tok + msg)
+	Yyerror("syntax error: unexpected %s", tok+msg)
 }
 
-// Advance consumes tokens until it finds a token of the stoplist.
-// If the stoplist is empty or no advance was necessary, the next
-// token is consumed.
-func (p *parser) advance(stoplist ...int32) {
-	if len(stoplist) == 0 {
+// Like syntax_error, but reports error at given line rather than current lexer line.
+func (p *parser) syntax_error_at(lineno int32, msg string) {
+	defer func(lineno int32) {
+		lexlineno = lineno
+	}(lexlineno)
+	lexlineno = lineno
+	p.syntax_error(msg)
+}
+
+// The stoplist contains keywords that start a statement.
+// They are good synchronization points in case of syntax
+// errors and (usually) shouldn't be skipped over.
+var stoplist = map[int32]bool{
+	LBREAK:    true,
+	LCONST:    true,
+	LCONTINUE: true,
+	LDEFER:    true,
+	LFALL:     true,
+	LFOR:      true,
+	LFUNC:     true,
+	LGO:       true,
+	LGOTO:     true,
+	LIF:       true,
+	LRETURN:   true,
+	LSELECT:   true,
+	LSWITCH:   true,
+	LTYPE:     true,
+	LVAR:      true,
+}
+
+// Advance consumes tokens until it finds a token of the stop- or followlist.
+// The stoplist is only considered if we are inside a function (p.fnest > 0).
+// The followlist is the list of valid tokens that can follow a production;
+// if it is empty, exactly one token is consumed to ensure progress.
+func (p *parser) advance(followlist ...int32) {
+	if len(followlist) == 0 {
 		p.next()
 		return
 	}
-
-	for n := 0; p.tok != EOF; n++ {
-		for _, stop := range stoplist {
-			if p.tok == stop {
-				if n == 0 {
-					p.next() // consume at least one token
-				}
+	for p.tok != EOF {
+		if p.fnest > 0 && stoplist[p.tok] {
+			return
+		}
+		for _, follow := range followlist {
+			if p.tok == follow {
 				return
 			}
 		}
@@ -184,118 +231,99 @@ func tokstring(tok int32) string {
 		return s
 	}
 	// catchall
-	return yyTokname(int(tok))
+	return fmt.Sprintf("tok-%v", tok)
 }
 
-// TODO(gri) figure out why yyTokname doesn't work for us as expected
-// (issue 13243)
 var tokstrings = map[int32]string{
-	LLITERAL:           "LLITERAL",
-	LASOP:              "op=",
-	LCOLAS:             ":=",
-	LBREAK:             "break",
-	LCASE:              "case",
-	LCHAN:              "chan",
-	LCONST:             "const",
-	LCONTINUE:          "continue",
-	LDDD:               "...",
-	LDEFAULT:           "default",
-	LDEFER:             "defer",
-	LELSE:              "else",
-	LFALL:              "fallthrough",
-	LFOR:               "for",
-	LFUNC:              "func",
-	LGO:                "go",
-	LGOTO:              "goto",
-	LIF:                "if",
-	LIMPORT:            "import",
-	LINTERFACE:         "interface",
-	LMAP:               "map",
-	LNAME:              "LNAME",
-	LPACKAGE:           "package",
-	LRANGE:             "range",
-	LRETURN:            "return",
-	LSELECT:            "select",
-	LSTRUCT:            "struct",
-	LSWITCH:            "switch",
-	LTYPE:              "type",
-	LVAR:               "var",
-	LANDAND:            "&&",
-	LANDNOT:            "&^",
-	LBODY:              "LBODY", // we should never see this one
-	LCOMM:              "<-",
-	LDEC:               "--",
-	LEQ:                "==",
-	LGE:                ">=",
-	LGT:                ">",
-	LIGNORE:            "LIGNORE", // we should never see this one
-	LINC:               "++",
-	LLE:                "<=",
-	LLSH:               "<<",
-	LLT:                "<",
-	LNE:                "!=",
-	LOROR:              "||",
-	LRSH:               ">>",
-	NotPackage:         "NotPackage",         // we should never see this one
-	NotParen:           "NotParen",           // we should never see this one
-	PreferToRightParen: "PreferToRightParen", // we should never see this one
-}
-
-func (p *parser) print_trace(msg ...interface{}) {
-	const dots = ". . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . "
-	const n = len(dots)
-	fmt.Printf("%5d: ", lineno)
-
-	// TODO(gri) imports screw up p.indent - fix this
-	// (issue 13243)
-	if p.indent < 0 {
-		p.indent = 0
-	}
-
-	i := 2 * p.indent
-	for i > n {
-		fmt.Print(dots)
-		i -= n
-	}
-	// i <= n
-	fmt.Print(dots[0:i])
-	fmt.Println(msg...)
+	LLITERAL:   "LLITERAL",
+	LASOP:      "op=",
+	LCOLAS:     ":=",
+	LBREAK:     "break",
+	LCASE:      "case",
+	LCHAN:      "chan",
+	LCONST:     "const",
+	LCONTINUE:  "continue",
+	LDDD:       "...",
+	LDEFAULT:   "default",
+	LDEFER:     "defer",
+	LELSE:      "else",
+	LFALL:      "fallthrough",
+	LFOR:       "for",
+	LFUNC:      "func",
+	LGO:        "go",
+	LGOTO:      "goto",
+	LIF:        "if",
+	LIMPORT:    "import",
+	LINTERFACE: "interface",
+	LMAP:       "map",
+	LNAME:      "LNAME",
+	LPACKAGE:   "package",
+	LRANGE:     "range",
+	LRETURN:    "return",
+	LSELECT:    "select",
+	LSTRUCT:    "struct",
+	LSWITCH:    "switch",
+	LTYPE:      "type",
+	LVAR:       "var",
+	LANDAND:    "&&",
+	LANDNOT:    "&^",
+	LCOMM:      "<-",
+	LDEC:       "--",
+	LEQ:        "==",
+	LGE:        ">=",
+	LGT:        ">",
+	LIGNORE:    "LIGNORE", // we should never see this one
+	LINC:       "++",
+	LLE:        "<=",
+	LLSH:       "<<",
+	LLT:        "<",
+	LNE:        "!=",
+	LOROR:      "||",
+	LRSH:       ">>",
 }
 
 // usage: defer p.trace(msg)()
 func (p *parser) trace(msg string) func() {
-	p.print_trace(msg, "(")
-	p.indent++
+	fmt.Printf("%5d: %s%s (\n", lineno, p.indent, msg)
+	const tab = ". "
+	p.indent = append(p.indent, tab...)
 	return func() {
-		p.indent--
+		p.indent = p.indent[:len(p.indent)-len(tab)]
 		if x := recover(); x != nil {
 			panic(x) // skip print_trace
 		}
-		p.print_trace(")")
+		fmt.Printf("%5d: %s)\n", lineno, p.indent)
 	}
 }
 
 // ----------------------------------------------------------------------------
 // Parsing package files
+//
+// Parse methods are annotated with matching Go productions as appropriate.
+// The annotations are intended as guidelines only since a single Go grammar
+// rule may be covered by multiple parse methods and vice versa.
 
-// go.y:file
+// SourceFile = PackageClause ";" { ImportDecl ";" } { TopLevelDecl ";" } .
 func (p *parser) file() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("file")()
 	}
 
 	p.package_()
+	p.want(';')
 
-	//go.y:imports
 	for p.tok == LIMPORT {
 		p.import_()
 		p.want(';')
 	}
 
 	xtop = concat(xtop, p.xdcl_list())
+
+	p.want(EOF)
 }
 
-// go.y:package
+// PackageClause = "package" PackageName .
+// PackageName   = identifier .
 func (p *parser) package_() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("package_")()
@@ -303,14 +331,14 @@ func (p *parser) package_() {
 
 	if p.got(LPACKAGE) {
 		mkpackage(p.sym().Name)
-		p.want(';')
 	} else {
+		prevlineno = lineno // see issue #13267
 		p.syntax_error("package statement must be first")
 		errorexit()
 	}
 }
 
-// go.y:import
+// ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
 func (p *parser) import_() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_")()
@@ -320,7 +348,9 @@ func (p *parser) import_() {
 	if p.got('(') {
 		for p.tok != EOF && p.tok != ')' {
 			p.import_stmt()
-			p.osemi()
+			if !p.osemi(')') {
+				break
+			}
 		}
 		p.want(')')
 	} else {
@@ -328,7 +358,6 @@ func (p *parser) import_() {
 	}
 }
 
-// go.y:import_stmt
 func (p *parser) import_stmt() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_stmt")()
@@ -386,7 +415,11 @@ func (p *parser) import_stmt() {
 	}
 }
 
-// go.y:import_here
+// ImportSpec = [ "." | PackageName ] ImportPath .
+// ImportPath = string_lit .
+//
+// import_here switches the underlying lexed source to the export data
+// of the imported package.
 func (p *parser) import_here() int {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_here")()
@@ -413,12 +446,13 @@ func (p *parser) import_here() int {
 		p.advance(';', ')')
 	}
 
-	line := parserline() // TODO(gri) check correct placement of this (issue 13243)
+	line := parserline()
 	importfile(&path, line)
 	return line
 }
 
-// go.y:import_package
+// import_package parses the header of an imported package as exported
+// in textual format from another package.
 func (p *parser) import_package() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_package")()
@@ -433,7 +467,6 @@ func (p *parser) import_package() {
 		p.import_error()
 	}
 
-	// go.y:import_safety
 	if p.tok == LNAME {
 		if p.sym_.Name == "safe" {
 			curio.importsafe = true
@@ -458,7 +491,8 @@ func (p *parser) import_package() {
 	}
 }
 
-// go.y:import_there
+// import_there parses the imported package definitions and then switches
+// the underlying lexed source back to the importing package.
 func (p *parser) import_there() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("import_there")()
@@ -477,7 +511,10 @@ func (p *parser) import_there() {
 	unimportfile()
 }
 
-// go.y:common_dcl
+// Declaration = ConstDecl | TypeDecl | VarDecl .
+// ConstDecl   = "const" ( ConstSpec | "(" { ConstSpec ";" } ")" ) .
+// TypeDecl    = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
+// VarDecl     = "var" ( VarSpec | "(" { VarSpec ";" } ")" ) .
 func (p *parser) common_dcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("common_dcl")()
@@ -504,7 +541,9 @@ func (p *parser) common_dcl() *NodeList {
 	if p.got('(') {
 		for p.tok != EOF && p.tok != ')' {
 			l = concat(l, dcl())
-			p.osemi()
+			if !p.osemi(')') {
+				break
+			}
 		}
 		p.want(')')
 	} else {
@@ -517,7 +556,7 @@ func (p *parser) common_dcl() *NodeList {
 	return l
 }
 
-// go.y:vardcl
+// VarSpec = IdentifierList ( Type [ "=" ExpressionList ] | "=" ExpressionList ) .
 func (p *parser) vardcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("vardcl")()
@@ -538,7 +577,7 @@ func (p *parser) vardcl() *NodeList {
 	return variter(names, typ, exprs)
 }
 
-// go.y:constdcl
+// ConstSpec = IdentifierList [ [ Type ] "=" ExpressionList ] .
 func (p *parser) constdcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("constdcl")()
@@ -548,9 +587,7 @@ func (p *parser) constdcl() *NodeList {
 	var typ *Node
 	var exprs *NodeList
 	if p.tok != EOF && p.tok != ';' && p.tok != ')' {
-		if p.tok != '=' {
-			typ = p.ntype()
-		}
+		typ = p.try_ntype()
 		if p.got('=') {
 			exprs = p.expr_list()
 		}
@@ -559,7 +596,7 @@ func (p *parser) constdcl() *NodeList {
 	return constiter(names, typ, exprs)
 }
 
-// go.y:typedcl
+// TypeSpec = identifier Type .
 func (p *parser) typedcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("typedcl")()
@@ -567,11 +604,9 @@ func (p *parser) typedcl() *NodeList {
 
 	name := typedcl0(p.sym())
 
+	typ := p.try_ntype()
 	// handle case where type is missing
-	var typ *Node
-	if p.tok != ';' {
-		typ = p.ntype()
-	} else {
+	if typ == nil {
 		p.syntax_error("in type declaration")
 		p.advance(';', ')')
 	}
@@ -579,8 +614,9 @@ func (p *parser) typedcl() *NodeList {
 	return list1(typedcl1(name, typ, true))
 }
 
-// go.y:simple_stmt
-// may return missing_stmt if labelOk is set
+// SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
+//
+// simple_stmt may return missing_stmt if labelOk is set.
 func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("simple_stmt")()
@@ -631,10 +667,11 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			// labelname ':' stmt
 			if labelOk {
 				// If we have a labelname, it was parsed by operand
-				// (calling p.name()) and given an ONAME, ONONAME, or OTYPE node.
-				if lhs.Op == ONAME || lhs.Op == ONONAME || lhs.Op == OTYPE {
+				// (calling p.name()) and given an ONAME, ONONAME, OTYPE, OPACK, or OLITERAL node.
+				switch lhs.Op {
+				case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
 					lhs = newname(lhs.Sym)
-				} else {
+				default:
 					p.syntax_error("expecting semicolon or newline or }")
 					// we already progressed, no need to advance
 				}
@@ -647,15 +684,10 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 
 		default:
 			// expr
-			// These nodes do not carry line numbers.
 			// Since a bare name used as an expression is an error,
-			// introduce a wrapper node to give the correct line.
-			switch lhs.Op {
-			case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
-				lhs = Nod(OPAREN, lhs, nil)
-				lhs.Implicit = true
-			}
-			return lhs
+			// introduce a wrapper node where necessary to give the
+			// correct line.
+			return wrapname(lhs)
 		}
 	}
 
@@ -685,7 +717,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		return stmt
 
 	case LCOLAS:
-		line := lineno
+		lno := lineno
 		p.next()
 
 		if rangeOk && p.got(LRANGE) {
@@ -714,7 +746,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			} // it's a colas, so must not re-use an oldname
 			return ts
 		}
-		return colas(lhs, rhs, int32(line))
+		return colas(lhs, rhs, int32(lno))
 
 	default:
 		p.syntax_error("expecting := or = or comma")
@@ -723,7 +755,8 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 	}
 }
 
-// may return missing_stmt
+// LabeledStmt = Label ":" Statement .
+// Label       = identifier .
 func (p *parser) labeled_stmt(label *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("labeled_stmt")()
@@ -734,11 +767,8 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 		ls = p.stmt()
 		if ls == missing_stmt {
 			// report error at line of ':' token
-			saved := lexlineno
-			lexlineno = prevlineno
-			p.syntax_error("missing statement after label")
+			p.syntax_error_at(prevlineno, "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
-			lexlineno = saved
 			return missing_stmt
 		}
 	}
@@ -751,7 +781,15 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	return liststmt(l)
 }
 
-// go.y:case
+// case_ parses a superset of switch and select statement cases.
+// Later checks restrict the syntax to valid forms.
+//
+// ExprSwitchCase = "case" ExpressionList | "default" .
+// TypeSwitchCase = "case" TypeList | "default" .
+// TypeList       = Type { "," Type } .
+// CommCase       = "case" ( SendStmt | RecvStmt ) | "default" .
+// RecvStmt       = [ ExpressionList "=" | IdentifierList ":=" ] RecvExpr .
+// RecvExpr       = Expression .
 func (p *parser) case_(tswitch *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("case_")()
@@ -768,7 +806,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// will be converted to OCASE
 			// right will point to next case
 			// done in casebody()
-			markdcl()
+			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
 			stmt.List = cases
 			if tswitch != nil {
@@ -794,7 +832,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// will be converted to OCASE
 			// right will point to next case
 			// done in casebody()
-			markdcl()
+			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
 			var n *Node
 			if cases.Next == nil {
@@ -811,30 +849,33 @@ func (p *parser) case_(tswitch *Node) *Node {
 
 		case LCOLAS:
 			// LCASE expr_or_type_list LCOLAS expr ':'
+			lno := lineno
 			p.next()
 			rhs := p.expr()
 
 			// will be converted to OCASE
 			// right will point to next case
 			// done in casebody()
-			markdcl()
+			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			stmt.List = list1(colas(cases, list1(rhs), int32(p.op)))
+			stmt.List = list1(colas(cases, list1(rhs), int32(lno)))
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
 
 		default:
+			markdcl()                     // for matching popdcl in caseblock
+			stmt := Nod(OXCASE, nil, nil) // don't return nil
 			p.syntax_error("expecting := or = or : or comma")
 			p.advance(LCASE, LDEFAULT, '}')
-			return nil
+			return stmt
 		}
 
 	case LDEFAULT:
 		// LDEFAULT ':'
 		p.next()
 
-		markdcl()
+		markdcl() // matching popdcl in caseblock
 		stmt := Nod(OXCASE, nil, nil)
 		if tswitch != nil {
 			if n := tswitch.Left; n != nil {
@@ -852,30 +893,33 @@ func (p *parser) case_(tswitch *Node) *Node {
 		return stmt
 
 	default:
+		markdcl()                     // matching popdcl in caseblock
+		stmt := Nod(OXCASE, nil, nil) // don't return nil
 		p.syntax_error("expecting case or default or }")
 		p.advance(LCASE, LDEFAULT, '}')
-		return nil
+		return stmt
 	}
 }
 
-// go.y:compound_stmt
+// Block         = "{" StatementList "}" .
+// StatementList = { Statement ";" } .
 func (p *parser) compound_stmt(else_clause bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("compound_stmt")()
 	}
 
-	if p.tok == '{' {
-		markdcl()
-		p.next() // consume ';' after markdcl() for correct lineno
+	markdcl()
+	if p.got('{') {
+		// ok
 	} else if else_clause {
 		p.syntax_error("else must be followed by if or statement block")
-		p.advance('}')
-		return nil
+		p.advance(LNAME, '}')
 	} else {
 		panic("unreachable")
 	}
 
 	l := p.stmt_list()
+	p.want('}')
 
 	var stmt *Node
 	if l == nil {
@@ -885,50 +929,29 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 	}
 	popdcl()
 
-	p.want('}') // TODO(gri) is this correct location w/ respect to popdcl()? (issue 13243)
-
 	return stmt
 }
 
-// go.y:caseblock
+// caseblock parses a superset of switch and select clauses.
+//
+// ExprCaseClause = ExprSwitchCase ":" StatementList .
+// TypeCaseClause = TypeSwitchCase ":" StatementList .
+// CommClause     = CommCase ":" StatementList .
 func (p *parser) caseblock(tswitch *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("caseblock")()
 	}
 
-	stmt := p.case_(tswitch)
-
-	// If the last token read by the lexer was consumed
-	// as part of the case, clear it (parser has cleared yychar).
-	// If the last token read by the lexer was the lookahead
-	// leave it alone (parser has it cached in yychar).
-	// This is so that the stmt_list action doesn't look at
-	// the case tokens if the stmt_list is empty.
-	//yylast = yychar;
+	stmt := p.case_(tswitch) // does markdcl
 	stmt.Xoffset = int64(block)
-
 	stmt.Nbody = p.stmt_list()
-
-	// TODO(gri) what do we need to do here? (issue 13243)
-	// // This is the only place in the language where a statement
-	// // list is not allowed to drop the final semicolon, because
-	// // it's the only place where a statement list is not followed
-	// // by a closing brace.  Handle the error for pedantry.
-
-	// // Find the final token of the statement list.
-	// // yylast is lookahead; yyprev is last of stmt_list
-	// last := yyprev;
-
-	// if last > 0 && last != ';' && yychar != '}' {
-	// 	Yyerror("missing statement after label");
-	// }
 
 	popdcl()
 
 	return stmt
 }
 
-// go.y:caseblock_list
+// caseblock_list parses a superset of switch and select clause lists.
 func (p *parser) caseblock_list(tswitch *Node) (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("caseblock_list")()
@@ -936,30 +959,26 @@ func (p *parser) caseblock_list(tswitch *Node) (l *NodeList) {
 
 	if !p.got('{') {
 		p.syntax_error("missing { after switch clause")
-		p.advance('}')
-		return nil
+		p.advance(LCASE, LDEFAULT, '}')
 	}
 
-	for p.tok != '}' {
+	for p.tok != EOF && p.tok != '}' {
 		l = list(l, p.caseblock(tswitch))
 	}
 	p.want('}')
 	return
 }
 
-// go.y:loop_body
+// loop_body parses if and for statement bodies.
 func (p *parser) loop_body(context string) *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("loop_body")()
 	}
 
-	if p.tok == '{' {
-		markdcl()
-		p.next() // consume ';' after markdcl() for correct lineno
-	} else {
+	markdcl()
+	if !p.got('{') {
 		p.syntax_error("missing { after " + context)
-		p.advance('}')
-		return nil
+		p.advance(LNAME, '}')
 	}
 
 	body := p.stmt_list()
@@ -969,7 +988,10 @@ func (p *parser) loop_body(context string) *NodeList {
 	return body
 }
 
-// go.y:for_header
+// for_header parses the header portion of a for statement.
+//
+// ForStmt   = "for" [ Condition | ForClause | RangeClause ] Block .
+// Condition = Expression .
 func (p *parser) for_header() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("for_header")()
@@ -1002,7 +1024,6 @@ func (p *parser) for_header() *Node {
 	return h
 }
 
-// go.y:for_body
 func (p *parser) for_body() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("for_body")()
@@ -1015,7 +1036,7 @@ func (p *parser) for_body() *Node {
 	return stmt
 }
 
-// go.y:for_stmt
+// ForStmt = "for" [ Condition | ForClause | RangeClause ] Block .
 func (p *parser) for_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("for_stmt")()
@@ -1029,13 +1050,19 @@ func (p *parser) for_stmt() *Node {
 	return body
 }
 
+// header parses a combination of if, switch, and for statement headers:
+//
+// Header   = [ InitStmt ";" ] [ Expression ] .
+// Header   = [ InitStmt ] ";" [ Condition ] ";" [ PostStmt ] .  // for_stmt only
+// InitStmt = SimpleStmt .
+// PostStmt = SimpleStmt .
 func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 	if p.tok == '{' {
 		return
 	}
 
-	nest := p.nest
-	p.nest = -1
+	outer := p.xnest
+	p.xnest = -1
 
 	if p.tok != ';' {
 		// accept potential vardcl but complain
@@ -1050,7 +1077,7 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 			cond = init
 			init = nil
 
-			p.nest = nest
+			p.xnest = outer
 			return
 		}
 	}
@@ -1071,12 +1098,10 @@ func (p *parser) header(for_stmt bool) (init, cond, post *Node) {
 		init = nil
 	}
 
-	p.nest = nest
-
+	p.xnest = outer
 	return
 }
 
-// go.y:if_header
 func (p *parser) if_header() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("if_header")()
@@ -1089,7 +1114,7 @@ func (p *parser) if_header() *Node {
 	return h
 }
 
-// go.y:if_stmt
+// IfStmt = "if" [ SimpleStmt ";" ] Expression Block [ "else" ( IfStmt | Block ) ] .
 func (p *parser) if_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("if_stmt")()
@@ -1106,7 +1131,7 @@ func (p *parser) if_stmt() *Node {
 
 	stmt.Nbody = p.loop_body("if clause")
 
-	l := p.elseif_list_else()
+	l := p.elseif_list_else() // does markdcl
 
 	n := stmt
 	popdcl()
@@ -1121,14 +1146,13 @@ func (p *parser) if_stmt() *Node {
 	return stmt
 }
 
-// go.y:elsif
 func (p *parser) elseif() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("elseif")()
 	}
 
 	// LELSE LIF already consumed
-	markdcl()
+	markdcl() // matching popdcl in if_stmt
 
 	stmt := p.if_header()
 	if stmt.Left == nil {
@@ -1140,8 +1164,6 @@ func (p *parser) elseif() *NodeList {
 	return list1(stmt)
 }
 
-// go.y:elsif_list
-// go.y:else
 func (p *parser) elseif_list_else() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("elseif_list_else")()
@@ -1159,7 +1181,6 @@ func (p *parser) elseif_list_else() (l *NodeList) {
 	return l
 }
 
-// go.y:else
 func (p *parser) else_() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("else")()
@@ -1171,7 +1192,11 @@ func (p *parser) else_() *NodeList {
 
 }
 
-// go.y:switch_stmt
+// switch_stmt parses both expression and type switch statements.
+//
+// SwitchStmt     = ExprSwitchStmt | TypeSwitchStmt .
+// ExprSwitchStmt = "switch" [ SimpleStmt ";" ] [ Expression ] "{" { ExprCaseClause } "}" .
+// TypeSwitchStmt = "switch" [ SimpleStmt ";" ] TypeSwitchGuard "{" { TypeCaseClause } "}" .
 func (p *parser) switch_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("switch_stmt")()
@@ -1194,7 +1219,7 @@ func (p *parser) switch_stmt() *Node {
 	return hdr
 }
 
-// go.y:select_stmt
+// SelectStmt = "select" "{" { CommClause } "}" .
 func (p *parser) select_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("select_stmt")()
@@ -1241,6 +1266,7 @@ var prectab = map[int32]struct {
 	LANDNOT: {6, OANDNOT},
 }
 
+// Expression = UnaryExpr | Expression binary_op Expression .
 func (p *parser) bexpr(prec int) *Node {
 	// don't trace bexpr - only leads to overly nested trace output
 
@@ -1258,7 +1284,6 @@ func (p *parser) bexpr(prec int) *Node {
 	return x
 }
 
-// go.y:expr
 func (p *parser) expr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("expr")()
@@ -1267,7 +1292,14 @@ func (p *parser) expr() *Node {
 	return p.bexpr(1)
 }
 
-// go.y:uexpr
+func unparen(x *Node) *Node {
+	for x.Op == OPAREN {
+		x = x.Left
+	}
+	return x
+}
+
+// UnaryExpr = PrimaryExpr | unary_op UnaryExpr .
 func (p *parser) uexpr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("uexpr")()
@@ -1280,7 +1312,9 @@ func (p *parser) uexpr() *Node {
 
 	case '&':
 		p.next()
-		x := p.uexpr()
+		// uexpr may have returned a parenthesized composite literal
+		// (see comment in operand) - remove parentheses if any
+		x := unparen(p.uexpr())
 		if x.Op == OCOMPLIT {
 			// Special case for &T{...}: turn into (*T){...}.
 			x.Right = Nod(OIND, x.Right, nil)
@@ -1310,15 +1344,51 @@ func (p *parser) uexpr() *Node {
 		op = OCOM
 
 	case LCOMM:
-		// receive operation (<-s2) or receive-only channel type (<-chan s3)
+		// receive op (<-x) or receive-only channel (<-chan E)
 		p.next()
-		if p.got(LCHAN) {
-			// <-chan T
-			t := Nod(OTCHAN, p.chan_elem(), nil)
-			t.Etype = Crecv
-			return t
+
+		// If the next token is LCHAN we still don't know if it is
+		// a channel (<-chan int) or a receive op (<-chan int(ch)).
+		// We only know once we have found the end of the uexpr.
+
+		x := p.uexpr()
+
+		// There are two cases:
+		//
+		//   <-chan...  => <-x is a channel type
+		//   <-x        => <-x is a receive operation
+		//
+		// In the first case, <- must be re-associated with
+		// the channel type parsed already:
+		//
+		//   <-(chan E)   =>  (<-chan E)
+		//   <-(chan<-E)  =>  (<-chan (<-E))
+
+		if x.Op == OTCHAN {
+			// x is a channel type => re-associate <-
+			dir := EType(Csend)
+			t := x
+			for ; t.Op == OTCHAN && dir == Csend; t = t.Left {
+				dir = t.Etype
+				if dir == Crecv {
+					// t is type <-chan E but <-<-chan E is not permitted
+					// (report same error as for "type _ <-<-chan E")
+					p.syntax_error("unexpected <-, expecting chan")
+					// already progressed, no need to advance
+				}
+				t.Etype = Crecv
+			}
+			if dir == Csend {
+				// channel dir is <- but channel element E is not a channel
+				// (report same error as for "type _ <-chan<-E")
+				p.syntax_error(fmt.Sprintf("unexpected %v, expecting chan", t))
+				// already progressed, no need to advance
+			}
+			return x
 		}
-		return Nod(ORECV, p.uexpr(), nil)
+
+		// x is not a channel type => we have a receive op
+		return Nod(ORECV, x, nil)
 
 	default:
 		return p.pexpr(false)
@@ -1329,22 +1399,30 @@ func (p *parser) uexpr() *Node {
 	return Nod(op, p.uexpr(), nil)
 }
 
-// call-like statements that can be preceded by 'defer' and 'go'
-//
-// go.y:pseudocall
+// pseudocall parses call-like statements that can be preceded by 'defer' and 'go'.
 func (p *parser) pseudocall() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("pseudocall")()
 	}
 
-	x := p.pexpr(true)
-	if x.Op != OCALL {
-		Yyerror("argument to go/defer must be function call")
+	x := p.pexpr(p.tok == '(') // keep_parens so we can report error below
+	switch x.Op {
+	case OCALL:
+		return x
+	case OPAREN:
+		Yyerror("expression in go/defer must not be parenthesized")
+		// already progressed, no need to advance
+	default:
+		Yyerror("expression in go/defer must be function call")
+		// already progressed, no need to advance
 	}
-	return x
+	return nil
 }
 
-// go.y:pexpr (partial)
+// Operand     = Literal | OperandName | MethodExpr | "(" Expression ")" .
+// Literal     = BasicLit | CompositeLit | FunctionLit .
+// BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
+// OperandName = identifier | QualifiedIdent.
 func (p *parser) operand(keep_parens bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("operand")()
@@ -1361,30 +1439,34 @@ func (p *parser) operand(keep_parens bool) *Node {
 
 	case '(':
 		p.next()
-		p.nest++
+		p.xnest++
 		x := p.expr() // expr_or_type
-		p.nest--
+		p.xnest--
 		p.want(')')
 
-		// Need to know on lhs of := whether there are ( ).
-		// Don't bother with the OPAREN in other cases:
-		// it's just a waste of memory and time.
-		//
-		// But if the next token is a { , introduce OPAREN since
-		// we may have a composite literal and we need to know
-		// if there were ()'s'.
-		//
-		// TODO(gri) could simplify this if we parse complits
-		// in operand (see respective comment in pexpr).
-		//
-		// (We can probably not do this because of qualified types
-		// as in pkg.Type{}) (issue 13243).
-		if keep_parens || p.tok == '{' {
-			return Nod(OPAREN, x, nil)
-		}
+		// Optimization: Record presence of ()'s only where needed
+		// for error reporting. Don't bother in other cases; it is
+		// just a waste of memory and time.
+
+		// Parentheses are not permitted on lhs of := .
 		switch x.Op {
 		case ONAME, ONONAME, OPACK, OTYPE, OLITERAL, OTYPESW:
-			return Nod(OPAREN, x, nil)
+			keep_parens = true
+		}
+
+		// Parentheses are not permitted around T in a composite
+		// literal T{}. If the next token is a {, assume x is a
+		// composite literal type T (it may not be, { could be
+		// the opening brace of a block, but we don't know yet).
+		if p.tok == '{' {
+			keep_parens = true
+		}
+
+		// Parentheses are also not permitted around the expression
+		// in a go/defer statement. In that case, operand is called
+		// with keep_parens set.
+		if keep_parens {
+			x = Nod(OPAREN, x, nil)
 		}
 		return x
 
@@ -1395,9 +1477,11 @@ func (p *parser) operand(keep_parens bool) *Node {
 			closurehdr(t)
 			// fnliteral
 			p.next() // consume '{'
-			p.nest++
+			p.fnest++
+			p.xnest++
 			body := p.stmt_list()
-			p.nest--
+			p.xnest--
+			p.fnest--
 			p.want('}')
 			return closurebody(body)
 		}
@@ -1417,9 +1501,29 @@ func (p *parser) operand(keep_parens bool) *Node {
 		p.advance()
 		return nil
 	}
+
+	// Syntactically, composite literals are operands. Because a complit
+	// type may be a qualified identifier which is handled by pexpr
+	// (together with selector expressions), complits are parsed there
+	// as well (operand is only called from pexpr).
 }
 
-// go.y:pexpr, pexpr_no_paren
+// PrimaryExpr =
+// 	Operand |
+// 	Conversion |
+// 	PrimaryExpr Selector |
+// 	PrimaryExpr Index |
+// 	PrimaryExpr Slice |
+// 	PrimaryExpr TypeAssertion |
+// 	PrimaryExpr Arguments .
+//
+// Selector       = "." identifier .
+// Index          = "[" Expression "]" .
+// Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
+//                      ( [ Expression ] ":" Expression ":" Expression )
+//                  "]" .
+// TypeAssertion  = "." "(" Type ")" .
+// Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 func (p *parser) pexpr(keep_parens bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("pexpr")()
@@ -1460,7 +1564,7 @@ loop:
 
 		case '[':
 			p.next()
-			p.nest++
+			p.xnest++
 			var index [3]*Node
 			if p.tok != ':' {
 				index[0] = p.expr()
@@ -1472,7 +1576,7 @@ loop:
 					index[ncol] = p.expr()
 				}
 			}
-			p.nest--
+			p.xnest--
 			p.want(']')
 
 			switch ncol {
@@ -1504,11 +1608,7 @@ loop:
 
 		case '(':
 			// convtype '(' expr ocomma ')'
-			p.next()
-			p.nest++
 			args, ddd := p.arg_list()
-			p.nest--
-			p.want(')')
 
 			// call or conversion
 			x = Nod(OCALL, x, nil)
@@ -1516,18 +1616,14 @@ loop:
 			x.Isddd = ddd
 
 		case '{':
-			// TODO(gri) should this (complit acceptance) be in operand?
-			// accept ()'s around the complit type but complain if we have a complit
-			// (issue 13243)
-			t := x
-			for t.Op == OPAREN {
-				t = t.Left
-			}
+			// operand may have returned a parenthesized complit
+			// type; accept it but complain if we have a complit
+			t := unparen(x)
 			// determine if '{' belongs to a complit or a compound_stmt
 			complit_ok := false
 			switch t.Op {
 			case ONAME, ONONAME, OTYPE, OPACK, OXDOT, ODOT:
-				if p.nest >= 0 {
+				if p.xnest >= 0 {
 					// x is considered a comptype
 					complit_ok = true
 				}
@@ -1554,20 +1650,40 @@ loop:
 	return x
 }
 
-// go.y:keyval
+// KeyedElement = [ Key ":" ] Element .
 func (p *parser) keyval() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("keyval")()
 	}
 
+	// A composite literal commonly spans several lines,
+	// so the line number on errors may be misleading.
+	// Wrap values (but not keys!) that don't carry line
+	// numbers.
+
 	x := p.bare_complitexpr()
+
 	if p.got(':') {
-		x = Nod(OKEY, x, p.bare_complitexpr())
+		// key ':' value
+		return Nod(OKEY, x, wrapname(p.bare_complitexpr()))
+	}
+
+	// value
+	return wrapname(x)
+}
+
+func wrapname(x *Node) *Node {
+	// These nodes do not carry line numbers.
+	// Introduce a wrapper node to give the correct line.
+	switch x.Op {
+	case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
+		x = Nod(OPAREN, x, nil)
+		x.Implicit = true
 	}
 	return x
 }
 
-// go.y:bare_complitexpr
+// Element = Expression | LiteralValue .
 func (p *parser) bare_complitexpr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("bare_complitexpr")()
@@ -1578,24 +1694,10 @@ func (p *parser) bare_complitexpr() *Node {
 		return p.complitexpr()
 	}
 
-	x := p.expr()
-
-	// These nodes do not carry line numbers.
-	// Since a composite literal commonly spans several lines,
-	// the line number on errors may be misleading.
-	// Introduce a wrapper node to give the correct line.
-
-	// TODO(gri) This is causing trouble when used for keys. Need to fix complit parsing.
-	// switch x.Op {
-	// case ONAME, ONONAME, OTYPE, OPACK, OLITERAL:
-	// 	x = Nod(OPAREN, x, nil)
-	// 	x.Implicit = true
-	// }
-	// (issue 13243)
-	return x
+	return p.expr()
 }
 
-// go.y:complitexpr
+// LiteralValue = "{" [ ElementList [ "," ] ] "}" .
 func (p *parser) complitexpr() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("complitexpr")()
@@ -1605,15 +1707,17 @@ func (p *parser) complitexpr() *Node {
 	n := Nod(OCOMPLIT, nil, nil)
 
 	p.want('{')
-	p.nest++
+	p.xnest++
 
 	var l *NodeList
 	for p.tok != EOF && p.tok != '}' {
 		l = list(l, p.keyval())
-		p.ocomma("composite literal")
+		if !p.ocomma('}') {
+			break
+		}
 	}
 
-	p.nest--
+	p.xnest--
 	p.want('}')
 
 	n.List = l
@@ -1623,8 +1727,6 @@ func (p *parser) complitexpr() *Node {
 // names and types
 //	newname is used before declared
 //	oldname is used after declared
-//
-// go.y:new_name:
 func (p *parser) new_name(sym *Sym) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_name")()
@@ -1636,7 +1738,18 @@ func (p *parser) new_name(sym *Sym) *Node {
 	return nil
 }
 
-// go.y:onew_name:
+func (p *parser) dcl_name(sym *Sym) *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("dcl_name")()
+	}
+
+	if sym == nil {
+		yyerrorl(int(prevlineno), "invalid declaration")
+		return nil
+	}
+	return dclname(sym)
+}
+
 func (p *parser) onew_name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("onew_name")()
@@ -1649,7 +1762,6 @@ func (p *parser) onew_name() *Node {
 	return nil
 }
 
-// go.y:sym
 func (p *parser) sym() *Sym {
 	switch p.tok {
 	case LNAME:
@@ -1669,7 +1781,7 @@ func (p *parser) sym() *Sym {
 		return nil
 
 	default:
-		p.syntax_error("")
+		p.syntax_error("expecting name")
 		p.advance()
 		return new(Sym)
 	}
@@ -1683,7 +1795,6 @@ func mkname(sym *Sym) *Node {
 	return n
 }
 
-// go.y:name
 func (p *parser) name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("name")()
@@ -1692,26 +1803,45 @@ func (p *parser) name() *Node {
 	return mkname(p.sym())
 }
 
-// go.y:dotdotdot
+// [ "..." ] Type
 func (p *parser) dotdotdot() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dotdotdot")()
 	}
 
 	p.want(LDDD)
-	switch p.tok {
-	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?', '(':
-		return Nod(ODDD, p.ntype(), nil)
+	if typ := p.try_ntype(); typ != nil {
+		return Nod(ODDD, typ, nil)
 	}
 
 	Yyerror("final argument in variadic function missing type")
 	return Nod(ODDD, typenod(typ(TINTER)), nil)
 }
 
-// go.y:ntype
 func (p *parser) ntype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ntype")()
+	}
+
+	if typ := p.try_ntype(); typ != nil {
+		return typ
+	}
+
+	p.syntax_error("")
+	p.advance()
+	return nil
+}
+
+// try_ntype is like ntype but it returns nil if there was no type
+// instead of reporting an error.
+//
+// Type     = TypeName | TypeLit | "(" Type ")" .
+// TypeName = identifier | QualifiedIdent .
+// TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+// 	      SliceType | MapType | ChannelType .
+func (p *parser) try_ntype() *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("try_ntype")()
 	}
 
 	switch p.tok {
@@ -1738,7 +1868,7 @@ func (p *parser) ntype() *Node {
 		// '[' oexpr ']' ntype
 		// '[' LDDD ']' ntype
 		p.next()
-		p.nest++
+		p.xnest++
 		var len *Node
 		if p.tok != ']' {
 			if p.got(LDDD) {
@@ -1747,7 +1877,7 @@ func (p *parser) ntype() *Node {
 				len = p.expr()
 			}
 		}
-		p.nest--
+		p.xnest--
 		p.want(']')
 		return Nod(OTARRAY, len, p.ntype())
 
@@ -1792,17 +1922,7 @@ func (p *parser) ntype() *Node {
 		p.want(')')
 		return t
 
-	case LDDD:
-		// permit ...T but complain
-		// TODO(gri) introduced for test/fixedbugs/bug228.go - maybe adjust bug or find better solution
-		// (issue 13243)
-		p.syntax_error("")
-		p.advance()
-		return p.ntype()
-
 	default:
-		p.syntax_error("")
-		p.advance()
 		return nil
 	}
 }
@@ -1812,43 +1932,15 @@ func (p *parser) chan_elem() *Node {
 		defer p.trace("chan_elem")()
 	}
 
-	switch p.tok {
-	case LCOMM, LFUNC,
-		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE,
-		'*',
-		LNAME, '@', '?',
-		'(',
-		LDDD:
-		return p.ntype()
-
-	default:
-		p.syntax_error("missing channel element type")
-		// assume element type is simply absent - don't advance
-		return nil
+	if typ := p.try_ntype(); typ != nil {
+		return typ
 	}
+
+	p.syntax_error("missing channel element type")
+	// assume element type is simply absent - don't advance
+	return nil
 }
 
-// go.y:fnret_type
-// TODO(gri) only called from fnres - inline and remove this one
-// (issue 13243)
-func (p *parser) fnret_type() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("fnret_type")()
-	}
-
-	switch p.tok {
-	case LFUNC, // fntype
-		LCOMM,                                 // recvchantype
-		'[', LCHAN, LMAP, LSTRUCT, LINTERFACE, // othertype
-		'*': // ptrtype
-		return p.ntype()
-
-	default:
-		return p.dotname()
-	}
-}
-
-// go.y:dotname (partial)
 func (p *parser) new_dotname(pkg *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_dotname")()
@@ -1864,7 +1956,6 @@ func (p *parser) new_dotname(pkg *Node) *Node {
 
 }
 
-// go.y:dotname
 func (p *parser) dotname() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dotname")()
@@ -1877,7 +1968,7 @@ func (p *parser) dotname() *Node {
 	return name
 }
 
-// go.y:structtype
+// StructType = "struct" "{" { FieldDecl ";" } "}" .
 func (p *parser) structtype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("structtype")()
@@ -1888,7 +1979,9 @@ func (p *parser) structtype() *Node {
 	var l *NodeList
 	for p.tok != EOF && p.tok != '}' {
 		l = concat(l, p.structdcl())
-		p.osemi()
+		if !p.osemi('}') {
+			break
+		}
 	}
 	p.want('}')
 
@@ -1897,7 +1990,7 @@ func (p *parser) structtype() *Node {
 	return t
 }
 
-// go.y:interfacetype
+// InterfaceType = "interface" "{" { MethodSpec ";" } "}" .
 func (p *parser) interfacetype() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("interfacetype")()
@@ -1908,7 +2001,9 @@ func (p *parser) interfacetype() *Node {
 	var l *NodeList
 	for p.tok != EOF && p.tok != '}' {
 		l = list(l, p.interfacedcl())
-		p.osemi()
+		if !p.osemi('}') {
+			break
+		}
 	}
 	p.want('}')
 
@@ -1919,8 +2014,7 @@ func (p *parser) interfacetype() *Node {
 
 // Function stuff.
 // All in one place to show how crappy it all is.
-//
-// go.y:xfndcl
+
 func (p *parser) xfndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("xfndcl")()
@@ -1951,7 +2045,11 @@ func (p *parser) xfndcl() *Node {
 	return f
 }
 
-// go.y:fndcl
+// FunctionDecl = "func" FunctionName ( Function | Signature ) .
+// FunctionName = identifier .
+// Function     = Signature FunctionBody .
+// MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
+// Receiver     = Parameters .
 func (p *parser) fndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fndcl")()
@@ -2040,7 +2138,6 @@ func (p *parser) fndcl() *Node {
 	}
 }
 
-// go.y:hidden_fndcl
 func (p *parser) hidden_fndcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_fndcl")()
@@ -2102,14 +2199,16 @@ func (p *parser) hidden_fndcl() *Node {
 	}
 }
 
-// go.y:fnbody
+// FunctionBody = Block .
 func (p *parser) fnbody() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fnbody")()
 	}
 
 	if p.got('{') {
+		p.fnest++
 		body := p.stmt_list()
+		p.fnest--
 		p.want('}')
 		if body == nil {
 			body = list1(Nod(OEMPTY, nil, nil))
@@ -2120,27 +2219,26 @@ func (p *parser) fnbody() *NodeList {
 	return nil
 }
 
-// go.y:fnres
+// Result = Parameters | Type .
 func (p *parser) fnres() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fnres")()
 	}
 
-	switch p.tok {
-	default:
-		return nil
-
-	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?':
-		result := p.fnret_type()
-		return list1(Nod(ODCLFIELD, nil, result))
-
-	case '(':
+	if p.tok == '(' {
 		result := p.param_list()
 		return checkarglist(result, 0)
 	}
+
+	if result := p.try_ntype(); result != nil {
+		return list1(Nod(ODCLFIELD, nil, result))
+	}
+
+	return nil
 }
 
-// go.y:xdcl_list
+// Declaration  = ConstDecl | TypeDecl | VarDecl .
+// TopLevelDecl = Declaration | FunctionDecl | MethodDecl .
 func (p *parser) xdcl_list() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("xdcl_list")()
@@ -2191,7 +2289,9 @@ loop:
 	return
 }
 
-// go.y:structdcl
+// FieldDecl      = (IdentifierList Type | AnonymousField) [ Tag ] .
+// AnonymousField = [ "*" ] TypeName .
+// Tag            = string_lit .
 func (p *parser) structdcl() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("structdcl")()
@@ -2303,7 +2403,6 @@ func (p *parser) structdcl() *NodeList {
 	}
 }
 
-// go.y:oliteral
 func (p *parser) oliteral() (v Val) {
 	if p.tok == LLITERAL {
 		v = p.val
@@ -2312,7 +2411,6 @@ func (p *parser) oliteral() (v Val) {
 	return
 }
 
-// go.y:packname
 func (p *parser) packname(name *Sym) *Sym {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("embed")()
@@ -2351,7 +2449,6 @@ func (p *parser) packname(name *Sym) *Sym {
 	return name
 }
 
-// go.y:embed
 func (p *parser) embed(sym *Sym) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("embed")()
@@ -2361,7 +2458,9 @@ func (p *parser) embed(sym *Sym) *Node {
 	return embedded(pkgname, localpkg)
 }
 
-// go.y: interfacedcl
+// MethodSpec        = MethodName Signature | InterfaceTypeName .
+// MethodName        = identifier .
+// InterfaceTypeName = TypeName .
 func (p *parser) interfacedcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("interfacedcl")()
@@ -2412,7 +2511,8 @@ func (p *parser) interfacedcl() *Node {
 	}
 }
 
-// go.y:indcl
+// MethodSpec = MethodName Signature .
+// MethodName = identifier .
 func (p *parser) indcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("indcl")()
@@ -2430,7 +2530,7 @@ func (p *parser) indcl() *Node {
 	return t
 }
 
-// go.y:arg_type
+// ParameterDecl = [ IdentifierList ] [ "..." ] Type .
 func (p *parser) arg_type() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("arg_type")()
@@ -2479,25 +2579,35 @@ func (p *parser) arg_type() *Node {
 	}
 }
 
-// go.y:oarg_type_list_ocomma + surrounding ()'s
+// Parameters    = "(" [ ParameterList [ "," ] ] ")" .
+// ParameterList = ParameterDecl { "," ParameterDecl } .
 func (p *parser) param_list() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("param_list")()
 	}
 
 	p.want('(')
+
 	for p.tok != EOF && p.tok != ')' {
 		l = list(l, p.arg_type())
-		p.ocomma("parameter list")
+		if !p.ocomma(')') {
+			break
+		}
 	}
+
 	p.want(')')
 	return
 }
 
 var missing_stmt = Nod(OXXX, nil, nil)
 
-// go.y:stmt
-// maty return missing_stmt
+// Statement =
+// 	Declaration | LabeledStmt | SimpleStmt |
+// 	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+// 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+// 	DeferStmt .
+//
+// stmt may return missing_stmt.
 func (p *parser) stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("stmt")()
@@ -2589,7 +2699,7 @@ func (p *parser) stmt() *Node {
 	}
 }
 
-// go.y:stmt_list
+// StatementList = { Statement ";" } .
 func (p *parser) stmt_list() (l *NodeList) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("stmt_list")()
@@ -2614,8 +2724,9 @@ func (p *parser) stmt_list() (l *NodeList) {
 	return
 }
 
-// go.y:new_name_list
-// if first != nil we have the first symbol already
+// IdentifierList = identifier { "," identifier } .
+//
+// If first != nil we have the first symbol already.
 func (p *parser) new_name_list(first *Sym) *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_name_list")()
@@ -2631,20 +2742,20 @@ func (p *parser) new_name_list(first *Sym) *NodeList {
 	return l
 }
 
-// go.y:dcl_name_list
+// IdentifierList = identifier { "," identifier } .
 func (p *parser) dcl_name_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dcl_name_list")()
 	}
 
-	l := list1(dclname(p.sym()))
+	l := list1(p.dcl_name(p.sym()))
 	for p.got(',') {
-		l = list(l, dclname(p.sym()))
+		l = list(l, p.dcl_name(p.sym()))
 	}
 	return l
 }
 
-// go.y:expr_list
+// ExpressionList = Expression { "," Expression } .
 func (p *parser) expr_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("expr_list")()
@@ -2657,45 +2768,61 @@ func (p *parser) expr_list() *NodeList {
 	return l
 }
 
-// go.y:expr_or_type_list
+// Arguments = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 func (p *parser) arg_list() (l *NodeList, ddd bool) {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("arg_list")()
 	}
 
-	// TODO(gri) make this more tolerant in the presence of LDDD
-	// that is not at the end (issue 13243).
+	p.want('(')
+	p.xnest++
 
 	for p.tok != EOF && p.tok != ')' && !ddd {
 		l = list(l, p.expr()) // expr_or_type
 		ddd = p.got(LDDD)
-		p.ocomma("argument list")
+		if !p.ocomma(')') {
+			break
+		}
 	}
+
+	p.xnest--
+	p.want(')')
 
 	return
 }
 
-// go.y:osemi
-func (p *parser) osemi() {
-	// ';' is optional before a closing ')' or '}'
-	if p.tok == ')' || p.tok == '}' {
-		return
+// osemi parses an optional semicolon.
+func (p *parser) osemi(follow int32) bool {
+	switch p.tok {
+	case ';':
+		p.next()
+		return true
+
+	case ')', '}':
+		// semicolon is optional before ) or }
+		return true
 	}
-	p.want(';')
+
+	p.syntax_error("expecting semicolon, newline, or " + tokstring(follow))
+	p.advance(follow)
+	return false
 }
 
-// go.y:ocomma
-func (p *parser) ocomma(context string) {
+// ocomma parses an optional comma.
+func (p *parser) ocomma(follow int32) bool {
 	switch p.tok {
+	case ',':
+		p.next()
+		return true
+
 	case ')', '}':
-		// ',' is optional before a closing ')' or '}'
-		return
-	case ';':
-		p.syntax_error("need trailing comma before newline in " + context)
-		p.next() // interpret ';' as comma
-		return
+		// comma is optional before ) or }
+		return true
 	}
-	p.want(',')
+
+	p.syntax_error("expecting comma or " + tokstring(follow))
+	p.advance(follow)
+	return false
 }
 
 // ----------------------------------------------------------------------------
@@ -2706,12 +2833,11 @@ func (p *parser) import_error() {
 	p.next()
 }
 
-// The methods below reflect a 1:1 translation of the corresponding go.y yacc
-// productions They could be simplified significantly and also use better
+// The methods below reflect a 1:1 translation of the original (and now defunct)
+// go.y yacc productions. They could be simplified significantly and also use better
 // variable names. However, we will be able to delete them once we enable the
-// new export format by default, so it's not worth the effort.
+// new export format by default, so it's not worth the effort (issue 13241).
 
-// go.y:hidden_importsym:
 func (p *parser) hidden_importsym() *Sym {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_importsym")()
@@ -2765,7 +2891,6 @@ func (p *parser) hidden_importsym() *Sym {
 	}
 }
 
-// go.y:ohidden_funarg_list
 func (p *parser) ohidden_funarg_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_funarg_list")()
@@ -2778,7 +2903,6 @@ func (p *parser) ohidden_funarg_list() *NodeList {
 	return ss
 }
 
-// go.y:ohidden_structdcl_list
 func (p *parser) ohidden_structdcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_structdcl_list")()
@@ -2791,7 +2915,6 @@ func (p *parser) ohidden_structdcl_list() *NodeList {
 	return ss
 }
 
-// go.y:ohidden_interfacedcl_list
 func (p *parser) ohidden_interfacedcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_interfacedcl_list")()
@@ -2805,8 +2928,6 @@ func (p *parser) ohidden_interfacedcl_list() *NodeList {
 }
 
 // import syntax from package header
-//
-// go.y:hidden_import
 func (p *parser) hidden_import() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_import")()
@@ -2896,7 +3017,6 @@ func (p *parser) hidden_import() {
 	}
 }
 
-// go.y:hidden_pkg_importsym
 func (p *parser) hidden_pkg_importsym() *Sym {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_pkg_importsym")()
@@ -2910,7 +3030,6 @@ func (p *parser) hidden_pkg_importsym() *Sym {
 	return ss
 }
 
-// go.y:hidden_pkgtype
 func (p *parser) hidden_pkgtype() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_pkgtype")()
@@ -2927,7 +3046,6 @@ func (p *parser) hidden_pkgtype() *Type {
 // ----------------------------------------------------------------------------
 // Importing types
 
-// go.y:hidden_type
 func (p *parser) hidden_type() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type")()
@@ -2943,7 +3061,6 @@ func (p *parser) hidden_type() *Type {
 	}
 }
 
-// go.y:hidden_type_non_recv_chan
 func (p *parser) hidden_type_non_recv_chan() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_non_recv_chan")()
@@ -2957,7 +3074,6 @@ func (p *parser) hidden_type_non_recv_chan() *Type {
 	}
 }
 
-// go.y:hidden_type_misc
 func (p *parser) hidden_type_misc() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_misc")()
@@ -3068,7 +3184,6 @@ func (p *parser) hidden_type_misc() *Type {
 	}
 }
 
-// go.y:hidden_type_recv_chan
 func (p *parser) hidden_type_recv_chan() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_recv_chan")()
@@ -3084,7 +3199,6 @@ func (p *parser) hidden_type_recv_chan() *Type {
 	return ss
 }
 
-// go.y:hidden_type_func
 func (p *parser) hidden_type_func() *Type {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_type_func")()
@@ -3099,7 +3213,6 @@ func (p *parser) hidden_type_func() *Type {
 	return functype(nil, s3, s5)
 }
 
-// go.y:hidden_funarg
 func (p *parser) hidden_funarg() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_funarg")()
@@ -3140,7 +3253,6 @@ func (p *parser) hidden_funarg() *Node {
 	}
 }
 
-// go.y:hidden_structdcl
 func (p *parser) hidden_structdcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_structdcl")()
@@ -3174,33 +3286,39 @@ func (p *parser) hidden_structdcl() *Node {
 	return ss
 }
 
-// go.y:hidden_interfacedcl
 func (p *parser) hidden_interfacedcl() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_interfacedcl")()
 	}
 
-	// TODO(gri) possible conflict here: both cases may start with '@' per grammar
-	// (issue 13245).
+	// The original (now defunct) grammar in go.y accepted both a method
+	// or an (embedded) type:
+	//
+	// hidden_interfacedcl:
+	// 	sym '(' ohidden_funarg_list ')' ohidden_funres
+	// 	{
+	// 		$$ = Nod(ODCLFIELD, newname($1), typenod(functype(fakethis(), $3, $5)));
+	// 	}
+	// |	hidden_type
+	// 	{
+	// 		$$ = Nod(ODCLFIELD, nil, typenod($1));
+	// 	}
+	//
+	// But the current textual export code only exports (inlined) methods,
+	// even if the methods came from embedded interfaces. Furthermore, in
+	// the original grammar, hidden_type may also start with a sym (LNAME
+	// or '@'), complicating matters further. Since we never have embedded
+	// types, only parse methods here.
 
-	switch p.tok {
-	case LNAME, '@', '?':
-		s1 := p.sym()
-		p.want('(')
-		s3 := p.ohidden_funarg_list()
-		p.want(')')
-		s5 := p.ohidden_funres()
+	s1 := p.sym()
+	p.want('(')
+	s3 := p.ohidden_funarg_list()
+	p.want(')')
+	s5 := p.ohidden_funres()
 
-		return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
-
-	default:
-		s1 := p.hidden_type()
-
-		return Nod(ODCLFIELD, nil, typenod(s1))
-	}
+	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
 }
 
-// go.y:ohidden_funres
 func (p *parser) ohidden_funres() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("ohidden_funres")()
@@ -3215,7 +3333,6 @@ func (p *parser) ohidden_funres() *NodeList {
 	}
 }
 
-// go.y:hidden_funres
 func (p *parser) hidden_funres() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_funres")()
@@ -3237,7 +3354,6 @@ func (p *parser) hidden_funres() *NodeList {
 // ----------------------------------------------------------------------------
 // Importing constants
 
-// go.y:hidden_literal
 func (p *parser) hidden_literal() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_literal")()
@@ -3288,7 +3404,6 @@ func (p *parser) hidden_literal() *Node {
 	}
 }
 
-// go.y:hidden_constant
 func (p *parser) hidden_constant() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_constant")()
@@ -3315,7 +3430,6 @@ func (p *parser) hidden_constant() *Node {
 	}
 }
 
-// go.y:hidden_import_list
 func (p *parser) hidden_import_list() {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_import_list")()
@@ -3326,7 +3440,6 @@ func (p *parser) hidden_import_list() {
 	}
 }
 
-// go.y:hidden_funarg_list
 func (p *parser) hidden_funarg_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_funarg_list")()
@@ -3341,7 +3454,6 @@ func (p *parser) hidden_funarg_list() *NodeList {
 	return ss
 }
 
-// go.y:hidden_structdcl_list
 func (p *parser) hidden_structdcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_structdcl_list")()
@@ -3356,7 +3468,6 @@ func (p *parser) hidden_structdcl_list() *NodeList {
 	return ss
 }
 
-// go.y:hidden_interfacedcl_list
 func (p *parser) hidden_interfacedcl_list() *NodeList {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("hidden_interfacedcl_list")()

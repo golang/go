@@ -67,6 +67,12 @@ Flag: -buildtags
 
 Badly formed or misplaced +build tags.
 
+Invalid uses of cgo
+
+Flag: -cgocall
+
+Detect some violations of the cgo pointer passing rules.
+
 Unkeyed composite literals
 
 Flag: -composites
@@ -178,7 +184,7 @@ Other flags
 These flags configure the behavior of vet:
 
 	-all (default true)
-		Check everything; disabled if any explicit check is requested.
+		Enable all non-experimental checks.
 	-v
 		Verbose mode
 	-printfuncs

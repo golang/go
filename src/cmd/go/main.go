@@ -353,7 +353,7 @@ func importPathsNoDotExpansion(args []string) []string {
 		} else {
 			a = path.Clean(a)
 		}
-		if a == "all" || a == "std" || a == "cmd" {
+		if isMetaPackage(a) {
 			out = append(out, allPackages(a)...)
 			continue
 		}
@@ -554,7 +554,7 @@ func allPackages(pattern string) []string {
 func matchPackages(pattern string) []string {
 	match := func(string) bool { return true }
 	treeCanMatch := func(string) bool { return true }
-	if pattern != "all" && pattern != "std" && pattern != "cmd" {
+	if !isMetaPackage(pattern) {
 		match = matchPattern(pattern)
 		treeCanMatch = treeCanMatchPattern(pattern)
 	}
@@ -674,7 +674,14 @@ func matchPackagesInFS(pattern string) []string {
 		if !match(name) {
 			return nil
 		}
-		if _, err = build.ImportDir(path, 0); err != nil {
+
+		// We keep the directory if we can import it, or if we can't import it
+		// due to invalid Go source files. This means that directories containing
+		// parse errors will be built (and fail) instead of being silently skipped
+		// as not matching the pattern. Go 1.5 and earlier skipped, but that
+		// behavior means people miss serious mistakes.
+		// See golang.org/issue/11407.
+		if p, err := buildContext.ImportDir(path, 0); err != nil && (p == nil || len(p.InvalidGoFiles) == 0) {
 			if _, noGo := err.(*build.NoGoError); !noGo {
 				log.Print(err)
 			}

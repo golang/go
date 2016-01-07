@@ -56,7 +56,7 @@ func newTransferWriter(r interface{}) (t *transferWriter, err error) {
 		if rr.ContentLength != 0 && rr.Body == nil {
 			return nil, fmt.Errorf("http: Request.ContentLength=%d with nil Body", rr.ContentLength)
 		}
-		t.Method = rr.Method
+		t.Method = valueOrDefault(rr.Method, "GET")
 		t.Body = rr.Body
 		t.BodyCloser = rr.Body
 		t.ContentLength = rr.ContentLength
@@ -577,21 +577,29 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 
 // Parse the trailer header
 func fixTrailer(header Header, te []string) (Header, error) {
-	raw := header.get("Trailer")
-	if raw == "" {
+	vv, ok := header["Trailer"]
+	if !ok {
 		return nil, nil
 	}
-
 	header.Del("Trailer")
+
 	trailer := make(Header)
-	keys := strings.Split(raw, ",")
-	for _, key := range keys {
-		key = CanonicalHeaderKey(strings.TrimSpace(key))
-		switch key {
-		case "Transfer-Encoding", "Trailer", "Content-Length":
-			return nil, &badStringError{"bad trailer key", key}
-		}
-		trailer[key] = nil
+	var err error
+	for _, v := range vv {
+		foreachHeaderElement(v, func(key string) {
+			key = CanonicalHeaderKey(key)
+			switch key {
+			case "Transfer-Encoding", "Trailer", "Content-Length":
+				if err == nil {
+					err = &badStringError{"bad trailer key", key}
+					return
+				}
+			}
+			trailer[key] = nil
+		})
+	}
+	if err != nil {
+		return nil, err
 	}
 	if len(trailer) == 0 {
 		return nil, nil
@@ -613,10 +621,11 @@ type body struct {
 	closing      bool          // is the connection to be closed after reading body?
 	doEarlyClose bool          // whether Close should stop early
 
-	mu         sync.Mutex // guards closed, and calls to Read and Close
+	mu         sync.Mutex // guards following, and calls to Read and Close
 	sawEOF     bool
 	closed     bool
-	earlyClose bool // Close called and we didn't read to the end of src
+	earlyClose bool   // Close called and we didn't read to the end of src
+	onHitEOF   func() // if non-nil, func to call when EOF is Read
 }
 
 // ErrBodyReadAfterClose is returned when reading a Request or Response
@@ -674,6 +683,10 @@ func (b *body) readLocked(p []byte) (n int, err error) {
 			err = io.EOF
 			b.sawEOF = true
 		}
+	}
+
+	if b.sawEOF && b.onHitEOF != nil {
+		b.onHitEOF()
 	}
 
 	return n, err
@@ -808,6 +821,20 @@ func (b *body) didEarlyClose() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.earlyClose
+}
+
+// bodyRemains reports whether future Read calls might
+// yield data.
+func (b *body) bodyRemains() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return !b.sawEOF
+}
+
+func (b *body) registerOnHitEOF(fn func()) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.onHitEOF = fn
 }
 
 // bodyLocked is a io.Reader reading from a *body when its mutex is

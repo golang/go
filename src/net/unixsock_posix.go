@@ -42,7 +42,7 @@ func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Ti
 		return nil, errors.New("unknown mode: " + mode)
 	}
 
-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline)
+	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, noCancel)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +273,9 @@ func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn
 // typically use variables of type Listener instead of assuming Unix
 // domain sockets.
 type UnixListener struct {
-	fd   *netFD
-	path string
+	fd     *netFD
+	path   string
+	unlink bool
 }
 
 // ListenUnix announces on the Unix domain socket laddr and returns a
@@ -292,7 +293,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr.opAddr(), Err: err}
 	}
-	return &UnixListener{fd: fd, path: fd.laddr.String()}, nil
+	return &UnixListener{fd: fd, path: fd.laddr.String(), unlink: true}, nil
 }
 
 // AcceptUnix accepts the next incoming call and returns the new
@@ -335,7 +336,7 @@ func (l *UnixListener) Close() error {
 	// is at least compatible with the auto-remove
 	// sequence in ListenUnix.  It's only non-Go
 	// programs that can mess us up.
-	if l.path[0] != '@' {
+	if l.path[0] != '@' && l.unlink {
 		syscall.Unlink(l.path)
 	}
 	err := l.fd.Close()

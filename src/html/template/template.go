@@ -80,7 +80,7 @@ func (t *Template) escape() error {
 	defer t.nameSpace.mu.Unlock()
 	if t.escapeErr == nil {
 		if t.Tree == nil {
-			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.text.DefinedTemplates())
+			return fmt.Errorf("template: %q is an incomplete or empty template%s", t.Name(), t.DefinedTemplates())
 		}
 		if err := escapeTemplate(t, t.text.Root, t.Name()); err != nil {
 			return err
@@ -141,6 +141,13 @@ func (t *Template) lookupAndEscapeTemplate(name string) (tmpl *Template, err err
 		err = escapeTemplate(tmpl, tmpl.text.Root, name)
 	}
 	return tmpl, err
+}
+
+// DefinedTemplates returns a string listing the defined templates,
+// prefixed by the string "; defined templates are: ". If there are none,
+// it returns the empty string. Used to generate an error message.
+func (t *Template) DefinedTemplates() string {
+	return t.text.DefinedTemplates()
 }
 
 // Parse parses a string into a template. Nested template definitions

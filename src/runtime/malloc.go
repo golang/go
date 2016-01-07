@@ -392,8 +392,8 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
 		// Reserve some more space.
 		p_size := round(n+_PageSize, 256<<20)
-		new_end := h.arena_end + p_size
-		if new_end <= h.arena_start+_MaxArena32 {
+		new_end := h.arena_end + p_size // Careful: can overflow
+		if h.arena_end <= new_end && new_end <= h.arena_start+_MaxArena32 {
 			// TODO: It would be bad if part of the arena
 			// is reserved and part is not.
 			var reserved bool
@@ -589,9 +589,9 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			} else if size&1 == 0 {
 				off = round(off, 2)
 			}
-			if off+size <= maxTinySize && c.tiny != nil {
+			if off+size <= maxTinySize && c.tiny != 0 {
 				// The object fits into existing tiny block.
-				x = add(c.tiny, off)
+				x = unsafe.Pointer(c.tiny + off)
 				c.tinyoffset = off + size
 				c.local_tinyallocs++
 				mp.mallocing = 0
@@ -618,9 +618,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			(*[2]uint64)(x)[1] = 0
 			// See if we need to replace the existing tiny block with the new one
 			// based on amount of remaining free space.
-			if size < c.tinyoffset || c.tiny == nil {
-				// TODO(khr): replace this with "c.tiny = x" when c.tiny use is fixed.
-				writebarrierptr((*uintptr)(unsafe.Pointer(&c.tiny)), uintptr(x))
+			if size < c.tinyoffset || c.tiny == 0 {
+				c.tiny = uintptr(x)
 				c.tinyoffset = size
 			}
 			size = maxTinySize
@@ -654,7 +653,6 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				}
 			}
 		}
-		c.local_cachealloc += size
 	} else {
 		var s *mspan
 		shouldhelpgc = true

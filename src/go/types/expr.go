@@ -180,25 +180,27 @@ func roundFloat64(x constant.Value) constant.Value {
 }
 
 // representableConst reports whether x can be represented as
-// value of the given basic type kind and for the configuration
+// value of the given basic type and for the configuration
 // provided (only needed for int/uint sizes).
 //
 // If rounded != nil, *rounded is set to the rounded value of x for
 // representable floating-point values; it is left alone otherwise.
 // It is ok to provide the addressof the first argument for rounded.
-func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *constant.Value) bool {
-	switch x.Kind() {
-	case constant.Unknown:
-		return true
+func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *constant.Value) bool {
+	if x.Kind() == constant.Unknown {
+		return true // avoid follow-up errors
+	}
 
-	case constant.Bool:
-		return as == Bool || as == UntypedBool
-
-	case constant.Int:
+	switch {
+	case isInteger(typ):
+		x := constant.ToInt(x)
+		if x.Kind() != constant.Int {
+			return false
+		}
 		if x, ok := constant.Int64Val(x); ok {
-			switch as {
+			switch typ.kind {
 			case Int:
-				var s = uint(conf.sizeof(Typ[as])) * 8
+				var s = uint(conf.sizeof(typ)) * 8
 				return int64(-1)<<(s-1) <= x && x <= int64(1)<<(s-1)-1
 			case Int8:
 				const s = 8
@@ -209,10 +211,10 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
 			case Int32:
 				const s = 32
 				return -1<<(s-1) <= x && x <= 1<<(s-1)-1
-			case Int64:
+			case Int64, UntypedInt:
 				return true
 			case Uint, Uintptr:
-				if s := uint(conf.sizeof(Typ[as])) * 8; s < 64 {
+				if s := uint(conf.sizeof(typ)) * 8; s < 64 {
 					return 0 <= x && x <= int64(1)<<s-1
 				}
 				return 0 <= x
@@ -227,20 +229,28 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
 				return 0 <= x && x <= 1<<s-1
 			case Uint64:
 				return 0 <= x
-			case Float32, Float64, Complex64, Complex128,
-				UntypedInt, UntypedFloat, UntypedComplex:
-				return true
+			default:
+				unreachable()
 			}
 		}
-
-		n := constant.BitLen(x)
-		switch as {
+		// x does not fit into int64
+		switch n := constant.BitLen(x); typ.kind {
 		case Uint, Uintptr:
-			var s = uint(conf.sizeof(Typ[as])) * 8
+			var s = uint(conf.sizeof(typ)) * 8
 			return constant.Sign(x) >= 0 && n <= int(s)
 		case Uint64:
 			return constant.Sign(x) >= 0 && n <= 64
-		case Float32, Complex64:
+		case UntypedInt:
+			return true
+		}
+
+	case isFloat(typ):
+		x := constant.ToFloat(x)
+		if x.Kind() != constant.Float {
+			return false
+		}
+		switch typ.kind {
+		case Float32:
 			if rounded == nil {
 				return fitsFloat32(x)
 			}
@@ -249,7 +259,7 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
 				*rounded = r
 				return true
 			}
-		case Float64, Complex128:
+		case Float64:
 			if rounded == nil {
 				return fitsFloat64(x)
 			}
@@ -258,36 +268,18 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
 				*rounded = r
 				return true
 			}
-		case UntypedInt, UntypedFloat, UntypedComplex:
+		case UntypedFloat:
 			return true
+		default:
+			unreachable()
 		}
 
-	case constant.Float:
-		switch as {
-		case Float32, Complex64:
-			if rounded == nil {
-				return fitsFloat32(x)
-			}
-			r := roundFloat32(x)
-			if r != nil {
-				*rounded = r
-				return true
-			}
-		case Float64, Complex128:
-			if rounded == nil {
-				return fitsFloat64(x)
-			}
-			r := roundFloat64(x)
-			if r != nil {
-				*rounded = r
-				return true
-			}
-		case UntypedFloat, UntypedComplex:
-			return true
+	case isComplex(typ):
+		x := constant.ToComplex(x)
+		if x.Kind() != constant.Complex {
+			return false
 		}
-
-	case constant.Complex:
-		switch as {
+		switch typ.kind {
 		case Complex64:
 			if rounded == nil {
 				return fitsFloat32(constant.Real(x)) && fitsFloat32(constant.Imag(x))
@@ -310,13 +302,15 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
 			}
 		case UntypedComplex:
 			return true
+		default:
+			unreachable()
 		}
 
-	case constant.String:
-		return as == String || as == UntypedString
+	case isString(typ):
+		return x.Kind() == constant.String
 
-	default:
-		unreachable()
+	case isBoolean(typ):
+		return x.Kind() == constant.Bool
 	}
 
 	return false
@@ -325,7 +319,7 @@ func representableConst(x constant.Value, conf *Config, as BasicKind, rounded *c
 // representable checks that a constant operand is representable in the given basic type.
 func (check *Checker) representable(x *operand, typ *Basic) {
 	assert(x.mode == constant_)
-	if !representableConst(x.val, check.conf, typ.kind, &x.val) {
+	if !representableConst(x.val, check.conf, typ, &x.val) {
 		var msg string
 		if isNumeric(x.typ) && isNumeric(typ) {
 			// numeric conversion : error msg
@@ -498,8 +492,6 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 				return
 			}
 			// expression value may have been rounded - update if needed
-			// TODO(gri) A floating-point value may silently underflow to
-			// zero. If it was negative, the sign is lost. See issue 6898.
 			check.updateExprVal(x.expr, x.val)
 		} else {
 			// Non-constant untyped values may appear as the
@@ -621,9 +613,16 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
 func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 	untypedx := isUntyped(x.typ)
 
-	// The lhs must be of integer type or be representable
-	// as an integer; otherwise the shift has no chance.
-	if !x.isInteger() {
+	var xval constant.Value
+	if x.mode == constant_ {
+		xval = constant.ToInt(x.val)
+	}
+
+	if isInteger(x.typ) || untypedx && xval != nil && xval.Kind() == constant.Int {
+		// The lhs is of integer type or an untyped constant representable
+		// as an integer. Nothing to do.
+	} else {
+		// shift has no chance
 		check.invalidOp(x.pos(), "shifted operand %s must be integer", x)
 		x.mode = invalid
 		return
@@ -633,7 +632,7 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 	// integer type or be an untyped constant that can be converted to
 	// unsigned integer type."
 	switch {
-	case isInteger(y.typ) && isUnsigned(y.typ):
+	case isUnsigned(y.typ):
 		// nothing to do
 	case isUntyped(y.typ):
 		check.convertUntyped(y, Typ[UntypedInt])
@@ -650,14 +649,15 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 	if x.mode == constant_ {
 		if y.mode == constant_ {
 			// rhs must be an integer value
-			if !y.isInteger() {
+			yval := constant.ToInt(y.val)
+			if yval.Kind() != constant.Int {
 				check.invalidOp(y.pos(), "shift count %s must be unsigned integer", y)
 				x.mode = invalid
 				return
 			}
 			// rhs must be within reasonable bounds
 			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
-			s, ok := constant.Uint64Val(y.val)
+			s, ok := constant.Uint64Val(yval)
 			if !ok || s > stupidShift {
 				check.invalidOp(y.pos(), "stupid shift count %s", y)
 				x.mode = invalid
@@ -670,7 +670,8 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 			if !isInteger(x.typ) {
 				x.typ = Typ[UntypedInt]
 			}
-			x.val = constant.Shift(x.val, op, uint(s))
+			// x is a constant so xval != nil and it must be of Int kind.
+			x.val = constant.Shift(xval, op, uint(s))
 			// Typed constants must be representable in
 			// their type after each constant operation.
 			if isTyped(x.typ) {
@@ -802,12 +803,16 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 	}
 
 	if x.mode == constant_ && y.mode == constant_ {
+		xval := x.val
+		yval := y.val
 		typ := x.typ.Underlying().(*Basic)
 		// force integer division of integer operands
 		if op == token.QUO && isInteger(typ) {
+			xval = constant.ToInt(xval)
+			yval = constant.ToInt(yval)
 			op = token.QUO_ASSIGN
 		}
-		x.val = constant.BinaryOp(x.val, op, y.val)
+		x.val = constant.BinaryOp(xval, op, yval)
 		// Typed constants must be representable in
 		// their type after each constant operation.
 		if isTyped(typ) {
@@ -851,7 +856,7 @@ func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
 			check.invalidArg(x.pos(), "index %s must not be negative", &x)
 			return
 		}
-		i, valid = constant.Int64Val(x.val)
+		i, valid = constant.Int64Val(constant.ToInt(x.val))
 		if !valid || max >= 0 && i >= max {
 			check.errorf(x.pos(), "index %s is out of bounds", &x)
 			return i, false

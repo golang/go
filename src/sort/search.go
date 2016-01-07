@@ -13,7 +13,7 @@ package sort
 // and then true for the (possibly empty) remainder; Search returns
 // the first true index.  If there is no such index, Search returns n.
 // (Note that the "not found" return value is not -1 as in, for instance,
-// strings.Index).
+// strings.Index.)
 // Search calls f(i) only for i in the range [0, n).
 //
 // A common use of Search is to find the index i for a value x in

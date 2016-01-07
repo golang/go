@@ -17,19 +17,19 @@ var stringTests = []struct {
 	val  int64
 	ok   bool
 }{
-	{in: "", ok: false},
-	{in: "a", ok: false},
-	{in: "z", ok: false},
-	{in: "+", ok: false},
-	{in: "-", ok: false},
-	{in: "0b", ok: false},
-	{in: "0x", ok: false},
-	{in: "2", base: 2, ok: false},
-	{in: "0b2", base: 0, ok: false},
-	{in: "08", ok: false},
-	{in: "8", base: 8, ok: false},
-	{in: "0xg", base: 0, ok: false},
-	{in: "g", base: 16, ok: false},
+	{in: ""},
+	{in: "a"},
+	{in: "z"},
+	{in: "+"},
+	{in: "-"},
+	{in: "0b"},
+	{in: "0x"},
+	{in: "2", base: 2},
+	{in: "0b2", base: 0},
+	{in: "08"},
+	{in: "8", base: 8},
+	{in: "0xg", base: 0},
+	{in: "g", base: 16},
 	{"0", "0", 0, 0, true},
 	{"0", "0", 10, 0, true},
 	{"0", "0", 16, 0, true},
@@ -41,7 +41,7 @@ var stringTests = []struct {
 	{"-10", "-10", 16, -16, true},
 	{"+10", "10", 16, 16, true},
 	{"0x10", "16", 0, 16, true},
-	{in: "0x10", base: 16, ok: false},
+	{in: "0x10", base: 16},
 	{"-0x10", "-16", 0, -16, true},
 	{"+0x10", "16", 0, 16, true},
 	{"00", "0", 0, 0, true},
@@ -56,6 +56,57 @@ var stringTests = []struct {
 	{"-0b111", "-7", 0, -7, true},
 	{"0b1001010111", "599", 0, 0x257, true},
 	{"1001010111", "1001010111", 2, 0x257, true},
+}
+
+func TestIntText(t *testing.T) {
+	z := new(Int)
+	for _, test := range stringTests {
+		if !test.ok {
+			continue
+		}
+
+		_, ok := z.SetString(test.in, test.base)
+		if !ok {
+			t.Errorf("%v: failed to parse", test)
+			continue
+		}
+
+		base := test.base
+		if base == 0 {
+			base = 10
+		}
+
+		if got := z.Text(base); got != test.out {
+			t.Errorf("%v: got %s; want %s", test, got, test.out)
+		}
+	}
+}
+
+func TestAppendText(t *testing.T) {
+	z := new(Int)
+	var buf []byte
+	for _, test := range stringTests {
+		if !test.ok {
+			continue
+		}
+
+		_, ok := z.SetString(test.in, test.base)
+		if !ok {
+			t.Errorf("%v: failed to parse", test)
+			continue
+		}
+
+		base := test.base
+		if base == 0 {
+			base = 10
+		}
+
+		i := len(buf)
+		buf = z.Append(buf, base)
+		if got := string(buf[i:]); got != test.out {
+			t.Errorf("%v: got %s; want %s", test, got, test.out)
+		}
+	}
 }
 
 func format(base int) string {
@@ -79,15 +130,13 @@ func TestGetString(t *testing.T) {
 		z.SetInt64(test.val)
 
 		if test.base == 10 {
-			s := z.String()
-			if s != test.out {
-				t.Errorf("#%da got %s; want %s", i, s, test.out)
+			if got := z.String(); got != test.out {
+				t.Errorf("#%da got %s; want %s", i, got, test.out)
 			}
 		}
 
-		s := fmt.Sprintf(format(test.base), z)
-		if s != test.out {
-			t.Errorf("#%db got %s; want %s", i, s, test.out)
+		if got := fmt.Sprintf(format(test.base), z); got != test.out {
+			t.Errorf("#%db got %s; want %s", i, got, test.out)
 		}
 	}
 }

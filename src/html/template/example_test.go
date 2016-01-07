@@ -31,6 +31,7 @@ func Example() {
 		}
 	}
 	t, err := template.New("webpage").Parse(tpl)
+	check(err)
 
 	data := struct {
 		Title string

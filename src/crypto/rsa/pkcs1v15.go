@@ -223,7 +223,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
 	copy(em[k-hashLen:k], hashed)
 
 	m := new(big.Int).SetBytes(em)
-	c, err := decrypt(rand, priv, m)
+	c, err := decryptAndCheck(rand, priv, m)
 	if err != nil {
 		return
 	}

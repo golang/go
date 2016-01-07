@@ -43,15 +43,11 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 		addr2 := unsafe.Pointer(v2.UnsafeAddr())
 		if uintptr(addr1) > uintptr(addr2) {
 			// Canonicalize order to reduce number of entries in visited.
+			// Assumes non-moving garbage collector.
 			addr1, addr2 = addr2, addr1
 		}
 
-		// Short circuit if references are identical ...
-		if addr1 == addr2 {
-			return true
-		}
-
-		// ... or already seen
+		// Short circuit if references are already seen.
 		typ := v1.Type()
 		v := visit{addr1, addr2, typ}
 		if visited[v] {
@@ -92,6 +88,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited, depth+1)
 	case Ptr:
+		if v1.Pointer() == v2.Pointer() {
+			return true
+		}
 		return deepValueEqual(v1.Elem(), v2.Elem(), visited, depth+1)
 	case Struct:
 		for i, n := 0, v1.NumField(); i < n; i++ {
@@ -111,7 +110,9 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 			return true
 		}
 		for _, k := range v1.MapKeys() {
-			if !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
+			val1 := v1.MapIndex(k)
+			val2 := v2.MapIndex(k)
+			if !val1.IsValid() || !val2.IsValid() || !deepValueEqual(v1.MapIndex(k), v2.MapIndex(k), visited, depth+1) {
 				return false
 			}
 		}
@@ -128,18 +129,56 @@ func deepValueEqual(v1, v2 Value, visited map[visit]bool, depth int) bool {
 	}
 }
 
-// DeepEqual tests for deep equality. It uses normal == equality where
-// possible but will scan elements of arrays, slices, maps, and fields of
-// structs. In maps, keys are compared with == but elements use deep
-// equality. DeepEqual correctly handles recursive types. Functions are equal
-// only if they are both nil.
-// An empty slice is not equal to a nil slice.
-func DeepEqual(a1, a2 interface{}) bool {
-	if a1 == nil || a2 == nil {
-		return a1 == a2
+// DeepEqual reports whether x and y are ``deeply equal,'' defined as follows.
+// Two values of identical type are deeply equal if one of the following cases applies.
+// Values of distinct types are never deeply equal.
+//
+// Array values are deeply equal when their corresponding elements are deeply equal.
+//
+// Struct values are deeply equal if their corresponding fields,
+// both exported and unexported, are deeply equal.
+//
+// Func values are deeply equal if both are nil; otherwise they are not deeply equal.
+//
+// Interface values are deeply equal if they hold deeply equal concrete values.
+//
+// Map values are deeply equal if they are the same map object
+// or if they have the same length and their corresponding keys
+// (matched using Go equality) map to deeply equal values.
+//
+// Pointer values are deeply equal if they are equal using Go's == operator
+// or if they point to deeply equal values.
+//
+// Slice values are deeply equal when all of the following are true:
+// they are both nil or both non-nil, they have the same length,
+// and either they point to the same initial entry of the same underlying array
+// (that is, &x[0] == &y[0]) or their corresponding elements (up to length) are deeply equal.
+// Note that a non-nil empty slice and a nil slice (for example, []byte{} and []byte(nil))
+// are not deeply equal.
+//
+// Other values - numbers, bools, strings, and channels - are deeply equal
+// if they are equal using Go's == operator.
+//
+// In general DeepEqual is a recursive relaxation of Go's == operator.
+// However, this idea is impossible to implement without some inconsistency.
+// Specifically, it is possible for a value to be unequal to itself,
+// either because it is of func type (uncomparable in general)
+// or because it is a floating-point NaN value (not equal to itself in floating-point comparison),
+// or because it is an array, struct, or interface containing
+// such a value.
+// On the other hand, pointer values are always equal to themselves,
+// even if they point at or contain such problematic values,
+// because they compare equal using Go's == operator, and that
+// is a sufficient condition to be deeply equal, regardless of content.
+// DeepEqual has been defined so that the same short-cut applies
+// to slices and maps: if x and y are the same slice or the same map,
+// they are deeply equal regardless of content.
+func DeepEqual(x, y interface{}) bool {
+	if x == nil || y == nil {
+		return x == y
 	}
-	v1 := ValueOf(a1)
-	v2 := ValueOf(a2)
+	v1 := ValueOf(x)
+	v2 := ValueOf(y)
 	if v1.Type() != v2.Type() {
 		return false
 	}

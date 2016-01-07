@@ -149,9 +149,11 @@ const (
 var stackpool [_NumStackOrders]mSpanList
 var stackpoolmu mutex
 
-// List of stack spans to be freed at the end of GC. Protected by
-// stackpoolmu.
-var stackFreeQueue mSpanList
+// Global pool of large stack spans.
+var stackLarge struct {
+	lock mutex
+	free [_MHeapMap_Bits]mSpanList // free lists by log_2(s.npages)
+}
 
 // Cached value of haveexperiment("framepointer")
 var framepointer_enabled bool
@@ -163,7 +165,19 @@ func stackinit() {
 	for i := range stackpool {
 		stackpool[i].init()
 	}
-	stackFreeQueue.init()
+	for i := range stackLarge.free {
+		stackLarge.free[i].init()
+	}
+}
+
+// stacklog2 returns ⌊log_2(n)⌋.
+func stacklog2(n uintptr) int {
+	log2 := 0
+	for n > 1 {
+		n >>= 1
+		log2++
+	}
+	return log2
 }
 
 // Allocates a stack from the free pool.  Must be called with
@@ -358,9 +372,24 @@ func stackalloc(n uint32) (stack, []stkbar) {
 		}
 		v = unsafe.Pointer(x)
 	} else {
-		s := mheap_.allocStack(round(uintptr(n), _PageSize) >> _PageShift)
+		var s *mspan
+		npage := uintptr(n) >> _PageShift
+		log2npage := stacklog2(npage)
+
+		// Try to get a stack from the large stack cache.
+		lock(&stackLarge.lock)
+		if !stackLarge.free[log2npage].isEmpty() {
+			s = stackLarge.free[log2npage].first
+			stackLarge.free[log2npage].remove(s)
+		}
+		unlock(&stackLarge.lock)
+
 		if s == nil {
-			throw("out of memory")
+			// Allocate a new stack from the heap.
+			s = mheap_.allocStack(npage)
+			if s == nil {
+				throw("out of memory")
+			}
 		}
 		v = unsafe.Pointer(s.start << _PageShift)
 	}
@@ -435,15 +464,15 @@ func stackfree(stk stack, n uintptr) {
 			// sweeping.
 			mheap_.freeStack(s)
 		} else {
-			// Otherwise, add it to a list of stack spans
-			// to be freed at the end of GC.
-			//
-			// TODO(austin): Make it possible to re-use
-			// these spans as stacks, like we do for small
-			// stack spans. (See issue #11466.)
-			lock(&stackpoolmu)
-			stackFreeQueue.insert(s)
-			unlock(&stackpoolmu)
+			// If the GC is running, we can't return a
+			// stack span to the heap because it could be
+			// reused as a heap span, and this state
+			// change would race with GC. Add it to the
+			// large stack cache instead.
+			log2npage := stacklog2(s.npages)
+			lock(&stackLarge.lock)
+			stackLarge.free[log2npage].insert(s)
+			unlock(&stackLarge.lock)
 		}
 	}
 }
@@ -719,6 +748,10 @@ func copystack(gp *g, newsize uintptr) {
 		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
 	}
 
+	// Disallow sigprof scans of this stack and block if there's
+	// one in progress.
+	gcLockStackBarriers(gp)
+
 	// adjust pointers in the to-be-copied frames
 	var adjinfo adjustinfo
 	adjinfo.old = old
@@ -750,6 +783,8 @@ func copystack(gp *g, newsize uintptr) {
 	gp.stackAlloc = newsize
 	gp.stkbar = newstkbar
 	gp.stktopsp += adjinfo.delta
+
+	gcUnlockStackBarriers(gp)
 
 	// free old stack
 	if stackPoisonCopy != 0 {
@@ -1010,14 +1045,19 @@ func freeStackSpans() {
 		}
 	}
 
-	// Free queued stack spans.
-	for !stackFreeQueue.isEmpty() {
-		s := stackFreeQueue.first
-		stackFreeQueue.remove(s)
-		mheap_.freeStack(s)
-	}
-
 	unlock(&stackpoolmu)
+
+	// Free large stack spans.
+	lock(&stackLarge.lock)
+	for i := range stackLarge.free {
+		for s := stackLarge.free[i].first; s != nil; {
+			next := s.next
+			stackLarge.free[i].remove(s)
+			mheap_.freeStack(s)
+			s = next
+		}
+	}
+	unlock(&stackLarge.lock)
 }
 
 //go:nosplit

@@ -39,9 +39,10 @@ var pkgDeps = map[string][]string{
 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
 	"runtime/internal/sys":    {},
 	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
-	"sync":        {"runtime", "sync/atomic", "unsafe"},
-	"sync/atomic": {"unsafe"},
-	"unsafe":      {},
+	"internal/race":           {"runtime", "unsafe"},
+	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
+	"sync/atomic":             {"unsafe"},
+	"unsafe":                  {},
 
 	"L0": {
 		"errors",
@@ -131,7 +132,7 @@ var pkgDeps = map[string][]string{
 	// End of linear dependency definitions.
 
 	// Operating system access.
-	"syscall":                           {"L0", "unicode/utf16"},
+	"syscall":                           {"L0", "internal/race", "unicode/utf16"},
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "unicode/utf16"},
@@ -164,7 +165,7 @@ var pkgDeps = map[string][]string{
 	"runtime/trace":  {"L0"},
 	"text/tabwriter": {"L2"},
 
-	"testing":          {"L2", "flag", "fmt", "os", "runtime/pprof", "runtime/trace", "time"},
+	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
 	"testing/iotest":   {"L2", "log"},
 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
 	"internal/testenv": {"L2", "os", "testing"},
@@ -217,7 +218,7 @@ var pkgDeps = map[string][]string{
 	"database/sql":             {"L4", "container/list", "database/sql/driver"},
 	"database/sql/driver":      {"L4", "time"},
 	"debug/dwarf":              {"L4"},
-	"debug/elf":                {"L4", "OS", "debug/dwarf"},
+	"debug/elf":                {"L4", "OS", "debug/dwarf", "compress/zlib"},
 	"debug/gosym":              {"L4"},
 	"debug/macho":              {"L4", "OS", "debug/dwarf"},
 	"debug/pe":                 {"L4", "OS", "debug/dwarf"},
@@ -259,6 +260,8 @@ var pkgDeps = map[string][]string{
 	},
 
 	// Cgo.
+	// If you add a dependency on CGO, you must add the package to
+	// cgoPackages in cmd/dist/test.go.
 	"runtime/cgo": {"L0", "C"},
 	"CGO":         {"C", "runtime/cgo"},
 
@@ -276,7 +279,7 @@ var pkgDeps = map[string][]string{
 	// Basic networking.
 	// Because net must be used by any package that wants to
 	// do networking portably, it must have a small dependency set: just L0+basic os.
-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight"},
+	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight", "internal/race"},
 
 	// NET enables use of basic network-related packages.
 	"NET": {
@@ -337,7 +340,7 @@ var pkgDeps = map[string][]string{
 
 	// SSL/TLS.
 	"crypto/tls": {
-		"L4", "CRYPTO-MATH", "CGO", "OS",
+		"L4", "CRYPTO-MATH", "OS",
 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
 	},
 	"crypto/x509": {

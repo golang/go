@@ -80,6 +80,8 @@ TEXT runtime·asmsysvicall6(SB),NOSPLIT,$0
 
 	get_tls(CX)
 	MOVQ	g(CX), BX
+	CMPQ	BX, $0
+	JEQ	skiperrno1
 	MOVQ	g_m(BX), BX
 	MOVQ	(m_mOS+mOS_perrno)(BX), DX
 	CMPQ	DX, $0
@@ -108,6 +110,8 @@ skipargs:
 
 	get_tls(CX)
 	MOVQ	g(CX), BX
+	CMPQ	BX, $0
+	JEQ	skiperrno2
 	MOVQ	g_m(BX), BX
 	MOVQ	(m_mOS+mOS_perrno)(BX), AX
 	CMPQ	AX, $0
@@ -219,6 +223,8 @@ allgood:
 	// g = m->gsignal
 	MOVQ	m_gsignal(BP), BP
 	MOVQ	BP, g(BX)
+
+	// TODO: If current SP is not in gsignal.stack, then adjust.
 
 	// prepare call
 	MOVQ	DI, 0(SP)

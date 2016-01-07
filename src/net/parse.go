@@ -10,6 +10,7 @@ package net
 import (
 	"io"
 	"os"
+	"time"
 	_ "unsafe" // For go:linkname
 )
 
@@ -69,6 +70,14 @@ func open(name string) (*file, error) {
 		return nil, err
 	}
 	return &file{fd, make([]byte, 0, os.Getpagesize()), false}, nil
+}
+
+func stat(name string) (mtime time.Time, size int64, err error) {
+	st, err := os.Stat(name)
+	if err != nil {
+		return time.Time{}, 0, err
+	}
+	return st.ModTime(), st.Size(), nil
 }
 
 // byteIndex is strings.IndexByte. It returns the index of the

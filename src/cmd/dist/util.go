@@ -73,8 +73,8 @@ const (
 var outputLock sync.Mutex
 
 // run runs the command line cmd in dir.
-// If mode has ShowOutput set, run collects cmd's output and returns it as a string;
-// otherwise, run prints cmd's output to standard output after the command finishes.
+// If mode has ShowOutput set and Background unset, run passes cmd's output to
+// stdout/stderr directly. Otherwise, run returns cmd's output as a string.
 // If mode has CheckExit set and the command fails, run calls fatal.
 // If mode has Background set, this command is being run as a
 // Background job. Only bgrun should use the Background mode,
@@ -401,9 +401,8 @@ func main() {
 	switch gohostos {
 	case "darwin":
 		// Even on 64-bit platform, darwin uname -m prints i386.
-		if strings.Contains(run("", CheckExit, "sysctl", "machdep.cpu.extfeatures"), "EM64T") {
-			gohostarch = "amd64"
-		}
+		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
+		gohostarch = "amd64"
 	case "freebsd":
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true

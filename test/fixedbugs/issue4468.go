@@ -19,8 +19,12 @@ type S struct {
 }
 
 func F() {
-	go (F())	// ERROR "must be function call"
-	defer (F())	// ERROR "must be function call"
+	go F            // ERROR "must be function call"
+	defer F         // ERROR "must be function call"
+	go (F)		// ERROR "must be function call|must not be parenthesized"
+	defer (F)	// ERROR "must be function call|must not be parenthesized"
+	go (F())	// ERROR "must be function call|must not be parenthesized"
+	defer (F())	// ERROR "must be function call|must not be parenthesized"
 	var s S
 	(&s.t).F()
 	go (&s.t).F()

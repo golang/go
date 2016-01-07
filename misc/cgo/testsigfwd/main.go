@@ -7,9 +7,14 @@ package main
 import "fmt"
 
 /*
+#cgo CFLAGS: -pthread
+#cgo LDFLAGS: -pthread
+
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <pthread.h>
 
 int *p;
 static void sigsegv() {
@@ -18,16 +23,65 @@ static void sigsegv() {
 	exit(2);
 }
 
-static void sighandler(int signum) {
+static void segvhandler(int signum) {
 	if (signum == SIGSEGV) {
 		exit(0);  // success
 	}
 }
 
+static volatile sig_atomic_t sigioSeen;
+
+// Use up some stack space.
+static void recur(int i, char *p) {
+	char a[1024];
+
+	*p = '\0';
+	if (i > 0) {
+		recur(i - 1, a);
+	}
+}
+
+static void iohandler(int signum) {
+	char a[1024];
+
+	recur(4, a);
+	sigioSeen = 1;
+}
+
+static void* sigioThread(void* arg __attribute__ ((unused))) {
+	raise(SIGIO);
+}
+
+static void sigioOnThread() {
+	pthread_t tid;
+	int i;
+
+	pthread_create(&tid, NULL, sigioThread, NULL);
+	pthread_join(tid, NULL);
+
+	// Wait until the signal has been delivered.
+	i = 0;
+	while (!sigioSeen) {
+		if (sched_yield() < 0) {
+			perror("sched_yield");
+		}
+		i++;
+		if (i > 10000) {
+			fprintf(stderr, "looping too long waiting for signal\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
 static void __attribute__ ((constructor)) sigsetup(void) {
 	struct sigaction act;
-	act.sa_handler = &sighandler;
-	sigaction(SIGSEGV, &act, 0);
+
+	memset(&act, 0, sizeof act);
+	act.sa_handler = segvhandler;
+	sigaction(SIGSEGV, &act, NULL);
+
+	act.sa_handler = iohandler;
+	sigaction(SIGIO, &act, NULL);
 }
 */
 import "C"

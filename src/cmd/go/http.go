@@ -12,6 +12,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -24,8 +25,17 @@ import (
 // httpClient is the default HTTP client, but a variable so it can be
 // changed by tests, without modifying http.DefaultClient.
 var httpClient = http.DefaultClient
-var impatientHTTPClient = &http.Client{
+
+// impatientInsecureHTTPClient is used in -insecure mode,
+// when we're connecting to https servers that might not be there
+// or might be using self-signed certificates.
+var impatientInsecureHTTPClient = &http.Client{
 	Timeout: time.Duration(5 * time.Second),
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	},
 }
 
 type httpError struct {
@@ -71,7 +81,7 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 			log.Printf("Fetching %s", urlStr)
 		}
 		if security == insecure && scheme == "https" { // fail earlier
-			res, err = impatientHTTPClient.Get(urlStr)
+			res, err = impatientInsecureHTTPClient.Get(urlStr)
 		} else {
 			res, err = httpClient.Get(urlStr)
 		}
@@ -83,16 +93,12 @@ func httpsOrHTTP(importPath string, security securityMode) (urlStr string, body 
 		}
 	}
 	urlStr, res, err := fetch("https")
-	if err != nil || res.StatusCode != 200 {
+	if err != nil {
 		if buildV {
-			if err != nil {
-				log.Printf("https fetch failed.")
-			} else {
-				log.Printf("ignoring https fetch with status code %d", res.StatusCode)
-			}
+			log.Printf("https fetch failed: %v", err)
 		}
-		closeBody(res)
 		if security == insecure {
+			closeBody(res)
 			urlStr, res, err = fetch("http")
 		}
 	}

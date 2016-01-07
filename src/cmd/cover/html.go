@@ -258,20 +258,34 @@ const tmplHTML = `
 		</div>
 		<div id="content">
 		{{range $i, $f := .Files}}
-		<pre class="file" id="file{{$i}}" {{if $i}}style="display: none"{{end}}>{{$f.Body}}</pre>
+		<pre class="file" id="file{{$i}}" style="display: none">{{$f.Body}}</pre>
 		{{end}}
 		</div>
 	</body>
 	<script>
 	(function() {
 		var files = document.getElementById('files');
-		var visible = document.getElementById('file0');
+		var visible;
 		files.addEventListener('change', onChange, false);
-		function onChange() {
-			visible.style.display = 'none';
-			visible = document.getElementById(files.value);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
 			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
 			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
 		}
 	})();
 	</script>

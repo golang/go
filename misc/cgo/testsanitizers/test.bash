@@ -29,9 +29,23 @@ if $CC --version | grep clang >& /dev/null; then
   ver=$($CC --version | sed -e 's/.* version \([0-9.-]*\).*/\1/')
   major=$(echo $ver | sed -e 's/\([0-9]*\).*/\1/')
   minor=$(echo $ver | sed -e 's/[0-9]*\.\([0-9]*\).*/\1/')
-  if test $major -lt 3 || test $major -eq 3 -a $minor -lt 6; then
-    echo "skipping msan test; clang version $major.$minor older than 3.6"
+  if test "$major" -lt 3 || test "$major" -eq 3 -a "$minor" -lt 6; then
+    echo "skipping msan test; clang version $major.$minor (older than 3.6)"
     exit 0
+  fi
+
+  # Clang before 3.8 does not work with Linux at or after 4.1.
+  # golang.org/issue/12898.
+  if test "$major" -lt 3 || test "$major" -eq 3 -a "$minor" -lt 8; then
+    if test "$(uname)" = Linux; then
+      linuxver=$(uname -r)
+      linuxmajor=$(echo $linuxver | sed -e 's/\([0-9]*\).*/\1/')
+      linuxminor=$(echo $linuxver | sed -e 's/[0-9]*\.\([0-9]*\).*/\1/')
+      if test "$linuxmajor" -gt 4 || test "$linuxmajor" -eq 4 -a "$linuxminor" -ge 1; then
+        echo "skipping msan test; clang version $major.$minor (older than 3.8) incompatible with linux version $linuxmajor.$linuxminor (4.1 or newer)"
+        exit 0
+      fi
+    fi
   fi
 fi
 
@@ -47,7 +61,12 @@ if ! go run -msan msan.go; then
   status=1
 fi
 
-if ! go run -msan msan2.go; then
+if ! CGO_LDFLAGS="-fsanitize=memory" CGO_CPPFLAGS="-fsanitize=memory" go run -msan -a msan2.go; then
+  echo "FAIL: msan2 with -fsanitize=memory"
+  status=1
+fi
+
+if ! go run -msan -a msan2.go; then
   echo "FAIL: msan2"
   status=1
 fi

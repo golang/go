@@ -122,20 +122,31 @@ func efaceOf(ep *interface{}) *eface {
 // alternate arena. Using guintptr doesn't make that problem any worse.
 type guintptr uintptr
 
-func (gp guintptr) ptr() *g   { return (*g)(unsafe.Pointer(gp)) }
+//go:nosplit
+func (gp guintptr) ptr() *g { return (*g)(unsafe.Pointer(gp)) }
+
+//go:nosplit
 func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
+
+//go:nosplit
 func (gp *guintptr) cas(old, new guintptr) bool {
 	return atomic.Casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
 }
 
 type puintptr uintptr
 
-func (pp puintptr) ptr() *p   { return (*p)(unsafe.Pointer(pp)) }
+//go:nosplit
+func (pp puintptr) ptr() *p { return (*p)(unsafe.Pointer(pp)) }
+
+//go:nosplit
 func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
 
 type muintptr uintptr
 
-func (mp muintptr) ptr() *m   { return (*m)(unsafe.Pointer(mp)) }
+//go:nosplit
+func (mp muintptr) ptr() *m { return (*m)(unsafe.Pointer(mp)) }
+
+//go:nosplit
 func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
 
 type gobuf struct {
@@ -222,7 +233,7 @@ type g struct {
 	sched          gobuf
 	syscallsp      uintptr        // if status==Gsyscall, syscallsp = sched.sp to use during gc
 	syscallpc      uintptr        // if status==Gsyscall, syscallpc = sched.pc to use during gc
-	stkbar         []stkbar       // stack barriers, from low to high
+	stkbar         []stkbar       // stack barriers, from low to high (see top of mstkbar.go)
 	stkbarPos      uintptr        // index of lowest stack barrier not hit
 	stktopsp       uintptr        // expected sp at top of stack, to check in traceback
 	param          unsafe.Pointer // passed parameter on wakeup
@@ -273,7 +284,7 @@ type m struct {
 	// Fields not known to debuggers.
 	procid        uint64     // for debuggers, but offset not hard-coded
 	gsignal       *g         // signal-handling g
-	sigmask       [4]uintptr // storage for saved signal mask
+	sigmask       sigset     // storage for saved signal mask
 	tls           [6]uintptr // thread-local storage (for x86 extern register)
 	mstartfn      func()
 	curg          *g       // current running goroutine
@@ -292,6 +303,7 @@ type m struct {
 	spinning      bool // m is out of work and is actively looking for work
 	blocked       bool // m is blocked on a note
 	inwb          bool // m is executing a write barrier
+	newSigstack   bool // minit on C thread called sigaltstack
 	printlock     int8
 	fastrand      uint32
 	ncgocall      uint64 // number of cgo calls in total
@@ -408,7 +420,7 @@ type schedt struct {
 
 	pidle      puintptr // idle p's
 	npidle     uint32
-	nmspinning uint32 // limited to [0, 2^31-1]
+	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
 
 	// Global runnable queue.
 	runqhead guintptr
@@ -471,7 +483,6 @@ const (
 	_SigPanic                // if the signal is from the kernel, panic
 	_SigDefault              // if the signal isn't explicitly requested, don't monitor it
 	_SigHandling             // our signal handler is registered
-	_SigIgnored              // the signal was ignored before we registered for it
 	_SigGoExit               // cause all runtime procs to exit (only used on Plan 9).
 	_SigSetStack             // add SA_ONSTACK to libc handler
 	_SigUnblock              // unblocked in minit
@@ -486,7 +497,7 @@ type _func struct {
 	nameoff int32   // function name
 
 	args int32 // in/out args size
-	_    int32 // Previously: legacy frame size. TODO: Remove this.
+	_    int32 // previously legacy frame size; kept for layout compatibility
 
 	pcsp      int32
 	pcfile    int32

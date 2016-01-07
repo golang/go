@@ -89,8 +89,6 @@ func TestMain(m *testing.M) {
 		case "linux", "darwin", "freebsd", "windows":
 			canRace = canCgo && runtime.GOARCH == "amd64"
 		}
-
-		measureTick("./testgo" + exeSuffix)
 	}
 
 	// Don't let these environment variables confuse the test.
@@ -109,24 +107,8 @@ func TestMain(m *testing.M) {
 // The length of an mtime tick on this system.  This is an estimate of
 // how long we need to sleep to ensure that the mtime of two files is
 // different.
-var mtimeTick time.Duration
-
-// measureTick sets mtimeTick by looking at the rounding of the mtime
-// of a file.
-func measureTick(path string) {
-	st, err := os.Stat(path)
-	if err != nil {
-		// Default to one second, the most conservative value.
-		mtimeTick = time.Second
-		return
-	}
-	mtime := st.ModTime()
-	t := time.Microsecond
-	for mtime.Round(t).Equal(mtime) && t < time.Second {
-		t *= 10
-	}
-	mtimeTick = t
-}
+// We used to try to be clever but that didn't always work (see golang.org/issue/12205).
+var mtimeTick time.Duration = 1 * time.Second
 
 // Manage a single run of the testgo binary.
 type testgoData struct {
@@ -781,6 +763,28 @@ func TestGoInstallDetectsRemovedFiles(t *testing.T) {
 	tg.wantStale("mypkg", "./testgo list mypkg claims mypkg is NOT stale after removing y.go; should be stale")
 }
 
+func TestWildcardMatchesSyntaxErrorDirs(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/mypkg/x.go", `package mypkg`)
+	tg.tempFile("src/mypkg/y.go", `pkg mypackage`)
+	tg.setenv("GOPATH", tg.path("."))
+	tg.cd(tg.path("src/mypkg"))
+	tg.runFail("list", "./...")
+	tg.runFail("build", "./...")
+	tg.runFail("install", "./...")
+}
+
+func TestGoListWithTags(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempFile("src/mypkg/x.go", "// +build thetag\n\npackage mypkg\n")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.cd(tg.path("./src"))
+	tg.run("list", "-tags=thetag", "./my...")
+	tg.grepStdout("mypkg", "did not find mypkg")
+}
+
 func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't install into GOROOT in short mode")
@@ -1059,7 +1063,6 @@ func TestImportCommentConflict(t *testing.T) {
 // cmd/go: custom import path checking should not apply to github.com/xxx/yyy.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
-
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("skipping because git binary not found")
 	}
@@ -1075,6 +1078,34 @@ func TestIssue10952(t *testing.T) {
 	defer tg.resetReadOnlyFlagAll(repoDir)
 	tg.runGit(repoDir, "remote", "set-url", "origin", "https://"+importPath+".git")
 	tg.run("get", "-d", "-u", importPath)
+}
+
+func TestGetGitDefaultBranch(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("skipping because git binary not found")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+
+	// This repo has two branches, master and another-branch.
+	// The another-branch is the default that you get from 'git clone'.
+	// The go get command variants should not override this.
+	const importPath = "github.com/rsc/go-get-default-branch"
+
+	tg.run("get", "-d", importPath)
+	repoDir := tg.path("src/" + importPath)
+	defer tg.resetReadOnlyFlagAll(repoDir)
+	tg.runGit(repoDir, "branch", "--contains", "HEAD")
+	tg.grepStdout(`\* another-branch`, "not on correct default branch")
+
+	tg.run("get", "-d", "-u", importPath)
+	tg.runGit(repoDir, "branch", "--contains", "HEAD")
+	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 }
 
 func TestDisallowedCSourceFiles(t *testing.T) {
@@ -1179,6 +1210,7 @@ func TestBuildOutputToDevNull(t *testing.T) {
 func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
 	gobin := filepath.Join(tg.pwd(), "testdata", "bin")
 	tg.creatingTemp(gobin)
 	tg.setenv("GOBIN", gobin)
@@ -1741,7 +1773,7 @@ func TestCoverageUsesSetMode(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-coverprofile=testdata/cover.out", "encoding/binary")
+	tg.run("test", "-short", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1764,7 +1796,7 @@ func TestCoverageUsesAtomicModeForRace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-race", "-coverprofile=testdata/cover.out", "encoding/binary")
+	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-coverprofile=testdata/cover.out")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1787,7 +1819,7 @@ func TestCoverageUsesActualSettingToOverrideEvenForRace(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.creatingTemp("testdata/cover.out")
-	tg.run("test", "-short", "-race", "-covermode=count", "-coverprofile=testdata/cover.out", "encoding/binary")
+	tg.run("test", "-short", "-race", "-cover", "encoding/binary", "-covermode=count", "-coverprofile=testdata/cover.out")
 	data := tg.getStdout() + tg.getStderr()
 	if out, err := ioutil.ReadFile("testdata/cover.out"); err != nil {
 		t.Error(err)
@@ -1986,7 +2018,8 @@ func TestGoTestFooTestWorks(t *testing.T) {
 func TestGoTestFlagsAfterPackage(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("test", "-v", "testdata/flag_test.go", "-v=7") // Two distinct -v flags.
+	tg.run("test", "testdata/flag_test.go", "-v", "-args", "-v=7") // Two distinct -v flags.
+	tg.run("test", "-v", "testdata/flag_test.go", "-args", "-v=7") // Two distinct -v flags.
 }
 
 func TestGoTestXtestonlyWorks(t *testing.T) {
@@ -2124,6 +2157,17 @@ func TestGoGetRscIoToolstash(t *testing.T) {
 	tg.run("get", "./toolstash")
 }
 
+// Issue 13037: Was not parsing <meta> tags in 404 served over HTTPS
+func TestGoGetHTTPS404(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempDir("src")
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "bazil.org/fuse/fs/fstestutil")
+}
+
 // Test that you can not import a main package.
 func TestIssue4210(t *testing.T) {
 	tg := testgo(t)
@@ -2202,6 +2246,9 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 
 func TestIssue10193(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
+	if _, err := exec.LookPath("hg"); err != nil {
+		t.Skip("skipping because hg binary not found")
+	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2459,4 +2506,13 @@ func TestGoBuildARM(t *testing.T) {
 		func main() {}`)
 	tg.run("build", "hello.go")
 	tg.grepStderrNot("unable to find math.a", "did not build math.a correctly")
+}
+
+func TestIssue13655(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	for _, pkg := range []string{"runtime", "runtime/internal/atomic"} {
+		tg.run("list", "-f", "{{.Deps}}", pkg)
+		tg.grepStdout("runtime/internal/sys", "did not find required dependency of "+pkg+" on runtime/internal/sys")
+	}
 }

@@ -24,13 +24,13 @@ LEAQ name+10(SB), AX -> MOVQ name@GOT(SB), AX; ADDQ $10, AX
 MOVQ $name(SB), AX -> MOVQ name@GOT(SB), AX
 MOVQ $name+10(SB), AX -> MOVQ name@GOT(SB), AX; ADDQ $10, AX
 
-MOVQ name(SB), AX -> MOVQ name@GOT(SB), R15; MOVQ (R15), AX
-MOVQ name+10(SB), AX -> MOVQ name@GOT(SB), R15; MOVQ 10(R15), AX
+MOVQ name(SB), AX -> NOP; MOVQ name@GOT(SB), R15; MOVQ (R15), AX
+MOVQ name+10(SB), AX -> NOP; MOVQ name@GOT(SB), R15; MOVQ 10(R15), AX
 
-CMPQ name(SB), $0 -> MOVQ name@GOT(SB), R15; CMPQ (R15), $0
+CMPQ name(SB), $0 -> NOP; MOVQ name@GOT(SB), R15; CMPQ (R15), $0
 
-MOVQ $1, name(SB) -> MOVQ name@GOT(SB), R15; MOVQ $1, (R15)
-MOVQ $1, name+10(SB) -> MOVQ name@GOT(SB), R15; MOVQ $1, 10(R15)
+MOVQ $1, name(SB) -> NOP; MOVQ name@GOT(SB), R15; MOVQ $1, (R15)
+MOVQ $1, name+10(SB) -> NOP; MOVQ name@GOT(SB), R15; MOVQ $1, 10(R15)
 `
 
 type ParsedTestData struct {

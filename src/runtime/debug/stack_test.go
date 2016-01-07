@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package debug
+package debug_test
 
 import (
+	. "runtime/debug"
 	"strings"
 	"testing"
 )
@@ -51,9 +52,9 @@ func TestStack(t *testing.T) {
 	}
 	n++
 	frame("src/runtime/debug/stack.go", "runtime/debug.Stack")
-	frame("src/runtime/debug/stack_test.go", "runtime/debug.(*T).ptrmethod")
-	frame("src/runtime/debug/stack_test.go", "runtime/debug.T.method")
-	frame("src/runtime/debug/stack_test.go", "runtime/debug.TestStack")
+	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.(*T).ptrmethod")
+	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.T.method")
+	frame("src/runtime/debug/stack_test.go", "runtime/debug_test.TestStack")
 	frame("src/testing/testing.go", "")
 }
 

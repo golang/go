@@ -52,8 +52,8 @@ var (
 	Stderr = NewFile(uintptr(syscall.Stderr), "/dev/stderr")
 )
 
-// Flags to Open wrapping those of the underlying system. Not all flags
-// may be implemented on a given system.
+// Flags to OpenFile wrapping those of the underlying system. Not all
+// flags may be implemented on a given system.
 const (
 	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
 	O_WRONLY int = syscall.O_WRONLY // open the file write-only.
@@ -256,7 +256,9 @@ func Create(name string) (*File, error) {
 // lstat is overridden in tests.
 var lstat = Lstat
 
-// Rename renames (moves) a file. OS-specific restrictions might apply.
+// Rename renames (moves) oldpath to newpath.
+// If newpath already exists, Rename replaces it.
+// OS-specific restrictions may apply when oldpath and newpath are in different directories.
 // If there is an error, it will be of type *LinkError.
 func Rename(oldpath, newpath string) error {
 	return rename(oldpath, newpath)

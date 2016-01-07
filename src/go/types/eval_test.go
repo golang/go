@@ -48,7 +48,7 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
 	// compare values
 	gotStr := ""
 	if gotTv.Value != nil {
-		gotStr = gotTv.Value.String()
+		gotStr = gotTv.Value.ExactString()
 	}
 	if gotStr != valStr {
 		t.Errorf("Eval(%q) got value %s, want %s", expr, gotStr, valStr)

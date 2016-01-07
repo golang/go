@@ -212,31 +212,40 @@ func Fconv(fvp *Mpflt, flag int) string {
 		return sign + "Inf"
 	}
 
-	// Use fmt formatting if in float64 range (common case).
-	if x, _ := f.Float64(); !math.IsInf(x, 0) {
+	// Use exact fmt formatting if in float64 range (common case):
+	// proceed if f doesn't underflow to 0 or overflow to inf.
+	if x, _ := f.Float64(); f.Sign() == 0 == (x == 0) && !math.IsInf(x, 0) {
 		return fmt.Sprintf("%s%.6g", sign, x)
 	}
 
 	// Out of float64 range. Do approximate manual to decimal
 	// conversion to avoid precise but possibly slow Float
-	// formatting. The exponent is > 0 since a negative out-
-	// of-range exponent would have underflowed and led to 0.
+	// formatting.
 	// f = mant * 2**exp
 	var mant big.Float
-	exp := float64(f.MantExp(&mant)) // 0.5 <= mant < 1.0, exp > 0
+	exp := f.MantExp(&mant) // 0.5 <= mant < 1.0
 
 	// approximate float64 mantissa m and decimal exponent d
 	// f ~ m * 10**d
-	m, _ := mant.Float64()            // 0.5 <= m < 1.0
-	d := exp * (math.Ln2 / math.Ln10) // log_10(2)
+	m, _ := mant.Float64()                     // 0.5 <= m < 1.0
+	d := float64(exp) * (math.Ln2 / math.Ln10) // log_10(2)
 
 	// adjust m for truncated (integer) decimal exponent e
 	e := int64(d)
 	m *= math.Pow(10, d-float64(e))
-	for m >= 10 {
+
+	// ensure 1 <= m < 10
+	switch {
+	case m < 1-0.5e-6:
+		// The %.6g format below rounds m to 5 digits after the
+		// decimal point. Make sure that m*10 < 10 even after
+		// rounding up: m*10 + 0.5e-5 < 10 => m < 1 - 0.5e6.
+		m *= 10
+		e--
+	case m >= 10:
 		m /= 10
 		e++
 	}
 
-	return fmt.Sprintf("%s%.5fe+%d", sign, m, e)
+	return fmt.Sprintf("%s%.6ge%+d", sign, m, e)
 }

@@ -59,8 +59,7 @@ func walkLinks(path string, linksWalked *int) (string, error) {
 		return newpath, err
 	case file == "":
 		if isDriveLetter(dir) {
-			// appending "." to avoid bug in Join (see issue 11551)
-			return dir + ".", nil
+			return dir, nil
 		}
 		if os.IsPathSeparator(dir[len(dir)-1]) {
 			if isRoot(dir) {
@@ -86,7 +85,6 @@ func walkLinks(path string, linksWalked *int) (string, error) {
 			return newpath, nil
 		}
 		return Join(newdir, newpath), nil
-
 	}
 }
 
@@ -95,9 +93,25 @@ func walkSymlinks(path string) (string, error) {
 		return path, nil
 	}
 	var linksWalked int // to protect against cycles
-	newpath, err := walkLinks(path, &linksWalked)
-	if err != nil {
-		return "", err
+	for {
+		i := linksWalked
+		newpath, err := walkLinks(path, &linksWalked)
+		if err != nil {
+			return "", err
+		}
+		if runtime.GOOS == "windows" {
+			// walkLinks(".", ...) always retuns "." on unix.
+			// But on windows it returns symlink target, if current
+			// directory is a symlink. Stop the walk, if symlink
+			// target is not absolute path, and return "."
+			// to the caller (just like unix does).
+			if path == "." && !IsAbs(newpath) {
+				return ".", nil
+			}
+		}
+		if i == linksWalked {
+			return Clean(newpath), nil
+		}
+		path = newpath
 	}
-	return Clean(newpath), nil
 }

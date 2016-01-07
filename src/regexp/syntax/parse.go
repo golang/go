@@ -830,7 +830,14 @@ func Parse(s string, flags Flags) (*Regexp, error) {
 						lit = t[2:i]
 						t = t[i+2:]
 					}
-					p.push(literalRegexp(lit, p.flags))
+					for lit != "" {
+						c, rest, err := nextRune(lit)
+						if err != nil {
+							return nil, err
+						}
+						p.literal(c)
+						lit = rest
+					}
 					break BigSwitch
 				case 'z':
 					p.op(OpEndText)

@@ -125,7 +125,6 @@ var ptrTests = []ptrTest{
 		fail:    true,
 	},
 	/*
-		TODO(khr): reenable when write barriers are fixed.
 			{
 				// Storing a Go pointer into C memory should fail.
 				name: "barrier",
@@ -210,6 +209,24 @@ var ptrTests = []ptrTest{
 				body:      `p := C.f1(); n := &C.struct_s{[32769]*C.char{new(C.char)}}; p.f = *n; C.f2(p); n.a[0] = nil; C.f3(unsafe.Pointer(n))`,
 				fail:      true,
 				expensive: true,
+			},
+			{
+				// Exported functions may not return Go pointers.
+				name: "export1",
+				c:    `extern unsigned char *GoFn();`,
+				support: `//export GoFn
+		                          func GoFn() *byte { return new(byte) }`,
+				body: `C.GoFn()`,
+				fail: true,
+			},
+			{
+				// Returning a C pointer is fine.
+				name: "exportok",
+				c: `#include <stdlib.h>
+		                    extern unsigned char *GoFn();`,
+				support: `//export GoFn
+		                          func GoFn() *byte { return (*byte)(C.malloc(1)) }`,
+				body: `C.GoFn()`,
 			},
 	*/
 }

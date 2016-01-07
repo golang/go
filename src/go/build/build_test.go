@@ -5,6 +5,7 @@
 package build
 
 import (
+	"internal/testenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -267,11 +268,62 @@ var expandSrcDirTests = []struct {
 
 func TestExpandSrcDir(t *testing.T) {
 	for _, test := range expandSrcDirTests {
-		output := expandSrcDir(test.input, expandSrcDirPath)
+		output, _ := expandSrcDir(test.input, expandSrcDirPath)
 		if output != test.expected {
 			t.Errorf("%q expands to %q with SRCDIR=%q when %q is expected", test.input, output, expandSrcDirPath, test.expected)
 		} else {
 			t.Logf("%q expands to %q with SRCDIR=%q", test.input, output, expandSrcDirPath)
 		}
+	}
+}
+
+func TestShellSafety(t *testing.T) {
+	tests := []struct {
+		input, srcdir, expected string
+		result                  bool
+	}{
+		{"-I${SRCDIR}/../include", "/projects/src/issue 11868", "-I/projects/src/issue 11868/../include", true},
+		{"-X${SRCDIR}/1,${SRCDIR}/2", "/projects/src/issue 11868", "-X/projects/src/issue 11868/1,/projects/src/issue 11868/2", true},
+		{"-I/tmp -I/tmp", "/tmp2", "-I/tmp -I/tmp", false},
+		{"-I/tmp", "/tmp/[0]", "-I/tmp", true},
+		{"-I${SRCDIR}/dir", "/tmp/[0]", "-I/tmp/[0]/dir", false},
+	}
+	for _, test := range tests {
+		output, ok := expandSrcDir(test.input, test.srcdir)
+		if ok != test.result {
+			t.Errorf("Expected %t while %q expands to %q with SRCDIR=%q; got %t", test.result, test.input, output, test.srcdir, ok)
+		}
+		if output != test.expected {
+			t.Errorf("Expected %q while %q expands with SRCDIR=%q; got %q", test.expected, test.input, test.srcdir, output)
+		}
+	}
+}
+
+func TestImportVendor(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
+	ctxt := Default
+	ctxt.GOPATH = ""
+	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+	if err != nil {
+		t.Fatalf("cannot find vendored golang.org/x/net/http2/hpack from net/http directory: %v", err)
+	}
+	want := "vendor/golang.org/x/net/http2/hpack"
+	if p.ImportPath != want {
+		t.Fatalf("Import succeeded but found %q, want %q", p.ImportPath, want)
+	}
+}
+
+func TestImportVendorFailure(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
+	ctxt := Default
+	ctxt.GOPATH = ""
+	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+	if err == nil {
+		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
+	}
+
+	e := err.Error()
+	if !strings.Contains(e, " (vendor tree)") {
+		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
 	}
 }

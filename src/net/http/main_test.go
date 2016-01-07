@@ -5,6 +5,7 @@
 package http_test
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 )
+
+var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
 
 func TestMain(m *testing.M) {
 	v := m.Run()
@@ -77,6 +80,21 @@ func goroutineLeaked() bool {
 		fmt.Fprintf(os.Stderr, "%d instances of:\n%s\n", count, stack)
 	}
 	return true
+}
+
+// setParallel marks t as a parallel test if we're in short mode
+// (all.bash), but as a serial test otherwise. Using t.Parallel isn't
+// compatible with the afterTest func in non-short mode.
+func setParallel(t *testing.T) {
+	if testing.Short() {
+		t.Parallel()
+	}
+}
+
+func setFlaky(t *testing.T, issue int) {
+	if !*flaky {
+		t.Skipf("skipping known flaky test; see golang.org/issue/%d", issue)
+	}
 }
 
 func afterTest(t testing.TB) {

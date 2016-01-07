@@ -79,6 +79,14 @@ internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
 
+Packages in a program need not have unique package names,
+but there are two reserved package names with special meaning.
+The name main indicates a command, not a library.
+Commands are built into binaries and cannot be imported.
+The name documentation indicates documentation for
+a non-Go program in the directory. Files in package documentation
+are ignored by the go command.
+
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized
 package made up of exactly those files, ignoring any build constraints
@@ -261,10 +269,10 @@ unless it is being referred to by that import path. In this way, import comments
 let package authors make sure the custom import path is used and not a
 direct path to the underlying code hosting site.
 
-If the vendoring experiment is enabled (see 'go help gopath'),
-then import path checking is disabled for code found within vendor trees.
-This makes it possible to copy code into alternate locations in vendor trees
-without needing to update import comments.
+If vendoring is enabled (see 'go help gopath'), then import path checking is
+disabled for code found within vendor trees. This makes it possible to copy
+code into alternate locations in vendor trees without needing to update import
+comments.
 
 See https://golang.org/s/go14customimport for details.
 	`,
@@ -419,9 +427,6 @@ As of Go 1.6 they are on by default. To turn them off, set
 GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
 variable will stop having any effect.
 
-The vendoring semantics are an experiment, and they may change
-in future releases. Once settled, they will be on by default.
-
 See https://golang.org/s/go15vendor for details.
 	`,
 }
@@ -493,7 +498,7 @@ Special-purpose environment variables:
 		File names in stack traces are rewritten from GOROOT to
 		GOROOT_FINAL.
 	GO15VENDOREXPERIMENT
-		Set to 1 to enable the Go 1.5 vendoring experiment.
+		Set to 0 to disable vendoring semantics.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.

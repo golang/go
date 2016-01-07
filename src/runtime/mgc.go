@@ -202,6 +202,9 @@ func setGCPercent(in int32) (out int32) {
 	}
 	gcpercent = in
 	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
+	if gcController.triggerRatio > float64(gcpercent)/100 {
+		gcController.triggerRatio = float64(gcpercent) / 100
+	}
 	unlock(&mheap_.lock)
 	return out
 }
@@ -1027,7 +1030,15 @@ func gcStart(mode gcMode, forceTrigger bool) {
 // active work buffers in assists and background workers; however,
 // work may still be cached in per-P work buffers. In mark 2, per-P
 // caches are disabled.
+//
+// The calling context must be preemptible.
+//
+// Note that it is explicitly okay to have write barriers in this
+// function because completion of concurrent mark is best-effort
+// anyway. Any work created by write barriers here will be cleaned up
+// by mark termination.
 func gcMarkDone() {
+top:
 	semacquire(&work.markDoneSema, false)
 
 	// Re-check transition condition under transition lock.
@@ -1090,15 +1101,17 @@ func gcMarkDone() {
 
 		incnwait := atomic.Xadd(&work.nwait, +1)
 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
-			// This recursion is safe because the call
-			// can't take this same "if" branch.
-			gcMarkDone()
+			// This loop will make progress because
+			// gcBlackenPromptly is now true, so it won't
+			// take this same "if" branch.
+			goto top
 		}
 	} else {
 		// Transition to mark termination.
 		now := nanotime()
 		work.tMarkTerm = now
 		work.pauseStart = now
+		getg().m.preemptoff = "gcing"
 		systemstack(stopTheWorldWithSema)
 		// The gcphase is _GCmark, it will transition to _GCmarktermination
 		// below. The important thing is that the wb remains active until
@@ -1235,16 +1248,18 @@ func gcMarkTermination() {
 
 	memstats.numgc++
 
+	// Reset sweep state.
+	sweep.nbgsweep = 0
+	sweep.npausesweep = 0
+
 	systemstack(startTheWorldWithSema)
 
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
 
-	semrelease(&worldsema)
-
-	releasem(mp)
-	mp = nil
-
+	// Print gctrace before dropping worldsema. As soon as we drop
+	// worldsema another cycle could start and smash the stats
+	// we're trying to print.
 	if debug.gctrace > 0 {
 		util := int(memstats.gc_cpu_fraction * 100)
 
@@ -1291,8 +1306,12 @@ func gcMarkTermination() {
 		print("\n")
 		printunlock()
 	}
-	sweep.nbgsweep = 0
-	sweep.npausesweep = 0
+
+	semrelease(&worldsema)
+	// Careful: another GC cycle may start now.
+
+	releasem(mp)
+	mp = nil
 
 	// now that gc is done, kick off finalizer thread if needed
 	if !concurrentSweep {
@@ -1560,6 +1579,11 @@ func gcMark(start_time int64) {
 	// is approximately the amount of heap that was allocated
 	// since marking began).
 	allocatedDuringCycle := memstats.heap_live - work.initialHeapLive
+	if memstats.heap_live < work.initialHeapLive {
+		// This can happen if mCentral_UncacheSpan tightens
+		// the heap_live approximation.
+		allocatedDuringCycle = 0
+	}
 	if work.bytesMarked >= allocatedDuringCycle {
 		memstats.heap_reachable = work.bytesMarked - allocatedDuringCycle
 	} else {
@@ -1583,7 +1607,9 @@ func gcMark(start_time int64) {
 		throw("next_gc underflow")
 	}
 
-	// Update other GC heap size stats.
+	// Update other GC heap size stats. This must happen after
+	// cachestats (which flushes local statistics to these) and
+	// flushallmcaches (which modifies heap_live).
 	memstats.heap_live = work.bytesMarked
 	memstats.heap_marked = work.bytesMarked
 	memstats.heap_scan = uint64(gcController.scanWork)
@@ -1744,17 +1770,6 @@ func clearpools() {
 		sched.deferpool[i] = nil
 	}
 	unlock(&sched.deferlock)
-
-	for _, p := range &allp {
-		if p == nil {
-			break
-		}
-		// clear tinyalloc pool
-		if c := p.mcache; c != nil {
-			c.tiny = nil
-			c.tinyoffset = 0
-		}
-	}
 }
 
 // Timing

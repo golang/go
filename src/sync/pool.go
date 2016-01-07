@@ -5,6 +5,7 @@
 package sync
 
 import (
+	"internal/race"
 	"runtime"
 	"sync/atomic"
 	"unsafe"
@@ -59,7 +60,7 @@ type poolLocal struct {
 
 // Put adds x to the pool.
 func (p *Pool) Put(x interface{}) {
-	if raceenabled {
+	if race.Enabled {
 		// Under race detector the Pool degenerates into no-op.
 		// It's conforming, simple and does not introduce excessive
 		// happens-before edges between unrelated goroutines.
@@ -91,7 +92,7 @@ func (p *Pool) Put(x interface{}) {
 // If Get would otherwise return nil and p.New is non-nil, Get returns
 // the result of calling p.New.
 func (p *Pool) Get() interface{} {
-	if raceenabled {
+	if race.Enabled {
 		if p.New != nil {
 			return p.New()
 		}

@@ -34,10 +34,6 @@ func errorexit() {
 }
 
 func parserline() int {
-	if oldparser != 0 && parsing && theparser.Lookahead() > 0 {
-		// parser has one symbol lookahead
-		return int(prevlineno)
-	}
 	return int(lineno)
 }
 
@@ -137,16 +133,6 @@ func Yyerror(format string, args ...interface{}) {
 			yyerrorl(int(lexlineno), "syntax error near %s", lexbuf.String())
 			return
 		}
-
-		// The grammar has { and LBRACE but both show up as {.
-		// Rewrite syntax error referring to "{ or {" to say just "{".
-		// The grammar has ? and @ but only for reading imports.
-		// Silence them in ordinary errors.
-		msg = strings.Replace(msg, "{ or {", "{", -1)
-		msg = strings.Replace(msg, " or ?", "", -1)
-		msg = strings.Replace(msg, " or @", "", -1)
-
-		msg = strings.Replace(msg, "LLITERAL", litbuf, -1)
 
 		yyerrorl(int(lexlineno), "%s", msg)
 		return
@@ -764,17 +750,11 @@ func treecopy(n *Node, lineno int32) *Node {
 	return m
 }
 
+// isnil reports whether n represents the universal untyped zero value "nil".
 func isnil(n *Node) bool {
-	if n == nil {
-		return false
-	}
-	if n.Op != OLITERAL {
-		return false
-	}
-	if n.Val().Ctype() != CTNIL {
-		return false
-	}
-	return true
+	// Check n.Orig because constant propagation may produce typed nil constants,
+	// which don't exist in the Go spec.
+	return Isconst(n.Orig, CTNIL)
 }
 
 func isptrto(t *Type, et EType) bool {

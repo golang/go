@@ -43,8 +43,10 @@ func SortImports(fset *token.FileSet, f *File) {
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
 			lastLine := fset.Position(lastSpec.Pos()).Line
-			if rParenLine := fset.Position(d.Rparen).Line; rParenLine > lastLine+1 {
-				fset.File(d.Rparen).MergeLine(rParenLine - 1)
+			rParenLine := fset.Position(d.Rparen).Line
+			for rParenLine > lastLine+1 {
+				rParenLine--
+				fset.File(d.Rparen).MergeLine(rParenLine)
 			}
 		}
 	}

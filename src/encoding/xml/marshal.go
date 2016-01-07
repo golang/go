@@ -48,6 +48,8 @@ const (
 //       field name in the XML element.
 //     - a field with tag ",chardata" is written as character data,
 //       not as an XML element.
+//     - a field with tag ",cdata" is written as character data
+//       wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
 //     - a field with tag ",innerxml" is written verbatim, not subject
 //       to the usual marshalling procedure.
 //     - a field with tag ",comment" is written as an XML comment, not
@@ -768,7 +770,11 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		}
 
 		switch finfo.flags & fMode {
-		case fCharData:
+		case fCDATA, fCharData:
+			emit := EscapeText
+			if finfo.flags&fMode == fCDATA {
+				emit = emitCDATA
+			}
 			if err := s.trim(finfo.parents); err != nil {
 				return err
 			}
@@ -777,7 +783,9 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				if err != nil {
 					return err
 				}
-				Escape(p, data)
+				if err := emit(p, data); err != nil {
+					return err
+				}
 				continue
 			}
 			if vf.CanAddr() {
@@ -787,27 +795,37 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 					if err != nil {
 						return err
 					}
-					Escape(p, data)
+					if err := emit(p, data); err != nil {
+						return err
+					}
 					continue
 				}
 			}
 			var scratch [64]byte
 			switch vf.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				Escape(p, strconv.AppendInt(scratch[:0], vf.Int(), 10))
+				if err := emit(p, strconv.AppendInt(scratch[:0], vf.Int(), 10)); err != nil {
+					return err
+				}
 			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				Escape(p, strconv.AppendUint(scratch[:0], vf.Uint(), 10))
+				if err := emit(p, strconv.AppendUint(scratch[:0], vf.Uint(), 10)); err != nil {
+					return err
+				}
 			case reflect.Float32, reflect.Float64:
-				Escape(p, strconv.AppendFloat(scratch[:0], vf.Float(), 'g', -1, vf.Type().Bits()))
+				if err := emit(p, strconv.AppendFloat(scratch[:0], vf.Float(), 'g', -1, vf.Type().Bits())); err != nil {
+					return err
+				}
 			case reflect.Bool:
-				Escape(p, strconv.AppendBool(scratch[:0], vf.Bool()))
+				if err := emit(p, strconv.AppendBool(scratch[:0], vf.Bool())); err != nil {
+					return err
+				}
 			case reflect.String:
-				if err := EscapeText(p, []byte(vf.String())); err != nil {
+				if err := emit(p, []byte(vf.String())); err != nil {
 					return err
 				}
 			case reflect.Slice:
 				if elem, ok := vf.Interface().([]byte); ok {
-					if err := EscapeText(p, elem); err != nil {
+					if err := emit(p, elem); err != nil {
 						return err
 					}
 				}

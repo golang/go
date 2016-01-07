@@ -31,6 +31,7 @@ type fieldFlags int
 const (
 	fElement fieldFlags = 1 << iota
 	fAttr
+	fCDATA
 	fCharData
 	fInnerXml
 	fComment
@@ -38,7 +39,7 @@ const (
 
 	fOmitEmpty
 
-	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
+	fMode = fElement | fAttr | fCDATA | fCharData | fInnerXml | fComment | fAny
 )
 
 var tinfoMap = make(map[reflect.Type]*typeInfo)
@@ -130,6 +131,8 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			switch flag {
 			case "attr":
 				finfo.flags |= fAttr
+			case "cdata":
+				finfo.flags |= fCDATA
 			case "chardata":
 				finfo.flags |= fCharData
 			case "innerxml":
@@ -148,7 +151,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		switch mode := finfo.flags & fMode; mode {
 		case 0:
 			finfo.flags |= fElement
-		case fAttr, fCharData, fInnerXml, fComment, fAny:
+		case fAttr, fCDATA, fCharData, fInnerXml, fComment, fAny:
 			if f.Name == "XMLName" || tag != "" && mode != fAttr {
 				valid = false
 			}

@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Tests for transport.go
+// Tests for transport.go.
+//
+// More tests are in clientserver_test.go (for things testing both client & server for both
+// HTTP/1 and HTTP/2). This
 
 package http_test
 
@@ -20,6 +23,7 @@ import (
 	"net"
 	. "net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"reflect"
@@ -256,6 +260,7 @@ func TestTransportConnectionCloseOnRequest(t *testing.T) {
 
 // if the Transport's DisableKeepAlives is set, all requests should
 // send Connection: close.
+// HTTP/1-only (Connection: close doesn't exist in h2)
 func TestTransportConnectionCloseOnRequestDisableKeepAlive(t *testing.T) {
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
@@ -431,6 +436,7 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 }
 
 func TestTransportServerClosingUnexpectedly(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(hostPortHandler)
 	defer ts.Close()
@@ -597,6 +603,7 @@ func TestTransportHeadChunkedResponse(t *testing.T) {
 
 	tr := &Transport{DisableKeepAlives: false}
 	c := &Client{Transport: tr}
+	defer tr.CloseIdleConnections()
 
 	// Ensure that we wait for the readLoop to complete before
 	// calling Head again
@@ -962,6 +969,7 @@ func TestTransportGzipShort(t *testing.T) {
 
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	gotReqCh := make(chan bool)
 	unblockCh := make(chan bool)
@@ -1028,6 +1036,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 // golang.org/issue/4531: Transport leaks goroutines when
 // request.ContentLength is explicitly short
 func TestTransportPersistConnLeakShortBody(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 	}))
@@ -1368,6 +1377,7 @@ func TestIssue4191_InfiniteGetToPutTimeout(t *testing.T) {
 }
 
 func TestTransportResponseHeaderTimeout(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	if testing.Short() {
 		t.Skip("skipping timeout test in -short mode")
@@ -1439,6 +1449,7 @@ func TestTransportResponseHeaderTimeout(t *testing.T) {
 }
 
 func TestTransportCancelRequest(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	if testing.Short() {
 		t.Skip("skipping test in -short mode")
@@ -1548,6 +1559,7 @@ Get = Get http://something.no-network.tld/: net/http: request canceled while wai
 }
 
 func TestCancelRequestWithChannel(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	if testing.Short() {
 		t.Skip("skipping test in -short mode")
@@ -1605,6 +1617,7 @@ func TestCancelRequestWithChannel(t *testing.T) {
 }
 
 func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	unblockc := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1636,7 +1649,6 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
 
 // Issue 11020. The returned error message should be errRequestCanceled
 func TestTransportCancelBeforeResponseHeaders(t *testing.T) {
-	t.Skip("Skipping flaky test; see Issue 11894")
 	defer afterTest(t)
 
 	serverConnCh := make(chan net.Conn, 1)
@@ -1775,7 +1787,6 @@ func TestTransportNoHost(t *testing.T) {
 	defer afterTest(t)
 	tr := &Transport{}
 	_, err := tr.RoundTrip(&Request{
-		Method: "GET",
 		Header: make(Header),
 		URL: &url.URL{
 			Scheme: "http",
@@ -1784,6 +1795,19 @@ func TestTransportNoHost(t *testing.T) {
 	want := "http: no Host in request URL"
 	if got := fmt.Sprint(err); got != want {
 		t.Errorf("error = %v; want %q", err, want)
+	}
+}
+
+// Issue 13311
+func TestTransportEmptyMethod(t *testing.T) {
+	req, _ := NewRequest("GET", "http://foo.com/", nil)
+	req.Method = ""                                 // docs say "For client requests an empty string means GET"
+	got, err := httputil.DumpRequestOut(req, false) // DumpRequestOut uses Transport
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "GET ") {
+		t.Fatalf("expected substring 'GET '; got: %s", got)
 	}
 }
 
@@ -2394,8 +2418,83 @@ type closerFunc func() error
 
 func (f closerFunc) Close() error { return f() }
 
+// Issue 4677. If we try to reuse a connection that the server is in the
+// process of closing, we may end up successfully writing out our request (or a
+// portion of our request) only to find a connection error when we try to read
+// from (or finish writing to) the socket.
+//
+// NOTE: we resend a request only if the request is idempotent, we reused a
+// keep-alive connection, and we haven't yet received any header data.  This
+// automatically prevents an infinite resend loop because we'll run out of the
+// cached keep-alive connections eventually.
+func TestRetryIdempotentRequestsOnError(t *testing.T) {
+	defer afterTest(t)
+
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	}))
+	defer ts.Close()
+
+	tr := &Transport{}
+	c := &Client{Transport: tr}
+
+	const N = 2
+	retryc := make(chan struct{}, N)
+	SetRoundTripRetried(func() {
+		retryc <- struct{}{}
+	})
+	defer SetRoundTripRetried(nil)
+
+	for n := 0; n < 100; n++ {
+		// open 2 conns
+		errc := make(chan error, N)
+		for i := 0; i < N; i++ {
+			// start goroutines, send on errc
+			go func() {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					res.Body.Close()
+				}
+				errc <- err
+			}()
+		}
+		for i := 0; i < N; i++ {
+			if err := <-errc; err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		ts.CloseClientConnections()
+		for i := 0; i < N; i++ {
+			go func() {
+				res, err := c.Get(ts.URL)
+				if err == nil {
+					res.Body.Close()
+				}
+				errc <- err
+			}()
+		}
+
+		for i := 0; i < N; i++ {
+			if err := <-errc; err != nil {
+				t.Fatal(err)
+			}
+		}
+		for i := 0; i < N; i++ {
+			select {
+			case <-retryc:
+				// we triggered a retry, test was successful
+				t.Logf("finished after %d runs\n", n)
+				return
+			default:
+			}
+		}
+	}
+	t.Fatal("did not trigger any retries")
+}
+
 // Issue 6981
 func TestTransportClosesBodyOnError(t *testing.T) {
+	setParallel(t)
 	defer afterTest(t)
 	readBody := make(chan error, 1)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -2568,52 +2667,6 @@ func TestTransportRangeAndGzip(t *testing.T) {
 		t.Fatal("timeout")
 	}
 	res.Body.Close()
-}
-
-// Previously, we used to handle a logical race within RoundTrip by waiting for 100ms
-// in the case of an error. Changing the order of the channel operations got rid of this
-// race.
-//
-// In order to test that the channel op reordering works, we install a hook into the
-// roundTrip function which gets called if we saw the connection go away and
-// we subsequently received a response.
-func TestTransportResponseCloseRace(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-	defer afterTest(t)
-
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
-	}))
-	defer ts.Close()
-	sawRace := false
-	SetInstallConnClosedHook(func() {
-		sawRace = true
-	})
-	defer SetInstallConnClosedHook(nil)
-	tr := &Transport{
-		DisableKeepAlives: true,
-	}
-	req, err := NewRequest("GET", ts.URL, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// selects are not deterministic, so do this a bunch
-	// and see if we handle the logical race at least once.
-	for i := 0; i < 10000; i++ {
-		resp, err := tr.RoundTrip(req)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-			continue
-		}
-		resp.Body.Close()
-		if sawRace {
-			break
-		}
-	}
-	if !sawRace {
-		t.Errorf("didn't see response/connection going away race")
-	}
 }
 
 // Test for issue 10474
@@ -2828,6 +2881,61 @@ func TestTransportPrefersResponseOverWriteError(t *testing.T) {
 	}
 	if fail > 0 {
 		t.Errorf("Failed %v out of %v\n", fail, count)
+	}
+}
+
+func TestTransportAutomaticHTTP2(t *testing.T) {
+	tr := &Transport{}
+	_, err := tr.RoundTrip(new(Request))
+	if err == nil {
+		t.Error("expected error from RoundTrip")
+	}
+	if tr.TLSNextProto["h2"] == nil {
+		t.Errorf("HTTP/2 not registered.")
+	}
+
+	// Now with TLSNextProto set:
+	tr = &Transport{TLSNextProto: make(map[string]func(string, *tls.Conn) RoundTripper)}
+	_, err = tr.RoundTrip(new(Request))
+	if err == nil {
+		t.Error("expected error from RoundTrip")
+	}
+	if tr.TLSNextProto["h2"] != nil {
+		t.Errorf("HTTP/2 registered, despite non-nil TLSNextProto field")
+	}
+}
+
+// Issue 13633: there was a race where we returned bodyless responses
+// to callers before recycling the persistent connection, which meant
+// a client doing two subsequent requests could end up on different
+// connections. It's somewhat harmless but enough tests assume it's
+// not true in order to test other things that it's worth fixing.
+// Plus it's nice to be consistent and not have timing-dependent
+// behavior.
+func TestTransportReuseConnEmptyResponseBody(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Header().Set("X-Addr", r.RemoteAddr)
+		// Empty response body.
+	}))
+	defer cst.close()
+	n := 100
+	if testing.Short() {
+		n = 10
+	}
+	var firstAddr string
+	for i := 0; i < n; i++ {
+		res, err := cst.c.Get(cst.ts.URL)
+		if err != nil {
+			log.Fatal(err)
+		}
+		addr := res.Header.Get("X-Addr")
+		if i == 0 {
+			firstAddr = addr
+		} else if addr != firstAddr {
+			t.Fatalf("On request %d, addr %q != original addr %q", i+1, addr, firstAddr)
+		}
+		res.Body.Close()
 	}
 }
 

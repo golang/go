@@ -84,7 +84,8 @@ and test commands:
 	-n
 		print the commands but do not run them.
 	-p n
-		the number of builds that can be run in parallel.
+		the number of programs, such as build commands or
+		test binaries, that can be run in parallel.
 		The default is the number of CPUs available, except
 		on darwin/arm which defaults to 1.
 	-race
@@ -236,8 +237,10 @@ The first item in this list matched by the argument is the one whose documentati
 is printed. (See the examples below.) However, if the argument starts with a capital
 letter it is assumed to identify a symbol or method in the current directory.
 
-For packages, the order of scanning is determined lexically, but the GOROOT tree
-is always scanned before GOPATH.
+For packages, the order of scanning is determined lexically in breadth-first order.
+That is, the package presented is the one that matches the search and is nearest
+the root and lexically first at its level of the hierarchy.  The GOROOT tree is
+always scanned in its entirety before GOPATH.
 
 If there is no package specified or matched, the package in the current
 directory is selected, so "go doc Foo" shows the documentation for symbol Foo in
@@ -359,7 +362,7 @@ Generate Go files by processing source
 
 Usage:
 
-	go generate [-run regexp] [file.go... | packages]
+	go generate [-run regexp] [-n] [-v] [-x] [build flags] [file.go... | packages]
 
 Generate runs commands described by directives within existing
 files. Those commands can run any process but the intent is to
@@ -451,11 +454,13 @@ Go generate accepts one specific flag:
 		any trailing spaces and final newline) matches the
 		expression.
 
-It also accepts the standard build flags -v, -n, and -x.
+It also accepts the standard build flags including -v, -n, and -x.
 The -v flag prints the names of packages and files as they are
 processed.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
+
+For more about build flags, see 'go help build'.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -492,6 +497,10 @@ missing packages but does not use it to look for updates to existing packages.
 
 Get also accepts build flags to control the installation. See 'go help build'.
 
+When checking out a new package, get creates the target directory
+GOPATH/src/<import-path>. If the GOPATH contains multiple entries,
+get uses the first one. See 'go help gopath'.
+
 When checking out or updating a package, get looks for a branch or tag
 that matches the locally installed version of Go. The most important
 rule is that if the local installation is running version "go1", get
@@ -501,6 +510,8 @@ retrieves the most recent version of the package.
 Unless vendoring support is disabled (see 'go help gopath'),
 when go get checks out or updates a Git repository,
 it also updates any git submodules referenced by the repository.
+
+Get never checks out or updates code stored in vendor directories.
 
 For more about specifying packages, see 'go help packages'.
 
@@ -658,7 +669,7 @@ Test packages
 
 Usage:
 
-	go test [-c] [-i] [build and test flags] [packages] [flags for test binary]
+	go test [build/test flags] [packages] [build/test flags & test binary flags]
 
 'Go test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
@@ -688,10 +699,16 @@ non-test installation.
 
 In addition to the build flags, the flags handled by 'go test' itself are:
 
+	-args
+	    Pass the remainder of the command line (everything after -args)
+	    to the test binary, uninterpreted and unchanged.
+	    Because this flag consumes the remainder of the command line,
+	    the package list (if present) must appear before this flag.
+
 	-c
-		Compile the test binary to pkg.test but do not run it
-		(where pkg is the last element of the package's import path).
-		The file name can be changed with the -o flag.
+	    Compile the test binary to pkg.test but do not run it
+	    (where pkg is the last element of the package's import path).
+	    The file name can be changed with the -o flag.
 
 	-exec xprog
 	    Run the test binary using xprog. The behavior is the same as
@@ -702,16 +719,11 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    Do not run the test.
 
 	-o file
-		Compile the test binary to the named file.
-		The test still runs (unless -c or -i is specified).
+	    Compile the test binary to the named file.
+	    The test still runs (unless -c or -i is specified).
 
 The test binary also accepts flags that control execution of the test; these
 flags are also accessible by 'go test'. See 'go help testflag' for details.
-
-If the test binary needs any other flags, they should be presented after the
-package names. The go tool treats as a flag the first argument that begins with
-a minus sign that it does not recognize itself; that argument and all subsequent
-arguments are passed as arguments to the test binary.
 
 For more about build flags, see 'go help build'.
 For more about specifying packages, see 'go help packages'.
@@ -1007,9 +1019,6 @@ As of Go 1.6 they are on by default. To turn them off, set
 GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
 variable will stop having any effect.
 
-The vendoring semantics are an experiment, and they may change
-in future releases. Once settled, they will be on by default.
-
 See https://golang.org/s/go15vendor for details.
 
 
@@ -1077,7 +1086,7 @@ Special-purpose environment variables:
 		File names in stack traces are rewritten from GOROOT to
 		GOROOT_FINAL.
 	GO15VENDOREXPERIMENT
-		Set to 1 to enable the Go 1.5 vendoring experiment.
+		Set to 0 to disable vendoring semantics.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.
@@ -1253,10 +1262,10 @@ unless it is being referred to by that import path. In this way, import comments
 let package authors make sure the custom import path is used and not a
 direct path to the underlying code hosting site.
 
-If the vendoring experiment is enabled (see 'go help gopath'),
-then import path checking is disabled for code found within vendor trees.
-This makes it possible to copy code into alternate locations in vendor trees
-without needing to update import comments.
+If vendoring is enabled (see 'go help gopath'), then import path checking is
+disabled for code found within vendor trees. This makes it possible to copy
+code into alternate locations in vendor trees without needing to update import
+comments.
 
 See https://golang.org/s/go14customimport for details.
 
@@ -1311,6 +1320,14 @@ unique prefix that belongs to you.  For example, paths used
 internally at Google all begin with 'google', and paths
 denoting remote repositories begin with the path to the code,
 such as 'github.com/user/repo'.
+
+Packages in a program need not have unique package names,
+but there are two reserved package names with special meaning.
+The name main indicates a command, not a library.
+Commands are built into binaries and cannot be imported.
+The name documentation indicates documentation for
+a non-Go program in the directory. Files in package documentation
+are ignored by the go command.
 
 As a special case, if the package list is a list of .go files from a
 single directory, the command is applied to a single synthesized
@@ -1417,6 +1434,10 @@ control the execution of any test:
 	    Allow parallel execution of test functions that call t.Parallel.
 	    The value of this flag is the maximum number of tests to run
 	    simultaneously; by default, it is set to the value of GOMAXPROCS.
+	    Note that -parallel only applies within a single test binary.
+	    The 'go test' command may run tests for different packages
+	    in parallel as well, according to the setting of the -p flag
+	    (see 'go help build').
 
 	-run regexp
 	    Run only those tests and examples matching the regular
@@ -1440,25 +1461,63 @@ control the execution of any test:
 	    Verbose output: log all tests as they are run. Also print all
 	    text from Log and Logf calls even if the test succeeds.
 
-The test binary, called pkg.test where pkg is the name of the
-directory containing the package sources, can be invoked directly
-after building it with 'go test -c'. When invoking the test binary
-directly, each of the standard flag names must be prefixed with 'test.',
-as in -test.run=TestMyFunc or -test.v.
+Each of these flags is also recognized with an optional 'test.' prefix,
+as in -test.v. When invoking the generated test binary (the result of
+'go test -c') directly, however, the prefix is mandatory.
 
-When running 'go test', flags not listed above are passed through
-unaltered. For instance, the command
+The 'go test' command rewrites or removes recognized flags,
+as appropriate, both before and after the optional package list,
+before invoking the test binary.
 
-	go test -x -v -cpuprofile=prof.out -dir=testdata -update
+For instance, the command
+
+	go test -v -myflag testdata -cpuprofile=prof.out -x
 
 will compile the test binary and then run it as
 
-	pkg.test -test.v -test.cpuprofile=prof.out -dir=testdata -update
+	pkg.test -test.v -myflag testdata -test.cpuprofile=prof.out
+
+(The -x flag is removed because it applies only to the go command's
+execution, not to the test itself.)
 
 The test flags that generate profiles (other than for coverage) also
 leave the test binary in pkg.test for use when analyzing the profiles.
 
-Flags not recognized by 'go test' must be placed after any specified packages.
+When 'go test' runs a test binary, it does so from within the
+corresponding package's source code directory. Depending on the test,
+it may be necessary to do the same when invoking a generated test
+binary directly.
+
+The command-line package list, if present, must appear before any
+flag not known to the go test command. Continuing the example above,
+the package list would have to appear before -myflag, but could appear
+on either side of -v.
+
+To keep an argument for a test binary from being interpreted as a
+known flag or a package name, use -args (see 'go help test') which
+passes the remainder of the command line through to the test binary
+uninterpreted and unaltered.
+
+For instance, the command
+
+	go test -v -args -x -v
+
+will compile the test binary and then run it as
+
+	pkg.test -test.v -x -v
+
+Similarly,
+
+	go test -args math
+
+will compile the test binary and then run it as
+
+	pkg.test math
+
+In the first example, the -x and the second -v are passed through to the
+test binary unchanged and with no effect on the go command itself.
+In the second example, the argument math is passed through to the test
+binary, instead of being interpreted as the package list.
 
 
 Description of testing functions

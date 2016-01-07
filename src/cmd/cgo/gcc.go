@@ -38,8 +38,8 @@ var nameToC = map[string]string{
 	"ulong":         "unsigned long",
 	"longlong":      "long long",
 	"ulonglong":     "unsigned long long",
-	"complexfloat":  "float complex",
-	"complexdouble": "double complex",
+	"complexfloat":  "float _Complex",
+	"complexdouble": "double _Complex",
 }
 
 // cname returns the C name to use for C.s.
@@ -491,6 +491,11 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
 			if name == "" || typOff == 0 {
+				if e.Val(dwarf.AttrSpecification) != nil {
+					// Since we are reading all the DWARF,
+					// assume we will see the variable elsewhere.
+					break
+				}
 				fatalf("malformed DWARF TagVariable entry")
 			}
 			if !strings.HasPrefix(name, "__cgo__") {
@@ -593,6 +598,12 @@ func (p *Package) rewriteCalls(f *File) {
 // each pointer argument x with _cgoCheckPointer(x).(T).
 func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
 	for i, param := range name.FuncType.Params {
+		if len(call.Args) <= i {
+			// Avoid a crash; this will be caught when the
+			// generated file is compiled.
+			return
+		}
+
 		// An untyped nil does not need a pointer check, and
 		// when _cgoCheckPointer returns the untyped nil the
 		// type assertion we are going to insert will fail.
@@ -604,12 +615,6 @@ func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
 
 		if !p.needsPointerCheck(f, param.Go) {
 			continue
-		}
-
-		if len(call.Args) <= i {
-			// Avoid a crash; this will be caught when the
-			// generated file is compiled.
-			return
 		}
 
 		c := &ast.CallExpr{
@@ -675,6 +680,7 @@ func (p *Package) needsPointerCheck(f *File, t ast.Expr) bool {
 // hasPointer is used by needsPointerCheck.  If top is true it returns
 // whether t is or contains a pointer that might point to a pointer.
 // If top is false it returns whether t is or contains a pointer.
+// f may be nil.
 func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 	switch t := t.(type) {
 	case *ast.ArrayType:
@@ -738,6 +744,10 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 			// pointer.
 			return true
 		}
+		if f == nil {
+			// Conservative approach: assume pointer.
+			return true
+		}
 		name := f.Name[t.Sel.Name]
 		if name != nil && name.Kind == "type" && name.Type != nil && name.Type.Go != nil {
 			return p.hasPointer(f, name.Type.Go, top)
@@ -768,7 +778,7 @@ func (p *Package) checkAddrArgs(f *File, args []ast.Expr, x ast.Expr) []ast.Expr
 		// This is the address of something that is not an
 		// index expression.  We only need to examine the
 		// single value to which it points.
-		// TODO: what is true is shadowed?
+		// TODO: what if true is shadowed?
 		return append(args, ast.NewIdent("true"))
 	}
 	if !p.hasSideEffects(f, index.X) {
@@ -1304,12 +1314,12 @@ var dwarfToName = map[string]string{
 	"long unsigned int":      "ulong",
 	"unsigned int":           "uint",
 	"short unsigned int":     "ushort",
+	"unsigned short":         "ushort", // Used by Clang; issue 13129.
 	"short int":              "short",
 	"long long int":          "longlong",
 	"long long unsigned int": "ulonglong",
 	"signed char":            "schar",
-	"float complex":          "complexfloat",
-	"double complex":         "complexdouble",
+	"unsigned char":          "uchar",
 }
 
 const signedDelta = 64
@@ -1679,7 +1689,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 	}
 
 	switch dtype.(type) {
-	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
+	case *dwarf.AddrType, *dwarf.BoolType, *dwarf.CharType, *dwarf.ComplexType, *dwarf.IntType, *dwarf.FloatType, *dwarf.UcharType, *dwarf.UintType:
 		s := dtype.Common().Name
 		if s != "" {
 			if ss, ok := dwarfToName[s]; ok {

@@ -5,6 +5,10 @@
 // Package exec runs external commands. It wraps os.StartProcess to make it
 // easier to remap stdin and stdout, connect I/O with pipes, and do other
 // adjustments.
+//
+// Note that the examples in this package assume a Unix system.
+// They may not run on Windows, and they do not run in the Go Playground
+// used by golang.org and godoc.org.
 package exec
 
 import (

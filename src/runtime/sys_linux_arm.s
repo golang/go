@@ -339,7 +339,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	info+8(FP), R1
 	MOVW	ctx+12(FP), R2
 	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
 	BL	(R11)
+	MOVW	R4, R13
 	RET
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$12

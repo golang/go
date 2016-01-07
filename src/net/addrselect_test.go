@@ -87,6 +87,57 @@ func TestSortByRFC6724(t *testing.T) {
 			},
 			reverse: true,
 		},
+
+		// Issue 13283.  Having a 10/8 source address does not
+		// mean we should prefer 23/8 destination addresses.
+		{
+			in: []IPAddr{
+				{IP: ParseIP("54.83.193.112")},
+				{IP: ParseIP("184.72.238.214")},
+				{IP: ParseIP("23.23.172.185")},
+				{IP: ParseIP("75.101.148.21")},
+				{IP: ParseIP("23.23.134.56")},
+				{IP: ParseIP("23.21.50.150")},
+			},
+			srcs: []IP{
+				ParseIP("10.2.3.4"),
+				ParseIP("10.2.3.4"),
+				ParseIP("10.2.3.4"),
+				ParseIP("10.2.3.4"),
+				ParseIP("10.2.3.4"),
+				ParseIP("10.2.3.4"),
+			},
+			want: []IPAddr{
+				{IP: ParseIP("54.83.193.112")},
+				{IP: ParseIP("184.72.238.214")},
+				{IP: ParseIP("23.23.172.185")},
+				{IP: ParseIP("75.101.148.21")},
+				{IP: ParseIP("23.23.134.56")},
+				{IP: ParseIP("23.21.50.150")},
+			},
+			reverse: false,
+		},
+
+		// Prefer longer common prefixes, but only for IPv4 address
+		// pairs in the same special-purpose block.
+		{
+			in: []IPAddr{
+				{IP: ParseIP("1.2.3.4")},
+				{IP: ParseIP("10.55.0.1")},
+				{IP: ParseIP("10.66.0.1")},
+			},
+			srcs: []IP{
+				ParseIP("1.2.3.5"),
+				ParseIP("10.66.1.2"),
+				ParseIP("10.66.1.2"),
+			},
+			want: []IPAddr{
+				{IP: ParseIP("10.66.0.1")},
+				{IP: ParseIP("10.55.0.1")},
+				{IP: ParseIP("1.2.3.4")},
+			},
+			reverse: true,
+		},
 	}
 	for i, tt := range tests {
 		inCopy := make([]IPAddr, len(tt.in))
@@ -216,4 +267,68 @@ func TestRFC6724CommonPrefixLength(t *testing.T) {
 		}
 	}
 
+}
+
+func mustParseCIDRs(t *testing.T, blocks ...string) []*IPNet {
+	res := make([]*IPNet, len(blocks))
+	for i, block := range blocks {
+		var err error
+		_, res[i], err = ParseCIDR(block)
+		if err != nil {
+			t.Fatalf("ParseCIDR(%s) failed: %v", block, err)
+		}
+	}
+	return res
+}
+
+func TestSameIPv4SpecialPurposeBlock(t *testing.T) {
+	blocks := mustParseCIDRs(t,
+		"10.0.0.0/8",
+		"127.0.0.0/8",
+		"169.254.0.0/16",
+		"172.16.0.0/12",
+		"192.168.0.0/16",
+	)
+
+	addrs := []struct {
+		ip    IP
+		block int // index or -1
+	}{
+		{IP{1, 2, 3, 4}, -1},
+		{IP{2, 3, 4, 5}, -1},
+		{IP{10, 2, 3, 4}, 0},
+		{IP{10, 6, 7, 8}, 0},
+		{IP{127, 0, 0, 1}, 1},
+		{IP{127, 255, 255, 255}, 1},
+		{IP{169, 254, 77, 99}, 2},
+		{IP{169, 254, 44, 22}, 2},
+		{IP{169, 255, 0, 1}, -1},
+		{IP{172, 15, 5, 6}, -1},
+		{IP{172, 16, 32, 41}, 3},
+		{IP{172, 31, 128, 9}, 3},
+		{IP{172, 32, 88, 100}, -1},
+		{IP{192, 168, 1, 1}, 4},
+		{IP{192, 168, 128, 42}, 4},
+		{IP{192, 169, 1, 1}, -1},
+	}
+
+	for i, addr := range addrs {
+		for j, block := range blocks {
+			got := block.Contains(addr.ip)
+			want := addr.block == j
+			if got != want {
+				t.Errorf("%d/%d. %s.Contains(%s): got %v, want %v", i, j, block, addr.ip, got, want)
+			}
+		}
+	}
+
+	for i, addr1 := range addrs {
+		for j, addr2 := range addrs {
+			got := sameIPv4SpecialPurposeBlock(addr1.ip, addr2.ip)
+			want := addr1.block >= 0 && addr1.block == addr2.block
+			if got != want {
+				t.Errorf("%d/%d. sameIPv4SpecialPurposeBlock(%s, %s): got %v, want %v", i, j, addr1.ip, addr2.ip, got, want)
+			}
+		}
+	}
 }

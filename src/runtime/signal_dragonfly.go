@@ -29,7 +29,7 @@ var sigtable = [...]sigTabT{
 	/* 16 */ {_SigNotify, "SIGURG: urgent condition on socket"},
 	/* 17 */ {0, "SIGSTOP: stop"},
 	/* 18 */ {_SigNotify + _SigDefault, "SIGTSTP: keyboard stop"},
-	/* 19 */ {0, "SIGCONT: continue after stop"},
+	/* 19 */ {_SigNotify + _SigDefault, "SIGCONT: continue after stop"},
 	/* 20 */ {_SigNotify, "SIGCHLD: child status has changed"},
 	/* 21 */ {_SigNotify + _SigDefault, "SIGTTIN: background read from tty"},
 	/* 22 */ {_SigNotify + _SigDefault, "SIGTTOU: background write to tty"},

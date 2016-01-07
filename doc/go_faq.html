@@ -860,6 +860,36 @@ value to hold the error and a type switch to discriminate cases.  The
 syntax tree example is also doable, although not as elegantly.
 </p>
 
+<h3 id="covariant_types">
+Why does Go not have covariant result types?</h3>
+
+<p>
+Covariant result types would mean that an interface like
+
+<pre>
+type Copyable interface {
+	Copy() interface{}
+}
+</pre>
+
+would be satisfied by the method
+
+<pre>
+func (v Value) Copy() Value
+</pre>
+
+because <code>Value</code> implements the empty interface.
+In Go method types must match exactly, so <code>Value</code> does not
+implement <code>Copyable</code>.
+Go separates the notion of what a
+type does&mdash;its methods&mdash;from the type's implementation.
+If two methods return different types, they are not doing the same thing.
+Programmers who want covariant result types are often trying to
+express a type hierarchy through interfaces.
+In Go it's more natural to have a clean separation between interface
+and implementation.
+</p>
+
 <h2 id="values">Values</h2>
 
 <h3 id="conversions">

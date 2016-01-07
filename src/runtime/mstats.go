@@ -46,7 +46,7 @@ type mstats struct {
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
-	next_gc         uint64 // next gc (in heap_alloc time)
+	next_gc         uint64 // next gc (in heap_live time)
 	last_gc         uint64 // last gc (in absolute time)
 	pause_total_ns  uint64
 	pause_ns        [256]uint64 // circular buffer of recent gc pause lengths
@@ -70,13 +70,33 @@ type mstats struct {
 
 	// heap_live is the number of bytes considered live by the GC.
 	// That is: retained by the most recent GC plus allocated
-	// since then. heap_live <= heap_alloc, since heap_live
-	// excludes unmarked objects that have not yet been swept.
+	// since then. heap_live <= heap_alloc, since heap_alloc
+	// includes unmarked objects that have not yet been swept (and
+	// hence goes up as we allocate and down as we sweep) while
+	// heap_live excludes these objects (and hence only goes up
+	// between GCs).
+	//
+	// This is updated atomically without locking. To reduce
+	// contention, this is updated only when obtaining a span from
+	// an mcentral and at this point it counts all of the
+	// unallocated slots in that span (which will be allocated
+	// before that mcache obtains another span from that
+	// mcentral). Hence, it slightly overestimates the "true" live
+	// heap size. It's better to overestimate than to
+	// underestimate because 1) this triggers the GC earlier than
+	// necessary rather than potentially too late and 2) this
+	// leads to a conservative GC rate rather than a GC rate that
+	// is potentially too low.
+	//
+	// Whenever this is updated, call traceHeapAlloc() and
+	// gcController.revise().
 	heap_live uint64
 
 	// heap_scan is the number of bytes of "scannable" heap. This
 	// is the live heap (as counted by heap_live), but omitting
 	// no-scan objects and no-scan tails of objects.
+	//
+	// Whenever this is updated, call gcController.revise().
 	heap_scan uint64
 
 	// heap_marked is the number of bytes marked by the previous
@@ -335,11 +355,6 @@ func flushallmcaches() {
 func purgecachedstats(c *mcache) {
 	// Protected by either heap or GC lock.
 	h := &mheap_
-	memstats.heap_live += uint64(c.local_cachealloc)
-	c.local_cachealloc = 0
-	if trace.enabled {
-		traceHeapAlloc()
-	}
 	memstats.heap_scan += uint64(c.local_scan)
 	c.local_scan = 0
 	memstats.tinyallocs += uint64(c.local_tinyallocs)

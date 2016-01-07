@@ -405,6 +405,42 @@ func TestUnixgramConnLocalAndRemoteNames(t *testing.T) {
 	}
 }
 
+func TestUnixUnlink(t *testing.T) {
+	if !testableNetwork("unix") {
+		t.Skip("unix test")
+	}
+	name := testUnixAddr()
+	l, err := Listen("unix", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(name); err != nil {
+		t.Fatalf("cannot stat unix socket after ListenUnix: %v", err)
+	}
+	f, _ := l.(*UnixListener).File()
+	l1, err := FileListener(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(name); err != nil {
+		t.Fatalf("cannot stat unix socket after FileListener: %v", err)
+	}
+	if err := l1.Close(); err != nil {
+		t.Fatalf("closing file listener: %v", err)
+	}
+	if _, err := os.Stat(name); err != nil {
+		t.Fatalf("cannot stat unix socket after closing FileListener: %v", err)
+	}
+	f.Close()
+	if _, err := os.Stat(name); err != nil {
+		t.Fatalf("cannot stat unix socket after closing FileListener and fd: %v", err)
+	}
+	l.Close()
+	if _, err := os.Stat(name); err == nil {
+		t.Fatal("closing unix listener did not remove unix socket")
+	}
+}
+
 // forceGoDNS forces the resolver configuration to use the pure Go resolver
 // and returns a fixup function to restore the old settings.
 func forceGoDNS() func() {
@@ -421,11 +457,17 @@ func forceGoDNS() func() {
 }
 
 // forceCgoDNS forces the resolver configuration to use the cgo resolver
-// and returns true to indicate that it did so.
-// (On non-Unix systems forceCgoDNS returns false.)
-func forceCgoDNS() bool {
+// and returns a fixup function to restore the old settings.
+// (On non-Unix systems forceCgoDNS returns nil.)
+func forceCgoDNS() func() {
 	c := systemConf()
+	oldGo := c.netGo
+	oldCgo := c.netCgo
+	fixup := func() {
+		c.netGo = oldGo
+		c.netCgo = oldCgo
+	}
 	c.netGo = false
 	c.netCgo = true
-	return true
+	return fixup
 }

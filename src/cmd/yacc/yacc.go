@@ -172,7 +172,7 @@ func init() {
 	flag.BoolVar(&lflag, "l", false, "disable line directives")
 }
 
-var stacksize = 200
+var initialstacksize = 16
 
 // communication variables between various I/O routines
 var infile string  // input file name
@@ -384,7 +384,7 @@ func setup() {
 	if flag.NArg() != 1 {
 		usage()
 	}
-	if stacksize < 1 {
+	if initialstacksize < 1 {
 		// never set so cannot happen
 		fmt.Fprintf(stderr, "yacc: stack size too small\n")
 		usage()
@@ -719,7 +719,7 @@ outer:
 	ftable.WriteRune('\n')
 	fmt.Fprintf(ftable, "const %sEofCode = 1\n", prefix)
 	fmt.Fprintf(ftable, "const %sErrCode = 2\n", prefix)
-	fmt.Fprintf(ftable, "const %sMaxDepth = %v\n", prefix, stacksize)
+	fmt.Fprintf(ftable, "const %sInitialStackSize = %v\n", prefix, initialstacksize)
 
 	//
 	// copy any postfix code
@@ -3332,18 +3332,17 @@ type $$Parser interface {
 }
 
 type $$ParserImpl struct {
-	lookahead func() int
+	lval  $$SymType
+	stack [$$InitialStackSize]$$SymType
+	char  int
 }
 
 func (p *$$ParserImpl) Lookahead() int {
-	return p.lookahead()
+	return p.char
 }
 
 func $$NewParser() $$Parser {
-	p := &$$ParserImpl{
-		lookahead: func() int { return -1 },
-	}
-	return p
+	return &$$ParserImpl{}
 }
 
 const $$Flag = -1000
@@ -3471,22 +3470,20 @@ func $$Parse($$lex $$Lexer) int {
 
 func ($$rcvr *$$ParserImpl) Parse($$lex $$Lexer) int {
 	var $$n int
-	var $$lval $$SymType
 	var $$VAL $$SymType
 	var $$Dollar []$$SymType
 	_ = $$Dollar // silence set and not used
-	$$S := make([]$$SymType, $$MaxDepth)
+	$$S := $$rcvr.stack[:]
 
 	Nerrs := 0   /* number of errors */
 	Errflag := 0 /* error recovery flag */
 	$$state := 0
-	$$char := -1
-	$$token := -1 // $$char translated into internal numbering
-	$$rcvr.lookahead = func() int { return $$char }
+	$$rcvr.char = -1
+	$$token := -1 // $$rcvr.char translated into internal numbering
 	defer func() {
 		// Make sure we report no lookahead when not parsing.
 		$$state = -1
-		$$char = -1
+		$$rcvr.char = -1
 		$$token = -1
 	}()
 	$$p := -1
@@ -3518,8 +3515,8 @@ $$newstate:
 	if $$n <= $$Flag {
 		goto $$default /* simple state */
 	}
-	if $$char < 0 {
-		$$char, $$token = $$lex1($$lex, &$$lval)
+	if $$rcvr.char < 0 {
+		$$rcvr.char, $$token = $$lex1($$lex, &$$rcvr.lval)
 	}
 	$$n += $$token
 	if $$n < 0 || $$n >= $$Last {
@@ -3527,9 +3524,9 @@ $$newstate:
 	}
 	$$n = $$Act[$$n]
 	if $$Chk[$$n] == $$token { /* valid shift */
-		$$char = -1
+		$$rcvr.char = -1
 		$$token = -1
-		$$VAL = $$lval
+		$$VAL = $$rcvr.lval
 		$$state = $$n
 		if Errflag > 0 {
 			Errflag--
@@ -3541,8 +3538,8 @@ $$default:
 	/* default state action */
 	$$n = $$Def[$$state]
 	if $$n == -2 {
-		if $$char < 0 {
-			$$char, $$token = $$lex1($$lex, &$$lval)
+		if $$rcvr.char < 0 {
+			$$rcvr.char, $$token = $$lex1($$lex, &$$rcvr.lval)
 		}
 
 		/* look through exception table */
@@ -3605,7 +3602,7 @@ $$default:
 			if $$token == $$EofCode {
 				goto ret1
 			}
-			$$char = -1
+			$$rcvr.char = -1
 			$$token = -1
 			goto $$newstate /* try again in the same state */
 		}

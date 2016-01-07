@@ -599,8 +599,6 @@ var incannedimport int
 
 var statuniqgen int // name generator for static temps
 
-var loophack bool
-
 var iota_ int32
 
 var lastconst *NodeList
@@ -626,8 +624,6 @@ var Widthptr int
 var Widthint int
 
 var Widthreg int
-
-var typesw *Node // TODO(gri) remove when yacc-based parser is gone
 
 var nblank *Node
 

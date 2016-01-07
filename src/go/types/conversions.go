@@ -18,7 +18,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	case constArg && isConstType(T):
 		// constant conversion
 		switch t := T.Underlying().(*Basic); {
-		case representableConst(x.val, check.conf, t.kind, &x.val):
+		case representableConst(x.val, check.conf, t, &x.val):
 			ok = true
 		case isInteger(x.typ) && isString(t):
 			codepoint := int64(-1)

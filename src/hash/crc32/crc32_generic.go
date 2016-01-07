@@ -16,10 +16,10 @@ func updateCastagnoli(crc uint32, p []byte) uint32 {
 func updateIEEE(crc uint32, p []byte) uint32 {
 	// only use slicing-by-8 when input is >= 4KB
 	if len(p) >= 4096 {
-		iEEETable8Once.Do(func() {
-			iEEETable8 = makeTable8(IEEE)
+		ieeeTable8Once.Do(func() {
+			ieeeTable8 = makeTable8(IEEE)
 		})
-		return updateSlicingBy8(crc, iEEETable8, p)
+		return updateSlicingBy8(crc, ieeeTable8, p)
 	}
 	return update(crc, IEEETable, p)
 }

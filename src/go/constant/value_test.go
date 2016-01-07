@@ -176,12 +176,17 @@ func TestOps(t *testing.T) {
 		want := val(a[i+3])
 		if !eql(got, want) {
 			t.Errorf("%s: got %s; want %s", test, got, want)
+			continue
 		}
+
 		if x0 != nil && !eql(x, x0) {
 			t.Errorf("%s: x changed to %s", test, x)
+			continue
 		}
+
 		if !eql(y, y0) {
 			t.Errorf("%s: y changed to %s", test, y)
+			continue
 		}
 	}
 }
@@ -193,6 +198,69 @@ func eql(x, y Value) bool {
 		return ux == uy
 	}
 	return Compare(x, token.EQL, y)
+}
+
+// ----------------------------------------------------------------------------
+// String tests
+
+var xxx = strings.Repeat("x", 68)
+
+var stringTests = []struct {
+	input, short, exact string
+}{
+	// Unknown
+	{"", "unknown", "unknown"},
+	{"0x", "unknown", "unknown"},
+	{"'", "unknown", "unknown"},
+	{"1f0", "unknown", "unknown"},
+	{"unknown", "unknown", "unknown"},
+
+	// Bool
+	{"true", "true", "true"},
+	{"false", "false", "false"},
+
+	// String
+	{`""`, `""`, `""`},
+	{`"foo"`, `"foo"`, `"foo"`},
+	{`"` + xxx + `xx"`, `"` + xxx + `xx"`, `"` + xxx + `xx"`},
+	{`"` + xxx + `xxx"`, `"` + xxx + `...`, `"` + xxx + `xxx"`},
+	{`"` + xxx + xxx + `xxx"`, `"` + xxx + `...`, `"` + xxx + xxx + `xxx"`},
+
+	// Int
+	{"0", "0", "0"},
+	{"-1", "-1", "-1"},
+	{"12345", "12345", "12345"},
+	{"-12345678901234567890", "-12345678901234567890", "-12345678901234567890"},
+	{"12345678901234567890", "12345678901234567890", "12345678901234567890"},
+
+	// Float
+	{"0.", "0", "0"},
+	{"-0.0", "0", "0"},
+	{"10.0", "10", "10"},
+	{"2.1", "2.1", "21/10"},
+	{"-2.1", "-2.1", "-21/10"},
+	{"1e9999", "1e+9999", "0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216"},
+	{"1e-9999", "1e-9999", "0x.83b01ba6d8c0425eec1b21e96f7742d63c2653ed0a024cf8a2f9686df578d7b07d7a83d84df6a2ec70a921d1f6cd5574893a7eda4d28ee719e13a5dce2700759p-33215"},
+	{"2.71828182845904523536028747135266249775724709369995957496696763", "2.71828", "271828182845904523536028747135266249775724709369995957496696763/100000000000000000000000000000000000000000000000000000000000000"},
+
+	// Complex
+	{"0i", "(0 + 0i)", "(0 + 0i)"},
+	{"-0i", "(0 + 0i)", "(0 + 0i)"},
+	{"10i", "(0 + 10i)", "(0 + 10i)"},
+	{"-10i", "(0 + -10i)", "(0 + -10i)"},
+	{"1e9999i", "(0 + 1e+9999i)", "(0 + 0x.f8d4a9da224650a8cb2959e10d985ad92adbd44c62917e608b1f24c0e1b76b6f61edffeb15c135a4b601637315f7662f325f82325422b244286a07663c9415d2p+33216i)"},
+}
+
+func TestString(t *testing.T) {
+	for _, test := range stringTests {
+		x := val(test.input)
+		if got := x.String(); got != test.short {
+			t.Errorf("%s: got %q; want %q as short string", test.input, got, test.short)
+		}
+		if got := x.ExactString(); got != test.exact {
+			t.Errorf("%s: got %q; want %q as exact string", test.input, got, test.exact)
+		}
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -210,6 +278,13 @@ func val(lit string) Value {
 		return MakeBool(true)
 	case "false":
 		return MakeBool(false)
+	}
+
+	if i := strings.IndexByte(lit, '/'); i >= 0 {
+		// assume fraction
+		a := MakeFromLiteral(lit[:i], token.INT, 0)
+		b := MakeFromLiteral(lit[i+1:], token.INT, 0)
+		return BinaryOp(a, token.QUO, b)
 	}
 
 	tok := token.INT
@@ -290,32 +365,29 @@ func doOp(x Value, op token.Token, y Value) (z Value) {
 // Other tests
 
 var fracTests = []string{
-	"0 0 1",
-	"1 1 1",
-	"-1 -1 1",
-	"1.2 6 5",
-	"-0.991 -991 1000",
-	"1e100 1e100 1",
+	"0",
+	"1",
+	"-1",
+	"1.2",
+	"-0.991",
+	"2.718281828",
+	"3.14159265358979323e-10",
+	"1e100",
+	"1e1000",
 }
 
 func TestFractions(t *testing.T) {
 	for _, test := range fracTests {
-		a := strings.Split(test, " ")
-		if len(a) != 3 {
-			t.Errorf("invalid test case: %s", test)
-			continue
-		}
-
-		x := val(a[0])
-		n := val(a[1])
-		d := val(a[2])
-
-		if got := Num(x); !eql(got, n) {
-			t.Errorf("%s: got num = %s; want %s", test, got, n)
-		}
-
-		if got := Denom(x); !eql(got, d) {
-			t.Errorf("%s: got denom = %s; want %s", test, got, d)
+		x := val(test)
+		// We don't check the actual numerator and denominator because they
+		// are unlikely to be 100% correct due to floatVal rounding errors.
+		// Instead, we compute the fraction again and compare the rounded
+		// result.
+		q := BinaryOp(Num(x), token.QUO, Denom(x))
+		got := q.String()
+		want := x.String()
+		if got != want {
+			t.Errorf("%s: got quotient %s, want %s", x, got, want)
 		}
 	}
 }

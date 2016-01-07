@@ -56,7 +56,8 @@ func dumpregs(c *sigctxt) {
 var crashing int32
 
 // May run during STW, so write barriers are not allowed.
-//go:nowritebarrier
+//
+//go:nowritebarrierrec
 func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	_g_ := getg()
 	c := &sigctxt{info, ctxt}
@@ -109,6 +110,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		// In case we are panicking from external C code
 		c.set_r0(0)
 		c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
+		c.set_r12(uint64(funcPC(sigpanic)))
 		c.set_pc(uint64(funcPC(sigpanic)))
 		return
 	}
@@ -120,7 +122,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	}
 
 	if flags&_SigKill != 0 {
-		exit(2)
+		dieFromSignal(int32(sig))
 	}
 
 	if flags&_SigThrow == 0 {

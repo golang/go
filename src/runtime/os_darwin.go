@@ -24,10 +24,10 @@ func mach_thread_self() uint32
 func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32
 
 //go:noescape
-func sigprocmask(how uint32, new, old *uint32)
+func sigprocmask(how uint32, new, old *sigset)
 
 //go:noescape
-func sigaction(mode uint32, new, old *sigactiont)
+func sigaction(mode uint32, new *sigactiont, old *usigactiont)
 
 //go:noescape
 func sigaltstack(new, old *stackt)

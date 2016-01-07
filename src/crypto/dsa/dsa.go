@@ -51,7 +51,7 @@ const (
 const numMRTests = 64
 
 // GenerateParameters puts a random, valid set of DSA parameters into params.
-// This function takes many seconds, even on fast machines.
+// This function can take many seconds, even on fast machines.
 func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) (err error) {
 	// This function doesn't follow FIPS 186-3 exactly in that it doesn't
 	// use a verification seed to generate the primes. The verification

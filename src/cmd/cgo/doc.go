@@ -117,7 +117,8 @@ The standard C numeric types are available under the names
 C.char, C.schar (signed char), C.uchar (unsigned char),
 C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int),
 C.long, C.ulong (unsigned long), C.longlong (long long),
-C.ulonglong (unsigned long long), C.float, C.double.
+C.ulonglong (unsigned long long), C.float, C.double,
+C.complexfloat (complex float), and C.complexdouble (complex double).
 The C type void* is represented by Go's unsafe.Pointer.
 The C types __int128_t and __uint128_t are represented by [16]byte.
 
@@ -238,7 +239,7 @@ the type of the pointer.
 
 Go code may pass a Go pointer to C provided the Go memory to which it
 points does not contain any Go pointers.  The C code must preserve
-this property: it must not store any Go pointers into Go memory, even
+this property: it must not store any Go pointers in Go memory, even
 temporarily.  When passing a pointer to a field in a struct, the Go
 memory in question is the memory occupied by the field, not the entire
 struct.  When passing a pointer to an element in an array or slice,
@@ -247,25 +248,29 @@ array of the slice.
 
 C code may not keep a copy of a Go pointer after the call returns.
 
-If Go code passes a Go pointer to a C function, the C function must
-return.  There is no specific time limit, but a C function that simply
-blocks holding a Go pointer while other goroutines are running may
-eventually cause the program to run out of memory and fail (because
-the garbage collector may not be able to make progress).
-
 A Go function called by C code may not return a Go pointer.  A Go
 function called by C code may take C pointers as arguments, and it may
 store non-pointer or C pointer data through those pointers, but it may
-not store a Go pointer into memory pointed to by a C pointer.  A Go
+not store a Go pointer in memory pointed to by a C pointer.  A Go
 function called by C code may take a Go pointer as an argument, but it
 must preserve the property that the Go memory to which it points does
 not contain any Go pointers.
 
-These rules are partially enforced by cgo by default.  It is possible
-to defeat this enforcement by using the unsafe package, and of course
-there is nothing stopping the C code from doing anything it likes.
-However, programs that break these rules are likely to fail in
-unexpected and unpredictable ways.
+Go code may not store a Go pointer in C memory.  C code may store Go
+pointers in C memory, subject to the rule above: it must stop storing
+the Go pointer when the C function returns.
+
+These rules are checked dynamically at runtime.  The checking is
+controlled by the cgocheck setting of the GODEBUG environment
+variable.  The default setting is GODEBUG=cgocheck=1, which implements
+reasonably cheap dynamic checks.  These checks may be disabled
+entirely using GODEBUG=cgocheck=0.  Complete checking of pointer
+handling, at some cost in run time, is available via GODEBUG=cgocheck=2.
+
+It is possible to defeat this enforcement by using the unsafe package,
+and of course there is nothing stopping the C code from doing anything
+it likes.  However, programs that break these rules are likely to fail
+in unexpected and unpredictable ways.
 
 Using cgo directly
 

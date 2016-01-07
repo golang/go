@@ -368,6 +368,9 @@ func (r *MemProfileRecord) Stack() []uintptr {
 	return r.Stack0[0:]
 }
 
+// MemProfile returns a profile of memory allocated and freed per allocation
+// site.
+//
 // MemProfile returns n, the number of records in the current memory profile.
 // If len(p) >= n, MemProfile copies the profile into p and returns n, true.
 // If len(p) < n, MemProfile does not change p and returns n, false.
@@ -376,6 +379,12 @@ func (r *MemProfileRecord) Stack() []uintptr {
 // where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
 // These are sites where memory was allocated, but it has all
 // been released back to the runtime.
+//
+// The returned profile may be up to two garbage collection cycles old.
+// This is to avoid skewing the profile toward allocations; because
+// allocations happen in real time but frees are delayed until the garbage
+// collector performs sweeping, the profile only accounts for allocations
+// that have had a chance to be freed by the garbage collector.
 //
 // Most clients should use the runtime/pprof package or
 // the testing package's -test.memprofile flag instead

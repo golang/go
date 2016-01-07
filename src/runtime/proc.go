@@ -10,6 +10,8 @@ import (
 	"unsafe"
 )
 
+var buildVersion = sys.TheVersion
+
 // Goroutine scheduler
 // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
 //
@@ -21,6 +23,57 @@ import (
 //     blocked or in a syscall w/o an associated P.
 //
 // Design doc at https://golang.org/s/go11sched.
+
+// Worker thread parking/unparking.
+// We need to balance between keeping enough running worker threads to utilize
+// available hardware parallelism and parking excessive running worker threads
+// to conserve CPU resources and power. This is not simple for two reasons:
+// (1) scheduler state is intentionally distributed (in particular, per-P work
+// queues), so it is not possible to compute global predicates on fast paths;
+// (2) for optimal thread management we would need to know the future (don't park
+// a worker thread when a new goroutine will be readied in near future).
+//
+// Three rejected approaches that would work badly:
+// 1. Centralize all scheduler state (would inhibit scalability).
+// 2. Direct goroutine handoff. That is, when we ready a new goroutine and there
+//    is a spare P, unpark a thread and handoff it the thread and the goroutine.
+//    This would lead to thread state thrashing, as the thread that readied the
+//    goroutine can be out of work the very next moment, we will need to park it.
+//    Also, it would destroy locality of computation as we want to preserve
+//    dependent goroutines on the same thread; and introduce additional latency.
+// 3. Unpark an additional thread whenever we ready a goroutine and there is an
+//    idle P, but don't do handoff. This would lead to excessive thread parking/
+//    unparking as the additional threads will instantly park without discovering
+//    any work to do.
+//
+// The current approach:
+// We unpark an additional thread when we ready a goroutine if (1) there is an
+// idle P and there are no "spinning" worker threads. A worker thread is considered
+// spinning if it is out of local work and did not find work in global run queue/
+// netpoller; the spinning state is denoted in m.spinning and in sched.nmspinning.
+// Threads unparked this way are also considered spinning; we don't do goroutine
+// handoff so such threads are out of work initially. Spinning threads do some
+// spinning looking for work in per-P run queues before parking. If a spinning
+// thread finds work it takes itself out of the spinning state and proceeds to
+// execution. If it does not find work it takes itself out of the spinning state
+// and then parks.
+// If there is at least one spinning thread (sched.nmspinning>1), we don't unpark
+// new threads when readying goroutines. To compensate for that, if the last spinning
+// thread finds work and stops spinning, it must unpark a new spinning thread.
+// This approach smooths out unjustified spikes of thread unparking,
+// but at the same time guarantees eventual maximal CPU parallelism utilization.
+//
+// The main implementation complication is that we need to be very careful during
+// spinning->non-spinning thread transition. This transition can race with submission
+// of a new goroutine, and either one part or another needs to unpark another worker
+// thread. If they both fail to do that, we can end up with semi-persistent CPU
+// underutilization. The general pattern for goroutine readying is: submit a goroutine
+// to local work queue, #StoreLoad-style memory barrier, check sched.nmspinning.
+// The general pattern for spinning->non-spinning transition is: decrement nmspinning,
+// #StoreLoad-style memory barrier, check all per-P work queues for new work.
+// Note that all this complexity does not apply to global run queue as we are not
+// sloppy about thread unparking when submitting to global queue. Also see comments
+// for nmspinning manipulation.
 
 var (
 	m0 m
@@ -44,6 +97,9 @@ func main_main()
 
 // runtimeInitTime is the nanotime() at which the runtime started.
 var runtimeInitTime int64
+
+// Value to use for signal mask for newly created M's.
+var initSigmask sigset
 
 // The main goroutine.
 func main() {
@@ -377,6 +433,9 @@ func schedinit() {
 	mallocinit()
 	mcommoninit(_g_.m)
 
+	msigsave(_g_.m)
+	initSigmask = _g_.m.sigmask
+
 	goargs()
 	goenvs()
 	parsedebugvars()
@@ -394,10 +453,10 @@ func schedinit() {
 		throw("unknown runnable goroutine during bootstrap")
 	}
 
-	if sys.BuildVersion == "" {
+	if buildVersion == "" {
 		// Condition should never trigger.  This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
-		sys.BuildVersion = "unknown"
+		buildVersion = "unknown"
 	}
 }
 
@@ -735,13 +794,7 @@ func scang(gp *g) {
 			// the goroutine until we're done.
 			if castogscanstatus(gp, s, s|_Gscan) {
 				if !gp.gcscandone {
-					// Coordinate with traceback
-					// in sigprof.
-					for !atomic.Cas(&gp.stackLock, 0, 1) {
-						osyield()
-					}
 					scanstack(gp)
-					atomic.Store(&gp.stackLock, 0)
 					gp.gcscandone = true
 				}
 				restartg(gp)
@@ -1188,6 +1241,9 @@ type cgothreadstart struct {
 // Allocate a new m unassociated with any thread.
 // Can use p for allocation context if needed.
 // fn is recorded as the new m's m.mstartfn.
+//
+// This function it known to the compiler to inhibit the
+// go:nowritebarrierrec annotation because it uses P for allocation.
 func allocm(_p_ *p, fn func()) *m {
 	_g_ := getg()
 	_g_.m.locks++ // disable GC because it can be called from sysmon
@@ -1276,6 +1332,15 @@ func needm(x byte) {
 	mp.needextram = mp.schedlink == 0
 	unlockextra(mp.schedlink.ptr())
 
+	// Save and block signals before installing g.
+	// Once g is installed, any incoming signals will try to execute,
+	// but we won't have the sigaltstack settings and other data
+	// set up appropriately until the end of minit, which will
+	// unblock the signals. This is the same dance as when
+	// starting a new m to run Go code via newosproc.
+	msigsave(mp)
+	sigblock()
+
 	// Install g (= m->g0) and set the stack bounds
 	// to match the current stack. We don't actually know
 	// how big the stack is, like we don't know how big any
@@ -1287,7 +1352,6 @@ func needm(x byte) {
 	_g_.stack.lo = uintptr(noescape(unsafe.Pointer(&x))) - 32*1024
 	_g_.stackguard0 = _g_.stack.lo + _StackGuard
 
-	msigsave(mp)
 	// Initialize this thread to use the m.
 	asminit()
 	minit()
@@ -1359,9 +1423,6 @@ func newextram() {
 // We may have to keep the current version on systems with cgo
 // but without pthreads, like Windows.
 func dropm() {
-	// Undo whatever initialization minit did during needm.
-	unminit()
-
 	// Clear m and g, and return m to the extra list.
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
@@ -1369,7 +1430,16 @@ func dropm() {
 	mnext := lockextra(true)
 	mp.schedlink.set(mnext)
 
+	// Block signals before unminit.
+	// Unminit unregisters the signal handling stack (but needs g on some systems).
+	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
+	// It's important not to try to handle a signal between those two steps.
+	sigblock()
+	unminit()
 	setg(nil)
+	msigrestore(mp)
+
+	// Commit the release of mp.
 	unlockextra(mp)
 }
 
@@ -1416,7 +1486,7 @@ func unlockextra(mp *m) {
 func newm(fn func(), _p_ *p) {
 	mp := allocm(_p_, fn)
 	mp.nextp.set(_p_)
-	msigsave(mp)
+	mp.sigmask = initSigmask
 	if iscgo {
 		var ts cgothreadstart
 		if _cgo_thread_start == nil {
@@ -1425,6 +1495,9 @@ func newm(fn func(), _p_ *p) {
 		ts.g.set(mp.g0)
 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
 		ts.fn = unsafe.Pointer(funcPC(mstart))
+		if msanenabled {
+			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
+		}
 		asmcgocall(_cgo_thread_start, unsafe.Pointer(&ts))
 		return
 	}
@@ -1443,8 +1516,7 @@ func stopm() {
 		throw("stopm holding p")
 	}
 	if _g_.m.spinning {
-		_g_.m.spinning = false
-		atomic.Xadd(&sched.nmspinning, -1)
+		throw("stopm spinning")
 	}
 
 retry:
@@ -1465,22 +1537,15 @@ retry:
 }
 
 func mspinning() {
-	gp := getg()
-	if !runqempty(gp.m.nextp.ptr()) {
-		// Something (presumably the GC) was readied while the
-		// runtime was starting up this M, so the M is no
-		// longer spinning.
-		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
-			throw("mspinning: nmspinning underflowed")
-		}
-	} else {
-		gp.m.spinning = true
-	}
+	// startm's caller incremented nmspinning. Set the new M's spinning.
+	getg().m.spinning = true
 }
 
 // Schedules some M to run the p (creates an M if necessary).
 // If p==nil, tries to get an idle P, if no idle P's does nothing.
 // May run with m.p==nil, so write barriers are not allowed.
+// If spinning is set, the caller has incremented nmspinning and startm will
+// either decrement nmspinning or set m.spinning in the newly started M.
 //go:nowritebarrier
 func startm(_p_ *p, spinning bool) {
 	lock(&sched.lock)
@@ -1489,7 +1554,11 @@ func startm(_p_ *p, spinning bool) {
 		if _p_ == nil {
 			unlock(&sched.lock)
 			if spinning {
-				atomic.Xadd(&sched.nmspinning, -1)
+				// The caller incremented nmspinning, but there are no idle Ps,
+				// so it's okay to just undo the increment and give up.
+				if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+					throw("startm: negative nmspinning")
+				}
 			}
 			return
 		}
@@ -1499,6 +1568,7 @@ func startm(_p_ *p, spinning bool) {
 	if mp == nil {
 		var fn func()
 		if spinning {
+			// The caller incremented nmspinning, so set m.spinning in the new M.
 			fn = mspinning
 		}
 		newm(fn, _p_)
@@ -1513,6 +1583,7 @@ func startm(_p_ *p, spinning bool) {
 	if spinning && !runqempty(_p_) {
 		throw("startm: p has runnable gs")
 	}
+	// The caller incremented nmspinning, so set m.spinning in the new M.
 	mp.spinning = spinning
 	mp.nextp.set(_p_)
 	notewakeup(&mp.park)
@@ -1634,7 +1705,11 @@ func gcstopm() {
 	}
 	if _g_.m.spinning {
 		_g_.m.spinning = false
-		atomic.Xadd(&sched.nmspinning, -1)
+		// OK to just drop nmspinning here,
+		// startTheWorld will unpark threads as necessary.
+		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+			throw("gcstopm: negative nmspinning")
+		}
 	}
 	_p_ := releasep()
 	lock(&sched.lock)
@@ -1807,9 +1882,26 @@ stop:
 	_p_ := releasep()
 	pidleput(_p_)
 	unlock(&sched.lock)
+
+	// Delicate dance: thread transitions from spinning to non-spinning state,
+	// potentially concurrently with submission of new goroutines. We must
+	// drop nmspinning first and then check all per-P queues again (with
+	// #StoreLoad memory barrier in between). If we do it the other way around,
+	// another thread can submit a goroutine after we've checked all run queues
+	// but before we drop nmspinning; as the result nobody will unpark a thread
+	// to run the goroutine.
+	// If we discover new work below, we need to restore m.spinning as a signal
+	// for resetspinning to unpark a new worker thread (because there can be more
+	// than one starving goroutine). However, if after discovering new work
+	// we also observe no idle Ps, it is OK to just park the current thread:
+	// the system is fully loaded so no spinning threads are required.
+	// Also see "Worker thread parking/unparking" comment at the top of the file.
+	wasSpinning := _g_.m.spinning
 	if _g_.m.spinning {
 		_g_.m.spinning = false
-		atomic.Xadd(&sched.nmspinning, -1)
+		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+			throw("findrunnable: negative nmspinning")
+		}
 	}
 
 	// check all runqueues once again
@@ -1821,6 +1913,10 @@ stop:
 			unlock(&sched.lock)
 			if _p_ != nil {
 				acquirep(_p_)
+				if wasSpinning {
+					_g_.m.spinning = true
+					atomic.Xadd(&sched.nmspinning, 1)
+				}
 				goto top
 			}
 			break
@@ -1859,20 +1955,17 @@ stop:
 
 func resetspinning() {
 	_g_ := getg()
-
-	var nmspinning uint32
-	if _g_.m.spinning {
-		_g_.m.spinning = false
-		nmspinning = atomic.Xadd(&sched.nmspinning, -1)
-		if int32(nmspinning) < 0 {
-			throw("findrunnable: negative nmspinning")
-		}
-	} else {
-		nmspinning = atomic.Load(&sched.nmspinning)
+	if !_g_.m.spinning {
+		throw("resetspinning: not a spinning m")
 	}
-
-	// M wakeup policy is deliberately somewhat conservative (see nmspinning handling),
-	// so see if we need to wakeup another P here.
+	_g_.m.spinning = false
+	nmspinning := atomic.Xadd(&sched.nmspinning, -1)
+	if int32(nmspinning) < 0 {
+		throw("findrunnable: negative nmspinning")
+	}
+	// M wakeup policy is deliberately somewhat conservative, so check if we
+	// need to wakeup another P here. See "Worker thread parking/unparking"
+	// comment at the top of the file for details.
 	if nmspinning == 0 && atomic.Load(&sched.npidle) > 0 {
 		wakep()
 	}
@@ -1933,14 +2026,10 @@ top:
 		if gp != nil {
 			casgstatus(gp, _Gwaiting, _Grunnable)
 			traceGoUnpark(gp, 0)
-			resetspinning()
 		}
 	}
 	if gp == nil && gcBlackenEnabled != 0 {
 		gp = gcController.findRunnableGCWorker(_g_.m.p.ptr())
-		if gp != nil {
-			resetspinning()
-		}
 	}
 	if gp == nil {
 		// Check the global runnable queue once in a while to ensure fairness.
@@ -1950,9 +2039,6 @@ top:
 			lock(&sched.lock)
 			gp = globrunqget(_g_.m.p.ptr(), 1)
 			unlock(&sched.lock)
-			if gp != nil {
-				resetspinning()
-			}
 		}
 	}
 	if gp == nil {
@@ -1963,6 +2049,12 @@ top:
 	}
 	if gp == nil {
 		gp, inheritTime = findrunnable() // blocks until work is available
+	}
+
+	// This thread is going to run a goroutine and is not spinning anymore,
+	// so if it was marked as spinning we need to reset it now and potentially
+	// start a new spinning M.
+	if _g_.m.spinning {
 		resetspinning()
 	}
 
@@ -2832,11 +2924,6 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// Profiling runs concurrently with GC, so it must not allocate.
 	mp.mallocing++
 
-	// Coordinate with stack barrier insertion in scanstack.
-	for !atomic.Cas(&gp.stackLock, 0, 1) {
-		osyield()
-	}
-
 	// Define that a "user g" is a user-created goroutine, and a "system g"
 	// is one that is m->g0 or m->gsignal.
 	//
@@ -2902,24 +2989,38 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// To recap, there are no constraints on the assembly being used for the
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
-	traceback := true
+	traceback, tracebackUser := true, true
+	haveStackLock := false
 	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
 		traceback = false
+	} else if gp.m.curg != nil {
+		// The user stack is safe to scan only if we can
+		// acquire the stack barrier lock.
+		if gcTryLockStackBarriers(gp.m.curg) {
+			haveStackLock = true
+		} else {
+			// Stack barriers are being inserted or
+			// removed, so we can't get a consistent
+			// traceback of the user stack right now.
+			tracebackUser = false
+			if gp == gp.m.curg {
+				// We're on the user stack, so don't
+				// do any traceback.
+				traceback = false
+			}
+		}
 	}
 	var stk [maxCPUProfStack]uintptr
 	n := 0
-	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
+	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 && tracebackUser {
 		// Cgo, we can't unwind and symbolize arbitrary C code,
 		// so instead collect Go stack that leads to the cgo call.
 		// This is especially important on windows, since all syscalls are cgo calls.
 		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
 	} else if traceback {
-		flags := uint(_TraceTrap | _TraceJumpStack)
-		if gp.m.curg != nil && readgstatus(gp.m.curg) == _Gcopystack {
-			// We can traceback the system stack, but
-			// don't jump to the potentially inconsistent
-			// user stack.
-			flags &^= _TraceJumpStack
+		var flags uint = _TraceTrap
+		if tracebackUser {
+			flags |= _TraceJumpStack
 		}
 		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
 	}
@@ -2927,7 +3028,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
-		if GOOS == "windows" && n == 0 && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
+		if GOOS == "windows" && n == 0 && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 && tracebackUser {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
 			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
@@ -2947,7 +3048,9 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 			}
 		}
 	}
-	atomic.Store(&gp.stackLock, 0)
+	if haveStackLock {
+		gcUnlockStackBarriers(gp.m.curg)
+	}
 
 	if prof.hz != 0 {
 		// Simple cas-lock to coordinate with setcpuprofilerate.
@@ -3303,6 +3406,9 @@ func checkdead() {
 // This is a variable for testing purposes. It normally doesn't change.
 var forcegcperiod int64 = 2 * 60 * 1e9
 
+// Always runs without a P, so write barriers are not allowed.
+//
+//go:nowritebarrierrec
 func sysmon() {
 	// If a heap span goes unused for 5 minutes after a garbage collection,
 	// we hand it back to the operating system.
@@ -3379,7 +3485,7 @@ func sysmon() {
 		}
 		// check if we need to force a GC
 		lastgc := int64(atomic.Load64(&memstats.last_gc))
-		if lastgc != 0 && unixnow-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
+		if gcphase == _GCoff && lastgc != 0 && unixnow-lastgc > forcegcperiod && atomic.Load(&forcegc.idle) != 0 {
 			lock(&forcegc.lock)
 			forcegc.idle = 0
 			forcegc.g.schedlink = 0
@@ -3392,7 +3498,7 @@ func sysmon() {
 			lastscavenge = now
 			nscavenge++
 		}
-		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace*1000000) <= now {
+		if debug.schedtrace > 0 && lasttrace+int64(debug.schedtrace)*1000000 <= now {
 			lasttrace = now
 			schedtrace(debug.scheddetail > 0)
 		}

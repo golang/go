@@ -504,7 +504,14 @@ func trimUnexportedFields(fields *ast.FieldList, what string) *ast.FieldList {
 		return fields
 	}
 	unexportedField := &ast.Field{
-		Type: ast.NewIdent(""), // Hack: printer will treat this as a field with a named type.
+		Type: &ast.Ident{
+			// Hack: printer will treat this as a field with a named type.
+			// Setting Name and NamePos to ("", fields.Closing-1) ensures that
+			// when Pos and End are called on this field, they return the
+			// position right before closing '}' character.
+			Name:    "",
+			NamePos: fields.Closing - 1,
+		},
 		Comment: &ast.CommentGroup{
 			List: []*ast.Comment{{Text: fmt.Sprintf("// Has unexported %s.\n", what)}},
 		},

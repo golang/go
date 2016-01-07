@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of October 20, 2015",
+	"Subtitle": "Version of January 5, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -101,15 +101,14 @@ The following terms are used to denote specific Unicode character classes:
 newline        = /* the Unicode code point U+000A */ .
 unicode_char   = /* an arbitrary Unicode code point except newline */ .
 unicode_letter = /* a Unicode code point classified as "Letter" */ .
-unicode_digit  = /* a Unicode code point classified as "Decimal Digit" */ .
+unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
 </pre>
 
 <p>
-In <a href="http://www.unicode.org/versions/Unicode6.3.0/">The Unicode Standard 6.3</a>,
-Section 4.5 "General Category"
-defines a set of character categories.  Go treats
-those characters in category Lu, Ll, Lt, Lm, or Lo as Unicode letters,
-and those in category Nd as Unicode digits.
+In <a href="http://www.unicode.org/versions/Unicode8.0.0/">The Unicode Standard 8.0</a>,
+Section 4.5 "General Category" defines a set of character categories.
+Go treats all characters in any of the Letter categories Lu, Ll, Lt, Lm, or Lo
+as Unicode letters, and those in the Number category Nd as Unicode digits.
 </p>
 
 <h3 id="Letters_and_digits">Letters and digits</h3>
@@ -1051,12 +1050,18 @@ but are otherwise ignored.
 </p>
 
 <pre>
-// A struct corresponding to the TimeStamp protocol buffer.
-// The tag strings define the protocol buffer field numbers.
 struct {
-	microsec  uint64 "field 1"
-	serverIP6 uint64 "field 2"
-	process   string "field 3"
+	x, y float64 ""  // an empty tag string is like an absent tag
+	name string  "any string is permitted as a tag"
+	_    [4]byte "ceci n'est pas un champ de structure"
+}
+
+// A struct corresponding to a TimeStamp protocol buffer.
+// The tag strings define the protocol buffer field numbers;
+// they follow the convention outlined by the reflect package.
+struct {
+	microsec  uint64 `protobuf:"1"`
+	serverIP6 uint64 `protobuf:"2"`
 }
 </pre>
 
@@ -1108,7 +1113,7 @@ one unnamed result it may be written as an unparenthesized type.
 </p>
 
 <p>
-The final parameter in a function signature may have
+The final incoming parameter in a function signature may have
 a type prefixed with <code>...</code>.
 A function with such a parameter is called <i>variadic</i> and
 may be invoked with zero or more arguments for that parameter.
@@ -1789,26 +1794,27 @@ It can be used to construct a set of related constants:
 </p>
 
 <pre>
-const (  // iota is reset to 0
+const ( // iota is reset to 0
 	c0 = iota  // c0 == 0
 	c1 = iota  // c1 == 1
 	c2 = iota  // c2 == 2
 )
 
-const (
-	a = 1 &lt;&lt; iota  // a == 1 (iota has been reset)
+const ( // iota is reset to 0
+	a = 1 &lt;&lt; iota  // a == 1
 	b = 1 &lt;&lt; iota  // b == 2
-	c = 1 &lt;&lt; iota  // c == 4
+	c = 3          // c == 3  (iota is not used but still incremented)
+	d = 1 &lt;&lt; iota  // d == 8
 )
 
-const (
+const ( // iota is reset to 0
 	u         = iota * 42  // u == 0     (untyped integer constant)
 	v float64 = iota * 42  // v == 42.0  (float64 constant)
 	w         = iota * 42  // w == 84    (untyped integer constant)
 )
 
-const x = iota  // x == 0 (iota has been reset)
-const y = iota  // y == 0 (iota has been reset)
+const x = iota  // x == 0  (iota has been reset)
+const y = iota  // y == 0  (iota has been reset)
 </pre>
 
 <p>
@@ -2083,7 +2089,7 @@ Receiver     = Parameters .
 
 <p>
 The receiver is specified via an extra parameter section preceding the method
-name. That parameter section must declare a single parameter, the receiver.
+name. That parameter section must declare a single non-variadic parameter, the receiver.
 Its type must be of the form <code>T</code> or <code>*T</code> (possibly using
 parentheses) where <code>T</code> is a type name. The type denoted by <code>T</code> is called
 the receiver <i>base type</i>; it must not be a pointer or interface type and
@@ -5323,7 +5329,7 @@ the "for" statement's block but the <code>goto</code> is not.
 
 <p>
 A "fallthrough" statement transfers control to the first statement of the
-next case clause in a <a href="#Expression_switches">expression "switch" statement</a>.
+next case clause in an <a href="#Expression_switches">expression "switch" statement</a>.
 It may be used only as the final non-empty statement in such a clause.
 </p>
 

@@ -91,10 +91,10 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
 
 var importerTests = [...]importerTest{
 	{pkgpath: "pointer", name: "Int8Ptr", want: "type Int8Ptr *int8"},
-	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1/1 + -1/1i)"},
-	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1/1 + 1/1i)"},
-	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1/1 + -1/1i)"},
-	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1/1 + 1/1i)"},
+	{pkgpath: "complexnums", name: "NN", want: "const NN untyped complex", wantval: "(-1 + -1i)"},
+	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1 + 1i)"},
+	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1 + -1i)"},
+	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1 + 1i)"},
 	// TODO: enable this entry once bug has been tracked down
 	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
 }

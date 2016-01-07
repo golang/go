@@ -7,6 +7,7 @@ package fmt_test
 import (
 	"bytes"
 	. "fmt"
+	"internal/race"
 	"io"
 	"math"
 	"reflect"
@@ -982,7 +983,7 @@ func TestCountMallocs(t *testing.T) {
 		t.Skip("skipping malloc count in short mode")
 	case runtime.GOMAXPROCS(0) > 1:
 		t.Skip("skipping; GOMAXPROCS>1")
-	case raceenabled:
+	case race.Enabled:
 		t.Skip("skipping malloc count under race detector")
 	}
 	for _, mt := range mallocTest {

@@ -14,6 +14,11 @@ void scatter() {
 	printf("scatter = %p\n", p);
 }
 
+// Adding this explicit extern declaration makes this a test for
+// https://gcc.gnu.org/PR68072 aka https://golang.org/issue/13344 .
+// It used to cause a cgo error when building with GCC 6.
+extern int hola;
+
 // this example is in issue 3253
 int hola = 0;
 int testHola() { return hola; }

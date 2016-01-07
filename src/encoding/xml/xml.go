@@ -583,7 +583,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				return nil, d.err
 			}
 			enc := procInst("encoding", content)
-			if enc != "" && enc != "utf-8" && enc != "UTF-8" {
+			if enc != "" && enc != "utf-8" && enc != "UTF-8" && !strings.EqualFold(enc, "utf-8") {
 				if d.CharsetReader == nil {
 					d.err = fmt.Errorf("xml: encoding %q declared but Decoder.CharsetReader is nil", enc)
 					return nil, d.err
@@ -624,7 +624,12 @@ func (d *Decoder) rawToken() (Token, error) {
 					return nil, d.err
 				}
 				d.buf.WriteByte(b)
-				if b0 == '-' && b1 == '-' && b == '>' {
+				if b0 == '-' && b1 == '-' {
+					if b != '>' {
+						d.err = d.syntaxError(
+							`invalid sequence "--" not allowed in comments`)
+						return nil, d.err
+					}
 					break
 				}
 				b0, b1 = b1, b
@@ -1941,6 +1946,46 @@ func (p *printer) EscapeString(s string) {
 // Code targeting Go 1.1 or later should use EscapeText.
 func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
+}
+
+var (
+	cdataStart  = []byte("<![CDATA[")
+	cdataEnd    = []byte("]]>")
+	cdataEscape = []byte("]]]]><![CDATA[>")
+)
+
+// emitCDATA writes to w the CDATA-wrapped plain text data s.
+// It escapes CDATA directives nested in s.
+func emitCDATA(w io.Writer, s []byte) error {
+	if len(s) == 0 {
+		return nil
+	}
+	if _, err := w.Write(cdataStart); err != nil {
+		return err
+	}
+	for {
+		i := bytes.Index(s, cdataEnd)
+		if i >= 0 && i+len(cdataEnd) <= len(s) {
+			// Found a nested CDATA directive end.
+			if _, err := w.Write(s[:i]); err != nil {
+				return err
+			}
+			if _, err := w.Write(cdataEscape); err != nil {
+				return err
+			}
+			i += len(cdataEnd)
+		} else {
+			if _, err := w.Write(s); err != nil {
+				return err
+			}
+			break
+		}
+		s = s[i:]
+	}
+	if _, err := w.Write(cdataEnd); err != nil {
+		return err
+	}
+	return nil
 }
 
 // procInst parses the `param="..."` or `param='...'`

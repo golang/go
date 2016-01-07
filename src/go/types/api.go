@@ -22,6 +22,8 @@
 // and checks for compliance with the language specification.
 // Use Info.Types[expr].Type for the results of type inference.
 //
+// For a tutorial, see https://golang.org/s/types-tutorial.
+//
 package types // import "go/types"
 
 import (

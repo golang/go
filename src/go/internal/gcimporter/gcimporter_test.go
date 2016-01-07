@@ -164,7 +164,11 @@ func TestImportStdLib(t *testing.T) {
 		return
 	}
 
-	nimports := testDir(t, "", time.Now().Add(maxTime)) // installed packages
+	dt := maxTime
+	if testing.Short() && testenv.Builder() == "" {
+		dt = 10 * time.Millisecond
+	}
+	nimports := testDir(t, "", time.Now().Add(dt)) // installed packages
 	t.Logf("tested %d imports", nimports)
 }
 
@@ -269,5 +273,41 @@ func TestCorrectMethodPackage(t *testing.T) {
 	lock := sel.Obj().(*types.Func)
 	if got, want := lock.Pkg().Path(), "sync"; got != want {
 		t.Errorf("got package path %q; want %q", got, want)
+	}
+}
+
+func TestIssue13566(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+		return
+	}
+
+	// On windows, we have to set the -D option for the compiler to avoid having a drive
+	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
+	if runtime.GOOS == "windows" {
+		t.Skip("avoid dealing with relative paths/drive letters on windows")
+	}
+
+	if f := compile(t, "testdata", "a.go"); f != "" {
+		defer os.Remove(f)
+	}
+	if f := compile(t, "testdata", "b.go"); f != "" {
+		defer os.Remove(f)
+	}
+
+	// import must succeed (test for issue at hand)
+	pkg, err := Import(make(map[string]*types.Package), "./testdata/b")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// make sure all indirectly imported packages have names
+	for _, imp := range pkg.Imports() {
+		if imp.Name() == "" {
+			t.Errorf("no name for %s package", imp.Path())
+		}
 	}
 }

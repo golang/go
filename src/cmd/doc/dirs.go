@@ -6,6 +6,7 @@ package main
 
 import (
 	"go/build"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -54,65 +55,61 @@ func (d *Dirs) Next() (string, bool) {
 
 // walk walks the trees in GOROOT and GOPATH.
 func (d *Dirs) walk() {
-	d.walkRoot(build.Default.GOROOT)
+	d.bfsWalkRoot(build.Default.GOROOT)
 	for _, root := range splitGopath() {
-		d.walkRoot(root)
+		d.bfsWalkRoot(root)
 	}
 	close(d.scan)
 }
 
-// walkRoot walks a single directory. Each Go source directory it finds is
-// delivered on d.scan.
-func (d *Dirs) walkRoot(root string) {
+// bfsWalkRoot walks a single directory hierarchy in breadth-first lexical order.
+// Each Go source directory it finds is delivered on d.scan.
+func (d *Dirs) bfsWalkRoot(root string) {
 	root = path.Join(root, "src")
-	slashDot := string(filepath.Separator) + "."
-	// We put a slash on the pkg so can use simple string comparison below
-	// yet avoid inadvertent matches, like /foobar matching bar.
 
-	visit := func(pathName string, f os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+	// this is the queue of directories to examine in this pass.
+	this := []string{}
+	// next is the queue of directories to examine in the next pass.
+	next := []string{root}
+
+	for len(next) > 0 {
+		this, next = next, this[0:0]
+		for _, dir := range this {
+			fd, err := os.Open(dir)
+			if err != nil {
+				log.Printf("error opening %s: %v", dir, err)
+				return // TODO? There may be entry before the error.
+			}
+			entries, err := fd.Readdir(0)
+			fd.Close()
+			if err != nil {
+				log.Printf("error reading %s: %v", dir, err)
+				return // TODO? There may be entry before the error.
+			}
+			hasGoFiles := false
+			for _, entry := range entries {
+				name := entry.Name()
+				// For plain files, remember if this directory contains any .go
+				// source files, but ignore them otherwise.
+				if !entry.IsDir() {
+					if !hasGoFiles && strings.HasSuffix(name, ".go") {
+						hasGoFiles = true
+					}
+					continue
+				}
+				// Entry is a directory.
+				// No .git or other dot nonsense please.
+				if strings.HasPrefix(name, ".") {
+					continue
+				}
+				// Remember this (fully qualified) directory for the next pass.
+				next = append(next, filepath.Join(dir, name))
+			}
+			if hasGoFiles {
+				// It's a candidate.
+				d.scan <- dir
+			}
 		}
-		// One package per directory. Ignore the files themselves.
-		if !f.IsDir() {
-			return nil
-		}
-		// No .git or other dot nonsense please.
-		if strings.Contains(pathName, slashDot) {
-			return filepath.SkipDir
-		}
-		// Does the directory contain any Go files? If so, it's a candidate.
-		if hasGoFiles(pathName) {
-			d.scan <- pathName
-			return nil
-		}
-		return nil
+
 	}
-
-	filepath.Walk(root, visit)
-}
-
-// hasGoFiles tests whether the directory contains at least one file with ".go"
-// extension
-func hasGoFiles(path string) bool {
-	dir, err := os.Open(path)
-	if err != nil {
-		// ignore unreadable directories
-		return false
-	}
-	defer dir.Close()
-
-	names, err := dir.Readdirnames(0)
-	if err != nil {
-		// ignore unreadable directories
-		return false
-	}
-
-	for _, name := range names {
-		if strings.HasSuffix(name, ".go") {
-			return true
-		}
-	}
-
-	return false
 }

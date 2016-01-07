@@ -14,14 +14,14 @@ import (
 )
 
 // TODO(adg): support zip file comments
-// TODO(adg): support specifying deflate level
 
 // Writer implements a zip file writer.
 type Writer struct {
-	cw     *countWriter
-	dir    []*header
-	last   *fileWriter
-	closed bool
+	cw          *countWriter
+	dir         []*header
+	last        *fileWriter
+	closed      bool
+	compressors map[uint16]Compressor
 }
 
 type header struct {
@@ -78,7 +78,7 @@ func (w *Writer) Close() error {
 		b.uint16(h.ModifiedTime)
 		b.uint16(h.ModifiedDate)
 		b.uint32(h.CRC32)
-		if h.isZip64() || h.offset > uint32max {
+		if h.isZip64() || h.offset >= uint32max {
 			// the file needs a zip64 header. store maxint in both
 			// 32 bit size fields (and offset later) to signal that the
 			// zip64 extra header should be used.
@@ -220,7 +220,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 		compCount: &countWriter{w: w.cw},
 		crc32:     crc32.NewIEEE(),
 	}
-	comp := compressor(fh.Method)
+	comp := w.compressor(fh.Method)
 	if comp == nil {
 		return nil, ErrAlgorithm
 	}
@@ -268,6 +268,24 @@ func writeHeader(w io.Writer, h *FileHeader) error {
 	}
 	_, err := w.Write(h.Extra)
 	return err
+}
+
+// RegisterCompressor registers or overrides a custom compressor for a specific
+// method ID. If a compressor for a given method is not found, Writer will
+// default to looking up the compressor at the package level.
+func (w *Writer) RegisterCompressor(method uint16, comp Compressor) {
+	if w.compressors == nil {
+		w.compressors = make(map[uint16]Compressor)
+	}
+	w.compressors[method] = comp
+}
+
+func (w *Writer) compressor(method uint16) Compressor {
+	comp := w.compressors[method]
+	if comp == nil {
+		comp = compressor(method)
+	}
+	return comp
 }
 
 type fileWriter struct {

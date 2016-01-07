@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "_cgo_export.h"
@@ -80,3 +81,10 @@ returnAfterGrowFromGo(void)
 	return goReturnVal();
 }
 
+void
+callGoWithString(void)
+{
+	extern void goWithString(GoString);
+	const char *str = "string passed from C to Go";
+	goWithString((GoString){str, strlen(str)});
+}

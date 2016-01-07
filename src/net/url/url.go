@@ -71,6 +71,7 @@ type encoding int
 const (
 	encodePath encoding = 1 + iota
 	encodeHost
+	encodeZone
 	encodeUserPassword
 	encodeQueryComponent
 	encodeFragment
@@ -80,6 +81,12 @@ type EscapeError string
 
 func (e EscapeError) Error() string {
 	return "invalid URL escape " + strconv.Quote(string(e))
+}
+
+type InvalidHostError string
+
+func (e InvalidHostError) Error() string {
+	return "invalid character " + strconv.Quote(string(e)) + " in host name"
 }
 
 // Return true if the specified character should be escaped when
@@ -93,14 +100,18 @@ func shouldEscape(c byte, mode encoding) bool {
 		return false
 	}
 
-	if mode == encodeHost {
+	if mode == encodeHost || mode == encodeZone {
 		// §3.2.2 Host allows
 		//	sub-delims = "!" / "$" / "&" / "'" / "(" / ")" / "*" / "+" / "," / ";" / "="
 		// as part of reg-name.
 		// We add : because we include :port as part of host.
-		// We add [ ] because we include [ipv6]:port as part of host
+		// We add [ ] because we include [ipv6]:port as part of host.
+		// We add < > because they're the only characters left that
+		// we could possibly allow, and Parse will reject them if we
+		// escape them (because hosts can't use %-encoding for
+		// ASCII bytes).
 		switch c {
-		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']':
+		case '!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '=', ':', '[', ']', '<', '>', '"':
 			return false
 		}
 	}
@@ -166,11 +177,35 @@ func unescape(s string, mode encoding) (string, error) {
 				}
 				return "", EscapeError(s)
 			}
+			// Per https://tools.ietf.org/html/rfc3986#page-21
+			// in the host component %-encoding can only be used
+			// for non-ASCII bytes.
+			// But https://tools.ietf.org/html/rfc6874#section-2
+			// introduces %25 being allowed to escape a percent sign
+			// in IPv6 scoped-address literals. Yay.
+			if mode == encodeHost && unhex(s[i+1]) < 8 && s[i:i+3] != "%25" {
+				return "", EscapeError(s[i : i+3])
+			}
+			if mode == encodeZone {
+				// RFC 6874 says basically "anything goes" for zone identifiers
+				// and that even non-ASCII can be redundantly escaped,
+				// but it seems prudent to restrict %-escaped bytes here to those
+				// that are valid host name bytes in their unescaped form.
+				// That is, you can use escaping in the zone identifier but not
+				// to introduce bytes you couldn't just write directly.
+				v := unhex(s[i+1])<<4 | unhex(s[i+2])
+				if s[i:i+3] != "%25" && shouldEscape(v, encodeHost) {
+					return "", EscapeError(s[i : i+3])
+				}
+			}
 			i += 3
 		case '+':
 			hasPlus = mode == encodeQueryComponent
 			i++
 		default:
+			if (mode == encodeHost || mode == encodeZone) && s[i] < 0x80 && shouldEscape(s[i], mode) {
+				return "", InvalidHostError(s[i : i+1])
+			}
 			i++
 		}
 	}
@@ -496,14 +531,9 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 // parseHost parses host as an authority without user
 // information. That is, as host[:port].
 func parseHost(host string) (string, error) {
-	litOrName := host
 	if strings.HasPrefix(host, "[") {
 		// Parse an IP-Literal in RFC 3986 and RFC 6874.
-		// E.g., "[fe80::1], "[fe80::1%25en0]"
-		//
-		// RFC 4007 defines "%" as a delimiter character in
-		// the textual representation of IPv6 addresses.
-		// Per RFC 6874, in URIs that "%" is encoded as "%25".
+		// E.g., "[fe80::1]", "[fe80::1%25en0]", "[fe80::1]:80".
 		i := strings.LastIndex(host, "]")
 		if i < 0 {
 			return "", errors.New("missing ']' in host")
@@ -512,29 +542,31 @@ func parseHost(host string) (string, error) {
 		if !validOptionalPort(colonPort) {
 			return "", fmt.Errorf("invalid port %q after host", colonPort)
 		}
-		// Parse a host subcomponent without a ZoneID in RFC
-		// 6874 because the ZoneID is allowed to use the
-		// percent encoded form.
-		j := strings.Index(host[:i], "%25")
-		if j < 0 {
-			litOrName = host[1:i]
-		} else {
-			litOrName = host[1:j]
+
+		// RFC 6874 defines that %25 (%-encoded percent) introduces
+		// the zone identifier, and the zone identifier can use basically
+		// any %-encoding it likes. That's different from the host, which
+		// can only %-encode non-ASCII bytes.
+		// We do impose some restrictions on the zone, to avoid stupidity
+		// like newlines.
+		zone := strings.Index(host[:i], "%25")
+		if zone >= 0 {
+			host1, err := unescape(host[:zone], encodeHost)
+			if err != nil {
+				return "", err
+			}
+			host2, err := unescape(host[zone:i], encodeZone)
+			if err != nil {
+				return "", err
+			}
+			host3, err := unescape(host[i:], encodeHost)
+			if err != nil {
+				return "", err
+			}
+			return host1 + host2 + host3, nil
 		}
 	}
 
-	// A URI containing an IP-Literal without a ZoneID or
-	// IPv4address in RFC 3986 and RFC 6847 must not be
-	// percent-encoded.
-	//
-	// A URI containing a DNS registered name in RFC 3986 is
-	// allowed to be percent-encoded, though we don't use it for
-	// now to avoid messing up with the gap between allowed
-	// characters in URI and allowed characters in DNS.
-	// See golang.org/issue/7991.
-	if strings.Contains(litOrName, "%") {
-		return "", errors.New("percent-encoded characters in host")
-	}
 	var err error
 	if host, err = unescape(host, encodeHost); err != nil {
 		return "", err
@@ -590,12 +622,12 @@ func validEncodedPath(s string) bool {
 }
 
 // validOptionalPort reports whether port is either an empty string
-// or matches /^:\d+$/
+// or matches /^:\d*$/
 func validOptionalPort(port string) bool {
 	if port == "" {
 		return true
 	}
-	if port[0] != ':' || len(port) == 1 {
+	if port[0] != ':' {
 		return false
 	}
 	for _, b := range port[1:] {

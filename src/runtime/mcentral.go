@@ -32,7 +32,8 @@ func (c *mcentral) init(sizeclass int32) {
 // Allocate a span to use in an MCache.
 func (c *mcentral) cacheSpan() *mspan {
 	// Deduct credit for this span allocation and sweep if necessary.
-	deductSweepCredit(uintptr(class_to_size[c.sizeclass]), 0)
+	spanBytes := uintptr(class_to_allocnpages[c.sizeclass]) * _PageSize
+	deductSweepCredit(spanBytes, 0)
 
 	lock(&c.lock)
 	sg := mheap_.sweepgen
@@ -105,6 +106,15 @@ havespan:
 	if usedBytes > 0 {
 		reimburseSweepCredit(usedBytes)
 	}
+	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
+	if trace.enabled {
+		// heap_live changed.
+		traceHeapAlloc()
+	}
+	if gcBlackenEnabled != 0 {
+		// heap_live changed.
+		gcController.revise()
+	}
 	if s.freelist.ptr() == nil {
 		throw("freelist empty")
 	}
@@ -127,6 +137,9 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 	if n > 0 {
 		c.empty.remove(s)
 		c.nonempty.insert(s)
+		// mCentral_CacheSpan conservatively counted
+		// unallocated slots in heap_live. Undo this.
+		atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
 	}
 	unlock(&c.lock)
 }

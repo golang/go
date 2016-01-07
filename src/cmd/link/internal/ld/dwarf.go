@@ -625,54 +625,40 @@ func walktypedef(die *DWDie) *DWDie {
 // Find child by AT_name using hashtable if available or linear scan
 // if not.
 func find(die *DWDie, name string) *DWDie {
-	var a *DWDie
-	var b *DWDie
-	var die2 *DWDie
-	var h int
+	var prev *DWDie
+	for ; die != prev; prev, die = die, walktypedef(die) {
 
-top:
-	if die.hash == nil {
-		for a = die.child; a != nil; a = a.link {
-			if name == getattr(a, DW_AT_name).data {
-				return a
+		if die.hash == nil {
+			for a := die.child; a != nil; a = a.link {
+				if name == getattr(a, DW_AT_name).data {
+					return a
+				}
 			}
-		}
-		goto notfound
-	}
-
-	h = int(dwarfhashstr(name))
-	a = die.hash[h]
-
-	if a == nil {
-		goto notfound
-	}
-
-	if name == getattr(a, DW_AT_name).data {
-		return a
-	}
-
-	// Move found ones to head of the list.
-	b = a.hlink
-
-	for b != nil {
-		if name == getattr(b, DW_AT_name).data {
-			a.hlink = b.hlink
-			b.hlink = die.hash[h]
-			die.hash[h] = b
-			return b
+			continue
 		}
 
-		a = b
-		b = b.hlink
-	}
+		h := int(dwarfhashstr(name))
+		a := die.hash[h]
 
-notfound:
-	die2 = walktypedef(die)
-	if die2 != die {
-		die = die2
-		goto top
-	}
+		if a == nil {
+			continue
+		}
 
+		if name == getattr(a, DW_AT_name).data {
+			return a
+		}
+
+		// Move found ones to head of the list.
+		for b := a.hlink; b != nil; b = b.hlink {
+			if name == getattr(b, DW_AT_name).data {
+				a.hlink = b.hlink
+				b.hlink = die.hash[h]
+				die.hash[h] = b
+				return b
+			}
+			a = b
+		}
+	}
 	return nil
 }
 
@@ -1149,15 +1135,12 @@ func defptrto(dwtype *DWDie) *DWDie {
 // DWAttr.data is copied as pointer only.  If except is one of
 // the top-level children, it will not be copied.
 func copychildrenexcept(dst *DWDie, src *DWDie, except *DWDie) {
-	var c *DWDie
-	var a *DWAttr
-
 	for src = src.child; src != nil; src = src.link {
 		if src == except {
 			continue
 		}
-		c = newdie(dst, src.abbrev, getattr(src, DW_AT_name).data.(string))
-		for a = src.attr; a != nil; a = a.link {
+		c := newdie(dst, src.abbrev, getattr(src, DW_AT_name).data.(string))
+		for a := src.attr; a != nil; a = a.link {
 			newattr(c, a.atr, int(a.cls), a.value, a.data)
 		}
 		copychildrenexcept(c, src, nil)
@@ -1206,13 +1189,12 @@ func synthesizeslicetypes(die *DWDie) {
 		return
 	}
 
-	var elem *DWDie
 	for ; die != nil; die = die.link {
 		if die.abbrev != DW_ABRV_SLICETYPE {
 			continue
 		}
 		copychildren(die, prototype)
-		elem = getattr(die, DW_AT_go_elem).data.(*DWDie)
+		elem := getattr(die, DW_AT_go_elem).data.(*DWDie)
 		substitutetype(die, "array", defptrto(elem))
 	}
 }
@@ -1244,72 +1226,53 @@ func synthesizemaptypes(die *DWDie) {
 		return
 	}
 
-	var a *DWAttr
-	var dwh *DWDie
-	var dwhb *DWDie
-	var dwhk *DWDie
-	var dwhv *DWDie
-	var fld *DWDie
-	var indirect_key int
-	var indirect_val int
-	var keysize int
-	var keytype *DWDie
-	var t *DWDie
-	var valsize int
-	var valtype *DWDie
 	for ; die != nil; die = die.link {
 		if die.abbrev != DW_ABRV_MAPTYPE {
 			continue
 		}
 
-		keytype = walktypedef(getattr(die, DW_AT_go_key).data.(*DWDie))
-		valtype = walktypedef(getattr(die, DW_AT_go_elem).data.(*DWDie))
+		keytype := walktypedef(getattr(die, DW_AT_go_key).data.(*DWDie))
+		valtype := walktypedef(getattr(die, DW_AT_go_elem).data.(*DWDie))
 
 		// compute size info like hashmap.c does.
-		a = getattr(keytype, DW_AT_byte_size)
-
+		keysize, valsize := Thearch.Ptrsize, Thearch.Ptrsize
+		a := getattr(keytype, DW_AT_byte_size)
 		if a != nil {
 			keysize = int(a.value)
-		} else {
-			keysize = Thearch.Ptrsize
 		}
 		a = getattr(valtype, DW_AT_byte_size)
 		if a != nil {
 			valsize = int(a.value)
-		} else {
-			valsize = Thearch.Ptrsize
 		}
-		indirect_key = 0
-		indirect_val = 0
+		indirect_key, indirect_val := false, false
 		if keysize > MaxKeySize {
 			keysize = Thearch.Ptrsize
-			indirect_key = 1
+			indirect_key = true
 		}
-
 		if valsize > MaxValSize {
 			valsize = Thearch.Ptrsize
-			indirect_val = 1
+			indirect_val = true
 		}
 
 		// Construct type to represent an array of BucketSize keys
-		dwhk = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, mkinternaltypename("[]key", getattr(keytype, DW_AT_name).data.(string), ""))
+		dwhk := newdie(&dwtypes, DW_ABRV_ARRAYTYPE, mkinternaltypename("[]key", getattr(keytype, DW_AT_name).data.(string), ""))
 
 		newattr(dwhk, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*int64(keysize), 0)
-		t = keytype
-		if indirect_key != 0 {
+		t := keytype
+		if indirect_key {
 			t = defptrto(keytype)
 		}
 		newrefattr(dwhk, DW_AT_type, t)
-		fld = newdie(dwhk, DW_ABRV_ARRAYRANGE, "size")
+		fld := newdie(dwhk, DW_ABRV_ARRAYRANGE, "size")
 		newattr(fld, DW_AT_count, DW_CLS_CONSTANT, BucketSize, 0)
 		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 		// Construct type to represent an array of BucketSize values
-		dwhv = newdie(&dwtypes, DW_ABRV_ARRAYTYPE, mkinternaltypename("[]val", getattr(valtype, DW_AT_name).data.(string), ""))
+		dwhv := newdie(&dwtypes, DW_ABRV_ARRAYTYPE, mkinternaltypename("[]val", getattr(valtype, DW_AT_name).data.(string), ""))
 
 		newattr(dwhv, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize*int64(valsize), 0)
 		t = valtype
-		if indirect_val != 0 {
+		if indirect_val {
 			t = defptrto(valtype)
 		}
 		newrefattr(dwhv, DW_AT_type, t)
@@ -1318,7 +1281,7 @@ func synthesizemaptypes(die *DWDie) {
 		newrefattr(fld, DW_AT_type, mustFind(&dwtypes, "uintptr"))
 
 		// Construct bucket<K,V>
-		dwhb = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("bucket", getattr(keytype, DW_AT_name).data.(string), getattr(valtype, DW_AT_name).data.(string)))
+		dwhb := newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("bucket", getattr(keytype, DW_AT_name).data.(string), getattr(valtype, DW_AT_name).data.(string)))
 
 		// Copy over all fields except the field "data" from the generic bucket.
 		// "data" will be replaced with keys/values below.
@@ -1342,7 +1305,7 @@ func synthesizemaptypes(die *DWDie) {
 		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize+BucketSize*int64(keysize)+BucketSize*int64(valsize)+int64(Thearch.Regsize), 0)
 
 		// Construct hash<K,V>
-		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("hash", getattr(keytype, DW_AT_name).data.(string), getattr(valtype, DW_AT_name).data.(string)))
+		dwh := newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("hash", getattr(keytype, DW_AT_name).data.(string), getattr(valtype, DW_AT_name).data.(string)))
 
 		copychildren(dwh, hash)
 		substitutetype(dwh, "buckets", defptrto(dwhb))
@@ -1364,26 +1327,19 @@ func synthesizechantypes(die *DWDie) {
 
 	sudogsize := int(getattr(sudog, DW_AT_byte_size).value)
 
-	var a *DWAttr
-	var dwh *DWDie
-	var dws *DWDie
-	var dww *DWDie
-	var elemsize int
-	var elemtype *DWDie
 	for ; die != nil; die = die.link {
 		if die.abbrev != DW_ABRV_CHANTYPE {
 			continue
 		}
-		elemtype = getattr(die, DW_AT_go_elem).data.(*DWDie)
-		a = getattr(elemtype, DW_AT_byte_size)
+		elemsize := Thearch.Ptrsize
+		elemtype := getattr(die, DW_AT_go_elem).data.(*DWDie)
+		a := getattr(elemtype, DW_AT_byte_size)
 		if a != nil {
 			elemsize = int(a.value)
-		} else {
-			elemsize = Thearch.Ptrsize
 		}
 
 		// sudog<T>
-		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("sudog", getattr(elemtype, DW_AT_name).data.(string), ""))
+		dws := newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("sudog", getattr(elemtype, DW_AT_name).data.(string), ""))
 
 		copychildren(dws, sudog)
 		substitutetype(dws, "elem", elemtype)
@@ -1395,7 +1351,7 @@ func synthesizechantypes(die *DWDie) {
 		newattr(dws, DW_AT_byte_size, DW_CLS_CONSTANT, int64(sudogsize)+int64(elemsize), nil)
 
 		// waitq<T>
-		dww = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("waitq", getattr(elemtype, DW_AT_name).data.(string), ""))
+		dww := newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("waitq", getattr(elemtype, DW_AT_name).data.(string), ""))
 
 		copychildren(dww, waitq)
 		substitutetype(dww, "first", defptrto(dws))
@@ -1403,7 +1359,7 @@ func synthesizechantypes(die *DWDie) {
 		newattr(dww, DW_AT_byte_size, DW_CLS_CONSTANT, getattr(waitq, DW_AT_byte_size).value, nil)
 
 		// hchan<T>
-		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("hchan", getattr(elemtype, DW_AT_name).data.(string), ""))
+		dwh := newdie(&dwtypes, DW_ABRV_STRUCTTYPE, mkinternaltypename("hchan", getattr(elemtype, DW_AT_name).data.(string), ""))
 
 		copychildren(dwh, hchan)
 		substitutetype(dwh, "recvq", dww)
@@ -1466,11 +1422,8 @@ func finddebugruntimepath(s *LSym) {
 		return
 	}
 
-	var f *LSym
-	var p string
 	for i := 0; i < s.Pcln.Nfile; i++ {
-		f = s.Pcln.File[i]
-		_ = p
+		f := s.Pcln.File[i]
 		if i := strings.Index(f.Name, "runtime/runtime.go"); i >= 0 {
 			gdbscript = f.Name[:i] + "runtime/runtime-gdb.py"
 			break
@@ -1574,7 +1527,6 @@ func writelines() {
 	var epcs *LSym
 	lineo = Cpos()
 	var dwinfo *DWDie
-
 	flushunit(dwinfo, epc, epcs, unitstart, int32(headerend-unitstart-10))
 	unitstart = Cpos()
 
@@ -1641,22 +1593,12 @@ func writelines() {
 		addrput(pc)
 	}
 
-	var a *Auto
-	var da int
-	var dt int
-	var dwfunc *DWDie
-	var dws **DWDie
-	var dwvar *DWDie
-	var n string
-	var nn string
-	var offs int64
 	var pcfile Pciter
 	var pcline Pciter
-	var varhash [HASHSIZE]*DWDie
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
 		s = Ctxt.Cursym
 
-		dwfunc = newdie(dwinfo, DW_ABRV_FUNCTION, s.Name)
+		dwfunc := newdie(dwinfo, DW_ABRV_FUNCTION, s.Name)
 		newattr(dwfunc, DW_AT_low_pc, DW_CLS_ADDRESS, s.Value, s)
 		epc = s.Value + s.Size
 		epcs = s
@@ -1703,10 +1645,14 @@ func writelines() {
 			epc += s.Value
 		}
 
-		da = 0
+		var (
+			dt      int
+			offs    int64
+			varhash [HASHSIZE]*DWDie
+		)
+		da := 0
 		dwfunc.hash = varhash[:] // enable indexing of children by name
-		varhash = [HASHSIZE]*DWDie{}
-		for a = s.Autom; a != nil; a = a.Link {
+		for a := s.Autom; a != nil; a = a.Link {
 			switch a.Name {
 			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO
@@ -1726,6 +1672,7 @@ func writelines() {
 			if strings.Contains(a.Asym.Name, ".autotmp_") {
 				continue
 			}
+			var n string
 			if find(dwfunc, a.Asym.Name) != nil {
 				n = mkvarname(a.Asym.Name, da)
 			} else {
@@ -1733,12 +1680,11 @@ func writelines() {
 			}
 
 			// Drop the package prefix from locals and arguments.
-			_ = nn
 			if i := strings.LastIndex(n, "."); i >= 0 {
 				n = n[i+1:]
 			}
 
-			dwvar = newdie(dwfunc, dt, n)
+			dwvar := newdie(dwfunc, dt, n)
 			newcfaoffsetattr(dwvar, int32(offs))
 			newrefattr(dwvar, DW_AT_type, defgotype(a.Gotype))
 
@@ -1746,7 +1692,8 @@ func writelines() {
 			newattr(dwvar, DW_AT_internal_location, DW_CLS_CONSTANT, offs, nil)
 
 			dwfunc.child = dwvar.link // take dwvar out from the top of the list
-			for dws = &dwfunc.child; *dws != nil; dws = &(*dws).link {
+			dws := &dwfunc.child
+			for ; *dws != nil; dws = &(*dws).link {
 				if offs > getattr(*dws, DW_AT_internal_location).value {
 					break
 				}
@@ -1832,18 +1779,14 @@ func writeframes() {
 
 	strnput("", int(pad))
 
-	var fdeo int64
-	var fdesize int64
-	var nextpc uint32
 	var pcsp Pciter
-	var s *LSym
 	for Ctxt.Cursym = Ctxt.Textp; Ctxt.Cursym != nil; Ctxt.Cursym = Ctxt.Cursym.Next {
-		s = Ctxt.Cursym
+		s := Ctxt.Cursym
 		if s.Pcln == nil {
 			continue
 		}
 
-		fdeo = Cpos()
+		fdeo := Cpos()
 
 		// Emit a FDE, Section 6.4.1, starting wit a placeholder.
 		Thearch.Lput(0) // length, must be multiple of thearch.ptrsize
@@ -1852,7 +1795,7 @@ func writeframes() {
 		addrput(0)      // address range
 
 		for pciterinit(Ctxt, &pcsp, &s.Pcln.Pcsp); pcsp.done == 0; pciternext(&pcsp) {
-			nextpc = pcsp.nextpc
+			nextpc := pcsp.nextpc
 
 			// pciterinit goes up to the end of the function,
 			// but DWARF expects us to stop just before the end.
@@ -1870,7 +1813,7 @@ func writeframes() {
 			}
 		}
 
-		fdesize = Cpos() - fdeo - 4 // exclude the length field.
+		fdesize := Cpos() - fdeo - 4 // exclude the length field.
 		pad = Rnd(fdesize, int64(Thearch.Ptrsize)) - fdesize
 		strnput("", int(pad))
 		fdesize += pad
@@ -1914,10 +1857,8 @@ func writeinfo() {
 	}
 	arangessec.R = arangessec.R[:0]
 
-	var here int64
-	var unitstart int64
 	for compunit := dwroot.child; compunit != nil; compunit = compunit.link {
-		unitstart = Cpos()
+		unitstart := Cpos()
 
 		// Write .debug_info Compilation Unit Header (sec 7.5.1)
 		// Fields marked with (*) must be changed for 64-bit dwarf
@@ -1936,7 +1877,7 @@ func writeinfo() {
 
 		putdie(compunit)
 
-		here = Cpos()
+		here := Cpos()
 		Cseek(unitstart)
 		Thearch.Lput(uint32(here - unitstart - 4)) // exclude the length field.
 		Cseek(here)
@@ -1964,20 +1905,13 @@ func ispubtype(die *DWDie) bool {
 }
 
 func writepub(ispub func(*DWDie) bool) int64 {
-	var die *DWDie
-	var dwa *DWAttr
-	var unitstart int64
-	var unitend int64
-	var here int64
-
 	sectionstart := Cpos()
 
 	for compunit := dwroot.child; compunit != nil; compunit = compunit.link {
-		unitstart = compunit.offs - COMPUNITHEADERSIZE
+		unitend := infoo + infosize
+		unitstart := compunit.offs - COMPUNITHEADERSIZE
 		if compunit.link != nil {
 			unitend = compunit.link.offs - COMPUNITHEADERSIZE
-		} else {
-			unitend = infoo + infosize
 		}
 
 		// Write .debug_pubnames/types	Header (sec 6.1.1)
@@ -1986,18 +1920,18 @@ func writepub(ispub func(*DWDie) bool) int64 {
 		Thearch.Lput(uint32(unitstart))           // debug_info_offset (of the Comp unit Header)
 		Thearch.Lput(uint32(unitend - unitstart)) // debug_info_length
 
-		for die = compunit.child; die != nil; die = die.link {
+		for die := compunit.child; die != nil; die = die.link {
 			if !ispub(die) {
 				continue
 			}
 			Thearch.Lput(uint32(die.offs - unitstart))
-			dwa = getattr(die, DW_AT_name)
+			dwa := getattr(die, DW_AT_name)
 			strnput(dwa.data.(string), int(dwa.value+1))
 		}
 
 		Thearch.Lput(0)
 
-		here = Cpos()
+		here := Cpos()
 		Cseek(sectionstart)
 		Thearch.Lput(uint32(here - sectionstart - 4)) // exclude the length field.
 		Cseek(here)
@@ -2011,19 +1945,15 @@ func writepub(ispub func(*DWDie) bool) int64 {
  *  because we need die->offs of dw_globals.
  */
 func writearanges() int64 {
-	var b *DWAttr
-	var e *DWAttr
-	var value int64
-
 	sectionstart := Cpos()
 	headersize := int(Rnd(4+2+4+1+1, int64(Thearch.Ptrsize))) // don't count unit_length field itself
 
 	for compunit := dwroot.child; compunit != nil; compunit = compunit.link {
-		b = getattr(compunit, DW_AT_low_pc)
+		b := getattr(compunit, DW_AT_low_pc)
 		if b == nil {
 			continue
 		}
-		e = getattr(compunit, DW_AT_high_pc)
+		e := getattr(compunit, DW_AT_high_pc)
 		if e == nil {
 			continue
 		}
@@ -2032,7 +1962,7 @@ func writearanges() int64 {
 		Thearch.Lput(uint32(headersize) + 4*uint32(Thearch.Ptrsize) - 4) // unit_length (*)
 		Thearch.Wput(2)                                                  // dwarf version (appendix F)
 
-		value = compunit.offs - COMPUNITHEADERSIZE // debug_info_offset
+		value := compunit.offs - COMPUNITHEADERSIZE // debug_info_offset
 		if Linkmode == LinkExternal {
 			adddwarfrel(arangessec, infosym, sectionstart, 4, value)
 		} else {
@@ -2077,18 +2007,14 @@ func align(size int64) {
 }
 
 func writedwarfreloc(s *LSym) int64 {
-	var i int
-	var r *Reloc
-
 	start := Cpos()
 	for ri := 0; ri < len(s.R); ri++ {
-		r = &s.R[ri]
+		r := &s.R[ri]
+		i := -1
 		if Iself {
 			i = Thearch.Elfreloc1(r, int64(r.Off))
 		} else if HEADTYPE == obj.Hdarwin {
 			i = Thearch.Machoreloc1(r, int64(r.Off))
-		} else {
-			i = -1
 		}
 		if i < 0 {
 			Diag("unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)

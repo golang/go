@@ -1,3 +1,7 @@
+// Copyright 2014 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package os_test
 
 import (
@@ -5,6 +9,7 @@ import (
 	"os"
 	osexec "os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -144,5 +149,77 @@ func TestBadNetPathError(t *testing.T) {
 	const ERROR_BAD_NETPATH = syscall.Errno(53)
 	if !os.IsNotExist(ERROR_BAD_NETPATH) {
 		t.Fatal("os.IsNotExist(syscall.Errno(53)) is false, but want true")
+	}
+}
+
+func TestStatDir(t *testing.T) {
+	defer chtmpdir(t)()
+
+	f, err := os.Open(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Chdir("..")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fi2, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi, fi2) {
+		t.Fatal("race condition occured")
+	}
+}
+
+func TestOpenVolumeName(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "TestOpenVolumeName")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(wd)
+
+	want := []string{"file1", "file2", "file3", "gopher.txt"}
+	sort.Strings(want)
+	for _, name := range want {
+		err := ioutil.WriteFile(filepath.Join(tmpdir, name), nil, 0777)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	f, err := os.Open(filepath.VolumeName(tmpdir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	have, err := f.Readdirnames(-1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(have)
+
+	if strings.Join(want, "/") != strings.Join(have, "/") {
+		t.Fatalf("unexpected file list %q, want %q", have, want)
 	}
 }

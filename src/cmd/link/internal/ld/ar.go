@@ -66,6 +66,9 @@ func hostArchive(name string) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// It's OK if we don't have a libgcc file at all.
+			if Debug['v'] != 0 {
+				fmt.Fprintf(&Bso, "skipping libgcc file: %v\n", err)
+			}
 			return
 		}
 		Exitf("cannot open file %s: %v", name, err)

@@ -194,6 +194,18 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
 	MOVW	R1, ret_hi+4(FP)
 	RET
 
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
 // Sigtramp's job is to call the actual signal handler.
 // It is called with the following arguments on the stack:
 //	 LR  	"return address" - ignored

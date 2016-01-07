@@ -219,10 +219,7 @@ func forkAndExecInChild(argv0 *byte, argv []*byte, envv []envItem, dir *byte, at
 
 	// Close fds we don't need.
 	for i = 0; i < len(fdsToClose); i++ {
-		r1, _, _ = RawSyscall(SYS_CLOSE, uintptr(fdsToClose[i]), 0, 0)
-		if int32(r1) == -1 {
-			goto childerror
-		}
+		RawSyscall(SYS_CLOSE, uintptr(fdsToClose[i]), 0, 0)
 	}
 
 	if envv != nil {

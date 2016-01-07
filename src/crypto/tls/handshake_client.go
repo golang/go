@@ -165,10 +165,10 @@ NextCipherSuite:
 	c.vers = vers
 	c.haveVers = true
 
-	suite := mutualCipherSuite(c.config.cipherSuites(), serverHello.cipherSuite)
+	suite := mutualCipherSuite(hello.cipherSuites, serverHello.cipherSuite)
 	if suite == nil {
 		c.sendAlert(alertHandshakeFailure)
-		return fmt.Errorf("tls: server selected an unsupported cipher suite")
+		return errors.New("tls: server chose an unconfigured cipher suite")
 	}
 
 	hs := &clientHandshakeState{
