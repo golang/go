@@ -332,6 +332,15 @@ Searching for uses of
 <a href="/pkg/os/signal/#Notify"><code>signal.Notify</code></a> may help identify such code.
 </p>
 
+<p>
+On Windows, Go programs in Go 1.5 and earlier forced
+the global Windows timer resolution to 1ms at startup
+by calling <code>timeBeginPeriod(1)</code>.
+Go no longer needs this for good scheduler performance,
+and changing the global timer resolution caused problems on some systems,
+so the call has been removed.
+</p>
+
 <h3 id="reflect">Reflect</h3>
 
 <p>
