@@ -170,12 +170,14 @@ func resolveAddrList(op, net, addr string, deadline time.Time) (addrList, error)
 // in square brackets as in "[::1]:80" or "[ipv6-host%zone]:80".
 // The functions JoinHostPort and SplitHostPort manipulate addresses
 // in this form.
+// If the host is empty, as in ":80", the local system is assumed.
 //
 // Examples:
 //	Dial("tcp", "12.34.56.78:80")
 //	Dial("tcp", "google.com:http")
 //	Dial("tcp", "[2001:db8::1]:http")
 //	Dial("tcp", "[fe80::1%lo0]:80")
+//	Dial("tcp", ":80")
 //
 // For IP networks, the network must be "ip", "ip4" or "ip6" followed
 // by a colon and a protocol number or name and the addr must be a
@@ -388,7 +390,10 @@ func dialSingle(ctx *dialContext, ra Addr, deadline time.Time) (c Conn, err erro
 // Listen announces on the local network address laddr.
 // The network net must be a stream-oriented network: "tcp", "tcp4",
 // "tcp6", "unix" or "unixpacket".
-// See Dial for the syntax of laddr.
+// For TCP and UDP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
+// If host is omitted, as in ":8080", Listen listens on all available interfaces
+// instead of just the interface with the given host address.
+// See Dial for more details about address syntax.
 func Listen(net, laddr string) (Listener, error) {
 	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
 	if err != nil {
@@ -412,6 +417,9 @@ func Listen(net, laddr string) (Listener, error) {
 // ListenPacket announces on the local network address laddr.
 // The network net must be a packet-oriented network: "udp", "udp4",
 // "udp6", "ip", "ip4", "ip6" or "unixgram".
+// For TCP and UDP, the syntax of laddr is "host:port", like "127.0.0.1:8080".
+// If host is omitted, as in ":8080", ListenPacket listens on all available interfaces
+// instead of just the interface with the given host address.
 // See Dial for the syntax of laddr.
 func ListenPacket(net, laddr string) (PacketConn, error) {
 	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
