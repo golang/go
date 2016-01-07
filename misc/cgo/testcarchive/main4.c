@@ -78,7 +78,7 @@ static void* thread1(void* arg) {
 			perror("sched_yield");
 		}
 		i++;
-		if (i > 10000) {
+		if (i > 100000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}
@@ -133,7 +133,7 @@ static void* thread2(void* arg) {
 			perror("sched_yield");
 		}
 		i++;
-		if (i > 10000) {
+		if (i > 100000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}

@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
 			perror("sched_yield");
 		}
 		i++;
-		if (i > 10000) {
+		if (i > 100000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}
@@ -142,7 +142,7 @@ int main(int argc, char** argv) {
 			perror("sched_yield");
 		}
 		i++;
-		if (i > 10000) {
+		if (i > 100000) {
 			fprintf(stderr, "looping too long waiting for signal\n");
 			exit(EXIT_FAILURE);
 		}
