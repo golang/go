@@ -1406,10 +1406,6 @@ func http2parseContinuationFrame(fh http2FrameHeader, p []byte) (http2Frame, err
 	return &http2ContinuationFrame{fh, p}, nil
 }
 
-func (f *http2ContinuationFrame) StreamEnded() bool {
-	return f.http2FrameHeader.Flags.Has(http2FlagDataEndStream)
-}
-
 func (f *http2ContinuationFrame) HeaderBlockFragment() []byte {
 	f.checkValid()
 	return f.headerFragBuf
@@ -4222,8 +4218,8 @@ type http2clientStream struct {
 	done chan struct{} // closed when stream remove from cc.streams map; close calls guarded by cc.mu
 
 	// owned by clientConnReadLoop:
-	headersDone  bool // got HEADERS w/ END_HEADERS
-	trailersDone bool // got second HEADERS frame w/ END_HEADERS
+	pastHeaders  bool // got HEADERS w/ END_HEADERS
+	pastTrailers bool // got second HEADERS frame w/ END_HEADERS
 
 	trailer    Header // accumulated trailers
 	resTrailer Header // client's Response.Trailer
@@ -4923,9 +4919,10 @@ type http2clientConnReadLoop struct {
 	hdec *hpack.Decoder
 
 	// Fields reset on each HEADERS:
-	nextRes      *Response
-	sawRegHeader bool  // saw non-pseudo header
-	reqMalformed error // non-nil once known to be malformed
+	nextRes              *Response
+	sawRegHeader         bool  // saw non-pseudo header
+	reqMalformed         error // non-nil once known to be malformed
+	lastHeaderEndsStream bool
 }
 
 // readLoop runs in its own goroutine and reads and dispatches frames.
@@ -5018,26 +5015,28 @@ func (rl *http2clientConnReadLoop) run() error {
 func (rl *http2clientConnReadLoop) processHeaders(f *http2HeadersFrame) error {
 	rl.sawRegHeader = false
 	rl.reqMalformed = nil
+	rl.lastHeaderEndsStream = f.StreamEnded()
 	rl.nextRes = &Response{
 		Proto:      "HTTP/2.0",
 		ProtoMajor: 2,
 		Header:     make(Header),
 	}
-	return rl.processHeaderBlockFragment(f.HeaderBlockFragment(), f.StreamID, f.HeadersEnded(), f.StreamEnded())
+	return rl.processHeaderBlockFragment(f.HeaderBlockFragment(), f.StreamID, f.HeadersEnded())
 }
 
 func (rl *http2clientConnReadLoop) processContinuation(f *http2ContinuationFrame) error {
-	return rl.processHeaderBlockFragment(f.HeaderBlockFragment(), f.StreamID, f.HeadersEnded(), f.StreamEnded())
+	return rl.processHeaderBlockFragment(f.HeaderBlockFragment(), f.StreamID, f.HeadersEnded())
 }
 
-func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, streamID uint32, headersEnded, streamEnded bool) error {
+func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, streamID uint32, finalFrag bool) error {
 	cc := rl.cc
-	cs := cc.streamByID(streamID, streamEnded)
+	streamEnded := rl.lastHeaderEndsStream
+	cs := cc.streamByID(streamID, streamEnded && finalFrag)
 	if cs == nil {
 
 		return nil
 	}
-	if cs.headersDone {
+	if cs.pastHeaders {
 		rl.hdec.SetEmitFunc(cs.onNewTrailerField)
 	} else {
 		rl.hdec.SetEmitFunc(rl.onNewHeaderField)
@@ -5046,22 +5045,25 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 	if err != nil {
 		return http2ConnectionError(http2ErrCodeCompression)
 	}
-	if err := rl.hdec.Close(); err != nil {
-		return http2ConnectionError(http2ErrCodeCompression)
+	if finalFrag {
+		if err := rl.hdec.Close(); err != nil {
+			return http2ConnectionError(http2ErrCodeCompression)
+		}
 	}
-	if !headersEnded {
+
+	if !finalFrag {
 		return nil
 	}
 
-	if !cs.headersDone {
-		cs.headersDone = true
+	if !cs.pastHeaders {
+		cs.pastHeaders = true
 	} else {
 
-		if cs.trailersDone {
+		if cs.pastTrailers {
 
 			return http2ConnectionError(http2ErrCodeProtocol)
 		}
-		cs.trailersDone = true
+		cs.pastTrailers = true
 		if !streamEnded {
 
 			return http2ConnectionError(http2ErrCodeProtocol)
@@ -5077,6 +5079,12 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 	}
 
 	res := rl.nextRes
+
+	if res.StatusCode == 100 {
+
+		cs.pastHeaders = false
+		return nil
+	}
 
 	if !streamEnded || cs.req.Method == "HEAD" {
 		res.ContentLength = -1
