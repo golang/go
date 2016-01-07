@@ -634,6 +634,7 @@ func evconst(n *Node) {
 	var wr int
 	var v Val
 	var norig *Node
+	var nn *Node
 	if nr == nil {
 		// copy numeric value to avoid modifying
 		// nl, in case someone still refers to it (e.g. iota).
@@ -1115,15 +1116,21 @@ ret:
 	return
 
 settrue:
-	norig = saveorig(n)
-	*n = *Nodbool(true)
-	n.Orig = norig
+	nn = Nodbool(true)
+	nn.Orig = saveorig(n)
+	if !iscmp[n.Op] {
+		nn.Type = nl.Type
+	}
+	*n = *nn
 	return
 
 setfalse:
-	norig = saveorig(n)
-	*n = *Nodbool(false)
-	n.Orig = norig
+	nn = Nodbool(false)
+	nn.Orig = saveorig(n)
+	if !iscmp[n.Op] {
+		nn.Type = nl.Type
+	}
+	*n = *nn
 	return
 
 illegal:
