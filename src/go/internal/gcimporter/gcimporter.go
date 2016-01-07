@@ -35,7 +35,7 @@ var pkgExts = [...]string{".a", ".o"}
 // If no file was found, an empty filename is returned.
 //
 func FindPkg(path, srcDir string) (filename, id string) {
-	if len(path) == 0 {
+	if path == "" {
 		return
 	}
 
@@ -107,23 +107,14 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
 	return
 }
 
-// Import imports a gc-generated package given its import path, adds the
-// corresponding package object to the packages map, and returns the object.
-// Local import paths are interpreted relative to the current working directory.
+// Import imports a gc-generated package given its import path and srcDir, adds
+// the corresponding package object to the packages map, and returns the object.
 // The packages map must contain all packages already imported.
 //
-func Import(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
+func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types.Package, err error) {
 	// package "unsafe" is handled by the type checker
 	if path == "unsafe" {
 		panic(`gcimporter.Import called for package "unsafe"`)
-	}
-
-	srcDir := "."
-	if build.IsLocalImport(path) {
-		srcDir, err = os.Getwd()
-		if err != nil {
-			return
-		}
 	}
 
 	filename, id := FindPkg(path, srcDir)
