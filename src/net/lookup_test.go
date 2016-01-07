@@ -436,9 +436,15 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 			t.Errorf("#%d: %v", i, err)
 			continue
 		}
+		mode := "netgo"
+		if i == 1 {
+			mode = "netcgo"
+		}
 		for _, name := range names {
-			if !strings.HasSuffix(name, ".") {
-				t.Errorf("#%d: got %s; want name ending with trailing dot", i, name)
+			if strings.Index(name, ".") == len(name)-1 { // "localhost" not "localhost."
+				t.Errorf("%s: got %s; want %s", mode, name, name[:len(name)-1])
+			} else if strings.Contains(name, ".") && !strings.HasSuffix(name, ".") { // "localhost.localdomain." not "localhost.localdomain"
+				t.Errorf("%s: got %s; want name ending with trailing dot", mode, name)
 			}
 		}
 	}
