@@ -105,6 +105,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
 
+The net and net/http packages also refer to debugging variables in GODEBUG.
+See the documentation for those packages for details.
+
 The GOMAXPROCS variable limits the number of operating system threads that
 can execute user-level Go code simultaneously. There is no limit to the number of threads
 that can be blocked in system calls on behalf of Go code; those do not count against
