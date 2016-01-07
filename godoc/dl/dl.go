@@ -49,14 +49,29 @@ func RegisterHandlers(mux *http.ServeMux) {
 }
 
 type File struct {
-	Filename string
-	OS       string
-	Arch     string
-	Version  string
-	Checksum string `datastore:",noindex"`
-	Size     int64  `datastore:",noindex"`
-	Kind     string // "archive", "installer", "source"
-	Uploaded time.Time
+	Filename       string
+	OS             string
+	Arch           string
+	Version        string
+	Checksum       string `datastore:",noindex"` // SHA1; deprecated
+	ChecksumSHA256 string `datastore:",noindex"`
+	Size           int64  `datastore:",noindex"`
+	Kind           string // "archive", "installer", "source"
+	Uploaded       time.Time
+}
+
+func (f File) ChecksumType() string {
+	if f.ChecksumSHA256 != "" {
+		return "SHA256"
+	}
+	return "SHA1"
+}
+
+func (f File) PrettyChecksum() string {
+	if f.ChecksumSHA256 != "" {
+		return f.ChecksumSHA256
+	}
+	return f.Checksum
 }
 
 func (f File) PrettyOS() string {

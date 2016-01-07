@@ -33,7 +33,7 @@ const templateHTML = `
 			padding: 6px 10px;
 		}
 		table.codetable tt {
-			font-size: x-small;
+			font-size: xx-small;
 		}
 		table.codetable tr.highlight td {
 			font-weight: bold;
@@ -73,7 +73,7 @@ const templateHTML = `
 			font-style: italic;
 		}
 		.downloadBox .checksum {
-			font-size: x-small;
+			font-size: 5pt;
 		}
 	</style>
 </head>
@@ -235,7 +235,8 @@ $(document).ready(function() {
   <th>OS</th>
   <th>Arch</th>
   <th>Size</th>
-  <th>SHA1 Checksum</th>
+  {{/* Use the checksum type of the first file for the column heading. */}}
+  <th>{{(index . 0).ChecksumType}} Checksum</th>
 </tr>
 </thead>
 {{range .}}
@@ -245,7 +246,7 @@ $(document).ready(function() {
   <td>{{.PrettyOS}}</td>
   <td>{{pretty .Arch}}</td>
   <td>{{.PrettySize}}</td>
-  <td><tt>{{.Checksum}}</tt></td>
+  <td><tt>{{.PrettyChecksum}}</tt></td>
 </tr>
 {{else}}
 <tr>
@@ -263,7 +264,7 @@ $(document).ready(function() {
   <span class="filename">{{.Filename}}</span>
   {{if .Size}}<span class="size">({{.PrettySize}})</span>{{end}}
 </div>
-<div class="checksum">SHA1: {{.Checksum}}</div>
+<div class="checksum">{{.ChecksumType}}: {{.PrettyChecksum}}</div>
 </a>
 {{end}}
 `
