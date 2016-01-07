@@ -72,37 +72,46 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	// ebase**exp. Finally, mantissa normalization (shift left) requires
 	// a correcting multiplication by 2**(-shiftcount). Multiplications
 	// are commutative, so we can apply them in any order as long as there
-	// is no loss of precision. We only have powers of 2 and 10; keep
-	// track via separate exponents exp2 and exp10.
+	// is no loss of precision. We only have powers of 2 and 10, and
+	// we split powers of 10 into the product of the same powers of
+	// 2 and 5. This reduces the size of the multiplication factor
+	// needed for base-10 exponents.
 
-	// normalize mantissa and get initial binary exponent
-	var exp2 = int64(len(z.mant))*_W - fnorm(z.mant)
+	// normalize mantissa and determine initial exponent contributions
+	exp2 := int64(len(z.mant))*_W - fnorm(z.mant)
+	exp5 := int64(0)
 
 	// determine binary or decimal exponent contribution of decimal point
-	var exp10 int64
 	if fcount < 0 {
 		// The mantissa has a "decimal" point ddd.dddd; and
 		// -fcount is the number of digits to the right of '.'.
 		// Adjust relevant exponent accodingly.
+		d := int64(fcount)
 		switch b {
-		case 16:
-			fcount *= 4 // hexadecimal digits are 4 bits each
-			fallthrough
+		case 10:
+			exp5 = d
+			fallthrough // 10**e == 5**e * 2**e
 		case 2:
-			exp2 += int64(fcount)
-		default: // b == 10
-			exp10 = int64(fcount)
+			exp2 += d
+		case 16:
+			exp2 += d * 4 // hexadecimal digits are 4 bits each
+		default:
+			panic("unexpected mantissa base")
 		}
-		// we don't need fcount anymore
+		// fcount consumed - not needed anymore
 	}
 
 	// take actual exponent into account
-	if ebase == 2 {
+	switch ebase {
+	case 10:
+		exp5 += exp
+		fallthrough
+	case 2:
 		exp2 += exp
-	} else { // ebase == 10
-		exp10 += exp
+	default:
+		panic("unexpected exponent base")
 	}
-	// we don't need exp anymore
+	// exp consumed - not needed anymore
 
 	// apply 2**exp2
 	if MinExp <= exp2 && exp2 <= MaxExp {
@@ -115,49 +124,76 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 		return
 	}
 
-	if exp10 == 0 {
-		// no decimal exponent to consider
+	if exp5 == 0 {
+		// no decimal exponent contribution
 		z.round(0)
 		return
 	}
-	// exp10 != 0
+	// exp5 != 0
 
-	// apply 10**exp10
+	// apply 5**exp5
 	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
-	if exp10 < 0 {
-		z.Quo(z, p.pow10(-exp10))
+	if exp5 < 0 {
+		z.Quo(z, p.pow5(uint64(-exp5)))
 	} else {
-		z.Mul(z, p.pow10(exp10))
+		z.Mul(z, p.pow5(uint64(exp5)))
 	}
 
 	return
 }
 
-// These powers of 10 can be represented exactly as a float64.
-var pow10tab = [...]float64{
-	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
-	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
+// These powers of 5 fit into a uint64.
+//
+//	for p, q := uint64(0), uint64(1); p < q; p, q = q, q*5 {
+//		fmt.Println(q)
+//	}
+//
+var pow5tab = [...]uint64{
+	1,
+	5,
+	25,
+	125,
+	625,
+	3125,
+	15625,
+	78125,
+	390625,
+	1953125,
+	9765625,
+	48828125,
+	244140625,
+	1220703125,
+	6103515625,
+	30517578125,
+	152587890625,
+	762939453125,
+	3814697265625,
+	19073486328125,
+	95367431640625,
+	476837158203125,
+	2384185791015625,
+	11920928955078125,
+	59604644775390625,
+	298023223876953125,
+	1490116119384765625,
+	7450580596923828125,
 }
 
-// pow10 sets z to 10**n and returns z.
+// pow5 sets z to 5**n and returns z.
 // n must not be negative.
-func (z *Float) pow10(n int64) *Float {
-	if n < 0 {
-		panic("pow10 called with negative argument")
-	}
-
-	const m = int64(len(pow10tab) - 1)
+func (z *Float) pow5(n uint64) *Float {
+	const m = uint64(len(pow5tab) - 1)
 	if n <= m {
-		return z.SetFloat64(pow10tab[n])
+		return z.SetUint64(pow5tab[n])
 	}
 	// n > m
 
-	z.SetFloat64(pow10tab[m])
+	z.SetUint64(pow5tab[m])
 	n -= m
 
 	// use more bits for f than for z
 	// TODO(gri) what is the right number?
-	f := new(Float).SetPrec(z.Prec() + 64).SetInt64(10)
+	f := new(Float).SetPrec(z.Prec() + 64).SetUint64(5)
 
 	for n > 0 {
 		if n&1 != 0 {

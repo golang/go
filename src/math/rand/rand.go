@@ -113,19 +113,18 @@ func (r *Rand) Float64() float64 {
 	//
 	// There is one bug in the value stream: r.Int63() may be so close
 	// to 1<<63 that the division rounds up to 1.0, and we've guaranteed
-	// that the result is always less than 1.0. To fix that, we treat the
-	// range as cyclic and map 1 back to 0. This is justified by observing
-	// that while some of the values rounded down to 0, nothing was
-	// rounding up to 0, so 0 was underrepresented in the results.
-	// Mapping 1 back to zero restores some balance.
-	// (The balance is not perfect because the implementation
-	// returns denormalized numbers for very small r.Int63(),
-	// and those steal from what would normally be 0 results.)
-	// The remapping only happens 1/2⁵³ of the time, so most clients
+	// that the result is always less than 1.0.
+	//
+	// We tried to fix this by mapping 1.0 back to 0.0, but since float64
+	// values near 0 are much denser than near 1, mapping 1 to 0 caused
+	// a theoretically significant overshoot in the probability of returning 0.
+	// Instead of that, if we round up to 1, just try again.
+	// Getting 1 only happens 1/2⁵³ of the time, so most clients
 	// will not observe it anyway.
+again:
 	f := float64(r.Int63()) / (1 << 63)
 	if f == 1 {
-		f = 0
+		goto again // resample; this branch is taken O(never)
 	}
 	return f
 }
@@ -134,13 +133,11 @@ func (r *Rand) Float64() float64 {
 func (r *Rand) Float32() float32 {
 	// Same rationale as in Float64: we want to preserve the Go 1 value
 	// stream except we want to fix it not to return 1.0
-	// There is a double rounding going on here, but the argument for
-	// mapping 1 to 0 still applies: 0 was underrepresented before,
-	// so mapping 1 to 0 doesn't cause too many 0s.
 	// This only happens 1/2²⁴ of the time (plus the 1/2⁵³ of the time in Float64).
+again:
 	f := float32(r.Float64())
 	if f == 1 {
-		f = 0
+		goto again // resample; this branch is taken O(very rarely)
 	}
 	return f
 }

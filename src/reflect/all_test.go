@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"os"
 	. "reflect"
@@ -647,6 +648,8 @@ var (
 	fn3 = func() { fn1() } // Not nil.
 )
 
+type self struct{}
+
 var deepEqualTests = []DeepEqualTest{
 	// Equalities
 	{nil, nil, true},
@@ -681,6 +684,13 @@ var deepEqualTests = []DeepEqualTest{
 	{fn1, fn3, false},
 	{fn3, fn3, false},
 	{[][]int{{1}}, [][]int{{2}}, false},
+	{math.NaN(), math.NaN(), false},
+	{&[1]float64{math.NaN()}, &[1]float64{math.NaN()}, false},
+	{&[1]float64{math.NaN()}, self{}, true},
+	{[]float64{math.NaN()}, []float64{math.NaN()}, false},
+	{[]float64{math.NaN()}, self{}, true},
+	{map[float64]float64{math.NaN(): 1}, map[float64]float64{1: 2}, false},
+	{map[float64]float64{math.NaN(): 1}, self{}, true},
 
 	// Nil vs empty: not the same.
 	{[]int{}, []int(nil), false},
@@ -702,6 +712,9 @@ var deepEqualTests = []DeepEqualTest{
 
 func TestDeepEqual(t *testing.T) {
 	for _, test := range deepEqualTests {
+		if test.b == (self{}) {
+			test.b = test.a
+		}
 		if r := DeepEqual(test.a, test.b); r != test.eq {
 			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq)
 		}
@@ -4964,4 +4977,33 @@ func TestPtrToMethods(t *testing.T) {
 	if !ok {
 		t.Fatal("does not implement Stringer, but should")
 	}
+}
+
+func TestMapAlloc(t *testing.T) {
+	m := ValueOf(make(map[int]int, 10))
+	k := ValueOf(5)
+	v := ValueOf(7)
+	allocs := testing.AllocsPerRun(100, func() {
+		m.SetMapIndex(k, v)
+	})
+	if allocs > 0.5 {
+		t.Errorf("allocs per map assignment: want 0 got %f", allocs)
+	}
+}
+
+func TestChanAlloc(t *testing.T) {
+	// Note: for a chan int, the return Value must be allocated, so we
+	// use a chan *int instead.
+	c := ValueOf(make(chan *int, 1))
+	v := ValueOf(new(int))
+	allocs := testing.AllocsPerRun(100, func() {
+		c.Send(v)
+		_, _ = c.Recv()
+	})
+	if allocs < 0.5 || allocs > 1.5 {
+		t.Errorf("allocs per chan send/recv: want 1 got %f", allocs)
+	}
+	// Note: there is one allocation in reflect.recv which seems to be
+	// a limitation of escape analysis.  If that is ever fixed the
+	// allocs < 0.5 condition will trigger and this test should be fixed.
 }

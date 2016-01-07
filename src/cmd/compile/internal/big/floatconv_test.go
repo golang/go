@@ -139,6 +139,8 @@ func TestFloatSetFloat64String(t *testing.T) {
 	}
 }
 
+func fdiv(a, b float64) float64 { return a / b }
+
 const (
 	below1e23 = 99999999999999974834176
 	above1e23 = 100000000000000008388608
@@ -187,11 +189,11 @@ func TestFloat64Text(t *testing.T) {
 		{1, 'e', 5, "1.00000e+00"},
 		{1, 'f', 5, "1.00000"},
 		{1, 'g', 5, "1"},
-		// {1, 'g', -1, "1"},
-		// {20, 'g', -1, "20"},
-		// {1234567.8, 'g', -1, "1.2345678e+06"},
-		// {200000, 'g', -1, "200000"},
-		// {2000000, 'g', -1, "2e+06"},
+		{1, 'g', -1, "1"},
+		{20, 'g', -1, "20"},
+		{1234567.8, 'g', -1, "1.2345678e+06"},
+		{200000, 'g', -1, "200000"},
+		{2000000, 'g', -1, "2e+06"},
 
 		// g conversion and zero suppression
 		{400, 'g', 2, "4e+02"},
@@ -207,22 +209,22 @@ func TestFloat64Text(t *testing.T) {
 		{0, 'e', 5, "0.00000e+00"},
 		{0, 'f', 5, "0.00000"},
 		{0, 'g', 5, "0"},
-		// {0, 'g', -1, "0"},
+		{0, 'g', -1, "0"},
 
 		{-1, 'e', 5, "-1.00000e+00"},
 		{-1, 'f', 5, "-1.00000"},
 		{-1, 'g', 5, "-1"},
-		// {-1, 'g', -1, "-1"},
+		{-1, 'g', -1, "-1"},
 
 		{12, 'e', 5, "1.20000e+01"},
 		{12, 'f', 5, "12.00000"},
 		{12, 'g', 5, "12"},
-		// {12, 'g', -1, "12"},
+		{12, 'g', -1, "12"},
 
 		{123456700, 'e', 5, "1.23457e+08"},
 		{123456700, 'f', 5, "123456700.00000"},
 		{123456700, 'g', 5, "1.2346e+08"},
-		// {123456700, 'g', -1, "1.234567e+08"},
+		{123456700, 'g', -1, "1.234567e+08"},
 
 		{1.2345e6, 'e', 5, "1.23450e+06"},
 		{1.2345e6, 'f', 5, "1234500.00000"},
@@ -232,36 +234,38 @@ func TestFloat64Text(t *testing.T) {
 		{1e23, 'f', 17, "99999999999999991611392.00000000000000000"},
 		{1e23, 'g', 17, "9.9999999999999992e+22"},
 
-		// {1e23, 'e', -1, "1e+23"},
-		// {1e23, 'f', -1, "100000000000000000000000"},
-		// {1e23, 'g', -1, "1e+23"},
+		{1e23, 'e', -1, "1e+23"},
+		{1e23, 'f', -1, "100000000000000000000000"},
+		{1e23, 'g', -1, "1e+23"},
 
 		{below1e23, 'e', 17, "9.99999999999999748e+22"},
 		{below1e23, 'f', 17, "99999999999999974834176.00000000000000000"},
 		{below1e23, 'g', 17, "9.9999999999999975e+22"},
 
-		// {below1e23, 'e', -1, "9.999999999999997e+22"},
-		// {below1e23, 'f', -1, "99999999999999970000000"},
-		// {below1e23, 'g', -1, "9.999999999999997e+22"},
+		{below1e23, 'e', -1, "9.999999999999997e+22"},
+		{below1e23, 'f', -1, "99999999999999970000000"},
+		{below1e23, 'g', -1, "9.999999999999997e+22"},
 
 		{above1e23, 'e', 17, "1.00000000000000008e+23"},
 		{above1e23, 'f', 17, "100000000000000008388608.00000000000000000"},
-		// {above1e23, 'g', 17, "1.0000000000000001e+23"},
+		{above1e23, 'g', 17, "1.0000000000000001e+23"},
 
-		// {above1e23, 'e', -1, "1.0000000000000001e+23"},
-		// {above1e23, 'f', -1, "100000000000000010000000"},
-		// {above1e23, 'g', -1, "1.0000000000000001e+23"},
+		{above1e23, 'e', -1, "1.0000000000000001e+23"},
+		{above1e23, 'f', -1, "100000000000000010000000"},
+		{above1e23, 'g', -1, "1.0000000000000001e+23"},
 
-		// {fdiv(5e-304, 1e20), 'g', -1, "5e-324"},
-		// {fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"},
+		{5e-304 / 1e20, 'g', -1, "5e-324"},
+		{-5e-304 / 1e20, 'g', -1, "-5e-324"},
+		{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
+		{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
 
-		// {32, 'g', -1, "32"},
-		// {32, 'g', 0, "3e+01"},
+		{32, 'g', -1, "32"},
+		{32, 'g', 0, "3e+01"},
 
-		// {100, 'x', -1, "%x"},
+		{100, 'x', -1, "%x"},
 
-		// {math.NaN(), 'g', -1, "NaN"},
-		// {-math.NaN(), 'g', -1, "NaN"},
+		// {math.NaN(), 'g', -1, "NaN"},  // Float doesn't support NaNs
+		// {-math.NaN(), 'g', -1, "NaN"}, // Float doesn't support NaNs
 		{math.Inf(0), 'g', -1, "+Inf"},
 		{math.Inf(-1), 'g', -1, "-Inf"},
 		{-math.Inf(0), 'g', -1, "-Inf"},
@@ -279,18 +283,24 @@ func TestFloat64Text(t *testing.T) {
 		{1.5, 'f', 0, "2"},
 
 		// http://www.exploringbinary.com/java-hangs-when-converting-2-2250738585072012e-308/
-		// {2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
+		{2.2250738585072012e-308, 'g', -1, "2.2250738585072014e-308"},
 		// http://www.exploringbinary.com/php-hangs-on-numeric-value-2-2250738585072011e-308/
-		// {2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
+		{2.2250738585072011e-308, 'g', -1, "2.225073858507201e-308"},
 
 		// Issue 2625.
 		{383260575764816448, 'f', 0, "383260575764816448"},
-		// {383260575764816448, 'g', -1, "3.8326057576481645e+17"},
+		{383260575764816448, 'g', -1, "3.8326057576481645e+17"},
 	} {
-		f := new(Float).SetFloat64(test.x)
+		// The test cases are from the strconv package which tests float64 values.
+		// When formatting values with prec = -1 (shortest representation),
+		// the actually available mantissa precision matters.
+		// For denormalized values, that precision is < 53 (SetFloat64 default).
+		// Compute and set the actual precision explicitly.
+		f := new(Float).SetPrec(actualPrec(test.x)).SetFloat64(test.x)
 		got := f.Text(test.format, test.prec)
 		if got != test.want {
 			t.Errorf("%v: got %s; want %s", test, got, test.want)
+			continue
 		}
 
 		if test.format == 'b' && test.x == 0 {
@@ -306,6 +316,15 @@ func TestFloat64Text(t *testing.T) {
 			t.Errorf("%v: got %s; want %s (strconv)", test, got, want)
 		}
 	}
+}
+
+// actualPrec returns the number of actually used mantissa bits.
+func actualPrec(x float64) uint {
+	if bits := math.Float64bits(x); x != 0 && bits&(0x7ff<<52) == 0 {
+		// x is denormalized
+		return 64 - nlz64(bits&(1<<52-1))
+	}
+	return 53
 }
 
 func TestFloatText(t *testing.T) {
@@ -367,9 +386,19 @@ func TestFloatText(t *testing.T) {
 
 		// make sure "stupid" exponents don't stall the machine
 		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap+3321929"},
+		{"1e646456992", 64, 'p', 0, "0x.e883a0c5c8c7c42ap+2147483644"},
+		{"1e646456993", 64, 'p', 0, "+Inf"},
 		{"1e1000000000", 64, 'p', 0, "+Inf"},
 		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
+		{"1e-646456993", 64, 'p', 0, "0x.e17c8956983d9d59p-2147483647"},
+		{"1e-646456994", 64, 'p', 0, "0"},
 		{"1e-1000000000", 64, 'p', 0, "0"},
+
+		// minimum and maximum values
+		{"1p2147483646", 64, 'p', 0, "0x.8p+2147483647"},
+		{"0x.8p2147483647", 64, 'p', 0, "0x.8p+2147483647"},
+		{"0x.8p-2147483647", 64, 'p', 0, "0x.8p-2147483647"},
+		{"1p-2147483649", 64, 'p', 0, "0x.8p-2147483648"},
 
 		// TODO(gri) need tests for actual large Floats
 
@@ -438,9 +467,6 @@ func TestFloatFormat(t *testing.T) {
 		value  interface{} // float32, float64, or string (== 512bit *Float)
 		want   string
 	}{
-		// TODO(gri) uncomment the disabled 'g'/'G' formats
-		// 	     below once (*Float).Text supports prec < 0
-
 		// from fmt/fmt_test.go
 		{"%+.3e", 0.0, "+0.000e+00"},
 		{"%+.3e", 1.0, "+1.000e+00"},
@@ -471,9 +497,9 @@ func TestFloatFormat(t *testing.T) {
 		{"%f", 1234.5678e-8, "0.000012"},
 		{"%f", -7.0, "-7.000000"},
 		{"%f", -1e-9, "-0.000000"},
-		// {"%g", 1234.5678e3, "1.2345678e+06"},
-		// {"%g", float32(1234.5678e3), "1.2345678e+06"},
-		// {"%g", 1234.5678e-8, "1.2345678e-05"},
+		{"%g", 1234.5678e3, "1.2345678e+06"},
+		{"%g", float32(1234.5678e3), "1.2345678e+06"},
+		{"%g", 1234.5678e-8, "1.2345678e-05"},
 		{"%g", -7.0, "-7"},
 		{"%g", -1e-9, "-1e-09"},
 		{"%g", float32(-1e-9), "-1e-09"},
@@ -482,9 +508,9 @@ func TestFloatFormat(t *testing.T) {
 		{"%E", 1234.5678e-8, "1.234568E-05"},
 		{"%E", -7.0, "-7.000000E+00"},
 		{"%E", -1e-9, "-1.000000E-09"},
-		// {"%G", 1234.5678e3, "1.2345678E+06"},
-		// {"%G", float32(1234.5678e3), "1.2345678E+06"},
-		// {"%G", 1234.5678e-8, "1.2345678E-05"},
+		{"%G", 1234.5678e3, "1.2345678E+06"},
+		{"%G", float32(1234.5678e3), "1.2345678E+06"},
+		{"%G", 1234.5678e-8, "1.2345678E-05"},
 		{"%G", -7.0, "-7"},
 		{"%G", -1e-9, "-1E-09"},
 		{"%G", float32(-1e-9), "-1E-09"},
@@ -500,9 +526,9 @@ func TestFloatFormat(t *testing.T) {
 		{"%-20f", 1.23456789e3, "1234.567890         "},
 		{"%20.8f", 1.23456789e3, "       1234.56789000"},
 		{"%20.8f", 1.23456789e-3, "          0.00123457"},
-		// {"%g", 1.23456789e3, "1234.56789"},
-		// {"%g", 1.23456789e-3, "0.00123456789"},
-		// {"%g", 1.23456789e20, "1.23456789e+20"},
+		{"%g", 1.23456789e3, "1234.56789"},
+		{"%g", 1.23456789e-3, "0.00123456789"},
+		{"%g", 1.23456789e20, "1.23456789e+20"},
 		{"%20e", math.Inf(1), "                +Inf"},
 		{"%-20f", math.Inf(-1), "-Inf                "},
 
@@ -541,7 +567,6 @@ func TestFloatFormat(t *testing.T) {
 		{"%v", -1e-9, "-1e-09"},
 		{"%v", float32(-1e-9), "-1e-09"},
 		{"%010v", 0.0, "0000000000"},
-		{"%010v", 0.0, "0000000000"},
 
 		// *Float cases
 		{"%.20f", "1e-20", "0.00000000000000000001"},
@@ -568,6 +593,70 @@ func TestFloatFormat(t *testing.T) {
 
 		if got := fmt.Sprintf(test.format, value); got != test.want {
 			t.Errorf("%v: got %q; want %q", test, got, test.want)
+		}
+	}
+}
+
+func BenchmarkParseFloatSmallExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, s := range []string{
+			"1e0",
+			"1e-1",
+			"1e-2",
+			"1e-3",
+			"1e-4",
+			"1e-5",
+			"1e-10",
+			"1e-20",
+			"1e-50",
+			"1e1",
+			"1e2",
+			"1e3",
+			"1e4",
+			"1e5",
+			"1e10",
+			"1e20",
+			"1e50",
+		} {
+			var x Float
+			_, _, err := x.Parse(s, 0)
+			if err != nil {
+				b.Fatalf("%s: %v", s, err)
+			}
+		}
+	}
+}
+
+func BenchmarkParseFloatLargeExp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, s := range []string{
+			"1e0",
+			"1e-10",
+			"1e-20",
+			"1e-30",
+			"1e-40",
+			"1e-50",
+			"1e-100",
+			"1e-500",
+			"1e-1000",
+			"1e-5000",
+			"1e-10000",
+			"1e10",
+			"1e20",
+			"1e30",
+			"1e40",
+			"1e50",
+			"1e100",
+			"1e500",
+			"1e1000",
+			"1e5000",
+			"1e10000",
+		} {
+			var x Float
+			_, _, err := x.Parse(s, 0)
+			if err != nil {
+				b.Fatalf("%s: %v", s, err)
+			}
 		}
 	}
 }

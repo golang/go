@@ -542,8 +542,8 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2DOTTYPE:
 		res, resok := s.dottype(n.Rlist.N, true)
-		s.assign(n.List.N, res, false)
-		s.assign(n.List.Next.N, resok, false)
+		s.assign(n.List.N, res, false, n.Lineno)
+		s.assign(n.List.Next.N, resok, false, n.Lineno)
 		return
 
 	case ODCL:
@@ -564,7 +564,7 @@ func (s *state) stmt(n *Node) {
 			prealloc[n.Left] = palloc
 		}
 		r := s.expr(palloc)
-		s.assign(n.Left.Name.Heapaddr, r, false)
+		s.assign(n.Left.Name.Heapaddr, r, false, n.Lineno)
 
 	case OLABEL:
 		sym := n.Left.Sym
@@ -653,10 +653,10 @@ func (s *state) stmt(n *Node) {
 			// TODO: just add a ptr graying to the end of growslice?
 			// TODO: check whether we need to do this for ODOTTYPE and ORECV also.
 			// They get similar wb-removal treatment in walk.go:OAS.
-			s.assign(n.Left, r, true)
+			s.assign(n.Left, r, true, n.Lineno)
 			return
 		}
-		s.assign(n.Left, r, n.Op == OASWB)
+		s.assign(n.Left, r, n.Op == OASWB, n.Lineno)
 
 	case OIF:
 		bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -2060,7 +2060,7 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 	b.AddEdgeTo(no)
 }
 
-func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
+func (s *state) assign(left *Node, right *ssa.Value, wb bool, line int32) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
@@ -2092,7 +2092,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool) {
 	}
 	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
 	if wb {
-		s.insertWB(left.Type, addr, left.Lineno)
+		s.insertWB(left.Type, addr, line)
 	}
 }
 

@@ -7,6 +7,8 @@ Coverage
 Correctness
 -----------
 - Debugging info (check & fix as much as we can)
+- Fix write barriers so cgo tests work (misc/cgo/errors/ptr.go)
+- Re-enable TestStackBarrierProfiling (src/runtime/pprof/pprof_test.go)
 
 Optimizations (better compiled code)
 ------------------------------------

@@ -1374,6 +1374,15 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	}
 
 	pa = f
+	if local && !pa.Local {
+		Yyerror("cannot define new methods on non-local type %v", pa)
+		return
+	}
+
+	if isblanksym(sf) {
+		return
+	}
+
 	if pa.Etype == TSTRUCT {
 		for f := pa.Type; f != nil; f = f.Down {
 			if f.Sym == sf {
@@ -1381,13 +1390,6 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 				return
 			}
 		}
-	}
-
-	if local && !pa.Local {
-		// defining method on non-local type.
-		Yyerror("cannot define new methods on non-local type %v", pa)
-
-		return
 	}
 
 	n := Nod(ODCLFIELD, newname(sf), nil)
@@ -1573,6 +1575,9 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 		fn = n.Left.Right.Sym.Def
 	}
 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+		return
+	}
+	if (compiling_runtime != 0 || fn.Sym.Pkg == Runtimepkg) && fn.Sym.Name == "allocm" {
 		return
 	}
 	defn := fn.Name.Defn

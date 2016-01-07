@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -323,18 +322,15 @@ func findgoversion() string {
 
 // isGitRepo reports whether the working directory is inside a Git repository.
 func isGitRepo() bool {
-	p := ".git"
-	for {
-		fi, err := os.Stat(p)
-		if os.IsNotExist(err) {
-			p = filepath.Join("..", p)
-			continue
-		}
-		if err != nil || !fi.IsDir() {
-			return false
-		}
-		return true
+	// NB: simply checking the exit code of `git rev-parse --git-dir` would
+	// suffice here, but that requires deviating from the infrastructure
+	// provided by `run`.
+	gitDir := chomp(run(goroot, 0, "git", "rev-parse", "--git-dir"))
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(goroot, gitDir)
 	}
+	fi, err := os.Stat(gitDir)
+	return err == nil && fi.IsDir()
 }
 
 /*
@@ -1003,7 +999,6 @@ func cmdbootstrap() {
 	setup()
 
 	checkCC()
-	copyLibgcc()
 	bootstrapBuildTools()
 
 	// For the main bootstrap, building for host os/arch.
@@ -1104,58 +1099,15 @@ func checkCC() {
 	if !needCC() {
 		return
 	}
-	if _, err := exec.Command(defaultcc, "--help").Output(); err != nil {
+	if output, err := exec.Command(defaultcc, "--help").CombinedOutput(); err != nil {
+		outputHdr := ""
+		if len(output) > 0 {
+			outputHdr = "\nCommand output:\n\n"
+		}
 		fatal("cannot invoke C compiler %q: %v\n\n"+
 			"Go needs a system C compiler for use with cgo.\n"+
 			"To set a C compiler, export CC=the-compiler.\n"+
-			"To disable cgo, export CGO_ENABLED=0.\n", defaultcc, err)
-	}
-}
-
-// copyLibgcc copies the C compiler's libgcc into the pkg directory.
-func copyLibgcc() {
-	if !needCC() {
-		return
-	}
-	var args []string
-	switch goarch {
-	case "386":
-		args = []string{"-m32"}
-	case "amd64", "amd64p32":
-		args = []string{"-m64"}
-	case "arm":
-		args = []string{"-marm"}
-	}
-	args = append(args, "--print-libgcc-file-name")
-	output, err := exec.Command(defaultcctarget, args...).Output()
-	if err != nil {
-		fatal("cannot find libgcc file name: %v", err)
-	}
-	libgcc := strings.TrimSpace(string(output))
-	if len(libgcc) == 0 {
-		return
-	}
-	in, err := os.Open(libgcc)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return
-		}
-		fatal("cannot open libgcc for copying: %v", err)
-	}
-	defer in.Close()
-	outdir := filepath.Join(goroot, "pkg", "libgcc", goos+"_"+goarch)
-	if err := os.MkdirAll(outdir, 0777); err != nil {
-		fatal("cannot create libgcc.a directory: %v", err)
-	}
-	out, err := os.Create(filepath.Join(outdir, "libgcc"))
-	if err != nil {
-		fatal("cannot create libgcc.a for copying: %v", err)
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		fatal("error copying libgcc: %v", err)
-	}
-	if err := out.Close(); err != nil {
-		fatal("error closing new libgcc: %v", err)
+			"To disable cgo, export CGO_ENABLED=0.\n%s%s", defaultcc, err, outputHdr, output)
 	}
 }
 

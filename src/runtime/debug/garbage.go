@@ -157,3 +157,14 @@ func SetPanicOnFault(enabled bool) bool {
 // it to the given file descriptor.
 // The heap dump format is defined at https://golang.org/s/go13heapdump.
 func WriteHeapDump(fd uintptr)
+
+// SetTraceback sets the amount of detail printed by the runtime in
+// the traceback it prints before exiting due to an unrecovered panic
+// or an internal runtime error.
+// The level argument takes the same values as the GOTRACEBACK
+// environment variable. For example, SetTraceback("all") ensure
+// that the program prints all goroutines when it crashes.
+// See the package runtime documentation for details.
+// If SetTraceback is called with a level lower than that of the
+// environment variable, the call is ignored.
+func SetTraceback(level string)

@@ -431,7 +431,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 					}
 				}
 
-			case fCharData:
+			case fCDATA, fCharData:
 				if !saveData.IsValid() {
 					saveData = finfo.value(sv)
 				}

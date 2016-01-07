@@ -113,6 +113,25 @@ func TestMatchFunction(t *testing.T) {
 	}
 }
 
+func copyMatchTest(t *testing.T, test *FindTest) {
+	re := compileTest(t, test.pat, "")
+	if re == nil {
+		return
+	}
+	m1 := re.MatchString(test.text)
+	m2 := re.Copy().MatchString(test.text)
+	if m1 != m2 {
+		t.Errorf("Copied Regexp match failure on %s: original gave %t; copy gave %t; should be %t",
+			test, m1, m2, len(test.matches) > 0)
+	}
+}
+
+func TestCopyMatch(t *testing.T) {
+	for _, test := range findTests {
+		copyMatchTest(t, &test)
+	}
+}
+
 type ReplaceTest struct {
 	pattern, replacement, input, output string
 }
@@ -340,6 +359,19 @@ var metaTests = []MetaTest{
 	{`!@#$%^&*()_+-=[{]}\|,<.>/?~`, `!@#\$%\^&\*\(\)_\+-=\[\{\]\}\\\|,<\.>/\?~`, `!@#`, false},
 }
 
+var literalPrefixTests = []MetaTest{
+	// See golang.org/issue/11175.
+	// output is unused.
+	{`^0^0$`, ``, `0`, false},
+	{`^0^`, ``, ``, false},
+	{`^0$`, ``, `0`, true},
+	{`$0^`, ``, ``, false},
+	{`$0$`, ``, ``, false},
+	{`^^0$$`, ``, ``, false},
+	{`^$^$`, ``, ``, false},
+	{`$$0^^`, ``, ``, false},
+}
+
 func TestQuoteMeta(t *testing.T) {
 	for _, tc := range metaTests {
 		// Verify that QuoteMeta returns the expected string.
@@ -371,7 +403,7 @@ func TestQuoteMeta(t *testing.T) {
 }
 
 func TestLiteralPrefix(t *testing.T) {
-	for _, tc := range metaTests {
+	for _, tc := range append(metaTests, literalPrefixTests...) {
 		// Literal method needs to scan the pattern.
 		re := MustCompile(tc.pattern)
 		str, complete := re.LiteralPrefix()
@@ -670,4 +702,27 @@ func BenchmarkOnePassLongNotPrefix(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		re.Match(x)
 	}
+}
+
+func BenchmarkMatchParallelShared(b *testing.B) {
+	x := []byte("this is a long line that contains foo bar baz")
+	re := MustCompile("foo (ba+r)? baz")
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			re.Match(x)
+		}
+	})
+}
+
+func BenchmarkMatchParallelCopied(b *testing.B) {
+	x := []byte("this is a long line that contains foo bar baz")
+	re := MustCompile("foo (ba+r)? baz")
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		re := re.Copy()
+		for pb.Next() {
+			re.Match(x)
+		}
+	})
 }

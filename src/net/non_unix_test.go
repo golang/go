@@ -7,5 +7,5 @@
 package net
 
 // See unix_test.go for what these (don't) do.
-func forceGoDNS() func() { return func() {} }
-func forceCgoDNS() bool  { return false }
+func forceGoDNS() func()  { return nil }
+func forceCgoDNS() func() { return nil }

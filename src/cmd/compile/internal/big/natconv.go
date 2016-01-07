@@ -14,6 +14,11 @@ import (
 	"sync"
 )
 
+const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+// Note: MaxBase = len(digits), but it must remain a rune constant
+//       for API compatibility.
+
 // MaxBase is the largest number base accepted for string conversions.
 const MaxBase = 'z' - 'a' + 10 + 1
 
@@ -229,45 +234,33 @@ func (z nat) scan(r io.ByteScanner, base int, fracOk bool) (res nat, b, count in
 	return
 }
 
-// Character sets for string conversion.
-const (
-	lowercaseDigits = "0123456789abcdefghijklmnopqrstuvwxyz"
-	uppercaseDigits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-)
-
-// decimalString returns a decimal representation of x.
-// It calls x.string with the charset "0123456789".
-func (x nat) decimalString() string {
-	return x.string(lowercaseDigits[:10])
+// utoa converts x to an ASCII representation in the given base;
+// base must be between 2 and MaxBase, inclusive.
+func (x nat) utoa(base int) []byte {
+	return x.itoa(false, base)
 }
 
-// hexString returns a hexadecimal representation of x.
-// It calls x.string with the charset "0123456789abcdef".
-func (x nat) hexString() string {
-	return x.string(lowercaseDigits[:16])
-}
-
-// string converts x to a string using digits from a charset; a digit with
-// value d is represented by charset[d]. The conversion base is determined
-// by len(charset), which must be >= 2 and <= 256.
-func (x nat) string(charset string) string {
-	b := Word(len(charset))
-	if b < 2 || b > 256 {
-		panic("invalid character set length")
+// itoa is like utoa but it prepends a '-' if neg && x != 0.
+func (x nat) itoa(neg bool, base int) []byte {
+	if base < 2 || base > MaxBase {
+		panic("invalid base")
 	}
 
 	// x == 0
 	if len(x) == 0 {
-		return string(charset[0])
+		return []byte("0")
 	}
 	// len(x) > 0
 
 	// allocate buffer for conversion
-	i := int(float64(x.bitLen())/math.Log2(float64(b))) + 1 // off by one at most
+	i := int(float64(x.bitLen())/math.Log2(float64(base))) + 1 // off by 1 at most
+	if neg {
+		i++
+	}
 	s := make([]byte, i)
 
 	// convert power of two and non power of two bases separately
-	if b == b&-b {
+	if b := Word(base); b == b&-b {
 		// shift is base b digit size in bits
 		shift := trailingZeroBits(b) // shift > 0 because b >= 2
 		mask := Word(1<<shift - 1)
@@ -279,7 +272,7 @@ func (x nat) string(charset string) string {
 			// convert full digits
 			for nbits >= shift {
 				i--
-				s[i] = charset[w&mask]
+				s[i] = digits[w&mask]
 				w >>= shift
 				nbits -= shift
 			}
@@ -293,7 +286,7 @@ func (x nat) string(charset string) string {
 				// partial digit in current word w (== x[k-1]) and next word x[k]
 				w |= x[k] << nbits
 				i--
-				s[i] = charset[w&mask]
+				s[i] = digits[w&mask]
 
 				// advance
 				w = x[k] >> (shift - nbits)
@@ -304,7 +297,7 @@ func (x nat) string(charset string) string {
 		// convert digits of most-significant word w (omit leading zeros)
 		for w != 0 {
 			i--
-			s[i] = charset[w&mask]
+			s[i] = digits[w&mask]
 			w >>= shift
 		}
 
@@ -319,18 +312,23 @@ func (x nat) string(charset string) string {
 		q := nat(nil).set(x)
 
 		// convert q to string s in base b
-		q.convertWords(s, charset, b, ndigits, bb, table)
+		q.convertWords(s, b, ndigits, bb, table)
 
 		// strip leading zeros
 		// (x != 0; thus s must contain at least one non-zero digit
 		// and the loop will terminate)
 		i = 0
-		for zero := charset[0]; s[i] == zero; {
+		for s[i] == '0' {
 			i++
 		}
 	}
 
-	return string(s[i:])
+	if neg {
+		i--
+		s[i] = '-'
+	}
+
+	return s[i:]
 }
 
 // Convert words of q to base b digits in s. If q is large, it is recursively "split in half"
@@ -349,7 +347,7 @@ func (x nat) string(charset string) string {
 // ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
 // specific hardware.
 //
-func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
+func (q nat) convertWords(s []byte, b Word, ndigits int, bb Word, table []divisor) {
 	// split larger blocks recursively
 	if table != nil {
 		// len(q) > leafSize > 0
@@ -374,8 +372,8 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
 
 			// convert subblocks and collect results in s[:h] and s[h:]
 			h := len(s) - table[index].ndigits
-			r.convertWords(s[h:], charset, b, ndigits, bb, table[0:index])
-			s = s[:h] // == q.convertWords(s, charset, b, ndigits, bb, table[0:index+1])
+			r.convertWords(s[h:], b, ndigits, bb, table[0:index])
+			s = s[:h] // == q.convertWords(s, b, ndigits, bb, table[0:index+1])
 		}
 	}
 
@@ -393,7 +391,7 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
 				// this appears to be faster for BenchmarkString10000Base10
 				// and smaller strings (but a bit slower for larger ones)
 				t := r / 10
-				s[i] = charset[r-t<<3-t-t] // TODO(gri) replace w/ t*10 once compiler produces better code
+				s[i] = '0' + byte(r-t<<3-t-t) // TODO(gri) replace w/ t*10 once compiler produces better code
 				r = t
 			}
 		}
@@ -403,17 +401,16 @@ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word
 			q, r = q.divW(q, bb)
 			for j := 0; j < ndigits && i > 0; j++ {
 				i--
-				s[i] = charset[r%b]
+				s[i] = digits[r%b]
 				r /= b
 			}
 		}
 	}
 
 	// prepend high-order zeros
-	zero := charset[0]
 	for i > 0 { // while need more leading zeros
 		i--
-		s[i] = zero
+		s[i] = '0'
 	}
 }
 

@@ -9,10 +9,18 @@
 // Only one call to Dial is necessary. On write failures,
 // the syslog client will attempt to reconnect to the server
 // and write again.
+//
+// The syslog package is frozen and not accepting new features.
+// Some external packages provide more functionality. See:
+//
+//   https://godoc.org/?q=syslog
 package syslog
 
-// BUG(brainman): This package is not implemented on Windows yet.
+// BUG(brainman): This package is not implemented on Windows. As the
+// syslog package is frozen, Windows users are encouraged to
+// use a package outside of the standard library. For background,
+// see https://golang.org/issue/1108.
 
-// BUG(akumar): This package is not implemented on Plan 9 yet.
+// BUG(akumar): This package is not implemented on Plan 9.
 
-// BUG(minux): This package is not implemented on NaCl (Native Client) yet.
+// BUG(minux): This package is not implemented on NaCl (Native Client).

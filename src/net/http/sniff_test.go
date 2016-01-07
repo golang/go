@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"log"
 	. "net/http"
-	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"strings"
@@ -40,9 +39,7 @@ var sniffTests = []struct {
 	{"GIF 87a", []byte(`GIF87a`), "image/gif"},
 	{"GIF 89a", []byte(`GIF89a...`), "image/gif"},
 
-	// TODO(dsymonds): Re-enable this when the spec is sorted w.r.t. MP4.
-	//{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
-	//{"MP4 audio", []byte("\x00\x00\x00\x20ftypM4A \x00\x00\x00\x00M4A mp42isom\x00\x00\x00\x00"), "audio/mp4"},
+	{"MP4 video", []byte("\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom<\x06t\xbfmdat"), "video/mp4"},
 }
 
 func TestDetectContentType(t *testing.T) {
@@ -54,9 +51,12 @@ func TestDetectContentType(t *testing.T) {
 	}
 }
 
-func TestServerContentType(t *testing.T) {
+func TestServerContentType_h1(t *testing.T) { testServerContentType(t, h1Mode) }
+func TestServerContentType_h2(t *testing.T) { testServerContentType(t, h2Mode) }
+
+func testServerContentType(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		i, _ := strconv.Atoi(r.FormValue("i"))
 		tt := sniffTests[i]
 		n, err := w.Write(tt.data)
@@ -64,10 +64,10 @@ func TestServerContentType(t *testing.T) {
 			log.Fatalf("%v: Write(%q) = %v, %v want %d, nil", tt.desc, tt.data, n, err, len(tt.data))
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
 	for i, tt := range sniffTests {
-		resp, err := Get(ts.URL + "/?i=" + strconv.Itoa(i))
+		resp, err := cst.c.Get(cst.ts.URL + "/?i=" + strconv.Itoa(i))
 		if err != nil {
 			t.Errorf("%v: %v", tt.desc, err)
 			continue
@@ -87,15 +87,17 @@ func TestServerContentType(t *testing.T) {
 
 // Issue 5953: shouldn't sniff if the handler set a Content-Type header,
 // even if it's the empty string.
-func TestServerIssue5953(t *testing.T) {
+func TestServerIssue5953_h1(t *testing.T) { testServerIssue5953(t, h1Mode) }
+func TestServerIssue5953_h2(t *testing.T) { testServerIssue5953(t, h2Mode) }
+func testServerIssue5953(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		w.Header()["Content-Type"] = []string{""}
 		fmt.Fprintf(w, "<html><head></head><body>hi</body></html>")
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	resp, err := Get(ts.URL)
+	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +110,9 @@ func TestServerIssue5953(t *testing.T) {
 	resp.Body.Close()
 }
 
-func TestContentTypeWithCopy(t *testing.T) {
+func TestContentTypeWithCopy_h1(t *testing.T) { testContentTypeWithCopy(t, h1Mode) }
+func TestContentTypeWithCopy_h2(t *testing.T) { testContentTypeWithCopy(t, h2Mode) }
+func testContentTypeWithCopy(t *testing.T, h2 bool) {
 	defer afterTest(t)
 
 	const (
@@ -116,7 +120,7 @@ func TestContentTypeWithCopy(t *testing.T) {
 		expected = "text/html; charset=utf-8"
 	)
 
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		// Use io.Copy from a bytes.Buffer to trigger ReadFrom.
 		buf := bytes.NewBuffer([]byte(input))
 		n, err := io.Copy(w, buf)
@@ -124,9 +128,9 @@ func TestContentTypeWithCopy(t *testing.T) {
 			t.Errorf("io.Copy(w, %q) = %v, %v want %d, nil", input, n, err, len(input))
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 
-	resp, err := Get(ts.URL)
+	resp, err := cst.c.Get(cst.ts.URL)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -142,9 +146,11 @@ func TestContentTypeWithCopy(t *testing.T) {
 	resp.Body.Close()
 }
 
-func TestSniffWriteSize(t *testing.T) {
+func TestSniffWriteSize_h1(t *testing.T) { testSniffWriteSize(t, h1Mode) }
+func TestSniffWriteSize_h2(t *testing.T) { testSniffWriteSize(t, h2Mode) }
+func testSniffWriteSize(t *testing.T, h2 bool) {
 	defer afterTest(t)
-	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		size, _ := strconv.Atoi(r.FormValue("size"))
 		written, err := io.WriteString(w, strings.Repeat("a", size))
 		if err != nil {
@@ -155,9 +161,9 @@ func TestSniffWriteSize(t *testing.T) {
 			t.Errorf("write of %d bytes wrote %d bytes", size, written)
 		}
 	}))
-	defer ts.Close()
+	defer cst.close()
 	for _, size := range []int{0, 1, 200, 600, 999, 1000, 1023, 1024, 512 << 10, 1 << 20} {
-		res, err := Get(fmt.Sprintf("%s/?size=%d", ts.URL, size))
+		res, err := cst.c.Get(fmt.Sprintf("%s/?size=%d", cst.ts.URL, size))
 		if err != nil {
 			t.Fatalf("size %d: %v", size, err)
 		}

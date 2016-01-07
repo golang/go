@@ -267,7 +267,12 @@ var winjointests = []JoinTest{
 	{[]string{`C:\Windows\`, `System32`}, `C:\Windows\System32`},
 	{[]string{`C:\Windows\`, ``}, `C:\Windows`},
 	{[]string{`C:\`, `Windows`}, `C:\Windows`},
-	{[]string{`C:`, `Windows`}, `C:\Windows`},
+	{[]string{`C:`, `a`}, `C:a`},
+	{[]string{`C:`, `a\b`}, `C:a\b`},
+	{[]string{`C:`, `a`, `b`}, `C:a\b`},
+	{[]string{`C:.`, `a`}, `C:a`},
+	{[]string{`C:a`, `b`}, `C:a\b`},
+	{[]string{`C:a`, `b`, `d`}, `C:a\b\d`},
 	{[]string{`\\host\share`, `foo`}, `\\host\share\foo`},
 	{[]string{`\\host\share\foo`}, `\\host\share\foo`},
 	{[]string{`//host/share`, `foo/bar`}, `\\host\share\foo\bar`},
@@ -890,6 +895,75 @@ func TestEvalSymlinks(t *testing.T) {
 	}
 }
 
+func TestIssue13582(t *testing.T) {
+	switch runtime.GOOS {
+	case "android", "nacl", "plan9":
+		t.Skipf("skipping on %s", runtime.GOOS)
+	}
+	if !supportsSymlinks {
+		t.Skip("skipping because symlinks are not supported")
+	}
+
+	tmpDir, err := ioutil.TempDir("", "issue13582")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dir := filepath.Join(tmpDir, "dir")
+	err = os.Mkdir(dir, 0755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkToDir := filepath.Join(tmpDir, "link_to_dir")
+	err = os.Symlink(dir, linkToDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(linkToDir, "file")
+	err = ioutil.WriteFile(file, nil, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link1 := filepath.Join(linkToDir, "link1")
+	err = os.Symlink(file, link1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link2 := filepath.Join(linkToDir, "link2")
+	err = os.Symlink(link1, link2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// /tmp may itself be a symlink!
+	realTmpDir, err := filepath.EvalSymlinks(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	realDir := filepath.Join(realTmpDir, "dir")
+	realFile := filepath.Join(realDir, "file")
+
+	tests := []struct {
+		path, want string
+	}{
+		{dir, realDir},
+		{linkToDir, realDir},
+		{file, realFile},
+		{link1, realFile},
+		{link2, realFile},
+	}
+	for i, test := range tests {
+		have, err := filepath.EvalSymlinks(test.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if have != test.want {
+			t.Errorf("test#%d: EvalSymlinks(%q) returns %q, want %q", i, test.path, have, test.want)
+		}
+	}
+}
+
 // Test directories relative to temporary directory.
 // The tests are run in absTestDirs[0].
 var absTestDirs = []string{
@@ -1034,6 +1108,8 @@ var winreltests = []RelTests{
 	{`C:\`, `D:\`, `err`},
 	{`C:`, `D:`, `err`},
 	{`C:\Projects`, `c:\projects\src`, `src`},
+	{`C:\Projects`, `c:\projects`, `.`},
+	{`C:\Projects\a\..`, `c:\projects`, `.`},
 }
 
 func TestRel(t *testing.T) {

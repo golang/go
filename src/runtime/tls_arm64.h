@@ -2,7 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#ifdef GOOS_android
+#define TLS_linux
+#define TLSG_IS_VARIABLE
+#endif
 #ifdef GOOS_linux
+#define TLS_linux
+#endif
+#ifdef TLS_linux
 #define TPIDR TPIDR_EL0
 #define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDR_EL0, R0
 #endif

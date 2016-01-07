@@ -796,14 +796,14 @@ func orderstmt(n *Node, order *Order) {
 				// Delete the ODCL nodes here and recreate them inside the body below.
 				case OSELRECV, OSELRECV2:
 					if r.Colas {
-						t = r.Ninit
-						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
-							t = t.Next
+						init := r.Ninit
+						if init != nil && init.N.Op == ODCL && init.N.Left == r.Left {
+							init = init.Next
 						}
-						if t != nil && t.N.Op == ODCL && r.List != nil && t.N.Left == r.List.N {
-							t = t.Next
+						if init != nil && init.N.Op == ODCL && r.List != nil && init.N.Left == r.List.N {
+							init = init.Next
 						}
-						if t == nil {
+						if init == nil {
 							r.Ninit = nil
 						}
 					}
@@ -1092,7 +1092,10 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		OMAKESLICE,
 		ONEW,
 		OREAL,
-		ORECOVER:
+		ORECOVER,
+		OSTRARRAYBYTE,
+		OSTRARRAYBYTETMP,
+		OSTRARRAYRUNE:
 		ordercall(n, order)
 		if lhs == nil || lhs.Op != ONAME || instrumenting {
 			n = ordercopyexpr(n, n.Type, order, 0)

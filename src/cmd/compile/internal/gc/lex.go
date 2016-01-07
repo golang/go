@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go tool yacc go.y
 //go:generate go run mkbuiltin.go runtime unsafe
 
 package gc
@@ -21,10 +20,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 )
-
-var yyprev int
-
-var yylast int
 
 var imported_unsafe bool
 
@@ -203,7 +198,6 @@ func Main() {
 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
 	obj.Flagcount("msan", "build code compatible with C/C++ memory sanitizer", &flag_msan)
 	obj.Flagcount("newexport", "use new export format", &newexport) // TODO(gri) remove eventually (issue 13241)
-	obj.Flagcount("oldparser", "use old parser", &oldparser)        // TODO(gri) remove eventually (issue 13240)
 	obj.Flagcount("nolocalimports", "reject local (relative) imports", &nolocalimports)
 	obj.Flagstr("o", "write output to `file`", &outfile)
 	obj.Flagstr("p", "set expected package import `path`", &myimportpath)
@@ -222,7 +216,7 @@ func Main() {
 	var flag_shared int
 	var flag_dynlink bool
 	switch Thearch.Thechar {
-	case '5', '6', '7', '9':
+	case '5', '6', '7', '8', '9':
 		obj.Flagcount("shared", "generate code that can be linked into a shared library", &flag_shared)
 	}
 	if Thearch.Thechar == '6' {
@@ -310,7 +304,6 @@ func Main() {
 	lexinit()
 	typeinit()
 	lexinit1()
-	// TODO(rsc): Restore yytinit?
 
 	blockgen = 1
 	dclcontext = PEXTERN
@@ -318,16 +311,8 @@ func Main() {
 	lexlineno = 1
 	const BOM = 0xFEFF
 
-	// Uncomment the line below to temporarily switch the compiler back
-	// to the yacc-based parser. Short-term work-around for issues with
-	// the new recursive-descent parser for which setting -oldparser is
-	// not sufficient.
-	// TODO(gri) remove this eventually (issue 13240)
-	//
-	// oldparser = 1
-
 	for _, infile = range flag.Args() {
-		if trace && Debug['x'] != 0 && oldparser == 0 {
+		if trace && Debug['x'] != 0 {
 			fmt.Printf("--- %s ---\n", infile)
 		}
 
@@ -357,7 +342,7 @@ func Main() {
 
 		imported_unsafe = false
 
-		yyparse()
+		parse_file()
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
@@ -844,9 +829,7 @@ func importfile(f *Val, line int) {
 		curio.nlsemi = false
 		typecheckok = true
 
-		if oldparser == 0 {
-			push_parser()
-		}
+		push_parser()
 
 	case 'B':
 		// new export format
@@ -867,9 +850,7 @@ func importfile(f *Val, line int) {
 }
 
 func unimportfile() {
-	if oldparser == 0 {
-		pop_parser()
-	}
+	pop_parser()
 
 	if curio.bin != nil {
 		obj.Bterm(curio.bin)
@@ -901,9 +882,7 @@ func cannedimports(file string, cp string) {
 	typecheckok = true
 	incannedimport = 1
 
-	if oldparser == 0 {
-		push_parser()
-	}
+	push_parser()
 }
 
 func isSpace(c int) bool {
@@ -945,20 +924,71 @@ func isfrog(c int) bool {
 	return false
 }
 
-type Loophack struct {
-	next *Loophack
-	v    bool
+type yySymType struct {
+	yys  int
+	node *Node
+	list *NodeList
+	typ  *Type
+	sym  *Sym
+	val  Val
+	op   Op
 }
 
-var _yylex_lstk *Loophack
+const (
+	LLITERAL = 57346 + iota
+	LASOP
+	LCOLAS
+	LBREAK
+	LCASE
+	LCHAN
+	LCONST
+	LCONTINUE
+	LDDD
+	LDEFAULT
+	LDEFER
+	LELSE
+	LFALL
+	LFOR
+	LFUNC
+	LGO
+	LGOTO
+	LIF
+	LIMPORT
+	LINTERFACE
+	LMAP
+	LNAME
+	LPACKAGE
+	LRANGE
+	LRETURN
+	LSELECT
+	LSTRUCT
+	LSWITCH
+	LTYPE
+	LVAR
+	LANDAND
+	LANDNOT
+	LCOMM
+	LDEC
+	LEQ
+	LGE
+	LGT
+	LIGNORE
+	LINC
+	LLE
+	LLSH
+	LLT
+	LNE
+	LOROR
+	LRSH
+)
 
 func _yylex(yylval *yySymType) int32 {
 	var c1 int
+	var op Op
 	var escflag int
 	var v int64
 	var cp *bytes.Buffer
 	var s *Sym
-	var h *Loophack
 	var str string
 
 	prevlineno = lineno
@@ -1216,7 +1246,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(ODIV)
+			op = ODIV
 			goto asop
 		}
 
@@ -1224,21 +1254,20 @@ l0:
 		c1 = getc()
 		if c1 == '=' {
 			c = int(LCOLAS)
-			yylval.i = int(lexlineno)
 			goto lx
 		}
 
 	case '*':
 		c1 = getc()
 		if c1 == '=' {
-			c = int(OMUL)
+			op = OMUL
 			goto asop
 		}
 
 	case '%':
 		c1 = getc()
 		if c1 == '=' {
-			c = int(OMOD)
+			op = OMOD
 			goto asop
 		}
 
@@ -1250,7 +1279,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OADD)
+			op = OADD
 			goto asop
 		}
 
@@ -1262,7 +1291,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OSUB)
+			op = OSUB
 			goto asop
 		}
 
@@ -1272,7 +1301,7 @@ l0:
 			c = int(LRSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = int(ORSH)
+				op = ORSH
 				goto asop
 			}
 
@@ -1292,7 +1321,7 @@ l0:
 			c = int(LLSH)
 			c1 = getc()
 			if c1 == '=' {
-				c = int(OLSH)
+				op = OLSH
 				goto asop
 			}
 
@@ -1336,7 +1365,7 @@ l0:
 			c = int(LANDNOT)
 			c1 = getc()
 			if c1 == '=' {
-				c = int(OANDNOT)
+				op = OANDNOT
 				goto asop
 			}
 
@@ -1344,7 +1373,7 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OAND)
+			op = OAND
 			goto asop
 		}
 
@@ -1356,71 +1385,16 @@ l0:
 		}
 
 		if c1 == '=' {
-			c = int(OOR)
+			op = OOR
 			goto asop
 		}
 
 	case '^':
 		c1 = getc()
 		if c1 == '=' {
-			c = int(OXOR)
+			op = OXOR
 			goto asop
 		}
-
-		// clumsy dance:
-		// to implement rule that disallows
-		//	if T{1}[0] { ... }
-		// but allows
-		// 	if (T{1}[0]) { ... }
-		// the block bodies for if/for/switch/select
-		// begin with an LBODY token, not '{'.
-		//
-		// when we see the keyword, the next
-		// non-parenthesized '{' becomes an LBODY.
-		// loophack is normally false.
-		// a keyword sets it to true.
-		// parens push loophack onto a stack and go back to false.
-		// a '{' with loophack == true becomes LBODY and disables loophack.
-		//
-		// I said it was clumsy.
-		//
-		// We only need the loophack when running with -oldparser.
-	case '(', '[':
-		if oldparser != 0 && (loophack || _yylex_lstk != nil) {
-			h = new(Loophack)
-			if h == nil {
-				Flusherrors()
-				Yyerror("out of memory")
-				errorexit()
-			}
-
-			h.v = loophack
-			h.next = _yylex_lstk
-			_yylex_lstk = h
-			loophack = false
-		}
-
-		goto lx
-
-	case ')', ']':
-		if oldparser != 0 && _yylex_lstk != nil {
-			h = _yylex_lstk
-			loophack = h.v
-			_yylex_lstk = h.next
-		}
-
-		goto lx
-
-	case '{':
-		if oldparser != 0 && loophack {
-			if Debug['x'] != 0 {
-				fmt.Printf("%v lex: LBODY\n", Ctxt.Line(int(lexlineno)))
-			}
-			loophack = false
-			return LBODY
-		}
-
-		goto lx
 
 	default:
 		goto lx
@@ -1429,12 +1403,10 @@ l0:
 	ungetc(c1)
 
 lx:
-	if c > 0xff {
-		if Debug['x'] != 0 {
+	if Debug['x'] != 0 {
+		if c > 0xff {
 			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lexlineno)), lexname(c))
-		}
-	} else {
-		if Debug['x'] != 0 {
+		} else {
 			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lexlineno)), c)
 		}
 	}
@@ -1451,9 +1423,9 @@ lx:
 	return int32(c)
 
 asop:
-	yylval.i = c // rathole to hold which asop
+	yylval.op = op
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: TOKEN ASOP %c\n", c)
+		fmt.Printf("lex: TOKEN ASOP %s=\n", goopnames[op])
 	}
 	return LASOP
 
@@ -1485,14 +1457,8 @@ talph:
 	ungetc(c)
 
 	s = LookupBytes(lexbuf.Bytes())
-	switch s.Lexical {
-	case LIGNORE:
+	if s.Lexical == LIGNORE {
 		goto l0
-
-	case LFOR, LIF, LSWITCH, LSELECT:
-		if oldparser != 0 {
-			loophack = true // see comment about loophack above
-		}
 	}
 
 	if Debug['x'] != 0 {
@@ -1924,33 +1890,8 @@ func pragcgo(text string) {
 	}
 }
 
-type yy struct{}
-
-func (yy) Lex(v *yySymType) int {
-	return int(yylex(v))
-}
-
-func (yy) Error(msg string) {
-	Yyerror("%s", msg)
-}
-
-var oldparser int // if set, theparser is used (otherwise we use the recursive-descent parser)
-var theparser yyParser
-var parsing bool
-
-func yyparse() {
-	parsing = true
-	if oldparser != 0 {
-		theparser = yyNewParser()
-		theparser.Parse(yy{})
-	} else {
-		parse_file()
-	}
-	parsing = false
-}
-
 func yylex(yylval *yySymType) int32 {
-	lx := int(_yylex(yylval))
+	lx := _yylex(yylval)
 
 	if curio.nlsemi && lx == EOF {
 		// Treat EOF as "end of line" for the purposes
@@ -1976,11 +1917,7 @@ func yylex(yylval *yySymType) int32 {
 		curio.nlsemi = false
 	}
 
-	// Track last two tokens returned by yylex.
-	yyprev = yylast
-
-	yylast = lx
-	return int32(lx)
+	return lx
 }
 
 func getc() int {
@@ -2001,10 +1938,12 @@ func getc() int {
 	} else {
 	loop:
 		c = obj.Bgetc(curio.bin)
+		// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
 		if c == 0xef {
 			buf, err := curio.bin.Peek(2)
 			if err != nil {
-				log.Fatalf("getc: peeking: %v", err)
+				yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
+				errorexit()
 			}
 			if buf[0] == 0xbb && buf[1] == 0xbf {
 				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
@@ -2562,71 +2501,6 @@ func lexname(lex int) string {
 		return s
 	}
 	return fmt.Sprintf("LEX-%d", lex)
-}
-
-var yytfix = map[string]string{
-	"$end":       "EOF",
-	"LASOP":      "op=",
-	"LBREAK":     "break",
-	"LCASE":      "case",
-	"LCHAN":      "chan",
-	"LCOLAS":     ":=",
-	"LCONST":     "const",
-	"LCONTINUE":  "continue",
-	"LDDD":       "...",
-	"LDEFAULT":   "default",
-	"LDEFER":     "defer",
-	"LELSE":      "else",
-	"LFALL":      "fallthrough",
-	"LFOR":       "for",
-	"LFUNC":      "func",
-	"LGO":        "go",
-	"LGOTO":      "goto",
-	"LIF":        "if",
-	"LIMPORT":    "import",
-	"LINTERFACE": "interface",
-	"LMAP":       "map",
-	"LNAME":      "name",
-	"LPACKAGE":   "package",
-	"LRANGE":     "range",
-	"LRETURN":    "return",
-	"LSELECT":    "select",
-	"LSTRUCT":    "struct",
-	"LSWITCH":    "switch",
-	"LTYPE":      "type",
-	"LVAR":       "var",
-	"LANDAND":    "&&",
-	"LANDNOT":    "&^",
-	"LBODY":      "{",
-	"LCOMM":      "<-",
-	"LDEC":       "--",
-	"LINC":       "++",
-	"LEQ":        "==",
-	"LGE":        ">=",
-	"LGT":        ">",
-	"LLE":        "<=",
-	"LLT":        "<",
-	"LLSH":       "<<",
-	"LRSH":       ">>",
-	"LOROR":      "||",
-	"LNE":        "!=",
-	// spell out to avoid confusion with punctuation in error messages
-	"';'": "semicolon or newline",
-	"','": "comma",
-}
-
-func init() {
-	yyErrorVerbose = true
-
-	for i, s := range yyToknames {
-		// Apply yytfix if possible.
-		if fix, ok := yytfix[s]; ok {
-			yyToknames[i] = fix
-		} else if len(s) == 3 && s[0] == '\'' && s[2] == '\'' {
-			// Turn 'x' into x.
-			yyToknames[i] = s[1:2]
-		}
-	}
 }
 
 func pkgnotused(lineno int, path string, name string) {

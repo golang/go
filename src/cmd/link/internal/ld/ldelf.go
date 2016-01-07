@@ -1159,7 +1159,8 @@ func reltype(pn string, elftype int, siz *uint8) int {
 		'8' | R_386_GOTOFF<<24,
 		'8' | R_386_GOTPC<<24,
 		'8' | R_386_GOT32X<<24,
-		'9' | R_PPC64_REL24<<24:
+		'9' | R_PPC64_REL24<<24,
+		'9' | R_PPC_REL32<<24:
 		*siz = 4
 
 	case '6' | R_X86_64_64<<24,

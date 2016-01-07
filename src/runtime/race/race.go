@@ -9,7 +9,7 @@ package race
 // This file merely ensures that we link in runtime/cgo in race build,
 // this is turn ensures that runtime uses pthread_create to create threads.
 // The prebuilt race runtime lives in race_GOOS_GOARCH.syso.
-// Calls to the runtime are done directly from src/runtime/race.c.
+// Calls to the runtime are done directly from src/runtime/race.go.
 
 // void __race_unused_func(void);
 import "C"

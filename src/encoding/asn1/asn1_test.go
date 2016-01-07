@@ -53,10 +53,12 @@ var int64TestData = []int64Test{
 	{[]byte{0x01, 0x00}, true, 256},
 	{[]byte{0x80}, true, -128},
 	{[]byte{0xff, 0x7f}, true, -129},
-	{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
 	{[]byte{0xff}, true, -1},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{}, false, 0},
+	{[]byte{0x00, 0x7f}, false, 0},
+	{[]byte{0xff, 0xf0}, false, 0},
 }
 
 func TestParseInt64(t *testing.T) {
@@ -84,10 +86,12 @@ var int32TestData = []int32Test{
 	{[]byte{0x01, 0x00}, true, 256},
 	{[]byte{0x80}, true, -128},
 	{[]byte{0xff, 0x7f}, true, -129},
-	{[]byte{0xff, 0xff, 0xff, 0xff}, true, -1},
 	{[]byte{0xff}, true, -1},
 	{[]byte{0x80, 0x00, 0x00, 0x00}, true, -2147483648},
 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00}, false, 0},
+	{[]byte{}, false, 0},
+	{[]byte{0x00, 0x7f}, false, 0},
+	{[]byte{0xff, 0xf0}, false, 0},
 }
 
 func TestParseInt32(t *testing.T) {
@@ -104,27 +108,36 @@ func TestParseInt32(t *testing.T) {
 
 var bigIntTests = []struct {
 	in     []byte
+	ok     bool
 	base10 string
 }{
-	{[]byte{0xff}, "-1"},
-	{[]byte{0x00}, "0"},
-	{[]byte{0x01}, "1"},
-	{[]byte{0x00, 0xff}, "255"},
-	{[]byte{0xff, 0x00}, "-256"},
-	{[]byte{0x01, 0x00}, "256"},
+	{[]byte{0xff}, true, "-1"},
+	{[]byte{0x00}, true, "0"},
+	{[]byte{0x01}, true, "1"},
+	{[]byte{0x00, 0xff}, true, "255"},
+	{[]byte{0xff, 0x00}, true, "-256"},
+	{[]byte{0x01, 0x00}, true, "256"},
+	{[]byte{}, false, ""},
+	{[]byte{0x00, 0x7f}, false, ""},
+	{[]byte{0xff, 0xf0}, false, ""},
 }
 
 func TestParseBigInt(t *testing.T) {
 	for i, test := range bigIntTests {
-		ret := parseBigInt(test.in)
-		if ret.String() != test.base10 {
-			t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+		ret, err := parseBigInt(test.in)
+		if (err == nil) != test.ok {
+			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
 		}
-		fw := newForkableWriter()
-		marshalBigInt(fw, ret)
-		result := fw.Bytes()
-		if !bytes.Equal(result, test.in) {
-			t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+		if test.ok {
+			if ret.String() != test.base10 {
+				t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
+			}
+			fw := newForkableWriter()
+			marshalBigInt(fw, ret)
+			result := fw.Bytes()
+			if !bytes.Equal(result, test.in) {
+				t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
+			}
 		}
 	}
 }
@@ -354,17 +367,21 @@ var tagAndLengthData = []tagAndLengthTest{
 	{[]byte{0x1f, 0x01, 0x00}, true, tagAndLength{0, 1, 0, false}},
 	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, tagAndLength{0, 128, 0, false}},
 	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, tagAndLength{0, 0x4001, 0, false}},
-	{[]byte{0x00, 0x81, 0x01}, true, tagAndLength{0, 0, 1, false}},
+	{[]byte{0x00, 0x81, 0x80}, true, tagAndLength{0, 0, 128, false}},
 	{[]byte{0x00, 0x82, 0x01, 0x00}, true, tagAndLength{0, 0, 256, false}},
 	{[]byte{0x00, 0x83, 0x01, 0x00}, false, tagAndLength{}},
 	{[]byte{0x1f, 0x85}, false, tagAndLength{}},
 	{[]byte{0x30, 0x80}, false, tagAndLength{}},
 	// Superfluous zeros in the length should be an error.
-	{[]byte{0xa0, 0x82, 0x00, 0x01}, false, tagAndLength{}},
+	{[]byte{0xa0, 0x82, 0x00, 0xff}, false, tagAndLength{}},
 	// Lengths up to the maximum size of an int should work.
 	{[]byte{0xa0, 0x84, 0x7f, 0xff, 0xff, 0xff}, true, tagAndLength{2, 0, 0x7fffffff, true}},
 	// Lengths that would overflow an int should be rejected.
 	{[]byte{0xa0, 0x84, 0x80, 0x00, 0x00, 0x00}, false, tagAndLength{}},
+	// Long length form may not be used for lengths that fit in short form.
+	{[]byte{0xa0, 0x81, 0x7f}, false, tagAndLength{}},
+	// Tag numbers which would overflow int32 are rejected. (The value below is 2^31.)
+	{[]byte{0x1f, 0x88, 0x80, 0x80, 0x80, 0x00, 0x00}, false, tagAndLength{}},
 }
 
 func TestParseTagAndLength(t *testing.T) {
@@ -394,10 +411,10 @@ func newBool(b bool) *bool { return &b }
 
 var parseFieldParametersTestData []parseFieldParametersTest = []parseFieldParametersTest{
 	{"", fieldParameters{}},
-	{"ia5", fieldParameters{stringType: tagIA5String}},
-	{"generalized", fieldParameters{timeType: tagGeneralizedTime}},
-	{"utc", fieldParameters{timeType: tagUTCTime}},
-	{"printable", fieldParameters{stringType: tagPrintableString}},
+	{"ia5", fieldParameters{stringType: TagIA5String}},
+	{"generalized", fieldParameters{timeType: TagGeneralizedTime}},
+	{"utc", fieldParameters{timeType: TagUTCTime}},
+	{"printable", fieldParameters{stringType: TagPrintableString}},
 	{"optional", fieldParameters{optional: true}},
 	{"explicit", fieldParameters{explicit: true, tag: new(int)}},
 	{"application", fieldParameters{application: true, tag: new(int)}},

@@ -63,7 +63,8 @@ and test commands:
 	-n
 		print the commands but do not run them.
 	-p n
-		the number of builds that can be run in parallel.
+		the number of programs, such as build commands or
+		test binaries, that can be run in parallel.
 		The default is the number of CPUs available, except
 		on darwin/arm which defaults to 1.
 	-race
@@ -350,8 +351,8 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64",
-				"android/amd64", "android/arm":
+			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
+				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			case "darwin/amd64":
 			default:
@@ -361,7 +362,7 @@ func buildModeInit() {
 		ldBuildmode = "c-shared"
 	case "default":
 		switch platform {
-		case "android/arm", "android/arm64", "android/amd64":
+		case "android/arm", "android/arm64", "android/amd64", "android/386":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
 		default:
@@ -375,7 +376,8 @@ func buildModeInit() {
 			fatalf("-buildmode=pie not supported by gccgo")
 		} else {
 			switch platform {
-			case "linux/arm", "android/arm", "linux/amd64", "android/amd64", "linux/arm64", "android/arm64", "linux/ppc64le":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
+				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			default:
 				fatalf("-buildmode=pie not supported on %s\n", platform)
@@ -479,7 +481,12 @@ func runBuild(cmd *Command, args []string) {
 
 	var a *action
 	if buildBuildmode == "shared" {
-		a = b.libaction(libname(args), pkgsFilter(packages(args)), modeBuild, depMode)
+		pkgs := pkgsFilter(packages(args))
+		if libName, err := libname(args, pkgs); err != nil {
+			fatalf("%s", err.Error())
+		} else {
+			a = b.libaction(libName, pkgs, modeBuild, depMode)
+		}
 	} else {
 		a = &action{}
 		for _, p := range pkgsFilter(packages(args)) {
@@ -503,28 +510,65 @@ See also: go build, go get, go clean.
 	`,
 }
 
+// isMetaPackage checks if name is a reserved package name that expands to multiple packages
+func isMetaPackage(name string) bool {
+	return name == "std" || name == "cmd" || name == "all"
+}
+
 // libname returns the filename to use for the shared library when using
 // -buildmode=shared.  The rules we use are:
-//  1) Drop any trailing "/..."s if present
-//  2) Change / to -
-//  3) Join arguments with ,
-// So std -> libstd.so
-//    a b/... -> liba,b.so
-//    gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
-func libname(args []string) string {
+// Use arguments for special 'meta' packages:
+//	std --> libstd.so
+//	std cmd --> libstd,cmd.so
+// A single non-meta argument with trailing "/..." is special cased:
+//	foo/... --> libfoo.so
+//	(A relative path like "./..."  expands the "." first)
+// Use import paths for other cases, changing '/' to '-':
+//	somelib --> libsubdir-somelib.so
+//	./ or ../ --> libsubdir-somelib.so
+//	gopkg.in/tomb.v2 -> libgopkg.in-tomb.v2.so
+//	a/... b/... ---> liba/c,b/d.so - all matching import paths
+// Name parts are joined with ','.
+func libname(args []string, pkgs []*Package) (string, error) {
 	var libname string
-	for _, arg := range args {
-		arg = strings.TrimSuffix(arg, "/...")
-		arg = strings.Replace(arg, "/", "-", -1)
+	appendName := func(arg string) {
 		if libname == "" {
 			libname = arg
 		} else {
 			libname += "," + arg
 		}
 	}
+	var haveNonMeta bool
+	for _, arg := range args {
+		if isMetaPackage(arg) {
+			appendName(arg)
+		} else {
+			haveNonMeta = true
+		}
+	}
+	if len(libname) == 0 { // non-meta packages only. use import paths
+		if len(args) == 1 && strings.HasSuffix(args[0], "/...") {
+			// Special case of "foo/..." as mentioned above.
+			arg := strings.TrimSuffix(args[0], "/...")
+			if build.IsLocalImport(arg) {
+				cwd, _ := os.Getwd()
+				bp, _ := buildContext.ImportDir(filepath.Join(cwd, arg), build.FindOnly)
+				if bp.ImportPath != "" && bp.ImportPath != "." {
+					arg = bp.ImportPath
+				}
+			}
+			appendName(strings.Replace(arg, "/", "-", -1))
+		} else {
+			for _, pkg := range pkgs {
+				appendName(strings.Replace(pkg.ImportPath, "/", "-", -1))
+			}
+		}
+	} else if haveNonMeta { // have both meta package and a non-meta one
+		return "", errors.New("mixing of meta and non-meta packages is not allowed")
+	}
 	// TODO(mwhudson): Needs to change for platforms that use different naming
 	// conventions...
-	return "lib" + libname + ".so"
+	return "lib" + libname + ".so", nil
 }
 
 func runInstall(cmd *Command, args []string) {
@@ -557,7 +601,11 @@ func runInstall(cmd *Command, args []string) {
 	b.init()
 	var a *action
 	if buildBuildmode == "shared" {
-		a = b.libaction(libname(args), pkgs, modeInstall, modeInstall)
+		if libName, err := libname(args, pkgs); err != nil {
+			fatalf("%s", err.Error())
+		} else {
+			a = b.libaction(libName, pkgs, modeInstall, modeInstall)
+		}
 	} else {
 		a = &action{}
 		var tools []*action
@@ -1444,17 +1492,17 @@ func (b *builder) build(a *action) (err error) {
 		switch {
 		case strings.HasSuffix(name, _goos_goarch):
 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goarch):
 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		case strings.HasSuffix(name, _goos):
 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
-			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0644, true); err != nil {
+			if err := b.copyFile(a, obj+targ, filepath.Join(a.p.Dir, file), 0666, true); err != nil {
 				return err
 			}
 		}
@@ -1543,7 +1591,7 @@ func (b *builder) getPkgConfigFlags(p *Package) (cflags, ldflags []string, err e
 
 func (b *builder) installShlibname(a *action) error {
 	a1 := a.deps[0]
-	err := ioutil.WriteFile(a.target, []byte(filepath.Base(a1.target)+"\n"), 0644)
+	err := ioutil.WriteFile(a.target, []byte(filepath.Base(a1.target)+"\n"), 0666)
 	if err != nil {
 		return err
 	}
@@ -1567,12 +1615,12 @@ func (b *builder) install(a *action) (err error) {
 		}
 	}()
 	a1 := a.deps[0]
-	perm := os.FileMode(0644)
+	perm := os.FileMode(0666)
 	if a1.link {
 		switch buildBuildmode {
 		case "c-archive", "c-shared":
 		default:
-			perm = 0755
+			perm = 0777
 		}
 	}
 
@@ -1646,7 +1694,25 @@ func (b *builder) moveOrCopyFile(a *action, dst, src string, perm os.FileMode, f
 
 	// If we can update the mode and rename to the dst, do it.
 	// Otherwise fall back to standard copy.
-	if err := os.Chmod(src, perm); err == nil {
+
+	// The perm argument is meant to be adjusted according to umask,
+	// but we don't know what the umask is.
+	// Create a dummy file to find out.
+	// This avoids build tags and works even on systems like Plan 9
+	// where the file mask computation incorporates other information.
+	mode := perm
+	f, err := os.OpenFile(filepath.Clean(dst)+"-go-tmp-umask", os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
+	if err == nil {
+		fi, err := f.Stat()
+		if err == nil {
+			mode = fi.Mode() & 0777
+		}
+		name := f.Name()
+		f.Close()
+		os.Remove(name)
+	}
+
+	if err := os.Chmod(src, mode); err == nil {
 		if err := os.Rename(src, dst); err == nil {
 			if buildX {
 				b.showcmd("", "mv %s %s", src, dst)
@@ -1733,7 +1799,7 @@ func (b *builder) installHeader(a *action) error {
 		}
 	}
 
-	return b.moveOrCopyFile(a, a.target, src, 0644, true)
+	return b.moveOrCopyFile(a, a.target, src, 0666, true)
 }
 
 // cover runs, in effect,
@@ -3226,7 +3292,7 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
 		return "$INTBITS", nil
 	}
 	src := filepath.Join(b.work, "swig_intsize.go")
-	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0644); err != nil {
+	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0666); err != nil {
 		return
 	}
 	srcs := []string{src}

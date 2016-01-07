@@ -144,6 +144,7 @@ var parseTests = []parseTest{
 	// Test Perl quoted literals
 	{`\Q+|*?{[\E`, `str{+|*?{[}`},
 	{`\Q+\E+`, `plus{lit{+}}`},
+	{`\Qab\E+`, `cat{lit{a}plus{lit{b}}}`},
 	{`\Q\\E`, `lit{\}`},
 	{`\Q\\\E`, `str{\\}`},
 
@@ -479,6 +480,7 @@ var invalidRegexps = []string{
 	`a{100000}`,
 	`a{100000,}`,
 	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
+	`\Q\E*`,
 }
 
 var onlyPerl = []string{

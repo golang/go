@@ -15,10 +15,12 @@ func haveCLMUL() bool
 
 // castagnoliSSE42 is defined in crc_amd64.s and uses the SSE4.2 CRC32
 // instruction.
+//go:noescape
 func castagnoliSSE42(crc uint32, p []byte) uint32
 
 // ieeeCLMUL is defined in crc_amd64.s and uses the PCLMULQDQ
 // instruction as well as SSE 4.1.
+//go:noescape
 func ieeeCLMUL(crc uint32, p []byte) uint32
 
 var sse42 = haveSSE42()
@@ -44,10 +46,10 @@ func updateIEEE(crc uint32, p []byte) uint32 {
 
 	// only use slicing-by-8 when input is >= 4KB
 	if len(p) >= 4096 {
-		iEEETable8Once.Do(func() {
-			iEEETable8 = makeTable8(IEEE)
+		ieeeTable8Once.Do(func() {
+			ieeeTable8 = makeTable8(IEEE)
 		})
-		return updateSlicingBy8(crc, iEEETable8, p)
+		return updateSlicingBy8(crc, ieeeTable8, p)
 	}
 
 	return update(crc, IEEETable, p)

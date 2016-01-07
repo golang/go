@@ -17,13 +17,14 @@ func TestMemStats(t *testing.T) {
 	st := new(MemStats)
 	ReadMemStats(st)
 
-	// Everything except HeapReleased and HeapIdle, because they indeed can be 0.
+	// Everything except HeapReleased, HeapIdle, and NumGC,
+	// because they indeed can be 0.
 	if st.Alloc == 0 || st.TotalAlloc == 0 || st.Sys == 0 || st.Lookups == 0 ||
 		st.Mallocs == 0 || st.Frees == 0 || st.HeapAlloc == 0 || st.HeapSys == 0 ||
 		st.HeapInuse == 0 || st.HeapObjects == 0 || st.StackInuse == 0 ||
 		st.StackSys == 0 || st.MSpanInuse == 0 || st.MSpanSys == 0 || st.MCacheInuse == 0 ||
 		st.MCacheSys == 0 || st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 ||
-		st.NextGC == 0 || st.NumGC == 0 {
+		st.NextGC == 0 {
 		t.Fatalf("Zero value: %+v", *st)
 	}
 
@@ -57,6 +58,14 @@ func TestMemStats(t *testing.T) {
 		// We have all pauses, so this should be exact.
 		if st.PauseTotalNs != pauseTotal {
 			t.Fatalf("PauseTotalNs(%d) != sum PauseNs(%d)", st.PauseTotalNs, pauseTotal)
+		}
+		for i := int(st.NumGC); i < len(st.PauseNs); i++ {
+			if st.PauseNs[i] != 0 {
+				t.Fatalf("Non-zero PauseNs[%d]: %+v", i, st)
+			}
+			if st.PauseEnd[i] != 0 {
+				t.Fatalf("Non-zero PauseEnd[%d]: %+v", i, st)
+			}
 		}
 	} else {
 		if st.PauseTotalNs < pauseTotal {

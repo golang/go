@@ -185,21 +185,50 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
 				t.Errorf("unexpected value: %#v", ifa)
 				continue
 			}
+			if len(ifa.IP) != IPv6len {
+				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
+				continue
+			}
 			prefixLen, maxPrefixLen := ifa.Mask.Size()
 			if ifa.IP.To4() != nil {
 				if 0 >= prefixLen || prefixLen > 8*IPv4len || maxPrefixLen != 8*IPv4len {
-					t.Errorf("unexpected prefix length: %v/%v", prefixLen, maxPrefixLen)
+					t.Errorf("unexpected prefix length: %d/%d", prefixLen, maxPrefixLen)
+					continue
+				}
+				if ifa.IP.IsLoopback() && (prefixLen != 8 && prefixLen != 8*IPv4len) { // see RFC 1122
+					t.Errorf("unexpected prefix length for IPv4 loopback: %d/%d", prefixLen, maxPrefixLen)
 					continue
 				}
 				naf4++
-			} else if ifa.IP.To16() != nil {
+			}
+			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
 				if 0 >= prefixLen || prefixLen > 8*IPv6len || maxPrefixLen != 8*IPv6len {
-					t.Errorf("unexpected prefix length: %v/%v", prefixLen, maxPrefixLen)
+					t.Errorf("unexpected prefix length: %d/%d", prefixLen, maxPrefixLen)
+					continue
+				}
+				if ifa.IP.IsLoopback() && prefixLen != 8*IPv6len { // see RFC 4291
+					t.Errorf("unexpected prefix length for IPv6 loopback: %d/%d", prefixLen, maxPrefixLen)
 					continue
 				}
 				naf6++
 			}
 			t.Logf("interface address %q", ifa.String())
+		case *IPAddr:
+			if ifa == nil || ifa.IP == nil || ifa.IP.IsUnspecified() || ifa.IP.IsMulticast() {
+				t.Errorf("unexpected value: %#v", ifa)
+				continue
+			}
+			if len(ifa.IP) != IPv6len {
+				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifa)
+				continue
+			}
+			if ifa.IP.To4() != nil {
+				naf4++
+			}
+			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
+				naf6++
+			}
+			t.Logf("interface address %s", ifa.String())
 		default:
 			t.Errorf("unexpected type: %T", ifa)
 		}
@@ -212,12 +241,17 @@ func testMulticastAddrs(t *testing.T, ifmat []Addr) (nmaf4, nmaf6 int) {
 		switch ifma := ifma.(type) {
 		case *IPAddr:
 			if ifma == nil || ifma.IP == nil || ifma.IP.IsUnspecified() || !ifma.IP.IsMulticast() {
-				t.Errorf("unexpected value: %#v", ifma)
+				t.Errorf("unexpected value: %+v", ifma)
+				continue
+			}
+			if len(ifma.IP) != IPv6len {
+				t.Errorf("should be internal representation either IPv6 or IPv6 IPv4-mapped address: %#v", ifma)
 				continue
 			}
 			if ifma.IP.To4() != nil {
 				nmaf4++
-			} else if ifma.IP.To16() != nil {
+			}
+			if ifma.IP.To16() != nil && ifma.IP.To4() == nil {
 				nmaf6++
 			}
 			t.Logf("joined group address %q", ifma.String())

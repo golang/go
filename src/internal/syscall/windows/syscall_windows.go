@@ -10,7 +10,17 @@ import "syscall"
 
 const GAA_FLAG_INCLUDE_PREFIX = 0x00000010
 
-const IF_TYPE_SOFTWARE_LOOPBACK = 24
+const (
+	IF_TYPE_OTHER              = 1
+	IF_TYPE_ETHERNET_CSMACD    = 6
+	IF_TYPE_ISO88025_TOKENRING = 9
+	IF_TYPE_PPP                = 23
+	IF_TYPE_SOFTWARE_LOOPBACK  = 24
+	IF_TYPE_ATM                = 37
+	IF_TYPE_IEEE80211          = 71
+	IF_TYPE_TUNNEL             = 131
+	IF_TYPE_IEEE1394           = 144
+)
 
 type SocketAddress struct {
 	Sockaddr       *syscall.RawSockaddrAny
@@ -94,7 +104,7 @@ const (
 	IfOperStatusLowerLayerDown = 7
 )
 
-//sys GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizeOfPointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
 //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
 
@@ -128,3 +138,6 @@ func Rename(oldpath, newpath string) error {
 	}
 	return MoveFileEx(from, to, MOVEFILE_REPLACE_EXISTING)
 }
+
+//sys	GetACP() (acp uint, err error) = kernel32.GetACP
+//sys	MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) = kernel32.MultiByteToWideChar

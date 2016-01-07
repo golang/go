@@ -93,7 +93,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errClosing, errMissingAddress:
+	case errCanceled, errClosing, errMissingAddress:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
@@ -413,7 +413,7 @@ second:
 		goto third
 	}
 	switch nestedErr {
-	case errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
+	case errCanceled, errClosing, errTimeout, ErrWriteToConnected, io.ErrUnexpectedEOF:
 		return nil
 	}
 	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)

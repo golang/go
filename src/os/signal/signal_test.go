@@ -182,13 +182,14 @@ func TestStop(t *testing.T) {
 	sigs := []syscall.Signal{
 		syscall.SIGWINCH,
 		syscall.SIGHUP,
+		syscall.SIGUSR1,
 	}
 
 	for _, sig := range sigs {
 		// Send the signal.
 		// If it's SIGWINCH, we should not see it.
 		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
-		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
+		if sig == syscall.SIGWINCH || (sig == syscall.SIGHUP && *sendUncaughtSighup == 1) {
 			syscall.Kill(syscall.Getpid(), sig)
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -277,4 +278,13 @@ func TestNohup(t *testing.T) {
 			t.Fatalf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", i, err, out, data)
 		}
 	}
+}
+
+// Test that SIGCONT works (issue 8953).
+func TestSIGCONT(t *testing.T) {
+	c := make(chan os.Signal, 1)
+	Notify(c, syscall.SIGCONT)
+	defer Stop(c)
+	syscall.Kill(syscall.Getpid(), syscall.SIGCONT)
+	waitSig(t, c, syscall.SIGCONT)
 }

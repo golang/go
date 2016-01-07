@@ -103,6 +103,7 @@ func (p *Package) writeDefs() {
 	}
 
 	if *gccgo {
+		fmt.Fprint(fgo2, gccgoGoProlog)
 		fmt.Fprint(fc, p.cPrologGccgo())
 	} else {
 		fmt.Fprint(fgo2, goProlog)
@@ -811,12 +812,13 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		fmt.Fprintf(fgcc, "}\n")
 
-		// Build the wrapper function compiled by gc.
-		goname := exp.Func.Name.Name
+		// Build the wrapper function compiled by cmd/compile.
+		goname := "_cgoexpwrap" + cPrefix + "_"
 		if fn.Recv != nil {
-			goname = "_cgoexpwrap" + cPrefix + "_" + fn.Recv.List[0].Names[0].Name + "_" + goname
+			goname += fn.Recv.List[0].Names[0].Name + "_"
 		}
-		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", goname)
+		goname += exp.Func.Name.Name
+		fmt.Fprintf(fgo2, "//go:cgo_export_dynamic %s\n", exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:linkname _cgoexp%s_%s _cgoexp%s_%s\n", cPrefix, exp.ExpName, cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:cgo_export_static _cgoexp%s_%s\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgo2, "//go:nosplit\n") // no split stack, so no use of m or g
@@ -829,44 +831,75 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		fmt.Fprintf(fm, "int _cgoexp%s_%s;\n", cPrefix, exp.ExpName)
 
-		// Calling a function with a receiver from C requires
-		// a Go wrapper function.
+		// This code uses printer.Fprint, not conf.Fprint,
+		// because we don't want //line comments in the middle
+		// of the function types.
+		fmt.Fprintf(fgo2, "\n")
+		fmt.Fprintf(fgo2, "func %s(", goname)
+		comma := false
 		if fn.Recv != nil {
-			fmt.Fprintf(fgo2, "func %s(recv ", goname)
-			conf.Fprint(fgo2, fset, fn.Recv.List[0].Type)
-			forFieldList(fntype.Params,
-				func(i int, aname string, atype ast.Expr) {
-					fmt.Fprintf(fgo2, ", p%d ", i)
-					conf.Fprint(fgo2, fset, atype)
-				})
-			fmt.Fprintf(fgo2, ")")
-			if gccResult != "void" {
-				fmt.Fprint(fgo2, " (")
-				forFieldList(fntype.Results,
-					func(i int, aname string, atype ast.Expr) {
-						if i > 0 {
-							fmt.Fprint(fgo2, ", ")
-						}
-						conf.Fprint(fgo2, fset, atype)
-					})
-				fmt.Fprint(fgo2, ")")
-			}
-			fmt.Fprint(fgo2, " {\n")
-			fmt.Fprint(fgo2, "\t")
-			if gccResult != "void" {
-				fmt.Fprint(fgo2, "return ")
-			}
-			fmt.Fprintf(fgo2, "recv.%s(", exp.Func.Name)
-			forFieldList(fntype.Params,
+			fmt.Fprintf(fgo2, "recv ")
+			printer.Fprint(fgo2, fset, fn.Recv.List[0].Type)
+			comma = true
+		}
+		forFieldList(fntype.Params,
+			func(i int, aname string, atype ast.Expr) {
+				if comma {
+					fmt.Fprintf(fgo2, ", ")
+				}
+				fmt.Fprintf(fgo2, "p%d ", i)
+				printer.Fprint(fgo2, fset, atype)
+				comma = true
+			})
+		fmt.Fprintf(fgo2, ")")
+		if gccResult != "void" {
+			fmt.Fprint(fgo2, " (")
+			forFieldList(fntype.Results,
 				func(i int, aname string, atype ast.Expr) {
 					if i > 0 {
 						fmt.Fprint(fgo2, ", ")
 					}
-					fmt.Fprintf(fgo2, "p%d", i)
+					fmt.Fprintf(fgo2, "r%d ", i)
+					printer.Fprint(fgo2, fset, atype)
 				})
-			fmt.Fprint(fgo2, ")\n")
-			fmt.Fprint(fgo2, "}\n")
+			fmt.Fprint(fgo2, ")")
 		}
+		fmt.Fprint(fgo2, " {\n")
+		if gccResult == "void" {
+			fmt.Fprint(fgo2, "\t")
+		} else {
+			// Verify that any results don't contain any
+			// Go pointers.
+			addedDefer := false
+			forFieldList(fntype.Results,
+				func(i int, aname string, atype ast.Expr) {
+					if !p.hasPointer(nil, atype, false) {
+						return
+					}
+					if !addedDefer {
+						fmt.Fprint(fgo2, "\tdefer func() {\n")
+						addedDefer = true
+					}
+					fmt.Fprintf(fgo2, "\t\t_cgoCheckResult(r%d)\n", i)
+				})
+			if addedDefer {
+				fmt.Fprint(fgo2, "\t}()\n")
+			}
+			fmt.Fprint(fgo2, "\treturn ")
+		}
+		if fn.Recv != nil {
+			fmt.Fprintf(fgo2, "recv.")
+		}
+		fmt.Fprintf(fgo2, "%s(", exp.Func.Name)
+		forFieldList(fntype.Params,
+			func(i int, aname string, atype ast.Expr) {
+				if i > 0 {
+					fmt.Fprint(fgo2, ", ")
+				}
+				fmt.Fprintf(fgo2, "p%d", i)
+			})
+		fmt.Fprint(fgo2, ")\n")
+		fmt.Fprint(fgo2, "}\n")
 	}
 
 	fmt.Fprintf(fgcch, "%s", gccExportHeaderEpilog)
@@ -1251,6 +1284,15 @@ func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
 func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+
+//go:linkname _cgoCheckResult runtime.cgoCheckResult
+func _cgoCheckResult(interface{})
+`
+
+const gccgoGoProlog = `
+func _cgoCheckPointer(interface{}, ...interface{}) interface{}
+
+func _cgoCheckResult(interface{})
 `
 
 const goStringDef = `
@@ -1305,7 +1347,8 @@ var builtinDefs = map[string]string{
 }
 
 func (p *Package) cPrologGccgo() string {
-	return strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1)
+	return strings.Replace(strings.Replace(cPrologGccgo, "PREFIX", cPrefix, -1),
+		"GCCGOSYMBOLPREF", p.gccgoSymbolPrefix(), -1)
 }
 
 const cPrologGccgo = `
@@ -1360,6 +1403,39 @@ void *_cgoPREFIX_Cfunc__CMalloc(size_t n) {
                 runtime_throw("runtime: C malloc failed");
         return p;
 }
+
+struct __go_type_descriptor;
+typedef struct __go_empty_interface {
+	const struct __go_type_descriptor *__type_descriptor;
+	void *__object;
+} Eface;
+
+extern Eface runtimeCgoCheckPointer(Eface, Slice)
+	__asm__("runtime.cgoCheckPointer")
+	__attribute__((weak));
+
+extern Eface localCgoCheckPointer(Eface, Slice)
+	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
+
+Eface localCgoCheckPointer(Eface ptr, Slice args) {
+	if(runtimeCgoCheckPointer) {
+		return runtimeCgoCheckPointer(ptr, args);
+	}
+	return ptr;
+}
+
+extern void runtimeCgoCheckResult(Eface)
+	__asm__("runtime.cgoCheckResult")
+	__attribute__((weak));
+
+extern void localCgoCheckResult(Eface)
+	__asm__("GCCGOSYMBOLPREF._cgoCheckResult");
+
+void localCgoCheckResult(Eface val) {
+	if(runtimeCgoCheckResult) {
+		runtimeCgoCheckResult(val);
+	}
+}
 `
 
 func (p *Package) gccExportHeaderProlog() string {
@@ -1385,8 +1461,8 @@ typedef GoUintGOINTBITS GoUint;
 typedef __SIZE_TYPE__ GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;
-typedef __complex float GoComplex64;
-typedef __complex double GoComplex128;
+typedef float _Complex GoComplex64;
+typedef double _Complex GoComplex128;
 
 /*
   static assertion to make sure the file is being used on architecture
@@ -1394,7 +1470,7 @@ typedef __complex double GoComplex128;
 */
 typedef char _check_for_GOINTBITS_bit_pointer_matching_GoInt[sizeof(void*)==GOINTBITS/8 ? 1:-1];
 
-typedef struct { char *p; GoInt n; } GoString;
+typedef struct { const char *p; GoInt n; } GoString;
 typedef void *GoMap;
 typedef void *GoChan;
 typedef struct { void *t; void *v; } GoInterface;

@@ -93,6 +93,17 @@ The full set of supported combinations is listed in the discussion of
 <a href="#environment">environment variables</a> below.
 </p>
 
+<p>
+See the main installation page for the <a href="/doc/install#requirements">overall system requirements</a>.
+The following additional constraints apply to systems that can be built only from source:
+</p>
+
+<ul>
+<li>For Linux on PowerPC 64-bit, the minimum supported kernel version is 2.6.37, meaning that
+Go does not support CentOS 6 on these systems.
+</li>
+</ul>
+
 </div>
 
 <h2 id="go14">Install Go compiler binaries</h2>
@@ -139,7 +150,7 @@ and used as <code>GOROOT_BOOTSTRAP</code> to bootstrap a local build.
 </p>
 
 <p>
-To use gccgo, you need to arrange for <code>$GOROOT_BOOSTRAP/bin/go</code> to be
+To use gccgo, you need to arrange for <code>$GOROOT_BOOTSTRAP/bin/go</code> to be
 the go tool that comes as part of gccgo 5. For example on Ubuntu Vivid:
 </p>
 
@@ -173,7 +184,7 @@ Then clone the repository and check out the latest release tag:</p>
 <pre>
 $ git clone https://go.googlesource.com/go
 $ cd go
-$ git checkout go1.5.1
+$ git checkout go1.5.2
 </pre>
 
 <h2 id="head">(Optional) Switch to the master branch</h2>
@@ -352,7 +363,7 @@ New releases are announced on the
 <a href="//groups.google.com/group/golang-announce">golang-announce</a>
 mailing list.
 Each announcement mentions the latest release tag, for instance,
-<code>go1.5.1</code>.
+<code>go1.5.2</code>.
 </p>
 
 <p>

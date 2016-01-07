@@ -234,6 +234,12 @@ func (a *Address) String() string {
 		return b.String()
 	}
 
+	// Text in an encoded-word in a display-name must not contain certain
+	// characters like quotes or parentheses (see RFC 2047 section 5.3).
+	// When this is the case encode the name using base64 encoding.
+	if strings.ContainsAny(a.Name, "\"#$%&'(),.:;<>@[]^`{|}~") {
+		return mime.BEncoding.Encode("utf-8", a.Name) + " " + s
+	}
 	return mime.QEncoding.Encode("utf-8", a.Name) + " " + s
 }
 
@@ -386,10 +392,9 @@ func (p *addrParser) consumePhrase() (phrase string, err error) {
 			// We actually parse dot-atom here to be more permissive
 			// than what RFC 5322 specifies.
 			word, err = p.consumeAtom(true, true)
-		}
-
-		if err == nil {
-			word, err = p.decodeRFC2047Word(word)
+			if err == nil {
+				word, err = p.decodeRFC2047Word(word)
+			}
 		}
 
 		if err != nil {
@@ -442,16 +447,24 @@ Loop:
 	return string(qsb), nil
 }
 
+var errNonASCII = errors.New("mail: unencoded non-ASCII text in address")
+
 // consumeAtom parses an RFC 5322 atom at the start of p.
 // If dot is true, consumeAtom parses an RFC 5322 dot-atom instead.
 // If permissive is true, consumeAtom will not fail on
 // leading/trailing/double dots in the atom (see golang.org/issue/4938).
 func (p *addrParser) consumeAtom(dot bool, permissive bool) (atom string, err error) {
-	if !isAtext(p.peek(), false) {
+	if c := p.peek(); !isAtext(c, false) {
+		if c > 127 {
+			return "", errNonASCII
+		}
 		return "", errors.New("mail: invalid string")
 	}
 	i := 1
 	for ; i < p.len() && isAtext(p.s[i], dot); i++ {
+	}
+	if i < p.len() && p.s[i] > 127 {
+		return "", errNonASCII
 	}
 	atom, p.s = string(p.s[:i]), p.s[i:]
 	if !permissive {

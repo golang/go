@@ -197,6 +197,24 @@ func (s *byRFC6724) Less(i, j int) bool {
 	if da4 == db4 {
 		commonA := commonPrefixLen(SourceDA, DA)
 		commonB := commonPrefixLen(SourceDB, DB)
+
+		// CommonPrefixLen doesn't really make sense for IPv4, and even
+		// causes problems for common load balancing practices
+		// (e.g., https://golang.org/issue/13283).  Glibc instead only
+		// uses CommonPrefixLen for IPv4 when the source and destination
+		// addresses are on the same subnet, but that requires extra
+		// work to find the netmask for our source addresses.  As a
+		// simpler heuristic, we limit its use to when the source and
+		// destination belong to the same special purpose block.
+		if da4 {
+			if !sameIPv4SpecialPurposeBlock(SourceDA, DA) {
+				commonA = 0
+			}
+			if !sameIPv4SpecialPurposeBlock(SourceDB, DB) {
+				commonB = 0
+			}
+		}
+
 		if commonA > commonB {
 			return preferDA
 		}
@@ -385,4 +403,29 @@ func commonPrefixLen(a, b IP) (cpl int) {
 		}
 	}
 	return
+}
+
+// sameIPv4SpecialPurposeBlock reports whether a and b belong to the same
+// address block reserved by the IANA IPv4 Special-Purpose Address Registry:
+// http://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml
+func sameIPv4SpecialPurposeBlock(a, b IP) bool {
+	a, b = a.To4(), b.To4()
+	if a == nil || b == nil || a[0] != b[0] {
+		return false
+	}
+	// IANA defines more special-purpose blocks, but these are the only
+	// ones likely to be relevant to typical Go systems.
+	switch a[0] {
+	case 10: // 10.0.0.0/8: Private-Use
+		return true
+	case 127: // 127.0.0.0/8: Loopback
+		return true
+	case 169: // 169.254.0.0/16: Link Local
+		return a[1] == 254 && b[1] == 254
+	case 172: // 172.16.0.0/12: Private-Use
+		return a[1]&0xf0 == 16 && b[1]&0xf0 == 16
+	case 192: // 192.168.0.0/16: Private-Use
+		return a[1] == 168 && b[1] == 168
+	}
+	return false
 }

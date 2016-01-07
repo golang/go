@@ -1857,7 +1857,16 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
 	var else_ ast.Stmt
 	if p.tok == token.ELSE {
 		p.next()
-		else_ = p.parseStmt()
+		switch p.tok {
+		case token.IF:
+			else_ = p.parseIfStmt()
+		case token.LBRACE:
+			else_ = p.parseBlockStmt()
+			p.expectSemi()
+		default:
+			p.errorExpected(p.pos, "if statement or block")
+			else_ = &ast.BadStmt{From: p.pos, To: p.pos}
+		}
 	} else {
 		p.expectSemi()
 	}

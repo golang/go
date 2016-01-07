@@ -96,6 +96,7 @@ func Ldmain() {
 	obj.Flagcount("h", "halt on error", &Debug['h'])
 	obj.Flagstr("installsuffix", "set package directory `suffix`", &flag_installsuffix)
 	obj.Flagstr("k", "set field tracking `symbol`", &tracksym)
+	obj.Flagstr("libgcc", "compiler support lib for internal linking; use \"none\" to disable", &libgccfile)
 	obj.Flagfn1("linkmode", "set link `mode` (internal, external, auto)", setlinkmode)
 	flag.BoolVar(&Linkshared, "linkshared", false, "link against installed Go shared libraries")
 	obj.Flagcount("msan", "enable MSan interface", &flag_msan)

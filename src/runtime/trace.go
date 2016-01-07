@@ -745,41 +745,50 @@ func (tab *traceStackTable) dump() {
 // traceAlloc is a non-thread-safe region allocator.
 // It holds a linked list of traceAllocBlock.
 type traceAlloc struct {
-	head *traceAllocBlock
+	head traceAllocBlockPtr
 	off  uintptr
 }
 
 // traceAllocBlock is a block in traceAlloc.
+//
+// traceAllocBlock is allocated from non-GC'd memory, so it must not
+// contain heap pointers. Writes to pointers to traceAllocBlocks do
+// not need write barriers.
 type traceAllocBlock struct {
-	next *traceAllocBlock
+	next traceAllocBlockPtr
 	data [64<<10 - sys.PtrSize]byte
 }
+
+type traceAllocBlockPtr uintptr
+
+func (p traceAllocBlockPtr) ptr() *traceAllocBlock   { return (*traceAllocBlock)(unsafe.Pointer(p)) }
+func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(unsafe.Pointer(x)) }
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
 	n = round(n, sys.PtrSize)
-	if a.head == nil || a.off+n > uintptr(len(a.head.data)) {
-		if n > uintptr(len(a.head.data)) {
+	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
+		if n > uintptr(len(a.head.ptr().data)) {
 			throw("trace: alloc too large")
 		}
 		block := (*traceAllocBlock)(sysAlloc(unsafe.Sizeof(traceAllocBlock{}), &memstats.other_sys))
 		if block == nil {
 			throw("trace: out of memory")
 		}
-		block.next = a.head
-		a.head = block
+		block.next.set(a.head.ptr())
+		a.head.set(block)
 		a.off = 0
 	}
-	p := &a.head.data[a.off]
+	p := &a.head.ptr().data[a.off]
 	a.off += n
 	return unsafe.Pointer(p)
 }
 
 // drop frees all previously allocated memory and resets the allocator.
 func (a *traceAlloc) drop() {
-	for a.head != nil {
-		block := a.head
-		a.head = block.next
+	for a.head != 0 {
+		block := a.head.ptr()
+		a.head.set(block.next.ptr())
 		sysFree(unsafe.Pointer(block), unsafe.Sizeof(traceAllocBlock{}), &memstats.other_sys)
 	}
 }

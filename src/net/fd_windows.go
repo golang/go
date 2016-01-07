@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/race"
 	"os"
 	"runtime"
 	"sync"
@@ -319,7 +320,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
 	runtime.SetFinalizer(fd, (*netFD).Close)
 }
 
-func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
+func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-chan struct{}) error {
 	// Do not need to call fd.writeLock here,
 	// because fd is not yet accessible to user,
 	// so no concurrent operations are possible.
@@ -350,14 +351,32 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time) error {
 	// Call ConnectEx API.
 	o := &fd.wop
 	o.sa = ra
+	if cancel != nil {
+		done := make(chan struct{})
+		defer close(done)
+		go func() {
+			select {
+			case <-cancel:
+				// Force the runtime's poller to immediately give
+				// up waiting for writability.
+				fd.setWriteDeadline(aLongTimeAgo)
+			case <-done:
+			}
+		}()
+	}
 	_, err := wsrv.ExecIO(o, "ConnectEx", func(o *operation) error {
 		return connectExFunc(o.fd.sysfd, o.sa, nil, 0, nil, &o.o)
 	})
 	if err != nil {
-		if _, ok := err.(syscall.Errno); ok {
-			err = os.NewSyscallError("connectex", err)
+		select {
+		case <-cancel:
+			return errCanceled
+		default:
+			if _, ok := err.(syscall.Errno); ok {
+				err = os.NewSyscallError("connectex", err)
+			}
+			return err
 		}
-		return err
 	}
 	// Refresh socket properties.
 	return os.NewSyscallError("setsockopt", syscall.Setsockopt(fd.sysfd, syscall.SOL_SOCKET, syscall.SO_UPDATE_CONNECT_CONTEXT, (*byte)(unsafe.Pointer(&fd.sysfd)), int32(unsafe.Sizeof(fd.sysfd))))
@@ -461,8 +480,8 @@ func (fd *netFD) Read(buf []byte) (int, error) {
 	n, err := rsrv.ExecIO(o, "WSARecv", func(o *operation) error {
 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
 	})
-	if raceenabled {
-		raceAcquire(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.Acquire(unsafe.Pointer(&ioSync))
 	}
 	err = fd.eofError(n, err)
 	if _, ok := err.(syscall.Errno); ok {
@@ -504,8 +523,8 @@ func (fd *netFD) Write(buf []byte) (int, error) {
 		return 0, err
 	}
 	defer fd.writeUnlock()
-	if raceenabled {
-		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	if race.Enabled {
+		race.ReleaseMerge(unsafe.Pointer(&ioSync))
 	}
 	o := &fd.wop
 	o.InitBuf(buf)

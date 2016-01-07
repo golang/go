@@ -332,7 +332,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// host subcomponent; IPv6 address with zone identifier in RFC 6847
+	// host subcomponent; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25en0]/", // alphanum zone identifier
 		&URL{
@@ -342,7 +342,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25en0]:8080/", // alphanum zone identifier
 		&URL{
@@ -352,7 +352,7 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	// host subcomponent; IPv6 address with zone identifier in RFC 6847
+	// host subcomponent; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25%65%6e%301-._~]/", // percent-encoded+unreserved zone identifier
 		&URL{
@@ -362,7 +362,7 @@ var urltests = []URLTest{
 		},
 		"http://[fe80::1%25en01-._~]/",
 	},
-	// host and port subcomponents; IPv6 address with zone identifier in RFC 6847
+	// host and port subcomponents; IPv6 address with zone identifier in RFC 6874
 	{
 		"http://[fe80::1%25%65%6e%301-._~]:8080/", // percent-encoded+unreserved zone identifier
 		&URL{
@@ -423,6 +423,111 @@ var urltests = []URLTest{
 			Host:    "example.com",
 			Path:    "/oid/[order_id]",
 			RawPath: "/oid/[order_id]",
+		},
+		"",
+	},
+	// golang.org/issue/12200 (colon with empty port)
+	{
+		"http://192.168.0.2:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.2:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://192.168.0.2:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "192.168.0.2:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		// Malformed IPv6 but still accepted.
+		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		// Malformed IPv6 but still accepted.
+		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080",
+			Path:   "/foo",
+		},
+		"",
+	},
+	{
+		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:",
+			Path:   "/foo",
+		},
+		"",
+	},
+	// golang.org/issue/7991 and golang.org/issue/12719 (non-ascii %-encoded in host)
+	{
+		"http://hello.世界.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+	},
+	{
+		"http://hello.%e4%b8%96%e7%95%8c.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+	},
+	{
+		"http://hello.%E4%B8%96%E7%95%8C.com/foo",
+		&URL{
+			Scheme: "http",
+			Host:   "hello.世界.com",
+			Path:   "/foo",
+		},
+		"",
+	},
+	// golang.org/issue/10433 (path beginning with //)
+	{
+		"http://example.com//foo",
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Path:   "//foo",
+		},
+		"",
+	},
+	// test that we can reparse the host names we accept.
+	{
+		"myscheme://authority<\"hi\">/foo",
+		&URL{
+			Scheme: "myscheme",
+			Host:   "authority<\"hi\">",
+			Path:   "/foo",
 		},
 		"",
 	},
@@ -1093,6 +1198,14 @@ var requritests = []RequestURITest{
 		},
 		"opaque?q=go+language",
 	},
+	{
+		&URL{
+			Scheme: "http",
+			Host:   "example.com",
+			Path:   "//foo",
+		},
+		"//foo",
+	},
 }
 
 func TestRequestURI(t *testing.T) {
@@ -1126,16 +1239,17 @@ func TestParseAuthority(t *testing.T) {
 		{"http://[::1]a", true},
 		{"http://[::1]%23", true},
 		{"http://[::1%25en0]", false},     // valid zone id
-		{"http://[::1]:", true},           // colon, but no port
-		{"http://[::1]:%38%30", true},     // no hex in port
-		{"http://[::1%25%10]", false},     // TODO: reject the %10 after the valid zone %25 separator?
+		{"http://[::1]:", false},          // colon, but no port OK
+		{"http://[::1]:%38%30", true},     // not allowed: % encoding only for non-ASCII
+		{"http://[::1%25%41]", false},     // RFC 6874 allows over-escaping in zone
 		{"http://[%10::1]", true},         // no %xx escapes in IP address
 		{"http://[::1]/%48", false},       // %xx in path is fine
-		{"http://%41:8080/", true},        // TODO: arguably we should accept reg-name with %xx
+		{"http://%41:8080/", true},        // not allowed: % encoding only for non-ASCII
 		{"mysql://x@y(z:123)/foo", false}, // golang.org/issue/12023
 		{"mysql://x@y(1.2.3.4:123)/foo", false},
 		{"mysql://x@y([2001:db8::1]:123)/foo", false},
 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
+		{"http://a b.com/", true},                                                                       // no space in host name please
 	}
 	for _, tt := range tests {
 		u, err := Parse(tt.in)

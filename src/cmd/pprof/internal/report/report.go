@@ -1505,7 +1505,7 @@ func memoryLabel(value int64, fromUnit, toUnit string) (v float64, u string, ok 
 	case "megabyte", "mb":
 		value *= 1024 * 1024
 	case "gigabyte", "gb":
-		value *= 1024 * 1024
+		value *= 1024 * 1024 * 1024
 	default:
 		return 0, "", false
 	}

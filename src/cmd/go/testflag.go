@@ -80,29 +80,47 @@ func init() {
 // Unfortunately for us, we need to do our own flag processing because go test
 // grabs some flags but otherwise its command line is just a holding place for
 // pkg.test's arguments.
-// The usage is:
-//	go test [test flags] [packages] [flags for test binary]
-// Thus we process test flags (adding -test. to each) until we find a non-flag,
-// which introduces the optional list of packages. We collect the package paths
-// until we find another -flag, and pass that and the rest of the command line
-// to the test binary untouched.
-// For backwards compatibility with a poor design, if while processing test
-// flags we see an unrecognized flag, we accept it as an argument to the binary.
-// For this to work in general, one must say -foo=xxx not -foo xxx or else
-// xxx will be taken to be a package path. As said, the design is poor.
+// We allow known flags both before and after the package name list,
+// to allow both
+//	go test fmt -custom-flag-for-fmt-test
+//	go test -x math
 func testFlags(args []string) (packageNames, passToTest []string) {
+	inPkg := false
 	outputDir := ""
-	// Flags.
-	var i int
-	for i = 0; i < len(args); i++ {
+	var explicitArgs []string
+	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
-			break // Start of packages.
+			if !inPkg && packageNames == nil {
+				// First package name we've seen.
+				inPkg = true
+			}
+			if inPkg {
+				packageNames = append(packageNames, args[i])
+				continue
+			}
+		}
+
+		if inPkg {
+			// Found an argument beginning with "-"; end of package list.
+			inPkg = false
 		}
 
 		f, value, extraWord := testFlag(args, i)
 		if f == nil {
-			// This is a flag we do not know. Pass it to the test but keep
-			// processing flags.
+			// This is a flag we do not know; we must assume
+			// that any args we see after this might be flag
+			// arguments, not package names.
+			inPkg = false
+			if packageNames == nil {
+				// make non-nil: we have seen the empty package list
+				packageNames = []string{}
+			}
+			if args[i] == "-args" || args[i] == "--args" {
+				// -args or --args signals that everything that follows
+				// should be passed to the test.
+				explicitArgs = args[i+1:]
+				break
+			}
 			passToTest = append(passToTest, args[i])
 			continue
 		}
@@ -163,15 +181,6 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 			passToTest = append(passToTest, "-test."+f.name+"="+value)
 		}
 	}
-	// Package names.
-	for ; i < len(args); i++ {
-		if strings.HasPrefix(args[i], "-") {
-			break // Start of trailing arguments.
-		}
-		packageNames = append(packageNames, args[i])
-	}
-	// Trailing arguments.
-	passToTest = append(passToTest, args[i:]...)
 
 	if testCoverMode == "" {
 		testCoverMode = "set"
@@ -189,6 +198,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
 		}
 		passToTest = append(passToTest, "-test.outputdir", dir)
 	}
+
+	passToTest = append(passToTest, explicitArgs...)
 	return
 }
 

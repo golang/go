@@ -13,10 +13,15 @@ import (
 	"cmd/compile/internal/x86"
 	"cmd/internal/obj"
 	"fmt"
+	"log"
 	"os"
 )
 
 func main() {
+	// disable timestamps for reproducible output
+	log.SetFlags(0)
+	log.SetPrefix("compile: ")
+
 	switch obj.Getgoarch() {
 	default:
 		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.Getgoarch())

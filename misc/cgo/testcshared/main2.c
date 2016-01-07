@@ -9,7 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define fd (10)
+#define fd (100)
 
 // Tests libgo2.so, which does not export any functions.
 // Read a string from the file descriptor and print it.

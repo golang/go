@@ -378,6 +378,103 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 	}
 }
 
+// Test that goLookupIPOrder falls back to the host file when no DNS servers are available.
+func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
+	if testing.Short() || !*testExternal {
+		t.Skip("avoid external network")
+	}
+
+	// Add a config that simulates no dns servers being available.
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conf.writeAndUpdate([]string{}); err != nil {
+		t.Fatal(err)
+	}
+	conf.tryUpdate(conf.path)
+	// Redirect host file lookups.
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+	testHookHostsPath = "testdata/hosts"
+
+	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
+		name := fmt.Sprintf("order %v", order)
+
+		// First ensure that we get an error when contacting a non-existant host.
+		_, err := goLookupIPOrder("notarealhost", order)
+		if err == nil {
+			t.Errorf("%s: expected error while looking up name not in hosts file", name)
+			continue
+		}
+
+		// Now check that we get an address when the name appears in the hosts file.
+		addrs, err := goLookupIPOrder("thor", order) // entry is in "testdata/hosts"
+		if err != nil {
+			t.Errorf("%s: expected to successfully lookup host entry", name)
+			continue
+		}
+		if len(addrs) != 1 {
+			t.Errorf("%s: expected exactly one result, but got %v", name, addrs)
+			continue
+		}
+		if got, want := addrs[0].String(), "127.1.1.1"; got != want {
+			t.Errorf("%s: address doesn't match expectation. got %v, want %v", name, got, want)
+		}
+	}
+	defer conf.teardown()
+}
+
+// Issue 12712.
+// When using search domains, return the error encountered
+// querying the original name instead of an error encountered
+// querying a generated name.
+func TestErrorForOriginalNameWhenSearching(t *testing.T) {
+	const fqdn = "doesnotexist.domain"
+
+	origTestHookDNSDialer := testHookDNSDialer
+	defer func() { testHookDNSDialer = origTestHookDNSDialer }()
+
+	conf, err := newResolvConfTest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conf.teardown()
+
+	if err := conf.writeAndUpdate([]string{"search servfail"}); err != nil {
+		t.Fatal(err)
+	}
+
+	d := &fakeDNSConn{}
+	testHookDNSDialer = func(time.Duration) dnsDialer { return d }
+
+	d.rh = func(q *dnsMsg) (*dnsMsg, error) {
+		r := &dnsMsg{
+			dnsMsgHdr: dnsMsgHdr{
+				id: q.id,
+			},
+		}
+
+		switch q.question[0].Name {
+		case fqdn + ".servfail.":
+			r.rcode = dnsRcodeServerFailure
+		default:
+			r.rcode = dnsRcodeNameError
+		}
+
+		return r, nil
+	}
+
+	_, err = goLookupIP(fqdn)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+
+	want := &DNSError{Name: fqdn, Err: errNoSuchHost.Error()}
+	if err, ok := err.(*DNSError); !ok || err.Name != want.Name || err.Err != want.Err {
+		t.Errorf("got %v; want %v", err, want)
+	}
+}
+
 func BenchmarkGoLookupIP(b *testing.B) {
 	testHookUninstaller.Do(uninstallTestHooks)
 
@@ -414,4 +511,38 @@ func BenchmarkGoLookupIPWithBrokenNameServer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		goLookupIP("www.example.com")
 	}
+}
+
+type fakeDNSConn struct {
+	// last query
+	qmu sync.Mutex // guards q
+	q   *dnsMsg
+	// reply handler
+	rh func(*dnsMsg) (*dnsMsg, error)
+}
+
+func (f *fakeDNSConn) dialDNS(n, s string) (dnsConn, error) {
+	return f, nil
+}
+
+func (f *fakeDNSConn) Close() error {
+	return nil
+}
+
+func (f *fakeDNSConn) SetDeadline(time.Time) error {
+	return nil
+}
+
+func (f *fakeDNSConn) writeDNSQuery(q *dnsMsg) error {
+	f.qmu.Lock()
+	defer f.qmu.Unlock()
+	f.q = q
+	return nil
+}
+
+func (f *fakeDNSConn) readDNSResponse() (*dnsMsg, error) {
+	f.qmu.Lock()
+	q := f.q
+	f.qmu.Unlock()
+	return f.rh(q)
 }

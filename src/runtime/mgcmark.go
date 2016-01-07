@@ -504,6 +504,12 @@ func gcWakeAllAssists() {
 // credit. This first satisfies blocked assists on the
 // work.assistQueue and then flushes any remaining credit to
 // gcController.bgScanCredit.
+//
+// Write barriers are disallowed because this is used by gcDrain after
+// it has ensured that all work is drained and this must preserve that
+// condition.
+//
+//go:nowritebarrierrec
 func gcFlushBgCredit(scanWork int64) {
 	if work.assistQueue.head == 0 {
 		// Fast path; there are no blocked assists. There's a
@@ -620,6 +626,8 @@ func scanstack(gp *g) {
 			throw("g already has stack barriers")
 		}
 
+		gcLockStackBarriers(gp)
+
 	case _GCmarktermination:
 		if int(gp.stkbarPos) == len(gp.stkbar) {
 			// gp hit all of the stack barriers (or there
@@ -674,6 +682,9 @@ func scanstack(gp *g) {
 	tracebackdefers(gp, scanframe, nil)
 	if gcphase == _GCmarktermination {
 		gcw.dispose()
+	}
+	if gcphase == _GCmark {
+		gcUnlockStackBarriers(gp)
 	}
 	gp.gcscanvalid = true
 }
@@ -840,6 +851,10 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			gcw.scanWork = 0
 		}
 	}
+
+	// In blocking mode, write barriers are not allowed after this
+	// point because we must preserve the condition that the work
+	// buffers are empty.
 
 	// Flush remaining scan work credit.
 	if gcw.scanWork > 0 {

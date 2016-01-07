@@ -45,6 +45,10 @@ func os_sigpipe() {
 	throw("too many writes on closed pipe")
 }
 
+func dieFromSignal(sig int32) {
+	exit(2)
+}
+
 func sigpanic() {
 	g := getg()
 	if !canpanic(g) {

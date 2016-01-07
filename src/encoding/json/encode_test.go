@@ -437,6 +437,18 @@ func TestIssue6458(t *testing.T) {
 	}
 }
 
+func TestIssue10281(t *testing.T) {
+	type Foo struct {
+		N Number
+	}
+	x := Foo{Number(`invalid`)}
+
+	b, err := Marshal(&x)
+	if err == nil {
+		t.Errorf("Marshal(&x) = %#q; want error", b)
+	}
+}
+
 func TestHTMLEscape(t *testing.T) {
 	var b, want bytes.Buffer
 	m := `{"M":"<html>foo &` + "\xe2\x80\xa8 \xe2\x80\xa9" + `</html>"}`

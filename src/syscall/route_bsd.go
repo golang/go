@@ -339,7 +339,7 @@ func ParseRoutingMessage(b []byte) (msgs []RoutingMessage, err error) {
 	return msgs, nil
 }
 
-// ParseRoutingMessage parses msg's payload as raw sockaddrs and
+// ParseRoutingSockaddr parses msg's payload as raw sockaddrs and
 // returns the slice containing the Sockaddr interfaces.
 func ParseRoutingSockaddr(msg RoutingMessage) ([]Sockaddr, error) {
 	sas, err := msg.sockaddr()

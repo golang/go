@@ -6,11 +6,29 @@ package main_test
 
 import (
 	main "cmd/go"
+	"go/build"
 	"runtime"
 	"testing"
 )
 
 func TestNoteReading(t *testing.T) {
+	testNoteReading(t)
+}
+
+func TestNoteReading2K(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("2kB is not enough on %s", runtime.GOOS)
+	}
+	// Set BuildIDReadSize to 2kB to exercise Mach-O parsing more strictly.
+	defer func(old int) {
+		main.BuildIDReadSize = old
+	}(main.BuildIDReadSize)
+	main.BuildIDReadSize = 2 * 1024
+
+	testNoteReading(t)
+}
+
+func testNoteReading(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.tempFile("hello.go", `package main; func main() { print("hello, world\n") }`)
@@ -25,6 +43,8 @@ func TestNoteReading(t *testing.T) {
 	}
 
 	switch {
+	case !build.Default.CgoEnabled:
+		t.Skipf("skipping - no cgo, so assuming external linking not available")
 	case runtime.GOOS == "linux" && (runtime.GOARCH == "ppc64le" || runtime.GOARCH == "ppc64"):
 		t.Skipf("skipping - external linking not supported, golang.org/issue/11184")
 	case runtime.GOOS == "linux" && (runtime.GOARCH == "mips64le" || runtime.GOARCH == "mips64"):

@@ -7,5 +7,5 @@
 package main
 
 var a = []int{
-	3 // ERROR "need trailing comma before newline in composite literal"
+	3 // ERROR "need trailing comma before newline in composite literal|expecting comma or }"
 }

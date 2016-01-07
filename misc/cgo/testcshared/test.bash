@@ -16,6 +16,13 @@ fi
 
 goos=$(go env GOOS)
 goarch=$(go env GOARCH)
+goroot=$(go env GOROOT)
+if [ ! -d "$goroot" ]; then
+	echo 'misc/cgo/testcshared/test.bash cannnot find GOROOT' 1>&2
+	echo '$GOROOT:' "$GOROOT" 1>&2
+	echo 'go env GOROOT:' "$goroot" 1>&2
+	exit 1
+fi
 
 # Directory where cgo headers and outputs will be installed.
 # The installation directory format varies depending on the platform.
@@ -28,12 +35,13 @@ fi
 androidpath=/data/local/tmp/testcshared-$$
 
 function cleanup() {
-	rm -rf libgo.$libext libgo2.$libext libgo.h testp testp2 testp3 pkg
-
-	rm -rf $(go env GOROOT)/${installdir}
+	rm -f libgo.$libext libgo2.$libext libgo4.$libext libgo5.$libext
+	rm -f libgo.h libgo4.h libgo5.h
+	rm -f testp testp2 testp3 testp4 testp5
+	rm -rf pkg "${goroot}/${installdir}"
 
 	if [ "$goos" == "android" ]; then
-		adb shell rm -rf $androidpath
+		adb shell rm -rf "$androidpath"
 	fi
 }
 trap cleanup EXIT
@@ -93,6 +101,8 @@ if [ "$goos" == "android" ]; then
 	GOGCCFLAGS="${GOGCCFLAGS} -pie"
 fi
 
+status=0
+
 # test0: exported symbols in shared lib are accessible.
 # TODO(iant): using _shared here shouldn't really be necessary.
 $(go env CC) ${GOGCCFLAGS} -I ${installdir} -o testp main0.c libgo.$libext
@@ -101,7 +111,7 @@ binpush testp
 output=$(run LD_LIBRARY_PATH=. ./testp)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test0 got ${output}"
-	exit 1
+	status=1
 fi
 
 # test1: shared library can be dynamically loaded and exported symbols are accessible.
@@ -110,7 +120,7 @@ binpush testp
 output=$(run ./testp ./libgo.$libext)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test1 got ${output}"
-	exit 1
+	status=1
 fi
 
 # test2: tests libgo2 which does not export any functions.
@@ -125,7 +135,7 @@ binpush testp2
 output=$(run LD_LIBRARY_PATH=. ./testp2)
 if [ "$output" != "PASS" ]; then
 	echo "FAIL test2 got ${output}"
-	exit 1
+	status=1
 fi
 
 # test3: tests main.main is exported on android.
@@ -135,7 +145,42 @@ if [ "$goos" == "android" ]; then
 	output=$(run ./testp ./libgo.so)
 	if [ "$output" != "PASS" ]; then
 		echo "FAIL test3 got ${output}"
-		exit 1
+		status=1
 	fi
 fi
-echo "ok"
+
+# test4: tests signal handlers
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo4.$libext libgo4
+binpush libgo4.$libext
+$(go env CC) ${GOGCCFLAGS} -pthread -o testp4 main4.c -ldl
+binpush testp4
+output=$(run ./testp4 ./libgo4.$libext 2>&1)
+if test "$output" != "PASS"; then
+    echo "FAIL test4 got ${output}"
+    if test "$goos" != "android"; then
+	echo "re-running test4 in verbose mode"
+	./testp4 ./libgo4.$libext verbose
+    fi
+    status=1
+fi
+
+# test5: tests signal handlers with os/signal.Notify
+GOPATH=$(pwd) go build -buildmode=c-shared $suffix -o libgo5.$libext libgo5
+binpush libgo5.$libext
+$(go env CC) ${GOGCCFLAGS} -pthread -o testp5 main5.c -ldl
+binpush testp5
+output=$(run ./testp5 ./libgo5.$libext 2>&1)
+if test "$output" != "PASS"; then
+    echo "FAIL test5 got ${output}"
+    if test "$goos" != "android"; then
+	echo "re-running test5 in verbose mode"
+	./testp5 ./libgo5.$libext verbose
+    fi
+    status=1
+fi
+
+if test $status = 0; then
+    echo "ok"
+fi
+
+exit $status

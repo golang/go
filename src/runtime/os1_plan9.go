@@ -9,6 +9,8 @@ import (
 	"unsafe"
 )
 
+type sigset struct{}
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
@@ -22,6 +24,12 @@ func mpreinit(mp *m) {
 }
 
 func msigsave(mp *m) {
+}
+
+func msigrestore(mp *m) {
+}
+
+func sigblock() {
 }
 
 // Called to initialize a new m (including the bootstrap m).

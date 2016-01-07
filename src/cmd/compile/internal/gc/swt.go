@@ -137,8 +137,10 @@ func typecheckswitch(n *Node) {
 						} else {
 							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ll.N, ll.N.Type)
 						}
-					case nilonly != "" && !Isconst(ll.N, CTNIL):
+					case nilonly != "" && !isnil(ll.N):
 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ll.N, nilonly, n.Left)
+					case Isinter(t) && !Isinter(ll.N.Type) && algtype1(ll.N.Type, nil) == ANOEQ:
+						Yyerror("invalid case %v in switch (incomparable type)", Nconv(ll.N, obj.FmtLong))
 					}
 
 				// type switch

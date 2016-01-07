@@ -27,6 +27,7 @@ func main() {
 	var extraCommands map[string]*commands.Command // no added Go-specific commands
 	if err := driver.PProf(flags{}, fetch.Fetcher, symbolize, new(objTool), plugin.StandardUI(), extraCommands); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(2)
 	}
 }
 

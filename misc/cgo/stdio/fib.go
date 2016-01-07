@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build ignore
+// +build test_run
 
 // Compute Fibonacci numbers with two goroutines
 // that pass integers back and forth.  No actual
@@ -14,9 +14,10 @@
 package main
 
 import (
-	"../stdio"
 	"runtime"
 	"strconv"
+
+	"../stdio"
 )
 
 func fibber(c, out chan int64, i int64) {

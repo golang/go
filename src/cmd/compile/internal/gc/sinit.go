@@ -124,10 +124,10 @@ func init1(n *Node, out **NodeList) {
 			}
 
 		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
-			if defn.Initorder != InitNotStarted {
+			if defn.Initorder == InitDone {
 				break
 			}
-			defn.Initorder = InitDone
+			defn.Initorder = InitPending
 			for l := defn.Rlist; l != nil; l = l.Next {
 				init1(l.N, out)
 			}
@@ -135,6 +135,7 @@ func init1(n *Node, out **NodeList) {
 				Dump("nonstatic", defn)
 			}
 			*out = list(*out, defn)
+			defn.Initorder = InitDone
 		}
 	}
 
@@ -378,10 +379,6 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 	}
 
 	switch r.Op {
-	//dump("not static", r);
-	default:
-		break
-
 	case ONAME:
 		return staticcopy(l, r, out)
 
@@ -404,12 +401,8 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 
 	case OPTRLIT:
 		switch r.Left.Op {
-		//dump("not static ptrlit", r);
-		default:
-			break
-
-			// Init pointer.
 		case OARRAYLIT, OMAPLIT, OSTRUCTLIT:
+			// Init pointer.
 			a := staticname(r.Left.Type, 1)
 
 			inittemps[r] = a
@@ -421,6 +414,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 			}
 			return true
 		}
+		//dump("not static ptrlit", r);
 
 	case OSTRARRAYBYTE:
 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
@@ -452,7 +446,6 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 		}
 		fallthrough
 
-		// fall through
 	case OSTRUCTLIT:
 		initplan(r)
 
@@ -477,11 +470,21 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 
 		return true
 
-		// TODO: Table-driven map insert.
 	case OMAPLIT:
+		// TODO: Table-driven map insert.
 		break
+
+	case OCLOSURE:
+		if r.Func.Cvars == nil {
+			// Closures with no captured variables are globals,
+			// so the assignment can be done at link time.
+			n := *l
+			gdata(&n, r.Func.Closure.Func.Nname, Widthptr)
+			return true
+		}
 	}
 
+	//dump("not static", r);
 	return false
 }
 

@@ -81,7 +81,7 @@ discussed below, helps manage the code review process through a Google-hosted
 system called <a href="https://code.google.com/p/gerrit/">Gerrit</a>.
 </p>
 
-<h3>Set up authentication for code review</h3>
+<h3 id="auth">Set up authentication for code review</h3>
 
 <p>
 Gerrit uses Google Accounts for authentication. If you don't have
@@ -120,7 +120,7 @@ Your secret authentication token is now in a <code>.gitcookie</code> file
 and Git is configured to use this file.
 </p>
 
-<h3>Register with Gerrit</h3>
+<h3 id="gerrit">Register with Gerrit</h3>
 
 <p>
 Now that you have your authentication token,
@@ -132,7 +132,7 @@ to Google Accounts. Sign in using the same Google Account you used above.
 That is all that is required.
 </p>
 
-<h3>Contributor License Agreement</h3>
+<h3 id="cla">Contributor License Agreement</h3>
 
 <p>Gerrit serves as the gatekeeper and uses your e-mail address as the key.
 To send your first change to the Go project from a given address,
@@ -167,7 +167,14 @@ you can create one by clicking "New Contributor Agreement" and following the ste
 This rigmarole only needs to be done for your first submission for each email address.
 </p>
 
-<h3>Install the git-codereview command</h3>
+<p>
+If the copyright holder for the code you are submitting changes—for example,
+if you start contributing code on behalf of a new company—please send email
+to let us know, so that we can make sure an appropriate agreement is completed
+and update the <code>AUTHORS</code> file.
+</p>
+
+<h3 id="git-codereview">Install the git-codereview command</h3>
 
 <p>
 Now install the <code>git-codereview</code> command by running,
@@ -201,7 +208,7 @@ if you intend to use plain Git for daily work, install the hooks in a new Git
 checkout by running <code>git-codereview</code> <code>hooks</code>.
 </p>
 
-<h3>Set up git aliases</h3>
+<h3 id="git-config">Set up git aliases</h3>
 
 <p>
 The <code>git-codereview</code> command can be run directly from the shell
@@ -243,7 +250,7 @@ To install them, copy this text into your Git configuration file
 	sync = codereview sync
 </pre>
 
-<h3>Understanding the git-codereview command</h3>
+<h3 id="help">Understanding the git-codereview command</h3>
 
 <p>After installing the <code>git-codereview</code> command, you can run</p>
 
@@ -256,7 +263,7 @@ to learn more about its commands.
 You can also read the <a href="https://godoc.org/golang.org/x/review/git-codereview">command documentation</a>.
 </p>
 
-<h3>Switch to the master branch</h3>
+<h3 id="master">Switch to the master branch</h3>
 
 <p>
 Most Go installations use a release branch, but new changes should
@@ -276,7 +283,7 @@ $ git sync
 <code>git</code> <code>pull</code> <code>-r</code>.)
 </p>
 
-<h3>Make a change</h3>
+<h3 id="change">Make a change</h3>
 
 <p>
 The entire checked-out tree is writable.
@@ -405,7 +412,7 @@ Do not edit or delete it.
 runs <code>git</code> <code>commit</code> <code>--amend</code>.)
 </p>
 
-<h3>Mail the change for review</h3>
+<h3 id="mail">Mail the change for review</h3>
 
 <p>
 Once the change is ready, mail it out for review:
@@ -455,7 +462,7 @@ remote: New Changes:
 remote:   https://go-review.googlesource.com/99999 math: improved Sin, Cos and Tan precision for very large arguments
 </pre>
 
-<h3>Reviewing code</h3>
+<h3 id="review">Reviewing code</h3>
 
 <p>
 Running <code>git</code> <code>mail</code> will send an email to you and the
@@ -467,7 +474,7 @@ You must reply through the web interface.
 (Unlike with the old Rietveld review system, replying by mail has no effect.)
 </p>
 
-<h3>Revise and upload</h3>
+<h3 id="revise">Revise and upload</h3>
 
 <p>
 You must respond to review comments through the web interface.
@@ -494,7 +501,7 @@ You can see a list of your pending changes by running <code>git</code>
 <code>change</code> <code><i>&lt;branch&gt;</i></code>.
 </p>
 
-<h3>Synchronize your client</h3>
+<h3 id="sync">Synchronize your client</h3>
 
 <p>
 While you were working, others might have submitted changes to the repository.
@@ -612,7 +619,7 @@ Then run <code>git</code> <code>rebase</code> <code>--continue</code> to
 restore the change commit.
 </p>
 
-<h3>Reviewing code by others</h3>
+<h3 id="download">Reviewing code by others</h3>
 
 <p>
 You can import a change proposed by someone else into your local Git repository.
@@ -629,7 +636,7 @@ $ git fetch https://go.googlesource.com/review refs/changes/21/1221/1 &amp;&amp;
 To revert, change back to the branch you were working in.
 </p>
 
-<h3>Submit the change after the review</h3>
+<h3 id="submit">Submit the change after the review</h3>
 
 <p>
 After the code has been <code>LGTM</code>'ed, an approver may
@@ -648,7 +655,7 @@ the commit hashes in the repository will be changed by
 the submit operation.
 </p>
 
-<h3>More information</h3>
+<h3 id="more">More information</h3>
 
 <p>
 In addition to the information here, the Go community maintains a <a href="https://golang.org/wiki/CodeReview">CodeReview</a> wiki page.
@@ -674,7 +681,7 @@ These files will be periodically updated based on the commit logs.
 <p>Code that you contribute should use the standard copyright header:</p>
 
 <pre>
-// Copyright 2015 The Go Authors. All rights reserved.
+// Copyright 2016 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 </pre>

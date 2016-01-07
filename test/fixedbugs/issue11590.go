@@ -8,4 +8,4 @@ package p
 
 var _ = int8(4) * 300         // ERROR "constant 300 overflows int8" "constant 1200 overflows int8"
 var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64"
-var _ = complex128(1) * 1e500 // ERROR "constant 1\.00000e\+500 overflows complex128"
+var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128"

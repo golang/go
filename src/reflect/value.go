@@ -142,7 +142,7 @@ func unpackEface(i interface{}) Value {
 	if ifaceIndir(t) {
 		f |= flagIndir
 	}
-	return Value{t, unsafe.Pointer(e.word), f}
+	return Value{t, e.word, f}
 }
 
 // A ValueError occurs when a Value method is invoked on
@@ -590,7 +590,7 @@ func storeRcvr(v Value, p unsafe.Pointer) {
 	if t.Kind() == Interface {
 		// the interface data word becomes the receiver word
 		iface := (*nonEmptyInterface)(v.ptr)
-		*(*unsafe.Pointer)(p) = unsafe.Pointer(iface.word)
+		*(*unsafe.Pointer)(p) = iface.word
 	} else if v.flag&flagIndir != 0 && !ifaceIndir(t) {
 		*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
 	} else {
@@ -2086,11 +2086,10 @@ func ValueOf(i interface{}) Value {
 		return Value{}
 	}
 
-	// TODO(rsc): Eliminate this terrible hack.
-	// In the call to unpackEface, i.typ doesn't escape,
-	// and i.word is an integer.  So it looks like
-	// i doesn't escape.  But really it does,
-	// because i.word is actually a pointer.
+	// TODO: Maybe allow contents of a Value to live on the stack.
+	// For now we make the contents always escape to the heap.  It
+	// makes life easier in a few places (see chanrecv/mapassign
+	// comment below).
 	escapes(i)
 
 	return unpackEface(i)
@@ -2446,6 +2445,14 @@ func chancap(ch unsafe.Pointer) int
 func chanclose(ch unsafe.Pointer)
 func chanlen(ch unsafe.Pointer) int
 
+// Note: some of the noescape annotations below are technically a lie,
+// but safe in the context of this package.  Functions like chansend
+// and mapassign don't escape the referent, but may escape anything
+// the referent points to (they do shallow copies of the referent).
+// It is safe in this package because the referent may only point
+// to something a Value may point to, and that is always in the heap
+// (due to the escapes() call in ValueOf).
+
 //go:noescape
 func chanrecv(t *rtype, ch unsafe.Pointer, nb bool, val unsafe.Pointer) (selected, received bool)
 
@@ -2458,6 +2465,7 @@ func makemap(t *rtype) (m unsafe.Pointer)
 //go:noescape
 func mapaccess(t *rtype, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer)
 
+//go:noescape
 func mapassign(t *rtype, m unsafe.Pointer, key, val unsafe.Pointer)
 
 //go:noescape

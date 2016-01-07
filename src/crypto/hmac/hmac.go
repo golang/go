@@ -26,8 +26,8 @@ import (
 	"hash"
 )
 
-// FIPS 198:
-// http://csrc.nist.gov/publications/fips/fips198/fips-198a.pdf
+// FIPS 198-1:
+// http://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
 
 // key is zero padded to the block size of the hash function
 // ipad = 0x36 byte repeated for key length

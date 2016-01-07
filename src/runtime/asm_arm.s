@@ -1030,3 +1030,8 @@ TEXT runtime·addmoduledata(SB),NOSPLIT,$0-4
 	MOVW	saver9-4(SP), R9
 	RET
 #endif
+
+TEXT ·checkASM(SB),NOSPLIT,$0-1
+	MOVW	$1, R3
+	MOVB	R3, ret+0(FP)
+	RET

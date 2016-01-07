@@ -341,25 +341,57 @@ var montgomeryTests = []struct {
 		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
 		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
 		"0xfffffffffffffffffffffffffffffffffffffffffffffffff",
-		0x0000000000000000,
-		"0xffffffffffffffffffffffffffffffffffffffffff",
-		"0xffffffffffffffffffffffffffffffffff",
+		1,
+		"0x1000000000000000000000000000000000000000000",
+		"0x10000000000000000000000000000000000",
+	},
+	{
+		"0x000000000ffffff5",
+		"0x000000000ffffff0",
+		"0x0000000010000001",
+		0xff0000000fffffff,
+		"0x000000000bfffff4",
+		"0x0000000003400001",
 	},
 	{
 		"0x0000000080000000",
 		"0x00000000ffffffff",
-		"0x0000000010000001",
-		0xff0000000fffffff,
-		"0x0000000088000000",
-		"0x0000000007800001",
+		"0x1000000000000001",
+		0xfffffffffffffff,
+		"0x0800000008000001",
+		"0x0800000008000001",
 	},
 	{
-		"0xffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
-		"0xffffffffffffffffffffffffffffffff999999999999999aaabbbbbbbbcccccccccccc",
+		"0x0000000080000000",
+		"0x0000000080000000",
+		"0xffffffff00000001",
+		0xfffffffeffffffff,
+		"0xbfffffff40000001",
+		"0xbfffffff40000001",
+	},
+	{
+		"0x0000000080000000",
+		"0x0000000080000000",
+		"0x00ffffff00000001",
+		0xfffffeffffffff,
+		"0xbfffff40000001",
+		"0xbfffff40000001",
+	},
+	{
+		"0x0000000080000000",
+		"0x0000000080000000",
+		"0x0000ffff00000001",
+		0xfffeffffffff,
+		"0xbfff40000001",
+		"0xbfff40000001",
+	},
+	{
+		"0x3321ffffffffffffffffffffffffffff00000000000022222623333333332bbbb888c0",
+		"0x3321ffffffffffffffffffffffffffff00000000000022222623333333332bbbb888c0",
 		"0x33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1",
 		0xdecc8f1249812adf,
-		"0x22bb05b6d95eaaeca2bb7c05e51f807bce9064b5fbad177161695e4558f9474e91cd79",
-		"0x14beb58d230f85b6d95eaaeca2bb7c05e51f807bce9064b5fb45669afa695f228e48cd",
+		"0x04eb0e11d72329dc0915f86784820fc403275bf2f6620a20e0dd344c5cd0875e50deb5",
+		"0x0d7144739a7d8e11d72329dc0915f86784820fc403275bf2f61ed96f35dd34dbb3d6a0",
 	},
 	{
 		"0x10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
@@ -372,10 +404,27 @@ var montgomeryTests = []struct {
 }
 
 func TestMontgomery(t *testing.T) {
+	one := NewInt(1)
+	_B := new(Int).Lsh(one, _W)
 	for i, test := range montgomeryTests {
 		x := natFromString(test.x)
 		y := natFromString(test.y)
 		m := natFromString(test.m)
+		for len(x) < len(m) {
+			x = append(x, 0)
+		}
+		for len(y) < len(m) {
+			y = append(y, 0)
+		}
+
+		if x.cmp(m) > 0 {
+			_, r := nat(nil).div(nil, x, m)
+			t.Errorf("#%d: x > m (0x%s > 0x%s; use 0x%s)", i, x.utoa(16), m.utoa(16), r.utoa(16))
+		}
+		if y.cmp(m) > 0 {
+			_, r := nat(nil).div(nil, x, m)
+			t.Errorf("#%d: y > m (0x%s > 0x%s; use 0x%s)", i, y.utoa(16), m.utoa(16), r.utoa(16))
+		}
 
 		var out nat
 		if _W == 32 {
@@ -384,11 +433,31 @@ func TestMontgomery(t *testing.T) {
 			out = natFromString(test.out64)
 		}
 
-		k0 := Word(test.k0 & _M) // mask k0 to ensure that it fits for 32-bit systems.
+		// t.Logf("#%d: len=%d\n", i, len(m))
+
+		// check output in table
+		xi := &Int{abs: x}
+		yi := &Int{abs: y}
+		mi := &Int{abs: m}
+		p := new(Int).Mod(new(Int).Mul(xi, new(Int).Mul(yi, new(Int).ModInverse(new(Int).Lsh(one, uint(len(m))*_W), mi))), mi)
+		if out.cmp(p.abs.norm()) != 0 {
+			t.Errorf("#%d: out in table=0x%s, computed=0x%s", i, out.utoa(16), p.abs.norm().utoa(16))
+		}
+
+		// check k0 in table
+		k := new(Int).Mod(&Int{abs: m}, _B)
+		k = new(Int).Sub(_B, k)
+		k = new(Int).Mod(k, _B)
+		k0 := Word(new(Int).ModInverse(k, _B).Uint64())
+		if k0 != Word(test.k0) {
+			t.Errorf("#%d: k0 in table=%#x, computed=%#x\n", i, test.k0, k0)
+		}
+
+		// check montgomery with correct k0 produces correct output
 		z := nat(nil).montgomery(x, y, m, k0, len(m))
 		z = z.norm()
 		if z.cmp(out) != 0 {
-			t.Errorf("#%d got %s want %s", i, z.utoa(10), out.utoa(10))
+			t.Errorf("#%d: got 0x%s want 0x%s", i, z.utoa(16), out.utoa(16))
 		}
 	}
 }
@@ -413,6 +482,12 @@ var expNNTests = []struct {
 		"298472983472983471903246121093472394872319615612417471234712061",
 		"29834729834729834729347290846729561262544958723956495615629569234729836259263598127342374289365912465901365498236492183464",
 		"23537740700184054162508175125554701713153216681790245129157191391322321508055833908509185839069455749219131480588829346291",
+	},
+	{
+		"11521922904531591643048817447554701904414021819823889996244743037378330903763518501116638828335352811871131385129455853417360623007349090150042001944696604737499160174391019030572483602867266711107136838523916077674888297896995042968746762200926853379",
+		"426343618817810911523",
+		"444747819283133684179",
+		"42",
 	},
 }
 

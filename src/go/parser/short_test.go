@@ -121,6 +121,10 @@ var invalids = []string{
 	`package p; type _ struct { ( /* ERROR "expected anonymous field" */ int) };`,
 	`package p; func _()(x, y, z ... /* ERROR "expected '\)', found '...'" */ int){}`,
 	`package p; func _()(... /* ERROR "expected type, found '...'" */ int){}`,
+
+	// issue 13475
+	`package p; func f() { if true {} else ; /* ERROR "expected if statement or block" */ }`,
+	`package p; func f() { if true {} else defer /* ERROR "expected if statement or block" */ f() }`,
 }
 
 func TestInvalid(t *testing.T) {

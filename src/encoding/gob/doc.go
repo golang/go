@@ -147,18 +147,21 @@ pairs. Empty but non-nil maps are sent, so if the receiver has not allocated
 one already, one will always be allocated on receipt unless the transmitted map
 is nil and not at the top level.
 
+In slices and arrays, as well as maps, all elements, even zero-valued elements,
+are transmitted, even if all the elements are zero.
+
 Structs are sent as a sequence of (field number, field value) pairs.  The field
 value is sent using the standard gob encoding for its type, recursively.  If a
-field has the zero value for its type, it is omitted from the transmission.  The
-field number is defined by the type of the encoded struct: the first field of the
-encoded type is field 0, the second is field 1, etc.  When encoding a value, the
-field numbers are delta encoded for efficiency and the fields are always sent in
-order of increasing field number; the deltas are therefore unsigned.  The
-initialization for the delta encoding sets the field number to -1, so an unsigned
-integer field 0 with value 7 is transmitted as unsigned delta = 1, unsigned value
-= 7 or (01 07).  Finally, after all the fields have been sent a terminating mark
-denotes the end of the struct.  That mark is a delta=0 value, which has
-representation (00).
+field has the zero value for its type (except for arrays; see above), it is omitted
+from the transmission.  The field number is defined by the type of the encoded
+struct: the first field of the encoded type is field 0, the second is field 1,
+etc.  When encoding a value, the field numbers are delta encoded for efficiency
+and the fields are always sent in order of increasing field number; the deltas are
+therefore unsigned.  The initialization for the delta encoding sets the field
+number to -1, so an unsigned integer field 0 with value 7 is transmitted as unsigned
+delta = 1, unsigned value = 7 or (01 07).  Finally, after all the fields have been
+sent a terminating mark denotes the end of the struct.  That mark is a delta=0
+value, which has representation (00).
 
 Interface types are not checked for compatibility; all interface types are
 treated, for transmission, as members of a single "interface" type, analogous to

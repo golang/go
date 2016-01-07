@@ -20,6 +20,12 @@ x_cgo_init(G *g, void (*setg)(void*))
 	if (getcontext(&ctx) != 0)
 		perror("runtime/cgo: getcontext failed");
 	g->stacklo = (uintptr_t)ctx.uc_stack.ss_sp;
+
+	// Solaris processes report a tiny stack when run with "ulimit -s unlimited".
+	// Correct that as best we can: assume it's at least 1 MB.
+	// See golang.org/issue/12210.
+	if(ctx.uc_stack.ss_size < 1024*1024)
+		g->stacklo -= 1024*1024 - ctx.uc_stack.ss_size;
 }
 
 void

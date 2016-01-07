@@ -500,7 +500,7 @@ func TestOutputDebugString(t *testing.T) {
 }
 
 func TestRaiseException(t *testing.T) {
-	o := executeTest(t, raiseExceptionSource, nil)
+	o := runTestProg(t, "testprog", "RaiseException")
 	if strings.Contains(o, "RaiseException should not return") {
 		t.Fatalf("RaiseException did not crash program: %v", o)
 	}
@@ -509,34 +509,12 @@ func TestRaiseException(t *testing.T) {
 	}
 }
 
-const raiseExceptionSource = `
-package main
-import "syscall"
-func main() {
-	const EXCEPTION_NONCONTINUABLE = 1
-	mod := syscall.MustLoadDLL("kernel32.dll")
-	proc := mod.MustFindProc("RaiseException")
-	proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
-	println("RaiseException should not return")
-}
-`
-
 func TestZeroDivisionException(t *testing.T) {
-	o := executeTest(t, zeroDivisionExceptionSource, nil)
+	o := runTestProg(t, "testprog", "ZeroDivisionException")
 	if !strings.Contains(o, "panic: runtime error: integer divide by zero") {
 		t.Fatalf("No stack trace: %v", o)
 	}
 }
-
-const zeroDivisionExceptionSource = `
-package main
-func main() {
-	x := 1
-	y := 0
-	z := x / y
-	println(z)
-}
-`
 
 func TestWERDialogue(t *testing.T) {
 	if os.Getenv("TESTING_WER_DIALOGUE") == "1" {
@@ -639,13 +617,6 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 	want := result{r: 100, err: 333}
 	if got := <-c; got != want {
 		t.Errorf("got %d want %d", got, want)
-	}
-}
-
-func TestTimeBeginPeriod(t *testing.T) {
-	const TIMERR_NOERROR = 0
-	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
-		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
 	}
 }
 

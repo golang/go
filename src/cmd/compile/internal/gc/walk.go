@@ -299,21 +299,16 @@ func walkstmt(np **Node) {
 				}
 			}
 
+			if got, want := count(n.List), count(rl); got != want {
+				// order should have rewritten multi-value function calls
+				// with explicit OAS2FUNC nodes.
+				Fatalf("expected %v return arguments, have %v", want, got)
+			}
+
 			if samelist(rl, n.List) {
 				// special return in disguise
 				n.List = nil
 
-				break
-			}
-
-			if count(n.List) == 1 && count(rl) > 1 {
-				// OAS2FUNC in disguise
-				f := n.List.N
-
-				if f.Op != OCALLFUNC && f.Op != OCALLMETH && f.Op != OCALLINTER {
-					Fatalf("expected return of call, have %v", f)
-				}
-				n.List = concat(list1(f), ascompatet(n.Op, rl, &f.Type, 0, &n.Ninit))
 				break
 			}
 
@@ -322,6 +317,9 @@ func walkstmt(np **Node) {
 
 			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
 			n.List = reorder3(ll)
+			for lr := n.List; lr != nil; lr = lr.Next {
+				lr.N = applywritebarrier(lr.N, &n.Ninit)
+			}
 			break
 		}
 
@@ -787,14 +785,12 @@ opswitch:
 		t := r.Left.Type
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch Simsimtype(t.Down) {
-			case TINT32, TUINT32:
+			switch algtype(t.Down) {
+			case AMEM32:
 				p = "mapaccess2_fast32"
-
-			case TINT64, TUINT64:
+			case AMEM64:
 				p = "mapaccess2_fast64"
-
-			case TSTRING:
+			case ASTRING:
 				p = "mapaccess2_faststr"
 			}
 		}
@@ -1203,14 +1199,12 @@ opswitch:
 		t := n.Left.Type
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch Simsimtype(t.Down) {
-			case TINT32, TUINT32:
+			switch algtype(t.Down) {
+			case AMEM32:
 				p = "mapaccess1_fast32"
-
-			case TINT64, TUINT64:
+			case AMEM64:
 				p = "mapaccess1_fast64"
-
-			case TSTRING:
+			case ASTRING:
 				p = "mapaccess1_faststr"
 			}
 		}

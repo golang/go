@@ -104,3 +104,13 @@ func TestDecimalRounding(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkDecimalConversion(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for shift := -100; shift <= +100; shift++ {
+			var d decimal
+			d.init(natOne, shift)
+			d.String()
+		}
+	}
+}

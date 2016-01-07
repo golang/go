@@ -7,7 +7,7 @@
 package main
 
 import (
-	"cmd/vet/whitelist"
+	"cmd/vet/internal/whitelist"
 	"flag"
 	"go/ast"
 	"strings"

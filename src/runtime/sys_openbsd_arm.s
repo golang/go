@@ -208,7 +208,19 @@ TEXT runtime·sigprocmask(SB),NOSPLIT,$0
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+	MOVW	sig+4(FP), R0
+	MOVW	info+8(FP), R1
+	MOVW	ctx+12(FP), R2
+	MOVW	fn+0(FP), R11
+	MOVW	R13, R4
+	SUB	$24, R13
+	BIC	$0x7, R13 // alignment for ELF ABI
+	BL	(R11)
+	MOVW	R4, R13
+	RET
+
+TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	// If called from an external code context, g will not be set.
 	// Save R0, since runtime·load_g will clobber it.
 	MOVW	R0, 4(R13)		// signum
@@ -216,30 +228,9 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
 	CMP	$0, R0
 	BL.NE	runtime·load_g(SB)
 
-	CMP	$0, g
-	BNE	4(PC)
-	// Signal number saved in 4(R13).
-	MOVW	runtime·badsignal(SB), R11
-	BL	(R11)
-	RET
-
-	// Save g.
-	MOVW	g, R3
-	MOVW	g, 20(R13)
-
-	// g = m->signal
-	MOVW	g_m(g), R8
-	MOVW	m_gsignal(R8), g
-
-	// R0 already saved.
-	MOVW	R1, 8(R13)		// info
-	MOVW	R2, 12(R13)		// context
-	MOVW	R3, 16(R13)		// gp (original g)
-
-	BL	runtime·sighandler(SB)
-
-	// Restore g.
-	MOVW	20(R13), g
+	MOVW	R1, 8(R13)
+	MOVW	R2, 12(R13)
+	BL	runtime·sigtrampgo(SB)
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));

@@ -22,6 +22,7 @@ const (
 )
 
 var traceback_cache uint32 = 2 << tracebackShift
+var traceback_env uint32
 
 // gotraceback returns the current traceback settings.
 //
@@ -39,9 +40,10 @@ func gotraceback() (level int32, all, crash bool) {
 		level = int32(_g_.m.traceback)
 		return
 	}
-	crash = traceback_cache&tracebackCrash != 0
-	all = all || traceback_cache&tracebackAll != 0
-	level = int32(traceback_cache >> tracebackShift)
+	t := atomic.Load(&traceback_cache)
+	crash = t&tracebackCrash != 0
+	all = all || t&tracebackAll != 0
+	level = int32(t >> tracebackShift)
 	return
 }
 
@@ -296,6 +298,10 @@ func check() {
 	if _FixedStack != round2(_FixedStack) {
 		throw("FixedStack is not power-of-2")
 	}
+
+	if !checkASM() {
+		throw("assembly checks failed")
+	}
 }
 
 type dbgVar struct {
@@ -378,25 +384,8 @@ func parsedebugvars() {
 		}
 	}
 
-	switch p := gogetenv("GOTRACEBACK"); p {
-	case "none":
-		traceback_cache = 0
-	case "single", "":
-		traceback_cache = 1 << tracebackShift
-	case "all":
-		traceback_cache = 1<<tracebackShift | tracebackAll
-	case "system":
-		traceback_cache = 2<<tracebackShift | tracebackAll
-	case "crash":
-		traceback_cache = 2<<tracebackShift | tracebackAll | tracebackCrash
-	default:
-		traceback_cache = uint32(atoi(p))<<tracebackShift | tracebackAll
-	}
-	// when C owns the process, simply exit'ing the process on fatal errors
-	// and panics is surprising. Be louder and abort instead.
-	if islibrary || isarchive {
-		traceback_cache |= tracebackCrash
-	}
+	setTraceback(gogetenv("GOTRACEBACK"))
+	traceback_env = traceback_cache
 
 	if debug.gcstackbarrierall > 0 {
 		firstStackBarrierOffset = 0
@@ -408,6 +397,34 @@ func parsedebugvars() {
 		writeBarrier.cgo = true
 		writeBarrier.enabled = true
 	}
+}
+
+//go:linkname setTraceback runtime/debug.SetTraceback
+func setTraceback(level string) {
+	var t uint32
+	switch level {
+	case "none":
+		t = 0
+	case "single", "":
+		t = 1 << tracebackShift
+	case "all":
+		t = 1<<tracebackShift | tracebackAll
+	case "system":
+		t = 2<<tracebackShift | tracebackAll
+	case "crash":
+		t = 2<<tracebackShift | tracebackAll | tracebackCrash
+	default:
+		t = uint32(atoi(level))<<tracebackShift | tracebackAll
+	}
+	// when C owns the process, simply exit'ing the process on fatal errors
+	// and panics is surprising. Be louder and abort instead.
+	if islibrary || isarchive {
+		t |= tracebackCrash
+	}
+
+	t |= traceback_env
+
+	atomic.Store(&traceback_cache, t)
 }
 
 // Poor mans 64-bit division.

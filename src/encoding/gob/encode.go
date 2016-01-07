@@ -10,6 +10,7 @@ import (
 	"encoding"
 	"math"
 	"reflect"
+	"sync"
 )
 
 const uint64Size = 8
@@ -36,6 +37,14 @@ type encBuffer struct {
 	scratch [64]byte
 }
 
+var encBufferPool = sync.Pool{
+	New: func() interface{} {
+		e := new(encBuffer)
+		e.data = e.scratch[0:0]
+		return e
+	},
+}
+
 func (e *encBuffer) WriteByte(c byte) {
 	e.data = append(e.data, c)
 }
@@ -58,7 +67,11 @@ func (e *encBuffer) Bytes() []byte {
 }
 
 func (e *encBuffer) Reset() {
-	e.data = e.data[0:0]
+	if len(e.data) >= tooBig {
+		e.data = e.scratch[0:0]
+	} else {
+		e.data = e.data[0:0]
+	}
 }
 
 func (enc *Encoder) newEncoderState(b *encBuffer) *encoderState {
@@ -407,7 +420,7 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	// Encode the value into a new buffer.  Any nested type definitions
 	// should be written to b, before the encoded value.
 	enc.pushWriter(b)
-	data := new(encBuffer)
+	data := encBufferPool.Get().(*encBuffer)
 	data.Write(spaceForLength)
 	enc.encode(data, elem, ut)
 	if enc.err != nil {
@@ -415,6 +428,8 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	}
 	enc.popWriter()
 	enc.writeMessage(b, data)
+	data.Reset()
+	encBufferPool.Put(data)
 	if enc.err != nil {
 		error_(enc.err)
 	}

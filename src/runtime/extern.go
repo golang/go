@@ -127,6 +127,10 @@ manner instead of exiting. For example, on Unix systems, the crash raises
 SIGABRT to trigger a core dump.
 For historical reasons, the GOTRACEBACK settings 0, 1, and 2 are synonyms for
 none, all, and system, respectively.
+The runtime/debug package's SetTraceback function allows increasing the
+amount of output at run time, but it cannot reduce the amount below that
+specified by the environment variable.
+See https://golang.org/pkg/runtime/debug/#SetTraceback.
 
 The GOARCH, GOOS, GOPATH, and GOROOT environment variables complete
 the set of Go environment variables. They influence the building of Go programs

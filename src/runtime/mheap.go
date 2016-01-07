@@ -429,8 +429,6 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 	}
 
 	// transfer stats from cache to global
-	memstats.heap_live += uint64(_g_.m.mcache.local_cachealloc)
-	_g_.m.mcache.local_cachealloc = 0
 	memstats.heap_scan += uint64(_g_.m.mcache.local_scan)
 	_g_.m.mcache.local_scan = 0
 	memstats.tinyallocs += uint64(_g_.m.mcache.local_tinyallocs)
@@ -464,7 +462,7 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 		h.pagesInUse += uint64(npage)
 		if large {
 			memstats.heap_objects++
-			memstats.heap_live += uint64(npage << _PageShift)
+			atomic.Xadd64(&memstats.heap_live, int64(npage<<_PageShift))
 			// Swept spans are at the end of lists.
 			if s.npages < uintptr(len(h.free)) {
 				h.busy[s.npages].insertBack(s)
@@ -713,8 +711,6 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
 	systemstack(func() {
 		mp := getg().m
 		lock(&h.lock)
-		memstats.heap_live += uint64(mp.mcache.local_cachealloc)
-		mp.mcache.local_cachealloc = 0
 		memstats.heap_scan += uint64(mp.mcache.local_scan)
 		mp.mcache.local_scan = 0
 		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
@@ -723,12 +719,10 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
 			memstats.heap_objects--
 		}
 		if gcBlackenEnabled != 0 {
+			// heap_scan changed.
 			gcController.revise()
 		}
 		h.freeSpanLocked(s, true, true, 0)
-		if trace.enabled {
-			traceHeapAlloc()
-		}
 		unlock(&h.lock)
 	})
 }

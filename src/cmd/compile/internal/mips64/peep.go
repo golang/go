@@ -687,7 +687,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	case obj.APCDATA,
 		obj.AFUNCDATA,
 		obj.AVARDEF,
-		obj.AVARKILL:
+		obj.AVARKILL,
+		obj.AUSEFIELD:
 		return 0
 	}
 }

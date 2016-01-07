@@ -7,5 +7,3 @@ package sync
 // Export for testing.
 var Runtime_Semacquire = runtime_Semacquire
 var Runtime_Semrelease = runtime_Semrelease
-
-const RaceEnabled = raceenabled

@@ -266,7 +266,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// if both arguments are constants, the result is a constant
 		if x.mode == constant_ && y.mode == constant_ {
-			x.val = constant.BinaryOp(x.val, token.ADD, constant.MakeImag(y.val))
+			x.val = constant.BinaryOp(constant.ToFloat(x.val), token.ADD, constant.MakeImag(constant.ToFloat(y.val)))
 		} else {
 			x.mode = value
 		}

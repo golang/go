@@ -20,7 +20,7 @@ func (file *File) Stat() (FileInfo, error) {
 	}
 	if file.isdir() {
 		// I don't know any better way to do that for directory
-		return Stat(file.name)
+		return Stat(file.dirinfo.path)
 	}
 	if file.name == DevNull {
 		return &devNullStat, nil

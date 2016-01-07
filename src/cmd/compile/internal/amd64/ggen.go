@@ -365,24 +365,25 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
 	gc.Cgenr(nr, &n2, nil)
-	var ax gc.Node
-	gc.Nodreg(&ax, t, x86.REG_AX)
+	var ax, oldax, dx, olddx gc.Node
+	savex(x86.REG_AX, &ax, &oldax, res, gc.Types[gc.TUINT64])
+	savex(x86.REG_DX, &dx, &olddx, res, gc.Types[gc.TUINT64])
 	gmove(&n1, &ax)
 	gins(a, &n2, nil)
 	gc.Regfree(&n2)
 	gc.Regfree(&n1)
 
-	var dx gc.Node
 	if t.Width == 1 {
 		// byte multiply behaves differently.
-		gc.Nodreg(&ax, t, x86.REG_AH)
-
-		gc.Nodreg(&dx, t, x86.REG_DX)
-		gmove(&ax, &dx)
+		var byteAH, byteDX gc.Node
+		gc.Nodreg(&byteAH, t, x86.REG_AH)
+		gc.Nodreg(&byteDX, t, x86.REG_DX)
+		gmove(&byteAH, &byteDX)
 	}
-
-	gc.Nodreg(&dx, t, x86.REG_DX)
 	gmove(&dx, res)
+
+	restx(&ax, &oldax)
+	restx(&dx, &olddx)
 }
 
 /*

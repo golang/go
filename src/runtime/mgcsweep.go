@@ -95,6 +95,9 @@ func sweepone() uintptr {
 		if idx >= uint32(len(work.spans)) {
 			mheap_.sweepdone = 1
 			_g_.m.locks--
+			if debug.gcpacertrace > 0 && idx == uint32(len(work.spans)) {
+				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages\n")
+			}
 			return ^uintptr(0)
 		}
 		s := work.spans[idx]
@@ -393,7 +396,9 @@ func reimburseSweepCredit(unusableBytes uintptr) {
 		// Nobody cares about the credit. Avoid the atomic.
 		return
 	}
-	atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))
+	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
+		throw("spanBytesAlloc underflow")
+	}
 }
 
 func dumpFreeList(s *mspan) {
