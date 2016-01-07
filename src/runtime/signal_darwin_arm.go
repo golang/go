@@ -42,3 +42,24 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().r[10] = x }
 
 func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint32) { c.info.si_addr = x }
+
+func (c *sigctxt) fixsigcode(sig uint32) {
+	switch sig {
+	case _SIGTRAP:
+		// OS X sets c.sigcode() == TRAP_BRKPT unconditionally for all SIGTRAPs,
+		// leaving no way to distinguish a breakpoint-induced SIGTRAP
+		// from an asynchronous signal SIGTRAP.
+		// They all look breakpoint-induced by default.
+		// Try looking at the code to see if it's a breakpoint.
+		// The assumption is that we're very unlikely to get an
+		// asynchronous SIGTRAP at just the moment that the
+		// PC started to point at unmapped memory.
+		pc := uintptr(c.pc())
+		// OS X will leave the pc just after the instruction.
+		code := (*uint32)(unsafe.Pointer(pc - 4))
+		if *code != 0xe7f001f0 {
+			// SIGTRAP on something other than breakpoint.
+			c.set_sigcode(_SI_USER)
+		}
+	}
+}

@@ -85,6 +85,8 @@ func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Poi
 	}
 
 	setg(g.m.gsignal)
+	c := &sigctxt{info, ctx}
+	c.fixsigcode(sig)
 	sighandler(sig, info, ctx, g)
 	setg(g)
 	sigreturn(ctx, infostyle)
