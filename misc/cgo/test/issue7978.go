@@ -110,13 +110,13 @@ func test7978(t *testing.T) {
 	go issue7978go()
 	// test in c code, before callback
 	issue7978wait(0, 1)
-	issue7978check(t, "runtime.cgocall(", "", 1)
+	issue7978check(t, "_Cfunc_issue7978c(", "", 1)
 	// test in go code, during callback
 	issue7978wait(2, 3)
 	issue7978check(t, "test.issue7978cb(", "test.issue7978go", 3)
 	// test in c code, after callback
 	issue7978wait(4, 5)
-	issue7978check(t, "runtime.cgocall(", "runtime.cgocallback", 1)
+	issue7978check(t, "_Cfunc_issue7978c(", "_cgoexpwrap", 1)
 	// test in go code, after return from cgo
 	issue7978wait(6, 7)
 	issue7978check(t, "test.issue7978go(", "", 3)
