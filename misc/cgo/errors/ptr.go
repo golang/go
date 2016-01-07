@@ -107,6 +107,16 @@ var ptrTests = []ptrTest{
 		fail:    false,
 	},
 	{
+		// Passing the address of a slice of an array that is
+		// an element in a struct, with a type conversion.
+		name:    "slice-ok-3",
+		c:       `void f(void* p) {}`,
+		imports: []string{"unsafe"},
+		support: `type S struct { p *int; a [4]byte }`,
+		body:    `i := 0; p := &S{p:&i}; s := p.a[:]; C.f(unsafe.Pointer(&s[0]))`,
+		fail:    false,
+	},
+	{
 		// Passing the address of a static variable with no
 		// pointers doesn't matter.
 		name:    "varok",

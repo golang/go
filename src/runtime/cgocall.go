@@ -354,7 +354,7 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 	t := ep._type
 
 	top := true
-	if len(args) > 0 && t.kind&kindMask == kindPtr {
+	if len(args) > 0 && (t.kind&kindMask == kindPtr || t.kind&kindMask == kindUnsafePointer) {
 		p := ep.data
 		if t.kind&kindDirectIface == 0 {
 			p = *(*unsafe.Pointer)(p)
@@ -365,6 +365,10 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 		aep := (*eface)(unsafe.Pointer(&args[0]))
 		switch aep._type.kind & kindMask {
 		case kindBool:
+			if t.kind&kindMask == kindUnsafePointer {
+				// We don't know the type of the element.
+				break
+			}
 			pt := (*ptrtype)(unsafe.Pointer(t))
 			cgoCheckArg(pt.elem, p, true, false, cgoCheckPointerFail)
 			return ptr
