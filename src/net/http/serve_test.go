@@ -1077,7 +1077,7 @@ Try:
 		}
 	}
 	if !ok {
-		t.Fatal("Failed to start up after %d tries", maxTries)
+		t.Fatalf("Failed to start up after %d tries", maxTries)
 	}
 	defer ln.Close()
 	c, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
@@ -2496,7 +2496,7 @@ func TestHijackBeforeRequestBodyRead(t *testing.T) {
 		gone := w.(CloseNotifier).CloseNotify()
 		slurp, err := ioutil.ReadAll(reqBody)
 		if err != nil {
-			t.Error("Body read: %v", err)
+			t.Errorf("Body read: %v", err)
 			return
 		}
 		if len(slurp) != len(requestBody) {
