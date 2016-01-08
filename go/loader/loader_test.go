@@ -399,9 +399,8 @@ func TestCwd(t *testing.T) {
 
 func TestLoad_vendor(t *testing.T) {
 	if !go16 {
-		// Vendoring requires Go 1.6.
 		// TODO(adonovan): delete in due course.
-		t.Skip()
+		t.Skipf("vendoring requires Go 1.6")
 	}
 	pkgs := map[string]string{
 		"a":          `package a; import _ "x"`,
@@ -437,9 +436,8 @@ func TestLoad_vendor(t *testing.T) {
 
 func TestVendorCwd(t *testing.T) {
 	if !go16 {
-		// Vendoring requires Go 1.6.
 		// TODO(adonovan): delete in due course.
-		t.Skip()
+		t.Skipf("vendoring requires Go 1.6")
 	}
 	// Test the interaction of cwd and vendor directories.
 	ctxt := fakeContext(map[string]string{
