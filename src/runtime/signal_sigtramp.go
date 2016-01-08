@@ -9,7 +9,9 @@ package runtime
 import "unsafe"
 
 // Continuation of the (assembly) sigtramp() logic.
+// This may be called with the world stopped.
 //go:nosplit
+//go:nowritebarrierrec
 func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if sigfwdgo(sig, info, ctx) {
 		return
