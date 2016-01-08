@@ -174,6 +174,7 @@ func absDomainName(b []byte) string {
 	for _, x := range b {
 		if x == '.' {
 			hasDots = true
+			break
 		}
 	}
 	if hasDots && b[len(b)-1] != '.' {
