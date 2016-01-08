@@ -308,7 +308,7 @@ func (conf *Config) ImportWithTests(path string) { conf.addImport(path, true) }
 func (conf *Config) Import(path string) { conf.addImport(path, false) }
 
 func (conf *Config) addImport(path string, tests bool) {
-	if path == "C" || path == "unsafe" {
+	if path == "C" {
 		return // ignore; not a real package
 	}
 	if conf.ImportPkgs == nil {
@@ -718,6 +718,9 @@ func (conf *Config) build() *build.Context {
 //    'x': include external *_test.go source files. (XTestGoFiles)
 //
 func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.File, []error) {
+	if bp.Goroot && bp.ImportPath == "unsafe" {
+		return nil, nil
+	}
 	var filenames []string
 	switch which {
 	case 'g':
@@ -756,11 +759,6 @@ func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.Fil
 // Idempotent.
 //
 func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, error) {
-	// Package unsafe is handled specially, and has no PackageInfo.
-	// (Let's assume there is no "vendor/unsafe" package.)
-	if to == "unsafe" {
-		return types.Unsafe, nil
-	}
 	if to == "C" {
 		// This should be unreachable, but ad hoc packages are
 		// not currently subject to cgo preprocessing.
@@ -772,6 +770,12 @@ func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, err
 	bp, err := imp.findPackage(to, from.dir, 0)
 	if err != nil {
 		return nil, err
+	}
+
+	// The standard unsafe package is handled specially,
+	// and has no PackageInfo.
+	if bp.Goroot && bp.ImportPath == "unsafe" {
+		return types.Unsafe, nil
 	}
 
 	// Look for the package in the cache using its canonical path.

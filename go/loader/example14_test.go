@@ -83,7 +83,7 @@ func ExampleConfig_FromArgs() {
 	// created: []
 	// imported: [errors runtime unicode/utf8]
 	// initial: [errors runtime unicode/utf8]
-	// all: [errors runtime unicode/utf8]
+	// all: [errors runtime unicode/utf8 unsafe]
 }
 
 // This example creates and type-checks a single package (without tests)
@@ -139,7 +139,7 @@ func ExampleConfig_CreateFromFiles() {
 	// created: [hello]
 	// imported: []
 	// initial: [hello]
-	// all: [errors fmt hello io math os reflect runtime strconv sync sync/atomic syscall time unicode/utf8]
+	// all: [errors fmt hello io math os reflect runtime strconv sync sync/atomic syscall time unicode/utf8 unsafe]
 	// strconv.Files: [atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go isprint.go itoa.go quote.go]
 }
 
@@ -167,7 +167,7 @@ func ExampleConfig_Import() {
 	// created: [strconv_test]
 	// imported: [errors strconv unicode/utf8]
 	// initial: [errors strconv strconv_test unicode/utf8]
-	// all: [bufio bytes errors flag fmt io math math/rand os reflect runtime runtime/pprof sort strconv strconv_test strings sync sync/atomic syscall testing text/tabwriter time unicode unicode/utf8]
+	// all: [bufio bytes errors flag fmt io math math/rand os reflect runtime runtime/pprof sort strconv strconv_test strings sync sync/atomic syscall testing text/tabwriter time unicode unicode/utf8 unsafe]
 	// strconv.Files: [atob.go atof.go atoi.go decimal.go extfloat.go ftoa.go isprint.go itoa.go quote.go internal_test.go]
 	// strconv_test.Files: [atob_test.go atof_test.go atoi_test.go decimal_test.go fp_test.go ftoa_test.go itoa_test.go quote_example_test.go quote_test.go strconv_test.go]
 }

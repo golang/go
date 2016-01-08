@@ -103,8 +103,8 @@ func scanImports(files []*ast.File) map[string]bool {
 					if err != nil {
 						continue // quietly ignore the error
 					}
-					if path == "C" || path == "unsafe" {
-						continue // skip pseudo packages
+					if path == "C" {
+						continue // skip pseudopackage
 					}
 					imports[path] = true
 				}
