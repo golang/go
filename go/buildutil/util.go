@@ -90,15 +90,6 @@ func dirHasPrefix(dir, prefix string) bool {
 	return len(dir) >= len(prefix) && strings.EqualFold(dir[:len(prefix)], prefix)
 }
 
-// StripVendor removes the "vendor" segment and all preceding ones
-// from a slash-segmented path.  (See go/build.AllowVendor.)
-func StripVendor(path string) string {
-	if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
-		return path[i+len("/vendor/"):]
-	}
-	return strings.TrimPrefix(path, "vendor/")
-}
-
 // -- Effective methods of file system interface -------------------------
 
 // (go/build.Context defines these as methods, but does not export them.)

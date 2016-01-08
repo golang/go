@@ -82,7 +82,7 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 				defer wg.Done()
 
 				sema <- 1
-				bp, err := ctxt.Import(path, "", buildutil.AllowVendor)
+				bp, err := ctxt.Import(path, "", 0)
 				<-sema
 
 				if err != nil {
@@ -105,25 +105,22 @@ func Build(ctxt *build.Context) (forward, reverse Graph, errors map[string]error
 				//     840ms: nonblocking cache with duplicate suppression
 				//     340ms: original code (no vendor check)
 				// TODO(adonovan): optimize, somehow.
-				absolutize := func(path string) string { return path }
-				if buildutil.AllowVendor != 0 {
-					memo := make(map[string]string)
-					absolutize = func(path string) string {
-						canon, ok := memo[path]
-						if !ok {
-							sema <- 1
-							bp2, _ := ctxt.Import(path, bp.Dir, build.FindOnly|buildutil.AllowVendor)
-							<-sema
+				memo := make(map[string]string)
+				absolutize := func(path string) string {
+					canon, ok := memo[path]
+					if !ok {
+						sema <- 1
+						bp2, _ := ctxt.Import(path, bp.Dir, build.FindOnly)
+						<-sema
 
-							if bp2 != nil {
-								canon = bp2.ImportPath
-							} else {
-								canon = path
-							}
-							memo[path] = canon
+						if bp2 != nil {
+							canon = bp2.ImportPath
+						} else {
+							canon = path
 						}
-						return canon
+						memo[path] = canon
 					}
+					return canon
 				}
 
 				if bp != nil {

@@ -24,6 +24,8 @@ import (
 	"golang.org/x/tools/go/loader"
 )
 
+var go16 bool // Go version >= go1.6
+
 // TestFromArgs checks that conf.FromArgs populates conf correctly.
 // It does no I/O.
 func TestFromArgs(t *testing.T) {
@@ -396,7 +398,7 @@ func TestCwd(t *testing.T) {
 }
 
 func TestLoad_vendor(t *testing.T) {
-	if buildutil.AllowVendor == 0 {
+	if !go16 {
 		// Vendoring requires Go 1.6.
 		// TODO(adonovan): delete in due course.
 		t.Skip()
@@ -434,7 +436,7 @@ func TestLoad_vendor(t *testing.T) {
 }
 
 func TestVendorCwd(t *testing.T) {
-	if buildutil.AllowVendor == 0 {
+	if !go16 {
 		// Vendoring requires Go 1.6.
 		// TODO(adonovan): delete in due course.
 		t.Skip()

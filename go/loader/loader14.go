@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/types"
 )
 
@@ -502,7 +501,6 @@ func (conf *Config) Load() (*Program, error) {
 
 	// Load the initially imported packages and their dependencies,
 	// in parallel.
-	// No vendor check on packages imported from the command line.
 	infos, importErrors := imp.importAll("", conf.Cwd, conf.ImportPkgs, 0)
 	for _, ie := range importErrors {
 		conf.TypeChecker.Error(ie.err) // failed to create package
@@ -520,7 +518,6 @@ func (conf *Config) Load() (*Program, error) {
 			continue
 		}
 
-		// No vendor check on packages imported from command line.
 		bp, err := imp.findPackage(importPath, conf.Cwd, 0)
 		if err != nil {
 			// Package not found, or can't even parse package declaration.
@@ -768,7 +765,7 @@ func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, err
 			from.Pkg.Path())
 	}
 
-	bp, err := imp.findPackage(to, from.dir, buildutil.AllowVendor)
+	bp, err := imp.findPackage(to, from.dir, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -966,7 +963,7 @@ func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck b
 	}
 	// TODO(adonovan): opt: make the caller do scanImports.
 	// Callers with a build.Package can skip it.
-	imp.importAll(fromPath, info.dir, scanImports(files), buildutil.AllowVendor)
+	imp.importAll(fromPath, info.dir, scanImports(files), 0)
 
 	if trace {
 		fmt.Fprintf(os.Stderr, "%s: start %q (%d)\n",
