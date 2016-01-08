@@ -9,7 +9,6 @@ import (
 	"net"
 	"runtime"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -334,23 +333,6 @@ func TestGCFairness(t *testing.T) {
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
-	}
-}
-
-func TestNumGoroutine(t *testing.T) {
-	output := runTestProg(t, "testprog", "NumGoroutine")
-	want := "1\n"
-	if output != want {
-		t.Fatalf("want %q, got %q", want, output)
-	}
-
-	buf := make([]byte, 1<<20)
-	buf = buf[:runtime.Stack(buf, true)]
-
-	n := runtime.NumGoroutine()
-
-	if nstk := strings.Count(string(buf), "goroutine "); n != nstk {
-		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump", n, nstk)
 	}
 }
 

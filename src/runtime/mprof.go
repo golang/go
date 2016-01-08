@@ -576,17 +576,12 @@ func Stack(buf []byte, all bool) int {
 		pc := getcallerpc(unsafe.Pointer(&buf))
 		systemstack(func() {
 			g0 := getg()
-			// Force traceback=1 to override GOTRACEBACK setting,
-			// so that Stack's results are consistent.
-			// GOTRACEBACK is only about crash dumps.
-			g0.m.traceback = 1
 			g0.writebuf = buf[0:0:len(buf)]
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
 			if all {
 				tracebackothers(gp)
 			}
-			g0.m.traceback = 0
 			n = len(g0.writebuf)
 			g0.writebuf = nil
 		})

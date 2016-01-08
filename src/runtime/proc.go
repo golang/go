@@ -2162,9 +2162,6 @@ func goexit0(gp *g) {
 	_g_ := getg()
 
 	casgstatus(gp, _Grunning, _Gdead)
-	if isSystemGoroutine(gp) {
-		atomic.Xadd(&sched.ngsys, -1)
-	}
 	gp.m = nil
 	gp.lockedm = nil
 	_g_.m.lockedg = nil
@@ -2696,9 +2693,6 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
 	newg.startpc = fn.fn
-	if isSystemGoroutine(newg) {
-		atomic.Xadd(&sched.ngsys, +1)
-	}
 	casgstatus(newg, _Gdead, _Grunnable)
 
 	if _p_.goidcache == _p_.goidcacheend {
@@ -2891,7 +2885,7 @@ func badunlockosthread() {
 }
 
 func gcount() int32 {
-	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
+	n := int32(allglen) - sched.ngfree
 	for i := 0; ; i++ {
 		_p_ := allp[i]
 		if _p_ == nil {
