@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1064,6 +1065,10 @@ var _ = I(C(0)).(J)
 }
 
 func TestDiff(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("diff tool non-existent for windows on builders")
+	}
+
 	defer func() {
 		Diff = false
 		stdout = os.Stdout
