@@ -303,7 +303,7 @@ func TestImportVendor(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""
-	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+	p, err := ctxt.Import("golang.org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
 	if err != nil {
 		t.Fatalf("cannot find vendored golang.org/x/net/http2/hpack from net/http directory: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestImportVendorFailure(t *testing.T) {
 	testenv.MustHaveGoBuild(t) // really must just have source
 	ctxt := Default
 	ctxt.GOPATH = ""
-	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), AllowVendor)
+	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
 	if err == nil {
 		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
 	}
