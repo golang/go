@@ -3798,7 +3798,10 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"foo\xffbar: foo\r\n", 400}, // binary in header
 		{"foo\x00bar: foo\r\n", 400}, // binary in header
 
-		{"foo: foo\x00foo\r\n", 400}, // CTL in value is bad
+		{"foo: foo foo\r\n", 200},    // LWS space is okay
+		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
+		{"foo: foo\x00foo\r\n", 400}, // CTL 0x00 in value is bad
+		{"foo: foo\x7ffoo\r\n", 400}, // CTL 0x7f in value is bad
 		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
 	}
 	for _, tt := range tests {

@@ -1136,10 +1136,26 @@ func validHeaderName(v string) bool {
 	return strings.IndexFunc(v, isNotToken) == -1
 }
 
+// validHeaderValue reports whether v is a valid "field-value" according to
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
+//
+//        message-header = field-name ":" [ field-value ]
+//        field-value    = *( field-content | LWS )
+//        field-content  = <the OCTETs making up the field-value
+//                         and consisting of either *TEXT or combinations
+//                         of token, separators, and quoted-string>
+//
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
+//
+//        TEXT           = <any OCTET except CTLs,
+//                          but including LWS>
+//        LWS            = [CRLF] 1*( SP | HT )
+//        CTL            = <any US-ASCII control character
+//                         (octets 0 - 31) and DEL (127)>
 func validHeaderValue(v string) bool {
 	for i := 0; i < len(v); i++ {
 		b := v[i]
-		if b < ' ' && b != '\t' {
+		if isCTL(b) && !isLWS(b) {
 			return false
 		}
 	}
