@@ -178,8 +178,8 @@ pkg encoding/asn1, const TagUTCTime = 23
 pkg encoding/asn1, const TagUTCTime ideal-int
 pkg encoding/asn1, const TagUTF8String = 12
 pkg encoding/asn1, const TagUTF8String ideal-int
-pkg go/build, const AllowVendor = 8
-pkg go/build, const AllowVendor ImportMode
+pkg go/build, const IgnoreVendor = 8
+pkg go/build, const IgnoreVendor ImportMode
 pkg go/build, type Package struct, InvalidGoFiles []string
 pkg go/constant, func ToComplex(Value) Value
 pkg go/constant, func ToFloat(Value) Value
