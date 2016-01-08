@@ -185,6 +185,7 @@ pkg go/constant, func ToComplex(Value) Value
 pkg go/constant, func ToFloat(Value) Value
 pkg go/constant, func ToInt(Value) Value
 pkg go/constant, type Value interface, ExactString() string
+pkg go/types, method (*Package) SetName(string)
 pkg html/template, func IsTrue(interface{}) (bool, bool)
 pkg html/template, method (*Template) DefinedTemplates() string
 pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA
@@ -241,6 +242,8 @@ pkg net/http, const StatusRequestHeaderFieldsTooLarge = 431
 pkg net/http, const StatusRequestHeaderFieldsTooLarge ideal-int
 pkg net/http, const StatusTooManyRequests = 429
 pkg net/http, const StatusTooManyRequests ideal-int
+pkg net/http, const StatusUnavailableForLegalReasons = 451
+pkg net/http, const StatusUnavailableForLegalReasons ideal-int
 pkg net/http, type Transport struct, ExpectContinueTimeout time.Duration
 pkg net/http, type Transport struct, TLSNextProto map[string]func(string, *tls.Conn) RoundTripper
 pkg net/http, var ErrSkipAltProtocol error
