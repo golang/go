@@ -37,6 +37,7 @@ import (
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match.
+// Unmarshal will only set exported fields of the struct.
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
