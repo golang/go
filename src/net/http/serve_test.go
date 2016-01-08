@@ -3798,8 +3798,8 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"foo\xffbar: foo\r\n", 400}, // binary in header
 		{"foo\x00bar: foo\r\n", 400}, // binary in header
 
-		{"foo: foo\x00foo\r\n", 400}, // binary in value
-		{"foo: foo\xfffoo\r\n", 400}, // binary in value
+		{"foo: foo\x00foo\r\n", 400}, // CTL in value is bad
+		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
 	}
 	for _, tt := range tests {
 		conn := &testConn{closec: make(chan bool)}
