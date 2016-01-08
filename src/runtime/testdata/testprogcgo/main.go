@@ -23,7 +23,7 @@ func registerInit(name string, f func()) {
 
 func main() {
 	if len(os.Args) < 2 {
-		println("usage: "+os.Args[0]+" name-of-test")
+		println("usage: " + os.Args[0] + " name-of-test")
 		return
 	}
 	f := cmds[os.Args[1]]
