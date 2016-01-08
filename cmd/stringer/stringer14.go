@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build go1.5
+// +build !go1.5
 
 // Stringer is a tool to automate the creation of methods that satisfy the fmt.Stringer
 // interface. Given the name of a (signed or unsigned) integer type T that has constants
@@ -66,18 +66,20 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
-	exact "go/constant"
 	"go/format"
-	"go/importer"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"golang.org/x/tools/go/exact"
+	"golang.org/x/tools/go/types"
+
+	_ "golang.org/x/tools/go/gcimporter"
 )
 
 var (
@@ -260,7 +262,7 @@ func (g *Generator) parsePackage(directory string, names []string, text interfac
 // check type-checks the package. The package must be OK to proceed.
 func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) {
 	pkg.defs = make(map[*ast.Ident]types.Object)
-	config := types.Config{Importer: importer.Default(), FakeImportC: true}
+	config := types.Config{FakeImportC: true}
 	info := &types.Info{
 		Defs: pkg.defs,
 	}
