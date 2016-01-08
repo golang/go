@@ -120,3 +120,37 @@ func testTypedefs(t *testing.T, d *Data, kind string) {
 		}
 	}
 }
+
+func TestTypedefCycle(t *testing.T) {
+	// See issue #13039: reading a typedef cycle starting from a
+	// different place than the size needed to be computed from
+	// used to crash.
+	//
+	// cycle.elf built with GCC 4.8.4:
+	//    gcc -g -c -o cycle.elf cycle.c
+	d := elfData(t, "testdata/cycle.elf")
+	r := d.Reader()
+	offsets := []Offset{}
+	for {
+		e, err := r.Next()
+		if err != nil {
+			t.Fatal("r.Next:", err)
+		}
+		if e == nil {
+			break
+		}
+		switch e.Tag {
+		case TagBaseType, TagTypedef, TagPointerType, TagStructType:
+			offsets = append(offsets, e.Offset)
+		}
+	}
+
+	// Parse each type with a fresh type cache.
+	for _, offset := range offsets {
+		d := elfData(t, "testdata/cycle.elf")
+		_, err := d.Type(offset)
+		if err != nil {
+			t.Fatalf("d.Type(0x%x): %s", offset, err)
+		}
+	}
+}
