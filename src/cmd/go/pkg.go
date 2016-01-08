@@ -348,11 +348,9 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
 	// See issue 3268 for mistakes to avoid.
 	buildMode := build.ImportComment
-	if go15VendorExperiment && mode&useVendor != 0 && path == origPath {
-		// We've already searched the vendor directories and didn't find anything.
-		// Let Import search them again so that, if the package is not found anywhere,
-		// the error includes the vendor directories in the list of places considered.
-		buildMode |= build.AllowVendor
+	if !go15VendorExperiment || mode&useVendor == 0 || path != origPath {
+		// Not vendoring, or we already found the vendored path.
+		buildMode |= build.IgnoreVendor
 	}
 	bp, err := buildContext.Import(path, srcDir, buildMode)
 	bp.ImportPath = importPath

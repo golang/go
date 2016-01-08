@@ -344,18 +344,20 @@ const (
 	// See golang.org/s/go14customimport for more information.
 	ImportComment
 
-	// If AllowVendor is set, Import searches vendor directories
+	// By default, Import searches vendor directories
 	// that apply in the given source directory before searching
 	// the GOROOT and GOPATH roots.
 	// If an Import finds and returns a package using a vendor
 	// directory, the resulting ImportPath is the complete path
 	// to the package, including the path elements leading up
 	// to and including "vendor".
-	// For example, if Import("y", "x/subdir", AllowVendor) finds
+	// For example, if Import("y", "x/subdir", 0) finds
 	// "x/vendor/y", the returned package's ImportPath is "x/vendor/y",
 	// not plain "y".
 	// See golang.org/s/go15vendor for more information.
-	AllowVendor
+	//
+	// Setting IgnoreVendor ignores vendor directories.
+	IgnoreVendor
 )
 
 // A Package describes the Go package found in a directory.
@@ -571,7 +573,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 		gopath := ctxt.gopath()
 
 		// Vendor directories get first chance to satisfy import.
-		if mode&AllowVendor != 0 && srcDir != "" {
+		if mode&IgnoreVendor == 0 && srcDir != "" {
 			searchVendor := func(root string, isGoroot bool) bool {
 				sub, ok := ctxt.hasSubdir(root, srcDir)
 				if !ok || !strings.HasPrefix(sub, "src/") || strings.Contains(sub, "/testdata/") {
