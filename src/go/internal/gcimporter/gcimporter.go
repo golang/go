@@ -112,13 +112,11 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
 // The packages map must contain all packages already imported.
 //
 func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types.Package, err error) {
-	// package "unsafe" is handled by the type checker
-	if path == "unsafe" {
-		panic(`gcimporter.Import called for package "unsafe"`)
-	}
-
 	filename, id := FindPkg(path, srcDir)
 	if filename == "" {
+		if path == "unsafe" {
+			return types.Unsafe, nil
+		}
 		err = fmt.Errorf("can't find import: %s", id)
 		return
 	}

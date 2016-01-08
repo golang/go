@@ -183,9 +183,6 @@ func (check *Checker) collectObjects() {
 							// TODO(gri) shouldn't create a new one each time
 							imp = NewPackage("C", "C")
 							imp.fake = true
-						} else if path == "unsafe" {
-							// package "unsafe" is known to the language
-							imp = Unsafe
 						} else {
 							// ordinary import
 							if importer := check.conf.Importer; importer == nil {
