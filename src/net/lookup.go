@@ -33,9 +33,6 @@ func LookupHost(host string) (addrs []string, err error) {
 	if ip := ParseIP(host); ip != nil {
 		return []string{host}, nil
 	}
-	if !isDomainName(host) {
-		return nil, &DNSError{Err: "invalid domain name", Name: host}
-	}
 	return lookupHost(host)
 }
 
@@ -49,9 +46,6 @@ func LookupIP(host string) (ips []IP, err error) {
 	}
 	if ip := ParseIP(host); ip != nil {
 		return []IP{ip}, nil
-	}
-	if !isDomainName(host) {
-		return nil, &DNSError{Err: "invalid domain name", Name: host}
 	}
 	addrs, err := lookupIPMerge(host)
 	if err != nil {
@@ -152,9 +146,6 @@ func LookupPort(network, service string) (port int, err error) {
 // LookupHost or LookupIP directly; both take care of resolving
 // the canonical name as part of the lookup.
 func LookupCNAME(name string) (cname string, err error) {
-	if !isDomainName(name) {
-		return "", &DNSError{Err: "invalid domain name", Name: name}
-	}
 	return lookupCNAME(name)
 }
 
@@ -168,33 +159,21 @@ func LookupCNAME(name string) (cname string, err error) {
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {
-	if !isDomainName(name) {
-		return "", nil, &DNSError{Err: "invalid domain name", Name: name}
-	}
 	return lookupSRV(service, proto, name)
 }
 
 // LookupMX returns the DNS MX records for the given domain name sorted by preference.
 func LookupMX(name string) (mxs []*MX, err error) {
-	if !isDomainName(name) {
-		return nil, &DNSError{Err: "invalid domain name", Name: name}
-	}
 	return lookupMX(name)
 }
 
 // LookupNS returns the DNS NS records for the given domain name.
 func LookupNS(name string) (nss []*NS, err error) {
-	if !isDomainName(name) {
-		return nil, &DNSError{Err: "invalid domain name", Name: name}
-	}
 	return lookupNS(name)
 }
 
 // LookupTXT returns the DNS TXT records for the given domain name.
 func LookupTXT(name string) (txts []string, err error) {
-	if !isDomainName(name) {
-		return nil, &DNSError{Err: "invalid domain name", Name: name}
-	}
 	return lookupTXT(name)
 }
 
