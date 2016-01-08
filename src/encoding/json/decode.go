@@ -37,6 +37,9 @@ import (
 // To unmarshal JSON into a struct, Unmarshal matches incoming object
 // keys to the keys used by Marshal (either the struct field name or its tag),
 // preferring an exact match but also accepting a case-insensitive match.
+// NOTE: you most likely want to "export" your struct fields, to do that, make
+//        sure the field name starts with an Uppercase character. 
+//        see http://golang.org/ref/spec#Exported_identifiers
 //
 // To unmarshal JSON into an interface value,
 // Unmarshal stores one of these in the interface value:
