@@ -14,7 +14,9 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 // Determines if the signal should be handled by Go and if not, forwards the
 // signal to the handler that was installed before Go's.  Returns whether the
 // signal was forwarded.
+// This is called by the signal handler, and the world may be stopped.
 //go:nosplit
+//go:nowritebarrierrec
 func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if sig >= uint32(len(sigtable)) {
 		return false

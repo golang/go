@@ -520,6 +520,8 @@ func sigaction(sig int32, act *sigactiont, oact *sigactiont) /* int32 */ {
 	sysvicall3(&libc_sigaction, uintptr(sig), uintptr(unsafe.Pointer(act)), uintptr(unsafe.Pointer(oact)))
 }
 
+//go:nosplit
+//go:nowritebarrierrec
 func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
 	sysvicall2(&libc_sigaltstack, uintptr(unsafe.Pointer(ss)), uintptr(unsafe.Pointer(oss)))
 }

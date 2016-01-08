@@ -50,6 +50,7 @@ var sigtable = [...]sigTabT{
 func sigreturn(ctx unsafe.Pointer, infostyle uint32)
 
 //go:nosplit
+//go:nowritebarrierrec
 func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if sigfwdgo(sig, info, ctx) {
 		sigreturn(ctx, infostyle)
