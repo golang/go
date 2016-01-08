@@ -1139,13 +1139,9 @@ func validHeaderName(v string) bool {
 func validHeaderValue(v string) bool {
 	for i := 0; i < len(v); i++ {
 		b := v[i]
-		if b == '\t' {
-			continue
+		if b < ' ' && b != '\t' {
+			return false
 		}
-		if ' ' <= b && b <= '~' {
-			continue
-		}
-		return false
 	}
 	return true
 }
