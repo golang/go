@@ -116,9 +116,13 @@ func parseFromFlag(ctxt *build.Context, fromFlag string) (*spec, error) {
 		spec.fromName = spec.searchFor
 	}
 
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
 	// Sanitize the package.
-	// TODO(adonovan): test with relative packages.  May need loader changes.
-	bp, err := ctxt.Import(spec.pkg, ".", build.FindOnly)
+	bp, err := ctxt.Import(spec.pkg, cwd, build.FindOnly)
 	if err != nil {
 		return nil, fmt.Errorf("can't find package %q", spec.pkg)
 	}
@@ -274,20 +278,23 @@ func findFromObjects(iprog *loader.Program, spec *spec) ([]types.Object, error) 
 	// for main packages, even though that's not an import path.
 	// Seems like a bug.
 	//
-	// pkgObj := iprog.ImportMap[spec.pkg]
-	// if pkgObj == nil {
+	// pkg := iprog.ImportMap[spec.pkg]
+	// if pkg == nil {
 	// 	return fmt.Errorf("cannot find package %s", spec.pkg) // can't happen?
 	// }
+	// info := iprog.AllPackages[pkg]
 
 	// Workaround: lookup by value.
-	var pkgObj *types.Package
-	for pkg := range iprog.AllPackages {
+	var info *loader.PackageInfo
+	var pkg *types.Package
+	for pkg, info = range iprog.AllPackages {
 		if pkg.Path() == spec.pkg {
-			pkgObj = pkg
 			break
 		}
 	}
-	info := iprog.AllPackages[pkgObj]
+	if info == nil {
+		return nil, fmt.Errorf("package %q was not loaded", spec.pkg)
+	}
 
 	objects, err := findObjects(info, spec)
 	if err != nil {
