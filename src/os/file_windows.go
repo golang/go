@@ -265,8 +265,10 @@ func (f *File) readConsole(b []byte) (n int, err error) {
 	if len(f.readbuf) == 0 {
 		numBytes := len(b)
 		// Windows  can't read bytes over max of int16.
-		if numBytes > 32767 {
-			numBytes = 32767
+		// Some versions of Windows can read even less.
+		// See golang.org/issue/13697.
+		if numBytes > 10000 {
+			numBytes = 10000
 		}
 		mbytes := make([]byte, numBytes)
 		var nmb uint32
