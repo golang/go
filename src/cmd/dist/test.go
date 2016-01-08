@@ -913,6 +913,12 @@ func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
 			s = "DYLD_LIBRARY_PATH"
 		}
 		cmd.Env = mergeEnvLists([]string{s + "=."}, os.Environ())
+
+		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
+		// different environment variables.
+		if t.goos == "freebsd" && t.gohostarch == "386" {
+			cmd.Env = mergeEnvLists([]string{"LD_32_LIBRARY_PATH=."}, cmd.Env)
+		}
 	}
 	return cmd.Run()
 }
