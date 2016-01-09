@@ -19,7 +19,7 @@ var (
 func getprotobyname(name string) (proto int, err error) {
 	p, err := syscall.GetProtoByName(name)
 	if err != nil {
-		return 0, os.NewSyscallError("getorotobyname", err)
+		return 0, os.NewSyscallError("getprotobyname", err)
 	}
 	return int(p.Proto), nil
 }
