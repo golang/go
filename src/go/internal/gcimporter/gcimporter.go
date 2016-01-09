@@ -39,7 +39,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		return
 	}
 
-	id = path
 	var noext string
 	switch {
 	default:
@@ -50,6 +49,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 			return
 		}
 		noext = strings.TrimSuffix(bp.PkgObj, ".a")
+		id = bp.ImportPath
 
 	case build.IsLocalImport(path):
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
@@ -61,6 +61,13 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		// does not support absolute imports
 		// "/x" -> "/x.ext", "/x"
 		noext = path
+		id = path
+	}
+
+	if false { // for debugging
+		if path != id {
+			fmt.Printf("%s -> %s\n", path, id)
+		}
 	}
 
 	// try extensions
