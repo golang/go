@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"golang.org/x/net/http2/hpack"
 	"io"
 	"io/ioutil"
 	"log"
@@ -37,8 +38,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/http2/hpack"
 )
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
@@ -4348,8 +4347,8 @@ type http2clientStream struct {
 	pastHeaders  bool // got HEADERS w/ END_HEADERS
 	pastTrailers bool // got second HEADERS frame w/ END_HEADERS
 
-	trailer    Header // accumulated trailers
-	resTrailer Header // client's Response.Trailer
+	trailer    Header  // accumulated trailers
+	resTrailer *Header // client's Response.Trailer
 }
 
 // awaitRequestCancel runs in its own goroutine and waits for the user
@@ -5255,7 +5254,7 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 		}
 	}
 
-	cs.resTrailer = res.Trailer
+	cs.resTrailer = &res.Trailer
 	rl.activeRes[cs.ID] = cs
 	cs.resc <- http2resAndError{res: res}
 	rl.nextRes = nil
@@ -5383,7 +5382,11 @@ func (rl *http2clientConnReadLoop) endStream(cs *http2clientStream) {
 
 func (cs *http2clientStream) copyTrailers() {
 	for k, vv := range cs.trailer {
-		cs.resTrailer[k] = vv
+		t := cs.resTrailer
+		if *t == nil {
+			*t = make(Header)
+		}
+		(*t)[k] = vv
 	}
 }
 
@@ -5583,7 +5586,12 @@ func (rl *http2clientConnReadLoop) onNewTrailerField(cs *http2clientStream, f hp
 	}
 
 	key := CanonicalHeaderKey(f.Name)
-	if _, ok := cs.resTrailer[key]; ok {
+
+	// The spec says one must predeclare their trailers but in practice
+	// popular users (which is to say the only user we found) do not so we
+	// violate the spec and accept all of them.
+	const acceptAllTrailers = true
+	if _, ok := (*cs.resTrailer)[key]; ok || acceptAllTrailers {
 		if cs.trailer == nil {
 			cs.trailer = make(Header)
 		}
