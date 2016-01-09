@@ -1452,7 +1452,6 @@ func (c *conn) serve() {
 				// Wrap the Body reader with one that replies on the connection
 				req.Body = &expectContinueReader{readCloser: req.Body, resp: w}
 			}
-			req.Header.Del("Expect")
 		} else if req.Header.get("Expect") != "" {
 			w.sendExpectationFailed()
 			return

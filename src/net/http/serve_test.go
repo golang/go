@@ -3639,6 +3639,33 @@ func TestTolerateCRLFBeforeRequestLine(t *testing.T) {
 	}
 }
 
+func TestIssue13893_Expect100(t *testing.T) {
+	// test that the Server doesn't filter out Expect headers.
+	req := reqBytes(`PUT /readbody HTTP/1.1
+User-Agent: PycURL/7.22.0
+Host: 127.0.0.1:9000
+Accept: */*
+Expect: 100-continue
+Content-Length: 10
+
+HelloWorld
+
+`)
+	var buf bytes.Buffer
+	conn := &rwTestConn{
+		Reader: bytes.NewReader(req),
+		Writer: &buf,
+		closec: make(chan bool, 1),
+	}
+	ln := &oneConnListener{conn: conn}
+	go Serve(ln, HandlerFunc(func(w ResponseWriter, r *Request) {
+		if _, ok := r.Header["Expect"]; !ok {
+			t.Error("Expect header should not be filtered out")
+		}
+	}))
+	<-conn.closec
+}
+
 func TestIssue11549_Expect100(t *testing.T) {
 	req := reqBytes(`PUT /readbody HTTP/1.1
 User-Agent: PycURL/7.22.0
