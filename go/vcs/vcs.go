@@ -335,8 +335,7 @@ type vcsPath struct {
 // FromDir inspects dir and its parents to determine the
 // version control system and code repository to use.
 // On return, root is the import path
-// corresponding to the root of the repository
-// (thus root is a prefix of importPath).
+// corresponding to the root of the repository.
 func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 	// Clean and double-check that dir is in (a subdirectory of) srcRoot.
 	dir = filepath.Clean(dir)
@@ -348,7 +347,7 @@ func FromDir(dir, srcRoot string) (vcs *Cmd, root string, err error) {
 	for len(dir) > len(srcRoot) {
 		for _, vcs := range vcsList {
 			if fi, err := os.Stat(filepath.Join(dir, "."+vcs.Cmd)); err == nil && fi.IsDir() {
-				return vcs, dir[len(srcRoot)+1:], nil
+				return vcs, filepath.ToSlash(dir[len(srcRoot)+1:]), nil
 			}
 		}
 

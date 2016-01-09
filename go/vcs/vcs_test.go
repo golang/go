@@ -7,6 +7,7 @@ package vcs
 import (
 	"io/ioutil"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -61,11 +62,11 @@ func TestRepoRootForImportPath(t *testing.T) {
 	}
 }
 
-// Test that FromDir correctly inspects a given directory and returns the right VCS.
+// Test that FromDir correctly inspects a given directory and returns the right VCS and root.
 func TestFromDir(t *testing.T) {
 	type testStruct struct {
 		path string
-		want *Cmd
+		want *RepoRoot
 	}
 
 	tests := make([]testStruct, len(vcsList))
@@ -77,16 +78,29 @@ func TestFromDir(t *testing.T) {
 
 	for i, vcs := range vcsList {
 		tests[i] = testStruct{
-			filepath.Join(tempDir, vcs.Name, "."+vcs.Cmd),
-			vcs,
+			path: filepath.Join(tempDir, "example.com", vcs.Name, "."+vcs.Cmd),
+			want: &RepoRoot{
+				VCS:  vcs,
+				Root: pathpkg.Join("example.com", vcs.Name),
+			},
 		}
 	}
 
 	for _, test := range tests {
 		os.MkdirAll(test.path, 0755)
-		got, _, _ := FromDir(test.path, tempDir)
-		if got.Name != test.want.Name {
-			t.Errorf("FromDir(%q, %q) = %s, want %s", test.path, tempDir, got, test.want)
+		var (
+			got = new(RepoRoot)
+			err error
+		)
+		got.VCS, got.Root, err = FromDir(test.path, tempDir)
+		if err != nil {
+			t.Errorf("FromDir(%q, %q): %v", test.path, tempDir, err)
+			os.RemoveAll(test.path)
+			continue
+		}
+		want := test.want
+		if got.VCS.Name != want.VCS.Name || got.Root != want.Root {
+			t.Errorf("FromDir(%q, %q) = VCS(%s) Root(%s), want VCS(%s) Root(%s)", test.path, tempDir, got.VCS, got.Root, want.VCS, want.Root)
 		}
 		os.RemoveAll(test.path)
 	}
