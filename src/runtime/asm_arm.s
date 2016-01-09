@@ -556,7 +556,13 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	// lots of space, but the linker doesn't know. Hide the call from
 	// the linker analysis by using an indirect call.
 	CMP	$0, g
-	B.NE	havem
+	B.EQ	needm
+
+	MOVW	g_m(g), R8
+	MOVW	R8, savedm-4(SP)
+	B	havem
+
+needm:
 	MOVW	g, savedm-4(SP) // g is zero, so is m.
 	MOVW	$runtime·needm(SB), R0
 	BL	(R0)
@@ -577,8 +583,6 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
 	MOVW	R13, (g_sched+gobuf_sp)(R3)
 
 havem:
-	MOVW	g_m(g), R8
-	MOVW	R8, savedm-4(SP)
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for

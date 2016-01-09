@@ -134,3 +134,12 @@ func TestCgoExecSignalMask(t *testing.T) {
 		t.Errorf("expected %q, got %v", want, got)
 	}
 }
+
+func TestEnsureDropM(t *testing.T) {
+	// Test for issue 13881.
+	got := runTestProg(t, "testprogcgo", "EnsureDropM")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q, got %v", want, got)
+	}
+}

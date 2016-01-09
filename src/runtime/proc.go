@@ -1443,6 +1443,11 @@ func dropm() {
 	unlockextra(mp)
 }
 
+// A helper function for EnsureDropM.
+func getm() uintptr {
+	return uintptr(unsafe.Pointer(getg().m))
+}
+
 var extram uintptr
 
 // lockextra locks the extra list and returns the list head.

@@ -486,7 +486,13 @@ nocgo:
 	// In this case, we're running on the thread stack, so there's
 	// lots of space, but the linker doesn't know. Hide the call from
 	// the linker analysis by using an indirect call.
-	BNE	g, havem
+	BEQ	g, needm
+
+	MOVV	g_m(g), R3
+	MOVV	R3, savedm-8(SP)
+	JMP	havem
+
+needm:
 	MOVV	g, savedm-8(SP) // g is zero, so is m.
 	MOVV	$runtime·needm(SB), R4
 	JAL	(R4)
@@ -507,8 +513,6 @@ nocgo:
 	MOVV	R29, (g_sched+gobuf_sp)(R1)
 
 havem:
-	MOVV	g_m(g), R3
-	MOVV	R3, savedm-8(SP)
 	// Now there's a valid m, and we're running on its m->g0.
 	// Save current m->g0->sched.sp on stack and then set it to SP.
 	// Save current sp in m->g0->sched.sp in preparation for
