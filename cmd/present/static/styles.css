@@ -379,7 +379,8 @@ code {
   color: black;
 }
 
-article > .image {
+article > .image,
+article > .video {
   text-align: center;
   margin-top: 40px;
 }

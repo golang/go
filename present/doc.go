@@ -178,6 +178,22 @@ preserves the aspect ratio of the image when scaling.
 
 	.image images/janet.jpg _ 300
 
+video:
+
+The template uses the function "video" to inject video files.
+
+The syntax is simple: 2 or 4 space-separated arguments.
+The first argument is always the file name.
+The second argument is always the file content-type.
+If there are more arguments, they are the height and width;
+both must be present, or substituted with an underscore.
+Replacing a dimension argument with the underscore parameter
+preserves the aspect ratio of the video when scaling.
+
+	.video videos/evangeline.mp4 video/mp4 400 600
+
+	.video videos/mabel.ogg video/ogg 500 _
+
 background:
 
 The template uses the function "background" to set the background image for

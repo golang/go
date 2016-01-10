@@ -37,6 +37,14 @@ It determines how the formatting actions are rendered.
 </div>
 {{end}}
 
+{{define "video"}}
+<div class="video">
+  <video {{with .Height}} height="{{.}}"{{end}}{{with .Width}} width="{{.}}"{{end}} controls>
+    <source src="{{.URL}}" type="{{.SourceType}}">
+  </video>
+</div>
+{{end}}
+
 {{define "background"}}
 <div class="background">
   <img src="{{.URL}}">
