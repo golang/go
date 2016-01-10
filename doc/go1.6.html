@@ -515,6 +515,12 @@ now report
 </li>
 
 <li>
+The <a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a> package now
+overwrites the destination buffer in the event of a GCM decryption failure.
+This is to allow the AESNI code to avoid using a temporary buffer.
+</li>
+
+<li>
 The <a href="/pkg/crypto/tls/"><code>crypto/tls</code></a> package
 has a variety of minor changes.
 It now allows
