@@ -38,6 +38,9 @@ type AEAD interface {
 	//
 	// The ciphertext and dst may alias exactly or not at all. To reuse
 	// ciphertext's storage for the decrypted output, use ciphertext[:0] as dst.
+	//
+	// Even if the function fails, the contents of dst, up to its capacity,
+	// may be overwritten.
 	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
 }
 
@@ -168,11 +171,19 @@ func (g *gcm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	var expectedTag [gcmTagSize]byte
 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
 
+	ret, out := sliceForAppend(dst, len(ciphertext))
+
 	if subtle.ConstantTimeCompare(expectedTag[:], tag) != 1 {
+		// The AESNI code decrypts and authenticates concurrently, and
+		// so overwrites dst in the event of a tag mismatch. That
+		// behaviour is mimicked here in order to be consistent across
+		// platforms.
+		for i := range out {
+			out[i] = 0
+		}
 		return nil, errOpen
 	}
 
-	ret, out := sliceForAppend(dst, len(ciphertext))
 	g.counterCrypt(out, ciphertext, &counter)
 
 	return ret, nil
