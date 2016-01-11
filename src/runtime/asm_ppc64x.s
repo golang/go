@@ -625,8 +625,8 @@ needm:
 	// and then systemstack will try to use it. If we don't set it here,
 	// that restored SP will be uninitialized (typically 0) and
 	// will not be usable.
-	MOVD	g_m(g), R3
-	MOVD	m_g0(R3), R3
+	MOVD	g_m(g), R8
+	MOVD	m_g0(R8), R3
 	MOVD	R1, (g_sched+gobuf_sp)(R3)
 
 havem:
