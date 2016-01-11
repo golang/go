@@ -1068,7 +1068,7 @@ func hostlink() {
 		argv = append(argv, "-pie")
 	case BuildmodeCShared:
 		if HEADTYPE == obj.Hdarwin {
-			argv = append(argv, "-dynamiclib")
+			argv = append(argv, "-dynamiclib", "-Wl,-read_only_relocs,suppress")
 		} else {
 			// ELF.
 			argv = append(argv, "-Wl,-Bsymbolic")

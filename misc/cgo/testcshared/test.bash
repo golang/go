@@ -27,7 +27,7 @@ fi
 # Directory where cgo headers and outputs will be installed.
 # The installation directory format varies depending on the platform.
 installdir=pkg/${goos}_${goarch}_testcshared_shared
-if [ "${goos}/${goarch}" == "darwin/amd64" ]; then
+if [ "${goos}" == "darwin" ]; then
 	installdir=pkg/${goos}_${goarch}_testcshared
 fi
 
