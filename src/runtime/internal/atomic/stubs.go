@@ -12,8 +12,6 @@ func Cas(ptr *uint32, old, new uint32) bool
 // NO go:noescape annotation; see atomic_pointer.go.
 func Casp1(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool
 
-func nop() // call to prevent inlining of function body
-
 //go:noescape
 func Casuintptr(ptr *uintptr, old, new uintptr) bool
 
