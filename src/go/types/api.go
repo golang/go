@@ -114,10 +114,10 @@ type Config struct {
 
 	// An importer is used to import packages referred to from
 	// import declarations.
-	// If the installed importer implements Importer2, Import2
-	// is called instead of Import.
-	// An error is reported if an importer is needed but none
-	// was installed.
+	// If the installed importer implements Importer2, the type
+	// checker calls Import2 instead of Import.
+	// The type checker reports an error if an importer is needed
+	// but none was installed.
 	Importer Importer
 
 	// If Sizes != nil, it provides the sizing functions for package unsafe.
