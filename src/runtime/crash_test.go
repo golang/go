@@ -99,7 +99,7 @@ func buildTestProg(t *testing.T, binary string) (string, error) {
 		exe = ""
 		target.err = fmt.Errorf("building %s: %v\n%s", binary, err, out)
 		testprog.target[binary] = target
-		return "", err
+		return "", target.err
 	}
 	target.exe = exe
 	testprog.target[binary] = target
