@@ -3,6 +3,21 @@
 // license that can be found in the LICENSE file.
 
 // Package rsa implements RSA encryption as specified in PKCS#1.
+//
+// RSA is a single, fundamental operation that is used in this package to
+// implement either public-key encryption or public-key signatures.
+//
+// The original specification for encryption and signatures with RSA is PKCS#1
+// and the terms "RSA encryption" and "RSA signatures" by default refer to
+// PKCS#1 version 1.5. However, that specification has flaws and new designs
+// should use version two, usually called by just OAEP and PSS, where
+// possible.
+//
+// Two sets of interfaces are included in this package. When a more abstract
+// interface isn't neccessary, there are functions for encrypting/decrypting
+// with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
+// over the public-key primitive, the PrivateKey struct implements the
+// Decrypter and Signer interfaces from the crypto package.
 package rsa
 
 import (
@@ -317,6 +332,20 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 }
 
 // EncryptOAEP encrypts the given message with RSA-OAEP.
+//
+// OAEP is parameterised by a hash function that is used as a random oracle.
+// Encryption and decryption of a given message must use the same hash function
+// and sha256.New() is a reasonable choice.
+//
+// The random parameter is used as a source of entropy to ensure that
+// encrypting the same message twice doesn't result in the same ciphertext.
+//
+// The label parameter may contain arbitrary data that will not be encrypted,
+// but which gives important context to the message. For example, if a given
+// public key is used to decrypt two types of messages then distinct label
+// values could be used to ensure that a ciphertext for one purpose cannot be
+// used for another by an attacker. If not required it can be empty.
+//
 // The message must be no longer than the length of the public modulus less
 // twice the hash length plus 2.
 func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err error) {
@@ -522,7 +551,17 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
 }
 
 // DecryptOAEP decrypts ciphertext using RSA-OAEP.
-// If random != nil, DecryptOAEP uses RSA blinding to avoid timing side-channel attacks.
+
+// OAEP is parameterised by a hash function that is used as a random oracle.
+// Encryption and decryption of a given message must use the same hash function
+// and sha256.New() is a reasonable choice.
+//
+// The random parameter, if not nil, is used to blind the private-key operation
+// and avoid timing side-channel attacks. Blinding is purely internal to this
+// function – the random data need not match that used when encrypting.
+//
+// The label parameter must match the value given when encrypting. See
+// EncryptOAEP for details.
 func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
