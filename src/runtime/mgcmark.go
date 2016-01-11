@@ -835,12 +835,6 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			// work barrier reached or tryGet failed.
 			break
 		}
-		// If the current wbuf is filled by the scan a new wbuf might be
-		// returned that could possibly hold only a single object. This
-		// could result in each iteration draining only a single object
-		// out of the wbuf passed in + a single object placed
-		// into an empty wbuf in scanobject so there could be
-		// a performance hit as we keep fetching fresh wbufs.
 		scanobject(b, gcw)
 
 		// Flush background scan work credit to the global
