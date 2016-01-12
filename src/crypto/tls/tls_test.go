@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"internal/testenv"
 	"io"
@@ -363,4 +364,105 @@ func TestVerifyHostnameResumed(t *testing.T) {
 		}
 		c.Close()
 	}
+}
+
+func TestConnCloseBreakingWrite(t *testing.T) {
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	srvCh := make(chan *Conn, 1)
+	var serr error
+	var sconn net.Conn
+	go func() {
+		var err error
+		sconn, err = ln.Accept()
+		if err != nil {
+			serr = err
+			srvCh <- nil
+			return
+		}
+		serverConfig := *testConfig
+		srv := Server(sconn, &serverConfig)
+		if err := srv.Handshake(); err != nil {
+			serr = fmt.Errorf("handshake: %v", err)
+			srvCh <- nil
+			return
+		}
+		srvCh <- srv
+	}()
+
+	cconn, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cconn.Close()
+
+	conn := &changeImplConn{
+		Conn: cconn,
+	}
+
+	clientConfig := *testConfig
+	tconn := Client(conn, &clientConfig)
+	if err := tconn.Handshake(); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := <-srvCh
+	if srv == nil {
+		t.Fatal(serr)
+	}
+	defer sconn.Close()
+
+	connClosed := make(chan struct{})
+	conn.closeFunc = func() error {
+		close(connClosed)
+		return nil
+	}
+
+	inWrite := make(chan bool, 1)
+	var errConnClosed = errors.New("conn closed for test")
+	conn.writeFunc = func(p []byte) (n int, err error) {
+		inWrite <- true
+		<-connClosed
+		return 0, errConnClosed
+	}
+
+	closeReturned := make(chan bool, 1)
+	go func() {
+		<-inWrite
+		tconn.Close() // test that this doesn't block forever.
+		closeReturned <- true
+	}()
+
+	_, err = tconn.Write([]byte("foo"))
+	if err != errConnClosed {
+		t.Errorf("Write error = %v; want errConnClosed", err)
+	}
+
+	<-closeReturned
+	if err := tconn.Close(); err != errClosed {
+		t.Errorf("Close error = %v; want errClosed", err)
+	}
+}
+
+// changeImplConn is a net.Conn which can change its Write and Close
+// methods.
+type changeImplConn struct {
+	net.Conn
+	writeFunc func([]byte) (int, error)
+	closeFunc func() error
+}
+
+func (w *changeImplConn) Write(p []byte) (n int, err error) {
+	if w.writeFunc != nil {
+		return w.writeFunc(p)
+	}
+	return w.Conn.Write(p)
+}
+
+func (w *changeImplConn) Close() error {
+	if w.closeFunc != nil {
+		return w.closeFunc()
+	}
+	return w.Conn.Close()
 }
