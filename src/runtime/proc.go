@@ -1427,20 +1427,24 @@ func dropm() {
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
 	mp := getg().m
-	mnext := lockextra(true)
-	mp.schedlink.set(mnext)
 
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
 	// It's important not to try to handle a signal between those two steps.
+	sigmask := mp.sigmask
 	sigblock()
 	unminit()
+
+	mnext := lockextra(true)
+	mp.schedlink.set(mnext)
+
 	setg(nil)
-	msigrestore(mp)
 
 	// Commit the release of mp.
 	unlockextra(mp)
+
+	msigrestore(sigmask)
 }
 
 // A helper function for EnsureDropM.

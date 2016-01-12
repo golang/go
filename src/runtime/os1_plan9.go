@@ -26,7 +26,7 @@ func mpreinit(mp *m) {
 func msigsave(mp *m) {
 }
 
-func msigrestore(mp *m) {
+func msigrestore(sigmask sigset) {
 }
 
 func sigblock() {
