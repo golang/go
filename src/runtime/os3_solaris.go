@@ -198,8 +198,8 @@ func msigsave(mp *m) {
 }
 
 //go:nosplit
-func msigrestore(mp *m) {
-	sigprocmask(_SIG_SETMASK, &mp.sigmask, nil)
+func msigrestore(sigmask sigset) {
+	sigprocmask(_SIG_SETMASK, &sigmask, nil)
 }
 
 //go:nosplit
@@ -540,6 +540,7 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
 
 //go:nosplit
 //go:nowritebarrierrec
+//go:noescape
 func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
 }

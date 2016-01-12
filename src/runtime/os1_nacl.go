@@ -22,7 +22,7 @@ func msigsave(mp *m) {
 }
 
 //go:nosplit
-func msigrestore(mp *m) {
+func msigrestore(sigmask sigset) {
 }
 
 //go:nosplit

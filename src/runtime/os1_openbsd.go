@@ -156,8 +156,8 @@ func msigsave(mp *m) {
 }
 
 //go:nosplit
-func msigrestore(mp *m) {
-	sigprocmask(_SIG_SETMASK, mp.sigmask)
+func msigrestore(sigmask sigset) {
+	sigprocmask(_SIG_SETMASK, sigmask)
 }
 
 //go:nosplit
