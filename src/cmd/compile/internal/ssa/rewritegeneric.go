@@ -552,6 +552,149 @@ end0988fc6a62c810b2f4976cb6cf44387f:
 	goto enda348e93e0036873dd7089a2939c22e3e
 enda348e93e0036873dd7089a2939c22e3e:
 	;
+	// match: (Arg <t>)
+	// cond: t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)
+	// result: (StructMake0)
+	{
+		t := v.Type
+		if !(t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)) {
+			goto ende233eeefa826638b0e541bcca531d701
+		}
+		v.Op = OpStructMake0
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		return true
+	}
+	goto ende233eeefa826638b0e541bcca531d701
+ende233eeefa826638b0e541bcca531d701:
+	;
+	// match: (Arg <t> {n} [off])
+	// cond: t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)
+	// result: (StructMake1     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)]))
+	{
+		t := v.Type
+		n := v.Aux
+		off := v.AuxInt
+		if !(t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)) {
+			goto ende953e77a0617051dd3f7ad4d58c9ab37
+		}
+		v.Op = OpStructMake1
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.Aux = n
+		v0.AuxInt = off + t.FieldOff(0)
+		v.AddArg(v0)
+		return true
+	}
+	goto ende953e77a0617051dd3f7ad4d58c9ab37
+ende953e77a0617051dd3f7ad4d58c9ab37:
+	;
+	// match: (Arg <t> {n} [off])
+	// cond: t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)
+	// result: (StructMake2     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)]))
+	{
+		t := v.Type
+		n := v.Aux
+		off := v.AuxInt
+		if !(t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)) {
+			goto end9a008048978aabad9de0723212e60631
+		}
+		v.Op = OpStructMake2
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.Aux = n
+		v0.AuxInt = off + t.FieldOff(0)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = t.FieldType(1)
+		v1.Aux = n
+		v1.AuxInt = off + t.FieldOff(1)
+		v.AddArg(v1)
+		return true
+	}
+	goto end9a008048978aabad9de0723212e60631
+end9a008048978aabad9de0723212e60631:
+	;
+	// match: (Arg <t> {n} [off])
+	// cond: t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)
+	// result: (StructMake3     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)]))
+	{
+		t := v.Type
+		n := v.Aux
+		off := v.AuxInt
+		if !(t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)) {
+			goto end0196e61dbeebc6402f3aa1e9a182210b
+		}
+		v.Op = OpStructMake3
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.Aux = n
+		v0.AuxInt = off + t.FieldOff(0)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = t.FieldType(1)
+		v1.Aux = n
+		v1.AuxInt = off + t.FieldOff(1)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v2.Type = t.FieldType(2)
+		v2.Aux = n
+		v2.AuxInt = off + t.FieldOff(2)
+		v.AddArg(v2)
+		return true
+	}
+	goto end0196e61dbeebc6402f3aa1e9a182210b
+end0196e61dbeebc6402f3aa1e9a182210b:
+	;
+	// match: (Arg <t> {n} [off])
+	// cond: t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)
+	// result: (StructMake4     (Arg <t.FieldType(0)> {n} [off+t.FieldOff(0)])     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
+	{
+		t := v.Type
+		n := v.Aux
+		off := v.AuxInt
+		if !(t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)) {
+			goto end6bc133c93e50cb14c2e6cc9401850738
+		}
+		v.Op = OpStructMake4
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.Aux = n
+		v0.AuxInt = off + t.FieldOff(0)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v1.Type = t.FieldType(1)
+		v1.Aux = n
+		v1.AuxInt = off + t.FieldOff(1)
+		v.AddArg(v1)
+		v2 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v2.Type = t.FieldType(2)
+		v2.Aux = n
+		v2.AuxInt = off + t.FieldOff(2)
+		v.AddArg(v2)
+		v3 := b.NewValue0(v.Line, OpArg, TypeInvalid)
+		v3.Type = t.FieldType(3)
+		v3.Aux = n
+		v3.AuxInt = off + t.FieldOff(3)
+		v.AddArg(v3)
+		return true
+	}
+	goto end6bc133c93e50cb14c2e6cc9401850738
+end6bc133c93e50cb14c2e6cc9401850738:
+	;
 	return false
 }
 func rewriteValuegeneric_OpArrayIndex(v *Value, config *Config) bool {
@@ -2274,6 +2417,173 @@ end263ecdc279924bff8771dd1ac3f42222:
 func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Load <t> _ _)
+	// cond: t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)
+	// result: (StructMake0)
+	{
+		t := v.Type
+		if !(t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)) {
+			goto end8d25f5c949948132921b6be29ede6bde
+		}
+		v.Op = OpStructMake0
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		return true
+	}
+	goto end8d25f5c949948132921b6be29ede6bde
+end8d25f5c949948132921b6be29ede6bde:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)
+	// result: (StructMake1     (Load <t.FieldType(0)> ptr mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsStruct() && t.NumFields() == 1 && config.fe.CanSSA(t)) {
+			goto endfe908e5a8617dd39df2f9b2b92e93ae5
+		}
+		v.Op = OpStructMake1
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
+	goto endfe908e5a8617dd39df2f9b2b92e93ae5
+endfe908e5a8617dd39df2f9b2b92e93ae5:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)
+	// result: (StructMake2     (Load <t.FieldType(0)> ptr mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsStruct() && t.NumFields() == 2 && config.fe.CanSSA(t)) {
+			goto end20e20e64004b765012cfb80c575ef27b
+		}
+		v.Op = OpStructMake2
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = t.FieldType(1)
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = t.FieldType(1).PtrTo()
+		v2.AuxInt = t.FieldOff(1)
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		return true
+	}
+	goto end20e20e64004b765012cfb80c575ef27b
+end20e20e64004b765012cfb80c575ef27b:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)
+	// result: (StructMake3     (Load <t.FieldType(0)> ptr mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsStruct() && t.NumFields() == 3 && config.fe.CanSSA(t)) {
+			goto ende612bf71067ed67541735cdc8b5a3288
+		}
+		v.Op = OpStructMake3
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = t.FieldType(1)
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = t.FieldType(1).PtrTo()
+		v2.AuxInt = t.FieldOff(1)
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v3.Type = t.FieldType(2)
+		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v4.Type = t.FieldType(2).PtrTo()
+		v4.AuxInt = t.FieldOff(2)
+		v4.AddArg(ptr)
+		v3.AddArg(v4)
+		v3.AddArg(mem)
+		v.AddArg(v3)
+		return true
+	}
+	goto ende612bf71067ed67541735cdc8b5a3288
+ende612bf71067ed67541735cdc8b5a3288:
+	;
+	// match: (Load <t> ptr mem)
+	// cond: t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)
+	// result: (StructMake4     (Load <t.FieldType(0)> ptr mem)     (Load <t.FieldType(1)> (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] ptr) mem)     (Load <t.FieldType(2)> (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] ptr) mem)     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
+	{
+		t := v.Type
+		ptr := v.Args[0]
+		mem := v.Args[1]
+		if !(t.IsStruct() && t.NumFields() == 4 && config.fe.CanSSA(t)) {
+			goto end46c66c64d9030f2cc9a7a767f67953d1
+		}
+		v.Op = OpStructMake4
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0.Type = t.FieldType(0)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v1.Type = t.FieldType(1)
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = t.FieldType(1).PtrTo()
+		v2.AuxInt = t.FieldOff(1)
+		v2.AddArg(ptr)
+		v1.AddArg(v2)
+		v1.AddArg(mem)
+		v.AddArg(v1)
+		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v3.Type = t.FieldType(2)
+		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v4.Type = t.FieldType(2).PtrTo()
+		v4.AuxInt = t.FieldOff(2)
+		v4.AddArg(ptr)
+		v3.AddArg(v4)
+		v3.AddArg(mem)
+		v.AddArg(v3)
+		v5 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v5.Type = t.FieldType(3)
+		v6 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v6.Type = t.FieldType(3).PtrTo()
+		v6.AuxInt = t.FieldOff(3)
+		v6.AddArg(ptr)
+		v5.AddArg(v6)
+		v5.AddArg(mem)
+		v.AddArg(v5)
+		return true
+	}
+	goto end46c66c64d9030f2cc9a7a767f67953d1
+end46c66c64d9030f2cc9a7a767f67953d1:
+	;
 	// match: (Load <t> ptr mem)
 	// cond: t.IsComplex() && t.Size() == 8
 	// result: (ComplexMake     (Load <config.fe.TypeFloat32()> ptr mem)     (Load <config.fe.TypeFloat32()>       (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] ptr)       mem)     )
@@ -3067,6 +3377,187 @@ end526acc0a705137a5d25577499206720b:
 func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Store _ (StructMake0) mem)
+	// cond:
+	// result: mem
+	{
+		if v.Args[1].Op != OpStructMake0 {
+			goto endd4f364b0adfc229d8c200af183d4c808
+		}
+		mem := v.Args[2]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = mem.Type
+		v.AddArg(mem)
+		return true
+	}
+	goto endd4f364b0adfc229d8c200af183d4c808
+endd4f364b0adfc229d8c200af183d4c808:
+	;
+	// match: (Store dst (StructMake1 <t> f0) mem)
+	// cond:
+	// result: (Store [t.FieldType(0).Size()] dst f0 mem)
+	{
+		dst := v.Args[0]
+		if v.Args[1].Op != OpStructMake1 {
+			goto end2cff6d06f4440132f48ca374b6b1e9d8
+		}
+		t := v.Args[1].Type
+		f0 := v.Args[1].Args[0]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = t.FieldType(0).Size()
+		v.AddArg(dst)
+		v.AddArg(f0)
+		v.AddArg(mem)
+		return true
+	}
+	goto end2cff6d06f4440132f48ca374b6b1e9d8
+end2cff6d06f4440132f48ca374b6b1e9d8:
+	;
+	// match: (Store dst (StructMake2 <t> f0 f1) mem)
+	// cond:
+	// result: (Store [t.FieldType(1).Size()]     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()] dst f0 mem))
+	{
+		dst := v.Args[0]
+		if v.Args[1].Op != OpStructMake2 {
+			goto end4e8ede6cc575a287795971da6b637973
+		}
+		t := v.Args[1].Type
+		f0 := v.Args[1].Args[0]
+		f1 := v.Args[1].Args[1]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = t.FieldType(1).Size()
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = t.FieldType(1).PtrTo()
+		v0.AuxInt = t.FieldOff(1)
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(f1)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = t.FieldType(0).Size()
+		v1.AddArg(dst)
+		v1.AddArg(f0)
+		v1.AddArg(mem)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto end4e8ede6cc575a287795971da6b637973
+end4e8ede6cc575a287795971da6b637973:
+	;
+	// match: (Store dst (StructMake3 <t> f0 f1 f2) mem)
+	// cond:
+	// result: (Store [t.FieldType(2).Size()]     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store [t.FieldType(1).Size()]       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store [t.FieldType(0).Size()] dst f0 mem)))
+	{
+		dst := v.Args[0]
+		if v.Args[1].Op != OpStructMake3 {
+			goto end6ad675267724a87c8f852dd1e185e911
+		}
+		t := v.Args[1].Type
+		f0 := v.Args[1].Args[0]
+		f1 := v.Args[1].Args[1]
+		f2 := v.Args[1].Args[2]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = t.FieldType(2).Size()
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = t.FieldType(2).PtrTo()
+		v0.AuxInt = t.FieldOff(2)
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(f2)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = t.FieldType(1).Size()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = t.FieldType(1).PtrTo()
+		v2.AuxInt = t.FieldOff(1)
+		v2.AddArg(dst)
+		v1.AddArg(v2)
+		v1.AddArg(f1)
+		v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v3.AuxInt = t.FieldType(0).Size()
+		v3.AddArg(dst)
+		v3.AddArg(f0)
+		v3.AddArg(mem)
+		v3.Type = TypeMem
+		v1.AddArg(v3)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto end6ad675267724a87c8f852dd1e185e911
+end6ad675267724a87c8f852dd1e185e911:
+	;
+	// match: (Store dst (StructMake4 <t> f0 f1 f2 f3) mem)
+	// cond:
+	// result: (Store [t.FieldType(3).Size()]     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store [t.FieldType(2).Size()]       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store [t.FieldType(1).Size()]         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store [t.FieldType(0).Size()] dst f0 mem))))
+	{
+		dst := v.Args[0]
+		if v.Args[1].Op != OpStructMake4 {
+			goto end7ea91abd44794f7653374502a5a405ea
+		}
+		t := v.Args[1].Type
+		f0 := v.Args[1].Args[0]
+		f1 := v.Args[1].Args[1]
+		f2 := v.Args[1].Args[2]
+		f3 := v.Args[1].Args[3]
+		mem := v.Args[2]
+		v.Op = OpStore
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = t.FieldType(3).Size()
+		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v0.Type = t.FieldType(3).PtrTo()
+		v0.AuxInt = t.FieldOff(3)
+		v0.AddArg(dst)
+		v.AddArg(v0)
+		v.AddArg(f3)
+		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1.AuxInt = t.FieldType(2).Size()
+		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v2.Type = t.FieldType(2).PtrTo()
+		v2.AuxInt = t.FieldOff(2)
+		v2.AddArg(dst)
+		v1.AddArg(v2)
+		v1.AddArg(f2)
+		v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v3.AuxInt = t.FieldType(1).Size()
+		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
+		v4.Type = t.FieldType(1).PtrTo()
+		v4.AuxInt = t.FieldOff(1)
+		v4.AddArg(dst)
+		v3.AddArg(v4)
+		v3.AddArg(f1)
+		v5 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v5.AuxInt = t.FieldType(0).Size()
+		v5.AddArg(dst)
+		v5.AddArg(f0)
+		v5.AddArg(mem)
+		v5.Type = TypeMem
+		v3.AddArg(v5)
+		v3.Type = TypeMem
+		v1.AddArg(v3)
+		v1.Type = TypeMem
+		v.AddArg(v1)
+		return true
+	}
+	goto end7ea91abd44794f7653374502a5a405ea
+end7ea91abd44794f7653374502a5a405ea:
+	;
 	// match: (Store [8] dst (ComplexMake real imag) mem)
 	// cond:
 	// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store [4] dst real mem))
@@ -3386,16 +3877,237 @@ end061edc5d85c73ad909089af2556d9380:
 func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (StructSelect [idx] (Load ptr mem))
+	// match: (StructSelect (StructMake1 x))
 	// cond:
-	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [idx] ptr) mem)
+	// result: x
 	{
-		idx := v.AuxInt
-		if v.Args[0].Op != OpLoad {
-			goto end27abc5bf0299ce1bd5457af6ce8e3fba
+		if v.Args[0].Op != OpStructMake1 {
+			goto end17af582e7eba5216b4a51fe6c9206d3c
 		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end17af582e7eba5216b4a51fe6c9206d3c
+end17af582e7eba5216b4a51fe6c9206d3c:
+	;
+	// match: (StructSelect [0] (StructMake2 x _))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 0 {
+			goto end355cfff99c8e9af975c3ae450d49b7f9
+		}
+		if v.Args[0].Op != OpStructMake2 {
+			goto end355cfff99c8e9af975c3ae450d49b7f9
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end355cfff99c8e9af975c3ae450d49b7f9
+end355cfff99c8e9af975c3ae450d49b7f9:
+	;
+	// match: (StructSelect [1] (StructMake2 _ x))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 1 {
+			goto end69baa65e494ef9ae154e0943b53734f9
+		}
+		if v.Args[0].Op != OpStructMake2 {
+			goto end69baa65e494ef9ae154e0943b53734f9
+		}
+		x := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end69baa65e494ef9ae154e0943b53734f9
+end69baa65e494ef9ae154e0943b53734f9:
+	;
+	// match: (StructSelect [0] (StructMake3 x _ _))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 0 {
+			goto endb0d98e2c46bb51c9abd4c3543392e0ec
+		}
+		if v.Args[0].Op != OpStructMake3 {
+			goto endb0d98e2c46bb51c9abd4c3543392e0ec
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endb0d98e2c46bb51c9abd4c3543392e0ec
+endb0d98e2c46bb51c9abd4c3543392e0ec:
+	;
+	// match: (StructSelect [1] (StructMake3 _ x _))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 1 {
+			goto end2e40457286d26c2f14ad4fd127946773
+		}
+		if v.Args[0].Op != OpStructMake3 {
+			goto end2e40457286d26c2f14ad4fd127946773
+		}
+		x := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end2e40457286d26c2f14ad4fd127946773
+end2e40457286d26c2f14ad4fd127946773:
+	;
+	// match: (StructSelect [2] (StructMake3 _ _ x))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 2 {
+			goto end3e3b96ad431206175d002ece87aa1409
+		}
+		if v.Args[0].Op != OpStructMake3 {
+			goto end3e3b96ad431206175d002ece87aa1409
+		}
+		x := v.Args[0].Args[2]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end3e3b96ad431206175d002ece87aa1409
+end3e3b96ad431206175d002ece87aa1409:
+	;
+	// match: (StructSelect [0] (StructMake4 x _ _ _))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 0 {
+			goto end09f8a1ffa3d8c3124bc6d4083b941108
+		}
+		if v.Args[0].Op != OpStructMake4 {
+			goto end09f8a1ffa3d8c3124bc6d4083b941108
+		}
+		x := v.Args[0].Args[0]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end09f8a1ffa3d8c3124bc6d4083b941108
+end09f8a1ffa3d8c3124bc6d4083b941108:
+	;
+	// match: (StructSelect [1] (StructMake4 _ x _ _))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 1 {
+			goto endd3ef25e605a927e9251be6d9221f4acf
+		}
+		if v.Args[0].Op != OpStructMake4 {
+			goto endd3ef25e605a927e9251be6d9221f4acf
+		}
+		x := v.Args[0].Args[1]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endd3ef25e605a927e9251be6d9221f4acf
+endd3ef25e605a927e9251be6d9221f4acf:
+	;
+	// match: (StructSelect [2] (StructMake4 _ _ x _))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 2 {
+			goto end0438e22cc8f41123fa42009a81ee723a
+		}
+		if v.Args[0].Op != OpStructMake4 {
+			goto end0438e22cc8f41123fa42009a81ee723a
+		}
+		x := v.Args[0].Args[2]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end0438e22cc8f41123fa42009a81ee723a
+end0438e22cc8f41123fa42009a81ee723a:
+	;
+	// match: (StructSelect [3] (StructMake4 _ _ _ x))
+	// cond:
+	// result: x
+	{
+		if v.AuxInt != 3 {
+			goto end56a7c7781fee35eeff0a3652dc206012
+		}
+		if v.Args[0].Op != OpStructMake4 {
+			goto end56a7c7781fee35eeff0a3652dc206012
+		}
+		x := v.Args[0].Args[3]
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end56a7c7781fee35eeff0a3652dc206012
+end56a7c7781fee35eeff0a3652dc206012:
+	;
+	// match: (StructSelect [i] (Load <t> ptr mem))
+	// cond: !config.fe.CanSSA(t)
+	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(i)] ptr) mem)
+	{
+		i := v.AuxInt
+		if v.Args[0].Op != OpLoad {
+			goto end2afd47b4fcaaab7a73325bd8a75e3e8e
+		}
+		t := v.Args[0].Type
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(!config.fe.CanSSA(t)) {
+			goto end2afd47b4fcaaab7a73325bd8a75e3e8e
+		}
 		v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, TypeInvalid)
 		v.Op = OpCopy
 		v.AuxInt = 0
@@ -3405,14 +4117,14 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 		v0.Type = v.Type
 		v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
 		v1.Type = v.Type.PtrTo()
-		v1.AuxInt = idx
+		v1.AuxInt = t.FieldOff(i)
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
 		v0.AddArg(mem)
 		return true
 	}
-	goto end27abc5bf0299ce1bd5457af6ce8e3fba
-end27abc5bf0299ce1bd5457af6ce8e3fba:
+	goto end2afd47b4fcaaab7a73325bd8a75e3e8e
+end2afd47b4fcaaab7a73325bd8a75e3e8e:
 	;
 	return false
 }
