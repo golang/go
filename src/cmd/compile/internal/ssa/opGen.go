@@ -533,7 +533,6 @@ const (
 	OpArrayIndex
 	OpPtrIndex
 	OpOffPtr
-	OpStructSelect
 	OpSliceMake
 	OpSlicePtr
 	OpSliceLen
@@ -547,6 +546,12 @@ const (
 	OpIMake
 	OpITab
 	OpIData
+	OpStructMake0
+	OpStructMake1
+	OpStructMake2
+	OpStructMake3
+	OpStructMake4
+	OpStructSelect
 	OpStoreReg
 	OpLoadReg
 	OpFwdRef
@@ -4237,10 +4242,6 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "StructSelect",
-		generic: true,
-	},
-	{
 		name:    "SliceMake",
 		generic: true,
 	},
@@ -4290,6 +4291,30 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "IData",
+		generic: true,
+	},
+	{
+		name:    "StructMake0",
+		generic: true,
+	},
+	{
+		name:    "StructMake1",
+		generic: true,
+	},
+	{
+		name:    "StructMake2",
+		generic: true,
+	},
+	{
+		name:    "StructMake3",
+		generic: true,
+	},
+	{
+		name:    "StructMake4",
+		generic: true,
+	},
+	{
+		name:    "StructSelect",
 		generic: true,
 	},
 	{

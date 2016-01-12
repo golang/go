@@ -13,23 +13,9 @@ func decompose(f *Func) {
 			if v.Op != OpPhi {
 				continue
 			}
-			switch {
-			case v.Type.IsComplex():
-				decomposeComplexPhi(v)
-			case v.Type.IsString():
-				decomposeStringPhi(v)
-			case v.Type.IsSlice():
-				decomposeSlicePhi(v)
-			case v.Type.IsInterface():
-				decomposeInterfacePhi(v)
-				//case v.Type.IsStruct():
-				//	decomposeStructPhi(v)
-			case v.Type.Size() > f.Config.IntSize:
-				f.Unimplementedf("undecomposed type %s", v.Type)
-			}
+			decomposePhi(v)
 		}
 	}
-	// TODO: decompose 64-bit ops on 32-bit archs?
 
 	// Split up named values into their components.
 	// NOTE: the component values we are making are dead at this point.
@@ -92,11 +78,36 @@ func decompose(f *Func) {
 				f.NamedValues[typeName] = append(f.NamedValues[typeName], typ)
 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
 			}
-			//case t.IsStruct():
-			// TODO
+		case t.IsStruct():
+			n := t.NumFields()
+			for _, v := range f.NamedValues[name] {
+				for i := int64(0); i < n; i++ {
+					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
+					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
+					f.NamedValues[fname] = append(f.NamedValues[fname], x)
+				}
+			}
 		case t.Size() > f.Config.IntSize:
-			f.Unimplementedf("undecomposed type %s", t)
+			f.Unimplementedf("undecomposed named type %s", t)
 		}
+	}
+}
+
+func decomposePhi(v *Value) {
+	// TODO: decompose 64-bit ops on 32-bit archs?
+	switch {
+	case v.Type.IsComplex():
+		decomposeComplexPhi(v)
+	case v.Type.IsString():
+		decomposeStringPhi(v)
+	case v.Type.IsSlice():
+		decomposeSlicePhi(v)
+	case v.Type.IsInterface():
+		decomposeInterfacePhi(v)
+	case v.Type.IsStruct():
+		decomposeStructPhi(v)
+	case v.Type.Size() > v.Block.Func.Config.IntSize:
+		v.Unimplementedf("undecomposed type %s", v.Type)
 	}
 }
 
@@ -184,5 +195,47 @@ func decomposeInterfacePhi(v *Value) {
 	v.AddArg(data)
 }
 func decomposeStructPhi(v *Value) {
-	// TODO
+	t := v.Type
+	n := t.NumFields()
+	var fields [MaxStruct]*Value
+	for i := int64(0); i < n; i++ {
+		fields[i] = v.Block.NewValue0(v.Line, OpPhi, t.FieldType(i))
+	}
+	for _, a := range v.Args {
+		for i := int64(0); i < n; i++ {
+			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, a))
+		}
+	}
+	v.Op = StructMakeOp(n)
+	v.AuxInt = 0
+	v.Aux = nil
+	v.resetArgs()
+	v.AddArgs(fields[:n]...)
+
+	// Recursively decompose phis for each field.
+	for _, f := range fields[:n] {
+		decomposePhi(f)
+	}
+}
+
+// MaxStruct is the maximum number of fields a struct
+// can have and still be SSAable.
+const MaxStruct = 4
+
+// StructMakeOp returns the opcode to construct a struct with the
+// given number of fields.
+func StructMakeOp(nf int64) Op {
+	switch nf {
+	case 0:
+		return OpStructMake0
+	case 1:
+		return OpStructMake1
+	case 2:
+		return OpStructMake2
+	case 3:
+		return OpStructMake3
+	case 4:
+		return OpStructMake4
+	}
+	panic("too many fields in an SSAable struct")
 }

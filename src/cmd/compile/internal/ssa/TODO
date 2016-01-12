@@ -9,6 +9,8 @@ Correctness
 - Debugging info (check & fix as much as we can)
 - Fix write barriers so cgo tests work (misc/cgo/errors/ptr.go)
 - Re-enable TestStackBarrierProfiling (src/runtime/pprof/pprof_test.go)
+- @ directive in rewrites might read overwritten data.  Save @loc
+  in variable before modifying v.
 
 Optimizations (better compiled code)
 ------------------------------------
@@ -28,7 +30,7 @@ Optimizations (better compiled code)
 - Use better write barrier calls
 - If there are a lot of MOVQ $0, ..., then load
   0 into a register and use the register as the source instead.
-- Allow structs (and arrays of length 1?) to be SSAable.
+- Allow arrays of length 1 (or longer, with all constant indexes?) to be SSAable.
 - Figure out how to make PARAMOUT variables ssa-able.
   They need to get spilled automatically at end-of-function somehow.
 - If strings are being passed around without being interpreted (ptr

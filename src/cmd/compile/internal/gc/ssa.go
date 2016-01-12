@@ -1802,7 +1802,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case ODOT:
-		// TODO: fix when we can SSA struct types.
+		t := n.Left.Type
+		if canSSAType(t) {
+			v := s.expr(n.Left)
+			return s.newValue1I(ssa.OpStructSelect, n.Type, fieldIdx(n), v)
+		}
 		p := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
@@ -1876,6 +1880,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// such types being spilled.
 		// So here we ensure that we are selecting the underlying pointer
 		// when we build an eface.
+		// TODO: get rid of this now that structs can be SSA'd?
 		for !data.Type.IsPtr() {
 			switch {
 			case data.Type.IsArray():
@@ -1887,7 +1892,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 						// eface type could also be struct{p *byte; q [0]int}
 						continue
 					}
-					data = s.newValue1I(ssa.OpStructSelect, f, data.Type.FieldOff(i), data)
+					data = s.newValue1I(ssa.OpStructSelect, f, i, data)
 					break
 				}
 			default:
@@ -2093,7 +2098,42 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool, line int32) {
 		}
 		right = s.zeroVal(t)
 	}
-	if left.Op == ONAME && canSSA(left) {
+	if canSSA(left) {
+		if left.Op == ODOT {
+			// We're assigning to a field of an ssa-able value.
+			// We need to build a new structure with the new value for the
+			// field we're assigning and the old values for the other fields.
+			// For instance:
+			//   type T struct {a, b, c int}
+			//   var T x
+			//   x.b = 5
+			// For the x.b = 5 assignment we want to generate x = T{x.a, 5, x.c}
+
+			// Grab information about the structure type.
+			t := left.Left.Type
+			nf := t.NumFields()
+			idx := fieldIdx(left)
+
+			// Grab old value of structure.
+			old := s.expr(left.Left)
+
+			// Make new structure.
+			new := s.newValue0(ssa.StructMakeOp(t.NumFields()), t)
+
+			// Add fields as args.
+			for i := int64(0); i < nf; i++ {
+				if i == idx {
+					new.AddArg(right)
+				} else {
+					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), i, old))
+				}
+			}
+
+			// Recursively assign the new value we've made to the base of the dot op.
+			s.assign(left.Left, new, false, line)
+			// TODO: do we need to update named values here?
+			return
+		}
 		// Update variable assignment.
 		s.vars[left] = right
 		s.addNamedValue(left, right)
@@ -2157,6 +2197,13 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		return s.entryNewValue0(ssa.OpConstInterface, t)
 	case t.IsSlice():
 		return s.entryNewValue0(ssa.OpConstSlice, t)
+	case t.IsStruct():
+		n := t.NumFields()
+		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
+		for i := int64(0); i < n; i++ {
+			v.AddArg(s.zeroVal(t.FieldType(i).(*Type)))
+		}
+		return v
 	}
 	s.Unimplementedf("zero for type %v not implemented", t)
 	return nil
@@ -2440,8 +2487,11 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 }
 
 // canSSA reports whether n is SSA-able.
-// n must be an ONAME.
+// n must be an ONAME (or an ODOT sequence with an ONAME base).
 func canSSA(n *Node) bool {
+	for n.Op == ODOT {
+		n = n.Left
+	}
 	if n.Op != ONAME {
 		return false
 	}
@@ -2485,10 +2535,7 @@ func canSSAType(t *Type) bool {
 		// introduced by the compiler for variadic functions.
 		return false
 	case TSTRUCT:
-		if countfield(t) > 4 {
-			// 4 is an arbitrary constant.  Same reasoning
-			// as above, lots of small fields would waste
-			// register space needed by other values.
+		if countfield(t) > ssa.MaxStruct {
 			return false
 		}
 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
@@ -2496,8 +2543,7 @@ func canSSAType(t *Type) bool {
 				return false
 			}
 		}
-		return false // until it is implemented
-		//return true
+		return true
 	default:
 		return true
 	}
@@ -4556,6 +4602,34 @@ func autoVar(v *ssa.Value) (*Node, int64) {
 		v.Fatalf("spill/restore type %s doesn't fit in slot type %s", v.Type, loc.Type)
 	}
 	return loc.N.(*Node), loc.Off
+}
+
+// fieldIdx finds the index of the field referred to by the ODOT node n.
+func fieldIdx(n *Node) int64 {
+	t := n.Left.Type
+	f := n.Right
+	if t.Etype != TSTRUCT {
+		panic("ODOT's LHS is not a struct")
+	}
+
+	var i int64
+	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		if t1.Etype != TFIELD {
+			panic("non-TFIELD in TSTRUCT")
+		}
+		if t1.Sym != f.Sym {
+			i++
+			continue
+		}
+		if t1.Width != n.Xoffset {
+			panic("field offset doesn't match")
+		}
+		return i
+	}
+	panic(fmt.Sprintf("can't find field in expr %s\n", n))
+
+	// TODO: keep the result of this fucntion somewhere in the ODOT Node
+	// so we don't have to recompute it each time we need it.
 }
 
 // ssaExport exports a bunch of compiler services for the ssa backend.

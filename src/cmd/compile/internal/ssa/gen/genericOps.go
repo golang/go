@@ -335,10 +335,9 @@ var genericOps = []opData{
 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
 
 	// Indexing operations
-	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
-	{name: "PtrIndex"},     // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
-	{name: "OffPtr"},       // arg0 + auxint (arg0 and result are pointers)
-	{name: "StructSelect"}, // arg0=struct, auxint=field offset.  Returns field at that offset (size=size of result type)
+	{name: "ArrayIndex"}, // arg0=array, arg1=index.  Returns a[i]
+	{name: "PtrIndex"},   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+	{name: "OffPtr"},     // arg0 + auxint (arg0 and result are pointers)
 
 	// Slices
 	{name: "SliceMake"},                // arg0=ptr, arg1=len, arg2=cap
@@ -360,6 +359,14 @@ var genericOps = []opData{
 	{name: "IMake"},                // arg0=itab, arg1=data
 	{name: "ITab", typ: "BytePtr"}, // arg0=interface, returns itable field
 	{name: "IData"},                // arg0=interface, returns data field
+
+	// Structs
+	{name: "StructMake0"},  // Returns struct with 0 fields.
+	{name: "StructMake1"},  // arg0=field0.  Returns struct.
+	{name: "StructMake2"},  // arg0,arg1=field0,field1.  Returns struct.
+	{name: "StructMake3"},  // arg0..2=field0..2.  Returns struct.
+	{name: "StructMake4"},  // arg0..3=field0..3.  Returns struct.
+	{name: "StructSelect"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
