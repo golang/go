@@ -125,10 +125,18 @@ The C types __int128_t and __uint128_t are represented by [16]byte.
 To access a struct, union, or enum type directly, prefix it with
 struct_, union_, or enum_, as in C.struct_stat.
 
+The size of any C type T is available as C.sizeof_T, as in
+C.sizeof_struct_stat.
+
 As Go doesn't have support for C's union type in the general case,
 C's union types are represented as a Go byte array with the same length.
 
 Go structs cannot embed fields with C types.
+
+Go code can not refer to zero-sized fields that occur at the end of
+non-empty C structs.  To get the address of such a field (which is the
+only operation you can do with a zero-sized field) you must take the
+address of the struct and add the size of the struct.
 
 Cgo translates C types into equivalent unexported Go types.
 Because the translations are unexported, a Go package should not
