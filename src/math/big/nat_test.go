@@ -419,11 +419,11 @@ func TestMontgomery(t *testing.T) {
 
 		if x.cmp(m) > 0 {
 			_, r := nat(nil).div(nil, x, m)
-			t.Errorf("#%d: x > m (0x%s > 0x%s; use 0x%s)", i, x.utoa(16), m.utoa(16), r.utoa(16))
+			t.Errorf("#%d: x > m (0x%s > 0x%s; use 0x%s)", i, x.hexString(), m.hexString(), r.hexString())
 		}
 		if y.cmp(m) > 0 {
 			_, r := nat(nil).div(nil, x, m)
-			t.Errorf("#%d: y > m (0x%s > 0x%s; use 0x%s)", i, y.utoa(16), m.utoa(16), r.utoa(16))
+			t.Errorf("#%d: y > m (0x%s > 0x%s; use 0x%s)", i, y.hexString(), m.hexString(), r.hexString())
 		}
 
 		var out nat
@@ -441,7 +441,7 @@ func TestMontgomery(t *testing.T) {
 		mi := &Int{abs: m}
 		p := new(Int).Mod(new(Int).Mul(xi, new(Int).Mul(yi, new(Int).ModInverse(new(Int).Lsh(one, uint(len(m))*_W), mi))), mi)
 		if out.cmp(p.abs.norm()) != 0 {
-			t.Errorf("#%d: out in table=0x%s, computed=0x%s", i, out.utoa(16), p.abs.norm().utoa(16))
+			t.Errorf("#%d: out in table=0x%s, computed=0x%s", i, out.hexString(), p.abs.norm().hexString())
 		}
 
 		// check k0 in table
@@ -457,7 +457,7 @@ func TestMontgomery(t *testing.T) {
 		z := nat(nil).montgomery(x, y, m, k0, len(m))
 		z = z.norm()
 		if z.cmp(out) != 0 {
-			t.Errorf("#%d: got 0x%s want 0x%s", i, z.utoa(16), out.utoa(16))
+			t.Errorf("#%d: got 0x%s want 0x%s", i, z.hexString(), out.hexString())
 		}
 	}
 }
