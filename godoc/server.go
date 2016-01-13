@@ -215,9 +215,9 @@ func (h *handlerServer) includePath(path string, mode PageInfoMode) (r bool) {
 	if mode&NoFiltering != 0 {
 		return true
 	}
-	if strings.Contains(path, "internal") {
+	if strings.Contains(path, "internal") || strings.Contains(path, "vendor") {
 		for _, c := range strings.Split(filepath.Clean(path), string(os.PathSeparator)) {
-			if c == "internal" {
+			if c == "internal" || c == "vendor" {
 				return false
 			}
 		}
