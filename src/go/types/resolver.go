@@ -187,10 +187,10 @@ func (check *Checker) collectObjects() {
 							// ordinary import
 							if importer := check.conf.Importer; importer == nil {
 								err = fmt.Errorf("Config.Importer not installed")
-							} else if importer2, ok := importer.(Importer2); ok {
-								imp, err = importer2.Import2(path, srcDir, 0)
+							} else if importerFrom, ok := importer.(ImporterFrom); ok {
+								imp, err = importerFrom.ImportFrom(path, srcDir, 0)
 								if imp == nil && err == nil {
-									err = fmt.Errorf("Config.Importer.Import2(%s, %s, 0) returned nil but no error", path, pkg.path)
+									err = fmt.Errorf("Config.Importer.ImportFrom(%s, %s, 0) returned nil but no error", path, pkg.path)
 								}
 							} else {
 								imp, err = importer.Import(path)

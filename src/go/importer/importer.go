@@ -50,7 +50,7 @@ func For(compiler string, lookup Lookup) types.Importer {
 }
 
 // Default returns an Importer for the compiler that built the running binary.
-// If available, the result implements types.Importer2.
+// If available, the result implements types.ImporterFrom.
 func Default() types.Importer {
 	return For(runtime.Compiler, nil)
 }
@@ -60,10 +60,10 @@ func Default() types.Importer {
 type gcimports map[string]*types.Package
 
 func (m gcimports) Import(path string) (*types.Package, error) {
-	return m.Import2(path, "" /* no vendoring */, 0)
+	return m.ImportFrom(path, "" /* no vendoring */, 0)
 }
 
-func (m gcimports) Import2(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
+func (m gcimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
 	if mode != 0 {
 		panic("mode must be 0")
 	}
@@ -78,10 +78,10 @@ type gccgoimports struct {
 }
 
 func (m *gccgoimports) Import(path string) (*types.Package, error) {
-	return m.Import2(path, "" /* no vendoring */, 0)
+	return m.ImportFrom(path, "" /* no vendoring */, 0)
 }
 
-func (m *gccgoimports) Import2(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
+func (m *gccgoimports) ImportFrom(path, srcDir string, mode types.ImportMode) (*types.Package, error) {
 	if mode != 0 {
 		panic("mode must be 0")
 	}
