@@ -264,19 +264,20 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 	return
 }
 
-// errNoBody is a sentinel error value used by failureToReadBody so we can detect
-// that the lack of body was intentional.
+// errNoBody is a sentinel error value used by failureToReadBody so we
+// can detect that the lack of body was intentional.
 var errNoBody = errors.New("sentinel error value")
 
 // failureToReadBody is a io.ReadCloser that just returns errNoBody on
-// Read.  It's swapped in when we don't actually want to consume the
-// body, but need a non-nil one, and want to distinguish the error
-// from reading the dummy body.
+// Read.  It's swapped in when we don't actually want to consume
+// the body, but need a non-nil one, and want to distinguish the
+// error from reading the dummy body.
 type failureToReadBody struct{}
 
 func (failureToReadBody) Read([]byte) (int, error) { return 0, errNoBody }
 func (failureToReadBody) Close() error             { return nil }
 
+// emptyBody is an instance of empty reader.
 var emptyBody = ioutil.NopCloser(strings.NewReader(""))
 
 // DumpResponse is like DumpRequest but dumps a response.
@@ -286,7 +287,13 @@ func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
 	savecl := resp.ContentLength
 
 	if !body {
-		resp.Body = failureToReadBody{}
+		// For content length of zero. Make sure the body is an empty
+		// reader, instead of returning error through failureToReadBody{}.
+		if resp.ContentLength == 0 {
+			resp.Body = emptyBody
+		} else {
+			resp.Body = failureToReadBody{}
+		}
 	} else if resp.Body == nil {
 		resp.Body = emptyBody
 	} else {
