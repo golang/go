@@ -5353,21 +5353,36 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 	cc := rl.cc
 	cs := cc.streamByID(f.StreamID, f.StreamEnded())
 	if cs == nil {
+		cc.mu.Lock()
+		neverSent := cc.nextStreamID
+		cc.mu.Unlock()
+		if f.StreamID >= neverSent {
+
+			cc.logf("http2: Transport received unsolicited DATA frame; closing connection")
+			return http2ConnectionError(http2ErrCodeProtocol)
+		}
+
 		return nil
 	}
-	data := f.Data()
+	if data := f.Data(); len(data) > 0 {
+		if cs.bufPipe.b == nil {
 
-	cc.mu.Lock()
-	if cs.inflow.available() >= int32(len(data)) {
-		cs.inflow.take(int32(len(data)))
-	} else {
+			cc.logf("http2: Transport received DATA frame for closed stream; closing connection")
+			return http2ConnectionError(http2ErrCodeProtocol)
+		}
+
+		cc.mu.Lock()
+		if cs.inflow.available() >= int32(len(data)) {
+			cs.inflow.take(int32(len(data)))
+		} else {
+			cc.mu.Unlock()
+			return http2ConnectionError(http2ErrCodeFlowControl)
+		}
 		cc.mu.Unlock()
-		return http2ConnectionError(http2ErrCodeFlowControl)
-	}
-	cc.mu.Unlock()
 
-	if _, err := cs.bufPipe.Write(data); err != nil {
-		return err
+		if _, err := cs.bufPipe.Write(data); err != nil {
+			return err
+		}
 	}
 
 	if f.StreamEnded() {
