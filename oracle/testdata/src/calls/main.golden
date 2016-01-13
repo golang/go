@@ -96,6 +96,10 @@ this static function call dispatches to:
 this static function call dispatches to:
 	(main.method).f
 
+-------- @callees callees-implicit-selection-method-call --------
+this dynamic method call dispatches to:
+	(main.method).f
+
 -------- @callers callers-not-a-wrapper --------
 (main.myint).f is called from these 1 sites:
 	dynamic method call from main.main

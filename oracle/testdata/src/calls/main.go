@@ -83,6 +83,9 @@ func main() {
 	fmt.Println() // @callees callees-qualified-call "Println"
 	m := new(method)
 	m.f() // @callees callees-static-method-call "f"
+	g := new(embeddedIface)
+	g.iface = m
+	g.f() // @callees callees-implicit-selection-method-call "f"
 }
 
 type myint int
@@ -94,6 +97,14 @@ func (myint) f() {
 type method int
 
 func (method) f() {
+}
+
+type embeddedIface struct {
+	iface
+}
+
+type iface interface {
+	f()
 }
 
 var dynamic = func() {}

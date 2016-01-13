@@ -92,12 +92,17 @@ func callees(q *Query) error {
 				return nil
 			}
 		} else if sel.Kind() == types.MethodVal {
-			recvtype := sel.Recv()
+			// Inspect the receiver type of the selected method.
+			// If it is concrete, the call is statically dispatched.
+			// (Due to implicit field selections, it is not enough to look
+			// at sel.Recv(), the type of the actual receiver expression.)
+			method := sel.Obj().(*types.Func)
+			recvtype := method.Type().(*types.Signature).Recv().Type()
 			if !types.IsInterface(recvtype) {
 				// static method call
 				q.result = &calleesTypesResult{
 					site:   e,
-					callee: sel.Obj().(*types.Func),
+					callee: method,
 				}
 				return nil
 			}
