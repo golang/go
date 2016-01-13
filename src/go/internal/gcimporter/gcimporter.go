@@ -413,11 +413,11 @@ func (p *parser) parseBasicType() types.Type {
 
 // ArrayType = "[" int_lit "]" Type .
 //
-func (p *parser) parseArrayType() types.Type {
+func (p *parser) parseArrayType(parent *types.Package) types.Type {
 	// "[" already consumed and lookahead known not to be "]"
 	lit := p.expect(scanner.Int)
 	p.expect(']')
-	elem := p.parseType()
+	elem := p.parseType(parent)
 	n, err := strconv.ParseInt(lit, 10, 64)
 	if err != nil {
 		p.error(err)
@@ -427,35 +427,43 @@ func (p *parser) parseArrayType() types.Type {
 
 // MapType = "map" "[" Type "]" Type .
 //
-func (p *parser) parseMapType() types.Type {
+func (p *parser) parseMapType(parent *types.Package) types.Type {
 	p.expectKeyword("map")
 	p.expect('[')
-	key := p.parseType()
+	key := p.parseType(parent)
 	p.expect(']')
-	elem := p.parseType()
+	elem := p.parseType(parent)
 	return types.NewMap(key, elem)
 }
 
 // Name = identifier | "?" | QualifiedName .
 //
-// For unqualified names, the returned package is the imported package.
+// For unqualified and anonymous names, the returned package is the parent
+// package unless parent == nil, in which case the returned package is the
+// package being imported. (The parent package is not nil if the the name
+// is an unqualified struct field or interface method name belonging to a
+// type declared in another package.)
+//
 // For qualified names, the returned package is nil (and not created if
 // it doesn't exist yet) unless materializePkg is set (which creates an
-// unnamed package). In the latter case, a subequent import clause is
-// expected to provide a name for the package.
+// unnamed package with valid package path). In the latter case, a
+// subequent import clause is expected to provide a name for the package.
 //
-func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string) {
+func (p *parser) parseName(parent *types.Package, materializePkg bool) (pkg *types.Package, name string) {
+	pkg = parent
+	if pkg == nil {
+		pkg = p.sharedPkgs[p.id]
+	}
 	switch p.tok {
 	case scanner.Ident:
-		pkg = p.sharedPkgs[p.id]
 		name = p.lit
 		p.next()
 	case '?':
 		// anonymous
-		pkg = p.sharedPkgs[p.id]
 		p.next()
 	case '@':
 		// exported name prefixed with package path
+		pkg = nil
 		var id string
 		id, name = p.parseQualifiedName()
 		if materializePkg {
@@ -476,9 +484,9 @@ func deref(typ types.Type) types.Type {
 
 // Field = Name Type [ string_lit ] .
 //
-func (p *parser) parseField() (*types.Var, string) {
-	pkg, name := p.parseName(true)
-	typ := p.parseType()
+func (p *parser) parseField(parent *types.Package) (*types.Var, string) {
+	pkg, name := p.parseName(parent, true)
+	typ := p.parseType(parent)
 	anonymous := false
 	if name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
@@ -487,7 +495,9 @@ func (p *parser) parseField() (*types.Var, string) {
 			pkg = nil
 			name = typ.Name()
 		case *types.Named:
-			name = typ.Obj().Name()
+			obj := typ.Obj()
+			pkg = obj.Pkg()
+			name = obj.Name()
 		default:
 			p.errorf("anonymous field expected")
 		}
@@ -508,7 +518,7 @@ func (p *parser) parseField() (*types.Var, string) {
 // StructType = "struct" "{" [ FieldList ] "}" .
 // FieldList  = Field { ";" Field } .
 //
-func (p *parser) parseStructType() types.Type {
+func (p *parser) parseStructType(parent *types.Package) types.Type {
 	var fields []*types.Var
 	var tags []string
 
@@ -518,7 +528,7 @@ func (p *parser) parseStructType() types.Type {
 		if i > 0 {
 			p.expect(';')
 		}
-		fld, tag := p.parseField()
+		fld, tag := p.parseField(parent)
 		if tag != "" && tags == nil {
 			tags = make([]string, i)
 		}
@@ -535,7 +545,7 @@ func (p *parser) parseStructType() types.Type {
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
 //
 func (p *parser) parseParameter() (par *types.Var, isVariadic bool) {
-	_, name := p.parseName(false)
+	_, name := p.parseName(nil, false)
 	// remove gc-specific parameter numbering
 	if i := strings.Index(name, "·"); i >= 0 {
 		name = name[:i]
@@ -544,7 +554,7 @@ func (p *parser) parseParameter() (par *types.Var, isVariadic bool) {
 		p.expectSpecial("...")
 		isVariadic = true
 	}
-	typ := p.parseType()
+	typ := p.parseType(nil)
 	if isVariadic {
 		typ = types.NewSlice(typ)
 	}
@@ -607,7 +617,7 @@ func (p *parser) parseSignature(recv *types.Var) *types.Signature {
 // by the compiler and thus embedded interfaces are never
 // visible in the export data.
 //
-func (p *parser) parseInterfaceType() types.Type {
+func (p *parser) parseInterfaceType(parent *types.Package) types.Type {
 	var methods []*types.Func
 
 	p.expectKeyword("interface")
@@ -616,7 +626,7 @@ func (p *parser) parseInterfaceType() types.Type {
 		if i > 0 {
 			p.expect(';')
 		}
-		pkg, name := p.parseName(true)
+		pkg, name := p.parseName(parent, true)
 		sig := p.parseSignature(nil)
 		methods = append(methods, types.NewFunc(token.NoPos, pkg, name, sig))
 	}
@@ -629,7 +639,7 @@ func (p *parser) parseInterfaceType() types.Type {
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
 //
-func (p *parser) parseChanType() types.Type {
+func (p *parser) parseChanType(parent *types.Package) types.Type {
 	dir := types.SendRecv
 	if p.tok == scanner.Ident {
 		p.expectKeyword("chan")
@@ -642,7 +652,7 @@ func (p *parser) parseChanType() types.Type {
 		p.expectKeyword("chan")
 		dir = types.RecvOnly
 	}
-	elem := p.parseType()
+	elem := p.parseType(parent)
 	return types.NewChan(dir, elem)
 }
 
@@ -657,24 +667,24 @@ func (p *parser) parseChanType() types.Type {
 // PointerType = "*" Type .
 // FuncType    = "func" Signature .
 //
-func (p *parser) parseType() types.Type {
+func (p *parser) parseType(parent *types.Package) types.Type {
 	switch p.tok {
 	case scanner.Ident:
 		switch p.lit {
 		default:
 			return p.parseBasicType()
 		case "struct":
-			return p.parseStructType()
+			return p.parseStructType(parent)
 		case "func":
 			// FuncType
 			p.next()
 			return p.parseSignature(nil)
 		case "interface":
-			return p.parseInterfaceType()
+			return p.parseInterfaceType(parent)
 		case "map":
-			return p.parseMapType()
+			return p.parseMapType(parent)
 		case "chan":
-			return p.parseChanType()
+			return p.parseChanType(parent)
 		}
 	case '@':
 		// TypeName
@@ -685,19 +695,19 @@ func (p *parser) parseType() types.Type {
 		if p.tok == ']' {
 			// SliceType
 			p.next()
-			return types.NewSlice(p.parseType())
+			return types.NewSlice(p.parseType(parent))
 		}
-		return p.parseArrayType()
+		return p.parseArrayType(parent)
 	case '*':
 		// PointerType
 		p.next()
-		return types.NewPointer(p.parseType())
+		return types.NewPointer(p.parseType(parent))
 	case '<':
-		return p.parseChanType()
+		return p.parseChanType(parent)
 	case '(':
 		// "(" Type ")"
 		p.next()
-		typ := p.parseType()
+		typ := p.parseType(parent)
 		p.expect(')')
 		return typ
 	}
@@ -779,7 +789,8 @@ func (p *parser) parseConstDecl() {
 
 	var typ0 types.Type
 	if p.tok != '=' {
-		typ0 = p.parseType()
+		// constant types are never structured - no need for parent type
+		typ0 = p.parseType(nil)
 	}
 
 	p.expect('=')
@@ -853,7 +864,7 @@ func (p *parser) parseTypeDecl() {
 	// structure, but throw it away if the object already has a type.
 	// This ensures that all imports refer to the same type object for
 	// a given type declaration.
-	typ := p.parseType()
+	typ := p.parseType(pkg)
 
 	if name := obj.Type().(*types.Named); name.Underlying() == nil {
 		name.SetUnderlying(typ)
@@ -865,7 +876,7 @@ func (p *parser) parseTypeDecl() {
 func (p *parser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
-	typ := p.parseType()
+	typ := p.parseType(pkg)
 	pkg.Scope().Insert(types.NewVar(token.NoPos, pkg, name, typ))
 }
 
@@ -901,7 +912,7 @@ func (p *parser) parseMethodDecl() {
 	base := deref(recv.Type()).(*types.Named)
 
 	// parse method name, signature, and possibly inlined body
-	_, name := p.parseName(false)
+	_, name := p.parseName(nil, false)
 	sig := p.parseFunc(recv)
 
 	// methods always belong to the same package as the base type object
