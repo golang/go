@@ -2941,8 +2941,8 @@ func (b *builder) gccSupportsNoPie() bool {
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.work
 	cmd.Env = envForDir(cmd.Dir, os.Environ())
-	err := cmd.Run()
-	return err == nil
+	out, err := cmd.CombinedOutput()
+	return err == nil && !bytes.Contains(out, []byte("unrecognized"))
 }
 
 // gccArchArgs returns arguments to pass to gcc based on the architecture.
