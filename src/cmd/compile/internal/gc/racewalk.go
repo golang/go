@@ -143,7 +143,7 @@ func instrumentnode(np **Node, init **NodeList, wr int, skip int) {
 		goto ret
 
 		// can't matter
-	case OCFUNC, OVARKILL:
+	case OCFUNC, OVARKILL, OVARLIVE:
 		goto ret
 
 	case OBLOCK:
