@@ -7,6 +7,7 @@ package net
 import (
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"runtime"
 	"strings"
 	"testing"
@@ -57,7 +58,7 @@ var lookupGoogleSRVTests = []struct {
 }
 
 func TestLookupGoogleSRV(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -91,7 +92,7 @@ var lookupGmailMXTests = []struct {
 }
 
 func TestLookupGmailMX(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -122,7 +123,7 @@ var lookupGmailNSTests = []struct {
 }
 
 func TestLookupGmailNS(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -153,7 +154,7 @@ var lookupGmailTXTTests = []struct {
 }
 
 func TestLookupGmailTXT(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -187,7 +188,7 @@ var lookupGooglePublicDNSAddrTests = []struct {
 }
 
 func TestLookupGooglePublicDNSAddr(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
@@ -211,7 +212,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
 }
 
 func TestLookupIPv6LinkLocalAddr(t *testing.T) {
-	if !supportsIPv6 {
+	if !supportsIPv6 || !*testIPv6 {
 		t.Skip("IPv6 is required")
 	}
 
@@ -242,7 +243,7 @@ var lookupIANACNAMETests = []struct {
 }
 
 func TestLookupIANACNAME(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -268,7 +269,7 @@ var lookupGoogleHostTests = []struct {
 }
 
 func TestLookupGoogleHost(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -299,7 +300,7 @@ var lookupGoogleIPTests = []struct {
 }
 
 func TestLookupGoogleIP(t *testing.T) {
-	if testing.Short() || !*testExternal {
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
 	if !supportsIPv4 || !*testIPv4 {
@@ -421,7 +422,7 @@ func TestLookupIPDeadline(t *testing.T) {
 }
 
 func TestLookupDotsWithLocalSource(t *testing.T) {
-	if !supportsIPv4 {
+	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
 
@@ -433,7 +434,7 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 		names, err := LookupAddr("127.0.0.1")
 		fixup()
 		if err != nil {
-			t.Errorf("#%d: %v", i, err)
+			t.Logf("#%d: %v", i, err)
 			continue
 		}
 		mode := "netgo"
@@ -451,8 +452,11 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
 }
 
 func TestLookupDotsWithRemoteSource(t *testing.T) {
-	if testing.Short() || !*testExternal {
-		t.Skipf("skipping external network test")
+	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+		t.Skip("avoid external network")
+	}
+	if !supportsIPv4 || *testIPv4 {
+		t.Skip("IPv4 is required")
 	}
 
 	if fixup := forceGoDNS(); fixup != nil {

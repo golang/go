@@ -190,17 +190,6 @@ func lookupPort(network, service string) (port int, err error) {
 	return 0, unknownPortError
 }
 
-// ensureEndDot adds '.' at the end of name unless it is already there.
-func ensureEndDot(name string) string {
-	if name == "" {
-		return "."
-	}
-	if name[len(name)-1] == '.' {
-		return name
-	}
-	return name + "."
-}
-
 func lookupCNAME(name string) (cname string, err error) {
 	lines, err := queryDNS(name, "cname")
 	if err != nil {
@@ -236,8 +225,8 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
 		if !(portOk && priorityOk && weightOk) {
 			continue
 		}
-		addrs = append(addrs, &SRV{ensureEndDot(f[5]), uint16(port), uint16(priority), uint16(weight)})
-		cname = ensureEndDot(f[0])
+		addrs = append(addrs, &SRV{absDomainName([]byte(f[5])), uint16(port), uint16(priority), uint16(weight)})
+		cname = absDomainName([]byte(f[0]))
 	}
 	byPriorityWeight(addrs).sort()
 	return
@@ -254,7 +243,7 @@ func lookupMX(name string) (mx []*MX, err error) {
 			continue
 		}
 		if pref, _, ok := dtoi(f[2], 0); ok {
-			mx = append(mx, &MX{ensureEndDot(f[3]), uint16(pref)})
+			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
 		}
 	}
 	byPref(mx).sort()
@@ -271,7 +260,7 @@ func lookupNS(name string) (ns []*NS, err error) {
 		if len(f) < 3 {
 			continue
 		}
-		ns = append(ns, &NS{ensureEndDot(f[2])})
+		ns = append(ns, &NS{absDomainName([]byte(f[2]))})
 	}
 	return
 }
@@ -283,7 +272,7 @@ func lookupTXT(name string) (txt []string, err error) {
 	}
 	for _, line := range lines {
 		if i := byteIndex(line, '\t'); i >= 0 {
-			txt = append(txt, ensureEndDot(line[i+1:]))
+			txt = append(txt, absDomainName([]byte(line[i+1:])))
 		}
 	}
 	return
@@ -303,7 +292,7 @@ func lookupAddr(addr string) (name []string, err error) {
 		if len(f) < 3 {
 			continue
 		}
-		name = append(name, ensureEndDot(f[2]))
+		name = append(name, absDomainName([]byte(f[2])))
 	}
 	return
 }

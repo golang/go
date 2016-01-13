@@ -6,6 +6,17 @@
 
 package net
 
+import "runtime"
+
 // See unix_test.go for what these (don't) do.
-func forceGoDNS() func()  { return nil }
+func forceGoDNS() func() {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		return func() {}
+	default:
+		return nil
+	}
+}
+
+// See unix_test.go for what these (don't) do.
 func forceCgoDNS() func() { return nil }
