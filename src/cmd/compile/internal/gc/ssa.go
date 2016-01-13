@@ -130,7 +130,7 @@ func buildssa(fn *Node) *ssa.Func {
 	if name == os.Getenv("GOSSAFUNC") {
 		// TODO: tempfile? it is handy to have the location
 		// of this file be stable, so you can just reload in the browser.
-		s.config.HTML = ssa.NewHTMLWriter("ssa.html", &s, name)
+		s.config.HTML = ssa.NewHTMLWriter("ssa.html", s.config, name)
 		// TODO: generate and print a mapping from nodes to values and blocks
 	}
 	defer func() {
@@ -320,9 +320,11 @@ func (s *state) label(sym *Sym) *ssaLabel {
 	return lab
 }
 
-func (s *state) Logf(msg string, args ...interface{})            { s.config.Logf(msg, args...) }
-func (s *state) Fatalf(msg string, args ...interface{})          { s.config.Fatalf(msg, args...) }
-func (s *state) Unimplementedf(msg string, args ...interface{})  { s.config.Unimplementedf(msg, args...) }
+func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
+func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
+func (s *state) Unimplementedf(msg string, args ...interface{}) {
+	s.config.Unimplementedf(s.peekLine(), msg, args...)
+}
 func (s *state) Warnl(line int, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
 func (s *state) Debug_checknil() bool                            { return s.config.Debug_checknil() }
 
@@ -4594,17 +4596,19 @@ func (e *ssaExport) Logf(msg string, args ...interface{}) {
 }
 
 // Fatal reports a compiler error and exits.
-func (e *ssaExport) Fatalf(msg string, args ...interface{}) {
+func (e *ssaExport) Fatalf(line int32, msg string, args ...interface{}) {
 	// If e was marked as unimplemented, anything could happen. Ignore.
 	if !e.unimplemented {
+		lineno = line
 		Fatalf(msg, args...)
 	}
 }
 
 // Unimplemented reports that the function cannot be compiled.
 // It will be removed once SSA work is complete.
-func (e *ssaExport) Unimplementedf(msg string, args ...interface{}) {
+func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{}) {
 	if e.mustImplement {
+		lineno = line
 		Fatalf(msg, args...)
 	}
 	const alwaysLog = false // enable to calculate top unimplemented features

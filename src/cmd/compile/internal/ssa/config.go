@@ -44,11 +44,11 @@ type Logger interface {
 	Logf(string, ...interface{})
 
 	// Fatal reports a compiler error and exits.
-	Fatalf(string, ...interface{})
+	Fatalf(line int32, msg string, args ...interface{})
 
 	// Unimplemented reports that the function cannot be compiled.
 	// It will be removed once SSA work is complete.
-	Unimplementedf(msg string, args ...interface{})
+	Unimplementedf(line int32, msg string, args ...interface{})
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
 	Warnl(line int, fmt_ string, args ...interface{})
@@ -91,7 +91,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
 		c.lowerBlock = rewriteBlockAMD64
 		c.lowerValue = rewriteValueAMD64 // TODO(khr): full 32-bit support
 	default:
-		fe.Unimplementedf("arch %s not implemented", arch)
+		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
 
@@ -106,9 +106,11 @@ func (c *Config) NewFunc() *Func {
 	return &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
 }
 
-func (c *Config) Logf(msg string, args ...interface{})            { c.fe.Logf(msg, args...) }
-func (c *Config) Fatalf(msg string, args ...interface{})          { c.fe.Fatalf(msg, args...) }
-func (c *Config) Unimplementedf(msg string, args ...interface{})  { c.fe.Unimplementedf(msg, args...) }
+func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
+func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
+func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
+	c.fe.Unimplementedf(line, msg, args...)
+}
 func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
 func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
 
