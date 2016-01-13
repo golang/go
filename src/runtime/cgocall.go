@@ -502,11 +502,13 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	if cgoInRange(p, mheap_.arena_start, mheap_.arena_used) {
 		if !inheap(uintptr(p)) {
-			// This pointer is either to a stack or to an
-			// unused span.  Escape analysis should
-			// prevent the former and the latter should
-			// not happen.
-			panic(errorString("cgo argument has invalid Go pointer"))
+			// On 32-bit systems it is possible for C's allocated memory
+			// to have addresses between arena_start and arena_used.
+			// Either this pointer is a stack or an unused span or it's
+			// a C allocation. Escape analysis should prevent the first,
+			// garbage collection should prevent the second,
+			// and the third is completely OK.
+			return
 		}
 
 		b, hbits, span := heapBitsForObject(uintptr(p), 0, 0)
