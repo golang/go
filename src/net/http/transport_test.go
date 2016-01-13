@@ -24,6 +24,7 @@ import (
 	. "net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"net/http/internal"
 	"net/url"
 	"os"
 	"reflect"
@@ -2937,6 +2938,98 @@ func TestTransportReuseConnEmptyResponseBody(t *testing.T) {
 		}
 		res.Body.Close()
 	}
+}
+
+// Issue 13839
+func TestNoCrashReturningTransportAltConn(t *testing.T) {
+	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln := newLocalListener(t)
+	defer ln.Close()
+
+	handledPendingDial := make(chan bool, 1)
+	SetPendingDialHooks(nil, func() { handledPendingDial <- true })
+	defer SetPendingDialHooks(nil, nil)
+
+	testDone := make(chan struct{})
+	defer close(testDone)
+	go func() {
+		tln := tls.NewListener(ln, &tls.Config{
+			NextProtos:   []string{"foo"},
+			Certificates: []tls.Certificate{cert},
+		})
+		sc, err := tln.Accept()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if err := sc.(*tls.Conn).Handshake(); err != nil {
+			t.Error(err)
+			return
+		}
+		<-testDone
+		sc.Close()
+	}()
+
+	addr := ln.Addr().String()
+
+	req, _ := NewRequest("GET", "https://fake.tld/", nil)
+	cancel := make(chan struct{})
+	req.Cancel = cancel
+
+	doReturned := make(chan bool, 1)
+	madeRoundTripper := make(chan bool, 1)
+
+	tr := &Transport{
+		DisableKeepAlives: true,
+		TLSNextProto: map[string]func(string, *tls.Conn) RoundTripper{
+			"foo": func(authority string, c *tls.Conn) RoundTripper {
+				madeRoundTripper <- true
+				return funcRoundTripper(func() {
+					t.Error("foo RoundTripper should not be called")
+				})
+			},
+		},
+		Dial: func(_, _ string) (net.Conn, error) {
+			panic("shouldn't be called")
+		},
+		DialTLS: func(_, _ string) (net.Conn, error) {
+			tc, err := tls.Dial("tcp", addr, &tls.Config{
+				InsecureSkipVerify: true,
+				NextProtos:         []string{"foo"},
+			})
+			if err != nil {
+				return nil, err
+			}
+			if err := tc.Handshake(); err != nil {
+				return nil, err
+			}
+			close(cancel)
+			<-doReturned
+			return tc, nil
+		},
+	}
+	c := &Client{Transport: tr}
+
+	_, err = c.Do(req)
+	if ue, ok := err.(*url.Error); !ok || ue.Err != ExportErrRequestCanceledConn {
+		t.Fatalf("Do error = %v; want url.Error with errRequestCanceledConn", err)
+	}
+
+	doReturned <- true
+	<-madeRoundTripper
+	<-handledPendingDial
+}
+
+var errFakeRoundTrip = errors.New("fake roundtrip")
+
+type funcRoundTripper func()
+
+func (fn funcRoundTripper) RoundTrip(*Request) (*Response, error) {
+	fn()
+	return nil, errFakeRoundTrip
 }
 
 func wantBody(res *Response, err error, want string) error {
