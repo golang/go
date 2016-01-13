@@ -566,6 +566,25 @@ func Asmbmacho() {
 		}
 	}
 
+	if Linkmode == LinkInternal {
+		// For lldb, must say LC_VERSION_MIN_MACOSX or else
+		// it won't know that this Mach-O binary is from OS X
+		// (could be iOS or WatchOS intead).
+		// Go on iOS uses linkmode=external, and linkmode=external
+		// adds this itself. So we only need this code for linkmode=internal
+		// and we can assume OS X.
+		//
+		// See golang.org/issues/12941.
+		const (
+			LC_VERSION_MIN_MACOSX   = 0x24
+			LC_VERSION_MIN_IPHONEOS = 0x25
+			LC_VERSION_MIN_WATCHOS  = 0x30
+		)
+		ml := newMachoLoad(LC_VERSION_MIN_MACOSX, 2)
+		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
+		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
+	}
+
 	// TODO: dwarf headers go in ms too
 	if Debug['s'] == 0 {
 		dwarfaddmachoheaders(ms)
