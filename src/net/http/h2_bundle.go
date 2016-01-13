@@ -24,7 +24,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"golang.org/x/net/http2/hpack"
 	"io"
 	"io/ioutil"
 	"log"
@@ -38,6 +37,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/http2/hpack"
 )
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
@@ -705,6 +706,8 @@ type http2Framer struct {
 	// other HTTP/2 implementations' conformance to the spec.
 	AllowIllegalReads bool
 
+	logReads bool
+
 	debugFramer    *http2Framer // only use for logging written writes
 	debugFramerBuf *bytes.Buffer
 }
@@ -748,6 +751,7 @@ func (f *http2Framer) logWrite() {
 	if f.debugFramer == nil {
 		f.debugFramerBuf = new(bytes.Buffer)
 		f.debugFramer = http2NewFramer(nil, f.debugFramerBuf)
+		f.debugFramer.logReads = false
 
 		f.debugFramer.AllowIllegalReads = true
 	}
@@ -778,8 +782,9 @@ const (
 // NewFramer returns a Framer that writes frames to w and reads them from r.
 func http2NewFramer(w io.Writer, r io.Reader) *http2Framer {
 	fr := &http2Framer{
-		w: w,
-		r: r,
+		w:        w,
+		r:        r,
+		logReads: http2logFrameReads,
 	}
 	fr.getReadBuf = func(size uint32) []byte {
 		if cap(fr.readBuf) >= int(size) {
@@ -847,6 +852,9 @@ func (fr *http2Framer) ReadFrame() (http2Frame, error) {
 	}
 	if err := fr.checkFrameOrder(f); err != nil {
 		return nil, err
+	}
+	if fr.logReads {
+		log.Printf("http2: Framer %p: read %v", fr, http2summarizeFrame(f))
 	}
 	return f, nil
 }
@@ -1857,6 +1865,7 @@ func http2lowerHeader(v string) string {
 var (
 	http2VerboseLogs    bool
 	http2logFrameWrites bool
+	http2logFrameReads  bool
 )
 
 func init() {
@@ -1867,6 +1876,7 @@ func init() {
 	if strings.Contains(e, "http2debug=2") {
 		http2VerboseLogs = true
 		http2logFrameWrites = true
+		http2logFrameReads = true
 	}
 }
 
