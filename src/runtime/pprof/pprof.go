@@ -485,7 +485,6 @@ func writeHeap(w io.Writer, debug int) error {
 	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
 	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
-	fmt.Fprintf(w, "# EnableGC = %v\n", s.EnableGC)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
 	if tw != nil {
