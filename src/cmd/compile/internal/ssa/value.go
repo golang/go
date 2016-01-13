@@ -135,9 +135,13 @@ func (v *Value) copyInto(b *Block) *Value {
 	return c
 }
 
-func (v *Value) Logf(msg string, args ...interface{})           { v.Block.Logf(msg, args...) }
-func (v *Value) Fatalf(msg string, args ...interface{})         { v.Block.Fatalf(msg, args...) }
-func (v *Value) Unimplementedf(msg string, args ...interface{}) { v.Block.Unimplementedf(msg, args...) }
+func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
+func (v *Value) Fatalf(msg string, args ...interface{}) {
+	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
+}
+func (v *Value) Unimplementedf(msg string, args ...interface{}) {
+	v.Block.Func.Config.Unimplementedf(v.Line, msg, args...)
+}
 
 // ExternSymbol is an aux value that encodes a variable's
 // constant offset from the static base pointer.
