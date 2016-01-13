@@ -498,7 +498,8 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 // cgoCheckUnknownPointer is called for an arbitrary pointer into Go
 // memory.  It checks whether that Go memory contains any other
 // pointer into Go memory.  If it does, we panic.
-func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) {
+// The return values are unused but useful to see in panic tracebacks.
+func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	if cgoInRange(p, mheap_.arena_start, mheap_.arena_used) {
 		if !inheap(uintptr(p)) {
 			// This pointer is either to a stack or to an
@@ -508,12 +509,13 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) {
 			panic(errorString("cgo argument has invalid Go pointer"))
 		}
 
-		base, hbits, span := heapBitsForObject(uintptr(p), 0, 0)
+		b, hbits, span := heapBitsForObject(uintptr(p), 0, 0)
+		base = b
 		if base == 0 {
 			return
 		}
 		n := span.elemsize
-		for i := uintptr(0); i < n; i += sys.PtrSize {
+		for i = uintptr(0); i < n; i += sys.PtrSize {
 			bits := hbits.bits()
 			if i >= 2*sys.PtrSize && bits&bitMarked == 0 {
 				// No more possible pointers.
@@ -539,6 +541,8 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) {
 		// In the text or noptr sections, we know that the
 		// pointer does not point to a Go pointer.
 	}
+
+	return
 }
 
 // cgoIsGoPointer returns whether the pointer is a Go pointer--a
