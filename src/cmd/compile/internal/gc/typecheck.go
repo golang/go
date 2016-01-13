@@ -2023,7 +2023,8 @@ OpSwitch:
 		OEMPTY,
 		OGOTO,
 		OXFALL,
-		OVARKILL:
+		OVARKILL,
+		OVARLIVE:
 		ok |= Etop
 		break OpSwitch
 

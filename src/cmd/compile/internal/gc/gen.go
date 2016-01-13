@@ -605,6 +605,9 @@ func Tempname(nn *Node, t *Type) {
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+	if Debug['h'] != 0 {
+		println("H", n, n.Orig, funcSym(Curfn).Name)
+	}
 
 	dowidth(t)
 	n.Xoffset = 0
@@ -868,6 +871,9 @@ func gen(n *Node) {
 
 	case OVARKILL:
 		gvarkill(n.Left)
+
+	case OVARLIVE:
+		gvarlive(n.Left)
 	}
 
 ret:

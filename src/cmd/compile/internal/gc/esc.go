@@ -1808,6 +1808,13 @@ recurse:
 	e.pdepth--
 }
 
+// This special tag is applied to uintptr variables
+// that we believe may hold unsafe.Pointers for
+// calls into assembly functions.
+// It is logically a constant, but using a var
+// lets us take the address below to get a *string.
+var unsafeUintptrTag = "unsafe-uintptr"
+
 func esctag(e *EscState, func_ *Node) {
 	func_.Esc = EscFuncTagged
 
@@ -1819,6 +1826,29 @@ func esctag(e *EscState, func_ *Node) {
 				if haspointers(t.Type) {
 					t.Note = mktag(EscNone)
 				}
+			}
+		}
+
+		// Assume that uintptr arguments must be held live across the call.
+		// This is most important for syscall.Syscall.
+		// See golang.org/issue/13372.
+		// This really doesn't have much to do with escape analysis per se,
+		// but we are reusing the ability to annotate an individual function
+		// argument and pass those annotations along to importing code.
+		narg := 0
+		for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
+			narg++
+			if t.Type.Etype == TUINTPTR {
+				if Debug['m'] != 0 {
+					var name string
+					if t.Sym != nil {
+						name = t.Sym.Name
+					} else {
+						name = fmt.Sprintf("arg#%d", narg)
+					}
+					Warnl(int(func_.Lineno), "%v assuming %v is unsafe uintptr", funcSym(func_), name)
+				}
+				t.Note = &unsafeUintptrTag
 			}
 		}
 
