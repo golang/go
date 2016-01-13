@@ -187,6 +187,7 @@ const (
 	Zm_r_xm_nr
 	Zr_m_xm_nr
 	Zibm_r /* mmx1,mmx2/mem64,imm8 */
+	Zibr_m
 	Zmb_r
 	Zaut_r
 	Zo_m
@@ -219,6 +220,7 @@ const (
 	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
 	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
 	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
+	Pfw   = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
 	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
 	Pvex2 = 0xc6 /* f3.0f escape, vex encoding */
 	Pvex3 = 0xc7 /* 66.0f38 escape, vex encoding */
@@ -720,6 +722,10 @@ var yextrw = []ytab{
 	{Yu8, Yxr, Yrl, Zibm_r, 2},
 }
 
+var yextr = []ytab{
+	{Yu8, Yxr, Ymm, Zibr_m, 3},
+}
+
 var yinsrw = []ytab{
 	{Yu8, Yml, Yxr, Zibm_r, 2},
 }
@@ -1162,6 +1168,9 @@ var optab =
 	{APCMPGTL, ymm, Py1, [23]uint8{0x66, Pe, 0x66}},
 	{APCMPGTW, ymm, Py1, [23]uint8{0x65, Pe, 0x65}},
 	{APEXTRW, yextrw, Pq, [23]uint8{0xc5, 00}},
+	{APEXTRB, yextr, Pq, [23]uint8{0x3a, 0x14, 00}},
+	{APEXTRD, yextr, Pq, [23]uint8{0x3a, 0x16, 00}},
+	{APEXTRQ, yextr, Pq3, [23]uint8{0x3a, 0x16, 00}},
 	{APF2IL, ymfp, Px, [23]uint8{0x1d}},
 	{APF2IW, ymfp, Px, [23]uint8{0x1c}},
 	{API2FL, ymfp, Px, [23]uint8{0x0d}},
@@ -1183,6 +1192,7 @@ var optab =
 	{APFSUB, ymfp, Px, [23]uint8{0x9a}},
 	{APFSUBR, ymfp, Px, [23]uint8{0xaa}},
 	{APINSRW, yinsrw, Pq, [23]uint8{0xc4, 00}},
+	{APINSRB, yinsr, Pq, [23]uint8{0x3a, 0x20, 00}},
 	{APINSRD, yinsr, Pq, [23]uint8{0x3a, 0x22, 00}},
 	{APINSRQ, yinsr, Pq3, [23]uint8{0x3a, 0x22, 00}},
 	{APMADDWL, ymm, Py1, [23]uint8{0xf5, Pe, 0xf5}},
@@ -1198,6 +1208,7 @@ var optab =
 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
 	{APOPAL, ynone, P32, [23]uint8{0x61}},
 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
+	{APOPCNT, yml_rl, Pfw, [23]uint8{0xb8}},
 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
 	{APOPFW, ynone, Pe, [23]uint8{0x9d}},
@@ -1533,6 +1544,7 @@ var optab =
 	{AXABORT, yxabort, Px, [23]uint8{0xc6, 0xf8}},
 	{AXEND, ynone, Px, [23]uint8{0x0f, 01, 0xd5}},
 	{AXTEST, ynone, Px, [23]uint8{0x0f, 01, 0xd6}},
+	{AXGETBV, ynone, Pm, [23]uint8{01, 0xd0}},
 	{obj.AUSEFIELD, ynop, Px, [23]uint8{0, 0}},
 	{obj.ATYPE, nil, 0, [23]uint8{}},
 	{obj.AFUNCDATA, yfuncdata, Px, [23]uint8{0, 0}},
@@ -3194,6 +3206,15 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
 
+			case Pfw: /* first escape, Rex.w, and second escape */
+				ctxt.Andptr[0] = Pf3
+				ctxt.Andptr = ctxt.Andptr[1:]
+
+				ctxt.Andptr[0] = Pw
+				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = Pm
+				ctxt.Andptr = ctxt.Andptr[1:]
+
 			case Pm: /* opcode escape */
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -3343,7 +3364,7 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = byte(op)
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Zibm_r:
+			case Zibm_r, Zibr_m:
 				for {
 					tmp1 := z
 					z++
@@ -3354,7 +3375,11 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 					ctxt.Andptr[0] = byte(op)
 					ctxt.Andptr = ctxt.Andptr[1:]
 				}
-				asmand(ctxt, p, p.From3, &p.To)
+				if yt.zcase == Zibr_m {
+					asmand(ctxt, p, &p.To, p.From3)
+				} else {
+					asmand(ctxt, p, p.From3, &p.To)
+				}
 				ctxt.Andptr[0] = byte(p.From.Offset)
 				ctxt.Andptr = ctxt.Andptr[1:]
 

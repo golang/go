@@ -225,9 +225,7 @@ finish:
 	PCLMULQDQ   $0, X0, X1
 	PXOR        X2, X1
 
-	/* PEXTRD   $1, X1, AX  (SSE 4.1) */
-	BYTE $0x66; BYTE $0x0f; BYTE $0x3a;
-	BYTE $0x16; BYTE $0xc8; BYTE $0x01;
+	PEXTRD	$1, X1, AX
 	MOVL        AX, ret+32(FP)
 
 	RET
