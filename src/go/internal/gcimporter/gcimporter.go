@@ -492,12 +492,10 @@ func (p *parser) parseField(parent *types.Package) (*types.Var, string) {
 		// anonymous field - typ must be T or *T and T must be a type name
 		switch typ := deref(typ).(type) {
 		case *types.Basic: // basic types are named types
-			pkg = nil
+			pkg = nil // objects defined in Universe scope have no package
 			name = typ.Name()
 		case *types.Named:
-			obj := typ.Obj()
-			pkg = obj.Pkg()
-			name = obj.Name()
+			name = typ.Obj().Name()
 		default:
 			p.errorf("anonymous field expected")
 		}
