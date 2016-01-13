@@ -447,7 +447,11 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 	case *ast.ImportSpec:
 	case *ast.ValueSpec:
 		f.walk(&n.Type, "type", visit)
-		f.walk(n.Values, "expr", visit)
+		if len(n.Names) == 2 && len(n.Values) == 1 {
+			f.walk(&n.Values[0], "as2", visit)
+		} else {
+			f.walk(n.Values, "expr", visit)
+		}
 	case *ast.TypeSpec:
 		f.walk(&n.Type, "type", visit)
 
