@@ -999,13 +999,22 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 
 		// Install header for cgo in c-archive and c-shared modes.
 		if p.usesCgo() && (buildBuildmode == "c-archive" || buildBuildmode == "c-shared") {
+			hdrTarget := a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h"
+			if buildContext.Compiler == "gccgo" {
+				// For the header file, remove the "lib"
+				// added by go/build, so we generate pkg.h
+				// rather than libpkg.h.
+				dir, file := filepath.Split(hdrTarget)
+				file = strings.TrimPrefix(file, "lib")
+				hdrTarget = filepath.Join(dir, file)
+			}
 			ah := &action{
 				p:      a.p,
 				deps:   []*action{a.deps[0]},
 				f:      (*builder).installHeader,
 				pkgdir: a.pkgdir,
 				objdir: a.objdir,
-				target: a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h",
+				target: hdrTarget,
 			}
 			a.deps = append(a.deps, ah)
 		}
@@ -2722,7 +2731,7 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 		out = out + ".o"
 
 	case "c-shared":
-		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc")
+		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
 
 	default:
 		fatalf("-buildmode=%s not supported for gccgo", ldBuildmode)
