@@ -618,9 +618,13 @@ func (t *Transport) replaceReqCanceler(r *Request, fn func()) bool {
 	return true
 }
 
-func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
+func (t *Transport) dial(network, addr string) (net.Conn, error) {
 	if t.Dial != nil {
-		return t.Dial(network, addr)
+		c, err := t.Dial(network, addr)
+		if c == nil && err == nil {
+			err = errors.New("net/http: Transport.Dial hook returned (nil, nil)")
+		}
+		return c, err
 	}
 	return net.Dial(network, addr)
 }
@@ -682,10 +686,10 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 		return pc, nil
 	case <-req.Cancel:
 		handlePendingDial()
-		return nil, errors.New("net/http: request canceled while waiting for connection")
+		return nil, errRequestCanceledConn
 	case <-cancelc:
 		handlePendingDial()
-		return nil, errors.New("net/http: request canceled while waiting for connection")
+		return nil, errRequestCanceledConn
 	}
 }
 
@@ -704,6 +708,9 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 		pconn.conn, err = t.DialTLS("tcp", cm.addr())
 		if err != nil {
 			return nil, err
+		}
+		if pconn.conn == nil {
+			return nil, errors.New("net/http: Transport.DialTLS returned (nil, nil)")
 		}
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
 			cs := tc.ConnectionState()
@@ -1326,6 +1333,7 @@ func (e *httpError) Temporary() bool { return true }
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 var errClosed error = &httpError{err: "net/http: server closed connection before response was received"}
 var errRequestCanceled = errors.New("net/http: request canceled")
+var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
 
 func nop() {}
 
@@ -1502,9 +1510,19 @@ func (pc *persistConn) closeLocked(err error) {
 	}
 	pc.broken = true
 	if pc.closed == nil {
-		pc.conn.Close()
 		pc.closed = err
-		close(pc.closech)
+		if pc.alt != nil {
+			// Do nothing; can only get here via getConn's
+			// handlePendingDial's putOrCloseIdleConn when
+			// it turns out the abandoned connection in
+			// flight ended up negotiating an alternate
+			// protocol.  We don't use the connection
+			// freelist for http2. That's done by the
+			// alternate protocol's RoundTripper.
+		} else {
+			pc.conn.Close()
+			close(pc.closech)
+		}
 	}
 	pc.mutateHeaderFunc = nil
 }
