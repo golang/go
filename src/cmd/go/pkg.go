@@ -516,7 +516,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		i-- // rewind over slash in ".../internal"
 	}
 	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
-	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
 		return p
 	}
 
@@ -613,7 +613,7 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 		return p
 	}
 	parent := p.Dir[:truncateTo]
-	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
 		return p
 	}
 
