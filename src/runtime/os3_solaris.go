@@ -540,7 +540,6 @@ func sigaltstack(ss *sigaltstackt, oss *sigaltstackt) /* int32 */ {
 
 //go:nosplit
 //go:nowritebarrierrec
-//go:noescape
 func sigprocmask(how int32, set *sigset, oset *sigset) /* int32 */ {
 	sysvicall3(&libc_sigprocmask, uintptr(how), uintptr(unsafe.Pointer(set)), uintptr(unsafe.Pointer(oset)))
 }
