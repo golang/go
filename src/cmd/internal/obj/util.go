@@ -639,8 +639,8 @@ var Anames = []string{
 	"UNDEF",
 	"USEFIELD",
 	"VARDEF",
-	"VARLIVE",
 	"VARKILL",
+	"VARLIVE",
 }
 
 func Bool2int(b bool) int {
