@@ -472,6 +472,16 @@ and <code>"page"</code> blocks to reuse the formatting for another page.
 <ul>
 
 <li>
+The <a href="/pkg/archive/tar/"><code>archive/tar</code></a> package's
+implementation corrects many bugs in rare corner cases of the file format.
+One visible change is that the
+<a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> type's
+<a href="/pkg/archive/tar/#Reader.Read"><code>Read</code></a> method
+now presents the content of special file types as being empty,
+returning <code>io.EOF</code> immediately.
+</li>
+
+<li>
 In the <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package, the
 <a href="/pkg/archive/zip/#Reader"><code>Reader</code></a> type now has a
 <a href="/pkg/archive/zip/#Reader.RegisterDecompressor"><code>RegisterDecompressor</code></a> method,
