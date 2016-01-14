@@ -12,6 +12,13 @@ import (
 	"unsafe"
 )
 
+func init() {
+	// We're testing the runtime, so make tracebacks show things
+	// in the runtime. This only raises the level, so it won't
+	// override GOTRACEBACK=crash from the user.
+	SetTracebackEnv("system")
+}
+
 var errf error
 
 func errfn() error {
