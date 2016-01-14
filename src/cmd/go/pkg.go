@@ -420,7 +420,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 			continue
 		}
 		targ := filepath.Join(dir[:i], vpath)
-		if isDir(targ) {
+		if isDir(targ) && hasGoFiles(targ) {
 			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
 			// We know the import path for parent's dir.
 			// We chopped off some number of path elements and
@@ -441,6 +441,20 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 		}
 	}
 	return path
+}
+
+// hasGoFiles reports whether dir contains any files with names ending in .go.
+// For a vendor check we must exclude directories that contain no .go files.
+// Otherwise it is not possible to vendor just a/b/c and still import the
+// non-vendored a/b. See golang.org/issue/13832.
+func hasGoFiles(dir string) bool {
+	fis, _ := ioutil.ReadDir(dir)
+	for _, fi := range fis {
+		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
+			return true
+		}
+	}
+	return false
 }
 
 // reusePackage reuses package p to satisfy the import at the top

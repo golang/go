@@ -583,7 +583,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
 					vendor := ctxt.joinPath(root, sub, "vendor")
 					if ctxt.isDir(vendor) {
 						dir := ctxt.joinPath(vendor, path)
-						if ctxt.isDir(dir) {
+						if ctxt.isDir(dir) && hasGoFiles(ctxt, dir) {
 							p.Dir = dir
 							p.ImportPath = strings.TrimPrefix(pathpkg.Join(sub, "vendor", path), "src/")
 							p.Goroot = isGoroot
@@ -882,6 +882,20 @@ Found:
 	}
 
 	return p, pkgerr
+}
+
+// hasGoFiles reports whether dir contains any files with names ending in .go.
+// For a vendor check we must exclude directories that contain no .go files.
+// Otherwise it is not possible to vendor just a/b/c and still import the
+// non-vendored a/b. See golang.org/issue/13832.
+func hasGoFiles(ctxt *Context, dir string) bool {
+	ents, _ := ctxt.readDir(dir)
+	for _, ent := range ents {
+		if !ent.IsDir() && strings.HasSuffix(ent.Name(), ".go") {
+			return true
+		}
+	}
+	return false
 }
 
 func findImportComment(data []byte) (s string, line int) {

@@ -327,3 +327,21 @@ func TestImportVendorFailure(t *testing.T) {
 		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
 	}
 }
+
+func TestImportVendorParentFailure(t *testing.T) {
+	testenv.MustHaveGoBuild(t) // really must just have source
+	ctxt := Default
+	ctxt.GOPATH = ""
+	// This import should fail because the vendor/golang.org/x/net/http2 directory has no source code.
+	p, err := ctxt.Import("golang.org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
+	if err == nil {
+		t.Fatalf("found empty parent in %s", p.Dir)
+	}
+	if p != nil && p.Dir != "" {
+		t.Fatalf("decided to use %s", p.Dir)
+	}
+	e := err.Error()
+	if !strings.Contains(e, " (vendor tree)") {
+		t.Fatalf("error on failed import does not mention GOROOT/src/vendor directory:\n%s", e)
+	}
+}
