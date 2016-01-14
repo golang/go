@@ -822,7 +822,9 @@ func goFilesPackage(gofiles []string) *Package {
 	pkg := new(Package)
 	pkg.local = true
 	pkg.cmdline = true
+	stk.push("main")
 	pkg.load(&stk, bp, err)
+	stk.pop()
 	pkg.localPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
 	pkg.target = ""
