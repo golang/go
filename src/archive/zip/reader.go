@@ -118,8 +118,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 // RegisterDecompressor registers or overrides a custom decompressor for a
 // specific method ID. If a decompressor for a given method is not found,
 // Reader will default to looking up the decompressor at the package level.
-//
-// Must not be called concurrently with Open on any Files in the Reader.
 func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
 	if z.decompressors == nil {
 		z.decompressors = make(map[uint16]Decompressor)
