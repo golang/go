@@ -3827,7 +3827,7 @@ func TestServerValidatesHostHeader(t *testing.T) {
 		{"HTTP/1.0", "Host: \xff\r\n", 400},
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool)}
+		conn := &testConn{closec: make(chan bool, 1)}
 		io.WriteString(&conn.readBuf, "GET / "+tt.proto+"\r\n"+tt.host+"\r\n")
 
 		ln := &oneConnListener{conn}
@@ -3867,7 +3867,7 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"foo: foo\xfffoo\r\n", 200}, // non-ASCII high octets in value are fine
 	}
 	for _, tt := range tests {
-		conn := &testConn{closec: make(chan bool)}
+		conn := &testConn{closec: make(chan bool, 1)}
 		io.WriteString(&conn.readBuf, "GET / HTTP/1.1\r\nHost: foo\r\n"+tt.header+"\r\n")
 
 		ln := &oneConnListener{conn}
