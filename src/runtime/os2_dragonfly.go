@@ -6,7 +6,7 @@ package runtime
 
 const (
 	_NSIG        = 33
-	_SI_USER     = 0x10001
+	_SI_USER     = 0
 	_SS_DISABLE  = 4
 	_RLIMIT_AS   = 10
 	_SIG_BLOCK   = 1
