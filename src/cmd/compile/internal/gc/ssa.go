@@ -3503,7 +3503,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		x := regnum(v.Args[0])
 		y := regnum(v.Args[1])
 		if x != r && y != r {
-			opregreg(regMoveByTypeAMD64(v.Type), r, x)
+			opregreg(moveByType(v.Type), r, x)
 			x = r
 		}
 		p := Prog(v.Op.Asm())
@@ -3527,7 +3527,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			neg = true
 		}
 		if x != r {
-			opregreg(regMoveByTypeAMD64(v.Type), r, x)
+			opregreg(moveByType(v.Type), r, x)
 		}
 		opregreg(v.Op.Asm(), r, y)
 
@@ -3547,11 +3547,11 @@ func (s *genState) genValue(v *ssa.Value) {
 			// register move y to x15
 			// register move x to y
 			// rename y with x15
-			opregreg(regMoveByTypeAMD64(v.Type), x15, y)
-			opregreg(regMoveByTypeAMD64(v.Type), r, x)
+			opregreg(moveByType(v.Type), x15, y)
+			opregreg(moveByType(v.Type), r, x)
 			y = x15
 		} else if x != r {
-			opregreg(regMoveByTypeAMD64(v.Type), r, x)
+			opregreg(moveByType(v.Type), r, x)
 		}
 		opregreg(v.Op.Asm(), r, y)
 
@@ -3669,7 +3669,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			if r == x86.REG_CX {
 				v.Fatalf("can't implement %s, target and shift both in CX", v.LongString())
 			}
-			p := Prog(regMoveAMD64(v.Type.Size()))
+			p := Prog(moveByType(v.Type))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -3701,7 +3701,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		r := regnum(v)
 		x := regnum(v.Args[0])
 		if r != x {
-			p := Prog(regMoveAMD64(v.Type.Size()))
+			p := Prog(moveByType(v.Type))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -3731,7 +3731,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
-			p := Prog(regMoveAMD64(v.Type.Size()))
+			p := Prog(moveByType(v.Type))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -3910,14 +3910,14 @@ func (s *genState) genValue(v *ssa.Value) {
 		x := regnum(v.Args[0])
 		y := regnum(v)
 		if x != y {
-			opregreg(regMoveByTypeAMD64(v.Type), y, x)
+			opregreg(moveByType(v.Type), y, x)
 		}
 	case ssa.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Unimplementedf("load flags not implemented: %v", v.LongString())
 			return
 		}
-		p := Prog(movSizeByType(v.Type))
+		p := Prog(loadByType(v.Type))
 		n, off := autoVar(v.Args[0])
 		p.From.Type = obj.TYPE_MEM
 		p.From.Node = n
@@ -3937,7 +3937,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			v.Unimplementedf("store flags not implemented: %v", v.LongString())
 			return
 		}
-		p := Prog(movSizeByType(v.Type))
+		p := Prog(storeByType(v.Type))
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		n, off := autoVar(v)
@@ -4060,7 +4060,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
-			p := Prog(regMoveAMD64(v.Type.Size()))
+			p := Prog(moveByType(v.Type))
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = x
 			p.To.Type = obj.TYPE_REG
@@ -4168,14 +4168,6 @@ func (s *genState) genValue(v *ssa.Value) {
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
 	}
-}
-
-// movSizeByType returns the MOV instruction of the given type.
-func movSizeByType(t ssa.Type) (asm int) {
-	// For x86, there's no difference between reg move opcodes
-	// and memory move opcodes.
-	asm = regMoveByTypeAMD64(t)
-	return
 }
 
 // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
@@ -4477,24 +4469,14 @@ var ssaRegToReg = [...]int16{
 	// TODO: arch-dependent
 }
 
-// regMoveAMD64 returns the register->register move opcode for the given width.
-// TODO: generalize for all architectures?
-func regMoveAMD64(width int64) int {
-	switch width {
-	case 1:
-		return x86.AMOVB
-	case 2:
-		return x86.AMOVW
-	case 4:
-		return x86.AMOVL
-	case 8:
-		return x86.AMOVQ
-	default:
-		panic("bad int register width")
-	}
+// loadByType returns the load instruction of the given type.
+func loadByType(t ssa.Type) int {
+	// For x86, there's no difference between load and store opcodes.
+	return storeByType(t)
 }
 
-func regMoveByTypeAMD64(t ssa.Type) int {
+// storeByType returns the store instruction of the given type.
+func storeByType(t ssa.Type) int {
 	width := t.Size()
 	if t.IsFloat() {
 		switch width {
@@ -4502,11 +4484,30 @@ func regMoveByTypeAMD64(t ssa.Type) int {
 			return x86.AMOVSS
 		case 8:
 			return x86.AMOVSD
-		default:
-			panic("bad float register width")
 		}
 	} else {
 		switch width {
+		case 1:
+			return x86.AMOVB
+		case 2:
+			return x86.AMOVW
+		case 4:
+			return x86.AMOVL
+		case 8:
+			return x86.AMOVQ
+		}
+	}
+	panic("bad store type")
+}
+
+// moveByType returns the reg->reg move instruction of the given type.
+func moveByType(t ssa.Type) int {
+	if t.IsFloat() {
+		// Moving the whole sse2 register is faster
+		// than moving just the correct low portion of it.
+		return x86.AMOVAPD
+	} else {
+		switch t.Size() {
 		case 1:
 			return x86.AMOVB
 		case 2:
@@ -4519,7 +4520,6 @@ func regMoveByTypeAMD64(t ssa.Type) int {
 			panic("bad int register width")
 		}
 	}
-
 	panic("bad register type")
 }
 
