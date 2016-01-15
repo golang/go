@@ -10,29 +10,52 @@ package ssa
 // these phis are redundant:
 //   v = phi(x,x,x)
 //   v = phi(x,v,x,v)
+// We repeat this process to also catch situations like:
+//   v = phi(x, phi(x, x), phi(x, v))
+// TODO: Can we also simplify cases like:
+//   v = phi(v, w, x)
+//   w = phi(v, w, x)
+// and would that be useful?
 func phielim(f *Func) {
-	argSet := newSparseSet(f.NumValues())
-	var args []*Value
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			if v.Op != OpPhi {
-				continue
-			}
-			argSet.clear()
-			args = args[:0]
-			for _, x := range v.Args {
-				for x.Op == OpCopy {
-					x = x.Args[0]
+	for {
+		changed := false
+		for _, b := range f.Blocks {
+		nextv:
+			for _, v := range b.Values {
+				if v.Op != OpPhi {
+					continue
 				}
-				if x != v && !argSet.contains(x.ID) {
-					argSet.add(x.ID)
-					args = append(args, x)
+				// If there are two distinct args of v which
+				// are not v itself, then the phi must remain.
+				// Otherwise, we can replace it with a copy.
+				var w *Value
+				for _, x := range v.Args {
+					for x.Op == OpCopy {
+						x = x.Args[0]
+					}
+					if x == v {
+						continue
+					}
+					if x == w {
+						continue
+					}
+					if w != nil {
+						continue nextv
+					}
+					w = x
 				}
-			}
-			if len(args) == 1 {
+				if w == nil {
+					// v references only itself.  It must be in
+					// a dead code loop.  Don't bother modifying it.
+					continue
+				}
 				v.Op = OpCopy
-				v.SetArgs1(args[0])
+				v.SetArgs1(w)
+				changed = true
 			}
+		}
+		if !changed {
+			break
 		}
 	}
 }

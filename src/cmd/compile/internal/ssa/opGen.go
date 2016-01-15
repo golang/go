@@ -550,6 +550,7 @@ const (
 	OpStoreReg
 	OpLoadReg
 	OpFwdRef
+	OpUnknown
 	OpVarDef
 	OpVarKill
 	OpVarLive
@@ -4301,6 +4302,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "FwdRef",
+		generic: true,
+	},
+	{
+		name:    "Unknown",
 		generic: true,
 	},
 	{

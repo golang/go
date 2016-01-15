@@ -67,6 +67,9 @@ type Frontend interface {
 	// Auto returns a Node for an auto variable of the given type.
 	// The SSA compiler uses this function to allocate space for spills.
 	Auto(Type) GCNode
+
+	// Line returns a string describing the given line number.
+	Line(int32) string
 }
 
 // interface used to hold *gc.Node.  We'd use *gc.Node directly but
