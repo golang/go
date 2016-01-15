@@ -1121,6 +1121,10 @@ top:
 		// finalizers have been scanned.
 		work.finalizersDone = true
 
+		// Disable assists and background workers. We must do
+		// this before waking blocked assists.
+		atomic.Store(&gcBlackenEnabled, 0)
+
 		// Flush the gcWork caches. This must be done before
 		// endCycle since endCycle depends on statistics kept
 		// in these caches.
