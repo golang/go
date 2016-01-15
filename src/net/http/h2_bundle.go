@@ -246,11 +246,11 @@ func http2filterOutClientConn(in []*http2ClientConn, exclude *http2ClientConn) [
 	return out
 }
 
-func http2configureTransport(t1 *Transport) error {
+func http2configureTransport(t1 *Transport) (*http2Transport, error) {
 	connPool := new(http2clientConnPool)
 	t2 := &http2Transport{ConnPool: http2noDialClientConnPool{connPool}}
 	if err := http2registerHTTPSProtocol(t1, http2noDialH2RoundTripper{t2}); err != nil {
-		return err
+		return nil, err
 	}
 	if t1.TLSClientConfig == nil {
 		t1.TLSClientConfig = new(tls.Config)
@@ -279,7 +279,7 @@ func http2configureTransport(t1 *Transport) error {
 	} else {
 		m["h2"] = upgradeFn
 	}
-	return nil
+	return t2, nil
 }
 
 // registerHTTPSProtocol calls Transport.RegisterProtocol but
@@ -4348,7 +4348,8 @@ var http2errTransportVersion = errors.New("http2: ConfigureTransport is only sup
 // It requires Go 1.6 or later and returns an error if the net/http package is too old
 // or if t1 has already been HTTP/2-enabled.
 func http2ConfigureTransport(t1 *Transport) error {
-	return http2configureTransport(t1)
+	_, err := http2configureTransport(t1)
+	return err
 }
 
 func (t *http2Transport) connPool() http2ClientConnPool {
