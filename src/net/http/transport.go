@@ -142,10 +142,14 @@ type Transport struct {
 	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
 
-	nextProtoOnce sync.Once // guards initialization of TLSNextProto (onceSetNextProtoDefaults)
+	// nextProtoOnce guards initialization of TLSNextProto and
+	// h2transport (via onceSetNextProtoDefaults)
+	nextProtoOnce sync.Once
+	h2transport   *http2Transport // non-nil if http2 wired up
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
+	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
 }
 
 // onceSetNextProtoDefaults initializes TLSNextProto.
@@ -157,9 +161,11 @@ func (t *Transport) onceSetNextProtoDefaults() {
 	if t.TLSNextProto != nil {
 		return
 	}
-	err := http2ConfigureTransport(t)
+	t2, err := http2configureTransport(t)
 	if err != nil {
 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
+	} else {
+		t.h2transport = t2
 	}
 }
 
@@ -367,6 +373,7 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 // a "keep-alive" state. It does not interrupt any connections currently
 // in use.
 func (t *Transport) CloseIdleConnections() {
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	t.idleMu.Lock()
 	m := t.idleConn
 	t.idleConn = nil
@@ -377,6 +384,9 @@ func (t *Transport) CloseIdleConnections() {
 		for _, pconn := range conns {
 			pconn.close(errCloseIdleConns)
 		}
+	}
+	if t2 := t.h2transport; t2 != nil {
+		t2.CloseIdleConnections()
 	}
 }
 
