@@ -850,7 +850,26 @@ func Elfinit() {
 	}
 }
 
+// Make sure PT_LOAD is aligned properly and
+// that there is no gap,
+// correct ELF loaders will do this implicitly,
+// but buggy ELF loaders like the one in some
+// versions of QEMU and UPX won't.
+func fixElfPhdr(e *ElfPhdr) {
+	frag := int(e.vaddr & (e.align - 1))
+
+	e.off -= uint64(frag)
+	e.vaddr -= uint64(frag)
+	e.paddr -= uint64(frag)
+	e.filesz += uint64(frag)
+	e.memsz += uint64(frag)
+}
+
 func elf64phdr(e *ElfPhdr) {
+	if e.type_ == PT_LOAD {
+		fixElfPhdr(e)
+	}
+
 	Thearch.Lput(e.type_)
 	Thearch.Lput(e.flags)
 	Thearch.Vput(e.off)
@@ -863,16 +882,7 @@ func elf64phdr(e *ElfPhdr) {
 
 func elf32phdr(e *ElfPhdr) {
 	if e.type_ == PT_LOAD {
-		// Correct ELF loaders will do this implicitly,
-		// but buggy ELF loaders like the one in some
-		// versions of QEMU won't.
-		frag := int(e.vaddr & (e.align - 1))
-
-		e.off -= uint64(frag)
-		e.vaddr -= uint64(frag)
-		e.paddr -= uint64(frag)
-		e.filesz += uint64(frag)
-		e.memsz += uint64(frag)
+		fixElfPhdr(e)
 	}
 
 	Thearch.Lput(e.type_)
