@@ -843,6 +843,13 @@ func importfile(f *Val, line int) {
 		}
 		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
 		cannedimports(file, p)
+		// Reset incannedimport flag (we are not truly in a
+		// canned import) - this will cause importpkg.Direct to
+		// be set via parser.import_package (was issue #13977).
+		//
+		// TODO(gri) Remove this global variable and convoluted
+		// code in the process of streamlining the import code.
+		incannedimport = 0
 
 	default:
 		Yyerror("no import in %q", f.U.(string))
