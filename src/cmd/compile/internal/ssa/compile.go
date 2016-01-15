@@ -81,8 +81,9 @@ type pass struct {
 
 // list of passes for the compiler
 var passes = [...]pass{
-	{"phielim", phielim},
-	{"copyelim", copyelim},
+	// TODO: combine phielim and copyelim into a single pass?
+	{"early phielim", phielim},
+	{"early copyelim", copyelim},
 	{"early deadcode", deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{"decompose", decompose},
 	{"opt", opt},
@@ -97,6 +98,9 @@ var passes = [...]pass{
 	{"lowered cse", cse},
 	{"lowered deadcode", deadcode},
 	{"checkLower", checkLower},
+	{"late phielim", phielim},
+	{"late copyelim", copyelim},
+	{"late deadcode", deadcode},
 	{"critical", critical},   // remove critical edges
 	{"layout", layout},       // schedule blocks
 	{"schedule", schedule},   // schedule values

@@ -31,6 +31,9 @@ func (DummyFrontend) StringData(s string) interface{} {
 func (DummyFrontend) Auto(t Type) GCNode {
 	return nil
 }
+func (DummyFrontend) Line(line int32) string {
+	return "unknown.go:0"
+}
 
 func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
 
