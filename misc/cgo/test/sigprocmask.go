@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !windows
+
 package cgotest
 
 /*
@@ -28,7 +30,7 @@ func IntoGoAndBack() {
 	blocked = C.CheckBlocked() != 0
 }
 
-func testSigProcMask(t *testing.T) {
+func testSigprocmask(t *testing.T) {
 	if r := C.RunSigThread(); r != 0 {
 		t.Error("pthread_create/pthread_join failed")
 	}

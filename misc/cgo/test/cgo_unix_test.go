@@ -9,3 +9,4 @@ package cgotest
 import "testing"
 
 func TestSigaltstack(t *testing.T) { testSigaltstack(t) }
+func TestSigprocmask(t *testing.T) { testSigprocmask(t) }
