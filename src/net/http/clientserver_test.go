@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
@@ -22,7 +23,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type clientServerTest struct {
@@ -860,4 +863,94 @@ func testStarRequest(t *testing.T, method string, h2 bool) {
 	if req.RequestURI != "*" {
 		t.Errorf("RequestURI = %q; want *", req.RequestURI)
 	}
+}
+
+// Issue 13957
+func TestTransportDiscardsUnneededConns(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "Hello, %v", r.RemoteAddr)
+	}))
+	defer cst.close()
+
+	var numOpen, numClose int32 // atomic
+
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	tr := &Transport{
+		TLSClientConfig: tlsConfig,
+		DialTLS: func(_, addr string) (net.Conn, error) {
+			time.Sleep(10 * time.Millisecond)
+			rc, err := net.Dial("tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			atomic.AddInt32(&numOpen, 1)
+			c := noteCloseConn{rc, func() { atomic.AddInt32(&numClose, 1) }}
+			return tls.Client(c, tlsConfig), nil
+		},
+	}
+	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+		t.Fatal(err)
+	}
+	defer tr.CloseIdleConnections()
+
+	c := &Client{Transport: tr}
+
+	const N = 10
+	gotBody := make(chan string, N)
+	var wg sync.WaitGroup
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := c.Get(cst.ts.URL)
+			if err != nil {
+				t.Errorf("Get: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+			slurp, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Error(err)
+			}
+			gotBody <- string(slurp)
+		}()
+	}
+	wg.Wait()
+	close(gotBody)
+
+	var last string
+	for got := range gotBody {
+		if last == "" {
+			last = got
+			continue
+		}
+		if got != last {
+			t.Errorf("Response body changed: %q -> %q", last, got)
+		}
+	}
+
+	var open, close int32
+	for i := 0; i < 150; i++ {
+		open, close = atomic.LoadInt32(&numOpen), atomic.LoadInt32(&numClose)
+		if open < 1 {
+			t.Fatalf("open = %d; want at least", open)
+		}
+		if close == open-1 {
+			// Success
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Errorf("%d connections opened, %d closed; want %d to close", open, close, open-1)
+}
+
+type noteCloseConn struct {
+	net.Conn
+	closeFunc func()
+}
+
+func (x noteCloseConn) Close() error {
+	x.closeFunc()
+	return x.Conn.Close()
 }

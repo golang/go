@@ -713,6 +713,12 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 			return nil, errors.New("net/http: Transport.DialTLS returned (nil, nil)")
 		}
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
+			// Handshake here, in case DialTLS didn't. TLSNextProto below
+			// depends on it for knowing the connection state.
+			if err := tc.Handshake(); err != nil {
+				go pconn.conn.Close()
+				return nil, err
+			}
 			cs := tc.ConnectionState()
 			pconn.tlsState = &cs
 		}
