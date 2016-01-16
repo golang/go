@@ -335,6 +335,41 @@ func TestIndexByteBig(t *testing.T) {
 	}
 }
 
+// test a small index across all page offsets
+func TestIndexByteSmall(t *testing.T) {
+	b := make([]byte, 5015) // bigger than a page
+	// Make sure we find the correct byte even when straddling a page.
+	for i := 0; i <= len(b)-15; i++ {
+		for j := 0; j < 15; j++ {
+			b[i+j] = byte(100 + j)
+		}
+		for j := 0; j < 15; j++ {
+			p := IndexByte(b[i:i+15], byte(100+j))
+			if p != j {
+				t.Errorf("IndexByte(%q, %d) = %d", b[i:i+15], 100+j, p)
+			}
+		}
+		for j := 0; j < 15; j++ {
+			b[i+j] = 0
+		}
+	}
+	// Make sure matches outside the slice never trigger.
+	for i := 0; i <= len(b)-15; i++ {
+		for j := 0; j < 15; j++ {
+			b[i+j] = 1
+		}
+		for j := 0; j < 15; j++ {
+			p := IndexByte(b[i:i+15], byte(0))
+			if p != -1 {
+				t.Errorf("IndexByte(%q, %d) = %d", b[i:i+15], 0, p)
+			}
+		}
+		for j := 0; j < 15; j++ {
+			b[i+j] = 0
+		}
+	}
+}
+
 func TestIndexRune(t *testing.T) {
 	for _, tt := range indexRuneTests {
 		a := []byte(tt.a)
@@ -348,10 +383,12 @@ func TestIndexRune(t *testing.T) {
 
 var bmbuf []byte
 
+func BenchmarkIndexByte10(b *testing.B)          { bmIndexByte(b, IndexByte, 10) }
 func BenchmarkIndexByte32(b *testing.B)          { bmIndexByte(b, IndexByte, 32) }
 func BenchmarkIndexByte4K(b *testing.B)          { bmIndexByte(b, IndexByte, 4<<10) }
 func BenchmarkIndexByte4M(b *testing.B)          { bmIndexByte(b, IndexByte, 4<<20) }
 func BenchmarkIndexByte64M(b *testing.B)         { bmIndexByte(b, IndexByte, 64<<20) }
+func BenchmarkIndexBytePortable10(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 10) }
 func BenchmarkIndexBytePortable32(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 32) }
 func BenchmarkIndexBytePortable4K(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 4<<10) }
 func BenchmarkIndexBytePortable4M(b *testing.B)  { bmIndexByte(b, IndexBytePortable, 4<<20) }
