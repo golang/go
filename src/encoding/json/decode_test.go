@@ -33,6 +33,11 @@ type V struct {
 	F1 interface{}
 	F2 int32
 	F3 Number
+	F4 *VOuter
+}
+
+type VOuter struct {
+	V V
 }
 
 // ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshaling with and
@@ -389,7 +394,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `"g-clef: \uD834\uDD1E"`, ptr: new(string), out: "g-clef: \U0001D11E"},
 	{in: `"invalid: \uD834x\uDD1E"`, ptr: new(string), out: "invalid: \uFFFDx\uFFFD"},
 	{in: "null", ptr: new(interface{}), out: nil},
-	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7}},
+	{in: `{"X": [1,2,3], "Y": 4}`, ptr: new(T), out: T{Y: 4}, err: &UnmarshalTypeError{"array", reflect.TypeOf(""), 7, "T", "X"}},
 	{in: `{"x": 1}`, ptr: new(tx), out: tx{}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
 	{in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
@@ -504,22 +509,22 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"abc":"abc"}`,
 		ptr: new(map[int]string),
-		err: &UnmarshalTypeError{"number abc", reflect.TypeOf(0), 2},
+		err: &UnmarshalTypeError{Value: "number abc", Type: reflect.TypeOf(0), Offset: 2},
 	},
 	{
 		in:  `{"256":"abc"}`,
 		ptr: new(map[uint8]string),
-		err: &UnmarshalTypeError{"number 256", reflect.TypeOf(uint8(0)), 2},
+		err: &UnmarshalTypeError{Value: "number 256", Type: reflect.TypeOf(uint8(0)), Offset: 2},
 	},
 	{
 		in:  `{"128":"abc"}`,
 		ptr: new(map[int8]string),
-		err: &UnmarshalTypeError{"number 128", reflect.TypeOf(int8(0)), 2},
+		err: &UnmarshalTypeError{Value: "number 128", Type: reflect.TypeOf(int8(0)), Offset: 2},
 	},
 	{
 		in:  `{"-1":"abc"}`,
 		ptr: new(map[uint8]string),
-		err: &UnmarshalTypeError{"number -1", reflect.TypeOf(uint8(0)), 2},
+		err: &UnmarshalTypeError{Value: "number -1", Type: reflect.TypeOf(uint8(0)), Offset: 2},
 	},
 
 	// Map keys can be encoding.TextUnmarshalers.
@@ -653,12 +658,12 @@ var unmarshalTests = []unmarshalTest{
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
 		ptr: &map[Point]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[Point]string{}), 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[Point]string{}), Offset: 1},
 	},
 	{
 		in:  `{"asdf": "hello world"}`,
 		ptr: &map[unmarshaler]string{},
-		err: &UnmarshalTypeError{"object", reflect.TypeOf(map[unmarshaler]string{}), 1},
+		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[unmarshaler]string{}), Offset: 1},
 	},
 
 	// related to issue 13783.
@@ -750,6 +755,29 @@ var unmarshalTests = []unmarshalTest{
 	{in: `999999999999999900000`, ptr: new(float64), out: 999999999999999900000.0, golden: true},
 	{in: `9007199254740992`, ptr: new(float64), out: 9007199254740992.0, golden: true},
 	{in: `9007199254740993`, ptr: new(float64), out: 9007199254740992.0, golden: false},
+
+	{
+		in:  `{"V": {"F2": "hello"}}`,
+		ptr: new(VOuter),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "V",
+			Field:  "F2",
+			Type:   reflect.TypeOf(int32(0)),
+			Offset: 20,
+		},
+	},
+	{
+		in:  `{"V": {"F4": {}, "F2": "hello"}}`,
+		ptr: new(VOuter),
+		err: &UnmarshalTypeError{
+			Value:  "string",
+			Struct: "V",
+			Field:  "F2",
+			Type:   reflect.TypeOf(int32(0)),
+			Offset: 30,
+		},
+	},
 }
 
 func TestMarshal(t *testing.T) {
