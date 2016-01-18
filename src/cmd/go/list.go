@@ -78,6 +78,14 @@ syntax of package template.  The default output is equivalent to -f
         XTestImports []string // imports from XTestGoFiles
     }
 
+The error information, if any, is
+
+    type PackageError struct {
+        ImportStack   []string // shortest path from package named on command line to this one
+        Pos           string   // position of error (if present, file:line:col)
+        Err           string   // the error itself
+    }
+
 The template function "join" calls strings.Join.
 
 The template function "context" returns the build context, defined as:
