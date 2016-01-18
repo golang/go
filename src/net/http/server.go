@@ -347,7 +347,7 @@ type response struct {
 	// written.
 	trailers []string
 
-	handlerDone bool // set true when the handler exits
+	handlerDone atomicBool // set true when the handler exits
 
 	// Buffers for Date and Content-Length
 	dateBuf [len(TimeFormat)]byte
@@ -357,6 +357,11 @@ type response struct {
 	// Guarded by conn.mu
 	closeNotifyCh <-chan bool
 }
+
+type atomicBool int32
+
+func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
+func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
 
 // declareTrailer is called for each Trailer header when the
 // response header is written. It notes that a header will need to be
@@ -911,7 +916,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// send a Content-Length header.
 	// Further, we don't send an automatic Content-Length if they
 	// set a Transfer-Encoding, because they're generally incompatible.
-	if w.handlerDone && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
+	if w.handlerDone.isSet() && !trailers && !hasTE && bodyAllowedForStatus(w.status) && header.get("Content-Length") == "" && (!isHEAD || len(p) > 0) {
 		w.contentLength = int64(len(p))
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
@@ -1234,7 +1239,7 @@ func (w *response) write(lenData int, dataB []byte, dataS string) (n int, err er
 }
 
 func (w *response) finishRequest() {
-	w.handlerDone = true
+	w.handlerDone.setTrue()
 
 	if !w.wroteHeader {
 		w.WriteHeader(StatusOK)
@@ -1498,6 +1503,9 @@ func (w *response) sendExpectationFailed() {
 // Hijack implements the Hijacker.Hijack method. Our response is both a ResponseWriter
 // and a Hijacker.
 func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+	if w.handlerDone.isSet() {
+		panic("net/http: Hijack called after ServeHTTP finished")
+	}
 	if w.wroteHeader {
 		w.cw.flush()
 	}
@@ -1521,6 +1529,9 @@ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
 }
 
 func (w *response) CloseNotify() <-chan bool {
+	if w.handlerDone.isSet() {
+		panic("net/http: CloseNotify called after ServeHTTP finished")
+	}
 	c := w.conn
 	c.mu.Lock()
 	defer c.mu.Unlock()
