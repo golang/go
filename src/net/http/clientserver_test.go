@@ -421,6 +421,35 @@ func TestH12_ServerEmptyContentLength(t *testing.T) {
 	}.run(t)
 }
 
+func TestH12_RequestContentLength_Known_NonZero(t *testing.T) {
+	h12requestContentLength(t, func() io.Reader { return strings.NewReader("FOUR") }, 4)
+}
+
+func TestH12_RequestContentLength_Known_Zero(t *testing.T) {
+	h12requestContentLength(t, func() io.Reader { return strings.NewReader("") }, 0)
+}
+
+func TestH12_RequestContentLength_Unknown(t *testing.T) {
+	h12requestContentLength(t, func() io.Reader { return struct{ io.Reader }{strings.NewReader("Stuff")} }, -1)
+}
+
+func h12requestContentLength(t *testing.T, bodyfn func() io.Reader, wantLen int64) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			w.Header().Set("Got-Length", fmt.Sprint(r.ContentLength))
+			fmt.Fprintf(w, "Req.ContentLength=%v", r.ContentLength)
+		},
+		ReqFunc: func(c *Client, url string) (*Response, error) {
+			return c.Post(url, "text/plain", bodyfn())
+		},
+		CheckResponse: func(proto string, res *Response) {
+			if got, want := res.Header.Get("Got-Length"), fmt.Sprint(wantLen); got != want {
+				t.Errorf("Proto %q got length %q; want %q", proto, got, want)
+			}
+		},
+	}.run(t)
+}
+
 // Tests that closing the Request.Cancel channel also while still
 // reading the response body. Issue 13159.
 func TestCancelRequestMidBody_h1(t *testing.T) { testCancelRequestMidBody(t, h1Mode) }
