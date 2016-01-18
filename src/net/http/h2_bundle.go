@@ -4779,6 +4779,25 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	}
 	hasTrailers := trailers != ""
 
+	var body io.Reader = req.Body
+	contentLen := req.ContentLength
+	if req.Body != nil && contentLen == 0 {
+		// Test to see if it's actually zero or just unset.
+		var buf [1]byte
+		n, rerr := io.ReadFull(body, buf[:])
+		if rerr != nil && rerr != io.EOF {
+			contentLen = -1
+			body = http2errorReader{rerr}
+		} else if n == 1 {
+
+			contentLen = -1
+			body = io.MultiReader(bytes.NewReader(buf[:]), body)
+		} else {
+
+			body = nil
+		}
+	}
+
 	cc.mu.Lock()
 	if cc.closed || !cc.canTakeNewRequestLocked() {
 		cc.mu.Unlock()
@@ -4787,7 +4806,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 
 	cs := cc.newStream()
 	cs.req = req
-	hasBody := req.Body != nil
+	hasBody := body != nil
 
 	if !cc.t.disableCompression() &&
 		req.Header.Get("Accept-Encoding") == "" &&
@@ -4797,7 +4816,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 		cs.requestedGzip = true
 	}
 
-	hdrs := cc.encodeHeaders(req, cs.requestedGzip, trailers)
+	hdrs := cc.encodeHeaders(req, cs.requestedGzip, trailers, contentLen)
 	cc.wmu.Lock()
 	endStream := !hasBody && !hasTrailers
 	werr := cc.writeHeaders(cs.ID, endStream, hdrs)
@@ -4817,7 +4836,7 @@ func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
 	if hasBody {
 		bodyCopyErrc = make(chan error, 1)
 		go func() {
-			bodyCopyErrc <- cs.writeRequestBody(req.Body)
+			bodyCopyErrc <- cs.writeRequestBody(body, req.Body)
 		}()
 	}
 
@@ -4901,7 +4920,7 @@ func (cc *http2ClientConn) writeHeaders(streamID uint32, endStream bool, hdrs []
 // It doesn't escape to callers.
 var http2errAbortReqBodyWrite = errors.New("http2: aborting request body write")
 
-func (cs *http2clientStream) writeRequestBody(body io.ReadCloser) (err error) {
+func (cs *http2clientStream) writeRequestBody(body io.Reader, bodyCloser io.Closer) (err error) {
 	cc := cs.cc
 	sentEnd := false
 	buf := cc.frameScratchBuffer()
@@ -4909,7 +4928,7 @@ func (cs *http2clientStream) writeRequestBody(body io.ReadCloser) (err error) {
 
 	defer func() {
 
-		cerr := body.Close()
+		cerr := bodyCloser.Close()
 		if err == nil {
 			err = cerr
 		}
@@ -5016,7 +5035,7 @@ type http2badStringError struct {
 func (e *http2badStringError) Error() string { return fmt.Sprintf("%s %q", e.what, e.str) }
 
 // requires cc.mu be held.
-func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string) []byte {
+func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trailers string, contentLength int64) []byte {
 	cc.hbuf.Reset()
 
 	host := req.Host
@@ -5037,7 +5056,7 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	var didUA bool
 	for k, vv := range req.Header {
 		lowKey := strings.ToLower(k)
-		if lowKey == "host" {
+		if lowKey == "host" || lowKey == "content-length" {
 			continue
 		}
 		if lowKey == "user-agent" {
@@ -5054,6 +5073,9 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 		for _, v := range vv {
 			cc.writeHeader(lowKey, v)
 		}
+	}
+	if contentLength >= 0 {
+		cc.writeHeader("content-length", strconv.FormatInt(contentLength, 10))
 	}
 	if addGzipHeader {
 		cc.writeHeader("accept-encoding", "gzip")
@@ -5744,6 +5766,10 @@ func (gz *http2gzipReader) Read(p []byte) (n int, err error) {
 func (gz *http2gzipReader) Close() error {
 	return gz.body.Close()
 }
+
+type http2errorReader struct{ err error }
+
+func (r http2errorReader) Read(p []byte) (int, error) { return 0, r.err }
 
 // writeFramer is implemented by any type that is used to write frames.
 type http2writeFramer interface {
