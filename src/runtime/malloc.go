@@ -455,7 +455,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	}
 
 	if p < h.arena_start || uintptr(p)+p_size-h.arena_start >= _MaxArena32 {
-		print("runtime: memory allocated by OS (", p, ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
+		print("runtime: memory allocated by OS (", hex(p), ") not in usable range [", hex(h.arena_start), ",", hex(h.arena_start+_MaxArena32), ")\n")
 		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
 		return nil
 	}
