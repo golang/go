@@ -149,6 +149,7 @@ var opnames = []string{
 	OCFUNC:           "CFUNC",
 	OCHECKNIL:        "CHECKNIL",
 	OVARKILL:         "VARKILL",
+	OVARLIVE:         "VARLIVE",
 	OREGISTER:        "REGISTER",
 	OINDREG:          "INDREG",
 	OCMP:             "CMP",
