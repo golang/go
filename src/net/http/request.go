@@ -93,8 +93,8 @@ type Request struct {
 	// The protocol version for incoming server requests.
 	//
 	// For client requests these fields are ignored. The HTTP
-	// transport code uses either HTTP/1.1 or HTTP/2.0 by default,
-	// depending on what the server supports.
+	// client code always uses either HTTP/1.1 or HTTP/2.
+	// See the docs on Transport for details.
 	Proto      string // "HTTP/1.0"
 	ProtoMajor int    // 1
 	ProtoMinor int    // 0
@@ -1136,16 +1136,28 @@ func validHeaderName(v string) bool {
 	return strings.IndexFunc(v, isNotToken) == -1
 }
 
+// validHeaderValue reports whether v is a valid "field-value" according to
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2 :
+//
+//        message-header = field-name ":" [ field-value ]
+//        field-value    = *( field-content | LWS )
+//        field-content  = <the OCTETs making up the field-value
+//                         and consisting of either *TEXT or combinations
+//                         of token, separators, and quoted-string>
+//
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.2 :
+//
+//        TEXT           = <any OCTET except CTLs,
+//                          but including LWS>
+//        LWS            = [CRLF] 1*( SP | HT )
+//        CTL            = <any US-ASCII control character
+//                         (octets 0 - 31) and DEL (127)>
 func validHeaderValue(v string) bool {
 	for i := 0; i < len(v); i++ {
 		b := v[i]
-		if b == '\t' {
-			continue
+		if isCTL(b) && !isLWS(b) {
+			return false
 		}
-		if ' ' <= b && b <= '~' {
-			continue
-		}
-		return false
 	}
 	return true
 }

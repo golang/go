@@ -40,6 +40,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	obj.ACHECKNIL: {Flags: gc.LeftRead},
 	obj.AVARDEF:   {Flags: gc.Pseudo | gc.RightWrite},
 	obj.AVARKILL:  {Flags: gc.Pseudo | gc.RightWrite},
+	obj.AVARLIVE:  {Flags: gc.Pseudo | gc.LeftRead},
 
 	// NOP is an internal no-op that also stands
 	// for USED and SET annotations, not the Intel opcode.
@@ -91,8 +92,12 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AFCOMDPP:   {Flags: gc.SizeD | gc.LeftAddr | gc.RightRead},
 	x86.AFCOMF:     {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
 	x86.AFCOMFP:    {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
-	x86.AFUCOMIP:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
-	x86.AFCHS:      {Flags: gc.SizeD | RightRdwr}, // also SizeF
+	// NOTE(khr): don't use FUCOMI* instructions, not available
+	// on Pentium MMX.  See issue 13923.
+	//x86.AFUCOMIP:   {Flags: gc.SizeF | gc.LeftAddr | gc.RightRead},
+	x86.AFUCOMP:  {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+	x86.AFUCOMPP: {Flags: gc.SizeD | gc.LeftRead | gc.RightRead},
+	x86.AFCHS:    {Flags: gc.SizeD | RightRdwr}, // also SizeF
 
 	x86.AFDIVDP:  {Flags: gc.SizeD | gc.LeftAddr | RightRdwr},
 	x86.AFDIVF:   {Flags: gc.SizeF | gc.LeftAddr | RightRdwr},

@@ -151,3 +151,11 @@ func TestSignalExitStatus(t *testing.T) {
 		t.Errorf("got %v; expected SIGTERM", ee)
 	}
 }
+
+func TestSignalIgnoreSIGTRAP(t *testing.T) {
+	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}

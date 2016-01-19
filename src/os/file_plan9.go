@@ -339,7 +339,9 @@ func rename(oldname, newname string) error {
 
 	// If newname still contains slashes after removing the oldname
 	// prefix, the rename is cross-directory and must be rejected.
-	// This case is caught by d.Marshal below.
+	if lastIndex(newname, '/') >= 0 {
+		return &LinkError{"rename", oldname, newname, ErrInvalid}
+	}
 
 	var d syscall.Dir
 
@@ -351,6 +353,13 @@ func rename(oldname, newname string) error {
 	if err != nil {
 		return &LinkError{"rename", oldname, newname, err}
 	}
+
+	// If newname already exists and is not a directory, rename replaces it.
+	f, err := Stat(dirname + newname)
+	if err == nil && !f.IsDir() {
+		Remove(dirname + newname)
+	}
+
 	if err = syscall.Wstat(oldname, buf[:n]); err != nil {
 		return &LinkError{"rename", oldname, newname, err}
 	}

@@ -26,7 +26,7 @@ func mpreinit(mp *m) {
 func msigsave(mp *m) {
 }
 
-func msigrestore(mp *m) {
+func msigrestore(sigmask sigset) {
 }
 
 func sigblock() {
@@ -107,7 +107,7 @@ func getRandomData(r []byte) {
 func goenvs() {
 }
 
-func initsig() {
+func initsig(preinit bool) {
 }
 
 //go:nosplit

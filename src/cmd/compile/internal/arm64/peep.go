@@ -711,6 +711,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		obj.AFUNCDATA,
 		obj.AVARDEF,
 		obj.AVARKILL,
+		obj.AVARLIVE,
 		obj.AUSEFIELD:
 		return 0
 	}

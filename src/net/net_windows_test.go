@@ -380,6 +380,8 @@ func netshInterfaceIPv6ShowAddress(name string) ([]string, error) {
 }
 
 func TestInterfaceAddrsWithNetsh(t *testing.T) {
+	t.Skip("see https://golang.org/issue/13981")
+
 	if isWindowsXP(t) {
 		t.Skip("Windows XP netsh command does not provide required functionality")
 	}

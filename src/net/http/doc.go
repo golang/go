@@ -76,5 +76,20 @@ custom Server:
 		MaxHeaderBytes: 1 << 20,
 	}
 	log.Fatal(s.ListenAndServe())
+
+The http package has transparent support for the HTTP/2 protocol when
+using HTTPS. Programs that must disable HTTP/2 can do so by setting
+Transport.TLSNextProto (for clients) or Server.TLSNextProto (for
+servers) to a non-nil, empty map. Alternatively, the following GODEBUG
+environment variables are currently supported:
+
+	GODEBUG=http2client=0  # disable HTTP/2 client support
+	GODEBUG=http2server=0  # disable HTTP/2 server support
+	GODEBUG=http2debug=1   # enable verbose HTTP/2 debug logs
+	GODEBUG=http2debug=2   # ... even more verbose, with frame dumps
+
+The GODEBUG variables are not covered by Go's API compatibility promise.
+HTTP/2 support was added in Go 1.6. Please report any issues instead of
+disabling HTTP/2 support: https://golang.org/s/http2bug
 */
 package http

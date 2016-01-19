@@ -206,7 +206,8 @@ TEXT runtime·externalthreadhandler(SB),NOSPLIT,$0
 	CALL	runtime·memclr(SB)	// smashes AX,BX,CX
 	LEAL	g__size(SP), BX
 	MOVL	BX, g_m(SP)
-	LEAL	-8192(SP), CX
+
+	LEAL	-32768(SP), CX		// must be less than SizeOfStackReserve set by linker
 	MOVL	CX, (g_stack+stack_lo)(SP)
 	ADDL	$const__StackGuard, CX
 	MOVL	CX, g_stackguard0(SP)

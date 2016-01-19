@@ -80,7 +80,7 @@ func TestSpecialDomainName(t *testing.T) {
 
 	server := "8.8.8.8:53"
 	for _, tt := range specialDomainNameTests {
-		msg, err := exchange(server, tt.name, tt.qtype, 0)
+		msg, err := exchange(server, tt.name, tt.qtype, 3*time.Second)
 		if err != nil {
 			t.Error(err)
 			continue

@@ -185,7 +185,7 @@ func fixautoused(p *obj.Prog) {
 			continue
 		}
 
-		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
+		if (p.As == obj.AVARDEF || p.As == obj.AVARKILL || p.As == obj.AVARLIVE) && p.To.Node != nil && !((p.To.Node).(*Node)).Used {
 			// Cannot remove VARDEF instruction, because - unlike TYPE handled above -
 			// VARDEFs are interspersed with other code, and a jump might be using the
 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove

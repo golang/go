@@ -34,12 +34,13 @@ import (
 )
 
 var sig struct {
-	note   note
-	mask   [(_NSIG + 31) / 32]uint32
-	wanted [(_NSIG + 31) / 32]uint32
-	recv   [(_NSIG + 31) / 32]uint32
-	state  uint32
-	inuse  bool
+	note    note
+	mask    [(_NSIG + 31) / 32]uint32
+	wanted  [(_NSIG + 31) / 32]uint32
+	ignored [(_NSIG + 31) / 32]uint32
+	recv    [(_NSIG + 31) / 32]uint32
+	state   uint32
+	inuse   bool
 }
 
 const (
@@ -146,6 +147,7 @@ func signal_enable(s uint32) {
 		return
 	}
 	sig.wanted[s/32] |= 1 << (s & 31)
+	sig.ignored[s/32] &^= 1 << (s & 31)
 	sigenable(s)
 }
 
@@ -166,12 +168,19 @@ func signal_ignore(s uint32) {
 		return
 	}
 	sig.wanted[s/32] &^= 1 << (s & 31)
+	sig.ignored[s/32] |= 1 << (s & 31)
 	sigignore(s)
+}
+
+// Checked by signal handlers.
+func signal_ignored(s uint32) bool {
+	return sig.ignored[s/32]&(1<<(s&31)) != 0
 }
 
 // This runs on a foreign stack, without an m or a g.  No stack split.
 //go:nosplit
 //go:norace
+//go:nowritebarrierrec
 func badsignal(sig uintptr) {
 	cgocallback(unsafe.Pointer(funcPC(badsignalgo)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig))
 }

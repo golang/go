@@ -333,11 +333,11 @@ func TestMathBigDivide(t *testing.T) {
 }
 
 func TestStackBarrierProfiling(t *testing.T) {
-	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" || runtime.GOOS == "dragonfly" {
+	if (runtime.GOOS == "linux" && runtime.GOARCH == "arm") || runtime.GOOS == "openbsd" || runtime.GOOS == "solaris" || runtime.GOOS == "dragonfly" || runtime.GOOS == "freebsd" {
 		// This test currently triggers a large number of
 		// usleep(100)s. These kernels/arches have poor
 		// resolution timers, so this gives up a whole
-		// scheduling quantum. On Linux and OpenBSD (and
+		// scheduling quantum. On Linux and the BSDs (and
 		// probably Solaris), profiling signals are only
 		// generated when a process completes a whole
 		// scheduling quantum, so this test often gets zero

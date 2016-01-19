@@ -9,7 +9,6 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/token"
-	pathLib "path"
 	"strconv"
 	"strings"
 	"unicode"
@@ -134,6 +133,20 @@ func (check *Checker) collectObjects() {
 		pkgImports[imp] = true
 	}
 
+	// srcDir is the directory used by the Importer to look up packages.
+	// The typechecker itself doesn't need this information so it is not
+	// explicitly provided. Instead, we extract it from position info of
+	// the source files as needed.
+	// This is the only place where the type-checker (just the importer)
+	// needs to know the actual source location of a file.
+	// TODO(gri) can we come up with a better API instead?
+	var srcDir string
+	if len(check.files) > 0 {
+		// FileName may be "" (typically for tests) in which case
+		// we get "." as the srcDir which is what we would want.
+		srcDir = dir(check.fset.Position(check.files[0].Name.Pos()).Filename)
+	}
+
 	for fileNo, file := range check.files {
 		// The package identifier denotes the current package,
 		// but there is no corresponding package object.
@@ -170,17 +183,20 @@ func (check *Checker) collectObjects() {
 							// TODO(gri) shouldn't create a new one each time
 							imp = NewPackage("C", "C")
 							imp.fake = true
-						} else if path == "unsafe" {
-							// package "unsafe" is known to the language
-							imp = Unsafe
 						} else {
-							if importer := check.conf.Importer; importer != nil {
+							// ordinary import
+							if importer := check.conf.Importer; importer == nil {
+								err = fmt.Errorf("Config.Importer not installed")
+							} else if importerFrom, ok := importer.(ImporterFrom); ok {
+								imp, err = importerFrom.ImportFrom(path, srcDir, 0)
+								if imp == nil && err == nil {
+									err = fmt.Errorf("Config.Importer.ImportFrom(%s, %s, 0) returned nil but no error", path, pkg.path)
+								}
+							} else {
 								imp, err = importer.Import(path)
 								if imp == nil && err == nil {
 									err = fmt.Errorf("Config.Importer.Import(%s) returned nil but no error", path)
 								}
-							} else {
-								err = fmt.Errorf("Config.Importer not installed")
 							}
 							if err != nil {
 								check.errorf(s.Path.Pos(), "could not import %s (%s)", path, err)
@@ -435,7 +451,7 @@ func (check *Checker) unusedImports() {
 				// since _ identifiers are not entered into scopes.
 				if !obj.used {
 					path := obj.imported.path
-					base := pathLib.Base(path)
+					base := pkgName(path)
 					if obj.name == base {
 						check.softErrorf(obj.pos, "%q imported but not used", path)
 					} else {
@@ -452,4 +468,26 @@ func (check *Checker) unusedImports() {
 			check.softErrorf(pos, "%q imported but not used", pkg.path)
 		}
 	}
+}
+
+// pkgName returns the package name (last element) of an import path.
+func pkgName(path string) string {
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		path = path[i+1:]
+	}
+	return path
+}
+
+// dir makes a good-faith attempt to return the directory
+// portion of path. If path is empty, the result is ".".
+// (Per the go/build package dependency tests, we cannot import
+// path/filepath and simply use filepath.Dir.)
+func dir(path string) string {
+	if i := strings.LastIndexAny(path, "/\\"); i >= 0 {
+		path = path[:i]
+	}
+	if path == "" {
+		path = "."
+	}
+	return path
 }

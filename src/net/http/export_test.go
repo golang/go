@@ -21,6 +21,7 @@ var (
 	ExportServerNewConn           = (*Server).newConn
 	ExportCloseWriteAndWait       = (*conn).closeWriteAndWait
 	ExportErrRequestCanceled      = errRequestCanceled
+	ExportErrRequestCanceledConn  = errRequestCanceledConn
 	ExportServeFile               = serveFile
 	ExportHttp2ConfigureTransport = http2ConfigureTransport
 	ExportHttp2ConfigureServer    = http2ConfigureServer

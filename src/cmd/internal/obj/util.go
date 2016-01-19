@@ -611,7 +611,7 @@ func RegisterOpcode(lo int, Anames []string) {
 }
 
 func Aconv(a int) string {
-	if a < A_ARCHSPECIFIC {
+	if 0 <= a && a < len(Anames) {
 		return Anames[a]
 	}
 	for i := range aSpace {
@@ -643,6 +643,7 @@ var Anames = []string{
 	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
+	"VARLIVE",
 }
 
 func Bool2int(b bool) int {

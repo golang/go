@@ -1217,12 +1217,17 @@ func Asmbpe() {
 	// larger size, as verified with VMMap.
 
 	// Go code would be OK with 64k stacks, but we need larger stacks for cgo.
-	// That default stack reserve size affects only the main thread,
-	// for other threads we specify stack size in runtime explicitly
+	//
+	// The default stack reserve size affects only the main
+	// thread, ctrlhandler thread, and profileloop thread. For
+	// these, it must be greater than the stack size assumed by
+	// externalthreadhandler.
+	//
+	// For other threads we specify stack size in runtime explicitly
 	// (runtime knows whether cgo is enabled or not).
-	// If you change stack reserve sizes here,
-	// change STACKSIZE in runtime/cgo/gcc_windows_{386,amd64}.c and correspondent
-	// CreateThread parameter in runtime.newosproc as well.
+	// For these, the reserve must match STACKSIZE in
+	// runtime/cgo/gcc_windows_{386,amd64}.c and the correspondent
+	// CreateThread parameter in runtime.newosproc.
 	if !iscgo {
 		oh64.SizeOfStackReserve = 0x00020000
 		oh.SizeOfStackReserve = 0x00020000

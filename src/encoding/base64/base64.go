@@ -346,21 +346,18 @@ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
 }
 
 type decoder struct {
-	err    error
-	enc    *Encoding
-	r      io.Reader
-	end    bool       // saw end of message
-	buf    [1024]byte // leftover input
-	nbuf   int
-	out    []byte // leftover decoded output
-	outbuf [1024 / 4 * 3]byte
+	err     error
+	readErr error // error from r.Read
+	enc     *Encoding
+	r       io.Reader
+	end     bool       // saw end of message
+	buf     [1024]byte // leftover input
+	nbuf    int
+	out     []byte // leftover decoded output
+	outbuf  [1024 / 4 * 3]byte
 }
 
 func (d *decoder) Read(p []byte) (n int, err error) {
-	if d.err != nil {
-		return 0, d.err
-	}
-
 	// Use leftover decoded output from last read.
 	if len(d.out) > 0 {
 		n = copy(p, d.out)
@@ -368,19 +365,46 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		return n, nil
 	}
 
+	if d.err != nil {
+		return 0, d.err
+	}
+
 	// This code assumes that d.r strips supported whitespace ('\r' and '\n').
 
-	// Read a chunk.
-	nn := len(p) / 3 * 4
-	if nn < 4 {
-		nn = 4
+	// Refill buffer.
+	for d.nbuf < 4 && d.readErr == nil {
+		nn := len(p) / 3 * 4
+		if nn < 4 {
+			nn = 4
+		}
+		if nn > len(d.buf) {
+			nn = len(d.buf)
+		}
+		nn, d.readErr = d.r.Read(d.buf[d.nbuf:nn])
+		d.nbuf += nn
 	}
-	if nn > len(d.buf) {
-		nn = len(d.buf)
-	}
-	nn, d.err = io.ReadAtLeast(d.r, d.buf[d.nbuf:nn], 4-d.nbuf)
-	d.nbuf += nn
-	if d.err != nil || d.nbuf < 4 {
+
+	if d.nbuf < 4 {
+		if d.enc.padChar == NoPadding && d.nbuf > 0 {
+			// Decode final fragment, without padding.
+			var nw int
+			nw, _, d.err = d.enc.decode(d.outbuf[:], d.buf[:d.nbuf])
+			d.nbuf = 0
+			d.end = true
+			d.out = d.outbuf[:nw]
+			n = copy(p, d.out)
+			d.out = d.out[n:]
+			if n > 0 || len(p) == 0 && len(d.out) > 0 {
+				return n, nil
+			}
+			if d.err != nil {
+				return 0, d.err
+			}
+		}
+		d.err = d.readErr
+		if d.err == io.EOF && d.nbuf > 0 {
+			d.err = io.ErrUnexpectedEOF
+		}
 		return 0, d.err
 	}
 
@@ -396,13 +420,7 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		n, d.end, d.err = d.enc.decode(p, d.buf[:nr])
 	}
 	d.nbuf -= nr
-	for i := 0; i < d.nbuf; i++ {
-		d.buf[i] = d.buf[i+nr]
-	}
-
-	if d.err == nil {
-		d.err = err
-	}
+	copy(d.buf[:d.nbuf], d.buf[nr:])
 	return n, d.err
 }
 

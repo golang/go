@@ -23,6 +23,10 @@ TEXT _rt0_amd64_linux_lib(SB),NOSPLIT,$0x48
 	MOVQ	DI, _rt0_amd64_linux_lib_argc<>(SB)
 	MOVQ	SI, _rt0_amd64_linux_lib_argv<>(SB)
 
+	// Synchronous initialization.
+	MOVQ	$runtime·libpreinit(SB), AX
+	CALL	AX
+
 	// Create a new thread to do the runtime initialization and return.
 	MOVQ	_cgo_sys_thread_create(SB), AX
 	TESTQ	AX, AX

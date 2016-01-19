@@ -25,6 +25,11 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
 
 	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
 	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
+
+	// Synchronous initialization.
+	MOVD	$runtime·libpreinit(SB), R4
+	BL	(R4)
+
 	// Create a new thread to do the runtime initialization and return.
 	MOVD  _cgo_sys_thread_create(SB), R4
 	MOVD  $_rt0_arm64_darwin_lib_go(SB), R0

@@ -95,7 +95,11 @@ func gvardefx(n *Node, as int) {
 
 	switch n.Class {
 	case PAUTO, PPARAM, PPARAMOUT:
-		Thearch.Gins(as, nil, n)
+		if as == obj.AVARLIVE {
+			Thearch.Gins(as, n, nil)
+		} else {
+			Thearch.Gins(as, nil, n)
+		}
 	}
 }
 
@@ -107,13 +111,17 @@ func gvarkill(n *Node) {
 	gvardefx(n, obj.AVARKILL)
 }
 
+func gvarlive(n *Node) {
+	gvardefx(n, obj.AVARLIVE)
+}
+
 func removevardef(firstp *obj.Prog) {
 	for p := firstp; p != nil; p = p.Link {
-		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL) {
+		for p.Link != nil && (p.Link.As == obj.AVARDEF || p.Link.As == obj.AVARKILL || p.Link.As == obj.AVARLIVE) {
 			p.Link = p.Link.Link
 		}
 		if p.To.Type == obj.TYPE_BRANCH {
-			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL) {
+			for p.To.Val.(*obj.Prog) != nil && (p.To.Val.(*obj.Prog).As == obj.AVARDEF || p.To.Val.(*obj.Prog).As == obj.AVARKILL || p.To.Val.(*obj.Prog).As == obj.AVARLIVE) {
 				p.To.Val = p.To.Val.(*obj.Prog).Link
 			}
 		}

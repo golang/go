@@ -552,6 +552,7 @@ const (
 	OpFwdRef
 	OpVarDef
 	OpVarKill
+	OpVarLive
 )
 
 var opcodeTable = [...]opInfo{
@@ -4308,6 +4309,10 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "VarKill",
+		generic: true,
+	},
+	{
+		name:    "VarLive",
 		generic: true,
 	},
 }

@@ -656,7 +656,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
-			"darwin-amd64",
+			"darwin-amd64", "darwin-386",
 			"android-arm", "android-arm64", "android-386":
 			return true
 		}
@@ -913,6 +913,12 @@ func (t *tester) cgoTestSO(dt *distTest, testpath string) error {
 			s = "DYLD_LIBRARY_PATH"
 		}
 		cmd.Env = mergeEnvLists([]string{s + "=."}, os.Environ())
+
+		// On FreeBSD 64-bit architectures, the 32-bit linker looks for
+		// different environment variables.
+		if t.goos == "freebsd" && t.gohostarch == "386" {
+			cmd.Env = mergeEnvLists([]string{"LD_32_LIBRARY_PATH=."}, cmd.Env)
+		}
 	}
 	return cmd.Run()
 }

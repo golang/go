@@ -200,10 +200,15 @@ func IsScanValue(v interface{}) bool {
 // ValueConverter that's used when a Stmt doesn't implement
 // ColumnConverter.
 //
-// DefaultParameterConverter returns the given value directly if
-// IsValue(value).  Otherwise integer type are converted to
-// int64, floats to float64, and strings to []byte.  Other types are
-// an error.
+// DefaultParameterConverter returns its argument directly if
+// IsValue(arg). Otherwise, if the argument implements Valuer, its
+// Value method is used to return a Value. As a fallback, the provided
+// argument's underlying type is used to convert it to a Value:
+// underlying integer types are converted to int64, floats to float64,
+// and strings to []byte. If the argument is a nil pointer,
+// ConvertValue returns a nil Value. If the argument is a non-nil
+// pointer, it is dereferenced and ConvertValue is called
+// recursively. Other types are an error.
 var DefaultParameterConverter defaultConverter
 
 type defaultConverter struct{}

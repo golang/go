@@ -41,6 +41,14 @@ type HeaderField struct {
 	Sensitive bool
 }
 
+func (hf HeaderField) String() string {
+	var suffix string
+	if hf.Sensitive {
+		suffix = " (sensitive)"
+	}
+	return fmt.Sprintf("header field %q = %q%s", hf.Name, hf.Value, suffix)
+}
+
 func (hf *HeaderField) size() uint32 {
 	// http://http2.github.io/http2-spec/compression.html#rfc.section.4.1
 	// "The size of the dynamic table is the sum of the size of

@@ -694,7 +694,13 @@ func importfile(f *Val, line int) {
 		errorexit()
 	}
 
-	if f.U.(string) == "unsafe" {
+	path_ := f.U.(string)
+
+	if mapped, ok := importMap[path_]; ok {
+		path_ = mapped
+	}
+
+	if path_ == "unsafe" {
 		if safemode != 0 {
 			Yyerror("cannot import package unsafe")
 			errorexit()
@@ -704,12 +710,6 @@ func importfile(f *Val, line int) {
 		cannedimports("unsafe.o", unsafeimport)
 		imported_unsafe = true
 		return
-	}
-
-	path_ := f.U.(string)
-
-	if mapped, ok := importMap[path_]; ok {
-		path_ = mapped
 	}
 
 	if islocalname(path_) {

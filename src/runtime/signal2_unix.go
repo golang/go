@@ -14,12 +14,28 @@ func sigfwd(fn uintptr, sig uint32, info *siginfo, ctx unsafe.Pointer)
 // Determines if the signal should be handled by Go and if not, forwards the
 // signal to the handler that was installed before Go's.  Returns whether the
 // signal was forwarded.
+// This is called by the signal handler, and the world may be stopped.
 //go:nosplit
+//go:nowritebarrierrec
 func sigfwdgo(sig uint32, info *siginfo, ctx unsafe.Pointer) bool {
 	if sig >= uint32(len(sigtable)) {
 		return false
 	}
 	fwdFn := fwdSig[sig]
+
+	if !signalsOK {
+		// The only way we can get here is if we are in a
+		// library or archive, we installed a signal handler
+		// at program startup, but the Go runtime has not yet
+		// been initialized.
+		if fwdFn == _SIG_DFL {
+			dieFromSignal(int32(sig))
+		} else {
+			sigfwd(fwdFn, sig, info, ctx)
+		}
+		return true
+	}
+
 	flags := sigtable[sig].flags
 
 	// If there is no handler to forward to, no need to forward.

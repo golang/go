@@ -491,7 +491,8 @@ retry:
 }
 
 // gcWakeAllAssists wakes all currently blocked assists. This is used
-// at the end of a GC cycle.
+// at the end of a GC cycle. gcBlackenEnabled must be false to prevent
+// new assists from going to sleep after this point.
 func gcWakeAllAssists() {
 	lock(&work.assistQueue.lock)
 	injectglist(work.assistQueue.head.ptr())
@@ -796,7 +797,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	}
 
 	gp := getg()
-	preemtible := flags&gcDrainUntilPreempt != 0
+	preemptible := flags&gcDrainUntilPreempt != 0
 	blocking := flags&(gcDrainUntilPreempt|gcDrainNoBlock) == 0
 	flushBgCredit := flags&gcDrainFlushBgCredit != 0
 
@@ -815,9 +816,13 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	initScanWork := gcw.scanWork
 
 	// Drain heap marking jobs.
-	for !(preemtible && gp.preempt) {
-		// If another proc wants a pointer, give it some.
-		if work.nwait > 0 && work.full == 0 {
+	for !(preemptible && gp.preempt) {
+		// Try to keep work available on the global queue. We used to
+		// check if there were waiting workers, but it's better to
+		// just keep work available than to make workers wait. In the
+		// worst case, we'll do O(log(_WorkbufSize)) unnecessary
+		// balances.
+		if work.full == 0 {
 			gcw.balance()
 		}
 
@@ -831,12 +836,6 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			// work barrier reached or tryGet failed.
 			break
 		}
-		// If the current wbuf is filled by the scan a new wbuf might be
-		// returned that could possibly hold only a single object. This
-		// could result in each iteration draining only a single object
-		// out of the wbuf passed in + a single object placed
-		// into an empty wbuf in scanobject so there could be
-		// a performance hit as we keep fetching fresh wbufs.
 		scanobject(b, gcw)
 
 		// Flush background scan work credit to the global
@@ -884,10 +883,16 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 
 	gp := getg().m.curg
 	for !gp.preempt && workFlushed+gcw.scanWork < scanWork {
+		// See gcDrain comment.
+		if work.full == 0 {
+			gcw.balance()
+		}
+
 		// This might be a good place to add prefetch code...
 		// if(wbuf.nobj > 4) {
 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
 		//  }
+		//
 		b := gcw.tryGet()
 		if b == 0 {
 			break
@@ -1032,7 +1037,7 @@ func shade(b uintptr) {
 // obj is the start of an object with mark mbits.
 // If it isn't already marked, mark it and enqueue into gcw.
 // base and off are for debugging only and could be removed.
-//go:nowritebarrier
+//go:nowritebarrierrec
 func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(sys.PtrSize-1) != 0 {

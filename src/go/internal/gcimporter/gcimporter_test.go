@@ -60,9 +60,9 @@ func compileNewExport(t *testing.T, dirname, filename string) string {
 	return filepath.Join(dirname, filename[:len(filename)-2]+"o")
 }
 
-func testPath(t *testing.T, path string) *types.Package {
+func testPath(t *testing.T, path, srcDir string) *types.Package {
 	t0 := time.Now()
-	pkg, err := Import(make(map[string]*types.Package), path)
+	pkg, err := Import(make(map[string]*types.Package), path, srcDir)
 	if err != nil {
 		t.Errorf("testPath(%s): %s", path, err)
 		return nil
@@ -90,7 +90,7 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
 			for _, ext := range pkgExts {
 				if strings.HasSuffix(f.Name(), ext) {
 					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
-					if testPath(t, filepath.Join(dir, name)) != nil {
+					if testPath(t, filepath.Join(dir, name), dir) != nil {
 						nimports++
 					}
 				}
@@ -113,7 +113,7 @@ func TestImportTestdata(t *testing.T) {
 		defer os.Remove(outFn)
 	}
 
-	if pkg := testPath(t, "./testdata/exports"); pkg != nil {
+	if pkg := testPath(t, "./testdata/exports", "."); pkg != nil {
 		// The package's Imports list must include all packages
 		// explicitly imported by exports.go, plus all packages
 		// referenced indirectly via exported objects in exports.go.
@@ -143,7 +143,7 @@ func TestImportTestdataNewExport(t *testing.T) {
 		defer os.Remove(outFn)
 	}
 
-	if pkg := testPath(t, "./testdata/exports"); pkg != nil {
+	if pkg := testPath(t, "./testdata/exports", "."); pkg != nil {
 		// The package's Imports list must include all packages
 		// explicitly imported by exports.go, plus all packages
 		// referenced indirectly via exported objects in exports.go.
@@ -200,7 +200,7 @@ func TestImportedTypes(t *testing.T) {
 		importPath := s[0]
 		objName := s[1]
 
-		pkg, err := Import(make(map[string]*types.Package), importPath)
+		pkg, err := Import(make(map[string]*types.Package), importPath, ".")
 		if err != nil {
 			t.Error(err)
 			continue
@@ -228,7 +228,7 @@ func TestIssue5815(t *testing.T) {
 		return
 	}
 
-	pkg, err := Import(make(map[string]*types.Package), "strings")
+	pkg, err := Import(make(map[string]*types.Package), "strings", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestCorrectMethodPackage(t *testing.T) {
 	}
 
 	imports := make(map[string]*types.Package)
-	_, err := Import(imports, "net/http")
+	_, err := Import(imports, "net/http", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,7 +299,7 @@ func TestIssue13566(t *testing.T) {
 	}
 
 	// import must succeed (test for issue at hand)
-	pkg, err := Import(make(map[string]*types.Package), "./testdata/b")
+	pkg, err := Import(make(map[string]*types.Package), "./testdata/b", ".")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,5 +309,55 @@ func TestIssue13566(t *testing.T) {
 		if imp.Name() == "" {
 			t.Errorf("no name for %s package", imp.Path())
 		}
+	}
+}
+
+func TestIssue13898(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+		return
+	}
+
+	// import go/internal/gcimporter which imports go/types partially
+	imports := make(map[string]*types.Package)
+	_, err := Import(imports, "go/internal/gcimporter", ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// look for go/types package
+	var goTypesPkg *types.Package
+	for path, pkg := range imports {
+		if path == "go/types" {
+			goTypesPkg = pkg
+			break
+		}
+	}
+	if goTypesPkg == nil {
+		t.Fatal("go/types not found")
+	}
+
+	// look for go/types.Object type
+	obj := goTypesPkg.Scope().Lookup("Object")
+	if obj == nil {
+		t.Fatal("go/types.Object not found")
+	}
+	typ, ok := obj.Type().(*types.Named)
+	if !ok {
+		t.Fatalf("go/types.Object type is %v; wanted named type", typ)
+	}
+
+	// lookup go/types.Object.Pkg method
+	m, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Pkg")
+	if m == nil {
+		t.Fatal("go/types.Object.Pkg not found")
+	}
+
+	// the method must belong to go/types
+	if m.Pkg().Path() != "go/types" {
+		t.Fatalf("found %v; want go/types", m.Pkg())
 	}
 }

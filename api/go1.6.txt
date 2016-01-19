@@ -178,13 +178,18 @@ pkg encoding/asn1, const TagUTCTime = 23
 pkg encoding/asn1, const TagUTCTime ideal-int
 pkg encoding/asn1, const TagUTF8String = 12
 pkg encoding/asn1, const TagUTF8String ideal-int
-pkg go/build, const AllowVendor = 8
-pkg go/build, const AllowVendor ImportMode
+pkg go/build, const IgnoreVendor = 8
+pkg go/build, const IgnoreVendor ImportMode
 pkg go/build, type Package struct, InvalidGoFiles []string
 pkg go/constant, func ToComplex(Value) Value
 pkg go/constant, func ToFloat(Value) Value
 pkg go/constant, func ToInt(Value) Value
 pkg go/constant, type Value interface, ExactString() string
+pkg go/types, method (*Package) SetName(string)
+pkg go/types, type ImportMode int
+pkg go/types, type ImporterFrom interface { Import, ImportFrom }
+pkg go/types, type ImporterFrom interface, Import(string) (*Package, error)
+pkg go/types, type ImporterFrom interface, ImportFrom(string, string, ImportMode) (*Package, error)
 pkg html/template, func IsTrue(interface{}) (bool, bool)
 pkg html/template, method (*Template) DefinedTemplates() string
 pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA
@@ -241,6 +246,8 @@ pkg net/http, const StatusRequestHeaderFieldsTooLarge = 431
 pkg net/http, const StatusRequestHeaderFieldsTooLarge ideal-int
 pkg net/http, const StatusTooManyRequests = 429
 pkg net/http, const StatusTooManyRequests ideal-int
+pkg net/http, const StatusUnavailableForLegalReasons = 451
+pkg net/http, const StatusUnavailableForLegalReasons ideal-int
 pkg net/http, type Transport struct, ExpectContinueTimeout time.Duration
 pkg net/http, type Transport struct, TLSNextProto map[string]func(string, *tls.Conn) RoundTripper
 pkg net/http, var ErrSkipAltProtocol error

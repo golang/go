@@ -461,7 +461,7 @@ func main() {
 		}
 	}
 
-	if gohostarch == "arm" {
+	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
 		maxbg = min(maxbg, runtime.NumCPU())
 	}
 	bginit()

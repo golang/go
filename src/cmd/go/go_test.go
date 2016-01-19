@@ -961,6 +961,16 @@ func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
 	tg.grepBoth("use of internal package not allowed", "wrote error message for testdata/testinternal2")
 }
 
+func TestRunInternal(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	dir := filepath.Join(tg.pwd(), "testdata")
+	tg.setenv("GOPATH", dir)
+	tg.run("run", filepath.Join(dir, "src/run/good.go"))
+	tg.runFail("run", filepath.Join(dir, "src/run/bad.go"))
+	tg.grepStderr("use of internal package not allowed", "unexpected error for run/bad.go")
+}
+
 func testMove(t *testing.T, vcs, url, base, config string) {
 	testenv.MustHaveExternalNetwork(t)
 

@@ -373,6 +373,7 @@ var genericOps = []opData{
 
 	{name: "VarDef", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
 	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+	{name: "VarLive"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
 }
 
 //     kind           control    successors       implicit exit

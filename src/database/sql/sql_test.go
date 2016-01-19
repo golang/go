@@ -68,6 +68,46 @@ func newTestDB(t testing.TB, name string) *DB {
 	return db
 }
 
+func TestDriverPanic(t *testing.T) {
+	// Test that if driver panics, database/sql does not deadlock.
+	db, err := Open("test", fakeDBName)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	expectPanic := func(name string, f func()) {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatalf("%s did not panic", name)
+			}
+		}()
+		f()
+	}
+
+	expectPanic("Exec Exec", func() { db.Exec("PANIC|Exec|WIPE") })
+	exec(t, db, "WIPE") // check not deadlocked
+	expectPanic("Exec NumInput", func() { db.Exec("PANIC|NumInput|WIPE") })
+	exec(t, db, "WIPE") // check not deadlocked
+	expectPanic("Exec Close", func() { db.Exec("PANIC|Close|WIPE") })
+	exec(t, db, "WIPE")             // check not deadlocked
+	exec(t, db, "PANIC|Query|WIPE") // should run successfully: Exec does not call Query
+	exec(t, db, "WIPE")             // check not deadlocked
+
+	exec(t, db, "CREATE|people|name=string,age=int32,photo=blob,dead=bool,bdate=datetime")
+
+	expectPanic("Query Query", func() { db.Query("PANIC|Query|SELECT|people|age,name|") })
+	expectPanic("Query NumInput", func() { db.Query("PANIC|NumInput|SELECT|people|age,name|") })
+	expectPanic("Query Close", func() {
+		rows, err := db.Query("PANIC|Close|SELECT|people|age,name|")
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows.Close()
+	})
+	db.Query("PANIC|Exec|SELECT|people|age,name|") // should run successfully: Query does not call Exec
+	exec(t, db, "WIPE")                            // check not deadlocked
+}
+
 func exec(t testing.TB, db *DB, query string, args ...interface{}) {
 	_, err := db.Exec(query, args...)
 	if err != nil {

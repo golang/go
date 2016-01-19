@@ -20,6 +20,10 @@ TEXT _rt0_arm64_linux_lib(SB),NOSPLIT,$40
 	MOVD	R0, _rt0_arm64_linux_lib_argc<>(SB)
 	MOVD	R1, _rt0_arm64_linux_lib_argv<>(SB)
 
+	// Synchronous initialization.
+	MOVD	$runtime·libpreinit(SB), R4
+	BL	(R4)
+
 	// Create a new thread to do the runtime initialization and return.
 	MOVD	_cgo_sys_thread_create(SB), R4
 	CMP	$0, R4
