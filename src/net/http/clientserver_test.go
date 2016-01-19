@@ -47,7 +47,7 @@ const (
 	h2Mode = true
 )
 
-func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
+func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
 	cst := &clientServerTest{
 		t:  t,
 		h2: h2,
@@ -55,6 +55,16 @@ func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
 		tr: &Transport{},
 	}
 	cst.c = &Client{Transport: cst.tr}
+
+	for _, opt := range opts {
+		switch opt := opt.(type) {
+		case func(*Transport):
+			opt(cst.tr)
+		default:
+			t.Fatalf("unhandled option type %T", opt)
+		}
+	}
+
 	if !h2 {
 		cst.ts = httptest.NewServer(h)
 		return cst
@@ -139,6 +149,7 @@ type h12Compare struct {
 	Handler       func(ResponseWriter, *Request)    // required
 	ReqFunc       reqFunc                           // optional
 	CheckResponse func(proto string, res *Response) // optional
+	Opts          []interface{}
 }
 
 func (tt h12Compare) reqFunc() reqFunc {
@@ -149,9 +160,9 @@ func (tt h12Compare) reqFunc() reqFunc {
 }
 
 func (tt h12Compare) run(t *testing.T) {
-	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler))
+	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler), tt.Opts...)
 	defer cst1.close()
-	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler))
+	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler), tt.Opts...)
 	defer cst2.close()
 
 	res1, err := tt.reqFunc()(cst1.c, cst1.ts.URL)
@@ -376,6 +387,20 @@ func TestH12_AutoGzip(t *testing.T) {
 			gz := gzip.NewWriter(w)
 			io.WriteString(gz, "I am some gzipped content. Go go go go go go go go go go go go should compress well.")
 			gz.Close()
+		},
+	}.run(t)
+}
+
+func TestH12_AutoGzip_Disabled(t *testing.T) {
+	h12Compare{
+		Opts: []interface{}{
+			func(tr *Transport) { tr.DisableCompression = true },
+		},
+		Handler: func(w ResponseWriter, r *Request) {
+			fmt.Fprintf(w, "%q", r.Header["Accept-Encoding"])
+			if ae := r.Header.Get("Accept-Encoding"); ae != "" {
+				t.Errorf("%s Accept-Encoding = %q; want empty", r.Proto, ae)
+			}
 		},
 	}.run(t)
 }
