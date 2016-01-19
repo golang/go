@@ -49,7 +49,7 @@ type B struct {
 	N                int
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
-	benchmark        InternalBenchmark
+	benchFunc        func(b *B)
 	bytes            int64
 	timerOn          bool
 	showAllocResult  bool
@@ -132,7 +132,7 @@ func (b *B) runN(n int) {
 	b.parallelism = 1
 	b.ResetTimer()
 	b.StartTimer()
-	b.benchmark.F(b)
+	b.benchFunc(b)
 	b.StopTimer()
 	b.previousN = n
 	b.previousDuration = b.duration
@@ -204,7 +204,7 @@ func (b *B) launch() {
 	// Signal that we're done whether we return normally
 	// or by FailNow's runtime.Goexit.
 	defer func() {
-		b.signal <- b
+		b.signal <- true
 	}()
 
 	b.runN(n)
@@ -339,9 +339,10 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
 			runtime.GOMAXPROCS(procs)
 			b := &B{
 				common: common{
-					signal: make(chan interface{}),
+					signal: make(chan bool),
+					name:   Benchmark.Name,
 				},
-				benchmark: Benchmark,
+				benchFunc: Benchmark.F,
 			}
 			benchName := benchmarkName(Benchmark.Name, procs)
 			fmt.Printf("%-*s\t", maxlen, benchName)
@@ -476,9 +477,9 @@ func (b *B) SetParallelism(p int) {
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
-			signal: make(chan interface{}),
+			signal: make(chan bool),
 		},
-		benchmark: InternalBenchmark{"", f},
+		benchFunc: f,
 	}
 	return b.run()
 }
