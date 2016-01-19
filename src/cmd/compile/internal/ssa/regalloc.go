@@ -205,8 +205,10 @@ type valState struct {
 	uses              *use    // list of uses in this block
 	spill             *Value  // spilled copy of the Value
 	spillUsed         bool
-	needReg           bool // cached value of !v.Type.IsMemory() && !v.Type.IsVoid() && !.v.Type.IsFlags()
-	rematerializeable bool // cached value of v.rematerializeable()
+	needReg           bool     // cached value of !v.Type.IsMemory() && !v.Type.IsVoid() && !.v.Type.IsFlags()
+	rematerializeable bool     // cached value of v.rematerializeable()
+	desired           register // register we want value to be in, if any
+	avoid             regMask  // registers to avoid if we can
 }
 
 type regState struct {
@@ -326,21 +328,33 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 	s.f.setHome(c, &registers[r])
 }
 
-// allocReg picks an unused register from regmask.  If there is no unused register,
-// a Value will be kicked out of a register to make room.
-func (s *regAllocState) allocReg(mask regMask) register {
-	// Pick a register to use.
+// allocReg chooses a register for v from the set of registers in mask.
+// If there is no unused register, a Value will be kicked out of
+// a register to make room.
+func (s *regAllocState) allocReg(v *Value, mask regMask) register {
 	mask &^= s.nospill
 	if mask == 0 {
 		s.f.Fatalf("no register available")
 	}
 
-	var r register
-	if unused := mask & ^s.used; unused != 0 {
-		// Pick an unused register.
-		return pickReg(unused)
-		// TODO: use affinity graph to pick a good register
+	// Pick an unused register if one is available.
+	if mask&^s.used != 0 {
+		mask &^= s.used
+
+		// Use desired register if we can.
+		d := s.values[v.ID].desired
+		if d != noRegister && mask>>d&1 != 0 {
+			mask = regMask(1) << d
+		}
+
+		// Avoid avoidable registers if we can.
+		if mask&^s.values[v.ID].avoid != 0 {
+			mask &^= s.values[v.ID].avoid
+		}
+
+		return pickReg(mask)
 	}
+
 	// Pick a value to spill.  Spill the value with the
 	// farthest-in-the-future use.
 	// TODO: Prefer registers with already spilled Values?
@@ -355,6 +369,7 @@ func (s *regAllocState) allocReg(mask regMask) register {
 	// Find a register to spill.  We spill the register containing the value
 	// whose next use is as far in the future as possible.
 	// https://en.wikipedia.org/wiki/Page_replacement_algorithm#The_theoretically_optimal_page_replacement_algorithm
+	var r register
 	maxuse := int32(-1)
 	for t := register(0); t < numRegs; t++ {
 		if mask>>t&1 == 0 {
@@ -405,7 +420,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 	mask &^= s.reserved()
 
 	// Allocate a register.
-	r := s.allocReg(mask)
+	r := s.allocReg(v, mask)
 
 	// Allocate v to the new register.
 	var c *Value
@@ -454,6 +469,7 @@ func (s *regAllocState) init(f *Func) {
 			if !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() {
 				s.values[v.ID].needReg = true
 				s.values[v.ID].rematerializeable = v.rematerializeable()
+				s.values[v.ID].desired = noRegister
 				s.orig[v.ID] = v
 			}
 		}
@@ -757,6 +773,72 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 		}
 
+		// Compute preferred registers for each value using a backwards pass.
+		// Note that we do this phase after startRegs is set above, so that
+		// we get the right behavior for a block which branches to itself.
+		for _, succ := range b.Succs {
+			// TODO: prioritize likely successor.
+			for _, x := range s.startRegs[succ.ID] {
+				v := s.orig[x.vid]
+				s.values[v.ID].desired = x.r
+			}
+			// Process phi ops in succ
+			i := -1
+			for j, p := range succ.Preds {
+				if p == b {
+					i = j
+					break
+				}
+			}
+			if i == -1 {
+				s.f.Fatalf("can't find predecssor %s of %s\n", b, succ)
+			}
+			for _, v := range succ.Values {
+				if v.Op != OpPhi {
+					break
+				}
+				if !s.values[v.ID].needReg {
+					continue
+				}
+				r, ok := s.f.getHome(v.ID).(*Register)
+				if !ok {
+					continue
+				}
+				a := s.orig[v.Args[i].ID]
+				s.values[a.ID].desired = register(r.Num)
+			}
+		}
+
+		// Set avoid fields to help desired register availability.
+		liveSet.clear()
+		for _, e := range s.live[b.ID] {
+			liveSet.add(e.ID)
+		}
+		if v := b.Control; v != nil && s.values[v.ID].needReg {
+			liveSet.add(v.ID)
+		}
+		for i := len(oldSched) - 1; i >= 0; i-- {
+			v := oldSched[i]
+			liveSet.remove(v.ID)
+
+			r := s.values[v.ID].desired
+			if r != noRegister {
+				m := regMask(1) << r
+				// All live values should avoid this register so
+				// it will be available at this point.
+				for _, w := range liveSet.contents() {
+					s.values[w].avoid |= m
+				}
+			}
+
+			for _, a := range v.Args {
+				if !s.values[a.ID].needReg {
+					continue
+				}
+				liveSet.add(a.ID)
+			}
+		}
+
 		// Process all the non-phi values.
 		for _, v := range oldSched {
 			if regDebug {
@@ -825,7 +907,6 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.freeRegs(regspec.clobbers)
 
 			// Pick register for output.
-			var r register
 			var mask regMask
 			if s.values[v.ID].needReg {
 				mask = regspec.outputs[0] &^ s.reserved()
@@ -834,7 +915,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 			if mask != 0 {
-				r = s.allocReg(mask)
+				r := s.allocReg(v, mask)
 				s.assignReg(r, v, v)
 			}
 
@@ -912,7 +993,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		// If a value is live at the end of the block and
 		// isn't in a register, remember that its spill location
 		// is live.  We need to remember this information so that
-		// the liveness analysis in stackalloc correct.
+		// the liveness analysis in stackalloc is correct.
 		for _, e := range s.live[b.ID] {
 			if s.values[e.ID].regs != 0 {
 				// in a register, we'll use that source for the merge.
