@@ -336,7 +336,11 @@ func (t *tester) registerTests() {
 	} else {
 		// Use a format string to only list packages and commands that have tests.
 		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		cmd := exec.Command("go", "list", "-f", format, "std")
+		cmd := exec.Command("go", "list", "-f", format)
+		if t.race {
+			cmd.Args = append(cmd.Args, "-tags", "race")
+		}
+		cmd.Args = append(cmd.Args, "std")
 		if !t.race {
 			cmd.Args = append(cmd.Args, "cmd")
 		}
