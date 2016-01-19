@@ -2568,11 +2568,11 @@ func (tools gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string
 	sfile = mkAbs(p.Dir, sfile)
 	defs := []string{"-D", "GOOS_" + goos, "-D", "GOARCH_" + goarch}
 	if pkgpath := gccgoCleanPkgpath(p); pkgpath != "" {
-		defs = append(defs, `-D`, `GOPKGPATH="`+pkgpath+`"`)
+		defs = append(defs, `-D`, `GOPKGPATH=`+pkgpath)
 	}
 	defs = tools.maybePIC(defs)
 	defs = append(defs, b.gccArchArgs()...)
-	return b.run(p.Dir, p.ImportPath, nil, tools.compiler(), "-I", obj, "-o", ofile, defs, sfile)
+	return b.run(p.Dir, p.ImportPath, nil, tools.compiler(), "-xassembler-with-cpp", "-I", obj, "-c", "-o", ofile, defs, sfile)
 }
 
 func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
