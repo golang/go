@@ -157,7 +157,7 @@ var (
 	Verbose bool
 )
 
-var stdout io.Writer
+var stdout io.Writer = os.Stdout
 
 type renamer struct {
 	iprog              *loader.Program
