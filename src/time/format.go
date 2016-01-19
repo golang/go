@@ -1002,7 +1002,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 	// Validate the day of the month.
 	if day > daysIn(Month(month), year) {
-		return Time{}, &ParseError{alayout, avalue, "", value, ": day of month out of range"}
+		return Time{}, &ParseError{alayout, avalue, "", value, ": day out of range"}
 	}
 
 	if z != nil {

@@ -117,6 +117,10 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		}
 	}
 
+	if c.sigcode() == _SI_USER && signal_ignored(sig) {
+		return
+	}
+
 	if flags&_SigKill != 0 {
 		dieFromSignal(int32(sig))
 	}

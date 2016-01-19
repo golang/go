@@ -1121,6 +1121,10 @@ top:
 		// finalizers have been scanned.
 		work.finalizersDone = true
 
+		// Disable assists and background workers. We must do
+		// this before waking blocked assists.
+		atomic.Store(&gcBlackenEnabled, 0)
+
 		// Flush the gcWork caches. This must be done before
 		// endCycle since endCycle depends on statistics kept
 		// in these caches.
@@ -1263,23 +1267,13 @@ func gcMarkTermination() {
 	if debug.gctrace > 0 {
 		util := int(memstats.gc_cpu_fraction * 100)
 
-		// Install WB phase is no longer used.
-		tInstallWB := work.tMark
-		installWBCpu := int64(0)
-
-		// Scan phase is no longer used.
-		tScan := tInstallWB
-		scanCpu := int64(0)
-
-		// TODO: Clean up the gctrace format.
-
 		var sbuf [24]byte
 		printlock()
 		print("gc ", memstats.numgc,
 			" @", string(itoaDiv(sbuf[:], uint64(work.tSweepTerm-runtimeInitTime)/1e6, 3)), "s ",
 			util, "%: ")
 		prev := work.tSweepTerm
-		for i, ns := range []int64{tScan, tInstallWB, work.tMark, work.tMarkTerm, work.tEnd} {
+		for i, ns := range []int64{work.tMark, work.tMarkTerm, work.tEnd} {
 			if i != 0 {
 				print("+")
 			}
@@ -1287,8 +1281,8 @@ func gcMarkTermination() {
 			prev = ns
 		}
 		print(" ms clock, ")
-		for i, ns := range []int64{sweepTermCpu, scanCpu, installWBCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
-			if i == 4 || i == 5 {
+		for i, ns := range []int64{sweepTermCpu, gcController.assistTime, gcController.dedicatedMarkTime + gcController.fractionalMarkTime, gcController.idleMarkTime, markTermCpu} {
+			if i == 2 || i == 3 {
 				// Separate mark time components with /.
 				print("/")
 			} else if i != 0 {

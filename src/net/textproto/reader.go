@@ -237,7 +237,12 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 // separated by a newline (\n).
 //
 // See page 36 of RFC 959 (http://www.ietf.org/rfc/rfc959.txt) for
-// details.
+// details of another form of response accepted:
+//
+//  code-message line 1
+//  message line 2
+//  ...
+//  code message line n
 //
 // If the prefix of the status does not match the digits in expectCode,
 // ReadResponse returns with err set to &Error{code, message}.
@@ -248,7 +253,8 @@ func (r *Reader) ReadCodeLine(expectCode int) (code int, message string, err err
 //
 func (r *Reader) ReadResponse(expectCode int) (code int, message string, err error) {
 	code, continued, message, err := r.readCodeLine(expectCode)
-	for err == nil && continued {
+	multi := continued
+	for continued {
 		line, err := r.ReadLine()
 		if err != nil {
 			return 0, "", err
@@ -256,13 +262,17 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 
 		var code2 int
 		var moreMessage string
-		code2, continued, moreMessage, err = parseCodeLine(line, expectCode)
+		code2, continued, moreMessage, err = parseCodeLine(line, 0)
 		if err != nil || code2 != code {
 			message += "\n" + strings.TrimRight(line, "\r\n")
 			continued = true
 			continue
 		}
 		message += "\n" + moreMessage
+	}
+	if err != nil && multi && message != "" {
+		// replace one line error message with all lines (full message)
+		err = &Error{code, message}
 	}
 	return
 }

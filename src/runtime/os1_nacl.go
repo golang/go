@@ -22,7 +22,7 @@ func msigsave(mp *m) {
 }
 
 //go:nosplit
-func msigrestore(mp *m) {
+func msigrestore(sigmask sigset) {
 }
 
 //go:nosplit
@@ -67,7 +67,7 @@ func goenvs() {
 	goenvs_unix()
 }
 
-func initsig() {
+func initsig(preinit bool) {
 }
 
 //go:nosplit

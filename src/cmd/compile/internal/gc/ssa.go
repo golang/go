@@ -849,6 +849,13 @@ func (s *state) stmt(n *Node) {
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
 		}
 
+	case OVARLIVE:
+		// Insert a varlive op to record that a variable is still live.
+		if !n.Left.Addrtaken {
+			s.Fatalf("VARLIVE variable %s must have Addrtaken set", n.Left)
+		}
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, ssa.TypeMem, n.Left, s.mem())
+
 	case OCHECKNIL:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
@@ -4122,6 +4129,8 @@ func (s *genState) genValue(v *ssa.Value) {
 		Gvardef(v.Aux.(*Node))
 	case ssa.OpVarKill:
 		gvarkill(v.Aux.(*Node))
+	case ssa.OpVarLive:
+		gvarlive(v.Aux.(*Node))
 	case ssa.OpAMD64LoweredNilCheck:
 		// Optimization - if the subsequent block has a load or store
 		// at the same address, we don't need to issue this instruction.

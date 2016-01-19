@@ -1088,7 +1088,7 @@ func mstart1() {
 			cgoHasExtraM = true
 			newextram()
 		}
-		initsig()
+		initsig(false)
 	}
 
 	if fn := _g_.m.mstartfn; fn != nil {
@@ -1427,20 +1427,29 @@ func dropm() {
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
 	mp := getg().m
-	mnext := lockextra(true)
-	mp.schedlink.set(mnext)
 
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
 	// It's important not to try to handle a signal between those two steps.
+	sigmask := mp.sigmask
 	sigblock()
 	unminit()
+
+	mnext := lockextra(true)
+	mp.schedlink.set(mnext)
+
 	setg(nil)
-	msigrestore(mp)
 
 	// Commit the release of mp.
 	unlockextra(mp)
+
+	msigrestore(sigmask)
+}
+
+// A helper function for EnsureDropM.
+func getm() uintptr {
+	return uintptr(unsafe.Pointer(getg().m))
 }
 
 var extram uintptr
@@ -2162,6 +2171,9 @@ func goexit0(gp *g) {
 	_g_ := getg()
 
 	casgstatus(gp, _Grunning, _Gdead)
+	if isSystemGoroutine(gp) {
+		atomic.Xadd(&sched.ngsys, -1)
+	}
 	gp.m = nil
 	gp.lockedm = nil
 	_g_.m.lockedg = nil
@@ -2693,6 +2705,9 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
 	newg.startpc = fn.fn
+	if isSystemGoroutine(newg) {
+		atomic.Xadd(&sched.ngsys, +1)
+	}
 	casgstatus(newg, _Gdead, _Grunnable)
 
 	if _p_.goidcache == _p_.goidcacheend {
@@ -2885,7 +2900,7 @@ func badunlockosthread() {
 }
 
 func gcount() int32 {
-	n := int32(allglen) - sched.ngfree
+	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
 	for i := 0; ; i++ {
 		_p_ := allp[i]
 		if _p_ == nil {
@@ -2989,49 +3004,50 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 	// To recap, there are no constraints on the assembly being used for the
 	// transition. We simply require that g and SP match and that the PC is not
 	// in gogo.
-	traceback, tracebackUser := true, true
-	haveStackLock := false
+	traceback := true
 	if gp == nil || sp < gp.stack.lo || gp.stack.hi < sp || setsSP(pc) {
 		traceback = false
-	} else if gp.m.curg != nil {
-		// The user stack is safe to scan only if we can
-		// acquire the stack barrier lock.
-		if gcTryLockStackBarriers(gp.m.curg) {
-			haveStackLock = true
-		} else {
-			// Stack barriers are being inserted or
-			// removed, so we can't get a consistent
-			// traceback of the user stack right now.
-			tracebackUser = false
-			if gp == gp.m.curg {
-				// We're on the user stack, so don't
-				// do any traceback.
-				traceback = false
-			}
-		}
 	}
 	var stk [maxCPUProfStack]uintptr
+	var haveStackLock *g
 	n := 0
-	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 && tracebackUser {
+	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
 		// Cgo, we can't unwind and symbolize arbitrary C code,
 		// so instead collect Go stack that leads to the cgo call.
 		// This is especially important on windows, since all syscalls are cgo calls.
-		n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
+		if gcTryLockStackBarriers(mp.curg) {
+			haveStackLock = mp.curg
+			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
+		}
 	} else if traceback {
 		var flags uint = _TraceTrap
-		if tracebackUser {
+		if gp.m.curg != nil && gcTryLockStackBarriers(gp.m.curg) {
+			// It's safe to traceback the user stack.
+			haveStackLock = gp.m.curg
 			flags |= _TraceJumpStack
 		}
-		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
+		// Traceback is safe if we're on the system stack (if
+		// necessary, flags will stop it before switching to
+		// the user stack), or if we locked the user stack.
+		if gp != gp.m.curg || haveStackLock != nil {
+			n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, flags)
+		}
 	}
-	if !traceback || n <= 0 {
+	if haveStackLock != nil {
+		gcUnlockStackBarriers(haveStackLock)
+	}
+
+	if n <= 0 {
 		// Normal traceback is impossible or has failed.
 		// See if it falls into several common cases.
 		n = 0
-		if GOOS == "windows" && n == 0 && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 && tracebackUser {
+		if GOOS == "windows" && mp.libcallg != 0 && mp.libcallpc != 0 && mp.libcallsp != 0 {
 			// Libcall, i.e. runtime syscall on windows.
 			// Collect Go stack that leads to the call.
-			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
+			if gcTryLockStackBarriers(mp.libcallg.ptr()) {
+				n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg.ptr(), 0, &stk[0], len(stk), nil, nil, 0)
+				gcUnlockStackBarriers(mp.libcallg.ptr())
+			}
 		}
 		if n == 0 {
 			// If all of the above has failed, account it against abstract "System" or "GC".
@@ -3047,9 +3063,6 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
 				stk[1] = funcPC(_System) + sys.PCQuantum
 			}
 		}
-	}
-	if haveStackLock {
-		gcUnlockStackBarriers(gp.m.curg)
 	}
 
 	if prof.hz != 0 {

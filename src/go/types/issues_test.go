@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/importer"
 	"go/parser"
+	"internal/testenv"
 	"sort"
 	"strings"
 	"testing"
@@ -203,4 +204,91 @@ L7 uses var z int`
 	if got != want {
 		t.Errorf("Unexpected defs/uses\ngot:\n%s\nwant:\n%s", got, want)
 	}
+}
+
+// This tests that the package associated with the types.Object.Pkg method
+// is the type's package independent of the order in which the imports are
+// listed in the sources src1, src2 below.
+// The actual issue is in go/internal/gcimporter which has a corresponding
+// test; we leave this test here to verify correct behavior at the go/types
+// level.
+func TestIssue13898(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	const src0 = `
+package main
+
+import "go/types"
+
+func main() {
+	var info types.Info
+	for _, obj := range info.Uses {
+		_ = obj.Pkg()
+	}
+}
+`
+	// like src0, but also imports go/importer
+	const src1 = `
+package main
+
+import (
+	"go/types"
+	_ "go/importer"
+)
+
+func main() {
+	var info types.Info
+	for _, obj := range info.Uses {
+		_ = obj.Pkg()
+	}
+}
+`
+	// like src1 but with different import order
+	// (used to fail with this issue)
+	const src2 = `
+package main
+
+import (
+	_ "go/importer"
+	"go/types"
+)
+
+func main() {
+	var info types.Info
+	for _, obj := range info.Uses {
+		_ = obj.Pkg()
+	}
+}
+`
+	f := func(test, src string) {
+		f, err := parser.ParseFile(fset, "", src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg := Config{Importer: importer.Default()}
+		info := Info{Uses: make(map[*ast.Ident]Object)}
+		_, err = cfg.Check("main", fset, []*ast.File{f}, &info)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var pkg *Package
+		count := 0
+		for id, obj := range info.Uses {
+			if id.Name == "Pkg" {
+				pkg = obj.Pkg()
+				count++
+			}
+		}
+		if count != 1 {
+			t.Fatalf("%s: got %d entries named Pkg; want 1", test, count)
+		}
+		if pkg.Name() != "types" {
+			t.Fatalf("%s: got %v; want package types", test, pkg)
+		}
+	}
+
+	f("src0", src0)
+	f("src1", src1)
+	f("src2", src2)
 }

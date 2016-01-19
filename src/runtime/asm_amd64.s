@@ -56,7 +56,7 @@ notintel:
 	JNE     noavx
 	MOVL    $0, CX
 	// For XGETBV, OSXSAVE bit is required and sufficient
-	BYTE $0x0F; BYTE $0x01; BYTE $0xD0
+	XGETBV
 	ANDL    $6, AX
 	CMPL    AX, $6 // Check for OS support of YMM registers
 	JNE     noavx
@@ -822,10 +822,10 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
 	JNE	mfence
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
+	LFENCE
 	JMP	done
 mfence:
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
+	MFENCE
 done:
 	RDTSC
 	SHLQ	$32, DX

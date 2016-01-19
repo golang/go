@@ -406,3 +406,28 @@ func BenchmarkDecodeString(b *testing.B) {
 		StdEncoding.DecodeString(data)
 	}
 }
+
+func TestDecoderRaw(t *testing.T) {
+	source := "AAAAAA"
+	want := []byte{0, 0, 0, 0}
+
+	// Direct.
+	dec1, err := RawURLEncoding.DecodeString(source)
+	if err != nil || !bytes.Equal(dec1, want) {
+		t.Errorf("RawURLEncoding.DecodeString(%q) = %x, %v, want %x, nil", source, dec1, err, want)
+	}
+
+	// Through reader. Used to fail.
+	r := NewDecoder(RawURLEncoding, bytes.NewReader([]byte(source)))
+	dec2, err := ioutil.ReadAll(io.LimitReader(r, 100))
+	if err != nil || !bytes.Equal(dec2, want) {
+		t.Errorf("reading NewDecoder(RawURLEncoding, %q) = %x, %v, want %x, nil", source, dec2, err, want)
+	}
+
+	// Should work with padding.
+	r = NewDecoder(URLEncoding, bytes.NewReader([]byte(source+"==")))
+	dec3, err := ioutil.ReadAll(r)
+	if err != nil || !bytes.Equal(dec3, want) {
+		t.Errorf("reading NewDecoder(URLEncoding, %q) = %x, %v, want %x, nil", source+"==", dec3, err, want)
+	}
+}

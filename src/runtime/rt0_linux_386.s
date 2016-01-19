@@ -26,6 +26,10 @@ TEXT _rt0_386_linux_lib(SB),NOSPLIT,$0
 	MOVL	12(BP), AX
 	MOVL	AX, _rt0_386_linux_lib_argv<>(SB)
 
+	// Synchronous initialization.
+	MOVL	$runtime·libpreinit(SB), AX
+	CALL	AX
+
 	SUBL	$8, SP
 
 	// Create a new thread to do the runtime initialization.

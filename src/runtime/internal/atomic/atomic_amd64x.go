@@ -8,25 +8,21 @@ package atomic
 
 import "unsafe"
 
-// The calls to nop are to keep these functions from being inlined.
-// If they are inlined we have no guarantee that later rewrites of the
-// code by optimizers will preserve the relative order of memory accesses.
-
 //go:nosplit
+//go:noinline
 func Load(ptr *uint32) uint32 {
-	nop()
 	return *ptr
 }
 
 //go:nosplit
+//go:noinline
 func Loadp(ptr unsafe.Pointer) unsafe.Pointer {
-	nop()
 	return *(*unsafe.Pointer)(ptr)
 }
 
 //go:nosplit
+//go:noinline
 func Load64(ptr *uint64) uint64 {
-	nop()
 	return *ptr
 }
 

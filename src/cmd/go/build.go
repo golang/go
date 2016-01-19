@@ -354,7 +354,7 @@ func buildModeInit() {
 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
-			case "darwin/amd64":
+			case "darwin/amd64", "darwin/386":
 			default:
 				fatalf("-buildmode=c-shared not supported on %s\n", platform)
 			}
@@ -822,7 +822,9 @@ func goFilesPackage(gofiles []string) *Package {
 	pkg := new(Package)
 	pkg.local = true
 	pkg.cmdline = true
+	stk.push("main")
 	pkg.load(&stk, bp, err)
+	stk.pop()
 	pkg.localPrefix = dirToImportPath(dir)
 	pkg.ImportPath = "command-line-arguments"
 	pkg.target = ""
@@ -999,13 +1001,22 @@ func (b *builder) action1(mode buildMode, depMode buildMode, p *Package, looksha
 
 		// Install header for cgo in c-archive and c-shared modes.
 		if p.usesCgo() && (buildBuildmode == "c-archive" || buildBuildmode == "c-shared") {
+			hdrTarget := a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h"
+			if buildContext.Compiler == "gccgo" {
+				// For the header file, remove the "lib"
+				// added by go/build, so we generate pkg.h
+				// rather than libpkg.h.
+				dir, file := filepath.Split(hdrTarget)
+				file = strings.TrimPrefix(file, "lib")
+				hdrTarget = filepath.Join(dir, file)
+			}
 			ah := &action{
 				p:      a.p,
 				deps:   []*action{a.deps[0]},
 				f:      (*builder).installHeader,
 				pkgdir: a.pkgdir,
 				objdir: a.objdir,
-				target: a.target[:len(a.target)-len(filepath.Ext(a.target))] + ".h",
+				target: hdrTarget,
 			}
 			a.deps = append(a.deps, ah)
 		}
@@ -2711,6 +2722,10 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 		// libffi.
 		ldflags = append(ldflags, "-Wl,-r", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive")
 
+		if b.gccSupportsNoPie() {
+			ldflags = append(ldflags, "-no-pie")
+		}
+
 		// We are creating an object file, so we don't want a build ID.
 		ldflags = b.disableBuildID(ldflags)
 
@@ -2718,7 +2733,7 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions 
 		out = out + ".o"
 
 	case "c-shared":
-		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc")
+		ldflags = append(ldflags, "-shared", "-nostdlib", "-Wl,--whole-archive", "-lgolibbegin", "-Wl,--no-whole-archive", "-lgo", "-lgcc_s", "-lgcc", "-lc", "-lgcc")
 
 	default:
 		fatalf("-buildmode=%s not supported for gccgo", ldBuildmode)
@@ -2900,6 +2915,36 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 	}
 
 	return a
+}
+
+// On systems with PIE (position independent executables) enabled by default,
+// -no-pie must be passed when doing a partial link with -Wl,-r. But -no-pie is
+// not supported by all compilers.
+func (b *builder) gccSupportsNoPie() bool {
+	if goos != "linux" {
+		// On some BSD platforms, error messages from the
+		// compiler make it to the console despite cmd.Std*
+		// all being nil. As -no-pie is only required on linux
+		// systems so far, we only test there.
+		return false
+	}
+	src := filepath.Join(b.work, "trivial.c")
+	if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+		return false
+	}
+	cmdArgs := b.gccCmd(b.work)
+	cmdArgs = append(cmdArgs, "-no-pie", "-c", "trivial.c")
+	if buildN || buildX {
+		b.showcmd(b.work, "%s", joinUnambiguously(cmdArgs))
+		if buildN {
+			return false
+		}
+	}
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cmd.Dir = b.work
+	cmd.Env = envForDir(cmd.Dir, os.Environ())
+	out, err := cmd.CombinedOutput()
+	return err == nil && !bytes.Contains(out, []byte("unrecognized"))
 }
 
 // gccArchArgs returns arguments to pass to gcc based on the architecture.
@@ -3157,6 +3202,10 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
 		}
 	}
 	ldflags := stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs)
+
+	if b.gccSupportsNoPie() {
+		ldflags = append(ldflags, "-no-pie")
+	}
 
 	// We are creating an object file, so we don't want a build ID.
 	ldflags = b.disableBuildID(ldflags)

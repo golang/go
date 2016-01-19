@@ -163,3 +163,11 @@ var TestingAssertE2I2GC = &testingAssertE2I2GC
 var TestingAssertE2T2GC = &testingAssertE2T2GC
 
 var ForceGCPeriod = &forcegcperiod
+
+// SetTracebackEnv is like runtime/debug.SetTraceback, but it raises
+// the "environment" traceback level, so later calls to
+// debug.SetTraceback (e.g., from testing timeouts) can't lower it.
+func SetTracebackEnv(level string) {
+	setTraceback(level)
+	traceback_env = traceback_cache
+}

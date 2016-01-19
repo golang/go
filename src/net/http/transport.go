@@ -57,6 +57,10 @@ const DefaultMaxIdleConnsPerHost = 2
 //
 // A Transport is a low-level primitive for making HTTP and HTTPS requests.
 // For high-level functionality, such as cookies and redirects, see Client.
+//
+// Transport uses HTTP/1.1 for HTTP URLs and either HTTP/1.1 or HTTP/2
+// for HTTPS URLs, depending on whether the server supports HTTP/2.
+// See the package docs for more about HTTP/2.
 type Transport struct {
 	idleMu     sync.Mutex
 	wantIdle   bool // user has requested to close all idle conns
@@ -142,24 +146,30 @@ type Transport struct {
 	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(authority string, c *tls.Conn) RoundTripper
 
-	nextProtoOnce sync.Once // guards initialization of TLSNextProto (onceSetNextProtoDefaults)
+	// nextProtoOnce guards initialization of TLSNextProto and
+	// h2transport (via onceSetNextProtoDefaults)
+	nextProtoOnce sync.Once
+	h2transport   *http2Transport // non-nil if http2 wired up
 
 	// TODO: tunable on global max cached connections
 	// TODO: tunable on timeout on cached connections
+	// TODO: tunable on max per-host TCP dials in flight (Issue 13957)
 }
 
 // onceSetNextProtoDefaults initializes TLSNextProto.
 // It must be called via t.nextProtoOnce.Do.
 func (t *Transport) onceSetNextProtoDefaults() {
-	if strings.Contains(os.Getenv("GODEBUG"), "h2client=0") {
+	if strings.Contains(os.Getenv("GODEBUG"), "http2client=0") {
 		return
 	}
 	if t.TLSNextProto != nil {
 		return
 	}
-	err := http2ConfigureTransport(t)
+	t2, err := http2configureTransport(t)
 	if err != nil {
 		log.Printf("Error enabling Transport HTTP/2 support: %v", err)
+	} else {
+		t.h2transport = t2
 	}
 }
 
@@ -367,6 +377,7 @@ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
 // a "keep-alive" state. It does not interrupt any connections currently
 // in use.
 func (t *Transport) CloseIdleConnections() {
+	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	t.idleMu.Lock()
 	m := t.idleConn
 	t.idleConn = nil
@@ -377,6 +388,9 @@ func (t *Transport) CloseIdleConnections() {
 		for _, pconn := range conns {
 			pconn.close(errCloseIdleConns)
 		}
+	}
+	if t2 := t.h2transport; t2 != nil {
+		t2.CloseIdleConnections()
 	}
 }
 
@@ -618,9 +632,13 @@ func (t *Transport) replaceReqCanceler(r *Request, fn func()) bool {
 	return true
 }
 
-func (t *Transport) dial(network, addr string) (c net.Conn, err error) {
+func (t *Transport) dial(network, addr string) (net.Conn, error) {
 	if t.Dial != nil {
-		return t.Dial(network, addr)
+		c, err := t.Dial(network, addr)
+		if c == nil && err == nil {
+			err = errors.New("net/http: Transport.Dial hook returned (nil, nil)")
+		}
+		return c, err
 	}
 	return net.Dial(network, addr)
 }
@@ -682,10 +700,10 @@ func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error
 		return pc, nil
 	case <-req.Cancel:
 		handlePendingDial()
-		return nil, errors.New("net/http: request canceled while waiting for connection")
+		return nil, errRequestCanceledConn
 	case <-cancelc:
 		handlePendingDial()
-		return nil, errors.New("net/http: request canceled while waiting for connection")
+		return nil, errRequestCanceledConn
 	}
 }
 
@@ -705,7 +723,16 @@ func (t *Transport) dialConn(cm connectMethod) (*persistConn, error) {
 		if err != nil {
 			return nil, err
 		}
+		if pconn.conn == nil {
+			return nil, errors.New("net/http: Transport.DialTLS returned (nil, nil)")
+		}
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
+			// Handshake here, in case DialTLS didn't. TLSNextProto below
+			// depends on it for knowing the connection state.
+			if err := tc.Handshake(); err != nil {
+				go pconn.conn.Close()
+				return nil, err
+			}
 			cs := tc.ConnectionState()
 			pconn.tlsState = &cs
 		}
@@ -1326,6 +1353,7 @@ func (e *httpError) Temporary() bool { return true }
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
 var errClosed error = &httpError{err: "net/http: server closed connection before response was received"}
 var errRequestCanceled = errors.New("net/http: request canceled")
+var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
 
 func nop() {}
 
@@ -1502,9 +1530,19 @@ func (pc *persistConn) closeLocked(err error) {
 	}
 	pc.broken = true
 	if pc.closed == nil {
-		pc.conn.Close()
 		pc.closed = err
-		close(pc.closech)
+		if pc.alt != nil {
+			// Do nothing; can only get here via getConn's
+			// handlePendingDial's putOrCloseIdleConn when
+			// it turns out the abandoned connection in
+			// flight ended up negotiating an alternate
+			// protocol.  We don't use the connection
+			// freelist for http2. That's done by the
+			// alternate protocol's RoundTripper.
+		} else {
+			pc.conn.Close()
+			close(pc.closech)
+		}
 	}
 	pc.mutateHeaderFunc = nil
 }

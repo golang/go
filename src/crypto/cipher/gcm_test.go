@@ -240,3 +240,37 @@ func TestAESGCM(t *testing.T) {
 		ct[0] ^= 0x80
 	}
 }
+
+func TestTagFailureOverwrite(t *testing.T) {
+	// The AESNI GCM code decrypts and authenticates concurrently and so
+	// overwrites the output buffer before checking the authentication tag.
+	// In order to be consistent across platforms, all implementations
+	// should do this and this test checks that.
+
+	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
+	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
+	ciphertext, _ := hex.DecodeString("0e1bde206a07a9c2c1b65300f8c649972b4401346697138c7a4891ee59867d0c")
+
+	aes, _ := aes.NewCipher(key)
+	aesgcm, _ := cipher.NewGCM(aes)
+
+	dst := make([]byte, len(ciphertext)-16)
+	for i := range dst {
+		dst[i] = 42
+	}
+
+	result, err := aesgcm.Open(dst[:0], nonce, ciphertext, nil)
+	if err == nil {
+		t.Fatal("Bad Open still resulted in nil error.")
+	}
+
+	if result != nil {
+		t.Fatal("Failed Open returned non-nil result.")
+	}
+
+	for i := range dst {
+		if dst[i] != 0 {
+			t.Fatal("Failed Open didn't zero dst buffer")
+		}
+	}
+}

@@ -151,10 +151,11 @@ type reader struct {
 	notes     map[string][]*Note
 
 	// declarations
-	imports map[string]int
-	values  []*Value // consts and vars
-	types   map[string]*namedType
-	funcs   methodSet
+	imports   map[string]int
+	hasDotImp bool     // if set, package contains a dot import
+	values    []*Value // consts and vars
+	types     map[string]*namedType
+	funcs     methodSet
 
 	// support for package-local error type declarations
 	errorDecl bool                 // if set, type "error" was declared locally
@@ -471,6 +472,9 @@ func (r *reader) readFile(src *ast.File) {
 					if s, ok := spec.(*ast.ImportSpec); ok {
 						if import_, err := strconv.Unquote(s.Path.Value); err == nil {
 							r.imports[import_] = 1
+							if s.Name != nil && s.Name.Name == "." {
+								r.hasDotImp = true
+							}
 						}
 					}
 				}
@@ -641,11 +645,12 @@ func (r *reader) computeMethodSets() {
 func (r *reader) cleanupTypes() {
 	for _, t := range r.types {
 		visible := r.isVisible(t.name)
-		if t.decl == nil && (predeclaredTypes[t.name] || t.isEmbedded && visible) {
+		if t.decl == nil && (predeclaredTypes[t.name] || visible && (t.isEmbedded || r.hasDotImp)) {
 			// t.name is a predeclared type (and was not redeclared in this package),
 			// or it was embedded somewhere but its declaration is missing (because
-			// the AST is incomplete): move any associated values, funcs, and methods
-			// back to the top-level so that they are not lost.
+			// the AST is incomplete), or we have a dot-import (and all bets are off):
+			// move any associated values, funcs, and methods back to the top-level so
+			// that they are not lost.
 			// 1) move values
 			r.values = append(r.values, t.values...)
 			// 2) move factory functions

@@ -472,6 +472,16 @@ and <code>"page"</code> blocks to reuse the formatting for another page.
 <ul>
 
 <li>
+The <a href="/pkg/archive/tar/"><code>archive/tar</code></a> package's
+implementation corrects many bugs in rare corner cases of the file format.
+One visible change is that the
+<a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> type's
+<a href="/pkg/archive/tar/#Reader.Read"><code>Read</code></a> method
+now presents the content of special file types as being empty,
+returning <code>io.EOF</code> immediately.
+</li>
+
+<li>
 In the <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package, the
 <a href="/pkg/archive/zip/#Reader"><code>Reader</code></a> type now has a
 <a href="/pkg/archive/zip/#Reader.RegisterDecompressor"><code>RegisterDecompressor</code></a> method,
@@ -512,6 +522,12 @@ The <a href="/pkg/compress/flate/"><code>compress/flate</code></a>,
 now report
 <a href="/pkg/io/#ErrUnexpectedEOF"><code>io.ErrUnexpectedEOF</code></a> for truncated input streams, instead of
 <a href="/pkg/io/#EOF"><code>io.EOF</code></a>.
+</li>
+
+<li>
+The <a href="/pkg/crypto/cipher/"><code>crypto/cipher</code></a> package now
+overwrites the destination buffer in the event of a GCM decryption failure.
+This is to allow the AESNI code to avoid using a temporary buffer.
 </li>
 
 <li>
@@ -566,6 +582,17 @@ useful for advanced parsing of ASN.1 structures.
 <li>
 Also in the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package,
 <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a> now rejects various non-standard integer and length encodings.
+</li>
+
+<li>
+The <a href="/pkg/encoding/base64"><code>encoding/base64</code></a> package's
+<a href="/pkg/encoding/base64/#Decoder"><code>Decoder</code></a> has been fixed
+to process the final bytes of its input. Previously it processed as many four-byte tokens as
+possible but ignore the remainder, up to three bytes.
+The <code>Decoder</code> therefore now handles inputs in unpadded encodings (like
+<a href="/pkg/encoding/base64/#RawURLEncoding">RawURLEncoding</a>) correctly,
+but it also rejects inputs in padded encodings that are truncated or end with invalid bytes,
+such as trailing spaces.
 </li>
 
 <li>

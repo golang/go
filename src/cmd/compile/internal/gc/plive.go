@@ -809,7 +809,7 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 		return
 	}
 
-	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %v\n", Curfn, n, n, n.Class, p)
+	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %p %v\n", funcSym(Curfn), n, n, n.Class, p, p)
 	for l := fn.Func.Dcl; l != nil; l = l.Next {
 		fmt.Printf("\t%v (%p; class=%d)\n", l.N, l.N, l.N.Class)
 	}

@@ -50,23 +50,16 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 	return
 }
 
-func MultiByteToWideChar(codePage uint, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int, err error) {
-	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
-	nwrite = int(r0)
-	if nwrite == 0 {
-		if e1 != 0 {
-			err = error(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
+func GetACP() (acp uint32) {
+	r0, _, _ := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
+	acp = uint32(r0)
 	return
 }
 
-func GetACP() (acp uint, err error) {
-	r0, _, e1 := syscall.Syscall(procGetACP.Addr(), 0, 0, 0, 0)
-	acp = uint(r0)
-	if acp == 0 {
+func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32, wchar *uint16, nwchar int32) (nwrite int32, err error) {
+	r0, _, e1 := syscall.Syscall6(procMultiByteToWideChar.Addr(), 6, uintptr(codePage), uintptr(dwFlags), uintptr(unsafe.Pointer(str)), uintptr(nstr), uintptr(unsafe.Pointer(wchar)), uintptr(nwchar))
+	nwrite = int32(r0)
+	if nwrite == 0 {
 		if e1 != 0 {
 			err = error(e1)
 		} else {

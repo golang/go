@@ -626,9 +626,7 @@ func (p *Package) rewriteCall(f *File, call *ast.CallExpr, name *Name) {
 
 		// Add optional additional arguments for an address
 		// expression.
-		if u, ok := call.Args[i].(*ast.UnaryExpr); ok && u.Op == token.AND {
-			c.Args = p.checkAddrArgs(f, c.Args, u.X)
-		}
+		c.Args = p.checkAddrArgs(f, c.Args, call.Args[i])
 
 		// _cgoCheckPointer returns interface{}.
 		// We need to type assert that to the type we want.
@@ -773,7 +771,19 @@ func (p *Package) hasPointer(f *File, t ast.Expr, top bool) bool {
 // only pass the slice or array if we can refer to it without side
 // effects.
 func (p *Package) checkAddrArgs(f *File, args []ast.Expr, x ast.Expr) []ast.Expr {
-	index, ok := x.(*ast.IndexExpr)
+	// Strip type conversions.
+	for {
+		c, ok := x.(*ast.CallExpr)
+		if !ok || len(c.Args) != 1 || !p.isType(c.Fun) {
+			break
+		}
+		x = c.Args[0]
+	}
+	u, ok := x.(*ast.UnaryExpr)
+	if !ok || u.Op != token.AND {
+		return args
+	}
+	index, ok := u.X.(*ast.IndexExpr)
 	if !ok {
 		// This is the address of something that is not an
 		// index expression.  We only need to examine the
@@ -804,6 +814,42 @@ func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
 	return found
 }
 
+// isType returns whether the expression is definitely a type.
+// This is conservative--it returns false for an unknown identifier.
+func (p *Package) isType(t ast.Expr) bool {
+	switch t := t.(type) {
+	case *ast.SelectorExpr:
+		if t.Sel.Name != "Pointer" {
+			return false
+		}
+		id, ok := t.X.(*ast.Ident)
+		if !ok {
+			return false
+		}
+		return id.Name == "unsafe"
+	case *ast.Ident:
+		// TODO: This ignores shadowing.
+		switch t.Name {
+		case "unsafe.Pointer", "bool", "byte",
+			"complex64", "complex128",
+			"error",
+			"float32", "float64",
+			"int", "int8", "int16", "int32", "int64",
+			"rune", "string",
+			"uint", "uint8", "uint16", "uint32", "uint64", "uintptr":
+
+			return true
+		}
+	case *ast.StarExpr:
+		return p.isType(t.X)
+	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType,
+		*ast.MapType, *ast.ChanType:
+
+		return true
+	}
+	return false
+}
+
 // unsafeCheckPointerName is given the Go version of a C type.  If the
 // type uses unsafe.Pointer, we arrange to build a version of
 // _cgoCheckPointer that returns that type.  This avoids using a type
@@ -832,6 +878,8 @@ func (p *Package) unsafeCheckPointerName(t ast.Expr) string {
 func (p *Package) hasUnsafePointer(t ast.Expr) bool {
 	switch t := t.(type) {
 	case *ast.Ident:
+		// We don't see a SelectorExpr for unsafe.Pointer;
+		// this is created by code in this file.
 		return t.Name == "unsafe.Pointer"
 	case *ast.ArrayType:
 		return p.hasUnsafePointer(t.Elt)

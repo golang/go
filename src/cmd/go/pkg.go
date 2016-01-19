@@ -348,11 +348,9 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
 	// See issue 3268 for mistakes to avoid.
 	buildMode := build.ImportComment
-	if go15VendorExperiment && mode&useVendor != 0 && path == origPath {
-		// We've already searched the vendor directories and didn't find anything.
-		// Let Import search them again so that, if the package is not found anywhere,
-		// the error includes the vendor directories in the list of places considered.
-		buildMode |= build.AllowVendor
+	if !go15VendorExperiment || mode&useVendor == 0 || path != origPath {
+		// Not vendoring, or we already found the vendored path.
+		buildMode |= build.IgnoreVendor
 	}
 	bp, err := buildContext.Import(path, srcDir, buildMode)
 	bp.ImportPath = importPath
@@ -422,7 +420,7 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 			continue
 		}
 		targ := filepath.Join(dir[:i], vpath)
-		if isDir(targ) {
+		if isDir(targ) && hasGoFiles(targ) {
 			// We started with parent's dir c:\gopath\src\foo\bar\baz\quux\xyzzy.
 			// We know the import path for parent's dir.
 			// We chopped off some number of path elements and
@@ -443,6 +441,20 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 		}
 	}
 	return path
+}
+
+// hasGoFiles reports whether dir contains any files with names ending in .go.
+// For a vendor check we must exclude directories that contain no .go files.
+// Otherwise it is not possible to vendor just a/b/c and still import the
+// non-vendored a/b. See golang.org/issue/13832.
+func hasGoFiles(dir string) bool {
+	fis, _ := ioutil.ReadDir(dir)
+	for _, fi := range fis {
+		if !fi.IsDir() && strings.HasSuffix(fi.Name(), ".go") {
+			return true
+		}
+	}
+	return false
 }
 
 // reusePackage reuses package p to satisfy the import at the top
@@ -504,7 +516,7 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		i-- // rewind over slash in ".../internal"
 	}
 	parent := p.Dir[:i+len(p.Dir)-len(p.ImportPath)]
-	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
 		return p
 	}
 
@@ -601,7 +613,7 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 		return p
 	}
 	parent := p.Dir[:truncateTo]
-	if hasPathPrefix(filepath.ToSlash(srcDir), filepath.ToSlash(parent)) {
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
 		return p
 	}
 

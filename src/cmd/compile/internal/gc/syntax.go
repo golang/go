@@ -128,6 +128,7 @@ type Name struct {
 	Captured  bool // is the variable captured by a closure
 	Byval     bool // is the variable captured by value or by reference
 	Needzero  bool // if it contains pointers, needs to be zeroed on function entry
+	Keepalive bool // mark value live across unknown assembly call
 }
 
 type Param struct {
@@ -342,6 +343,7 @@ const (
 	OCFUNC      // reference to c function pointer (not go func value)
 	OCHECKNIL   // emit code to ensure pointer/interface not nil
 	OVARKILL    // variable is dead
+	OVARLIVE    // variable is alive
 
 	// thearch-specific registers
 	OREGISTER // a register, such as AX.

@@ -233,13 +233,13 @@ func TestParseDayOutOfRange(t *testing.T) {
 		case test.ok && err == nil:
 			// OK
 		case !test.ok && err != nil:
-			if !strings.Contains(err.Error(), "day of month out of range") {
-				t.Errorf("%q: expected 'day of month' error, got %v", test.date, err)
+			if !strings.Contains(err.Error(), "day out of range") {
+				t.Errorf("%q: expected 'day' error, got %v", test.date, err)
 			}
 		case test.ok && err != nil:
 			t.Errorf("%q: unexpected error: %v", test.date, err)
 		case !test.ok && err == nil:
-			t.Errorf("%q: expected 'day of month' error, got none", test.date)
+			t.Errorf("%q: expected 'day' error, got none", test.date)
 		}
 	}
 }
