@@ -37,6 +37,20 @@ Optimizations (better compiled code)
   and len feilds being accessed) pass them in xmm registers?
   Same for interfaces?
 - boolean logic: movb/xorb$1/testb/jeq -> movb/testb/jne
+- (ADDQconst (SUBQconst x)) and vice-versa
+- (CMP (Load ...)) and (CMPconst (Load ...)) in one instruction
+  (all instructions, really)
+- combine LEAQs
+- store followed by load to same address
+- short circuit blocks which are just a jump (undo critical edge processing when no instructions are put in it by regalloc)
+- (CMPconst [0] (AND x y)) -> (TEST x y)
+- more (LOAD (ADDQ )) -> LOADIDX
+- CMPL/SETEQ/TESTB/JEQ -> CMPL/JEQ
+  CMPL/SETGE/TESTB/JEQ
+- blockEQ (CMP x x)
+- better computing of &&/|| in non-if/for contexts
+- OpArrayIndex should take its index in AuxInt, not a full value.
+- remove FLAGS from REP instruction clobbers
 
 Optimizations (better compiler)
 -------------------------------
