@@ -4,6 +4,10 @@
 
 package testing
 
+import (
+	"time"
+)
+
 func TestTestContext(t *T) {
 	const (
 		add1 = 0
@@ -96,6 +100,99 @@ func TestTestContext(t *T) {
 			if ctx.numWaiting != call.waiting {
 				t.Errorf("%d:%d:waiting: got %v; want %v", i, j, ctx.numWaiting, call.waiting)
 			}
+		}
+	}
+}
+
+// TODO: remove this stub when API is exposed
+func (b *B) Run(name string, f func(b *B)) bool { return b.runBench(name, f) }
+
+func TestBRun(t *T) {
+	work := func(b *B) {
+		for i := 0; i < b.N; i++ {
+			time.Sleep(time.Nanosecond)
+		}
+	}
+	testCases := []struct {
+		desc   string
+		failed bool
+		f      func(*B)
+	}{{
+		desc: "simulate sequential run of subbenchmarks.",
+		f: func(b *B) {
+			b.Run("", func(b *B) { work(b) })
+			time1 := b.result.NsPerOp()
+			b.Run("", func(b *B) { work(b) })
+			time2 := b.result.NsPerOp()
+			if time1 >= time2 {
+				t.Errorf("no time spent in benchmark t1 >= t2 (%d >= %d)", time1, time2)
+			}
+		},
+	}, {
+		desc: "bytes set by all benchmarks",
+		f: func(b *B) {
+			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
+			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
+			if b.result.Bytes != 20 {
+				t.Errorf("bytes: got: %d; want 20", b.result.Bytes)
+			}
+		},
+	}, {
+		desc: "bytes set by some benchmarks",
+		// In this case the bytes result is meaningless, so it must be 0.
+		f: func(b *B) {
+			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
+			b.Run("", func(b *B) { work(b) })
+			b.Run("", func(b *B) { b.SetBytes(10); work(b) })
+			if b.result.Bytes != 0 {
+				t.Errorf("bytes: got: %d; want 0", b.result.Bytes)
+			}
+		},
+	}, {
+		desc:   "failure carried over to root",
+		failed: true,
+		f:      func(b *B) { b.Fail() },
+	}, {
+		desc: "memory allocation",
+		f: func(b *B) {
+			const bufSize = 256
+			alloc := func(b *B) {
+				var buf [bufSize]byte
+				for i := 0; i < b.N; i++ {
+					_ = append([]byte(nil), buf[:]...)
+				}
+			}
+			b.Run("", func(b *B) { alloc(b) })
+			b.Run("", func(b *B) { alloc(b) })
+			if got := b.result.MemAllocs; got != 2 {
+				t.Errorf("MemAllocs was %v; want 2", got)
+			}
+			if got := b.result.MemBytes; got != 2*bufSize {
+				t.Errorf("MemBytes was %v; want %v", got, 2*bufSize)
+			}
+		},
+	}}
+	for _, tc := range testCases {
+		var ok bool
+		// This is almost like the Benchmark function, except that we override
+		// the benchtime and catch the failure result of the subbenchmark.
+		root := &B{
+			common: common{
+				signal: make(chan bool),
+			},
+			benchFunc: func(b *B) { ok = b.Run("test", tc.f) }, // Use Run to catch failure.
+			benchTime: time.Microsecond,
+		}
+		root.run()
+		if ok != !tc.failed {
+			t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, !tc.failed)
+		}
+		if !ok != root.Failed() {
+			t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
+		}
+		// All tests are run as subtests
+		if root.result.N != 1 {
+			t.Errorf("%s: N for parent benchmark was %d; want 1", tc.desc, root.result.N)
 		}
 	}
 }
