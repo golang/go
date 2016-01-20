@@ -3212,6 +3212,8 @@ func procresize(nprocs int32) *p {
 				traceGoUnpark(p.gcBgMarkWorker, 0)
 			}
 			globrunqput(p.gcBgMarkWorker)
+			// This assignment doesn't race because the
+			// world is stopped.
 			p.gcBgMarkWorker = nil
 		}
 		for i := range p.sudogbuf {
