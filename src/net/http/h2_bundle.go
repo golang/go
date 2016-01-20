@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/golang.org/x/net/http2/hpack"
 	"io"
 	"io/ioutil"
 	"log"
@@ -37,8 +38,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/http2/hpack"
 )
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
@@ -2065,13 +2064,60 @@ func (s http2SettingID) String() string {
 	return fmt.Sprintf("UNKNOWN_SETTING_%d", uint16(s))
 }
 
-func http2validHeader(v string) bool {
+var (
+	http2errInvalidHeaderFieldName  = errors.New("http2: invalid header field name")
+	http2errInvalidHeaderFieldValue = errors.New("http2: invalid header field value")
+)
+
+// validHeaderFieldName reports whether v is a valid header field name (key).
+//  RFC 7230 says:
+//   header-field   = field-name ":" OWS field-value OWS
+//   field-name     = token
+//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+//           "^" / "_" / "
+// Further, http2 says:
+//   "Just as in HTTP/1.x, header field names are strings of ASCII
+//   characters that are compared in a case-insensitive
+//   fashion. However, header field names MUST be converted to
+//   lowercase prior to their encoding in HTTP/2. "
+func http2validHeaderFieldName(v string) bool {
 	if len(v) == 0 {
 		return false
 	}
 	for _, r := range v {
+		if int(r) >= len(http2isTokenTable) || ('A' <= r && r <= 'Z') {
+			return false
+		}
+		if !http2isTokenTable[byte(r)] {
+			return false
+		}
+	}
+	return true
+}
 
-		if r >= 127 || ('A' <= r && r <= 'Z') {
+// validHeaderFieldValue reports whether v is a valid header field value.
+//
+// RFC 7230 says:
+//  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+//  field-vchar    = VCHAR / obs-text
+//  obs-text       = %x80-FF
+//  VCHAR          = "any visible [USASCII] character"
+//
+// http2 further says: "Similarly, HTTP/2 allows header field values
+// that are not valid. While most of the values that can be encoded
+// will not alter header field parsing, carriage return (CR, ASCII
+// 0xd), line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII
+// 0x0) might be exploited by an attacker if they are translated
+// verbatim. Any request or response that contains a character not
+// permitted in a header field value MUST be treated as malformed
+// (Section 8.1.2.6). Valid characters are defined by the
+// field-content ABNF rule in Section 3.2 of [RFC7230]."
+//
+// This function does not (yet?) properly handle the rejection of
+// strings that begin or end with SP or HTAB.
+func http2validHeaderFieldValue(v string) bool {
+	for i := 0; i < len(v); i++ {
+		if b := v[i]; b < ' ' && b != '\t' {
 			return false
 		}
 	}
@@ -2201,6 +2247,86 @@ func (e *http2httpError) Timeout() bool { return e.timeout }
 func (e *http2httpError) Temporary() bool { return true }
 
 var http2errTimeout error = &http2httpError{msg: "http2: timeout awaiting response headers", timeout: true}
+
+var http2isTokenTable = [127]bool{
+	'!':  true,
+	'#':  true,
+	'$':  true,
+	'%':  true,
+	'&':  true,
+	'\'': true,
+	'*':  true,
+	'+':  true,
+	'-':  true,
+	'.':  true,
+	'0':  true,
+	'1':  true,
+	'2':  true,
+	'3':  true,
+	'4':  true,
+	'5':  true,
+	'6':  true,
+	'7':  true,
+	'8':  true,
+	'9':  true,
+	'A':  true,
+	'B':  true,
+	'C':  true,
+	'D':  true,
+	'E':  true,
+	'F':  true,
+	'G':  true,
+	'H':  true,
+	'I':  true,
+	'J':  true,
+	'K':  true,
+	'L':  true,
+	'M':  true,
+	'N':  true,
+	'O':  true,
+	'P':  true,
+	'Q':  true,
+	'R':  true,
+	'S':  true,
+	'T':  true,
+	'U':  true,
+	'W':  true,
+	'V':  true,
+	'X':  true,
+	'Y':  true,
+	'Z':  true,
+	'^':  true,
+	'_':  true,
+	'`':  true,
+	'a':  true,
+	'b':  true,
+	'c':  true,
+	'd':  true,
+	'e':  true,
+	'f':  true,
+	'g':  true,
+	'h':  true,
+	'i':  true,
+	'j':  true,
+	'k':  true,
+	'l':  true,
+	'm':  true,
+	'n':  true,
+	'o':  true,
+	'p':  true,
+	'q':  true,
+	'r':  true,
+	's':  true,
+	't':  true,
+	'u':  true,
+	'v':  true,
+	'w':  true,
+	'x':  true,
+	'y':  true,
+	'z':  true,
+	'|':  true,
+	'~':  true,
+}
 
 // pipe is a goroutine-safe io.Reader/io.Writer pair.  It's like
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
@@ -2741,7 +2867,7 @@ func (sc *http2serverConn) onNewHeaderField(f hpack.HeaderField) {
 		sc.vlogf("http2: server decoded %v", f)
 	}
 	switch {
-	case !http2validHeader(f.Name):
+	case !http2validHeaderFieldValue(f.Value):
 		sc.req.invalidHeader = true
 	case strings.HasPrefix(f.Name, ":"):
 		if sc.req.sawRegularHeader {
@@ -2771,6 +2897,8 @@ func (sc *http2serverConn) onNewHeaderField(f hpack.HeaderField) {
 			return
 		}
 		*dst = f.Value
+	case !http2validHeaderFieldName(f.Name):
+		sc.req.invalidHeader = true
 	default:
 		sc.req.sawRegularHeader = true
 		sc.req.header.Add(sc.canonicalHeader(f.Name), f.Value)
@@ -2789,10 +2917,10 @@ func (st *http2stream) onNewTrailerField(f hpack.HeaderField) {
 		sc.vlogf("http2: server decoded trailer %v", f)
 	}
 	switch {
-	case !http2validHeader(f.Name):
+	case strings.HasPrefix(f.Name, ":"):
 		sc.req.invalidHeader = true
 		return
-	case strings.HasPrefix(f.Name, ":"):
+	case !http2validHeaderFieldName(f.Name) || !http2validHeaderFieldValue(f.Value):
 		sc.req.invalidHeader = true
 		return
 	default:
@@ -5697,7 +5825,6 @@ func (cc *http2ClientConn) writeStreamReset(streamID uint32, code http2ErrCode, 
 
 var (
 	http2errResponseHeaderListSize = errors.New("http2: response header list larger than advertised limit")
-	http2errInvalidHeaderKey       = errors.New("http2: invalid header key")
 	http2errPseudoTrailers         = errors.New("http2: invalid pseudo header in trailers")
 )
 
@@ -5714,8 +5841,8 @@ func (rl *http2clientConnReadLoop) checkHeaderField(f hpack.HeaderField) bool {
 		return false
 	}
 
-	if !http2validHeader(f.Name) {
-		rl.reqMalformed = http2errInvalidHeaderKey
+	if !http2validHeaderFieldValue(f.Value) {
+		rl.reqMalformed = http2errInvalidHeaderFieldValue
 		return false
 	}
 
@@ -5726,6 +5853,10 @@ func (rl *http2clientConnReadLoop) checkHeaderField(f hpack.HeaderField) bool {
 			return false
 		}
 	} else {
+		if !http2validHeaderFieldName(f.Name) {
+			rl.reqMalformed = http2errInvalidHeaderFieldName
+			return false
+		}
 		rl.sawRegHeader = true
 	}
 
