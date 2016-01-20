@@ -4,7 +4,7 @@
 
 // +build go1.5
 
-// This file is a copy of go/gcimporter/exportdata.go, tagged for go1.5.
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/exportdata.go, tagged for go1.5.
 
 // This file implements FindExportData.
 
@@ -43,14 +43,16 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
 // FindExportData positions the reader r at the beginning of the
 // export data section of an underlying GC-created object/archive
 // file by reading from it. The reader must be positioned at the
-// start of the file before calling this function.
+// start of the file before calling this function. The hdr result
+// is the string before the export data, either "$$" or "$$B".
 //
-func FindExportData(r *bufio.Reader) (err error) {
+func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	// Read first line to make sure this is an object file.
 	line, err := r.ReadSlice('\n')
 	if err != nil {
 		return
 	}
+
 	if string(line) == "!<arch>\n" {
 		// Archive file. Scan to __.PKGDEF.
 		var name string
@@ -75,7 +77,7 @@ func FindExportData(r *bufio.Reader) (err error) {
 				size -= n
 			}
 
-			if name, size, err = readGopackHeader(r); err != nil {
+			if name, _, err = readGopackHeader(r); err != nil {
 				return
 			}
 		}
@@ -101,12 +103,13 @@ func FindExportData(r *bufio.Reader) (err error) {
 	}
 
 	// Skip over object header to export data.
-	// Begins after first line with $$.
+	// Begins after first line starting with $$.
 	for line[0] != '$' {
 		if line, err = r.ReadSlice('\n'); err != nil {
 			return
 		}
 	}
+	hdr = string(line)
 
 	return
 }

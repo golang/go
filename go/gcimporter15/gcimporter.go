@@ -4,20 +4,17 @@
 
 // +build go1.5
 
-// This file is:
-// - a copy of go/gcimporter/gcimporter.go
-// - tagged for Go 1.5
-// - changed to use the standard go/types package
-// - without the assignment to DefaultImporter
-// - with an extra parameter to calls to MakeFromLiteral.
+// This file is a copy of $GOROOT/src/go/internal/gcimporter/gcimporter.go, tagged for go1.5,
+// and minimally adjusted to make it build.
 
 // Package gcimporter15 provides various functions for reading
-// gc-generated object files that can be used to implement the Importer
-// interface defined by the Go 1.5 standard library package.
+// gc-generated object files that can be used to implement the
+// Importer interface defined by the Go 1.5 standard library package.
 //
-// This package is a kludge: if the Go 1.5 standard go/importer
-// package's Lookup feature had been fully implemented in Go 1.5, we
-// would not need it.  It will be deleted after Go 1.6.
+// This package serves as a stop-gap for missing features in the
+// standard library's go/importer package, specifically customizable
+// package data lookup. This package should be deleted once that
+// functionality becomes available in the standard library.
 package gcimporter // import "golang.org/x/tools/go/gcimporter15"
 
 import (
@@ -29,6 +26,7 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -40,7 +38,7 @@ import (
 // debugging/development support
 const debug = false
 
-var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
+var pkgExts = [...]string{".a", ".o"}
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using
@@ -48,11 +46,10 @@ var pkgExts = [...]string{".a", ".5", ".6", ".7", ".8", ".9"}
 // If no file was found, an empty filename is returned.
 //
 func FindPkg(path, srcDir string) (filename, id string) {
-	if len(path) == 0 {
+	if path == "" {
 		return
 	}
 
-	id = path
 	var noext string
 	switch {
 	default:
@@ -63,6 +60,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 			return
 		}
 		noext = strings.TrimSuffix(bp.PkgObj, ".a")
+		id = bp.ImportPath
 
 	case build.IsLocalImport(path):
 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
@@ -74,6 +72,13 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		// does not support absolute imports
 		// "/x" -> "/x.ext", "/x"
 		noext = path
+		id = path
+	}
+
+	if false { // for debugging
+		if path != id {
+			fmt.Printf("%s -> %s\n", path, id)
+		}
 	}
 
 	// try extensions
@@ -120,26 +125,16 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
 	return
 }
 
-// Import imports a gc-generated package given its import path, adds the
-// corresponding package object to the packages map, and returns the object.
-// Local import paths are interpreted relative to the current working directory.
-// The packages map must contains all packages already imported.
+// Import imports a gc-generated package given its import path and srcDir, adds
+// the corresponding package object to the packages map, and returns the object.
+// The packages map must contain all packages already imported.
 //
-func Import(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
-	if path == "unsafe" {
-		return types.Unsafe, nil
-	}
-
-	srcDir := "."
-	if build.IsLocalImport(path) {
-		srcDir, err = os.Getwd()
-		if err != nil {
-			return
-		}
-	}
-
+func Import(packages map[string]*types.Package, path, srcDir string) (pkg *types.Package, err error) {
 	filename, id := FindPkg(path, srcDir)
 	if filename == "" {
+		if path == "unsafe" {
+			return types.Unsafe, nil
+		}
 		err = fmt.Errorf("can't find import: %s", id)
 		return
 	}
@@ -162,12 +157,25 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
 		}
 	}()
 
+	var hdr string
 	buf := bufio.NewReader(f)
-	if err = FindExportData(buf); err != nil {
+	if hdr, err = FindExportData(buf); err != nil {
 		return
 	}
 
-	pkg, err = ImportData(packages, filename, id, buf)
+	switch hdr {
+	case "$$\n":
+		return ImportData(packages, filename, id, buf)
+	case "$$B\n":
+		var data []byte
+		data, err = ioutil.ReadAll(buf)
+		if err == nil {
+			_, pkg, err = BImportData(packages, data, path)
+			return
+		}
+	default:
+		err = fmt.Errorf("unknown export data header: %q", hdr)
+	}
 
 	return
 }
@@ -348,8 +356,10 @@ func (p *parser) parseQualifiedName() (id, name string) {
 }
 
 // getPkg returns the package for a given id. If the package is
-// not found but we have a package name, create the package and
-// add it to the p.localPkgs and p.sharedPkgs maps.
+// not found, create the package and add it to the p.localPkgs
+// and p.sharedPkgs maps. name is the (expected) name of the
+// package. If name == "", the package name is expected to be
+// set later via an import clause in the export data.
 //
 // id identifies a package, usually by a canonical package path like
 // "encoding/json" but possibly by a non-canonical import path like
@@ -362,19 +372,28 @@ func (p *parser) getPkg(id, name string) *types.Package {
 	}
 
 	pkg := p.localPkgs[id]
-	if pkg == nil && name != "" {
+	if pkg == nil {
 		// first import of id from this package
 		pkg = p.sharedPkgs[id]
 		if pkg == nil {
-			// first import of id by this importer
+			// first import of id by this importer;
+			// add (possibly unnamed) pkg to shared packages
 			pkg = types.NewPackage(id, name)
 			p.sharedPkgs[id] = pkg
 		}
-
+		// add (possibly unnamed) pkg to local packages
 		if p.localPkgs == nil {
 			p.localPkgs = make(map[string]*types.Package)
 		}
 		p.localPkgs[id] = pkg
+	} else if name != "" {
+		// package exists already and we have an expected package name;
+		// make sure names match or set package name if necessary
+		if pname := pkg.Name(); pname == "" {
+			pkg.SetName(name)
+		} else if pname != name {
+			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
+		}
 	}
 	return pkg
 }
@@ -385,9 +404,6 @@ func (p *parser) getPkg(id, name string) *types.Package {
 func (p *parser) parseExportedName() (pkg *types.Package, name string) {
 	id, name := p.parseQualifiedName()
 	pkg = p.getPkg(id, "")
-	if pkg == nil {
-		p.errorf("%s package not found", id)
-	}
 	return
 }
 
@@ -408,11 +424,11 @@ func (p *parser) parseBasicType() types.Type {
 
 // ArrayType = "[" int_lit "]" Type .
 //
-func (p *parser) parseArrayType() types.Type {
+func (p *parser) parseArrayType(parent *types.Package) types.Type {
 	// "[" already consumed and lookahead known not to be "]"
 	lit := p.expect(scanner.Int)
 	p.expect(']')
-	elem := p.parseType()
+	elem := p.parseType(parent)
 	n, err := strconv.ParseInt(lit, 10, 64)
 	if err != nil {
 		p.error(err)
@@ -422,46 +438,47 @@ func (p *parser) parseArrayType() types.Type {
 
 // MapType = "map" "[" Type "]" Type .
 //
-func (p *parser) parseMapType() types.Type {
+func (p *parser) parseMapType(parent *types.Package) types.Type {
 	p.expectKeyword("map")
 	p.expect('[')
-	key := p.parseType()
+	key := p.parseType(parent)
 	p.expect(']')
-	elem := p.parseType()
+	elem := p.parseType(parent)
 	return types.NewMap(key, elem)
 }
 
 // Name = identifier | "?" | QualifiedName .
 //
-// If materializePkg is set, the returned package is guaranteed to be set.
-// For fully qualified names, the returned package may be a fake package
-// (without name, scope, and not in the p.imports map), created for the
-// sole purpose of providing a package path. Fake packages are created
-// when the package id is not found in the p.imports map; in that case
-// we cannot create a real package because we don't have a package name.
-// For non-qualified names, the returned package is the imported package.
+// For unqualified and anonymous names, the returned package is the parent
+// package unless parent == nil, in which case the returned package is the
+// package being imported. (The parent package is not nil if the the name
+// is an unqualified struct field or interface method name belonging to a
+// type declared in another package.)
 //
-func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string) {
+// For qualified names, the returned package is nil (and not created if
+// it doesn't exist yet) unless materializePkg is set (which creates an
+// unnamed package with valid package path). In the latter case, a
+// subequent import clause is expected to provide a name for the package.
+//
+func (p *parser) parseName(parent *types.Package, materializePkg bool) (pkg *types.Package, name string) {
+	pkg = parent
+	if pkg == nil {
+		pkg = p.sharedPkgs[p.id]
+	}
 	switch p.tok {
 	case scanner.Ident:
-		pkg = p.sharedPkgs[p.id]
 		name = p.lit
 		p.next()
 	case '?':
 		// anonymous
-		pkg = p.sharedPkgs[p.id]
 		p.next()
 	case '@':
 		// exported name prefixed with package path
+		pkg = nil
 		var id string
 		id, name = p.parseQualifiedName()
 		if materializePkg {
-			// we don't have a package name - if the package
-			// doesn't exist yet, create a fake package instead
 			pkg = p.getPkg(id, "")
-			if pkg == nil {
-				pkg = types.NewPackage(id, "")
-			}
 		}
 	default:
 		p.error("name expected")
@@ -478,15 +495,15 @@ func deref(typ types.Type) types.Type {
 
 // Field = Name Type [ string_lit ] .
 //
-func (p *parser) parseField() (*types.Var, string) {
-	pkg, name := p.parseName(true)
-	typ := p.parseType()
+func (p *parser) parseField(parent *types.Package) (*types.Var, string) {
+	pkg, name := p.parseName(parent, true)
+	typ := p.parseType(parent)
 	anonymous := false
 	if name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
 		switch typ := deref(typ).(type) {
 		case *types.Basic: // basic types are named types
-			pkg = nil
+			pkg = nil // objects defined in Universe scope have no package
 			name = typ.Name()
 		case *types.Named:
 			name = typ.Obj().Name()
@@ -510,7 +527,7 @@ func (p *parser) parseField() (*types.Var, string) {
 // StructType = "struct" "{" [ FieldList ] "}" .
 // FieldList  = Field { ";" Field } .
 //
-func (p *parser) parseStructType() types.Type {
+func (p *parser) parseStructType(parent *types.Package) types.Type {
 	var fields []*types.Var
 	var tags []string
 
@@ -520,7 +537,7 @@ func (p *parser) parseStructType() types.Type {
 		if i > 0 {
 			p.expect(';')
 		}
-		fld, tag := p.parseField()
+		fld, tag := p.parseField(parent)
 		if tag != "" && tags == nil {
 			tags = make([]string, i)
 		}
@@ -537,7 +554,7 @@ func (p *parser) parseStructType() types.Type {
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
 //
 func (p *parser) parseParameter() (par *types.Var, isVariadic bool) {
-	_, name := p.parseName(false)
+	_, name := p.parseName(nil, false)
 	// remove gc-specific parameter numbering
 	if i := strings.Index(name, "·"); i >= 0 {
 		name = name[:i]
@@ -546,7 +563,7 @@ func (p *parser) parseParameter() (par *types.Var, isVariadic bool) {
 		p.expectSpecial("...")
 		isVariadic = true
 	}
-	typ := p.parseType()
+	typ := p.parseType(nil)
 	if isVariadic {
 		typ = types.NewSlice(typ)
 	}
@@ -609,7 +626,7 @@ func (p *parser) parseSignature(recv *types.Var) *types.Signature {
 // by the compiler and thus embedded interfaces are never
 // visible in the export data.
 //
-func (p *parser) parseInterfaceType() types.Type {
+func (p *parser) parseInterfaceType(parent *types.Package) types.Type {
 	var methods []*types.Func
 
 	p.expectKeyword("interface")
@@ -618,7 +635,7 @@ func (p *parser) parseInterfaceType() types.Type {
 		if i > 0 {
 			p.expect(';')
 		}
-		pkg, name := p.parseName(true)
+		pkg, name := p.parseName(parent, true)
 		sig := p.parseSignature(nil)
 		methods = append(methods, types.NewFunc(token.NoPos, pkg, name, sig))
 	}
@@ -631,7 +648,7 @@ func (p *parser) parseInterfaceType() types.Type {
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
 //
-func (p *parser) parseChanType() types.Type {
+func (p *parser) parseChanType(parent *types.Package) types.Type {
 	dir := types.SendRecv
 	if p.tok == scanner.Ident {
 		p.expectKeyword("chan")
@@ -644,7 +661,7 @@ func (p *parser) parseChanType() types.Type {
 		p.expectKeyword("chan")
 		dir = types.RecvOnly
 	}
-	elem := p.parseType()
+	elem := p.parseType(parent)
 	return types.NewChan(dir, elem)
 }
 
@@ -659,24 +676,24 @@ func (p *parser) parseChanType() types.Type {
 // PointerType = "*" Type .
 // FuncType    = "func" Signature .
 //
-func (p *parser) parseType() types.Type {
+func (p *parser) parseType(parent *types.Package) types.Type {
 	switch p.tok {
 	case scanner.Ident:
 		switch p.lit {
 		default:
 			return p.parseBasicType()
 		case "struct":
-			return p.parseStructType()
+			return p.parseStructType(parent)
 		case "func":
 			// FuncType
 			p.next()
 			return p.parseSignature(nil)
 		case "interface":
-			return p.parseInterfaceType()
+			return p.parseInterfaceType(parent)
 		case "map":
-			return p.parseMapType()
+			return p.parseMapType(parent)
 		case "chan":
-			return p.parseChanType()
+			return p.parseChanType(parent)
 		}
 	case '@':
 		// TypeName
@@ -687,19 +704,19 @@ func (p *parser) parseType() types.Type {
 		if p.tok == ']' {
 			// SliceType
 			p.next()
-			return types.NewSlice(p.parseType())
+			return types.NewSlice(p.parseType(parent))
 		}
-		return p.parseArrayType()
+		return p.parseArrayType(parent)
 	case '*':
 		// PointerType
 		p.next()
-		return types.NewPointer(p.parseType())
+		return types.NewPointer(p.parseType(parent))
 	case '<':
-		return p.parseChanType()
+		return p.parseChanType(parent)
 	case '(':
 		// "(" Type ")"
 		p.next()
-		typ := p.parseType()
+		typ := p.parseType(parent)
 		p.expect(')')
 		return typ
 	}
@@ -781,7 +798,8 @@ func (p *parser) parseConstDecl() {
 
 	var typ0 types.Type
 	if p.tok != '=' {
-		typ0 = p.parseType()
+		// constant types are never structured - no need for parent type
+		typ0 = p.parseType(nil)
 	}
 
 	p.expect('=')
@@ -855,7 +873,7 @@ func (p *parser) parseTypeDecl() {
 	// structure, but throw it away if the object already has a type.
 	// This ensures that all imports refer to the same type object for
 	// a given type declaration.
-	typ := p.parseType()
+	typ := p.parseType(pkg)
 
 	if name := obj.Type().(*types.Named); name.Underlying() == nil {
 		name.SetUnderlying(typ)
@@ -867,7 +885,7 @@ func (p *parser) parseTypeDecl() {
 func (p *parser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
-	typ := p.parseType()
+	typ := p.parseType(pkg)
 	pkg.Scope().Insert(types.NewVar(token.NoPos, pkg, name, typ))
 }
 
@@ -903,7 +921,7 @@ func (p *parser) parseMethodDecl() {
 	base := deref(recv.Type()).(*types.Named)
 
 	// parse method name, signature, and possibly inlined body
-	_, name := p.parseName(true)
+	_, name := p.parseName(nil, false)
 	sig := p.parseFunc(recv)
 
 	// methods always belong to the same package as the base type object
@@ -980,9 +998,12 @@ func (p *parser) parseExport() *types.Package {
 		p.errorf("expected no scanner errors, got %d", n)
 	}
 
-	// Record all referenced packages as imports.
+	// Record all locally referenced packages as imports.
 	var imports []*types.Package
 	for id, pkg2 := range p.localPkgs {
+		if pkg2.Name() == "" {
+			p.errorf("%s package has no name", id)
+		}
 		if id == p.id {
 			continue // avoid self-edge
 		}
