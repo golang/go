@@ -504,14 +504,21 @@ func loadlib() {
 
 	var i int
 	for i = 0; i < len(Ctxt.Library); i++ {
-		if Debug['v'] > 1 {
-			fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
-		}
 		iscgo = iscgo || Ctxt.Library[i].Pkg == "runtime/cgo"
-		if Ctxt.Library[i].Shlib != "" {
-			ldshlibsyms(Ctxt.Library[i].Shlib)
-		} else {
+		if Ctxt.Library[i].Shlib == "" {
+			if Debug['v'] > 1 {
+				fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].File, Ctxt.Library[i].Objref)
+			}
 			objfile(Ctxt.Library[i])
+		}
+	}
+
+	for i = 0; i < len(Ctxt.Library); i++ {
+		if Ctxt.Library[i].Shlib != "" {
+			if Debug['v'] > 1 {
+				fmt.Fprintf(&Bso, "%5.2f autolib: %s (from %s)\n", obj.Cputime(), Ctxt.Library[i].Shlib, Ctxt.Library[i].Objref)
+			}
+			ldshlibsyms(Ctxt.Library[i].Shlib)
 		}
 	}
 
@@ -1458,18 +1465,11 @@ func ldshlibsyms(shlib string) {
 			continue
 		}
 		lsym := Linklookup(Ctxt, elfsym.Name, 0)
-		if lsym.Type != 0 && lsym.Type != obj.SDYNIMPORT && lsym.Dupok == 0 {
-			if (lsym.Type != obj.SBSS && lsym.Type != obj.SNOPTRBSS) || len(lsym.R) != 0 || len(lsym.P) != 0 || f.Sections[elfsym.Section].Type != elf.SHT_NOBITS {
-				Diag("Found duplicate symbol %s reading from %s, first found in %s", elfsym.Name, shlib, lsym.File)
-			}
-			if lsym.Size > int64(elfsym.Size) {
-				// If the existing symbol is a BSS value that is
-				// larger than the one read from the shared library,
-				// keep references to that.  Conversely, if the
-				// version from the shared libray is larger, we want
-				// to make all references be to that.
-				continue
-			}
+		// Because loadlib above loads all .a files before loading any shared
+		// libraries, any symbols we find that duplicate symbols already
+		// loaded should be ignored (the symbols from the .a files "win").
+		if lsym.Type != 0 {
+			continue
 		}
 		lsym.Type = obj.SDYNIMPORT
 		lsym.ElfType = elf.ST_TYPE(elfsym.Info)

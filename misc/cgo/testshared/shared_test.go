@@ -749,3 +749,15 @@ func TestABIChecking(t *testing.T) {
 	goCmd(t, "install", "-buildmode=shared", "-linkshared", "dep")
 	run(t, "after non-ABI breaking change", "./bin/exe")
 }
+
+// If a package 'explicit' imports a package 'implicit', building
+// 'explicit' into a shared library implicitly includes implicit in
+// the shared library. Building an executable that imports both
+// explicit and implicit builds the code from implicit into the
+// executable rather than fetching it from the shared library. The
+// link still succeeds and the executable still runs though.
+func TestImplicitInclusion(t *testing.T) {
+	goCmd(t, "install", "-buildmode=shared", "-linkshared", "explicit")
+	goCmd(t, "install", "-linkshared", "implicitcmd")
+	run(t, "running executable linked against library that contains same package as it", "./bin/implicitcmd")
+}
