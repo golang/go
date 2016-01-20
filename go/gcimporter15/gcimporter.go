@@ -390,7 +390,7 @@ func (p *parser) getPkg(id, name string) *types.Package {
 		// package exists already and we have an expected package name;
 		// make sure names match or set package name if necessary
 		if pname := pkg.Name(); pname == "" {
-			pkg.SetName(name)
+			setName(pkg, name)
 		} else if pname != name {
 			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
 		}
