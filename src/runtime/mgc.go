@@ -1349,15 +1349,22 @@ func gcBgMarkPrepare() {
 	work.nwait = ^uint32(0)
 }
 
-func gcBgMarkWorker(p *p) {
-	// Register this G as the background mark worker for p.
+func gcBgMarkWorker(_p_ *p) {
+	type parkInfo struct {
+		m      *m // Release this m on park.
+		attach *p // If non-nil, attach to this p on park.
+	}
+	var park parkInfo
+
+	// casgp is casp for *g's.
 	casgp := func(gpp **g, old, new *g) bool {
 		return casp((*unsafe.Pointer)(unsafe.Pointer(gpp)), unsafe.Pointer(old), unsafe.Pointer(new))
 	}
 
 	gp := getg()
-	mp := acquirem()
-	owned := casgp(&p.gcBgMarkWorker, nil, gp)
+	park.m = acquirem()
+	park.attach = _p_
+	// Inform gcBgMarkStartWorkers that this worker is ready.
 	// After this point, the background mark worker is scheduled
 	// cooperatively by gcController.findRunnable. Hence, it must
 	// never be preempted, as this would put it into _Grunnable
@@ -1365,33 +1372,51 @@ func gcBgMarkWorker(p *p) {
 	// is set, this puts itself into _Gwaiting to be woken up by
 	// gcController.findRunnable at the appropriate time.
 	notewakeup(&work.bgMarkReady)
-	if !owned {
-		// A sleeping worker came back and reassociated with
-		// the P. That's fine.
-		releasem(mp)
-		return
-	}
 
 	for {
 		// Go to sleep until woken by gcContoller.findRunnable.
 		// We can't releasem yet since even the call to gopark
 		// may be preempted.
-		gopark(func(g *g, mp unsafe.Pointer) bool {
-			releasem((*m)(mp))
+		gopark(func(g *g, parkp unsafe.Pointer) bool {
+			park := (*parkInfo)(parkp)
+
+			// The worker G is no longer running, so it's
+			// now safe to allow preemption.
+			releasem(park.m)
+
+			// If the worker isn't attached to its P,
+			// attach now. During initialization and after
+			// a phase change, the worker may have been
+			// running on a different P. As soon as we
+			// attach, the owner P may schedule the
+			// worker, so this must be done after the G is
+			// stopped.
+			if park.attach != nil {
+				p := park.attach
+				park.attach = nil
+				// cas the worker because we may be
+				// racing with a new worker starting
+				// on this P.
+				if !casgp(&p.gcBgMarkWorker, nil, g) {
+					// The P got a new worker.
+					// Exit this worker.
+					return false
+				}
+			}
 			return true
-		}, unsafe.Pointer(mp), "GC worker (idle)", traceEvGoBlock, 0)
+		}, noescape(unsafe.Pointer(&park)), "GC worker (idle)", traceEvGoBlock, 0)
 
 		// Loop until the P dies and disassociates this
-		// worker. (The P may later be reused, in which case
-		// it will get a new worker.)
-		if p.gcBgMarkWorker != gp {
+		// worker (the P may later be reused, in which case
+		// it will get a new worker) or we failed to associate.
+		if _p_.gcBgMarkWorker != gp {
 			break
 		}
 
 		// Disable preemption so we can use the gcw. If the
 		// scheduler wants to preempt us, we'll stop draining,
 		// dispose the gcw, and then preempt.
-		mp = acquirem()
+		park.m = acquirem()
 
 		if gcBlackenEnabled == 0 {
 			throw("gcBgMarkWorker: blackening not enabled")
@@ -1405,13 +1430,13 @@ func gcBgMarkWorker(p *p) {
 			throw("work.nwait was > work.nproc")
 		}
 
-		switch p.gcMarkWorkerMode {
+		switch _p_.gcMarkWorkerMode {
 		default:
 			throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
 		case gcMarkWorkerDedicatedMode:
-			gcDrain(&p.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
+			gcDrain(&_p_.gcw, gcDrainNoBlock|gcDrainFlushBgCredit)
 		case gcMarkWorkerFractionalMode, gcMarkWorkerIdleMode:
-			gcDrain(&p.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
+			gcDrain(&_p_.gcw, gcDrainUntilPreempt|gcDrainFlushBgCredit)
 		}
 
 		// If we are nearing the end of mark, dispose
@@ -1421,12 +1446,12 @@ func gcBgMarkWorker(p *p) {
 		// no workers and no work while we have this
 		// cached, and before we compute done.
 		if gcBlackenPromptly {
-			p.gcw.dispose()
+			_p_.gcw.dispose()
 		}
 
 		// Account for time.
 		duration := nanotime() - startTime
-		switch p.gcMarkWorkerMode {
+		switch _p_.gcMarkWorkerMode {
 		case gcMarkWorkerDedicatedMode:
 			atomic.Xaddint64(&gcController.dedicatedMarkTime, duration)
 			atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
@@ -1441,7 +1466,7 @@ func gcBgMarkWorker(p *p) {
 		// of work?
 		incnwait := atomic.Xadd(&work.nwait, +1)
 		if incnwait > work.nproc {
-			println("runtime: p.gcMarkWorkerMode=", p.gcMarkWorkerMode,
+			println("runtime: p.gcMarkWorkerMode=", _p_.gcMarkWorkerMode,
 				"work.nwait=", incnwait, "work.nproc=", work.nproc)
 			throw("work.nwait > work.nproc")
 		}
@@ -1453,21 +1478,19 @@ func gcBgMarkWorker(p *p) {
 			// as the worker for this P so
 			// findRunnableGCWorker doesn't try to
 			// schedule it.
-			p.gcBgMarkWorker = nil
-			releasem(mp)
+			_p_.gcBgMarkWorker = nil
+			releasem(park.m)
 
 			gcMarkDone()
 
-			// Disable preemption and reassociate with the P.
+			// Disable preemption and prepare to reattach
+			// to the P.
 			//
 			// We may be running on a different P at this
-			// point, so this has to be done carefully.
-			mp = acquirem()
-			if !casgp(&p.gcBgMarkWorker, nil, gp) {
-				// The P got a new worker.
-				releasem(mp)
-				break
-			}
+			// point, so we can't reattach until this G is
+			// parked.
+			park.m = acquirem()
+			park.attach = _p_
 		}
 	}
 }
