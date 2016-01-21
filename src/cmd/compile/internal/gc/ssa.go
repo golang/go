@@ -4183,23 +4183,36 @@ func (s *genState) genValue(v *ssa.Value) {
 	case ssa.OpAMD64LoweredNilCheck:
 		// Optimization - if the subsequent block has a load or store
 		// at the same address, we don't need to issue this instruction.
+		mem := v.Args[1]
 		for _, w := range v.Block.Succs[0].Values {
+			if w.Op == ssa.OpPhi {
+				if w.Type.IsMemory() {
+					mem = w
+				}
+				continue
+			}
 			if len(w.Args) == 0 || !w.Args[len(w.Args)-1].Type.IsMemory() {
 				// w doesn't use a store - can't be a memory op.
 				continue
 			}
-			if w.Args[len(w.Args)-1] != v.Args[1] {
+			if w.Args[len(w.Args)-1] != mem {
 				v.Fatalf("wrong store after nilcheck v=%s w=%s", v, w)
 			}
 			switch w.Op {
 			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
 				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
+					if Debug_checknil != 0 && int(v.Line) > 1 {
+						Warnl(int(v.Line), "removed nil check")
+					}
 					return
 				}
 			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
 				off := ssa.StoreConst(v.AuxInt).Off()
 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
+					if Debug_checknil != 0 && int(v.Line) > 1 {
+						Warnl(int(v.Line), "removed nil check")
+					}
 					return
 				}
 			}
