@@ -18,10 +18,12 @@ func checkFunc(f *Func) {
 			f.Fatalf("%s.Func=%s, want %s", b, b.Func.Name, f.Name)
 		}
 
-		for i, c := range b.Succs {
-			for j, d := range b.Succs {
-				if i != j && c == d {
-					f.Fatalf("%s.Succs has duplicate block %s", b, c)
+		if f.RegAlloc == nil {
+			for i, c := range b.Succs {
+				for j, d := range b.Succs {
+					if i != j && c == d {
+						f.Fatalf("%s.Succs has duplicate block %s", b, c)
+					}
 				}
 			}
 		}
@@ -34,6 +36,7 @@ func checkFunc(f *Func) {
 		// all successors are distinct.  They will need to be distinct
 		// anyway for register allocation (duplicate successors implies
 		// the existence of critical edges).
+		// After regalloc we can allow non-distinct predecessors.
 
 		for _, p := range b.Preds {
 			var found bool

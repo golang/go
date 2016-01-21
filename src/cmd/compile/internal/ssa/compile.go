@@ -105,7 +105,8 @@ var passes = [...]pass{
 	{"layout", layout},       // schedule blocks
 	{"schedule", schedule},   // schedule values
 	{"flagalloc", flagalloc}, // allocate flags register
-	{"regalloc", regalloc},
+	{"regalloc", regalloc},   // allocate int & float registers
+	{"trim", trim},           // remove empty blocks
 }
 
 // Double-check phase ordering constraints.
@@ -148,6 +149,8 @@ var passOrder = [...]constraint{
 	{"schedule", "flagalloc"},
 	// regalloc needs flags to be allocated first.
 	{"flagalloc", "regalloc"},
+	// trim needs regalloc to be done first.
+	{"regalloc", "trim"},
 }
 
 func init() {

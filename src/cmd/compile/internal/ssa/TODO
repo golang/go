@@ -42,7 +42,6 @@ Optimizations (better compiled code)
   (all instructions, really)
 - combine LEAQs
 - store followed by load to same address
-- short circuit blocks which are just a jump (undo critical edge processing when no instructions are put in it by regalloc)
 - (CMPconst [0] (AND x y)) -> (TEST x y)
 - more (LOAD (ADDQ )) -> LOADIDX
 - CMPL/SETEQ/TESTB/JEQ -> CMPL/JEQ
