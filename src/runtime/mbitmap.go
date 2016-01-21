@@ -290,7 +290,9 @@ func (h heapBits) forward(n uintptr) heapBits {
 // The result includes in its higher bits the bits for subsequent words
 // described by the same bitmap byte.
 func (h heapBits) bits() uint32 {
-	return uint32(*h.bitp) >> h.shift
+	// The (shift & 31) eliminates a test and conditional branch
+	// from the generated code.
+	return uint32(*h.bitp) >> (h.shift & 31)
 }
 
 // isMarked reports whether the heap bits have the marked bit set.
