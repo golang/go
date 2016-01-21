@@ -104,13 +104,26 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	uc.uc_link = nil
 	uc.uc_sigmask = sigset_all
 
-	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(mstart))
+	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
 
 	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
 		throw("runtime.newosproc")
 	}
+}
+
+// netbsdMStart is the function call that starts executing a newly
+// created thread.  On NetBSD, a new thread inherits the signal stack
+// of the creating thread.  That confuses minit, so we remove that
+// signal stack here before calling the regular mstart.  It's a bit
+// baroque to remove a signal stack here only to add one in minit, but
+// it's a simple change that keeps NetBSD working like other OS's.
+// At this point all signals are blocked, so there is no race.
+//go:nosplit
+func netbsdMstart() {
+	signalstack(nil)
+	mstart()
 }
 
 func osinit() {
