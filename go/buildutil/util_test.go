@@ -18,8 +18,6 @@ import (
 	"golang.org/x/tools/go/buildutil"
 )
 
-var go16 bool // Go version >= go1.6
-
 func TestContainingPackage(t *testing.T) {
 	// unvirtualized:
 	goroot := runtime.GOROOT()
@@ -31,13 +29,6 @@ func TestContainingPackage(t *testing.T) {
 		{goroot + "/src/encoding/missing/foo.go", "(not found)"},
 		{gopath + "/src/golang.org/x/tools/go/buildutil/util_test.go",
 			"golang.org/x/tools/go/buildutil"},
-	}
-	// TODO(adonovan): simplify after Go 1.6.
-	if go16 {
-		tests = append(tests, [2]string{
-			gopath + "/src/vendor/golang.org/x/net/http2/hpack/hpack.go",
-			"vendor/golang.org/x/net/http2/hpack",
-		})
 	}
 	for _, test := range tests {
 		file, want := test[0], test[1]
