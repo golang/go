@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"cmd/asm/internal/arch"
+	"cmd/asm/internal/flags"
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 )
@@ -78,7 +79,7 @@ func (p *Parser) errorf(format string, args ...interface{}) {
 	}
 	fmt.Fprintf(p.errorWriter, format, args...)
 	p.errorCount++
-	if p.errorCount > 10 {
+	if p.errorCount > 10 && !*flags.AllErrors {
 		log.Fatal("too many errors")
 	}
 }
