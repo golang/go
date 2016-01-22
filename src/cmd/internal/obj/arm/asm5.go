@@ -2737,7 +2737,7 @@ func olhrr(ctxt *obj.Link, i int, b int, r int, sc int) uint32 {
 
 func ofsr(ctxt *obj.Link, a int, r int, v int32, b int, sc int, p *obj.Prog) uint32 {
 	if sc&C_SBIT != 0 {
-		ctxt.Diag(".nil on FLDR/FSTR instruction")
+		ctxt.Diag(".nil on FLDR/FSTR instruction: %v", p)
 	}
 	o := ((uint32(sc) & C_SCOND) ^ C_SCOND_XOR) << 28
 	if sc&C_PBIT == 0 {

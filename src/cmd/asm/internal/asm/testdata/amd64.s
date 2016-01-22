@@ -122,4 +122,4 @@ loop:
 	LOOP	loop // LOOP
 
 // LTYPE0 nonnon	{ outcode($1, &$2); }
-	RET
+	RET // c3
