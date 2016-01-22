@@ -50,6 +50,9 @@ type Block struct {
 	// Ignored if len(Succs) < 2.
 	// Fatal if not BranchUnknown and len(Succs) > 2.
 	Likely BranchPrediction
+
+	// After flagalloc, records whether flags are live at the end of the block.
+	FlagsLiveAtEnd bool
 }
 
 //     kind           control    successors

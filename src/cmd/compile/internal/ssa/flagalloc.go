@@ -120,4 +120,9 @@ func flagalloc(f *Func) {
 			// standard regs, and it runs next.)
 		}
 	}
+
+	// Save live flag state for later.
+	for _, b := range f.Blocks {
+		b.FlagsLiveAtEnd = end[b.ID] != nil
+	}
 }

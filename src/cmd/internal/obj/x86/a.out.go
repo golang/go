@@ -34,6 +34,12 @@ import "cmd/internal/obj"
 
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p x86
 
+const (
+	/* mark flags */
+	DONE          = 1 << iota
+	PRESERVEFLAGS // not allowed to clobber flags
+)
+
 /*
  *	amd64
  */

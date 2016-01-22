@@ -3405,6 +3405,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = Pc
 		// Emit values in block
+		s.markMoves(b)
 		for _, v := range b.Values {
 			x := Pc
 			s.genValue(v)
@@ -3864,6 +3865,11 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.From.Offset = i
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
+		// If flags are live at this instruction, suppress the
+		// MOV $0,AX -> XOR AX,AX optimization.
+		if v.Aux != nil {
+			p.Mark |= x86.PRESERVEFLAGS
+		}
 	case ssa.OpAMD64MOVSSconst, ssa.OpAMD64MOVSDconst:
 		x := regnum(v)
 		p := Prog(v.Op.Asm())
@@ -4234,6 +4240,29 @@ func (s *genState) genValue(v *ssa.Value) {
 		}
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+	}
+}
+
+// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
+func (s *genState) markMoves(b *ssa.Block) {
+	flive := b.FlagsLiveAtEnd
+	if b.Control != nil && b.Control.Type.IsFlags() {
+		flive = true
+	}
+	for i := len(b.Values) - 1; i >= 0; i-- {
+		v := b.Values[i]
+		if flive && (v.Op == ssa.OpAMD64MOVWconst || v.Op == ssa.OpAMD64MOVLconst || v.Op == ssa.OpAMD64MOVQconst) {
+			// The "mark" is any non-nil Aux value.
+			v.Aux = v
+		}
+		if v.Type.IsFlags() {
+			flive = false
+		}
+		for _, a := range v.Args {
+			if a.Type.IsFlags() {
+				flive = true
+			}
+		}
 	}
 }
 
