@@ -273,7 +273,7 @@ func (z *Int) Mod(x, y *Int) *Int {
 // DivMod implements Euclidean division and modulus (unlike Go):
 //
 //	q = x div y  such that
-//	m = x - y*q  with 0 <= m < |q|
+//	m = x - y*q  with 0 <= m < |y|
 //
 // (See Raymond T. Boute, ``The Euclidean definition of the functions
 // div and mod''. ACM Transactions on Programming Languages and
