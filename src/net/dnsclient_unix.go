@@ -229,7 +229,6 @@ type resolverConfig struct {
 	// time to recheck resolv.conf.
 	ch          chan struct{} // guards lastChecked and modTime
 	lastChecked time.Time     // last time resolv.conf was checked
-	modTime     time.Time     // time of resolv.conf modification
 
 	mu        sync.RWMutex // protects dnsConfig
 	dnsConfig *dnsConfig   // parsed resolv.conf structure used in lookups
@@ -239,15 +238,11 @@ var resolvConf resolverConfig
 
 // init initializes conf and is only called via conf.initOnce.
 func (conf *resolverConfig) init() {
-	// Set dnsConfig, modTime, and lastChecked so we don't parse
+	// Set dnsConfig and lastChecked so we don't parse
 	// resolv.conf twice the first time.
 	conf.dnsConfig = systemConf().resolv
 	if conf.dnsConfig == nil {
 		conf.dnsConfig = dnsReadConfig("/etc/resolv.conf")
-	}
-
-	if fi, err := os.Stat("/etc/resolv.conf"); err == nil {
-		conf.modTime = fi.ModTime()
 	}
 	conf.lastChecked = time.Now()
 
@@ -274,17 +269,12 @@ func (conf *resolverConfig) tryUpdate(name string) {
 	}
 	conf.lastChecked = now
 
+	var mtime time.Time
 	if fi, err := os.Stat(name); err == nil {
-		if fi.ModTime().Equal(conf.modTime) {
-			return
-		}
-		conf.modTime = fi.ModTime()
-	} else {
-		// If modTime wasn't set prior, assume nothing has changed.
-		if conf.modTime.IsZero() {
-			return
-		}
-		conf.modTime = time.Time{}
+		mtime = fi.ModTime()
+	}
+	if mtime.Equal(conf.dnsConfig.mtime) {
+		return
 	}
 
 	dnsConf := dnsReadConfig(name)
