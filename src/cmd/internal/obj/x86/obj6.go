@@ -1214,16 +1214,16 @@ loop:
 		q = p.Pcond
 		if q != nil && q.As != obj.ATEXT {
 			/* mark instruction as done and continue layout at target of jump */
-			p.Mark = 1
+			p.Mark |= DONE
 
 			p = q
-			if p.Mark == 0 {
+			if p.Mark&DONE == 0 {
 				goto loop
 			}
 		}
 	}
 
-	if p.Mark != 0 {
+	if p.Mark&DONE != 0 {
 		/*
 		 * p goes here, but already used it elsewhere.
 		 * copy up to 4 instructions or else branch to other copy.
@@ -1246,7 +1246,7 @@ loop:
 			if nofollow(a) || pushpop(a) {
 				break // NOTE(rsc): arm does goto copy
 			}
-			if q.Pcond == nil || q.Pcond.Mark != 0 {
+			if q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
 				continue
 			}
 			if a == obj.ACALL || a == ALOOP {
@@ -1260,10 +1260,10 @@ loop:
 
 				q = obj.Copyp(ctxt, p)
 				p = p.Link
-				q.Mark = 1
+				q.Mark |= DONE
 				(*last).Link = q
 				*last = q
-				if int(q.As) != a || q.Pcond == nil || q.Pcond.Mark != 0 {
+				if int(q.As) != a || q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
 					continue
 				}
 
@@ -1273,7 +1273,7 @@ loop:
 				q.Link = p
 				xfol(ctxt, q.Link, last)
 				p = q.Link
-				if p.Mark != 0 {
+				if p.Mark&DONE != 0 {
 					return
 				}
 				goto loop
@@ -1290,7 +1290,7 @@ loop:
 	}
 
 	/* emit p */
-	p.Mark = 1
+	p.Mark |= DONE
 
 	(*last).Link = p
 	*last = p
@@ -1328,7 +1328,7 @@ loop:
 			}
 		} else {
 			q = p.Link
-			if q.Mark != 0 {
+			if q.Mark&DONE != 0 {
 				if a != ALOOP {
 					p.As = relinv(int16(a))
 					p.Link = p.Pcond
@@ -1338,7 +1338,7 @@ loop:
 		}
 
 		xfol(ctxt, p.Link, last)
-		if p.Pcond.Mark != 0 {
+		if p.Pcond.Mark&DONE != 0 {
 			return
 		}
 		p = p.Pcond

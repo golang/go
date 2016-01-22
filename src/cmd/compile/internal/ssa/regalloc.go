@@ -1415,15 +1415,6 @@ func (v *Value) rematerializeable() bool {
 	// We can't rematerialize instructions which
 	// clobber the flags register.
 	if regspec.clobbers&flagRegMask != 0 {
-		if v.Op == OpAMD64MOVQconst && v.AuxInt != 0 ||
-			v.Op == OpAMD64MOVLconst && int32(v.AuxInt) != 0 ||
-			v.Op == OpAMD64MOVWconst && int16(v.AuxInt) != 0 ||
-			v.Op == OpAMD64MOVBconst && int8(v.AuxInt) != 0 {
-			// These are marked as clobbering flags, but only
-			// the 0 versions actually do.  TODO: fix MOV->XOR rewrites
-			// to understand when they are allowed to clobber flags?
-			return true
-		}
 		return false
 	}
 

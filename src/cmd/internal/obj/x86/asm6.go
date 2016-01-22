@@ -1748,7 +1748,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			// process forward jumps to p
 			for q = p.Rel; q != nil; q = q.Forwd {
-				v = int32(p.Pc - (q.Pc + int64(q.Mark)))
+				v = int32(p.Pc - (q.Pc + int64(q.Isize)))
 				if q.Back&2 != 0 { // short
 					if v > 127 {
 						loop++
@@ -1761,7 +1761,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 						s.P[q.Pc+1] = byte(v)
 					}
 				} else {
-					bp = s.P[q.Pc+int64(q.Mark)-4:]
+					bp = s.P[q.Pc+int64(q.Isize)-4:]
 					bp[0] = byte(v)
 					bp = bp[1:]
 					bp[0] = byte(v >> 8)
@@ -1784,7 +1784,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			obj.Symgrow(ctxt, s, p.Pc+int64(m))
 			copy(s.P[p.Pc:][:m], ctxt.And[:m])
-			p.Mark = uint16(m)
 			c += int32(m)
 		}
 
@@ -2157,6 +2156,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			v = int64(int32(v))
 		}
 		if v == 0 {
+			if p.Mark&PRESERVEFLAGS != 0 {
+				// If PRESERVEFLAGS is set, avoid MOV $0, AX turning into XOR AX, AX.
+				return Yu7
+			}
 			return Yi0
 		}
 		if v == 1 {
