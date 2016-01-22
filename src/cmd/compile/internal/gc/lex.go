@@ -932,13 +932,9 @@ func isfrog(c int) bool {
 }
 
 type yySymType struct {
-	yys  int
-	node *Node
-	list *NodeList
-	typ  *Type
-	sym  *Sym
-	val  Val
-	op   Op
+	sym *Sym
+	val Val
+	op  Op
 }
 
 const (
