@@ -3189,11 +3189,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Pq3: /* 16 bit escape, Rex.w, and opcode escape */
+			case Pq3: /* 16 bit escape and opcode escape + REX.W */
+				ctxt.Rexflag |= Pw
 				ctxt.Andptr[0] = Pe
-				ctxt.Andptr = ctxt.Andptr[1:]
-
-				ctxt.Andptr[0] = Pw
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -3206,11 +3204,9 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Pfw: /* first escape, Rex.w, and second escape */
+			case Pfw: /* xmm opcode escape + REX.W */
+				ctxt.Rexflag |= Pw
 				ctxt.Andptr[0] = Pf3
-				ctxt.Andptr = ctxt.Andptr[1:]
-
-				ctxt.Andptr[0] = Pw
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
