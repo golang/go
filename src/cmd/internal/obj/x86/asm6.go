@@ -219,6 +219,7 @@ const (
 	Pb    = 0xfe /* byte operands */
 	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
 	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
+	Pef3  = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
 	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
 	Pfw   = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
 	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
@@ -1208,6 +1209,8 @@ var optab =
 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
 	{APOPAL, ynone, P32, [23]uint8{0x61}},
 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
+	{APOPCNTW, yml_rl, Pef3, [23]uint8{0xb8}},
+	{APOPCNTL, yml_rl, Pf3, [23]uint8{0xb8}},
 	{APOPCNTQ, yml_rl, Pfw, [23]uint8{0xb8}},
 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
@@ -3201,6 +3204,14 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = byte(o.prefix)
 				ctxt.Andptr = ctxt.Andptr[1:]
 
+				ctxt.Andptr[0] = Pm
+				ctxt.Andptr = ctxt.Andptr[1:]
+
+			case Pef3:
+				ctxt.Andptr[0] = Pe
+				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = Pf3
+				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
 

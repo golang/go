@@ -4145,22 +4145,22 @@ TEXT asmtest(SB),7,$0
 	POPQ DX                                 // 8fc2 or 5a
 	PUSHQ AX
 	POPQ R11                                // 418fc3 or 415b
-	//TODO: POPCNTW (BX), DX                // 66f30fb813
-	//TODO: POPCNTW (R11), DX               // 66f3410fb813
-	//TODO: POPCNTW DX, DX                  // 66f30fb8d2
-	//TODO: POPCNTW R11, DX                 // 66f3410fb8d3
-	//TODO: POPCNTW (BX), R11               // 66f3440fb81b
-	//TODO: POPCNTW (R11), R11              // 66f3450fb81b
-	//TODO: POPCNTW DX, R11                 // 66f3440fb8da
-	//TODO: POPCNTW R11, R11                // 66f3450fb8db
-	//TODO: POPCNTL (BX), DX                // f30fb813
-	//TODO: POPCNTL (R11), DX               // f3410fb813
-	//TODO: POPCNTL DX, DX                  // f30fb8d2
-	//TODO: POPCNTL R11, DX                 // f3410fb8d3
-	//TODO: POPCNTL (BX), R11               // f3440fb81b
-	//TODO: POPCNTL (R11), R11              // f3450fb81b
-	//TODO: POPCNTL DX, R11                 // f3440fb8da
-	//TODO: POPCNTL R11, R11                // f3450fb8db
+	POPCNTW (BX), DX                        // 66f30fb813
+	POPCNTW (R11), DX                       // 66f3410fb813
+	POPCNTW DX, DX                          // 66f30fb8d2
+	POPCNTW R11, DX                         // 66f3410fb8d3
+	POPCNTW (BX), R11                       // 66f3440fb81b
+	POPCNTW (R11), R11                      // 66f3450fb81b
+	POPCNTW DX, R11                         // 66f3440fb8da
+	POPCNTW R11, R11                        // 66f3450fb8db
+	POPCNTL (BX), DX                        // f30fb813
+	POPCNTL (R11), DX                       // f3410fb813
+	POPCNTL DX, DX                          // f30fb8d2
+	POPCNTL R11, DX                         // f3410fb8d3
+	POPCNTL (BX), R11                       // f3440fb81b
+	POPCNTL (R11), R11                      // f3450fb81b
+	POPCNTL DX, R11                         // f3440fb8da
+	POPCNTL R11, R11                        // f3450fb8db
 	POPCNTQ (BX), DX                        // f3480fb813
 	POPCNTQ (R11), DX                       // f3490fb813
 	POPCNTQ DX, DX                          // f3480fb8d2
