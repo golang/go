@@ -1208,7 +1208,7 @@ var optab =
 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
 	{APOPAL, ynone, P32, [23]uint8{0x61}},
 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
-	{APOPCNT, yml_rl, Pfw, [23]uint8{0xb8}},
+	{APOPCNTQ, yml_rl, Pfw, [23]uint8{0xb8}},
 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
 	{APOPFW, ynone, Pe, [23]uint8{0x9d}},
