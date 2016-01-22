@@ -189,7 +189,7 @@ TEXT	foo(SB), 7, $0
 //		outcode($1, $2, &$3, 0, &$5);
 //	}
 	ADDD.S	F1, F2
-	MOVF.S	$0.5, F2 // MOVF.S $(0.5), F2
+	MOVF	$0.5, F2 // MOVF $(0.5), F2
 
 //	LTYPEK cond frcon ',' LFREG ',' freg
 //	{
