@@ -7658,54 +7658,54 @@ TEXT asmtest(SB),7,$0
 	//TODO: VMOVDDUP (R11), Y11             // c4417f121b
 	//TODO: VMOVDDUP Y2, Y11                // c4617f12da or c57f12da
 	//TODO: VMOVDDUP Y11, Y11               // c4417f12db
-	//TODO: VMOVDQA (BX), X2                // c4e1796f13 or c5f96f13
-	//TODO: VMOVDQA (R11), X2               // c4c1796f13
-	//TODO: VMOVDQA X2, X2                  // c4e1796fd2 or c5f96fd2 or c4e1797fd2 or c5f97fd2
-	//TODO: VMOVDQA X11, X2                 // c4c1796fd3 or c461797fda or c5797fda
-	//TODO: VMOVDQA (BX), X11               // c461796f1b or c5796f1b
-	//TODO: VMOVDQA (R11), X11              // c441796f1b
-	//TODO: VMOVDQA X2, X11                 // c461796fda or c5796fda or c4c1797fd3
-	//TODO: VMOVDQA X11, X11                // c441796fdb or c441797fdb
-	//TODO: VMOVDQA X2, (BX)                // c4e1797f13 or c5f97f13
-	//TODO: VMOVDQA X11, (BX)               // c461797f1b or c5797f1b
-	//TODO: VMOVDQA X2, (R11)               // c4c1797f13
-	//TODO: VMOVDQA X11, (R11)              // c441797f1b
-	//TODO: VMOVDQA (BX), Y2                // c4e17d6f13 or c5fd6f13
-	//TODO: VMOVDQA (R11), Y2               // c4c17d6f13
-	//TODO: VMOVDQA Y2, Y2                  // c4e17d6fd2 or c5fd6fd2 or c4e17d7fd2 or c5fd7fd2
-	//TODO: VMOVDQA Y11, Y2                 // c4c17d6fd3 or c4617d7fda or c57d7fda
-	//TODO: VMOVDQA (BX), Y11               // c4617d6f1b or c57d6f1b
-	//TODO: VMOVDQA (R11), Y11              // c4417d6f1b
-	//TODO: VMOVDQA Y2, Y11                 // c4617d6fda or c57d6fda or c4c17d7fd3
-	//TODO: VMOVDQA Y11, Y11                // c4417d6fdb or c4417d7fdb
-	//TODO: VMOVDQA Y2, (BX)                // c4e17d7f13 or c5fd7f13
-	//TODO: VMOVDQA Y11, (BX)               // c4617d7f1b or c57d7f1b
-	//TODO: VMOVDQA Y2, (R11)               // c4c17d7f13
-	//TODO: VMOVDQA Y11, (R11)              // c4417d7f1b
-	//TODO: VMOVDQU (BX), X2                // c4e17a6f13 or c5fa6f13
-	//TODO: VMOVDQU (R11), X2               // c4c17a6f13
-	//TODO: VMOVDQU X2, X2                  // c4e17a6fd2 or c5fa6fd2 or c4e17a7fd2 or c5fa7fd2
-	//TODO: VMOVDQU X11, X2                 // c4c17a6fd3 or c4617a7fda or c57a7fda
-	//TODO: VMOVDQU (BX), X11               // c4617a6f1b or c57a6f1b
-	//TODO: VMOVDQU (R11), X11              // c4417a6f1b
-	//TODO: VMOVDQU X2, X11                 // c4617a6fda or c57a6fda or c4c17a7fd3
-	//TODO: VMOVDQU X11, X11                // c4417a6fdb or c4417a7fdb
-	//TODO: VMOVDQU X2, (BX)                // c4e17a7f13 or c5fa7f13
-	//TODO: VMOVDQU X11, (BX)               // c4617a7f1b or c57a7f1b
-	//TODO: VMOVDQU X2, (R11)               // c4c17a7f13
-	//TODO: VMOVDQU X11, (R11)              // c4417a7f1b
-	//TODO: VMOVDQU (BX), Y2                // c4e17e6f13 or c5fe6f13
-	//TODO: VMOVDQU (R11), Y2               // c4c17e6f13
-	//TODO: VMOVDQU Y2, Y2                  // c4e17e6fd2 or c5fe6fd2 or c4e17e7fd2 or c5fe7fd2
-	//TODO: VMOVDQU Y11, Y2                 // c4c17e6fd3 or c4617e7fda or c57e7fda
-	//TODO: VMOVDQU (BX), Y11               // c4617e6f1b or c57e6f1b
-	//TODO: VMOVDQU (R11), Y11              // c4417e6f1b
-	//TODO: VMOVDQU Y2, Y11                 // c4617e6fda or c57e6fda or c4c17e7fd3
-	//TODO: VMOVDQU Y11, Y11                // c4417e6fdb or c4417e7fdb
-	//TODO: VMOVDQU Y2, (BX)                // c4e17e7f13 or c5fe7f13
-	//TODO: VMOVDQU Y11, (BX)               // c4617e7f1b or c57e7f1b
-	//TODO: VMOVDQU Y2, (R11)               // c4c17e7f13
-	//TODO: VMOVDQU Y11, (R11)              // c4417e7f1b
+	VMOVDQA (BX), X2                        // c4e1796f13 or c5f96f13
+	VMOVDQA (R11), X2                       // c4c1796f13
+	VMOVDQA X2, X2                          // c4e1796fd2 or c5f96fd2 or c4e1797fd2 or c5f97fd2
+	VMOVDQA X11, X2                         // c4c1796fd3 or c461797fda or c5797fda
+	VMOVDQA (BX), X11                       // c461796f1b or c5796f1b
+	VMOVDQA (R11), X11                      // c441796f1b
+	VMOVDQA X2, X11                         // c461796fda or c5796fda or c4c1797fd3
+	VMOVDQA X11, X11                        // c441796fdb or c441797fdb
+	VMOVDQA X2, (BX)                        // c4e1797f13 or c5f97f13
+	VMOVDQA X11, (BX)                       // c461797f1b or c5797f1b
+	VMOVDQA X2, (R11)                       // c4c1797f13
+	VMOVDQA X11, (R11)                      // c441797f1b
+	VMOVDQA (BX), Y2                        // c4e17d6f13 or c5fd6f13
+	VMOVDQA (R11), Y2                       // c4c17d6f13
+	VMOVDQA Y2, Y2                          // c4e17d6fd2 or c5fd6fd2 or c4e17d7fd2 or c5fd7fd2
+	VMOVDQA Y11, Y2                         // c4c17d6fd3 or c4617d7fda or c57d7fda
+	VMOVDQA (BX), Y11                       // c4617d6f1b or c57d6f1b
+	VMOVDQA (R11), Y11                      // c4417d6f1b
+	VMOVDQA Y2, Y11                         // c4617d6fda or c57d6fda or c4c17d7fd3
+	VMOVDQA Y11, Y11                        // c4417d6fdb or c4417d7fdb
+	VMOVDQA Y2, (BX)                        // c4e17d7f13 or c5fd7f13
+	VMOVDQA Y11, (BX)                       // c4617d7f1b or c57d7f1b
+	VMOVDQA Y2, (R11)                       // c4c17d7f13
+	VMOVDQA Y11, (R11)                      // c4417d7f1b
+	VMOVDQU (BX), X2                        // c4e17a6f13 or c5fa6f13
+	VMOVDQU (R11), X2                       // c4c17a6f13
+	VMOVDQU X2, X2                          // c4e17a6fd2 or c5fa6fd2 or c4e17a7fd2 or c5fa7fd2
+	VMOVDQU X11, X2                         // c4c17a6fd3 or c4617a7fda or c57a7fda
+	VMOVDQU (BX), X11                       // c4617a6f1b or c57a6f1b
+	VMOVDQU (R11), X11                      // c4417a6f1b
+	VMOVDQU X2, X11                         // c4617a6fda or c57a6fda or c4c17a7fd3
+	VMOVDQU X11, X11                        // c4417a6fdb or c4417a7fdb
+	VMOVDQU X2, (BX)                        // c4e17a7f13 or c5fa7f13
+	VMOVDQU X11, (BX)                       // c4617a7f1b or c57a7f1b
+	VMOVDQU X2, (R11)                       // c4c17a7f13
+	VMOVDQU X11, (R11)                      // c4417a7f1b
+	VMOVDQU (BX), Y2                        // c4e17e6f13 or c5fe6f13
+	VMOVDQU (R11), Y2                       // c4c17e6f13
+	VMOVDQU Y2, Y2                          // c4e17e6fd2 or c5fe6fd2 or c4e17e7fd2 or c5fe7fd2
+	VMOVDQU Y11, Y2                         // c4c17e6fd3 or c4617e7fda or c57e7fda
+	VMOVDQU (BX), Y11                       // c4617e6f1b or c57e6f1b
+	VMOVDQU (R11), Y11                      // c4417e6f1b
+	VMOVDQU Y2, Y11                         // c4617e6fda or c57e6fda or c4c17e7fd3
+	VMOVDQU Y11, Y11                        // c4417e6fdb or c4417e7fdb
+	VMOVDQU Y2, (BX)                        // c4e17e7f13 or c5fe7f13
+	VMOVDQU Y11, (BX)                       // c4617e7f1b or c57e7f1b
+	VMOVDQU Y2, (R11)                       // c4c17e7f13
+	VMOVDQU Y11, (R11)                      // c4417e7f1b
 	//TODO: VMOVHLPS X2, X9, X2             // c4e13012d2 or c5b012d2
 	//TODO: VMOVHLPS X11, X9, X2            // c4c13012d3
 	//TODO: VMOVHLPS X2, X9, X11            // c4613012da or c53012da
@@ -7762,14 +7762,14 @@ TEXT asmtest(SB),7,$0
 	//TODO: VMOVMSKPS Y11, DX               // c4c17c50d3
 	//TODO: VMOVMSKPS Y2, R11               // c4617c50da or c57c50da
 	//TODO: VMOVMSKPS Y11, R11              // c4417c50db
-	//TODO: VMOVNTDQ X2, (BX)               // c4e179e713 or c5f9e713
-	//TODO: VMOVNTDQ X11, (BX)              // c46179e71b or c579e71b
-	//TODO: VMOVNTDQ X2, (R11)              // c4c179e713
-	//TODO: VMOVNTDQ X11, (R11)             // c44179e71b
-	//TODO: VMOVNTDQ Y2, (BX)               // c4e17de713 or c5fde713
-	//TODO: VMOVNTDQ Y11, (BX)              // c4617de71b or c57de71b
-	//TODO: VMOVNTDQ Y2, (R11)              // c4c17de713
-	//TODO: VMOVNTDQ Y11, (R11)             // c4417de71b
+	VMOVNTDQ X2, (BX)                       // c4e179e713 or c5f9e713
+	VMOVNTDQ X11, (BX)                      // c46179e71b or c579e71b
+	VMOVNTDQ X2, (R11)                      // c4c179e713
+	VMOVNTDQ X11, (R11)                     // c44179e71b
+	VMOVNTDQ Y2, (BX)                       // c4e17de713 or c5fde713
+	VMOVNTDQ Y11, (BX)                      // c4617de71b or c57de71b
+	VMOVNTDQ Y2, (R11)                      // c4c17de713
+	VMOVNTDQ Y11, (R11)                     // c4417de71b
 	//TODO: VMOVNTDQA (BX), X2              // c4e2792a13
 	//TODO: VMOVNTDQA (R11), X2             // c4c2792a13
 	//TODO: VMOVNTDQA (BX), X11             // c462792a1b
@@ -8270,22 +8270,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: VPALIGNR $7, (R11), Y15, Y11    // c443050f1b07
 	//TODO: VPALIGNR $7, Y2, Y15, Y11       // c463050fda07
 	//TODO: VPALIGNR $7, Y11, Y15, Y11      // c443050fdb07
-	//TODO: VPAND (BX), X9, X2              // c4e131db13 or c5b1db13
-	//TODO: VPAND (R11), X9, X2             // c4c131db13
-	//TODO: VPAND X2, X9, X2                // c4e131dbd2 or c5b1dbd2
-	//TODO: VPAND X11, X9, X2               // c4c131dbd3
-	//TODO: VPAND (BX), X9, X11             // c46131db1b or c531db1b
-	//TODO: VPAND (R11), X9, X11            // c44131db1b
-	//TODO: VPAND X2, X9, X11               // c46131dbda or c531dbda
-	//TODO: VPAND X11, X9, X11              // c44131dbdb
-	//TODO: VPAND (BX), Y15, Y2             // c4e105db13 or c585db13
-	//TODO: VPAND (R11), Y15, Y2            // c4c105db13
-	//TODO: VPAND Y2, Y15, Y2               // c4e105dbd2 or c585dbd2
-	//TODO: VPAND Y11, Y15, Y2              // c4c105dbd3
-	//TODO: VPAND (BX), Y15, Y11            // c46105db1b or c505db1b
-	//TODO: VPAND (R11), Y15, Y11           // c44105db1b
-	//TODO: VPAND Y2, Y15, Y11              // c46105dbda or c505dbda
-	//TODO: VPAND Y11, Y15, Y11             // c44105dbdb
+	VPAND (BX), X9, X2                      // c4e131db13 or c5b1db13
+	VPAND (R11), X9, X2                     // c4c131db13
+	VPAND X2, X9, X2                        // c4e131dbd2 or c5b1dbd2
+	VPAND X11, X9, X2                       // c4c131dbd3
+	VPAND (BX), X9, X11                     // c46131db1b or c531db1b
+	VPAND (R11), X9, X11                    // c44131db1b
+	VPAND X2, X9, X11                       // c46131dbda or c531dbda
+	VPAND X11, X9, X11                      // c44131dbdb
+	VPAND (BX), Y15, Y2                     // c4e105db13 or c585db13
+	VPAND (R11), Y15, Y2                    // c4c105db13
+	VPAND Y2, Y15, Y2                       // c4e105dbd2 or c585dbd2
+	VPAND Y11, Y15, Y2                      // c4c105dbd3
+	VPAND (BX), Y15, Y11                    // c46105db1b or c505db1b
+	VPAND (R11), Y15, Y11                   // c44105db1b
+	VPAND Y2, Y15, Y11                      // c46105dbda or c505dbda
+	VPAND Y11, Y15, Y11                     // c44105dbdb
 	//TODO: VPANDN (BX), X9, X2             // c4e131df13 or c5b1df13
 	//TODO: VPANDN (R11), X9, X2            // c4c131df13
 	//TODO: VPANDN X2, X9, X2               // c4e131dfd2 or c5b1dfd2
@@ -8382,22 +8382,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: VPBLENDW $7, (R11), Y15, Y11    // c443050e1b07
 	//TODO: VPBLENDW $7, Y2, Y15, Y11       // c463050eda07
 	//TODO: VPBLENDW $7, Y11, Y15, Y11      // c443050edb07
-	//TODO: VPBROADCASTB (BX), X2           // c4e2797813
-	//TODO: VPBROADCASTB (R11), X2          // c4c2797813
-	//TODO: VPBROADCASTB X2, X2             // c4e27978d2
-	//TODO: VPBROADCASTB X11, X2            // c4c27978d3
-	//TODO: VPBROADCASTB (BX), X11          // c46279781b
-	//TODO: VPBROADCASTB (R11), X11         // c44279781b
-	//TODO: VPBROADCASTB X2, X11            // c4627978da
-	//TODO: VPBROADCASTB X11, X11           // c4427978db
-	//TODO: VPBROADCASTB (BX), Y2           // c4e27d7813
-	//TODO: VPBROADCASTB (R11), Y2          // c4c27d7813
-	//TODO: VPBROADCASTB X2, Y2             // c4e27d78d2
-	//TODO: VPBROADCASTB X11, Y2            // c4c27d78d3
-	//TODO: VPBROADCASTB (BX), Y11          // c4627d781b
-	//TODO: VPBROADCASTB (R11), Y11         // c4427d781b
-	//TODO: VPBROADCASTB X2, Y11            // c4627d78da
-	//TODO: VPBROADCASTB X11, Y11           // c4427d78db
+	VPBROADCASTB (BX), X2                   // c4e2797813
+	VPBROADCASTB (R11), X2                  // c4c2797813
+	VPBROADCASTB X2, X2                     // c4e27978d2
+	VPBROADCASTB X11, X2                    // c4c27978d3
+	VPBROADCASTB (BX), X11                  // c46279781b
+	VPBROADCASTB (R11), X11                 // c44279781b
+	VPBROADCASTB X2, X11                    // c4627978da
+	VPBROADCASTB X11, X11                   // c4427978db
+	VPBROADCASTB (BX), Y2                   // c4e27d7813
+	VPBROADCASTB (R11), Y2                  // c4c27d7813
+	VPBROADCASTB X2, Y2                     // c4e27d78d2
+	VPBROADCASTB X11, Y2                    // c4c27d78d3
+	VPBROADCASTB (BX), Y11                  // c4627d781b
+	VPBROADCASTB (R11), Y11                 // c4427d781b
+	VPBROADCASTB X2, Y11                    // c4627d78da
+	VPBROADCASTB X11, Y11                   // c4427d78db
 	//TODO: VPBROADCASTD (BX), X2           // c4e2795813
 	//TODO: VPBROADCASTD (R11), X2          // c4c2795813
 	//TODO: VPBROADCASTD X2, X2             // c4e27958d2
@@ -8454,22 +8454,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: VPCLMULQDQ $7, (R11), X9, X11   // c44331441b07
 	//TODO: VPCLMULQDQ $7, X2, X9, X11      // c4633144da07
 	//TODO: VPCLMULQDQ $7, X11, X9, X11     // c4433144db07
-	//TODO: VPCMPEQB (BX), X9, X2           // c4e1317413 or c5b17413
-	//TODO: VPCMPEQB (R11), X9, X2          // c4c1317413
-	//TODO: VPCMPEQB X2, X9, X2             // c4e13174d2 or c5b174d2
-	//TODO: VPCMPEQB X11, X9, X2            // c4c13174d3
-	//TODO: VPCMPEQB (BX), X9, X11          // c46131741b or c531741b
-	//TODO: VPCMPEQB (R11), X9, X11         // c44131741b
-	//TODO: VPCMPEQB X2, X9, X11            // c4613174da or c53174da
-	//TODO: VPCMPEQB X11, X9, X11           // c4413174db
-	//TODO: VPCMPEQB (BX), Y15, Y2          // c4e1057413 or c5857413
-	//TODO: VPCMPEQB (R11), Y15, Y2         // c4c1057413
-	//TODO: VPCMPEQB Y2, Y15, Y2            // c4e10574d2 or c58574d2
-	//TODO: VPCMPEQB Y11, Y15, Y2           // c4c10574d3
-	//TODO: VPCMPEQB (BX), Y15, Y11         // c46105741b or c505741b
-	//TODO: VPCMPEQB (R11), Y15, Y11        // c44105741b
-	//TODO: VPCMPEQB Y2, Y15, Y11           // c4610574da or c50574da
-	//TODO: VPCMPEQB Y11, Y15, Y11          // c4410574db
+	VPCMPEQB (BX), X9, X2                   // c4e1317413 or c5b17413
+	VPCMPEQB (R11), X9, X2                  // c4c1317413
+	VPCMPEQB X2, X9, X2                     // c4e13174d2 or c5b174d2
+	VPCMPEQB X11, X9, X2                    // c4c13174d3
+	VPCMPEQB (BX), X9, X11                  // c46131741b or c531741b
+	VPCMPEQB (R11), X9, X11                 // c44131741b
+	VPCMPEQB X2, X9, X11                    // c4613174da or c53174da
+	VPCMPEQB X11, X9, X11                   // c4413174db
+	VPCMPEQB (BX), Y15, Y2                  // c4e1057413 or c5857413
+	VPCMPEQB (R11), Y15, Y2                 // c4c1057413
+	VPCMPEQB Y2, Y15, Y2                    // c4e10574d2 or c58574d2
+	VPCMPEQB Y11, Y15, Y2                   // c4c10574d3
+	VPCMPEQB (BX), Y15, Y11                 // c46105741b or c505741b
+	VPCMPEQB (R11), Y15, Y11                // c44105741b
+	VPCMPEQB Y2, Y15, Y11                   // c4610574da or c50574da
+	VPCMPEQB Y11, Y15, Y11                  // c4410574db
 	//TODO: VPCMPEQD (BX), X9, X2           // c4e1317613 or c5b17613
 	//TODO: VPCMPEQD (R11), X9, X2          // c4c1317613
 	//TODO: VPCMPEQD X2, X9, X2             // c4e13176d2 or c5b176d2
@@ -9150,14 +9150,14 @@ TEXT asmtest(SB),7,$0
 	//TODO: VPMINUW (R11), Y15, Y11         // c442053a1b
 	//TODO: VPMINUW Y2, Y15, Y11            // c462053ada
 	//TODO: VPMINUW Y11, Y15, Y11           // c442053adb
-	//TODO: VPMOVMSKB X2, DX                // c4e179d7d2 or c5f9d7d2
-	//TODO: VPMOVMSKB X11, DX               // c4c179d7d3
-	//TODO: VPMOVMSKB X2, R11               // c46179d7da or c579d7da
-	//TODO: VPMOVMSKB X11, R11              // c44179d7db
-	//TODO: VPMOVMSKB Y2, DX                // c4e17dd7d2 or c5fdd7d2
-	//TODO: VPMOVMSKB Y11, DX               // c4c17dd7d3
-	//TODO: VPMOVMSKB Y2, R11               // c4617dd7da or c57dd7da
-	//TODO: VPMOVMSKB Y11, R11              // c4417dd7db
+	VPMOVMSKB X2, DX                        // c4e179d7d2 or c5f9d7d2
+	VPMOVMSKB X11, DX                       // c4c179d7d3
+	VPMOVMSKB X2, R11                       // c46179d7da or c579d7da
+	VPMOVMSKB X11, R11                      // c44179d7db
+	VPMOVMSKB Y2, DX                        // c4e17dd7d2 or c5fdd7d2
+	VPMOVMSKB Y11, DX                       // c4c17dd7d3
+	VPMOVMSKB Y2, R11                       // c4617dd7da or c57dd7da
+	VPMOVMSKB Y11, R11                      // c4417dd7db
 	//TODO: VPMOVSXBD (BX), X2              // c4e2792113
 	//TODO: VPMOVSXBD (R11), X2             // c4c2792113
 	//TODO: VPMOVSXBD X2, X2                // c4e27921d2
@@ -9942,22 +9942,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: VPSUBW (R11), Y15, Y11          // c44105f91b
 	//TODO: VPSUBW Y2, Y15, Y11             // c46105f9da or c505f9da
 	//TODO: VPSUBW Y11, Y15, Y11            // c44105f9db
-	//TODO: VPTEST (BX), X2                 // c4e2791713
-	//TODO: VPTEST (R11), X2                // c4c2791713
-	//TODO: VPTEST X2, X2                   // c4e27917d2
-	//TODO: VPTEST X11, X2                  // c4c27917d3
-	//TODO: VPTEST (BX), X11                // c46279171b
-	//TODO: VPTEST (R11), X11               // c44279171b
-	//TODO: VPTEST X2, X11                  // c4627917da
-	//TODO: VPTEST X11, X11                 // c4427917db
-	//TODO: VPTEST (BX), Y2                 // c4e27d1713
-	//TODO: VPTEST (R11), Y2                // c4c27d1713
-	//TODO: VPTEST Y2, Y2                   // c4e27d17d2
-	//TODO: VPTEST Y11, Y2                  // c4c27d17d3
-	//TODO: VPTEST (BX), Y11                // c4627d171b
-	//TODO: VPTEST (R11), Y11               // c4427d171b
-	//TODO: VPTEST Y2, Y11                  // c4627d17da
-	//TODO: VPTEST Y11, Y11                 // c4427d17db
+	VPTEST (BX), X2                         // c4e2791713
+	VPTEST (R11), X2                        // c4c2791713
+	VPTEST X2, X2                           // c4e27917d2
+	VPTEST X11, X2                          // c4c27917d3
+	VPTEST (BX), X11                        // c46279171b
+	VPTEST (R11), X11                       // c44279171b
+	VPTEST X2, X11                          // c4627917da
+	VPTEST X11, X11                         // c4427917db
+	VPTEST (BX), Y2                         // c4e27d1713
+	VPTEST (R11), Y2                        // c4c27d1713
+	VPTEST Y2, Y2                           // c4e27d17d2
+	VPTEST Y11, Y2                          // c4c27d17d3
+	VPTEST (BX), Y11                        // c4627d171b
+	VPTEST (R11), Y11                       // c4427d171b
+	VPTEST Y2, Y11                          // c4627d17da
+	VPTEST Y11, Y11                         // c4427d17db
 	//TODO: VPUNPCKHBW (BX), X9, X2         // c4e1316813 or c5b16813
 	//TODO: VPUNPCKHBW (R11), X9, X2        // c4c1316813
 	//TODO: VPUNPCKHBW X2, X9, X2           // c4e13168d2 or c5b168d2
@@ -10086,22 +10086,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: VPUNPCKLWD (R11), Y15, Y11      // c44105611b
 	//TODO: VPUNPCKLWD Y2, Y15, Y11         // c4610561da or c50561da
 	//TODO: VPUNPCKLWD Y11, Y15, Y11        // c4410561db
-	//TODO: VPXOR (BX), X9, X2              // c4e131ef13 or c5b1ef13
-	//TODO: VPXOR (R11), X9, X2             // c4c131ef13
-	//TODO: VPXOR X2, X9, X2                // c4e131efd2 or c5b1efd2
-	//TODO: VPXOR X11, X9, X2               // c4c131efd3
-	//TODO: VPXOR (BX), X9, X11             // c46131ef1b or c531ef1b
-	//TODO: VPXOR (R11), X9, X11            // c44131ef1b
-	//TODO: VPXOR X2, X9, X11               // c46131efda or c531efda
-	//TODO: VPXOR X11, X9, X11              // c44131efdb
-	//TODO: VPXOR (BX), Y15, Y2             // c4e105ef13 or c585ef13
-	//TODO: VPXOR (R11), Y15, Y2            // c4c105ef13
-	//TODO: VPXOR Y2, Y15, Y2               // c4e105efd2 or c585efd2
-	//TODO: VPXOR Y11, Y15, Y2              // c4c105efd3
-	//TODO: VPXOR (BX), Y15, Y11            // c46105ef1b or c505ef1b
-	//TODO: VPXOR (R11), Y15, Y11           // c44105ef1b
-	//TODO: VPXOR Y2, Y15, Y11              // c46105efda or c505efda
-	//TODO: VPXOR Y11, Y15, Y11             // c44105efdb
+	VPXOR (BX), X9, X2                      // c4e131ef13 or c5b1ef13
+	VPXOR (R11), X9, X2                     // c4c131ef13
+	VPXOR X2, X9, X2                        // c4e131efd2 or c5b1efd2
+	VPXOR X11, X9, X2                       // c4c131efd3
+	VPXOR (BX), X9, X11                     // c46131ef1b or c531ef1b
+	VPXOR (R11), X9, X11                    // c44131ef1b
+	VPXOR X2, X9, X11                       // c46131efda or c531efda
+	VPXOR X11, X9, X11                      // c44131efdb
+	VPXOR (BX), Y15, Y2                     // c4e105ef13 or c585ef13
+	VPXOR (R11), Y15, Y2                    // c4c105ef13
+	VPXOR Y2, Y15, Y2                       // c4e105efd2 or c585efd2
+	VPXOR Y11, Y15, Y2                      // c4c105efd3
+	VPXOR (BX), Y15, Y11                    // c46105ef1b or c505ef1b
+	VPXOR (R11), Y15, Y11                   // c44105ef1b
+	VPXOR Y2, Y15, Y11                      // c46105efda or c505efda
+	VPXOR Y11, Y15, Y11                     // c44105efdb
 	//TODO: VRCPPS (BX), X2                 // c4e1785313 or c5f85313
 	//TODO: VRCPPS (R11), X2                // c4c1785313
 	//TODO: VRCPPS X2, X2                   // c4e17853d2 or c5f853d2
