@@ -466,7 +466,7 @@ func TestLookupDotsWithRemoteSource(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" || !*testExternal {
 		t.Skip("avoid external network")
 	}
-	if !supportsIPv4 || *testIPv4 {
+	if !supportsIPv4 || !*testIPv4 {
 		t.Skip("IPv4 is required")
 	}
 
