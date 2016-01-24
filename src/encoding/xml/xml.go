@@ -227,7 +227,8 @@ func NewDecoder(r io.Reader) *Decoder {
 //
 // Token guarantees that the StartElement and EndElement
 // tokens it returns are properly nested and matched:
-// if Token encounters an unexpected end element,
+// if Token encounters an unexpected end element
+// or EOF before all expected end elements,
 // it will return an error.
 //
 // Token implements XML name spaces as described by
