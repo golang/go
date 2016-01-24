@@ -1878,39 +1878,39 @@ TEXT asmtest(SB),7,$0
 	FXTRACT                                 // d9f4
 	FYL2X                                   // d9f1
 	FYL2XP1                                 // d9f9
-	//TODO: HADDPD (BX), X2                 // 660f7c13
-	//TODO: HADDPD (R11), X2                // 66410f7c13
-	//TODO: HADDPD X2, X2                   // 660f7cd2
-	//TODO: HADDPD X11, X2                  // 66410f7cd3
-	//TODO: HADDPD (BX), X11                // 66440f7c1b
-	//TODO: HADDPD (R11), X11               // 66450f7c1b
-	//TODO: HADDPD X2, X11                  // 66440f7cda
-	//TODO: HADDPD X11, X11                 // 66450f7cdb
-	//TODO: HADDPS (BX), X2                 // f20f7c13
-	//TODO: HADDPS (R11), X2                // f2410f7c13
-	//TODO: HADDPS X2, X2                   // f20f7cd2
-	//TODO: HADDPS X11, X2                  // f2410f7cd3
-	//TODO: HADDPS (BX), X11                // f2440f7c1b
-	//TODO: HADDPS (R11), X11               // f2450f7c1b
-	//TODO: HADDPS X2, X11                  // f2440f7cda
-	//TODO: HADDPS X11, X11                 // f2450f7cdb
+	HADDPD (BX), X2                         // 660f7c13
+	HADDPD (R11), X2                        // 66410f7c13
+	HADDPD X2, X2                           // 660f7cd2
+	HADDPD X11, X2                          // 66410f7cd3
+	HADDPD (BX), X11                        // 66440f7c1b
+	HADDPD (R11), X11                       // 66450f7c1b
+	HADDPD X2, X11                          // 66440f7cda
+	HADDPD X11, X11                         // 66450f7cdb
+	HADDPS (BX), X2                         // f20f7c13
+	HADDPS (R11), X2                        // f2410f7c13
+	HADDPS X2, X2                           // f20f7cd2
+	HADDPS X11, X2                          // f2410f7cd3
+	HADDPS (BX), X11                        // f2440f7c1b
+	HADDPS (R11), X11                       // f2450f7c1b
+	HADDPS X2, X11                          // f2440f7cda
+	HADDPS X11, X11                         // f2450f7cdb
 	HLT                                     // f4
-	//TODO: HSUBPD (BX), X2                 // 660f7d13
-	//TODO: HSUBPD (R11), X2                // 66410f7d13
-	//TODO: HSUBPD X2, X2                   // 660f7dd2
-	//TODO: HSUBPD X11, X2                  // 66410f7dd3
-	//TODO: HSUBPD (BX), X11                // 66440f7d1b
-	//TODO: HSUBPD (R11), X11               // 66450f7d1b
-	//TODO: HSUBPD X2, X11                  // 66440f7dda
-	//TODO: HSUBPD X11, X11                 // 66450f7ddb
-	//TODO: HSUBPS (BX), X2                 // f20f7d13
-	//TODO: HSUBPS (R11), X2                // f2410f7d13
-	//TODO: HSUBPS X2, X2                   // f20f7dd2
-	//TODO: HSUBPS X11, X2                  // f2410f7dd3
-	//TODO: HSUBPS (BX), X11                // f2440f7d1b
-	//TODO: HSUBPS (R11), X11               // f2450f7d1b
-	//TODO: HSUBPS X2, X11                  // f2440f7dda
-	//TODO: HSUBPS X11, X11                 // f2450f7ddb
+	HSUBPD (BX), X2                         // 660f7d13
+	HSUBPD (R11), X2                        // 66410f7d13
+	HSUBPD X2, X2                           // 660f7dd2
+	HSUBPD X11, X2                          // 66410f7dd3
+	HSUBPD (BX), X11                        // 66440f7d1b
+	HSUBPD (R11), X11                       // 66450f7d1b
+	HSUBPD X2, X11                          // 66440f7dda
+	HSUBPD X11, X11                         // 66450f7ddb
+	HSUBPS (BX), X2                         // f20f7d13
+	HSUBPS (R11), X2                        // f2410f7d13
+	HSUBPS X2, X2                           // f20f7dd2
+	HSUBPS X11, X2                          // f2410f7dd3
+	HSUBPS (BX), X11                        // f2440f7d1b
+	HSUBPS (R11), X11                       // f2450f7d1b
+	HSUBPS X2, X11                          // f2440f7dda
+	HSUBPS X11, X11                         // f2450f7ddb
 	//TODO: ICEBP                           // f1
 	IDIVW (BX)                              // 66f73b
 	IDIVW (R11)                             // 6641f73b
