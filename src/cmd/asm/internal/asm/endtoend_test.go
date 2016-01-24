@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,11 +36,10 @@ func testEndToEnd(t *testing.T, goarch, file string) {
 	ctxt.Bso = obj.Binitw(os.Stdout)
 	defer ctxt.Bso.Flush()
 	failed := false
-	ctxt.Diag = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...interface{}) {
 		failed = true
 		t.Errorf(format, args...)
 	}
-	obj.Binitw(ioutil.Discard)
 	pList.Firstpc, ok = parser.Parse()
 	if !ok || failed {
 		t.Errorf("asm: %s assembly failed", goarch)
@@ -175,7 +175,7 @@ Diff:
 	top := pList.Firstpc
 	var text *obj.LSym
 	ok = true
-	ctxt.Diag = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...interface{}) {
 		t.Errorf(format, args...)
 		ok = false
 	}
@@ -250,8 +250,110 @@ func isHexes(s string) bool {
 	return true
 }
 
+// It would be nice if the error messages began with
+// the standard file:line: prefix,
+// but that's not where we are today.
+// It might be at the beginning but it might be in the middle of the printed instruction.
+var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\))`)
+
+// Same as in test/run.go
+var (
+	errRE       = regexp.MustCompile(`// ERROR ?(.*)`)
+	errQuotesRE = regexp.MustCompile(`"([^"]*)"`)
+)
+
+func testErrors(t *testing.T, goarch, file string) {
+	lex.InitHist()
+	input := filepath.Join("testdata", file+".s")
+	architecture, ctxt := setArch(goarch)
+	lexer := lex.NewLexer(input, ctxt)
+	parser := NewParser(ctxt, architecture, lexer)
+	pList := obj.Linknewplist(ctxt)
+	var ok bool
+	testOut = new(bytes.Buffer) // The assembler writes test output to this buffer.
+	ctxt.Bso = obj.Binitw(os.Stdout)
+	defer ctxt.Bso.Flush()
+	failed := false
+	var errBuf bytes.Buffer
+	ctxt.DiagFunc = func(format string, args ...interface{}) {
+		failed = true
+		s := fmt.Sprintf(format, args...)
+		if !strings.HasSuffix(s, "\n") {
+			s += "\n"
+		}
+		errBuf.WriteString(s)
+	}
+	pList.Firstpc, ok = parser.Parse()
+	obj.Flushplist(ctxt)
+	if ok && !failed {
+		t.Errorf("asm: %s had no errors", goarch)
+	}
+
+	errors := map[string]string{}
+	for _, line := range strings.Split(errBuf.String(), "\n") {
+		if line == "" || strings.HasPrefix(line, "\t") {
+			continue
+		}
+		m := fileLineRE.FindStringSubmatch(line)
+		if m == nil {
+			t.Errorf("unexpected error: %v", line)
+			continue
+		}
+		fileline := m[1]
+		if errors[fileline] != "" {
+			t.Errorf("multiple errors on %s:\n\t%s\n\t%s", fileline, errors[fileline], line)
+			continue
+		}
+		errors[fileline] = line
+	}
+
+	// Reconstruct expected errors by independently "parsing" the input.
+	data, err := ioutil.ReadFile(input)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	lineno := 0
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		lineno++
+
+		fileline := fmt.Sprintf("%s:%d", input, lineno)
+		if m := errRE.FindStringSubmatch(line); m != nil {
+			all := m[1]
+			mm := errQuotesRE.FindAllStringSubmatch(all, -1)
+			if len(mm) != 1 {
+				t.Errorf("%s: invalid errorcheck line:\n%s", fileline, line)
+			} else if err := errors[fileline]; err == "" {
+				t.Errorf("%s: missing error, want %s", fileline, all)
+			} else if !strings.Contains(err, mm[0][1]) {
+				t.Errorf("%s: wrong error for %s:\n%s", fileline, all, err)
+			}
+		} else {
+			if errors[fileline] != "" {
+				t.Errorf("unexpected error on %s: %v", fileline, errors[fileline])
+			}
+		}
+		delete(errors, fileline)
+	}
+	var extra []string
+	for key := range errors {
+		extra = append(extra, key)
+	}
+	sort.Strings(extra)
+	for _, fileline := range extra {
+		t.Errorf("unexpected error on %s: %v", fileline, errors[fileline])
+	}
+}
+
 func Test386EndToEnd(t *testing.T) {
-	testEndToEnd(t, "386", "386")
+	defer os.Setenv("GO386", os.Getenv("GO386"))
+
+	for _, go386 := range []string{"387", "sse"} {
+		os.Setenv("GO386", go386)
+		t.Logf("GO386=%v", os.Getenv("GO386"))
+		testEndToEnd(t, "386", "386")
+	}
 }
 
 func TestARMEndToEnd(t *testing.T) {
@@ -274,6 +376,10 @@ func TestAMD64EndToEnd(t *testing.T) {
 
 func TestAMD64Encoder(t *testing.T) {
 	testEndToEnd(t, "amd64", "amd64enc")
+}
+
+func TestAMD64Errors(t *testing.T) {
+	testErrors(t, "amd64", "amd64error")
 }
 
 func TestMIPS64EndToEnd(t *testing.T) {

@@ -105,7 +105,7 @@ func Main() {
 
 	Thearch.Linkarchinit()
 	Ctxt = obj.Linknew(Thearch.Thelinkarch)
-	Ctxt.Diag = Yyerror
+	Ctxt.DiagFunc = Yyerror
 	Ctxt.Bso = &bstdout
 	bstdout = *obj.Binitw(os.Stdout)
 
