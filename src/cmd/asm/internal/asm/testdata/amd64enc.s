@@ -370,22 +370,22 @@ TEXT asmtest(SB),7,$0
 	ANDB (R11), DL                          // 412213
 	ANDB (BX), R11                          // 44221b
 	ANDB (R11), R11                         // 45221b
-	//TODO: ANDNL (BX), R9D, DX             // c4e230f213
-	//TODO: ANDNL (R11), R9D, DX            // c4c230f213
-	//TODO: ANDNL DX, R9D, DX               // c4e230f2d2
-	//TODO: ANDNL R11, R9D, DX              // c4c230f2d3
-	//TODO: ANDNL (BX), R9D, R11            // c46230f21b
-	//TODO: ANDNL (R11), R9D, R11           // c44230f21b
-	//TODO: ANDNL DX, R9D, R11              // c46230f2da
-	//TODO: ANDNL R11, R9D, R11             // c44230f2db
-	//TODO: ANDNQ (BX), R14, DX             // c4e288f213
-	//TODO: ANDNQ (R11), R14, DX            // c4c288f213
-	//TODO: ANDNQ DX, R14, DX               // c4e288f2d2
-	//TODO: ANDNQ R11, R14, DX              // c4c288f2d3
-	//TODO: ANDNQ (BX), R14, R11            // c46288f21b
-	//TODO: ANDNQ (R11), R14, R11           // c44288f21b
-	//TODO: ANDNQ DX, R14, R11              // c46288f2da
-	//TODO: ANDNQ R11, R14, R11             // c44288f2db
+	ANDNL (BX), R9, DX                      // c4e230f213
+	ANDNL (R11), R9, DX                     // c4c230f213
+	ANDNL DX, R9, DX                        // c4e230f2d2
+	ANDNL R11, R9, DX                       // c4c230f2d3
+	ANDNL (BX), R9, R11                     // c46230f21b
+	ANDNL (R11), R9, R11                    // c44230f21b
+	ANDNL DX, R9, R11                       // c46230f2da
+	ANDNL R11, R9, R11                      // c44230f2db
+	ANDNQ (BX), R14, DX                     // c4e288f213
+	ANDNQ (R11), R14, DX                    // c4c288f213
+	ANDNQ DX, R14, DX                       // c4e288f2d2
+	ANDNQ R11, R14, DX                      // c4c288f2d3
+	ANDNQ (BX), R14, R11                    // c46288f21b
+	ANDNQ (R11), R14, R11                   // c44288f21b
+	ANDNQ DX, R14, R11                      // c46288f2da
+	ANDNQ R11, R14, R11                     // c44288f2db
 	ANDNPD (BX), X2                         // 660f5513
 	ANDNPD (R11), X2                        // 66410f5513
 	ANDNPD X2, X2                           // 660f55d2
@@ -418,22 +418,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: ANDPS (R11), X11                // 450f541b
 	//TODO: ANDPS X2, X11                   // 440f54da
 	//TODO: ANDPS X11, X11                  // 450f54db
-	//TODO: BEXTRL R9D, (BX), DX            // c4e230f713
-	//TODO: BEXTRL R9D, (R11), DX           // c4c230f713
-	//TODO: BEXTRL R9D, DX, DX              // c4e230f7d2
-	//TODO: BEXTRL R9D, R11, DX             // c4c230f7d3
-	//TODO: BEXTRL R9D, (BX), R11           // c46230f71b
-	//TODO: BEXTRL R9D, (R11), R11          // c44230f71b
-	//TODO: BEXTRL R9D, DX, R11             // c46230f7da
-	//TODO: BEXTRL R9D, R11, R11            // c44230f7db
-	//TODO: BEXTRQ R14, (BX), DX            // c4e288f713
-	//TODO: BEXTRQ R14, (R11), DX           // c4c288f713
-	//TODO: BEXTRQ R14, DX, DX              // c4e288f7d2
-	//TODO: BEXTRQ R14, R11, DX             // c4c288f7d3
-	//TODO: BEXTRQ R14, (BX), R11           // c46288f71b
-	//TODO: BEXTRQ R14, (R11), R11          // c44288f71b
-	//TODO: BEXTRQ R14, DX, R11             // c46288f7da
-	//TODO: BEXTRQ R14, R11, R11            // c44288f7db
+	BEXTRL R9, (BX), DX                     // c4e230f713
+	BEXTRL R9, (R11), DX                    // c4c230f713
+	BEXTRL R9, DX, DX                       // c4e230f7d2
+	BEXTRL R9, R11, DX                      // c4c230f7d3
+	BEXTRL R9, (BX), R11                    // c46230f71b
+	BEXTRL R9, (R11), R11                   // c44230f71b
+	BEXTRL R9, DX, R11                      // c46230f7da
+	BEXTRL R9, R11, R11                     // c44230f7db
+	BEXTRQ R14, (BX), DX                    // c4e288f713
+	BEXTRQ R14, (R11), DX                   // c4c288f713
+	BEXTRQ R14, DX, DX                      // c4e288f7d2
+	BEXTRQ R14, R11, DX                     // c4c288f7d3
+	BEXTRQ R14, (BX), R11                   // c46288f71b
+	BEXTRQ R14, (R11), R11                  // c44288f71b
+	BEXTRQ R14, DX, R11                     // c46288f7da
+	BEXTRQ R14, R11, R11                    // c44288f7db
 	//TODO: BLENDPD $7, (BX), X2            // 660f3a0d1307
 	//TODO: BLENDPD $7, (R11), X2           // 66410f3a0d1307
 	//TODO: BLENDPD $7, X2, X2              // 660f3a0dd207
@@ -466,26 +466,26 @@ TEXT asmtest(SB),7,$0
 	//TODO: BLENDVPS XMM0, (R11), X11       // 66450f38141b
 	//TODO: BLENDVPS XMM0, X2, X11          // 66440f3814da
 	//TODO: BLENDVPS XMM0, X11, X11         // 66450f3814db
-	//TODO: BLSIL (BX), R9D                 // c4e230f31b
-	//TODO: BLSIL (R11), R9D                // c4c230f31b
-	//TODO: BLSIL DX, R9D                   // c4e230f3da
-	//TODO: BLSIL R11, R9D                  // c4c230f3db
+	//TODO: BLSIL (BX), R9                  // c4e230f31b
+	//TODO: BLSIL (R11), R9                 // c4c230f31b
+	//TODO: BLSIL DX, R9                    // c4e230f3da
+	//TODO: BLSIL R11, R9                   // c4c230f3db
 	//TODO: BLSIQ (BX), R14                 // c4e288f31b
 	//TODO: BLSIQ (R11), R14                // c4c288f31b
 	//TODO: BLSIQ DX, R14                   // c4e288f3da
 	//TODO: BLSIQ R11, R14                  // c4c288f3db
-	//TODO: BLSMSKL (BX), R9D               // c4e230f313
-	//TODO: BLSMSKL (R11), R9D              // c4c230f313
-	//TODO: BLSMSKL DX, R9D                 // c4e230f3d2
-	//TODO: BLSMSKL R11, R9D                // c4c230f3d3
+	//TODO: BLSMSKL (BX), R9                // c4e230f313
+	//TODO: BLSMSKL (R11), R9               // c4c230f313
+	//TODO: BLSMSKL DX, R9                  // c4e230f3d2
+	//TODO: BLSMSKL R11, R9                 // c4c230f3d3
 	//TODO: BLSMSKQ (BX), R14               // c4e288f313
 	//TODO: BLSMSKQ (R11), R14              // c4c288f313
 	//TODO: BLSMSKQ DX, R14                 // c4e288f3d2
 	//TODO: BLSMSKQ R11, R14                // c4c288f3d3
-	//TODO: BLSRL (BX), R9D                 // c4e230f30b
-	//TODO: BLSRL (R11), R9D                // c4c230f30b
-	//TODO: BLSRL DX, R9D                   // c4e230f3ca
-	//TODO: BLSRL R11, R9D                  // c4c230f3cb
+	//TODO: BLSRL (BX), R9                  // c4e230f30b
+	//TODO: BLSRL (R11), R9                 // c4c230f30b
+	//TODO: BLSRL DX, R9                    // c4e230f3ca
+	//TODO: BLSRL R11, R9                   // c4c230f3cb
 	//TODO: BLSRQ (BX), R14                 // c4e288f30b
 	//TODO: BLSRQ (R11), R14                // c4c288f30b
 	//TODO: BLSRQ DX, R14                   // c4e288f3ca
@@ -736,22 +736,22 @@ TEXT asmtest(SB),7,$0
 	BTSQ R11, DX                            // 4c0fabda
 	BTSQ DX, R11                            // 490fabd3
 	BTSQ R11, R11                           // 4d0fabdb
-	//TODO: BZHIL R9D, (BX), DX             // c4e230f513
-	//TODO: BZHIL R9D, (R11), DX            // c4c230f513
-	//TODO: BZHIL R9D, DX, DX               // c4e230f5d2
-	//TODO: BZHIL R9D, R11, DX              // c4c230f5d3
-	//TODO: BZHIL R9D, (BX), R11            // c46230f51b
-	//TODO: BZHIL R9D, (R11), R11           // c44230f51b
-	//TODO: BZHIL R9D, DX, R11              // c46230f5da
-	//TODO: BZHIL R9D, R11, R11             // c44230f5db
-	//TODO: BZHIQ R14, (BX), DX             // c4e288f513
-	//TODO: BZHIQ R14, (R11), DX            // c4c288f513
-	//TODO: BZHIQ R14, DX, DX               // c4e288f5d2
-	//TODO: BZHIQ R14, R11, DX              // c4c288f5d3
-	//TODO: BZHIQ R14, (BX), R11            // c46288f51b
-	//TODO: BZHIQ R14, (R11), R11           // c44288f51b
-	//TODO: BZHIQ R14, DX, R11              // c46288f5da
-	//TODO: BZHIQ R14, R11, R11             // c44288f5db
+	BZHIL R9, (BX), DX                      // c4e230f513
+	BZHIL R9, (R11), DX                     // c4c230f513
+	BZHIL R9, DX, DX                        // c4e230f5d2
+	BZHIL R9, R11, DX                       // c4c230f5d3
+	BZHIL R9, (BX), R11                     // c46230f51b
+	BZHIL R9, (R11), R11                    // c44230f51b
+	BZHIL R9, DX, R11                       // c46230f5da
+	BZHIL R9, R11, R11                      // c44230f5db
+	BZHIQ R14, (BX), DX                     // c4e288f513
+	BZHIQ R14, (R11), DX                    // c4c288f513
+	BZHIQ R14, DX, DX                       // c4e288f5d2
+	BZHIQ R14, R11, DX                      // c4c288f5d3
+	BZHIQ R14, (BX), R11                    // c46288f51b
+	BZHIQ R14, (R11), R11                   // c44288f51b
+	BZHIQ R14, DX, R11                      // c46288f5da
+	BZHIQ R14, R11, R11                     // c44288f5db
 	//TODO: CALLQ* (BX)                     // ff13
 	//TODO: CALLQ* (R11)                    // 41ff13
 	//TODO: CALLQ* DX                       // ffd2
@@ -2911,22 +2911,22 @@ TEXT asmtest(SB),7,$0
 	MULSS (R11), X11                        // f3450f591b
 	MULSS X2, X11                           // f3440f59da
 	MULSS X11, X11                          // f3450f59db
-	//TODO: MULXL (BX), R9D, DX             // c4e233f613
-	//TODO: MULXL (R11), R9D, DX            // c4c233f613
-	//TODO: MULXL DX, R9D, DX               // c4e233f6d2
-	//TODO: MULXL R11, R9D, DX              // c4c233f6d3
-	//TODO: MULXL (BX), R9D, R11            // c46233f61b
-	//TODO: MULXL (R11), R9D, R11           // c44233f61b
-	//TODO: MULXL DX, R9D, R11              // c46233f6da
-	//TODO: MULXL R11, R9D, R11             // c44233f6db
-	//TODO: MULXQ (BX), R14, DX             // c4e28bf613
-	//TODO: MULXQ (R11), R14, DX            // c4c28bf613
-	//TODO: MULXQ DX, R14, DX               // c4e28bf6d2
-	//TODO: MULXQ R11, R14, DX              // c4c28bf6d3
-	//TODO: MULXQ (BX), R14, R11            // c4628bf61b
-	//TODO: MULXQ (R11), R14, R11           // c4428bf61b
-	//TODO: MULXQ DX, R14, R11              // c4628bf6da
-	//TODO: MULXQ R11, R14, R11             // c4428bf6db
+	MULXL (BX), R9, DX                      // c4e233f613
+	MULXL (R11), R9, DX                     // c4c233f613
+	MULXL DX, R9, DX                        // c4e233f6d2
+	MULXL R11, R9, DX                       // c4c233f6d3
+	MULXL (BX), R9, R11                     // c46233f61b
+	MULXL (R11), R9, R11                    // c44233f61b
+	MULXL DX, R9, R11                       // c46233f6da
+	MULXL R11, R9, R11                      // c44233f6db
+	MULXQ (BX), R14, DX                     // c4e28bf613
+	MULXQ (R11), R14, DX                    // c4c28bf613
+	MULXQ DX, R14, DX                       // c4e28bf6d2
+	MULXQ R11, R14, DX                      // c4c28bf6d3
+	MULXQ (BX), R14, R11                    // c4628bf61b
+	MULXQ (R11), R14, R11                   // c4428bf61b
+	MULXQ DX, R14, R11                      // c4628bf6da
+	MULXQ R11, R14, R11                     // c4428bf6db
 	//TODO: MWAIT                           // 0f01c9
 	NEGW (BX)                               // 66f71b
 	NEGW (R11)                              // 6641f71b
@@ -3553,38 +3553,38 @@ TEXT asmtest(SB),7,$0
 	//TODO: PCMPISTRM $7, (R11), X11        // 66450f3a621b07
 	//TODO: PCMPISTRM $7, X2, X11           // 66440f3a62da07
 	//TODO: PCMPISTRM $7, X11, X11          // 66450f3a62db07
-	//TODO: PDEPL (BX), R9D, DX             // c4e233f513
-	//TODO: PDEPL (R11), R9D, DX            // c4c233f513
-	//TODO: PDEPL DX, R9D, DX               // c4e233f5d2
-	//TODO: PDEPL R11, R9D, DX              // c4c233f5d3
-	//TODO: PDEPL (BX), R9D, R11            // c46233f51b
-	//TODO: PDEPL (R11), R9D, R11           // c44233f51b
-	//TODO: PDEPL DX, R9D, R11              // c46233f5da
-	//TODO: PDEPL R11, R9D, R11             // c44233f5db
-	//TODO: PDEPQ (BX), R14, DX             // c4e28bf513
-	//TODO: PDEPQ (R11), R14, DX            // c4c28bf513
-	//TODO: PDEPQ DX, R14, DX               // c4e28bf5d2
-	//TODO: PDEPQ R11, R14, DX              // c4c28bf5d3
-	//TODO: PDEPQ (BX), R14, R11            // c4628bf51b
-	//TODO: PDEPQ (R11), R14, R11           // c4428bf51b
-	//TODO: PDEPQ DX, R14, R11              // c4628bf5da
-	//TODO: PDEPQ R11, R14, R11             // c4428bf5db
-	//TODO: PEXTL (BX), R9D, DX             // c4e232f513
-	//TODO: PEXTL (R11), R9D, DX            // c4c232f513
-	//TODO: PEXTL DX, R9D, DX               // c4e232f5d2
-	//TODO: PEXTL R11, R9D, DX              // c4c232f5d3
-	//TODO: PEXTL (BX), R9D, R11            // c46232f51b
-	//TODO: PEXTL (R11), R9D, R11           // c44232f51b
-	//TODO: PEXTL DX, R9D, R11              // c46232f5da
-	//TODO: PEXTL R11, R9D, R11             // c44232f5db
-	//TODO: PEXTQ (BX), R14, DX             // c4e28af513
-	//TODO: PEXTQ (R11), R14, DX            // c4c28af513
-	//TODO: PEXTQ DX, R14, DX               // c4e28af5d2
-	//TODO: PEXTQ R11, R14, DX              // c4c28af5d3
-	//TODO: PEXTQ (BX), R14, R11            // c4628af51b
-	//TODO: PEXTQ (R11), R14, R11           // c4428af51b
-	//TODO: PEXTQ DX, R14, R11              // c4628af5da
-	//TODO: PEXTQ R11, R14, R11             // c4428af5db
+	PDEPL (BX), R9, DX                      // c4e233f513
+	PDEPL (R11), R9, DX                     // c4c233f513
+	PDEPL DX, R9, DX                        // c4e233f5d2
+	PDEPL R11, R9, DX                       // c4c233f5d3
+	PDEPL (BX), R9, R11                     // c46233f51b
+	PDEPL (R11), R9, R11                    // c44233f51b
+	PDEPL DX, R9, R11                       // c46233f5da
+	PDEPL R11, R9, R11                      // c44233f5db
+	PDEPQ (BX), R14, DX                     // c4e28bf513
+	PDEPQ (R11), R14, DX                    // c4c28bf513
+	PDEPQ DX, R14, DX                       // c4e28bf5d2
+	PDEPQ R11, R14, DX                      // c4c28bf5d3
+	PDEPQ (BX), R14, R11                    // c4628bf51b
+	PDEPQ (R11), R14, R11                   // c4428bf51b
+	PDEPQ DX, R14, R11                      // c4628bf5da
+	PDEPQ R11, R14, R11                     // c4428bf5db
+	PEXTL (BX), R9, DX                      // c4e232f513
+	PEXTL (R11), R9, DX                     // c4c232f513
+	PEXTL DX, R9, DX                        // c4e232f5d2
+	PEXTL R11, R9, DX                       // c4c232f5d3
+	PEXTL (BX), R9, R11                     // c46232f51b
+	PEXTL (R11), R9, R11                    // c44232f51b
+	PEXTL DX, R9, R11                       // c46232f5da
+	PEXTL R11, R9, R11                      // c44232f5db
+	PEXTQ (BX), R14, DX                     // c4e28af513
+	PEXTQ (R11), R14, DX                    // c4c28af513
+	PEXTQ DX, R14, DX                       // c4e28af5d2
+	PEXTQ R11, R14, DX                      // c4c28af5d3
+	PEXTQ (BX), R14, R11                    // c4628af51b
+	PEXTQ (R11), R14, R11                   // c4428af51b
+	PEXTQ DX, R14, R11                      // c4628af5da
+	PEXTQ R11, R14, R11                     // c4428af5db
 	PEXTRB $7, X2, (BX)                     // 660f3a141307
 	PEXTRB $7, X11, (BX)                    // 66440f3a141b07
 	PEXTRB $7, X2, (R11)                    // 66410f3a141307
@@ -5122,22 +5122,22 @@ TEXT asmtest(SB),7,$0
 	SARB $7, (R11)                          // 41c03b07
 	SARB $7, DL                             // c0fa07
 	SARB $7, R11                            // 41c0fb07
-	//TODO: SARXL R9D, (BX), DX             // c4e232f713
-	//TODO: SARXL R9D, (R11), DX            // c4c232f713
-	//TODO: SARXL R9D, DX, DX               // c4e232f7d2
-	//TODO: SARXL R9D, R11, DX              // c4c232f7d3
-	//TODO: SARXL R9D, (BX), R11            // c46232f71b
-	//TODO: SARXL R9D, (R11), R11           // c44232f71b
-	//TODO: SARXL R9D, DX, R11              // c46232f7da
-	//TODO: SARXL R9D, R11, R11             // c44232f7db
-	//TODO: SARXQ R14, (BX), DX             // c4e28af713
-	//TODO: SARXQ R14, (R11), DX            // c4c28af713
-	//TODO: SARXQ R14, DX, DX               // c4e28af7d2
-	//TODO: SARXQ R14, R11, DX              // c4c28af7d3
-	//TODO: SARXQ R14, (BX), R11            // c4628af71b
-	//TODO: SARXQ R14, (R11), R11           // c4428af71b
-	//TODO: SARXQ R14, DX, R11              // c4628af7da
-	//TODO: SARXQ R14, R11, R11             // c4428af7db
+	SARXL R9, (BX), DX                      // c4e232f713
+	SARXL R9, (R11), DX                     // c4c232f713
+	SARXL R9, DX, DX                        // c4e232f7d2
+	SARXL R9, R11, DX                       // c4c232f7d3
+	SARXL R9, (BX), R11                     // c46232f71b
+	SARXL R9, (R11), R11                    // c44232f71b
+	SARXL R9, DX, R11                       // c46232f7da
+	SARXL R9, R11, R11                      // c44232f7db
+	SARXQ R14, (BX), DX                     // c4e28af713
+	SARXQ R14, (R11), DX                    // c4c28af713
+	SARXQ R14, DX, DX                       // c4e28af7d2
+	SARXQ R14, R11, DX                      // c4c28af7d3
+	SARXQ R14, (BX), R11                    // c4628af71b
+	SARXQ R14, (R11), R11                   // c4428af71b
+	SARXQ R14, DX, R11                      // c4628af7da
+	SARXQ R14, R11, R11                     // c4428af7db
 	SBBB $7, AL                             // 1c07
 	SBBW $61731, AX                         // 661d23f1
 	SBBL $4045620583, AX                    // 1d674523f1
@@ -5385,22 +5385,22 @@ TEXT asmtest(SB),7,$0
 	SHLQ $7, R11, DX                        // 4c0fa4da07
 	SHLQ $7, DX, R11                        // 490fa4d307
 	SHLQ $7, R11, R11                       // 4d0fa4db07
-	//TODO: SHLXL R9D, (BX), DX             // c4e231f713
-	//TODO: SHLXL R9D, (R11), DX            // c4c231f713
-	//TODO: SHLXL R9D, DX, DX               // c4e231f7d2
-	//TODO: SHLXL R9D, R11, DX              // c4c231f7d3
-	//TODO: SHLXL R9D, (BX), R11            // c46231f71b
-	//TODO: SHLXL R9D, (R11), R11           // c44231f71b
-	//TODO: SHLXL R9D, DX, R11              // c46231f7da
-	//TODO: SHLXL R9D, R11, R11             // c44231f7db
-	//TODO: SHLXQ R14, (BX), DX             // c4e289f713
-	//TODO: SHLXQ R14, (R11), DX            // c4c289f713
-	//TODO: SHLXQ R14, DX, DX               // c4e289f7d2
-	//TODO: SHLXQ R14, R11, DX              // c4c289f7d3
-	//TODO: SHLXQ R14, (BX), R11            // c46289f71b
-	//TODO: SHLXQ R14, (R11), R11           // c44289f71b
-	//TODO: SHLXQ R14, DX, R11              // c46289f7da
-	//TODO: SHLXQ R14, R11, R11             // c44289f7db
+	SHLXL R9, (BX), DX                      // c4e231f713
+	SHLXL R9, (R11), DX                     // c4c231f713
+	SHLXL R9, DX, DX                        // c4e231f7d2
+	SHLXL R9, R11, DX                       // c4c231f7d3
+	SHLXL R9, (BX), R11                     // c46231f71b
+	SHLXL R9, (R11), R11                    // c44231f71b
+	SHLXL R9, DX, R11                       // c46231f7da
+	SHLXL R9, R11, R11                      // c44231f7db
+	SHLXQ R14, (BX), DX                     // c4e289f713
+	SHLXQ R14, (R11), DX                    // c4c289f713
+	SHLXQ R14, DX, DX                       // c4e289f7d2
+	SHLXQ R14, R11, DX                      // c4c289f7d3
+	SHLXQ R14, (BX), R11                    // c46289f71b
+	SHLXQ R14, (R11), R11                   // c44289f71b
+	SHLXQ R14, DX, R11                      // c46289f7da
+	SHLXQ R14, R11, R11                     // c44289f7db
 	SHRW $1, (BX)                           // 66d12b
 	SHRW $1, (R11)                          // 6641d12b
 	SHRW $1, DX                             // 66d1ea
@@ -5497,22 +5497,22 @@ TEXT asmtest(SB),7,$0
 	SHRQ $7, R11, DX                        // 4c0facda07
 	SHRQ $7, DX, R11                        // 490facd307
 	SHRQ $7, R11, R11                       // 4d0facdb07
-	//TODO: SHRXL R9D, (BX), DX             // c4e233f713
-	//TODO: SHRXL R9D, (R11), DX            // c4c233f713
-	//TODO: SHRXL R9D, DX, DX               // c4e233f7d2
-	//TODO: SHRXL R9D, R11, DX              // c4c233f7d3
-	//TODO: SHRXL R9D, (BX), R11            // c46233f71b
-	//TODO: SHRXL R9D, (R11), R11           // c44233f71b
-	//TODO: SHRXL R9D, DX, R11              // c46233f7da
-	//TODO: SHRXL R9D, R11, R11             // c44233f7db
-	//TODO: SHRXQ R14, (BX), DX             // c4e28bf713
-	//TODO: SHRXQ R14, (R11), DX            // c4c28bf713
-	//TODO: SHRXQ R14, DX, DX               // c4e28bf7d2
-	//TODO: SHRXQ R14, R11, DX              // c4c28bf7d3
-	//TODO: SHRXQ R14, (BX), R11            // c4628bf71b
-	//TODO: SHRXQ R14, (R11), R11           // c4428bf71b
-	//TODO: SHRXQ R14, DX, R11              // c4628bf7da
-	//TODO: SHRXQ R14, R11, R11             // c4428bf7db
+	SHRXL R9, (BX), DX                      // c4e233f713
+	SHRXL R9, (R11), DX                     // c4c233f713
+	SHRXL R9, DX, DX                        // c4e233f7d2
+	SHRXL R9, R11, DX                       // c4c233f7d3
+	SHRXL R9, (BX), R11                     // c46233f71b
+	SHRXL R9, (R11), R11                    // c44233f71b
+	SHRXL R9, DX, R11                       // c46233f7da
+	SHRXL R9, R11, R11                      // c44233f7db
+	SHRXQ R14, (BX), DX                     // c4e28bf713
+	SHRXQ R14, (R11), DX                    // c4c28bf713
+	SHRXQ R14, DX, DX                       // c4e28bf7d2
+	SHRXQ R14, R11, DX                      // c4c28bf7d3
+	SHRXQ R14, (BX), R11                    // c4628bf71b
+	SHRXQ R14, (R11), R11                   // c4428bf71b
+	SHRXQ R14, DX, R11                      // c4628bf7da
+	SHRXQ R14, R11, R11                     // c4428bf7db
 	SHUFPD $7, (BX), X2                     // 660fc61307
 	SHUFPD $7, (R11), X2                    // 66410fc61307
 	SHUFPD $7, X2, X2                       // 660fc6d207

@@ -207,6 +207,7 @@ const (
 	Zbyte
 	Zvex_rm_v_r
 	Zvex_r_v_rm
+	Zvex_v_rm_r
 	Zmax
 )
 
@@ -848,6 +849,16 @@ var ylddqu = []ytab{
 var yvex_xy3 = []ytab{
 	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
 	{Yym, Yyr, Yyr, Zvex_rm_v_r, 2},
+}
+
+var yvex_r3 = []ytab{
+	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
+	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
+}
+
+var yvex_vmr3 = []ytab{
+	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
+	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
 }
 
 var yvex_xy2 = []ytab{
@@ -1668,6 +1679,25 @@ var optab =
 	{AROUNDSS, yaes2, Pq, [23]uint8{0x3a, 0x0a, 0}},
 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
+
+	{AANDNL, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF2}},
+	{AANDNQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF2}},
+	{ABEXTRL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF7}},
+	{ABEXTRQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF7}},
+	{ABZHIL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF5}},
+	{ABZHIQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF5}},
+	{AMULXL, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W0, 0xF6}},
+	{AMULXQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W1, 0xF6}},
+	{APDEPL, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W0, 0xF5}},
+	{APDEPQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W1, 0xF5}},
+	{APEXTL, yvex_r3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W0, 0xF5}},
+	{APEXTQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W1, 0xF5}},
+	{ASARXL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W0, 0xF7}},
+	{ASARXQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W1, 0xF7}},
+	{ASHLXL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_66_0F38_W0, 0xF7}},
+	{ASHLXQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_66_0F38_W1, 0xF7}},
+	{ASHRXL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W0, 0xF7}},
+	{ASHRXQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W1, 0xF7}},
 
 	{AVZEROUPPER, ynone, Px, [23]uint8{0xc5, 0xf8, 0x77}},
 	{AVMOVDQU, yvex_vmovdqa, Pvex, [23]uint8{VEX_128_F3_0F_WIG, 0x6F, VEX_128_F3_0F_WIG, 0x7F, VEX_256_F3_0F_WIG, 0x6F, VEX_256_F3_0F_WIG, 0x7F}},
@@ -3541,6 +3571,10 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 			case Zvex_rm_v_r:
 				asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
 				asmand(ctxt, p, &p.From, &p.To)
+
+			case Zvex_v_rm_r:
+				asmvex(ctxt, p.From3, &p.From, &p.To, o.op[z], o.op[z+1])
+				asmand(ctxt, p, p.From3, &p.To)
 
 			case Zvex_r_v_rm:
 				asmvex(ctxt, &p.To, p.From3, &p.From, o.op[z], o.op[z+1])
