@@ -30,7 +30,7 @@ static void changeSignalStack() {
 }
 
 static void restoreSignalStack() {
-#if defined(__x86_64__) && defined(__APPLE__)
+#if (defined(__x86_64__) || defined(__i386__)) && defined(__APPLE__)
 	// The Darwin C library enforces a minimum that the kernel does not.
 	// This is OK since we allocated this much space in mpreinit,
 	// it was just removed from the buffer by stackalloc.
