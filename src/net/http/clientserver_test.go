@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -997,6 +998,47 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Errorf("%d connections opened, %d closed; want %d to close", open, close, open-1)
+}
+
+// tests that Transport doesn't retain a pointer to the provided request.
+func TestTransportGCRequest_h1(t *testing.T) { testTransportGCRequest(t, h1Mode) }
+func TestTransportGCRequest_h2(t *testing.T) { testTransportGCRequest(t, h2Mode) }
+func testTransportGCRequest(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		ioutil.ReadAll(r.Body)
+		io.WriteString(w, "Hello.")
+	}))
+	defer cst.close()
+
+	didGC := make(chan struct{})
+	(func() {
+		body := strings.NewReader("some body")
+		req, _ := NewRequest("POST", cst.ts.URL, body)
+		runtime.SetFinalizer(req, func(*Request) { close(didGC) })
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ioutil.ReadAll(res.Body); err != nil {
+			t.Fatal(err)
+		}
+		if err := res.Body.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	for {
+		select {
+		case <-didGC:
+			return
+		case <-time.After(100 * time.Millisecond):
+			runtime.GC()
+		case <-timeout.C:
+			t.Fatal("never saw GC of request")
+		}
+	}
 }
 
 type noteCloseConn struct {
