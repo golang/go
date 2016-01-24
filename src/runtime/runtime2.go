@@ -211,7 +211,8 @@ type gobuf struct {
 }
 
 // Known to compiler.
-// Changes here must also be made in src/cmd/internal/gc/select.go's selecttype.
+// Changes here must also be made in src/cmd/compile/internal/gc/select.go's
+// selecttype.
 type sudog struct {
 	g           *g
 	selectdone  *uint32
@@ -219,7 +220,7 @@ type sudog struct {
 	prev        *sudog
 	elem        unsafe.Pointer // data element
 	releasetime int64
-	nrelease    int32  // -1 for acquire
+	ticket      uint32
 	waitlink    *sudog // g.waiting list
 }
 

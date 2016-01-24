@@ -62,6 +62,13 @@ func net_runtime_Semrelease(addr *uint32) {
 	semrelease(addr)
 }
 
+func readyWithTime(s *sudog, traceskip int) {
+	if s.releasetime != 0 {
+		s.releasetime = cputicks()
+	}
+	goready(s.g, traceskip)
+}
+
 // Called from runtime.
 func semacquire(addr *uint32, profile bool) {
 	gp := getg()
@@ -141,10 +148,7 @@ func semrelease(addr *uint32) {
 	}
 	unlock(&root.lock)
 	if s != nil {
-		if s.releasetime != 0 {
-			s.releasetime = cputicks()
-		}
-		goready(s.g, 4)
+		readyWithTime(s, 5)
 	}
 }
 
@@ -193,101 +197,158 @@ func (root *semaRoot) dequeue(s *sudog) {
 	s.prev = nil
 }
 
-// Synchronous semaphore for sync.Cond.
-type syncSema struct {
+// notifyList is a ticket-based notification list used to implement sync.Cond.
+//
+// It must be kept in sync with the sync package.
+type notifyList struct {
+	// wait is the ticket number of the next waiter. It is atomically
+	// incremented outside the lock.
+	wait uint32
+
+	// notify is the ticket number of the next waiter to be notified. It can
+	// be read outside the lock, but is only written to with lock held.
+	//
+	// Both wait & notify can wrap around, and such cases will be correctly
+	// handled as long as their "unwrapped" difference is bounded by 2^31.
+	// For this not to be the case, we'd need to have 2^31+ goroutines
+	// blocked on the same condvar, which is currently not possible.
+	notify uint32
+
+	// List of parked waiters.
 	lock mutex
 	head *sudog
 	tail *sudog
 }
 
-// syncsemacquire waits for a pairing syncsemrelease on the same semaphore s.
-//go:linkname syncsemacquire sync.runtime_Syncsemacquire
-func syncsemacquire(s *syncSema) {
-	lock(&s.lock)
-	if s.head != nil && s.head.nrelease > 0 {
-		// Have pending release, consume it.
-		var wake *sudog
-		s.head.nrelease--
-		if s.head.nrelease == 0 {
-			wake = s.head
-			s.head = wake.next
-			if s.head == nil {
-				s.tail = nil
+// less checks if a < b, considering a & b running counts that may overflow the
+// 32-bit range, and that their "unwrapped" difference is always less than 2^31.
+func less(a, b uint32) bool {
+	return int32(a-b) < 0
+}
+
+// notifyListAdd adds the caller to a notify list such that it can receive
+// notifications. The caller must eventually call notifyListWait to wait for
+// such a notification, passing the returned ticket number.
+//go:linkname notifyListAdd sync.runtime_notifyListAdd
+func notifyListAdd(l *notifyList) uint32 {
+	// This may be called concurrently, for example, when called from
+	// sync.Cond.Wait while holding a RWMutex in read mode.
+	return atomic.Xadd(&l.wait, 1) - 1
+}
+
+// notifyListWait waits for a notification. If one has been sent since
+// notifyListAdd was called, it returns immediately. Otherwise, it blocks.
+//go:linkname notifyListWait sync.runtime_notifyListWait
+func notifyListWait(l *notifyList, t uint32) {
+	lock(&l.lock)
+
+	// Return right away if this ticket has already been notified.
+	if less(t, l.notify) {
+		unlock(&l.lock)
+		return
+	}
+
+	// Enqueue itself.
+	s := acquireSudog()
+	s.g = getg()
+	s.ticket = t
+	s.releasetime = 0
+	t0 := int64(0)
+	if blockprofilerate > 0 {
+		t0 = cputicks()
+		s.releasetime = -1
+	}
+	if l.tail == nil {
+		l.head = s
+	} else {
+		l.tail.next = s
+	}
+	l.tail = s
+	goparkunlock(&l.lock, "semacquire", traceEvGoBlockCond, 3)
+	if t0 != 0 {
+		blockevent(s.releasetime-t0, 2)
+	}
+	releaseSudog(s)
+}
+
+// notifyListNotifyAll notifies all entries in the list.
+//go:linkname notifyListNotifyAll sync.runtime_notifyListNotifyAll
+func notifyListNotifyAll(l *notifyList) {
+	// Fast-path: if there are no new waiters since the last notification
+	// we don't need to acquire the lock.
+	if atomic.Load(&l.wait) == atomic.Load(&l.notify) {
+		return
+	}
+
+	// Pull the list out into a local variable, waiters will be readied
+	// outside the lock.
+	lock(&l.lock)
+	s := l.head
+	l.head = nil
+	l.tail = nil
+
+	// Update the next ticket to be notified. We can set it to the current
+	// value of wait because any previous waiters are already in the list
+	// or will notice that they have already been notified when trying to
+	// add themselves to the list.
+	atomic.Store(&l.notify, atomic.Load(&l.wait))
+	unlock(&l.lock)
+
+	// Go through the local list and ready all waiters.
+	for s != nil {
+		next := s.next
+		s.next = nil
+		readyWithTime(s, 4)
+		s = next
+	}
+}
+
+// notifyListNotifyOne notifies one entry in the list.
+//go:linkname notifyListNotifyOne sync.runtime_notifyListNotifyOne
+func notifyListNotifyOne(l *notifyList) {
+	// Fast-path: if there are no new waiters since the last notification
+	// we don't need to acquire the lock at all.
+	if atomic.Load(&l.wait) == atomic.Load(&l.notify) {
+		return
+	}
+
+	lock(&l.lock)
+
+	// Re-check under the lock if we need to do anything.
+	t := l.notify
+	if t == atomic.Load(&l.wait) {
+		unlock(&l.lock)
+		return
+	}
+
+	// Update the next notify ticket number, and try to find the G that
+	// needs to be notified. If it hasn't made it to the list yet we won't
+	// find it, but it won't park itself once it sees the new notify number.
+	atomic.Store(&l.notify, t+1)
+	for p, s := (*sudog)(nil), l.head; s != nil; p, s = s, s.next {
+		if s.ticket == t {
+			n := s.next
+			if p != nil {
+				p.next = n
+			} else {
+				l.head = n
 			}
+			if n == nil {
+				l.tail = p
+			}
+			unlock(&l.lock)
+			s.next = nil
+			readyWithTime(s, 4)
+			return
 		}
-		unlock(&s.lock)
-		if wake != nil {
-			wake.next = nil
-			goready(wake.g, 4)
-		}
-	} else {
-		// Enqueue itself.
-		w := acquireSudog()
-		w.g = getg()
-		w.nrelease = -1
-		w.next = nil
-		w.releasetime = 0
-		t0 := int64(0)
-		if blockprofilerate > 0 {
-			t0 = cputicks()
-			w.releasetime = -1
-		}
-		if s.tail == nil {
-			s.head = w
-		} else {
-			s.tail.next = w
-		}
-		s.tail = w
-		goparkunlock(&s.lock, "semacquire", traceEvGoBlockCond, 3)
-		if t0 != 0 {
-			blockevent(w.releasetime-t0, 2)
-		}
-		releaseSudog(w)
 	}
+	unlock(&l.lock)
 }
 
-// syncsemrelease waits for n pairing syncsemacquire on the same semaphore s.
-//go:linkname syncsemrelease sync.runtime_Syncsemrelease
-func syncsemrelease(s *syncSema, n uint32) {
-	lock(&s.lock)
-	for n > 0 && s.head != nil && s.head.nrelease < 0 {
-		// Have pending acquire, satisfy it.
-		wake := s.head
-		s.head = wake.next
-		if s.head == nil {
-			s.tail = nil
-		}
-		if wake.releasetime != 0 {
-			wake.releasetime = cputicks()
-		}
-		wake.next = nil
-		goready(wake.g, 4)
-		n--
-	}
-	if n > 0 {
-		// enqueue itself
-		w := acquireSudog()
-		w.g = getg()
-		w.nrelease = int32(n)
-		w.next = nil
-		w.releasetime = 0
-		if s.tail == nil {
-			s.head = w
-		} else {
-			s.tail.next = w
-		}
-		s.tail = w
-		goparkunlock(&s.lock, "semarelease", traceEvGoBlockCond, 3)
-		releaseSudog(w)
-	} else {
-		unlock(&s.lock)
-	}
-}
-
-//go:linkname syncsemcheck sync.runtime_Syncsemcheck
-func syncsemcheck(sz uintptr) {
-	if sz != unsafe.Sizeof(syncSema{}) {
-		print("runtime: bad syncSema size - sync=", sz, " runtime=", unsafe.Sizeof(syncSema{}), "\n")
-		throw("bad syncSema size")
+//go:linkname notifyListCheck sync.runtime_notifyListCheck
+func notifyListCheck(sz uintptr) {
+	if sz != unsafe.Sizeof(notifyList{}) {
+		print("runtime: bad notifyList size - sync=", sz, " runtime=", unsafe.Sizeof(notifyList{}), "\n")
+		throw("bad notifyList size")
 	}
 }

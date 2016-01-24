@@ -8,6 +8,7 @@ import (
 
 	"runtime"
 	"testing"
+	"time"
 )
 
 func TestCondSignal(t *testing.T) {
@@ -181,6 +182,64 @@ func TestRace(t *testing.T) {
 	<-done
 	<-done
 	<-done
+}
+
+func TestCondSignalStealing(t *testing.T) {
+	for iters := 0; iters < 1000; iters++ {
+		var m Mutex
+		cond := NewCond(&m)
+
+		// Start a waiter.
+		ch := make(chan struct{})
+		go func() {
+			m.Lock()
+			ch <- struct{}{}
+			cond.Wait()
+			m.Unlock()
+
+			ch <- struct{}{}
+		}()
+
+		<-ch
+		m.Lock()
+		m.Unlock()
+
+		// We know that the waiter is in the cond.Wait() call because we
+		// synchronized with it, then acquired/released the mutex it was
+		// holding when we synchronized.
+		//
+		// Start two goroutines that will race: one will broadcast on
+		// the cond var, the other will wait on it.
+		//
+		// The new waiter may or may not get notified, but the first one
+		// has to be notified.
+		done := false
+		go func() {
+			cond.Broadcast()
+		}()
+
+		go func() {
+			m.Lock()
+			for !done {
+				cond.Wait()
+			}
+			m.Unlock()
+		}()
+
+		// Check that the first waiter does get signaled.
+		select {
+		case <-ch:
+		case <-time.After(2 * time.Second):
+			t.Fatalf("First waiter didn't get broadcast.")
+		}
+
+		// Release the second waiter in case it didn't get the
+		// broadcast.
+		m.Lock()
+		done = true
+		m.Unlock()
+		cond.Broadcast()
+	}
 }
 
 func TestCondCopy(t *testing.T) {
