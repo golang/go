@@ -162,3 +162,6 @@ func testUnsignedInt(t *testing.T) {
 func sliceOperands(array [2000]int) {
 	_ = array[C.KILO:C.KILO:C.KILO] // no type error
 }
+
+// set in cgo_thread_lock.go init
+var testThreadLockFunc = func(*testing.T) {}

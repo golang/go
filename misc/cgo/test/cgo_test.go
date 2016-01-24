@@ -72,5 +72,6 @@ func TestCallGoWithString(t *testing.T)      { testCallGoWithString(t) }
 func Test14838(t *testing.T)                 { test14838(t) }
 func Test8756(t *testing.T)                  { test8756(t) }
 func Test17065(t *testing.T)                 { test17065(t) }
+func TestThreadLock(t *testing.T)            { testThreadLockFunc(t) }
 
 func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
