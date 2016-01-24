@@ -121,5 +121,11 @@ label:
 loop:
 	LOOP	loop // LOOP
 
+	// Intel pseudonyms for our own renamings.
+	PADDD	M2, M1 // PADDL M2, M1
+	MOVDQ2Q	X1, M1 // MOVQ X1, M1
+	MOVNTDQ	X1, (AX)	// MOVNTO X1, (AX)
+	MOVOA	(AX), X1	// MOVO (AX), X1
+
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET // c3

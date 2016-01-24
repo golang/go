@@ -2148,10 +2148,10 @@ TEXT asmtest(SB),7,$0
 	//TODO: LARQ (R11), R11                 // 4d0f021b
 	//TODO: LARQ DX, R11                    // 4c0f02da
 	//TODO: LARQ R11, R11                   // 4d0f02db
-	//TODO: LDDQU (BX), X2                  // f20ff013
-	//TODO: LDDQU (R11), X2                 // f2410ff013
-	//TODO: LDDQU (BX), X11                 // f2440ff01b
-	//TODO: LDDQU (R11), X11                // f2450ff01b
+	LDDQU (BX), X2                          // f20ff013
+	LDDQU (R11), X2                         // f2410ff013
+	LDDQU (BX), X11                         // f2440ff01b
+	LDDQU (R11), X11                        // f2450ff01b
 	LDMXCSR (BX)                            // 0fae13
 	LDMXCSR (R11)                           // 410fae13
 	LEAW (BX), DX                           // 668d13
@@ -3621,22 +3621,22 @@ TEXT asmtest(SB),7,$0
 	//TODO: PEXTRW $7, X11, (BX)            // 66440f3a151b07
 	//TODO: PEXTRW $7, X2, (R11)            // 66410f3a151307
 	//TODO: PEXTRW $7, X11, (R11)           // 66450f3a151b07
-	//TODO: PHADDD (BX), M2                 // 0f380213
-	//TODO: PHADDD (R11), M2                // 410f380213
-	//TODO: PHADDD M2, M2                   // 0f3802d2
-	//TODO: PHADDD M3, M2                   // 0f3802d3
-	//TODO: PHADDD (BX), M3                 // 0f38021b
-	//TODO: PHADDD (R11), M3                // 410f38021b
-	//TODO: PHADDD M2, M3                   // 0f3802da
-	//TODO: PHADDD M3, M3                   // 0f3802db
-	//TODO: PHADDD (BX), X2                 // 660f380213
-	//TODO: PHADDD (R11), X2                // 66410f380213
-	//TODO: PHADDD X2, X2                   // 660f3802d2
-	//TODO: PHADDD X11, X2                  // 66410f3802d3
-	//TODO: PHADDD (BX), X11                // 66440f38021b
-	//TODO: PHADDD (R11), X11               // 66450f38021b
-	//TODO: PHADDD X2, X11                  // 66440f3802da
-	//TODO: PHADDD X11, X11                 // 66450f3802db
+	PHADDD (BX), M2                         // 0f380213
+	PHADDD (R11), M2                        // 410f380213
+	PHADDD M2, M2                           // 0f3802d2
+	PHADDD M3, M2                           // 0f3802d3
+	PHADDD (BX), M3                         // 0f38021b
+	PHADDD (R11), M3                        // 410f38021b
+	PHADDD M2, M3                           // 0f3802da
+	PHADDD M3, M3                           // 0f3802db
+	PHADDD (BX), X2                         // 660f380213
+	PHADDD (R11), X2                        // 66410f380213
+	PHADDD X2, X2                           // 660f3802d2
+	PHADDD X11, X2                          // 66410f3802d3
+	PHADDD (BX), X11                        // 66440f38021b
+	PHADDD (R11), X11                       // 66450f38021b
+	PHADDD X2, X11                          // 66440f3802da
+	PHADDD X11, X11                         // 66450f3802db
 	//TODO: PHADDSW (BX), M2                // 0f380313
 	//TODO: PHADDSW (R11), M2               // 410f380313
 	//TODO: PHADDSW M2, M2                  // 0f3803d2
@@ -3933,110 +3933,110 @@ TEXT asmtest(SB),7,$0
 	PMOVMSKB X11, DX                        // 66410fd7d3
 	PMOVMSKB X2, R11                        // 66440fd7da
 	PMOVMSKB X11, R11                       // 66450fd7db
-	//TODO: PMOVSXBD (BX), X2               // 660f382113
-	//TODO: PMOVSXBD (R11), X2              // 66410f382113
-	//TODO: PMOVSXBD X2, X2                 // 660f3821d2
-	//TODO: PMOVSXBD X11, X2                // 66410f3821d3
-	//TODO: PMOVSXBD (BX), X11              // 66440f38211b
-	//TODO: PMOVSXBD (R11), X11             // 66450f38211b
-	//TODO: PMOVSXBD X2, X11                // 66440f3821da
-	//TODO: PMOVSXBD X11, X11               // 66450f3821db
-	//TODO: PMOVSXBQ (BX), X2               // 660f382213
-	//TODO: PMOVSXBQ (R11), X2              // 66410f382213
-	//TODO: PMOVSXBQ X2, X2                 // 660f3822d2
-	//TODO: PMOVSXBQ X11, X2                // 66410f3822d3
-	//TODO: PMOVSXBQ (BX), X11              // 66440f38221b
-	//TODO: PMOVSXBQ (R11), X11             // 66450f38221b
-	//TODO: PMOVSXBQ X2, X11                // 66440f3822da
-	//TODO: PMOVSXBQ X11, X11               // 66450f3822db
-	//TODO: PMOVSXBW (BX), X2               // 660f382013
-	//TODO: PMOVSXBW (R11), X2              // 66410f382013
-	//TODO: PMOVSXBW X2, X2                 // 660f3820d2
-	//TODO: PMOVSXBW X11, X2                // 66410f3820d3
-	//TODO: PMOVSXBW (BX), X11              // 66440f38201b
-	//TODO: PMOVSXBW (R11), X11             // 66450f38201b
-	//TODO: PMOVSXBW X2, X11                // 66440f3820da
-	//TODO: PMOVSXBW X11, X11               // 66450f3820db
-	//TODO: PMOVSXDQ (BX), X2               // 660f382513
-	//TODO: PMOVSXDQ (R11), X2              // 66410f382513
-	//TODO: PMOVSXDQ X2, X2                 // 660f3825d2
-	//TODO: PMOVSXDQ X11, X2                // 66410f3825d3
-	//TODO: PMOVSXDQ (BX), X11              // 66440f38251b
-	//TODO: PMOVSXDQ (R11), X11             // 66450f38251b
-	//TODO: PMOVSXDQ X2, X11                // 66440f3825da
-	//TODO: PMOVSXDQ X11, X11               // 66450f3825db
-	//TODO: PMOVSXWD (BX), X2               // 660f382313
-	//TODO: PMOVSXWD (R11), X2              // 66410f382313
-	//TODO: PMOVSXWD X2, X2                 // 660f3823d2
-	//TODO: PMOVSXWD X11, X2                // 66410f3823d3
-	//TODO: PMOVSXWD (BX), X11              // 66440f38231b
-	//TODO: PMOVSXWD (R11), X11             // 66450f38231b
-	//TODO: PMOVSXWD X2, X11                // 66440f3823da
-	//TODO: PMOVSXWD X11, X11               // 66450f3823db
-	//TODO: PMOVSXWQ (BX), X2               // 660f382413
-	//TODO: PMOVSXWQ (R11), X2              // 66410f382413
-	//TODO: PMOVSXWQ X2, X2                 // 660f3824d2
-	//TODO: PMOVSXWQ X11, X2                // 66410f3824d3
-	//TODO: PMOVSXWQ (BX), X11              // 66440f38241b
-	//TODO: PMOVSXWQ (R11), X11             // 66450f38241b
-	//TODO: PMOVSXWQ X2, X11                // 66440f3824da
-	//TODO: PMOVSXWQ X11, X11               // 66450f3824db
-	//TODO: PMOVZXBD (BX), X2               // 660f383113
-	//TODO: PMOVZXBD (R11), X2              // 66410f383113
-	//TODO: PMOVZXBD X2, X2                 // 660f3831d2
-	//TODO: PMOVZXBD X11, X2                // 66410f3831d3
-	//TODO: PMOVZXBD (BX), X11              // 66440f38311b
-	//TODO: PMOVZXBD (R11), X11             // 66450f38311b
-	//TODO: PMOVZXBD X2, X11                // 66440f3831da
-	//TODO: PMOVZXBD X11, X11               // 66450f3831db
-	//TODO: PMOVZXBQ (BX), X2               // 660f383213
-	//TODO: PMOVZXBQ (R11), X2              // 66410f383213
-	//TODO: PMOVZXBQ X2, X2                 // 660f3832d2
-	//TODO: PMOVZXBQ X11, X2                // 66410f3832d3
-	//TODO: PMOVZXBQ (BX), X11              // 66440f38321b
-	//TODO: PMOVZXBQ (R11), X11             // 66450f38321b
-	//TODO: PMOVZXBQ X2, X11                // 66440f3832da
-	//TODO: PMOVZXBQ X11, X11               // 66450f3832db
-	//TODO: PMOVZXBW (BX), X2               // 660f383013
-	//TODO: PMOVZXBW (R11), X2              // 66410f383013
-	//TODO: PMOVZXBW X2, X2                 // 660f3830d2
-	//TODO: PMOVZXBW X11, X2                // 66410f3830d3
-	//TODO: PMOVZXBW (BX), X11              // 66440f38301b
-	//TODO: PMOVZXBW (R11), X11             // 66450f38301b
-	//TODO: PMOVZXBW X2, X11                // 66440f3830da
-	//TODO: PMOVZXBW X11, X11               // 66450f3830db
-	//TODO: PMOVZXDQ (BX), X2               // 660f383513
-	//TODO: PMOVZXDQ (R11), X2              // 66410f383513
-	//TODO: PMOVZXDQ X2, X2                 // 660f3835d2
-	//TODO: PMOVZXDQ X11, X2                // 66410f3835d3
-	//TODO: PMOVZXDQ (BX), X11              // 66440f38351b
-	//TODO: PMOVZXDQ (R11), X11             // 66450f38351b
-	//TODO: PMOVZXDQ X2, X11                // 66440f3835da
-	//TODO: PMOVZXDQ X11, X11               // 66450f3835db
-	//TODO: PMOVZXWD (BX), X2               // 660f383313
-	//TODO: PMOVZXWD (R11), X2              // 66410f383313
-	//TODO: PMOVZXWD X2, X2                 // 660f3833d2
-	//TODO: PMOVZXWD X11, X2                // 66410f3833d3
-	//TODO: PMOVZXWD (BX), X11              // 66440f38331b
-	//TODO: PMOVZXWD (R11), X11             // 66450f38331b
-	//TODO: PMOVZXWD X2, X11                // 66440f3833da
-	//TODO: PMOVZXWD X11, X11               // 66450f3833db
-	//TODO: PMOVZXWQ (BX), X2               // 660f383413
-	//TODO: PMOVZXWQ (R11), X2              // 66410f383413
-	//TODO: PMOVZXWQ X2, X2                 // 660f3834d2
-	//TODO: PMOVZXWQ X11, X2                // 66410f3834d3
-	//TODO: PMOVZXWQ (BX), X11              // 66440f38341b
-	//TODO: PMOVZXWQ (R11), X11             // 66450f38341b
-	//TODO: PMOVZXWQ X2, X11                // 66440f3834da
-	//TODO: PMOVZXWQ X11, X11               // 66450f3834db
-	//TODO: PMULDQ (BX), X2                 // 660f382813
-	//TODO: PMULDQ (R11), X2                // 66410f382813
-	//TODO: PMULDQ X2, X2                   // 660f3828d2
-	//TODO: PMULDQ X11, X2                  // 66410f3828d3
-	//TODO: PMULDQ (BX), X11                // 66440f38281b
-	//TODO: PMULDQ (R11), X11               // 66450f38281b
-	//TODO: PMULDQ X2, X11                  // 66440f3828da
-	//TODO: PMULDQ X11, X11                 // 66450f3828db
+	PMOVSXBD (BX), X2                       // 660f382113
+	PMOVSXBD (R11), X2                      // 66410f382113
+	PMOVSXBD X2, X2                         // 660f3821d2
+	PMOVSXBD X11, X2                        // 66410f3821d3
+	PMOVSXBD (BX), X11                      // 66440f38211b
+	PMOVSXBD (R11), X11                     // 66450f38211b
+	PMOVSXBD X2, X11                        // 66440f3821da
+	PMOVSXBD X11, X11                       // 66450f3821db
+	PMOVSXBQ (BX), X2                       // 660f382213
+	PMOVSXBQ (R11), X2                      // 66410f382213
+	PMOVSXBQ X2, X2                         // 660f3822d2
+	PMOVSXBQ X11, X2                        // 66410f3822d3
+	PMOVSXBQ (BX), X11                      // 66440f38221b
+	PMOVSXBQ (R11), X11                     // 66450f38221b
+	PMOVSXBQ X2, X11                        // 66440f3822da
+	PMOVSXBQ X11, X11                       // 66450f3822db
+	PMOVSXBW (BX), X2                       // 660f382013
+	PMOVSXBW (R11), X2                      // 66410f382013
+	PMOVSXBW X2, X2                         // 660f3820d2
+	PMOVSXBW X11, X2                        // 66410f3820d3
+	PMOVSXBW (BX), X11                      // 66440f38201b
+	PMOVSXBW (R11), X11                     // 66450f38201b
+	PMOVSXBW X2, X11                        // 66440f3820da
+	PMOVSXBW X11, X11                       // 66450f3820db
+	PMOVSXDQ (BX), X2                       // 660f382513
+	PMOVSXDQ (R11), X2                      // 66410f382513
+	PMOVSXDQ X2, X2                         // 660f3825d2
+	PMOVSXDQ X11, X2                        // 66410f3825d3
+	PMOVSXDQ (BX), X11                      // 66440f38251b
+	PMOVSXDQ (R11), X11                     // 66450f38251b
+	PMOVSXDQ X2, X11                        // 66440f3825da
+	PMOVSXDQ X11, X11                       // 66450f3825db
+	PMOVSXWD (BX), X2                       // 660f382313
+	PMOVSXWD (R11), X2                      // 66410f382313
+	PMOVSXWD X2, X2                         // 660f3823d2
+	PMOVSXWD X11, X2                        // 66410f3823d3
+	PMOVSXWD (BX), X11                      // 66440f38231b
+	PMOVSXWD (R11), X11                     // 66450f38231b
+	PMOVSXWD X2, X11                        // 66440f3823da
+	PMOVSXWD X11, X11                       // 66450f3823db
+	PMOVSXWQ (BX), X2                       // 660f382413
+	PMOVSXWQ (R11), X2                      // 66410f382413
+	PMOVSXWQ X2, X2                         // 660f3824d2
+	PMOVSXWQ X11, X2                        // 66410f3824d3
+	PMOVSXWQ (BX), X11                      // 66440f38241b
+	PMOVSXWQ (R11), X11                     // 66450f38241b
+	PMOVSXWQ X2, X11                        // 66440f3824da
+	PMOVSXWQ X11, X11                       // 66450f3824db
+	PMOVZXBD (BX), X2                       // 660f383113
+	PMOVZXBD (R11), X2                      // 66410f383113
+	PMOVZXBD X2, X2                         // 660f3831d2
+	PMOVZXBD X11, X2                        // 66410f3831d3
+	PMOVZXBD (BX), X11                      // 66440f38311b
+	PMOVZXBD (R11), X11                     // 66450f38311b
+	PMOVZXBD X2, X11                        // 66440f3831da
+	PMOVZXBD X11, X11                       // 66450f3831db
+	PMOVZXBQ (BX), X2                       // 660f383213
+	PMOVZXBQ (R11), X2                      // 66410f383213
+	PMOVZXBQ X2, X2                         // 660f3832d2
+	PMOVZXBQ X11, X2                        // 66410f3832d3
+	PMOVZXBQ (BX), X11                      // 66440f38321b
+	PMOVZXBQ (R11), X11                     // 66450f38321b
+	PMOVZXBQ X2, X11                        // 66440f3832da
+	PMOVZXBQ X11, X11                       // 66450f3832db
+	PMOVZXBW (BX), X2                       // 660f383013
+	PMOVZXBW (R11), X2                      // 66410f383013
+	PMOVZXBW X2, X2                         // 660f3830d2
+	PMOVZXBW X11, X2                        // 66410f3830d3
+	PMOVZXBW (BX), X11                      // 66440f38301b
+	PMOVZXBW (R11), X11                     // 66450f38301b
+	PMOVZXBW X2, X11                        // 66440f3830da
+	PMOVZXBW X11, X11                       // 66450f3830db
+	PMOVZXDQ (BX), X2                       // 660f383513
+	PMOVZXDQ (R11), X2                      // 66410f383513
+	PMOVZXDQ X2, X2                         // 660f3835d2
+	PMOVZXDQ X11, X2                        // 66410f3835d3
+	PMOVZXDQ (BX), X11                      // 66440f38351b
+	PMOVZXDQ (R11), X11                     // 66450f38351b
+	PMOVZXDQ X2, X11                        // 66440f3835da
+	PMOVZXDQ X11, X11                       // 66450f3835db
+	PMOVZXWD (BX), X2                       // 660f383313
+	PMOVZXWD (R11), X2                      // 66410f383313
+	PMOVZXWD X2, X2                         // 660f3833d2
+	PMOVZXWD X11, X2                        // 66410f3833d3
+	PMOVZXWD (BX), X11                      // 66440f38331b
+	PMOVZXWD (R11), X11                     // 66450f38331b
+	PMOVZXWD X2, X11                        // 66440f3833da
+	PMOVZXWD X11, X11                       // 66450f3833db
+	PMOVZXWQ (BX), X2                       // 660f383413
+	PMOVZXWQ (R11), X2                      // 66410f383413
+	PMOVZXWQ X2, X2                         // 660f3834d2
+	PMOVZXWQ X11, X2                        // 66410f3834d3
+	PMOVZXWQ (BX), X11                      // 66440f38341b
+	PMOVZXWQ (R11), X11                     // 66450f38341b
+	PMOVZXWQ X2, X11                        // 66440f3834da
+	PMOVZXWQ X11, X11                       // 66450f3834db
+	PMULDQ (BX), X2                         // 660f382813
+	PMULDQ (R11), X2                        // 66410f382813
+	PMULDQ X2, X2                           // 660f3828d2
+	PMULDQ X11, X2                          // 66410f3828d3
+	PMULDQ (BX), X11                        // 66440f38281b
+	PMULDQ (R11), X11                       // 66450f38281b
+	PMULDQ X2, X11                          // 66440f3828da
+	PMULDQ X11, X11                         // 66450f3828db
 	//TODO: PMULHRSW (BX), M2               // 0f380b13
 	//TODO: PMULHRSW (R11), M2              // 410f380b13
 	//TODO: PMULHRSW M2, M2                 // 0f380bd2
@@ -4085,14 +4085,14 @@ TEXT asmtest(SB),7,$0
 	PMULHW (R11), X11                       // 66450fe51b
 	PMULHW X2, X11                          // 66440fe5da
 	PMULHW X11, X11                         // 66450fe5db
-	//TODO: PMULLD (BX), X2                 // 660f384013
-	//TODO: PMULLD (R11), X2                // 66410f384013
-	//TODO: PMULLD X2, X2                   // 660f3840d2
-	//TODO: PMULLD X11, X2                  // 66410f3840d3
-	//TODO: PMULLD (BX), X11                // 66440f38401b
-	//TODO: PMULLD (R11), X11               // 66450f38401b
-	//TODO: PMULLD X2, X11                  // 66440f3840da
-	//TODO: PMULLD X11, X11                 // 66450f3840db
+	PMULLD (BX), X2                         // 660f384013
+	PMULLD (R11), X2                        // 66410f384013
+	PMULLD X2, X2                           // 660f3840d2
+	PMULLD X11, X2                          // 66410f3840d3
+	PMULLD (BX), X11                        // 66440f38401b
+	PMULLD (R11), X11                       // 66450f38401b
+	PMULLD X2, X11                          // 66440f3840da
+	PMULLD X11, X11                         // 66450f3840db
 	PMULLW (BX), M2                         // 0fd513
 	PMULLW (R11), M2                        // 410fd513
 	PMULLW M2, M2                           // 0fd5d2

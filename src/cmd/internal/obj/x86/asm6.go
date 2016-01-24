@@ -222,6 +222,7 @@ const (
 	Pf3  = 0xf3 /* xmm escape 2: f3 0f */
 	Pef3 = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
 	Pq3  = 0x67 /* xmm escape 3: 66 48 0f */
+	Pq4  = 0x68 /* xmm escape 4: 66 0F 38 */
 	Pfw  = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
 	Pw   = 0x48 /* Rex.w */
 	Pw8  = 0x90 // symbolic; exact value doesn't matter
@@ -675,6 +676,10 @@ var yxm = []ytab{
 	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
 }
 
+var yxm_q4 = []ytab{
+	{Yxm, Ynone, Yxr, Zm_r, 1},
+}
+
 var yxcvm1 = []ytab{
 	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
 	{Yxm, Ynone, Ymr, Zm_r_xm, 2},
@@ -817,6 +822,10 @@ var yxabort = []ytab{
 	{Yu8, Ynone, Ynone, Zib_, 1},
 }
 
+var ylddqu = []ytab{
+	{Ym, Ynone, Yxr, Zm_r, 1},
+}
+
 // VEX instructions that come in two forms:
 //	VTHING xmm2/m128, xmmV, xmm1
 //	VTHING ymm2/m256, ymmV, ymm1
@@ -871,6 +880,11 @@ var yvex_vpbroadcast = []ytab{
 var yvex_xxmyxm = []ytab{
 	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
 	{Yyr, Ynone, Yxm, Zvex_r_v_rm, 2},
+}
+
+var ymmxmm0f38 = []ytab{
+	{Ymm, Ynone, Ymr, Zlitm_r, 3},
+	{Yxm, Ynone, Yxr, Zlitm_r, 5},
 }
 
 /*
@@ -1149,6 +1163,7 @@ var optab =
 	{ALAHF, ynone, Px, [23]uint8{0x9f}},
 	{ALARL, yml_rl, Pm, [23]uint8{0x02}},
 	{ALARW, yml_rl, Pq, [23]uint8{0x02}},
+	{ALDDQU, ylddqu, Pf2, [23]uint8{0xf0}},
 	{ALDMXCSR, ysvrs, Pm, [23]uint8{0xae, 02, 0xae, 02}},
 	{ALEAL, ym_rl, Px, [23]uint8{0x8d}},
 	{ALEAQ, ym_rl, Pw, [23]uint8{0x8d}},
@@ -1293,6 +1308,13 @@ var optab =
 	{APFRSQRT, ymfp, Px, [23]uint8{0x97}},
 	{APFSUB, ymfp, Px, [23]uint8{0x9a}},
 	{APFSUBR, ymfp, Px, [23]uint8{0xaa}},
+	{APHADDD, ymmxmm0f38, Px, [23]uint8{0x0F, 0x38, 0x02, 0, 0x66, 0x0F, 0x38, 0x02, 0}},
+	{APHADDSW, yxm_q4, Pq4, [23]uint8{0x03}},
+	{APHADDW, yxm_q4, Pq4, [23]uint8{0x01}},
+	{APHMINPOSUW, yxm_q4, Pq4, [23]uint8{0x41}},
+	{APHSUBD, yxm_q4, Pq4, [23]uint8{0x06}},
+	{APHSUBSW, yxm_q4, Pq4, [23]uint8{0x07}},
+	{APHSUBW, yxm_q4, Pq4, [23]uint8{0x05}},
 	{APINSRW, yinsrw, Pq, [23]uint8{0xc4, 00}},
 	{APINSRB, yinsr, Pq, [23]uint8{0x3a, 0x20, 00}},
 	{APINSRD, yinsr, Pq, [23]uint8{0x3a, 0x22, 00}},
@@ -1303,9 +1325,23 @@ var optab =
 	{APMINSW, yxm, Pe, [23]uint8{0xea}},
 	{APMINUB, yxm, Pe, [23]uint8{0xda}},
 	{APMOVMSKB, ymskb, Px, [23]uint8{Pe, 0xd7, 0xd7}},
+	{APMOVSXBD, yxm_q4, Pq4, [23]uint8{0x21}},
+	{APMOVSXBQ, yxm_q4, Pq4, [23]uint8{0x22}},
+	{APMOVSXBW, yxm_q4, Pq4, [23]uint8{0x20}},
+	{APMOVSXDQ, yxm_q4, Pq4, [23]uint8{0x25}},
+	{APMOVSXWD, yxm_q4, Pq4, [23]uint8{0x23}},
+	{APMOVSXWQ, yxm_q4, Pq4, [23]uint8{0x24}},
+	{APMOVZXBD, yxm_q4, Pq4, [23]uint8{0x31}},
+	{APMOVZXBQ, yxm_q4, Pq4, [23]uint8{0x32}},
+	{APMOVZXBW, yxm_q4, Pq4, [23]uint8{0x30}},
+	{APMOVZXDQ, yxm_q4, Pq4, [23]uint8{0x35}},
+	{APMOVZXWD, yxm_q4, Pq4, [23]uint8{0x33}},
+	{APMOVZXWQ, yxm_q4, Pq4, [23]uint8{0x34}},
+	{APMULDQ, yxm_q4, Pq4, [23]uint8{0x28}},
 	{APMULHRW, ymfp, Px, [23]uint8{0xb7}},
 	{APMULHUW, ymm, Py1, [23]uint8{0xe4, Pe, 0xe4}},
 	{APMULHW, ymm, Py1, [23]uint8{0xe5, Pe, 0xe5}},
+	{APMULLD, yxm_q4, Pq4, [23]uint8{0x40}},
 	{APMULLW, ymm, Py1, [23]uint8{0xd5, Pe, 0xd5}},
 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
 	{APOPAL, ynone, P32, [23]uint8{0x61}},
@@ -3291,6 +3327,12 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
+
+			case Pq4: /*  66 0F 38 */
+				ctxt.Andptr[0] = 0x66
+				ctxt.Andptr[1] = 0x0F
+				ctxt.Andptr[2] = 0x38
+				ctxt.Andptr = ctxt.Andptr[3:]
 
 			case Pf2, /* xmm opcode escape */
 				Pf3:
