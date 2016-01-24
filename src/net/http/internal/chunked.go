@@ -220,8 +220,7 @@ type FlushAfterChunkWriter struct {
 }
 
 func parseHexUint(v []byte) (n uint64, err error) {
-	for _, b := range v {
-		n <<= 4
+	for i, b := range v {
 		switch {
 		case '0' <= b && b <= '9':
 			b = b - '0'
@@ -232,6 +231,10 @@ func parseHexUint(v []byte) (n uint64, err error) {
 		default:
 			return 0, errors.New("invalid byte in chunk length")
 		}
+		if i == 16 {
+			return 0, errors.New("http chunk length too large")
+		}
+		n <<= 4
 		n |= uint64(b)
 	}
 	return
