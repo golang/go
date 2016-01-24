@@ -54,7 +54,7 @@ func main() {
 	lexer := lex.NewLexer(flag.Arg(0), ctxt)
 	parser := asm.NewParser(ctxt, architecture, lexer)
 	diag := false
-	ctxt.Diag = func(format string, args ...interface{}) {
+	ctxt.DiagFunc = func(format string, args ...interface{}) {
 		diag = true
 		log.Printf(format, args...)
 	}

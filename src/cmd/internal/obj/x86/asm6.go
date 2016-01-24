@@ -1856,6 +1856,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 	var loop int32
 	var m int
 	var p *obj.Prog
+	errors := ctxt.Errors
 	for {
 		loop = 0
 		for i = 0; i < len(s.R); i++ {
@@ -1967,6 +1968,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		}
 		if loop == 0 {
 			break
+		}
+		if ctxt.Errors > errors {
+			return
 		}
 	}
 
@@ -2294,6 +2298,11 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		return Yxxx
 
 	case obj.TYPE_MEM:
+		if a.Name != obj.NAME_NONE {
+			if ctxt.Asmode == 64 && (a.Reg != REG_NONE || a.Index != REG_NONE || a.Scale != 0) {
+				return Yxxx
+			}
+		}
 		return Ym
 
 	case obj.TYPE_ADDR:
