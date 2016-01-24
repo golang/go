@@ -109,7 +109,7 @@ type Signer interface {
 	// private key.
 	Public() PublicKey
 
-	// Sign signs msg with the private key, possibly using entropy from
+	// Sign signs digest with the private key, possibly using entropy from
 	// rand. For an RSA key, the resulting signature should be either a
 	// PKCS#1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
 	// key, it should be a DER-serialised, ASN.1 signature structure.
@@ -118,7 +118,11 @@ type Signer interface {
 	// simply pass in the hash function used as opts. Sign may also attempt
 	// to type assert opts to other types in order to obtain algorithm
 	// specific values. See the documentation in each package for details.
-	Sign(rand io.Reader, msg []byte, opts SignerOpts) (signature []byte, err error)
+	//
+	// Note that when a signature of a hash of a larger message is needed,
+	// the caller is responsible for hashing the larger message and passing
+	// the hash (as digest) and the hash function (as opts) to Sign.
+	Sign(rand io.Reader, digest []byte, opts SignerOpts) (signature []byte, err error)
 }
 
 // SignerOpts contains options for signing with a Signer.
