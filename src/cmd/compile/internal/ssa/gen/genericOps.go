@@ -245,24 +245,19 @@ var genericOps = []opData{
 	// arg0=ptr/int arg1=mem, output=int/ptr
 	{name: "Convert"},
 
-	// constants.  Constant values are stored in the aux field.
-	// booleans have a bool aux field, strings have a string aux
-	// field, and so on.  All integer types store their value
-	// in the AuxInt field as an int64 (including int, uint64, etc.).
-	// For integer types smaller than 64 bits, only the low-order
-	// bits of the AuxInt field matter.
-	{name: "ConstBool"},
-	{name: "ConstString"},
-	{name: "ConstNil", typ: "BytePtr"},
-	{name: "Const8"},
-	{name: "Const16"},
-	{name: "Const32"},
-	{name: "Const64"},
-	{name: "Const32F"},
-	{name: "Const64F"},
-	{name: "ConstInterface"}, // nil interface
-	{name: "ConstSlice"},     // nil slice
-	// TODO: Const32F, ...
+	// constants.  Constant values are stored in the aux or
+	// auxint fields.
+	{name: "ConstBool"},                // auxint is 0 for false and 1 for true
+	{name: "ConstString"},              // value is aux.(string)
+	{name: "ConstNil", typ: "BytePtr"}, // nil pointer
+	{name: "Const8"},                   // value is low 8 bits of auxint
+	{name: "Const16"},                  // value is low 16 bits of auxint
+	{name: "Const32"},                  // value is low 32 bits of auxint
+	{name: "Const64"},                  // value is auxint
+	{name: "Const32F"},                 // value is math.Float64frombits(uint64(auxint))
+	{name: "Const64F"},                 // value is math.Float64frombits(uint64(auxint))
+	{name: "ConstInterface"},           // nil interface
+	{name: "ConstSlice"},               // nil slice
 
 	// Constant-like things
 	{name: "InitMem"}, // memory input to the function.
