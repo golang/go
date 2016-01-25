@@ -273,6 +273,29 @@ func (c *common) flushToParent(format string, args ...interface{}) {
 	c.output = c.output[:0]
 }
 
+type indenter struct {
+	c *common
+}
+
+func (w indenter) Write(b []byte) (n int, err error) {
+	n = len(b)
+	for len(b) > 0 {
+		end := bytes.IndexByte(b, '\n')
+		if end == -1 {
+			end = len(b)
+		} else {
+			end++
+		}
+		// An indent of 4 spaces will neatly align the dashes with the status
+		// indicator of the parent.
+		const indent = "    "
+		w.c.output = append(w.c.output, indent...)
+		w.c.output = append(w.c.output, b[:end]...)
+		b = b[end:]
+	}
+	return
+}
+
 // fmtDuration returns a string representing d in the form "87.00s".
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
@@ -542,6 +565,7 @@ func (t *T) run(name string, f func(t *T)) bool {
 		},
 		context: t.context,
 	}
+	t.w = indenter{&t.common}
 
 	if *chatty {
 		fmt.Printf("=== RUN   %s\n", t.name)
