@@ -207,6 +207,7 @@ var (
 	tmpdir             string
 	extld              string
 	extldflags         string
+	extar              string
 	libgccfile         string
 	debug_s            int // backup old value of debug['s']
 	Ctxt               *Link
@@ -1015,8 +1016,12 @@ func archive() {
 		return
 	}
 
+	if extar == "" {
+		extar = "ar"
+	}
+
 	mayberemoveoutfile()
-	argv := []string{"ar", "-q", "-c", "-s", outfile}
+	argv := []string{extar, "-q", "-c", "-s", outfile}
 	argv = append(argv, fmt.Sprintf("%s/go.o", tmpdir))
 	argv = append(argv, hostobjCopy()...)
 
