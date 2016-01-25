@@ -1525,8 +1525,6 @@ var optab =
 	{AFCMOVNE, yfcmv, Px, [23]uint8{0xdb, 01}},
 	{AFCMOVNU, yfcmv, Px, [23]uint8{0xdb, 03}},
 	{AFCMOVUN, yfcmv, Px, [23]uint8{0xda, 03}},
-	{AFCOMB, nil, 0, [23]uint8{}},
-	{AFCOMBP, nil, 0, [23]uint8{}},
 	{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  /* botch */
 	{AFCOMDP, yfadd, Px, [23]uint8{0xdc, 03, 0xd8, 03, 0xdc, 03}}, /* botch */
 	{AFCOMDPP, ycompp, Px, [23]uint8{0xde, 03}},
