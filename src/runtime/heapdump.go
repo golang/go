@@ -639,7 +639,7 @@ func dumpmemprof() {
 	}
 }
 
-var dumphdr = []byte("go1.5 heap dump\n")
+var dumphdr = []byte("go1.6 heap dump\n")
 
 func mdump() {
 	// make sure we're done sweeping
