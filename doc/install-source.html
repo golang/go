@@ -173,6 +173,21 @@ follow the instructions on the
 <a href="http://git-scm.com/downloads">Git downloads</a> page.
 </p>
 
+<h2 id="ccompiler">(Optional) Install a C compiler</h2>
+
+<p>
+To build a Go installation
+with <code><a href="/cmd/cgo">cgo</a></code> support, which permits Go
+programs to import C libraries, a C compiler such as <code>gcc</code>
+or <code>clang</code> must be installed first. Do this using whatever
+installation method is standard on the system.
+</p>
+
+<p>
+To build without <code>cgo</code>, set the environment variable
+<code>CGO_ENABLED=0</code> before running <code>all.bash</code> or
+<code>make.bash</code>.
+</p>
 
 <h2 id="fetch">Fetch the repository</h2>
 
