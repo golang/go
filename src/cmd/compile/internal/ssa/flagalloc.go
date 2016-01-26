@@ -42,11 +42,14 @@ func flagalloc(f *Func) {
 					}
 				}
 			}
-			for _, p := range b.Preds {
-				end[p.ID] = flag
+			if flag != nil {
+				for _, p := range b.Preds {
+					end[p.ID] = flag
+				}
 			}
 		}
 	}
+
 	// For blocks which have a flags control value, that's the only value
 	// we can leave in the flags register at the end of the block. (There
 	// is no place to put a flag regeneration instruction.)

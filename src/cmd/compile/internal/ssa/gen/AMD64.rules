@@ -556,24 +556,24 @@
 (MOVOstore  [off1] {sym} (ADDQconst [off2] ptr) val mem) -> (MOVOstore  [addOff(off1, off2)] {sym} ptr val mem)
 
 // Fold constants into stores.
-(MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validStoreConst(c,off) ->
-	(MOVQstoreconst [makeStoreConst(c,off)] {sym} ptr mem)
-(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validStoreConstOff(off) ->
-	(MOVLstoreconst [makeStoreConst(int64(int32(c)),off)] {sym} ptr mem)
-(MOVWstore [off] {sym} ptr (MOVWconst [c]) mem) && validStoreConstOff(off) ->
-	(MOVWstoreconst [makeStoreConst(int64(int16(c)),off)] {sym} ptr mem)
-(MOVBstore [off] {sym} ptr (MOVBconst [c]) mem) && validStoreConstOff(off) ->
-	(MOVBstoreconst [makeStoreConst(int64(int8(c)),off)] {sym} ptr mem)
+(MOVQstore [off] {sym} ptr (MOVQconst [c]) mem) && validValAndOff(c,off) ->
+	(MOVQstoreconst [makeValAndOff(c,off)] {sym} ptr mem)
+(MOVLstore [off] {sym} ptr (MOVLconst [c]) mem) && validOff(off) ->
+	(MOVLstoreconst [makeValAndOff(int64(int32(c)),off)] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVWconst [c]) mem) && validOff(off) ->
+	(MOVWstoreconst [makeValAndOff(int64(int16(c)),off)] {sym} ptr mem)
+(MOVBstore [off] {sym} ptr (MOVBconst [c]) mem) && validOff(off) ->
+	(MOVBstoreconst [makeValAndOff(int64(int8(c)),off)] {sym} ptr mem)
 
 // Fold address offsets into constant stores.
-(MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
-	(MOVQstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
-(MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
-	(MOVLstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
-(MOVWstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
-	(MOVWstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
-(MOVBstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && StoreConst(sc).canAdd(off) ->
-	(MOVBstoreconst [StoreConst(sc).add(off)] {s} ptr mem)
+(MOVQstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVQstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOVLstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVLstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOVWstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVWstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
+(MOVBstoreconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd(off) ->
+	(MOVBstoreconst [ValAndOff(sc).add(off)] {s} ptr mem)
 
 // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
 // what variables are being read/written by the ops.
@@ -607,14 +607,14 @@
 (MOVOstore [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVOstore [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 
-(MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
-	(MOVQstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVLstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
-	(MOVLstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVWstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
-	(MOVWstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
-(MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && StoreConst(sc).canAdd(off) ->
-	(MOVBstoreconst [StoreConst(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVQstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVQstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVLstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVWstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+(MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
+	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 
 // indexed loads and stores
 (MOVQloadidx8 [off1] {sym} (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)
@@ -647,16 +647,16 @@
 (Zero [8] destptr mem) -> (MOVQstoreconst [0] destptr mem)
 
 (Zero [3] destptr mem) ->
-	(MOVBstoreconst [makeStoreConst(0,2)] destptr
+	(MOVBstoreconst [makeValAndOff(0,2)] destptr
 		(MOVWstoreconst [0] destptr mem))
 (Zero [5] destptr mem) ->
-	(MOVBstoreconst [makeStoreConst(0,4)] destptr
+	(MOVBstoreconst [makeValAndOff(0,4)] destptr
 		(MOVLstoreconst [0] destptr mem))
 (Zero [6] destptr mem) ->
-	(MOVWstoreconst [makeStoreConst(0,4)] destptr
+	(MOVWstoreconst [makeValAndOff(0,4)] destptr
 		(MOVLstoreconst [0] destptr mem))
 (Zero [7] destptr mem) ->
-	(MOVLstoreconst [makeStoreConst(0,3)] destptr
+	(MOVLstoreconst [makeValAndOff(0,3)] destptr
 		(MOVLstoreconst [0] destptr mem))
 
 // Strip off any fractional word zeroing.
@@ -666,16 +666,16 @@
 
 // Zero small numbers of words directly.
 (Zero [16] destptr mem) ->
-	(MOVQstoreconst [makeStoreConst(0,8)] destptr
+	(MOVQstoreconst [makeValAndOff(0,8)] destptr
 		(MOVQstoreconst [0] destptr mem))
 (Zero [24] destptr mem) ->
-	(MOVQstoreconst [makeStoreConst(0,16)] destptr
-		(MOVQstoreconst [makeStoreConst(0,8)] destptr
+	(MOVQstoreconst [makeValAndOff(0,16)] destptr
+		(MOVQstoreconst [makeValAndOff(0,8)] destptr
 			(MOVQstoreconst [0] destptr mem)))
 (Zero [32] destptr mem) ->
-	(MOVQstoreconst [makeStoreConst(0,24)] destptr
-		(MOVQstoreconst [makeStoreConst(0,16)] destptr
-			(MOVQstoreconst [makeStoreConst(0,8)] destptr
+	(MOVQstoreconst [makeValAndOff(0,24)] destptr
+		(MOVQstoreconst [makeValAndOff(0,16)] destptr
+			(MOVQstoreconst [makeValAndOff(0,8)] destptr
 				(MOVQstoreconst [0] destptr mem))))
 
 // Medium zeroing uses a duff device.

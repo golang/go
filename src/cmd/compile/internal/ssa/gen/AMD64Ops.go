@@ -382,8 +382,8 @@ func init() {
 
 		// For storeconst ops, the AuxInt field encodes both
 		// the value to store and an address offset of the store.
-		// Cast AuxInt to a StoreConst to extract Val and Off fields.
-		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of StoreConst(AuxInt).Val() to arg0+StoreConst(AuxInt).Off()+aux.  arg1=mem
+		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
+		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
 		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", typ: "Mem"}, // store low 2 bytes of ...
 		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", typ: "Mem"}, // store low 4 bytes of ...
 		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", typ: "Mem"}, // store 8 bytes of ...

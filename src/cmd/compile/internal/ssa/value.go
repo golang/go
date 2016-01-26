@@ -61,16 +61,22 @@ func (v *Value) String() string {
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
 	s += " <" + v.Type.String() + ">"
-	if v.AuxInt != 0 {
-		s += fmt.Sprintf(" [%d]", v.AuxInt)
-
-		switch {
-		case v.Op == OpConst32F || v.Op == OpConst64F:
-			s += fmt.Sprintf("(%g)", math.Float64frombits(uint64(v.AuxInt)))
-		case v.Op == OpConstBool && v.AuxInt == 0:
-			s += " (false)"
-		case v.Op == OpConstBool && v.AuxInt == 1:
-			s += " (true)"
+	// TODO: use some operator property flags to decide
+	// what is encoded in the AuxInt field.
+	switch v.Op {
+	case OpConst32F, OpConst64F:
+		s += fmt.Sprintf(" [%g]", math.Float64frombits(uint64(v.AuxInt)))
+	case OpConstBool:
+		if v.AuxInt == 0 {
+			s += " [false]"
+		} else {
+			s += " [true]"
+		}
+	case OpAMD64MOVBstoreconst, OpAMD64MOVWstoreconst, OpAMD64MOVLstoreconst, OpAMD64MOVQstoreconst:
+		s += fmt.Sprintf(" [%s]", ValAndOff(v.AuxInt))
+	default:
+		if v.AuxInt != 0 {
+			s += fmt.Sprintf(" [%d]", v.AuxInt)
 		}
 	}
 	if v.Aux != nil {
@@ -132,6 +138,11 @@ func (v *Value) copyInto(b *Block) *Value {
 	c.Aux = v.Aux
 	c.AuxInt = v.AuxInt
 	c.AddArgs(v.Args...)
+	for _, a := range v.Args {
+		if a.Type.IsMemory() {
+			v.Fatalf("can't move a value with a memory arg %s", v.LongString())
+		}
+	}
 	return c
 }
 
