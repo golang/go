@@ -605,9 +605,6 @@ func Tempname(nn *Node, t *Type) {
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
 	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
-	if Debug['h'] != 0 {
-		println("H", n, n.Orig, funcSym(Curfn).Name)
-	}
 
 	dowidth(t)
 	n.Xoffset = 0
