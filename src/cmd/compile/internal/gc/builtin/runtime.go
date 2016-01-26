@@ -151,7 +151,6 @@ func writebarrierfat1111(dst *any, _ uintptr, src any)
 
 // *byte is really *runtime.Type
 func typedmemmove(typ *byte, dst *any, src *any)
-func typedmemmove_nostore(typ *byte, dst *any)
 func typedslicecopy(typ *byte, dst any, src any) int
 
 func selectnbsend(chanType *byte, hchan chan<- any, elem *any) bool

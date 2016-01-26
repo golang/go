@@ -134,111 +134,109 @@ var ptrTests = []ptrTest{
 		body:    `parg := [1]**C.char{&hello[0]}; C.f(&parg[0])`,
 		fail:    true,
 	},
-	/*
-			{
-				// Storing a Go pointer into C memory should fail.
-				name: "barrier",
-				c: `#include <stdlib.h>
-		                    char **f1() { return malloc(sizeof(char*)); }
-		                    void f2(char **p) {}`,
-				body:      `p := C.f1(); *p = new(C.char); C.f2(p)`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// Storing a Go pointer into C memory by assigning a
-				// large value should fail.
-				name: "barrier-struct",
-				c: `#include <stdlib.h>
-		                    struct s { char *a[10]; };
-		                    struct s *f1() { return malloc(sizeof(struct s)); }
-		                    void f2(struct s *p) {}`,
-				body:      `p := C.f1(); p.a = [10]*C.char{new(C.char)}; C.f2(p)`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// Storing a Go pointer into C memory using a slice
-				// copy should fail.
-				name: "barrier-slice",
-				c: `#include <stdlib.h>
-		                    struct s { char *a[10]; };
-		                    struct s *f1() { return malloc(sizeof(struct s)); }
-		                    void f2(struct s *p) {}`,
-				body:      `p := C.f1(); copy(p.a[:], []*C.char{new(C.char)}); C.f2(p)`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// A very large value uses a GC program, which is a
-				// different code path.
-				name: "barrier-gcprog-array",
-				c: `#include <stdlib.h>
-		                    struct s { char *a[32769]; };
-		                    struct s *f1() { return malloc(sizeof(struct s)); }
-		                    void f2(struct s *p) {}`,
-				body:      `p := C.f1(); p.a = [32769]*C.char{new(C.char)}; C.f2(p)`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// Similar case, with a source on the heap.
-				name: "barrier-gcprog-array-heap",
-				c: `#include <stdlib.h>
-		                    struct s { char *a[32769]; };
-		                    struct s *f1() { return malloc(sizeof(struct s)); }
-		                    void f2(struct s *p) {}
-		                    void f3(void *p) {}`,
-				imports:   []string{"unsafe"},
-				body:      `p := C.f1(); n := &[32769]*C.char{new(C.char)}; p.a = *n; C.f2(p); n[0] = nil; C.f3(unsafe.Pointer(n))`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// A GC program with a struct.
-				name: "barrier-gcprog-struct",
-				c: `#include <stdlib.h>
-		                    struct s { char *a[32769]; };
-		                    struct s2 { struct s f; };
-		                    struct s2 *f1() { return malloc(sizeof(struct s2)); }
-		                    void f2(struct s2 *p) {}`,
-				body:      `p := C.f1(); p.f = C.struct_s{[32769]*C.char{new(C.char)}}; C.f2(p)`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// Similar case, with a source on the heap.
-				name: "barrier-gcprog-struct-heap",
-				c: `#include <stdlib.h>
-		                    struct s { char *a[32769]; };
-		                    struct s2 { struct s f; };
-		                    struct s2 *f1() { return malloc(sizeof(struct s2)); }
-		                    void f2(struct s2 *p) {}
-		                    void f3(void *p) {}`,
-				imports:   []string{"unsafe"},
-				body:      `p := C.f1(); n := &C.struct_s{[32769]*C.char{new(C.char)}}; p.f = *n; C.f2(p); n.a[0] = nil; C.f3(unsafe.Pointer(n))`,
-				fail:      true,
-				expensive: true,
-			},
-			{
-				// Exported functions may not return Go pointers.
-				name: "export1",
-				c:    `extern unsigned char *GoFn();`,
-				support: `//export GoFn
-		                          func GoFn() *byte { return new(byte) }`,
-				body: `C.GoFn()`,
-				fail: true,
-			},
-			{
-				// Returning a C pointer is fine.
-				name: "exportok",
-				c: `#include <stdlib.h>
-		                    extern unsigned char *GoFn();`,
-				support: `//export GoFn
-		                          func GoFn() *byte { return (*byte)(C.malloc(1)) }`,
-				body: `C.GoFn()`,
-			},
-	*/
+	{
+		// Storing a Go pointer into C memory should fail.
+		name: "barrier",
+		c: `#include <stdlib.h>
+                    char **f1() { return malloc(sizeof(char*)); }
+                    void f2(char **p) {}`,
+		body:      `p := C.f1(); *p = new(C.char); C.f2(p)`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// Storing a Go pointer into C memory by assigning a
+		// large value should fail.
+		name: "barrier-struct",
+		c: `#include <stdlib.h>
+                    struct s { char *a[10]; };
+                    struct s *f1() { return malloc(sizeof(struct s)); }
+                    void f2(struct s *p) {}`,
+		body:      `p := C.f1(); p.a = [10]*C.char{new(C.char)}; C.f2(p)`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// Storing a Go pointer into C memory using a slice
+		// copy should fail.
+		name: "barrier-slice",
+		c: `#include <stdlib.h>
+                    struct s { char *a[10]; };
+                    struct s *f1() { return malloc(sizeof(struct s)); }
+                    void f2(struct s *p) {}`,
+		body:      `p := C.f1(); copy(p.a[:], []*C.char{new(C.char)}); C.f2(p)`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// A very large value uses a GC program, which is a
+		// different code path.
+		name: "barrier-gcprog-array",
+		c: `#include <stdlib.h>
+                    struct s { char *a[32769]; };
+                    struct s *f1() { return malloc(sizeof(struct s)); }
+                    void f2(struct s *p) {}`,
+		body:      `p := C.f1(); p.a = [32769]*C.char{new(C.char)}; C.f2(p)`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// Similar case, with a source on the heap.
+		name: "barrier-gcprog-array-heap",
+		c: `#include <stdlib.h>
+                    struct s { char *a[32769]; };
+                    struct s *f1() { return malloc(sizeof(struct s)); }
+                    void f2(struct s *p) {}
+                    void f3(void *p) {}`,
+		imports:   []string{"unsafe"},
+		body:      `p := C.f1(); n := &[32769]*C.char{new(C.char)}; p.a = *n; C.f2(p); n[0] = nil; C.f3(unsafe.Pointer(n))`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// A GC program with a struct.
+		name: "barrier-gcprog-struct",
+		c: `#include <stdlib.h>
+                    struct s { char *a[32769]; };
+                    struct s2 { struct s f; };
+                    struct s2 *f1() { return malloc(sizeof(struct s2)); }
+                    void f2(struct s2 *p) {}`,
+		body:      `p := C.f1(); p.f = C.struct_s{[32769]*C.char{new(C.char)}}; C.f2(p)`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// Similar case, with a source on the heap.
+		name: "barrier-gcprog-struct-heap",
+		c: `#include <stdlib.h>
+                    struct s { char *a[32769]; };
+                    struct s2 { struct s f; };
+                    struct s2 *f1() { return malloc(sizeof(struct s2)); }
+                    void f2(struct s2 *p) {}
+                    void f3(void *p) {}`,
+		imports:   []string{"unsafe"},
+		body:      `p := C.f1(); n := &C.struct_s{[32769]*C.char{new(C.char)}}; p.f = *n; C.f2(p); n.a[0] = nil; C.f3(unsafe.Pointer(n))`,
+		fail:      true,
+		expensive: true,
+	},
+	{
+		// Exported functions may not return Go pointers.
+		name: "export1",
+		c:    `extern unsigned char *GoFn();`,
+		support: `//export GoFn
+                          func GoFn() *byte { return new(byte) }`,
+		body: `C.GoFn()`,
+		fail: true,
+	},
+	{
+		// Returning a C pointer is fine.
+		name: "exportok",
+		c: `#include <stdlib.h>
+                    extern unsigned char *GoFn();`,
+		support: `//export GoFn
+                          func GoFn() *byte { return (*byte)(C.malloc(1)) }`,
+		body: `C.GoFn()`,
+	},
 }
 
 func main() {

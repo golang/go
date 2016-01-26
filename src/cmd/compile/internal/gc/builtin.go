@@ -117,7 +117,6 @@ const runtimeimport = "" +
 	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
 	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
 	"func @\"\".typedmemmove (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n" +
-	"func @\"\".typedmemmove_nostore (@\"\".typ·1 *byte, @\"\".dst·2 *any)\n" +
 	"func @\"\".typedslicecopy (@\"\".typ·2 *byte, @\"\".dst·3 any, @\"\".src·4 any) (? int)\n" +
 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n" +
 	"func @\"\".selectnbrecv (@\"\".chanType·2 *byte, @\"\".elem·3 *any, @\"\".hchan·4 <-chan any) (? bool)\n" +
