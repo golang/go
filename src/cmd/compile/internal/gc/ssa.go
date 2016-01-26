@@ -4092,7 +4092,7 @@ func (s *genState) genValue(v *ssa.Value) {
 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		sc := ssa.StoreConst(v.AuxInt)
+		sc := ssa.ValAndOff(v.AuxInt)
 		i := sc.Val()
 		switch v.Op {
 		case ssa.OpAMD64MOVBstoreconst:
@@ -4372,7 +4372,7 @@ func (s *genState) genValue(v *ssa.Value) {
 					return
 				}
 			case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
-				off := ssa.StoreConst(v.AuxInt).Off()
+				off := ssa.ValAndOff(v.AuxInt).Off()
 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
 					if Debug_checknil != 0 && int(v.Line) > 1 {
 						Warnl(int(v.Line), "removed nil check")

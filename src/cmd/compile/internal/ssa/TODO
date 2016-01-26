@@ -20,7 +20,6 @@ Optimizations (better compiled code)
 - Expand current optimizations to all bit widths
 - Add a value range propagation pass (for bounds elim & bitwidth reduction)
 - Make dead store pass inter-block
-- (x86) Combine loads into other ops
 - (x86) More combining address arithmetic into loads/stores
 - (x86) use ADDQ instead of LEAQ when we can
 - redundant CMP in sequences like this:
@@ -38,8 +37,6 @@ Optimizations (better compiled code)
   Same for interfaces?
 - boolean logic: movb/xorb$1/testb/jeq -> movb/testb/jne
 - (ADDQconst (SUBQconst x)) and vice-versa
-- (CMP (Load ...)) and (CMPconst (Load ...)) in one instruction
-  (all instructions, really)
 - combine LEAQs
 - store followed by load to same address
 - (CMPconst [0] (AND x y)) -> (TEST x y)
@@ -50,6 +47,10 @@ Optimizations (better compiled code)
 - better computing of &&/|| in non-if/for contexts
 - OpArrayIndex should take its index in AuxInt, not a full value.
 - remove FLAGS from REP instruction clobbers
+- (x86) Combine loads into other ops
+  Note that this is challenging for ops that generate flags
+  because flagalloc wants to move those instructions around for
+  flag regeneration.
 
 Optimizations (better compiler)
 -------------------------------
