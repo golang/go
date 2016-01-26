@@ -529,7 +529,12 @@ func traceEvent(ev byte, skip int, args ...uint64) {
 			nstk = callers(skip, buf.stk[:])
 		} else if gp != nil {
 			gp = mp.curg
-			nstk = gcallers(gp, skip, buf.stk[:])
+			// This may happen when tracing a system call,
+			// so we must lock the stack.
+			if gcTryLockStackBarriers(gp) {
+				nstk = gcallers(gp, skip, buf.stk[:])
+				gcUnlockStackBarriers(gp)
+			}
 		}
 		if nstk > 0 {
 			nstk-- // skip runtime.goexit
