@@ -629,7 +629,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	if gcBlackenEnabled == 0 {
 		throw("gcControllerState.findRunnable: blackening not enabled")
 	}
-	if _p_.gcBgMarkWorker == nil {
+	if _p_.gcBgMarkWorker == 0 {
 		// The mark worker associated with this P is blocked
 		// performing a mark transition. We can't run it
 		// because it may be on some other run or wait queue.
@@ -711,7 +711,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 	}
 
 	// Run the background mark worker
-	gp := _p_.gcBgMarkWorker
+	gp := _p_.gcBgMarkWorker.ptr()
 	casgstatus(gp, _Gwaiting, _Grunnable)
 	if trace.enabled {
 		traceGoUnpark(gp, 0)
@@ -1325,7 +1325,7 @@ func gcBgMarkStartWorkers() {
 		if p == nil || p.status == _Pdead {
 			break
 		}
-		if p.gcBgMarkWorker == nil {
+		if p.gcBgMarkWorker == 0 {
 			go gcBgMarkWorker(p)
 			notetsleepg(&work.bgMarkReady, -1)
 			noteclear(&work.bgMarkReady)
@@ -1355,11 +1355,6 @@ func gcBgMarkWorker(_p_ *p) {
 		attach *p // If non-nil, attach to this p on park.
 	}
 	var park parkInfo
-
-	// casgp is casp for *g's.
-	casgp := func(gpp **g, old, new *g) bool {
-		return casp((*unsafe.Pointer)(unsafe.Pointer(gpp)), unsafe.Pointer(old), unsafe.Pointer(new))
-	}
 
 	gp := getg()
 	park.m = acquirem()
@@ -1397,7 +1392,7 @@ func gcBgMarkWorker(_p_ *p) {
 				// cas the worker because we may be
 				// racing with a new worker starting
 				// on this P.
-				if !casgp(&p.gcBgMarkWorker, nil, g) {
+				if !p.gcBgMarkWorker.cas(0, guintptr(unsafe.Pointer(g))) {
 					// The P got a new worker.
 					// Exit this worker.
 					return false
@@ -1409,7 +1404,7 @@ func gcBgMarkWorker(_p_ *p) {
 		// Loop until the P dies and disassociates this
 		// worker (the P may later be reused, in which case
 		// it will get a new worker) or we failed to associate.
-		if _p_.gcBgMarkWorker != gp {
+		if _p_.gcBgMarkWorker.ptr() != gp {
 			break
 		}
 
@@ -1478,7 +1473,7 @@ func gcBgMarkWorker(_p_ *p) {
 			// as the worker for this P so
 			// findRunnableGCWorker doesn't try to
 			// schedule it.
-			_p_.gcBgMarkWorker = nil
+			_p_.gcBgMarkWorker.set(nil)
 			releasem(park.m)
 
 			gcMarkDone()
