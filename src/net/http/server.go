@@ -648,10 +648,12 @@ func (ecr *expectContinueReader) Close() error {
 	return ecr.readCloser.Close()
 }
 
-// TimeFormat is the time format to use with
-// time.Parse and time.Time.Format when parsing
-// or generating times in HTTP headers.
-// It is like time.RFC1123 but hard codes GMT as the time zone.
+// TimeFormat is the time format to use when generating times in HTTP
+// headers. It is like time.RFC1123 but hard-codes GMT as the time
+// zone. The time being formatted must be in UTC for Format to
+// generate the correct format.
+//
+// For parsing this time format, see ParseTime.
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
 // appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
