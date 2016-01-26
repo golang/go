@@ -1867,9 +1867,9 @@ stop:
 	// We have nothing to do. If we're in the GC mark phase, can
 	// safely scan and blacken objects, and have work to do, run
 	// idle-time marking rather than give up the P.
-	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil && gcMarkWorkAvailable(_p_) {
+	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
 		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-		gp := _p_.gcBgMarkWorker
+		gp := _p_.gcBgMarkWorker.ptr()
 		casgstatus(gp, _Gwaiting, _Grunnable)
 		if trace.enabled {
 			traceGoUnpark(gp, 0)
@@ -3206,15 +3206,15 @@ func procresize(nprocs int32) *p {
 		}
 		// if there's a background worker, make it runnable and put
 		// it on the global queue so it can clean itself up
-		if p.gcBgMarkWorker != nil {
-			casgstatus(p.gcBgMarkWorker, _Gwaiting, _Grunnable)
+		if gp := p.gcBgMarkWorker.ptr(); gp != nil {
+			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
-				traceGoUnpark(p.gcBgMarkWorker, 0)
+				traceGoUnpark(gp, 0)
 			}
-			globrunqput(p.gcBgMarkWorker)
+			globrunqput(gp)
 			// This assignment doesn't race because the
 			// world is stopped.
-			p.gcBgMarkWorker = nil
+			p.gcBgMarkWorker.set(nil)
 		}
 		for i := range p.sudogbuf {
 			p.sudogbuf[i] = nil
