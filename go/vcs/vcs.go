@@ -598,20 +598,6 @@ var vcsPaths = []*vcsPath{
 		check:  noVCSSuffix,
 	},
 
-	// Google Code - new syntax
-	{
-		prefix: "code.google.com/",
-		re:     `^(?P<root>code\.google\.com/[pr]/(?P<project>[a-z0-9\-]+)(\.(?P<subrepo>[a-z0-9\-]+))?)(/[A-Za-z0-9_.\-]+)*$`,
-		repo:   "https://{root}",
-		check:  googleCodeVCS,
-	},
-
-	// Google Code - old syntax
-	{
-		re:    `^(?P<project>[a-z0-9_\-.]+)\.googlecode\.com/(git|hg|svn)(?P<path>/.*)?$`,
-		check: oldGoogleCode,
-	},
-
 	// Github
 	{
 		prefix: "github.com/",
@@ -665,45 +651,6 @@ func noVCSSuffix(match map[string]string) error {
 		}
 	}
 	return nil
-}
-
-var googleCheckout = regexp.MustCompile(`id="checkoutcmd">(hg|git|svn)`)
-
-// googleCodeVCS determines the version control system for
-// a code.google.com repository, by scraping the project's
-// /source/checkout page.
-func googleCodeVCS(match map[string]string) error {
-	if err := noVCSSuffix(match); err != nil {
-		return err
-	}
-	data, err := httpGET(expand(match, "https://code.google.com/p/{project}/source/checkout?repo={subrepo}"))
-	if err != nil {
-		return err
-	}
-
-	if m := googleCheckout.FindSubmatch(data); m != nil {
-		if vcs := ByCmd(string(m[1])); vcs != nil {
-			// Subversion requires the old URLs.
-			// TODO: Test.
-			if vcs == vcsSvn {
-				if match["subrepo"] != "" {
-					return fmt.Errorf("sub-repositories not supported in Google Code Subversion projects")
-				}
-				match["repo"] = expand(match, "https://{project}.googlecode.com/svn")
-			}
-			match["vcs"] = vcs.Cmd
-			return nil
-		}
-	}
-
-	return fmt.Errorf("unable to detect version control system for code.google.com/ path")
-}
-
-// oldGoogleCode is invoked for old-style foo.googlecode.com paths.
-// It prints an error giving the equivalent new path.
-func oldGoogleCode(match map[string]string) error {
-	return fmt.Errorf("invalid Google Code import path: use %s instead",
-		expand(match, "code.google.com/p/{project}{path}"))
 }
 
 // bitbucketVCS determines the version control system for a

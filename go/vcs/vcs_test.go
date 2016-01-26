@@ -27,20 +27,6 @@ func TestRepoRootForImportPath(t *testing.T) {
 		want *RepoRoot
 	}{
 		{
-			"code.google.com/p/go",
-			&RepoRoot{
-				VCS:  vcsHg,
-				Repo: "https://code.google.com/p/go",
-			},
-		},
-		{
-			"code.google.com/r/go",
-			&RepoRoot{
-				VCS:  vcsHg,
-				Repo: "https://code.google.com/r/go",
-			},
-		},
-		{
 			"github.com/golang/groupcache",
 			&RepoRoot{
 				VCS:  vcsGit,
