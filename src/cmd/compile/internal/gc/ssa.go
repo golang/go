@@ -550,8 +550,8 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2DOTTYPE:
 		res, resok := s.dottype(n.Rlist.N, true)
-		s.assign(n.List.N, res, false, n.Lineno)
-		s.assign(n.List.Next.N, resok, false, n.Lineno)
+		s.assign(n.List.N, res, false, false, n.Lineno)
+		s.assign(n.List.Next.N, resok, false, false, n.Lineno)
 		return
 
 	case ODCL:
@@ -572,7 +572,7 @@ func (s *state) stmt(n *Node) {
 			prealloc[n.Left] = palloc
 		}
 		r := s.expr(palloc)
-		s.assign(n.Left.Name.Heapaddr, r, false, n.Lineno)
+		s.assign(n.Left.Name.Heapaddr, r, false, false, n.Lineno)
 
 	case OLABEL:
 		sym := n.Left.Sym
@@ -641,30 +641,52 @@ func (s *state) stmt(n *Node) {
 			s.f.StaticData = append(data, n)
 			return
 		}
-		var r *ssa.Value
+
+		var t *Type
 		if n.Right != nil {
-			if n.Right.Op == OSTRUCTLIT || n.Right.Op == OARRAYLIT {
-				// All literals with nonzero fields have already been
-				// rewritten during walk.  Any that remain are just T{}
-				// or equivalents.  Leave r = nil to get zeroing behavior.
-				if !iszero(n.Right) {
-					Fatalf("literal with nonzero value in SSA: %v", n.Right)
-				}
+			t = n.Right.Type
+		} else {
+			t = n.Left.Type
+		}
+
+		// Evaluate RHS.
+		rhs := n.Right
+		if rhs != nil && (rhs.Op == OSTRUCTLIT || rhs.Op == OARRAYLIT) {
+			// All literals with nonzero fields have already been
+			// rewritten during walk.  Any that remain are just T{}
+			// or equivalents.  Use the zero value.
+			if !iszero(rhs) {
+				Fatalf("literal with nonzero value in SSA: %v", rhs)
+			}
+			rhs = nil
+		}
+		var r *ssa.Value
+		needwb := n.Op == OASWB && rhs != nil
+		deref := !canSSAType(t)
+		if deref {
+			if rhs == nil {
+				r = nil // Signal assign to use OpZero.
 			} else {
-				r = s.expr(n.Right)
+				r = s.addr(rhs, false)
+			}
+		} else {
+			if rhs == nil {
+				r = s.zeroVal(t)
+			} else {
+				r = s.expr(rhs)
 			}
 		}
-		if n.Right != nil && n.Right.Op == OAPPEND {
+		if rhs != nil && rhs.Op == OAPPEND {
 			// Yuck!  The frontend gets rid of the write barrier, but we need it!
 			// At least, we need it in the case where growslice is called.
 			// TODO: Do the write barrier on just the growslice branch.
 			// TODO: just add a ptr graying to the end of growslice?
 			// TODO: check whether we need to do this for ODOTTYPE and ORECV also.
 			// They get similar wb-removal treatment in walk.go:OAS.
-			s.assign(n.Left, r, true, n.Lineno)
-			return
+			needwb = true
 		}
-		s.assign(n.Left, r, n.Op == OASWB, n.Lineno)
+
+		s.assign(n.Left, r, needwb, deref, n.Lineno)
 
 	case OIF:
 		bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -1939,7 +1961,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
 	case OCALLFUNC, OCALLINTER, OCALLMETH:
-		return s.call(n, callNormal)
+		a := s.call(n, callNormal)
+		return s.newValue2(ssa.OpLoad, n.Type, a, s.mem())
 
 	case OGETG:
 		return s.newValue1(ssa.OpGetG, n.Type, s.mem())
@@ -2014,17 +2037,22 @@ func (s *state) expr(n *Node) *ssa.Value {
 		p = s.variable(&ptrVar, pt)          // generates phi for ptr
 		c = s.variable(&capVar, Types[TINT]) // generates phi for cap
 		p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+		// TODO: just one write barrier call for all of these writes?
+		// TODO: maybe just one writeBarrier.enabled check?
 		for i, arg := range args {
 			addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
 			if store[i] {
-				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+				if haspointers(et) {
+					s.insertWBstore(et, addr, arg, n.Lineno)
+				} else {
+					s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+				}
 			} else {
-				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg, s.mem())
-			}
-			if haspointers(et) {
-				// TODO: just one write barrier call for all of these writes?
-				// TODO: maybe just one writeBarrier.enabled check?
-				s.insertWB(et, addr, n.Lineno)
+				if haspointers(et) {
+					s.insertWBmove(et, addr, arg, n.Lineno)
+				} else {
+					s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, et.Size(), addr, arg, s.mem())
+				}
 			}
 		}
 
@@ -2083,26 +2111,21 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 	b.AddEdgeTo(no)
 }
 
-func (s *state) assign(left *Node, right *ssa.Value, wb bool, line int32) {
+// assign does left = right.
+// Right has already been evaluated to ssa, left has not.
+// If deref is true, then we do left = *right instead (and right has already been nil-checked).
+// If deref is true and right == nil, just do left = 0.
+// Include a write barrier if wb is true.
+func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32) {
 	if left.Op == ONAME && isblank(left) {
 		return
 	}
 	t := left.Type
 	dowidth(t)
-	if right == nil {
-		// right == nil means use the zero value of the assigned type.
-		if !canSSA(left) {
-			// if we can't ssa this memory, treat it as just zeroing out the backing memory
-			addr := s.addr(left, false)
-			if left.Op == ONAME {
-				s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
-			}
-			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
-			return
-		}
-		right = s.zeroVal(t)
-	}
 	if canSSA(left) {
+		if deref {
+			s.Fatalf("can SSA LHS %s but not RHS %s", left, right)
+		}
 		if left.Op == ODOT {
 			// We're assigning to a field of an ssa-able value.
 			// We need to build a new structure with the new value for the
@@ -2134,7 +2157,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool, line int32) {
 			}
 
 			// Recursively assign the new value we've made to the base of the dot op.
-			s.assign(left.Left, new, false, line)
+			s.assign(left.Left, new, false, false, line)
 			// TODO: do we need to update named values here?
 			return
 		}
@@ -2143,15 +2166,30 @@ func (s *state) assign(left *Node, right *ssa.Value, wb bool, line int32) {
 		s.addNamedValue(left, right)
 		return
 	}
-	// not ssa-able.  Treat as a store.
+	// Left is not ssa-able.  Compute its address.
 	addr := s.addr(left, false)
 	if left.Op == ONAME {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
 	}
-	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
-	if wb {
-		s.insertWB(left.Type, addr, line)
+	if deref {
+		// Treat as a mem->mem move.
+		if right == nil {
+			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, t.Size(), addr, s.mem())
+			return
+		}
+		if wb {
+			s.insertWBmove(t, addr, right, line)
+			return
+		}
+		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), addr, right, s.mem())
+		return
 	}
+	// Treat as a store.
+	if wb {
+		s.insertWBstore(t, addr, right, line)
+		return
+	}
+	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
 }
 
 // zeroVal returns the zero value for type t.
@@ -2221,6 +2259,8 @@ const (
 	callGo
 )
 
+// Calls the function n using the specified call type.
+// Returns the address of the return value (or nil if none).
 func (s *state) call(n *Node, k callKind) *ssa.Value {
 	var sym *Sym           // target symbol (if static)
 	var closure *ssa.Value // ptr to closure to run (if dynamic)
@@ -2234,9 +2274,6 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 			break
 		}
 		closure = s.expr(fn)
-		if closure == nil {
-			return nil // TODO: remove when expr always returns non-nil
-		}
 	case OCALLMETH:
 		if fn.Op != ODOTMETH {
 			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
@@ -2324,7 +2361,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	b.Control = call
 	b.AddEdgeTo(bNext)
 
-	// Read result from stack at the start of the fallthrough block
+	// Start exit block, find address of result.
 	s.startBlock(bNext)
 	var titer Iter
 	fp := Structfirst(&titer, Getoutarg(n.Left.Type))
@@ -2332,8 +2369,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		// call has no return value. Continue with the next statement.
 		return nil
 	}
-	a := s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
-	return s.newValue2(ssa.OpLoad, fp.Type, a, call)
+	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
 }
 
 // etypesign returns the signed-ness of e, for integer/pointer etypes.
@@ -2483,6 +2519,8 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 	case OCONVNOP:
 		addr := s.addr(n.Left, bounded)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
+	case OCALLFUNC, OCALLINTER, OCALLMETH:
+		return s.call(n, callNormal)
 
 	default:
 		s.Unimplementedf("unhandled addr %v", Oconv(int(n.Op), 0))
@@ -2682,15 +2720,17 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	return res
 }
 
-// insertWB inserts a write barrier.  A value of type t has already
-// been stored at location p.  Tell the runtime about this write.
-// Note: there must be no GC suspension points between the write and
-// the call that this function inserts.
-func (s *state) insertWB(t *Type, p *ssa.Value, line int32) {
+// insertWBmove inserts the assignment *left = *right including a write barrier.
+// t is the type being assigned.
+func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	// if writeBarrier.enabled {
-	//   typedmemmove_nostore(&t, p)
+	//   typedmemmove(&t, left, right)
+	// } else {
+	//   *left = *right
 	// }
 	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
@@ -2701,17 +2741,131 @@ func (s *state) insertWB(t *Type, p *ssa.Value, line int32) {
 	b.Likely = ssa.BranchUnlikely
 	b.Control = flag
 	b.AddEdgeTo(bThen)
+	b.AddEdgeTo(bElse)
 
 	s.startBlock(bThen)
-	// TODO: writebarrierptr_nostore if just one pointer word (or a few?)
 	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Types[TUINTPTR], typenamesym(t)}, s.sb)
-	s.rtcall(typedmemmove_nostore, true, nil, taddr, p)
+	s.rtcall(typedmemmove, true, nil, taddr, left, right)
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bElse)
+	s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, t.Size(), left, right, s.mem())
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
 
 	if Debug_wb > 0 {
 		Warnl(int(line), "write barrier")
 	}
+}
 
-	b.AddEdgeTo(s.curBlock)
+// insertWBstore inserts the assignment *left = right including a write barrier.
+// t is the type being assigned.
+func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
+	// store scalar fields
+	// if writeBarrier.enabled {
+	//   writebarrierptr for pointer fields
+	// } else {
+	//   store pointer fields
+	// }
+
+	if t.IsStruct() {
+		n := t.NumFields()
+		for i := int64(0); i < n; i++ {
+			ft := t.FieldType(i)
+			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			if haspointers(ft.(*Type)) {
+				s.insertWBstore(ft.(*Type), addr, val, line)
+			} else {
+				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, ft.Size(), addr, val, s.mem())
+			}
+		}
+		return
+	}
+
+	switch {
+	case t.IsPtr() || t.IsMap() || t.IsChan():
+		// no scalar fields.
+	case t.IsString():
+		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
+		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
+	case t.IsSlice():
+		len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
+		cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
+		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
+		capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
+	case t.IsInterface():
+		// itab field doesn't need a write barrier (even though it is a pointer).
+		itab := s.newValue1(ssa.OpITab, Ptrto(Types[TUINT8]), right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
+	default:
+		s.Fatalf("bad write barrier type %s", t)
+	}
+
+	bThen := s.f.NewBlock(ssa.BlockPlain)
+	bElse := s.f.NewBlock(ssa.BlockPlain)
+	bEnd := s.f.NewBlock(ssa.BlockPlain)
+
+	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
+	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+	// TODO: select the .enabled field.  It is currently first, so not needed for now.
+	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
+	b := s.endBlock()
+	b.Kind = ssa.BlockIf
+	b.Likely = ssa.BranchUnlikely
+	b.Control = flag
+	b.AddEdgeTo(bThen)
+	b.AddEdgeTo(bElse)
+
+	// Issue write barriers for pointer writes.
+	s.startBlock(bThen)
+	switch {
+	case t.IsPtr() || t.IsMap() || t.IsChan():
+		s.rtcall(writebarrierptr, true, nil, left, right)
+	case t.IsString():
+		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+		s.rtcall(writebarrierptr, true, nil, left, ptr)
+	case t.IsSlice():
+		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), right)
+		s.rtcall(writebarrierptr, true, nil, left, ptr)
+	case t.IsInterface():
+		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
+		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
+		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
+	default:
+		s.Fatalf("bad write barrier type %s", t)
+	}
+	s.endBlock().AddEdgeTo(bEnd)
+
+	// Issue regular stores for pointer writes.
+	s.startBlock(bElse)
+	switch {
+	case t.IsPtr() || t.IsMap() || t.IsChan():
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+	case t.IsString():
+		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+	case t.IsSlice():
+		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+	case t.IsInterface():
+		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
+		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
+	default:
+		s.Fatalf("bad write barrier type %s", t)
+	}
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
+
+	if Debug_wb > 0 {
+		Warnl(int(line), "write barrier")
+	}
 }
 
 // slice computes the slice v[i:j:k] and returns ptr, len, and cap of result.

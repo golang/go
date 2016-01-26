@@ -197,14 +197,6 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	heapBitsBulkBarrier(uintptr(dst), typ.size)
 }
 
-//go:nosplit
-func typedmemmove_nostore(typ *_type, dst unsafe.Pointer) {
-	if typ.kind&kindNoPointers != 0 {
-		return
-	}
-	heapBitsBulkBarrier(uintptr(dst), typ.size)
-}
-
 //go:linkname reflect_typedmemmove reflect.typedmemmove
 func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	typedmemmove(typ, dst, src)

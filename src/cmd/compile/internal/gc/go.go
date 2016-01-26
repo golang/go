@@ -868,6 +868,7 @@ var throwreturn *Node
 
 var growslice *Node
 
-var typedmemmove_nostore *Node
+var writebarrierptr *Node
+var typedmemmove *Node
 
 var panicdottype *Node
