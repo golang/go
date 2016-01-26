@@ -1347,11 +1347,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			f := n.Val().U.(*Mpflt)
 			switch n.Type.Size() {
 			case 4:
-				// -0.0 literals need to be treated as if they were 0.0, adding 0.0 here
-				// accomplishes this while not affecting other values.
-				return s.constFloat32(n.Type, mpgetflt32(f)+0.0)
+				return s.constFloat32(n.Type, mpgetflt32(f))
 			case 8:
-				return s.constFloat64(n.Type, mpgetflt(f)+0.0)
+				return s.constFloat64(n.Type, mpgetflt(f))
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil
@@ -1364,18 +1362,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 			case 8:
 				{
 					pt := Types[TFLOAT32]
-					// -0.0 literals need to be treated as if they were 0.0, adding 0.0 here
-					// accomplishes this while not affecting other values.
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat32(pt, mpgetflt32(r)+0.0),
-						s.constFloat32(pt, mpgetflt32(i)+0.0))
+						s.constFloat32(pt, mpgetflt32(r)),
+						s.constFloat32(pt, mpgetflt32(i)))
 				}
 			case 16:
 				{
 					pt := Types[TFLOAT64]
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat64(pt, mpgetflt(r)+0.0),
-						s.constFloat64(pt, mpgetflt(i)+0.0))
+						s.constFloat64(pt, mpgetflt(r)),
+						s.constFloat64(pt, mpgetflt(i)))
 				}
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
