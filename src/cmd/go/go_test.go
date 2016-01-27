@@ -2255,6 +2255,7 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 }
 
 func TestIssue10193(t *testing.T) {
+	t.Skip("depends on code.google.com")
 	testenv.MustHaveExternalNetwork(t)
 	if _, err := exec.LookPath("hg"); err != nil {
 		t.Skip("skipping because hg binary not found")
