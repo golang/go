@@ -155,7 +155,20 @@ func runTests() ([]byte, error) {
 		}
 		cmd.Env = append(cmd.Env, env)
 	}
-	cmd.Env = append(cmd.Env, `GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0`)
+	// We set GOMAXPROCS=1 to prevent test flakiness.
+	// There are two sources of flakiness:
+	// 1. Some tests rely on particular execution order.
+	//    If the order is different, race does not happen at all.
+	// 2. Ironically, ThreadSanitizer runtime contains a logical race condition
+	//    that can lead to false negatives if racy accesses happen literally at the same time.
+	// Tests used to work reliably in the good old days of GOMAXPROCS=1.
+	// So let's set it for now. A more reliable solution is to explicitly annotate tests
+	// with required execution order by means of a special "invisible" synchronization primitive
+	// (that's what is done for C++ ThreadSanitizer tests). This is issue #14119.
+	cmd.Env = append(cmd.Env,
+		"GOMAXPROCS=1",
+		"GORACE=suppress_equal_stacks=0 suppress_equal_addresses=0 exitcode=0",
+	)
 	return cmd.CombinedOutput()
 }
 
