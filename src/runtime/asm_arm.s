@@ -81,12 +81,17 @@ DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
+	BL		runtime·emptyfunc(SB)	// force R14 save for traceback
 	// gdb won't skip this breakpoint instruction automatically,
 	// so you must manually "set $pc+=4" to skip it and continue.
 #ifdef GOOS_nacl
 	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
 #else
+#ifdef GOOS_plan9
+	WORD	$0xD1200070	// undefined instruction used as armv5 breakpoint in Plan 9
+#else
 	WORD	$0xe7f001f0	// undefined instruction that gdb understands is a software breakpoint
+#endif
 #endif
 	RET
 

@@ -689,14 +689,14 @@ func asmb() {
 	switch ld.HEADTYPE {
 	default:
 	case obj.Hplan9: /* plan 9 */
-		ld.Thearch.Lput(0x647)                      /* magic */
-		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
-		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
-		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
-		ld.Thearch.Lput(uint32(ld.Symsize))      /* nsyms */
-		ld.Thearch.Lput(uint32(ld.Entryvalue())) /* va of entry */
-		ld.Thearch.Lput(0)
-		ld.Thearch.Lput(uint32(ld.Lcsize))
+		ld.Lputb(0x647)                      /* magic */
+		ld.Lputb(uint32(ld.Segtext.Filelen)) /* sizes */
+		ld.Lputb(uint32(ld.Segdata.Filelen))
+		ld.Lputb(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+		ld.Lputb(uint32(ld.Symsize))      /* nsyms */
+		ld.Lputb(uint32(ld.Entryvalue())) /* va of entry */
+		ld.Lputb(0)
+		ld.Lputb(uint32(ld.Lcsize))
 
 	case obj.Hlinux,
 		obj.Hfreebsd,
