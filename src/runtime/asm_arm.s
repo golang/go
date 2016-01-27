@@ -81,7 +81,6 @@ DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
 GLOBL	runtime·mainPC(SB),RODATA,$4
 
 TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
-	BL		runtime·emptyfunc(SB)	// force R14 save for traceback
 	// gdb won't skip this breakpoint instruction automatically,
 	// so you must manually "set $pc+=4" to skip it and continue.
 #ifdef GOOS_nacl
