@@ -149,7 +149,7 @@ func (p *Pool) getSlow() (x interface{}) {
 func (p *Pool) pin() *poolLocal {
 	pid := runtime_procPin()
 	// In pinSlow we store to localSize and then to local, here we load in opposite order.
-	// Since we've disabled preemption, GC can not happen in between.
+	// Since we've disabled preemption, GC cannot happen in between.
 	// Thus here we must observe local at least as large localSize.
 	// We can observe a newer/larger local, it is fine (we must observe its zero-initialized-ness).
 	s := atomic.LoadUintptr(&p.localSize) // load-acquire

@@ -2337,7 +2337,7 @@ func TestGoGetHTTPS404(t *testing.T) {
 	tg.run("get", "bazil.org/fuse/fs/fstestutil")
 }
 
-// Test that you can not import a main package.
+// Test that you cannot import a main package.
 func TestIssue4210(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()

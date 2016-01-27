@@ -85,7 +85,7 @@ type Writer struct {
 }
 
 // This interface and the separate syslog_unix.go file exist for
-// Solaris support as implemented by gccgo.  On Solaris you can not
+// Solaris support as implemented by gccgo.  On Solaris you cannot
 // simply open a TCP connection to the syslog daemon.  The gccgo
 // sources have a syslog_solaris.go file that implements unixSyslog to
 // return a type that satisfies this interface and simply calls the C
