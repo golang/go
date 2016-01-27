@@ -340,7 +340,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 // When and if we implement a moving garbage collector,
 // cgoCheckPointer will pin the pointer for the duration of the cgo
 // call.  (This is necessary but not sufficient; the cgo program will
-// also have to change to pin Go pointers that can not point to Go
+// also have to change to pin Go pointers that cannot point to Go
 // pointers.)
 
 // cgoCheckPointer checks if the argument contains a Go pointer that

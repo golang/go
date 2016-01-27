@@ -167,7 +167,7 @@ func sigblock() {
 }
 
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, can not allocate memory.
+// Called on the new thread, cannot allocate memory.
 func minit() {
 	_g_ := getg()
 	_g_.m.procid = uint64(lwp_self())

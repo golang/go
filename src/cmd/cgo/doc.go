@@ -133,7 +133,7 @@ C's union types are represented as a Go byte array with the same length.
 
 Go structs cannot embed fields with C types.
 
-Go code can not refer to zero-sized fields that occur at the end of
+Go code cannot refer to zero-sized fields that occur at the end of
 non-empty C structs.  To get the address of such a field (which is the
 only operation you can do with a zero-sized field) you must take the
 address of the struct and add the size of the struct.

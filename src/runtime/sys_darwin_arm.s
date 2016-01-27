@@ -261,7 +261,7 @@ cont:
 	MOVW    R1, 24(R6)
 
 	// switch stack and g
-	MOVW	R6, R13 // sigtramp can not re-entrant, so no need to back up R13.
+	MOVW	R6, R13 // sigtramp is not re-entrant, so no need to back up R13.
 	MOVW	R5, g
 
 	BL	(R0)

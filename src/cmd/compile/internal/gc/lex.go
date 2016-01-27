@@ -255,7 +255,7 @@ func Main() {
 		msanpkg.Name = "msan"
 	}
 	if flag_race != 0 && flag_msan != 0 {
-		log.Fatal("can not use both -race and -msan")
+		log.Fatal("cannot use both -race and -msan")
 	} else if flag_race != 0 || flag_msan != 0 {
 		instrumenting = true
 	}
