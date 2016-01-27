@@ -187,8 +187,8 @@ func Offsetof(x ArbitraryType) uintptr
 // of a hypothetical variable v as if v was declared via var v = x.
 // It is the largest value m such that the address of v is always zero mod m.
 // It is the same as the value returned by reflect.TypeOf(x).Align().
-// As a special case, if s has a struct type and f is a field within that
-// struct, then Alignof(s.f) will return the required alignment of a field
-// of that type within a struct.  This case is the same as the value returned
-// by reflect.TypeOf(s.f).FieldAlign().
+// As a special case, if a variable s is of struct type and f is a field
+// within that struct, then Alignof(s.f) will return the required alignment
+// of a field of that type within a struct.  This case is the same as the
+// value returned by reflect.TypeOf(s.f).FieldAlign().
 func Alignof(x ArbitraryType) uintptr
