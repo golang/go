@@ -104,10 +104,7 @@ dl {
 	margin: 20px;
 }
 dd {
-	margin: 0;
-}
-dd.indent {
-	margin: 0 20px;
+	margin: 0 0 0 20px;
 }
 dl,
 dd {
