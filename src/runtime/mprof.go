@@ -522,33 +522,45 @@ func ThreadCreateProfile(p []StackRecord) (n int, ok bool) {
 // Most clients should use the runtime/pprof package instead
 // of calling GoroutineProfile directly.
 func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+	gp := getg()
 
-	n = NumGoroutine()
+	isOK := func(gp1 *g) bool {
+		// Checking isSystemGoroutine here makes GoroutineProfile
+		// consistent with both NumGoroutine and Stack.
+		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1)
+	}
+
+	stopTheWorld("profile")
+
+	n = 1
+	for _, gp1 := range allgs {
+		if isOK(gp1) {
+			n++
+		}
+	}
+
 	if n <= len(p) {
-		gp := getg()
-		stopTheWorld("profile")
+		ok = true
+		r := p
 
-		n = NumGoroutine()
-		if n <= len(p) {
-			ok = true
-			r := p
-			sp := getcallersp(unsafe.Pointer(&p))
-			pc := getcallerpc(unsafe.Pointer(&p))
-			systemstack(func() {
-				saveg(pc, sp, gp, &r[0])
-			})
-			r = r[1:]
-			for _, gp1 := range allgs {
-				if gp1 == gp || readgstatus(gp1) == _Gdead {
-					continue
-				}
+		// Save current goroutine.
+		sp := getcallersp(unsafe.Pointer(&p))
+		pc := getcallerpc(unsafe.Pointer(&p))
+		systemstack(func() {
+			saveg(pc, sp, gp, &r[0])
+		})
+		r = r[1:]
+
+		// Save other goroutines.
+		for _, gp1 := range allgs {
+			if isOK(gp1) {
 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
 				r = r[1:]
 			}
 		}
-
-		startTheWorld()
 	}
+
+	startTheWorld()
 
 	return n, ok
 }
