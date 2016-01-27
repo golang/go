@@ -654,7 +654,7 @@ and
 add
 <a href="/pkg/image/#NYCbCrA"><code>NYCbCrA</code></a>
 and
-<a href="/pkg/color/#NYCbCrA"><code>NYCbCrA</code></a>
+<a href="/pkg/image/color/#NYCbCrA"><code>NYCbCrA</code></a>
 types, to support Y'CbCr images with non-premultiplied alpha.
 </li>
 
@@ -738,12 +738,20 @@ This is arguably a mistake but is not yet fixed. See https://golang.org/issue/13
 The <a href="/pkg/net/http/"><code>net/http</code></a> package has
 a number of minor additions beyond the HTTP/2 support already discussed.
 First, the
-<a href="/pkg/http/#FileServer"><code>FileServer</code></a> now sorts its generated directory listings by file name.
+<a href="/pkg/net/http/#FileServer"><code>FileServer</code></a> now sorts its generated directory listings by file name.
 Second, the
-<a href="/pkg/http/#Client"><code>Client</code></a> now allows user code to set the
+<a href="/pkg/net/http/#ServeFile"><code>ServeFile</code></a> function now refuses to serve a result
+if the request's URL path contains &ldquo;..&rdquo; (dot-dot) as a path element.
+Programs should typically use <code>FileServer</code> and 
+<a href="/pkg/net/http/#Dir"><code>Dir</code></a>
+instead of calling <code>ServeFile</code> directly.
+Programs that need to serve file content in response to requests for URLs containing dot-dot can 
+still call <a href="/pkg/net/http/#ServeContent"><code>ServeContent</code></a>.
+Third, the
+<a href="/pkg/net/http/#Client"><code>Client</code></a> now allows user code to set the
 <code>Expect:</code> <code>100-continue</code> header (see
-<a href="/pkg/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
-Third, there are
+<a href="/pkg/net/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
+Fourth, there are
 <a href="/pkg/net/http/#pkg-constants">five new error codes</a> from RFC 6585:
 <code>StatusPreconditionRequired</code> (428),
 <code>StatusTooManyRequests</code> (429),
@@ -751,10 +759,10 @@ Third, there are
 <code>StatusUnavailableForLegalReasons</code> (451)),
 and
 <code>StatusNetworkAuthenticationRequired</code> (511).
-Fourth, the implementation and documentation of
-<a href="/pkg/http/#CloseNotifier"><code>CloseNotifier</code></a>
+Fifth, the implementation and documentation of
+<a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
 has been substantially changed.
-The <a href="/pkg/http/#Hijacker"><code>Hijacker</code></a>
+The <a href="/pkg/net/http/#Hijacker"><code>Hijacker</code></a>
 interface now works correctly on connections that have previously
 been used with <code>CloseNotifier</code>.
 The documentation now describes when <code>CloseNotifier</code>
@@ -764,17 +772,17 @@ is expected to work.
 <li>
 Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
 there are a few changes related to the handling of a
-<a href="/pkg/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
+<a href="/pkg/net/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
 An empty <code>Method</code> field has always been documented as an alias for <code>"GET"</code>
 and it remains so.
 However, Go 1.6 fixes a few routines that did not treat an empty
 <code>Method</code> the same as an explicit <code>"GET"</code>.
 Most notably, in previous releases
-<a href="/pkg/http/#Client"><code>Client</code></a> followed redirects only with
+<a href="/pkg/net/http/#Client"><code>Client</code></a> followed redirects only with
 <code>Method</code> set explicitly to <code>"GET"</code>;
 in Go 1.6 <code>Client</code> also follows redirects for the empty <code>Method</code>.
 Finally,
-<a href="/pkg/http/#NewRequest"><code>NewRequest</code></a> accepts a <code>method</code> argument that has not been
+<a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a> accepts a <code>method</code> argument that has not been
 documented as allowed to be empty.
 In past releases, passing an empty <code>method</code> argument resulted
 in a <code>Request</code> with an empty <code>Method</code> field.
