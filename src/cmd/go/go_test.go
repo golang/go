@@ -666,10 +666,41 @@ func TestGoBuildDashAInReleaseBranch(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("install", "math") // should be up to date already but just in case
+	tg.run("install", "math", "net/http") // should be up to date already but just in case
 	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
-	tg.run("build", "-v", "-a", "math")
-	tg.grepStderr("runtime", "testgo build -a math in dev branch did not build runtime, but should have")
+	tg.run("install", "-v", "-a", "math")
+	tg.grepStderr("runtime", "testgo build -a math in release branch DID NOT build runtime, but should have")
+
+	// Now runtime.a is updated (newer mtime), so everything would look stale if not for being a release.
+	//
+	tg.run("build", "-v", "net/http")
+	tg.grepStderrNot("strconv", "testgo build -v net/http in release branch with newer runtime.a DID build strconv but should not have")
+	tg.grepStderrNot("golang.org/x/net/http2/hpack", "testgo build -v net/http in release branch with newer runtime.a DID build .../golang.org/x/net/http2/hpack but should not have")
+	tg.grepStderrNot("net/http", "testgo build -v net/http in release branch with newer runtime.a DID build net/http but should not have")
+}
+
+func TestGoListStandard(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.cd(runtime.GOROOT() + "/src")
+	tg.run("list", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", "./...")
+	stdout := tg.getStdout()
+	for _, line := range strings.Split(stdout, "\n") {
+		if strings.HasPrefix(line, "_/") && strings.HasSuffix(line, "/src") {
+			// $GOROOT/src shows up if there are any .go files there.
+			// We don't care.
+			continue
+		}
+		if line == "" {
+			continue
+		}
+		t.Errorf("package in GOROOT not listed as standard: %v", line)
+	}
+
+	// Similarly, expanding std should include some of our vendored code.
+	tg.run("list", "std", "cmd")
+	tg.grepStdout("golang.org/x/net/http2/hpack", "list std cmd did not mention vendored hpack")
+	tg.grepStdout("golang.org/x/arch/x86/x86asm", "list std cmd did not mention vendored x86asm")
 }
 
 func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {

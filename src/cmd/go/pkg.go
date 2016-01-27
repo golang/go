@@ -153,7 +153,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.ConflictDir = pp.ConflictDir
 	// TODO? Target
 	p.Goroot = pp.Goroot
-	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
+	p.Standard = p.Goroot && p.ImportPath != "" && isStandardImportPath(p.ImportPath)
 	p.GoFiles = pp.GoFiles
 	p.CgoFiles = pp.CgoFiles
 	p.IgnoredGoFiles = pp.IgnoredGoFiles
@@ -175,6 +175,19 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
 	p.XTestImports = pp.XTestImports
+}
+
+// isStandardImportPath reports whether $GOROOT/src/path should be considered
+// part of the standard distribution. For historical reasons we allow people to add
+// their own code to $GOROOT instead of using $GOPATH, but we assume that
+// code will start with a domain name (dot in the first element).
+func isStandardImportPath(path string) bool {
+	i := strings.Index(path, "/")
+	if i < 0 {
+		i = len(path)
+	}
+	elem := path[:i]
+	return !strings.Contains(elem, ".")
 }
 
 // A PackageError describes an error loading information about a package.
@@ -362,7 +375,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 	}
 	p.load(stk, bp, err)
-	if p.Error != nil && len(importPos) > 0 {
+	if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
 		pos := importPos[0]
 		pos.Filename = shortPath(pos.Filename)
 		p.Error.Pos = pos.String()
@@ -933,6 +946,17 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 				}
 			}
 		}
+		if p.Standard && !p1.Standard && p.Error == nil {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         fmt.Sprintf("non-standard import %q in standard package %q", path, p.ImportPath),
+			}
+			pos := p.build.ImportPos[path]
+			if len(pos) > 0 {
+				p.Error.Pos = pos[0].String()
+			}
+		}
+
 		path = p1.ImportPath
 		importPaths[i] = path
 		if i < len(p.Imports) {

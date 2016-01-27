@@ -588,10 +588,9 @@ func matchPackages(pattern string) []string {
 			}
 
 			name := filepath.ToSlash(path[len(src):])
-			if pattern == "std" && (strings.Contains(name, ".") || name == "cmd") {
+			if pattern == "std" && (!isStandardImportPath(name) || name == "cmd") {
 				// The name "std" is only the standard library.
-				// If the name has a dot, assume it's a domain name for go get,
-				// and if the name is cmd, it's the root of the command tree.
+				// If the name is cmd, it's the root of the command tree.
 				return filepath.SkipDir
 			}
 			if !treeCanMatch(name) {
