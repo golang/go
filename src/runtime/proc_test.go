@@ -350,7 +350,7 @@ func TestNumGoroutine(t *testing.T) {
 	n := runtime.NumGoroutine()
 
 	if nstk := strings.Count(string(buf), "goroutine "); n != nstk {
-		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump", n, nstk)
+		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump: %s", n, nstk, buf)
 	}
 }
 
