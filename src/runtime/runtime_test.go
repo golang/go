@@ -308,3 +308,15 @@ func TestAppendSliceGrowth(t *testing.T) {
 		}
 	}
 }
+
+func TestGoroutineProfileTrivial(t *testing.T) {
+	n1, ok := GoroutineProfile(nil) // should fail, there's at least 1 goroutine
+	if n1 < 1 || ok {
+		t.Fatalf("GoroutineProfile(nil) = %d, %v, want >0, false", n1, ok)
+	}
+
+	n2, ok := GoroutineProfile(make([]StackRecord, n1))
+	if n2 != n1 || !ok {
+		t.Fatalf("GoroutineProfile(%d) = %d, %v, want %d, true", n1, n2, ok, n1)
+	}
+}
