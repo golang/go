@@ -554,6 +554,11 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
 		// Save other goroutines.
 		for _, gp1 := range allgs {
 			if isOK(gp1) {
+				if len(r) == 0 {
+					// Should be impossible, but better to return a
+					// truncated profile than to crash the entire process.
+					break
+				}
 				saveg(^uintptr(0), ^uintptr(0), gp1, &r[0])
 				r = r[1:]
 			}
