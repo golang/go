@@ -32,9 +32,6 @@ go	src=..
 				gofmt_test.go
 				testdata
 					+
-			newlink
-				testdata
-					+
 			vendor
 				golang.org
 						x
