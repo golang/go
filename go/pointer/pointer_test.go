@@ -522,6 +522,9 @@ func checkWarningExpectation(prog *ssa.Program, e *expectation, warnings []point
 }
 
 func TestInput(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode; this test requires tons of memory; golang.org/issue/14113")
+	}
 	ok := true
 
 	wd, err := os.Getwd()
