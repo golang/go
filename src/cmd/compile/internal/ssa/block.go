@@ -53,6 +53,11 @@ type Block struct {
 
 	// After flagalloc, records whether flags are live at the end of the block.
 	FlagsLiveAtEnd bool
+
+	// Storage for Succs, Preds, and Values
+	succstorage [2]*Block
+	predstorage [4]*Block
+	valstorage  [8]*Value
 }
 
 //     kind           control    successors

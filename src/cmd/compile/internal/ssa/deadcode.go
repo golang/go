@@ -183,7 +183,7 @@ func deadcode(f *Func) {
 		b.Values = b.Values[:i]
 	}
 
-	// Remove unreachable blocks.  Return dead block ids to allocator.
+	// Remove unreachable blocks.  Return dead blocks to allocator.
 	i = 0
 	for _, b := range f.Blocks {
 		if reachable[b.ID] {
@@ -193,10 +193,6 @@ func deadcode(f *Func) {
 			if len(b.Values) > 0 {
 				b.Fatalf("live values in unreachable block %v: %v", b, b.Values)
 			}
-			b.Preds = nil
-			b.Succs = nil
-			b.Control = nil
-			b.Kind = BlockDead
 			f.freeBlock(b)
 		}
 	}
@@ -206,9 +202,6 @@ func deadcode(f *Func) {
 		tail[j] = nil
 	}
 	f.Blocks = f.Blocks[:i]
-
-	// TODO: renumber Blocks and Values densely?
-	// TODO: save dead Values and Blocks for reuse?  Or should we just let GC handle it?
 }
 
 // removePred removes the predecessor p from b's predecessor list.

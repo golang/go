@@ -22,7 +22,12 @@ func fuse(f *Func) {
 		}
 
 		// replace b->c edge with preds(b) -> c
-		c.Preds = b.Preds
+		c.predstorage[0] = nil
+		if len(b.Preds) > len(b.predstorage) {
+			c.Preds = b.Preds
+		} else {
+			c.Preds = append(c.predstorage[:0], b.Preds...)
+		}
 		for _, p := range c.Preds {
 			for i, q := range p.Succs {
 				if q == b {
