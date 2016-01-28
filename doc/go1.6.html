@@ -752,13 +752,13 @@ Third, the
 <code>Expect:</code> <code>100-continue</code> header (see
 <a href="/pkg/net/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
 Fourth, there are
-<a href="/pkg/net/http/#pkg-constants">five new error codes</a> from RFC 6585:
+<a href="/pkg/net/http/#pkg-constants">five new error codes</a>:
 <code>StatusPreconditionRequired</code> (428),
 <code>StatusTooManyRequests</code> (429),
-<code>StatusRequestHeaderFieldsTooLarge</code> (431),
-<code>StatusUnavailableForLegalReasons</code> (451)),
-and
-<code>StatusNetworkAuthenticationRequired</code> (511).
+<code>StatusRequestHeaderFieldsTooLarge</code> (431), and
+<code>StatusNetworkAuthenticationRequired</code> (511) from RFC 6585,
+as well as the recently-approved
+<code>StatusUnavailableForLegalReasons</code> (451).
 Fifth, the implementation and documentation of
 <a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
 has been substantially changed.
