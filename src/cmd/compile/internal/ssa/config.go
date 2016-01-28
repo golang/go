@@ -16,8 +16,13 @@ type Config struct {
 	HTML       *HTMLWriter                // html writer, for debugging
 	ctxt       *obj.Link                  // Generic arch information
 	optimize   bool                       // Do optimization
+	curFunc    *Func
 
 	// TODO: more stuff.  Compiler flags of interest, ...
+
+	// Storage for low-numbered values and blocks.
+	values [2000]Value
+	blocks [200]Block
 }
 
 type TypeSource interface {
@@ -100,15 +105,29 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	c.ctxt = ctxt
 	c.optimize = optimize
 
+	// Assign IDs to preallocated values/blocks.
+	for i := range c.values {
+		c.values[i].ID = ID(i)
+	}
+	for i := range c.blocks {
+		c.blocks[i].ID = ID(i)
+	}
+
 	return c
 }
 
 func (c *Config) Frontend() Frontend { return c.fe }
 
-// NewFunc returns a new, empty function object
+// NewFunc returns a new, empty function object.
+// Caller must call f.Free() before calling NewFunc again.
 func (c *Config) NewFunc() *Func {
 	// TODO(khr): should this function take name, type, etc. as arguments?
-	return &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
+	if c.curFunc != nil {
+		c.Fatalf(0, "NewFunc called without previous Free")
+	}
+	f := &Func{Config: c, NamedValues: map[LocalSlot][]*Value{}}
+	c.curFunc = f
+	return f
 }
 
 func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
@@ -118,6 +137,3 @@ func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
 }
 func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
 func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
-
-// TODO(khr): do we really need a separate Config, or can we just
-// store all its fields inside a Func?

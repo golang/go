@@ -21,6 +21,9 @@ import (
 // Smallest possible faulting page at address zero.
 const minZeroPage = 4096
 
+var ssaConfig *ssa.Config
+var ssaExp ssaExport
+
 func shouldssa(fn *Node) bool {
 	if Thearch.Thestring != "amd64" {
 		return false
@@ -119,9 +122,13 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// TODO(khr): build config just once at the start of the compiler binary
 
-	var e ssaExport
-	e.log = printssa
-	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt, Debug['N'] == 0)
+	ssaExp.log = printssa
+	ssaExp.unimplemented = false
+	ssaExp.mustImplement = true
+	if ssaConfig == nil {
+		ssaConfig = ssa.NewConfig(Thearch.Thestring, &ssaExp, Ctxt, Debug['N'] == 0)
+	}
+	s.config = ssaConfig
 	s.f = s.config.NewFunc()
 	s.f.Name = name
 	s.exitCode = fn.Func.Exit

@@ -9,16 +9,10 @@ type ID int32
 // idAlloc provides an allocator for unique integers.
 type idAlloc struct {
 	last ID
-	free []ID
 }
 
 // get allocates an ID and returns it.
 func (a *idAlloc) get() ID {
-	if n := len(a.free); n > 0 {
-		x := a.free[n-1]
-		a.free = a.free[:n-1]
-		return x
-	}
 	x := a.last
 	x++
 	if x == 1<<31-1 {
@@ -26,11 +20,6 @@ func (a *idAlloc) get() ID {
 	}
 	a.last = x
 	return x
-}
-
-// put deallocates an ID.
-func (a *idAlloc) put(x ID) {
-	a.free = append(a.free, x)
 }
 
 // num returns the maximum ID ever returned + 1.

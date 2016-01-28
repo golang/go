@@ -496,6 +496,7 @@ func compile(fn *Node) {
 		if Curfn.Func.Endlineno != 0 {
 			lineno = Curfn.Func.Endlineno
 		}
+		ssafn.Free()
 		return
 	}
 	Genlist(Curfn.Func.Enter)

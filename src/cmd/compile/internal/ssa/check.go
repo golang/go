@@ -219,14 +219,14 @@ func checkFunc(f *Func) {
 			f.Fatalf("control value for %s is missing: %v", b, b.Control)
 		}
 	}
-	for _, id := range f.bid.free {
-		if blockMark[id] {
-			f.Fatalf("used block b%d in free list", id)
+	for b := f.freeBlocks; b != nil; b = b.Aux.(*Block) {
+		if blockMark[b.ID] {
+			f.Fatalf("used block b%d in free list", b.ID)
 		}
 	}
-	for _, id := range f.vid.free {
-		if valueMark[id] {
-			f.Fatalf("used value v%d in free list", id)
+	for v := f.freeValues; v != nil; v = v.argstorage[0] {
+		if valueMark[v.ID] {
+			f.Fatalf("used value v%d in free list", v.ID)
 		}
 	}
 
