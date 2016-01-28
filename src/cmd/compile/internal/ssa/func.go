@@ -30,7 +30,7 @@ type Func struct {
 	Names []LocalSlot
 
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
-	freeBlocks *Block // free Blocks linked by Aux.(*Block).  All other fields except ID are 0/nil.
+	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -68,7 +68,7 @@ func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
 
 // freeValue frees a value.  It must no longer be referenced.
 func (f *Func) freeValue(v *Value) {
-	if v.Type == nil {
+	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
 	// Clear everything but ID (which we reuse).
@@ -84,8 +84,8 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 	var b *Block
 	if f.freeBlocks != nil {
 		b = f.freeBlocks
-		f.freeBlocks = b.Aux.(*Block)
-		b.Aux = nil
+		f.freeBlocks = b.succstorage[0]
+		b.succstorage[0] = nil
 	} else {
 		ID := f.bid.get()
 		if int(ID) < len(f.Config.blocks) {
@@ -96,16 +96,22 @@ func (f *Func) NewBlock(kind BlockKind) *Block {
 	}
 	b.Kind = kind
 	b.Func = f
+	b.Preds = b.predstorage[:0]
+	b.Succs = b.succstorage[:0]
+	b.Values = b.valstorage[:0]
 	f.Blocks = append(f.Blocks, b)
 	return b
 }
 
 func (f *Func) freeBlock(b *Block) {
+	if b.Func == nil {
+		f.Fatalf("trying to free an already freed block")
+	}
 	// Clear everything but ID (which we reuse).
 	id := b.ID
 	*b = Block{}
 	b.ID = id
-	b.Aux = f.freeBlocks
+	b.succstorage[0] = f.freeBlocks
 	f.freeBlocks = b
 }
 

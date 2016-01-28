@@ -219,7 +219,7 @@ func checkFunc(f *Func) {
 			f.Fatalf("control value for %s is missing: %v", b, b.Control)
 		}
 	}
-	for b := f.freeBlocks; b != nil; b = b.Aux.(*Block) {
+	for b := f.freeBlocks; b != nil; b = b.succstorage[0] {
 		if blockMark[b.ID] {
 			f.Fatalf("used block b%d in free list", b.ID)
 		}
