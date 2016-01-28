@@ -1419,6 +1419,8 @@ func (b *builder) build(a *action) (err error) {
 		// cgo and non-cgo worlds, so it necessarily has files in both.
 		// In that case gcc only gets the gcc_* files.
 		var gccfiles []string
+		gccfiles = append(gccfiles, cfiles...)
+		cfiles = nil
 		if a.p.Standard && a.p.ImportPath == "runtime/cgo" {
 			filter := func(files, nongcc, gcc []string) ([]string, []string) {
 				for _, f := range files {
@@ -1430,11 +1432,9 @@ func (b *builder) build(a *action) (err error) {
 				}
 				return nongcc, gcc
 			}
-			cfiles, gccfiles = filter(cfiles, cfiles[:0], gccfiles)
 			sfiles, gccfiles = filter(sfiles, sfiles[:0], gccfiles)
 		} else {
-			gccfiles = append(cfiles, sfiles...)
-			cfiles = nil
+			gccfiles = append(gccfiles, sfiles...)
 			sfiles = nil
 		}
 

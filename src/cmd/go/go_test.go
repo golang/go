@@ -1226,14 +1226,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 }
 
-func TestDisallowedCSourceFiles(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "badc")
-	tg.grepStderr("C source files not allowed", "go test did not say C source files not allowed")
-}
-
 func TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
