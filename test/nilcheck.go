@@ -1,4 +1,3 @@
-// +build !amd64
 // errorcheck -0 -N -d=nil
 
 // Copyright 2013 The Go Authors.  All rights reserved.

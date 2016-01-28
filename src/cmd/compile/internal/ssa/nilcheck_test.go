@@ -40,7 +40,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 		Bloc("exit", Exit("mem")),
 	)
 
-	c := NewConfig("amd64", DummyFrontend{b}, nil)
+	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
 	fun := Fun(c, "entry", blocs...)
 
 	CheckFunc(fun.f)
@@ -64,7 +64,7 @@ func isNilCheck(b *Block) bool {
 // TestNilcheckSimple verifies that a second repeated nilcheck is removed.
 func TestNilcheckSimple(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -101,7 +101,7 @@ func TestNilcheckSimple(t *testing.T) {
 // on the order of the dominees.
 func TestNilcheckDomOrder(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -137,7 +137,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 // TestNilcheckAddr verifies that nilchecks of OpAddr constructed values are removed.
 func TestNilcheckAddr(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -170,7 +170,7 @@ func TestNilcheckAddr(t *testing.T) {
 // TestNilcheckAddPtr verifies that nilchecks of OpAddPtr constructed values are removed.
 func TestNilcheckAddPtr(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -204,7 +204,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 // non-nil are removed.
 func TestNilcheckPhi(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -248,7 +248,7 @@ func TestNilcheckPhi(t *testing.T) {
 // are removed, but checks of different pointers are not.
 func TestNilcheckKeepRemove(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -296,7 +296,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 // block are *not* removed.
 func TestNilcheckInFalseBranch(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -347,7 +347,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 // wil remove the generated nil check.
 func TestNilcheckUser(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
@@ -386,7 +386,7 @@ func TestNilcheckUser(t *testing.T) {
 // TestNilcheckBug reproduces a bug in nilcheckelim found by compiling math/big
 func TestNilcheckBug(t *testing.T) {
 	ptrType := &TypeImpl{Size_: 8, Ptr: true, Name: "testptr"} // dummy for testing
-	c := NewConfig("amd64", DummyFrontend{t}, nil)
+	c := NewConfig("amd64", DummyFrontend{t}, nil, true)
 	fun := Fun(c, "entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),

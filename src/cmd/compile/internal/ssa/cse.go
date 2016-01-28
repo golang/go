@@ -25,56 +25,29 @@ func cse(f *Func) {
 	// It starts with a coarse partition and iteratively refines it
 	// until it reaches a fixed point.
 
-	// Make initial partition based on opcode, type-name, aux, auxint, nargs, phi-block, and the ops of v's first args
-	type key struct {
-		op     Op
-		typ    string
-		aux    interface{}
-		auxint int64
-		nargs  int
-		block  ID // block id for phi vars, -1 otherwise
-		arg0op Op // v.Args[0].Op if len(v.Args) > 0, OpInvalid otherwise
-		arg1op Op // v.Args[1].Op if len(v.Args) > 1, OpInvalid otherwise
-	}
-	m := map[key]eqclass{}
+	// Make initial coarse partitions by using a subset of the conditions above.
+	a := make([]*Value, 0, f.NumValues())
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			bid := ID(-1)
-			if v.Op == OpPhi {
-				bid = b.ID
+			if v.Type.IsMemory() {
+				continue // memory values can never cse
 			}
-			arg0op := OpInvalid
-			if len(v.Args) > 0 {
-				arg0op = v.Args[0].Op
-			}
-			arg1op := OpInvalid
-			if len(v.Args) > 1 {
-				arg1op = v.Args[1].Op
-			}
-
-			// This assumes that floats are stored in AuxInt
-			// instead of Aux. If not, then we need to use the
-			// float bits as part of the key, otherwise since 0.0 == -0.0
-			// this would incorrectly treat 0.0 and -0.0 as identical values
-			k := key{v.Op, v.Type.String(), v.Aux, v.AuxInt, len(v.Args), bid, arg0op, arg1op}
-			m[k] = append(m[k], v)
+			a = append(a, v)
 		}
 	}
-
-	// A partition is a set of disjoint eqclasses.
-	var partition []eqclass
-	for _, v := range m {
-		partition = append(partition, v)
-	}
-	// TODO: Sort partition here for perfect reproducibility?
-	// Sort by what? Partition size?
-	// (Could that improve efficiency by discovering splits earlier?)
+	partition := partitionValues(a)
 
 	// map from value id back to eqclass id
-	valueEqClass := make([]int, f.NumValues())
+	valueEqClass := make([]ID, f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			// Use negative equivalence class #s for unique values.
+			valueEqClass[v.ID] = -v.ID
+		}
+	}
 	for i, e := range partition {
 		for _, v := range e {
-			valueEqClass[v.ID] = i
+			valueEqClass[v.ID] = ID(i)
 		}
 	}
 
@@ -104,7 +77,7 @@ func cse(f *Func) {
 						// move it to the end and shrink e.
 						e[j], e[len(e)-1] = e[len(e)-1], e[j]
 						e = e[:len(e)-1]
-						valueEqClass[w.ID] = len(partition)
+						valueEqClass[w.ID] = ID(len(partition))
 						changed = true
 						continue eqloop
 					}
@@ -131,7 +104,6 @@ func cse(f *Func) {
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
-		sort.Sort(e) // ensure deterministic ordering
 		for len(e) > 1 {
 			// Find a maximal dominant element in e
 			v := e[0]
@@ -197,7 +169,141 @@ func dom(b, c *Block, idom []*Block) bool {
 // final equivalence classes.
 type eqclass []*Value
 
-// Sort an equivalence class by value ID.
-func (e eqclass) Len() int           { return len(e) }
-func (e eqclass) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
-func (e eqclass) Less(i, j int) bool { return e[i].ID < e[j].ID }
+// partitionValues partitions the values into equivalence classes
+// based on having all the following features match:
+//  - opcode
+//  - type
+//  - auxint
+//  - aux
+//  - nargs
+//  - block # if a phi op
+//  - first two arg's opcodes
+// partitionValues returns a list of equivalence classes, each
+// being a sorted by ID list of *Values.  The eqclass slices are
+// backed by the same storage as the input slice.
+// Equivalence classes of size 1 are ignored.
+func partitionValues(a []*Value) []eqclass {
+	typNames := map[Type]string{}
+	auxIDs := map[interface{}]int32{}
+	sort.Sort(sortvalues{a, typNames, auxIDs})
+
+	var partition []eqclass
+	for len(a) > 0 {
+		v := a[0]
+		j := 1
+		for ; j < len(a); j++ {
+			w := a[j]
+			if v.Op != w.Op ||
+				v.AuxInt != w.AuxInt ||
+				len(v.Args) != len(w.Args) ||
+				v.Op == OpPhi && v.Block != w.Block ||
+				v.Aux != w.Aux ||
+				len(v.Args) >= 1 && v.Args[0].Op != w.Args[0].Op ||
+				len(v.Args) >= 2 && v.Args[1].Op != w.Args[1].Op ||
+				typNames[v.Type] != typNames[w.Type] {
+				break
+			}
+		}
+		if j > 1 {
+			partition = append(partition, a[:j])
+		}
+		a = a[j:]
+	}
+
+	return partition
+}
+
+// Sort values to make the initial partition.
+type sortvalues struct {
+	a        []*Value              // array of values
+	typNames map[Type]string       // type -> type ID map
+	auxIDs   map[interface{}]int32 // aux -> aux ID map
+}
+
+func (sv sortvalues) Len() int      { return len(sv.a) }
+func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+func (sv sortvalues) Less(i, j int) bool {
+	v := sv.a[i]
+	w := sv.a[j]
+	if v.Op != w.Op {
+		return v.Op < w.Op
+	}
+	if v.AuxInt != w.AuxInt {
+		return v.AuxInt < w.AuxInt
+	}
+	if v.Aux == nil && w.Aux != nil { // cheap aux check - expensive one below.
+		return true
+	}
+	if v.Aux != nil && w.Aux == nil {
+		return false
+	}
+	if len(v.Args) != len(w.Args) {
+		return len(v.Args) < len(w.Args)
+	}
+	if v.Op == OpPhi && v.Block.ID != w.Block.ID {
+		return v.Block.ID < w.Block.ID
+	}
+	if len(v.Args) >= 1 {
+		x := v.Args[0].Op
+		y := w.Args[0].Op
+		if x != y {
+			return x < y
+		}
+		if len(v.Args) >= 2 {
+			x = v.Args[1].Op
+			y = w.Args[1].Op
+			if x != y {
+				return x < y
+			}
+		}
+	}
+
+	// Sort by type.  Types are just interfaces, so we can't compare
+	// them with < directly.  Instead, map types to their names and
+	// sort on that.
+	if v.Type != w.Type {
+		x := sv.typNames[v.Type]
+		if x == "" {
+			x = v.Type.String()
+			sv.typNames[v.Type] = x
+		}
+		y := sv.typNames[w.Type]
+		if y == "" {
+			y = w.Type.String()
+			sv.typNames[w.Type] = y
+		}
+		if x != y {
+			return x < y
+		}
+	}
+
+	// Same deal for aux fields.
+	if v.Aux != w.Aux {
+		x := sv.auxIDs[v.Aux]
+		if x == 0 {
+			x = int32(len(sv.auxIDs)) + 1
+			sv.auxIDs[v.Aux] = x
+		}
+		y := sv.auxIDs[w.Aux]
+		if y == 0 {
+			y = int32(len(sv.auxIDs)) + 1
+			sv.auxIDs[w.Aux] = y
+		}
+		if x != y {
+			return x < y
+		}
+	}
+
+	// TODO(khr): is the above really ok to do?  We're building
+	// the aux->auxID map online as sort is asking about it.  If
+	// sort has some internal randomness, then the numbering might
+	// change from run to run.  That will make the ordering of
+	// partitions random.  It won't break the compiler but may
+	// make it nondeterministic.  We could fix this by computing
+	// the aux->auxID map ahead of time, but the hope is here that
+	// we won't need to compute the mapping for many aux fields
+	// because the values they are in are otherwise unique.
+
+	// Sort by value ID last to keep the sort result deterministic.
+	return v.ID < w.ID
+}

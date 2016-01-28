@@ -40,6 +40,9 @@ func Compile(f *Func) {
 	checkFunc(f)
 	const logMemStats = false
 	for _, p := range passes {
+		if !f.Config.optimize && !p.required {
+			continue
+		}
 		phaseName = p.name
 		f.Logf("  pass %s begin\n", p.name)
 		// TODO: capture logging during this pass, add it to the HTML
@@ -75,38 +78,39 @@ func Compile(f *Func) {
 }
 
 type pass struct {
-	name string
-	fn   func(*Func)
+	name     string
+	fn       func(*Func)
+	required bool
 }
 
 // list of passes for the compiler
 var passes = [...]pass{
 	// TODO: combine phielim and copyelim into a single pass?
-	{"early phielim", phielim},
-	{"early copyelim", copyelim},
-	{"early deadcode", deadcode}, // remove generated dead code to avoid doing pointless work during opt
-	{"decompose", decompose},
-	{"opt", opt},
-	{"opt deadcode", deadcode}, // remove any blocks orphaned during opt
-	{"generic cse", cse},
-	{"nilcheckelim", nilcheckelim},
-	{"generic deadcode", deadcode},
-	{"fuse", fuse},
-	{"dse", dse},
-	{"tighten", tighten}, // move values closer to their uses
-	{"lower", lower},
-	{"lowered cse", cse},
-	{"lowered deadcode", deadcode},
-	{"checkLower", checkLower},
-	{"late phielim", phielim},
-	{"late copyelim", copyelim},
-	{"late deadcode", deadcode},
-	{"critical", critical},   // remove critical edges
-	{"layout", layout},       // schedule blocks
-	{"schedule", schedule},   // schedule values
-	{"flagalloc", flagalloc}, // allocate flags register
-	{"regalloc", regalloc},   // allocate int & float registers
-	{"trim", trim},           // remove empty blocks
+	{"early phielim", phielim, false},
+	{"early copyelim", copyelim, false},
+	{"early deadcode", deadcode, false}, // remove generated dead code to avoid doing pointless work during opt
+	{"decompose", decompose, true},
+	{"opt", opt, true},                // TODO: split required rules and optimizing rules
+	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
+	{"generic cse", cse, false},
+	{"nilcheckelim", nilcheckelim, false},
+	{"generic deadcode", deadcode, false},
+	{"fuse", fuse, false},
+	{"dse", dse, false},
+	{"tighten", tighten, false}, // move values closer to their uses
+	{"lower", lower, true},
+	{"lowered cse", cse, false},
+	{"lowered deadcode", deadcode, true},
+	{"checkLower", checkLower, true},
+	{"late phielim", phielim, false},
+	{"late copyelim", copyelim, false},
+	{"late deadcode", deadcode, false},
+	{"critical", critical, true},   // remove critical edges
+	{"layout", layout, true},       // schedule blocks
+	{"schedule", schedule, true},   // schedule values
+	{"flagalloc", flagalloc, true}, // allocate flags register
+	{"regalloc", regalloc, true},   // allocate int & float registers + stack slots
+	{"trim", trim, false},          // remove empty blocks
 }
 
 // Double-check phase ordering constraints.
