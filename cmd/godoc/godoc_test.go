@@ -44,7 +44,9 @@ var godocTests = []struct {
 	{
 		args: []string{"nonexistingpkg"},
 		matches: []string{
-			`no such file or directory|does not exist|cannot find the file`,
+			// The last pattern (does not e) is for plan9:
+			// http://build.golang.org/log/2d8e5e14ed365bfa434b37ec0338cd9e6f8dd9bf
+			`no such file or directory|does not exist|cannot find the file|(?:' does not e)`,
 		},
 	},
 	{

@@ -6,6 +6,9 @@ package interp
 
 import "syscall"
 
+func ext۰os۰Pipe(fr *frame, args []value) value {
+	panic("os.Pipe not yet implemented")
+}
 func ext۰syscall۰Close(fr *frame, args []value) value {
 	panic("syscall.Close not yet implemented")
 }
