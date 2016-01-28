@@ -164,7 +164,7 @@ func deadcode(f *Func) {
 	f.Names = f.Names[:i]
 
 	// Remove dead values from blocks' value list.  Return dead
-	// value ids to the allocator.
+	// values to the allocator.
 	for _, b := range f.Blocks {
 		i := 0
 		for _, v := range b.Values {
@@ -172,7 +172,7 @@ func deadcode(f *Func) {
 				b.Values[i] = v
 				i++
 			} else {
-				f.vid.put(v.ID)
+				f.freeValue(v)
 			}
 		}
 		// aid GC
@@ -197,7 +197,7 @@ func deadcode(f *Func) {
 			b.Succs = nil
 			b.Control = nil
 			b.Kind = BlockDead
-			f.bid.put(b.ID)
+			f.freeBlock(b)
 		}
 	}
 	// zero remainder to help GC

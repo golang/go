@@ -964,9 +964,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Constants, SP, SB, ...
 			continue
 		}
-		spill.Op = OpInvalid
-		spill.Type = TypeInvalid
-		spill.resetArgs()
+		f.freeValue(spill)
 	}
 	for _, b := range f.Blocks {
 		i := 0
