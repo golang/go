@@ -160,7 +160,7 @@ func genMaxPredValue(size int) []bloc {
 var domBenchRes []*Block
 
 func benchmarkDominators(b *testing.B, size int, bg blockGen) {
-	c := NewConfig("amd64", DummyFrontend{b}, nil)
+	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
 	fun := Fun(c, "entry", bg(size)...)
 
 	CheckFunc(fun.f)

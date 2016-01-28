@@ -121,7 +121,7 @@ func buildssa(fn *Node) *ssa.Func {
 
 	var e ssaExport
 	e.log = printssa
-	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt)
+	s.config = ssa.NewConfig(Thearch.Thestring, &e, Ctxt, Debug['N'] == 0)
 	s.f = s.config.NewFunc()
 	s.f.Name = name
 	s.exitCode = fn.Func.Exit

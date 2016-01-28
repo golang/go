@@ -16,7 +16,7 @@ var Deadcode = deadcode
 
 func testConfig(t *testing.T) *Config {
 	testCtxt := &obj.Link{}
-	return NewConfig("amd64", DummyFrontend{t}, testCtxt)
+	return NewConfig("amd64", DummyFrontend{t}, testCtxt, true)
 }
 
 // DummyFrontend is a test-only frontend.

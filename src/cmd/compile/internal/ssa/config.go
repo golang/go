@@ -15,6 +15,7 @@ type Config struct {
 	fe         Frontend                   // callbacks into compiler frontend
 	HTML       *HTMLWriter                // html writer, for debugging
 	ctxt       *obj.Link                  // Generic arch information
+	optimize   bool                       // Do optimization
 
 	// TODO: more stuff.  Compiler flags of interest, ...
 }
@@ -80,7 +81,7 @@ type GCNode interface {
 }
 
 // NewConfig returns a new configuration object for the given architecture.
-func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
+func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config {
 	c := &Config{arch: arch, fe: fe}
 	switch arch {
 	case "amd64":
@@ -97,6 +98,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link) *Config {
 		fe.Unimplementedf(0, "arch %s not implemented", arch)
 	}
 	c.ctxt = ctxt
+	c.optimize = optimize
 
 	return c
 }

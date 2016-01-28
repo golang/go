@@ -316,6 +316,12 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
 		fmt.Printf("assignReg %s %s/%s\n", registers[r].Name(), v, c)
 	}
 	if s.regs[r].v != nil {
+		if v.Op == OpSB && !v.Block.Func.Config.optimize {
+			// Rewrite rules may introduce multiple OpSB, and with
+			// -N they don't get CSEd.  Ignore the extra assignments.
+			s.f.setHome(c, &registers[r])
+			return
+		}
 		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
 	}
 
