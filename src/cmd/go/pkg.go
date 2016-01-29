@@ -415,11 +415,18 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 	if parent == nil || parent.Root == "" || !go15VendorExperiment {
 		return path
 	}
+
 	dir := filepath.Clean(parent.Dir)
 	root := filepath.Join(parent.Root, "src")
+	if !hasFilePathPrefix(dir, root) {
+		// Look for symlinks before reporting error.
+		dir = expandPath(dir)
+		root = expandPath(root)
+	}
 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
 		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
 	}
+
 	vpath := "vendor/" + path
 	for i := len(dir); i >= len(root); i-- {
 		if i < len(dir) && dir[i] != filepath.Separator {
@@ -533,6 +540,13 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		return p
 	}
 
+	// Look for symlinks before reporting error.
+	srcDir = expandPath(srcDir)
+	parent = expandPath(parent)
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+		return p
+	}
+
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
 	perr := *p
 	perr.Error = &PackageError{
@@ -626,6 +640,13 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 		return p
 	}
 	parent := p.Dir[:truncateTo]
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+		return p
+	}
+
+	// Look for symlinks before reporting error.
+	srcDir = expandPath(srcDir)
+	parent = expandPath(parent)
 	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
 		return p
 	}
