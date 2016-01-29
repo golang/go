@@ -46,8 +46,12 @@ type TypeSource interface {
 }
 
 type Logger interface {
-	// Log logs a message from the compiler.
+	// Logf logs a message from the compiler.
 	Logf(string, ...interface{})
+
+	// Log returns true if logging is not a no-op
+	// some logging calls account for more than a few heap allocations.
+	Log() bool
 
 	// Fatal reports a compiler error and exits.
 	Fatalf(line int32, msg string, args ...interface{})
@@ -131,6 +135,7 @@ func (c *Config) NewFunc() *Func {
 }
 
 func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
+func (c *Config) Log() bool                                          { return c.fe.Log() }
 func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
 func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
 	c.fe.Unimplementedf(line, msg, args...)

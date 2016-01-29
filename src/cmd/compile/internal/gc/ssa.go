@@ -327,6 +327,7 @@ func (s *state) label(sym *Sym) *ssaLabel {
 }
 
 func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
+func (s *state) Log() bool                              { return s.config.Log() }
 func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
 func (s *state) Unimplementedf(msg string, args ...interface{}) {
 	s.config.Unimplementedf(s.peekLine(), msg, args...)
@@ -4883,6 +4884,10 @@ func (e *ssaExport) Logf(msg string, args ...interface{}) {
 	if e.log && !e.unimplemented {
 		fmt.Printf(msg, args...)
 	}
+}
+
+func (e *ssaExport) Log() bool {
+	return e.log
 }
 
 // Fatal reports a compiler error and exits.

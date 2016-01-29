@@ -36,6 +36,7 @@ func (DummyFrontend) Line(line int32) string {
 }
 
 func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+func (d DummyFrontend) Log() bool                            { return true }
 
 func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
 func (d DummyFrontend) Unimplementedf(line int32, msg string, args ...interface{}) {
