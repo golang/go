@@ -464,20 +464,8 @@ Second, the new <a href="/pkg/text/template/#hdr-Actions"><code>{{"{{"}}block}}<
 combined with allowing redefinition of named templates,
 provides a simple way to define pieces of a template that
 can be replaced in different instantiations.
-For example, the template
-</p>
-
-<pre>
-&lt;title&gt;{{"{{"}}block "title"}}Page Title{{"{{"}}end}}&lt;/title&gt;
-&lt;body&gt;
-&lt;h1&gt;{{"{{"}}template "title"}}&lt;/h1&gt;
-{{"{{"}}block "page"}}Main text{{"{{"}}end}}
-</pre>
-
-<p>
-defines the basic formatting of a web page. A program can then
-overlay that template with new definitions for the <code>"title"</code>
-and <code>"page"</code> blocks to reuse the formatting for another page.
+There is <a href="/pkg/text/template/#example_Template_block">an example</a>
+in the <code>text/template</code> package that demonstrates this new feature.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
