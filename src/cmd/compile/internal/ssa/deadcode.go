@@ -134,7 +134,8 @@ func deadcode(f *Func) {
 	live := liveValues(f, reachable)
 
 	// Remove dead & duplicate entries from namedValues map.
-	s := newSparseSet(f.NumValues())
+	s := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(s)
 	i := 0
 	for _, name := range f.Names {
 		j := 0

@@ -10,9 +10,12 @@ package ssa
 // This implementation only works within a basic block.  TODO: use something more global.
 func dse(f *Func) {
 	var stores []*Value
-	loadUse := newSparseSet(f.NumValues())
-	storeUse := newSparseSet(f.NumValues())
-	shadowed := newSparseSet(f.NumValues())
+	loadUse := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(loadUse)
+	storeUse := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(storeUse)
+	shadowed := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(shadowed)
 	for _, b := range f.Blocks {
 		// Find all the stores in this block.  Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.

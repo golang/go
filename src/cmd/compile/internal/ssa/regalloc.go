@@ -559,7 +559,8 @@ func (s *regAllocState) compatRegs(t Type) regMask {
 }
 
 func (s *regAllocState) regalloc(f *Func) {
-	liveSet := newSparseSet(f.NumValues())
+	liveSet := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(liveSet)
 	var oldSched []*Value
 	var phis []*Value
 	var phiRegs []register

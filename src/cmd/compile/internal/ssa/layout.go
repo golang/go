@@ -12,8 +12,10 @@ func layout(f *Func) {
 	scheduled := make([]bool, f.NumBlocks())
 	idToBlock := make([]*Block, f.NumBlocks())
 	indegree := make([]int, f.NumBlocks())
-	posdegree := newSparseSet(f.NumBlocks())  // blocks with positive remaining degree
-	zerodegree := newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
+	posdegree := f.newSparseSet(f.NumBlocks()) // blocks with positive remaining degree
+	defer f.retSparseSet(posdegree)
+	zerodegree := f.newSparseSet(f.NumBlocks()) // blocks with zero remaining degree
+	defer f.retSparseSet(zerodegree)
 
 	// Initialize indegree of each block
 	for _, b := range f.Blocks {
