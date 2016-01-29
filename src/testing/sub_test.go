@@ -107,9 +107,6 @@ func TestTestContext(t *T) {
 	}
 }
 
-// TODO: remove this stub when API is exposed
-func (t *T) Run(name string, f func(t *T)) bool { return t.run(name, f) }
-
 func TestTRun(t *T) {
 	realTest := t
 	testCases := []struct {
@@ -329,9 +326,6 @@ func TestTRun(t *T) {
 		}
 	}
 }
-
-// TODO: remove this stub when API is exposed
-func (b *B) Run(name string, f func(b *B)) bool { return b.runBench(name, f) }
 
 func TestBRun(t *T) {
 	work := func(b *B) {
