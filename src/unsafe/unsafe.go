@@ -63,7 +63,7 @@ type ArbitraryType int
 // (3) Conversion of a Pointer to a uintptr and back, with arithmetic.
 //
 // If p points into an allocated object, it can be advanced through the object
-// by conversion to uintptr, addition of an offset, and conversion back to uintptr.
+// by conversion to uintptr, addition of an offset, and conversion back to Pointer.
 //
 //	p = unsafe.Pointer(uintptr(p) + offset)
 //
