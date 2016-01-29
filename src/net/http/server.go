@@ -1152,7 +1152,7 @@ func statusLine(req *Request, code int) string {
 	if proto11 {
 		proto = "HTTP/1.1"
 	}
-	codestring := strconv.Itoa(code)
+	codestring := fmt.Sprintf("%03d", code)
 	text, ok := statusText[code]
 	if !ok {
 		text = "status code " + codestring

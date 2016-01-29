@@ -1102,6 +1102,27 @@ func testTransportRejectsInvalidHeaders(t *testing.T, h2 bool) {
 	}
 }
 
+// Tests that we support bogus under-100 HTTP statuses, because we historically
+// have. This might change at some point, but not yet in Go 1.6.
+func TestBogusStatusWorks_h1(t *testing.T) { testBogusStatusWorks(t, h1Mode) }
+func TestBogusStatusWorks_h2(t *testing.T) { testBogusStatusWorks(t, h2Mode) }
+func testBogusStatusWorks(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	const code = 7
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(code)
+	}))
+	defer cst.close()
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != code {
+		t.Errorf("StatusCode = %d; want %d", res.StatusCode, code)
+	}
+}
+
 type noteCloseConn struct {
 	net.Conn
 	closeFunc func()
