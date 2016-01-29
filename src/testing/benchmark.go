@@ -338,6 +338,8 @@ func benchmarkName(name string, n int) string {
 }
 
 type benchContext struct {
+	match *matcher
+
 	maxLen int // The largest recorded benchmark name.
 	extLen int // Maximum extension length.
 }
@@ -361,16 +363,12 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
 		}
 	}
 	ctx := &benchContext{
+		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench"),
 		extLen: len(benchmarkName("", maxprocs)),
 	}
 	var bs []InternalBenchmark
 	for _, Benchmark := range benchmarks {
-		matched, err := matchString(*matchBenchmarks, Benchmark.Name)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.bench: %s\n", err)
-			os.Exit(1)
-		}
-		if matched {
+		if _, matched := ctx.match.fullName(nil, Benchmark.Name); matched {
 			bs = append(bs, Benchmark)
 			benchName := benchmarkName(Benchmark.Name, maxprocs)
 			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
@@ -443,13 +441,17 @@ func (b *B) runBench(name string, f func(b *B)) bool {
 	benchmarkLock.Unlock()
 	defer benchmarkLock.Lock()
 
-	if b.level > 0 {
-		name = b.name + "/" + name
+	benchName, ok := b.name, true
+	if b.context != nil {
+		benchName, ok = b.context.match.fullName(&b.common, name)
+	}
+	if !ok {
+		return true
 	}
 	sub := &B{
 		common: common{
 			signal: make(chan bool),
-			name:   name,
+			name:   benchName,
 			parent: &b.common,
 			level:  b.level + 1,
 		},
