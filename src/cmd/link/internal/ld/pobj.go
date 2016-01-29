@@ -119,33 +119,6 @@ func Ldmain() {
 	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
 	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
 
-	// Clumsy hack to preserve old two-argument -X name val syntax for old scripts.
-	// Rewrite that syntax into new syntax -X name=val.
-	// TODO(rsc): Delete this hack in Go 1.6 or later.
-	var args []string
-	for i := 0; i < len(os.Args); i++ {
-		arg := os.Args[i]
-		if (arg == "-X" || arg == "--X") && i+2 < len(os.Args) && !strings.Contains(os.Args[i+1], "=") {
-			fmt.Fprintf(os.Stderr, "link: warning: option %s %s %s may not work in future releases; use %s %s=%s\n",
-				arg, os.Args[i+1], os.Args[i+2],
-				arg, os.Args[i+1], os.Args[i+2])
-			args = append(args, arg)
-			args = append(args, os.Args[i+1]+"="+os.Args[i+2])
-			i += 2
-			continue
-		}
-		if (strings.HasPrefix(arg, "-X=") || strings.HasPrefix(arg, "--X=")) && i+1 < len(os.Args) && strings.Count(arg, "=") == 1 {
-			fmt.Fprintf(os.Stderr, "link: warning: option %s %s may not work in future releases; use %s=%s\n",
-				arg, os.Args[i+1],
-				arg, os.Args[i+1])
-			args = append(args, arg+"="+os.Args[i+1])
-			i++
-			continue
-		}
-		args = append(args, arg)
-	}
-	os.Args = args
-
 	obj.Flagparse(usage)
 
 	startProfile()
