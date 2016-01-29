@@ -139,8 +139,7 @@ type fun struct {
 // supplied to one of the Bloc functions. Each of the bloc names and
 // valu names should be unique across the Fun.
 func Fun(c *Config, entry string, blocs ...bloc) fun {
-	f := new(Func)
-	f.Config = c
+	f := c.NewFunc()
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)
 	// Create all the blocks and values.
@@ -282,11 +281,10 @@ func TestArgs(t *testing.T) {
 }
 
 func TestEquiv(t *testing.T) {
-	c := testConfig(t)
 	equivalentCases := []struct{ f, g fun }{
 		// simple case
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
@@ -295,7 +293,7 @@ func TestEquiv(t *testing.T) {
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
@@ -307,7 +305,7 @@ func TestEquiv(t *testing.T) {
 		},
 		// block order changed
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
@@ -316,7 +314,7 @@ func TestEquiv(t *testing.T) {
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("exit",
 					Exit("mem")),
 				Bloc("entry",
@@ -338,26 +336,26 @@ func TestEquiv(t *testing.T) {
 	differentCases := []struct{ f, g fun }{
 		// different shape
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Exit("mem"))),
 		},
 		// value order changed
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
@@ -366,12 +364,12 @@ func TestEquiv(t *testing.T) {
 		},
 		// value auxint different
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 26, nil),
@@ -379,12 +377,12 @@ func TestEquiv(t *testing.T) {
 		},
 		// value aux different
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 0, 14),
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 0, 26),
@@ -392,14 +390,14 @@ func TestEquiv(t *testing.T) {
 		},
 		// value args different
 		{
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
 					Exit("mem"))),
-			Fun(c, "entry",
+			Fun(testConfig(t), "entry",
 				Bloc("entry",
 					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
 					Valu("a", OpConst64, TypeInt64, 0, nil),

@@ -224,6 +224,7 @@ func buildssa(fn *Node) *ssa.Func {
 	}
 
 	if nerrors > 0 {
+		s.f.Free()
 		return nil
 	}
 
