@@ -551,9 +551,9 @@ func tRunner(t *T, fn func(t *T)) {
 // run runs f as a subtest of t called name. It reports whether f succeeded.
 // Run will block until all its parallel subtests have completed.
 func (t *T) run(name string, f func(t *T)) bool {
-	testName := name
-	if t.level > 0 {
-		testName = t.name + "/" + name
+	testName, ok := t.context.match.fullName(&t.common, name)
+	if !ok {
+		return true
 	}
 	t = &T{
 		common: common{
@@ -583,6 +583,8 @@ func (t *T) run(name string, f func(t *T)) bool {
 // testContext holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
 type testContext struct {
+	match *matcher
+
 	mu sync.Mutex
 
 	// Channel used to signal tests that are ready to be run in parallel.
@@ -599,8 +601,9 @@ type testContext struct {
 	maxParallel int
 }
 
-func newTestContext(maxParallel int) *testContext {
+func newTestContext(maxParallel int, m *matcher) *testContext {
 	return &testContext{
+		match:         m,
 		startParallel: make(chan bool),
 		maxParallel:   maxParallel,
 		running:       1, // Set the count to 1 for the main (sequential) test.
@@ -707,7 +710,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 	}
 	for _, procs := range cpuList {
 		runtime.GOMAXPROCS(procs)
-		ctx := newTestContext(*parallel)
+		ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run"))
 		t := &T{
 			common: common{
 				signal:  make(chan bool),
@@ -718,15 +721,6 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 		}
 		tRunner(t, func(t *T) {
 			for _, test := range tests {
-				// TODO: a version of this will be the Run method.
-				matched, err := matchString(*match, test.Name)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
-					os.Exit(1)
-				}
-				if !matched {
-					continue
-				}
 				t.run(test.Name, test.F)
 			}
 			// Run catching the signal rather than the tRunner as a separate

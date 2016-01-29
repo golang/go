@@ -6,6 +6,7 @@ package testing
 
 import (
 	"io/ioutil"
+	"regexp"
 	"sync/atomic"
 	"time"
 )
@@ -305,11 +306,12 @@ func TestTRun(t *T) {
 		},
 	}}
 	for _, tc := range testCases {
-		ctx := newTestContext(tc.maxPar)
+		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
 		root := &T{
 			common: common{
-				barrier: make(chan bool),
-				w:       ioutil.Discard,
+				signal: make(chan bool),
+				name:   "Test",
+				w:      ioutil.Discard,
 			},
 			context: ctx,
 		}
