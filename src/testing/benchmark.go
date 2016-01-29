@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-var matchBenchmarks = flag.String("test.bench", "", "regular expression to select benchmarks to run")
+var matchBenchmarks = flag.String("test.bench", "", "regular expression per path component to select benchmarks to run")
 var benchTime = flag.Duration("test.benchtime", 1*time.Second, "approximate run time for each benchmark")
 var benchmarkMemory = flag.Bool("test.benchmem", false, "print memory allocations for benchmarks")
 
@@ -380,7 +380,7 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
 		common: common{name: "Main"},
 		benchFunc: func(b *B) {
 			for _, Benchmark := range bs {
-				b.runBench(Benchmark.Name, Benchmark.F)
+				b.Run(Benchmark.Name, Benchmark.F)
 			}
 		},
 		benchTime: *benchTime,
@@ -429,12 +429,12 @@ func (ctx *benchContext) processBench(b *B) {
 	}
 }
 
-// runBench benchmarks f as a subbenchmark with the given name. It reports
+// Run benchmarks f as a subbenchmark with the given name. It reports
 // whether there were any failures.
 //
 // A subbenchmark is like any other benchmark. A benchmark that calls Run at
 // least once will not be measured itself.
-func (b *B) runBench(name string, f func(b *B)) bool {
+func (b *B) Run(name string, f func(b *B)) bool {
 	// Since b has subbenchmarks, we will no longer run it as a benchmark itself.
 	// Release the lock and acquire it on exit to ensure locks stay paired.
 	b.hasSub = true
@@ -590,6 +590,9 @@ func (b *B) SetParallelism(p int) {
 
 // Benchmark benchmarks a single function. Useful for creating
 // custom benchmarks that do not use the "go test" command.
+//
+// If f calls Run, the result will be an estimate of running all its
+// subbenchmarks that don't call Run in sequence in a single benchmark.
 func Benchmark(f func(b *B)) BenchmarkResult {
 	b := &B{
 		common: common{
