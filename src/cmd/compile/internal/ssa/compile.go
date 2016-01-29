@@ -92,7 +92,7 @@ var passes = [...]pass{
 	{"decompose", decompose, true},
 	{"opt", opt, true},                // TODO: split required rules and optimizing rules
 	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
-	{"generic cse", cse, false},
+	{"generic cse", cse, true},
 	{"nilcheckelim", nilcheckelim, false},
 	{"generic deadcode", deadcode, false},
 	{"fuse", fuse, false},
