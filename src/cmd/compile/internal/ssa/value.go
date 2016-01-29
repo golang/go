@@ -147,6 +147,7 @@ func (v *Value) copyInto(b *Block) *Value {
 }
 
 func (v *Value) Logf(msg string, args ...interface{}) { v.Block.Logf(msg, args...) }
+func (v *Value) Log() bool                            { return v.Block.Log() }
 func (v *Value) Fatalf(msg string, args ...interface{}) {
 	v.Block.Func.Config.Fatalf(v.Line, msg, args...)
 }

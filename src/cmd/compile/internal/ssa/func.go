@@ -264,6 +264,7 @@ func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
 }
 
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }
+func (f *Func) Log() bool                              { return f.Config.Log() }
 func (f *Func) Fatalf(msg string, args ...interface{}) { f.Config.Fatalf(f.Entry.Line, msg, args...) }
 func (f *Func) Unimplementedf(msg string, args ...interface{}) {
 	f.Config.Unimplementedf(f.Entry.Line, msg, args...)
