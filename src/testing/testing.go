@@ -204,6 +204,7 @@ type common struct {
 	finished bool
 
 	parent   *common
+	level    int       // Nesting depth of test or benchmark.
 	name     string    // Name of test or benchmark.
 	start    time.Time // Time test or benchmark started
 	duration time.Duration
@@ -524,6 +525,37 @@ func tRunner(t *T, fn func(t *T)) {
 	t.finished = true
 }
 
+// run runs f as a subtest of t called name. It reports whether f succeeded.
+// Run will block until all its parallel subtests have completed.
+func (t *T) run(name string, f func(t *T)) bool {
+	testName := name
+	if t.level > 0 {
+		testName = t.name + "/" + name
+	}
+	t = &T{
+		common: common{
+			barrier: make(chan bool),
+			signal:  make(chan bool),
+			name:    testName,
+			parent:  &t.common,
+			level:   t.level + 1,
+		},
+		context: t.context,
+	}
+
+	if *chatty {
+		fmt.Printf("=== RUN   %s\n", t.name)
+	}
+	// Instead of reducing the running count of this test before calling the
+	// tRunner and increasing it afterwards, we rely on tRunner keeping the
+	// count correct. This ensures that a sequence of sequential tests runs
+	// without being preempted, even when their parent is a parallel test. This
+	// may especially reduce surprises if *parallel == 1.
+	go tRunner(t, f)
+	<-t.signal
+	return !t.failed
+}
+
 // testContext holds all fields that are common to all tests. This includes
 // synchronization primitives to run at most *parallel tests.
 type testContext struct {
@@ -660,11 +692,10 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 			},
 			context: ctx,
 		}
-
 		tRunner(t, func(t *T) {
-			for i := 0; i < len(tests); i++ {
+			for _, test := range tests {
 				// TODO: a version of this will be the Run method.
-				matched, err := matchString(*match, tests[i].Name)
+				matched, err := matchString(*match, test.Name)
 				if err != nil {
 					fmt.Fprintf(os.Stderr, "testing: invalid regexp for -test.run: %s\n", err)
 					os.Exit(1)
@@ -672,27 +703,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
 				if !matched {
 					continue
 				}
-				testName := tests[i].Name
-				t := &T{
-					common: common{
-						barrier: make(chan bool),
-						signal:  make(chan bool),
-						name:    testName,
-						parent:  &t.common,
-					},
-					context: t.context,
-				}
-
-				if *chatty {
-					fmt.Printf("=== RUN   %s\n", t.name)
-				}
-				// Instead of reducing the running count of this test before calling the
-				// tRunner and increasing it afterwards, we rely on tRunner keeping the
-				// count correct. This ensures that a sequence of sequential tests runs
-				// without being preempted, even when their parent is a parallel test. This
-				// may especially reduce surprises if *parallel == 1.
-				go tRunner(t, tests[i].F)
-				<-t.signal
+				t.run(test.Name, test.F)
 			}
 			// Run catching the signal rather than the tRunner as a separate
 			// goroutine to avoid adding a goroutine during the sequential
