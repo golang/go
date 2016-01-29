@@ -46,6 +46,7 @@ type InternalBenchmark struct {
 // affecting benchmark results.
 type B struct {
 	common
+	context          *benchContext
 	N                int
 	previousN        int           // number of iterations in the previous run
 	previousDuration time.Duration // total duration of the previous run
@@ -299,6 +300,10 @@ func benchmarkName(name string, n int) string {
 	return name
 }
 
+type benchContext struct {
+	maxLen int // The largest recorded benchmark name.
+}
+
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
@@ -334,44 +339,70 @@ func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benc
 		}
 	}
 	ok := true
+	main := &B{
+		common: common{name: "Main"},
+		context: &benchContext{
+			maxLen: maxlen,
+		},
+	}
 	for _, Benchmark := range bs {
-		for _, procs := range cpuList {
-			runtime.GOMAXPROCS(procs)
-			b := &B{
-				common: common{
-					signal: make(chan bool),
-					name:   Benchmark.Name,
-				},
-				benchFunc: Benchmark.F,
-			}
-			benchName := benchmarkName(Benchmark.Name, procs)
-			fmt.Printf("%-*s\t", maxlen, benchName)
-			r := b.run()
-			if b.failed {
-				ok = false
-				// The output could be very long here, but probably isn't.
-				// We print it all, regardless, because we don't want to trim the reason
-				// the benchmark failed.
-				fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
-				continue
-			}
-			results := r.String()
-			if *benchmarkMemory || b.showAllocResult {
-				results += "\t" + r.MemString()
-			}
-			fmt.Println(results)
-			// Unlike with tests, we ignore the -chatty flag and always print output for
-			// benchmarks since the output generation time will skew the results.
-			if len(b.output) > 0 {
-				b.trimOutput()
-				fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
-			}
-			if p := runtime.GOMAXPROCS(-1); p != procs {
-				fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
-			}
+		ok = ok && expandCPU(main, Benchmark)
+	}
+	return ok
+}
+
+func expandCPU(parent *B, Benchmark InternalBenchmark) bool {
+	ok := true
+	for _, procs := range cpuList {
+		runtime.GOMAXPROCS(procs)
+		benchName := benchmarkName(Benchmark.Name, procs)
+		fmt.Printf("%-*s\t", parent.context.maxLen, benchName)
+		b := parent.runBench(Benchmark.Name, Benchmark.F)
+		r := b.result
+		if b.failed {
+			ok = false
+			// The output could be very long here, but probably isn't.
+			// We print it all, regardless, because we don't want to trim the reason
+			// the benchmark failed.
+			fmt.Printf("--- FAIL: %s\n%s", benchName, b.output)
+			continue
+		}
+		results := r.String()
+		if *benchmarkMemory || b.showAllocResult {
+			results += "\t" + r.MemString()
+		}
+		fmt.Println(results)
+		// Unlike with tests, we ignore the -chatty flag and always print output for
+		// benchmarks since the output generation time will skew the results.
+		if len(b.output) > 0 {
+			b.trimOutput()
+			fmt.Printf("--- BENCH: %s\n%s", benchName, b.output)
+		}
+		if p := runtime.GOMAXPROCS(-1); p != procs {
+			fmt.Fprintf(os.Stderr, "testing: %s left GOMAXPROCS set to %d\n", benchName, p)
 		}
 	}
 	return ok
+}
+
+// runBench benchmarks f as a subbenchmark with the given name. It reports
+// whether there were any failures.
+//
+// A subbenchmark is like any other benchmark. A benchmark that calls Run at
+// least once will not be measured itself and will only run for one iteration.
+func (b *B) runBench(name string, f func(b *B)) *B {
+	sub := &B{
+		common: common{
+			signal: make(chan bool),
+			name:   name,
+			parent: &b.common,
+			level:  b.level + 1,
+		},
+		benchFunc: f,
+		context:   b.context,
+	}
+	sub.run()
+	return sub
 }
 
 // trimOutput shortens the output from a benchmark, which can be very long.
