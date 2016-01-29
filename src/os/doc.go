@@ -7,9 +7,13 @@ package os
 import "time"
 
 // FindProcess looks for a running process by its pid.
+//
 // The Process it returns can be used to obtain information
 // about the underlying operating system process.
-func FindProcess(pid int) (p *Process, err error) {
+//
+// On Unix systems, FindProcess always succeeds and returns a Process
+// for the given pid, regardless of whether the process exists.
+func FindProcess(pid int) (*Process, error) {
 	return findProcess(pid)
 }
 
