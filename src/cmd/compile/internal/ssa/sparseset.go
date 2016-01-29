@@ -18,6 +18,10 @@ func newSparseSet(n int) *sparseSet {
 	return &sparseSet{nil, make([]int, n)}
 }
 
+func (s *sparseSet) cap() int {
+	return len(s.sparse)
+}
+
 func (s *sparseSet) size() int {
 	return len(s.dense)
 }

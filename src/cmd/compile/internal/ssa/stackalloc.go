@@ -182,8 +182,10 @@ func (s *stackAllocState) stackalloc() {
 func (s *stackAllocState) computeLive(spillLive [][]ID) {
 	s.live = make([][]ID, s.f.NumBlocks())
 	var phis []*Value
-	live := newSparseSet(s.f.NumValues())
-	t := newSparseSet(s.f.NumValues())
+	live := s.f.newSparseSet(s.f.NumValues())
+	defer s.f.retSparseSet(live)
+	t := s.f.newSparseSet(s.f.NumValues())
+	defer s.f.retSparseSet(t)
 
 	// Instead of iterating over f.Blocks, iterate over their postordering.
 	// Liveness information flows backward, so starting at the end
@@ -271,7 +273,8 @@ func (f *Func) setHome(v *Value, loc Location) {
 func (s *stackAllocState) buildInterferenceGraph() {
 	f := s.f
 	s.interfere = make([][]ID, f.NumValues())
-	live := newSparseSet(f.NumValues())
+	live := f.newSparseSet(f.NumValues())
+	defer f.retSparseSet(live)
 	for _, b := range f.Blocks {
 		// Propagate liveness backwards to the start of the block.
 		// Two values interfere if one is defined while the other is live.
