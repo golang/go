@@ -1348,9 +1348,12 @@ The following flags are recognized by the 'go test' command and
 control the execution of any test:
 
 	-bench regexp
-	    Run benchmarks matching the regular expression.
-	    By default, no benchmarks run.
-	    To run all benchmarks, use '-bench=.'.
+	    Run (sub)benchmarks matching a regular expression.
+	    The given regular expression is split into smaller ones by
+	    top-level '/', where each must match the corresponding part of a
+	    benchmark's identifier.
+	    By default, no benchmarks run. To run all benchmarks,
+	    use '-bench .' or '-bench=.'.
 
 	-benchmem
 	    Print memory allocation statistics for benchmarks.
@@ -1436,10 +1439,10 @@ control the execution of any test:
 	    (see 'go help build').
 
 	-run regexp
-	    Run only those tests and examples matching the regular
-	    expression. By default, all tests run.
-	    To skip all tests, use a pattern that matches no test names,
-	    such as '-run=^$'.
+	    Run only those tests and examples matching the regular expression.
+	    For tests the regular expression is split into smaller ones by
+	    top-level '/', where each must match the corresponding part of a
+	    test's identifier.
 
 	-short
 	    Tell long-running tests to shorten their run time.
