@@ -1,0 +1,13 @@
+Tools:
+
+cmd/link: "-X name value" form gone (CL XXX)
+
+Ports:
+
+SOMETHING WILL HAPPEN
+
+API additions and behavior changes:
+
+SOMETHING WILL HAPPEN
+
+

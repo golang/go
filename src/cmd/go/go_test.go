@@ -1657,8 +1657,8 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 		func main() {
 			println(extern)
 		}`)
-	tg.run("run", "-ldflags", `-X main.extern "hello world"`, tg.path("main.go"))
-	tg.grepStderr("^hello world", `ldflags -X main.extern 'hello world' failed`)
+	tg.run("run", "-ldflags", `-X "main.extern=hello world"`, tg.path("main.go"))
+	tg.grepStderr("^hello world", `ldflags -X "main.extern=hello world"' failed`)
 }
 
 func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
