@@ -383,7 +383,7 @@ func (v *vcsCmd) ping(scheme, repo string) error {
 // The parent of dir must exist; dir must not.
 func (v *vcsCmd) create(dir, repo string) error {
 	for _, cmd := range v.createCmd {
-		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+		if strings.Contains(cmd, "submodule") {
 			continue
 		}
 		if err := v.run(".", cmd, "dir", dir, "repo", repo); err != nil {
@@ -396,7 +396,7 @@ func (v *vcsCmd) create(dir, repo string) error {
 // download downloads any new changes for the repo in dir.
 func (v *vcsCmd) download(dir string) error {
 	for _, cmd := range v.downloadCmd {
-		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+		if strings.Contains(cmd, "submodule") {
 			continue
 		}
 		if err := v.run(dir, cmd); err != nil {
@@ -445,7 +445,7 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
 
 	if tag == "" && v.tagSyncDefault != nil {
 		for _, cmd := range v.tagSyncDefault {
-			if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+			if strings.Contains(cmd, "submodule") {
 				continue
 			}
 			if err := v.run(dir, cmd); err != nil {
@@ -456,7 +456,7 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
 	}
 
 	for _, cmd := range v.tagSyncCmd {
-		if !go15VendorExperiment && strings.Contains(cmd, "submodule") {
+		if strings.Contains(cmd, "submodule") {
 			continue
 		}
 		if err := v.run(dir, cmd, "tag", tag); err != nil {
