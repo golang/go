@@ -57,25 +57,24 @@ func Compile(f *Func) {
 
 		tStart := time.Now()
 		p.fn(f)
-		tEnd := time.Now()
 
-		time := tEnd.Sub(tStart).Nanoseconds()
-		var stats string
-		if logMemStats {
-			var mEnd runtime.MemStats
-			runtime.ReadMemStats(&mEnd)
-			nBytes := mEnd.TotalAlloc - mStart.TotalAlloc
-			nAllocs := mEnd.Mallocs - mStart.Mallocs
-			stats = fmt.Sprintf("[%d ns %d allocs %d bytes]", time, nAllocs, nBytes)
-		} else {
-			stats = fmt.Sprintf("[%d ns]", time)
-		}
+		if f.Log() || f.Config.HTML != nil {
+			tEnd := time.Now()
 
-		if f.Log() {
+			time := tEnd.Sub(tStart).Nanoseconds()
+			var stats string
+			if logMemStats {
+				var mEnd runtime.MemStats
+				runtime.ReadMemStats(&mEnd)
+				nBytes := mEnd.TotalAlloc - mStart.TotalAlloc
+				nAllocs := mEnd.Mallocs - mStart.Mallocs
+				stats = fmt.Sprintf("[%d ns %d allocs %d bytes]", time, nAllocs, nBytes)
+			} else {
+				stats = fmt.Sprintf("[%d ns]", time)
+			}
+
 			f.Logf("  pass %s end %s\n", p.name, stats)
-		}
-		printFunc(f)
-		if f.Config.HTML != nil {
+			printFunc(f)
 			f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		checkFunc(f)

@@ -1624,6 +1624,9 @@ func (s *regAllocState) computeLive() {
 				}
 				// The live set has changed, update it.
 				l := s.live[p.ID][:0]
+				if cap(l) == 0 {
+					l = make([]liveInfo, 0, len(t.contents()))
+				}
 				for _, e := range t.contents() {
 					l = append(l, liveInfo{e.key, e.val})
 				}

@@ -59,21 +59,30 @@ type linkedBlocks func(*Block) []*Block
 // from block id to an int indicating the order the block was reached or
 // notFound if the block was not reached.  order contains a mapping from dfnum
 // to block.
-func dfs(entries []*Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent []*Block) {
+func dfs(entries []*Block, succFn linkedBlocks) (fromID []*Block, dfnum []int32, order []ID, parent []ID) {
 	maxBlockID := entries[0].Func.NumBlocks()
 
-	dfnum = make([]int, maxBlockID)
-	order = make([]*Block, maxBlockID)
-	parent = make([]*Block, maxBlockID)
+	dfnum = make([]int32, maxBlockID)
+	order = make([]ID, maxBlockID)
+	parent = make([]ID, maxBlockID)
+	fromID = make([]*Block, maxBlockID)
 
-	n := 0
+	for _, entry := range entries[0].Func.Blocks {
+		eid := entry.ID
+		if fromID[eid] != nil {
+			panic("Colliding entry IDs")
+		}
+		fromID[eid] = entry
+	}
+
+	n := int32(0)
 	s := make([]*Block, 0, 256)
 	for _, entry := range entries {
 		if dfnum[entry.ID] != notFound {
 			continue // already found from a previous entry
 		}
 		s = append(s, entry)
-		parent[entry.ID] = entry
+		parent[entry.ID] = entry.ID
 		for len(s) > 0 {
 			node := s[len(s)-1]
 			s = s[:len(s)-1]
@@ -83,12 +92,12 @@ func dfs(entries []*Block, succFn linkedBlocks) (dfnum []int, order []*Block, pa
 				// if it has a dfnum, we've already visited it
 				if dfnum[w.ID] == notFound {
 					s = append(s, w)
-					parent[w.ID] = node
+					parent[w.ID] = node.ID
 					dfnum[w.ID] = notExplored
 				}
 			}
 			dfnum[node.ID] = n
-			order[n] = node
+			order[n] = node.ID
 		}
 	}
 
@@ -143,77 +152,77 @@ func dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []
 
 	// Step 1. Carry out a depth first search of the problem graph. Number
 	// the vertices from 1 to n as they are reached during the search.
-	dfnum, vertex, parent := dfs(entries, succFn)
+	fromID, dfnum, vertex, parent := dfs(entries, succFn)
 
 	maxBlockID := entries[0].Func.NumBlocks()
-	semi := make([]*Block, maxBlockID)
-	samedom := make([]*Block, maxBlockID)
+	semi := make([]ID, maxBlockID)
+	samedom := make([]ID, maxBlockID)
+	ancestor := make([]ID, maxBlockID)
+	best := make([]ID, maxBlockID)
+	bucket := make([]ID, maxBlockID)
 	idom := make([]*Block, maxBlockID)
-	ancestor := make([]*Block, maxBlockID)
-	best := make([]*Block, maxBlockID)
-	bucket := make([]*Block, maxBlockID)
 
 	// Step 2. Compute the semidominators of all vertices by applying
 	// Theorem 4.  Carry out the computation vertex by vertex in decreasing
 	// order by number.
 	for i := maxBlockID - 1; i > 0; i-- {
 		w := vertex[i]
-		if w == nil {
+		if w == 0 {
 			continue
 		}
 
-		if dfnum[w.ID] == notFound {
+		if dfnum[w] == notFound {
 			// skip unreachable node
 			continue
 		}
 
 		// Step 3. Implicitly define the immediate dominator of each
 		// vertex by applying Corollary 1. (reordered)
-		for v := bucket[w.ID]; v != nil; v = bucket[v.ID] {
+		for v := bucket[w]; v != 0; v = bucket[v] {
 			u := eval(v, ancestor, semi, dfnum, best)
-			if semi[u.ID] == semi[v.ID] {
-				idom[v.ID] = w // true dominator
+			if semi[u] == semi[v] {
+				idom[v] = fromID[w] // true dominator
 			} else {
-				samedom[v.ID] = u // v has same dominator as u
+				samedom[v] = u // v has same dominator as u
 			}
 		}
 
-		p := parent[w.ID]
+		p := parent[w]
 		s := p // semidominator
 
-		var sp *Block
+		var sp ID
 		// calculate the semidominator of w
-		for _, v := range w.Preds {
+		for _, v := range predFn(fromID[w]) {
 			if dfnum[v.ID] == notFound {
 				// skip unreachable predecessor
 				continue
 			}
 
-			if dfnum[v.ID] <= dfnum[w.ID] {
-				sp = v
+			if dfnum[v.ID] <= dfnum[w] {
+				sp = v.ID
 			} else {
-				sp = semi[eval(v, ancestor, semi, dfnum, best).ID]
+				sp = semi[eval(v.ID, ancestor, semi, dfnum, best)]
 			}
 
-			if dfnum[sp.ID] < dfnum[s.ID] {
+			if dfnum[sp] < dfnum[s] {
 				s = sp
 			}
 		}
 
 		// link
-		ancestor[w.ID] = p
-		best[w.ID] = w
+		ancestor[w] = p
+		best[w] = w
 
-		semi[w.ID] = s
-		if semi[s.ID] != parent[s.ID] {
-			bucket[w.ID] = bucket[s.ID]
-			bucket[s.ID] = w
+		semi[w] = s
+		if semi[s] != parent[s] {
+			bucket[w] = bucket[s]
+			bucket[s] = w
 		}
 	}
 
 	// Final pass of step 3
-	for v := bucket[0]; v != nil; v = bucket[v.ID] {
-		idom[v.ID] = bucket[0]
+	for v := bucket[0]; v != 0; v = bucket[v] {
+		idom[v] = fromID[bucket[0]]
 	}
 
 	// Step 4. Explictly define the immediate dominator of each vertex,
@@ -221,28 +230,28 @@ func dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []
 	// number.
 	for i := 1; i < maxBlockID-1; i++ {
 		w := vertex[i]
-		if w == nil {
+		if w == 0 {
 			continue
 		}
-		// w has the same dominator as samedom[w.ID]
-		if samedom[w.ID] != nil {
-			idom[w.ID] = idom[samedom[w.ID].ID]
+		// w has the same dominator as samedom[w]
+		if samedom[w] != 0 {
+			idom[w] = idom[samedom[w]]
 		}
 	}
 	return idom
 }
 
 // eval function from LT paper with path compression
-func eval(v *Block, ancestor []*Block, semi []*Block, dfnum []int, best []*Block) *Block {
-	a := ancestor[v.ID]
-	if ancestor[a.ID] != nil {
-		b := eval(a, ancestor, semi, dfnum, best)
-		ancestor[v.ID] = ancestor[a.ID]
-		if dfnum[semi[b.ID].ID] < dfnum[semi[best[v.ID].ID].ID] {
-			best[v.ID] = b
+func eval(v ID, ancestor []ID, semi []ID, dfnum []int32, best []ID) ID {
+	a := ancestor[v]
+	if ancestor[a] != 0 {
+		bid := eval(a, ancestor, semi, dfnum, best)
+		ancestor[v] = ancestor[a]
+		if dfnum[semi[bid]] < dfnum[semi[best[v]]] {
+			best[v] = bid
 		}
 	}
-	return best[v.ID]
+	return best[v]
 }
 
 // dominators computes the dominator tree for f.  It returns a slice
