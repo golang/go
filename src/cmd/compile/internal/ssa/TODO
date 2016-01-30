@@ -51,6 +51,8 @@ Optimizations (better compiled code)
   Note that this is challenging for ops that generate flags
   because flagalloc wants to move those instructions around for
   flag regeneration.
+- In forms like if ... { call } else { no call }, mark the call branch as unlikely.
+- Non-constant rotate detection.
 
 Optimizations (better compiler)
 -------------------------------

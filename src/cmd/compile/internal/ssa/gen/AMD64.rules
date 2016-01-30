@@ -464,18 +464,63 @@
 (XORB (MOVBconst [c]) x) -> (XORBconst [c] x)
 
 (SHLQ x (MOVQconst [c])) -> (SHLQconst [c&63] x)
+(SHLQ x (MOVLconst [c])) -> (SHLQconst [c&63] x)
+(SHLQ x (MOVWconst [c])) -> (SHLQconst [c&63] x)
+(SHLQ x (MOVBconst [c])) -> (SHLQconst [c&63] x)
+
+(SHLL x (MOVQconst [c])) -> (SHLLconst [c&31] x)
 (SHLL x (MOVLconst [c])) -> (SHLLconst [c&31] x)
+(SHLL x (MOVWconst [c])) -> (SHLLconst [c&31] x)
+(SHLL x (MOVBconst [c])) -> (SHLLconst [c&31] x)
+
+(SHLW x (MOVQconst [c])) -> (SHLWconst [c&31] x)
+(SHLW x (MOVLconst [c])) -> (SHLWconst [c&31] x)
 (SHLW x (MOVWconst [c])) -> (SHLWconst [c&31] x)
+(SHLW x (MOVBconst [c])) -> (SHLWconst [c&31] x)
+
+(SHLB x (MOVQconst [c])) -> (SHLBconst [c&31] x)
+(SHLB x (MOVLconst [c])) -> (SHLBconst [c&31] x)
+(SHLB x (MOVWconst [c])) -> (SHLBconst [c&31] x)
 (SHLB x (MOVBconst [c])) -> (SHLBconst [c&31] x)
 
 (SHRQ x (MOVQconst [c])) -> (SHRQconst [c&63] x)
+(SHRQ x (MOVLconst [c])) -> (SHRQconst [c&63] x)
+(SHRQ x (MOVWconst [c])) -> (SHRQconst [c&63] x)
+(SHRQ x (MOVBconst [c])) -> (SHRQconst [c&63] x)
+
+(SHRL x (MOVQconst [c])) -> (SHRLconst [c&31] x)
 (SHRL x (MOVLconst [c])) -> (SHRLconst [c&31] x)
+(SHRL x (MOVWconst [c])) -> (SHRLconst [c&31] x)
+(SHRL x (MOVBconst [c])) -> (SHRLconst [c&31] x)
+
+(SHRW x (MOVQconst [c])) -> (SHRWconst [c&31] x)
+(SHRW x (MOVLconst [c])) -> (SHRWconst [c&31] x)
 (SHRW x (MOVWconst [c])) -> (SHRWconst [c&31] x)
+(SHRW x (MOVBconst [c])) -> (SHRWconst [c&31] x)
+
+(SHRB x (MOVQconst [c])) -> (SHRBconst [c&31] x)
+(SHRB x (MOVLconst [c])) -> (SHRBconst [c&31] x)
+(SHRB x (MOVWconst [c])) -> (SHRBconst [c&31] x)
 (SHRB x (MOVBconst [c])) -> (SHRBconst [c&31] x)
 
 (SARQ x (MOVQconst [c])) -> (SARQconst [c&63] x)
+(SARQ x (MOVLconst [c])) -> (SARQconst [c&63] x)
+(SARQ x (MOVWconst [c])) -> (SARQconst [c&63] x)
+(SARQ x (MOVBconst [c])) -> (SARQconst [c&63] x)
+
+(SARL x (MOVQconst [c])) -> (SARLconst [c&31] x)
 (SARL x (MOVLconst [c])) -> (SARLconst [c&31] x)
+(SARL x (MOVWconst [c])) -> (SARLconst [c&31] x)
+(SARL x (MOVBconst [c])) -> (SARLconst [c&31] x)
+
+(SARW x (MOVQconst [c])) -> (SARWconst [c&31] x)
+(SARW x (MOVLconst [c])) -> (SARWconst [c&31] x)
 (SARW x (MOVWconst [c])) -> (SARWconst [c&31] x)
+(SARW x (MOVBconst [c])) -> (SARWconst [c&31] x)
+
+(SARB x (MOVQconst [c])) -> (SARBconst [c&31] x)
+(SARB x (MOVLconst [c])) -> (SARBconst [c&31] x)
+(SARB x (MOVWconst [c])) -> (SARBconst [c&31] x)
 (SARB x (MOVBconst [c])) -> (SARBconst [c&31] x)
 
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
@@ -524,7 +569,18 @@
 // multiple memory values alive simultaneously.
 (MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
 (MOVBQZX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
-// TODO: more
+(MOVWQSX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
+(MOVLQSX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+(MOVLQZX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
+
+// Fold extensions and ANDs together.
+(MOVBQZX (ANDBconst [c] x)) -> (ANDQconst [c & 0xff] x)
+(MOVWQZX (ANDWconst [c] x)) -> (ANDQconst [c & 0xffff] x)
+(MOVLQZX (ANDLconst [c] x)) -> (ANDQconst [c & 0xffffffff] x)
+(MOVBQSX (ANDBconst [c] x)) && c & 0x80 == 0 -> (ANDQconst [c & 0x7f] x)
+(MOVWQSX (ANDWconst [c] x)) && c & 0x8000 == 0 -> (ANDQconst [c & 0x7fff] x)
+(MOVLQSX (ANDLconst [c] x)) && c & 0x80000000 == 0 -> (ANDQconst [c & 0x7fffffff] x)
 
 // Don't extend before storing
 (MOVLstore [off] {sym} ptr (MOVLQSX x) mem) -> (MOVLstore [off] {sym} ptr x mem)
@@ -623,21 +679,62 @@
 (MOVSSstoreidx4 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx val mem) -> (MOVSSstoreidx4 [addOff(off1, off2)] {sym} ptr idx val mem)
 (MOVSDloadidx8 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx mem) -> (MOVSDloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)
 (MOVSDstoreidx8 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx val mem) -> (MOVSDstoreidx8 [addOff(off1, off2)] {sym} ptr idx val mem)
+(MOVLstoreidx4 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVLstoreidx4 [addOff(off1, off2)] {sym} ptr idx val mem)
+(MOVWstoreidx2 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVWstoreidx2 [addOff(off1, off2)] {sym} ptr idx val mem)
+(MOVBstoreidx1 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVBstoreidx1 [addOff(off1, off2)] {sym} ptr idx val mem)
 
 (MOVQload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
 	(MOVQloadidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVQstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVQstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-
 (MOVSSload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
 	(MOVSSloadidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
-(MOVSSstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
-	(MOVSSstoreidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
-
 (MOVSDload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDloadidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
+
+(MOVBstore [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVBstoreidx1 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVWstore [off1] {sym1} (LEAQ2 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVWstoreidx2 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVLstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVLstoreidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVQstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVQstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
+(MOVSSstore [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
+	(MOVSSstoreidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
 (MOVSDstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
+
+(MOVBstore [off] {sym} (ADDQ ptr idx) val mem) -> (MOVBstoreidx1 [off] {sym} ptr idx val mem)
+
+// fold LEAQs together
+(LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && canMergeSym(sym1, sym2) ->
+      (LEAQ [addOff(off1,off2)] {mergeSym(sym1,sym2)} x)
+
+// LEAQ into LEAQ1
+(LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ1 [off1] {sym1} x (LEAQ [off2] {sym2} y)) && canMergeSym(sym1, sym2) && y.Op != OpSB ->
+       (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+
+// LEAQ1 into LEAQ
+(LEAQ [off1] {sym1} (LEAQ1 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
+       (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+
+// LEAQ into LEAQ[248]
+(LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ2 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ4 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ4 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ8 [off1] {sym1} (LEAQ [off2] {sym2} x) y) && canMergeSym(sym1, sym2) && x.Op != OpSB ->
+       (LEAQ8 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+
+// LEAQ[248] into LEAQ
+(LEAQ [off1] {sym1} (LEAQ2 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
+      (LEAQ2 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ4 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
+      (LEAQ4 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+(LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
+      (LEAQ8 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
+
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> mem
@@ -963,3 +1060,12 @@
 (XORW x x) -> (MOVWconst [0])
 (XORB x x) -> (MOVBconst [0])
 
+// checking AND against 0.
+(CMPQconst (ANDQ x y) [0]) -> (TESTQ x y)
+(CMPLconst (ANDL x y) [0]) -> (TESTL x y)
+(CMPWconst (ANDW x y) [0]) -> (TESTW x y)
+(CMPBconst (ANDB x y) [0]) -> (TESTB x y)
+(CMPQconst (ANDQconst [c] x) [0]) -> (TESTQconst [c] x)
+(CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
+(CMPWconst (ANDWconst [c] x) [0]) -> (TESTWconst [c] x)
+(CMPBconst (ANDBconst [c] x) [0]) -> (TESTBconst [c] x)
