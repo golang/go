@@ -4003,13 +4003,18 @@ func (s *genState) genValue(v *ssa.Value) {
 		// Go assembler has swapped operands for UCOMISx relative to CMP,
 		// must account for that right here.
 		opregreg(v.Op.Asm(), regnum(v.Args[0]), regnum(v.Args[1]))
-	case ssa.OpAMD64CMPQconst, ssa.OpAMD64CMPLconst, ssa.OpAMD64CMPWconst, ssa.OpAMD64CMPBconst,
-		ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
+	case ssa.OpAMD64CMPQconst, ssa.OpAMD64CMPLconst, ssa.OpAMD64CMPWconst, ssa.OpAMD64CMPBconst:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = v.AuxInt
+	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpAMD64MOVBconst, ssa.OpAMD64MOVWconst, ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
 		x := regnum(v)
 		p := Prog(v.Op.Asm())
@@ -4040,7 +4045,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
-	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload, ssa.OpAMD64MOVOload:
+	case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVSSload, ssa.OpAMD64MOVSDload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload, ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload, ssa.OpAMD64MOVWQSXload, ssa.OpAMD64MOVWQZXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVLQZXload, ssa.OpAMD64MOVOload:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
@@ -4081,13 +4086,31 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Scale = 8
 		p.To.Index = regnum(v.Args[1])
 		addAux(&p.To, v)
-	case ssa.OpAMD64MOVSSstoreidx4:
+	case ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[2])
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		p.To.Scale = 4
+		p.To.Index = regnum(v.Args[1])
+		addAux(&p.To, v)
+	case ssa.OpAMD64MOVWstoreidx2:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		p.To.Scale = 2
+		p.To.Index = regnum(v.Args[1])
+		addAux(&p.To, v)
+	case ssa.OpAMD64MOVBstoreidx1:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = regnum(v.Args[2])
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		p.To.Scale = 1
 		p.To.Index = regnum(v.Args[1])
 		addAux(&p.To, v)
 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
@@ -4365,7 +4388,9 @@ func (s *genState) genValue(v *ssa.Value) {
 			}
 			switch w.Op {
 			case ssa.OpAMD64MOVQload, ssa.OpAMD64MOVLload, ssa.OpAMD64MOVWload, ssa.OpAMD64MOVBload,
-				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore:
+				ssa.OpAMD64MOVQstore, ssa.OpAMD64MOVLstore, ssa.OpAMD64MOVWstore, ssa.OpAMD64MOVBstore,
+				ssa.OpAMD64MOVBQSXload, ssa.OpAMD64MOVBQZXload, ssa.OpAMD64MOVWQSXload,
+				ssa.OpAMD64MOVWQZXload, ssa.OpAMD64MOVLQSXload, ssa.OpAMD64MOVLQZXload:
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if Debug_checknil != 0 && int(v.Line) > 1 {
 						Warnl(int(v.Line), "removed nil check")

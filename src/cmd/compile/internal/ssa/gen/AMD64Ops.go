@@ -368,14 +368,22 @@ func init() {
 		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},          // ditto, extend to int64
 		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},          // ditto, extend to uint64
 		{name: "MOVWload", reg: gpload, asm: "MOVW", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX"},          // ditto, extend to int64
+		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX"},          // ditto, extend to uint64
 		{name: "MOVLload", reg: gpload, asm: "MOVL", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX"},          // ditto, extend to int64
+		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX"},          // ditto, extend to uint64
 		{name: "MOVQload", reg: gpload, asm: "MOVQ", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
 		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
 		{name: "MOVBstore", reg: gpstore, asm: "MOVB", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVWstore", reg: gpstore, asm: "MOVW", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVLstore", reg: gpstore, asm: "MOVL", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
 		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"},       // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+
+		{name: "MOVBstoreidx1", reg: gpstoreidx, asm: "MOVB"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVWstoreidx2", reg: gpstoreidx, asm: "MOVW"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+		{name: "MOVLstoreidx4", reg: gpstoreidx, asm: "MOVL"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 
 		{name: "MOVOload", reg: fpload, asm: "MOVUPS", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
 		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
