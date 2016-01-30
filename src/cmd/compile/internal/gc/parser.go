@@ -2501,6 +2501,24 @@ func (p *parser) interfacedcl() *Node {
 		ifacedcl(meth)
 		return meth
 
+	case '@', '?':
+		// newname indcl
+		// We arrive here when parsing an interface type declared inside
+		// an exported and inlineable function and the interface declares
+		// unexported methods (which are then package-qualified).
+		//
+		// Since the compiler always flattens embedded interfaces, we
+		// will never see an embedded package-qualified interface in export
+		// data; i.e., when we reach here we know it must be a method.
+		//
+		// See also issue 14164.
+		mname := newname(p.sym())
+		sig := p.indcl()
+
+		meth := Nod(ODCLFIELD, mname, sig)
+		ifacedcl(meth)
+		return meth
+
 	case '(':
 		p.next()
 		pname := p.packname(nil)
