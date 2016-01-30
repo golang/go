@@ -385,7 +385,7 @@ func (p *parser) getPkg(id, name string) *types.Package {
 		if pname := pkg.Name(); pname == "" {
 			pkg.SetName(name)
 		} else if pname != name {
-			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
+			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", id, pname, name)
 		}
 	}
 	return pkg
