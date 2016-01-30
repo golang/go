@@ -7,7 +7,6 @@ Coverage
 Correctness
 -----------
 - Debugging info (check & fix as much as we can)
-- Fix write barriers so cgo tests work (misc/cgo/errors/ptr.go)
 - Re-enable TestStackBarrierProfiling (src/runtime/pprof/pprof_test.go)
 - @ directive in rewrites might read overwritten data.  Save @loc
   in variable before modifying v.
@@ -25,7 +24,6 @@ Optimizations (better compiled code)
   SUBQ $8, AX
   CMP AX, $0
   JEQ ...
-- Use better write barrier calls
 - If there are a lot of MOVQ $0, ..., then load
   0 into a register and use the register as the source instead.
 - Allow arrays of length 1 (or longer, with all constant indexes?) to be SSAable.

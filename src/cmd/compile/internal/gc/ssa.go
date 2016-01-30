@@ -2770,42 +2770,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	//   store pointer fields
 	// }
 
-	if t.IsStruct() {
-		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
-			ft := t.FieldType(i)
-			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
-			if haspointers(ft.(*Type)) {
-				s.insertWBstore(ft.(*Type), addr, val, line)
-			} else {
-				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, ft.Size(), addr, val, s.mem())
-			}
-		}
-		return
-	}
-
-	switch {
-	case t.IsPtr() || t.IsMap() || t.IsChan():
-		// no scalar fields.
-	case t.IsString():
-		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
-		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
-	case t.IsSlice():
-		len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
-		cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
-		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
-		capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
-	case t.IsInterface():
-		// itab field doesn't need a write barrier (even though it is a pointer).
-		itab := s.newValue1(ssa.OpITab, Ptrto(Types[TUINT8]), right)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
-	default:
-		s.Fatalf("bad write barrier type %s", t)
-	}
+	s.storeTypeScalars(t, left, right)
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
@@ -2824,6 +2789,90 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 
 	// Issue write barriers for pointer writes.
 	s.startBlock(bThen)
+	s.storeTypePtrsWB(t, left, right)
+	s.endBlock().AddEdgeTo(bEnd)
+
+	// Issue regular stores for pointer writes.
+	s.startBlock(bElse)
+	s.storeTypePtrs(t, left, right)
+	s.endBlock().AddEdgeTo(bEnd)
+
+	s.startBlock(bEnd)
+
+	if Debug_wb > 0 {
+		Warnl(int(line), "write barrier")
+	}
+}
+
+// do *left = right for all scalar (non-pointer) parts of t.
+func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
+	switch {
+	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
+	case t.IsPtr() || t.IsMap() || t.IsChan():
+		// no scalar fields.
+	case t.IsString():
+		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
+		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
+	case t.IsSlice():
+		len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
+		cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
+		lenAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), s.config.IntSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
+		capAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TINT]), 2*s.config.IntSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
+	case t.IsInterface():
+		// itab field doesn't need a write barrier (even though it is a pointer).
+		itab := s.newValue1(ssa.OpITab, Ptrto(Types[TUINT8]), right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
+	case t.IsStruct():
+		n := t.NumFields()
+		for i := int64(0); i < n; i++ {
+			ft := t.FieldType(i)
+			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			s.storeTypeScalars(ft.(*Type), addr, val)
+		}
+	default:
+		s.Fatalf("bad write barrier type %s", t)
+	}
+}
+
+// do *left = right for all pointer parts of t.
+func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+	switch {
+	case t.IsPtr() || t.IsMap() || t.IsChan():
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
+	case t.IsString():
+		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+	case t.IsSlice():
+		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), right)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
+	case t.IsInterface():
+		// itab field is treated as a scalar.
+		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
+		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
+	case t.IsStruct():
+		n := t.NumFields()
+		for i := int64(0); i < n; i++ {
+			ft := t.FieldType(i)
+			if !haspointers(ft.(*Type)) {
+				continue
+			}
+			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			s.storeTypePtrs(ft.(*Type), addr, val)
+		}
+	default:
+		s.Fatalf("bad write barrier type %s", t)
+	}
+}
+
+// do *left = right with a write barrier for all pointer parts of t.
+func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 	switch {
 	case t.IsPtr() || t.IsMap() || t.IsChan():
 		s.rtcall(writebarrierptr, true, nil, left, right)
@@ -2837,35 +2886,19 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
 		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
 		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
+	case t.IsStruct():
+		n := t.NumFields()
+		for i := int64(0); i < n; i++ {
+			ft := t.FieldType(i)
+			if !haspointers(ft.(*Type)) {
+				continue
+			}
+			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
+			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			s.storeTypePtrsWB(ft.(*Type), addr, val)
+		}
 	default:
 		s.Fatalf("bad write barrier type %s", t)
-	}
-	s.endBlock().AddEdgeTo(bEnd)
-
-	// Issue regular stores for pointer writes.
-	s.startBlock(bElse)
-	switch {
-	case t.IsPtr() || t.IsMap() || t.IsChan():
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
-	case t.IsString():
-		ptr := s.newValue1(ssa.OpStringPtr, Ptrto(Types[TUINT8]), right)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
-	case t.IsSlice():
-		ptr := s.newValue1(ssa.OpSlicePtr, Ptrto(Types[TUINT8]), right)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
-	case t.IsInterface():
-		idata := s.newValue1(ssa.OpIData, Ptrto(Types[TUINT8]), right)
-		idataAddr := s.newValue1I(ssa.OpOffPtr, Ptrto(Types[TUINT8]), s.config.PtrSize, left)
-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
-	default:
-		s.Fatalf("bad write barrier type %s", t)
-	}
-	s.endBlock().AddEdgeTo(bEnd)
-
-	s.startBlock(bEnd)
-
-	if Debug_wb > 0 {
-		Warnl(int(line), "write barrier")
 	}
 }
 
