@@ -68,7 +68,7 @@ func genFunction(size int) []bloc {
 	valn := func(s string, m, n int) string { return fmt.Sprintf("%s%d-%d", s, m, n) }
 	blocs = append(blocs,
 		Bloc("entry",
-			Valu(valn("store", 0, 4), OpArg, TypeMem, 0, ".mem"),
+			Valu(valn("store", 0, 4), OpInitMem, TypeMem, 0, nil),
 			Valu("sb", OpSB, TypeInvalid, 0, nil),
 			Goto(blockn(1)),
 		),

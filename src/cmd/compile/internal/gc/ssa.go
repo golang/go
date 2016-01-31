@@ -4022,11 +4022,11 @@ func (s *genState) genValue(v *ssa.Value) {
 		var i int64
 		switch v.Op {
 		case ssa.OpAMD64MOVBconst:
-			i = int64(int8(v.AuxInt))
+			i = int64(v.AuxInt8())
 		case ssa.OpAMD64MOVWconst:
-			i = int64(int16(v.AuxInt))
+			i = int64(v.AuxInt16())
 		case ssa.OpAMD64MOVLconst:
-			i = int64(int32(v.AuxInt))
+			i = int64(v.AuxInt32())
 		case ssa.OpAMD64MOVQconst:
 			i = v.AuxInt
 		}
@@ -4116,7 +4116,7 @@ func (s *genState) genValue(v *ssa.Value) {
 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		sc := ssa.ValAndOff(v.AuxInt)
+		sc := v.AuxValAndOff()
 		i := sc.Val()
 		switch v.Op {
 		case ssa.OpAMD64MOVBstoreconst:

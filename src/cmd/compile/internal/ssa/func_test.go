@@ -6,7 +6,7 @@
 // As an example, the following func
 //
 //   b1:
-//     v1 = Arg <mem> [.mem]
+//     v1 = InitMem <mem>
 //     Plain -> b2
 //   b2:
 //     Exit v1
@@ -18,7 +18,7 @@
 //
 //   fun := Fun("entry",
 //       Bloc("entry",
-//           Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+//           Valu("mem", OpInitMem, TypeMem, 0, nil),
 //           Goto("exit")),
 //       Bloc("exit",
 //           Exit("mem")),
@@ -267,7 +267,7 @@ func TestArgs(t *testing.T) {
 			Valu("a", OpConst64, TypeInt64, 14, nil),
 			Valu("b", OpConst64, TypeInt64, 26, nil),
 			Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Goto("exit")),
 		Bloc("exit",
 			Exit("mem")))
@@ -289,7 +289,7 @@ func TestEquiv(t *testing.T) {
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -298,7 +298,7 @@ func TestEquiv(t *testing.T) {
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -310,7 +310,7 @@ func TestEquiv(t *testing.T) {
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
@@ -321,7 +321,7 @@ func TestEquiv(t *testing.T) {
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Goto("exit"))),
 		},
 	}
@@ -338,26 +338,26 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Goto("exit")),
 				Bloc("exit",
 					Exit("mem"))),
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Exit("mem"))),
 		},
 		// value order changed
 		{
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Exit("mem"))),
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Exit("mem"))),
@@ -366,12 +366,12 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Exit("mem"))),
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 26, nil),
 					Exit("mem"))),
 		},
@@ -379,12 +379,12 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 0, 14),
 					Exit("mem"))),
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 0, 26),
 					Exit("mem"))),
 		},
@@ -392,14 +392,14 @@ func TestEquiv(t *testing.T) {
 		{
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 14, nil),
 					Valu("b", OpConst64, TypeInt64, 26, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "a", "b"),
 					Exit("mem"))),
 			Fun(testConfig(t), "entry",
 				Bloc("entry",
-					Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+					Valu("mem", OpInitMem, TypeMem, 0, nil),
 					Valu("a", OpConst64, TypeInt64, 0, nil),
 					Valu("b", OpConst64, TypeInt64, 14, nil),
 					Valu("sum", OpAdd64, TypeInt64, 0, nil, "b", "a"),

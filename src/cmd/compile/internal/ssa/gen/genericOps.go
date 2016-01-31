@@ -148,10 +148,10 @@ var genericOps = []opData{
 	// for rotates is hashing and crypto code with constant
 	// distance, rotate instructions are only substituted
 	// when arg1 is a constant between 1 and A-1, inclusive.
-	{name: "Lrot8"},
-	{name: "Lrot16"},
-	{name: "Lrot32"},
-	{name: "Lrot64"},
+	{name: "Lrot8", aux: "Int64"},
+	{name: "Lrot16", aux: "Int64"},
+	{name: "Lrot32", aux: "Int64"},
+	{name: "Lrot64", aux: "Int64"},
 
 	// 2-input comparisons
 	{name: "Eq8"}, // arg0 == arg1
@@ -247,46 +247,46 @@ var genericOps = []opData{
 
 	// constants.  Constant values are stored in the aux or
 	// auxint fields.
-	{name: "ConstBool"},                // auxint is 0 for false and 1 for true
-	{name: "ConstString"},              // value is aux.(string)
-	{name: "ConstNil", typ: "BytePtr"}, // nil pointer
-	{name: "Const8"},                   // value is low 8 bits of auxint
-	{name: "Const16"},                  // value is low 16 bits of auxint
-	{name: "Const32"},                  // value is low 32 bits of auxint
-	{name: "Const64"},                  // value is auxint
-	{name: "Const32F"},                 // value is math.Float64frombits(uint64(auxint))
-	{name: "Const64F"},                 // value is math.Float64frombits(uint64(auxint))
-	{name: "ConstInterface"},           // nil interface
-	{name: "ConstSlice"},               // nil slice
+	{name: "ConstBool", aux: "Bool"},     // auxint is 0 for false and 1 for true
+	{name: "ConstString", aux: "String"}, // value is aux.(string)
+	{name: "ConstNil", typ: "BytePtr"},   // nil pointer
+	{name: "Const8", aux: "Int8"},        // value is low 8 bits of auxint
+	{name: "Const16", aux: "Int16"},      // value is low 16 bits of auxint
+	{name: "Const32", aux: "Int32"},      // value is low 32 bits of auxint
+	{name: "Const64", aux: "Int64"},      // value is auxint
+	{name: "Const32F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
+	{name: "Const64F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
+	{name: "ConstInterface"},             // nil interface
+	{name: "ConstSlice"},                 // nil slice
 
 	// Constant-like things
-	{name: "InitMem"}, // memory input to the function.
-	{name: "Arg"},     // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+	{name: "InitMem"},            // memory input to the function.
+	{name: "Arg", aux: "SymOff"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
 
 	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
 	// on whether it is a global or stack variable).  The Aux field identifies the
 	// variable.  It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
 	// or *AutoSymbol (arg0=SP).
-	{name: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+	{name: "Addr", aux: "Sym"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
 	{name: "SP"},                 // stack pointer
 	{name: "SB", typ: "Uintptr"}, // static base pointer (a.k.a. globals pointer)
-	{name: "Func"},               // entry address of a function
+	{name: "Func", aux: "Sym"},   // entry address of a function
 
 	// Memory operations
-	{name: "Load"},              // Load from arg0.  arg1=memory
-	{name: "Store", typ: "Mem"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
-	{name: "Move"},              // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
-	{name: "Zero"},              // arg0=destptr, arg1=mem, auxint=size. Returns memory.
+	{name: "Load"},                            // Load from arg0.  arg1=memory
+	{name: "Store", typ: "Mem", aux: "Int64"}, // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
+	{name: "Move", aux: "Int64"},              // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
+	{name: "Zero", aux: "Int64"},              // arg0=destptr, arg1=mem, auxint=size. Returns memory.
 
 	// Function calls.  Arguments to the call have already been written to the stack.
 	// Return values appear on the stack.  The method receiver, if any, is treated
 	// as a phantom first argument.
-	{name: "ClosureCall"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
-	{name: "StaticCall"},  // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
-	{name: "DeferCall"},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
-	{name: "GoCall"},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
-	{name: "InterCall"},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
+	{name: "ClosureCall", aux: "Int64"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
+	{name: "StaticCall", aux: "SymOff"}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
+	{name: "DeferCall", aux: "Int64"},   // defer call.  arg0=memory, auxint=arg size.  Returns memory.
+	{name: "GoCall", aux: "Int64"},      // go call.  arg0=memory, auxint=arg size.  Returns memory.
+	{name: "InterCall", aux: "Int64"},   // interface call.  arg0=code pointer, arg1=memory, auxint=arg size.  Returns memory.
 
 	// Conversions: signed extensions, zero (unsigned) extensions, truncations
 	{name: "SignExt8to16", typ: "Int16"},
@@ -330,9 +330,9 @@ var genericOps = []opData{
 	{name: "GetClosurePtr"}, // get closure pointer from dedicated register
 
 	// Indexing operations
-	{name: "ArrayIndex"}, // arg0=array, arg1=index.  Returns a[i]
-	{name: "PtrIndex"},   // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
-	{name: "OffPtr"},     // arg0 + auxint (arg0 and result are pointers)
+	{name: "ArrayIndex"},           // arg0=array, arg1=index.  Returns a[i]
+	{name: "PtrIndex"},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+	{name: "OffPtr", aux: "Int64"}, // arg0 + auxint (arg0 and result are pointers)
 
 	// Slices
 	{name: "SliceMake"},                // arg0=ptr, arg1=len, arg2=cap
@@ -356,12 +356,12 @@ var genericOps = []opData{
 	{name: "IData"},                // arg0=interface, returns data field
 
 	// Structs
-	{name: "StructMake0"},  // Returns struct with 0 fields.
-	{name: "StructMake1"},  // arg0=field0.  Returns struct.
-	{name: "StructMake2"},  // arg0,arg1=field0,field1.  Returns struct.
-	{name: "StructMake3"},  // arg0..2=field0..2.  Returns struct.
-	{name: "StructMake4"},  // arg0..3=field0..3.  Returns struct.
-	{name: "StructSelect"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
+	{name: "StructMake0"},                // Returns struct with 0 fields.
+	{name: "StructMake1"},                // arg0=field0.  Returns struct.
+	{name: "StructMake2"},                // arg0,arg1=field0,field1.  Returns struct.
+	{name: "StructMake3"},                // arg0..2=field0..2.  Returns struct.
+	{name: "StructMake4"},                // arg0..3=field0..3.  Returns struct.
+	{name: "StructSelect", aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
 	// Spill&restore ops for the register allocator.  These are
 	// semantically identical to OpCopy; they do not take/return
@@ -376,9 +376,9 @@ var genericOps = []opData{
 	// Unknown value.  Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
 
-	{name: "VarDef", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
-	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
-	{name: "VarLive"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+	{name: "VarDef", aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+	{name: "VarKill", aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+	{name: "VarLive", aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
 }
 
 //     kind           control    successors       implicit exit
