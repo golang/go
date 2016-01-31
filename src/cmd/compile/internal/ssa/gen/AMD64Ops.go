@@ -152,45 +152,45 @@ func init() {
 		{name: "DIVSS", reg: fp21x15, asm: "DIVSS"}, // fp32 div
 		{name: "DIVSD", reg: fp21x15, asm: "DIVSD"}, // fp64 div
 
-		{name: "MOVSSload", reg: fpload, asm: "MOVSS"},        // fp32 load
-		{name: "MOVSDload", reg: fpload, asm: "MOVSD"},        // fp64 load
-		{name: "MOVSSconst", reg: fp01, asm: "MOVSS"},         // fp32 constant
-		{name: "MOVSDconst", reg: fp01, asm: "MOVSD"},         // fp64 constant
-		{name: "MOVSSloadidx4", reg: fploadidx, asm: "MOVSS"}, // fp32 load
-		{name: "MOVSDloadidx8", reg: fploadidx, asm: "MOVSD"}, // fp64 load
+		{name: "MOVSSload", reg: fpload, asm: "MOVSS", aux: "SymOff"},                        // fp32 load
+		{name: "MOVSDload", reg: fpload, asm: "MOVSD", aux: "SymOff"},                        // fp64 load
+		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float", rematerializeable: true}, // fp32 constant
+		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float", rematerializeable: true}, // fp64 constant
+		{name: "MOVSSloadidx4", reg: fploadidx, asm: "MOVSS", aux: "SymOff"},                 // fp32 load
+		{name: "MOVSDloadidx8", reg: fploadidx, asm: "MOVSD", aux: "SymOff"},                 // fp64 load
 
-		{name: "MOVSSstore", reg: fpstore, asm: "MOVSS"},        // fp32 store
-		{name: "MOVSDstore", reg: fpstore, asm: "MOVSD"},        // fp64 store
-		{name: "MOVSSstoreidx4", reg: fpstoreidx, asm: "MOVSS"}, // fp32 indexed by 4i store
-		{name: "MOVSDstoreidx8", reg: fpstoreidx, asm: "MOVSD"}, // fp64 indexed by 8i store
+		{name: "MOVSSstore", reg: fpstore, asm: "MOVSS", aux: "SymOff"},        // fp32 store
+		{name: "MOVSDstore", reg: fpstore, asm: "MOVSD", aux: "SymOff"},        // fp64 store
+		{name: "MOVSSstoreidx4", reg: fpstoreidx, asm: "MOVSS", aux: "SymOff"}, // fp32 indexed by 4i store
+		{name: "MOVSDstoreidx8", reg: fpstoreidx, asm: "MOVSD", aux: "SymOff"}, // fp64 indexed by 8i store
 
 		// binary ops
-		{name: "ADDQ", reg: gp21, asm: "ADDQ"},                     // arg0 + arg1
-		{name: "ADDL", reg: gp21, asm: "ADDL"},                     // arg0 + arg1
-		{name: "ADDW", reg: gp21, asm: "ADDW"},                     // arg0 + arg1
-		{name: "ADDB", reg: gp21, asm: "ADDB"},                     // arg0 + arg1
-		{name: "ADDQconst", reg: gp11, asm: "ADDQ", typ: "UInt64"}, // arg0 + auxint
-		{name: "ADDLconst", reg: gp11, asm: "ADDL"},                // arg0 + auxint
-		{name: "ADDWconst", reg: gp11, asm: "ADDW"},                // arg0 + auxint
-		{name: "ADDBconst", reg: gp11, asm: "ADDB"},                // arg0 + auxint
+		{name: "ADDQ", reg: gp21, asm: "ADDQ"},                                   // arg0 + arg1
+		{name: "ADDL", reg: gp21, asm: "ADDL"},                                   // arg0 + arg1
+		{name: "ADDW", reg: gp21, asm: "ADDW"},                                   // arg0 + arg1
+		{name: "ADDB", reg: gp21, asm: "ADDB"},                                   // arg0 + arg1
+		{name: "ADDQconst", reg: gp11, asm: "ADDQ", aux: "Int64", typ: "UInt64"}, // arg0 + auxint
+		{name: "ADDLconst", reg: gp11, asm: "ADDL", aux: "Int32"},                // arg0 + auxint
+		{name: "ADDWconst", reg: gp11, asm: "ADDW", aux: "Int16"},                // arg0 + auxint
+		{name: "ADDBconst", reg: gp11, asm: "ADDB", aux: "Int8"},                 // arg0 + auxint
 
-		{name: "SUBQ", reg: gp21, asm: "SUBQ"},      // arg0 - arg1
-		{name: "SUBL", reg: gp21, asm: "SUBL"},      // arg0 - arg1
-		{name: "SUBW", reg: gp21, asm: "SUBW"},      // arg0 - arg1
-		{name: "SUBB", reg: gp21, asm: "SUBB"},      // arg0 - arg1
-		{name: "SUBQconst", reg: gp11, asm: "SUBQ"}, // arg0 - auxint
-		{name: "SUBLconst", reg: gp11, asm: "SUBL"}, // arg0 - auxint
-		{name: "SUBWconst", reg: gp11, asm: "SUBW"}, // arg0 - auxint
-		{name: "SUBBconst", reg: gp11, asm: "SUBB"}, // arg0 - auxint
+		{name: "SUBQ", reg: gp21, asm: "SUBQ"},                    // arg0 - arg1
+		{name: "SUBL", reg: gp21, asm: "SUBL"},                    // arg0 - arg1
+		{name: "SUBW", reg: gp21, asm: "SUBW"},                    // arg0 - arg1
+		{name: "SUBB", reg: gp21, asm: "SUBB"},                    // arg0 - arg1
+		{name: "SUBQconst", reg: gp11, asm: "SUBQ", aux: "Int64"}, // arg0 - auxint
+		{name: "SUBLconst", reg: gp11, asm: "SUBL", aux: "Int32"}, // arg0 - auxint
+		{name: "SUBWconst", reg: gp11, asm: "SUBW", aux: "Int16"}, // arg0 - auxint
+		{name: "SUBBconst", reg: gp11, asm: "SUBB", aux: "Int8"},  // arg0 - auxint
 
-		{name: "MULQ", reg: gp21, asm: "IMULQ"},      // arg0 * arg1
-		{name: "MULL", reg: gp21, asm: "IMULL"},      // arg0 * arg1
-		{name: "MULW", reg: gp21, asm: "IMULW"},      // arg0 * arg1
-		{name: "MULB", reg: gp21, asm: "IMULW"},      // arg0 * arg1
-		{name: "MULQconst", reg: gp11, asm: "IMULQ"}, // arg0 * auxint
-		{name: "MULLconst", reg: gp11, asm: "IMULL"}, // arg0 * auxint
-		{name: "MULWconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
-		{name: "MULBconst", reg: gp11, asm: "IMULW"}, // arg0 * auxint
+		{name: "MULQ", reg: gp21, asm: "IMULQ"},                    // arg0 * arg1
+		{name: "MULL", reg: gp21, asm: "IMULL"},                    // arg0 * arg1
+		{name: "MULW", reg: gp21, asm: "IMULW"},                    // arg0 * arg1
+		{name: "MULB", reg: gp21, asm: "IMULW"},                    // arg0 * arg1
+		{name: "MULQconst", reg: gp11, asm: "IMULQ", aux: "Int64"}, // arg0 * auxint
+		{name: "MULLconst", reg: gp11, asm: "IMULL", aux: "Int32"}, // arg0 * auxint
+		{name: "MULWconst", reg: gp11, asm: "IMULW", aux: "Int16"}, // arg0 * auxint
+		{name: "MULBconst", reg: gp11, asm: "IMULW", aux: "Int8"},  // arg0 * auxint
 
 		{name: "HMULL", reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
 		{name: "HMULW", reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
@@ -213,86 +213,86 @@ func init() {
 		{name: "MODLU", reg: gp11mod, asm: "DIVL"}, // arg0 % arg1
 		{name: "MODWU", reg: gp11mod, asm: "DIVW"}, // arg0 % arg1
 
-		{name: "ANDQ", reg: gp21, asm: "ANDQ"},      // arg0 & arg1
-		{name: "ANDL", reg: gp21, asm: "ANDL"},      // arg0 & arg1
-		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
-		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
-		{name: "ANDQconst", reg: gp11, asm: "ANDQ"}, // arg0 & auxint
-		{name: "ANDLconst", reg: gp11, asm: "ANDL"}, // arg0 & auxint
-		{name: "ANDWconst", reg: gp11, asm: "ANDW"}, // arg0 & auxint
-		{name: "ANDBconst", reg: gp11, asm: "ANDB"}, // arg0 & auxint
+		{name: "ANDQ", reg: gp21, asm: "ANDQ"},                    // arg0 & arg1
+		{name: "ANDL", reg: gp21, asm: "ANDL"},                    // arg0 & arg1
+		{name: "ANDW", reg: gp21, asm: "ANDW"},                    // arg0 & arg1
+		{name: "ANDB", reg: gp21, asm: "ANDB"},                    // arg0 & arg1
+		{name: "ANDQconst", reg: gp11, asm: "ANDQ", aux: "Int64"}, // arg0 & auxint
+		{name: "ANDLconst", reg: gp11, asm: "ANDL", aux: "Int32"}, // arg0 & auxint
+		{name: "ANDWconst", reg: gp11, asm: "ANDW", aux: "Int16"}, // arg0 & auxint
+		{name: "ANDBconst", reg: gp11, asm: "ANDB", aux: "Int8"},  // arg0 & auxint
 
-		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
-		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
-		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
-		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
-		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
-		{name: "ORLconst", reg: gp11, asm: "ORL"}, // arg0 | auxint
-		{name: "ORWconst", reg: gp11, asm: "ORW"}, // arg0 | auxint
-		{name: "ORBconst", reg: gp11, asm: "ORB"}, // arg0 | auxint
+		{name: "ORQ", reg: gp21, asm: "ORQ"},                    // arg0 | arg1
+		{name: "ORL", reg: gp21, asm: "ORL"},                    // arg0 | arg1
+		{name: "ORW", reg: gp21, asm: "ORW"},                    // arg0 | arg1
+		{name: "ORB", reg: gp21, asm: "ORB"},                    // arg0 | arg1
+		{name: "ORQconst", reg: gp11, asm: "ORQ", aux: "Int64"}, // arg0 | auxint
+		{name: "ORLconst", reg: gp11, asm: "ORL", aux: "Int32"}, // arg0 | auxint
+		{name: "ORWconst", reg: gp11, asm: "ORW", aux: "Int16"}, // arg0 | auxint
+		{name: "ORBconst", reg: gp11, asm: "ORB", aux: "Int8"},  // arg0 | auxint
 
-		{name: "XORQ", reg: gp21, asm: "XORQ"},      // arg0 ^ arg1
-		{name: "XORL", reg: gp21, asm: "XORL"},      // arg0 ^ arg1
-		{name: "XORW", reg: gp21, asm: "XORW"},      // arg0 ^ arg1
-		{name: "XORB", reg: gp21, asm: "XORB"},      // arg0 ^ arg1
-		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0 ^ auxint
-		{name: "XORLconst", reg: gp11, asm: "XORL"}, // arg0 ^ auxint
-		{name: "XORWconst", reg: gp11, asm: "XORW"}, // arg0 ^ auxint
-		{name: "XORBconst", reg: gp11, asm: "XORB"}, // arg0 ^ auxint
+		{name: "XORQ", reg: gp21, asm: "XORQ"},                    // arg0 ^ arg1
+		{name: "XORL", reg: gp21, asm: "XORL"},                    // arg0 ^ arg1
+		{name: "XORW", reg: gp21, asm: "XORW"},                    // arg0 ^ arg1
+		{name: "XORB", reg: gp21, asm: "XORB"},                    // arg0 ^ arg1
+		{name: "XORQconst", reg: gp11, asm: "XORQ", aux: "Int64"}, // arg0 ^ auxint
+		{name: "XORLconst", reg: gp11, asm: "XORL", aux: "Int32"}, // arg0 ^ auxint
+		{name: "XORWconst", reg: gp11, asm: "XORW", aux: "Int16"}, // arg0 ^ auxint
+		{name: "XORBconst", reg: gp11, asm: "XORB", aux: "Int8"},  // arg0 ^ auxint
 
-		{name: "CMPQ", reg: gp2flags, asm: "CMPQ", typ: "Flags"},      // arg0 compare to arg1
-		{name: "CMPL", reg: gp2flags, asm: "CMPL", typ: "Flags"},      // arg0 compare to arg1
-		{name: "CMPW", reg: gp2flags, asm: "CMPW", typ: "Flags"},      // arg0 compare to arg1
-		{name: "CMPB", reg: gp2flags, asm: "CMPB", typ: "Flags"},      // arg0 compare to arg1
-		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ", typ: "Flags"}, // arg0 compare to auxint
-		{name: "CMPLconst", reg: gp1flags, asm: "CMPL", typ: "Flags"}, // arg0 compare to auxint
-		{name: "CMPWconst", reg: gp1flags, asm: "CMPW", typ: "Flags"}, // arg0 compare to auxint
-		{name: "CMPBconst", reg: gp1flags, asm: "CMPB", typ: "Flags"}, // arg0 compare to auxint
+		{name: "CMPQ", reg: gp2flags, asm: "CMPQ", typ: "Flags"},                    // arg0 compare to arg1
+		{name: "CMPL", reg: gp2flags, asm: "CMPL", typ: "Flags"},                    // arg0 compare to arg1
+		{name: "CMPW", reg: gp2flags, asm: "CMPW", typ: "Flags"},                    // arg0 compare to arg1
+		{name: "CMPB", reg: gp2flags, asm: "CMPB", typ: "Flags"},                    // arg0 compare to arg1
+		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ", typ: "Flags", aux: "Int64"}, // arg0 compare to auxint
+		{name: "CMPLconst", reg: gp1flags, asm: "CMPL", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
+		{name: "CMPWconst", reg: gp1flags, asm: "CMPW", typ: "Flags", aux: "Int16"}, // arg0 compare to auxint
+		{name: "CMPBconst", reg: gp1flags, asm: "CMPB", typ: "Flags", aux: "Int8"},  // arg0 compare to auxint
 
 		{name: "UCOMISS", reg: fp2flags, asm: "UCOMISS", typ: "Flags"}, // arg0 compare to arg1, f32
 		{name: "UCOMISD", reg: fp2flags, asm: "UCOMISD", typ: "Flags"}, // arg0 compare to arg1, f64
 
-		{name: "TESTQ", reg: gp2flags, asm: "TESTQ", typ: "Flags"},      // (arg0 & arg1) compare to 0
-		{name: "TESTL", reg: gp2flags, asm: "TESTL", typ: "Flags"},      // (arg0 & arg1) compare to 0
-		{name: "TESTW", reg: gp2flags, asm: "TESTW", typ: "Flags"},      // (arg0 & arg1) compare to 0
-		{name: "TESTB", reg: gp2flags, asm: "TESTB", typ: "Flags"},      // (arg0 & arg1) compare to 0
-		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ", typ: "Flags"}, // (arg0 & auxint) compare to 0
-		{name: "TESTLconst", reg: gp1flags, asm: "TESTL", typ: "Flags"}, // (arg0 & auxint) compare to 0
-		{name: "TESTWconst", reg: gp1flags, asm: "TESTW", typ: "Flags"}, // (arg0 & auxint) compare to 0
-		{name: "TESTBconst", reg: gp1flags, asm: "TESTB", typ: "Flags"}, // (arg0 & auxint) compare to 0
+		{name: "TESTQ", reg: gp2flags, asm: "TESTQ", typ: "Flags"},                    // (arg0 & arg1) compare to 0
+		{name: "TESTL", reg: gp2flags, asm: "TESTL", typ: "Flags"},                    // (arg0 & arg1) compare to 0
+		{name: "TESTW", reg: gp2flags, asm: "TESTW", typ: "Flags"},                    // (arg0 & arg1) compare to 0
+		{name: "TESTB", reg: gp2flags, asm: "TESTB", typ: "Flags"},                    // (arg0 & arg1) compare to 0
+		{name: "TESTQconst", reg: gp1flags, asm: "TESTQ", typ: "Flags", aux: "Int64"}, // (arg0 & auxint) compare to 0
+		{name: "TESTLconst", reg: gp1flags, asm: "TESTL", typ: "Flags", aux: "Int32"}, // (arg0 & auxint) compare to 0
+		{name: "TESTWconst", reg: gp1flags, asm: "TESTW", typ: "Flags", aux: "Int16"}, // (arg0 & auxint) compare to 0
+		{name: "TESTBconst", reg: gp1flags, asm: "TESTB", typ: "Flags", aux: "Int8"},  // (arg0 & auxint) compare to 0
 
-		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"}, // arg0 << arg1, shift amount is mod 64
-		{name: "SHLL", reg: gp21shift, asm: "SHLL"}, // arg0 << arg1, shift amount is mod 32
-		{name: "SHLW", reg: gp21shift, asm: "SHLW"}, // arg0 << arg1, shift amount is mod 32
-		{name: "SHLB", reg: gp21shift, asm: "SHLB"}, // arg0 << arg1, shift amount is mod 32
-		{name: "SHLQconst", reg: gp11, asm: "SHLQ"}, // arg0 << auxint, shift amount 0-63
-		{name: "SHLLconst", reg: gp11, asm: "SHLL"}, // arg0 << auxint, shift amount 0-31
-		{name: "SHLWconst", reg: gp11, asm: "SHLW"}, // arg0 << auxint, shift amount 0-31
-		{name: "SHLBconst", reg: gp11, asm: "SHLB"}, // arg0 << auxint, shift amount 0-31
+		{name: "SHLQ", reg: gp21shift, asm: "SHLQ"},               // arg0 << arg1, shift amount is mod 64
+		{name: "SHLL", reg: gp21shift, asm: "SHLL"},               // arg0 << arg1, shift amount is mod 32
+		{name: "SHLW", reg: gp21shift, asm: "SHLW"},               // arg0 << arg1, shift amount is mod 32
+		{name: "SHLB", reg: gp21shift, asm: "SHLB"},               // arg0 << arg1, shift amount is mod 32
+		{name: "SHLQconst", reg: gp11, asm: "SHLQ", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
+		{name: "SHLLconst", reg: gp11, asm: "SHLL", aux: "Int32"}, // arg0 << auxint, shift amount 0-31
+		{name: "SHLWconst", reg: gp11, asm: "SHLW", aux: "Int16"}, // arg0 << auxint, shift amount 0-31
+		{name: "SHLBconst", reg: gp11, asm: "SHLB", aux: "Int8"},  // arg0 << auxint, shift amount 0-31
 		// Note: x86 is weird, the 16 and 8 byte shifts still use all 5 bits of shift amount!
 
-		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
-		{name: "SHRL", reg: gp21shift, asm: "SHRL"}, // unsigned arg0 >> arg1, shift amount is mod 32
-		{name: "SHRW", reg: gp21shift, asm: "SHRW"}, // unsigned arg0 >> arg1, shift amount is mod 32
-		{name: "SHRB", reg: gp21shift, asm: "SHRB"}, // unsigned arg0 >> arg1, shift amount is mod 32
-		{name: "SHRQconst", reg: gp11, asm: "SHRQ"}, // unsigned arg0 >> auxint, shift amount 0-63
-		{name: "SHRLconst", reg: gp11, asm: "SHRL"}, // unsigned arg0 >> auxint, shift amount 0-31
-		{name: "SHRWconst", reg: gp11, asm: "SHRW"}, // unsigned arg0 >> auxint, shift amount 0-31
-		{name: "SHRBconst", reg: gp11, asm: "SHRB"}, // unsigned arg0 >> auxint, shift amount 0-31
+		{name: "SHRQ", reg: gp21shift, asm: "SHRQ"},               // unsigned arg0 >> arg1, shift amount is mod 64
+		{name: "SHRL", reg: gp21shift, asm: "SHRL"},               // unsigned arg0 >> arg1, shift amount is mod 32
+		{name: "SHRW", reg: gp21shift, asm: "SHRW"},               // unsigned arg0 >> arg1, shift amount is mod 32
+		{name: "SHRB", reg: gp21shift, asm: "SHRB"},               // unsigned arg0 >> arg1, shift amount is mod 32
+		{name: "SHRQconst", reg: gp11, asm: "SHRQ", aux: "Int64"}, // unsigned arg0 >> auxint, shift amount 0-63
+		{name: "SHRLconst", reg: gp11, asm: "SHRL", aux: "Int32"}, // unsigned arg0 >> auxint, shift amount 0-31
+		{name: "SHRWconst", reg: gp11, asm: "SHRW", aux: "Int16"}, // unsigned arg0 >> auxint, shift amount 0-31
+		{name: "SHRBconst", reg: gp11, asm: "SHRB", aux: "Int8"},  // unsigned arg0 >> auxint, shift amount 0-31
 
-		{name: "SARQ", reg: gp21shift, asm: "SARQ"}, // signed arg0 >> arg1, shift amount is mod 64
-		{name: "SARL", reg: gp21shift, asm: "SARL"}, // signed arg0 >> arg1, shift amount is mod 32
-		{name: "SARW", reg: gp21shift, asm: "SARW"}, // signed arg0 >> arg1, shift amount is mod 32
-		{name: "SARB", reg: gp21shift, asm: "SARB"}, // signed arg0 >> arg1, shift amount is mod 32
-		{name: "SARQconst", reg: gp11, asm: "SARQ"}, // signed arg0 >> auxint, shift amount 0-63
-		{name: "SARLconst", reg: gp11, asm: "SARL"}, // signed arg0 >> auxint, shift amount 0-31
-		{name: "SARWconst", reg: gp11, asm: "SARW"}, // signed arg0 >> auxint, shift amount 0-31
-		{name: "SARBconst", reg: gp11, asm: "SARB"}, // signed arg0 >> auxint, shift amount 0-31
+		{name: "SARQ", reg: gp21shift, asm: "SARQ"},               // signed arg0 >> arg1, shift amount is mod 64
+		{name: "SARL", reg: gp21shift, asm: "SARL"},               // signed arg0 >> arg1, shift amount is mod 32
+		{name: "SARW", reg: gp21shift, asm: "SARW"},               // signed arg0 >> arg1, shift amount is mod 32
+		{name: "SARB", reg: gp21shift, asm: "SARB"},               // signed arg0 >> arg1, shift amount is mod 32
+		{name: "SARQconst", reg: gp11, asm: "SARQ", aux: "Int64"}, // signed arg0 >> auxint, shift amount 0-63
+		{name: "SARLconst", reg: gp11, asm: "SARL", aux: "Int32"}, // signed arg0 >> auxint, shift amount 0-31
+		{name: "SARWconst", reg: gp11, asm: "SARW", aux: "Int16"}, // signed arg0 >> auxint, shift amount 0-31
+		{name: "SARBconst", reg: gp11, asm: "SARB", aux: "Int8"},  // signed arg0 >> auxint, shift amount 0-31
 
-		{name: "ROLQconst", reg: gp11, asm: "ROLQ"}, // arg0 rotate left auxint, rotate amount 0-63
-		{name: "ROLLconst", reg: gp11, asm: "ROLL"}, // arg0 rotate left auxint, rotate amount 0-31
-		{name: "ROLWconst", reg: gp11, asm: "ROLW"}, // arg0 rotate left auxint, rotate amount 0-15
-		{name: "ROLBconst", reg: gp11, asm: "ROLB"}, // arg0 rotate left auxint, rotate amount 0-7
+		{name: "ROLQconst", reg: gp11, asm: "ROLQ", aux: "Int64"}, // arg0 rotate left auxint, rotate amount 0-63
+		{name: "ROLLconst", reg: gp11, asm: "ROLL", aux: "Int32"}, // arg0 rotate left auxint, rotate amount 0-31
+		{name: "ROLWconst", reg: gp11, asm: "ROLW", aux: "Int16"}, // arg0 rotate left auxint, rotate amount 0-15
+		{name: "ROLBconst", reg: gp11, asm: "ROLB", aux: "Int8"},  // arg0 rotate left auxint, rotate amount 0-7
 
 		// unary ops
 		{name: "NEGQ", reg: gp11, asm: "NEGQ"}, // -arg0
@@ -339,10 +339,10 @@ func init() {
 		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
 		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
 
-		{name: "MOVBconst", reg: gp01, asm: "MOVB", typ: "UInt8"},  // 8 low bits of auxint
-		{name: "MOVWconst", reg: gp01, asm: "MOVW", typ: "UInt16"}, // 16 low bits of auxint
-		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32"}, // 32 low bits of auxint
-		{name: "MOVQconst", reg: gp01, asm: "MOVQ", typ: "UInt64"}, // auxint
+		{name: "MOVBconst", reg: gp01, asm: "MOVB", typ: "UInt8", aux: "Int8", rematerializeable: true},   // 8 low bits of auxint
+		{name: "MOVWconst", reg: gp01, asm: "MOVW", typ: "UInt16", aux: "Int16", rematerializeable: true}, // 16 low bits of auxint
+		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32", aux: "Int32", rematerializeable: true}, // 32 low bits of auxint
+		{name: "MOVQconst", reg: gp01, asm: "MOVQ", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
 
 		{name: "CVTTSD2SL", reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
 		{name: "CVTTSD2SQ", reg: fpgp, asm: "CVTTSD2SQ"}, // convert float64 to int64
@@ -357,44 +357,44 @@ func init() {
 
 		{name: "PXOR", reg: fp21, asm: "PXOR"}, // exclusive or, applied to X regs for float negation.
 
-		{name: "LEAQ", reg: gp11sb},  // arg0 + auxint + offset encoded in aux
-		{name: "LEAQ1", reg: gp21sb}, // arg0 + arg1 + auxint
-		{name: "LEAQ2", reg: gp21sb}, // arg0 + 2*arg1 + auxint
-		{name: "LEAQ4", reg: gp21sb}, // arg0 + 4*arg1 + auxint
-		{name: "LEAQ8", reg: gp21sb}, // arg0 + 8*arg1 + auxint
+		{name: "LEAQ", reg: gp11sb, aux: "SymOff", rematerializeable: true}, // arg0 + auxint + offset encoded in aux
+		{name: "LEAQ1", reg: gp21sb, aux: "SymOff"},                         // arg0 + arg1 + auxint + aux
+		{name: "LEAQ2", reg: gp21sb, aux: "SymOff"},                         // arg0 + 2*arg1 + auxint + aux
+		{name: "LEAQ4", reg: gp21sb, aux: "SymOff"},                         // arg0 + 4*arg1 + auxint + aux
+		{name: "LEAQ8", reg: gp21sb, aux: "SymOff"},                         // arg0 + 8*arg1 + auxint + aux
 
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
-		{name: "MOVBload", reg: gpload, asm: "MOVB", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
-		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX"},          // ditto, extend to int64
-		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX"},          // ditto, extend to uint64
-		{name: "MOVWload", reg: gpload, asm: "MOVW", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX"},          // ditto, extend to int64
-		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX"},          // ditto, extend to uint64
-		{name: "MOVLload", reg: gpload, asm: "MOVL", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX"},          // ditto, extend to int64
-		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX"},          // ditto, extend to uint64
-		{name: "MOVQload", reg: gpload, asm: "MOVQ", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
-		{name: "MOVBstore", reg: gpstore, asm: "MOVB", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVWstore", reg: gpstore, asm: "MOVW", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVLstore", reg: gpstore, asm: "MOVL", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVBload", reg: gpload, asm: "MOVB", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
+		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX", aux: "SymOff"},          // ditto, extend to int64
+		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX", aux: "SymOff"},          // ditto, extend to uint64
+		{name: "MOVWload", reg: gpload, asm: "MOVW", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX", aux: "SymOff"},          // ditto, extend to int64
+		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX", aux: "SymOff"},          // ditto, extend to uint64
+		{name: "MOVLload", reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX", aux: "SymOff"},          // ditto, extend to int64
+		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX", aux: "SymOff"},          // ditto, extend to uint64
+		{name: "MOVQload", reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ", aux: "SymOff"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+		{name: "MOVBstore", reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVWstore", reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVLstore", reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
 
-		{name: "MOVBstoreidx1", reg: gpstoreidx, asm: "MOVB"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
-		{name: "MOVWstoreidx2", reg: gpstoreidx, asm: "MOVW"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
-		{name: "MOVLstoreidx4", reg: gpstoreidx, asm: "MOVL"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
-		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
+		{name: "MOVBstoreidx1", reg: gpstoreidx, asm: "MOVB", aux: "SymOff"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
+		{name: "MOVWstoreidx2", reg: gpstoreidx, asm: "MOVW", aux: "SymOff"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
+		{name: "MOVLstoreidx4", reg: gpstoreidx, asm: "MOVL", aux: "SymOff"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
+		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ", aux: "SymOff"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
 
-		{name: "MOVOload", reg: fpload, asm: "MOVUPS", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVOload", reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
 
 		// For storeconst ops, the AuxInt field encodes both
 		// the value to store and an address offset of the store.
 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
-		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
-		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", typ: "Mem"}, // store low 2 bytes of ...
-		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", typ: "Mem"}, // store low 4 bytes of ...
-		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", typ: "Mem"}, // store 8 bytes of ...
+		{name: "MOVBstoreconst", reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
+		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
+		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
 
 		// arg0 = (duff-adjusted) pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)
@@ -403,12 +403,13 @@ func init() {
 		// returns mem
 		{
 			name: "DUFFZERO",
+			aux:  "Int64",
 			reg: regInfo{
 				inputs:   []regMask{buildReg("DI"), buildReg("X0")},
 				clobbers: buildReg("DI FLAGS"),
 			},
 		},
-		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128"},
+		{name: "MOVOconst", reg: regInfo{nil, 0, []regMask{fp}}, typ: "Int128", rematerializeable: true},
 
 		// arg0 = address of memory to zero
 		// arg1 = # of 8-byte words to zero
@@ -423,11 +424,11 @@ func init() {
 			},
 		},
 
-		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}},                                 // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
-		{name: "CALLdefer", reg: regInfo{clobbers: callerSave}},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLgo", reg: regInfo{clobbers: callerSave}},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
-		{name: "CALLinter", reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+		{name: "CALLstatic", reg: regInfo{clobbers: callerSave}, aux: "SymOff"},                                // call static function aux.(*gc.Sym).  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLclosure", reg: regInfo{[]regMask{gpsp, buildReg("DX"), 0}, callerSave, nil}, aux: "Int64"}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+		{name: "CALLdefer", reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                  // call deferproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLgo", reg: regInfo{clobbers: callerSave}, aux: "Int64"},                                     // call newproc.  arg0=mem, auxint=argsize, returns mem
+		{name: "CALLinter", reg: regInfo{inputs: []regMask{gp}, clobbers: callerSave}, aux: "Int64"},           // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
 
 		// arg0 = destination pointer
 		// arg1 = source pointer
@@ -436,6 +437,7 @@ func init() {
 		// returns memory
 		{
 			name: "DUFFCOPY",
+			aux:  "Int64",
 			reg: regInfo{
 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
 				clobbers: buildReg("DI SI X0 FLAGS"), // uses X0 as a temporary

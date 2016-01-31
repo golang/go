@@ -26,10 +26,12 @@ type arch struct {
 }
 
 type opData struct {
-	name string
-	reg  regInfo
-	asm  string
-	typ  string // default result type
+	name              string
+	reg               regInfo
+	asm               string
+	typ               string // default result type
+	aux               string
+	rematerializeable bool
 }
 
 type blockData struct {
@@ -117,6 +119,17 @@ func genOp() {
 		for _, v := range a.ops {
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
+
+			// flags
+			if v.aux != "" {
+				fmt.Fprintf(w, "auxType: aux%s,\n", v.aux)
+			}
+			if v.rematerializeable {
+				if v.reg.clobbers != 0 {
+					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
+				}
+				fmt.Fprintln(w, "rematerializeable: true,")
+			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")
 				fmt.Fprintln(w, "},") // close op

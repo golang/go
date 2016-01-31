@@ -15,10 +15,12 @@ import "fmt"
 type Op int32
 
 type opInfo struct {
-	name    string
-	asm     int
-	reg     regInfo
-	generic bool // this is a generic (arch-independent) opcode
+	name              string
+	asm               int
+	reg               regInfo
+	auxType           auxType
+	generic           bool // this is a generic (arch-independent) opcode
+	rematerializeable bool // this op is rematerializeable
 }
 
 type inputInfo struct {
@@ -31,6 +33,22 @@ type regInfo struct {
 	clobbers regMask
 	outputs  []regMask // NOTE: values can only have 1 output for now.
 }
+
+type auxType int8
+
+const (
+	auxNone         auxType = iota
+	auxBool                 // auxInt is 0/1 for false/true
+	auxInt8                 // auxInt is an 8-bit integer
+	auxInt16                // auxInt is a 16-bit integer
+	auxInt32                // auxInt is a 32-bit integer
+	auxInt64                // auxInt is a 64-bit integer
+	auxFloat                // auxInt is a float64 (encoded with math.Float64bits)
+	auxString               // auxInt is a string
+	auxSym                  // aux is a symbol
+	auxSymOff               // aux is a symbol, auxInt is an offset
+	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+)
 
 // A ValAndOff is used by the several opcodes.  It holds
 // both a value and a pointer offset.

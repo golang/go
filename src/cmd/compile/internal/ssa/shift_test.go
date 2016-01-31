@@ -34,7 +34,7 @@ func makeConstShiftFunc(c *Config, amount int64, op Op, typ Type) fun {
 	ptyp := &TypeImpl{Size_: 8, Ptr: true, Name: "ptr"}
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("SP", OpSP, TypeUInt64, 0, nil),
 			Valu("argptr", OpOffPtr, ptyp, 8, nil, "SP"),
 			Valu("resptr", OpOffPtr, ptyp, 16, nil, "SP"),

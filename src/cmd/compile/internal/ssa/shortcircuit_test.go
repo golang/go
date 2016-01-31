@@ -11,7 +11,7 @@ func TestShortCircuit(t *testing.T) {
 
 	fun := Fun(c, "entry",
 		Bloc("entry",
-			Valu("mem", OpInitMem, TypeMem, 0, ".mem"),
+			Valu("mem", OpInitMem, TypeMem, 0, nil),
 			Valu("arg1", OpArg, TypeInt64, 0, nil),
 			Valu("arg2", OpArg, TypeInt64, 0, nil),
 			Valu("arg3", OpArg, TypeInt64, 0, nil),

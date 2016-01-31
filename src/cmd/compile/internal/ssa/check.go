@@ -148,9 +148,27 @@ func checkFunc(f *Func) {
 		}
 
 		for _, v := range b.Values {
-			switch v.Aux.(type) {
-			case bool, float32, float64:
-				f.Fatalf("value %v has an Aux value of type %T, should be AuxInt", v.LongString(), v.Aux)
+
+			// Check to make sure aux values make sense.
+			canHaveAux := false
+			canHaveAuxInt := false
+			switch opcodeTable[v.Op].auxType {
+			case auxNone:
+			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat:
+				canHaveAuxInt = true
+			case auxString, auxSym:
+				canHaveAux = true
+			case auxSymOff, auxSymValAndOff:
+				canHaveAuxInt = true
+				canHaveAux = true
+			default:
+				f.Fatalf("unknown aux type for %s", v.Op)
+			}
+			if !canHaveAux && v.Aux != nil {
+				f.Fatalf("value %v has an Aux value %v but shouldn't", v.LongString(), v.Aux)
+			}
+			if !canHaveAuxInt && v.AuxInt != 0 {
+				f.Fatalf("value %v has an AuxInt value %d but shouldn't", v.LongString(), v.AuxInt)
 			}
 
 			for _, arg := range v.Args {

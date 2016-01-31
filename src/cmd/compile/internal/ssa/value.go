@@ -57,34 +57,72 @@ func (v *Value) String() string {
 	return fmt.Sprintf("v%d", v.ID)
 }
 
+func (v *Value) AuxInt8() int8 {
+	if opcodeTable[v.Op].auxType != auxInt8 {
+		v.Fatalf("op %s doesn't have an int8 aux field", v.Op)
+	}
+	return int8(v.AuxInt)
+}
+
+func (v *Value) AuxInt16() int16 {
+	if opcodeTable[v.Op].auxType != auxInt16 {
+		v.Fatalf("op %s doesn't have an int16 aux field", v.Op)
+	}
+	return int16(v.AuxInt)
+}
+
+func (v *Value) AuxInt32() int32 {
+	if opcodeTable[v.Op].auxType != auxInt32 {
+		v.Fatalf("op %s doesn't have an int32 aux field", v.Op)
+	}
+	return int32(v.AuxInt)
+}
+func (v *Value) AuxFloat() float64 {
+	if opcodeTable[v.Op].auxType != auxFloat {
+		v.Fatalf("op %s doesn't have a float aux field", v.Op)
+	}
+	return math.Float64frombits(uint64(v.AuxInt))
+}
+func (v *Value) AuxValAndOff() ValAndOff {
+	if opcodeTable[v.Op].auxType != auxSymValAndOff {
+		v.Fatalf("op %s doesn't have a ValAndOff aux field", v.Op)
+	}
+	return ValAndOff(v.AuxInt)
+}
+
 // long form print.  v# = opcode <type> [aux] args [: reg]
 func (v *Value) LongString() string {
 	s := fmt.Sprintf("v%d = %s", v.ID, v.Op.String())
 	s += " <" + v.Type.String() + ">"
-	// TODO: use some operator property flags to decide
-	// what is encoded in the AuxInt field.
-	switch v.Op {
-	case OpConst32F, OpConst64F:
-		s += fmt.Sprintf(" [%g]", math.Float64frombits(uint64(v.AuxInt)))
-	case OpConstBool:
+	switch opcodeTable[v.Op].auxType {
+	case auxBool:
 		if v.AuxInt == 0 {
 			s += " [false]"
 		} else {
 			s += " [true]"
 		}
-	case OpAMD64MOVBstoreconst, OpAMD64MOVWstoreconst, OpAMD64MOVLstoreconst, OpAMD64MOVQstoreconst:
-		s += fmt.Sprintf(" [%s]", ValAndOff(v.AuxInt))
-	default:
-		if v.AuxInt != 0 {
-			s += fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxInt8:
+		s += fmt.Sprintf(" [%d]", v.AuxInt8())
+	case auxInt16:
+		s += fmt.Sprintf(" [%d]", v.AuxInt16())
+	case auxInt32:
+		s += fmt.Sprintf(" [%d]", v.AuxInt32())
+	case auxInt64:
+		s += fmt.Sprintf(" [%d]", v.AuxInt)
+	case auxFloat:
+		s += fmt.Sprintf(" [%g]", v.AuxFloat())
+	case auxString:
+		s += fmt.Sprintf(" {%s}", v.Aux)
+	case auxSymOff:
+		if v.Aux != nil {
+			s += fmt.Sprintf(" {%s}", v.Aux)
 		}
-	}
-	if v.Aux != nil {
-		if _, ok := v.Aux.(string); ok {
-			s += fmt.Sprintf(" {%q}", v.Aux)
-		} else {
-			s += fmt.Sprintf(" {%v}", v.Aux)
+		s += fmt.Sprintf(" [%s]", v.AuxInt)
+	case auxSymValAndOff:
+		if v.Aux != nil {
+			s += fmt.Sprintf(" {%s}", v.Aux)
 		}
+		s += fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	}
 	for _, a := range v.Args {
 		s += fmt.Sprintf(" %v", a)
