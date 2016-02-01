@@ -2328,18 +2328,18 @@ endac1c49c82fb6b76dd324042c4588973c:
 	goto end82aa9d89330cb5dc58592048bfc16ebc
 end82aa9d89330cb5dc58592048bfc16ebc:
 	;
-	// match: (CMPBconst [0] (ANDB x y))
+	// match: (CMPBconst (ANDB x y) [0])
 	// cond:
 	// result: (TESTB x y)
 	{
-		if v.AuxInt != 0 {
-			goto end30c06897ce79b745c782650c71157f7b
-		}
 		if v.Args[0].Op != OpAMD64ANDB {
-			goto end30c06897ce79b745c782650c71157f7b
+			goto endc1dd0adee6d97d0f2644600fa5247db5
 		}
 		x := v.Args[0].Args[0]
 		y := v.Args[0].Args[1]
+		if v.AuxInt != 0 {
+			goto endc1dd0adee6d97d0f2644600fa5247db5
+		}
 		v.Op = OpAMD64TESTB
 		v.AuxInt = 0
 		v.Aux = nil
@@ -2348,21 +2348,21 @@ end82aa9d89330cb5dc58592048bfc16ebc:
 		v.AddArg(y)
 		return true
 	}
-	goto end30c06897ce79b745c782650c71157f7b
-end30c06897ce79b745c782650c71157f7b:
+	goto endc1dd0adee6d97d0f2644600fa5247db5
+endc1dd0adee6d97d0f2644600fa5247db5:
 	;
-	// match: (CMPBconst [0] (ANDBconst [c] x))
+	// match: (CMPBconst (ANDBconst [c] x) [0])
 	// cond:
 	// result: (TESTBconst [c] x)
 	{
-		if v.AuxInt != 0 {
-			goto endfc700b49578635afa44d447c3ef97859
-		}
 		if v.Args[0].Op != OpAMD64ANDBconst {
-			goto endfc700b49578635afa44d447c3ef97859
+			goto end575fd7ac1086d0c37e6946db5bbc7e94
 		}
 		c := v.Args[0].AuxInt
 		x := v.Args[0].Args[0]
+		if v.AuxInt != 0 {
+			goto end575fd7ac1086d0c37e6946db5bbc7e94
+		}
 		v.Op = OpAMD64TESTBconst
 		v.AuxInt = 0
 		v.Aux = nil
@@ -2371,8 +2371,8 @@ end30c06897ce79b745c782650c71157f7b:
 		v.AddArg(x)
 		return true
 	}
-	goto endfc700b49578635afa44d447c3ef97859
-endfc700b49578635afa44d447c3ef97859:
+	goto end575fd7ac1086d0c37e6946db5bbc7e94
+end575fd7ac1086d0c37e6946db5bbc7e94:
 	;
 	return false
 }
@@ -2553,18 +2553,18 @@ endc7b8e86e537d6e106e237023dc2c9a7b:
 	goto endf202b9830a1e45f3888f2598c762c702
 endf202b9830a1e45f3888f2598c762c702:
 	;
-	// match: (CMPLconst [0] (ANDL x y))
+	// match: (CMPLconst (ANDL x y) [0])
 	// cond:
 	// result: (TESTL x y)
 	{
-		if v.AuxInt != 0 {
-			goto endb730012ce2555c10f2918eed023dd6f3
-		}
 		if v.Args[0].Op != OpAMD64ANDL {
-			goto endb730012ce2555c10f2918eed023dd6f3
+			goto endc99c55b2fd4bbe4f6eba9675087f215d
 		}
 		x := v.Args[0].Args[0]
 		y := v.Args[0].Args[1]
+		if v.AuxInt != 0 {
+			goto endc99c55b2fd4bbe4f6eba9675087f215d
+		}
 		v.Op = OpAMD64TESTL
 		v.AuxInt = 0
 		v.Aux = nil
@@ -2573,21 +2573,21 @@ endf202b9830a1e45f3888f2598c762c702:
 		v.AddArg(y)
 		return true
 	}
-	goto endb730012ce2555c10f2918eed023dd6f3
-endb730012ce2555c10f2918eed023dd6f3:
+	goto endc99c55b2fd4bbe4f6eba9675087f215d
+endc99c55b2fd4bbe4f6eba9675087f215d:
 	;
-	// match: (CMPLconst [0] (ANDLconst [c] x))
+	// match: (CMPLconst (ANDLconst [c] x) [0])
 	// cond:
 	// result: (TESTLconst [c] x)
 	{
-		if v.AuxInt != 0 {
-			goto enda56a89f365433eb9e15b0c9696ce5afb
-		}
 		if v.Args[0].Op != OpAMD64ANDLconst {
-			goto enda56a89f365433eb9e15b0c9696ce5afb
+			goto end218077662043c7cfb0b92334ec8d691f
 		}
 		c := v.Args[0].AuxInt
 		x := v.Args[0].Args[0]
+		if v.AuxInt != 0 {
+			goto end218077662043c7cfb0b92334ec8d691f
+		}
 		v.Op = OpAMD64TESTLconst
 		v.AuxInt = 0
 		v.Aux = nil
@@ -2596,8 +2596,8 @@ endb730012ce2555c10f2918eed023dd6f3:
 		v.AddArg(x)
 		return true
 	}
-	goto enda56a89f365433eb9e15b0c9696ce5afb
-enda56a89f365433eb9e15b0c9696ce5afb:
+	goto end218077662043c7cfb0b92334ec8d691f
+end218077662043c7cfb0b92334ec8d691f:
 	;
 	return false
 }
@@ -2784,18 +2784,18 @@ end1248b87e4a141c78bc8eff05d3fac70e:
 	goto end934098fb12e383829b654938269abc12
 end934098fb12e383829b654938269abc12:
 	;
-	// match: (CMPQconst [0] (ANDQ x y))
+	// match: (CMPQconst (ANDQ x y) [0])
 	// cond:
 	// result: (TESTQ x y)
 	{
-		if v.AuxInt != 0 {
-			goto end9f63614ab4b6b51b299dcfacae096b23
-		}
 		if v.Args[0].Op != OpAMD64ANDQ {
-			goto end9f63614ab4b6b51b299dcfacae096b23
+			goto endd253b271c624b83def50b061d8a945a1
 		}
 		x := v.Args[0].Args[0]
 		y := v.Args[0].Args[1]
+		if v.AuxInt != 0 {
+			goto endd253b271c624b83def50b061d8a945a1
+		}
 		v.Op = OpAMD64TESTQ
 		v.AuxInt = 0
 		v.Aux = nil
@@ -2804,21 +2804,21 @@ end934098fb12e383829b654938269abc12:
 		v.AddArg(y)
 		return true
 	}
-	goto end9f63614ab4b6b51b299dcfacae096b23
-end9f63614ab4b6b51b299dcfacae096b23:
+	goto endd253b271c624b83def50b061d8a945a1
+endd253b271c624b83def50b061d8a945a1:
 	;
-	// match: (CMPQconst [0] (ANDQconst [c] x))
+	// match: (CMPQconst (ANDQconst [c] x) [0])
 	// cond:
 	// result: (TESTQconst [c] x)
 	{
-		if v.AuxInt != 0 {
-			goto enda5aa8044be9d61e9e149558e9ec8ca83
-		}
 		if v.Args[0].Op != OpAMD64ANDQconst {
-			goto enda5aa8044be9d61e9e149558e9ec8ca83
+			goto endcf00c5ad714d2152d72184b163c8d57c
 		}
 		c := v.Args[0].AuxInt
 		x := v.Args[0].Args[0]
+		if v.AuxInt != 0 {
+			goto endcf00c5ad714d2152d72184b163c8d57c
+		}
 		v.Op = OpAMD64TESTQconst
 		v.AuxInt = 0
 		v.Aux = nil
@@ -2827,8 +2827,8 @@ end9f63614ab4b6b51b299dcfacae096b23:
 		v.AddArg(x)
 		return true
 	}
-	goto enda5aa8044be9d61e9e149558e9ec8ca83
-enda5aa8044be9d61e9e149558e9ec8ca83:
+	goto endcf00c5ad714d2152d72184b163c8d57c
+endcf00c5ad714d2152d72184b163c8d57c:
 	;
 	return false
 }
@@ -3009,18 +3009,18 @@ end4493f5af38d242ebb4bc2f64055a0854:
 	goto endfcea07d93ded49b0e02d5fa0059309a4
 endfcea07d93ded49b0e02d5fa0059309a4:
 	;
-	// match: (CMPWconst [0] (ANDW x y))
+	// match: (CMPWconst (ANDW x y) [0])
 	// cond:
 	// result: (TESTW x y)
 	{
-		if v.AuxInt != 0 {
-			goto endd9d4754c561a7bd11697a51d800f8eca
-		}
 		if v.Args[0].Op != OpAMD64ANDW {
-			goto endd9d4754c561a7bd11697a51d800f8eca
+			goto end390cbc150fec59cbf63a209c485ef8b2
 		}
 		x := v.Args[0].Args[0]
 		y := v.Args[0].Args[1]
+		if v.AuxInt != 0 {
+			goto end390cbc150fec59cbf63a209c485ef8b2
+		}
 		v.Op = OpAMD64TESTW
 		v.AuxInt = 0
 		v.Aux = nil
@@ -3029,21 +3029,21 @@ endfcea07d93ded49b0e02d5fa0059309a4:
 		v.AddArg(y)
 		return true
 	}
-	goto endd9d4754c561a7bd11697a51d800f8eca
-endd9d4754c561a7bd11697a51d800f8eca:
+	goto end390cbc150fec59cbf63a209c485ef8b2
+end390cbc150fec59cbf63a209c485ef8b2:
 	;
-	// match: (CMPWconst [0] (ANDWconst [c] x))
+	// match: (CMPWconst (ANDWconst [c] x) [0])
 	// cond:
 	// result: (TESTWconst [c] x)
 	{
-		if v.AuxInt != 0 {
-			goto endb532b10789c7ce4cedeb17af417ceb2b
-		}
 		if v.Args[0].Op != OpAMD64ANDWconst {
-			goto endb532b10789c7ce4cedeb17af417ceb2b
+			goto end1bde0fea3dcffeb66b314bc6b4c9aae5
 		}
 		c := v.Args[0].AuxInt
 		x := v.Args[0].Args[0]
+		if v.AuxInt != 0 {
+			goto end1bde0fea3dcffeb66b314bc6b4c9aae5
+		}
 		v.Op = OpAMD64TESTWconst
 		v.AuxInt = 0
 		v.Aux = nil
@@ -3052,8 +3052,8 @@ endd9d4754c561a7bd11697a51d800f8eca:
 		v.AddArg(x)
 		return true
 	}
-	goto endb532b10789c7ce4cedeb17af417ceb2b
-endb532b10789c7ce4cedeb17af417ceb2b:
+	goto end1bde0fea3dcffeb66b314bc6b4c9aae5
+end1bde0fea3dcffeb66b314bc6b4c9aae5:
 	;
 	return false
 }
