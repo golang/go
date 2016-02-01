@@ -2851,8 +2851,6 @@ func (sc *http2serverConn) logf(format string, args ...interface{}) {
 	}
 }
 
-var http2uintptrType = reflect.TypeOf(uintptr(0))
-
 // errno returns v's underlying uintptr, else 0.
 //
 // TODO: remove this helper function once http2 can use build
@@ -4220,7 +4218,9 @@ func (rws *http2responseWriterState) declareTrailer(k string) {
 
 		return
 	}
-	rws.trailers = append(rws.trailers, k)
+	if !http2strSliceContains(rws.trailers, k) {
+		rws.trailers = append(rws.trailers, k)
+	}
 }
 
 // writeChunk writes chunks from the bufio.Writer. But because
@@ -4288,6 +4288,10 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
+	if rws.handlerDone {
+		rws.promoteUndeclaredTrailers()
+	}
+
 	endStream := rws.handlerDone && !rws.hasTrailers()
 	if len(p) > 0 || endStream {
 
@@ -4306,6 +4310,53 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		return len(p), err
 	}
 	return len(p), nil
+}
+
+// TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
+// that, if present, signals that the map entry is actually for
+// the response trailers, and not the response headers. The prefix
+// is stripped after the ServeHTTP call finishes and the values are
+// sent in the trailers.
+//
+// This mechanism is intended only for trailers that are not known
+// prior to the headers being written. If the set of trailers is fixed
+// or known before the header is written, the normal Go trailers mechanism
+// is preferred:
+//    https://golang.org/pkg/net/http/#ResponseWriter
+//    https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
+const http2TrailerPrefix = "Trailer:"
+
+// promoteUndeclaredTrailers permits http.Handlers to set trailers
+// after the header has already been flushed. Because the Go
+// ResponseWriter interface has no way to set Trailers (only the
+// Header), and because we didn't want to expand the ResponseWriter
+// interface, and because nobody used trailers, and because RFC 2616
+// says you SHOULD (but not must) predeclare any trailers in the
+// header, the official ResponseWriter rules said trailers in Go must
+// be predeclared, and then we reuse the same ResponseWriter.Header()
+// map to mean both Headers and Trailers.  When it's time to write the
+// Trailers, we pick out the fields of Headers that were declared as
+// trailers. That worked for a while, until we found the first major
+// user of Trailers in the wild: gRPC (using them only over http2),
+// and gRPC libraries permit setting trailers mid-stream without
+// predeclarnig them. So: change of plans. We still permit the old
+// way, but we also permit this hack: if a Header() key begins with
+// "Trailer:", the suffix of that key is a Trailer. Because ':' is an
+// invalid token byte anyway, there is no ambiguity. (And it's already
+// filtered out) It's mildly hacky, but not terrible.
+//
+// This method runs after the Handler is done and promotes any Header
+// fields to be trailers.
+func (rws *http2responseWriterState) promoteUndeclaredTrailers() {
+	for k, vv := range rws.handlerHeader {
+		if !strings.HasPrefix(k, http2TrailerPrefix) {
+			continue
+		}
+		trailerKey := strings.TrimPrefix(k, http2TrailerPrefix)
+		rws.declareTrailer(trailerKey)
+		rws.handlerHeader[CanonicalHeaderKey(trailerKey)] = vv
+	}
+	sort.Strings(rws.trailers)
 }
 
 func (w *http2responseWriter) Flush() {
@@ -5611,10 +5662,10 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 			res.ContentLength = -1
 			res.Body = &http2gzipReader{body: res.Body}
 		}
+		rl.activeRes[cs.ID] = cs
 	}
 
 	cs.resTrailer = &res.Trailer
-	rl.activeRes[cs.ID] = cs
 	cs.resc <- http2resAndError{res: res}
 	rl.nextRes = nil
 	return nil
@@ -6258,8 +6309,16 @@ func http2encodeHeaders(enc *hpack.Encoder, h Header, keys []string) {
 	for _, k := range keys {
 		vv := h[k]
 		k = http2lowerHeader(k)
+		if !http2validHeaderFieldName(k) {
+
+			continue
+		}
 		isTE := k == "transfer-encoding"
 		for _, v := range vv {
+			if !http2validHeaderFieldValue(v) {
+
+				continue
+			}
 
 			if isTE && v != "trailers" {
 				continue
