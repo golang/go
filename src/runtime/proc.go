@@ -1602,8 +1602,16 @@ func startm(_p_ *p, spinning bool) {
 // Always runs without a P, so write barriers are not allowed.
 //go:nowritebarrier
 func handoffp(_p_ *p) {
+	// handoffp must start an M in any situation where
+	// findrunnable would return a G to run on _p_.
+
 	// if it has local work, start it straight away
 	if !runqempty(_p_) || sched.runqsize != 0 {
+		startm(_p_, false)
+		return
+	}
+	// if it has GC work, start it straight away
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
 		startm(_p_, false)
 		return
 	}
@@ -1786,6 +1794,10 @@ func execute(gp *g, inheritTime bool) {
 // Tries to steal from other P's, get g from global queue, poll network.
 func findrunnable() (gp *g, inheritTime bool) {
 	_g_ := getg()
+
+	// The conditions here and in handoffp must agree: if
+	// findrunnable would return a G to run, handoffp must start
+	// an M.
 
 top:
 	if sched.gcwaiting != 0 {
