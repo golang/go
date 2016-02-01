@@ -1001,13 +1001,17 @@ func TestTransportDiscardsUnneededConns(t *testing.T) {
 }
 
 // tests that Transport doesn't retain a pointer to the provided request.
-func TestTransportGCRequest_h1(t *testing.T) { testTransportGCRequest(t, h1Mode) }
-func TestTransportGCRequest_h2(t *testing.T) { testTransportGCRequest(t, h2Mode) }
-func testTransportGCRequest(t *testing.T, h2 bool) {
+func TestTransportGCRequest_Body_h1(t *testing.T)   { testTransportGCRequest(t, h1Mode, true) }
+func TestTransportGCRequest_Body_h2(t *testing.T)   { testTransportGCRequest(t, h2Mode, true) }
+func TestTransportGCRequest_NoBody_h1(t *testing.T) { testTransportGCRequest(t, h1Mode, false) }
+func TestTransportGCRequest_NoBody_h2(t *testing.T) { testTransportGCRequest(t, h2Mode, false) }
+func testTransportGCRequest(t *testing.T, h2, body bool) {
 	defer afterTest(t)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		ioutil.ReadAll(r.Body)
-		io.WriteString(w, "Hello.")
+		if body {
+			io.WriteString(w, "Hello.")
+		}
 	}))
 	defer cst.close()
 
