@@ -48,6 +48,7 @@ func TestReverseProxy(t *testing.T) {
 		if g, e := r.Host, "some-name"; g != e {
 			t.Errorf("backend got Host header %q, want %q", g, e)
 		}
+		w.Header().Set("Trailers", "not a special header field name")
 		w.Header().Set("Trailer", "X-Trailer")
 		w.Header().Set("X-Foo", "bar")
 		w.Header().Set("Upgrade", "foo")
@@ -85,6 +86,9 @@ func TestReverseProxy(t *testing.T) {
 	}
 	if c := res.Header.Get(fakeHopHeader); c != "" {
 		t.Errorf("got %s header value %q", fakeHopHeader, c)
+	}
+	if g, e := res.Header.Get("Trailers"), "not a special header field name"; g != e {
+		t.Errorf("header Trailers = %q; want %q", g, e)
 	}
 	if g, e := len(res.Header["X-Multi-Value"]), 2; g != e {
 		t.Errorf("got %d X-Multi-Value header values; expected %d", g, e)
