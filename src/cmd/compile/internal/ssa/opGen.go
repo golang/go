@@ -260,17 +260,20 @@ const (
 	OpAMD64MOVLQSXload
 	OpAMD64MOVLQZXload
 	OpAMD64MOVQload
-	OpAMD64MOVQloadidx8
 	OpAMD64MOVBstore
 	OpAMD64MOVWstore
 	OpAMD64MOVLstore
 	OpAMD64MOVQstore
+	OpAMD64MOVOload
+	OpAMD64MOVOstore
+	OpAMD64MOVBloadidx1
+	OpAMD64MOVWloadidx2
+	OpAMD64MOVLloadidx4
+	OpAMD64MOVQloadidx8
 	OpAMD64MOVBstoreidx1
 	OpAMD64MOVWstoreidx2
 	OpAMD64MOVLstoreidx4
 	OpAMD64MOVQstoreidx8
-	OpAMD64MOVOload
-	OpAMD64MOVOstore
 	OpAMD64MOVBstoreconst
 	OpAMD64MOVWstoreconst
 	OpAMD64MOVLstoreconst
@@ -3130,20 +3133,6 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name:    "MOVQloadidx8",
-		auxType: auxSymOff,
-		asm:     x86.AMOVQ,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
-			},
-			outputs: []regMask{
-				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-			},
-		},
-	},
-	{
 		name:    "MOVBstore",
 		auxType: auxSymOff,
 		asm:     x86.AMOVB,
@@ -3184,6 +3173,86 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
+		name:    "MOVOload",
+		auxType: auxSymOff,
+		asm:     x86.AMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			outputs: []regMask{
+				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+			},
+		},
+	},
+	{
+		name:    "MOVOstore",
+		auxType: auxSymOff,
+		asm:     x86.AMOVUPS,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
+		name:    "MOVBloadidx1",
+		auxType: auxSymOff,
+		asm:     x86.AMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name:    "MOVWloadidx2",
+		auxType: auxSymOff,
+		asm:     x86.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name:    "MOVLloadidx4",
+		auxType: auxSymOff,
+		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+		},
+	},
+	{
+		name:    "MOVQloadidx8",
+		auxType: auxSymOff,
+		asm:     x86.AMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -3231,30 +3300,6 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				{2, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
-				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
-			},
-		},
-	},
-	{
-		name:    "MOVOload",
-		auxType: auxSymOff,
-		asm:     x86.AMOVUPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
-			},
-			outputs: []regMask{
-				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
-			},
-		},
-	},
-	{
-		name:    "MOVOstore",
-		auxType: auxSymOff,
-		asm:     x86.AMOVUPS,
-		reg: regInfo{
-			inputs: []inputInfo{
-				{1, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 			},
 		},

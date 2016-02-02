@@ -362,31 +362,37 @@ func init() {
 		{name: "LEAQ2", reg: gp21sb, aux: "SymOff"},                         // arg0 + 2*arg1 + auxint + aux
 		{name: "LEAQ4", reg: gp21sb, aux: "SymOff"},                         // arg0 + 4*arg1 + auxint + aux
 		{name: "LEAQ8", reg: gp21sb, aux: "SymOff"},                         // arg0 + 8*arg1 + auxint + aux
+		// Note: LEAQ{1,2,4,8} must not have OpSB as either argument.
 
 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
-		{name: "MOVBload", reg: gpload, asm: "MOVB", aux: "SymOff", typ: "UInt8"},  // load byte from arg0+auxint+aux. arg1=mem
-		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX", aux: "SymOff"},          // ditto, extend to int64
-		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX", aux: "SymOff"},          // ditto, extend to uint64
-		{name: "MOVWload", reg: gpload, asm: "MOVW", aux: "SymOff", typ: "UInt16"}, // load 2 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX", aux: "SymOff"},          // ditto, extend to int64
-		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX", aux: "SymOff"},          // ditto, extend to uint64
-		{name: "MOVLload", reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"}, // load 4 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX", aux: "SymOff"},          // ditto, extend to int64
-		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX", aux: "SymOff"},          // ditto, extend to uint64
-		{name: "MOVQload", reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"}, // load 8 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ", aux: "SymOff"},         // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
-		{name: "MOVBstore", reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},  // store byte in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVWstore", reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},  // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVLstore", reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},  // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
-		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem"},  // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVBload", reg: gpload, asm: "MOVB", aux: "SymOff", typ: "UInt8"},    // load byte from arg0+auxint+aux. arg1=mem
+		{name: "MOVBQSXload", reg: gpload, asm: "MOVBQSX", aux: "SymOff"},            // ditto, extend to int64
+		{name: "MOVBQZXload", reg: gpload, asm: "MOVBQZX", aux: "SymOff"},            // ditto, extend to uint64
+		{name: "MOVWload", reg: gpload, asm: "MOVW", aux: "SymOff", typ: "UInt16"},   // load 2 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVWQSXload", reg: gpload, asm: "MOVWQSX", aux: "SymOff"},            // ditto, extend to int64
+		{name: "MOVWQZXload", reg: gpload, asm: "MOVWQZX", aux: "SymOff"},            // ditto, extend to uint64
+		{name: "MOVLload", reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32"},   // load 4 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVLQSXload", reg: gpload, asm: "MOVLQSX", aux: "SymOff"},            // ditto, extend to int64
+		{name: "MOVLQZXload", reg: gpload, asm: "MOVLQZX", aux: "SymOff"},            // ditto, extend to uint64
+		{name: "MOVQload", reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64"},   // load 8 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVBstore", reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem"},    // store byte in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVWstore", reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem"},    // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVLstore", reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem"},    // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVQstore", reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem"},    // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		{name: "MOVOload", reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
+		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
 
+		// indexed loads/stores
+		{name: "MOVBloadidx1", reg: gploadidx, asm: "MOVB", aux: "SymOff"}, // load a byte from arg0+arg1+auxint+aux. arg2=mem
+		{name: "MOVWloadidx2", reg: gploadidx, asm: "MOVW", aux: "SymOff"}, // load 2 bytes from arg0+2*arg1+auxint+aux. arg2=mem
+		{name: "MOVLloadidx4", reg: gploadidx, asm: "MOVL", aux: "SymOff"}, // load 4 bytes from arg0+4*arg1+auxint+aux. arg2=mem
+		{name: "MOVQloadidx8", reg: gploadidx, asm: "MOVQ", aux: "SymOff"}, // load 8 bytes from arg0+8*arg1+auxint+aux. arg2=mem
+		// TODO: sign-extending indexed loads
 		{name: "MOVBstoreidx1", reg: gpstoreidx, asm: "MOVB", aux: "SymOff"}, // store byte in arg2 to arg0+arg1+auxint+aux. arg3=mem
 		{name: "MOVWstoreidx2", reg: gpstoreidx, asm: "MOVW", aux: "SymOff"}, // store 2 bytes in arg2 to arg0+2*arg1+auxint+aux. arg3=mem
 		{name: "MOVLstoreidx4", reg: gpstoreidx, asm: "MOVL", aux: "SymOff"}, // store 4 bytes in arg2 to arg0+4*arg1+auxint+aux. arg3=mem
 		{name: "MOVQstoreidx8", reg: gpstoreidx, asm: "MOVQ", aux: "SymOff"}, // store 8 bytes in arg2 to arg0+8*arg1+auxint+aux. arg3=mem
-
-		{name: "MOVOload", reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128"}, // load 16 bytes from arg0+auxint+aux. arg1=mem
-		{name: "MOVOstore", reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+		// TODO: add size-mismatched indexed loads, like MOVBstoreidx4.
 
 		// For storeconst ops, the AuxInt field encodes both
 		// the value to store and an address offset of the store.
