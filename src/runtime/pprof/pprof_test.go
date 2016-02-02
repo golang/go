@@ -96,7 +96,7 @@ func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
 	if l < 5+3 {
 		t.Logf("profile too short: %#x", val)
 		if badOS[runtime.GOOS] {
-			t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)
+			t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
 			return
 		}
 		t.FailNow()
@@ -171,7 +171,7 @@ func testCPUProfile(t *testing.T, need []string, f func(dur time.Duration)) {
 	}
 
 	if badOS[runtime.GOOS] {
-		t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)
+		t.Skipf("ignoring failure on %s; see golang.org/issue/13841", runtime.GOOS)
 		return
 	}
 	// Ignore the failure if the tests are running in a QEMU-based emulator,
@@ -420,11 +420,13 @@ func deepStack(depth int) int {
 	return deepStack(depth-1) + 1
 }
 
-// Operating systems that are expected to fail the tests. See issue 6047.
+// Operating systems that are expected to fail the tests. See issue 13841.
 var badOS = map[string]bool{
-	"darwin": true,
-	"netbsd": true,
-	"plan9":  true,
+	"darwin":    true,
+	"netbsd":    true,
+	"plan9":     true,
+	"dragonfly": true,
+	"solaris":   true,
 }
 
 func TestBlockProfile(t *testing.T) {
