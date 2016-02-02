@@ -19,6 +19,13 @@ Error: can't import package "nosuchpkg"
 -------- @describe badimport2 --------
 
 Error: can't import package "nosuchpkg"
+-------- @describe unsafe --------
+import of package "unsafe"
+	builtin Alignof 
+	builtin Offsetof
+	type  Pointer  unsafe.Pointer
+	builtin Sizeof  
+
 -------- @describe type-ref-builtin --------
 reference to built-in type float64
 

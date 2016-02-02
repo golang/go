@@ -9,6 +9,7 @@ package describe // @describe pkgdecl "describe"
 import (
 	"nosuchpkg"            // @describe badimport1 "nosuchpkg"
 	nosuchpkg2 "nosuchpkg" // @describe badimport2 "nosuchpkg2"
+	_ "unsafe"             // @describe unsafe "unsafe"
 )
 
 var _ nosuchpkg.T
