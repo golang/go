@@ -23,6 +23,8 @@ type Config struct {
 	// Storage for low-numbered values and blocks.
 	values [2000]Value
 	blocks [200]Block
+
+	scrSparse []*sparseSet // scratch sparse sets to be re-used.
 }
 
 type TypeSource interface {

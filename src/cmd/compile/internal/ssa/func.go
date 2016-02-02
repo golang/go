@@ -31,8 +31,6 @@ type Func struct {
 
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
-
-	scrSparse []*sparseSet // sparse sets to be re-used.
 }
 
 // NumBlocks returns an integer larger than the id of any Block in the Func.
@@ -47,9 +45,9 @@ func (f *Func) NumValues() int {
 
 // newSparseSet returns a sparse set that can store at least up to n integers.
 func (f *Func) newSparseSet(n int) *sparseSet {
-	for i, scr := range f.scrSparse {
+	for i, scr := range f.Config.scrSparse {
 		if scr != nil && scr.cap() >= n {
-			f.scrSparse[i] = nil
+			f.Config.scrSparse[i] = nil
 			scr.clear()
 			return scr
 		}
@@ -57,15 +55,15 @@ func (f *Func) newSparseSet(n int) *sparseSet {
 	return newSparseSet(n)
 }
 
-// retSparseSet returns a sparse set to the function's cache to be reused by f.newSparseSet.
+// retSparseSet returns a sparse set to the config's cache of sparse sets to be reused by f.newSparseSet.
 func (f *Func) retSparseSet(ss *sparseSet) {
-	for i, scr := range f.scrSparse {
+	for i, scr := range f.Config.scrSparse {
 		if scr == nil {
-			f.scrSparse[i] = ss
+			f.Config.scrSparse[i] = ss
 			return
 		}
 	}
-	f.scrSparse = append(f.scrSparse, ss)
+	f.Config.scrSparse = append(f.Config.scrSparse, ss)
 }
 
 // newValue allocates a new Value with the given fields and places it at the end of b.Values.
