@@ -1621,7 +1621,7 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 }
 
 // Issue 4568.
-func TestSymlinksDoNotConfuseGoList(t *testing.T) {
+func TestSymlinksList(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("skipping symlink test on %s", runtime.GOOS)
@@ -1638,6 +1638,58 @@ func TestSymlinksDoNotConfuseGoList(t *testing.T) {
 	if strings.TrimSpace(tg.getStdout()) != tg.path(".") {
 		t.Error("confused by symlinks")
 	}
+}
+
+// Issue 14054.
+func TestSymlinksVendor(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping symlink test on %s", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.tempDir("gopath/src/dir1/vendor/v")
+	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
+	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")
+	tg.must(os.Symlink(tg.path("gopath/src/dir1"), tg.path("symdir1")))
+	tg.setenv("GOPATH", tg.path("gopath"))
+	tg.cd(tg.path("symdir1"))
+	tg.run("list", "-f", "{{.Root}}", ".")
+	if strings.TrimSpace(tg.getStdout()) != tg.path("gopath") {
+		t.Error("list confused by symlinks")
+	}
+
+	// All of these should succeed, not die in vendor-handling code.
+	tg.run("run", "p.go")
+	tg.run("build")
+	tg.run("install")
+}
+
+func TestSymlinksInternal(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping symlink test on %s", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempDir("gopath/src/dir1/internal/v")
+	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `dir1/internal/v`\nfunc main(){}")
+	tg.tempFile("gopath/src/dir1/internal/v/v.go", "package v")
+	tg.must(os.Symlink(tg.path("gopath/src/dir1"), tg.path("symdir1")))
+	tg.setenv("GOPATH", tg.path("gopath"))
+	tg.cd(tg.path("symdir1"))
+	tg.run("list", "-f", "{{.Root}}", ".")
+	if strings.TrimSpace(tg.getStdout()) != tg.path("gopath") {
+		t.Error("list confused by symlinks")
+	}
+
+	// All of these should succeed, not die in internal-handling code.
+	tg.run("run", "p.go")
+	tg.run("build")
+	tg.run("install")
 }
 
 // Issue 4515.

@@ -524,6 +524,15 @@ func hasFilePathPrefix(s, prefix string) bool {
 	}
 }
 
+// expandPath returns the symlink-expanded form of path.
+func expandPath(p string) string {
+	x, err := filepath.EvalSymlinks(p)
+	if err == nil {
+		return x
+	}
+	return p
+}
+
 // treeCanMatchPattern(pattern)(name) reports whether
 // name or children of name can possibly match pattern.
 // Pattern is the same limited glob accepted by matchPattern.
