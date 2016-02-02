@@ -657,6 +657,9 @@ func TestGoBuildDashAInDevBranch(t *testing.T) {
 	tg.setenv("TESTGO_IS_GO_RELEASE", "0")
 	tg.run("build", "-v", "-a", "math")
 	tg.grepStderr("runtime", "testgo build -a math in dev branch DID NOT build runtime, but should have")
+
+	// Everything is out of date. Rebuild to leave things in a better state.
+	tg.run("install", "std")
 }
 
 func TestGoBuildDashAInReleaseBranch(t *testing.T) {
@@ -672,11 +675,80 @@ func TestGoBuildDashAInReleaseBranch(t *testing.T) {
 	tg.grepStderr("runtime", "testgo build -a math in release branch DID NOT build runtime, but should have")
 
 	// Now runtime.a is updated (newer mtime), so everything would look stale if not for being a release.
-	//
 	tg.run("build", "-v", "net/http")
 	tg.grepStderrNot("strconv", "testgo build -v net/http in release branch with newer runtime.a DID build strconv but should not have")
 	tg.grepStderrNot("golang.org/x/net/http2/hpack", "testgo build -v net/http in release branch with newer runtime.a DID build .../golang.org/x/net/http2/hpack but should not have")
 	tg.grepStderrNot("net/http", "testgo build -v net/http in release branch with newer runtime.a DID build net/http but should not have")
+
+	// Everything is out of date. Rebuild to leave things in a better state.
+	tg.run("install", "std")
+}
+
+func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+	if testing.Short() {
+		t.Skip("don't rebuild the standard library in short mode")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	addNL := func(name string) (restore func()) {
+		data, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := data
+		data = append(data, '\n')
+		if err := ioutil.WriteFile(name, append(data, '\n'), 0666); err != nil {
+			t.Fatal(err)
+		}
+		tg.sleep()
+		return func() {
+			if err := ioutil.WriteFile(name, old, 0666); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
+
+	tg.tempFile("d1/src/p1/p1.go", `package p1`)
+	tg.setenv("GOPATH", tg.path("d1"))
+	tg.run("install", "-a", "p1")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly")
+	tg.sleep()
+
+	// Changing mtime and content of runtime/internal/sys/sys.go
+	// should have no effect: we're in a release, which doesn't rebuild
+	// for general mtime or content changes.
+	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
+	restore := addNL(sys)
+	defer restore()
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after updating runtime/internal/sys/sys.go")
+	restore()
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after restoring runtime/internal/sys/sys.go")
+
+	// But changing runtime/internal/sys/zversion.go should have an effect:
+	// that's how we tell when we flip from one release to another.
+	zversion := runtime.GOROOT() + "/src/runtime/internal/sys/zversion.go"
+	restore = addNL(zversion)
+	defer restore()
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing to new release")
+	restore()
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
+	addNL(zversion)
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing again to new release")
+	tg.run("install", "p1")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale after building with new release")
+
+	// Restore to "old" release.
+	restore()
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing to old release after new build")
+	tg.run("install", "p1")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale after building with old release")
+
+	// Everything is out of date. Rebuild to leave things in a better state.
+	tg.run("install", "std")
 }
 
 func TestGoListStandard(t *testing.T) {
@@ -756,8 +828,8 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", tg.path("d1")+sep+tg.path("d2"))
 	tg.run("install", "p1")
-	tg.wantNotStale("p1", "./testgo list mypkg claims p1 is stale, incorrectly")
-	tg.wantNotStale("p2", "./testgo list mypkg claims p2 is stale, incorrectly")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly")
+	tg.wantNotStale("p2", "./testgo list claims p2 is stale, incorrectly")
 	tg.sleep()
 	if f, err := os.OpenFile(tg.path("d2/src/p2/p2.go"), os.O_WRONLY|os.O_APPEND, 0); err != nil {
 		t.Fatal(err)
@@ -766,12 +838,12 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	} else {
 		tg.must(f.Close())
 	}
-	tg.wantStale("p2", "./testgo list mypkg claims p2 is NOT stale, incorrectly")
-	tg.wantStale("p1", "./testgo list mypkg claims p1 is NOT stale, incorrectly")
+	tg.wantStale("p2", "./testgo list claims p2 is NOT stale, incorrectly")
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly")
 
 	tg.run("install", "p1")
-	tg.wantNotStale("p2", "./testgo list mypkg claims p2 is stale after reinstall, incorrectly")
-	tg.wantNotStale("p1", "./testgo list mypkg claims p1 is stale after reinstall, incorrectly")
+	tg.wantNotStale("p2", "./testgo list claims p2 is stale after reinstall, incorrectly")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale after reinstall, incorrectly")
 }
 
 func TestGoInstallDetectsRemovedFiles(t *testing.T) {

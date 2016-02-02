@@ -1542,11 +1542,14 @@ func computeBuildID(p *Package) {
 		fmt.Fprintf(h, "file %s\n", file)
 	}
 
-	// Include the content of runtime/zversion.go in the hash
+	// Include the content of runtime/internal/sys/zversion.go in the hash
 	// for package runtime. This will give package runtime a
 	// different build ID in each Go release.
-	if p.Standard && p.ImportPath == "runtime" {
-		data, _ := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+	if p.Standard && p.ImportPath == "runtime/internal/sys" {
+		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+		if err != nil {
+			fatalf("go: %s", err)
+		}
 		fmt.Fprintf(h, "zversion %q\n", string(data))
 	}
 
