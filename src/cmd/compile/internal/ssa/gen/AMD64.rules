@@ -546,9 +546,34 @@
 (MULQconst [9] x) -> (LEAQ8 x x)
 (MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
 
-// fold add/shift into leaq
+// combine add/shift into LEAQ
 (ADDQ x (SHLQconst [3] y)) -> (LEAQ8 x y)
-(ADDQconst [c] (LEAQ8 [d] x y)) -> (LEAQ8 [addOff(c, d)] x y)
+(ADDQ x (SHLQconst [2] y)) -> (LEAQ4 x y)
+(ADDQ x (SHLQconst [1] y)) -> (LEAQ2 x y)
+(ADDQ x (ADDQ y y)) -> (LEAQ2 x y)
+(ADDQ x (ADDQ x y)) -> (LEAQ2 y x)
+(ADDQ x (ADDQ y x)) -> (LEAQ2 y x)
+
+// fold ADDQ into LEAQ
+(ADDQconst [c] (LEAQ [d] {s} x)) -> (LEAQ [c+d] {s} x)
+(LEAQ [c] {s} (ADDQconst [d] x)) -> (LEAQ [c+d] {s} x)
+(LEAQ [c] {s} (ADDQ x y)) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
+(ADDQ x (LEAQ [c] {s} y)) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
+(ADDQ (LEAQ [c] {s} x) y) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
+
+// fold ADDQconst into leaqX
+(ADDQconst [c] (LEAQ1 [d] {s} x y)) -> (LEAQ1 [c+d] {s} x y)
+(ADDQconst [c] (LEAQ2 [d] {s} x y)) -> (LEAQ2 [c+d] {s} x y)
+(ADDQconst [c] (LEAQ4 [d] {s} x y)) -> (LEAQ4 [c+d] {s} x y)
+(ADDQconst [c] (LEAQ8 [d] {s} x y)) -> (LEAQ8 [c+d] {s} x y)
+(LEAQ1 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ1 [c+d] {s} x y)
+(LEAQ1 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ1 [c+d] {s} x y)
+(LEAQ2 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ2 [c+d] {s} x y)
+(LEAQ2 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ2 [c+2*d] {s} x y)
+(LEAQ4 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ4 [c+d] {s} x y)
+(LEAQ4 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ4 [c+4*d] {s} x y)
+(LEAQ8 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ8 [c+d] {s} x y)
+(LEAQ8 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ8 [c+8*d] {s} x y)
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETG x)
@@ -672,17 +697,13 @@
 (MOVBstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
 	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
 
-// indexed loads and stores
-(MOVQloadidx8 [off1] {sym} (ADDQconst [off2] ptr) idx mem) -> (MOVQloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)
-(MOVQstoreidx8 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVQstoreidx8 [addOff(off1, off2)] {sym} ptr idx val mem)
-(MOVSSloadidx4 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx mem) -> (MOVSSloadidx4 [addOff(off1, off2)] {sym} ptr idx mem)
-(MOVSSstoreidx4 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx val mem) -> (MOVSSstoreidx4 [addOff(off1, off2)] {sym} ptr idx val mem)
-(MOVSDloadidx8 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx mem) -> (MOVSDloadidx8 [addOff(off1, off2)] {sym} ptr idx mem)
-(MOVSDstoreidx8 [off1] {sym} (ADDQconst [off2] {sym} ptr) idx val mem) -> (MOVSDstoreidx8 [addOff(off1, off2)] {sym} ptr idx val mem)
-(MOVLstoreidx4 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVLstoreidx4 [addOff(off1, off2)] {sym} ptr idx val mem)
-(MOVWstoreidx2 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVWstoreidx2 [addOff(off1, off2)] {sym} ptr idx val mem)
-(MOVBstoreidx1 [off1] {sym} (ADDQconst [off2] ptr) idx val mem) -> (MOVBstoreidx1 [addOff(off1, off2)] {sym} ptr idx val mem)
-
+// generating indexed loads and stores
+(MOVBload [off1] {sym1} (LEAQ1 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
+	(MOVBloadidx1 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVWload [off1] {sym1} (LEAQ2 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
+	(MOVWloadidx2 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
+(MOVLload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
+	(MOVLloadidx4 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVQload [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
 	(MOVQloadidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx mem)
 (MOVSSload [off1] {sym1} (LEAQ4 [off2] {sym2} ptr idx) mem) && canMergeSym(sym1, sym2) ->
@@ -703,7 +724,37 @@
 (MOVSDstore [off1] {sym1} (LEAQ8 [off2] {sym2} ptr idx) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVSDstoreidx8 [addOff(off1, off2)] {mergeSym(sym1,sym2)} ptr idx val mem)
 
-(MOVBstore [off] {sym} (ADDQ ptr idx) val mem) -> (MOVBstoreidx1 [off] {sym} ptr idx val mem)
+(MOVBload [off] {sym} (ADDQ ptr idx) mem) && ptr.Op != OpSB -> (MOVBloadidx1 [off] {sym} ptr idx mem)
+(MOVBstore [off] {sym} (ADDQ ptr idx) val mem) && ptr.Op != OpSB -> (MOVBstoreidx1 [off] {sym} ptr idx val mem)
+
+// combine ADDQ into indexed loads and stores
+(MOVBloadidx1 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVBloadidx1 [c+d] {sym} ptr idx mem)
+(MOVWloadidx2 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVWloadidx2 [c+d] {sym} ptr idx mem)
+(MOVLloadidx4 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVLloadidx4 [c+d] {sym} ptr idx mem)
+(MOVQloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVQloadidx8 [c+d] {sym} ptr idx mem)
+(MOVSSloadidx4 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVSSloadidx4 [c+d] {sym} ptr idx mem)
+(MOVSDloadidx8 [c] {sym} (ADDQconst [d] ptr) idx mem) -> (MOVSDloadidx8 [c+d] {sym} ptr idx mem)
+
+(MOVBstoreidx1 [c] {sym} (ADDQconst [d] ptr) idx val mem) -> (MOVBstoreidx1 [c+d] {sym} ptr idx val mem)
+(MOVWstoreidx2 [c] {sym} (ADDQconst [d] ptr) idx val mem) -> (MOVWstoreidx2 [c+d] {sym} ptr idx val mem)
+(MOVLstoreidx4 [c] {sym} (ADDQconst [d] ptr) idx val mem) -> (MOVLstoreidx4 [c+d] {sym} ptr idx val mem)
+(MOVQstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem) -> (MOVQstoreidx8 [c+d] {sym} ptr idx val mem)
+(MOVSSstoreidx4 [c] {sym} (ADDQconst [d] ptr) idx val mem) -> (MOVSSstoreidx4 [c+d] {sym} ptr idx val mem)
+(MOVSDstoreidx8 [c] {sym} (ADDQconst [d] ptr) idx val mem) -> (MOVSDstoreidx8 [c+d] {sym} ptr idx val mem)
+
+(MOVBloadidx1 [c] {sym} ptr (ADDQconst [d] idx) mem) -> (MOVBloadidx1 [c+d] {sym} ptr idx mem)
+(MOVWloadidx2 [c] {sym} ptr (ADDQconst [d] idx) mem) -> (MOVWloadidx2 [c+2*d] {sym} ptr idx mem)
+(MOVLloadidx4 [c] {sym} ptr (ADDQconst [d] idx) mem) -> (MOVLloadidx4 [c+4*d] {sym} ptr idx mem)
+(MOVQloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem) -> (MOVQloadidx8 [c+8*d] {sym} ptr idx mem)
+(MOVSSloadidx4 [c] {sym} ptr (ADDQconst [d] idx) mem) -> (MOVSSloadidx4 [c+4*d] {sym} ptr idx mem)
+(MOVSDloadidx8 [c] {sym} ptr (ADDQconst [d] idx) mem) -> (MOVSDloadidx8 [c+8*d] {sym} ptr idx mem)
+
+(MOVBstoreidx1 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVBstoreidx1 [c+d] {sym} ptr idx val mem)
+(MOVWstoreidx2 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVWstoreidx2 [c+2*d] {sym} ptr idx val mem)
+(MOVLstoreidx4 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVLstoreidx4 [c+4*d] {sym} ptr idx val mem)
+(MOVQstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVQstoreidx8 [c+8*d] {sym} ptr idx val mem)
+(MOVSSstoreidx4 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVSSstoreidx4 [c+4*d] {sym} ptr idx val mem)
+(MOVSDstoreidx8 [c] {sym} ptr (ADDQconst [d] idx) val mem) -> (MOVSDstoreidx8 [c+8*d] {sym} ptr idx val mem)
 
 // fold LEAQs together
 (LEAQ [off1] {sym1} (LEAQ [off2] {sym2} x)) && canMergeSym(sym1, sym2) ->

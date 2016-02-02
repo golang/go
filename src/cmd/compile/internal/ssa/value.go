@@ -117,7 +117,7 @@ func (v *Value) LongString() string {
 		if v.Aux != nil {
 			s += fmt.Sprintf(" {%s}", v.Aux)
 		}
-		s += fmt.Sprintf(" [%s]", v.AuxInt)
+		s += fmt.Sprintf(" [%d]", v.AuxInt)
 	case auxSymValAndOff:
 		if v.Aux != nil {
 			s += fmt.Sprintf(" {%s}", v.Aux)

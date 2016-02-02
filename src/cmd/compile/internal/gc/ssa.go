@@ -4061,12 +4061,30 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
-	case ssa.OpAMD64MOVSSloadidx4:
+	case ssa.OpAMD64MOVLloadidx4, ssa.OpAMD64MOVSSloadidx4:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = regnum(v.Args[0])
 		addAux(&p.From, v)
 		p.From.Scale = 4
+		p.From.Index = regnum(v.Args[1])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64MOVWloadidx2:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		addAux(&p.From, v)
+		p.From.Scale = 2
+		p.From.Index = regnum(v.Args[1])
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = regnum(v)
+	case ssa.OpAMD64MOVBloadidx1:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = regnum(v.Args[0])
+		addAux(&p.From, v)
+		p.From.Scale = 1
 		p.From.Index = regnum(v.Args[1])
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v)
