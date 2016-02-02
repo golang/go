@@ -8,8 +8,8 @@
 # Consult http://www.iana.org/time-zones for the latest versions.
 
 # Versions to use.
-CODE=2015g
-DATA=2015g
+CODE=2016a
+DATA=2016a
 
 set -e
 rm -rf work
