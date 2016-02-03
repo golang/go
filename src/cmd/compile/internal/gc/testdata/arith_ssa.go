@@ -8,6 +8,102 @@
 
 package main
 
+import "fmt"
+
+// testArithRshConst ensures that "const >> const" right shifts correctly perform
+// sign extension on the lhs constant
+func testArithRshConst() {
+	wantu := uint64(0x4000000000000000)
+	if got := arithRshuConst_ssa(); got != wantu {
+		println("arithRshuConst failed, wanted", wantu, "got", got)
+		failed = true
+	}
+
+	wants := int64(-0x4000000000000000)
+	if got := arithRshConst_ssa(); got != wants {
+		println("arithRshuConst failed, wanted", wants, "got", got)
+		failed = true
+	}
+}
+
+//go:noinline
+func arithRshuConst_ssa() uint64 {
+	y := uint64(0x8000000000000001)
+	z := uint64(1)
+	return uint64(y >> z)
+}
+
+//go:noinline
+func arithRshConst_ssa() int64 {
+	y := int64(-0x8000000000000000)
+	z := uint64(1)
+	return int64(y >> z)
+}
+
+//go:noinline
+func arithConstShift_ssa(x int64) int64 {
+	return x >> 100
+}
+
+// testArithConstShift tests that right shift by large constants preserve
+// the sign of the input.
+func testArithConstShift() {
+	want := int64(-1)
+	if got := arithConstShift_ssa(-1); want != got {
+		println("arithConstShift_ssa(-1) failed, wanted", want, "got", got)
+		failed = true
+	}
+	want = 0
+	if got := arithConstShift_ssa(1); want != got {
+		println("arithConstShift_ssa(1) failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
+// overflowConstShift_ssa verifes that constant folding for shift
+// doesn't wrap (i.e. x << MAX_INT << 1 doesn't get folded to x << 0).
+//go:noinline
+func overflowConstShift64_ssa(x int64) int64 {
+	return x << uint64(0xffffffffffffffff) << uint64(1)
+}
+
+//go:noinline
+func overflowConstShift32_ssa(x int64) int32 {
+	return int32(x) << uint32(0xffffffff) << uint32(1)
+}
+
+//go:noinline
+func overflowConstShift16_ssa(x int64) int16 {
+	return int16(x) << uint16(0xffff) << uint16(1)
+}
+
+//go:noinline
+func overflowConstShift8_ssa(x int64) int8 {
+	return int8(x) << uint8(0xff) << uint8(1)
+}
+
+func testOverflowConstShift() {
+	want := int64(0)
+	for x := int64(-127); x < int64(127); x++ {
+		got := overflowConstShift64_ssa(x)
+		if want != got {
+			fmt.Printf("overflowShift64 failed, wanted %d got %d\n", want, got)
+		}
+		got = int64(overflowConstShift32_ssa(x))
+		if want != got {
+			fmt.Printf("overflowShift32 failed, wanted %d got %d\n", want, got)
+		}
+		got = int64(overflowConstShift16_ssa(x))
+		if want != got {
+			fmt.Printf("overflowShift16 failed, wanted %d got %d\n", want, got)
+		}
+		got = int64(overflowConstShift8_ssa(x))
+		if want != got {
+			fmt.Printf("overflowShift8 failed, wanted %d got %d\n", want, got)
+		}
+	}
+}
+
 // test64BitConstMult tests that rewrite rules don't fold 64 bit constants
 // into multiply instructions.
 func test64BitConstMult() {
@@ -275,6 +371,9 @@ func main() {
 	testLrot()
 	testShiftCX()
 	testSubConst()
+	testOverflowConstShift()
+	testArithConstShift()
+	testArithRshConst()
 
 	if failed {
 		panic("failed")
