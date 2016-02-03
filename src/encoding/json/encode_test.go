@@ -6,6 +6,7 @@ package json
 
 import (
 	"bytes"
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -533,6 +534,60 @@ func TestEncodeString(t *testing.T) {
 		out := string(b)
 		if out != tt.out {
 			t.Errorf("Marshal(%q) = %#q, want %#q", tt.in, out, tt.out)
+		}
+	}
+}
+
+type jsonbyte byte
+
+func (b jsonbyte) MarshalJSON() ([]byte, error) { return tenc(`{"JB":%d}`, b) }
+
+type textbyte byte
+
+func (b textbyte) MarshalText() ([]byte, error) { return tenc(`TB:%d`, b) }
+
+type jsonint int
+
+func (i jsonint) MarshalJSON() ([]byte, error) { return tenc(`{"JI":%d}`, i) }
+
+type textint int
+
+func (i textint) MarshalText() ([]byte, error) { return tenc(`TI:%d`, i) }
+
+func tenc(format string, a ...interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, format, a...)
+	return buf.Bytes(), nil
+}
+
+// Issue 13783
+func TestEncodeBytekind(t *testing.T) {
+	testdata := []struct {
+		data interface{}
+		want string
+	}{
+		{byte(7), "7"},
+		{jsonbyte(7), `{"JB":7}`},
+		{textbyte(4), `"TB:4"`},
+		{jsonint(5), `{"JI":5}`},
+		{textint(1), `"TI:1"`},
+		{[]byte{0, 1}, `"AAE="`},
+		{[]jsonbyte{0, 1}, `[{"JB":0},{"JB":1}]`},
+		{[][]jsonbyte{{0, 1}, {3}}, `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
+		{[]textbyte{2, 3}, `["TB:2","TB:3"]`},
+		{[]jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
+		{[]textint{9, 3}, `["TI:9","TI:3"]`},
+		{[]int{9, 3}, `[9,3]`},
+	}
+	for _, d := range testdata {
+		js, err := Marshal(d.data)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		got, want := string(js), d.want
+		if got != want {
+			t.Errorf("got %s, want %s", got, want)
 		}
 	}
 }
