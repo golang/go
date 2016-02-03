@@ -135,6 +135,38 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpLess8U(v, config)
 	case OpLoad:
 		return rewriteValuegeneric_OpLoad(v, config)
+	case OpLsh16x16:
+		return rewriteValuegeneric_OpLsh16x16(v, config)
+	case OpLsh16x32:
+		return rewriteValuegeneric_OpLsh16x32(v, config)
+	case OpLsh16x64:
+		return rewriteValuegeneric_OpLsh16x64(v, config)
+	case OpLsh16x8:
+		return rewriteValuegeneric_OpLsh16x8(v, config)
+	case OpLsh32x16:
+		return rewriteValuegeneric_OpLsh32x16(v, config)
+	case OpLsh32x32:
+		return rewriteValuegeneric_OpLsh32x32(v, config)
+	case OpLsh32x64:
+		return rewriteValuegeneric_OpLsh32x64(v, config)
+	case OpLsh32x8:
+		return rewriteValuegeneric_OpLsh32x8(v, config)
+	case OpLsh64x16:
+		return rewriteValuegeneric_OpLsh64x16(v, config)
+	case OpLsh64x32:
+		return rewriteValuegeneric_OpLsh64x32(v, config)
+	case OpLsh64x64:
+		return rewriteValuegeneric_OpLsh64x64(v, config)
+	case OpLsh64x8:
+		return rewriteValuegeneric_OpLsh64x8(v, config)
+	case OpLsh8x16:
+		return rewriteValuegeneric_OpLsh8x16(v, config)
+	case OpLsh8x32:
+		return rewriteValuegeneric_OpLsh8x32(v, config)
+	case OpLsh8x64:
+		return rewriteValuegeneric_OpLsh8x64(v, config)
+	case OpLsh8x8:
+		return rewriteValuegeneric_OpLsh8x8(v, config)
 	case OpMul16:
 		return rewriteValuegeneric_OpMul16(v, config)
 	case OpMul32:
@@ -167,6 +199,70 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpOr8(v, config)
 	case OpPtrIndex:
 		return rewriteValuegeneric_OpPtrIndex(v, config)
+	case OpRsh16Ux16:
+		return rewriteValuegeneric_OpRsh16Ux16(v, config)
+	case OpRsh16Ux32:
+		return rewriteValuegeneric_OpRsh16Ux32(v, config)
+	case OpRsh16Ux64:
+		return rewriteValuegeneric_OpRsh16Ux64(v, config)
+	case OpRsh16Ux8:
+		return rewriteValuegeneric_OpRsh16Ux8(v, config)
+	case OpRsh16x16:
+		return rewriteValuegeneric_OpRsh16x16(v, config)
+	case OpRsh16x32:
+		return rewriteValuegeneric_OpRsh16x32(v, config)
+	case OpRsh16x64:
+		return rewriteValuegeneric_OpRsh16x64(v, config)
+	case OpRsh16x8:
+		return rewriteValuegeneric_OpRsh16x8(v, config)
+	case OpRsh32Ux16:
+		return rewriteValuegeneric_OpRsh32Ux16(v, config)
+	case OpRsh32Ux32:
+		return rewriteValuegeneric_OpRsh32Ux32(v, config)
+	case OpRsh32Ux64:
+		return rewriteValuegeneric_OpRsh32Ux64(v, config)
+	case OpRsh32Ux8:
+		return rewriteValuegeneric_OpRsh32Ux8(v, config)
+	case OpRsh32x16:
+		return rewriteValuegeneric_OpRsh32x16(v, config)
+	case OpRsh32x32:
+		return rewriteValuegeneric_OpRsh32x32(v, config)
+	case OpRsh32x64:
+		return rewriteValuegeneric_OpRsh32x64(v, config)
+	case OpRsh32x8:
+		return rewriteValuegeneric_OpRsh32x8(v, config)
+	case OpRsh64Ux16:
+		return rewriteValuegeneric_OpRsh64Ux16(v, config)
+	case OpRsh64Ux32:
+		return rewriteValuegeneric_OpRsh64Ux32(v, config)
+	case OpRsh64Ux64:
+		return rewriteValuegeneric_OpRsh64Ux64(v, config)
+	case OpRsh64Ux8:
+		return rewriteValuegeneric_OpRsh64Ux8(v, config)
+	case OpRsh64x16:
+		return rewriteValuegeneric_OpRsh64x16(v, config)
+	case OpRsh64x32:
+		return rewriteValuegeneric_OpRsh64x32(v, config)
+	case OpRsh64x64:
+		return rewriteValuegeneric_OpRsh64x64(v, config)
+	case OpRsh64x8:
+		return rewriteValuegeneric_OpRsh64x8(v, config)
+	case OpRsh8Ux16:
+		return rewriteValuegeneric_OpRsh8Ux16(v, config)
+	case OpRsh8Ux32:
+		return rewriteValuegeneric_OpRsh8Ux32(v, config)
+	case OpRsh8Ux64:
+		return rewriteValuegeneric_OpRsh8Ux64(v, config)
+	case OpRsh8Ux8:
+		return rewriteValuegeneric_OpRsh8Ux8(v, config)
+	case OpRsh8x16:
+		return rewriteValuegeneric_OpRsh8x16(v, config)
+	case OpRsh8x32:
+		return rewriteValuegeneric_OpRsh8x32(v, config)
+	case OpRsh8x64:
+		return rewriteValuegeneric_OpRsh8x64(v, config)
+	case OpRsh8x8:
+		return rewriteValuegeneric_OpRsh8x8(v, config)
 	case OpSliceCap:
 		return rewriteValuegeneric_OpSliceCap(v, config)
 	case OpSliceLen:
@@ -242,8 +338,7 @@ end359c546ef662b7990116329cb30d6892:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst16, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst16, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -296,8 +391,7 @@ enda3edaa9a512bd1d7a95f002c890bfb88:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst32, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -350,8 +444,7 @@ end8c46df6f85a11cb1d594076b0e467908:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst64, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -404,8 +497,7 @@ end60c66721511a442aade8e4da2fb326bd:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst8, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst8, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1234,8 +1326,7 @@ end0c0fe5fdfba3821add3448fd3f1fc6b7:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst16, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst16, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1261,8 +1352,7 @@ end79c830afa265161fc0f0532c4c4e7f50:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst16, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst16, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1340,8 +1430,7 @@ end6da547ec4ee93d787434f3bda873e4a0:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst32, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1367,8 +1456,7 @@ end1a69730a32c6e432784dcdf643320ecd:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst32, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1446,8 +1534,7 @@ endb1d471cc503ba8bb05440f01dbf33d81:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst64, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1473,8 +1560,7 @@ endffd67f3b83f6972cd459153d318f714d:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst64, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1552,8 +1638,7 @@ enda66da0d3e7e51624ee46527727c48a9a:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst8, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst8, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -1579,8 +1664,7 @@ end6912961350bb485f56ef176522aa683b:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst8, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst8, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3033,6 +3117,754 @@ end12671c83ebe3ccbc8e53383765ee7675:
 	;
 	return false
 }
+func rewriteValuegeneric_OpLsh16x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Lsh16x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end2f5aa78b30ebd2471e8d03a307923b06
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end2f5aa78b30ebd2471e8d03a307923b06
+end2f5aa78b30ebd2471e8d03a307923b06:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh16x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Lsh16x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto endedeb000c8c97090261a47f08a2ff17e4
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endedeb000c8c97090261a47f08a2ff17e4
+endedeb000c8c97090261a47f08a2ff17e4:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh16x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x64  (Const16 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const16 [int64(int16(c) << uint64(d))])
+	{
+		if v.Args[0].Op != OpConst16 {
+			goto endc9f0d91f3da4bdd46a634a62549810e0
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endc9f0d91f3da4bdd46a634a62549810e0
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(int16(c) << uint64(d))
+		return true
+	}
+	goto endc9f0d91f3da4bdd46a634a62549810e0
+endc9f0d91f3da4bdd46a634a62549810e0:
+	;
+	// match: (Lsh16x64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end7ecc343739fab9b50a0bdff6e9d121e6
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end7ecc343739fab9b50a0bdff6e9d121e6
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end7ecc343739fab9b50a0bdff6e9d121e6
+end7ecc343739fab9b50a0bdff6e9d121e6:
+	;
+	// match: (Lsh16x64  _ (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto end1d2c74d359df9d89b16c4f658a231dfe
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 16) {
+			goto end1d2c74d359df9d89b16c4f658a231dfe
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end1d2c74d359df9d89b16c4f658a231dfe
+end1d2c74d359df9d89b16c4f658a231dfe:
+	;
+	// match: (Lsh16x64 <t> (Lsh16x64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Lsh16x64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpLsh16x64 {
+			goto end26a91e42735a02a30e94a998f54372dd
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end26a91e42735a02a30e94a998f54372dd
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end26a91e42735a02a30e94a998f54372dd
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end26a91e42735a02a30e94a998f54372dd
+		}
+		v.Op = OpLsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end26a91e42735a02a30e94a998f54372dd
+end26a91e42735a02a30e94a998f54372dd:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh16x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh16x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Lsh16x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto endce2401b8a6c6190fe81d77e2d562a10c
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endce2401b8a6c6190fe81d77e2d562a10c
+endce2401b8a6c6190fe81d77e2d562a10c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh32x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Lsh32x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end7205eb3e315971143ac5584d07045570
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end7205eb3e315971143ac5584d07045570
+end7205eb3e315971143ac5584d07045570:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh32x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Lsh32x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto endc1a330b287199c80228e665a53881298
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endc1a330b287199c80228e665a53881298
+endc1a330b287199c80228e665a53881298:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh32x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x64  (Const32 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const32 [int64(int32(c) << uint64(d))])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto end5896bd9a3fe78f1e1712563642d33254
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end5896bd9a3fe78f1e1712563642d33254
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(int32(c) << uint64(d))
+		return true
+	}
+	goto end5896bd9a3fe78f1e1712563642d33254
+end5896bd9a3fe78f1e1712563642d33254:
+	;
+	// match: (Lsh32x64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto endd9ce9639a91b11e601823be3d4d6c209
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto endd9ce9639a91b11e601823be3d4d6c209
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto endd9ce9639a91b11e601823be3d4d6c209
+endd9ce9639a91b11e601823be3d4d6c209:
+	;
+	// match: (Lsh32x64  _ (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto end81247a2423f489be15859d3930738fdf
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 32) {
+			goto end81247a2423f489be15859d3930738fdf
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end81247a2423f489be15859d3930738fdf
+end81247a2423f489be15859d3930738fdf:
+	;
+	// match: (Lsh32x64 <t> (Lsh32x64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Lsh32x64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpLsh32x64 {
+			goto endf96a7c9571797fe61a5b63a4923d7e6e
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto endf96a7c9571797fe61a5b63a4923d7e6e
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endf96a7c9571797fe61a5b63a4923d7e6e
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto endf96a7c9571797fe61a5b63a4923d7e6e
+		}
+		v.Op = OpLsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto endf96a7c9571797fe61a5b63a4923d7e6e
+endf96a7c9571797fe61a5b63a4923d7e6e:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh32x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh32x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Lsh32x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end1759d7c25a5bcda288e34d1d197c0b8f
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end1759d7c25a5bcda288e34d1d197c0b8f
+end1759d7c25a5bcda288e34d1d197c0b8f:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh64x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh64x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Lsh64x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto enda649fbb5e14490c9eea9616550a76b5c
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto enda649fbb5e14490c9eea9616550a76b5c
+enda649fbb5e14490c9eea9616550a76b5c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh64x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh64x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Lsh64x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto end40069675cde851a63cce81b1b02751f9
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end40069675cde851a63cce81b1b02751f9
+end40069675cde851a63cce81b1b02751f9:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh64x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh64x64  (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const64 [c << uint64(d)])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto end9c157a23e021f659f1568566435ed57b
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end9c157a23e021f659f1568566435ed57b
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c << uint64(d)
+		return true
+	}
+	goto end9c157a23e021f659f1568566435ed57b
+end9c157a23e021f659f1568566435ed57b:
+	;
+	// match: (Lsh64x64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end9f18ca0556dbb4b50fe888273fab20ca
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end9f18ca0556dbb4b50fe888273fab20ca
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end9f18ca0556dbb4b50fe888273fab20ca
+end9f18ca0556dbb4b50fe888273fab20ca:
+	;
+	// match: (Lsh64x64  _ (Const64 [c]))
+	// cond: uint64(c) >= 64
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto end33da2e0ce5ca3e0554564477ef422402
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 64) {
+			goto end33da2e0ce5ca3e0554564477ef422402
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end33da2e0ce5ca3e0554564477ef422402
+end33da2e0ce5ca3e0554564477ef422402:
+	;
+	// match: (Lsh64x64 <t> (Lsh64x64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Lsh64x64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpLsh64x64 {
+			goto end001c62ee580a700ec7b07ccaa3740ac2
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end001c62ee580a700ec7b07ccaa3740ac2
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end001c62ee580a700ec7b07ccaa3740ac2
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end001c62ee580a700ec7b07ccaa3740ac2
+		}
+		v.Op = OpLsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end001c62ee580a700ec7b07ccaa3740ac2
+end001c62ee580a700ec7b07ccaa3740ac2:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh64x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh64x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Lsh64x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end4d9224069abdade8e405df343938d932
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end4d9224069abdade8e405df343938d932
+end4d9224069abdade8e405df343938d932:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh8x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Lsh8x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end0ad4a82e2eb4c7ca7407d79ec3aa5142
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end0ad4a82e2eb4c7ca7407d79ec3aa5142
+end0ad4a82e2eb4c7ca7407d79ec3aa5142:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh8x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Lsh8x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto enddaacda113ecc79fe0621fd22ebc548dd
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto enddaacda113ecc79fe0621fd22ebc548dd
+enddaacda113ecc79fe0621fd22ebc548dd:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh8x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x64   (Const8  [c]) (Const64 [d]))
+	// cond:
+	// result: (Const8  [int64(int8(c) << uint64(d))])
+	{
+		if v.Args[0].Op != OpConst8 {
+			goto endbc3297ea9642b97eb71f0a9735048d7b
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endbc3297ea9642b97eb71f0a9735048d7b
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst8
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(int8(c) << uint64(d))
+		return true
+	}
+	goto endbc3297ea9642b97eb71f0a9735048d7b
+endbc3297ea9642b97eb71f0a9735048d7b:
+	;
+	// match: (Lsh8x64   x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end715f3db41cccf963e25a20c33f618a04
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end715f3db41cccf963e25a20c33f618a04
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end715f3db41cccf963e25a20c33f618a04
+end715f3db41cccf963e25a20c33f618a04:
+	;
+	// match: (Lsh8x64   _ (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto endb6749df4d0cdc0cd9acc627187d73488
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 8) {
+			goto endb6749df4d0cdc0cd9acc627187d73488
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto endb6749df4d0cdc0cd9acc627187d73488
+endb6749df4d0cdc0cd9acc627187d73488:
+	;
+	// match: (Lsh8x64  <t> (Lsh8x64  x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Lsh8x64  x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpLsh8x64 {
+			goto end73a4878b6bbd21c9e22fb99226ef947e
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end73a4878b6bbd21c9e22fb99226ef947e
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end73a4878b6bbd21c9e22fb99226ef947e
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end73a4878b6bbd21c9e22fb99226ef947e
+		}
+		v.Op = OpLsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end73a4878b6bbd21c9e22fb99226ef947e
+end73a4878b6bbd21c9e22fb99226ef947e:
+	;
+	return false
+}
+func rewriteValuegeneric_OpLsh8x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Lsh8x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Lsh8x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end8b770597435467b0c96014624d522b33
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpLsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end8b770597435467b0c96014624d522b33
+end8b770597435467b0c96014624d522b33:
+	;
+	return false
+}
 func rewriteValuegeneric_OpMul16(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -3186,8 +4018,7 @@ ende76a50b524aeb16c7aeccf5f5cc60c06:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst16, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst16, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3213,8 +4044,7 @@ end552011bd97e6f92ebc2672aa1843eadd:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst16, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst16, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3292,8 +4122,7 @@ end3713a608cffd29b40ff7c3b3f2585cbb:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst32, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3319,8 +4148,7 @@ end93fc3b4a3639b965b414891111b16245:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst32, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3398,8 +4226,7 @@ end3601ad382705ea12b79d2008c1e5725c:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst64, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3425,8 +4252,7 @@ enda3d39cad13a557a2aa6d086f43596c1b:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst64, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3504,8 +4330,7 @@ end09a0deaf3c42627d0d2d3efa96e30745:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst8, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst8, t)
 		v0.AuxInt = c - d
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3531,8 +4356,7 @@ endc8f853c610c460c887cbfdca958e3691:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst8, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst8, t)
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -3808,6 +4632,1418 @@ endd902622aaa1e7545b5a2a0c08b47d287:
 	}
 	goto end47a5f1d1b158914fa383de024bbe3b08
 end47a5f1d1b158914fa383de024bbe3b08:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux16 <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto endd981df40f353104ef828d13ad4ccdf02
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh16Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endd981df40f353104ef828d13ad4ccdf02
+endd981df40f353104ef828d13ad4ccdf02:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux32 <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto ende0be9ee562725206dcf96d3e5750b5ea
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh16Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto ende0be9ee562725206dcf96d3e5750b5ea
+ende0be9ee562725206dcf96d3e5750b5ea:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux64 (Const16 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const16 [int64(uint16(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst16 {
+			goto ended17f40375fb44bcbaf2d87161c5ed3c
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto ended17f40375fb44bcbaf2d87161c5ed3c
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(uint16(c) >> uint64(d))
+		return true
+	}
+	goto ended17f40375fb44bcbaf2d87161c5ed3c
+ended17f40375fb44bcbaf2d87161c5ed3c:
+	;
+	// match: (Rsh16Ux64 x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end752d1b5a60f87afa7e40febbf1bce309
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end752d1b5a60f87afa7e40febbf1bce309
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end752d1b5a60f87afa7e40febbf1bce309
+end752d1b5a60f87afa7e40febbf1bce309:
+	;
+	// match: (Rsh16Ux64 _ (Const64 [c]))
+	// cond: uint64(c) >= 16
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto endca5c7ae2e51f2ae32486c2b1a3033b77
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 16) {
+			goto endca5c7ae2e51f2ae32486c2b1a3033b77
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto endca5c7ae2e51f2ae32486c2b1a3033b77
+endca5c7ae2e51f2ae32486c2b1a3033b77:
+	;
+	// match: (Rsh16Ux64 <t> (Rsh16Ux64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh16Ux64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh16Ux64 {
+			goto end56f2c0034c9fbe651abb36fb640af465
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end56f2c0034c9fbe651abb36fb640af465
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end56f2c0034c9fbe651abb36fb640af465
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end56f2c0034c9fbe651abb36fb640af465
+		}
+		v.Op = OpRsh16Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end56f2c0034c9fbe651abb36fb640af465
+end56f2c0034c9fbe651abb36fb640af465:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16Ux8  <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end20d4667094c32c71bac4e0805dab85c9
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh16Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end20d4667094c32c71bac4e0805dab85c9
+end20d4667094c32c71bac4e0805dab85c9:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh16x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end1b501c7ae2fe58ad3a88b467f2d95389
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end1b501c7ae2fe58ad3a88b467f2d95389
+end1b501c7ae2fe58ad3a88b467f2d95389:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh16x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto end4d3a41113d2d0b09924bf5759ca49cab
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end4d3a41113d2d0b09924bf5759ca49cab
+end4d3a41113d2d0b09924bf5759ca49cab:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x64  (Const16 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const16 [int64(int16(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst16 {
+			goto end8f05fede35a3d2f687fcd4a5829a25ad
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end8f05fede35a3d2f687fcd4a5829a25ad
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst16
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(int16(c) >> uint64(d))
+		return true
+	}
+	goto end8f05fede35a3d2f687fcd4a5829a25ad
+end8f05fede35a3d2f687fcd4a5829a25ad:
+	;
+	// match: (Rsh16x64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end750fafe01fcc689d953101d53efc19ab
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end750fafe01fcc689d953101d53efc19ab
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end750fafe01fcc689d953101d53efc19ab
+end750fafe01fcc689d953101d53efc19ab:
+	;
+	// match: (Rsh16x64 <t> (Rsh16x64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh16x64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh16x64 {
+			goto endf425eff9e05aad27194af957e3383c76
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto endf425eff9e05aad27194af957e3383c76
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endf425eff9e05aad27194af957e3383c76
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto endf425eff9e05aad27194af957e3383c76
+		}
+		v.Op = OpRsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto endf425eff9e05aad27194af957e3383c76
+endf425eff9e05aad27194af957e3383c76:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh16x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh16x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh16x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end0b5e274d62a3ae8df9f4089756c6a9d4
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh16x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end0b5e274d62a3ae8df9f4089756c6a9d4
+end0b5e274d62a3ae8df9f4089756c6a9d4:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux16 <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end8d8f9f3e2e1f7a5e9a186fb792fc40a8
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh32Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end8d8f9f3e2e1f7a5e9a186fb792fc40a8
+end8d8f9f3e2e1f7a5e9a186fb792fc40a8:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux32 <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto endd23d060f74e00f34cc967b6fb9a4d320
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh32Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endd23d060f74e00f34cc967b6fb9a4d320
+endd23d060f74e00f34cc967b6fb9a4d320:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux64 (Const32 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const32 [int64(uint32(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto enda101e6b765d7ecffd9b7410c9dc3be82
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto enda101e6b765d7ecffd9b7410c9dc3be82
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(uint32(c) >> uint64(d))
+		return true
+	}
+	goto enda101e6b765d7ecffd9b7410c9dc3be82
+enda101e6b765d7ecffd9b7410c9dc3be82:
+	;
+	// match: (Rsh32Ux64 x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end162e4e182a665d4e6f0d85fe131e7288
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end162e4e182a665d4e6f0d85fe131e7288
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end162e4e182a665d4e6f0d85fe131e7288
+end162e4e182a665d4e6f0d85fe131e7288:
+	;
+	// match: (Rsh32Ux64 _ (Const64 [c]))
+	// cond: uint64(c) >= 32
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto endca322c370839b4264b219ee042a6ab33
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 32) {
+			goto endca322c370839b4264b219ee042a6ab33
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto endca322c370839b4264b219ee042a6ab33
+endca322c370839b4264b219ee042a6ab33:
+	;
+	// match: (Rsh32Ux64 <t> (Rsh32Ux64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh32Ux64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh32Ux64 {
+			goto end2e502d68a32663142684194adbe6c297
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end2e502d68a32663142684194adbe6c297
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end2e502d68a32663142684194adbe6c297
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end2e502d68a32663142684194adbe6c297
+		}
+		v.Op = OpRsh32Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end2e502d68a32663142684194adbe6c297
+end2e502d68a32663142684194adbe6c297:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32Ux8  <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end967cea80158afaffb783f6da7aa898ca
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh32Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end967cea80158afaffb783f6da7aa898ca
+end967cea80158afaffb783f6da7aa898ca:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh32x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end6a62ebdcc98ea2e3214559214708d26a
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end6a62ebdcc98ea2e3214559214708d26a
+end6a62ebdcc98ea2e3214559214708d26a:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh32x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto end6e3b467acdca74f58e9177fb42a1968b
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end6e3b467acdca74f58e9177fb42a1968b
+end6e3b467acdca74f58e9177fb42a1968b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x64  (Const32 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const32 [int64(int32(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst32 {
+			goto end7e4b8c499cffe1fef73a16e6be54d4d2
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end7e4b8c499cffe1fef73a16e6be54d4d2
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst32
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(int32(c) >> uint64(d))
+		return true
+	}
+	goto end7e4b8c499cffe1fef73a16e6be54d4d2
+end7e4b8c499cffe1fef73a16e6be54d4d2:
+	;
+	// match: (Rsh32x64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end72da2611eaaffe407efa1cc45c23ade3
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end72da2611eaaffe407efa1cc45c23ade3
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end72da2611eaaffe407efa1cc45c23ade3
+end72da2611eaaffe407efa1cc45c23ade3:
+	;
+	// match: (Rsh32x64 <t> (Rsh32x64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh32x64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh32x64 {
+			goto endadb415be78ee46a8a4135ec50df772b0
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto endadb415be78ee46a8a4135ec50df772b0
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endadb415be78ee46a8a4135ec50df772b0
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto endadb415be78ee46a8a4135ec50df772b0
+		}
+		v.Op = OpRsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto endadb415be78ee46a8a4135ec50df772b0
+endadb415be78ee46a8a4135ec50df772b0:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh32x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh32x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh32x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end7b59b42c5c68a2d55be469a0c086dd8b
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh32x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end7b59b42c5c68a2d55be469a0c086dd8b
+end7b59b42c5c68a2d55be469a0c086dd8b:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64Ux16 <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh64Ux64 x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end733d85a7b599bcba969ca1cb4bdb9e48
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh64Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end733d85a7b599bcba969ca1cb4bdb9e48
+end733d85a7b599bcba969ca1cb4bdb9e48:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64Ux32 <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh64Ux64 x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto endeac7b34169de1fb0393b833e65b9bb19
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh64Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endeac7b34169de1fb0393b833e65b9bb19
+endeac7b34169de1fb0393b833e65b9bb19:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64Ux64 (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const64 [int64(uint64(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto end102f4cfd7979a2aa222d52c34ac6802d
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end102f4cfd7979a2aa222d52c34ac6802d
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(uint64(c) >> uint64(d))
+		return true
+	}
+	goto end102f4cfd7979a2aa222d52c34ac6802d
+end102f4cfd7979a2aa222d52c34ac6802d:
+	;
+	// match: (Rsh64Ux64 x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end5ad037b910698f2847df90177c23a6ac
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end5ad037b910698f2847df90177c23a6ac
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end5ad037b910698f2847df90177c23a6ac
+end5ad037b910698f2847df90177c23a6ac:
+	;
+	// match: (Rsh64Ux64 _ (Const64 [c]))
+	// cond: uint64(c) >= 64
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto end16ea16aa61862207ea64e514369d608b
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 64) {
+			goto end16ea16aa61862207ea64e514369d608b
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto end16ea16aa61862207ea64e514369d608b
+end16ea16aa61862207ea64e514369d608b:
+	;
+	// match: (Rsh64Ux64 <t> (Rsh64Ux64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh64Ux64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh64Ux64 {
+			goto end32bfdb1b4ccc23a5cd62fc0348ebd877
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end32bfdb1b4ccc23a5cd62fc0348ebd877
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end32bfdb1b4ccc23a5cd62fc0348ebd877
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end32bfdb1b4ccc23a5cd62fc0348ebd877
+		}
+		v.Op = OpRsh64Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end32bfdb1b4ccc23a5cd62fc0348ebd877
+end32bfdb1b4ccc23a5cd62fc0348ebd877:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64Ux8  <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh64Ux64 x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto ende3d8090a67a52dbcd24b52ee32c9d7f0
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh64Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto ende3d8090a67a52dbcd24b52ee32c9d7f0
+ende3d8090a67a52dbcd24b52ee32c9d7f0:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh64x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto endd5151d0bfc38c55ae6ae6836014df3bc
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endd5151d0bfc38c55ae6ae6836014df3bc
+endd5151d0bfc38c55ae6ae6836014df3bc:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh64x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto end0f2dbca5c7d6b100890c94a97bf0de7c
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end0f2dbca5c7d6b100890c94a97bf0de7c
+end0f2dbca5c7d6b100890c94a97bf0de7c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64x64  (Const64 [c]) (Const64 [d]))
+	// cond:
+	// result: (Const64 [c >> uint64(d)])
+	{
+		if v.Args[0].Op != OpConst64 {
+			goto endfa4609d6bea8a3e3d3a777b1968c97d9
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endfa4609d6bea8a3e3d3a777b1968c97d9
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = c >> uint64(d)
+		return true
+	}
+	goto endfa4609d6bea8a3e3d3a777b1968c97d9
+endfa4609d6bea8a3e3d3a777b1968c97d9:
+	;
+	// match: (Rsh64x64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto ende62e0c67d3f04eb221646371a2a91d05
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto ende62e0c67d3f04eb221646371a2a91d05
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto ende62e0c67d3f04eb221646371a2a91d05
+ende62e0c67d3f04eb221646371a2a91d05:
+	;
+	// match: (Rsh64x64 <t> (Rsh64x64 x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh64x64 x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh64x64 {
+			goto endd3e8ea66dc3ad0bc393001d6babb7160
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto endd3e8ea66dc3ad0bc393001d6babb7160
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endd3e8ea66dc3ad0bc393001d6babb7160
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto endd3e8ea66dc3ad0bc393001d6babb7160
+		}
+		v.Op = OpRsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto endd3e8ea66dc3ad0bc393001d6babb7160
+endd3e8ea66dc3ad0bc393001d6babb7160:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh64x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh64x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh64x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto end1a9e5a89849344396210da7c7ec810be
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh64x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end1a9e5a89849344396210da7c7ec810be
+end1a9e5a89849344396210da7c7ec810be:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8Ux16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux16 <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end7acc015610273092e9efcce2949ee0f9
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh8Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end7acc015610273092e9efcce2949ee0f9
+end7acc015610273092e9efcce2949ee0f9:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8Ux32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux32 <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto end27e9b4472e085b653a105b1d67554ce8
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh8Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end27e9b4472e085b653a105b1d67554ce8
+end27e9b4472e085b653a105b1d67554ce8:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8Ux64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux64  (Const8  [c]) (Const64 [d]))
+	// cond:
+	// result: (Const8  [int64(uint8(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst8 {
+			goto enddd166e450d81ba7b466d61d2fbec178c
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto enddd166e450d81ba7b466d61d2fbec178c
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst8
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(uint8(c) >> uint64(d))
+		return true
+	}
+	goto enddd166e450d81ba7b466d61d2fbec178c
+enddd166e450d81ba7b466d61d2fbec178c:
+	;
+	// match: (Rsh8Ux64  x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end570cb1d9db3c7bebd85e485eeb2c0969
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end570cb1d9db3c7bebd85e485eeb2c0969
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end570cb1d9db3c7bebd85e485eeb2c0969
+end570cb1d9db3c7bebd85e485eeb2c0969:
+	;
+	// match: (Rsh8Ux64  _ (Const64 [c]))
+	// cond: uint64(c) >= 8
+	// result: (Const64 [0])
+	{
+		if v.Args[1].Op != OpConst64 {
+			goto endb63e1a7d1d91716ca0d9d74215361323
+		}
+		c := v.Args[1].AuxInt
+		if !(uint64(c) >= 8) {
+			goto endb63e1a7d1d91716ca0d9d74215361323
+		}
+		v.Op = OpConst64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = 0
+		return true
+	}
+	goto endb63e1a7d1d91716ca0d9d74215361323
+endb63e1a7d1d91716ca0d9d74215361323:
+	;
+	// match: (Rsh8Ux64  <t> (Rsh8Ux64  x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh8Ux64  x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh8Ux64 {
+			goto endee8824b7071ed1a6dba4fcbaab98229e
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto endee8824b7071ed1a6dba4fcbaab98229e
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto endee8824b7071ed1a6dba4fcbaab98229e
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto endee8824b7071ed1a6dba4fcbaab98229e
+		}
+		v.Op = OpRsh8Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto endee8824b7071ed1a6dba4fcbaab98229e
+endee8824b7071ed1a6dba4fcbaab98229e:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8Ux8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8Ux8  <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto ended7e4f4d9ab89dc26e6649d466577930
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh8Ux64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto ended7e4f4d9ab89dc26e6649d466577930
+ended7e4f4d9ab89dc26e6649d466577930:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8x16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x16  <t> x (Const16 [c]))
+	// cond:
+	// result: (Rsh8x64  x (Const64 <t> [int64(uint16(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst16 {
+			goto end136bef6f60180bc8b4befbfc370af7ef
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint16(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end136bef6f60180bc8b4befbfc370af7ef
+end136bef6f60180bc8b4befbfc370af7ef:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8x32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x32  <t> x (Const32 [c]))
+	// cond:
+	// result: (Rsh8x64  x (Const64 <t> [int64(uint32(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst32 {
+			goto end2ef95c222a7c552fa9cc86e36196644e
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint32(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto end2ef95c222a7c552fa9cc86e36196644e
+end2ef95c222a7c552fa9cc86e36196644e:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8x64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x64   (Const8  [c]) (Const64 [d]))
+	// cond:
+	// result: (Const8  [int64(int8(c) >> uint64(d))])
+	{
+		if v.Args[0].Op != OpConst8 {
+			goto end3b90206d75365466dfd1368e5b69db35
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end3b90206d75365466dfd1368e5b69db35
+		}
+		d := v.Args[1].AuxInt
+		v.Op = OpConst8
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AuxInt = int64(int8(c) >> uint64(d))
+		return true
+	}
+	goto end3b90206d75365466dfd1368e5b69db35
+end3b90206d75365466dfd1368e5b69db35:
+	;
+	// match: (Rsh8x64   x (Const64 [0]))
+	// cond:
+	// result: x
+	{
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			goto end1e664cc720a11d1c769de8081cfa1de4
+		}
+		if v.Args[1].AuxInt != 0 {
+			goto end1e664cc720a11d1c769de8081cfa1de4
+		}
+		v.Op = OpCopy
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	goto end1e664cc720a11d1c769de8081cfa1de4
+end1e664cc720a11d1c769de8081cfa1de4:
+	;
+	// match: (Rsh8x64  <t> (Rsh8x64  x (Const64 [c])) (Const64 [d]))
+	// cond: !uaddOvf(c,d)
+	// result: (Rsh8x64  x (Const64 <t> [c+d]))
+	{
+		t := v.Type
+		if v.Args[0].Op != OpRsh8x64 {
+			goto end6408685a7276af7e76ec086f359c942c
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConst64 {
+			goto end6408685a7276af7e76ec086f359c942c
+		}
+		c := v.Args[0].Args[1].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			goto end6408685a7276af7e76ec086f359c942c
+		}
+		d := v.Args[1].AuxInt
+		if !(!uaddOvf(c, d)) {
+			goto end6408685a7276af7e76ec086f359c942c
+		}
+		v.Op = OpRsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c + d
+		v.AddArg(v0)
+		return true
+	}
+	goto end6408685a7276af7e76ec086f359c942c
+end6408685a7276af7e76ec086f359c942c:
+	;
+	return false
+}
+func rewriteValuegeneric_OpRsh8x8(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Rsh8x8   <t> x (Const8 [c]))
+	// cond:
+	// result: (Rsh8x64  x (Const64 <t> [int64(uint8(c))]))
+	{
+		t := v.Type
+		x := v.Args[0]
+		if v.Args[1].Op != OpConst8 {
+			goto endae44f60f364cddd8903763dd921a007e
+		}
+		c := v.Args[1].AuxInt
+		v.Op = OpRsh8x64
+		v.AuxInt = 0
+		v.Aux = nil
+		v.resetArgs()
+		v.AddArg(x)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = int64(uint8(c))
+		v.AddArg(v0)
+		return true
+	}
+	goto endae44f60f364cddd8903763dd921a007e
+endae44f60f364cddd8903763dd921a007e:
 	;
 	return false
 }
@@ -4652,8 +6888,7 @@ end5c6fab95c9dbeff5973119096bfd4e78:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst16, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst16, t)
 		v0.AuxInt = -c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -4770,8 +7005,7 @@ end7623799db780e1bcc42c6ea0df9c49d3:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst32, t)
 		v0.AuxInt = -c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -4888,8 +7122,7 @@ end5a84a285ff0ff48b8ad3c64b15e3459f:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst64, t)
 		v0.AuxInt = -c
 		v.AddArg(v0)
 		v.AddArg(x)
@@ -5006,8 +7239,7 @@ endc00ea11c7535529e211710574f5cff24:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConst8, TypeInvalid)
-		v0.Type = t
+		v0 := b.NewValue0(v.Line, OpConst8, t)
 		v0.AuxInt = -c
 		v.AddArg(v0)
 		v.AddArg(x)

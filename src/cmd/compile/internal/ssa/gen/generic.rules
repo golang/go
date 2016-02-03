@@ -35,6 +35,19 @@
 (Mul32 (Const32 [c]) (Const32 [d])) -> (Const32 [c*d])
 (Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
 
+(Lsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c << uint64(d)])
+(Rsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c >> uint64(d)])
+(Rsh64Ux64 (Const64 [c]) (Const64 [d])) -> (Const64 [int64(uint64(c) >> uint64(d))])
+(Lsh32x64  (Const32 [c]) (Const64 [d])) -> (Const32 [int64(int32(c) << uint64(d))])
+(Rsh32x64  (Const32 [c]) (Const64 [d])) -> (Const32 [int64(int32(c) >> uint64(d))])
+(Rsh32Ux64 (Const32 [c]) (Const64 [d])) -> (Const32 [int64(uint32(c) >> uint64(d))])
+(Lsh16x64  (Const16 [c]) (Const64 [d])) -> (Const16 [int64(int16(c) << uint64(d))])
+(Rsh16x64  (Const16 [c]) (Const64 [d])) -> (Const16 [int64(int16(c) >> uint64(d))])
+(Rsh16Ux64 (Const16 [c]) (Const64 [d])) -> (Const16 [int64(uint16(c) >> uint64(d))])
+(Lsh8x64   (Const8  [c]) (Const64 [d])) -> (Const8  [int64(int8(c) << uint64(d))])
+(Rsh8x64   (Const8  [c]) (Const64 [d])) -> (Const8  [int64(int8(c) >> uint64(d))])
+(Rsh8Ux64  (Const8  [c]) (Const64 [d])) -> (Const8  [int64(uint8(c) >> uint64(d))])
+
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
 (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
@@ -78,6 +91,89 @@
 (Sub32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [-c]) x)
 (Sub16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [-c]) x)
 (Sub8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Add8 (Const8 <t> [-c]) x)
+
+// rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
+// the number of the other rewrite rules for const shifts
+(Lsh64x32  <t> x (Const32 [c])) -> (Lsh64x64  x (Const64 <t> [int64(uint32(c))]))
+(Lsh64x16  <t> x (Const16 [c])) -> (Lsh64x64  x (Const64 <t> [int64(uint16(c))]))
+(Lsh64x8   <t> x (Const8 [c]))  -> (Lsh64x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh64x32  <t> x (Const32 [c])) -> (Rsh64x64  x (Const64 <t> [int64(uint32(c))]))
+(Rsh64x16  <t> x (Const16 [c])) -> (Rsh64x64  x (Const64 <t> [int64(uint16(c))]))
+(Rsh64x8   <t> x (Const8 [c]))  -> (Rsh64x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh64Ux32 <t> x (Const32 [c])) -> (Rsh64Ux64 x (Const64 <t> [int64(uint32(c))]))
+(Rsh64Ux16 <t> x (Const16 [c])) -> (Rsh64Ux64 x (Const64 <t> [int64(uint16(c))]))
+(Rsh64Ux8  <t> x (Const8 [c]))  -> (Rsh64Ux64 x (Const64 <t> [int64(uint8(c))]))
+
+(Lsh32x32  <t> x (Const32 [c])) -> (Lsh32x64  x (Const64 <t> [int64(uint32(c))]))
+(Lsh32x16  <t> x (Const16 [c])) -> (Lsh32x64  x (Const64 <t> [int64(uint16(c))]))
+(Lsh32x8   <t> x (Const8 [c]))  -> (Lsh32x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh32x32  <t> x (Const32 [c])) -> (Rsh32x64  x (Const64 <t> [int64(uint32(c))]))
+(Rsh32x16  <t> x (Const16 [c])) -> (Rsh32x64  x (Const64 <t> [int64(uint16(c))]))
+(Rsh32x8   <t> x (Const8 [c]))  -> (Rsh32x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh32Ux32 <t> x (Const32 [c])) -> (Rsh32Ux64 x (Const64 <t> [int64(uint32(c))]))
+(Rsh32Ux16 <t> x (Const16 [c])) -> (Rsh32Ux64 x (Const64 <t> [int64(uint16(c))]))
+(Rsh32Ux8  <t> x (Const8 [c]))  -> (Rsh32Ux64 x (Const64 <t> [int64(uint8(c))]))
+
+(Lsh16x32  <t> x (Const32 [c])) -> (Lsh16x64  x (Const64 <t> [int64(uint32(c))]))
+(Lsh16x16  <t> x (Const16 [c])) -> (Lsh16x64  x (Const64 <t> [int64(uint16(c))]))
+(Lsh16x8   <t> x (Const8 [c]))  -> (Lsh16x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh16x32  <t> x (Const32 [c])) -> (Rsh16x64  x (Const64 <t> [int64(uint32(c))]))
+(Rsh16x16  <t> x (Const16 [c])) -> (Rsh16x64  x (Const64 <t> [int64(uint16(c))]))
+(Rsh16x8   <t> x (Const8 [c]))  -> (Rsh16x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh16Ux32 <t> x (Const32 [c])) -> (Rsh16Ux64 x (Const64 <t> [int64(uint32(c))]))
+(Rsh16Ux16 <t> x (Const16 [c])) -> (Rsh16Ux64 x (Const64 <t> [int64(uint16(c))]))
+(Rsh16Ux8  <t> x (Const8 [c]))  -> (Rsh16Ux64 x (Const64 <t> [int64(uint8(c))]))
+
+(Lsh8x32  <t> x (Const32 [c])) -> (Lsh8x64  x (Const64 <t> [int64(uint32(c))]))
+(Lsh8x16  <t> x (Const16 [c])) -> (Lsh8x64  x (Const64 <t> [int64(uint16(c))]))
+(Lsh8x8   <t> x (Const8 [c]))  -> (Lsh8x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh8x32  <t> x (Const32 [c])) -> (Rsh8x64  x (Const64 <t> [int64(uint32(c))]))
+(Rsh8x16  <t> x (Const16 [c])) -> (Rsh8x64  x (Const64 <t> [int64(uint16(c))]))
+(Rsh8x8   <t> x (Const8 [c]))  -> (Rsh8x64  x (Const64 <t> [int64(uint8(c))]))
+(Rsh8Ux32 <t> x (Const32 [c])) -> (Rsh8Ux64 x (Const64 <t> [int64(uint32(c))]))
+(Rsh8Ux16 <t> x (Const16 [c])) -> (Rsh8Ux64 x (Const64 <t> [int64(uint16(c))]))
+(Rsh8Ux8  <t> x (Const8 [c]))  -> (Rsh8Ux64 x (Const64 <t> [int64(uint8(c))]))
+
+// shifts by zero
+(Lsh64x64  x (Const64 [0])) -> x
+(Rsh64x64  x (Const64 [0])) -> x
+(Rsh64Ux64 x (Const64 [0])) -> x
+(Lsh32x64  x (Const64 [0])) -> x
+(Rsh32x64  x (Const64 [0])) -> x
+(Rsh32Ux64 x (Const64 [0])) -> x
+(Lsh16x64  x (Const64 [0])) -> x
+(Rsh16x64  x (Const64 [0])) -> x
+(Rsh16Ux64 x (Const64 [0])) -> x
+(Lsh8x64   x (Const64 [0])) -> x
+(Rsh8x64   x (Const64 [0])) -> x
+(Rsh8Ux64  x (Const64 [0])) -> x
+
+// large left shifts of all values, and right shifts of unsigned values
+(Lsh64x64  _ (Const64 [c])) && uint64(c) >= 64 -> (Const64 [0])
+(Rsh64Ux64 _ (Const64 [c])) && uint64(c) >= 64 -> (Const64 [0])
+(Lsh32x64  _ (Const64 [c])) && uint64(c) >= 32 -> (Const64 [0])
+(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const64 [0])
+(Lsh16x64  _ (Const64 [c])) && uint64(c) >= 16 -> (Const64 [0])
+(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const64 [0])
+(Lsh8x64   _ (Const64 [c])) && uint64(c) >= 8  -> (Const64 [0])
+(Rsh8Ux64  _ (Const64 [c])) && uint64(c) >= 8  -> (Const64 [0])
+
+
+// combine const shifts
+(Lsh64x64 <t> (Lsh64x64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Lsh64x64 x (Const64 <t> [c+d]))
+(Lsh32x64 <t> (Lsh32x64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Lsh32x64 x (Const64 <t> [c+d]))
+(Lsh16x64 <t> (Lsh16x64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Lsh16x64 x (Const64 <t> [c+d]))
+(Lsh8x64  <t> (Lsh8x64  x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Lsh8x64  x (Const64 <t> [c+d]))
+
+(Rsh64x64 <t> (Rsh64x64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh64x64 x (Const64 <t> [c+d]))
+(Rsh32x64 <t> (Rsh32x64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh32x64 x (Const64 <t> [c+d]))
+(Rsh16x64 <t> (Rsh16x64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh16x64 x (Const64 <t> [c+d]))
+(Rsh8x64  <t> (Rsh8x64  x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh8x64  x (Const64 <t> [c+d]))
+
+(Rsh64Ux64 <t> (Rsh64Ux64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh64Ux64 x (Const64 <t> [c+d]))
+(Rsh32Ux64 <t> (Rsh32Ux64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh32Ux64 x (Const64 <t> [c+d]))
+(Rsh16Ux64 <t> (Rsh16Ux64 x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh16Ux64 x (Const64 <t> [c+d]))
+(Rsh8Ux64  <t> (Rsh8Ux64  x (Const64 [c])) (Const64 [d])) && !uaddOvf(c,d) -> (Rsh8Ux64  x (Const64 <t> [c+d]))
 
 // constant comparisons
 (Eq64 (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(int64(c) == int64(d))])

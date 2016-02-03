@@ -181,6 +181,11 @@ func f2i(f float64) int64 {
 	return int64(math.Float64bits(f))
 }
 
+// uaddOvf returns true if unsigned a+b would overflow.
+func uaddOvf(a, b int64) bool {
+	return uint64(a)+uint64(b) < uint64(a)
+}
+
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
 // See runtime/mkduff.go.
 const (
