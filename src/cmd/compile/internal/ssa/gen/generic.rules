@@ -48,6 +48,37 @@
 (Neq16 x x) -> (ConstBool [0])
 (Neq8 x x) -> (ConstBool [0])
 
+(Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
+(Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [c-d]) x)
+(Eq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) -> (Eq16 (Const16 <t> [c-d]) x)
+(Eq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x)) -> (Eq8 (Const8 <t> [c-d]) x)
+
+(Neq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Neq64 (Const64 <t> [c-d]) x)
+(Neq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Neq32 (Const32 <t> [c-d]) x)
+(Neq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) -> (Neq16 (Const16 <t> [c-d]) x)
+(Neq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x)) -> (Neq8 (Const8 <t> [c-d]) x)
+
+// canonicalize: swap arguments for commutative opertions when one argument is a constant.
+(Eq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Eq64 (Const64 <t> [c]) x)
+(Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
+(Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
+(Eq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Eq8 (Const8 <t> [c]) x)
+
+(Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
+(Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
+(Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
+(Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
+
+(Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
+(Add32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [c]) x)
+(Add16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [c]) x)
+(Add8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Add8 (Const8 <t> [c]) x)
+
+(Sub64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [-c]) x)
+(Sub32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [-c]) x)
+(Sub16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [-c]) x)
+(Sub8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Add8 (Const8 <t> [-c]) x)
+
 // constant comparisons
 (Eq64 (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(int64(c) == int64(d))])
 (Eq32 (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(int32(c) == int32(d))])
