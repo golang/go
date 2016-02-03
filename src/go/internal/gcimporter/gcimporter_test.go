@@ -311,3 +311,53 @@ func TestIssue13566(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue13898(t *testing.T) {
+	skipSpecialPlatforms(t)
+
+	// This package only handles gc export data.
+	if runtime.Compiler != "gc" {
+		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+		return
+	}
+
+	// import go/internal/gcimporter which imports go/types partially
+	imports := make(map[string]*types.Package)
+	_, err := Import(imports, "go/internal/gcimporter", ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// look for go/types package
+	var goTypesPkg *types.Package
+	for path, pkg := range imports {
+		if path == "go/types" {
+			goTypesPkg = pkg
+			break
+		}
+	}
+	if goTypesPkg == nil {
+		t.Fatal("go/types not found")
+	}
+
+	// look for go/types.Object type
+	obj := goTypesPkg.Scope().Lookup("Object")
+	if obj == nil {
+		t.Fatal("go/types.Object not found")
+	}
+	typ, ok := obj.Type().(*types.Named)
+	if !ok {
+		t.Fatalf("go/types.Object type is %v; wanted named type", typ)
+	}
+
+	// lookup go/types.Object.Pkg method
+	m, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Pkg")
+	if m == nil {
+		t.Fatal("go/types.Object.Pkg not found")
+	}
+
+	// the method must belong to go/types
+	if m.Pkg().Path() != "go/types" {
+		t.Fatalf("found %v; want go/types", m.Pkg())
+	}
+}

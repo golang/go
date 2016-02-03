@@ -510,6 +510,13 @@ the stack pointer may change during any function call:
 even pointers to stack data must not be kept in local variables.
 </p>
 
+<p>
+Assembly functions should always be given Go prototypes,
+both to provide pointer information for the arguments and results
+and to let <code>go</code> <code>vet</code> check that
+the offsets being used to access them are correct.
+</p>
+
 <h2 id="architectures">Architecture-specific details</h2>
 
 <p>

@@ -242,15 +242,21 @@ TEXT runtime·sigaction(SB),NOSPLIT,$0
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
-TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
-	MOVL	sig+4(FP), AX
-	MOVL	AX, 0(SP)
-	MOVL	info+8(FP), AX
-	MOVL	AX, 4(SP)
-	MOVL	ctx+12(FP), AX
-	MOVL	AX, 8(SP)
+TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVL	fn+0(FP), AX
+	MOVL	sig+4(FP), BX
+	MOVL	info+8(FP), CX
+	MOVL	ctx+12(FP), DX
+	MOVL	SP, SI
+	SUBL	$32, SP		// align stack; handler might be C code
+	ANDL	$~15, SP
+	MOVL	BX, 0(SP)
+	MOVL	CX, 4(SP)
+	MOVL	DX, 8(SP)
+	MOVL	SI, 12(SP)
 	CALL	AX
+	MOVL	12(SP), AX
+	MOVL	AX, SP
 	RET
 
 TEXT runtime·sigreturn(SB),NOSPLIT,$12-8

@@ -529,7 +529,7 @@ const (
 	RBaseARM    = 3 * 1024
 	RBasePPC64  = 4 * 1024  // range [4k, 8k)
 	RBaseARM64  = 8 * 1024  // range [8k, 13k)
-	RBaseMIPS64 = 13 * 1024 // range [13k, 16k)
+	RBaseMIPS64 = 13 * 1024 // range [13k, 14k)
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
@@ -608,7 +608,7 @@ func RegisterOpcode(lo int, Anames []string) {
 }
 
 func Aconv(a int) string {
-	if a < A_ARCHSPECIFIC {
+	if 0 <= a && a < len(Anames) {
 		return Anames[a]
 	}
 	for i := range aSpace {
@@ -640,6 +640,7 @@ var Anames = []string{
 	"USEFIELD",
 	"VARDEF",
 	"VARKILL",
+	"VARLIVE",
 }
 
 func Bool2int(b bool) int {

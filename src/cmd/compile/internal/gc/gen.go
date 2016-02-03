@@ -868,6 +868,9 @@ func gen(n *Node) {
 
 	case OVARKILL:
 		gvarkill(n.Left)
+
+	case OVARLIVE:
+		gvarlive(n.Left)
 	}
 
 ret:

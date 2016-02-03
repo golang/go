@@ -445,6 +445,7 @@ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bo
 	for redirect := 0; ; redirect++ {
 		if redirect != 0 {
 			nreq := new(Request)
+			nreq.Cancel = ireq.Cancel
 			nreq.Method = ireq.Method
 			if ireq.Method == "POST" || ireq.Method == "PUT" {
 				nreq.Method = "GET"

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !plan9,!windows
+
 // Test that a sequence of callbacks from C to Go get the same m.
 // This failed to be true on arm and arm64, which was the root cause
 // of issue 13881.

@@ -798,7 +798,16 @@ func TestReadResponseErrors(t *testing.T) {
 		status("c8 OK", true),
 		status("0x12d Moved Permanently", true),
 		status("200 OK", nil),
-		status("20 OK", nil), // TODO: wrong. we should reject non-three digit
+		status("000 OK", nil),
+		status("001 OK", nil),
+		status("404 NOTFOUND", nil),
+		status("20 OK", true),
+		status("00 OK", true),
+		status("-10 OK", true),
+		status("1000 OK", true),
+		status("999 Done", nil),
+		status("-1 OK", true),
+		status("-200 OK", true),
 		version("HTTP/1.2", nil),
 		version("HTTP/2.0", nil),
 		version("HTTP/1.100000000002", true),
@@ -813,7 +822,7 @@ func TestReadResponseErrors(t *testing.T) {
 		if err := matchErr(rerr, tt.wantErr); err != nil {
 			name := tt.name
 			if name == "" {
-				name = fmt.Sprintf("%i. input %q", i, tt.in)
+				name = fmt.Sprintf("%d. input %q", i, tt.in)
 			}
 			t.Errorf("%s: %v", name, err)
 		}

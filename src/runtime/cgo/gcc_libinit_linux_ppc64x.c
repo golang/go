@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build cgo
+
 // TODO: see issue #10410
 // +build linux
 // +build ppc64 ppc64le

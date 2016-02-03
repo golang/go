@@ -197,7 +197,10 @@ func PrintfTests() {
 	et5.error() // ok, not an error method.
 	// Can't print a function.
 	Printf("%d", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
+	Printf("%v", someFunction) // ERROR "arg someFunction in printf call is a function value, not a function call"
 	Println(someFunction)      // ERROR "arg someFunction in Println call is a function value, not a function call"
+	Printf("%p", someFunction) // ok: maybe someone wants to see the pointer
+	Printf("%T", someFunction) // ok: maybe someone wants to see the type
 	// Bug: used to recur forever.
 	Printf("%p %x", recursiveStructV, recursiveStructV.next)
 	Printf("%p %x", recursiveStruct1V, recursiveStruct1V.next)

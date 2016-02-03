@@ -26,6 +26,10 @@ type PKCS1v15DecryptOptions struct {
 
 // EncryptPKCS1v15 encrypts the given message with RSA and the padding scheme from PKCS#1 v1.5.
 // The message must be no longer than the length of the public modulus minus 11 bytes.
+//
+// The rand parameter is used as a source of entropy to ensure that encrypting
+// the same message twice doesn't result in the same ciphertext.
+//
 // WARNING: use of this function to encrypt plaintexts other than session keys
 // is dangerous. Use RSA OAEP in new protocols.
 func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, err error) {
@@ -59,6 +63,12 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) (out []byte, er
 
 // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
 // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
+//
+// Note that whether this function returns an error or not discloses secret
+// information. If an attacker can cause this function to run repeatedly and
+// learn whether each instance returned an error then they can decrypt and
+// forge signatures as if they had the private key. See
+// DecryptPKCS1v15SessionKey for a way of solving this problem.
 func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out []byte, err error) {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
@@ -87,6 +97,12 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) (out [
 // See ``Chosen Ciphertext Attacks Against Protocols Based on the RSA
 // Encryption Standard PKCS #1'', Daniel Bleichenbacher, Advances in Cryptology
 // (Crypto '98).
+//
+// Note that if the session key is too small then it may be possible for an
+// attacker to brute-force it. If they can do that then they can learn whether
+// a random value was used (because it'll be different for the same ciphertext)
+// and thus whether the padding was correct. This defeats the point of this
+// function. Using at least a 16-byte key will protect against this attack.
 func DecryptPKCS1v15SessionKey(rand io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) (err error) {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return err
@@ -201,6 +217,13 @@ var hashPrefixes = map[crypto.Hash][]byte{
 // Note that hashed must be the result of hashing the input message using the
 // given hash function. If hash is zero, hashed is signed directly. This isn't
 // advisable except for interoperability.
+//
+// If rand is not nil then RSA blinding will be used to avoid timing side-channel attacks.
+//
+// This function is deterministic. Thus, if the set of possible messages is
+// small, an attacker may be able to build a map from messages to signatures
+// and identify the signed messages. As ever, signatures provide authenticity,
+// not confidentiality.
 func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) (s []byte, err error) {
 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
 	if err != nil {

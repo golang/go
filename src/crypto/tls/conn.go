@@ -16,6 +16,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -55,6 +56,11 @@ type Conn struct {
 	rawInput *block       // raw input, right off the wire
 	input    *block       // application data waiting to be read
 	hand     bytes.Buffer // handshake data waiting to be read
+
+	// activeCall is an atomic int32; the low bit is whether Close has
+	// been called. the rest of the bits are the number of goroutines
+	// in Conn.Write.
+	activeCall int32
 
 	tmp [16]byte
 }
@@ -855,8 +861,22 @@ func (c *Conn) readHandshake() (interface{}, error) {
 	return m, nil
 }
 
+var errClosed = errors.New("crypto/tls: use of closed connection")
+
 // Write writes data to the connection.
 func (c *Conn) Write(b []byte) (int, error) {
+	// interlock with Close below
+	for {
+		x := atomic.LoadInt32(&c.activeCall)
+		if x&1 != 0 {
+			return 0, errClosed
+		}
+		if atomic.CompareAndSwapInt32(&c.activeCall, x, x+2) {
+			defer atomic.AddInt32(&c.activeCall, -2)
+			break
+		}
+	}
+
 	if err := c.Handshake(); err != nil {
 		return 0, err
 	}
@@ -960,6 +980,27 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 
 // Close closes the connection.
 func (c *Conn) Close() error {
+	// Interlock with Conn.Write above.
+	var x int32
+	for {
+		x = atomic.LoadInt32(&c.activeCall)
+		if x&1 != 0 {
+			return errClosed
+		}
+		if atomic.CompareAndSwapInt32(&c.activeCall, x, x|1) {
+			break
+		}
+	}
+	if x != 0 {
+		// io.Writer and io.Closer should not be used concurrently.
+		// If Close is called while a Write is currently in-flight,
+		// interpret that as a sign that this Close is really just
+		// being used to break the Write and/or clean up resources and
+		// avoid sending the alertCloseNotify, which may block
+		// waiting on handshakeMutex or the c.out mutex.
+		return c.conn.Close()
+	}
+
 	var alertErr error
 
 	c.handshakeMutex.Lock()

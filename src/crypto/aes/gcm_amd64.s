@@ -345,7 +345,7 @@ TEXT ·gcmAesData(SB),NOSPLIT,$0
 	PXOR B0, B0
 	MOVQ (aut), B0
 	PINSRD $2, 8(aut), B0
-	BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x46; BYTE $0x0c; BYTE $0x0c  //PINSRB $12, 12(aut), B0
+	PINSRB $12, 12(aut), B0
 	XORQ autLen, autLen
 	JMP dataMul
 
@@ -404,7 +404,7 @@ dataEnd:
 dataLoadLoop:
 
 		PSLLDQ $1, B0
-		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x06; BYTE $0x00   //PINSRB $0, (aut), B0
+		PINSRB $0, (aut), B0
 
 		LEAQ -1(aut), aut
 		DECQ autLen
@@ -892,7 +892,7 @@ encLast4:
 	PXOR B0, B0
 ptxLoadLoop:
 		PSLLDQ $1, B0
-		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x20; BYTE $0x06; BYTE $0x00  //PINSRB $0, (ptx), B0
+		PINSRB $0, (ptx), B0
 		LEAQ -1(ptx), ptx
 		DECQ ptxLen
 	JNE ptxLoadLoop
@@ -1264,7 +1264,7 @@ decLast3:
 	PXOR T1, B0
 
 ptxStoreLoop:
-		BYTE $0x66; BYTE $0x0f; BYTE $0x3a; BYTE $0x14; BYTE $0x06; BYTE $0x00  // PEXTRB $0, B0, (ptx)
+		PEXTRB $0, B0, (ptx)
 		PSRLDQ $1, B0
 		LEAQ 1(ptx), ptx
 		DECQ ptxLen

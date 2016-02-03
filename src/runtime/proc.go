@@ -1427,20 +1427,24 @@ func dropm() {
 	// After the call to setg we can only call nosplit functions
 	// with no pointer manipulation.
 	mp := getg().m
-	mnext := lockextra(true)
-	mp.schedlink.set(mnext)
 
 	// Block signals before unminit.
 	// Unminit unregisters the signal handling stack (but needs g on some systems).
 	// Setg(nil) clears g, which is the signal handler's cue not to run Go handlers.
 	// It's important not to try to handle a signal between those two steps.
+	sigmask := mp.sigmask
 	sigblock()
 	unminit()
+
+	mnext := lockextra(true)
+	mp.schedlink.set(mnext)
+
 	setg(nil)
-	msigrestore(mp)
 
 	// Commit the release of mp.
 	unlockextra(mp)
+
+	msigrestore(sigmask)
 }
 
 // A helper function for EnsureDropM.
@@ -1598,8 +1602,16 @@ func startm(_p_ *p, spinning bool) {
 // Always runs without a P, so write barriers are not allowed.
 //go:nowritebarrier
 func handoffp(_p_ *p) {
+	// handoffp must start an M in any situation where
+	// findrunnable would return a G to run on _p_.
+
 	// if it has local work, start it straight away
 	if !runqempty(_p_) || sched.runqsize != 0 {
+		startm(_p_, false)
+		return
+	}
+	// if it has GC work, start it straight away
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
 		startm(_p_, false)
 		return
 	}
@@ -1783,6 +1795,10 @@ func execute(gp *g, inheritTime bool) {
 func findrunnable() (gp *g, inheritTime bool) {
 	_g_ := getg()
 
+	// The conditions here and in handoffp must agree: if
+	// findrunnable would return a G to run, handoffp must start
+	// an M.
+
 top:
 	if sched.gcwaiting != 0 {
 		gcstopm()
@@ -1863,9 +1879,9 @@ stop:
 	// We have nothing to do. If we're in the GC mark phase, can
 	// safely scan and blacken objects, and have work to do, run
 	// idle-time marking rather than give up the P.
-	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil && gcMarkWorkAvailable(_p_) {
+	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
 		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-		gp := _p_.gcBgMarkWorker
+		gp := _p_.gcBgMarkWorker.ptr()
 		casgstatus(gp, _Gwaiting, _Grunnable)
 		if trace.enabled {
 			traceGoUnpark(gp, 0)
@@ -2167,6 +2183,9 @@ func goexit0(gp *g) {
 	_g_ := getg()
 
 	casgstatus(gp, _Grunning, _Gdead)
+	if isSystemGoroutine(gp) {
+		atomic.Xadd(&sched.ngsys, -1)
+	}
 	gp.m = nil
 	gp.lockedm = nil
 	_g_.m.lockedg = nil
@@ -2698,6 +2717,9 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
 	gostartcallfn(&newg.sched, fn)
 	newg.gopc = callerpc
 	newg.startpc = fn.fn
+	if isSystemGoroutine(newg) {
+		atomic.Xadd(&sched.ngsys, +1)
+	}
 	casgstatus(newg, _Gdead, _Grunnable)
 
 	if _p_.goidcache == _p_.goidcacheend {
@@ -2890,7 +2912,7 @@ func badunlockosthread() {
 }
 
 func gcount() int32 {
-	n := int32(allglen) - sched.ngfree
+	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
 	for i := 0; ; i++ {
 		_p_ := allp[i]
 		if _p_ == nil {
@@ -3196,13 +3218,15 @@ func procresize(nprocs int32) *p {
 		}
 		// if there's a background worker, make it runnable and put
 		// it on the global queue so it can clean itself up
-		if p.gcBgMarkWorker != nil {
-			casgstatus(p.gcBgMarkWorker, _Gwaiting, _Grunnable)
+		if gp := p.gcBgMarkWorker.ptr(); gp != nil {
+			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
-				traceGoUnpark(p.gcBgMarkWorker, 0)
+				traceGoUnpark(gp, 0)
 			}
-			globrunqput(p.gcBgMarkWorker)
-			p.gcBgMarkWorker = nil
+			globrunqput(gp)
+			// This assignment doesn't race because the
+			// world is stopped.
+			p.gcBgMarkWorker.set(nil)
 		}
 		for i := range p.sudogbuf {
 			p.sudogbuf[i] = nil

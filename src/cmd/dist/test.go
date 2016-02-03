@@ -336,7 +336,11 @@ func (t *tester) registerTests() {
 	} else {
 		// Use a format string to only list packages and commands that have tests.
 		const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
-		cmd := exec.Command("go", "list", "-f", format, "std")
+		cmd := exec.Command("go", "list", "-f", format)
+		if t.race {
+			cmd.Args = append(cmd.Args, "-tags", "race")
+		}
+		cmd.Args = append(cmd.Args, "std")
 		if !t.race {
 			cmd.Args = append(cmd.Args, "cmd")
 		}
@@ -656,7 +660,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64",
-			"darwin-amd64",
+			"darwin-amd64", "darwin-386",
 			"android-arm", "android-arm64", "android-386":
 			return true
 		}

@@ -172,7 +172,9 @@ func Dial(network, addr string, config *Config) (*Conn, error) {
 }
 
 // LoadX509KeyPair reads and parses a public/private key pair from a pair of
-// files. The files must contain PEM encoded data.
+// files. The files must contain PEM encoded data. On successful return,
+// Certificate.Leaf will be nil because the parsed form of the certificate is
+// not retained.
 func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 	certPEMBlock, err := ioutil.ReadFile(certFile)
 	if err != nil {
@@ -186,7 +188,8 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
 }
 
 // X509KeyPair parses a public/private key pair from a pair of
-// PEM encoded data.
+// PEM encoded data. On successful return, Certificate.Leaf will be nil because
+// the parsed form of the certificate is not retained.
 func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
 

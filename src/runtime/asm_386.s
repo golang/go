@@ -1439,7 +1439,8 @@ TEXT strings·IndexByte(SB),NOSPLIT,$0-16
 TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
 	MOVL	DX, BP
 	SUBL	BX, DX // DX = blen-alen
-	CMOVLGT	BX, BP // BP = min(alen, blen)
+	JLE	2(PC)
+	MOVL	BX, BP // BP = min(alen, blen)
 	CMPL	SI, DI
 	JEQ	allsame
 	CMPL	BP, $4
@@ -1558,7 +1559,8 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
 	ADDL	DX, DX
 	MOVL	DX, BX
 	XORL	$0x88888eef, DX
-	CMOVLMI	BX, DX
+	JPL	2(PC)
+	MOVL	BX, DX
 	MOVL	DX, m_fastrand(AX)
 	MOVL	DX, ret+0(FP)
 	RET

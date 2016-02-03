@@ -245,11 +245,13 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	CALL	AX
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$24
+TEXT runtime·sigtramp(SB),NOSPLIT,$32
 	MOVQ	DI, 0(SP)   // signum
 	MOVQ	SI, 8(SP)   // info
 	MOVQ	DX, 16(SP)  // ctx
+	MOVQ	R15, 24(SP) // for sigreturn
 	CALL	runtime·sigtrampgo(SB)
+	MOVQ	24(SP), R15
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$0

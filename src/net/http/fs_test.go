@@ -5,6 +5,7 @@
 package http_test
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -173,6 +174,36 @@ Cases:
 			if err != io.EOF {
 				t.Errorf("range=%q; expected final error io.EOF; got %v", rt.r, err)
 			}
+		}
+	}
+}
+
+func TestServeFile_DotDot(t *testing.T) {
+	tests := []struct {
+		req        string
+		wantStatus int
+	}{
+		{"/testdata/file", 200},
+		{"/../file", 400},
+		{"/..", 400},
+		{"/../", 400},
+		{"/../foo", 400},
+		{"/..\\foo", 400},
+		{"/file/a", 200},
+		{"/file/a..", 200},
+		{"/file/a/..", 400},
+		{"/file/a\\..", 400},
+	}
+	for _, tt := range tests {
+		req, err := ReadRequest(bufio.NewReader(strings.NewReader("GET " + tt.req + " HTTP/1.1\r\nHost: foo\r\n\r\n")))
+		if err != nil {
+			t.Errorf("bad request %q: %v", tt.req, err)
+			continue
+		}
+		rec := httptest.NewRecorder()
+		ServeFile(rec, req, "testdata/file")
+		if rec.Code != tt.wantStatus {
+			t.Errorf("for request %q, status = %d; want %d", tt.req, rec.Code, tt.wantStatus)
 		}
 	}
 }

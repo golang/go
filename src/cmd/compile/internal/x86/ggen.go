@@ -764,9 +764,7 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 				gc.Cgen(nr, &tmp)
 				gc.Cgen(nl, &tmp)
 			}
-
-			gins(x86.AFUCOMIP, &tmp, &n2)
-			gins(x86.AFMOVDP, &tmp, &tmp) // annoying pop but still better than STSW+SAHF
+			gins(x86.AFUCOMPP, &tmp, &n2)
 		} else {
 			// TODO(rsc): The moves back and forth to memory
 			// here are for truncating the value to 32 bits.
@@ -783,9 +781,9 @@ func bgen_float(n *gc.Node, wantTrue bool, likely int, to *obj.Prog) {
 			gc.Cgen(nl, &t2)
 			gmove(&t2, &tmp)
 			gins(x86.AFCOMFP, &t1, &tmp)
-			gins(x86.AFSTSW, nil, &ax)
-			gins(x86.ASAHF, nil, nil)
 		}
+		gins(x86.AFSTSW, nil, &ax)
+		gins(x86.ASAHF, nil, nil)
 	} else {
 		// Not 387
 		if !nl.Addable {

@@ -358,7 +358,7 @@ var pkgDeps = map[string][]string{
 		"L4", "NET", "OS",
 		"compress/gzip", "crypto/tls", "mime/multipart", "runtime/debug",
 		"net/http/internal",
-		"golang.org/x/net/http2/hpack",
+		"internal/golang.org/x/net/http2/hpack",
 	},
 	"net/http/internal": {"L4"},
 
