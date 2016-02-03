@@ -216,7 +216,8 @@ func walkstmt(np **Node) {
 		ODCLCONST,
 		ODCLTYPE,
 		OCHECKNIL,
-		OVARKILL:
+		OVARKILL,
+		OVARLIVE:
 		break
 
 	case OBLOCK:

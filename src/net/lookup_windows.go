@@ -213,17 +213,6 @@ func newLookupPort(network, service string) (int, error) {
 	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
 }
 
-// ensureEndDot adds '.' at the end of name unless it is already there.
-func ensureEndDot(name string) string {
-	if name == "" {
-		return "."
-	}
-	if name[len(name)-1] == '.' {
-		return name
-	}
-	return name + "."
-}
-
 func lookupCNAME(name string) (string, error) {
 	acquireThread()
 	defer releaseThread()
@@ -232,7 +221,7 @@ func lookupCNAME(name string) (string, error) {
 	// windows returns DNS_INFO_NO_RECORDS if there are no CNAME-s
 	if errno, ok := e.(syscall.Errno); ok && errno == syscall.DNS_INFO_NO_RECORDS {
 		// if there are no aliases, the canonical name is the input name
-		return ensureEndDot(name), nil
+		return absDomainName([]byte(name)), nil
 	}
 	if e != nil {
 		return "", &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
@@ -241,7 +230,7 @@ func lookupCNAME(name string) (string, error) {
 
 	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), r)
 	cname := syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(resolved))[:])
-	return ensureEndDot(cname), nil
+	return absDomainName([]byte(cname)), nil
 }
 
 func lookupSRV(service, proto, name string) (string, []*SRV, error) {
@@ -263,10 +252,10 @@ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
 	srvs := make([]*SRV, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_SRV, target) {
 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
-		srvs = append(srvs, &SRV{ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:])), v.Port, v.Priority, v.Weight})
+		srvs = append(srvs, &SRV{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]))), v.Port, v.Priority, v.Weight})
 	}
 	byPriorityWeight(srvs).sort()
-	return ensureEndDot(target), srvs, nil
+	return absDomainName([]byte(target)), srvs, nil
 }
 
 func lookupMX(name string) ([]*MX, error) {
@@ -282,7 +271,7 @@ func lookupMX(name string) ([]*MX, error) {
 	mxs := make([]*MX, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_MX, name) {
 		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
-		mxs = append(mxs, &MX{ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:])), v.Preference})
+		mxs = append(mxs, &MX{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:]))), v.Preference})
 	}
 	byPref(mxs).sort()
 	return mxs, nil
@@ -301,7 +290,7 @@ func lookupNS(name string) ([]*NS, error) {
 	nss := make([]*NS, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_NS, name) {
 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
-		nss = append(nss, &NS{ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))})
+		nss = append(nss, &NS{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:])))})
 	}
 	return nss, nil
 }
@@ -344,7 +333,7 @@ func lookupAddr(addr string) ([]string, error) {
 	ptrs := make([]string, 0, 10)
 	for _, p := range validRecs(r, syscall.DNS_TYPE_PTR, arpa) {
 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
-		ptrs = append(ptrs, ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:])))
+		ptrs = append(ptrs, absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))))
 	}
 	return ptrs, nil
 }

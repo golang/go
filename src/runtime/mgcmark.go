@@ -491,7 +491,8 @@ retry:
 }
 
 // gcWakeAllAssists wakes all currently blocked assists. This is used
-// at the end of a GC cycle.
+// at the end of a GC cycle. gcBlackenEnabled must be false to prevent
+// new assists from going to sleep after this point.
 func gcWakeAllAssists() {
 	lock(&work.assistQueue.lock)
 	injectglist(work.assistQueue.head.ptr())

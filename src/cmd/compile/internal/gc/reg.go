@@ -1073,6 +1073,9 @@ func regopt(firstp *obj.Prog) {
 
 	for f := firstf; f != nil; f = f.Link {
 		p := f.Prog
+		// AVARLIVE must be considered a use, do not skip it.
+		// Otherwise the variable will be optimized away,
+		// and the whole point of AVARLIVE is to keep it on the stack.
 		if p.As == obj.AVARDEF || p.As == obj.AVARKILL {
 			continue
 		}

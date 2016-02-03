@@ -33,7 +33,7 @@ if [ "$pattern" = "" ]; then
 fi
 
 # put linux, nacl first in the target list to get all the architectures up front.
-targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
+targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | sed -e 's|linux-mips64x|linux-mips64 linux-mips64le|' | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
 $(ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
 
 ./make.bash || exit 1

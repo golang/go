@@ -186,6 +186,10 @@ pkg go/constant, func ToFloat(Value) Value
 pkg go/constant, func ToInt(Value) Value
 pkg go/constant, type Value interface, ExactString() string
 pkg go/types, method (*Package) SetName(string)
+pkg go/types, type ImportMode int
+pkg go/types, type ImporterFrom interface { Import, ImportFrom }
+pkg go/types, type ImporterFrom interface, Import(string) (*Package, error)
+pkg go/types, type ImporterFrom interface, ImportFrom(string, string, ImportMode) (*Package, error)
 pkg html/template, func IsTrue(interface{}) (bool, bool)
 pkg html/template, method (*Template) DefinedTemplates() string
 pkg image, func NewNYCbCrA(Rectangle, YCbCrSubsampleRatio) *NYCbCrA

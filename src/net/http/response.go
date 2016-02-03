@@ -150,12 +150,14 @@ func ReadResponse(r *bufio.Reader, req *Request) (*Response, error) {
 	if len(f) > 2 {
 		reasonPhrase = f[2]
 	}
-	resp.Status = f[1] + " " + reasonPhrase
-	resp.StatusCode, err = strconv.Atoi(f[1])
-	if err != nil {
+	if len(f[1]) != 3 {
 		return nil, &badStringError{"malformed HTTP status code", f[1]}
 	}
-
+	resp.StatusCode, err = strconv.Atoi(f[1])
+	if err != nil || resp.StatusCode < 0 {
+		return nil, &badStringError{"malformed HTTP status code", f[1]}
+	}
+	resp.Status = f[1] + " " + reasonPhrase
 	resp.Proto = f[0]
 	var ok bool
 	if resp.ProtoMajor, resp.ProtoMinor, ok = ParseHTTPVersion(resp.Proto); !ok {

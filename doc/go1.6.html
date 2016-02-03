@@ -118,10 +118,10 @@ instead of generated from <a href="/cmd/yacc/">yacc</a>.
 </p>
 
 <p>
-The compiler, linker, and <code>go</code> command have new flag <code>-msan</code>,
+The compiler, linker, and <code>go</code> command have a new flag <code>-msan</code>,
 analogous to <code>-race</code> and only available on linux/amd64,
 that enables interoperation with the <a href="http://clang.llvm.org/docs/MemorySanitizer.html">Clang MemorySanitizer</a>.
-Such interoperation useful mainly for testing a program containing suspect C or C++ code.
+Such interoperation is useful mainly for testing a program containing suspect C or C++ code.
 </p>
 
 <p>
@@ -341,6 +341,19 @@ and changing the global timer resolution caused problems on some systems,
 so the call has been removed.
 </p>
 
+<p>
+When using <code>-buildmode=c-archive</code> or
+<code>-buildmode=c-shared</code> to build an archive or a shared
+library, the handling of signals has changed.
+In Go 1.5 the archive or shared library would install a signal handler
+for most signals.
+In Go 1.6 it will only install a signal handler for the
+synchronous signals needed to handle run-time panics in Go code:
+SIGBUS, SIGFPE, SIGSEGV.
+See the <a href="/pkg/os/signal">os/signal</a> package for more
+details.
+</p>
+
 <h3 id="reflect">Reflect</h3>
 
 <p>
@@ -451,25 +464,23 @@ Second, the new <a href="/pkg/text/template/#hdr-Actions"><code>{{"{{"}}block}}<
 combined with allowing redefinition of named templates,
 provides a simple way to define pieces of a template that
 can be replaced in different instantiations.
-For example, the template
-</p>
-
-<pre>
-&lt;title&gt;{{"{{"}}block "title"}}Page Title{{"{{"}}end}}&lt;/title&gt;
-&lt;body&gt;
-&lt;h1&gt;{{"{{"}}template "title"}}&lt;/h1&gt;
-{{"{{"}}block "page"}}Main text{{"{{"}}end}}
-</pre>
-
-<p>
-defines the basic formatting of a web page. A program can then
-overlay that template with new definitions for the <code>"title"</code>
-and <code>"page"</code> blocks to reuse the formatting for another page.
+There is <a href="/pkg/text/template/#example_Template_block">an example</a>
+in the <code>text/template</code> package that demonstrates this new feature.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
 
 <ul>
+
+<li>
+The <a href="/pkg/archive/tar/"><code>archive/tar</code></a> package's
+implementation corrects many bugs in rare corner cases of the file format.
+One visible change is that the
+<a href="/pkg/archive/tar/#Reader"><code>Reader</code></a> type's
+<a href="/pkg/archive/tar/#Reader.Read"><code>Read</code></a> method
+now presents the content of special file types as being empty,
+returning <code>io.EOF</code> immediately.
+</li>
 
 <li>
 In the <a href="/pkg/archive/zip/"><code>archive/zip</code></a> package, the
@@ -578,7 +589,7 @@ Also in the <a href="/pkg/encoding/asn1/"><code>encoding/asn1</code></a> package
 The <a href="/pkg/encoding/base64"><code>encoding/base64</code></a> package's
 <a href="/pkg/encoding/base64/#Decoder"><code>Decoder</code></a> has been fixed
 to process the final bytes of its input. Previously it processed as many four-byte tokens as
-possible but ignore the remainder, up to three bytes.
+possible but ignored the remainder, up to three bytes.
 The <code>Decoder</code> therefore now handles inputs in unpadded encodings (like
 <a href="/pkg/encoding/base64/#RawURLEncoding">RawURLEncoding</a>) correctly,
 but it also rejects inputs in padded encodings that are truncated or end with invalid bytes,
@@ -621,17 +632,17 @@ In previous releases, the argument to <code>*</code> was required to have type <
 Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
 <a href="/pkg/fmt/#Scanf"><code>Scanf</code></a> can now scan hexadecimal strings using %X, as an alias for %x.
 Both formats accept any mix of upper- and lower-case hexadecimal.
-<a href="golang.org/x/13585">TODO: Keep?</a>
+<a href="https://golang.org/issues/13585">TODO: Keep?</a>
 </li>
 
 <li>
 The <a href="/pkg/image/"><code>image</code></a>
 and
-The <a href="/pkg/image/color/"><code>image/color</code></a> packages
+<a href="/pkg/image/color/"><code>image/color</code></a> packages
 add
 <a href="/pkg/image/#NYCbCrA"><code>NYCbCrA</code></a>
 and
-<a href="/pkg/color/#NYCbCrA"><code>NYCbCrA</code></a>
+<a href="/pkg/image/color/#NYCbCrA"><code>NYCbCrA</code></a>
 types, to support Y'CbCr images with non-premultiplied alpha.
 </li>
 
@@ -715,22 +726,31 @@ This is arguably a mistake but is not yet fixed. See https://golang.org/issue/13
 The <a href="/pkg/net/http/"><code>net/http</code></a> package has
 a number of minor additions beyond the HTTP/2 support already discussed.
 First, the
-<a href="/pkg/http/#FileServer"><code>FileServer</code></a> now sorts its generated directory listings by file name.
+<a href="/pkg/net/http/#FileServer"><code>FileServer</code></a> now sorts its generated directory listings by file name.
 Second, the
-<a href="/pkg/http/#Client"><code>Client</code></a> now allows user code to set the
+<a href="/pkg/net/http/#ServeFile"><code>ServeFile</code></a> function now refuses to serve a result
+if the request's URL path contains &ldquo;..&rdquo; (dot-dot) as a path element.
+Programs should typically use <code>FileServer</code> and 
+<a href="/pkg/net/http/#Dir"><code>Dir</code></a>
+instead of calling <code>ServeFile</code> directly.
+Programs that need to serve file content in response to requests for URLs containing dot-dot can 
+still call <a href="/pkg/net/http/#ServeContent"><code>ServeContent</code></a>.
+Third, the
+<a href="/pkg/net/http/#Client"><code>Client</code></a> now allows user code to set the
 <code>Expect:</code> <code>100-continue</code> header (see
-<a href="/pkg/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
-Third, there are
-<a href="/pkg/net/http/#pkg-constants">four new error codes</a> from RFC 6585:
+<a href="/pkg/net/http/#Transport"><code>Transport.ExpectContinueTimeout</code></a>).
+Fourth, there are
+<a href="/pkg/net/http/#pkg-constants">five new error codes</a>:
 <code>StatusPreconditionRequired</code> (428),
 <code>StatusTooManyRequests</code> (429),
-<code>StatusRequestHeaderFieldsTooLarge</code> (431),
-and
-<code>StatusNetworkAuthenticationRequired</code> (511).
-Fourth, the implementation and documentation of
-<a href="/pkg/http/#CloseNotifier"><code>CloseNotifier</code></a>
+<code>StatusRequestHeaderFieldsTooLarge</code> (431), and
+<code>StatusNetworkAuthenticationRequired</code> (511) from RFC 6585,
+as well as the recently-approved
+<code>StatusUnavailableForLegalReasons</code> (451).
+Fifth, the implementation and documentation of
+<a href="/pkg/net/http/#CloseNotifier"><code>CloseNotifier</code></a>
 has been substantially changed.
-The <a href="/pkg/http/#Hijacker"><code>Hijacker</code></a>
+The <a href="/pkg/net/http/#Hijacker"><code>Hijacker</code></a>
 interface now works correctly on connections that have previously
 been used with <code>CloseNotifier</code>.
 The documentation now describes when <code>CloseNotifier</code>
@@ -740,17 +760,17 @@ is expected to work.
 <li>
 Also in the <a href="/pkg/net/http/"><code>net/http</code></a> package,
 there are a few changes related to the handling of a
-<a href="/pkg/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
+<a href="/pkg/net/http/#Request"><code>Request</code></a> data structure with its <code>Method</code> field set to the empty string.
 An empty <code>Method</code> field has always been documented as an alias for <code>"GET"</code>
 and it remains so.
 However, Go 1.6 fixes a few routines that did not treat an empty
 <code>Method</code> the same as an explicit <code>"GET"</code>.
 Most notably, in previous releases
-<a href="/pkg/http/#Client"><code>Client</code></a> followed redirects only with
+<a href="/pkg/net/http/#Client"><code>Client</code></a> followed redirects only with
 <code>Method</code> set explicitly to <code>"GET"</code>;
 in Go 1.6 <code>Client</code> also follows redirects for the empty <code>Method</code>.
 Finally,
-<a href="/pkg/http/#NewRequest"><code>NewRequest</code></a> accepts a <code>method</code> argument that has not been
+<a href="/pkg/net/http/#NewRequest"><code>NewRequest</code></a> accepts a <code>method</code> argument that has not been
 documented as allowed to be empty.
 In past releases, passing an empty <code>method</code> argument resulted
 in a <code>Request</code> with an empty <code>Method</code> field.
@@ -815,7 +835,7 @@ In the <a href="/pkg/os/exec/"><code>os/exec</code></a> package,
 <a href="/pkg/os/exec/#Cmd.Output"><code>Output</code></a> method continues to return an
 <a href="/pkg/os/exec/#ExitError"><code>ExitError</code></a> when a command exits with an unsuccessful status.
 If standard error would otherwise have been discarded,
-the returned <code>ExitError</code> now holds a prefix
+the returned <code>ExitError</code> now holds a prefix and suffix
 (currently 32 kB) of the failed command's standard error output,
 for debugging or for inclusion in error messages.
 The <code>ExitError</code>'s

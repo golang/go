@@ -54,37 +54,37 @@ func (err Error) Error() string {
 // An Importer resolves import paths to Packages.
 //
 // CAUTION: This interface does not support the import of locally
-// vendored packages. See also https://golang.org/s/go15vendor.
-// If possible, external implementations should implement Importer2.
+// vendored packages. See https://golang.org/s/go15vendor.
+// If possible, external implementations should implement ImporterFrom.
 type Importer interface {
 	// Import returns the imported package for the given import
 	// path, or an error if the package couldn't be imported.
-	// Two calls to Import with the same path and srcDir return
-	// the same package.
+	// Two calls to Import with the same path return the same
+	// package.
 	Import(path string) (*Package, error)
 }
 
 // ImportMode is reserved for future use.
 type ImportMode int
 
-// An Importer2 resolves import paths to packages; it
+// An ImporterFrom resolves import paths to packages; it
 // supports vendoring per https://golang.org/s/go15vendor.
-// Use go/importer to obtain an Importer2 implementation.
-type Importer2 interface {
+// Use go/importer to obtain an ImporterFrom implementation.
+type ImporterFrom interface {
 	// Importer is present for backward-compatibility. Calling
-	// Import(path) is the same as calling Import(path, "", 0);
+	// Import(path) is the same as calling ImportFrom(path, "", 0);
 	// i.e., locally vendored packages may not be found.
-	// The types package does not call Import if an Importer2
+	// The types package does not call Import if an ImporterFrom
 	// is present.
 	Importer
 
-	// Import2 returns the imported package for the given import
+	// ImportFrom returns the imported package for the given import
 	// path when imported by the package in srcDir, or an error
 	// if the package couldn't be imported. The mode value must
 	// be 0; it is reserved for future use.
-	// Two calls to Import2 with the same path and srcDir return
+	// Two calls to ImportFrom with the same path and srcDir return
 	// the same package.
-	Import2(path, srcDir string, mode ImportMode) (*Package, error)
+	ImportFrom(path, srcDir string, mode ImportMode) (*Package, error)
 }
 
 // A Config specifies the configuration for type checking.
@@ -114,8 +114,8 @@ type Config struct {
 
 	// An importer is used to import packages referred to from
 	// import declarations.
-	// If the installed importer implements Importer2, the type
-	// checker calls Import2 instead of Import.
+	// If the installed importer implements ImporterFrom, the type
+	// checker calls ImportFrom instead of Import.
 	// The type checker reports an error if an importer is needed
 	// but none was installed.
 	Importer Importer

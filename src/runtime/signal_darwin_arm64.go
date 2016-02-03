@@ -55,6 +55,7 @@ func (c *sigctxt) set_sp(x uint64)  { c.regs().sp = x }
 func (c *sigctxt) set_lr(x uint64)  { c.regs().lr = x }
 func (c *sigctxt) set_r28(x uint64) { c.regs().x[28] = x }
 
+func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
 func (c *sigctxt) set_sigaddr(x uint64) {
 	c.info.si_addr = (*byte)(unsafe.Pointer(uintptr(x)))
 }

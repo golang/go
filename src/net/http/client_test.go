@@ -240,7 +240,9 @@ func TestClientRedirects(t *testing.T) {
 
 	var checkErr error
 	var lastVia []*Request
-	c = &Client{CheckRedirect: func(_ *Request, via []*Request) error {
+	var lastReq *Request
+	c = &Client{CheckRedirect: func(req *Request, via []*Request) error {
+		lastReq = req
 		lastVia = via
 		return checkErr
 	}}
@@ -258,6 +260,20 @@ func TestClientRedirects(t *testing.T) {
 	}
 	if e, g := 15, len(lastVia); e != g {
 		t.Errorf("expected lastVia to have contained %d elements; got %d", e, g)
+	}
+
+	// Test that Request.Cancel is propagated between requests (Issue 14053)
+	creq, _ := NewRequest("HEAD", ts.URL, nil)
+	cancel := make(chan struct{})
+	creq.Cancel = cancel
+	if _, err := c.Do(creq); err != nil {
+		t.Fatal(err)
+	}
+	if lastReq == nil {
+		t.Fatal("didn't see redirect")
+	}
+	if lastReq.Cancel != cancel {
+		t.Errorf("expected lastReq to have the cancel channel set on the inital req")
 	}
 
 	checkErr = errors.New("no redirects allowed")

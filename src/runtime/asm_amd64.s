@@ -56,7 +56,7 @@ notintel:
 	JNE     noavx
 	MOVL    $0, CX
 	// For XGETBV, OSXSAVE bit is required and sufficient
-	BYTE $0x0F; BYTE $0x01; BYTE $0xD0
+	XGETBV
 	ANDL    $6, AX
 	CMPL    AX, $6 // Check for OS support of YMM registers
 	JNE     noavx
@@ -822,10 +822,10 @@ TEXT runtime·getcallersp(SB),NOSPLIT,$0-16
 TEXT runtime·cputicks(SB),NOSPLIT,$0-0
 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
 	JNE	mfence
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xe8 // LFENCE
+	LFENCE
 	JMP	done
 mfence:
-	BYTE	$0x0f; BYTE $0xae; BYTE $0xf0 // MFENCE
+	MFENCE
 done:
 	RDTSC
 	SHLQ	$32, DX
@@ -1350,14 +1350,14 @@ hugeloop:
 hugeloop_avx2:
 	CMPQ	BX, $64
 	JB	bigloop_avx2
-	MOVHDU	(SI), X0
-	MOVHDU	(DI), X1
-	MOVHDU	32(SI), X2
-	MOVHDU	32(DI), X3
-	VPCMPEQB	X1, X0, X4
-	VPCMPEQB	X2, X3, X5
-	VPAND	X4, X5, X6
-	VPMOVMSKB X6, DX
+	VMOVDQU	(SI), Y0
+	VMOVDQU	(DI), Y1
+	VMOVDQU	32(SI), Y2
+	VMOVDQU	32(DI), Y3
+	VPCMPEQB	Y1, Y0, Y4
+	VPCMPEQB	Y2, Y3, Y5
+	VPAND	Y4, Y5, Y6
+	VPMOVMSKB Y6, DX
 	ADDQ	$64, SI
 	ADDQ	$64, DI
 	SUBQ	$64, BX
@@ -1614,16 +1614,16 @@ big_loop:
 	// Compare 64-bytes per loop iteration.
 	// Loop is unrolled and uses AVX2.
 big_loop_avx2:
-	MOVHDU	(SI), X2
-	MOVHDU	(DI), X3
-	MOVHDU	32(SI), X4
-	MOVHDU	32(DI), X5
-	VPCMPEQB X2, X3, X0
-	VPMOVMSKB X0, AX
+	VMOVDQU	(SI), Y2
+	VMOVDQU	(DI), Y3
+	VMOVDQU	32(SI), Y4
+	VMOVDQU	32(DI), Y5
+	VPCMPEQB Y2, Y3, Y0
+	VPMOVMSKB Y0, AX
 	XORL	$0xffffffff, AX
 	JNE	diff32_avx2
-	VPCMPEQB X4, X5, X6
-	VPMOVMSKB X6, AX
+	VPCMPEQB Y4, Y5, Y6
+	VPMOVMSKB Y6, AX
 	XORL	$0xffffffff, AX
 	JNE	diff64_avx2
 
@@ -1908,26 +1908,26 @@ avx2:
 	JNE no_avx2
 	MOVD AX, X0
 	LEAQ -32(SI)(BX*1), R11
-	VPBROADCASTB  X0, X1
+	VPBROADCASTB  X0, Y1
 avx2_loop:
-	MOVHDU (DI), X2
-	VPCMPEQB X1, X2, X3
-	VPTEST X3, X3
+	VMOVDQU (DI), Y2
+	VPCMPEQB Y1, Y2, Y3
+	VPTEST Y3, Y3
 	JNZ avx2success
 	ADDQ $32, DI
 	CMPQ DI, R11
 	JLT avx2_loop
 	MOVQ R11, DI
-	MOVHDU (DI), X2
-	VPCMPEQB X1, X2, X3
-	VPTEST X3, X3
+	VMOVDQU (DI), Y2
+	VPCMPEQB Y1, Y2, Y3
+	VPTEST Y3, Y3
 	JNZ avx2success
 	VZEROUPPER
 	MOVQ $-1, (R8)
 	RET
 
 avx2success:
-	VPMOVMSKB X3, DX
+	VPMOVMSKB Y3, DX
 	BSFL DX, DX
 	SUBQ SI, DI
 	ADDQ DI, DX

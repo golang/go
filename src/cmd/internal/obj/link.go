@@ -282,6 +282,7 @@ const (
 	AUSEFIELD
 	AVARDEF
 	AVARKILL
+	AVARLIVE
 	A_ARCHSPECIFIC
 )
 
@@ -603,12 +604,24 @@ type Link struct {
 	Autosize           int32
 	Armsize            int32
 	Pc                 int64
-	Diag               func(string, ...interface{})
+	DiagFunc           func(string, ...interface{})
 	Mode               int
 	Cursym             *LSym
 	Version            int
 	Textp              *LSym
 	Etextp             *LSym
+	Errors             int
+
+	// state for writing objects
+	Text  *LSym
+	Data  *LSym
+	Etext *LSym
+	Edata *LSym
+}
+
+func (ctxt *Link) Diag(format string, args ...interface{}) {
+	ctxt.Errors++
+	ctxt.DiagFunc(format, args...)
 }
 
 // The smallest possible offset from the hardware stack pointer to a local

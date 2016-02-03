@@ -24,12 +24,14 @@ func TestVendorImports(t *testing.T) {
 	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
 	want := `
 		vend [vend/vendor/p r]
+		vend/dir1 []
 		vend/hello [fmt vend/vendor/strings]
 		vend/subdir [vend/vendor/p r]
 		vend/vendor/p []
 		vend/vendor/q []
 		vend/vendor/strings []
-		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r]
+		vend/vendor/vend/dir1/dir2 []
+		vend/x [vend/x/vendor/p vend/vendor/q vend/x/vendor/r vend/dir1 vend/vendor/vend/dir1/dir2]
 		vend/x/invalid [vend/x/invalid/vendor/foo]
 		vend/x/vendor/p []
 		vend/x/vendor/p/p [notfound]
@@ -43,6 +45,14 @@ func TestVendorImports(t *testing.T) {
 	if have != want {
 		t.Errorf("incorrect go list output:\n%s", diffSortedOutputs(have, want))
 	}
+}
+
+func TestVendorBuild(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.run("build", "vend/x")
 }
 
 func TestVendorRun(t *testing.T) {

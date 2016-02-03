@@ -62,6 +62,7 @@ var armSCOND = map[string]uint8{
 var armJump = map[string]bool{
 	"B":    true,
 	"BL":   true,
+	"BX":   true,
 	"BEQ":  true,
 	"BNE":  true,
 	"BCS":  true,

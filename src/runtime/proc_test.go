@@ -9,6 +9,7 @@ import (
 	"net"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -333,6 +334,38 @@ func TestGCFairness(t *testing.T) {
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestNumGoroutine(t *testing.T) {
+	output := runTestProg(t, "testprog", "NumGoroutine")
+	want := "1\n"
+	if output != want {
+		t.Fatalf("want %q, got %q", want, output)
+	}
+
+	buf := make([]byte, 1<<20)
+
+	// Try up to 10 times for a match before giving up.
+	// This is a fundamentally racy check but it's important
+	// to notice if NumGoroutine and Stack are _always_ out of sync.
+	for i := 0; ; i++ {
+		// Give goroutines about to exit a chance to exit.
+		// The NumGoroutine and Stack below need to see
+		// the same state of the world, so anything we can do
+		// to keep it quiet is good.
+		runtime.Gosched()
+
+		n := runtime.NumGoroutine()
+		buf = buf[:runtime.Stack(buf, true)]
+
+		nstk := strings.Count(string(buf), "goroutine ")
+		if n == nstk {
+			break
+		}
+		if i >= 10 {
+			t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump: %s", n, nstk, buf)
+		}
 	}
 }
 

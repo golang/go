@@ -72,7 +72,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	// read consts
 	for i := p.int(); i > 0; i-- {
 		name := p.string()
-		typ := p.typ()
+		typ := p.typ(nil)
 		val := p.value()
 		p.declare(types.NewConst(token.NoPos, pkg, name, typ, val))
 	}
@@ -80,14 +80,14 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	// read vars
 	for i := p.int(); i > 0; i-- {
 		name := p.string()
-		typ := p.typ()
+		typ := p.typ(nil)
 		p.declare(types.NewVar(token.NoPos, pkg, name, typ))
 	}
 
 	// read funcs
 	for i := p.int(); i > 0; i-- {
 		name := p.string()
-		sig := p.typ().(*types.Signature)
+		sig := p.typ(nil).(*types.Signature)
 		p.int() // read and discard index of inlined function body
 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
 	}
@@ -97,7 +97,7 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 		// name is parsed as part of named type and the
 		// type object is added to scope via respective
 		// named type
-		_ = p.typ().(*types.Named)
+		_ = p.typ(nil).(*types.Named)
 	}
 
 	// ignore compiler-specific import data
@@ -190,7 +190,11 @@ type dddSlice struct {
 func (t *dddSlice) Underlying() types.Type { return t }
 func (t *dddSlice) String() string         { return "..." + t.elem.String() }
 
-func (p *importer) typ() types.Type {
+// parent is the package which declared the type; parent == nil means
+// the package currently imported. The parent package is needed for
+// exported struct fields and interface methods which don't contain
+// explicit package information in the export data.
+func (p *importer) typ(parent *types.Package) types.Type {
 	// if the type was seen before, i is its index (>= 0)
 	i := p.tagOrIndex()
 	if i >= 0 {
@@ -202,18 +206,18 @@ func (p *importer) typ() types.Type {
 	case namedTag:
 		// read type object
 		name := p.string()
-		tpkg := p.pkg()
-		scope := tpkg.Scope()
+		parent = p.pkg()
+		scope := parent.Scope()
 		obj := scope.Lookup(name)
 
 		// if the object doesn't exist yet, create and insert it
 		if obj == nil {
-			obj = types.NewTypeName(token.NoPos, tpkg, name, nil)
+			obj = types.NewTypeName(token.NoPos, parent, name, nil)
 			scope.Insert(obj)
 		}
 
 		if _, ok := obj.(*types.TypeName); !ok {
-			panic(fmt.Sprintf("pkg = %s, name = %s => %s", tpkg, name, obj))
+			panic(fmt.Sprintf("pkg = %s, name = %s => %s", parent, name, obj))
 		}
 
 		// associate new named type with obj if it doesn't exist yet
@@ -224,7 +228,7 @@ func (p *importer) typ() types.Type {
 		p.record(t)
 
 		// read underlying type
-		t0.SetUnderlying(p.typ())
+		t0.SetUnderlying(p.typ(parent))
 
 		// interfaces don't have associated methods
 		if _, ok := t0.Underlying().(*types.Interface); ok {
@@ -239,7 +243,7 @@ func (p *importer) typ() types.Type {
 			result, _ := p.paramList()
 			p.int() // read and discard index of inlined function body
 			sig := types.NewSignature(recv.At(0), params, result, isddd)
-			t0.AddMethod(types.NewFunc(token.NoPos, tpkg, name, sig))
+			t0.AddMethod(types.NewFunc(token.NoPos, parent, name, sig))
 		}
 
 		return t
@@ -249,21 +253,21 @@ func (p *importer) typ() types.Type {
 		p.record(t)
 
 		n := p.int64()
-		*t = *types.NewArray(p.typ(), n)
+		*t = *types.NewArray(p.typ(parent), n)
 		return t
 
 	case sliceTag:
 		t := new(types.Slice)
 		p.record(t)
 
-		*t = *types.NewSlice(p.typ())
+		*t = *types.NewSlice(p.typ(parent))
 		return t
 
 	case dddTag:
 		t := new(dddSlice)
 		p.record(t)
 
-		t.elem = p.typ()
+		t.elem = p.typ(parent)
 		return t
 
 	case structTag:
@@ -274,7 +278,7 @@ func (p *importer) typ() types.Type {
 		fields := make([]*types.Var, n)
 		tags := make([]string, n)
 		for i := range fields {
-			fields[i] = p.field()
+			fields[i] = p.field(parent)
 			tags[i] = p.string()
 		}
 		*t = *types.NewStruct(fields, tags)
@@ -284,7 +288,7 @@ func (p *importer) typ() types.Type {
 		t := new(types.Pointer)
 		p.record(t)
 
-		*t = *types.NewPointer(p.typ())
+		*t = *types.NewPointer(p.typ(parent))
 		return t
 
 	case signatureTag:
@@ -312,7 +316,7 @@ func (p *importer) typ() types.Type {
 		// read methods
 		methods := make([]*types.Func, p.int())
 		for i := range methods {
-			pkg, name := p.fieldName()
+			pkg, name := p.fieldName(parent)
 			params, isddd := p.paramList()
 			result, _ := p.paramList()
 			sig := types.NewSignature(nil, params, result, isddd)
@@ -327,8 +331,8 @@ func (p *importer) typ() types.Type {
 		t := new(types.Map)
 		p.record(t)
 
-		key := p.typ()
-		val := p.typ()
+		key := p.typ(parent)
+		val := p.typ(parent)
 		*t = *types.NewMap(key, val)
 		return t
 
@@ -348,7 +352,7 @@ func (p *importer) typ() types.Type {
 		default:
 			panic(fmt.Sprintf("unexpected channel dir %d", d))
 		}
-		val := p.typ()
+		val := p.typ(parent)
 		*t = *types.NewChan(dir, val)
 		return t
 
@@ -357,18 +361,18 @@ func (p *importer) typ() types.Type {
 	}
 }
 
-func (p *importer) field() *types.Var {
-	pkg, name := p.fieldName()
-	typ := p.typ()
+func (p *importer) field(parent *types.Package) *types.Var {
+	pkg, name := p.fieldName(parent)
+	typ := p.typ(parent)
 
 	anonymous := false
 	if name == "" {
 		// anonymous field - typ must be T or *T and T must be a type name
 		switch typ := deref(typ).(type) {
 		case *types.Basic: // basic types are named types
+			pkg = nil // // objects defined in Universe scope have no package
 			name = typ.Name()
 		case *types.Named:
-			pkg = p.pkgList[0]
 			name = typ.Obj().Name()
 		default:
 			panic("anonymous field expected")
@@ -379,15 +383,20 @@ func (p *importer) field() *types.Var {
 	return types.NewField(token.NoPos, pkg, name, typ, anonymous)
 }
 
-func (p *importer) fieldName() (*types.Package, string) {
+func (p *importer) fieldName(parent *types.Package) (*types.Package, string) {
+	pkg := parent
+	if pkg == nil {
+		// use the imported package instead
+		pkg = p.pkgList[0]
+	}
 	name := p.string()
 	if name == "" {
-		return nil, "" // anonymous field
+		return pkg, "" // anonymous
 	}
-	pkg := p.pkgList[0]
 	if name == "?" || name != "_" && !exported(name) {
+		// explicitly qualified field
 		if name == "?" {
-			name = ""
+			name = "" // anonymous
 		}
 		pkg = p.pkg()
 	}
@@ -415,7 +424,7 @@ func (p *importer) paramList() (*types.Tuple, bool) {
 }
 
 func (p *importer) param(named bool) (*types.Var, bool) {
-	t := p.typ()
+	t := p.typ(nil)
 	td, isddd := t.(*dddSlice)
 	if isddd {
 		t = types.NewSlice(td.elem)

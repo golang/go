@@ -1126,6 +1126,23 @@ func (z nat) expNNMontgomery(x, y, m nat) nat {
 	}
 	// convert to regular number
 	zz = zz.montgomery(z, one, m, k0, numWords)
+
+	// One last reduction, just in case.
+	// See golang.org/issue/13907.
+	if zz.cmp(m) >= 0 {
+		// Common case is m has high bit set; in that case,
+		// since zz is the same length as m, there can be just
+		// one multiple of m to remove. Just subtract.
+		// We think that the subtract should be sufficient in general,
+		// so do that unconditionally, but double-check,
+		// in case our beliefs are wrong.
+		// The div is not expected to be reached.
+		zz = zz.sub(zz, m)
+		if zz.cmp(m) >= 0 {
+			_, zz = nat(nil).div(nil, zz, m)
+		}
+	}
+
 	return zz.norm()
 }
 

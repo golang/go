@@ -14,15 +14,19 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	. "net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type clientServerTest struct {
@@ -44,7 +48,7 @@ const (
 	h2Mode = true
 )
 
-func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
+func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
 	cst := &clientServerTest{
 		t:  t,
 		h2: h2,
@@ -52,6 +56,16 @@ func newClientServerTest(t *testing.T, h2 bool, h Handler) *clientServerTest {
 		tr: &Transport{},
 	}
 	cst.c = &Client{Transport: cst.tr}
+
+	for _, opt := range opts {
+		switch opt := opt.(type) {
+		case func(*Transport):
+			opt(cst.tr)
+		default:
+			t.Fatalf("unhandled option type %T", opt)
+		}
+	}
+
 	if !h2 {
 		cst.ts = httptest.NewServer(h)
 		return cst
@@ -136,6 +150,7 @@ type h12Compare struct {
 	Handler       func(ResponseWriter, *Request)    // required
 	ReqFunc       reqFunc                           // optional
 	CheckResponse func(proto string, res *Response) // optional
+	Opts          []interface{}
 }
 
 func (tt h12Compare) reqFunc() reqFunc {
@@ -146,9 +161,9 @@ func (tt h12Compare) reqFunc() reqFunc {
 }
 
 func (tt h12Compare) run(t *testing.T) {
-	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler))
+	cst1 := newClientServerTest(t, false, HandlerFunc(tt.Handler), tt.Opts...)
 	defer cst1.close()
-	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler))
+	cst2 := newClientServerTest(t, true, HandlerFunc(tt.Handler), tt.Opts...)
 	defer cst2.close()
 
 	res1, err := tt.reqFunc()(cst1.c, cst1.ts.URL)
@@ -377,6 +392,20 @@ func TestH12_AutoGzip(t *testing.T) {
 	}.run(t)
 }
 
+func TestH12_AutoGzip_Disabled(t *testing.T) {
+	h12Compare{
+		Opts: []interface{}{
+			func(tr *Transport) { tr.DisableCompression = true },
+		},
+		Handler: func(w ResponseWriter, r *Request) {
+			fmt.Fprintf(w, "%q", r.Header["Accept-Encoding"])
+			if ae := r.Header.Get("Accept-Encoding"); ae != "" {
+				t.Errorf("%s Accept-Encoding = %q; want empty", r.Proto, ae)
+			}
+		},
+	}.run(t)
+}
+
 // Test304Responses verifies that 304s don't declare that they're
 // chunking in their response headers and aren't allowed to produce
 // output.
@@ -414,6 +443,35 @@ func TestH12_ServerEmptyContentLength(t *testing.T) {
 		Handler: func(w ResponseWriter, r *Request) {
 			w.Header()["Content-Type"] = []string{""}
 			io.WriteString(w, "<html><body>hi</body></html>")
+		},
+	}.run(t)
+}
+
+func TestH12_RequestContentLength_Known_NonZero(t *testing.T) {
+	h12requestContentLength(t, func() io.Reader { return strings.NewReader("FOUR") }, 4)
+}
+
+func TestH12_RequestContentLength_Known_Zero(t *testing.T) {
+	h12requestContentLength(t, func() io.Reader { return strings.NewReader("") }, 0)
+}
+
+func TestH12_RequestContentLength_Unknown(t *testing.T) {
+	h12requestContentLength(t, func() io.Reader { return struct{ io.Reader }{strings.NewReader("Stuff")} }, -1)
+}
+
+func h12requestContentLength(t *testing.T, bodyfn func() io.Reader, wantLen int64) {
+	h12Compare{
+		Handler: func(w ResponseWriter, r *Request) {
+			w.Header().Set("Got-Length", fmt.Sprint(r.ContentLength))
+			fmt.Fprintf(w, "Req.ContentLength=%v", r.ContentLength)
+		},
+		ReqFunc: func(c *Client, url string) (*Response, error) {
+			return c.Post(url, "text/plain", bodyfn())
+		},
+		CheckResponse: func(proto string, res *Response) {
+			if got, want := res.Header.Get("Got-Length"), fmt.Sprint(wantLen); got != want {
+				t.Errorf("Proto %q got length %q; want %q", proto, got, want)
+			}
 		},
 	}.run(t)
 }
@@ -860,4 +918,139 @@ func testStarRequest(t *testing.T, method string, h2 bool) {
 	if req.RequestURI != "*" {
 		t.Errorf("RequestURI = %q; want *", req.RequestURI)
 	}
+}
+
+// Issue 13957
+func TestTransportDiscardsUnneededConns(t *testing.T) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		fmt.Fprintf(w, "Hello, %v", r.RemoteAddr)
+	}))
+	defer cst.close()
+
+	var numOpen, numClose int32 // atomic
+
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	tr := &Transport{
+		TLSClientConfig: tlsConfig,
+		DialTLS: func(_, addr string) (net.Conn, error) {
+			time.Sleep(10 * time.Millisecond)
+			rc, err := net.Dial("tcp", addr)
+			if err != nil {
+				return nil, err
+			}
+			atomic.AddInt32(&numOpen, 1)
+			c := noteCloseConn{rc, func() { atomic.AddInt32(&numClose, 1) }}
+			return tls.Client(c, tlsConfig), nil
+		},
+	}
+	if err := ExportHttp2ConfigureTransport(tr); err != nil {
+		t.Fatal(err)
+	}
+	defer tr.CloseIdleConnections()
+
+	c := &Client{Transport: tr}
+
+	const N = 10
+	gotBody := make(chan string, N)
+	var wg sync.WaitGroup
+	for i := 0; i < N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := c.Get(cst.ts.URL)
+			if err != nil {
+				t.Errorf("Get: %v", err)
+				return
+			}
+			defer resp.Body.Close()
+			slurp, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Error(err)
+			}
+			gotBody <- string(slurp)
+		}()
+	}
+	wg.Wait()
+	close(gotBody)
+
+	var last string
+	for got := range gotBody {
+		if last == "" {
+			last = got
+			continue
+		}
+		if got != last {
+			t.Errorf("Response body changed: %q -> %q", last, got)
+		}
+	}
+
+	var open, close int32
+	for i := 0; i < 150; i++ {
+		open, close = atomic.LoadInt32(&numOpen), atomic.LoadInt32(&numClose)
+		if open < 1 {
+			t.Fatalf("open = %d; want at least", open)
+		}
+		if close == open-1 {
+			// Success
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Errorf("%d connections opened, %d closed; want %d to close", open, close, open-1)
+}
+
+// tests that Transport doesn't retain a pointer to the provided request.
+func TestTransportGCRequest_Body_h1(t *testing.T)   { testTransportGCRequest(t, h1Mode, true) }
+func TestTransportGCRequest_Body_h2(t *testing.T)   { testTransportGCRequest(t, h2Mode, true) }
+func TestTransportGCRequest_NoBody_h1(t *testing.T) { testTransportGCRequest(t, h1Mode, false) }
+func TestTransportGCRequest_NoBody_h2(t *testing.T) { testTransportGCRequest(t, h2Mode, false) }
+func testTransportGCRequest(t *testing.T, h2, body bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		ioutil.ReadAll(r.Body)
+		if body {
+			io.WriteString(w, "Hello.")
+		}
+	}))
+	defer cst.close()
+
+	didGC := make(chan struct{})
+	(func() {
+		body := strings.NewReader("some body")
+		req, _ := NewRequest("POST", cst.ts.URL, body)
+		runtime.SetFinalizer(req, func(*Request) { close(didGC) })
+		res, err := cst.c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ioutil.ReadAll(res.Body); err != nil {
+			t.Fatal(err)
+		}
+		if err := res.Body.Close(); err != nil {
+			t.Fatal(err)
+		}
+	})()
+	timeout := time.NewTimer(5 * time.Second)
+	defer timeout.Stop()
+	for {
+		select {
+		case <-didGC:
+			return
+		case <-time.After(100 * time.Millisecond):
+			runtime.GC()
+		case <-timeout.C:
+			t.Fatal("never saw GC of request")
+		}
+	}
+}
+
+type noteCloseConn struct {
+	net.Conn
+	closeFunc func()
+}
+
+func (x noteCloseConn) Close() error {
+	x.closeFunc()
+	return x.Conn.Close()
 }

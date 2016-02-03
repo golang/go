@@ -213,9 +213,8 @@ func msigsave(mp *m) {
 }
 
 //go:nosplit
-func msigrestore(mp *m) {
-	smask := &mp.sigmask
-	rtsigprocmask(_SIG_SETMASK, smask, nil, int32(unsafe.Sizeof(*smask)))
+func msigrestore(sigmask sigset) {
+	rtsigprocmask(_SIG_SETMASK, &sigmask, nil, int32(unsafe.Sizeof(sigmask)))
 }
 
 //go:nosplit

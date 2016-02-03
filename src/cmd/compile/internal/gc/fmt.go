@@ -419,7 +419,7 @@ func symfmt(s *Sym, flag int) string {
 	if s.Pkg != nil && flag&obj.FmtShort == 0 {
 		switch fmtmode {
 		case FErr: // This is for the user
-			if s.Pkg == localpkg {
+			if s.Pkg == builtinpkg || s.Pkg == localpkg {
 				return s.Name
 			}
 
