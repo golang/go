@@ -446,19 +446,52 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 	}
 
 	s := split(result[1 : len(result)-1]) // remove parens, then split
+
+	// Find the type of the variable.
+	var opType string
+	var typeOverride bool
+	for _, a := range s[1:] {
+		if a[0] == '<' {
+			// type restriction
+			opType = a[1 : len(a)-1] // remove <>
+			typeOverride = true
+			break
+		}
+	}
+	if opType == "" {
+		// find default type, if any
+		for _, op := range arch.ops {
+			if op.name == s[0] && op.typ != "" {
+				opType = typeName(op.typ)
+				break
+			}
+		}
+	}
+	if opType == "" {
+		for _, op := range genericOps {
+			if op.name == s[0] && op.typ != "" {
+				opType = typeName(op.typ)
+				break
+			}
+		}
+	}
 	var v string
-	var hasType bool
 	if top && loc == "b" {
 		v = "v"
+		if typeOverride {
+			fmt.Fprintf(w, "v.Type = %s\n", opType)
+		}
 		fmt.Fprintf(w, "v.Op = %s\n", opName(s[0], arch))
 		fmt.Fprintf(w, "v.AuxInt = 0\n")
 		fmt.Fprintf(w, "v.Aux = nil\n")
 		fmt.Fprintf(w, "v.resetArgs()\n")
-		hasType = true
 	} else {
+		if opType == "" {
+			log.Fatalf("sub-expression %s (op=%s) must have a type", result, s[0])
+		}
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, TypeInvalid)\n", v, loc, opName(s[0], arch))
+		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, %s)\n", v, loc, opName(s[0], arch), opType)
 		if top {
 			// Rewrite original into a copy
 			fmt.Fprintf(w, "v.Op = OpCopy\n")
@@ -470,10 +503,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 	}
 	for _, a := range s[1:] {
 		if a[0] == '<' {
-			// type restriction
-			t := a[1 : len(a)-1] // remove <>
-			fmt.Fprintf(w, "%s.Type = %s\n", v, t)
-			hasType = true
+			// type restriction, handled above
 		} else if a[0] == '[' {
 			// auxint restriction
 			x := a[1 : len(a)-1] // remove []
@@ -488,26 +518,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
 		}
 	}
-	if !hasType {
-		// find default type, if any
-		for _, op := range arch.ops {
-			if op.name != s[0] || op.typ == "" || hasType {
-				continue
-			}
-			fmt.Fprintf(w, "%s.Type = %s\n", v, typeName(op.typ))
-			hasType = true
-		}
-		for _, op := range genericOps {
-			if op.name != s[0] || op.typ == "" || hasType {
-				continue
-			}
-			fmt.Fprintf(w, "%s.Type = %s\n", v, typeName(op.typ))
-			hasType = true
-		}
-	}
-	if !hasType {
-		log.Fatalf("sub-expression %s (op=%s) must have a type", result, s[0])
-	}
+
 	return v
 }
 

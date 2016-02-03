@@ -528,13 +528,11 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
 		v0.Aux = n
 		v0.AuxInt = off
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt())
 		v1.Aux = n
 		v1.AuxInt = off + config.PtrSize
 		v.AddArg(v1)
@@ -556,18 +554,15 @@ end939d3f946bf61eb85b46b374e7afa9e9:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
 		v0.Aux = n
 		v0.AuxInt = off
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt())
 		v1.Aux = n
 		v1.AuxInt = off + config.PtrSize
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v2.Type = config.fe.TypeInt()
+		v2 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt())
 		v2.Aux = n
 		v2.AuxInt = off + 2*config.PtrSize
 		v.AddArg(v2)
@@ -589,13 +584,11 @@ endab4b93ad3b1cf55e5bf25d1fd9cd498e:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
 		v0.Aux = n
 		v0.AuxInt = off
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = config.fe.TypeBytePtr()
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeBytePtr())
 		v1.Aux = n
 		v1.AuxInt = off + config.PtrSize
 		v.AddArg(v1)
@@ -617,13 +610,11 @@ end851de8e588a39e81b4e2aef06566bf3e:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = config.fe.TypeFloat64()
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat64())
 		v0.Aux = n
 		v0.AuxInt = off
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = config.fe.TypeFloat64()
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat64())
 		v1.Aux = n
 		v1.AuxInt = off + 8
 		v.AddArg(v1)
@@ -645,13 +636,11 @@ end0988fc6a62c810b2f4976cb6cf44387f:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = config.fe.TypeFloat32()
+		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat32())
 		v0.Aux = n
 		v0.AuxInt = off
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = config.fe.TypeFloat32()
+		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeFloat32())
 		v1.Aux = n
 		v1.AuxInt = off + 4
 		v.AddArg(v1)
@@ -691,8 +680,7 @@ ende233eeefa826638b0e541bcca531d701:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
 		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
 		v.AddArg(v0)
@@ -715,13 +703,11 @@ ende953e77a0617051dd3f7ad4d58c9ab37:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
 		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = t.FieldType(1)
+		v1 := b.NewValue0(v.Line, OpArg, t.FieldType(1))
 		v1.Aux = n
 		v1.AuxInt = off + t.FieldOff(1)
 		v.AddArg(v1)
@@ -744,18 +730,15 @@ end9a008048978aabad9de0723212e60631:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
 		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = t.FieldType(1)
+		v1 := b.NewValue0(v.Line, OpArg, t.FieldType(1))
 		v1.Aux = n
 		v1.AuxInt = off + t.FieldOff(1)
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v2.Type = t.FieldType(2)
+		v2 := b.NewValue0(v.Line, OpArg, t.FieldType(2))
 		v2.Aux = n
 		v2.AuxInt = off + t.FieldOff(2)
 		v.AddArg(v2)
@@ -778,23 +761,19 @@ end0196e61dbeebc6402f3aa1e9a182210b:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpArg, t.FieldType(0))
 		v0.Aux = n
 		v0.AuxInt = off + t.FieldOff(0)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v1.Type = t.FieldType(1)
+		v1 := b.NewValue0(v.Line, OpArg, t.FieldType(1))
 		v1.Aux = n
 		v1.AuxInt = off + t.FieldOff(1)
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v2.Type = t.FieldType(2)
+		v2 := b.NewValue0(v.Line, OpArg, t.FieldType(2))
 		v2.Aux = n
 		v2.AuxInt = off + t.FieldOff(2)
 		v.AddArg(v2)
-		v3 := b.NewValue0(v.Line, OpArg, TypeInvalid)
-		v3.Type = t.FieldType(3)
+		v3 := b.NewValue0(v.Line, OpArg, t.FieldType(3))
 		v3.Aux = n
 		v3.AuxInt = off + t.FieldOff(3)
 		v.AddArg(v3)
@@ -825,8 +804,7 @@ func rewriteValuegeneric_OpArrayIndex(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpPtrIndex, TypeInvalid)
-		v0.Type = v.Type.PtrTo()
+		v0 := b.NewValue0(v.Line, OpPtrIndex, v.Type.PtrTo())
 		v0.AddArg(ptr)
 		v0.AddArg(idx)
 		v.AddArg(v0)
@@ -993,11 +971,9 @@ func rewriteValuegeneric_OpConstInterface(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpConstNil, config.fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-		v1.Type = config.fe.TypeBytePtr()
+		v1 := b.NewValue0(v.Line, OpConstNil, config.fe.TypeBytePtr())
 		v.AddArg(v1)
 		return true
 	}
@@ -1020,15 +996,12 @@ func rewriteValuegeneric_OpConstSlice(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpConstNil, config.fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v2.Type = config.fe.TypeInt()
+		v2 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
 		v2.AuxInt = 0
 		v.AddArg(v2)
 		return true
@@ -1047,15 +1020,12 @@ end9ba6baf9c7247b1f5ba4099c0c3910ce:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpConstNil, config.fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
-		v2 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v2.Type = config.fe.TypeInt()
+		v2 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
 		v2.AuxInt = 0
 		v.AddArg(v2)
 		return true
@@ -1080,11 +1050,9 @@ func rewriteValuegeneric_OpConstString(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpConstNil, config.fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
 		return true
@@ -1104,11 +1072,9 @@ end85d5f388ba947643af63cdc68c1155a5:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpConstNil, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpConstNil, config.fe.TypeBytePtr())
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
 		v1.AuxInt = 0
 		v.AddArg(v1)
 		return true
@@ -1128,15 +1094,12 @@ endc807259a5ed2760fbbd3dc7386641343:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpAddr, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpAddr, config.fe.TypeBytePtr())
 		v0.Aux = config.fe.StringData(s.(string))
-		v1 := b.NewValue0(v.Line, OpSB, TypeInvalid)
-		v1.Type = config.fe.TypeUintptr()
+		v1 := b.NewValue0(v.Line, OpSB, config.fe.TypeUintptr())
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v2.Type = config.fe.TypeInt()
+		v2 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
 		v2.AuxInt = int64(len(s.(string)))
 		v.AddArg(v2)
 		return true
@@ -1156,15 +1119,12 @@ end107a700a4519d18f418602421444ddb6:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpAddr, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpAddr, config.fe.TypeBytePtr())
 		v0.Aux = config.fe.StringData(s.(string))
-		v1 := b.NewValue0(v.Line, OpSB, TypeInvalid)
-		v1.Type = config.fe.TypeUintptr()
+		v1 := b.NewValue0(v.Line, OpSB, config.fe.TypeUintptr())
 		v0.AddArg(v1)
 		v.AddArg(v0)
-		v2 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v2.Type = config.fe.TypeInt()
+		v2 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
 		v2.AuxInt = int64(len(s.(string)))
 		v.AddArg(v2)
 		return true
@@ -1666,13 +1626,11 @@ func rewriteValuegeneric_OpEqInter(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpITab, config.fe.TypeBytePtr())
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpITab, config.fe.TypeBytePtr())
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -1696,9 +1654,8 @@ func rewriteValuegeneric_OpEqPtr(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpIsNonNil, config.fe.TypeBool())
 		v0.AddArg(p)
-		v0.Type = config.fe.TypeBool()
 		v.AddArg(v0)
 		return true
 	}
@@ -1717,9 +1674,8 @@ ende701cdb6a2c1fff4d4b283b7f8f6178b:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpIsNonNil, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpIsNonNil, config.fe.TypeBool())
 		v0.AddArg(p)
-		v0.Type = config.fe.TypeBool()
 		v.AddArg(v0)
 		return true
 	}
@@ -1741,13 +1697,11 @@ func rewriteValuegeneric_OpEqSlice(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpSlicePtr, config.fe.TypeBytePtr())
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpSlicePtr, config.fe.TypeBytePtr())
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -2800,8 +2754,7 @@ end8d25f5c949948132921b6be29ede6bde:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpLoad, t.FieldType(0))
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
@@ -2824,15 +2777,12 @@ endfe908e5a8617dd39df2f9b2b92e93ae5:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpLoad, t.FieldType(0))
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = t.FieldType(1)
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = t.FieldType(1).PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, t.FieldType(1))
+		v2 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(1).PtrTo())
 		v2.AuxInt = t.FieldOff(1)
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -2857,24 +2807,19 @@ end20e20e64004b765012cfb80c575ef27b:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpLoad, t.FieldType(0))
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = t.FieldType(1)
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = t.FieldType(1).PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, t.FieldType(1))
+		v2 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(1).PtrTo())
 		v2.AuxInt = t.FieldOff(1)
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
 		v1.AddArg(mem)
 		v.AddArg(v1)
-		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v3.Type = t.FieldType(2)
-		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v4.Type = t.FieldType(2).PtrTo()
+		v3 := b.NewValue0(v.Line, OpLoad, t.FieldType(2))
+		v4 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(2).PtrTo())
 		v4.AuxInt = t.FieldOff(2)
 		v4.AddArg(ptr)
 		v3.AddArg(v4)
@@ -2899,33 +2844,26 @@ ende612bf71067ed67541735cdc8b5a3288:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = t.FieldType(0)
+		v0 := b.NewValue0(v.Line, OpLoad, t.FieldType(0))
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = t.FieldType(1)
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = t.FieldType(1).PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, t.FieldType(1))
+		v2 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(1).PtrTo())
 		v2.AuxInt = t.FieldOff(1)
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
 		v1.AddArg(mem)
 		v.AddArg(v1)
-		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v3.Type = t.FieldType(2)
-		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v4.Type = t.FieldType(2).PtrTo()
+		v3 := b.NewValue0(v.Line, OpLoad, t.FieldType(2))
+		v4 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(2).PtrTo())
 		v4.AuxInt = t.FieldOff(2)
 		v4.AddArg(ptr)
 		v3.AddArg(v4)
 		v3.AddArg(mem)
 		v.AddArg(v3)
-		v5 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v5.Type = t.FieldType(3)
-		v6 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v6.Type = t.FieldType(3).PtrTo()
+		v5 := b.NewValue0(v.Line, OpLoad, t.FieldType(3))
+		v6 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(3).PtrTo())
 		v6.AuxInt = t.FieldOff(3)
 		v6.AddArg(ptr)
 		v5.AddArg(v6)
@@ -2950,15 +2888,12 @@ end46c66c64d9030f2cc9a7a767f67953d1:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = config.fe.TypeFloat32()
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat32())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeFloat32()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeFloat32().PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat32())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat32().PtrTo())
 		v2.AuxInt = 4
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -2983,15 +2918,12 @@ end665854b31b828893d90b36bb462ff381:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = config.fe.TypeFloat64()
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat64())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeFloat64()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeFloat64().PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeFloat64())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat64().PtrTo())
 		v2.AuxInt = 8
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -3016,15 +2948,12 @@ end1b106f89e0e3e26c613b957a7c98d8ad:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeInt().PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -3049,24 +2978,19 @@ enddd15a6f3d53a6ce7a19d4e181dd1c13a:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeInt().PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
 		v1.AddArg(mem)
 		v.AddArg(v1)
-		v3 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v3.Type = config.fe.TypeInt()
-		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v4.Type = config.fe.TypeInt().PtrTo()
+		v3 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt())
+		v4 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v4.AuxInt = 2 * config.PtrSize
 		v4.AddArg(ptr)
 		v3.AddArg(v4)
@@ -3091,15 +3015,12 @@ end65e8b0055aa7491b9b6066d9fe1b2c13:
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr()
+		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
 		v0.AddArg(ptr)
 		v0.AddArg(mem)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpLoad, TypeInvalid)
-		v1.Type = config.fe.TypeBytePtr()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeBytePtr().PtrTo()
+		v1 := b.NewValue0(v.Line, OpLoad, config.fe.TypeBytePtr())
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(ptr)
 		v1.AddArg(v2)
@@ -3657,13 +3578,11 @@ func rewriteValuegeneric_OpNeqInter(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpITab, config.fe.TypeBytePtr())
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpITab, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpITab, config.fe.TypeBytePtr())
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -3726,13 +3645,11 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
-		v0 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpSlicePtr, config.fe.TypeBytePtr())
 		v0.AddArg(x)
-		v0.Type = config.fe.TypeBytePtr()
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Line, OpSlicePtr, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpSlicePtr, config.fe.TypeBytePtr())
 		v1.AddArg(y)
-		v1.Type = config.fe.TypeBytePtr()
 		v.AddArg(v1)
 		return true
 	}
@@ -3855,11 +3772,9 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 		v.Aux = nil
 		v.resetArgs()
 		v.AddArg(ptr)
-		v0 := b.NewValue0(v.Line, OpMul32, TypeInvalid)
-		v0.Type = config.fe.TypeInt()
+		v0 := b.NewValue0(v.Line, OpMul32, config.fe.TypeInt())
 		v0.AddArg(idx)
-		v1 := b.NewValue0(v.Line, OpConst32, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
 		v1.AuxInt = t.Elem().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -3883,11 +3798,9 @@ endd902622aaa1e7545b5a2a0c08b47d287:
 		v.Aux = nil
 		v.resetArgs()
 		v.AddArg(ptr)
-		v0 := b.NewValue0(v.Line, OpMul64, TypeInvalid)
-		v0.Type = config.fe.TypeInt()
+		v0 := b.NewValue0(v.Line, OpMul64, config.fe.TypeInt())
 		v0.AddArg(idx)
-		v1 := b.NewValue0(v.Line, OpConst64, TypeInvalid)
-		v1.Type = config.fe.TypeInt()
+		v1 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
 		v1.AuxInt = t.Elem().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
@@ -4033,18 +3946,16 @@ end2cff6d06f4440132f48ca374b6b1e9d8:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = t.FieldType(1).Size()
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = t.FieldType(1).PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(1).PtrTo())
 		v0.AuxInt = t.FieldOff(1)
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(f1)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = t.FieldType(0).Size()
 		v1.AddArg(dst)
 		v1.AddArg(f0)
 		v1.AddArg(mem)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4069,28 +3980,24 @@ end4e8ede6cc575a287795971da6b637973:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = t.FieldType(2).Size()
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = t.FieldType(2).PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(2).PtrTo())
 		v0.AuxInt = t.FieldOff(2)
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(f2)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = t.FieldType(1).Size()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = t.FieldType(1).PtrTo()
+		v2 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(1).PtrTo())
 		v2.AuxInt = t.FieldOff(1)
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(f1)
-		v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v3 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v3.AuxInt = t.FieldType(0).Size()
 		v3.AddArg(dst)
 		v3.AddArg(f0)
 		v3.AddArg(mem)
-		v3.Type = TypeMem
 		v1.AddArg(v3)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4116,38 +4023,32 @@ end6ad675267724a87c8f852dd1e185e911:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = t.FieldType(3).Size()
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = t.FieldType(3).PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(3).PtrTo())
 		v0.AuxInt = t.FieldOff(3)
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(f3)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = t.FieldType(2).Size()
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = t.FieldType(2).PtrTo()
+		v2 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(2).PtrTo())
 		v2.AuxInt = t.FieldOff(2)
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(f2)
-		v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v3 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v3.AuxInt = t.FieldType(1).Size()
-		v4 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v4.Type = t.FieldType(1).PtrTo()
+		v4 := b.NewValue0(v.Line, OpOffPtr, t.FieldType(1).PtrTo())
 		v4.AuxInt = t.FieldOff(1)
 		v4.AddArg(dst)
 		v3.AddArg(v4)
 		v3.AddArg(f1)
-		v5 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v5 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v5.AuxInt = t.FieldType(0).Size()
 		v5.AddArg(dst)
 		v5.AddArg(f0)
 		v5.AddArg(mem)
-		v5.Type = TypeMem
 		v3.AddArg(v5)
-		v3.Type = TypeMem
 		v1.AddArg(v3)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4173,18 +4074,16 @@ end7ea91abd44794f7653374502a5a405ea:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = 4
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeFloat32().PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat32().PtrTo())
 		v0.AuxInt = 4
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(imag)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = 4
 		v1.AddArg(dst)
 		v1.AddArg(real)
 		v1.AddArg(mem)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4210,18 +4109,16 @@ endced898cb0a165662afe48ea44ad3318a:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = 8
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeFloat64().PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeFloat64().PtrTo())
 		v0.AuxInt = 8
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(imag)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = 8
 		v1.AddArg(dst)
 		v1.AddArg(real)
 		v1.AddArg(mem)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4247,18 +4144,16 @@ end3851a482d7bd37a93c4d81581e85b3ab:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = config.PtrSize
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeInt().PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v0.AuxInt = config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(len)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = config.PtrSize
 		v1.AddArg(dst)
 		v1.AddArg(ptr)
 		v1.AddArg(mem)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4285,28 +4180,24 @@ endd3a6ecebdad5899570a79fe5c62f34f1:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = config.PtrSize
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeInt().PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v0.AuxInt = 2 * config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(cap)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = config.PtrSize
-		v2 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v2.Type = config.fe.TypeInt().PtrTo()
+		v2 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt().PtrTo())
 		v2.AuxInt = config.PtrSize
 		v2.AddArg(dst)
 		v1.AddArg(v2)
 		v1.AddArg(len)
-		v3 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v3 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v3.AuxInt = config.PtrSize
 		v3.AddArg(dst)
 		v3.AddArg(ptr)
 		v3.AddArg(mem)
-		v3.Type = TypeMem
 		v1.AddArg(v3)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4332,18 +4223,16 @@ endd5cc8c3dad7d24c845b0b88fc51487ae:
 		v.Aux = nil
 		v.resetArgs()
 		v.AuxInt = config.PtrSize
-		v0 := b.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v0.Type = config.fe.TypeBytePtr().PtrTo()
+		v0 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
 		v0.AuxInt = config.PtrSize
 		v0.AddArg(dst)
 		v.AddArg(v0)
 		v.AddArg(data)
-		v1 := b.NewValue0(v.Line, OpStore, TypeInvalid)
+		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
 		v1.AuxInt = config.PtrSize
 		v1.AddArg(dst)
 		v1.AddArg(itab)
 		v1.AddArg(mem)
-		v1.Type = TypeMem
 		v.AddArg(v1)
 		return true
 	}
@@ -4410,10 +4299,9 @@ end45295326269ba18413dceb7b608a0b9d:
 		v.AuxInt = size
 		v.AddArg(dst)
 		v.AddArg(src)
-		v0 := b.NewValue0(v.Line, OpVarDef, TypeInvalid)
+		v0 := b.NewValue0(v.Line, OpVarDef, TypeMem)
 		v0.Aux = x
 		v0.AddArg(mem)
-		v0.Type = TypeMem
 		v.AddArg(v0)
 		return true
 	}
@@ -4704,15 +4592,13 @@ end56a7c7781fee35eeff0a3652dc206012:
 		if !(!config.fe.CanSSA(t)) {
 			goto end2afd47b4fcaaab7a73325bd8a75e3e8e
 		}
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, TypeInvalid)
+		v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, v.Type)
 		v.Op = OpCopy
 		v.AuxInt = 0
 		v.Aux = nil
 		v.resetArgs()
 		v.AddArg(v0)
-		v0.Type = v.Type
-		v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, TypeInvalid)
-		v1.Type = v.Type.PtrTo()
+		v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
 		v1.AuxInt = t.FieldOff(i)
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
