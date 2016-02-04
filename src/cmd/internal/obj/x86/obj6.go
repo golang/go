@@ -377,7 +377,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 	}
 	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
 		// $MOV $sym, Rx becomes $MOV sym@GOT, Rx
-		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $ADD <off>, Rx
+		// $MOV $sym+<off>, Rx becomes $MOV sym@GOT, Rx; $LEA <off>(Rx), Rx
 		// On 386 only, more complicated things like PUSHL $sym become $MOV sym@GOT, CX; PUSHL CX
 		cmplxdest := false
 		pAs := p.As
@@ -399,8 +399,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
 		q := p
 		if p.From.Offset != 0 {
 			q = obj.Appendp(ctxt, p)
-			q.As = add
-			q.From.Type = obj.TYPE_CONST
+			q.As = lea
+			q.From.Type = obj.TYPE_MEM
+			q.From.Reg = p.To.Reg
 			q.From.Offset = p.From.Offset
 			q.To = p.To
 			p.From.Offset = 0

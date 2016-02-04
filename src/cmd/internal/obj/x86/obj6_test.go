@@ -20,9 +20,9 @@ const testdata = `
 MOVQ AX, AX -> MOVQ AX, AX
 
 LEAQ name(SB), AX -> MOVQ name@GOT(SB), AX
-LEAQ name+10(SB), AX -> MOVQ name@GOT(SB), AX; ADDQ $10, AX
+LEAQ name+10(SB), AX -> MOVQ name@GOT(SB), AX; LEAQ 10(AX), AX
 MOVQ $name(SB), AX -> MOVQ name@GOT(SB), AX
-MOVQ $name+10(SB), AX -> MOVQ name@GOT(SB), AX; ADDQ $10, AX
+MOVQ $name+10(SB), AX -> MOVQ name@GOT(SB), AX; LEAQ 10(AX), AX
 
 MOVQ name(SB), AX -> NOP; MOVQ name@GOT(SB), R15; MOVQ (R15), AX
 MOVQ name+10(SB), AX -> NOP; MOVQ name@GOT(SB), R15; MOVQ 10(R15), AX
