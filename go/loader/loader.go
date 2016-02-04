@@ -711,7 +711,7 @@ func (conf *Config) build() *build.Context {
 //    'x': include external *_test.go source files. (XTestGoFiles)
 //
 func (conf *Config) parsePackageFiles(bp *build.Package, which rune) ([]*ast.File, []error) {
-	if bp.Goroot && bp.ImportPath == "unsafe" {
+	if bp.ImportPath == "unsafe" {
 		return nil, nil
 	}
 	var filenames []string
@@ -767,7 +767,7 @@ func (imp *importer) doImport(from *PackageInfo, to string) (*types.Package, err
 
 	// The standard unsafe package is handled specially,
 	// and has no PackageInfo.
-	if bp.Goroot && bp.ImportPath == "unsafe" {
+	if bp.ImportPath == "unsafe" {
 		return types.Unsafe, nil
 	}
 
