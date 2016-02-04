@@ -115,9 +115,10 @@ func init() {
 		gpload    = regInfo{inputs: []regMask{gpspsb, 0}, outputs: gponly}
 		gploadidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}, outputs: gponly}
 
-		gpstore      = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
-		gpstoreconst = regInfo{inputs: []regMask{gpspsb, 0}}
-		gpstoreidx   = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+		gpstore         = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
+		gpstoreconst    = regInfo{inputs: []regMask{gpspsb, 0}}
+		gpstoreidx      = regInfo{inputs: []regMask{gpspsb, gpsp, gpsp, 0}}
+		gpstoreconstidx = regInfo{inputs: []regMask{gpspsb, gpsp, 0}}
 
 		fp01    = regInfo{inputs: []regMask{}, outputs: fponly}
 		fp21    = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
@@ -401,6 +402,11 @@ func init() {
 		{name: "MOVWstoreconst", reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ...
 		{name: "MOVLstoreconst", reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ...
 		{name: "MOVQstoreconst", reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ...
+
+		{name: "MOVBstoreconstidx1", reg: gpstoreconstidx, asm: "MOVB", aux: "SymValAndOff", typ: "Mem"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
+		{name: "MOVWstoreconstidx2", reg: gpstoreconstidx, asm: "MOVW", aux: "SymValAndOff", typ: "Mem"}, // store low 2 bytes of ... 2*arg1 ...
+		{name: "MOVLstoreconstidx4", reg: gpstoreconstidx, asm: "MOVL", aux: "SymValAndOff", typ: "Mem"}, // store low 4 bytes of ... 4*arg1 ...
+		{name: "MOVQstoreconstidx8", reg: gpstoreconstidx, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem"}, // store 8 bytes of ... 8*arg1 ...
 
 		// arg0 = (duff-adjusted) pointer to start of memory to zero
 		// arg1 = value to store (will always be zero)
