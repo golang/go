@@ -680,6 +680,12 @@ func tokenOf(o types.Object) string {
 		return "const"
 	case *types.PkgName:
 		return "package"
+	case *types.Builtin:
+		return "builtin" // e.g. when describing package "unsafe"
+	case *types.Nil:
+		return "nil"
+	case *types.Label:
+		return "label"
 	}
 	panic(o)
 }
