@@ -222,3 +222,18 @@ func TestRangeStringCast(t *testing.T) {
 		t.Fatalf("want 0 allocs, got %v", n)
 	}
 }
+
+func TestString2Slice(t *testing.T) {
+	// Make sure we don't return slices that expose
+	// an unzeroed section of stack-allocated temp buf
+	// between len and cap.  See issue 14232.
+	s := "foož"
+	b := ([]byte)(s)
+	if cap(b) != 5 {
+		t.Errorf("want cap of 5, got %d", cap(b))
+	}
+	r := ([]rune)(s)
+	if cap(r) != 4 {
+		t.Errorf("want cap of 4, got %d", cap(r))
+	}
+}
