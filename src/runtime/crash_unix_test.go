@@ -137,8 +137,8 @@ func loop(i int, c chan bool) {
 func TestSignalExitStatus(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	switch runtime.GOOS {
-	case "netbsd":
-		t.Skip("skipping on NetBSD; see https://golang.org/issue/14063")
+	case "netbsd", "solaris":
+		t.Skipf("skipping on %s; see https://golang.org/issue/14063", runtime.GOOS)
 	}
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
