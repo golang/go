@@ -875,16 +875,18 @@ should only be used when contention has been observed.
 <li>
 The <a href="/pkg/strconv/"><code>strconv</code></a> package adds
 <a href="/pkg/strconv/#IsGraphic"><code>IsGraphic</code></a>,
+similar to <a href="/pkg/strconv/#IsPrint"><code>IsPrint</code></a>.
+It also adds
 <a href="/pkg/strconv/#QuoteToGraphic"><code>QuoteToGraphic</code></a>,
 <a href="/pkg/strconv/#QuoteRuneToGraphic"><code>QuoteRuneToGraphic</code></a>,
 <a href="/pkg/strconv/#AppendQuoteToGraphic"><code>AppendQuoteToGraphic</code></a>,
 and
 <a href="/pkg/strconv/#AppendQuoteRuneToGraphic"><code>AppendQuoteRuneToGraphic</code></a>,
 analogous to
-<a href="/pkg/strconv/#IsPrint"><code>IsPrint</code></a>,
-<a href="/pkg/strconv/#QuoteToPrint"><code>QuoteToPrint</code></a>,
+<a href="/pkg/strconv/#QuoteToASCII"><code>QuoteToASCII</code></a>,
+<a href="/pkg/strconv/#QuoteRuneToASCII"><code>QuoteRuneToASCII</code></a>,
 and so on.
-The <code>Print</code> family escapes all space characters except ASCII space (U+0020).
+The <code>ASCII</code> family escapes all space characters except ASCII space (U+0020).
 In contrast, the <code>Graphic</code> family does not escape any Unicode space characters (category Zs).
 </li>
 
