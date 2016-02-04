@@ -122,10 +122,7 @@ func decomposeStringPhi(v *Value) {
 		ptr.AddArg(a.Block.NewValue1(v.Line, OpStringPtr, ptrType, a))
 		len.AddArg(a.Block.NewValue1(v.Line, OpStringLen, lenType, a))
 	}
-	v.Op = OpStringMake
-	v.AuxInt = 0
-	v.Aux = nil
-	v.resetArgs()
+	v.reset(OpStringMake)
 	v.AddArg(ptr)
 	v.AddArg(len)
 }
@@ -143,10 +140,7 @@ func decomposeSlicePhi(v *Value) {
 		len.AddArg(a.Block.NewValue1(v.Line, OpSliceLen, lenType, a))
 		cap.AddArg(a.Block.NewValue1(v.Line, OpSliceCap, lenType, a))
 	}
-	v.Op = OpSliceMake
-	v.AuxInt = 0
-	v.Aux = nil
-	v.resetArgs()
+	v.reset(OpSliceMake)
 	v.AddArg(ptr)
 	v.AddArg(len)
 	v.AddArg(cap)
@@ -170,10 +164,7 @@ func decomposeComplexPhi(v *Value) {
 		real.AddArg(a.Block.NewValue1(v.Line, OpComplexReal, partType, a))
 		imag.AddArg(a.Block.NewValue1(v.Line, OpComplexImag, partType, a))
 	}
-	v.Op = OpComplexMake
-	v.AuxInt = 0
-	v.Aux = nil
-	v.resetArgs()
+	v.reset(OpComplexMake)
 	v.AddArg(real)
 	v.AddArg(imag)
 }
@@ -187,10 +178,7 @@ func decomposeInterfacePhi(v *Value) {
 		itab.AddArg(a.Block.NewValue1(v.Line, OpITab, ptrType, a))
 		data.AddArg(a.Block.NewValue1(v.Line, OpIData, ptrType, a))
 	}
-	v.Op = OpIMake
-	v.AuxInt = 0
-	v.Aux = nil
-	v.resetArgs()
+	v.reset(OpIMake)
 	v.AddArg(itab)
 	v.AddArg(data)
 }
@@ -206,10 +194,7 @@ func decomposeStructPhi(v *Value) {
 			fields[i].AddArg(a.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, a))
 		}
 	}
-	v.Op = StructMakeOp(n)
-	v.AuxInt = 0
-	v.Aux = nil
-	v.resetArgs()
+	v.reset(StructMakeOp(n))
 	v.AddArgs(fields[:n]...)
 
 	// Recursively decompose phis for each field.

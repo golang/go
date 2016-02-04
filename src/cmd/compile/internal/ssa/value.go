@@ -170,6 +170,13 @@ func (v *Value) resetArgs() {
 	v.Args = v.argstorage[:0]
 }
 
+func (v *Value) reset(op Op) {
+	v.Op = op
+	v.resetArgs()
+	v.AuxInt = 0
+	v.Aux = nil
+}
+
 // copyInto makes a new value identical to v and adds it to the end of b.
 func (v *Value) copyInto(b *Block) *Value {
 	c := b.NewValue0(v.Line, v.Op, v.Type)

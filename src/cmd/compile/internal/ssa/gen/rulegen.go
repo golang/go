@@ -435,10 +435,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 			// It in not safe in general to move a variable between blocks
 			// (and particularly not a phi node).
 			// Introduce a copy.
-			fmt.Fprintf(w, "v.Op = OpCopy\n")
-			fmt.Fprintf(w, "v.AuxInt = 0\n")
-			fmt.Fprintf(w, "v.Aux = nil\n")
-			fmt.Fprintf(w, "v.resetArgs()\n")
+			fmt.Fprintf(w, "v.reset(OpCopy)\n")
 			fmt.Fprintf(w, "v.Type = %s.Type\n", result)
 			fmt.Fprintf(w, "v.AddArg(%s)\n", result)
 		}
@@ -478,13 +475,10 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 	var v string
 	if top && loc == "b" {
 		v = "v"
+		fmt.Fprintf(w, "v.reset(%s)\n", opName(s[0], arch))
 		if typeOverride {
 			fmt.Fprintf(w, "v.Type = %s\n", opType)
 		}
-		fmt.Fprintf(w, "v.Op = %s\n", opName(s[0], arch))
-		fmt.Fprintf(w, "v.AuxInt = 0\n")
-		fmt.Fprintf(w, "v.Aux = nil\n")
-		fmt.Fprintf(w, "v.resetArgs()\n")
 	} else {
 		if opType == "" {
 			log.Fatalf("sub-expression %s (op=%s) must have a type", result, s[0])
@@ -494,10 +488,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, %s)\n", v, loc, opName(s[0], arch), opType)
 		if top {
 			// Rewrite original into a copy
-			fmt.Fprintf(w, "v.Op = OpCopy\n")
-			fmt.Fprintf(w, "v.AuxInt = 0\n")
-			fmt.Fprintf(w, "v.Aux = nil\n")
-			fmt.Fprintf(w, "v.resetArgs()\n")
+			fmt.Fprintf(w, "v.reset(OpCopy)\n")
 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
 		}
 	}
