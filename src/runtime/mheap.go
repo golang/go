@@ -117,9 +117,41 @@ type mspan struct {
 	prev **mspan    // previous span's next field, or list head's first field if none
 	list *mSpanList // For debugging. TODO: Remove.
 
-	start    pageID    // starting page number
-	npages   uintptr   // number of pages in span
-	freelist gclinkptr // list of free objects
+	start         pageID    // starting page number
+	npages        uintptr   // number of pages in span
+	freelist      gclinkptr // list of free objects for _MSpanInUse
+	stackfreelist gclinkptr // list of free stacks, avoids overloading freelist for _MSpanStack
+
+	// freeindex is the slot index between 0 and nelems at which to begin scanning
+	// for the next free object in this span.
+	// Each allocation scans allocBits starting at freeindex until it encounters a 0
+	// indicating a free object. freeindex is then adjusted so that subsequent scans begin
+	// just past the the newly discovered free object.
+	//
+	// If freeindex == nelem, this span has no free objects.
+	//
+	// allocBits is a bitmap of objects in this span.
+	// If n >= freeindex and allocBits[n/8] & (1<<(n%8)) is 0
+	// then object n is free;
+	// otherwise, object n is allocated. Bits starting at nelem are
+	// undefined and should never be referenced.
+	//
+	// Object n starts at address n*elemsize + (start << pageShift).
+	freeindex  uintptr
+	allocBits  *[maxObjsPerSpan / 8]uint8
+	gcmarkBits *[maxObjsPerSpan / 8]uint8
+	nelems     uintptr // number of object in the span.
+	// TODO(rlh) consider moving some of these fields into seperate arrays.
+	// Put another way is an array of structs a better idea than a struct of arrays.
+
+	// allocBits and gcmarkBits currently point to either markbits1
+	// or markbits2. At the end of a GC cycle allocBits and
+	// gcmarkBits swap roles simply by swapping pointers.
+	// This level of indirection also facilitates an implementation
+	// where markbits1 and markbits2 are not inlined in mspan.
+	markbits1 [maxObjsPerSpan / 8]uint8 // A bit for each obj.
+	markbits2 [maxObjsPerSpan / 8]uint8 // A bit for each obj.
+
 	// sweep generation:
 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
 	// if sweepgen == h->sweepgen - 1, the span is currently being swept

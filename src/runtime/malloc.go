@@ -97,6 +97,9 @@ const (
 	pageShift = _PageShift
 	pageSize  = _PageSize
 	pageMask  = _PageMask
+	// By construction, single page spans of the smallest object class
+	// have the most objects per span.
+	maxObjsPerSpan = pageSize / 8
 
 	mSpanInUse = _MSpanInUse
 
