@@ -3689,31 +3689,41 @@ func opregreg(op int, dest, src int16) *obj.Prog {
 func (s *genState) genValue(v *ssa.Value) {
 	lineno = v.Line
 	switch v.Op {
-	case ssa.OpAMD64ADDQ:
-		// TODO: use addq instead of leaq if target is in the right register.
-		p := Prog(x86.ALEAQ)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		p.From.Scale = 1
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64ADDL:
-		p := Prog(x86.ALEAL)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		p.From.Scale = 1
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
-	case ssa.OpAMD64ADDW:
-		p := Prog(x86.ALEAW)
-		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
-		p.From.Scale = 1
-		p.From.Index = regnum(v.Args[1])
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
+	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL, ssa.OpAMD64ADDW:
+		r := regnum(v)
+		r1 := regnum(v.Args[0])
+		r2 := regnum(v.Args[1])
+		switch {
+		case r == r1:
+			p := Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = r2
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		case r == r2:
+			p := Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = r1
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		default:
+			var asm int
+			switch v.Op {
+			case ssa.OpAMD64ADDQ:
+				asm = x86.ALEAQ
+			case ssa.OpAMD64ADDL:
+				asm = x86.ALEAL
+			case ssa.OpAMD64ADDW:
+				asm = x86.ALEAW
+			}
+			p := Prog(asm)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = r1
+			p.From.Scale = 1
+			p.From.Index = r2
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
 	// 2-address opcode arithmetic, symmetric
 	case ssa.OpAMD64ADDB, ssa.OpAMD64ADDSS, ssa.OpAMD64ADDSD,
 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
@@ -3903,7 +3913,16 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpAMD64ADDQconst, ssa.OpAMD64ADDLconst, ssa.OpAMD64ADDWconst:
-		// TODO: use addq instead of leaq if target is in the right register.
+		r := regnum(v)
+		a := regnum(v.Args[0])
+		if r == a {
+			p := Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = v.AuxInt
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+			return
+		}
 		var asm int
 		switch v.Op {
 		case ssa.OpAMD64ADDQconst:
@@ -3915,10 +3934,10 @@ func (s *genState) genValue(v *ssa.Value) {
 		}
 		p := Prog(asm)
 		p.From.Type = obj.TYPE_MEM
-		p.From.Reg = regnum(v.Args[0])
+		p.From.Reg = a
 		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
-		p.To.Reg = regnum(v)
+		p.To.Reg = r
 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
 		r := regnum(v)
 		x := regnum(v.Args[0])
