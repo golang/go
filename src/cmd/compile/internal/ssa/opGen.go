@@ -278,6 +278,10 @@ const (
 	OpAMD64MOVWstoreconst
 	OpAMD64MOVLstoreconst
 	OpAMD64MOVQstoreconst
+	OpAMD64MOVBstoreconstidx1
+	OpAMD64MOVWstoreconstidx2
+	OpAMD64MOVLstoreconstidx4
+	OpAMD64MOVQstoreconstidx8
 	OpAMD64DUFFZERO
 	OpAMD64MOVOconst
 	OpAMD64REPSTOSQ
@@ -3340,6 +3344,50 @@ var opcodeTable = [...]opInfo{
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
+		name:    "MOVBstoreconstidx1",
+		auxType: auxSymValAndOff,
+		asm:     x86.AMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
+		name:    "MOVWstoreconstidx2",
+		auxType: auxSymValAndOff,
+		asm:     x86.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
+		name:    "MOVLstoreconstidx4",
+		auxType: auxSymValAndOff,
+		asm:     x86.AMOVL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
+			},
+		},
+	},
+	{
+		name:    "MOVQstoreconstidx8",
+		auxType: auxSymValAndOff,
+		asm:     x86.AMOVQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
 			},
 		},

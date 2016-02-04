@@ -4168,6 +4168,28 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = regnum(v.Args[0])
 		addAux2(&p.To, v, sc.Off())
+	case ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1:
+		p := Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		sc := v.AuxValAndOff()
+		switch v.Op {
+		case ssa.OpAMD64MOVBstoreconstidx1:
+			p.From.Offset = int64(int8(sc.Val()))
+			p.To.Scale = 1
+		case ssa.OpAMD64MOVWstoreconstidx2:
+			p.From.Offset = int64(int16(sc.Val()))
+			p.To.Scale = 2
+		case ssa.OpAMD64MOVLstoreconstidx4:
+			p.From.Offset = int64(int32(sc.Val()))
+			p.To.Scale = 4
+		case ssa.OpAMD64MOVQstoreconstidx8:
+			p.From.Offset = sc.Val()
+			p.To.Scale = 8
+		}
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = regnum(v.Args[0])
+		p.To.Index = regnum(v.Args[1])
+		addAux2(&p.To, v, sc.Off())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,
 		ssa.OpAMD64CVTSL2SS, ssa.OpAMD64CVTSL2SD, ssa.OpAMD64CVTSQ2SS, ssa.OpAMD64CVTSQ2SD,
 		ssa.OpAMD64CVTTSS2SL, ssa.OpAMD64CVTTSD2SL, ssa.OpAMD64CVTTSS2SQ, ssa.OpAMD64CVTTSD2SQ,
