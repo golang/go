@@ -2,27 +2,37 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !cgo,!windows,!plan9 android
+// +build !cgo,!windows,!plan9,!android
 
 package user
 
-import (
-	"fmt"
-	"runtime"
-)
+import "errors"
 
 func init() {
-	implemented = false
+	userImplemented = false
+	groupImplemented = false
 }
 
 func current() (*User, error) {
-	return nil, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+	return nil, errors.New("user: Current requires cgo")
 }
 
-func lookup(username string) (*User, error) {
-	return nil, fmt.Errorf("user: Lookup not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+func lookupUser(username string) (*User, error) {
+	return nil, errors.New("user: Lookup requires cgo")
 }
 
-func lookupId(uid string) (*User, error) {
-	return nil, fmt.Errorf("user: LookupId not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+func lookupUserId(uid string) (*User, error) {
+	return nil, errors.New("user: LookupId requires cgo")
+}
+
+func lookupGroup(groupname string) (*Group, error) {
+	return nil, errors.New("user: LookupGroup requires cgo")
+}
+
+func lookupGroupId(string) (*Group, error) {
+	return nil, errors.New("user: LookupGroupId requires cgo")
+}
+
+func listGroups(*User) ([]string, error) {
+	return nil, errors.New("user: GroupIds requires cgo")
 }
