@@ -12,7 +12,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/format"
@@ -57,10 +56,6 @@ type Rule struct {
 
 func (r Rule) String() string {
 	return fmt.Sprintf("rule %q at line %d", r.rule, r.lineno)
-}
-
-func (r Rule) hash() string {
-	return fmt.Sprintf("%02x", md5.Sum([]byte(r.rule)))
 }
 
 // parse returns the matching part of the rule, additional conditions, and the result.
@@ -170,24 +165,16 @@ func genRules(arch arch) {
 		fmt.Fprintln(w, "b := v.Block")
 		fmt.Fprintln(w, "_ = b")
 		for _, rule := range oprules[op] {
-			// Note: we use a hash to identify the rule so that its
-			// identity is invariant to adding/removing rules elsewhere
-			// in the rules file.  This is useful to squash spurious
-			// diffs that would occur if we used rule index.
-			rulehash := rule.hash()
-
 			match, cond, result := rule.parse()
 			fmt.Fprintf(w, "// match: %s\n", match)
 			fmt.Fprintf(w, "// cond: %s\n", cond)
 			fmt.Fprintf(w, "// result: %s\n", result)
 
-			fail := fmt.Sprintf("{\ngoto end%s\n}\n", rulehash)
-
-			fmt.Fprintf(w, "{\n")
-			genMatch(w, arch, match, fail)
+			fmt.Fprintf(w, "for {\n")
+			genMatch(w, arch, match)
 
 			if cond != "" {
-				fmt.Fprintf(w, "if !(%s) %s", cond, fail)
+				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
 			}
 
 			genResult(w, arch, result)
@@ -197,8 +184,6 @@ func genRules(arch arch) {
 			fmt.Fprintf(w, "return true\n")
 
 			fmt.Fprintf(w, "}\n")
-			fmt.Fprintf(w, "goto end%s\n", rulehash) // use label
-			fmt.Fprintf(w, "end%s:;\n", rulehash)
 		}
 		fmt.Fprintf(w, "return false\n")
 		fmt.Fprintf(w, "}\n")
@@ -216,23 +201,19 @@ func genRules(arch arch) {
 	for _, op := range ops {
 		fmt.Fprintf(w, "case %s:\n", blockName(op, arch))
 		for _, rule := range blockrules[op] {
-			rulehash := rule.hash()
-
 			match, cond, result := rule.parse()
 			fmt.Fprintf(w, "// match: %s\n", match)
 			fmt.Fprintf(w, "// cond: %s\n", cond)
 			fmt.Fprintf(w, "// result: %s\n", result)
 
-			fail := fmt.Sprintf("{\ngoto end%s\n}\n", rulehash)
-
-			fmt.Fprintf(w, "{\n")
+			fmt.Fprintf(w, "for {\n")
 
 			s := split(match[1 : len(match)-1]) // remove parens, then split
 
 			// check match of control value
 			if s[1] != "nil" {
 				fmt.Fprintf(w, "v := b.Control\n")
-				genMatch0(w, arch, s[1], "v", fail, map[string]string{}, false)
+				genMatch0(w, arch, s[1], "v", map[string]string{}, false)
 			}
 
 			// assign successor names
@@ -244,7 +225,7 @@ func genRules(arch arch) {
 			}
 
 			if cond != "" {
-				fmt.Fprintf(w, "if !(%s) %s", cond, fail)
+				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
 			}
 
 			// Rule matches.  Generate result.
@@ -306,8 +287,6 @@ func genRules(arch arch) {
 			fmt.Fprintf(w, "return true\n")
 
 			fmt.Fprintf(w, "}\n")
-			fmt.Fprintf(w, "goto end%s\n", rulehash) // use label
-			fmt.Fprintf(w, "end%s:;\n", rulehash)
 		}
 	}
 	fmt.Fprintf(w, "}\n")
@@ -329,18 +308,18 @@ func genRules(arch arch) {
 	}
 }
 
-func genMatch(w io.Writer, arch arch, match, fail string) {
-	genMatch0(w, arch, match, "v", fail, map[string]string{}, true)
+func genMatch(w io.Writer, arch arch, match string) {
+	genMatch0(w, arch, match, "v", map[string]string{}, true)
 }
 
-func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]string, top bool) {
+func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top bool) {
 	if match[0] != '(' {
 		if _, ok := m[match]; ok {
 			// variable already has a definition.  Check whether
 			// the old definition and the new definition match.
 			// For example, (add x x).  Equality is just pointer equality
 			// on Values (so cse is important to do before lowering).
-			fmt.Fprintf(w, "if %s != %s %s", v, match, fail)
+			fmt.Fprintf(w, "if %s != %s {\nbreak\n}\n", v, match)
 			return
 		}
 		// remember that this variable references the given value
@@ -358,7 +337,7 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 
 	// check op
 	if !top {
-		fmt.Fprintf(w, "if %s.Op != %s %s", v, opName(s[0], arch), fail)
+		fmt.Fprintf(w, "if %s.Op != %s {\nbreak\n}\n", v, opName(s[0], arch))
 	}
 
 	// check type/aux/args
@@ -369,12 +348,12 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 			t := a[1 : len(a)-1] // remove <>
 			if !isVariable(t) {
 				// code.  We must match the results of this code.
-				fmt.Fprintf(w, "if %s.Type != %s %s", v, t, fail)
+				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
 			} else {
 				// variable
 				if u, ok := m[t]; ok {
 					// must match previous variable
-					fmt.Fprintf(w, "if %s.Type != %s %s", v, u, fail)
+					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, u)
 				} else {
 					m[t] = v + ".Type"
 					fmt.Fprintf(w, "%s := %s.Type\n", t, v)
@@ -385,11 +364,11 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 			x := a[1 : len(a)-1] // remove []
 			if !isVariable(x) {
 				// code
-				fmt.Fprintf(w, "if %s.AuxInt != %s %s", v, x, fail)
+				fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
 			} else {
 				// variable
 				if y, ok := m[x]; ok {
-					fmt.Fprintf(w, "if %s.AuxInt != %s %s", v, y, fail)
+					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, y)
 				} else {
 					m[x] = v + ".AuxInt"
 					fmt.Fprintf(w, "%s := %s.AuxInt\n", x, v)
@@ -400,11 +379,11 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 			x := a[1 : len(a)-1] // remove {}
 			if !isVariable(x) {
 				// code
-				fmt.Fprintf(w, "if %s.Aux != %s %s", v, x, fail)
+				fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
 			} else {
 				// variable
 				if y, ok := m[x]; ok {
-					fmt.Fprintf(w, "if %s.Aux != %s %s", v, y, fail)
+					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, y)
 				} else {
 					m[x] = v + ".Aux"
 					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
@@ -412,7 +391,7 @@ func genMatch0(w io.Writer, arch arch, match, v, fail string, m map[string]strin
 			}
 		} else {
 			// variable or sexpr
-			genMatch0(w, arch, a, fmt.Sprintf("%s.Args[%d]", v, argnum), fail, m, false)
+			genMatch0(w, arch, a, fmt.Sprintf("%s.Args[%d]", v, argnum), m, false)
 			argnum++
 		}
 	}
