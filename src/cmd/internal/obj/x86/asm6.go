@@ -4556,15 +4556,6 @@ func asmins(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Andptr = ctxt.And[:]
 	ctxt.Asmode = int(p.Mode)
 
-	if p.As == obj.AUSEFIELD {
-		r := obj.Addrel(ctxt.Cursym)
-		r.Off = 0
-		r.Siz = 0
-		r.Sym = p.From.Sym
-		r.Type = obj.R_USEFIELD
-		return
-	}
-
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
 		switch p.As {
 		case obj.ARET:
