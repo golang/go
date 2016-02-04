@@ -178,20 +178,6 @@ func cse(f *Func) {
 	}
 }
 
-// returns true if b dominates c.
-// simple and iterative, has O(depth) complexity in tall trees.
-func dom(b, c *Block, idom []*Block) bool {
-	// Walk up from c in the dominator tree looking for b.
-	for c != nil {
-		if c == b {
-			return true
-		}
-		c = idom[c.ID]
-	}
-	// Reached the entry block, never saw b.
-	return false
-}
-
 // An eqclass approximates an equivalence class.  During the
 // algorithm it may represent the union of several of the
 // final equivalence classes.
