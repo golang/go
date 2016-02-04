@@ -21,7 +21,6 @@ Optimizations (better compiled code)
 - Add a value range propagation pass (for bounds elim & bitwidth reduction)
 - Make dead store pass inter-block
 - (x86) More combining address arithmetic into loads/stores
-- (x86) use ADDQ instead of LEAQ when we can
 - redundant CMP in sequences like this:
   SUBQ $8, AX
   CMP AX, $0
@@ -37,7 +36,6 @@ Optimizations (better compiled code)
   Same for interfaces?
 - boolean logic: movb/xorb$1/testb/jeq -> movb/testb/jne
 - (ADDQconst (SUBQconst x)) and vice-versa
-- combine LEAQs
 - store followed by load to same address
 - (CMPconst [0] (AND x y)) -> (TEST x y)
 - more (LOAD (ADDQ )) -> LOADIDX
