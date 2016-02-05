@@ -2331,6 +2331,10 @@ var http2isTokenTable = [127]bool{
 	'~':  true,
 }
 
+type http2connectionStater interface {
+	ConnectionState() tls.ConnectionState
+}
+
 // pipe is a goroutine-safe io.Reader/io.Writer pair.  It's like
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
 // underlying buffer is an interface. (io.Pipe is always unbuffered)
@@ -2593,28 +2597,76 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 		if http2testHookOnConn != nil {
 			http2testHookOnConn()
 		}
-		conf.handleConn(hs, c, h)
+		conf.ServeConn(c, &http2ServeConnOpts{
+			Handler:    h,
+			BaseConfig: hs,
+		})
 	}
 	s.TLSNextProto[http2NextProtoTLS] = protoHandler
 	s.TLSNextProto["h2-14"] = protoHandler
 	return nil
 }
 
-func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
+// ServeConnOpts are options for the Server.ServeConn method.
+type http2ServeConnOpts struct {
+	// BaseConfig optionally sets the base configuration
+	// for values. If nil, defaults are used.
+	BaseConfig *Server
+
+	// Handler specifies which handler to use for processing
+	// requests. If nil, BaseConfig.Handler is used. If BaseConfig
+	// or BaseConfig.Handler is nil, http.DefaultServeMux is used.
+	Handler Handler
+}
+
+func (o *http2ServeConnOpts) baseConfig() *Server {
+	if o != nil && o.BaseConfig != nil {
+		return o.BaseConfig
+	}
+	return new(Server)
+}
+
+func (o *http2ServeConnOpts) handler() Handler {
+	if o != nil {
+		if o.Handler != nil {
+			return o.Handler
+		}
+		if o.BaseConfig != nil && o.BaseConfig.Handler != nil {
+			return o.BaseConfig.Handler
+		}
+	}
+	return DefaultServeMux
+}
+
+// ServeConn serves HTTP/2 requests on the provided connection and
+// blocks until the connection is no longer readable.
+//
+// ServeConn starts speaking HTTP/2 assuming that c has not had any
+// reads or writes. It writes its initial settings frame and expects
+// to be able to read the preface and settings frame from the
+// client. If c has a ConnectionState method like a *tls.Conn, the
+// ConnectionState is used to verify the TLS ciphersuite and to set
+// the Request.TLS field in Handlers.
+//
+// ServeConn does not support h2c by itself. Any h2c support must be
+// implemented in terms of providing a suitably-behaving net.Conn.
+//
+// The opts parameter is optional. If nil, default values are used.
+func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 	sc := &http2serverConn{
-		srv:              srv,
-		hs:               hs,
+		srv:              s,
+		hs:               opts.baseConfig(),
 		conn:             c,
 		remoteAddrStr:    c.RemoteAddr().String(),
 		bw:               http2newBufferedWriter(c),
-		handler:          h,
+		handler:          opts.handler(),
 		streams:          make(map[uint32]*http2stream),
 		readFrameCh:      make(chan http2readFrameResult),
 		wantWriteFrameCh: make(chan http2frameWriteMsg, 8),
 		wroteFrameCh:     make(chan http2frameWriteResult, 1),
 		bodyReadCh:       make(chan http2bodyReadMsg),
 		doneServing:      make(chan struct{}),
-		advMaxStreams:    srv.maxConcurrentStreams(),
+		advMaxStreams:    s.maxConcurrentStreams(),
 		writeSched: http2writeScheduler{
 			maxFrameSize: http2initialMaxFrameSize,
 		},
@@ -2630,10 +2682,10 @@ func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
 	sc.hpackDecoder.SetMaxStringLength(sc.maxHeaderStringLen())
 
 	fr := http2NewFramer(sc.bw, c)
-	fr.SetMaxReadFrameSize(srv.maxReadFrameSize())
+	fr.SetMaxReadFrameSize(s.maxReadFrameSize())
 	sc.framer = fr
 
-	if tc, ok := c.(*tls.Conn); ok {
+	if tc, ok := c.(http2connectionStater); ok {
 		sc.tlsState = new(tls.ConnectionState)
 		*sc.tlsState = tc.ConnectionState()
 
@@ -2646,7 +2698,7 @@ func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
 
 		}
 
-		if !srv.PermitProhibitedCipherSuites && http2isBadCipher(sc.tlsState.CipherSuite) {
+		if !s.PermitProhibitedCipherSuites && http2isBadCipher(sc.tlsState.CipherSuite) {
 
 			sc.rejectConn(http2ErrCodeInadequateSecurity, fmt.Sprintf("Prohibited TLS 1.2 Cipher Suite: %x", sc.tlsState.CipherSuite))
 			return
@@ -4874,10 +4926,7 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 
 	cc.henc = hpack.NewEncoder(&cc.hbuf)
 
-	type connectionStater interface {
-		ConnectionState() tls.ConnectionState
-	}
-	if cs, ok := c.(connectionStater); ok {
+	if cs, ok := c.(http2connectionStater); ok {
 		state := cs.ConnectionState()
 		cc.tlsState = &state
 	}
@@ -5028,7 +5077,27 @@ func (cc *http2ClientConn) responseHeaderTimeout() time.Duration {
 	return 0
 }
 
+// checkConnHeaders checks whether req has any invalid connection-level headers.
+// per RFC 7540 section 8.1.2.2: Connection-Specific Header Fields.
+// Certain headers are special-cased as okay but not transmitted later.
+func http2checkConnHeaders(req *Request) error {
+	if v := req.Header.Get("Upgrade"); v != "" {
+		return errors.New("http2: invalid Upgrade request header")
+	}
+	if v := req.Header.Get("Transfer-Encoding"); (v != "" && v != "chunked") || len(req.Header["Transfer-Encoding"]) > 1 {
+		return errors.New("http2: invalid Transfer-Encoding request header")
+	}
+	if v := req.Header.Get("Connection"); (v != "" && v != "close" && v != "keep-alive") || len(req.Header["Connection"]) > 1 {
+		return errors.New("http2: invalid Connection request header")
+	}
+	return nil
+}
+
 func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+	if err := http2checkConnHeaders(req); err != nil {
+		return nil, err
+	}
+
 	trailers, err := http2commaSeparatedTrailers(req)
 	if err != nil {
 		return nil, err
@@ -5334,10 +5403,14 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	var didUA bool
 	for k, vv := range req.Header {
 		lowKey := strings.ToLower(k)
-		if lowKey == "host" || lowKey == "content-length" {
+		switch lowKey {
+		case "host", "content-length":
+
 			continue
-		}
-		if lowKey == "user-agent" {
+		case "connection", "proxy-connection", "transfer-encoding", "upgrade":
+
+			continue
+		case "user-agent":
 
 			didUA = true
 			if len(vv) < 1 {
@@ -5445,8 +5518,9 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
 
 // clientConnReadLoop is the state owned by the clientConn's frame-reading readLoop.
 type http2clientConnReadLoop struct {
-	cc        *http2ClientConn
-	activeRes map[uint32]*http2clientStream // keyed by streamID
+	cc            *http2ClientConn
+	activeRes     map[uint32]*http2clientStream // keyed by streamID
+	closeWhenIdle bool
 
 	hdec *hpack.Decoder
 
@@ -5503,7 +5577,7 @@ func (rl *http2clientConnReadLoop) cleanup() {
 
 func (rl *http2clientConnReadLoop) run() error {
 	cc := rl.cc
-	closeWhenIdle := cc.t.disableKeepAlives()
+	rl.closeWhenIdle = cc.t.disableKeepAlives()
 	gotReply := false
 	for {
 		f, err := cc.fr.ReadFrame()
@@ -5552,7 +5626,7 @@ func (rl *http2clientConnReadLoop) run() error {
 		if err != nil {
 			return err
 		}
-		if closeWhenIdle && gotReply && maybeIdle && len(rl.activeRes) == 0 {
+		if rl.closeWhenIdle && gotReply && maybeIdle && len(rl.activeRes) == 0 {
 			cc.closeIfIdle()
 		}
 	}
@@ -5803,6 +5877,9 @@ func (rl *http2clientConnReadLoop) endStream(cs *http2clientStream) {
 	}
 	cs.bufPipe.closeWithErrorAndCode(err, code)
 	delete(rl.activeRes, cs.ID)
+	if cs.req.Close || cs.req.Header.Get("Connection") == "close" {
+		rl.closeWhenIdle = true
+	}
 }
 
 func (cs *http2clientStream) copyTrailers() {
