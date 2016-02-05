@@ -165,7 +165,7 @@ type Request struct {
 	// For server requests, the HTTP server handles this automatically
 	// and this field is not needed by Handlers.
 	//
-	// The client requests, setting this field prevents re-use of
+	// For client requests, setting this field prevents re-use of
 	// TCP connections between requests to the same hosts, as if
 	// Transport.DisableKeepAlives were set.
 	Close bool
