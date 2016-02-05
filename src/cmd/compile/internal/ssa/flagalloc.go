@@ -66,7 +66,7 @@ func flagalloc(f *Func) {
 	for _, b := range f.Blocks {
 		oldSched = append(oldSched[:0], b.Values...)
 		b.Values = b.Values[:0]
-		// The current live flag value.
+		// The current live flag value the pre-flagalloc copy).
 		var flag *Value
 		if len(b.Preds) > 0 {
 			flag = end[b.Preds[0].ID]
@@ -95,7 +95,7 @@ func flagalloc(f *Func) {
 				// Update v.
 				v.SetArg(i, c)
 				// Remember the most-recently computed flag value.
-				flag = c
+				flag = a
 			}
 			// Issue v.
 			b.Values = append(b.Values, v)
@@ -110,7 +110,7 @@ func flagalloc(f *Func) {
 			// Recalculate control value.
 			c := v.copyInto(b)
 			b.Control = c
-			flag = c
+			flag = v
 		}
 		if v := end[b.ID]; v != nil && v != flag {
 			// Need to reissue flag generator for use by
