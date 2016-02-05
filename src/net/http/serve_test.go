@@ -2416,7 +2416,7 @@ func TestCloseNotifierPipelined(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error dialing: %v", err)
 	}
-	diec := make(chan bool, 2)
+	diec := make(chan bool, 1)
 	go func() {
 		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
 		_, err = io.WriteString(conn, req+req) // two requests
@@ -2426,13 +2426,23 @@ func TestCloseNotifierPipelined(t *testing.T) {
 		<-diec
 		conn.Close()
 	}()
+	reqs := 0
+	closes := 0
 For:
 	for {
 		select {
 		case <-gotReq:
-			diec <- true
+			reqs++
+			if reqs > 2 {
+				t.Fatal("too many requests")
+			} else if reqs > 1 {
+				diec <- true
+			}
 		case <-sawClose:
-			break For
+			closes++
+			if closes > 1 {
+				break For
+			}
 		case <-time.After(5 * time.Second):
 			ts.CloseClientConnections()
 			t.Fatal("timeout")
