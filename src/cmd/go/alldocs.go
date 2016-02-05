@@ -1537,10 +1537,11 @@ A benchmark function is one named BenchmarkXXX and should have the signature,
 
 An example function is similar to a test function but, instead of using
 *testing.T to report success or failure, prints output to os.Stdout.
-That output is compared against the function's "Output:" comment, which
-must be the last comment in the function body (see example below). An
-example with no such comment, or with no text after "Output:" is compiled
-but not executed.
+If the last comment in the function starts with "Output:" then the output
+is compared exactly against the comment (see examples below). If the last
+comment begins with "Unordered output:" then the output is compared to the
+comment, however the order of the lines is ignored. An example with no such
+comment, or with no text after "Output:" is compiled but not executed.
 
 Godoc displays the body of ExampleXXX to demonstrate the use
 of the function, constant, or variable XXX.  An example of a method M with
@@ -1554,6 +1555,19 @@ Here is an example of an example:
 		Println("The output of\nthis example.")
 		// Output: The output of
 		// this example.
+	}
+
+Here is another example where the ordering of the output is ignored:
+
+	func ExamplePerm() {
+		for _, value := range Perm(4) {
+			fmt.Println(value)
+		}
+		// Unordered output: 4
+		// 2
+		// 1
+		// 3
+		// 0
 	}
 
 The entire test file is presented as the example when it contains a single
