@@ -9,14 +9,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
 
 type InternalExample struct {
-	Name   string
-	F      func()
-	Output string
+	Name      string
+	F         func()
+	Output    string
+	Unordered bool
 }
 
 func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
@@ -39,6 +41,12 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
 	}
 
 	return
+}
+
+func sortLines(output string) string {
+	lines := strings.Split(output, "\n")
+	sort.Strings(lines)
+	return strings.Join(lines, "\n")
 }
 
 func runExample(eg InternalExample) (ok bool) {
@@ -80,8 +88,16 @@ func runExample(eg InternalExample) (ok bool) {
 
 		var fail string
 		err := recover()
-		if g, e := strings.TrimSpace(out), strings.TrimSpace(eg.Output); g != e && err == nil {
-			fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", g, e)
+		got := strings.TrimSpace(out)
+		want := strings.TrimSpace(eg.Output)
+		if eg.Unordered {
+			if sortLines(got) != sortLines(want) && err == nil {
+				fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", out, eg.Output)
+			}
+		} else {
+			if got != want && err == nil {
+				fail = fmt.Sprintf("got:\n%s\nwant:\n%s\n", got, want)
+			}
 		}
 		if fail != "" || err != nil {
 			fmt.Printf("--- FAIL: %s (%s)\n%s", eg.Name, dstr, fail)
