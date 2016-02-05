@@ -3985,12 +3985,47 @@ func (s *genState) genValue(v *ssa.Value) {
 		r := regnum(v)
 		a := regnum(v.Args[0])
 		if r == a {
-			p := Prog(v.Op.Asm())
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
-			return
+			if v.AuxInt == 1 {
+				var asm int
+				switch v.Op {
+				// Software optimization manual recommends add $1,reg.
+				// But inc/dec is 1 byte smaller. ICC always uses inc
+				// Clang/GCC choose depending on flags, but prefer add.
+				// Experiments show that inc/dec is both a little faster
+				// and make a binary a little smaller.
+				case ssa.OpAMD64ADDQconst:
+					asm = x86.AINCQ
+				case ssa.OpAMD64ADDLconst:
+					asm = x86.AINCL
+				case ssa.OpAMD64ADDWconst:
+					asm = x86.AINCW
+				}
+				p := Prog(asm)
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+				return
+			} else if v.AuxInt == -1 {
+				var asm int
+				switch v.Op {
+				case ssa.OpAMD64ADDQconst:
+					asm = x86.ADECQ
+				case ssa.OpAMD64ADDLconst:
+					asm = x86.ADECL
+				case ssa.OpAMD64ADDWconst:
+					asm = x86.ADECW
+				}
+				p := Prog(asm)
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+				return
+			} else {
+				p := Prog(v.Op.Asm())
+				p.From.Type = obj.TYPE_CONST
+				p.From.Offset = v.AuxInt
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+				return
+			}
 		}
 		var asm int
 		switch v.Op {
@@ -4027,15 +4062,83 @@ func (s *genState) genValue(v *ssa.Value) {
 		//p.From3 = new(obj.Addr)
 		//p.From3.Type = obj.TYPE_REG
 		//p.From3.Reg = regnum(v.Args[0])
+	case ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst:
+		x := regnum(v.Args[0])
+		r := regnum(v)
+		// We have 3-op add (lea), so transforming a = b - const into
+		// a = b + (- const), saves us 1 instruction. We can't fit
+		// - (-1 << 31) into  4 bytes offset in lea.
+		// We handle 2-address just fine below.
+		if v.AuxInt == -1<<31 || x == r {
+			if x != r {
+				// This code compensates for the fact that the register allocator
+				// doesn't understand 2-address instructions yet.  TODO: fix that.
+				p := Prog(moveByType(v.Type))
+				p.From.Type = obj.TYPE_REG
+				p.From.Reg = x
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+			}
+			p := Prog(v.Op.Asm())
+			p.From.Type = obj.TYPE_CONST
+			p.From.Offset = v.AuxInt
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		} else if x == r && v.AuxInt == -1 {
+			var asm int
+			// x = x - (-1) is the same as x++
+			// See OpAMD64ADDQconst comments about inc vs add $1,reg
+			switch v.Op {
+			case ssa.OpAMD64SUBQconst:
+				asm = x86.AINCQ
+			case ssa.OpAMD64SUBLconst:
+				asm = x86.AINCL
+			case ssa.OpAMD64SUBWconst:
+				asm = x86.AINCW
+			}
+			p := Prog(asm)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		} else if x == r && v.AuxInt == 1 {
+			var asm int
+			switch v.Op {
+			case ssa.OpAMD64SUBQconst:
+				asm = x86.ADECQ
+			case ssa.OpAMD64SUBLconst:
+				asm = x86.ADECL
+			case ssa.OpAMD64SUBWconst:
+				asm = x86.ADECW
+			}
+			p := Prog(asm)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		} else {
+			var asm int
+			switch v.Op {
+			case ssa.OpAMD64SUBQconst:
+				asm = x86.ALEAQ
+			case ssa.OpAMD64SUBLconst:
+				asm = x86.ALEAL
+			case ssa.OpAMD64SUBWconst:
+				asm = x86.ALEAW
+			}
+			p := Prog(asm)
+			p.From.Type = obj.TYPE_MEM
+			p.From.Reg = x
+			p.From.Offset = -v.AuxInt
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
+
 	case ssa.OpAMD64ADDBconst,
 		ssa.OpAMD64ANDQconst, ssa.OpAMD64ANDLconst, ssa.OpAMD64ANDWconst, ssa.OpAMD64ANDBconst,
 		ssa.OpAMD64ORQconst, ssa.OpAMD64ORLconst, ssa.OpAMD64ORWconst, ssa.OpAMD64ORBconst,
 		ssa.OpAMD64XORQconst, ssa.OpAMD64XORLconst, ssa.OpAMD64XORWconst, ssa.OpAMD64XORBconst,
-		ssa.OpAMD64SUBQconst, ssa.OpAMD64SUBLconst, ssa.OpAMD64SUBWconst, ssa.OpAMD64SUBBconst,
-		ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst, ssa.OpAMD64SHLBconst,
-		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
-		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst,
-		ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst, ssa.OpAMD64ROLBconst:
+		ssa.OpAMD64SUBBconst, ssa.OpAMD64SHLQconst, ssa.OpAMD64SHLLconst, ssa.OpAMD64SHLWconst,
+		ssa.OpAMD64SHLBconst, ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst,
+		ssa.OpAMD64SHRBconst, ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst,
+		ssa.OpAMD64SARBconst, ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst,
+		ssa.OpAMD64ROLBconst:
 		// This code compensates for the fact that the register allocator
 		// doesn't understand 2-address instructions yet.  TODO: fix that.
 		x := regnum(v.Args[0])
