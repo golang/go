@@ -1357,7 +1357,7 @@ type writeRequest struct {
 	req *transportRequest
 	ch  chan<- error
 
-	// Optional blocking chan for Expect: 100-continue (for recieve).
+	// Optional blocking chan for Expect: 100-continue (for receive).
 	// If not nil, writeLoop blocks sending request body until
 	// it receives from this chan.
 	continueCh <-chan struct{}
