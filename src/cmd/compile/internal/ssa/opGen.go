@@ -109,12 +109,15 @@ const (
 	OpAMD64MULLconst
 	OpAMD64MULWconst
 	OpAMD64MULBconst
+	OpAMD64HMULQ
 	OpAMD64HMULL
 	OpAMD64HMULW
 	OpAMD64HMULB
+	OpAMD64HMULQU
 	OpAMD64HMULLU
 	OpAMD64HMULWU
 	OpAMD64HMULBU
+	OpAMD64AVGQU
 	OpAMD64DIVQ
 	OpAMD64DIVL
 	OpAMD64DIVW
@@ -331,6 +334,9 @@ const (
 	OpHmul16u
 	OpHmul32
 	OpHmul32u
+	OpHmul64
+	OpHmul64u
+	OpAvg64u
 	OpDiv8
 	OpDiv8u
 	OpDiv16
@@ -1145,6 +1151,20 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name: "HMULQ",
+		asm:  x86.AIMULQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
 		name: "HMULL",
 		asm:  x86.AIMULL,
 		reg: regInfo{
@@ -1175,6 +1195,20 @@ var opcodeTable = [...]opInfo{
 	{
 		name: "HMULB",
 		asm:  x86.AIMULB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1},     // .AX
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934593, // .AX .FLAGS
+			outputs: []regMask{
+				4, // .DX
+			},
+		},
+	},
+	{
+		name: "HMULQU",
+		asm:  x86.AMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1225,6 +1259,19 @@ var opcodeTable = [...]opInfo{
 			clobbers: 8589934593, // .AX .FLAGS
 			outputs: []regMask{
 				4, // .DX
+			},
+		},
+	},
+	{
+		name: "AVGQU",
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+				{1, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+			},
+			clobbers: 8589934592, // .FLAGS
+			outputs: []regMask{
+				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
 			},
 		},
 	},
@@ -3659,6 +3706,18 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Hmul32u",
+		generic: true,
+	},
+	{
+		name:    "Hmul64",
+		generic: true,
+	},
+	{
+		name:    "Hmul64u",
+		generic: true,
+	},
+	{
+		name:    "Avg64u",
 		generic: true,
 	},
 	{

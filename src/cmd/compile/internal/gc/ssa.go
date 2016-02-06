@@ -3904,10 +3904,11 @@ func (s *genState) genValue(v *ssa.Value) {
 			j2.To.Val = Pc
 		}
 
-	case ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
-		ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
+	case ssa.OpAMD64HMULQ, ssa.OpAMD64HMULL, ssa.OpAMD64HMULW, ssa.OpAMD64HMULB,
+		ssa.OpAMD64HMULQU, ssa.OpAMD64HMULLU, ssa.OpAMD64HMULWU, ssa.OpAMD64HMULBU:
 		// the frontend rewrites constant division by 8/16/32 bit integers into
 		// HMUL by a constant
+		// SSA rewrites generate the 64 bit versions
 
 		// Arg[0] is already in AX as it's the only register we allow
 		// and DX is the only output we care about (the high bits)
@@ -3924,6 +3925,32 @@ func (s *genState) genValue(v *ssa.Value) {
 			m.To.Type = obj.TYPE_REG
 			m.To.Reg = x86.REG_DX
 		}
+
+	case ssa.OpAMD64AVGQU:
+		// compute (x+y)/2 unsigned.
+		// Do a 64-bit add, the overflow goes into the carry.
+		// Shift right once and pull the carry back into the 63rd bit.
+		r := regnum(v)
+		x := regnum(v.Args[0])
+		y := regnum(v.Args[1])
+		if x != r && y != r {
+			opregreg(moveByType(v.Type), r, x)
+			x = r
+		}
+		p := Prog(x86.AADDQ)
+		p.From.Type = obj.TYPE_REG
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+		if x == r {
+			p.From.Reg = y
+		} else {
+			p.From.Reg = x
+		}
+		p = Prog(x86.ARCRQ)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 1
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
 
 	case ssa.OpAMD64SHLQ, ssa.OpAMD64SHLL, ssa.OpAMD64SHLW, ssa.OpAMD64SHLB,
 		ssa.OpAMD64SHRQ, ssa.OpAMD64SHRL, ssa.OpAMD64SHRW, ssa.OpAMD64SHRB,

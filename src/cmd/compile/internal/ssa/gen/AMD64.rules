@@ -45,12 +45,16 @@
 (Div8 x y) ->  (DIVW (SignExt8to16 x) (SignExt8to16 y))
 (Div8u x y) ->  (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 
+(Hmul64 x y) -> (HMULQ x y)
+(Hmul64u x y) -> (HMULQU x y)
 (Hmul32 x y) -> (HMULL x y)
 (Hmul32u x y) -> (HMULLU x y)
 (Hmul16 x y) -> (HMULW x y)
 (Hmul16u x y) -> (HMULWU x y)
 (Hmul8 x y) ->  (HMULB x y)
 (Hmul8u x y) ->  (HMULBU x y)
+
+(Avg64u x y) -> (AVGQU x y)
 
 (Mod64 x y) -> (MODQ x y)
 (Mod64u x y) -> (MODQU x y)

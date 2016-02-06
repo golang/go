@@ -514,3 +514,100 @@
     (Arg <t.FieldType(1)> {n} [off+t.FieldOff(1)])
     (Arg <t.FieldType(2)> {n} [off+t.FieldOff(2)])
     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
+
+// strength reduction of divide by a constant.
+// Note: frontend does <=32 bits.  We only need to do 64 bits here.
+// TODO: Do them all here?
+
+// Div/mod by 1.  Currently handled by frontend.
+//(Div64 n (Const64 [1])) -> n
+//(Div64u n (Const64 [1])) -> n
+//(Mod64 n (Const64 [1])) -> (Const64 [0])
+//(Mod64u n (Const64 [1])) -> (Const64 [0])
+
+// Unsigned divide by power of 2.  Currently handled by frontend.
+//(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
+//(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
+
+// Signed divide by power of 2.  Currently handled by frontend.
+// n / c = n >> log(c)       if n >= 0
+//       = (n+c-1) >> log(c) if n < 0
+// We conditionally add c-1 by adding n>>63>>(64-log(c)) (first shift signed, second shift unsigned).
+//(Div64 <t> n (Const64 [c])) && isPowerOfTwo(c) ->
+//  (Rsh64x64
+//    (Add64 <t>
+//      n
+//      (Rsh64Ux64 <t>
+//        (Rsh64x64 <t> n (Const64 <t> [63]))
+//        (Const64 <t> [64-log2(c)])))
+//    (Const64 <t> [log2(c)]))
+
+// Unsigned divide, not a power of 2.  Strength reduce to a multiply.
+(Div64u <t> x (Const64 [c])) && umagic64ok(c) && !umagic64a(c) ->
+  (Rsh64Ux64
+    (Hmul64u <t>
+      (Const64 <t> [umagic64m(c)])
+      x)
+    (Const64 <t> [umagic64s(c)]))
+(Div64u <t> x (Const64 [c])) && umagic64ok(c) && umagic64a(c) ->
+  (Rsh64Ux64
+    (Avg64u <t>
+      (Hmul64u <t>
+        x
+        (Const64 <t> [umagic64m(c)]))
+      x)
+    (Const64 <t> [umagic64s(c)-1]))
+
+// Signed divide, not a power of 2.  Strength reduce to a multiply.
+(Div64 <t> x (Const64 [c])) && c > 0 && smagic64ok(c) && smagic64m(c) > 0 ->
+  (Sub64 <t>
+    (Rsh64x64 <t>
+      (Hmul64 <t>
+        (Const64 <t> [smagic64m(c)])
+        x)
+      (Const64 <t> [smagic64s(c)]))
+    (Rsh64x64 <t>
+      x
+      (Const64 <t> [63])))
+(Div64 <t> x (Const64 [c])) && c > 0 && smagic64ok(c) && smagic64m(c) < 0 ->
+  (Sub64 <t>
+    (Rsh64x64 <t>
+      (Add64 <t>
+        (Hmul64 <t>
+          (Const64 <t> [smagic64m(c)])
+          x)
+        x)
+      (Const64 <t> [smagic64s(c)]))
+    (Rsh64x64 <t>
+      x
+      (Const64 <t> [63])))
+(Div64 <t> x (Const64 [c])) && c < 0 && smagic64ok(c) && smagic64m(c) > 0 ->
+  (Neg64 <t>
+    (Sub64 <t>
+      (Rsh64x64 <t>
+        (Hmul64 <t>
+          (Const64 <t> [smagic64m(c)])
+          x)
+        (Const64 <t> [smagic64s(c)]))
+      (Rsh64x64 <t>
+        x
+        (Const64 <t> [63]))))
+(Div64 <t> x (Const64 [c])) && c < 0 && smagic64ok(c) && smagic64m(c) < 0 ->
+  (Neg64 <t>
+    (Sub64 <t>
+      (Rsh64x64 <t>
+        (Add64 <t>
+          (Hmul64 <t>
+            (Const64 <t> [smagic64m(c)])
+            x)
+          x)
+        (Const64 <t> [smagic64s(c)]))
+      (Rsh64x64 <t>
+        x
+        (Const64 <t> [63]))))
+
+// A%B = A-(A/B*B).
+// This implements % with two * and a bunch of ancillary ops.
+// One of the * is free if the user's code also computes A/B.
+(Mod64  <t> x (Const64 [c])) && smagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
+(Mod64u <t> x (Const64 [c])) && umagic64ok(c) -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))

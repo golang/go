@@ -41,7 +41,11 @@ var genericOps = []opData{
 	{name: "Hmul16u"},
 	{name: "Hmul32"},
 	{name: "Hmul32u"},
-	// frontend currently doesn't generate a 64 bit hmul
+	{name: "Hmul64"},
+	{name: "Hmul64u"},
+
+	// Weird special instruction for strength reduction of divides.
+	{name: "Avg64u"}, // (uint64(arg0) + uint64(arg1)) / 2, correct to all 64 bits.
 
 	{name: "Div8"}, // arg0 / arg1
 	{name: "Div8u"},

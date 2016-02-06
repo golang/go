@@ -63,6 +63,8 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpAnd64(v, config)
 	case OpAnd8:
 		return rewriteValueAMD64_OpAnd8(v, config)
+	case OpAvg64u:
+		return rewriteValueAMD64_OpAvg64u(v, config)
 	case OpAMD64CMPB:
 		return rewriteValueAMD64_OpAMD64CMPB(v, config)
 	case OpAMD64CMPBconst:
@@ -217,6 +219,10 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpHmul32(v, config)
 	case OpHmul32u:
 		return rewriteValueAMD64_OpHmul32u(v, config)
+	case OpHmul64:
+		return rewriteValueAMD64_OpHmul64(v, config)
+	case OpHmul64u:
+		return rewriteValueAMD64_OpHmul64u(v, config)
 	case OpHmul8:
 		return rewriteValueAMD64_OpHmul8(v, config)
 	case OpHmul8u:
@@ -1966,6 +1972,22 @@ func rewriteValueAMD64_OpAnd8(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpAMD64ANDB)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Avg64u x y)
+	// cond:
+	// result: (AVGQU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64AVGQU)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
@@ -3749,6 +3771,38 @@ func rewriteValueAMD64_OpHmul32u(v *Value, config *Config) bool {
 		x := v.Args[0]
 		y := v.Args[1]
 		v.reset(OpAMD64HMULLU)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpHmul64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul64 x y)
+	// cond:
+	// result: (HMULQ x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64HMULQ)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpHmul64u(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Hmul64u x y)
+	// cond:
+	// result: (HMULQU x y)
+	for {
+		x := v.Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64HMULQU)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true

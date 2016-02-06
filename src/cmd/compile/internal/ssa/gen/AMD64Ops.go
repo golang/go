@@ -193,12 +193,16 @@ func init() {
 		{name: "MULWconst", reg: gp11, asm: "IMULW", aux: "Int16"}, // arg0 * auxint
 		{name: "MULBconst", reg: gp11, asm: "IMULW", aux: "Int8"},  // arg0 * auxint
 
+		{name: "HMULQ", reg: gp11hmul, asm: "IMULQ"}, // (arg0 * arg1) >> width
 		{name: "HMULL", reg: gp11hmul, asm: "IMULL"}, // (arg0 * arg1) >> width
 		{name: "HMULW", reg: gp11hmul, asm: "IMULW"}, // (arg0 * arg1) >> width
 		{name: "HMULB", reg: gp11hmul, asm: "IMULB"}, // (arg0 * arg1) >> width
+		{name: "HMULQU", reg: gp11hmul, asm: "MULQ"}, // (arg0 * arg1) >> width
 		{name: "HMULLU", reg: gp11hmul, asm: "MULL"}, // (arg0 * arg1) >> width
 		{name: "HMULWU", reg: gp11hmul, asm: "MULW"}, // (arg0 * arg1) >> width
 		{name: "HMULBU", reg: gp11hmul, asm: "MULB"}, // (arg0 * arg1) >> width
+
+		{name: "AVGQU", reg: gp21}, // (arg0 + arg1) / 2 as unsigned, all 64 result bits
 
 		{name: "DIVQ", reg: gp11div, asm: "IDIVQ"}, // arg0 / arg1
 		{name: "DIVL", reg: gp11div, asm: "IDIVL"}, // arg0 / arg1
