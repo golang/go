@@ -167,7 +167,7 @@ func (s *Server) Close() {
 			// few milliseconds wasn't liked (early versions of
 			// https://golang.org/cl/15151) so now we just
 			// forcefully close StateNew. The docs for Server.Close say
-			// we wait for "oustanding requests", so we don't close things
+			// we wait for "outstanding requests", so we don't close things
 			// in StateActive.
 			if st == http.StateIdle || st == http.StateNew {
 				s.closeConn(c)

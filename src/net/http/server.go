@@ -1009,7 +1009,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 					w.closeAfterReply = true
 				}
 			default:
-				// Some other kind of error occured, like a read timeout, or
+				// Some other kind of error occurred, like a read timeout, or
 				// corrupt chunked encoding. In any case, whatever remains
 				// on the wire must not be parsed as another HTTP request.
 				w.closeAfterReply = true

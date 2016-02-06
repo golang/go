@@ -5,7 +5,7 @@
 package gc
 
 // The recursive-descent parser is built around a slighty modified grammar
-// of Go to accomodate for the constraints imposed by strict one token look-
+// of Go to accommodate for the constraints imposed by strict one token look-
 // ahead, and for better error handling. Subsequent checks of the constructed
 // syntax tree restrict the language accepted by the compiler to proper Go.
 //
