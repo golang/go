@@ -99,16 +99,21 @@ func cse(f *Func) {
 		eqloop:
 			for j := 1; j < len(e); {
 				w := e[j]
+				equivalent := true
 				for i := 0; i < len(v.Args); i++ {
-					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] || !v.Type.Equal(w.Type) {
-						// w is not equivalent to v.
-						// move it to the end and shrink e.
-						e[j], e[len(e)-1] = e[len(e)-1], e[j]
-						e = e[:len(e)-1]
-						valueEqClass[w.ID] = ID(len(partition))
-						changed = true
-						continue eqloop
+					if valueEqClass[v.Args[i].ID] != valueEqClass[w.Args[i].ID] {
+						equivalent = false
+						break
 					}
+				}
+				if !equivalent || !v.Type.Equal(w.Type) {
+					// w is not equivalent to v.
+					// move it to the end and shrink e.
+					e[j], e[len(e)-1] = e[len(e)-1], e[j]
+					e = e[:len(e)-1]
+					valueEqClass[w.ID] = ID(len(partition))
+					changed = true
+					continue eqloop
 				}
 				// v and w are equivalent.  Keep w in e.
 				j++
@@ -212,8 +217,12 @@ func partitionValues(a []*Value) []eqclass {
 				len(v.Args) != len(w.Args) ||
 				v.Op == OpPhi && v.Block != w.Block ||
 				v.Aux != w.Aux ||
-				len(v.Args) >= 1 && v.Args[0].Op != w.Args[0].Op ||
-				len(v.Args) >= 2 && v.Args[1].Op != w.Args[1].Op ||
+				len(v.Args) >= 1 && (v.Args[0].Op != w.Args[0].Op ||
+					v.Args[0].Aux != w.Args[0].Aux ||
+					v.Args[0].AuxInt != w.Args[0].AuxInt) ||
+				len(v.Args) >= 2 && (v.Args[1].Op != w.Args[1].Op ||
+					v.Args[1].Aux != w.Args[1].Aux ||
+					v.Args[1].AuxInt != w.Args[1].AuxInt) ||
 				typNames[v.Type] != typNames[w.Type] {
 				break
 			}
@@ -258,16 +267,29 @@ func (sv sortvalues) Less(i, j int) bool {
 		return v.Block.ID < w.Block.ID
 	}
 	if len(v.Args) >= 1 {
-		x := v.Args[0].Op
-		y := w.Args[0].Op
-		if x != y {
-			return x < y
+		vOp := v.Args[0].Op
+		wOp := w.Args[0].Op
+		if vOp != wOp {
+			return vOp < wOp
 		}
+
+		vAuxInt := v.Args[0].AuxInt
+		wAuxInt := w.Args[0].AuxInt
+		if vAuxInt != wAuxInt {
+			return vAuxInt < wAuxInt
+		}
+
 		if len(v.Args) >= 2 {
-			x = v.Args[1].Op
-			y = w.Args[1].Op
-			if x != y {
-				return x < y
+			vOp = v.Args[1].Op
+			wOp = w.Args[1].Op
+			if vOp != wOp {
+				return vOp < wOp
+			}
+
+			vAuxInt = v.Args[1].AuxInt
+			wAuxInt = w.Args[1].AuxInt
+			if vAuxInt != wAuxInt {
+				return vAuxInt < wAuxInt
 			}
 		}
 	}
