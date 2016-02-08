@@ -1039,12 +1039,30 @@ func TestAutomaticHTTP2_Serve(t *testing.T) {
 }
 
 func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
-	defer afterTest(t)
-	defer SetTestHookServerServe(nil)
 	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
+	testAutomaticHTTP2_ListenAndServe(t, &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	})
+}
+
+func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
+	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testAutomaticHTTP2_ListenAndServe(t, &tls.Config{
+		GetCertificate: func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return &cert, nil
+		},
+	})
+}
+
+func testAutomaticHTTP2_ListenAndServe(t *testing.T, tlsConf *tls.Config) {
+	defer afterTest(t)
+	defer SetTestHookServerServe(nil)
 	var ok bool
 	var s *Server
 	const maxTries = 5
@@ -1060,10 +1078,8 @@ Try:
 			lnc <- ln
 		})
 		s = &Server{
-			Addr: addr,
-			TLSConfig: &tls.Config{
-				Certificates: []tls.Certificate{cert},
-			},
+			Addr:      addr,
+			TLSConfig: tlsConf,
 		}
 		errc := make(chan error, 1)
 		go func() { errc <- s.ListenAndServeTLS("", "") }()

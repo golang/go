@@ -2233,10 +2233,11 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 // Accepted connections are configured to enable TCP keep-alives.
 //
 // Filenames containing a certificate and matching private key for the
-// server must be provided if the Server's TLSConfig.Certificates is
-// not populated. If the certificate is signed by a certificate
-// authority, the certFile should be the concatenation of the server's
-// certificate, any intermediates, and the CA's certificate.
+// server must be provided if neither the Server's TLSConfig.Certificates
+// nor TLSConfig.GetCertificate are populated. If the certificate is
+// signed by a certificate authority, the certFile should be the
+// concatenation of the server's certificate, any intermediates, and
+// the CA's certificate.
 //
 // If srv.Addr is blank, ":https" is used.
 //
@@ -2258,7 +2259,8 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
 		config.NextProtos = append(config.NextProtos, "http/1.1")
 	}
 
-	if len(config.Certificates) == 0 || certFile != "" || keyFile != "" {
+	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil
+	if !configHasCert || certFile != "" || keyFile != "" {
 		var err error
 		config.Certificates = make([]tls.Certificate, 1)
 		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)
