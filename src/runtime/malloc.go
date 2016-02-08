@@ -496,6 +496,32 @@ const (
 	_FlagNoZero = 1 << 1 // don't zero memory
 )
 
+// nextFree returns the next free object from the cached span if one is available.
+// Otherwise it refills the cache with a span with an available object and
+// returns that object along with a flag indicating that this was a heavy
+// weight allocation. If it is a heavy weight allocation the caller must
+// determine whether a new GC cycle needs to be started or if the GC is active
+// whether this goroutine needs to assist the GC.
+// https://golang.org/cl/5350 motivates why this routine should preform a
+// prefetch.
+func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, shouldhelpgc bool) {
+	s := c.alloc[sizeclass]
+	v = s.freelist
+	if v.ptr() == nil {
+		systemstack(func() {
+			c.refill(int32(sizeclass))
+		})
+		shouldhelpgc = true
+		s = c.alloc[sizeclass]
+		v = s.freelist
+	}
+	s.freelist = v.ptr().next
+	s.ref++
+	// prefetchnta offers best performance, see change list message.
+	prefetchnta(uintptr(v.ptr().next))
+	return
+}
+
 // Allocate an object of size bytes.
 // Small objects are allocated from the per-P cache's free lists.
 // Large objects (> 32 kB) are allocated straight from the heap.
@@ -554,7 +580,6 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 	shouldhelpgc := false
 	dataSize := size
 	c := gomcache()
-	var s *mspan
 	var x unsafe.Pointer
 	if size <= maxSmallSize {
 		if flags&flagNoScan != 0 && size < maxTinySize {
@@ -606,20 +631,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				return x
 			}
 			// Allocate a new maxTinySize block.
-			s = c.alloc[tinySizeClass]
-			v := s.freelist
-			if v.ptr() == nil {
-				systemstack(func() {
-					c.refill(tinySizeClass)
-				})
-				shouldhelpgc = true
-				s = c.alloc[tinySizeClass]
-				v = s.freelist
-			}
-			s.freelist = v.ptr().next
-			s.ref++
-			// prefetchnta offers best performance, see change list message.
-			prefetchnta(uintptr(v.ptr().next))
+			var v gclinkptr
+			v, shouldhelpgc = c.nextFree(tinySizeClass)
 			x = unsafe.Pointer(v)
 			(*[2]uint64)(x)[0] = 0
 			(*[2]uint64)(x)[1] = 0
@@ -638,20 +651,8 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 				sizeclass = size_to_class128[(size-1024+127)>>7]
 			}
 			size = uintptr(class_to_size[sizeclass])
-			s = c.alloc[sizeclass]
-			v := s.freelist
-			if v.ptr() == nil {
-				systemstack(func() {
-					c.refill(int32(sizeclass))
-				})
-				shouldhelpgc = true
-				s = c.alloc[sizeclass]
-				v = s.freelist
-			}
-			s.freelist = v.ptr().next
-			s.ref++
-			// prefetchnta offers best performance, see change list message.
-			prefetchnta(uintptr(v.ptr().next))
+			var v gclinkptr
+			v, shouldhelpgc = c.nextFree(sizeclass)
 			x = unsafe.Pointer(v)
 			if flags&flagNoZero == 0 {
 				v.ptr().next = 0
