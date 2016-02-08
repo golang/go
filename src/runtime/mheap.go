@@ -552,7 +552,7 @@ func (h *mheap) allocStack(npage uintptr) *mspan {
 	s := h.allocSpanLocked(npage)
 	if s != nil {
 		s.state = _MSpanStack
-		s.freelist = 0
+		s.stackfreelist = 0
 		s.ref = 0
 		memstats.stacks_inuse += uint64(s.npages << _PageShift)
 	}
