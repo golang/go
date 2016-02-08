@@ -4,16 +4,16 @@
 
 package ssa
 
-// decompose converts phi ops on compound types into phi
+// decompose converts phi ops on compound builtin types into phi
 // ops on simple types.
 // (The remaining compound ops are decomposed with rewrite rules.)
-func decompose(f *Func) {
+func decomposeBuiltIn(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if v.Op != OpPhi {
 				continue
 			}
-			decomposePhi(v)
+			decomposeBuiltInPhi(v)
 		}
 	}
 
@@ -78,22 +78,13 @@ func decompose(f *Func) {
 				f.NamedValues[typeName] = append(f.NamedValues[typeName], typ)
 				f.NamedValues[dataName] = append(f.NamedValues[dataName], data)
 			}
-		case t.IsStruct():
-			n := t.NumFields()
-			for _, v := range f.NamedValues[name] {
-				for i := int64(0); i < n; i++ {
-					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
-					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
-					f.NamedValues[fname] = append(f.NamedValues[fname], x)
-				}
-			}
 		case t.Size() > f.Config.IntSize:
 			f.Unimplementedf("undecomposed named type %s", t)
 		}
 	}
 }
 
-func decomposePhi(v *Value) {
+func decomposeBuiltInPhi(v *Value) {
 	// TODO: decompose 64-bit ops on 32-bit archs?
 	switch {
 	case v.Type.IsComplex():
@@ -104,8 +95,6 @@ func decomposePhi(v *Value) {
 		decomposeSlicePhi(v)
 	case v.Type.IsInterface():
 		decomposeInterfacePhi(v)
-	case v.Type.IsStruct():
-		decomposeStructPhi(v)
 	case v.Type.Size() > v.Block.Func.Config.IntSize:
 		v.Unimplementedf("undecomposed type %s", v.Type)
 	}
@@ -182,6 +171,50 @@ func decomposeInterfacePhi(v *Value) {
 	v.AddArg(itab)
 	v.AddArg(data)
 }
+
+func decomposeUser(f *Func) {
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op != OpPhi {
+				continue
+			}
+			decomposeUserPhi(v)
+		}
+	}
+	// Split up named values into their components.
+	// NOTE: the component values we are making are dead at this point.
+	// We must do the opt pass before any deadcode elimination or we will
+	// lose the name->value correspondence.
+	i := 0
+	for _, name := range f.Names {
+		t := name.Type
+		switch {
+		case t.IsStruct():
+			n := t.NumFields()
+			for _, v := range f.NamedValues[name] {
+				for i := int64(0); i < n; i++ {
+					fname := LocalSlot{name.N, t.FieldType(i), name.Off + t.FieldOff(i)} // TODO: use actual field name?
+					x := v.Block.NewValue1I(v.Line, OpStructSelect, t.FieldType(i), i, v)
+					f.NamedValues[fname] = append(f.NamedValues[fname], x)
+				}
+			}
+			delete(f.NamedValues, name)
+		default:
+			f.Names[i] = name
+			i++
+		}
+	}
+	f.Names = f.Names[:i]
+}
+
+func decomposeUserPhi(v *Value) {
+	switch {
+	case v.Type.IsStruct():
+		decomposeStructPhi(v)
+	}
+	// TODO: Arrays of length 1?
+}
+
 func decomposeStructPhi(v *Value) {
 	t := v.Type
 	n := t.NumFields()
@@ -199,7 +232,9 @@ func decomposeStructPhi(v *Value) {
 
 	// Recursively decompose phis for each field.
 	for _, f := range fields[:n] {
-		decomposePhi(f)
+		if f.Type.IsStruct() {
+			decomposeStructPhi(f)
+		}
 	}
 }
 
