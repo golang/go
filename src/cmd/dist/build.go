@@ -754,7 +754,7 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -798,10 +798,15 @@ func shouldbuild(file, dir string) bool {
 		if p == "" {
 			continue
 		}
-		if strings.Contains(p, "package documentation") {
+		code := p
+		i := strings.Index(code, "//")
+		if i > 0 {
+			code = strings.TrimSpace(code[:i])
+		}
+		if code == "package documentation" {
 			return false
 		}
-		if strings.Contains(p, "package main") && dir != "cmd/go" && dir != "cmd/cgo" {
+		if code == "package main" && dir != "cmd/go" && dir != "cmd/cgo" {
 			return false
 		}
 		if !strings.HasPrefix(p, "//") {
@@ -810,11 +815,11 @@ func shouldbuild(file, dir string) bool {
 		if !strings.Contains(p, "+build") {
 			continue
 		}
-		fields := splitfields(p)
-		if len(fields) < 2 || fields[1] != "+build" {
+		fields := splitfields(p[2:])
+		if len(fields) < 1 || fields[0] != "+build" {
 			continue
 		}
-		for _, p := range fields[2:] {
+		for _, p := range fields[1:] {
 			if matchfield(p) {
 				goto fieldmatch
 			}
