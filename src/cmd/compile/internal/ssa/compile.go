@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+var Debug int
+
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
 //   · all Values in f map to 0 or 1 assembly instructions of the target architecture

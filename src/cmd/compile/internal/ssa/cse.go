@@ -4,7 +4,10 @@
 
 package ssa
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // cse does common-subexpression elimination on the Function.
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
@@ -76,6 +79,13 @@ func cse(f *Func) {
 	for i, e := range partition {
 		for _, v := range e {
 			valueEqClass[v.ID] = ID(i)
+		}
+		if Debug > 2 && len(e) > 1 {
+			fmt.Printf("CSE.partition #%d:", i)
+			for _, v := range e {
+				fmt.Printf(" %s", v.String())
+			}
+			fmt.Printf("\n")
 		}
 	}
 
@@ -196,7 +206,8 @@ type eqclass []*Value
 //  - aux
 //  - nargs
 //  - block # if a phi op
-//  - first two arg's opcodes
+//  - first two arg's opcodes and auxint
+//  - NOT first two arg's aux; that can break CSE.
 // partitionValues returns a list of equivalence classes, each
 // being a sorted by ID list of *Values.  The eqclass slices are
 // backed by the same storage as the input slice.
@@ -212,18 +223,30 @@ func partitionValues(a []*Value) []eqclass {
 		j := 1
 		for ; j < len(a); j++ {
 			w := a[j]
-			if v.Op != w.Op ||
+			rootsDiffer := v.Op != w.Op ||
 				v.AuxInt != w.AuxInt ||
 				len(v.Args) != len(w.Args) ||
 				v.Op == OpPhi && v.Block != w.Block ||
-				v.Aux != w.Aux ||
+				v.Aux != w.Aux
+			if rootsDiffer ||
 				len(v.Args) >= 1 && (v.Args[0].Op != w.Args[0].Op ||
-					v.Args[0].Aux != w.Args[0].Aux ||
 					v.Args[0].AuxInt != w.Args[0].AuxInt) ||
 				len(v.Args) >= 2 && (v.Args[1].Op != w.Args[1].Op ||
-					v.Args[1].Aux != w.Args[1].Aux ||
 					v.Args[1].AuxInt != w.Args[1].AuxInt) ||
 				typNames[v.Type] != typNames[w.Type] {
+				if Debug > 3 {
+					fmt.Printf("CSE.partitionValues separates %s from %s, AuxInt=%v, Aux=%v, typNames=%v",
+						v.LongString(), w.LongString(), v.AuxInt != w.AuxInt, v.Aux != w.Aux, typNames[v.Type] != typNames[w.Type])
+					if !rootsDiffer {
+						if len(v.Args) >= 1 {
+							fmt.Printf(", a0Op=%v, a0AuxInt=%v", v.Args[0].Op != w.Args[0].Op, v.Args[0].AuxInt != w.Args[0].AuxInt)
+							if len(v.Args) >= 2 {
+								fmt.Printf(", a1Op=%v, a1AuxInt=%v", v.Args[1].Op != w.Args[1].Op, v.Args[1].AuxInt != w.Args[1].AuxInt)
+							}
+						}
+					}
+					fmt.Printf("\n")
+				}
 				break
 			}
 		}

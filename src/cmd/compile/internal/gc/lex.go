@@ -8,6 +8,7 @@ package gc
 
 import (
 	"bytes"
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"flag"
 	"fmt"
@@ -54,6 +55,7 @@ var debugtab = []struct {
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"wb", &Debug_wb},                 // print information about write barriers
 	{"export", &Debug_export},         // print export data
+	{"ssa", &ssa.Debug},               // ssa debugging flag
 }
 
 const (
