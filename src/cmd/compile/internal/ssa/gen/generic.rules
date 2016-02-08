@@ -20,6 +20,11 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
+(Neg8 (Const8 [c])) -> (Const8 [-c])
+(Neg16 (Const16 [c])) -> (Const16 [-c])
+(Neg32 (Const32 [c])) -> (Const32 [-c])
+(Neg64 (Const64 [c])) -> (Const64 [-c])
+
 (Add8 (Const8 [c]) (Const8 [d])) -> (Const8 [c+d])
 (Add16 (Const16 [c]) (Const16 [d])) -> (Const16 [c+d])
 (Add32 (Const32 [c]) (Const32 [d])) -> (Const32 [c+d])
