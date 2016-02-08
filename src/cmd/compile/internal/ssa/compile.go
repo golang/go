@@ -99,7 +99,8 @@ var passes = [...]pass{
 	{"early copyelim", copyelim, false},
 	{"early deadcode", deadcode, false}, // remove generated dead code to avoid doing pointless work during opt
 	{"short circuit", shortcircuit, false},
-	{"decompose", decompose, true},
+	{"decompose user", decomposeUser, true},
+	{"decompose builtin", decomposeBuiltIn, true},
 	{"opt", opt, true},                // TODO: split required rules and optimizing rules
 	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
 	{"generic cse", cse, true},
@@ -148,8 +149,8 @@ var passOrder = [...]constraint{
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
-	// don't run optimization pass until we've decomposed compound objects
-	{"decompose", "opt"},
+	// don't run optimization pass until we've decomposed builtin objects
+	{"decompose builtin", "opt"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges
