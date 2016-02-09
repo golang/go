@@ -225,6 +225,6 @@ func (c *mcentral) grow() *mspan {
 	}
 	tail.ptr().next = 0
 	s.freelist = head
-	heapBitsForSpan(s.base()).initSpan(s.layout())
+	heapBitsForSpan(s.base()).initSpan(s)
 	return s
 }
