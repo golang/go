@@ -31,7 +31,8 @@ var pkgExts = [...]string{".a", ".o"}
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using
-// the build.Default build.Context).
+// the build.Default build.Context). A relative srcDir is interpreted
+// relative to the current working directory.
 // If no file was found, an empty filename is returned.
 //
 func FindPkg(path, srcDir string) (filename, id string) {
@@ -44,6 +45,9 @@ func FindPkg(path, srcDir string) (filename, id string) {
 	default:
 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
 		// Don't require the source files to be present.
+		if abs, err := filepath.Abs(srcDir); err == nil { // see issue 14282
+			srcDir = abs
+		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
 			return
