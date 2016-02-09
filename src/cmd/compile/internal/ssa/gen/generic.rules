@@ -76,7 +76,7 @@
 (Neq16 (Const16 <t> [c]) (Add16 (Const16 <t> [d]) x)) -> (Neq16 (Const16 <t> [c-d]) x)
 (Neq8 (Const8 <t> [c]) (Add8 (Const8 <t> [d]) x)) -> (Neq8 (Const8 <t> [c-d]) x)
 
-// canonicalize: swap arguments for commutative opertions when one argument is a constant.
+// canonicalize: swap arguments for commutative operations when one argument is a constant.
 (Eq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Eq64 (Const64 <t> [c]) x)
 (Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
 (Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
@@ -92,10 +92,30 @@
 (Add16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [c]) x)
 (Add8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Add8 (Const8 <t> [c]) x)
 
+(Mul64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Mul64 (Const64 <t> [c]) x)
+(Mul32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Mul32 (Const32 <t> [c]) x)
+(Mul16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Mul16 (Const16 <t> [c]) x)
+(Mul8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Mul8 (Const8 <t> [c]) x)
+
 (Sub64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [-c]) x)
 (Sub32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [-c]) x)
 (Sub16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Add16 (Const16 <t> [-c]) x)
 (Sub8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Add8 (Const8 <t> [-c]) x)
+
+(And64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (And64 (Const64 <t> [c]) x)
+(And32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (And32 (Const32 <t> [c]) x)
+(And16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (And16 (Const16 <t> [c]) x)
+(And8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (And8 (Const8 <t> [c]) x)
+
+(Or64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Or64 (Const64 <t> [c]) x)
+(Or32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Or32 (Const32 <t> [c]) x)
+(Or16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Or16 (Const16 <t> [c]) x)
+(Or8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Or8 (Const8 <t> [c]) x)
+
+(Xor64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Xor64 (Const64 <t> [c]) x)
+(Xor32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Xor32 (Const32 <t> [c]) x)
+(Xor16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Xor16 (Const16 <t> [c]) x)
+(Xor8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Xor8 (Const8 <t> [c]) x)
 
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
@@ -152,6 +172,21 @@
 (Lsh8x64   x (Const64 [0])) -> x
 (Rsh8x64   x (Const64 [0])) -> x
 (Rsh8Ux64  x (Const64 [0])) -> x
+
+// zero shifted.
+// TODO: other bit sizes.
+(Lsh64x64  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64x64  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64Ux64 (Const64 [0]) _) -> (Const64 [0])
+(Lsh64x32  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64x32  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64Ux32 (Const64 [0]) _) -> (Const64 [0])
+(Lsh64x16  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64x16  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64Ux16 (Const64 [0]) _) -> (Const64 [0])
+(Lsh64x8  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64x8  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64Ux8 (Const64 [0]) _) -> (Const64 [0])
 
 // large left shifts of all values, and right shifts of unsigned values
 (Lsh64x64  _ (Const64 [c])) && uint64(c) >= 64 -> (Const64 [0])
@@ -236,22 +271,54 @@
 (Or32 x x) -> x
 (Or16 x x) -> x
 (Or8 x x) -> x
+(Or64 (Const64 [0]) x) -> x
+(Or32 (Const32 [0]) x) -> x
+(Or16 (Const16 [0]) x) -> x
+(Or8 (Const8 [0]) x) -> x
+(Or64 (Const64 [-1]) _) -> (Const64 [-1])
+(Or32 (Const32 [-1]) _) -> (Const32 [-1])
+(Or16 (Const16 [-1]) _) -> (Const16 [-1])
+(Or8 (Const8 [-1]) _) -> (Const8 [-1])
 (And64 x x) -> x
 (And32 x x) -> x
 (And16 x x) -> x
 (And8 x x) -> x
+(And64 (Const64 [-1]) x) -> x
+(And32 (Const32 [-1]) x) -> x
+(And16 (Const16 [-1]) x) -> x
+(And8 (Const8 [-1]) x) -> x
+(And64 (Const64 [0]) _) -> (Const64 [0])
+(And32 (Const32 [0]) _) -> (Const32 [0])
+(And16 (Const16 [0]) _) -> (Const16 [0])
+(And8 (Const8 [0]) _) -> (Const8 [0])
 (Xor64 x x) -> (Const64 [0])
 (Xor32 x x) -> (Const32 [0])
 (Xor16 x x) -> (Const16 [0])
 (Xor8 x x) -> (Const8 [0])
+(Xor64 (Const64 [0]) x) -> x
+(Xor32 (Const32 [0]) x) -> x
+(Xor16 (Const16 [0]) x) -> x
+(Xor8 (Const8 [0]) x) -> x
+(Add64 (Const64 [0]) x) -> x
+(Add32 (Const32 [0]) x) -> x
+(Add16 (Const16 [0]) x) -> x
+(Add8 (Const8 [0]) x) -> x
 (Sub64 x x) -> (Const64 [0])
 (Sub32 x x) -> (Const32 [0])
 (Sub16 x x) -> (Const16 [0])
 (Sub8 x x) -> (Const8 [0])
+(Mul64 (Const64 [0]) _) -> (Const64 [0])
+(Mul32 (Const32 [0]) _) -> (Const32 [0])
+(Mul16 (Const16 [0]) _) -> (Const16 [0])
+(Mul8 (Const8 [0]) _) -> (Const8 [0])
 (Com8 (Com8 x)) -> x
 (Com16 (Com16 x)) -> x
 (Com32 (Com32 x)) -> x
 (Com64 (Com64 x)) -> x
+(Neg8 (Sub8 x y)) -> (Sub8 y x)
+(Neg16 (Sub16 x y)) -> (Sub16 y x)
+(Neg32 (Sub32 x y)) -> (Sub32 y x)
+(Neg64 (Sub64 x y)) -> (Sub64 y x)
 
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub64 (Add64 x y) x) -> y
