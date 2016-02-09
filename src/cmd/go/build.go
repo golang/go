@@ -3422,6 +3422,13 @@ func (b *builder) swigVersionCheck() error {
 	return swigCheck
 }
 
+// Find the value to pass for the -intgosize option to swig.
+var (
+	swigIntSizeOnce  sync.Once
+	swigIntSize      string
+	swigIntSizeError error
+)
+
 // This code fails to build if sizeof(int) <= 32
 const swigIntSizeCode = `
 package main
@@ -3429,8 +3436,8 @@ const i int = 1 << 32
 `
 
 // Determine the size of int on the target system for the -intgosize option
-// of swig >= 2.0.9
-func (b *builder) swigIntSize(obj string) (intsize string, err error) {
+// of swig >= 2.0.9.  Run only once.
+func (b *builder) swigDoIntSize(obj string) (intsize string, err error) {
 	if buildN {
 		return "$INTBITS", nil
 	}
@@ -3446,6 +3453,15 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
 		return "32", nil
 	}
 	return "64", nil
+}
+
+// Determine the size of int on the target system for the -intgosize option
+// of swig >= 2.0.9.
+func (b *builder) swigIntSize(obj string) (intsize string, err error) {
+	swigIntSizeOnce.Do(func() {
+		swigIntSize, swigIntSizeError = b.swigDoIntSize(obj)
+	})
+	return swigIntSize, swigIntSizeError
 }
 
 // Run SWIG on one SWIG input file.
