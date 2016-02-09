@@ -487,8 +487,13 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 	//
 	//Connection Name:  Bluetooth Network Connection
 	//Network Adapter:  Bluetooth Device (Personal Area Network)
-	//Physical Address: XX-XX-XX-XX-XX-XX
-	//Transport Name:   Media disconnected
+	//Physical Address: N/A
+	//Transport Name:   Hardware not present
+	//
+	//Connection Name:  VMware Network Adapter VMnet8
+	//Network Adapter:  VMware Virtual Ethernet Adapter for VMnet8
+	//Physical Address: Disabled
+	//Transport Name:   Disconnected
 	//
 	want := make(map[string]string)
 	var name string
@@ -515,6 +520,9 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
 			addr := string(bytes.ToLower(bytes.TrimSpace(f[1])))
 			if addr == "" {
 				t.Fatal("empty address on \"Physical Address\" line: %q", line)
+			}
+			if addr == "disabled" || addr == "n/a" {
+				continue
 			}
 			addr = strings.Replace(addr, "-", ":", -1)
 			want[name] = addr
