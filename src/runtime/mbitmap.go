@@ -494,6 +494,10 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
 // TODO(rsc): Perhaps introduce a different heapBitsSpan type.
 
 // initSpan initializes the heap bitmap for a span.
+// It clears all mark and checkmark bits.
+// If this is a span of pointer-sized objects, it initializes all
+// words to pointer (and there are no dead bits).
+// Otherwise, it initializes all words to scalar/dead.
 func (h heapBits) initSpan(size, n, total uintptr) {
 	if total%heapBitmapScale != 0 {
 		throw("initSpan: unaligned length")
