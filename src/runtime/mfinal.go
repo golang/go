@@ -455,7 +455,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 	}
 
 	n = s.elemsize
-	if s.sizeclass != 0 {
+	if s.spanclass.sizeclass() != 0 {
 		x = add(x, (uintptr(v)-uintptr(x))/n*n)
 	}
 	return

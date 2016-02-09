@@ -552,7 +552,18 @@ func updatememstats() {
 	// Collect allocation stats. This is safe and consistent
 	// because the world is stopped.
 	var smallFree, totalAlloc, totalFree uint64
-	for i := range mheap_.central {
+	// Collect per-spanclass stats.
+	for spc := range mheap_.central {
+		// The mcaches are now empty, so mcentral stats are
+		// up-to-date.
+		c := &mheap_.central[spc].mcentral
+		memstats.nmalloc += c.nmalloc
+		i := spanClass(spc).sizeclass()
+		memstats.by_size[i].nmalloc += c.nmalloc
+		totalAlloc += c.nmalloc * uint64(class_to_size[i])
+	}
+	// Collect per-sizeclass stats.
+	for i := 0; i < _NumSizeClasses; i++ {
 		if i == 0 {
 			memstats.nmalloc += mheap_.nlargealloc
 			totalAlloc += mheap_.largealloc
@@ -560,12 +571,6 @@ func updatememstats() {
 			memstats.nfree += mheap_.nlargefree
 			continue
 		}
-		// The mcaches are now empty, so mcentral stats are
-		// up-to-date.
-		c := &mheap_.central[i].mcentral
-		memstats.nmalloc += c.nmalloc
-		memstats.by_size[i].nmalloc += c.nmalloc
-		totalAlloc += c.nmalloc * uint64(class_to_size[i])
 
 		// The mcache stats have been flushed to mheap_.
 		memstats.nfree += mheap_.nsmallfree[i]

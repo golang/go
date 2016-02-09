@@ -300,13 +300,13 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 			if s.state != mSpanInUse {
 				continue
 			}
-			if s.sizeclass == 0 {
+			if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
 				slow.Mallocs++
 				slow.Alloc += uint64(s.elemsize)
 			} else {
 				slow.Mallocs += uint64(s.allocCount)
 				slow.Alloc += uint64(s.allocCount) * uint64(s.elemsize)
-				bySize[s.sizeclass].Mallocs += uint64(s.allocCount)
+				bySize[sizeclass].Mallocs += uint64(s.allocCount)
 			}
 		}
 

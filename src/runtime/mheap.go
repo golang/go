@@ -119,7 +119,8 @@ type mheap struct {
 	// the padding makes sure that the MCentrals are
 	// spaced CacheLineSize bytes apart, so that each MCentral.lock
 	// gets its own cache line.
-	central [_NumSizeClasses]struct {
+	// central is indexed by spanClass.
+	central [numSpanClasses]struct {
 		mcentral mcentral
 		pad      [sys.CacheLineSize - unsafe.Sizeof(mcentral{})%sys.CacheLineSize]byte
 	}
@@ -260,7 +261,7 @@ type mspan struct {
 	divMul      uint16     // for divide by elemsize - divMagic.mul
 	baseMask    uint16     // if non-0, elemsize is a power of 2, & this will get object allocation base
 	allocCount  uint16     // number of allocated objects
-	sizeclass   uint8      // size class
+	spanclass   spanClass  // size class and noscan (uint8)
 	incache     bool       // being used by an mcache
 	state       mSpanState // mspaninuse etc
 	needzero    uint8      // needs to be zeroed before allocation
@@ -313,6 +314,31 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 		}
 	}
 	h.allspans = append(h.allspans, s)
+}
+
+// A spanClass represents the size class and noscan-ness of a span.
+//
+// Each size class has a noscan spanClass and a scan spanClass. The
+// noscan spanClass contains only noscan objects, which do not contain
+// pointers and thus do not need to be scanned by the garbage
+// collector.
+type spanClass uint8
+
+const (
+	numSpanClasses = _NumSizeClasses << 1
+	tinySpanClass  = tinySizeClass<<1 | 1
+)
+
+func makeSpanClass(sizeclass uint8, noscan bool) spanClass {
+	return spanClass(sizeclass<<1) | spanClass(bool2int(noscan))
+}
+
+func (sc spanClass) sizeclass() int8 {
+	return int8(sc >> 1)
+}
+
+func (sc spanClass) noscan() bool {
+	return sc&1 != 0
 }
 
 // inheap reports whether b is a pointer into a (potentially dead) heap object.
@@ -399,7 +425,7 @@ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
 	}
 
 	p := s.base()
-	if s.sizeclass == 0 {
+	if s.spanclass.sizeclass() == 0 {
 		// Large object.
 		if base != nil {
 			*base = p
@@ -447,7 +473,7 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
 
 	h.busylarge.init()
 	for i := range h.central {
-		h.central[i].mcentral.init(int32(i))
+		h.central[i].mcentral.init(spanClass(i))
 	}
 
 	sp := (*slice)(unsafe.Pointer(&h.spans))
@@ -577,7 +603,7 @@ func (h *mheap) reclaim(npage uintptr) {
 
 // Allocate a new span of npage pages from the heap for GC'd memory
 // and record its size class in the HeapMap and HeapMapCache.
-func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
+func (h *mheap) alloc_m(npage uintptr, spanclass spanClass, large bool) *mspan {
 	_g_ := getg()
 	if _g_ != _g_.m.g0 {
 		throw("_mheap_alloc not on g0 stack")
@@ -617,8 +643,8 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 		h.sweepSpans[h.sweepgen/2%2].push(s) // Add to swept in-use list.
 		s.state = _MSpanInUse
 		s.allocCount = 0
-		s.sizeclass = uint8(sizeclass)
-		if sizeclass == 0 {
+		s.spanclass = spanclass
+		if sizeclass := spanclass.sizeclass(); sizeclass == 0 {
 			s.elemsize = s.npages << _PageShift
 			s.divShift = 0
 			s.divMul = 0
@@ -670,13 +696,13 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 	return s
 }
 
-func (h *mheap) alloc(npage uintptr, sizeclass int32, large bool, needzero bool) *mspan {
+func (h *mheap) alloc(npage uintptr, spanclass spanClass, large bool, needzero bool) *mspan {
 	// Don't do any operations that lock the heap on the G stack.
 	// It might trigger stack growth, and the stack growth code needs
 	// to be able to allocate heap.
 	var s *mspan
 	systemstack(func() {
-		s = h.alloc_m(npage, sizeclass, large)
+		s = h.alloc_m(npage, spanclass, large)
 	})
 
 	if s != nil {
@@ -710,7 +736,7 @@ func (h *mheap) allocManual(npage uintptr, stat *uint64) *mspan {
 		s.state = _MSpanManual
 		s.manualFreeList = 0
 		s.allocCount = 0
-		s.sizeclass = 0
+		s.spanclass = 0
 		s.nelems = 0
 		s.elemsize = 0
 		s.limit = s.base() + s.npages<<_PageShift
@@ -1144,7 +1170,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.startAddr = base
 	span.npages = npages
 	span.allocCount = 0
-	span.sizeclass = 0
+	span.spanclass = 0
 	span.incache = false
 	span.elemsize = 0
 	span.state = _MSpanDead
