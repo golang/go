@@ -105,9 +105,7 @@ func (w *gcWork) init() {
 // put enqueues a pointer for the garbage collector to trace.
 // obj must point to the beginning of a heap object.
 //go:nowritebarrier
-func (ww *gcWork) put(obj uintptr) {
-	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
-
+func (w *gcWork) put(obj uintptr) {
 	wbuf := w.wbuf1.ptr()
 	if wbuf == nil {
 		w.init()
@@ -133,9 +131,7 @@ func (ww *gcWork) put(obj uintptr) {
 // queue, tryGet returns 0.  Note that there may still be pointers in
 // other gcWork instances or other caches.
 //go:nowritebarrier
-func (ww *gcWork) tryGet() uintptr {
-	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
-
+func (w *gcWork) tryGet() uintptr {
 	wbuf := w.wbuf1.ptr()
 	if wbuf == nil {
 		w.init()
@@ -164,9 +160,7 @@ func (ww *gcWork) tryGet() uintptr {
 // if necessary to ensure all pointers from all queues and caches have
 // been retrieved.  get returns 0 if there are no pointers remaining.
 //go:nowritebarrier
-func (ww *gcWork) get() uintptr {
-	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
-
+func (w *gcWork) get() uintptr {
 	wbuf := w.wbuf1.ptr()
 	if wbuf == nil {
 		w.init()
