@@ -273,3 +273,10 @@ func round(n, a uintptr) uintptr {
 
 // checkASM returns whether assembly runtime checks have passed.
 func checkASM() bool
+
+// bool2int returns 0 if x is false or 1 if x is true.
+func bool2int(x bool) int {
+	// Avoid branches. In the SSA compiler, this compiles to
+	// exactly what you would want it to.
+	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
+}

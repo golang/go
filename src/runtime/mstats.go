@@ -291,12 +291,12 @@ func updatememstats(stats *gcstats) {
 		if s.state != mSpanInUse {
 			continue
 		}
-		if s.sizeclass == 0 {
+		if sizeclass := s.spanclass.sizeclass(); sizeclass == 0 {
 			memstats.nmalloc++
 			memstats.alloc += uint64(s.elemsize)
 		} else {
 			memstats.nmalloc += uint64(s.allocCount)
-			memstats.by_size[s.sizeclass].nmalloc += uint64(s.allocCount)
+			memstats.by_size[sizeclass].nmalloc += uint64(s.allocCount)
 			memstats.alloc += uint64(s.allocCount) * uint64(s.elemsize)
 		}
 	}

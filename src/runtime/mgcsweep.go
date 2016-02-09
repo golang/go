@@ -182,7 +182,7 @@ func (s *mspan) sweep(preserve bool) bool {
 
 	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
 
-	cl := s.sizeclass
+	spc := s.spanclass
 	size := s.elemsize
 	res := false
 	nfree := 0
@@ -276,7 +276,7 @@ func (s *mspan) sweep(preserve bool) bool {
 
 	// Count the number of free objects in this span.
 	nfree = s.countFree()
-	if cl == 0 && nfree != 0 {
+	if spc.sizeclass() == 0 && nfree != 0 {
 		s.needzero = 1
 		freeToHeap = true
 	}
@@ -317,9 +317,9 @@ func (s *mspan) sweep(preserve bool) bool {
 		atomic.Store(&s.sweepgen, sweepgen)
 	}
 
-	if nfreed > 0 && cl != 0 {
-		c.local_nsmallfree[cl] += uintptr(nfreed)
-		res = mheap_.central[cl].mcentral.freeSpan(s, preserve, wasempty)
+	if nfreed > 0 && spc.sizeclass() != 0 {
+		c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
+		res = mheap_.central[spc].mcentral.freeSpan(s, preserve, wasempty)
 		// MCentral_FreeSpan updates sweepgen
 	} else if freeToHeap {
 		// Free large span to heap
