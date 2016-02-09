@@ -358,6 +358,26 @@ func testSubConst() {
 	}
 }
 
+//go:noinline
+func orPhi_ssa(a bool, x int) int {
+	v := 0
+	if a {
+		v = -1
+	} else {
+		v = -1
+	}
+	return x | v
+}
+
+func testOrPhi() {
+	if want, got := -1, orPhi_ssa(true, 4); got != want {
+		println("orPhi_ssa(true, 4)=", got, " want ", want)
+	}
+	if want, got := -1, orPhi_ssa(false, 0); got != want {
+		println("orPhi_ssa(false, 0)=", got, " want ", want)
+	}
+}
+
 var failed = false
 
 func main() {

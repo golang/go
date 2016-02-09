@@ -263,6 +263,12 @@
 (Sub8 (Add8 x y) x) -> y
 (Sub8 (Add8 x y) y) -> x
 
+// basic phi simplifications
+(Phi (Const8 [c]) (Const8 [d])) && int8(c) == int8(d) -> (Const8 [c])
+(Phi (Const16 [c]) (Const16 [d])) && int16(c) == int16(d) -> (Const16 [c])
+(Phi (Const32 [c]) (Const32 [d])) && int32(c) == int32(d) -> (Const32 [c])
+(Phi (Const64 [c]) (Const64 [c])) -> (Const64 [c])
+
 // user nil checks
 (NeqPtr p (ConstNil)) -> (IsNonNil p)
 (NeqPtr (ConstNil) p) -> (IsNonNil p)

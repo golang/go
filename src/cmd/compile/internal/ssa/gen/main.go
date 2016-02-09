@@ -32,6 +32,7 @@ type opData struct {
 	typ               string // default result type
 	aux               string
 	rematerializeable bool
+	variableLength    bool // if true the operation has a variable number of arguments
 }
 
 type blockData struct {

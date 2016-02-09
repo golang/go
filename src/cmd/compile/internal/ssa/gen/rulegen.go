@@ -395,6 +395,23 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 			argnum++
 		}
 	}
+
+	variableLength := false
+	for _, op := range genericOps {
+		if op.name == s[0] {
+			variableLength = op.variableLength
+			break
+		}
+	}
+	for _, op := range arch.ops {
+		if op.name == s[0] {
+			variableLength = op.variableLength
+			break
+		}
+	}
+	if variableLength {
+		fmt.Fprintf(w, "if len(%s.Args) != %d {\nbreak\n}\n", v, argnum)
+	}
 }
 
 func genResult(w io.Writer, arch arch, result string) {
