@@ -403,8 +403,11 @@ func TestNilcheckBug(t *testing.T) {
 			Valu("bool2", OpIsNonNil, TypeBool, 0, nil, "ptr1"),
 			If("bool2", "extra", "exit")),
 		Bloc("extra",
+			// prevent fuse from eliminating this block
+			Valu("store", OpStore, TypeMem, 8, nil, "ptr1", "nilptr", "mem"),
 			Goto("exit")),
 		Bloc("exit",
+			Valu("phi", OpPhi, TypeMem, 0, nil, "mem", "store"),
 			Exit("mem")))
 
 	CheckFunc(fun.f)
