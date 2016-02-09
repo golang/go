@@ -667,6 +667,7 @@ var (
 	goarch    string
 	goos      string
 	exeSuffix string
+	gopath    []string
 )
 
 func init() {
@@ -675,6 +676,7 @@ func init() {
 	if goos == "windows" {
 		exeSuffix = ".exe"
 	}
+	gopath = filepath.SplitList(buildContext.GOPATH)
 }
 
 // A builder holds global state about a build.
@@ -1684,6 +1686,22 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
 	inc = append(inc, flag, b.work)
 
 	// Finally, look in the installed package directories for each action.
+	// First add the package dirs corresponding to GOPATH entries
+	// in the original GOPATH order.
+	need := map[string]*build.Package{}
+	for _, a1 := range all {
+		if a1.p != nil && a1.pkgdir == a1.p.build.PkgRoot {
+			need[a1.p.build.Root] = a1.p.build
+		}
+	}
+	for _, root := range gopath {
+		if p := need[root]; p != nil && !incMap[p.PkgRoot] {
+			incMap[p.PkgRoot] = true
+			inc = append(inc, flag, p.PkgTargetRoot)
+		}
+	}
+
+	// Then add anything that's left.
 	for _, a1 := range all {
 		if a1.p == nil {
 			continue
