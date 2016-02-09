@@ -772,7 +772,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 		throw("out of memory")
 	}
 	s.limit = uintptr(s.start)<<_PageShift + size
-	heapBitsForSpan(s.base()).initSpan(s.layout())
+	heapBitsForSpan(s.base()).initSpan(s)
 	return s
 }
 
