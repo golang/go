@@ -467,6 +467,14 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			cgoCheckArg(st.elem, p, true, false, msg)
 			p = add(p, st.elem.size)
 		}
+	case kindString:
+		ss := (*stringStruct)(p)
+		if !cgoIsGoPointer(ss.str) {
+			return
+		}
+		if !top {
+			panic(errorString(msg))
+		}
 	case kindStruct:
 		st := (*structtype)(unsafe.Pointer(t))
 		if !indir {

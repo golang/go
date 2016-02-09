@@ -51,7 +51,10 @@ func TestOutput(t *testing.T) {
 			}
 			cmd.Env = append(cmd.Env, env)
 		}
-		cmd.Env = append(cmd.Env, "GORACE="+test.gorace)
+		cmd.Env = append(cmd.Env,
+			"GOMAXPROCS=1", // see comment in race_test.go
+			"GORACE="+test.gorace,
+		)
 		got, _ := cmd.CombinedOutput()
 		if !regexp.MustCompile(test.re).MatchString(string(got)) {
 			t.Fatalf("failed test case %v, expect:\n%v\ngot:\n%s",

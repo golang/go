@@ -63,7 +63,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
 		fmt.Println(p.histLineNum, prog)
 	}
 	if testOut != nil {
-		fmt.Fprintln(testOut, p.histLineNum, prog)
+		fmt.Fprintln(testOut, prog)
 	}
 }
 

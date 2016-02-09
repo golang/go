@@ -693,7 +693,7 @@ func flushpool(ctxt *obj.Link, p *obj.Prog, skip int) {
 			q.Link = ctxt.Blitrl
 			q.Lineno = p.Lineno
 			ctxt.Blitrl = q
-		} else if p.Pc+int64(pool.size)-int64(pool.start) < 1024*1024 {
+		} else if p.Pc+int64(pool.size)-int64(pool.start) < maxPCDisp {
 			return
 		}
 
@@ -826,9 +826,15 @@ func regoff(ctxt *obj.Link, a *obj.Addr) uint32 {
 	return uint32(ctxt.Instoffset)
 }
 
+// Maximum PC-relative displacement.
+// The actual limit is ±2²⁰, but we are conservative
+// to avoid needing to recompute the literal pool flush points
+// as span-dependent jumps are enlarged.
+const maxPCDisp = 512 * 1024
+
+// ispcdisp reports whether v is a valid PC-relative displacement.
 func ispcdisp(v int32) bool {
-	/* pc-relative addressing will reach? */
-	return v >= -0xfffff && v <= 0xfffff && (v&3) == 0
+	return -maxPCDisp < v && v < maxPCDisp && v&3 == 0
 }
 
 func isaddcon(v int64) bool {
@@ -3654,7 +3660,8 @@ func brdist(ctxt *obj.Link, p *obj.Prog, preshift int, flen int, shift int) int6
 		v >>= uint(shift)
 		t = int64(1) << uint(flen-1)
 		if v < -t || v >= t {
-			ctxt.Diag("branch too far\n%v", p)
+			ctxt.Diag("branch too far %#x vs %#x [%p]\n%v\n%v", v, t, ctxt.Blitrl, p, p.Pcond)
+			panic("branch too far")
 		}
 	}
 

@@ -544,7 +544,8 @@ func (s *state) stmt(n *Node) {
 	// Expression statements
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		s.call(n, callNormal)
-		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC && n.Left.Sym.Pkg == Runtimepkg && n.Left.Sym.Name == "gopanic" {
+		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC && n.Left.Sym.Pkg == Runtimepkg &&
+			(n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo") {
 			m := s.mem()
 			b := s.endBlock()
 			b.Kind = ssa.BlockExit
@@ -873,6 +874,10 @@ func (s *state) stmt(n *Node) {
 			lab.breakTarget = nil
 		}
 
+		// OSWITCH never falls through (s.curBlock == nil here).
+		// OSELECT does not fall through if we're calling selectgo.
+		// OSELECT does fall through if we're calling selectnb{send,recv}[2].
+		// In those latter cases, go to the code after the select.
 		if b := s.endBlock(); b != nil {
 			b.AddEdgeTo(bEnd)
 		}

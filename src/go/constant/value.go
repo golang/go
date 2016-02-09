@@ -96,7 +96,7 @@ func (x stringVal) String() string {
 		// only the first maxLen-3 runes; then add "...".
 		i := 0
 		for n := 0; n < maxLen-3; n++ {
-			_, size := utf8.DecodeRuneInString(s)
+			_, size := utf8.DecodeRuneInString(s[i:])
 			i += size
 		}
 		s = s[:i] + "..."

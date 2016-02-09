@@ -7,6 +7,6 @@ import (
 
 func TestMsgExternal(t *testing.T) {
 	if strings.Msg != "hello, world" {
-		t.Fatal("unexpected msg: %v", strings.Msg)
+		t.Fatalf("unexpected msg: %v", strings.Msg)
 	}
 }

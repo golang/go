@@ -148,6 +148,8 @@ const (
 	Ymm
 	Yxr
 	Yxm
+	Yyr
+	Yym
 	Ytls
 	Ytextsize
 	Yindir
@@ -181,7 +183,6 @@ const (
 	Zm_r
 	Zm2_r
 	Zm_r_xm
-	Zm_r_xm_vex
 	Zm_r_i_xm
 	Zm_r_3d
 	Zm_r_xm_nr
@@ -195,8 +196,6 @@ const (
 	Zpseudo
 	Zr_m
 	Zr_m_xm
-	Zr_m_xm_vex
-	Zr_r_r_vex
 	Zrp_
 	Z_ib
 	Z_il
@@ -206,34 +205,106 @@ const (
 	Zil_rr
 	Zclr
 	Zbyte
+	Zvex_rm_v_r
+	Zvex_r_v_rm
+	Zvex_v_rm_r
 	Zmax
 )
 
 const (
-	Px    = 0
-	Px1   = 1    // symbolic; exact value doesn't matter
-	P32   = 0x32 /* 32-bit only */
-	Pe    = 0x66 /* operand escape */
-	Pm    = 0x0f /* 2byte opcode escape */
-	Pq    = 0xff /* both escapes: 66 0f */
-	Pb    = 0xfe /* byte operands */
-	Pf2   = 0xf2 /* xmm escape 1: f2 0f */
-	Pf3   = 0xf3 /* xmm escape 2: f3 0f */
-	Pq3   = 0x67 /* xmm escape 3: 66 48 0f */
-	Pfw   = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
-	Pvex1 = 0xc5 /* 66.0f escape, vex encoding */
-	Pvex2 = 0xc6 /* f3.0f escape, vex encoding */
-	Pvex3 = 0xc7 /* 66.0f38 escape, vex encoding */
-	Pw    = 0x48 /* Rex.w */
-	Pw8   = 0x90 // symbolic; exact value doesn't matter
-	Py    = 0x80 /* defaults to 64-bit mode */
-	Py1   = 0x81 // symbolic; exact value doesn't matter
-	Py3   = 0x83 // symbolic; exact value doesn't matter
+	Px   = 0
+	Px1  = 1    // symbolic; exact value doesn't matter
+	P32  = 0x32 /* 32-bit only */
+	Pe   = 0x66 /* operand escape */
+	Pm   = 0x0f /* 2byte opcode escape */
+	Pq   = 0xff /* both escapes: 66 0f */
+	Pb   = 0xfe /* byte operands */
+	Pf2  = 0xf2 /* xmm escape 1: f2 0f */
+	Pf3  = 0xf3 /* xmm escape 2: f3 0f */
+	Pef3 = 0xf5 /* xmm escape 2 with 16-bit prefix: 66 f3 0f */
+	Pq3  = 0x67 /* xmm escape 3: 66 48 0f */
+	Pq4  = 0x68 /* xmm escape 4: 66 0F 38 */
+	Pfw  = 0xf4 /* Pf3 with Rex.w: f3 48 0f */
+	Pw   = 0x48 /* Rex.w */
+	Pw8  = 0x90 // symbolic; exact value doesn't matter
+	Py   = 0x80 /* defaults to 64-bit mode */
+	Py1  = 0x81 // symbolic; exact value doesn't matter
+	Py3  = 0x83 // symbolic; exact value doesn't matter
+	Pvex = 0x84 // symbolic: exact value doesn't matter
 
 	Rxw = 1 << 3 /* =1, 64-bit operand size */
 	Rxr = 1 << 2 /* extend modrm reg */
 	Rxx = 1 << 1 /* extend sib index */
 	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
+)
+
+const (
+	// Encoding for VEX prefix in tables.
+	// The P, L, and W fields are chosen to match
+	// their eventual locations in the VEX prefix bytes.
+
+	// P field - 2 bits
+	vex66 = 1 << 0
+	vexF3 = 2 << 0
+	vexF2 = 3 << 0
+	// L field - 1 bit
+	vexLZ  = 0 << 2
+	vexLIG = 0 << 2
+	vex128 = 0 << 2
+	vex256 = 1 << 2
+	// W field - 1 bit
+	vexWIG = 0 << 7
+	vexW0  = 0 << 7
+	vexW1  = 1 << 7
+	// M field - 5 bits, but mostly reserved; we can store up to 4
+	vex0F   = 1 << 3
+	vex0F38 = 2 << 3
+	vex0F3A = 3 << 3
+
+	// Combinations used in the manual.
+	VEX_128_0F_WIG      = vex128 | vex0F | vexWIG
+	VEX_128_66_0F_W0    = vex128 | vex66 | vex0F | vexW0
+	VEX_128_66_0F_W1    = vex128 | vex66 | vex0F | vexW1
+	VEX_128_66_0F_WIG   = vex128 | vex66 | vex0F | vexWIG
+	VEX_128_66_0F38_W0  = vex128 | vex66 | vex0F38 | vexW0
+	VEX_128_66_0F38_W1  = vex128 | vex66 | vex0F38 | vexW1
+	VEX_128_66_0F38_WIG = vex128 | vex66 | vex0F38 | vexWIG
+	VEX_128_66_0F3A_W0  = vex128 | vex66 | vex0F3A | vexW0
+	VEX_128_66_0F3A_W1  = vex128 | vex66 | vex0F3A | vexW1
+	VEX_128_66_0F3A_WIG = vex128 | vex66 | vex0F3A | vexWIG
+	VEX_128_F2_0F_WIG   = vex128 | vexF2 | vex0F | vexWIG
+	VEX_128_F3_0F_WIG   = vex128 | vexF3 | vex0F | vexWIG
+	VEX_256_66_0F_WIG   = vex256 | vex66 | vex0F | vexWIG
+	VEX_256_66_0F38_W0  = vex256 | vex66 | vex0F38 | vexW0
+	VEX_256_66_0F38_W1  = vex256 | vex66 | vex0F38 | vexW1
+	VEX_256_66_0F38_WIG = vex256 | vex66 | vex0F38 | vexWIG
+	VEX_256_66_0F3A_W0  = vex256 | vex66 | vex0F3A | vexW0
+	VEX_256_66_0F3A_W1  = vex256 | vex66 | vex0F3A | vexW1
+	VEX_256_66_0F3A_WIG = vex256 | vex66 | vex0F3A | vexWIG
+	VEX_256_F2_0F_WIG   = vex256 | vexF2 | vex0F | vexWIG
+	VEX_256_F3_0F_WIG   = vex256 | vexF3 | vex0F | vexWIG
+	VEX_LIG_0F_WIG      = vexLIG | vex0F | vexWIG
+	VEX_LIG_66_0F_WIG   = vexLIG | vex66 | vex0F | vexWIG
+	VEX_LIG_66_0F38_W0  = vexLIG | vex66 | vex0F38 | vexW0
+	VEX_LIG_66_0F38_W1  = vexLIG | vex66 | vex0F38 | vexW1
+	VEX_LIG_66_0F3A_WIG = vexLIG | vex66 | vex0F3A | vexWIG
+	VEX_LIG_F2_0F_W0    = vexLIG | vexF2 | vex0F | vexW0
+	VEX_LIG_F2_0F_W1    = vexLIG | vexF2 | vex0F | vexW1
+	VEX_LIG_F2_0F_WIG   = vexLIG | vexF2 | vex0F | vexWIG
+	VEX_LIG_F3_0F_W0    = vexLIG | vexF3 | vex0F | vexW0
+	VEX_LIG_F3_0F_W1    = vexLIG | vexF3 | vex0F | vexW1
+	VEX_LIG_F3_0F_WIG   = vexLIG | vexF3 | vex0F | vexWIG
+	VEX_LZ_0F_WIG       = vexLZ | vex0F | vexWIG
+	VEX_LZ_0F38_W0      = vexLZ | vex0F38 | vexW0
+	VEX_LZ_0F38_W1      = vexLZ | vex0F38 | vexW1
+	VEX_LZ_66_0F38_W0   = vexLZ | vex66 | vex0F38 | vexW0
+	VEX_LZ_66_0F38_W1   = vexLZ | vex66 | vex0F38 | vexW1
+	VEX_LZ_F2_0F38_W0   = vexLZ | vexF2 | vex0F38 | vexW0
+	VEX_LZ_F2_0F38_W1   = vexLZ | vexF2 | vex0F38 | vexW1
+	VEX_LZ_F2_0F3A_W0   = vexLZ | vexF2 | vex0F3A | vexW0
+	VEX_LZ_F2_0F3A_W1   = vexLZ | vexF2 | vex0F3A | vexW1
+	VEX_LZ_F3_0F38_W0   = vexLZ | vexF3 | vex0F38 | vexW0
+	VEX_LZ_F3_0F38_W1   = vexLZ | vexF3 | vex0F38 | vexW1
 )
 
 var ycover [Ymax * Ymax]uint8
@@ -606,6 +677,10 @@ var yxm = []ytab{
 	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
 }
 
+var yxm_q4 = []ytab{
+	{Yxm, Ynone, Yxr, Zm_r, 1},
+}
+
 var yxcvm1 = []ytab{
 	{Yxm, Ynone, Yxr, Zm_r_xm, 2},
 	{Yxm, Ynone, Ymr, Zm_r_xm, 2},
@@ -630,20 +705,6 @@ var yxr_ml = []ytab{
 	{Yxr, Ynone, Yml, Zr_m_xm, 1},
 }
 
-var yxr_ml_vex = []ytab{
-	{Yxr, Ynone, Yml, Zr_m_xm_vex, 1},
-}
-
-var yml_xr_vex = []ytab{
-	{Yml, Ynone, Yxr, Zm_r_xm_vex, 1},
-	{Yxr, Ynone, Yxr, Zm_r_xm_vex, 1},
-}
-
-var yxm_xm_xm = []ytab{
-	{Yxr, Yxr, Yxr, Zr_r_r_vex, 1},
-	{Yxm, Yxr, Yxr, Zr_r_r_vex, 1},
-}
-
 var ymr = []ytab{
 	{Ymr, Ynone, Ymr, Zm_r, 1},
 }
@@ -658,11 +719,6 @@ var yxcmp = []ytab{
 
 var yxcmpi = []ytab{
 	{Yxm, Yxr, Yi8, Zm_r_i_xm, 2},
-}
-
-var yxmov_vex = []ytab{
-	{Yxm, Ynone, Yxr, Zm_r_xm_vex, 1},
-	{Yxr, Ynone, Yxm, Zr_m_xm_vex, 1},
 }
 
 var yxmov = []ytab{
@@ -743,10 +799,6 @@ var ymskb = []ytab{
 	{Ymr, Ynone, Yrl, Zm_r_xm, 1},
 }
 
-var ymskb_vex = []ytab{
-	{Yxr, Ynone, Yrl, Zm_r_xm_vex, 2},
-}
-
 var ycrc32l = []ytab{
 	{Yml, Ynone, Yrl, Zlitm_r, 0},
 }
@@ -769,6 +821,81 @@ var yxbegin = []ytab{
 
 var yxabort = []ytab{
 	{Yu8, Ynone, Ynone, Zib_, 1},
+}
+
+var ylddqu = []ytab{
+	{Ym, Ynone, Yxr, Zm_r, 1},
+}
+
+// VEX instructions that come in two forms:
+//	VTHING xmm2/m128, xmmV, xmm1
+//	VTHING ymm2/m256, ymmV, ymm1
+// The opcode array in the corresponding Optab entry
+// should contain the (VEX prefixes, opcode byte) pair
+// for each of the two forms.
+// For example, the entries for VPXOR are:
+//
+//	VPXOR xmm2/m128, xmmV, xmm1
+//	VEX.NDS.128.66.0F.WIG EF /r
+//
+//	VPXOR ymm2/m256, ymmV, ymm1
+//	VEX.NDS.256.66.0F.WIG EF /r
+//
+// The NDS/NDD/DDS part can be dropped, producing this
+// Optab entry:
+//
+//	{AVPXOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xEF, VEX_256_66_0F_WIG, 0xEF}}
+//
+var yvex_xy3 = []ytab{
+	{Yxm, Yxr, Yxr, Zvex_rm_v_r, 2},
+	{Yym, Yyr, Yyr, Zvex_rm_v_r, 2},
+}
+
+var yvex_r3 = []ytab{
+	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
+	{Yml, Yrl, Yrl, Zvex_rm_v_r, 2},
+}
+
+var yvex_vmr3 = []ytab{
+	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
+	{Yrl, Yml, Yrl, Zvex_v_rm_r, 2},
+}
+
+var yvex_xy2 = []ytab{
+	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
+	{Yym, Ynone, Yyr, Zvex_rm_v_r, 2},
+}
+
+var yvex_xyr2 = []ytab{
+	{Yxr, Ynone, Yrl, Zvex_rm_v_r, 2},
+	{Yyr, Ynone, Yrl, Zvex_rm_v_r, 2},
+}
+
+var yvex_vmovdqa = []ytab{
+	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
+	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
+	{Yym, Ynone, Yyr, Zvex_rm_v_r, 2},
+	{Yyr, Ynone, Yym, Zvex_r_v_rm, 2},
+}
+
+var yvex_vmovntdq = []ytab{
+	{Yxr, Ynone, Ym, Zvex_r_v_rm, 2},
+	{Yyr, Ynone, Ym, Zvex_r_v_rm, 2},
+}
+
+var yvex_vpbroadcast = []ytab{
+	{Yxm, Ynone, Yxr, Zvex_rm_v_r, 2},
+	{Yxm, Ynone, Yyr, Zvex_rm_v_r, 2},
+}
+
+var yvex_xxmyxm = []ytab{
+	{Yxr, Ynone, Yxm, Zvex_r_v_rm, 2},
+	{Yyr, Ynone, Yxm, Zvex_r_v_rm, 2},
+}
+
+var ymmxmm0f38 = []ytab{
+	{Ymm, Ynone, Ymr, Zlitm_r, 3},
+	{Yxm, Ynone, Yxr, Zlitm_r, 5},
 }
 
 /*
@@ -1044,9 +1171,14 @@ var optab =
 	{AJPC, yjcond, Px, [23]uint8{0x7b, 0x8b}},
 	{AJPL, yjcond, Px, [23]uint8{0x79, 0x89}},
 	{AJPS, yjcond, Px, [23]uint8{0x7a, 0x8a}},
+	{AHADDPD, yxm, Pq, [23]uint8{0x7c}},
+	{AHADDPS, yxm, Pf2, [23]uint8{0x7c}},
+	{AHSUBPD, yxm, Pq, [23]uint8{0x7d}},
+	{AHSUBPS, yxm, Pf2, [23]uint8{0x7d}},
 	{ALAHF, ynone, Px, [23]uint8{0x9f}},
 	{ALARL, yml_rl, Pm, [23]uint8{0x02}},
 	{ALARW, yml_rl, Pq, [23]uint8{0x02}},
+	{ALDDQU, ylddqu, Pf2, [23]uint8{0xf0}},
 	{ALDMXCSR, ysvrs, Pm, [23]uint8{0xae, 02, 0xae, 02}},
 	{ALEAL, ym_rl, Px, [23]uint8{0x8d}},
 	{ALEAQ, ym_rl, Pw, [23]uint8{0x8d}},
@@ -1191,6 +1323,13 @@ var optab =
 	{APFRSQRT, ymfp, Px, [23]uint8{0x97}},
 	{APFSUB, ymfp, Px, [23]uint8{0x9a}},
 	{APFSUBR, ymfp, Px, [23]uint8{0xaa}},
+	{APHADDD, ymmxmm0f38, Px, [23]uint8{0x0F, 0x38, 0x02, 0, 0x66, 0x0F, 0x38, 0x02, 0}},
+	{APHADDSW, yxm_q4, Pq4, [23]uint8{0x03}},
+	{APHADDW, yxm_q4, Pq4, [23]uint8{0x01}},
+	{APHMINPOSUW, yxm_q4, Pq4, [23]uint8{0x41}},
+	{APHSUBD, yxm_q4, Pq4, [23]uint8{0x06}},
+	{APHSUBSW, yxm_q4, Pq4, [23]uint8{0x07}},
+	{APHSUBW, yxm_q4, Pq4, [23]uint8{0x05}},
 	{APINSRW, yinsrw, Pq, [23]uint8{0xc4, 00}},
 	{APINSRB, yinsr, Pq, [23]uint8{0x3a, 0x20, 00}},
 	{APINSRD, yinsr, Pq, [23]uint8{0x3a, 0x22, 00}},
@@ -1201,14 +1340,30 @@ var optab =
 	{APMINSW, yxm, Pe, [23]uint8{0xea}},
 	{APMINUB, yxm, Pe, [23]uint8{0xda}},
 	{APMOVMSKB, ymskb, Px, [23]uint8{Pe, 0xd7, 0xd7}},
+	{APMOVSXBD, yxm_q4, Pq4, [23]uint8{0x21}},
+	{APMOVSXBQ, yxm_q4, Pq4, [23]uint8{0x22}},
+	{APMOVSXBW, yxm_q4, Pq4, [23]uint8{0x20}},
+	{APMOVSXDQ, yxm_q4, Pq4, [23]uint8{0x25}},
+	{APMOVSXWD, yxm_q4, Pq4, [23]uint8{0x23}},
+	{APMOVSXWQ, yxm_q4, Pq4, [23]uint8{0x24}},
+	{APMOVZXBD, yxm_q4, Pq4, [23]uint8{0x31}},
+	{APMOVZXBQ, yxm_q4, Pq4, [23]uint8{0x32}},
+	{APMOVZXBW, yxm_q4, Pq4, [23]uint8{0x30}},
+	{APMOVZXDQ, yxm_q4, Pq4, [23]uint8{0x35}},
+	{APMOVZXWD, yxm_q4, Pq4, [23]uint8{0x33}},
+	{APMOVZXWQ, yxm_q4, Pq4, [23]uint8{0x34}},
+	{APMULDQ, yxm_q4, Pq4, [23]uint8{0x28}},
 	{APMULHRW, ymfp, Px, [23]uint8{0xb7}},
 	{APMULHUW, ymm, Py1, [23]uint8{0xe4, Pe, 0xe4}},
 	{APMULHW, ymm, Py1, [23]uint8{0xe5, Pe, 0xe5}},
+	{APMULLD, yxm_q4, Pq4, [23]uint8{0x40}},
 	{APMULLW, ymm, Py1, [23]uint8{0xd5, Pe, 0xd5}},
 	{APMULULQ, ymm, Py1, [23]uint8{0xf4, Pe, 0xf4}},
 	{APOPAL, ynone, P32, [23]uint8{0x61}},
 	{APOPAW, ynone, Pe, [23]uint8{0x61}},
-	{APOPCNT, yml_rl, Pfw, [23]uint8{0xb8}},
+	{APOPCNTW, yml_rl, Pef3, [23]uint8{0xb8}},
+	{APOPCNTL, yml_rl, Pf3, [23]uint8{0xb8}},
+	{APOPCNTQ, yml_rl, Pfw, [23]uint8{0xb8}},
 	{APOPFL, ynone, P32, [23]uint8{0x9d}},
 	{APOPFQ, ynone, Py, [23]uint8{0x9d}},
 	{APOPFW, ynone, Pe, [23]uint8{0x9d}},
@@ -1528,16 +1683,37 @@ var optab =
 	{AROUNDSS, yaes2, Pq, [23]uint8{0x3a, 0x0a, 0}},
 	{APSHUFD, yxshuf, Pq, [23]uint8{0x70, 0}},
 	{APCLMULQDQ, yxshuf, Pq, [23]uint8{0x3a, 0x44, 0}},
+
+	{AANDNL, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF2}},
+	{AANDNQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF2}},
+	{ABEXTRL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF7}},
+	{ABEXTRQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF7}},
+	{ABZHIL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W0, 0xF5}},
+	{ABZHIQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_0F38_W1, 0xF5}},
+	{AMULXL, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W0, 0xF6}},
+	{AMULXQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W1, 0xF6}},
+	{APDEPL, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W0, 0xF5}},
+	{APDEPQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W1, 0xF5}},
+	{APEXTL, yvex_r3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W0, 0xF5}},
+	{APEXTQ, yvex_r3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W1, 0xF5}},
+	{ASARXL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W0, 0xF7}},
+	{ASARXQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F3_0F38_W1, 0xF7}},
+	{ASHLXL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_66_0F38_W0, 0xF7}},
+	{ASHLXQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_66_0F38_W1, 0xF7}},
+	{ASHRXL, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W0, 0xF7}},
+	{ASHRXQ, yvex_vmr3, Pvex, [23]uint8{VEX_LZ_F2_0F38_W1, 0xF7}},
+
 	{AVZEROUPPER, ynone, Px, [23]uint8{0xc5, 0xf8, 0x77}},
-	{AMOVHDU, yxmov_vex, Pvex2, [23]uint8{0x6f, 0x7f}},
-	{AMOVNTHD, yxr_ml_vex, Pvex1, [23]uint8{0xe7}},
-	{AMOVHDA, yxmov_vex, Pvex1, [23]uint8{0x6f, 0x7f}},
-	{AVPCMPEQB, yxm_xm_xm, Pvex1, [23]uint8{0x74, 0x74}},
-	{AVPXOR, yxm_xm_xm, Pvex1, [23]uint8{0xef, 0xef}},
-	{AVPMOVMSKB, ymskb_vex, Pvex1, [23]uint8{0xd7}},
-	{AVPAND, yxm_xm_xm, Pvex1, [23]uint8{0xdb, 0xdb}},
-	{AVPBROADCASTB, yml_xr_vex, Pvex3, [23]uint8{0x78, 0x78}},
-	{AVPTEST, yml_xr_vex, Pvex3, [23]uint8{0x17, 0x17}},
+	{AVMOVDQU, yvex_vmovdqa, Pvex, [23]uint8{VEX_128_F3_0F_WIG, 0x6F, VEX_128_F3_0F_WIG, 0x7F, VEX_256_F3_0F_WIG, 0x6F, VEX_256_F3_0F_WIG, 0x7F}},
+	{AVMOVDQA, yvex_vmovdqa, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x6F, VEX_128_66_0F_WIG, 0x7F, VEX_256_66_0F_WIG, 0x6F, VEX_256_66_0F_WIG, 0x7F}},
+	{AVMOVNTDQ, yvex_vmovntdq, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xE7, VEX_256_66_0F_WIG, 0xE7}},
+	{AVPCMPEQB, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0x74, VEX_256_66_0F_WIG, 0x74}},
+	{AVPXOR, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xEF, VEX_256_66_0F_WIG, 0xEF}},
+	{AVPMOVMSKB, yvex_xyr2, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xD7, VEX_256_66_0F_WIG, 0xD7}},
+	{AVPAND, yvex_xy3, Pvex, [23]uint8{VEX_128_66_0F_WIG, 0xDB, VEX_256_66_0F_WIG, 0xDB}},
+	{AVPBROADCASTB, yvex_vpbroadcast, Pvex, [23]uint8{VEX_128_66_0F38_W0, 0x78, VEX_256_66_0F38_W0, 0x78}},
+	{AVPTEST, yvex_xy2, Pvex, [23]uint8{VEX_128_66_0F38_WIG, 0x17, VEX_256_66_0F38_WIG, 0x17}},
+
 	{AXACQUIRE, ynone, Px, [23]uint8{0xf2}},
 	{AXRELEASE, ynone, Px, [23]uint8{0xf3}},
 	{AXBEGIN, yxbegin, Px, [23]uint8{0xc7, 0xf8}},
@@ -1684,6 +1860,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 	var loop int32
 	var m int
 	var p *obj.Prog
+	errors := ctxt.Errors
 	for {
 		loop = 0
 		for i = 0; i < len(s.R); i++ {
@@ -1794,6 +1971,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		}
 		if loop == 0 {
 			break
+		}
+		if ctxt.Errors > errors {
+			return
 		}
 	}
 
@@ -1927,6 +2107,9 @@ func instinit() {
 	ycover[Ym*Ymax+Yxm] = 1
 	ycover[Yxr*Ymax+Yxm] = 1
 
+	ycover[Ym*Ymax+Yym] = 1
+	ycover[Yyr*Ymax+Yym] = 1
+
 	for i := 0; i < MAXREG; i++ {
 		reg[i] = -1
 		if i >= REG_AL && i <= REG_R15B {
@@ -1958,6 +2141,12 @@ func instinit() {
 		if i >= REG_X0 && i <= REG_X0+15 {
 			reg[i] = (i - REG_X0) & 7
 			if i >= REG_X0+8 {
+				regrex[i] = Rxr | Rxx | Rxb
+			}
+		}
+		if i >= REG_Y0 && i <= REG_Y0+15 {
+			reg[i] = (i - REG_Y0) & 7
+			if i >= REG_Y0+8 {
 				regrex[i] = Rxr | Rxx | Rxb
 			}
 		}
@@ -2112,6 +2301,31 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		return Yxxx
 
 	case obj.TYPE_MEM:
+		if a.Index == REG_SP {
+			// Can't use SP as the index register
+			return Yxxx
+		}
+		if ctxt.Asmode == 64 {
+			switch a.Name {
+			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+				// Global variables can't use index registers and their
+				// base register is %rip (%rip is encoded as REG_NONE).
+				if a.Reg != REG_NONE || a.Index != REG_NONE || a.Scale != 0 {
+					return Yxxx
+				}
+			case obj.NAME_AUTO, obj.NAME_PARAM:
+				// These names must have a base of SP.  The old compiler
+				// uses 0 for the base register.  SSA uses REG_SP.
+				if a.Reg != REG_SP && a.Reg != 0 {
+					return Yxxx
+				}
+			case obj.NAME_NONE:
+				// everything is ok
+			default:
+				// unknown name
+				return Yxxx
+			}
+		}
 		return Ym
 
 	case obj.TYPE_ADDR:
@@ -2296,6 +2510,24 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		REG_X0 + 14,
 		REG_X0 + 15:
 		return Yxr
+
+	case REG_Y0 + 0,
+		REG_Y0 + 1,
+		REG_Y0 + 2,
+		REG_Y0 + 3,
+		REG_Y0 + 4,
+		REG_Y0 + 5,
+		REG_Y0 + 6,
+		REG_Y0 + 7,
+		REG_Y0 + 8,
+		REG_Y0 + 9,
+		REG_Y0 + 10,
+		REG_Y0 + 11,
+		REG_Y0 + 12,
+		REG_Y0 + 13,
+		REG_Y0 + 14,
+		REG_Y0 + 15:
+		return Yyr
 
 	case REG_CS:
 		return Ycs
@@ -2597,7 +2829,7 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 		goto bad
 
 	case obj.TYPE_REG:
-		if a.Reg < REG_AL || REG_X0+15 < a.Reg {
+		if a.Reg < REG_AL || REG_Y0+15 < a.Reg {
 			goto bad
 		}
 		if v != 0 {
@@ -3025,77 +3257,40 @@ var bpduff2 = []byte{
 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
 }
 
-// Assemble vex prefix, from 3 operands and prefix.
+// Emit VEX prefix and opcode byte.
+// The three addresses are the r/m, vvvv, and reg fields.
+// The reg and rm arguments appear in the same order as the
+// arguments to asmand, which typically follows the call to asmvex.
+// The final two arguments are the VEX prefix (see encoding above)
+// and the opcode byte.
 // For details about vex prefix see:
 // https://en.wikipedia.org/wiki/VEX_prefix#Technical_description
-func vexprefix(ctxt *obj.Link, to *obj.Addr, from *obj.Addr, from3 *obj.Addr, pref uint8) {
-	rexR := regrex[to.Reg]
-	rexB := regrex[from.Reg]
-	rexX := regrex[from.Index]
-	var prefBit uint8
-	// This will go into VEX.PP field.
-	if pref == Pvex1 || pref == Pvex3 {
-		prefBit = 1
-	} else if pref == Pvex2 {
-		prefBit = 2
-	} // TODO add Pvex0
-
-	if rexX == 0 && rexB == 0 && pref != Pvex3 { // 2-byte vex prefix
-		// In 2-byte case, first byte is always C5
-		ctxt.Andptr[0] = 0xc5
-		ctxt.Andptr = ctxt.Andptr[1:]
-
-		if from3 == nil {
-			// If this is a 2-operand instruction fill VEX.VVVV with 1111
-			// We are also interested only in 256-bit version, so VEX.L=1
-			ctxt.Andptr[0] = 0x7c
-		} else {
-			// VEX.L=1
-			ctxt.Andptr[0] = 0x4
-			// VEX.VVVV (bits 3:6) is a inversed register number
-			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
-		}
-
-		// VEX encodes REX.R as inversed upper bit
-		if rexR == 0 {
-			ctxt.Andptr[0] |= 0x80
-		}
-		ctxt.Andptr[0] |= prefBit
-		ctxt.Andptr = ctxt.Andptr[1:]
-	} else { // 3-byte case
-		// First byte is always C$
-		ctxt.Andptr[0] = 0xc4
-		ctxt.Andptr = ctxt.Andptr[1:]
-
-		// Encode VEX.mmmmm with prefix value, assume 0F,
-		// which encodes as 1, unless 0F38 was specified with pvex3.
-		ctxt.Andptr[0] = 0x1 // TODO handle 0F3A
-		if pref == Pvex3 {
-			ctxt.Andptr[0] = 0x2
-		}
-
-		// REX.[RXB] are inverted and encoded in 3 upper bits
-		if rexR == 0 {
-			ctxt.Andptr[0] |= 0x80
-		}
-		if rexX == 0 {
-			ctxt.Andptr[0] |= 0x40
-		}
-		if rexB == 0 {
-			ctxt.Andptr[0] |= 0x20
-		}
-		ctxt.Andptr = ctxt.Andptr[1:]
-
-		// Fill VEX.VVVV, same as 2-operand VEX instruction.
-		if from3 == nil {
-			ctxt.Andptr[0] = 0x7c
-		} else {
-			ctxt.Andptr[0] = 0x4
-			ctxt.Andptr[0] |= byte((^(from3.Reg - REG_X0))<<3) & 0x78
-		}
-		ctxt.Andptr[0] |= prefBit
-		ctxt.Andptr = ctxt.Andptr[1:]
+func asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uint8) {
+	ctxt.Vexflag = 1
+	rexR := regrex[r.Reg] & Rxr
+	rexB := regrex[rm.Reg] & Rxb
+	rexX := regrex[rm.Index] & Rxx
+	vexM := (vex >> 3) & 0xF
+	vexWLP := vex & 0x87
+	vexV := byte(0)
+	if v != nil {
+		vexV = byte(reg[v.Reg]|(regrex[v.Reg]&Rxr)<<1) & 0xF
 	}
+	vexV ^= 0xF
+	if vexM == 1 && (rexX|rexB) == 0 && vex&vexW1 == 0 {
+		// Can use 2-byte encoding.
+		ctxt.Andptr[0] = 0xc5
+		ctxt.Andptr[1] = byte(rexR<<5) ^ 0x80 | vexV<<3 | vexWLP
+		ctxt.Andptr = ctxt.Andptr[2:]
+	} else {
+		// Must use 3-byte encoding.
+		ctxt.Andptr[0] = 0xc4
+		ctxt.Andptr[1] = (byte(rexR|rexX|rexB) << 5) ^ 0xE0 | vexM
+		ctxt.Andptr[2] = vexV<<3 | vexWLP
+		ctxt.Andptr = ctxt.Andptr[3:]
+	}
+	ctxt.Andptr[0] = opcode
+	ctxt.Andptr = ctxt.Andptr[1:]
 }
 
 func doasm(ctxt *obj.Link, p *obj.Prog) {
@@ -3192,14 +3387,18 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Pq3: /* 16 bit escape, Rex.w, and opcode escape */
+			case Pq3: /* 16 bit escape and opcode escape + REX.W */
+				ctxt.Rexflag |= Pw
 				ctxt.Andptr[0] = Pe
-				ctxt.Andptr = ctxt.Andptr[1:]
-
-				ctxt.Andptr[0] = Pw
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
+
+			case Pq4: /*  66 0F 38 */
+				ctxt.Andptr[0] = 0x66
+				ctxt.Andptr[1] = 0x0F
+				ctxt.Andptr[2] = 0x38
+				ctxt.Andptr = ctxt.Andptr[3:]
 
 			case Pf2, /* xmm opcode escape */
 				Pf3:
@@ -3209,11 +3408,17 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Pfw: /* first escape, Rex.w, and second escape */
+			case Pef3:
+				ctxt.Andptr[0] = Pe
+				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pf3
 				ctxt.Andptr = ctxt.Andptr[1:]
+				ctxt.Andptr[0] = Pm
+				ctxt.Andptr = ctxt.Andptr[1:]
 
-				ctxt.Andptr[0] = Pw
+			case Pfw: /* xmm opcode escape + REX.W */
+				ctxt.Rexflag |= Pw
+				ctxt.Andptr[0] = Pf3
 				ctxt.Andptr = ctxt.Andptr[1:]
 				ctxt.Andptr[0] = Pm
 				ctxt.Andptr = ctxt.Andptr[1:]
@@ -3340,13 +3545,6 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				mediaop(ctxt, o, op, int(yt.zoffset), z)
 				asmand(ctxt, p, &p.From, &p.To)
 
-			case Zm_r_xm_vex:
-				ctxt.Vexflag = 1
-				vexprefix(ctxt, &p.To, &p.From, nil, o.prefix)
-				ctxt.Andptr[0] = byte(op)
-				ctxt.Andptr = ctxt.Andptr[1:]
-				asmand(ctxt, p, &p.From, &p.To)
-
 			case Zm_r_xm_nr:
 				ctxt.Rexflag = 0
 				mediaop(ctxt, o, op, int(yt.zoffset), z)
@@ -3406,19 +3604,17 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr = ctxt.Andptr[1:]
 				asmand(ctxt, p, &p.To, &p.From)
 
-			case Zr_m_xm_vex:
-				ctxt.Vexflag = 1
-				vexprefix(ctxt, &p.From, &p.To, nil, o.prefix)
-				ctxt.Andptr[0] = byte(op)
-				ctxt.Andptr = ctxt.Andptr[1:]
-				asmand(ctxt, p, &p.To, &p.From)
-
-			case Zr_r_r_vex:
-				ctxt.Vexflag = 1
-				vexprefix(ctxt, &p.To, &p.From, p.From3, o.prefix)
-				ctxt.Andptr[0] = byte(op)
-				ctxt.Andptr = ctxt.Andptr[1:]
+			case Zvex_rm_v_r:
+				asmvex(ctxt, &p.From, p.From3, &p.To, o.op[z], o.op[z+1])
 				asmand(ctxt, p, &p.From, &p.To)
+
+			case Zvex_v_rm_r:
+				asmvex(ctxt, p.From3, &p.From, &p.To, o.op[z], o.op[z+1])
+				asmand(ctxt, p, p.From3, &p.To)
+
+			case Zvex_r_v_rm:
+				asmvex(ctxt, &p.To, p.From3, &p.From, o.op[z], o.op[z+1])
+				asmand(ctxt, p, &p.To, &p.From)
 
 			case Zr_m_xm:
 				mediaop(ctxt, o, op, int(yt.zoffset), z)
@@ -4277,7 +4473,8 @@ bad:
 		}
 	}
 
-	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
+	ctxt.Diag("invalid instruction: %v", p)
+	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
 	return
 }
 

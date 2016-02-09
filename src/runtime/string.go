@@ -139,7 +139,7 @@ func slicebytetostringtmp(b []byte) string {
 func stringtoslicebyte(buf *tmpBuf, s string) []byte {
 	var b []byte
 	if buf != nil && len(s) <= len(buf) {
-		b = buf[:len(s)]
+		b = buf[:len(s):len(s)]
 	} else {
 		b = rawbyteslice(len(s))
 	}
@@ -171,7 +171,7 @@ func stringtoslicerune(buf *[tmpStringBufSize]rune, s string) []rune {
 	}
 	var a []rune
 	if buf != nil && n <= len(buf) {
-		a = buf[:n]
+		a = buf[:n:n]
 	} else {
 		a = rawruneslice(n)
 	}

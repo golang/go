@@ -24,6 +24,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"internal/golang.org/x/net/http2/hpack"
 	"io"
 	"io/ioutil"
 	"log"
@@ -31,14 +32,13 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/http2/hpack"
 )
 
 // ClientConnPool manages a pool of HTTP/2 client connections.
@@ -2065,13 +2065,62 @@ func (s http2SettingID) String() string {
 	return fmt.Sprintf("UNKNOWN_SETTING_%d", uint16(s))
 }
 
-func http2validHeader(v string) bool {
+var (
+	http2errInvalidHeaderFieldName  = errors.New("http2: invalid header field name")
+	http2errInvalidHeaderFieldValue = errors.New("http2: invalid header field value")
+)
+
+// validHeaderFieldName reports whether v is a valid header field name (key).
+//  RFC 7230 says:
+//   header-field   = field-name ":" OWS field-value OWS
+//   field-name     = token
+//   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
+//           "^" / "_" / "
+// Further, http2 says:
+//   "Just as in HTTP/1.x, header field names are strings of ASCII
+//   characters that are compared in a case-insensitive
+//   fashion. However, header field names MUST be converted to
+//   lowercase prior to their encoding in HTTP/2. "
+func http2validHeaderFieldName(v string) bool {
 	if len(v) == 0 {
 		return false
 	}
 	for _, r := range v {
+		if int(r) >= len(http2isTokenTable) || ('A' <= r && r <= 'Z') {
+			return false
+		}
+		if !http2isTokenTable[byte(r)] {
+			return false
+		}
+	}
+	return true
+}
 
-		if r >= 127 || ('A' <= r && r <= 'Z') {
+// validHeaderFieldValue reports whether v is a valid header field value.
+//
+// RFC 7230 says:
+//  field-value    = *( field-content / obs-fold )
+//  obj-fold       =  N/A to http2, and deprecated
+//  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+//  field-vchar    = VCHAR / obs-text
+//  obs-text       = %x80-FF
+//  VCHAR          = "any visible [USASCII] character"
+//
+// http2 further says: "Similarly, HTTP/2 allows header field values
+// that are not valid. While most of the values that can be encoded
+// will not alter header field parsing, carriage return (CR, ASCII
+// 0xd), line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII
+// 0x0) might be exploited by an attacker if they are translated
+// verbatim. Any request or response that contains a character not
+// permitted in a header field value MUST be treated as malformed
+// (Section 8.1.2.6). Valid characters are defined by the
+// field-content ABNF rule in Section 3.2 of [RFC7230]."
+//
+// This function does not (yet?) properly handle the rejection of
+// strings that begin or end with SP or HTAB.
+func http2validHeaderFieldValue(v string) bool {
+	for i := 0; i < len(v); i++ {
+		if b := v[i]; b < ' ' && b != '\t' || b == 0x7f {
 			return false
 		}
 	}
@@ -2201,6 +2250,90 @@ func (e *http2httpError) Timeout() bool { return e.timeout }
 func (e *http2httpError) Temporary() bool { return true }
 
 var http2errTimeout error = &http2httpError{msg: "http2: timeout awaiting response headers", timeout: true}
+
+var http2isTokenTable = [127]bool{
+	'!':  true,
+	'#':  true,
+	'$':  true,
+	'%':  true,
+	'&':  true,
+	'\'': true,
+	'*':  true,
+	'+':  true,
+	'-':  true,
+	'.':  true,
+	'0':  true,
+	'1':  true,
+	'2':  true,
+	'3':  true,
+	'4':  true,
+	'5':  true,
+	'6':  true,
+	'7':  true,
+	'8':  true,
+	'9':  true,
+	'A':  true,
+	'B':  true,
+	'C':  true,
+	'D':  true,
+	'E':  true,
+	'F':  true,
+	'G':  true,
+	'H':  true,
+	'I':  true,
+	'J':  true,
+	'K':  true,
+	'L':  true,
+	'M':  true,
+	'N':  true,
+	'O':  true,
+	'P':  true,
+	'Q':  true,
+	'R':  true,
+	'S':  true,
+	'T':  true,
+	'U':  true,
+	'W':  true,
+	'V':  true,
+	'X':  true,
+	'Y':  true,
+	'Z':  true,
+	'^':  true,
+	'_':  true,
+	'`':  true,
+	'a':  true,
+	'b':  true,
+	'c':  true,
+	'd':  true,
+	'e':  true,
+	'f':  true,
+	'g':  true,
+	'h':  true,
+	'i':  true,
+	'j':  true,
+	'k':  true,
+	'l':  true,
+	'm':  true,
+	'n':  true,
+	'o':  true,
+	'p':  true,
+	'q':  true,
+	'r':  true,
+	's':  true,
+	't':  true,
+	'u':  true,
+	'v':  true,
+	'w':  true,
+	'x':  true,
+	'y':  true,
+	'z':  true,
+	'|':  true,
+	'~':  true,
+}
+
+type http2connectionStater interface {
+	ConnectionState() tls.ConnectionState
+}
 
 // pipe is a goroutine-safe io.Reader/io.Writer pair.  It's like
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
@@ -2464,28 +2597,76 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 		if http2testHookOnConn != nil {
 			http2testHookOnConn()
 		}
-		conf.handleConn(hs, c, h)
+		conf.ServeConn(c, &http2ServeConnOpts{
+			Handler:    h,
+			BaseConfig: hs,
+		})
 	}
 	s.TLSNextProto[http2NextProtoTLS] = protoHandler
 	s.TLSNextProto["h2-14"] = protoHandler
 	return nil
 }
 
-func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
+// ServeConnOpts are options for the Server.ServeConn method.
+type http2ServeConnOpts struct {
+	// BaseConfig optionally sets the base configuration
+	// for values. If nil, defaults are used.
+	BaseConfig *Server
+
+	// Handler specifies which handler to use for processing
+	// requests. If nil, BaseConfig.Handler is used. If BaseConfig
+	// or BaseConfig.Handler is nil, http.DefaultServeMux is used.
+	Handler Handler
+}
+
+func (o *http2ServeConnOpts) baseConfig() *Server {
+	if o != nil && o.BaseConfig != nil {
+		return o.BaseConfig
+	}
+	return new(Server)
+}
+
+func (o *http2ServeConnOpts) handler() Handler {
+	if o != nil {
+		if o.Handler != nil {
+			return o.Handler
+		}
+		if o.BaseConfig != nil && o.BaseConfig.Handler != nil {
+			return o.BaseConfig.Handler
+		}
+	}
+	return DefaultServeMux
+}
+
+// ServeConn serves HTTP/2 requests on the provided connection and
+// blocks until the connection is no longer readable.
+//
+// ServeConn starts speaking HTTP/2 assuming that c has not had any
+// reads or writes. It writes its initial settings frame and expects
+// to be able to read the preface and settings frame from the
+// client. If c has a ConnectionState method like a *tls.Conn, the
+// ConnectionState is used to verify the TLS ciphersuite and to set
+// the Request.TLS field in Handlers.
+//
+// ServeConn does not support h2c by itself. Any h2c support must be
+// implemented in terms of providing a suitably-behaving net.Conn.
+//
+// The opts parameter is optional. If nil, default values are used.
+func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
 	sc := &http2serverConn{
-		srv:              srv,
-		hs:               hs,
+		srv:              s,
+		hs:               opts.baseConfig(),
 		conn:             c,
 		remoteAddrStr:    c.RemoteAddr().String(),
 		bw:               http2newBufferedWriter(c),
-		handler:          h,
+		handler:          opts.handler(),
 		streams:          make(map[uint32]*http2stream),
 		readFrameCh:      make(chan http2readFrameResult),
 		wantWriteFrameCh: make(chan http2frameWriteMsg, 8),
 		wroteFrameCh:     make(chan http2frameWriteResult, 1),
 		bodyReadCh:       make(chan http2bodyReadMsg),
 		doneServing:      make(chan struct{}),
-		advMaxStreams:    srv.maxConcurrentStreams(),
+		advMaxStreams:    s.maxConcurrentStreams(),
 		writeSched: http2writeScheduler{
 			maxFrameSize: http2initialMaxFrameSize,
 		},
@@ -2501,10 +2682,10 @@ func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
 	sc.hpackDecoder.SetMaxStringLength(sc.maxHeaderStringLen())
 
 	fr := http2NewFramer(sc.bw, c)
-	fr.SetMaxReadFrameSize(srv.maxReadFrameSize())
+	fr.SetMaxReadFrameSize(s.maxReadFrameSize())
 	sc.framer = fr
 
-	if tc, ok := c.(*tls.Conn); ok {
+	if tc, ok := c.(http2connectionStater); ok {
 		sc.tlsState = new(tls.ConnectionState)
 		*sc.tlsState = tc.ConnectionState()
 
@@ -2517,7 +2698,7 @@ func (srv *http2Server) handleConn(hs *Server, c net.Conn, h Handler) {
 
 		}
 
-		if !srv.PermitProhibitedCipherSuites && http2isBadCipher(sc.tlsState.CipherSuite) {
+		if !s.PermitProhibitedCipherSuites && http2isBadCipher(sc.tlsState.CipherSuite) {
 
 			sc.rejectConn(http2ErrCodeInadequateSecurity, fmt.Sprintf("Prohibited TLS 1.2 Cipher Suite: %x", sc.tlsState.CipherSuite))
 			return
@@ -2722,12 +2903,48 @@ func (sc *http2serverConn) logf(format string, args ...interface{}) {
 	}
 }
 
+// errno returns v's underlying uintptr, else 0.
+//
+// TODO: remove this helper function once http2 can use build
+// tags. See comment in isClosedConnError.
+func http2errno(v error) uintptr {
+	if rv := reflect.ValueOf(v); rv.Kind() == reflect.Uintptr {
+		return uintptr(rv.Uint())
+	}
+	return 0
+}
+
+// isClosedConnError reports whether err is an error from use of a closed
+// network connection.
+func http2isClosedConnError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	str := err.Error()
+	if strings.Contains(str, "use of closed network connection") {
+		return true
+	}
+
+	if runtime.GOOS == "windows" {
+		if oe, ok := err.(*net.OpError); ok && oe.Op == "read" {
+			if se, ok := oe.Err.(*os.SyscallError); ok && se.Syscall == "wsarecv" {
+				const WSAECONNABORTED = 10053
+				const WSAECONNRESET = 10054
+				if n := http2errno(se.Err); n == WSAECONNRESET || n == WSAECONNABORTED {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (sc *http2serverConn) condlogf(err error, format string, args ...interface{}) {
 	if err == nil {
 		return
 	}
-	str := err.Error()
-	if err == io.EOF || strings.Contains(str, "use of closed network connection") {
+	if err == io.EOF || err == io.ErrUnexpectedEOF || http2isClosedConnError(err) {
 
 		sc.vlogf(format, args...)
 	} else {
@@ -2741,7 +2958,7 @@ func (sc *http2serverConn) onNewHeaderField(f hpack.HeaderField) {
 		sc.vlogf("http2: server decoded %v", f)
 	}
 	switch {
-	case !http2validHeader(f.Name):
+	case !http2validHeaderFieldValue(f.Value):
 		sc.req.invalidHeader = true
 	case strings.HasPrefix(f.Name, ":"):
 		if sc.req.sawRegularHeader {
@@ -2771,6 +2988,8 @@ func (sc *http2serverConn) onNewHeaderField(f hpack.HeaderField) {
 			return
 		}
 		*dst = f.Value
+	case !http2validHeaderFieldName(f.Name):
+		sc.req.invalidHeader = true
 	default:
 		sc.req.sawRegularHeader = true
 		sc.req.header.Add(sc.canonicalHeader(f.Name), f.Value)
@@ -2789,10 +3008,10 @@ func (st *http2stream) onNewTrailerField(f hpack.HeaderField) {
 		sc.vlogf("http2: server decoded trailer %v", f)
 	}
 	switch {
-	case !http2validHeader(f.Name):
+	case strings.HasPrefix(f.Name, ":"):
 		sc.req.invalidHeader = true
 		return
-	case strings.HasPrefix(f.Name, ":"):
+	case !http2validHeaderFieldName(f.Name) || !http2validHeaderFieldValue(f.Value):
 		sc.req.invalidHeader = true
 		return
 	default:
@@ -3242,7 +3461,7 @@ func (sc *http2serverConn) processFrameFromReader(res http2readFrameResult) bool
 			sc.goAway(http2ErrCodeFrameSize)
 			return true
 		}
-		clientGone := err == io.EOF || strings.Contains(err.Error(), "use of closed network connection")
+		clientGone := err == io.EOF || err == io.ErrUnexpectedEOF || http2isClosedConnError(err)
 		if clientGone {
 
 			return false
@@ -3271,7 +3490,7 @@ func (sc *http2serverConn) processFrameFromReader(res http2readFrameResult) bool
 		return true
 	default:
 		if res.err != nil {
-			sc.logf("http2: server closing client connection; error reading frame from client %s: %v", sc.conn.RemoteAddr(), err)
+			sc.vlogf("http2: server closing client connection; error reading frame from client %s: %v", sc.conn.RemoteAddr(), err)
 		} else {
 			sc.logf("http2: server closing client connection: %v", err)
 		}
@@ -4051,7 +4270,9 @@ func (rws *http2responseWriterState) declareTrailer(k string) {
 
 		return
 	}
-	rws.trailers = append(rws.trailers, k)
+	if !http2strSliceContains(rws.trailers, k) {
+		rws.trailers = append(rws.trailers, k)
+	}
 }
 
 // writeChunk writes chunks from the bufio.Writer. But because
@@ -4119,6 +4340,10 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
+	if rws.handlerDone {
+		rws.promoteUndeclaredTrailers()
+	}
+
 	endStream := rws.handlerDone && !rws.hasTrailers()
 	if len(p) > 0 || endStream {
 
@@ -4137,6 +4362,53 @@ func (rws *http2responseWriterState) writeChunk(p []byte) (n int, err error) {
 		return len(p), err
 	}
 	return len(p), nil
+}
+
+// TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
+// that, if present, signals that the map entry is actually for
+// the response trailers, and not the response headers. The prefix
+// is stripped after the ServeHTTP call finishes and the values are
+// sent in the trailers.
+//
+// This mechanism is intended only for trailers that are not known
+// prior to the headers being written. If the set of trailers is fixed
+// or known before the header is written, the normal Go trailers mechanism
+// is preferred:
+//    https://golang.org/pkg/net/http/#ResponseWriter
+//    https://golang.org/pkg/net/http/#example_ResponseWriter_trailers
+const http2TrailerPrefix = "Trailer:"
+
+// promoteUndeclaredTrailers permits http.Handlers to set trailers
+// after the header has already been flushed. Because the Go
+// ResponseWriter interface has no way to set Trailers (only the
+// Header), and because we didn't want to expand the ResponseWriter
+// interface, and because nobody used trailers, and because RFC 2616
+// says you SHOULD (but not must) predeclare any trailers in the
+// header, the official ResponseWriter rules said trailers in Go must
+// be predeclared, and then we reuse the same ResponseWriter.Header()
+// map to mean both Headers and Trailers.  When it's time to write the
+// Trailers, we pick out the fields of Headers that were declared as
+// trailers. That worked for a while, until we found the first major
+// user of Trailers in the wild: gRPC (using them only over http2),
+// and gRPC libraries permit setting trailers mid-stream without
+// predeclarnig them. So: change of plans. We still permit the old
+// way, but we also permit this hack: if a Header() key begins with
+// "Trailer:", the suffix of that key is a Trailer. Because ':' is an
+// invalid token byte anyway, there is no ambiguity. (And it's already
+// filtered out) It's mildly hacky, but not terrible.
+//
+// This method runs after the Handler is done and promotes any Header
+// fields to be trailers.
+func (rws *http2responseWriterState) promoteUndeclaredTrailers() {
+	for k, vv := range rws.handlerHeader {
+		if !strings.HasPrefix(k, http2TrailerPrefix) {
+			continue
+		}
+		trailerKey := strings.TrimPrefix(k, http2TrailerPrefix)
+		rws.declareTrailer(trailerKey)
+		rws.handlerHeader[CanonicalHeaderKey(trailerKey)] = vv
+	}
+	sort.Strings(rws.trailers)
 }
 
 func (w *http2responseWriter) Flush() {
@@ -4654,10 +4926,7 @@ func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
 
 	cc.henc = hpack.NewEncoder(&cc.hbuf)
 
-	type connectionStater interface {
-		ConnectionState() tls.ConnectionState
-	}
-	if cs, ok := c.(connectionStater); ok {
+	if cs, ok := c.(http2connectionStater); ok {
 		state := cs.ConnectionState()
 		cc.tlsState = &state
 	}
@@ -4808,7 +5077,27 @@ func (cc *http2ClientConn) responseHeaderTimeout() time.Duration {
 	return 0
 }
 
+// checkConnHeaders checks whether req has any invalid connection-level headers.
+// per RFC 7540 section 8.1.2.2: Connection-Specific Header Fields.
+// Certain headers are special-cased as okay but not transmitted later.
+func http2checkConnHeaders(req *Request) error {
+	if v := req.Header.Get("Upgrade"); v != "" {
+		return errors.New("http2: invalid Upgrade request header")
+	}
+	if v := req.Header.Get("Transfer-Encoding"); (v != "" && v != "chunked") || len(req.Header["Transfer-Encoding"]) > 1 {
+		return errors.New("http2: invalid Transfer-Encoding request header")
+	}
+	if v := req.Header.Get("Connection"); (v != "" && v != "close" && v != "keep-alive") || len(req.Header["Connection"]) > 1 {
+		return errors.New("http2: invalid Connection request header")
+	}
+	return nil
+}
+
 func (cc *http2ClientConn) RoundTrip(req *Request) (*Response, error) {
+	if err := http2checkConnHeaders(req); err != nil {
+		return nil, err
+	}
+
 	trailers, err := http2commaSeparatedTrailers(req)
 	if err != nil {
 		return nil, err
@@ -5114,10 +5403,14 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 	var didUA bool
 	for k, vv := range req.Header {
 		lowKey := strings.ToLower(k)
-		if lowKey == "host" || lowKey == "content-length" {
+		switch lowKey {
+		case "host", "content-length":
+
 			continue
-		}
-		if lowKey == "user-agent" {
+		case "connection", "proxy-connection", "transfer-encoding", "upgrade":
+
+			continue
+		case "user-agent":
 
 			didUA = true
 			if len(vv) < 1 {
@@ -5225,8 +5518,9 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
 
 // clientConnReadLoop is the state owned by the clientConn's frame-reading readLoop.
 type http2clientConnReadLoop struct {
-	cc        *http2ClientConn
-	activeRes map[uint32]*http2clientStream // keyed by streamID
+	cc            *http2ClientConn
+	activeRes     map[uint32]*http2clientStream // keyed by streamID
+	closeWhenIdle bool
 
 	hdec *hpack.Decoder
 
@@ -5283,7 +5577,7 @@ func (rl *http2clientConnReadLoop) cleanup() {
 
 func (rl *http2clientConnReadLoop) run() error {
 	cc := rl.cc
-	closeWhenIdle := cc.t.disableKeepAlives()
+	rl.closeWhenIdle = cc.t.disableKeepAlives()
 	gotReply := false
 	for {
 		f, err := cc.fr.ReadFrame()
@@ -5332,7 +5626,7 @@ func (rl *http2clientConnReadLoop) run() error {
 		if err != nil {
 			return err
 		}
-		if closeWhenIdle && gotReply && maybeIdle && len(rl.activeRes) == 0 {
+		if rl.closeWhenIdle && gotReply && maybeIdle && len(rl.activeRes) == 0 {
 			cc.closeIfIdle()
 		}
 	}
@@ -5442,10 +5736,10 @@ func (rl *http2clientConnReadLoop) processHeaderBlockFragment(frag []byte, strea
 			res.ContentLength = -1
 			res.Body = &http2gzipReader{body: res.Body}
 		}
+		rl.activeRes[cs.ID] = cs
 	}
 
 	cs.resTrailer = &res.Trailer
-	rl.activeRes[cs.ID] = cs
 	cs.resc <- http2resAndError{res: res}
 	rl.nextRes = nil
 	return nil
@@ -5583,6 +5877,9 @@ func (rl *http2clientConnReadLoop) endStream(cs *http2clientStream) {
 	}
 	cs.bufPipe.closeWithErrorAndCode(err, code)
 	delete(rl.activeRes, cs.ID)
+	if cs.req.Close || cs.req.Header.Get("Connection") == "close" {
+		rl.closeWhenIdle = true
+	}
 }
 
 func (cs *http2clientStream) copyTrailers() {
@@ -5697,7 +5994,6 @@ func (cc *http2ClientConn) writeStreamReset(streamID uint32, code http2ErrCode, 
 
 var (
 	http2errResponseHeaderListSize = errors.New("http2: response header list larger than advertised limit")
-	http2errInvalidHeaderKey       = errors.New("http2: invalid header key")
 	http2errPseudoTrailers         = errors.New("http2: invalid pseudo header in trailers")
 )
 
@@ -5714,8 +6010,8 @@ func (rl *http2clientConnReadLoop) checkHeaderField(f hpack.HeaderField) bool {
 		return false
 	}
 
-	if !http2validHeader(f.Name) {
-		rl.reqMalformed = http2errInvalidHeaderKey
+	if !http2validHeaderFieldValue(f.Value) {
+		rl.reqMalformed = http2errInvalidHeaderFieldValue
 		return false
 	}
 
@@ -5726,6 +6022,10 @@ func (rl *http2clientConnReadLoop) checkHeaderField(f hpack.HeaderField) bool {
 			return false
 		}
 	} else {
+		if !http2validHeaderFieldName(f.Name) {
+			rl.reqMalformed = http2errInvalidHeaderFieldName
+			return false
+		}
 		rl.sawRegHeader = true
 	}
 
@@ -6086,8 +6386,16 @@ func http2encodeHeaders(enc *hpack.Encoder, h Header, keys []string) {
 	for _, k := range keys {
 		vv := h[k]
 		k = http2lowerHeader(k)
+		if !http2validHeaderFieldName(k) {
+
+			continue
+		}
 		isTE := k == "transfer-encoding"
 		for _, v := range vv {
+			if !http2validHeaderFieldValue(v) {
+
+				continue
+			}
 
 			if isTE && v != "trailers" {
 				continue

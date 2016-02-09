@@ -657,6 +657,9 @@ func TestGoBuildDashAInDevBranch(t *testing.T) {
 	tg.setenv("TESTGO_IS_GO_RELEASE", "0")
 	tg.run("build", "-v", "-a", "math")
 	tg.grepStderr("runtime", "testgo build -a math in dev branch DID NOT build runtime, but should have")
+
+	// Everything is out of date. Rebuild to leave things in a better state.
+	tg.run("install", "std")
 }
 
 func TestGoBuildDashAInReleaseBranch(t *testing.T) {
@@ -666,10 +669,110 @@ func TestGoBuildDashAInReleaseBranch(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("install", "math") // should be up to date already but just in case
+	tg.run("install", "math", "net/http") // should be up to date already but just in case
 	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
-	tg.run("build", "-v", "-a", "math")
-	tg.grepStderr("runtime", "testgo build -a math in dev branch did not build runtime, but should have")
+	tg.run("install", "-v", "-a", "math")
+	tg.grepStderr("runtime", "testgo build -a math in release branch DID NOT build runtime, but should have")
+
+	// Now runtime.a is updated (newer mtime), so everything would look stale if not for being a release.
+	tg.run("build", "-v", "net/http")
+	tg.grepStderrNot("strconv", "testgo build -v net/http in release branch with newer runtime.a DID build strconv but should not have")
+	tg.grepStderrNot("golang.org/x/net/http2/hpack", "testgo build -v net/http in release branch with newer runtime.a DID build .../golang.org/x/net/http2/hpack but should not have")
+	tg.grepStderrNot("net/http", "testgo build -v net/http in release branch with newer runtime.a DID build net/http but should not have")
+
+	// Everything is out of date. Rebuild to leave things in a better state.
+	tg.run("install", "std")
+}
+
+func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+	if testing.Short() {
+		t.Skip("don't rebuild the standard library in short mode")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+
+	addNL := func(name string) (restore func()) {
+		data, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		old := data
+		data = append(data, '\n')
+		if err := ioutil.WriteFile(name, append(data, '\n'), 0666); err != nil {
+			t.Fatal(err)
+		}
+		tg.sleep()
+		return func() {
+			if err := ioutil.WriteFile(name, old, 0666); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	tg.setenv("TESTGO_IS_GO_RELEASE", "1")
+
+	tg.tempFile("d1/src/p1/p1.go", `package p1`)
+	tg.setenv("GOPATH", tg.path("d1"))
+	tg.run("install", "-a", "p1")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly")
+	tg.sleep()
+
+	// Changing mtime and content of runtime/internal/sys/sys.go
+	// should have no effect: we're in a release, which doesn't rebuild
+	// for general mtime or content changes.
+	sys := runtime.GOROOT() + "/src/runtime/internal/sys/sys.go"
+	restore := addNL(sys)
+	defer restore()
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after updating runtime/internal/sys/sys.go")
+	restore()
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after restoring runtime/internal/sys/sys.go")
+
+	// But changing runtime/internal/sys/zversion.go should have an effect:
+	// that's how we tell when we flip from one release to another.
+	zversion := runtime.GOROOT() + "/src/runtime/internal/sys/zversion.go"
+	restore = addNL(zversion)
+	defer restore()
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing to new release")
+	restore()
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly, after changing back to old release")
+	addNL(zversion)
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing again to new release")
+	tg.run("install", "p1")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale after building with new release")
+
+	// Restore to "old" release.
+	restore()
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly, after changing to old release after new build")
+	tg.run("install", "p1")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale after building with old release")
+
+	// Everything is out of date. Rebuild to leave things in a better state.
+	tg.run("install", "std")
+}
+
+func TestGoListStandard(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.cd(runtime.GOROOT() + "/src")
+	tg.run("list", "-f", "{{if not .Standard}}{{.ImportPath}}{{end}}", "./...")
+	stdout := tg.getStdout()
+	for _, line := range strings.Split(stdout, "\n") {
+		if strings.HasPrefix(line, "_/") && strings.HasSuffix(line, "/src") {
+			// $GOROOT/src shows up if there are any .go files there.
+			// We don't care.
+			continue
+		}
+		if line == "" {
+			continue
+		}
+		t.Errorf("package in GOROOT not listed as standard: %v", line)
+	}
+
+	// Similarly, expanding std should include some of our vendored code.
+	tg.run("list", "std", "cmd")
+	tg.grepStdout("golang.org/x/net/http2/hpack", "list std cmd did not mention vendored hpack")
+	tg.grepStdout("golang.org/x/arch/x86/x86asm", "list std cmd did not mention vendored x86asm")
 }
 
 func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
@@ -725,8 +828,8 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	sep := string(filepath.ListSeparator)
 	tg.setenv("GOPATH", tg.path("d1")+sep+tg.path("d2"))
 	tg.run("install", "p1")
-	tg.wantNotStale("p1", "./testgo list mypkg claims p1 is stale, incorrectly")
-	tg.wantNotStale("p2", "./testgo list mypkg claims p2 is stale, incorrectly")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale, incorrectly")
+	tg.wantNotStale("p2", "./testgo list claims p2 is stale, incorrectly")
 	tg.sleep()
 	if f, err := os.OpenFile(tg.path("d2/src/p2/p2.go"), os.O_WRONLY|os.O_APPEND, 0); err != nil {
 		t.Fatal(err)
@@ -735,12 +838,12 @@ func TestGoInstallRebuildsStalePackagesInOtherGOPATH(t *testing.T) {
 	} else {
 		tg.must(f.Close())
 	}
-	tg.wantStale("p2", "./testgo list mypkg claims p2 is NOT stale, incorrectly")
-	tg.wantStale("p1", "./testgo list mypkg claims p1 is NOT stale, incorrectly")
+	tg.wantStale("p2", "./testgo list claims p2 is NOT stale, incorrectly")
+	tg.wantStale("p1", "./testgo list claims p1 is NOT stale, incorrectly")
 
 	tg.run("install", "p1")
-	tg.wantNotStale("p2", "./testgo list mypkg claims p2 is stale after reinstall, incorrectly")
-	tg.wantNotStale("p1", "./testgo list mypkg claims p1 is stale after reinstall, incorrectly")
+	tg.wantNotStale("p2", "./testgo list claims p2 is stale after reinstall, incorrectly")
+	tg.wantNotStale("p1", "./testgo list claims p1 is stale after reinstall, incorrectly")
 }
 
 func TestGoInstallDetectsRemovedFiles(t *testing.T) {
@@ -1590,7 +1693,7 @@ func TestGoTestDashOWritesBinary(t *testing.T) {
 }
 
 // Issue 4568.
-func TestSymlinksDoNotConfuseGoList(t *testing.T) {
+func TestSymlinksList(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("skipping symlink test on %s", runtime.GOOS)
@@ -1607,6 +1710,58 @@ func TestSymlinksDoNotConfuseGoList(t *testing.T) {
 	if strings.TrimSpace(tg.getStdout()) != tg.path(".") {
 		t.Error("confused by symlinks")
 	}
+}
+
+// Issue 14054.
+func TestSymlinksVendor(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping symlink test on %s", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.setenv("GO15VENDOREXPERIMENT", "1")
+	tg.tempDir("gopath/src/dir1/vendor/v")
+	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
+	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")
+	tg.must(os.Symlink(tg.path("gopath/src/dir1"), tg.path("symdir1")))
+	tg.setenv("GOPATH", tg.path("gopath"))
+	tg.cd(tg.path("symdir1"))
+	tg.run("list", "-f", "{{.Root}}", ".")
+	if strings.TrimSpace(tg.getStdout()) != tg.path("gopath") {
+		t.Error("list confused by symlinks")
+	}
+
+	// All of these should succeed, not die in vendor-handling code.
+	tg.run("run", "p.go")
+	tg.run("build")
+	tg.run("install")
+}
+
+func TestSymlinksInternal(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9", "windows":
+		t.Skipf("skipping symlink test on %s", runtime.GOOS)
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.tempDir("gopath/src/dir1/internal/v")
+	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `dir1/internal/v`\nfunc main(){}")
+	tg.tempFile("gopath/src/dir1/internal/v/v.go", "package v")
+	tg.must(os.Symlink(tg.path("gopath/src/dir1"), tg.path("symdir1")))
+	tg.setenv("GOPATH", tg.path("gopath"))
+	tg.cd(tg.path("symdir1"))
+	tg.run("list", "-f", "{{.Root}}", ".")
+	if strings.TrimSpace(tg.getStdout()) != tg.path("gopath") {
+		t.Error("list confused by symlinks")
+	}
+
+	// All of these should succeed, not die in internal-handling code.
+	tg.run("run", "p.go")
+	tg.run("build")
+	tg.run("install")
 }
 
 // Issue 4515.
@@ -2255,6 +2410,7 @@ func TestGoGetInsecureCustomDomain(t *testing.T) {
 }
 
 func TestIssue10193(t *testing.T) {
+	t.Skip("depends on code.google.com")
 	testenv.MustHaveExternalNetwork(t)
 	if _, err := exec.LookPath("hg"); err != nil {
 		t.Skip("skipping because hg binary not found")
