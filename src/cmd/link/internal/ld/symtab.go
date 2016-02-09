@@ -215,6 +215,11 @@ func Asmelfsym() {
 
 	dwarfaddelfsectionsyms()
 
+	// Some linkers will add a FILE sym if one is not present.
+	// Avoid having the working directory inserted into the symbol table.
+	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+	numelfsym++
+
 	elfbind = STB_LOCAL
 	genasmsym(putelfsym)
 
