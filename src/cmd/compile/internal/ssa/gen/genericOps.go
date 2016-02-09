@@ -240,8 +240,8 @@ var genericOps = []opData{
 	{name: "Sqrt"}, // sqrt(arg0), float64 only
 
 	// Data movement
-	{name: "Phi"},  // select an argument based on which predecessor block we came from
-	{name: "Copy"}, // output = arg0
+	{name: "Phi", variableLength: true}, // select an argument based on which predecessor block we came from
+	{name: "Copy"},                      // output = arg0
 	// Convert converts between pointers and integers.
 	// We have a special op for this so as to not confuse GC
 	// (particularly stack maps).  It takes a memory arg so it

@@ -213,6 +213,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpOr64(v, config)
 	case OpOr8:
 		return rewriteValuegeneric_OpOr8(v, config)
+	case OpPhi:
+		return rewriteValuegeneric_OpPhi(v, config)
 	case OpPtrIndex:
 		return rewriteValuegeneric_OpPtrIndex(v, config)
 	case OpRsh16Ux16:
@@ -3961,6 +3963,98 @@ func rewriteValuegeneric_OpOr8(v *Value, config *Config) bool {
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpPhi(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Phi (Const8 [c]) (Const8 [d]))
+	// cond: int8(c) == int8(d)
+	// result: (Const8 [c])
+	for {
+		if v.Args[0].Op != OpConst8 {
+			break
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst8 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if len(v.Args) != 2 {
+			break
+		}
+		if !(int8(c) == int8(d)) {
+			break
+		}
+		v.reset(OpConst8)
+		v.AuxInt = c
+		return true
+	}
+	// match: (Phi (Const16 [c]) (Const16 [d]))
+	// cond: int16(c) == int16(d)
+	// result: (Const16 [c])
+	for {
+		if v.Args[0].Op != OpConst16 {
+			break
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst16 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if len(v.Args) != 2 {
+			break
+		}
+		if !(int16(c) == int16(d)) {
+			break
+		}
+		v.reset(OpConst16)
+		v.AuxInt = c
+		return true
+	}
+	// match: (Phi (Const32 [c]) (Const32 [d]))
+	// cond: int32(c) == int32(d)
+	// result: (Const32 [c])
+	for {
+		if v.Args[0].Op != OpConst32 {
+			break
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if len(v.Args) != 2 {
+			break
+		}
+		if !(int32(c) == int32(d)) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = c
+		return true
+	}
+	// match: (Phi (Const64 [c]) (Const64 [c]))
+	// cond:
+	// result: (Const64 [c])
+	for {
+		if v.Args[0].Op != OpConst64 {
+			break
+		}
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			break
+		}
+		if v.Args[1].AuxInt != v.Args[0].AuxInt {
+			break
+		}
+		if len(v.Args) != 2 {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = c
 		return true
 	}
 	return false
