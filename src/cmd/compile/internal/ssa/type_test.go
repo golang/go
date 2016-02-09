@@ -73,4 +73,5 @@ var (
 	TypeUInt64     = &TypeImpl{Size_: 8, Align: 8, Integer: true, Name: "uint64"}
 	TypeBool       = &TypeImpl{Size_: 1, Align: 1, Boolean: true, Name: "bool"}
 	TypeBytePtr    = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*byte"}
+	TypeInt64Ptr   = &TypeImpl{Size_: 8, Align: 8, Ptr: true, Name: "*int64"}
 )
