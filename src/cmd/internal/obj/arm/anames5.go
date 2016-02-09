@@ -9,6 +9,7 @@ var cnames5 = []string{
 	"REG",
 	"REGREG",
 	"REGREG2",
+	"REGLIST",
 	"SHIFT",
 	"FREG",
 	"PSR",

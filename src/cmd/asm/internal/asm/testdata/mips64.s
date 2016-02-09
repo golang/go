@@ -5,7 +5,7 @@
 // This input was created by taking the ppc64 testcase and modified
 // by hand.
 
-TEXT foo(SB),0,$0
+TEXT foo(SB),7,$0
 
 //inst:
 //
@@ -66,7 +66,7 @@ TEXT foo(SB),0,$0
 //	{
 //		outcode(int($1), &$2, 0, &$4);
 //	}
-	MOVD	$0.1, F2
+	MOVD	$0.1, F2 // MOVD $(0.10000000000000001), F2
 
 //	LFMOV freg ',' freg
 //	{
@@ -232,20 +232,28 @@ TEXT foo(SB),0,$0
 //	{
 //		outcode(int($1), &nullgen, 0, &$2);
 //	}
+	BEQ	R1, 2(PC)
 label0:
 	JMP	1(PC)
-	JMP	label0+0
-	JAL	1(PC)
-	JAL	label0+0
+	BEQ	R1, 2(PC)
+	JMP	label0+0 // JMP 64
+	BEQ	R1, 2(PC)
+	JAL	1(PC) // CALL 1(PC)
+	BEQ	R1, 2(PC)
+	JAL	label0+0 // CALL 64
 
 //	LBRA addr
 //	{
 //		outcode(int($1), &nullgen, 0, &$2);
 //	}
-	JMP	4(R1)
-	JMP	foo+0(SB)
-	JAL	4(R1)
-	JAL	foo+0(SB)
+	BEQ	R1, 2(PC)
+	JMP	0(R1) // JMP (R1)
+	BEQ	R1, 2(PC)
+	JMP	foo+0(SB) // JMP foo(SB)
+	BEQ	R1, 2(PC)
+	JAL	0(R1) // CALL (R1)
+	BEQ	R1, 2(PC)
+	JAL	foo+0(SB) // CALL foo(SB)
 
 //
 // BEQ/BNE
@@ -256,7 +264,7 @@ label0:
 //	}
 label1:
 	BEQ	R1, 1(PC)
-	BEQ	R1, label1
+	BEQ	R1, label1 // BEQ R1, 79
 
 //	LBRA rreg ',' sreg ',' rel
 //	{
@@ -264,7 +272,7 @@ label1:
 //	}
 label2:
 	BEQ	R1, R2, 1(PC)
-	BEQ	R1, R2, label2
+	BEQ	R1, R2, label2 // BEQ R1, R2, 81
 
 //
 // other integer conditional branch
@@ -275,7 +283,7 @@ label2:
 //	}
 label3:
 	BLTZ	R1, 1(PC)
-	BLTZ	R1, label3
+	BLTZ	R1, label3 // BLTZ R1, 83
 
 //
 // floating point conditional branch
@@ -283,7 +291,7 @@ label3:
 //	LBRA rel
 label4:
 	BFPT	1(PC)
-	BFPT	label4
+	BFPT	label4 // BFPT 85
 
 
 //
@@ -364,7 +372,8 @@ label4:
 //
 	SYSCALL
 	BREAK
-	BREAK	$1, (R1) // overloaded CACHE opcode
+	// overloaded cache opcode:
+	BREAK	R1, (R1)
 
 //
 // RET
@@ -374,12 +383,14 @@ label4:
 //		outcode(int($1), &nullgen, 0, &nullgen);
 //	}
 	SYSCALL
+	BEQ	R1, 2(PC)
 	RET
 
 
 // More JMP/JAL cases, and canonical names JMP, CALL.
 
-	JAL	foo(SB)
+	JAL	foo(SB) // CALL foo(SB)
+	BEQ	R1, 2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
 

@@ -193,8 +193,9 @@ func unescape(s string, mode encoding) (string, error) {
 				// that are valid host name bytes in their unescaped form.
 				// That is, you can use escaping in the zone identifier but not
 				// to introduce bytes you couldn't just write directly.
+				// But Windows puts spaces here! Yay.
 				v := unhex(s[i+1])<<4 | unhex(s[i+2])
-				if s[i:i+3] != "%25" && shouldEscape(v, encodeHost) {
+				if s[i:i+3] != "%25" && v != ' ' && shouldEscape(v, encodeHost) {
 					return "", EscapeError(s[i : i+3])
 				}
 			}

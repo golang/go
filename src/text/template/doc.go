@@ -64,7 +64,7 @@ space, horizontal tab, carriage return, and newline.
 Actions
 
 Here is the list of actions. "Arguments" and "pipelines" are evaluations of
-data, defined in detail below.
+data, defined in detail in the corresponding sections that follow.
 
 */
 //	{{/* a comment */}}
@@ -200,6 +200,8 @@ field of a struct, the function is not invoked automatically, but it
 can be used as a truth value for an if action and the like. To invoke
 it, use the call function, defined below.
 
+Pipelines
+
 A pipeline is a possibly chained sequence of "commands". A command is a simple
 value (argument) or a function or method call, possibly with multiple arguments:
 
@@ -216,8 +218,6 @@ value (argument) or a function or method call, possibly with multiple arguments:
 		with the name:
 			function(Argument1, etc.)
 		Functions and function names are described below.
-
-Pipelines
 
 A pipeline may be "chained" by separating a sequence of commands with pipeline
 characters '|'. In a chained pipeline, the result of the each command is

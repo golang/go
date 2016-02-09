@@ -162,20 +162,25 @@ func minit() {
 	// Initialize signal handling.
 	_g_ := getg()
 
-	var st stackt
-	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
-		signalstack(&_g_.m.gsignal.stack)
-		_g_.m.newSigstack = true
-	} else {
-		// Use existing signal stack.
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		_g_.m.gsignal.stack.lo = stsp
-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-		_g_.m.gsignal.stackAlloc = st.ss_size
-		_g_.m.newSigstack = false
+	// The alternate signal stack is buggy on arm and arm64.
+	// The signal handler handles it directly.
+	// The sigaltstack assembly function does nothing.
+	if GOARCH != "arm" && GOARCH != "arm64" {
+		var st stackt
+		sigaltstack(nil, &st)
+		if st.ss_flags&_SS_DISABLE != 0 {
+			signalstack(&_g_.m.gsignal.stack)
+			_g_.m.newSigstack = true
+		} else {
+			// Use existing signal stack.
+			stsp := uintptr(unsafe.Pointer(st.ss_sp))
+			_g_.m.gsignal.stack.lo = stsp
+			_g_.m.gsignal.stack.hi = stsp + st.ss_size
+			_g_.m.gsignal.stackguard0 = stsp + _StackGuard
+			_g_.m.gsignal.stackguard1 = stsp + _StackGuard
+			_g_.m.gsignal.stackAlloc = st.ss_size
+			_g_.m.newSigstack = false
+		}
 	}
 
 	// restore signal mask from m.sigmask and unblock essential signals

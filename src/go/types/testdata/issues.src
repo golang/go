@@ -153,3 +153,20 @@ func issue10260() {
 	make(chan I1) <- i0 /* ERROR cannot use .* in send: missing method foo */
 	make(chan I1) <- i2 /* ERROR cannot use .* in send: wrong type for method foo */
 }
+
+// Check that constants representable as integers are in integer form
+// before being used in operations that are only defined on integers.
+func issue14229() {
+	// from the issue
+	const _ = int64(-1<<63) % 1e6
+
+	// related
+	const (
+		a int = 3
+		b = 4.0
+		_ = a / b
+		_ = a % b
+		_ = b / a
+		_ = b % a
+	)
+}

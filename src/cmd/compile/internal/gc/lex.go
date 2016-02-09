@@ -107,7 +107,7 @@ func Main() {
 
 	Thearch.Linkarchinit()
 	Ctxt = obj.Linknew(Thearch.Thelinkarch)
-	Ctxt.Diag = Yyerror
+	Ctxt.DiagFunc = Yyerror
 	Ctxt.Bso = &bstdout
 	bstdout = *obj.Binitw(os.Stdout)
 
@@ -845,6 +845,13 @@ func importfile(f *Val, line int) {
 		}
 		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
 		cannedimports(file, p)
+		// Reset incannedimport flag (we are not truly in a
+		// canned import) - this will cause importpkg.Direct to
+		// be set via parser.import_package (was issue #13977).
+		//
+		// TODO(gri) Remove this global variable and convoluted
+		// code in the process of streamlining the import code.
+		incannedimport = 0
 
 	default:
 		Yyerror("no import in %q", f.U.(string))
@@ -927,13 +934,9 @@ func isfrog(c int) bool {
 }
 
 type yySymType struct {
-	yys  int
-	node *Node
-	list *NodeList
-	typ  *Type
-	sym  *Sym
-	val  Val
-	op   Op
+	sym *Sym
+	val Val
+	op  Op
 }
 
 const (

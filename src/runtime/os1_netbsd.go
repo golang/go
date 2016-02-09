@@ -104,13 +104,26 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	uc.uc_link = nil
 	uc.uc_sigmask = sigset_all
 
-	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(mstart))
+	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
 
 	ret := lwp_create(unsafe.Pointer(&uc), 0, unsafe.Pointer(&mp.procid))
 	if ret < 0 {
 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
 		throw("runtime.newosproc")
 	}
+}
+
+// netbsdMStart is the function call that starts executing a newly
+// created thread.  On NetBSD, a new thread inherits the signal stack
+// of the creating thread.  That confuses minit, so we remove that
+// signal stack here before calling the regular mstart.  It's a bit
+// baroque to remove a signal stack here only to add one in minit, but
+// it's a simple change that keeps NetBSD working like other OS's.
+// At this point all signals are blocked, so there is no race.
+//go:nosplit
+func netbsdMstart() {
+	signalstack(nil)
+	mstart()
 }
 
 func osinit() {
@@ -159,22 +172,17 @@ func minit() {
 	_g_ := getg()
 	_g_.m.procid = uint64(lwp_self())
 
-	// Initialize signal handling
-	var st sigaltstackt
-	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
-		signalstack(&_g_.m.gsignal.stack)
-		_g_.m.newSigstack = true
-	} else {
-		// Use existing signal stack.
-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
-		_g_.m.gsignal.stack.lo = stsp
-		_g_.m.gsignal.stack.hi = stsp + st.ss_size
-		_g_.m.gsignal.stackguard0 = stsp + _StackGuard
-		_g_.m.gsignal.stackguard1 = stsp + _StackGuard
-		_g_.m.gsignal.stackAlloc = st.ss_size
-		_g_.m.newSigstack = false
-	}
+	// Initialize signal handling.
+
+	// On NetBSD a thread created by pthread_create inherits the
+	// signal stack of the creating thread.  We always create a
+	// new signal stack here, to avoid having two Go threads using
+	// the same signal stack.  This breaks the case of a thread
+	// created in C that calls sigaltstack and then calls a Go
+	// function, because we will lose track of the C code's
+	// sigaltstack, but it's the best we can do.
+	signalstack(&_g_.m.gsignal.stack)
+	_g_.m.newSigstack = true
 
 	// restore signal mask from m.sigmask and unblock essential signals
 	nmask := _g_.m.sigmask

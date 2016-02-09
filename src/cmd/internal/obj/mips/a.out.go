@@ -114,7 +114,7 @@ const (
 	REG_LO
 
 	// co-processor 0 control registers
-	REG_M0 = obj.RBaseMIPS64 + 1024 + iota
+	REG_M0
 	REG_M1
 	REG_M2
 	REG_M3
@@ -148,7 +148,7 @@ const (
 	REG_M31
 
 	// FPU control registers
-	REG_FCR0 = obj.RBaseMIPS64 + 2048 + iota
+	REG_FCR0
 	REG_FCR1
 	REG_FCR2
 	REG_FCR3
@@ -180,6 +180,8 @@ const (
 	REG_FCR29
 	REG_FCR30
 	REG_FCR31
+
+	REG_LAST = REG_FCR31 // the last defined register
 
 	REG_SPECIAL = REG_M0
 

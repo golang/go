@@ -153,7 +153,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.ConflictDir = pp.ConflictDir
 	// TODO? Target
 	p.Goroot = pp.Goroot
-	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
+	p.Standard = p.Goroot && p.ImportPath != "" && isStandardImportPath(p.ImportPath)
 	p.GoFiles = pp.GoFiles
 	p.CgoFiles = pp.CgoFiles
 	p.IgnoredGoFiles = pp.IgnoredGoFiles
@@ -175,6 +175,19 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
 	p.XTestImports = pp.XTestImports
+}
+
+// isStandardImportPath reports whether $GOROOT/src/path should be considered
+// part of the standard distribution. For historical reasons we allow people to add
+// their own code to $GOROOT instead of using $GOPATH, but we assume that
+// code will start with a domain name (dot in the first element).
+func isStandardImportPath(path string) bool {
+	i := strings.Index(path, "/")
+	if i < 0 {
+		i = len(path)
+	}
+	elem := path[:i]
+	return !strings.Contains(elem, ".")
 }
 
 // A PackageError describes an error loading information about a package.
@@ -362,7 +375,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 	}
 	p.load(stk, bp, err)
-	if p.Error != nil && len(importPos) > 0 {
+	if p.Error != nil && p.Error.Pos == "" && len(importPos) > 0 {
 		pos := importPos[0]
 		pos.Filename = shortPath(pos.Filename)
 		p.Error.Pos = pos.String()
@@ -402,11 +415,18 @@ func vendoredImportPath(parent *Package, path string) (found string) {
 	if parent == nil || parent.Root == "" || !go15VendorExperiment {
 		return path
 	}
+
 	dir := filepath.Clean(parent.Dir)
 	root := filepath.Join(parent.Root, "src")
+	if !hasFilePathPrefix(dir, root) {
+		// Look for symlinks before reporting error.
+		dir = expandPath(dir)
+		root = expandPath(root)
+	}
 	if !hasFilePathPrefix(dir, root) || len(dir) <= len(root) || dir[len(root)] != filepath.Separator {
 		fatalf("invalid vendoredImportPath: dir=%q root=%q separator=%q", dir, root, string(filepath.Separator))
 	}
+
 	vpath := "vendor/" + path
 	for i := len(dir); i >= len(root); i-- {
 		if i < len(dir) && dir[i] != filepath.Separator {
@@ -520,6 +540,13 @@ func disallowInternal(srcDir string, p *Package, stk *importStack) *Package {
 		return p
 	}
 
+	// Look for symlinks before reporting error.
+	srcDir = expandPath(srcDir)
+	parent = expandPath(parent)
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+		return p
+	}
+
 	// Internal is present, and srcDir is outside parent's tree. Not allowed.
 	perr := *p
 	perr.Error = &PackageError{
@@ -613,6 +640,13 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *importStack) *Pack
 		return p
 	}
 	parent := p.Dir[:truncateTo]
+	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
+		return p
+	}
+
+	// Look for symlinks before reporting error.
+	srcDir = expandPath(srcDir)
+	parent = expandPath(parent)
 	if hasFilePathPrefix(filepath.Clean(srcDir), filepath.Clean(parent)) {
 		return p
 	}
@@ -933,6 +967,17 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 				}
 			}
 		}
+		if p.Standard && !p1.Standard && p.Error == nil {
+			p.Error = &PackageError{
+				ImportStack: stk.copy(),
+				Err:         fmt.Sprintf("non-standard import %q in standard package %q", path, p.ImportPath),
+			}
+			pos := p.build.ImportPos[path]
+			if len(pos) > 0 {
+				p.Error.Pos = pos[0].String()
+			}
+		}
+
 		path = p1.ImportPath
 		importPaths[i] = path
 		if i < len(p.Imports) {
@@ -1497,11 +1542,14 @@ func computeBuildID(p *Package) {
 		fmt.Fprintf(h, "file %s\n", file)
 	}
 
-	// Include the content of runtime/zversion.go in the hash
+	// Include the content of runtime/internal/sys/zversion.go in the hash
 	// for package runtime. This will give package runtime a
 	// different build ID in each Go release.
-	if p.Standard && p.ImportPath == "runtime" {
-		data, _ := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+	if p.Standard && p.ImportPath == "runtime/internal/sys" {
+		data, err := ioutil.ReadFile(filepath.Join(p.Dir, "zversion.go"))
+		if err != nil {
+			fatalf("go: %s", err)
+		}
 		fmt.Fprintf(h, "zversion %q\n", string(data))
 	}
 
