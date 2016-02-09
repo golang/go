@@ -558,7 +558,7 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 // heapBitsSweepSpan coordinates the sweeping of a span by reading
 // and updating the corresponding heap bitmap entries.
 // For each free object in the span, heapBitsSweepSpan sets the type
-// bits for the first two words (or one for single-word objects) to typeDead
+// bits for the first four words (less for smaller objects) to scalar/dead
 // and then calls f(p), where p is the object's base address.
 // f is expected to add the object to a free list.
 // For non-free objects, heapBitsSweepSpan turns off the marked bit.
