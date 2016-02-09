@@ -163,6 +163,22 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		return
 	}
 	if t.TLSNextProto != nil {
+		// This is the documented way to disable http2 on a
+		// Transport.
+		return
+	}
+	if t.TLSClientConfig != nil {
+		// Be conservative for now (for Go 1.6) at least and
+		// don't automatically enable http2 if they've
+		// specified a custom TLS config. Let them opt-in
+		// themselves via http2.ConfigureTransport so we don't
+		// surprise them by modifying their tls.Config.
+		// Issue 14275.
+		return
+	}
+	if t.ExpectContinueTimeout != 0 {
+		// Unsupported in http2, so disable http2 for now.
+		// Issue 13851.
 		return
 	}
 	t2, err := http2configureTransport(t)
