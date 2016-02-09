@@ -2759,3 +2759,30 @@ func TestParallelTest(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
 }
+
+func TestCgoConsistentResults(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	exe1 := tg.path("cgotest1" + exeSuffix)
+	exe2 := tg.path("cgotest2" + exeSuffix)
+	tg.run("build", "-o", exe1, "cgotest")
+	tg.run("build", "-x", "-o", exe2, "cgotest")
+	b1, err := ioutil.ReadFile(exe1)
+	tg.must(err)
+	b2, err := ioutil.ReadFile(exe2)
+	tg.must(err)
+
+	if !tg.doGrepMatch(`-fdebug-prefix-map=\$WORK`, &tg.stderr) {
+		t.Skip("skipping because C compiler does not support -fdebug-prefix-map")
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Error("building cgotest twice did not produce the same output")
+	}
+}
