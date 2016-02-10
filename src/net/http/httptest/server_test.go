@@ -84,3 +84,17 @@ func TestServerCloseBlocking(t *testing.T) {
 
 	ts.Close() // test we don't hang here forever.
 }
+
+// Issue 14290
+func TestServerCloseClientConnections(t *testing.T) {
+	var s *Server
+	s = NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.CloseClientConnections()
+	}))
+	defer s.Close()
+	res, err := http.Get(s.URL)
+	if err == nil {
+		res.Body.Close()
+		t.Fatal("Unexpected response: %#v", res)
+	}
+}
