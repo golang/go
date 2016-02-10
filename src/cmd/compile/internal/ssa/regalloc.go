@@ -964,7 +964,16 @@ func (s *regAllocState) regalloc(f *Func) {
 		}
 
 		// Save end-of-block register state.
-		var regList []endReg
+		// First count how many, this cuts allocations in half.
+		k := 0
+		for r := register(0); r < numRegs; r++ {
+			v := s.regs[r].v
+			if v == nil {
+				continue
+			}
+			k++
+		}
+		regList := make([]endReg, 0, k)
 		for r := register(0); r < numRegs; r++ {
 			v := s.regs[r].v
 			if v == nil {
@@ -1609,8 +1618,8 @@ func (s *regAllocState) computeLive() {
 				}
 				// The live set has changed, update it.
 				l := s.live[p.ID][:0]
-				if cap(l) == 0 {
-					l = make([]liveInfo, 0, len(t.contents()))
+				if cap(l) < t.size() {
+					l = make([]liveInfo, 0, t.size())
 				}
 				for _, e := range t.contents() {
 					l = append(l, liveInfo{e.key, e.val})

@@ -54,17 +54,53 @@ func postorder(f *Func) []*Block {
 
 type linkedBlocks func(*Block) []*Block
 
+const nscratchslices = 8
+
+// experimentally, functions with 512 or fewer blocks account
+// for 75% of memory (size) allocation for dominator computation
+// in make.bash.
+const minscratchblocks = 512
+
+func (cfg *Config) scratchBlocksForDom(maxBlockID int) (a, b, c, d, e, f, g, h []ID) {
+	tot := maxBlockID * nscratchslices
+	scratch := cfg.domblockstore
+	if len(scratch) < tot {
+		// req = min(1.5*tot, nscratchslices*minscratchblocks)
+		// 50% padding allows for graph growth in later phases.
+		req := (tot * 3) >> 1
+		if req < nscratchslices*minscratchblocks {
+			req = nscratchslices * minscratchblocks
+		}
+		scratch = make([]ID, req)
+		cfg.domblockstore = scratch
+	} else {
+		// Clear as much of scratch as we will (re)use
+		scratch = scratch[0:tot]
+		for i := range scratch {
+			scratch[i] = 0
+		}
+	}
+
+	a = scratch[0*maxBlockID : 1*maxBlockID]
+	b = scratch[1*maxBlockID : 2*maxBlockID]
+	c = scratch[2*maxBlockID : 3*maxBlockID]
+	d = scratch[3*maxBlockID : 4*maxBlockID]
+	e = scratch[4*maxBlockID : 5*maxBlockID]
+	f = scratch[5*maxBlockID : 6*maxBlockID]
+	g = scratch[6*maxBlockID : 7*maxBlockID]
+	h = scratch[7*maxBlockID : 8*maxBlockID]
+
+	return
+}
+
 // dfs performs a depth first search over the blocks starting at the set of
 // blocks in the entries list (in arbitrary order). dfnum contains a mapping
 // from block id to an int indicating the order the block was reached or
 // notFound if the block was not reached.  order contains a mapping from dfnum
 // to block.
-func dfs(entries []*Block, succFn linkedBlocks) (fromID []*Block, dfnum []int32, order []ID, parent []ID) {
+func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent []ID) (fromID []*Block) {
 	maxBlockID := entries[0].Func.NumBlocks()
 
-	dfnum = make([]int32, maxBlockID)
-	order = make([]ID, maxBlockID)
-	parent = make([]ID, maxBlockID)
 	fromID = make([]*Block, maxBlockID)
 
 	for _, entry := range entries[0].Func.Blocks {
@@ -75,7 +111,7 @@ func dfs(entries []*Block, succFn linkedBlocks) (fromID []*Block, dfnum []int32,
 		fromID[eid] = entry
 	}
 
-	n := int32(0)
+	n := ID(0)
 	s := make([]*Block, 0, 256)
 	for _, entry := range entries {
 		if dfnum[entry.ID] != notFound {
@@ -113,7 +149,7 @@ func dominators(f *Func) []*Block {
 
 	//TODO: benchmark and try to find criteria for swapping between
 	// dominatorsSimple and dominatorsLT
-	return dominatorsLT([]*Block{f.Entry}, preds, succs)
+	return f.dominatorsLT([]*Block{f.Entry}, preds, succs)
 }
 
 // postDominators computes the post-dominator tree for f.
@@ -139,27 +175,35 @@ func postDominators(f *Func) []*Block {
 	if exits == nil {
 		return make([]*Block, f.NumBlocks())
 	}
-	return dominatorsLT(exits, succs, preds)
+	return f.dominatorsLT(exits, succs, preds)
 }
 
 // dominatorsLt runs Lengauer-Tarjan to compute a dominator tree starting at
 // entry and using predFn/succFn to find predecessors/successors to allow
 // computing both dominator and post-dominator trees.
-func dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
+func (f *Func) dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
 	// Based on Lengauer-Tarjan from Modern Compiler Implementation in C -
 	// Appel with optimizations from Finding Dominators in Practice -
 	// Georgiadis
 
+	maxBlockID := entries[0].Func.NumBlocks()
+
+	dfnum, vertex, parent, semi, samedom, ancestor, best, bucket := f.Config.scratchBlocksForDom(maxBlockID)
+
+	// dfnum := make([]ID, maxBlockID) // conceptually int32, but punning for allocation purposes.
+	// vertex := make([]ID, maxBlockID)
+	// parent := make([]ID, maxBlockID)
+
+	// semi := make([]ID, maxBlockID)
+	// samedom := make([]ID, maxBlockID)
+	// ancestor := make([]ID, maxBlockID)
+	// best := make([]ID, maxBlockID)
+	// bucket := make([]ID, maxBlockID)
+
 	// Step 1. Carry out a depth first search of the problem graph. Number
 	// the vertices from 1 to n as they are reached during the search.
-	fromID, dfnum, vertex, parent := dfs(entries, succFn)
+	fromID := f.dfs(entries, succFn, dfnum, vertex, parent)
 
-	maxBlockID := entries[0].Func.NumBlocks()
-	semi := make([]ID, maxBlockID)
-	samedom := make([]ID, maxBlockID)
-	ancestor := make([]ID, maxBlockID)
-	best := make([]ID, maxBlockID)
-	bucket := make([]ID, maxBlockID)
 	idom := make([]*Block, maxBlockID)
 
 	// Step 2. Compute the semidominators of all vertices by applying
@@ -242,7 +286,7 @@ func dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []
 }
 
 // eval function from LT paper with path compression
-func eval(v ID, ancestor []ID, semi []ID, dfnum []int32, best []ID) ID {
+func eval(v ID, ancestor []ID, semi []ID, dfnum []ID, best []ID) ID {
 	a := ancestor[v]
 	if ancestor[a] != 0 {
 		bid := eval(a, ancestor, semi, dfnum, best)
