@@ -436,7 +436,7 @@ var Files = map[string]string{
 		{{$output := .Output}}
 		{{with .Play}}
 			<div class="play">
-				<div class="input"><textarea class="code">{{html .}}</textarea></div>
+				<div class="input"><textarea class="code" spellcheck="false">{{html .}}</textarea></div>
 				<div class="output"><pre>{{html $output}}</pre></div>
 				<div class="buttons">
 					<a class="run" title="Run this code [shift-enter]">Run</a>
@@ -504,7 +504,7 @@ var Files = map[string]string{
 
 {{if .Playground}}
 <div id="playground" class="play">
-	<div class="input"><textarea class="code">package main
+	<div class="input"><textarea class="code" spellcheck="false">package main
 
 import "fmt"
 
