@@ -24,7 +24,8 @@ type Config struct {
 	values [2000]Value
 	blocks [200]Block
 
-	scrSparse []*sparseSet // scratch sparse sets to be re-used.
+	domblockstore []ID         // scratch space for computing dominators
+	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
 }
 
 type TypeSource interface {
