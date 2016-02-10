@@ -202,10 +202,31 @@ func (s *Server) logCloseHangDebugInfo() {
 
 // CloseClientConnections closes any open HTTP connections to the test Server.
 func (s *Server) CloseClientConnections() {
+	var conns int
+	ch := make(chan bool)
+
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	for c := range s.conns {
-		s.closeConn(c)
+		conns++
+		s.closeConnChan(c, ch)
+	}
+	s.mu.Unlock()
+
+	// Wait for outstanding closes to finish.
+	//
+	// Out of paranoia for making a late change in Go 1.6, we
+	// bound how long this can wait, since golang.org/issue/14291
+	// isn't fully understood yet. At least this should only be used
+	// in tests.
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	for i := 0; i < conns; i++ {
+		select {
+		case <-ch:
+		case <-timer.C:
+			// Too slow. Give up.
+			return
+		}
 	}
 }
 
@@ -267,9 +288,13 @@ func (s *Server) wrap() {
 	}
 }
 
-// closeConn closes c. Except on plan9, which is special. See comment below.
+// closeConn closes c.
 // s.mu must be held.
-func (s *Server) closeConn(c net.Conn) {
+func (s *Server) closeConn(c net.Conn) { s.closeConnChan(c, nil) }
+
+// closeConnChan is like closeConn, but takes an optional channel to receive a value
+// when the goroutine closing c is done.
+func (s *Server) closeConnChan(c net.Conn, done chan<- bool) {
 	if runtime.GOOS == "plan9" {
 		// Go's Plan 9 net package isn't great at unblocking reads when
 		// their underlying TCP connections are closed.  Don't trust
@@ -278,7 +303,21 @@ func (s *Server) closeConn(c net.Conn) {
 		// resources if the syscall doesn't end up returning. Oh well.
 		s.forgetConn(c)
 	}
-	go c.Close()
+
+	// Somewhere in the chaos of https://golang.org/cl/15151 we found that
+	// some types of conns were blocking in Close too long (or deadlocking?)
+	// and we had to call Close in a goroutine. I (bradfitz) forget what
+	// that was at this point, but I suspect it was *tls.Conns, which
+	// were later fixed in https://golang.org/cl/18572, so this goroutine
+	// is _probably_ unnecessary now. But it's too late in Go 1.6 too remove
+	// it with confidence.
+	// TODO(bradfitz): try to remove it for Go 1.7. (golang.org/issue/14291)
+	go func() {
+		c.Close()
+		if done != nil {
+			done <- true
+		}
+	}()
 }
 
 // forgetConn removes c from the set of tracked conns and decrements it from the
