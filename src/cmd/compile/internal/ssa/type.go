@@ -40,6 +40,7 @@ type Type interface {
 	String() string
 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
 	Equal(Type) bool
+	Compare(Type) Cmp // compare types, returning one of CMPlt, CMPeq, CMPgt.
 }
 
 // Special compiler-only types.
@@ -75,6 +76,40 @@ func (t *CompilerType) NumFields() int64       { panic("not implemented") }
 func (t *CompilerType) FieldType(i int64) Type { panic("not implemented") }
 func (t *CompilerType) FieldOff(i int64) int64 { panic("not implemented") }
 func (t *CompilerType) NumElem() int64         { panic("not implemented") }
+
+// Cmp is a comparison between values a and b.
+// -1 if a < b
+//  0 if a == b
+//  1 if a > b
+type Cmp int8
+
+const (
+	CMPlt = Cmp(-1)
+	CMPeq = Cmp(0)
+	CMPgt = Cmp(1)
+)
+
+func (t *CompilerType) Compare(u Type) Cmp {
+	x, ok := u.(*CompilerType)
+	// ssa.CompilerType is smaller than any other type
+	if !ok {
+		return CMPlt
+	}
+	// desire fast sorting, not pretty sorting.
+	if len(t.Name) == len(x.Name) {
+		if t.Name == x.Name {
+			return CMPeq
+		}
+		if t.Name < x.Name {
+			return CMPlt
+		}
+		return CMPgt
+	}
+	if len(t.Name) > len(x.Name) {
+		return CMPgt
+	}
+	return CMPlt
+}
 
 func (t *CompilerType) Equal(u Type) bool {
 	x, ok := u.(*CompilerType)

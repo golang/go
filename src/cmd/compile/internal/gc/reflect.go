@@ -55,8 +55,7 @@ const (
 func makefield(name string, t *Type) *Type {
 	f := typ(TFIELD)
 	f.Type = t
-	f.Sym = new(Sym)
-	f.Sym.Name = name
+	f.Sym = nopkg.Lookup(name)
 	return f
 }
 
