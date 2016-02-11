@@ -1137,7 +1137,6 @@ func freeStackSpans() {
 			next := s.next
 			if s.ref == 0 {
 				list.remove(s)
-				s.freelist = 0
 				s.stackfreelist = 0
 				mheap_.freeStack(s)
 			}
