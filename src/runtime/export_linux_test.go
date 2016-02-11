@@ -7,3 +7,4 @@
 package runtime
 
 var NewOSProc0 = newosproc0
+var Mincore = mincore
