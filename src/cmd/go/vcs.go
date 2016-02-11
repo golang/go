@@ -122,7 +122,7 @@ var vcsGit = &vcsCmd{
 	name: "Git",
 	cmd:  "git",
 
-	createCmd:   []string{"clone {repo} {dir}", "-C {dir} submodule update --init --recursive"},
+	createCmd:   []string{"clone {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
 	downloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
 
 	tagCmd: []tagCmd{
@@ -333,6 +333,15 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 	args := strings.Fields(cmdline)
 	for i, arg := range args {
 		args[i] = expand(m, arg)
+	}
+
+	if len(args) >= 2 && args[0] == "-go-internal-cd" {
+		if filepath.IsAbs(args[1]) {
+			dir = args[1]
+		} else {
+			dir = filepath.Join(dir, args[1])
+		}
+		args = args[2:]
 	}
 
 	_, err := exec.LookPath(v.cmd)

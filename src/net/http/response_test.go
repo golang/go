@@ -822,7 +822,7 @@ func TestReadResponseErrors(t *testing.T) {
 		if err := matchErr(rerr, tt.wantErr); err != nil {
 			name := tt.name
 			if name == "" {
-				name = fmt.Sprintf("%i. input %q", i, tt.in)
+				name = fmt.Sprintf("%d. input %q", i, tt.in)
 			}
 			t.Errorf("%s: %v", name, err)
 		}

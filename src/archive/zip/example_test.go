@@ -76,8 +76,7 @@ func ExampleReader() {
 }
 
 func ExampleWriter_RegisterCompressor() {
-	// Override the default Deflate compressor with a higher compression
-	// level.
+	// Override the default Deflate compressor with a higher compression level.
 
 	// Create a buffer to write our archive to.
 	buf := new(bytes.Buffer)
@@ -85,19 +84,9 @@ func ExampleWriter_RegisterCompressor() {
 	// Create a new zip archive.
 	w := zip.NewWriter(buf)
 
-	var fw *flate.Writer
-
-	// Register the deflator.
+	// Register a custom Deflate compressor.
 	w.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
-		var err error
-		if fw == nil {
-			// Creating a flate compressor for every file is
-			// expensive, create one and reuse it.
-			fw, err = flate.NewWriter(out, flate.BestCompression)
-		} else {
-			fw.Reset(out)
-		}
-		return fw, err
+		return flate.NewWriter(out, flate.BestCompression)
 	})
 
 	// Proceed to add files to w.

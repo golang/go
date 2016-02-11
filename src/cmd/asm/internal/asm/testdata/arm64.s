@@ -83,15 +83,15 @@ TEXT	foo(SB), 7, $-8
 //	{
 //		outcode($1, &nullgen, NREG, &$3);
 //	}
-	BL	1(PC)
+	BL	1(PC) // CALL 1(PC)
 
 //		LTYPE4 comma nireg
 //	{
 //		outcode($1, &nullgen, NREG, &$3);
 //	}
-	BL	(R2)
-	BL	foo(SB)
-	BL	bar<>(SB)
+	BL	(R2) // CALL (R2)
+	BL	foo(SB) // CALL foo(SB)
+	BL	bar<>(SB) // CALL bar<>(SB)
 //
 // BEQ
 //
@@ -127,7 +127,7 @@ TEXT	foo(SB), 7, $-8
 //		outcode($1, &$2, NREG, &$4);
 //	}
 again:
-	CBZ	R1, again
+	CBZ	R1, again // CBZ R1
 
 //
 // CSET
@@ -147,7 +147,7 @@ again:
 	CSEL	LT, R1, R2, ZR
 	CSINC	GT, R1, ZR, R3
 	CSNEG	MI, R1, R2, R3
-	CSINV	CS, R1, R2, R3
+	CSINV	CS, R1, R2, R3 // CSINV HS, R1, R2, R3
 
 //		LTYPES cond ',' reg ',' reg
 //	{
@@ -170,14 +170,14 @@ again:
 //	{
 //		outcode($1, &$2, NREG, &$4);
 //	}
-	FADDD	$0.5, F1
+	FADDD	$0.5, F1 // FADDD $(0.5), F1
 	FADDD	F1, F2
 
 //		LTYPEK frcon ',' freg ',' freg
 //	{
 //		outcode($1, &$2, $4.reg, &$6);
 //	}
-	FADDD	$0.7, F1, F2
+	FADDD	$0.7, F1, F2 // FADDD	$(0.69999999999999996), F1, F2
 	FADDD	F1, F2, F3
 
 //
@@ -248,12 +248,15 @@ again:
 //	{
 //		outcode($1, &nullgen, NREG, &nullgen);
 //	}
+	BEQ	2(PC)
 	RET
 
 // More B/BL cases, and canonical names JMP, CALL.
 
-	B	foo(SB)
-	BL	foo(SB)
+	BEQ	2(PC)
+	B	foo(SB) // JMP foo(SB)
+	BL	foo(SB) // CALL foo(SB)
+	BEQ	2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
 

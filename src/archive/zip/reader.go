@@ -118,8 +118,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
 // RegisterDecompressor registers or overrides a custom decompressor for a
 // specific method ID. If a decompressor for a given method is not found,
 // Reader will default to looking up the decompressor at the package level.
-//
-// Must not be called concurrently with Open on any Files in the Reader.
 func (z *Reader) RegisterDecompressor(method uint16, dcomp Decompressor) {
 	if z.decompressors == nil {
 		z.decompressors = make(map[uint16]Decompressor)
@@ -332,7 +330,17 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 		}
 	}
 
-	if needUSize || needCSize || needHeaderOffset {
+	// Assume that uncompressed size 2³²-1 could plausibly happen in
+	// an old zip32 file that was sharding inputs into the largest chunks
+	// possible (or is just malicious; search the web for 42.zip).
+	// If needUSize is true still, it means we didn't see a zip64 extension.
+	// As long as the compressed size is not also 2³²-1 (implausible)
+	// and the header is not also 2³²-1 (equally implausible),
+	// accept the uncompressed size 2³²-1 as valid.
+	// If nothing else, this keeps archive/zip working with 42.zip.
+	_ = needUSize
+
+	if needCSize || needHeaderOffset {
 		return ErrFormat
 	}
 

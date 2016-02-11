@@ -35,7 +35,7 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBaseMIPS64, REG_FCR0+1024, Rconv)
+	obj.RegisterRegister(obj.RBaseMIPS64, REG_LAST&^1023+1024, Rconv)
 	obj.RegisterOpcode(obj.ABaseMIPS64, Anames)
 }
 

@@ -524,6 +524,15 @@ func hasFilePathPrefix(s, prefix string) bool {
 	}
 }
 
+// expandPath returns the symlink-expanded form of path.
+func expandPath(p string) string {
+	x, err := filepath.EvalSymlinks(p)
+	if err == nil {
+		return x
+	}
+	return p
+}
+
 // treeCanMatchPattern(pattern)(name) reports whether
 // name or children of name can possibly match pattern.
 // Pattern is the same limited glob accepted by matchPattern.
@@ -588,10 +597,9 @@ func matchPackages(pattern string) []string {
 			}
 
 			name := filepath.ToSlash(path[len(src):])
-			if pattern == "std" && (strings.Contains(name, ".") || name == "cmd") {
+			if pattern == "std" && (!isStandardImportPath(name) || name == "cmd") {
 				// The name "std" is only the standard library.
-				// If the name has a dot, assume it's a domain name for go get,
-				// and if the name is cmd, it's the root of the command tree.
+				// If the name is cmd, it's the root of the command tree.
 				return filepath.SkipDir
 			}
 			if !treeCanMatch(name) {

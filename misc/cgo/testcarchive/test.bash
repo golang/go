@@ -85,4 +85,22 @@ if ! $bin; then
 fi
 rm -rf libgo4.a libgo4.h testp pkg
 
+rm -f testar
+cat >testar <<EOF
+#!/usr/bin/env bash
+while expr \$1 : '[-]' >/dev/null; do
+  shift
+done
+echo "testar" > \$1
+echo "testar" > $(pwd)/testar.ran
+EOF
+chmod +x testar
+rm -f testar.ran
+GOPATH=$(pwd) go build -buildmode=c-archive -ldflags=-extar=$(pwd)/testar -o libgo4.a libgo4
+if ! test -f testar.ran; then
+    echo "FAIL test5"
+    status=1
+fi
+rm -rf libgo4.a libgo4.h testar testar.ran pkg
+
 exit $status
