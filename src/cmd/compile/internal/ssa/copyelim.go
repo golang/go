@@ -8,15 +8,7 @@ package ssa
 func copyelim(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
-			for i, w := range v.Args {
-				x := w
-				for x.Op == OpCopy {
-					x = x.Args[0]
-				}
-				if x != w {
-					v.Args[i] = x
-				}
-			}
+			copyelimValue(v)
 		}
 		v := b.Control
 		if v != nil {
@@ -39,5 +31,30 @@ func copyelim(f *Func) {
 				values[i] = v
 			}
 		}
+	}
+}
+
+func copyelimValue(v *Value) {
+	// elide any copies generated during rewriting
+	for i, a := range v.Args {
+		if a.Op != OpCopy {
+			continue
+		}
+		// Rewriting can generate OpCopy loops.
+		// They are harmless (see removePredecessor),
+		// but take care to stop if we find a cycle.
+		slow := a // advances every other iteration
+		var advance bool
+		for a.Op == OpCopy {
+			a = a.Args[0]
+			if slow == a {
+				break
+			}
+			if advance {
+				slow = slow.Args[0]
+			}
+			advance = !advance
+		}
+		v.Args[i] = a
 	}
 }

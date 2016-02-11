@@ -40,28 +40,8 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			curb = nil
 			for _, v := range b.Values {
-				// elide any copies generated during rewriting
-				for i, a := range v.Args {
-					if a.Op != OpCopy {
-						continue
-					}
-					// Rewriting can generate OpCopy loops.
-					// They are harmless (see removePredecessor),
-					// but take care to stop if we find a cycle.
-					slow := a // advances every other iteration
-					var advance bool
-					for a.Op == OpCopy {
-						a = a.Args[0]
-						if slow == a {
-							break
-						}
-						if advance {
-							slow = a
-						}
-						advance = !advance
-					}
-					v.Args[i] = a
-				}
+				copyelimValue(v)
+				change = phielimValue(v) || change
 
 				// apply rewrite function
 				curv = v
