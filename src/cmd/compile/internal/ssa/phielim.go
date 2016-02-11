@@ -18,44 +18,47 @@ package ssa
 // and would that be useful?
 func phielim(f *Func) {
 	for {
-		changed := false
+		change := false
 		for _, b := range f.Blocks {
-		nextv:
 			for _, v := range b.Values {
-				if v.Op != OpPhi {
-					continue
-				}
-				// If there are two distinct args of v which
-				// are not v itself, then the phi must remain.
-				// Otherwise, we can replace it with a copy.
-				var w *Value
-				for _, x := range v.Args {
-					for x.Op == OpCopy {
-						x = x.Args[0]
-					}
-					if x == v {
-						continue
-					}
-					if x == w {
-						continue
-					}
-					if w != nil {
-						continue nextv
-					}
-					w = x
-				}
-				if w == nil {
-					// v references only itself.  It must be in
-					// a dead code loop.  Don't bother modifying it.
-					continue
-				}
-				v.Op = OpCopy
-				v.SetArgs1(w)
-				changed = true
+				copyelimValue(v)
+				change = phielimValue(v) || change
 			}
 		}
-		if !changed {
+		if !change {
 			break
 		}
 	}
+}
+
+func phielimValue(v *Value) bool {
+	if v.Op != OpPhi {
+		return false
+	}
+
+	// If there are two distinct args of v which
+	// are not v itself, then the phi must remain.
+	// Otherwise, we can replace it with a copy.
+	var w *Value
+	for _, x := range v.Args {
+		if x == v {
+			continue
+		}
+		if x == w {
+			continue
+		}
+		if w != nil {
+			return false
+		}
+		w = x
+	}
+
+	if w == nil {
+		// v references only itself.  It must be in
+		// a dead code loop.  Don't bother modifying it.
+		return false
+	}
+	v.Op = OpCopy
+	v.SetArgs1(w)
+	return true
 }
