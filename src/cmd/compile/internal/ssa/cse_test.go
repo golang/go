@@ -6,12 +6,16 @@ package ssa
 
 import "testing"
 
+type tstAux struct {
+	s string
+}
+
 // This tests for a bug found when partitioning, but not sorting by the Aux value.
 func TestCSEAuxPartitionBug(t *testing.T) {
 	c := testConfig(t)
-	arg1Aux := "arg1-aux"
-	arg2Aux := "arg2-aux"
-	arg3Aux := "arg3-aux"
+	arg1Aux := &tstAux{"arg1-aux"}
+	arg2Aux := &tstAux{"arg2-aux"}
+	arg3Aux := &tstAux{"arg3-aux"}
 
 	// construct lots of values with args that have aux values and place
 	// them in an order that triggers the bug
@@ -77,5 +81,43 @@ func TestCSEAuxPartitionBug(t *testing.T) {
 	if s1Cnt != 0 || s2Cnt != 0 {
 		t.Errorf("%d values missed during cse", s1Cnt+s2Cnt)
 	}
+}
 
+// TestZCSE tests the zero arg cse.
+func TestZCSE(t *testing.T) {
+	c := testConfig(t)
+
+	fun := Fun(c, "entry",
+		Bloc("entry",
+			Valu("start", OpInitMem, TypeMem, 0, nil),
+			Valu("sp", OpSP, TypeBytePtr, 0, nil),
+			Valu("sb1", OpSB, TypeBytePtr, 0, nil),
+			Valu("sb2", OpSB, TypeBytePtr, 0, nil),
+			Valu("addr1", OpAddr, TypeInt64Ptr, 0, nil, "sb1"),
+			Valu("addr2", OpAddr, TypeInt64Ptr, 0, nil, "sb2"),
+			Valu("a1ld", OpLoad, TypeInt64, 0, nil, "addr1", "start"),
+			Valu("a2ld", OpLoad, TypeInt64, 0, nil, "addr2", "start"),
+			Valu("c1", OpConst64, TypeInt64, 1, nil),
+			Valu("r1", OpAdd64, TypeInt64, 0, nil, "a1ld", "c1"),
+			Valu("c2", OpConst64, TypeInt64, 1, nil),
+			Valu("r2", OpAdd64, TypeInt64, 0, nil, "a2ld", "c2"),
+			Valu("r3", OpAdd64, TypeInt64, 0, nil, "r1", "r2"),
+			Valu("raddr", OpAddr, TypeInt64Ptr, 0, nil, "sp"),
+			Valu("raddrdef", OpVarDef, TypeMem, 0, nil, "start"),
+			Valu("rstore", OpStore, TypeMem, 8, nil, "raddr", "r3", "raddrdef"),
+			Goto("exit")),
+		Bloc("exit",
+			Exit("rstore")))
+
+	CheckFunc(fun.f)
+	zcse(fun.f)
+	deadcode(fun.f)
+	CheckFunc(fun.f)
+
+	if fun.values["c1"].Op != OpInvalid && fun.values["c2"].Op != OpInvalid {
+		t.Errorf("zsce should have removed c1 or c2")
+	}
+	if fun.values["sb1"].Op != OpInvalid && fun.values["sb2"].Op != OpInvalid {
+		t.Errorf("zsce should have removed sb1 or sb2")
+	}
 }

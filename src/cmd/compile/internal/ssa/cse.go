@@ -13,34 +13,6 @@ import (
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
 func cse(f *Func) {
-	if !f.Config.optimize {
-		// Don't do CSE in this case.  But we need to do
-		// just a little bit, to combine multiple OpSB ops.
-		// Regalloc gets very confused otherwise.
-		var sb *Value
-	outer:
-		for _, b := range f.Blocks {
-			for _, v := range b.Values {
-				if v.Op == OpSB {
-					sb = v
-					break outer
-				}
-			}
-		}
-		if sb == nil {
-			return
-		}
-		for _, b := range f.Blocks {
-			for _, v := range b.Values {
-				for i, a := range v.Args {
-					if a.Op == OpSB {
-						v.Args[i] = sb
-					}
-				}
-			}
-		}
-		return
-	}
 	// Two values are equivalent if they satisfy the following definition:
 	// equivalent(v, w):
 	//   v.op == w.op
@@ -77,6 +49,14 @@ func cse(f *Func) {
 		}
 	}
 	for i, e := range partition {
+		if Debug > 1 && len(e) > 500 {
+			fmt.Printf("CSE.large partition (%d): ", len(e))
+			for j := 0; j < 3; j++ {
+				fmt.Printf("%s ", e[j].LongString())
+			}
+			fmt.Println()
+		}
+
 		for _, v := range e {
 			valueEqClass[v.ID] = ID(i)
 		}
