@@ -1,0 +1,39 @@
+-------- @what pkgdecl --------
+identifier
+source file
+modes: [definition describe freevars implements pointsto referrers]
+srcdir: testdata/src
+import path: what
+
+-------- @what call --------
+identifier
+function call (or conversion)
+expression statement
+block
+function declaration
+source file
+modes: [callees callers callstack definition describe freevars implements pointsto referrers]
+srcdir: testdata/src
+import path: what
+
+-------- @what var --------
+variable declaration
+variable declaration statement
+block
+function declaration
+source file
+modes: [callers callstack describe freevars pointsto]
+srcdir: testdata/src
+import path: what
+
+-------- @what recv --------
+identifier
+unary <- operation
+expression statement
+block
+function declaration
+source file
+modes: [callers callstack definition describe freevars implements peers pointsto referrers]
+srcdir: testdata/src
+import path: what
+

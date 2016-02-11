@@ -1,0 +1,39 @@
+-------- @implements F.f --------
+abstract method func (F).f()
+	is implemented by method (*C).f
+	is implemented by method (D).f
+	is implemented by method (FG).f
+
+-------- @implements FG.f --------
+abstract method func (FG).f()
+	is implemented by method (*D).f
+	implements method (F).f
+
+-------- @implements FG.g --------
+abstract method func (FG).g() []int
+	is implemented by method (*D).g
+
+-------- @implements *C.f --------
+concrete method func (*C).f()
+	implements method (F).f
+
+-------- @implements D.f --------
+concrete method func (D).f()
+	implements method (F).f
+concrete method func (D).f()
+	implements method (FG).f
+
+-------- @implements *D.g --------
+concrete method func (*D).g() []int
+	implements method (FG).g
+
+-------- @implements Len --------
+concrete method func (sorter).Len() int
+	implements method (lib.Sorter).Len
+
+-------- @implements I.Method --------
+abstract method func (I).Method(*int) *int
+	is implemented by method (lib.Type).Method
+	is implemented by method (main.I).Method
+	implements method (main.I).Method
+

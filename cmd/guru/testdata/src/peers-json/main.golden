@@ -1,0 +1,15 @@
+-------- @peers peer-recv-chA --------
+{
+	"mode": "peers",
+	"peers": {
+		"pos": "testdata/src/peers-json/main.go:11:7",
+		"type": "chan *int",
+		"allocs": [
+			"testdata/src/peers-json/main.go:8:13"
+		],
+		"receives": [
+			"testdata/src/peers-json/main.go:9:2",
+			"testdata/src/peers-json/main.go:11:7"
+		]
+	}
+}

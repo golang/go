@@ -1,0 +1,42 @@
+-------- @referrers package-decl --------
+1 references to package main ("referrers")
+	var _ renamed.T
+
+-------- @referrers type --------
+2 references to type s struct{f int}
+	_ = s{}.f // @referrers ref-field "f"
+	var s2 s
+
+-------- @referrers ref-package --------
+4 references to package lib
+	_ = (lib.Type).Method // ref from external test package
+	_ = (lib.Type).Method // ref from internal test package
+	var v lib.Type = lib.Const // @referrers ref-package "lib"
+	var v lib.Type = lib.Const // @referrers ref-package "lib"
+
+-------- @referrers ref-method --------
+7 references to func (lib.Type).Method(x *int) *int
+	p := t.Method(&a)   // @describe ref-method "Method"
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method
+	_ = (lib.Type).Method // ref from external test package
+	_ = (lib.Type).Method // ref from internal test package
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method
+
+-------- @referrers ref-local --------
+4 references to var v lib.Type
+	_ = v.Method               // @referrers ref-method "Method"
+	_ = v.Method
+	v++ //@referrers ref-local "v"
+	v++
+
+-------- @referrers ref-field --------
+2 references to field f int
+	_ = s{}.f // @referrers ref-field "f"
+	s2.f = 1
+
+-------- @referrers ref-type-U --------
+2 references to type U int
+open testdata/src/referrers/nosuchfile.y: no such file or directory (+ 1 more refs in this file)
+

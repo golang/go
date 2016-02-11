@@ -1,0 +1,18 @@
+-------- @freevars fv1 --------
+Free identifiers:
+type C
+const exp int
+var x int
+
+-------- @freevars fv2 --------
+Free identifiers:
+var s.t.a int
+var s.t.b int
+var s.x int
+var x int
+var y rune
+
+-------- @freevars fv3 --------
+Free identifiers:
+var x int
+

@@ -1,0 +1,184 @@
+-------- @describe pkgdecl --------
+definition of package "describe"
+	type  C      int
+		method (*C) f()
+	type  D      struct{}
+		method (D) f()
+	type  I      interface{f()}
+		method (I) f()
+	const c      untyped int = 0
+	type  cake   float64
+	var   global *string
+	func  main   func()
+	const pi     untyped float = 3.141
+	const pie    cake = 3.141
+
+-------- @describe badimport1 --------
+
+Error: can't import package "nosuchpkg"
+-------- @describe badimport2 --------
+
+Error: can't import package "nosuchpkg"
+-------- @describe unsafe --------
+import of package "unsafe"
+	builtin Alignof 
+	builtin Offsetof
+	type  Pointer  unsafe.Pointer
+	builtin Sizeof  
+
+-------- @describe type-ref-builtin --------
+reference to built-in type float64
+
+-------- @describe const-ref-iota --------
+reference to const iota untyped int of constant value 0
+
+-------- @describe const-def-pi --------
+definition of const pi untyped float
+
+-------- @describe const-def-pie --------
+definition of const pie cake
+
+-------- @describe const-ref-pi --------
+reference to const pi untyped float of constant value 3.141
+defined here
+
+-------- @describe func-def-main --------
+definition of func main()
+
+-------- @describe func-ref-main --------
+reference to func main()
+defined here
+
+-------- @describe func-ref-*C.f --------
+reference to method func (*C).f()
+defined here
+
+-------- @describe func-ref-D.f --------
+reference to method func (D).f()
+defined here
+
+-------- @describe func-ref-I.f --------
+reference to interface method func (I).f()
+defined here
+
+-------- @describe type-D --------
+reference to type D (size 0, align 1)
+defined as struct{}
+Method set:
+	method (D) f()
+
+-------- @describe type-I --------
+reference to type I (size 16, align 8)
+defined as interface{f()}
+Method set:
+	method (I) f()
+
+-------- @describe func-ref-d.f --------
+reference to method func (D).f()
+defined here
+
+-------- @describe func-ref-i.f --------
+reference to interface method func (I).f()
+defined here
+
+-------- @describe ref-lexical-d --------
+reference to var d D
+defined here
+
+-------- @describe ref-anon --------
+reference to var anon func()
+defined here
+
+-------- @describe ref-global --------
+reference to var global *string
+defined here
+
+-------- @describe var-def-x-1 --------
+definition of var x *int
+
+-------- @describe var-ref-x-1 --------
+reference to var x *int
+defined here
+
+-------- @describe var-def-x-2 --------
+reference to var x *int
+defined here
+
+-------- @describe var-ref-x-2 --------
+reference to var x *int
+defined here
+
+-------- @describe var-ref-i-C --------
+reference to var i I
+defined here
+
+-------- @describe var-ref-i-D --------
+reference to var i I
+defined here
+
+-------- @describe var-ref-i --------
+reference to var i I
+defined here
+
+-------- @describe const-local-pi --------
+definition of const localpi untyped float
+
+-------- @describe const-local-pie --------
+definition of const localpie cake
+
+-------- @describe const-ref-localpi --------
+reference to const localpi untyped float of constant value 3.141
+defined here
+
+-------- @describe type-def-T --------
+definition of type T (size 8, align 8)
+No methods.
+
+-------- @describe type-ref-T --------
+reference to type T (size 8, align 8)
+defined as int
+No methods.
+
+-------- @describe const-expr --------
+binary * operation of constant value 6
+
+-------- @describe const-expr2 --------
+binary - operation of constant value -2
+
+-------- @describe map-lookup,ok --------
+index expression of type (*int, bool)
+
+-------- @describe mapval --------
+reference to var mapval *int
+defined here
+
+-------- @describe m --------
+reference to var m map[string]*int
+defined here
+
+-------- @describe defer-stmt --------
+defer statement
+
+-------- @describe go-stmt --------
+go statement
+
+-------- @describe builtin-ref-panic --------
+function call (or conversion) of type ()
+
+-------- @describe var-decl-stmt --------
+definition of var a2 int
+
+-------- @describe var-decl-stmt2 --------
+definition of var _ int
+
+-------- @describe var-def-blank --------
+definition of var _ int
+
+-------- @describe def-iface-I --------
+definition of type I (size 16, align 8)
+Method set:
+	method (I) f()
+
+-------- @describe def-imethod-I.f --------
+definition of interface method func (I).f()
+

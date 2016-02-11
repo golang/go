@@ -1,0 +1,59 @@
+-------- @referrers ref-package --------
+{
+	"mode": "referrers",
+	"referrers": {
+		"pos": "testdata/src/referrers-json/main.go:14:8",
+		"objpos": "testdata/src/referrers-json/main.go:7:8",
+		"desc": "package lib",
+		"refs": [
+			"testdata/src/referrers-json/main.go:14:8",
+			"testdata/src/referrers-json/main.go:14:19"
+		]
+	}
+}
+-------- @referrers ref-method --------
+{
+	"mode": "referrers",
+	"referrers": {
+		"pos": "testdata/src/referrers-json/main.go:15:8",
+		"objpos": "testdata/src/lib/lib.go:5:13",
+		"desc": "func (lib.Type).Method(x *int) *int",
+		"refs": [
+			"testdata/src/imports/main.go:22:9",
+			"testdata/src/referrers-json/main.go:15:8",
+			"testdata/src/referrers-json/main.go:16:8",
+			"testdata/src/referrers/ext_test.go:10:17",
+			"testdata/src/referrers/int_test.go:7:17",
+			"testdata/src/referrers/main.go:17:8",
+			"testdata/src/referrers/main.go:18:8"
+		]
+	}
+}
+-------- @referrers ref-local --------
+{
+	"mode": "referrers",
+	"referrers": {
+		"pos": "testdata/src/referrers-json/main.go:17:2",
+		"objpos": "testdata/src/referrers-json/main.go:14:6",
+		"desc": "var v lib.Type",
+		"refs": [
+			"testdata/src/referrers-json/main.go:15:6",
+			"testdata/src/referrers-json/main.go:16:6",
+			"testdata/src/referrers-json/main.go:17:2",
+			"testdata/src/referrers-json/main.go:18:2"
+		]
+	}
+}
+-------- @referrers ref-field --------
+{
+	"mode": "referrers",
+	"referrers": {
+		"pos": "testdata/src/referrers-json/main.go:20:10",
+		"objpos": "testdata/src/referrers-json/main.go:10:2",
+		"desc": "field f int",
+		"refs": [
+			"testdata/src/referrers-json/main.go:20:10",
+			"testdata/src/referrers-json/main.go:23:5"
+		]
+	}
+}
