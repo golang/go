@@ -111,7 +111,8 @@ func TestStackGrowth(t *testing.T) {
 		select {
 		case <-done:
 		case <-time.After(20 * time.Second):
-			t.Fatal("finalizer did not run")
+			t.Error("finalizer did not run")
+			return
 		}
 	}()
 	wg.Wait()
@@ -191,7 +192,6 @@ func TestStackGrowthCallback(t *testing.T) {
 			<-done
 		})
 	}()
-
 	wg.Wait()
 }
 

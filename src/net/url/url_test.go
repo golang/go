@@ -531,6 +531,17 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// spaces in hosts are disallowed but escaped spaces in IPv6 scope IDs are grudgingly OK.
+	// This happens on Windows.
+	// golang.org/issue/14002
+	{
+		"tcp://[2020::2020:20:2020:2020%25Windows%20Loves%20Spaces]:2020",
+		&URL{
+			Scheme: "tcp",
+			Host:   "[2020::2020:20:2020:2020%Windows Loves Spaces]:2020",
+		},
+		"",
+	},
 }
 
 // more useful string for debugging than fmt's struct printer

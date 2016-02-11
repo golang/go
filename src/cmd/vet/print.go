@@ -445,12 +445,12 @@ func (f *File) okPrintfArg(call *ast.CallExpr, state *formatState) (ok bool) {
 		return false
 	}
 	arg := call.Args[argNum]
+	if f.isFunctionValue(arg) && state.verb != 'p' && state.verb != 'T' {
+		f.Badf(call.Pos(), "arg %s in printf call is a function value, not a function call", f.gofmt(arg))
+		return false
+	}
 	if !f.matchArgType(v.typ, nil, arg) {
 		typeString := ""
-		if f.isFunctionValue(arg) {
-			f.Badf(call.Pos(), "arg %s in printf call is a function value, not a function call", f.gofmt(arg))
-			return false
-		}
 		if typ := f.pkg.types[arg].Type; typ != nil {
 			typeString = typ.String()
 		}

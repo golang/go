@@ -139,19 +139,35 @@ func TestChunkReaderAllocs(t *testing.T) {
 }
 
 func TestParseHexUint(t *testing.T) {
-	for i := uint64(0); i <= 1234; i++ {
-		line := []byte(fmt.Sprintf("%x", i))
-		got, err := parseHexUint(line)
-		if err != nil {
-			t.Fatalf("on %d: %v", i, err)
-		}
-		if got != i {
-			t.Errorf("for input %q = %d; want %d", line, got, i)
-		}
+	type testCase struct {
+		in      string
+		want    uint64
+		wantErr string
 	}
-	_, err := parseHexUint([]byte("bogus"))
-	if err == nil {
-		t.Error("expected error on bogus input")
+	tests := []testCase{
+		{"x", 0, "invalid byte in chunk length"},
+		{"0000000000000000", 0, ""},
+		{"0000000000000001", 1, ""},
+		{"ffffffffffffffff", 1<<64 - 1, ""},
+		{"000000000000bogus", 0, "invalid byte in chunk length"},
+		{"00000000000000000", 0, "http chunk length too large"}, // could accept if we wanted
+		{"10000000000000000", 0, "http chunk length too large"},
+		{"00000000000000001", 0, "http chunk length too large"}, // could accept if we wanted
+	}
+	for i := uint64(0); i <= 1234; i++ {
+		tests = append(tests, testCase{in: fmt.Sprintf("%x", i), want: i})
+	}
+	for _, tt := range tests {
+		got, err := parseHexUint([]byte(tt.in))
+		if tt.wantErr != "" {
+			if !strings.Contains(fmt.Sprint(err), tt.wantErr) {
+				t.Errorf("parseHexUint(%q) = %v, %v; want error %q", tt.in, got, err, tt.wantErr)
+			}
+		} else {
+			if err != nil || got != tt.want {
+				t.Errorf("parseHexUint(%q) = %v, %v; want %v", tt.in, got, err, tt.want)
+			}
+		}
 	}
 }
 

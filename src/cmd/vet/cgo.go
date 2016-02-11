@@ -72,6 +72,9 @@ func cgoBaseType(f *File, arg ast.Expr) types.Type {
 		}
 		// Here arg is *f(v).
 		t := f.pkg.types[call.Fun].Type
+		if t == nil {
+			break
+		}
 		ptr, ok := t.Underlying().(*types.Pointer)
 		if !ok {
 			break

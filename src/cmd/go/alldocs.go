@@ -93,7 +93,8 @@ and test commands:
 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
 	-msan
 		enable interoperation with memory sanitizer.
-		Supported only on linux/amd64.
+		Supported only on linux/amd64,
+		and only with Clang/LLVM as the host C compiler.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -601,6 +602,14 @@ syntax of package template.  The default output is equivalent to -f
         TestImports  []string // imports from TestGoFiles
         XTestGoFiles []string // _test.go files outside package
         XTestImports []string // imports from XTestGoFiles
+    }
+
+The error information, if any, is
+
+    type PackageError struct {
+        ImportStack   []string // shortest path from package named on command line to this one
+        Pos           string   // position of error (if present, file:line:col)
+        Err           string   // the error itself
     }
 
 The template function "join" calls strings.Join.

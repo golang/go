@@ -388,7 +388,7 @@ type p struct {
 
 	// Per-P GC state
 	gcAssistTime     int64 // Nanoseconds in assistAlloc
-	gcBgMarkWorker   *g
+	gcBgMarkWorker   guintptr
 	gcMarkWorkerMode gcMarkWorkerMode
 
 	// gcw is this P's GC work buffer cache. The work buffer is

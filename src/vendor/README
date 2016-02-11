@@ -1,0 +1,8 @@
+This file needs to exist because the vendor directory needs
+to exist for some go/build tests to pass, and git can't track
+empty directories.
+
+In Go 1.7 we'll use this directory again. (In Go 1.6 we tried but
+reverted).
+
+See http://golang.org/issue/14047 for details.

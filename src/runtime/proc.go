@@ -1602,8 +1602,16 @@ func startm(_p_ *p, spinning bool) {
 // Always runs without a P, so write barriers are not allowed.
 //go:nowritebarrier
 func handoffp(_p_ *p) {
+	// handoffp must start an M in any situation where
+	// findrunnable would return a G to run on _p_.
+
 	// if it has local work, start it straight away
 	if !runqempty(_p_) || sched.runqsize != 0 {
+		startm(_p_, false)
+		return
+	}
+	// if it has GC work, start it straight away
+	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
 		startm(_p_, false)
 		return
 	}
@@ -1787,6 +1795,10 @@ func execute(gp *g, inheritTime bool) {
 func findrunnable() (gp *g, inheritTime bool) {
 	_g_ := getg()
 
+	// The conditions here and in handoffp must agree: if
+	// findrunnable would return a G to run, handoffp must start
+	// an M.
+
 top:
 	if sched.gcwaiting != 0 {
 		gcstopm()
@@ -1867,9 +1879,9 @@ stop:
 	// We have nothing to do. If we're in the GC mark phase, can
 	// safely scan and blacken objects, and have work to do, run
 	// idle-time marking rather than give up the P.
-	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != nil && gcMarkWorkAvailable(_p_) {
+	if _p_ := _g_.m.p.ptr(); gcBlackenEnabled != 0 && _p_.gcBgMarkWorker != 0 && gcMarkWorkAvailable(_p_) {
 		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
-		gp := _p_.gcBgMarkWorker
+		gp := _p_.gcBgMarkWorker.ptr()
 		casgstatus(gp, _Gwaiting, _Grunnable)
 		if trace.enabled {
 			traceGoUnpark(gp, 0)
@@ -3206,13 +3218,15 @@ func procresize(nprocs int32) *p {
 		}
 		// if there's a background worker, make it runnable and put
 		// it on the global queue so it can clean itself up
-		if p.gcBgMarkWorker != nil {
-			casgstatus(p.gcBgMarkWorker, _Gwaiting, _Grunnable)
+		if gp := p.gcBgMarkWorker.ptr(); gp != nil {
+			casgstatus(gp, _Gwaiting, _Grunnable)
 			if trace.enabled {
-				traceGoUnpark(p.gcBgMarkWorker, 0)
+				traceGoUnpark(gp, 0)
 			}
-			globrunqput(p.gcBgMarkWorker)
-			p.gcBgMarkWorker = nil
+			globrunqput(gp)
+			// This assignment doesn't race because the
+			// world is stopped.
+			p.gcBgMarkWorker.set(nil)
 		}
 		for i := range p.sudogbuf {
 			p.sudogbuf[i] = nil

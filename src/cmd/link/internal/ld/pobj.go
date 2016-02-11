@@ -89,6 +89,7 @@ func Ldmain() {
 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
 	obj.Flagcount("c", "dump call graph", &Debug['c'])
 	obj.Flagcount("d", "disable dynamic executable", &Debug['d'])
+	obj.Flagstr("extar", "archive program for buildmode=c-archive", &extar)
 	obj.Flagstr("extld", "use `linker` when linking in external mode", &extld)
 	obj.Flagstr("extldflags", "pass `flags` to external linker", &extldflags)
 	obj.Flagcount("f", "ignore version mismatch", &Debug['f'])

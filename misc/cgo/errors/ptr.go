@@ -27,8 +27,14 @@ type ptrTest struct {
 	imports   []string // a list of imports
 	support   string   // supporting functions
 	body      string   // the body of the main function
+	extra     []extra  // extra files
 	fail      bool     // whether the test should fail
 	expensive bool     // whether the test requires the expensive check
+}
+
+type extra struct {
+	name     string
+	contents string
 }
 
 var ptrTests = []ptrTest{
@@ -237,6 +243,43 @@ var ptrTests = []ptrTest{
                           func GoFn() *byte { return (*byte)(C.malloc(1)) }`,
 		body: `C.GoFn()`,
 	},
+	{
+		// Passing a Go string is fine.
+		name: "pass-string",
+		c: `#include <stddef.h>
+                    typedef struct { const char *p; ptrdiff_t n; } gostring;
+                    gostring f(gostring s) { return s; }`,
+		imports: []string{"unsafe"},
+		body:    `s := "a"; r := C.f(*(*C.gostring)(unsafe.Pointer(&s))); if *(*string)(unsafe.Pointer(&r)) != s { panic(r) }`,
+	},
+	{
+		// Passing a slice of Go strings fails.
+		name:    "pass-string-slice",
+		c:       `void f(void *p) {}`,
+		imports: []string{"strings", "unsafe"},
+		support: `type S struct { a [1]string }`,
+		body:    `s := S{a:[1]string{strings.Repeat("a", 2)}}; C.f(unsafe.Pointer(&s.a[0]))`,
+		fail:    true,
+	},
+	{
+		// Exported functions may not return strings.
+		name:    "ret-string",
+		c:       `extern void f();`,
+		imports: []string{"strings"},
+		support: `//export GoStr
+                          func GoStr() string { return strings.Repeat("a", 2) }`,
+		body: `C.f()`,
+		extra: []extra{
+			{
+				"call.c",
+				`#include <stddef.h>
+                                 typedef struct { const char *p; ptrdiff_t n; } gostring;
+                                 extern gostring GoStr();
+                                 void f() { GoStr(); }`,
+			},
+		},
+		fail: true,
+	},
 }
 
 func main() {
@@ -244,12 +287,17 @@ func main() {
 }
 
 func doTests() int {
-	dir, err := ioutil.TempDir("", "cgoerrors")
+	gopath, err := ioutil.TempDir("", "cgoerrors")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	defer os.RemoveAll(dir)
+	defer os.RemoveAll(gopath)
+
+	if err := os.MkdirAll(filepath.Join(gopath, "src"), 0777); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 
 	workers := runtime.NumCPU() + 1
 
@@ -259,7 +307,7 @@ func doTests() int {
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
-			worker(dir, c, errs)
+			worker(gopath, c, errs)
 			wg.Done()
 		}()
 	}
@@ -281,10 +329,10 @@ func doTests() int {
 	return tot
 }
 
-func worker(dir string, c, errs chan int) {
+func worker(gopath string, c, errs chan int) {
 	e := 0
 	for i := range c {
-		if !doOne(dir, i) {
+		if !doOne(gopath, i) {
 			e++
 		}
 	}
@@ -293,8 +341,14 @@ func worker(dir string, c, errs chan int) {
 	}
 }
 
-func doOne(dir string, i int) bool {
+func doOne(gopath string, i int) bool {
 	t := &ptrTests[i]
+
+	dir := filepath.Join(gopath, "src", fmt.Sprintf("dir%d", i))
+	if err := os.Mkdir(dir, 0777); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return false
+	}
 
 	name := filepath.Join(dir, fmt.Sprintf("t%d.go", i))
 	f, err := os.Create(name)
@@ -330,13 +384,30 @@ func doOne(dir string, i int) bool {
 		return false
 	}
 	if err := f.Close(); err != nil {
-		fmt.Fprintln(os.Stderr, "closing %s: %v\n", name, err)
+		fmt.Fprintf(os.Stderr, "closing %s: %v\n", name, err)
 		return false
+	}
+
+	for _, e := range t.extra {
+		if err := ioutil.WriteFile(filepath.Join(dir, e.name), []byte(e.contents), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "writing %s: %v\n", e.name, err)
+			return false
+		}
 	}
 
 	ok := true
 
-	cmd := exec.Command("go", "run", name)
+	cmd := exec.Command("go", "build")
+	cmd.Dir = dir
+	cmd.Env = addEnv("GOPATH", gopath)
+	buf, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "test %s failed to build: %v\n%s", t.name, err, buf)
+		return false
+	}
+
+	exe := filepath.Join(dir, filepath.Base(dir))
+	cmd = exec.Command(exe)
 	cmd.Dir = dir
 
 	if t.expensive {
@@ -354,7 +425,7 @@ func doOne(dir string, i int) bool {
 			ok = false
 		}
 
-		cmd = exec.Command("go", "run", name)
+		cmd = exec.Command(exe)
 		cmd.Dir = dir
 	}
 
@@ -362,7 +433,7 @@ func doOne(dir string, i int) bool {
 		cmd.Env = cgocheckEnv("2")
 	}
 
-	buf, err := cmd.CombinedOutput()
+	buf, err = cmd.CombinedOutput()
 
 	if t.fail {
 		if err == nil {
@@ -389,7 +460,7 @@ func doOne(dir string, i int) bool {
 
 		if !t.expensive && ok {
 			// Make sure it passes with the expensive checks.
-			cmd := exec.Command("go", "run", name)
+			cmd := exec.Command(exe)
 			cmd.Dir = dir
 			cmd.Env = cgocheckEnv("2")
 			buf, err := cmd.CombinedOutput()
@@ -404,7 +475,7 @@ func doOne(dir string, i int) bool {
 	}
 
 	if t.fail && ok {
-		cmd = exec.Command("go", "run", name)
+		cmd = exec.Command(exe)
 		cmd.Dir = dir
 		cmd.Env = cgocheckEnv("0")
 		buf, err := cmd.CombinedOutput()
@@ -427,9 +498,14 @@ func reportTestOutput(w io.Writer, name string, buf []byte) {
 }
 
 func cgocheckEnv(val string) []string {
-	env := []string{"GODEBUG=cgocheck=" + val}
+	return addEnv("GODEBUG", "cgocheck="+val)
+}
+
+func addEnv(key, val string) []string {
+	env := []string{key + "=" + val}
+	look := key + "="
 	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "GODEBUG=") {
+		if !strings.HasPrefix(e, look) {
 			env = append(env, e)
 		}
 	}

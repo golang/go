@@ -15,12 +15,19 @@ import "unsafe"
 //go:linkname _cgo_mmap _cgo_mmap
 var _cgo_mmap unsafe.Pointer
 
-func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (ret unsafe.Pointer) {
+func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
 	if _cgo_mmap != nil {
+		// Make ret a uintptr so that writing to it in the
+		// function literal does not trigger a write barrier.
+		// A write barrier here could break because of the way
+		// that mmap uses the same value both as a pointer and
+		// an errno value.
+		// TODO: Fix mmap to return two values.
+		var ret uintptr
 		systemstack(func() {
 			ret = callCgoMmap(addr, n, prot, flags, fd, off)
 		})
-		return
+		return unsafe.Pointer(ret)
 	}
 	return sysMmap(addr, n, prot, flags, fd, off)
 }
@@ -31,4 +38,4 @@ func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) 
 // cgoMmap calls the mmap function in the runtime/cgo package on the
 // callCgoMmap calls the mmap function in the runtime/cgo package
 // using the GCC calling convention.  It is implemented in assembly.
-func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
+func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr

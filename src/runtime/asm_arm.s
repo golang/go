@@ -86,7 +86,11 @@ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
 #ifdef GOOS_nacl
 	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
 #else
+#ifdef GOOS_plan9
+	WORD	$0xD1200070	// undefined instruction used as armv5 breakpoint in Plan 9
+#else
 	WORD	$0xe7f001f0	// undefined instruction that gdb understands is a software breakpoint
+#endif
 #endif
 	RET
 

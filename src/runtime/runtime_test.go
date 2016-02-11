@@ -308,3 +308,24 @@ func TestAppendSliceGrowth(t *testing.T) {
 		}
 	}
 }
+
+func TestGoroutineProfileTrivial(t *testing.T) {
+	// Calling GoroutineProfile twice in a row should find the same number of goroutines,
+	// but it's possible there are goroutines just about to exit, so we might end up
+	// with fewer in the second call. Try a few times; it should converge once those
+	// zombies are gone.
+	for i := 0; ; i++ {
+		n1, ok := GoroutineProfile(nil) // should fail, there's at least 1 goroutine
+		if n1 < 1 || ok {
+			t.Fatalf("GoroutineProfile(nil) = %d, %v, want >0, false", n1, ok)
+		}
+		n2, ok := GoroutineProfile(make([]StackRecord, n1))
+		if n2 == n1 && ok {
+			break
+		}
+		t.Logf("GoroutineProfile(%d) = %d, %v, want %d, true", n1, n2, ok, n1)
+		if i >= 10 {
+			t.Fatalf("GoroutineProfile not converging")
+		}
+	}
+}
