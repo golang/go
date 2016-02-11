@@ -155,12 +155,15 @@ func cse(f *Func) {
 		}
 	}
 
+	rewrites := 0
+
 	// Apply substitutions
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
 					v.SetArg(i, x)
+					rewrites++
 				}
 			}
 		}
@@ -174,6 +177,9 @@ func cse(f *Func) {
 				b.Control = x
 			}
 		}
+	}
+	if Debug > 0 && rewrites > 0 {
+		fmt.Printf("CSE: %d rewrites\n", rewrites)
 	}
 }
 
@@ -197,9 +203,8 @@ type eqclass []*Value
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
 func partitionValues(a []*Value) []eqclass {
-	typNames := map[Type]string{}
 	auxIDs := map[interface{}]int32{}
-	sort.Sort(sortvalues{a, typNames, auxIDs})
+	sort.Sort(sortvalues{a, auxIDs})
 
 	var partition []eqclass
 	for len(a) > 0 {
@@ -217,10 +222,10 @@ func partitionValues(a []*Value) []eqclass {
 					v.Args[0].AuxInt != w.Args[0].AuxInt) ||
 				len(v.Args) >= 2 && (v.Args[1].Op != w.Args[1].Op ||
 					v.Args[1].AuxInt != w.Args[1].AuxInt) ||
-				typNames[v.Type] != typNames[w.Type] {
+				v.Type.Compare(w.Type) != CMPeq {
 				if Debug > 3 {
-					fmt.Printf("CSE.partitionValues separates %s from %s, AuxInt=%v, Aux=%v, typNames=%v",
-						v.LongString(), w.LongString(), v.AuxInt != w.AuxInt, v.Aux != w.Aux, typNames[v.Type] != typNames[w.Type])
+					fmt.Printf("CSE.partitionValues separates %s from %s, AuxInt=%v, Aux=%v, Type.compare=%v",
+						v.LongString(), w.LongString(), v.AuxInt != w.AuxInt, v.Aux != w.Aux, v.Type.Compare(w.Type))
 					if !rootsDiffer {
 						if len(v.Args) >= 1 {
 							fmt.Printf(", a0Op=%v, a0AuxInt=%v", v.Args[0].Op != w.Args[0].Op, v.Args[0].AuxInt != w.Args[0].AuxInt)
@@ -245,9 +250,8 @@ func partitionValues(a []*Value) []eqclass {
 
 // Sort values to make the initial partition.
 type sortvalues struct {
-	a        []*Value              // array of values
-	typNames map[Type]string       // type -> type ID map
-	auxIDs   map[interface{}]int32 // aux -> aux ID map
+	a      []*Value              // array of values
+	auxIDs map[interface{}]int32 // aux -> aux ID map
 }
 
 func (sv sortvalues) Len() int      { return len(sv.a) }
@@ -301,26 +305,17 @@ func (sv sortvalues) Less(i, j int) bool {
 		}
 	}
 
-	// Sort by type.  Types are just interfaces, so we can't compare
-	// them with < directly.  Instead, map types to their names and
-	// sort on that.
+	// Sort by type, using the ssa.Type Compare method
 	if v.Type != w.Type {
-		x := sv.typNames[v.Type]
-		if x == "" {
-			x = v.Type.String()
-			sv.typNames[v.Type] = x
-		}
-		y := sv.typNames[w.Type]
-		if y == "" {
-			y = w.Type.String()
-			sv.typNames[w.Type] = y
-		}
-		if x != y {
-			return x < y
+		c := v.Type.Compare(w.Type)
+		if c != CMPeq {
+			return c == CMPlt
 		}
 	}
 
-	// Same deal for aux fields.
+	// Aux fields are interfaces with no comparison
+	// method.  Use a map to number distinct ones,
+	// and use those numbers for comparison.
 	if v.Aux != w.Aux {
 		x := sv.auxIDs[v.Aux]
 		if x == 0 {

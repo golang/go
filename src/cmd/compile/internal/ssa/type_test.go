@@ -57,6 +57,29 @@ func (t *TypeImpl) Equal(u Type) bool {
 	return x == t
 }
 
+func (t *TypeImpl) Compare(u Type) Cmp {
+	x, ok := u.(*TypeImpl)
+	// ssa.CompilerType < ssa.TypeImpl < gc.Type
+	if !ok {
+		_, ok := u.(*CompilerType)
+		if ok {
+			return CMPgt
+		}
+		return CMPlt
+	}
+	if t == x {
+		return CMPeq
+	}
+	if t.Name < x.Name {
+		return CMPlt
+	}
+	if t.Name > x.Name {
+		return CMPgt
+	}
+	return CMPeq
+
+}
+
 var (
 	// shortcuts for commonly used basic types
 	TypeInt8       = &TypeImpl{Size_: 1, Align: 1, Integer: true, Signed: true, Name: "int8"}
