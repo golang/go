@@ -192,16 +192,13 @@ func (s *mspan) sweep(preserve bool) bool {
 	c := _g_.m.mcache
 	freeToHeap := false
 
-	// Mark any free objects in this span so we don't collect them.
-	sstart := uintptr(s.start << _PageShift)
-	for link := s.freelist; link.ptr() != nil; link = link.ptr().next {
-		if uintptr(link) < sstart || s.limit <= uintptr(link) {
-			// Free list is corrupted.
-			dumpFreeList(s)
-			throw("free list corrupted")
-		}
-		heapBitsForAddr(uintptr(link)).setMarkedNonAtomic()
-	}
+	// The allocBits indicate which unmarked objects don't need to be
+	// processed since they were free at the end of the last GC cycle
+	// and were not allocated since then.
+	// If the allocBits index is >= s.freeindex and the bit
+	// is not marked then the object remains unallocated
+	// since the last GC.
+	// This situation is analogous to being on a freelist.
 
 	// Unlink & free special records for any objects we're about to free.
 	// Two complications here:
@@ -216,8 +213,8 @@ func (s *mspan) sweep(preserve bool) bool {
 	for special != nil {
 		// A finalizer can be set for an inner byte of an object, find object beginning.
 		p := uintptr(s.start<<_PageShift) + uintptr(special.offset)/size*size
-		hbits := heapBitsForAddr(p)
-		if !hbits.isMarked() {
+		mbits := s.markBitsForAddr(p)
+		if !mbits.isMarked() {
 			// This object is not marked and has at least one special record.
 			// Pass 1: see if it has at least one finalizer.
 			hasFin := false
@@ -225,7 +222,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
-					hbits.setMarkedNonAtomic()
+					mbits.setMarkedNonAtomic()
 					hasFin = true
 					break
 				}
@@ -259,8 +256,7 @@ func (s *mspan) sweep(preserve bool) bool {
 	// This thread owns the span now, so it can manipulate
 	// the block bitmap without atomic operations.
 
-	size, n, _ := s.layout()
-	heapBitsSweepSpan(s.base(), size, n, func(p uintptr) {
+	nfree = heapBitsSweepSpan(s, func(p uintptr) {
 		// At this point we know that we are looking at garbage object
 		// that needs to be collected.
 		if debug.allocfreetrace != 0 {
@@ -288,16 +284,17 @@ func (s *mspan) sweep(preserve bool) bool {
 			} else if size > sys.PtrSize {
 				*(*uintptr)(unsafe.Pointer(p + sys.PtrSize)) = 0
 			}
-			if head.ptr() == nil {
-				head = gclinkptr(p)
-			} else {
-				end.ptr().next = gclinkptr(p)
-			}
-			end = gclinkptr(p)
-			end.ptr().next = gclinkptr(0x0bade5)
-			nfree++
 		}
 	})
+
+	wasempty := s.nextFreeIndex(s.freeindex) == s.nelems
+
+	s.freeindex = 0 // reset allocation index to start of span.
+
+	// Swap role of allocBits with gcmarkBits
+	// Clear gcmarkBits in preparation for next GC
+	s.allocBits, s.gcmarkBits = s.gcmarkBits, s.allocBits
+	s.clearGCMarkBits() // prepare for next GC
 
 	// We need to set s.sweepgen = h.sweepgen only when all blocks are swept,
 	// because of the potential for a concurrent free/SetFinalizer.
@@ -311,11 +308,14 @@ func (s *mspan) sweep(preserve bool) bool {
 			print("MSpan_Sweep: state=", s.state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
 			throw("MSpan_Sweep: bad span state after sweep")
 		}
+		// Serialization point.
+		// At this point the mark bits are cleared and allocation ready
+		// to go so release the span.
 		atomic.Store(&s.sweepgen, sweepgen)
 	}
 	if nfree > 0 {
 		c.local_nsmallfree[cl] += uintptr(nfree)
-		res = mheap_.central[cl].mcentral.freeSpan(s, int32(nfree), head, end, preserve)
+		res = mheap_.central[cl].mcentral.freeSpan(s, int32(nfree), head, end, preserve, wasempty)
 		// MCentral_FreeSpan updates sweepgen
 	} else if freeToHeap {
 		// Free large span to heap
@@ -398,28 +398,4 @@ func reimburseSweepCredit(unusableBytes uintptr) {
 	if int64(atomic.Xadd64(&mheap_.spanBytesAlloc, -int64(unusableBytes))) < 0 {
 		throw("spanBytesAlloc underflow")
 	}
-}
-
-func dumpFreeList(s *mspan) {
-	printlock()
-	print("runtime: free list of span ", s, ":\n")
-	sstart := uintptr(s.start << _PageShift)
-	link := s.freelist
-	for i := 0; i < int(s.npages*_PageSize/s.elemsize); i++ {
-		if i != 0 {
-			print(" -> ")
-		}
-		print(hex(link))
-		if link.ptr() == nil {
-			break
-		}
-		if uintptr(link) < sstart || s.limit <= uintptr(link) {
-			// Bad link. Stop walking before we crash.
-			print(" (BAD)")
-			break
-		}
-		link = link.ptr().next
-	}
-	print("\n")
-	printunlock()
 }

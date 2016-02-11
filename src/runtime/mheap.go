@@ -119,8 +119,7 @@ type mspan struct {
 
 	start         pageID    // starting page number
 	npages        uintptr   // number of pages in span
-	freelist      gclinkptr // list of free objects for _MSpanInUse
-	stackfreelist gclinkptr // list of free stacks, avoids overloading freelist for _MSpanStack
+	stackfreelist gclinkptr // list of free stacks, avoids overloading freelist
 
 	// freeindex is the slot index between 0 and nelems at which to begin scanning
 	// for the next free object in this span.
@@ -472,7 +471,6 @@ func (h *mheap) alloc_m(npage uintptr, sizeclass int32, large bool) *mspan {
 		// able to map interior pointer to containing span.
 		atomic.Store(&s.sweepgen, h.sweepgen)
 		s.state = _MSpanInUse
-		s.freelist = 0
 		s.ref = 0
 		s.sizeclass = uint8(sizeclass)
 		if sizeclass == 0 {
@@ -914,7 +912,6 @@ func (span *mspan) init(start pageID, npages uintptr) {
 	span.list = nil
 	span.start = start
 	span.npages = npages
-	span.freelist = 0
 	span.ref = 0
 	span.sizeclass = 0
 	span.incache = false
@@ -925,6 +922,17 @@ func (span *mspan) init(start pageID, npages uintptr) {
 	span.speciallock.key = 0
 	span.specials = nil
 	span.needzero = 0
+	span.freeindex = 0
+	span.allocBits = &span.markbits1
+	span.gcmarkBits = &span.markbits2
+	// determine if this is actually needed. It is once / span so it
+	// isn't expensive. This is to be replaced by an arena
+	// based system where things can be cleared all at once so
+	// don't worry about optimizing this.
+	for i := 0; i < len(span.markbits1); i++ {
+		span.allocBits[i] = 0
+		span.gcmarkBits[i] = 0
+	}
 }
 
 func (span *mspan) inList() bool {
