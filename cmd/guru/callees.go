@@ -11,11 +11,11 @@ import (
 	"go/types"
 	"sort"
 
+	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/pointer"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
-	"golang.org/x/tools/cmd/guru/serial"
 )
 
 // Callees reports the possible callees of the function call site

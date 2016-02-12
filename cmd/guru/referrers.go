@@ -13,8 +13,8 @@ import (
 	"io/ioutil"
 	"sort"
 
-	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/cmd/guru/serial"
+	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/refactor/importgraph"
 )
 
