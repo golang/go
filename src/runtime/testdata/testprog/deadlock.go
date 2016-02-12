@@ -29,7 +29,7 @@ func init() {
 	register("GoexitInPanic", GoexitInPanic)
 	register("PanicAfterGoexit", PanicAfterGoexit)
 	register("RecoveredPanicAfterGoexit", RecoveredPanicAfterGoexit)
-
+	register("PanicTraceback", PanicTraceback)
 }
 
 func SimpleDeadlock() {
@@ -170,4 +170,22 @@ func RecoveredPanicAfterGoexit() {
 		panic("hello")
 	}()
 	runtime.Goexit()
+}
+
+func PanicTraceback() {
+	pt1()
+}
+
+func pt1() {
+	defer func() {
+		panic("panic pt1")
+	}()
+	pt2()
+}
+
+func pt2() {
+	defer func() {
+		panic("panic pt2")
+	}()
+	panic("hello")
 }
