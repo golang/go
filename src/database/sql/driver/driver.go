@@ -17,7 +17,7 @@ import "errors"
 //   float64
 //   bool
 //   []byte
-//   string   [*] everywhere except from Rows.Next.
+//   string
 //   time.Time
 type Value interface{}
 
@@ -164,10 +164,6 @@ type Rows interface {
 	// Next is called to populate the next row of data into
 	// the provided slice. The provided slice will be the same
 	// size as the Columns() are wide.
-	//
-	// The dest slice may be populated only with
-	// a driver Value type, but excluding string.
-	// All string values must be converted to []byte.
 	//
 	// Next should return io.EOF when there are no more rows.
 	Next(dest []Value) error
