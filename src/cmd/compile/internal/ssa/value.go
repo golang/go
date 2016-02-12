@@ -113,6 +113,10 @@ func (v *Value) LongString() string {
 		s += fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		s += fmt.Sprintf(" {%s}", v.Aux)
+	case auxSym:
+		if v.Aux != nil {
+			s += fmt.Sprintf(" {%s}", v.Aux)
+		}
 	case auxSymOff:
 		if v.Aux != nil {
 			s += fmt.Sprintf(" {%s}", v.Aux)
