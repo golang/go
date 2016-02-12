@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/callgraph"
+	"golang.org/x/tools/go/callgraph/static"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
@@ -68,16 +69,31 @@ func callstack(q *Query) error {
 		return fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
-	// Run the pointer analysis and build the complete call graph.
-	ptaConfig.BuildCallGraph = true
-	cg := ptrAnalysis(ptaConfig).CallGraph
-	cg.DeleteSyntheticNodes()
-
-	// Search for an arbitrary path from a root to the target function.
+	var callpath []*callgraph.Edge
 	isEnd := func(n *callgraph.Node) bool { return n.Func == target }
-	callpath := callgraph.PathSearch(cg.Root, isEnd)
-	if callpath != nil {
-		callpath = callpath[1:] // remove synthetic edge from <root>
+
+	// First, build a callgraph containing only static call edges,
+	// and search for an arbitrary path from a root to the target function.
+	// This is quick, and the user wants a static path if one exists.
+	cg := static.CallGraph(prog)
+	cg.DeleteSyntheticNodes()
+	for _, ep := range entryPoints(ptaConfig.Mains) {
+		callpath = callgraph.PathSearch(cg.CreateNode(ep), isEnd)
+		if callpath != nil {
+			break
+		}
+	}
+
+	// No fully static path found.
+	// Run the pointer analysis and build a complete call graph.
+	if callpath == nil {
+		ptaConfig.BuildCallGraph = true
+		cg := ptrAnalysis(ptaConfig).CallGraph
+		cg.DeleteSyntheticNodes()
+		callpath = callgraph.PathSearch(cg.Root, isEnd)
+		if callpath != nil {
+			callpath = callpath[1:] // remove synthetic edge from <root>
+		}
 	}
 
 	q.Fset = fset

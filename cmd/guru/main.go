@@ -76,7 +76,7 @@ User manual: http://golang.org/s/oracle-user-manual
 
 Example: describe syntax at offset 530 in this file (an import spec):
 
-  $ guru describe src/golang.org/x/tools/cmd/guru/main.go:#530 
+  $ guru describe src/golang.org/x/tools/cmd/guru/main.go:#530
 `
 
 func printHelp() {

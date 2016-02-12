@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/callgraph"
@@ -60,16 +61,20 @@ func callers(q *Query) error {
 		return fmt.Errorf("no SSA function built for this location (dead code?)")
 	}
 
-	// TODO(adonovan): opt: if function is never address-taken, skip
-	// the pointer analysis.  Just look for direct calls.  This can
-	// be done in a single pass over the SSA.
-
-	// Run the pointer analysis, recording each
-	// call found to originate from target.
-	ptaConfig.BuildCallGraph = true
-	cg := ptrAnalysis(ptaConfig).CallGraph
+	// If the function is never address-taken, all calls are direct
+	// and can be found quickly by inspecting the whole SSA program.
+	cg := directCallsTo(target, entryPoints(ptaConfig.Mains))
+	if cg == nil {
+		// Run the pointer analysis, recording each
+		// call found to originate from target.
+		// (Pointer analysis may return fewer results than
+		// directCallsTo because it ignores dead code.)
+		ptaConfig.BuildCallGraph = true
+		cg = ptrAnalysis(ptaConfig).CallGraph
+	}
 	cg.DeleteSyntheticNodes()
 	edges := cg.CreateNode(target).In
+
 	// TODO(adonovan): sort + dedup calls to ensure test determinism.
 
 	q.result = &callersResult{
@@ -78,6 +83,82 @@ func callers(q *Query) error {
 		edges:     edges,
 	}
 	return nil
+}
+
+// directCallsTo inspects the whole program and returns a callgraph
+// containing edges for all direct calls to the target function.
+// directCallsTo returns nil if the function is ever address-taken.
+func directCallsTo(target *ssa.Function, entrypoints []*ssa.Function) *callgraph.Graph {
+	cg := callgraph.New(nil) // use nil as root *Function
+	targetNode := cg.CreateNode(target)
+
+	// Is the function a program entry point?
+	// If so, add edge from callgraph root.
+	for _, f := range entrypoints {
+		if f == target {
+			callgraph.AddEdge(cg.Root, nil, targetNode)
+		}
+	}
+
+	// Find receiver type (for methods).
+	var recvType types.Type
+	if recv := target.Signature.Recv(); recv != nil {
+		recvType = recv.Type()
+	}
+
+	// Find all direct calls to function,
+	// or a place where its address is taken.
+	var space [32]*ssa.Value // preallocate
+	for fn := range ssautil.AllFunctions(target.Prog) {
+		for _, b := range fn.Blocks {
+			for _, instr := range b.Instrs {
+				// Is this a method (T).f of a concrete type T
+				// whose runtime type descriptor is address-taken?
+				// (To be fully sound, we would have to check that
+				// the type doesn't make it to reflection as a
+				// subelement of some other address-taken type.)
+				if recvType != nil {
+					if mi, ok := instr.(*ssa.MakeInterface); ok {
+						if types.Identical(mi.X.Type(), recvType) {
+							return nil // T is address-taken
+						}
+						if ptr, ok := mi.X.Type().(*types.Pointer); ok &&
+							types.Identical(ptr.Elem(), recvType) {
+							return nil // *T is address-taken
+						}
+					}
+				}
+
+				// Direct call to target?
+				rands := instr.Operands(space[:0])
+				if site, ok := instr.(ssa.CallInstruction); ok &&
+					site.Common().Value == target {
+					callgraph.AddEdge(cg.CreateNode(fn), site, targetNode)
+					rands = rands[1:] // skip .Value (rands[0])
+				}
+
+				// Address-taken?
+				for _, rand := range rands {
+					if rand != nil && *rand == target {
+						return nil
+					}
+				}
+			}
+		}
+	}
+
+	return cg
+}
+
+func entryPoints(mains []*ssa.Package) []*ssa.Function {
+	var entrypoints []*ssa.Function
+	for _, pkg := range mains {
+		entrypoints = append(entrypoints, pkg.Func("init"))
+		if main := pkg.Func("main"); main != nil && pkg.Pkg.Name() == "main" {
+			entrypoints = append(entrypoints, main)
+		}
+	}
+	return entrypoints
 }
 
 type callersResult struct {
