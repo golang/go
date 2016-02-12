@@ -9,6 +9,7 @@ import of package "hash/fnv"
 import of package "lib"
 	const Const  untyped int = 3
 	func  Func   func()
+	type  Outer  struct{...}
 	type  Sorter interface{...}
 		method (Sorter) Len() int
 		method (Sorter) Less(i int, j int) bool
@@ -33,7 +34,7 @@ defined here
 reference to type lib.Type (size 8, align 8)
 defined as int
 Method set:
-	method (lib.Type) Method(x *int) *int
+	method (Type) Method(x *int) *int
 
 -------- @describe ref-method --------
 reference to method func (lib.Type).Method(x *int) *int
@@ -47,6 +48,7 @@ this *int may point to these objects:
 reference to package "lib"
 	const Const  untyped int = 3
 	func  Func   func()
+	type  Outer  struct{...}
 	type  Sorter interface{...}
 		method (Sorter) Len() int
 		method (Sorter) Less(i int, j int) bool

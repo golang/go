@@ -7,6 +7,7 @@ package describe // @describe pkgdecl "describe"
 // TODO(adonovan): more coverage of the (extensive) logic.
 
 import (
+	"lib"
 	"nosuchpkg"            // @describe badimport1 "nosuchpkg"
 	nosuchpkg2 "nosuchpkg" // @describe badimport2 "nosuchpkg2"
 	_ "unsafe"             // @describe unsafe "unsafe"
@@ -83,6 +84,8 @@ func main() { // @describe func-def-main "main"
 	_ = a2
 	var _ int // @describe var-decl-stmt2 "var _ int"
 	var _ int // @describe var-def-blank "_"
+
+	var _ lib.Outer // @describe lib-outer "Outer"
 }
 
 type I interface { // @describe def-iface-I "I"

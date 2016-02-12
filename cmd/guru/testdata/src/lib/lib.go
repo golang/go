@@ -18,3 +18,20 @@ type Sorter interface {
 	Less(i, j int) bool
 	Swap(i, j int)
 }
+
+type Outer struct {
+	A int
+	b int
+	inner
+}
+
+type inner struct {
+	C bool
+	d string
+	recursive
+}
+
+type recursive struct {
+	E bool
+	*inner
+}

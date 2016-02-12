@@ -451,6 +451,7 @@ func describeType(qpos *queryPos, path []ast.Node) (*describeTypeResult, error) 
 		description: description,
 		typ:         t,
 		methods:     accessibleMethods(t, qpos.info.Pkg),
+		fields:      accessibleFields(t, qpos.info.Pkg),
 	}, nil
 }
 
@@ -460,6 +461,12 @@ type describeTypeResult struct {
 	description string
 	typ         types.Type
 	methods     []*types.Selection
+	fields      []describeField
+}
+
+type describeField struct {
+	implicits []*types.Named
+	field     *types.Var
 }
 
 func (r *describeTypeResult) display(printf printfFunc) {
@@ -476,13 +483,30 @@ func (r *describeTypeResult) display(printf printfFunc) {
 		if len(r.methods) > 0 {
 			printf(r.node, "Method set:")
 			for _, meth := range r.methods {
-				// TODO(adonovan): print these relative
-				// to the owning package, not the
-				// query package.
-				printf(meth.Obj(), "\t%s", r.qpos.selectionString(meth))
+				// Print the method type relative to the package
+				// in which it was defined, not the query package,
+				printf(meth.Obj(), "\t%s",
+					types.SelectionString(meth, types.RelativeTo(meth.Obj().Pkg())))
 			}
 		} else {
 			printf(r.node, "No methods.")
+		}
+	}
+
+	// Print the fields, if any.
+	if len(r.fields) > 0 {
+		printf(r.node, "Fields:")
+		for _, f := range r.fields {
+			var buf bytes.Buffer
+			for _, fld := range f.implicits {
+				buf.WriteString(fld.Obj().Name())
+				buf.WriteByte('.')
+			}
+
+			// Print the field type relative to the package
+			// in which it was defined, not the query package,
+			printf(f.field, "\t%s%s %s", buf.String(), f.field.Name(),
+				types.TypeString(f.field.Type(), types.RelativeTo(f.field.Pkg())))
 		}
 	}
 }
@@ -750,6 +774,61 @@ func accessibleMethods(t types.Type, from *types.Package) []*types.Selection {
 		}
 	}
 	return methods
+}
+
+// accessibleFields returns the set of accessible
+// field selections on a value of type recv.
+func accessibleFields(recv types.Type, from *types.Package) []describeField {
+	wantField := func(f *types.Var) bool {
+		if !isAccessibleFrom(f, from) {
+			return false
+		}
+		// Check that the field is not shadowed.
+		obj, _, _ := types.LookupFieldOrMethod(recv, true, f.Pkg(), f.Name())
+		return obj == f
+	}
+
+	var fields []describeField
+	var visit func(t types.Type, stack []*types.Named)
+	visit = func(t types.Type, stack []*types.Named) {
+		tStruct, ok := deref(t).Underlying().(*types.Struct)
+		if !ok {
+			return
+		}
+	fieldloop:
+		for i := 0; i < tStruct.NumFields(); i++ {
+			f := tStruct.Field(i)
+
+			// Handle recursion through anonymous fields.
+			if f.Anonymous() {
+				tf := f.Type()
+				if ptr, ok := tf.(*types.Pointer); ok {
+					tf = ptr.Elem()
+				}
+				if named, ok := tf.(*types.Named); ok { // (be defensive)
+					// If we've already visited this named type
+					// on this path, break the cycle.
+					for _, x := range stack {
+						if x == named {
+							continue fieldloop
+						}
+					}
+					visit(f.Type(), append(stack, named))
+				}
+			}
+
+			// Save accessible fields.
+			if wantField(f) {
+				fields = append(fields, describeField{
+					implicits: append([]*types.Named(nil), stack...),
+					field:     f,
+				})
+			}
+		}
+	}
+	visit(recv, nil)
+
+	return fields
 }
 
 func isAccessibleFrom(obj types.Object, pkg *types.Package) bool {
