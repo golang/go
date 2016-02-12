@@ -148,14 +148,50 @@ func inBounds64(idx, len int64) bool      { return idx >= 0 && idx < len }
 func sliceInBounds32(idx, len int64) bool { return int32(idx) >= 0 && int32(idx) <= int32(len) }
 func sliceInBounds64(idx, len int64) bool { return idx >= 0 && idx <= len }
 
-// log2 returns logarithm in base of n.
-// expects n to be a power of 2.
+// nlz returns the number of leading zeros.
+func nlz(x int64) int64 {
+	// log2(0) == 1, so nlz(0) == 64
+	return 63 - log2(x)
+}
+
+// ntz returns the number of trailing zeros.
+func ntz(x int64) int64 {
+	return 64 - nlz(^x&(x-1))
+}
+
+// nlo returns the number of leading ones.
+func nlo(x int64) int64 {
+	return nlz(^x)
+}
+
+// nto returns the number of trailing ones.
+func nto(x int64) int64 {
+	return ntz(^x)
+}
+
+// log2 returns logarithm in base of uint64(n), with log2(0) = -1.
 func log2(n int64) (l int64) {
-	for n > 1 {
-		l++
-		n >>= 1
+	l = -1
+	x := uint64(n)
+	for ; x >= 0x8000; x >>= 16 {
+		l += 16
 	}
-	return l
+	if x >= 0x80 {
+		x >>= 8
+		l += 8
+	}
+	if x >= 0x8 {
+		x >>= 4
+		l += 4
+	}
+	if x >= 0x2 {
+		x >>= 2
+		l += 2
+	}
+	if x >= 0x1 {
+		l++
+	}
+	return
 }
 
 // isPowerOfTwo reports whether n is a power of 2.
