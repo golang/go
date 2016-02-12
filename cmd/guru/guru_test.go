@@ -52,9 +52,9 @@ var updateFlag = flag.Bool("update", false, "Update the golden files.")
 type query struct {
 	id       string         // unique id
 	verb     string         // query mode, e.g. "callees"
-	posn     token.Position // position of of query
+	posn     token.Position // query position
 	filename string
-	queryPos string // value of -pos flag
+	queryPos string // query position in command-line syntax
 }
 
 func parseRegexp(text string) (*regexp.Regexp, error) {

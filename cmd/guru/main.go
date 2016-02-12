@@ -29,7 +29,7 @@ import (
 
 // flags
 var (
-	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` to which the analysis should be limited (default=all)")
+	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` the analysis should be limited to (default=all)")
 	ptalogFlag     = flag.String("ptalog", "", "write points-to analysis log to `file`")
 	formatFlag     = flag.String("format", "plain", "output `format`; one of {plain,json,xml}")
 	reflectFlag    = flag.Bool("reflect", false, "analyze reflection soundly (slow)")
@@ -55,7 +55,7 @@ The mode argument determines the query to perform:
 	freevars  	show free variables of selection
 	implements	show 'implements' relation for selected type or method
 	peers     	show send/receive corresponding to selected channel op
-	pointsto	show variables to which the selected pointer may point
+	pointsto	show variables the selected pointer may point to
 	referrers 	show all refs to entity denoted by selected identifier
 	what		show basic information about the selected syntax node
 	whicherrs	show possible values of the selected error variable

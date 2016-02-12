@@ -29,25 +29,25 @@ func parseOctothorpDecimal(s string) int {
 	return -1
 }
 
-// parsePosFlag parses a string of the form "file:pos" or
+// parsePos parses a string of the form "file:pos" or
 // file:start,end" where pos, start, end match #%d and represent byte
 // offsets, and returns its components.
 //
 // (Numbers without a '#' prefix are reserved for future use,
 // e.g. to indicate line/column positions.)
 //
-func parsePosFlag(posFlag string) (filename string, startOffset, endOffset int, err error) {
-	if posFlag == "" {
-		err = fmt.Errorf("no source position specified (-pos flag)")
+func parsePos(pos string) (filename string, startOffset, endOffset int, err error) {
+	if pos == "" {
+		err = fmt.Errorf("no source position specified")
 		return
 	}
 
-	colon := strings.LastIndex(posFlag, ":")
+	colon := strings.LastIndex(pos, ":")
 	if colon < 0 {
-		err = fmt.Errorf("invalid source position -pos=%q", posFlag)
+		err = fmt.Errorf("bad position syntax %q", pos)
 		return
 	}
-	filename, offset := posFlag[:colon], posFlag[colon+1:]
+	filename, offset := pos[:colon], pos[colon+1:]
 	startOffset = -1
 	endOffset = -1
 	if hyphen := strings.Index(offset, ","); hyphen < 0 {
@@ -60,7 +60,7 @@ func parsePosFlag(posFlag string) (filename string, startOffset, endOffset int, 
 		endOffset = parseOctothorpDecimal(offset[hyphen+1:])
 	}
 	if startOffset < 0 || endOffset < 0 {
-		err = fmt.Errorf("invalid -pos offset %q", offset)
+		err = fmt.Errorf("invalid offset %q in query position", offset)
 		return
 	}
 	return
@@ -119,10 +119,10 @@ func sameFile(x, y string) bool {
 	return false
 }
 
-// fastQueryPos parses the -pos flag and returns a QueryPos.
+// fastQueryPos parses the position string and returns a QueryPos.
 // It parses only a single file, and does not run the type checker.
-func fastQueryPos(posFlag string) (*queryPos, error) {
-	filename, startOffset, endOffset, err := parsePosFlag(posFlag)
+func fastQueryPos(pos string) (*queryPos, error) {
+	filename, startOffset, endOffset, err := parsePos(pos)
 	if err != nil {
 		return nil, err
 	}

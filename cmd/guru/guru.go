@@ -247,8 +247,8 @@ func pkgContainsFile(bp *build.Package, filename string) byte {
 // this is appropriate for queries that allow fairly arbitrary syntax,
 // e.g. "describe".
 //
-func parseQueryPos(lprog *loader.Program, posFlag string, needExact bool) (*queryPos, error) {
-	filename, startOffset, endOffset, err := parsePosFlag(posFlag)
+func parseQueryPos(lprog *loader.Program, pos string, needExact bool) (*queryPos, error) {
+	filename, startOffset, endOffset, err := parsePos(pos)
 	if err != nil {
 		return nil, err
 	}
