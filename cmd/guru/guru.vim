@@ -68,14 +68,14 @@ func! s:RunGuru(mode, selected) range abort
   if a:selected != -1
     let pos1 = s:getpos(line("'<"), col("'<"))
     let pos2 = s:getpos(line("'>"), col("'>"))
-    let cmd = printf('%s -pos=%s:#%d,#%d %s %s',
+    let cmd = printf('%s -scope=\'%s\' %s %s:#%d,#%d',
       \  s:go_guru,
-      \  shellescape(fname), pos1, pos2, a:mode, shellescape(sname))
+      \  shellescape(fname), shellescape(sname), a:mode, pos1, pos2)
   else
     let pos = s:getpos(line('.'), col('.'))
-    let cmd = printf('%s -pos=%s:#%d %s %s',
+    let cmd = printf('%s -scope=\'%s\' %s %s:#%d',
       \  s:go_guru,
-      \  shellescape(fname), pos, a:mode, shellescape(sname))
+      \  shellescape(fname), shellescape(sname), a:mode, pos)
   endif
   call s:qflist(system(cmd))
 endfun

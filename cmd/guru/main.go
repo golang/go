@@ -21,23 +21,20 @@ import (
 	"io"
 	"log"
 	"os"
-	"runtime"
 	"runtime/pprof"
+	"strings"
 
 	"golang.org/x/tools/go/buildutil"
-	"golang.org/x/tools/go/loader"
 )
 
-var posFlag = flag.String("pos", "",
-	"Filename and byte offset or extent of a syntax element about which to query, "+
-		"e.g. foo.go:#123,#456, bar.go:#123.")
-
-var ptalogFlag = flag.String("ptalog", "",
-	"Location of the points-to analysis log file, or empty to disable logging.")
-
-var formatFlag = flag.String("format", "plain", "Output format.  One of {plain,json,xml}.")
-
-var reflectFlag = flag.Bool("reflect", false, "Analyze reflection soundly (slow).")
+// flags
+var (
+	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` to which the analysis should be limited (default=all)")
+	ptalogFlag     = flag.String("ptalog", "", "write points-to analysis log to `file`")
+	formatFlag     = flag.String("format", "plain", "output `format`; one of {plain,json,xml}")
+	reflectFlag    = flag.Bool("reflect", false, "analyze reflection soundly (slow)")
+	cpuprofileFlag = flag.String("cpuprofile", "", "write CPU profile to `file`")
+)
 
 func init() {
 	flag.Var((*buildutil.TagsFlag)(&build.Default.BuildTags), "tags", buildutil.TagsFlagDoc)
@@ -46,15 +43,7 @@ func init() {
 const useHelp = "Run 'guru -help' for more information.\n"
 
 const helpMessage = `Go source code guru.
-Usage: guru [<flag> ...] <mode> <args> ...
-
-The -format flag controls the output format:
-	plain	an editor-friendly format in which every line of output
-		is of the form "pos: text", where pos is "-" if unknown.
-	json	structured data in JSON syntax.
-	xml	structured data in XML syntax.
-
-The -pos flag is required in all modes.
+Usage: guru [flags] <mode> <position>
 
 The mode argument determines the query to perform:
 
@@ -71,29 +60,24 @@ The mode argument determines the query to perform:
 	what		show basic information about the selected syntax node
 	whicherrs	show possible values of the selected error variable
 
-The user manual is available here:  http://golang.org/s/guru-user-manual
+The position argument specifies the filename and byte offset (or range)
+of the syntax element to query.  For example:
 
-Examples:
+	foo.go:#123,#128
+	bar.go:#123
 
-Describe the syntax at offset 530 in this file (an import spec):
-% guru -pos=src/golang.org/x/tools/cmd/guru/main.go:#530 describe \
-   golang.org/x/tools/cmd/guru
+The -format flag controls the output format:
+	plain	an editor-friendly format in which every line of output
+		is of the form "pos: text", where pos is "-" if unknown.
+	json	structured data in JSON syntax.
+	xml	structured data in XML syntax.
 
-` + loader.FromArgsUsage
+User manual: http://golang.org/s/oracle-user-manual
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+Example: describe syntax at offset 530 in this file (an import spec):
 
-func init() {
-	// If $GOMAXPROCS isn't set, use the full capacity of the machine.
-	// For small machines, use at least 4 threads.
-	if os.Getenv("GOMAXPROCS") == "" {
-		n := runtime.NumCPU()
-		if n < 4 {
-			n = 4
-		}
-		runtime.GOMAXPROCS(n)
-	}
-}
+  $ guru describe src/golang.org/x/tools/cmd/guru/main.go:#530 
+`
 
 func printHelp() {
 	fmt.Fprintln(os.Stderr, helpMessage)
@@ -102,6 +86,9 @@ func printHelp() {
 }
 
 func main() {
+	log.SetPrefix("guru: ")
+	log.SetFlags(0)
+
 	// Don't print full help unless -help was requested.
 	// Just gently remind users that it's there.
 	flag.Usage = func() { fmt.Fprint(os.Stderr, useHelp) }
@@ -115,13 +102,12 @@ func main() {
 	}
 
 	args := flag.Args()
-	if len(args) == 0 || args[0] == "" {
-		fmt.Fprint(os.Stderr, "guru: a mode argument is required.\n"+useHelp)
+	if len(args) != 2 {
+		flag.Usage()
 		os.Exit(2)
 	}
+	mode, posn := args[0], args[1]
 
-	mode := args[0]
-	args = args[1:]
 	if mode == "help" {
 		printHelp()
 		os.Exit(2)
@@ -147,8 +133,8 @@ func main() {
 	}
 
 	// Profiling support.
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
+	if *cpuprofileFlag != "" {
+		f, err := os.Create(*cpuprofileFlag)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -161,23 +147,21 @@ func main() {
 	case "json", "plain", "xml":
 		// ok
 	default:
-		fmt.Fprintf(os.Stderr, "guru: illegal -format value: %q.\n"+useHelp, *formatFlag)
-		os.Exit(2)
+		log.Fatalf("illegal -format value: %q.\n"+useHelp, *formatFlag)
 	}
 
 	// Ask the guru.
 	query := Query{
 		Mode:       mode,
-		Pos:        *posFlag,
+		Pos:        posn,
 		Build:      &build.Default,
-		Scope:      args,
+		Scope:      strings.Split(*scopeFlag, ","),
 		PTALog:     ptalog,
 		Reflection: *reflectFlag,
 	}
 
 	if err := Run(&query); err != nil {
-		fmt.Fprintf(os.Stderr, "guru: %s\n", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
 	// Print the result.
@@ -185,16 +169,14 @@ func main() {
 	case "json":
 		b, err := json.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "guru: JSON error: %s\n", err)
-			os.Exit(1)
+			log.Fatalf("JSON error: %s", err)
 		}
 		os.Stdout.Write(b)
 
 	case "xml":
 		b, err := xml.MarshalIndent(query.Serial(), "", "\t")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "guru: XML error: %s\n", err)
-			os.Exit(1)
+			log.Fatalf("XML error: %s", err)
 		}
 		os.Stdout.Write(b)
 

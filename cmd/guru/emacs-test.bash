@@ -26,15 +26,14 @@ mv -f $GOPATH/bin/guru $GOROOT/bin/
 $GOROOT/bin/guru >$log 2>&1 || true # (prints usage and exits 1)
 grep -q "Run.*help" $log || die "$GOROOT/bin/guru not installed"
 
-
 # Run Emacs, set the scope to the guru tool itself,
 # load ./main.go, and describe the "fmt" import.
 emacs --batch --no-splash --no-window-system --no-init \
-    --load $GOROOT/misc/emacs/go-mode.el \
+    --load $GOPATH/src/github.com/dominikh/go-mode.el/go-mode.el \
     --load $thisdir/guru.el \
     --eval '
 (progn
-  (setq go-guru-scope "golang.org/x/tools/cmd/guru")
+  (princ (emacs-version)) ; requires Emacs v23
   (find-file "'$thisdir'/main.go")
   (search-forward "\"fmt\"")
   (backward-char)

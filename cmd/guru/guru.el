@@ -2,20 +2,16 @@
 ;;; Integration of the Go 'guru' analysis tool into Emacs.
 ;;;
 ;;; To install the Go guru, run:
-;;; % export GOROOT=... GOPATH=...
-;;; % go get golang.org/x/tools/cmd/guru
-;;; % mv $GOPATH/bin/guru $GOROOT/bin/
+;;; $ go get golang.org/x/tools/cmd/guru
 ;;;
 ;;; Load this file into Emacs and set go-guru-scope to your
 ;;; configuration. Then, find a file of Go source code, enable
 ;;; go-guru-mode, select an expression of interest, and press `C-c C-o d'
 ;;; (for "describe") or run one of the other go-guru-xxx commands.
-;;;
-;;; TODO(adonovan): simplify installation and configuration by making
-;;; guru a subcommand of 'go tool'.
 
 (require 'compile)
 (require 'go-mode)
+(require 'simple)
 (require 'cl)
 
 (defgroup go-guru nil
@@ -99,14 +95,14 @@ file name with a small hyperlink.  Display the result."
        (string-equal "" go-guru-scope)
        (go-guru-set-scope))
   (let* ((filename (file-truename buffer-file-name))
-         (posflag (if (use-region-p)
-                      (format "-pos=%s:#%d,#%d"
-                              filename
-                              (1- (go--position-bytes (region-beginning)))
-                              (1- (go--position-bytes (region-end))))
-                    (format "-pos=%s:#%d"
-                            filename
-                            (1- (position-bytes (point))))))
+         (posn (if (use-region-p)
+		   (format "%s:#%d,#%d"
+			   filename
+			   (1- (go--position-bytes (region-beginning)))
+			   (1- (go--position-bytes (region-end))))
+		 (format "%s:#%d"
+			 filename
+			 (1- (position-bytes (point))))))
          (env-vars (go-root-and-paths))
          (goroot-env (concat "GOROOT=" (car env-vars)))
          (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":"))))
@@ -114,8 +110,8 @@ file name with a small hyperlink.  Display the result."
       (setq buffer-read-only nil)
       (erase-buffer)
       (insert "Go Guru\n")
-      (let ((args (append (list go-guru-command nil t nil posflag mode)
-                          (split-string go-guru-scope " " t))))
+      (let ((args (list go-guru-command nil t nil
+			"-scope" go-guru-scope mode posn)))
         ;; Log the command to *Messages*, for debugging.
         (message "Command: %s:" args)
         (message nil) ; clears/shrinks minibuffer
