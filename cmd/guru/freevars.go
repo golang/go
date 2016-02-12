@@ -184,7 +184,7 @@ func (r *freevarsResult) display(printf printfFunc) {
 		for _, ref := range r.refs {
 			// Avoid printing "type T T".
 			var typstr string
-			if ref.kind != "type" {
+			if ref.kind != "type" && ref.kind != "label" {
 				typstr = " " + types.TypeString(ref.typ, qualifier)
 			}
 			printf(ref.obj, "%s %s%s", ref.kind, ref.ref, typstr)

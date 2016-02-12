@@ -33,9 +33,8 @@ func main() {
 
 	f(x) // @freevars fv3 "f.x."
 
-	// TODO(adonovan): enable when go/types supports labels.
-loop: // #@freevars fv-def-label "loop:"
+loop: // @freevars fv-def-label "loop:"
 	for {
-		break loop // #@freevars fv-ref-label "break loop"
+		break loop // @freevars fv-ref-label "break loop"
 	}
 }

@@ -16,3 +16,10 @@ var y rune
 Free identifiers:
 var x int
 
+-------- @freevars fv-def-label --------
+No free identifiers.
+
+-------- @freevars fv-ref-label --------
+Free identifiers:
+label loop
+
