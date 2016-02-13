@@ -388,6 +388,11 @@
 (EqSlice x y)  -> (EqPtr  (SlicePtr x) (SlicePtr y))
 (NeqSlice x y) -> (NeqPtr (SlicePtr x) (SlicePtr y))
 
+
+// Load of store of same address, with compatibly typed value and same size
+(Load <t1> p1 (Store [w] p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size() -> x
+
+
 // indexing operations
 // Note: bounds check has already been done
 (ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
