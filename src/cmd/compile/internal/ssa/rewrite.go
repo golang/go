@@ -202,6 +202,15 @@ func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }
 
+// isSamePtr reports whether p1 and p2 point to the same address.
+func isSamePtr(p1, p2 *Value) bool {
+	// Aux isn't used  in OffPtr, and AuxInt isn't currently used in
+	// Addr, but this still works as the values will be null/0
+	return (p1.Op == OpOffPtr || p1.Op == OpAddr) && p1.Op == p2.Op &&
+		p1.Aux == p2.Aux && p1.AuxInt == p2.AuxInt &&
+		p1.Args[0] == p2.Args[0]
+}
+
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
 // See runtime/mkduff.go.
 const (

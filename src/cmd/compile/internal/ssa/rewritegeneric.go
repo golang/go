@@ -2901,6 +2901,26 @@ func rewriteValuegeneric_OpLess8U(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Load <t1> p1 (Store [w] p2 x _))
+	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size()
+	// result: x
+	for {
+		t1 := v.Type
+		p1 := v.Args[0]
+		if v.Args[1].Op != OpStore {
+			break
+		}
+		w := v.Args[1].AuxInt
+		p2 := v.Args[1].Args[0]
+		x := v.Args[1].Args[1]
+		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == CMPeq && w == t1.Size()) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
 	// match: (Load <t> _ _)
 	// cond: t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)
 	// result: (StructMake0)
