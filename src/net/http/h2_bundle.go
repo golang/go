@@ -6141,13 +6141,18 @@ func (rt http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { retur
 // call gzip.NewReader on the first call to Read
 type http2gzipReader struct {
 	body io.ReadCloser // underlying Response.Body
-	zr   io.Reader     // lazily-initialized gzip reader
+	zr   *gzip.Reader  // lazily-initialized gzip reader
+	zerr error         // sticky error
 }
 
 func (gz *http2gzipReader) Read(p []byte) (n int, err error) {
+	if gz.zerr != nil {
+		return 0, gz.zerr
+	}
 	if gz.zr == nil {
 		gz.zr, err = gzip.NewReader(gz.body)
 		if err != nil {
+			gz.zerr = err
 			return 0, err
 		}
 	}
