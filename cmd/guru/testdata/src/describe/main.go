@@ -93,7 +93,10 @@ type I interface { // @describe def-iface-I "I"
 }
 
 type C int
-type D struct{}
+type D struct {
+	Field        int
+	AnotherField string
+}
 
 func (c *C) f() {}
 func (d D) f()  {}

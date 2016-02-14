@@ -2,7 +2,7 @@
 definition of package "describe"
 	type  C      int
 		method (*C) f()
-	type  D      struct{}
+	type  D      struct{...}
 		method (D) f()
 	type  I      interface{f()}
 		method (I) f()
@@ -62,10 +62,13 @@ reference to interface method func (I).f()
 defined here
 
 -------- @describe type-D --------
-reference to type D (size 0, align 1)
-defined as struct{}
+reference to type D (size 24, align 8)
+defined as struct{Field int; AnotherField string}
 Method set:
 	method (D) f()
+Fields:
+	Field        int
+	AnotherField string
 
 -------- @describe type-I --------
 reference to type I (size 16, align 8)
@@ -84,6 +87,11 @@ defined here
 -------- @describe ref-lexical-d --------
 reference to var d D
 defined here
+Method set:
+	method (D) f()
+Fields:
+	Field        int
+	AnotherField string
 
 -------- @describe ref-anon --------
 reference to var anon func()
@@ -111,14 +119,20 @@ defined here
 -------- @describe var-ref-i-C --------
 reference to var i I
 defined here
+Method set:
+	method (I) f()
 
 -------- @describe var-ref-i-D --------
 reference to var i I
 defined here
+Method set:
+	method (I) f()
 
 -------- @describe var-ref-i --------
 reference to var i I
 defined here
+Method set:
+	method (I) f()
 
 -------- @describe const-local-pi --------
 definition of const localpi untyped float
@@ -179,8 +193,8 @@ reference to type lib.Outer (size 56, align 8)
 defined as struct{A int; b int; lib.inner}
 No methods.
 Fields:
-	A int
-	inner.C bool
+	A                 int
+	inner.C           bool
 	inner.recursive.E bool
 
 -------- @describe def-iface-I --------

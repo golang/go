@@ -14,6 +14,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/ast/astutil"
@@ -325,15 +326,17 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 		return nil, fmt.Errorf("unexpected AST for expr: %T", n)
 	}
 
-	typ := qpos.info.TypeOf(expr)
+	t := qpos.info.TypeOf(expr)
 	constVal := qpos.info.Types[expr].Value
 
 	return &describeValueResult{
 		qpos:     qpos,
 		expr:     expr,
-		typ:      typ,
+		typ:      t,
 		constVal: constVal,
 		obj:      obj,
+		methods:  accessibleMethods(t, qpos.info.Pkg),
+		fields:   accessibleFields(t, qpos.info.Pkg),
 	}, nil
 }
 
@@ -343,6 +346,8 @@ type describeValueResult struct {
 	typ      types.Type   // type of expression
 	constVal exact.Value  // value of expression, if constant
 	obj      types.Object // var/func/const object, if expr was Ident
+	methods  []*types.Selection
+	fields   []describeField
 }
 
 func (r *describeValueResult) display(printf printfFunc) {
@@ -383,6 +388,9 @@ func (r *describeValueResult) display(printf printfFunc) {
 			printf(r.expr, "%s of type %s", desc, r.qpos.typeString(r.typ))
 		}
 	}
+
+	printMethods(printf, r.expr, r.methods)
+	printFields(printf, r.expr, r.fields)
 }
 
 func (r *describeValueResult) toSerial(res *serial.Result, fset *token.FileSet) {
@@ -469,6 +477,48 @@ type describeField struct {
 	field     *types.Var
 }
 
+func printMethods(printf printfFunc, node ast.Node, methods []*types.Selection) {
+	if len(methods) > 0 {
+		printf(node, "Method set:")
+	}
+	for _, meth := range methods {
+		// Print the method type relative to the package
+		// in which it was defined, not the query package,
+		printf(meth.Obj(), "\t%s",
+			types.SelectionString(meth, types.RelativeTo(meth.Obj().Pkg())))
+	}
+}
+
+func printFields(printf printfFunc, node ast.Node, fields []describeField) {
+	if len(fields) > 0 {
+		printf(node, "Fields:")
+	}
+
+	// Align the names and the types (requires two passes).
+	var width int
+	var names []string
+	for _, f := range fields {
+		var buf bytes.Buffer
+		for _, fld := range f.implicits {
+			buf.WriteString(fld.Obj().Name())
+			buf.WriteByte('.')
+		}
+		buf.WriteString(f.field.Name())
+		name := buf.String()
+		if n := utf8.RuneCountInString(name); n > width {
+			width = n
+		}
+		names = append(names, name)
+	}
+
+	for i, f := range fields {
+		// Print the field type relative to the package
+		// in which it was defined, not the query package,
+		printf(f.field, "\t%*s %s", -width, names[i],
+			types.TypeString(f.field.Type(), types.RelativeTo(f.field.Pkg())))
+	}
+}
+
 func (r *describeTypeResult) display(printf printfFunc) {
 	printf(r.node, "%s", r.description)
 
@@ -477,38 +527,17 @@ func (r *describeTypeResult) display(printf printfFunc) {
 		printf(nt.Obj(), "defined as %s", r.qpos.typeString(nt.Underlying()))
 	}
 
-	// Print the method set, if the type kind is capable of bearing methods.
-	switch r.typ.(type) {
-	case *types.Interface, *types.Struct, *types.Named:
-		if len(r.methods) > 0 {
-			printf(r.node, "Method set:")
-			for _, meth := range r.methods {
-				// Print the method type relative to the package
-				// in which it was defined, not the query package,
-				printf(meth.Obj(), "\t%s",
-					types.SelectionString(meth, types.RelativeTo(meth.Obj().Pkg())))
-			}
-		} else {
+	printMethods(printf, r.node, r.methods)
+	if len(r.methods) == 0 {
+		// Only report null result for type kinds
+		// capable of bearing methods.
+		switch r.typ.(type) {
+		case *types.Interface, *types.Struct, *types.Named:
 			printf(r.node, "No methods.")
 		}
 	}
 
-	// Print the fields, if any.
-	if len(r.fields) > 0 {
-		printf(r.node, "Fields:")
-		for _, f := range r.fields {
-			var buf bytes.Buffer
-			for _, fld := range f.implicits {
-				buf.WriteString(fld.Obj().Name())
-				buf.WriteByte('.')
-			}
-
-			// Print the field type relative to the package
-			// in which it was defined, not the query package,
-			printf(f.field, "\t%s%s %s", buf.String(), f.field.Name(),
-				types.TypeString(f.field.Type(), types.RelativeTo(f.field.Pkg())))
-		}
-	}
+	printFields(printf, r.node, r.fields)
 }
 
 func (r *describeTypeResult) toSerial(res *serial.Result, fset *token.FileSet) {
