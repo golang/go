@@ -936,7 +936,6 @@ OpSwitch:
 			n.Type = n.Right.Type
 			n.Right = nil
 			if n.Type == nil {
-				n.Type = nil
 				return
 			}
 		}
