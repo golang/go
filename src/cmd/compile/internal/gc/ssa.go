@@ -3793,7 +3793,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			case ssa.OpAMD64ADDL:
 				asm = x86.ALEAL
 			case ssa.OpAMD64ADDW:
-				asm = x86.ALEAW
+				asm = x86.ALEAL
 			}
 			p := Prog(asm)
 			p.From.Type = obj.TYPE_MEM
@@ -3843,9 +3843,15 @@ func (s *genState) genValue(v *ssa.Value) {
 		opregreg(v.Op.Asm(), r, y)
 
 		if neg {
-			p := Prog(x86.ANEGQ) // TODO: use correct size?  This is mostly a hack until regalloc does 2-address correctly
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = r
+			if v.Op == ssa.OpAMD64SUBQ {
+				p := Prog(x86.ANEGQ)
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+			} else { // Avoids partial registers write
+				p := Prog(x86.ANEGL)
+				p.To.Type = obj.TYPE_REG
+				p.To.Reg = r
+			}
 		}
 	case ssa.OpAMD64SUBSS, ssa.OpAMD64SUBSD, ssa.OpAMD64DIVSS, ssa.OpAMD64DIVSD:
 		r := regnum(v)
@@ -4035,7 +4041,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				case ssa.OpAMD64ADDLconst:
 					asm = x86.AINCL
 				case ssa.OpAMD64ADDWconst:
-					asm = x86.AINCW
+					asm = x86.AINCL
 				}
 				p := Prog(asm)
 				p.To.Type = obj.TYPE_REG
@@ -4049,7 +4055,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				case ssa.OpAMD64ADDLconst:
 					asm = x86.ADECL
 				case ssa.OpAMD64ADDWconst:
-					asm = x86.ADECW
+					asm = x86.ADECL
 				}
 				p := Prog(asm)
 				p.To.Type = obj.TYPE_REG
@@ -4071,7 +4077,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		case ssa.OpAMD64ADDLconst:
 			asm = x86.ALEAL
 		case ssa.OpAMD64ADDWconst:
-			asm = x86.ALEAW
+			asm = x86.ALEAL
 		}
 		p := Prog(asm)
 		p.From.Type = obj.TYPE_MEM
@@ -4131,7 +4137,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			case ssa.OpAMD64SUBLconst:
 				asm = x86.AINCL
 			case ssa.OpAMD64SUBWconst:
-				asm = x86.AINCW
+				asm = x86.AINCL
 			}
 			p := Prog(asm)
 			p.To.Type = obj.TYPE_REG
@@ -4144,7 +4150,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			case ssa.OpAMD64SUBLconst:
 				asm = x86.ADECL
 			case ssa.OpAMD64SUBWconst:
-				asm = x86.ADECW
+				asm = x86.ADECL
 			}
 			p := Prog(asm)
 			p.To.Type = obj.TYPE_REG
@@ -4157,7 +4163,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			case ssa.OpAMD64SUBLconst:
 				asm = x86.ALEAL
 			case ssa.OpAMD64SUBWconst:
-				asm = x86.ALEAW
+				asm = x86.ALEAL
 			}
 			p := Prog(asm)
 			p.From.Type = obj.TYPE_MEM
@@ -4596,8 +4602,8 @@ func (s *genState) genValue(v *ssa.Value) {
 		q := Prog(x86.ASETPS)
 		q.To.Type = obj.TYPE_REG
 		q.To.Reg = x86.REG_AX
-		// TODO AORQ copied from old code generator, why not AORB?
-		opregreg(x86.AORQ, regnum(v), x86.REG_AX)
+		// ORL avoids partial register write and is smaller than ORQ, used by old compiler
+		opregreg(x86.AORL, regnum(v), x86.REG_AX)
 
 	case ssa.OpAMD64SETEQF:
 		p := Prog(v.Op.Asm())
@@ -4606,8 +4612,8 @@ func (s *genState) genValue(v *ssa.Value) {
 		q := Prog(x86.ASETPC)
 		q.To.Type = obj.TYPE_REG
 		q.To.Reg = x86.REG_AX
-		// TODO AANDQ copied from old code generator, why not AANDB?
-		opregreg(x86.AANDQ, regnum(v), x86.REG_AX)
+		// ANDL avoids partial register write and is smaller than ANDQ, used by old compiler
+		opregreg(x86.AANDL, regnum(v), x86.REG_AX)
 
 	case ssa.OpAMD64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v)
@@ -5019,7 +5025,15 @@ var ssaRegToReg = [...]int16{
 
 // loadByType returns the load instruction of the given type.
 func loadByType(t ssa.Type) int {
-	// For x86, there's no difference between load and store opcodes.
+	// Avoid partial register write
+	if !t.IsFloat() && t.Size() <= 2 {
+		if t.Size() == 1 {
+			return x86.AMOVBLZX
+		} else {
+			return x86.AMOVWLZX
+		}
+	}
+	// Otherwise, there's no difference between load and store opcodes.
 	return storeByType(t)
 }
 
@@ -5059,9 +5073,10 @@ func moveByType(t ssa.Type) int {
 	} else {
 		switch t.Size() {
 		case 1:
-			return x86.AMOVB
+			// Avoids partial register write
+			return x86.AMOVL
 		case 2:
-			return x86.AMOVW
+			return x86.AMOVL
 		case 4:
 			return x86.AMOVL
 		case 8:
