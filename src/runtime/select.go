@@ -385,6 +385,7 @@ loop:
 			sg.releasetime = -1
 		}
 		sg.waitlink = gp.waiting
+		sg.c = c
 		gp.waiting = sg
 
 		switch cas.kind {
@@ -416,6 +417,7 @@ loop:
 	for sg1 := gp.waiting; sg1 != nil; sg1 = sg1.waitlink {
 		sg1.selectdone = nil
 		sg1.elem = nil
+		sg1.c = nil
 	}
 	gp.waiting = nil
 	for i := int(sel.ncase) - 1; i >= 0; i-- {

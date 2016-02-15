@@ -215,13 +215,14 @@ type gobuf struct {
 // selecttype.
 type sudog struct {
 	g           *g
-	selectdone  *uint32
+	selectdone  *uint32 // CAS to 1 to win select race (may point to stack)
 	next        *sudog
 	prev        *sudog
-	elem        unsafe.Pointer // data element
+	elem        unsafe.Pointer // data element (may point to stack)
 	releasetime int64
 	ticket      uint32
 	waitlink    *sudog // g.waiting list
+	c           *hchan // channel
 }
 
 type gcstats struct {
