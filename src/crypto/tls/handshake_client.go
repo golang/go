@@ -556,6 +556,16 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 		return false, nil
 	}
 
+	if hs.session.vers != c.vers {
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: server resumed a session with a different version")
+	}
+
+	if hs.session.cipherSuite != hs.suite.id {
+		c.sendAlert(alertHandshakeFailure)
+		return false, errors.New("tls: server resumed a session with a different cipher suite")
+	}
+
 	// Restore masterSecret and peerCerts from previous state
 	hs.masterSecret = hs.session.masterSecret
 	c.peerCertificates = hs.session.serverCertificates
