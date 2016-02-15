@@ -331,6 +331,7 @@ func selecttype(size int32) *Type {
 	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
 	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("ticket")), typenod(Types[TUINT32])))
 	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("c")), typenod(Ptrto(Types[TUINT8]))))
 	typecheck(&sudog, Etype)
 	sudog.Type.Noalg = true
 	sudog.Type.Local = true

@@ -209,6 +209,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	mysg.waitlink = nil
 	mysg.g = gp
 	mysg.selectdone = nil
+	mysg.c = c
 	gp.waiting = mysg
 	gp.param = nil
 	c.sendq.enqueue(mysg)
@@ -229,6 +230,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	if mysg.releasetime > 0 {
 		blockevent(mysg.releasetime-t0, 2)
 	}
+	mysg.c = nil
 	releaseSudog(mysg)
 	return true
 }
@@ -469,6 +471,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 	gp.waiting = mysg
 	mysg.g = gp
 	mysg.selectdone = nil
+	mysg.c = c
 	gp.param = nil
 	c.recvq.enqueue(mysg)
 	goparkunlock(&c.lock, "chan receive", traceEvGoBlockRecv, 3)
@@ -483,6 +486,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 	}
 	closed := gp.param == nil
 	gp.param = nil
+	mysg.c = nil
 	releaseSudog(mysg)
 	return true, !closed
 }

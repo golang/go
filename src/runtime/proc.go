@@ -329,6 +329,9 @@ func releaseSudog(s *sudog) {
 	if s.waitlink != nil {
 		throw("runtime: sudog with non-nil waitlink")
 	}
+	if s.c != nil {
+		throw("runtime: sudog with non-nil c")
+	}
 	gp := getg()
 	if gp.param != nil {
 		throw("runtime: releaseSudog with non-nil gp.param")
