@@ -447,9 +447,8 @@ func childrenOf(n ast.Node) []ast.Node {
 	case *ast.ValueSpec:
 		// TODO(adonovan): ValueSpec.{Doc,Comment}?
 
-	default:
-		// Includes *ast.BadDecl, *ast.BadExpr, *ast.BadStmt.
-		panic(fmt.Sprintf("unexpected node type %T", n))
+	case *ast.BadDecl, *ast.BadExpr, *ast.BadStmt:
+		// nop
 	}
 
 	// TODO(adonovan): opt: merge the logic of ast.Inspect() into
