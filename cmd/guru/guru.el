@@ -11,6 +11,7 @@
 
 (require 'compile)
 (require 'go-mode)
+(require 'json)
 (require 'simple)
 (require 'cl)
 
@@ -61,10 +62,10 @@ previous scope.
 
 The scope specifies a set of arguments, separated by spaces.
 It may be:
-1) a set of packages whose main() functions will be analyzed.
+1) a set of packages whose main functions will be analyzed.
 2) a list of *.go filenames; they will treated like as a single
    package (see #3).
-3) a single package whose main() function and/or Test* functions
+3) a single package whose main function and/or Test* functions
    will be analyzed.
 
 In the common case, this is similar to the argument(s) you would
@@ -80,10 +81,18 @@ specify to 'go build'."
     (setq go-guru-scope scope)))
 
 (defun go-guru--run (mode &optional need-scope)
-  "Run the Go guru in the specified MODE, passing it the
+  "Run the Go guru in the specified MODE, passing it the selected
+region of the current buffer.  If NEED-SCOPE, prompt for a scope
+if not already set.  Mark up the output using `compilation-node`,
+replacing each file name with a small hyperlink, and display the
+result."
+  (with-current-buffer (go-guru--exec mode need-scope)
+    (go-guru--compilation-markup)))
+
+(defun go-guru--exec (mode &optional need-scope flags)
+  "Execute the Go guru in the specified MODE, passing it the
 selected region of the current buffer.  If NEED-SCOPE, prompt for
-a scope if not already set.  Process the output to replace each
-file name with a small hyperlink.  Display the result."
+a scope if not already set.  Return the output buffer."
   (if (not buffer-file-name)
       (error "Cannot use guru on a buffer without a file name"))
   (and need-scope
@@ -104,16 +113,15 @@ file name with a small hyperlink.  Display the result."
 	 (output-buffer (get-buffer-create "*go-guru*")))
     (with-current-buffer output-buffer
       (setq buffer-read-only nil)
-      (erase-buffer)
-      (insert "Go Guru\n"))
+      (erase-buffer))
     (with-current-buffer (get-buffer-create "*go-guru-input*")
       (setq buffer-read-only nil)
       (erase-buffer)
       (go-guru--insert-modified-files)
-      (let* ((args (list "-modified"
-			 "-scope" go-guru-scope
-			 mode
-			 posn)))
+      (let* ((args (append (list "-modified"
+				 "-scope" go-guru-scope)
+			   flags
+			   (list mode posn))))
 	;; Log the command to *Messages*, for debugging.
 	(message "Command: %s:" args)
 	(message nil) ; clears/shrinks minibuffer
@@ -127,44 +135,46 @@ file name with a small hyperlink.  Display the result."
 						     output-buffer
 						     t)
 					       args)))))
-    (with-current-buffer output-buffer
-      (insert "\n")
-      (compilation-mode)
-      (setq compilation-error-screen-columns nil)
+    output-buffer))
 
-      ;; Hide the file/line info to save space.
-      ;; Replace each with a little widget.
-      ;; compilation-mode + this loop = slooow.
-      ;; TODO(adonovan): have guru give us JSON
-      ;; and we'll do the markup directly.
-      (let ((buffer-read-only nil)
-            (p 1))
-        (while (not (null p))
-          (let ((np (compilation-next-single-property-change p 'compilation-message)))
-            (if np
-                (when (equal (line-number-at-pos p) (line-number-at-pos np))
-                  ;; Using a fixed width greatly improves readability, so
-                  ;; if the filename is longer than 20, show ".../last/17chars.go".
-                  ;; This usually includes the last segment of the package name.
-                  ;; Don't show the line or column number.
-                  (let* ((loc (buffer-substring p np)) ; "/home/foo/go/pkg/file.go:1:2-3:4"
-                         (i (search ":" loc)))
-                    (setq loc (cond
-                               ((null i)  "...")
-                               ((>= i 17) (concat "..." (substring loc (- i 17) i)))
-                               (t         (substring loc 0 i))))
-                    ;; np is (typically) the space following ":"; consume it too.
-                    (put-text-property p np 'display (concat loc ":")))
-                  (goto-char np)
-                  (insert " ")
-                  (incf np))) ; so we don't get stuck (e.g. on a panic stack dump)
-            (setq p np)))
-        (message nil))
-
-      (let ((w (display-buffer (current-buffer))))
-        (balance-windows)
-        (shrink-window-if-larger-than-buffer w)
-        (set-window-point w (point-min))))))
+(defun go-guru--compilation-markup ()
+  "Present guru output in the current buffer using `compilation-mode'."
+  (insert "\n")
+  (compilation-mode)
+  (setq compilation-error-screen-columns nil)
+  
+  ;; Hide the file/line info to save space.
+  ;; Replace each with a little widget.
+  ;; compilation-mode + this loop = slooow.
+  ;; TODO(adonovan): have guru give us JSON
+  ;; and we'll do the markup directly.
+  (let ((buffer-read-only nil)
+	(p 1))
+    (while (not (null p))
+      (let ((np (compilation-next-single-property-change p 'compilation-message)))
+	(if np
+	    (when (equal (line-number-at-pos p) (line-number-at-pos np))
+	      ;; Using a fixed width greatly improves readability, so
+	      ;; if the filename is longer than 20, show ".../last/17chars.go".
+	      ;; This usually includes the last segment of the package name.
+	      ;; Don't show the line or column number.
+	      (let* ((loc (buffer-substring p np)) ; "/home/foo/go/pkg/file.go:1:2-3:4"
+		     (i (search ":" loc)))
+		(setq loc (cond
+			   ((null i)  "...")
+			   ((>= i 17) (concat "..." (substring loc (- i 17) i)))
+			   (t         (substring loc 0 i))))
+		;; np is (typically) the space following ":"; consume it too.
+		(put-text-property p np 'display (concat loc ":")))
+	      (goto-char np)
+	      (insert " ")
+	      (incf np))) ; so we don't get stuck (e.g. on a panic stack dump)
+	(setq p np)))
+    (message nil))
+  
+  (let ((w (display-buffer (current-buffer))))
+    (shrink-window-if-larger-than-buffer w)
+    (set-window-point w (point-min))))
 
 (defun go-guru--insert-modified-files ()
   "Insert the contents of each modified Go buffer into the
@@ -179,6 +189,16 @@ current buffer in the format specified by guru's -modified flag."
 				   (buffer-size b)))
 		   (insert-buffer-substring b))))
 	(buffer-list)))
+
+(defun go-guru--goto-pos (posn)
+  "Find the file containing the position POSN (of the form `file:line:col')
+set the point to it, switching the current buffer."
+  (let ((file-line-pos (split-string posn ":")))
+    (find-file (car file-line-pos))
+    (goto-char (point-min))
+    ;; NB: go/token's column offsets are byte- not rune-based.
+    (forward-line (1- (string-to-number (cadr file-line-pos))))
+    (forward-char (1- (string-to-number (caddr file-line-pos))))))
 
 (defun go-guru-callees ()
   "Show possible callees of the function call at the current point."
@@ -202,9 +222,16 @@ function containing the current point."
   (go-guru--run "callstack" t))
 
 (defun go-guru-definition ()
-  "Show the definition of the selected identifier."
+  "Jump to the definition of the selected identifier."
   (interactive)
-  (go-guru--run "definition"))
+  ;; TODO(adonovan): use -format=sexpr when available to avoid a
+  ;; dependency and to simplify parsing.
+  (let* ((res (with-current-buffer (go-guru--exec "definition" nil '("-format=json"))
+	       (goto-char (point-min))
+	       (cdr (car (json-read)))))
+	 (desc (cdr (assoc 'desc res))))
+    (go-guru--goto-pos (cdr (assoc 'objpos res)))
+    (message "%s" desc)))
 
 (defun go-guru-describe ()
   "Describe the selected syntax, its kind, type and methods."
