@@ -569,7 +569,7 @@ The <a href="/pkg/debug/elf/"><code>debug/elf</code></a> package
 adds support for general compressed ELF sections.
 User code needs no updating: the sections are decompressed automatically when read.
 However, compressed
-<a href="/pkg/debug/elf/#Section"><code>Section</code></a>'s do not support random access:
+<a href="/pkg/debug/elf/#Section"><code>Sections</code></a> do not support random access:
 they have a nil <code>ReaderAt</code> field.
 </li>
 
