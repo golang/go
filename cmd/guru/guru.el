@@ -127,14 +127,21 @@ a scope if not already set.  Return the output buffer."
 	(message nil) ; clears/shrinks minibuffer
 	(message "Running guru...")
 	;; Use dynamic binding to modify/restore the environment
-	(let ((process-environment (list* goroot-env gopath-env process-environment)))
-	  (apply #'call-process-region (append (list (point-min)
-						     (point-max)
-						     go-guru-command
-						     nil ; delete
-						     output-buffer
-						     t)
-					       args)))))
+	(let* ((process-environment (list* goroot-env gopath-env process-environment))
+	       (c-p-args (append (list (point-min)
+				       (point-max)
+				       go-guru-command
+				       nil ; delete
+				       output-buffer
+				       t)
+				 args))
+	       (exitcode (apply #'call-process-region c-p-args)))
+	  ;; If the command fails, don't show the output buffer,
+	  ;; but use its contents (sans final \n) as an error.
+	  (unless (zerop exitcode)
+	    (with-current-buffer output-buffer
+	      (bury-buffer)
+	      (error "%s" (buffer-substring (point-min) (1- (point-max)))))))))
     output-buffer))
 
 (defun go-guru--compilation-markup ()
@@ -227,8 +234,8 @@ function containing the current point."
   ;; TODO(adonovan): use -format=sexpr when available to avoid a
   ;; dependency and to simplify parsing.
   (let* ((res (with-current-buffer (go-guru--exec "definition" nil '("-format=json"))
-	       (goto-char (point-min))
-	       (cdr (car (json-read)))))
+		(goto-char (point-min))
+		(cdr (car (json-read)))))
 	 (desc (cdr (assoc 'desc res))))
     (go-guru--goto-pos (cdr (assoc 'objpos res)))
     (message "%s" desc)))
