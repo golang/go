@@ -1069,7 +1069,8 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
 // Called at garbage collection time.
 // gp must be stopped, but the world need not be.
 func shrinkstack(gp *g) {
-	if readgstatus(gp) == _Gdead {
+	gstatus := readgstatus(gp)
+	if gstatus&^_Gscan == _Gdead {
 		if gp.stack.lo != 0 {
 			// Free whole stack - it will get reallocated
 			// if G is used again.
@@ -1083,6 +1084,9 @@ func shrinkstack(gp *g) {
 	}
 	if gp.stack.lo == 0 {
 		throw("missing stack in shrinkstack")
+	}
+	if gstatus&_Gscan == 0 {
+		throw("bad status in shrinkstack")
 	}
 
 	if debug.gcshrinkstackoff > 0 {
@@ -1119,9 +1123,7 @@ func shrinkstack(gp *g) {
 		print("shrinking stack ", oldsize, "->", newsize, "\n")
 	}
 
-	oldstatus := casgcopystack(gp)
 	copystack(gp, newsize, false)
-	casgstatus(gp, _Gcopystack, oldstatus)
 }
 
 // freeStackSpans frees unused stack spans at the end of GC.
