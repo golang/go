@@ -53,6 +53,11 @@ const debugNS = false
 // operate on a path beginning with old, replace that prefix (old) with new
 // and then pass that path to the FileSystem implementation fs.
 //
+// If you do not explicitly mount a FileSystem at the root mountpoint "/" of the
+// NameSpace like above, Stat("/") will return a "not found" error which could
+// break typical directory traversal routines. In such cases, use NewNameSpace()
+// to get a NameSpace pre-initialized with an emulated empty directory at root.
+//
 // Given this name space, a ReadDir of /src/pkg/code will check each prefix
 // of the path for a mount point (first /src/pkg/code, then /src/pkg, then /src,
 // then /), stopping when it finds one.  For the above example, /src/pkg/code
