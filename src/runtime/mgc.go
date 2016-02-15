@@ -755,11 +755,13 @@ var work struct {
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
 	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
 
-	// finalizersDone indicates that finalizers and objects with
-	// finalizers have been scanned by markroot. During concurrent
-	// GC, this happens during the concurrent scan phase. During
-	// STW GC, this happens during mark termination.
-	finalizersDone bool
+	// markrootDone indicates that roots have been marked at least
+	// once during the current GC cycle. This is checked by root
+	// marking operations that have to happen only during the
+	// first root marking pass, whether that's during the
+	// concurrent mark phase in current GC or mark termination in
+	// STW GC.
+	markrootDone bool
 
 	// Each type of GC state transition is protected by a lock.
 	// Since multiple threads can simultaneously detect the state
@@ -1112,9 +1114,8 @@ top:
 		// below. The important thing is that the wb remains active until
 		// all marking is complete. This includes writes made by the GC.
 
-		// markroot is done now, so record that objects with
-		// finalizers have been scanned.
-		work.finalizersDone = true
+		// Record that one root marking pass has completed.
+		work.markrootDone = true
 
 		// Disable assists and background workers. We must do
 		// this before waking blocked assists.
@@ -1573,9 +1574,8 @@ func gcMark(start_time int64) {
 		notesleep(&work.alldone)
 	}
 
-	// markroot is done now, so record that objects with
-	// finalizers have been scanned.
-	work.finalizersDone = true
+	// Record that at least one root marking pass has completed.
+	work.markrootDone = true
 
 	for i := 0; i < int(gomaxprocs); i++ {
 		if !allp[i].gcw.empty() {
@@ -1745,7 +1745,7 @@ func gcResetMarkState() {
 
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live
-	work.finalizersDone = false
+	work.markrootDone = false
 }
 
 // Hooks for other packages

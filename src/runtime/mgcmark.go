@@ -235,11 +235,11 @@ func markrootSpans(gcw *gcWork, shard int) {
 
 	// We process objects with finalizers only during the first
 	// markroot pass. In concurrent GC, this happens during
-	// concurrent scan and we depend on addfinalizer to ensure the
+	// concurrent mark and we depend on addfinalizer to ensure the
 	// above invariants for objects that get finalizers after
-	// concurrent scan. In STW GC, this will happen during mark
+	// concurrent mark. In STW GC, this will happen during mark
 	// termination.
-	if work.finalizersDone {
+	if work.markrootDone {
 		return
 	}
 
