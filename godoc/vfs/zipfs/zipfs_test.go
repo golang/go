@@ -150,6 +150,16 @@ func TestZipFSStatFuncs(t *testing.T) {
 	}
 }
 
+func TestZipFSNotExist(t *testing.T) {
+	_, err := fs.Open("/does-not-exist")
+	if err == nil {
+		t.Fatalf("Expected an error.\n")
+	}
+	if !os.IsNotExist(err) {
+		t.Errorf("Expected an error satisfying os.IsNotExist: %v\n", err)
+	}
+}
+
 func TestZipFSOpenSeek(t *testing.T) {
 	for _, test := range tests {
 		if test.IsRegular {

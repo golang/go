@@ -112,7 +112,7 @@ func (fs *zipFS) stat(abspath string) (int, zipFI, error) {
 	i, exact := fs.list.lookup(zippath)
 	if i < 0 {
 		// zippath has leading '/' stripped - print it explicitly
-		return -1, zipFI{}, fmt.Errorf("file not found: /%s", zippath)
+		return -1, zipFI{}, &os.PathError{Path: "/" + zippath, Err: os.ErrNotExist}
 	}
 	_, name := path.Split(zippath)
 	var file *zip.File
