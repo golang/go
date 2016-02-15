@@ -66,26 +66,11 @@ func parsePos(pos string) (filename string, startOffset, endOffset int, err erro
 	return
 }
 
-// findQueryPos searches fset for filename and translates the
-// specified file-relative byte offsets into token.Pos form.  It
-// returns an error if the file was not found or the offsets were out
-// of bounds.
+// fileOffsetToPos translates the specified file-relative byte offsets
+// into token.Pos form.  It returns an error if the file was not found
+// or the offsets were out of bounds.
 //
-func findQueryPos(fset *token.FileSet, filename string, startOffset, endOffset int) (start, end token.Pos, err error) {
-	var file *token.File
-	fset.Iterate(func(f *token.File) bool {
-		if sameFile(filename, f.Name()) {
-			// (f.Name() is absolute)
-			file = f
-			return false // done
-		}
-		return true // continue
-	})
-	if file == nil {
-		err = fmt.Errorf("couldn't find file containing position")
-		return
-	}
-
+func fileOffsetToPos(file *token.File, startOffset, endOffset int) (start, end token.Pos, err error) {
 	// Range check [start..end], inclusive of both end-points.
 
 	if 0 <= startOffset && startOffset <= file.Size() {
@@ -119,8 +104,8 @@ func sameFile(x, y string) bool {
 	return false
 }
 
-// fastQueryPos parses the position string and returns a QueryPos.
-// It parses only a single file, and does not run the type checker.
+// fastQueryPos parses the position string and returns a queryPos.
+// It parses only a single file and does not run the type checker.
 func fastQueryPos(pos string) (*queryPos, error) {
 	filename, startOffset, endOffset, err := parsePos(pos)
 	if err != nil {
@@ -133,7 +118,7 @@ func fastQueryPos(pos string) (*queryPos, error) {
 		return nil, err
 	}
 
-	start, end, err := findQueryPos(fset, filename, startOffset, endOffset)
+	start, end, err := fileOffsetToPos(fset.File(f.Pos()), startOffset, endOffset)
 	if err != nil {
 		return nil, err
 	}

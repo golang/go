@@ -252,7 +252,21 @@ func parseQueryPos(lprog *loader.Program, pos string, needExact bool) (*queryPos
 	if err != nil {
 		return nil, err
 	}
-	start, end, err := findQueryPos(lprog.Fset, filename, startOffset, endOffset)
+
+	// Find the named file among those in the loaded program.
+	var file *token.File
+	lprog.Fset.Iterate(func(f *token.File) bool {
+		if sameFile(filename, f.Name()) {
+			file = f
+			return false // done
+		}
+		return true // continue
+	})
+	if file == nil {
+		return nil, fmt.Errorf("file %s not found in loaded program", filename)
+	}
+
+	start, end, err := fileOffsetToPos(file, startOffset, endOffset)
 	if err != nil {
 		return nil, err
 	}

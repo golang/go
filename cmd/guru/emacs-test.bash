@@ -35,6 +35,7 @@ emacs --batch --no-splash --no-window-system --no-init \
 (progn
   (princ (emacs-version)) ; requires Emacs v23
   (find-file "'$thisdir'/main.go")
+  (insert "// modify but do not save the editor buffer\n")
   (search-forward "\"fmt\"")
   (backward-char)
   (go-guru-describe)

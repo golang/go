@@ -86,11 +86,6 @@ a scope if not already set.  Process the output to replace each
 file name with a small hyperlink.  Display the result."
   (if (not buffer-file-name)
       (error "Cannot use guru on a buffer without a file name"))
-  ;; It's not sufficient to save a modified buffer since if
-  ;; gofmt-before-save is on the before-save-hook, saving will
-  ;; disturb the selected region.
-  (if (buffer-modified-p)
-      (error "Please save the buffer before invoking go-guru"))
   (and need-scope
        (string-equal "" go-guru-scope)
        (go-guru-set-scope))
@@ -105,21 +100,34 @@ file name with a small hyperlink.  Display the result."
 			 (1- (position-bytes (point))))))
          (env-vars (go-root-and-paths))
          (goroot-env (concat "GOROOT=" (car env-vars)))
-         (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":"))))
-    (with-current-buffer (get-buffer-create "*go-guru*")
+         (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":")))
+	 (output-buffer (get-buffer-create "*go-guru*")))
+    (with-current-buffer output-buffer
       (setq buffer-read-only nil)
       (erase-buffer)
-      (insert "Go Guru\n")
-      (let ((args (list go-guru-command nil t nil
-			"-scope" go-guru-scope mode posn)))
-        ;; Log the command to *Messages*, for debugging.
-        (message "Command: %s:" args)
-        (message nil) ; clears/shrinks minibuffer
-
-        (message "Running guru...")
-        ;; Use dynamic binding to modify/restore the environment
-        (let ((process-environment (list* goroot-env gopath-env process-environment)))
-            (apply #'call-process args)))
+      (insert "Go Guru\n"))
+    (with-current-buffer (get-buffer-create "*go-guru-input*")
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (go-guru--insert-modified-files)
+      (let* ((args (list "-modified"
+			 "-scope" go-guru-scope
+			 mode
+			 posn)))
+	;; Log the command to *Messages*, for debugging.
+	(message "Command: %s:" args)
+	(message nil) ; clears/shrinks minibuffer
+	(message "Running guru...")
+	;; Use dynamic binding to modify/restore the environment
+	(let ((process-environment (list* goroot-env gopath-env process-environment)))
+	  (apply #'call-process-region (append (list (point-min)
+						     (point-max)
+						     go-guru-command
+						     nil ; delete
+						     output-buffer
+						     t)
+					       args)))))
+    (with-current-buffer output-buffer
       (insert "\n")
       (compilation-mode)
       (setq compilation-error-screen-columns nil)
@@ -157,6 +165,20 @@ file name with a small hyperlink.  Display the result."
         (balance-windows)
         (shrink-window-if-larger-than-buffer w)
         (set-window-point w (point-min))))))
+
+(defun go-guru--insert-modified-files ()
+  "Insert the contents of each modified Go buffer into the
+current buffer in the format specified by guru's -modified flag."
+  (mapc #'(lambda (b)
+	    (and (buffer-modified-p b)
+		 (buffer-file-name b)
+		 (string= (file-name-extension (buffer-file-name b)) "go")
+		 (progn
+		   (insert (format "%s\n%d\n"
+				   (buffer-file-name b)
+				   (buffer-size b)))
+		   (insert-buffer-substring b))))
+	(buffer-list)))
 
 (defun go-guru-callees ()
   "Show possible callees of the function call at the current point."

@@ -8,12 +8,14 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/token"
 	"go/types"
-	"io/ioutil"
+	"io"
 	"sort"
 
 	"golang.org/x/tools/cmd/guru/serial"
+	"golang.org/x/tools/go/buildutil"
 	"golang.org/x/tools/go/loader"
 	"golang.org/x/tools/refactor/importgraph"
 )
@@ -108,6 +110,7 @@ func referrers(q *Query) error {
 	sort.Sort(byNamePos{q.Fset, refs})
 
 	q.result = &referrersResult{
+		build: q.Build,
 		qpos:  qpos,
 		query: id,
 		obj:   obj,
@@ -156,6 +159,7 @@ func (p byNamePos) Less(i, j int) bool {
 }
 
 type referrersResult struct {
+	build *build.Context
 	qpos  *queryPos
 	query *ast.Ident   // identifier of query
 	obj   types.Object // object it denotes
@@ -188,7 +192,7 @@ func (r *referrersResult) display(printf printfFunc) {
 			// start asynchronous read.
 			go func() {
 				sema <- struct{}{} // acquire token
-				content, err := ioutil.ReadFile(posn.Filename)
+				content, err := readFile(r.build, posn.Filename)
 				<-sema // release token
 				if err != nil {
 					fi.data <- err
@@ -222,6 +226,21 @@ func (r *referrersResult) display(printf printfFunc) {
 			printf(ref, "%s", lines[fi.linenums[i]-1])
 		}
 	}
+}
+
+// readFile is like ioutil.ReadFile, but
+// it goes through the virtualized build.Context.
+func readFile(ctxt *build.Context, filename string) ([]byte, error) {
+	rc, err := buildutil.OpenFile(ctxt, filename)
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, rc); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // TODO(adonovan): encode extent, not just Pos info, in Serial form.
