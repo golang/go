@@ -189,15 +189,9 @@ func importQueryPackage(pos string, conf *loader.Config) (string, error) {
 	}
 	filename := fqpos.fset.File(fqpos.start).Name()
 
-	// This will not work for ad-hoc packages
-	// such as $GOROOT/src/net/http/triv.go.
-	// TODO(adonovan): ensure we report a clear error.
 	_, importPath, err := guessImportPath(filename, conf.Build)
 	if err != nil {
 		return "", err // can't find GOPATH dir
-	}
-	if importPath == "" {
-		return "", fmt.Errorf("can't guess import path from %s", filename)
 	}
 
 	// Check that it's possible to load the queried package.
@@ -219,6 +213,8 @@ func importQueryPackage(pos string, conf *loader.Config) (string, error) {
 	case 'G':
 		conf.Import(importPath)
 	default:
+		// This happens for ad-hoc packages like
+		// $GOROOT/src/net/http/triv.go.
 		return "", fmt.Errorf("package %q doesn't contain file %s",
 			importPath, filename)
 	}

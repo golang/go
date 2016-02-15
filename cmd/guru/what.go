@@ -152,10 +152,15 @@ func guessImportPath(filename string, buildContext *build.Context) (srcdir, impo
 		}
 	}
 	if srcdir == "" {
-		err = fmt.Errorf("directory %s is not beneath any of these GOROOT/GOPATH directories: %s",
+		return "", "", fmt.Errorf("directory %s is not beneath any of these GOROOT/GOPATH directories: %s",
 			filepath.Dir(absFile), strings.Join(buildContext.SrcDirs(), ", "))
 	}
-	return
+	if importPath == "" {
+		// This happens for e.g. $GOPATH/src/a.go, but
+		// "" is not a valid path for (*go/build).Import.
+		return "", "", fmt.Errorf("cannot load package in root of source directory %s", srcdir)
+	}
+	return srcdir, importPath, nil
 }
 
 func segments(path string) []string {

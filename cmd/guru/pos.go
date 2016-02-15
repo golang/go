@@ -114,7 +114,9 @@ func fastQueryPos(pos string) (*queryPos, error) {
 
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, nil, 0)
-	if err != nil {
+	// ParseFile usually returns a partial file along with an error.
+	// Only fail if there is no file.
+	if f == nil {
 		return nil, err
 	}
 

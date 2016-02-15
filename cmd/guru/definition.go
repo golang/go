@@ -8,18 +8,39 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"go/types"
 
 	"golang.org/x/tools/cmd/guru/serial"
 	"golang.org/x/tools/go/loader"
 )
 
 // definition reports the location of the definition of an identifier.
-//
-// TODO(adonovan): opt: for intra-file references, the parser's
-// resolution might be enough; we should start with that.
-//
 func definition(q *Query) error {
+	// First try the simple resolution done by parser.
+	// It only works for intra-file references but it is very fast.
+	// (Extending this approach to all the files of the package,
+	// resolved using ast.NewPackage, was not worth the effort.)
+	{
+		qpos, err := fastQueryPos(q.Pos)
+		if err != nil {
+			return err
+		}
+
+		id, _ := qpos.path[0].(*ast.Ident)
+		if id == nil {
+			return fmt.Errorf("no identifier here")
+		}
+
+		if obj := id.Obj; obj != nil && obj.Pos().IsValid() {
+			q.Fset = qpos.fset
+			q.result = &definitionResult{
+				pos:   obj.Pos(),
+				descr: fmt.Sprintf("%s %s", obj.Kind, obj.Name),
+			}
+			return nil // success
+		}
+	}
+
+	// Run the type checker.
 	lconf := loader.Config{Build: q.Build}
 	allowErrors(&lconf)
 
@@ -52,25 +73,30 @@ func definition(q *Query) error {
 		return fmt.Errorf("no object for identifier")
 	}
 
-	q.result = &definitionResult{qpos, obj}
+	if !obj.Pos().IsValid() {
+		return fmt.Errorf("%s is built in", obj.Name())
+	}
+
+	q.result = &definitionResult{
+		pos:   obj.Pos(),
+		descr: qpos.objectString(obj),
+	}
 	return nil
 }
 
 type definitionResult struct {
-	qpos *queryPos
-	obj  types.Object // object it denotes
+	pos   token.Pos // (nonzero) location of definition
+	descr string    // description of object it denotes
 }
 
 func (r *definitionResult) display(printf printfFunc) {
-	printf(r.obj, "defined here as %s", r.qpos.objectString(r.obj))
+	printf(r.pos, "defined here as %s", r.descr)
 }
 
 func (r *definitionResult) toSerial(res *serial.Result, fset *token.FileSet) {
 	definition := &serial.Definition{
-		Desc: r.obj.String(),
-	}
-	if pos := r.obj.Pos(); pos != token.NoPos { // Package objects have no Pos()
-		definition.ObjPos = fset.Position(pos).String()
+		Desc:   r.descr,
+		ObjPos: fset.Position(r.pos).String(),
 	}
 	res.Definition = definition
 }

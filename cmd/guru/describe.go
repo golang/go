@@ -279,14 +279,12 @@ func findInterestingNode(pkginfo *loader.PackageInfo, path []ast.Node) ([]ast.No
 				return path, actionPackage
 
 			case *ast.ImportSpec:
-				// TODO(adonovan): fix: why no package object? go/types bug?
 				return path[1:], actionPackage
 
 			default:
 				// e.g. blank identifier
 				// or y in "switch y := x.(type)"
 				// or code in a _test.go file that's not part of the package.
-				log.Printf("unknown reference %s in %T\n", n, path[1])
 				return path, actionUnknown
 			}
 
