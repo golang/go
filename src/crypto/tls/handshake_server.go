@@ -246,7 +246,7 @@ Curves:
 		return false, errors.New("tls: no cipher suite supported by both client and server")
 	}
 
-	// See https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00.
+	// See https://tools.ietf.org/html/rfc7507.
 	for _, id := range hs.clientHello.cipherSuites {
 		if id == TLS_FALLBACK_SCSV {
 			// The client is doing a fallback connection.

@@ -286,6 +286,6 @@ const (
 
 	// TLS_FALLBACK_SCSV isn't a standard cipher suite but an indicator
 	// that the client is doing version fallback. See
-	// https://tools.ietf.org/html/draft-ietf-tls-downgrade-scsv-00.
+	// https://tools.ietf.org/html/rfc7507.
 	TLS_FALLBACK_SCSV uint16 = 0x5600
 )
