@@ -748,28 +748,26 @@ func copystack(gp *g, newsize uintptr) {
 		print("copystack gp=", gp, " [", hex(old.lo), " ", hex(old.hi-used), " ", hex(old.hi), "]/", gp.stackAlloc, " -> [", hex(new.lo), " ", hex(new.hi-used), " ", hex(new.hi), "]/", newsize, "\n")
 	}
 
+	// Compute adjustment.
+	var adjinfo adjustinfo
+	adjinfo.old = old
+	adjinfo.delta = new.hi - old.hi
+
+	// copy the stack to the new location
+	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
+
 	// Disallow sigprof scans of this stack and block if there's
 	// one in progress.
 	gcLockStackBarriers(gp)
 
-	// adjust pointers in the to-be-copied frames
-	var adjinfo adjustinfo
-	adjinfo.old = old
-	adjinfo.delta = new.hi - old.hi
-	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
-
-	// adjust other miscellaneous things that have pointers into stacks.
+	// Adjust structures that have pointers into stacks. We have
+	// to do most of these before we traceback the new stack
+	// because gentraceback uses them.
 	adjustctxt(gp, &adjinfo)
 	adjustdefers(gp, &adjinfo)
 	adjustpanics(gp, &adjinfo)
 	adjustsudogs(gp, &adjinfo)
 	adjuststkbar(gp, &adjinfo)
-
-	// copy the stack to the new location
-	if stackPoisonCopy != 0 {
-		fillstack(new, 0xfb)
-	}
-	memmove(unsafe.Pointer(new.hi-used), unsafe.Pointer(old.hi-used), used)
 
 	// copy old stack barriers to new stack barrier array
 	newstkbar = newstkbar[:len(gp.stkbar)]
@@ -783,6 +781,9 @@ func copystack(gp *g, newsize uintptr) {
 	gp.stackAlloc = newsize
 	gp.stkbar = newstkbar
 	gp.stktopsp += adjinfo.delta
+
+	// Adjust pointers in the new stack.
+	gentraceback(^uintptr(0), ^uintptr(0), 0, gp, 0, nil, 0x7fffffff, adjustframe, noescape(unsafe.Pointer(&adjinfo)), 0)
 
 	gcUnlockStackBarriers(gp)
 
