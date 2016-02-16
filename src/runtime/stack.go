@@ -191,8 +191,8 @@ func stackpoolalloc(order uint8) gclinkptr {
 		if s == nil {
 			throw("out of memory")
 		}
-		if s.ref != 0 {
-			throw("bad ref")
+		if s.allocCount != 0 {
+			throw("bad allocCount")
 		}
 		if s.stackfreelist.ptr() != nil {
 			throw("bad stackfreelist")
@@ -209,7 +209,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 		throw("span has no free stacks")
 	}
 	s.stackfreelist = x.ptr().next
-	s.ref++
+	s.allocCount++
 	if s.stackfreelist.ptr() == nil {
 		// all stacks in s are allocated.
 		list.remove(s)
@@ -229,8 +229,8 @@ func stackpoolfree(x gclinkptr, order uint8) {
 	}
 	x.ptr().next = s.stackfreelist
 	s.stackfreelist = x
-	s.ref--
-	if gcphase == _GCoff && s.ref == 0 {
+	s.allocCount--
+	if gcphase == _GCoff && s.allocCount == 0 {
 		// Span is completely free. Return it to the heap
 		// immediately if we're sweeping.
 		//
@@ -1135,7 +1135,7 @@ func freeStackSpans() {
 		list := &stackpool[order]
 		for s := list.first; s != nil; {
 			next := s.next
-			if s.ref == 0 {
+			if s.allocCount == 0 {
 				list.remove(s)
 				s.stackfreelist = 0
 				mheap_.freeStack(s)
