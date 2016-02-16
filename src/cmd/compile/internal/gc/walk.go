@@ -677,7 +677,7 @@ opswitch:
 
 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
 			switch Thearch.Thechar {
-			case '5', '6', '7':
+			case '5', '6', '7', '9':
 				n.Op = OSQRT
 				n.Left = n.List.First()
 				n.List.Set(nil)

@@ -632,7 +632,8 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		ppc64.AFMOVD,
 		ppc64.AFRSP,
 		ppc64.AFNEG,
-		ppc64.AFNEGCC:
+		ppc64.AFNEGCC,
+		ppc64.AFSQRT:
 		if s != nil {
 			if copysub(&p.From, v, s, true) {
 				return 1
