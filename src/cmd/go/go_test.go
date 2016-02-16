@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/build"
 	"go/format"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -69,7 +70,11 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if canRun {
-		out, err := exec.Command("go", "build", "-tags", "testgo", "-o", "testgo"+exeSuffix).CombinedOutput()
+		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
+		if race.Enabled {
+			args = append(args, "-race")
+		}
+		out, err := exec.Command("go", args...).CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)
@@ -2734,4 +2739,23 @@ func TestIssue13655(t *testing.T) {
 		tg.run("list", "-f", "{{.Deps}}", pkg)
 		tg.grepStdout("runtime/internal/sys", "did not find required dependency of "+pkg+" on runtime/internal/sys")
 	}
+}
+
+// For issue 14337.
+func TestParallelTest(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	const testSrc = `package package_test
+		import (
+			"testing"
+		)
+		func TestTest(t *testing.T) {
+		}`
+	tg.tempFile("src/p1/p1_test.go", strings.Replace(testSrc, "package_test", "p1_test", 1))
+	tg.tempFile("src/p2/p2_test.go", strings.Replace(testSrc, "package_test", "p2_test", 1))
+	tg.tempFile("src/p3/p3_test.go", strings.Replace(testSrc, "package_test", "p3_test", 1))
+	tg.tempFile("src/p4/p4_test.go", strings.Replace(testSrc, "package_test", "p4_test", 1))
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
 }
