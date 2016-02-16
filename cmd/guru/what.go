@@ -110,11 +110,32 @@ func what(q *Query) error {
 	}
 	sort.Strings(modes)
 
+	// Find the object referred to by the selection (if it's an
+	// identifier) and report the position of each identifier
+	// that refers to the same object.
+	//
+	// This may return spurious matches (e.g. struct fields) because
+	// it uses the best-effort name resolution done by go/parser.
+	var sameids []token.Pos
+	var object string
+	if id, ok := qpos.path[0].(*ast.Ident); ok && id.Obj != nil {
+		object = id.Obj.Name
+		decl := qpos.path[len(qpos.path)-1]
+		ast.Inspect(decl, func(n ast.Node) bool {
+			if n, ok := n.(*ast.Ident); ok && n.Obj == id.Obj {
+				sameids = append(sameids, n.Pos())
+			}
+			return true
+		})
+	}
+
 	q.result = &whatResult{
 		path:       qpos.path,
 		srcdir:     srcdir,
 		importPath: importPath,
 		modes:      modes,
+		object:     object,
+		sameids:    sameids,
 	}
 	return nil
 }
@@ -186,6 +207,8 @@ type whatResult struct {
 	modes      []string
 	srcdir     string
 	importPath string
+	object     string
+	sameids    []token.Pos
 }
 
 func (r *whatResult) display(printf printfFunc) {
@@ -195,6 +218,9 @@ func (r *whatResult) display(printf printfFunc) {
 	printf(nil, "modes: %s", r.modes)
 	printf(nil, "srcdir: %s", r.srcdir)
 	printf(nil, "import path: %s", r.importPath)
+	for _, pos := range r.sameids {
+		printf(pos, "%s", r.object)
+	}
 }
 
 func (r *whatResult) toSerial(res *serial.Result, fset *token.FileSet) {
@@ -206,10 +232,18 @@ func (r *whatResult) toSerial(res *serial.Result, fset *token.FileSet) {
 			End:         fset.Position(n.End()).Offset,
 		})
 	}
+
+	var sameids []string
+	for _, pos := range r.sameids {
+		sameids = append(sameids, fset.Position(pos).String())
+	}
+
 	res.What = &serial.What{
 		Modes:      r.modes,
 		SrcDir:     r.srcdir,
 		ImportPath: r.importPath,
 		Enclosing:  enclosing,
+		Object:     r.object,
+		SameIDs:    sameids,
 	}
 }

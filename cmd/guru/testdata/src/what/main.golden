@@ -36,4 +36,6 @@ source file
 modes: [callers callstack definition describe freevars implements peers pointsto referrers]
 srcdir: testdata/src
 import path: what
+ch
+ch
 

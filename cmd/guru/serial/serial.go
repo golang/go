@@ -130,6 +130,8 @@ type What struct {
 	Modes      []string     `json:"modes"`                // query modes enabled for this selection.
 	SrcDir     string       `json:"srcdir,omitempty"`     // $GOROOT src directory containing queried package
 	ImportPath string       `json:"importpath,omitempty"` // import path of queried package
+	Object     string       `json:"object,omitempty"`     // name of identified object, if any
+	SameIDs    []string     `json:"sameids,omitempty"`    // locations of references to same object
 }
 
 // A PointsToLabel describes a pointer analysis label.
