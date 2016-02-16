@@ -27,7 +27,7 @@ type hselect struct {
 	tcase     uint16   // total count of scase[]
 	ncase     uint16   // currently filled scase[]
 	pollorder *uint16  // case poll order
-	lockorder **hchan  // channel lock order
+	lockorder *uint16  // channel lock order
 	scase     [1]scase // one per case (in order of appearance)
 }
 
@@ -64,7 +64,7 @@ func newselect(sel *hselect, selsize int64, size int32) {
 	}
 	sel.tcase = uint16(size)
 	sel.ncase = 0
-	sel.lockorder = (**hchan)(add(unsafe.Pointer(&sel.scase), uintptr(size)*unsafe.Sizeof(hselect{}.scase[0])))
+	sel.lockorder = (*uint16)(add(unsafe.Pointer(&sel.scase), uintptr(size)*unsafe.Sizeof(hselect{}.scase[0])))
 	sel.pollorder = (*uint16)(add(unsafe.Pointer(sel.lockorder), uintptr(size)*unsafe.Sizeof(*hselect{}.lockorder)))
 
 	if debugSelect {
@@ -161,11 +161,10 @@ func selectdefaultImpl(sel *hselect, callerpc uintptr, so uintptr) {
 	}
 }
 
-func sellock(sel *hselect) {
-	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
-	lockorder := *(*[]*hchan)(unsafe.Pointer(&lockslice))
+func sellock(scases []scase, lockorder []uint16) {
 	var c *hchan
-	for _, c0 := range lockorder {
+	for _, o := range lockorder {
+		c0 := scases[o].c
 		if c0 != nil && c0 != c {
 			c = c0
 			lock(&c.lock)
@@ -173,7 +172,7 @@ func sellock(sel *hselect) {
 	}
 }
 
-func selunlock(sel *hselect) {
+func selunlock(scases []scase, lockorder []uint16) {
 	// We must be very careful here to not touch sel after we have unlocked
 	// the last lock, because sel can be freed right after the last unlock.
 	// Consider the following situation.
@@ -182,25 +181,28 @@ func selunlock(sel *hselect) {
 	// the G that calls select runnable again and schedules it for execution.
 	// When the G runs on another M, it locks all the locks and frees sel.
 	// Now if the first M touches sel, it will access freed memory.
-	n := int(sel.ncase)
+	n := len(scases)
 	r := 0
-	lockslice := slice{unsafe.Pointer(sel.lockorder), n, n}
-	lockorder := *(*[]*hchan)(unsafe.Pointer(&lockslice))
 	// skip the default case
-	if n > 0 && lockorder[0] == nil {
+	if n > 0 && scases[lockorder[0]].c == nil {
 		r = 1
 	}
 	for i := n - 1; i >= r; i-- {
-		c := lockorder[i]
-		if i > 0 && c == lockorder[i-1] {
+		c := scases[lockorder[i]].c
+		if i > 0 && c == scases[lockorder[i-1]].c {
 			continue // will unlock it on the next iteration
 		}
 		unlock(&c.lock)
 	}
 }
 
-func selparkcommit(gp *g, sel unsafe.Pointer) bool {
-	selunlock((*hselect)(sel))
+func selparkcommit(gp *g, usel unsafe.Pointer) bool {
+	sel := (*hselect)(usel)
+	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
+	scases := *(*[]scase)(unsafe.Pointer(&scaseslice))
+	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
+	lockorder := *(*[]uint16)(unsafe.Pointer(&lockslice))
+	selunlock(scases, lockorder)
 	return true
 }
 
@@ -262,19 +264,21 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 	// sort the cases by Hchan address to get the locking order.
 	// simple heap sort, to guarantee n log n time and constant stack footprint.
 	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
-	lockorder := *(*[]*hchan)(unsafe.Pointer(&lockslice))
+	lockorder := *(*[]uint16)(unsafe.Pointer(&lockslice))
 	for i := 0; i < int(sel.ncase); i++ {
 		j := i
-		c := scases[j].c
-		for j > 0 && lockorder[(j-1)/2].sortkey() < c.sortkey() {
+		// Start with the pollorder to permute cases on the same channel.
+		c := scases[pollorder[i]].c
+		for j > 0 && scases[lockorder[(j-1)/2]].c.sortkey() < c.sortkey() {
 			k := (j - 1) / 2
 			lockorder[j] = lockorder[k]
 			j = k
 		}
-		lockorder[j] = c
+		lockorder[j] = pollorder[i]
 	}
 	for i := int(sel.ncase) - 1; i >= 0; i-- {
-		c := lockorder[i]
+		o := lockorder[i]
+		c := scases[o].c
 		lockorder[i] = lockorder[0]
 		j := 0
 		for {
@@ -282,21 +286,21 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 			if k >= i {
 				break
 			}
-			if k+1 < i && lockorder[k].sortkey() < lockorder[k+1].sortkey() {
+			if k+1 < i && scases[lockorder[k]].c.sortkey() < scases[lockorder[k+1]].c.sortkey() {
 				k++
 			}
-			if c.sortkey() < lockorder[k].sortkey() {
+			if c.sortkey() < scases[lockorder[k]].c.sortkey() {
 				lockorder[j] = lockorder[k]
 				j = k
 				continue
 			}
 			break
 		}
-		lockorder[j] = c
+		lockorder[j] = o
 	}
 	/*
 		for i := 0; i+1 < int(sel.ncase); i++ {
-			if lockorder[i].sortkey() > lockorder[i+1].sortkey() {
+			if scases[lockorder[i]].c.sortkey() > scases[lockorder[i+1]].c.sortkey() {
 				print("i=", i, " x=", lockorder[i], " y=", lockorder[i+1], "\n")
 				throw("select: broken sort")
 			}
@@ -304,7 +308,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 	*/
 
 	// lock all the channels involved in the select
-	sellock(sel)
+	sellock(scases, lockorder)
 
 	var (
 		gp     *g
@@ -359,7 +363,7 @@ loop:
 	}
 
 	if dfl != nil {
-		selunlock(sel)
+		selunlock(scases, lockorder)
 		cas = dfl
 		goto retc
 	}
@@ -402,7 +406,7 @@ loop:
 	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
 
 	// someone woke us up
-	sellock(sel)
+	sellock(scases, lockorder)
 	sg = (*sudog)(gp.param)
 	gp.param = nil
 
@@ -475,7 +479,7 @@ loop:
 		}
 	}
 
-	selunlock(sel)
+	selunlock(scases, lockorder)
 	goto retc
 
 bufrecv:
@@ -503,7 +507,7 @@ bufrecv:
 		c.recvx = 0
 	}
 	c.qcount--
-	selunlock(sel)
+	selunlock(scases, lockorder)
 	goto retc
 
 bufsend:
@@ -522,12 +526,12 @@ bufsend:
 		c.sendx = 0
 	}
 	c.qcount++
-	selunlock(sel)
+	selunlock(scases, lockorder)
 	goto retc
 
 recv:
 	// can receive from sleeping sender (sg)
-	recv(c, sg, cas.elem, func() { selunlock(sel) })
+	recv(c, sg, cas.elem, func() { selunlock(scases, lockorder) })
 	if debugSelect {
 		print("syncrecv: sel=", sel, " c=", c, "\n")
 	}
@@ -538,7 +542,7 @@ recv:
 
 rclose:
 	// read at end of closed channel
-	selunlock(sel)
+	selunlock(scases, lockorder)
 	if cas.receivedp != nil {
 		*cas.receivedp = false
 	}
@@ -558,7 +562,7 @@ send:
 	if msanenabled {
 		msanread(cas.elem, c.elemtype.size)
 	}
-	send(c, sg, cas.elem, func() { selunlock(sel) })
+	send(c, sg, cas.elem, func() { selunlock(scases, lockorder) })
 	if debugSelect {
 		print("syncsend: sel=", sel, " c=", c, "\n")
 	}
@@ -572,7 +576,7 @@ retc:
 
 sclose:
 	// send on closed channel
-	selunlock(sel)
+	selunlock(scases, lockorder)
 	panic("send on closed channel")
 }
 
