@@ -319,6 +319,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 		sglist *sudog
 		sgnext *sudog
 		qp     unsafe.Pointer
+		nextp  **sudog
 	)
 
 loop:
@@ -374,8 +375,9 @@ loop:
 	if gp.waiting != nil {
 		throw("gp.waiting != nil")
 	}
-	for i := 0; i < int(sel.ncase); i++ {
-		cas = &scases[pollorder[i]]
+	nextp = &gp.waiting
+	for _, casei := range lockorder {
+		cas = &scases[casei]
 		c = cas.c
 		sg := acquireSudog()
 		sg.g = gp
@@ -388,9 +390,10 @@ loop:
 		if t0 != 0 {
 			sg.releasetime = -1
 		}
-		sg.waitlink = gp.waiting
 		sg.c = c
-		gp.waiting = sg
+		// Construct waiting list in lock order.
+		*nextp = sg
+		nextp = &sg.waitlink
 
 		switch cas.kind {
 		case caseRecv:
@@ -413,8 +416,7 @@ loop:
 	// pass 3 - dequeue from unsuccessful chans
 	// otherwise they stack up on quiet channels
 	// record the successful case, if any.
-	// We singly-linked up the SudoGs in case order, so when
-	// iterating through the linked list they are in reverse order.
+	// We singly-linked up the SudoGs in lock order.
 	cas = nil
 	sglist = gp.waiting
 	// Clear all elem before unlinking from gp.waiting.
@@ -424,8 +426,9 @@ loop:
 		sg1.c = nil
 	}
 	gp.waiting = nil
-	for i := int(sel.ncase) - 1; i >= 0; i-- {
-		k = &scases[pollorder[i]]
+
+	for _, casei := range lockorder {
+		k = &scases[casei]
 		if sglist.releasetime > 0 {
 			k.releasetime = sglist.releasetime
 		}
