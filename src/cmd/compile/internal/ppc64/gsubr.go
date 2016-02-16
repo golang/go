@@ -706,6 +706,7 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 		OCMP_   = uint32(gc.OCMP) << 16
 		OAS_    = uint32(gc.OAS) << 16
 		OHMUL_  = uint32(gc.OHMUL) << 16
+		OSQRT_  = uint32(gc.OSQRT) << 16
 	)
 
 	a := obj.AXXX
@@ -1028,6 +1029,9 @@ func optoas(op gc.Op, t *gc.Type) obj.As {
 
 	case ODIV_ | gc.TFLOAT64:
 		a = ppc64.AFDIV
+
+	case OSQRT_ | gc.TFLOAT64:
+		a = ppc64.AFSQRT
 	}
 
 	return a

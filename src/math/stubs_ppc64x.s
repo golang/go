@@ -84,8 +84,5 @@ TEXT ·Sin(SB),NOSPLIT,$0
 TEXT ·Cos(SB),NOSPLIT,$0
 	BR ·cos(SB)
 
-TEXT ·Sqrt(SB),NOSPLIT,$0
-	BR ·sqrt(SB)
-
 TEXT ·Tan(SB),NOSPLIT,$0
 	BR ·tan(SB)
