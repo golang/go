@@ -100,11 +100,11 @@ retry:
 	// c is unlocked.
 havespan:
 	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.ref)
+	n := cap - int32(s.allocCount)
 	if n == 0 {
-		throw("empty span")
+		throw("span has no free objects")
 	}
-	usedBytes := uintptr(s.ref) * s.elemsize
+	usedBytes := uintptr(s.allocCount) * s.elemsize
 	if usedBytes > 0 {
 		reimburseSweepCredit(usedBytes)
 	}
@@ -127,12 +127,12 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 
 	s.incache = false
 
-	if s.ref == 0 {
-		throw("uncaching full span")
+	if s.allocCount == 0 {
+		throw("uncaching span but s.allocCount == 0")
 	}
 
 	cap := int32((s.npages << _PageShift) / s.elemsize)
-	n := cap - int32(s.ref)
+	n := cap - int32(s.allocCount)
 	if n > 0 {
 		c.empty.remove(s)
 		c.nonempty.insert(s)
@@ -154,7 +154,7 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
 		throw("freeSpan given cached span")
 	}
 
-	s.ref -= uint16(n)
+	s.allocCount -= uint16(n)
 
 	if preserve {
 		// preserve is set only when called from MCentral_CacheSpan above,
@@ -180,7 +180,7 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
 	// lock of c above.)
 	atomic.Store(&s.sweepgen, mheap_.sweepgen)
 
-	if s.ref != 0 {
+	if s.allocCount != 0 {
 		unlock(&c.lock)
 		return false
 	}

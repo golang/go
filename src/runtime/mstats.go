@@ -295,9 +295,9 @@ func updatememstats(stats *gcstats) {
 			memstats.nmalloc++
 			memstats.alloc += uint64(s.elemsize)
 		} else {
-			memstats.nmalloc += uint64(s.ref)
-			memstats.by_size[s.sizeclass].nmalloc += uint64(s.ref)
-			memstats.alloc += uint64(s.ref) * uint64(s.elemsize)
+			memstats.nmalloc += uint64(s.allocCount)
+			memstats.by_size[s.sizeclass].nmalloc += uint64(s.allocCount)
+			memstats.alloc += uint64(s.allocCount) * uint64(s.elemsize)
 		}
 	}
 	unlock(&mheap_.lock)

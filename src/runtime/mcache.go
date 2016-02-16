@@ -109,7 +109,7 @@ func (c *mcache) refill(sizeclass int32) *mspan {
 	// Return the current cached span to the central lists.
 	s := c.alloc[sizeclass]
 
-	if uintptr(s.ref) != s.nelems {
+	if uintptr(s.allocCount) != s.nelems {
 		throw("refill of span with free space remaining")
 	}
 
@@ -123,7 +123,7 @@ func (c *mcache) refill(sizeclass int32) *mspan {
 		throw("out of memory")
 	}
 
-	if uintptr(s.ref) == s.nelems {
+	if uintptr(s.allocCount) == s.nelems {
 		throw("span has no free space")
 	}
 
