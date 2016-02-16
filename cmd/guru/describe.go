@@ -11,7 +11,6 @@ import (
 	exact "go/constant"
 	"go/token"
 	"go/types"
-	"log"
 	"os"
 	"strings"
 	"unicode/utf8"
