@@ -35,19 +35,18 @@
 
 ;; Extend go-mode-map.
 (let ((m go-mode-map))
-  (define-key m (kbd "C-c C-o t") #'go-guru-describe) ; t for type
-  (define-key m (kbd "C-c C-o f") #'go-guru-freevars)
-  (define-key m (kbd "C-c C-o g") #'go-guru-callgraph)
-  (define-key m (kbd "C-c C-o i") #'go-guru-implements)
-  (define-key m (kbd "C-c C-o c") #'go-guru-peers)  ; c for channel
-  (define-key m (kbd "C-c C-o r") #'go-guru-referrers)
-  (define-key m (kbd "C-c C-o d") #'go-guru-definition)
-  (define-key m (kbd "C-c C-o p") #'go-guru-pointsto)
-  (define-key m (kbd "C-c C-o s") #'go-guru-callstack)
-  (define-key m (kbd "C-c C-o <") #'go-guru-callers)
-  (define-key m (kbd "C-c C-o >") #'go-guru-callees)
-  (define-key m (kbd "<f5>") #'go-guru-describe)
-  (define-key m (kbd "<f6>") #'go-guru-referrers))
+  (define-key m "d" #'go-guru-describe)
+  (define-key m "f" #'go-guru-freevars)
+  (define-key m "i" #'go-guru-implements)
+  (define-key m "c" #'go-guru-peers)  ; c for channel
+  (define-key m "r" #'go-guru-referrers)
+  (define-key m "j" #'go-guru-definition) ; j for jump
+  (define-key m "p" #'go-guru-pointsto)
+  (define-key m "s" #'go-guru-callstack) ; s for stack
+  (define-key m "<" #'go-guru-callers)
+  (define-key m ">" #'go-guru-callees))
+
+(define-key go-mode-map (kbd "C-c C-o") #'go-guru-map)
 
 ;; TODO(dominikh): Rethink set-scope some. Setting it to a file is
 ;; painful because it doesn't use find-file, and variables/~ aren't
@@ -125,7 +124,7 @@ a scope if not already set.  Return the output buffer."
 	;; Log the command to *Messages*, for debugging.
 	(message "Command: %s:" args)
 	(message nil) ; clears/shrinks minibuffer
-	(message "Running guru...")
+	(message "Running guru %s..." mode)
 	;; Use dynamic binding to modify/restore the environment
 	(let* ((process-environment (list* goroot-env gopath-env process-environment))
 	       (c-p-args (append (list (point-min)
