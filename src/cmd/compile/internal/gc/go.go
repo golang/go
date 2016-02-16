@@ -329,8 +329,7 @@ const (
 
 const (
 	// types of channel
-	// must match ../../pkg/nreflect/type.go:/Chandir
-	Cxxx  = 0
+	// must match ../../../../reflect/type.go:/ChanDir
 	Crecv = 1 << 0
 	Csend = 1 << 1
 	Cboth = Crecv | Csend
