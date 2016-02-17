@@ -951,7 +951,7 @@ func defgotype(gotype *LSym) *DWDie {
 	}
 
 	if !strings.HasPrefix(gotype.Name, "type.") {
-		Diag("dwarf: type name doesn't start with \".type\": %s", gotype.Name)
+		Diag("dwarf: type name doesn't start with \"type.\": %s", gotype.Name)
 		return mustFind(&dwtypes, "<unspecified>")
 	}
 
