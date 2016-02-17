@@ -764,12 +764,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	} else {
 		ot = dsymptr(s, ot, algsym, 0)
 	}
-	ot = dsymptr(s, ot, gcsym, 0)
+	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
 
-	//print("dcommontype: %s\n", p);
-	ot = dgostringptr(s, ot, p) // string
+	_, symdata := stringsym(p) // string
+	ot = dsymptr(s, ot, symdata, 0)
+	ot = duintxx(s, ot, uint64(len(p)), Widthint)
+	//fmt.Printf("dcommontype: %s\n", p)
 
 	// skip pointer to extraType,
 	// which follows the rest of this type structure.

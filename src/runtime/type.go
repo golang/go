@@ -24,7 +24,7 @@ type _type struct {
 	// If the KindGCProg bit is set in kind, gcdata is a GC program.
 	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
 	gcdata  *byte
-	_string *string
+	_string string
 	x       *uncommontype
 	ptrto   *_type
 }
