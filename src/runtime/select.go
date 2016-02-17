@@ -208,8 +208,15 @@ func block() {
 	gopark(nil, nil, "select (no cases)", traceEvGoStop, 1) // forever
 }
 
-// overwrites return pc on stack to signal which case of the select
-// to run, so cannot appear at the top of a split stack.
+// selectgo implements the select statement.
+//
+// *sel is on the current goroutine's stack (regardless of any
+// escaping in selectgo).
+//
+// selectgo does not return. Instead, it overwrites its return PC and
+// returns directly to the triggered select case. Because of this, it
+// cannot appear at the top of a split stack.
+//
 //go:nosplit
 func selectgo(sel *hselect) {
 	pc, offset := selectgoImpl(sel)
