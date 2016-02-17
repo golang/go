@@ -47,6 +47,28 @@ func TestConfHostLookupOrder(t *testing.T) {
 			},
 		},
 		{
+			name: "netgo_dns_before_files",
+			c: &conf{
+				netGo:  true,
+				nss:    nssStr("hosts: dns files"),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{
+				{"x.com", hostLookupDNSFiles},
+			},
+		},
+		{
+			name: "netgo_fallback_on_cgo",
+			c: &conf{
+				netGo:  true,
+				nss:    nssStr("hosts: dns files something_custom"),
+				resolv: defaultResolvConf,
+			},
+			hostTests: []nssHostTest{
+				{"x.com", hostLookupFilesDNS},
+			},
+		},
+		{
 			name: "ubuntu_trusty_avahi",
 			c: &conf{
 				nss:    nssStr("hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4"),
