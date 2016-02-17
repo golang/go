@@ -48,7 +48,7 @@ func TypeLinks() []string {
 	var r []string
 	for _, m := range typelinks() {
 		for _, t := range m {
-			r = append(r, *t.string)
+			r = append(r, t.string)
 		}
 	}
 	return r

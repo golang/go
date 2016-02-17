@@ -184,7 +184,7 @@ func dumptype(t *_type) {
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.size))
 	if t.x == nil || t.x.pkgpath == nil || t.x.name == nil {
-		dumpstr(*t._string)
+		dumpstr(t._string)
 	} else {
 		pkgpath := stringStructOf(t.x.pkgpath)
 		name := stringStructOf(t.x.name)
