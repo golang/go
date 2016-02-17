@@ -135,9 +135,6 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
 	hbits := heapBitsForAddr(uintptr(src))
 	for i := uintptr(0); i < off+size; i += sys.PtrSize {
 		bits := hbits.bits()
-		if bits != 0 {
-			println(i, bits)
-		}
 		if i >= off && bits&bitPointer != 0 {
 			v := *(*unsafe.Pointer)(add(src, i))
 			if cgoIsGoPointer(v) {

@@ -10,18 +10,19 @@ const (
 
 	// native_client/src/trusted/service_runtime/include/sys/errno.h
 	// The errors are mainly copied from Linux.
-	_EPERM           = 1        /* Operation not permitted */
-	_ENOENT          = 2        /* No such file or directory */
-	_ESRCH           = 3        /* No such process */
-	_EINTR           = 4        /* Interrupted system call */
-	_EIO             = 5        /* I/O error */
-	_ENXIO           = 6        /* No such device or address */
-	_E2BIG           = 7        /* Argument list too long */
-	_ENOEXEC         = 8        /* Exec format error */
-	_EBADF           = 9        /* Bad file number */
-	_ECHILD          = 10       /* No child processes */
-	_EAGAIN          = 11       /* Try again */
-	_ENOMEM          = 12       /* Out of memory */
+	_EPERM   = 1  /* Operation not permitted */
+	_ENOENT  = 2  /* No such file or directory */
+	_ESRCH   = 3  /* No such process */
+	_EINTR   = 4  /* Interrupted system call */
+	_EIO     = 5  /* I/O error */
+	_ENXIO   = 6  /* No such device or address */
+	_E2BIG   = 7  /* Argument list too long */
+	_ENOEXEC = 8  /* Exec format error */
+	_EBADF   = 9  /* Bad file number */
+	_ECHILD  = 10 /* No child processes */
+	_EAGAIN  = 11 /* Try again */
+	// _ENOMEM is defined in mem_bsd.go for nacl.
+	// _ENOMEM          = 12       /* Out of memory */
 	_EACCES          = 13       /* Permission denied */
 	_EFAULT          = 14       /* Bad address */
 	_EBUSY           = 16       /* Device or resource busy */

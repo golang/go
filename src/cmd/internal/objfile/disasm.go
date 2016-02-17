@@ -15,8 +15,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"golang.org/x/arch/arm/armasm"
-	"golang.org/x/arch/x86/x86asm"
+	"cmd/internal/unvendor/golang.org/x/arch/arm/armasm"
+	"cmd/internal/unvendor/golang.org/x/arch/x86/x86asm"
 )
 
 // Disasm is a disassembler for a given File.

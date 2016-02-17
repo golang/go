@@ -198,14 +198,24 @@ prints help text, not an error.
 </p>
 
 <p>
-Note to Git aficionados: The <code>git-codereview</code> command is not required to
+<b>Note to Git aficionados:</b>
+The <code>git-codereview</code> command is not required to
 upload and manage Gerrit code reviews. For those who prefer plain Git, the text
-below gives the Git equivalent of each git-codereview command. If you do use plain
+below gives the Git equivalent of each git-codereview command.
+</p>
+
+<p>If you do use plain
 Git, note that you still need the commit hooks that the git-codereview command
 configures; those hooks add a Gerrit <code>Change-Id</code> line to the commit
 message and check that all Go source files have been formatted with gofmt. Even
 if you intend to use plain Git for daily work, install the hooks in a new Git
 checkout by running <code>git-codereview</code> <code>hooks</code>.
+</p>
+
+<p>
+The workflow described below assumes a single change per branch.
+It is also possible to prepare a sequence of (usually related) changes in a single branch.
+See the <a href="https://golang.org/x/review/git-codereview">git-codereview documentation</a> for details.
 </p>
 
 <h3 id="git-config">Set up git aliases</h3>

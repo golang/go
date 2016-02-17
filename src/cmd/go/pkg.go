@@ -967,7 +967,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 				}
 			}
 		}
-		if p.Standard && !p1.Standard && p.Error == nil {
+		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
 				Err:         fmt.Sprintf("non-standard import %q in standard package %q", path, p.ImportPath),
