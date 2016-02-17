@@ -340,7 +340,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		// ok - same type
 		goto okarg
 	case fint.kind&kindMask == kindPtr:
-		if (fint.x == nil || fint.x.name == nil || etyp.x == nil || etyp.x.name == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+		if (fint.x == nil || etyp.x == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
 			// ok - not same type, but both pointers,
 			// one or the other is unnamed, and same element type, so assignable.
 			goto okarg
