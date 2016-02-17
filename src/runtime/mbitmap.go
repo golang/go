@@ -186,12 +186,22 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
 	return markBits{&s.allocBits[whichByte], uint8(1 << whichBit), allocBitIndex}
 }
 
+// A temporary stand in for the count trailing zero ctz instruction.
+func ctz(markBits byte) uint8 {
+	tz := uint8(0) // trailing zero count.
+	if markBits == 0 {
+		return 8 // 8
+	}
+	for mask := byte(1); mask&markBits == 0; mask, tz = mask<<1, tz+1 {
+	}
+	return tz
+}
+
 // nextFreeIndex returns the index of the next free object in s at or
 // after the index'th object.
 // There are hardware instructions that can be used to make this
 // faster if profiling warrants it.
 func (s *mspan) nextFreeIndex(index uintptr) uintptr {
-	var mask uint8
 	if index == s.nelems {
 		return index
 	}
@@ -200,47 +210,34 @@ func (s *mspan) nextFreeIndex(index uintptr) uintptr {
 	}
 	whichByte := index / 8
 	theByte := s.allocBits[whichByte]
-	// Optimize for the first byte holding a free object.
-	if theByte != 0xff {
-		mask = 1 << (index % 8)
-		for index < s.nelems {
-			if mask&theByte == 0 {
-				return index
-			}
-			if mask == 1<<7 {
-				break
-			}
-			mask = mask << 1
-			index++
-		}
-	}
-	maxByteIndex := (s.nelems - 1) / 8
-	theByte = 0xff // Free bit not found in this byte above so set to 0xff.
-	// If there was a 0 bit before incoming index then the byte would not be 0xff.
-	for theByte == 0xff {
-		whichByte++
-		if whichByte > maxByteIndex {
+
+	theBitMask := uint8(1<<(index%8) - 1)
+	// theBitMask holds a 1 for every bit < index which have already been allocated.
+	// Flip the masked marked bits so 1 means a free bit.
+	theByte = ^(theByte | theBitMask)
+	tz := ctz(theByte)
+	if tz != 8 {
+		result := uintptr(tz) + whichByte*8
+		if result >= s.nelems {
 			return s.nelems
 		}
-		if uintptr(len(s.allocBits)) <= whichByte {
-			throw("whichByte > len(s.allocBits")
-		}
-		theByte = s.allocBits[whichByte]
+		return result
 	}
-	index = whichByte * 8
-	mask = uint8(1)
-
-	for index < s.nelems {
-		if mask&theByte == 0 {
-			return index
+	whichByte++
+	index = (whichByte) * 8
+	for ; index < s.nelems; index += 8 {
+		theByte = ^s.allocBits[whichByte]
+		tz = ctz(theByte)
+		if tz != 8 {
+			result := uintptr(tz) + whichByte*8
+			if result >= s.nelems {
+				return s.nelems
+			}
+			return result
 		}
-		if mask == 1<<7 {
-			break
-		}
-		mask = mask << 1
-		index++
+		whichByte++
 	}
-	return index
+	return s.nelems
 }
 
 func (s *mspan) isFree(index uintptr) bool {
