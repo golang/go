@@ -53,6 +53,19 @@
 (Rsh8x64   (Const8  [c]) (Const64 [d])) -> (Const8  [int64(int8(c) >> uint64(d))])
 (Rsh8Ux64  (Const8  [c]) (Const64 [d])) -> (Const8  [int64(uint8(c) >> uint64(d))])
 
+(Lsh64x64  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64x64  (Const64 [0]) _) -> (Const64 [0])
+(Rsh64Ux64 (Const64 [0]) _) -> (Const64 [0])
+(Lsh32x64  (Const32 [0]) _) -> (Const32 [0])
+(Rsh32x64  (Const32 [0]) _) -> (Const32 [0])
+(Rsh32Ux64 (Const32 [0]) _) -> (Const32 [0])
+(Lsh16x64  (Const16 [0]) _) -> (Const16 [0])
+(Rsh16x64  (Const16 [0]) _) -> (Const16 [0])
+(Rsh16Ux64 (Const16 [0]) _) -> (Const16 [0])
+(Lsh8x64   (Const8  [0]) _) -> (Const8  [0])
+(Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
+(Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
+
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
 (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
@@ -191,12 +204,12 @@
 // large left shifts of all values, and right shifts of unsigned values
 (Lsh64x64  _ (Const64 [c])) && uint64(c) >= 64 -> (Const64 [0])
 (Rsh64Ux64 _ (Const64 [c])) && uint64(c) >= 64 -> (Const64 [0])
-(Lsh32x64  _ (Const64 [c])) && uint64(c) >= 32 -> (Const64 [0])
-(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const64 [0])
-(Lsh16x64  _ (Const64 [c])) && uint64(c) >= 16 -> (Const64 [0])
-(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const64 [0])
-(Lsh8x64   _ (Const64 [c])) && uint64(c) >= 8  -> (Const64 [0])
-(Rsh8Ux64  _ (Const64 [c])) && uint64(c) >= 8  -> (Const64 [0])
+(Lsh32x64  _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
+(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 -> (Const32 [0])
+(Lsh16x64  _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
+(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (Const16 [0])
+(Lsh8x64   _ (Const64 [c])) && uint64(c) >= 8  -> (Const8 [0])
+(Rsh8Ux64  _ (Const64 [c])) && uint64(c) >= 8  -> (Const8 [0])
 
 
 // combine const shifts
