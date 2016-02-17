@@ -17,15 +17,15 @@ func fuse(f *Func) {
 
 // fuseBlockIf handles the following cases where s0 and s1 are empty blocks.
 //
-//   b       b          b
-//  / \      | \      / |
-// s0  s1    |  s1   s0 |
-//  \ /      | /      \ |
-//   ss      ss        ss
+//   b        b        b      b
+//  / \      | \      / |    | |
+// s0  s1    |  s1   s0 |    | |
+//  \ /      | /      \ |    | |
+//   ss      ss        ss     ss
 //
-// If ss doesn't contain any Phi ops and s0 & s1 are empty then the branch
-// can be dropped.
-// TODO: If ss doesn't contain any Phi ops, are s0 and s1 dead code anyway?
+// If all Phi ops in ss have identical variables for slots corresponding to
+// s0, s1 and b then the branch can be dropped.
+// TODO: If ss doesn't contain any OpPhis, are s0 and s1 dead code anyway.
 func fuseBlockIf(b *Block) bool {
 	if b.Kind != BlockIf {
 		return false
@@ -34,13 +34,13 @@ func fuseBlockIf(b *Block) bool {
 	var ss0, ss1 *Block
 	s0 := b.Succs[0]
 	if s0.Kind != BlockPlain || len(s0.Preds) != 1 || len(s0.Values) != 0 {
-		s0, ss0 = nil, s0
+		s0, ss0 = b, s0
 	} else {
 		ss0 = s0.Succs[0]
 	}
 	s1 := b.Succs[1]
 	if s1.Kind != BlockPlain || len(s1.Preds) != 1 || len(s1.Values) != 0 {
-		s1, ss1 = nil, s1
+		s1, ss1 = b, s1
 	} else {
 		ss1 = s1.Succs[0]
 	}
@@ -50,41 +50,63 @@ func fuseBlockIf(b *Block) bool {
 	}
 	ss := ss0
 
-	// TODO: Handle OpPhi operations. We can still replace OpPhi if the
-	// slots corresponding to b, s0 and s1 point to the same variable.
+	// s0 and s1 are equal with b if the corresponding block is missing
+	// (2nd, 3rd and 4th case in the figure).
+	i0, i1 := -1, -1
+	for i, p := range ss.Preds {
+		if p == s0 {
+			i0 = i
+		}
+		if p == s1 {
+			i1 = i
+		}
+	}
+	if i0 == -1 || i1 == -1 {
+		b.Fatalf("invalid predecessors")
+	}
 	for _, v := range ss.Values {
-		if v.Op == OpPhi {
+		if v.Op == OpPhi && v.Args[i0] != v.Args[i1] {
 			return false
 		}
 	}
 
-	// Now we have two following b->ss, b->s0->ss and b->s1->ss,
+	// Now we have two of following b->ss, b->s0->ss and b->s1->ss,
 	// with s0 and s1 empty if exist.
-	// We can replace it with b->ss without if ss has no phis
-	// which is checked above.
+	// We can replace it with b->ss without if all OpPhis in ss
+	// have identical predecessors (verified above).
 	// No critical edge is introduced because b will have one successor.
-	if s0 != nil {
+	if s0 != b && s1 != b {
 		ss.removePred(s0)
-	}
-	if s1 != nil {
+
+		// Replace edge b->s1->ss with b->ss.
+		// We need to keep a slot for Phis corresponding to b.
+		for i := range b.Succs {
+			if b.Succs[i] == s1 {
+				b.Succs[i] = ss
+			}
+		}
+		for i := range ss.Preds {
+			if ss.Preds[i] == s1 {
+				ss.Preds[i] = b
+			}
+		}
+	} else if s0 != b {
+		ss.removePred(s0)
+	} else if s1 != b {
 		ss.removePred(s1)
-	}
-	if s0 != nil && s1 != nil {
-		// Add an edge if both edges are removed, otherwise b is no longer connected to ss.
-		ss.Preds = append(ss.Preds, b)
 	}
 	b.Kind = BlockPlain
 	b.Control = nil
 	b.Succs = append(b.Succs[:0], ss)
 
 	// Trash the empty blocks s0 & s1.
-	if s0 != nil {
+	if s0 != b {
 		s0.Kind = BlockInvalid
 		s0.Values = nil
 		s0.Succs = nil
 		s0.Preds = nil
 	}
-	if s1 != nil {
+	if s1 != b {
 		s1.Kind = BlockInvalid
 		s1.Values = nil
 		s1.Succs = nil
