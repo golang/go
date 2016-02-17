@@ -5007,3 +5007,24 @@ func TestChanAlloc(t *testing.T) {
 	// a limitation of escape analysis.  If that is ever fixed the
 	// allocs < 0.5 condition will trigger and this test should be fixed.
 }
+
+type nameTest struct {
+	v    interface{}
+	want string
+}
+
+var nameTests = []nameTest{
+	{int32(0), "int32"},
+	{D1{}, "D1"},
+	{[]D1{}, ""},
+	{(chan D1)(nil), ""},
+	{(func() D1)(nil), ""},
+}
+
+func TestNames(t *testing.T) {
+	for _, test := range nameTests {
+		if got := TypeOf(test.v).Name(); got != test.want {
+			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
+		}
+	}
+}

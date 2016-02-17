@@ -492,15 +492,9 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 
 	ot := off
 	s := sym
-	if t.Sym != nil {
-		ot = dgostringptr(s, ot, t.Sym.Name)
-		if t != Types[t.Etype] && t != errortype {
-			ot = dgopkgpath(s, ot, t.Sym.Pkg)
-		} else {
-			ot = dgostringptr(s, ot, "")
-		}
+	if t.Sym != nil && t != Types[t.Etype] && t != errortype {
+		ot = dgopkgpath(s, ot, t.Sym.Pkg)
 	} else {
-		ot = dgostringptr(s, ot, "")
 		ot = dgostringptr(s, ot, "")
 	}
 
