@@ -20,6 +20,13 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
+(Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
+(Trunc32to8 (Const32 [c])) -> (Const8 [int64(int8(c))])
+(Trunc32to16 (Const32 [c])) -> (Const16 [int64(int16(c))])
+(Trunc64to8 (Const64 [c])) -> (Const8 [int64(int8(c))])
+(Trunc64to16 (Const64 [c])) -> (Const16 [int64(int16(c))])
+(Trunc64to32 (Const64 [c])) -> (Const32 [int64(int32(c))])
+
 (Neg8 (Const8 [c])) -> (Const8 [-c])
 (Neg16 (Const16 [c])) -> (Const16 [-c])
 (Neg32 (Const32 [c])) -> (Const32 [-c])
@@ -70,14 +77,22 @@
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
 (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
 (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
+
 (Eq64 x x) -> (ConstBool [1])
 (Eq32 x x) -> (ConstBool [1])
 (Eq16 x x) -> (ConstBool [1])
 (Eq8 x x) -> (ConstBool [1])
+(Eq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i((int8(c) != 0) == (int8(d) != 0))])
+(Eq8 (ConstBool [0]) x) -> (Not x)
+(Eq8 (ConstBool [1]) x) -> x
+
 (Neq64 x x) -> (ConstBool [0])
 (Neq32 x x) -> (ConstBool [0])
 (Neq16 x x) -> (ConstBool [0])
 (Neq8 x x) -> (ConstBool [0])
+(Neq8 (ConstBool [c]) (ConstBool [d])) -> (ConstBool [b2i((int8(c) != 0) != (int8(d) != 0))])
+(Neq8 (ConstBool [0]) x) -> x
+(Neq8 (ConstBool [1]) x) -> (Not x)
 
 (Eq64 (Const64 <t> [c]) (Add64 (Const64 <t> [d]) x)) -> (Eq64 (Const64 <t> [c-d]) x)
 (Eq32 (Const32 <t> [c]) (Add32 (Const32 <t> [d]) x)) -> (Eq32 (Const32 <t> [c-d]) x)
@@ -94,11 +109,13 @@
 (Eq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Eq32 (Const32 <t> [c]) x)
 (Eq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Eq16 (Const16 <t> [c]) x)
 (Eq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Eq8 (Const8 <t> [c]) x)
+(Eq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Eq8 (ConstBool <t> [c]) x)
 
 (Neq64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Neq64 (Const64 <t> [c]) x)
 (Neq32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Neq32 (Const32 <t> [c]) x)
 (Neq16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Neq16 (Const16 <t> [c]) x)
 (Neq8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Neq8 (Const8 <t> [c]) x)
+(Neq8 x (ConstBool <t> [c])) && x.Op != OpConstBool -> (Neq8 (ConstBool <t> [c]) x)
 
 (Add64 x (Const64 <t> [c])) && x.Op != OpConst64 -> (Add64 (Const64 <t> [c]) x)
 (Add32 x (Const32 <t> [c])) && x.Op != OpConst32 -> (Add32 (Const32 <t> [c]) x)
