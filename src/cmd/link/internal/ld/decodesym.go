@@ -217,7 +217,8 @@ func decodetype_structfieldname(s *LSym, i int) string {
 	if r == nil {           // shouldn't happen.
 		return ""
 	}
-	return cstring(r.Sym.P[r.Add:])
+	strlen := int64(decode_inuxi(s.P[Thearch.Ptrsize:], Thearch.Intsize))
+	return string(r.Sym.P[r.Add : r.Add+strlen])
 }
 
 func decodetype_structfieldtype(s *LSym, i int) *LSym {
