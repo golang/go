@@ -256,7 +256,6 @@ type rtype struct {
 	gcdata        *byte    // garbage collection data
 	string        string   // string form; unnecessary but undeniably useful
 	*uncommonType          // (relatively) uncommon fields
-	ptrToThis     *rtype   // type for pointer to this type, if used in binary or has methods
 }
 
 // a copy of runtime.typeAlg
@@ -1030,15 +1029,7 @@ func PtrTo(t Type) Type {
 }
 
 func (t *rtype) ptrTo() *rtype {
-	if p := t.ptrToThis; p != nil {
-		return p
-	}
-
-	// Otherwise, synthesize one.
-	// This only happens for pointers with no methods.
-	// We keep the mapping in a map on the side, because
-	// this operation is rare and a separate map lets us keep
-	// the type structures in read-only memory.
+	// Check the cache.
 	ptrMap.RLock()
 	if m := ptrMap.m; m != nil {
 		if p := m[t]; p != nil {
@@ -1047,6 +1038,7 @@ func (t *rtype) ptrTo() *rtype {
 		}
 	}
 	ptrMap.RUnlock()
+
 	ptrMap.Lock()
 	if ptrMap.m == nil {
 		ptrMap.m = make(map[*rtype]*ptrType)
@@ -1086,7 +1078,6 @@ func (t *rtype) ptrTo() *rtype {
 	p.hash = fnv1(t.hash, '*')
 
 	p.uncommonType = nil
-	p.ptrToThis = nil
 	p.elem = t
 
 	ptrMap.m[t] = p
@@ -1310,7 +1301,7 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 // Note that strings are not unique identifiers for types:
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
-// channels, maps, slices, and arrays.
+// pointers, channels, maps, slices, and arrays.
 func typelinks() [][]*rtype
 
 // typesByString returns the subslice of typelinks() whose elements have
@@ -1465,7 +1456,6 @@ func ChanOf(dir ChanDir, t Type) Type {
 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
 	ch.elem = typ
 	ch.uncommonType = nil
-	ch.ptrToThis = nil
 
 	return cachePut(ckey, &ch.rtype)
 }
@@ -1528,7 +1518,6 @@ func MapOf(key, elem Type) Type {
 	mt.reflexivekey = isReflexive(ktyp)
 	mt.needkeyupdate = needKeyUpdate(ktyp)
 	mt.uncommonType = nil
-	mt.ptrToThis = nil
 
 	return cachePut(ckey, &mt.rtype)
 }
@@ -1607,7 +1596,6 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	// Populate the remaining fields of ft and store in cache.
 	ft.string = str
 	ft.uncommonType = nil
-	ft.ptrToThis = nil
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return &ft.rtype
@@ -1837,7 +1825,6 @@ func SliceOf(t Type) Type {
 	slice.hash = fnv1(typ.hash, '[')
 	slice.elem = typ
 	slice.uncommonType = nil
-	slice.ptrToThis = nil
 
 	return cachePut(ckey, &slice.rtype)
 }
@@ -1895,7 +1882,6 @@ func ArrayOf(count int, elem Type) Type {
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
 	array.uncommonType = nil
-	array.ptrToThis = nil
 	array.len = uintptr(count)
 	array.slice = slice.(*rtype)
 

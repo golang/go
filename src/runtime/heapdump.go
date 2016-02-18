@@ -502,28 +502,10 @@ func dumpparams() {
 
 func itab_callback(tab *itab) {
 	t := tab._type
-	// Dump a map from itab* to the type of its data field.
-	// We want this map so we can deduce types of interface referents.
-	if t.kind&kindDirectIface == 0 {
-		// indirect - data slot is a pointer to t.
-		dumptype(t.ptrto)
-		dumpint(tagItab)
-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
-		dumpint(uint64(uintptr(unsafe.Pointer(t.ptrto))))
-	} else if t.kind&kindNoPointers == 0 {
-		// t is pointer-like - data slot is a t.
-		dumptype(t)
-		dumpint(tagItab)
-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
-		dumpint(uint64(uintptr(unsafe.Pointer(t))))
-	} else {
-		// Data slot is a scalar.  Dump type just for fun.
-		// With pointer-only interfaces, this shouldn't happen.
-		dumptype(t)
-		dumpint(tagItab)
-		dumpint(uint64(uintptr(unsafe.Pointer(tab))))
-		dumpint(uint64(uintptr(unsafe.Pointer(t))))
-	}
+	dumptype(t)
+	dumpint(tagItab)
+	dumpint(uint64(uintptr(unsafe.Pointer(tab))))
+	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 }
 
 func dumpitabs() {
@@ -639,7 +621,7 @@ func dumpmemprof() {
 	}
 }
 
-var dumphdr = []byte("go1.6 heap dump\n")
+var dumphdr = []byte("go1.7 heap dump\n")
 
 func mdump() {
 	// make sure we're done sweeping

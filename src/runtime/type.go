@@ -26,7 +26,6 @@ type _type struct {
 	gcdata  *byte
 	_string string
 	x       *uncommontype
-	ptrto   *_type
 }
 
 type method struct {

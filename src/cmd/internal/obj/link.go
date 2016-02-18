@@ -444,6 +444,11 @@ const (
 	R_PLT1
 	R_PLT2
 	R_USEFIELD
+	// R_USETYPE resolves to an *rtype, but no relocation is created. The
+	// linker uses this as a signal that the pointed-to type information
+	// should be linked into the final binary, even if there are no other
+	// direct references. (This is used for types reachable by reflection.)
+	R_USETYPE
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
