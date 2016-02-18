@@ -333,7 +333,7 @@ func (s *Scanner) error(msg string) {
 	if !pos.IsValid() {
 		pos = s.Pos()
 	}
-	fmt.Fprintf(os.Stderr, "%s: %s\n", pos, msg)
+	fmt.Fprintf(os.Stderr, "text/scanner: %s: %s\n", pos, msg)
 }
 
 func (s *Scanner) isIdentRune(ch rune, i int) bool {
