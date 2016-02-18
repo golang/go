@@ -45,42 +45,6 @@ func LFStackPop(head *uint64) *LFNode {
 	return (*LFNode)(unsafe.Pointer(lfstackpop(head)))
 }
 
-type ParFor struct {
-	body   func(*ParFor, uint32)
-	done   uint32
-	Nthr   uint32
-	thrseq uint32
-	Cnt    uint32
-	wait   bool
-}
-
-func NewParFor(nthrmax uint32) *ParFor {
-	var desc *ParFor
-	systemstack(func() {
-		desc = (*ParFor)(unsafe.Pointer(parforalloc(nthrmax)))
-	})
-	return desc
-}
-
-func ParForSetup(desc *ParFor, nthr, n uint32, wait bool, body func(*ParFor, uint32)) {
-	systemstack(func() {
-		parforsetup((*parfor)(unsafe.Pointer(desc)), nthr, n, wait,
-			*(*func(*parfor, uint32))(unsafe.Pointer(&body)))
-	})
-}
-
-func ParForDo(desc *ParFor) {
-	systemstack(func() {
-		parfordo((*parfor)(unsafe.Pointer(desc)))
-	})
-}
-
-func ParForIters(desc *ParFor, tid uint32) (uint32, uint32) {
-	desc1 := (*parfor)(unsafe.Pointer(desc))
-	pos := desc1.thr[tid].pos
-	return uint32(pos), uint32(pos >> 32)
-}
-
 func GCMask(x interface{}) (ret []byte) {
 	systemstack(func() {
 		ret = getgcmask(x)
