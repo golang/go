@@ -203,32 +203,55 @@ const (
 	TYPE_REGLIST
 )
 
-// TODO(rsc): Describe prog.
-// TODO(rsc): Describe TEXT/GLOBL flag in from3
+// Prog describes a single machine instruction.
+//
+// The general instruction form is:
+//
+//	As.Scond From, Reg, From3, To, RegTo2
+//
+// where As is an opcode and the others are arguments:
+// From, Reg, From3 are sources, and To, RegTo2 are destinations.
+// Usually, not all arguments are present.
+// For example, MOVL R1, R2 encodes using only As=MOVL, From=R1, To=R2.
+// The Scond field holds additional condition bits for systems (like arm)
+// that have generalized conditional execution.
+//
+// Jump instructions use the Pcond field to point to the target instruction,
+// which must be in the same linked list as the jump instruction.
+//
+// The Progs for a given function are arranged in a list linked through the Link field.
+//
+// Each Prog is charged to a specific source line in the debug information,
+// specified by Lineno, an index into the line history (see LineHist).
+// Every Prog has a Ctxt field that defines various context, including the current LineHist.
+// Progs should be allocated using ctxt.NewProg(), not new(Prog).
+//
+// The other fields not yet mentioned are for use by the back ends and should
+// be left zeroed by creators of Prog lists.
 type Prog struct {
-	Ctxt   *Link
-	Link   *Prog
-	From   Addr
-	From3  *Addr // optional
-	To     Addr
-	Opt    interface{}
-	Forwd  *Prog
-	Pcond  *Prog
-	Rel    *Prog // Source of forward jumps on x86; pcrel on arm
-	Pc     int64
-	Lineno int32
-	Spadj  int32
-	As     As // Assembler opcode.
-	Reg    int16
-	RegTo2 int16  // 2nd register output operand
-	Mark   uint16 // bitmask of arch-specific items
-	Optab  uint16
-	Scond  uint8
-	Back   uint8
-	Ft     uint8
-	Tt     uint8
-	Isize  uint8 // size of the instruction in bytes (x86 only)
-	Mode   int8
+	Ctxt   *Link       // linker context
+	Link   *Prog       // next Prog in linked list
+	From   Addr        // first source operand
+	From3  *Addr       // third source operand (second is Reg below)
+	To     Addr        // destination operand (second is RegTo2 below)
+	Pcond  *Prog       // target of conditional jump
+	Opt    interface{} // available to optimization passes to hold per-Prog state
+	Forwd  *Prog       // for x86 back end
+	Rel    *Prog       // for x86, arm back ends
+	Pc     int64       // for back ends or assembler: virtual or actual program counter, depending on phase
+	Lineno int32       // line number of this instruction
+	Spadj  int32       // effect of instruction on stack pointer (increment or decrement amount)
+	As     As          // assembler opcode
+	Reg    int16       // 2nd source operand
+	RegTo2 int16       // 2nd destination operand
+	Mark   uint16      // bitmask of arch-specific items
+	Optab  uint16      // arch-specific opcode index
+	Scond  uint8       // condition bits for conditional instruction (e.g., on ARM)
+	Back   uint8       // for x86 back end: backwards branch state
+	Ft     uint8       // for x86 back end: type index of Prog.From
+	Tt     uint8       // for x86 back end: type index of Prog.To
+	Isize  uint8       // for x86 back end: size of the instruction in bytes
+	Mode   int8        // for x86 back end: 32- or 64-bit mode
 }
 
 // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
