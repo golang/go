@@ -463,6 +463,9 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		if !top {
 			panic(errorString(msg))
 		}
+		if st.elem.kind&kindNoPointers != 0 {
+			return
+		}
 		for i := 0; i < s.cap; i++ {
 			cgoCheckArg(st.elem, p, true, false, msg)
 			p = add(p, st.elem.size)

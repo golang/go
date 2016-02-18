@@ -6,17 +6,20 @@ package main
 
 /*
 void foo1(void) {}
+void foo2(void* p) {}
 */
 import "C"
 import (
 	"fmt"
 	"runtime"
 	"time"
+	"unsafe"
 )
 
 func init() {
 	register("CgoSignalDeadlock", CgoSignalDeadlock)
 	register("CgoTraceback", CgoTraceback)
+	register("CgoCheckBytes", CgoCheckBytes)
 }
 
 func CgoSignalDeadlock() {
@@ -77,4 +80,11 @@ func CgoTraceback() {
 	buf := make([]byte, 1)
 	runtime.Stack(buf, true)
 	fmt.Printf("OK\n")
+}
+
+func CgoCheckBytes() {
+	b := make([]byte, 1e6)
+	for i := 0; i < 1e3; i++ {
+		C.foo2(unsafe.Pointer(&b[0]))
+	}
 }
