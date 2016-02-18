@@ -33,7 +33,10 @@ type hchan struct {
 	recvx    uint   // receive index
 	recvq    waitq  // list of recv waiters
 	sendq    waitq  // list of send waiters
-	lock     mutex
+
+	// lock protects all fields in hchan, as well as several
+	// fields in sudogs blocked on this channel.
+	lock mutex
 }
 
 type waitq struct {
@@ -261,12 +264,12 @@ func send(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 			c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
 		}
 	}
-	unlockf()
 	if sg.elem != nil {
 		sendDirect(c.elemtype, sg, ep)
 		sg.elem = nil
 	}
 	gp := sg.g
+	unlockf()
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
@@ -509,7 +512,6 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 		if raceenabled {
 			racesync(c, sg)
 		}
-		unlockf()
 		if ep != nil {
 			// copy data from sender
 			// ep points to our own stack or heap, so nothing
@@ -539,10 +541,10 @@ func recv(c *hchan, sg *sudog, ep unsafe.Pointer, unlockf func()) {
 			c.recvx = 0
 		}
 		c.sendx = c.recvx // c.sendx = (c.sendx+1) % c.dataqsiz
-		unlockf()
 	}
 	sg.elem = nil
 	gp := sg.g
+	unlockf()
 	gp.param = unsafe.Pointer(sg)
 	if sg.releasetime != 0 {
 		sg.releasetime = cputicks()
