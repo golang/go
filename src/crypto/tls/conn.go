@@ -57,6 +57,10 @@ type Conn struct {
 	input    *block       // application data waiting to be read
 	hand     bytes.Buffer // handshake data waiting to be read
 
+	// bytesSent counts the number of bytes of application data that have
+	// been sent.
+	bytesSent int64
+
 	// activeCall is an atomic int32; the low bit is whether Close has
 	// been called. the rest of the bits are the number of goroutines
 	// in Conn.Write.
@@ -712,6 +716,76 @@ func (c *Conn) sendAlert(err alert) error {
 	return c.sendAlertLocked(err)
 }
 
+const (
+	// tcpMSSEstimate is a conservative estimate of the TCP maximum segment
+	// size (MSS). A constant is used, rather than querying the kernel for
+	// the actual MSS, to avoid complexity. The value here is the IPv6
+	// minimum MTU (1280 bytes) minus the overhead of an IPv6 header (40
+	// bytes) and a TCP header with timestamps (32 bytes).
+	tcpMSSEstimate = 1208
+
+	// recordSizeBoostThreshold is the number of bytes of application data
+	// sent after which the TLS record size will be increased to the
+	// maximum.
+	recordSizeBoostThreshold = 1 * 1024 * 1024
+)
+
+// maxPayloadSizeForWrite returns the maximum TLS payload size to use for the
+// next application data record. There is the following trade-off:
+//
+//   - For latency-sensitive applications, such as web browsing, each TLS
+//     record should fit in one TCP segment.
+//   - For throughput-sensitive applications, such as large file transfers,
+//     larger TLS records better amortize framing and encryption overheads.
+//
+// A simple heuristic that works well in practice is to use small records for
+// the first 1MB of data, then use larger records for subsequent data, and
+// reset back to smaller records after the connection becomes idle. See "High
+// Performance Web Networking", Chapter 4, or:
+// https://www.igvita.com/2013/10/24/optimizing-tls-record-size-and-buffering-latency/
+//
+// In the interests of simplicity and determinism, this code does not attempt
+// to reset the record size once the connection is idle, however.
+//
+// c.out.Mutex <= L.
+func (c *Conn) maxPayloadSizeForWrite(typ recordType, explicitIVLen int) int {
+	if c.config.DynamicRecordSizingDisabled || typ != recordTypeApplicationData {
+		return maxPlaintext
+	}
+
+	if c.bytesSent >= recordSizeBoostThreshold {
+		return maxPlaintext
+	}
+
+	// Subtract TLS overheads to get the maximum payload size.
+	macSize := 0
+	if c.out.mac != nil {
+		macSize = c.out.mac.Size()
+	}
+
+	payloadBytes := tcpMSSEstimate - recordHeaderLen - explicitIVLen
+	if c.out.cipher != nil {
+		switch ciph := c.out.cipher.(type) {
+		case cipher.Stream:
+			payloadBytes -= macSize
+		case cipher.AEAD:
+			payloadBytes -= ciph.Overhead()
+		case cbcMode:
+			blockSize := ciph.BlockSize()
+			// The payload must fit in a multiple of blockSize, with
+			// room for at least one padding byte.
+			payloadBytes = (payloadBytes & ^(blockSize - 1)) - 1
+			// The MAC is appended before padding so affects the
+			// payload size directly.
+			payloadBytes -= macSize
+		default:
+			panic("unknown cipher type")
+		}
+	}
+
+	return payloadBytes
+}
+
 // writeRecord writes a TLS record with the given type and payload
 // to the connection and updates the record layer state.
 // c.out.Mutex <= L.
@@ -721,10 +795,6 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
 
 	var n int
 	for len(data) > 0 {
-		m := len(data)
-		if m > maxPlaintext {
-			m = maxPlaintext
-		}
 		explicitIVLen := 0
 		explicitIVIsSeq := false
 
@@ -746,6 +816,10 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
 				// as the nonce.
 				explicitIVIsSeq = true
 			}
+		}
+		m := len(data)
+		if maxPayload := c.maxPayloadSizeForWrite(typ, explicitIVLen); m > maxPayload {
+			m = maxPayload
 		}
 		b.resize(recordHeaderLen + explicitIVLen + m)
 		b.data[0] = byte(typ)
@@ -774,6 +848,7 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
 		if _, err := c.conn.Write(b.data); err != nil {
 			return n, err
 		}
+		c.bytesSent += int64(m)
 		n += m
 		data = data[m:]
 	}
