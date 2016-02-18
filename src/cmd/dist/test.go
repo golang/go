@@ -441,6 +441,20 @@ func (t *tester) registerTests() {
 				return nil
 			},
 		})
+		fortran := os.Getenv("FC")
+		if fortran == "" {
+			fortran, _ = exec.LookPath("gfortran")
+		}
+		if fortran != "" {
+			t.tests = append(t.tests, distTest{
+				name:    "cgo_fortran",
+				heading: "../misc/cgo/fortran",
+				fn: func(dt *distTest) error {
+					t.addCmd(dt, "misc/cgo/fortran", "go", "test")
+					return nil
+				},
+			})
+		}
 	}
 	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
 		// TODO(crawshaw): reenable on android and iOS

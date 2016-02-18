@@ -50,6 +50,7 @@ type Package struct {
 	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
 	MFiles         []string `json:",omitempty"` // .m source files
 	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
+	FFiles         []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
 	SFiles         []string `json:",omitempty"` // .s source files
 	SwigFiles      []string `json:",omitempty"` // .swig files
 	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
@@ -59,6 +60,7 @@ type Package struct {
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
 	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
 	CgoCXXFLAGS  []string `json:",omitempty"` // cgo: flags for C++ compiler
+	CgoFFLAGS    []string `json:",omitempty"` // cgo: flags for Fortran compiler
 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
 
@@ -161,6 +163,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CXXFiles = pp.CXXFiles
 	p.MFiles = pp.MFiles
 	p.HFiles = pp.HFiles
+	p.FFiles = pp.FFiles
 	p.SFiles = pp.SFiles
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
@@ -909,6 +912,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.CXXFiles,
 		p.MFiles,
 		p.HFiles,
+		p.FFiles,
 		p.SFiles,
 		p.SysoFiles,
 		p.SwigFiles,
@@ -1495,7 +1499,7 @@ func isStale(p *Package) bool {
 	// to test for write access, and then skip GOPATH roots we don't have write
 	// access to. But hopefully we can just use the mtimes always.
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
+	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
 			return true

@@ -358,6 +358,7 @@ type Package struct {
 	CXXFiles       []string // .cc, .cpp and .cxx source files
 	MFiles         []string // .m (Objective-C) source files
 	HFiles         []string // .h, .hh, .hpp and .hxx source files
+	FFiles         []string // .f, .F, .for and .f90 Fortran source files
 	SFiles         []string // .s source files
 	SwigFiles      []string // .swig files
 	SwigCXXFiles   []string // .swigcxx files
@@ -367,6 +368,7 @@ type Package struct {
 	CgoCFLAGS    []string // Cgo CFLAGS directives
 	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
 	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
+	CgoFFLAGS    []string // Cgo FFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 	CgoPkgConfig []string // Cgo pkg-config directives
 
@@ -703,6 +705,9 @@ Found:
 		case ".h", ".hh", ".hpp", ".hxx":
 			p.HFiles = append(p.HFiles, name)
 			continue
+		case ".f", ".F", ".for", ".f90":
+			p.FFiles = append(p.FFiles, name)
+			continue
 		case ".s":
 			p.SFiles = append(p.SFiles, name)
 			continue
@@ -1017,7 +1022,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	switch ext {
-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".S", ".swig", ".swigcxx":
+	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".swig", ".swigcxx":
 		// tentatively okay - read to make sure
 	case ".syso":
 		// binary, no reading
@@ -1208,6 +1213,8 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 			di.CgoCPPFLAGS = append(di.CgoCPPFLAGS, args...)
 		case "CXXFLAGS":
 			di.CgoCXXFLAGS = append(di.CgoCXXFLAGS, args...)
+		case "FFLAGS":
+			di.CgoFFLAGS = append(di.CgoFFLAGS, args...)
 		case "LDFLAGS":
 			di.CgoLDFLAGS = append(di.CgoLDFLAGS, args...)
 		case "pkg-config":
