@@ -660,10 +660,6 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		if newval == oldval&^_Gscan {
 			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
 		}
-	case _Gscanenqueue:
-		if newval == _Gwaiting {
-			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
-		}
 	}
 	if !success {
 		print("runtime: casfrom_Gscanstatus failed gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
@@ -680,13 +676,10 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	switch oldval {
 	case _Grunnable,
+		_Grunning,
 		_Gwaiting,
 		_Gsyscall:
 		if newval == oldval|_Gscan {
-			return atomic.Cas(&gp.atomicstatus, oldval, newval)
-		}
-	case _Grunning:
-		if newval == _Gscanrunning || newval == _Gscanenqueue {
 			return atomic.Cas(&gp.atomicstatus, oldval, newval)
 		}
 	}
@@ -843,17 +836,6 @@ func restartg(gp *g) {
 		_Gscanwaiting,
 		_Gscansyscall:
 		casfrom_Gscanstatus(gp, s, s&^_Gscan)
-
-	// Scan is now completed.
-	// Goroutine now needs to be made runnable.
-	// We put it on the global run queue; ready blocks on the global scheduler lock.
-	case _Gscanenqueue:
-		casfrom_Gscanstatus(gp, _Gscanenqueue, _Gwaiting)
-		if gp != getg().m.curg {
-			throw("processing Gscanenqueue on wrong m")
-		}
-		dropg()
-		ready(gp, 0)
 	}
 }
 
