@@ -7,7 +7,6 @@ Coverage
 Correctness
 -----------
 - Debugging info (check & fix as much as we can)
-- Re-enable TestStackBarrierProfiling (src/runtime/pprof/pprof_test.go)
 - @ directive in rewrites might read overwritten data.  Save @loc
   in variable before modifying v.
 

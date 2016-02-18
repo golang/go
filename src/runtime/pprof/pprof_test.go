@@ -375,11 +375,6 @@ func TestStackBarrierProfiling(t *testing.T) {
 		t.Skipf("low resolution timers inhibit profiling signals (golang.org/issue/13405)")
 		return
 	}
-	if true {
-		// TODO(khr): remove
-		t.Skipf("skipping for SSA branch, flaky")
-		return
-	}
 
 	if !strings.Contains(os.Getenv("GODEBUG"), "gcstackbarrierall=1") {
 		// Re-execute this test with constant GC and stack
