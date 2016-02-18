@@ -176,9 +176,13 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// Issue 14275.
 		return
 	}
-	if t.ExpectContinueTimeout != 0 {
-		// Unsupported in http2, so disable http2 for now.
-		// Issue 13851.
+	if t.ExpectContinueTimeout != 0 && t != DefaultTransport {
+		// ExpectContinueTimeout is unsupported in http2, so
+		// if they explicitly asked for it (as opposed to just
+		// using the DefaultTransport, which sets it), then
+		// disable http2 for now.
+		//
+		// Issue 13851. (and changed in Issue 14391)
 		return
 	}
 	t2, err := http2configureTransport(t)
