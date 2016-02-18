@@ -47,7 +47,7 @@ func decode_inuxi(p []byte, sz int) uint64 {
 // commonsize returns the size of the common prefix for all type
 // structures (runtime._type).
 func commonsize() int {
-	return 8*Thearch.Ptrsize + 8
+	return 7*Thearch.Ptrsize + 8
 }
 
 // Type.commonType.kind
