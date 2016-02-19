@@ -67,6 +67,19 @@ func (p *Process) release() error {
 	return nil
 }
 
+func (p *Process) resident() int {
+    filePath := "/proc/" + strconv.Itoa(p.Pid) + "/statm"
+    data, err := ioutil.ReadFile(filePath)
+    if err != nil {
+        return -1
+    }
+    tmp := 0
+    mem := 0
+    els := 0
+    fmt.Sscanf(string(data), "%d %d %d", &tmp, &mem, &els)
+    return mem * 4  //KB
+}
+
 func findProcess(pid int) (p *Process, err error) {
 	// NOOP for unix.
 	return newProcess(pid, 0), nil
