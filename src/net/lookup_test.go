@@ -627,6 +627,7 @@ var lookupPortTests = []struct {
 	{"tcp", "65536", 0, false},
 	{"udp", "-1", 0, false},
 	{"udp", "65536", 0, false},
+	{"tcp", "123456789", 0, false},
 
 	// Issue 13610: LookupPort("tcp", "")
 	{"tcp", "", 0, true},
@@ -647,7 +648,7 @@ func TestLookupPort(t *testing.T) {
 
 	for _, tt := range lookupPortTests {
 		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
-			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d", tt.network, tt.name, port, err, tt.port)
+			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d, error=%t", tt.network, tt.name, port, err, tt.port, !tt.ok)
 		}
 	}
 }
