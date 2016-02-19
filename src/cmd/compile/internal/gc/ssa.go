@@ -3990,7 +3990,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		r := regnum(v)
 		a := regnum(v.Args[0])
 		if r == a {
-			if v.AuxInt == 1 {
+			if v.AuxInt2Int64() == 1 {
 				var asm int
 				switch v.Op {
 				// Software optimization manual recommends add $1,reg.
@@ -4009,7 +4009,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
-			} else if v.AuxInt == -1 {
+			} else if v.AuxInt2Int64() == -1 {
 				var asm int
 				switch v.Op {
 				case ssa.OpAMD64ADDQconst:
@@ -4026,7 +4026,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			} else {
 				p := Prog(v.Op.Asm())
 				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = v.AuxInt
+				p.From.Offset = v.AuxInt2Int64()
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = r
 				return
@@ -4044,7 +4044,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		p := Prog(asm)
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = a
-		p.From.Offset = v.AuxInt
+		p.From.Offset = v.AuxInt2Int64()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
@@ -4059,7 +4059,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		}
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
+		p.From.Offset = v.AuxInt2Int64()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 		// TODO: Teach doasm to compile the three-address multiply imul $c, r1, r2
@@ -4074,7 +4074,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		// a = b + (- const), saves us 1 instruction. We can't fit
 		// - (-1 << 31) into  4 bytes offset in lea.
 		// We handle 2-address just fine below.
-		if v.AuxInt == -1<<31 || x == r {
+		if v.AuxInt2Int64() == -1<<31 || x == r {
 			if x != r {
 				// This code compensates for the fact that the register allocator
 				// doesn't understand 2-address instructions yet.  TODO: fix that.
@@ -4086,10 +4086,10 @@ func (s *genState) genValue(v *ssa.Value) {
 			}
 			p := Prog(v.Op.Asm())
 			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
+			p.From.Offset = v.AuxInt2Int64()
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-		} else if x == r && v.AuxInt == -1 {
+		} else if x == r && v.AuxInt2Int64() == -1 {
 			var asm int
 			// x = x - (-1) is the same as x++
 			// See OpAMD64ADDQconst comments about inc vs add $1,reg
@@ -4104,7 +4104,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			p := Prog(asm)
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
-		} else if x == r && v.AuxInt == 1 {
+		} else if x == r && v.AuxInt2Int64() == 1 {
 			var asm int
 			switch v.Op {
 			case ssa.OpAMD64SUBQconst:
@@ -4130,7 +4130,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			p := Prog(asm)
 			p.From.Type = obj.TYPE_MEM
 			p.From.Reg = x
-			p.From.Offset = -v.AuxInt
+			p.From.Offset = -v.AuxInt2Int64()
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		}
@@ -4157,7 +4157,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		}
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
+		p.From.Offset = v.AuxInt2Int64()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
 	case ssa.OpAMD64SBBQcarrymask, ssa.OpAMD64SBBLcarrymask:
@@ -4204,29 +4204,18 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = regnum(v.Args[0])
 		p.To.Type = obj.TYPE_CONST
-		p.To.Offset = v.AuxInt
+		p.To.Offset = v.AuxInt2Int64()
 	case ssa.OpAMD64TESTQconst, ssa.OpAMD64TESTLconst, ssa.OpAMD64TESTWconst, ssa.OpAMD64TESTBconst:
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = v.AuxInt
+		p.From.Offset = v.AuxInt2Int64()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = regnum(v.Args[0])
 	case ssa.OpAMD64MOVBconst, ssa.OpAMD64MOVWconst, ssa.OpAMD64MOVLconst, ssa.OpAMD64MOVQconst:
 		x := regnum(v)
 		p := Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
-		var i int64
-		switch v.Op {
-		case ssa.OpAMD64MOVBconst:
-			i = int64(v.AuxInt8())
-		case ssa.OpAMD64MOVWconst:
-			i = int64(v.AuxInt16())
-		case ssa.OpAMD64MOVLconst:
-			i = int64(v.AuxInt32())
-		case ssa.OpAMD64MOVQconst:
-			i = v.AuxInt
-		}
-		p.From.Offset = i
+		p.From.Offset = v.AuxInt2Int64()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = x
 		// If flags are live at this instruction, suppress the
