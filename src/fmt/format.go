@@ -5,7 +5,6 @@
 package fmt
 
 import (
-	"math"
 	"strconv"
 	"unicode/utf8"
 )
@@ -405,42 +404,34 @@ func doPrec(f *fmt, def int) int {
 // formatFloat formats a float64; it is an efficient equivalent to  f.pad(strconv.FormatFloat()...).
 func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	// Format number, reserving space for leading + sign if needed.
-	num := strconv.AppendFloat(f.intbuf[0:1], v, verb, prec, n)
+	num := strconv.AppendFloat(f.intbuf[:1], v, verb, prec, n)
 	if num[1] == '-' || num[1] == '+' {
 		num = num[1:]
 	} else {
 		num[0] = '+'
 	}
-	// Special handling for infinity, which doesn't look like a number so shouldn't be padded with zeros.
-	if math.IsInf(v, 0) {
-		if f.zero {
-			defer func() { f.zero = true }()
-			f.zero = false
-		}
-	}
-	// num is now a signed version of the number.
-	// If we're zero padding, want the sign before the leading zeros.
-	// Achieve this by writing the sign out and then padding the unsigned number.
-	if f.zero && f.widPresent && f.wid > len(num) {
-		if f.space && v >= 0 {
-			f.buf.WriteByte(' ') // This is what C does: even with zero, f.space means space.
-			f.wid--
-		} else if f.plus || v < 0 {
-			f.buf.WriteByte(num[0])
-			f.wid--
-		}
-		f.pad(num[1:])
-		return
-	}
 	// f.space says to replace a leading + with a space.
 	if f.space && num[0] == '+' {
 		num[0] = ' '
+	}
+	// Special handling for "+Inf" and "-Inf",
+	// which don't look like a number so shouldn't be padded with zeros.
+	if num[1] == 'I' {
+		oldZero := f.zero
+		f.zero = false
 		f.pad(num)
+		f.zero = oldZero
 		return
 	}
-	// Now we know the sign is attached directly to the number, if present at all.
-	// We want a sign if asked for, if it's negative, or if it's infinity (+Inf vs. -Inf).
-	if f.plus || num[0] == '-' || math.IsInf(v, 0) {
+	// We want a sign if asked for and if the sign is not positive.
+	if f.plus || num[0] != '+' {
+		// If we're zero padding we want the sign before the leading zeros.
+		// Achieve this by writing the sign out and then padding the unsigned number.
+		if f.zero && f.widPresent && f.wid > len(num) {
+			f.buf.WriteByte(num[0])
+			f.wid--
+			num = num[1:]
+		}
 		f.pad(num)
 		return
 	}
