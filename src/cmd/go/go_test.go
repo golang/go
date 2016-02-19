@@ -1726,7 +1726,6 @@ func TestSymlinksVendor(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.tempDir("gopath/src/dir1/vendor/v")
 	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
 	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")
