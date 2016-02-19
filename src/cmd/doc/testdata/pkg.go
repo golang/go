@@ -60,8 +60,12 @@ func internalFunc(a int) bool
 // Comment about exported type.
 type ExportedType struct {
 	// Comment before exported field.
-	ExportedField   int // Comment on line with exported field.
-	unexportedField int // Comment on line with unexported field.
+	ExportedField         int // Comment on line with exported field.
+	unexportedField       int // Comment on line with unexported field.
+	ExportedEmbeddedType      // Comment on line with exported embedded field.
+	*ExportedEmbeddedType     // Comment on line with exported embedded *field.
+	unexportedType            // Comment on line with unexported embedded field.
+	*unexportedType           // Comment on line with unexported embedded *field.
 }
 
 // Comment about exported method.
