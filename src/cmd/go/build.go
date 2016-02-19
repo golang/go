@@ -2930,10 +2930,13 @@ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
 
 	// Tell gcc not to include the work directory in object files.
 	if b.gccSupportsFlag("-fdebug-prefix-map=a=b") {
-		// -gno-record-gcc-switches is supported by all gcc/clang
-		// versions that support -fdebug-prefix-map.
-		a = append(a, "-gno-record-gcc-switches")
 		a = append(a, "-fdebug-prefix-map="+b.work+"=/tmp/go-build")
+	}
+
+	// Tell gcc not to include flags in object files, which defeats the
+	// point of -fdebug-prefix-map above.
+	if b.gccSupportsFlag("-gno-record-gcc-switches") {
+		a = append(a, "-gno-record-gcc-switches")
 	}
 
 	// On OS X, some of the compilers behave as if -fno-common
