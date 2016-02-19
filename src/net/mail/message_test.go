@@ -125,8 +125,12 @@ func TestAddressParsingError(t *testing.T) {
 		wantErrText string
 	}{
 		0: {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
-		1: {"µ <micro@example.net>", "unencoded non-ASCII text in address"},
-		2: {"a@gmail.com b@gmail.com", "expected single address"},
+		1: {"a@gmail.com b@gmail.com", "expected single address"},
+		2: {string([]byte{0xed, 0xa0, 0x80}) + " <micro@example.net>", "invalid utf-8 in address"},
+		3: {"\"" + string([]byte{0xed, 0xa0, 0x80}) + "\" <half-surrogate@example.com>", "invalid utf-8 in quoted-string"},
+		4: {"\"\\" + string([]byte{0x80}) + "\" <escaped-invalid-unicode@example.net>", "invalid utf-8 in quoted-string"},
+		5: {"\"\x00\" <null@example.net>", "bad character in quoted-string"},
+		6: {"\"\\\x00\" <escaped-null@example.net>", "bad character in quoted-string"},
 	}
 
 	for i, tc := range mustErrTestCases {
@@ -263,6 +267,46 @@ func TestAddressParsing(t *testing.T) {
 				{
 					Name:    `Asem H.`,
 					Address: "noreply@example.com",
+				},
+			},
+		},
+		// RFC 6532 3.2.3, qtext /= UTF8-non-ascii
+		{
+			`"Gø Pher" <gopher@example.com>`,
+			[]*Address{
+				{
+					Name:    `Gø Pher`,
+					Address: "gopher@example.com",
+				},
+			},
+		},
+		// RFC 6532 3.2, atext /= UTF8-non-ascii
+		{
+			`µ <micro@example.com>`,
+			[]*Address{
+				{
+					Name:    `µ`,
+					Address: "micro@example.com",
+				},
+			},
+		},
+		// RFC 6532 3.2.2, local address parts allow UTF-8
+		{
+			`Micro <µ@example.com>`,
+			[]*Address{
+				{
+					Name:    `Micro`,
+					Address: "µ@example.com",
+				},
+			},
+		},
+		// RFC 6532 3.2.4, domains parts allow UTF-8
+		{
+			`Micro <micro@µ.example.com>`,
+			[]*Address{
+				{
+					Name:    `Micro`,
+					Address: "micro@µ.example.com",
 				},
 			},
 		},
@@ -517,6 +561,11 @@ func TestAddressString(t *testing.T) {
 			&Address{Name: "world?=", Address: "hello@world.com"},
 			`"world?=" <hello@world.com>`,
 		},
+		{
+			// should q-encode even for invalid utf-8.
+			&Address{Name: string([]byte{0xed, 0xa0, 0x80}), Address: "invalid-utf8@example.net"},
+			"=?utf-8?q?=ED=A0=80?= <invalid-utf8@example.net>",
+		},
 	}
 	for _, test := range tests {
 		s := test.addr.String()
@@ -612,7 +661,6 @@ func TestAddressParsingAndFormatting(t *testing.T) {
 		`< @example.com>`,
 		`<""test""blah""@example.com>`,
 		`<""@0>`,
-		"<\"\t0\"@0>",
 	}
 
 	for _, test := range badTests {
