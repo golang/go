@@ -8,12 +8,12 @@ import "syscall"
 
 var (
 	errTimedout       = syscall.ETIMEDOUT
-	errOpNotSupported = syscall.EPLAN9
+	errOpNotSupported = syscall.EOPNOTSUPP
 
-	abortedConnRequestErrors []error
+	abortedConnRequestErrors = []error{syscall.ERROR_NETNAME_DELETED, syscall.WSAECONNRESET} // see accept in fd_windows.go
 )
 
 func isPlatformError(err error) bool {
-	_, ok := err.(syscall.ErrorString)
+	_, ok := err.(syscall.Errno)
 	return ok
 }
