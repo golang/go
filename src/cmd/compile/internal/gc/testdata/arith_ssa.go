@@ -10,6 +10,42 @@ package main
 
 import "fmt"
 
+const (
+	y = 0x0fffFFFF
+)
+
+//go:noinline
+func invalidAdd_ssa(x uint32) uint32 {
+	return x + y + y + y + y + y + y + y + y + y + y + y + y + y + y + y + y + y
+}
+
+//go:noinline
+func invalidSub_ssa(x uint32) uint32 {
+	return x - y - y - y - y - y - y - y - y - y - y - y - y - y - y - y - y - y
+}
+
+//go:noinline
+func invalidMul_ssa(x uint32) uint32 {
+	return x * y * y * y * y * y * y * y * y * y * y * y * y * y * y * y * y * y
+}
+
+// testLargeConst tests a situation where larger than 32 bit consts were passed to ADDL
+// causing an invalid instruction error.
+func testLargeConst() {
+	if want, got := uint32(268435440), invalidAdd_ssa(1); want != got {
+		println("testLargeConst add failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(4026531858), invalidSub_ssa(1); want != got {
+		println("testLargeConst sub failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(268435455), invalidMul_ssa(1); want != got {
+		println("testLargeConst mul failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
 // testArithRshConst ensures that "const >> const" right shifts correctly perform
 // sign extension on the lhs constant
 func testArithRshConst() {
@@ -394,6 +430,7 @@ func main() {
 	testOverflowConstShift()
 	testArithConstShift()
 	testArithRshConst()
+	testLargeConst()
 
 	if failed {
 		panic("failed")
