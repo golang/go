@@ -165,6 +165,7 @@ var passes = [...]pass{
 	{name: "opt deadcode", fn: deadcode},             // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "nilcheckelim", fn: nilcheckelim},
+	{name: "prove", fn: prove},
 	{name: "generic deadcode", fn: deadcode},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
@@ -193,6 +194,10 @@ type constraint struct {
 }
 
 var passOrder = [...]constraint{
+	// prove reliese on common-subexpression elimination for maximum benefits.
+	{"generic cse", "prove"},
+	// deadcode after prove to eliminate all new dead blocks.
+	{"prove", "generic deadcode"},
 	// common-subexpression before dead-store elim, so that we recognize
 	// when two address expressions are the same.
 	{"generic cse", "dse"},
