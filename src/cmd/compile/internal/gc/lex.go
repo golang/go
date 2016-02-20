@@ -851,7 +851,7 @@ func importfile(f *Val) {
 func cannedimports(file string, cp string) {
 	lexlineno++ // if sys.6 is included on line 1,
 	pushedio = curio
-	curio = Io{infile: file, cp: cp}
+	curio = Io{infile: file, bin: obj.Binitr(strings.NewReader(cp))}
 	typecheckok = true
 	incannedimport = 1
 
