@@ -1235,6 +1235,12 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 				p.fmt.plusV = true
 			}
 		}
+
+		// Use space padding instead of zero padding to the right.
+		if p.fmt.minus {
+			p.fmt.zero = false
+		}
+
 		p.printArg(arg, c, 0)
 	}
 
