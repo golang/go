@@ -159,7 +159,10 @@ func main() {
 		}
 	}
 
-	code := bundle(args[0], *dstPath, *pkgName, *prefix)
+	code, err := bundle(args[0], *dstPath, *pkgName, *prefix)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if *outputFile != "" {
 		err := ioutil.WriteFile(*outputFile, code, 0666)
 		if err != nil {
@@ -175,7 +178,7 @@ func main() {
 
 var ctxt = &build.Default
 
-func bundle(src, dst, dstpkg, prefix string) []byte {
+func bundle(src, dst, dstpkg, prefix string) ([]byte, error) {
 	// Load the initial package.
 	conf := loader.Config{ParserMode: parser.ParseComments, Build: ctxt}
 	conf.TypeCheckFuncBodies = func(p string) bool { return p == src }
@@ -183,7 +186,7 @@ func bundle(src, dst, dstpkg, prefix string) []byte {
 
 	lprog, err := conf.Load()
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	info := lprog.Package(src)
@@ -251,7 +254,7 @@ func bundle(src, dst, dstpkg, prefix string) []byte {
 	for _, f := range info.Files {
 		for _, imp := range f.Imports {
 			if imp.Name != nil {
-				log.Fatalf("%s: renaming imports not supported",
+				return nil, fmt.Errorf("%s: renaming imports not supported",
 					lprog.Fset.Position(imp.Pos()))
 			}
 		}
@@ -326,7 +329,7 @@ func bundle(src, dst, dstpkg, prefix string) []byte {
 		log.Fatalf("formatting failed: %v", err)
 	}
 
-	return result
+	return result, nil
 }
 
 type flagFunc func(string)

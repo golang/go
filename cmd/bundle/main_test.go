@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"runtime"
 	"testing"
@@ -33,17 +34,18 @@ func TestBundle(t *testing.T) {
 		},
 	})
 
-	var out bytes.Buffer
-	if err := bundle(&out, "initial", "dest", "prefix"); err != nil {
+	os.Args = os.Args[:1] // avoid e.g. -test=short in the output
+	out, err := bundle("initial", "github.com/dest", "dest", "prefix")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := out.String(), load("testdata/out.golden"); got != want {
+	if got, want := string(out), load("testdata/out.golden"); got != want {
 		t.Errorf("-- got --\n%s\n-- want --\n%s\n-- diff --", got, want)
 
-		if err := ioutil.WriteFile("testdata/out.got", out.Bytes(), 0644); err != nil {
+		if err := ioutil.WriteFile("testdata/out.got", out, 0644); err != nil {
 			t.Fatal(err)
 		}
-		t.Log(diff("testdata/out.got", "testdata/out.golden"))
+		t.Log(diff("testdata/out.golden", "testdata/out.got"))
 	}
 }
 
