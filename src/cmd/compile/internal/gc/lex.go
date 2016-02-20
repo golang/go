@@ -320,22 +320,15 @@ func Main() {
 
 		linehistpush(infile)
 
-		var err error
-		curio.bin, err = obj.Bopenr(infile)
+		bin, err := obj.Bopenr(infile)
 		if err != nil {
 			fmt.Printf("open %s: %v\n", infile, err)
 			errorexit()
 		}
 
-		curio.peekc = 0
-		curio.peekc1 = 0
-		curio.nlsemi = false
-		curio.eofnl = false
-		curio.last = 0
-
 		// Skip initial BOM if present.
-		if obj.Bgetrune(curio.bin) != BOM {
-			obj.Bungetrune(curio.bin)
+		if obj.Bgetrune(bin) != BOM {
+			obj.Bungetrune(bin)
 		}
 
 		block = 1
@@ -343,15 +336,13 @@ func Main() {
 
 		imported_unsafe = false
 
-		parse_file()
+		parse_file(bin)
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
 
 		linehistpop()
-		if curio.bin != nil {
-			obj.Bterm(curio.bin)
-		}
+		obj.Bterm(bin)
 	}
 
 	testdclstack()
@@ -667,14 +658,16 @@ func loadsys() {
 
 	block = 1
 	iota_ = -1000000
+	incannedimport = 1
 
 	importpkg = Runtimepkg
-	cannedimports("runtime.Builtin", runtimeimport)
+	parse_import(obj.Binitr(strings.NewReader(runtimeimport)))
 
 	importpkg = unsafepkg
-	cannedimports("unsafe.o", unsafeimport)
+	parse_import(obj.Binitr(strings.NewReader(unsafeimport)))
 
 	importpkg = nil
+	incannedimport = 0
 }
 
 func importfile(f *Val) {
@@ -822,15 +815,7 @@ func importfile(f *Val) {
 	switch c {
 	case '\n':
 		// old export format
-		pushedio = curio
-		curio = Io{bin: imp}
-		typecheckok = true
-
-		parse_import()
-
-		typecheckok = false
-		curio = pushedio
-		pushedio.bin = nil
+		parse_import(imp)
 
 	case 'B':
 		// new export format
@@ -845,22 +830,6 @@ func importfile(f *Val) {
 	if safemode != 0 && !importpkg.Safe {
 		Yyerror("cannot import unsafe package %q", importpkg.Path)
 	}
-}
-
-func cannedimports(file string, cp string) {
-	lexlineno++ // if sys.6 is included on line 1,
-	pushedio = curio
-	curio = Io{bin: obj.Binitr(strings.NewReader(cp))}
-	typecheckok = true
-	incannedimport = 1
-
-	parse_import()
-
-	typecheckok = false
-	incannedimport = 0
-	curio = pushedio
-	pushedio.bin = nil
-	lexlineno-- // re correct sys.6 line number
 }
 
 func isSpace(c int) bool {
