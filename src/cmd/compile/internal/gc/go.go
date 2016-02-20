@@ -451,8 +451,6 @@ var dotlist [10]Dlist // size is max depth of embeddeds
 
 var curio Io
 
-var pushedio Io
-
 var lexlineno int32
 
 var lineno int32

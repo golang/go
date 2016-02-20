@@ -13,6 +13,7 @@ package gc
 // to handle optional commas and semicolons before a closing ) or } .
 
 import (
+	"cmd/internal/obj"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,7 +25,10 @@ const trace = false // if set, parse tracing can be enabled with -x
 // we can get rid of this (issue 13242).
 var fileparser parser // the Go source file parser in use
 
-func parse_import() {
+func parse_import(bin *obj.Biobuf) {
+	pushedio := curio
+	curio = Io{bin: bin}
+
 	// Indentation (for tracing) must be preserved across parsers
 	// since we are changing the lexer source (and parser state)
 	// under foot, in the middle of productions. This won't be
@@ -35,10 +39,14 @@ func parse_import() {
 	importparser := parser{indent: fileparser.indent} // preserve indentation
 	importparser.next()
 	importparser.import_package()
+
+	curio = pushedio
 }
 
 // parse_file sets up a new parser and parses a single Go source file.
-func parse_file() {
+func parse_file(bin *obj.Biobuf) {
+	curio = Io{bin: bin}
+
 	fileparser = parser{}
 	fileparser.next()
 	fileparser.file()
@@ -428,6 +436,7 @@ func (p *parser) import_package() {
 	}
 	importpkg.Safe = importsafe
 
+	typecheckok = true
 	defercheckwidth()
 
 	p.hidden_import_list()
@@ -438,6 +447,7 @@ func (p *parser) import_package() {
 	}
 
 	resumecheckwidth()
+	typecheckok = false
 }
 
 // Declaration = ConstDecl | TypeDecl | VarDecl .
