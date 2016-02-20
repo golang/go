@@ -1936,7 +1936,7 @@ check:
 		fallthrough
 
 	case '\n':
-		if pushedio.bin == nil {
+		if importpkg == nil {
 			lexlineno++
 		}
 	}
@@ -1948,7 +1948,7 @@ check:
 func ungetc(c int) {
 	curio.peekc1 = curio.peekc
 	curio.peekc = c
-	if c == '\n' && pushedio.bin == nil {
+	if c == '\n' && importpkg == nil {
 		lexlineno--
 	}
 }
