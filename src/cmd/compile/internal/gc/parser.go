@@ -1064,65 +1064,16 @@ func (p *parser) if_stmt() *Node {
 
 	stmt.Nbody = p.loop_body("if clause")
 
-	l := p.elseif_list_else() // does markdcl
-
-	n := stmt
-	popdcl()
-	for nn := l; nn != nil; nn = nn.Next {
-		if nn.N.Op == OIF {
-			popdcl()
-		}
-		n.Rlist = list1(nn.N)
-		n = nn.N
-	}
-
-	return stmt
-}
-
-func (p *parser) elseif() *NodeList {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("elseif")()
-	}
-
-	// LELSE LIF already consumed
-	markdcl() // matching popdcl in if_stmt
-
-	stmt := p.if_header()
-	if stmt.Left == nil {
-		Yyerror("missing condition in if statement")
-	}
-
-	stmt.Nbody = p.loop_body("if clause")
-
-	return list1(stmt)
-}
-
-func (p *parser) elseif_list_else() (l *NodeList) {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("elseif_list_else")()
-	}
-
-	for p.got(LELSE) {
-		if p.got(LIF) {
-			l = concat(l, p.elseif())
+	if p.got(LELSE) {
+		if p.tok == LIF {
+			stmt.Rlist = list1(p.if_stmt())
 		} else {
-			l = concat(l, p.else_())
-			break
+			stmt.Rlist = list1(p.compound_stmt(true))
 		}
 	}
 
-	return l
-}
-
-func (p *parser) else_() *NodeList {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("else")()
-	}
-
-	l := &NodeList{N: p.compound_stmt(true)}
-	l.End = l
-	return l
-
+	popdcl()
+	return stmt
 }
 
 // switch_stmt parses both expression and type switch statements.
