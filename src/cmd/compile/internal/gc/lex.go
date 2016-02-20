@@ -866,10 +866,15 @@ func isfrog(c int) bool {
 	return false
 }
 
-type yySymType struct {
-	sym *Sym
-	val Val
-	op  Op
+type lexer struct {
+	// TODO(gri) move other lexer state here and out of global variables
+	// (source, current line number, etc.)
+
+	// current token
+	tok  int32
+	sym_ *Sym // valid if tok == LNAME
+	val  Val  // valid if tok == LLITERAL
+	op   Op   // valid if tok == LASOP
 }
 
 const (
@@ -920,7 +925,7 @@ const (
 	LRSH
 )
 
-func _yylex(yylval *yySymType) int32 {
+func (yylval *lexer) _yylex() int32 {
 	var c1 int
 	var op Op
 	var escflag int
@@ -1402,7 +1407,7 @@ talph:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
 	}
-	yylval.sym = s
+	yylval.sym_ = s
 	return int32(s.Lexical)
 
 ncu:
@@ -1828,16 +1833,16 @@ func pragcgo(text string) {
 	}
 }
 
-func yylex(yylval *yySymType) int32 {
-	lx := _yylex(yylval)
+func (l *lexer) next() {
+	tok := l._yylex()
 
-	if curio.nlsemi && lx == EOF {
+	if curio.nlsemi && tok == EOF {
 		// Treat EOF as "end of line" for the purposes
 		// of inserting a semicolon.
-		lx = ';'
+		tok = ';'
 	}
 
-	switch lx {
+	switch tok {
 	case LNAME,
 		LLITERAL,
 		LBREAK,
@@ -1855,7 +1860,7 @@ func yylex(yylval *yySymType) int32 {
 		curio.nlsemi = false
 	}
 
-	return lx
+	l.tok = tok
 }
 
 func getc() int {

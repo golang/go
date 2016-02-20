@@ -42,21 +42,10 @@ func parse_file(bin *obj.Biobuf) {
 }
 
 type parser struct {
-	tok    int32     // next token (one-token look-ahead)
-	op     Op        // valid if tok == LASOP
-	val    Val       // valid if tok == LLITERAL
-	sym_   *Sym      // valid if tok == LNAME
-	fnest  int       // function nesting level (for error handling)
-	xnest  int       // expression nesting level (for complit ambiguity resolution)
-	yy     yySymType // for temporary use by next
-	indent []byte    // tracing support
-}
-
-func (p *parser) next() {
-	p.tok = yylex(&p.yy)
-	p.op = p.yy.op
-	p.val = p.yy.val
-	p.sym_ = p.yy.sym
+	lexer
+	fnest  int    // function nesting level (for error handling)
+	xnest  int    // expression nesting level (for complit ambiguity resolution)
+	indent []byte // tracing support
 }
 
 func (p *parser) got(tok int32) bool {
