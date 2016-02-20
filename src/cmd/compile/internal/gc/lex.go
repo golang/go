@@ -832,7 +832,7 @@ func isSpace(c int) bool {
 }
 
 func isAlpha(c int) bool {
-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 func isDigit(c int) bool {
