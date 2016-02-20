@@ -21,22 +21,11 @@ import (
 
 const trace = false // if set, parse tracing can be enabled with -x
 
-// TODO(gri) Once we stop supporting the legacy export data format
-// we can get rid of this (issue 13242).
-var fileparser parser // the Go source file parser in use
-
-func parse_import(bin *obj.Biobuf) {
+func parse_import(bin *obj.Biobuf, indent []byte) {
 	pushedio := curio
 	curio = Io{bin: bin}
 
-	// Indentation (for tracing) must be preserved across parsers
-	// since we are changing the lexer source (and parser state)
-	// under foot, in the middle of productions. This won't be
-	// needed anymore once we fix issue 13242, but neither will
-	// be the push/pop_parser functionality.
-	// (Instead we could just use a global variable indent, but
-	// but eventually indent should be parser-specific anyway.)
-	importparser := parser{indent: fileparser.indent} // preserve indentation
+	importparser := parser{indent: indent} // preserve indentation
 	importparser.next()
 	importparser.import_package()
 
@@ -47,7 +36,7 @@ func parse_import(bin *obj.Biobuf) {
 func parse_file(bin *obj.Biobuf) {
 	curio = Io{bin: bin}
 
-	fileparser = parser{}
+	fileparser := parser{}
 	fileparser.next()
 	fileparser.file()
 }
@@ -360,7 +349,7 @@ func (p *parser) importdcl() {
 	path := p.val
 	p.next()
 
-	importfile(&path)
+	importfile(&path, p.indent)
 	if importpkg == nil {
 		if nerrors == 0 {
 			Fatalf("phase error in import")
