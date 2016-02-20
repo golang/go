@@ -661,16 +661,16 @@ func loadsys() {
 	incannedimport = 1
 
 	importpkg = Runtimepkg
-	parse_import(obj.Binitr(strings.NewReader(runtimeimport)))
+	parse_import(obj.Binitr(strings.NewReader(runtimeimport)), nil)
 
 	importpkg = unsafepkg
-	parse_import(obj.Binitr(strings.NewReader(unsafeimport)))
+	parse_import(obj.Binitr(strings.NewReader(unsafeimport)), nil)
 
 	importpkg = nil
 	incannedimport = 0
 }
 
-func importfile(f *Val) {
+func importfile(f *Val, indent []byte) {
 	if importpkg != nil {
 		Fatalf("importpkg not nil")
 	}
@@ -815,7 +815,7 @@ func importfile(f *Val) {
 	switch c {
 	case '\n':
 		// old export format
-		parse_import(imp)
+		parse_import(imp, indent)
 
 	case 'B':
 		// new export format
