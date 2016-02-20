@@ -389,7 +389,6 @@ type Io struct {
 	last   int
 	peekc  int
 	peekc1 int // second peekc for ...
-	nlsemi bool
 	eofnl  bool
 }
 

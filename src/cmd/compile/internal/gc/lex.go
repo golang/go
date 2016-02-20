@@ -869,6 +869,7 @@ func isfrog(c int) bool {
 type lexer struct {
 	// TODO(gri) move other lexer state here and out of global variables
 	// (source, current line number, etc.)
+	nlsemi bool // if set, '\n' and EOF translate to ';'
 
 	// current token
 	tok  int32
@@ -925,7 +926,7 @@ const (
 	LRSH
 )
 
-func (yylval *lexer) _yylex() int32 {
+func (l *lexer) next() {
 	var c1 int
 	var op Op
 	var escflag int
@@ -936,27 +937,31 @@ func (yylval *lexer) _yylex() int32 {
 
 	prevlineno = lineno
 
+	nlsemi := l.nlsemi
+	l.nlsemi = false
+
 l0:
+	// skip white space
 	c := getc()
-	if isSpace(c) {
-		if c == '\n' && curio.nlsemi {
+	for isSpace(c) {
+		if c == '\n' && nlsemi {
 			ungetc(c)
 			if Debug['x'] != 0 {
 				fmt.Printf("lex: implicit semi\n")
 			}
-			return ';'
+			l.tok = ';'
+			return
 		}
-
-		goto l0
+		c = getc()
 	}
 
-	lineno = lexlineno // start of token
+	// start of token
+	lineno = lexlineno
 
 	if c >= utf8.RuneSelf {
 		// all multibyte runes are alpha
 		cp = &lexbuf
 		cp.Reset()
-
 		goto talph
 	}
 
@@ -1049,7 +1054,17 @@ l0:
 	case EOF:
 		lineno = prevlineno
 		ungetc(EOF)
-		return -1
+		// Treat EOF as "end of line" for the purposes
+		// of inserting a semicolon.
+		if nlsemi {
+			if Debug['x'] != 0 {
+				fmt.Printf("lex: implicit semi\n")
+			}
+			l.tok = ';'
+			return
+		}
+		l.tok = -1
+		return
 
 	case '_':
 		cp = &lexbuf
@@ -1137,14 +1152,16 @@ l0:
 		}
 
 		x := new(Mpint)
-		yylval.val.U = x
+		l.val.U = x
 		Mpmovecfix(x, v)
 		x.Rune = true
 		if Debug['x'] != 0 {
 			fmt.Printf("lex: codepoint literal\n")
 		}
 		litbuf = "string literal"
-		return LLITERAL
+		l.nlsemi = true
+		l.tok = LLITERAL
+		return
 
 	case '/':
 		c1 = getc()
@@ -1217,6 +1234,7 @@ l0:
 	case '+':
 		c1 = getc()
 		if c1 == '+' {
+			l.nlsemi = true
 			c = int(LINC)
 			goto lx
 		}
@@ -1229,6 +1247,7 @@ l0:
 	case '-':
 		c1 = getc()
 		if c1 == '-' {
+			l.nlsemi = true
 			c = int(LDEC)
 			goto lx
 		}
@@ -1339,6 +1358,10 @@ l0:
 			goto asop
 		}
 
+	case ')', ']', '}':
+		l.nlsemi = true
+		goto lx
+
 	default:
 		goto lx
 	}
@@ -1363,14 +1386,16 @@ lx:
 		goto l0
 	}
 
-	return int32(c)
+	l.tok = int32(c)
+	return
 
 asop:
-	yylval.op = op
+	l.op = op
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: TOKEN ASOP %s=\n", goopnames[op])
 	}
-	return LASOP
+	l.tok = LASOP
+	return
 
 	// cp is set to lexbuf and some
 	// prefix has been stored
@@ -1407,26 +1432,33 @@ talph:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
 	}
-	yylval.sym_ = s
-	return int32(s.Lexical)
+	l.sym_ = s
+	switch s.Lexical {
+	case LNAME, LRETURN, LBREAK, LCONTINUE, LFALL:
+		l.nlsemi = true
+	}
+	l.tok = int32(s.Lexical)
+	return
 
 ncu:
 	cp = nil
 	ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U = new(Mpint)
-	mpatofix(yylval.val.U.(*Mpint), str)
-	if yylval.val.U.(*Mpint).Ovf {
+	l.val.U = new(Mpint)
+	mpatofix(l.val.U.(*Mpint), str)
+	if l.val.U.(*Mpint).Ovf {
 		Yyerror("overflow in constant")
-		Mpmovecfix(yylval.val.U.(*Mpint), 0)
+		Mpmovecfix(l.val.U.(*Mpint), 0)
 	}
 
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: integer literal\n")
 	}
 	litbuf = "literal " + str
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
+	return
 
 casedot:
 	for {
@@ -1475,45 +1507,50 @@ casei:
 	cp = nil
 
 	str = lexbuf.String()
-	yylval.val.U = new(Mpcplx)
-	Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
-	mpatoflt(&yylval.val.U.(*Mpcplx).Imag, str)
-	if yylval.val.U.(*Mpcplx).Imag.Val.IsInf() {
+	l.val.U = new(Mpcplx)
+	Mpmovecflt(&l.val.U.(*Mpcplx).Real, 0.0)
+	mpatoflt(&l.val.U.(*Mpcplx).Imag, str)
+	if l.val.U.(*Mpcplx).Imag.Val.IsInf() {
 		Yyerror("overflow in imaginary constant")
-		Mpmovecflt(&yylval.val.U.(*Mpcplx).Imag, 0.0)
+		Mpmovecflt(&l.val.U.(*Mpcplx).Imag, 0.0)
 	}
 
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: imaginary literal\n")
 	}
 	litbuf = "literal " + str
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
+	return
 
 caseout:
 	cp = nil
 	ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U = newMpflt()
-	mpatoflt(yylval.val.U.(*Mpflt), str)
-	if yylval.val.U.(*Mpflt).Val.IsInf() {
+	l.val.U = newMpflt()
+	mpatoflt(l.val.U.(*Mpflt), str)
+	if l.val.U.(*Mpflt).Val.IsInf() {
 		Yyerror("overflow in float constant")
-		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
+		Mpmovecflt(l.val.U.(*Mpflt), 0.0)
 	}
 
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: floating literal\n")
 	}
 	litbuf = "literal " + str
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
+	return
 
 strlit:
-	yylval.val.U = internString(cp.Bytes())
+	l.val.U = internString(cp.Bytes())
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")
 	}
 	litbuf = "string literal"
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
 }
 
 var internedStrings = map[string]string{}
@@ -1831,36 +1868,6 @@ func pragcgo(text string) {
 		return
 
 	}
-}
-
-func (l *lexer) next() {
-	tok := l._yylex()
-
-	if curio.nlsemi && tok == EOF {
-		// Treat EOF as "end of line" for the purposes
-		// of inserting a semicolon.
-		tok = ';'
-	}
-
-	switch tok {
-	case LNAME,
-		LLITERAL,
-		LBREAK,
-		LCONTINUE,
-		LFALL,
-		LRETURN,
-		LINC,
-		LDEC,
-		')',
-		'}',
-		']':
-		curio.nlsemi = true
-
-	default:
-		curio.nlsemi = false
-	}
-
-	l.tok = tok
 }
 
 func getc() int {
