@@ -120,7 +120,13 @@ func (fd *netFD) setWriteDeadline(t time.Time) error {
 }
 
 func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
-	d := runtimeNano() + int64(t.Sub(time.Now()))
+	diff := int64(t.Sub(time.Now()))
+	d := runtimeNano() + diff
+	if d <= 0 && diff > 0 {
+		// If the user has a deadline in the future, but the delay calculation
+		// overflows, then set the deadline to the maximum possible value.
+		d = 1<<63 - 1
+	}
 	if t.IsZero() {
 		d = 0
 	}
