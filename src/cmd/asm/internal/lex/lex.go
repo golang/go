@@ -77,7 +77,7 @@ func NewLexer(name string, ctxt *obj.Link) TokenReader {
 	input := NewInput(name)
 	fd, err := os.Open(name)
 	if err != nil {
-		log.Fatalf("asm: %s\n", err)
+		log.Fatalf("%s\n", err)
 	}
 	input.Push(NewTokenizer(name, fd, fd))
 	return input
