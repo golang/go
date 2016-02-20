@@ -561,17 +561,12 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 	return true
 }
 
-func addidir(dir string) {
-	if dir == "" {
-		return
-	}
+var idirs []string
 
-	var pp **Idir
-	for pp = &idirs; *pp != nil; pp = &(*pp).link {
+func addidir(dir string) {
+	if dir != "" {
+		idirs = append(idirs, dir)
 	}
-	*pp = new(Idir)
-	(*pp).link = nil
-	(*pp).dir = dir
 }
 
 // is this path a local name?  begins with ./ or ../ or /
@@ -610,12 +605,12 @@ func findpkg(name string) (file string, ok bool) {
 		return "", false
 	}
 
-	for p := idirs; p != nil; p = p.link {
-		file = fmt.Sprintf("%s/%s.a", p.dir, name)
+	for _, dir := range idirs {
+		file = fmt.Sprintf("%s/%s.a", dir, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
-		file = fmt.Sprintf("%s/%s.o", p.dir, name)
+		file = fmt.Sprintf("%s/%s.o", dir, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}

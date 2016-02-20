@@ -397,11 +397,6 @@ type Dlist struct {
 	field *Type
 }
 
-type Idir struct {
-	link *Idir
-	dir  string
-}
-
 // argument passing to/from
 // smagic and umagic
 type Magic struct {
@@ -518,8 +513,6 @@ var trackpkg *Pkg // fake package for field tracking
 var Tptr EType // either TPTR32 or TPTR64
 
 var myimportpath string
-
-var idirs *Idir
 
 var localimport string
 
