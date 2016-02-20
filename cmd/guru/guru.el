@@ -192,9 +192,17 @@ current buffer in the format specified by guru's -modified flag."
 		 (progn
 		   (insert (format "%s\n%d\n"
 				   (buffer-file-name b)
-				   (buffer-size b)))
-		   (insert-buffer-substring b))))
+                                   (go-guru--buffer-size-bytes b)))
+                   (insert-buffer-substring b))))
 	(buffer-list)))
+
+(defun go-guru--buffer-size-bytes (&optional buffer)
+  "Return the number of bytes in the current buffer.
+If BUFFER, return the number of characters in that buffer instead."
+  (with-current-buffer (or buffer (current-buffer))
+    (string-bytes (buffer-substring (point-min)
+                                    (point-max)))))
+
 
 (defun go-guru--goto-pos (posn)
   "Find the file containing the position POSN (of the form `file:line:col')
