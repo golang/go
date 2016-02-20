@@ -35,8 +35,8 @@ func TestErroneous(t *testing.T) {
 		{"TEXT", "%", "expect two or three operands for TEXT"},
 		{"TEXT", "1, 1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
 		{"TEXT", "$\"foo\", 0, $1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
-		{"TEXT", "$0É:0, 0, $1", "expected EOF, found É"},   // Issue #12467.
-		{"TEXT", "$:0:(SB, 0, $1", "expected '(', found 0"}, // Issue 12468.
+		{"TEXT", "$0É:0, 0, $1", "expected end of operand, found É"}, // Issue #12467.
+		{"TEXT", "$:0:(SB, 0, $1", "expected '(', found 0"},          // Issue 12468.
 		{"FUNCDATA", "", "expect two operands for FUNCDATA"},
 		{"FUNCDATA", "(SB ", "expect two operands for FUNCDATA"},
 		{"DATA", "", "expect two operands for DATA"},
