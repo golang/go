@@ -44,11 +44,9 @@ func decode_inuxi(p []byte, sz int) uint64 {
 	}
 }
 
-// commonsize returns the size of the common prefix for all type
-// structures (runtime._type).
-func commonsize() int {
-	return 7*Thearch.Ptrsize + 8
-}
+func commonsize() int      { return 6*Thearch.Ptrsize + 8 }                 // runtime._type
+func structfieldSize() int { return 5 * Thearch.Ptrsize }                   // runtime.structfield
+func uncommonSize() int    { return 2*Thearch.Ptrsize + 2*Thearch.Intsize } // runtime.uncommontype
 
 // Type.commonType.kind
 func decodetype_kind(s *LSym) uint8 {
@@ -73,6 +71,12 @@ func decodetype_size(s *LSym) int64 {
 // Type.commonType.ptrdata
 func decodetype_ptrdata(s *LSym) int64 {
 	return int64(decode_inuxi(s.P[Thearch.Ptrsize:], Thearch.Ptrsize)) // 0x8 / 0x10
+}
+
+// Type.commonType.tflag
+func decodetype_hasUncommon(s *LSym) bool {
+	const tflagUncommon = 1 // see ../../../../reflect/type.go:/^type.tflag
+	return s.P[2*Thearch.Ptrsize+4]&tflagUncommon != 0
 }
 
 // Find the elf.Section of a given shared library that contains a given address.
@@ -201,15 +205,18 @@ func decodetype_structfieldcount(s *LSym) int {
 	return int(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
 }
 
-func structfieldsize() int {
-	return 5 * Thearch.Ptrsize
+func decodetype_structfieldarrayoff(s *LSym, i int) int {
+	off := commonsize() + Thearch.Ptrsize + 2*Thearch.Intsize
+	if decodetype_hasUncommon(s) {
+		off += uncommonSize()
+	}
+	off += i * structfieldSize()
+	return off
 }
 
-// Type.StructType.fields[]-> name, typ and offset.
 func decodetype_structfieldname(s *LSym, i int) string {
-	// go.string."foo"  0x28 / 0x40
-	s = decode_reloc_sym(s, int32(commonsize())+int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize)+int32(i)*int32(structfieldsize()))
-
+	off := decodetype_structfieldarrayoff(s, i)
+	s = decode_reloc_sym(s, int32(off))
 	if s == nil { // embedded structs have a nil name.
 		return ""
 	}
@@ -222,11 +229,13 @@ func decodetype_structfieldname(s *LSym, i int) string {
 }
 
 func decodetype_structfieldtype(s *LSym, i int) *LSym {
-	return decode_reloc_sym(s, int32(commonsize())+int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize)+int32(i)*int32(structfieldsize())+2*int32(Thearch.Ptrsize))
+	off := decodetype_structfieldarrayoff(s, i)
+	return decode_reloc_sym(s, int32(off+2*Thearch.Ptrsize))
 }
 
 func decodetype_structfieldoffs(s *LSym, i int) int64 {
-	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize+2*Thearch.Intsize+i*structfieldsize()+4*Thearch.Ptrsize:], Thearch.Intsize))
+	off := decodetype_structfieldarrayoff(s, i)
+	return int64(decode_inuxi(s.P[off+4*Thearch.Ptrsize:], Thearch.Intsize))
 }
 
 // InterfaceType.methods.length
