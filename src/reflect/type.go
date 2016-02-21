@@ -240,22 +240,40 @@ const (
 	UnsafePointer
 )
 
+// tflag is used by an rtype to signal what extra type information is
+// available in the memory directly following the rtype value.
+type tflag uint8
+
+const (
+	// tflagUncommon means that there is a pointer, *uncommonType,
+	// just beyond the outer type structure.
+	//
+	// For example, if t.Kind() == Struct and t.tflag&tflagUncommon != 0,
+	// then t has uncommonType data and it can be accessed as:
+	//
+	//	type tUncommon struct {
+	//		structType
+	//		u uncommonType
+	//	}
+	//	u := &(*tUncommon)(unsafe.Pointer(t)).u
+	tflagUncommon tflag = 1
+)
+
 // rtype is the common implementation of most values.
 // It is embedded in other, public struct types, but always
 // with a unique tag like `reflect:"array"` or `reflect:"ptr"`
 // so that code cannot convert from, say, *arrayType to *ptrType.
 type rtype struct {
-	size          uintptr
-	ptrdata       uintptr
-	hash          uint32   // hash of type; avoids computation in hash tables
-	_             uint8    // unused/padding
-	align         uint8    // alignment of variable with this type
-	fieldAlign    uint8    // alignment of struct field with this type
-	kind          uint8    // enumeration for C
-	alg           *typeAlg // algorithm table
-	gcdata        *byte    // garbage collection data
-	string        string   // string form; unnecessary but undeniably useful
-	*uncommonType          // (relatively) uncommon fields
+	size       uintptr
+	ptrdata    uintptr
+	hash       uint32   // hash of type; avoids computation in hash tables
+	tflag      tflag    // extra type information flags
+	align      uint8    // alignment of variable with this type
+	fieldAlign uint8    // alignment of struct field with this type
+	kind       uint8    // enumeration for C
+	alg        *typeAlg // algorithm table
+	gcdata     *byte    // garbage collection data
+	string     string   // string form; unnecessary but undeniably useful
 }
 
 // a copy of runtime.typeAlg
@@ -440,15 +458,73 @@ var kindNames = []string{
 	UnsafePointer: "unsafe.Pointer",
 }
 
-func (t *uncommonType) uncommon() *uncommonType {
-	return t
-}
-
 func (t *uncommonType) PkgPath() string {
 	if t == nil || t.pkgPath == nil {
 		return ""
 	}
 	return *t.pkgPath
+}
+
+func (t *rtype) uncommon() *uncommonType {
+	if t.tflag&tflagUncommon == 0 {
+		return nil
+	}
+	switch t.Kind() {
+	case Struct:
+		type u struct {
+			structType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Ptr:
+		type u struct {
+			ptrType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Func:
+		type u struct {
+			funcType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Slice:
+		type u struct {
+			sliceType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Array:
+		type u struct {
+			arrayType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Chan:
+		type u struct {
+			chanType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Map:
+		type u struct {
+			mapType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	case Interface:
+		type u struct {
+			interfaceType
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	default:
+		type u struct {
+			rtype
+			u uncommonType
+		}
+		return &(*u)(unsafe.Pointer(t)).u
+	}
 }
 
 func (t *rtype) String() string { return t.string }
@@ -526,7 +602,7 @@ func (t *rtype) NumMethod() int {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.NumMethod()
 	}
-	return t.uncommonType.NumMethod()
+	return t.uncommon().NumMethod()
 }
 
 func (t *rtype) Method(i int) (m Method) {
@@ -534,7 +610,7 @@ func (t *rtype) Method(i int) (m Method) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.Method(i)
 	}
-	return t.uncommonType.Method(i)
+	return t.uncommon().Method(i)
 }
 
 func (t *rtype) MethodByName(name string) (m Method, ok bool) {
@@ -542,11 +618,11 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.MethodByName(name)
 	}
-	return t.uncommonType.MethodByName(name)
+	return t.uncommon().MethodByName(name)
 }
 
 func (t *rtype) PkgPath() string {
-	return t.uncommonType.PkgPath()
+	return t.uncommon().PkgPath()
 }
 
 func hasPrefix(s, prefix string) bool {
@@ -1099,7 +1175,6 @@ func (t *rtype) ptrTo() *rtype {
 	// old hash and the new "*".
 	p.hash = fnv1(t.hash, '*')
 
-	p.uncommonType = nil
 	p.elem = t
 
 	ptrMap.m[t] = p
@@ -1477,7 +1552,6 @@ func ChanOf(dir ChanDir, t Type) Type {
 	ch.string = s
 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
 	ch.elem = typ
-	ch.uncommonType = nil
 
 	return cachePut(ckey, &ch.rtype)
 }
@@ -1539,7 +1613,6 @@ func MapOf(key, elem Type) Type {
 	mt.bucketsize = uint16(mt.bucket.size)
 	mt.reflexivekey = isReflexive(ktyp)
 	mt.needkeyupdate = needKeyUpdate(ktyp)
-	mt.uncommonType = nil
 
 	return cachePut(ckey, &mt.rtype)
 }
@@ -1617,7 +1690,6 @@ func FuncOf(in, out []Type, variadic bool) Type {
 
 	// Populate the remaining fields of ft and store in cache.
 	ft.string = str
-	ft.uncommonType = nil
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return &ft.rtype
@@ -1846,7 +1918,6 @@ func SliceOf(t Type) Type {
 	slice.string = s
 	slice.hash = fnv1(typ.hash, '[')
 	slice.elem = typ
-	slice.uncommonType = nil
 
 	return cachePut(ckey, &slice.rtype)
 }
@@ -1903,7 +1974,6 @@ func ArrayOf(count int, elem Type) Type {
 	}
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
-	array.uncommonType = nil
 	array.len = uintptr(count)
 	array.slice = slice.(*rtype)
 

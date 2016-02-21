@@ -25,7 +25,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// easy case
-	x := typ.x
+	x := typ.uncommon()
 	if x == nil {
 		if canfail {
 			return nil
@@ -89,6 +89,9 @@ search:
 		itype := i._type
 		for ; j < nt; j++ {
 			t := &x.mhdr[j]
+			if t.name == nil {
+				throw("itab t.name is nil")
+			}
 			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
 				if m != nil {
 					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn

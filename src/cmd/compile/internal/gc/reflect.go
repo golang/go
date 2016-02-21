@@ -53,6 +53,15 @@ const (
 	MAXVALSIZE = 128
 )
 
+func structfieldSize() int       { return 5 * Widthptr } // Sizeof(runtime.structfield{})
+func imethodSize() int           { return 3 * Widthptr } // Sizeof(runtime.imethod{})
+func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
+	if t.Sym == nil && len(methods(t)) == 0 {
+		return 0
+	}
+	return 2*Widthptr + 2*Widthint
+}
+
 func makefield(name string, t *Type) *Type {
 	f := typ(TFIELD)
 	f.Type = t
@@ -473,18 +482,19 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
 	return dsymptr(s, ot, pkg.Pathsym, 0)
 }
 
-// uncommonType
-// ../../../../runtime/type.go:/uncommonType
-func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
+// dextratype dumps the fields of a runtime.uncommontype.
+// dataAdd is the offset in bytes after the header where the
+// backing array of the []method field is written (by dextratypeData).
+func dextratype(sym *Sym, off int, t *Type, dataAdd int) int {
 	m := methods(t)
 	if t.Sym == nil && len(m) == 0 {
 		return off
 	}
-
-	// fill in *extraType pointer in header
-	off = int(Rnd(int64(off), int64(Widthptr)))
-
-	dsymptr(sym, ptroff, sym, off)
+	noff := int(Rnd(int64(off), int64(Widthptr)))
+	if noff != off {
+		panic("dextratype rounding does something. :-(")
+	}
+	off = noff
 
 	for _, a := range m {
 		dtypesym(a.type_)
@@ -499,14 +509,19 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 	}
 
 	// slice header
-	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+	ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+dataAdd)
 
 	n := len(m)
 	ot = duintxx(s, ot, uint64(n), Widthint)
 	ot = duintxx(s, ot, uint64(n), Widthint)
 
-	// methods
-	for _, a := range m {
+	return ot
+}
+
+// dextratypeData dumps the backing array for the []method field of
+// runtime.uncommontype.
+func dextratypeData(s *Sym, ot int, t *Type) int {
+	for _, a := range methods(t) {
 		// method
 		// ../../../../runtime/type.go:/method
 		ot = dgostringptr(s, ot, a.name)
@@ -525,7 +540,6 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 			ot = duintptr(s, ot, 0)
 		}
 	}
-
 	return ot
 }
 
@@ -674,8 +688,11 @@ func typeptrdata(t *Type) int64 {
 	}
 }
 
+// tflag is documented in ../../../../reflect/type.go.
+const tflagUncommon = 1
+
 // commonType
-// ../../runtime/type.go:/commonType
+// ../../../../runtime/type.go:/commonType
 
 var dcommontype_algarray *Sym
 
@@ -713,20 +730,24 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		size          uintptr
 	//		ptrdata       uintptr
 	//		hash          uint32
-	//		_             uint8
+	//		tflag         tflag
 	//		align         uint8
 	//		fieldAlign    uint8
 	//		kind          uint8
 	//		alg           *typeAlg
 	//		gcdata        *byte
 	//		string        *string
-	//		*uncommonType
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
 	ot = duintptr(s, ot, uint64(ptrdata))
 
 	ot = duint32(s, ot, typehash(t))
-	ot = duint8(s, ot, 0) // unused
+
+	var tflag uint8
+	if uncommonSize(t) != 0 {
+		tflag |= tflagUncommon
+	}
+	ot = duint8(s, ot, tflag)
 
 	// runtime (and common sense) expects alignment to be a power of two.
 	i := int(t.Align)
@@ -776,13 +797,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	_, symdata := stringsym(p) // string
 	ot = dsymptr(s, ot, symdata, prefix)
 	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
-	//fmt.Printf("dcommontype: %s\n", p)
-
-	// skip pointer to extraType,
-	// which follows the rest of this type structure.
-	// caller will fill in if needed.
-	// otherwise linker will assume 0.
-	ot += Widthptr
 
 	return ot
 }
@@ -1000,11 +1014,10 @@ func dtypesym(t *Type) *Sym {
 
 ok:
 	ot := 0
-	xt := 0
 	switch t.Etype {
 	default:
 		ot = dcommontype(s, ot, t)
-		xt = ot - 1*Widthptr
+		ot = dextratype(s, ot, t, 0)
 
 	case TARRAY:
 		if t.Bound >= 0 {
@@ -1016,7 +1029,6 @@ ok:
 			t2.Bound = -1 // slice
 			s2 := dtypesym(t2)
 			ot = dcommontype(s, ot, t)
-			xt = ot - 1*Widthptr
 			ot = dsymptr(s, ot, s1, 0)
 			ot = dsymptr(s, ot, s2, 0)
 			ot = duintptr(s, ot, uint64(t.Bound))
@@ -1025,18 +1037,18 @@ ok:
 			s1 := dtypesym(t.Type)
 
 			ot = dcommontype(s, ot, t)
-			xt = ot - 1*Widthptr
 			ot = dsymptr(s, ot, s1, 0)
 		}
+		ot = dextratype(s, ot, t, 0)
 
 	// ../../../../runtime/type.go:/chanType
 	case TCHAN:
 		s1 := dtypesym(t.Type)
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = duintptr(s, ot, uint64(t.Chan))
+		ot = dextratype(s, ot, t, 0)
 
 	case TFUNC:
 		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
@@ -1053,19 +1065,30 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 1*Widthptr
 		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
 
 		// two slice headers: in and out.
 		ot = int(Rnd(int64(ot), int64(Widthptr)))
 
-		ot = dsymptr(s, ot, s, ot+2*(Widthptr+2*Widthint))
+		ot = dsymptr(s, ot, s, ot+2*(Widthptr+2*Widthint)+uncommonSize(t))
 		n := t.Thistuple + t.Intuple
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
-		ot = dsymptr(s, ot, s, ot+1*(Widthptr+2*Widthint)+n*Widthptr)
+		ot = dsymptr(s, ot, s, ot+1*(Widthptr+2*Widthint)+uncommonSize(t)+n*Widthptr)
 		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
 		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
+
+		dataAdd := 0
+		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+			dataAdd += Widthptr
+		}
+		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
+			dataAdd += Widthptr
+		}
+		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+			dataAdd += Widthptr
+		}
+		ot = dextratype(s, ot, t, dataAdd)
 
 		// slice data
 		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
@@ -1091,14 +1114,15 @@ ok:
 		// ../../../../runtime/type.go:/interfaceType
 		ot = dcommontype(s, ot, t)
 
-		xt = ot - 1*Widthptr
-		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
+		dataAdd := imethodSize() * n
+		ot = dextratype(s, ot, t, dataAdd)
+
 		for _, a := range m {
 			// ../../../../runtime/type.go:/imethod
 			ot = dgostringptr(s, ot, a.name)
-
 			ot = dgopkgpath(s, ot, a.pkg)
 			ot = dsymptr(s, ot, dtypesym(a.type_), 0)
 		}
@@ -1111,7 +1135,6 @@ ok:
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
 		ot = dcommontype(s, ot, t)
-		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = dsymptr(s, ot, s2, 0)
 		ot = dsymptr(s, ot, s3, 0)
@@ -1135,11 +1158,13 @@ ok:
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
 		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
 		ot = duint8(s, ot, uint8(obj.Bool2int(needkeyupdate(t.Down))))
+		ot = dextratype(s, ot, t, 0)
 
 	case TPTR32, TPTR64:
 		if t.Type.Etype == TANY {
 			// ../../../../runtime/type.go:/UnsafePointerType
 			ot = dcommontype(s, ot, t)
+			ot = dextratype(s, ot, t, 0)
 
 			break
 		}
@@ -1148,8 +1173,8 @@ ok:
 		s1 := dtypesym(t.Type)
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
+		ot = dextratype(s, ot, t, 0)
 
 	// ../../../../runtime/type.go:/structType
 	// for security, only the exported fields.
@@ -1162,12 +1187,15 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 1*Widthptr
-		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
+		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint+uncommonSize(t))
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
+
+		dataAdd := n * structfieldSize()
+		ot = dextratype(s, ot, t, dataAdd)
+
 		for t1 := t.Type; t1 != nil; t1 = t1.Down {
-			// ../../../../runtime/type.go:/structField
+			// ../../../../runtime/type.go:/structfield
 			if t1.Sym != nil && t1.Embedded == 0 {
 				ot = dgostringptr(s, ot, t1.Sym.Name)
 				if exportname(t1.Sym.Name) {
@@ -1191,7 +1219,7 @@ ok:
 		}
 	}
 
-	ot = dextratype(s, ot, t, xt)
+	ot = dextratypeData(s, ot, t)
 	ggloblsym(s, int32(ot), int16(dupok|obj.RODATA))
 
 	// generate typelink.foo pointing at s = type.foo.
