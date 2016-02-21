@@ -336,3 +336,19 @@ func TestPanicTraceback(t *testing.T) {
 		output = output[idx[1]:]
 	}
 }
+
+func testPanicDeadlock(t *testing.T, name string, want string) {
+	// test issue 14432
+	output := runTestProg(t, "testprog", name)
+	if !strings.HasPrefix(output, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, output)
+	}
+}
+
+func TestPanicDeadlockGosched(t *testing.T) {
+	testPanicDeadlock(t, "GoschedInPanic", "panic: errorThatGosched\n\n")
+}
+
+func TestPanicDeadlockSyscall(t *testing.T) {
+	testPanicDeadlock(t, "SyscallInPanic", "1\n2\npanic: 3\n\n")
+}
