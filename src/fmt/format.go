@@ -124,17 +124,12 @@ func (f *fmt) padString(s string) {
 	}
 }
 
-var (
-	trueBytes  = []byte("true")
-	falseBytes = []byte("false")
-)
-
 // fmt_boolean formats a boolean.
 func (f *fmt) fmt_boolean(v bool) {
 	if v {
-		f.pad(trueBytes)
+		f.padString("true")
 	} else {
-		f.pad(falseBytes)
+		f.padString("false")
 	}
 }
 
@@ -511,5 +506,5 @@ func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
 	f.space = oldSpace
 	f.plus = oldPlus
 	f.wid = oldWid
-	f.buf.Write(irparenBytes)
+	f.buf.WriteString("i)")
 }

@@ -839,7 +839,7 @@ func (s *ss) quotedString() string {
 		return string(s.buf)
 	case '"':
 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
-		s.buf.WriteRune(quote)
+		s.buf.WriteByte('"')
 		for {
 			r := s.mustReadRune()
 			s.buf.WriteRune(r)
