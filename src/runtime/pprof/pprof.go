@@ -325,33 +325,24 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 // for a single stack trace.
 func printStackRecord(w io.Writer, stk []uintptr, allFrames bool) {
 	show := allFrames
-	wasPanic := false
-	for i, pc := range stk {
-		f := runtime.FuncForPC(pc)
-		if f == nil {
+	frames := runtime.CallersFrames(stk)
+	for {
+		frame, more := frames.Next()
+		name := frame.Function
+		if name == "" {
 			show = true
-			fmt.Fprintf(w, "#\t%#x\n", pc)
-			wasPanic = false
+			fmt.Fprintf(w, "#\t%#x\n", frame.PC)
 		} else {
-			tracepc := pc
-			// Back up to call instruction.
-			if i > 0 && pc > f.Entry() && !wasPanic {
-				if runtime.GOARCH == "386" || runtime.GOARCH == "amd64" {
-					tracepc--
-				} else {
-					tracepc -= 4 // arm, etc
-				}
-			}
-			file, line := f.FileLine(tracepc)
-			name := f.Name()
 			// Hide runtime.goexit and any runtime functions at the beginning.
 			// This is useful mainly for allocation traces.
-			wasPanic = name == "runtime.gopanic"
 			if name == "runtime.goexit" || !show && strings.HasPrefix(name, "runtime.") {
 				continue
 			}
 			show = true
-			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", pc, name, pc-f.Entry(), file, line)
+			fmt.Fprintf(w, "#\t%#x\t%s+%#x\t%s:%d\n", frame.PC, name, frame.PC-frame.Entry, frame.File, frame.Line)
+		}
+		if !more {
+			break
 		}
 	}
 	if !show {
