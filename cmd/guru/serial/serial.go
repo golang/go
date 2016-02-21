@@ -27,7 +27,6 @@ type Peers struct {
 
 // A Referrers is the result of a 'referrers' query.
 type Referrers struct {
-	Pos    string   `json:"pos"`              // location of the query reference
 	ObjPos string   `json:"objpos,omitempty"` // location of the definition
 	Desc   string   `json:"desc"`             // description of the denoted object
 	Refs   []string `json:"refs,omitempty"`   // locations of all references

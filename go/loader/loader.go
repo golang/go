@@ -107,6 +107,25 @@ type Config struct {
 	//
 	// It must be safe to call concurrently from multiple goroutines.
 	FindPackage func(ctxt *build.Context, fromDir, importPath string, mode build.ImportMode) (*build.Package, error)
+
+	// AfterTypeCheck is called immediately after a list of files
+	// has been type-checked and appended to info.Files.
+	//
+	// This optional hook function is the earliest opportunity for
+	// the client to observe the output of the type checker,
+	// which may be useful to reduce analysis latency when loading
+	// a large program.
+	//
+	// The function is permitted to modify info.Info, for instance
+	// to clear data structures that are no longer needed, which can
+	// dramatically reduce peak memory consumption.
+	//
+	// The function may be called twice for the same PackageInfo:
+	// once for the files of the package and again for the
+	// in-package test files.
+	//
+	// It must be safe to call concurrently from multiple goroutines.
+	AfterTypeCheck func(info *PackageInfo, files []*ast.File)
 }
 
 // A PkgSpec specifies a non-importable package to be created by Load.
@@ -971,8 +990,6 @@ func (imp *importer) load(bp *build.Package) *PackageInfo {
 // dependency edges that should be checked for potential cycles.
 //
 func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck bool) {
-	info.Files = append(info.Files, files...)
-
 	// Ensure the dependencies are loaded, in parallel.
 	var fromPath string
 	if cycleCheck {
@@ -990,6 +1007,11 @@ func (imp *importer) addFiles(info *PackageInfo, files []*ast.File, cycleCheck b
 	// Ignore the returned (first) error since we
 	// already collect them all in the PackageInfo.
 	info.checker.Files(files)
+	info.Files = append(info.Files, files...)
+
+	if imp.conf.AfterTypeCheck != nil {
+		imp.conf.AfterTypeCheck(info, files)
+	}
 
 	if trace {
 		fmt.Fprintf(os.Stderr, "%s: stop %q\n",
