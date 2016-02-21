@@ -124,20 +124,20 @@ func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
 		return err
 	}
 	f.Close()
-	if err := conf.forceUpdate(conf.path); err != nil {
+	if err := conf.forceUpdate(conf.path, time.Now().Add(time.Hour)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (conf *resolvConfTest) forceUpdate(name string) error {
+func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
 	dnsConf := dnsReadConfig(name)
 	conf.mu.Lock()
 	conf.dnsConfig = dnsConf
 	conf.mu.Unlock()
 	for i := 0; i < 5; i++ {
 		if conf.tryAcquireSema() {
-			conf.lastChecked = time.Time{}
+			conf.lastChecked = lastChecked
 			conf.releaseSema()
 			return nil
 		}
@@ -153,7 +153,7 @@ func (conf *resolvConfTest) servers() []string {
 }
 
 func (conf *resolvConfTest) teardown() error {
-	err := conf.forceUpdate("/etc/resolv.conf")
+	err := conf.forceUpdate("/etc/resolv.conf", time.Time{})
 	os.RemoveAll(conf.dir)
 	return err
 }
@@ -353,7 +353,6 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		conf.tryUpdate(conf.path)
 		addrs, err := goLookupIP(tt.name)
 		if err != nil {
 			if err, ok := err.(*DNSError); !ok || (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
@@ -392,7 +391,6 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	if err := conf.writeAndUpdate([]string{}); err != nil {
 		t.Fatal(err)
 	}
-	conf.tryUpdate(conf.path)
 	// Redirect host file lookups.
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
 	testHookHostsPath = "testdata/hosts"
