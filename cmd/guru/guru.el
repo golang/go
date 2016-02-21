@@ -179,7 +179,6 @@ a scope if not already set.  Return the output buffer."
     (message nil))
   
   (let ((w (display-buffer (current-buffer))))
-    (shrink-window-if-larger-than-buffer w)
     (set-window-point w (point-min))))
 
 (defun go-guru--insert-modified-files ()
