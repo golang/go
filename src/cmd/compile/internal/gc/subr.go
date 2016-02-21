@@ -2507,35 +2507,20 @@ func genhash(sym *Sym, t *Type) {
 
 		fn.Nbody = list(fn.Nbody, n)
 
-		// Walk the struct using memhash for runs of AMEM
+	// Walk the struct using memhash for runs of AMEM
 	// and calling specific hash functions for the others.
 	case TSTRUCT:
-		var first *Type
-
-		offend := int64(0)
-		var size int64
 		var call *Node
 		var nx *Node
 		var na *Node
 		var hashel *Node
-		for t1 := t.Type; ; t1 = t1.Down {
-			if t1 != nil && algtype1(t1.Type, nil) == AMEM && !isblanksym(t1.Sym) {
-				offend = t1.Width + t1.Type.Width
-				if first == nil {
-					first = t1
-				}
 
-				// If it's a memory field but it's padded, stop here.
-				if ispaddedfield(t1, t.Width) {
-					t1 = t1.Down
-				} else {
-					continue
-				}
-			}
+		for t1 := t.Type; ; t1 = t1.Down {
+			first, size, next := memrun(t, t1)
+			t1 = next
 
 			// Run memhash for fields up to this one.
 			if first != nil {
-				size = offend - first.Width // first->width is offset
 				hashel = hashmem(first.Type)
 
 				// h = hashel(&p.first, size, h)
@@ -2548,8 +2533,6 @@ func genhash(sym *Sym, t *Type) {
 				call.List = list(call.List, nh)
 				call.List = list(call.List, Nodintconst(size))
 				fn.Nbody = list(fn.Nbody, Nod(OAS, nh, call))
-
-				first = nil
 			}
 
 			if t1 == nil {
@@ -2745,25 +2728,11 @@ func geneq(sym *Sym, t *Type) {
 	// and calling specific equality tests for the others.
 	// Skip blank-named fields.
 	case TSTRUCT:
-		var first *Type
-
 		var conjuncts []*Node
-		offend := int64(0)
-		var size int64
-		for t1 := t.Type; ; t1 = t1.Down {
-			if t1 != nil && algtype1(t1.Type, nil) == AMEM && !isblanksym(t1.Sym) {
-				offend = t1.Width + t1.Type.Width
-				if first == nil {
-					first = t1
-				}
 
-				// If it's a memory field but it's padded, stop here.
-				if ispaddedfield(t1, t.Width) {
-					t1 = t1.Down
-				} else {
-					continue
-				}
-			}
+		for t1 := t.Type; ; t1 = t1.Down {
+			first, size, next := memrun(t, t1)
+			t1 = next
 
 			// Run memequal for fields up to this one.
 			// TODO(rsc): All the calls to newname are wrong for
@@ -2779,11 +2748,8 @@ func geneq(sym *Sym, t *Type) {
 					}
 				} else {
 					// More than two fields: use memequal.
-					size = offend - first.Width // first->width is offset
 					conjuncts = append(conjuncts, eqmem(np, nq, newname(first.Sym), size))
 				}
-
-				first = nil
 			}
 
 			if t1 == nil {
@@ -2844,6 +2810,35 @@ func geneq(sym *Sym, t *Type) {
 
 	safemode = old_safemode
 	Disable_checknil--
+}
+
+// memrun finds runs of struct fields for which memory-only algs are appropriate.
+// t is the parent struct type, and field is the field at which to start.
+// first is the first field in the memory run.
+// size is the length in bytes of the memory included in the run.
+// next is the next field after the memory run.
+func memrun(t *Type, field *Type) (first *Type, size int64, next *Type) {
+	var offend int64
+	for {
+		if field == nil || algtype1(field.Type, nil) != AMEM || isblanksym(field.Sym) {
+			break
+		}
+		offend = field.Width + field.Type.Width
+		if first == nil {
+			first = field
+		}
+
+		// If it's a memory field but it's padded, stop here.
+		if ispaddedfield(field, t.Width) {
+			field = field.Down
+			break
+		}
+		field = field.Down
+	}
+	if first != nil {
+		size = offend - first.Width // first.Width is offset
+	}
+	return first, size, field
 }
 
 func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase int) *Type {
