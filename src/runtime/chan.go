@@ -36,6 +36,10 @@ type hchan struct {
 
 	// lock protects all fields in hchan, as well as several
 	// fields in sudogs blocked on this channel.
+	//
+	// Do not change another G's status while holding this lock
+	// (in particular, do not ready a G), as this can deadlock
+	// with stack shrinking.
 	lock mutex
 }
 
@@ -315,6 +319,8 @@ func closechan(c *hchan) {
 
 	c.closed = 1
 
+	var glist *g
+
 	// release all readers
 	for {
 		sg := c.recvq.dequeue()
@@ -333,7 +339,8 @@ func closechan(c *hchan) {
 		if raceenabled {
 			raceacquireg(gp, unsafe.Pointer(c))
 		}
-		goready(gp, 3)
+		gp.schedlink.set(glist)
+		glist = gp
 	}
 
 	// release all writers (they will panic)
@@ -351,9 +358,18 @@ func closechan(c *hchan) {
 		if raceenabled {
 			raceacquireg(gp, unsafe.Pointer(c))
 		}
-		goready(gp, 3)
+		gp.schedlink.set(glist)
+		glist = gp
 	}
 	unlock(&c.lock)
+
+	// Ready all Gs now that we've dropped the channel lock.
+	for glist != nil {
+		gp := glist
+		glist = glist.schedlink.ptr()
+		gp.schedlink = 0
+		goready(gp, 3)
+	}
 }
 
 // entry points for <- c from compiled code
