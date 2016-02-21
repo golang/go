@@ -1641,7 +1641,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		case 16:
 			t.Go = c.complex128
 		}
-		if t.Align = t.Size; t.Align >= c.ptrSize {
+		if t.Align = t.Size / 2; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize
 		}
 

@@ -1232,8 +1232,8 @@ var goTypes = map[string]*Type{
 	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
 	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
 	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
-	"complex64":  {Size: 8, Align: 8, C: c("GoComplex64")},
-	"complex128": {Size: 16, Align: 16, C: c("GoComplex128")},
+	"complex64":  {Size: 8, Align: 4, C: c("GoComplex64")},
+	"complex128": {Size: 16, Align: 8, C: c("GoComplex128")},
 }
 
 // Map an ast type to a Type.
