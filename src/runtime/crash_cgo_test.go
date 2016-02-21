@@ -178,3 +178,12 @@ func TestCgoCheckBytes(t *testing.T) {
 		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
 	}
 }
+
+func TestCgoPanicDeadlock(t *testing.T) {
+	// test issue 14432
+	got := runTestProg(t, "testprogcgo", "CgoPanicDeadlock")
+	want := "panic: cgo error\n\n"
+	if !strings.HasPrefix(got, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, got)
+	}
+}
