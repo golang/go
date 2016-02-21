@@ -943,6 +943,13 @@ func BenchmarkSprintfFloat(b *testing.B) {
 		}
 	})
 }
+func BenchmarkSprintfBoolean(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%t", true)
+		}
+	})
+}
 
 func BenchmarkManyArgs(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
