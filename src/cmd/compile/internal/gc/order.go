@@ -42,8 +42,7 @@ import (
 // Order holds state during the ordering process.
 type Order struct {
 	out  *NodeList // list of generated statements
-	temp *NodeList // head of stack of temporary variables
-	free *NodeList // free list of NodeList* structs (for use in temp)
+	temp []*Node   // stack of temporary variables
 }
 
 // Order rewrites fn->nbody to apply the ordering constraints
@@ -68,14 +67,7 @@ func ordertemp(t *Type, order *Order, clear bool) *Node {
 		order.out = list(order.out, a)
 	}
 
-	l := order.free
-	if l == nil {
-		l = new(NodeList)
-	}
-	order.free = l.Next
-	l.Next = order.temp
-	l.N = var_
-	order.temp = l
+	order.temp = append(order.temp, var_)
 	return var_
 }
 
@@ -215,41 +207,34 @@ func orderaddrtemp(np **Node, order *Order) {
 	*np = ordercopyexpr(n, n.Type, order, 0)
 }
 
+type ordermarker int
+
 // Marktemp returns the top of the temporary variable stack.
-func marktemp(order *Order) *NodeList {
-	return order.temp
+func marktemp(order *Order) ordermarker {
+	return ordermarker(len(order.temp))
 }
 
 // Poptemp pops temporaries off the stack until reaching the mark,
 // which must have been returned by marktemp.
-func poptemp(mark *NodeList, order *Order) {
-	var l *NodeList
-
-	for {
-		l = order.temp
-		if l == mark {
-			break
-		}
-		order.temp = l.Next
-		l.Next = order.free
-		order.free = l
-	}
+func poptemp(mark ordermarker, order *Order) {
+	order.temp = order.temp[:mark]
 }
 
 // Cleantempnopop emits to *out VARKILL instructions for each temporary
 // above the mark on the temporary stack, but it does not pop them
 // from the stack.
-func cleantempnopop(mark *NodeList, order *Order, out **NodeList) {
+func cleantempnopop(mark ordermarker, order *Order, out **NodeList) {
 	var kill *Node
 
-	for l := order.temp; l != mark; l = l.Next {
-		if l.N.Name.Keepalive {
-			l.N.Name.Keepalive = false
-			kill = Nod(OVARLIVE, l.N, nil)
+	for i := len(order.temp) - 1; i >= int(mark); i-- {
+		n := order.temp[i]
+		if n.Name.Keepalive {
+			n.Name.Keepalive = false
+			kill = Nod(OVARLIVE, n, nil)
 			typecheck(&kill, Etop)
 			*out = list(*out, kill)
 		}
-		kill = Nod(OVARKILL, l.N, nil)
+		kill = Nod(OVARKILL, n, nil)
 		typecheck(&kill, Etop)
 		*out = list(*out, kill)
 	}
@@ -257,7 +242,7 @@ func cleantempnopop(mark *NodeList, order *Order, out **NodeList) {
 
 // Cleantemp emits VARKILL instructions for each temporary above the
 // mark on the temporary stack and removes them from the stack.
-func cleantemp(top *NodeList, order *Order) {
+func cleantemp(top ordermarker, order *Order) {
 	cleantempnopop(top, order, &order.out)
 	poptemp(top, order)
 }
@@ -289,13 +274,7 @@ func orderexprinplace(np **Node, outer *Order) {
 
 	// insert new temporaries from order
 	// at head of outer list.
-	lp := &order.temp
-
-	for *lp != nil {
-		lp = &(*lp).Next
-	}
-	*lp = outer.temp
-	outer.temp = order.temp
+	outer.temp = append(outer.temp, order.temp...)
 
 	*np = n
 }
