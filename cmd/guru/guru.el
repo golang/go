@@ -34,7 +34,7 @@
   "History of values supplied to `go-guru-set-scope'.")
 
 ;; Extend go-mode-map.
-(let ((m go-mode-map))
+(let ((m go-guru-map))
   (define-key m "d" #'go-guru-describe)
   (define-key m "f" #'go-guru-freevars)
   (define-key m "i" #'go-guru-implements)
