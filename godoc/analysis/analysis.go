@@ -56,7 +56,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -351,7 +350,7 @@ func Run(pta bool, result *Result) {
 	var roots, args []string // roots[i] ends with os.PathSeparator
 
 	// Enumerate packages in $GOROOT.
-	root := filepath.Join(runtime.GOROOT(), "src") + string(os.PathSeparator)
+	root := filepath.Join(build.Default.GOROOT, "src") + string(os.PathSeparator)
 	roots = append(roots, root)
 	args = allPackages(root)
 	log.Printf("GOROOT=%s: %s\n", root, args)
