@@ -34,7 +34,7 @@ import (
 // flags
 var (
 	modifiedFlag   = flag.Bool("modified", false, "read archive of modified files from standard input")
-	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` the analysis should be limited to (default=all)")
+	scopeFlag      = flag.String("scope", "", "comma-separated list of `packages` the analysis should be limited to")
 	ptalogFlag     = flag.String("ptalog", "", "write points-to analysis log to `file`")
 	formatFlag     = flag.String("format", "plain", "output `format`; one of {plain,json,xml}")
 	reflectFlag    = flag.Bool("reflect", false, "analyze reflection soundly (slow)")
@@ -78,12 +78,20 @@ The -format flag controls the output format:
 	xml	structured data in XML syntax.
 
 The -modified flag causes guru to read an archive from standard input.
-
 	Files in this archive will be used in preference to those in
 	the file system.  In this way, a text editor may supply guru
 	with the contents of its unsaved buffers.  Each archive entry
 	consists of the file name, a newline, the decimal file size,
 	another newline, and the contents of the file.
+
+The -scope flag restricts analysis to the specified packages.
+	Its value is a comma-separated list of patterns of these forms:
+		golang.org/x/tools/cmd/guru     # a single package
+		golang.org/x/tools/...          # all packages beneath dir
+		...                             # the entire workspace.
+	A pattern preceded by '-' is negative, so the scope
+		encoding/...,-encoding/xml
+	matches all encoding packages except encoding/xml:
 
 User manual: http://golang.org/s/oracle-user-manual
 
