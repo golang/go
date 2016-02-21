@@ -509,28 +509,20 @@ func algtype1(t *Type, bad **Type) int {
 
 func algtype(t *Type) int {
 	a := algtype1(t, nil)
-	if a == AMEM || a == ANOEQ {
-		if Isslice(t) {
-			return ASLICE
-		}
+	if a == AMEM {
 		switch t.Width {
 		case 0:
-			return a + AMEM0 - AMEM
-
+			return AMEM0
 		case 1:
-			return a + AMEM8 - AMEM
-
+			return AMEM8
 		case 2:
-			return a + AMEM16 - AMEM
-
+			return AMEM16
 		case 4:
-			return a + AMEM32 - AMEM
-
+			return AMEM32
 		case 8:
-			return a + AMEM64 - AMEM
-
+			return AMEM64
 		case 16:
-			return a + AMEM128 - AMEM
+			return AMEM128
 		}
 	}
 

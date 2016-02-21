@@ -28,30 +28,21 @@ const (
 
 const (
 	// These values are known by runtime.
-	// The MEMx and NOEQx values must run in parallel.  See algtype.
-	AMEM = iota
+	ANOEQ = iota
 	AMEM0
 	AMEM8
 	AMEM16
 	AMEM32
 	AMEM64
 	AMEM128
-	ANOEQ
-	ANOEQ0
-	ANOEQ8
-	ANOEQ16
-	ANOEQ32
-	ANOEQ64
-	ANOEQ128
 	ASTRING
 	AINTER
 	ANILINTER
-	ASLICE
 	AFLOAT32
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	AUNK = 100
+	AMEM = 100
 )
 
 const (
