@@ -414,11 +414,15 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	if f.space && num[0] == '+' {
 		num[0] = ' '
 	}
-	// Special handling for "+Inf" and "-Inf",
+	// Special handling for infinities and NaN,
 	// which don't look like a number so shouldn't be padded with zeros.
-	if num[1] == 'I' {
+	if num[1] == 'I' || num[1] == 'N' {
 		oldZero := f.zero
 		f.zero = false
+		// Remove sign before NaN if not asked for.
+		if num[1] == 'N' && !f.space && !f.plus {
+			num = num[1:]
+		}
 		f.pad(num)
 		f.zero = oldZero
 		return
