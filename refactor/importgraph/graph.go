@@ -20,6 +20,8 @@ import (
 // imported packages (prerequisites); for a reverse graph, it is the set
 // of importing packages (clients).
 //
+// Graph construction inspects all imports in each package's directory,
+// including those in _test.go files, so the resulting graph may be cyclic.
 type Graph map[string]map[string]bool
 
 func (g Graph) addEdge(from, to string) {
