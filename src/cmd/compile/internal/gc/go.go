@@ -373,14 +373,6 @@ type Sig struct {
 	offset int32
 }
 
-type Io struct {
-	bin    *obj.Biobuf
-	last   int
-	peekc  int
-	peekc1 int // second peekc for ...
-	eofnl  bool
-}
-
 type Dlist struct {
 	field *Type
 }
@@ -430,8 +422,6 @@ var sizeof_Array int // runtime sizeof(Array)
 var sizeof_String int // runtime sizeof(String)
 
 var dotlist [10]Dlist // size is max depth of embeddeds
-
-var curio Io
 
 var lexlineno int32
 

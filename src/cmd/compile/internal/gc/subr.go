@@ -116,12 +116,6 @@ func Yyerror(format string, args ...interface{}) {
 	if strings.HasPrefix(msg, "syntax error") {
 		nsyntaxerrors++
 
-		// An unexpected EOF caused a syntax error. Use the previous
-		// line number since getc generated a fake newline character.
-		if curio.eofnl {
-			lexlineno = prevlineno
-		}
-
 		// only one syntax error per line
 		if int32(yyerror_lastsyntax) == lexlineno {
 			return
