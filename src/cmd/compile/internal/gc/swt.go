@@ -549,20 +549,6 @@ func (s *typeSwitch) walk(sw *Node) {
 	// set up labels and jumps
 	casebody(sw, s.facename)
 
-	// calculate type hash
-	t := cond.Right.Type
-	if isnilinter(t) {
-		a = syslook("efacethash", 1)
-	} else {
-		a = syslook("ifacethash", 1)
-	}
-	substArgTypes(a, t)
-	a = Nod(OCALL, a, nil)
-	a.List = list1(s.facename)
-	a = Nod(OAS, s.hashname, a)
-	typecheck(&a, Etop)
-	cas = list(cas, a)
-
 	cc := caseClauses(sw, switchKindType)
 	sw.List = nil
 	var def *Node
@@ -572,22 +558,66 @@ func (s *typeSwitch) walk(sw *Node) {
 	} else {
 		def = Nod(OBREAK, nil, nil)
 	}
+	var typenil *Node
+	if len(cc) > 0 && cc[0].typ == caseKindTypeNil {
+		typenil = cc[0].node.Right
+		cc = cc[1:]
+	}
+
+	// For empty interfaces, do:
+	//     if e._type == nil {
+	//         do nil case if it exists, otherwise default
+	//     }
+	//     h := e._type.hash
+	// Use a similar strategy for non-empty interfaces.
+
+	// Get interface descriptor word.
+	typ := Nod(OITAB, s.facename, nil)
+
+	// Check for nil first.
+	i := Nod(OIF, nil, nil)
+	i.Left = Nod(OEQ, typ, nodnil())
+	if typenil != nil {
+		// Do explicit nil case right here.
+		i.Nbody = list1(typenil)
+	} else {
+		// Jump to default case.
+		lbl := newCaseLabel()
+		i.Nbody = list1(Nod(OGOTO, lbl, nil))
+		// Wrap default case with label.
+		blk := Nod(OBLOCK, nil, nil)
+		blk.List = list(list1(Nod(OLABEL, lbl, nil)), def)
+		def = blk
+	}
+	typecheck(&i.Left, Erv)
+	cas = list(cas, i)
+
+	if !isnilinter(cond.Right.Type) {
+		// Load type from itab.
+		typ = Nod(ODOTPTR, typ, nil)
+		typ.Type = Ptrto(Types[TUINT8])
+		typ.Typecheck = 1
+		typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
+		typ.Bounded = true            // guaranteed not to fault
+	}
+	// Load hash from type.
+	h := Nod(ODOTPTR, typ, nil)
+	h.Type = Types[TUINT32]
+	h.Typecheck = 1
+	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
+	h.Bounded = true                // guaranteed not to fault
+	a = Nod(OAS, s.hashname, h)
+	typecheck(&a, Etop)
+	cas = list(cas, a)
 
 	// insert type equality check into each case block
 	for _, c := range cc {
 		n := c.node
 		switch c.typ {
-		case caseKindTypeNil:
-			var v Val
-			v.U = new(NilVal)
-			a = Nod(OIF, nil, nil)
-			a.Left = Nod(OEQ, s.facename, nodlit(v))
-			typecheck(&a.Left, Erv)
-			a.Nbody = list1(n.Right) // if i==nil { goto l }
-			n.Right = a
-
 		case caseKindTypeVar, caseKindTypeConst:
 			n.Right = s.typeone(n)
+		default:
+			Fatalf("typeSwitch with bad kind: %d", c.typ)
 		}
 	}
 
