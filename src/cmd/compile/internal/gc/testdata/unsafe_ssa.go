@@ -123,7 +123,26 @@ func testg() {
 	}
 }
 
+func alias_ssa(ui64 *uint64, ui32 *uint32) uint32 {
+	*ui32 = 0xffffffff
+	*ui64 = 0                  // store
+	ret := *ui32               // load from same address, should be zero
+	*ui64 = 0xffffffffffffffff // store
+	return ret
+}
+func testdse() {
+	x := int64(-1)
+	// construct two pointers that alias one another
+	ui64 := (*uint64)(unsafe.Pointer(&x))
+	ui32 := (*uint32)(unsafe.Pointer(&x))
+	if want, got := uint32(0), alias_ssa(ui64, ui32); got != want {
+		fmt.Printf("alias_ssa: wanted %d, got %d\n", want, got)
+		panic("alias_ssa")
+	}
+}
+
 func main() {
 	testf()
 	testg()
+	testdse()
 }
