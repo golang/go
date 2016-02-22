@@ -21,6 +21,7 @@ type opInfo struct {
 	auxType           auxType
 	generic           bool // this is a generic (arch-independent) opcode
 	rematerializeable bool // this op is rematerializeable
+	commutative       bool // this operation is commutative (e.g. addition)
 }
 
 type inputInfo struct {

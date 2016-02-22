@@ -8,10 +8,10 @@ var genericOps = []opData{
 	// 2-input arithmetic
 	// Types must be consistent with Go typing.  Add, for example, must take two values
 	// of the same type and produces that same type.
-	{name: "Add8"}, // arg0 + arg1
-	{name: "Add16"},
-	{name: "Add32"},
-	{name: "Add64"},
+	{name: "Add8", commutative: true}, // arg0 + arg1
+	{name: "Add16", commutative: true},
+	{name: "Add32", commutative: true},
+	{name: "Add64", commutative: true},
 	{name: "AddPtr"}, // For address calculations.  arg0 is a pointer and arg1 is an int.
 	{name: "Add32F"},
 	{name: "Add64F"},
@@ -25,10 +25,10 @@ var genericOps = []opData{
 	{name: "Sub32F"},
 	{name: "Sub64F"},
 
-	{name: "Mul8"}, // arg0 * arg1
-	{name: "Mul16"},
-	{name: "Mul32"},
-	{name: "Mul64"},
+	{name: "Mul8", commutative: true}, // arg0 * arg1
+	{name: "Mul16", commutative: true},
+	{name: "Mul32", commutative: true},
+	{name: "Mul64", commutative: true},
 	{name: "Mul32F"},
 	{name: "Mul64F"},
 
@@ -65,20 +65,20 @@ var genericOps = []opData{
 	{name: "Mod64"},
 	{name: "Mod64u"},
 
-	{name: "And8"}, // arg0 & arg1
-	{name: "And16"},
-	{name: "And32"},
-	{name: "And64"},
+	{name: "And8", commutative: true}, // arg0 & arg1
+	{name: "And16", commutative: true},
+	{name: "And32", commutative: true},
+	{name: "And64", commutative: true},
 
-	{name: "Or8"}, // arg0 | arg1
-	{name: "Or16"},
-	{name: "Or32"},
-	{name: "Or64"},
+	{name: "Or8", commutative: true}, // arg0 | arg1
+	{name: "Or16", commutative: true},
+	{name: "Or32", commutative: true},
+	{name: "Or64", commutative: true},
 
-	{name: "Xor8"}, // arg0 ^ arg1
-	{name: "Xor16"},
-	{name: "Xor32"},
-	{name: "Xor64"},
+	{name: "Xor8", commutative: true}, // arg0 ^ arg1
+	{name: "Xor16", commutative: true},
+	{name: "Xor32", commutative: true},
+	{name: "Xor64", commutative: true},
 
 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
 	{name: "Lsh8x8"}, // arg0 << arg1
@@ -158,21 +158,21 @@ var genericOps = []opData{
 	{name: "Lrot64", aux: "Int64"},
 
 	// 2-input comparisons
-	{name: "Eq8"}, // arg0 == arg1
-	{name: "Eq16"},
-	{name: "Eq32"},
-	{name: "Eq64"},
-	{name: "EqPtr"},
+	{name: "Eq8", commutative: true}, // arg0 == arg1
+	{name: "Eq16", commutative: true},
+	{name: "Eq32", commutative: true},
+	{name: "Eq64", commutative: true},
+	{name: "EqPtr", commutative: true},
 	{name: "EqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "EqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "Eq32F"},
 	{name: "Eq64F"},
 
-	{name: "Neq8"}, // arg0 != arg1
-	{name: "Neq16"},
-	{name: "Neq32"},
-	{name: "Neq64"},
-	{name: "NeqPtr"},
+	{name: "Neq8", commutative: true}, // arg0 != arg1
+	{name: "Neq16", commutative: true},
+	{name: "Neq32", commutative: true},
+	{name: "Neq64", commutative: true},
+	{name: "NeqPtr", commutative: true},
 	{name: "NeqInter"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "NeqSlice"}, // arg0 or arg1 is nil; other cases handled by frontend
 	{name: "Neq32F"},

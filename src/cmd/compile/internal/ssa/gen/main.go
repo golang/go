@@ -32,7 +32,8 @@ type opData struct {
 	typ               string // default result type
 	aux               string
 	rematerializeable bool
-	variableLength    bool // if true the operation has a variable number of arguments
+	variableLength    bool // this operation has a variable number of arguments
+	commutative       bool // this operation is commutative (e.g. addition)
 }
 
 type blockData struct {
@@ -130,6 +131,9 @@ func genOp() {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
 				}
 				fmt.Fprintln(w, "rematerializeable: true,")
+			}
+			if v.commutative {
+				fmt.Fprintln(w, "commutative: true,")
 			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")

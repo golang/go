@@ -35,6 +35,10 @@ func cse(f *Func) {
 			if v.Type.IsMemory() {
 				continue // memory values can never cse
 			}
+			if opcodeTable[v.Op].commutative && len(v.Args) == 2 && v.Args[1].ID < v.Args[0].ID {
+				// Order the arguments of binary commutative operations.
+				v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
+			}
 			a = append(a, v)
 		}
 	}
