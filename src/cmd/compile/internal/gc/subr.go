@@ -2515,7 +2515,8 @@ func genhash(sym *Sym, t *Type) {
 		var na *Node
 		var hashel *Node
 
-		for t1 := t.Type; ; t1 = t1.Down {
+		t1 := t.Type
+		for {
 			first, size, next := memrun(t, t1)
 			t1 = next
 
@@ -2539,36 +2540,25 @@ func genhash(sym *Sym, t *Type) {
 				break
 			}
 			if isblanksym(t1.Sym) {
+				t1 = t1.Down
+				continue
+			}
+			if algtype1(t1.Type, nil) == AMEM {
+				// Our memory run might have been stopped by padding or a blank field.
+				// If the next field is memory-ish, it could be the start of a new run.
 				continue
 			}
 
-			// Run hash for this field.
-			if algtype1(t1.Type, nil) == AMEM {
-				hashel = hashmem(t1.Type)
+			hashel = hashfor(t1.Type)
+			call = Nod(OCALL, hashel, nil)
+			nx = Nod(OXDOT, np, newname(t1.Sym)) // TODO: fields from other packages?
+			na = Nod(OADDR, nx, nil)
+			na.Etype = 1 // no escape to heap
+			call.List = list(call.List, na)
+			call.List = list(call.List, nh)
+			fn.Nbody = list(fn.Nbody, Nod(OAS, nh, call))
 
-				// h = memhash(&p.t1, h, size)
-				call = Nod(OCALL, hashel, nil)
-
-				nx = Nod(OXDOT, np, newname(t1.Sym)) // TODO: fields from other packages?
-				na = Nod(OADDR, nx, nil)
-				na.Etype = 1 // no escape to heap
-				call.List = list(call.List, na)
-				call.List = list(call.List, nh)
-				call.List = list(call.List, Nodintconst(t1.Type.Width))
-				fn.Nbody = list(fn.Nbody, Nod(OAS, nh, call))
-			} else {
-				hashel = hashfor(t1.Type)
-
-				// h = hashel(&p.t1, h)
-				call = Nod(OCALL, hashel, nil)
-
-				nx = Nod(OXDOT, np, newname(t1.Sym)) // TODO: fields from other packages?
-				na = Nod(OADDR, nx, nil)
-				na.Etype = 1 // no escape to heap
-				call.List = list(call.List, na)
-				call.List = list(call.List, nh)
-				fn.Nbody = list(fn.Nbody, Nod(OAS, nh, call))
-			}
+			t1 = t1.Down
 		}
 	}
 
@@ -2730,7 +2720,8 @@ func geneq(sym *Sym, t *Type) {
 	case TSTRUCT:
 		var conjuncts []*Node
 
-		for t1 := t.Type; ; t1 = t1.Down {
+		t1 := t.Type
+		for {
 			first, size, next := memrun(t, t1)
 			t1 = next
 
@@ -2756,11 +2747,18 @@ func geneq(sym *Sym, t *Type) {
 				break
 			}
 			if isblanksym(t1.Sym) {
+				t1 = t1.Down
+				continue
+			}
+			if algtype1(t1.Type, nil) == AMEM {
+				// Our memory run might have been stopped by padding or a blank field.
+				// If the next field is memory-ish, it could be the start of a new run.
 				continue
 			}
 
 			// Check this field, which is not just memory.
 			conjuncts = append(conjuncts, eqfield(np, nq, newname(t1.Sym)))
+			t1 = t1.Down
 		}
 
 		var and *Node
