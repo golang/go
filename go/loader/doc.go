@@ -160,7 +160,7 @@ package loader
 // parallel, where "unrelated" means not ordered by the partial order of
 // the import dependency graph.
 //
-// We use a concurrency-safe blocking cache (importer.imported) to
+// We use a concurrency-safe non-blocking cache (importer.imported) to
 // record the results of type-checking, whether success or failure.  An
 // entry is created in this cache by startLoad the first time the
 // package is imported.  The first goroutine to request an entry becomes
