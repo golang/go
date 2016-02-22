@@ -309,7 +309,6 @@ type m struct {
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
-	machport      uint32 // return address for mach ipc (os x)
 	mcache        *mcache
 	lockedg       *g
 	createstack   [32]uintptr // stack that created this thread.

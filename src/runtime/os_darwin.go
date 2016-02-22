@@ -7,6 +7,7 @@ package runtime
 import "unsafe"
 
 type mOS struct {
+	machport uint32 // return address for mach ipc
 	waitsema uint32 // semaphore for parking on locks
 }
 
