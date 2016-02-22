@@ -21,24 +21,14 @@ import (
 
 const trace = false // if set, parse tracing can be enabled with -x
 
+// parse_import parses the export data of a package that is imported.
 func parse_import(bin *obj.Biobuf, indent []byte) {
-	pushedio := curio
-	curio = Io{bin: bin}
-
-	importparser := parser{indent: indent} // preserve indentation
-	importparser.next()
-	importparser.import_package()
-
-	curio = pushedio
+	newparser(bin, indent).import_package()
 }
 
-// parse_file sets up a new parser and parses a single Go source file.
+// parse_file parses a single Go source file.
 func parse_file(bin *obj.Biobuf) {
-	curio = Io{bin: bin}
-
-	fileparser := parser{}
-	fileparser.next()
-	fileparser.file()
+	newparser(bin, nil).file()
 }
 
 type parser struct {
@@ -46,6 +36,16 @@ type parser struct {
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
+}
+
+// newparser returns a new parser ready to parse from src.
+// indent is the initial indentation for tracing output.
+func newparser(src *obj.Biobuf, indent []byte) *parser {
+	var p parser
+	p.bin = src
+	p.indent = indent
+	p.next()
+	return &p
 }
 
 func (p *parser) got(tok int32) bool {
