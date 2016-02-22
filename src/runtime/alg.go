@@ -172,13 +172,6 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	}
 }
 
-func memequal(p, q unsafe.Pointer, size uintptr) bool {
-	if p == q {
-		return true
-	}
-	return memeq(p, q, size)
-}
-
 func memequal0(p, q unsafe.Pointer) bool {
 	return true
 }

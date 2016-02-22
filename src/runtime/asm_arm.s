@@ -750,13 +750,16 @@ TEXT runtime·memhash_varlen(SB),NOSPLIT,$16-12
 	MOVW	R0, ret+8(FP)
 	RET
 
-TEXT runtime·memeq(SB),NOSPLIT,$-4-13
+// memequal(p, q unsafe.Pointer, size uintptr) bool
+TEXT runtime·memequal(SB),NOSPLIT,$-4-13
 	MOVW	a+0(FP), R1
 	MOVW	b+4(FP), R2
 	MOVW	size+8(FP), R3
 	ADD	R1, R3, R6
 	MOVW	$1, R0
 	MOVB	R0, ret+12(FP)
+	CMP	R1, R2
+	RET.EQ
 loop:
 	CMP	R1, R6
 	RET.EQ
@@ -779,7 +782,7 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$16-9
 	MOVW	R0, 4(R13)
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
-	BL	runtime·memeq(SB)
+	BL	runtime·memequal(SB)
 	MOVB	16(R13), R0
 	MOVB	R0, ret+8(FP)
 	RET
@@ -866,7 +869,7 @@ loop:
 	MOVB	R8, v+16(FP)
 	RET
 
-// TODO: share code with memeq?
+// TODO: share code with memequal?
 TEXT bytes·Equal(SB),NOSPLIT,$0-25
 	MOVW	a_len+4(FP), R1
 	MOVW	b_len+16(FP), R3

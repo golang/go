@@ -765,13 +765,16 @@ TEXT runtime·memhash_varlen(SB),NOSPLIT,$40-24
 	MOVD	R3, ret+16(FP)
 	RET
 
-TEXT runtime·memeq(SB),NOSPLIT,$-8-25
+// memequal(p, q unsafe.Pointer, size uintptr) bool
+TEXT runtime·memequal(SB),NOSPLIT,$-8-25
 	MOVD	a+0(FP), R1
 	MOVD	b+8(FP), R2
 	MOVD	size+16(FP), R3
 	ADD	R1, R3, R6
 	MOVD	$1, R0
 	MOVB	R0, ret+24(FP)
+	CMP	R1, R2
+	BEQ	done
 loop:
 	CMP	R1, R6
 	BEQ	done
@@ -794,7 +797,7 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
 	MOVD	R3, 8(RSP)
 	MOVD	R4, 16(RSP)
 	MOVD	R5, 24(RSP)
-	BL	runtime·memeq(SB)
+	BL	runtime·memequal(SB)
 	MOVBU	32(RSP), R3
 	MOVB	R3, ret+16(FP)
 	RET
@@ -929,7 +932,7 @@ notfound:
 	MOVD	R0, ret+24(FP)
 	RET
 
-// TODO: share code with memeq?
+// TODO: share code with memequal?
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVD	a_len+8(FP), R1
 	MOVD	b_len+32(FP), R3
