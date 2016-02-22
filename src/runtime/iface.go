@@ -398,22 +398,6 @@ func assertE2E2(inter *interfacetype, e eface, r *eface) bool {
 	return true
 }
 
-func ifacethash(i iface) uint32 {
-	tab := i.tab
-	if tab == nil {
-		return 0
-	}
-	return tab._type.hash
-}
-
-func efacethash(e eface) uint32 {
-	t := e._type
-	if t == nil {
-		return 0
-	}
-	return t.hash
-}
-
 func iterate_itabs(fn func(*itab)) {
 	for _, h := range &hash {
 		for ; h != nil; h = h.link {
