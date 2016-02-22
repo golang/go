@@ -74,7 +74,7 @@ type cipherSuite struct {
 
 var cipherSuites = []*cipherSuite{
 	// Ciphersuite order is chosen so that ECDHE comes before plain RSA
-	// and RC4 comes before AES (because of the Lucky13 attack).
+	// and RC4 comes before AES-CBC (because of the Lucky13 attack).
 	{TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, 16, 0, 4, ecdheECDSAKA, suiteECDHE | suiteECDSA | suiteTLS12, nil, nil, aeadAESGCM},
 	{TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, 32, 0, 4, ecdheRSAKA, suiteECDHE | suiteTLS12 | suiteSHA384, nil, nil, aeadAESGCM},
