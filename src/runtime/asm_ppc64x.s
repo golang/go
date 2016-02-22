@@ -795,9 +795,12 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
 TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R1
 
-TEXT runtime·memeq(SB),NOSPLIT|NOFRAME,$0-25
+// memequal(p, q unsafe.Pointer, size uintptr) bool
+TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
 	MOVD	a+0(FP), R3
 	MOVD	b+8(FP), R4
+	CMP	R3, R4
+	BEQ	eq
 	MOVD	size+16(FP), R5
 	SUB	$1, R3
 	SUB	$1, R4
@@ -816,6 +819,10 @@ test:
 
 	MOVB	R0, ret+24(FP)
 	RET
+eq:
+	MOVD	$1, R1
+	MOVB	R1, ret+24(FP)
+	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
@@ -827,7 +834,7 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
 	MOVD	R3, FIXED_FRAME+0(R1)
 	MOVD	R4, FIXED_FRAME+8(R1)
 	MOVD	R5, FIXED_FRAME+16(R1)
-	BL	runtime·memeq(SB)
+	BL	runtime·memequal(SB)
 	MOVBZ	FIXED_FRAME+24(R1), R3
 	MOVB	R3, ret+16(FP)
 	RET
@@ -864,7 +871,7 @@ loop:
 	MOVB	R0, ret+32(FP)
 	RET
 
-// TODO: share code with memeq?
+// TODO: share code with memequal?
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVD	a_len+8(FP), R3
 	MOVD	b_len+32(FP), R4
