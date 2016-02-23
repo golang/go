@@ -149,6 +149,92 @@ func mapbucket(t *Type) *Type {
 	return bucket
 }
 
+// Builds a type representing a Hmap structure for the given map type.
+// Make sure this stays in sync with ../../../../runtime/hashmap.go!
+func hmap(t *Type) *Type {
+	if t.Hmap != nil {
+		return t.Hmap
+	}
+
+	bucket := mapbucket(t)
+	var field [8]*Type
+	field[0] = makefield("count", Types[TINT])
+	field[1] = makefield("flags", Types[TUINT8])
+	field[2] = makefield("B", Types[TUINT8])
+	field[3] = makefield("hash0", Types[TUINT32])
+	field[4] = makefield("buckets", Ptrto(bucket))
+	field[5] = makefield("oldbuckets", Ptrto(bucket))
+	field[6] = makefield("nevacuate", Types[TUINTPTR])
+	field[7] = makefield("overflow", Types[TUNSAFEPTR])
+
+	h := typ(TSTRUCT)
+	h.Noalg = true
+	h.Local = t.Local
+	h.Type = field[0]
+	for n := int32(0); n < int32(len(field)-1); n++ {
+		field[n].Down = field[n+1]
+	}
+	field[len(field)-1].Down = nil
+	dowidth(h)
+	t.Hmap = h
+	h.Map = t
+	return h
+}
+
+func hiter(t *Type) *Type {
+	if t.Hiter != nil {
+		return t.Hiter
+	}
+
+	// build a struct:
+	// hiter {
+	//    key *Key
+	//    val *Value
+	//    t *MapType
+	//    h *Hmap
+	//    buckets *Bucket
+	//    bptr *Bucket
+	//    overflow0 unsafe.Pointer
+	//    overflow1 unsafe.Pointer
+	//    startBucket uintptr
+	//    stuff uintptr
+	//    bucket uintptr
+	//    checkBucket uintptr
+	// }
+	// must match ../../../../runtime/hashmap.go:hiter.
+	var field [12]*Type
+	field[0] = makefield("key", Ptrto(t.Down))
+
+	field[1] = makefield("val", Ptrto(t.Type))
+	field[2] = makefield("t", Ptrto(Types[TUINT8]))
+	field[3] = makefield("h", Ptrto(hmap(t)))
+	field[4] = makefield("buckets", Ptrto(mapbucket(t)))
+	field[5] = makefield("bptr", Ptrto(mapbucket(t)))
+	field[6] = makefield("overflow0", Types[TUNSAFEPTR])
+	field[7] = makefield("overflow1", Types[TUNSAFEPTR])
+	field[8] = makefield("startBucket", Types[TUINTPTR])
+	field[9] = makefield("stuff", Types[TUINTPTR]) // offset+wrapped+B+I
+	field[10] = makefield("bucket", Types[TUINTPTR])
+	field[11] = makefield("checkBucket", Types[TUINTPTR])
+
+	// build iterator struct holding the above fields
+	i := typ(TSTRUCT)
+
+	i.Noalg = true
+	i.Type = field[0]
+	for n := int32(0); n < int32(len(field)-1); n++ {
+		field[n].Down = field[n+1]
+	}
+	field[len(field)-1].Down = nil
+	dowidth(i)
+	if i.Width != int64(12*Widthptr) {
+		Yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
+	}
+	t.Hiter = i
+	i.Map = t
+	return i
+}
+
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func methodfunc(f *Type, receiver *Type) *Type {
@@ -1026,11 +1112,13 @@ ok:
 
 		s2 := dtypesym(t.Type)
 		s3 := dtypesym(mapbucket(t))
+		s4 := dtypesym(hmap(t))
 		ot = dcommontype(s, ot, t)
 		xt = ot - 2*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = dsymptr(s, ot, s2, 0)
 		ot = dsymptr(s, ot, s3, 0)
+		ot = dsymptr(s, ot, s4, 0)
 		if t.Down.Width > MAXKEYSIZE {
 			ot = duint8(s, ot, uint8(Widthptr))
 			ot = duint8(s, ot, 1) // indirect
@@ -1251,10 +1339,8 @@ func dalgsym(t *Type) *Sym {
 		hashfunc = typesymprefix(".hashfunc", t)
 		eqfunc = typesymprefix(".eqfunc", t)
 
-		if Debug['A'] == 0 {
-			genhash(hash, t)
-			geneq(eq, t)
-		}
+		genhash(hash, t)
+		geneq(eq, t)
 
 		// make Go funcs (closures) for calling hash and equal from Go
 		dsymptr(hashfunc, 0, hash, 0)
