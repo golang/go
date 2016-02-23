@@ -1059,49 +1059,34 @@ ok:
 			isddd = t1.Isddd
 			dtypesym(t1.Type)
 		}
-
 		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
 			dtypesym(t1.Type)
 		}
 
 		ot = dcommontype(s, ot, t)
-		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
-
-		// two slice headers: in and out.
-		ot = int(Rnd(int64(ot), int64(Widthptr)))
-
-		ot = dsymptr(s, ot, s, ot+2*(Widthptr+2*Widthint)+uncommonSize(t))
-		n := t.Thistuple + t.Intuple
-		ot = duintxx(s, ot, uint64(n), Widthint)
-		ot = duintxx(s, ot, uint64(n), Widthint)
-		ot = dsymptr(s, ot, s, ot+1*(Widthptr+2*Widthint)+uncommonSize(t)+n*Widthptr)
-		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
-		ot = duintxx(s, ot, uint64(t.Outtuple), Widthint)
-
-		dataAdd := 0
-		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
-			dataAdd += Widthptr
+		inCount := t.Thistuple + t.Intuple
+		outCount := t.Outtuple
+		if isddd {
+			outCount |= 1 << 15
 		}
-		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
-			dataAdd += Widthptr
+		ot = duint16(s, ot, uint16(inCount))
+		ot = duint16(s, ot, uint16(outCount))
+		if Widthptr == 8 {
+			ot += 4 // align for *rtype
 		}
-		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
-			dataAdd += Widthptr
-		}
+
+		dataAdd := (inCount + outCount) * Widthptr
 		ot = dextratype(s, ot, t, dataAdd)
 
-		// slice data
+		// Array of rtype pointers follows funcType.
 		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
-			n++
 		}
 		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
-			n++
 		}
 		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
-			n++
 		}
 
 	case TINTER:

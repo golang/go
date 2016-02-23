@@ -128,6 +128,29 @@ func (t *_type) name() string {
 	return t._string[i+1:]
 }
 
+func (t *functype) in() []*_type {
+	// See funcType in reflect/type.go for details on data layout.
+	uadd := uintptr(unsafe.Sizeof(functype{}))
+	if t.typ.tflag&tflagUncommon != 0 {
+		uadd += unsafe.Sizeof(uncommontype{})
+	}
+	return (*[1 << 20]*_type)(add(unsafe.Pointer(t), uadd))[:t.inCount]
+}
+
+func (t *functype) out() []*_type {
+	// See funcType in reflect/type.go for details on data layout.
+	uadd := uintptr(unsafe.Sizeof(functype{}))
+	if t.typ.tflag&tflagUncommon != 0 {
+		uadd += unsafe.Sizeof(uncommontype{})
+	}
+	outCount := t.outCount & (1<<15 - 1)
+	return (*[1 << 20]*_type)(add(unsafe.Pointer(t), uadd))[t.inCount : t.inCount+outCount]
+}
+
+func (t *functype) dotdotdot() bool {
+	return t.outCount&(1<<15) != 0
+}
+
 type method struct {
 	name    *string
 	pkgpath *string
@@ -187,10 +210,9 @@ type slicetype struct {
 }
 
 type functype struct {
-	typ       _type
-	dotdotdot bool
-	in        []*_type
-	out       []*_type
+	typ      _type
+	inCount  uint16
+	outCount uint16
 }
 
 type ptrtype struct {
