@@ -586,6 +586,7 @@
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add64 (Convert ptr mem) off) mem) -> (Add64 ptr off)
+(Convert (Add64 off (Convert ptr mem)) mem) -> (Add64 ptr off)
 (Convert (Convert ptr mem) mem) -> ptr
 
 // Decompose compound argument values

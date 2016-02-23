@@ -1428,6 +1428,27 @@ func rewriteValuegeneric_OpConvert(v *Value, config *Config) bool {
 		v.AddArg(off)
 		return true
 	}
+	// match: (Convert (Add64 off (Convert ptr mem)) mem)
+	// cond:
+	// result: (Add64 ptr off)
+	for {
+		if v.Args[0].Op != OpAdd64 {
+			break
+		}
+		off := v.Args[0].Args[0]
+		if v.Args[0].Args[1].Op != OpConvert {
+			break
+		}
+		ptr := v.Args[0].Args[1].Args[0]
+		mem := v.Args[0].Args[1].Args[1]
+		if v.Args[1] != mem {
+			break
+		}
+		v.reset(OpAdd64)
+		v.AddArg(ptr)
+		v.AddArg(off)
+		return true
+	}
 	// match: (Convert (Convert ptr mem) mem)
 	// cond:
 	// result: ptr
