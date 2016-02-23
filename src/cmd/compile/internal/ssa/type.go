@@ -95,6 +95,9 @@ func (t *CompilerType) Compare(u Type) Cmp {
 	if !ok {
 		return CMPlt
 	}
+	if t == x {
+		return CMPeq
+	}
 	// desire fast sorting, not pretty sorting.
 	if len(t.Name) == len(x.Name) {
 		if t.Name == x.Name {
