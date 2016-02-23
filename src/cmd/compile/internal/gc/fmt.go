@@ -647,6 +647,14 @@ func typefmt(t *Type, flag int) string {
 				return fmt.Sprintf("map.bucket[%v]%v", t.Map.Down, t.Map.Type)
 			}
 
+			if t.Map.Hmap == t {
+				return fmt.Sprintf("map.hdr[%v]%v", t.Map.Down, t.Map.Type)
+			}
+
+			if t.Map.Hiter == t {
+				return fmt.Sprintf("map.iter[%v]%v", t.Map.Down, t.Map.Type)
+			}
+
 			Yyerror("unknown internal map type")
 		}
 

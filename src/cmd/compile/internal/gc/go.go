@@ -191,7 +191,9 @@ type Type struct {
 
 	// TMAP
 	Bucket *Type // internal type representing a hash bucket
-	Map    *Type // link from hash bucket type back to the map type.
+	Hmap   *Type // internal type representing a Hmap (map header object)
+	Hiter  *Type // internal type representing hash iterator state
+	Map    *Type // link from the above 3 internal types back to the map type.
 
 	Maplineno   int32 // first use of TFORW as map key
 	Embedlineno int32 // first use of TFORW as embedded type

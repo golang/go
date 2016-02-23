@@ -318,9 +318,35 @@ out:
 	lineno = int32(lno)
 }
 
-// Keep in sync with src/runtime/select.go.
+// Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
 func selecttype(size int32) *Type {
-	scase := syslook("scase", 0)
+	// TODO(dvyukov): it's possible to generate SudoG and Scase only once
+	// and then cache; and also cache Select per size.
+	sudog := Nod(OTSTRUCT, nil, nil)
+
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
+	sudog.List = list(sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+	typecheck(&sudog, Etype)
+	sudog.Type.Noalg = true
+	sudog.Type.Local = true
+
+	scase := Nod(OTSTRUCT, nil, nil)
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
+	scase.List = list(scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+	typecheck(&scase, Etype)
+	scase.Type.Noalg = true
+	scase.Type.Local = true
 
 	sel := Nod(OTSTRUCT, nil, nil)
 	sel.List = list(sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))

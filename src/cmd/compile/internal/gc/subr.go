@@ -1413,20 +1413,15 @@ func deep(t *Type) *Type {
 	if t == nil {
 		return nil
 	}
-	if t.Etype == TANY {
-		nt := shallow(t)
-		nt.Copyany = true
-		return nt
-	}
-	if t.Sym != nil {
-		// share named types
-		return t
-	}
 
 	var nt *Type
 	switch t.Etype {
 	default:
 		nt = t // share from here down
+
+	case TANY:
+		nt = shallow(t)
+		nt.Copyany = true
 
 	case TPTR32, TPTR64, TCHAN, TARRAY:
 		nt = shallow(t)
