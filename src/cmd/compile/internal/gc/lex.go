@@ -729,11 +729,7 @@ func importfile(f *Val, indent []byte) {
 		if localimport != "" {
 			prefix = localimport
 		}
-		cleanbuf := prefix
-		cleanbuf += "/"
-		cleanbuf += path_
-		cleanbuf = path.Clean(cleanbuf)
-		path_ = cleanbuf
+		path_ = path.Join(prefix, path_)
 
 		if isbadimport(path_) {
 			return
