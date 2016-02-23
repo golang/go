@@ -119,15 +119,15 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 	pivot := lo
 	a, c := lo+1, hi-1
 
-	for ; a != c && data.Less(a, pivot); a++ {
+	for ; a < c && data.Less(a, pivot); a++ {
 	}
 	b := a
 	for {
-		for ; b != c && !data.Less(pivot, b); b++ { // data[b] <= pivot
+		for ; b < c && !data.Less(pivot, b); b++ { // data[b] <= pivot
 		}
-		for ; b != c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
+		for ; b < c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
 		}
-		if b == c {
+		if b >= c {
 			break
 		}
 		// data[b] > pivot; data[c-1] <= pivot
@@ -167,11 +167,11 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 		//	data[a <= i < b] unexamined
 		//	data[b <= i < c] = pivot
 		for {
-			for ; a != b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
+			for ; a < b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
 			}
-			for ; a != b && data.Less(a, pivot); a++ { // data[a] < pivot
+			for ; a < b && data.Less(a, pivot); a++ { // data[a] < pivot
 			}
-			if a == b {
+			if a >= b {
 				break
 			}
 			// data[a] == pivot; data[b-1] < pivot
