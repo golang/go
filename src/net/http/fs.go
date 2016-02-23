@@ -451,7 +451,7 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 // ServeFile replies to the request with the contents of the named
 // file or directory.
 //
-// If the provided file or direcory name is a relative path, it is
+// If the provided file or directory name is a relative path, it is
 // interpreted relative to the current directory and may ascend to parent
 // directories. If the provided name is constructed from user input, it
 // should be sanitized before calling ServeFile. As a precaution, ServeFile
