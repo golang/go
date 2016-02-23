@@ -12,18 +12,9 @@
 // func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
 // Trap # in AX, args in BX CX DX SI DI, return in AX
 
-// Most linux systems use glibc's dynamic linker, which puts the
-// __kernel_vsyscall vdso helper at 0x10(GS) for easy access from position
-// independent code and setldt in runtime does the same in the statically
-// linked case. Android, however, uses bionic's dynamic linker, which does not
-// save the helper anywhere, and so the only way to invoke a syscall from
-// position independent code is boring old int $0x80 (which is also what
-// bionic's syscall wrappers use).
-#ifdef GOOS_android
+// See ../runtime/sys_linux_386.s for the reason why we always use int 0x80
+// instead of the glibc-specific "CALL 0x10(GS)".
 #define INVOKE_SYSCALL	INT	$0x80
-#else
-#define INVOKE_SYSCALL	CALL	0x10(GS)
-#endif
 
 TEXT	·Syscall(SB),NOSPLIT,$0-28
 	CALL	runtime·entersyscall(SB)

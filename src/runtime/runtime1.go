@@ -52,7 +52,7 @@ var (
 	argv **byte
 )
 
-// nosplit for use in linux/386 startup linux_setup_vdso
+// nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
 	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
