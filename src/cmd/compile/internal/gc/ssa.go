@@ -3627,7 +3627,10 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
-		if i < len(f.Blocks)-1 {
+		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
+			// If -N, leave next==nil so every block with successors
+			// ends in a JMP.  Helps keep line numbers for otherwise
+			// empty blocks.
 			next = f.Blocks[i+1]
 		}
 		x := Pc
