@@ -984,7 +984,7 @@ func defgotype(gotype *LSym) *DWDie {
 			newrefattr(fld, DW_AT_type, defgotype(s))
 		}
 
-		if decodetype_funcdotdotdot(gotype) != 0 {
+		if decodetype_funcdotdotdot(gotype) {
 			newdie(die, DW_ABRV_DOTDOTDOT, "...")
 		}
 		nfields = decodetype_funcoutcount(gotype)

@@ -171,33 +171,32 @@ func decodetype_chanelem(s *LSym) *LSym {
 }
 
 // Type.FuncType.dotdotdot
-func decodetype_funcdotdotdot(s *LSym) int {
-	return int(s.P[commonsize()])
+func decodetype_funcdotdotdot(s *LSym) bool {
+	return uint16(decode_inuxi(s.P[commonsize()+2:], 2))&(1<<15) != 0
 }
 
-// Type.FuncType.in.length
+// Type.FuncType.inCount
 func decodetype_funcincount(s *LSym) int {
-	return int(decode_inuxi(s.P[commonsize()+2*Thearch.Ptrsize:], Thearch.Intsize))
+	return int(decode_inuxi(s.P[commonsize():], 2))
 }
 
 func decodetype_funcoutcount(s *LSym) int {
-	return int(decode_inuxi(s.P[commonsize()+3*Thearch.Ptrsize+2*Thearch.Intsize:], Thearch.Intsize))
+	return int(uint16(decode_inuxi(s.P[commonsize()+2:], 2)) & (1<<15 - 1))
 }
 
 func decodetype_funcintype(s *LSym, i int) *LSym {
-	r := decode_reloc(s, int32(commonsize())+int32(Thearch.Ptrsize))
-	if r == nil {
-		return nil
+	uadd := commonsize() + 4
+	if Thearch.Ptrsize == 8 {
+		uadd += 4
 	}
-	return decode_reloc_sym(r.Sym, int32(r.Add+int64(int32(i)*int32(Thearch.Ptrsize))))
+	if decodetype_hasUncommon(s) {
+		uadd += uncommonSize()
+	}
+	return decode_reloc_sym(s, int32(uadd+i*Thearch.Ptrsize))
 }
 
 func decodetype_funcouttype(s *LSym, i int) *LSym {
-	r := decode_reloc(s, int32(commonsize())+2*int32(Thearch.Ptrsize)+2*int32(Thearch.Intsize))
-	if r == nil {
-		return nil
-	}
-	return decode_reloc_sym(r.Sym, int32(r.Add+int64(int32(i)*int32(Thearch.Ptrsize))))
+	return decodetype_funcintype(s, i+decodetype_funcincount(s))
 }
 
 // Type.StructType.fields.Slice::length

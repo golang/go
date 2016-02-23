@@ -331,10 +331,13 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		throw("runtime.SetFinalizer: second argument is " + ftyp._string + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
-	if ft.dotdotdot || len(ft.in) != 1 {
+	if ft.dotdotdot() {
+		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string + " because dotdotdot")
+	}
+	if ft.dotdotdot() || ft.inCount != 1 {
 		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string)
 	}
-	fint := ft.in[0]
+	fint := ft.in()[0]
 	switch {
 	case fint == etyp:
 		// ok - same type
@@ -359,8 +362,8 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
-	for _, t := range ft.out {
-		nret = round(nret, uintptr(t.align)) + t.size
+	for _, t := range ft.out() {
+		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
 	}
 	nret = round(nret, sys.PtrSize)
 
