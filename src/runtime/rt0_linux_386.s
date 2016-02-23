@@ -73,11 +73,3 @@ GLOBL _rt0_386_linux_lib_argv<>(SB),NOPTR, $4
 
 TEXT main(SB),NOSPLIT,$0
 	JMP	runtime·rt0_go(SB)
-
-TEXT _fallback_vdso(SB),NOSPLIT,$0
-	INT	$0x80
-	RET
-
-DATA	runtime·_vdso(SB)/4, $_fallback_vdso(SB)
-GLOBL	runtime·_vdso(SB), NOPTR, $4
-
