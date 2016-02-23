@@ -15,7 +15,7 @@ import (
 )
 
 func ratTok(ch rune) bool {
-	return strings.IndexRune("+-/0123456789.eE", ch) >= 0
+	return strings.ContainsRune("+-/0123456789.eE", ch)
 }
 
 // Scan is a support routine for fmt.Scanner. It accepts the formats
@@ -25,7 +25,7 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
 	if err != nil {
 		return err
 	}
-	if strings.IndexRune("efgEFGv", ch) < 0 {
+	if !strings.ContainsRune("efgEFGv", ch) {
 		return errors.New("Rat.Scan: invalid verb")
 	}
 	if _, ok := z.SetString(string(tok)); !ok {

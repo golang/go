@@ -6,6 +6,7 @@ package net
 
 import (
 	"errors"
+	"runtime"
 	"time"
 )
 
@@ -225,8 +226,10 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 		finalDeadline: finalDeadline,
 	}
 
+	// DualStack mode requires that dialTCP support cancelation. This is
+	// not available on plan9 (golang.org/issue/11225), so we ignore it.
 	var primaries, fallbacks addrList
-	if d.DualStack && network == "tcp" {
+	if d.DualStack && network == "tcp" && runtime.GOOS != "plan9" {
 		primaries, fallbacks = addrs.partition(isIPv4)
 	} else {
 		primaries = addrs
@@ -236,9 +239,9 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 	if len(fallbacks) == 0 {
 		// dialParallel can accept an empty fallbacks list,
 		// but this shortcut avoids the goroutine/channel overhead.
-		c, err = dialSerial(ctx, primaries, nil)
+		c, err = dialSerial(ctx, primaries, ctx.Cancel)
 	} else {
-		c, err = dialParallel(ctx, primaries, fallbacks)
+		c, err = dialParallel(ctx, primaries, fallbacks, ctx.Cancel)
 	}
 
 	if d.KeepAlive > 0 && err == nil {
@@ -255,10 +258,9 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
 // head start. It returns the first established connection and
 // closes the others. Otherwise it returns an error from the first
 // primary address.
-func dialParallel(ctx *dialContext, primaries, fallbacks addrList) (Conn, error) {
-	results := make(chan dialResult) // unbuffered, so dialSerialAsync can detect race loss & cleanup
+func dialParallel(ctx *dialContext, primaries, fallbacks addrList, userCancel <-chan struct{}) (Conn, error) {
+	results := make(chan dialResult, 2)
 	cancel := make(chan struct{})
-	defer close(cancel)
 
 	// Spawn the primary racer.
 	go dialSerialAsync(ctx, primaries, nil, cancel, results)
@@ -267,28 +269,59 @@ func dialParallel(ctx *dialContext, primaries, fallbacks addrList) (Conn, error)
 	fallbackTimer := time.NewTimer(ctx.fallbackDelay())
 	go dialSerialAsync(ctx, fallbacks, fallbackTimer, cancel, results)
 
-	var primaryErr error
-	for nracers := 2; nracers > 0; nracers-- {
-		res := <-results
-		// If we're still waiting for a connection, then hasten the delay.
-		// Otherwise, disable the Timer and let cancel take over.
-		if fallbackTimer.Stop() && res.error != nil {
-			fallbackTimer.Reset(0)
-		}
-		if res.error == nil {
-			return res.Conn, nil
-		}
-		if res.primary {
-			primaryErr = res.error
+	// Wait for both racers to succeed or fail.
+	var primaryResult, fallbackResult dialResult
+	for !primaryResult.done || !fallbackResult.done {
+		select {
+		case <-userCancel:
+			// Forward an external cancelation request.
+			if cancel != nil {
+				close(cancel)
+				cancel = nil
+			}
+			userCancel = nil
+		case res := <-results:
+			// Drop the result into its assigned bucket.
+			if res.primary {
+				primaryResult = res
+			} else {
+				fallbackResult = res
+			}
+			// On success, cancel the other racer (if one exists.)
+			if res.error == nil && cancel != nil {
+				close(cancel)
+				cancel = nil
+			}
+			// If the fallbackTimer was pending, then either we've canceled the
+			// fallback because we no longer want it, or we haven't canceled yet
+			// and therefore want it to wake up immediately.
+			if fallbackTimer.Stop() && cancel != nil {
+				fallbackTimer.Reset(0)
+			}
 		}
 	}
-	return nil, primaryErr
+
+	// Return, in order of preference:
+	// 1. The primary connection (but close the other if we got both.)
+	// 2. The fallback connection.
+	// 3. The primary error.
+	if primaryResult.error == nil {
+		if fallbackResult.error == nil {
+			fallbackResult.Conn.Close()
+		}
+		return primaryResult.Conn, nil
+	} else if fallbackResult.error == nil {
+		return fallbackResult.Conn, nil
+	} else {
+		return nil, primaryResult.error
+	}
 }
 
 type dialResult struct {
 	Conn
 	error
 	primary bool
+	done    bool
 }
 
 // dialSerialAsync runs dialSerial after some delay, and returns the
@@ -300,19 +333,11 @@ func dialSerialAsync(ctx *dialContext, ras addrList, timer *time.Timer, cancel <
 		select {
 		case <-timer.C:
 		case <-cancel:
-			return
+			// dialSerial will immediately return errCanceled in this case.
 		}
 	}
 	c, err := dialSerial(ctx, ras, cancel)
-	select {
-	case results <- dialResult{c, err, timer == nil}:
-		// We won the race.
-	case <-cancel:
-		// The other goroutine won the race.
-		if c != nil {
-			c.Close()
-		}
-	}
+	results <- dialResult{Conn: c, error: err, primary: timer == nil, done: true}
 }
 
 // dialSerial connects to a list of addresses in sequence, returning
@@ -336,11 +361,11 @@ func dialSerial(ctx *dialContext, ras addrList, cancel <-chan struct{}) (Conn, e
 			break
 		}
 
-		// dialTCP does not support cancelation (see golang.org/issue/11225),
-		// so if cancel fires, we'll continue trying to connect until the next
-		// timeout, or return a spurious connection for the caller to close.
+		// If this dial is canceled, the implementation is expected to complete
+		// quickly, but it's still possible that we could return a spurious Conn,
+		// which the caller must Close.
 		dialer := func(d time.Time) (Conn, error) {
-			return dialSingle(ctx, ra, d)
+			return dialSingle(ctx, ra, d, cancel)
 		}
 		c, err := dial(ctx.network, ra, dialer, partialDeadline)
 		if err == nil {
@@ -360,7 +385,7 @@ func dialSerial(ctx *dialContext, ras addrList, cancel <-chan struct{}) (Conn, e
 // dialSingle attempts to establish and returns a single connection to
 // the destination address. This must be called through the OS-specific
 // dial function, because some OSes don't implement the deadline feature.
-func dialSingle(ctx *dialContext, ra Addr, deadline time.Time) (c Conn, err error) {
+func dialSingle(ctx *dialContext, ra Addr, deadline time.Time, cancel <-chan struct{}) (c Conn, err error) {
 	la := ctx.LocalAddr
 	if la != nil && la.Network() != ra.Network() {
 		return nil, &OpError{Op: "dial", Net: ctx.network, Source: la, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
@@ -368,7 +393,7 @@ func dialSingle(ctx *dialContext, ra Addr, deadline time.Time) (c Conn, err erro
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
-		c, err = testHookDialTCP(ctx.network, la, ra, deadline, ctx.Cancel)
+		c, err = testHookDialTCP(ctx.network, la, ra, deadline, cancel)
 	case *UDPAddr:
 		la, _ := la.(*UDPAddr)
 		c, err = dialUDP(ctx.network, la, ra, deadline)

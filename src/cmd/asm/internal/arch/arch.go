@@ -162,8 +162,6 @@ func archX86(linkArch *obj.LinkArch) *Arch {
 	instructions["MOVDQ2Q"] = x86.AMOVQ
 	instructions["MOVNTDQ"] = x86.AMOVNTO
 	instructions["MOVOA"] = x86.AMOVO
-	instructions["PF2ID"] = x86.APF2IL
-	instructions["PI2FD"] = x86.API2FL
 	instructions["PSLLDQ"] = x86.APSLLO
 	instructions["PSRLDQ"] = x86.APSRLO
 	instructions["PADDD"] = x86.APADDL

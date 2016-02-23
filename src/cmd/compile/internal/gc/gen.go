@@ -838,7 +838,7 @@ func gen(n *Node) {
 		Cgen_as_wb(n.Left, n.Right, true)
 
 	case OAS2DOTTYPE:
-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, false)
+		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)

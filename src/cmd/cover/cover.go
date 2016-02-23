@@ -181,6 +181,10 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		}
 		n.List = f.addCounters(n.Lbrace, n.Rbrace+1, n.List, true) // +1 to step past closing brace.
 	case *ast.IfStmt:
+		if n.Init != nil {
+			ast.Walk(f, n.Init)
+		}
+		ast.Walk(f, n.Cond)
 		ast.Walk(f, n.Body)
 		if n.Else == nil {
 			return nil
@@ -219,11 +223,21 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 	case *ast.SwitchStmt:
 		// Don't annotate an empty switch - creates a syntax error.
 		if n.Body == nil || len(n.Body.List) == 0 {
+			if n.Init != nil {
+				ast.Walk(f, n.Init)
+			}
+			if n.Tag != nil {
+				ast.Walk(f, n.Tag)
+			}
 			return nil
 		}
 	case *ast.TypeSwitchStmt:
 		// Don't annotate an empty type switch - creates a syntax error.
 		if n.Body == nil || len(n.Body.List) == 0 {
+			if n.Init != nil {
+				ast.Walk(f, n.Init)
+			}
+			ast.Walk(f, n.Assign)
 			return nil
 		}
 	}

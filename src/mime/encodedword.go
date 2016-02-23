@@ -89,7 +89,7 @@ func (e WordEncoder) bEncode(buf *bytes.Buffer, charset, s string) {
 
 	var currentLen, last, runeLen int
 	for i := 0; i < len(s); i += runeLen {
-		// Multi-byte characters must not be split accross encoded-words.
+		// Multi-byte characters must not be split across encoded-words.
 		// See RFC 2047, section 5.3.
 		_, runeLen = utf8.DecodeRuneInString(s[i:])
 
@@ -119,7 +119,7 @@ func (e WordEncoder) qEncode(buf *bytes.Buffer, charset, s string) {
 	var currentLen, runeLen int
 	for i := 0; i < len(s); i += runeLen {
 		b := s[i]
-		// Multi-byte characters must not be split accross encoded-words.
+		// Multi-byte characters must not be split across encoded-words.
 		// See RFC 2047, section 5.3.
 		var encLen int
 		if b >= ' ' && b <= '~' && b != '=' && b != '?' && b != '_' {

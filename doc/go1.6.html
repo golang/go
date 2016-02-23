@@ -1,5 +1,5 @@
 <!--{
-	"Title": "Go 1.6 Release Notes DRAFT",
+	"Title": "Go 1.6 Release Notes",
 	"Path":  "/doc/go1.6",
 	"Template": true
 }-->
@@ -12,13 +12,6 @@ Edit .,s;^([a-z][A-Za-z0-9_/]+)\.([A-Z][A-Za-z0-9_]+\.)?([A-Z][A-Za-z0-9_]+)([ .
 <style>
 ul li { margin: 0.5em 0; }
 </style>
-
-<p>
-<i>NOTE: This is a DRAFT of the Go 1.6 release notes, prepared for the Go 1.6 beta.
-Go 1.6 has NOT yet been released.
-By our regular schedule, it is expected some time in February 2016.
-</i>
-</p>
 
 <h2 id="introduction">Introduction to Go 1.6</h2>
 
@@ -70,9 +63,12 @@ On NaCl, Go 1.5 required SDK version pepper-41.
 Go 1.6 adds support for later SDK versions.
 </p>
 
-<pre>
-TODO: CX no longer available on 386 assembly? (https://golang.org/cl/16386)
-</pre>
+<p>
+On 32-bit x86 systems using the <code>-dynlink</code> or <code>-shared</code> compilation modes,
+the register CX is now overwritten by certain memory references and should
+be avoided in hand-written assembly.
+See the <a href="/doc/asm#x86">assembly documentation</a> for details.
+</p>
 
 <h2 id="tools">Tools</h2>
 
@@ -248,7 +244,7 @@ Some programs may run faster, some slower.
 On average the programs in the Go 1 benchmark suite run a few percent faster in Go 1.6
 than they did in Go 1.5.
 The garbage collector's pauses are even lower than in Go 1.5,
-although the effect is likely only noticeable for programs using
+especially for programs using
 a large amount of memory.
 </p>
 
@@ -569,7 +565,7 @@ The <a href="/pkg/debug/elf/"><code>debug/elf</code></a> package
 adds support for general compressed ELF sections.
 User code needs no updating: the sections are decompressed automatically when read.
 However, compressed
-<a href="/pkg/debug/elf/#Section"><code>Section</code></a>'s do not support random access:
+<a href="/pkg/debug/elf/#Section"><code>Sections</code></a> do not support random access:
 they have a nil <code>ReaderAt</code> field.
 </li>
 
@@ -632,7 +628,6 @@ In previous releases, the argument to <code>*</code> was required to have type <
 Also in the <a href="/pkg/fmt/"><code>fmt</code></a> package,
 <a href="/pkg/fmt/#Scanf"><code>Scanf</code></a> can now scan hexadecimal strings using %X, as an alias for %x.
 Both formats accept any mix of upper- and lower-case hexadecimal.
-<a href="https://golang.org/issues/13585">TODO: Keep?</a>
 </li>
 
 <li>
@@ -717,9 +712,6 @@ Second, DNS lookup functions such as
 <a href="/pkg/net/#LookupAddr"><code>LookupAddr</code></a>
 now return rooted domain names (with a trailing dot)
 on Plan 9 and Windows, to match the behavior of Go on Unix systems.
-TODO: Third, lookups satisfied from /etc/hosts now add a trailing dot as well,
-so that looking up 127.0.0.1 typically now returns &ldquo;localhost.&rdquo; not &ldquo;localhost&rdquo;.
-This is arguably a mistake but is not yet fixed. See https://golang.org/issue/13564.
 </li>
 
 <li>

@@ -110,7 +110,9 @@ func lookupStaticHost(host string) []string {
 		lowerHost := []byte(host)
 		lowerASCIIBytes(lowerHost)
 		if ips, ok := hosts.byName[absDomainName(lowerHost)]; ok {
-			return ips
+			ipsCp := make([]string, len(ips))
+			copy(ipsCp, ips)
+			return ipsCp
 		}
 	}
 	return nil
@@ -127,7 +129,9 @@ func lookupStaticAddr(addr string) []string {
 	}
 	if len(hosts.byAddr) != 0 {
 		if hosts, ok := hosts.byAddr[addr]; ok {
-			return hosts
+			hostsCp := make([]string, len(hosts))
+			copy(hostsCp, hosts)
+			return hostsCp
 		}
 	}
 	return nil

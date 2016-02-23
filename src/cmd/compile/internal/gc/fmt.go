@@ -749,7 +749,13 @@ func typefmt(t *Type, flag int) string {
 		if name != "" {
 			str = name + " " + typ
 		}
-		if flag&obj.FmtShort == 0 && !fmtbody && t.Note != nil {
+
+		// The fmtbody flag is intended to suppress escape analysis annotations
+		// when printing a function type used in a function body.
+		// (The escape analysis tags do not apply to func vars.)
+		// But it must not suppress struct field tags.
+		// See golang.org/issue/13777 and golang.org/issue/14331.
+		if flag&obj.FmtShort == 0 && (!fmtbody || !t.Funarg) && t.Note != nil {
 			str += " " + strconv.Quote(*t.Note)
 		}
 		return str
@@ -1537,7 +1543,7 @@ func nodedump(n *Node, flag int) string {
 		} else {
 			fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
 		}
-		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
+		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
 		}

@@ -59,9 +59,9 @@ func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
 	return p
 }
 
-func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
-	const _ENOMEM = 12
+const _ENOMEM = 12
 
+func sysMap(v unsafe.Pointer, n uintptr, reserved bool, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
 
 	// On 64-bit, we don't actually have v reserved, so tread carefully.

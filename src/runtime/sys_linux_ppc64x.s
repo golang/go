@@ -153,6 +153,7 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	n+8(FP), R4
 	MOVD	dst+16(FP), R5
 	SYSCALL	$SYS_mincore
+	NEG	R3		// caller expects negative errno
 	MOVW	R3, ret+24(FP)
 	RET
 

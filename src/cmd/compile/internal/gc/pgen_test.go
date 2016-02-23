@@ -41,6 +41,16 @@ func TestCmpstackvar(t *testing.T) {
 			false,
 		},
 		{
+			Node{Class: PPARAM, Xoffset: 10},
+			Node{Class: PPARAMOUT, Xoffset: 20},
+			true,
+		},
+		{
+			Node{Class: PPARAMOUT, Xoffset: 10},
+			Node{Class: PPARAM, Xoffset: 20},
+			true,
+		},
+		{
 			Node{Class: PAUTO, Used: true},
 			Node{Class: PAUTO, Used: false},
 			true,
@@ -100,6 +110,10 @@ func TestCmpstackvar(t *testing.T) {
 		got := cmpstackvarlt(&d.a, &d.b)
 		if got != d.lt {
 			t.Errorf("want %#v < %#v", d.a, d.b)
+		}
+		// If we expect a < b to be true, check that b < a is false.
+		if d.lt && cmpstackvarlt(&d.b, &d.a) {
+			t.Errorf("unexpected %#v < %#v", d.b, d.a)
 		}
 	}
 }

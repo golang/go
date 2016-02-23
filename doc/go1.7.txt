@@ -1,0 +1,14 @@
+Tools:
+
+cmd/go: GO15VENDOREXPERIMENT gone, assumed on (CL 19615)
+cmd/link: "-X name value" form gone (CL 19614)
+
+Ports:
+
+SOMETHING WILL HAPPEN
+
+API additions and behavior changes:
+
+SOMETHING WILL HAPPEN
+
+

@@ -1009,7 +1009,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 					w.closeAfterReply = true
 				}
 			default:
-				// Some other kind of error occured, like a read timeout, or
+				// Some other kind of error occurred, like a read timeout, or
 				// corrupt chunked encoding. In any case, whatever remains
 				// on the wire must not be parsed as another HTTP request.
 				w.closeAfterReply = true
@@ -2032,7 +2032,7 @@ const (
 	// For HTTP/2, StateActive fires on the transition from zero
 	// to one active request, and only transitions away once all
 	// active requests are complete. That means that ConnState
-	// can not be used to do per-request work; ConnState only notes
+	// cannot be used to do per-request work; ConnState only notes
 	// the overall state of the connection.
 	StateActive
 

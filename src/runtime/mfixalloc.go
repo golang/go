@@ -30,8 +30,8 @@ type fixalloc struct {
 }
 
 // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
-// Since assignments to mlink.next will result in a write barrier being preformed
-// this can not be used by some of the internal GC structures. For example when
+// Since assignments to mlink.next will result in a write barrier being performed
+// this cannot be used by some of the internal GC structures. For example when
 // the sweeper is placing an unmarked object on the free list it does not want the
 // write barrier to be called since that could result in the object being reachable.
 type mlink struct {

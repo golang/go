@@ -335,7 +335,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 //    unstable or rely on enough different elements in each step to encode the
 //    performed block rearrangements. See also "In-Place Merging Algorithms",
 //    Denham Coates-Evely, Department of Computer Science, Kings College,
-//    January 2004 and the reverences in there.
+//    January 2004 and the references in there.
 //  - Often "optimal" algorithms are optimal in the number of assignments
 //    but Interface has only Swap as operation.
 

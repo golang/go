@@ -7,7 +7,7 @@
 // saves a copy of the body. Then inlcalls walks each function body to
 // expand calls to inlinable functions.
 //
-// The debug['l'] flag controls the agressiveness. Note that main() swaps level 0 and 1,
+// The debug['l'] flag controls the aggressiveness. Note that main() swaps level 0 and 1,
 // making 1 the default and -l disable.  -ll and more is useful to flush out bugs.
 // These additional levels (beyond -l) may be buggy and are not supported.
 //      0: disabled

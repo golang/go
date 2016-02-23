@@ -7,10 +7,12 @@
 package runtime_test
 
 import (
+	"internal/testenv"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCgoCrashHandler(t *testing.T) {
@@ -145,5 +147,43 @@ func TestEnsureDropM(t *testing.T) {
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q, got %v", want, got)
+	}
+}
+
+// Test for issue 14387.
+// Test that the program that doesn't need any cgo pointer checking
+// takes about the same amount of time with it as without it.
+func TestCgoCheckBytes(t *testing.T) {
+	// Make sure we don't count the build time as part of the run time.
+	testenv.MustHaveGoBuild(t)
+	exe, err := buildTestProg(t, "testprogcgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
+
+	start := time.Now()
+	cmd.Run()
+	d1 := time.Since(start)
+
+	cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
+	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
+
+	start = time.Now()
+	cmd.Run()
+	d2 := time.Since(start)
+
+	if d2*10 < d1 {
+		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
+	}
+}
+
+func TestCgoPanicDeadlock(t *testing.T) {
+	// test issue 14432
+	got := runTestProg(t, "testprogcgo", "CgoPanicDeadlock")
+	want := "panic: cgo error\n\n"
+	if !strings.HasPrefix(got, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, got)
 	}
 }

@@ -850,7 +850,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 			switch k {
 			case reflect.String:
 				s := vf.String()
-				dashDash = strings.Index(s, "--") >= 0
+				dashDash = strings.Contains(s, "--")
 				dashLast = s[len(s)-1] == '-'
 				if !dashDash {
 					p.WriteString(s)

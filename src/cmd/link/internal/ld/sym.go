@@ -34,8 +34,6 @@ package ld
 import (
 	"cmd/internal/obj"
 	"log"
-	"os"
-	"path/filepath"
 	"strconv"
 )
 
@@ -69,13 +67,6 @@ func linknew(arch *LinkArch) *Link {
 	if p != arch.Name {
 		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
 	}
-
-	var buf string
-	buf, _ = os.Getwd()
-	if buf == "" {
-		buf = "/???"
-	}
-	buf = filepath.ToSlash(buf)
 
 	ctxt.Headtype = headtype(obj.Getgoos())
 	if ctxt.Headtype < 0 {

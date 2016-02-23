@@ -70,7 +70,7 @@ func LookPath(file string) (f string, err error) {
 		}
 		exts = append(exts, e)
 	}
-	if strings.IndexAny(file, `:\/`) != -1 {
+	if strings.ContainsAny(file, `:\/`) {
 		if f, err = findExecutable(file, exts); err == nil {
 			return
 		}

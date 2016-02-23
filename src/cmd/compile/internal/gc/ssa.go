@@ -561,7 +561,7 @@ func (s *state) stmt(n *Node) {
 
 	case OAS2DOTTYPE:
 		res, resok := s.dottype(n.Rlist.N, true)
-		s.assign(n.List.N, res, false, false, n.Lineno)
+		s.assign(n.List.N, res, needwritebarrier(n.List.N, n.Rlist.N), false, n.Lineno)
 		s.assign(n.List.Next.N, resok, false, false, n.Lineno)
 		return
 

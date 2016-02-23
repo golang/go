@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:generate go run mkbuiltin.go runtime unsafe
+//go:generate go run mkbuiltin.go
 
 package gc
 
@@ -257,7 +257,7 @@ func Main() {
 		msanpkg.Name = "msan"
 	}
 	if flag_race != 0 && flag_msan != 0 {
-		log.Fatal("can not use both -race and -msan")
+		log.Fatal("cannot use both -race and -msan")
 	} else if flag_race != 0 || flag_msan != 0 {
 		instrumenting = true
 	}
@@ -313,6 +313,8 @@ func Main() {
 	lexlineno = 1
 	const BOM = 0xFEFF
 
+	loadsys()
+
 	for _, infile = range flag.Args() {
 		if trace && Debug['x'] != 0 {
 			fmt.Printf("--- %s ---\n", infile)
@@ -320,23 +322,15 @@ func Main() {
 
 		linehistpush(infile)
 
-		curio.infile = infile
-		var err error
-		curio.bin, err = obj.Bopenr(infile)
+		bin, err := obj.Bopenr(infile)
 		if err != nil {
 			fmt.Printf("open %s: %v\n", infile, err)
 			errorexit()
 		}
 
-		curio.peekc = 0
-		curio.peekc1 = 0
-		curio.nlsemi = false
-		curio.eofnl = false
-		curio.last = 0
-
 		// Skip initial BOM if present.
-		if obj.Bgetrune(curio.bin) != BOM {
-			obj.Bungetrune(curio.bin)
+		if obj.Bgetrune(bin) != BOM {
+			obj.Bungetrune(bin)
 		}
 
 		block = 1
@@ -344,15 +338,18 @@ func Main() {
 
 		imported_unsafe = false
 
-		parse_file()
+		parse_file(bin)
 		if nsyntaxerrors != 0 {
 			errorexit()
 		}
 
+		// Instead of converting EOF into '\n' in getc and count it as an extra line
+		// for the line history to work, and which then has to be corrected elsewhere,
+		// just add a line here.
+		lexlineno++
+
 		linehistpop()
-		if curio.bin != nil {
-			obj.Bterm(curio.bin)
-		}
+		obj.Bterm(bin)
 	}
 
 	testdclstack()
@@ -571,17 +568,12 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 	return true
 }
 
-func addidir(dir string) {
-	if dir == "" {
-		return
-	}
+var idirs []string
 
-	var pp **Idir
-	for pp = &idirs; *pp != nil; pp = &(*pp).link {
+func addidir(dir string) {
+	if dir != "" {
+		idirs = append(idirs, dir)
 	}
-	*pp = new(Idir)
-	(*pp).link = nil
-	(*pp).dir = dir
 }
 
 // is this path a local name?  begins with ./ or ../ or /
@@ -620,12 +612,12 @@ func findpkg(name string) (file string, ok bool) {
 		return "", false
 	}
 
-	for p := idirs; p != nil; p = p.link {
-		file = fmt.Sprintf("%s/%s.a", p.dir, name)
+	for _, dir := range idirs {
+		file = fmt.Sprintf("%s/%s.a", dir, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
-		file = fmt.Sprintf("%s/%s.o", p.dir, name)
+		file = fmt.Sprintf("%s/%s.o", dir, name)
 		if _, err := os.Stat(file); err == nil {
 			return file, true
 		}
@@ -658,27 +650,45 @@ func findpkg(name string) (file string, ok bool) {
 	return "", false
 }
 
-func fakeimport() {
-	importpkg = mkpkg("fake")
-	cannedimports("fake.o", "$$\n")
+// loadsys loads the definitions for the low-level runtime and unsafe functions,
+// so that the compiler can generate calls to them,
+// but does not make the names "runtime" or "unsafe" visible as packages.
+func loadsys() {
+	if Debug['A'] != 0 {
+		return
+	}
+
+	block = 1
+	iota_ = -1000000
+	incannedimport = 1
+
+	importpkg = Runtimepkg
+	parse_import(obj.Binitr(strings.NewReader(runtimeimport)), nil)
+
+	importpkg = unsafepkg
+	parse_import(obj.Binitr(strings.NewReader(unsafeimport)), nil)
+
+	importpkg = nil
+	incannedimport = 0
 }
 
-// TODO(gri) line argument doesn't appear to be used
-func importfile(f *Val, line int) {
-	if _, ok := f.U.(string); !ok {
+func importfile(f *Val, indent []byte) {
+	if importpkg != nil {
+		Fatalf("importpkg not nil")
+	}
+
+	path_, ok := f.U.(string)
+	if !ok {
 		Yyerror("import statement not a string")
-		fakeimport()
 		return
 	}
 
-	if len(f.U.(string)) == 0 {
+	if len(path_) == 0 {
 		Yyerror("import path is empty")
-		fakeimport()
 		return
 	}
 
-	if isbadimport(f.U.(string)) {
-		fakeimport()
+	if isbadimport(path_) {
 		return
 	}
 
@@ -686,17 +696,15 @@ func importfile(f *Val, line int) {
 	// but we reserve the import path "main" to identify
 	// the main package, just as we reserve the import
 	// path "math" to identify the standard math package.
-	if f.U.(string) == "main" {
+	if path_ == "main" {
 		Yyerror("cannot import \"main\"")
 		errorexit()
 	}
 
-	if myimportpath != "" && f.U.(string) == myimportpath {
-		Yyerror("import %q while compiling that package (import cycle)", f.U.(string))
+	if myimportpath != "" && path_ == myimportpath {
+		Yyerror("import %q while compiling that package (import cycle)", path_)
 		errorexit()
 	}
-
-	path_ := f.U.(string)
 
 	if mapped, ok := importMap[path_]; ok {
 		path_ = mapped
@@ -708,8 +716,7 @@ func importfile(f *Val, line int) {
 			errorexit()
 		}
 
-		importpkg = mkpkg(f.U.(string))
-		cannedimports("unsafe.o", unsafeimport)
+		importpkg = unsafepkg
 		imported_unsafe = true
 		return
 	}
@@ -717,7 +724,6 @@ func importfile(f *Val, line int) {
 	if islocalname(path_) {
 		if path_[0] == '/' {
 			Yyerror("import path cannot be absolute path")
-			fakeimport()
 			return
 		}
 
@@ -725,48 +731,33 @@ func importfile(f *Val, line int) {
 		if localimport != "" {
 			prefix = localimport
 		}
-		cleanbuf := prefix
-		cleanbuf += "/"
-		cleanbuf += path_
-		cleanbuf = path.Clean(cleanbuf)
-		path_ = cleanbuf
+		path_ = path.Join(prefix, path_)
 
 		if isbadimport(path_) {
-			fakeimport()
 			return
 		}
 	}
 
 	file, found := findpkg(path_)
 	if !found {
-		Yyerror("can't find import: %q", f.U.(string))
+		Yyerror("can't find import: %q", path_)
 		errorexit()
 	}
 
 	importpkg = mkpkg(path_)
 
-	// If we already saw that package, feed a dummy statement
-	// to the lexer to avoid parsing export data twice.
 	if importpkg.Imported {
-		tag := ""
-		if importpkg.Safe {
-			tag = "safe"
-		}
-
-		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
-		cannedimports(file, p)
 		return
 	}
 
 	importpkg.Imported = true
 
-	var err error
-	var imp *obj.Biobuf
-	imp, err = obj.Bopenr(file)
+	imp, err := obj.Bopenr(file)
 	if err != nil {
-		Yyerror("can't open import: %q: %v", f.U.(string), err)
+		Yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
+	defer obj.Bterm(imp)
 
 	if strings.HasSuffix(file, ".a") {
 		if !skiptopkgdef(imp) {
@@ -822,76 +813,21 @@ func importfile(f *Val, line int) {
 	switch c {
 	case '\n':
 		// old export format
-		pushedio = curio
-
-		curio.bin = imp
-		curio.peekc = 0
-		curio.peekc1 = 0
-		curio.infile = file
-		curio.nlsemi = false
-		typecheckok = true
-
-		push_parser()
+		parse_import(imp, indent)
 
 	case 'B':
 		// new export format
 		obj.Bgetc(imp) // skip \n after $$B
 		Import(imp)
 
-		// continue as if the package was imported before (see above)
-		tag := ""
-		if importpkg.Safe {
-			tag = "safe"
-		}
-		p := fmt.Sprintf("package %s %s\n$$\n", importpkg.Name, tag)
-		cannedimports(file, p)
-		// Reset incannedimport flag (we are not truly in a
-		// canned import) - this will cause importpkg.Direct to
-		// be set via parser.import_package (was issue #13977).
-		//
-		// TODO(gri) Remove this global variable and convoluted
-		// code in the process of streamlining the import code.
-		incannedimport = 0
-
 	default:
-		Yyerror("no import in %q", f.U.(string))
-	}
-}
-
-func unimportfile() {
-	pop_parser()
-
-	if curio.bin != nil {
-		obj.Bterm(curio.bin)
-		curio.bin = nil
-	} else {
-		lexlineno-- // re correct sys.6 line number
+		Yyerror("no import in %q", path_)
+		errorexit()
 	}
 
-	curio = pushedio
-
-	pushedio.bin = nil
-	incannedimport = 0
-	typecheckok = false
-}
-
-func cannedimports(file string, cp string) {
-	lexlineno++ // if sys.6 is included on line 1,
-
-	pushedio = curio
-
-	curio.bin = nil
-	curio.peekc = 0
-	curio.peekc1 = 0
-	curio.infile = file
-	curio.cp = cp
-	curio.nlsemi = false
-	curio.importsafe = false
-
-	typecheckok = true
-	incannedimport = 1
-
-	push_parser()
+	if safemode != 0 && !importpkg.Safe {
+		Yyerror("cannot import unsafe package %q", importpkg.Path)
+	}
 }
 
 func isSpace(c int) bool {
@@ -899,7 +835,7 @@ func isSpace(c int) bool {
 }
 
 func isAlpha(c int) bool {
-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 func isDigit(c int) bool {
@@ -933,10 +869,19 @@ func isfrog(c int) bool {
 	return false
 }
 
-type yySymType struct {
-	sym *Sym
-	val Val
-	op  Op
+type lexer struct {
+	// source
+	bin    *obj.Biobuf
+	peekc  int
+	peekc1 int // second peekc for ...
+
+	nlsemi bool // if set, '\n' and EOF translate to ';'
+
+	// current token
+	tok  int32
+	sym_ *Sym // valid if tok == LNAME
+	val  Val  // valid if tok == LLITERAL
+	op   Op   // valid if tok == LASOP
 }
 
 const (
@@ -987,7 +932,7 @@ const (
 	LRSH
 )
 
-func _yylex(yylval *yySymType) int32 {
+func (l *lexer) next() {
 	var c1 int
 	var op Op
 	var escflag int
@@ -998,27 +943,31 @@ func _yylex(yylval *yySymType) int32 {
 
 	prevlineno = lineno
 
+	nlsemi := l.nlsemi
+	l.nlsemi = false
+
 l0:
-	c := getc()
-	if isSpace(c) {
-		if c == '\n' && curio.nlsemi {
-			ungetc(c)
+	// skip white space
+	c := l.getc()
+	for isSpace(c) {
+		if c == '\n' && nlsemi {
+			l.ungetc(c)
 			if Debug['x'] != 0 {
 				fmt.Printf("lex: implicit semi\n")
 			}
-			return ';'
+			l.tok = ';'
+			return
 		}
-
-		goto l0
+		c = l.getc()
 	}
 
-	lineno = lexlineno // start of token
+	// start of token
+	lineno = lexlineno
 
 	if c >= utf8.RuneSelf {
 		// all multibyte runes are alpha
 		cp = &lexbuf
 		cp.Reset()
-
 		goto talph
 	}
 
@@ -1034,7 +983,7 @@ l0:
 		if c != '0' {
 			for {
 				cp.WriteByte(byte(c))
-				c = getc()
+				c = l.getc()
 				if isDigit(c) {
 					continue
 				}
@@ -1052,11 +1001,11 @@ l0:
 		}
 
 		cp.WriteByte(byte(c))
-		c = getc()
+		c = l.getc()
 		if c == 'x' || c == 'X' {
 			for {
 				cp.WriteByte(byte(c))
-				c = getc()
+				c = l.getc()
 				if isDigit(c) {
 					continue
 				}
@@ -1089,7 +1038,7 @@ l0:
 				c1 = 1 // not octal
 			}
 			cp.WriteByte(byte(c))
-			c = getc()
+			c = l.getc()
 		}
 
 		if c == '.' {
@@ -1110,8 +1059,18 @@ l0:
 	switch c {
 	case EOF:
 		lineno = prevlineno
-		ungetc(EOF)
-		return -1
+		l.ungetc(EOF)
+		// Treat EOF as "end of line" for the purposes
+		// of inserting a semicolon.
+		if nlsemi {
+			if Debug['x'] != 0 {
+				fmt.Printf("lex: implicit semi\n")
+			}
+			l.tok = ';'
+			return
+		}
+		l.tok = -1
+		return
 
 	case '_':
 		cp = &lexbuf
@@ -1119,7 +1078,7 @@ l0:
 		goto talph
 
 	case '.':
-		c1 = getc()
+		c1 = l.getc()
 		if isDigit(c1) {
 			cp = &lexbuf
 			cp.Reset()
@@ -1129,13 +1088,13 @@ l0:
 		}
 
 		if c1 == '.' {
-			c1 = getc()
+			c1 = l.getc()
 			if c1 == '.' {
 				c = LDDD
 				goto lx
 			}
 
-			ungetc(c1)
+			l.ungetc(c1)
 			c1 = '.'
 		}
 
@@ -1148,7 +1107,7 @@ l0:
 		cp.Reset()
 
 		for {
-			if escchar('"', &escflag, &v) {
+			if l.escchar('"', &escflag, &v) {
 				break
 			}
 			if v < utf8.RuneSelf || escflag != 0 {
@@ -1169,7 +1128,7 @@ l0:
 		cp.Reset()
 
 		for {
-			c = int(getr())
+			c = int(l.getr())
 			if c == '\r' {
 				continue
 			}
@@ -1188,40 +1147,42 @@ l0:
 
 		// '.'
 	case '\'':
-		if escchar('\'', &escflag, &v) {
+		if l.escchar('\'', &escflag, &v) {
 			Yyerror("empty character literal or unescaped ' in character literal")
 			v = '\''
 		}
 
-		if !escchar('\'', &escflag, &v) {
+		if !l.escchar('\'', &escflag, &v) {
 			Yyerror("missing '")
-			ungetc(int(v))
+			l.ungetc(int(v))
 		}
 
 		x := new(Mpint)
-		yylval.val.U = x
+		l.val.U = x
 		Mpmovecfix(x, v)
 		x.Rune = true
 		if Debug['x'] != 0 {
 			fmt.Printf("lex: codepoint literal\n")
 		}
 		litbuf = "string literal"
-		return LLITERAL
+		l.nlsemi = true
+		l.tok = LLITERAL
+		return
 
 	case '/':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '*' {
 			nl := false
 			for {
-				c = int(getr())
+				c = int(l.getr())
 				if c == '\n' {
 					nl = true
 				}
 				for c == '*' {
-					c = int(getr())
+					c = int(l.getr())
 					if c == '/' {
 						if nl {
-							ungetc('\n')
+							l.ungetc('\n')
 						}
 						goto l0
 					}
@@ -1239,14 +1200,14 @@ l0:
 		}
 
 		if c1 == '/' {
-			c = getlinepragma()
+			c = l.getlinepragma()
 			for {
 				if c == '\n' || c == EOF {
-					ungetc(c)
+					l.ungetc(c)
 					goto l0
 				}
 
-				c = int(getr())
+				c = int(l.getr())
 			}
 		}
 
@@ -1256,29 +1217,30 @@ l0:
 		}
 
 	case ':':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '=' {
 			c = int(LCOLAS)
 			goto lx
 		}
 
 	case '*':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '=' {
 			op = OMUL
 			goto asop
 		}
 
 	case '%':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '=' {
 			op = OMOD
 			goto asop
 		}
 
 	case '+':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '+' {
+			l.nlsemi = true
 			c = int(LINC)
 			goto lx
 		}
@@ -1289,8 +1251,9 @@ l0:
 		}
 
 	case '-':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '-' {
+			l.nlsemi = true
 			c = int(LDEC)
 			goto lx
 		}
@@ -1301,10 +1264,10 @@ l0:
 		}
 
 	case '>':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '>' {
 			c = int(LRSH)
-			c1 = getc()
+			c1 = l.getc()
 			if c1 == '=' {
 				op = ORSH
 				goto asop
@@ -1321,10 +1284,10 @@ l0:
 		c = int(LGT)
 
 	case '<':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '<' {
 			c = int(LLSH)
-			c1 = getc()
+			c1 = l.getc()
 			if c1 == '=' {
 				op = OLSH
 				goto asop
@@ -1346,21 +1309,21 @@ l0:
 		c = int(LLT)
 
 	case '=':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '=' {
 			c = int(LEQ)
 			goto lx
 		}
 
 	case '!':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '=' {
 			c = int(LNE)
 			goto lx
 		}
 
 	case '&':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '&' {
 			c = int(LANDAND)
 			goto lx
@@ -1368,7 +1331,7 @@ l0:
 
 		if c1 == '^' {
 			c = int(LANDNOT)
-			c1 = getc()
+			c1 = l.getc()
 			if c1 == '=' {
 				op = OANDNOT
 				goto asop
@@ -1383,7 +1346,7 @@ l0:
 		}
 
 	case '|':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '|' {
 			c = int(LOROR)
 			goto lx
@@ -1395,17 +1358,21 @@ l0:
 		}
 
 	case '^':
-		c1 = getc()
+		c1 = l.getc()
 		if c1 == '=' {
 			op = OXOR
 			goto asop
 		}
 
+	case ')', ']', '}':
+		l.nlsemi = true
+		goto lx
+
 	default:
 		goto lx
 	}
 
-	ungetc(c1)
+	l.ungetc(c1)
 
 lx:
 	if Debug['x'] != 0 {
@@ -1425,22 +1392,24 @@ lx:
 		goto l0
 	}
 
-	return int32(c)
+	l.tok = int32(c)
+	return
 
 asop:
-	yylval.op = op
+	l.op = op
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: TOKEN ASOP %s=\n", goopnames[op])
 	}
-	return LASOP
+	l.tok = LASOP
+	return
 
 	// cp is set to lexbuf and some
 	// prefix has been stored
 talph:
 	for {
 		if c >= utf8.RuneSelf {
-			ungetc(c)
-			r := rune(getr())
+			l.ungetc(c)
+			r := rune(l.getr())
 
 			// 0xb7 · is used for internal names
 			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && (importpkg == nil || r != 0xb7) {
@@ -1455,11 +1424,11 @@ talph:
 		} else {
 			cp.WriteByte(byte(c))
 		}
-		c = getc()
+		c = l.getc()
 	}
 
 	cp = nil
-	ungetc(c)
+	l.ungetc(c)
 
 	s = LookupBytes(lexbuf.Bytes())
 	if s.Lexical == LIGNORE {
@@ -1469,31 +1438,38 @@ talph:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
 	}
-	yylval.sym = s
-	return int32(s.Lexical)
+	l.sym_ = s
+	switch s.Lexical {
+	case LNAME, LRETURN, LBREAK, LCONTINUE, LFALL:
+		l.nlsemi = true
+	}
+	l.tok = int32(s.Lexical)
+	return
 
 ncu:
 	cp = nil
-	ungetc(c)
+	l.ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U = new(Mpint)
-	mpatofix(yylval.val.U.(*Mpint), str)
-	if yylval.val.U.(*Mpint).Ovf {
+	l.val.U = new(Mpint)
+	mpatofix(l.val.U.(*Mpint), str)
+	if l.val.U.(*Mpint).Ovf {
 		Yyerror("overflow in constant")
-		Mpmovecfix(yylval.val.U.(*Mpint), 0)
+		Mpmovecfix(l.val.U.(*Mpint), 0)
 	}
 
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: integer literal\n")
 	}
 	litbuf = "literal " + str
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
+	return
 
 casedot:
 	for {
 		cp.WriteByte(byte(c))
-		c = getc()
+		c = l.getc()
 		if !isDigit(c) {
 			break
 		}
@@ -1513,10 +1489,10 @@ caseep:
 		Yyerror("malformed floating point constant")
 	}
 	cp.WriteByte(byte(c))
-	c = getc()
+	c = l.getc()
 	if c == '+' || c == '-' {
 		cp.WriteByte(byte(c))
-		c = getc()
+		c = l.getc()
 	}
 
 	if !isDigit(c) {
@@ -1524,7 +1500,7 @@ caseep:
 	}
 	for isDigit(c) {
 		cp.WriteByte(byte(c))
-		c = getc()
+		c = l.getc()
 	}
 
 	if c == 'i' {
@@ -1537,56 +1513,60 @@ casei:
 	cp = nil
 
 	str = lexbuf.String()
-	yylval.val.U = new(Mpcplx)
-	Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
-	mpatoflt(&yylval.val.U.(*Mpcplx).Imag, str)
-	if yylval.val.U.(*Mpcplx).Imag.Val.IsInf() {
+	l.val.U = new(Mpcplx)
+	Mpmovecflt(&l.val.U.(*Mpcplx).Real, 0.0)
+	mpatoflt(&l.val.U.(*Mpcplx).Imag, str)
+	if l.val.U.(*Mpcplx).Imag.Val.IsInf() {
 		Yyerror("overflow in imaginary constant")
-		Mpmovecflt(&yylval.val.U.(*Mpcplx).Imag, 0.0)
+		Mpmovecflt(&l.val.U.(*Mpcplx).Imag, 0.0)
 	}
 
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: imaginary literal\n")
 	}
 	litbuf = "literal " + str
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
+	return
 
 caseout:
 	cp = nil
-	ungetc(c)
+	l.ungetc(c)
 
 	str = lexbuf.String()
-	yylval.val.U = newMpflt()
-	mpatoflt(yylval.val.U.(*Mpflt), str)
-	if yylval.val.U.(*Mpflt).Val.IsInf() {
+	l.val.U = newMpflt()
+	mpatoflt(l.val.U.(*Mpflt), str)
+	if l.val.U.(*Mpflt).Val.IsInf() {
 		Yyerror("overflow in float constant")
-		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
+		Mpmovecflt(l.val.U.(*Mpflt), 0.0)
 	}
 
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: floating literal\n")
 	}
 	litbuf = "literal " + str
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
+	return
 
 strlit:
-	yylval.val.U = internString(cp.Bytes())
+	l.val.U = internString(cp.Bytes())
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")
 	}
 	litbuf = "string literal"
-	return LLITERAL
+	l.nlsemi = true
+	l.tok = LLITERAL
 }
 
 var internedStrings = map[string]string{}
 
 func internString(b []byte) string {
 	s, ok := internedStrings[string(b)] // string(b) here doesn't allocate
-	if ok {
-		return s
+	if !ok {
+		s = string(b)
+		internedStrings[s] = s
 	}
-	s = string(b)
-	internedStrings[s] = s
 	return s
 }
 
@@ -1603,16 +1583,16 @@ func more(pp *string) bool {
 // //line parse.y:15
 // as a discontinuity in sequential line numbers.
 // the next line of input comes from parse.y:15
-func getlinepragma() int {
+func (l *lexer) getlinepragma() int {
 	var cmd, verb, name string
 
-	c := int(getr())
+	c := int(l.getr())
 	if c == 'g' {
 		cp := &lexbuf
 		cp.Reset()
 		cp.WriteByte('g') // already read
 		for {
-			c = int(getr())
+			c = int(l.getr())
 			if c == EOF || c >= utf8.RuneSelf {
 				return c
 			}
@@ -1704,7 +1684,7 @@ func getlinepragma() int {
 		return c
 	}
 	for i := 1; i < 5; i++ {
-		c = int(getr())
+		c = int(l.getr())
 		if c != int("line "[i]) {
 			return c
 		}
@@ -1714,7 +1694,7 @@ func getlinepragma() int {
 	cp.Reset()
 	linep := 0
 	for {
-		c = int(getr())
+		c = int(l.getr())
 		if c == EOF {
 			return c
 		}
@@ -1895,113 +1875,57 @@ func pragcgo(text string) {
 	}
 }
 
-func yylex(yylval *yySymType) int32 {
-	lx := _yylex(yylval)
-
-	if curio.nlsemi && lx == EOF {
-		// Treat EOF as "end of line" for the purposes
-		// of inserting a semicolon.
-		lx = ';'
-	}
-
-	switch lx {
-	case LNAME,
-		LLITERAL,
-		LBREAK,
-		LCONTINUE,
-		LFALL,
-		LRETURN,
-		LINC,
-		LDEC,
-		')',
-		'}',
-		']':
-		curio.nlsemi = true
-
-	default:
-		curio.nlsemi = false
-	}
-
-	return lx
-}
-
-func getc() int {
-	c := curio.peekc
+func (l *lexer) getc() int {
+	c := l.peekc
 	if c != 0 {
-		curio.peekc = curio.peekc1
-		curio.peekc1 = 0
+		l.peekc = l.peekc1
+		l.peekc1 = 0
 		goto check
 	}
 
-	if curio.bin == nil {
-		if len(curio.cp) == 0 {
-			c = 0
-		} else {
-			c = int(curio.cp[0])
-			curio.cp = curio.cp[1:]
+loop:
+	c = obj.Bgetc(l.bin)
+	// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
+	if c == 0xef {
+		buf, err := l.bin.Peek(2)
+		if err != nil {
+			yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
+			errorexit()
 		}
-	} else {
-	loop:
-		c = obj.Bgetc(curio.bin)
-		// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
-		if c == 0xef {
-			buf, err := curio.bin.Peek(2)
-			if err != nil {
-				yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
-				errorexit()
-			}
-			if buf[0] == 0xbb && buf[1] == 0xbf {
-				yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+		if buf[0] == 0xbb && buf[1] == 0xbf {
+			yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
 
-				// consume BOM bytes
-				obj.Bgetc(curio.bin)
-				obj.Bgetc(curio.bin)
-				goto loop
-			}
+			// consume BOM bytes
+			obj.Bgetc(l.bin)
+			obj.Bgetc(l.bin)
+			goto loop
 		}
 	}
 
 check:
-	switch c {
-	case 0:
-		if curio.bin != nil {
-			Yyerror("illegal NUL byte")
-			break
-		}
-		fallthrough
-
-		// insert \n at EOF
-	case EOF:
-		if curio.eofnl || curio.last == '\n' {
-			return EOF
-		}
-		curio.eofnl = true
-		c = '\n'
-		fallthrough
-
-	case '\n':
-		if pushedio.bin == nil {
-			lexlineno++
-		}
+	if c == 0 {
+		Yyerror("illegal NUL byte")
+		return 0
 	}
-
-	curio.last = c
+	if c == '\n' && importpkg == nil {
+		lexlineno++
+	}
 	return c
 }
 
-func ungetc(c int) {
-	curio.peekc1 = curio.peekc
-	curio.peekc = c
-	if c == '\n' && pushedio.bin == nil {
+func (l *lexer) ungetc(c int) {
+	l.peekc1 = l.peekc
+	l.peekc = c
+	if c == '\n' && importpkg == nil {
 		lexlineno--
 	}
 }
 
-func getr() int32 {
+func (l *lexer) getr() int32 {
 	var buf [utf8.UTFMax]byte
 
 	for i := 0; ; i++ {
-		c := getc()
+		c := l.getc()
 		if i == 0 && c < utf8.RuneSelf {
 			return int32(c)
 		}
@@ -2020,10 +1944,10 @@ func getr() int32 {
 	}
 }
 
-func escchar(e int, escflg *int, val *int64) bool {
+func (l *lexer) escchar(e int, escflg *int, val *int64) bool {
 	*escflg = 0
 
-	c := int(getr())
+	c := int(l.getr())
 	switch c {
 	case EOF:
 		Yyerror("eof in string")
@@ -2045,7 +1969,7 @@ func escchar(e int, escflg *int, val *int64) bool {
 	}
 
 	u := 0
-	c = int(getr())
+	c = int(l.getr())
 	var i int
 	switch c {
 	case 'x':
@@ -2072,23 +1996,23 @@ func escchar(e int, escflg *int, val *int64) bool {
 		'6',
 		'7':
 		*escflg = 1 // it's a byte
-		l := int64(c) - '0'
+		x := int64(c) - '0'
 		for i := 2; i > 0; i-- {
-			c = getc()
+			c = l.getc()
 			if c >= '0' && c <= '7' {
-				l = l*8 + int64(c) - '0'
+				x = x*8 + int64(c) - '0'
 				continue
 			}
 
 			Yyerror("non-octal character in escape sequence: %c", c)
-			ungetc(c)
+			l.ungetc(c)
 		}
 
-		if l > 255 {
-			Yyerror("octal escape value > 255: %d", l)
+		if x > 255 {
+			Yyerror("octal escape value > 255: %d", x)
 		}
 
-		*val = l
+		*val = x
 		return false
 
 	case 'a':
@@ -2118,35 +2042,35 @@ func escchar(e int, escflg *int, val *int64) bool {
 	return false
 
 hex:
-	l := int64(0)
+	x := int64(0)
 	for ; i > 0; i-- {
-		c = getc()
+		c = l.getc()
 		if c >= '0' && c <= '9' {
-			l = l*16 + int64(c) - '0'
+			x = x*16 + int64(c) - '0'
 			continue
 		}
 
 		if c >= 'a' && c <= 'f' {
-			l = l*16 + int64(c) - 'a' + 10
+			x = x*16 + int64(c) - 'a' + 10
 			continue
 		}
 
 		if c >= 'A' && c <= 'F' {
-			l = l*16 + int64(c) - 'A' + 10
+			x = x*16 + int64(c) - 'A' + 10
 			continue
 		}
 
 		Yyerror("non-hex character in escape sequence: %c", c)
-		ungetc(c)
+		l.ungetc(c)
 		break
 	}
 
-	if u != 0 && (l > utf8.MaxRune || (0xd800 <= l && l < 0xe000)) {
-		Yyerror("invalid Unicode code point in escape sequence: %#x", l)
-		l = utf8.RuneError
+	if u != 0 && (x > utf8.MaxRune || (0xd800 <= x && x < 0xe000)) {
+		Yyerror("invalid Unicode code point in escape sequence: %#x", x)
+		x = utf8.RuneError
 	}
 
-	*val = l
+	*val = x
 	return false
 }
 

@@ -28,30 +28,21 @@ const (
 
 const (
 	// These values are known by runtime.
-	// The MEMx and NOEQx values must run in parallel.  See algtype.
-	AMEM = iota
+	ANOEQ = iota
 	AMEM0
 	AMEM8
 	AMEM16
 	AMEM32
 	AMEM64
 	AMEM128
-	ANOEQ
-	ANOEQ0
-	ANOEQ8
-	ANOEQ16
-	ANOEQ32
-	ANOEQ64
-	ANOEQ128
 	ASTRING
 	AINTER
 	ANILINTER
-	ASLICE
 	AFLOAT32
 	AFLOAT64
 	ACPLX64
 	ACPLX128
-	AUNK = 100
+	AMEM = 100
 )
 
 const (
@@ -329,8 +320,7 @@ const (
 
 const (
 	// types of channel
-	// must match ../../pkg/nreflect/type.go:/Chandir
-	Cxxx  = 0
+	// must match ../../../../reflect/type.go:/ChanDir
 	Crecv = 1 << 0
 	Csend = 1 << 1
 	Cboth = Crecv | Csend
@@ -385,25 +375,8 @@ type Sig struct {
 	offset int32
 }
 
-type Io struct {
-	infile     string
-	bin        *obj.Biobuf
-	cp         string // used for content when bin==nil
-	last       int
-	peekc      int
-	peekc1     int // second peekc for ...
-	nlsemi     bool
-	eofnl      bool
-	importsafe bool
-}
-
 type Dlist struct {
 	field *Type
-}
-
-type Idir struct {
-	link *Idir
-	dir  string
 }
 
 // argument passing to/from
@@ -452,10 +425,6 @@ var sizeof_String int // runtime sizeof(String)
 
 var dotlist [10]Dlist // size is max depth of embeddeds
 
-var curio Io
-
-var pushedio Io
-
 var lexlineno int32
 
 var lineno int32
@@ -493,8 +462,6 @@ var debugstr string
 var Debug_checknil int
 var Debug_typeassert int
 
-var importmyname *Sym // my name for package
-
 var localpkg *Pkg // package being compiled
 
 var importpkg *Pkg // package being imported
@@ -526,8 +493,6 @@ var trackpkg *Pkg // fake package for field tracking
 var Tptr EType // either TPTR32 or TPTR64
 
 var myimportpath string
-
-var idirs *Idir
 
 var localimport string
 

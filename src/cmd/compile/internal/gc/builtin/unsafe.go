@@ -8,7 +8,7 @@
 
 // +build ignore
 
-package PACKAGE
+package unsafe
 
 type Pointer uintptr // not really; filled in by compiler
 

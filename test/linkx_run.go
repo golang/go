@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	test(" ") // old deprecated syntax
+	// test(" ") // old deprecated & removed syntax
 	test("=") // new syntax
 }
 

@@ -43,7 +43,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return strings.Index(name, "/") < 0, nil
+			return !strings.Contains(name, "/"), nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)

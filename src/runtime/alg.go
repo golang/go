@@ -16,24 +16,16 @@ const (
 
 // type algorithms - known to compiler
 const (
-	alg_MEM = iota
+	alg_NOEQ = iota
 	alg_MEM0
 	alg_MEM8
 	alg_MEM16
 	alg_MEM32
 	alg_MEM64
 	alg_MEM128
-	alg_NOEQ
-	alg_NOEQ0
-	alg_NOEQ8
-	alg_NOEQ16
-	alg_NOEQ32
-	alg_NOEQ64
-	alg_NOEQ128
 	alg_STRING
 	alg_INTER
 	alg_NILINTER
-	alg_SLICE
 	alg_FLOAT32
 	alg_FLOAT64
 	alg_CPLX64
@@ -77,24 +69,16 @@ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
 func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
 
 var algarray = [alg_max]typeAlg{
-	alg_MEM:      {nil, nil}, // not used
+	alg_NOEQ:     {nil, nil},
 	alg_MEM0:     {memhash0, memequal0},
 	alg_MEM8:     {memhash8, memequal8},
 	alg_MEM16:    {memhash16, memequal16},
 	alg_MEM32:    {memhash32, memequal32},
 	alg_MEM64:    {memhash64, memequal64},
 	alg_MEM128:   {memhash128, memequal128},
-	alg_NOEQ:     {nil, nil},
-	alg_NOEQ0:    {nil, nil},
-	alg_NOEQ8:    {nil, nil},
-	alg_NOEQ16:   {nil, nil},
-	alg_NOEQ32:   {nil, nil},
-	alg_NOEQ64:   {nil, nil},
-	alg_NOEQ128:  {nil, nil},
 	alg_STRING:   {strhash, strequal},
 	alg_INTER:    {interhash, interequal},
 	alg_NILINTER: {nilinterhash, nilinterequal},
-	alg_SLICE:    {nil, nil},
 	alg_FLOAT32:  {f32hash, f32equal},
 	alg_FLOAT64:  {f64hash, f64equal},
 	alg_CPLX64:   {c64hash, c64equal},
@@ -186,13 +170,6 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	} else {
 		return c1 * fn(a.data, h^c0)
 	}
-}
-
-func memequal(p, q unsafe.Pointer, size uintptr) bool {
-	if p == q {
-		return true
-	}
-	return memeq(p, q, size)
 }
 
 func memequal0(p, q unsafe.Pointer) bool {

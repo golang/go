@@ -3,7 +3,7 @@
 package gc
 
 const runtimeimport = "" +
-	"package runtime\n" +
+	"package runtime safe\n" +
 	"func @\"\".newobject (@\"\".typ·2 *byte) (? *any)\n" +
 	"func @\"\".panicindex ()\n" +
 	"func @\"\".panicslice ()\n" +
@@ -44,7 +44,7 @@ const runtimeimport = "" +
 	"func @\"\".stringtoslicerune (? *[32]rune, ? string) (? []rune)\n" +
 	"func @\"\".stringiter (? string, ? int) (? int)\n" +
 	"func @\"\".stringiter2 (? string, ? int) (@\"\".retk·1 int, @\"\".retv·2 rune)\n" +
-	"func @\"\".slicecopy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr) (? int)\n" +
+	"func @\"\".slicecopy (@\"\".to·2 any, @\"\".fr·3 any, @\"\".wid·4 uintptr \"unsafe-uintptr\") (? int)\n" +
 	"func @\"\".slicestringcopy (@\"\".to·2 any, @\"\".fr·3 any) (? int)\n" +
 	"func @\"\".typ2Itab (@\"\".typ·2 *byte, @\"\".typ2·3 *byte, @\"\".cache·4 **byte) (@\"\".ret·1 *byte)\n" +
 	"func @\"\".convI2E (@\"\".elem·2 any) (@\"\".ret·1 any)\n" +
@@ -66,8 +66,6 @@ const runtimeimport = "" +
 	"func @\"\".panicdottype (@\"\".have·1 *byte, @\"\".want·2 *byte, @\"\".iface·3 *byte)\n" +
 	"func @\"\".ifaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
 	"func @\"\".efaceeq (@\"\".i1·2 any, @\"\".i2·3 any) (@\"\".ret·1 bool)\n" +
-	"func @\"\".ifacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n" +
-	"func @\"\".efacethash (@\"\".i1·2 any) (@\"\".ret·1 uint32)\n" +
 	"func @\"\".makemap (@\"\".mapType·2 *byte, @\"\".hint·3 int64, @\"\".mapbuf·4 *any, @\"\".bucketbuf·5 *any) (@\"\".hmap·1 map[any]any)\n" +
 	"func @\"\".mapaccess1 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 *any) (@\"\".val·1 *any)\n" +
 	"func @\"\".mapaccess1_fast32 (@\"\".mapType·2 *byte, @\"\".hmap·3 map[any]any, @\"\".key·4 any) (@\"\".val·1 *any)\n" +
@@ -91,31 +89,31 @@ const runtimeimport = "" +
 	"func @\"\".writebarrierstring (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
 	"func @\"\".writebarrierslice (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
 	"func @\"\".writebarrieriface (@\"\".dst·1 *any, @\"\".src·2 any)\n" +
-	"func @\"\".writebarrierfat01 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat10 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat11 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat001 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat010 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat011 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat100 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat101 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat110 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat111 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0001 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0010 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0011 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0100 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0101 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0110 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat0111 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1000 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1001 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1010 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1011 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1100 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1101 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
-	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ uintptr, @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat01 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat10 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat11 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat0111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1000 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1001 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1010 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1011 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1100 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1101 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1110 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
+	"func @\"\".writebarrierfat1111 (@\"\".dst·1 *any, _ uintptr \"unsafe-uintptr\", @\"\".src·3 any)\n" +
 	"func @\"\".typedmemmove (@\"\".typ·1 *byte, @\"\".dst·2 *any, @\"\".src·3 *any)\n" +
 	"func @\"\".typedslicecopy (@\"\".typ·2 *byte, @\"\".dst·3 any, @\"\".src·4 any) (? int)\n" +
 	"func @\"\".selectnbsend (@\"\".chanType·2 *byte, @\"\".hchan·3 chan<- any, @\"\".elem·4 *any) (? bool)\n" +
@@ -131,9 +129,9 @@ const runtimeimport = "" +
 	"func @\"\".makeslice (@\"\".typ·2 *byte, @\"\".nel·3 int64, @\"\".cap·4 int64) (@\"\".ary·1 []any)\n" +
 	"func @\"\".growslice (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".cap·4 int) (@\"\".ary·1 []any)\n" +
 	"func @\"\".growslice_n (@\"\".typ·2 *byte, @\"\".old·3 []any, @\"\".n·4 int) (@\"\".ary·1 []any)\n" +
-	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr)\n" +
-	"func @\"\".memclr (@\"\".ptr·1 *byte, @\"\".length·2 uintptr)\n" +
-	"func @\"\".memequal (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr) (? bool)\n" +
+	"func @\"\".memmove (@\"\".to·1 *any, @\"\".frm·2 *any, @\"\".length·3 uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".memclr (@\"\".ptr·1 *byte, @\"\".length·2 uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".memequal (@\"\".x·2 *any, @\"\".y·3 *any, @\"\".size·4 uintptr \"unsafe-uintptr\") (? bool)\n" +
 	"func @\"\".memequal8 (@\"\".x·2 *any, @\"\".y·3 *any) (? bool)\n" +
 	"func @\"\".memequal16 (@\"\".x·2 *any, @\"\".y·3 *any) (? bool)\n" +
 	"func @\"\".memequal32 (@\"\".x·2 *any, @\"\".y·3 *any) (? bool)\n" +
@@ -148,15 +146,14 @@ const runtimeimport = "" +
 	"func @\"\".int64tofloat64 (? int64) (? float64)\n" +
 	"func @\"\".uint64tofloat64 (? uint64) (? float64)\n" +
 	"func @\"\".complex128div (@\"\".num·2 complex128, @\"\".den·3 complex128) (@\"\".quo·1 complex128)\n" +
-	"func @\"\".racefuncenter (? uintptr)\n" +
-	"func @\"\".racefuncenterfp (? *int32)\n" +
+	"func @\"\".racefuncenter (? uintptr \"unsafe-uintptr\")\n" +
 	"func @\"\".racefuncexit ()\n" +
-	"func @\"\".raceread (? uintptr)\n" +
-	"func @\"\".racewrite (? uintptr)\n" +
-	"func @\"\".racereadrange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
-	"func @\"\".racewriterange (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
-	"func @\"\".msanread (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
-	"func @\"\".msanwrite (@\"\".addr·1 uintptr, @\"\".size·2 uintptr)\n" +
+	"func @\"\".raceread (? uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".racewrite (? uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".racereadrange (@\"\".addr·1 uintptr \"unsafe-uintptr\", @\"\".size·2 uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".racewriterange (@\"\".addr·1 uintptr \"unsafe-uintptr\", @\"\".size·2 uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".msanread (@\"\".addr·1 uintptr \"unsafe-uintptr\", @\"\".size·2 uintptr \"unsafe-uintptr\")\n" +
+	"func @\"\".msanwrite (@\"\".addr·1 uintptr \"unsafe-uintptr\", @\"\".size·2 uintptr \"unsafe-uintptr\")\n" +
 	"\n" +
 	"$$\n"
 

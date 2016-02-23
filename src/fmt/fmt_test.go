@@ -259,6 +259,12 @@ var fmtTests = []struct {
 	{"%+.3F", float32(-1.0), "-1.000"},
 	{"%+07.2f", 1.0, "+001.00"},
 	{"%+07.2f", -1.0, "-001.00"},
+	{"%-07.2f", 1.0, "1.00   "},
+	{"%-07.2f", -1.0, "-1.00  "},
+	{"%+-07.2f", 1.0, "+1.00  "},
+	{"%+-07.2f", -1.0, "-1.00  "},
+	{"%-+07.2f", 1.0, "+1.00  "},
+	{"%-+07.2f", -1.0, "-1.00  "},
 	{"%+10.2f", +1.0, "     +1.00"},
 	{"%+10.2f", -1.0, "     -1.00"},
 	{"% .3E", -1.0, "-1.000E+00"},
@@ -380,6 +386,9 @@ var fmtTests = []struct {
 	{"%20e", math.Inf(1), "                +Inf"},
 	{"%-20f", math.Inf(-1), "-Inf                "},
 	{"%20g", math.NaN(), "                 NaN"},
+	{"%+20f", math.NaN(), "                +NaN"},
+	{"% -20f", math.NaN(), " NaN                "},
+	{"%+-20f", math.NaN(), "+NaN                "},
 
 	// arrays
 	{"%v", array, "[1 2 3 4 5]"},
@@ -648,13 +657,19 @@ var fmtTests = []struct {
 	// Complex numbers: exhaustively tested in TestComplexFormatting.
 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
-	// Zero padding does not apply to infinities.
+	// Zero padding does not apply to infinities and NaN.
 	{"%020f", math.Inf(-1), "                -Inf"},
 	{"%020f", math.Inf(+1), "                +Inf"},
+	{"%020f", math.NaN(), "                 NaN"},
 	{"% 020f", math.Inf(-1), "                -Inf"},
 	{"% 020f", math.Inf(+1), "                 Inf"},
+	{"% 020f", math.NaN(), "                 NaN"},
 	{"%+020f", math.Inf(-1), "                -Inf"},
 	{"%+020f", math.Inf(+1), "                +Inf"},
+	{"%+020f", math.NaN(), "                +NaN"},
+	{"%-020f", math.Inf(-1), "-Inf                "},
+	{"%-020f", math.Inf(+1), "+Inf                "},
+	{"%-020f", math.NaN(), "NaN                 "},
 	{"%20f", -1.0, "           -1.000000"},
 	// Make sure we can handle very large widths.
 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},

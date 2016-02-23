@@ -2406,7 +2406,7 @@ func entersyscallblock_handoff() {
 // The goroutine g exited its system call.
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
-// from the low-level system calls used by the
+// from the low-level system calls used by the runtime.
 //go:nosplit
 func exitsyscall(dummy int32) {
 	_g_ := getg()

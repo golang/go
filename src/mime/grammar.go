@@ -11,7 +11,7 @@ import (
 // isTSpecial reports whether rune is in 'tspecials' as defined by RFC
 // 1521 and RFC 2045.
 func isTSpecial(r rune) bool {
-	return strings.IndexRune(`()<>@,;:\"/[]?=`, r) != -1
+	return strings.ContainsRune(`()<>@,;:\"/[]?=`, r)
 }
 
 // isTokenChar reports whether rune is in 'token' as defined by RFC

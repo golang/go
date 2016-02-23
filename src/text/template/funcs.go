@@ -515,7 +515,7 @@ func HTMLEscape(w io.Writer, b []byte) {
 // HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
 func HTMLEscapeString(s string) string {
 	// Avoid allocation if we can.
-	if strings.IndexAny(s, `'"&<>`) < 0 {
+	if !strings.ContainsAny(s, `'"&<>`) {
 		return s
 	}
 	var b bytes.Buffer

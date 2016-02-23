@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of January 5, 2016",
+	"Subtitle": "Version of February 23, 2016",
 	"Path": "/ref/spec"
 }-->
 
@@ -2443,9 +2443,8 @@ PrimaryExpr =
 
 Selector       = "." identifier .
 Index          = "[" Expression "]" .
-Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
-                     ( [ Expression ] ":" Expression ":" Expression )
-                 "]" .
+Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
+                 "[" [ Expression ] ":" Expression ":" Expression "]" .
 TypeAssertion  = "." "(" Type ")" .
 Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
 </pre>

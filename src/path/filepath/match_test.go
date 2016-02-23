@@ -88,7 +88,7 @@ func TestMatch(t *testing.T) {
 		pattern := tt.pattern
 		s := tt.s
 		if runtime.GOOS == "windows" {
-			if strings.Index(pattern, "\\") >= 0 {
+			if strings.Contains(pattern, "\\") {
 				// no escape allowed on windows.
 				continue
 			}
