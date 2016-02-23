@@ -280,13 +280,11 @@ func (p *parser) package_() {
 		defer p.trace("package_")()
 	}
 
-	if p.got(LPACKAGE) {
-		mkpackage(p.sym().Name)
-	} else {
-		prevlineno = lineno // see issue #13267
+	if !p.got(LPACKAGE) {
 		p.syntax_error("package statement must be first")
 		errorexit()
 	}
+	mkpackage(p.sym().Name)
 }
 
 // ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
