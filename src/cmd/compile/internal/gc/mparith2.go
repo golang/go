@@ -217,7 +217,11 @@ func mplshfixfix(a, b *Mpint) {
 
 	s := Mpgetfix(b)
 	if s < 0 || s >= Mpprec {
-		Yyerror("stupid shift: %d", s)
+		msg := "shift count too large"
+		if s < 0 {
+			msg = "invalid negative shift count"
+		}
+		Yyerror("%s: %d", msg, s)
 		Mpmovecfix(a, 0)
 		return
 	}
@@ -236,7 +240,7 @@ func mprshfixfix(a, b *Mpint) {
 
 	s := Mpgetfix(b)
 	if s < 0 {
-		Yyerror("stupid shift: %d", s)
+		Yyerror("invalid negative shift count: %d", s)
 		if a.Val.Sign() < 0 {
 			Mpmovecfix(a, -1)
 		} else {
