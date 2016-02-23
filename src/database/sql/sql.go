@@ -199,7 +199,7 @@ type Scanner interface {
 	//    time.Time
 	//    nil - for NULL values
 	//
-	// An error should be returned if the value can not be stored
+	// An error should be returned if the value cannot be stored
 	// without loss of information.
 	Scan(src interface{}) error
 }

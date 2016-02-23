@@ -20,7 +20,6 @@ func TestVendorImports(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.run("list", "-f", "{{.ImportPath}} {{.Imports}}", "vend/...")
 	want := `
 		vend [vend/vendor/p r]
@@ -51,7 +50,6 @@ func TestVendorBuild(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.run("build", "vend/x")
 }
 
@@ -59,7 +57,6 @@ func TestVendorRun(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.cd(filepath.Join(tg.pwd(), "testdata/src/vend/hello"))
 	tg.run("run", "hello.go")
 	tg.grepStdout("hello, world", "missing hello world output")
@@ -74,7 +71,6 @@ func TestVendorGOPATH(t *testing.T) {
 	}
 	gopath := changeVolume(filepath.Join(tg.pwd(), "testdata"), strings.ToLower)
 	tg.setenv("GOPATH", gopath)
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	cd := changeVolume(filepath.Join(tg.pwd(), "testdata/src/vend/hello"), strings.ToUpper)
 	tg.cd(cd)
 	tg.run("run", "hello.go")
@@ -85,7 +81,6 @@ func TestVendorTest(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.cd(filepath.Join(tg.pwd(), "testdata/src/vend/hello"))
 	tg.run("test", "-v")
 	tg.grepStdout("TestMsgInternal", "missing use in internal test")
@@ -96,7 +91,6 @@ func TestVendorInvalid(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 
 	tg.runFail("build", "vend/x/invalid")
 	tg.grepStderr("must be imported as foo", "missing vendor import error")
@@ -106,7 +100,6 @@ func TestVendorImportError(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 
 	tg.runFail("build", "vend/x/vendor/p/p")
 
@@ -173,7 +166,6 @@ func TestVendorGet(t *testing.T) {
 		package p
 		const C = 1`)
 	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.cd(tg.path("src/v"))
 	tg.run("run", "m.go")
 	tg.run("test")
@@ -192,7 +184,6 @@ func TestVendorGetUpdate(t *testing.T) {
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.run("get", "github.com/rsc/go-get-issue-11864")
 	tg.run("get", "-u", "github.com/rsc/go-get-issue-11864")
 }
@@ -204,7 +195,6 @@ func TestGetSubmodules(t *testing.T) {
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.run("get", "-d", "github.com/rsc/go-get-issue-12612")
 	tg.run("get", "-u", "-d", "github.com/rsc/go-get-issue-12612")
 }
@@ -213,7 +203,6 @@ func TestVendorCache(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.runFail("build", "p")
 	tg.grepStderr("must be imported as x", "did not fail to build p")
 }
@@ -225,7 +214,6 @@ func TestVendorTest2(t *testing.T) {
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.run("get", "github.com/rsc/go-get-issue-11864")
 
 	// build -i should work
@@ -251,7 +239,6 @@ func TestVendorList(t *testing.T) {
 	defer tg.cleanup()
 	tg.makeTempdir()
 	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.run("get", "github.com/rsc/go-get-issue-11864")
 
 	tg.run("list", "-f", `{{join .TestImports "\n"}}`, "github.com/rsc/go-get-issue-11864/t")
@@ -272,7 +259,6 @@ func TestVendor12156(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testvendor2"))
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.cd(filepath.Join(tg.pwd(), "testdata/testvendor2/src/p"))
 	tg.runFail("build", "p.go")
 	tg.grepStderrNot("panic", "panicked")

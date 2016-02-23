@@ -27,6 +27,18 @@ go	src=..
 			internal
 				objfile
 					objfile.go
+				unvendor
+					golang.org
+							x
+								arch
+									arm
+										armasm
+											testdata
+													+
+									x86
+										x86asm
+											testdata
+													+
 			gofmt
 				gofmt.go
 				gofmt_test.go
@@ -35,18 +47,6 @@ go	src=..
 			newlink
 				testdata
 					+
-			vendor
-				golang.org
-						x
-							arch
-								arm
-									armasm
-										testdata
-												+
-								x86
-									x86asm
-										testdata
-												+
 		archive
 			tar
 				testdata

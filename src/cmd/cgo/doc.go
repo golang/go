@@ -133,7 +133,7 @@ C's union types are represented as a Go byte array with the same length.
 
 Go structs cannot embed fields with C types.
 
-Go code can not refer to zero-sized fields that occur at the end of
+Go code cannot refer to zero-sized fields that occur at the end of
 non-empty C structs.  To get the address of such a field (which is the
 only operation you can do with a zero-sized field) you must take the
 address of the struct and add the size of the struct.
@@ -148,8 +148,9 @@ assignment context to retrieve both the return value (if any) and the
 C errno variable as an error (use _ to skip the result value if the
 function returns void).  For example:
 
-	n, err := C.sqrt(-1)
+	n, err = C.sqrt(-1)
 	_, err := C.voidFunc()
+	var n, err = C.sqrt(1)
 
 Calling C function pointers is currently not supported, however you can
 declare Go variables which hold C function pointers and pass them

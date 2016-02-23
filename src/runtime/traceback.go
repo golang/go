@@ -380,7 +380,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 					tracepc--
 				}
-				print(funcname(f), "(")
+				name := funcname(f)
+				if name == "runtime.gopanic" {
+					name = "panic"
+				}
+				print(name, "(")
 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
 				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
 					if i >= 10 {
@@ -617,10 +621,10 @@ func showframe(f *_func, gp *g) bool {
 	level, _, _ := gotraceback()
 	name := funcname(f)
 
-	// Special case: always show runtime.panic frame, so that we can
+	// Special case: always show runtime.gopanic frame, so that we can
 	// see where a panic started in the middle of a stack trace.
 	// See golang.org/issue/5832.
-	if name == "runtime.panic" {
+	if name == "runtime.gopanic" {
 		return true
 	}
 

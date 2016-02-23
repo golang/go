@@ -163,6 +163,26 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		return
 	}
 	if t.TLSNextProto != nil {
+		// This is the documented way to disable http2 on a
+		// Transport.
+		return
+	}
+	if t.TLSClientConfig != nil {
+		// Be conservative for now (for Go 1.6) at least and
+		// don't automatically enable http2 if they've
+		// specified a custom TLS config. Let them opt-in
+		// themselves via http2.ConfigureTransport so we don't
+		// surprise them by modifying their tls.Config.
+		// Issue 14275.
+		return
+	}
+	if t.ExpectContinueTimeout != 0 && t != DefaultTransport {
+		// ExpectContinueTimeout is unsupported in http2, so
+		// if they explicitly asked for it (as opposed to just
+		// using the DefaultTransport, which sets it), then
+		// disable http2 for now.
+		//
+		// Issue 13851. (and changed in Issue 14391)
 		return
 	}
 	t2, err := http2configureTransport(t)
@@ -398,7 +418,7 @@ func (t *Transport) CloseIdleConnections() {
 // CancelRequest cancels an in-flight request by closing its connection.
 // CancelRequest should only be called after RoundTrip has returned.
 //
-// Deprecated: Use Request.Cancel instead. CancelRequest can not cancel
+// Deprecated: Use Request.Cancel instead. CancelRequest cannot cancel
 // HTTP/2 requests.
 func (t *Transport) CancelRequest(req *Request) {
 	t.reqMu.Lock()
@@ -1337,7 +1357,7 @@ type writeRequest struct {
 	req *transportRequest
 	ch  chan<- error
 
-	// Optional blocking chan for Expect: 100-continue (for recieve).
+	// Optional blocking chan for Expect: 100-continue (for receive).
 	// If not nil, writeLoop blocks sending request body until
 	// it receives from this chan.
 	continueCh <-chan struct{}

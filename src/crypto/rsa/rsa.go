@@ -14,7 +14,7 @@
 // possible.
 //
 // Two sets of interfaces are included in this package. When a more abstract
-// interface isn't neccessary, there are functions for encrypting/decrypting
+// interface isn't necessary, there are functions for encrypting/decrypting
 // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
 // over the public-key primitive, the PrivateKey struct implements the
 // Decrypter and Signer interfaces from the crypto package.

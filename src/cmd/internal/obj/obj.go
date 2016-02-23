@@ -290,3 +290,21 @@ func linkgetline(ctxt *Link, lineno int32, f **LSym, l *int32) {
 func Linkprfile(ctxt *Link, line int) {
 	fmt.Printf("%s ", ctxt.LineHist.LineString(line))
 }
+
+func fieldtrack(ctxt *Link, cursym *LSym) {
+	p := cursym.Text
+	if p == nil || p.Link == nil { // handle external functions and ELF section symbols
+		return
+	}
+	ctxt.Cursym = cursym
+
+	for ; p != nil; p = p.Link {
+		if p.As == AUSEFIELD {
+			r := Addrel(ctxt.Cursym)
+			r.Off = 0
+			r.Siz = 0
+			r.Sym = p.From.Sym
+			r.Type = R_USEFIELD
+		}
+	}
+}

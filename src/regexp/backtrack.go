@@ -254,7 +254,6 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 
 			}
 			panic("bad arg in InstCapture")
-			continue
 
 		case syntax.InstEmptyWidth:
 			if syntax.EmptyOp(inst.Arg)&^i.context(pos) != 0 {
@@ -299,7 +298,6 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			// Otherwise, continue on in hope of a longer match.
 			continue
 		}
-		panic("unreachable")
 	}
 
 	return m.matched

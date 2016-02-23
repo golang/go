@@ -154,3 +154,33 @@ func (sw *Switch) Listen(s syscall.Handle, backlog int) (err error) {
 	sw.stats.getLocked(so.Cookie).Listened++
 	return nil
 }
+
+// AcceptEx wraps syscall.AcceptEx.
+func (sw *Switch) AcceptEx(ls syscall.Handle, as syscall.Handle, b *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, rcvd *uint32, overlapped *syscall.Overlapped) error {
+	so := sw.sockso(ls)
+	if so == nil {
+		return syscall.AcceptEx(ls, as, b, rxdatalen, laddrlen, raddrlen, rcvd, overlapped)
+	}
+	sw.fmu.RLock()
+	f, _ := sw.fltab[FilterAccept]
+	sw.fmu.RUnlock()
+
+	af, err := f.apply(so)
+	if err != nil {
+		return err
+	}
+	so.Err = syscall.AcceptEx(ls, as, b, rxdatalen, laddrlen, raddrlen, rcvd, overlapped)
+	if err = af.apply(so); err != nil {
+		return err
+	}
+
+	sw.smu.Lock()
+	defer sw.smu.Unlock()
+	if so.Err != nil {
+		sw.stats.getLocked(so.Cookie).AcceptFailed++
+		return so.Err
+	}
+	nso := sw.addLocked(as, so.Cookie.Family(), so.Cookie.Type(), so.Cookie.Protocol())
+	sw.stats.getLocked(nso.Cookie).Accepted++
+	return nil
+}

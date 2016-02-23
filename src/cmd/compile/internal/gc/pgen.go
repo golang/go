@@ -187,21 +187,12 @@ func emitptrargsmap() {
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvarlt(a, b *Node) bool {
-	if a.Class != b.Class {
-		if a.Class == PAUTO {
-			return false
-		}
-		return true
+	if (a.Class == PAUTO) != (b.Class == PAUTO) {
+		return b.Class == PAUTO
 	}
 
 	if a.Class != PAUTO {
-		if a.Xoffset < b.Xoffset {
-			return true
-		}
-		if a.Xoffset > b.Xoffset {
-			return false
-		}
-		return false
+		return a.Xoffset < b.Xoffset
 	}
 
 	if a.Used != b.Used {
@@ -220,11 +211,8 @@ func cmpstackvarlt(a, b *Node) bool {
 		return ap
 	}
 
-	if a.Type.Width < b.Type.Width {
-		return false
-	}
-	if a.Type.Width > b.Type.Width {
-		return true
+	if a.Type.Width != b.Type.Width {
+		return a.Type.Width > b.Type.Width
 	}
 
 	return a.Sym.Name < b.Sym.Name

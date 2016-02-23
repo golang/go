@@ -64,13 +64,17 @@ func TestLookupStaticHost(t *testing.T) {
 	for _, tt := range lookupStaticHostTests {
 		testHookHostsPath = tt.name
 		for _, ent := range tt.ents {
-			ins := []string{ent.in, absDomainName([]byte(ent.in)), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
-			for _, in := range ins {
-				addrs := lookupStaticHost(in)
-				if !reflect.DeepEqual(addrs, ent.out) {
-					t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", tt.name, in, addrs, ent.out)
-				}
-			}
+			testStaticHost(t, tt.name, ent)
+		}
+	}
+}
+
+func testStaticHost(t *testing.T, hostsPath string, ent staticHostEntry) {
+	ins := []string{ent.in, absDomainName([]byte(ent.in)), strings.ToLower(ent.in), strings.ToUpper(ent.in)}
+	for _, in := range ins {
+		addrs := lookupStaticHost(in)
+		if !reflect.DeepEqual(addrs, ent.out) {
+			t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", hostsPath, in, addrs, ent.out)
 		}
 	}
 }
@@ -129,13 +133,43 @@ func TestLookupStaticAddr(t *testing.T) {
 	for _, tt := range lookupStaticAddrTests {
 		testHookHostsPath = tt.name
 		for _, ent := range tt.ents {
-			hosts := lookupStaticAddr(ent.in)
-			for i := range ent.out {
-				ent.out[i] = absDomainName([]byte(ent.out[i]))
-			}
-			if !reflect.DeepEqual(hosts, ent.out) {
-				t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", tt.name, ent.in, hosts, ent.out)
-			}
+			testStaticAddr(t, tt.name, ent)
 		}
 	}
+}
+
+func testStaticAddr(t *testing.T, hostsPath string, ent staticHostEntry) {
+	hosts := lookupStaticAddr(ent.in)
+	for i := range ent.out {
+		ent.out[i] = absDomainName([]byte(ent.out[i]))
+	}
+	if !reflect.DeepEqual(hosts, ent.out) {
+		t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", hostsPath, ent.in, hosts, ent.out)
+	}
+}
+
+func TestHostCacheModification(t *testing.T) {
+	// Ensure that programs can't modify the internals of the host cache.
+	// See https://github.com/golang/go/issues/14212.
+	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+
+	testHookHostsPath = "testdata/ipv4-hosts"
+	ent := staticHostEntry{"localhost", []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"}}
+	testStaticHost(t, testHookHostsPath, ent)
+	// Modify the addresses return by lookupStaticHost.
+	addrs := lookupStaticHost(ent.in)
+	for i := range addrs {
+		addrs[i] += "junk"
+	}
+	testStaticHost(t, testHookHostsPath, ent)
+
+	testHookHostsPath = "testdata/ipv6-hosts"
+	ent = staticHostEntry{"::1", []string{"localhost"}}
+	testStaticAddr(t, testHookHostsPath, ent)
+	// Modify the hosts return by lookupStaticAddr.
+	hosts := lookupStaticAddr(ent.in)
+	for i := range hosts {
+		hosts[i] += "junk"
+	}
+	testStaticAddr(t, testHookHostsPath, ent)
 }

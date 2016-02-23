@@ -263,15 +263,6 @@ func reloadPackage(arg string, stk *importStack) *Package {
 	return loadPackage(arg, stk)
 }
 
-// The Go 1.5 vendoring experiment was enabled by setting GO15VENDOREXPERIMENT=1.
-// In Go 1.6 this is on by default and is disabled by setting GO15VENDOREXPERIMENT=0.
-// In Go 1.7 the variable will stop having any effect.
-// The variable is obnoxiously long so that years from now when people find it in
-// their profiles and wonder what it does, there is some chance that a web search
-// might answer the question.
-// There is a copy of this variable in src/go/build/build.go. Delete that one when this one goes away.
-var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") != "0"
-
 // dirToImportPath returns the pseudo-import path we use for a package
 // outside the Go path.  It begins with _/ and then contains the full path
 // to the directory.  If the package lives in c:\home\gopher\my\pkg then
@@ -361,7 +352,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
 	// See issue 3268 for mistakes to avoid.
 	buildMode := build.ImportComment
-	if !go15VendorExperiment || mode&useVendor == 0 || path != origPath {
+	if mode&useVendor == 0 || path != origPath {
 		// Not vendoring, or we already found the vendored path.
 		buildMode |= build.IgnoreVendor
 	}
@@ -371,7 +362,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		bp.BinDir = gobin
 	}
 	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
-		(!go15VendorExperiment || (!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/"))) {
+		!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 	}
 	p.load(stk, bp, err)
@@ -412,7 +403,7 @@ func isDir(path string) bool {
 // x/vendor/path, vendor/path, or else stay path if none of those exist.
 // vendoredImportPath returns the expanded path or, if no expansion is found, the original.
 func vendoredImportPath(parent *Package, path string) (found string) {
-	if parent == nil || parent.Root == "" || !go15VendorExperiment {
+	if parent == nil || parent.Root == "" {
 		return path
 	}
 
@@ -580,10 +571,6 @@ func findInternal(path string) (index int, ok bool) {
 // If the import is allowed, disallowVendor returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
 func disallowVendor(srcDir, path string, p *Package, stk *importStack) *Package {
-	if !go15VendorExperiment {
-		return p
-	}
-
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
@@ -967,7 +954,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 				}
 			}
 		}
-		if p.Standard && !p1.Standard && p.Error == nil {
+		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
 				Err:         fmt.Sprintf("non-standard import %q in standard package %q", path, p.ImportPath),

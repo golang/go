@@ -432,7 +432,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
 			fmt.Fprintf(&b, "\t0,\n")
 		}
 	}
-	// for the last entry, we can not use 0, otherwise
+	// for the last entry, we cannot use 0, otherwise
 	// in case all __cgodebug_data is zero initialized,
 	// LLVM-based gcc will place the it in the __DATA.__common
 	// zero-filled section (our debug/macho doesn't support
@@ -2025,7 +2025,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 	// We can't permit that, because then the size of the Go
 	// struct will not be the same as the size of the C struct.
 	// Our only option in such a case is to remove the field,
-	// which means that it can not be referenced from Go.
+	// which means that it cannot be referenced from Go.
 	for off > 0 && sizes[len(sizes)-1] == 0 {
 		n := len(sizes)
 		fld = fld[0 : n-1]

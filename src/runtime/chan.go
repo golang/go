@@ -421,7 +421,7 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 
 	if sg := c.sendq.dequeue(); sg != nil {
 		// Found a waiting sender.  If buffer is size 0, receive value
-		// directly from sender.  Otherwise, recieve from head of queue
+		// directly from sender.  Otherwise, receive from head of queue
 		// and add sender's value to the tail of the queue (both map to
 		// the same buffer slot because the queue is full).
 		recv(c, sg, ep, func() { unlock(&c.lock) })

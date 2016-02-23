@@ -208,7 +208,7 @@ func sigblock() {
 }
 
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, can not allocate memory.
+// Called on the new thread, cannot allocate memory.
 func minit() {
 	_g_ := getg()
 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
@@ -442,7 +442,21 @@ func madvise(addr unsafe.Pointer, n uintptr, flags int32) {
 
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer {
-	return unsafe.Pointer(sysvicall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off)))
+	p, err := doMmap(uintptr(addr), n, uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
+	if p == ^uintptr(0) {
+		return unsafe.Pointer(err)
+	}
+	return unsafe.Pointer(p)
+}
+
+//go:nosplit
+func doMmap(addr, n, prot, flags, fd, off uintptr) (uintptr, uintptr) {
+	var libcall libcall
+	libcall.fn = uintptr(unsafe.Pointer(&libc_mmap))
+	libcall.n = 6
+	libcall.args = uintptr(noescape(unsafe.Pointer(&addr)))
+	asmcgocall(unsafe.Pointer(&asmsysvicall6), unsafe.Pointer(&libcall))
+	return libcall.r1, libcall.err
 }
 
 //go:nosplit

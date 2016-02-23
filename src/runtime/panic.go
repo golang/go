@@ -333,6 +333,21 @@ func Goexit() {
 	goexit1()
 }
 
+// Call all Error and String methods before freezing the world.
+// Used when crashing with panicking.
+// This must match types handled by printany.
+func preprintpanics(p *_panic) {
+	for p != nil {
+		switch v := p.arg.(type) {
+		case error:
+			p.arg = v.Error()
+		case stringer:
+			p.arg = v.String()
+		}
+		p = p.link
+	}
+}
+
 // Print all currently active panics.  Used when crashing.
 func printpanics(p *_panic) {
 	if p.link != nil {
@@ -459,6 +474,10 @@ func gopanic(e interface{}) {
 	}
 
 	// ran out of deferred calls - old-school panic now
+	// Because it is unsafe to call arbitrary user code after freezing
+	// the world, we call preprintpanics to invoke all necessary Error
+	// and String methods to prepare the panic strings before startpanic.
+	preprintpanics(gp._panic)
 	startpanic()
 	printpanics(gp._panic)
 	dopanic(0)       // should not return

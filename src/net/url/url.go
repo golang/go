@@ -511,7 +511,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		return nil, host, nil
 	}
 	userinfo := authority[:i]
-	if strings.Index(userinfo, ":") < 0 {
+	if !strings.Contains(userinfo, ":") {
 		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
 			return nil, "", err
 		}
@@ -709,8 +709,8 @@ func (v Values) Get(key string) string {
 	if v == nil {
 		return ""
 	}
-	vs, ok := v[key]
-	if !ok || len(vs) == 0 {
+	vs := v[key]
+	if len(vs) == 0 {
 		return ""
 	}
 	return vs[0]

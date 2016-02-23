@@ -60,7 +60,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 	// Treat MRC 15, 0, <reg>, C13, C0, 3 specially.
 	case AMRC:
 		if p.To.Offset&0xffff0fff == 0xee1d0f70 {
-			// Because the instruction might be rewriten to a BL which returns in R0
+			// Because the instruction might be rewritten to a BL which returns in R0
 			// the register must be zero.
 			if p.To.Offset&0xf000 != 0 {
 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())

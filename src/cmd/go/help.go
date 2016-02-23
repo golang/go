@@ -421,12 +421,6 @@ Vendor directories do not affect the placement of new repositories
 being checked out for the first time by 'go get': those are always
 placed in the main GOPATH, never in a vendor subtree.
 
-In Go 1.5, as an experiment, setting the environment variable
-GO15VENDOREXPERIMENT=1 enabled these features.
-As of Go 1.6 they are on by default. To turn them off, set
-GO15VENDOREXPERIMENT=0. In Go 1.7, the environment
-variable will stop having any effect.
-
 See https://golang.org/s/go15vendor for details.
 	`,
 }
@@ -497,8 +491,6 @@ Special-purpose environment variables:
 		installed in a location other than where it is built.
 		File names in stack traces are rewritten from GOROOT to
 		GOROOT_FINAL.
-	GO15VENDOREXPERIMENT
-		Set to 0 to disable vendoring semantics.
 	GO_EXTLINK_ENABLED
 		Whether the linker should use external linking mode
 		when using -linkmode=auto with code that uses cgo.

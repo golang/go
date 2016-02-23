@@ -298,6 +298,7 @@ func Flushplist(ctxt *Link) {
 		ctxt.Arch.Follow(ctxt, s)
 		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
+		fieldtrack(ctxt, s)
 		linkpcln(ctxt, s)
 	}
 

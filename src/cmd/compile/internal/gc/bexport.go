@@ -877,7 +877,7 @@ func (p *exporter) byte(b byte) {
 // tracef is like fmt.Printf but it rewrites the format string
 // to take care of indentation.
 func (p *exporter) tracef(format string, args ...interface{}) {
-	if strings.IndexAny(format, "<>\n") >= 0 {
+	if strings.ContainsAny(format, "<>\n") {
 		var buf bytes.Buffer
 		for i := 0; i < len(format); i++ {
 			// no need to deal with runes
@@ -1035,6 +1035,9 @@ func predeclared() []*Type {
 
 			// package unsafe
 			Types[TUNSAFEPTR],
+
+			// any type, for builtin export data
+			Types[TANY],
 		}
 	}
 	return predecl

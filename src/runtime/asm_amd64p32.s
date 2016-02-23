@@ -573,12 +573,18 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-20
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·memeq(SB),NOSPLIT,$0-17
+// memequal(p, q unsafe.Pointer, size uintptr) bool
+TEXT runtime·memequal(SB),NOSPLIT,$0-13
 	MOVL	a+0(FP), SI
 	MOVL	b+4(FP), DI
+	CMPL	SI, DI
+	JEQ	eq
 	MOVL	size+8(FP), BX
 	CALL	runtime·memeqbody(SB)
 	MOVB	AX, ret+16(FP)
+	RET
+eq:
+	MOVB    $1, ret+16(FP)
 	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool

@@ -143,7 +143,9 @@ func visitFile(path string, f os.FileInfo, err error) error {
 	if err == nil && isGoFile(f) {
 		err = processFile(path, nil, os.Stdout, false)
 	}
-	if err != nil {
+	// Don't complain if a file was deleted in the meantime (i.e.
+	// the directory changed concurrently while running gofmt).
+	if err != nil && !os.IsNotExist(err) {
 		report(err)
 	}
 	return nil

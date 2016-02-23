@@ -5,7 +5,7 @@
 package gc
 
 // The recursive-descent parser is built around a slighty modified grammar
-// of Go to accomodate for the constraints imposed by strict one token look-
+// of Go to accommodate for the constraints imposed by strict one token look-
 // ahead, and for better error handling. Subsequent checks of the constructed
 // syntax tree restrict the language accepted by the compiler to proper Go.
 //
@@ -13,6 +13,7 @@ package gc
 // to handle optional commas and semicolons before a closing ) or } .
 
 import (
+	"cmd/internal/obj"
 	"fmt"
 	"strconv"
 	"strings"
@@ -20,81 +21,31 @@ import (
 
 const trace = false // if set, parse tracing can be enabled with -x
 
-// TODO(gri) Once we handle imports w/o redirecting the underlying
-// source of the lexer we can get rid of these. They are here for
-// compatibility with the existing yacc-based parser setup (issue 13242).
-var thenewparser parser // the parser in use
-var savedstate []parser // saved parser state, used during import
-
-func push_parser() {
-	// Indentation (for tracing) must be preserved across parsers
-	// since we are changing the lexer source (and parser state)
-	// under foot, in the middle of productions. This won't be
-	// needed anymore once we fix issue 13242, but neither will
-	// be the push/pop_parser functionality.
-	// (Instead we could just use a global variable indent, but
-	// but eventually indent should be parser-specific anyway.)
-	indent := thenewparser.indent
-	savedstate = append(savedstate, thenewparser)
-	thenewparser = parser{indent: indent} // preserve indentation
-	thenewparser.next()
+// parse_import parses the export data of a package that is imported.
+func parse_import(bin *obj.Biobuf, indent []byte) {
+	newparser(bin, indent).import_package()
 }
 
-func pop_parser() {
-	indent := thenewparser.indent
-	n := len(savedstate) - 1
-	thenewparser = savedstate[n]
-	thenewparser.indent = indent // preserve indentation
-	savedstate = savedstate[:n]
-}
-
-// parse_file sets up a new parser and parses a single Go source file.
-func parse_file() {
-	thenewparser = parser{}
-	thenewparser.loadsys()
-	thenewparser.next()
-	thenewparser.file()
-}
-
-// loadsys loads the definitions for the low-level runtime functions,
-// so that the compiler can generate calls to them,
-// but does not make the name "runtime" visible as a package.
-func (p *parser) loadsys() {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("loadsys")()
-	}
-
-	importpkg = Runtimepkg
-
-	if Debug['A'] != 0 {
-		cannedimports("runtime.Builtin", "package runtime\n\n$$\n\n")
-	} else {
-		cannedimports("runtime.Builtin", runtimeimport)
-	}
-	curio.importsafe = true
-
-	p.import_package()
-	p.import_there()
-
-	importpkg = nil
+// parse_file parses a single Go source file.
+func parse_file(bin *obj.Biobuf) {
+	newparser(bin, nil).file()
 }
 
 type parser struct {
-	tok    int32     // next token (one-token look-ahead)
-	op     Op        // valid if tok == LASOP
-	val    Val       // valid if tok == LLITERAL
-	sym_   *Sym      // valid if tok == LNAME
-	fnest  int       // function nesting level (for error handling)
-	xnest  int       // expression nesting level (for complit ambiguity resolution)
-	yy     yySymType // for temporary use by next
-	indent []byte    // tracing support
+	lexer
+	fnest  int    // function nesting level (for error handling)
+	xnest  int    // expression nesting level (for complit ambiguity resolution)
+	indent []byte // tracing support
 }
 
-func (p *parser) next() {
-	p.tok = yylex(&p.yy)
-	p.op = p.yy.op
-	p.val = p.yy.val
-	p.sym_ = p.yy.sym
+// newparser returns a new parser ready to parse from src.
+// indent is the initial indentation for tracing output.
+func newparser(src *obj.Biobuf, indent []byte) *parser {
+	var p parser
+	p.bin = src
+	p.indent = indent
+	p.next()
+	return &p
 }
 
 func (p *parser) got(tok int32) bool {
@@ -347,108 +298,87 @@ func (p *parser) import_() {
 	p.want(LIMPORT)
 	if p.got('(') {
 		for p.tok != EOF && p.tok != ')' {
-			p.import_stmt()
+			p.importdcl()
 			if !p.osemi(')') {
 				break
 			}
 		}
 		p.want(')')
 	} else {
-		p.import_stmt()
-	}
-}
-
-func (p *parser) import_stmt() {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("import_stmt")()
-	}
-
-	line := int32(p.import_here())
-	if p.tok == LPACKAGE {
-		p.import_package()
-		p.import_there()
-
-		ipkg := importpkg
-		my := importmyname
-		importpkg = nil
-		importmyname = nil
-
-		if my == nil {
-			my = Lookup(ipkg.Name)
-		}
-
-		pack := Nod(OPACK, nil, nil)
-		pack.Sym = my
-		pack.Name.Pkg = ipkg
-		pack.Lineno = line
-
-		if strings.HasPrefix(my.Name, ".") {
-			importdot(ipkg, pack)
-			return
-		}
-		if my.Name == "init" {
-			lineno = line
-			Yyerror("cannot import package as init - init must be a func")
-			return
-		}
-		if my.Name == "_" {
-			return
-		}
-		if my.Def != nil {
-			lineno = line
-			redeclare(my, "as imported package name")
-		}
-		my.Def = pack
-		my.Lastlineno = line
-		my.Block = 1 // at top level
-
-		return
-	}
-
-	p.import_there()
-	// When an invalid import path is passed to importfile,
-	// it calls Yyerror and then sets up a fake import with
-	// no package statement. This allows us to test more
-	// than one invalid import statement in a single file.
-	if nerrors == 0 {
-		Fatalf("phase error in import")
+		p.importdcl()
 	}
 }
 
 // ImportSpec = [ "." | PackageName ] ImportPath .
 // ImportPath = string_lit .
-//
-// import_here switches the underlying lexed source to the export data
-// of the imported package.
-func (p *parser) import_here() int {
+func (p *parser) importdcl() {
 	if trace && Debug['x'] != 0 {
-		defer p.trace("import_here")()
+		defer p.trace("importdcl")()
 	}
 
-	importmyname = nil
+	var my *Sym
 	switch p.tok {
 	case LNAME, '@', '?':
 		// import with given name
-		importmyname = p.sym()
+		my = p.sym()
 
 	case '.':
 		// import into my name space
-		importmyname = Lookup(".")
+		my = Lookup(".")
 		p.next()
 	}
 
-	var path Val
-	if p.tok == LLITERAL {
-		path = p.val
-		p.next()
-	} else {
+	if p.tok != LLITERAL {
 		p.syntax_error("missing import path; require quoted string")
 		p.advance(';', ')')
+		return
 	}
 
-	line := parserline()
-	importfile(&path, line)
-	return line
+	line := int32(parserline())
+	path := p.val
+	p.next()
+
+	importfile(&path, p.indent)
+	if importpkg == nil {
+		if nerrors == 0 {
+			Fatalf("phase error in import")
+		}
+		return
+	}
+
+	ipkg := importpkg
+	importpkg = nil
+
+	ipkg.Direct = true
+
+	if my == nil {
+		my = Lookup(ipkg.Name)
+	}
+
+	pack := Nod(OPACK, nil, nil)
+	pack.Sym = my
+	pack.Name.Pkg = ipkg
+	pack.Lineno = line
+
+	if strings.HasPrefix(my.Name, ".") {
+		importdot(ipkg, pack)
+		return
+	}
+	if my.Name == "init" {
+		lineno = line
+		Yyerror("cannot import package as init - init must be a func")
+		return
+	}
+	if my.Name == "_" {
+		return
+	}
+	if my.Def != nil {
+		lineno = line
+		redeclare(my, "as imported package name")
+	}
+	my.Def = pack
+	my.Lastlineno = line
+	my.Block = 1 // at top level
 }
 
 // import_package parses the header of an imported package as exported
@@ -467,9 +397,10 @@ func (p *parser) import_package() {
 		p.import_error()
 	}
 
+	importsafe := false
 	if p.tok == LNAME {
 		if p.sym_.Name == "safe" {
-			curio.importsafe = true
+			importsafe = true
 		}
 		p.next()
 	}
@@ -481,23 +412,9 @@ func (p *parser) import_package() {
 	} else if importpkg.Name != name {
 		Yyerror("conflicting names %s and %s for package %q", importpkg.Name, name, importpkg.Path)
 	}
-	if incannedimport == 0 {
-		importpkg.Direct = true
-	}
-	importpkg.Safe = curio.importsafe
+	importpkg.Safe = importsafe
 
-	if safemode != 0 && !curio.importsafe {
-		Yyerror("cannot import unsafe package %q", importpkg.Path)
-	}
-}
-
-// import_there parses the imported package definitions and then switches
-// the underlying lexed source back to the importing package.
-func (p *parser) import_there() {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("import_there")()
-	}
-
+	typecheckok = true
 	defercheckwidth()
 
 	p.hidden_import_list()
@@ -508,7 +425,7 @@ func (p *parser) import_there() {
 	}
 
 	resumecheckwidth()
-	unimportfile()
+	typecheckok = false
 }
 
 // Declaration = ConstDecl | TypeDecl | VarDecl .
@@ -1136,65 +1053,16 @@ func (p *parser) if_stmt() *Node {
 
 	stmt.Nbody = p.loop_body("if clause")
 
-	l := p.elseif_list_else() // does markdcl
-
-	n := stmt
-	popdcl()
-	for nn := l; nn != nil; nn = nn.Next {
-		if nn.N.Op == OIF {
-			popdcl()
-		}
-		n.Rlist = list1(nn.N)
-		n = nn.N
-	}
-
-	return stmt
-}
-
-func (p *parser) elseif() *NodeList {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("elseif")()
-	}
-
-	// LELSE LIF already consumed
-	markdcl() // matching popdcl in if_stmt
-
-	stmt := p.if_header()
-	if stmt.Left == nil {
-		Yyerror("missing condition in if statement")
-	}
-
-	stmt.Nbody = p.loop_body("if clause")
-
-	return list1(stmt)
-}
-
-func (p *parser) elseif_list_else() (l *NodeList) {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("elseif_list_else")()
-	}
-
-	for p.got(LELSE) {
-		if p.got(LIF) {
-			l = concat(l, p.elseif())
+	if p.got(LELSE) {
+		if p.tok == LIF {
+			stmt.Rlist = list1(p.if_stmt())
 		} else {
-			l = concat(l, p.else_())
-			break
+			stmt.Rlist = list1(p.compound_stmt(true))
 		}
 	}
 
-	return l
-}
-
-func (p *parser) else_() *NodeList {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("else")()
-	}
-
-	l := &NodeList{N: p.compound_stmt(true)}
-	l.End = l
-	return l
-
+	popdcl()
+	return stmt
 }
 
 // switch_stmt parses both expression and type switch statements.

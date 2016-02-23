@@ -576,6 +576,12 @@ func esc(e *EscState, n *Node, up *Node) {
 	if n == nil {
 		return
 	}
+	if n.Type != nil && n.Type.Etype == TFIELD {
+		// This is the left side of x:y in a struct literal.
+		// x is syntax, not an expression.
+		// See #14405.
+		return
+	}
 
 	lno := int(setlineno(n))
 
@@ -602,9 +608,10 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	// Big stuff escapes unconditionally
 	// "Big" conditions that were scattered around in walk have been gathered here
-	if n.Esc != EscHeap && n.Type != nil && (n.Type.Width > MaxStackVarSize ||
-		n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
-		n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+	if n.Esc != EscHeap && n.Type != nil &&
+		(n.Type.Width > MaxStackVarSize ||
+			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
+			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 1 {
 			Warnl(int(n.Lineno), "%v is too large for stack", n)
 		}
@@ -962,7 +969,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 			dst = &e.theSink
 		}
 
-	case ODOT: // treat "dst.x  = src" as "dst = src"
+	case ODOT: // treat "dst.x = src" as "dst = src"
 		escassign(e, dst.Left, src)
 
 		return
@@ -1042,7 +1049,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		ODOTMETH,
 		// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
 		// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
-		ODOTTYPE,
 		ODOTTYPE2,
 		OSLICE,
 		OSLICE3,
@@ -1050,6 +1056,12 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OSLICE3ARR,
 		OSLICESTR:
 		// Conversions, field access, slice all preserve the input value.
+		escassign(e, dst, src.Left)
+
+	case ODOTTYPE:
+		if src.Type != nil && !haspointers(src.Type) {
+			break
+		}
 		escassign(e, dst, src.Left)
 
 	case OAPPEND:
@@ -1549,9 +1561,9 @@ func escflows(e *EscState, dst *Node, src *Node) {
 // finding an OADDR just means we're following the upstream of a dereference,
 // so this address doesn't leak (yet).
 // If level == 0, it means the /value/ of this node can reach the root of this flood.
-// so if this node is an OADDR, it's argument should be marked as escaping iff
-// it's currfn/e->loopdepth are different from the flood's root.
-// Once an object has been moved to the heap, all of it's upstream should be considered
+// so if this node is an OADDR, its argument should be marked as escaping iff
+// its currfn/e->loopdepth are different from the flood's root.
+// Once an object has been moved to the heap, all of its upstream should be considered
 // escaping to the global scope.
 func escflood(e *EscState, dst *Node) {
 	switch dst.Op {

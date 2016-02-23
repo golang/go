@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/build"
 	"go/format"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"io/ioutil"
@@ -69,7 +70,11 @@ func TestMain(m *testing.M) {
 	flag.Parse()
 
 	if canRun {
-		out, err := exec.Command("go", "build", "-tags", "testgo", "-o", "testgo"+exeSuffix).CombinedOutput()
+		args := []string{"build", "-tags", "testgo", "-o", "testgo" + exeSuffix}
+		if race.Enabled {
+			args = append(args, "-race")
+		}
+		out, err := exec.Command("go", args...).CombinedOutput()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "building testgo failed: %v\n%s", err, out)
 			os.Exit(2)
@@ -1652,8 +1657,8 @@ func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 		func main() {
 			println(extern)
 		}`)
-	tg.run("run", "-ldflags", `-X main.extern "hello world"`, tg.path("main.go"))
-	tg.grepStderr("^hello world", `ldflags -X main.extern 'hello world' failed`)
+	tg.run("run", "-ldflags", `-X "main.extern=hello world"`, tg.path("main.go"))
+	tg.grepStderr("^hello world", `ldflags -X "main.extern=hello world"' failed`)
 }
 
 func TestGoTestCpuprofileLeavesBinaryBehind(t *testing.T) {
@@ -1721,7 +1726,6 @@ func TestSymlinksVendor(t *testing.T) {
 
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.setenv("GO15VENDOREXPERIMENT", "1")
 	tg.tempDir("gopath/src/dir1/vendor/v")
 	tg.tempFile("gopath/src/dir1/p.go", "package main\nimport _ `v`\nfunc main(){}")
 	tg.tempFile("gopath/src/dir1/vendor/v/v.go", "package v")
@@ -2333,7 +2337,7 @@ func TestGoGetHTTPS404(t *testing.T) {
 	tg.run("get", "bazil.org/fuse/fs/fstestutil")
 }
 
-// Test that you can not import a main package.
+// Test that you cannot import a main package.
 func TestIssue4210(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2565,6 +2569,59 @@ func TestGoInstallShadowedGOPATH(t *testing.T) {
 	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
 }
 
+func TestGoBuildGOPATHOrder(t *testing.T) {
+	// golang.org/issue/14176#issuecomment-179895769
+	// golang.org/issue/14192
+	// -I arguments to compiler could end up not in GOPATH order,
+	// leading to unexpected import resolution in the compiler.
+	// This is still not a complete fix (see golang.org/issue/14271 and next test)
+	// but it is clearly OK and enough to fix both of the two reported
+	// instances of the underlying problem. It will have to do for now.
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("p1")+string(filepath.ListSeparator)+tg.path("p2"))
+
+	tg.tempFile("p1/src/foo/foo.go", "package foo\n")
+	tg.tempFile("p2/src/baz/baz.go", "package baz\n")
+	tg.tempFile("p2/pkg/"+runtime.GOOS+"_"+runtime.GOARCH+"/foo.a", "bad\n")
+	tg.tempFile("p1/src/bar/bar.go", `
+		package bar
+		import _ "baz"
+		import _ "foo"
+	`)
+
+	tg.run("install", "-x", "bar")
+}
+
+func TestGoBuildGOPATHOrderBroken(t *testing.T) {
+	// This test is known not to work.
+	// See golang.org/issue/14271.
+	t.Skip("golang.org/issue/14271")
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+
+	tg.tempFile("p1/src/foo/foo.go", "package foo\n")
+	tg.tempFile("p2/src/baz/baz.go", "package baz\n")
+	tg.tempFile("p1/pkg/"+runtime.GOOS+"_"+runtime.GOARCH+"/baz.a", "bad\n")
+	tg.tempFile("p2/pkg/"+runtime.GOOS+"_"+runtime.GOARCH+"/foo.a", "bad\n")
+	tg.tempFile("p1/src/bar/bar.go", `
+		package bar
+		import _ "baz"
+		import _ "foo"
+	`)
+
+	colon := string(filepath.ListSeparator)
+	tg.setenv("GOPATH", tg.path("p1")+colon+tg.path("p2"))
+	tg.run("install", "-x", "bar")
+
+	tg.setenv("GOPATH", tg.path("p2")+colon+tg.path("p1"))
+	tg.run("install", "-x", "bar")
+}
+
 func TestIssue11709(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2680,5 +2737,51 @@ func TestIssue13655(t *testing.T) {
 	for _, pkg := range []string{"runtime", "runtime/internal/atomic"} {
 		tg.run("list", "-f", "{{.Deps}}", pkg)
 		tg.grepStdout("runtime/internal/sys", "did not find required dependency of "+pkg+" on runtime/internal/sys")
+	}
+}
+
+// For issue 14337.
+func TestParallelTest(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	const testSrc = `package package_test
+		import (
+			"testing"
+		)
+		func TestTest(t *testing.T) {
+		}`
+	tg.tempFile("src/p1/p1_test.go", strings.Replace(testSrc, "package_test", "p1_test", 1))
+	tg.tempFile("src/p2/p2_test.go", strings.Replace(testSrc, "package_test", "p2_test", 1))
+	tg.tempFile("src/p3/p3_test.go", strings.Replace(testSrc, "package_test", "p3_test", 1))
+	tg.tempFile("src/p4/p4_test.go", strings.Replace(testSrc, "package_test", "p4_test", 1))
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
+}
+
+func TestCgoConsistentResults(t *testing.T) {
+	if !canCgo {
+		t.Skip("skipping because cgo not enabled")
+	}
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.parallel()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+	exe1 := tg.path("cgotest1" + exeSuffix)
+	exe2 := tg.path("cgotest2" + exeSuffix)
+	tg.run("build", "-o", exe1, "cgotest")
+	tg.run("build", "-x", "-o", exe2, "cgotest")
+	b1, err := ioutil.ReadFile(exe1)
+	tg.must(err)
+	b2, err := ioutil.ReadFile(exe2)
+	tg.must(err)
+
+	if !tg.doGrepMatch(`-fdebug-prefix-map=\$WORK`, &tg.stderr) {
+		t.Skip("skipping because C compiler does not support -fdebug-prefix-map")
+	}
+	if !bytes.Equal(b1, b2) {
+		t.Error("building cgotest twice did not produce the same output")
 	}
 }

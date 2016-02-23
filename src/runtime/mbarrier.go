@@ -100,7 +100,7 @@ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
 // related operations. In particular there are times when the GC assumes
 // that the world is stopped but scheduler related code is still being
 // executed, dealing with syscalls, dealing with putting gs on runnable
-// queues and so forth. This code can not execute write barriers because
+// queues and so forth. This code cannot execute write barriers because
 // the GC might drop them on the floor. Stopping the world involves removing
 // the p associated with an m. We use the fact that m.p == nil to indicate
 // that we are in one these critical section and throw if the write is of

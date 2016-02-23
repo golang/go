@@ -29,7 +29,9 @@ func init() {
 	register("GoexitInPanic", GoexitInPanic)
 	register("PanicAfterGoexit", PanicAfterGoexit)
 	register("RecoveredPanicAfterGoexit", RecoveredPanicAfterGoexit)
-
+	register("PanicTraceback", PanicTraceback)
+	register("GoschedInPanic", GoschedInPanic)
+	register("SyscallInPanic", SyscallInPanic)
 }
 
 func SimpleDeadlock() {
@@ -152,6 +154,29 @@ func GoexitInPanic() {
 	runtime.Goexit()
 }
 
+type errorThatGosched struct{}
+
+func (errorThatGosched) Error() string {
+	runtime.Gosched()
+	return "errorThatGosched"
+}
+
+func GoschedInPanic() {
+	panic(errorThatGosched{})
+}
+
+type errorThatPrint struct{}
+
+func (errorThatPrint) Error() string {
+	fmt.Println("1")
+	fmt.Println("2")
+	return "3"
+}
+
+func SyscallInPanic() {
+	panic(errorThatPrint{})
+}
+
 func PanicAfterGoexit() {
 	defer func() {
 		panic("hello")
@@ -170,4 +195,22 @@ func RecoveredPanicAfterGoexit() {
 		panic("hello")
 	}()
 	runtime.Goexit()
+}
+
+func PanicTraceback() {
+	pt1()
+}
+
+func pt1() {
+	defer func() {
+		panic("panic pt1")
+	}()
+	pt2()
+}
+
+func pt2() {
+	defer func() {
+		panic("panic pt2")
+	}()
+	panic("hello")
 }

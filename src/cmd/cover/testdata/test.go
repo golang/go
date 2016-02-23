@@ -24,6 +24,7 @@ func testAll() {
 	testSelect2()
 	testPanic()
 	testEmptySwitches()
+	testFunctionLiteral()
 }
 
 // The indexes of the counters in testPanic are known to main.go
@@ -215,4 +216,33 @@ func testEmptySwitches() {
 	}()
 	<-c
 	check(LINE, 1)
+}
+
+func testFunctionLiteral() {
+	a := func(f func()) error {
+		f()
+		f()
+		return nil
+	}
+
+	b := func(f func()) bool {
+		f()
+		f()
+		return true
+	}
+
+	check(LINE, 1)
+	a(func() {
+		check(LINE, 2)
+	})
+
+	if err := a(func() {
+		check(LINE, 2)
+	}); err != nil {
+	}
+
+	switch b(func() {
+		check(LINE, 2)
+	}) {
+	}
 }

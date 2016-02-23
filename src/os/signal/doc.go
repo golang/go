@@ -11,7 +11,7 @@ package on Windows and Plan 9, see below.
 Types of signals
 
 The signals SIGKILL and SIGSTOP may not be caught by a program, and
-therefore can not be affected by this package.
+therefore cannot be affected by this package.
 
 Synchronous signals are signals triggered by errors in program
 execution: SIGBUS, SIGFPE, and SIGSEGV. These are only considered

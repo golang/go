@@ -105,7 +105,7 @@ func Dump(data []byte) string {
 	dumper := Dumper(&buf)
 	dumper.Write(data)
 	dumper.Close()
-	return string(buf.Bytes())
+	return buf.String()
 }
 
 // Dumper returns a WriteCloser that writes a hex dump of all written data to

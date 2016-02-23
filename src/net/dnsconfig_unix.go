@@ -8,18 +8,21 @@
 
 package net
 
+import "time"
+
 var defaultNS = []string{"127.0.0.1", "::1"}
 
 type dnsConfig struct {
-	servers    []string // servers to use
-	search     []string // suffixes to append to local name
-	ndots      int      // number of dots in name to trigger absolute lookup
-	timeout    int      // seconds before giving up on packet
-	attempts   int      // lost packets before giving up on server
-	rotate     bool     // round robin among servers
-	unknownOpt bool     // anything unknown was encountered
-	lookup     []string // OpenBSD top-level database "lookup" order
-	err        error    // any error that occurs during open of resolv.conf
+	servers    []string  // servers to use
+	search     []string  // suffixes to append to local name
+	ndots      int       // number of dots in name to trigger absolute lookup
+	timeout    int       // seconds before giving up on packet
+	attempts   int       // lost packets before giving up on server
+	rotate     bool      // round robin among servers
+	unknownOpt bool      // anything unknown was encountered
+	lookup     []string  // OpenBSD top-level database "lookup" order
+	err        error     // any error that occurs during open of resolv.conf
+	mtime      time.Time // time of resolv.conf modification
 }
 
 // See resolv.conf(5) on a Linux machine.
@@ -38,6 +41,13 @@ func dnsReadConfig(filename string) *dnsConfig {
 		return conf
 	}
 	defer file.close()
+	if fi, err := file.file.Stat(); err == nil {
+		conf.mtime = fi.ModTime()
+	} else {
+		conf.servers = defaultNS
+		conf.err = err
+		return conf
+	}
 	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
 		if len(line) > 0 && (line[0] == ';' || line[0] == '#') {
 			// comment.
