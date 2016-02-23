@@ -9,6 +9,10 @@ import (
 	"sort"
 )
 
+const (
+	cmpDepth = 4
+)
+
 // cse does common-subexpression elimination on the Function.
 // Values are just relinked, nothing is deleted.  A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
@@ -30,8 +34,12 @@ func cse(f *Func) {
 
 	// Make initial coarse partitions by using a subset of the conditions above.
 	a := make([]*Value, 0, f.NumValues())
+	auxIDs := auxmap{}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
+			if auxIDs[v.Aux] == 0 {
+				auxIDs[v.Aux] = int32(len(auxIDs)) + 1
+			}
 			if v.Type.IsMemory() {
 				continue // memory values can never cse
 			}
@@ -42,7 +50,7 @@ func cse(f *Func) {
 			a = append(a, v)
 		}
 	}
-	partition := partitionValues(a)
+	partition := partitionValues(a, auxIDs)
 
 	// map from value id back to eqclass id
 	valueEqClass := make([]ID, f.NumValues())
@@ -202,8 +210,7 @@ type eqclass []*Value
 // being a sorted by ID list of *Values.  The eqclass slices are
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
-func partitionValues(a []*Value) []eqclass {
-	auxIDs := map[interface{}]int32{}
+func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
 	sort.Sort(sortvalues{a, auxIDs})
 
 	var partition []eqclass
@@ -212,30 +219,7 @@ func partitionValues(a []*Value) []eqclass {
 		j := 1
 		for ; j < len(a); j++ {
 			w := a[j]
-			rootsDiffer := v.Op != w.Op ||
-				v.AuxInt != w.AuxInt ||
-				len(v.Args) != len(w.Args) ||
-				v.Op == OpPhi && v.Block != w.Block ||
-				v.Aux != w.Aux
-			if rootsDiffer ||
-				len(v.Args) >= 1 && (v.Args[0].Op != w.Args[0].Op ||
-					v.Args[0].AuxInt != w.Args[0].AuxInt) ||
-				len(v.Args) >= 2 && (v.Args[1].Op != w.Args[1].Op ||
-					v.Args[1].AuxInt != w.Args[1].AuxInt) ||
-				v.Type.Compare(w.Type) != CMPeq {
-				if Debug > 3 {
-					fmt.Printf("CSE.partitionValues separates %s from %s, AuxInt=%v, Aux=%v, Type.compare=%v",
-						v.LongString(), w.LongString(), v.AuxInt != w.AuxInt, v.Aux != w.Aux, v.Type.Compare(w.Type))
-					if !rootsDiffer {
-						if len(v.Args) >= 1 {
-							fmt.Printf(", a0Op=%v, a0AuxInt=%v", v.Args[0].Op != w.Args[0].Op, v.Args[0].AuxInt != w.Args[0].AuxInt)
-							if len(v.Args) >= 2 {
-								fmt.Printf(", a1Op=%v, a1AuxInt=%v", v.Args[1].Op != w.Args[1].Op, v.Args[1].AuxInt != w.Args[1].AuxInt)
-							}
-						}
-					}
-					fmt.Printf("\n")
-				}
+			if cmpVal(v, w, auxIDs, cmpDepth) != CMPeq {
 				break
 			}
 		}
@@ -247,11 +231,63 @@ func partitionValues(a []*Value) []eqclass {
 
 	return partition
 }
+func lt2Cmp(isLt bool) Cmp {
+	if isLt {
+		return CMPlt
+	}
+	return CMPgt
+}
+
+type auxmap map[interface{}]int32
+
+func cmpVal(v, w *Value, auxIDs auxmap, depth int) Cmp {
+	// Try to order these comparison by cost (cheaper first)
+	if v.Op != w.Op {
+		return lt2Cmp(v.Op < w.Op)
+	}
+	if v.AuxInt != w.AuxInt {
+		return lt2Cmp(v.AuxInt < w.AuxInt)
+	}
+	if len(v.Args) != len(w.Args) {
+		return lt2Cmp(len(v.Args) < len(w.Args))
+	}
+	if v.Op == OpPhi && v.Block != w.Block {
+		return lt2Cmp(v.Block.ID < w.Block.ID)
+	}
+
+	if tc := v.Type.Compare(w.Type); tc != CMPeq {
+		return tc
+	}
+
+	if v.Aux != w.Aux {
+		if v.Aux == nil {
+			return CMPlt
+		}
+		if w.Aux == nil {
+			return CMPgt
+		}
+		return lt2Cmp(auxIDs[v.Aux] < auxIDs[w.Aux])
+	}
+
+	if depth > 0 {
+		for i := range v.Args {
+			if v.Args[i] == w.Args[i] {
+				// skip comparing equal args
+				continue
+			}
+			if ac := cmpVal(v.Args[i], w.Args[i], auxIDs, depth-1); ac != CMPeq {
+				return ac
+			}
+		}
+	}
+
+	return CMPeq
+}
 
 // Sort values to make the initial partition.
 type sortvalues struct {
-	a      []*Value              // array of values
-	auxIDs map[interface{}]int32 // aux -> aux ID map
+	a      []*Value // array of values
+	auxIDs auxmap   // aux -> aux ID map
 }
 
 func (sv sortvalues) Len() int      { return len(sv.a) }
@@ -259,88 +295,9 @@ func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
 func (sv sortvalues) Less(i, j int) bool {
 	v := sv.a[i]
 	w := sv.a[j]
-	if v.Op != w.Op {
-		return v.Op < w.Op
+	if cmp := cmpVal(v, w, sv.auxIDs, cmpDepth); cmp != CMPeq {
+		return cmp == CMPlt
 	}
-	if v.AuxInt != w.AuxInt {
-		return v.AuxInt < w.AuxInt
-	}
-	if v.Aux == nil && w.Aux != nil { // cheap aux check - expensive one below.
-		return true
-	}
-	if v.Aux != nil && w.Aux == nil {
-		return false
-	}
-	if len(v.Args) != len(w.Args) {
-		return len(v.Args) < len(w.Args)
-	}
-	if v.Op == OpPhi && v.Block.ID != w.Block.ID {
-		return v.Block.ID < w.Block.ID
-	}
-	if len(v.Args) >= 1 {
-		vOp := v.Args[0].Op
-		wOp := w.Args[0].Op
-		if vOp != wOp {
-			return vOp < wOp
-		}
-
-		vAuxInt := v.Args[0].AuxInt
-		wAuxInt := w.Args[0].AuxInt
-		if vAuxInt != wAuxInt {
-			return vAuxInt < wAuxInt
-		}
-
-		if len(v.Args) >= 2 {
-			vOp = v.Args[1].Op
-			wOp = w.Args[1].Op
-			if vOp != wOp {
-				return vOp < wOp
-			}
-
-			vAuxInt = v.Args[1].AuxInt
-			wAuxInt = w.Args[1].AuxInt
-			if vAuxInt != wAuxInt {
-				return vAuxInt < wAuxInt
-			}
-		}
-	}
-
-	// Sort by type, using the ssa.Type Compare method
-	if v.Type != w.Type {
-		c := v.Type.Compare(w.Type)
-		if c != CMPeq {
-			return c == CMPlt
-		}
-	}
-
-	// Aux fields are interfaces with no comparison
-	// method.  Use a map to number distinct ones,
-	// and use those numbers for comparison.
-	if v.Aux != w.Aux {
-		x := sv.auxIDs[v.Aux]
-		if x == 0 {
-			x = int32(len(sv.auxIDs)) + 1
-			sv.auxIDs[v.Aux] = x
-		}
-		y := sv.auxIDs[w.Aux]
-		if y == 0 {
-			y = int32(len(sv.auxIDs)) + 1
-			sv.auxIDs[w.Aux] = y
-		}
-		if x != y {
-			return x < y
-		}
-	}
-
-	// TODO(khr): is the above really ok to do?  We're building
-	// the aux->auxID map online as sort is asking about it.  If
-	// sort has some internal randomness, then the numbering might
-	// change from run to run.  That will make the ordering of
-	// partitions random.  It won't break the compiler but may
-	// make it nondeterministic.  We could fix this by computing
-	// the aux->auxID map ahead of time, but the hope is here that
-	// we won't need to compute the mapping for many aux fields
-	// because the values they are in are otherwise unique.
 
 	// Sort by value ID last to keep the sort result deterministic.
 	return v.ID < w.ID
