@@ -295,7 +295,9 @@ func Flushplist(ctxt *Link) {
 	for s := text; s != nil; s = s.Next {
 		mkfwd(s)
 		linkpatch(ctxt, s)
-		ctxt.Arch.Follow(ctxt, s)
+		if ctxt.Flag_optimize {
+			ctxt.Arch.Follow(ctxt, s)
+		}
 		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
 		fieldtrack(ctxt, s)

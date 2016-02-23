@@ -138,15 +138,16 @@ func fixjmp(firstp *obj.Prog) {
 			fmt.Printf("%v\n", p)
 		}
 		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.AJMP {
-			p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
-			if Debug['R'] != 0 && Debug['v'] != 0 {
-				fmt.Printf("->%v\n", p)
+			if Debug['N'] == 0 {
+				p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
+				if Debug['R'] != 0 && Debug['v'] != 0 {
+					fmt.Printf("->%v\n", p)
+				}
 			}
 		}
 
 		p.Opt = dead
 	}
-
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\n")
 	}
@@ -186,7 +187,7 @@ func fixjmp(firstp *obj.Prog) {
 
 	// pass 4: elide JMP to next instruction.
 	// only safe if there are no jumps to JMPs anymore.
-	if jmploop == 0 {
+	if jmploop == 0 && Debug['N'] == 0 {
 		var last *obj.Prog
 		for p := firstp; p != nil; p = p.Link {
 			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.Val == p.Link {

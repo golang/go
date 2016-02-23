@@ -236,6 +236,7 @@ func Main() {
 	}
 	Ctxt.Flag_shared = int32(flag_shared)
 	Ctxt.Flag_dynlink = flag_dynlink
+	Ctxt.Flag_optimize = Debug['N'] == 0
 
 	Ctxt.Debugasm = int32(Debug['S'])
 	Ctxt.Debugvlog = int32(Debug['v'])

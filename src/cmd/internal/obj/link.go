@@ -572,6 +572,7 @@ type Link struct {
 	Debugpcln          int32
 	Flag_shared        int32
 	Flag_dynlink       bool
+	Flag_optimize      bool
 	Bso                *Biobuf
 	Pathname           string
 	Windows            int32
