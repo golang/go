@@ -21,6 +21,7 @@ func critical(f *Func) {
 
 			// allocate a new block to place on the edge
 			d := f.NewBlock(BlockPlain)
+			d.Line = c.Line
 
 			// splice it in
 			d.Preds = append(d.Preds, c)
