@@ -340,6 +340,64 @@ import (
 )
 `,
 	},
+	// Issue 10337: Preserve comment position
+	{
+		name: "issue 10337",
+		pkg:  "fmt",
+		in: `package main
+
+import (
+	"bytes" // a
+	"log" // c
+)
+`,
+		out: `package main
+
+import (
+	"bytes" // a
+	"fmt"
+	"log" // c
+)
+`,
+	},
+	{
+		name: "issue 10337 new import at the start",
+		pkg:  "bytes",
+		in: `package main
+
+import (
+	"fmt" // b
+	"log" // c
+)
+`,
+		out: `package main
+
+import (
+	"bytes"
+	"fmt" // b
+	"log" // c
+)
+`,
+	},
+	{
+		name: "issue 10337 new import at the end",
+		pkg:  "log",
+		in: `package main
+
+import (
+	"bytes" // a
+	"fmt" // b
+)
+`,
+		out: `package main
+
+import (
+	"bytes" // a
+	"fmt"   // b
+	"log"
+)
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {

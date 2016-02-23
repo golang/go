@@ -117,9 +117,15 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 	impDecl.Specs[insertAt] = newImport
 	pos := impDecl.Pos()
 	if insertAt > 0 {
-		// Assign same position as the previous import,
-		// so that the sorter sees it as being in the same block.
-		pos = impDecl.Specs[insertAt-1].Pos()
+		// If there is a comment after an existing import, preserve the comment
+		// position by adding the new import after the comment.
+		if spec, ok := impDecl.Specs[insertAt-1].(*ast.ImportSpec); ok && spec.Comment != nil {
+			pos = spec.Comment.End()
+		} else {
+			// Assign same position as the previous import,
+			// so that the sorter sees it as being in the same block.
+			pos = impDecl.Specs[insertAt-1].Pos()
+		}
 	}
 	if newImport.Name != nil {
 		newImport.Name.NamePos = pos
