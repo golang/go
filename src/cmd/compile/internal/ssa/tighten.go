@@ -16,7 +16,7 @@ package ssa
 // Figure out when that will be an improvement.
 func tighten(f *Func) {
 	// For each value, the number of blocks in which it is used.
-	uses := make([]int, f.NumValues())
+	uses := make([]int32, f.NumValues())
 
 	// For each value, whether that value is ever an arg to a phi value.
 	phi := make([]bool, f.NumValues())

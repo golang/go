@@ -396,7 +396,7 @@ func (s *regAllocState) allocReg(v *Value, mask regMask) register {
 // allocated register is marked nospill so the assignment cannot be
 // undone until the caller allows it by clearing nospill. Returns a
 // *Value which is either v or a copy of v allocated to the chosen register.
-func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Value {
+func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line int32) *Value {
 	vi := &s.values[v.ID]
 
 	// Check if v is already in a requested register.
@@ -430,7 +430,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 		if s.regs[r2].v != v {
 			panic("bad register state")
 		}
-		c = s.curBlock.NewValue1(v.Line, OpCopy, v.Type, s.regs[r2].c)
+		c = s.curBlock.NewValue1(line, OpCopy, v.Type, s.regs[r2].c)
 	} else if v.rematerializeable() {
 		// Rematerialize instead of loading from the spill location.
 		c = v.copyInto(s.curBlock)
@@ -441,7 +441,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool) *Val
 			if logSpills {
 				fmt.Println("regalloc: load spill")
 			}
-			c = s.curBlock.NewValue1(v.Line, OpLoadReg, v.Type, vi.spill)
+			c = s.curBlock.NewValue1(line, OpLoadReg, v.Type, vi.spill)
 			vi.spillUsed = true
 		default:
 			s.f.Fatalf("attempt to load unspilled value %v", v.LongString())
@@ -894,7 +894,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					// TODO: remove flag input from regspec.inputs.
 					continue
 				}
-				args[i.idx] = s.allocValToReg(v.Args[i.idx], i.regs, true)
+				args[i.idx] = s.allocValToReg(v.Args[i.idx], i.regs, true, v.Line)
 			}
 
 			// Now that all args are in regs, we're ready to issue the value itself.
@@ -951,7 +951,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Load control value into reg.
 			// TODO: regspec for block control values, instead of using
 			// register set from the control op's output.
-			s.allocValToReg(v, opcodeTable[v.Op].reg.outputs[0], false)
+			s.allocValToReg(v, opcodeTable[v.Op].reg.outputs[0], false, b.Line)
 			// Remove this use from the uses list.
 			vi := &s.values[v.ID]
 			u := vi.uses
