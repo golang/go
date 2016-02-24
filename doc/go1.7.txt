@@ -1,5 +1,6 @@
 Tools:
 
+cmd/dist: add list subcommand to list all supported platforms (CL 19837)
 cmd/go: GO15VENDOREXPERIMENT gone, assumed on (CL 19615)
 cmd/link: "-X name value" form gone (CL 19614)
 
