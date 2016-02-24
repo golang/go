@@ -7102,10 +7102,13 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 		if !(!config.fe.CanSSA(t)) {
 			break
 		}
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpLoad, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpLoad, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
-		v1 := v.Args[0].Block.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
+		v1 := b.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
+		v.reset(OpCopy)
+		v.AddArg(v1)
 		v1.AuxInt = t.FieldOff(i)
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
