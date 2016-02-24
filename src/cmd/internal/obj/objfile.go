@@ -318,6 +318,7 @@ func Flushplist(ctxt *Link) {
 	ctxt.Plist = nil
 	ctxt.Plast = nil
 	ctxt.Curp = nil
+	ctxt.freeProgs()
 }
 
 func Writeobjfile(ctxt *Link, b *Biobuf) {
