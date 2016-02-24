@@ -143,6 +143,30 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 	}
 
 	f.Imports = append(f.Imports, newImport)
+
+	if len(f.Decls) <= 1 {
+		return true
+	}
+
+	// Merge all the import declarations into the first one.
+	var first *ast.GenDecl
+	for i, decl := range f.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT || declImports(gen, "C") {
+			continue
+		}
+		if first == nil {
+			first = gen
+			continue // Don't touch the first one.
+		}
+		// Move the imports of the other import declaration to the first one.
+		for _, spec := range gen.Specs {
+			spec.(*ast.ImportSpec).Path.ValuePos = first.Pos()
+			first.Specs = append(first.Specs, spec)
+		}
+		f.Decls = append(f.Decls[:i], f.Decls[i+1:]...)
+	}
+
 	return true
 }
 

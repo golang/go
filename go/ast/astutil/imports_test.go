@@ -398,6 +398,119 @@ import (
 )
 `,
 	},
+	// Issue 14075: Merge import declarations
+	{
+		name: "issue 14075",
+		pkg:  "bufio",
+		in: `package main
+
+import "bytes"
+import "fmt"
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+)
+`,
+	},
+	{
+		name: "issue 14075 update position",
+		pkg:  "bufio",
+		in: `package main
+
+import "bytes"
+import (
+	"fmt"
+)
+`,
+		out: `package main
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore import "C"`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+
+import "bytes"
+import "fmt"
+`,
+		out: `package main
+
+// Comment
+import "C"
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore adjacent import "C"`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+import "fmt"
+`,
+		out: `package main
+
+// Comment
+import "C"
+import (
+	"bufio"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore adjacent import "C" (without factored import)`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+import "fmt"
+`,
+		out: `package main
+
+// Comment
+import "C"
+import (
+	"bufio"
+	"fmt"
+)
+`,
+	},
+	{
+		name: `issue 14075 ignore single import "C"`,
+		pkg:  "bufio",
+		in: `package main
+
+// Comment
+import "C"
+`,
+		out: `package main
+
+// Comment
+import "C"
+import "bufio"
+`,
+	},
 }
 
 func TestAddImport(t *testing.T) {
