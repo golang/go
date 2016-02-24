@@ -273,7 +273,7 @@ func TestClientRedirects(t *testing.T) {
 		t.Fatal("didn't see redirect")
 	}
 	if lastReq.Cancel != cancel {
-		t.Errorf("expected lastReq to have the cancel channel set on the inital req")
+		t.Errorf("expected lastReq to have the cancel channel set on the initial req")
 	}
 
 	checkErr = errors.New("no redirects allowed")

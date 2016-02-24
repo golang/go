@@ -24,7 +24,7 @@ check:
 	BC	12, 9, backward	// I think you should be able to write this as "BGT CR2, backward"
 
 	// Copying forward proceeds by copying R6 words then copying R7 bytes.
-	// R3 and R4 are advanced as we copy. Becuase PPC64 lacks post-increment
+	// R3 and R4 are advanced as we copy. Because PPC64 lacks post-increment
 	// load/store, R3 and R4 point before the bytes that are to be copied.
 
 	BC	12, 6, noforwardlarge	// "BEQ CR1, noforwardlarge"

@@ -356,7 +356,7 @@ func TestUDPZeroByteBuffer(t *testing.T) {
 		switch err {
 		case nil: // ReadFrom succeeds
 		default: // Read may timeout, it depends on the platform
-			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows retruns WSAEMSGSIZ
+			if nerr, ok := err.(Error); (!ok || !nerr.Timeout()) && runtime.GOOS != "windows" { // Windows returns WSAEMSGSIZ
 				t.Fatal(err)
 			}
 		}

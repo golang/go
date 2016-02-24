@@ -61,7 +61,7 @@ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 		// Some released versions of DragonFly BSD pretend to
 		// accept IPV6_V6ONLY=0 successfully, but the state
 		// still stays IPV6_V6ONLY=1. Eventually DragonFly BSD
-		// stops preteding, but the transition period would
+		// stops pretending, but the transition period would
 		// cause unpredictable behavior and we need to avoid
 		// it.
 		//

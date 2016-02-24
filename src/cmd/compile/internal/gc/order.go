@@ -386,7 +386,7 @@ func ordercall(n *Node, order *Order) {
 
 // Ordermapassign appends n to order->out, introducing temporaries
 // to make sure that all map assignments have the form m[k] = x,
-// where x is adressable.
+// where x is addressable.
 // (Orderexpr has already been called on n, so we know k is addressable.)
 //
 // If n is m[k] = x where x is not addressable, the rewrite is:

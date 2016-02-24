@@ -18,7 +18,7 @@ import (
 //
 // if handled == false, sendFile performed no work.
 //
-// Note that sendfile for windows does not suppport >2GB file.
+// Note that sendfile for windows does not support >2GB file.
 func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
 	var n int64 = 0 // by default, copy until EOF
 

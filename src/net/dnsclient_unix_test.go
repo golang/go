@@ -67,7 +67,7 @@ var specialDomainNameTests = []struct {
 
 	// Name resolution APIs and libraries should recognize the
 	// followings as special and should not send any queries.
-	// Though, we test those names here for verifying nagative
+	// Though, we test those names here for verifying negative
 	// answers at DNS query-response interaction level.
 	{"localhost.", dnsTypeALL, dnsRcodeNameError},
 	{"invalid.", dnsTypeALL, dnsRcodeNameError},
@@ -398,7 +398,7 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
 		name := fmt.Sprintf("order %v", order)
 
-		// First ensure that we get an error when contacting a non-existant host.
+		// First ensure that we get an error when contacting a non-existent host.
 		_, err := goLookupIPOrder("notarealhost", order)
 		if err == nil {
 			t.Errorf("%s: expected error while looking up name not in hosts file", name)

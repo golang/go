@@ -259,7 +259,7 @@ func (w *gcWork) empty() bool {
 type workbufhdr struct {
 	node  lfnode // must be first
 	nobj  int
-	inuse bool   // This workbuf is in use by some gorotuine and is not on the work.empty/full queues.
+	inuse bool   // This workbuf is in use by some goroutine and is not on the work.empty/full queues.
 	log   [4]int // line numbers forming a history of ownership changes to workbuf
 }
 

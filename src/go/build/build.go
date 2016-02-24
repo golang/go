@@ -1230,7 +1230,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 // the result is safe for the shell.
 func expandSrcDir(str string, srcdir string) (string, bool) {
 	// "\" delimited paths cause safeCgoName to fail
-	// so convert native paths with a different delimeter
+	// so convert native paths with a different delimiter
 	// to "/" before starting (eg: on windows).
 	srcdir = filepath.ToSlash(srcdir)
 

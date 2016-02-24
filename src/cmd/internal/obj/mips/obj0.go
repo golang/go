@@ -1234,7 +1234,7 @@ func markregused(ctxt *obj.Link, s *Sch) {
 }
 
 /*
- * test to see if 2 instrictions can be
+ * test to see if two instructions can be
  * interchanged without changing semantics
  */
 func depend(ctxt *obj.Link, sa, sb *Sch) bool {

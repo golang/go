@@ -3910,7 +3910,7 @@ retry:
 	if runqputslow(_p_, gp, h, t) {
 		return
 	}
-	// the queue is not full, now the put above must suceed
+	// the queue is not full, now the put above must succeed
 	goto retry
 }
 

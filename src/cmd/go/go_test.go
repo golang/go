@@ -2122,7 +2122,7 @@ func TestIssue7108(t *testing.T) {
 // cmd/go: go test -a foo does not rebuild regexp.
 func TestIssue6844(t *testing.T) {
 	if testing.Short() {
-		t.Skip("don't rebuild the standard libary in short mode")
+		t.Skip("don't rebuild the standard library in short mode")
 	}
 
 	tg := testgo(t)

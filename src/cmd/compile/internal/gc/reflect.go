@@ -1380,7 +1380,7 @@ func dalgsym(t *Type) *Sym {
 // be multiples of four words. On 32-bit systems that's 16 bytes, and
 // all size classes >= 16 bytes are 16-byte aligned, so no real constraint.
 // On 64-bit systems, that's 32 bytes, and 32-byte alignment is guaranteed
-// for size classes >= 256 bytes. On a 64-bit sytem, 256 bytes allocated
+// for size classes >= 256 bytes. On a 64-bit system, 256 bytes allocated
 // is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
 // must be >= 4.
 //

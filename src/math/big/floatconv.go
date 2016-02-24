@@ -85,7 +85,7 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	if fcount < 0 {
 		// The mantissa has a "decimal" point ddd.dddd; and
 		// -fcount is the number of digits to the right of '.'.
-		// Adjust relevant exponent accodingly.
+		// Adjust relevant exponent accordingly.
 		d := int64(fcount)
 		switch b {
 		case 10:

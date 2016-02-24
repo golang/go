@@ -4465,7 +4465,7 @@ func TestFieldByIndexNil(t *testing.T) {
 // off the stack into the frame will store an *Inner there, and then if a garbage collection
 // happens to scan that argument frame before it is discarded, it will scan the *Inner
 // memory as if it were an *Outer. If the two have different memory layouts, the
-// collection will intepret the memory incorrectly.
+// collection will interpret the memory incorrectly.
 //
 // One such possible incorrect interpretation is to treat two arbitrary memory words
 // (Inner.P1 and Inner.P2 below) as an interface (Outer.R below). Because interpreting
