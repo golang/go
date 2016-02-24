@@ -1355,170 +1355,143 @@ var keywords = map[string]int32{
 }
 
 func (l *lexer) number(c rune) {
-	// TODO(gri) this can be done nicely with fewer or even without labels
-
 	var str string
 	cp := &lexbuf
 	cp.Reset()
 
+	// parse mantissa before decimal point or exponent
+	isInt := false
+	malformedOctal := false
 	if c != '.' {
 		if c != '0' {
+			// decimal or float
 			for isDigit(c) {
 				cp.WriteByte(byte(c))
 				c = l.getr()
 			}
-			if c == '.' {
-				goto casedot
-			}
-			if c == 'e' || c == 'E' || c == 'p' || c == 'P' {
-				goto caseep
-			}
-			if c == 'i' {
-				goto casei
-			}
-			goto ncu
-		}
 
-		// c == 0
-		cp.WriteByte('0')
-		c = l.getr()
-		if c == 'x' || c == 'X' {
-			cp.WriteByte(byte(c))
+		} else {
+			// c == 0
+			cp.WriteByte('0')
 			c = l.getr()
-			for isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+			if c == 'x' || c == 'X' {
+				isInt = true // must be int
+				cp.WriteByte(byte(c))
+				c = l.getr()
+				for isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+					cp.WriteByte(byte(c))
+					c = l.getr()
+				}
+				if lexbuf.Len() == 2 {
+					Yyerror("malformed hex constant")
+				}
+			} else {
+				// decimal 0, octal, or float
+				for isDigit(c) {
+					if c > '7' {
+						malformedOctal = true
+					}
+					cp.WriteByte(byte(c))
+					c = l.getr()
+				}
+			}
+		}
+	}
+
+	// unless we have a hex number, parse fractional part or exponent, if any
+	if !isInt {
+		isInt = true // assume int unless proven otherwise
+
+		// fraction
+		if c == '.' {
+			isInt = false
+			cp.WriteByte('.')
+			c = l.getr()
+			for isDigit(c) {
 				cp.WriteByte(byte(c))
 				c = l.getr()
 			}
-			if lexbuf.Len() == 2 {
-				Yyerror("malformed hex constant")
-			}
-			if c == 'p' {
-				goto caseep
-			}
-			goto ncu
+			// Falling through to exponent parsing here permits invalid
+			// floating-point numbers with fractional mantissa and base-2
+			// (p or P) exponent. We don't care because base-2 exponents
+			// can only show up in machine-generated textual export data
+			// which will use correct formatting.
 		}
 
-		if c == 'p' { // 0p begins floating point zero
-			goto caseep
-		}
-
-		has8or9 := false
-		for isDigit(c) {
-			if c > '7' {
-				has8or9 = true
-			}
+		// exponent
+		// base-2 exponent (p or P) is only allowed in export data (see #9036)
+		// TODO(gri) Once we switch to binary import data, importpkg will
+		// always be nil in this function. Simplify the code accordingly.
+		if c == 'e' || c == 'E' || importpkg != nil && (c == 'p' || c == 'P') {
+			isInt = false
 			cp.WriteByte(byte(c))
 			c = l.getr()
+			if c == '+' || c == '-' {
+				cp.WriteByte(byte(c))
+				c = l.getr()
+			}
+			if !isDigit(c) {
+				Yyerror("malformed floating point constant exponent")
+			}
+			for isDigit(c) {
+				cp.WriteByte(byte(c))
+				c = l.getr()
+			}
 		}
-		if c == '.' {
-			goto casedot
-		}
-		if c == 'e' || c == 'E' {
-			goto caseep
-		}
+
+		// imaginary constant
 		if c == 'i' {
-			goto casei
+			str = lexbuf.String()
+			x := new(Mpcplx)
+			Mpmovecflt(&x.Real, 0.0)
+			mpatoflt(&x.Imag, str)
+			if x.Imag.Val.IsInf() {
+				Yyerror("overflow in imaginary constant")
+				Mpmovecflt(&x.Imag, 0.0)
+			}
+			l.val.U = x
+
+			if Debug['x'] != 0 {
+				fmt.Printf("lex: imaginary literal\n")
+			}
+			goto done
 		}
-		if has8or9 {
+	}
+
+	l.ungetr(c)
+
+	if isInt {
+		if malformedOctal {
 			Yyerror("malformed octal constant")
 		}
-		goto ncu
-	}
 
-casedot:
-	// fraction
-	// c == '.'
-	cp.WriteByte('.')
-	c = l.getr()
-	for isDigit(c) {
-		cp.WriteByte(byte(c))
-		c = l.getr()
-	}
-	if c == 'i' {
-		goto casei
-	}
-	if c != 'e' && c != 'E' {
-		goto caseout
-	}
-	// base-2-exponents (p or P) don't appear in numbers
-	// with fractions - ok to not test for 'p' or 'P'
-	// above
+		str = lexbuf.String()
+		x := new(Mpint)
+		mpatofix(x, str)
+		if x.Ovf {
+			Yyerror("overflow in constant")
+			Mpmovecfix(x, 0)
+		}
+		l.val.U = x
 
-caseep:
-	// exponent
-	if importpkg == nil && (c == 'p' || c == 'P') {
-		// <mantissa>p<base-2-exponent> is allowed in .a/.o imports,
-		// but not in .go sources.  See #9036.
-		Yyerror("malformed floating point constant")
-	}
-	cp.WriteByte(byte(c))
-	c = l.getr()
-	if c == '+' || c == '-' {
-		cp.WriteByte(byte(c))
-		c = l.getr()
-	}
+		if Debug['x'] != 0 {
+			fmt.Printf("lex: integer literal\n")
+		}
 
-	if !isDigit(c) {
-		Yyerror("malformed floating point constant exponent")
-	}
-	for isDigit(c) {
-		cp.WriteByte(byte(c))
-		c = l.getr()
-	}
+	} else { // float
 
-	if c != 'i' {
-		goto caseout
-	}
+		str = lexbuf.String()
+		x := newMpflt()
+		mpatoflt(x, str)
+		if x.Val.IsInf() {
+			Yyerror("overflow in float constant")
+			Mpmovecflt(x, 0.0)
+		}
+		l.val.U = x
 
-casei:
-	// imaginary constant
-	cp = nil
-
-	str = lexbuf.String()
-	l.val.U = new(Mpcplx)
-	Mpmovecflt(&l.val.U.(*Mpcplx).Real, 0.0)
-	mpatoflt(&l.val.U.(*Mpcplx).Imag, str)
-	if l.val.U.(*Mpcplx).Imag.Val.IsInf() {
-		Yyerror("overflow in imaginary constant")
-		Mpmovecflt(&l.val.U.(*Mpcplx).Imag, 0.0)
-	}
-
-	if Debug['x'] != 0 {
-		fmt.Printf("lex: imaginary literal\n")
-	}
-	goto done
-
-caseout:
-	cp = nil
-	l.ungetr(c)
-
-	str = lexbuf.String()
-	l.val.U = newMpflt()
-	mpatoflt(l.val.U.(*Mpflt), str)
-	if l.val.U.(*Mpflt).Val.IsInf() {
-		Yyerror("overflow in float constant")
-		Mpmovecflt(l.val.U.(*Mpflt), 0.0)
-	}
-
-	if Debug['x'] != 0 {
-		fmt.Printf("lex: floating literal\n")
-	}
-	goto done
-
-ncu:
-	cp = nil
-	l.ungetr(c)
-
-	str = lexbuf.String()
-	l.val.U = new(Mpint)
-	mpatofix(l.val.U.(*Mpint), str)
-	if l.val.U.(*Mpint).Ovf {
-		Yyerror("overflow in constant")
-		Mpmovecfix(l.val.U.(*Mpint), 0)
-	}
-
-	if Debug['x'] != 0 {
-		fmt.Printf("lex: integer literal\n")
+		if Debug['x'] != 0 {
+			fmt.Printf("lex: floating literal\n")
+		}
 	}
 
 done:
