@@ -5339,7 +5339,8 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -5381,7 +5382,8 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVBQZXload, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVBQZXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -5920,7 +5922,8 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -5962,7 +5965,8 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVLQZXload, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVLQZXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -7419,7 +7423,8 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off
@@ -7461,7 +7466,8 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		v0 := v.Args[0].Block.NewValue0(v.Line, OpAMD64MOVWQZXload, v.Type)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpAMD64MOVWQZXload, v.Type)
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v0.AuxInt = off

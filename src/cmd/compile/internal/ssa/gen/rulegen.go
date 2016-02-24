@@ -259,7 +259,7 @@ func genRules(arch arch) {
 			if t[1] == "nil" {
 				fmt.Fprintf(w, "b.Control = nil\n")
 			} else {
-				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, "b"))
+				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, false))
 			}
 			if len(newsuccs) < len(succs) {
 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
@@ -415,16 +415,17 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 }
 
 func genResult(w io.Writer, arch arch, result string) {
-	loc := "b"
+	move := false
 	if result[0] == '@' {
 		// parse @block directive
 		s := strings.SplitN(result[1:], " ", 2)
-		loc = s[0]
+		fmt.Fprintf(w, "b = %s\n", s[0])
 		result = s[1]
+		move = true
 	}
-	genResult0(w, arch, result, new(int), true, loc)
+	genResult0(w, arch, result, new(int), true, move)
 }
-func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc string) string {
+func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move bool) string {
 	if result[0] != '(' {
 		// variable
 		if top {
@@ -469,7 +470,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 		}
 	}
 	var v string
-	if top && loc == "b" {
+	if top && !move {
 		v = "v"
 		fmt.Fprintf(w, "v.reset(%s)\n", opName(s[0], arch))
 		if typeOverride {
@@ -481,8 +482,8 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 		}
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
-		fmt.Fprintf(w, "%s := %s.NewValue0(v.Line, %s, %s)\n", v, loc, opName(s[0], arch), opType)
-		if top {
+		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, %s)\n", v, opName(s[0], arch), opType)
+		if move {
 			// Rewrite original into a copy
 			fmt.Fprintf(w, "v.reset(OpCopy)\n")
 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)
@@ -501,7 +502,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top bool, loc
 			fmt.Fprintf(w, "%s.Aux = %s\n", v, x)
 		} else {
 			// regular argument (sexpr or variable)
-			x := genResult0(w, arch, a, alloc, false, loc)
+			x := genResult0(w, arch, a, alloc, false, move)
 			fmt.Fprintf(w, "%s.AddArg(%s)\n", v, x)
 		}
 	}
