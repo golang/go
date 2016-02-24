@@ -162,19 +162,19 @@ func TestCgoCheckBytes(t *testing.T) {
 	}
 
 	cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
+	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
 
 	start := time.Now()
 	cmd.Run()
 	d1 := time.Since(start)
 
 	cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
-	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
 
 	start = time.Now()
 	cmd.Run()
 	d2 := time.Since(start)
 
-	if d2*10 < d1 {
+	if d1*20 < d2 {
 		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
 	}
 }
