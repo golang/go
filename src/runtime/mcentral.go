@@ -67,7 +67,7 @@ retry:
 			c.empty.insertBack(s)
 			unlock(&c.lock)
 			s.sweep(true)
-			freeIndex := s.nextFreeIndex(0)
+			freeIndex := s.nextFreeIndex()
 			if freeIndex != s.nelems {
 				s.freeindex = freeIndex
 				goto havespan
@@ -101,7 +101,7 @@ retry:
 havespan:
 	cap := int32((s.npages << _PageShift) / s.elemsize)
 	n := cap - int32(s.allocCount)
-	if n == 0 {
+	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
 		throw("span has no free objects")
 	}
 	usedBytes := uintptr(s.allocCount) * s.elemsize
@@ -118,6 +118,15 @@ havespan:
 		gcController.revise()
 	}
 	s.incache = true
+	freeByteBase := s.freeindex &^ (64 - 1)
+	whichByte := freeByteBase / 8
+	// Init alloc bits cache.
+	s.refillAllocCache(whichByte)
+
+	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
+	// s.allocCache.
+	s.allocCache >>= s.freeindex % 64
+
 	return s
 }
 
@@ -143,18 +152,18 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 	unlock(&c.lock)
 }
 
-// Free n objects from a span s back into the central free list c.
-// Called during sweep.
-// Returns true if the span was returned to heap. Sets sweepgen to
-// the latest generation.
-// If preserve=true, don't return the span to heap nor relink in MCentral lists;
-// caller takes care of it.
-func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, preserve bool, wasempty bool) bool {
+// freeSpan updates c and s after sweeping s.
+// It sets s's sweepgen to the latest generation,
+// and, based on the number of free objects in s,
+// moves s to the appropriate list of c or returns it
+// to the heap.
+// freeSpan returns true if s was returned to the heap.
+// If preserve=true, it does not move s (the caller
+// must take care of it).
+func (c *mcentral) freeSpan(s *mspan, start gclinkptr, end gclinkptr, preserve bool, wasempty bool) bool {
 	if s.incache {
 		throw("freeSpan given cached span")
 	}
-
-	s.allocCount -= uint16(n)
 
 	if preserve {
 		// preserve is set only when called from MCentral_CacheSpan above,
