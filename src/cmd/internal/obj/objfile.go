@@ -302,16 +302,22 @@ func Flushplist(ctxt *Link) {
 		ctxt.Arch.Assemble(ctxt, s)
 		fieldtrack(ctxt, s)
 		linkpcln(ctxt, s)
+		s.Text = nil
+		s.Etext = nil
 	}
 
 	// Add to running list in ctxt.
-	if ctxt.Etext == nil {
-		ctxt.Text = text
-	} else {
-		ctxt.Etext.Next = text
+	if text != nil {
+		if ctxt.Text == nil {
+			ctxt.Text = text
+		} else {
+			ctxt.Etext.Next = text
+		}
+		ctxt.Etext = etext
 	}
-	ctxt.Etext = etext
 	ctxt.Plist = nil
+	ctxt.Plast = nil
+	ctxt.Curp = nil
 }
 
 func Writeobjfile(ctxt *Link, b *Biobuf) {
