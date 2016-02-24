@@ -1,13 +1,25 @@
-;;;
-;;; Integration of the Go 'guru' analysis tool into Emacs.
-;;;
-;;; To install the Go guru, run:
-;;; $ go get golang.org/x/tools/cmd/guru
-;;;
-;;; Load this file into Emacs and set go-guru-scope to your
-;;; configuration. Then, find a file of Go source code, enable
-;;; go-guru-mode, select an expression of interest, and press `C-c C-o d'
-;;; (for "describe") or run one of the other go-guru-xxx commands.
+;;; go-guru.el --- Integration of the Go 'guru' analysis tool into Emacs.
+
+;; Copyright 2016 The Go Authors. All rights reserved.
+;; Use of this source code is governed by a BSD-style
+;; license that can be found in the LICENSE file.
+
+;; Version: 0.1
+;; Package-Requires: ((go-mode "1.3.1") (cl-lib "0.5"))
+;; Keywords: tools
+
+;;; Commentary:
+
+;; To install the Go guru, run:
+;;
+;; $ go get golang.org/x/tools/cmd/guru
+;;
+;; Load this file into Emacs and set go-guru-scope to your
+;; configuration.  Then, find a file of Go source code,
+;; select an expression of interest, and press `C-c C-o d' (for "describe")
+;; or run one of the other go-guru-xxx commands.
+
+;;; Code:
 
 (require 'compile)
 (require 'go-mode)
@@ -55,6 +67,7 @@
 ;; would be having two different functions, but then we can't
 ;; automatically call it when no scope has been set. Also it wouldn't
 ;; easily allow specifying more than one file/package.
+;;;###autoload
 (defun go-guru-set-scope ()
   "Set the scope for the Go guru, prompting the user to edit the
 previous scope.
@@ -213,27 +226,32 @@ set the point to it, switching the current buffer."
     (forward-line (1- (string-to-number (cadr file-line-pos))))
     (forward-char (1- (string-to-number (caddr file-line-pos))))))
 
+;;;###autoload
 (defun go-guru-callees ()
   "Show possible callees of the function call at the current point."
   (interactive)
   (go-guru--run "callees" t))
 
+;;;###autoload
 (defun go-guru-callers ()
   "Show the set of callers of the function containing the current point."
   (interactive)
   (go-guru--run "callers" t))
 
+;;;###autoload
 (defun go-guru-callgraph ()
   "Show the callgraph of the current program."
   (interactive)
   (go-guru--run "callgraph" t))
 
+;;;###autoload
 (defun go-guru-callstack ()
   "Show an arbitrary path from a root of the call graph to the
 function containing the current point."
   (interactive)
   (go-guru--run "callstack" t))
 
+;;;###autoload
 (defun go-guru-definition ()
   "Jump to the definition of the selected identifier."
   (interactive)
@@ -246,39 +264,46 @@ function containing the current point."
     (go-guru--goto-pos (cdr (assoc 'objpos res)))
     (message "%s" desc)))
 
+;;;###autoload
 (defun go-guru-describe ()
   "Describe the selected syntax, its kind, type and methods."
   (interactive)
   (go-guru--run "describe"))
 
+;;;###autoload
 (defun go-guru-pointsto ()
   "Show what the selected expression points to."
   (interactive)
   (go-guru--run "pointsto" t))
 
+;;;###autoload
 (defun go-guru-implements ()
   "Describe the 'implements' relation for types in the package
 containing the current point."
   (interactive)
   (go-guru--run "implements"))
 
+;;;###autoload
 (defun go-guru-freevars ()
   "Enumerate the free variables of the current selection."
   (interactive)
   (go-guru--run "freevars"))
 
+;;;###autoload
 (defun go-guru-peers ()
   "Enumerate the set of possible corresponding sends/receives for
 this channel receive/send operation."
   (interactive)
   (go-guru--run "peers" t))
 
+;;;###autoload
 (defun go-guru-referrers ()
   "Enumerate all references to the object denoted by the selected
 identifier."
   (interactive)
   (go-guru--run "referrers"))
 
+;;;###autoload
 (defun go-guru-whicherrs ()
   "Show globals, constants and types to which the selected
 expression (of type 'error') may refer."
@@ -286,3 +311,5 @@ expression (of type 'error') may refer."
   (go-guru--run "whicherrs" t))
 
 (provide 'go-guru)
+
+;;; go-guru.el ends here
