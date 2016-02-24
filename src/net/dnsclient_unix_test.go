@@ -355,7 +355,13 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 		}
 		addrs, err := goLookupIP(tt.name)
 		if err != nil {
-			if err, ok := err.(*DNSError); !ok || (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
+			// This test uses external network connectivity.
+			// We need to take care with errors on both
+			// DNS message exchange layer and DNS
+			// transport layer because goLookupIP may fail
+			// when the IP connectivty on node under test
+			// gets lost during its run.
+			if err, ok := err.(*DNSError); !ok || tt.error != nil && (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
 				t.Errorf("got %v; want %v", err, tt.error)
 			}
 			continue
