@@ -218,22 +218,22 @@ func fixjmp(firstp *obj.Prog) {
 // Control flow analysis. The Flow structures hold predecessor and successor
 // information as well as basic loop analysis.
 //
-//	graph = flowstart(firstp, 0);
+//	graph = Flowstart(firstp, nil)
 //	... use flow graph ...
-//	flowend(graph); // free graph
+//	Flowend(graph) // free graph
 //
 // Typical uses of the flow graph are to iterate over all the flow-relevant instructions:
 //
-//	for(f = graph->start; f != nil; f = f->link)
+//	for f := graph.Start; f != nil; f = f.Link {}
 //
 // or, given an instruction f, to iterate over all the predecessors, which is
-// f->p1 and this list:
+// f.P1 and this list:
 //
-//	for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
+//	for f2 := f.P2; f2 != nil; f2 = f2.P2link {}
 //
-// The size argument to flowstart specifies an amount of zeroed memory
-// to allocate in every f->data field, for use by the client.
-// If size == 0, f->data will be nil.
+// The second argument (newData) to Flowstart specifies a func to create object
+// for every f.Data field, for use by the client.
+// If newData is nil, f.Data will be nil.
 
 var flowmark int
 
@@ -472,8 +472,8 @@ func flowrpo(g *Graph) {
 		me = r1.Rpo
 		d = -1
 
-		// rpo2r[r->rpo] == r protects against considering dead code,
-		// which has r->rpo == 0.
+		// rpo2r[r.Rpo] == r protects against considering dead code,
+		// which has r.Rpo == 0.
 		if r1.P1 != nil && rpo2r[r1.P1.Rpo] == r1.P1 && r1.P1.Rpo < me {
 			d = r1.P1.Rpo
 		}
@@ -685,7 +685,7 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Traverse live range of each variable to set start, end.
 	// Each flood uses a new value of gen so that we don't have
-	// to clear all the r->active words after each variable.
+	// to clear all the r.Active words after each variable.
 	gen := uint32(0)
 
 	for _, v := range vars {
@@ -911,7 +911,7 @@ func varkillwalk(v *TempVar, f0 *Flow, gen uint32) {
 // from memory without being rechecked. Other variables need to be checked on
 // each load.
 
-var killed int // f->data is either nil or &killed
+var killed int // f.Data is either nil or &killed
 
 func nilopt(firstp *obj.Prog) {
 	g := Flowstart(firstp, nil)
