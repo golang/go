@@ -116,6 +116,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 }
 
 func Flushplist(ctxt *Link) {
+	flushplist(ctxt, true)
+}
+func FlushplistNoFree(ctxt *Link) {
+	flushplist(ctxt, false)
+}
+func flushplist(ctxt *Link, freeProgs bool) {
 	var flag int
 	var s *LSym
 	var p *Prog
@@ -318,7 +324,9 @@ func Flushplist(ctxt *Link) {
 	ctxt.Plist = nil
 	ctxt.Plast = nil
 	ctxt.Curp = nil
-	ctxt.freeProgs()
+	if freeProgs {
+		ctxt.freeProgs()
+	}
 }
 
 func Writeobjfile(ctxt *Link, b *Biobuf) {
