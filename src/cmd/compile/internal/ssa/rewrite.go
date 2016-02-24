@@ -204,6 +204,9 @@ func uaddOvf(a, b int64) bool {
 
 // isSamePtr reports whether p1 and p2 point to the same address.
 func isSamePtr(p1, p2 *Value) bool {
+	if p1 == p2 {
+		return true
+	}
 	// Aux isn't used  in OffPtr, and AuxInt isn't currently used in
 	// Addr, but this still works as the values will be null/0
 	return (p1.Op == OpOffPtr || p1.Op == OpAddr) && p1.Op == p2.Op &&
