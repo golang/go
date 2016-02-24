@@ -157,7 +157,7 @@ var dualStackTCPListenerTests = []struct {
 	network2, address2 string // second listener
 	xerr               error  // expected error value, nil or other
 }{
-	// Test cases and expected results for the attemping 2nd listen on the same port
+	// Test cases and expected results for the attempting 2nd listen on the same port
 	// 1st listen                2nd listen                 darwin  freebsd  linux  openbsd
 	// ------------------------------------------------------------------------------------
 	// "tcp"  ""                 "tcp"  ""                    -        -       -       -
@@ -301,7 +301,7 @@ var dualStackUDPListenerTests = []struct {
 }
 
 // TestDualStackUDPListener tests both single and double listen
-// to a test listener with various address families, differnet
+// to a test listener with various address families, different
 // listening address and same port.
 func TestDualStackUDPListener(t *testing.T) {
 	switch runtime.GOOS {

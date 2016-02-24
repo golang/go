@@ -341,7 +341,7 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 	//
 	// We want to test that FDs in the child do not get overwritten
 	// by one another as this shuffle occurs. The original implementation
-	// was buggy in that in some data dependent cases it would ovewrite
+	// was buggy in that in some data dependent cases it would overwrite
 	// stderr in the child with one of the ExtraFile members.
 	// Testing for this case is difficult because it relies on using
 	// the same FD values as that case. In particular, an FD of 3

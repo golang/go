@@ -121,7 +121,7 @@ func addedge(from *BasicBlock, to *BasicBlock) {
 }
 
 // Inserts prev before curr in the instruction
-// stream.  Any control flow, such as branches or fall throughs, that target the
+// stream.  Any control flow, such as branches or fall-throughs, that target the
 // existing instruction are adjusted to target the new instruction.
 func splicebefore(lv *Liveness, bb *BasicBlock, prev *obj.Prog, curr *obj.Prog) {
 	// There may be other instructions pointing at curr,

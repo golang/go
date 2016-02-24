@@ -102,7 +102,7 @@ func TestInterfaces(t *testing.T) {
 		}
 		// Test the existence of connected unicast routes for
 		// IPv6. We can assume the existence of ::1/128 when
-		// at least one looopback interface is installed.
+		// at least one loopback interface is installed.
 		if supportsIPv6 && stats.loop > 0 && stats.uni6 == 0 {
 			t.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v", stats)
 		}
@@ -155,7 +155,7 @@ func TestInterfaceAddrs(t *testing.T) {
 	}
 	// Test the existence of connected unicast routes for IPv6.
 	// We can assume the existence of ::1/128 when at least one
-	// looopback interface is installed.
+	// loopback interface is installed.
 	if supportsIPv6 && stats.loop > 0 && stats.uni6 == 0 {
 		t.Errorf("num IPv6 unicast routes = 0; want >0; summary: %+v", stats)
 	}

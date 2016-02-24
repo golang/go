@@ -1150,7 +1150,7 @@ func defaulttarg() string {
 		fatal("current directory %s is not under %s", pwd, real_src)
 	}
 	pwd = pwd[len(real_src):]
-	// guard againt xrealwd return the directory without the trailing /
+	// guard against xrealwd returning the directory without the trailing /
 	pwd = strings.TrimPrefix(pwd, "/")
 
 	return pwd

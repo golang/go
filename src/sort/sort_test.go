@@ -506,10 +506,10 @@ func TestStability(t *testing.T) {
 	data.initB()
 	Stable(data)
 	if !IsSorted(data) {
-		t.Errorf("Stable shuffeled sorted %d ints (order)", n)
+		t.Errorf("Stable shuffled sorted %d ints (order)", n)
 	}
 	if !data.inOrder() {
-		t.Errorf("Stable shuffeled sorted %d ints (stability)", n)
+		t.Errorf("Stable shuffled sorted %d ints (stability)", n)
 	}
 
 	// sorted reversed

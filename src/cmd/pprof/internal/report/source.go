@@ -408,7 +408,7 @@ func getMissingFunctionSource(filename string, asm map[int]nodes, start, end int
 	return fnodes, filename
 }
 
-// adjustSourcePath adjusts the pathe for a source file by trimmming
+// adjustSourcePath adjusts the path for a source file by trimming
 // known prefixes and searching for the file on all parents of the
 // current working dir.
 func adjustSourcePath(path string) (*os.File, string, error) {

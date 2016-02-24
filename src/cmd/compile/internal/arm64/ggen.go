@@ -146,7 +146,7 @@ func dodiv(op gc.Op, nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	// The hardware will generate undefined result.
 	// Also need to explicitly trap on division on zero,
 	// the hardware will silently generate undefined result.
-	// DIVW will leave unpredicable result in higher 32-bit,
+	// DIVW will leave unpredictable result in higher 32-bit,
 	// so always use DIVD/DIVDU.
 	t := nl.Type
 

@@ -1374,7 +1374,7 @@ func (c *conn) setState(nc net.Conn, state ConnState) {
 
 // badRequestError is a literal string (used by in the server in HTML,
 // unescaped) to tell the user why their request was bad. It should
-// be plain text without user info or other embeddded errors.
+// be plain text without user info or other embedded errors.
 type badRequestError string
 
 func (e badRequestError) Error() string { return "Bad Request: " + string(e) }

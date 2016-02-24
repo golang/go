@@ -288,7 +288,7 @@ func http2configureTransport(t1 *Transport) (*http2Transport, error) {
 }
 
 // registerHTTPSProtocol calls Transport.RegisterProtocol but
-// convering panics into errors.
+// converting panics into errors.
 func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -1410,7 +1410,7 @@ type http2PriorityFrame struct {
 	http2PriorityParam
 }
 
-// PriorityParam are the stream prioritzation parameters.
+// PriorityParam are the stream prioritization parameters.
 type http2PriorityParam struct {
 	// StreamDep is a 31-bit stream identifier for the
 	// stream that this stream depends on. Zero means no
@@ -2850,7 +2850,7 @@ type http2stream struct {
 	weight           uint8
 	state            http2streamState
 	sentReset        bool // only true once detached from streams map
-	gotReset         bool // only true once detacted from streams map
+	gotReset         bool // only true once detached from streams map
 	gotTrailerHeader bool // HEADER frame for trailers was seen
 
 	trailer    Header // accumulated trailers
@@ -4391,7 +4391,7 @@ const http2TrailerPrefix = "Trailer:"
 // trailers. That worked for a while, until we found the first major
 // user of Trailers in the wild: gRPC (using them only over http2),
 // and gRPC libraries permit setting trailers mid-stream without
-// predeclarnig them. So: change of plans. We still permit the old
+// predeclaring them. So: change of plans. We still permit the old
 // way, but we also permit this hack: if a Header() key begins with
 // "Trailer:", the suffix of that key is a Trailer. Because ':' is an
 // invalid token byte anyway, there is no ambiguity. (And it's already
@@ -4605,7 +4605,7 @@ type http2Transport struct {
 	// send in the initial settings frame. It is how many bytes
 	// of response headers are allow. Unlike the http2 spec, zero here
 	// means to use a default limit (currently 10MB). If you actually
-	// want to advertise an ulimited value to the peer, Transport
+	// want to advertise an unlimited value to the peer, Transport
 	// interprets the highest possible value here (0xffffffff or 1<<32-1)
 	// to mean no limit.
 	MaxHeaderListSize uint32
@@ -5012,7 +5012,7 @@ const http2maxAllocFrameSize = 512 << 10
 // frameBuffer returns a scratch buffer suitable for writing DATA frames.
 // They're capped at the min of the peer's max frame size or 512KB
 // (kinda arbitrarily), but definitely capped so we don't allocate 4GB
-// bufers.
+// buffers.
 func (cc *http2ClientConn) frameScratchBuffer() []byte {
 	cc.mu.Lock()
 	size := cc.maxFrameSize
@@ -6544,7 +6544,7 @@ func (ws *http2writeScheduler) take() (wm http2frameWriteMsg, ok bool) {
 	return ws.takeFrom(q.streamID(), q)
 }
 
-// zeroCanSend is defered from take.
+// zeroCanSend is deferred from take.
 func (ws *http2writeScheduler) zeroCanSend() {
 	for i := range ws.canSend {
 		ws.canSend[i] = nil

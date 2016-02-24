@@ -1220,7 +1220,7 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 // an explicit data comparison. Specifically, we build a list of the
 // inputs to the build, compute its SHA1 hash, and record that as the
 // ``build ID'' in the generated object. At the next build, we can
-// recompute the buid ID and compare it to the one in the generated
+// recompute the build ID and compare it to the one in the generated
 // object. If they differ, the list of inputs has changed, so the object
 // is out of date and must be rebuilt.
 //

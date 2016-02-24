@@ -448,7 +448,7 @@ func TestClientResumption(t *testing.T) {
 			t.Fatalf("%s resumed: %v, expected: %v", test, hs.DidResume, didResume)
 		}
 		if didResume && (hs.PeerCertificates == nil || hs.VerifiedChains == nil) {
-			t.Fatalf("expected non-nil certificates after resumption. Got peerCertificates: %#v, verifedCertificates: %#v", hs.PeerCertificates, hs.VerifiedChains)
+			t.Fatalf("expected non-nil certificates after resumption. Got peerCertificates: %#v, verifiedCertificates: %#v", hs.PeerCertificates, hs.VerifiedChains)
 		}
 	}
 
