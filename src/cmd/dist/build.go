@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -937,6 +938,7 @@ func usage() {
 		"clean          deletes all built files\n" +
 		"env [-p]       print environment (-p: include $PATH)\n" +
 		"install [dir]  install individual directory\n" +
+		"list [-json]   list all supported platforms\n" +
 		"test [-h]      run Go test(s)\n" +
 		"version        print Go version\n" +
 		"\n" +
@@ -1068,6 +1070,10 @@ func cmdbootstrap() {
 // Cannot use go/build directly because cmd/dist for a new release
 // builds against an old release's go/build, which may be out of sync.
 // To reduce duplication, we generate the list for go/build from this.
+//
+// We list all supported platforms in this list, so that this is the
+// single point of truth for supported platforms. This list is used
+// by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
 	"darwin/386":      true,
 	"darwin/amd64":    true,
@@ -1076,19 +1082,31 @@ var cgoEnabled = map[string]bool{
 	"dragonfly/amd64": true,
 	"freebsd/386":     true,
 	"freebsd/amd64":   true,
+	"freebsd/arm":     false,
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
 	"linux/arm64":     true,
+	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
+	"linux/mips64":    false,
+	"linux/mips64le":  false,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
+	"android/arm64":   true,
+	"nacl/386":        false,
+	"nacl/amd64p32":   false,
+	"nacl/arm":        false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
 	"netbsd/arm":      true,
 	"openbsd/386":     true,
 	"openbsd/amd64":   true,
+	"openbsd/arm":     false,
+	"plan9/386":       false,
+	"plan9/amd64":     false,
+	"plan9/arm":       false,
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
@@ -1198,4 +1216,44 @@ func cmdbanner() {
 func cmdversion() {
 	xflagparse(0)
 	xprintf("%s\n", findgoversion())
+}
+
+// cmdlist lists all supported platforms.
+func cmdlist() {
+	jsonFlag := flag.Bool("json", false, "produce JSON output")
+	xflagparse(0)
+
+	var plats []string
+	for p := range cgoEnabled {
+		plats = append(plats, p)
+	}
+	sort.Strings(plats)
+
+	if !*jsonFlag {
+		for _, p := range plats {
+			xprintf("%s\n", p)
+		}
+		return
+	}
+
+	type jsonResult struct {
+		GOOS         string
+		GOARCH       string
+		CgoSupported bool
+	}
+	var results []jsonResult
+	for _, p := range plats {
+		fields := strings.Split(p, "/")
+		results = append(results, jsonResult{
+			GOOS:         fields[0],
+			GOARCH:       fields[1],
+			CgoSupported: cgoEnabled[p]})
+	}
+	out, err := json.MarshalIndent(results, "", "\t")
+	if err != nil {
+		fatal("json marshal error: %v", err)
+	}
+	if _, err := os.Stdout.Write(out); err != nil {
+		fatal("write failed: %v", err)
+	}
 }

@@ -56,8 +56,10 @@ func mkzcgo(dir, file string) {
 			"package build\n"+
 			"\n"+
 			"var cgoEnabled = map[string]bool{\n")
-	for plat := range cgoEnabled {
-		fmt.Fprintf(&buf, "\t%q: true,\n", plat)
+	for plat, hasCgo := range cgoEnabled {
+		if hasCgo {
+			fmt.Fprintf(&buf, "\t%q: true,\n", plat)
+		}
 	}
 	fmt.Fprintf(&buf, "}")
 
