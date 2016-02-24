@@ -173,6 +173,18 @@ func dumpdata() {
 	Clearp(Pc)
 }
 
+func flushdata() {
+	if dfirst == nil {
+		return
+	}
+	newplist()
+	*Pc = *dfirst
+	Pc = dpc
+	Clearp(Pc)
+	dfirst = nil
+	dpc = nil
+}
+
 // Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
 func fixautoused(p *obj.Prog) {
 	for lp := &p; ; {

@@ -1449,8 +1449,13 @@ func funccompile(n *Node) {
 	Funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
+	Pc = nil
+	continpc = nil
+	breakpc = nil
 	Funcdepth = 0
 	dclcontext = PEXTERN
+	flushdata()
+	obj.Flushplist(Ctxt) // convert from Prog list to machine code
 }
 
 func funcsym(s *Sym) *Sym {
