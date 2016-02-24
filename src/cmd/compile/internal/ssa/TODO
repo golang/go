@@ -14,11 +14,8 @@ Optimizations (better compiled code)
 ------------------------------------
 - Reduce register pressure in scheduler
 - More strength reduction: multiply -> shift/add combos (Worth doing?)
-- Strength reduction: constant divides -> multiply
-- Expand current optimizations to all bit widths
 - Add a value range propagation pass (for bounds elim & bitwidth reduction)
 - Make dead store pass inter-block
-- (x86) More combining address arithmetic into loads/stores
 - redundant CMP in sequences like this:
   SUBQ $8, AX
   CMP AX, $0
@@ -31,15 +28,6 @@ Optimizations (better compiled code)
 - If strings are being passed around without being interpreted (ptr
   and len feilds being accessed) pass them in xmm registers?
   Same for interfaces?
-- boolean logic: movb/xorb$1/testb/jeq -> movb/testb/jne
-- (ADDQconst (SUBQconst x)) and vice-versa
-- store followed by load to same address
-- (CMPconst [0] (AND x y)) -> (TEST x y)
-- more (LOAD (ADDQ )) -> LOADIDX
-- CMPL/SETEQ/TESTB/JEQ -> CMPL/JEQ
-  CMPL/SETGE/TESTB/JEQ
-- blockEQ (CMP x x)
-- better computing of &&/|| in non-if/for contexts
 - OpArrayIndex should take its index in AuxInt, not a full value.
 - remove FLAGS from REP instruction clobbers
 - (x86) Combine loads into other ops
@@ -52,10 +40,8 @@ Optimizations (better compiled code)
 Optimizations (better compiler)
 -------------------------------
 - Smaller Value.Type (int32 or ptr)?  Get rid of types altogether?
-- Recycle dead Values (and Blocks) explicitly instead of using GC
 - OpStore uses 3 args.  Increase the size of Value.argstorage to 3?
 - Constant cache
-- Reuseable slices (e.g. []int of size NumValues()) cached in Func
 - Handle signed division overflow and sign extension earlier
 - Implement 64 bit const division with high multiply, maybe in the frontend?
 - Add bit widths to complex ops
