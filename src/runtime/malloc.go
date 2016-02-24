@@ -505,29 +505,30 @@ const (
 func (c *mcache) nextFree(sizeclass int8) (v gclinkptr, shouldhelpgc bool) {
 	s := c.alloc[sizeclass]
 	shouldhelpgc = false
-	freeIndex := s.nextFreeIndex(s.freeindex)
-
+	freeIndex := s.nextFreeIndex()
 	if freeIndex == s.nelems {
 		// The span is full.
-		if uintptr(s.allocCount) != s.nelems {
-			throw("s.allocCount != s.nelems && freeIndex == s.nelems")
+		if uintptr(s.allocCount) > s.nelems {
+			println("runtime: s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
+			throw("s.allocCount > s.nelems && freeIndex == s.nelems")
 		}
 		systemstack(func() {
 			c.refill(int32(sizeclass))
 		})
 		shouldhelpgc = true
 		s = c.alloc[sizeclass]
-		freeIndex = s.nextFreeIndex(s.freeindex)
+
+		freeIndex = s.nextFreeIndex()
 	}
+
 	if freeIndex >= s.nelems {
 		throw("freeIndex is not valid")
 	}
 
 	v = gclinkptr(freeIndex*s.elemsize + s.base())
-	// Advance the freeIndex.
-	s.freeindex = freeIndex + 1
 	s.allocCount++
 	if uintptr(s.allocCount) > s.nelems {
+		println("s.allocCount=", s.allocCount, "s.nelems=", s.nelems)
 		throw("s.allocCount > s.nelems")
 	}
 	return
