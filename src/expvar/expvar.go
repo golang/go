@@ -258,7 +258,8 @@ func Publish(name string, v Var) {
 	sort.Strings(varKeys)
 }
 
-// Get retrieves a named exported variable.
+// Get retrieves a named exported variable. It returns nil if the name has
+// not been registered.
 func Get(name string) Var {
 	mutex.RLock()
 	defer mutex.RUnlock()
