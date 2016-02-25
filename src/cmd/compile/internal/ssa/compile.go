@@ -8,10 +8,9 @@ import (
 	"fmt"
 	"log"
 	"runtime"
+	"strings"
 	"time"
 )
-
-var Debug int
 
 // Compile is the main entry point for this package.
 // Compile modifies f so that on return:
@@ -47,22 +46,23 @@ func Compile(f *Func) {
 		if !f.Config.optimize && !p.required {
 			continue
 		}
+		f.pass = &p
 		phaseName = p.name
 		if f.Log() {
 			f.Logf("  pass %s begin\n", p.name)
 		}
 		// TODO: capture logging during this pass, add it to the HTML
 		var mStart runtime.MemStats
-		if logMemStats {
+		if logMemStats || p.mem {
 			runtime.ReadMemStats(&mStart)
 		}
 
 		tStart := time.Now()
 		p.fn(f)
+		tEnd := time.Now()
 
+		// Need something less crude than "Log the whole intermediate result".
 		if f.Log() || f.Config.HTML != nil {
-			tEnd := time.Now()
-
 			time := tEnd.Sub(tStart).Nanoseconds()
 			var stats string
 			if logMemStats {
@@ -79,6 +79,20 @@ func Compile(f *Func) {
 			printFunc(f)
 			f.Config.HTML.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
+		if p.time || p.mem {
+			// Surround timing information w/ enough context to allow comparisons.
+			time := tEnd.Sub(tStart).Nanoseconds()
+			if p.time {
+				f.logStat("TIME(ns)", time)
+			}
+			if p.mem {
+				var mEnd runtime.MemStats
+				runtime.ReadMemStats(&mEnd)
+				nBytes := mEnd.TotalAlloc - mStart.TotalAlloc
+				nAllocs := mEnd.Mallocs - mStart.Mallocs
+				f.logStat("TIME(ns):BYTES:ALLOCS", time, nBytes, nAllocs)
+			}
+		}
 		checkFunc(f)
 	}
 
@@ -90,39 +104,84 @@ type pass struct {
 	name     string
 	fn       func(*Func)
 	required bool
+	disabled bool
+	time     bool // report time to run pass
+	mem      bool // report mem stats to run pass
+	stats    int  // pass reports own "stats" (e.g., branches removed)
+	debug    int  // pass performs some debugging. =1 should be in error-testing-friendly Warnl format.
+	test     int  // pass-specific ad-hoc option, perhaps useful in development
+}
+
+// PhaseOption sets the specified flag in the specified ssa phase,
+// returning empty string if this was successful or a string explaining
+// the error if it was not.  A version of the phase name with "_"
+// replaced by " " is also checked for a match.
+// See gc/lex.go for dissection of the option string.  Example use:
+// GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash ...
+//
+func PhaseOption(phase, flag string, val int) string {
+	underphase := strings.Replace(phase, "_", " ", -1)
+	for i, p := range passes {
+		if p.name == phase || p.name == underphase {
+			switch flag {
+			case "on":
+				p.disabled = val == 0
+			case "off":
+				p.disabled = val != 0
+			case "time":
+				p.time = val != 0
+			case "mem":
+				p.mem = val != 0
+			case "debug":
+				p.debug = val
+			case "stats":
+				p.stats = val
+			case "test":
+				p.test = val
+			default:
+				return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+			}
+			if p.disabled && p.required {
+				return fmt.Sprintf("Cannot disable required SSA phase %s using -d=ssa/%s debug option", phase, phase)
+			}
+			passes[i] = p
+			return ""
+		}
+	}
+	return fmt.Sprintf("Did not find a phase matching %s in -d=ssa/... debug option", phase)
 }
 
 // list of passes for the compiler
 var passes = [...]pass{
 	// TODO: combine phielim and copyelim into a single pass?
-	{"early phielim", phielim, false},
-	{"early copyelim", copyelim, false},
-	{"early deadcode", deadcode, false}, // remove generated dead code to avoid doing pointless work during opt
-	{"short circuit", shortcircuit, false},
-	{"decompose user", decomposeUser, true},
-	{"decompose builtin", decomposeBuiltIn, true},
-	{"opt", opt, true},                // TODO: split required rules and optimizing rules
-	{"zero arg cse", zcse, true},      // required to merge OpSB values
-	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
-	{"generic cse", cse, false},
-	{"nilcheckelim", nilcheckelim, false},
-	{"generic deadcode", deadcode, false},
-	{"fuse", fuse, false},
-	{"dse", dse, false},
-	{"tighten", tighten, false}, // move values closer to their uses
-	{"lower", lower, true},
-	{"lowered cse", cse, false},
-	{"lowered deadcode", deadcode, true},
-	{"checkLower", checkLower, true},
-	{"late phielim", phielim, false},
-	{"late copyelim", copyelim, false},
-	{"late deadcode", deadcode, false},
-	{"critical", critical, true},   // remove critical edges
-	{"layout", layout, true},       // schedule blocks
-	{"schedule", schedule, true},   // schedule values
-	{"flagalloc", flagalloc, true}, // allocate flags register
-	{"regalloc", regalloc, true},   // allocate int & float registers + stack slots
-	{"trim", trim, false},          // remove empty blocks
+	{name: "early phielim", fn: phielim},
+	{name: "early copyelim", fn: copyelim},
+	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
+	{name: "short circuit", fn: shortcircuit},
+	{name: "decompose user", fn: decomposeUser, required: true},
+	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
+	{name: "opt", fn: opt, required: true},           // TODO: split required rules and optimizing rules
+	{name: "zero arg cse", fn: zcse, required: true}, // required to merge OpSB values
+	{name: "opt deadcode", fn: deadcode},             // remove any blocks orphaned during opt
+	{name: "generic cse", fn: cse},
+	{name: "nilcheckelim", fn: nilcheckelim},
+	{name: "generic deadcode", fn: deadcode},
+	{name: "fuse", fn: fuse},
+	{name: "dse", fn: dse},
+	{name: "tighten", fn: tighten}, // move values closer to their uses
+	{name: "lower", fn: lower, required: true},
+	{name: "lowered cse", fn: cse},
+	{name: "lowered deadcode", fn: deadcode, required: true},
+	{name: "checkLower", fn: checkLower, required: true},
+	{name: "late phielim", fn: phielim},
+	{name: "late copyelim", fn: copyelim},
+	{name: "late deadcode", fn: deadcode},
+	{name: "critical", fn: critical, required: true},   // remove critical edges
+	{name: "layout", fn: layout, required: true},       // schedule blocks
+	{name: "schedule", fn: schedule, required: true},   // schedule values
+	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
+	{name: "regalloc", fn: regalloc, required: true},   // allocate int & float registers + stack slots
+	{name: "trim", fn: trim},                           // remove empty blocks
 }
 
 // Double-check phase ordering constraints.

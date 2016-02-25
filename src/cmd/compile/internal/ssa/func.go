@@ -4,12 +4,16 @@
 
 package ssa
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 // A Func represents a Go func declaration (or function literal) and
 // its body.  This package compiles each Func independently.
 type Func struct {
 	Config     *Config     // architecture information
+	pass       *pass       // current pass information (name, options, etc.)
 	Name       string      // e.g. bytes·Compare
 	Type       Type        // type signature of the function.
 	StaticData interface{} // associated static data, untouched by the ssa package
@@ -87,6 +91,20 @@ func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
 	v.Line = line
 	b.Values = append(b.Values, v)
 	return v
+}
+
+// logPassStat writes a string key and int value as a warning in a
+// tab-separated format easily handled by spreadsheets or awk.
+// file names, lines, and function names are included to provide enough (?)
+// context to allow item-by-item comparisons across runs.
+// For example:
+// awk 'BEGIN {FS="\t"} $3~/TIME/{sum+=$4} END{print "t(ns)=",sum}' t.log
+func (f *Func) logStat(key string, args ...interface{}) {
+	value := ""
+	for _, a := range args {
+		value += fmt.Sprintf("\t%v", a)
+	}
+	f.Config.Warnl(int(f.Entry.Line), "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
 }
 
 // freeValue frees a value.  It must no longer be referenced.

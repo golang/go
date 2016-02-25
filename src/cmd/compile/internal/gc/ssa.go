@@ -6,7 +6,6 @@ package gc
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"fmt"
 	"html"
 	"math"
@@ -23,6 +22,15 @@ const minZeroPage = 4096
 
 var ssaConfig *ssa.Config
 var ssaExp ssaExport
+
+func initssa() *ssa.Config {
+	ssaExp.unimplemented = false
+	ssaExp.mustImplement = true
+	if ssaConfig == nil {
+		ssaConfig = ssa.NewConfig(Thearch.Thestring, &ssaExp, Ctxt, Debug['N'] == 0)
+	}
+	return ssaConfig
+}
 
 func shouldssa(fn *Node) bool {
 	if Thearch.Thestring != "amd64" {
@@ -67,42 +75,7 @@ func shouldssa(fn *Node) bool {
 		return localpkg.Name == pkg
 	}
 
-	gossahash := os.Getenv("GOSSAHASH")
-	if gossahash == "" || gossahash == "y" || gossahash == "Y" {
-		return true
-	}
-	if gossahash == "n" || gossahash == "N" {
-		return false
-	}
-
-	// Check the hash of the name against a partial input hash.
-	// We use this feature to do a binary search within a package to
-	// find a function that is incorrectly compiled.
-	hstr := ""
-	for _, b := range sha1.Sum([]byte(name)) {
-		hstr += fmt.Sprintf("%08b", b)
-	}
-
-	if strings.HasSuffix(hstr, gossahash) {
-		fmt.Printf("GOSSAHASH triggered %s\n", name)
-		return true
-	}
-
-	// Iteratively try additional hashes to allow tests for multi-point
-	// failure.
-	for i := 0; true; i++ {
-		ev := fmt.Sprintf("GOSSAHASH%d", i)
-		evv := os.Getenv(ev)
-		if evv == "" {
-			break
-		}
-		if strings.HasSuffix(hstr, evv) {
-			fmt.Printf("%s triggered %s\n", ev, name)
-			return true
-		}
-	}
-
-	return false
+	return initssa().DebugHashMatch("GOSSAHASH", name)
 }
 
 // buildssa builds an SSA function.
@@ -123,12 +96,8 @@ func buildssa(fn *Node) *ssa.Func {
 	// TODO(khr): build config just once at the start of the compiler binary
 
 	ssaExp.log = printssa
-	ssaExp.unimplemented = false
-	ssaExp.mustImplement = true
-	if ssaConfig == nil {
-		ssaConfig = ssa.NewConfig(Thearch.Thestring, &ssaExp, Ctxt, Debug['N'] == 0)
-	}
-	s.config = ssaConfig
+
+	s.config = initssa()
 	s.f = s.config.NewFunc()
 	s.f.Name = name
 	s.exitCode = fn.Func.Exit

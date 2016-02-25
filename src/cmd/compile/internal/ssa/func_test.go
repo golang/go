@@ -134,12 +134,18 @@ type fun struct {
 	values map[string]*Value
 }
 
+var emptyPass pass = pass{
+	name: "empty pass",
+}
+
 // Fun takes the name of an entry bloc and a series of Bloc calls, and
 // returns a fun containing the composed Func. entry must be a name
 // supplied to one of the Bloc functions. Each of the bloc names and
 // valu names should be unique across the Fun.
 func Fun(c *Config, entry string, blocs ...bloc) fun {
 	f := c.NewFunc()
+	f.pass = &emptyPass
+
 	blocks := make(map[string]*Block)
 	values := make(map[string]*Value)
 	// Create all the blocks and values.
