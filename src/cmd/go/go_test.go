@@ -2965,3 +2965,30 @@ func TestGenerateUsesBuildContext(t *testing.T) {
 	tg.run("generate", "gen")
 	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
 }
+
+// Issue 14450: go get -u .../ tried to import not downloaded package
+func TestGoGetUpdateWithWildcard(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	const aPkgImportPath = "github.com/tmwh/go-get-issue-14450/a"
+	tg.run("get", aPkgImportPath)
+	tg.run("get", "-u", ".../")
+	tg.grepStderrNot("cannot find package", "did not update packages given wildcard path")
+
+	var expectedPkgPaths = []string{
+		"src/github.com/tmwh/go-get-issue-14450/b",
+		"src/github.com/tmwh/go-get-issue-14450-b-dependency/c",
+		"src/github.com/tmwh/go-get-issue-14450-b-dependency/d",
+	}
+
+	for _, importPath := range expectedPkgPaths {
+		_, err := os.Stat(tg.path(importPath))
+		tg.must(err)
+	}
+	const notExpectedPkgPath = "src/github.com/tmwh/go-get-issue-14450-c-dependency/e"
+	tg.mustNotExist(tg.path(notExpectedPkgPath))
+}
