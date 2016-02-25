@@ -61,7 +61,7 @@ func cse(f *Func) {
 		}
 	}
 	for i, e := range partition {
-		if Debug > 1 && len(e) > 500 {
+		if f.pass.debug > 1 && len(e) > 500 {
 			fmt.Printf("CSE.large partition (%d): ", len(e))
 			for j := 0; j < 3; j++ {
 				fmt.Printf("%s ", e[j].LongString())
@@ -72,7 +72,7 @@ func cse(f *Func) {
 		for _, v := range e {
 			valueEqClass[v.ID] = ID(i)
 		}
-		if Debug > 2 && len(e) > 1 {
+		if f.pass.debug > 2 && len(e) > 1 {
 			fmt.Printf("CSE.partition #%d:", i)
 			for _, v := range e {
 				fmt.Printf(" %s", v.String())
@@ -163,7 +163,7 @@ func cse(f *Func) {
 		}
 	}
 
-	rewrites := 0
+	rewrites := int64(0)
 
 	// Apply substitutions
 	for _, b := range f.Blocks {
@@ -186,8 +186,8 @@ func cse(f *Func) {
 			}
 		}
 	}
-	if Debug > 0 && rewrites > 0 {
-		fmt.Printf("CSE: %d rewrites\n", rewrites)
+	if f.pass.stats > 0 {
+		f.logStat("CSE REWRITES", rewrites)
 	}
 }
 

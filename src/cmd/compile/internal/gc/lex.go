@@ -55,7 +55,6 @@ var debugtab = []struct {
 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
 	{"wb", &Debug_wb},                 // print information about write barriers
 	{"export", &Debug_export},         // print export data
-	{"ssa", &ssa.Debug},               // ssa debugging flag
 }
 
 const (
@@ -285,6 +284,23 @@ func Main() {
 						continue Split
 					}
 				}
+			}
+			// special case for ssa for now
+			if strings.HasPrefix(name, "ssa/") {
+				// expect form ssa/phase/flag
+				// e.g. -d=ssa/generic_cse/time
+				// _ in phase name also matches space
+				phase := name[4:]
+				flag := "debug" // default flag is debug
+				if i := strings.Index(phase, "/"); i >= 0 {
+					flag = phase[i+1:]
+					phase = phase[:i]
+				}
+				err := ssa.PhaseOption(phase, flag, val)
+				if err != "" {
+					log.Fatalf(err)
+				}
+				continue Split
 			}
 			log.Fatalf("unknown debug key -d %s\n", name)
 		}

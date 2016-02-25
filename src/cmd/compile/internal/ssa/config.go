@@ -4,7 +4,13 @@
 
 package ssa
 
-import "cmd/internal/obj"
+import (
+	"cmd/internal/obj"
+	"crypto/sha1"
+	"fmt"
+	"os"
+	"strings"
+)
 
 type Config struct {
 	arch       string                     // "amd64", etc.
@@ -19,6 +25,10 @@ type Config struct {
 	curFunc    *Func
 
 	// TODO: more stuff.  Compiler flags of interest, ...
+
+	// Given an environment variable used for debug hash match,
+	// what file (if any) receives the yes/no logging?
+	logfiles map[string]*os.File
 
 	// Storage for low-numbered values and blocks.
 	values [2000]Value
@@ -120,6 +130,8 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 		c.blocks[i].ID = ID(i)
 	}
 
+	c.logfiles = make(map[string]*os.File)
+
 	return c
 }
 
@@ -145,3 +157,79 @@ func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
 }
 func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
 func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
+
+func (c *Config) logDebugHashMatch(evname, name string) {
+	var file *os.File
+	file = c.logfiles[evname]
+	if file == nil {
+		file = os.Stdout
+		tmpfile := os.Getenv("GSHS_LOGFILE")
+		if tmpfile != "" {
+			var ok error
+			file, ok = os.Create(tmpfile)
+			if ok != nil {
+				c.Fatalf(0, "Could not open hash-testing logfile %s", tmpfile)
+			}
+		}
+		c.logfiles[evname] = file
+	}
+	s := fmt.Sprintf("%s triggered %s\n", evname, name)
+	file.WriteString(s)
+	file.Sync()
+}
+
+// DebugHashMatch returns true if environment variable evname
+// 1) is empty (this is a special more-quickly implemented case of 3)
+// 2) is "y" or "Y"
+// 3) is a suffix of the sha1 hash of name
+// 4) is a suffix of the environment variable
+//    fmt.Sprintf("%s%d", evname, n)
+//    provided that all such variables are nonempty for 0 <= i <= n
+// Otherwise it returns false.
+// When true is returned the message
+//  "%s triggered %s\n", evname, name
+// is printed on the file named in environment variable
+//  GSHS_LOGFILE
+// or standard out if that is empty or there is an error
+// opening the file.
+
+func (c *Config) DebugHashMatch(evname, name string) bool {
+	evhash := os.Getenv(evname)
+	if evhash == "" {
+		return true // default behavior with no EV is "on"
+	}
+	if evhash == "y" || evhash == "Y" {
+		c.logDebugHashMatch(evname, name)
+		return true
+	}
+	if evhash == "n" || evhash == "N" {
+		return false
+	}
+	// Check the hash of the name against a partial input hash.
+	// We use this feature to do a binary search to
+	// find a function that is incorrectly compiled.
+	hstr := ""
+	for _, b := range sha1.Sum([]byte(name)) {
+		hstr += fmt.Sprintf("%08b", b)
+	}
+
+	if strings.HasSuffix(hstr, evhash) {
+		c.logDebugHashMatch(evname, name)
+		return true
+	}
+
+	// Iteratively try additional hashes to allow tests for multi-point
+	// failure.
+	for i := 0; true; i++ {
+		ev := fmt.Sprintf("%s%d", evname, i)
+		evv := os.Getenv(ev)
+		if evv == "" {
+			break
+		}
+		if strings.HasSuffix(hstr, evv) {
+			c.logDebugHashMatch(ev, name)
+			return true
+		}
+	}
+	return false
+}
