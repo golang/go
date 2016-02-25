@@ -10,6 +10,4 @@ SOMETHING WILL HAPPEN
 
 API additions and behavior changes:
 
-SOMETHING WILL HAPPEN
-
-
+runtime: add CallerFrames and Frames (CL 19869)
