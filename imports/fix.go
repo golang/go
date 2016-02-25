@@ -90,18 +90,22 @@ func fixImports(fset *token.FileSet, f *ast.File, filename string) (added []stri
 	ast.Walk(visitor, f)
 
 	// Nil out any unused ImportSpecs, to be removed in following passes
-	unusedImport := map[string]bool{}
+	unusedImport := map[string]string{}
 	for pkg, is := range decls {
 		if refs[pkg] == nil && pkg != "_" && pkg != "." {
-			unusedImport[strings.Trim(is.Path.Value, `"`)] = true
+			name := ""
+			if is.Name != nil {
+				name = is.Name.Name
+			}
+			unusedImport[strings.Trim(is.Path.Value, `"`)] = name
 		}
 	}
-	for ipath := range unusedImport {
+	for ipath, name := range unusedImport {
 		if ipath == "C" {
 			// Don't remove cgo stuff.
 			continue
 		}
-		astutil.DeleteImport(fset, f, ipath)
+		astutil.DeleteNamedImport(fset, f, name, ipath)
 	}
 
 	// Search for imports matching potential package references.

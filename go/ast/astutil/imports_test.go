@@ -763,12 +763,42 @@ import (
 		out: `package main
 `,
 	},
+	{
+		name:       "import.18",
+		renamedPkg: "x",
+		pkg:        "fmt",
+		in: `package main
+
+import (
+	"fmt"
+	x "fmt"
+)
+`,
+		out: `package main
+
+import "fmt"
+`,
+	},
+	{
+		name:       "import.18",
+		renamedPkg: "x",
+		pkg:        "fmt",
+		in: `package main
+
+import x "fmt"
+import y "fmt"
+`,
+		out: `package main
+
+import y "fmt"
+`,
+	},
 }
 
 func TestDeleteImport(t *testing.T) {
 	for _, test := range deleteTests {
 		file := parse(t, test.name, test.in)
-		DeleteImport(fset, file, test.pkg)
+		DeleteNamedImport(fset, file, test.renamedPkg, test.pkg)
 		if got := print(t, test.name, file); got != test.out {
 			t.Errorf("%s:\ngot: %s\nwant: %s", test.name, got, test.out)
 		}

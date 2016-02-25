@@ -148,6 +148,11 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
 
 // DeleteImport deletes the import path from the file f, if present.
 func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) {
+	return DeleteNamedImport(fset, f, "", path)
+}
+
+// DeleteNamedImport deletes the import with the given name and path from the file f, if present.
+func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (deleted bool) {
 	var delspecs []*ast.ImportSpec
 
 	// Find the import nodes that import path, if any.
@@ -160,6 +165,12 @@ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) 
 		for j := 0; j < len(gen.Specs); j++ {
 			spec := gen.Specs[j]
 			impspec := spec.(*ast.ImportSpec)
+			if impspec.Name == nil && name != "" {
+				continue
+			}
+			if impspec.Name != nil && impspec.Name.Name != name {
+				continue
+			}
 			if importPath(impspec) != path {
 				continue
 			}
