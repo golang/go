@@ -869,11 +869,6 @@ func newstack() {
 		}
 	}
 
-	// The goroutine must be executing in order to call newstack,
-	// so it must be Grunning (or Gscanrunning).
-	casgstatus(gp, _Grunning, _Gwaiting)
-	gp.waitreason = "stack growth"
-
 	if gp.stack.lo == 0 {
 		throw("missing stack in newstack")
 	}
@@ -908,6 +903,8 @@ func newstack() {
 		if thisg.m.p == 0 && thisg.m.locks == 0 {
 			throw("runtime: g is running but p is not")
 		}
+		// Synchronize with scang.
+		casgstatus(gp, _Grunning, _Gwaiting)
 		if gp.preemptscan {
 			for !castogscanstatus(gp, _Gwaiting, _Gscanwaiting) {
 				// Likely to be racing with the GC as
@@ -941,7 +938,9 @@ func newstack() {
 		throw("stack overflow")
 	}
 
-	casgstatus(gp, _Gwaiting, _Gcopystack)
+	// The goroutine must be executing in order to call newstack,
+	// so it must be Grunning (or Gscanrunning).
+	casgstatus(gp, _Grunning, _Gcopystack)
 
 	// The concurrent GC will not scan the stack while we are doing the copy since
 	// the gp is in a Gcopystack status.
