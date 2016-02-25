@@ -1075,6 +1075,38 @@ func rewriteValueAMD64_OpAMD64ADDQ(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ADDQ (ADDQconst [c] x) y)
+	// cond:
+	// result: (LEAQ1 [c] x y)
+	for {
+		if v.Args[0].Op != OpAMD64ADDQconst {
+			break
+		}
+		c := v.Args[0].AuxInt
+		x := v.Args[0].Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64LEAQ1)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (ADDQ x (ADDQconst [c] y))
+	// cond:
+	// result: (LEAQ1 [c] x y)
+	for {
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64ADDQconst {
+			break
+		}
+		c := v.Args[1].AuxInt
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ1)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	// match: (ADDQ x (LEAQ [c] {s} y))
 	// cond: x.Op != OpSB && y.Op != OpSB
 	// result: (LEAQ1 [c] {s} x y)
@@ -1136,6 +1168,22 @@ func rewriteValueAMD64_OpAMD64ADDQ(v *Value, config *Config) bool {
 func rewriteValueAMD64_OpAMD64ADDQconst(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (ADDQconst [c] (ADDQ x y))
+	// cond:
+	// result: (LEAQ1 [c] x y)
+	for {
+		c := v.AuxInt
+		if v.Args[0].Op != OpAMD64ADDQ {
+			break
+		}
+		x := v.Args[0].Args[0]
+		y := v.Args[0].Args[1]
+		v.reset(OpAMD64LEAQ1)
+		v.AuxInt = c
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	// match: (ADDQconst [c] (LEAQ [d] {s} x))
 	// cond:
 	// result: (LEAQ [c+d] {s} x)

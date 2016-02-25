@@ -558,6 +558,11 @@
 (ADDQ x (ADDQ x y)) -> (LEAQ2 y x)
 (ADDQ x (ADDQ y x)) -> (LEAQ2 y x)
 
+// combine ADDQ/ADDQconst into LEAQ1
+(ADDQconst [c] (ADDQ x y)) -> (LEAQ1 [c] x y)
+(ADDQ (ADDQconst [c] x) y) -> (LEAQ1 [c] x y)
+(ADDQ x (ADDQconst [c] y)) -> (LEAQ1 [c] x y)
+
 // fold ADDQ into LEAQ
 (ADDQconst [c] (LEAQ [d] {s} x)) -> (LEAQ [c+d] {s} x)
 (LEAQ [c] {s} (ADDQconst [d] x)) -> (LEAQ [c+d] {s} x)
@@ -817,7 +822,6 @@
       (LEAQ4 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
 (LEAQ [off1] {sym1} (LEAQ8 [off2] {sym2} x y)) && canMergeSym(sym1, sym2) ->
       (LEAQ8 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
-
 
 // lower Zero instructions with word sizes
 (Zero [0] _ mem) -> mem
