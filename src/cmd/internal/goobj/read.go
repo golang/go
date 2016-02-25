@@ -530,7 +530,7 @@ func (r *objReader) parseArchive() error {
 			return errCorruptArchive
 		}
 		switch name {
-		case "__.SYMDEF", "__.GOSYMDEF", "__.PKGDEF":
+		case "__.PKGDEF":
 			r.skip(size)
 		default:
 			oldLimit := r.limit
