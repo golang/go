@@ -544,8 +544,9 @@ func (s *state) stmt(n *Node) {
 	// Expression statements
 	case OCALLFUNC, OCALLMETH, OCALLINTER:
 		s.call(n, callNormal)
-		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC && n.Left.Sym.Pkg == Runtimepkg &&
-			(n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo") {
+		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC &&
+			(compiling_runtime != 0 && n.Left.Sym.Name == "throw" ||
+				n.Left.Sym.Pkg == Runtimepkg && (n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo")) {
 			m := s.mem()
 			b := s.endBlock()
 			b.Kind = ssa.BlockExit
