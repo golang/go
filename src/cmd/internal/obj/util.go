@@ -287,6 +287,10 @@ func CConv(s uint8) string {
 }
 
 func (p *Prog) String() string {
+	if p == nil {
+		return "<nil Prog>"
+	}
+
 	if p.Ctxt == nil {
 		return "<Prog without ctxt>"
 	}
