@@ -180,4 +180,21 @@ func TestFail(t *testing.T) {
 PASS
 Found 1 data race\(s\)
 FAIL`},
+
+	{"slicebytetostring_pc", "run", "atexit_sleep_ms=0", `
+package main
+func main() {
+	done := make(chan string)
+	data := make([]byte, 10)
+	go func() {
+		done <- string(data)
+	}()
+	data[0] = 1
+	<-done
+}
+`, `
+  runtime\.slicebytetostring\(\)
+      .*/runtime/string\.go:.*
+  main\.main\.func1\(\)
+      .*/main.go:7`},
 }
