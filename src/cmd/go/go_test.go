@@ -2759,3 +2759,15 @@ func TestParallelTest(t *testing.T) {
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
 }
+
+// Issue 14444: go get -u .../ duplicate loads errors
+func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "-u", ".../")
+	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
+}
