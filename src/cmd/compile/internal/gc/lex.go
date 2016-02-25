@@ -1873,7 +1873,7 @@ redo:
 		// The string conversion here makes a copy for passing
 		// to fmt.Printf, so that buf itself does not escape and
 		// can be allocated on the stack.
-		Yyerror("illegal UTF-8 sequence % x", string(buf[:i+1]))
+		Yyerror("illegal UTF-8 sequence % x", string(buf[:i]))
 	}
 
 	if r == BOM {
