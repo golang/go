@@ -11,8 +11,6 @@ import (
 )
 
 func defframe(ptxt *obj.Prog) {
-	var n *gc.Node
-
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
@@ -28,8 +26,7 @@ func defframe(ptxt *obj.Prog) {
 	hi := int64(0)
 	lo := hi
 	ax := uint32(0)
-	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range gc.Curfn.Func.Dcl {
 		if !n.Name.Needzero {
 			continue
 		}

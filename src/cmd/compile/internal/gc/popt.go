@@ -589,8 +589,8 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Build list of all mergeable variables.
 	var vars []*TempVar
-	for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-		if n := l.N; canmerge(n) {
+	for _, n := range Curfn.Func.Dcl {
+		if canmerge(n) {
 			v := &TempVar{}
 			vars = append(vars, v)
 			n.SetOpt(v)
@@ -819,22 +819,15 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Delete merged nodes from declaration list.
-	for lp := &Curfn.Func.Dcl; ; {
-		l := *lp
-		if l == nil {
-			break
-		}
-
-		Curfn.Func.Dcl.End = l
-		n := l.N
+	dcl := make([]*Node, 0, len(Curfn.Func.Dcl)-nkill)
+	for _, n := range Curfn.Func.Dcl {
 		v, _ := n.Opt().(*TempVar)
 		if v != nil && (v.merge != nil || v.removed) {
-			*lp = l.Next
 			continue
 		}
-
-		lp = &l.Next
+		dcl = append(dcl, n)
 	}
+	Curfn.Func.Dcl = dcl
 
 	// Clear aux structures.
 	for _, v := range vars {

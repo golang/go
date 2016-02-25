@@ -187,7 +187,7 @@ func declare(n *Node, ctxt Class) {
 			Fatalf("automatic outside function")
 		}
 		if Curfn != nil {
-			Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
 			declare_typegen++

@@ -150,7 +150,7 @@ func caninl(fn *Node) {
 
 	fn.Func.Nname.Func.Inl = fn.Nbody
 	fn.Nbody = inlcopylist(fn.Func.Nname.Func.Inl)
-	fn.Func.Nname.Func.Inldcl = inlcopylist(fn.Func.Nname.Name.Defn.Func.Dcl)
+	fn.Func.Nname.Func.Inldcl = inlcopyslice(fn.Func.Nname.Name.Defn.Func.Dcl)
 	fn.Func.Nname.Func.InlCost = int32(maxBudget - budget)
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
@@ -273,6 +273,18 @@ func inlcopy(n *Node) *Node {
 	m.Nbody = inlcopylist(n.Nbody)
 
 	return m
+}
+
+// Inlcopyslice is like inlcopylist, but for a slice.
+func inlcopyslice(ll []*Node) []*Node {
+	r := make([]*Node, 0, len(ll))
+	for _, ln := range ll {
+		c := inlcopy(ln)
+		if c != nil {
+			r = append(r, c)
+		}
+	}
+	return r
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
@@ -556,7 +568,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	//dumplist("ninit pre", ninit);
 
-	var dcl *NodeList
+	var dcl []*Node
 	if fn.Name.Defn != nil { // local function
 		dcl = fn.Func.Inldcl // imported function
 	} else {
@@ -567,18 +579,18 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	i := 0
 
 	// Make temp names to use instead of the originals
-	for ll := dcl; ll != nil; ll = ll.Next {
-		if ll.N.Class == PPARAMOUT { // return values handled below.
+	for _, ln := range dcl {
+		if ln.Class == PPARAMOUT { // return values handled below.
 			continue
 		}
-		if ll.N.Op == ONAME {
-			ll.N.Name.Inlvar = inlvar(ll.N)
+		if ln.Op == ONAME {
+			ln.Name.Inlvar = inlvar(ln)
 
 			// Typecheck because inlvar is not necessarily a function parameter.
-			typecheck(&ll.N.Name.Inlvar, Erv)
+			typecheck(&ln.Name.Inlvar, Erv)
 
-			if ll.N.Class&^PHEAP != PAUTO {
-				ninit = list(ninit, Nod(ODCL, ll.N.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+			if ln.Class&^PHEAP != PAUTO {
+				ninit = list(ninit, Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
 			}
 		}
 	}
@@ -852,7 +864,7 @@ func inlvar(var_ *Node) *Node {
 		addrescapes(n)
 	}
 
-	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
 }
 
@@ -863,7 +875,7 @@ func retvar(t *Type, i int) *Node {
 	n.Class = PAUTO
 	n.Used = true
 	n.Name.Curfn = Curfn // the calling function, not the called one
-	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
 }
 
@@ -875,7 +887,7 @@ func argvar(t *Type, i int) *Node {
 	n.Class = PAUTO
 	n.Used = true
 	n.Name.Curfn = Curfn // the calling function, not the called one
-	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n
 }
 

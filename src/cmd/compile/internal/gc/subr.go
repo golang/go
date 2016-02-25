@@ -1543,8 +1543,8 @@ func frame(context int) {
 
 	if Curfn != nil {
 		fmt.Printf("--- %v frame ---\n", Curfn.Func.Nname.Sym)
-		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-			printframenode(l.N)
+		for _, ln := range Curfn.Func.Dcl {
+			printframenode(ln)
 		}
 	}
 }

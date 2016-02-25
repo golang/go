@@ -197,8 +197,8 @@ func blockany(bb *BasicBlock, f func(*obj.Prog) bool) bool {
 // variables.
 func getvariables(fn *Node) []*Node {
 	result := make([]*Node, 0, 0)
-	for ll := fn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Op == ONAME {
+	for _, ln := range fn.Func.Dcl {
+		if ln.Op == ONAME {
 			// In order for GODEBUG=gcdead=1 to work, each bitmap needs
 			// to contain information about all variables covered by the bitmap.
 			// For local variables, the bitmap only covers the stkptrsize
@@ -218,24 +218,24 @@ func getvariables(fn *Node) []*Node {
 			// Later, when we want to find the index of a node in the variables list,
 			// we will check that n->curfn == curfn and n->opt > 0. Then n->opt - 1
 			// is the index in the variables list.
-			ll.N.SetOpt(nil)
+			ln.SetOpt(nil)
 
 			// The compiler doesn't emit initializations for zero-width parameters or results.
-			if ll.N.Type.Width == 0 {
+			if ln.Type.Width == 0 {
 				continue
 			}
 
-			ll.N.Name.Curfn = Curfn
-			switch ll.N.Class {
+			ln.Name.Curfn = Curfn
+			switch ln.Class {
 			case PAUTO:
-				if haspointers(ll.N.Type) {
-					ll.N.SetOpt(int32(len(result)))
-					result = append(result, ll.N)
+				if haspointers(ln.Type) {
+					ln.SetOpt(int32(len(result)))
+					result = append(result, ln)
 				}
 
 			case PPARAM, PPARAMOUT:
-				ll.N.SetOpt(int32(len(result)))
-				result = append(result, ll.N)
+				ln.SetOpt(int32(len(result)))
+				result = append(result, ln)
 			}
 		}
 	}
@@ -795,8 +795,8 @@ func livenessprintcfg(lv *Liveness) {
 }
 
 func checkauto(fn *Node, p *obj.Prog, n *Node) {
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && l.N.Class == PAUTO && l.N == n {
+	for _, ln := range fn.Func.Dcl {
+		if ln.Op == ONAME && ln.Class == PAUTO && ln == n {
 			return
 		}
 	}
@@ -807,8 +807,8 @@ func checkauto(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	fmt.Printf("checkauto %v: %v (%p; class=%d) not found in %p %v\n", funcSym(Curfn), n, n, n.Class, p, p)
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		fmt.Printf("\t%v (%p; class=%d)\n", l.N, l.N, l.N.Class)
+	for _, ln := range fn.Func.Dcl {
+		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
 	}
 	Yyerror("checkauto: invariant lost")
 }
@@ -817,10 +817,8 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	if isfunny(n) {
 		return
 	}
-	var a *Node
 	var class Class
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		a = l.N
+	for _, a := range fn.Func.Dcl {
 		class = a.Class &^ PHEAP
 		if a.Op == ONAME && (class == PPARAM || class == PPARAMOUT) && a == n {
 			return
@@ -828,8 +826,8 @@ func checkparam(fn *Node, p *obj.Prog, n *Node) {
 	}
 
 	fmt.Printf("checkparam %v: %v (%p; class=%d) not found in %v\n", Curfn, n, n, n.Class, p)
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		fmt.Printf("\t%v (%p; class=%d)\n", l.N, l.N, l.N.Class)
+	for _, ln := range fn.Func.Dcl {
+		fmt.Printf("\t%v (%p; class=%d)\n", ln, ln, ln.Class)
 	}
 	Yyerror("checkparam: invariant lost")
 }
@@ -1807,9 +1805,9 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	onebitwritesymbol(lv.argslivepointers, argssym)
 
 	// Free everything.
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		if l.N != nil {
-			l.N.SetOpt(nil)
+	for _, ln := range fn.Func.Dcl {
+		if ln != nil {
+			ln.SetOpt(nil)
 		}
 	}
 	freeliveness(lv)

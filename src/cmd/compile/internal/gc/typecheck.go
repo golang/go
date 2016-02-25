@@ -3433,9 +3433,9 @@ func typecheckfunc(n *Node) {
 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
 	}
 
-	for l := n.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
-			l.N.Name.Decldepth = 1
+	for _, ln := range n.Func.Dcl {
+		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
+			ln.Name.Decldepth = 1
 		}
 	}
 }

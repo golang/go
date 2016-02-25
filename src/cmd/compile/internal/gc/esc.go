@@ -476,35 +476,35 @@ func escfunc(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Op != ONAME {
+	for _, ln := range Curfn.Func.Dcl {
+		if ln.Op != ONAME {
 			continue
 		}
-		llNE := e.nodeEscState(ll.N)
-		switch ll.N.Class {
+		llNE := e.nodeEscState(ln)
+		switch ln.Class {
 		// out params are in a loopdepth between the sink and all local variables
 		case PPARAMOUT:
 			llNE.Escloopdepth = 0
 
 		case PPARAM:
 			llNE.Escloopdepth = 1
-			if ll.N.Type != nil && !haspointers(ll.N.Type) {
+			if ln.Type != nil && !haspointers(ln.Type) {
 				break
 			}
 			if Curfn.Nbody == nil && !Curfn.Noescape {
-				ll.N.Esc = EscHeap
+				ln.Esc = EscHeap
 			} else {
-				ll.N.Esc = EscNone // prime for escflood later
+				ln.Esc = EscNone // prime for escflood later
 			}
-			e.noesc = list(e.noesc, ll.N)
+			e.noesc = list(e.noesc, ln)
 		}
 	}
 
 	// in a mutually recursive group we lose track of the return values
 	if e.recursive {
-		for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-			if ll.N.Op == ONAME && ll.N.Class == PPARAMOUT {
-				escflows(e, &e.theSink, ll.N)
+		for _, ln := range Curfn.Func.Dcl {
+			if ln.Op == ONAME && ln.Class == PPARAMOUT {
+				escflows(e, &e.theSink, ln)
 			}
 		}
 	}
@@ -779,11 +779,14 @@ func esc(e *EscState, n *Node, up *Node) {
 			ll = e.nodeEscState(n.List.N).Escretval
 		}
 
-		for lr := Curfn.Func.Dcl; lr != nil && ll != nil; lr = lr.Next {
-			if lr.N.Op != ONAME || lr.N.Class != PPARAMOUT {
+		for _, lrn := range Curfn.Func.Dcl {
+			if ll == nil {
+				break
+			}
+			if lrn.Op != ONAME || lrn.Class != PPARAMOUT {
 				continue
 			}
-			escassign(e, lr.N, ll.N)
+			escassign(e, lrn, ll.N)
 			ll = ll.Next
 		}
 
@@ -1870,16 +1873,16 @@ func esctag(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Op != ONAME {
+	for _, ln := range Curfn.Func.Dcl {
+		if ln.Op != ONAME {
 			continue
 		}
 
-		switch ll.N.Esc & EscMask {
+		switch ln.Esc & EscMask {
 		case EscNone, // not touched by escflood
 			EscReturn:
-			if haspointers(ll.N.Type) { // don't bother tagging for scalars
-				ll.N.Name.Param.Field.Note = mktag(int(ll.N.Esc))
+			if haspointers(ln.Type) { // don't bother tagging for scalars
+				ln.Name.Param.Field.Note = mktag(int(ln.Esc))
 			}
 
 		case EscHeap, // touched by escflood, moved to heap
