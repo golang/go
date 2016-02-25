@@ -873,7 +873,9 @@ type lexer struct {
 }
 
 const (
-	LLITERAL = 57346 + iota
+	// The value of single-char tokens is just their character's Unicode value.
+	// They are all below utf8.RuneSelf. Shift other tokens up to avoid conflicts.
+	LLITERAL = utf8.RuneSelf + iota
 	LASOP
 	LCOLAS
 	LBREAK
@@ -955,6 +957,7 @@ l0:
 		}
 		return
 	}
+	// c < utf8.RuneSelf
 
 	var c1 rune
 	var op Op
