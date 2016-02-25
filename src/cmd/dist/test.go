@@ -450,7 +450,7 @@ func (t *tester) registerTests() {
 				name:    "cgo_fortran",
 				heading: "../misc/cgo/fortran",
 				fn: func(dt *distTest) error {
-					t.addCmd(dt, "misc/cgo/fortran", "go", "test")
+					t.addCmd(dt, "misc/cgo/fortran", "./test.bash", fortran)
 					return nil
 				},
 			})
