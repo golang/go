@@ -104,7 +104,8 @@ func runGet(cmd *Command, args []string) {
 	if *getT {
 		mode |= getTestDeps
 	}
-	for _, arg := range downloadPaths(args) {
+	args = downloadPaths(args)
+	for _, arg := range args {
 		download(arg, nil, &stk, mode)
 	}
 	exitIfErrors()
