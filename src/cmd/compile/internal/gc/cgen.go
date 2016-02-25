@@ -2263,9 +2263,9 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 	// If copying .args, that's all the results, so record definition sites
 	// for them for the liveness analysis.
 	if ns.Op == ONAME && ns.Sym.Name == ".args" {
-		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-			if l.N.Class == PPARAMOUT {
-				Gvardef(l.N)
+		for _, ln := range Curfn.Func.Dcl {
+			if ln.Class == PPARAMOUT {
+				Gvardef(ln)
 			}
 		}
 	}

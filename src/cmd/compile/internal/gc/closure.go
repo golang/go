@@ -96,9 +96,9 @@ func typecheckclosure(func_ *Node, top int) {
 		}
 	}
 
-	for l := func_.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && (l.N.Class == PPARAM || l.N.Class == PPARAMOUT) {
-			l.N.Name.Decldepth = 1
+	for _, ln := range func_.Func.Dcl {
+		if ln.Op == ONAME && (ln.Class == PPARAM || ln.Class == PPARAMOUT) {
+			ln.Name.Decldepth = 1
 		}
 	}
 
@@ -198,7 +198,8 @@ func makeclosure(func_ *Node) *Node {
 	makefuncsym(xfunc.Func.Nname.Sym)
 
 	xfunc.Nbody = func_.Nbody
-	xfunc.Func.Dcl = concat(func_.Func.Dcl, xfunc.Func.Dcl)
+	xfunc.Func.Dcl = append(func_.Func.Dcl, xfunc.Func.Dcl...)
+	func_.Func.Dcl = nil
 	if xfunc.Nbody == nil {
 		Fatalf("empty body - won't generate any code")
 	}
@@ -341,13 +342,13 @@ func transformclosure(xfunc *Node) {
 			fld.Sym = fld.Nname.Sym
 
 			// Declare the new param and add it the first part of the input arguments.
-			xfunc.Func.Dcl = list(xfunc.Func.Dcl, fld.Nname)
+			xfunc.Func.Dcl = append(xfunc.Func.Dcl, fld.Nname)
 
 			*param = fld
 			param = &fld.Down
 		}
 		*param = original_args
-		xfunc.Func.Dcl = concat(xfunc.Func.Dcl, original_dcl)
+		xfunc.Func.Dcl = append(xfunc.Func.Dcl, original_dcl...)
 
 		// Recalculate param offsets.
 		if f.Type.Width > 0 {
@@ -386,7 +387,7 @@ func transformclosure(xfunc *Node) {
 				// If it is a small variable captured by value, downgrade it to PAUTO.
 				v.Class = PAUTO
 				v.Ullman = 1
-				xfunc.Func.Dcl = list(xfunc.Func.Dcl, v)
+				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
 				body = list(body, Nod(OAS, v, cv))
 			} else {
 				// Declare variable holding addresses taken from closure
@@ -396,7 +397,7 @@ func transformclosure(xfunc *Node) {
 				addr.Class = PAUTO
 				addr.Used = true
 				addr.Name.Curfn = xfunc
-				xfunc.Func.Dcl = list(xfunc.Func.Dcl, addr)
+				xfunc.Func.Dcl = append(xfunc.Func.Dcl, addr)
 				v.Name.Heapaddr = addr
 				if v.Name.Byval {
 					cv = Nod(OADDR, cv, nil)
@@ -551,7 +552,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		n = newname(Lookupf("a%d", i))
 		i++
 		n.Class = PPARAM
-		xfunc.Func.Dcl = list(xfunc.Func.Dcl, n)
+		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
 		callargs = list(callargs, n)
 		fld = Nod(ODCLFIELD, n, typenod(t.Type))
 		if t.Isddd {
@@ -570,7 +571,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		n = newname(Lookupf("r%d", i))
 		i++
 		n.Class = PPARAMOUT
-		xfunc.Func.Dcl = list(xfunc.Func.Dcl, n)
+		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
 		retargs = list(retargs, n)
 		l = list(l, Nod(ODCLFIELD, n, typenod(t.Type)))
 	}
@@ -600,7 +601,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Ullman = 1
 	ptr.Used = true
 	ptr.Name.Curfn = xfunc
-	xfunc.Func.Dcl = list(xfunc.Func.Dcl, ptr)
+	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
 	var body *NodeList
 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
 		ptr.Name.Param.Ntype = typenod(rcvrtype)

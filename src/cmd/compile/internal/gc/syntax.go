@@ -152,8 +152,8 @@ type Func struct {
 	Enter      *NodeList
 	Exit       *NodeList
 	Cvars      *NodeList // closure params
-	Dcl        *NodeList // autodcl for this func/closure
-	Inldcl     *NodeList // copy of dcl for use in inlining
+	Dcl        []*Node   // autodcl for this func/closure
+	Inldcl     []*Node   // copy of dcl for use in inlining
 	Closgen    int
 	Outerfunc  *Node
 	Fieldtrack []*Type

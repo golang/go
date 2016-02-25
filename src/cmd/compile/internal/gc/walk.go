@@ -29,33 +29,34 @@ func walk(fn *Node) {
 
 	// Final typecheck for any unused variables.
 	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO {
-			typecheck(&l.N, Erv|Easgn)
+	for i, ln := range fn.Func.Dcl {
+		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO {
+			typecheck(&ln, Erv|Easgn)
+			fn.Func.Dcl[i] = ln
 		}
 	}
 
 	// Propagate the used flag for typeswitch variables up to the NONAME in it's definition.
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op == ONAME && l.N.Class&^PHEAP == PAUTO && l.N.Name.Defn != nil && l.N.Name.Defn.Op == OTYPESW && l.N.Used {
-			l.N.Name.Defn.Left.Used = true
+	for _, ln := range fn.Func.Dcl {
+		if ln.Op == ONAME && ln.Class&^PHEAP == PAUTO && ln.Name.Defn != nil && ln.Name.Defn.Op == OTYPESW && ln.Used {
+			ln.Name.Defn.Left.Used = true
 		}
 	}
 
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		if l.N.Op != ONAME || l.N.Class&^PHEAP != PAUTO || l.N.Sym.Name[0] == '&' || l.N.Used {
+	for _, ln := range fn.Func.Dcl {
+		if ln.Op != ONAME || ln.Class&^PHEAP != PAUTO || ln.Sym.Name[0] == '&' || ln.Used {
 			continue
 		}
-		if defn := l.N.Name.Defn; defn != nil && defn.Op == OTYPESW {
+		if defn := ln.Name.Defn; defn != nil && defn.Op == OTYPESW {
 			if defn.Left.Used {
 				continue
 			}
 			lineno = defn.Left.Lineno
-			Yyerror("%v declared and not used", l.N.Sym)
+			Yyerror("%v declared and not used", ln.Sym)
 			defn.Left.Used = true // suppress repeats
 		} else {
-			lineno = l.N.Lineno
-			Yyerror("%v declared and not used", l.N.Sym)
+			lineno = ln.Lineno
+			Yyerror("%v declared and not used", ln.Sym)
 		}
 	}
 
@@ -92,11 +93,11 @@ func samelist(a *NodeList, b *NodeList) bool {
 }
 
 func paramoutheap(fn *Node) bool {
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		switch l.N.Class {
+	for _, ln := range fn.Func.Dcl {
+		switch ln.Class {
 		case PPARAMOUT,
 			PPARAMOUT | PHEAP:
-			return l.N.Addrtaken
+			return ln.Addrtaken
 
 			// stop early - parameters are over
 		case PAUTO,
@@ -290,13 +291,13 @@ func walkstmt(np **Node) {
 			var rl *NodeList
 
 			var cl Class
-			for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-				cl = ll.N.Class &^ PHEAP
+			for _, ln := range Curfn.Func.Dcl {
+				cl = ln.Class &^ PHEAP
 				if cl == PAUTO {
 					break
 				}
 				if cl == PPARAMOUT {
-					rl = list(rl, ll.N)
+					rl = list(rl, ln)
 				}
 			}
 

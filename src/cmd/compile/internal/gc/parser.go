@@ -2564,15 +2564,15 @@ func (p *parser) stmt() *Node {
 		stmt := Nod(ORETURN, nil, nil)
 		stmt.List = results
 		if stmt.List == nil && Curfn != nil {
-			for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-				if l.N.Class == PPARAM {
+			for _, ln := range Curfn.Func.Dcl {
+				if ln.Class == PPARAM {
 					continue
 				}
-				if l.N.Class != PPARAMOUT {
+				if ln.Class != PPARAMOUT {
 					break
 				}
-				if l.N.Sym.Def != l.N {
-					Yyerror("%s is shadowed during return", l.N.Sym.Name)
+				if ln.Sym.Def != ln {
+					Yyerror("%s is shadowed during return", ln.Sym.Name)
 				}
 			}
 		}

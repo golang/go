@@ -556,9 +556,7 @@ func nodarg(t *Type, fp int) *Node {
 	}
 
 	if fp == 1 {
-		var n *Node
-		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-			n = l.N
+		for _, n := range Curfn.Func.Dcl {
 			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
 				return n
 			}
