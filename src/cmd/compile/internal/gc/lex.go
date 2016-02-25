@@ -549,22 +549,9 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 		return false
 	}
 
-	// symbol table may be first; skip it
-	sz := arsize(b, "__.GOSYMDEF")
-
-	if sz >= 0 {
-		obj.Bseek(b, int64(sz), 1)
-	} else {
-		obj.Bseek(b, 8, 0)
-	}
-
-	// package export block is next
-	sz = arsize(b, "__.PKGDEF")
-
-	if sz <= 0 {
-		return false
-	}
-	return true
+	// package export block should be first
+	sz := arsize(b, "__.PKGDEF")
+	return sz > 0
 }
 
 var idirs []string
