@@ -302,13 +302,13 @@ TestCases:
 				// Instead of rewriting the test cases above, adjust
 				// the first stack frame to use up the extra bytes.
 				if i == 0 {
-					size += (1024 - 128) - 128
+					size += (720 - 128) - 128
 					// Noopt builds have a larger stackguard.
 					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
 					// This increase is included in obj.StackGuard
 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
 						if s == "-N" {
-							size += 1024
+							size += 720
 						}
 					}
 				}
