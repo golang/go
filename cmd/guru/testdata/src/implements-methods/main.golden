@@ -34,6 +34,4 @@ concrete method func (sorter).Len() int
 -------- @implements I.Method --------
 abstract method func (I).Method(*int) *int
 	is implemented by method (lib.Type).Method
-	is implemented by method (main.I).Method
-	implements method (main.I).Method
 

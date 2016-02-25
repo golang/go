@@ -26,7 +26,7 @@ This channel of type chan *int may be:
 
 -------- @pointsto pointsto-rA --------
 this *int may point to these objects:
-	main.a2
+	peers.a2
 	a1
 
 -------- @peers peer-recv-chB --------

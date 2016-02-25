@@ -42,7 +42,7 @@ defined here
 
 -------- @pointsto p --------
 this *int may point to these objects:
-	main.a
+	imports.a
 
 -------- @describe ref-pkg --------
 reference to package "lib"

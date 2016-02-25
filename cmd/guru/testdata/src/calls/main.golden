@@ -4,10 +4,10 @@ this *int may point to these objects:
 	b
 
 -------- @callstack callstack-A --------
-Found a call path from root to main.A
-main.A
-dynamic function call from main.apply
-concurrent static function call from main.main
+Found a call path from root to calls.A
+calls.A
+dynamic function call from calls.apply
+concurrent static function call from calls.main
 
 -------- @pointsto pointsto-B-x --------
 this *int may point to these objects:
@@ -15,40 +15,40 @@ this *int may point to these objects:
 	b
 
 -------- @callers callers-B --------
-main.B is called from these 1 sites:
-	dynamic function call from main.apply
+calls.B is called from these 1 sites:
+	dynamic function call from calls.apply
 
 -------- @callees callees-apply --------
 this dynamic function call dispatches to:
-	main.A
-	main.B
+	calls.A
+	calls.B
 
 -------- @callers callers-apply --------
-main.apply is called from these 2 sites:
-	concurrent static function call from main.main
-	deferred static function call from main.main
+calls.apply is called from these 2 sites:
+	concurrent static function call from calls.main
+	deferred static function call from calls.main
 
 -------- @callers callers-store --------
-main.store is called from these 2 sites:
-	static function call from main.main
-	static function call from main.main
+calls.store is called from these 2 sites:
+	static function call from calls.main
+	static function call from calls.main
 
 -------- @pointsto pointsto-result-f --------
 this func() *int may point to these objects:
-	main.main$1
+	calls.main$1
 
 -------- @callees callees-main.call-f --------
 this dynamic function call dispatches to:
-	main.main$1
+	calls.main$1
 
 -------- @callers callers-main.call --------
-main.call is called from these 2 sites:
-	static function call from main.main
-	static function call from main.main
+calls.call is called from these 2 sites:
+	static function call from calls.main
+	static function call from calls.main
 
 -------- @callees callees-main-apply1 --------
 this static function call dispatches to:
-	main.apply
+	calls.apply
 
 -------- @pointsto pointsto-pc --------
 this *int may point to these objects:
@@ -72,7 +72,7 @@ Error: this is a type conversion, not a function call
 Error: ambiguous selection within function call (or conversion)
 -------- @callees callees-err-deadcode1 --------
 this static function call dispatches to:
-	main.main
+	calls.main
 
 -------- @callees callees-err-nil-func --------
 dynamic function call on nil value
@@ -82,11 +82,11 @@ dynamic method call on nil value
 
 -------- @callees callees-not-a-wrapper --------
 this dynamic method call dispatches to:
-	(main.myint).f
+	(calls.myint).f
 
 -------- @callees callees-static-call --------
 this static function call dispatches to:
-	main.foo
+	calls.foo
 
 -------- @callees callees-qualified-call --------
 this static function call dispatches to:
@@ -94,32 +94,32 @@ this static function call dispatches to:
 
 -------- @callees callees-static-method-call --------
 this static function call dispatches to:
-	(main.method).f
+	(calls.method).f
 
 -------- @callees callees-implicit-selection-method-call --------
 this dynamic method call dispatches to:
-	(main.method).f
+	(calls.method).f
 
 -------- @callers callers-not-a-wrapper --------
-(main.myint).f is called from these 1 sites:
-	dynamic method call from main.main
+(calls.myint).f is called from these 1 sites:
+	dynamic method call from calls.main
 
 -------- @callees callees-err-deadcode2 --------
 this static function call dispatches to:
-	main.main
+	calls.main
 
 -------- @callstack callstack-err-deadcode --------
-main.deadcode is unreachable in this analysis scope
+calls.deadcode is unreachable in this analysis scope
 
 -------- @callees callees-err-deadcode3 --------
 
 Error: this call site is unreachable in this analysis
 -------- @callers callers-global --------
-main.init is called from these 1 sites:
+calls.init is called from these 1 sites:
 the root of the call graph
 
 -------- @callstack callstack-init --------
-Found a call path from root to main.init#1
-main.init#1
-static function call from main.init
+Found a call path from root to calls.init#1
+calls.init#1
+static function call from calls.init
 

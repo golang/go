@@ -3,33 +3,33 @@
 Error: pointer analysis wants an expression of reference type; got untyped float
 -------- @pointsto func-ref-main --------
 this func() may point to these objects:
-	main.main
+	pointsto.main
 
 -------- @pointsto func-ref-*C.f --------
 this func() may point to these objects:
-	(*main.C).f
+	(*pointsto.C).f
 
 -------- @pointsto func-ref-D.f --------
 this func() may point to these objects:
-	(main.D).f
+	(pointsto.D).f
 
 -------- @pointsto func-ref-I.f --------
 
-Error: func (main.I).f() is an interface method
+Error: func (pointsto.I).f() is an interface method
 -------- @pointsto func-ref-d.f --------
 this func() may point to these objects:
-	(main.D).f
+	(pointsto.D).f
 
 -------- @pointsto func-ref-i.f --------
 
-Error: func (main.I).f() is an interface method
+Error: func (pointsto.I).f() is an interface method
 -------- @pointsto ref-lexical-d.f --------
 this func() may point to these objects:
-	(main.D).f
+	(pointsto.D).f
 
 -------- @pointsto ref-anon --------
 this func() may point to these objects:
-	main.main$1
+	pointsto.main$1
 
 -------- @pointsto ref-global --------
 this *string may point to these objects:

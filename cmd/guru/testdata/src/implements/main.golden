@@ -41,6 +41,4 @@ slice type sorter
 -------- @implements I --------
 interface type I
 	is implemented by basic type lib.Type
-	is implemented by interface type main.I
-	implements main.I
 

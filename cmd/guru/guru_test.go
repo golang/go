@@ -38,6 +38,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -169,11 +170,12 @@ func doQuery(out io.Writer, q *query, useJson bool) {
 
 	var buildContext = build.Default
 	buildContext.GOPATH = "testdata"
+	pkg := filepath.Dir(strings.TrimPrefix(q.filename, "testdata/src/"))
 	query := guru.Query{
 		Mode:       q.verb,
 		Pos:        q.queryPos,
 		Build:      &buildContext,
-		Scope:      []string{q.filename},
+		Scope:      []string{pkg},
 		Reflection: true,
 	}
 	if err := guru.Run(&query); err != nil {
