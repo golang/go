@@ -122,10 +122,9 @@ type Pkg struct {
 }
 
 type Sym struct {
-	Lexical   uint16
 	Flags     uint8
-	Link      *Sym
 	Uniqgen   uint32
+	Link      *Sym
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name
 

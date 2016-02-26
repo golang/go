@@ -1265,16 +1265,64 @@ func (l *lexer) ident(c rune) {
 	cp = nil
 	l.ungetr(c)
 
-	s := LookupBytes(lexbuf.Bytes())
+	name := lexbuf.Bytes()
+
+	if len(name) >= 2 {
+		if tok, ok := keywords[string(name)]; ok {
+			if Debug['x'] != 0 {
+				fmt.Printf("lex: %s\n", lexname(tok))
+			}
+			switch tok {
+			case LBREAK, LCONTINUE, LFALL, LRETURN:
+				l.nlsemi = true
+			}
+			l.tok = tok
+			return
+		}
+	}
+
+	s := LookupBytes(name)
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: %s %s\n", s, lexname(rune(s.Lexical)))
+		fmt.Printf("lex: ident %s\n", s)
 	}
 	l.sym_ = s
-	switch s.Lexical {
-	case LNAME, LRETURN, LBREAK, LCONTINUE, LFALL:
-		l.nlsemi = true
-	}
-	l.tok = int32(s.Lexical)
+	l.nlsemi = true
+	l.tok = LNAME
+}
+
+var keywords = map[string]int32{
+	"break":       LBREAK,
+	"case":        LCASE,
+	"chan":        LCHAN,
+	"const":       LCONST,
+	"continue":    LCONTINUE,
+	"default":     LDEFAULT,
+	"defer":       LDEFER,
+	"else":        LELSE,
+	"fallthrough": LFALL,
+	"for":         LFOR,
+	"func":        LFUNC,
+	"go":          LGO,
+	"goto":        LGOTO,
+	"if":          LIF,
+	"import":      LIMPORT,
+	"interface":   LINTERFACE,
+	"map":         LMAP,
+	"package":     LPACKAGE,
+	"range":       LRANGE,
+	"return":      LRETURN,
+	"select":      LSELECT,
+	"struct":      LSTRUCT,
+	"switch":      LSWITCH,
+	"type":        LTYPE,
+	"var":         LVAR,
+
+	// 💩
+	"notwithstanding":      LIGNORE,
+	"thetruthofthematter":  LIGNORE,
+	"despiteallobjections": LIGNORE,
+	"whereas":              LIGNORE,
+	"insofaras":            LIGNORE,
 }
 
 func (l *lexer) number(c rune) {
@@ -1992,81 +2040,48 @@ func (l *lexer) hexchar(n int) uint32 {
 }
 
 var syms = []struct {
-	name    string
-	lexical int
-	etype   EType
-	op      Op
+	name  string
+	etype EType
+	op    Op
 }{
 	// basic types
-	{"int8", LNAME, TINT8, OXXX},
-	{"int16", LNAME, TINT16, OXXX},
-	{"int32", LNAME, TINT32, OXXX},
-	{"int64", LNAME, TINT64, OXXX},
-	{"uint8", LNAME, TUINT8, OXXX},
-	{"uint16", LNAME, TUINT16, OXXX},
-	{"uint32", LNAME, TUINT32, OXXX},
-	{"uint64", LNAME, TUINT64, OXXX},
-	{"float32", LNAME, TFLOAT32, OXXX},
-	{"float64", LNAME, TFLOAT64, OXXX},
-	{"complex64", LNAME, TCOMPLEX64, OXXX},
-	{"complex128", LNAME, TCOMPLEX128, OXXX},
-	{"bool", LNAME, TBOOL, OXXX},
-	{"string", LNAME, TSTRING, OXXX},
-	{"any", LNAME, TANY, OXXX},
-	{"break", LBREAK, Txxx, OXXX},
-	{"case", LCASE, Txxx, OXXX},
-	{"chan", LCHAN, Txxx, OXXX},
-	{"const", LCONST, Txxx, OXXX},
-	{"continue", LCONTINUE, Txxx, OXXX},
-	{"default", LDEFAULT, Txxx, OXXX},
-	{"else", LELSE, Txxx, OXXX},
-	{"defer", LDEFER, Txxx, OXXX},
-	{"fallthrough", LFALL, Txxx, OXXX},
-	{"for", LFOR, Txxx, OXXX},
-	{"func", LFUNC, Txxx, OXXX},
-	{"go", LGO, Txxx, OXXX},
-	{"goto", LGOTO, Txxx, OXXX},
-	{"if", LIF, Txxx, OXXX},
-	{"import", LIMPORT, Txxx, OXXX},
-	{"interface", LINTERFACE, Txxx, OXXX},
-	{"map", LMAP, Txxx, OXXX},
-	{"package", LPACKAGE, Txxx, OXXX},
-	{"range", LRANGE, Txxx, OXXX},
-	{"return", LRETURN, Txxx, OXXX},
-	{"select", LSELECT, Txxx, OXXX},
-	{"struct", LSTRUCT, Txxx, OXXX},
-	{"switch", LSWITCH, Txxx, OXXX},
-	{"type", LTYPE, Txxx, OXXX},
-	{"var", LVAR, Txxx, OXXX},
-	{"append", LNAME, Txxx, OAPPEND},
-	{"cap", LNAME, Txxx, OCAP},
-	{"close", LNAME, Txxx, OCLOSE},
-	{"complex", LNAME, Txxx, OCOMPLEX},
-	{"copy", LNAME, Txxx, OCOPY},
-	{"delete", LNAME, Txxx, ODELETE},
-	{"imag", LNAME, Txxx, OIMAG},
-	{"len", LNAME, Txxx, OLEN},
-	{"make", LNAME, Txxx, OMAKE},
-	{"new", LNAME, Txxx, ONEW},
-	{"panic", LNAME, Txxx, OPANIC},
-	{"print", LNAME, Txxx, OPRINT},
-	{"println", LNAME, Txxx, OPRINTN},
-	{"real", LNAME, Txxx, OREAL},
-	{"recover", LNAME, Txxx, ORECOVER},
-	{"notwithstanding", LIGNORE, Txxx, OXXX},
-	{"thetruthofthematter", LIGNORE, Txxx, OXXX},
-	{"despiteallobjections", LIGNORE, Txxx, OXXX},
-	{"whereas", LIGNORE, Txxx, OXXX},
-	{"insofaras", LIGNORE, Txxx, OXXX},
+	{"int8", TINT8, OXXX},
+	{"int16", TINT16, OXXX},
+	{"int32", TINT32, OXXX},
+	{"int64", TINT64, OXXX},
+	{"uint8", TUINT8, OXXX},
+	{"uint16", TUINT16, OXXX},
+	{"uint32", TUINT32, OXXX},
+	{"uint64", TUINT64, OXXX},
+	{"float32", TFLOAT32, OXXX},
+	{"float64", TFLOAT64, OXXX},
+	{"complex64", TCOMPLEX64, OXXX},
+	{"complex128", TCOMPLEX128, OXXX},
+	{"bool", TBOOL, OXXX},
+	{"string", TSTRING, OXXX},
+	{"any", TANY, OXXX},
+
+	// builtin funcs
+	{"append", Txxx, OAPPEND},
+	{"cap", Txxx, OCAP},
+	{"close", Txxx, OCLOSE},
+	{"complex", Txxx, OCOMPLEX},
+	{"copy", Txxx, OCOPY},
+	{"delete", Txxx, ODELETE},
+	{"imag", Txxx, OIMAG},
+	{"len", Txxx, OLEN},
+	{"make", Txxx, OMAKE},
+	{"new", Txxx, ONEW},
+	{"panic", Txxx, OPANIC},
+	{"print", Txxx, OPRINT},
+	{"println", Txxx, OPRINTN},
+	{"real", Txxx, OREAL},
+	{"recover", Txxx, ORECOVER},
 }
 
 // lexinit initializes known symbols and the basic types.
 func lexinit() {
 	for _, s := range syms {
-		lex := s.lexical
-		s1 := Lookup(s.name)
-		s1.Lexical = uint16(lex)
-
 		if etype := s.etype; etype != Txxx {
 			if int(etype) >= len(Types) {
 				Fatalf("lexinit: %s bad etype", s.name)
@@ -2083,7 +2098,6 @@ func lexinit() {
 				Types[etype] = t
 			}
 
-			s2.Lexical = LNAME
 			s2.Def = typenod(t)
 			s2.Def.Name = new(Name)
 			continue
@@ -2092,7 +2106,6 @@ func lexinit() {
 		// TODO(marvin): Fix Node.EType type union.
 		if etype := s.op; etype != OXXX {
 			s2 := Pkglookup(s.name, builtinpkg)
-			s2.Lexical = LNAME
 			s2.Def = Nod(ONAME, nil, nil)
 			s2.Def.Sym = s2
 			s2.Def.Etype = EType(etype)
@@ -2171,46 +2184,29 @@ func lexinit1() {
 	t.Type.Type = f
 
 	// error type
-	s := Lookup("error")
-
-	s.Lexical = LNAME
-	s1 := Pkglookup("error", builtinpkg)
+	s := Pkglookup("error", builtinpkg)
 	errortype = t
-	errortype.Sym = s1
-	s1.Lexical = LNAME
-	s1.Def = typenod(errortype)
+	errortype.Sym = s
+	s.Def = typenod(errortype)
 
 	// byte alias
-	s = Lookup("byte")
-
-	s.Lexical = LNAME
-	s1 = Pkglookup("byte", builtinpkg)
+	s = Pkglookup("byte", builtinpkg)
 	bytetype = typ(TUINT8)
-	bytetype.Sym = s1
-	s1.Lexical = LNAME
-	s1.Def = typenod(bytetype)
-	s1.Def.Name = new(Name)
+	bytetype.Sym = s
+	s.Def = typenod(bytetype)
+	s.Def.Name = new(Name)
 
 	// rune alias
-	s = Lookup("rune")
-
-	s.Lexical = LNAME
-	s1 = Pkglookup("rune", builtinpkg)
+	s = Pkglookup("rune", builtinpkg)
 	runetype = typ(TINT32)
-	runetype.Sym = s1
-	s1.Lexical = LNAME
-	s1.Def = typenod(runetype)
-	s1.Def.Name = new(Name)
+	runetype.Sym = s
+	s.Def = typenod(runetype)
+	s.Def.Name = new(Name)
 }
 
 func lexfini() {
 	for i := range syms {
-		lex := syms[i].lexical
-		if lex != LNAME {
-			continue
-		}
 		s := Lookup(syms[i].name)
-		s.Lexical = uint16(lex)
 
 		etype := syms[i].etype
 		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
