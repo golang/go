@@ -93,13 +93,13 @@ func racer(x *int, done chan bool) {
 }
 `, `==================
 WARNING: DATA RACE
-Write by goroutine [0-9]:
+Write at 0x[0-9,a-f]+ by goroutine [0-9]:
   main\.store\(\)
       .+/main\.go:12 \+0x[0-9,a-f]+
   main\.racer\(\)
       .+/main\.go:19 \+0x[0-9,a-f]+
 
-Previous write by main goroutine:
+Previous write at 0x[0-9,a-f]+ by main goroutine:
   main\.store\(\)
       .+/main\.go:12 \+0x[0-9,a-f]+
   main\.main\(\)

@@ -251,7 +251,7 @@ func (s *mspan) sweep(preserve bool) bool {
 		}
 	}
 
-	if debug.allocfreetrace != 0 {
+	if debug.allocfreetrace != 0 || raceenabled || msanenabled {
 		// Find all newly freed objects. This doesn't have to
 		// efficient; allocfreetrace has massive overhead.
 		mbits := s.markBitsForBase()
@@ -259,7 +259,15 @@ func (s *mspan) sweep(preserve bool) bool {
 		for i := uintptr(0); i < s.nelems; i++ {
 			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
 				x := s.base() + i*s.elemsize
-				tracefree(unsafe.Pointer(x), size)
+				if debug.allocfreetrace != 0 {
+					tracefree(unsafe.Pointer(x), size)
+				}
+				if raceenabled {
+					racefree(unsafe.Pointer(x), size)
+				}
+				if msanenabled {
+					msanfree(unsafe.Pointer(x), size)
+				}
 			}
 			mbits.advance()
 			abits.advance()

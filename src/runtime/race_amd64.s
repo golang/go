@@ -384,7 +384,24 @@ call:
 // C->Go callback thunk that allows to call runtime·racesymbolize from C code.
 // Direct Go->C race call has only switched SP, finish g->g0 switch by setting correct g.
 // The overall effect of Go->C->Go call chain is similar to that of mcall.
-TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
+// RARG0 contains command code. RARG1 contains command-specific context.
+// See racecallback for command codes.
+TEXT	runtime·racecallbackthunk(SB), NOSPLIT, $56-8
+	// Handle command raceGetProcCmd (0) here.
+	// First, code below assumes that we are on curg, while raceGetProcCmd
+	// can be executed on g0. Second, it is called frequently, so will
+	// benefit from this fast path.
+	CMPQ	RARG0, $0
+	JNE	rest
+	get_tls(RARG0)
+	MOVQ	g(RARG0), RARG0
+	MOVQ	g_m(RARG0), RARG0
+	MOVQ	m_p(RARG0), RARG0
+	MOVQ	p_racectx(RARG0), RARG0
+	MOVQ	RARG0, (RARG1)
+	RET
+
+rest:
 	// Save callee-saved registers (Go code won't respect that).
 	// This is superset of darwin/linux/windows registers.
 	PUSHQ	BX
@@ -401,8 +418,10 @@ TEXT	runtime·racesymbolizethunk(SB), NOSPLIT, $56-8
 	MOVQ	g_m(R13), R13
 	MOVQ	m_g0(R13), R14
 	MOVQ	R14, g(R12)	// g = m->g0
+	PUSHQ	RARG1	// func arg
 	PUSHQ	RARG0	// func arg
-	CALL	runtime·racesymbolize(SB)
+	CALL	runtime·racecallback(SB)
+	POPQ	R12
 	POPQ	R12
 	// All registers are smashed after Go code, reload.
 	get_tls(R12)
