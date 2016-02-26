@@ -80,7 +80,10 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
 		cli.writeRecord(recordTypeHandshake, m.marshal())
 		c.Close()
 	}()
-	err := Server(s, serverConfig).Handshake()
+	hs := serverHandshakeState{
+		c: Server(s, serverConfig),
+	}
+	_, err := hs.readClientHello()
 	s.Close()
 	if len(expectedSubStr) == 0 {
 		if err != nil && err != io.EOF {

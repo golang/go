@@ -138,7 +138,9 @@ NextCipherSuite:
 		}
 	}
 
-	c.writeRecord(recordTypeHandshake, hello.marshal())
+	if _, err := c.writeRecord(recordTypeHandshake, hello.marshal()); err != nil {
+		return err
+	}
 
 	msg, err := c.readHandshake()
 	if err != nil {
@@ -419,7 +421,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 			certMsg.certificates = chainToSend.Certificate
 		}
 		hs.finishedHash.Write(certMsg.marshal())
-		c.writeRecord(recordTypeHandshake, certMsg.marshal())
+		if _, err := c.writeRecord(recordTypeHandshake, certMsg.marshal()); err != nil {
+			return err
+		}
 	}
 
 	preMasterSecret, ckx, err := keyAgreement.generateClientKeyExchange(c.config, hs.hello, certs[0])
@@ -429,7 +433,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 	}
 	if ckx != nil {
 		hs.finishedHash.Write(ckx.marshal())
-		c.writeRecord(recordTypeHandshake, ckx.marshal())
+		if _, err := c.writeRecord(recordTypeHandshake, ckx.marshal()); err != nil {
+			return err
+		}
 	}
 
 	if chainToSend != nil {
@@ -471,7 +477,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
 		}
 
 		hs.finishedHash.Write(certVerify.marshal())
-		c.writeRecord(recordTypeHandshake, certVerify.marshal())
+		if _, err := c.writeRecord(recordTypeHandshake, certVerify.marshal()); err != nil {
+			return err
+		}
 	}
 
 	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.hello.random, hs.serverHello.random)
@@ -615,7 +623,9 @@ func (hs *clientHandshakeState) readSessionTicket() error {
 func (hs *clientHandshakeState) sendFinished(out []byte) error {
 	c := hs.c
 
-	c.writeRecord(recordTypeChangeCipherSpec, []byte{1})
+	if _, err := c.writeRecord(recordTypeChangeCipherSpec, []byte{1}); err != nil {
+		return err
+	}
 	if hs.serverHello.nextProtoNeg {
 		nextProto := new(nextProtoMsg)
 		proto, fallback := mutualProtocol(c.config.NextProtos, hs.serverHello.nextProtos)
@@ -624,13 +634,17 @@ func (hs *clientHandshakeState) sendFinished(out []byte) error {
 		c.clientProtocolFallback = fallback
 
 		hs.finishedHash.Write(nextProto.marshal())
-		c.writeRecord(recordTypeHandshake, nextProto.marshal())
+		if _, err := c.writeRecord(recordTypeHandshake, nextProto.marshal()); err != nil {
+			return err
+		}
 	}
 
 	finished := new(finishedMsg)
 	finished.verifyData = hs.finishedHash.clientSum(hs.masterSecret)
 	hs.finishedHash.Write(finished.marshal())
-	c.writeRecord(recordTypeHandshake, finished.marshal())
+	if _, err := c.writeRecord(recordTypeHandshake, finished.marshal()); err != nil {
+		return err
+	}
 	copy(out, finished.verifyData)
 	return nil
 }
