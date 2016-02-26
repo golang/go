@@ -1580,7 +1580,7 @@ var dotlist = make([]Dlist, 10)
 // lookdot0 returns the number of fields or methods named s associated
 // with Type t. If exactly one exists, it will be returned in *save
 // (if save is not nil).
-func lookdot0(s *Sym, t *Type, save **Type, ignorecase int) int {
+func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
 	u := t
 	if Isptr[u.Etype] {
 		u = u.Type
@@ -1589,7 +1589,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase int) int {
 	c := 0
 	if u.Etype == TSTRUCT || u.Etype == TINTER {
 		for f := u.Type; f != nil; f = f.Down {
-			if f.Sym == s || (ignorecase != 0 && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
+			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
 				}
@@ -1601,7 +1601,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase int) int {
 	u = methtype(t, 0)
 	if u != nil {
 		for f := u.Method; f != nil; f = f.Down {
-			if f.Embedded == 0 && (f.Sym == s || (ignorecase != 0 && strings.EqualFold(f.Sym.Name, s.Name))) {
+			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
 				if save != nil {
 					*save = f
 				}
@@ -1619,7 +1619,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase int) int {
 // in reverse order. If none exist, more will indicate whether t contains any
 // embedded fields at depth d, so callers can decide whether to retry at
 // a greater depth.
-func adddot1(s *Sym, t *Type, d int, save **Type, ignorecase int) (c int, more bool) {
+func adddot1(s *Sym, t *Type, d int, save **Type, ignorecase bool) (c int, more bool) {
 	if t.Trecur != 0 {
 		return
 	}
@@ -1673,7 +1673,7 @@ out:
 // a selection expression x.f, where x is of type t and f is the symbol s.
 // If no such path exists, dotpath returns nil.
 // If there are multiple shortest paths to the same depth, ambig is true.
-func dotpath(s *Sym, t *Type, save **Type, ignorecase int) (path []Dlist, ambig bool) {
+func dotpath(s *Sym, t *Type, save **Type, ignorecase bool) (path []Dlist, ambig bool) {
 	// The embedding of types within structs imposes a tree structure onto
 	// types: structs parent the types they embed, and types parent their
 	// fields or methods. Our goal here is to find the shortest path to
@@ -1718,7 +1718,7 @@ func adddot(n *Node) *Node {
 		return n
 	}
 
-	switch path, ambig := dotpath(s, t, nil, 0); {
+	switch path, ambig := dotpath(s, t, nil, false); {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
@@ -1845,7 +1845,7 @@ func expandmeth(t *Type) {
 	// check each method to be uniquely reachable
 	for sl := slist; sl != nil; sl = sl.link {
 		sl.field.Sym.Flags &^= SymUniq
-		if path, _ := dotpath(sl.field.Sym, t, &f, 0); path == nil {
+		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
 			continue
 		}
 		// dotpath may have dug out arbitrary fields, we only want methods.
@@ -2072,7 +2072,7 @@ func hashmem(t *Type) *Node {
 	return n
 }
 
-func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase int) *Type {
+func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Type {
 	*followptr = false
 
 	if t == nil {
@@ -2151,10 +2151,10 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 			continue
 		}
 		imtype = methodfunc(im.Type, nil)
-		tm = ifacelookdot(im.Sym, t, &followptr, 0)
+		tm = ifacelookdot(im.Sym, t, &followptr, false)
 		if tm == nil || tm.Nointerface || !Eqtype(methodfunc(tm.Type, nil), imtype) {
 			if tm == nil {
-				tm = ifacelookdot(im.Sym, t, &followptr, 1)
+				tm = ifacelookdot(im.Sym, t, &followptr, true)
 			}
 			*m = im
 			*samename = tm
