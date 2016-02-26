@@ -608,6 +608,12 @@
 (MOVLQSX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
 (MOVLQZX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
 
+// replace load from same location as preceding store with copy
+(MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVWload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVLload [off] {sym} ptr (MOVLstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+(MOVQload [off] {sym} ptr (MOVQstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+
 // Fold extensions and ANDs together.
 (MOVBQZX (ANDBconst [c] x)) -> (ANDQconst [c & 0xff] x)
 (MOVWQZX (ANDWconst [c] x)) -> (ANDQconst [c & 0xffff] x)
