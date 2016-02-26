@@ -102,6 +102,8 @@ func (p *parser) syntax_error(msg string) {
 		}
 	case LASOP:
 		tok = goopnames[p.op] + "="
+	case LINCOP:
+		tok = goopnames[p.op] + goopnames[p.op]
 	default:
 		tok = tokstring(p.tok)
 	}
@@ -219,12 +221,11 @@ var tokstrings = map[int32]string{
 	LANDAND:    "&&",
 	LANDNOT:    "&^",
 	LCOMM:      "<-",
-	LDEC:       "--",
 	LEQ:        "==",
 	LGE:        ">=",
 	LGT:        ">",
 	LIGNORE:    "LIGNORE", // we should never see this one
-	LINC:       "++",
+	LINCOP:     "opop",
 	LLE:        "<=",
 	LLSH:       "<<",
 	LLT:        "<",
@@ -562,22 +563,13 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			stmt.Etype = EType(op) // rathole to pass opcode
 			return stmt
 
-		case LINC:
-			// expr LINC
+		case LINCOP:
+			// expr LINCOP
 			p.next()
 
 			stmt := Nod(OASOP, lhs, Nodintconst(1))
 			stmt.Implicit = true
-			stmt.Etype = EType(OADD)
-			return stmt
-
-		case LDEC:
-			// expr LDEC
-			p.next()
-
-			stmt := Nod(OASOP, lhs, Nodintconst(1))
-			stmt.Implicit = true
-			stmt.Etype = EType(OSUB)
+			stmt.Etype = EType(p.op)
 			return stmt
 
 		case ':':
@@ -1104,54 +1096,20 @@ func (p *parser) select_stmt() *Node {
 	return hdr
 }
 
-// TODO(gri) should have lexer return this info - no need for separate lookup
-// (issue 13244)
-var prectab = map[int32]struct {
-	prec int // > 0 (0 indicates not found)
-	op   Op
-}{
-	// not an expression anymore, but left in so we can give a good error
-	// message when used in expression context
-	LCOMM: {1, OSEND},
-
-	LOROR: {2, OOROR},
-
-	LANDAND: {3, OANDAND},
-
-	LEQ: {4, OEQ},
-	LNE: {4, ONE},
-	LLE: {4, OLE},
-	LGE: {4, OGE},
-	LLT: {4, OLT},
-	LGT: {4, OGT},
-
-	'+': {5, OADD},
-	'-': {5, OSUB},
-	'|': {5, OOR},
-	'^': {5, OXOR},
-
-	'*':     {6, OMUL},
-	'/':     {6, ODIV},
-	'%':     {6, OMOD},
-	'&':     {6, OAND},
-	LLSH:    {6, OLSH},
-	LRSH:    {6, ORSH},
-	LANDNOT: {6, OANDNOT},
-}
-
 // Expression = UnaryExpr | Expression binary_op Expression .
-func (p *parser) bexpr(prec int) *Node {
+func (p *parser) bexpr(prec OpPrec) *Node {
 	// don't trace bexpr - only leads to overly nested trace output
 
+	// prec is precedence of the prior/enclosing binary operator (if any),
+	// so we only want to parse tokens of greater precedence.
+
 	x := p.uexpr()
-	for {
-		t := prectab[p.tok]
-		if t.prec < prec {
-			return x
-		}
+	for p.prec > prec {
+		op, prec1 := p.op, p.prec
 		p.next()
-		x = Nod(t.op, x, p.bexpr(t.prec+1))
+		x = Nod(op, x, p.bexpr(prec1))
 	}
+	return x
 }
 
 func (p *parser) expr() *Node {
@@ -1159,7 +1117,7 @@ func (p *parser) expr() *Node {
 		defer p.trace("expr")()
 	}
 
-	return p.bexpr(1)
+	return p.bexpr(0)
 }
 
 func unparen(x *Node) *Node {
