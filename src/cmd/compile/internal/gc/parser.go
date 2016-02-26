@@ -333,19 +333,21 @@ func (p *parser) importdcl() {
 	}
 
 	line := int32(parserline())
-	path := p.val
-	p.next()
 
-	importfile(&path, p.indent)
-	if importpkg == nil {
+	// We need to clear importpkg before calling p.next(),
+	// otherwise it will affect lexlineno.
+	// TODO(mdempsky): Fix this clumsy API.
+	importfile(&p.val, p.indent)
+	ipkg := importpkg
+	importpkg = nil
+
+	p.next()
+	if ipkg == nil {
 		if nerrors == 0 {
 			Fatalf("phase error in import")
 		}
 		return
 	}
-
-	ipkg := importpkg
-	importpkg = nil
 
 	ipkg.Direct = true
 

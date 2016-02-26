@@ -1000,31 +1000,31 @@ l0:
 	case '/':
 		c1 = l.getr()
 		if c1 == '*' {
-			nl := false
+			c = l.getr()
 			for {
-				c = l.getr()
-				if c == '\n' {
-					nl = true
-				}
-				for c == '*' {
+				if c == '*' {
 					c = l.getr()
 					if c == '/' {
-						if nl {
-							l.ungetr('\n')
-						}
-						goto l0
+						break
 					}
-
-					if c == '\n' {
-						nl = true
-					}
+					continue
 				}
-
 				if c == EOF {
 					Yyerror("eof in comment")
 					errorexit()
 				}
+				c = l.getr()
 			}
+
+			// A comment containing newlines acts like a newline.
+			if lexlineno > lineno && nlsemi {
+				if Debug['x'] != 0 {
+					fmt.Printf("lex: implicit semi\n")
+				}
+				l.tok = ';'
+				return
+			}
+			goto l0
 		}
 
 		if c1 == '/' {
