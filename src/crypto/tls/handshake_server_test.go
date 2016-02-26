@@ -518,15 +518,16 @@ func (test *serverTest) run(t *testing.T, write bool) {
 	server := Server(serverConn, config)
 	connStateChan := make(chan ConnectionState, 1)
 	go func() {
-		var err error
-		if _, err = server.Write([]byte("hello, world\n")); err != nil {
-			t.Logf("Error from Server.Write: %s", err)
-		}
+		_, err := server.Write([]byte("hello, world\n"))
 		if len(test.expectHandshakeErrorIncluding) > 0 {
 			if err == nil {
 				t.Errorf("Error expected, but no error returned")
 			} else if s := err.Error(); !strings.Contains(s, test.expectHandshakeErrorIncluding) {
 				t.Errorf("Error expected containing '%s' but got '%s'", test.expectHandshakeErrorIncluding, s)
+			}
+		} else {
+			if err != nil {
+				t.Logf("Error from Server.Write: '%s'", err)
 			}
 		}
 		server.Close()
