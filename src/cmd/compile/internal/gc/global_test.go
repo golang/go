@@ -11,7 +11,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -29,7 +29,7 @@ func TestScanfRemoval(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	// Create source.
-	src := path.Join(dir, "test.go")
+	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
 	if err != nil {
 		log.Fatalf("could not create source file: %v", err)
@@ -44,7 +44,7 @@ func main() {
 	f.Close()
 
 	// Name of destination.
-	dst := path.Join(dir, "test")
+	dst := filepath.Join(dir, "test")
 
 	// Compile source.
 	cmd := exec.Command("go", "build", "-o", dst, src)
@@ -76,7 +76,7 @@ func TestDashS(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	// Create source.
-	src := path.Join(dir, "test.go")
+	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
 	if err != nil {
 		log.Fatalf("could not create source file: %v", err)
@@ -91,7 +91,7 @@ func main() {
 	f.Close()
 
 	// Compile source.
-	cmd := exec.Command("go", "build", "-gcflags", "-S", src)
+	cmd := exec.Command("go", "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("could not build target: %v", err)
