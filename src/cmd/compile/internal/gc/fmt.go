@@ -1729,8 +1729,40 @@ func Hconv(l *NodeList, flag int) string {
 	return buf.String()
 }
 
+func Hconvslice(l []*Node, flag int) string {
+	if len(l) == 0 && fmtmode == FDbg {
+		return "<nil>"
+	}
+
+	sf := flag
+	sm, sb := setfmode(&flag)
+	sep := "; "
+	if fmtmode == FDbg {
+		sep = "\n"
+	} else if flag&obj.FmtComma != 0 {
+		sep = ", "
+	}
+
+	var buf bytes.Buffer
+	for i, n := range l {
+		buf.WriteString(Nconv(n, 0))
+		if i+1 < len(l) {
+			buf.WriteString(sep)
+		}
+	}
+
+	flag = sf
+	fmtbody = sb
+	fmtmode = sm
+	return buf.String()
+}
+
 func dumplist(s string, l *NodeList) {
 	fmt.Printf("%s%v\n", s, Hconv(l, obj.FmtSign))
+}
+
+func dumpslice(s string, l []*Node) {
+	fmt.Printf("%s%v\n", s, Hconvslice(l, obj.FmtSign))
 }
 
 func Dump(s string, n *Node) {

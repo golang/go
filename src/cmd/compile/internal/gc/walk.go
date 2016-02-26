@@ -71,15 +71,21 @@ func walk(fn *Node) {
 	}
 
 	heapmoves()
-	if Debug['W'] != 0 && Curfn.Func.Enter != nil {
+	if Debug['W'] != 0 && len(Curfn.Func.Enter.Slice()) > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
-		dumplist(s, Curfn.Func.Enter)
+		dumpslice(s, Curfn.Func.Enter.Slice())
 	}
 }
 
 func walkstmtlist(l *NodeList) {
 	for ; l != nil; l = l.Next {
 		walkstmt(&l.N)
+	}
+}
+
+func walkstmtslice(l []*Node) {
+	for i := range l {
+		walkstmt(&l[i])
 	}
 }
 
@@ -320,7 +326,7 @@ func walkstmt(np **Node) {
 			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
 			n.List = reorder3(ll)
 			for lr := n.List; lr != nil; lr = lr.Next {
-				lr.N = applywritebarrier(lr.N, &n.Ninit)
+				lr.N = applywritebarrier(lr.N)
 			}
 			break
 		}
@@ -588,9 +594,9 @@ opswitch:
 			// transformclosure already did all preparation work.
 
 			// Prepend captured variables to argument list.
-			n.List = concat(n.Left.Func.Enter, n.List)
+			n.List = concat(n.Left.Func.Enter.NodeList(), n.List)
 
-			n.Left.Func.Enter = nil
+			n.Left.Func.Enter.Set(nil)
 
 			// Replace OCLOSURE with ONAME/PFUNC.
 			n.Left = n.Left.Func.Closure.Func.Nname
@@ -724,7 +730,7 @@ opswitch:
 			r := convas(Nod(OAS, n.Left, n.Right), init)
 			r.Dodata = n.Dodata
 			n = r
-			n = applywritebarrier(n, init)
+			n = applywritebarrier(n)
 		}
 
 	case OAS2:
@@ -735,7 +741,7 @@ opswitch:
 		ll := ascompatee(OAS, n.List, n.Rlist, init)
 		ll = reorder3(ll)
 		for lr := ll; lr != nil; lr = lr.Next {
-			lr.N = applywritebarrier(lr.N, init)
+			lr.N = applywritebarrier(lr.N)
 		}
 		n = liststmt(ll)
 
@@ -750,7 +756,7 @@ opswitch:
 
 		ll := ascompatet(n.Op, n.List, &r.Type, 0, init)
 		for lr := ll; lr != nil; lr = lr.Next {
-			lr.N = applywritebarrier(lr.N, init)
+			lr.N = applywritebarrier(lr.N)
 		}
 		n = liststmt(concat(list1(r), ll))
 
@@ -2133,7 +2139,7 @@ func needwritebarrier(l *Node, r *Node) bool {
 
 // TODO(rsc): Perhaps componentgen should run before this.
 
-func applywritebarrier(n *Node, init **NodeList) *Node {
+func applywritebarrier(n *Node) *Node {
 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
 		if Debug_wb > 1 {
 			Warnl(int(n.Lineno), "marking %v for barrier", Nconv(n.Left, 0))
@@ -2542,12 +2548,12 @@ func vmatch1(l *Node, r *Node) bool {
 // walk through argin parameters.
 // generate and return code to allocate
 // copies of escaped parameters to the heap.
-func paramstoheap(argin **Type, out int) *NodeList {
+func paramstoheap(argin **Type, out int) []*Node {
 	var savet Iter
 	var v *Node
 	var as *Node
 
-	var nn *NodeList
+	var nn []*Node
 	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
 		v = t.Nname
 		if v != nil && v.Sym != nil && v.Sym.Name[0] == '~' && v.Sym.Name[1] == 'r' { // unnamed result
@@ -2560,7 +2566,7 @@ func paramstoheap(argin **Type, out int) *NodeList {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = list(nn, Nod(OAS, nodarg(t, 1), nil))
+			nn = append(nn, Nod(OAS, nodarg(t, 1), nil))
 		}
 
 		if v == nil || v.Class&PHEAP == 0 {
@@ -2574,13 +2580,13 @@ func paramstoheap(argin **Type, out int) *NodeList {
 		if prealloc[v] == nil {
 			prealloc[v] = callnew(v.Type)
 		}
-		nn = list(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
+		nn = append(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
 		if v.Class&^PHEAP != PPARAMOUT {
 			as = Nod(OAS, v, v.Name.Param.Stackparam)
 			v.Name.Param.Stackparam.Typecheck = 1
 			typecheck(&as, Etop)
-			as = applywritebarrier(as, &nn)
-			nn = list(nn, as)
+			as = applywritebarrier(as)
+			nn = append(nn, as)
 		}
 	}
 
@@ -2588,17 +2594,17 @@ func paramstoheap(argin **Type, out int) *NodeList {
 }
 
 // walk through argout parameters copying back to stack
-func returnsfromheap(argin **Type) *NodeList {
+func returnsfromheap(argin **Type) []*Node {
 	var savet Iter
 	var v *Node
 
-	var nn *NodeList
+	var nn []*Node
 	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
 		v = t.Nname
 		if v == nil || v.Class != PHEAP|PPARAMOUT {
 			continue
 		}
-		nn = list(nn, Nod(OAS, v.Name.Param.Stackparam, v))
+		nn = append(nn, Nod(OAS, v.Name.Param.Stackparam, v))
 	}
 
 	return nn
@@ -2611,11 +2617,11 @@ func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
 	nn := paramstoheap(getthis(Curfn.Type), 0)
-	nn = concat(nn, paramstoheap(getinarg(Curfn.Type), 0))
-	nn = concat(nn, paramstoheap(Getoutarg(Curfn.Type), 1))
-	Curfn.Func.Enter = concat(Curfn.Func.Enter, nn)
+	nn = append(nn, paramstoheap(getinarg(Curfn.Type), 0)...)
+	nn = append(nn, paramstoheap(Getoutarg(Curfn.Type), 1)...)
+	Curfn.Func.Enter.Append(nn...)
 	lineno = Curfn.Func.Endlineno
-	Curfn.Func.Exit = returnsfromheap(Getoutarg(Curfn.Type))
+	Curfn.Func.Exit.Append(returnsfromheap(Getoutarg(Curfn.Type))...)
 	lineno = lno
 }
 

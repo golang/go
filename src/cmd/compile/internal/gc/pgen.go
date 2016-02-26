@@ -471,7 +471,7 @@ func compile(fn *Node) {
 		}
 	}
 
-	Genlist(Curfn.Func.Enter)
+	Genslice(Curfn.Func.Enter.Slice())
 	Genlist(Curfn.Nbody)
 	gclean()
 	checklabels()

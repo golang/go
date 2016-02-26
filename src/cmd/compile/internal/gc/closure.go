@@ -223,7 +223,7 @@ func capturevars(xfunc *Node) {
 	lineno = xfunc.Lineno
 
 	func_ := xfunc.Func.Closure
-	func_.Func.Enter = nil
+	func_.Func.Enter.Set(nil)
 	for _, v := range func_.Func.Cvars() {
 		if v.Type == nil {
 			// if v->type is nil, it means v looked like it was
@@ -265,7 +265,7 @@ func capturevars(xfunc *Node) {
 		}
 
 		typecheck(&outer, Erv)
-		func_.Func.Enter = list(func_.Func.Enter, outer)
+		func_.Func.Enter.Append(outer)
 	}
 
 	lineno = int32(lno)
@@ -350,9 +350,7 @@ func transformclosure(xfunc *Node) {
 		xfunc.Type = f.Type // update type of ODCLFUNC
 	} else {
 		// The closure is not called, so it is going to stay as closure.
-		nvar := 0
-
-		var body *NodeList
+		var body []*Node
 		offset := int64(Widthptr)
 		var addr *Node
 		var cv *Node
@@ -360,7 +358,6 @@ func transformclosure(xfunc *Node) {
 			if v.Op == OXXX {
 				continue
 			}
-			nvar++
 
 			// cv refers to the field inside of closure OSTRUCTLIT.
 			cv = Nod(OCLOSUREVAR, nil, nil)
@@ -378,7 +375,7 @@ func transformclosure(xfunc *Node) {
 				v.Class = PAUTO
 				v.Ullman = 1
 				xfunc.Func.Dcl = append(xfunc.Func.Dcl, v)
-				body = list(body, Nod(OAS, v, cv))
+				body = append(body, Nod(OAS, v, cv))
 			} else {
 				// Declare variable holding addresses taken from closure
 				// and initialize in entry prologue.
@@ -392,14 +389,16 @@ func transformclosure(xfunc *Node) {
 				if v.Name.Byval {
 					cv = Nod(OADDR, cv, nil)
 				}
-				body = list(body, Nod(OAS, addr, cv))
+				body = append(body, Nod(OAS, addr, cv))
 			}
 		}
 
-		typechecklist(body, Etop)
-		walkstmtlist(body)
-		xfunc.Func.Enter = body
-		xfunc.Func.Needctxt = nvar > 0
+		if len(body) > 0 {
+			typecheckslice(body, Etop)
+			walkstmtslice(body)
+			xfunc.Func.Enter.Set(body)
+			xfunc.Func.Needctxt = true
+		}
 	}
 
 	lineno = int32(lno)
@@ -443,7 +442,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = func_.Esc
 	clos.Right.Implicit = true
-	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)), func_.Func.Enter)
+	clos.List = concat(list1(Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)), func_.Func.Enter.NodeList())
 
 	// Force type conversion from *struct to the func type.
 	clos = Nod(OCONVNOP, clos, nil)
