@@ -462,7 +462,7 @@ func (p *parser) parseMapType(parent *types.Package) types.Type {
 // For qualified names, the returned package is nil (and not created if
 // it doesn't exist yet) unless materializePkg is set (which creates an
 // unnamed package with valid package path). In the latter case, a
-// subequent import clause is expected to provide a name for the package.
+// subsequent import clause is expected to provide a name for the package.
 //
 func (p *parser) parseName(parent *types.Package, materializePkg bool) (pkg *types.Package, name string) {
 	pkg = parent

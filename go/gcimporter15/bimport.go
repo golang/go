@@ -682,4 +682,8 @@ var predeclared = []types.Type{
 
 	// package unsafe
 	types.Typ[types.UnsafePointer],
+
+	// any type, for builtin export data
+	// TODO(mdempsky): Provide an actual Type value to represent "any"?
+	types.Typ[types.Invalid],
 }
