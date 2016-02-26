@@ -425,11 +425,12 @@ var sizeof_String int // runtime sizeof(String)
 
 var dotlist [10]Dlist // size is max depth of embeddeds
 
+// lexlineno is the line number _after_ the most recently read rune.
+// In particular, it's advanced (or rewound) as newlines are read (or unread).
 var lexlineno int32
 
+// lineno is the line number at the start of the most recently lexed token.
 var lineno int32
-
-var prevlineno int32
 
 var pragcgobuf string
 

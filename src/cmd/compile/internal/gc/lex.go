@@ -923,8 +923,6 @@ const (
 )
 
 func (l *lexer) next() {
-	prevlineno = lineno
-
 	nlsemi := l.nlsemi
 	l.nlsemi = false
 
@@ -933,12 +931,12 @@ l0:
 	c := l.getr()
 	for isSpace(c) {
 		if c == '\n' && nlsemi {
-			// TODO(gri) we may be able avoid the ungetr and simply use lexlineno-1 below
-			l.ungetr(c) // for correct line number
 			if Debug['x'] != 0 {
 				fmt.Printf("lex: implicit semi\n")
 			}
-			lineno = lexlineno
+			// Insert implicit semicolon on previous line,
+			// before the newline character.
+			lineno = lexlineno - 1
 			l.tok = ';'
 			return
 		}
@@ -1231,9 +1229,9 @@ l0:
 lx:
 	if Debug['x'] != 0 {
 		if c > 0xff {
-			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lexlineno)), lexname(c))
+			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lineno)), lexname(c))
 		} else {
-			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lexlineno)), c)
+			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lineno)), c)
 		}
 	}
 
@@ -1850,8 +1848,7 @@ redo:
 	c := obj.Bgetc(l.bin)
 	if c < utf8.RuneSelf {
 		if c == 0 {
-			// TODO(gri) do we need lineno = lexlineno here? Why not?
-			Yyerror("illegal NUL byte")
+			yyerrorl(int(lexlineno), "illegal NUL byte")
 			return 0
 		}
 		if c == '\n' && importpkg == nil {
@@ -1872,15 +1869,13 @@ redo:
 
 	r, w := utf8.DecodeRune(buf[:i])
 	if r == utf8.RuneError && w == 1 {
-		lineno = lexlineno
 		// The string conversion here makes a copy for passing
 		// to fmt.Printf, so that buf itself does not escape and
 		// can be allocated on the stack.
-		Yyerror("illegal UTF-8 sequence % x", string(buf[:i]))
+		yyerrorl(int(lexlineno), "illegal UTF-8 sequence % x", string(buf[:i]))
 	}
 
 	if r == BOM {
-		// TODO(gri) can we use Yyerror here? Why not?
 		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
 		goto redo
 	}
