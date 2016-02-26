@@ -192,10 +192,6 @@ type Sig struct {
 	offset int32
 }
 
-type Dlist struct {
-	field *Type
-}
-
 // argument passing to/from
 // smagic and umagic
 type Magic struct {
@@ -239,8 +235,6 @@ var sizeof_Array int // runtime sizeof(Array)
 // 	uchar	nel[4];		// number of elements
 // } String;
 var sizeof_String int // runtime sizeof(String)
-
-var dotlist [10]Dlist // size is max depth of embeddeds
 
 // lexlineno is the line number _after_ the most recently read rune.
 // In particular, it's advanced (or rewound) as newlines are read (or unread).
