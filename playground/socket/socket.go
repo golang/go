@@ -264,7 +264,6 @@ func buffer(in <-chan *Message) <-chan *Message {
 	go func() {
 		defer close(out)
 		var (
-			t     = time.NewTimer(msgDelay)
 			tc    <-chan time.Time
 			buf   []byte
 			kind  string
@@ -293,8 +292,7 @@ func buffer(in <-chan *Message) <-chan *Message {
 					flush()
 					kind = m.Kind
 					if tc == nil {
-						tc = t.C
-						t.Reset(msgDelay)
+						tc = time.After(msgDelay)
 					}
 				}
 				buf = append(buf, m.Body...)
