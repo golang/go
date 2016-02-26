@@ -4999,7 +4999,9 @@ func moveByType(t ssa.Type) int {
 	if t.IsFloat() {
 		// Moving the whole sse2 register is faster
 		// than moving just the correct low portion of it.
-		return x86.AMOVAPD
+		// There is no xmm->xmm move with 1 byte opcode,
+		// so use movups, which has 2 byte opcode.
+		return x86.AMOVUPS
 	} else {
 		switch t.Size() {
 		case 1:
