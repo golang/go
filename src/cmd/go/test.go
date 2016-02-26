@@ -1352,14 +1352,16 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 			t.TestMain = &testFunc{pkg, name, ""}
 			*doImport, *seen = true, true
 		case isTest(name, "Test"):
-			if !isTestFunc(n, "T") {
-				return fmt.Errorf("wrong type for %s", name)
+			err := checkTestFunc(n, "T")
+			if err != nil {
+				return err
 			}
 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
 			*doImport, *seen = true, true
 		case isTest(name, "Benchmark"):
-			if !isTestFunc(n, "B") {
-				return fmt.Errorf("wrong type for %s", name)
+			err := checkTestFunc(n, "B")
+			if err != nil {
+				return err
 			}
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
 			*doImport, *seen = true, true
@@ -1375,6 +1377,15 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
 		*seen = true
+	}
+	return nil
+}
+
+func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+	if !isTestFunc(fn, arg) {
+		name := fn.Name.String()
+		pos := testFileSet.Position(fn.Pos())
+		return fmt.Errorf("%s: wrong signature for %s, must be: func %s(%s *testing.%s)", pos, name, name, strings.ToLower(arg), arg)
 	}
 	return nil
 }
