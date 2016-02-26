@@ -110,11 +110,11 @@ func (p *parser) syntax_error(msg string) {
 }
 
 // Like syntax_error, but reports error at given line rather than current lexer line.
-func (p *parser) syntax_error_at(lineno int32, msg string) {
-	defer func(lineno int32) {
-		lexlineno = lineno
-	}(lexlineno)
-	lexlineno = lineno
+func (p *parser) syntax_error_at(lno int32, msg string) {
+	defer func(lno int32) {
+		lineno = lno
+	}(lineno)
+	lineno = lno
 	p.syntax_error(msg)
 }
 
@@ -687,7 +687,7 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 		ls = p.stmt()
 		if ls == missing_stmt {
 			// report error at line of ':' token
-			p.syntax_error_at(prevlineno, "missing statement after label")
+			p.syntax_error_at(label.Lineno, "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
 			return missing_stmt
 		}
@@ -1609,13 +1609,15 @@ func (p *parser) new_name(sym *Sym) *Node {
 	return nil
 }
 
-func (p *parser) dcl_name(sym *Sym) *Node {
+func (p *parser) dcl_name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dcl_name")()
 	}
 
+	symlineno := lineno
+	sym := p.sym()
 	if sym == nil {
-		yyerrorl(int(prevlineno), "invalid declaration")
+		yyerrorl(int(symlineno), "invalid declaration")
 		return nil
 	}
 	return dclname(sym)
@@ -2637,9 +2639,9 @@ func (p *parser) dcl_name_list() *NodeList {
 		defer p.trace("dcl_name_list")()
 	}
 
-	l := list1(p.dcl_name(p.sym()))
+	l := list1(p.dcl_name())
 	for p.got(',') {
-		l = list(l, p.dcl_name(p.sym()))
+		l = list(l, p.dcl_name())
 	}
 	return l
 }

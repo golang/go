@@ -109,7 +109,7 @@ func yyerrorl(line int, format string, args ...interface{}) {
 	}
 }
 
-var yyerror_lastsyntax int
+var yyerror_lastsyntax int32
 
 func Yyerror(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
@@ -117,18 +117,12 @@ func Yyerror(format string, args ...interface{}) {
 		nsyntaxerrors++
 
 		// only one syntax error per line
-		if int32(yyerror_lastsyntax) == lexlineno {
+		if yyerror_lastsyntax == lineno {
 			return
 		}
-		yyerror_lastsyntax = int(lexlineno)
+		yyerror_lastsyntax = lineno
 
-		// plain "syntax error" gets "near foo" added
-		if msg == "syntax error" {
-			yyerrorl(int(lexlineno), "syntax error near %s", lexbuf.String())
-			return
-		}
-
-		yyerrorl(int(lexlineno), "%s", msg)
+		yyerrorl(int(lineno), "%s", msg)
 		return
 	}
 
