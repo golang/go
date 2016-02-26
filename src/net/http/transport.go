@@ -118,7 +118,7 @@ type Transport struct {
 	DisableCompression bool
 
 	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
-	// (keep-alive) to keep per-host. If zero,
+	// (keep-alive) connections to keep per-host. If zero,
 	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost int
 
@@ -533,7 +533,9 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		max = DefaultMaxIdleConnsPerHost
 	}
 	pconn.markReused()
+
 	t.idleMu.Lock()
+	defer t.idleMu.Unlock()
 
 	waitingDialer := t.idleConnCh[key]
 	select {
@@ -543,7 +545,6 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		// actively dialing, but this conn is ready
 		// first). Chrome calls this socket late binding. See
 		// https://insouciant.org/tech/connection-management-in-chromium/
-		t.idleMu.Unlock()
 		return nil
 	default:
 		if waitingDialer != nil {
@@ -553,14 +554,12 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		}
 	}
 	if t.wantIdle {
-		t.idleMu.Unlock()
 		return errWantIdle
 	}
 	if t.idleConn == nil {
 		t.idleConn = make(map[connectMethodKey][]*persistConn)
 	}
 	if len(t.idleConn[key]) >= max {
-		t.idleMu.Unlock()
 		return errTooManyIdle
 	}
 	for _, exist := range t.idleConn[key] {
@@ -569,7 +568,6 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		}
 	}
 	t.idleConn[key] = append(t.idleConn[key], pconn)
-	t.idleMu.Unlock()
 	return nil
 }
 
@@ -1335,9 +1333,9 @@ type requestAndChan struct {
 	req *Request
 	ch  chan responseAndError // unbuffered; always send in select on callerGone
 
-	// did the Transport (as opposed to the client code) add an
-	// Accept-Encoding gzip header? only if it we set it do
-	// we transparently decode the gzip.
+	// whether the Transport (as opposed to the user client code)
+	// added the Accept-Encoding gzip header. If the Transport
+	// set it, only then do we transparently decode the gzip.
 	addedGzip bool
 
 	// Optional blocking chan for Expect: 100-continue (for send).
