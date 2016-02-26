@@ -302,9 +302,13 @@ func benchmarkName(name string, n int) string {
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+	runBenchmarksInternal(matchString, benchmarks)
+}
+
+func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
-		return
+		return true
 	}
 	// Collect matching benchmarks and determine longest name.
 	maxprocs := 1
@@ -329,6 +333,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			}
 		}
 	}
+	ok := true
 	for _, Benchmark := range bs {
 		for _, procs := range cpuList {
 			runtime.GOMAXPROCS(procs)
@@ -342,6 +347,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			fmt.Printf("%-*s\t", maxlen, benchName)
 			r := b.run()
 			if b.failed {
+				ok = false
 				// The output could be very long here, but probably isn't.
 				// We print it all, regardless, because we don't want to trim the reason
 				// the benchmark failed.
@@ -364,6 +370,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			}
 		}
 	}
+	return ok
 }
 
 // trimOutput shortens the output from a benchmark, which can be very long.
