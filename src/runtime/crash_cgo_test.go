@@ -7,6 +7,7 @@
 package runtime_test
 
 import (
+	"fmt"
 	"internal/testenv"
 	"os/exec"
 	"runtime"
@@ -161,22 +162,35 @@ func TestCgoCheckBytes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
-	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
+	// Try it 10 times to avoid flakiness.
+	const tries = 10
+	var tot1, tot2 time.Duration
+	for i := 0; i < tries; i++ {
+		cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
+		cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0", fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
 
-	start := time.Now()
-	cmd.Run()
-	d1 := time.Since(start)
+		start := time.Now()
+		cmd.Run()
+		d1 := time.Since(start)
 
-	cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
+		cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
 
-	start = time.Now()
-	cmd.Run()
-	d2 := time.Since(start)
+		start = time.Now()
+		cmd.Run()
+		d2 := time.Since(start)
 
-	if d1*20 < d2 {
-		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
+		if d1*20 > d2 {
+			// The slow version (d2) was less than 20 times
+			// slower than the fast version (d1), so OK.
+			return
+		}
+
+		tot1 += d1
+		tot2 += d2
 	}
+
+	t.Errorf("cgo check too slow: got %v, expected at most %v", tot2/tries, (tot1/tries)*20)
 }
 
 func TestCgoPanicDeadlock(t *testing.T) {
