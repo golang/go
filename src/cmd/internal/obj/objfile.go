@@ -116,7 +116,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 }
 
 func Flushplist(ctxt *Link) {
-	flushplist(ctxt, true)
+	flushplist(ctxt, ctxt.Debugasm == 0)
 }
 func FlushplistNoFree(ctxt *Link) {
 	flushplist(ctxt, false)
@@ -308,8 +308,10 @@ func flushplist(ctxt *Link, freeProgs bool) {
 		ctxt.Arch.Assemble(ctxt, s)
 		fieldtrack(ctxt, s)
 		linkpcln(ctxt, s)
-		s.Text = nil
-		s.Etext = nil
+		if freeProgs {
+			s.Text = nil
+			s.Etext = nil
+		}
 	}
 
 	// Add to running list in ctxt.
