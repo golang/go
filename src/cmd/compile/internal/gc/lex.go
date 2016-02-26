@@ -2067,77 +2067,75 @@ func (l *lexer) hexchar(n int) uint32 {
 	return x
 }
 
-var syms = []struct {
+var basicTypes = [...]struct {
 	name  string
 	etype EType
-	op    Op
 }{
-	// basic types
-	{"int8", TINT8, OXXX},
-	{"int16", TINT16, OXXX},
-	{"int32", TINT32, OXXX},
-	{"int64", TINT64, OXXX},
-	{"uint8", TUINT8, OXXX},
-	{"uint16", TUINT16, OXXX},
-	{"uint32", TUINT32, OXXX},
-	{"uint64", TUINT64, OXXX},
-	{"float32", TFLOAT32, OXXX},
-	{"float64", TFLOAT64, OXXX},
-	{"complex64", TCOMPLEX64, OXXX},
-	{"complex128", TCOMPLEX128, OXXX},
-	{"bool", TBOOL, OXXX},
-	{"string", TSTRING, OXXX},
-	{"any", TANY, OXXX},
+	{"int8", TINT8},
+	{"int16", TINT16},
+	{"int32", TINT32},
+	{"int64", TINT64},
+	{"uint8", TUINT8},
+	{"uint16", TUINT16},
+	{"uint32", TUINT32},
+	{"uint64", TUINT64},
+	{"float32", TFLOAT32},
+	{"float64", TFLOAT64},
+	{"complex64", TCOMPLEX64},
+	{"complex128", TCOMPLEX128},
+	{"bool", TBOOL},
+	{"string", TSTRING},
+	{"any", TANY},
+}
 
-	// builtin funcs
-	{"append", Txxx, OAPPEND},
-	{"cap", Txxx, OCAP},
-	{"close", Txxx, OCLOSE},
-	{"complex", Txxx, OCOMPLEX},
-	{"copy", Txxx, OCOPY},
-	{"delete", Txxx, ODELETE},
-	{"imag", Txxx, OIMAG},
-	{"len", Txxx, OLEN},
-	{"make", Txxx, OMAKE},
-	{"new", Txxx, ONEW},
-	{"panic", Txxx, OPANIC},
-	{"print", Txxx, OPRINT},
-	{"println", Txxx, OPRINTN},
-	{"real", Txxx, OREAL},
-	{"recover", Txxx, ORECOVER},
+var builtinFuncs = [...]struct {
+	name string
+	op   Op
+}{
+	{"append", OAPPEND},
+	{"cap", OCAP},
+	{"close", OCLOSE},
+	{"complex", OCOMPLEX},
+	{"copy", OCOPY},
+	{"delete", ODELETE},
+	{"imag", OIMAG},
+	{"len", OLEN},
+	{"make", OMAKE},
+	{"new", ONEW},
+	{"panic", OPANIC},
+	{"print", OPRINT},
+	{"println", OPRINTN},
+	{"real", OREAL},
+	{"recover", ORECOVER},
 }
 
 // lexinit initializes known symbols and the basic types.
 func lexinit() {
-	for _, s := range syms {
-		if etype := s.etype; etype != Txxx {
-			if int(etype) >= len(Types) {
-				Fatalf("lexinit: %s bad etype", s.name)
-			}
-			s2 := Pkglookup(s.name, builtinpkg)
-			t := Types[etype]
-			if t == nil {
-				t = typ(etype)
-				t.Sym = s2
-
-				if etype != TANY && etype != TSTRING {
-					dowidth(t)
-				}
-				Types[etype] = t
-			}
-
-			s2.Def = typenod(t)
-			s2.Def.Name = new(Name)
-			continue
+	for _, s := range basicTypes {
+		etype := s.etype
+		if int(etype) >= len(Types) {
+			Fatalf("lexinit: %s bad etype", s.name)
 		}
+		s2 := Pkglookup(s.name, builtinpkg)
+		t := Types[etype]
+		if t == nil {
+			t = typ(etype)
+			t.Sym = s2
+			if etype != TANY && etype != TSTRING {
+				dowidth(t)
+			}
+			Types[etype] = t
+		}
+		s2.Def = typenod(t)
+		s2.Def.Name = new(Name)
+	}
 
+	for _, s := range builtinFuncs {
 		// TODO(marvin): Fix Node.EType type union.
-		if etype := s.op; etype != OXXX {
-			s2 := Pkglookup(s.name, builtinpkg)
-			s2.Def = Nod(ONAME, nil, nil)
-			s2.Def.Sym = s2
-			s2.Def.Etype = EType(etype)
-		}
+		s2 := Pkglookup(s.name, builtinpkg)
+		s2.Def = Nod(ONAME, nil, nil)
+		s2.Def.Sym = s2
+		s2.Def.Etype = EType(s.op)
 	}
 
 	// logically, the type of a string literal.
@@ -2181,6 +2179,11 @@ func lexinit() {
 	var v Val
 	v.U = new(NilVal)
 	s.Def = nodlit(v)
+	s.Def.Sym = s
+	s.Def.Name = new(Name)
+
+	s = Pkglookup("iota", builtinpkg)
+	s.Def = Nod(OIOTA, nil, nil)
 	s.Def.Sym = s
 	s.Def.Name = new(Name)
 }
@@ -2230,86 +2233,28 @@ func lexinit1() {
 	runetype.Sym = s
 	s.Def = typenod(runetype)
 	s.Def.Name = new(Name)
-}
-
-func lexfini() {
-	for i := range syms {
-		s := Lookup(syms[i].name)
-
-		etype := syms[i].etype
-		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
-			s.Def = typenod(Types[etype])
-			s.Def.Name = new(Name)
-			s.Origpkg = builtinpkg
-		}
-
-		// TODO(marvin): Fix Node.EType type union.
-		etype = EType(syms[i].op)
-		if etype != EType(OXXX) && s.Def == nil {
-			s.Def = Nod(ONAME, nil, nil)
-			s.Def.Sym = s
-			s.Def.Etype = etype
-			s.Origpkg = builtinpkg
-		}
-	}
 
 	// backend-specific builtin types (e.g. int).
 	for i := range Thearch.Typedefs {
-		s := Lookup(Thearch.Typedefs[i].Name)
+		s := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
+		s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
+		s.Def.Name = new(Name)
+		s.Origpkg = builtinpkg
+	}
+}
+
+func lexfini() {
+	for _, s := range builtinpkg.Syms {
 		if s.Def == nil {
-			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
-			s.Def.Name = new(Name)
-			s.Origpkg = builtinpkg
+			continue
 		}
-	}
+		s1 := Lookup(s.Name)
+		if s1.Def != nil {
+			continue
+		}
 
-	// there's only so much table-driven we can handle.
-	// these are special cases.
-	if s := Lookup("byte"); s.Def == nil {
-		s.Def = typenod(bytetype)
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("error"); s.Def == nil {
-		s.Def = typenod(errortype)
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("rune"); s.Def == nil {
-		s.Def = typenod(runetype)
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("nil"); s.Def == nil {
-		var v Val
-		v.U = new(NilVal)
-		s.Def = nodlit(v)
-		s.Def.Sym = s
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("iota"); s.Def == nil {
-		s.Def = Nod(OIOTA, nil, nil)
-		s.Def.Sym = s
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("true"); s.Def == nil {
-		s.Def = Nodbool(true)
-		s.Def.Sym = s
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("false"); s.Def == nil {
-		s.Def = Nodbool(false)
-		s.Def.Sym = s
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
+		s1.Def = s.Def
+		s1.Block = s.Block
 	}
 
 	nodfp = Nod(ONAME, nil, nil)
