@@ -67,9 +67,7 @@ func closurebody(body *NodeList) *Node {
 	// ordinary ones in the symbol table; see oldname.
 	// unhook them.
 	// make the list of pointers for the closure call.
-	var v *Node
-	for l := func_.Func.Cvars; l != nil; l = l.Next {
-		v = l.N
+	for _, v := range func_.Func.Cvars() {
 		v.Name.Param.Closure.Name.Param.Closure = v.Name.Param.Outer
 		v.Name.Param.Outerexpr = oldname(v.Sym)
 	}
@@ -78,10 +76,8 @@ func closurebody(body *NodeList) *Node {
 }
 
 func typecheckclosure(func_ *Node, top int) {
-	var n *Node
-
-	for l := func_.Func.Cvars; l != nil; l = l.Next {
-		n = l.N.Name.Param.Closure
+	for _, ln := range func_.Func.Cvars() {
+		n := ln.Name.Param.Closure
 		if !n.Name.Captured {
 			n.Name.Captured = true
 			if n.Name.Decldepth == 0 {
@@ -221,7 +217,6 @@ func makeclosure(func_ *Node) *Node {
 // We use value capturing for values <= 128 bytes that are never reassigned
 // after capturing (effectively constant).
 func capturevars(xfunc *Node) {
-	var v *Node
 	var outer *Node
 
 	lno := int(lineno)
@@ -229,8 +224,7 @@ func capturevars(xfunc *Node) {
 
 	func_ := xfunc.Func.Closure
 	func_.Func.Enter = nil
-	for l := func_.Func.Cvars; l != nil; l = l.Next {
-		v = l.N
+	for _, v := range func_.Func.Cvars() {
 		if v.Type == nil {
 			// if v->type is nil, it means v looked like it was
 			// going to be used in the closure but wasn't.
@@ -310,11 +304,9 @@ func transformclosure(xfunc *Node) {
 		original_dcl := xfunc.Func.Dcl
 		xfunc.Func.Dcl = nil
 
-		var v *Node
 		var addr *Node
 		var fld *Type
-		for l := func_.Func.Cvars; l != nil; l = l.Next {
-			v = l.N
+		for _, v := range func_.Func.Cvars() {
 			if v.Op == OXXX {
 				continue
 			}
@@ -363,10 +355,8 @@ func transformclosure(xfunc *Node) {
 		var body *NodeList
 		offset := int64(Widthptr)
 		var addr *Node
-		var v *Node
 		var cv *Node
-		for l := func_.Func.Cvars; l != nil; l = l.Next {
-			v = l.N
+		for _, v := range func_.Func.Cvars() {
 			if v.Op == OXXX {
 				continue
 			}
@@ -417,7 +407,7 @@ func transformclosure(xfunc *Node) {
 
 func walkclosure(func_ *Node, init **NodeList) *Node {
 	// If no closure vars, don't bother wrapping.
-	if func_.Func.Cvars == nil {
+	if len(func_.Func.Cvars()) == 0 {
 		return func_.Func.Closure.Func.Nname
 	}
 
@@ -439,9 +429,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 
 	typ.List = list1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
 	var typ1 *Node
-	var v *Node
-	for l := func_.Func.Cvars; l != nil; l = l.Next {
-		v = l.N
+	for _, v := range func_.Func.Cvars() {
 		if v.Op == OXXX {
 			continue
 		}
