@@ -844,6 +844,19 @@ func plan9quote(s string) string {
 	return s
 }
 
+type Pragma uint8
+
+const (
+	Nointerface       Pragma = 1 << iota
+	Noescape                 // func parameters don't escape
+	Norace                   // func must not have race detector annotations
+	Nosplit                  // func should not execute on separate stack
+	Noinline                 // func should not be inlined
+	Systemstack              // func must run on system stack
+	Nowritebarrier           // emit compiler error instead of write barrier
+	Nowritebarrierrec        // error on write barrier in this or recursive callees
+)
+
 type lexer struct {
 	// source
 	bin    *obj.Biobuf
@@ -851,6 +864,10 @@ type lexer struct {
 	peekr2 rune // second peekc for ...
 
 	nlsemi bool // if set, '\n' and EOF translate to ';'
+
+	// pragma flags
+	// accumulated by lexer; reset by parser
+	pragma Pragma
 
 	// current token
 	tok  int32
@@ -1650,32 +1667,31 @@ func (l *lexer) getlinepragma() rune {
 			Lookup(f[1]).Linkname = f[2]
 		case "go:nointerface":
 			if obj.Fieldtrack_enabled != 0 {
-				nointerface = true
+				l.pragma |= Nointerface
 			}
 		case "go:noescape":
-			noescape = true
+			l.pragma |= Noescape
 		case "go:norace":
-			norace = true
+			l.pragma |= Norace
 		case "go:nosplit":
-			nosplit = true
+			l.pragma |= Nosplit
 		case "go:noinline":
-			noinline = true
+			l.pragma |= Noinline
 		case "go:systemstack":
 			if compiling_runtime == 0 {
 				Yyerror("//go:systemstack only allowed in runtime")
 			}
-			systemstack = true
+			l.pragma |= Systemstack
 		case "go:nowritebarrier":
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
-			nowritebarrier = true
+			l.pragma |= Nowritebarrier
 		case "go:nowritebarrierrec":
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
-			nowritebarrierrec = true
-			nowritebarrier = true // Implies nowritebarrier
+			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
 		}
 		return c
 	}

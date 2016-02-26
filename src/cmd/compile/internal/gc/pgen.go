@@ -434,10 +434,10 @@ func compile(fn *Node) {
 	if fn.Func.Needctxt {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
-	if fn.Func.Nosplit {
+	if fn.Func.Pragma&Nosplit != 0 {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
-	if fn.Func.Systemstack {
+	if fn.Func.Pragma&Systemstack != 0 {
 		ptxt.From.Sym.Cfunc = 1
 	}
 
