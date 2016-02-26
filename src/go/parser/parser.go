@@ -1597,23 +1597,19 @@ func (p *parser) parseBinaryExpr(lhs bool, prec1 int) ast.Expr {
 	}
 
 	x := p.parseUnaryExpr(lhs)
-	for _, prec := p.tokPrec(); prec >= prec1; prec-- {
-		for {
-			op, oprec := p.tokPrec()
-			if oprec != prec {
-				break
-			}
-			pos := p.expect(op)
-			if lhs {
-				p.resolve(x)
-				lhs = false
-			}
-			y := p.parseBinaryExpr(false, prec+1)
-			x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
+	for {
+		op, oprec := p.tokPrec()
+		if oprec < prec1 {
+			return x
 		}
+		pos := p.expect(op)
+		if lhs {
+			p.resolve(x)
+			lhs = false
+		}
+		y := p.parseBinaryExpr(false, oprec+1)
+		x = &ast.BinaryExpr{X: p.checkExpr(x), OpPos: pos, Op: op, Y: p.checkExpr(y)}
 	}
-
-	return x
 }
 
 // If lhs is set and the result is an identifier, it is not resolved.

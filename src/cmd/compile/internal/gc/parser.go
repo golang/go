@@ -1142,17 +1142,14 @@ func (p *parser) bexpr(prec int) *Node {
 	// don't trace bexpr - only leads to overly nested trace output
 
 	x := p.uexpr()
-	t := prectab[p.tok]
-	for tprec := t.prec; tprec >= prec; tprec-- {
-		for tprec == prec {
-			p.next()
-			y := p.bexpr(t.prec + 1)
-			x = Nod(t.op, x, y)
-			t = prectab[p.tok]
-			tprec = t.prec
+	for {
+		t := prectab[p.tok]
+		if t.prec < prec {
+			return x
 		}
+		p.next()
+		x = Nod(t.op, x, p.bexpr(t.prec+1))
 	}
-	return x
 }
 
 func (p *parser) expr() *Node {
