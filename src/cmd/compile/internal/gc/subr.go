@@ -19,7 +19,6 @@ import (
 
 type Error struct {
 	lineno int
-	seq    int
 	msg    string
 }
 
@@ -49,35 +48,24 @@ func adderrorname(n *Node) {
 
 func adderr(line int, format string, args ...interface{}) {
 	errors = append(errors, Error{
-		seq:    len(errors),
 		lineno: line,
 		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(line), fmt.Sprintf(format, args...)),
 	})
 }
 
-// errcmp sorts errors by line, then seq, then message.
-type errcmp []Error
+// byLineno sorts errors by lineno.
+type byLineno []Error
 
-func (x errcmp) Len() int      { return len(x) }
-func (x errcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
-func (x errcmp) Less(i, j int) bool {
-	a := &x[i]
-	b := &x[j]
-	if a.lineno != b.lineno {
-		return a.lineno < b.lineno
-	}
-	if a.seq != b.seq {
-		return a.seq < b.seq
-	}
-	return a.msg < b.msg
-}
+func (x byLineno) Len() int           { return len(x) }
+func (x byLineno) Less(i, j int) bool { return x[i].lineno < x[j].lineno }
+func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
 func Flusherrors() {
 	bstdout.Flush()
 	if len(errors) == 0 {
 		return
 	}
-	sort.Sort(errcmp(errors))
+	sort.Stable(byLineno(errors))
 	for i := 0; i < len(errors); i++ {
 		if i == 0 || errors[i].msg != errors[i-1].msg {
 			fmt.Printf("%s", errors[i].msg)
