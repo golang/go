@@ -515,13 +515,12 @@ func (m *M) Run() int {
 	testOk := RunTests(m.matchString, m.tests)
 	exampleOk := RunExamples(m.matchString, m.examples)
 	stopAlarm()
-	if !testOk || !exampleOk {
+	if !testOk || !exampleOk || !runBenchmarksInternal(m.matchString, m.benchmarks) {
 		fmt.Println("FAIL")
 		after()
 		return 1
 	}
 	fmt.Println("PASS")
-	RunBenchmarks(m.matchString, m.benchmarks)
 	after()
 	return 0
 }

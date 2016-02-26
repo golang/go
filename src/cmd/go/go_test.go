@@ -2801,3 +2801,11 @@ func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
 	tg.run("get", "-u", ".../")
 	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
 }
+
+func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.runFail("test", "-bench", ".", "./testdata/src/benchfatal")
+	tg.grepBothNot("^ok", "test passed unexpectedly")
+	tg.grepBoth("FAIL.*benchfatal", "test did not run everything")
+}
