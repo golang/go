@@ -2081,10 +2081,8 @@ top:
 func dropg() {
 	_g_ := getg()
 
-	if _g_.m.lockedg == nil {
-		_g_.m.curg.m = nil
-		_g_.m.curg = nil
-	}
+	_g_.m.curg.m = nil
+	_g_.m.curg = nil
 }
 
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
