@@ -76,8 +76,9 @@ var buildVersion = sys.TheVersion
 // for nmspinning manipulation.
 
 var (
-	m0 m
-	g0 g
+	m0           m
+	g0           g
+	raceprocctx0 uintptr
 )
 
 //go:linkname runtime_init runtime.init
@@ -434,7 +435,7 @@ func schedinit() {
 	// In particular, it must be done before mallocinit below calls racemapshadow.
 	_g_ := getg()
 	if raceenabled {
-		_g_.racectx = raceinit()
+		_g_.racectx, raceprocctx0 = raceinit()
 	}
 
 	sched.maxmcount = 10000
@@ -3251,6 +3252,14 @@ func procresize(nprocs int32) *p {
 				pp.mcache = allocmcache()
 			}
 		}
+		if raceenabled && pp.racectx == 0 {
+			if old == 0 && i == 0 {
+				pp.racectx = raceprocctx0
+				raceprocctx0 = 0 // bootstrap
+			} else {
+				pp.racectx = raceproccreate()
+			}
+		}
 	}
 
 	// free unused P's
@@ -3302,6 +3311,10 @@ func procresize(nprocs int32) *p {
 		p.mcache = nil
 		gfpurge(p)
 		traceProcFree(p)
+		if raceenabled {
+			raceprocdestroy(p.racectx)
+			p.racectx = 0
+		}
 		p.status = _Pdead
 		// can't free P itself because it can be referenced by an M in syscall
 	}

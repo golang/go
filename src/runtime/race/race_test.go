@@ -17,10 +17,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -194,4 +197,27 @@ func TestIssue9137(t *testing.T) {
 	if len(a) != 0 || a[:1][0] != "" {
 		t.Errorf("mangled a: %q %q", a, a[:1])
 	}
+}
+
+func BenchmarkSyncLeak(b *testing.B) {
+	const (
+		G = 1000
+		S = 1000
+		H = 10
+	)
+	var wg sync.WaitGroup
+	wg.Add(G)
+	for g := 0; g < G; g++ {
+		go func() {
+			defer wg.Done()
+			hold := make([][]uint32, H)
+			for i := 0; i < b.N; i++ {
+				a := make([]uint32, S)
+				atomic.AddUint32(&a[rand.Intn(len(a))], 1)
+				hold[rand.Intn(len(hold))] = a
+			}
+			_ = hold
+		}()
+	}
+	wg.Wait()
 }
