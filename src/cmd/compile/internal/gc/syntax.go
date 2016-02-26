@@ -149,8 +149,8 @@ type Param struct {
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
 	Shortname  *Node
-	Enter      *NodeList
-	Exit       *NodeList
+	Enter      Nodes
+	Exit       Nodes
 	cvars      *[]*Node // closure params
 	Dcl        []*Node  // autodcl for this func/closure
 	Inldcl     *[]*Node // copy of dcl for use in inlining
@@ -505,4 +505,56 @@ func count(l *NodeList) int {
 		Yyerror("too many elements in list")
 	}
 	return int(n)
+}
+
+// Nodes is a pointer to a slice of *Node.
+// For fields that are not used in most nodes, this is used instead of
+// a slice to save space.
+type Nodes struct{ slice *[]*Node }
+
+// Slice returns the entries in Nodes as a slice.
+// Changes to the slice entries (as in s[i] = n) will be reflected in
+// the Nodes.
+func (n *Nodes) Slice() []*Node {
+	if n.slice == nil {
+		return nil
+	}
+	return *n.slice
+}
+
+// NodeList returns the entries in Nodes as a NodeList.
+// Changes to the NodeList entries (as in l.N = n) will *not* be
+// reflect in the Nodes.
+// This wastes memory and should be used as little as possible.
+func (n *Nodes) NodeList() *NodeList {
+	if n.slice == nil {
+		return nil
+	}
+	var ret *NodeList
+	for _, n := range *n.slice {
+		ret = list(ret, n)
+	}
+	return ret
+}
+
+// Set sets Nodes to a slice.
+// This takes ownership of the slice.
+func (n *Nodes) Set(s []*Node) {
+	if len(s) == 0 {
+		n.slice = nil
+	} else {
+		n.slice = &s
+	}
+}
+
+// Append appends entries to Nodes.
+// If a slice is passed in, this will take ownership of it.
+func (n *Nodes) Append(a ...*Node) {
+	if n.slice == nil {
+		if len(a) > 0 {
+			n.slice = &a
+		}
+	} else {
+		*n.slice = append(*n.slice, a...)
+	}
 }

@@ -2621,7 +2621,7 @@ func cgen_ret(n *Node) {
 	if hasdefer {
 		Ginscall(Deferreturn, 0)
 	}
-	Genlist(Curfn.Func.Exit)
+	Genslice(Curfn.Func.Exit.Slice())
 	p := Thearch.Gins(obj.ARET, nil, nil)
 	if n != nil && n.Op == ORETJMP {
 		p.To.Type = obj.TYPE_MEM

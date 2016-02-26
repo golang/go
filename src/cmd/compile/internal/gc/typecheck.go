@@ -40,6 +40,12 @@ func typechecklist(l *NodeList, top int) {
 	}
 }
 
+func typecheckslice(l []*Node, top int) {
+	for i := range l {
+		typecheck(&l[i], top)
+	}
+}
+
 var _typekind = []string{
 	TINT:        "int",
 	TUINT:       "uint",

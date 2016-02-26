@@ -219,6 +219,12 @@ func Genlist(l *NodeList) {
 	}
 }
 
+func Genslice(l []*Node) {
+	for _, n := range l {
+		gen(n)
+	}
+}
+
 // generate code to start new proc running call n.
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
