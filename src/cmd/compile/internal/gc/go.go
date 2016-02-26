@@ -27,25 +27,6 @@ const (
 )
 
 const (
-	// These values are known by runtime.
-	ANOEQ = iota
-	AMEM0
-	AMEM8
-	AMEM16
-	AMEM32
-	AMEM64
-	AMEM128
-	ASTRING
-	AINTER
-	ANILINTER
-	AFLOAT32
-	AFLOAT64
-	ACPLX64
-	ACPLX128
-	AMEM = 100
-)
-
-const (
 	// Maximum size in bits for Mpints before signalling
 	// overflow and also mantissa precision for Mpflts.
 	Mpprec = 512
