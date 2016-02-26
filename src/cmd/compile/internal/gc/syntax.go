@@ -153,7 +153,7 @@ type Func struct {
 	Exit       *NodeList
 	cvars      *[]*Node // closure params
 	Dcl        []*Node  // autodcl for this func/closure
-	Inldcl     []*Node  // copy of dcl for use in inlining
+	Inldcl     *[]*Node // copy of dcl for use in inlining
 	Closgen    int
 	Outerfunc  *Node
 	Fieldtrack []*Type
