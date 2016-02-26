@@ -694,12 +694,14 @@ func (c *Conn) sendAlertLocked(err alert) error {
 		c.tmp[0] = alertLevelError
 	}
 	c.tmp[1] = byte(err)
-	c.writeRecord(recordTypeAlert, c.tmp[0:2])
-	// closeNotify is a special case in that it isn't an error:
-	if err != alertCloseNotify {
-		return c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
+
+	_, writeErr := c.writeRecord(recordTypeAlert, c.tmp[0:2])
+	if err == alertCloseNotify {
+		// closeNotify is a special case in that it isn't an error.
+		return writeErr
 	}
-	return nil
+
+	return c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
 }
 
 // sendAlert sends a TLS alert message.
@@ -713,8 +715,11 @@ func (c *Conn) sendAlert(err alert) error {
 // writeRecord writes a TLS record with the given type and payload
 // to the connection and updates the record layer state.
 // c.out.Mutex <= L.
-func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
+func (c *Conn) writeRecord(typ recordType, data []byte) (int, error) {
 	b := c.out.newBlock()
+	defer c.out.freeBlock(b)
+
+	var n int
 	for len(data) > 0 {
 		m := len(data)
 		if m > maxPlaintext {
@@ -759,34 +764,27 @@ func (c *Conn) writeRecord(typ recordType, data []byte) (n int, err error) {
 			if explicitIVIsSeq {
 				copy(explicitIV, c.out.seq[:])
 			} else {
-				if _, err = io.ReadFull(c.config.rand(), explicitIV); err != nil {
-					break
+				if _, err := io.ReadFull(c.config.rand(), explicitIV); err != nil {
+					return n, err
 				}
 			}
 		}
 		copy(b.data[recordHeaderLen+explicitIVLen:], data)
 		c.out.encrypt(b, explicitIVLen)
-		_, err = c.conn.Write(b.data)
-		if err != nil {
-			break
+		if _, err := c.conn.Write(b.data); err != nil {
+			return n, err
 		}
 		n += m
 		data = data[m:]
 	}
-	c.out.freeBlock(b)
 
 	if typ == recordTypeChangeCipherSpec {
-		err = c.out.changeCipherSpec()
-		if err != nil {
-			// Cannot call sendAlert directly,
-			// because we already hold c.out.Mutex.
-			c.tmp[0] = alertLevelError
-			c.tmp[1] = byte(err.(alert))
-			c.writeRecord(recordTypeAlert, c.tmp[0:2])
-			return n, c.out.setErrorLocked(&net.OpError{Op: "local error", Err: err})
+		if err := c.out.changeCipherSpec(); err != nil {
+			return n, c.sendAlertLocked(err.(alert))
 		}
 	}
-	return
+
+	return n, nil
 }
 
 // readHandshake reads the next handshake message from
