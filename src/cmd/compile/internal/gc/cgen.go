@@ -781,7 +781,7 @@ var sys_wbptr *Node
 
 func cgen_wbptr(n, res *Node) {
 	if Curfn != nil {
-		if Curfn.Func.Nowritebarrier {
+		if Curfn.Func.Pragma&Nowritebarrier != 0 {
 			Yyerror("write barrier prohibited")
 		}
 		if Curfn.Func.WBLineno == 0 {
@@ -831,7 +831,7 @@ func cgen_wbptr(n, res *Node) {
 
 func cgen_wbfat(n, res *Node) {
 	if Curfn != nil {
-		if Curfn.Func.Nowritebarrier {
+		if Curfn.Func.Pragma&Nowritebarrier != 0 {
 			Yyerror("write barrier prohibited")
 		}
 		if Curfn.Func.WBLineno == 0 {

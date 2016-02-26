@@ -1530,7 +1530,7 @@ func checknowritebarrierrec() {
 
 		// Check nowritebarrierrec functions.
 		for _, n := range list {
-			if !n.Func.Nowritebarrierrec {
+			if n.Func.Pragma&Nowritebarrierrec == 0 {
 				continue
 			}
 			call, hasWB := c.best[n]

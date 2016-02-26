@@ -107,7 +107,7 @@ func caninl(fn *Node) {
 	}
 
 	// If marked "go:noinline", don't inline
-	if fn.Func.Noinline {
+	if fn.Func.Pragma&Noinline != 0 {
 		return
 	}
 

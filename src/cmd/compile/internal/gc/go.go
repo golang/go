@@ -616,22 +616,9 @@ var flag_largemodel int
 // when the race detector is enabled.
 var instrumenting bool
 
-// Pending annotations for next func declaration.
-var (
-	noescape          bool
-	noinline          bool
-	norace            bool
-	nosplit           bool
-	nowritebarrier    bool
-	nowritebarrierrec bool
-	systemstack       bool
-)
-
 var debuglive int
 
 var Ctxt *obj.Link
-
-var nointerface bool
 
 var writearchive int
 

@@ -169,18 +169,12 @@ type Func struct {
 	Depth   int32
 
 	Endlineno int32
+	WBLineno  int32 // line number of first write barrier
 
-	Norace            bool // func must not have race detector annotations
-	Nosplit           bool // func should not execute on separate stack
-	Noinline          bool // func should not be inlined
-	Nowritebarrier    bool // emit compiler error instead of write barrier
-	Nowritebarrierrec bool // error on write barrier in this or recursive callees
-	Dupok             bool // duplicate definitions ok
-	Wrapper           bool // is method wrapper
-	Needctxt          bool // function uses context register (has closure variables)
-	Systemstack       bool // must run on system stack
-
-	WBLineno int32 // line number of first write barrier
+	Pragma   Pragma // go:xxx function annotations
+	Dupok    bool   // duplicate definitions ok
+	Wrapper  bool   // is method wrapper
+	Needctxt bool   // function uses context register (has closure variables)
 }
 
 type Op uint8
