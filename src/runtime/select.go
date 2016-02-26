@@ -196,13 +196,27 @@ func selunlock(scases []scase, lockorder []uint16) {
 	}
 }
 
-func selparkcommit(gp *g, usel unsafe.Pointer) bool {
-	sel := (*hselect)(usel)
-	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
-	scases := *(*[]scase)(unsafe.Pointer(&scaseslice))
-	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
-	lockorder := *(*[]uint16)(unsafe.Pointer(&lockslice))
-	selunlock(scases, lockorder)
+func selparkcommit(gp *g, _ unsafe.Pointer) bool {
+	// This must not access gp's stack (see gopark). In
+	// particular, it must not access the *hselect. That's okay,
+	// because by the time this is called, gp.waiting has all
+	// channels in lock order.
+	var lastc *hchan
+	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
+		if sg.c != lastc && lastc != nil {
+			// As soon as we unlock the channel, fields in
+			// any sudog with that channel may change,
+			// including c and waitlink. Since multiple
+			// sudogs may have the same channel, we unlock
+			// only after we've passed the last instance
+			// of a channel.
+			unlock(&lastc.lock)
+		}
+		lastc = sg.c
+	}
+	if lastc != nil {
+		unlock(&lastc.lock)
+	}
 	return true
 }
 
@@ -406,7 +420,7 @@ loop:
 
 	// wait for someone to wake us up
 	gp.param = nil
-	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
+	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 2)
 
 	// someone woke us up
 	sellock(scases, lockorder)
