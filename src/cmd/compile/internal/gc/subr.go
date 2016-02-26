@@ -238,9 +238,8 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 	}
 
 	s := &Sym{
-		Name:    name,
-		Pkg:     pkg,
-		Lexical: LNAME,
+		Name: name,
+		Pkg:  pkg,
 	}
 	if name == "init" {
 		initSyms = append(initSyms, s)
