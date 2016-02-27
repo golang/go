@@ -67,7 +67,7 @@ func closurebody(body *NodeList) *Node {
 	// ordinary ones in the symbol table; see oldname.
 	// unhook them.
 	// make the list of pointers for the closure call.
-	for _, v := range func_.Func.Cvars() {
+	for _, v := range func_.Func.Cvars.Slice() {
 		v.Name.Param.Closure.Name.Param.Closure = v.Name.Param.Outer
 		v.Name.Param.Outerexpr = oldname(v.Sym)
 	}
@@ -76,7 +76,7 @@ func closurebody(body *NodeList) *Node {
 }
 
 func typecheckclosure(func_ *Node, top int) {
-	for _, ln := range func_.Func.Cvars() {
+	for _, ln := range func_.Func.Cvars.Slice() {
 		n := ln.Name.Param.Closure
 		if !n.Name.Captured {
 			n.Name.Captured = true
@@ -224,7 +224,7 @@ func capturevars(xfunc *Node) {
 
 	func_ := xfunc.Func.Closure
 	func_.Func.Enter.Set(nil)
-	for _, v := range func_.Func.Cvars() {
+	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Type == nil {
 			// if v->type is nil, it means v looked like it was
 			// going to be used in the closure but wasn't.
@@ -306,7 +306,7 @@ func transformclosure(xfunc *Node) {
 
 		var addr *Node
 		var fld *Type
-		for _, v := range func_.Func.Cvars() {
+		for _, v := range func_.Func.Cvars.Slice() {
 			if v.Op == OXXX {
 				continue
 			}
@@ -354,7 +354,7 @@ func transformclosure(xfunc *Node) {
 		offset := int64(Widthptr)
 		var addr *Node
 		var cv *Node
-		for _, v := range func_.Func.Cvars() {
+		for _, v := range func_.Func.Cvars.Slice() {
 			if v.Op == OXXX {
 				continue
 			}
@@ -406,7 +406,7 @@ func transformclosure(xfunc *Node) {
 
 func walkclosure(func_ *Node, init **NodeList) *Node {
 	// If no closure vars, don't bother wrapping.
-	if len(func_.Func.Cvars()) == 0 {
+	if len(func_.Func.Cvars.Slice()) == 0 {
 		return func_.Func.Closure.Func.Nname
 	}
 
@@ -428,7 +428,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
 
 	typ.List = list1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
 	var typ1 *Node
-	for _, v := range func_.Func.Cvars() {
+	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
 			continue
 		}

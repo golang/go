@@ -475,7 +475,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
 		break
 
 	case OCLOSURE:
-		if len(r.Func.Cvars()) == 0 {
+		if len(r.Func.Cvars.Slice()) == 0 {
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
 			n := *l

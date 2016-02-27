@@ -426,7 +426,7 @@ func oldname(s *Sym) *Node {
 			n.Name.Param.Closure = c
 			c.Name.Param.Closure = n
 			c.Xoffset = 0
-			Curfn.Func.CvarAppend(c)
+			Curfn.Func.Cvars.Append(c)
 		}
 
 		// return ref to closure var, not original

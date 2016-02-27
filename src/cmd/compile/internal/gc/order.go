@@ -1137,7 +1137,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		}
 
 	case OCLOSURE:
-		if n.Noescape && len(n.Func.Cvars()) > 0 {
+		if n.Noescape && len(n.Func.Cvars.Slice()) > 0 {
 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 
