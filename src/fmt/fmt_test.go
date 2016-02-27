@@ -141,6 +141,10 @@ var fmtTests = []struct {
 	{"%x", "abc", "616263"},
 	{"%x", "\xff\xf0\x0f\xff", "fff00fff"},
 	{"%X", "\xff\xf0\x0f\xff", "FFF00FFF"},
+	{"%x", "", ""},
+	{"% x", "", ""},
+	{"%#x", "", ""},
+	{"%# x", "", ""},
 	{"%x", "xyz", "78797a"},
 	{"%X", "xyz", "78797A"},
 	{"% x", "xyz", "78 79 7a"},
@@ -156,6 +160,10 @@ var fmtTests = []struct {
 	{"%x", []byte("abc"), "616263"},
 	{"%x", []byte("\xff\xf0\x0f\xff"), "fff00fff"},
 	{"%X", []byte("\xff\xf0\x0f\xff"), "FFF00FFF"},
+	{"%x", []byte(""), ""},
+	{"% x", []byte(""), ""},
+	{"%#x", []byte(""), ""},
+	{"%# x", []byte(""), ""},
 	{"%x", []byte("xyz"), "78797a"},
 	{"%X", []byte("xyz"), "78797A"},
 	{"% x", []byte("xyz"), "78 79 7a"},
@@ -204,15 +212,15 @@ var fmtTests = []struct {
 	{"%.10s", "日本語日本語", "日本語日本語"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
-	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), `6162636465`},
+	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
 	{"%.1q", "日本語", `"日"`},
 	{"%.1q", []byte("日本語"), `"日"`},
-	{"%.1x", "日本語", `e6`},
-	{"%.1X", []byte("日本語"), `E6`},
+	{"%.1x", "日本語", "e6"},
+	{"%.1X", []byte("日本語"), "E6"},
 	{"%10.1q", "日本語日本語", `       "日"`},
 	{"%3c", '⌘', "  ⌘"},
 	{"%5q", '\u2026', `  '…'`},
@@ -471,30 +479,61 @@ var fmtTests = []struct {
 	{"%q", []string{"a", "b"}, `["a" "b"]`},
 	{"% 02x", []byte{1}, "01"},
 	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
+
 	// Padding with byte slices.
-	{"%x", []byte{}, ""},
-	{"%02x", []byte{}, "00"},
+	{"%2x", []byte{}, "  "},
+	{"%#2x", []byte{}, "  "},
 	{"% 02x", []byte{}, "00"},
-	{"%08x", []byte{0xab}, "000000ab"},
-	{"% 08x", []byte{0xab}, "000000ab"},
-	{"%08x", []byte{0xab, 0xcd}, "0000abcd"},
-	{"% 08x", []byte{0xab, 0xcd}, "000ab cd"},
+	{"%# 02x", []byte{}, "00"},
+	{"%-2x", []byte{}, "  "},
+	{"%-02x", []byte{}, "  "},
 	{"%8x", []byte{0xab}, "      ab"},
 	{"% 8x", []byte{0xab}, "      ab"},
-	{"%8x", []byte{0xab, 0xcd}, "    abcd"},
-	{"% 8x", []byte{0xab, 0xcd}, "   ab cd"},
+	{"%#8x", []byte{0xab}, "    0xab"},
+	{"%# 8x", []byte{0xab}, "    0xab"},
+	{"%08x", []byte{0xab}, "000000ab"},
+	{"% 08x", []byte{0xab}, "000000ab"},
+	{"%#08x", []byte{0xab}, "00000xab"},
+	{"%# 08x", []byte{0xab}, "00000xab"},
+	{"%10x", []byte{0xab, 0xcd}, "      abcd"},
+	{"% 10x", []byte{0xab, 0xcd}, "     ab cd"},
+	{"%#10x", []byte{0xab, 0xcd}, "    0xabcd"},
+	{"%# 10x", []byte{0xab, 0xcd}, " 0xab 0xcd"},
+	{"%010x", []byte{0xab, 0xcd}, "000000abcd"},
+	{"% 010x", []byte{0xab, 0xcd}, "00000ab cd"},
+	{"%#010x", []byte{0xab, 0xcd}, "00000xabcd"},
+	{"%# 010x", []byte{0xab, 0xcd}, "00xab 0xcd"},
+	{"%-10X", []byte{0xab}, "AB        "},
+	{"% -010X", []byte{0xab}, "AB        "},
+	{"%#-10X", []byte{0xab, 0xcd}, "0XABCD    "},
+	{"%# -010X", []byte{0xab, 0xcd}, "0XAB 0XCD "},
 	// Same for strings
-	{"%x", "", ""},
-	{"%02x", "", "00"},
+	{"%2x", "", "  "},
+	{"%#2x", "", "  "},
 	{"% 02x", "", "00"},
-	{"%08x", "\xab", "000000ab"},
-	{"% 08x", "\xab", "000000ab"},
-	{"%08x", "\xab\xcd", "0000abcd"},
-	{"% 08x", "\xab\xcd", "000ab cd"},
+	{"%# 02x", "", "00"},
+	{"%-2x", "", "  "},
+	{"%-02x", "", "  "},
 	{"%8x", "\xab", "      ab"},
 	{"% 8x", "\xab", "      ab"},
-	{"%8x", "\xab\xcd", "    abcd"},
-	{"% 8x", "\xab\xcd", "   ab cd"},
+	{"%#8x", "\xab", "    0xab"},
+	{"%# 8x", "\xab", "    0xab"},
+	{"%08x", "\xab", "000000ab"},
+	{"% 08x", "\xab", "000000ab"},
+	{"%#08x", "\xab", "00000xab"},
+	{"%# 08x", "\xab", "00000xab"},
+	{"%10x", "\xab\xcd", "      abcd"},
+	{"% 10x", "\xab\xcd", "     ab cd"},
+	{"%#10x", "\xab\xcd", "    0xabcd"},
+	{"%# 10x", "\xab\xcd", " 0xab 0xcd"},
+	{"%010x", "\xab\xcd", "000000abcd"},
+	{"% 010x", "\xab\xcd", "00000ab cd"},
+	{"%#010x", "\xab\xcd", "00000xabcd"},
+	{"%# 010x", "\xab\xcd", "00xab 0xcd"},
+	{"%-10X", "\xab", "AB        "},
+	{"% -010X", "\xab", "AB        "},
+	{"%#-10X", "\xab\xcd", "0XABCD    "},
+	{"%# -010X", "\xab\xcd", "0XAB 0XCD "},
 
 	// renamings
 	{"%v", renamedBool(true), "true"},
@@ -973,6 +1012,23 @@ func BenchmarkSprintfBoolean(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%t", true)
+		}
+	})
+}
+
+func BenchmarkSprintfHexString(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("% #x", "0123456789abcdef")
+		}
+	})
+}
+
+func BenchmarkSprintfHexBytes(b *testing.B) {
+	data := []byte("0123456789abcdef")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("% #x", data)
 		}
 	})
 }
