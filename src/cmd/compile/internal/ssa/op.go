@@ -19,9 +19,10 @@ type opInfo struct {
 	asm               int
 	reg               regInfo
 	auxType           auxType
-	generic           bool // this is a generic (arch-independent) opcode
-	rematerializeable bool // this op is rematerializeable
-	commutative       bool // this operation is commutative (e.g. addition)
+	argLen            int32 // the number of arugments, -1 if variable length
+	generic           bool  // this is a generic (arch-independent) opcode
+	rematerializeable bool  // this op is rematerializeable
+	commutative       bool  // this operation is commutative (e.g. addition)
 }
 
 type inputInfo struct {

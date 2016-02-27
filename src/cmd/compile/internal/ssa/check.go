@@ -148,6 +148,13 @@ func checkFunc(f *Func) {
 		}
 
 		for _, v := range b.Values {
+			// Check to make sure argument count makes sense (argLen of -1 indicates
+			// variable length args)
+			nArgs := opcodeTable[v.Op].argLen
+			if nArgs != -1 && int32(len(v.Args)) != nArgs {
+				f.Fatalf("value %v has %d args, expected %d", v.LongString(),
+					len(v.Args), nArgs)
+			}
 
 			// Check to make sure aux values make sense.
 			canHaveAux := false

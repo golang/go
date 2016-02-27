@@ -16,10 +16,8 @@ func zcse(f *Func) {
 		for i := 0; i < len(b.Values); {
 			v := b.Values[i]
 			next := true
-			switch v.Op {
-			case OpSB, OpConst64, OpConst32, OpConst16, OpConst8, OpConst64F,
-				OpConst32F, OpConstBool, OpConstNil, OpConstSlice, OpConstInterface:
-				key := vkey{v.Op, keyFor(v), typeStr(v)}
+			if opcodeTable[v.Op].argLen == 0 {
+				key := vkey{v.Op, keyFor(v), v.Aux, typeStr(v)}
 				if vals[key] == nil {
 					vals[key] = v
 					if b != f.Entry {
@@ -47,11 +45,8 @@ func zcse(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			for i, a := range v.Args {
-				// TODO: encode arglen in the opcode table, then do this switch with a table lookup?
-				switch a.Op {
-				case OpSB, OpConst64, OpConst32, OpConst16, OpConst8, OpConst64F,
-					OpConst32F, OpConstBool, OpConstNil, OpConstSlice, OpConstInterface:
-					key := vkey{a.Op, keyFor(a), typeStr(a)}
+				if opcodeTable[a.Op].argLen == 0 {
+					key := vkey{a.Op, keyFor(a), a.Aux, typeStr(a)}
 					if rv, ok := vals[key]; ok {
 						v.Args[i] = rv
 					}
@@ -64,8 +59,9 @@ func zcse(f *Func) {
 // vkey is a type used to uniquely identify a zero arg value.
 type vkey struct {
 	op Op
-	a  int64  // aux
-	t  string // type
+	ai int64       // aux int
+	ax interface{} // aux
+	t  string      // type
 }
 
 // typeStr returns a string version of the type of v.
@@ -89,7 +85,6 @@ func keyFor(v *Value) int64 {
 	case OpConst8, OpConstBool:
 		return int64(int8(v.AuxInt))
 	default:
-		// Also matches OpSB, OpConstNil, OpConstSlice, OpConstInterface:
-		return 0
+		return v.AuxInt
 	}
 }
