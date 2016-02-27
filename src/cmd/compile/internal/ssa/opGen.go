@@ -585,8 +585,9 @@ var opcodeTable = [...]opInfo{
 	{name: "OpInvalid"},
 
 	{
-		name: "ADDSS",
-		asm:  x86.AADDSS,
+		name:   "ADDSS",
+		argLen: 2,
+		asm:    x86.AADDSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -598,8 +599,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ADDSD",
-		asm:  x86.AADDSD,
+		name:   "ADDSD",
+		argLen: 2,
+		asm:    x86.AADDSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -611,8 +613,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SUBSS",
-		asm:  x86.ASUBSS,
+		name:   "SUBSS",
+		argLen: 2,
+		asm:    x86.ASUBSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
@@ -625,8 +628,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SUBSD",
-		asm:  x86.ASUBSD,
+		name:   "SUBSD",
+		argLen: 2,
+		asm:    x86.ASUBSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
@@ -639,8 +643,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MULSS",
-		asm:  x86.AMULSS,
+		name:   "MULSS",
+		argLen: 2,
+		asm:    x86.AMULSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -652,8 +657,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MULSD",
-		asm:  x86.AMULSD,
+		name:   "MULSD",
+		argLen: 2,
+		asm:    x86.AMULSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -665,8 +671,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVSS",
-		asm:  x86.ADIVSS,
+		name:   "DIVSS",
+		argLen: 2,
+		asm:    x86.ADIVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
@@ -679,8 +686,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVSD",
-		asm:  x86.ADIVSD,
+		name:   "DIVSD",
+		argLen: 2,
+		asm:    x86.ADIVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 2147418112}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14
@@ -695,6 +703,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSSload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -708,6 +717,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSDload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -721,6 +731,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "MOVSSconst",
 		auxType:           auxFloat,
+		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVSS,
 		reg: regInfo{
@@ -732,6 +743,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "MOVSDconst",
 		auxType:           auxFloat,
+		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVSD,
 		reg: regInfo{
@@ -743,6 +755,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSSloadidx4",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -757,6 +770,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSDloadidx8",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -771,6 +785,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSSstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -782,6 +797,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSDstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -793,6 +809,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSSstoreidx4",
 		auxType: auxSymOff,
+		argLen:  4,
 		asm:     x86.AMOVSS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -805,6 +822,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVSDstoreidx8",
 		auxType: auxSymOff,
+		argLen:  4,
 		asm:     x86.AMOVSD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -815,8 +833,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ADDQ",
-		asm:  x86.AADDQ,
+		name:   "ADDQ",
+		argLen: 2,
+		asm:    x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -829,8 +848,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ADDL",
-		asm:  x86.AADDL,
+		name:   "ADDL",
+		argLen: 2,
+		asm:    x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -843,8 +863,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ADDW",
-		asm:  x86.AADDW,
+		name:   "ADDW",
+		argLen: 2,
+		asm:    x86.AADDW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -857,8 +878,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ADDB",
-		asm:  x86.AADDB,
+		name:   "ADDB",
+		argLen: 2,
+		asm:    x86.AADDB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -873,6 +895,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ADDQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.AADDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -887,6 +910,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ADDLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.AADDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -901,6 +925,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ADDWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.AADDW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -915,6 +940,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ADDBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.AADDB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -927,8 +953,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SUBQ",
-		asm:  x86.ASUBQ,
+		name:   "SUBQ",
+		argLen: 2,
+		asm:    x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -941,8 +968,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SUBL",
-		asm:  x86.ASUBL,
+		name:   "SUBL",
+		argLen: 2,
+		asm:    x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -955,8 +983,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SUBW",
-		asm:  x86.ASUBW,
+		name:   "SUBW",
+		argLen: 2,
+		asm:    x86.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -969,8 +998,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SUBB",
-		asm:  x86.ASUBB,
+		name:   "SUBB",
+		argLen: 2,
+		asm:    x86.ASUBB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -985,6 +1015,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SUBQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.ASUBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -999,6 +1030,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SUBLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.ASUBL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1013,6 +1045,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SUBWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1027,6 +1060,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SUBBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.ASUBB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1039,8 +1073,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MULQ",
-		asm:  x86.AIMULQ,
+		name:   "MULQ",
+		argLen: 2,
+		asm:    x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1053,8 +1088,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MULL",
-		asm:  x86.AIMULL,
+		name:   "MULL",
+		argLen: 2,
+		asm:    x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1067,8 +1103,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MULW",
-		asm:  x86.AIMULW,
+		name:   "MULW",
+		argLen: 2,
+		asm:    x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1081,8 +1118,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MULB",
-		asm:  x86.AIMULW,
+		name:   "MULB",
+		argLen: 2,
+		asm:    x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1097,6 +1135,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MULQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1111,6 +1150,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MULLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1125,6 +1165,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MULWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1139,6 +1180,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MULBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1151,8 +1193,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULQ",
-		asm:  x86.AIMULQ,
+		name:   "HMULQ",
+		argLen: 2,
+		asm:    x86.AIMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1165,8 +1208,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULL",
-		asm:  x86.AIMULL,
+		name:   "HMULL",
+		argLen: 2,
+		asm:    x86.AIMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1179,8 +1223,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULW",
-		asm:  x86.AIMULW,
+		name:   "HMULW",
+		argLen: 2,
+		asm:    x86.AIMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1193,8 +1238,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULB",
-		asm:  x86.AIMULB,
+		name:   "HMULB",
+		argLen: 2,
+		asm:    x86.AIMULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1207,8 +1253,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULQU",
-		asm:  x86.AMULQ,
+		name:   "HMULQU",
+		argLen: 2,
+		asm:    x86.AMULQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1221,8 +1268,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULLU",
-		asm:  x86.AMULL,
+		name:   "HMULLU",
+		argLen: 2,
+		asm:    x86.AMULL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1235,8 +1283,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULWU",
-		asm:  x86.AMULW,
+		name:   "HMULWU",
+		argLen: 2,
+		asm:    x86.AMULW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1249,8 +1298,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "HMULBU",
-		asm:  x86.AMULB,
+		name:   "HMULBU",
+		argLen: 2,
+		asm:    x86.AMULB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1263,7 +1313,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "AVGQU",
+		name:   "AVGQU",
+		argLen: 2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1276,8 +1327,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVQ",
-		asm:  x86.AIDIVQ,
+		name:   "DIVQ",
+		argLen: 2,
+		asm:    x86.AIDIVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1290,8 +1342,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVL",
-		asm:  x86.AIDIVL,
+		name:   "DIVL",
+		argLen: 2,
+		asm:    x86.AIDIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1304,8 +1357,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVW",
-		asm:  x86.AIDIVW,
+		name:   "DIVW",
+		argLen: 2,
+		asm:    x86.AIDIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1318,8 +1372,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVQU",
-		asm:  x86.ADIVQ,
+		name:   "DIVQU",
+		argLen: 2,
+		asm:    x86.ADIVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1332,8 +1387,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVLU",
-		asm:  x86.ADIVL,
+		name:   "DIVLU",
+		argLen: 2,
+		asm:    x86.ADIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1346,8 +1402,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "DIVWU",
-		asm:  x86.ADIVW,
+		name:   "DIVWU",
+		argLen: 2,
+		asm:    x86.ADIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1360,8 +1417,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MODQ",
-		asm:  x86.AIDIVQ,
+		name:   "MODQ",
+		argLen: 2,
+		asm:    x86.AIDIVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1374,8 +1432,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MODL",
-		asm:  x86.AIDIVL,
+		name:   "MODL",
+		argLen: 2,
+		asm:    x86.AIDIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1388,8 +1447,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MODW",
-		asm:  x86.AIDIVW,
+		name:   "MODW",
+		argLen: 2,
+		asm:    x86.AIDIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1402,8 +1462,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MODQU",
-		asm:  x86.ADIVQ,
+		name:   "MODQU",
+		argLen: 2,
+		asm:    x86.ADIVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1416,8 +1477,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MODLU",
-		asm:  x86.ADIVL,
+		name:   "MODLU",
+		argLen: 2,
+		asm:    x86.ADIVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1430,8 +1492,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MODWU",
-		asm:  x86.ADIVW,
+		name:   "MODWU",
+		argLen: 2,
+		asm:    x86.ADIVW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1},     // .AX
@@ -1444,8 +1507,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ANDQ",
-		asm:  x86.AANDQ,
+		name:   "ANDQ",
+		argLen: 2,
+		asm:    x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1458,8 +1522,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ANDL",
-		asm:  x86.AANDL,
+		name:   "ANDL",
+		argLen: 2,
+		asm:    x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1472,8 +1537,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ANDW",
-		asm:  x86.AANDW,
+		name:   "ANDW",
+		argLen: 2,
+		asm:    x86.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1486,8 +1552,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ANDB",
-		asm:  x86.AANDB,
+		name:   "ANDB",
+		argLen: 2,
+		asm:    x86.AANDB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1502,6 +1569,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ANDQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.AANDQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1516,6 +1584,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ANDLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.AANDL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1530,6 +1599,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ANDWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.AANDW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1544,6 +1614,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ANDBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.AANDB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1556,8 +1627,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ORQ",
-		asm:  x86.AORQ,
+		name:   "ORQ",
+		argLen: 2,
+		asm:    x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1570,8 +1642,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ORL",
-		asm:  x86.AORL,
+		name:   "ORL",
+		argLen: 2,
+		asm:    x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1584,8 +1657,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ORW",
-		asm:  x86.AORW,
+		name:   "ORW",
+		argLen: 2,
+		asm:    x86.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1598,8 +1672,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "ORB",
-		asm:  x86.AORB,
+		name:   "ORB",
+		argLen: 2,
+		asm:    x86.AORB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1614,6 +1689,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ORQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.AORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1628,6 +1704,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ORLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.AORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1642,6 +1719,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ORWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.AORW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1656,6 +1734,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ORBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.AORB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1668,8 +1747,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "XORQ",
-		asm:  x86.AXORQ,
+		name:   "XORQ",
+		argLen: 2,
+		asm:    x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1682,8 +1762,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "XORL",
-		asm:  x86.AXORL,
+		name:   "XORL",
+		argLen: 2,
+		asm:    x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1696,8 +1777,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "XORW",
-		asm:  x86.AXORW,
+		name:   "XORW",
+		argLen: 2,
+		asm:    x86.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1710,8 +1792,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "XORB",
-		asm:  x86.AXORB,
+		name:   "XORB",
+		argLen: 2,
+		asm:    x86.AXORB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1726,6 +1809,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "XORQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.AXORQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1740,6 +1824,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "XORLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.AXORL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1754,6 +1839,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "XORWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.AXORW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1768,6 +1854,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "XORBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.AXORB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1780,8 +1867,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CMPQ",
-		asm:  x86.ACMPQ,
+		name:   "CMPQ",
+		argLen: 2,
+		asm:    x86.ACMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1793,8 +1881,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CMPL",
-		asm:  x86.ACMPL,
+		name:   "CMPL",
+		argLen: 2,
+		asm:    x86.ACMPL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1806,8 +1895,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CMPW",
-		asm:  x86.ACMPW,
+		name:   "CMPW",
+		argLen: 2,
+		asm:    x86.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1819,8 +1909,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CMPB",
-		asm:  x86.ACMPB,
+		name:   "CMPB",
+		argLen: 2,
+		asm:    x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1834,6 +1925,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CMPQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.ACMPQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1847,6 +1939,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CMPLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.ACMPL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1860,6 +1953,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CMPWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.ACMPW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1873,6 +1967,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CMPBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1884,8 +1979,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "UCOMISS",
-		asm:  x86.AUCOMISS,
+		name:   "UCOMISS",
+		argLen: 2,
+		asm:    x86.AUCOMISS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -1897,8 +1993,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "UCOMISD",
-		asm:  x86.AUCOMISD,
+		name:   "UCOMISD",
+		argLen: 2,
+		asm:    x86.AUCOMISD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -1910,8 +2007,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "TESTQ",
-		asm:  x86.ATESTQ,
+		name:   "TESTQ",
+		argLen: 2,
+		asm:    x86.ATESTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1923,8 +2021,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "TESTL",
-		asm:  x86.ATESTL,
+		name:   "TESTL",
+		argLen: 2,
+		asm:    x86.ATESTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1936,8 +2035,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "TESTW",
-		asm:  x86.ATESTW,
+		name:   "TESTW",
+		argLen: 2,
+		asm:    x86.ATESTW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1949,8 +2049,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "TESTB",
-		asm:  x86.ATESTB,
+		name:   "TESTB",
+		argLen: 2,
+		asm:    x86.ATESTB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -1964,6 +2065,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "TESTQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.ATESTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1977,6 +2079,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "TESTLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.ATESTL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -1990,6 +2093,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "TESTWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.ATESTW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2003,6 +2107,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "TESTBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.ATESTB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2014,8 +2119,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHLQ",
-		asm:  x86.ASHLQ,
+		name:   "SHLQ",
+		argLen: 2,
+		asm:    x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2028,8 +2134,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHLL",
-		asm:  x86.ASHLL,
+		name:   "SHLL",
+		argLen: 2,
+		asm:    x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2042,8 +2149,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHLW",
-		asm:  x86.ASHLW,
+		name:   "SHLW",
+		argLen: 2,
+		asm:    x86.ASHLW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2056,8 +2164,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHLB",
-		asm:  x86.ASHLB,
+		name:   "SHLB",
+		argLen: 2,
+		asm:    x86.ASHLB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2072,6 +2181,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHLQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.ASHLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2086,6 +2196,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHLLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.ASHLL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2100,6 +2211,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHLWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.ASHLW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2114,6 +2226,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHLBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.ASHLB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2126,8 +2239,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHRQ",
-		asm:  x86.ASHRQ,
+		name:   "SHRQ",
+		argLen: 2,
+		asm:    x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2140,8 +2254,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHRL",
-		asm:  x86.ASHRL,
+		name:   "SHRL",
+		argLen: 2,
+		asm:    x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2154,8 +2269,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHRW",
-		asm:  x86.ASHRW,
+		name:   "SHRW",
+		argLen: 2,
+		asm:    x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2168,8 +2284,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SHRB",
-		asm:  x86.ASHRB,
+		name:   "SHRB",
+		argLen: 2,
+		asm:    x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2184,6 +2301,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHRQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.ASHRQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2198,6 +2316,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHRLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.ASHRL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2212,6 +2331,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHRWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.ASHRW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2226,6 +2346,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SHRBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.ASHRB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2238,8 +2359,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SARQ",
-		asm:  x86.ASARQ,
+		name:   "SARQ",
+		argLen: 2,
+		asm:    x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2252,8 +2374,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SARL",
-		asm:  x86.ASARL,
+		name:   "SARL",
+		argLen: 2,
+		asm:    x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2266,8 +2389,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SARW",
-		asm:  x86.ASARW,
+		name:   "SARW",
+		argLen: 2,
+		asm:    x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2280,8 +2404,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SARB",
-		asm:  x86.ASARB,
+		name:   "SARB",
+		argLen: 2,
+		asm:    x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 2},     // .CX
@@ -2296,6 +2421,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SARQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.ASARQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2310,6 +2436,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SARLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.ASARL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2324,6 +2451,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SARWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.ASARW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2338,6 +2466,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "SARBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.ASARB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2352,6 +2481,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ROLQconst",
 		auxType: auxInt64,
+		argLen:  1,
 		asm:     x86.AROLQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2366,6 +2496,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ROLLconst",
 		auxType: auxInt32,
+		argLen:  1,
 		asm:     x86.AROLL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2380,6 +2511,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ROLWconst",
 		auxType: auxInt16,
+		argLen:  1,
 		asm:     x86.AROLW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2394,6 +2526,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "ROLBconst",
 		auxType: auxInt8,
+		argLen:  1,
 		asm:     x86.AROLB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -2406,8 +2539,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NEGQ",
-		asm:  x86.ANEGQ,
+		name:   "NEGQ",
+		argLen: 1,
+		asm:    x86.ANEGQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2419,8 +2553,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NEGL",
-		asm:  x86.ANEGL,
+		name:   "NEGL",
+		argLen: 1,
+		asm:    x86.ANEGL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2432,8 +2567,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NEGW",
-		asm:  x86.ANEGW,
+		name:   "NEGW",
+		argLen: 1,
+		asm:    x86.ANEGW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2445,8 +2581,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NEGB",
-		asm:  x86.ANEGB,
+		name:   "NEGB",
+		argLen: 1,
+		asm:    x86.ANEGB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2458,8 +2595,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NOTQ",
-		asm:  x86.ANOTQ,
+		name:   "NOTQ",
+		argLen: 1,
+		asm:    x86.ANOTQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2471,8 +2609,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NOTL",
-		asm:  x86.ANOTL,
+		name:   "NOTL",
+		argLen: 1,
+		asm:    x86.ANOTL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2484,8 +2623,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NOTW",
-		asm:  x86.ANOTW,
+		name:   "NOTW",
+		argLen: 1,
+		asm:    x86.ANOTW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2497,8 +2637,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "NOTB",
-		asm:  x86.ANOTB,
+		name:   "NOTB",
+		argLen: 1,
+		asm:    x86.ANOTB,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2510,8 +2651,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SQRTSD",
-		asm:  x86.ASQRTSD,
+		name:   "SQRTSD",
+		argLen: 1,
+		asm:    x86.ASQRTSD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2522,8 +2664,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SBBQcarrymask",
-		asm:  x86.ASBBQ,
+		name:   "SBBQcarrymask",
+		argLen: 1,
+		asm:    x86.ASBBQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2534,8 +2677,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SBBLcarrymask",
-		asm:  x86.ASBBL,
+		name:   "SBBLcarrymask",
+		argLen: 1,
+		asm:    x86.ASBBL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2546,8 +2690,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETEQ",
-		asm:  x86.ASETEQ,
+		name:   "SETEQ",
+		argLen: 1,
+		asm:    x86.ASETEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2558,8 +2703,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETNE",
-		asm:  x86.ASETNE,
+		name:   "SETNE",
+		argLen: 1,
+		asm:    x86.ASETNE,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2570,8 +2716,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETL",
-		asm:  x86.ASETLT,
+		name:   "SETL",
+		argLen: 1,
+		asm:    x86.ASETLT,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2582,8 +2729,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETLE",
-		asm:  x86.ASETLE,
+		name:   "SETLE",
+		argLen: 1,
+		asm:    x86.ASETLE,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2594,8 +2742,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETG",
-		asm:  x86.ASETGT,
+		name:   "SETG",
+		argLen: 1,
+		asm:    x86.ASETGT,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2606,8 +2755,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETGE",
-		asm:  x86.ASETGE,
+		name:   "SETGE",
+		argLen: 1,
+		asm:    x86.ASETGE,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2618,8 +2768,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETB",
-		asm:  x86.ASETCS,
+		name:   "SETB",
+		argLen: 1,
+		asm:    x86.ASETCS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2630,8 +2781,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETBE",
-		asm:  x86.ASETLS,
+		name:   "SETBE",
+		argLen: 1,
+		asm:    x86.ASETLS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2642,8 +2794,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETA",
-		asm:  x86.ASETHI,
+		name:   "SETA",
+		argLen: 1,
+		asm:    x86.ASETHI,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2654,8 +2807,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETAE",
-		asm:  x86.ASETCC,
+		name:   "SETAE",
+		argLen: 1,
+		asm:    x86.ASETCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2666,8 +2820,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETEQF",
-		asm:  x86.ASETEQ,
+		name:   "SETEQF",
+		argLen: 1,
+		asm:    x86.ASETEQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2679,8 +2834,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETNEF",
-		asm:  x86.ASETNE,
+		name:   "SETNEF",
+		argLen: 1,
+		asm:    x86.ASETNE,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2692,8 +2848,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETORD",
-		asm:  x86.ASETPC,
+		name:   "SETORD",
+		argLen: 1,
+		asm:    x86.ASETPC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2704,8 +2861,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETNAN",
-		asm:  x86.ASETPS,
+		name:   "SETNAN",
+		argLen: 1,
+		asm:    x86.ASETPS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2716,8 +2874,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETGF",
-		asm:  x86.ASETHI,
+		name:   "SETGF",
+		argLen: 1,
+		asm:    x86.ASETHI,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2728,8 +2887,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "SETGEF",
-		asm:  x86.ASETCC,
+		name:   "SETGEF",
+		argLen: 1,
+		asm:    x86.ASETCC,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 8589934592}, // .FLAGS
@@ -2740,8 +2900,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVBQSX",
-		asm:  x86.AMOVBQSX,
+		name:   "MOVBQSX",
+		argLen: 1,
+		asm:    x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2752,8 +2913,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVBQZX",
-		asm:  x86.AMOVBQZX,
+		name:   "MOVBQZX",
+		argLen: 1,
+		asm:    x86.AMOVBQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2764,8 +2926,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVWQSX",
-		asm:  x86.AMOVWQSX,
+		name:   "MOVWQSX",
+		argLen: 1,
+		asm:    x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2776,8 +2939,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVWQZX",
-		asm:  x86.AMOVWQZX,
+		name:   "MOVWQZX",
+		argLen: 1,
+		asm:    x86.AMOVWQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2788,8 +2952,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVLQSX",
-		asm:  x86.AMOVLQSX,
+		name:   "MOVLQSX",
+		argLen: 1,
+		asm:    x86.AMOVLQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2800,8 +2965,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVLQZX",
-		asm:  x86.AMOVLQZX,
+		name:   "MOVLQZX",
+		argLen: 1,
+		asm:    x86.AMOVLQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2814,6 +2980,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "MOVBconst",
 		auxType:           auxInt8,
+		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVB,
 		reg: regInfo{
@@ -2825,6 +2992,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "MOVWconst",
 		auxType:           auxInt16,
+		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVW,
 		reg: regInfo{
@@ -2836,6 +3004,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "MOVLconst",
 		auxType:           auxInt32,
+		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVL,
 		reg: regInfo{
@@ -2847,6 +3016,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "MOVQconst",
 		auxType:           auxInt64,
+		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVQ,
 		reg: regInfo{
@@ -2856,8 +3026,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTTSD2SL",
-		asm:  x86.ACVTTSD2SL,
+		name:   "CVTTSD2SL",
+		argLen: 1,
+		asm:    x86.ACVTTSD2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2868,8 +3039,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTTSD2SQ",
-		asm:  x86.ACVTTSD2SQ,
+		name:   "CVTTSD2SQ",
+		argLen: 1,
+		asm:    x86.ACVTTSD2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2880,8 +3052,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTTSS2SL",
-		asm:  x86.ACVTTSS2SL,
+		name:   "CVTTSS2SL",
+		argLen: 1,
+		asm:    x86.ACVTTSS2SL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2892,8 +3065,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTTSS2SQ",
-		asm:  x86.ACVTTSS2SQ,
+		name:   "CVTTSS2SQ",
+		argLen: 1,
+		asm:    x86.ACVTTSS2SQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2904,8 +3078,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSL2SS",
-		asm:  x86.ACVTSL2SS,
+		name:   "CVTSL2SS",
+		argLen: 1,
+		asm:    x86.ACVTSL2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2916,8 +3091,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSL2SD",
-		asm:  x86.ACVTSL2SD,
+		name:   "CVTSL2SD",
+		argLen: 1,
+		asm:    x86.ACVTSL2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2928,8 +3104,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSQ2SS",
-		asm:  x86.ACVTSQ2SS,
+		name:   "CVTSQ2SS",
+		argLen: 1,
+		asm:    x86.ACVTSQ2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2940,8 +3117,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSQ2SD",
-		asm:  x86.ACVTSQ2SD,
+		name:   "CVTSQ2SD",
+		argLen: 1,
+		asm:    x86.ACVTSQ2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -2952,8 +3130,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSD2SS",
-		asm:  x86.ACVTSD2SS,
+		name:   "CVTSD2SS",
+		argLen: 1,
+		asm:    x86.ACVTSD2SS,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2964,8 +3143,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "CVTSS2SD",
-		asm:  x86.ACVTSS2SD,
+		name:   "CVTSS2SD",
+		argLen: 1,
+		asm:    x86.ACVTSS2SD,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2976,8 +3156,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "PXOR",
-		asm:  x86.APXOR,
+		name:   "PXOR",
+		argLen: 2,
+		asm:    x86.APXOR,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
@@ -2991,6 +3172,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:              "LEAQ",
 		auxType:           auxSymOff,
+		argLen:            1,
 		rematerializeable: true,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3004,6 +3186,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LEAQ1",
 		auxType: auxSymOff,
+		argLen:  2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3017,6 +3200,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LEAQ2",
 		auxType: auxSymOff,
+		argLen:  2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3030,6 +3214,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LEAQ4",
 		auxType: auxSymOff,
+		argLen:  2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3043,6 +3228,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "LEAQ8",
 		auxType: auxSymOff,
+		argLen:  2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3056,6 +3242,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3069,6 +3256,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBQSXload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVBQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3082,6 +3270,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBQZXload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVBQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3095,6 +3284,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3108,6 +3298,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWQSXload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVWQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3121,6 +3312,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWQZXload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVWQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3134,6 +3326,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3147,6 +3340,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLQSXload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVLQSX,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3160,6 +3354,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLQZXload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVLQZX,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3173,6 +3368,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVQload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3186,6 +3382,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3197,6 +3394,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3208,6 +3406,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3219,6 +3418,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVQstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3230,6 +3430,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVOload",
 		auxType: auxSymOff,
+		argLen:  2,
 		asm:     x86.AMOVUPS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3243,6 +3444,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVOstore",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVUPS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3254,6 +3456,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBloadidx1",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3268,6 +3471,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWloadidx2",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3282,6 +3486,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLloadidx4",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3296,6 +3501,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVQloadidx8",
 		auxType: auxSymOff,
+		argLen:  3,
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3310,6 +3516,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBstoreidx1",
 		auxType: auxSymOff,
+		argLen:  4,
 		asm:     x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3322,6 +3529,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWstoreidx2",
 		auxType: auxSymOff,
+		argLen:  4,
 		asm:     x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3334,6 +3542,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLstoreidx4",
 		auxType: auxSymOff,
+		argLen:  4,
 		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3346,6 +3555,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVQstoreidx8",
 		auxType: auxSymOff,
+		argLen:  4,
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3358,6 +3568,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBstoreconst",
 		auxType: auxSymValAndOff,
+		argLen:  2,
 		asm:     x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3368,6 +3579,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWstoreconst",
 		auxType: auxSymValAndOff,
+		argLen:  2,
 		asm:     x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3378,6 +3590,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLstoreconst",
 		auxType: auxSymValAndOff,
+		argLen:  2,
 		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3388,6 +3601,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVQstoreconst",
 		auxType: auxSymValAndOff,
+		argLen:  2,
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3398,6 +3612,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVBstoreconstidx1",
 		auxType: auxSymValAndOff,
+		argLen:  3,
 		asm:     x86.AMOVB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3409,6 +3624,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVWstoreconstidx2",
 		auxType: auxSymValAndOff,
+		argLen:  3,
 		asm:     x86.AMOVW,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3420,6 +3636,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVLstoreconstidx4",
 		auxType: auxSymValAndOff,
+		argLen:  3,
 		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3431,6 +3648,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "MOVQstoreconstidx8",
 		auxType: auxSymValAndOff,
+		argLen:  3,
 		asm:     x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -3442,6 +3660,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "DUFFZERO",
 		auxType: auxInt64,
+		argLen:  3,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128},   // .DI
@@ -3452,6 +3671,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "MOVOconst",
+		argLen:            0,
 		rematerializeable: true,
 		reg: regInfo{
 			outputs: []regMask{
@@ -3460,7 +3680,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "REPSTOSQ",
+		name:   "REPSTOSQ",
+		argLen: 4,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // .DI
@@ -3473,6 +3694,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLstatic",
 		auxType: auxSymOff,
+		argLen:  1,
 		reg: regInfo{
 			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
 		},
@@ -3480,6 +3702,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLclosure",
 		auxType: auxInt64,
+		argLen:  3,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 4},     // .DX
@@ -3491,6 +3714,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLdefer",
 		auxType: auxInt64,
+		argLen:  1,
 		reg: regInfo{
 			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
 		},
@@ -3498,6 +3722,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLgo",
 		auxType: auxInt64,
+		argLen:  1,
 		reg: regInfo{
 			clobbers: 12884901871, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15 .FLAGS
 		},
@@ -3505,6 +3730,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "CALLinter",
 		auxType: auxInt64,
+		argLen:  2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3515,6 +3741,7 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "DUFFCOPY",
 		auxType: auxInt64,
+		argLen:  3,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // .DI
@@ -3524,7 +3751,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "REPMOVSQ",
+		name:   "REPMOVSQ",
+		argLen: 4,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // .DI
@@ -3535,11 +3763,13 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "InvertFlags",
-		reg:  regInfo{},
+		name:   "InvertFlags",
+		argLen: 1,
+		reg:    regInfo{},
 	},
 	{
-		name: "LoweredGetG",
+		name:   "LoweredGetG",
+		argLen: 1,
 		reg: regInfo{
 			outputs: []regMask{
 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3547,7 +3777,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "LoweredGetClosurePtr",
+		name:   "LoweredGetClosurePtr",
+		argLen: 0,
 		reg: regInfo{
 			outputs: []regMask{
 				4, // .DX
@@ -3555,7 +3786,8 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "LoweredNilCheck",
+		name:   "LoweredNilCheck",
+		argLen: 2,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3564,8 +3796,9 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "MOVQconvert",
-		asm:  x86.AMOVQ,
+		name:   "MOVQconvert",
+		argLen: 2,
+		asm:    x86.AMOVQ,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 65535}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
@@ -3576,1174 +3809,1452 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
-		name: "FlagEQ",
-		reg:  regInfo{},
+		name:   "FlagEQ",
+		argLen: 0,
+		reg:    regInfo{},
 	},
 	{
-		name: "FlagLT_ULT",
-		reg:  regInfo{},
+		name:   "FlagLT_ULT",
+		argLen: 0,
+		reg:    regInfo{},
 	},
 	{
-		name: "FlagLT_UGT",
-		reg:  regInfo{},
+		name:   "FlagLT_UGT",
+		argLen: 0,
+		reg:    regInfo{},
 	},
 	{
-		name: "FlagGT_UGT",
-		reg:  regInfo{},
+		name:   "FlagGT_UGT",
+		argLen: 0,
+		reg:    regInfo{},
 	},
 	{
-		name: "FlagGT_ULT",
-		reg:  regInfo{},
+		name:   "FlagGT_ULT",
+		argLen: 0,
+		reg:    regInfo{},
 	},
 
 	{
 		name:        "Add8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Add16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Add32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Add64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:    "AddPtr",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Add32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Add64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Sub8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Sub16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Sub32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Sub64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SubPtr",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Sub32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Sub64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:        "Mul8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Mul16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Mul32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Mul64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:    "Mul32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mul64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul8u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul16u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul32u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Hmul64u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Avg64u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div8u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div16u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div32u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Div64u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod8u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod16u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod32u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Mod64u",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:        "And8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "And16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "And32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "And64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Or8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Or16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Or32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Or64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Xor8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Xor16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Xor32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Xor64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:    "Lsh8x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh8x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh8x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh8x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh16x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh16x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh16x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh16x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh32x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh32x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh32x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh32x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh64x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh64x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh64x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lsh64x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64x8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64x16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64x32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64x64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8Ux8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8Ux16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8Ux32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh8Ux64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16Ux8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16Ux16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16Ux32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh16Ux64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32Ux8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32Ux16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32Ux32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh32Ux64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64Ux8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64Ux16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64Ux32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Rsh64Ux64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Lrot8",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Lrot16",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Lrot32",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Lrot64",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:        "Eq8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Eq16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Eq32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Eq64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "EqPtr",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:    "EqInter",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "EqSlice",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Eq32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Eq64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:        "Neq8",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Neq16",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Neq32",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "Neq64",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:        "NeqPtr",
+		argLen:      2,
 		commutative: true,
 		generic:     true,
 	},
 	{
 		name:    "NeqInter",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "NeqSlice",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Neq32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Neq64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less8U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less16U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less32U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less64U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Less64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq8U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq16U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq32U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq64U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Leq64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater8U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater16U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater32U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater64U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq8",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq8U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq16",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq16U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq32",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq32U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq64",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq64U",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq32F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Geq64F",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Not",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Neg8",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Neg16",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Neg32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Neg64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Neg32F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Neg64F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Com8",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Com16",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Com32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Com64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Sqrt",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Phi",
+		argLen:  -1,
 		generic: true,
 	},
 	{
 		name:    "Copy",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Convert",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ConstBool",
 		auxType: auxBool,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "ConstString",
 		auxType: auxString,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "ConstNil",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const8",
 		auxType: auxInt8,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const16",
 		auxType: auxInt16,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const32",
 		auxType: auxInt32,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const64",
 		auxType: auxInt64,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const32F",
 		auxType: auxFloat,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const64F",
 		auxType: auxFloat,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "ConstInterface",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "ConstSlice",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "InitMem",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Arg",
 		auxType: auxSymOff,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Addr",
 		auxType: auxSym,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SP",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "SB",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Func",
 		auxType: auxSym,
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Load",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Store",
 		auxType: auxInt64,
+		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "Move",
 		auxType: auxInt64,
+		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "Zero",
 		auxType: auxInt64,
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ClosureCall",
 		auxType: auxInt64,
+		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "StaticCall",
 		auxType: auxSymOff,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "DeferCall",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GoCall",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "InterCall",
 		auxType: auxInt64,
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "SignExt8to16",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SignExt8to32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SignExt8to64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SignExt16to32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SignExt16to64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SignExt32to64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ZeroExt8to16",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ZeroExt8to32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ZeroExt8to64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ZeroExt16to32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ZeroExt16to64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ZeroExt32to64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Trunc16to8",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Trunc32to8",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Trunc32to16",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Trunc64to8",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Trunc64to16",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Trunc64to32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt32to32F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt32to64F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt64to32F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt64to64F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt32Fto32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt32Fto64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt64Fto32",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt64Fto64",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt32Fto64F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "Cvt64Fto32F",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "IsNonNil",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "IsInBounds",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "IsSliceInBounds",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "NilCheck",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "GetG",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "GetClosurePtr",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "ArrayIndex",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "PtrIndex",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "OffPtr",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SliceMake",
+		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "SlicePtr",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SliceLen",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "SliceCap",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ComplexMake",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ComplexReal",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "ComplexImag",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "StringMake",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "StringPtr",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "StringLen",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "IMake",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "ITab",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "IData",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "StructMake0",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "StructMake1",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "StructMake2",
+		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "StructMake3",
+		argLen:  3,
 		generic: true,
 	},
 	{
 		name:    "StructMake4",
+		argLen:  4,
 		generic: true,
 	},
 	{
 		name:    "StructSelect",
 		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "StoreReg",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "LoadReg",
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "FwdRef",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Unknown",
+		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "VarDef",
 		auxType: auxSym,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "VarKill",
 		auxType: auxSym,
+		argLen:  1,
 		generic: true,
 	},
 	{
 		name:    "VarLive",
 		auxType: auxSym,
+		argLen:  1,
 		generic: true,
 	},
 }

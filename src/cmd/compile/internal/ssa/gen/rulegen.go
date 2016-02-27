@@ -398,14 +398,14 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 
 	variableLength := false
 	for _, op := range genericOps {
-		if op.name == s[0] {
-			variableLength = op.variableLength
+		if op.name == s[0] && op.argLength == -1 {
+			variableLength = true
 			break
 		}
 	}
 	for _, op := range arch.ops {
-		if op.name == s[0] {
-			variableLength = op.variableLength
+		if op.name == s[0] && op.argLength == -1 {
+			variableLength = true
 			break
 		}
 	}

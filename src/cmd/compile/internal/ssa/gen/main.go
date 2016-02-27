@@ -32,8 +32,8 @@ type opData struct {
 	typ               string // default result type
 	aux               string
 	rematerializeable bool
-	variableLength    bool // this operation has a variable number of arguments
-	commutative       bool // this operation is commutative (e.g. addition)
+	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
+	commutative       bool  // this operation is commutative (e.g. addition)
 }
 
 type blockData struct {
@@ -126,6 +126,8 @@ func genOp() {
 			if v.aux != "" {
 				fmt.Fprintf(w, "auxType: aux%s,\n", v.aux)
 			}
+			fmt.Fprintf(w, "argLen: %d,\n", v.argLength)
+
 			if v.rematerializeable {
 				if v.reg.clobbers != 0 {
 					log.Fatalf("%s is rematerializeable and clobbers registers", v.name)
@@ -191,6 +193,7 @@ func genOp() {
 	var err error
 	b, err = format.Source(b)
 	if err != nil {
+		fmt.Printf("%s\n", w.Bytes())
 		panic(err)
 	}
 
