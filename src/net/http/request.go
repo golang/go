@@ -997,9 +997,16 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
 	if err != nil {
 		return err
 	}
+
+	if r.PostForm == nil {
+		r.PostForm = make(url.Values)
+	}
 	for k, v := range f.Value {
 		r.Form[k] = append(r.Form[k], v...)
+		// r.PostForm should also be populated. See Issue 9305.
+		r.PostForm[k] = append(r.PostForm[k], v...)
 	}
+
 	r.MultipartForm = f
 
 	return nil
