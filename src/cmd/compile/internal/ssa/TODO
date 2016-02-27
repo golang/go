@@ -24,7 +24,7 @@ Optimizations (better compiled code)
 - Figure out how to make PARAMOUT variables ssa-able.
   They need to get spilled automatically at end-of-function somehow.
 - If strings are being passed around without being interpreted (ptr
-  and len feilds being accessed) pass them in xmm registers?
+  and len fields being accessed) pass them in xmm registers?
   Same for interfaces?
 - OpArrayIndex should take its index in AuxInt, not a full value.
 - remove FLAGS from REP instruction clobbers
@@ -32,7 +32,6 @@ Optimizations (better compiled code)
   Note that this is challenging for ops that generate flags
   because flagalloc wants to move those instructions around for
   flag regeneration.
-- In forms like if ... { call } else { no call }, mark the call branch as unlikely.
 - Non-constant rotate detection.
 - Do 0 <= x && x < n with one unsigned compare
 - nil-check removal in indexed load/store case:
