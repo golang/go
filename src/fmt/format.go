@@ -390,8 +390,9 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	} else {
 		num[0] = '+'
 	}
-	// f.space says to replace a leading + with a space.
-	if f.space && num[0] == '+' {
+	// f.space means to add a leading space instead of a "+" sign unless
+	// the sign is explicitly asked for by f.plus.
+	if f.space && num[0] == '+' && !f.plus {
 		num[0] = ' '
 	}
 	// Special handling for infinities and NaN,
