@@ -232,9 +232,9 @@ func genhash(sym *Sym, t *Type) {
 		na.Etype = 1 // no escape to heap
 		call.List = list(call.List, na)
 		call.List = list(call.List, nh)
-		n.Nbody = list(n.Nbody, Nod(OAS, nh, call))
+		n.Nbody.Append(Nod(OAS, nh, call))
 
-		fn.Nbody = list(fn.Nbody, n)
+		fn.Nbody.Append(n)
 
 	// Walk the struct using memhash for runs of AMEM
 	// and calling specific hash functions for the others.
@@ -262,7 +262,7 @@ func genhash(sym *Sym, t *Type) {
 				call.List = list(call.List, na)
 				call.List = list(call.List, nh)
 				call.List = list(call.List, Nodintconst(size))
-				fn.Nbody = list(fn.Nbody, Nod(OAS, nh, call))
+				fn.Nbody.Append(Nod(OAS, nh, call))
 			}
 
 			if t1 == nil {
@@ -285,7 +285,7 @@ func genhash(sym *Sym, t *Type) {
 			na.Etype = 1 // no escape to heap
 			call.List = list(call.List, na)
 			call.List = list(call.List, nh)
-			fn.Nbody = list(fn.Nbody, Nod(OAS, nh, call))
+			fn.Nbody.Append(Nod(OAS, nh, call))
 
 			t1 = t1.Down
 		}
@@ -293,17 +293,17 @@ func genhash(sym *Sym, t *Type) {
 
 	r := Nod(ORETURN, nil, nil)
 	r.List = list(r.List, nh)
-	fn.Nbody = list(fn.Nbody, r)
+	fn.Nbody.Append(r)
 
 	if Debug['r'] != 0 {
-		dumplist("genhash body", fn.Nbody)
+		dumpslice("genhash body", fn.Nbody.Slice())
 	}
 
 	funcbody(fn)
 	Curfn = fn
 	fn.Func.Dupok = true
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody, Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
 
 	// Disable safemode while compiling this code: the code we
@@ -429,14 +429,14 @@ func geneq(sym *Sym, t *Type) {
 		nif.Left = Nod(ONE, nx, ny)
 		r := Nod(ORETURN, nil, nil)
 		r.List = list(r.List, Nodbool(false))
-		nif.Nbody = list(nif.Nbody, r)
-		nrange.Nbody = list(nrange.Nbody, nif)
-		fn.Nbody = list(fn.Nbody, nrange)
+		nif.Nbody.Append(r)
+		nrange.Nbody.Append(nif)
+		fn.Nbody.Append(nrange)
 
 		// return true
 		ret := Nod(ORETURN, nil, nil)
 		ret.List = list(ret.List, Nodbool(true))
-		fn.Nbody = list(fn.Nbody, ret)
+		fn.Nbody.Append(ret)
 
 	// Walk the struct using memequal for runs of AMEM
 	// and calling specific equality tests for the others.
@@ -500,18 +500,18 @@ func geneq(sym *Sym, t *Type) {
 
 		ret := Nod(ORETURN, nil, nil)
 		ret.List = list(ret.List, and)
-		fn.Nbody = list(fn.Nbody, ret)
+		fn.Nbody.Append(ret)
 	}
 
 	if Debug['r'] != 0 {
-		dumplist("geneq body", fn.Nbody)
+		dumpslice("geneq body", fn.Nbody.Slice())
 	}
 
 	funcbody(fn)
 	Curfn = fn
 	fn.Func.Dupok = true
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody, Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
 
 	// Disable safemode while compiling this code: the code we

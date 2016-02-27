@@ -1216,7 +1216,7 @@ func exprfmt(n *Node, prec int) string {
 		if fmtmode == FErr {
 			return "func literal"
 		}
-		if n.Nbody != nil {
+		if len(n.Nbody.Slice()) != 0 {
 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
 		}
 		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
@@ -1583,7 +1583,7 @@ func nodedump(n *Node, flag int) string {
 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(int(n.Op), 0), n.Rlist)
 		}
 
-		if n.Nbody != nil {
+		if len(n.Nbody.Slice()) != 0 {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-body%v", Oconv(int(n.Op), 0), n.Nbody)
 		}
@@ -1697,6 +1697,10 @@ func Nconv(n *Node, flag int) string {
 
 func (l *NodeList) String() string {
 	return Hconv(l, 0)
+}
+
+func (n Nodes) String() string {
+	return Hconvslice(n.Slice(), 0)
 }
 
 // Fmt '%H': NodeList.

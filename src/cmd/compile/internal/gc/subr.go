@@ -2170,8 +2170,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		l = list(l, nodlit(v)) // method name
 		call := Nod(OCALL, syslook("panicwrap", 0), nil)
 		call.List = l
-		n.Nbody = list1(call)
-		fn.Nbody = list(fn.Nbody, n)
+		n.Nbody.Set([]*Node{call})
+		fn.Nbody.Append(n)
 	}
 
 	dot := adddot(Nod(OXDOT, this.Left, newname(method.Sym)))
@@ -2185,10 +2185,10 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		}
 		as := Nod(OAS, this.Left, Nod(OCONVNOP, dot, nil))
 		as.Right.Type = rcvr
-		fn.Nbody = list(fn.Nbody, as)
+		fn.Nbody.Append(as)
 		n := Nod(ORETJMP, nil, nil)
 		n.Left = newname(methodsym(method.Sym, methodrcvr, 0))
-		fn.Nbody = list(fn.Nbody, n)
+		fn.Nbody.Append(n)
 	} else {
 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
 		call := Nod(OCALL, dot, nil)
@@ -2200,11 +2200,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 			call = n
 		}
 
-		fn.Nbody = list(fn.Nbody, call)
+		fn.Nbody.Append(call)
 	}
 
 	if false && Debug['r'] != 0 {
-		dumplist("genwrapper body", fn.Nbody)
+		dumpslice("genwrapper body", fn.Nbody.Slice())
 	}
 
 	funcbody(fn)
@@ -2215,7 +2215,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		fn.Func.Dupok = true
 	}
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody, Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 
 	inlcalls(fn)
 	escAnalyze([]*Node{fn}, false)
@@ -2392,6 +2392,14 @@ func liststmt(l *NodeList) *Node {
 		n.Lineno = l.N.Lineno
 	}
 	return n
+}
+
+func liststmtslice(l []*Node) *Node {
+	var ll *NodeList
+	for _, n := range l {
+		ll = list(ll, n)
+	}
+	return liststmt(ll)
 }
 
 // return nelem of list
@@ -2738,6 +2746,14 @@ func addinit(np **Node, init *NodeList) {
 
 	n.Ninit = concat(init, n.Ninit)
 	n.Ullman = UINF
+}
+
+func addinitslice(np **Node, init []*Node) {
+	var l *NodeList
+	for _, n := range init {
+		l = list(l, n)
+	}
+	addinit(np, l)
 }
 
 var reservedimports = []string{

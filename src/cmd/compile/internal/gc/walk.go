@@ -22,7 +22,7 @@ func walk(fn *Node) {
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
-		dumplist(s, Curfn.Nbody)
+		dumpslice(s, Curfn.Nbody.Slice())
 	}
 
 	lno := int(lineno)
@@ -64,10 +64,10 @@ func walk(fn *Node) {
 	if nerrors != 0 {
 		return
 	}
-	walkstmtlist(Curfn.Nbody)
+	walkstmtslice(Curfn.Nbody.Slice())
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
-		dumplist(s, Curfn.Nbody)
+		dumpslice(s, Curfn.Nbody.Slice())
 	}
 
 	heapmoves()
@@ -264,11 +264,11 @@ func walkstmt(np **Node) {
 		}
 
 		walkstmt(&n.Right)
-		walkstmtlist(n.Nbody)
+		walkstmtslice(n.Nbody.Slice())
 
 	case OIF:
 		walkexpr(&n.Left, &n.Ninit)
-		walkstmtlist(n.Nbody)
+		walkstmtslice(n.Nbody.Slice())
 		walkstmtlist(n.Rlist)
 
 	case OPROC:
@@ -1009,7 +1009,7 @@ opswitch:
 
 				n2 := Nod(OIF, nil, nil)
 				n2.Left = Nod(OEQ, l, nodnil())
-				n2.Nbody = list1(Nod(OAS, l, n1))
+				n2.Nbody.Set([]*Node{Nod(OAS, l, n1)})
 				n2.Likely = -1
 				typecheck(&n2, Etop)
 				*init = list(*init, n2)
@@ -2814,7 +2814,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 	substArgTypes(fn, s.Type.Type, s.Type.Type)
 
 	// s = growslice_n(T, s, n)
-	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
+	nif.Nbody.Set([]*Node{Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt))})
 
 	l = list(l, nif)
 
@@ -2944,7 +2944,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 	fn := syslook("growslice", 1) //   growslice(<type>, old []T, mincap int) (ret []T)
 	substArgTypes(fn, ns.Type.Type, ns.Type.Type)
 
-	nx.Nbody = list1(Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, Nod(OADD, Nod(OLEN, ns, nil), na))))
+	nx.Nbody.Set([]*Node{Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, Nod(OADD, Nod(OLEN, ns, nil), na)))})
 
 	l = list(l, nx)
 
@@ -3018,7 +3018,7 @@ func copyany(n *Node, init **NodeList, runtimecall bool) *Node {
 	nif := Nod(OIF, nil, nil)
 
 	nif.Left = Nod(OGT, nlen, Nod(OLEN, nr, nil))
-	nif.Nbody = list(nif.Nbody, Nod(OAS, nlen, Nod(OLEN, nr, nil)))
+	nif.Nbody.Append(Nod(OAS, nlen, Nod(OLEN, nr, nil)))
 	l = list(l, nif)
 
 	// Call memmove.
@@ -3804,6 +3804,15 @@ func candiscardlist(l *NodeList) bool {
 	return true
 }
 
+func candiscardslice(l []*Node) bool {
+	for _, n := range l {
+		if !candiscard(n) {
+			return false
+		}
+	}
+	return true
+}
+
 func candiscard(n *Node) bool {
 	if n == nil {
 		return true
@@ -3890,7 +3899,7 @@ func candiscard(n *Node) bool {
 		return false
 	}
 
-	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
+	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscardlist(n.Ninit) || !candiscardslice(n.Nbody.Slice()) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
 		return false
 	}
 
@@ -3946,12 +3955,12 @@ func walkprintfunc(np **Node, init **NodeList) {
 	typecheck(&a, Etop)
 	walkstmt(&a)
 
-	fn.Nbody = list1(a)
+	fn.Nbody.Set([]*Node{a})
 
 	funcbody(fn)
 
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody, Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 	xtop = list(xtop, fn)
 	Curfn = oldfn
 

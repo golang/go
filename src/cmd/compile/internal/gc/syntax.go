@@ -16,7 +16,7 @@ type Node struct {
 	Left  *Node
 	Right *Node
 	Ninit *NodeList
-	Nbody *NodeList
+	Nbody Nodes
 	List  *NodeList
 	Rlist *NodeList
 
@@ -164,7 +164,7 @@ type Func struct {
 	FCurfn     *Node
 	Nname      *Node
 
-	Inl     *NodeList // copy of the body for use in inlining
+	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
 	Depth   int32
 
@@ -503,7 +503,7 @@ func (n *Nodes) Slice() []*Node {
 
 // NodeList returns the entries in Nodes as a NodeList.
 // Changes to the NodeList entries (as in l.N = n) will *not* be
-// reflect in the Nodes.
+// reflected in the Nodes.
 // This wastes memory and should be used as little as possible.
 func (n *Nodes) NodeList() *NodeList {
 	if n.slice == nil {
@@ -535,5 +535,25 @@ func (n *Nodes) Append(a ...*Node) {
 		}
 	} else {
 		*n.slice = append(*n.slice, a...)
+	}
+}
+
+// SetToNodeList sets Nodes to the contents of a NodeList.
+func (n *Nodes) SetToNodeList(l *NodeList) {
+	s := make([]*Node, 0, count(l))
+	for ; l != nil; l = l.Next {
+		s = append(s, l.N)
+	}
+	n.Set(s)
+}
+
+// AppendNodeList appends the contents of a NodeList.
+func (n *Nodes) AppendNodeList(l *NodeList) {
+	if n.slice == nil {
+		n.SetToNodeList(l)
+	} else {
+		for ; l != nil; l = l.Next {
+			*n.slice = append(*n.slice, l.N)
+		}
 	}
 }

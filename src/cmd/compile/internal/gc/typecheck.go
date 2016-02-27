@@ -217,12 +217,21 @@ func callrecv(n *Node) bool {
 		return true
 	}
 
-	return callrecv(n.Left) || callrecv(n.Right) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
+	return callrecv(n.Left) || callrecv(n.Right) || callrecvlist(n.Ninit) || callrecvslice(n.Nbody.Slice()) || callrecvlist(n.List) || callrecvlist(n.Rlist)
 }
 
 func callrecvlist(l *NodeList) bool {
 	for ; l != nil; l = l.Next {
 		if callrecv(l.N) {
+			return true
+		}
+	}
+	return false
+}
+
+func callrecvslice(l []*Node) bool {
+	for _, n := range l {
+		if callrecv(n) {
 			return true
 		}
 	}
@@ -2064,7 +2073,7 @@ OpSwitch:
 			}
 		}
 		typecheck(&n.Right, Etop)
-		typechecklist(n.Nbody, Etop)
+		typecheckslice(n.Nbody.Slice(), Etop)
 		decldepth--
 		break OpSwitch
 
@@ -2078,7 +2087,7 @@ OpSwitch:
 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
 			}
 		}
-		typechecklist(n.Nbody, Etop)
+		typecheckslice(n.Nbody.Slice(), Etop)
 		typechecklist(n.Rlist, Etop)
 		break OpSwitch
 
@@ -2128,7 +2137,7 @@ OpSwitch:
 	case OXCASE:
 		ok |= Etop
 		typechecklist(n.List, Erv)
-		typechecklist(n.Nbody, Etop)
+		typecheckslice(n.Nbody.Slice(), Etop)
 		break OpSwitch
 
 	case ODCLFUNC:
@@ -3871,7 +3880,7 @@ func markbreak(n *Node, implicit *Node) {
 
 		markbreak(n.Right, implicit)
 		markbreaklist(n.Ninit, implicit)
-		markbreaklist(n.Nbody, implicit)
+		markbreakslice(n.Nbody.Slice(), implicit)
 		markbreaklist(n.List, implicit)
 		markbreaklist(n.Rlist, implicit)
 	}
@@ -3904,26 +3913,51 @@ func markbreaklist(l *NodeList, implicit *Node) {
 	}
 }
 
-func isterminating(l *NodeList, top int) bool {
+func markbreakslice(l []*Node, implicit *Node) {
+	for i := 0; i < len(l); i++ {
+		n := l[i]
+		if n.Op == OLABEL && i+1 < len(l) && n.Name.Defn == l[i+1] {
+			switch n.Name.Defn.Op {
+			case OFOR, OSWITCH, OTYPESW, OSELECT, ORANGE:
+				lab := new(Label)
+				lab.Def = n.Name.Defn
+				n.Left.Sym.Label = lab
+				markbreak(n.Name.Defn, n.Name.Defn)
+				n.Left.Sym.Label = nil
+				i++
+				continue
+			}
+		}
+
+		markbreak(n, implicit)
+	}
+}
+
+// Isterminating returns whether the NodeList l ends with a
+// terminating statement.
+func (l *NodeList) isterminating() bool {
 	if l == nil {
 		return false
 	}
-	if top != 0 {
-		for l.Next != nil && l.N.Op != OLABEL {
-			l = l.Next
-		}
-		markbreaklist(l, nil)
-	}
-
 	for l.Next != nil {
 		l = l.Next
 	}
-	n := l.N
+	return l.N.isterminating()
+}
 
-	if n == nil {
+// Isterminating whether the Nodes list ends with a terminating
+// statement.
+func (l Nodes) isterminating() bool {
+	c := len(l.Slice())
+	if c == 0 {
 		return false
 	}
+	return l.Slice()[c-1].isterminating()
+}
 
+// Isterminating returns whether the node n, the last one in a
+// statement list, is a terminating statement.
+func (n *Node) isterminating() bool {
 	switch n.Op {
 	// NOTE: OLABEL is treated as a separate statement,
 	// not a separate prefix, so skipping to the last statement
@@ -3931,7 +3965,7 @@ func isterminating(l *NodeList, top int) bool {
 	// skipping over the label. No case OLABEL here.
 
 	case OBLOCK:
-		return isterminating(n.List, 0)
+		return n.List.isterminating()
 
 	case OGOTO,
 		ORETURN,
@@ -3950,15 +3984,15 @@ func isterminating(l *NodeList, top int) bool {
 		return true
 
 	case OIF:
-		return isterminating(n.Nbody, 0) && isterminating(n.Rlist, 0)
+		return n.Nbody.isterminating() && n.Rlist.isterminating()
 
 	case OSWITCH, OTYPESW, OSELECT:
 		if n.Hasbreak {
 			return false
 		}
 		def := 0
-		for l = n.List; l != nil; l = l.Next {
-			if !isterminating(l.N.Nbody, 0) {
+		for l := n.List; l != nil; l = l.Next {
+			if !l.N.Nbody.isterminating() {
 				return false
 			}
 			if l.N.List == nil { // default
@@ -3976,8 +4010,9 @@ func isterminating(l *NodeList, top int) bool {
 }
 
 func checkreturn(fn *Node) {
-	if fn.Type.Outtuple != 0 && fn.Nbody != nil {
-		if !isterminating(fn.Nbody, 1) {
+	if fn.Type.Outtuple != 0 && len(fn.Nbody.Slice()) != 0 {
+		markbreakslice(fn.Nbody.Slice(), nil)
+		if !fn.Nbody.isterminating() {
 			yyerrorl(int(fn.Func.Endlineno), "missing return at end of function")
 		}
 	}

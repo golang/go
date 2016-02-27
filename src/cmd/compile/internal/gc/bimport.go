@@ -95,7 +95,7 @@ func Import(in *obj.Biobuf) {
 		funchdr(n)
 
 		// go.y:hidden_import
-		n.Func.Inl = nil
+		n.Func.Inl.Set(nil)
 		funcbody(n)
 		importlist = append(importlist, n) // TODO(gri) do this only if body is inlineable?
 	}
@@ -253,7 +253,7 @@ func (p *importer) typ() *Type {
 			n.Type.Nname = n
 
 			// go.y:hidden_import
-			n.Func.Inl = nil
+			n.Func.Inl.Set(nil)
 			funcbody(n)
 			importlist = append(importlist, n) // TODO(gri) do this only if body is inlineable?
 		}

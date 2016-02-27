@@ -1520,7 +1520,7 @@ func checknowritebarrierrec() {
 			for _, n := range list {
 				if n.Func.WBLineno == 0 {
 					c.curfn = n
-					c.visitcodelist(n.Nbody)
+					c.visitcodeslice(n.Nbody.Slice())
 				}
 			}
 			if c.stable {
@@ -1557,6 +1557,12 @@ func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
 	}
 }
 
+func (c *nowritebarrierrecChecker) visitcodeslice(l []*Node) {
+	for _, n := range l {
+		c.visitcode(n)
+	}
+}
+
 func (c *nowritebarrierrecChecker) visitcode(n *Node) {
 	if n == nil {
 		return
@@ -1570,7 +1576,7 @@ func (c *nowritebarrierrecChecker) visitcode(n *Node) {
 	c.visitcode(n.Left)
 	c.visitcode(n.Right)
 	c.visitcodelist(n.List)
-	c.visitcodelist(n.Nbody)
+	c.visitcodeslice(n.Nbody.Slice())
 	c.visitcodelist(n.Rlist)
 }
 

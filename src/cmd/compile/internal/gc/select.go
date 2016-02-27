@@ -79,7 +79,7 @@ func typecheckselect(sel *Node) {
 			}
 		}
 
-		typechecklist(ncase.Nbody, Etop)
+		typecheckslice(ncase.Nbody.Slice(), Etop)
 	}
 
 	sel.Xoffset = int64(count)
@@ -95,14 +95,14 @@ func walkselect(sel *Node) {
 	i := count(sel.List)
 
 	// optimization: zero-case select
-	var init *NodeList
+	var init []*Node
 	var r *Node
 	var n *Node
 	var var_ *Node
 	var selv *Node
 	var cas *Node
 	if i == 0 {
-		sel.Nbody = list1(mkcall("block", nil, nil))
+		sel.Nbody.Set([]*Node{mkcall("block", nil, nil)})
 		goto out
 	}
 
@@ -155,14 +155,18 @@ func walkselect(sel *Node) {
 			a := Nod(OIF, nil, nil)
 
 			a.Left = Nod(OEQ, ch, nodnil())
-			a.Nbody = list1(mkcall("block", nil, &l))
+			a.Nbody.Set([]*Node{mkcall("block", nil, &l)})
 			typecheck(&a, Etop)
 			l = list(l, a)
 			l = list(l, n)
 		}
 
-		l = concat(l, cas.Nbody)
-		sel.Nbody = l
+		s := make([]*Node, 0, count(l))
+		for ll := l; ll != nil; ll = ll.Next {
+			s = append(s, ll.N)
+		}
+		s = append(s, cas.Nbody.Slice()...)
+		sel.Nbody.Set(s)
 		goto out
 	}
 
@@ -242,13 +246,16 @@ func walkselect(sel *Node) {
 		}
 
 		typecheck(&r.Left, Erv)
-		r.Nbody = cas.Nbody
-		r.Rlist = concat(dflt.Ninit, dflt.Nbody)
-		sel.Nbody = list1(r)
+		r.Nbody.Set(cas.Nbody.Slice())
+		r.Rlist = concat(dflt.Ninit, dflt.Nbody.NodeList())
+		sel.Nbody.Set([]*Node{r})
 		goto out
 	}
 
-	init = sel.Ninit
+	init = make([]*Node, 0, count(sel.Ninit))
+	for ll := sel.Ninit; ll != nil; ll = ll.Next {
+		init = append(init, ll.N)
+	}
 	sel.Ninit = nil
 
 	// generate sel-struct
@@ -257,11 +264,11 @@ func walkselect(sel *Node) {
 	selv = temp(selecttype(int32(sel.Xoffset)))
 	r = Nod(OAS, selv, nil)
 	typecheck(&r, Etop)
-	init = list(init, r)
+	init = append(init, r)
 	var_ = conv(conv(Nod(OADDR, selv, nil), Types[TUNSAFEPTR]), Ptrto(Types[TUINT8]))
 	r = mkcall("newselect", nil, nil, var_, Nodintconst(selv.Type.Width), Nodintconst(sel.Xoffset))
 	typecheck(&r, Etop)
-	init = list(init, r)
+	init = append(init, r)
 
 	// register cases
 	for l := sel.List; l != nil; l = l.Next {
@@ -299,22 +306,22 @@ func walkselect(sel *Node) {
 		}
 
 		// selv is no longer alive after use.
-		r.Nbody = list(r.Nbody, Nod(OVARKILL, selv, nil))
+		r.Nbody.Append(Nod(OVARKILL, selv, nil))
 
-		r.Nbody = concat(r.Nbody, cas.Nbody)
-		r.Nbody = list(r.Nbody, Nod(OBREAK, nil, nil))
-		init = list(init, r)
+		r.Nbody.Append(cas.Nbody.Slice()...)
+		r.Nbody.Append(Nod(OBREAK, nil, nil))
+		init = append(init, r)
 	}
 
 	// run the select
 	setlineno(sel)
 
-	init = list(init, mkcall("selectgo", nil, nil, var_))
-	sel.Nbody = init
+	init = append(init, mkcall("selectgo", nil, nil, var_))
+	sel.Nbody.Set(init)
 
 out:
 	sel.List = nil
-	walkstmtlist(sel.Nbody)
+	walkstmtslice(sel.Nbody.Slice())
 	lineno = int32(lno)
 }
 

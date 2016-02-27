@@ -748,7 +748,7 @@ func (p *exporter) float(x *Mpflt) {
 // is written out for exported functions with inlined function bodies.
 
 func (p *exporter) collectInlined(n *Node) int {
-	if n != nil && n.Func != nil && n.Func.Inl != nil {
+	if n != nil && n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 		if Debug['l'] < 2 {
@@ -762,13 +762,13 @@ func (p *exporter) collectInlined(n *Node) int {
 
 func (p *exporter) body(i int, f *Func) {
 	p.int(i)
-	p.block(f.Inl)
+	p.block(f.Inl.Slice())
 }
 
-func (p *exporter) block(list *NodeList) {
-	p.int(count(list))
-	for q := list; q != nil; q = q.Next {
-		p.stmt(q.N)
+func (p *exporter) block(list []*Node) {
+	p.int(len(list))
+	for _, n := range list {
+		p.stmt(n)
 	}
 }
 

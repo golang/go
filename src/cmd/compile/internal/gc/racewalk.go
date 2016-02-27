@@ -55,7 +55,7 @@ func instrument(fn *Node) {
 	}
 
 	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
-		instrumentlist(fn.Nbody, nil)
+		instrumentslice(fn.Nbody.Slice(), nil)
 
 		// nothing interesting for race detector in fn->enter
 		instrumentslice(fn.Func.Exit.Slice(), nil)
@@ -78,7 +78,7 @@ func instrument(fn *Node) {
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
-		dumplist(s, fn.Nbody)
+		dumpslice(s, fn.Nbody.Slice())
 		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
 		dumpslice(s, fn.Func.Enter.Slice())
 		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
@@ -439,7 +439,7 @@ ret:
 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
 		instrumentlist(n.List, init)
 	}
-	instrumentlist(n.Nbody, nil)
+	instrumentslice(n.Nbody.Slice(), nil)
 	instrumentlist(n.Rlist, nil)
 	*np = n
 }
@@ -612,12 +612,18 @@ func foreachlist(l *NodeList, f func(*Node, interface{}), c interface{}) {
 	}
 }
 
+func foreachslice(l []*Node, f func(*Node, interface{}), c interface{}) {
+	for _, n := range l {
+		foreachnode(n, f, c)
+	}
+}
+
 func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
 	foreachlist(n.Ninit, f, c)
 	foreachnode(n.Left, f, c)
 	foreachnode(n.Right, f, c)
 	foreachlist(n.List, f, c)
-	foreachlist(n.Nbody, f, c)
+	foreachslice(n.Nbody.Slice(), f, c)
 	foreachlist(n.Rlist, f, c)
 }
 

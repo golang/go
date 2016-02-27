@@ -777,7 +777,7 @@ func gen(n *Node) {
 		gen(n.Right)                     // contin:	incr
 		Patch(p1, Pc)                    // test:
 		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
-		Genlist(n.Nbody)                 //		body
+		Genslice(n.Nbody.Slice())        //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -792,7 +792,7 @@ func gen(n *Node) {
 		p2 := gjmp(nil)                         // p2:		goto else
 		Patch(p1, Pc)                           // test:
 		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genlist(n.Nbody)                        //		then
+		Genslice(n.Nbody.Slice())               //		then
 		p3 := gjmp(nil)                         //		goto done
 		Patch(p2, Pc)                           // else:
 		Genlist(n.Rlist)                        //		else
@@ -809,9 +809,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)      // test:
-		Genlist(n.Nbody)   //		switch(test) body
-		Patch(breakpc, Pc) // done:
+		Patch(p1, Pc)             // test:
+		Genslice(n.Nbody.Slice()) //		switch(test) body
+		Patch(breakpc, Pc)        // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -828,9 +828,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)      // test:
-		Genlist(n.Nbody)   //		select() body
-		Patch(breakpc, Pc) // done:
+		Patch(p1, Pc)             // test:
+		Genslice(n.Nbody.Slice()) //		select() body
+		Patch(breakpc, Pc)        // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
