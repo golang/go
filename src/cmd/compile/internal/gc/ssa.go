@@ -3597,10 +3597,11 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		}
 		// Emit control flow instructions for block
 		var next *ssa.Block
-		if i < len(f.Blocks)-1 && Debug['N'] == 0 {
+		if i < len(f.Blocks)-1 && (Debug['N'] == 0 || b.Kind == ssa.BlockCall) {
 			// If -N, leave next==nil so every block with successors
-			// ends in a JMP.  Helps keep line numbers for otherwise
-			// empty blocks.
+			// ends in a JMP (except call blocks - plive doesn't like
+			// select{send,recv} followed by a JMP call).  Helps keep
+			// line numbers for otherwise empty blocks.
 			next = f.Blocks[i+1]
 		}
 		x := Pc
