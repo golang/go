@@ -48,6 +48,12 @@ func TestFmtInterface(t *testing.T) {
 	}
 }
 
+var (
+	NaN    = math.NaN()
+	posInf = math.Inf(1)
+	negInf = math.Inf(-1)
+)
+
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
 
@@ -345,9 +351,31 @@ var fmtTests = []struct {
 	{"% .3g", 1.0, " 1"},
 	{"%b", float32(1.0), "8388608p-23"},
 	{"%b", 1.0, "4503599627370496p-52"},
+	// Precision has no effect for binary float format.
+	{"%.4b", float32(1.0), "8388608p-23"},
+	{"%.4b", -1.0, "-4503599627370496p-52"},
+	// float infinites and NaNs
+	{"%f", posInf, "+Inf"},
+	{"%.1f", negInf, "-Inf"},
+	{"% f", NaN, " NaN"},
+	{"%20f", posInf, "                +Inf"},
+	{"% 20F", posInf, "                 Inf"},
+	{"% 20e", negInf, "                -Inf"},
+	{"%+20E", negInf, "                -Inf"},
+	{"% +20g", negInf, "                -Inf"},
+	{"%+-20G", posInf, "+Inf                "},
+	{"%20e", NaN, "                 NaN"},
+	{"% +20E", NaN, "                +NaN"},
+	{"% -20g", NaN, " NaN                "},
+	{"%+-20G", NaN, "+NaN                "},
+	// Zero padding does not apply to infinities and NaN.
+	{"%+020e", posInf, "                +Inf"},
+	{"%-020f", negInf, "-Inf                "},
+	{"%-020E", NaN, "NaN                 "},
 
 	// complex values
 	{"%.f", 0i, "(0+0i)"},
+	{"% .f", 0i, "( 0+0i)"},
 	{"%+.f", 0i, "(+0+0i)"},
 	{"% +.f", 0i, "(+0+0i)"},
 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
@@ -368,10 +396,31 @@ var fmtTests = []struct {
 	{"%.3f", -1 - 2i, "(-1.000-2.000i)"},
 	{"%.3g", -1 - 2i, "(-1-2i)"},
 	{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
+	{"%+.3g", 1 + 2i, "(+1+2i)"},
 	{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
-	{"%+.3g", complex128(1 + 2i), "(+1+2i)"},
-	{"%b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
 	{"%b", 1 + 2i, "(4503599627370496p-52+4503599627370496p-51i)"},
+	{"%b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
+	// Precision has no effect for binary complex format.
+	{"%.4b", 1 + 2i, "(4503599627370496p-52+4503599627370496p-51i)"},
+	{"%.4b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
+	// complex infinites and NaNs
+	{"%f", complex(posInf, posInf), "(+Inf+Infi)"},
+	{"%f", complex(negInf, negInf), "(-Inf-Infi)"},
+	{"%f", complex(NaN, NaN), "(NaN+NaNi)"},
+	{"%.1f", complex(posInf, posInf), "(+Inf+Infi)"},
+	{"% f", complex(posInf, posInf), "( Inf+Infi)"},
+	{"% f", complex(negInf, negInf), "(-Inf-Infi)"},
+	{"% f", complex(NaN, NaN), "( NaN+NaNi)"},
+	{"%8e", complex(posInf, posInf), "(    +Inf    +Infi)"},
+	{"% 8E", complex(posInf, posInf), "(     Inf    +Infi)"},
+	{"%+8f", complex(negInf, negInf), "(    -Inf    -Infi)"},
+	{"% +8g", complex(negInf, negInf), "(    -Inf    -Infi)"},
+	{"% -8G", complex(NaN, NaN), "( NaN    +NaN    i)"},
+	{"%+-8b", complex(NaN, NaN), "(+NaN    +NaN    i)"},
+	// Zero padding does not apply to infinities and NaN.
+	{"%08f", complex(posInf, posInf), "(    +Inf    +Infi)"},
+	{"%-08g", complex(negInf, negInf), "(-Inf    -Inf    i)"},
+	{"%-08G", complex(NaN, NaN), "(NaN     +NaN    i)"},
 
 	// erroneous formats
 	{"", 2, "%!(EXTRA int=2)"},
@@ -455,16 +504,6 @@ var fmtTests = []struct {
 	{"%g", 1.23456789e3, "1234.56789"},
 	{"%g", 1.23456789e-3, "0.00123456789"},
 	{"%g", 1.23456789e20, "1.23456789e+20"},
-	{"%20e", math.Inf(1), "                +Inf"},
-	{"% 20f", math.Inf(1), "                 Inf"},
-	{"%+20f", math.Inf(1), "                +Inf"},
-	{"% +20f", math.Inf(1), "                +Inf"},
-	{"%-20f", math.Inf(-1), "-Inf                "},
-	{"%20g", math.NaN(), "                 NaN"},
-	{"%+20f", math.NaN(), "                +NaN"},
-	{"% +20f", math.NaN(), "                +NaN"},
-	{"% -20f", math.NaN(), " NaN                "},
-	{"%+-20f", math.NaN(), "+NaN                "},
 
 	// arrays
 	{"%v", array, "[1 2 3 4 5]"},
@@ -533,10 +572,13 @@ var fmtTests = []struct {
 	{"%# -6d", []byte{1, 11, 111}, "[ 1      11     111  ]"},
 	{"%#+-6d", [3]byte{1, 11, 111}, "[+1     +11    +111  ]"},
 
+	// floates with %v
+	{"%v", 1.2345678, "1.2345678"},
+	{"%v", float32(1.2345678), "1.2345678"},
+
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
 	{"%v", complex64(1 + 2i), "(1+2i)"},
-	{"%v", complex128(1 + 2i), "(1+2i)"},
 
 	// structs
 	{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},
@@ -578,6 +620,8 @@ var fmtTests = []struct {
 	{"%#v", bslice, `[]fmt_test.renamedUint8{0x1, 0x2, 0x3, 0x4, 0x5}`},
 	{"%#v", []byte(nil), "[]byte(nil)"},
 	{"%#v", []int32(nil), "[]int32(nil)"},
+	{"%#v", 1.2345678, "1.2345678"},
+	{"%#v", float32(1.2345678), "1.2345678"},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
@@ -732,7 +776,7 @@ var fmtTests = []struct {
 	// be fetched directly, the lookup fails and returns a
 	// zero reflect.Value, which formats as <nil>.
 	// This test is just to check that it shows the two NaNs at all.
-	{"%v", map[float64]int{math.NaN(): 1, math.NaN(): 2}, "map[NaN:<nil> NaN:<nil>]"},
+	{"%v", map[float64]int{NaN: 1, NaN: 2}, "map[NaN:<nil> NaN:<nil>]"},
 
 	// Used to crash because nByte didn't allow for a sign.
 	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
@@ -822,19 +866,7 @@ var fmtTests = []struct {
 	// Complex numbers: exhaustively tested in TestComplexFormatting.
 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
-	// Zero padding does not apply to infinities and NaN.
-	{"%020f", math.Inf(-1), "                -Inf"},
-	{"%020f", math.Inf(+1), "                +Inf"},
-	{"%020f", math.NaN(), "                 NaN"},
-	{"% 020f", math.Inf(-1), "                -Inf"},
-	{"% 020f", math.Inf(+1), "                 Inf"},
-	{"% 020f", math.NaN(), "                 NaN"},
-	{"%+020f", math.Inf(-1), "                -Inf"},
-	{"%+020f", math.Inf(+1), "                +Inf"},
-	{"%+020f", math.NaN(), "                +NaN"},
-	{"%-020f", math.Inf(-1), "-Inf                "},
-	{"%-020f", math.Inf(+1), "+Inf                "},
-	{"%-020f", math.NaN(), "NaN                 "},
+
 	{"%20f", -1.0, "           -1.000000"},
 	// Make sure we can handle very large widths.
 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
@@ -925,6 +957,10 @@ var fmtTests = []struct {
 	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
 	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
 	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
+	{"%☠", 1.2345678, "%!☠(float64=1.2345678)"},
+	{"%☠", float32(1.2345678), "%!☠(float32=1.2345678)"},
+	{"%☠", 1.2345678 + 1.2345678i, "%!☠(complex128=(1.2345678+1.2345678i))"},
+	{"%☠", complex64(1.2345678 + 1.2345678i), "%!☠(complex64=(1.2345678+1.2345678i))"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
@@ -974,7 +1010,7 @@ func TestSprintf(t *testing.T) {
 // thing as if done by hand with two singleton prints.
 func TestComplexFormatting(t *testing.T) {
 	var yesNo = []bool{true, false}
-	var values = []float64{1, 0, -1, math.Inf(1), math.Inf(-1), math.NaN()}
+	var values = []float64{1, 0, -1, posInf, negInf, NaN}
 	for _, plus := range yesNo {
 		for _, zero := range yesNo {
 			for _, space := range yesNo {
@@ -1136,6 +1172,14 @@ func BenchmarkSprintfFloat(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%g", 5.23184)
+		}
+	})
+}
+
+func BenchmarkSprintfComplex(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%f", 5.23184+5.23184i)
 		}
 	})
 }
