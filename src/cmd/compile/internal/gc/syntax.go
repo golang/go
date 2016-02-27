@@ -151,7 +151,7 @@ type Func struct {
 	Shortname  *Node
 	Enter      Nodes
 	Exit       Nodes
-	cvars      *[]*Node // closure params
+	Cvars      Nodes    // closure params
 	Dcl        []*Node  // autodcl for this func/closure
 	Inldcl     *[]*Node // copy of dcl for use in inlining
 	Closgen    int
@@ -175,27 +175,6 @@ type Func struct {
 	Dupok    bool   // duplicate definitions ok
 	Wrapper  bool   // is method wrapper
 	Needctxt bool   // function uses context register (has closure variables)
-}
-
-// Cvars returns the closure variables for this Func.
-// These are referenced variables that are defined in enclosing
-// functions.
-// The cvars field is a pointer to save space, since most Func values
-// have no cvars.
-func (f *Func) Cvars() []*Node {
-	if f.cvars == nil {
-		return nil
-	}
-	return *f.cvars
-}
-
-// AppendCvar appends a new closure variable.
-func (f *Func) CvarAppend(n *Node) {
-	if f.cvars == nil {
-		f.cvars = &[]*Node{n}
-	} else {
-		*f.cvars = append(*f.cvars, n)
-	}
 }
 
 type Op uint8
