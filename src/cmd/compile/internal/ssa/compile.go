@@ -178,7 +178,8 @@ var passes = [...]pass{
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
 	{name: "late deadcode", fn: deadcode},
-	{name: "critical", fn: critical, required: true},   // remove critical edges
+	{name: "critical", fn: critical, required: true}, // remove critical edges
+	{name: "likelyadjust", fn: likelyadjust},
 	{name: "layout", fn: layout, required: true},       // schedule blocks
 	{name: "schedule", fn: schedule, required: true},   // schedule values
 	{name: "flagalloc", fn: flagalloc, required: true}, // allocate flags register
