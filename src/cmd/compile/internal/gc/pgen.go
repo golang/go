@@ -358,7 +358,7 @@ func compile(fn *Node) {
 	var nam *Node
 	var gcargs *Sym
 	var gclocals *Sym
-	if fn.Nbody == nil {
+	if len(fn.Nbody.Slice()) == 0 {
 		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
 			goto ret
@@ -385,7 +385,7 @@ func compile(fn *Node) {
 			if t.Nname != nil {
 				n = Nod(OAS, t.Nname, nil)
 				typecheck(&n, Etop)
-				Curfn.Nbody = concat(list1(n), Curfn.Nbody)
+				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
 			}
 
 			t = structnext(&save)
@@ -472,7 +472,7 @@ func compile(fn *Node) {
 	}
 
 	Genslice(Curfn.Func.Enter.Slice())
-	Genlist(Curfn.Nbody)
+	Genslice(Curfn.Nbody.Slice())
 	gclean()
 	checklabels()
 	if nerrors != 0 {

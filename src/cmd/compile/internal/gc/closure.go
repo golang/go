@@ -59,7 +59,7 @@ func closurebody(body *NodeList) *Node {
 	}
 
 	func_ := Curfn
-	func_.Nbody = body
+	func_.Nbody.SetToNodeList(body)
 	func_.Func.Endlineno = lineno
 	funcbody(func_)
 
@@ -111,7 +111,7 @@ func typecheckclosure(func_ *Node, top int) {
 		Curfn = func_
 		olddd := decldepth
 		decldepth = 1
-		typechecklist(func_.Nbody, Etop)
+		typecheckslice(func_.Nbody.Slice(), Etop)
 		decldepth = olddd
 		Curfn = oldfn
 	}
@@ -193,10 +193,10 @@ func makeclosure(func_ *Node) *Node {
 	xfunc.Func.Endlineno = func_.Func.Endlineno
 	makefuncsym(xfunc.Func.Nname.Sym)
 
-	xfunc.Nbody = func_.Nbody
+	xfunc.Nbody.Set(func_.Nbody.Slice())
 	xfunc.Func.Dcl = append(func_.Func.Dcl, xfunc.Func.Dcl...)
 	func_.Func.Dcl = nil
-	if xfunc.Nbody == nil {
+	if len(xfunc.Nbody.Slice()) == 0 {
 		Fatalf("empty body - won't generate any code")
 	}
 	typecheck(&xfunc, Etop)
@@ -204,7 +204,7 @@ func makeclosure(func_ *Node) *Node {
 	xfunc.Func.Closure = func_
 	func_.Func.Closure = xfunc
 
-	func_.Nbody = nil
+	func_.Nbody.Set(nil)
 	func_.List = nil
 	func_.Rlist = nil
 
@@ -589,30 +589,30 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	ptr.Used = true
 	ptr.Name.Curfn = xfunc
 	xfunc.Func.Dcl = append(xfunc.Func.Dcl, ptr)
-	var body *NodeList
+	var body []*Node
 	if Isptr[rcvrtype.Etype] || Isinter(rcvrtype) {
 		ptr.Name.Param.Ntype = typenod(rcvrtype)
-		body = list(body, Nod(OAS, ptr, cv))
+		body = append(body, Nod(OAS, ptr, cv))
 	} else {
 		ptr.Name.Param.Ntype = typenod(Ptrto(rcvrtype))
-		body = list(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
+		body = append(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
 	}
 
 	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
 	call.List = callargs
 	call.Isddd = ddd
 	if t0.Outtuple == 0 {
-		body = list(body, call)
+		body = append(body, call)
 	} else {
 		n := Nod(OAS2, nil, nil)
 		n.List = retargs
 		n.Rlist = list1(call)
-		body = list(body, n)
+		body = append(body, n)
 		n = Nod(ORETURN, nil, nil)
-		body = list(body, n)
+		body = append(body, n)
 	}
 
-	xfunc.Nbody = body
+	xfunc.Nbody.Set(body)
 
 	typecheck(&xfunc, Etop)
 	sym.Def = xfunc

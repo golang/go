@@ -858,7 +858,7 @@ func (p *parser) caseblock(tswitch *Node) *Node {
 
 	stmt := p.case_(tswitch) // does markdcl
 	stmt.Xoffset = int64(block)
-	stmt.Nbody = p.stmt_list()
+	stmt.Nbody.SetToNodeList(p.stmt_list())
 
 	popdcl()
 
@@ -946,7 +946,7 @@ func (p *parser) for_body() *Node {
 	stmt := p.for_header()
 	body := p.loop_body("for clause")
 
-	stmt.Nbody = concat(stmt.Nbody, body)
+	stmt.Nbody.AppendNodeList(body)
 	return stmt
 }
 
@@ -1043,7 +1043,7 @@ func (p *parser) if_stmt() *Node {
 		Yyerror("missing condition in if statement")
 	}
 
-	stmt.Nbody = p.loop_body("if clause")
+	stmt.Nbody.SetToNodeList(p.loop_body("if clause"))
 
 	if p.got(LELSE) {
 		if p.tok == LIF {
@@ -1858,7 +1858,7 @@ func (p *parser) xfndcl() *Node {
 		return nil
 	}
 
-	f.Nbody = body
+	f.Nbody.SetToNodeList(body)
 	f.Noescape = p.pragma&Noescape != 0
 	if f.Noescape && body != nil {
 		Yyerror("can only use //go:noescape with external func implementations")
@@ -2079,7 +2079,7 @@ loop:
 			l = list(l, p.xfndcl())
 
 		default:
-			if p.tok == '{' && l != nil && l.End.N.Op == ODCLFUNC && l.End.N.Nbody == nil {
+			if p.tok == '{' && l != nil && l.End.N.Op == ODCLFUNC && len(l.End.N.Nbody.Slice()) == 0 {
 				// opening { of function declaration on next line
 				p.syntax_error("unexpected semicolon or newline before {")
 			} else {
@@ -2835,14 +2835,14 @@ func (p *parser) hidden_import() {
 			return
 		}
 
-		s2.Func.Inl = s3
+		s2.Func.Inl.SetToNodeList(s3)
 
 		funcbody(s2)
 		importlist = append(importlist, s2)
 
 		if Debug['E'] > 0 {
 			fmt.Printf("import [%q] func %v \n", importpkg.Path, s2)
-			if Debug['m'] > 2 && s2.Func.Inl != nil {
+			if Debug['m'] > 2 && len(s2.Func.Inl.Slice()) != 0 {
 				fmt.Printf("inl body:%v\n", s2.Func.Inl)
 			}
 		}

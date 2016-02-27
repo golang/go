@@ -388,10 +388,10 @@ func Main() {
 			Curfn = l.N
 			decldepth = 1
 			saveerrors()
-			typechecklist(l.N.Nbody, Etop)
+			typecheckslice(l.N.Nbody.Slice(), Etop)
 			checkreturn(l.N)
 			if nerrors != 0 {
-				l.N.Nbody = nil // type errors; do not compile
+				l.N.Nbody.Set(nil) // type errors; do not compile
 			}
 		}
 	}
@@ -417,7 +417,7 @@ func Main() {
 		// Typecheck imported function bodies if debug['l'] > 1,
 		// otherwise lazily when used or re-exported.
 		for _, n := range importlist {
-			if n.Func.Inl != nil {
+			if len(n.Func.Inl.Slice()) != 0 {
 				saveerrors()
 				typecheckinl(n)
 			}

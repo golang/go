@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	min := v.visitgen
 
 	v.stack = append(v.stack, n)
-	min = v.visitcodelist(n.Nbody, min)
+	min = v.visitcodeslice(n.Nbody.Slice(), min)
 	if (min == id || min == id+1) && n.Func.FCurfn == nil {
 		// This node is the root of a strongly connected component.
 
@@ -117,6 +117,13 @@ func (v *bottomUpVisitor) visitcodelist(l *NodeList, min uint32) uint32 {
 	return min
 }
 
+func (v *bottomUpVisitor) visitcodeslice(l []*Node, min uint32) uint32 {
+	for _, n := range l {
+		min = v.visitcode(n, min)
+	}
+	return min
+}
+
 func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	if n == nil {
 		return min
@@ -126,7 +133,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	min = v.visitcode(n.Left, min)
 	min = v.visitcode(n.Right, min)
 	min = v.visitcodelist(n.List, min)
-	min = v.visitcodelist(n.Nbody, min)
+	min = v.visitcodeslice(n.Nbody.Slice(), min)
 	min = v.visitcodelist(n.Rlist, min)
 
 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
@@ -491,7 +498,7 @@ func escfunc(e *EscState, func_ *Node) {
 			if ln.Type != nil && !haspointers(ln.Type) {
 				break
 			}
-			if Curfn.Nbody == nil && !Curfn.Noescape {
+			if len(Curfn.Nbody.Slice()) == 0 && !Curfn.Noescape {
 				ln.Esc = EscHeap
 			} else {
 				ln.Esc = EscNone // prime for escflood later
@@ -509,8 +516,8 @@ func escfunc(e *EscState, func_ *Node) {
 		}
 	}
 
-	escloopdepthlist(e, Curfn.Nbody)
-	esclist(e, Curfn.Nbody, Curfn)
+	escloopdepthslice(e, Curfn.Nbody.Slice())
+	escslice(e, Curfn.Nbody.Slice(), Curfn)
 	Curfn = savefn
 	e.loopdepth = saveld
 }
@@ -525,6 +532,12 @@ var nonlooping Label
 func escloopdepthlist(e *EscState, l *NodeList) {
 	for ; l != nil; l = l.Next {
 		escloopdepth(e, l.N)
+	}
+}
+
+func escloopdepthslice(e *EscState, l []*Node) {
+	for _, n := range l {
+		escloopdepth(e, n)
 	}
 }
 
@@ -562,13 +575,19 @@ func escloopdepth(e *EscState, n *Node) {
 	escloopdepth(e, n.Left)
 	escloopdepth(e, n.Right)
 	escloopdepthlist(e, n.List)
-	escloopdepthlist(e, n.Nbody)
+	escloopdepthslice(e, n.Nbody.Slice())
 	escloopdepthlist(e, n.Rlist)
 }
 
 func esclist(e *EscState, l *NodeList, up *Node) {
 	for ; l != nil; l = l.Next {
 		esc(e, l.N, up)
+	}
+}
+
+func escslice(e *EscState, l []*Node, up *Node) {
+	for _, n := range l {
+		esc(e, n, up)
 	}
 }
 
@@ -622,7 +641,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	esc(e, n.Left, n)
 	esc(e, n.Right, n)
-	esclist(e, n.Nbody, n)
+	escslice(e, n.Nbody.Slice(), n)
 	esclist(e, n.List, n)
 	esclist(e, n.Rlist, n)
 
@@ -1395,7 +1414,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	nE := e.nodeEscState(n)
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 2 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
 		}
@@ -1833,7 +1852,7 @@ func esctag(e *EscState, func_ *Node) {
 
 	// External functions are assumed unsafe,
 	// unless //go:noescape is given before the declaration.
-	if func_.Nbody == nil {
+	if len(func_.Nbody.Slice()) == 0 {
 		if func_.Noescape {
 			for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
 				if haspointers(t.Type) {
