@@ -16,28 +16,78 @@ import (
 const (
 	// G status
 	//
+	// Beyond indicating the general state of a G, the G status
+	// acts like a lock on the goroutine's stack (and hence its
+	// ability to execute user code).
+	//
 	// If you add to this list, add to the list
 	// of "okay during garbage collection" status
 	// in mgcmark.go too.
-	_Gidle            = iota // 0
-	_Grunnable               // 1 runnable and on a run queue
-	_Grunning                // 2
-	_Gsyscall                // 3
-	_Gwaiting                // 4
-	_Gmoribund_unused        // 5 currently unused, but hardcoded in gdb scripts
-	_Gdead                   // 6
-	_Genqueue_unused         // 7 currently unused
-	_Gcopystack              // 8 in this state when newstack is moving the stack
-	// the following encode that the GC is scanning the stack and what to do when it is done
-	_Gscan = 0x1000 // atomicstatus&~Gscan = the non-scan state,
-	// _Gscanidle =     _Gscan + _Gidle,      // Not used. Gidle only used with newly malloced gs
-	_Gscanrunnable = _Gscan + _Grunnable //  0x1001 When scanning completes make Grunnable (it is already on run queue)
-	_Gscanrunning  = _Gscan + _Grunning  //  0x1002 Used to tell preemption newstack routine to scan preempted stack.
-	_Gscansyscall  = _Gscan + _Gsyscall  //  0x1003 When scanning completes make it Gsyscall
-	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
-	// _Gscanmoribund_unused,               //  not possible
-	// _Gscandead,                          //  not possible
-	// _Gscanenqueue_unused                 //  not possible
+
+	// _Gidle means this goroutine was just allocated and has not
+	// yet been initialized.
+	_Gidle = iota // 0
+
+	// _Grunnable means this goroutine is on a run queue. It is
+	// not currently executing user code. The stack is not owned.
+	_Grunnable // 1
+
+	// _Grunning means this goroutine may execute user code. The
+	// stack is owned by this goroutine. It is not on a run queue.
+	// It is assigned an M and a P.
+	_Grunning // 2
+
+	// _Gsyscall means this goroutine is executing a system call.
+	// It is not executing user code. The stack is owned by this
+	// goroutine. It is not on a run queue. It is assigned an M.
+	_Gsyscall // 3
+
+	// _Gwaiting means this goroutine is blocked in the runtime.
+	// It is not executing user code. It is not on a run queue,
+	// but should be recorded somewhere (e.g., a channel wait
+	// queue) so it can be ready()d when necessary. The stack is
+	// not owned *except* that a channel operation may read or
+	// write parts of the stack under the appropriate channel
+	// lock. Otherwise, it is not safe to access the stack after a
+	// goroutine enters _Gwaiting (e.g., it may get moved).
+	_Gwaiting // 4
+
+	// _Gmoribund_unused is currently unused, but hardcoded in gdb
+	// scripts.
+	_Gmoribund_unused // 5
+
+	// _Gdead means this goroutine is currently unused. It may be
+	// just exited, on a free list, or just being initialized. It
+	// is not executing user code. It may or may not have a stack
+	// allocated. The G and its stack (if any) are owned by the M
+	// that is exiting the G or that obtained the G from the free
+	// list.
+	_Gdead // 6
+
+	// _Genqueue_unused is currently unused.
+	_Genqueue_unused // 7
+
+	// _Gcopystack means this goroutine's stack is being moved. It
+	// is not executing user code and is not on a run queue. The
+	// stack is owned by the goroutine that put it in _Gcopystack.
+	_Gcopystack // 8
+
+	// _Gscan combined with one of the above states other than
+	// _Grunning indicates that GC is scanning the stack. The
+	// goroutine is not executing user code and the stack is owned
+	// by the goroutine that set the _Gscan bit.
+	//
+	// _Gscanrunning is different: it is used to briefly block
+	// state transitions while GC signals the G to scan its own
+	// stack. This is otherwise like _Grunning.
+	//
+	// atomicstatus&~Gscan gives the state the goroutine will
+	// return to when the scan completes.
+	_Gscan         = 0x1000
+	_Gscanrunnable = _Gscan + _Grunnable // 0x1001
+	_Gscanrunning  = _Gscan + _Grunning  // 0x1002
+	_Gscansyscall  = _Gscan + _Gsyscall  // 0x1003
+	_Gscanwaiting  = _Gscan + _Gwaiting  // 0x1004
 )
 
 const (
