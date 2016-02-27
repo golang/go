@@ -726,17 +726,18 @@ func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 	return false
 }
 
-func (p *pp) printArg(arg interface{}, verb rune, depth int) (wasString bool) {
+func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	p.arg = arg
 	p.value = reflect.Value{}
 
 	if arg == nil {
-		if verb == 'T' || verb == 'v' {
+		switch verb {
+		case 'T', 'v':
 			p.fmt.padString(nilAngleString)
-		} else {
+		default:
 			p.badVerb(verb)
 		}
-		return false
+		return
 	}
 
 	// Special processing considerations.
@@ -744,10 +745,10 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) (wasString bool) {
 	switch verb {
 	case 'T':
 		p.printArg(reflect.TypeOf(arg).String(), 's', 0)
-		return false
+		return
 	case 'p':
 		p.fmtPointer(reflect.ValueOf(arg), verb)
-		return false
+		return
 	}
 
 	// Some types can be done without reflection.
@@ -786,33 +787,33 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) (wasString bool) {
 		p.fmtUint64(uint64(f), verb)
 	case string:
 		p.fmtString(f, verb)
-		wasString = verb == 's' || verb == 'v'
 	case []byte:
 		p.fmtBytes(f, verb, nil, depth)
-		wasString = verb == 's'
 	case reflect.Value:
-		return p.printReflectValue(f, verb, depth)
+		p.printReflectValue(f, verb, depth)
+		return
 	default:
 		// If the type is not simple, it might have methods.
-		if handled := p.handleMethods(verb, depth); handled {
-			return false
+		if p.handleMethods(verb, depth) {
+			return
 		}
 		// Need to use reflection
-		return p.printReflectValue(reflect.ValueOf(arg), verb, depth)
+		p.printReflectValue(reflect.ValueOf(arg), verb, depth)
+		return
 	}
 	p.arg = nil
-	return
 }
 
 // printValue is like printArg but starts with a reflect value, not an interface{} value.
-func (p *pp) printValue(value reflect.Value, verb rune, depth int) (wasString bool) {
+func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	if !value.IsValid() {
-		if verb == 'T' || verb == 'v' {
+		switch verb {
+		case 'T', 'v':
 			p.buf.WriteString(nilAngleString)
-		} else {
+		default:
 			p.badVerb(verb)
 		}
-		return false
+		return
 	}
 
 	// Special processing considerations.
@@ -820,10 +821,10 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) (wasString bo
 	switch verb {
 	case 'T':
 		p.printArg(value.Type().String(), 's', 0)
-		return false
+		return
 	case 'p':
 		p.fmtPointer(value, verb)
-		return false
+		return
 	}
 
 	// Handle values with special methods.
@@ -832,18 +833,18 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) (wasString bo
 	if value.CanInterface() {
 		p.arg = value.Interface()
 	}
-	if handled := p.handleMethods(verb, depth); handled {
-		return false
+	if p.handleMethods(verb, depth) {
+		return
 	}
 
-	return p.printReflectValue(value, verb, depth)
+	p.printReflectValue(value, verb, depth)
 }
 
 var byteType = reflect.TypeOf(byte(0))
 
 // printReflectValue is the fallback for both printArg and printValue.
 // It uses reflect to print the value.
-func (p *pp) printReflectValue(value reflect.Value, verb rune, depth int) (wasString bool) {
+func (p *pp) printReflectValue(value reflect.Value, verb rune, depth int) {
 	oldValue := p.value
 	p.value = value
 BigSwitch:
@@ -933,7 +934,7 @@ BigSwitch:
 				p.buf.WriteString(nilAngleString)
 			}
 		} else {
-			wasString = p.printValue(value, verb, depth+1)
+			p.printValue(value, verb, depth+1)
 		}
 	case reflect.Array, reflect.Slice:
 		// Byte slices are special:
@@ -957,7 +958,6 @@ BigSwitch:
 				}
 			}
 			p.fmtBytes(bytes, verb, typ, depth)
-			wasString = verb == 's'
 			break
 		}
 		if p.fmt.sharpV {
@@ -1012,7 +1012,6 @@ BigSwitch:
 		p.unknownType(f)
 	}
 	p.value = oldValue
-	return wasString
 }
 
 // intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
@@ -1257,17 +1256,16 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 
 func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
 	prevString := false
-	for argNum := 0; argNum < len(a); argNum++ {
+	for argNum, arg := range a {
 		p.fmt.clearflags()
-		// always add spaces if we're doing Println
-		arg := a[argNum]
-		if argNum > 0 {
-			isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
-			if addspace || !isString && !prevString {
-				p.buf.WriteByte(' ')
-			}
+		isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
+		// Add a space between two non-string arguments or if
+		// explicitly asked for by addspace.
+		if argNum > 0 && (addspace || (!isString && !prevString)) {
+			p.buf.WriteByte(' ')
 		}
-		prevString = p.printArg(arg, 'v', 0)
+		p.printArg(arg, 'v', 0)
+		prevString = isString
 	}
 	if addnewline {
 		p.buf.WriteByte('\n')
