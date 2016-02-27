@@ -405,19 +405,15 @@ func (f *fmt) fmt_qc(c int64) {
 	}
 }
 
-// floating-point
-
-func doPrec(f *fmt, def int) int {
+// fmt_float formats a float64. It assumes that verb is a valid format specifier
+// for strconv.AppendFloat and therefore fits into a byte.
+func (f *fmt) fmt_float(v float64, size int, verb rune, prec int) {
+	// Explicit precision in format specifier overrules default precision.
 	if f.precPresent {
-		return f.prec
+		prec = f.prec
 	}
-	return def
-}
-
-// formatFloat formats a float64; it is an efficient equivalent to  f.pad(strconv.FormatFloat()...).
-func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	// Format number, reserving space for leading + sign if needed.
-	num := strconv.AppendFloat(f.intbuf[:1], v, verb, prec, n)
+	num := strconv.AppendFloat(f.intbuf[:1], v, byte(verb), prec, size)
 	if num[1] == '-' || num[1] == '+' {
 		num = num[1:]
 	} else {
@@ -457,87 +453,4 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	}
 	// No sign to show and the number is positive; just print the unsigned number.
 	f.pad(num[1:])
-}
-
-// fmt_e64 formats a float64 in the form -1.23e+12.
-func (f *fmt) fmt_e64(v float64) { f.formatFloat(v, 'e', doPrec(f, 6), 64) }
-
-// fmt_E64 formats a float64 in the form -1.23E+12.
-func (f *fmt) fmt_E64(v float64) { f.formatFloat(v, 'E', doPrec(f, 6), 64) }
-
-// fmt_f64 formats a float64 in the form -1.23.
-func (f *fmt) fmt_f64(v float64) { f.formatFloat(v, 'f', doPrec(f, 6), 64) }
-
-// fmt_g64 formats a float64 in the 'f' or 'e' form according to size.
-func (f *fmt) fmt_g64(v float64) { f.formatFloat(v, 'g', doPrec(f, -1), 64) }
-
-// fmt_G64 formats a float64 in the 'f' or 'E' form according to size.
-func (f *fmt) fmt_G64(v float64) { f.formatFloat(v, 'G', doPrec(f, -1), 64) }
-
-// fmt_fb64 formats a float64 in the form -123p3 (exponent is power of 2).
-func (f *fmt) fmt_fb64(v float64) { f.formatFloat(v, 'b', 0, 64) }
-
-// float32
-// cannot defer to float64 versions
-// because it will get rounding wrong in corner cases.
-
-// fmt_e32 formats a float32 in the form -1.23e+12.
-func (f *fmt) fmt_e32(v float32) { f.formatFloat(float64(v), 'e', doPrec(f, 6), 32) }
-
-// fmt_E32 formats a float32 in the form -1.23E+12.
-func (f *fmt) fmt_E32(v float32) { f.formatFloat(float64(v), 'E', doPrec(f, 6), 32) }
-
-// fmt_f32 formats a float32 in the form -1.23.
-func (f *fmt) fmt_f32(v float32) { f.formatFloat(float64(v), 'f', doPrec(f, 6), 32) }
-
-// fmt_g32 formats a float32 in the 'f' or 'e' form according to size.
-func (f *fmt) fmt_g32(v float32) { f.formatFloat(float64(v), 'g', doPrec(f, -1), 32) }
-
-// fmt_G32 formats a float32 in the 'f' or 'E' form according to size.
-func (f *fmt) fmt_G32(v float32) { f.formatFloat(float64(v), 'G', doPrec(f, -1), 32) }
-
-// fmt_fb32 formats a float32 in the form -123p3 (exponent is power of 2).
-func (f *fmt) fmt_fb32(v float32) { f.formatFloat(float64(v), 'b', 0, 32) }
-
-// fmt_c64 formats a complex64 according to the verb.
-func (f *fmt) fmt_c64(v complex64, verb rune) {
-	f.fmt_complex(float64(real(v)), float64(imag(v)), 32, verb)
-}
-
-// fmt_c128 formats a complex128 according to the verb.
-func (f *fmt) fmt_c128(v complex128, verb rune) {
-	f.fmt_complex(real(v), imag(v), 64, verb)
-}
-
-// fmt_complex formats a complex number as (r+ji).
-func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
-	f.buf.WriteByte('(')
-	oldPlus := f.plus
-	oldSpace := f.space
-	for i := 0; ; i++ {
-		switch verb {
-		case 'b':
-			f.formatFloat(r, 'b', 0, size)
-		case 'e':
-			f.formatFloat(r, 'e', doPrec(f, 6), size)
-		case 'E':
-			f.formatFloat(r, 'E', doPrec(f, 6), size)
-		case 'f', 'F':
-			f.formatFloat(r, 'f', doPrec(f, 6), size)
-		case 'g':
-			f.formatFloat(r, 'g', doPrec(f, -1), size)
-		case 'G':
-			f.formatFloat(r, 'G', doPrec(f, -1), size)
-		}
-		if i != 0 {
-			break
-		}
-		// Imaginary part always has a sign.
-		f.plus = true
-		f.space = false
-		r = j
-	}
-	f.space = oldSpace
-	f.plus = oldPlus
-	f.buf.WriteString("i)")
 }
