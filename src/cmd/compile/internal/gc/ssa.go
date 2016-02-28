@@ -93,6 +93,9 @@ func buildssa(fn *Node) *ssa.Func {
 	s.pushLine(fn.Lineno)
 	defer s.popLine()
 
+	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+		s.cgoUnsafeArgs = true
+	}
 	// TODO(khr): build config just once at the start of the compiler binary
 
 	ssaExp.log = printssa
@@ -134,16 +137,22 @@ func buildssa(fn *Node) *ssa.Func {
 	s.decladdrs = map[*Node]*ssa.Value{}
 	for _, n := range fn.Func.Dcl {
 		switch n.Class {
-		case PPARAM:
+		case PPARAM, PPARAMOUT:
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+			if n.Class == PPARAMOUT && s.canSSA(n) {
+				// Save ssa-able PPARAMOUT variables so we can
+				// store them back to the stack at the end of
+				// the function.
+				s.returns = append(s.returns, n)
+			}
 		case PAUTO | PHEAP:
 			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
 			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
 		case PPARAM | PHEAP, PPARAMOUT | PHEAP:
 		// This ends up wrong, have to do it at the PARAM node instead.
-		case PAUTO, PPARAMOUT:
+		case PAUTO:
 			// processed at each use, to prevent Addr coming
 			// before the decl.
 		case PFUNC:
@@ -259,6 +268,11 @@ type state struct {
 
 	// list of FwdRef values.
 	fwdRefs []*ssa.Value
+
+	// list of PPARAMOUT (return) variables.  Does not include PPARAM|PHEAP vars.
+	returns []*Node
+
+	cgoUnsafeArgs bool
 }
 
 type funcLine struct {
@@ -520,7 +534,7 @@ func (s *state) stmt(n *Node) {
 		s.call(n, callNormal)
 		if n.Op == OCALLFUNC && n.Left.Op == ONAME && n.Left.Class == PFUNC &&
 			(compiling_runtime != 0 && n.Left.Sym.Name == "throw" ||
-				n.Left.Sym.Pkg == Runtimepkg && (n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo")) {
+				n.Left.Sym.Pkg == Runtimepkg && (n.Left.Sym.Name == "gopanic" || n.Left.Sym.Name == "selectgo" || n.Left.Sym.Name == "block")) {
 			m := s.mem()
 			b := s.endBlock()
 			b.Kind = ssa.BlockExit
@@ -702,19 +716,12 @@ func (s *state) stmt(n *Node) {
 
 	case ORETURN:
 		s.stmtList(n.List)
-		s.stmts(s.exitCode)
-		m := s.mem()
-		b := s.endBlock()
-		b.Kind = ssa.BlockRet
-		b.Control = m
+		s.exit()
 	case ORETJMP:
 		s.stmtList(n.List)
-		s.stmts(s.exitCode)
-		m := s.mem()
-		b := s.endBlock()
-		b.Kind = ssa.BlockRetJmp
+		b := s.exit()
+		b.Kind = ssa.BlockRetJmp // override BlockRet
 		b.Aux = n.Left.Sym
-		b.Control = m
 
 	case OCONTINUE, OBREAK:
 		var op string
@@ -863,7 +870,7 @@ func (s *state) stmt(n *Node) {
 		// We only care about liveness info at call sites, so putting the
 		// varkill in the store chain is enough to keep it correctly ordered
 		// with respect to call ops.
-		if !canSSA(n.Left) {
+		if !s.canSSA(n.Left) {
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarKill, ssa.TypeMem, n.Left, s.mem())
 		}
 
@@ -881,6 +888,34 @@ func (s *state) stmt(n *Node) {
 	default:
 		s.Unimplementedf("unhandled stmt %s", opnames[n.Op])
 	}
+}
+
+// exit processes any code that needs to be generated just before returning.
+// It returns a BlockRet block that ends the control flow.  Its control value
+// will be set to the final memory state.
+func (s *state) exit() *ssa.Block {
+	// Run exit code.  Typically, this code copies heap-allocated PPARAMOUT
+	// variables back to the stack.
+	s.stmts(s.exitCode)
+
+	// Store SSAable PPARAMOUT variables back to stack locations.
+	for _, n := range s.returns {
+		aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
+		addr := s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
+		val := s.variable(n, n.Type)
+		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, n, s.mem())
+		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, n.Type.Size(), addr, val, s.mem())
+		// TODO: if val is ever spilled, we'd like to use the
+		// PPARAMOUT slot for spilling it.  That won't happen
+		// currently.
+	}
+
+	// Do actual return.
+	m := s.mem()
+	b := s.endBlock()
+	b.Kind = ssa.BlockRet
+	b.Control = m
+	return b
 }
 
 type opAndType struct {
@@ -1317,7 +1352,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			aux := &ssa.ExternSymbol{n.Type, sym}
 			return s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sb)
 		}
-		if canSSA(n) {
+		if s.canSSA(n) {
 			return s.variable(n, n.Type)
 		}
 		addr := s.addr(n, false)
@@ -2112,7 +2147,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 	}
 	t := left.Type
 	dowidth(t)
-	if canSSA(left) {
+	if s.canSSA(left) {
 		if deref {
 			s.Fatalf("can SSA LHS %s but not RHS %s", left, right)
 		}
@@ -2520,7 +2555,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 
 // canSSA reports whether n is SSA-able.
 // n must be an ONAME (or an ODOT sequence with an ONAME base).
-func canSSA(n *Node) bool {
+func (s *state) canSSA(n *Node) bool {
 	for n.Op == ODOT {
 		n = n.Left
 	}
@@ -2534,12 +2569,26 @@ func canSSA(n *Node) bool {
 		return false
 	}
 	switch n.Class {
-	case PEXTERN, PPARAMOUT, PPARAMREF:
+	case PEXTERN, PPARAMREF:
+		// TODO: maybe treat PPARAMREF with an Arg-like op to read from closure?
 		return false
+	case PPARAMOUT:
+		if hasdefer {
+			// TODO: handle this case?  Named return values must be
+			// in memory so that the deferred function can see them.
+			// Maybe do: if !strings.HasPrefix(n.String(), "~") { return false }
+			return false
+		}
+		if s.cgoUnsafeArgs {
+			// Cgo effectively takes the address of all result args,
+			// but the compiler can't see that.
+			return false
+		}
 	}
 	if n.Class == PPARAM && n.String() == ".this" {
 		// wrappers generated by genwrapper need to update
 		// the .this pointer in place.
+		// TODO: treat as a PPARMOUT?
 		return false
 	}
 	return canSSAType(n.Type)
@@ -3447,7 +3496,7 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 	v.Aux = nil
 	if b == s.f.Entry {
 		// Live variable at start of function.
-		if canSSA(name) {
+		if s.canSSA(name) {
 			v.Op = ssa.OpArg
 			v.Aux = name
 			return
@@ -4381,7 +4430,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.From.Node = n
 		p.From.Sym = Linksym(n.Sym)
 		p.From.Offset = off
-		if n.Class == PPARAM {
+		if n.Class == PPARAM || n.Class == PPARAMOUT {
 			p.From.Name = obj.NAME_PARAM
 			p.From.Offset += n.Xoffset
 		} else {
@@ -4403,7 +4452,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Node = n
 		p.To.Sym = Linksym(n.Sym)
 		p.To.Offset = off
-		if n.Class == PPARAM {
+		if n.Class == PPARAM || n.Class == PPARAMOUT {
 			p.To.Name = obj.NAME_PARAM
 			p.To.Offset += n.Xoffset
 		} else {

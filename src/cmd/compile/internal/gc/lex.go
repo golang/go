@@ -862,7 +862,7 @@ func plan9quote(s string) string {
 	return s
 }
 
-type Pragma uint8
+type Pragma uint16
 
 const (
 	Nointerface       Pragma = 1 << iota
@@ -873,6 +873,7 @@ const (
 	Systemstack              // func must run on system stack
 	Nowritebarrier           // emit compiler error instead of write barrier
 	Nowritebarrierrec        // error on write barrier in this or recursive callees
+	CgoUnsafeArgs            // treat a pointer to one arg as a pointer to them all
 )
 
 type lexer struct {
@@ -1722,6 +1723,8 @@ func (l *lexer) getlinepragma() rune {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+		case "go:cgo_unsafe_args":
+			l.pragma |= CgoUnsafeArgs
 		}
 		return c
 	}
