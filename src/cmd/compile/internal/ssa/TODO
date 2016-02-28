@@ -47,7 +47,7 @@ Optimizations (better compiler)
 -------------------------------
 - Smaller Value.Type (int32 or ptr)?  Get rid of types altogether?
 - OpStore uses 3 args.  Increase the size of Value.argstorage to 3?
-- Constant cache
+- Use a constant cache for OpConstNil, OpConstInterface, OpConstSlice, maybe OpConstString
 - Handle signed division overflow and sign extension earlier
 - Implement 64 bit const division with high multiply, maybe in the frontend?
 - Add bit widths to complex ops
