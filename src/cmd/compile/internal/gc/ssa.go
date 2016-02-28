@@ -2718,9 +2718,11 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
-	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
 	// TODO: select the .enabled field.  It is currently first, so not needed for now.
-	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
+	// Load word, test byte, avoiding partial register write from load byte.
+	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
+	flag = s.newValue1(ssa.OpTrunc64to8, Types[TBOOL], flag)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
@@ -2761,9 +2763,11 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
-	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TBOOL]), aux, s.sb)
+	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
 	// TODO: select the .enabled field.  It is currently first, so not needed for now.
-	flag := s.newValue2(ssa.OpLoad, Types[TBOOL], flagaddr, s.mem())
+	// Load word, test byte, avoiding partial register write from load byte.
+	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
+	flag = s.newValue1(ssa.OpTrunc64to8, Types[TBOOL], flag)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
