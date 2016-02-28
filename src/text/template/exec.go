@@ -164,7 +164,11 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{}) 
 // execution stops, but partial results may already have been written to
 // the output writer.
 // A template may be executed safely in parallel.
-func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
+func (t *Template) Execute(wr io.Writer, data interface{}) error {
+	return t.execute(wr, data)
+}
+
+func (t *Template) execute(wr io.Writer, data interface{}) (err error) {
 	defer errRecover(&err)
 	value := reflect.ValueOf(data)
 	state := &state{

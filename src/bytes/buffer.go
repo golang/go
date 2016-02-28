@@ -293,14 +293,14 @@ func (b *Buffer) Next(n int) []byte {
 
 // ReadByte reads and returns the next byte from the buffer.
 // If no byte is available, it returns error io.EOF.
-func (b *Buffer) ReadByte() (c byte, err error) {
+func (b *Buffer) ReadByte() (byte, error) {
 	b.lastRead = opInvalid
 	if b.off >= len(b.buf) {
 		// Buffer is empty, reset to recover space.
 		b.Truncate(0)
 		return 0, io.EOF
 	}
-	c = b.buf[b.off]
+	c := b.buf[b.off]
 	b.off++
 	b.lastRead = opRead
 	return c, nil

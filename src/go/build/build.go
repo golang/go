@@ -87,11 +87,11 @@ type Context struct {
 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
 	// describing the content of the named directory.
 	// If ReadDir is nil, Import uses ioutil.ReadDir.
-	ReadDir func(dir string) (fi []os.FileInfo, err error)
+	ReadDir func(dir string) ([]os.FileInfo, error)
 
 	// OpenFile opens a file (not a directory) for reading.
 	// If OpenFile is nil, Import uses os.Open.
-	OpenFile func(path string) (r io.ReadCloser, err error)
+	OpenFile func(path string) (io.ReadCloser, error)
 }
 
 // joinPath calls ctxt.JoinPath (if not nil) or else filepath.Join.

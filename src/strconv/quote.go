@@ -347,7 +347,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 // that s quotes.  (If s is single-quoted, it would be a Go
 // character literal; Unquote returns the corresponding
 // one-character string.)
-func Unquote(s string) (t string, err error) {
+func Unquote(s string) (string, error) {
 	n := len(s)
 	if n < 2 {
 		return "", ErrSyntax

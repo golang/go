@@ -47,14 +47,13 @@ type listener struct {
 }
 
 // Accept waits for and returns the next incoming TLS connection.
-// The returned connection c is a *tls.Conn.
-func (l *listener) Accept() (c net.Conn, err error) {
-	c, err = l.Listener.Accept()
+// The returned connection is of type *Conn.
+func (l *listener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
 	if err != nil {
-		return
+		return nil, err
 	}
-	c = Server(c, l.config)
-	return
+	return Server(c, l.config), nil
 }
 
 // NewListener creates a Listener which accepts connections from an inner

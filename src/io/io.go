@@ -226,7 +226,7 @@ type WriterAt interface {
 //
 // ReadByte reads and returns the next byte from the input.
 type ByteReader interface {
-	ReadByte() (c byte, err error)
+	ReadByte() (byte, error)
 }
 
 // ByteScanner is the interface that adds the UnreadByte method to the

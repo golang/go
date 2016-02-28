@@ -220,7 +220,7 @@ func (b *Reader) Read(p []byte) (n int, err error) {
 
 // ReadByte reads and returns a single byte.
 // If no byte is available, returns an error.
-func (b *Reader) ReadByte() (c byte, err error) {
+func (b *Reader) ReadByte() (byte, error) {
 	b.lastRuneSize = -1
 	for b.r == b.w {
 		if b.err != nil {
@@ -228,7 +228,7 @@ func (b *Reader) ReadByte() (c byte, err error) {
 		}
 		b.fill() // buffer is empty
 	}
-	c = b.buf[b.r]
+	c := b.buf[b.r]
 	b.r++
 	b.lastByte = int(c)
 	return c, nil
@@ -395,12 +395,12 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err error) {
 // ReadBytes returns err != nil if and only if the returned data does not end in
 // delim.
 // For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
+func (b *Reader) ReadBytes(delim byte) ([]byte, error) {
 	// Use ReadSlice to look for array,
 	// accumulating full buffers.
 	var frag []byte
 	var full [][]byte
-
+	var err error
 	for {
 		var e error
 		frag, e = b.ReadSlice(delim)
@@ -442,10 +442,9 @@ func (b *Reader) ReadBytes(delim byte) (line []byte, err error) {
 // ReadString returns err != nil if and only if the returned data does not end in
 // delim.
 // For simple uses, a Scanner may be more convenient.
-func (b *Reader) ReadString(delim byte) (line string, err error) {
+func (b *Reader) ReadString(delim byte) (string, error) {
 	bytes, err := b.ReadBytes(delim)
-	line = string(bytes)
-	return line, err
+	return string(bytes), err
 }
 
 // WriteTo implements io.WriterTo.

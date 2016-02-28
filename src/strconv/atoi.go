@@ -39,7 +39,9 @@ const IntSize = intSize
 const maxUint64 = (1<<64 - 1)
 
 // ParseUint is like ParseInt but for unsigned numbers.
-func ParseUint(s string, base int, bitSize int) (n uint64, err error) {
+func ParseUint(s string, base int, bitSize int) (uint64, error) {
+	var n uint64
+	var err error
 	var cutoff, maxVal uint64
 
 	if bitSize == 0 {
@@ -196,7 +198,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 }
 
 // Atoi is shorthand for ParseInt(s, 10, 0).
-func Atoi(s string) (i int, err error) {
+func Atoi(s string) (int, error) {
 	i64, err := ParseInt(s, 10, 0)
 	return int(i64), err
 }

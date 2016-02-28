@@ -122,18 +122,18 @@ func NewFatFile(r io.ReaderAt) (*FatFile, error) {
 
 // OpenFat opens the named file using os.Open and prepares it for use as a Mach-O
 // universal binary.
-func OpenFat(name string) (ff *FatFile, err error) {
+func OpenFat(name string) (*FatFile, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	ff, err = NewFatFile(f)
+	ff, err := NewFatFile(f)
 	if err != nil {
 		f.Close()
 		return nil, err
 	}
 	ff.closer = f
-	return
+	return ff, nil
 }
 
 func (ff *FatFile) Close() error {

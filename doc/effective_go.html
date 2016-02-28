@@ -239,9 +239,9 @@ starts with the name being declared.
 </p>
 
 <pre>
-// Compile parses a regular expression and returns, if successful, a Regexp
-// object that can be used to match against text.
-func Compile(str string) (regexp *Regexp, err error) {
+// Compile parses a regular expression and returns, if successful,
+// a Regexp that can be used to match against text.
+func Compile(str string) (*Regexp, error) {
 </pre>
 
 <p>

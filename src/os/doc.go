@@ -112,7 +112,7 @@ func Hostname() (name string, err error) {
 // nil error. If it encounters an error before the end of the
 // directory, Readdir returns the FileInfo read until that point
 // and a non-nil error.
-func (f *File) Readdir(n int) (fi []FileInfo, err error) {
+func (f *File) Readdir(n int) ([]FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
 	}

@@ -945,10 +945,11 @@ func (t Time) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // The time is expected to be a quoted string in RFC 3339 format.
-func (t *Time) UnmarshalJSON(data []byte) (err error) {
+func (t *Time) UnmarshalJSON(data []byte) error {
 	// Fractional seconds are handled implicitly by Parse.
+	var err error
 	*t, err = Parse(`"`+RFC3339+`"`, string(data))
-	return
+	return err
 }
 
 // MarshalText implements the encoding.TextMarshaler interface.
@@ -964,10 +965,11 @@ func (t Time) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements the encoding.TextUnmarshaler interface.
 // The time is expected to be in RFC 3339 format.
-func (t *Time) UnmarshalText(data []byte) (err error) {
+func (t *Time) UnmarshalText(data []byte) error {
 	// Fractional seconds are handled implicitly by Parse.
+	var err error
 	*t, err = Parse(RFC3339, string(data))
-	return
+	return err
 }
 
 // Unix returns the local Time corresponding to the given Unix time,

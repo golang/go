@@ -38,7 +38,7 @@ const (
 // the flags and options for the operand's format specifier.
 type State interface {
 	// Write is the function to call to emit formatted output to be printed.
-	Write(b []byte) (ret int, err error)
+	Write(b []byte) (n int, err error)
 	// Width returns the value of the width option and whether it has been set.
 	Width() (wid int, ok bool)
 	// Precision returns the value of the precision option and whether it has been set.
