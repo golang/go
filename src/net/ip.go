@@ -36,6 +36,7 @@ type IPMask []byte
 type IPNet struct {
 	IP   IP     // network number
 	Mask IPMask // network mask
+	Zone string // IPv6 scoped addressing zone
 }
 
 // IPv4 returns the IP address (in 16-byte form) of the
@@ -494,11 +495,15 @@ func (n *IPNet) String() string {
 	if nn == nil || m == nil {
 		return "<nil>"
 	}
+	ip := nn.String()
+	if n.Zone != "" {
+		ip = ip + "%" + n.Zone
+	}
 	l := simpleMaskLength(m)
 	if l == -1 {
-		return nn.String() + "/" + m.String()
+		return ip + "/" + m.String()
 	}
-	return nn.String() + "/" + uitoa(uint(l))
+	return ip + "/" + uitoa(uint(l))
 }
 
 // Parse IPv4 address (d.d.d.d).
@@ -670,17 +675,18 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
 	if i < 0 {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
+	var zone string
 	addr, mask := s[:i], s[i+1:]
 	iplen := IPv4len
 	ip := parseIPv4(addr)
 	if ip == nil {
 		iplen = IPv6len
-		ip, _ = parseIPv6(addr, false)
+		ip, zone = parseIPv6(addr, true)
 	}
 	n, i, ok := dtoi(mask, 0)
 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
 	}
 	m := CIDRMask(n, 8*iplen)
-	return ip, &IPNet{IP: ip.Mask(m), Mask: m}, nil
+	return ip, &IPNet{IP: ip.Mask(m), Mask: m, Zone: zone}, nil
 }
