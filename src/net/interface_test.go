@@ -221,6 +221,10 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
 					t.Errorf("unexpected prefix length for IPv6 loopback: %d/%d", prefixLen, maxPrefixLen)
 					continue
 				}
+				if ifa.IP.IsLinkLocalUnicast() && ifa.Zone == "" {
+					t.Errorf("no IPv6 zone identifier found: %#v", ifa)
+					continue
+				}
 				naf6++
 			}
 			t.Logf("interface address %q", ifa.String())
@@ -239,7 +243,7 @@ func testAddrs(t *testing.T, ifat []Addr) (naf4, naf6 int) {
 			if ifa.IP.To16() != nil && ifa.IP.To4() == nil {
 				naf6++
 			}
-			t.Logf("interface address %s", ifa.String())
+			t.Logf("interface address %q", ifa.String())
 		default:
 			t.Errorf("unexpected type: %T", ifa)
 		}
