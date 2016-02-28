@@ -59,28 +59,16 @@ func algtype1(t *Type, bad **Type) int {
 	}
 
 	switch t.Etype {
-	// will be defined later.
 	case TANY, TFORW:
+		// will be defined later.
 		*bad = t
-
 		return -1
 
-	case TINT8,
-		TUINT8,
-		TINT16,
-		TUINT16,
-		TINT32,
-		TUINT32,
-		TINT64,
-		TUINT64,
-		TINT,
-		TUINT,
-		TUINTPTR,
-		TBOOL,
-		TPTR32,
-		TPTR64,
-		TCHAN,
-		TUNSAFEPTR:
+	case TINT8, TUINT8, TINT16, TUINT16,
+		TINT32, TUINT32, TINT64, TUINT64,
+		TINT, TUINT, TUINTPTR,
+		TBOOL, TPTR32, TPTR64,
+		TCHAN, TUNSAFEPTR:
 		return AMEM
 
 	case TFUNC, TMAP:
@@ -119,11 +107,14 @@ func algtype1(t *Type, bad **Type) int {
 		}
 
 		a := algtype1(t.Type, bad)
-		if a == ANOEQ || a == AMEM {
-			if a == ANOEQ && bad != nil {
+		switch a {
+		case AMEM:
+			return AMEM
+		case ANOEQ:
+			if bad != nil {
 				*bad = t
 			}
-			return a
+			return ANOEQ
 		}
 
 		switch t.Bound {
@@ -155,7 +146,6 @@ func algtype1(t *Type, bad **Type) int {
 			// equality need special compare.
 			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, f) {
 				ret = -1
-				continue
 			}
 		}
 
@@ -306,32 +296,23 @@ func genhash(sym *Sym, t *Type) {
 func hashfor(t *Type) *Node {
 	var sym *Sym
 
-	a := algtype1(t, nil)
-	switch a {
+	switch algtype1(t, nil) {
 	case AMEM:
 		Fatalf("hashfor with AMEM type")
-
 	case AINTER:
 		sym = Pkglookup("interhash", Runtimepkg)
-
 	case ANILINTER:
 		sym = Pkglookup("nilinterhash", Runtimepkg)
-
 	case ASTRING:
 		sym = Pkglookup("strhash", Runtimepkg)
-
 	case AFLOAT32:
 		sym = Pkglookup("f32hash", Runtimepkg)
-
 	case AFLOAT64:
 		sym = Pkglookup("f64hash", Runtimepkg)
-
 	case ACPLX64:
 		sym = Pkglookup("c64hash", Runtimepkg)
-
 	case ACPLX128:
 		sym = Pkglookup("c128hash", Runtimepkg)
-
 	default:
 		sym = typesymprefix(".hash", t)
 	}
@@ -521,8 +502,6 @@ func eqfield(p *Node, q *Node, field *Node) *Node {
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
 func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
-	var needsize int
-
 	nx := Nod(OADDR, Nod(OXDOT, p, field), nil)
 	nx.Etype = 1 // does not escape
 	ny := Nod(OADDR, Nod(OXDOT, q, field), nil)
@@ -530,32 +509,29 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	typecheck(&nx, Erv)
 	typecheck(&ny, Erv)
 
-	call := Nod(OCALL, eqmemfunc(size, nx.Type.Type, &needsize), nil)
+	fn, needsize := eqmemfunc(size, nx.Type.Type)
+	call := Nod(OCALL, fn, nil)
 	call.List.Append(nx)
 	call.List.Append(ny)
-	if needsize != 0 {
+	if needsize {
 		call.List.Append(Nodintconst(size))
 	}
 
 	return call
 }
 
-func eqmemfunc(size int64, type_ *Type, needsize *int) *Node {
-	var fn *Node
-
+func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 	switch size {
 	default:
 		fn = syslook("memequal")
-		*needsize = 1
-
+		needsize = true
 	case 1, 2, 4, 8, 16:
 		buf := fmt.Sprintf("memequal%d", int(size)*8)
 		fn = syslook(buf)
-		*needsize = 0
 	}
 
-	substArgTypes(&fn, type_, type_)
-	return fn
+	substArgTypes(&fn, t, t)
+	return fn, needsize
 }
 
 // memrun finds runs of struct fields for which memory-only algs are appropriate.
