@@ -289,7 +289,9 @@ func genhash(sym *Sym, t *Type) {
 	old_safemode := safemode
 
 	safemode = 0
+	Disable_checknil++
 	funccompile(fn)
+	Disable_checknil--
 	safemode = old_safemode
 }
 
@@ -357,6 +359,7 @@ func geneq(sym *Sym, t *Type) {
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
+	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
 
 	// geneq is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
