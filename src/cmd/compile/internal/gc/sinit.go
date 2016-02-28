@@ -868,8 +868,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	litas(var_, a, init)
 
 	// count the initializers
-	b := int64(0)
-
+	b := 0
 	for l := n.List; l != nil; l = l.Next {
 		r := l.N
 		if r.Op != OKEY {
@@ -886,35 +885,32 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	if b != 0 {
 		// build type [count]struct { a Tindex, b Tvalue }
 		t := n.Type
-
 		tk := t.Down
 		tv := t.Type
 
 		symb := Lookup("b")
-		t = typ(TFIELD)
-		t.Type = tv
-		t.Sym = symb
+		fieldb := typ(TFIELD)
+		fieldb.Type = tv
+		fieldb.Sym = symb
 
 		syma := Lookup("a")
-		t1 := t
-		t = typ(TFIELD)
-		t.Type = tk
-		t.Sym = syma
-		t.Down = t1
+		fielda := typ(TFIELD)
+		fielda.Type = tk
+		fielda.Sym = syma
+		fielda.Down = fieldb
 
-		t1 = t
-		t = typ(TSTRUCT)
-		t.Type = t1
+		tstruct := typ(TSTRUCT)
+		tstruct.Type = fielda
 
-		t1 = t
-		t = typ(TARRAY)
-		t.Bound = b
-		t.Type = t1
+		tarr := typ(TARRAY)
+		tarr.Bound = int64(b)
+		tarr.Type = tstruct
 
-		dowidth(t)
+		// TODO(josharian): suppress alg generation for these types?
+		dowidth(tarr)
 
 		// make and initialize static array
-		vstat := staticname(t, ctxt)
+		vstat := staticname(tarr, ctxt)
 
 		b := int64(0)
 		for l := n.List; l != nil; l = l.Next {
@@ -976,7 +972,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		a.Nbody.Set([]*Node{r})
 
 		a.Ninit = list1(Nod(OAS, index, Nodintconst(0)))
-		a.Left = Nod(OLT, index, Nodintconst(t.Bound))
+		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
 
 		typecheck(&a, Etop)
@@ -985,9 +981,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	}
 
 	// put in dynamic entries one-at-a-time
-	var key *Node
-
-	var val *Node
+	var key, val *Node
 	for l := n.List; l != nil; l = l.Next {
 		r := l.N
 
