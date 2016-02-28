@@ -237,10 +237,11 @@ func NewDecoder(r io.Reader) *Decoder {
 // set to the URL identifying its name space when known.
 // If Token encounters an unrecognized name space prefix,
 // it uses the prefix as the Space rather than report an error.
-func (d *Decoder) Token() (t Token, err error) {
+func (d *Decoder) Token() (Token, error) {
+	var t Token
+	var err error
 	if d.stk != nil && d.stk.kind == stkEOF {
-		err = io.EOF
-		return
+		return nil, io.EOF
 	}
 	if d.nextToken != nil {
 		t = d.nextToken
@@ -249,7 +250,7 @@ func (d *Decoder) Token() (t Token, err error) {
 		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
 			err = d.syntaxError("unexpected EOF")
 		}
-		return
+		return t, err
 	}
 
 	if !d.Strict {
@@ -292,7 +293,7 @@ func (d *Decoder) Token() (t Token, err error) {
 		}
 		t = t1
 	}
-	return
+	return t, err
 }
 
 const xmlURL = "http://www.w3.org/XML/1998/namespace"

@@ -462,8 +462,11 @@ func handlePanic(err *error, op string) {
 // that any data buffered in the Writer is written to output. Any
 // incomplete escape sequence at the end is considered
 // complete for formatting purposes.
-//
-func (b *Writer) Flush() (err error) {
+func (b *Writer) Flush() error {
+	return b.flush()
+}
+
+func (b *Writer) flush() (err error) {
 	defer b.reset() // even in the presence of errors
 	defer handlePanic(&err, "Flush")
 
@@ -478,8 +481,7 @@ func (b *Writer) Flush() (err error) {
 
 	// format contents of buffer
 	b.format(0, 0, len(b.lines))
-
-	return
+	return nil
 }
 
 var hbar = []byte("---\n")

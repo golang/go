@@ -191,7 +191,7 @@ func (priv *PrivateKey) Validate() error {
 
 // GenerateKey generates an RSA keypair of the given bit size using the
 // random source random (for example, crypto/rand.Reader).
-func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
+func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
 	return GenerateMultiPrimeKey(random, 2, bits)
 }
 
@@ -206,8 +206,8 @@ func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
 //
 // [1] US patent 4405829 (1972, expired)
 // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (priv *PrivateKey, err error) {
-	priv = new(PrivateKey)
+func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+	priv := new(PrivateKey)
 	priv.E = 65537
 
 	if nprimes < 2 {
@@ -234,6 +234,7 @@ NextSetOfPrimes:
 			todo += (nprimes - 2) / 5
 		}
 		for i := 0; i < nprimes; i++ {
+			var err error
 			primes[i], err = rand.Prime(random, todo/(nprimes-i))
 			if err != nil {
 				return nil, err
@@ -283,7 +284,7 @@ NextSetOfPrimes:
 	}
 
 	priv.Precompute()
-	return
+	return priv, nil
 }
 
 // incCounter increments a four byte, big-endian counter.
@@ -348,15 +349,14 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
 //
 // The message must be no longer than the length of the public modulus less
 // twice the hash length plus 2.
-func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) (out []byte, err error) {
+func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
 	if err := checkPub(pub); err != nil {
 		return nil, err
 	}
 	hash.Reset()
 	k := (pub.N.BitLen() + 7) / 8
 	if len(msg) > k-2*hash.Size()-2 {
-		err = ErrMessageTooLong
-		return
+		return nil, ErrMessageTooLong
 	}
 
 	hash.Write(label)
@@ -371,9 +371,9 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	db[len(db)-len(msg)-1] = 1
 	copy(db[len(db)-len(msg):], msg)
 
-	_, err = io.ReadFull(random, seed)
+	_, err := io.ReadFull(random, seed)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	mgf1XOR(db, hash, seed)
@@ -382,7 +382,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 	m := new(big.Int)
 	m.SetBytes(em)
 	c := encrypt(new(big.Int), pub, m)
-	out = c.Bytes()
+	out := c.Bytes()
 
 	if len(out) < k {
 		// If the output is too small, we need to left-pad with zeros.
@@ -391,7 +391,7 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
 		out = t
 	}
 
-	return
+	return out, nil
 }
 
 // ErrDecryption represents a failure to decrypt a message.
@@ -562,22 +562,21 @@ func decryptAndCheck(random io.Reader, priv *PrivateKey, c *big.Int) (m *big.Int
 //
 // The label parameter must match the value given when encrypting. See
 // EncryptOAEP for details.
-func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) (msg []byte, err error) {
+func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
 	if err := checkPub(&priv.PublicKey); err != nil {
 		return nil, err
 	}
 	k := (priv.N.BitLen() + 7) / 8
 	if len(ciphertext) > k ||
 		k < hash.Size()*2+2 {
-		err = ErrDecryption
-		return
+		return nil, ErrDecryption
 	}
 
 	c := new(big.Int).SetBytes(ciphertext)
 
 	m, err := decrypt(random, priv, c)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	hash.Write(label)
@@ -625,12 +624,10 @@ func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext 
 	}
 
 	if firstByteIsZero&lHash2Good&^invalid&^lookingForIndex != 1 {
-		err = ErrDecryption
-		return
+		return nil, ErrDecryption
 	}
 
-	msg = rest[index+1:]
-	return
+	return rest[index+1:], nil
 }
 
 // leftPad returns a new slice of length size. The contents of input are right

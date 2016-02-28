@@ -309,14 +309,14 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
 	return newUnixConn(fd), nil
 }
 
-// Accept implements the Accept method in the Listener interface; it
-// waits for the next call and returns a generic Conn.
-func (l *UnixListener) Accept() (c Conn, err error) {
-	c1, err := l.AcceptUnix()
+// Accept implements the Accept method in the Listener interface.
+// Returned connections will be of type *UnixConn.
+func (l *UnixListener) Accept() (Conn, error) {
+	c, err := l.AcceptUnix()
 	if err != nil {
 		return nil, err
 	}
-	return c1, nil
+	return c, nil
 }
 
 // Close stops listening on the Unix address.  Already accepted

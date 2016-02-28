@@ -411,10 +411,11 @@ func split(s string, c string, cutc bool) (string, string) {
 
 // Parse parses rawurl into a URL structure.
 // The rawurl may be relative or absolute.
-func Parse(rawurl string) (url *URL, err error) {
+func Parse(rawurl string) (*URL, error) {
 	// Cut off #frag
 	u, frag := split(rawurl, "#", true)
-	if url, err = parse(u, false); err != nil {
+	url, err := parse(u, false)
+	if err != nil {
 		return nil, err
 	}
 	if frag == "" {
@@ -431,7 +432,7 @@ func Parse(rawurl string) (url *URL, err error) {
 // only as an absolute URI or an absolute path.
 // The string rawurl is assumed not to have a #fragment suffix.
 // (Web browsers strip #fragment before sending the URL to a web server.)
-func ParseRequestURI(rawurl string) (url *URL, err error) {
+func ParseRequestURI(rawurl string) (*URL, error) {
 	return parse(rawurl, true)
 }
 
@@ -744,10 +745,10 @@ func (v Values) Del(key string) {
 // ParseQuery always returns a non-nil map containing all the
 // valid query parameters found; err describes the first decoding error
 // encountered, if any.
-func ParseQuery(query string) (m Values, err error) {
-	m = make(Values)
-	err = parseQuery(m, query)
-	return
+func ParseQuery(query string) (Values, error) {
+	m := make(Values)
+	err := parseQuery(m, query)
+	return m, err
 }
 
 func parseQuery(m Values, query string) (err error) {

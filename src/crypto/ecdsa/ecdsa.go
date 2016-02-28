@@ -96,17 +96,17 @@ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) 
 }
 
 // GenerateKey generates a public and private key pair.
-func GenerateKey(c elliptic.Curve, rand io.Reader) (priv *PrivateKey, err error) {
+func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
 	k, err := randFieldElement(c, rand)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	priv = new(PrivateKey)
+	priv := new(PrivateKey)
 	priv.PublicKey.Curve = c
 	priv.D = k
 	priv.PublicKey.X, priv.PublicKey.Y = c.ScalarBaseMult(k.Bytes())
-	return
+	return priv, nil
 }
 
 // hashToInt converts a hash value to an integer. There is some disagreement
