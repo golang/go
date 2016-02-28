@@ -127,14 +127,6 @@ var (
 func prove(f *Func) {
 	idom := dominators(f)
 	sdom := newSparseTree(f, idom)
-	domTree := make([][]*Block, f.NumBlocks())
-
-	// Create a block ID -> [dominees] mapping
-	for _, b := range f.Blocks {
-		if dom := idom[b.ID]; dom != nil {
-			domTree[dom.ID] = append(domTree[dom.ID], b)
-		}
-	}
 
 	// current node state
 	type walkState int
@@ -179,7 +171,7 @@ func prove(f *Func) {
 				saved: saved,
 			})
 
-			for _, s := range domTree[node.block.ID] {
+			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
 				work = append(work, bp{
 					block: s,
 					state: descend,
