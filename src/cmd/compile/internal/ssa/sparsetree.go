@@ -5,7 +5,6 @@
 package ssa
 
 type sparseTreeNode struct {
-	block   *Block
 	child   *Block
 	sibling *Block
 	parent  *Block
@@ -43,7 +42,6 @@ func newSparseTree(f *Func, parentOf []*Block) sparseTree {
 	t := make(sparseTree, f.NumBlocks())
 	for _, b := range f.Blocks {
 		n := &t[b.ID]
-		n.block = b
 		if p := parentOf[b.ID]; p != nil {
 			n.parent = p
 			n.sibling = t[p.ID].child
@@ -96,6 +94,24 @@ func (t sparseTree) numberBlock(b *Block, n int32) int32 {
 	t[b.ID].exit = n
 	// reserve n+1 for exit+1, n+2 is next free number, returned.
 	return n + 2
+}
+
+// Sibling returns a sibling of x in the dominator tree (i.e.,
+// a node with the same immediate dominator) or nil if there
+// are no remaining siblings in the arbitrary but repeatable
+// order chosen.  Because the Child-Sibling order is used
+// to assign entry and exit numbers in the treewalk, those
+// numbers are also consistent with this order (i.e.,
+// Sibling(x) has entry number larger than x's exit number).
+func (t sparseTree) Sibling(x *Block) *Block {
+	return t[x.ID].sibling
+}
+
+// Child returns a child of x in the dominator tree, or
+// nil if there are none.  The choice of first child is
+// arbitrary but repeatable.
+func (t sparseTree) Child(x *Block) *Block {
+	return t[x.ID].child
 }
 
 // isAncestorEq reports whether x is an ancestor of or equal to y.
