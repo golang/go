@@ -297,11 +297,21 @@ func (l Level) guaranteedDereference() int {
 	return int(l.suffixValue)
 }
 
+// An EscStep documents one step in the path from memory
+// that is heap allocated to the (alleged) reason for the
+// heap allocation.
+type EscStep struct {
+	src, dst *Node    // the endpoints of this edge in the escape-to-heap chain.
+	parent   *EscStep // used in flood to record path
+	why      string   // explanation for this step in the escape-to-heap chain
+	busy     bool     // used in prevent to snip cycles.
+}
+
 type NodeEscState struct {
 	Curfn             *Node
-	Escflowsrc        []*Node // flow(this, src)
-	Escretval         Nodes   // on OCALLxxx, list of dummy return values
-	Escloopdepth      int32   // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+	Escflowsrc        []EscStep // flow(this, src)
+	Escretval         Nodes     // on OCALLxxx, list of dummy return values
+	Escloopdepth      int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 	Esclevel          Level
 	Walkgen           uint32
 	Maxextraloopdepth int32
@@ -397,6 +407,28 @@ type EscState struct {
 	recursive bool    // recursive function or group of mutually recursive functions.
 	opts      []*Node // nodes with .Opt initialized
 	walkgen   uint32
+}
+
+func (e *EscState) stepWalk(dst, src *Node, why string, parent *EscStep) *EscStep {
+	// TODO: keep a cache of these, mark entry/exit in escwalk to avoid allocation
+	// Or perhaps never mind, since it is disabled unless printing is on.
+	// We may want to revisit this, since the EscStep nodes would make
+	// an excellent replacement for the poorly-separated graph-build/graph-flood
+	// stages.
+	if Debug['m'] == 0 {
+		return nil
+	}
+	return &EscStep{src: src, dst: dst, why: why, parent: parent}
+}
+
+func (e *EscState) stepAssign(step *EscStep, dst, src *Node, why string) *EscStep {
+	if Debug['m'] == 0 {
+		return nil
+	}
+	if step != nil { // Caller may have known better.
+		return step
+	}
+	return &EscStep{src: src, dst: dst, why: why}
 }
 
 // funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
@@ -503,7 +535,7 @@ func escfunc(e *EscState, func_ *Node) {
 	if e.recursive {
 		for _, ln := range Curfn.Func.Dcl {
 			if ln.Op == ONAME && ln.Class == PPARAMOUT {
-				escflows(e, &e.theSink, ln)
+				escflows(e, &e.theSink, ln, e.stepAssign(nil, ln, ln, "returned from recursive function"))
 			}
 		}
 	}
@@ -610,12 +642,12 @@ func esc(e *EscState, n *Node, up *Node) {
 		(n.Type.Width > MaxStackVarSize ||
 			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
-		if Debug['m'] > 1 {
+		if Debug['m'] > 2 {
 			Warnl(n.Lineno, "%v is too large for stack", n)
 		}
 		n.Esc = EscHeap
 		addrescapes(n)
-		escassign(e, &e.theSink, n)
+		escassignSinkNilWhy(e, n, n, "too large for stack") // TODO category: tooLarge
 	}
 
 	esc(e, n.Left, n)
@@ -628,7 +660,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		e.loopdepth--
 	}
 
-	if Debug['m'] > 1 {
+	if Debug['m'] > 2 {
 		fmt.Printf("%v:[%d] %v esc: %v\n", linestr(lineno), e.loopdepth, funcSym(Curfn), n)
 	}
 
@@ -641,11 +673,11 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OLABEL:
 		if n.Left.Sym.Label == &nonlooping {
-			if Debug['m'] > 1 {
+			if Debug['m'] > 2 {
 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
 		} else if n.Left.Sym.Label == &looping {
-			if Debug['m'] > 1 {
+			if Debug['m'] > 2 {
 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
 			e.loopdepth++
@@ -666,9 +698,9 @@ func esc(e *EscState, n *Node, up *Node) {
 			// dereferenced (see #12588)
 			if Isfixedarray(n.Type) &&
 				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
-				escassign(e, n.List.Second(), n.Right)
+				escassignNilWhy(e, n.List.Second(), n.Right, "range")
 			} else {
-				escassignDereference(e, n.List.Second(), n.Right)
+				escassignDereference(e, n.List.Second(), n.Right, e.stepAssign(nil, n.List.Second(), n.Right, "range-deref"))
 			}
 		}
 
@@ -679,7 +711,7 @@ func esc(e *EscState, n *Node, up *Node) {
 				// n.Left.Right is the argument of the .(type),
 				// it.N().Rlist is the variable per case
 				if n2.Rlist.Len() != 0 {
-					escassign(e, n2.Rlist.First(), n.Left.Right)
+					escassignNilWhy(e, n2.Rlist.First(), n.Left.Right, "switch case")
 				}
 			}
 		}
@@ -717,23 +749,25 @@ func esc(e *EscState, n *Node, up *Node) {
 			break
 		}
 
-		escassign(e, n.Left, n.Right)
+		escassign(e, n.Left, n.Right, nil)
 
 	case OAS2: // x,y = a,b
 		if n.List.Len() == n.Rlist.Len() {
 			rs := n.Rlist.Slice()
 			for i, n := range n.List.Slice() {
-				escassign(e, n, rs[i])
+				escassignNilWhy(e, n, rs[i], "assign-pair")
 			}
 		}
 
-	case OAS2RECV, // v, ok = <-ch
-		OAS2MAPR,    // v, ok = m[k]
-		OAS2DOTTYPE: // v, ok = x.(type)
-		escassign(e, n.List.First(), n.Rlist.First())
+	case OAS2RECV: // v, ok = <-ch
+		escassignNilWhy(e, n.List.First(), n.Rlist.First(), "assign-pair-receive")
+	case OAS2MAPR: // v, ok = m[k]
+		escassignNilWhy(e, n.List.First(), n.Rlist.First(), "assign-pair-mapr")
+	case OAS2DOTTYPE: // v, ok = x.(type)
+		escassignNilWhy(e, n.List.First(), n.Rlist.First(), "assign-pair-dot-type")
 
 	case OSEND: // ch <- x
-		escassign(e, &e.theSink, n.Right)
+		escassignSinkNilWhy(e, n, n.Right, "send")
 
 	case ODEFER:
 		if e.loopdepth == 1 { // top level
@@ -741,15 +775,21 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 		// arguments leak out of scope
 		// TODO: leak to a dummy node instead
-		fallthrough
+		// go f(x) - f and x escape
+		escassignSinkNilWhy(e, n, n.Left.Left, "defer func")
+
+		escassignSinkNilWhy(e, n, n.Left.Right, "defer func ...") // ODDDARG for call
+		for _, n4 := range n.Left.List.Slice() {
+			escassignSinkNilWhy(e, n, n4, "defer func arg")
+		}
 
 	case OPROC:
 		// go f(x) - f and x escape
-		escassign(e, &e.theSink, n.Left.Left)
+		escassignSinkNilWhy(e, n, n.Left.Left, "go func")
 
-		escassign(e, &e.theSink, n.Left.Right) // ODDDARG for call
+		escassignSinkNilWhy(e, n, n.Left.Right, "go func ...") // ODDDARG for call
 		for _, n4 := range n.Left.List.Slice() {
-			escassign(e, &e.theSink, n4)
+			escassignSinkNilWhy(e, n, n4, "go func arg")
 		}
 
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
@@ -762,7 +802,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			if i >= len(rs) {
 				break
 			}
-			escassign(e, n, rs[i])
+			escassignNilWhy(e, n, rs[i], "assign-pair-func-call")
 		}
 		if n.List.Len() != len(rs) {
 			Fatalf("esc oas2func")
@@ -785,7 +825,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			if lrn.Op != ONAME || lrn.Class != PPARAMOUT {
 				continue
 			}
-			escassign(e, lrn, ll.Index(i))
+			escassignNilWhy(e, lrn, ll.Index(i), "return")
 			i++
 		}
 
@@ -795,67 +835,69 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		// Argument could leak through recover.
 	case OPANIC:
-		escassign(e, &e.theSink, n.Left)
+		escassignSinkNilWhy(e, n, n.Left, "panic")
 
 	case OAPPEND:
 		if !n.Isddd {
-			for _, n := range n.List.Slice()[1:] {
-				escassign(e, &e.theSink, n) // lose track of assign to dereference
+			for _, nn := range n.List.Slice()[1:] {
+				escassignSinkNilWhy(e, n, nn, "appended to slice") // lose track of assign to dereference
 			}
 		} else {
 			// append(slice1, slice2...) -- slice2 itself does not escape, but contents do.
 			slice2 := n.List.Second()
-			escassignDereference(e, &e.theSink, slice2) // lose track of assign of dereference
-			if Debug['m'] > 2 {
+			escassignDereference(e, &e.theSink, slice2, e.stepAssign(nil, n, slice2, "appended slice...")) // lose track of assign of dereference
+			if Debug['m'] > 3 {
 				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, FmtShort))
 			}
 		}
-		escassignDereference(e, &e.theSink, n.List.First()) // The original elements are now leaked, too
+		escassignDereference(e, &e.theSink, n.List.First(), e.stepAssign(nil, n, n.List.First(), "appendee slice")) // The original elements are now leaked, too
 
 	case OCOPY:
-		escassignDereference(e, &e.theSink, n.Right) // lose track of assign of dereference
+		escassignDereference(e, &e.theSink, n.Right, e.stepAssign(nil, n, n.Right, "copied slice")) // lose track of assign of dereference
 
 	case OCONV, OCONVNOP:
-		escassign(e, n, n.Left)
+		escassignNilWhy(e, n, n.Left, "converted")
 
 	case OCONVIFACE:
 		e.track(n)
-		escassign(e, n, n.Left)
+		escassignNilWhy(e, n, n.Left, "interface-converted")
 
 	case OARRAYLIT:
+		why := "array literal element"
 		if Isslice(n.Type) {
 			// Slice itself is not leaked until proven otherwise
 			e.track(n)
+			why = "slice literal element"
 		}
 		// Link values to array/slice
 		for _, n5 := range n.List.Slice() {
-			escassign(e, n, n5.Right)
+			escassign(e, n, n5.Right, e.stepAssign(nil, n, n5.Right, why))
 		}
 
 		// Link values to struct.
 	case OSTRUCTLIT:
 		for _, n6 := range n.List.Slice() {
-			escassign(e, n, n6.Right)
+			escassignNilWhy(e, n, n6.Right, "struct literal element")
 		}
 
 	case OPTRLIT:
 		e.track(n)
 
 		// Link OSTRUCTLIT to OPTRLIT; if OPTRLIT escapes, OSTRUCTLIT elements do too.
-		escassign(e, n, n.Left)
+		escassignNilWhy(e, n, n.Left, "pointer literal [assign]")
 
 	case OCALLPART:
 		e.track(n)
 
 		// Contents make it to memory, lose track.
-		escassign(e, &e.theSink, n.Left)
+		escassignSinkNilWhy(e, n, n.Left, "call part")
 
 	case OMAPLIT:
 		e.track(n)
 		// Keys and values make it to memory, lose track.
 		for _, n7 := range n.List.Slice() {
-			escassign(e, &e.theSink, n7.Left)
-			escassign(e, &e.theSink, n7.Right)
+			escassignSinkNilWhy(e, n, n7.Left, "map literal key")
+			escassignSinkNilWhy(e, n, n7.Right, "map literal value")
 		}
 
 		// Link addresses of captured variables to closure.
@@ -873,7 +915,7 @@ func esc(e *EscState, n *Node, up *Node) {
 				typecheck(&a, Erv)
 			}
 
-			escassign(e, n, a)
+			escassignNilWhy(e, n, a, "captured by a closure")
 		}
 		fallthrough
 
@@ -925,16 +967,36 @@ func esc(e *EscState, n *Node, up *Node) {
 	lineno = lno
 }
 
+// escassignNilWhy bundles a common case of
+// escassign(e, dst, src, e.stepAssign(nil, dst, src, reason))
+func escassignNilWhy(e *EscState, dst, src *Node, reason string) {
+	var step *EscStep
+	if Debug['m'] != 0 {
+		step = e.stepAssign(nil, dst, src, reason)
+	}
+	escassign(e, dst, src, step)
+}
+
+// escassignSinkNilWhy bundles a common case of
+// escassign(e, &e.theSink, src, e.stepAssign(nil, dst, src, reason))
+func escassignSinkNilWhy(e *EscState, dst, src *Node, reason string) {
+	var step *EscStep
+	if Debug['m'] != 0 {
+		step = e.stepAssign(nil, dst, src, reason)
+	}
+	escassign(e, &e.theSink, src, step)
+}
+
 // Assert that expr somehow gets assigned to dst, if non nil.  for
 // dst==nil, any name node expr still must be marked as being
 // evaluated in curfn.	For expr==nil, dst must still be examined for
 // evaluations inside it (e.g *f(x) = y)
-func escassign(e *EscState, dst *Node, src *Node) {
+func escassign(e *EscState, dst, src *Node, step *EscStep) {
 	if isblank(dst) || dst == nil || src == nil || src.Op == ONONAME || src.Op == OXXX {
 		return
 	}
 
-	if Debug['m'] > 1 {
+	if Debug['m'] > 2 {
 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
 			linestr(lineno), e.loopdepth, funcSym(Curfn),
 			Nconv(dst, FmtShort), Jconv(dst, FmtShort), Oconv(dst.Op, 0),
@@ -942,6 +1004,9 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	}
 
 	setlineno(dst)
+
+	originalDst := dst
+	dstwhy := "assigned"
 
 	// Analyze lhs of assignment.
 	// Replace dst with e->theSink if we can't track it.
@@ -964,29 +1029,35 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 	case ONAME:
 		if dst.Class == PEXTERN {
+			dstwhy = "assigned to top level variable"
 			dst = &e.theSink
 		}
 
 	case ODOT: // treat "dst.x = src" as "dst = src"
-		escassign(e, dst.Left, src)
-
+		escassign(e, dst.Left, src, e.stepAssign(step, originalDst, src, "dot-equals"))
 		return
 
 	case OINDEX:
 		if Isfixedarray(dst.Left.Type) {
-			escassign(e, dst.Left, src)
+			escassign(e, dst.Left, src, e.stepAssign(step, originalDst, src, "array-element-equals"))
 			return
 		}
 
+		dstwhy = "slice-element-equals"
 		dst = &e.theSink // lose track of dereference
 
-	case OIND, ODOTPTR:
+	case OIND:
+		dstwhy = "star-equals"
+		dst = &e.theSink // lose track of dereference
+
+	case ODOTPTR:
+		dstwhy = "star-dot-equals"
 		dst = &e.theSink // lose track of dereference
 
 		// lose track of key and value
 	case OINDEXMAP:
-		escassign(e, &e.theSink, dst.Right)
-
+		escassign(e, &e.theSink, dst.Right, e.stepAssign(nil, originalDst, src, "key of map put"))
+		dstwhy = "value of map put"
 		dst = &e.theSink
 	}
 
@@ -1016,7 +1087,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OCALLPART,
 		ORUNESTR,
 		OCONVIFACE:
-		escflows(e, dst, src)
+		escflows(e, dst, src, e.stepAssign(step, originalDst, src, dstwhy))
 
 	case OCLOSURE:
 		// OCLOSURE is lowered to OPTRLIT,
@@ -1025,13 +1096,13 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		a.Lineno = src.Lineno
 		e.nodeEscState(a).Escloopdepth = e.nodeEscState(src).Escloopdepth
 		a.Type = Ptrto(src.Type)
-		escflows(e, dst, a)
+		escflows(e, dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
 
 	// Flowing multiple returns to a single dst happens when
 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		for _, n := range e.nodeEscState(src).Escretval.Slice() {
-			escflows(e, dst, n)
+			escflows(e, dst, n, e.stepAssign(nil, originalDst, n, dstwhy))
 		}
 
 		// A non-pointer escaping from a struct does not concern us.
@@ -1054,25 +1125,25 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OSLICE3ARR,
 		OSLICESTR:
 		// Conversions, field access, slice all preserve the input value.
-		escassign(e, dst, src.Left)
+		escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 
 	case ODOTTYPE:
 		if src.Type != nil && !haspointers(src.Type) {
 			break
 		}
-		escassign(e, dst, src.Left)
+		escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 
 	case OAPPEND:
 		// Append returns first argument.
 		// Subsequent arguments are already leaked because they are operands to append.
-		escassign(e, dst, src.List.First())
+		escassign(e, dst, src.List.First(), e.stepAssign(step, dst, src.List.First(), dstwhy))
 
 	case OINDEX:
 		// Index of array preserves input value.
 		if Isfixedarray(src.Left.Type) {
-			escassign(e, dst, src.Left)
+			escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 		} else {
-			escflows(e, dst, src)
+			escflows(e, dst, src, e.stepAssign(step, originalDst, src, dstwhy))
 		}
 
 		// Might be pointer arithmetic, in which case
@@ -1092,9 +1163,9 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OPLUS,
 		OMINUS,
 		OCOM:
-		escassign(e, dst, src.Left)
+		escassign(e, dst, src.Left, e.stepAssign(step, originalDst, src, dstwhy))
 
-		escassign(e, dst, src.Right)
+		escassign(e, dst, src.Right, e.stepAssign(step, originalDst, src, dstwhy))
 	}
 
 	e.pdepth--
@@ -1204,13 +1275,13 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 		return em
 	}
 
-	if Debug['m'] > 2 {
+	if Debug['m'] > 3 {
 		fmt.Printf("%v::assignfromtag:: src=%v, em=%s\n",
 			linestr(lineno), Nconv(src, FmtShort), describeEscape(em))
 	}
 
 	if em == EscUnknown {
-		escassign(e, &e.theSink, src)
+		escassignSinkNilWhy(e, src, src, "passed to function[unknown]")
 		return em
 	}
 
@@ -1221,7 +1292,7 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 	// If content inside parameter (reached via indirection)
 	// escapes to heap, mark as such.
 	if em&EscContentEscapes != 0 {
-		escassign(e, &e.theSink, e.addDereference(src))
+		escassign(e, &e.theSink, e.addDereference(src), e.stepAssign(nil, src, src, "passed to function[content escapes]"))
 	}
 
 	em0 := em
@@ -1238,7 +1309,7 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 			for i := uint16(0); i < embits-1; i++ {
 				n = e.addDereference(n) // encode level>0 as indirections
 			}
-			escassign(e, dsts.Index(dstsi), n)
+			escassign(e, dsts.Index(dstsi), n, e.stepAssign(nil, dsts.Index(dstsi), src, "passed-to-and-returned-from-function"))
 		}
 		dstsi++
 	}
@@ -1252,11 +1323,11 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 	return em0
 }
 
-func escassignDereference(e *EscState, dst *Node, src *Node) {
+func escassignDereference(e *EscState, dst *Node, src *Node, step *EscStep) {
 	if src.Op == OLITERAL {
 		return
 	}
-	escassign(e, dst, e.addDereference(src))
+	escassign(e, dst, e.addDereference(src), step)
 }
 
 // addDereference constructs a suitable OIND note applied to src.
@@ -1374,8 +1445,8 @@ func esccall(e *EscState, n *Node, up *Node) {
 		// We know nothing!
 		// Leak all the parameters
 		for _, n1 := range ll.Slice() {
-			escassign(e, &e.theSink, n1)
-			if Debug['m'] > 2 {
+			escassignSinkNilWhy(e, n, n1, "parameter to indirect call")
+			if Debug['m'] > 3 {
 				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", linestr(lineno), Nconv(n1, FmtShort))
 			}
 		}
@@ -1386,7 +1457,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			t := fntype.Recv()
 			src := n.Left.Left
 			if haspointers(t.Type) {
-				escassign(e, &e.theSink, src)
+				escassignSinkNilWhy(e, n, src, "receiver in indirect call")
 			}
 		}
 		return
@@ -1395,7 +1466,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	nE := e.nodeEscState(n)
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
 		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
-		if Debug['m'] > 2 {
+		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, FmtShort))
 		}
 
@@ -1411,7 +1482,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 		// Receiver.
 		if n.Op != OCALLFUNC {
-			escassign(e, fn.Name.Param.Ntype.Left.Left, n.Left.Left)
+			escassignNilWhy(e, fn.Name.Param.Ntype.Left.Left, n.Left.Left, "call receiver")
 		}
 
 		var src *Node
@@ -1433,7 +1504,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			}
 
 			if lrs[i].Left != nil {
-				escassign(e, lrs[i].Left, src)
+				escassignNilWhy(e, lrs[i].Left, src, "arg to recursive call")
 			}
 			if src != lls[i] {
 				break
@@ -1442,10 +1513,10 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 		// "..." arguments are untracked
 		for ; i < len(lls); i++ {
-			if Debug['m'] > 2 {
+			if Debug['m'] > 3 {
 				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(lls[i], FmtShort))
 			}
-			escassign(e, &e.theSink, lls[i])
+			escassignSinkNilWhy(e, src, lls[i], "... arg to recursive call")
 		}
 
 		return
@@ -1456,7 +1527,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		Fatalf("esc already decorated call %v\n", Nconv(n, FmtSign))
 	}
 
-	if Debug['m'] > 2 {
+	if Debug['m'] > 3 {
 		fmt.Printf("%v::esccall:: %v not recursive\n", linestr(lineno), Nconv(n, FmtShort))
 	}
 
@@ -1526,16 +1597,16 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	for ; i < len(lls); i++ {
-		if Debug['m'] > 2 {
+		if Debug['m'] > 3 {
 			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(lls[i], FmtShort))
 		}
-		escassign(e, src, lls[i]) // args to slice
+		escassignNilWhy(e, src, lls[i], "arg to ...") // args to slice
 	}
 }
 
 // escflows records the link src->dst in dst, throwing out some quick wins,
 // and also ensuring that dst is noted as a flow destination.
-func escflows(e *EscState, dst *Node, src *Node) {
+func escflows(e *EscState, dst, src *Node, why *EscStep) {
 	if dst == nil || src == nil || dst == src {
 		return
 	}
@@ -1545,7 +1616,7 @@ func escflows(e *EscState, dst *Node, src *Node) {
 		return
 	}
 
-	if Debug['m'] > 2 {
+	if Debug['m'] > 3 {
 		fmt.Printf("%v::flows:: %v <- %v\n", linestr(lineno), Nconv(dst, FmtShort), Nconv(src, FmtShort))
 	}
 
@@ -1557,7 +1628,13 @@ func escflows(e *EscState, dst *Node, src *Node) {
 
 	e.edgecount++
 
-	dstE.Escflowsrc = append(dstE.Escflowsrc, src)
+	if why == nil {
+		dstE.Escflowsrc = append(dstE.Escflowsrc, EscStep{src: src})
+	} else {
+		starwhy := *why
+		starwhy.src = src // TODO: need to reconcile this w/ needs of explanations.
+		dstE.Escflowsrc = append(dstE.Escflowsrc, starwhy)
+	}
 }
 
 // Whenever we hit a reference node, the level goes up by one, and whenever
@@ -1579,13 +1656,14 @@ func escflood(e *EscState, dst *Node) {
 	}
 
 	dstE := e.nodeEscState(dst)
-	if Debug['m'] > 1 {
+	if Debug['m'] > 2 {
 		fmt.Printf("\nescflood:%d: dst %v scope:%v[%d]\n", e.walkgen, Nconv(dst, FmtShort), e.curfnSym(dst), dstE.Escloopdepth)
 	}
 
-	for _, n := range dstE.Escflowsrc {
+	for i, l := range dstE.Escflowsrc {
 		e.walkgen++
-		escwalk(e, levelFrom(0), dst, n)
+		dstE.Escflowsrc[i].parent = nil
+		escwalk(e, levelFrom(0), dst, l.src, &dstE.Escflowsrc[i])
 	}
 }
 
@@ -1596,13 +1674,37 @@ func funcOutputAndInput(dst, src *Node) bool {
 		src.Op == ONAME && src.Class == PPARAM && src.Name.Curfn == dst.Name.Curfn
 }
 
-const NOTALOOPDEPTH = -1
-
-func escwalk(e *EscState, level Level, dst *Node, src *Node) {
-	escwalkBody(e, level, dst, src, NOTALOOPDEPTH)
+func (es *EscStep) describe(src *Node) {
+	if Debug['m'] < 2 {
+		return
+	}
+	step0 := es
+	for step := step0; step != nil && !step.busy; step = step.parent {
+		// TODO: We get cycles. Trigger is i = &i (where var i interface{})
+		step.busy = true
+		// The trail is a little odd because of how the
+		// graph is constructed.  The link to the current
+		// Node is parent.src unless parent is nil in which
+		// case it is step.dst.
+		nextDest := step.parent
+		dst := step.dst
+		if nextDest != nil {
+			dst = nextDest.src
+		}
+		Warnl(src.Lineno, "\tfrom %s (%s) at %s", dst, step.why, dst.Line())
+	}
+	for step := step0; step != nil && step.busy; step = step.parent {
+		step.busy = false
+	}
 }
 
-func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth int32) {
+const NOTALOOPDEPTH = -1
+
+func escwalk(e *EscState, level Level, dst *Node, src *Node, step *EscStep) {
+	escwalkBody(e, level, dst, src, step, NOTALOOPDEPTH)
+}
+
+func escwalkBody(e *EscState, level Level, dst *Node, src *Node, step *EscStep, extraloopdepth int32) {
 	if src.Op == OLITERAL {
 		return
 	}
@@ -1633,7 +1735,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		modSrcLoopdepth = extraloopdepth
 	}
 
-	if Debug['m'] > 1 {
+	if Debug['m'] > 2 {
 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d] extraloopdepth=%v\n",
 			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(src.Op, 0), Nconv(src, FmtShort), Jconv(src, FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
 	}
@@ -1642,6 +1744,8 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 
 	// Input parameter flowing to output parameter?
 	var leaks bool
+	var osrcesc uint16 // used to prevent duplicate error messages
+
 	dstE := e.nodeEscState(dst)
 	if funcOutputAndInput(dst, src) && src.Esc&EscMask < EscScope && dst.Esc != EscHeap {
 		// This case handles:
@@ -1650,8 +1754,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		// 3. tmp := in; return &tmp
 		// 4. return *in
 		if Debug['m'] != 0 {
-			if Debug['m'] == 1 {
+			if Debug['m'] <= 2 {
 				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, FmtShort), dst.Sym, level.int())
+				step.describe(src)
 			} else {
 				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, FmtShort), dst.Sym, level)
 			}
@@ -1671,19 +1776,24 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
 			Warnl(src.Lineno, "mark escaped content: %v", Nconv(src, FmtShort))
+			step.describe(src)
 		}
 	}
 
 	leaks = level.int() <= 0 && level.guaranteedDereference() <= 0 && dstE.Escloopdepth < modSrcLoopdepth
 
+	osrcesc = src.Esc
 	switch src.Op {
 	case ONAME:
 		if src.Class == PPARAM && (leaks || dstE.Escloopdepth < 0) && src.Esc&EscMask < EscScope {
 			if level.guaranteedDereference() > 0 {
 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 				if Debug['m'] != 0 {
-					if Debug['m'] == 1 {
-						Warnl(src.Lineno, "leaking param content: %v", Nconv(src, FmtShort))
+					if Debug['m'] <= 2 {
+						if osrcesc != src.Esc {
+							Warnl(src.Lineno, "leaking param content: %v", Nconv(src, FmtShort))
+							step.describe(src)
+						}
 					} else {
 						Warnl(src.Lineno, "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
 							Nconv(src, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, FmtShort))
@@ -1692,8 +1802,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 			} else {
 				src.Esc = EscScope
 				if Debug['m'] != 0 {
-					if Debug['m'] == 1 {
+
+					if Debug['m'] <= 2 {
 						Warnl(src.Lineno, "leaking param: %v", Nconv(src, FmtShort))
+						step.describe(src)
 					} else {
 						Warnl(src.Lineno, "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
 							Nconv(src, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, FmtShort))
@@ -1707,40 +1819,47 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		if src.Class == PPARAMREF {
 			if leaks && Debug['m'] != 0 {
 				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, FmtShort))
+				step.describe(src)
 			}
-			escwalk(e, level, dst, src.Name.Param.Closure)
+			escwalk(e, level, dst, src.Name.Param.Closure, e.stepWalk(dst, src.Name.Param.Closure, "closure-var", step))
 		}
 
 	case OPTRLIT, OADDR:
+		why := "pointer literal"
+		if src.Op == OADDR {
+			why = "address-of"
+		}
 		if leaks {
 			src.Esc = EscHeap
 			addrescapes(src.Left)
-			if Debug['m'] != 0 {
+			if Debug['m'] != 0 && osrcesc != src.Esc {
 				p := src
 				if p.Left.Op == OCLOSURE {
 					p = p.Left // merely to satisfy error messages in tests
 				}
-				if Debug['m'] > 1 {
+				if Debug['m'] > 2 {
 					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
 						Nconv(p, FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
 				} else {
 					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, FmtShort))
+					step.describe(src)
 				}
 			}
-			escwalkBody(e, level.dec(), dst, src.Left, modSrcLoopdepth)
+			escwalkBody(e, level.dec(), dst, src.Left, e.stepWalk(dst, src.Left, why, step), modSrcLoopdepth)
 			extraloopdepth = modSrcLoopdepth // passes to recursive case, seems likely a no-op
 		} else {
-			escwalk(e, level.dec(), dst, src.Left)
+			escwalk(e, level.dec(), dst, src.Left, e.stepWalk(dst, src.Left, why, step))
 		}
 
 	case OAPPEND:
-		escwalk(e, level, dst, src.List.First())
+		escwalk(e, level, dst, src.List.First(), e.stepWalk(dst, src.List.First(), "append-first-arg", step))
 
 	case ODDDARG:
 		if leaks {
 			src.Esc = EscHeap
-			if Debug['m'] != 0 {
+			if Debug['m'] != 0 && osrcesc != src.Esc {
 				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, FmtShort))
+				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
 		}
@@ -1752,7 +1871,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 			break
 		}
 		for _, n1 := range src.List.Slice() {
-			escwalk(e, level.dec(), dst, n1.Right)
+			escwalk(e, level.dec(), dst, n1.Right, e.stepWalk(dst, n1.Right, "slice-literal-element", step))
 		}
 
 		fallthrough
@@ -1773,30 +1892,38 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		OCONVIFACE:
 		if leaks {
 			src.Esc = EscHeap
-			if Debug['m'] != 0 {
+			if Debug['m'] != 0 && osrcesc != src.Esc {
 				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, FmtShort))
+				step.describe(src)
 			}
 			extraloopdepth = modSrcLoopdepth
 		}
 
 	case ODOT,
-		ODOTTYPE,
+		ODOTTYPE:
+		escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "dot", step))
+
+	case
 		OSLICE,
 		OSLICEARR,
 		OSLICE3,
 		OSLICE3ARR,
 		OSLICESTR:
-		escwalk(e, level, dst, src.Left)
+		escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "slice", step))
 
 	case OINDEX:
 		if Isfixedarray(src.Left.Type) {
-			escwalk(e, level, dst, src.Left)
+			escwalk(e, level, dst, src.Left, e.stepWalk(dst, src.Left, "fixed-array-index-of", step))
 			break
 		}
 		fallthrough
 
-	case ODOTPTR, OINDEXMAP, OIND:
-		escwalk(e, level.inc(), dst, src.Left)
+	case ODOTPTR:
+		escwalk(e, level.inc(), dst, src.Left, e.stepWalk(dst, src.Left, "dot of pointer", step))
+	case OINDEXMAP:
+		escwalk(e, level.inc(), dst, src.Left, e.stepWalk(dst, src.Left, "map index", step))
+	case OIND:
+		escwalk(e, level.inc(), dst, src.Left, e.stepWalk(dst, src.Left, "indirection", step))
 
 	// In this case a link went directly to a call, but should really go
 	// to the dummy .outN outputs that were created for the call that
@@ -1805,7 +1932,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 	// This can only happen with functions returning a single result.
 	case OCALLMETH, OCALLFUNC, OCALLINTER:
 		if srcE.Escretval.Len() != 0 {
-			if Debug['m'] > 1 {
+			if Debug['m'] > 2 {
 				fmt.Printf("%v:[%d] dst %v escwalk replace src: %v with %v\n",
 					linestr(lineno), e.loopdepth,
 					Nconv(dst, FmtShort), Nconv(src, FmtShort), Nconv(srcE.Escretval.First(), FmtShort))
@@ -1817,8 +1944,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 
 recurse:
 	level = level.copy()
-	for _, n := range srcE.Escflowsrc {
-		escwalkBody(e, level, dst, n, extraloopdepth)
+	for i, ll := range srcE.Escflowsrc {
+		srcE.Escflowsrc[i].parent = step
+		escwalkBody(e, level, dst, ll.src, &srcE.Escflowsrc[i], extraloopdepth)
+		srcE.Escflowsrc[i].parent = nil
 	}
 
 	e.pdepth--

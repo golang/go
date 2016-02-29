@@ -45,7 +45,7 @@ func Compile(f *Func) {
 	}
 	const logMemStats = false
 	for _, p := range passes {
-		if !f.Config.optimize && !p.required {
+		if !f.Config.optimize && !p.required || p.disabled {
 			continue
 		}
 		f.pass = &p
