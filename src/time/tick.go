@@ -50,6 +50,7 @@ func (t *Ticker) Stop() {
 // channel only. While Tick is useful for clients that have no need to shut down
 // the Ticker, be aware that without a way to shut it down the underlying
 // Ticker cannot be recovered by the garbage collector; it "leaks".
+// Unlike NewTicker, Tick will return nil if d <= 0.
 func Tick(d Duration) <-chan Time {
 	if d <= 0 {
 		return nil
