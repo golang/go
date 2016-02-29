@@ -18,7 +18,7 @@ export CC
 msan=yes
 
 TMPDIR=${TMPDIR:-/tmp}
-echo > ${TMPDIR}/testsanitizers$$.c
+echo 'int main() { return 0; }' > ${TMPDIR}/testsanitizers$$.c
 if $CC -fsanitize=memory -c ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$.o 2>&1 | grep "unrecognized" >& /dev/null; then
   echo "skipping msan tests: -fsanitize=memory not supported"
   msan=no
@@ -93,7 +93,7 @@ tsan=yes
 
 TMPDIR=${TMPDIR:-/tmp}
 echo > ${TMPDIR}/testsanitizers$$.c
-if $CC -fsanitize=thread -c ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$.o 2>&1 | grep "unrecognized" >& /dev/null; then
+if $CC -fsanitize=thread ${TMPDIR}/testsanitizers$$.c -o ${TMPDIR}/testsanitizers$$ 2>&1 | grep "unrecognized" >& /dev/null; then
   echo "skipping tsan tests: -fsanitize=thread not supported"
   tsan=no
 fi
