@@ -75,10 +75,16 @@ func linkarchinit() {
 		ld.Thearch.Lput = ld.Lputl
 		ld.Thearch.Wput = ld.Wputl
 		ld.Thearch.Vput = ld.Vputl
+		ld.Thearch.Append16 = ld.Append16l
+		ld.Thearch.Append32 = ld.Append32l
+		ld.Thearch.Append64 = ld.Append64l
 	} else {
 		ld.Thearch.Lput = ld.Lputb
 		ld.Thearch.Wput = ld.Wputb
 		ld.Thearch.Vput = ld.Vputb
+		ld.Thearch.Append16 = ld.Append16b
+		ld.Thearch.Append32 = ld.Append32b
+		ld.Thearch.Append64 = ld.Append64b
 	}
 
 	ld.Thearch.Linuxdynld = "/lib64/ld64.so.1"

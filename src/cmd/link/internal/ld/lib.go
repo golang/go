@@ -107,9 +107,12 @@ type Arch struct {
 	Gentext          func()
 	Machoreloc1      func(*Reloc, int64) int
 	PEreloc1         func(*Reloc, int64) bool
-	Lput             func(uint32)
 	Wput             func(uint16)
+	Lput             func(uint32)
 	Vput             func(uint64)
+	Append16         func(b []byte, v uint16) []byte
+	Append32         func(b []byte, v uint32) []byte
+	Append64         func(b []byte, v uint64) []byte
 }
 
 type Rpath struct {
