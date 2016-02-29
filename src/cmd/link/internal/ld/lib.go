@@ -1850,6 +1850,10 @@ func Cseek(p int64) {
 	coutbuf.off = p
 }
 
+func Cwritestring(s string) {
+	coutbuf.WriteString(s)
+}
+
 func Cwrite(p []byte) {
 	coutbuf.Write(p)
 }
