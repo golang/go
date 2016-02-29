@@ -61,7 +61,7 @@ func lookupFullName(domain, username, domainAndUser string) (string, error) {
 	if err == nil {
 		return name, nil
 	}
-	// domain worked neigher as a domain nor as a server
+	// domain worked neither as a domain nor as a server
 	// could be domain server unavailable
 	// pretend username is fullname
 	return username, nil

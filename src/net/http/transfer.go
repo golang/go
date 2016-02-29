@@ -558,21 +558,19 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
 func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	if major < 1 {
 		return true
-	} else if major == 1 && minor == 0 {
-		vv := header["Connection"]
-		if headerValuesContainsToken(vv, "close") || !headerValuesContainsToken(vv, "keep-alive") {
-			return true
-		}
-		return false
-	} else {
-		if headerValuesContainsToken(header["Connection"], "close") {
-			if removeCloseHeader {
-				header.Del("Connection")
-			}
-			return true
-		}
 	}
-	return false
+
+	conv := header["Connection"]
+	hasClose := headerValuesContainsToken(conv, "close")
+	if major == 1 && minor == 0 {
+		return hasClose || !headerValuesContainsToken(conv, "keep-alive")
+	}
+
+	if hasClose && removeCloseHeader {
+		header.Del("Connection")
+	}
+
+	return hasClose
 }
 
 // Parse the trailer header

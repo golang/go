@@ -191,12 +191,9 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 //
 // Note that since each slice entry pc[i] is a return program counter,
 // looking up the file and line for pc[i] (for example, using (*Func).FileLine)
-// will return the file and line number of the instruction immediately
+// will normally return the file and line number of the instruction immediately
 // following the call.
-// To look up the file and line number of the call itself, use pc[i]-1.
-// As an exception to this rule, if pc[i-1] corresponds to the function
-// runtime.sigpanic, then pc[i] is the program counter of a faulting
-// instruction and should be used without any subtraction.
+// To easily look up file/line information for the call sequence, use Frames.
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
 	// to print a stack trace.  Pick off 0-length pc here

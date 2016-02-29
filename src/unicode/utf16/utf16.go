@@ -45,7 +45,7 @@ func DecodeRune(r1, r2 rune) rune {
 // If the rune is not a valid Unicode code point or does not need encoding,
 // EncodeRune returns U+FFFD, U+FFFD.
 func EncodeRune(r rune) (r1, r2 rune) {
-	if r < surrSelf || r > maxRune || IsSurrogate(r) {
+	if r < surrSelf || r > maxRune {
 		return replacementChar, replacementChar
 	}
 	r -= surrSelf
@@ -65,20 +65,22 @@ func Encode(s []rune) []uint16 {
 	n = 0
 	for _, v := range s {
 		switch {
-		case v < 0, surr1 <= v && v < surr3, v > maxRune:
-			v = replacementChar
-			fallthrough
-		case v < surrSelf:
+		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
+			// normal rune
 			a[n] = uint16(v)
 			n++
-		default:
+		case surrSelf <= v && v <= maxRune:
+			// needs surrogate sequence
 			r1, r2 := EncodeRune(v)
 			a[n] = uint16(r1)
 			a[n+1] = uint16(r2)
 			n += 2
+		default:
+			a[n] = uint16(replacementChar)
+			n++
 		}
 	}
-	return a[0:n]
+	return a[:n]
 }
 
 // Decode returns the Unicode code point sequence represented

@@ -203,6 +203,8 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	if t0 != 0 {
 		mysg.releasetime = -1
 	}
+	// No stack splits between assigning elem and enqueuing mysg
+	// on gp.waiting where copystack can find it.
 	mysg.elem = ep
 	mysg.waitlink = nil
 	mysg.g = gp
@@ -460,6 +462,8 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
 	if t0 != 0 {
 		mysg.releasetime = -1
 	}
+	// No stack splits between assigning elem and enqueuing mysg
+	// on gp.waiting where copystack can find it.
 	mysg.elem = ep
 	mysg.waitlink = nil
 	gp.waiting = mysg

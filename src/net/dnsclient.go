@@ -161,7 +161,7 @@ func isDomainName(s string) bool {
 	return ok
 }
 
-// absDomainName returns an absoulte domain name which ends with a
+// absDomainName returns an absolute domain name which ends with a
 // trailing dot to match pure Go reverse resolver and all other lookup
 // routines.
 // See golang.org/issue/12189.

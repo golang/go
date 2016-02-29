@@ -10,9 +10,10 @@ import (
 	"cmd/internal/obj/x86"
 )
 
-func defframe(ptxt *obj.Prog) {
-	var n *gc.Node
+// no floating point in note handlers on Plan 9
+var isPlan9 = obj.Getgoos() == "plan9"
 
+func defframe(ptxt *obj.Prog) {
 	// fill in argument size, stack size
 	ptxt.To.Type = obj.TYPE_TEXTSIZE
 
@@ -31,8 +32,7 @@ func defframe(ptxt *obj.Prog) {
 	x0 := uint32(0)
 
 	// iterate through declarations - they are sorted in decreasing xoffset order.
-	for l := gc.Curfn.Func.Dcl; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range gc.Curfn.Func.Dcl {
 		if !n.Name.Needzero {
 			continue
 		}
@@ -126,7 +126,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
 			*ax = 1
 		}
 		p = appendpp(p, x86.AMOVQ, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
-	} else if cnt <= int64(8*gc.Widthreg) {
+	} else if !isPlan9 && cnt <= int64(8*gc.Widthreg) {
 		if *x0 == 0 {
 			p = appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
 			*x0 = 1
@@ -139,12 +139,11 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
 		if cnt%16 != 0 {
 			p = appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo+cnt-int64(16))
 		}
-	} else if !gc.Nacl && (cnt <= int64(128*gc.Widthreg)) {
+	} else if !gc.Nacl && !isPlan9 && (cnt <= int64(128*gc.Widthreg)) {
 		if *x0 == 0 {
 			p = appendpp(p, x86.AXORPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_REG, x86.REG_X0, 0)
 			*x0 = 1
 		}
-
 		p = appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, frame+lo+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
 		p = appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
 		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
@@ -563,7 +562,7 @@ func clearfat(nl *gc.Node) {
 
 	w := nl.Type.Width
 
-	if w > 1024 || (gc.Nacl && w >= 64) {
+	if w > 1024 || (w >= 64 && (gc.Nacl || isPlan9)) {
 		var oldn1 gc.Node
 		var n1 gc.Node
 		savex(x86.REG_DI, &n1, &oldn1, nil, gc.Types[gc.Tptr])
@@ -630,6 +629,22 @@ func clearfat(nl *gc.Node) {
 }
 
 func clearfat_tail(n1 *gc.Node, b int64) {
+	if b >= 16 && isPlan9 {
+		var z gc.Node
+		gc.Nodconst(&z, gc.Types[gc.TUINT64], 0)
+		q := b / 8
+		for ; q > 0; q-- {
+			n1.Type = z.Type
+			gins(x86.AMOVQ, &z, n1)
+			n1.Xoffset += 8
+			b -= 8
+		}
+		if b != 0 {
+			n1.Xoffset -= 8 - b
+			gins(x86.AMOVQ, &z, n1)
+		}
+		return
+	}
 	if b >= 16 {
 		var vec_zero gc.Node
 		gc.Regalloc(&vec_zero, gc.Types[gc.TFLOAT64], nil)

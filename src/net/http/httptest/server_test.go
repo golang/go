@@ -53,7 +53,7 @@ func TestGetAfterClose(t *testing.T) {
 	res, err = http.Get(ts.URL)
 	if err == nil {
 		body, _ := ioutil.ReadAll(res.Body)
-		t.Fatalf("Unexected response after close: %v, %v, %s", res.Status, res.Header, body)
+		t.Fatalf("Unexpected response after close: %v, %v, %s", res.Status, res.Header, body)
 	}
 }
 

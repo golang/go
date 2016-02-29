@@ -819,14 +819,17 @@ func (p *Package) hasSideEffects(f *File, x ast.Expr) bool {
 func (p *Package) isType(t ast.Expr) bool {
 	switch t := t.(type) {
 	case *ast.SelectorExpr:
-		if t.Sel.Name != "Pointer" {
-			return false
-		}
 		id, ok := t.X.(*ast.Ident)
 		if !ok {
 			return false
 		}
-		return id.Name == "unsafe"
+		if id.Name == "unsafe" && t.Sel.Name == "Pointer" {
+			return true
+		}
+		if id.Name == "C" && typedef["_Ctype_"+t.Sel.Name] != nil {
+			return true
+		}
+		return false
 	case *ast.Ident:
 		// TODO: This ignores shadowing.
 		switch t.Name {

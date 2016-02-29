@@ -982,7 +982,7 @@ func (k connectMethodKey) String() string {
 // (but may be used for non-keep-alive requests as well)
 type persistConn struct {
 	// alt optionally specifies the TLS NextProto RoundTripper.
-	// This is used for HTTP/2 today and future protocol laters.
+	// This is used for HTTP/2 today and future protocols later.
 	// If it's non-nil, the rest of the fields are unused.
 	alt RoundTripper
 

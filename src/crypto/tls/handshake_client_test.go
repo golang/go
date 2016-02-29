@@ -448,7 +448,7 @@ func TestClientResumption(t *testing.T) {
 			t.Fatalf("%s resumed: %v, expected: %v", test, hs.DidResume, didResume)
 		}
 		if didResume && (hs.PeerCertificates == nil || hs.VerifiedChains == nil) {
-			t.Fatalf("expected non-nil certificates after resumption. Got peerCertificates: %#v, verifedCertificates: %#v", hs.PeerCertificates, hs.VerifiedChains)
+			t.Fatalf("expected non-nil certificates after resumption. Got peerCertificates: %#v, verifiedCertificates: %#v", hs.PeerCertificates, hs.VerifiedChains)
 		}
 	}
 
@@ -618,14 +618,35 @@ func TestHandshakClientSCTs(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
-func TestNoIPAddressesInSNI(t *testing.T) {
-	for _, ipLiteral := range []string{"1.2.3.4", "::1"} {
+var hostnameInSNITests = []struct {
+	in, out string
+}{
+	// Opaque string
+	{"", ""},
+	{"localhost", "localhost"},
+	{"foo, bar, baz and qux", "foo, bar, baz and qux"},
+
+	// DNS hostname
+	{"golang.org", "golang.org"},
+	{"golang.org.", "golang.org"},
+
+	// Literal IPv4 address
+	{"1.2.3.4", ""},
+
+	// Literal IPv6 address
+	{"::1", ""},
+	{"::1%lo0", ""}, // with zone identifier
+	{"[::1]", ""},   // as per RFC 5952 we allow the [] style as IPv6 literal
+	{"[::1%lo0]", ""},
+}
+
+func TestHostnameInSNI(t *testing.T) {
+	for _, tt := range hostnameInSNITests {
 		c, s := net.Pipe()
 
-		go func() {
-			client := Client(c, &Config{ServerName: ipLiteral})
-			client.Handshake()
-		}()
+		go func(host string) {
+			Client(c, &Config{ServerName: host, InsecureSkipVerify: true}).Handshake()
+		}(tt.in)
 
 		var header [5]byte
 		if _, err := io.ReadFull(s, header[:]); err != nil {
@@ -637,10 +658,20 @@ func TestNoIPAddressesInSNI(t *testing.T) {
 		if _, err := io.ReadFull(s, record[:]); err != nil {
 			t.Fatal(err)
 		}
+
+		c.Close()
 		s.Close()
 
-		if bytes.Index(record, []byte(ipLiteral)) != -1 {
-			t.Errorf("IP literal %q found in ClientHello: %x", ipLiteral, record)
+		var m clientHelloMsg
+		if !m.unmarshal(record) {
+			t.Errorf("unmarshaling ClientHello for %q failed", tt.in)
+			continue
+		}
+		if tt.in != tt.out && m.serverName == tt.in {
+			t.Errorf("prohibited %q found in ClientHello: %x", tt.in, record)
+		}
+		if m.serverName != tt.out {
+			t.Errorf("expected %q not found in ClientHello: %x", tt.out, record)
 		}
 	}
 }

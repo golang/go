@@ -119,6 +119,14 @@ func runGet(cmd *Command, args []string) {
 		delete(packageCache, name)
 	}
 
+	// In order to rebuild packages information completely,
+	// we need to clear commands cache. Command packages are
+	// referring to evicted packages from the package cache.
+	// This leads to duplicated loads of the standard packages.
+	for name := range cmdCache {
+		delete(cmdCache, name)
+	}
+
 	args = importPaths(args)
 	packagesForBuild(args)
 

@@ -23,16 +23,6 @@ const (
 	unsigned = false
 )
 
-var padZeroBytes = make([]byte, nByte)
-var padSpaceBytes = make([]byte, nByte)
-
-func init() {
-	for i := 0; i < nByte; i++ {
-		padZeroBytes[i] = '0'
-		padSpaceBytes[i] = ' '
-	}
-}
-
 // flags placed in a separate struct for easy clearing.
 type fmtFlags struct {
 	widPresent  bool
@@ -72,84 +62,74 @@ func (f *fmt) init(buf *buffer) {
 	f.clearflags()
 }
 
-// computePadding computes left and right padding widths (only one will be non-zero).
-func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth int) {
-	left := !f.minus
-	w := f.wid
-	if w < 0 {
-		left = false
-		w = -w
-	}
-	w -= width
-	if w > 0 {
-		if left && f.zero {
-			return padZeroBytes, w, 0
-		}
-		if left {
-			return padSpaceBytes, w, 0
-		} else {
-			// can't be zero padding on the right
-			return padSpaceBytes, 0, w
-		}
-	}
-	return
-}
-
 // writePadding generates n bytes of padding.
-func (f *fmt) writePadding(n int, padding []byte) {
-	for n > 0 {
-		m := n
-		if m > nByte {
-			m = nByte
-		}
-		f.buf.Write(padding[0:m])
-		n -= m
+func (f *fmt) writePadding(n int) {
+	if n <= 0 { // No padding bytes needed.
+		return
 	}
+	buf := *f.buf
+	oldLen := len(buf)
+	newLen := oldLen + n
+	// Make enough room for padding.
+	if newLen > cap(buf) {
+		buf = make(buffer, cap(buf)*2+n)
+		copy(buf, *f.buf)
+	}
+	// Decide which byte the padding should be filled with.
+	padByte := byte(' ')
+	if f.zero {
+		padByte = byte('0')
+	}
+	// Fill padding with padByte.
+	padding := buf[oldLen:newLen]
+	for i := range padding {
+		padding[i] = padByte
+	}
+	*f.buf = buf[:newLen]
 }
 
-// pad appends b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus).
+// pad appends b to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) pad(b []byte) {
 	if !f.widPresent || f.wid == 0 {
 		f.buf.Write(b)
 		return
 	}
-	padding, left, right := f.computePadding(utf8.RuneCount(b))
-	if left > 0 {
-		f.writePadding(left, padding)
-	}
-	f.buf.Write(b)
-	if right > 0 {
-		f.writePadding(right, padding)
+	width := f.wid - utf8.RuneCount(b)
+	if !f.minus {
+		// left padding
+		f.writePadding(width)
+		f.buf.Write(b)
+	} else {
+		// right padding
+		f.buf.Write(b)
+		f.writePadding(width)
 	}
 }
 
-// padString appends s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+// padString appends s to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) padString(s string) {
 	if !f.widPresent || f.wid == 0 {
 		f.buf.WriteString(s)
 		return
 	}
-	padding, left, right := f.computePadding(utf8.RuneCountInString(s))
-	if left > 0 {
-		f.writePadding(left, padding)
-	}
-	f.buf.WriteString(s)
-	if right > 0 {
-		f.writePadding(right, padding)
+	width := f.wid - utf8.RuneCountInString(s)
+	if !f.minus {
+		// left padding
+		f.writePadding(width)
+		f.buf.WriteString(s)
+	} else {
+		// right padding
+		f.buf.WriteString(s)
+		f.writePadding(width)
 	}
 }
-
-var (
-	trueBytes  = []byte("true")
-	falseBytes = []byte("false")
-)
 
 // fmt_boolean formats a boolean.
 func (f *fmt) fmt_boolean(v bool) {
 	if v {
-		f.pad(trueBytes)
+		f.padString("true")
 	} else {
-		f.pad(falseBytes)
+		f.padString("false")
 	}
 }
 
@@ -526,5 +506,5 @@ func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
 	f.space = oldSpace
 	f.plus = oldPlus
 	f.wid = oldWid
-	f.buf.Write(irparenBytes)
+	f.buf.WriteString("i)")
 }

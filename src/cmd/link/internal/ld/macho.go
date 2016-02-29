@@ -569,7 +569,7 @@ func Asmbmacho() {
 	if Linkmode == LinkInternal {
 		// For lldb, must say LC_VERSION_MIN_MACOSX or else
 		// it won't know that this Mach-O binary is from OS X
-		// (could be iOS or WatchOS intead).
+		// (could be iOS or WatchOS instead).
 		// Go on iOS uses linkmode=external, and linkmode=external
 		// adds this itself. So we only need this code for linkmode=internal
 		// and we can assume OS X.

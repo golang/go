@@ -1001,6 +1001,18 @@ func BenchmarkScanRecursiveInt(b *testing.B) {
 	}
 }
 
+func BenchmarkScanRecursiveIntReaderWrapper(b *testing.B) {
+	b.ResetTimer()
+	ints := makeInts(intCount)
+	var r RecursiveInt
+	for i := b.N - 1; i >= 0; i-- {
+		buf := newReader(string(ints))
+		b.StartTimer()
+		Fscan(buf, &r)
+		b.StopTimer()
+	}
+}
+
 // Issue 9124.
 // %x on bytes couldn't handle non-space bytes terminating the scan.
 func TestHexBytes(t *testing.T) {

@@ -42,7 +42,7 @@ func dotest(t *testing.T) {
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}
-	cmd = exec.Command("go", "tool", "link", "-H", "linux", "-E", "main",
+	cmd = exec.Command("go", "tool", "link", "-H", "linux",
 		"-o", pclinetestBinary, pclinetestBinary+".o")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
