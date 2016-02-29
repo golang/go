@@ -431,9 +431,23 @@ func rdstring(f *obj.Biobuf) string {
 	return string(p)
 }
 
+var (
+	rddataBuf    = make([]byte, rddataBufMax)
+	rddataBufMax = 1 << 14
+)
+
 func rddata(f *obj.Biobuf) []byte {
-	n := rdint64(f)
-	p := make([]byte, n)
+	var p []byte
+	n := rdint(f)
+	if n > rddataBufMax {
+		p = make([]byte, n)
+	} else {
+		if len(rddataBuf) < n {
+			rddataBuf = make([]byte, rddataBufMax)
+		}
+		p = rddataBuf[:n:n]
+		rddataBuf = rddataBuf[n:]
+	}
 	obj.Bread(f, p)
 	return p
 }
