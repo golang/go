@@ -158,6 +158,7 @@ type Link struct {
 	Nhistfile  int32
 	Filesyms   *LSym
 	Moduledata *LSym
+	LSymBatch  []LSym
 }
 
 // The smallest possible offset from the hardware stack pointer to a local

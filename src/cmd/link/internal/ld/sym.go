@@ -157,8 +157,12 @@ func linknew(arch *LinkArch) *Link {
 }
 
 func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	s := new(LSym)
-	*s = LSym{}
+	batch := ctxt.LSymBatch
+	if len(batch) == 0 {
+		batch = make([]LSym, 1000)
+	}
+	s := &batch[0]
+	ctxt.LSymBatch = batch[1:]
 
 	s.Dynid = -1
 	s.Plt = -1
