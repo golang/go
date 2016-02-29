@@ -1888,6 +1888,32 @@ func TestTimeoutHandlerRaceHeaderTimeout(t *testing.T) {
 	}
 }
 
+// Issue 14568.
+func TestTimeoutHandlerStartTimerWhenServing(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping sleeping test in -short mode")
+	}
+	defer afterTest(t)
+	var handler HandlerFunc = func(w ResponseWriter, _ *Request) {
+		w.WriteHeader(StatusNoContent)
+	}
+	timeout := 300 * time.Millisecond
+	ts := httptest.NewServer(TimeoutHandler(handler, timeout, ""))
+	defer ts.Close()
+	// Issue was caused by the timeout handler starting the timer when
+	// was created, not when the request. So wait for more than the timeout
+	// to ensure that's not the case.
+	time.Sleep(2 * timeout)
+	res, err := Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != StatusNoContent {
+		t.Errorf("got res.StatusCode %d, want %v", res.StatusCode, StatusNoContent)
+	}
+}
+
 // Verifies we don't path.Clean() on the wrong parts in redirects.
 func TestRedirectMunging(t *testing.T) {
 	req, _ := NewRequest("GET", "http://example.com/", nil)
