@@ -296,6 +296,13 @@ func Wputb(w uint16) {
 	Cput(uint8(w))
 }
 
+func Append16b(b []byte, v uint16) []byte {
+	return append(b, uint8(v>>8), uint8(v))
+}
+func Append16l(b []byte, v uint16) []byte {
+	return append(b, uint8(v), uint8(v>>8))
+}
+
 func Lputb(l uint32) {
 	Cput(uint8(l >> 24))
 	Cput(uint8(l >> 16))
@@ -310,6 +317,13 @@ func Lputl(l uint32) {
 	Cput(uint8(l >> 24))
 }
 
+func Append32b(b []byte, v uint32) []byte {
+	return append(b, uint8(v>>24), uint8(v>>16), uint8(v>>8), uint8(v))
+}
+func Append32l(b []byte, v uint32) []byte {
+	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24))
+}
+
 func Vputb(v uint64) {
 	Lputb(uint32(v >> 32))
 	Lputb(uint32(v))
@@ -318,6 +332,18 @@ func Vputb(v uint64) {
 func Vputl(v uint64) {
 	Lputl(uint32(v))
 	Lputl(uint32(v >> 32))
+}
+
+func Append64b(b []byte, v uint64) []byte {
+	b = Append32b(b, uint32(v>>32))
+	b = Append32b(b, uint32(v))
+	return b
+}
+
+func Append64l(b []byte, v uint64) []byte {
+	b = Append32l(b, uint32(v))
+	b = Append32l(b, uint32(v>>32))
+	return b
 }
 
 type byPkg []*Library
