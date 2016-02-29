@@ -55,7 +55,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	// Replace TLS register fetches on older ARM procesors.
+	// Replace TLS register fetches on older ARM processors.
 	switch p.As {
 	// Treat MRC 15, 0, <reg>, C13, C0, 3 specially.
 	case AMRC:

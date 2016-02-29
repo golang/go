@@ -98,10 +98,7 @@ var oneptrmask = [...]uint8{1}
 // Preemption must be disabled (because this uses a gcWork).
 //
 //go:nowritebarrier
-func markroot(i uint32) {
-	// TODO: Consider using getg().m.p.ptr().gcw.
-	var gcw gcWork
-
+func markroot(gcw *gcWork, i uint32) {
 	baseData := uint32(fixedRootCount)
 	baseBSS := baseData + uint32(work.nDataRoots)
 	baseSpans := baseBSS + uint32(work.nBSSRoots)
@@ -111,17 +108,17 @@ func markroot(i uint32) {
 	switch {
 	case baseData <= i && i < baseBSS:
 		for datap := &firstmoduledata; datap != nil; datap = datap.next {
-			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, &gcw, int(i-baseData))
+			markrootBlock(datap.data, datap.edata-datap.data, datap.gcdatamask.bytedata, gcw, int(i-baseData))
 		}
 
 	case baseBSS <= i && i < baseSpans:
 		for datap := &firstmoduledata; datap != nil; datap = datap.next {
-			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, &gcw, int(i-baseBSS))
+			markrootBlock(datap.bss, datap.ebss-datap.bss, datap.gcbssmask.bytedata, gcw, int(i-baseBSS))
 		}
 
 	case i == fixedRootFinalizers:
 		for fb := allfin; fb != nil; fb = fb.alllink {
-			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], &gcw)
+			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), uintptr(fb.cnt)*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw)
 		}
 
 	case i == fixedRootFlushCaches:
@@ -131,7 +128,7 @@ func markroot(i uint32) {
 
 	case baseSpans <= i && i < baseStacks:
 		// mark MSpan.specials
-		markrootSpans(&gcw, int(i-baseSpans))
+		markrootSpans(gcw, int(i-baseSpans))
 
 	default:
 		// the rest is scanning goroutine stacks
@@ -193,8 +190,6 @@ func markroot(i uint32) {
 			}
 		})
 	}
-
-	gcw.dispose()
 }
 
 // markrootBlock scans the shard'th shard of the block of memory [b0,
@@ -808,8 +803,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			if job >= work.markrootJobs {
 				break
 			}
-			// TODO: Pass in gcw.
-			markroot(job)
+			markroot(gcw, job)
 		}
 	}
 

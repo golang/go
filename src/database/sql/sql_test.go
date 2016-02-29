@@ -1591,7 +1591,7 @@ func TestStmtCloseOrder(t *testing.T) {
 
 	_, err := db.Query("SELECT|non_existent|name|")
 	if err == nil {
-		t.Fatal("Quering non-existent table should fail")
+		t.Fatal("Querying non-existent table should fail")
 	}
 }
 

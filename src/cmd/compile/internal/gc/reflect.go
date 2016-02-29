@@ -491,15 +491,9 @@ func dextratype(sym *Sym, off int, t *Type, ptroff int) int {
 
 	ot := off
 	s := sym
-	if t.Sym != nil {
-		ot = dgostringptr(s, ot, t.Sym.Name)
-		if t != Types[t.Etype] && t != errortype {
-			ot = dgopkgpath(s, ot, t.Sym.Pkg)
-		} else {
-			ot = dgostringptr(s, ot, "")
-		}
+	if t.Sym != nil && t != Types[t.Etype] && t != errortype {
+		ot = dgopkgpath(s, ot, t.Sym.Pkg)
 	} else {
-		ot = dgostringptr(s, ot, "")
 		ot = dgostringptr(s, ot, "")
 	}
 
@@ -700,12 +694,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		algsym = dalgsym(t)
 	}
 
-	var sptr *Sym
 	tptr := Ptrto(t)
 	if !Isptr[t.Etype] && (t.Sym != nil || methods(tptr) != nil) {
-		sptr = dtypesym(tptr)
-	} else {
-		sptr = weaktypesym(tptr)
+		sptr := dtypesym(tptr)
+		r := obj.Addrel(Linksym(s))
+		r.Off = 0
+		r.Siz = 0
+		r.Sym = sptr.Lsym
+		r.Type = obj.R_USETYPE
 	}
 
 	gcsym, useGCProg, ptrdata := dgcsym(t)
@@ -724,7 +720,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	//		gcdata        *byte
 	//		string        *string
 	//		*uncommonType
-	//		ptrToThis     *rtype
 	//	}
 	ot = duintptr(s, ot, uint64(t.Width))
 	ot = duintptr(s, ot, uint64(ptrdata))
@@ -763,12 +758,14 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	} else {
 		ot = dsymptr(s, ot, algsym, 0)
 	}
-	ot = dsymptr(s, ot, gcsym, 0)
+	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
 
-	//print("dcommontype: %s\n", p);
-	ot = dgostringptr(s, ot, p) // string
+	_, symdata := stringsym(p) // string
+	ot = dsymptr(s, ot, symdata, 0)
+	ot = duintxx(s, ot, uint64(len(p)), Widthint)
+	//fmt.Printf("dcommontype: %s\n", p)
 
 	// skip pointer to extraType,
 	// which follows the rest of this type structure.
@@ -776,7 +773,6 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	// otherwise linker will assume 0.
 	ot += Widthptr
 
-	ot = dsymptr(s, ot, sptr, 0) // ptrto type
 	return ot
 }
 
@@ -1006,7 +1002,7 @@ ok:
 	switch t.Etype {
 	default:
 		ot = dcommontype(s, ot, t)
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 
 	case TARRAY:
 		if t.Bound >= 0 {
@@ -1018,7 +1014,7 @@ ok:
 			t2.Bound = -1 // slice
 			s2 := dtypesym(t2)
 			ot = dcommontype(s, ot, t)
-			xt = ot - 2*Widthptr
+			xt = ot - 1*Widthptr
 			ot = dsymptr(s, ot, s1, 0)
 			ot = dsymptr(s, ot, s2, 0)
 			ot = duintptr(s, ot, uint64(t.Bound))
@@ -1027,7 +1023,7 @@ ok:
 			s1 := dtypesym(t.Type)
 
 			ot = dcommontype(s, ot, t)
-			xt = ot - 2*Widthptr
+			xt = ot - 1*Widthptr
 			ot = dsymptr(s, ot, s1, 0)
 		}
 
@@ -1036,7 +1032,7 @@ ok:
 		s1 := dtypesym(t.Type)
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = duintptr(s, ot, uint64(t.Chan))
 
@@ -1055,7 +1051,7 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 		ot = duint8(s, ot, uint8(obj.Bool2int(isddd)))
 
 		// two slice headers: in and out.
@@ -1093,7 +1089,7 @@ ok:
 		// ../../../../runtime/type.go:/interfaceType
 		ot = dcommontype(s, ot, t)
 
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
@@ -1113,7 +1109,7 @@ ok:
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
 		ot = dcommontype(s, ot, t)
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 		ot = dsymptr(s, ot, s2, 0)
 		ot = dsymptr(s, ot, s3, 0)
@@ -1150,7 +1146,7 @@ ok:
 		s1 := dtypesym(t.Type)
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s1, 0)
 
 	// ../../../../runtime/type.go:/structType
@@ -1164,7 +1160,7 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		xt = ot - 2*Widthptr
+		xt = ot - 1*Widthptr
 		ot = dsymptr(s, ot, s, ot+Widthptr+2*Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
 		ot = duintxx(s, ot, uint64(n), Widthint)
@@ -1203,21 +1199,7 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
-		case TPTR32, TPTR64:
-			// The ptrto field of the type data cannot be relied on when
-			// dynamic linking: a type T may be defined in a module that makes
-			// no use of pointers to that type, but another module can contain
-			// a package that imports the first one and does use *T pointers.
-			// The second module will end up defining type data for *T and a
-			// type.*T symbol pointing at it. It's important that calling
-			// .PtrTo() on the reflect.Type for T returns this type data and
-			// not some synthesized object, so we need reflect to be able to
-			// find it!
-			if !Ctxt.Flag_dynlink {
-				break
-			}
-			fallthrough
-		case TARRAY, TCHAN, TFUNC, TMAP:
+		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
 			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
@@ -1377,7 +1359,7 @@ func dalgsym(t *Type) *Sym {
 // be multiples of four words. On 32-bit systems that's 16 bytes, and
 // all size classes >= 16 bytes are 16-byte aligned, so no real constraint.
 // On 64-bit systems, that's 32 bytes, and 32-byte alignment is guaranteed
-// for size classes >= 256 bytes. On a 64-bit sytem, 256 bytes allocated
+// for size classes >= 256 bytes. On a 64-bit system, 256 bytes allocated
 // is 32 pointers, the bits for which fit in 4 bytes. So maxPtrmaskBytes
 // must be >= 4.
 //

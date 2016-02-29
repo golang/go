@@ -173,6 +173,18 @@ func dumpdata() {
 	Clearp(Pc)
 }
 
+func flushdata() {
+	if dfirst == nil {
+		return
+	}
+	newplist()
+	*Pc = *dfirst
+	Pc = dpc
+	Clearp(Pc)
+	dfirst = nil
+	dpc = nil
+}
+
 // Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
 func fixautoused(p *obj.Prog) {
 	for lp := &p; ; {
@@ -554,9 +566,7 @@ func nodarg(t *Type, fp int) *Node {
 	}
 
 	if fp == 1 || fp == -1 {
-		var n *Node
-		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-			n = l.N
+		for _, n := range Curfn.Func.Dcl {
 			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
 				return n
 			}

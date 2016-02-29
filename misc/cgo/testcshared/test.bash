@@ -10,7 +10,7 @@ set -e
 
 if [ ! -f src/libgo/libgo.go ]; then
 	cwd=$(pwd)
-	echo 'misc/cgo/testcshared/test.bash is running in $cwd' 1>&2
+	echo "misc/cgo/testcshared/test.bash is running in $cwd" 1>&2
 	exit 1
 fi
 

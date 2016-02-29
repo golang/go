@@ -130,7 +130,7 @@ func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
 	}
 
 	if r0.Cmp(r1) == 0 {
-		t.Errorf("%s: the nonce used for two diferent messages was the same", tag)
+		t.Errorf("%s: the nonce used for two different messages was the same", tag)
 	}
 }
 

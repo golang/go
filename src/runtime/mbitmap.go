@@ -290,7 +290,9 @@ func (h heapBits) forward(n uintptr) heapBits {
 // The result includes in its higher bits the bits for subsequent words
 // described by the same bitmap byte.
 func (h heapBits) bits() uint32 {
-	return uint32(*h.bitp) >> h.shift
+	// The (shift & 31) eliminates a test and conditional branch
+	// from the generated code.
+	return uint32(*h.bitp) >> (h.shift & 31)
 }
 
 // isMarked reports whether the heap bits have the marked bit set.
@@ -459,11 +461,11 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
 		throw("runtime: typeBitsBulkBarrier without type")
 	}
 	if typ.size != size {
-		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " of size ", typ.size, " but memory size", size)
+		println("runtime: typeBitsBulkBarrier with type ", typ._string, " of size ", typ.size, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if typ.kind&kindGCProg != 0 {
-		println("runtime: typeBitsBulkBarrier with type ", *typ._string, " with GC prog")
+		println("runtime: typeBitsBulkBarrier with type ", typ._string, " with GC prog")
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
 	if !writeBarrier.needed {
@@ -494,6 +496,10 @@ func typeBitsBulkBarrier(typ *_type, p, size uintptr) {
 // TODO(rsc): Perhaps introduce a different heapBitsSpan type.
 
 // initSpan initializes the heap bitmap for a span.
+// It clears all mark and checkmark bits.
+// If this is a span of pointer-sized objects, it initializes all
+// words to pointer (and there are no dead bits).
+// Otherwise, it initializes all words to scalar/dead.
 func (h heapBits) initSpan(size, n, total uintptr) {
 	if total%heapBitmapScale != 0 {
 		throw("initSpan: unaligned length")
@@ -558,7 +564,7 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 // heapBitsSweepSpan coordinates the sweeping of a span by reading
 // and updating the corresponding heap bitmap entries.
 // For each free object in the span, heapBitsSweepSpan sets the type
-// bits for the first two words (or one for single-word objects) to typeDead
+// bits for the first four words (less for smaller objects) to scalar/dead
 // and then calls f(p), where p is the object's base address.
 // f is expected to add the object to a free list.
 // For non-free objects, heapBitsSweepSpan turns off the marked bit.
@@ -910,7 +916,7 @@ func heapBitsSetType(x, size, dataSize uintptr, typ *_type) {
 	}
 	if nw == 0 {
 		// No pointers! Caller was supposed to check.
-		println("runtime: invalid type ", *typ._string)
+		println("runtime: invalid type ", typ._string)
 		throw("heapBitsSetType: called with non-pointer type")
 		return
 	}
@@ -1094,7 +1100,7 @@ Phase4:
 	if doubleCheck {
 		end := heapBitsForAddr(x + size)
 		if typ.kind&kindGCProg == 0 && (hbitp != end.bitp || (w == nw+2) != (end.shift == 2)) {
-			println("ended at wrong bitmap byte for", *typ._string, "x", dataSize/typ.size)
+			println("ended at wrong bitmap byte for", typ._string, "x", dataSize/typ.size)
 			print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
 			print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")
 			h0 := heapBitsForAddr(x)
@@ -1130,7 +1136,7 @@ Phase4:
 				}
 			}
 			if have != want {
-				println("mismatch writing bits for", *typ._string, "x", dataSize/typ.size)
+				println("mismatch writing bits for", typ._string, "x", dataSize/typ.size)
 				print("typ.size=", typ.size, " typ.ptrdata=", typ.ptrdata, " dataSize=", dataSize, " size=", size, "\n")
 				print("kindGCProg=", typ.kind&kindGCProg != 0, "\n")
 				print("w=", w, " nw=", nw, " b=", hex(b), " nb=", nb, " hb=", hex(hb), "\n")

@@ -366,7 +366,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			} else {
 				// an untyped non-constant argument may appear if
 				// it contains a (yet untyped non-constant) shift
-				// epression: convert it to complex128 which will
+				// expression: convert it to complex128 which will
 				// result in an error (shift of complex value)
 				check.convertUntyped(x, Typ[Complex128])
 				// x should be invalid now, but be conservative and check

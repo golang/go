@@ -256,34 +256,6 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
-// Also known to cmd/dist/build.go.
-var cgoEnabled = map[string]bool{
-	"darwin/386":      true,
-	"darwin/amd64":    true,
-	"darwin/arm":      true,
-	"darwin/arm64":    true,
-	"dragonfly/amd64": true,
-	"freebsd/386":     true,
-	"freebsd/amd64":   true,
-	"freebsd/arm":     true,
-	"linux/386":       true,
-	"linux/amd64":     true,
-	"linux/arm":       true,
-	"linux/arm64":     true,
-	"linux/ppc64le":   true,
-	"android/386":     true,
-	"android/amd64":   true,
-	"android/arm":     true,
-	"netbsd/386":      true,
-	"netbsd/amd64":    true,
-	"netbsd/arm":      true,
-	"openbsd/386":     true,
-	"openbsd/amd64":   true,
-	"solaris/amd64":   true,
-	"windows/386":     true,
-	"windows/amd64":   true,
-}
-
 func defaultContext() Context {
 	var c Context
 
@@ -386,6 +358,7 @@ type Package struct {
 	CXXFiles       []string // .cc, .cpp and .cxx source files
 	MFiles         []string // .m (Objective-C) source files
 	HFiles         []string // .h, .hh, .hpp and .hxx source files
+	FFiles         []string // .f, .F, .for and .f90 Fortran source files
 	SFiles         []string // .s source files
 	SwigFiles      []string // .swig files
 	SwigCXXFiles   []string // .swigcxx files
@@ -395,6 +368,7 @@ type Package struct {
 	CgoCFLAGS    []string // Cgo CFLAGS directives
 	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
 	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
+	CgoFFLAGS    []string // Cgo FFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 	CgoPkgConfig []string // Cgo pkg-config directives
 
@@ -731,6 +705,9 @@ Found:
 		case ".h", ".hh", ".hpp", ".hxx":
 			p.HFiles = append(p.HFiles, name)
 			continue
+		case ".f", ".F", ".for", ".f90":
+			p.FFiles = append(p.FFiles, name)
+			continue
 		case ".s":
 			p.SFiles = append(p.SFiles, name)
 			continue
@@ -1045,7 +1022,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	switch ext {
-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".S", ".swig", ".swigcxx":
+	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".swig", ".swigcxx":
 		// tentatively okay - read to make sure
 	case ".syso":
 		// binary, no reading
@@ -1236,6 +1213,8 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 			di.CgoCPPFLAGS = append(di.CgoCPPFLAGS, args...)
 		case "CXXFLAGS":
 			di.CgoCXXFLAGS = append(di.CgoCXXFLAGS, args...)
+		case "FFLAGS":
+			di.CgoFFLAGS = append(di.CgoFFLAGS, args...)
 		case "LDFLAGS":
 			di.CgoLDFLAGS = append(di.CgoLDFLAGS, args...)
 		case "pkg-config":
@@ -1251,7 +1230,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 // the result is safe for the shell.
 func expandSrcDir(str string, srcdir string) (string, bool) {
 	// "\" delimited paths cause safeCgoName to fail
-	// so convert native paths with a different delimeter
+	// so convert native paths with a different delimiter
 	// to "/" before starting (eg: on windows).
 	srcdir = filepath.ToSlash(srcdir)
 

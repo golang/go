@@ -50,7 +50,7 @@ func ispkgin(pkgs []string) bool {
 }
 
 func instrument(fn *Node) {
-	if ispkgin(omit_pkgs) || fn.Func.Norace {
+	if ispkgin(omit_pkgs) || fn.Func.Pragma&Norace != 0 {
 		return
 	}
 
@@ -58,7 +58,7 @@ func instrument(fn *Node) {
 		instrumentlist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
-		instrumentlist(fn.Func.Exit, nil)
+		instrumentslice(fn.Func.Exit.Slice(), nil)
 	}
 
 	if flag_race != 0 {
@@ -71,18 +71,18 @@ func instrument(fn *Node) {
 		nodpc.Type = Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
 		nd := mkcall("racefuncenter", nil, nil, nodpc)
-		fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
+		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
 		nd = mkcall("racefuncexit", nil, nil)
-		fn.Func.Exit = list(fn.Func.Exit, nd)
+		fn.Func.Exit.Append(nd)
 	}
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
 		dumplist(s, fn.Nbody)
 		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
-		dumplist(s, fn.Func.Enter)
+		dumpslice(s, fn.Func.Enter.Slice())
 		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
-		dumplist(s, fn.Func.Exit)
+		dumpslice(s, fn.Func.Exit.Slice())
 	}
 }
 
@@ -94,6 +94,18 @@ func instrumentlist(l *NodeList, init **NodeList) {
 		instrumentnode(&l.N, &instr, 0, 0)
 		if init == nil {
 			l.N.Ninit = concat(l.N.Ninit, instr)
+		} else {
+			*init = concat(*init, instr)
+		}
+	}
+}
+
+func instrumentslice(l []*Node, init **NodeList) {
+	for i := range l {
+		var instr *NodeList
+		instrumentnode(&l[i], &instr, 0, 0)
+		if init == nil {
+			l[i].Ninit = concat(l[i].Ninit, instr)
 		} else {
 			*init = concat(*init, instr)
 		}

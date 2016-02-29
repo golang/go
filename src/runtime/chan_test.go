@@ -573,7 +573,7 @@ func TestSelectDuplicateChannel(t *testing.T) {
 		}
 		e <- 9
 	}()
-	time.Sleep(time.Millisecond) // make sure goroutine A gets qeueued first on c
+	time.Sleep(time.Millisecond) // make sure goroutine A gets queued first on c
 
 	// goroutine B
 	go func() {

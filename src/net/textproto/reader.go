@@ -581,18 +581,14 @@ func CanonicalMIMEHeaderKey(s string) string {
 const toLower = 'a' - 'A'
 
 // validHeaderFieldByte reports whether b is a valid byte in a header
-// field key. This is actually stricter than RFC 7230, which says:
+// field name. RFC 7230 says:
+//   header-field   = field-name ":" OWS field-value OWS
+//   field-name     = token
 //   tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." /
 //           "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
 //   token = 1*tchar
-// TODO: revisit in Go 1.6+ and possibly expand this. But note that many
-// servers have historically dropped '_' to prevent ambiguities when mapping
-// to CGI environment variables.
 func validHeaderFieldByte(b byte) bool {
-	return ('A' <= b && b <= 'Z') ||
-		('a' <= b && b <= 'z') ||
-		('0' <= b && b <= '9') ||
-		b == '-'
+	return int(b) < len(isTokenTable) && isTokenTable[b]
 }
 
 // canonicalMIMEHeaderKey is like CanonicalMIMEHeaderKey but is
@@ -681,4 +677,86 @@ func init() {
 	} {
 		commonHeader[v] = v
 	}
+}
+
+// isTokenTable is a copy of net/http/lex.go's isTokenTable.
+// See https://httpwg.github.io/specs/rfc7230.html#rule.token.separators
+var isTokenTable = [127]bool{
+	'!':  true,
+	'#':  true,
+	'$':  true,
+	'%':  true,
+	'&':  true,
+	'\'': true,
+	'*':  true,
+	'+':  true,
+	'-':  true,
+	'.':  true,
+	'0':  true,
+	'1':  true,
+	'2':  true,
+	'3':  true,
+	'4':  true,
+	'5':  true,
+	'6':  true,
+	'7':  true,
+	'8':  true,
+	'9':  true,
+	'A':  true,
+	'B':  true,
+	'C':  true,
+	'D':  true,
+	'E':  true,
+	'F':  true,
+	'G':  true,
+	'H':  true,
+	'I':  true,
+	'J':  true,
+	'K':  true,
+	'L':  true,
+	'M':  true,
+	'N':  true,
+	'O':  true,
+	'P':  true,
+	'Q':  true,
+	'R':  true,
+	'S':  true,
+	'T':  true,
+	'U':  true,
+	'W':  true,
+	'V':  true,
+	'X':  true,
+	'Y':  true,
+	'Z':  true,
+	'^':  true,
+	'_':  true,
+	'`':  true,
+	'a':  true,
+	'b':  true,
+	'c':  true,
+	'd':  true,
+	'e':  true,
+	'f':  true,
+	'g':  true,
+	'h':  true,
+	'i':  true,
+	'j':  true,
+	'k':  true,
+	'l':  true,
+	'm':  true,
+	'n':  true,
+	'o':  true,
+	'p':  true,
+	'q':  true,
+	'r':  true,
+	's':  true,
+	't':  true,
+	'u':  true,
+	'v':  true,
+	'w':  true,
+	'x':  true,
+	'y':  true,
+	'z':  true,
+	'|':  true,
+	'~':  true,
 }

@@ -387,7 +387,7 @@ func ordercall(n *Node, order *Order) {
 
 // Ordermapassign appends n to order->out, introducing temporaries
 // to make sure that all map assignments have the form m[k] = x,
-// where x is adressable.
+// where x is addressable.
 // (Orderexpr has already been called on n, so we know k is addressable.)
 //
 // If n is m[k] = x where x is not addressable, the rewrite is:
@@ -1138,7 +1138,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		}
 
 	case OCLOSURE:
-		if n.Noescape && n.Func.Cvars != nil {
+		if n.Noescape && len(n.Func.Cvars.Slice()) > 0 {
 			prealloc[n] = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
 		}
 

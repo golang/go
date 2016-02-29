@@ -315,7 +315,7 @@ func TestInterfacesWithNetsh(t *testing.T) {
 }
 
 func netshInterfaceIPv4ShowAddress(name string, netshOutput []byte) []string {
-	// adress information is listed like:
+	// Address information is listed like:
 	//
 	//Configuration for interface "Local Area Connection"
 	//    DHCP enabled:                         Yes
@@ -378,7 +378,7 @@ func netshInterfaceIPv4ShowAddress(name string, netshOutput []byte) []string {
 }
 
 func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
-	// adress information is listed like:
+	// Address information is listed like:
 	//
 	//Address ::1 Parameters
 	//---------------------------------------------------------

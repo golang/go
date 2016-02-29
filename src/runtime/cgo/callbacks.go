@@ -78,7 +78,7 @@ var _cgo_thread_start = &x_cgo_thread_start
 var x_cgo_sys_thread_create byte
 var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 
-// Notifies that the runtime has been intialized.
+// Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
 // to ensure that the runtime has been initialized before the CGO call is

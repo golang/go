@@ -157,7 +157,7 @@ var dualStackTCPListenerTests = []struct {
 	network2, address2 string // second listener
 	xerr               error  // expected error value, nil or other
 }{
-	// Test cases and expected results for the attemping 2nd listen on the same port
+	// Test cases and expected results for the attempting 2nd listen on the same port
 	// 1st listen                2nd listen                 darwin  freebsd  linux  openbsd
 	// ------------------------------------------------------------------------------------
 	// "tcp"  ""                 "tcp"  ""                    -        -       -       -
@@ -216,9 +216,12 @@ var dualStackTCPListenerTests = []struct {
 // TestDualStackTCPListener tests both single and double listen
 // to a test listener with various address families, different
 // listening address and same port.
+//
+// On DragonFly BSD, we expect the kernel version of node under test
+// to be greater than or equal to 4.4.
 func TestDualStackTCPListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "dragonfly", "nacl", "plan9": // re-enable on dragonfly once the new IP control block management has landed
+	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !supportsIPv4 || !supportsIPv6 {
@@ -301,11 +304,14 @@ var dualStackUDPListenerTests = []struct {
 }
 
 // TestDualStackUDPListener tests both single and double listen
-// to a test listener with various address families, differnet
+// to a test listener with various address families, different
 // listening address and same port.
+//
+// On DragonFly BSD, we expect the kernel version of node under test
+// to be greater than or equal to 4.4.
 func TestDualStackUDPListener(t *testing.T) {
 	switch runtime.GOOS {
-	case "dragonfly", "nacl", "plan9": // re-enable on dragonfly once the new IP control block management has landed
+	case "nacl", "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 	if !supportsIPv4 || !supportsIPv6 {

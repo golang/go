@@ -1340,7 +1340,7 @@ const (
 	addressOrder
 )
 
-// sort reoders the entries in a report based on the specified
+// sort reorders the entries in a report based on the specified
 // ordering criteria. The result is sorted in decreasing order for
 // numeric quantities, alphabetically for text, and increasing for
 // addresses.

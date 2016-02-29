@@ -104,7 +104,7 @@ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
 // of the larger addresses must themselves be invalid addresses.
 // We might get unlucky and the OS might have mapped one of these
 // addresses, but probably not: they're all in the first page, very high
-// adderesses that normally an OS would reserve for itself, or malformed
+// addresses that normally an OS would reserve for itself, or malformed
 // addresses. Even so, we might have to remove one or two on different
 // systems. We will see.
 

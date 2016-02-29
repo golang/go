@@ -102,6 +102,8 @@ func (p *parser) syntax_error(msg string) {
 		}
 	case LASOP:
 		tok = goopnames[p.op] + "="
+	case LINCOP:
+		tok = goopnames[p.op] + goopnames[p.op]
 	default:
 		tok = tokstring(p.tok)
 	}
@@ -110,11 +112,11 @@ func (p *parser) syntax_error(msg string) {
 }
 
 // Like syntax_error, but reports error at given line rather than current lexer line.
-func (p *parser) syntax_error_at(lineno int32, msg string) {
-	defer func(lineno int32) {
-		lexlineno = lineno
-	}(lexlineno)
-	lexlineno = lineno
+func (p *parser) syntax_error_at(lno int32, msg string) {
+	defer func(lno int32) {
+		lineno = lno
+	}(lineno)
+	lineno = lno
 	p.syntax_error(msg)
 }
 
@@ -219,12 +221,11 @@ var tokstrings = map[int32]string{
 	LANDAND:    "&&",
 	LANDNOT:    "&^",
 	LCOMM:      "<-",
-	LDEC:       "--",
 	LEQ:        "==",
 	LGE:        ">=",
 	LGT:        ">",
 	LIGNORE:    "LIGNORE", // we should never see this one
-	LINC:       "++",
+	LINCOP:     "opop",
 	LLE:        "<=",
 	LLSH:       "<<",
 	LLT:        "<",
@@ -280,13 +281,11 @@ func (p *parser) package_() {
 		defer p.trace("package_")()
 	}
 
-	if p.got(LPACKAGE) {
-		mkpackage(p.sym().Name)
-	} else {
-		prevlineno = lineno // see issue #13267
+	if !p.got(LPACKAGE) {
 		p.syntax_error("package statement must be first")
 		errorexit()
 	}
+	mkpackage(p.sym().Name)
 }
 
 // ImportDecl = "import" ( ImportSpec | "(" { ImportSpec ";" } ")" ) .
@@ -335,19 +334,21 @@ func (p *parser) importdcl() {
 	}
 
 	line := int32(parserline())
-	path := p.val
-	p.next()
 
-	importfile(&path, p.indent)
-	if importpkg == nil {
+	// We need to clear importpkg before calling p.next(),
+	// otherwise it will affect lexlineno.
+	// TODO(mdempsky): Fix this clumsy API.
+	importfile(&p.val, p.indent)
+	ipkg := importpkg
+	importpkg = nil
+
+	p.next()
+	if ipkg == nil {
 		if nerrors == 0 {
 			Fatalf("phase error in import")
 		}
 		return
 	}
-
-	ipkg := importpkg
-	importpkg = nil
 
 	ipkg.Direct = true
 
@@ -562,22 +563,13 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			stmt.Etype = EType(op) // rathole to pass opcode
 			return stmt
 
-		case LINC:
-			// expr LINC
+		case LINCOP:
+			// expr LINCOP
 			p.next()
 
 			stmt := Nod(OASOP, lhs, Nodintconst(1))
 			stmt.Implicit = true
-			stmt.Etype = EType(OADD)
-			return stmt
-
-		case LDEC:
-			// expr LDEC
-			p.next()
-
-			stmt := Nod(OASOP, lhs, Nodintconst(1))
-			stmt.Implicit = true
-			stmt.Etype = EType(OSUB)
+			stmt.Etype = EType(p.op)
 			return stmt
 
 		case ':':
@@ -689,7 +681,7 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 		ls = p.stmt()
 		if ls == missing_stmt {
 			// report error at line of ':' token
-			p.syntax_error_at(prevlineno, "missing statement after label")
+			p.syntax_error_at(label.Lineno, "missing statement after label")
 			// we are already at the end of the labeled statement - no need to advance
 			return missing_stmt
 		}
@@ -1104,55 +1096,18 @@ func (p *parser) select_stmt() *Node {
 	return hdr
 }
 
-// TODO(gri) should have lexer return this info - no need for separate lookup
-// (issue 13244)
-var prectab = map[int32]struct {
-	prec int // > 0 (0 indicates not found)
-	op   Op
-}{
-	// not an expression anymore, but left in so we can give a good error
-	// message when used in expression context
-	LCOMM: {1, OSEND},
-
-	LOROR: {2, OOROR},
-
-	LANDAND: {3, OANDAND},
-
-	LEQ: {4, OEQ},
-	LNE: {4, ONE},
-	LLE: {4, OLE},
-	LGE: {4, OGE},
-	LLT: {4, OLT},
-	LGT: {4, OGT},
-
-	'+': {5, OADD},
-	'-': {5, OSUB},
-	'|': {5, OOR},
-	'^': {5, OXOR},
-
-	'*':     {6, OMUL},
-	'/':     {6, ODIV},
-	'%':     {6, OMOD},
-	'&':     {6, OAND},
-	LLSH:    {6, OLSH},
-	LRSH:    {6, ORSH},
-	LANDNOT: {6, OANDNOT},
-}
-
 // Expression = UnaryExpr | Expression binary_op Expression .
-func (p *parser) bexpr(prec int) *Node {
+func (p *parser) bexpr(prec OpPrec) *Node {
 	// don't trace bexpr - only leads to overly nested trace output
 
+	// prec is precedence of the prior/enclosing binary operator (if any),
+	// so we only want to parse tokens of greater precedence.
+
 	x := p.uexpr()
-	t := prectab[p.tok]
-	for tprec := t.prec; tprec >= prec; tprec-- {
-		for tprec == prec {
-			p.next()
-			y := p.bexpr(t.prec + 1)
-			x = Nod(t.op, x, y)
-			t = prectab[p.tok]
-			tprec = t.prec
-		}
+	for p.prec > prec {
+		op, prec1 := p.op, p.prec
+		p.next()
+		x = Nod(op, x, p.bexpr(prec1))
 	}
 	return x
 }
@@ -1162,7 +1117,7 @@ func (p *parser) expr() *Node {
 		defer p.trace("expr")()
 	}
 
-	return p.bexpr(1)
+	return p.bexpr(0)
 }
 
 func unparen(x *Node) *Node {
@@ -1611,13 +1566,15 @@ func (p *parser) new_name(sym *Sym) *Node {
 	return nil
 }
 
-func (p *parser) dcl_name(sym *Sym) *Node {
+func (p *parser) dcl_name() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("dcl_name")()
 	}
 
+	symlineno := lineno
+	sym := p.sym()
 	if sym == nil {
-		yyerrorl(int(prevlineno), "invalid declaration")
+		yyerrorl(int(symlineno), "invalid declaration")
 		return nil
 	}
 	return dclname(sym)
@@ -1894,25 +1851,21 @@ func (p *parser) xfndcl() *Node {
 	}
 
 	p.want(LFUNC)
-	f := p.fndcl()
+	f := p.fndcl(p.pragma&Nointerface != 0)
 	body := p.fnbody()
 
 	if f == nil {
 		return nil
 	}
-	if noescape && body != nil {
-		Yyerror("can only use //go:noescape with external func implementations")
-	}
 
 	f.Nbody = body
+	f.Noescape = p.pragma&Noescape != 0
+	if f.Noescape && body != nil {
+		Yyerror("can only use //go:noescape with external func implementations")
+	}
+	f.Func.Pragma = p.pragma
 	f.Func.Endlineno = lineno
-	f.Noescape = noescape
-	f.Func.Norace = norace
-	f.Func.Nosplit = nosplit
-	f.Func.Noinline = noinline
-	f.Func.Nowritebarrier = nowritebarrier
-	f.Func.Nowritebarrierrec = nowritebarrierrec
-	f.Func.Systemstack = systemstack
+
 	funcbody(f)
 
 	return f
@@ -1923,7 +1876,7 @@ func (p *parser) xfndcl() *Node {
 // Function     = Signature FunctionBody .
 // MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
 // Receiver     = Parameters .
-func (p *parser) fndcl() *Node {
+func (p *parser) fndcl(nointerface bool) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("fndcl")()
 	}
@@ -2059,8 +2012,7 @@ func (p *parser) hidden_fndcl() *Node {
 		ss.Type = functype(s2.N, s6, s8)
 
 		checkwidth(ss.Type)
-		addmethod(s4, ss.Type, false, nointerface)
-		nointerface = false
+		addmethod(s4, ss.Type, false, false)
 		funchdr(ss)
 
 		// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
@@ -2141,18 +2093,10 @@ loop:
 			testdclstack()
 		}
 
-		noescape = false
-		noinline = false
-		nointerface = false
-		norace = false
-		nosplit = false
-		nowritebarrier = false
-		nowritebarrierrec = false
-		systemstack = false
+		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
+		// since comments before may set pragmas for the next function decl.
+		p.pragma = 0
 
-		// Consume ';' AFTER resetting the above flags since
-		// it may read the subsequent comment line which may
-		// set the flags for the next function declaration.
 		if p.tok != EOF && !p.got(';') {
 			p.syntax_error("after top level declaration")
 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
@@ -2567,15 +2511,15 @@ func (p *parser) stmt() *Node {
 		stmt := Nod(ORETURN, nil, nil)
 		stmt.List = results
 		if stmt.List == nil && Curfn != nil {
-			for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-				if l.N.Class == PPARAM {
+			for _, ln := range Curfn.Func.Dcl {
+				if ln.Class == PPARAM {
 					continue
 				}
-				if l.N.Class != PPARAMOUT {
+				if ln.Class != PPARAMOUT {
 					break
 				}
-				if l.N.Sym.Def != l.N {
-					Yyerror("%s is shadowed during return", l.N.Sym.Name)
+				if ln.Sym.Def != ln {
+					Yyerror("%s is shadowed during return", ln.Sym.Name)
 				}
 			}
 		}
@@ -2639,9 +2583,9 @@ func (p *parser) dcl_name_list() *NodeList {
 		defer p.trace("dcl_name_list")()
 	}
 
-	l := list1(p.dcl_name(p.sym()))
+	l := list1(p.dcl_name())
 	for p.got(',') {
-		l = list(l, p.dcl_name(p.sym()))
+		l = list(l, p.dcl_name())
 	}
 	return l
 }

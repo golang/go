@@ -7,7 +7,6 @@
 package gc
 
 import (
-	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"flag"
@@ -37,6 +36,8 @@ var (
 	Debug_slice  int
 	Debug_wb     int
 )
+
+const BOM = 0xFEFF
 
 // Debug arguments.
 // These can be specified with the -d flag, as in "-d nil"
@@ -237,6 +238,7 @@ func Main() {
 	}
 	Ctxt.Flag_shared = int32(flag_shared)
 	Ctxt.Flag_dynlink = flag_dynlink
+	Ctxt.Flag_optimize = Debug['N'] == 0
 
 	Ctxt.Debugasm = int32(Debug['S'])
 	Ctxt.Debugvlog = int32(Debug['v'])
@@ -327,7 +329,6 @@ func Main() {
 	dclcontext = PEXTERN
 	nerrors = 0
 	lexlineno = 1
-	const BOM = 0xFEFF
 
 	loadsys()
 
@@ -566,22 +567,9 @@ func skiptopkgdef(b *obj.Biobuf) bool {
 		return false
 	}
 
-	// symbol table may be first; skip it
-	sz := arsize(b, "__.GOSYMDEF")
-
-	if sz >= 0 {
-		obj.Bseek(b, int64(sz), 1)
-	} else {
-		obj.Bseek(b, 8, 0)
-	}
-
-	// package export block is next
-	sz = arsize(b, "__.PKGDEF")
-
-	if sz <= 0 {
-		return false
-	}
-	return true
+	// package export block should be first
+	sz := arsize(b, "__.PKGDEF")
+	return sz > 0
 }
 
 var idirs []string
@@ -592,10 +580,14 @@ func addidir(dir string) {
 	}
 }
 
+func isDriveLetter(b byte) bool {
+	return 'a' <= b && b <= 'z' || 'A' <= b && b <= 'Z'
+}
+
 // is this path a local name?  begins with ./ or ../ or /
 func islocalname(name string) bool {
 	return strings.HasPrefix(name, "/") ||
-		Ctxt.Windows != 0 && len(name) >= 3 && isAlpha(int(name[0])) && name[1] == ':' && name[2] == '/' ||
+		Ctxt.Windows != 0 && len(name) >= 3 && isDriveLetter(name[0]) && name[1] == ':' && name[2] == '/' ||
 		strings.HasPrefix(name, "./") || name == "." ||
 		strings.HasPrefix(name, "../") || name == ".."
 }
@@ -846,19 +838,16 @@ func importfile(f *Val, indent []byte) {
 	}
 }
 
-func isSpace(c int) bool {
+func isSpace(c rune) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
 }
 
-func isAlpha(c int) bool {
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
+func isLetter(c rune) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || c == '_'
 }
 
-func isDigit(c int) bool {
+func isDigit(c rune) bool {
 	return '0' <= c && c <= '9'
-}
-func isAlnum(c int) bool {
-	return isAlpha(c) || isDigit(c)
 }
 
 func plan9quote(s string) string {
@@ -873,35 +862,55 @@ func plan9quote(s string) string {
 	return s
 }
 
-func isfrog(c int) bool {
-	// complain about possibly invisible control characters
-	if c < ' ' {
-		return !isSpace(c) // exclude good white space
-	}
+type Pragma uint8
 
-	if 0x7f <= c && c <= 0xa0 { // DEL, unicode block including unbreakable space.
-		return true
-	}
-	return false
-}
+const (
+	Nointerface       Pragma = 1 << iota
+	Noescape                 // func parameters don't escape
+	Norace                   // func must not have race detector annotations
+	Nosplit                  // func should not execute on separate stack
+	Noinline                 // func should not be inlined
+	Systemstack              // func must run on system stack
+	Nowritebarrier           // emit compiler error instead of write barrier
+	Nowritebarrierrec        // error on write barrier in this or recursive callees
+)
 
 type lexer struct {
 	// source
 	bin    *obj.Biobuf
-	peekc  int
-	peekc1 int // second peekc for ...
+	peekr1 rune
+	peekr2 rune // second peekc for ...
 
 	nlsemi bool // if set, '\n' and EOF translate to ';'
 
+	// pragma flags
+	// accumulated by lexer; reset by parser
+	pragma Pragma
+
 	// current token
 	tok  int32
-	sym_ *Sym // valid if tok == LNAME
-	val  Val  // valid if tok == LLITERAL
-	op   Op   // valid if tok == LASOP
+	sym_ *Sym   // valid if tok == LNAME
+	val  Val    // valid if tok == LLITERAL
+	op   Op     // valid if tok == LASOP or LINCOP, or prec > 0
+	prec OpPrec // operator precedence; 0 if not a binary operator
 }
 
+type OpPrec int
+
 const (
-	LLITERAL = 57346 + iota
+	// Precedences of binary operators (must be > 0).
+	PCOMM OpPrec = 1 + iota
+	POROR
+	PANDAND
+	PCMP
+	PADD
+	PMUL
+)
+
+const (
+	// The value of single-char tokens is just their character's Unicode value.
+	// They are all below utf8.RuneSelf. Shift other tokens up to avoid conflicts.
+	LLITERAL = utf8.RuneSelf + iota
 	LASOP
 	LCOLAS
 	LBREAK
@@ -934,12 +943,11 @@ const (
 	LANDAND
 	LANDNOT
 	LCOMM
-	LDEC
 	LEQ
 	LGE
 	LGT
 	LIGNORE
-	LINC
+	LINCOP
 	LLE
 	LLSH
 	LLT
@@ -949,133 +957,48 @@ const (
 )
 
 func (l *lexer) next() {
-	var c1 int
-	var op Op
-	var escflag int
-	var v int64
-	var cp *bytes.Buffer
-	var s *Sym
-	var str string
-
-	prevlineno = lineno
-
 	nlsemi := l.nlsemi
 	l.nlsemi = false
+	l.prec = 0
 
 l0:
 	// skip white space
-	c := l.getc()
+	c := l.getr()
 	for isSpace(c) {
 		if c == '\n' && nlsemi {
-			l.ungetc(c)
 			if Debug['x'] != 0 {
 				fmt.Printf("lex: implicit semi\n")
 			}
+			// Insert implicit semicolon on previous line,
+			// before the newline character.
+			lineno = lexlineno - 1
 			l.tok = ';'
 			return
 		}
-		c = l.getc()
+		c = l.getr()
 	}
 
 	// start of token
 	lineno = lexlineno
 
-	if c >= utf8.RuneSelf {
-		// all multibyte runes are alpha
-		cp = &lexbuf
-		cp.Reset()
-		goto talph
+	// identifiers and keywords
+	// (for better error messages consume all chars >= utf8.RuneSelf for identifiers)
+	if isLetter(c) || c >= utf8.RuneSelf {
+		l.ident(c)
+		if l.tok == LIGNORE {
+			goto l0
+		}
+		return
 	}
+	// c < utf8.RuneSelf
 
-	if isAlpha(c) {
-		cp = &lexbuf
-		cp.Reset()
-		goto talph
-	}
-
-	if isDigit(c) {
-		cp = &lexbuf
-		cp.Reset()
-		if c != '0' {
-			for {
-				cp.WriteByte(byte(c))
-				c = l.getc()
-				if isDigit(c) {
-					continue
-				}
-				if c == '.' {
-					goto casedot
-				}
-				if c == 'e' || c == 'E' || c == 'p' || c == 'P' {
-					goto caseep
-				}
-				if c == 'i' {
-					goto casei
-				}
-				goto ncu
-			}
-		}
-
-		cp.WriteByte(byte(c))
-		c = l.getc()
-		if c == 'x' || c == 'X' {
-			for {
-				cp.WriteByte(byte(c))
-				c = l.getc()
-				if isDigit(c) {
-					continue
-				}
-				if c >= 'a' && c <= 'f' {
-					continue
-				}
-				if c >= 'A' && c <= 'F' {
-					continue
-				}
-				if lexbuf.Len() == 2 {
-					Yyerror("malformed hex constant")
-				}
-				if c == 'p' {
-					goto caseep
-				}
-				goto ncu
-			}
-		}
-
-		if c == 'p' { // 0p begins floating point zero
-			goto caseep
-		}
-
-		c1 = 0
-		for {
-			if !isDigit(c) {
-				break
-			}
-			if c < '0' || c > '7' {
-				c1 = 1 // not octal
-			}
-			cp.WriteByte(byte(c))
-			c = l.getc()
-		}
-
-		if c == '.' {
-			goto casedot
-		}
-		if c == 'e' || c == 'E' {
-			goto caseep
-		}
-		if c == 'i' {
-			goto casei
-		}
-		if c1 != 0 {
-			Yyerror("malformed octal constant")
-		}
-		goto ncu
-	}
+	var c1 rune
+	var op Op
+	var prec OpPrec
 
 	switch c {
 	case EOF:
-		lineno = prevlineno
-		l.ungetc(EOF)
+		l.ungetr(EOF) // return EOF again in future next call
 		// Treat EOF as "end of line" for the purposes
 		// of inserting a semicolon.
 		if nlsemi {
@@ -1088,427 +1011,469 @@ l0:
 		l.tok = -1
 		return
 
-	case '_':
-		cp = &lexbuf
-		cp.Reset()
-		goto talph
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		l.number(c)
+		return
 
 	case '.':
-		c1 = l.getc()
+		c1 = l.getr()
 		if isDigit(c1) {
-			cp = &lexbuf
-			cp.Reset()
-			cp.WriteByte(byte(c))
-			c = c1
-			goto casedot
+			l.ungetr(c1)
+			l.number('.')
+			return
 		}
 
 		if c1 == '.' {
-			c1 = l.getc()
+			c1 = l.getr()
 			if c1 == '.' {
 				c = LDDD
 				goto lx
 			}
 
-			l.ungetc(c1)
+			l.ungetr(c1)
 			c1 = '.'
 		}
 
-		// "..."
 	case '"':
-		lexbuf.Reset()
-		lexbuf.WriteString(`"<string>"`)
+		l.stdString()
+		return
 
-		cp = &strbuf
-		cp.Reset()
-
-		for {
-			if l.escchar('"', &escflag, &v) {
-				break
-			}
-			if v < utf8.RuneSelf || escflag != 0 {
-				cp.WriteByte(byte(v))
-			} else {
-				cp.WriteRune(rune(v))
-			}
-		}
-
-		goto strlit
-
-		// `...`
 	case '`':
-		lexbuf.Reset()
-		lexbuf.WriteString("`<string>`")
+		l.rawString()
+		return
 
-		cp = &strbuf
-		cp.Reset()
-
-		for {
-			c = int(l.getr())
-			if c == '\r' {
-				continue
-			}
-			if c == EOF {
-				Yyerror("eof in string")
-				break
-			}
-
-			if c == '`' {
-				break
-			}
-			cp.WriteRune(rune(c))
-		}
-
-		goto strlit
-
-		// '.'
 	case '\'':
-		if l.escchar('\'', &escflag, &v) {
-			Yyerror("empty character literal or unescaped ' in character literal")
-			v = '\''
-		}
-
-		if !l.escchar('\'', &escflag, &v) {
-			Yyerror("missing '")
-			l.ungetc(int(v))
-		}
-
-		x := new(Mpint)
-		l.val.U = x
-		Mpmovecfix(x, v)
-		x.Rune = true
-		if Debug['x'] != 0 {
-			fmt.Printf("lex: codepoint literal\n")
-		}
-		litbuf = "string literal"
-		l.nlsemi = true
-		l.tok = LLITERAL
+		l.rune()
 		return
 
 	case '/':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '*' {
-			nl := false
+			c = l.getr()
 			for {
-				c = int(l.getr())
-				if c == '\n' {
-					nl = true
-				}
-				for c == '*' {
-					c = int(l.getr())
+				if c == '*' {
+					c = l.getr()
 					if c == '/' {
-						if nl {
-							l.ungetc('\n')
-						}
-						goto l0
+						break
 					}
-
-					if c == '\n' {
-						nl = true
-					}
+					continue
 				}
-
 				if c == EOF {
 					Yyerror("eof in comment")
 					errorexit()
 				}
+				c = l.getr()
 			}
+
+			// A comment containing newlines acts like a newline.
+			if lexlineno > lineno && nlsemi {
+				if Debug['x'] != 0 {
+					fmt.Printf("lex: implicit semi\n")
+				}
+				l.tok = ';'
+				return
+			}
+			goto l0
 		}
 
 		if c1 == '/' {
 			c = l.getlinepragma()
 			for {
 				if c == '\n' || c == EOF {
-					l.ungetc(c)
+					l.ungetr(c)
 					goto l0
 				}
 
-				c = int(l.getr())
+				c = l.getr()
 			}
 		}
 
-		if c1 == '=' {
-			op = ODIV
-			goto asop
-		}
+		op = ODIV
+		prec = PMUL
+		goto binop1
 
 	case ':':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '=' {
-			c = int(LCOLAS)
+			c = LCOLAS
 			goto lx
 		}
 
 	case '*':
-		c1 = l.getc()
-		if c1 == '=' {
-			op = OMUL
-			goto asop
-		}
+		op = OMUL
+		prec = PMUL
+		goto binop
 
 	case '%':
-		c1 = l.getc()
-		if c1 == '=' {
-			op = OMOD
-			goto asop
-		}
+		op = OMOD
+		prec = PMUL
+		goto binop
 
 	case '+':
-		c1 = l.getc()
-		if c1 == '+' {
-			l.nlsemi = true
-			c = int(LINC)
-			goto lx
-		}
-
-		if c1 == '=' {
-			op = OADD
-			goto asop
-		}
+		op = OADD
+		goto incop
 
 	case '-':
-		c1 = l.getc()
-		if c1 == '-' {
-			l.nlsemi = true
-			c = int(LDEC)
-			goto lx
-		}
-
-		if c1 == '=' {
-			op = OSUB
-			goto asop
-		}
+		op = OSUB
+		goto incop
 
 	case '>':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '>' {
-			c = int(LRSH)
-			c1 = l.getc()
-			if c1 == '=' {
-				op = ORSH
-				goto asop
-			}
-
-			break
+			c = LRSH
+			op = ORSH
+			prec = PMUL
+			goto binop
 		}
 
+		l.prec = PCMP
 		if c1 == '=' {
-			c = int(LGE)
+			c = LGE
+			l.op = OGE
 			goto lx
 		}
-
-		c = int(LGT)
+		c = LGT
+		l.op = OGT
 
 	case '<':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '<' {
-			c = int(LLSH)
-			c1 = l.getc()
-			if c1 == '=' {
-				op = OLSH
-				goto asop
-			}
-
-			break
-		}
-
-		if c1 == '=' {
-			c = int(LLE)
-			goto lx
+			c = LLSH
+			op = OLSH
+			prec = PMUL
+			goto binop
 		}
 
 		if c1 == '-' {
-			c = int(LCOMM)
+			c = LCOMM
+			// Not a binary operator, but parsed as one
+			// so we can give a good error message when used
+			// in an expression context.
+			l.prec = PCOMM
+			l.op = OSEND
 			goto lx
 		}
 
-		c = int(LLT)
+		l.prec = PCMP
+		if c1 == '=' {
+			c = LLE
+			l.op = OLE
+			goto lx
+		}
+		c = LLT
+		l.op = OLT
 
 	case '=':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '=' {
-			c = int(LEQ)
+			c = LEQ
+			l.prec = PCMP
+			l.op = OEQ
 			goto lx
 		}
 
 	case '!':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '=' {
-			c = int(LNE)
+			c = LNE
+			l.prec = PCMP
+			l.op = ONE
 			goto lx
 		}
 
 	case '&':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '&' {
-			c = int(LANDAND)
+			c = LANDAND
+			l.prec = PANDAND
+			l.op = OANDAND
 			goto lx
 		}
 
 		if c1 == '^' {
-			c = int(LANDNOT)
-			c1 = l.getc()
-			if c1 == '=' {
-				op = OANDNOT
-				goto asop
-			}
-
-			break
+			c = LANDNOT
+			op = OANDNOT
+			prec = PMUL
+			goto binop
 		}
 
-		if c1 == '=' {
-			op = OAND
-			goto asop
-		}
+		op = OAND
+		prec = PMUL
+		goto binop1
 
 	case '|':
-		c1 = l.getc()
+		c1 = l.getr()
 		if c1 == '|' {
-			c = int(LOROR)
+			c = LOROR
+			l.prec = POROR
+			l.op = OOROR
 			goto lx
 		}
 
-		if c1 == '=' {
-			op = OOR
-			goto asop
-		}
+		op = OOR
+		prec = PADD
+		goto binop1
 
 	case '^':
-		c1 = l.getc()
-		if c1 == '=' {
-			op = OXOR
-			goto asop
-		}
+		op = OXOR
+		prec = PADD
+		goto binop
+
+	case '(', '[', '{', ',', ';':
+		goto lx
 
 	case ')', ']', '}':
 		l.nlsemi = true
 		goto lx
 
+	case '#', '$', '?', '@', '\\':
+		if importpkg != nil {
+			goto lx
+		}
+		fallthrough
+
 	default:
-		goto lx
+		// anything else is illegal
+		Yyerror("syntax error: illegal character %#U", c)
+		goto l0
 	}
 
-	l.ungetc(c1)
+	l.ungetr(c1)
 
 lx:
 	if Debug['x'] != 0 {
-		if c > 0xff {
-			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lexlineno)), lexname(c))
+		if c >= utf8.RuneSelf {
+			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lineno)), lexname(c))
 		} else {
-			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lexlineno)), c)
+			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lineno)), c)
 		}
 	}
-	if isfrog(c) {
-		Yyerror("illegal character 0x%x", uint(c))
-		goto l0
-	}
 
-	if importpkg == nil && (c == '#' || c == '$' || c == '?' || c == '@' || c == '\\') {
-		Yyerror("%s: unexpected %c", "syntax error", c)
-		goto l0
-	}
-
-	l.tok = int32(c)
+	l.tok = c
 	return
 
-asop:
+incop:
+	c1 = l.getr()
+	if c1 == c {
+		l.nlsemi = true
+		l.op = op
+		c = LINCOP
+		goto lx
+	}
+	prec = PADD
+	goto binop1
+
+binop:
+	c1 = l.getr()
+binop1:
+	if c1 != '=' {
+		l.ungetr(c1)
+		l.op = op
+		l.prec = prec
+		goto lx
+	}
+
 	l.op = op
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: TOKEN ASOP %s=\n", goopnames[op])
 	}
 	l.tok = LASOP
-	return
+}
 
-	// cp is set to lexbuf and some
-	// prefix has been stored
-talph:
+func (l *lexer) ident(c rune) {
+	cp := &lexbuf
+	cp.Reset()
+
+	// accelerate common case (7bit ASCII)
+	for isLetter(c) || isDigit(c) {
+		cp.WriteByte(byte(c))
+		c = l.getr()
+	}
+
+	// general case
 	for {
 		if c >= utf8.RuneSelf {
-			l.ungetc(c)
-			r := rune(l.getr())
-
-			// 0xb7 · is used for internal names
-			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && (importpkg == nil || r != 0xb7) {
-				Yyerror("invalid identifier character U+%04x", r)
+			if unicode.IsLetter(c) || c == '_' || unicode.IsDigit(c) || importpkg != nil && c == 0xb7 {
+				if cp.Len() == 0 && unicode.IsDigit(c) {
+					Yyerror("identifier cannot begin with digit %#U", c)
+				}
+			} else {
+				Yyerror("invalid identifier character %#U", c)
 			}
-			if cp.Len() == 0 && unicode.IsDigit(r) {
-				Yyerror("identifier cannot begin with digit U+%04x", r)
-			}
-			cp.WriteRune(r)
-		} else if !isAlnum(c) && c != '_' {
-			break
-		} else {
+			cp.WriteRune(c)
+		} else if isLetter(c) || isDigit(c) {
 			cp.WriteByte(byte(c))
+		} else {
+			break
 		}
-		c = l.getc()
+		c = l.getr()
 	}
 
 	cp = nil
-	l.ungetc(c)
+	l.ungetr(c)
 
-	s = LookupBytes(lexbuf.Bytes())
-	if s.Lexical == LIGNORE {
-		goto l0
+	name := lexbuf.Bytes()
+
+	if len(name) >= 2 {
+		if tok, ok := keywords[string(name)]; ok {
+			if Debug['x'] != 0 {
+				fmt.Printf("lex: %s\n", lexname(tok))
+			}
+			switch tok {
+			case LBREAK, LCONTINUE, LFALL, LRETURN:
+				l.nlsemi = true
+			}
+			l.tok = tok
+			return
+		}
 	}
 
+	s := LookupBytes(name)
 	if Debug['x'] != 0 {
-		fmt.Printf("lex: %s %s\n", s, lexname(int(s.Lexical)))
+		fmt.Printf("lex: ident %s\n", s)
 	}
 	l.sym_ = s
-	switch s.Lexical {
-	case LNAME, LRETURN, LBREAK, LCONTINUE, LFALL:
-		l.nlsemi = true
-	}
-	l.tok = int32(s.Lexical)
-	return
-
-ncu:
-	cp = nil
-	l.ungetc(c)
-
-	str = lexbuf.String()
-	l.val.U = new(Mpint)
-	mpatofix(l.val.U.(*Mpint), str)
-	if l.val.U.(*Mpint).Ovf {
-		Yyerror("overflow in constant")
-		Mpmovecfix(l.val.U.(*Mpint), 0)
-	}
-
-	if Debug['x'] != 0 {
-		fmt.Printf("lex: integer literal\n")
-	}
-	litbuf = "literal " + str
 	l.nlsemi = true
-	l.tok = LLITERAL
-	return
+	l.tok = LNAME
+}
+
+var keywords = map[string]int32{
+	"break":       LBREAK,
+	"case":        LCASE,
+	"chan":        LCHAN,
+	"const":       LCONST,
+	"continue":    LCONTINUE,
+	"default":     LDEFAULT,
+	"defer":       LDEFER,
+	"else":        LELSE,
+	"fallthrough": LFALL,
+	"for":         LFOR,
+	"func":        LFUNC,
+	"go":          LGO,
+	"goto":        LGOTO,
+	"if":          LIF,
+	"import":      LIMPORT,
+	"interface":   LINTERFACE,
+	"map":         LMAP,
+	"package":     LPACKAGE,
+	"range":       LRANGE,
+	"return":      LRETURN,
+	"select":      LSELECT,
+	"struct":      LSTRUCT,
+	"switch":      LSWITCH,
+	"type":        LTYPE,
+	"var":         LVAR,
+
+	// 💩
+	"notwithstanding":      LIGNORE,
+	"thetruthofthematter":  LIGNORE,
+	"despiteallobjections": LIGNORE,
+	"whereas":              LIGNORE,
+	"insofaras":            LIGNORE,
+}
+
+func (l *lexer) number(c rune) {
+	// TODO(gri) this can be done nicely with fewer or even without labels
+
+	var str string
+	cp := &lexbuf
+	cp.Reset()
+
+	if c != '.' {
+		if c != '0' {
+			for isDigit(c) {
+				cp.WriteByte(byte(c))
+				c = l.getr()
+			}
+			if c == '.' {
+				goto casedot
+			}
+			if c == 'e' || c == 'E' || c == 'p' || c == 'P' {
+				goto caseep
+			}
+			if c == 'i' {
+				goto casei
+			}
+			goto ncu
+		}
+
+		// c == 0
+		cp.WriteByte('0')
+		c = l.getr()
+		if c == 'x' || c == 'X' {
+			cp.WriteByte(byte(c))
+			c = l.getr()
+			for isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
+				cp.WriteByte(byte(c))
+				c = l.getr()
+			}
+			if lexbuf.Len() == 2 {
+				Yyerror("malformed hex constant")
+			}
+			if c == 'p' {
+				goto caseep
+			}
+			goto ncu
+		}
+
+		if c == 'p' { // 0p begins floating point zero
+			goto caseep
+		}
+
+		has8or9 := false
+		for isDigit(c) {
+			if c > '7' {
+				has8or9 = true
+			}
+			cp.WriteByte(byte(c))
+			c = l.getr()
+		}
+		if c == '.' {
+			goto casedot
+		}
+		if c == 'e' || c == 'E' {
+			goto caseep
+		}
+		if c == 'i' {
+			goto casei
+		}
+		if has8or9 {
+			Yyerror("malformed octal constant")
+		}
+		goto ncu
+	}
 
 casedot:
-	for {
+	// fraction
+	// c == '.'
+	cp.WriteByte('.')
+	c = l.getr()
+	for isDigit(c) {
 		cp.WriteByte(byte(c))
-		c = l.getc()
-		if !isDigit(c) {
-			break
-		}
+		c = l.getr()
 	}
-
 	if c == 'i' {
 		goto casei
 	}
 	if c != 'e' && c != 'E' {
 		goto caseout
 	}
+	// base-2-exponents (p or P) don't appear in numbers
+	// with fractions - ok to not test for 'p' or 'P'
+	// above
 
 caseep:
+	// exponent
 	if importpkg == nil && (c == 'p' || c == 'P') {
 		// <mantissa>p<base-2-exponent> is allowed in .a/.o imports,
 		// but not in .go sources.  See #9036.
 		Yyerror("malformed floating point constant")
 	}
 	cp.WriteByte(byte(c))
-	c = l.getc()
+	c = l.getr()
 	if c == '+' || c == '-' {
 		cp.WriteByte(byte(c))
-		c = l.getc()
+		c = l.getr()
 	}
 
 	if !isDigit(c) {
@@ -1516,16 +1481,15 @@ caseep:
 	}
 	for isDigit(c) {
 		cp.WriteByte(byte(c))
-		c = l.getc()
+		c = l.getr()
 	}
 
-	if c == 'i' {
-		goto casei
+	if c != 'i' {
+		goto caseout
 	}
-	goto caseout
 
-	// imaginary constant
 casei:
+	// imaginary constant
 	cp = nil
 
 	str = lexbuf.String()
@@ -1540,14 +1504,11 @@ casei:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: imaginary literal\n")
 	}
-	litbuf = "literal " + str
-	l.nlsemi = true
-	l.tok = LLITERAL
-	return
+	goto done
 
 caseout:
 	cp = nil
-	l.ungetc(c)
+	l.ungetr(c)
 
 	str = lexbuf.String()
 	l.val.U = newMpflt()
@@ -1560,17 +1521,112 @@ caseout:
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: floating literal\n")
 	}
+	goto done
+
+ncu:
+	cp = nil
+	l.ungetr(c)
+
+	str = lexbuf.String()
+	l.val.U = new(Mpint)
+	mpatofix(l.val.U.(*Mpint), str)
+	if l.val.U.(*Mpint).Ovf {
+		Yyerror("overflow in constant")
+		Mpmovecfix(l.val.U.(*Mpint), 0)
+	}
+
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: integer literal\n")
+	}
+
+done:
 	litbuf = "literal " + str
 	l.nlsemi = true
 	l.tok = LLITERAL
-	return
+}
 
-strlit:
+func (l *lexer) stdString() {
+	lexbuf.Reset()
+	lexbuf.WriteString(`"<string>"`)
+
+	cp := &strbuf
+	cp.Reset()
+
+	for {
+		r, b, ok := l.onechar('"')
+		if !ok {
+			break
+		}
+		if r == 0 {
+			cp.WriteByte(b)
+		} else {
+			cp.WriteRune(r)
+		}
+	}
+
 	l.val.U = internString(cp.Bytes())
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: string literal\n")
 	}
 	litbuf = "string literal"
+	l.nlsemi = true
+	l.tok = LLITERAL
+}
+
+func (l *lexer) rawString() {
+	lexbuf.Reset()
+	lexbuf.WriteString("`<string>`")
+
+	cp := &strbuf
+	cp.Reset()
+
+	for {
+		c := l.getr()
+		if c == '\r' {
+			continue
+		}
+		if c == EOF {
+			Yyerror("eof in string")
+			break
+		}
+		if c == '`' {
+			break
+		}
+		cp.WriteRune(c)
+	}
+
+	l.val.U = internString(cp.Bytes())
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: string literal\n")
+	}
+	litbuf = "string literal"
+	l.nlsemi = true
+	l.tok = LLITERAL
+}
+
+func (l *lexer) rune() {
+	r, b, ok := l.onechar('\'')
+	if !ok {
+		Yyerror("empty character literal or unescaped ' in character literal")
+		r = '\''
+	}
+	if r == 0 {
+		r = rune(b)
+	}
+
+	if c := l.getr(); c != '\'' {
+		Yyerror("missing '")
+		l.ungetr(c)
+	}
+
+	x := new(Mpint)
+	l.val.U = x
+	Mpmovecfix(x, int64(r))
+	x.Rune = true
+	if Debug['x'] != 0 {
+		fmt.Printf("lex: codepoint literal\n")
+	}
+	litbuf = "rune literal"
 	l.nlsemi = true
 	l.tok = LLITERAL
 }
@@ -1588,7 +1644,7 @@ func internString(b []byte) string {
 
 func more(pp *string) bool {
 	p := *pp
-	for p != "" && isSpace(int(p[0])) {
+	for p != "" && isSpace(rune(p[0])) {
 		p = p[1:]
 	}
 	*pp = p
@@ -1599,16 +1655,14 @@ func more(pp *string) bool {
 // //line parse.y:15
 // as a discontinuity in sequential line numbers.
 // the next line of input comes from parse.y:15
-func (l *lexer) getlinepragma() int {
-	var cmd, verb, name string
-
-	c := int(l.getr())
-	if c == 'g' {
+func (l *lexer) getlinepragma() rune {
+	c := l.getr()
+	if c == 'g' { // check for //go: directive
 		cp := &lexbuf
 		cp.Reset()
 		cp.WriteByte('g') // already read
 		for {
-			c = int(l.getr())
+			c = l.getr()
 			if c == EOF || c >= utf8.RuneSelf {
 				return c
 			}
@@ -1625,83 +1679,60 @@ func (l *lexer) getlinepragma() int {
 			pragcgo(text)
 		}
 
-		cmd = text
-		verb = cmd
-		if i := strings.Index(verb, " "); i >= 0 {
+		verb := text
+		if i := strings.Index(text, " "); i >= 0 {
 			verb = verb[:i]
 		}
 
-		if verb == "go:linkname" {
+		switch verb {
+		case "go:linkname":
 			if !imported_unsafe {
 				Yyerror("//go:linkname only allowed in Go files that import \"unsafe\"")
 			}
-			f := strings.Fields(cmd)
+			f := strings.Fields(text)
 			if len(f) != 3 {
 				Yyerror("usage: //go:linkname localname linkname")
-				return c
+				break
 			}
-
 			Lookup(f[1]).Linkname = f[2]
-			return c
-		}
-
-		if verb == "go:nointerface" && obj.Fieldtrack_enabled != 0 {
-			nointerface = true
-			return c
-		}
-
-		if verb == "go:noescape" {
-			noescape = true
-			return c
-		}
-
-		if verb == "go:norace" {
-			norace = true
-			return c
-		}
-
-		if verb == "go:nosplit" {
-			nosplit = true
-			return c
-		}
-
-		if verb == "go:noinline" {
-			noinline = true
-			return c
-		}
-
-		if verb == "go:systemstack" {
+		case "go:nointerface":
+			if obj.Fieldtrack_enabled != 0 {
+				l.pragma |= Nointerface
+			}
+		case "go:noescape":
+			l.pragma |= Noescape
+		case "go:norace":
+			l.pragma |= Norace
+		case "go:nosplit":
+			l.pragma |= Nosplit
+		case "go:noinline":
+			l.pragma |= Noinline
+		case "go:systemstack":
 			if compiling_runtime == 0 {
 				Yyerror("//go:systemstack only allowed in runtime")
 			}
-			systemstack = true
-			return c
-		}
-
-		if verb == "go:nowritebarrier" {
+			l.pragma |= Systemstack
+		case "go:nowritebarrier":
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrier only allowed in runtime")
 			}
-			nowritebarrier = true
-			return c
-		}
-
-		if verb == "go:nowritebarrierrec" {
+			l.pragma |= Nowritebarrier
+		case "go:nowritebarrierrec":
 			if compiling_runtime == 0 {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
-			nowritebarrierrec = true
-			nowritebarrier = true // Implies nowritebarrier
-			return c
+			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
 		}
 		return c
 	}
+
+	// check for //line directive
 	if c != 'l' {
 		return c
 	}
 	for i := 1; i < 5; i++ {
-		c = int(l.getr())
-		if c != int("line "[i]) {
+		c = l.getr()
+		if c != rune("line "[i]) {
 			return c
 		}
 	}
@@ -1710,7 +1741,7 @@ func (l *lexer) getlinepragma() int {
 	cp.Reset()
 	linep := 0
 	for {
-		c = int(l.getr())
+		c = l.getr()
 		if c == EOF {
 			return c
 		}
@@ -1725,34 +1756,25 @@ func (l *lexer) getlinepragma() int {
 		}
 		cp.WriteByte(byte(c))
 	}
-
 	cp = nil
 
 	if linep == 0 {
 		return c
 	}
 	text := strings.TrimSuffix(lexbuf.String(), "\r")
-	n := 0
-	for _, c := range text[linep:] {
-		if c < '0' || c > '9' {
-			goto out
-		}
-		n = n*10 + int(c) - '0'
-		if n > 1e8 {
-			Yyerror("line number out of range")
-			errorexit()
-		}
+	n, err := strconv.Atoi(text[linep:])
+	if err != nil {
+		return c // todo: make this an error instead? it is almost certainly a bug.
 	}
-
+	if n > 1e8 {
+		Yyerror("line number out of range")
+		errorexit()
+	}
 	if n <= 0 {
 		return c
 	}
 
-	name = text[:linep-1]
-	linehistupdate(name, n)
-	return c
-
-out:
+	linehistupdate(text[:linep-1], n)
 	return c
 }
 
@@ -1763,7 +1785,7 @@ func getimpsym(pp *string) string {
 		return ""
 	}
 	i := 0
-	for i < len(p) && !isSpace(int(p[i])) && p[i] != '"' {
+	for i < len(p) && !isSpace(rune(p[i])) && p[i] != '"' {
 		i++
 	}
 	sym := p[:i]
@@ -1891,145 +1913,119 @@ func pragcgo(text string) {
 	}
 }
 
-func (l *lexer) getc() int {
-	c := l.peekc
-	if c != 0 {
-		l.peekc = l.peekc1
-		l.peekc1 = 0
-		goto check
-	}
-
-loop:
-	c = obj.Bgetc(l.bin)
-	// recognize BOM (U+FEFF): UTF-8 encoding is 0xef 0xbb 0xbf
-	if c == 0xef {
-		buf, err := l.bin.Peek(2)
-		if err != nil {
-			yyerrorl(int(lexlineno), "illegal UTF-8 sequence ef % x followed by read error (%v)", string(buf), err)
-			errorexit()
+func (l *lexer) getr() rune {
+	// unread rune != 0 available
+	if r := l.peekr1; r != 0 {
+		l.peekr1 = l.peekr2
+		l.peekr2 = 0
+		if r == '\n' && importpkg == nil {
+			lexlineno++
 		}
-		if buf[0] == 0xbb && buf[1] == 0xbf {
-			yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+		return r
+	}
 
-			// consume BOM bytes
-			obj.Bgetc(l.bin)
-			obj.Bgetc(l.bin)
-			goto loop
+redo:
+	// common case: 7bit ASCII
+	c := obj.Bgetc(l.bin)
+	if c < utf8.RuneSelf {
+		if c == 0 {
+			yyerrorl(int(lexlineno), "illegal NUL byte")
+			return 0
 		}
+		if c == '\n' && importpkg == nil {
+			lexlineno++
+		}
+		return rune(c)
+	}
+	// c >= utf8.RuneSelf
+
+	// uncommon case: non-ASCII
+	var buf [utf8.UTFMax]byte
+	buf[0] = byte(c)
+	buf[1] = byte(obj.Bgetc(l.bin))
+	i := 2
+	for ; i < len(buf) && !utf8.FullRune(buf[:i]); i++ {
+		buf[i] = byte(obj.Bgetc(l.bin))
 	}
 
-check:
-	if c == 0 {
-		Yyerror("illegal NUL byte")
-		return 0
+	r, w := utf8.DecodeRune(buf[:i])
+	if r == utf8.RuneError && w == 1 {
+		// The string conversion here makes a copy for passing
+		// to fmt.Printf, so that buf itself does not escape and
+		// can be allocated on the stack.
+		yyerrorl(int(lexlineno), "illegal UTF-8 sequence % x", string(buf[:i]))
 	}
-	if c == '\n' && importpkg == nil {
-		lexlineno++
+
+	if r == BOM {
+		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+		goto redo
 	}
-	return c
+
+	return r
 }
 
-func (l *lexer) ungetc(c int) {
-	l.peekc1 = l.peekc
-	l.peekc = c
-	if c == '\n' && importpkg == nil {
+func (l *lexer) ungetr(r rune) {
+	l.peekr2 = l.peekr1
+	l.peekr1 = r
+	if r == '\n' && importpkg == nil {
 		lexlineno--
 	}
 }
 
-func (l *lexer) getr() int32 {
-	var buf [utf8.UTFMax]byte
-
-	for i := 0; ; i++ {
-		c := l.getc()
-		if i == 0 && c < utf8.RuneSelf {
-			return int32(c)
-		}
-		buf[i] = byte(c)
-		if i+1 == len(buf) || utf8.FullRune(buf[:i+1]) {
-			r, w := utf8.DecodeRune(buf[:i+1])
-			if r == utf8.RuneError && w == 1 {
-				lineno = lexlineno
-				// The string conversion here makes a copy for passing
-				// to fmt.Printf, so that buf itself does not escape and can
-				// be allocated on the stack.
-				Yyerror("illegal UTF-8 sequence % x", string(buf[:i+1]))
-			}
-			return int32(r)
-		}
-	}
-}
-
-func (l *lexer) escchar(e int, escflg *int, val *int64) bool {
-	*escflg = 0
-
-	c := int(l.getr())
+// onechar lexes a single character within a rune or interpreted string literal,
+// handling escape sequences as necessary.
+func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
+	c := l.getr()
 	switch c {
 	case EOF:
 		Yyerror("eof in string")
-		return true
+		l.ungetr(EOF)
+		return
 
 	case '\n':
 		Yyerror("newline in string")
-		return true
+		l.ungetr('\n')
+		return
 
 	case '\\':
 		break
 
+	case quote:
+		return
+
 	default:
-		if c == e {
-			return true
-		}
-		*val = int64(c)
-		return false
+		return c, 0, true
 	}
 
-	u := 0
-	c = int(l.getr())
-	var i int
+	c = l.getr()
 	switch c {
 	case 'x':
-		*escflg = 1 // it's a byte
-		i = 2
-		goto hex
+		return 0, byte(l.hexchar(2)), true
 
 	case 'u':
-		i = 4
-		u = 1
-		goto hex
+		return l.unichar(4), 0, true
 
 	case 'U':
-		i = 8
-		u = 1
-		goto hex
+		return l.unichar(8), 0, true
 
-	case '0',
-		'1',
-		'2',
-		'3',
-		'4',
-		'5',
-		'6',
-		'7':
-		*escflg = 1 // it's a byte
-		x := int64(c) - '0'
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		x := c - '0'
 		for i := 2; i > 0; i-- {
-			c = l.getc()
+			c = l.getr()
 			if c >= '0' && c <= '7' {
-				x = x*8 + int64(c) - '0'
+				x = x*8 + c - '0'
 				continue
 			}
 
 			Yyerror("non-octal character in escape sequence: %c", c)
-			l.ungetc(c)
+			l.ungetr(c)
 		}
 
 		if x > 255 {
 			Yyerror("octal escape value > 255: %d", x)
 		}
 
-		*val = x
-		return false
+		return 0, byte(x), true
 
 	case 'a':
 		c = '\a'
@@ -2049,153 +2045,115 @@ func (l *lexer) escchar(e int, escflg *int, val *int64) bool {
 		c = '\\'
 
 	default:
-		if c != e {
+		if c != quote {
 			Yyerror("unknown escape sequence: %c", c)
 		}
 	}
 
-	*val = int64(c)
-	return false
+	return c, 0, true
+}
 
-hex:
-	x := int64(0)
-	for ; i > 0; i-- {
-		c = l.getc()
-		if c >= '0' && c <= '9' {
-			x = x*16 + int64(c) - '0'
-			continue
-		}
-
-		if c >= 'a' && c <= 'f' {
-			x = x*16 + int64(c) - 'a' + 10
-			continue
-		}
-
-		if c >= 'A' && c <= 'F' {
-			x = x*16 + int64(c) - 'A' + 10
-			continue
-		}
-
-		Yyerror("non-hex character in escape sequence: %c", c)
-		l.ungetc(c)
-		break
-	}
-
-	if u != 0 && (x > utf8.MaxRune || (0xd800 <= x && x < 0xe000)) {
+func (l *lexer) unichar(n int) rune {
+	x := l.hexchar(n)
+	if x > utf8.MaxRune || 0xd800 <= x && x < 0xe000 {
 		Yyerror("invalid Unicode code point in escape sequence: %#x", x)
 		x = utf8.RuneError
 	}
-
-	*val = x
-	return false
+	return rune(x)
 }
 
-var syms = []struct {
-	name    string
-	lexical int
-	etype   EType
-	op      Op
+func (l *lexer) hexchar(n int) uint32 {
+	var x uint32
+
+	for ; n > 0; n-- {
+		var d uint32
+		switch c := l.getr(); {
+		case isDigit(c):
+			d = uint32(c - '0')
+		case 'a' <= c && c <= 'f':
+			d = uint32(c - 'a' + 10)
+		case 'A' <= c && c <= 'F':
+			d = uint32(c - 'A' + 10)
+		default:
+			Yyerror("non-hex character in escape sequence: %c", c)
+			l.ungetr(c)
+			return x
+		}
+		x = x*16 + d
+	}
+
+	return x
+}
+
+var basicTypes = [...]struct {
+	name  string
+	etype EType
 }{
-	// basic types
-	{"int8", LNAME, TINT8, OXXX},
-	{"int16", LNAME, TINT16, OXXX},
-	{"int32", LNAME, TINT32, OXXX},
-	{"int64", LNAME, TINT64, OXXX},
-	{"uint8", LNAME, TUINT8, OXXX},
-	{"uint16", LNAME, TUINT16, OXXX},
-	{"uint32", LNAME, TUINT32, OXXX},
-	{"uint64", LNAME, TUINT64, OXXX},
-	{"float32", LNAME, TFLOAT32, OXXX},
-	{"float64", LNAME, TFLOAT64, OXXX},
-	{"complex64", LNAME, TCOMPLEX64, OXXX},
-	{"complex128", LNAME, TCOMPLEX128, OXXX},
-	{"bool", LNAME, TBOOL, OXXX},
-	{"string", LNAME, TSTRING, OXXX},
-	{"any", LNAME, TANY, OXXX},
-	{"break", LBREAK, Txxx, OXXX},
-	{"case", LCASE, Txxx, OXXX},
-	{"chan", LCHAN, Txxx, OXXX},
-	{"const", LCONST, Txxx, OXXX},
-	{"continue", LCONTINUE, Txxx, OXXX},
-	{"default", LDEFAULT, Txxx, OXXX},
-	{"else", LELSE, Txxx, OXXX},
-	{"defer", LDEFER, Txxx, OXXX},
-	{"fallthrough", LFALL, Txxx, OXXX},
-	{"for", LFOR, Txxx, OXXX},
-	{"func", LFUNC, Txxx, OXXX},
-	{"go", LGO, Txxx, OXXX},
-	{"goto", LGOTO, Txxx, OXXX},
-	{"if", LIF, Txxx, OXXX},
-	{"import", LIMPORT, Txxx, OXXX},
-	{"interface", LINTERFACE, Txxx, OXXX},
-	{"map", LMAP, Txxx, OXXX},
-	{"package", LPACKAGE, Txxx, OXXX},
-	{"range", LRANGE, Txxx, OXXX},
-	{"return", LRETURN, Txxx, OXXX},
-	{"select", LSELECT, Txxx, OXXX},
-	{"struct", LSTRUCT, Txxx, OXXX},
-	{"switch", LSWITCH, Txxx, OXXX},
-	{"type", LTYPE, Txxx, OXXX},
-	{"var", LVAR, Txxx, OXXX},
-	{"append", LNAME, Txxx, OAPPEND},
-	{"cap", LNAME, Txxx, OCAP},
-	{"close", LNAME, Txxx, OCLOSE},
-	{"complex", LNAME, Txxx, OCOMPLEX},
-	{"copy", LNAME, Txxx, OCOPY},
-	{"delete", LNAME, Txxx, ODELETE},
-	{"imag", LNAME, Txxx, OIMAG},
-	{"len", LNAME, Txxx, OLEN},
-	{"make", LNAME, Txxx, OMAKE},
-	{"new", LNAME, Txxx, ONEW},
-	{"panic", LNAME, Txxx, OPANIC},
-	{"print", LNAME, Txxx, OPRINT},
-	{"println", LNAME, Txxx, OPRINTN},
-	{"real", LNAME, Txxx, OREAL},
-	{"recover", LNAME, Txxx, ORECOVER},
-	{"notwithstanding", LIGNORE, Txxx, OXXX},
-	{"thetruthofthematter", LIGNORE, Txxx, OXXX},
-	{"despiteallobjections", LIGNORE, Txxx, OXXX},
-	{"whereas", LIGNORE, Txxx, OXXX},
-	{"insofaras", LIGNORE, Txxx, OXXX},
+	{"int8", TINT8},
+	{"int16", TINT16},
+	{"int32", TINT32},
+	{"int64", TINT64},
+	{"uint8", TUINT8},
+	{"uint16", TUINT16},
+	{"uint32", TUINT32},
+	{"uint64", TUINT64},
+	{"float32", TFLOAT32},
+	{"float64", TFLOAT64},
+	{"complex64", TCOMPLEX64},
+	{"complex128", TCOMPLEX128},
+	{"bool", TBOOL},
+	{"string", TSTRING},
+	{"any", TANY},
+}
+
+var builtinFuncs = [...]struct {
+	name string
+	op   Op
+}{
+	{"append", OAPPEND},
+	{"cap", OCAP},
+	{"close", OCLOSE},
+	{"complex", OCOMPLEX},
+	{"copy", OCOPY},
+	{"delete", ODELETE},
+	{"imag", OIMAG},
+	{"len", OLEN},
+	{"make", OMAKE},
+	{"new", ONEW},
+	{"panic", OPANIC},
+	{"print", OPRINT},
+	{"println", OPRINTN},
+	{"real", OREAL},
+	{"recover", ORECOVER},
 }
 
 // lexinit initializes known symbols and the basic types.
 func lexinit() {
-	for _, s := range syms {
-		lex := s.lexical
-		s1 := Lookup(s.name)
-		s1.Lexical = uint16(lex)
-
-		if etype := s.etype; etype != Txxx {
-			if int(etype) >= len(Types) {
-				Fatalf("lexinit: %s bad etype", s.name)
-			}
-			s2 := Pkglookup(s.name, builtinpkg)
-			t := Types[etype]
-			if t == nil {
-				t = typ(etype)
-				t.Sym = s2
-
-				if etype != TANY && etype != TSTRING {
-					dowidth(t)
-				}
-				Types[etype] = t
-			}
-
-			s2.Lexical = LNAME
-			s2.Def = typenod(t)
-			s2.Def.Name = new(Name)
-			continue
+	for _, s := range basicTypes {
+		etype := s.etype
+		if int(etype) >= len(Types) {
+			Fatalf("lexinit: %s bad etype", s.name)
 		}
+		s2 := Pkglookup(s.name, builtinpkg)
+		t := Types[etype]
+		if t == nil {
+			t = typ(etype)
+			t.Sym = s2
+			if etype != TANY && etype != TSTRING {
+				dowidth(t)
+			}
+			Types[etype] = t
+		}
+		s2.Def = typenod(t)
+		s2.Def.Name = new(Name)
+	}
 
+	for _, s := range builtinFuncs {
 		// TODO(marvin): Fix Node.EType type union.
-		if etype := s.op; etype != OXXX {
-			s2 := Pkglookup(s.name, builtinpkg)
-			s2.Lexical = LNAME
-			s2.Def = Nod(ONAME, nil, nil)
-			s2.Def.Sym = s2
-			s2.Def.Etype = EType(etype)
-		}
+		s2 := Pkglookup(s.name, builtinpkg)
+		s2.Def = Nod(ONAME, nil, nil)
+		s2.Def.Sym = s2
+		s2.Def.Etype = EType(s.op)
 	}
 
 	// logically, the type of a string literal.
@@ -2241,6 +2199,11 @@ func lexinit() {
 	s.Def = nodlit(v)
 	s.Def.Sym = s
 	s.Def.Name = new(Name)
+
+	s = Pkglookup("iota", builtinpkg)
+	s.Def = Nod(OIOTA, nil, nil)
+	s.Def.Sym = s
+	s.Def.Name = new(Name)
 }
 
 func lexinit1() {
@@ -2270,121 +2233,46 @@ func lexinit1() {
 	t.Type.Type = f
 
 	// error type
-	s := Lookup("error")
-
-	s.Lexical = LNAME
-	s1 := Pkglookup("error", builtinpkg)
+	s := Pkglookup("error", builtinpkg)
 	errortype = t
-	errortype.Sym = s1
-	s1.Lexical = LNAME
-	s1.Def = typenod(errortype)
+	errortype.Sym = s
+	s.Def = typenod(errortype)
 
 	// byte alias
-	s = Lookup("byte")
-
-	s.Lexical = LNAME
-	s1 = Pkglookup("byte", builtinpkg)
+	s = Pkglookup("byte", builtinpkg)
 	bytetype = typ(TUINT8)
-	bytetype.Sym = s1
-	s1.Lexical = LNAME
-	s1.Def = typenod(bytetype)
-	s1.Def.Name = new(Name)
+	bytetype.Sym = s
+	s.Def = typenod(bytetype)
+	s.Def.Name = new(Name)
 
 	// rune alias
-	s = Lookup("rune")
-
-	s.Lexical = LNAME
-	s1 = Pkglookup("rune", builtinpkg)
+	s = Pkglookup("rune", builtinpkg)
 	runetype = typ(TINT32)
-	runetype.Sym = s1
-	s1.Lexical = LNAME
-	s1.Def = typenod(runetype)
-	s1.Def.Name = new(Name)
-}
-
-func lexfini() {
-	for i := range syms {
-		lex := syms[i].lexical
-		if lex != LNAME {
-			continue
-		}
-		s := Lookup(syms[i].name)
-		s.Lexical = uint16(lex)
-
-		etype := syms[i].etype
-		if etype != Txxx && (etype != TANY || Debug['A'] != 0) && s.Def == nil {
-			s.Def = typenod(Types[etype])
-			s.Def.Name = new(Name)
-			s.Origpkg = builtinpkg
-		}
-
-		// TODO(marvin): Fix Node.EType type union.
-		etype = EType(syms[i].op)
-		if etype != EType(OXXX) && s.Def == nil {
-			s.Def = Nod(ONAME, nil, nil)
-			s.Def.Sym = s
-			s.Def.Etype = etype
-			s.Origpkg = builtinpkg
-		}
-	}
+	runetype.Sym = s
+	s.Def = typenod(runetype)
+	s.Def.Name = new(Name)
 
 	// backend-specific builtin types (e.g. int).
 	for i := range Thearch.Typedefs {
-		s := Lookup(Thearch.Typedefs[i].Name)
+		s := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
+		s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
+		s.Def.Name = new(Name)
+		s.Origpkg = builtinpkg
+	}
+}
+
+func lexfini() {
+	for _, s := range builtinpkg.Syms {
 		if s.Def == nil {
-			s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
-			s.Def.Name = new(Name)
-			s.Origpkg = builtinpkg
+			continue
 		}
-	}
+		s1 := Lookup(s.Name)
+		if s1.Def != nil {
+			continue
+		}
 
-	// there's only so much table-driven we can handle.
-	// these are special cases.
-	if s := Lookup("byte"); s.Def == nil {
-		s.Def = typenod(bytetype)
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("error"); s.Def == nil {
-		s.Def = typenod(errortype)
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("rune"); s.Def == nil {
-		s.Def = typenod(runetype)
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("nil"); s.Def == nil {
-		var v Val
-		v.U = new(NilVal)
-		s.Def = nodlit(v)
-		s.Def.Sym = s
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("iota"); s.Def == nil {
-		s.Def = Nod(OIOTA, nil, nil)
-		s.Def.Sym = s
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("true"); s.Def == nil {
-		s.Def = Nodbool(true)
-		s.Def.Sym = s
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
-	}
-
-	if s := Lookup("false"); s.Def == nil {
-		s.Def = Nodbool(false)
-		s.Def.Sym = s
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
+		s1.Def = s.Def
+		s1.Block = s.Block
 	}
 
 	nodfp = Nod(ONAME, nil, nil)
@@ -2394,7 +2282,7 @@ func lexfini() {
 	nodfp.Sym = Lookup(".fp")
 }
 
-var lexn = map[int]string{
+var lexn = map[rune]string{
 	LANDAND:    "ANDAND",
 	LANDNOT:    "ANDNOT",
 	LASOP:      "ASOP",
@@ -2406,7 +2294,6 @@ var lexn = map[int]string{
 	LCONST:     "CONST",
 	LCONTINUE:  "CONTINUE",
 	LDDD:       "...",
-	LDEC:       "DEC",
 	LDEFAULT:   "DEFAULT",
 	LDEFER:     "DEFER",
 	LELSE:      "ELSE",
@@ -2420,7 +2307,7 @@ var lexn = map[int]string{
 	LGT:        "GT",
 	LIF:        "IF",
 	LIMPORT:    "IMPORT",
-	LINC:       "INC",
+	LINCOP:     "INCOP",
 	LINTERFACE: "INTERFACE",
 	LLE:        "LE",
 	LLITERAL:   "LITERAL",
@@ -2441,7 +2328,7 @@ var lexn = map[int]string{
 	LVAR:       "VAR",
 }
 
-func lexname(lex int) string {
+func lexname(lex rune) string {
 	if s, ok := lexn[lex]; ok {
 		return s
 	}

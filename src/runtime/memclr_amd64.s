@@ -103,7 +103,7 @@ loop_avx2_huge:
 	ADDQ	$128, DI
 	CMPQ	BX, $128
 	JAE	loop_avx2_huge
-	// In the desciption of MOVNTDQ in [1]
+	// In the description of MOVNTDQ in [1]
 	// "... fencing operation implemented with the SFENCE or MFENCE instruction
 	// should be used in conjunction with MOVNTDQ instructions..."
 	// [1] 64-ia-32-architectures-software-developer-manual-325462.pdf

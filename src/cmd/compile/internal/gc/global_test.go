@@ -11,7 +11,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func TestScanfRemoval(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	// Create source.
-	src := path.Join(dir, "test.go")
+	src := filepath.Join(dir, "test.go")
 	f, err := os.Create(src)
 	if err != nil {
 		log.Fatalf("could not create source file: %v", err)
@@ -43,7 +44,7 @@ func main() {
 	f.Close()
 
 	// Name of destination.
-	dst := path.Join(dir, "test")
+	dst := filepath.Join(dir, "test")
 
 	// Compile source.
 	cmd := exec.Command("go", "build", "-o", dst, src)
@@ -60,5 +61,55 @@ func main() {
 	}
 	if bytes.Index(out, []byte("scanInt")) != -1 {
 		log.Fatalf("scanf code not removed from helloworld")
+	}
+}
+
+// Make sure -S prints assembly code.  See issue 14515.
+func TestDashS(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// Make a directory to work in.
+	dir, err := ioutil.TempDir("", "issue14515-")
+	if err != nil {
+		log.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Create source.
+	src := filepath.Join(dir, "test.go")
+	f, err := os.Create(src)
+	if err != nil {
+		log.Fatalf("could not create source file: %v", err)
+	}
+	f.Write([]byte(`
+package main
+import "fmt"
+func main() {
+	fmt.Println("hello world")
+}
+`))
+	f.Close()
+
+	// Compile source.
+	cmd := exec.Command("go", "build", "-gcflags", "-S", "-o", filepath.Join(dir, "test"), src)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatalf("could not build target: %v", err)
+	}
+
+	patterns := []string{
+		// It is hard to look for actual instructions in an
+		// arch-independent way.  So we'll just look for
+		// pseudo-ops that are arch-independent.
+		"\tTEXT\t",
+		"\tFUNCDATA\t",
+		"\tPCDATA\t",
+	}
+	outstr := string(out)
+	for _, p := range patterns {
+		if !strings.Contains(outstr, p) {
+			println(outstr)
+			panic("can't find pattern " + p)
+		}
 	}
 }

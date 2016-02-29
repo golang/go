@@ -8,7 +8,7 @@ package net
 
 import "runtime"
 
-// See unix_test.go for what these (don't) do.
+// See main_conf_test.go for what these (don't) do.
 func forceGoDNS() func() {
 	switch runtime.GOOS {
 	case "plan9", "windows":
@@ -18,5 +18,5 @@ func forceGoDNS() func() {
 	}
 }
 
-// See unix_test.go for what these (don't) do.
+// See main_conf_test.go for what these (don't) do.
 func forceCgoDNS() func() { return nil }

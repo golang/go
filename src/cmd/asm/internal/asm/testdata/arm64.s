@@ -237,7 +237,7 @@ again:
 //
 //		LSTXR reg ',' addr ',' reg
 //	{
-//		outtcode($1, &$2, &$4, &$6);
+//		outcode($1, &$2, &$4, &$6);
 //	}
 	LDAXRW	(R0), R2
 	STLXRW	R1, (R0), R3

@@ -1066,9 +1066,9 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 			}
 
 			if needSym != 0 {
-				// local names and hidden visiblity global names are unique
-				// and should only reference by its index, not name, so we
-				// don't bother to add them into hash table
+				// local names and hidden global names are unique
+				// and should only be referenced by their index, not name, so we
+				// don't bother to add them into the hash table
 				s = linknewsym(Ctxt, sym.name, Ctxt.Version)
 
 				s.Type |= obj.SHIDDEN

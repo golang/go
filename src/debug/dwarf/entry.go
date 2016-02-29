@@ -243,7 +243,7 @@ type Field struct {
 	Class Class
 }
 
-// A Class is the DWARF 4 class of an attibute value.
+// A Class is the DWARF 4 class of an attribute value.
 //
 // In general, a given attribute's value may take on one of several
 // possible classes defined by DWARF, each of which leads to a

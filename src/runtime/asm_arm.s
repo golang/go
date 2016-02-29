@@ -706,7 +706,7 @@ TEXT runtime·abort(SB),NOSPLIT,$-4-0
 // armPublicationBarrier is a native store/store barrier for ARMv7+.
 // On earlier ARM revisions, armPublicationBarrier is a no-op.
 // This will not work on SMP ARMv6 machines, if any are in use.
-// To implement publiationBarrier in sys_$GOOS_arm.s using the native
+// To implement publicationBarrier in sys_$GOOS_arm.s using the native
 // instructions, use:
 //
 //	TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0

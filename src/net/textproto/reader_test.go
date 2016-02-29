@@ -25,6 +25,12 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"user-agent", "User-Agent"},
 	{"USER-AGENT", "User-Agent"},
 
+	// Other valid tchar bytes in tokens:
+	{"foo-bar_baz", "Foo-Bar_baz"},
+	{"foo-bar$baz", "Foo-Bar$baz"},
+	{"foo-bar~baz", "Foo-Bar~baz"},
+	{"foo-bar*baz", "Foo-Bar*baz"},
+
 	// Non-ASCII or anything with spaces or non-token chars is unchanged:
 	{"üser-agenT", "üser-agenT"},
 	{"a B", "a B"},

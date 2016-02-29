@@ -240,10 +240,9 @@ func (p *importer) typ() *Type {
 			{
 				saved := structpkg
 				structpkg = tsym.Pkg
-				addmethod(sym, n.Type, false, nointerface)
+				addmethod(sym, n.Type, false, false)
 				structpkg = saved
 			}
-			nointerface = false
 			funchdr(n)
 
 			// (comment from go.y)
