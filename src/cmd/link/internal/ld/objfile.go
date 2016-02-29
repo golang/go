@@ -437,10 +437,9 @@ func rdstring(f *obj.Biobuf) string {
 	return string(rdBuf[:n])
 }
 
-var (
-	rddataBuf    = make([]byte, rddataBufMax)
-	rddataBufMax = 1 << 14
-)
+const rddataBufMax = 1 << 14
+
+var rddataBuf = make([]byte, rddataBufMax)
 
 func rddata(f *obj.Biobuf) []byte {
 	var p []byte
