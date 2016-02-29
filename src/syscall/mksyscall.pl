@@ -100,7 +100,7 @@ while(<>) {
 	# Line must be of the form
 	#	func Open(path string, mode int, perm int) (fd int, errno error)
 	# Split into name, in params, out params.
-	if(!/^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*((?i)SYS_[A-Z0-9_]+))?$/) {
+	if(!/^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*((?i)_?SYS_[A-Z0-9_]+))?$/) {
 		print STDERR "$ARGV:$.: malformed //sys declaration\n";
 		$errors = 1;
 		next;
