@@ -22,11 +22,11 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 	// but since the cap is only being supplied implicitly, saying len is clearer.
 	// See issue 4085.
 	len := int(len64)
-	if len64 < 0 || int64(len) != len64 || t.elem.size > 0 && uintptr(len) > _MaxMem/uintptr(t.elem.size) {
+	if len64 < 0 || int64(len) != len64 || t.elem.size > 0 && uintptr(len) > _MaxMem/t.elem.size {
 		panic(errorString("makeslice: len out of range"))
 	}
 	cap := int(cap64)
-	if cap < len || int64(cap) != cap64 || t.elem.size > 0 && uintptr(cap) > _MaxMem/uintptr(t.elem.size) {
+	if cap < len || int64(cap) != cap64 || t.elem.size > 0 && uintptr(cap) > _MaxMem/t.elem.size {
 		panic(errorString("makeslice: cap out of range"))
 	}
 	p := newarray(t.elem, uintptr(cap))
@@ -49,7 +49,7 @@ func growslice_n(t *slicetype, old slice, n int) slice {
 // and it returns a new slice with at least that capacity, with the old data
 // copied into it.
 func growslice(t *slicetype, old slice, cap int) slice {
-	if cap < old.cap || t.elem.size > 0 && uintptr(cap) > _MaxMem/uintptr(t.elem.size) {
+	if cap < old.cap || t.elem.size > 0 && uintptr(cap) > _MaxMem/t.elem.size {
 		panic(errorString("growslice: cap out of range"))
 	}
 
@@ -84,12 +84,12 @@ func growslice(t *slicetype, old slice, cap int) slice {
 		}
 	}
 
-	if uintptr(newcap) >= _MaxMem/uintptr(et.size) {
+	if uintptr(newcap) >= _MaxMem/et.size {
 		panic(errorString("growslice: cap out of range"))
 	}
-	lenmem := uintptr(old.len) * uintptr(et.size)
-	capmem := roundupsize(uintptr(newcap) * uintptr(et.size))
-	newcap = int(capmem / uintptr(et.size))
+	lenmem := uintptr(old.len) * et.size
+	capmem := roundupsize(uintptr(newcap) * et.size)
+	newcap = int(capmem / et.size)
 	var p unsafe.Pointer
 	if et.kind&kindNoPointers != 0 {
 		p = rawmem(capmem)
@@ -142,7 +142,7 @@ func slicecopy(to, fm slice, width uintptr) int {
 	} else {
 		memmove(to.array, fm.array, size)
 	}
-	return int(n)
+	return n
 }
 
 func slicestringcopy(to []byte, fm string) int {
@@ -164,6 +164,6 @@ func slicestringcopy(to []byte, fm string) int {
 		msanwrite(unsafe.Pointer(&to[0]), uintptr(n))
 	}
 
-	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer(stringStructOf(&fm).str), uintptr(n))
+	memmove(unsafe.Pointer(&to[0]), stringStructOf(&fm).str, uintptr(n))
 	return n
 }

@@ -22,9 +22,9 @@ func (c *sigctxt) ebp() uint32     { return c.regs().mc_ebp }
 func (c *sigctxt) esp() uint32     { return c.regs().mc_esp }
 func (c *sigctxt) eip() uint32     { return c.regs().mc_eip }
 func (c *sigctxt) eflags() uint32  { return c.regs().mc_eflags }
-func (c *sigctxt) cs() uint32      { return uint32(c.regs().mc_cs) }
-func (c *sigctxt) fs() uint32      { return uint32(c.regs().mc_fs) }
-func (c *sigctxt) gs() uint32      { return uint32(c.regs().mc_gs) }
+func (c *sigctxt) cs() uint32      { return c.regs().mc_cs }
+func (c *sigctxt) fs() uint32      { return c.regs().mc_fs }
+func (c *sigctxt) gs() uint32      { return c.regs().mc_gs }
 func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint32 { return uint32(c.info.si_addr) }
 

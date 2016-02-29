@@ -107,7 +107,7 @@ func semacquire(addr *uint32, profile bool) {
 		}
 	}
 	if s.releasetime > 0 {
-		blockevent(int64(s.releasetime)-t0, 3)
+		blockevent(s.releasetime-t0, 3)
 	}
 	releaseSudog(s)
 }
@@ -240,7 +240,7 @@ func syncsemacquire(s *syncSema) {
 		s.tail = w
 		goparkunlock(&s.lock, "semacquire", traceEvGoBlockCond, 3)
 		if t0 != 0 {
-			blockevent(int64(w.releasetime)-t0, 2)
+			blockevent(w.releasetime-t0, 2)
 		}
 		releaseSudog(w)
 	}

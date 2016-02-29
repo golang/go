@@ -33,7 +33,7 @@ type overlappedEntry struct {
 var iocphandle uintptr = _INVALID_HANDLE_VALUE // completion port io handle
 
 func netpollinit() {
-	iocphandle = uintptr(stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX))
+	iocphandle = stdcall4(_CreateIoCompletionPort, _INVALID_HANDLE_VALUE, 0, 0, _DWORD_MAX)
 	if iocphandle == 0 {
 		println("netpoll: failed to create iocp handle (errno=", getlasterror(), ")")
 		throw("netpoll: failed to create iocp handle")

@@ -166,7 +166,7 @@ func runfinq() {
 			for i := fb.cnt; i > 0; i-- {
 				f := &fb.fin[i-1]
 
-				framesz := unsafe.Sizeof((interface{})(nil)) + uintptr(f.nret)
+				framesz := unsafe.Sizeof((interface{})(nil)) + f.nret
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finq.
@@ -360,7 +360,7 @@ okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
 	for _, t := range ft.out {
-		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
+		nret = round(nret, uintptr(t.align)) + t.size
 	}
 	nret = round(nret, sys.PtrSize)
 
@@ -407,7 +407,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 		return
 	}
 
-	n = uintptr(s.elemsize)
+	n = s.elemsize
 	if s.sizeclass != 0 {
 		x = add(x, (uintptr(v)-uintptr(x))/n*n)
 	}

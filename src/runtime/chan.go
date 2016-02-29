@@ -56,7 +56,7 @@ func makechan(t *chantype, size int64) *hchan {
 	if hchanSize%maxAlign != 0 || elem.align > maxAlign {
 		throw("makechan: bad alignment")
 	}
-	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/uintptr(elem.size)) {
+	if size < 0 || int64(uintptr(size)) != size || (elem.size > 0 && uintptr(size) > (_MaxMem-hchanSize)/elem.size) {
 		panic("makechan: size out of range")
 	}
 
@@ -67,7 +67,7 @@ func makechan(t *chantype, size int64) *hchan {
 		// buf points into the same allocation, elemtype is persistent.
 		// SudoG's are referenced from their owning thread so they can't be collected.
 		// TODO(dvyukov,rlh): Rethink when collector can move allocated objects.
-		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*uintptr(elem.size), nil, flagNoScan))
+		c = (*hchan)(mallocgc(hchanSize+uintptr(size)*elem.size, nil, flagNoScan))
 		if size > 0 && elem.size != 0 {
 			c.buf = add(unsafe.Pointer(c), hchanSize)
 		} else {
@@ -227,7 +227,7 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
 	}
 	gp.param = nil
 	if mysg.releasetime > 0 {
-		blockevent(int64(mysg.releasetime)-t0, 2)
+		blockevent(mysg.releasetime-t0, 2)
 	}
 	releaseSudog(mysg)
 	return true
