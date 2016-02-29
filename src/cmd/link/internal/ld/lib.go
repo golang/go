@@ -250,10 +250,25 @@ var (
 	Bso obj.Biobuf
 )
 
-var coutbuf struct {
-	*bufio.Writer
-	f *os.File
+type outBuf struct {
+	w   *bufio.Writer
+	f   *os.File
+	off int64
 }
+
+func (w *outBuf) Write(p []byte) (n int, err error) {
+	n, err = w.w.Write(p)
+	w.off += int64(n)
+	return n, err
+}
+
+func (w *outBuf) WriteString(s string) (n int, err error) {
+	n, err = coutbuf.w.WriteString(s)
+	w.off += int64(n)
+	return n, err
+}
+
+var coutbuf outBuf
 
 const pkgname = "__.PKGDEF"
 
@@ -396,7 +411,7 @@ func libinit() {
 		Exitf("cannot create %s: %v", outfile, err)
 	}
 
-	coutbuf.Writer = bufio.NewWriter(f)
+	coutbuf.w = bufio.NewWriter(f)
 	coutbuf.f = f
 
 	if INITENTRY == "" {
@@ -759,9 +774,7 @@ func objfile(lib *Library) {
 		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
 	}
 	Bso.Flush()
-	var err error
-	var f *obj.Biobuf
-	f, err = obj.Bopenr(lib.File)
+	f, err := obj.Bopenr(lib.File)
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
@@ -953,7 +966,7 @@ func hostlinksetup() {
 		Exitf("cannot create %s: %v", p, err)
 	}
 
-	coutbuf.Writer = bufio.NewWriter(f)
+	coutbuf.w = bufio.NewWriter(f)
 	coutbuf.f = f
 }
 
@@ -1817,24 +1830,24 @@ func stkprint(ch *Chain, limit int) {
 }
 
 func Cflush() {
-	if err := coutbuf.Writer.Flush(); err != nil {
+	if err := coutbuf.w.Flush(); err != nil {
 		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
 	}
 }
 
 func Cpos() int64 {
-	off, err := coutbuf.f.Seek(0, 1)
-	if err != nil {
-		Exitf("seeking in output [0, 1]: %v", err)
-	}
-	return off + int64(coutbuf.Buffered())
+	return coutbuf.off
 }
 
 func Cseek(p int64) {
+	if p == coutbuf.off {
+		return
+	}
 	Cflush()
 	if _, err := coutbuf.f.Seek(p, 0); err != nil {
 		Exitf("seeking in output [0, 1]: %v", err)
 	}
+	coutbuf.off = p
 }
 
 func Cwrite(p []byte) {
@@ -1842,7 +1855,8 @@ func Cwrite(p []byte) {
 }
 
 func Cput(c uint8) {
-	coutbuf.WriteByte(c)
+	coutbuf.w.WriteByte(c)
+	coutbuf.off++
 }
 
 func usage() {
