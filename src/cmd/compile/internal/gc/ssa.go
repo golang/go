@@ -4649,7 +4649,7 @@ func (s *genState) markMoves(b *ssa.Block) {
 	}
 	for i := len(b.Values) - 1; i >= 0; i-- {
 		v := b.Values[i]
-		if flive && (v.Op == ssa.OpAMD64MOVWconst || v.Op == ssa.OpAMD64MOVLconst || v.Op == ssa.OpAMD64MOVQconst) {
+		if flive && (v.Op == ssa.OpAMD64MOVBconst || v.Op == ssa.OpAMD64MOVWconst || v.Op == ssa.OpAMD64MOVLconst || v.Op == ssa.OpAMD64MOVQconst) {
 			// The "mark" is any non-nil Aux value.
 			v.Aux = v
 		}
