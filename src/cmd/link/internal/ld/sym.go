@@ -58,7 +58,8 @@ var headers = []struct {
 
 func linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
-	ctxt.Hash = make(map[symVer]*LSym)
+	// Preallocate about 2mb for hash
+	ctxt.Hash = make(map[symVer]*LSym, 100000)
 	ctxt.Arch = arch
 	ctxt.Version = obj.HistVersion
 	ctxt.Goroot = obj.Getgoroot()
