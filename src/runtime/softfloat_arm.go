@@ -609,7 +609,7 @@ func sfloat2(pc uint32, regs *[15]uint32) uint32 {
 			pc = uint32(funcPC(_sfloatpanic))
 			break
 		}
-		pc += 4 * uint32(skip)
+		pc += 4 * skip
 	}
 	if first {
 		print("sfloat2 ", pc, " ", hex(*(*uint32)(unsafe.Pointer(uintptr(pc)))), "\n")

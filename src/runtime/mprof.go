@@ -448,7 +448,7 @@ func iterate_memprof(fn func(*bucket, uintptr, *uintptr, uintptr, uintptr, uintp
 	lock(&proflock)
 	for b := mbuckets; b != nil; b = b.allnext {
 		mp := b.mp()
-		fn(b, uintptr(b.nstk), &b.stk()[0], b.size, mp.allocs, mp.frees)
+		fn(b, b.nstk, &b.stk()[0], b.size, mp.allocs, mp.frees)
 	}
 	unlock(&proflock)
 }
@@ -478,8 +478,8 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
 		for b := bbuckets; b != nil; b = b.allnext {
 			bp := b.bp()
 			r := &p[0]
-			r.Count = int64(bp.count)
-			r.Cycles = int64(bp.cycles)
+			r.Count = bp.count
+			r.Cycles = bp.cycles
 			i := copy(r.Stack0[:], b.stk())
 			for ; i < len(r.Stack0); i++ {
 				r.Stack0[i] = 0

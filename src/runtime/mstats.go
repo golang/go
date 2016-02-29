@@ -309,13 +309,13 @@ func updatememstats(stats *gcstats) {
 		memstats.nfree += mheap_.nsmallfree[i]
 		memstats.by_size[i].nfree = mheap_.nsmallfree[i]
 		memstats.by_size[i].nmalloc += mheap_.nsmallfree[i]
-		smallfree += uint64(mheap_.nsmallfree[i]) * uint64(class_to_size[i])
+		smallfree += mheap_.nsmallfree[i] * uint64(class_to_size[i])
 	}
 	memstats.nfree += memstats.tinyallocs
 	memstats.nmalloc += memstats.nfree
 
 	// Calculate derived stats.
-	memstats.total_alloc = uint64(memstats.alloc) + uint64(mheap_.largefree) + smallfree
+	memstats.total_alloc = memstats.alloc + mheap_.largefree + smallfree
 	memstats.heap_alloc = memstats.alloc
 	memstats.heap_objects = memstats.nmalloc - memstats.nfree
 }

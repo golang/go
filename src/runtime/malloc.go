@@ -408,7 +408,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
-				used := p + (-uintptr(p) & (_PageSize - 1))
+				used := p + (-p & (_PageSize - 1))
 				h.mapBits(used)
 				h.mapSpans(used)
 				h.arena_used = used
@@ -434,7 +434,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			racemapshadow(unsafe.Pointer(p), n)
 		}
 
-		if uintptr(p)&(_PageSize-1) != 0 {
+		if p&(_PageSize-1) != 0 {
 			throw("misrounded allocation in MHeap_SysAlloc")
 		}
 		return unsafe.Pointer(p)
@@ -454,7 +454,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		return nil
 	}
 
-	if p < h.arena_start || uintptr(p)+p_size-h.arena_start >= _MaxArena32 {
+	if p < h.arena_start || p+p_size-h.arena_start >= _MaxArena32 {
 		top := ^uintptr(0)
 		if top-h.arena_start > _MaxArena32 {
 			top = h.arena_start + _MaxArena32
@@ -466,7 +466,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 
 	p_end := p + p_size
 	p += -p & (_PageSize - 1)
-	if uintptr(p)+n > h.arena_used {
+	if p+n > h.arena_used {
 		h.mapBits(p + n)
 		h.mapSpans(p + n)
 		h.arena_used = p + n
@@ -478,7 +478,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		}
 	}
 
-	if uintptr(p)&(_PageSize-1) != 0 {
+	if p&(_PageSize-1) != 0 {
 		throw("misrounded allocation in MHeap_SysAlloc")
 	}
 	return unsafe.Pointer(p)
@@ -661,10 +661,10 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 		var s *mspan
 		shouldhelpgc = true
 		systemstack(func() {
-			s = largeAlloc(size, uint32(flags))
+			s = largeAlloc(size, flags)
 		})
 		x = unsafe.Pointer(uintptr(s.start << pageShift))
-		size = uintptr(s.elemsize)
+		size = s.elemsize
 	}
 
 	if flags&flagNoScan != 0 {
@@ -778,7 +778,7 @@ func newobject(typ *_type) unsafe.Pointer {
 	if typ.kind&kindNoPointers != 0 {
 		flags |= flagNoScan
 	}
-	return mallocgc(uintptr(typ.size), typ, flags)
+	return mallocgc(typ.size, typ, flags)
 }
 
 //go:linkname reflect_unsafe_New reflect.unsafe_New
@@ -792,10 +792,10 @@ func newarray(typ *_type, n uintptr) unsafe.Pointer {
 	if typ.kind&kindNoPointers != 0 {
 		flags |= flagNoScan
 	}
-	if int(n) < 0 || (typ.size > 0 && n > _MaxMem/uintptr(typ.size)) {
+	if int(n) < 0 || (typ.size > 0 && n > _MaxMem/typ.size) {
 		panic("runtime: allocation size out of range")
 	}
-	return mallocgc(uintptr(typ.size)*n, typ, flags)
+	return mallocgc(typ.size*n, typ, flags)
 }
 
 //go:linkname reflect_unsafe_NewArray reflect.unsafe_NewArray
@@ -847,7 +847,7 @@ func nextSample() int32 {
 	// x = -log_e(q) * period
 	// x = log_2(q) * (-log_e(2)) * period    ; Using log_2 for efficiency
 	const randomBitCount = 26
-	q := uint32(fastrand1())%(1<<randomBitCount) + 1
+	q := fastrand1()%(1<<randomBitCount) + 1
 	qlog := fastlog2(float64(q)) - randomBitCount
 	if qlog > 0 {
 		qlog = 0

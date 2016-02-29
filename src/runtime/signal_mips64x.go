@@ -88,7 +88,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 		c.set_sp(sp)
 		*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
 
-		pc := uintptr(gp.sigpc)
+		pc := gp.sigpc
 
 		// If we don't recognize the PC as code
 		// but we do recognize the link register as code,

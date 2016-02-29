@@ -55,8 +55,8 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
 		gp.sig = uint32(sig)
 		gp.sigpc = c.pc()
 
-		pc := uintptr(c.pc())
-		sp := uintptr(c.sp())
+		pc := c.pc()
+		sp := c.sp()
 
 		// If we don't recognize the PC as code
 		// but we do recognize the top pointer on the stack as code,

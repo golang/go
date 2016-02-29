@@ -242,7 +242,7 @@ func check() {
 
 	k = unsafe.Pointer(uintptr(0xfedcb123))
 	if sys.PtrSize == 8 {
-		k = unsafe.Pointer(uintptr(unsafe.Pointer(k)) << 10)
+		k = unsafe.Pointer(uintptr(k) << 10)
 	}
 	if casp(&k, nil, nil) {
 		throw("casp1")

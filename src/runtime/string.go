@@ -155,7 +155,7 @@ func stringtoslicebytetmp(s string) []byte {
 	// for i, c := range []byte(str)
 
 	str := stringStructOf(&s)
-	ret := slice{array: unsafe.Pointer(str.str), len: str.len, cap: str.len}
+	ret := slice{array: str.str, len: str.len, cap: str.len}
 	return *(*[]byte)(unsafe.Pointer(&ret))
 }
 
@@ -290,7 +290,7 @@ func rawstring(size int) (s string, b []byte) {
 
 	for {
 		ms := maxstring
-		if uintptr(size) <= uintptr(ms) || atomic.Casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), uintptr(ms), uintptr(size)) {
+		if uintptr(size) <= ms || atomic.Casuintptr((*uintptr)(unsafe.Pointer(&maxstring)), ms, uintptr(size)) {
 			return
 		}
 	}

@@ -234,7 +234,7 @@ type childInfo struct {
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
 	bv := gobv(*cbv)
-	for i := uintptr(0); i < uintptr(bv.n); i++ {
+	for i := uintptr(0); i < bv.n; i++ {
 		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(offset + i*sys.PtrSize))
