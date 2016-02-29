@@ -103,6 +103,7 @@ if test "$tsan" = "yes"; then
     err=${TMPDIR}/tsanerr$$.out
 
     if ! go run tsan.go 2>$err; then
+	cat $err
 	echo "FAIL: tsan"
 	status=1
     elif grep -i warning $err >/dev/null 2>&1; then
@@ -112,6 +113,7 @@ if test "$tsan" = "yes"; then
     fi
 
     if ! go run tsan2.go 2>$err; then
+	cat $err
 	echo "FAIL: tsan2"
 	status=1
     elif grep -i warning $err >/dev/null 2>&1; then
