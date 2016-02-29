@@ -274,7 +274,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		throw("runtime.SetFinalizer: first argument is nil")
 	}
 	if etyp.kind&kindMask != kindPtr {
-		throw("runtime.SetFinalizer: first argument is " + *etyp._string + ", not pointer")
+		throw("runtime.SetFinalizer: first argument is " + etyp._string + ", not pointer")
 	}
 	ot := (*ptrtype)(unsafe.Pointer(etyp))
 	if ot.elem == nil {
@@ -328,11 +328,11 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 	}
 
 	if ftyp.kind&kindMask != kindFunc {
-		throw("runtime.SetFinalizer: second argument is " + *ftyp._string + ", not a function")
+		throw("runtime.SetFinalizer: second argument is " + ftyp._string + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
 	if ft.dotdotdot || len(ft.in) != 1 {
-		throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string)
 	}
 	fint := ft.in[0]
 	switch {
@@ -340,7 +340,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		// ok - same type
 		goto okarg
 	case fint.kind&kindMask == kindPtr:
-		if (fint.x == nil || fint.x.name == nil || etyp.x == nil || etyp.x.name == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+		if (fint.x == nil || etyp.x == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
 			// ok - not same type, but both pointers,
 			// one or the other is unnamed, and same element type, so assignable.
 			goto okarg
@@ -355,7 +355,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 			goto okarg
 		}
 	}
-	throw("runtime.SetFinalizer: cannot pass " + *etyp._string + " to finalizer " + *ftyp._string)
+	throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string)
 okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)

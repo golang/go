@@ -155,15 +155,15 @@ func TestShouldBuild(t *testing.T) {
 		t.Errorf("shouldBuild(file1) = false, want true")
 	}
 	if !reflect.DeepEqual(m, want1) {
-		t.Errorf("shoudBuild(file1) tags = %v, want %v", m, want1)
+		t.Errorf("shouldBuild(file1) tags = %v, want %v", m, want1)
 	}
 
 	m = map[string]bool{}
 	if ctx.shouldBuild([]byte(file2), m) {
-		t.Errorf("shouldBuild(file2) = true, want fakse")
+		t.Errorf("shouldBuild(file2) = true, want false")
 	}
 	if !reflect.DeepEqual(m, want2) {
-		t.Errorf("shoudBuild(file2) tags = %v, want %v", m, want2)
+		t.Errorf("shouldBuild(file2) tags = %v, want %v", m, want2)
 	}
 
 	m = map[string]bool{}
@@ -172,7 +172,7 @@ func TestShouldBuild(t *testing.T) {
 		t.Errorf("shouldBuild(file3) = false, want true")
 	}
 	if !reflect.DeepEqual(m, want3) {
-		t.Errorf("shoudBuild(file3) tags = %v, want %v", m, want3)
+		t.Errorf("shouldBuild(file3) tags = %v, want %v", m, want3)
 	}
 }
 

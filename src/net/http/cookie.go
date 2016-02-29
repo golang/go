@@ -223,7 +223,7 @@ func readCookies(h Header, filter string) []*Cookie {
 	return cookies
 }
 
-// validCookieDomain returns wheter v is a valid cookie domain-value.
+// validCookieDomain returns whether v is a valid cookie domain-value.
 func validCookieDomain(v string) bool {
 	if isCookieDomainName(v) {
 		return true

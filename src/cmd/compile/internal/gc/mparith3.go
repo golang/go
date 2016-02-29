@@ -11,7 +11,7 @@ import (
 	"math"
 )
 
-/// implements float arihmetic
+// implements float arithmetic
 
 func newMpflt() *Mpflt {
 	var a Mpflt

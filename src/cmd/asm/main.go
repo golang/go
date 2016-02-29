@@ -26,7 +26,7 @@ func main() {
 
 	architecture := arch.Set(GOARCH)
 	if architecture == nil {
-		log.Fatalf("asm: unrecognized architecture %s", GOARCH)
+		log.Fatalf("unrecognized architecture %s", GOARCH)
 	}
 
 	flags.Parse()
@@ -66,7 +66,7 @@ func main() {
 		obj.Writeobjdirect(ctxt, output)
 	}
 	if !ok || diag {
-		log.Printf("asm: assembly of %s failed", flag.Arg(0))
+		log.Printf("assembly of %s failed", flag.Arg(0))
 		os.Remove(*flags.OutputFile)
 		os.Exit(1)
 	}

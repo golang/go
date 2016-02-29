@@ -9,6 +9,84 @@ import (
 	"unsafe"
 )
 
+// Frames may be used to get function/file/line information for a
+// slice of PC values returned by Callers.
+type Frames struct {
+	callers []uintptr
+
+	// If previous caller in iteration was a panic, then
+	// ci.callers[0] is the address of the faulting instruction
+	// instead of the return address of the call.
+	wasPanic bool
+}
+
+// Frame is the information returned by Frames for each call frame.
+type Frame struct {
+	// Program counter for this frame; multiple frames may have
+	// the same PC value.
+	PC uintptr
+
+	// Func for this frame; may be nil for non-Go code or fully
+	// inlined functions.
+	Func *Func
+
+	// Function name, file name, and line number for this call frame.
+	// May be the empty string or zero if not known.
+	// If Func is not nil then Function == Func.Name().
+	Function string
+	File     string
+	Line     int
+
+	// Entry point for the function; may be zero if not known.
+	// If Func is not nil then Entry == Func.Entry().
+	Entry uintptr
+}
+
+// CallersFrames takes a slice of PC values returned by Callers and
+// prepares to return function/file/line information.
+// Do not change the slice until you are done with the Frames.
+func CallersFrames(callers []uintptr) *Frames {
+	return &Frames{callers, false}
+}
+
+// Next returns frame information for the next caller.
+// If more is false, there are no more callers (the Frame value is valid).
+func (ci *Frames) Next() (frame Frame, more bool) {
+	if len(ci.callers) == 0 {
+		ci.wasPanic = false
+		return Frame{}, false
+	}
+	pc := ci.callers[0]
+	ci.callers = ci.callers[1:]
+	more = len(ci.callers) > 0
+	f := FuncForPC(pc)
+	if f == nil {
+		ci.wasPanic = false
+		return Frame{}, more
+	}
+
+	entry := f.Entry()
+	xpc := pc
+	if xpc > entry && !ci.wasPanic {
+		xpc--
+	}
+	file, line := f.FileLine(xpc)
+
+	function := f.Name()
+	ci.wasPanic = entry == sigpanicPC
+
+	frame = Frame{
+		PC:       xpc,
+		Func:     f,
+		Function: function,
+		File:     file,
+		Line:     line,
+		Entry:    entry,
+	}
+
+	return frame, more
+}
+
 // NOTE: Func does not expose the actual unexported fields, because we return *Func
 // values to users, and we want to keep them from being able to overwrite the data
 // with (say) *f = Func{}.

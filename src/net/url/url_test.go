@@ -72,6 +72,17 @@ var urltests = []URLTest{
 		},
 		"ftp://john%20doe@www.google.com/",
 	},
+	// empty query
+	{
+		"http://www.google.com/?",
+		&URL{
+			Scheme:     "http",
+			Host:       "www.google.com",
+			Path:       "/",
+			ForceQuery: true,
+		},
+		"",
+	},
 	// query
 	{
 		"http://www.google.com/?q=go+language",
@@ -874,11 +885,13 @@ var resolveReferenceTests = []struct {
 	// Absolute URL references
 	{"http://foo.com?a=b", "https://bar.com/", "https://bar.com/"},
 	{"http://foo.com/", "https://bar.com/?a=b", "https://bar.com/?a=b"},
+	{"http://foo.com/", "https://bar.com/?", "https://bar.com/?"},
 	{"http://foo.com/bar", "mailto:foo@example.com", "mailto:foo@example.com"},
 
 	// Path-absolute references
 	{"http://foo.com/bar", "/baz", "http://foo.com/baz"},
 	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
+	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
 
 	// Scheme-relative
@@ -1216,6 +1229,15 @@ var requritests = []RequestURITest{
 			Path:   "//foo",
 		},
 		"//foo",
+	},
+	{
+		&URL{
+			Scheme:     "http",
+			Host:       "example.com",
+			Path:       "/foo",
+			ForceQuery: true,
+		},
+		"/foo?",
 	},
 }
 

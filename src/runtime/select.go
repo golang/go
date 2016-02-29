@@ -370,6 +370,8 @@ loop:
 		sg.g = gp
 		// Note: selectdone is adjusted for stack copies in stack1.go:adjustsudogs
 		sg.selectdone = (*uint32)(noescape(unsafe.Pointer(&done)))
+		// No stack splits between assigning elem and enqueuing
+		// sg on gp.waiting where copystack can find it.
 		sg.elem = cas.elem
 		sg.releasetime = 0
 		if t0 != 0 {

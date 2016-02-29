@@ -171,7 +171,7 @@ func TestDecodeCorrupt(t *testing.T) {
 		_, err := StdEncoding.Decode(dbuf, []byte(tc.input))
 		if tc.offset == -1 {
 			if err != nil {
-				t.Error("Decoder wrongly detected coruption in", tc.input)
+				t.Error("Decoder wrongly detected corruption in", tc.input)
 			}
 			continue
 		}

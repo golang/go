@@ -645,7 +645,6 @@ var gStatusStrings = [...]string{
 	_Gsyscall:   "syscall",
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
-	_Genqueue:   "enqueue",
 	_Gcopystack: "copystack",
 }
 

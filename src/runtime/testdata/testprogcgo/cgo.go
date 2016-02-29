@@ -11,7 +11,9 @@ void foo2(void* p) {}
 import "C"
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"strconv"
 	"time"
 	"unsafe"
 )
@@ -83,8 +85,16 @@ func CgoTraceback() {
 }
 
 func CgoCheckBytes() {
-	b := make([]byte, 1e6)
-	for i := 0; i < 1e3; i++ {
+	try, _ := strconv.Atoi(os.Getenv("GO_CGOCHECKBYTES_TRY"))
+	if try <= 0 {
+		try = 1
+	}
+	b := make([]byte, 1e6*try)
+	start := time.Now()
+	for i := 0; i < 1e3*try; i++ {
 		C.foo2(unsafe.Pointer(&b[0]))
+		if time.Since(start) > time.Second {
+			break
+		}
 	}
 }

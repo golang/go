@@ -254,9 +254,8 @@ type rtype struct {
 	kind          uint8    // enumeration for C
 	alg           *typeAlg // algorithm table
 	gcdata        *byte    // garbage collection data
-	string        *string  // string form; unnecessary but undeniably useful
+	string        string   // string form; unnecessary but undeniably useful
 	*uncommonType          // (relatively) uncommon fields
-	ptrToThis     *rtype   // type for pointer to this type, if used in binary or has methods
 }
 
 // a copy of runtime.typeAlg
@@ -284,7 +283,6 @@ type method struct {
 // Using a pointer to this struct reduces the overall size required
 // to describe an unnamed type with no methods.
 type uncommonType struct {
-	name    *string  // name of type
 	pkgPath *string  // import path; nil for built-in types like int, string
 	methods []method // methods associated with type
 }
@@ -453,14 +451,7 @@ func (t *uncommonType) PkgPath() string {
 	return *t.pkgPath
 }
 
-func (t *uncommonType) Name() string {
-	if t == nil || t.name == nil {
-		return ""
-	}
-	return *t.name
-}
-
-func (t *rtype) String() string { return *t.string }
+func (t *rtype) String() string { return t.string }
 
 func (t *rtype) Size() uintptr { return t.size }
 
@@ -558,8 +549,34 @@ func (t *rtype) PkgPath() string {
 	return t.uncommonType.PkgPath()
 }
 
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
 func (t *rtype) Name() string {
-	return t.uncommonType.Name()
+	if hasPrefix(t.string, "map[") {
+		return ""
+	}
+	if hasPrefix(t.string, "struct {") {
+		return ""
+	}
+	if hasPrefix(t.string, "chan ") {
+		return ""
+	}
+	if hasPrefix(t.string, "func(") {
+		return ""
+	}
+	if t.string[0] == '[' || t.string[0] == '*' {
+		return ""
+	}
+	i := len(t.string) - 1
+	for i >= 0 {
+		if t.string[i] == '.' {
+			break
+		}
+		i--
+	}
+	return t.string[i+1:]
 }
 
 func (t *rtype) ChanDir() ChanDir {
@@ -1030,15 +1047,7 @@ func PtrTo(t Type) Type {
 }
 
 func (t *rtype) ptrTo() *rtype {
-	if p := t.ptrToThis; p != nil {
-		return p
-	}
-
-	// Otherwise, synthesize one.
-	// This only happens for pointers with no methods.
-	// We keep the mapping in a map on the side, because
-	// this operation is rare and a separate map lets us keep
-	// the type structures in read-only memory.
+	// Check the cache.
 	ptrMap.RLock()
 	if m := ptrMap.m; m != nil {
 		if p := m[t]; p != nil {
@@ -1047,6 +1056,7 @@ func (t *rtype) ptrTo() *rtype {
 		}
 	}
 	ptrMap.RUnlock()
+
 	ptrMap.Lock()
 	if ptrMap.m == nil {
 		ptrMap.m = make(map[*rtype]*ptrType)
@@ -1059,7 +1069,7 @@ func (t *rtype) ptrTo() *rtype {
 	}
 
 	// Look in known types.
-	s := "*" + *t.string
+	s := "*" + t.string
 	for _, tt := range typesByString(s) {
 		p = (*ptrType)(unsafe.Pointer(tt))
 		if p.elem == t {
@@ -1076,7 +1086,7 @@ func (t *rtype) ptrTo() *rtype {
 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
 	*p = *prototype
 
-	p.string = &s
+	p.string = s
 
 	// For the type structures linked into the binary, the
 	// compiler provides a good hash of the string.
@@ -1086,7 +1096,6 @@ func (t *rtype) ptrTo() *rtype {
 	p.hash = fnv1(t.hash, '*')
 
 	p.uncommonType = nil
-	p.ptrToThis = nil
 	p.elem = t
 
 	ptrMap.m[t] = p
@@ -1310,7 +1319,7 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
 // Note that strings are not unique identifiers for types:
 // there can be more than one with a given string.
 // Only types we might want to look up are included:
-// channels, maps, slices, and arrays.
+// pointers, channels, maps, slices, and arrays.
 func typelinks() [][]*rtype
 
 // typesByString returns the subslice of typelinks() whose elements have
@@ -1328,7 +1337,7 @@ func typesByString(s string) []*rtype {
 		for i < j {
 			h := i + (j-i)/2 // avoid overflow when computing h
 			// i ≤ h < j
-			if !(*typ[h].string >= s) {
+			if !(typ[h].string >= s) {
 				i = h + 1 // preserves f(i-1) == false
 			} else {
 				j = h // preserves f(j) == true
@@ -1340,7 +1349,7 @@ func typesByString(s string) []*rtype {
 		// We could do a second binary search, but the caller is going
 		// to do a linear scan anyway.
 		j = i
-		for j < len(typ) && *typ[j].string == s {
+		for j < len(typ) && typ[j].string == s {
 			j++
 		}
 
@@ -1442,11 +1451,11 @@ func ChanOf(dir ChanDir, t Type) Type {
 		lookupCache.Unlock()
 		panic("reflect.ChanOf: invalid dir")
 	case SendDir:
-		s = "chan<- " + *typ.string
+		s = "chan<- " + typ.string
 	case RecvDir:
-		s = "<-chan " + *typ.string
+		s = "<-chan " + typ.string
 	case BothDir:
-		s = "chan " + *typ.string
+		s = "chan " + typ.string
 	}
 	for _, tt := range typesByString(s) {
 		ch := (*chanType)(unsafe.Pointer(tt))
@@ -1461,11 +1470,10 @@ func ChanOf(dir ChanDir, t Type) Type {
 	ch := new(chanType)
 	*ch = *prototype
 	ch.dir = uintptr(dir)
-	ch.string = &s
+	ch.string = s
 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
 	ch.elem = typ
 	ch.uncommonType = nil
-	ch.ptrToThis = nil
 
 	return cachePut(ckey, &ch.rtype)
 }
@@ -1493,7 +1501,7 @@ func MapOf(key, elem Type) Type {
 	}
 
 	// Look in known types.
-	s := "map[" + *ktyp.string + "]" + *etyp.string
+	s := "map[" + ktyp.string + "]" + etyp.string
 	for _, tt := range typesByString(s) {
 		mt := (*mapType)(unsafe.Pointer(tt))
 		if mt.key == ktyp && mt.elem == etyp {
@@ -1505,7 +1513,7 @@ func MapOf(key, elem Type) Type {
 	var imap interface{} = (map[unsafe.Pointer]unsafe.Pointer)(nil)
 	mt := new(mapType)
 	*mt = **(**mapType)(unsafe.Pointer(&imap))
-	mt.string = &s
+	mt.string = s
 	mt.hash = fnv1(etyp.hash, 'm', byte(ktyp.hash>>24), byte(ktyp.hash>>16), byte(ktyp.hash>>8), byte(ktyp.hash))
 	mt.key = ktyp
 	mt.elem = etyp
@@ -1528,7 +1536,6 @@ func MapOf(key, elem Type) Type {
 	mt.reflexivekey = isReflexive(ktyp)
 	mt.needkeyupdate = needKeyUpdate(ktyp)
 	mt.uncommonType = nil
-	mt.ptrToThis = nil
 
 	return cachePut(ckey, &mt.rtype)
 }
@@ -1605,9 +1612,8 @@ func FuncOf(in, out []Type, variadic bool) Type {
 	}
 
 	// Populate the remaining fields of ft and store in cache.
-	ft.string = &str
+	ft.string = str
 	ft.uncommonType = nil
-	ft.ptrToThis = nil
 	funcLookupCache.m[hash] = append(funcLookupCache.m[hash], &ft.rtype)
 
 	return &ft.rtype
@@ -1623,9 +1629,9 @@ func funcStr(ft *funcType) string {
 		}
 		if ft.dotdotdot && i == len(ft.in)-1 {
 			repr = append(repr, "..."...)
-			repr = append(repr, *(*sliceType)(unsafe.Pointer(t)).elem.string...)
+			repr = append(repr, (*sliceType)(unsafe.Pointer(t)).elem.string...)
 		} else {
-			repr = append(repr, *t.string...)
+			repr = append(repr, t.string...)
 		}
 	}
 	repr = append(repr, ')')
@@ -1638,7 +1644,7 @@ func funcStr(ft *funcType) string {
 		if i > 0 {
 			repr = append(repr, ", "...)
 		}
-		repr = append(repr, *t.string...)
+		repr = append(repr, t.string...)
 	}
 	if len(ft.out) > 1 {
 		repr = append(repr, ')')
@@ -1803,8 +1809,8 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	b.ptrdata = ptrdata
 	b.kind = kind
 	b.gcdata = gcdata
-	s := "bucket(" + *ktyp.string + "," + *etyp.string + ")"
-	b.string = &s
+	s := "bucket(" + ktyp.string + "," + etyp.string + ")"
+	b.string = s
 	return b
 }
 
@@ -1820,7 +1826,7 @@ func SliceOf(t Type) Type {
 	}
 
 	// Look in known types.
-	s := "[]" + *typ.string
+	s := "[]" + typ.string
 	for _, tt := range typesByString(s) {
 		slice := (*sliceType)(unsafe.Pointer(tt))
 		if slice.elem == typ {
@@ -1833,11 +1839,10 @@ func SliceOf(t Type) Type {
 	prototype := *(**sliceType)(unsafe.Pointer(&islice))
 	slice := new(sliceType)
 	*slice = *prototype
-	slice.string = &s
+	slice.string = s
 	slice.hash = fnv1(typ.hash, '[')
 	slice.elem = typ
 	slice.uncommonType = nil
-	slice.ptrToThis = nil
 
 	return cachePut(ckey, &slice.rtype)
 }
@@ -1864,7 +1869,7 @@ func ArrayOf(count int, elem Type) Type {
 	}
 
 	// Look in known types.
-	s := "[" + strconv.Itoa(count) + "]" + *typ.string
+	s := "[" + strconv.Itoa(count) + "]" + typ.string
 	for _, tt := range typesByString(s) {
 		array := (*arrayType)(unsafe.Pointer(tt))
 		if array.elem == typ {
@@ -1877,7 +1882,7 @@ func ArrayOf(count int, elem Type) Type {
 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
 	array := new(arrayType)
 	*array = *prototype
-	array.string = &s
+	array.string = s
 	array.hash = fnv1(typ.hash, '[')
 	for n := uint32(count); n > 0; n >>= 8 {
 		array.hash = fnv1(array.hash, byte(n))
@@ -1895,7 +1900,6 @@ func ArrayOf(count int, elem Type) Type {
 	array.align = typ.align
 	array.fieldAlign = typ.fieldAlign
 	array.uncommonType = nil
-	array.ptrToThis = nil
 	array.len = uintptr(count)
 	array.slice = slice.(*rtype)
 
@@ -2133,11 +2137,11 @@ func funcLayout(t *rtype, rcvr *rtype) (frametype *rtype, argSize, retOffset uin
 
 	var s string
 	if rcvr != nil {
-		s = "methodargs(" + *rcvr.string + ")(" + *t.string + ")"
+		s = "methodargs(" + rcvr.string + ")(" + t.string + ")"
 	} else {
-		s = "funcargs(" + *t.string + ")"
+		s = "funcargs(" + t.string + ")"
 	}
-	x.string = &s
+	x.string = s
 
 	// cache result for future callers
 	if layoutCache.m == nil {

@@ -58,7 +58,7 @@ import "unsafe"
 //
 // The open and arming mechanisms are serialized using the lock
 // inside PollDesc. This is required because the netpoll loop runs
-// asynchonously in respect to other Go code and by the time we get
+// asynchronously in respect to other Go code and by the time we get
 // to call port_associate to update the association in the loop, the
 // file descriptor might have been closed and reopened already. The
 // lock allows runtime·netpollupdate to be called synchronously from
@@ -125,7 +125,7 @@ func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	lock(&pd.lock)
 	// We don't register for any specific type of events yet, that's
 	// netpollarm's job. We merely ensure we call port_associate before
-	// asynchonous connect/accept completes, so when we actually want
+	// asynchronous connect/accept completes, so when we actually want
 	// to do any I/O, the call to port_associate (from netpollarm,
 	// with the interested event set) will unblock port_getn right away
 	// because of the I/O readiness notification.

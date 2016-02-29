@@ -189,7 +189,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
 		}
 	}
 
-	// Rewrite 0 to $0 in 3rd argment to CMPPS etc.
+	// Rewrite 0 to $0 in 3rd argument to CMPPS etc.
 	// That's what the tables expect.
 	switch p.As {
 	case ACMPPD, ACMPPS, ACMPSD, ACMPSS:
