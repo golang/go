@@ -708,7 +708,6 @@ func blk(start *LSym, addr int64, size int64) {
 	}
 
 	eaddr := addr + size
-	var ep []byte
 	var p []byte
 	for ; sym != nil; sym = sym.Next {
 		if sym.Type&obj.SSUB != 0 {
@@ -723,18 +722,16 @@ func blk(start *LSym, addr int64, size int64) {
 			errorexit()
 		}
 
-		for ; addr < sym.Value; addr++ {
-			Cput(0)
+		if addr < sym.Value {
+			strnput("", int(sym.Value-addr))
+			addr = sym.Value
 		}
 		p = sym.P
-		ep = p[len(sym.P):]
-		for -cap(p) < -cap(ep) {
-			Cput(uint8(p[0]))
-			p = p[1:]
-		}
+		Cwrite(p)
 		addr += int64(len(sym.P))
-		for ; addr < sym.Value+sym.Size; addr++ {
-			Cput(0)
+		if addr < sym.Value+sym.Size {
+			strnput("", int(sym.Value+sym.Size-addr))
+			addr = sym.Value + sym.Size
 		}
 		if addr != sym.Value+sym.Size {
 			Diag("phase error: addr=%#x value+size=%#x", int64(addr), int64(sym.Value)+sym.Size)
@@ -746,8 +743,8 @@ func blk(start *LSym, addr int64, size int64) {
 		}
 	}
 
-	for ; addr < eaddr; addr++ {
-		Cput(0)
+	if addr < eaddr {
+		strnput("", int(eaddr-addr))
 	}
 	Cflush()
 }
@@ -899,15 +896,26 @@ func Datblk(addr int64, size int64) {
 	fmt.Fprintf(&Bso, "\t%.8x|\n", uint(eaddr))
 }
 
-func strnput(s string, n int) {
-	for ; n > 0 && s != ""; s = s[1:] {
-		Cput(uint8(s[0]))
-		n--
-	}
+var zeros [512]byte
 
-	for n > 0 {
-		Cput(0)
-		n--
+// strnput writes the first n bytes of s.
+// If n is larger then len(s),
+// it is padded with NUL bytes.
+func strnput(s string, n int) {
+	if len(s) >= n {
+		Cwritestring(s[:n])
+	} else {
+		Cwritestring(s)
+		n -= len(s)
+		for n > 0 {
+			if len(zeros) >= n {
+				Cwrite(zeros[:n])
+				return
+			} else {
+				Cwrite(zeros[:])
+				n -= len(zeros)
+			}
+		}
 	}
 }
 
