@@ -1556,8 +1556,8 @@ func gcMark(start_time int64) {
 
 	gchelperstart()
 
-	var gcw gcWork
-	gcDrain(&gcw, gcDrainBlock)
+	gcw := &getg().m.p.ptr().gcw
+	gcDrain(gcw, gcDrainBlock)
 	gcw.dispose()
 
 	gcMarkRootCheck()
@@ -1799,8 +1799,8 @@ func gchelper() {
 
 	// Parallel mark over GC roots and heap
 	if gcphase == _GCmarktermination {
-		var gcw gcWork
-		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
+		gcw := &_g_.m.p.ptr().gcw
+		gcDrain(gcw, gcDrainBlock) // blocks in getfull
 		gcw.dispose()
 	}
 

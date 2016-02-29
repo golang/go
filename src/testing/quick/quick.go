@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of iterations for each check")
+var defaultMaxCount = flag.Int("quickchecks", 100, "The default number of iterations for each check")
 
 // A Generator can generate random values of its own type.
 type Generator interface {
@@ -98,18 +98,22 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 	case reflect.Uintptr:
 		v.SetUint(uint64(randInt64(rand)))
 	case reflect.Map:
-		numElems := rand.Intn(size)
-		v.Set(reflect.MakeMap(concrete))
-		for i := 0; i < numElems; i++ {
-			key, ok1 := sizedValue(concrete.Key(), rand, size)
-			value, ok2 := sizedValue(concrete.Elem(), rand, size)
-			if !ok1 || !ok2 {
-				return reflect.Value{}, false
+		if generateNilValue(rand) {
+			v.Set(reflect.Zero(concrete)) // Generate nil map.
+		} else {
+			numElems := rand.Intn(size)
+			v.Set(reflect.MakeMap(concrete))
+			for i := 0; i < numElems; i++ {
+				key, ok1 := sizedValue(concrete.Key(), rand, size)
+				value, ok2 := sizedValue(concrete.Elem(), rand, size)
+				if !ok1 || !ok2 {
+					return reflect.Value{}, false
+				}
+				v.SetMapIndex(key, value)
 			}
-			v.SetMapIndex(key, value)
 		}
 	case reflect.Ptr:
-		if rand.Intn(size) == 0 {
+		if generateNilValue(rand) {
 			v.Set(reflect.Zero(concrete)) // Generate nil pointer.
 		} else {
 			elem, ok := sizedValue(concrete.Elem(), rand, size)
@@ -120,15 +124,20 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 			v.Elem().Set(elem)
 		}
 	case reflect.Slice:
-		numElems := rand.Intn(size)
-		sizeLeft := size - numElems
-		v.Set(reflect.MakeSlice(concrete, numElems, numElems))
-		for i := 0; i < numElems; i++ {
-			elem, ok := sizedValue(concrete.Elem(), rand, sizeLeft)
-			if !ok {
-				return reflect.Value{}, false
+		if generateNilValue(rand) {
+			v.Set(reflect.Zero(concrete)) // Generate nil slice.
+		} else {
+			slCap := rand.Intn(size)
+			slLen := rand.Intn(slCap + 1)
+			sizeLeft := size - slCap
+			v.Set(reflect.MakeSlice(concrete, slLen, slCap))
+			for i := 0; i < slLen; i++ {
+				elem, ok := sizedValue(concrete.Elem(), rand, sizeLeft)
+				if !ok {
+					return reflect.Value{}, false
+				}
+				v.Index(i).Set(elem)
 			}
-			v.Index(i).Set(elem)
 		}
 	case reflect.Array:
 		for i := 0; i < v.Len(); i++ {
@@ -384,3 +393,5 @@ func toString(interfaces []interface{}) string {
 	}
 	return strings.Join(s, ", ")
 }
+
+func generateNilValue(r *rand.Rand) bool { return r.Intn(20) == 0 }

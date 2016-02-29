@@ -202,12 +202,14 @@ func linkpatch(ctxt *Link, sym *LSym) {
 		p.Pcond = q
 	}
 
-	for p := sym.Text; p != nil; p = p.Link {
-		if p.Pcond != nil {
-			p.Pcond = brloop(ctxt, p.Pcond)
+	if ctxt.Flag_optimize {
+		for p := sym.Text; p != nil; p = p.Link {
 			if p.Pcond != nil {
-				if p.To.Type == TYPE_BRANCH {
-					p.To.Offset = p.Pcond.Pc
+				p.Pcond = brloop(ctxt, p.Pcond)
+				if p.Pcond != nil {
+					if p.To.Type == TYPE_BRANCH {
+						p.To.Offset = p.Pcond.Pc
+					}
 				}
 			}
 		}

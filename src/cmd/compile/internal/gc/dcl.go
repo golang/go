@@ -187,7 +187,7 @@ func declare(n *Node, ctxt Class) {
 			Fatalf("automatic outside function")
 		}
 		if Curfn != nil {
-			Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
 			declare_typegen++
@@ -426,7 +426,7 @@ func oldname(s *Sym) *Node {
 			n.Name.Param.Closure = c
 			c.Name.Param.Closure = n
 			c.Xoffset = 0
-			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
+			Curfn.Func.Cvars.Append(c)
 		}
 
 		// return ref to closure var, not original
@@ -1449,8 +1449,13 @@ func funccompile(n *Node) {
 	Funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
+	Pc = nil
+	continpc = nil
+	breakpc = nil
 	Funcdepth = 0
 	dclcontext = PEXTERN
+	flushdata()
+	obj.Flushplist(Ctxt) // convert from Prog list to machine code
 }
 
 func funcsym(s *Sym) *Sym {
@@ -1525,7 +1530,7 @@ func checknowritebarrierrec() {
 
 		// Check nowritebarrierrec functions.
 		for _, n := range list {
-			if !n.Func.Nowritebarrierrec {
+			if n.Func.Pragma&Nowritebarrierrec == 0 {
 				continue
 			}
 			call, hasWB := c.best[n]

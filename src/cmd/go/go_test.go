@@ -2122,7 +2122,7 @@ func TestIssue7108(t *testing.T) {
 // cmd/go: go test -a foo does not rebuild regexp.
 func TestIssue6844(t *testing.T) {
 	if testing.Short() {
-		t.Skip("don't rebuild the standard libary in short mode")
+		t.Skip("don't rebuild the standard library in short mode")
 	}
 
 	tg := testgo(t)
@@ -2763,6 +2763,10 @@ func TestCgoConsistentResults(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
 	}
+	if runtime.GOOS == "solaris" {
+		// See https://golang.org/issue/13247
+		t.Skip("skipping because Solaris builds are known to be inconsistent; see #13247")
+	}
 
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2784,4 +2788,16 @@ func TestCgoConsistentResults(t *testing.T) {
 	if !bytes.Equal(b1, b2) {
 		t.Error("building cgotest twice did not produce the same output")
 	}
+}
+
+// Issue 14444: go get -u .../ duplicate loads errors
+func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
+	testenv.MustHaveExternalNetwork(t)
+
+	tg := testgo(t)
+	defer tg.cleanup()
+	tg.makeTempdir()
+	tg.setenv("GOPATH", tg.path("."))
+	tg.run("get", "-u", ".../")
+	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
 }

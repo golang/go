@@ -4465,7 +4465,7 @@ func TestFieldByIndexNil(t *testing.T) {
 // off the stack into the frame will store an *Inner there, and then if a garbage collection
 // happens to scan that argument frame before it is discarded, it will scan the *Inner
 // memory as if it were an *Outer. If the two have different memory layouts, the
-// collection will intepret the memory incorrectly.
+// collection will interpret the memory incorrectly.
 //
 // One such possible incorrect interpretation is to treat two arbitrary memory words
 // (Inner.P1 and Inner.P2 below) as an interface (Outer.R below). Because interpreting
@@ -5006,4 +5006,25 @@ func TestChanAlloc(t *testing.T) {
 	// Note: there is one allocation in reflect.recv which seems to be
 	// a limitation of escape analysis.  If that is ever fixed the
 	// allocs < 0.5 condition will trigger and this test should be fixed.
+}
+
+type nameTest struct {
+	v    interface{}
+	want string
+}
+
+var nameTests = []nameTest{
+	{int32(0), "int32"},
+	{D1{}, "D1"},
+	{[]D1{}, ""},
+	{(chan D1)(nil), ""},
+	{(func() D1)(nil), ""},
+}
+
+func TestNames(t *testing.T) {
+	for _, test := range nameTests {
+		if got := TypeOf(test.v).Name(); got != test.want {
+			t.Errorf("%T Name()=%q, want %q", test.v, got, test.want)
+		}
+	}
 }

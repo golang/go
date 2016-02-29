@@ -674,6 +674,10 @@ var fmtTests = []struct {
 	// Make sure we can handle very large widths.
 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
 
+	// Use spaces instead of zero if padding to the right.
+	{"%0-5s", "abc", "abc  "},
+	{"%-05.1f", 1.0, "1.0  "},
+
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
@@ -884,6 +888,14 @@ func TestReorder(t *testing.T) {
 	}
 }
 
+func BenchmarkSprintfPadding(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%16f", 1.0)
+		}
+	})
+}
+
 func BenchmarkSprintfEmpty(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -928,6 +940,13 @@ func BenchmarkSprintfFloat(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%g", 5.23184)
+		}
+	})
+}
+func BenchmarkSprintfBoolean(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%t", true)
 		}
 	})
 }

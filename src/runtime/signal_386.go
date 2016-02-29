@@ -142,30 +142,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 	level, _, docrash := gotraceback()
 	if level > 0 {
 		goroutineheader(gp)
-
-		// On Linux/386, all system calls go through the vdso kernel_vsyscall routine.
-		// Normally we don't see those PCs, but during signals we can.
-		// If we see a PC in the vsyscall area (it moves around, but near the top of memory),
-		// assume we're blocked in the vsyscall routine, which has saved
-		// three words on the stack after the initial call saved the caller PC.
-		// Pop all four words off SP and use the saved PC.
-		// The check of the stack bounds here should suffice to avoid a fault
-		// during the actual PC pop.
-		// If we do load a bogus PC, not much harm done: we weren't going
-		// to get a decent traceback anyway.
-		// TODO(rsc): Make this more precise: we should do more checks on the PC,
-		// and we should find out whether different versions of the vdso page
-		// use different prologues that store different amounts on the stack.
-		pc := uintptr(c.eip())
-		sp := uintptr(c.esp())
-		if GOOS == "linux" && pc >= 0xf4000000 && gp.stack.lo <= sp && sp+16 <= gp.stack.hi {
-			// Assume in vsyscall page.
-			sp += 16
-			pc = *(*uintptr)(unsafe.Pointer(sp - 4))
-			print("runtime: unwind vdso kernel_vsyscall: pc=", hex(pc), " sp=", hex(sp), "\n")
-		}
-
-		tracebacktrap(pc, sp, 0, gp)
+		tracebacktrap(uintptr(c.eip()), uintptr(c.esp()), 0, gp)
 		if crashing > 0 && gp != _g_.m.curg && _g_.m.curg != nil && readgstatus(_g_.m.curg)&^_Gscan == _Grunning {
 			// tracebackothers on original m skipped this one; trace it now.
 			goroutineheader(_g_.m.curg)

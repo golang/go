@@ -573,7 +573,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
 		"Transfer-Encoding: chunked\r\n\r\n" +
 		// TODO: currently we don't buffer before chunking, so we get a
 		// single "m" chunk before the other chunks, as this was the 1-byte
-		// read from our MultiReader where we stiched the Body back together
+		// read from our MultiReader where we stitched the Body back together
 		// after sniffing whether the Body was 0 bytes or not.
 		chunk("m") +
 		chunk("y body") +

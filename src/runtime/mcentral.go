@@ -195,7 +195,6 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
 	s.needzero = 1
 	s.freelist = 0
 	unlock(&c.lock)
-	heapBitsForSpan(s.base()).initSpan(s.layout())
 	mheap_.freeSpan(s, 0)
 	return true
 }

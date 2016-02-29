@@ -162,7 +162,7 @@ func machoreloc1(r *ld.Reloc, sectoff int64) int {
 	rs := r.Xsym
 
 	// ld64 has a bug handling MACHO_ARM64_RELOC_UNSIGNED with !extern relocation.
-	// see cmd/internal/ld/data.go for details. The workarond is that don't use !extern
+	// see cmd/internal/ld/data.go for details. The workaround is that don't use !extern
 	// UNSIGNED relocation at all.
 	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_CALLARM64 || r.Type == obj.R_ADDRARM64 || r.Type == obj.R_ADDR {
 		if rs.Dynid < 0 {

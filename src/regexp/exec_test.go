@@ -409,7 +409,7 @@ Reading:
 		//     h	REG_MULTIREF		multiple digit backref
 		//     i	REG_ICASE		ignore case
 		//     j	REG_SPAN		. matches \n
-		//     k	REG_ESCAPE		\ to ecape [...] delimiter
+		//     k	REG_ESCAPE		\ to escape [...] delimiter
 		//     l	REG_LEFT		implicit ^...
 		//     m	REG_MINIMAL		minimal match
 		//     n	REG_NEWLINE		explicit \n match

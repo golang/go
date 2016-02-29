@@ -161,7 +161,7 @@ func newAddr(ifi *Interface, m *syscall.InterfaceAddrMessage) (*IPNet, error) {
 	case *syscall.SockaddrInet6:
 		ifa.IP = make(IP, IPv6len)
 		copy(ifa.IP, sa.Addr[:])
-		// NOTE: KAME based IPv6 protcol stack usually embeds
+		// NOTE: KAME based IPv6 protocol stack usually embeds
 		// the interface index in the interface-local or
 		// link-local address as the kernel-internal form.
 		if ifa.IP.IsLinkLocalUnicast() {

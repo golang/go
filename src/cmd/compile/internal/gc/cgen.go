@@ -781,7 +781,7 @@ var sys_wbptr *Node
 
 func cgen_wbptr(n, res *Node) {
 	if Curfn != nil {
-		if Curfn.Func.Nowritebarrier {
+		if Curfn.Func.Pragma&Nowritebarrier != 0 {
 			Yyerror("write barrier prohibited")
 		}
 		if Curfn.Func.WBLineno == 0 {
@@ -831,7 +831,7 @@ func cgen_wbptr(n, res *Node) {
 
 func cgen_wbfat(n, res *Node) {
 	if Curfn != nil {
-		if Curfn.Func.Nowritebarrier {
+		if Curfn.Func.Pragma&Nowritebarrier != 0 {
 			Yyerror("write barrier prohibited")
 		}
 		if Curfn.Func.WBLineno == 0 {
@@ -2263,9 +2263,9 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 	// If copying .args, that's all the results, so record definition sites
 	// for them for the liveness analysis.
 	if ns.Op == ONAME && ns.Sym.Name == ".args" {
-		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-			if l.N.Class == PPARAMOUT {
-				Gvardef(l.N)
+		for _, ln := range Curfn.Func.Dcl {
+			if ln.Class == PPARAMOUT {
+				Gvardef(ln)
 			}
 		}
 	}
@@ -2621,7 +2621,7 @@ func cgen_ret(n *Node) {
 	if hasdefer {
 		Ginscall(Deferreturn, 0)
 	}
-	Genlist(Curfn.Func.Exit)
+	Genslice(Curfn.Func.Exit.Slice())
 	p := Thearch.Gins(obj.ARET, nil, nil)
 	if n != nil && n.Op == ORETJMP {
 		p.To.Type = obj.TYPE_MEM

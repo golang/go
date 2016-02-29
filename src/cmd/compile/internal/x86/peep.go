@@ -284,7 +284,7 @@ func elimshortmov(g *gc.Graph) {
 			}
 
 			if regtyp(&p.From) || p.From.Type == obj.TYPE_CONST {
-				// move or artihmetic into partial register.
+				// move or arithmetic into partial register.
 				// from another register or constant can be movl.
 				// we don't switch to 32-bit arithmetic if it can
 				// change how the carry bit is set (and the carry bit is needed).

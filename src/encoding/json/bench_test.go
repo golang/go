@@ -158,7 +158,7 @@ func BenchmarkCodeUnmarshal(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var r codeResponse
 		if err := Unmarshal(codeJSON, &r); err != nil {
-			b.Fatal("Unmmarshal:", err)
+			b.Fatal("Unmarshal:", err)
 		}
 	}
 	b.SetBytes(int64(len(codeJSON)))
@@ -173,7 +173,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 	var r codeResponse
 	for i := 0; i < b.N; i++ {
 		if err := Unmarshal(codeJSON, &r); err != nil {
-			b.Fatal("Unmmarshal:", err)
+			b.Fatal("Unmarshal:", err)
 		}
 	}
 }

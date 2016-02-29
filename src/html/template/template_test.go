@@ -13,7 +13,7 @@ func TestTemplateClone(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(clone.Templates()) != len(orig.Templates()) {
-		t.Fatalf("Invalid lenth of t.Clone().Templates()")
+		t.Fatalf("Invalid length of t.Clone().Templates()")
 	}
 
 	const want = "stuff"

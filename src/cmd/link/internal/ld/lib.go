@@ -255,10 +255,7 @@ var coutbuf struct {
 	f *os.File
 }
 
-const (
-	symname = "__.GOSYMDEF"
-	pkgname = "__.PKGDEF"
-)
+const pkgname = "__.PKGDEF"
 
 var (
 	// Set if we see an object compiled by the host compiler that is not
@@ -781,7 +778,7 @@ func objfile(lib *Library) {
 		return
 	}
 
-	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
+	/* process __.PKGDEF */
 	off := obj.Boffset(f)
 
 	var arhdr ArHdr
@@ -790,15 +787,6 @@ func objfile(lib *Library) {
 	if l <= 0 {
 		Diag("%s: short read on archive file symbol header", lib.File)
 		goto out
-	}
-
-	if strings.HasPrefix(arhdr.name, symname) {
-		off += l
-		l = nextar(f, off, &arhdr)
-		if l <= 0 {
-			Diag("%s: short read on archive file symbol header", lib.File)
-			goto out
-		}
 	}
 
 	if !strings.HasPrefix(arhdr.name, pkgname) {
@@ -829,7 +817,7 @@ func objfile(lib *Library) {
 	 * the individual symbols that are unused.
 	 *
 	 * loading every object will also make it possible to
-	 * load foreign objects not referenced by __.GOSYMDEF.
+	 * load foreign objects not referenced by __.PKGDEF.
 	 */
 	for {
 		l = nextar(f, off, &arhdr)

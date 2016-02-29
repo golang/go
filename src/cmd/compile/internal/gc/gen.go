@@ -76,6 +76,9 @@ func addrescapes(n *Node) {
 			oldfn := Curfn
 
 			Curfn = n.Name.Curfn
+			if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+				Curfn = Curfn.Func.Closure
+			}
 			n.Name.Heapaddr = temp(Ptrto(n.Type))
 			buf := fmt.Sprintf("&%v", n.Sym)
 			n.Name.Heapaddr.Sym = Lookup(buf)
@@ -215,6 +218,12 @@ func stmtlabel(n *Node) *Label {
 func Genlist(l *NodeList) {
 	for ; l != nil; l = l.Next {
 		gen(l.N)
+	}
+}
+
+func Genslice(l []*Node) {
+	for _, n := range l {
+		gen(n)
 	}
 }
 
@@ -587,6 +596,10 @@ func Tempname(nn *Node, t *Type) {
 	if Curfn == nil {
 		Fatalf("no curfn for tempname")
 	}
+	if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+		Dump("Tempname", Curfn)
+		Fatalf("adding tempname to wrong closure function")
+	}
 
 	if t == nil {
 		Yyerror("tempname called with nil type")
@@ -606,7 +619,7 @@ func Tempname(nn *Node, t *Type) {
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
-	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 
 	dowidth(t)
 	n.Xoffset = 0

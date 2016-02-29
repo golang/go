@@ -116,7 +116,7 @@ const (
 	DW_CHILDREN_yes = 0x01
 )
 
-// Not from the spec, but logicaly belongs here
+// Not from the spec, but logically belongs here
 const (
 	DW_CLS_ADDRESS = 0x01 + iota
 	DW_CLS_BLOCK

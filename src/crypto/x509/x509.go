@@ -36,6 +36,12 @@ type pkixPublicKey struct {
 
 // ParsePKIXPublicKey parses a DER encoded public key. These values are
 // typically found in PEM blocks with "BEGIN PUBLIC KEY".
+//
+// Supported key types include RSA, DSA, and ECDSA. Unknown key
+// types result in an error.
+//
+// On success, pub will be of type *rsa.PublicKey, *dsa.PublicKey,
+// or *ecdsa.PublicKey.
 func ParsePKIXPublicKey(derBytes []byte) (pub interface{}, err error) {
 	var pki publicKeyInfo
 	if rest, err := asn1.Unmarshal(derBytes, &pki); err != nil {

@@ -15,8 +15,6 @@ const (
 	_AT_SYSINFO = 32
 )
 
-var _vdso uint32
-
 func sysargs(argc int32, argv **byte) {
 	// skip over argv, envv to get to auxv
 	n := argc + 1
@@ -28,9 +26,6 @@ func sysargs(argc int32, argv **byte) {
 
 	for i := 0; auxv[i] != _AT_NULL; i += 2 {
 		switch auxv[i] {
-		case _AT_SYSINFO:
-			_vdso = auxv[i+1]
-
 		case _AT_RANDOM:
 			startupRandomData = (*[16]byte)(unsafe.Pointer(uintptr(auxv[i+1])))[:]
 		}

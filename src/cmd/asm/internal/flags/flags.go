@@ -29,7 +29,7 @@ var (
 )
 
 func init() {
-	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifer=value; can be set multiple times")
+	flag.Var(&D, "D", "predefined symbol with optional simple value -D=identifier=value; can be set multiple times")
 	flag.Var(&I, "I", "include directory; can be set multiple times")
 }
 

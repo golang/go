@@ -84,9 +84,9 @@ func buildssa(fn *Node) *ssa.Func {
 	printssa := strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
 	if printssa {
 		fmt.Println("generating SSA for", name)
-		dumplist("buildssa-enter", fn.Func.Enter)
+		dumpslice("buildssa-enter", fn.Func.Enter.Slice())
 		dumplist("buildssa-body", fn.Nbody)
-		dumplist("buildssa-exit", fn.Func.Exit)
+		dumpslice("buildssa-exit", fn.Func.Exit.Slice())
 	}
 
 	var s state
@@ -132,8 +132,7 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// Generate addresses of local declarations
 	s.decladdrs = map[*Node]*ssa.Value{}
-	for d := fn.Func.Dcl; d != nil; d = d.Next {
-		n := d.N
+	for _, n := range fn.Func.Dcl {
 		switch n.Class {
 		case PPARAM:
 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
@@ -159,12 +158,12 @@ func buildssa(fn *Node) *ssa.Func {
 	}
 
 	// Convert the AST-based IR to the SSA-based IR
-	s.stmtList(fn.Func.Enter)
+	s.stmts(fn.Func.Enter)
 	s.stmtList(fn.Nbody)
 
 	// fallthrough to exit
 	if s.curBlock != nil {
-		s.stmtList(s.exitCode)
+		s.stmts(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
@@ -201,7 +200,7 @@ func buildssa(fn *Node) *ssa.Func {
 	s.linkForwardReferences()
 
 	// Don't carry reference this around longer than necessary
-	s.exitCode = nil
+	s.exitCode = Nodes{}
 
 	// Main call to ssa package to compile function
 	ssa.Compile(s.f)
@@ -224,7 +223,7 @@ type state struct {
 	fwdGotos []*Node
 	// Code that must precede any return
 	// (e.g., copying value of heap-escaped paramout back to true paramout)
-	exitCode *NodeList
+	exitCode Nodes
 
 	// unlabeled break and continue statement tracking
 	breakTo    *ssa.Block // current target for plain break statement
@@ -479,6 +478,12 @@ func (s *state) constInt(t ssa.Type, c int64) *ssa.Value {
 	return s.constInt32(t, int32(c))
 }
 
+func (s *state) stmts(a Nodes) {
+	for _, x := range a.Slice() {
+		s.stmt(x)
+	}
+}
+
 // ssaStmtList converts the statement n to SSA and adds it to s.
 func (s *state) stmtList(l *NodeList) {
 	for ; l != nil; l = l.Next {
@@ -697,14 +702,14 @@ func (s *state) stmt(n *Node) {
 
 	case ORETURN:
 		s.stmtList(n.List)
-		s.stmtList(s.exitCode)
+		s.stmts(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRet
 		b.Control = m
 	case ORETJMP:
 		s.stmtList(n.List)
-		s.stmtList(s.exitCode)
+		s.stmts(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
 		b.Kind = ssa.BlockRetJmp

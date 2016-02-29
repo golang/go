@@ -351,7 +351,7 @@ func TestSplitError(t *testing.T) {
 // Test that an EOF is overridden by a user-generated scan error.
 func TestErrAtEOF(t *testing.T) {
 	s := NewScanner(strings.NewReader("1 2 33"))
-	// This spitter will fail on last entry, after s.err==EOF.
+	// This splitter will fail on last entry, after s.err==EOF.
 	split := func(data []byte, atEOF bool) (advance int, token []byte, err error) {
 		advance, token, err = ScanWords(data, atEOF)
 		if len(token) > 1 {

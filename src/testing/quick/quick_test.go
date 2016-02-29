@@ -290,20 +290,3 @@ func TestMutuallyRecursive(t *testing.T) {
 	f := func(a A) bool { return true }
 	Check(f, nil)
 }
-
-// Some serialization formats (e.g. encoding/pem) cannot distinguish
-// between a nil and an empty map or slice, so avoid generating the
-// zero value for these.
-func TestNonZeroSliceAndMap(t *testing.T) {
-	type Q struct {
-		M map[int]int
-		S []int
-	}
-	f := func(q Q) bool {
-		return q.M != nil && q.S != nil
-	}
-	err := Check(f, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-}

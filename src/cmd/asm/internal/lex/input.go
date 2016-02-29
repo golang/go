@@ -30,7 +30,7 @@ type Input struct {
 	peekText        string
 }
 
-// NewInput returns a
+// NewInput returns an Input from the given path.
 func NewInput(name string) *Input {
 	return &Input{
 		// include directories: look in source dir, then -I directories.

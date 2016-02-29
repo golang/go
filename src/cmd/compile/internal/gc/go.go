@@ -27,25 +27,6 @@ const (
 )
 
 const (
-	// These values are known by runtime.
-	ANOEQ = iota
-	AMEM0
-	AMEM8
-	AMEM16
-	AMEM32
-	AMEM64
-	AMEM128
-	ASTRING
-	AINTER
-	ANILINTER
-	AFLOAT32
-	AFLOAT64
-	ACPLX64
-	ACPLX128
-	AMEM = 100
-)
-
-const (
 	// Maximum size in bits for Mpints before signalling
 	// overflow and also mantissa precision for Mpflts.
 	Mpprec = 512
@@ -122,10 +103,9 @@ type Pkg struct {
 }
 
 type Sym struct {
-	Lexical   uint16
 	Flags     uint8
-	Link      *Sym
 	Uniqgen   uint32
+	Link      *Sym
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name
 
@@ -425,11 +405,12 @@ var sizeof_String int // runtime sizeof(String)
 
 var dotlist [10]Dlist // size is max depth of embeddeds
 
+// lexlineno is the line number _after_ the most recently read rune.
+// In particular, it's advanced (or rewound) as newlines are read (or unread).
 var lexlineno int32
 
+// lineno is the line number at the start of the most recently lexed token.
 var lineno int32
-
-var prevlineno int32
 
 var pragcgobuf string
 
@@ -616,22 +597,9 @@ var flag_largemodel int
 // when the race detector is enabled.
 var instrumenting bool
 
-// Pending annotations for next func declaration.
-var (
-	noescape          bool
-	noinline          bool
-	norace            bool
-	nosplit           bool
-	nowritebarrier    bool
-	nowritebarrierrec bool
-	systemstack       bool
-)
-
 var debuglive int
 
 var Ctxt *obj.Link
-
-var nointerface bool
 
 var writearchive int
 

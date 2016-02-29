@@ -99,6 +99,8 @@ var (
 // non-doubled quote may appear in a quoted field.
 //
 // If TrimLeadingSpace is true, leading white space in a field is ignored.
+// If the field delimiter is white space, TrimLeadingSpace will trim the
+// delimiter.
 type Reader struct {
 	Comma            rune // field delimiter (set to ',' by NewReader)
 	Comment          rune // comment character for start of line
