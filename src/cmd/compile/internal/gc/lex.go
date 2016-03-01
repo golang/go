@@ -892,7 +892,7 @@ type lexer struct {
 	tok  int32
 	sym_ *Sym   // valid if tok == LNAME
 	val  Val    // valid if tok == LLITERAL
-	op   Op     // valid if tok == LASOP or LINCOP, or prec > 0
+	op   Op     // valid if tok == LOPER, LASOP, or LINCOP, or prec > 0
 	prec OpPrec // operator precedence; 0 if not a binary operator
 }
 
@@ -911,15 +911,27 @@ const (
 const (
 	// The value of single-char tokens is just their character's Unicode value.
 	// They are all below utf8.RuneSelf. Shift other tokens up to avoid conflicts.
-	LLITERAL = utf8.RuneSelf + iota
+
+	// names and literals
+	LNAME = utf8.RuneSelf + iota
+	LLITERAL
+
+	// operator-based operations
+	LOPER
 	LASOP
+	LINCOP
+
+	// miscellaneous
 	LCOLAS
+	LCOMM
+	LDDD
+
+	// keywords
 	LBREAK
 	LCASE
 	LCHAN
 	LCONST
 	LCONTINUE
-	LDDD
 	LDEFAULT
 	LDEFER
 	LELSE
@@ -932,7 +944,6 @@ const (
 	LIMPORT
 	LINTERFACE
 	LMAP
-	LNAME
 	LPACKAGE
 	LRANGE
 	LRETURN
@@ -941,20 +952,8 @@ const (
 	LSWITCH
 	LTYPE
 	LVAR
-	LANDAND
-	LANDNOT
-	LCOMM
-	LEQ
-	LGE
-	LGT
+
 	LIGNORE
-	LINCOP
-	LLE
-	LLSH
-	LLT
-	LNE
-	LOROR
-	LRSH
 )
 
 func (l *lexer) next() {
@@ -1119,9 +1118,9 @@ l0:
 		goto incop
 
 	case '>':
+		c = LOPER
 		c1 = l.getr()
 		if c1 == '>' {
-			c = LRSH
 			op = ORSH
 			prec = PMUL
 			goto binop
@@ -1129,17 +1128,15 @@ l0:
 
 		l.prec = PCMP
 		if c1 == '=' {
-			c = LGE
 			l.op = OGE
 			goto lx
 		}
-		c = LGT
 		l.op = OGT
 
 	case '<':
+		c = LOPER
 		c1 = l.getr()
 		if c1 == '<' {
-			c = LLSH
 			op = OLSH
 			prec = PMUL
 			goto binop
@@ -1157,17 +1154,15 @@ l0:
 
 		l.prec = PCMP
 		if c1 == '=' {
-			c = LLE
 			l.op = OLE
 			goto lx
 		}
-		c = LLT
 		l.op = OLT
 
 	case '=':
 		c1 = l.getr()
 		if c1 == '=' {
-			c = LEQ
+			c = LOPER
 			l.prec = PCMP
 			l.op = OEQ
 			goto lx
@@ -1176,7 +1171,7 @@ l0:
 	case '!':
 		c1 = l.getr()
 		if c1 == '=' {
-			c = LNE
+			c = LOPER
 			l.prec = PCMP
 			l.op = ONE
 			goto lx
@@ -1185,14 +1180,14 @@ l0:
 	case '&':
 		c1 = l.getr()
 		if c1 == '&' {
-			c = LANDAND
+			c = LOPER
 			l.prec = PANDAND
 			l.op = OANDAND
 			goto lx
 		}
 
 		if c1 == '^' {
-			c = LANDNOT
+			c = LOPER
 			op = OANDNOT
 			prec = PMUL
 			goto binop
@@ -1205,7 +1200,7 @@ l0:
 	case '|':
 		c1 = l.getr()
 		if c1 == '|' {
-			c = LOROR
+			c = LOPER
 			l.prec = POROR
 			l.op = OOROR
 			goto lx
@@ -2259,44 +2254,37 @@ func lexfini() {
 }
 
 var lexn = map[rune]string{
-	LANDAND:    "ANDAND",
-	LANDNOT:    "ANDNOT",
-	LASOP:      "ASOP",
+	LNAME:    "NAME",
+	LLITERAL: "LITERAL",
+
+	LOPER:  "OPER",
+	LASOP:  "ASOP",
+	LINCOP: "INCOP",
+
+	LCOLAS: "COLAS",
+	LCOMM:  "COMM",
+	LDDD:   "DDD",
+
 	LBREAK:     "BREAK",
 	LCASE:      "CASE",
 	LCHAN:      "CHAN",
-	LCOLAS:     "COLAS",
-	LCOMM:      "<-",
 	LCONST:     "CONST",
 	LCONTINUE:  "CONTINUE",
-	LDDD:       "...",
 	LDEFAULT:   "DEFAULT",
 	LDEFER:     "DEFER",
 	LELSE:      "ELSE",
-	LEQ:        "EQ",
 	LFALL:      "FALL",
 	LFOR:       "FOR",
 	LFUNC:      "FUNC",
-	LGE:        "GE",
 	LGO:        "GO",
 	LGOTO:      "GOTO",
-	LGT:        "GT",
 	LIF:        "IF",
 	LIMPORT:    "IMPORT",
-	LINCOP:     "INCOP",
 	LINTERFACE: "INTERFACE",
-	LLE:        "LE",
-	LLITERAL:   "LITERAL",
-	LLSH:       "LSH",
-	LLT:        "LT",
 	LMAP:       "MAP",
-	LNAME:      "NAME",
-	LNE:        "NE",
-	LOROR:      "OROR",
 	LPACKAGE:   "PACKAGE",
 	LRANGE:     "RANGE",
 	LRETURN:    "RETURN",
-	LRSH:       "RSH",
 	LSELECT:    "SELECT",
 	LSTRUCT:    "STRUCT",
 	LSWITCH:    "SWITCH",
