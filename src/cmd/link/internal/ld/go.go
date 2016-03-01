@@ -507,7 +507,7 @@ func deadcode() {
 		if strings.HasPrefix(s.Name, "go.weak.") {
 			s.Special = 1 // do not lay out in data segment
 			s.Reachable = true
-			s.Hide = 1
+			s.Hidden = true
 		}
 	}
 
@@ -517,7 +517,7 @@ func deadcode() {
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
 		if strings.HasPrefix(s.Name, "go.track.") {
 			s.Special = 1 // do not lay out in data segment
-			s.Hide = 1
+			s.Hidden = true
 			if s.Reachable {
 				buf.WriteString(s.Name[9:])
 				for p = s.Reachparent; p != nil; p = p.Reachparent {

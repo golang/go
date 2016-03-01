@@ -50,7 +50,7 @@ type LSym struct {
 	Cgoexport  uint8
 	Special    uint8
 	Stkcheck   uint8
-	Hide       uint8
+	Hidden     bool
 	Leaf       uint8
 	Localentry uint8
 	Onlist     uint8
