@@ -1458,6 +1458,11 @@ func esccall(e *EscState, n *Node, up *Node) {
 			if haspointers(t.Type) {
 				escassignSinkNilWhy(e, n, src, "receiver in indirect call")
 			}
+		} else { // indirect and OCALLFUNC = could be captured variables, too. (#14409)
+			ll := e.nodeEscState(n).Escretval.Slice()
+			for _, llN := range ll {
+				escassignDereference(e, llN, fn, e.stepAssign(nil, llN, fn, "captured by called closure"))
+			}
 		}
 		return
 	}
