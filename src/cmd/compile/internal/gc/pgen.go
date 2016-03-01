@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"crypto/md5"
 	"fmt"
@@ -341,7 +342,12 @@ func compile(fn *Node) {
 		Deferreturn = Sysfunc("deferreturn")
 		Panicindex = Sysfunc("panicindex")
 		panicslice = Sysfunc("panicslice")
+		panicdivide = Sysfunc("panicdivide")
 		throwreturn = Sysfunc("throwreturn")
+		growslice = Sysfunc("growslice")
+		writebarrierptr = Sysfunc("writebarrierptr")
+		typedmemmove = Sysfunc("typedmemmove")
+		panicdottype = Sysfunc("panicdottype")
 	}
 
 	lno := setlineno(fn)
@@ -358,6 +364,7 @@ func compile(fn *Node) {
 	var nam *Node
 	var gcargs *Sym
 	var gclocals *Sym
+	var ssafn *ssa.Func
 	if len(fn.Nbody.Slice()) == 0 {
 		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
@@ -407,6 +414,11 @@ func compile(fn *Node) {
 	}
 	if nerrors != 0 {
 		goto ret
+	}
+
+	// Build an SSA backend function.
+	if shouldssa(Curfn) {
+		ssafn = buildssa(Curfn)
 	}
 
 	continpc = nil
@@ -471,6 +483,14 @@ func compile(fn *Node) {
 		}
 	}
 
+	if ssafn != nil {
+		genssa(ssafn, ptxt, gcargs, gclocals)
+		if Curfn.Func.Endlineno != 0 {
+			lineno = Curfn.Func.Endlineno
+		}
+		ssafn.Free()
+		return
+	}
 	Genslice(Curfn.Func.Enter.Slice())
 	Genslice(Curfn.Nbody.Slice())
 	gclean()

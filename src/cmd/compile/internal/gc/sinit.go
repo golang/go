@@ -1209,6 +1209,7 @@ func getlit(lit *Node) int {
 	return -1
 }
 
+// stataddr sets nam to the static address of n and reports whether it succeeeded.
 func stataddr(nam *Node, n *Node) bool {
 	if n == nil {
 		return false
@@ -1376,7 +1377,9 @@ func entry(p *InitPlan) *InitEntry {
 	return &p.E[len(p.E)-1]
 }
 
-func gen_as_init(n *Node) bool {
+// gen_as_init attempts to emit static data for n and reports whether it succeeded.
+// If reportOnly is true, it does not emit static data and does not modify the AST.
+func gen_as_init(n *Node, reportOnly bool) bool {
 	var nr *Node
 	var nl *Node
 	var nam Node
@@ -1425,7 +1428,6 @@ func gen_as_init(n *Node) bool {
 	case OSLICEARR:
 		if nr.Right.Op == OKEY && nr.Right.Left == nil && nr.Right.Right == nil {
 			nr = nr.Left
-			gused(nil) // in case the data is the dest of a goto
 			nl := nr
 			if nr == nil || nr.Op != OADDR {
 				goto no
@@ -1440,16 +1442,18 @@ func gen_as_init(n *Node) bool {
 				goto no
 			}
 
-			nam.Xoffset += int64(Array_array)
-			gdata(&nam, nl, int(Types[Tptr].Width))
+			if !reportOnly {
+				nam.Xoffset += int64(Array_array)
+				gdata(&nam, nl, int(Types[Tptr].Width))
 
-			nam.Xoffset += int64(Array_nel) - int64(Array_array)
-			var nod1 Node
-			Nodconst(&nod1, Types[TINT], nr.Type.Bound)
-			gdata(&nam, &nod1, Widthint)
+				nam.Xoffset += int64(Array_nel) - int64(Array_array)
+				var nod1 Node
+				Nodconst(&nod1, Types[TINT], nr.Type.Bound)
+				gdata(&nam, &nod1, Widthint)
 
-			nam.Xoffset += int64(Array_cap) - int64(Array_nel)
-			gdata(&nam, &nod1, Widthint)
+				nam.Xoffset += int64(Array_cap) - int64(Array_nel)
+				gdata(&nam, &nod1, Widthint)
+			}
 
 			return true
 		}
@@ -1480,13 +1484,19 @@ func gen_as_init(n *Node) bool {
 		TPTR64,
 		TFLOAT32,
 		TFLOAT64:
-		gdata(&nam, nr, int(nr.Type.Width))
+		if !reportOnly {
+			gdata(&nam, nr, int(nr.Type.Width))
+		}
 
 	case TCOMPLEX64, TCOMPLEX128:
-		gdatacomplex(&nam, nr.Val().U.(*Mpcplx))
+		if !reportOnly {
+			gdatacomplex(&nam, nr.Val().U.(*Mpcplx))
+		}
 
 	case TSTRING:
-		gdatastring(&nam, nr.Val().U.(string))
+		if !reportOnly {
+			gdatastring(&nam, nr.Val().U.(string))
+		}
 	}
 
 	return true

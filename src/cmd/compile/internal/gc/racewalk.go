@@ -13,7 +13,7 @@ import (
 //
 // For flag_race it modifies the function as follows:
 //
-// 1. It inserts a call to racefuncenter at the beginning of each function.
+// 1. It inserts a call to racefuncenterfp at the beginning of each function.
 // 2. It inserts a call to racefuncexit at the end of each function.
 // 3. It inserts a call to raceread before each memory read.
 // 4. It inserts a call to racewrite before each memory write.
@@ -33,7 +33,7 @@ import (
 // at best instrumentation would cause infinite recursion.
 var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan"}
 
-// Only insert racefuncenter/racefuncexit into the following packages.
+// Only insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
 var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 
