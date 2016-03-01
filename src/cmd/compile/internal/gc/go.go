@@ -10,16 +10,7 @@ import (
 	"cmd/internal/obj"
 )
 
-// The parser's maximum stack size.
-// We have to use a #define macro here since yacc
-// or bison will check for its definition and use
-// a potentially smaller value if it is undefined.
 const (
-	NHUNK           = 50000
-	BUFSIZ          = 8192
-	NSYMB           = 500
-	NHASH           = 1024
-	MAXALIGN        = 7
 	UINF            = 100
 	PRIME1          = 3
 	BADWIDTH        = -1000000000
