@@ -324,6 +324,9 @@ func describeValue(qpos *queryPos, path []ast.Node) (*describeValueResult, error
 	}
 
 	t := qpos.info.TypeOf(expr)
+	if t == nil {
+		t = types.Typ[types.Invalid]
+	}
 	constVal := qpos.info.Types[expr].Value
 
 	return &describeValueResult{
