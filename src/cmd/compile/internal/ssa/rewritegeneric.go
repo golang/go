@@ -4044,6 +4044,41 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x))
+	// cond:
+	// result: (Add32 (Const32 <t> [c*d]) (Mul32 <t> (Const32 <t> [c]) x))
+	for {
+		if v.Args[0].Op != OpConst32 {
+			break
+		}
+		t := v.Args[0].Type
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpAdd32 {
+			break
+		}
+		if v.Args[1].Type != v.Args[0].Type {
+			break
+		}
+		if v.Args[1].Args[0].Op != OpConst32 {
+			break
+		}
+		if v.Args[1].Args[0].Type != v.Args[0].Type {
+			break
+		}
+		d := v.Args[1].Args[0].AuxInt
+		x := v.Args[1].Args[1]
+		v.reset(OpAdd32)
+		v0 := b.NewValue0(v.Line, OpConst32, t)
+		v0.AuxInt = c * d
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpMul32, t)
+		v2 := b.NewValue0(v.Line, OpConst32, t)
+		v2.AuxInt = c
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v.AddArg(v1)
+		return true
+	}
 	// match: (Mul32 (Const32 [0]) _)
 	// cond:
 	// result: (Const32 [0])
@@ -4097,6 +4132,41 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 		v0.AuxInt = c
 		v.AddArg(v0)
 		v.AddArg(x)
+		return true
+	}
+	// match: (Mul64 (Const64 <t> [c]) (Add64 <t> (Const64 <t> [d]) x))
+	// cond:
+	// result: (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
+	for {
+		if v.Args[0].Op != OpConst64 {
+			break
+		}
+		t := v.Args[0].Type
+		c := v.Args[0].AuxInt
+		if v.Args[1].Op != OpAdd64 {
+			break
+		}
+		if v.Args[1].Type != v.Args[0].Type {
+			break
+		}
+		if v.Args[1].Args[0].Op != OpConst64 {
+			break
+		}
+		if v.Args[1].Args[0].Type != v.Args[0].Type {
+			break
+		}
+		d := v.Args[1].Args[0].AuxInt
+		x := v.Args[1].Args[1]
+		v.reset(OpAdd64)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c * d
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpMul64, t)
+		v2 := b.NewValue0(v.Line, OpConst64, t)
+		v2.AuxInt = c
+		v1.AddArg(v2)
+		v1.AddArg(x)
+		v.AddArg(v1)
 		return true
 	}
 	// match: (Mul64 (Const64 [0]) _)
