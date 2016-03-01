@@ -34,6 +34,12 @@ import "cmd/internal/obj"
 
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p x86
 
+const (
+	/* mark flags */
+	DONE          = 1 << iota
+	PRESERVEFLAGS // not allowed to clobber flags
+)
+
 /*
  *	amd64
  */
@@ -114,23 +120,23 @@ const (
 	AINTO
 	AIRETL
 	AIRETW
-	AJCC
-	AJCS
+	AJCC // >= unsigned
+	AJCS // < unsigned
 	AJCXZL
-	AJEQ
-	AJGE
-	AJGT
-	AJHI
-	AJLE
-	AJLS
-	AJLT
-	AJMI
-	AJNE
-	AJOC
-	AJOS
-	AJPC
-	AJPL
-	AJPS
+	AJEQ // == (zero)
+	AJGE // >= signed
+	AJGT // > signed
+	AJHI // > unsigned
+	AJLE // <= signed
+	AJLS // <= unsigned
+	AJLT // < signed
+	AJMI // sign bit set (negative)
+	AJNE // != (nonzero)
+	AJOC // overflow clear
+	AJOS // overflow set
+	AJPC // parity clear
+	AJPL // sign bit clear (positive)
+	AJPS // parity set
 	ALAHF
 	ALARL
 	ALARW

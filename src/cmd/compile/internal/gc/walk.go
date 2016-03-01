@@ -2566,7 +2566,7 @@ func paramstoheap(argin **Type, out int) []*Node {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
-			nn = append(nn, Nod(OAS, nodarg(t, 1), nil))
+			nn = append(nn, Nod(OAS, nodarg(t, -1), nil))
 		}
 
 		if v == nil || v.Class&PHEAP == 0 {

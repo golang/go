@@ -149,7 +149,7 @@ type Param struct {
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
 	Shortname  *Node
-	Enter      Nodes
+	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
 	Exit       Nodes
 	Cvars      Nodes    // closure params
 	Dcl        []*Node  // autodcl for this func/closure

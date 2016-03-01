@@ -458,6 +458,7 @@ func (p *Package) writeDefsFunc(fgo2 io.Writer, n *Name) {
 	}
 
 	fmt.Fprint(fgo2, "\n")
+	fmt.Fprint(fgo2, "//go:cgo_unsafe_args\n")
 	conf.Fprint(fgo2, fset, d)
 	fmt.Fprint(fgo2, " {\n")
 

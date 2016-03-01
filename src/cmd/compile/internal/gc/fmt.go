@@ -403,6 +403,7 @@ var etnames = []string{
 	TFORW:       "FORW",
 	TFIELD:      "FIELD",
 	TSTRING:     "STRING",
+	TUNSAFEPTR:  "TUNSAFEPTR",
 	TANY:        "ANY",
 }
 

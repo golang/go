@@ -19,6 +19,7 @@ import (
 	"cmd/internal/obj"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 const (
@@ -410,7 +411,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 
 	bb := newblock(firstp)
 	cfg = append(cfg, bb)
-	for p := firstp; p != nil; p = p.Link {
+	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
 		Thearch.Proginfo(p)
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.To.Val == nil {
@@ -438,7 +439,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 	// contained instructions until a label is reached.  Add edges
 	// for branches and fall-through instructions.
 	for _, bb := range cfg {
-		for p := bb.last; p != nil; p = p.Link {
+		for p := bb.last; p != nil && p.As != obj.AEND; p = p.Link {
 			if p.Opt != nil && p != bb.last {
 				break
 			}
@@ -447,6 +448,8 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 			// Stop before an unreachable RET, to avoid creating
 			// unreachable control flow nodes.
 			if p.Link != nil && p.Link.As == obj.ARET && p.Link.Mode == 1 {
+				// TODO: remove after SSA is done.  SSA does not
+				// generate any unreachable RET instructions.
 				break
 			}
 
@@ -1364,7 +1367,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 						n = lv.vars[j]
 						if n.Class != PPARAM {
-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
+							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
 						}
 					}
 				}
@@ -1389,8 +1392,13 @@ func livenessepilogue(lv *Liveness) {
 				if msg != nil {
 					fmt_ = ""
 					fmt_ += fmt.Sprintf("%v: live at ", p.Line())
-					if p.As == obj.ACALL && p.To.Node != nil {
-						fmt_ += fmt.Sprintf("call to %s:", ((p.To.Node).(*Node)).Sym.Name)
+					if p.As == obj.ACALL && p.To.Sym != nil {
+						name := p.To.Sym.Name
+						i := strings.Index(name, ".")
+						if i >= 0 {
+							name = name[i+1:]
+						}
+						fmt_ += fmt.Sprintf("call to %s:", name)
 					} else if p.As == obj.ACALL {
 						fmt_ += "indirect call:"
 					} else {

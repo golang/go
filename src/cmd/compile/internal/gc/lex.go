@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"flag"
 	"fmt"
@@ -285,6 +286,23 @@ func Main() {
 						continue Split
 					}
 				}
+			}
+			// special case for ssa for now
+			if strings.HasPrefix(name, "ssa/") {
+				// expect form ssa/phase/flag
+				// e.g. -d=ssa/generic_cse/time
+				// _ in phase name also matches space
+				phase := name[4:]
+				flag := "debug" // default flag is debug
+				if i := strings.Index(phase, "/"); i >= 0 {
+					flag = phase[i+1:]
+					phase = phase[:i]
+				}
+				err := ssa.PhaseOption(phase, flag, val)
+				if err != "" {
+					log.Fatalf(err)
+				}
+				continue Split
 			}
 			log.Fatalf("unknown debug key -d %s\n", name)
 		}
@@ -844,7 +862,7 @@ func plan9quote(s string) string {
 	return s
 }
 
-type Pragma uint8
+type Pragma uint16
 
 const (
 	Nointerface       Pragma = 1 << iota
@@ -855,6 +873,7 @@ const (
 	Systemstack              // func must run on system stack
 	Nowritebarrier           // emit compiler error instead of write barrier
 	Nowritebarrierrec        // error on write barrier in this or recursive callees
+	CgoUnsafeArgs            // treat a pointer to one arg as a pointer to them all
 )
 
 type lexer struct {
@@ -1677,6 +1696,8 @@ func (l *lexer) getlinepragma() rune {
 				Yyerror("//go:nowritebarrierrec only allowed in runtime")
 			}
 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+		case "go:cgo_unsafe_args":
+			l.pragma |= CgoUnsafeArgs
 		}
 		return c
 	}

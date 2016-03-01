@@ -204,7 +204,6 @@ func linkpatch(ctxt *Link, sym *LSym) {
 
 	if ctxt.Flag_optimize {
 		for p := sym.Text; p != nil; p = p.Link {
-			p.Mark = 0 /* initialization for follow */
 			if p.Pcond != nil {
 				p.Pcond = brloop(ctxt, p.Pcond)
 				if p.Pcond != nil {

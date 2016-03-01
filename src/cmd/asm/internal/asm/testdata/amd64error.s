@@ -3,5 +3,6 @@
 // license that can be found in the LICENSE file.
 
 TEXT errors(SB),$0
-	MOVL	foo<>(SB)(AX), AX // ERROR "invalid instruction"
+	MOVL	foo<>(SB)(AX), AX	// ERROR "invalid instruction"
+	MOVL	(AX)(SP*1), AX		// ERROR "invalid instruction"
 	RET
