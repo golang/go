@@ -932,6 +932,9 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	if mode == gcBackgroundMode {
 		gcBgMarkStartWorkers()
 	}
+
+	gcResetMarkState()
+
 	now := nanotime()
 	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
 	work.tSweepTerm = now
@@ -948,8 +951,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	// clearpools before we start the GC. If we wait they memory will not be
 	// reclaimed until the next GC cycle.
 	clearpools()
-
-	gcResetMarkState()
 
 	work.finalizersDone = false
 
@@ -1723,8 +1724,10 @@ func gcCopySpans() {
 }
 
 // gcResetMarkState resets global state prior to marking (concurrent
-// or STW) and resets the stack scan state of all Gs. Any Gs created
-// after this will also be in the reset state.
+// or STW) and resets the stack scan state of all Gs.
+//
+// This is safe to do without the world stopped because any Gs created
+// during or after this will start out in the reset state.
 func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
