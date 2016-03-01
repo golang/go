@@ -65,7 +65,8 @@ func Vet(t *testing.T, files []string) {
 	flags := []string{
 		"./" + binary,
 		"-printfuncs=Warn:1,Warnf:1",
-		"-test", // TODO: Delete once -shadow is part of -all.
+		"-all",
+		"-shadow",
 	}
 	cmd := exec.Command(errchk, append(flags, files...)...)
 	if !run(cmd, t) {
