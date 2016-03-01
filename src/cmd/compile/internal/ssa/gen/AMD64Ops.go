@@ -438,7 +438,7 @@ func init() {
 			argLength: 4,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("DI"), buildReg("CX"), buildReg("AX")},
-				clobbers: buildReg("DI CX FLAGS"),
+				clobbers: buildReg("DI CX"),
 			},
 		},
 

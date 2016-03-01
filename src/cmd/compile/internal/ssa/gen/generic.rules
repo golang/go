@@ -400,7 +400,7 @@
 
 // indexing operations
 // Note: bounds check has already been done
-(ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+(ArrayIndex <t> [0] (Load ptr mem)) -> @v.Args[0].Block (Load <t> ptr mem)
 (PtrIndex <t> ptr idx) && config.PtrSize == 4 -> (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
 (PtrIndex <t> ptr idx) && config.PtrSize == 8 -> (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
 

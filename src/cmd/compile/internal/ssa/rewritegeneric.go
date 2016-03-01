@@ -1142,25 +1142,25 @@ func rewriteValuegeneric_OpArg(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpArrayIndex(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
-	// match: (ArrayIndex (Load ptr mem) idx)
-	// cond: b == v.Args[0].Block
-	// result: (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+	// match: (ArrayIndex <t> [0] (Load ptr mem))
+	// cond:
+	// result: @v.Args[0].Block (Load <t> ptr mem)
 	for {
+		t := v.Type
+		if v.AuxInt != 0 {
+			break
+		}
 		if v.Args[0].Op != OpLoad {
 			break
 		}
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
-		idx := v.Args[1]
-		if !(b == v.Args[0].Block) {
-			break
-		}
-		v.reset(OpLoad)
-		v0 := b.NewValue0(v.Line, OpPtrIndex, v.Type.PtrTo())
-		v0.AddArg(ptr)
-		v0.AddArg(idx)
+		b = v.Args[0].Block
+		v0 := b.NewValue0(v.Line, OpLoad, t)
+		v.reset(OpCopy)
 		v.AddArg(v0)
-		v.AddArg(mem)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
 		return true
 	}
 	return false

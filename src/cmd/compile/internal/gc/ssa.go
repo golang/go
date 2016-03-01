@@ -1935,7 +1935,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		for !data.Type.IsPtr() {
 			switch {
 			case data.Type.IsArray():
-				data = s.newValue2(ssa.OpArrayIndex, data.Type.Elem(), data, s.constInt(Types[TINT], 0))
+				data = s.newValue1I(ssa.OpArrayIndex, data.Type.Elem(), 0, data)
 			case data.Type.IsStruct():
 				for i := data.Type.NumFields() - 1; i >= 0; i-- {
 					f := data.Type.FieldType(i)
