@@ -28,7 +28,7 @@ func TestStructPackUnpack(t *testing.T) {
 		t.Fatal("unpacking failed")
 	}
 	if n != len(buf) {
-		t.Error("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
+		t.Errorf("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got = %+v, want = %+v", got, want)
@@ -69,7 +69,7 @@ func TestDomainNamePackUnpack(t *testing.T) {
 			continue
 		}
 		if n != len(buf) {
-			t.Error(
+			t.Errorf(
 				"unpacked different amount than packed for %s: got n = %d, want = %d",
 				test.in,
 				n,
