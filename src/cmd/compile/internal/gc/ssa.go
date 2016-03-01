@@ -81,7 +81,7 @@ func shouldssa(fn *Node) bool {
 // buildssa builds an SSA function.
 func buildssa(fn *Node) *ssa.Func {
 	name := fn.Func.Nname.Sym.Name
-	printssa := strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
+	printssa := name == os.Getenv("GOSSAFUNC")
 	if printssa {
 		fmt.Println("generating SSA for", name)
 		dumpslice("buildssa-enter", fn.Func.Enter.Slice())
