@@ -13,6 +13,25 @@ import (
 
 // implements float arithmetic
 
+const (
+	// Maximum size in bits for Mpints before signalling
+	// overflow and also mantissa precision for Mpflts.
+	Mpprec = 512
+	// Turn on for constant arithmetic debugging output.
+	Mpdebug = false
+)
+
+// Mpflt represents a floating-point constant.
+type Mpflt struct {
+	Val big.Float
+}
+
+// Mpcplx represents a complex constant.
+type Mpcplx struct {
+	Real Mpflt
+	Imag Mpflt
+}
+
 func newMpflt() *Mpflt {
 	var a Mpflt
 	a.Val.SetPrec(Mpprec)
