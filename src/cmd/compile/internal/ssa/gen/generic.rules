@@ -147,6 +147,11 @@
 (Xor16 x (Const16 <t> [c])) && x.Op != OpConst16 -> (Xor16 (Const16 <t> [c]) x)
 (Xor8 x (Const8 <t> [c])) && x.Op != OpConst8 -> (Xor8 (Const8 <t> [c]) x)
 
+// Distribute multiplication c * (d+x) -> c*d + c*x. Useful for:
+// a[i].b = ...; a[i+1].b = ...
+(Mul64 (Const64 <t> [c]) (Add64 <t> (Const64 <t> [d]) x)) -> (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
+(Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) -> (Add32 (Const32 <t> [c*d]) (Mul32 <t> (Const32 <t> [c]) x))
+
 // rewrite shifts of 8/16/32 bit consts into 64 bit consts to reduce
 // the number of the other rewrite rules for const shifts
 (Lsh64x32  <t> x (Const32 [c])) -> (Lsh64x64  x (Const64 <t> [int64(uint32(c))]))
