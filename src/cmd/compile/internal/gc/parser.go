@@ -92,14 +92,16 @@ func (p *parser) syntax_error(msg string) {
 	// determine token string
 	var tok string
 	switch p.tok {
-	case LLITERAL:
-		tok = litbuf
 	case LNAME:
 		if p.sym_ != nil && p.sym_.Name != "" {
 			tok = p.sym_.Name
 		} else {
 			tok = "name"
 		}
+	case LLITERAL:
+		tok = litbuf
+	case LOPER:
+		tok = goopnames[p.op]
 	case LASOP:
 		tok = goopnames[p.op] + "="
 	case LINCOP:
@@ -188,15 +190,22 @@ func tokstring(tok int32) string {
 }
 
 var tokstrings = map[int32]string{
-	LLITERAL:   "LLITERAL",
-	LASOP:      "op=",
-	LCOLAS:     ":=",
+	LNAME:    "NAME",
+	LLITERAL: "LITERAL",
+
+	LOPER:  "op",
+	LASOP:  "op=",
+	LINCOP: "opop",
+
+	LCOLAS: ":=",
+	LCOMM:  "<-",
+	LDDD:   "...",
+
 	LBREAK:     "break",
 	LCASE:      "case",
 	LCHAN:      "chan",
 	LCONST:     "const",
 	LCONTINUE:  "continue",
-	LDDD:       "...",
 	LDEFAULT:   "default",
 	LDEFER:     "defer",
 	LELSE:      "else",
@@ -209,7 +218,6 @@ var tokstrings = map[int32]string{
 	LIMPORT:    "import",
 	LINTERFACE: "interface",
 	LMAP:       "map",
-	LNAME:      "LNAME",
 	LPACKAGE:   "package",
 	LRANGE:     "range",
 	LRETURN:    "return",
@@ -218,20 +226,6 @@ var tokstrings = map[int32]string{
 	LSWITCH:    "switch",
 	LTYPE:      "type",
 	LVAR:       "var",
-	LANDAND:    "&&",
-	LANDNOT:    "&^",
-	LCOMM:      "<-",
-	LEQ:        "==",
-	LGE:        ">=",
-	LGT:        ">",
-	LIGNORE:    "LIGNORE", // we should never see this one
-	LINCOP:     "opop",
-	LLE:        "<=",
-	LLSH:       "<<",
-	LLT:        "<",
-	LNE:        "!=",
-	LOROR:      "||",
-	LRSH:       ">>",
 }
 
 // usage: defer p.trace(msg)()
