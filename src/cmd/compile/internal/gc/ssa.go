@@ -1481,7 +1481,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			return nil
 		}
 
-		if flag_race != 0 {
+		if instrumenting {
 			// These appear to be fine, but they fail the
 			// integer constraint below, so okay them here.
 			// Sample non-integer conversion: map[string]string -> *uint8
