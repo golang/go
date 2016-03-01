@@ -62,7 +62,7 @@ loop1:
 		// distinguish between moves that moves that *must*
 		// sign/zero extend and moves that don't care so they
 		// can eliminate moves that don't care without
-		// breaking moves that do care.  This might let us
+		// breaking moves that do care. This might let us
 		// simplify or remove the next peep loop, too.
 		if p.As == mips.AMOVV || p.As == mips.AMOVF || p.As == mips.AMOVD {
 			if regtyp(&p.To) {
@@ -697,7 +697,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 // copyas returns 1 if a and v address the same register.
 //
 // If a is the from operand, this means this operation reads the
-// register in v.  If a is the to operand, this means this operation
+// register in v. If a is the to operand, this means this operation
 // writes the register in v.
 func copyas(a *obj.Addr, v *obj.Addr) bool {
 	if regtyp(v) {
@@ -714,7 +714,7 @@ func copyas(a *obj.Addr, v *obj.Addr) bool {
 // same register as v.
 //
 // If a is the from operand, this means this operation reads the
-// register in v.  If a is the to operand, this means the operation
+// register in v. If a is the to operand, this means the operation
 // either reads or writes the register in v (if !copyas(a, v), then
 // the operation reads the register in v).
 func copyau(a *obj.Addr, v *obj.Addr) bool {

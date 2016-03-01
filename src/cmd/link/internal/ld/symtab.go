@@ -47,7 +47,7 @@ func putelfstr(s string) int {
 
 	// When dynamically linking, we create LSym's by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
-	// match exactly.  Tools like DTrace will have to wait for now.
+	// match exactly. Tools like DTrace will have to wait for now.
 	if !DynlinkingGo() {
 		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
 		s = strings.Replace(s, "·", ".", -1)

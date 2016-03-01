@@ -203,7 +203,7 @@ func (s *byRFC6724) Less(i, j int) bool {
 		// (e.g., https://golang.org/issue/13283).  Glibc instead only
 		// uses CommonPrefixLen for IPv4 when the source and destination
 		// addresses are on the same subnet, but that requires extra
-		// work to find the netmask for our source addresses.  As a
+		// work to find the netmask for our source addresses. As a
 		// simpler heuristic, we limit its use to when the source and
 		// destination belong to the same special purpose block.
 		if da4 {

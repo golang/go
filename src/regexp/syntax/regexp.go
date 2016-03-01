@@ -139,7 +139,7 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
 		if len(re.Rune) == 0 {
 			b.WriteString(`^\x00-\x{10FFFF}`)
 		} else if re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune {
-			// Contains 0 and MaxRune.  Probably a negated class.
+			// Contains 0 and MaxRune. Probably a negated class.
 			// Print the gaps.
 			b.WriteRune('^')
 			for i := 1; i < len(re.Rune)-1; i += 2 {

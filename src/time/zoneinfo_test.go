@@ -19,7 +19,7 @@ func TestVersion3(t *testing.T) {
 }
 
 // Test that we get the correct results for times before the first
-// transition time.  To do this we explicitly check early dates in a
+// transition time. To do this we explicitly check early dates in a
 // couple of specific timezones.
 func TestFirstZone(t *testing.T) {
 	time.ForceZipFileForTesting(true)

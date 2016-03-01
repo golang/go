@@ -163,8 +163,8 @@ const pcbucketsize = 256 * minfunc // size of bucket in the pc->func lookup tabl
 // Each bucket represents 4096 bytes of the text segment.
 // Each subbucket represents 256 bytes of the text segment.
 // To find a function given a pc, locate the bucket and subbucket for
-// that pc.  Add together the idx and subbucket value to obtain a
-// function index.  Then scan the functab array starting at that
+// that pc. Add together the idx and subbucket value to obtain a
+// function index. Then scan the functab array starting at that
 // index to find the target function.
 // This table uses 20 bytes for every 4096 bytes of code, or ~0.5% overhead.
 type findfuncbucket struct {

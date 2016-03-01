@@ -26,10 +26,10 @@ type MethodSig struct {
 }
 
 // canonicalMethods lists the input and output types for Go methods
-// that are checked using dynamic interface checks.  Because the
+// that are checked using dynamic interface checks. Because the
 // checks are dynamic, such methods would not cause a compile error
 // if they have the wrong signature: instead the dynamic check would
-// fail, sometimes mysteriously.  If a method is found with a name listed
+// fail, sometimes mysteriously. If a method is found with a name listed
 // here but not the input/output types listed here, vet complains.
 //
 // A few of the canonical methods have very common names.
@@ -39,7 +39,7 @@ type MethodSig struct {
 // To do that, the arguments that have a = prefix are treated as
 // signals that the canonical meaning is intended: if a Scan
 // method doesn't have a fmt.ScanState as its first argument,
-// we let it go.  But if it does have a fmt.ScanState, then the
+// we let it go. But if it does have a fmt.ScanState, then the
 // rest has to match.
 var canonicalMethods = map[string]MethodSig{
 	// "Flush": {{}, {"error"}}, // http.Flusher and jpeg.writer conflict

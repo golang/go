@@ -3,8 +3,8 @@
 // license that can be found in the LICENSE file.
 
 // x86 register conventions:
-//  - Integer types live in the low portion of registers.  Upper portions are junk.
-//  - Boolean types use the low-order byte of a register.  Upper bytes are junk.
+//  - Integer types live in the low portion of registers. Upper portions are junk.
+//  - Boolean types use the low-order byte of a register. Upper bytes are junk.
 //  - We do not use AH,BH,CH,DH registers.
 //  - Floating-point types will live in the low natural slot of an sse2 register.
 //    Unused portions are junk.
@@ -335,7 +335,7 @@
 //	ADDQ	$16, SI
 //	MOVUPS	X0, (DI)
 //	ADDQ	$16, DI
-// and 64 is the number of such blocks.  See src/runtime/duff_amd64.s:duffcopy.
+// and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
 
 // Large copying uses REP MOVSQ.
 (Move [size] dst src mem) && size > 16*64 && size%8 == 0 ->
@@ -529,7 +529,7 @@
 
 // Note: the word and byte shifts keep the low 5 bits (not the low 4 or 3 bits)
 // because the x86 instructions are defined to use all 5 bits of the shift even
-// for the small shifts.  I don't think we'll ever generate a weird shift (e.g.
+// for the small shifts. I don't think we'll ever generate a weird shift (e.g.
 // (SHLW x (MOVWconst [24])), but just in case.
 
 (CMPQ x (MOVQconst [c])) && is32Bit(c) -> (CMPQconst x [c])
@@ -598,7 +598,7 @@
 
 // sign extended loads
 // Note: The combined instruction must end up in the same block
-// as the original load.  If not, we end up making a value with
+// as the original load. If not, we end up making a value with
 // memory type live in two different blocks, which can lead to
 // multiple memory values alive simultaneously.
 (MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)

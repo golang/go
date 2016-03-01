@@ -22,16 +22,16 @@ type buf struct {
 	err    error
 }
 
-// Data format, other than byte order.  This affects the handling of
+// Data format, other than byte order. This affects the handling of
 // certain field formats.
 type dataFormat interface {
-	// DWARF version number.  Zero means unknown.
+	// DWARF version number. Zero means unknown.
 	version() int
 
 	// 64-bit DWARF format?
 	dwarf64() (dwarf64 bool, isKnown bool)
 
-	// Size of an address, in bytes.  Zero means unknown.
+	// Size of an address, in bytes. Zero means unknown.
 	addrsize() int
 }
 

@@ -339,7 +339,7 @@ func importPathsNoDotExpansion(args []string) []string {
 	for _, a := range args {
 		// Arguments are supposed to be import paths, but
 		// as a courtesy to Windows developers, rewrite \ to /
-		// in command-line arguments.  Handles .\... and so on.
+		// in command-line arguments. Handles .\... and so on.
 		if filepath.Separator == '\\' {
 			a = strings.Replace(a, `\`, `/`, -1)
 		}
@@ -472,7 +472,7 @@ NextVar:
 }
 
 // matchPattern(pattern)(name) reports whether
-// name matches pattern.  Pattern is a limited glob
+// name matches pattern. Pattern is a limited glob
 // pattern in which '...' means 'any string' and there
 // is no other special syntax.
 func matchPattern(pattern string) func(name string) bool {
@@ -629,7 +629,7 @@ func matchPackages(pattern string) []string {
 
 // allPackagesInFS is like allPackages but is passed a pattern
 // beginning ./ or ../, meaning it should scan the tree rooted
-// at the given directory.  There are ... in the pattern too.
+// at the given directory. There are ... in the pattern too.
 func allPackagesInFS(pattern string) []string {
 	pkgs := matchPackagesInFS(pattern)
 	if len(pkgs) == 0 {

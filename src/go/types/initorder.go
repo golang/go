@@ -12,7 +12,7 @@ import (
 // initOrder computes the Info.InitOrder for package variables.
 func (check *Checker) initOrder() {
 	// An InitOrder may already have been computed if a package is
-	// built from several calls to (*Checker).Files.  Clear it.
+	// built from several calls to (*Checker).Files. Clear it.
 	check.Info.InitOrder = check.Info.InitOrder[:0]
 
 	// compute the object dependency graph and

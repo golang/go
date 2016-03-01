@@ -16,7 +16,7 @@ const (
 // of a control-flow graph.
 
 // postorder computes a postorder traversal ordering for the
-// basic blocks in f.  Unreachable blocks will not appear.
+// basic blocks in f. Unreachable blocks will not appear.
 func postorder(f *Func) []*Block {
 	mark := make([]byte, f.NumBlocks())
 
@@ -31,12 +31,12 @@ func postorder(f *Func) []*Block {
 		b := s[len(s)-1]
 		switch mark[b.ID] {
 		case explored:
-			// Children have all been visited.  Pop & output block.
+			// Children have all been visited. Pop & output block.
 			s = s[:len(s)-1]
 			mark[b.ID] = done
 			order = append(order, b)
 		case notExplored:
-			// Children have not been visited yet.  Mark as explored
+			// Children have not been visited yet. Mark as explored
 			// and queue any children we haven't seen yet.
 			mark[b.ID] = explored
 			for _, c := range b.Succs {
@@ -140,9 +140,9 @@ func (f *Func) dfs(entries []*Block, succFn linkedBlocks, dfnum, order, parent [
 	return
 }
 
-// dominators computes the dominator tree for f.  It returns a slice
+// dominators computes the dominator tree for f. It returns a slice
 // which maps block ID to the immediate dominator of that block.
-// Unreachable blocks map to nil.  The entry block maps to nil.
+// Unreachable blocks map to nil. The entry block maps to nil.
 func dominators(f *Func) []*Block {
 	preds := func(b *Block) []*Block { return b.Preds }
 	succs := func(b *Block) []*Block { return b.Succs }
@@ -298,9 +298,9 @@ func eval(v ID, ancestor []ID, semi []ID, dfnum []ID, best []ID) ID {
 	return best[v]
 }
 
-// dominators computes the dominator tree for f.  It returns a slice
+// dominators computes the dominator tree for f. It returns a slice
 // which maps block ID to the immediate dominator of that block.
-// Unreachable blocks map to nil.  The entry block maps to nil.
+// Unreachable blocks map to nil. The entry block maps to nil.
 func dominatorsSimple(f *Func) []*Block {
 	// A simple algorithm for now
 	// Cooper, Harvey, Kennedy

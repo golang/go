@@ -2011,7 +2011,7 @@ func (p *parser) hidden_fndcl() *Node {
 
 		// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
 		// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
-		// out by typecheck's lookdot as this $$.ttype.  So by providing
+		// out by typecheck's lookdot as this $$.ttype. So by providing
 		// this back link here we avoid special casing there.
 		ss.Type.Nname = ss
 		return ss

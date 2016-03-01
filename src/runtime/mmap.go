@@ -12,5 +12,5 @@ package runtime
 
 import "unsafe"
 
-// mmap calls the mmap system call.  It is implemented in assembly.
+// mmap calls the mmap system call. It is implemented in assembly.
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer

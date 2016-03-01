@@ -69,7 +69,7 @@ var fmtbody bool
 // E.g. for %S:	%+S %#S %-S	print an identifier properly qualified for debug/export/internal mode.
 //
 // The mode flags  +, - and # are sticky, meaning they persist through
-// recursions of %N, %T and %S, but not the h and l flags.  The u flag is
+// recursions of %N, %T and %S, but not the h and l flags. The u flag is
 // sticky only on %T recursions and only used in %-/Sym mode.
 
 //
@@ -796,7 +796,7 @@ func stmtfmt(n *Node) string {
 
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
-	// and inlining.  If it doesn't fit the syntax, emit an enclosing
+	// and inlining. If it doesn't fit the syntax, emit an enclosing
 	// block starting with the init statements.
 
 	// if we can just say "for" n->ninit; ... then do so

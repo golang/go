@@ -42,7 +42,7 @@ func siglt(a, b *Sig) bool {
 }
 
 // Builds a type representing a Bucket structure for
-// the given map type.  This type is not visible to users -
+// the given map type. This type is not visible to users -
 // we include only enough information to generate a correct GC
 // program for it.
 // Make sure this stays in sync with ../../../../runtime/hashmap.go!
@@ -421,7 +421,7 @@ func dimportpath(p *Pkg) {
 	}
 
 	// If we are compiling the runtime package, there are two runtime packages around
-	// -- localpkg and Runtimepkg.  We don't want to produce import path symbols for
+	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
 	// both of them, so just produce one for localpkg.
 	if myimportpath == "runtime" && p == Runtimepkg {
 		return

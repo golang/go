@@ -276,7 +276,7 @@ func (t *transferReader) protoAtLeast(m, n int) bool {
 }
 
 // bodyAllowedForStatus reports whether a given response status code
-// permits a body.  See RFC2616, section 4.4.
+// permits a body. See RFC2616, section 4.4.
 func bodyAllowedForStatus(status int) bool {
 	switch {
 	case status >= 100 && status <= 199:
@@ -379,7 +379,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		}
 	}
 
-	// Prepare body reader.  ContentLength < 0 means chunked encoding
+	// Prepare body reader. ContentLength < 0 means chunked encoding
 	// or close connection when finished, since multipart is not supported yet
 	switch {
 	case chunked(t.TransferEncoding):
@@ -727,11 +727,11 @@ func (b *body) readTrailer() error {
 	}
 
 	// Make sure there's a header terminator coming up, to prevent
-	// a DoS with an unbounded size Trailer.  It's not easy to
+	// a DoS with an unbounded size Trailer. It's not easy to
 	// slip in a LimitReader here, as textproto.NewReader requires
-	// a concrete *bufio.Reader.  Also, we can't get all the way
+	// a concrete *bufio.Reader. Also, we can't get all the way
 	// back up to our conn's LimitedReader that *might* be backing
-	// this bufio.Reader.  Instead, a hack: we iteratively Peek up
+	// this bufio.Reader. Instead, a hack: we iteratively Peek up
 	// to the bufio.Reader's max size, looking for a double CRLF.
 	// This limits the trailer to the underlying buffer size, typically 4kB.
 	if !seeUpcomingDoubleCRLF(b.r) {

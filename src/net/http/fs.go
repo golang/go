@@ -96,7 +96,7 @@ func dirList(w ResponseWriter, f File) {
 }
 
 // ServeContent replies to the request using the content in the
-// provided ReadSeeker.  The main benefit of ServeContent over io.Copy
+// provided ReadSeeker. The main benefit of ServeContent over io.Copy
 // is that it handles Range requests properly, sets the MIME type, and
 // handles If-Modified-Since requests.
 //
@@ -108,7 +108,7 @@ func dirList(w ResponseWriter, f File) {
 // never sent in the response.
 //
 // If modtime is not the zero time or Unix epoch, ServeContent
-// includes it in a Last-Modified header in the response.  If the
+// includes it in a Last-Modified header in the response. If the
 // request includes an If-Modified-Since header, ServeContent uses
 // modtime to decide whether the content needs to be sent at all.
 //
@@ -196,7 +196,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 			// The total number of bytes in all the ranges
 			// is larger than the size of the file by
 			// itself, so this is probably an attack, or a
-			// dumb client.  Ignore the range request.
+			// dumb client. Ignore the range request.
 			ranges = nil
 		}
 		switch {
@@ -291,7 +291,7 @@ func checkLastModified(w ResponseWriter, r *Request, modtime time.Time) bool {
 // checkETag implements If-None-Match and If-Range checks.
 //
 // The ETag or modtime must have been previously set in the
-// ResponseWriter's headers.  The modtime is only compared at second
+// ResponseWriter's headers. The modtime is only compared at second
 // granularity and may be the zero value to mean unknown.
 //
 // The return value is the effective request "Range" header to use and
@@ -336,7 +336,7 @@ func checkETag(w ResponseWriter, r *Request, modtime time.Time) (rangeReq string
 		}
 
 		// TODO(bradfitz): deal with comma-separated or multiple-valued
-		// list of If-None-match values.  For now just handle the common
+		// list of If-None-match values. For now just handle the common
 		// case of a single item.
 		if inm == etag || inm == "*" {
 			h := w.Header()

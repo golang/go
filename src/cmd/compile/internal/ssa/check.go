@@ -33,7 +33,7 @@ func checkFunc(f *Func) {
 		// If the conditional is true, does v get the value of a or b?
 		// We could solve this other ways, but the easiest is just to
 		// require (by possibly adding empty control-flow blocks) that
-		// all successors are distinct.  They will need to be distinct
+		// all successors are distinct. They will need to be distinct
 		// anyway for register allocation (duplicate successors implies
 		// the existence of critical edges).
 		// After regalloc we can allow non-distinct predecessors.

@@ -65,8 +65,8 @@
 // directly, bypassing the MCache and MCentral free lists.
 //
 // The small objects on the MCache and MCentral free lists
-// may or may not be zeroed.  They are zeroed if and only if
-// the second word of the object is zero.  A span in the
+// may or may not be zeroed. They are zeroed if and only if
+// the second word of the object is zero. A span in the
 // page heap is zeroed unless s->needzero is set. When a span
 // is allocated to break into small objects, it is zeroed if needed
 // and s->needzero is set. There are two main benefits to delaying the
@@ -113,9 +113,9 @@ const (
 	// _64bit = 1 on 64-bit systems, 0 on 32-bit systems
 	_64bit = 1 << (^uintptr(0) >> 63) / 2
 
-	// Computed constant.  The definition of MaxSmallSize and the
+	// Computed constant. The definition of MaxSmallSize and the
 	// algorithm in msize.go produces some number of different allocation
-	// size classes.  NumSizeClasses is that number.  It's needed here
+	// size classes. NumSizeClasses is that number. It's needed here
 	// because there are static arrays of this length; when msize runs its
 	// size choosing algorithm it double-checks that NumSizeClasses agrees.
 	_NumSizeClasses = 67
@@ -134,9 +134,9 @@ const (
 	// Per-P, per order stack segment cache size.
 	_StackCacheSize = 32 * 1024
 
-	// Number of orders that get caching.  Order 0 is FixedStack
+	// Number of orders that get caching. Order 0 is FixedStack
 	// and each successive order is twice as large.
-	// We want to cache 2KB, 4KB, 8KB, and 16KB stacks.  Larger stacks
+	// We want to cache 2KB, 4KB, 8KB, and 16KB stacks. Larger stacks
 	// will be allocated directly.
 	// Since FixedStack is different on different systems, we
 	// must vary NumStackOrders to keep the same maximum cached size.
@@ -165,7 +165,7 @@ const (
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
-	// on the hardware details of the machine.  The garbage
+	// on the hardware details of the machine. The garbage
 	// collector scales well to 32 cpus.
 	_MaxGcproc = 32
 )
@@ -192,14 +192,14 @@ const _MaxArena32 = 2 << 30
 //
 // SysFree returns it unconditionally; this is only used if
 // an out-of-memory error has been detected midway through
-// an allocation.  It is okay if SysFree is a no-op.
+// an allocation. It is okay if SysFree is a no-op.
 //
 // SysReserve reserves address space without allocating memory.
 // If the pointer passed to it is non-nil, the caller wants the
 // reservation there, but SysReserve can still choose another
-// location if that one is unavailable.  On some systems and in some
+// location if that one is unavailable. On some systems and in some
 // cases SysReserve will simply check that the address space is
-// available and not actually reserve it.  If SysReserve returns
+// available and not actually reserve it. If SysReserve returns
 // non-nil, it sets *reserved to true if the address space is
 // reserved, false if it has merely been checked.
 // NOTE: SysReserve returns OS-aligned memory, but the heap allocator
@@ -211,7 +211,7 @@ const _MaxArena32 = 2 << 30
 // reserved, not merely checked.
 //
 // SysFault marks a (already sysAlloc'd) region to fault
-// if accessed.  Used only for debugging the runtime.
+// if accessed. Used only for debugging the runtime.
 
 func mallocinit() {
 	initSizes()
@@ -229,7 +229,7 @@ func mallocinit() {
 	limit = 0
 
 	// Set up the allocation arena, a contiguous area of memory where
-	// allocated data will be found.  The arena begins with a bitmap large
+	// allocated data will be found. The arena begins with a bitmap large
 	// enough to hold 4 bits per allocated word.
 	if sys.PtrSize == 8 && (limit == 0 || limit > 1<<30) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
@@ -239,12 +239,12 @@ func mallocinit() {
 		// SysReserve to use 0x0000XXc000000000 if possible (XX=00...7f).
 		// Allocating a 512 GB region takes away 39 bits, and the amd64
 		// doesn't let us choose the top 17 bits, so that leaves the 9 bits
-		// in the middle of 0x00c0 for us to choose.  Choosing 0x00c0 means
+		// in the middle of 0x00c0 for us to choose. Choosing 0x00c0 means
 		// that the valid memory addresses will begin 0x00c0, 0x00c1, ..., 0x00df.
 		// In little-endian, that's c0 00, c1 00, ..., df 00. None of those are valid
 		// UTF-8 sequences, and they are otherwise as far away from
-		// ff (likely a common byte) as possible.  If that fails, we try other 0xXXc0
-		// addresses.  An earlier attempt to use 0x11f8 caused out of memory errors
+		// ff (likely a common byte) as possible. If that fails, we try other 0xXXc0
+		// addresses. An earlier attempt to use 0x11f8 caused out of memory errors
 		// on OS X during thread allocations.  0x00c0 causes conflicts with
 		// AddressSanitizer which reserves all memory up to 0x0100.
 		// These choices are both for debuggability and to reduce the
@@ -321,10 +321,10 @@ func mallocinit() {
 			spansSize = round(spansSize, _PageSize)
 
 			// SysReserve treats the address we ask for, end, as a hint,
-			// not as an absolute requirement.  If we ask for the end
+			// not as an absolute requirement. If we ask for the end
 			// of the data segment but the operating system requires
 			// a little more space before we can start allocating, it will
-			// give out a slightly higher pointer.  Except QEMU, which
+			// give out a slightly higher pointer. Except QEMU, which
 			// is buggy, as usual: it won't adjust the pointer upward.
 			// So adjust it upward a little bit ourselves: 1/4 MB to get
 			// away from the running binary image and then round up
@@ -803,7 +803,7 @@ func reflect_unsafe_NewArray(typ *_type, n uintptr) unsafe.Pointer {
 	return newarray(typ, n)
 }
 
-// rawmem returns a chunk of pointerless memory.  It is
+// rawmem returns a chunk of pointerless memory. It is
 // not zeroed.
 func rawmem(size uintptr) unsafe.Pointer {
 	return mallocgc(size, nil, flagNoScan|flagNoZero)

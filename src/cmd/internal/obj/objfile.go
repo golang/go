@@ -108,7 +108,7 @@ import (
 )
 
 // The Go and C compilers, and the assembler, call writeobj to write
-// out a Go object file.  The linker does not call this; the linker
+// out a Go object file. The linker does not call this; the linker
 // does not write out object files.
 func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	Flushplist(ctxt)

@@ -222,7 +222,7 @@ func datcmp(s1 *LSym, s2 *LSym) int {
 	}
 
 	// For ppc64, we want to interleave the .got and .toc sections
-	// from input files.  Both are type SELFGOT, so in that case
+	// from input files. Both are type SELFGOT, so in that case
 	// fall through to the name comparison (conveniently, .got
 	// sorts before .toc).
 	if s1.Type != obj.SELFGOT && s1.Size != s2.Size {

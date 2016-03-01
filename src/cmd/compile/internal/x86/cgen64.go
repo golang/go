@@ -95,7 +95,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 		split64(r, &lo2, &hi2)
 	}
 
-	// Do op.  Leave result in DX:AX.
+	// Do op. Leave result in DX:AX.
 	switch n.Op {
 	// TODO: Constants
 	case gc.OADD:

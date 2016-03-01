@@ -406,7 +406,7 @@ func geneq(sym *Sym, t *Type) {
 
 		// An array of pure memory would be handled by the
 		// standard memequal, so the element type must not be
-		// pure memory.  Even if we unrolled the range loop,
+		// pure memory. Even if we unrolled the range loop,
 		// each iteration would be a function call, so don't bother
 		// unrolling.
 		nrange := Nod(ORANGE, nil, Nod(OIND, np, nil))

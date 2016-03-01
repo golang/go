@@ -9,11 +9,11 @@ import (
 	"strconv"
 )
 
-// Parse the type units stored in a DWARF4 .debug_types section.  Each
+// Parse the type units stored in a DWARF4 .debug_types section. Each
 // type unit defines a single primary type and an 8-byte signature.
 // Other sections may then use formRefSig8 to refer to the type.
 
-// The typeUnit format is a single type with a signature.  It holds
+// The typeUnit format is a single type with a signature. It holds
 // the same data as a compilation unit.
 type typeUnit struct {
 	unit

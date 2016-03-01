@@ -114,7 +114,7 @@ type Function struct {
 	filenameX   int64
 }
 
-// Parse parses a profile and checks for its validity.  The input
+// Parse parses a profile and checks for its validity. The input
 // may be a gzip-compressed encoded protobuf or one of many legacy
 // profile formats which may be unsupported in the future.
 func Parse(r io.Reader) (*Profile, error) {
@@ -221,7 +221,7 @@ func (p *Profile) Write(w io.Writer) error {
 	return err
 }
 
-// CheckValid tests whether the profile is valid.  Checks include, but are
+// CheckValid tests whether the profile is valid. Checks include, but are
 // not limited to:
 //   - len(Profile.Sample[n].value) == len(Profile.value_unit)
 //   - Sample.id has a corresponding Profile.Location

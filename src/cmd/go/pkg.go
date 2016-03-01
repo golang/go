@@ -27,8 +27,8 @@ import (
 // A Package describes a single package found in a directory.
 type Package struct {
 	// Note: These fields are part of the go command's public API.
-	// See list.go.  It is okay to add fields, but not to change or
-	// remove existing ones.  Keep in sync with list.go
+	// See list.go. It is okay to add fields, but not to change or
+	// remove existing ones. Keep in sync with list.go
 	Dir           string `json:",omitempty"` // directory containing package sources
 	ImportPath    string `json:",omitempty"` // import path of package in dir
 	ImportComment string `json:",omitempty"` // path in import comment on package statement
@@ -208,7 +208,7 @@ func (p *PackageError) Error() string {
 		return fmt.Sprintf("%s\npackage %s\n", p.Err, strings.Join(p.ImportStack, "\n\timports "))
 	}
 	if p.Pos != "" {
-		// Omit import stack.  The full path to the file where the error
+		// Omit import stack. The full path to the file where the error
 		// is the most important thing.
 		return p.Pos + ": " + p.Err
 	}
@@ -267,8 +267,8 @@ func reloadPackage(arg string, stk *importStack) *Package {
 }
 
 // dirToImportPath returns the pseudo-import path we use for a package
-// outside the Go path.  It begins with _/ and then contains the full path
-// to the directory.  If the package lives in c:\home\gopher\my\pkg then
+// outside the Go path. It begins with _/ and then contains the full path
+// to the directory. If the package lives in c:\home\gopher\my\pkg then
 // the pseudo-import path is _/c_/home/gopher/my/pkg.
 // Using a pseudo-import path like this makes the ./ imports no longer
 // a special case, so that all the code to deal with ordinary imports works
@@ -472,7 +472,7 @@ func hasGoFiles(dir string) bool {
 }
 
 // reusePackage reuses package p to satisfy the import at the top
-// of the import stack stk.  If this use causes an import loop,
+// of the import stack stk. If this use causes an import loop,
 // reusePackage updates p's error information to record the loop.
 func reusePackage(p *Package, stk *importStack) *Package {
 	// We use p.imports==nil to detect a package that
@@ -715,7 +715,7 @@ func expandScanner(err error) error {
 		// Prepare error with \n before each message.
 		// When printed in something like context: %v
 		// this will put the leading file positions each on
-		// its own line.  It will also show all the errors
+		// its own line. It will also show all the errors
 		// instead of just the first, as err.Error does.
 		var buf bytes.Buffer
 		for _, e := range err {
@@ -1356,8 +1356,8 @@ func isStale(p *Package) bool {
 	}
 
 	// A package without Go sources means we only found
-	// the installed .a file.  Since we don't know how to rebuild
-	// it, it can't be stale, even if -a is set.  This enables binary-only
+	// the installed .a file. Since we don't know how to rebuild
+	// it, it can't be stale, even if -a is set. This enables binary-only
 	// distributions of Go packages, although such binaries are
 	// only useful with the specific version of the toolchain that
 	// created them.
@@ -1442,7 +1442,7 @@ func isStale(p *Package) bool {
 	// As a courtesy to developers installing new versions of the compiler
 	// frequently, define that packages are stale if they are
 	// older than the compiler, and commands if they are older than
-	// the linker.  This heuristic will not work if the binaries are
+	// the linker. This heuristic will not work if the binaries are
 	// back-dated, as some binary distributions may do, but it does handle
 	// a very common case.
 	// See issue 3036.
@@ -1564,7 +1564,7 @@ var cwd, _ = os.Getwd()
 var cmdCache = map[string]*Package{}
 
 // loadPackage is like loadImport but is used for command-line arguments,
-// not for paths found in import statements.  In addition to ordinary import paths,
+// not for paths found in import statements. In addition to ordinary import paths,
 // loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
 // in the Go command directory, as well as paths to those directories.
 func loadPackage(arg string, stk *importStack) *Package {
@@ -1628,7 +1628,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 // command line arguments 'args'.  If a named package
 // cannot be loaded at all (for example, if the directory does not exist),
 // then packages prints an error and does not include that
-// package in the results.  However, if errors occur trying
+// package in the results. However, if errors occur trying
 // to load dependencies of a named package, the named
 // package is still returned, with p.Incomplete = true
 // and details in p.DepsErrors.

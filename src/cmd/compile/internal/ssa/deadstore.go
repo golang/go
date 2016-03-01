@@ -7,7 +7,7 @@ package ssa
 // dse does dead-store elimination on the Function.
 // Dead stores are those which are unconditionally followed by
 // another store to the same location, with no intervening load.
-// This implementation only works within a basic block.  TODO: use something more global.
+// This implementation only works within a basic block. TODO: use something more global.
 func dse(f *Func) {
 	var stores []*Value
 	loadUse := f.newSparseSet(f.NumValues())
@@ -17,7 +17,7 @@ func dse(f *Func) {
 	shadowed := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(shadowed)
 	for _, b := range f.Blocks {
-		// Find all the stores in this block.  Categorize their uses:
+		// Find all the stores in this block. Categorize their uses:
 		//  loadUse contains stores which are used by a subsequent load.
 		//  storeUse contains stores which are used by a subsequent store.
 		loadUse.clear()
@@ -67,9 +67,9 @@ func dse(f *Func) {
 			b.Fatalf("no last store found - cycle?")
 		}
 
-		// Walk backwards looking for dead stores.  Keep track of shadowed addresses.
+		// Walk backwards looking for dead stores. Keep track of shadowed addresses.
 		// An "address" is an SSA Value which encodes both the address and size of
-		// the write.  This code will not remove dead stores to the same address
+		// the write. This code will not remove dead stores to the same address
 		// of different types.
 		shadowed.clear()
 		v := last

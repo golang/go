@@ -15,7 +15,7 @@
 //	import _ "net/http/pprof"
 //
 // If your application is not already running an http server, you
-// need to start one.  Add "net/http" and "log" to your imports and
+// need to start one. Add "net/http" and "log" to your imports and
 // the following code to your main function:
 //
 // 	go func() {
@@ -146,11 +146,11 @@ func Symbol(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 
 	// We have to read the whole POST body before
-	// writing any output.  Buffer the output here.
+	// writing any output. Buffer the output here.
 	var buf bytes.Buffer
 
 	// We don't know how many symbols we have, but we
-	// do have symbol information.  Pprof only cares whether
+	// do have symbol information. Pprof only cares whether
 	// this number is 0 (no symbols available) or > 0.
 	fmt.Fprintf(&buf, "num_symbols: 1\n")
 

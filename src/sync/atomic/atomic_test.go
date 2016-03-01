@@ -747,7 +747,7 @@ func TestStorePointer(t *testing.T) {
 // (Is the function atomic?)
 //
 // For each function, we write a "hammer" function that repeatedly
-// uses the atomic operation to add 1 to a value.  After running
+// uses the atomic operation to add 1 to a value. After running
 // multiple hammers in parallel, check that we end with the correct
 // total.
 // Swap can't add 1, so it uses a different scheme.

@@ -64,7 +64,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
 	hash.Reset()
 
 	// 7.  Generate an octet string PS consisting of emLen - sLen - hLen - 2
-	//     zero octets.  The length of PS may be 0.
+	//     zero octets. The length of PS may be 0.
 	//
 	// 8.  Let DB = PS || 0x01 || salt; DB is an octet string of length
 	//     emLen - hLen - 1.

@@ -17,7 +17,7 @@ import (
 
 // A forkableWriter is an in-memory buffer that can be
 // 'forked' to create new forkableWriters that bracket the
-// original.  After
+// original. After
 //    pre, post := w.fork()
 // the overall sequence of bytes represented is logically w+pre+post.
 type forkableWriter struct {

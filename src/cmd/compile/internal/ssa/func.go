@@ -10,7 +10,7 @@ import (
 )
 
 // A Func represents a Go func declaration (or function literal) and
-// its body.  This package compiles each Func independently.
+// its body. This package compiles each Func independently.
 type Func struct {
 	Config     *Config     // architecture information
 	pass       *pass       // current pass information (name, options, etc.)
@@ -29,7 +29,7 @@ type Func struct {
 
 	// map from LocalSlot to set of Values that we want to store in that slot.
 	NamedValues map[LocalSlot][]*Value
-	// Names is a copy of NamedValues.Keys.  We keep a separate list
+	// Names is a copy of NamedValues.Keys. We keep a separate list
 	// of keys to make iteration order deterministic.
 	Names []LocalSlot
 
@@ -109,7 +109,7 @@ func (f *Func) logStat(key string, args ...interface{}) {
 	f.Config.Warnl(int(f.Entry.Line), "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
 }
 
-// freeValue frees a value.  It must no longer be referenced.
+// freeValue frees a value. It must no longer be referenced.
 func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
@@ -177,7 +177,7 @@ func (b *Block) NewValue0I(line int32, op Op, t Type, auxint int64) *Value {
 // NewValue returns a new value in the block with no arguments and an aux value.
 func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
 	if _, ok := aux.(int64); ok {
-		// Disallow int64 aux values.  They should be in the auxint field instead.
+		// Disallow int64 aux values. They should be in the auxint field instead.
 		// Maybe we want to allow this at some point, but for now we disallow it
 		// to prevent errors like using NewValue1A instead of NewValue1I.
 		b.Fatalf("aux field has int64 type op=%s type=%s aux=%v", op, t, aux)

@@ -118,7 +118,7 @@ type Transport struct {
 	DisableCompression bool
 
 	// MaxIdleConnsPerHost, if non-zero, controls the maximum idle
-	// (keep-alive) to keep per-host.  If zero,
+	// (keep-alive) to keep per-host. If zero,
 	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost int
 
@@ -137,7 +137,7 @@ type Transport struct {
 
 	// TLSNextProto specifies how the Transport switches to an
 	// alternate protocol (such as HTTP/2) after a TLS NPN/ALPN
-	// protocol negotiation.  If Transport dials an TLS connection
+	// protocol negotiation. If Transport dials an TLS connection
 	// with a non-empty protocol name and TLSNextProto contains a
 	// map entry for that key (such as "h2"), then the func is
 	// called with the request's authority (such as "example.com"
@@ -306,7 +306,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 
 		// Get the cached or newly-created connection to either the
 		// host (for http or https), the http proxy, or the http proxy
-		// pre-CONNECTed to https server.  In any case, we'll be ready
+		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
 		pconn, err := t.getConn(req, cm)
 		if err != nil {
@@ -541,7 +541,7 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		// We're done with this pconn and somebody else is
 		// currently waiting for a conn of this type (they're
 		// actively dialing, but this conn is ready
-		// first). Chrome calls this socket late binding.  See
+		// first). Chrome calls this socket late binding. See
 		// https://insouciant.org/tech/connection-management-in-chromium/
 		t.idleMu.Unlock()
 		return nil
@@ -666,7 +666,7 @@ func (t *Transport) dial(network, addr string) (net.Conn, error) {
 }
 
 // getConn dials and creates a new persistConn to the target as
-// specified in the connectMethod.  This includes doing a proxy CONNECT
+// specified in the connectMethod. This includes doing a proxy CONNECT
 // and/or setting up TLS.  If this doesn't return an error, the persistConn
 // is ready to write requests to.
 func (t *Transport) getConn(req *Request, cm connectMethod) (*persistConn, error) {
@@ -1558,7 +1558,7 @@ func (pc *persistConn) closeLocked(err error) {
 			// handlePendingDial's putOrCloseIdleConn when
 			// it turns out the abandoned connection in
 			// flight ended up negotiating an alternate
-			// protocol.  We don't use the connection
+			// protocol. We don't use the connection
 			// freelist for http2. That's done by the
 			// alternate protocol's RoundTripper.
 		} else {

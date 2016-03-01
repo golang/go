@@ -739,7 +739,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 	}
 	if t1.Sym != nil || t2.Sym != nil {
 		// Special case: we keep byte and uint8 separate
-		// for error messages.  Treat them as equal.
+		// for error messages. Treat them as equal.
 		switch t1.Etype {
 		case TUINT8:
 			if (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype) {
@@ -997,7 +997,7 @@ func convertop(src *Type, dst *Type, why *string) Op {
 	}
 
 	// The rules for interfaces are no different in conversions
-	// than assignments.  If interfaces are involved, stop now
+	// than assignments. If interfaces are involved, stop now
 	// with the good message from assignop.
 	// Otherwise clear the error.
 	if src.Etype == TINTER || dst.Etype == TINTER {
@@ -2684,8 +2684,8 @@ func ngotype(n *Node) *Sym {
 }
 
 // Convert raw string to the prefix that will be used in the symbol
-// table.  All control characters, space, '%' and '"', as well as
-// non-7-bit clean bytes turn into %xx.  The period needs escaping
+// table. All control characters, space, '%' and '"', as well as
+// non-7-bit clean bytes turn into %xx. The period needs escaping
 // only in the last segment of the path, and it makes for happier
 // users if we escape that as little as possible.
 //

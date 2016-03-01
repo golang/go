@@ -15,7 +15,7 @@ import (
 // or single non-recursive functions, bottom up.
 //
 // Finding these sets is finding strongly connected components
-// in the static call graph.  The algorithm for doing that is taken
+// in the static call graph. The algorithm for doing that is taken
 // from Sedgewick, Algorithms, Second Edition, p. 482, with two
 // adaptations.
 //
@@ -168,7 +168,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 //
 // First escfunc, esc and escassign recurse over the ast of each
 // function to dig out flow(dst,src) edges between any
-// pointer-containing nodes and store them in dst->escflowsrc.  For
+// pointer-containing nodes and store them in dst->escflowsrc. For
 // variables assigned to a variable in an outer scope or used as a
 // return value, they store a flow(theSink, src) edge to a fake node
 // 'the Sink'.  For variables referenced in closures, an edge
@@ -180,7 +180,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 // parameters it can reach as leaking.
 //
 // If a value's address is taken but the address does not escape,
-// then the value can stay on the stack.  If the value new(T) does
+// then the value can stay on the stack. If the value new(T) does
 // not escape, then new(T) can be rewritten into a stack allocation.
 // The same is true of slice literals.
 //
@@ -340,7 +340,7 @@ func (e *EscState) track(n *Node) {
 }
 
 // Escape constants are numbered in order of increasing "escapiness"
-// to help make inferences be monotonic.  With the exception of
+// to help make inferences be monotonic. With the exception of
 // EscNever which is sticky, eX < eY means that eY is more exposed
 // than eX, and hence replaces it in a conservative analysis.
 const (
@@ -378,7 +378,7 @@ func escMax(e, etype uint16) uint16 {
 }
 
 // For each input parameter to a function, the escapeReturnEncoding describes
-// how the parameter may leak to the function's outputs.  This is currently the
+// how the parameter may leak to the function's outputs. This is currently the
 // "level" of the leak where level is 0 or larger (negative level means stored into
 // something whose address is returned -- but that implies stored into the heap,
 // hence EscHeap, which means that the details are not currently relevant. )
@@ -524,7 +524,7 @@ func escfunc(e *EscState, func_ *Node) {
 
 // Mark labels that have no backjumps to them as not increasing e->loopdepth.
 // Walk hasn't generated (goto|label)->left->sym->label yet, so we'll cheat
-// and set it to one of the following two.  Then in esc we'll clear it again.
+// and set it to one of the following two. Then in esc we'll clear it again.
 var looping Label
 
 var nonlooping Label
@@ -1099,7 +1099,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 		// Might be pointer arithmetic, in which case
 	// the operands flow into the result.
-	// TODO(rsc): Decide what the story is here.  This is unsettling.
+	// TODO(rsc): Decide what the story is here. This is unsettling.
 	case OADD,
 		OSUB,
 		OOR,
@@ -1128,7 +1128,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 //  flow are 000, 001, 010, 011  and EEEE is computed Esc bits.
 // Note width of xxx depends on value of constant
 // bitsPerOutputInTag -- expect 2 or 3, so in practice the
-// tag cache array is 64 or 128 long.  Some entries will
+// tag cache array is 64 or 128 long. Some entries will
 // never be populated.
 var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 
@@ -1290,7 +1290,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 	if Istype(t, Tptr) {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" an array
-		// might yield the type of an element.  To be enhanced...
+		// might yield the type of an element. To be enhanced...
 		t = t.Type
 	}
 	ind.Type = t
@@ -1419,7 +1419,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
 		}
 
-		// function in same mutually recursive group.  Incorporate into flow graph.
+		// function in same mutually recursive group. Incorporate into flow graph.
 		//		print("esc local fn: %N\n", fn->ntype);
 		if fn.Name.Defn.Esc == EscFuncUnknown || nE.Escretval != nil {
 			Fatalf("graph inconsistency")
@@ -1469,7 +1469,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		return
 	}
 
-	// Imported or completely analyzed function.  Use the escape tags.
+	// Imported or completely analyzed function. Use the escape tags.
 	if nE.Escretval != nil {
 		Fatalf("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
 	}

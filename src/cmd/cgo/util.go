@@ -84,7 +84,7 @@ func lineno(pos token.Pos) string {
 // Die with an error message.
 func fatalf(msg string, args ...interface{}) {
 	// If we've already printed other errors, they might have
-	// caused the fatal condition.  Assume they're enough.
+	// caused the fatal condition. Assume they're enough.
 	if nerrors == 0 {
 		fmt.Fprintf(os.Stderr, msg+"\n", args...)
 	}

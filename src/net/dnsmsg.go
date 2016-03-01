@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// DNS packet assembly.  See RFC 1035.
+// DNS packet assembly. See RFC 1035.
 //
 // This is intended to support name resolution during Dial.
 // It doesn't have to be blazing fast.
@@ -18,7 +18,7 @@
 // generic pack/unpack routines.
 //
 // TODO(rsc):  There are enough names defined in this file that they're all
-// prefixed with dns.  Perhaps put this in its own package later.
+// prefixed with dns. Perhaps put this in its own package later.
 
 package net
 
@@ -376,7 +376,7 @@ func (rr *dnsRR_AAAA) Walk(f func(v interface{}, name, tag string) bool) bool {
 // All the packers and unpackers take a (msg []byte, off int)
 // and return (off1 int, ok bool).  If they return ok==false, they
 // also return off1==len(msg), so that the next unpacker will
-// also fail.  This lets us avoid checks of ok until the end of a
+// also fail. This lets us avoid checks of ok until the end of a
 // packing sequence.
 
 // Map of constructors for each RR wire type.
@@ -399,7 +399,7 @@ var rr_mk = map[int]func() dnsRR{
 
 // Pack a domain name s into msg[off:].
 // Domain names are a sequence of counted strings
-// split at the dots.  They end with a zero-length string.
+// split at the dots. They end with a zero-length string.
 func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	// Add trailing dot to canonicalize name.
 	if n := len(s); n == 0 || s[n-1] != '.' {
@@ -452,8 +452,8 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 // In addition to the simple sequences of counted strings above,
 // domain names are allowed to refer to strings elsewhere in the
 // packet, to avoid repeating common suffixes when returning
-// many entries in a single domain.  The pointers are marked
-// by a length byte with the top two bits set.  Ignoring those
+// many entries in a single domain. The pointers are marked
+// by a length byte with the top two bits set. Ignoring those
 // two bits, that byte and the next give a 14 bit offset from msg[0]
 // where we should pick up the trail.
 // Note that if we jump elsewhere in the packet,

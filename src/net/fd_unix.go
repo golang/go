@@ -210,7 +210,7 @@ func (fd *netFD) Close() error {
 	}
 	// Unblock any I/O.  Once it all unblocks and returns,
 	// so that it cannot be referring to fd.sysfd anymore,
-	// the final decref will close fd.sysfd.  This should happen
+	// the final decref will close fd.sysfd. This should happen
 	// fairly quickly, since all the I/O is non-blocking, and any
 	// attempts to block in the pollDesc will return errClosing.
 	fd.pd.Evict()
@@ -464,7 +464,7 @@ func dupCloseOnExec(fd int) (newfd int, err error) {
 			// and fcntl there falls back (undocumented)
 			// to doing an ioctl instead, returning EBADF
 			// in this case because fd is not of the
-			// expected device fd type.  Treat it as
+			// expected device fd type. Treat it as
 			// EINVAL instead, so we fall back to the
 			// normal dup path.
 			// TODO: only do this on 10.6 if we can detect 10.6

@@ -114,9 +114,9 @@ type pass struct {
 
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
-// the error if it was not.  A version of the phase name with "_"
+// the error if it was not. A version of the phase name with "_"
 // replaced by " " is also checked for a match.
-// See gc/lex.go for dissection of the option string.  Example use:
+// See gc/lex.go for dissection of the option string. Example use:
 // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash ...
 //
 func PhaseOption(phase, flag string, val int) string {
@@ -189,7 +189,7 @@ var passes = [...]pass{
 
 // Double-check phase ordering constraints.
 // This code is intended to document the ordering requirements
-// between different phases.  It does not override the passes
+// between different phases. It does not override the passes
 // list above.
 type constraint struct {
 	a, b string // a must come before b

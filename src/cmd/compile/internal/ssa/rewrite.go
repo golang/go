@@ -105,7 +105,7 @@ func addOff(x, y int64) int64 {
 	return z
 }
 
-// mergeSym merges two symbolic offsets.  There is no real merging of
+// mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y interface{}) interface{} {
 	if x == nil {

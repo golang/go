@@ -122,7 +122,7 @@ func vet(name string) bool {
 	return report[name].isTrue()
 }
 
-// setExit sets the value for os.Exit when it is called, later.  It
+// setExit sets the value for os.Exit when it is called, later. It
 // remembers the highest value.
 func setExit(err int) {
 	if err > exitCode {

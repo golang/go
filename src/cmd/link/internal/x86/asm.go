@@ -299,7 +299,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			// Instead, interpret the C declaration
 			//	void *_Cvar_stderr = &stderr;
 			// as making _Cvar_stderr the name of a GOT entry
-			// for stderr.  This is separate from the usual GOT entry,
+			// for stderr. This is separate from the usual GOT entry,
 			// just in case the C code assigns to the variable,
 			// and of course it only works for single pointers,
 			// but we only need to support cgo and that's all it needs.

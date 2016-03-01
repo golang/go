@@ -200,7 +200,7 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 // The result is written into the codegen array, and the frequencies
 // of each code is written into the codegenFreq array.
 // Codes 0-15 are single byte codes. Codes 16-18 are followed by additional
-// information.  Code badCode is an end marker
+// information. Code badCode is an end marker
 //
 //  numLiterals      The number of literals in literalEncoding
 //  numOffsets       The number of offsets in offsetEncoding
@@ -213,7 +213,7 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int) {
 	// This is fine because the output is always shorter than the input used
 	// so far.
 	codegen := w.codegen // cache
-	// Copy the concatenated code sizes to codegen.  Put a marker at the end.
+	// Copy the concatenated code sizes to codegen. Put a marker at the end.
 	copy(codegen[0:numLiterals], w.literalEncoding.codeBits)
 	copy(codegen[numLiterals:numLiterals+numOffsets], w.offsetEncoding.codeBits)
 	codegen[numLiterals+numOffsets] = badCode

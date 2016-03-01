@@ -2840,7 +2840,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 				cmp.Right = a.Left
 				evconst(&cmp)
 				if cmp.Op == OLITERAL {
-					// Sometimes evconst fails.  See issue 12536.
+					// Sometimes evconst fails. See issue 12536.
 					b = cmp.Val().U.(bool)
 				}
 			}
@@ -3074,7 +3074,7 @@ func typecheckcomplit(np **Node) {
 					Yyerror("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
 				}
 
-				// No pushtype allowed here.  Must name fields for that.
+				// No pushtype allowed here. Must name fields for that.
 				ll.N = assignconv(ll.N, f.Type, "field value")
 
 				ll.N = Nod(OKEY, newname(f.Sym), ll.N)
@@ -3114,7 +3114,7 @@ func typecheckcomplit(np **Node) {
 				}
 
 				// Sym might have resolved to name in other top-level
-				// package, because of import dot.  Redirect to correct sym
+				// package, because of import dot. Redirect to correct sym
 				// before we do the lookup.
 				if s.Pkg != localpkg && exportname(s.Name) {
 					s1 = Lookup(s.Name)
@@ -3136,7 +3136,7 @@ func typecheckcomplit(np **Node) {
 				fielddup(newname(s), hash)
 				r = l.Right
 
-				// No pushtype allowed here.  Tried and rejected.
+				// No pushtype allowed here. Tried and rejected.
 				typecheck(&r, Erv)
 
 				l.Right = assignconv(r, f.Type, "field value")
@@ -3504,7 +3504,7 @@ func domethod(n *Node) {
 	//	}
 	// then even though I.M looks like it doesn't care about the
 	// value of its argument, a specific implementation of I may
-	// care.  The _ would suppress the assignment to that argument
+	// care. The _ would suppress the assignment to that argument
 	// while generating a call, so remove it.
 	for t := getinargx(nt.Type).Type; t != nil; t = t.Down {
 		if t.Sym != nil && t.Sym.Name == "_" {

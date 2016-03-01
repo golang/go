@@ -378,7 +378,7 @@ func (t *tester) registerTests() {
 	})
 
 	// Test that internal linking of standard packages does not
-	// require libgcc.  This ensures that we can install a Go
+	// require libgcc. This ensures that we can install a Go
 	// release on a system that does not have a C compiler
 	// installed and still build Go programs (that don't use cgo).
 	for _, pkg := range cgoPackages {

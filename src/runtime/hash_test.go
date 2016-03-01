@@ -17,7 +17,7 @@ import (
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
 //
-// The current AES hash function passes Smhasher.  Our fallback
+// The current AES hash function passes Smhasher. Our fallback
 // hash functions don't, so we only enable the difficult tests when
 // we know the AES implementation is available.
 
@@ -349,7 +349,7 @@ func (k *EfaceKey) random(r *rand.Rand) {
 	k.i = uint64(r.Int63())
 }
 func (k *EfaceKey) bits() int {
-	// use 64 bits.  This tests inlined interfaces
+	// use 64 bits. This tests inlined interfaces
 	// on 64-bit targets and indirect interfaces on
 	// 32-bit targets.
 	return 64
@@ -381,7 +381,7 @@ func (k *IfaceKey) random(r *rand.Rand) {
 	k.i = fInter(r.Int63())
 }
 func (k *IfaceKey) bits() int {
-	// use 64 bits.  This tests inlined interfaces
+	// use 64 bits. This tests inlined interfaces
 	// on 64-bit targets and indirect interfaces on
 	// 32-bit targets.
 	return 64
@@ -443,7 +443,7 @@ func avalancheTest1(t *testing.T, k Key) {
 
 	// Each entry in the grid should be about REP/2.
 	// More precisely, we did N = k.bits() * hashSize experiments where
-	// each is the sum of REP coin flips.  We want to find bounds on the
+	// each is the sum of REP coin flips. We want to find bounds on the
 	// sum of coin flips such that a truly random experiment would have
 	// all sums inside those bounds with 99% probability.
 	N := n * hashSize
@@ -563,19 +563,19 @@ func BenchmarkHash1024(b *testing.B)  { benchmarkHash(b, 1024) }
 func BenchmarkHash65536(b *testing.B) { benchmarkHash(b, 65536) }
 
 func TestArrayHash(t *testing.T) {
-	// Make sure that "" in arrays hash correctly.  The hash
+	// Make sure that "" in arrays hash correctly. The hash
 	// should at least scramble the input seed so that, e.g.,
 	// {"","foo"} and {"foo",""} have different hashes.
 
 	// If the hash is bad, then all (8 choose 4) = 70 keys
 	// have the same hash. If so, we allocate 70/8 = 8
-	// overflow buckets.  If the hash is good we don't
+	// overflow buckets. If the hash is good we don't
 	// normally allocate any overflow buckets, and the
 	// probability of even one or two overflows goes down rapidly.
-	// (There is always 1 allocation of the bucket array.  The map
+	// (There is always 1 allocation of the bucket array. The map
 	// header is allocated on the stack.)
 	f := func() {
-		// Make the key type at most 128 bytes.  Otherwise,
+		// Make the key type at most 128 bytes. Otherwise,
 		// we get an allocation per key.
 		type key [8]string
 		m := make(map[key]bool, 70)

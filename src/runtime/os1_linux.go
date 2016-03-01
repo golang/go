@@ -33,7 +33,7 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 
 	// Some Linux kernels have a bug where futex of
 	// FUTEX_WAIT returns an internal error code
-	// as an errno.  Libpthread ignores the return value
+	// as an errno. Libpthread ignores the return value
 	// here, and so can we: as it says a few lines up,
 	// spurious wakeups are allowed.
 	if ns < 0 {
@@ -138,7 +138,7 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 	}
 
 	// Disable signals during clone, so that the new thread starts
-	// with signals disabled.  It will enable them in minit.
+	// with signals disabled. It will enable them in minit.
 	var oset sigset
 	rtsigprocmask(_SIG_SETMASK, &sigset_all, &oset, int32(unsafe.Sizeof(oset)))
 	ret := clone(cloneFlags, stk, unsafe.Pointer(mp), unsafe.Pointer(mp.g0), unsafe.Pointer(funcPC(mstart)))
@@ -288,7 +288,7 @@ func memlimit() uintptr {
 			return 0;
 
 		// If there's not at least 16 MB left, we're probably
-		// not going to be able to do much.  Treat as no limit.
+		// not going to be able to do much. Treat as no limit.
 		rl.rlim_cur -= used;
 		if(rl.rlim_cur < (16<<20))
 			return 0;

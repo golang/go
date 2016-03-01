@@ -2285,7 +2285,7 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 				}
 			case obj.NAME_AUTO, obj.NAME_PARAM:
 				// These names must have a base of SP.  The old compiler
-				// uses 0 for the base register.  SSA uses REG_SP.
+				// uses 0 for the base register. SSA uses REG_SP.
 				if a.Reg != REG_SP && a.Reg != 0 {
 					return Yxxx
 				}

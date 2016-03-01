@@ -172,7 +172,7 @@ func memlimit() uintptr {
 	return 0
 }
 
-// This runs on a foreign stack, without an m or a g.  No stack split.
+// This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 func badsignal2() {
 	write(2, unsafe.Pointer(&badsignal1[0]), int32(len(badsignal1)))

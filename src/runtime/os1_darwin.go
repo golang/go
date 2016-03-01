@@ -66,7 +66,7 @@ func goenvs() {
 	goenvs_unix()
 
 	// Register our thread-creation callback (see sys_darwin_{amd64,386}.s)
-	// but only if we're not using cgo.  If we are using cgo we need
+	// but only if we're not using cgo. If we are using cgo we need
 	// to let the C pthread library install its own thread-creation callback.
 	if !iscgo {
 		if bsdthread_register() != 0 {
@@ -290,7 +290,7 @@ func machcall(h *machheader, maxsize int32, rxsize int32) int32 {
 	// Look for a response giving the return value.
 	// Any call can send this back with an error,
 	// and some calls only have return values so they
-	// send it back on success too.  I don't quite see how
+	// send it back on success too. I don't quite see how
 	// you know it's one of these and not the full response
 	// format, so just look if the message is right.
 	c := (*codemsg)(unsafe.Pointer(h))

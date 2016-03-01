@@ -478,7 +478,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
 
 	// This test has an expected race. Sleeping for 25 ms prevents
 	// it on most fast machines, causing the next fetch() call to
-	// succeed quickly.  But if we do get errors, fetch() will retry 5
+	// succeed quickly. But if we do get errors, fetch() will retry 5
 	// times with some delays between.
 	time.Sleep(25 * time.Millisecond)
 
@@ -518,7 +518,7 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 	// after each request completes, regardless of whether it failed.
 	// If these are too high, OS X exhausts its ephemeral ports
 	// and hangs waiting for them to transition TCP states. That's
-	// not what we want to test.  TODO(bradfitz): use an io.Pipe
+	// not what we want to test. TODO(bradfitz): use an io.Pipe
 	// dialer for this test instead?
 	const (
 		numClients    = 20
@@ -1026,7 +1026,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 
 	growth := nfinal - n0
 
-	// We expect 0 or 1 extra goroutine, empirically.  Allow up to 5.
+	// We expect 0 or 1 extra goroutine, empirically. Allow up to 5.
 	// Previously we were leaking one per numReq.
 	if int(growth) > 5 {
 		t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
@@ -1067,7 +1067,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 
 	growth := nfinal - n0
 
-	// We expect 0 or 1 extra goroutine, empirically.  Allow up to 5.
+	// We expect 0 or 1 extra goroutine, empirically. Allow up to 5.
 	// Previously we were leaking one per numReq.
 	t.Logf("goroutine growth: %d -> %d -> %d (delta: %d)", n0, nhigh, nfinal, growth)
 	if int(growth) > 5 {
@@ -1103,8 +1103,8 @@ func TestTransportIdleConnCrash(t *testing.T) {
 }
 
 // Test that the transport doesn't close the TCP connection early,
-// before the response body has been read.  This was a regression
-// which sadly lacked a triggering test.  The large response body made
+// before the response body has been read. This was a regression
+// which sadly lacked a triggering test. The large response body made
 // the old race easier to trigger.
 func TestIssue3644(t *testing.T) {
 	defer afterTest(t)
@@ -1199,7 +1199,7 @@ func TestTransportConcurrency(t *testing.T) {
 
 	// Due to the Transport's "socket late binding" (see
 	// idleConnCh in transport.go), the numReqs HTTP requests
-	// below can finish with a dial still outstanding.  To keep
+	// below can finish with a dial still outstanding. To keep
 	// the leak checker happy, keep track of pending dials and
 	// wait for them to finish (and be closed or returned to the
 	// idle pool) before we close idle connections.
@@ -2273,7 +2273,7 @@ func TestTLSServerClosesConnection(t *testing.T) {
 }
 
 // byteFromChanReader is an io.Reader that reads a single byte at a
-// time from the channel.  When the channel is closed, the reader
+// time from the channel. When the channel is closed, the reader
 // returns io.EOF.
 type byteFromChanReader chan byte
 
@@ -2405,7 +2405,7 @@ func (plan9SleepReader) Read(p []byte) (int, error) {
 		// After the fix to unblock TCP Reads in
 		// https://golang.org/cl/15941, this sleep is required
 		// on plan9 to make sure TCP Writes before an
-		// immediate TCP close go out on the wire.  On Plan 9,
+		// immediate TCP close go out on the wire. On Plan 9,
 		// it seems that a hangup of a TCP connection with
 		// queued data doesn't send the queued data first.
 		// https://golang.org/issue/9554
@@ -2424,7 +2424,7 @@ func (f closerFunc) Close() error { return f() }
 // from (or finish writing to) the socket.
 //
 // NOTE: we resend a request only if the request is idempotent, we reused a
-// keep-alive connection, and we haven't yet received any header data.  This
+// keep-alive connection, and we haven't yet received any header data. This
 // automatically prevents an infinite resend loop because we'll run out of the
 // cached keep-alive connections eventually.
 func TestRetryIdempotentRequestsOnError(t *testing.T) {

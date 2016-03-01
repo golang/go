@@ -104,7 +104,7 @@ func appendEscapedRune(buf []byte, r rune, width int, quote byte, ASCIIonly, gra
 	return buf
 }
 
-// Quote returns a double-quoted Go string literal representing s.  The
+// Quote returns a double-quoted Go string literal representing s. The
 // returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
 // control characters and non-printable characters as defined by
 // IsPrint.

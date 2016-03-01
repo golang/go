@@ -93,7 +93,7 @@ var vcsHg = &vcsCmd{
 	downloadCmd: []string{"pull"},
 
 	// We allow both tag and branch names as 'tags'
-	// for selecting a version.  This lets people have
+	// for selecting a version. This lets people have
 	// a go.release.r60 branch and a go1 branch
 	// and make changes in both, without constantly
 	// editing .hgtags.

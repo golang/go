@@ -40,7 +40,7 @@ func sourceLine(n ast.Node) int {
 }
 
 // ReadGo populates f with information learned from reading the
-// Go source file with the given file name.  It gathers the C preamble
+// Go source file with the given file name. It gathers the C preamble
 // attached to the import "C" comment, a list of references to C.xxx,
 // a list of exported functions, and the actual AST, to be rewritten and
 // printed.

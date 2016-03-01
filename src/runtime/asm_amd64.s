@@ -203,7 +203,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
 
 // func mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	MOVQ	fn+0(FP), DI
@@ -237,7 +237,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-8
 	RET
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -268,7 +268,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	CALL	AX
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVQ	$runtime·systemstack_switch(SB), SI
 	MOVQ	SI, (g_sched+gobuf_pc)(AX)
@@ -716,7 +716,7 @@ havem:
 	CALL	runtime·cgocallbackg(SB)
 	MOVQ	0(SP), R8
 
-	// Compute the size of the frame again.  FP and SP have
+	// Compute the size of the frame again. FP and SP have
 	// completely different values here than they did above,
 	// but only their difference matters.
 	LEAQ	fv+0(FP), AX
@@ -909,7 +909,7 @@ final1:
 	RET
 
 endofpage:
-	// address ends in 1111xxxx.  Might be up against
+	// address ends in 1111xxxx. Might be up against
 	// a page boundary, so load ending at last byte.
 	// Then shift bytes down using pshufb.
 	MOVOU	-32(AX)(CX*1), X1
@@ -1232,7 +1232,7 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
 	SETEQ	ret+0(FP)
 	RET
 
-// these are arguments to pshufb.  They move data down from
+// these are arguments to pshufb. They move data down from
 // the high bytes of the register to the low bytes of the register.
 // index is how many bytes to move.
 DATA shifts<>+0x00(SB)/8, $0x0000000000000000
@@ -1412,7 +1412,7 @@ small:
 	MOVQ	(SI), SI
 	JMP	si_finish
 si_high:
-	// address ends in 11111xxx.  Load up to bytes we want, move to correct position.
+	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
 	MOVQ	-8(SI)(BX*1), SI
 	SHRQ	CX, SI
 si_finish:
@@ -1872,7 +1872,7 @@ sseloopentry:
 	CMPQ	DI, AX
 	JB	sseloop
 
-	// Search the last 16-byte chunk.  This chunk may overlap with the
+	// Search the last 16-byte chunk. This chunk may overlap with the
 	// chunks we've already searched, but that's ok.
 	MOVQ	AX, DI
 	MOVOU	(AX), X1

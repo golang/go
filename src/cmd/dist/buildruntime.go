@@ -82,7 +82,7 @@ func mkzbootstrap(file string) {
 }
 
 // stackGuardMultiplier returns a multiplier to apply to the default
-// stack guard size.  Larger multipliers are used for non-optimized
+// stack guard size. Larger multipliers are used for non-optimized
 // builds that have larger stack frames.
 func stackGuardMultiplier() int {
 	for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {

@@ -6,7 +6,7 @@ package math
 
 // The original C code and the long comment below are
 // from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
-// came with this notice.  The go code is a simplified
+// came with this notice. The go code is a simplified
 // version of the original C.
 //
 // ====================================================
@@ -79,7 +79,7 @@ package math
 //      equal to huge for some floating point number "huge" and "tiny".
 //
 //
-// Notes:  Rounding mode detection omitted.  The constants "mask", "shift",
+// Notes:  Rounding mode detection omitted. The constants "mask", "shift",
 // and "bias" are found in src/math/bits.go
 
 // Sqrt returns the square root of x.

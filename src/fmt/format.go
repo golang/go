@@ -133,7 +133,7 @@ func (f *fmt) fmt_boolean(v bool) {
 	}
 }
 
-// integer; interprets prec but not wid.  Once formatted, result is sent to pad()
+// integer; interprets prec but not wid. Once formatted, result is sent to pad()
 // and then flags are cleared.
 func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	// precision of 0 and value of 0 means "print nothing"

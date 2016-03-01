@@ -41,23 +41,23 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
 
 // Reader is the interface that wraps the basic Read method.
 //
-// Read reads up to len(p) bytes into p.  It returns the number of bytes
-// read (0 <= n <= len(p)) and any error encountered.  Even if Read
+// Read reads up to len(p) bytes into p. It returns the number of bytes
+// read (0 <= n <= len(p)) and any error encountered. Even if Read
 // returns n < len(p), it may use all of p as scratch space during the call.
 // If some data is available but not len(p) bytes, Read conventionally
 // returns what is available instead of waiting for more.
 //
 // When Read encounters an error or end-of-file condition after
 // successfully reading n > 0 bytes, it returns the number of
-// bytes read.  It may return the (non-nil) error from the same call
+// bytes read. It may return the (non-nil) error from the same call
 // or return the error (and n == 0) from a subsequent call.
 // An instance of this general case is that a Reader returning
 // a non-zero number of bytes at the end of the input stream may
-// return either err == EOF or err == nil.  The next Read should
+// return either err == EOF or err == nil. The next Read should
 // return 0, EOF.
 //
 // Callers should always process the n > 0 bytes returned before
-// considering the error err.  Doing so correctly handles I/O errors
+// considering the error err. Doing so correctly handles I/O errors
 // that happen after reading some bytes and also both of the
 // allowed EOF behaviors.
 //
@@ -176,15 +176,15 @@ type WriterTo interface {
 // ReaderAt is the interface that wraps the basic ReadAt method.
 //
 // ReadAt reads len(p) bytes into p starting at offset off in the
-// underlying input source.  It returns the number of bytes
+// underlying input source. It returns the number of bytes
 // read (0 <= n <= len(p)) and any error encountered.
 //
 // When ReadAt returns n < len(p), it returns a non-nil error
-// explaining why more bytes were not returned.  In this respect,
+// explaining why more bytes were not returned. In this respect,
 // ReadAt is stricter than Read.
 //
 // Even if ReadAt returns n < len(p), it may use all of p as scratch
-// space during the call.  If some data is available but not len(p) bytes,
+// space during the call. If some data is available but not len(p) bytes,
 // ReadAt blocks until either all the data is available or an error occurs.
 // In this respect ReadAt is different from Read.
 //
@@ -206,7 +206,7 @@ type ReaderAt interface {
 // WriterAt is the interface that wraps the basic WriteAt method.
 //
 // WriteAt writes len(p) bytes from p to the underlying data stream
-// at offset off.  It returns the number of bytes written from p (0 <= n <= len(p))
+// at offset off. It returns the number of bytes written from p (0 <= n <= len(p))
 // and any error encountered that caused the write to stop early.
 // WriteAt must return a non-nil error if it returns n < len(p).
 //
@@ -335,7 +335,7 @@ func CopyN(dst Writer, src Reader, n int64) (written int64, err error) {
 }
 
 // Copy copies from src to dst until either EOF is reached
-// on src or an error occurs.  It returns the number of bytes
+// on src or an error occurs. It returns the number of bytes
 // copied and the first error encountered while copying, if any.
 //
 // A successful Copy returns err == nil, not err == EOF.
@@ -497,7 +497,7 @@ func (s *SectionReader) Size() int64 { return s.limit - s.base }
 
 // TeeReader returns a Reader that writes to w what it reads from r.
 // All reads from r performed through it are matched with
-// corresponding writes to w.  There is no internal buffering -
+// corresponding writes to w. There is no internal buffering -
 // the write must complete before the read completes.
 // Any error encountered while writing is reported as a read error.
 func TeeReader(r Reader, w Writer) Reader {

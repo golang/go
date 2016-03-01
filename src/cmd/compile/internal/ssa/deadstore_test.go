@@ -65,7 +65,7 @@ func TestDeadStorePhi(t *testing.T) {
 }
 
 func TestDeadStoreTypes(t *testing.T) {
-	// Make sure a narrow store can't shadow a wider one.  We test an even
+	// Make sure a narrow store can't shadow a wider one. We test an even
 	// stronger restriction, that one store can't shadow another unless the
 	// types of the address fields are identical (where identicalness is
 	// decided by the CSE pass).

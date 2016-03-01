@@ -52,7 +52,7 @@ const (
 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
 )
 
-// A ValAndOff is used by the several opcodes.  It holds
+// A ValAndOff is used by the several opcodes. It holds
 // both a value and a pointer offset.
 // A ValAndOff is intended to be encoded into an AuxInt field.
 // The zero ValAndOff encodes a value of 0 and an offset of 0.

@@ -87,7 +87,7 @@ func Dial(network, addr string) (*Conn, error) {
 }
 
 // Cmd is a convenience method that sends a command after
-// waiting its turn in the pipeline.  The command text is the
+// waiting its turn in the pipeline. The command text is the
 // result of formatting format with args and appending \r\n.
 // Cmd returns the id of the command, for use with StartResponse and EndResponse.
 //

@@ -140,7 +140,7 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 			x = newobject(t)
 		}
 		// TODO: We allocate a zeroed object only to overwrite it with
-		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
+		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
 		typedmemmove(t, x, elem)
 		e._type = t
 		e.data = x

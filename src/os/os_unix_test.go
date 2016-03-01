@@ -39,7 +39,7 @@ func TestChown(t *testing.T) {
 	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
-	// on the file.  On NFS, the Getgroups groups are
+	// on the file. On NFS, the Getgroups groups are
 	// basically useless.
 	f := newFile("TestChown", t)
 	defer Remove(f.Name())
@@ -50,7 +50,7 @@ func TestChown(t *testing.T) {
 	}
 
 	// Can't change uid unless root, but can try
-	// changing the group id.  First try our current group.
+	// changing the group id. First try our current group.
 	gid := Getgid()
 	t.Log("gid:", gid)
 	if err = Chown(f.Name(), -1, gid); err != nil {
@@ -86,7 +86,7 @@ func TestFileChown(t *testing.T) {
 	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
-	// on the file.  On NFS, the Getgroups groups are
+	// on the file. On NFS, the Getgroups groups are
 	// basically useless.
 	f := newFile("TestFileChown", t)
 	defer Remove(f.Name())
@@ -97,7 +97,7 @@ func TestFileChown(t *testing.T) {
 	}
 
 	// Can't change uid unless root, but can try
-	// changing the group id.  First try our current group.
+	// changing the group id. First try our current group.
 	gid := Getgid()
 	t.Log("gid:", gid)
 	if err = f.Chown(-1, gid); err != nil {
@@ -133,7 +133,7 @@ func TestLchown(t *testing.T) {
 	}
 	// Use TempDir() to make sure we're on a local file system,
 	// so that the group ids returned by Getgroups will be allowed
-	// on the file.  On NFS, the Getgroups groups are
+	// on the file. On NFS, the Getgroups groups are
 	// basically useless.
 	f := newFile("TestLchown", t)
 	defer Remove(f.Name())
@@ -150,7 +150,7 @@ func TestLchown(t *testing.T) {
 	defer Remove(linkname)
 
 	// Can't change uid unless root, but can try
-	// changing the group id.  First try our current group.
+	// changing the group id. First try our current group.
 	gid := Getgid()
 	t.Log("gid:", gid)
 	if err = Lchown(linkname, -1, gid); err != nil {

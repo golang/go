@@ -147,11 +147,11 @@ package runtime
 import "runtime/internal/sys"
 
 // Caller reports file and line number information about function invocations on
-// the calling goroutine's stack.  The argument skip is the number of stack frames
+// the calling goroutine's stack. The argument skip is the number of stack frames
 // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
 // meaning of skip differs between Caller and Callers.) The return values report the
 // program counter, file name, and line number within the file of the corresponding
-// call.  The boolean ok is false if it was not possible to recover the information.
+// call. The boolean ok is false if it was not possible to recover the information.
 func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 	// Ask for two PCs: the one we were asked for
 	// and what it called, so that we can see if it
@@ -184,7 +184,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 }
 
 // Callers fills the slice pc with the return program counters of function invocations
-// on the calling goroutine's stack.  The argument skip is the number of stack frames
+// on the calling goroutine's stack. The argument skip is the number of stack frames
 // to skip before recording in pc, with 0 identifying the frame for Callers itself and
 // 1 identifying the caller of Callers.
 // It returns the number of entries written to pc.
@@ -196,7 +196,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
 // To easily look up file/line information for the call sequence, use Frames.
 func Callers(skip int, pc []uintptr) int {
 	// runtime.callers uses pc.array==nil as a signal
-	// to print a stack trace.  Pick off 0-length pc here
+	// to print a stack trace. Pick off 0-length pc here
 	// so that we don't let a nil pc slice get to it.
 	if len(pc) == 0 {
 		return 0

@@ -1,7 +1,7 @@
 // Inferno's libkern/memmove-386.s
 // http://code.google.com/p/inferno-os/source/browse/libkern/memmove-386.s
 //
-//         Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+//         Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 //         Revisions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com).  All rights reserved.
 //         Portions Copyright 2009 The Go Authors. All rights reserved.
 //
@@ -33,8 +33,8 @@ TEXT runtime·memmove(SB), NOSPLIT, $0-12
 	MOVL	n+8(FP), BX
 
 	// REP instructions have a high startup cost, so we handle small sizes
-	// with some straightline code.  The REP MOVSL instruction is really fast
-	// for large sizes.  The cutover is approximately 1K.  We implement up to
+	// with some straightline code. The REP MOVSL instruction is really fast
+	// for large sizes. The cutover is approximately 1K.  We implement up to
 	// 128 because that is the maximum SSE register load (loading all data
 	// into registers lets us ignore copy direction).
 tail:

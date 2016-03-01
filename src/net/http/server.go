@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// HTTP server.  See RFC 2616.
+// HTTP server. See RFC 2616.
 
 package http
 
@@ -74,7 +74,7 @@ type ResponseWriter interface {
 
 	// Write writes the data to the connection as part of an HTTP reply.
 	// If WriteHeader has not yet been called, Write calls WriteHeader(http.StatusOK)
-	// before writing the data.  If the Header does not contain a
+	// before writing the data. If the Header does not contain a
 	// Content-Type line, Write adds a Content-Type set to the result of passing
 	// the initial 512 bytes of written data to DetectContentType.
 	Write([]byte) (int, error)
@@ -342,7 +342,7 @@ type response struct {
 	requestBodyLimitHit bool
 
 	// trailers are the headers to be sent after the handler
-	// finishes writing the body.  This field is initialized from
+	// finishes writing the body. This field is initialized from
 	// the Trailer response header when the response header is
 	// written.
 	trailers []string
@@ -766,7 +766,7 @@ func (w *response) Header() Header {
 
 // maxPostHandlerReadBytes is the max number of Request.Body bytes not
 // consumed by a handler that the server will read from the client
-// in order to keep a connection alive.  If there are more bytes than
+// in order to keep a connection alive. If there are more bytes than
 // this then the server to be paranoid instead sends a "Connection:
 // close" response.
 //
@@ -855,8 +855,8 @@ func (h extraHeader) Write(w *bufio.Writer) {
 // to cw.res.conn.bufw.
 //
 // p is not written by writeHeader, but is the first chunk of the body
-// that will be written.  It is sniffed for a Content-Type if none is
-// set explicitly.  It's also used to set the Content-Length, if the
+// that will be written. It is sniffed for a Content-Type if none is
+// set explicitly. It's also used to set the Content-Length, if the
 // total body size was small and the handler has already finished
 // running.
 func (cw *chunkWriter) writeHeader(p []byte) {
@@ -911,9 +911,9 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// Exceptions: 304/204/1xx responses never get Content-Length, and if
 	// it was a HEAD request, we don't know the difference between
 	// 0 actual bytes and 0 bytes because the handler noticed it
-	// was a HEAD request and chose not to write anything.  So for
+	// was a HEAD request and chose not to write anything. So for
 	// HEAD, the handler should either write the Content-Length or
-	// write non-zero bytes.  If it's actually 0 bytes and the
+	// write non-zero bytes. If it's actually 0 bytes and the
 	// handler never looked at the Request.Method, we just don't
 	// send a Content-Length header.
 	// Further, we don't send an automatic Content-Length if they
@@ -965,7 +965,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 
 	// Per RFC 2616, we should consume the request body before
-	// replying, if the handler hasn't already done so.  But we
+	// replying, if the handler hasn't already done so. But we
 	// don't want to do an unbounded amount of reading here for
 	// DoS reasons, so we only try up to a threshold.
 	if w.req.ContentLength != 0 && !w.closeAfterReply {
@@ -1174,7 +1174,7 @@ func (w *response) bodyAllowed() bool {
 // The Life Of A Write is like this:
 //
 // Handler starts. No header has been sent. The handler can either
-// write a header, or just start writing.  Writing before sending a header
+// write a header, or just start writing. Writing before sending a header
 // sends an implicitly empty 200 OK header.
 //
 // If the handler didn't declare a Content-Length up front, we either
@@ -1200,7 +1200,7 @@ func (w *response) bodyAllowed() bool {
 // initial header contains both a Content-Type and Content-Length.
 // Also short-circuit in (1) when the header's been sent and not in
 // chunking mode, writing directly to (4) instead, if (2) has no
-// buffered data.  More generally, we could short-circuit from (1) to
+// buffered data. More generally, we could short-circuit from (1) to
 // (3) even in chunking mode if the write size from (1) is over some
 // threshold and nothing is in (2).  The answer might be mostly making
 // bufferBeforeChunkingSize smaller and having bufio's fast-paths deal
@@ -1341,7 +1341,7 @@ type closeWriter interface {
 var _ closeWriter = (*net.TCPConn)(nil)
 
 // closeWrite flushes any outstanding data and sends a FIN packet (if
-// client is connected via TCP), signalling that we're done.  We then
+// client is connected via TCP), signalling that we're done. We then
 // pause for a bit, hoping the client processes it before any
 // subsequent RST.
 //
@@ -1355,7 +1355,7 @@ func (c *conn) closeWriteAndWait() {
 }
 
 // validNPN reports whether the proto is not a blacklisted Next
-// Protocol Negotiation protocol.  Empty and built-in protocol types
+// Protocol Negotiation protocol. Empty and built-in protocol types
 // are blacklisted and can't be overridden with alternate
 // implementations.
 func validNPN(proto string) bool {
@@ -1433,7 +1433,7 @@ func (c *conn) serve() {
 				// able to read this if we're
 				// responding to them and hanging up
 				// while they're still writing their
-				// request.  Undefined behavior.
+				// request. Undefined behavior.
 				io.WriteString(c.rwc, "HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\n431 Request Header Fields Too Large")
 				c.closeWriteAndWait()
 				return
@@ -1467,7 +1467,7 @@ func (c *conn) serve() {
 		// HTTP cannot have multiple simultaneous active requests.[*]
 		// Until the server replies to this request, it can't read another,
 		// so we might as well run the handler in this goroutine.
-		// [*] Not strictly true: HTTP pipelining.  We could let them all process
+		// [*] Not strictly true: HTTP pipelining. We could let them all process
 		// in parallel even if their responses need to be serialized.
 		serverHandler{c.server}.ServeHTTP(w, w.req)
 		if c.hijacked() {
@@ -1488,7 +1488,7 @@ func (w *response) sendExpectationFailed() {
 	// TODO(bradfitz): let ServeHTTP handlers handle
 	// requests with non-standard expectation[s]? Seems
 	// theoretical at best, and doesn't fit into the
-	// current ServeHTTP model anyway.  We'd need to
+	// current ServeHTTP model anyway. We'd need to
 	// make the ResponseWriter an optional
 	// "ExpectReplier" interface or something.
 	//
@@ -1608,7 +1608,7 @@ func requestBodyRemains(rc io.ReadCloser) bool {
 }
 
 // The HandlerFunc type is an adapter to allow the use of
-// ordinary functions as HTTP handlers.  If f is a function
+// ordinary functions as HTTP handlers. If f is a function
 // with the appropriate signature, HandlerFunc(f) is a
 // Handler that calls f.
 type HandlerFunc func(ResponseWriter, *Request)
@@ -1779,7 +1779,7 @@ func RedirectHandler(url string, code int) Handler {
 // been registered separately.
 //
 // Patterns may optionally begin with a host name, restricting matches to
-// URLs on that host only.  Host-specific patterns take precedence over
+// URLs on that host only. Host-specific patterns take precedence over
 // general patterns, so that a handler might register for the two patterns
 // "/codesearch" and "codesearch.google.com/" without also taking over
 // requests for "http://www.google.com/".
@@ -1968,7 +1968,7 @@ func HandleFunc(pattern string, handler func(ResponseWriter, *Request)) {
 }
 
 // Serve accepts incoming HTTP connections on the listener l,
-// creating a new service goroutine for each.  The service goroutines
+// creating a new service goroutine for each. The service goroutines
 // read requests and then call handler to reply to them.
 // Handler is typically nil, in which case the DefaultServeMux is used.
 func Serve(l net.Listener, handler Handler) error {
@@ -1988,10 +1988,10 @@ type Server struct {
 
 	// TLSNextProto optionally specifies a function to take over
 	// ownership of the provided TLS connection when an NPN
-	// protocol upgrade has occurred.  The map key is the protocol
+	// protocol upgrade has occurred. The map key is the protocol
 	// name negotiated. The Handler argument should be used to
 	// handle HTTP requests and will initialize the Request's TLS
-	// and RemoteAddr if not already set.  The connection is
+	// and RemoteAddr if not already set. The connection is
 	// automatically closed when the function returns.
 	// If TLSNextProto is nil, HTTP/2 support is enabled automatically.
 	TLSNextProto map[string]func(*Server, *tls.Conn, Handler)
@@ -2330,7 +2330,7 @@ type timeoutHandler struct {
 	body    string
 
 	// timeout returns the channel of a *time.Timer and
-	// cancelTimer cancels it.  They're stored separately for
+	// cancelTimer cancels it. They're stored separately for
 	// testing purposes.
 	timeout     func() <-chan time.Time // returns channel producing a timeout
 	cancelTimer func() bool             // optional

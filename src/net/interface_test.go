@@ -11,7 +11,7 @@ import (
 )
 
 // loopbackInterface returns an available logical network interface
-// for loopback tests.  It returns nil if no suitable interface is
+// for loopback tests. It returns nil if no suitable interface is
 // found.
 func loopbackInterface() *Interface {
 	ift, err := Interfaces()

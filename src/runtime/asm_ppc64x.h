@@ -14,7 +14,7 @@
 // +---------------------+ <- R1
 //
 // So a function that sets up a stack frame at all uses as least FIXED_FRAME
-// bytes of stack.  This mostly affects assembly that calls other functions
+// bytes of stack. This mostly affects assembly that calls other functions
 // with arguments (the arguments should be stored at FIXED_FRAME+0(R1),
 // FIXED_FRAME+8(R1) etc) and some other low-level places.
 //

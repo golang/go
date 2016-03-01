@@ -116,7 +116,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
 
 		// Only push runtime.sigpanic if pc != 0.
 		// If pc == 0, probably panicked because of a
-		// call to a nil func.  Not pushing that onto sp will
+		// call to a nil func. Not pushing that onto sp will
 		// make the trace look like a call to runtime.sigpanic instead.
 		// (Otherwise the trace will end at runtime.sigpanic and we
 		// won't get to see who faulted.)

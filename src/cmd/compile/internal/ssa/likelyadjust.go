@@ -76,7 +76,7 @@ func describeBranchPrediction(f *Func, b *Block, likely, not int8, prediction Br
 func likelyadjust(f *Func) {
 	// The values assigned to certain and local only matter
 	// in their rank order.  0 is default, more positive
-	// is less likely.  It's possible to assign a negative
+	// is less likely. It's possible to assign a negative
 	// unlikeliness (though not currently the case).
 	certain := make([]int8, f.NumBlocks()) // In the long run, all outcomes are at least this bad. Mainly for Exit
 	local := make([]int8, f.NumBlocks())   // for our immediate predecessors.
@@ -113,7 +113,7 @@ func likelyadjust(f *Func) {
 				// Notice that this can act like a "reset" on unlikeliness at loops; the
 				// default "everything returns" unlikeliness is erased by min with the
 				// backedge likeliness; however a loop with calls on every path will be
-				// tagged with call cost.  Net effect is that loop entry is favored.
+				// tagged with call cost. Net effect is that loop entry is favored.
 				b0 := b.Succs[0].ID
 				b1 := b.Succs[1].ID
 				certain[b.ID] = min8(certain[b0], certain[b1])
@@ -204,7 +204,7 @@ func (l *loop) LongString() string {
 
 // nearestOuterLoop returns the outer loop of loop most nearly
 // containing block b; the header must dominate b.  loop itself
-// is assumed to not be that loop.  For acceptable performance,
+// is assumed to not be that loop. For acceptable performance,
 // we're relying on loop nests to not be terribly deep.
 func (l *loop) nearestOuterLoop(sdom sparseTree, b *Block) *loop {
 	var o *loop

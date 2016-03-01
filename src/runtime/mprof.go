@@ -262,7 +262,7 @@ func mProf_Free(b *bucket, size uintptr) {
 var blockprofilerate uint64 // in CPU ticks
 
 // SetBlockProfileRate controls the fraction of goroutine blocking events
-// that are reported in the blocking profile.  The profiler aims to sample
+// that are reported in the blocking profile. The profiler aims to sample
 // an average of one blocking event per rate nanoseconds spent blocked.
 //
 // To include every blocking event in the profile, pass rate = 1.
@@ -335,7 +335,7 @@ func (r *StackRecord) Stack() []uintptr {
 //
 // The tools that process the memory profiles assume that the
 // profile rate is constant across the lifetime of the program
-// and equal to the current value.  Programs that change the
+// and equal to the current value. Programs that change the
 // memory profiling rate should do so just once, as early as
 // possible in the execution of the program (for example,
 // at the beginning of main).

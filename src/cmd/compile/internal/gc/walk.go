@@ -2788,7 +2788,7 @@ func appendslice(n *Node, init **NodeList) *Node {
 
 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
-	// modifying here.  Fix explicitly.
+	// modifying here. Fix explicitly.
 	for l := n.List; l != nil; l = l.Next {
 		l.N = cheapexpr(l.N, init)
 	}
@@ -2907,7 +2907,7 @@ func walkappend(n *Node, init **NodeList, dst *Node) *Node {
 
 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
-	// modifying here.  Fix explicitly.
+	// modifying here. Fix explicitly.
 	// Using cheapexpr also makes sure that the evaluation
 	// of all arguments (and especially any panics) happen
 	// before we begin to modify the slice in a visible way.
@@ -3241,7 +3241,7 @@ func walkcompare(np **Node, init **NodeList) {
 		return
 	}
 
-	// Chose not to inline.  Call equality function directly.
+	// Chose not to inline. Call equality function directly.
 	var needsize int
 	call := Nod(OCALL, eqfor(t, &needsize), nil)
 

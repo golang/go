@@ -1132,7 +1132,7 @@ func defptrto(dwtype *DWDie) *DWDie {
 }
 
 // Copies src's children into dst. Copies attributes by value.
-// DWAttr.data is copied as pointer only.  If except is one of
+// DWAttr.data is copied as pointer only. If except is one of
 // the top-level children, it will not be copied.
 func copychildrenexcept(dst *DWDie, src *DWDie, except *DWDie) {
 	for src = src.child; src != nil; src = src.link {
@@ -2263,7 +2263,7 @@ func dwarfaddshstrings(shstrtab *LSym) {
 	}
 }
 
-// Add section symbols for DWARF debug info.  This is called before
+// Add section symbols for DWARF debug info. This is called before
 // dwarfaddelfheaders.
 func dwarfaddelfsectionsyms() {
 	if infosym != nil {

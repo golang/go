@@ -91,8 +91,8 @@ func (s *stackAllocState) stackalloc() {
 
 	// For each type, we keep track of all the stack slots we
 	// have allocated for that type.
-	// TODO: share slots among equivalent types.  We would need to
-	// only share among types with the same GC signature.  See the
+	// TODO: share slots among equivalent types. We would need to
+	// only share among types with the same GC signature. See the
 	// type.Equal calls below for where this matters.
 	locations := map[Type][]LocalSlot{}
 
@@ -177,7 +177,7 @@ func (s *stackAllocState) stackalloc() {
 // computeLive computes a map from block ID to a list of
 // stack-slot-needing value IDs live at the end of that block.
 // TODO: this could be quadratic if lots of variables are live across lots of
-// basic blocks.  Figure out a way to make this function (or, more precisely, the user
+// basic blocks. Figure out a way to make this function (or, more precisely, the user
 // of this function) require only linear size & time.
 func (s *stackAllocState) computeLive(spillLive [][]ID) {
 	s.live = make([][]ID, s.f.NumBlocks())
@@ -206,7 +206,7 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
 				if v.Op == OpPhi {
 					// Save phi for later.
 					// Note: its args might need a stack slot even though
-					// the phi itself doesn't.  So don't use needSlot.
+					// the phi itself doesn't. So don't use needSlot.
 					if !v.Type.IsMemory() && !v.Type.IsVoid() {
 						phis = append(phis, v)
 					}
@@ -299,7 +299,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			if v.Op == OpArg && s.values[v.ID].needSlot {
 				// OpArg is an input argument which is pre-spilled.
 				// We add back v.ID here because we want this value
-				// to appear live even before this point.  Being live
+				// to appear live even before this point. Being live
 				// all the way to the start of the entry block prevents other
 				// values from being allocated to the same slot and clobbering
 				// the input value before we have a chance to load it.

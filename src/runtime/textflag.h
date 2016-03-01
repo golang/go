@@ -3,12 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // This file defines flags attached to various functions
-// and data objects.  The compilers, assemblers, and linker must
+// and data objects. The compilers, assemblers, and linker must
 // all agree on these values.
 
-// Don't profile the marked routine.  This flag is deprecated.
+// Don't profile the marked routine. This flag is deprecated.
 #define NOPROF	1
-// It is ok for the linker to get multiple of these symbols.  It will
+// It is ok for the linker to get multiple of these symbols. It will
 // pick one of the duplicates to use.
 #define DUPOK	2
 // Don't insert stack check preamble.

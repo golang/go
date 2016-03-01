@@ -7,18 +7,18 @@ package ssa
 const flagRegMask = regMask(1) << 33 // TODO: arch-specific
 
 // flagalloc allocates the flag register among all the flag-generating
-// instructions.  Flag values are recomputed if they need to be
+// instructions. Flag values are recomputed if they need to be
 // spilled/restored.
 func flagalloc(f *Func) {
 	// Compute the in-register flag value we want at the end of
-	// each block.  This is basically a best-effort live variable
+	// each block. This is basically a best-effort live variable
 	// analysis, so it can be much simpler than a full analysis.
 	// TODO: do we really need to keep flag values live across blocks?
 	// Could we force the flags register to be unused at basic block
 	// boundaries?  Then we wouldn't need this computation.
 	end := make([]*Value, f.NumBlocks())
 	for n := 0; n < 2; n++ {
-		// Walk blocks backwards.  Poor-man's postorder traversal.
+		// Walk blocks backwards. Poor-man's postorder traversal.
 		for i := len(f.Blocks) - 1; i >= 0; i-- {
 			b := f.Blocks[i]
 			// Walk values backwards to figure out what flag
@@ -117,7 +117,7 @@ func flagalloc(f *Func) {
 			// subsequent blocks.
 			_ = v.copyInto(b)
 			// Note: this flag generator is not properly linked up
-			// with the flag users.  This breaks the SSA representation.
+			// with the flag users. This breaks the SSA representation.
 			// We could fix up the users with another pass, but for now
 			// we'll just leave it.  (Regalloc has the same issue for
 			// standard regs, and it runs next.)

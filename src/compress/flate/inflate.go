@@ -115,7 +115,7 @@ type huffmanDecoder struct {
 // trees are permitted.
 func (h *huffmanDecoder) init(bits []int) bool {
 	// Sanity enables additional runtime tests during Huffman
-	// table construction.  It's intended to be used during
+	// table construction. It's intended to be used during
 	// development to supplement the currently ad-hoc unit tests.
 	const sanity = false
 
@@ -162,7 +162,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 	// Check that the coding is complete (i.e., that we've
 	// assigned all 2-to-the-max possible bit sequences).
 	// Exception: To be compatible with zlib, we also need to
-	// accept degenerate single-code codings.  See also
+	// accept degenerate single-code codings. See also
 	// TestDegenerateHuffmanCoding.
 	if code != 1<<uint(max) && !(code == 1 && max == 1) {
 		return false
@@ -200,7 +200,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 		if n <= huffmanChunkBits {
 			for off := reverse; off < len(h.chunks); off += 1 << uint(n) {
 				// We should never need to overwrite
-				// an existing chunk.  Also, 0 is
+				// an existing chunk. Also, 0 is
 				// never a valid chunk, because the
 				// lower 4 "count" bits should be
 				// between 1 and 15.
@@ -230,7 +230,7 @@ func (h *huffmanDecoder) init(bits []int) bool {
 
 	if sanity {
 		// Above we've sanity checked that we never overwrote
-		// an existing entry.  Here we additionally check that
+		// an existing entry. Here we additionally check that
 		// we filled the tables completely.
 		for i, chunk := range h.chunks {
 			if chunk == 0 {
@@ -478,7 +478,7 @@ func (f *decompressor) readHuffman() error {
 
 // Decode a single Huffman block from f.
 // hl and hd are the Huffman states for the lit/length values
-// and the distance values, respectively.  If hd == nil, using the
+// and the distance values, respectively. If hd == nil, using the
 // fixed distance encoding associated with fixed Huffman blocks.
 func (f *decompressor) huffmanBlock() {
 	const (
@@ -791,9 +791,9 @@ func NewReader(r io.Reader) io.ReadCloser {
 }
 
 // NewReaderDict is like NewReader but initializes the reader
-// with a preset dictionary.  The returned Reader behaves as if
+// with a preset dictionary. The returned Reader behaves as if
 // the uncompressed data stream started with the given dictionary,
-// which has already been read.  NewReaderDict is typically used
+// which has already been read. NewReaderDict is typically used
 // to read data compressed by NewWriterDict.
 //
 // The ReadCloser returned by NewReader also implements Resetter.

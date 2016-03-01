@@ -17,11 +17,11 @@ const (
 // Garbage collector work pool abstraction.
 //
 // This implements a producer/consumer model for pointers to grey
-// objects.  A grey object is one that is marked and on a work
-// queue.  A black object is marked and not on a work queue.
+// objects. A grey object is one that is marked and on a work
+// queue. A black object is marked and not on a work queue.
 //
 // Write barriers, root discovery, stack scanning, and object scanning
-// produce pointers to grey objects.  Scanning consumes pointers to
+// produce pointers to grey objects. Scanning consumes pointers to
 // grey objects, thus blackening them, and then scans them,
 // potentially producing new pointers to grey objects.
 
