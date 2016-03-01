@@ -39,8 +39,8 @@ func probeIPv4Stack() bool {
 	return probe(netdir+"/iproute", "4i")
 }
 
-// probeIPv6Stack returns two boolean values.  If the first boolean
-// value is true, kernel supports basic IPv6 functionality.  If the
+// probeIPv6Stack returns two boolean values. If the first boolean
+// value is true, kernel supports basic IPv6 functionality. If the
 // second boolean value is true, kernel supports IPv6 IPv4-mapping.
 func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
 	// Plan 9 uses IPv6 natively, see ip(3).

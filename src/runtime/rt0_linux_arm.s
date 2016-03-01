@@ -13,7 +13,7 @@ TEXT _rt0_arm_linux(SB),NOSPLIT,$-4
 // When building with -buildmode=c-shared, this symbol is called when the shared
 // library is loaded.
 TEXT _rt0_arm_linux_lib(SB),NOSPLIT,$32
-	// Preserve callee-save registers.  Raspberry Pi's dlopen(), for example,
+	// Preserve callee-save registers. Raspberry Pi's dlopen(), for example,
 	// actually cares that R11 is preserved.
 	MOVW	R4, 12(R13)
 	MOVW	R5, 16(R13)

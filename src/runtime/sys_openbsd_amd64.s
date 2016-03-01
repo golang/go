@@ -50,7 +50,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$32
 	// Call fn
 	CALL	R12
 
-	// It shouldn't return.  If it does, exit
+	// It shouldn't return. If it does, exit
 	MOVQ	$0, DI			// arg 1 - notdead
 	MOVL	$302, AX		// sys___threxit
 	SYSCALL

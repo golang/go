@@ -42,7 +42,7 @@ func testStoreSize_ssa(p *uint16, q *uint16, v uint32) {
 	switch {
 	}
 	// Test to make sure that (Store ptr (Trunc32to16 val) mem)
-	// does not end up as a 32-bit store.  It must stay a 16 bit store
+	// does not end up as a 32-bit store. It must stay a 16 bit store
 	// even when Trunc32to16 is rewritten to be a nop.
 	// To ensure that we get rewrite the Trunc32to16 before
 	// we rewrite the Store, we force the truncate into an

@@ -42,7 +42,7 @@ type rfc1423Algo struct {
 }
 
 // rfc1423Algos holds a slice of the possible ways to encrypt a PEM
-// block.  The ivSize numbers were taken from the OpenSSL source.
+// block. The ivSize numbers were taken from the OpenSSL source.
 var rfc1423Algos = []rfc1423Algo{{
 	cipher:     PEMCipherDES,
 	name:       "DES-CBC",

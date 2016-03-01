@@ -15,7 +15,7 @@ func (p *Profile) decoder() []decoder {
 }
 
 // preEncode populates the unexported fields to be used by encode
-// (with suffix X) from the corresponding exported fields.  The
+// (with suffix X) from the corresponding exported fields. The
 // exported fields are cleared up to facilitate testing.
 func (p *Profile) preEncode() {
 	strings := make(map[string]int)

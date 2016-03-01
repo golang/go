@@ -17,7 +17,7 @@ import (
 )
 
 // userTypeInfo stores the information associated with a type the user has handed
-// to the package.  It's computed once and stored in a map keyed by reflection
+// to the package. It's computed once and stored in a map keyed by reflection
 // type.
 type userTypeInfo struct {
 	user        reflect.Type // the type the user handed us
@@ -44,7 +44,7 @@ var (
 )
 
 // validType returns, and saves, the information associated with user-provided type rt.
-// If the user type is not valid, err will be non-nil.  To be used when the error handler
+// If the user type is not valid, err will be non-nil. To be used when the error handler
 // is not set up.
 func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 	userTypeLock.RLock()
@@ -64,7 +64,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err error) {
 	ut.base = rt
 	ut.user = rt
 	// A type that is just a cycle of pointers (such as type T *T) cannot
-	// be represented in gobs, which need some concrete data.  We use a
+	// be represented in gobs, which need some concrete data. We use a
 	// cycle detection algorithm from Knuth, Vol 2, Section 3.1, Ex 6,
 	// pp 539-540.  As we step through indirections, run another type at
 	// half speed. If they meet up, there's a cycle.
@@ -493,7 +493,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		// For arrays, maps, and slices, we set the type id after the elements
 		// are constructed. This is to retain the order of type id allocation after
 		// a fix made to handle recursive types, which changed the order in
-		// which types are built.  Delaying the setting in this way preserves
+		// which types are built. Delaying the setting in this way preserves
 		// type ids while allowing recursive types to be described. Structs,
 		// done below, were already handling recursion correctly so they
 		// assign the top-level id before those of the field.
@@ -597,7 +597,7 @@ func getBaseType(name string, rt reflect.Type) (gobType, error) {
 
 // getType returns the Gob type describing the given reflect.Type.
 // Should be called only when handling GobEncoders/Decoders,
-// which may be pointers.  All other types are handled through the
+// which may be pointers. All other types are handled through the
 // base type, never a pointer.
 // typeLock must be held.
 func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
@@ -642,7 +642,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
 // For bootstrapping purposes, we assume that the recipient knows how
 // to decode a wireType; it is exactly the wireType struct here, interpreted
 // using the gob rules for sending a structure, except that we assume the
-// ids for wireType and structType etc. are known.  The relevant pieces
+// ids for wireType and structType etc. are known. The relevant pieces
 // are built in encode.go's init() function.
 // To maintain binary compatibility, if you extend this type, always put
 // the new fields last.
@@ -789,7 +789,7 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 //
 // Note: Since gobs can be stored permanently, it is good design
 // to guarantee the encoding used by a GobEncoder is stable as the
-// software evolves.  For instance, it might make sense for GobEncode
+// software evolves. For instance, it might make sense for GobEncode
 // to include a version number in the encoding.
 type GobEncoder interface {
 	// GobEncode returns a byte slice representing the encoding of the
@@ -838,8 +838,8 @@ func RegisterName(name string, value interface{}) {
 }
 
 // Register records a type, identified by a value for that type, under its
-// internal type name.  That name will identify the concrete type of a value
-// sent or received as an interface variable.  Only types that will be
+// internal type name. That name will identify the concrete type of a value
+// sent or received as an interface variable. Only types that will be
 // transferred as implementations of interface values need to be registered.
 // Expecting to be used only during initialization, it panics if the mapping
 // between types and names is not a bijection.

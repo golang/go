@@ -388,7 +388,7 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	// If a test timeout was given and is parseable, set our kill timeout
-	// to that timeout plus one minute.  This is a backup alarm in case
+	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
@@ -691,7 +691,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// the usual place in the temporary tree, because then
 	// other tests will see it as the real package.
 	// Instead we make a _test directory under the import path
-	// and then repeat the import path there.  We tell the
+	// and then repeat the import path there. We tell the
 	// compiler and linker to look in that _test directory first.
 	//
 	// That is, if the package under test is unicode/utf8,

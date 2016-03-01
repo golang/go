@@ -196,7 +196,7 @@ var (
 
 func init() {
 	// The atof routines return NumErrors wrapping
-	// the error and the string.  Convert the table above.
+	// the error and the string. Convert the table above.
 	for i := range atoftests {
 		test := &atoftests[i]
 		if test.err != nil {

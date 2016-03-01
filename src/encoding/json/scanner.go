@@ -132,7 +132,7 @@ const (
 
 // These values are stored in the parseState stack.
 // They give the current state of a composite value
-// being scanned.  If the parser is inside a nested value
+// being scanned. If the parser is inside a nested value
 // the parseState describes the nested state, outermost at entry 0.
 const (
 	parseObjectKey   = iota // parsing object key (before colon)

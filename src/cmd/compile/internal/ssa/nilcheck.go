@@ -43,7 +43,7 @@ func nilcheckelim(f *Func) {
 	work = append(work, bp{block: f.Entry})
 
 	// map from value ID to bool indicating if value is known to be non-nil
-	// in the current dominator path being walked.  This slice is updated by
+	// in the current dominator path being walked. This slice is updated by
 	// walkStates to maintain the known non-nil values.
 	nonNilValues := make([]bool, f.NumValues())
 

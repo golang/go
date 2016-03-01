@@ -4,9 +4,9 @@
 
 // Register allocation.
 //
-// We use a version of a linear scan register allocator.  We treat the
+// We use a version of a linear scan register allocator. We treat the
 // whole function as a single long basic block and run through
-// it using a greedy register allocator.  Then all merge edges
+// it using a greedy register allocator. Then all merge edges
 // (those targeting a block with len(Preds)>1) are processed to
 // shuffle data into the place that the target of the edge expects.
 //
@@ -15,7 +15,7 @@
 // value whose next use is farthest in the future.
 //
 // The register allocator requires that a block is not scheduled until
-// at least one of its predecessors have been scheduled.  The most recent
+// at least one of its predecessors have been scheduled. The most recent
 // such predecessor provides the starting register state for a block.
 //
 // It also requires that there are no critical edges (critical =
@@ -29,28 +29,28 @@
 // For every value, we generate a spill immediately after the value itself.
 //     x = Op y z    : AX
 //     x2 = StoreReg x
-// While AX still holds x, any uses of x will use that value.  When AX is needed
+// While AX still holds x, any uses of x will use that value. When AX is needed
 // for another value, we simply reuse AX.  Spill code has already been generated
-// so there is no code generated at "spill" time.  When x is referenced
+// so there is no code generated at "spill" time. When x is referenced
 // subsequently, we issue a load to restore x to a register using x2 as
 //  its argument:
 //    x3 = Restore x2 : CX
 // x3 can then be used wherever x is referenced again.
 // If the spill (x2) is never used, it will be removed at the end of regalloc.
 //
-// Phi values are special, as always.  We define two kinds of phis, those
+// Phi values are special, as always. We define two kinds of phis, those
 // where the merge happens in a register (a "register" phi) and those where
 // the merge happens in a stack location (a "stack" phi).
 //
 // A register phi must have the phi and all of its inputs allocated to the
-// same register.  Register phis are spilled similarly to regular ops:
+// same register. Register phis are spilled similarly to regular ops:
 //     b1: y = ... : AX        b2: z = ... : AX
 //         goto b3                 goto b3
 //     b3: x = phi(y, z) : AX
 //         x2 = StoreReg x
 //
 // A stack phi must have the phi and all of its inputs allocated to the same
-// stack location.  Stack phis start out life already spilled - each phi
+// stack location. Stack phis start out life already spilled - each phi
 // input must be a store (using StoreReg) at the end of the corresponding
 // predecessor block.
 //     b1: y = ... : AX        b2: z = ... : BX
@@ -64,12 +64,12 @@
 // TODO
 
 // Use an affinity graph to mark two values which should use the
-// same register.  This affinity graph will be used to prefer certain
-// registers for allocation.  This affinity helps eliminate moves that
+// same register. This affinity graph will be used to prefer certain
+// registers for allocation. This affinity helps eliminate moves that
 // are required for phi implementations and helps generate allocations
 // for 2-register architectures.
 
-// Note: regalloc generates a not-quite-SSA output.  If we have:
+// Note: regalloc generates a not-quite-SSA output. If we have:
 //
 //             b1: x = ... : AX
 //                 x2 = StoreReg x
@@ -85,8 +85,8 @@
 // add a x4:CX->BX copy at the end of b4.
 // But the definition of x3 doesn't dominate b2.  We should really
 // insert a dummy phi at the start of b2 (x5=phi(x3,x4):BX) to keep
-// SSA form.  For now, we ignore this problem as remaining in strict
-// SSA form isn't needed after regalloc.  We'll just leave the use
+// SSA form. For now, we ignore this problem as remaining in strict
+// SSA form isn't needed after regalloc. We'll just leave the use
 // of x3 not dominated by the definition of x3, and the CX->BX copy
 // will have no use (so don't run deadcode after regalloc!).
 // TODO: maybe we should introduce these extra phis?
@@ -102,7 +102,7 @@ import (
 const regDebug = false // TODO: compiler flag
 const logSpills = false
 
-// regalloc performs register allocation on f.  It sets f.RegAlloc
+// regalloc performs register allocation on f. It sets f.RegAlloc
 // to the resulting allocation.
 func regalloc(f *Func) {
 	var s regAllocState
@@ -276,7 +276,7 @@ type startReg struct {
 	vid ID // pre-regalloc value needed in this register
 }
 
-// freeReg frees up register r.  Any current user of r is kicked out.
+// freeReg frees up register r. Any current user of r is kicked out.
 func (s *regAllocState) freeReg(r register) {
 	v := s.regs[r].v
 	if v == nil {
@@ -355,18 +355,18 @@ func (s *regAllocState) allocReg(v *Value, mask regMask) register {
 		return pickReg(mask)
 	}
 
-	// Pick a value to spill.  Spill the value with the
+	// Pick a value to spill. Spill the value with the
 	// farthest-in-the-future use.
 	// TODO: Prefer registers with already spilled Values?
 	// TODO: Modify preference using affinity graph.
 	// TODO: if a single value is in multiple registers, spill one of them
 	// before spilling a value in just a single register.
 
-	// SP and SB are allocated specially.  No regular value should
+	// SP and SB are allocated specially. No regular value should
 	// be allocated to them.
 	mask &^= 1<<4 | 1<<32
 
-	// Find a register to spill.  We spill the register containing the value
+	// Find a register to spill. We spill the register containing the value
 	// whose next use is as far in the future as possible.
 	// https://en.wikipedia.org/wiki/Page_replacement_algorithm#The_theoretically_optimal_page_replacement_algorithm
 	var r register
@@ -378,7 +378,7 @@ func (s *regAllocState) allocReg(v *Value, mask regMask) register {
 		v := s.regs[t].v
 		if n := s.values[v.ID].uses.dist; n > maxuse {
 			// v's next use is farther in the future than any value
-			// we've seen so far.  A new best spill candidate.
+			// we've seen so far. A new best spill candidate.
 			r = t
 			maxuse = n
 		}
@@ -476,7 +476,7 @@ func (s *regAllocState) init(f *Func) {
 	}
 	s.computeLive()
 
-	// Compute block order.  This array allows us to distinguish forward edges
+	// Compute block order. This array allows us to distinguish forward edges
 	// from backward edges and compute how far they go.
 	blockOrder := make([]int32, f.NumBlocks())
 	for i, b := range f.Blocks {
@@ -589,7 +589,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			liveSet.remove(v.ID)
 			if v.Op == OpPhi {
 				// Remove v from the live set, but don't add
-				// any inputs.  This is the state the len(b.Preds)>1
+				// any inputs. This is the state the len(b.Preds)>1
 				// case below desires; it wants to process phis specially.
 				continue
 			}
@@ -653,7 +653,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 		} else {
-			// This is the complicated case.  We have more than one predecessor,
+			// This is the complicated case. We have more than one predecessor,
 			// which means we may have Phi ops.
 
 			// Copy phi ops into new schedule.
@@ -674,7 +674,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Decide on registers for phi ops.  Use the registers determined
+			// Decide on registers for phi ops. Use the registers determined
 			// by the primary predecessor if we can.
 			// TODO: pick best of (already processed) predecessors?
 			// Majority vote?  Deepest nesting level?
@@ -728,7 +728,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				}
 			}
 
-			// Set registers for phis.  Add phi spill code.
+			// Set registers for phis. Add phi spill code.
 			for i, v := range phis {
 				if !s.values[v.ID].needReg {
 					continue
@@ -861,8 +861,8 @@ func (s *regAllocState) regalloc(f *Func) {
 				continue
 			}
 			if v.Op == OpArg {
-				// Args are "pre-spilled" values.  We don't allocate
-				// any register here.  We just set up the spill pointer to
+				// Args are "pre-spilled" values. We don't allocate
+				// any register here. We just set up the spill pointer to
 				// point at itself and any later user will restore it to use it.
 				s.values[v.ID].spill = v
 				s.values[v.ID].spillUsed = true // use is guaranteed
@@ -886,7 +886,7 @@ func (s *regAllocState) regalloc(f *Func) {
 				continue
 			}
 
-			// Move arguments to registers.  Process in an ordering defined
+			// Move arguments to registers. Process in an ordering defined
 			// by the register specification (most constrained first).
 			args = append(args[:0], v.Args...)
 			for _, i := range regspec.inputs {
@@ -926,7 +926,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 			b.Values = append(b.Values, v)
 
-			// Issue a spill for this value.  We issue spills unconditionally,
+			// Issue a spill for this value. We issue spills unconditionally,
 			// then at the end of regalloc delete the ones we never use.
 			// TODO: schedule the spill at a point that dominates all restores.
 			// The restore may be off in an unlikely branch somewhere and it
@@ -1002,7 +1002,7 @@ func (s *regAllocState) regalloc(f *Func) {
 
 		// If a value is live at the end of the block and
 		// isn't in a register, remember that its spill location
-		// is live.  We need to remember this information so that
+		// is live. We need to remember this information so that
 		// the liveness analysis in stackalloc is correct.
 		for _, e := range s.live[b.ID] {
 			if s.values[e.ID].regs != 0 {
@@ -1201,7 +1201,7 @@ func (e *edgeState) process() {
 			}
 		}
 		if i < len(dsts) {
-			// Made some progress.  Go around again.
+			// Made some progress. Go around again.
 			dsts = dsts[:i]
 
 			// Append any extras destinations we generated.
@@ -1210,7 +1210,7 @@ func (e *edgeState) process() {
 			continue
 		}
 
-		// We made no progress.  That means that any
+		// We made no progress. That means that any
 		// remaining unsatisfied moves are in simple cycles.
 		// For example, A -> B -> C -> D -> A.
 		//   A ----> B
@@ -1229,7 +1229,7 @@ func (e *edgeState) process() {
 		// When we resume the outer loop, the A->B move can now proceed,
 		// and eventually the whole cycle completes.
 
-		// Copy any cycle location to a temp register.  This duplicates
+		// Copy any cycle location to a temp register. This duplicates
 		// one of the cycle entries, allowing the just duplicated value
 		// to be overwritten and the cycle to proceed.
 		loc := dsts[0].loc
@@ -1248,7 +1248,7 @@ func (e *edgeState) process() {
 	}
 }
 
-// processDest generates code to put value vid into location loc.  Returns true
+// processDest generates code to put value vid into location loc. Returns true
 // if progress was made.
 func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 	occupant := e.contents[loc]
@@ -1258,7 +1258,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 		if splice != nil {
 			*splice = occupant.c
 		}
-		// Note: if splice==nil then c will appear dead.  This is
+		// Note: if splice==nil then c will appear dead. This is
 		// non-SSA formed code, so be careful after this pass not to run
 		// deadcode elimination.
 		return true
@@ -1306,7 +1306,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 		if dstReg {
 			x = v.copyInto(e.p)
 		} else {
-			// Rematerialize into stack slot.  Need a free
+			// Rematerialize into stack slot. Need a free
 			// register to accomplish this.
 			e.erase(loc) // see pre-clobber comment below
 			r := e.findRegFor(v.Type)
@@ -1330,15 +1330,15 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 			if dstReg {
 				x = e.p.NewValue1(c.Line, OpLoadReg, c.Type, c)
 			} else {
-				// mem->mem.  Use temp register.
+				// mem->mem. Use temp register.
 
-				// Pre-clobber destination.  This avoids the
+				// Pre-clobber destination. This avoids the
 				// following situation:
 				//   - v is currently held in R0 and stacktmp0.
 				//   - We want to copy stacktmp1 to stacktmp0.
 				//   - We choose R0 as the temporary register.
 				// During the copy, both R0 and stacktmp0 are
-				// clobbered, losing both copies of v.  Oops!
+				// clobbered, losing both copies of v. Oops!
 				// Erasing the destination early means R0 will not
 				// be chosen as the temp register, as it will then
 				// be the last copy of v.
@@ -1438,7 +1438,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
 		m = e.s.compatRegs(e.s.f.Config.fe.TypeInt64())
 	}
 
-	// Pick a register.  In priority order:
+	// Pick a register. In priority order:
 	// 1) an unused register
 	// 2) a non-unique register not holding a final value
 	// 3) a non-unique register
@@ -1455,9 +1455,9 @@ func (e *edgeState) findRegFor(typ Type) Location {
 		return &registers[pickReg(x)]
 	}
 
-	// No register is available.  Allocate a temp location to spill a register to.
+	// No register is available. Allocate a temp location to spill a register to.
 	// The type of the slot is immaterial - it will not be live across
-	// any safepoint.  Just use a type big enough to hold any register.
+	// any safepoint. Just use a type big enough to hold any register.
 	typ = e.s.f.Config.fe.TypeInt64()
 	t := LocalSlot{e.s.f.Config.fe.Auto(typ), typ, 0}
 	// TODO: reuse these slots.
@@ -1471,7 +1471,7 @@ func (e *edgeState) findRegFor(typ Type) Location {
 				if regDebug {
 					fmt.Printf("  SPILL %s->%s %s\n", r.Name(), t.Name(), x.LongString())
 				}
-				// r will now be overwritten by the caller.  At some point
+				// r will now be overwritten by the caller. At some point
 				// later, the newly saved value will be moved back to its
 				// final destination in processDest.
 				return r
@@ -1508,10 +1508,10 @@ type liveInfo struct {
 }
 
 // computeLive computes a map from block ID to a list of value IDs live at the end
-// of that block.  Together with the value ID is a count of how many instructions
-// to the next use of that value.  The resulting map is stored at s.live.
+// of that block. Together with the value ID is a count of how many instructions
+// to the next use of that value. The resulting map is stored at s.live.
 // TODO: this could be quadratic if lots of variables are live across lots of
-// basic blocks.  Figure out a way to make this function (or, more precisely, the user
+// basic blocks. Figure out a way to make this function (or, more precisely, the user
 // of this function) require only linear size & time.
 func (s *regAllocState) computeLive() {
 	f := s.f

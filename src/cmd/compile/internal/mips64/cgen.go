@@ -129,7 +129,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 		// TODO: Instead of generating ADDV $-8,R8; ADDV
 		// $-8,R7; n*(MOVV 8(R8),R9; ADDV $8,R8; MOVV R9,8(R7);
 		// ADDV $8,R7;) just generate the offsets directly and
-		// eliminate the ADDs.  That will produce shorter, more
+		// eliminate the ADDs. That will produce shorter, more
 		// pipeline-able code.
 		var p *obj.Prog
 		for ; c > 0; c-- {

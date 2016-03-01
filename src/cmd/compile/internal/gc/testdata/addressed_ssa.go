@@ -143,7 +143,7 @@ func (v V) val() int64 {
 // address taken to force heap allocation, and then based on
 // the value of which a pair of those locals are copied in
 // various ways to the two results y, and z, which are also
-// addressed.  Which is expected to be one of 11-13, 21-23, 31, 32,
+// addressed. Which is expected to be one of 11-13, 21-23, 31, 32,
 // and y.val() should be equal to which and y.p.val() should
 // be equal to z.val().  Also, x(.p)**8 == x; that is, the
 // autos are all linked into a ring.

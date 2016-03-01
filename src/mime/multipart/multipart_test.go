@@ -446,8 +446,8 @@ type parseTest struct {
 var parseTests = []parseTest{
 	// Actual body from App Engine on a blob upload. The final part (the
 	// Content-Type: message/external-body) is what App Engine replaces
-	// the uploaded file with.  The other form fields (prefixed with
-	// "other" in their form-data name) are unchanged.  A bug was
+	// the uploaded file with. The other form fields (prefixed with
+	// "other" in their form-data name) are unchanged. A bug was
 	// reported with blob uploads failing when the other fields were
 	// empty. This was the MIME POST body that previously failed.
 	{

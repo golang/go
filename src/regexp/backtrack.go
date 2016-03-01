@@ -146,7 +146,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 		// Optimization: rather than push and pop,
 		// code that is going to Push and continue
 		// the loop simply updates ip, p, and arg
-		// and jumps to CheckAndLoop.  We have to
+		// and jumps to CheckAndLoop. We have to
 		// do the ShouldVisit check that Push
 		// would have, but we avoid the stack
 		// manipulation.

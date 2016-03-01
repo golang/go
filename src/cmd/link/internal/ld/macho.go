@@ -123,9 +123,9 @@ var sortsym []*LSym
 var nsortsym int
 
 // Amount of space left for adding load commands
-// that refer to dynamic libraries.  Because these have
+// that refer to dynamic libraries. Because these have
 // to go in the Mach-O header, we can't just pick a
-// "big enough" header size.  The initial header is
+// "big enough" header size. The initial header is
 // one page, the non-dynamic library stuff takes
 // up about 1300 bytes; we overestimate that as 2k.
 var load_budget int = INITIAL_MACHO_HEADR - 2*1024
@@ -338,7 +338,7 @@ func domacho() {
 
 func Machoadddynlib(lib string) {
 	// Will need to store the library name rounded up
-	// and 24 bytes of header metadata.  If not enough
+	// and 24 bytes of header metadata. If not enough
 	// space, grab another page of initial space at the
 	// beginning of the output file.
 	load_budget -= (len(lib)+7)/8*8 + 24
@@ -785,12 +785,12 @@ func Domacholink() int64 {
 	s4 := Linklookup(Ctxt, ".machosymstr", 0)
 
 	// Force the linkedit section to end on a 16-byte
-	// boundary.  This allows pure (non-cgo) Go binaries
+	// boundary. This allows pure (non-cgo) Go binaries
 	// to be code signed correctly.
 	//
 	// Apple's codesign_allocate (a helper utility for
 	// the codesign utility) can do this fine itself if
-	// it is run on a dynamic Mach-O binary.  However,
+	// it is run on a dynamic Mach-O binary. However,
 	// when it is run on a pure (non-cgo) Go binary, where
 	// the linkedit section is mostly empty, it fails to
 	// account for the extra padding that it itself adds

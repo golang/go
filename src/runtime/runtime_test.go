@@ -247,8 +247,8 @@ func TestBadOpen(t *testing.T) {
 	if GOOS == "windows" || GOOS == "nacl" {
 		t.Skip("skipping OS that doesn't have open/read/write/close")
 	}
-	// make sure we get the correct error code if open fails.  Same for
-	// read/write/close on the resulting -1 fd.  See issue 10052.
+	// make sure we get the correct error code if open fails. Same for
+	// read/write/close on the resulting -1 fd. See issue 10052.
 	nonfile := []byte("/notreallyafile")
 	fd := Open(&nonfile[0], 0, 0)
 	if fd != -1 {

@@ -43,7 +43,7 @@ var inlretlabel *Node // target of the goto substituted in place of a return
 
 var inlretvars *NodeList // temp out variables
 
-// Get the function's package.  For ordinary functions it's on the ->sym, but for imported methods
+// Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *Node) *Pkg {
 	if fn.Type.Thistuple != 0 {
@@ -63,7 +63,7 @@ func fnpkg(fn *Node) *Pkg {
 	return fn.Sym.Pkg
 }
 
-// Lazy typechecking of imported bodies.  For local functions, caninl will set ->typecheck
+// Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
 // because they're a copy of an already checked body.
 func typecheckinl(fn *Node) {
 	lno := int(setlineno(fn))
@@ -300,7 +300,7 @@ func inlcopyslice(ll []*Node) []*Node {
 }
 
 // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
-// calls made to inlineable functions.  This is the external entry point.
+// calls made to inlineable functions. This is the external entry point.
 func inlcalls(fn *Node) {
 	savefn := Curfn
 	Curfn = fn
@@ -358,7 +358,7 @@ func inlnodeslice(l []*Node) {
 }
 
 // inlnode recurses over the tree to find inlineable calls, which will
-// be turned into OINLCALLs by mkinlcall.  When the recursion comes
+// be turned into OINLCALLs by mkinlcall. When the recursion comes
 // back up will examine left, right, list, rlist, ninit, ntest, nincr,
 // nbody and nelse and use one of the 4 inlconv/glue functions above
 // to turn the OINLCALL into an expression, a statement, or patch it
@@ -881,7 +881,7 @@ func inlvar(var_ *Node) *Node {
 
 	// This may no longer be necessary now that we run escape analysis
 	// after wrapper generation, but for 1.5 this is conservatively left
-	// unchanged.  See bugs 11053 and 9537.
+	// unchanged. See bugs 11053 and 9537.
 	if var_.Esc == EscHeap {
 		addrescapes(n)
 	}

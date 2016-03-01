@@ -167,7 +167,7 @@ func declare(n *Node, ctxt Class) {
 	n.Lineno = int32(parserline())
 	s := n.Sym
 
-	// kludgy: typecheckok means we're past parsing.  Eg genwrapper may declare out of package names later.
+	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if importpkg == nil && !typecheckok && s.Pkg != localpkg {
 		Yyerror("cannot declare name %v", s)
 	}
@@ -1021,7 +1021,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 		CenterDot = 0xB7
 	)
 	// Names sometimes have disambiguation junk
-	// appended after a center dot.  Discard it when
+	// appended after a center dot. Discard it when
 	// making the name for the embedded struct field.
 	name := s.Name
 

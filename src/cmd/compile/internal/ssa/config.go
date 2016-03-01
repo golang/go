@@ -24,7 +24,7 @@ type Config struct {
 	optimize   bool                       // Do optimization
 	curFunc    *Func
 
-	// TODO: more stuff.  Compiler flags of interest, ...
+	// TODO: more stuff. Compiler flags of interest, ...
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
@@ -95,7 +95,7 @@ type Frontend interface {
 	Line(int32) string
 }
 
-// interface used to hold *gc.Node.  We'd use *gc.Node directly but
+// interface used to hold *gc.Node. We'd use *gc.Node directly but
 // that would lead to an import cycle.
 type GCNode interface {
 	Typ() Type

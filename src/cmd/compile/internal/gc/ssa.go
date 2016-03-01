@@ -245,7 +245,7 @@ type state struct {
 	// *Node is the unique identifier (an ONAME Node) for the variable.
 	vars map[*Node]*ssa.Value
 
-	// all defined variables at the end of each block.  Indexed by block ID.
+	// all defined variables at the end of each block. Indexed by block ID.
 	defvars []map[*Node]*ssa.Value
 
 	// addresses of PPARAM and PPARAMOUT variables.
@@ -254,12 +254,12 @@ type state struct {
 	// symbols for PEXTERN, PAUTO and PPARAMOUT variables so they can be reused.
 	varsyms map[*Node]interface{}
 
-	// starting values.  Memory, stack pointer, and globals pointer
+	// starting values. Memory, stack pointer, and globals pointer
 	startmem *ssa.Value
 	sp       *ssa.Value
 	sb       *ssa.Value
 
-	// line number stack.  The current line number is top of stack
+	// line number stack. The current line number is top of stack
 	line []int32
 
 	// list of panic calls by function name and line number.
@@ -269,7 +269,7 @@ type state struct {
 	// list of FwdRef values.
 	fwdRefs []*ssa.Value
 
-	// list of PPARAMOUT (return) variables.  Does not include PPARAM|PHEAP vars.
+	// list of PPARAMOUT (return) variables. Does not include PPARAM|PHEAP vars.
 	returns []*Node
 
 	cgoUnsafeArgs bool
@@ -339,7 +339,7 @@ func (s *state) startBlock(b *ssa.Block) {
 }
 
 // endBlock marks the end of generating code for the current block.
-// Returns the (former) current block.  Returns nil if there is no current
+// Returns the (former) current block. Returns nil if there is no current
 // block, i.e. if no code flows to the current execution point.
 func (s *state) endBlock() *ssa.Block {
 	b := s.curBlock
@@ -540,7 +540,7 @@ func (s *state) stmt(n *Node) {
 			b.Kind = ssa.BlockExit
 			b.Control = m
 			// TODO: never rewrite OPANIC to OCALLFUNC in the
-			// first place.  Need to wait until all backends
+			// first place. Need to wait until all backends
 			// go through SSA.
 		}
 	case ODEFER:
@@ -653,8 +653,8 @@ func (s *state) stmt(n *Node) {
 		rhs := n.Right
 		if rhs != nil && (rhs.Op == OSTRUCTLIT || rhs.Op == OARRAYLIT) {
 			// All literals with nonzero fields have already been
-			// rewritten during walk.  Any that remain are just T{}
-			// or equivalents.  Use the zero value.
+			// rewritten during walk. Any that remain are just T{}
+			// or equivalents. Use the zero value.
 			if !iszero(rhs) {
 				Fatalf("literal with nonzero value in SSA: %v", rhs)
 			}
@@ -891,10 +891,10 @@ func (s *state) stmt(n *Node) {
 }
 
 // exit processes any code that needs to be generated just before returning.
-// It returns a BlockRet block that ends the control flow.  Its control value
+// It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
-	// Run exit code.  Typically, this code copies heap-allocated PPARAMOUT
+	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
 	// variables back to the stack.
 	s.stmts(s.exitCode)
 
@@ -906,7 +906,7 @@ func (s *state) exit() *ssa.Block {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, n, s.mem())
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, n.Type.Size(), addr, val, s.mem())
 		// TODO: if val is ever spilled, we'd like to use the
-		// PPARAMOUT slot for spilling it.  That won't happen
+		// PPARAMOUT slot for spilling it. That won't happen
 		// currently.
 	}
 
@@ -1382,7 +1382,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case CTBOOL:
 			v := s.constBool(n.Val().U.(bool))
 			// For some reason the frontend gets the line numbers of
-			// CTBOOL literals totally wrong.  Fix it here by grabbing
+			// CTBOOL literals totally wrong. Fix it here by grabbing
 			// the line number of the enclosing AST node.
 			if len(s.line) >= 2 {
 				v.Line = s.line[len(s.line)-2]
@@ -1925,7 +1925,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		tab := s.expr(n.Left)
 		data := s.expr(n.Right)
 		// The frontend allows putting things like struct{*byte} in
-		// the data portion of an eface.  But we don't want struct{*byte}
+		// the data portion of an eface. But we don't want struct{*byte}
 		// as a register type because (among other reasons) the liveness
 		// analysis is confused by the "fat" variables that result from
 		// such types being spilled.
@@ -2037,7 +2037,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
 
 		s.vars[&ptrVar] = r[0]
-		// Note: we don't need to read r[1], the result's length.  It will be nl.
+		// Note: we don't need to read r[1], the result's length. It will be nl.
 		// (or maybe we should, we just have to spill/restore nl otherwise?)
 		s.vars[&capVar] = r[2]
 		b = s.endBlock()
@@ -2106,7 +2106,7 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 		return
 		// Note: if likely==1, then both recursive calls pass 1.
 		// If likely==-1, then we don't have enough information to decide
-		// whether the first branch is likely or not.  So we pass 0 for
+		// whether the first branch is likely or not. So we pass 0 for
 		// the likeliness of the first branch.
 		// TODO: have the frontend give us branch prediction hints for
 		// OANDAND and OOROR nodes (if it ever has such info).
@@ -2191,7 +2191,7 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 		s.addNamedValue(left, right)
 		return
 	}
-	// Left is not ssa-able.  Compute its address.
+	// Left is not ssa-able. Compute its address.
 	addr := s.addr(left, false)
 	if left.Op == ONAME {
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, left, s.mem())
@@ -2333,7 +2333,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	dowidth(fn.Type)
 	stksize := fn.Type.Argwid // includes receiver
 
-	// Run all argument assignments.  The arg slots have already
+	// Run all argument assignments. The arg slots have already
 	// been offset by the appropriate amount (+2*widthptr for go/defer,
 	// +widthptr for interface calls).
 	// For OCALLMETH, the receiver is set in these statements.
@@ -2462,12 +2462,12 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			return nil
 		case PAUTO:
 			// We need to regenerate the address of autos
-			// at every use.  This prevents LEA instructions
+			// at every use. This prevents LEA instructions
 			// from occurring before the corresponding VarDef
 			// op and confusing the liveness analysis into thinking
 			// the variable is live at function entry.
 			// TODO: I'm not sure if this really works or we're just
-			// getting lucky.  We might need a real dependency edge
+			// getting lucky. We might need a real dependency edge
 			// between vardef and addr ops.
 			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
@@ -2599,7 +2599,7 @@ func (s *state) canSSA(n *Node) bool {
 func canSSAType(t *Type) bool {
 	dowidth(t)
 	if t.Width > int64(4*Widthptr) {
-		// 4*Widthptr is an arbitrary constant.  We want it
+		// 4*Widthptr is an arbitrary constant. We want it
 		// to be at least 3*Widthptr so slices can be registerized.
 		// Too big and we'll introduce too much register pressure.
 		return false
@@ -2647,7 +2647,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	s.startBlock(bNext)
 }
 
-// boundsCheck generates bounds checking code.  Checks if 0 <= idx < len, branches to exit if not.
+// boundsCheck generates bounds checking code. Checks if 0 <= idx < len, branches to exit if not.
 // Starts a new block on return.
 func (s *state) boundsCheck(idx, len *ssa.Value) {
 	if Debug['B'] != 0 {
@@ -2661,7 +2661,7 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
 	s.check(cmp, Panicindex)
 }
 
-// sliceBoundsCheck generates slice bounds checking code.  Checks if 0 <= idx <= len, branches to exit if not.
+// sliceBoundsCheck generates slice bounds checking code. Checks if 0 <= idx <= len, branches to exit if not.
 // Starts a new block on return.
 func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 	if Debug['B'] != 0 {
@@ -2701,7 +2701,7 @@ func (s *state) check(cmp *ssa.Value, fn *Node) {
 // Returns a slice of results of the given result types.
 // The call is added to the end of the current block.
 // If returns is false, the block is marked as an exit block.
-// If returns is true, the block is marked as a call block.  A new block
+// If returns is true, the block is marked as a call block. A new block
 // is started to load the return values.
 func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Value) []*ssa.Value {
 	// Write args to the stack
@@ -2773,7 +2773,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 
 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
-	// TODO: select the .enabled field.  It is currently first, so not needed for now.
+	// TODO: select the .enabled field. It is currently first, so not needed for now.
 	// Load word, test byte, avoiding partial register write from load byte.
 	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
 	flag = s.newValue1(ssa.OpTrunc64to8, Types[TBOOL], flag)
@@ -2818,7 +2818,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 
 	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
-	// TODO: select the .enabled field.  It is currently first, so not needed for now.
+	// TODO: select the .enabled field. It is currently first, so not needed for now.
 	// Load word, test byte, avoiding partial register write from load byte.
 	flag := s.newValue2(ssa.OpLoad, Types[TUINT32], flagaddr, s.mem())
 	flag = s.newValue1(ssa.OpTrunc64to8, Types[TBOOL], flag)
@@ -3018,7 +3018,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	var rcap *ssa.Value
 	switch {
 	case t.IsString():
-		// Capacity of the result is unimportant.  However, we use
+		// Capacity of the result is unimportant. However, we use
 		// rcap to test if we've generated a zero-length slice.
 		// Use length of strings for that.
 		rcap = rlen
@@ -3123,13 +3123,13 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	// Code borrowed from old code generator.
 	// What's going on: large 64-bit "unsigned" looks like
 	// negative number to hardware's integer-to-float
-	// conversion.  However, because the mantissa is only
+	// conversion. However, because the mantissa is only
 	// 63 bits, we don't need the LSB, so instead we do an
 	// unsigned right shift (divide by two), convert, and
-	// double.  However, before we do that, we need to be
+	// double. However, before we do that, we need to be
 	// sure that we do not lose a "1" if that made the
-	// difference in the resulting rounding.  Therefore, we
-	// preserve it, and OR (not ADD) it back in.  The case
+	// difference in the resulting rounding. Therefore, we
+	// preserve it, and OR (not ADD) it back in. The case
 	// that matters is when the eleven discarded bits are
 	// equal to 10000000001; that rounds up, and the 1 cannot
 	// be lost else it would round down if the LSB of the
@@ -3470,15 +3470,15 @@ func (s *state) mem() *ssa.Value {
 }
 
 func (s *state) linkForwardReferences() {
-	// Build SSA graph.  Each variable on its first use in a basic block
+	// Build SSA graph. Each variable on its first use in a basic block
 	// leaves a FwdRef in that block representing the incoming value
-	// of that variable.  This function links that ref up with possible definitions,
-	// inserting Phi values as needed.  This is essentially the algorithm
+	// of that variable. This function links that ref up with possible definitions,
+	// inserting Phi values as needed. This is essentially the algorithm
 	// described by Braun, Buchwald, Hack, Leißa, Mallon, and Zwinkau:
 	// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
 	// Differences:
 	//   - We use FwdRef nodes to postpone phi building until the CFG is
-	//     completely built.  That way we can avoid the notion of "sealed"
+	//     completely built. That way we can avoid the notion of "sealed"
 	//     blocks.
 	//   - Phi optimization is a separate pass (in ../ssa/phielim.go).
 	for len(s.fwdRefs) > 0 {
@@ -3501,7 +3501,7 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 			v.Aux = name
 			return
 		}
-		// Not SSAable.  Load it.
+		// Not SSAable. Load it.
 		addr := s.decladdrs[name]
 		if addr == nil {
 			// TODO: closure args reach here.
@@ -3527,7 +3527,7 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 		args = append(args, s.lookupVarOutgoing(p, v.Type, name, v.Line))
 	}
 
-	// Decide if we need a phi or not.  We need a phi if there
+	// Decide if we need a phi or not. We need a phi if there
 	// are two different args (which are both not v).
 	var w *ssa.Value
 	for _, a := range args {
@@ -3548,7 +3548,7 @@ func (s *state) resolveFwdRef(v *ssa.Value) {
 	if w == nil {
 		s.Fatalf("no witness for reachable phi %s", v)
 	}
-	// One witness.  Make v a copy of w.
+	// One witness. Make v a copy of w.
 	v.Op = ssa.OpCopy
 	v.AddArg(w)
 }
@@ -3560,7 +3560,7 @@ func (s *state) lookupVarOutgoing(b *ssa.Block, t ssa.Type, name *Node, line int
 		return v
 	}
 	// The variable is not defined by b and we haven't
-	// looked it up yet.  Generate a FwdRef for the variable and return that.
+	// looked it up yet. Generate a FwdRef for the variable and return that.
 	v := b.NewValue0A(line, ssa.OpFwdRef, t, name)
 	s.fwdRefs = append(s.fwdRefs, v)
 	m[name] = v
@@ -3740,7 +3740,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	gcsymdup(gcargs)
 	gcsymdup(gclocals)
 
-	// Add frame prologue.  Zero ambiguously live variables.
+	// Add frame prologue. Zero ambiguously live variables.
 	Thearch.Defframe(ptxt)
 	if Debug['f'] != 0 {
 		frame(0)
@@ -4115,7 +4115,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		if v.AuxInt2Int64() == -1<<31 || x == r {
 			if x != r {
 				// This code compensates for the fact that the register allocator
-				// doesn't understand 2-address instructions yet.  TODO: fix that.
+				// doesn't understand 2-address instructions yet. TODO: fix that.
 				p := Prog(moveByType(v.Type))
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = x
@@ -4183,7 +4183,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		ssa.OpAMD64SARBconst, ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst,
 		ssa.OpAMD64ROLBconst:
 		// This code compensates for the fact that the register allocator
-		// doesn't understand 2-address instructions yet.  TODO: fix that.
+		// doesn't understand 2-address instructions yet. TODO: fix that.
 		x := regnum(v.Args[0])
 		r := regnum(v)
 		if x != r {
@@ -4943,7 +4943,7 @@ func (s *state) extendIndex(v *ssa.Value) *ssa.Value {
 		return v
 	}
 	if size > s.config.IntSize {
-		// TODO: truncate 64-bit indexes on 32-bit pointer archs.  We'd need to test
+		// TODO: truncate 64-bit indexes on 32-bit pointer archs. We'd need to test
 		// the high word and branch to out-of-bounds failure if it is not 0.
 		s.Unimplementedf("64->32 index truncation not implemented")
 		return v
@@ -5089,7 +5089,7 @@ func moveByType(t ssa.Type) int {
 }
 
 // regnum returns the register (in cmd/internal/obj numbering) to
-// which v has been allocated.  Panics if v is not assigned to a
+// which v has been allocated. Panics if v is not assigned to a
 // register.
 // TODO: Make this panic again once it stops happening routinely.
 func regnum(v *ssa.Value) int16 {

@@ -266,7 +266,7 @@ func TestBlankFields(t *testing.T) {
 }
 
 // An attempt to read into a struct with an unexported field will
-// panic.  This is probably not the best choice, but at this point
+// panic. This is probably not the best choice, but at this point
 // anything else would be an API change.
 
 type Unexported struct {

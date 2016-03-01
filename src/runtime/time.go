@@ -202,7 +202,7 @@ func timerproc() {
 			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
 			continue
 		}
-		// At least one timer pending.  Sleep until then.
+		// At least one timer pending. Sleep until then.
 		timers.sleeping = true
 		noteclear(&timers.waitnote)
 		unlock(&timers.lock)

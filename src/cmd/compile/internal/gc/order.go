@@ -10,7 +10,7 @@ import (
 )
 
 // Rewrite tree to use separate statements to enforce
-// order of evaluation.  Makes walk easier, because it
+// order of evaluation. Makes walk easier, because it
 // can (after this runs) reorder at will within an expression.
 //
 // Rewrite x op= y into x = x op y.

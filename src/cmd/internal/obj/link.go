@@ -460,7 +460,7 @@ const (
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
 	// stuffed into a 32-bit instruction, so an address needs to be spread across
 	// several instructions, and in turn this requires a sequence of relocations, each
-	// updating a part of an instruction.  This leads to relocation codes that are
+	// updating a part of an instruction. This leads to relocation codes that are
 	// inherently processor specific.
 
 	// Arm64.

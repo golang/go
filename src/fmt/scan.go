@@ -33,7 +33,7 @@ type ScanState interface {
 	// Token skips space in the input if skipSpace is true, then returns the
 	// run of Unicode code points c satisfying f(c).  If f is nil,
 	// !unicode.IsSpace(c) is used; that is, the token will hold non-space
-	// characters.  Newlines are treated appropriately for the operation being
+	// characters. Newlines are treated appropriately for the operation being
 	// performed; see the package documentation for more information.
 	// The returned slice points to shared data that may be overwritten
 	// by the next call to Token, a call to a Scan function using the ScanState
@@ -50,15 +50,15 @@ type ScanState interface {
 
 // Scanner is implemented by any value that has a Scan method, which scans
 // the input for the representation of a value and stores the result in the
-// receiver, which must be a pointer to be useful.  The Scan method is called
+// receiver, which must be a pointer to be useful. The Scan method is called
 // for any argument to Scan, Scanf, or Scanln that implements it.
 type Scanner interface {
 	Scan(state ScanState, verb rune) error
 }
 
 // Scan scans text read from standard input, storing successive
-// space-separated values into successive arguments.  Newlines count
-// as space.  It returns the number of items successfully scanned.
+// space-separated values into successive arguments. Newlines count
+// as space. It returns the number of items successfully scanned.
 // If that is less than the number of arguments, err will report why.
 func Scan(a ...interface{}) (n int, err error) {
 	return Fscan(os.Stdin, a...)
@@ -72,7 +72,7 @@ func Scanln(a ...interface{}) (n int, err error) {
 
 // Scanf scans text read from standard input, storing successive
 // space-separated values into successive arguments as determined by
-// the format.  It returns the number of items successfully scanned.
+// the format. It returns the number of items successfully scanned.
 // If that is less than the number of arguments, err will report why.
 // Newlines in the input must match newlines in the format.
 // The one exception: the verb %c always scans the next rune in the
@@ -93,8 +93,8 @@ func (r *stringReader) Read(b []byte) (n int, err error) {
 }
 
 // Sscan scans the argument string, storing successive space-separated
-// values into successive arguments.  Newlines count as space.  It
-// returns the number of items successfully scanned.  If that is less
+// values into successive arguments. Newlines count as space. It
+// returns the number of items successfully scanned. If that is less
 // than the number of arguments, err will report why.
 func Sscan(str string, a ...interface{}) (n int, err error) {
 	return Fscan((*stringReader)(&str), a...)
@@ -107,7 +107,7 @@ func Sscanln(str string, a ...interface{}) (n int, err error) {
 }
 
 // Sscanf scans the argument string, storing successive space-separated
-// values into successive arguments as determined by the format.  It
+// values into successive arguments as determined by the format. It
 // returns the number of items successfully parsed.
 // Newlines in the input must match newlines in the format.
 func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
@@ -115,8 +115,8 @@ func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
 }
 
 // Fscan scans text read from r, storing successive space-separated
-// values into successive arguments.  Newlines count as space.  It
-// returns the number of items successfully scanned.  If that is less
+// values into successive arguments. Newlines count as space. It
+// returns the number of items successfully scanned. If that is less
 // than the number of arguments, err will report why.
 func Fscan(r io.Reader, a ...interface{}) (n int, err error) {
 	s, old := newScanState(r, true, false)
@@ -135,7 +135,7 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err error) {
 }
 
 // Fscanf scans text read from r, storing successive space-separated
-// values into successive arguments as determined by the format.  It
+// values into successive arguments as determined by the format. It
 // returns the number of items successfully parsed.
 // Newlines in the input must match newlines in the format.
 func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err error) {
@@ -448,8 +448,8 @@ func (s *ss) skipSpace(stopAtNewline bool) {
 	}
 }
 
-// token returns the next space-delimited string from the input.  It
-// skips white space.  For Scanln, it stops at newlines.  For Scan,
+// token returns the next space-delimited string from the input. It
+// skips white space. For Scanln, it stops at newlines. For Scan,
 // newlines are treated as spaces.
 func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 	if skipSpace {
@@ -518,7 +518,7 @@ func (s *ss) notEOF() {
 	s.UnreadRune()
 }
 
-// accept checks the next rune in the input.  If it's a byte (sic) in the string, it puts it in the
+// accept checks the next rune in the input. If it's a byte (sic) in the string, it puts it in the
 // buffer and returns true. Otherwise it return false.
 func (s *ss) accept(ok string) bool {
 	return s.consume(ok, true)
@@ -542,7 +542,7 @@ func (s *ss) scanBool(verb rune) bool {
 	if !s.okVerb(verb, "tv", "boolean") {
 		return false
 	}
-	// Syntax-checking a boolean is annoying.  We're not fastidious about case.
+	// Syntax-checking a boolean is annoying. We're not fastidious about case.
 	switch s.getRune() {
 	case '0':
 		return false
@@ -636,7 +636,7 @@ func (s *ss) scanBasePrefix() (base int, digits string, found bool) {
 }
 
 // scanInt returns the value of the integer represented by the next
-// token, checking for overflow.  Any error is stored in s.err.
+// token, checking for overflow. Any error is stored in s.err.
 func (s *ss) scanInt(verb rune, bitSize int) int64 {
 	if verb == 'c' {
 		return s.scanRune(bitSize)
@@ -669,7 +669,7 @@ func (s *ss) scanInt(verb rune, bitSize int) int64 {
 }
 
 // scanUint returns the value of the unsigned integer represented
-// by the next token, checking for overflow.  Any error is stored in s.err.
+// by the next token, checking for overflow. Any error is stored in s.err.
 func (s *ss) scanUint(verb rune, bitSize int) uint64 {
 	if verb == 'c' {
 		return uint64(s.scanRune(bitSize))
@@ -1148,7 +1148,7 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 		}
 		// Either we failed to advance, we have a percent character, or we ran out of input.
 		if format[i] != '%' {
-			// Can't advance format.  Why not?
+			// Can't advance format. Why not?
 			if w < 0 {
 				s.errorString("input does not match format")
 			}

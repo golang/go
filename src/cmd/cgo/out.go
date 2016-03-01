@@ -55,7 +55,7 @@ func (p *Package) writeDefs() {
 		fmt.Fprintf(fm, "char* _cgo_topofstack(void) { return (char*)0; }\n")
 	} else {
 		// If we're not importing runtime/cgo, we *are* runtime/cgo,
-		// which provides these functions.  We just need a prototype.
+		// which provides these functions. We just need a prototype.
 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*, int), void *a, int c);\n")
 		fmt.Fprintf(fm, "void _cgo_wait_runtime_init_done();\n")
 	}
@@ -592,7 +592,7 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 		// the Go equivalents had good type params.
 		// However, our version of the type omits the magic
 		// words const and volatile, which can provoke
-		// C compiler warnings.  Silence them by casting
+		// C compiler warnings. Silence them by casting
 		// all pointers to void*.  (Eventually that will produce
 		// other warnings.)
 		if c := t.C.String(); c[len(c)-1] == '*' {
@@ -616,8 +616,8 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	fmt.Fprintf(fgcc, "\n")
 }
 
-// Write out a wrapper for a function when using gccgo.  This is a
-// simple wrapper that just calls the real function.  We only need a
+// Write out a wrapper for a function when using gccgo. This is a
+// simple wrapper that just calls the real function. We only need a
 // wrapper to support static functions in the prologue--without a
 // wrapper, we can't refer to the function, since the reference is in
 // a different file.
@@ -707,7 +707,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		fn := exp.Func
 
 		// Construct a gcc struct matching the gc argument and
-		// result frame.  The gcc struct will be compiled with
+		// result frame. The gcc struct will be compiled with
 		// __attribute__((packed)) so all padding must be accounted
 		// for explicitly.
 		ctype := "struct {\n"

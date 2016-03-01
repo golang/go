@@ -31,7 +31,7 @@ func netpollinit() {
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
 	// Arm both EVFILT_READ and EVFILT_WRITE in edge-triggered mode (EV_CLEAR)
-	// for the whole fd lifetime.  The notifications are automatically unregistered
+	// for the whole fd lifetime. The notifications are automatically unregistered
 	// when fd is closed.
 	var ev [2]keventt
 	*(*uintptr)(unsafe.Pointer(&ev[0].ident)) = fd

@@ -2296,7 +2296,7 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
 
 	if osrc != -1000 && odst != -1000 && (osrc == 1000 || odst == 1000) || wb && osrc != -1000 {
 		// osrc and odst both on stack, and at least one is in
-		// an unknown position.  Could generate code to test
+		// an unknown position. Could generate code to test
 		// for forward/backward copy, but instead just copy
 		// to a temporary location first.
 		//

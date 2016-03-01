@@ -110,7 +110,7 @@ func (c *serverCodec) WriteResponse(r *rpc.Response, x interface{}) error {
 	c.mutex.Unlock()
 
 	if b == nil {
-		// Invalid request so no id.  Use JSON null.
+		// Invalid request so no id. Use JSON null.
 		b = &null
 	}
 	resp := serverResponse{Id: b}

@@ -23,7 +23,7 @@ func mapaccess1_fast32(t *maptype, h *hmap, key uint32) unsafe.Pointer {
 	}
 	var b *bmap
 	if h.B == 0 {
-		// One-bucket table.  No need to hash.
+		// One-bucket table. No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
 		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
@@ -68,7 +68,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
 	}
 	var b *bmap
 	if h.B == 0 {
-		// One-bucket table.  No need to hash.
+		// One-bucket table. No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
 		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
@@ -113,7 +113,7 @@ func mapaccess1_fast64(t *maptype, h *hmap, key uint64) unsafe.Pointer {
 	}
 	var b *bmap
 	if h.B == 0 {
-		// One-bucket table.  No need to hash.
+		// One-bucket table. No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
 		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
@@ -158,7 +158,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
 	}
 	var b *bmap
 	if h.B == 0 {
-		// One-bucket table.  No need to hash.
+		// One-bucket table. No need to hash.
 		b = (*bmap)(h.buckets)
 	} else {
 		hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
@@ -247,7 +247,7 @@ func mapaccess1_faststr(t *maptype, h *hmap, ky string) unsafe.Pointer {
 				continue
 			}
 			if keymaybe != bucketCnt {
-				// Two keys are potential matches.  Use hash to distinguish them.
+				// Two keys are potential matches. Use hash to distinguish them.
 				goto dohash
 			}
 			keymaybe = i
@@ -350,7 +350,7 @@ func mapaccess2_faststr(t *maptype, h *hmap, ky string) (unsafe.Pointer, bool) {
 				continue
 			}
 			if keymaybe != bucketCnt {
-				// Two keys are potential matches.  Use hash to distinguish them.
+				// Two keys are potential matches. Use hash to distinguish them.
 				goto dohash
 			}
 			keymaybe = i

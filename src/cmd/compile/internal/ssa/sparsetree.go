@@ -99,7 +99,7 @@ func (t sparseTree) numberBlock(b *Block, n int32) int32 {
 // Sibling returns a sibling of x in the dominator tree (i.e.,
 // a node with the same immediate dominator) or nil if there
 // are no remaining siblings in the arbitrary but repeatable
-// order chosen.  Because the Child-Sibling order is used
+// order chosen. Because the Child-Sibling order is used
 // to assign entry and exit numbers in the treewalk, those
 // numbers are also consistent with this order (i.e.,
 // Sibling(x) has entry number larger than x's exit number).
@@ -108,7 +108,7 @@ func (t sparseTree) Sibling(x *Block) *Block {
 }
 
 // Child returns a child of x in the dominator tree, or
-// nil if there are none.  The choice of first child is
+// nil if there are none. The choice of first child is
 // arbitrary but repeatable.
 func (t sparseTree) Child(x *Block) *Block {
 	return t[x.ID].child

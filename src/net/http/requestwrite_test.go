@@ -604,7 +604,7 @@ func TestRequestWriteError(t *testing.T) {
 	failAfter, writeCount := 0, 0
 	errFail := errors.New("fake write failure")
 
-	// w is the buffered io.Writer to write the request to.  It
+	// w is the buffered io.Writer to write the request to. It
 	// fails exactly once on its Nth Write call, as controlled by
 	// failAfter. It also tracks the number of calls in
 	// writeCount.

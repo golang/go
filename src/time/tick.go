@@ -39,7 +39,7 @@ func NewTicker(d Duration) *Ticker {
 	return t
 }
 
-// Stop turns off a ticker.  After Stop, no more ticks will be sent.
+// Stop turns off a ticker. After Stop, no more ticks will be sent.
 // Stop does not close the channel, to prevent a read from the channel succeeding
 // incorrectly.
 func (t *Ticker) Stop() {

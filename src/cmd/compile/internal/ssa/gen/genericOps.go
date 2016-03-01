@@ -6,7 +6,7 @@ package main
 
 var genericOps = []opData{
 	// 2-input arithmetic
-	// Types must be consistent with Go typing.  Add, for example, must take two values
+	// Types must be consistent with Go typing. Add, for example, must take two values
 	// of the same type and produces that same type.
 	{name: "Add8", argLength: 2, commutative: true}, // arg0 + arg1
 	{name: "Add16", argLength: 2, commutative: true},
@@ -250,7 +250,7 @@ var genericOps = []opData{
 	// arg0=ptr/int arg1=mem, output=int/ptr
 	{name: "Convert", argLength: 2},
 
-	// constants.  Constant values are stored in the aux or
+	// constants. Constant values are stored in the aux or
 	// auxint fields.
 	{name: "ConstBool", aux: "Bool"},     // auxint is 0 for false and 1 for true
 	{name: "ConstString", aux: "String"}, // value is aux.(string)
@@ -270,7 +270,7 @@ var genericOps = []opData{
 
 	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
 	// on whether it is a global or stack variable).  The Aux field identifies the
-	// variable.  It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
+	// variable. It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
 	// or *AutoSymbol (arg0=SP).
 	{name: "Addr", argLength: 1, aux: "Sym"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
 
@@ -284,8 +284,8 @@ var genericOps = []opData{
 	{name: "Move", argLength: 3, aux: "Int64"},              // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size.  Returns memory.
 	{name: "Zero", argLength: 2, aux: "Int64"},              // arg0=destptr, arg1=mem, auxint=size. Returns memory.
 
-	// Function calls.  Arguments to the call have already been written to the stack.
-	// Return values appear on the stack.  The method receiver, if any, is treated
+	// Function calls. Arguments to the call have already been written to the stack.
+	// Return values appear on the stack. The method receiver, if any, is treated
 	// as a phantom first argument.
 	{name: "ClosureCall", argLength: 3, aux: "Int64"}, // arg0=code pointer, arg1=context ptr, arg2=memory.  auxint=arg size.  Returns memory.
 	{name: "StaticCall", argLength: 1, aux: "SymOff"}, // call function aux.(*gc.Sym), arg0=memory.  auxint=arg size.  Returns memory.
@@ -368,17 +368,17 @@ var genericOps = []opData{
 	{name: "StructMake4", argLength: 4},                // arg0..3=field0..3.  Returns struct.
 	{name: "StructSelect", argLength: 1, aux: "Int64"}, // arg0=struct, auxint=field index.  Returns the auxint'th field.
 
-	// Spill&restore ops for the register allocator.  These are
+	// Spill&restore ops for the register allocator. These are
 	// semantically identical to OpCopy; they do not take/return
-	// stores like regular memory ops do.  We can get away without memory
+	// stores like regular memory ops do. We can get away without memory
 	// args because we know there is no aliasing of spill slots on the stack.
 	{name: "StoreReg", argLength: 1},
 	{name: "LoadReg", argLength: 1},
 
-	// Used during ssa construction.  Like Copy, but the arg has not been specified yet.
+	// Used during ssa construction. Like Copy, but the arg has not been specified yet.
 	{name: "FwdRef"},
 
-	// Unknown value.  Used for Values whose values don't matter because they are dead code.
+	// Unknown value. Used for Values whose values don't matter because they are dead code.
 	{name: "Unknown"},
 
 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem

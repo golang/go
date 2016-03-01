@@ -150,13 +150,13 @@ func (pr partReader) Read(d []byte) (n int, err error) {
 	}()
 	if p.buffer.Len() >= len(d) {
 		// Internal buffer of unconsumed data is large enough for
-		// the read request.  No need to parse more at the moment.
+		// the read request. No need to parse more at the moment.
 		return p.buffer.Read(d)
 	}
 	peek, err := p.mr.bufReader.Peek(peekBufferSize) // TODO(bradfitz): add buffer size accessor
 
 	// Look for an immediate empty part without a leading \r\n
-	// before the boundary separator.  Some MIME code makes empty
+	// before the boundary separator. Some MIME code makes empty
 	// parts like this. Most browsers, however, write the \r\n
 	// before the subsequent boundary even for empty parts and
 	// won't hit this path.
@@ -210,7 +210,7 @@ func (p *Part) Close() error {
 }
 
 // Reader is an iterator over parts in a MIME multipart body.
-// Reader's underlying parser consumes its input as needed.  Seeking
+// Reader's underlying parser consumes its input as needed. Seeking
 // isn't supported.
 type Reader struct {
 	bufReader *bufio.Reader
@@ -310,7 +310,7 @@ func (mr *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
 	rest = skipLWSPChar(rest)
 
 	// On the first part, see our lines are ending in \n instead of \r\n
-	// and switch into that mode if so.  This is a violation of the spec,
+	// and switch into that mode if so. This is a violation of the spec,
 	// but occurs in practice.
 	if mr.partsRead == 0 && len(rest) == 1 && rest[0] == '\n' {
 		mr.nl = mr.nl[1:]

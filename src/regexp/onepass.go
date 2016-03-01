@@ -33,7 +33,7 @@ type onePassInst struct {
 }
 
 // OnePassPrefix returns a literal string that all matches for the
-// regexp must start with.  Complete is true if the prefix
+// regexp must start with. Complete is true if the prefix
 // is the entire match. Pc is the index of the last rune instruction
 // in the string. The OnePassPrefix skips over the mandatory
 // EmptyBeginText

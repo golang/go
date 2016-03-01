@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Implementation of runtime/debug.WriteHeapDump.  Writes all
+// Implementation of runtime/debug.WriteHeapDump. Writes all
 // objects in the heap plus additional info (roots, threads,
 // finalizers, etc.) to a file.
 
@@ -97,7 +97,7 @@ func flush() {
 // Inside a bucket, we keep a list of types that
 // have been serialized so far, most recently used first.
 // Note: when a bucket overflows we may end up
-// serializing a type more than once.  That's ok.
+// serializing a type more than once. That's ok.
 const (
 	typeCacheBuckets = 256
 	typeCacheAssoc   = 4
@@ -172,7 +172,7 @@ func dumptype(t *_type) {
 		}
 	}
 
-	// Might not have been dumped yet.  Dump it and
+	// Might not have been dumped yet. Dump it and
 	// remember we did so.
 	for j := typeCacheAssoc - 1; j > 0; j-- {
 		b.t[j] = b.t[j-1]
@@ -254,7 +254,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
-		// stackmap for this function.  It is likely that we are looking
+		// stackmap for this function. It is likely that we are looking
 		// at the function prologue, assume so and hope for the best.
 		pcdata = 0
 	}
@@ -679,8 +679,8 @@ func dumpfields(bv bitvector) {
 }
 
 // The heap dump reader needs to be able to disambiguate
-// Eface entries.  So it needs to know every type that might
-// appear in such an entry.  The following routine accomplishes that.
+// Eface entries. So it needs to know every type that might
+// appear in such an entry. The following routine accomplishes that.
 // TODO(rsc, khr): Delete - no longer possible.
 
 // Dump all the types that appear in the type field of

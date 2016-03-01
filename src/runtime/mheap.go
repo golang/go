@@ -161,7 +161,7 @@ var h_allspans []*mspan // TODO: make this h.allspans once mheap can be defined 
 
 // h_spans is a lookup table to map virtual address page IDs to *mspan.
 // For allocated spans, their pages map to the span itself.
-// For free spans, only the lowest and highest pages map to the span itself.  Internal
+// For free spans, only the lowest and highest pages map to the span itself. Internal
 // pages map to an arbitrary span.
 // For pages that have never been allocated, h_spans entries are nil.
 var h_spans []*mspan // TODO: make this h.spans once mheap can be defined in Go
@@ -689,7 +689,7 @@ func (h *mheap) lookup(v unsafe.Pointer) *mspan {
 // Address is *not* guaranteed to be in map
 // and may be anywhere in the span.
 // Map entries for the middle of a span are only
-// valid for allocated spans.  Free spans may have
+// valid for allocated spans. Free spans may have
 // other garbage in their middles, so we have to
 // check for that.
 func (h *mheap) lookupMaybe(v unsafe.Pointer) *mspan {
@@ -971,7 +971,7 @@ type special struct {
 }
 
 // Adds the special record s to the list of special records for
-// the object p.  All fields of s should be filled in except for
+// the object p. All fields of s should be filled in except for
 // offset & next, which this routine will fill in.
 // Returns true if the special was successfully added, false otherwise.
 // (The add will fail only if a record with the same p and s->kind
@@ -1069,7 +1069,7 @@ type specialfinalizer struct {
 	ot      *ptrtype
 }
 
-// Adds a finalizer to the object p.  Returns true if it succeeded.
+// Adds a finalizer to the object p. Returns true if it succeeded.
 func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *ptrtype) bool {
 	lock(&mheap_.speciallock)
 	s := (*specialfinalizer)(mheap_.specialfinalizeralloc.alloc())
@@ -1138,7 +1138,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
 	}
 }
 
-// Do whatever cleanup needs to be done to deallocate s.  It has
+// Do whatever cleanup needs to be done to deallocate s. It has
 // already been unlinked from the MSpan specials list.
 func freespecial(s *special, p unsafe.Pointer, size uintptr) {
 	switch s.kind {

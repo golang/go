@@ -553,7 +553,7 @@ const (
 )
 
 // RegisterRegister binds a pretty-printer (Rconv) for register
-// numbers to a given register number range.  Lo is inclusive,
+// numbers to a given register number range. Lo is inclusive,
 // hi exclusive (valid registers are lo through hi-1).
 func RegisterRegister(lo, hi int, Rconv func(int) string) {
 	regSpace = append(regSpace, regSet{lo, hi, Rconv})

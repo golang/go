@@ -10,21 +10,21 @@ import (
 )
 
 // A Value represents a value in the SSA representation of the program.
-// The ID and Type fields must not be modified.  The remainder may be modified
+// The ID and Type fields must not be modified. The remainder may be modified
 // if they preserve the value of the Value (e.g. changing a (mul 2 x) to an (add x x)).
 type Value struct {
-	// A unique identifier for the value.  For performance we allocate these IDs
+	// A unique identifier for the value. For performance we allocate these IDs
 	// densely starting at 1.  There is no guarantee that there won't be occasional holes, though.
 	ID ID
 
-	// The operation that computes this value.  See op.go.
+	// The operation that computes this value. See op.go.
 	Op Op
 
-	// The type of this value.  Normally this will be a Go type, but there
+	// The type of this value. Normally this will be a Go type, but there
 	// are a few other pseudo-types, see type.go.
 	Type Type
 
-	// Auxiliary info for this value.  The type of this information depends on the opcode and type.
+	// Auxiliary info for this value. The type of this information depends on the opcode and type.
 	// AuxInt is used for integer values, Aux is used for other values.
 	AuxInt int64
 	Aux    interface{}
@@ -49,7 +49,7 @@ type Value struct {
 //  OpConst      int64      0    int64 constant
 //  OpAddcq      int64      1    amd64 op: v = arg[0] + constant
 
-// short form print.  Just v#.
+// short form print. Just v#.
 func (v *Value) String() string {
 	if v == nil {
 		return "nil" // should never happen, but not panicking helps with debugging

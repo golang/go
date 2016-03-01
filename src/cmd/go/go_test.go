@@ -109,7 +109,7 @@ func TestMain(m *testing.M) {
 	os.Exit(r)
 }
 
-// The length of an mtime tick on this system.  This is an estimate of
+// The length of an mtime tick on this system. This is an estimate of
 // how long we need to sleep to ensure that the mtime of two files is
 // different.
 // We used to try to be clever but that didn't always work (see golang.org/issue/12205).
@@ -181,7 +181,7 @@ func (tg *testgoData) pwd() string {
 	return wd
 }
 
-// cd changes the current directory to the named directory.  Note that
+// cd changes the current directory to the named directory. Note that
 // using this means that the test must not be run in parallel with any
 // other tests.
 func (tg *testgoData) cd(dir string) {
@@ -325,7 +325,7 @@ func (tg *testgoData) getStderr() string {
 }
 
 // doGrepMatch looks for a regular expression in a buffer, and returns
-// whether it is found.  The regular expression is matched against
+// whether it is found. The regular expression is matched against
 // each line separately, as with the grep command.
 func (tg *testgoData) doGrepMatch(match string, b *bytes.Buffer) bool {
 	if !tg.ran {
@@ -341,7 +341,7 @@ func (tg *testgoData) doGrepMatch(match string, b *bytes.Buffer) bool {
 }
 
 // doGrep looks for a regular expression in a buffer and fails if it
-// is not found.  The name argument is the name of the output we are
+// is not found. The name argument is the name of the output we are
 // searching, "output" or "error".  The msg argument is logged on
 // failure.
 func (tg *testgoData) doGrep(match string, b *bytes.Buffer, name, msg string) {
@@ -375,7 +375,7 @@ func (tg *testgoData) grepBoth(match, msg string) {
 }
 
 // doGrepNot looks for a regular expression in a buffer and fails if
-// it is found.  The name and msg arguments are as for doGrep.
+// it is found. The name and msg arguments are as for doGrep.
 func (tg *testgoData) doGrepNot(match string, b *bytes.Buffer, name, msg string) {
 	if tg.doGrepMatch(match, b) {
 		tg.t.Log(msg)
@@ -440,8 +440,8 @@ func (tg *testgoData) grepCountBoth(match string) int {
 }
 
 // creatingTemp records that the test plans to create a temporary file
-// or directory.  If the file or directory exists already, it will be
-// removed.  When the test completes, the file or directory will be
+// or directory. If the file or directory exists already, it will be
+// removed. When the test completes, the file or directory will be
 // removed if it exists.
 func (tg *testgoData) creatingTemp(path string) {
 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
@@ -457,7 +457,7 @@ func (tg *testgoData) creatingTemp(path string) {
 	tg.temps = append(tg.temps, path)
 }
 
-// makeTempdir makes a temporary directory for a run of testgo.  If
+// makeTempdir makes a temporary directory for a run of testgo. If
 // the temporary directory was already created, this does nothing.
 func (tg *testgoData) makeTempdir() {
 	if tg.tempdir == "" {
@@ -1105,8 +1105,8 @@ func testMove(t *testing.T, vcs, url, base, config string) {
 	}
 	if vcs == "git" {
 		// git will ask for a username and password when we
-		// run go get -d -f -u.  An empty username and
-		// password will work.  Prevent asking by setting
+		// run go get -d -f -u. An empty username and
+		// password will work. Prevent asking by setting
 		// GIT_ASKPASS.
 		tg.creatingTemp("sink" + exeSuffix)
 		tg.tempFile("src/sink/sink.go", `package main; func main() {}`)

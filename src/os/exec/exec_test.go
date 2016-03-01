@@ -697,7 +697,7 @@ func TestHelperProcess(*testing.T) {
 		}
 		// Referring to fd3 here ensures that it is not
 		// garbage collected, and therefore closed, while
-		// executing the wantfd loop above.  It doesn't matter
+		// executing the wantfd loop above. It doesn't matter
 		// what we do with fd3 as long as we refer to it;
 		// closing it is the easy choice.
 		fd3.Close()

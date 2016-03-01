@@ -212,11 +212,11 @@ func raisebadsignal(sig int32) {
 
 	// Reset the signal handler and raise the signal.
 	// We are currently running inside a signal handler, so the
-	// signal is blocked.  We need to unblock it before raising the
+	// signal is blocked. We need to unblock it before raising the
 	// signal, or the signal we raise will be ignored until we return
-	// from the signal handler.  We know that the signal was unblocked
+	// from the signal handler. We know that the signal was unblocked
 	// before entering the handler, or else we would not have received
-	// it.  That means that we don't have to worry about blocking it
+	// it. That means that we don't have to worry about blocking it
 	// again.
 	unblocksig(sig)
 	setsig(sig, handler, false)
@@ -294,14 +294,14 @@ func ensureSigM() {
 
 // This is called when we receive a signal when there is no signal stack.
 // This can only happen if non-Go code calls sigaltstack to disable the
-// signal stack.  This is called via cgocallback to establish a stack.
+// signal stack. This is called via cgocallback to establish a stack.
 func noSignalStack(sig uint32) {
 	println("signal", sig, "received on thread with no signal stack")
 	throw("non-Go code disabled sigaltstack")
 }
 
 // This is called if we receive a signal when there is a signal stack
-// but we are not on it.  This can only happen if non-Go code called
+// but we are not on it. This can only happen if non-Go code called
 // sigaction without setting the SS_ONSTACK flag.
 func sigNotOnStack(sig uint32) {
 	println("signal", sig, "received but handler not on signal stack")

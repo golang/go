@@ -45,7 +45,7 @@ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
-		// for the query we sent.  If we didn't get
+		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly or
 		// having temporary trouble.

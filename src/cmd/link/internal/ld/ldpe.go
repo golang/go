@@ -234,7 +234,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 
 		if sect.sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
-			// want to ignore.  See issues 5106 and 5273.
+			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 
@@ -283,7 +283,7 @@ func ldpe(f *obj.Biobuf, pkg string, length int64, pn string) {
 		}
 		if sect.sh.Characteristics&(IMAGE_SCN_CNT_CODE|IMAGE_SCN_CNT_INITIALIZED_DATA|IMAGE_SCN_CNT_UNINITIALIZED_DATA) == 0 {
 			// This has been seen for .idata sections, which we
-			// want to ignore.  See issues 5106 and 5273.
+			// want to ignore. See issues 5106 and 5273.
 			continue
 		}
 

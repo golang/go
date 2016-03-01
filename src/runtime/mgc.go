@@ -1165,8 +1165,8 @@ func gcMarkTermination() {
 	casgstatus(gp, _Grunning, _Gwaiting)
 	gp.waitreason = "garbage collection"
 
-	// Run gc on the g0 stack.  We do this so that the g stack
-	// we're currently running on will no longer change.  Cuts
+	// Run gc on the g0 stack. We do this so that the g stack
+	// we're currently running on will no longer change. Cuts
 	// the root set down a bit (g0 stacks are not scanned, and
 	// we don't need to scan gc's internal state).  We also
 	// need to switch to g0 so we can shrink the stack.

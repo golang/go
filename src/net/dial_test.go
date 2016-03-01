@@ -298,7 +298,7 @@ func TestDialParallel(t *testing.T) {
 	const fallbackDelay = 200 * time.Millisecond
 
 	// Some cases will run quickly when "connection refused" is fast,
-	// or trigger the fallbackDelay on Windows.  This value holds the
+	// or trigger the fallbackDelay on Windows. This value holds the
 	// lesser of the two delays.
 	var closedPortOrFallbackDelay time.Duration
 	if closedPortDelay < fallbackDelay {

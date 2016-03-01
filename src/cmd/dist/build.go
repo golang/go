@@ -284,7 +284,7 @@ func findgoversion() string {
 	}
 
 	// The $GOROOT/VERSION.cache file is a cache to avoid invoking
-	// git every time we run this command.  Unlike VERSION, it gets
+	// git every time we run this command. Unlike VERSION, it gets
 	// deleted by the clean command.
 	path = pathf("%s/VERSION.cache", goroot)
 	if isfile(path) {
@@ -399,8 +399,8 @@ func setup() {
 
 	// Create object directory.
 	// We keep it in pkg/ so that all the generated binaries
-	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
-	// before we used subdirectories of obj.  Delete all of obj
+	// are in one tree. If pkg/obj/libgc.a exists, it is a dreg from
+	// before we used subdirectories of obj. Delete all of obj
 	// to clean up.
 	if p := pathf("%s/pkg/obj/libgc.a", goroot); isfile(p) {
 		xremoveall(pathf("%s/pkg/obj", goroot))

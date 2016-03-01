@@ -62,7 +62,7 @@ func TestCompareBytes(t *testing.T) {
 	a := make([]byte, n+1)
 	b := make([]byte, n+1)
 	for len := 0; len < 128; len++ {
-		// randomish but deterministic data.  No 0 or 255.
+		// randomish but deterministic data. No 0 or 255.
 		for i := 0; i < len; i++ {
 			a[i] = byte(1 + 31*i%254)
 			b[i] = byte(1 + 31*i%254)

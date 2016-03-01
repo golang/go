@@ -95,14 +95,14 @@ expr3:
 // for clarity.
 const eof = 0
 
-// The parser uses the type <prefix>Lex as a lexer.  It must provide
+// The parser uses the type <prefix>Lex as a lexer. It must provide
 // the methods Lex(*<prefix>SymType) int and Error(string).
 type exprLex struct {
 	line []byte
 	peek rune
 }
 
-// The parser calls this method to get each new token.  This
+// The parser calls this method to get each new token. This
 // implementation returns operators and NUM.
 func (x *exprLex) Lex(yylval *exprSymType) int {
 	for {

@@ -15,7 +15,7 @@ var (
 )
 
 // Interface represents a mapping between network interface name
-// and index.  It also represents network interface facility
+// and index. It also represents network interface facility
 // information.
 type Interface struct {
 	Index        int          // positive integer that starts at one, zero is never used

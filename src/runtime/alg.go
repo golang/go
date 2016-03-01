@@ -64,7 +64,7 @@ func memhash128(p unsafe.Pointer, h uintptr) uintptr {
 }
 
 // memhash_varlen is defined in assembly because it needs access
-// to the closure.  It appears here to provide an argument
+// to the closure. It appears here to provide an argument
 // signature for the assembly routine.
 func memhash_varlen(p unsafe.Pointer, h uintptr) uintptr
 

@@ -247,7 +247,7 @@ func testSync(t *testing.T, level int, input []byte, name string) {
 		// not necessarily the case: the write Flush may emit
 		// some extra framing bits that are not necessary
 		// to process to obtain the first half of the uncompressed
-		// data.  The test ran correctly most of the time, because
+		// data. The test ran correctly most of the time, because
 		// the background goroutine had usually read even
 		// those extra bits by now, but it's not a useful thing to
 		// check.

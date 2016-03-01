@@ -128,7 +128,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 
 	// If we used a dummy body above, remove it now.
 	// TODO: if the req.ContentLength is large, we allocate memory
-	// unnecessarily just to slice it off here.  But this is just
+	// unnecessarily just to slice it off here. But this is just
 	// a debug function, so this is acceptable for now. We could
 	// discard the body earlier if this matters.
 	if dummyBody {
@@ -269,7 +269,7 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
 var errNoBody = errors.New("sentinel error value")
 
 // failureToReadBody is a io.ReadCloser that just returns errNoBody on
-// Read.  It's swapped in when we don't actually want to consume
+// Read. It's swapped in when we don't actually want to consume
 // the body, but need a non-nil one, and want to distinguish the
 // error from reading the dummy body.
 type failureToReadBody struct{}

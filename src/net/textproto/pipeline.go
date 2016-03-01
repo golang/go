@@ -66,8 +66,8 @@ func (p *Pipeline) EndResponse(id uint) {
 }
 
 // A sequencer schedules a sequence of numbered events that must
-// happen in order, one after the other.  The event numbering must start
-// at 0 and increment without skipping.  The event number wraps around
+// happen in order, one after the other. The event numbering must start
+// at 0 and increment without skipping. The event number wraps around
 // safely as long as there are not 2^32 simultaneous events pending.
 type sequencer struct {
 	mu   sync.Mutex

@@ -84,9 +84,9 @@ func liveValues(f *Func, reachable []bool) []bool {
 
 // deadcode removes dead code from f.
 func deadcode(f *Func) {
-	// deadcode after regalloc is forbidden for now.  Regalloc
+	// deadcode after regalloc is forbidden for now. Regalloc
 	// doesn't quite generate legal SSA which will lead to some
-	// required moves being eliminated.  See the comment at the
+	// required moves being eliminated. See the comment at the
 	// top of regalloc.go for details.
 	if f.RegAlloc != nil {
 		f.Fatalf("deadcode after regalloc")
@@ -164,7 +164,7 @@ func deadcode(f *Func) {
 	}
 	f.Names = f.Names[:i]
 
-	// Remove dead values from blocks' value list.  Return dead
+	// Remove dead values from blocks' value list. Return dead
 	// values to the allocator.
 	for _, b := range f.Blocks {
 		i := 0
@@ -184,7 +184,7 @@ func deadcode(f *Func) {
 		b.Values = b.Values[:i]
 	}
 
-	// Remove unreachable blocks.  Return dead blocks to allocator.
+	// Remove unreachable blocks. Return dead blocks to allocator.
 	i = 0
 	for _, b := range f.Blocks {
 		if reachable[b.ID] {
@@ -235,11 +235,11 @@ func (b *Block) removePred(p *Block) {
 		v.Args[n] = nil // aid GC
 		v.Args = v.Args[:n]
 		phielimValue(v)
-		// Note: this is trickier than it looks.  Replacing
+		// Note: this is trickier than it looks. Replacing
 		// a Phi with a Copy can in general cause problems because
 		// Phi and Copy don't have exactly the same semantics.
 		// Phi arguments always come from a predecessor block,
-		// whereas copies don't.  This matters in loops like:
+		// whereas copies don't. This matters in loops like:
 		// 1: x = (Phi y)
 		//    y = (Add x 1)
 		//    goto 1
@@ -253,15 +253,15 @@ func (b *Block) removePred(p *Block) {
 		// will barf on it.
 		//
 		// Fortunately, this situation can only happen for dead
-		// code loops.  We know the code we're working with is
+		// code loops. We know the code we're working with is
 		// not dead, so we're ok.
 		// Proof: If we have a potential bad cycle, we have a
 		// situation like this:
 		//   x = (Phi z)
 		//   y = (op1 x ...)
 		//   z = (op2 y ...)
-		// Where opX are not Phi ops.  But such a situation
-		// implies a cycle in the dominator graph.  In the
+		// Where opX are not Phi ops. But such a situation
+		// implies a cycle in the dominator graph. In the
 		// example, x.Block dominates y.Block, y.Block dominates
 		// z.Block, and z.Block dominates x.Block (treating
 		// "dominates" as reflexive).  Cycles in the dominator

@@ -62,10 +62,10 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 		throw("defer on system stack")
 	}
 
-	// the arguments of fn are in a perilous state.  The stack map
-	// for deferproc does not describe them.  So we can't let garbage
+	// the arguments of fn are in a perilous state. The stack map
+	// for deferproc does not describe them. So we can't let garbage
 	// collection or stack copying trigger until we've copied them out
-	// to somewhere safe.  The memmove below does that.
+	// to somewhere safe. The memmove below does that.
 	// Until the copy completes, we can only call nosplit routines.
 	sp := getcallersp(unsafe.Pointer(&siz))
 	argp := uintptr(unsafe.Pointer(&fn)) + unsafe.Sizeof(fn)
@@ -255,7 +255,7 @@ func freedeferfn() {
 // If there is a deferred function, this will call runtime·jmpdefer,
 // which will jump to the deferred function such that it appears
 // to have been called by the caller of deferreturn at the point
-// just before deferreturn was called.  The effect is that deferreturn
+// just before deferreturn was called. The effect is that deferreturn
 // is called again and again until there are no more deferred functions.
 // Cannot split the stack because we reuse the caller's frame to
 // call the deferred function.
@@ -291,8 +291,8 @@ func deferreturn(arg0 uintptr) {
 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
 
-// Goexit terminates the goroutine that calls it.  No other goroutine is affected.
-// Goexit runs all deferred calls before terminating the goroutine.  Because Goexit
+// Goexit terminates the goroutine that calls it. No other goroutine is affected.
+// Goexit runs all deferred calls before terminating the goroutine. Because Goexit
 // is not panic, however, any recover calls in those deferred functions will return nil.
 //
 // Calling Goexit from the main goroutine terminates that goroutine
@@ -348,7 +348,7 @@ func preprintpanics(p *_panic) {
 	}
 }
 
-// Print all currently active panics.  Used when crashing.
+// Print all currently active panics. Used when crashing.
 func printpanics(p *_panic) {
 	if p.link != nil {
 		printpanics(p.link)
@@ -449,7 +449,7 @@ func gopanic(e interface{}) {
 		d.fn = nil
 		gp._defer = d.link
 
-		// trigger shrinkage to test stack copy.  See stack_test.go:TestStackPanic
+		// trigger shrinkage to test stack copy. See stack_test.go:TestStackPanic
 		//GC()
 
 		pc := d.pc
@@ -554,7 +554,7 @@ func throw(s string) {
 var paniclk mutex
 
 // Unwind the stack after a deferred function calls recover
-// after a panic.  Then arrange to continue running as though
+// after a panic. Then arrange to continue running as though
 // the caller of the deferred function returned normally.
 func recovery(gp *g) {
 	// Info about defer passed in G struct.

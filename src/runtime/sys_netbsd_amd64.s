@@ -37,7 +37,7 @@ TEXT runtime·lwp_tramp(SB),NOSPLIT,$0
 	// Call fn
 	CALL	R12
 
-	// It shouldn't return.  If it does, exit.
+	// It shouldn't return. If it does, exit.
 	MOVL	$310, AX		// sys__lwp_exit
 	SYSCALL
 	JMP	-3(PC)			// keep exiting

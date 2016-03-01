@@ -234,7 +234,7 @@ func (b *Reader) ReadByte() (byte, error) {
 	return c, nil
 }
 
-// UnreadByte unreads the last byte.  Only the most recently read byte can be unread.
+// UnreadByte unreads the last byte. Only the most recently read byte can be unread.
 func (b *Reader) UnreadByte() error {
 	if b.lastByte < 0 || b.r == 0 && b.w > 0 {
 		return ErrInvalidUnreadByte
@@ -273,7 +273,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
 	return r, size, nil
 }
 
-// UnreadRune unreads the last rune.  If the most recent read operation on
+// UnreadRune unreads the last rune. If the most recent read operation on
 // the buffer was not a ReadRune, UnreadRune returns an error.  (In this
 // regard it is stricter than UnreadByte, which will unread the last byte
 // from any read operation.)

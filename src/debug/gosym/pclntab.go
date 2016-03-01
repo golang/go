@@ -53,7 +53,7 @@ const oldQuantum = 1
 func (t *LineTable) parse(targetPC uint64, targetLine int) (b []byte, pc uint64, line int) {
 	// The PC/line table can be thought of as a sequence of
 	//  <pc update>* <line update>
-	// batches.  Each update batch results in a (pc, line) pair,
+	// batches. Each update batch results in a (pc, line) pair,
 	// where line applies to every PC from pc up to but not
 	// including the pc of the next pair.
 	//

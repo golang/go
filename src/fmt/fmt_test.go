@@ -579,7 +579,7 @@ var fmtTests = []struct {
 
 	// The "<nil>" show up because maps are printed by
 	// first obtaining a list of keys and then looking up
-	// each key.  Since NaNs can be map keys but cannot
+	// each key. Since NaNs can be map keys but cannot
 	// be fetched directly, the lookup fails and returns a
 	// zero reflect.Value, which formats as <nil>.
 	// This test is just to check that it shows the two NaNs at all.

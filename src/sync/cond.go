@@ -35,13 +35,13 @@ func NewCond(l Locker) *Cond {
 }
 
 // Wait atomically unlocks c.L and suspends execution
-// of the calling goroutine.  After later resuming execution,
-// Wait locks c.L before returning.  Unlike in other systems,
+// of the calling goroutine. After later resuming execution,
+// Wait locks c.L before returning. Unlike in other systems,
 // Wait cannot return unless awoken by Broadcast or Signal.
 //
 // Because c.L is not locked when Wait first resumes, the caller
 // typically cannot assume that the condition is true when
-// Wait returns.  Instead, the caller should Wait in a loop:
+// Wait returns. Instead, the caller should Wait in a loop:
 //
 //    c.L.Lock()
 //    for !condition() {

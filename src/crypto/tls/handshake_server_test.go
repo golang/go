@@ -69,7 +69,7 @@ func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
 
 func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessage, expectedSubStr string) {
 	// Create in-memory network connection,
-	// send message to server.  Should return
+	// send message to server. Should return
 	// expected error.
 	c, s := net.Pipe()
 	go func() {

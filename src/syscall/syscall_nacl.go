@@ -59,7 +59,7 @@ func clen(n []byte) int {
 const PathMax = 256
 
 // An Errno is an unsigned number describing an error condition.
-// It implements the error interface.  The zero Errno is by convention
+// It implements the error interface. The zero Errno is by convention
 // a non-error, so code to convert from Errno to error should use:
 //	err = nil
 //	if errno != 0 {

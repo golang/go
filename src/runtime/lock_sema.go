@@ -81,7 +81,7 @@ Loop:
 				}
 			}
 			if v&locked != 0 {
-				// Queued.  Wait.
+				// Queued. Wait.
 				semasleep(-1)
 				i = 0
 			}
@@ -143,7 +143,7 @@ func notewakeup(n *note) {
 		// Two notewakeups!  Not allowed.
 		throw("notewakeup - double wakeup")
 	default:
-		// Must be the waiting m.  Wake it up.
+		// Must be the waiting m. Wake it up.
 		semawakeup((*m)(unsafe.Pointer(v)))
 	}
 }
@@ -161,7 +161,7 @@ func notesleep(n *note) {
 		}
 		return
 	}
-	// Queued.  Sleep.
+	// Queued. Sleep.
 	gp.m.blocked = true
 	semasleep(-1)
 	gp.m.blocked = false
@@ -184,7 +184,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 		return true
 	}
 	if ns < 0 {
-		// Queued.  Sleep.
+		// Queued. Sleep.
 		gp.m.blocked = true
 		semasleep(-1)
 		gp.m.blocked = false
@@ -193,7 +193,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 
 	deadline = nanotime() + ns
 	for {
-		// Registered.  Sleep.
+		// Registered. Sleep.
 		gp.m.blocked = true
 		if semasleep(ns) >= 0 {
 			gp.m.blocked = false
@@ -202,15 +202,15 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
 			return true
 		}
 		gp.m.blocked = false
-		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
+		// Interrupted or timed out. Still registered. Semaphore not acquired.
 		ns = deadline - nanotime()
 		if ns <= 0 {
 			break
 		}
-		// Deadline hasn't arrived.  Keep sleeping.
+		// Deadline hasn't arrived. Keep sleeping.
 	}
 
-	// Deadline arrived.  Still registered.  Semaphore not acquired.
+	// Deadline arrived. Still registered. Semaphore not acquired.
 	// Want to give up and return, but have to unregister first,
 	// so that any notewakeup racing with the return does not
 	// try to grant us the semaphore when we don't expect it.

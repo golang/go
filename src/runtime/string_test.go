@@ -237,7 +237,7 @@ func TestRangeStringCast(t *testing.T) {
 func TestString2Slice(t *testing.T) {
 	// Make sure we don't return slices that expose
 	// an unzeroed section of stack-allocated temp buf
-	// between len and cap.  See issue 14232.
+	// between len and cap. See issue 14232.
 	s := "foož"
 	b := ([]byte)(s)
 	if cap(b) != 5 {

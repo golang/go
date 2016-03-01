@@ -704,7 +704,7 @@ func scanframeworker(frame *stkframe, cache *pcvalueCache, gcw *gcWork) {
 	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, targetpc, cache)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
-		// stackmap for this function.  It is likely that we are looking
+		// stackmap for this function. It is likely that we are looking
 		// at the function prologue, assume so and hope for the best.
 		pcdata = 0
 	}

@@ -39,8 +39,8 @@ import (
 // variable ::= some token
 // opcode   ::= one of the opcodes from ../op.go (without the Op prefix)
 
-// extra conditions is just a chunk of Go that evaluates to a boolean.  It may use
-// variables declared in the matching sexpr.  The variable "v" is predefined to be
+// extra conditions is just a chunk of Go that evaluates to a boolean. It may use
+// variables declared in the matching sexpr. The variable "v" is predefined to be
 // the value matched by the entire rule.
 
 // If multiple rules match, the first one in file order is selected.
@@ -93,8 +93,8 @@ func genRules(arch arch) {
 		lineno++
 		line := scanner.Text()
 		if i := strings.Index(line, "//"); i >= 0 {
-			// Remove comments.  Note that this isn't string safe, so
-			// it will truncate lines with // inside strings.  Oh well.
+			// Remove comments. Note that this isn't string safe, so
+			// it will truncate lines with // inside strings. Oh well.
 			line = line[:i]
 		}
 		rule += " " + line
@@ -159,7 +159,7 @@ func genRules(arch arch) {
 	fmt.Fprintf(w, "return false\n")
 	fmt.Fprintf(w, "}\n")
 
-	// Generate a routine per op.  Note that we don't make one giant routine
+	// Generate a routine per op. Note that we don't make one giant routine
 	// because it is too big for some compilers.
 	for _, op := range ops {
 		fmt.Fprintf(w, "func rewriteValue%s_%s(v *Value, config *Config) bool {\n", arch.name, opName(op, arch))
@@ -190,7 +190,7 @@ func genRules(arch arch) {
 		fmt.Fprintf(w, "}\n")
 	}
 
-	// Generate block rewrite function.  There are only a few block types
+	// Generate block rewrite function. There are only a few block types
 	// so we can make this one function with a switch.
 	fmt.Fprintf(w, "func rewriteBlock%s(b *Block) bool {\n", arch.name)
 	fmt.Fprintf(w, "switch b.Kind {\n")
@@ -229,7 +229,7 @@ func genRules(arch arch) {
 				fmt.Fprintf(w, "if !(%s) {\nbreak\n}\n", cond)
 			}
 
-			// Rule matches.  Generate result.
+			// Rule matches. Generate result.
 			t := split(result[1 : len(result)-1]) // remove parens, then split
 			newsuccs := t[2:]
 
@@ -316,7 +316,7 @@ func genMatch(w io.Writer, arch arch, match string) {
 func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top bool) {
 	if match[0] != '(' {
 		if _, ok := m[match]; ok {
-			// variable already has a definition.  Check whether
+			// variable already has a definition. Check whether
 			// the old definition and the new definition match.
 			// For example, (add x x).  Equality is just pointer equality
 			// on Values (so cse is important to do before lowering).
@@ -332,7 +332,7 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 		return
 	}
 
-	// split body up into regions.  Split by spaces/tabs, except those
+	// split body up into regions. Split by spaces/tabs, except those
 	// contained in () or {}.
 	s := split(match[1 : len(match)-1]) // remove parens, then split
 
@@ -348,7 +348,7 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 			// type restriction
 			t := a[1 : len(a)-1] // remove <>
 			if !isVariable(t) {
-				// code.  We must match the results of this code.
+				// code. We must match the results of this code.
 				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
 			} else {
 				// variable

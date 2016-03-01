@@ -22,7 +22,7 @@ var (
 
 	// supportsIPv4map reports whether the platform supports
 	// mapping an IPv4 address inside an IPv6 address at transport
-	// layer protocols.  See RFC 4291, RFC 4038 and RFC 3493.
+	// layer protocols. See RFC 4291, RFC 4038 and RFC 3493.
 	supportsIPv4map bool
 )
 
@@ -106,7 +106,7 @@ func ipv6only(addr IPAddr) bool {
 
 // SplitHostPort splits a network address of the form "host:port",
 // "[host]:port" or "[ipv6-host%zone]:port" into host or
-// ipv6-host%zone and port.  A literal address or host name for IPv6
+// ipv6-host%zone and port. A literal address or host name for IPv6
 // must be enclosed in square brackets, as in "[::1]:80",
 // "[ipv6-host]:http" or "[ipv6-host%zone]:80".
 func SplitHostPort(hostport string) (host, port string, err error) {

@@ -56,7 +56,7 @@ func checkCgoCall(f *File, node ast.Node) {
 }
 
 // cgoBaseType tries to look through type conversions involving
-// unsafe.Pointer to find the real type.  It converts:
+// unsafe.Pointer to find the real type. It converts:
 //   unsafe.Pointer(x) => x
 //   *(*unsafe.Pointer)(unsafe.Pointer(&x)) => x
 func cgoBaseType(f *File, arg ast.Expr) types.Type {
@@ -106,7 +106,7 @@ func cgoBaseType(f *File, arg ast.Expr) types.Type {
 }
 
 // typeOKForCgoCall returns true if the type of arg is OK to pass to a
-// C function using cgo.  This is not true for Go types with embedded
+// C function using cgo. This is not true for Go types with embedded
 // pointers.
 func typeOKForCgoCall(t types.Type) bool {
 	if t == nil {

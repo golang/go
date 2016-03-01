@@ -8,7 +8,7 @@
 //
 // The Go path is a list of directory trees containing Go source code.
 // It is consulted to resolve imports that cannot be found in the standard
-// Go tree.  The default path is the value of the GOPATH environment
+// Go tree. The default path is the value of the GOPATH environment
 // variable, interpreted as a path list appropriate to the operating system
 // (on Unix, the variable is a colon-separated string;
 // on Windows, a semicolon-separated string;
@@ -16,7 +16,7 @@
 //
 // Each directory listed in the Go path must have a prescribed structure:
 //
-// The src/ directory holds source code.  The path below 'src' determines
+// The src/ directory holds source code. The path below 'src' determines
 // the import path or executable name.
 //
 // The pkg/ directory holds installed package objects.
@@ -31,9 +31,9 @@
 //
 // The bin/ directory holds compiled commands.
 // Each command is named for its source directory, but only
-// using the final element, not the entire path.  That is, the
+// using the final element, not the entire path. That is, the
 // command with source in DIR/src/foo/quux is installed into
-// DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
+// DIR/bin/quux, not DIR/bin/foo/quux. The foo/ is stripped
 // so that you can add DIR/bin to your PATH to get at the
 // installed commands.
 //

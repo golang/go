@@ -115,7 +115,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 	}
 }
 
-// Generic traceback.  Handles runtime stack prints (pcbuf == nil),
+// Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
@@ -706,7 +706,7 @@ func tracebackothers(me *g) {
 		goroutineheader(gp)
 		// Note: gp.m == g.m occurs when tracebackothers is
 		// called from a signal handler initiated during a
-		// systemstack call.  The original G is still in the
+		// systemstack call. The original G is still in the
 		// running state, and we want to print its stack.
 		if gp.m != g.m && readgstatus(gp)&^_Gscan == _Grunning {
 			print("\tgoroutine running on other thread; stack unavailable\n")

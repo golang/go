@@ -117,7 +117,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 
 	if t.Sym != nil || x.Sym != nil {
 		// Special case: we keep byte and uint8 separate
-		// for error messages.  Treat them as equal.
+		// for error messages. Treat them as equal.
 		switch t.Etype {
 		case TUINT8:
 			if (t == Types[TUINT8] || t == bytetype) && (x == Types[TUINT8] || x == bytetype) {

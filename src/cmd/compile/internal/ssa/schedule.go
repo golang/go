@@ -15,10 +15,10 @@ const (
 	ScoreCount // not a real score
 )
 
-// Schedule the Values in each Block.  After this phase returns, the
+// Schedule the Values in each Block. After this phase returns, the
 // order of b.Values matters and is the order in which those values
-// will appear in the assembly output.  For now it generates a
-// reasonable valid schedule using a priority queue.  TODO(khr):
+// will appear in the assembly output. For now it generates a
+// reasonable valid schedule using a priority queue. TODO(khr):
 // schedule smarter.
 func schedule(f *Func) {
 	// For each value, the number of times it is used in the block
@@ -28,7 +28,7 @@ func schedule(f *Func) {
 	// "priority" for a value
 	score := make([]uint8, f.NumValues())
 
-	// scheduling order.  We queue values in this list in reverse order.
+	// scheduling order. We queue values in this list in reverse order.
 	var order []*Value
 
 	// priority queue of legally schedulable (0 unscheduled uses) values
@@ -36,7 +36,7 @@ func schedule(f *Func) {
 
 	// maps mem values to the next live memory value
 	nextMem := make([]*Value, f.NumValues())
-	// additional pretend arguments for each Value.  Used to enforce load/store ordering.
+	// additional pretend arguments for each Value. Used to enforce load/store ordering.
 	additionalArgs := make([][]*Value, f.NumValues())
 
 	for _, b := range f.Blocks {
@@ -77,12 +77,12 @@ func schedule(f *Func) {
 				uses[v.ID]++
 			}
 		}
-		// Compute score.  Larger numbers are scheduled closer to the end of the block.
+		// Compute score. Larger numbers are scheduled closer to the end of the block.
 		for _, v := range b.Values {
 			switch {
 			case v.Op == OpAMD64LoweredGetClosurePtr:
 				// We also score GetLoweredClosurePtr as early as possible to ensure that the
-				// context register is not stomped.  GetLoweredClosurePtr should only appear
+				// context register is not stomped. GetLoweredClosurePtr should only appear
 				// in the entry block where there are no phi functions, so there is no
 				// conflict or ambiguity here.
 				if b != f.Entry {
@@ -96,8 +96,8 @@ func schedule(f *Func) {
 				// We want all the vardefs next.
 				score[v.ID] = ScoreVarDef
 			case v.Type.IsMemory():
-				// Schedule stores as early as possible.  This tends to
-				// reduce register pressure.  It also helps make sure
+				// Schedule stores as early as possible. This tends to
+				// reduce register pressure. It also helps make sure
 				// VARDEF ops are scheduled before the corresponding LEA.
 				score[v.ID] = ScoreMemory
 			case v.Type.IsFlags():
@@ -117,7 +117,7 @@ func schedule(f *Func) {
 			// Schedule values dependent on the control value at the end.
 			// This reduces the number of register spills. We don't find
 			// all values that depend on the control, just values with a
-			// direct dependency.  This is cheaper and in testing there
+			// direct dependency. This is cheaper and in testing there
 			// was no difference in the number of spills.
 			for _, v := range b.Values {
 				if v.Op != OpPhi {

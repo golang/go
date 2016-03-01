@@ -67,7 +67,7 @@ var printfList = map[string]int{
 }
 
 // printList records the unformatted-print functions. The value is the location
-// of the first parameter to be printed.  Names are lower-cased so the lookup is
+// of the first parameter to be printed. Names are lower-cased so the lookup is
 // case insensitive.
 var printList = map[string]int{
 	"error":  0,

@@ -556,7 +556,7 @@ func (t *Tree) blockControl() Node {
 
 // Template:
 //	{{template stringValue pipeline}}
-// Template keyword is past.  The name must be something that can evaluate
+// Template keyword is past. The name must be something that can evaluate
 // to a string.
 func (t *Tree) templateControl() Node {
 	const context = "template clause"

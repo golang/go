@@ -55,7 +55,7 @@ func (pkg *Package) MarkComplete() { pkg.complete = true }
 // pkg; the list is in source order. Package unsafe is excluded.
 //
 // If pkg was loaded from export data, Imports includes packages that
-// provide package-level objects referenced by pkg.  This may be more or
+// provide package-level objects referenced by pkg. This may be more or
 // less than the set of packages directly imported by pkg's source code.
 func (pkg *Package) Imports() []*Package { return pkg.imports }
 

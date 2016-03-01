@@ -32,7 +32,7 @@ func runtime_AfterFork()
 // If a dup or exec fails, write the errno error to pipe.
 // (Pipe is close-on-exec so if exec succeeds, it will be closed.)
 // In the child, this function must not acquire any locks, because
-// they might have been locked at the time of the fork.  This means
+// they might have been locked at the time of the fork. This means
 // no rescheduling, no malloc calls, and no new stack segments.
 // For the same reason compiler does not race instrument it.
 // The calls to RawSyscall are okay because they are assembly

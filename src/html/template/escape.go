@@ -15,8 +15,8 @@ import (
 
 // escapeTemplate rewrites the named template, which must be
 // associated with t, to guarantee that the output of any of the named
-// templates is properly escaped.  If no error is returned, then the named templates have
-// been modified.  Otherwise the named templates have been rendered
+// templates is properly escaped. If no error is returned, then the named templates have
+// been modified. Otherwise the named templates have been rendered
 // unusable.
 func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 	e := newEscaper(tmpl)

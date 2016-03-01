@@ -130,9 +130,9 @@ func (dec *Decoder) nextUint() uint64 {
 // decodeTypeSequence parses:
 // TypeSequence
 //	(TypeDefinition DelimitedTypeDefinition*)?
-// and returns the type id of the next value.  It returns -1 at
+// and returns the type id of the next value. It returns -1 at
 // EOF.  Upon return, the remainder of dec.buf is the value to be
-// decoded.  If this is an interface value, it can be ignored by
+// decoded. If this is an interface value, it can be ignored by
 // resetting that buffer.
 func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 	for dec.err == nil {
@@ -150,7 +150,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
 		// Type definition for (-id) follows.
 		dec.recvType(-id)
 		// When decoding an interface, after a type there may be a
-		// DelimitedValue still in the buffer.  Skip its count.
+		// DelimitedValue still in the buffer. Skip its count.
 		// (Alternatively, the buffer is empty and the byte count
 		// will be absorbed by recvMessage.)
 		if dec.buf.Len() > 0 {
@@ -177,7 +177,7 @@ func (dec *Decoder) Decode(e interface{}) error {
 	}
 	value := reflect.ValueOf(e)
 	// If e represents a value as opposed to a pointer, the answer won't
-	// get back to the caller.  Make sure it's a pointer.
+	// get back to the caller. Make sure it's a pointer.
 	if value.Type().Kind() != reflect.Ptr {
 		dec.err = errors.New("gob: attempt to decode into a non-pointer")
 		return dec.err
@@ -187,7 +187,7 @@ func (dec *Decoder) Decode(e interface{}) error {
 
 // DecodeValue reads the next value from the input stream.
 // If v is the zero reflect.Value (v.Kind() == Invalid), DecodeValue discards the value.
-// Otherwise, it stores the value into v.  In that case, v must represent
+// Otherwise, it stores the value into v. In that case, v must represent
 // a non-nil pointer to data or be an assignable reflect.Value (v.CanSet())
 // If the input is at EOF, DecodeValue returns io.EOF and
 // does not modify v.

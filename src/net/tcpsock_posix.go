@@ -173,18 +173,18 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-cha
 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
 	// connect to a simultaneous Dial("tcp", addr2, addr1) run on the machine
-	// at addr2, without either machine executing Listen.  If laddr == nil,
+	// at addr2, without either machine executing Listen. If laddr == nil,
 	// it means we want the kernel to pick an appropriate originating local
-	// address.  Some Linux kernels cycle blindly through a fixed range of
-	// local ports, regardless of destination port.  If a kernel happens to
+	// address. Some Linux kernels cycle blindly through a fixed range of
+	// local ports, regardless of destination port. If a kernel happens to
 	// pick local port 50001 as the source for a Dial("tcp", "", "localhost:50001"),
 	// then the Dial will succeed, having simultaneously connected to itself.
 	// This can only happen when we are letting the kernel pick a port (laddr == nil)
 	// and when there is no listener for the destination address.
-	// It's hard to argue this is anything other than a kernel bug.  If we
+	// It's hard to argue this is anything other than a kernel bug. If we
 	// see this happen, rather than expose the buggy effect to users, we
-	// close the fd and try again.  If it happens twice more, we relent and
-	// use the result.  See also:
+	// close the fd and try again. If it happens twice more, we relent and
+	// use the result. See also:
 	//	https://golang.org/issue/2690
 	//	http://stackoverflow.com/questions/4949858/
 	//
@@ -239,7 +239,7 @@ func spuriousENOTAVAIL(err error) bool {
 	return err == syscall.EADDRNOTAVAIL
 }
 
-// TCPListener is a TCP network listener.  Clients should typically
+// TCPListener is a TCP network listener. Clients should typically
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
@@ -299,11 +299,11 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 }
 
 // File returns a copy of the underlying os.File, set to blocking
-// mode.  It is the caller's responsibility to close f when finished.
+// mode. It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
 // The returned os.File's file descriptor is different from the
-// connection's.  Attempting to change properties of the original
+// connection's. Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
 func (l *TCPListener) File() (f *os.File, err error) {
 	f, err = l.fd.dup()
@@ -314,8 +314,8 @@ func (l *TCPListener) File() (f *os.File, err error) {
 }
 
 // ListenTCP announces on the TCP address laddr and returns a TCP
-// listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
-// port of 0, ListenTCP will choose an available port.  The caller can
+// listener. Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+// port of 0, ListenTCP will choose an available port. The caller can
 // use the Addr method of TCPListener to retrieve the chosen address.
 func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	switch net {

@@ -239,7 +239,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 	// only 0 or 1 cases plus default into simpler constructs.
 	// The only way we can end up with such small sel.ncase
 	// values here is for a larger select in which most channels
-	// have been nilled out.  The general code handles those
+	// have been nilled out. The general code handles those
 	// cases correctly, and they are rare enough not to bother
 	// optimizing (and needing to test).
 
@@ -649,8 +649,8 @@ func (q *waitq) dequeueSudoG(sgp *sudog) {
 		return
 	}
 
-	// x==y==nil.  Either sgp is the only element in the queue,
-	// or it has already been removed.  Use q.first to disambiguate.
+	// x==y==nil. Either sgp is the only element in the queue,
+	// or it has already been removed. Use q.first to disambiguate.
 	if q.first == sgp {
 		q.first = nil
 		q.last = nil

@@ -14,7 +14,7 @@ const (
 )
 
 // cse does common-subexpression elimination on the Function.
-// Values are just relinked, nothing is deleted.  A subsequent deadcode
+// Values are just relinked, nothing is deleted. A subsequent deadcode
 // pass is required to actually remove duplicate expressions.
 func cse(f *Func) {
 	// Two values are equivalent if they satisfy the following definition:
@@ -82,7 +82,7 @@ func cse(f *Func) {
 	}
 
 	// Find an equivalence class where some members of the class have
-	// non-equivalent arguments.  Split the equivalence class appropriately.
+	// non-equivalent arguments. Split the equivalence class appropriately.
 	// Repeat until we can't find any more splits.
 	for {
 		changed := false
@@ -117,7 +117,7 @@ func cse(f *Func) {
 					changed = true
 					continue eqloop
 				}
-				// v and w are equivalent.  Keep w in e.
+				// v and w are equivalent. Keep w in e.
 				j++
 			}
 			partition[i] = e
@@ -135,7 +135,7 @@ func cse(f *Func) {
 	idom := dominators(f)
 	sdom := newSparseTree(f, idom)
 
-	// Compute substitutions we would like to do.  We substitute v for w
+	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
 	rewrite := make([]*Value, f.NumValues())
 	for _, e := range partition {
@@ -191,7 +191,7 @@ func cse(f *Func) {
 	}
 }
 
-// An eqclass approximates an equivalence class.  During the
+// An eqclass approximates an equivalence class. During the
 // algorithm it may represent the union of several of the
 // final equivalence classes.
 type eqclass []*Value
@@ -207,7 +207,7 @@ type eqclass []*Value
 //  - first two arg's opcodes and auxint
 //  - NOT first two arg's aux; that can break CSE.
 // partitionValues returns a list of equivalence classes, each
-// being a sorted by ID list of *Values.  The eqclass slices are
+// being a sorted by ID list of *Values. The eqclass slices are
 // backed by the same storage as the input slice.
 // Equivalence classes of size 1 are ignored.
 func partitionValues(a []*Value, auxIDs auxmap) []eqclass {

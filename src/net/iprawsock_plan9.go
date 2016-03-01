@@ -32,7 +32,7 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
 }
 
 // ReadMsgIP reads a packet from c, copying the payload into b and the
-// associated out-of-band data into oob.  It returns the number of
+// associated out-of-band data into oob. It returns the number of
 // bytes copied into b, the number of bytes copied into oob, the flags
 // that were set on the packet and the source address of the packet.
 func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
@@ -44,7 +44,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
 //
 // WriteToIP can be made to time out and return an error with
 // Timeout() == true after a fixed time limit; see SetDeadline and
-// SetWriteDeadline.  On packet-oriented connections, write timeouts
+// SetWriteDeadline. On packet-oriented connections, write timeouts
 // are rare.
 func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
 	return 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
@@ -56,7 +56,7 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
 }
 
 // WriteMsgIP writes a packet to addr via c, copying the payload from
-// b and the associated out-of-band data from oob.  It returns the
+// b and the associated out-of-band data from oob. It returns the
 // number of payload and out-of-band bytes written.
 func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
 	return 0, 0, &OpError{Op: "write", Net: c.fd.dir, Source: c.fd.laddr, Addr: addr.opAddr(), Err: syscall.EPLAN9}
@@ -74,7 +74,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
 }
 
 // ListenIP listens for incoming IP packets addressed to the local
-// address laddr.  The returned connection's ReadFrom and WriteTo
+// address laddr. The returned connection's ReadFrom and WriteTo
 // methods can be used to receive and send IP packets with per-packet
 // addressing.
 func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {

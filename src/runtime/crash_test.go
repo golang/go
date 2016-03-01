@@ -294,9 +294,9 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
 	// 1. defer a function that recovers
 	// 2. defer a function that panics
 	// 3. call goexit
-	// Goexit should run the #2 defer.  Its panic
+	// Goexit should run the #2 defer. Its panic
 	// should be caught by the #1 defer, and execution
-	// should resume in the caller.  Like the Goexit
+	// should resume in the caller. Like the Goexit
 	// never happened!
 	defer func() {
 		r := recover()

@@ -8,29 +8,29 @@ import "fmt"
 
 // Block represents a basic block in the control flow graph of a function.
 type Block struct {
-	// A unique identifier for the block.  The system will attempt to allocate
+	// A unique identifier for the block. The system will attempt to allocate
 	// these IDs densely, but no guarantees.
 	ID ID
 
 	// The kind of block this is.
 	Kind BlockKind
 
-	// Subsequent blocks, if any.  The number and order depend on the block kind.
+	// Subsequent blocks, if any. The number and order depend on the block kind.
 	// All successors must be distinct (to make phi values in successors unambiguous).
 	Succs []*Block
 
 	// Inverse of successors.
 	// The order is significant to Phi nodes in the block.
 	Preds []*Block
-	// TODO: predecessors is a pain to maintain.  Can we somehow order phi
+	// TODO: predecessors is a pain to maintain. Can we somehow order phi
 	// arguments by block id and have this field computed explicitly when needed?
 
-	// A value that determines how the block is exited.  Its value depends on the kind
-	// of the block.  For instance, a BlockIf has a boolean control value and BlockExit
+	// A value that determines how the block is exited. Its value depends on the kind
+	// of the block. For instance, a BlockIf has a boolean control value and BlockExit
 	// has a memory control value.
 	Control *Value
 
-	// Auxiliary info for the block.  Its value depends on the Kind.
+	// Auxiliary info for the block. Its value depends on the Kind.
 	Aux interface{}
 
 	// The unordered set of Values that define the operation of this block.
@@ -97,7 +97,7 @@ func (b *Block) LongString() string {
 	return s
 }
 
-// AddEdgeTo adds an edge from block b to block c.  Used during building of the
+// AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {
 	b.Succs = append(b.Succs, c)

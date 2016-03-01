@@ -28,7 +28,7 @@
 // and then unlocks g from m.
 //
 // The above description skipped over the possibility of the gcc-compiled
-// function f calling back into Go.  If that happens, we continue down
+// function f calling back into Go. If that happens, we continue down
 // the rabbit hole during the execution of f.
 //
 // To make it possible for gcc-compiled C code to call a Go function p.GoF,
@@ -38,9 +38,9 @@
 // GoF calls crosscall2(_cgoexp_GoF, frame, framesize).  Crosscall2
 // (in cgo/gcc_$GOARCH.S, a gcc-compiled assembly file) is a two-argument
 // adapter from the gcc function call ABI to the 6c function call ABI.
-// It is called from gcc to call 6c functions.  In this case it calls
+// It is called from gcc to call 6c functions. In this case it calls
 // _cgoexp_GoF(frame, framesize), still running on m->g0's stack
-// and outside the $GOMAXPROCS limit.  Thus, this code cannot yet
+// and outside the $GOMAXPROCS limit. Thus, this code cannot yet
 // call arbitrary Go code directly and must be careful not to allocate
 // memory or use up m->g0's stack.
 //
@@ -317,8 +317,8 @@ var racecgosync uint64 // represents possible synchronization in C code
 
 // We want to detect all cases where a program that does not use
 // unsafe makes a cgo call passing a Go pointer to memory that
-// contains a Go pointer.  Here a Go pointer is defined as a pointer
-// to memory allocated by the Go runtime.  Programs that use unsafe
+// contains a Go pointer. Here a Go pointer is defined as a pointer
+// to memory allocated by the Go runtime. Programs that use unsafe
 // can evade this restriction easily, so we don't try to catch them.
 // The cgo program will rewrite all possibly bad pointer arguments to
 // call cgoCheckPointer, where we can catch cases of a Go pointer
@@ -326,14 +326,14 @@ var racecgosync uint64 // represents possible synchronization in C code
 
 // Complicating matters, taking the address of a slice or array
 // element permits the C program to access all elements of the slice
-// or array.  In that case we will see a pointer to a single element,
+// or array. In that case we will see a pointer to a single element,
 // but we need to check the entire data structure.
 
 // The cgoCheckPointer call takes additional arguments indicating that
-// it was called on an address expression.  An additional argument of
-// true means that it only needs to check a single element.  An
+// it was called on an address expression. An additional argument of
+// true means that it only needs to check a single element. An
 // additional argument of a slice or array means that it needs to
-// check the entire slice/array, but nothing else.  Otherwise, the
+// check the entire slice/array, but nothing else. Otherwise, the
 // pointer could be anything, and we check the entire heap object,
 // which is conservative but safe.
 
@@ -344,7 +344,7 @@ var racecgosync uint64 // represents possible synchronization in C code
 // pointers.)
 
 // cgoCheckPointer checks if the argument contains a Go pointer that
-// points to a Go pointer, and panics if it does.  It returns the pointer.
+// points to a Go pointer, and panics if it does. It returns the pointer.
 func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 	if debug.cgocheck == 0 {
 		return ptr
@@ -395,9 +395,9 @@ func cgoCheckPointer(ptr interface{}, args ...interface{}) interface{} {
 const cgoCheckPointerFail = "cgo argument has Go pointer to Go pointer"
 const cgoResultFail = "cgo result has Go pointer"
 
-// cgoCheckArg is the real work of cgoCheckPointer.  The argument p
+// cgoCheckArg is the real work of cgoCheckPointer. The argument p
 // is either a pointer to the value (of type t), or the value itself,
-// depending on indir.  The top parameter is whether we are at the top
+// depending on indir. The top parameter is whether we are at the top
 // level, where Go pointers are allowed.
 func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 	if t.kind&kindNoPointers != 0 {
@@ -423,7 +423,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 		}
 	case kindChan, kindMap:
 		// These types contain internal pointers that will
-		// always be allocated in the Go heap.  It's never OK
+		// always be allocated in the Go heap. It's never OK
 		// to pass them to C.
 		panic(errorString(msg))
 	case kindFunc:
@@ -440,7 +440,7 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 			return
 		}
 		// A type known at compile time is OK since it's
-		// constant.  A type not known at compile time will be
+		// constant. A type not known at compile time will be
 		// in the heap and will not be OK.
 		if inheap(uintptr(unsafe.Pointer(it))) {
 			panic(errorString(msg))
@@ -507,8 +507,8 @@ func cgoCheckArg(t *_type, p unsafe.Pointer, indir, top bool, msg string) {
 }
 
 // cgoCheckUnknownPointer is called for an arbitrary pointer into Go
-// memory.  It checks whether that Go memory contains any other
-// pointer into Go memory.  If it does, we panic.
+// memory. It checks whether that Go memory contains any other
+// pointer into Go memory. If it does, we panic.
 // The return values are unused but useful to see in panic tracebacks.
 func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 	if cgoInRange(p, mheap_.arena_start, mheap_.arena_used) {
@@ -559,7 +559,7 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
 }
 
 // cgoIsGoPointer returns whether the pointer is a Go pointer--a
-// pointer to Go memory.  We only care about Go memory that might
+// pointer to Go memory. We only care about Go memory that might
 // contain pointers.
 //go:nosplit
 //go:nowritebarrierrec
@@ -589,7 +589,7 @@ func cgoInRange(p unsafe.Pointer, start, end uintptr) bool {
 }
 
 // cgoCheckResult is called to check the result parameter of an
-// exported Go function.  It panics if the result is or contains a Go
+// exported Go function. It panics if the result is or contains a Go
 // pointer.
 func cgoCheckResult(val interface{}) {
 	if debug.cgocheck == 0 {

@@ -149,8 +149,8 @@ func genOp() {
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
 
-			// Compute input allocation order.  We allocate from the
-			// most to the least constrained input.  This order guarantees
+			// Compute input allocation order. We allocate from the
+			// most to the least constrained input. This order guarantees
 			// that we will always be able to find a register.
 			var s []intPair
 			for i, r := range v.reg.inputs {

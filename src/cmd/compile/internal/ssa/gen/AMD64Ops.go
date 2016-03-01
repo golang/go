@@ -141,7 +141,7 @@ func init() {
 	// Suffixes encode the bit width of various instructions.
 	// Q = 64 bit, L = 32 bit, W = 16 bit, B = 8 bit
 
-	// TODO: 2-address instructions.  Mark ops as needing matching input/output regs.
+	// TODO: 2-address instructions. Mark ops as needing matching input/output regs.
 	var AMD64ops = []opData{
 		// fp ops
 		{name: "ADDSS", argLength: 2, reg: fp21, asm: "ADDSS"},    // fp32 add
@@ -500,12 +500,12 @@ func init() {
 		// arg0=ptr/int arg1=mem, output=int/ptr
 		{name: "MOVQconvert", argLength: 2, reg: gp11nf, asm: "MOVQ"},
 
-		// Constant flag values.  For any comparison, there are 5 possible
+		// Constant flag values. For any comparison, there are 5 possible
 		// outcomes: the three from the signed total order (<,==,>) and the
-		// three from the unsigned total order.  The == cases overlap.
+		// three from the unsigned total order. The == cases overlap.
 		// Note: there's a sixth "unordered" outcome for floating-point
 		// comparisons, but we don't use such a beast yet.
-		// These ops are for temporary use by rewrite rules.  They
+		// These ops are for temporary use by rewrite rules. They
 		// cannot appear in the generated assembly.
 		{name: "FlagEQ"},     // equal
 		{name: "FlagLT_ULT"}, // signed < and unsigned <

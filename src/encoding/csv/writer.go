@@ -15,7 +15,7 @@ import (
 // A Writer writes records to a CSV encoded file.
 //
 // As returned by NewWriter, a Writer writes records terminated by a
-// newline and uses ',' as the field delimiter.  The exported fields can be
+// newline and uses ',' as the field delimiter. The exported fields can be
 // changed to customize the details before the first call to Write or WriteAll.
 //
 // Comma is the field delimiter.

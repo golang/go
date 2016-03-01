@@ -248,7 +248,7 @@ func (p *importer) typ() *Type {
 			// (comment from go.y)
 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
-			// out by typecheck's lookdot as this $$.ttype.  So by providing
+			// out by typecheck's lookdot as this $$.ttype. So by providing
 			// this back link here we avoid special casing there.
 			n.Type.Nname = n
 

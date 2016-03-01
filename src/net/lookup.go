@@ -92,7 +92,7 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 	}
 
 	// We could push the deadline down into the name resolution
-	// functions.  However, the most commonly used implementation
+	// functions. However, the most commonly used implementation
 	// calls getaddrinfo, which has no timeout.
 
 	timeout := deadline.Sub(time.Now())
@@ -108,10 +108,10 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
 
 	select {
 	case <-t.C:
-		// The DNS lookup timed out for some reason.  Force
+		// The DNS lookup timed out for some reason. Force
 		// future requests to start the DNS lookup again
 		// rather than waiting for the current lookup to
-		// complete.  See issue 8602.
+		// complete. See issue 8602.
 		lookupGroup.Forget(host)
 
 		return nil, errTimeout
@@ -150,12 +150,12 @@ func LookupCNAME(name string) (cname string, err error) {
 }
 
 // LookupSRV tries to resolve an SRV query of the given service,
-// protocol, and domain name.  The proto is "tcp" or "udp".
+// protocol, and domain name. The proto is "tcp" or "udp".
 // The returned records are sorted by priority and randomized
 // by weight within a priority.
 //
 // LookupSRV constructs the DNS name to look up following RFC 2782.
-// That is, it looks up _service._proto.name.  To accommodate services
+// That is, it looks up _service._proto.name. To accommodate services
 // publishing SRV records under non-standard names, if both service
 // and proto are empty strings, LookupSRV looks up name directly.
 func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err error) {

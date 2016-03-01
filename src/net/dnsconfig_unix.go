@@ -61,7 +61,7 @@ func dnsReadConfig(filename string) *dnsConfig {
 		case "nameserver": // add one name server
 			if len(f) > 1 && len(conf.servers) < 3 { // small, but the standard limit
 				// One more check: make sure server name is
-				// just an IP address.  Otherwise we need DNS
+				// just an IP address. Otherwise we need DNS
 				// to look it up.
 				if parseIPv4(f[1]) != nil {
 					conf.servers = append(conf.servers, f[1])

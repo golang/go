@@ -221,7 +221,7 @@ loop1:
 	// MOVSD removal.
 	// We never use packed registers, so a MOVSD between registers
 	// can be replaced by MOVAPD, which moves the pair of float64s
-	// instead of just the lower one.  We only use the lower one, but
+	// instead of just the lower one. We only use the lower one, but
 	// the processor can do better if we do moves using both.
 	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog

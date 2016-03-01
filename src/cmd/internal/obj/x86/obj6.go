@@ -610,7 +610,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	var bpsize int
 	if p.Mode == 64 && obj.Framepointer_enabled != 0 && autoffset > 0 {
-		// Make room for to save a base pointer.  If autoffset == 0,
+		// Make room for to save a base pointer. If autoffset == 0,
 		// this might do something special like a tail jump to
 		// another function, so in that case we omit this.
 		bpsize = ctxt.Arch.Ptrsize

@@ -22,14 +22,14 @@
 // All characters are UTF-8-encoded code points.
 //
 // There are 16 methods of Regexp that match a regular expression and identify
-// the matched text.  Their names are matched by this regular expression:
+// the matched text. Their names are matched by this regular expression:
 //
 //	Find(All)?(String)?(Submatch)?(Index)?
 //
 // If 'All' is present, the routine matches successive non-overlapping
-// matches of the entire expression.  Empty matches abutting a preceding
-// match are ignored.  The return value is a slice containing the successive
-// return values of the corresponding non-'All' routine.  These routines take
+// matches of the entire expression. Empty matches abutting a preceding
+// match are ignored. The return value is a slice containing the successive
+// return values of the corresponding non-'All' routine. These routines take
 // an extra integer argument, n; if n >= 0, the function returns at most n
 // matches/submatches.
 //
@@ -45,9 +45,9 @@
 //
 // If 'Index' is present, matches and submatches are identified by byte index
 // pairs within the input string: result[2*n:2*n+1] identifies the indexes of
-// the nth submatch.  The pair for n==0 identifies the match of the entire
-// expression.  If 'Index' is not present, the match is identified by the
-// text of the match/submatch.  If an index is negative, it means that
+// the nth submatch. The pair for n==0 identifies the match of the entire
+// expression. If 'Index' is not present, the match is identified by the
+// text of the match/submatch. If an index is negative, it means that
 // subexpression did not match any string in the input.
 //
 // There is also a subset of the methods that can be applied to text read
@@ -55,7 +55,7 @@
 //
 //	MatchReader, FindReaderIndex, FindReaderSubmatchIndex
 //
-// This set may grow.  Note that regular expression matches may need to
+// This set may grow. Note that regular expression matches may need to
 // examine text beyond the text returned by a match, so the methods that
 // match text from a RuneReader may read arbitrarily far into the input
 // before returning.
@@ -258,10 +258,10 @@ func (re *Regexp) NumSubexp() int {
 }
 
 // SubexpNames returns the names of the parenthesized subexpressions
-// in this Regexp.  The name for the first sub-expression is names[1],
+// in this Regexp. The name for the first sub-expression is names[1],
 // so that if m is a match slice, the name for m[i] is SubexpNames()[i].
 // Since the Regexp as a whole cannot be named, names[0] is always
-// the empty string.  The slice should not be modified.
+// the empty string. The slice should not be modified.
 func (re *Regexp) SubexpNames() []string {
 	return re.subexpNames
 }
@@ -394,7 +394,7 @@ func (i *inputReader) context(pos int) syntax.EmptyOp {
 }
 
 // LiteralPrefix returns a literal string that must begin any match
-// of the regular expression re.  It returns the boolean true if the
+// of the regular expression re. It returns the boolean true if the
 // literal string comprises the entire regular expression.
 func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
 	return re.prefix, re.prefixComplete
@@ -417,7 +417,7 @@ func (re *Regexp) Match(b []byte) bool {
 }
 
 // MatchReader checks whether a textual regular expression matches the text
-// read by the RuneReader.  More complicated queries need to use Compile and
+// read by the RuneReader. More complicated queries need to use Compile and
 // the full Regexp interface.
 func MatchReader(pattern string, r io.RuneReader) (matched bool, err error) {
 	re, err := Compile(pattern)
@@ -428,7 +428,7 @@ func MatchReader(pattern string, r io.RuneReader) (matched bool, err error) {
 }
 
 // MatchString checks whether a textual regular expression
-// matches a string.  More complicated queries need
+// matches a string. More complicated queries need
 // to use Compile and the full Regexp interface.
 func MatchString(pattern string, s string) (matched bool, err error) {
 	re, err := Compile(pattern)
@@ -439,7 +439,7 @@ func MatchString(pattern string, s string) (matched bool, err error) {
 }
 
 // Match checks whether a textual regular expression
-// matches a byte slice.  More complicated queries need
+// matches a byte slice. More complicated queries need
 // to use Compile and the full Regexp interface.
 func Match(pattern string, b []byte) (matched bool, err error) {
 	re, err := Compile(pattern)
@@ -450,7 +450,7 @@ func Match(pattern string, b []byte) (matched bool, err error) {
 }
 
 // ReplaceAllString returns a copy of src, replacing matches of the Regexp
-// with the replacement string repl.  Inside repl, $ signs are interpreted as
+// with the replacement string repl. Inside repl, $ signs are interpreted as
 // in Expand, so for instance $1 represents the text of the first submatch.
 func (re *Regexp) ReplaceAllString(src, repl string) string {
 	n := 2
@@ -464,7 +464,7 @@ func (re *Regexp) ReplaceAllString(src, repl string) string {
 }
 
 // ReplaceAllLiteralString returns a copy of src, replacing matches of the Regexp
-// with the replacement string repl.  The replacement repl is substituted directly,
+// with the replacement string repl. The replacement repl is substituted directly,
 // without using Expand.
 func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
 	return string(re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
@@ -474,7 +474,7 @@ func (re *Regexp) ReplaceAllLiteralString(src, repl string) string {
 
 // ReplaceAllStringFunc returns a copy of src in which all matches of the
 // Regexp have been replaced by the return value of function repl applied
-// to the matched substring.  The replacement returned by repl is substituted
+// to the matched substring. The replacement returned by repl is substituted
 // directly, without using Expand.
 func (re *Regexp) ReplaceAllStringFunc(src string, repl func(string) string) string {
 	b := re.replaceAll(nil, src, 2, func(dst []byte, match []int) []byte {
@@ -530,7 +530,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 			searchPos += width
 		} else if searchPos+1 > a[1] {
 			// This clause is only needed at the end of the input
-			// string.  In that case, DecodeRuneInString returns width=0.
+			// string. In that case, DecodeRuneInString returns width=0.
 			searchPos++
 		} else {
 			searchPos = a[1]
@@ -548,7 +548,7 @@ func (re *Regexp) replaceAll(bsrc []byte, src string, nmatch int, repl func(dst 
 }
 
 // ReplaceAll returns a copy of src, replacing matches of the Regexp
-// with the replacement text repl.  Inside repl, $ signs are interpreted as
+// with the replacement text repl. Inside repl, $ signs are interpreted as
 // in Expand, so for instance $1 represents the text of the first submatch.
 func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 	n := 2
@@ -566,7 +566,7 @@ func (re *Regexp) ReplaceAll(src, repl []byte) []byte {
 }
 
 // ReplaceAllLiteral returns a copy of src, replacing matches of the Regexp
-// with the replacement bytes repl.  The replacement repl is substituted directly,
+// with the replacement bytes repl. The replacement repl is substituted directly,
 // without using Expand.
 func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
 	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
@@ -576,7 +576,7 @@ func (re *Regexp) ReplaceAllLiteral(src, repl []byte) []byte {
 
 // ReplaceAllFunc returns a copy of src in which all matches of the
 // Regexp have been replaced by the return value of function repl applied
-// to the matched byte slice.  The replacement returned by repl is substituted
+// to the matched byte slice. The replacement returned by repl is substituted
 // directly, without using Expand.
 func (re *Regexp) ReplaceAllFunc(src []byte, repl func([]byte) []byte) []byte {
 	return re.replaceAll(src, "", 2, func(dst []byte, match []int) []byte {
@@ -592,7 +592,7 @@ func special(b byte) bool {
 
 // QuoteMeta returns a string that quotes all regular expression metacharacters
 // inside the argument text; the returned string is a regular expression matching
-// the literal text.  For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
+// the literal text. For example, QuoteMeta(`[foo]`) returns `\[foo\]`.
 func QuoteMeta(s string) string {
 	b := make([]byte, 2*len(s))
 
@@ -684,7 +684,7 @@ func (re *Regexp) Find(b []byte) []byte {
 }
 
 // FindIndex returns a two-element slice of integers defining the location of
-// the leftmost match in b of the regular expression.  The match itself is at
+// the leftmost match in b of the regular expression. The match itself is at
 // b[loc[0]:loc[1]].
 // A return value of nil indicates no match.
 func (re *Regexp) FindIndex(b []byte) (loc []int) {
@@ -696,9 +696,9 @@ func (re *Regexp) FindIndex(b []byte) (loc []int) {
 }
 
 // FindString returns a string holding the text of the leftmost match in s of the regular
-// expression.  If there is no match, the return value is an empty string,
+// expression. If there is no match, the return value is an empty string,
 // but it will also be empty if the regular expression successfully matches
-// an empty string.  Use FindStringIndex or FindStringSubmatch if it is
+// an empty string. Use FindStringIndex or FindStringSubmatch if it is
 // necessary to distinguish these cases.
 func (re *Regexp) FindString(s string) string {
 	a := re.doExecute(nil, nil, s, 0, 2)
@@ -709,7 +709,7 @@ func (re *Regexp) FindString(s string) string {
 }
 
 // FindStringIndex returns a two-element slice of integers defining the
-// location of the leftmost match in s of the regular expression.  The match
+// location of the leftmost match in s of the regular expression. The match
 // itself is at s[loc[0]:loc[1]].
 // A return value of nil indicates no match.
 func (re *Regexp) FindStringIndex(s string) (loc []int) {
@@ -722,7 +722,7 @@ func (re *Regexp) FindStringIndex(s string) (loc []int) {
 
 // FindReaderIndex returns a two-element slice of integers defining the
 // location of the leftmost match of the regular expression in text read from
-// the RuneReader.  The match text was found in the input stream at
+// the RuneReader. The match text was found in the input stream at
 // byte offset loc[0] through loc[1]-1.
 // A return value of nil indicates no match.
 func (re *Regexp) FindReaderIndex(r io.RuneReader) (loc []int) {
@@ -754,14 +754,14 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
 
 // Expand appends template to dst and returns the result; during the
 // append, Expand replaces variables in the template with corresponding
-// matches drawn from src.  The match slice should have been returned by
+// matches drawn from src. The match slice should have been returned by
 // FindSubmatchIndex.
 //
 // In the template, a variable is denoted by a substring of the form
 // $name or ${name}, where name is a non-empty sequence of letters,
-// digits, and underscores.  A purely numeric name like $1 refers to
+// digits, and underscores. A purely numeric name like $1 refers to
 // the submatch with the corresponding index; other names refer to
-// capturing parentheses named with the (?P<name>...) syntax.  A
+// capturing parentheses named with the (?P<name>...) syntax. A
 // reference to an out of range or unmatched index or a name that is not
 // present in the regular expression is replaced with an empty slice.
 //
@@ -920,7 +920,7 @@ func (re *Regexp) FindStringSubmatchIndex(s string) []int {
 // FindReaderSubmatchIndex returns a slice holding the index pairs
 // identifying the leftmost match of the regular expression of text read by
 // the RuneReader, and the matches, if any, of its subexpressions, as defined
-// by the 'Submatch' and 'Index' descriptions in the package comment.  A
+// by the 'Submatch' and 'Index' descriptions in the package comment. A
 // return value of nil indicates no match.
 func (re *Regexp) FindReaderSubmatchIndex(r io.RuneReader) []int {
 	return re.pad(re.doExecute(r, nil, "", 0, re.prog.NumCap))

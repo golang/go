@@ -181,7 +181,7 @@ TEXT runtime∕internal∕atomic·Or8(SB), NOSPLIT, $0-9
 #endif
 	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
 	RLDC	$3, R3, $(3*8), R6
-	// Shift val for aligned ptr.  R4 = val << R6
+	// Shift val for aligned ptr. R4 = val << R6
 	SLD	R6, R4, R4
 
 again:
@@ -208,7 +208,7 @@ TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-9
 #endif
 	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
 	RLDC	$3, R3, $(3*8), R6
-	// Shift val for aligned ptr.  R4 = val << R6 | ^(0xFF << R6)
+	// Shift val for aligned ptr. R4 = val << R6 | ^(0xFF << R6)
 	MOVD	$0xFF, R7
 	SLD	R6, R4
 	SLD	R6, R7

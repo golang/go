@@ -6,7 +6,7 @@ package ssa
 
 // A copy of the code in ../gc/subr.go.
 // We can't use it directly because it would generate
-// an import cycle.  TODO: move to a common support package.
+// an import cycle. TODO: move to a common support package.
 
 // argument passing to/from
 // smagic and umagic

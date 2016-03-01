@@ -300,7 +300,7 @@ func http2registerHTTPSProtocol(t *Transport, rt RoundTripper) (err error) {
 }
 
 // noDialClientConnPool is an implementation of http2.ClientConnPool
-// which never dials.  We let the HTTP/1.1 client dial and use its TLS
+// which never dials. We let the HTTP/1.1 client dial and use its TLS
 // connection instead.
 type http2noDialClientConnPool struct{ *http2clientConnPool }
 
@@ -1421,7 +1421,7 @@ type http2PriorityParam struct {
 	Exclusive bool
 
 	// Weight is the stream's zero-indexed weight. It should be
-	// set together with StreamDep, or neither should be set.  Per
+	// set together with StreamDep, or neither should be set. Per
 	// the spec, "Add one to the value to obtain a weight between
 	// 1 and 256."
 	Weight uint8
@@ -2335,7 +2335,7 @@ type http2connectionStater interface {
 	ConnectionState() tls.ConnectionState
 }
 
-// pipe is a goroutine-safe io.Reader/io.Writer pair.  It's like
+// pipe is a goroutine-safe io.Reader/io.Writer pair. It's like
 // io.Pipe except there are no PipeReader/PipeWriter halves, and the
 // underlying buffer is an interface. (io.Pipe is always unbuffered)
 type http2pipe struct {
@@ -4211,8 +4211,8 @@ func (b *http2requestBody) Read(p []byte) (n int, err error) {
 	return
 }
 
-// responseWriter is the http.ResponseWriter implementation.  It's
-// intentionally small (1 pointer wide) to minimize garbage.  The
+// responseWriter is the http.ResponseWriter implementation. It's
+// intentionally small (1 pointer wide) to minimize garbage. The
 // responseWriterState pointer inside is zeroed at the end of a
 // request (in handlerDone) and calls on the responseWriter thereafter
 // simply crash (caller's mistake), but the much larger responseWriterState
@@ -4386,7 +4386,7 @@ const http2TrailerPrefix = "Trailer:"
 // says you SHOULD (but not must) predeclare any trailers in the
 // header, the official ResponseWriter rules said trailers in Go must
 // be predeclared, and then we reuse the same ResponseWriter.Header()
-// map to mean both Headers and Trailers.  When it's time to write the
+// map to mean both Headers and Trailers. When it's time to write the
 // Trailers, we pick out the fields of Headers that were declared as
 // trailers. That worked for a while, until we found the first major
 // user of Trailers in the wild: gRPC (using them only over http2),

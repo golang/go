@@ -18,9 +18,9 @@ import (
 // The fact that it is partial is very important: the input is
 // an AST and a description of some type information to
 // assume about one or more packages, but not all the
-// packages that the program imports.  The checker is
+// packages that the program imports. The checker is
 // expected to do as much as it can with what it has been
-// given.  There is not enough information supplied to do
+// given. There is not enough information supplied to do
 // a full type check, but the type checker is expected to
 // apply information that can be derived from variable
 // declarations, function and method returns, and type switches
@@ -30,14 +30,14 @@ import (
 // TODO(rsc,gri): Replace with go/typechecker.
 // Doing that could be an interesting test case for go/typechecker:
 // the constraints about working with partial information will
-// likely exercise it in interesting ways.  The ideal interface would
+// likely exercise it in interesting ways. The ideal interface would
 // be to pass typecheck a map from importpath to package API text
 // (Go source code), but for now we use data structures (TypeConfig, Type).
 //
 // The strings mostly use gofmt form.
 //
 // A Field or FieldList has as its type a comma-separated list
-// of the types of the fields.  For example, the field list
+// of the types of the fields. For example, the field list
 //	x, y, z int
 // has type "int, int, int".
 
@@ -242,7 +242,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 		// propagate the type to all the uses.
 		// The !isDecl case is a cheat here, but it makes
 		// up in some cases for not paying attention to
-		// struct fields.  The real type checker will be
+		// struct fields. The real type checker will be
 		// more accurate so we won't need the cheat.
 		if id, ok := n.(*ast.Ident); ok && id.Obj != nil && (isDecl || typeof[id.Obj] == "") {
 			typeof[id.Obj] = typ
@@ -367,7 +367,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 			typeof[n] = all
 
 		case *ast.ValueSpec:
-			// var declaration.  Use type if present.
+			// var declaration. Use type if present.
 			if n.Type != nil {
 				t := typeof[n.Type]
 				if !isType(t) {
@@ -586,7 +586,7 @@ func typecheck1(cfg *TypeConfig, f interface{}, typeof map[interface{}]string, a
 
 // Convert between function type strings and lists of types.
 // Using strings makes this a little harder, but it makes
-// a lot of the rest of the code easier.  This will all go away
+// a lot of the rest of the code easier. This will all go away
 // when we can use go/typechecker directly.
 
 // splitFunc splits "func(x,y,z) (a,b,c)" into ["x", "y", "z"] and ["a", "b", "c"].

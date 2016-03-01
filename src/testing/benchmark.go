@@ -63,7 +63,7 @@ type B struct {
 	netBytes  uint64
 }
 
-// StartTimer starts timing a test.  This function is called automatically
+// StartTimer starts timing a test. This function is called automatically
 // before a benchmark starts, but it can also used to resume timing after
 // a call to StopTimer.
 func (b *B) StartTimer() {
@@ -76,7 +76,7 @@ func (b *B) StartTimer() {
 	}
 }
 
-// StopTimer stops timing a test.  This can be used to pause the timer
+// StopTimer stops timing a test. This can be used to pause the timer
 // while performing complex initialization that you don't
 // want to measure.
 func (b *B) StopTimer() {
@@ -192,7 +192,7 @@ func (b *B) run() BenchmarkResult {
 	return b.result
 }
 
-// launch launches the benchmark function.  It gradually increases the number
+// launch launches the benchmark function. It gradually increases the number
 // of benchmark iterations until the benchmark runs for the requested benchtime.
 // It prints timing information in this form
 //		testing.BenchmarkHello	100000		19 ns/op

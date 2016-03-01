@@ -643,7 +643,7 @@
     (Arg <t.FieldType(3)> {n} [off+t.FieldOff(3)]))
 
 // strength reduction of divide by a constant.
-// Note: frontend does <=32 bits.  We only need to do 64 bits here.
+// Note: frontend does <=32 bits. We only need to do 64 bits here.
 // TODO: Do them all here?
 
 // Div/mod by 1.  Currently handled by frontend.

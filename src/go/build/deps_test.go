@@ -21,7 +21,7 @@ import (
 )
 
 // pkgDeps defines the expected dependencies between packages in
-// the Go source tree.  It is a statement of policy.
+// the Go source tree. It is a statement of policy.
 // Changes should not be made to this map without prior discussion.
 //
 // The map contains two kinds of entries:

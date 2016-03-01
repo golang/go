@@ -146,7 +146,7 @@ func (c *mcentral) uncacheSpan(s *mspan) {
 
 // Free n objects from a span s back into the central free list c.
 // Called during sweep.
-// Returns true if the span was returned to heap.  Sets sweepgen to
+// Returns true if the span was returned to heap. Sets sweepgen to
 // the latest generation.
 // If preserve=true, don't return the span to heap nor relink in MCentral lists;
 // caller takes care of it.
@@ -179,7 +179,7 @@ func (c *mcentral) freeSpan(s *mspan, n int32, start gclinkptr, end gclinkptr, p
 		c.nonempty.insert(s)
 	}
 
-	// delay updating sweepgen until here.  This is the signal that
+	// delay updating sweepgen until here. This is the signal that
 	// the span may be used in an MCache, so it must come after the
 	// linked list operations above (actually, just after the
 	// lock of c above.)
