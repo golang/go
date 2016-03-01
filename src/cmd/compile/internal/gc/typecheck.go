@@ -567,7 +567,7 @@ OpSwitch:
 		}
 
 		// ideal mixed with non-ideal
-		defaultlit2(&l, &r, 0)
+		defaultlit2(&l, &r, false)
 
 		n.Left = l
 		n.Right = r
@@ -640,7 +640,7 @@ OpSwitch:
 		}
 
 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
-			defaultlit2(&l, &r, 1)
+			defaultlit2(&l, &r, true)
 			if n.Op == OASOP && n.Implicit {
 				Yyerror("invalid operation: %v (non-numeric type %v)", n, l.Type)
 				n.Type = nil
@@ -698,7 +698,7 @@ OpSwitch:
 			evconst(n)
 			t = idealbool
 			if n.Op != OLITERAL {
-				defaultlit2(&l, &r, 1)
+				defaultlit2(&l, &r, true)
 				n.Left = l
 				n.Right = r
 			}
@@ -1484,7 +1484,7 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			defaultlit2(&l, &r, 0)
+			defaultlit2(&l, &r, false)
 			if l.Type == nil || r.Type == nil {
 				n.Type = nil
 				return
