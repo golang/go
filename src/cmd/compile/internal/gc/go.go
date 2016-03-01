@@ -131,7 +131,7 @@ type Type struct {
 	Note  *string // literal string annotation
 
 	// TARRAY
-	Bound int64 // negative is dynamic array
+	Bound int64 // negative is slice
 
 	// TMAP
 	Bucket *Type // internal type representing a hash bucket
@@ -759,4 +759,13 @@ var Panicindex *Node
 
 var panicslice *Node
 
+var panicdivide *Node
+
 var throwreturn *Node
+
+var growslice *Node
+
+var writebarrierptr *Node
+var typedmemmove *Node
+
+var panicdottype *Node

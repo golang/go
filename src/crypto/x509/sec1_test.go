@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-var ecKeyTests = []struct{
-	derHex string
+var ecKeyTests = []struct {
+	derHex            string
 	shouldReserialize bool
 }{
 	// Generated using:

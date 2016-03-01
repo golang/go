@@ -33,10 +33,10 @@ func renameinit() *Sym {
 // hand-craft the following initialization code
 //	var initdone· uint8 				(1)
 //	func init()					(2)
-//		if initdone· != 0 {			(3)
-//			if initdone· == 2		(4)
-//				return
-//			throw();			(5)
+//              if initdone· > 1 {                      (3)
+//                      return                          (3a)
+//		if initdone· == 1 {			(4)
+//			throw();			(4a)
 //		}
 //		initdone· = 1;				(6)
 //		// over all matching imported symbols
@@ -118,22 +118,21 @@ func fninit(n *NodeList) {
 
 	// (3)
 	a := Nod(OIF, nil, nil)
-
-	a.Left = Nod(ONE, gatevar, Nodintconst(0))
+	a.Left = Nod(OGT, gatevar, Nodintconst(1))
+	a.Likely = 1
 	r = append(r, a)
+	// (3a)
+	a.Nbody.Set([]*Node{Nod(ORETURN, nil, nil)})
 
 	// (4)
 	b := Nod(OIF, nil, nil)
-
-	b.Left = Nod(OEQ, gatevar, Nodintconst(2))
-	b.Nbody.Set([]*Node{Nod(ORETURN, nil, nil)})
-	a.Nbody.Set([]*Node{b})
-
-	// (5)
-	b = syslook("throwinit", 0)
-
-	b = Nod(OCALL, b, nil)
-	a.Nbody.Append(b)
+	b.Left = Nod(OEQ, gatevar, Nodintconst(1))
+	// this actually isn't likely, but code layout is better
+	// like this: no JMP needed after the call.
+	b.Likely = 1
+	r = append(r, b)
+	// (4a)
+	b.Nbody.Set([]*Node{Nod(OCALL, syslook("throwinit", 0), nil)})
 
 	// (6)
 	a = Nod(OAS, gatevar, Nodintconst(1))

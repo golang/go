@@ -214,14 +214,14 @@ type Prog struct {
 	Spadj  int32
 	As     int16
 	Reg    int16
-	RegTo2 int16 // 2nd register output operand
-	Mark   uint16
+	RegTo2 int16  // 2nd register output operand
+	Mark   uint16 // bitmask of arch-specific items
 	Optab  uint16
 	Scond  uint8
 	Back   uint8
 	Ft     uint8
 	Tt     uint8
-	Isize  uint8
+	Isize  uint8 // size of the instruction in bytes (x86 only)
 	Mode   int8
 
 	Info ProgInfo

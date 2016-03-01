@@ -127,5 +127,19 @@ loop:
 	MOVNTDQ	X1, (AX)	// MOVNTO X1, (AX)
 	MOVOA	(AX), X1	// MOVO (AX), X1
 
+// Tests for SP indexed addresses.
+	MOVQ	foo(SP)(AX*1), BX		// 488b1c04
+	MOVQ	foo+32(SP)(CX*2), DX		// 488b544c20
+	MOVQ	foo+32323(SP)(R8*4), R9		// 4e8b8c84437e0000
+	MOVL	foo(SP)(SI*8), DI		// 8b3cf4
+	MOVL	foo+32(SP)(R10*1), R11		// 468b5c1420
+	MOVL	foo+32323(SP)(R12*2), R13	// 468bac64437e0000
+	MOVW	foo(SP)(AX*4), R8		// 66448b0484
+	MOVW	foo+32(SP)(R9*8), CX		// 66428b4ccc20
+	MOVW	foo+32323(SP)(AX*1), DX		// 668b9404437e0000
+	MOVB	foo(SP)(AX*2), AL		// 8a0444
+	MOVB	foo+32(SP)(CX*4), AH		// 8a648c20
+	MOVB	foo+32323(SP)(CX*8), R9		// 448a8ccc437e0000
+
 // LTYPE0 nonnon	{ outcode($1, &$2); }
 	RET // c3
