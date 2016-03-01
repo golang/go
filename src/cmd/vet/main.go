@@ -435,17 +435,17 @@ func (f *File) loc(pos token.Pos) string {
 	// expression instead of the inner part with the actual error, the
 	// precision can mislead.
 	posn := f.fset.Position(pos)
-	return fmt.Sprintf("%s:%d: ", posn.Filename, posn.Line)
+	return fmt.Sprintf("%s:%d", posn.Filename, posn.Line)
 }
 
 // Warn reports an error but does not set the exit code.
 func (f *File) Warn(pos token.Pos, args ...interface{}) {
-	fmt.Fprint(os.Stderr, f.loc(pos)+fmt.Sprintln(args...))
+	fmt.Fprintf(os.Stderr, "%s: %s", f.loc(pos), fmt.Sprintln(args...))
 }
 
 // Warnf reports a formatted error but does not set the exit code.
 func (f *File) Warnf(pos token.Pos, format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, f.loc(pos)+format+"\n", args...)
+	fmt.Fprintf(os.Stderr, "%s: %s\n", f.loc(pos), fmt.Sprintf(format, args...))
 }
 
 // walkFile walks the file's tree.
