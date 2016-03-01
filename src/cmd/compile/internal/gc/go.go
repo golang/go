@@ -6,7 +6,6 @@ package gc
 
 import (
 	"bytes"
-	"cmd/compile/internal/big"
 	"cmd/internal/obj"
 )
 
@@ -16,32 +15,6 @@ const (
 	BADWIDTH        = -1000000000
 	MaxStackVarSize = 10 * 1024 * 1024
 )
-
-const (
-	// Maximum size in bits for Mpints before signalling
-	// overflow and also mantissa precision for Mpflts.
-	Mpprec = 512
-	// Turn on for constant arithmetic debugging output.
-	Mpdebug = false
-)
-
-// Mpint represents an integer constant.
-type Mpint struct {
-	Val  big.Int
-	Ovf  bool // set if Val overflowed compiler limit (sticky)
-	Rune bool // set if syntax indicates default type rune
-}
-
-// Mpflt represents a floating-point constant.
-type Mpflt struct {
-	Val big.Float
-}
-
-// Mpcplx represents a complex constant.
-type Mpcplx struct {
-	Real Mpflt
-	Imag Mpflt
-}
 
 type Val struct {
 	// U contains one of:

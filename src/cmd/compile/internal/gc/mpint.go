@@ -10,7 +10,14 @@ import (
 	"fmt"
 )
 
-/// implements fix arithmetic
+// implements integer arithmetic
+
+// Mpint represents an integer constant.
+type Mpint struct {
+	Val  big.Int
+	Ovf  bool // set if Val overflowed compiler limit (sticky)
+	Rune bool // set if syntax indicates default type rune
+}
 
 func mpsetovf(a *Mpint) {
 	a.Val.SetUint64(1) // avoid spurious div-zero errors
