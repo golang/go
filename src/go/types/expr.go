@@ -660,10 +660,10 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 				return
 			}
 			// rhs must be within reasonable bounds
-			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
 			s, ok := constant.Uint64Val(yval)
-			if !ok || s > stupidShift {
-				check.invalidOp(y.pos(), "stupid shift count %s", y)
+			if !ok || s > shiftBound {
+				check.invalidOp(y.pos(), "invalid shift count %s", y)
 				x.mode = invalid
 				return
 			}

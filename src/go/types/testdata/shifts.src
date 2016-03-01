@@ -10,8 +10,8 @@ func shifts0() {
 		s = 10
 		_ = 0<<0
 		_ = 1<<s
-		_ = 1<<- /* ERROR "stupid shift" */ 1
-		_ = 1<<1075 /* ERROR "stupid shift" */
+		_ = 1<<- /* ERROR "invalid shift" */ 1
+		_ = 1<<1075 /* ERROR "invalid shift" */
 		_ = 2.0<<1
 
 		_ int = 2<<s
