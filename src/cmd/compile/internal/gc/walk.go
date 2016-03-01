@@ -2718,8 +2718,8 @@ func addstr(n *Node, init **NodeList) *Node {
 	if n.Esc == EscNone {
 		sz := int64(0)
 		for l := n.List; l != nil; l = l.Next {
-			if n.Op == OLITERAL {
-				sz += int64(len(n.Val().U.(string)))
+			if l.N.Op == OLITERAL {
+				sz += int64(len(l.N.Val().U.(string)))
 			}
 		}
 
