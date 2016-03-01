@@ -467,7 +467,7 @@ func symtab() {
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
-			s.Hide = 1
+			s.Hidden = true
 			if UseRelro() && len(s.R) > 0 {
 				s.Type = obj.STYPERELRO
 				s.Outer = symtyperel
@@ -480,31 +480,31 @@ func symtab() {
 		if strings.HasPrefix(s.Name, "go.typelink.") {
 			ntypelinks++
 			s.Type = obj.STYPELINK
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symtypelink
 		}
 
 		if strings.HasPrefix(s.Name, "go.string.") {
 			s.Type = obj.SGOSTRING
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgostring
 		}
 
 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
 			s.Type = obj.SGCBITS
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgcbits
 		}
 
 		if strings.HasPrefix(s.Name, "go.func.") {
 			s.Type = obj.SGOFUNC
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgofunc
 		}
 
 		if strings.HasPrefix(s.Name, "gcargs.") || strings.HasPrefix(s.Name, "gclocals.") || strings.HasPrefix(s.Name, "gclocals·") {
 			s.Type = obj.SGOFUNC
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgofunc
 			s.Align = 4
 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)
