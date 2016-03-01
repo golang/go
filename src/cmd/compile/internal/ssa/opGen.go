@@ -3689,7 +3689,7 @@ var opcodeTable = [...]opInfo{
 				{1, 2},   // .CX
 				{2, 1},   // .AX
 			},
-			clobbers: 8589934722, // .CX .DI .FLAGS
+			clobbers: 130, // .CX .DI
 		},
 	},
 	{
@@ -5110,7 +5110,8 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "ArrayIndex",
-		argLen:  2,
+		auxType: auxInt64,
+		argLen:  1,
 		generic: true,
 	},
 	{

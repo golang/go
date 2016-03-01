@@ -335,9 +335,9 @@ var genericOps = []opData{
 	{name: "GetClosurePtr"},      // get closure pointer from dedicated register
 
 	// Indexing operations
-	{name: "ArrayIndex", argLength: 2},           // arg0=array, arg1=index.  Returns a[i]
-	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
-	{name: "OffPtr", argLength: 1, aux: "Int64"}, // arg0 + auxint (arg0 and result are pointers)
+	{name: "ArrayIndex", aux: "Int64", argLength: 1}, // arg0=array, auxint=index.  Returns a[i]
+	{name: "PtrIndex", argLength: 2},                 // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+	{name: "OffPtr", argLength: 1, aux: "Int64"},     // arg0 + auxint (arg0 and result are pointers)
 
 	// Slices
 	{name: "SliceMake", argLength: 3},                // arg0=ptr, arg1=len, arg2=cap
