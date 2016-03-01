@@ -1349,7 +1349,7 @@ num:
 // if they're both ideal going in they better
 // get the same type going out.
 // force means must assign concrete (non-ideal) type.
-func defaultlit2(lp **Node, rp **Node, force int) {
+func defaultlit2(lp **Node, rp **Node, force bool) {
 	l := *lp
 	r := *rp
 	if l.Type == nil || r.Type == nil {
@@ -1365,9 +1365,10 @@ func defaultlit2(lp **Node, rp **Node, force int) {
 		return
 	}
 
-	if force == 0 {
+	if !force {
 		return
 	}
+
 	if l.Type.Etype == TBOOL {
 		Convlit(lp, Types[TBOOL])
 		Convlit(rp, Types[TBOOL])
