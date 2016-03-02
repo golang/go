@@ -2119,63 +2119,6 @@ func Diag(format string, args ...interface{}) {
 	}
 }
 
-func checkgo() {
-	if Debug['C'] == 0 {
-		return
-	}
-
-	// TODO(rsc,khr): Eventually we want to get to no Go-called C functions at all,
-	// which would simplify this logic quite a bit.
-
-	// Mark every Go-called C function with cfunc=2, recursively.
-	var changed int
-	var i int
-	var r *Reloc
-	var s *LSym
-	for {
-		changed = 0
-		for s = Ctxt.Textp; s != nil; s = s.Next {
-			if s.Cfunc == 0 || (s.Cfunc == 2 && s.Nosplit != 0) {
-				for i = 0; i < len(s.R); i++ {
-					r = &s.R[i]
-					if r.Sym == nil {
-						continue
-					}
-					if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM) && r.Sym.Type == obj.STEXT {
-						if r.Sym.Cfunc == 1 {
-							changed = 1
-							r.Sym.Cfunc = 2
-						}
-					}
-				}
-			}
-		}
-		if changed == 0 {
-			break
-		}
-	}
-
-	// Complain about Go-called C functions that can split the stack
-	// (that can be preempted for garbage collection or trigger a stack copy).
-	for s := Ctxt.Textp; s != nil; s = s.Next {
-		if s.Cfunc == 0 || (s.Cfunc == 2 && s.Nosplit != 0) {
-			for i = 0; i < len(s.R); i++ {
-				r = &s.R[i]
-				if r.Sym == nil {
-					continue
-				}
-				if (r.Type == obj.R_CALL || r.Type == obj.R_CALLARM) && r.Sym.Type == obj.STEXT {
-					if s.Cfunc == 0 && r.Sym.Cfunc == 2 && r.Sym.Nosplit == 0 {
-						fmt.Printf("Go %s calls C %s\n", s.Name, r.Sym.Name)
-					} else if s.Cfunc == 2 && s.Nosplit != 0 && r.Sym.Nosplit == 0 {
-						fmt.Printf("Go calls C %s calls %s\n", s.Name, r.Sym.Name)
-					}
-				}
-			}
-		}
-	}
-}
-
 func Rnd(v int64, r int64) int64 {
 	if r <= 0 {
 		return v

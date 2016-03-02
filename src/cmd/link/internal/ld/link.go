@@ -43,7 +43,6 @@ type LSym struct {
 	Type       int16
 	Version    int16
 	Dupok      uint8
-	Cfunc      uint8
 	External   uint8
 	Nosplit    uint8
 	Reachable  bool
