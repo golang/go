@@ -237,6 +237,7 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "loopbce", fn: loopbce},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "dec", fn: dec, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
