@@ -340,13 +340,9 @@ type gcControllerState struct {
 	// the cycle.
 	idleMarkTime int64
 
-	// bgMarkStartTime is the absolute start time in nanoseconds
-	// that the background mark phase started.
-	bgMarkStartTime int64
-
-	// assistTime is the absolute start time in nanoseconds that
-	// mutator assists were enabled.
-	assistStartTime int64
+	// markStartTime is the absolute start time in nanoseconds
+	// that assists and background mark workers started.
+	markStartTime int64
 
 	// heapGoal is the goal memstats.heap_live for when this cycle
 	// ends. This is computed at the beginning of each cycle.
@@ -542,7 +538,7 @@ func (c *gcControllerState) endCycle() {
 	// technically isn't comparable to the trigger ratio.
 	goalGrowthRatio := float64(gcpercent) / 100
 	actualGrowthRatio := float64(memstats.heap_live)/float64(memstats.heap_marked) - 1
-	assistDuration := nanotime() - c.assistStartTime
+	assistDuration := nanotime() - c.markStartTime
 
 	// Assume background mark hit its utilization goal.
 	utilization := gcGoalUtilization
@@ -700,7 +696,7 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
 		// TODO(austin): Shorter preemption interval for mark
 		// worker to improve fairness and give this
 		// finer-grained control over schedule?
-		now := nanotime() - gcController.bgMarkStartTime
+		now := nanotime() - gcController.markStartTime
 		then := now + gcForcePreemptNS
 		timeUsed := c.fractionalMarkTime + gcForcePreemptNS
 		if then > 0 && float64(timeUsed)/float64(then) > c.fractionalUtilizationGoal {
@@ -1002,8 +998,7 @@ func gcStart(mode gcMode, forceTrigger bool) {
 
 		// Assists and workers can start the moment we start
 		// the world.
-		gcController.assistStartTime = now
-		gcController.bgMarkStartTime = now
+		gcController.markStartTime = now
 
 		// Concurrent mark.
 		systemstack(startTheWorldWithSema)
