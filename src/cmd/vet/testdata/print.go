@@ -211,8 +211,10 @@ func PrintfTests() {
 	Log(3)       // OK
 	Log("%d", 3) // ERROR "possible formatting directive in Log call"
 	Logf("%d", 3)
-	Logf("%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: untyped string"
+	Logf("%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: string"
 
+	Errorf(1, "%d", 3)    // OK
+	Errorf(1, "%d", "hi") // ERROR "arg .hi. for printf verb %d of wrong type: string"
 }
 
 // A function we use as a function value; it has no other purpose.
@@ -224,8 +226,19 @@ func Printf(format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
+// Logf is used by the test so we must declare it.
+func Logf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
 // printf is used by the test so we must declare it.
 func printf(format string, args ...interface{}) {
+	panic("don't call - testing only")
+}
+
+// Errorf is used by the test for a case in which the first parameter
+// is not a format string.
+func Errorf(i int, format string, args ...interface{}) {
 	panic("don't call - testing only")
 }
 
