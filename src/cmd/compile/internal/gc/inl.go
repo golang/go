@@ -66,7 +66,7 @@ func fnpkg(fn *Node) *Pkg {
 // Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
 // because they're a copy of an already checked body.
 func typecheckinl(fn *Node) {
-	lno := int(setlineno(fn))
+	lno := setlineno(fn)
 
 	// typecheckinl is only for imported functions;
 	// their bodies may refer to unsafe as long as the package
@@ -92,7 +92,7 @@ func typecheckinl(fn *Node) {
 
 	safemode = save_safemode
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // Caninl determines whether fn is inlineable.
@@ -391,7 +391,7 @@ func inlnode(np **Node) {
 		return
 	}
 
-	lno := int(setlineno(n))
+	lno := setlineno(n)
 
 	inlnodelist(n.Ninit)
 	for l := n.Ninit; l != nil; l = l.Next {
@@ -517,7 +517,7 @@ func inlnode(np **Node) {
 		mkinlcall(np, n.Left.Type.Nname, n.Isddd)
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 func mkinlcall(np **Node, fn *Node, isddd bool) {
@@ -833,7 +833,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	args := as.Rlist
 	as.Rlist = nil
 
-	setlno(call, int(n.Lineno))
+	setlno(call, n.Lineno)
 
 	as.Rlist = args
 
@@ -1019,26 +1019,26 @@ func inlsubst(n *Node) *Node {
 }
 
 // Plaster over linenumbers
-func setlnolist(ll *NodeList, lno int) {
+func setlnolist(ll *NodeList, lno int32) {
 	for ; ll != nil; ll = ll.Next {
 		setlno(ll.N, lno)
 	}
 }
 
-func setlnoslice(ll []*Node, lno int) {
+func setlnoslice(ll []*Node, lno int32) {
 	for _, n := range ll {
 		setlno(n, lno)
 	}
 }
 
-func setlno(n *Node, lno int) {
+func setlno(n *Node, lno int32) {
 	if n == nil {
 		return
 	}
 
 	// don't clobber names, unless they're freshly synthesized
 	if n.Op != ONAME || n.Lineno == 0 {
-		n.Lineno = int32(lno)
+		n.Lineno = lno
 	}
 
 	setlno(n.Left, lno)
