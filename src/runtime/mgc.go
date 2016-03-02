@@ -1266,6 +1266,13 @@ func gcMarkTermination() {
 	// Free stack spans. This must be done between GC cycles.
 	systemstack(freeStackSpans)
 
+	// Best-effort remove stack barriers so they don't get in the
+	// way of things like GDB and perf.
+	lock(&allglock)
+	myallgs := allgs
+	unlock(&allglock)
+	gcTryRemoveAllStackBarriers(myallgs)
+
 	// Print gctrace before dropping worldsema. As soon as we drop
 	// worldsema another cycle could start and smash the stats
 	// we're trying to print.

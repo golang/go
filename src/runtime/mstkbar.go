@@ -257,6 +257,31 @@ func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
 	*lrPtr = sys.Uintreg(stkbar.savedLRVal)
 }
 
+// gcTryRemoveAllStackBarriers tries to remove stack barriers from all
+// Gs in gps. It is best-effort and efficient. If it can't remove
+// barriers from a G immediately, it will simply skip it.
+func gcTryRemoveAllStackBarriers(gps []*g) {
+	for _, gp := range gps {
+	retry:
+		for {
+			switch s := readgstatus(gp); s {
+			default:
+				break retry
+
+			case _Grunnable, _Gsyscall, _Gwaiting:
+				if !castogscanstatus(gp, s, s|_Gscan) {
+					continue
+				}
+				gcLockStackBarriers(gp)
+				gcRemoveStackBarriers(gp)
+				gcUnlockStackBarriers(gp)
+				restartg(gp)
+				break retry
+			}
+		}
+	}
+}
+
 // gcPrintStkbars prints the stack barriers of gp for debugging. It
 // places a "@@@" marker at gp.stkbarPos. If marker >= 0, it will also
 // place a "==>" marker before the marker'th entry.
