@@ -1042,19 +1042,15 @@ func elfwritehdr() uint32 {
 }
 
 /* Taken directly from the definition document for ELF64 */
-func elfhash(name []byte) uint32 {
-	var h uint32 = 0
-	var g uint32
-	for len(name) != 0 {
-		h = (h << 4) + uint32(name[0])
-		name = name[1:]
-		g = h & 0xf0000000
-		if g != 0 {
+func elfhash(name string) uint32 {
+	var h uint32
+	for i := 0; i < len(name); i++ {
+		h = (h << 4) + uint32(name[i])
+		if g := h & 0xf0000000; g != 0 {
 			h ^= g >> 24
 		}
 		h &= 0x0fffffff
 	}
-
 	return h
 }
 
@@ -1371,7 +1367,7 @@ func elfdynhash() {
 		}
 
 		name := sy.Extname
-		hc := elfhash([]byte(name))
+		hc := elfhash(name)
 
 		b = int(hc % uint32(nbucket))
 		chain[sy.Dynid] = buckets[b]
@@ -1418,7 +1414,7 @@ func elfdynhash() {
 			i++
 
 			// aux struct
-			Adduint32(Ctxt, s, elfhash([]byte(x.vers)))           // hash
+			Adduint32(Ctxt, s, elfhash(x.vers))                   // hash
 			Adduint16(Ctxt, s, 0)                                 // flags
 			Adduint16(Ctxt, s, uint16(x.num))                     // other - index we refer to this by
 			Adduint32(Ctxt, s, uint32(Addstring(dynstr, x.vers))) // version string offset
