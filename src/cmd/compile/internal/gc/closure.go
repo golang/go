@@ -261,7 +261,7 @@ func capturevars(xfunc *Node) {
 			if v.Name.Byval {
 				how = "value"
 			}
-			Warnl(int(v.Lineno), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
+			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
 		}
 
 		typecheck(&outer, Erv)

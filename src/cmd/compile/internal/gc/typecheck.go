@@ -164,7 +164,7 @@ func typecheck(np **Node, top int) *Node {
 				break
 			}
 			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
-			yyerrorl(int(n.Lineno), "constant definition loop%s", fmt_)
+			yyerrorl(n.Lineno, "constant definition loop%s", fmt_)
 		}
 
 		if nsavederrors+nerrors == 0 {
@@ -4013,7 +4013,7 @@ func checkreturn(fn *Node) {
 	if fn.Type.Outtuple != 0 && len(fn.Nbody.Slice()) != 0 {
 		markbreakslice(fn.Nbody.Slice(), nil)
 		if !fn.Nbody.isterminating() {
-			yyerrorl(int(fn.Func.Endlineno), "missing return at end of function")
+			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
 		}
 	}
 }

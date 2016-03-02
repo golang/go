@@ -983,13 +983,13 @@ func checklabels() {
 	for lab := labellist; lab != nil; lab = lab.Link {
 		if lab.Def == nil {
 			for _, n := range lab.Use {
-				yyerrorl(int(n.Lineno), "label %v not defined", lab.Sym)
+				yyerrorl(n.Lineno, "label %v not defined", lab.Sym)
 			}
 			continue
 		}
 
 		if lab.Use == nil && !lab.Used {
-			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
+			yyerrorl(lab.Def.Lineno, "label %v defined and not used", lab.Sym)
 			continue
 		}
 

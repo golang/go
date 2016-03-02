@@ -558,7 +558,7 @@ func importtype(pt *Type, t *Type) {
 		copytype(pt.Nod, t)
 		pt.Nod = n // unzero nod
 		pt.Sym.Importdef = importpkg
-		pt.Sym.Lastlineno = int32(parserline())
+		pt.Sym.Lastlineno = lineno
 		declare(n, PEXTERN)
 		checkwidth(pt)
 	} else if !Eqtype(pt.Orig, t) {

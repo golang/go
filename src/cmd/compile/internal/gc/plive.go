@@ -1270,7 +1270,7 @@ func livenessepilogue(lv *Liveness) {
 						if !n.Name.Needzero {
 							n.Name.Needzero = true
 							if debuglive >= 1 {
-								Warnl(int(p.Lineno), "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
+								Warnl(p.Lineno, "%v: %v is ambiguously live", Curfn.Func.Nname, Nconv(n, obj.FmtLong))
 							}
 
 							// Record in 'ambiguous' bitmap.
@@ -1367,7 +1367,7 @@ func livenessepilogue(lv *Liveness) {
 						}
 						n = lv.vars[j]
 						if n.Class != PPARAM {
-							yyerrorl(int(p.Lineno), "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
+							yyerrorl(p.Lineno, "internal error: %v %v recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, Nconv(n, obj.FmtLong), p.Pc)
 						}
 					}
 				}
