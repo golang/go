@@ -46,13 +46,14 @@ type Type interface {
 // Special compiler-only types.
 type CompilerType struct {
 	Name   string
+	size   int64
 	Memory bool
 	Flags  bool
 	Void   bool
 	Int128 bool
 }
 
-func (t *CompilerType) Size() int64            { return 0 } // Size in bytes
+func (t *CompilerType) Size() int64            { return t.size } // Size in bytes
 func (t *CompilerType) Alignment() int64       { return 0 }
 func (t *CompilerType) IsBoolean() bool        { return false }
 func (t *CompilerType) IsInteger() bool        { return false }
@@ -127,5 +128,5 @@ var (
 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
 	TypeFlags   = &CompilerType{Name: "flags", Flags: true}
 	TypeVoid    = &CompilerType{Name: "void", Void: true}
-	TypeInt128  = &CompilerType{Name: "int128", Int128: true}
+	TypeInt128  = &CompilerType{Name: "int128", size: 16, Int128: true}
 )
