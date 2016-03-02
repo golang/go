@@ -602,9 +602,6 @@ func gcFlushBgCredit(scanWork int64) {
 //go:nowritebarrier
 func scanstack(gp *g) {
 	if gp.gcscanvalid {
-		if gcphase == _GCmarktermination {
-			gcRemoveStackBarriers(gp)
-		}
 		return
 	}
 
@@ -647,6 +644,7 @@ func scanstack(gp *g) {
 	} else {
 		sp = gp.sched.sp
 	}
+	gcLockStackBarriers(gp) // Not necessary during mark term, but harmless.
 	switch gcphase {
 	case _GCmark:
 		// Install stack barriers during stack scan.
@@ -657,16 +655,18 @@ func scanstack(gp *g) {
 			nextBarrier = ^uintptr(0)
 		}
 
-		if gp.stkbarPos != 0 || len(gp.stkbar) != 0 {
-			// If this happens, it's probably because we
-			// scanned a stack twice in the same phase.
-			print("stkbarPos=", gp.stkbarPos, " len(stkbar)=", len(gp.stkbar), " goid=", gp.goid, " gcphase=", gcphase, "\n")
-			throw("g already has stack barriers")
-		}
-
-		gcLockStackBarriers(gp)
+		// Remove any existing stack barriers before we
+		// install new ones.
+		gcRemoveStackBarriers(gp)
 
 	case _GCmarktermination:
+		if !work.markrootDone {
+			// This is a STW GC. There may be stale stack
+			// barriers from an earlier cycle since we
+			// never passed through mark phase.
+			gcRemoveStackBarriers(gp)
+		}
+
 		if int(gp.stkbarPos) == len(gp.stkbar) {
 			// gp hit all of the stack barriers (or there
 			// were none). Re-scan the whole stack.
@@ -682,8 +682,6 @@ func scanstack(gp *g) {
 				print("rescan below ", hex(nextBarrier), " in [", hex(sp), ",", hex(gp.stack.hi), ") goid=", gp.goid, "\n")
 			}
 		}
-
-		gcRemoveStackBarriers(gp)
 
 	default:
 		throw("scanstack in wrong phase")
@@ -722,9 +720,7 @@ func scanstack(gp *g) {
 	if gcphase == _GCmarktermination {
 		gcw.dispose()
 	}
-	if gcphase == _GCmark {
-		gcUnlockStackBarriers(gp)
-	}
+	gcUnlockStackBarriers(gp)
 	gp.gcscanvalid = true
 }
 
