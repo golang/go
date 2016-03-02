@@ -172,6 +172,8 @@ const rand3Hex = "1744b384d68c042371244e13500d4bfb98c6244e3d71a5b700224420b59c59
 
 const badBlockSize = "425a683131415926535936dc55330063ffc0006000200020a40830008b0008b8bb9229c28481b6e2a998"
 
+const badHuffmanDelta = "425a6836314159265359b1f7404b000000400040002000217d184682ee48a70a12163ee80960"
+
 const (
 	digits = iota
 	twain
@@ -273,6 +275,13 @@ func TestMTF(t *testing.T) {
 func TestBadBlockSize(t *testing.T) {
 	// Tests https://golang.org/issue/13941.
 	_, err := decompressHex(badBlockSize)
+	if err == nil {
+		t.Errorf("unexpected success")
+	}
+}
+
+func TestBadHuffmanDelta(t *testing.T) {
+	_, err := decompressHex(badHuffmanDelta)
 	if err == nil {
 		t.Errorf("unexpected success")
 	}
