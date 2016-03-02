@@ -194,7 +194,6 @@ func Ldmain() {
 		mark(Linklookup(Ctxt, "runtime.read_tls_fallback", 0))
 	}
 
-	checkgo()
 	checkstrdata()
 	deadcode()
 	callgraph()
