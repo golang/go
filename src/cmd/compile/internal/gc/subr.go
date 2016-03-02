@@ -45,7 +45,7 @@ func adderrorname(n *Node) {
 func adderr(line int32, format string, args ...interface{}) {
 	errors = append(errors, Error{
 		lineno: line,
-		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(int(line)), fmt.Sprintf(format, args...)),
+		msg:    fmt.Sprintf("%v: %s\n", linestr(line), fmt.Sprintf(format, args...)),
 	})
 }
 
@@ -81,6 +81,10 @@ func hcrash() {
 	}
 }
 
+func linestr(line int32) string {
+	return Ctxt.Line(int(line))
+}
+
 func yyerrorl(line int32, format string, args ...interface{}) {
 	adderr(line, format, args...)
 
@@ -88,7 +92,7 @@ func yyerrorl(line int32, format string, args ...interface{}) {
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
-		fmt.Printf("%v: too many errors\n", Ctxt.Line(int(line)))
+		fmt.Printf("%v: too many errors\n", linestr(line))
 		errorexit()
 	}
 }
@@ -116,7 +120,7 @@ func Yyerror(format string, args ...interface{}) {
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
-		fmt.Printf("%v: too many errors\n", Ctxt.Line(int(lineno)))
+		fmt.Printf("%v: too many errors\n", linestr(lineno))
 		errorexit()
 	}
 }
@@ -137,7 +141,7 @@ func Warnl(line int32, fmt_ string, args ...interface{}) {
 func Fatalf(fmt_ string, args ...interface{}) {
 	Flusherrors()
 
-	fmt.Printf("%v: internal compiler error: ", Ctxt.Line(int(lineno)))
+	fmt.Printf("%v: internal compiler error: ", linestr(lineno))
 	fmt.Printf(fmt_, args...)
 	fmt.Printf("\n")
 
@@ -154,28 +158,28 @@ func Fatalf(fmt_ string, args ...interface{}) {
 
 func linehistpragma(file string) {
 	if Debug['i'] != 0 {
-		fmt.Printf("pragma %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+		fmt.Printf("pragma %s at line %v\n", file, linestr(lexlineno))
 	}
 	Ctxt.AddImport(file)
 }
 
 func linehistpush(file string) {
 	if Debug['i'] != 0 {
-		fmt.Printf("import %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+		fmt.Printf("import %s at line %v\n", file, linestr(lexlineno))
 	}
 	Ctxt.LineHist.Push(int(lexlineno), file)
 }
 
 func linehistpop() {
 	if Debug['i'] != 0 {
-		fmt.Printf("end of import at line %v\n", Ctxt.Line(int(lexlineno)))
+		fmt.Printf("end of import at line %v\n", linestr(lexlineno))
 	}
 	Ctxt.LineHist.Pop(int(lexlineno))
 }
 
 func linehistupdate(file string, off int) {
 	if Debug['i'] != 0 {
-		fmt.Printf("line %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+		fmt.Printf("line %s at line %v\n", file, linestr(lexlineno))
 	}
 	Ctxt.LineHist.Update(int(lexlineno), file, off)
 }

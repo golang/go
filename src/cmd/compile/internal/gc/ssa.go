@@ -596,7 +596,7 @@ func (s *state) stmt(n *Node) {
 		if !lab.defined() {
 			lab.defNode = n
 		} else {
-			s.Error("label %v already defined at %v", sym, Ctxt.Line(int(lab.defNode.Lineno)))
+			s.Error("label %v already defined at %v", sym, linestr(lab.defNode.Lineno))
 			lab.reported = true
 		}
 		// The label might already have a target block via a goto.
@@ -3446,9 +3446,9 @@ func (s *state) checkgoto(from *Node, to *Node) {
 
 		lno := from.Left.Lineno
 		if block != nil {
-			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
+			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
 		} else {
-			yyerrorl(lno, "goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, Ctxt.Line(int(dcl.Lastlineno)))
+			yyerrorl(lno, "goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
 		}
 	}
 }
@@ -5181,7 +5181,7 @@ func (e *ssaExport) CanSSA(t ssa.Type) bool {
 }
 
 func (e *ssaExport) Line(line int32) string {
-	return Ctxt.Line(int(line))
+	return linestr(line)
 }
 
 // Log logs a message from the compiler.

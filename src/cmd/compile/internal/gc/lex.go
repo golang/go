@@ -1239,9 +1239,9 @@ l0:
 lx:
 	if Debug['x'] != 0 {
 		if c >= utf8.RuneSelf {
-			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lineno)), lexname(c))
+			fmt.Printf("%v lex: TOKEN %s\n", linestr(lineno), lexname(c))
 		} else {
-			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lineno)), c)
+			fmt.Printf("%v lex: TOKEN '%c'\n", linestr(lineno), c)
 		}
 	}
 
