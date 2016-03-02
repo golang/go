@@ -5081,8 +5081,10 @@ func moveByType(t ssa.Type) int {
 			return x86.AMOVL
 		case 8:
 			return x86.AMOVQ
+		case 16:
+			return x86.AMOVUPS // int128s are in SSE registers
 		default:
-			panic("bad int register width")
+			panic(fmt.Sprintf("bad int register width %d:%s", t.Size(), t))
 		}
 	}
 	panic("bad register type")
