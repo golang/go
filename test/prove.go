@@ -40,8 +40,8 @@ func f1b(a []int, i int, j uint) int {
 
 func f2(a []int) int {
 	for i := range a {
-		a[i] = i
-		a[i] = i // ERROR "Proved boolean IsInBounds$"
+		a[i+1] = i
+		a[i+1] = i // ERROR "Proved boolean IsInBounds$"
 	}
 	return 34
 }
