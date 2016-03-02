@@ -355,6 +355,13 @@
 (Neg32 (Sub32 x y)) -> (Sub32 y x)
 (Neg64 (Sub64 x y)) -> (Sub64 y x)
 
+(Trunc64to8 (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
+(Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)
+(Trunc64to32 (And64 (Const64 [y]) x)) && y&0xFFFFFFFF == 0xFFFFFFFF -> (Trunc64to32 x)
+(Trunc32to8 (And32 (Const32 [y]) x)) && y&0xFF == 0xFF -> (Trunc32to8 x)
+(Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
+(Trunc16to8 (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
+
 // Rewrite AND of consts as shifts if possible, slightly faster for 32/64 bit operands
 // leading zeros can be shifted left, then right
 (And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
