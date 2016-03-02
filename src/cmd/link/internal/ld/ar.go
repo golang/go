@@ -97,7 +97,7 @@ func hostArchive(name string) {
 	any := true
 	for any {
 		var load []uint64
-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+		for _, s := range Ctxt.Allsym {
 			for _, r := range s.R {
 				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {

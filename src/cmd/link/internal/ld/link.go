@@ -67,7 +67,6 @@ type LSym struct {
 	Locals      int32
 	Value       int64
 	Size        int64
-	Allsym      *LSym
 	Next        *LSym
 	Sub         *LSym
 	Outer       *LSym
@@ -142,7 +141,7 @@ type Link struct {
 	Windows    int32
 	Goroot     string
 	Hash       map[symVer]*LSym
-	Allsym     *LSym
+	Allsym     []*LSym
 	Nsymbol    int32
 	Tlsg       *LSym
 	Libdir     []string

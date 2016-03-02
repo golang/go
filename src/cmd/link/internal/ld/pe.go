@@ -487,7 +487,7 @@ func initdynimport() *Dll {
 
 	dr = nil
 	var m *Imp
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+	for _, s := range Ctxt.Allsym {
 		if !s.Reachable || s.Type != obj.SDYNIMPORT {
 			continue
 		}
@@ -692,7 +692,7 @@ func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
 
 func initdynexport() {
 	nexport = 0
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+	for _, s := range Ctxt.Allsym {
 		if !s.Reachable || s.Cgoexport&CgoExportDynamic == 0 {
 			continue
 		}
