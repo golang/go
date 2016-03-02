@@ -46,24 +46,23 @@ func initPrintFlags() {
 		}
 		name = strings.ToLower(name)
 		if name[len(name)-1] == 'f' {
-			printfList[name] = skip
+			isFormattedPrint[name] = true
 		} else {
 			printList[name] = skip
 		}
 	}
 }
 
-// printfList records the formatted-print functions. The value is the location
-// of the format parameter. Names are lower-cased so the lookup is
-// case insensitive.
-var printfList = map[string]int{
-	"errorf":  0,
-	"fatalf":  0,
-	"fprintf": 1,
-	"logf":    0,
-	"panicf":  0,
-	"printf":  0,
-	"sprintf": 0,
+// isFormattedPrint records the formatted-print functions. Names are
+// lower-cased so the lookup is case insensitive.
+var isFormattedPrint = map[string]bool{
+	"errorf":  true,
+	"fatalf":  true,
+	"fprintf": true,
+	"logf":    true,
+	"panicf":  true,
+	"printf":  true,
+	"sprintf": true,
 }
 
 // printList records the unformatted-print functions. The value is the location
@@ -77,6 +76,34 @@ var printList = map[string]int{
 	"panic": 0, "panicln": 0,
 	"print": 0, "println": 0,
 	"sprint": 0, "sprintln": 0,
+}
+
+// signature returns the types.Signature of a call. If it is unable to
+// identify the call's signature, it can return nil.
+func signature(f *File, call *ast.CallExpr) *types.Signature {
+	typ := f.pkg.types[call.Fun].Type
+	if typ == nil {
+		return nil
+	}
+	sig, _ := typ.(*types.Signature)
+	return sig
+}
+
+// formatIndex returns the index of the format string parameter within
+// a signature. If it cannot find any format string parameter, it
+// returns -1.
+func formatIndex(sig *types.Signature) int {
+	if sig == nil {
+		return -1
+	}
+	idx := -1
+	for i := 0; i < sig.Params().Len(); i++ {
+		p := sig.Params().At(i)
+		if typ, ok := p.Type().(*types.Basic); ok && typ.Kind() == types.String {
+			idx = i
+		}
+	}
+	return idx
 }
 
 // checkCall triggers the print-specific checks if the call invokes a print function.
@@ -109,8 +136,8 @@ func checkFmtPrintfCall(f *File, node ast.Node) {
 	}
 
 	name := strings.ToLower(Name)
-	if skip, ok := printfList[name]; ok {
-		f.checkPrintf(call, Name, skip)
+	if _, ok := isFormattedPrint[name]; ok {
+		f.checkPrintf(call, Name)
 		return
 	}
 	if skip, ok := printList[name]; ok {
@@ -147,12 +174,20 @@ type formatState struct {
 
 // checkPrintf checks a call to a formatted print routine such as Printf.
 // call.Args[formatIndex] is (well, should be) the format argument.
-func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
-	if formatIndex >= len(call.Args) {
+func (f *File) checkPrintf(call *ast.CallExpr, name string) {
+	idx := formatIndex(signature(f, call))
+
+	if idx < 0 {
+		f.Badf(call.Pos(), "no formatting directive in %s call", name)
+		return
+	}
+
+	if idx >= len(call.Args) {
 		f.Bad(call.Pos(), "too few arguments in call to", name)
 		return
 	}
-	lit := f.pkg.types[call.Args[formatIndex]].Value
+
+	lit := f.pkg.types[call.Args[idx]].Value
 	if lit == nil {
 		if *verbose {
 			f.Warn(call.Pos(), "can't check non-constant format in call to", name)
@@ -164,7 +199,7 @@ func (f *File) checkPrintf(call *ast.CallExpr, name string, formatIndex int) {
 		return
 	}
 	format := constant.StringVal(lit)
-	firstArg := formatIndex + 1 // Arguments are immediately after format string.
+	firstArg := idx + 1 // Arguments are immediately after format string.
 	if !strings.Contains(format, "%") {
 		if len(call.Args) > firstArg {
 			f.Badf(call.Pos(), "no formatting directive in %s call", name)
