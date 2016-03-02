@@ -214,13 +214,14 @@ func gcInstallStackBarrier(gp *g, frame *stkframe) bool {
 }
 
 // gcRemoveStackBarriers removes all stack barriers installed in gp's stack.
+//
+// gp's stack barriers must be locked.
+//
 //go:nowritebarrier
 func gcRemoveStackBarriers(gp *g) {
 	if debugStackBarrier && gp.stkbarPos != 0 {
 		print("hit ", gp.stkbarPos, " stack barriers, goid=", gp.goid, "\n")
 	}
-
-	gcLockStackBarriers(gp)
 
 	// Remove stack barriers that we didn't hit.
 	for _, stkbar := range gp.stkbar[gp.stkbarPos:] {
@@ -231,8 +232,6 @@ func gcRemoveStackBarriers(gp *g) {
 	// adjust them.
 	gp.stkbarPos = 0
 	gp.stkbar = gp.stkbar[:0]
-
-	gcUnlockStackBarriers(gp)
 }
 
 // gcRemoveStackBarrier removes a single stack barrier. It is the
