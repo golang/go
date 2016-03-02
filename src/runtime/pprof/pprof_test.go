@@ -578,3 +578,47 @@ func blockCond() {
 	c.Wait()
 	mu.Unlock()
 }
+
+func func1(c chan int) { <-c }
+func func2(c chan int) { <-c }
+func func3(c chan int) { <-c }
+func func4(c chan int) { <-c }
+
+func TestGoroutineCounts(t *testing.T) {
+	c := make(chan int)
+	for i := 0; i < 100; i++ {
+		if i%10 == 0 {
+			go func1(c)
+			continue
+		}
+		if i%2 == 0 {
+			go func2(c)
+			continue
+		}
+		go func3(c)
+	}
+	time.Sleep(10 * time.Millisecond) // let goroutines block on channel
+
+	var w bytes.Buffer
+	Lookup("goroutine").WriteTo(&w, 1)
+	prof := w.String()
+
+	if !containsInOrder(prof, "\n50 @ ", "\n40 @", "\n10 @", "\n1 @") {
+		t.Errorf("expected sorted goroutine counts:\n%s", prof)
+	}
+
+	close(c)
+
+	time.Sleep(10 * time.Millisecond) // let goroutines exit
+}
+
+func containsInOrder(s string, all ...string) bool {
+	for _, t := range all {
+		i := strings.Index(s, t)
+		if i < 0 {
+			return false
+		}
+		s = s[i+len(t):]
+	}
+	return true
+}
