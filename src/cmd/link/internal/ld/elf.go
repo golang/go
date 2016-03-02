@@ -1361,9 +1361,7 @@ func elfdynhash() {
 	buckets := make([]uint32, nbucket)
 
 	var b int
-	var hc uint32
-	var name string
-	for sy := Ctxt.Allsym; sy != nil; sy = sy.Allsym {
+	for _, sy := range Ctxt.Allsym {
 		if sy.Dynid <= 0 {
 			continue
 		}
@@ -1372,8 +1370,8 @@ func elfdynhash() {
 			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib, sy.Dynimpvers)
 		}
 
-		name = sy.Extname
-		hc = elfhash([]byte(name))
+		name := sy.Extname
+		hc := elfhash([]byte(name))
 
 		b = int(hc % uint32(nbucket))
 		chain[sy.Dynid] = buckets[b]

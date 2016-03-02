@@ -461,7 +461,7 @@ func symtab() {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+	for _, s := range Ctxt.Allsym {
 		if !s.Reachable || s.Special != 0 || s.Type != obj.SRODATA {
 			continue
 		}

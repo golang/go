@@ -652,7 +652,7 @@ func (x machoscmp) Less(i, j int) bool {
 
 func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	genasmsym(put)
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+	for _, s := range Ctxt.Allsym {
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
 			if s.Reachable {
 				put(s, "", 'D', 0, 0, 0, nil)

@@ -599,7 +599,7 @@ func loadlib() {
 	if Linkmode == LinkInternal {
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+		for _, s := range Ctxt.Allsym {
 			if s.Type == obj.SHOSTOBJ {
 				// If a symbol was marked both
 				// cgo_import_static and cgo_import_dynamic,
@@ -679,7 +679,7 @@ func loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+		for _, s := range Ctxt.Allsym {
 			for _, r := range s.R {
 				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF && r.Sym.Name != ".got" {
 					any = true
@@ -1904,7 +1904,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), nil)
 	}
 
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+	for _, s := range Ctxt.Allsym {
 		if s.Hidden || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
 			continue
 		}

@@ -57,12 +57,13 @@ var headers = []struct {
 }
 
 func linknew(arch *LinkArch) *Link {
-	ctxt := new(Link)
-	// Preallocate about 2mb for hash
-	ctxt.Hash = make(map[symVer]*LSym, 100000)
-	ctxt.Arch = arch
-	ctxt.Version = obj.HistVersion
-	ctxt.Goroot = obj.Getgoroot()
+	ctxt := &Link{
+		Hash:    make(map[symVer]*LSym, 100000), // preallocate about 2mb for hash
+		Allsym:  make([]*LSym, 0, 100000),
+		Arch:    arch,
+		Version: obj.HistVersion,
+		Goroot:  obj.Getgoroot(),
+	}
 
 	p := obj.Getgoarch()
 	if p != arch.Name {
@@ -168,15 +169,10 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 	s.Plt = -1
 	s.Got = -1
 	s.Name = symb
-	s.Type = 0
 	s.Version = int16(v)
-	s.Value = 0
-	s.Size = 0
 	ctxt.Nsymbol++
 
-	s.Allsym = ctxt.Allsym
-	ctxt.Allsym = s
-
+	ctxt.Allsym = append(ctxt.Allsym, s)
 	return s
 }
 
