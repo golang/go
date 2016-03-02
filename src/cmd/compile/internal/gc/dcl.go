@@ -50,21 +50,12 @@ func pushdcl(s *Sym) *Sym {
 }
 
 func popdcl() {
-	var d *Sym
-	var s *Sym
-	var lno int
-
-	//	if(dflag())
-	//		print("revert\n");
-
-	for d = dclstack; d != nil; d = d.Link {
-		if d.Name == "" {
-			break
-		}
-		s = Pkglookup(d.Name, d.Pkg)
-		lno = int(s.Lastlineno)
+	d := dclstack
+	for ; d != nil && d.Name != ""; d = d.Link {
+		s := Pkglookup(d.Name, d.Pkg)
+		lno := s.Lastlineno
 		dcopy(s, d)
-		d.Lastlineno = int32(lno)
+		d.Lastlineno = lno
 		if dflag() {
 			fmt.Printf("\t%v pop %v %p\n", Ctxt.Line(int(lineno)), s, s.Def)
 		}
@@ -73,7 +64,8 @@ func popdcl() {
 	if d == nil {
 		Fatalf("popdcl: no mark")
 	}
-	dclstack = d.Link
+
+	dclstack = d.Link // pop mark
 	block = d.Block
 }
 
@@ -86,11 +78,7 @@ func markdcl() {
 	block = blockgen
 }
 
-//	if(dflag())
-//		print("markdcl\n");
 func dumpdcl(st string) {
-	var s *Sym
-
 	i := 0
 	for d := dclstack; d != nil; d = d.Link {
 		i++
@@ -101,8 +89,7 @@ func dumpdcl(st string) {
 		}
 
 		fmt.Printf(" '%s'", d.Name)
-		s = Pkglookup(d.Name, d.Pkg)
-		fmt.Printf(" %v\n", s)
+		fmt.Printf(" %v\n", Pkglookup(d.Name, d.Pkg))
 	}
 }
 
@@ -113,7 +100,6 @@ func testdclstack() {
 				errorexit()
 			}
 			Yyerror("mark left on the stack")
-			continue
 		}
 	}
 }
@@ -129,8 +115,8 @@ func redeclare(s *Sym, where string) {
 		pkgstr := tmp
 		Yyerror("%v redeclared %s\n"+"\tprevious declaration during import %q", s, where, pkgstr)
 	} else {
-		line1 := parserline()
-		line2 := int(s.Lastlineno)
+		line1 := lineno
+		line2 := s.Lastlineno
 
 		// When an import and a declaration collide in separate files,
 		// present the import as the "redeclared", because the declaration
@@ -138,10 +124,10 @@ func redeclare(s *Sym, where string) {
 		// See issue 4510.
 		if s.Def == nil {
 			line2 = line1
-			line1 = int(s.Lastlineno)
+			line1 = s.Lastlineno
 		}
 
-		yyerrorl(int(line1), "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, Ctxt.Line(line2))
+		yyerrorl(line1, "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, Ctxt.Line(int(line2)))
 	}
 }
 
@@ -164,7 +150,7 @@ func declare(n *Node, ctxt Class) {
 		// named OLITERAL needs Name; most OLITERALs don't.
 		n.Name = new(Name)
 	}
-	n.Lineno = int32(parserline())
+	n.Lineno = lineno
 	s := n.Sym
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
@@ -213,7 +199,7 @@ func declare(n *Node, ctxt Class) {
 	}
 
 	s.Block = block
-	s.Lastlineno = int32(parserline())
+	s.Lastlineno = lineno
 	s.Def = n
 	n.Name.Vargen = int32(gen)
 	n.Name.Funcdepth = Funcdepth
@@ -466,13 +452,13 @@ func colasdefn(left *NodeList, defn *Node) {
 			continue
 		}
 		if !colasname(n) {
-			yyerrorl(int(defn.Lineno), "non-name %v on left side of :=", n)
+			yyerrorl(defn.Lineno, "non-name %v on left side of :=", n)
 			nerr++
 			continue
 		}
 
 		if n.Sym.Flags&SymUniq == 0 {
-			yyerrorl(int(defn.Lineno), "%v repeated on left side of :=", n.Sym)
+			yyerrorl(defn.Lineno, "%v repeated on left side of :=", n.Sym)
 			n.Diag++
 			nerr++
 			continue
@@ -492,7 +478,7 @@ func colasdefn(left *NodeList, defn *Node) {
 	}
 
 	if nnew == 0 && nerr == 0 {
-		yyerrorl(int(defn.Lineno), "no new variables on left side of :=")
+		yyerrorl(defn.Lineno, "no new variables on left side of :=")
 	}
 }
 
@@ -1546,7 +1532,7 @@ func checknowritebarrierrec() {
 				call = c.best[n]
 			}
 			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
-			yyerrorl(int(n.Func.WBLineno), err)
+			yyerrorl(n.Func.WBLineno, err)
 		}
 	})
 }

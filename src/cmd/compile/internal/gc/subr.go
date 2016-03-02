@@ -18,7 +18,7 @@ import (
 )
 
 type Error struct {
-	lineno int
+	lineno int32
 	msg    string
 }
 
@@ -32,10 +32,6 @@ func errorexit() {
 	os.Exit(2)
 }
 
-func parserline() int {
-	return int(lineno)
-}
-
 func adderrorname(n *Node) {
 	if n.Op != ODOT {
 		return
@@ -46,10 +42,10 @@ func adderrorname(n *Node) {
 	}
 }
 
-func adderr(line int, format string, args ...interface{}) {
+func adderr(line int32, format string, args ...interface{}) {
 	errors = append(errors, Error{
 		lineno: line,
-		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(line), fmt.Sprintf(format, args...)),
+		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(int(line)), fmt.Sprintf(format, args...)),
 	})
 }
 
@@ -85,14 +81,14 @@ func hcrash() {
 	}
 }
 
-func yyerrorl(line int, format string, args ...interface{}) {
+func yyerrorl(line int32, format string, args ...interface{}) {
 	adderr(line, format, args...)
 
 	hcrash()
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
-		fmt.Printf("%v: too many errors\n", Ctxt.Line(line))
+		fmt.Printf("%v: too many errors\n", Ctxt.Line(int(line)))
 		errorexit()
 	}
 }
@@ -110,28 +106,28 @@ func Yyerror(format string, args ...interface{}) {
 		}
 		yyerror_lastsyntax = lineno
 
-		yyerrorl(int(lineno), "%s", msg)
+		yyerrorl(lineno, "%s", msg)
 		return
 	}
 
-	adderr(parserline(), "%s", msg)
+	adderr(lineno, "%s", msg)
 
 	hcrash()
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
-		fmt.Printf("%v: too many errors\n", Ctxt.Line(parserline()))
+		fmt.Printf("%v: too many errors\n", Ctxt.Line(int(lineno)))
 		errorexit()
 	}
 }
 
 func Warn(fmt_ string, args ...interface{}) {
-	adderr(parserline(), fmt_, args...)
+	adderr(lineno, fmt_, args...)
 
 	hcrash()
 }
 
-func Warnl(line int, fmt_ string, args ...interface{}) {
+func Warnl(line int32, fmt_ string, args ...interface{}) {
 	adderr(line, fmt_, args...)
 	if Debug['m'] != 0 {
 		Flusherrors()
@@ -304,7 +300,7 @@ func importdot(opkg *Pkg, pack *Node) {
 
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		yyerrorl(int(pack.Lineno), "imported and not used: %q", opkg.Path)
+		yyerrorl(pack.Lineno, "imported and not used: %q", opkg.Path)
 	}
 }
 
@@ -313,7 +309,7 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
 	n.Op = op
 	n.Left = nleft
 	n.Right = nright
-	n.Lineno = int32(parserline())
+	n.Lineno = lineno
 	n.Xoffset = BADWIDTH
 	n.Orig = n
 	switch op {

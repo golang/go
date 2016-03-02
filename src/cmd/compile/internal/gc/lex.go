@@ -1900,7 +1900,7 @@ redo:
 	c := obj.Bgetc(l.bin)
 	if c < utf8.RuneSelf {
 		if c == 0 {
-			yyerrorl(int(lexlineno), "illegal NUL byte")
+			yyerrorl(lexlineno, "illegal NUL byte")
 			return 0
 		}
 		if c == '\n' && importpkg == nil {
@@ -1924,11 +1924,11 @@ redo:
 		// The string conversion here makes a copy for passing
 		// to fmt.Printf, so that buf itself does not escape and
 		// can be allocated on the stack.
-		yyerrorl(int(lexlineno), "illegal UTF-8 sequence % x", string(buf[:i]))
+		yyerrorl(lexlineno, "illegal UTF-8 sequence % x", string(buf[:i]))
 	}
 
 	if r == BOM {
-		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+		yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file")
 		goto redo
 	}
 
@@ -2299,7 +2299,7 @@ func lexname(lex rune) string {
 	return fmt.Sprintf("LEX-%d", lex)
 }
 
-func pkgnotused(lineno int, path string, name string) {
+func pkgnotused(lineno int32, path string, name string) {
 	// If the package was imported with a name other than the final
 	// import path element, show it explicitly in the error message.
 	// Note that this handles both renamed imports and imports of
@@ -2311,9 +2311,9 @@ func pkgnotused(lineno int, path string, name string) {
 		elem = elem[i+1:]
 	}
 	if name == "" || elem == name {
-		yyerrorl(int(lineno), "imported and not used: %q", path)
+		yyerrorl(lineno, "imported and not used: %q", path)
 	} else {
-		yyerrorl(int(lineno), "imported and not used: %q as %s", path, name)
+		yyerrorl(lineno, "imported and not used: %q as %s", path, name)
 	}
 }
 
@@ -2338,7 +2338,7 @@ func mkpackage(pkgname string) {
 				// errors if a conflicting top-level name is
 				// introduced by a different file.
 				if !s.Def.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Lineno), s.Def.Name.Pkg.Path, s.Name)
+					pkgnotused(s.Def.Lineno, s.Def.Name.Pkg.Path, s.Name)
 				}
 				s.Def = nil
 				continue
@@ -2348,7 +2348,7 @@ func mkpackage(pkgname string) {
 				// throw away top-level name left over
 				// from previous import . "x"
 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Name.Pkg.Path, "")
+					pkgnotused(s.Def.Name.Pack.Lineno, s.Def.Name.Pack.Name.Pkg.Path, "")
 					s.Def.Name.Pack.Used = true
 				}
 

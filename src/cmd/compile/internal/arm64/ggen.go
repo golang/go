@@ -491,7 +491,7 @@ func expandchecks(firstp *obj.Prog) {
 			continue
 		}
 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
-			gc.Warnl(int(p.Lineno), "generated nil check")
+			gc.Warnl(p.Lineno, "generated nil check")
 		}
 		if p.From.Type != obj.TYPE_REG {
 			gc.Fatalf("invalid nil check %v\n", p)

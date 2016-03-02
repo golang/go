@@ -182,11 +182,11 @@ func buildssa(fn *Node) *ssa.Func {
 	// Check that we used all labels
 	for name, lab := range s.labels {
 		if !lab.used() && !lab.reported {
-			yyerrorl(int(lab.defNode.Lineno), "label %v defined and not used", name)
+			yyerrorl(lab.defNode.Lineno, "label %v defined and not used", name)
 			lab.reported = true
 		}
 		if lab.used() && !lab.defined() && !lab.reported {
-			yyerrorl(int(lab.useNode.Lineno), "label %v not defined", name)
+			yyerrorl(lab.useNode.Lineno, "label %v not defined", name)
 			lab.reported = true
 		}
 	}
@@ -372,7 +372,7 @@ func (s *state) peekLine() int32 {
 }
 
 func (s *state) Error(msg string, args ...interface{}) {
-	yyerrorl(int(s.peekLine()), msg, args...)
+	yyerrorl(s.peekLine(), msg, args...)
 }
 
 // newValue0 adds a new value with no arguments to the current block.
@@ -2796,7 +2796,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	s.startBlock(bEnd)
 
 	if Debug_wb > 0 {
-		Warnl(int(line), "write barrier")
+		Warnl(line, "write barrier")
 	}
 }
 
@@ -2842,7 +2842,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	s.startBlock(bEnd)
 
 	if Debug_wb > 0 {
-		Warnl(int(line), "write barrier")
+		Warnl(line, "write barrier")
 	}
 }
 
@@ -3339,7 +3339,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	}
 
 	if Debug_typeassert > 0 {
-		Warnl(int(n.Lineno), "type assertion inlined")
+		Warnl(n.Lineno, "type assertion inlined")
 	}
 
 	// TODO:  If we have a nonempty interface and its itab field is nil,
@@ -3444,7 +3444,7 @@ func (s *state) checkgoto(from *Node, to *Node) {
 			fs = fs.Link
 		}
 
-		lno := int(from.Left.Lineno)
+		lno := from.Left.Lineno
 		if block != nil {
 			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
 		} else {
@@ -4658,7 +4658,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				ssa.OpAMD64MOVSSstore, ssa.OpAMD64MOVSDstore, ssa.OpAMD64MOVOstore:
 				if w.Args[0] == v.Args[0] && w.Aux == nil && w.AuxInt >= 0 && w.AuxInt < minZeroPage {
 					if Debug_checknil != 0 && int(v.Line) > 1 {
-						Warnl(int(v.Line), "removed nil check")
+						Warnl(v.Line, "removed nil check")
 					}
 					return
 				}
@@ -4666,7 +4666,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				off := ssa.ValAndOff(v.AuxInt).Off()
 				if w.Args[0] == v.Args[0] && w.Aux == nil && off >= 0 && off < minZeroPage {
 					if Debug_checknil != 0 && int(v.Line) > 1 {
-						Warnl(int(v.Line), "removed nil check")
+						Warnl(v.Line, "removed nil check")
 					}
 					return
 				}
@@ -4694,7 +4694,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		p.To.Reg = regnum(v.Args[0])
 		addAux(&p.To, v)
 		if Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
-			Warnl(int(v.Line), "generated nil check")
+			Warnl(v.Line, "generated nil check")
 		}
 	default:
 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
@@ -5223,7 +5223,7 @@ func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{}) 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
 func (e *ssaExport) Warnl(line int, fmt_ string, args ...interface{}) {
-	Warnl(line, fmt_, args...)
+	Warnl(int32(line), fmt_, args...)
 }
 
 func (e *ssaExport) Debug_checknil() bool {

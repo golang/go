@@ -927,7 +927,7 @@ func nilopt(firstp *obj.Prog) {
 		ncheck++
 		if Thearch.Stackaddr(&p.From) {
 			if Debug_checknil != 0 && p.Lineno > 1 {
-				Warnl(int(p.Lineno), "removed nil check of SP address")
+				Warnl(p.Lineno, "removed nil check of SP address")
 			}
 			f.Data = &killed
 			continue
@@ -936,7 +936,7 @@ func nilopt(firstp *obj.Prog) {
 		nilwalkfwd(f)
 		if f.Data != nil {
 			if Debug_checknil != 0 && p.Lineno > 1 {
-				Warnl(int(p.Lineno), "removed nil check before indirect")
+				Warnl(p.Lineno, "removed nil check before indirect")
 			}
 			continue
 		}
@@ -944,7 +944,7 @@ func nilopt(firstp *obj.Prog) {
 		nilwalkback(f)
 		if f.Data != nil {
 			if Debug_checknil != 0 && p.Lineno > 1 {
-				Warnl(int(p.Lineno), "removed repeated nil check")
+				Warnl(p.Lineno, "removed repeated nil check")
 			}
 			continue
 		}

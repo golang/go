@@ -483,7 +483,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
 					break
 				}
 				if Eqtype(c1.node.Left.Type, c2.node.Left.Type) {
-					yyerrorl(int(c2.node.Lineno), "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
+					yyerrorl(c2.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
 				}
 			}
 		}

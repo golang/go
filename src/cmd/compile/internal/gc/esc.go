@@ -462,7 +462,7 @@ func escAnalyze(all []*Node, recursive bool) {
 	if Debug['m'] != 0 {
 		for l := e.noesc; l != nil; l = l.Next {
 			if l.N.Esc == EscNone {
-				Warnl(int(l.N.Lineno), "%v %v does not escape", e.curfnSym(l.N), Nconv(l.N, obj.FmtShort))
+				Warnl(l.N.Lineno, "%v %v does not escape", e.curfnSym(l.N), Nconv(l.N, obj.FmtShort))
 			}
 		}
 	}
@@ -632,7 +632,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 1 {
-			Warnl(int(n.Lineno), "%v is too large for stack", n)
+			Warnl(n.Lineno, "%v is too large for stack", n)
 		}
 		n.Esc = EscHeap
 		addrescapes(n)
@@ -732,7 +732,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
 			// that b does not escape when b contents do.
 			if Debug['m'] != 0 {
-				Warnl(int(n.Lineno), "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
+				Warnl(n.Lineno, "%v ignoring self-assignment to %v", e.curfnSym(n), Nconv(n.Left, obj.FmtShort))
 			}
 
 			break
@@ -827,7 +827,7 @@ func esc(e *EscState, n *Node, up *Node) {
 			slice2 := n.List.Next.N
 			escassignDereference(e, &e.theSink, slice2) // lose track of assign of dereference
 			if Debug['m'] > 2 {
-				Warnl(int(n.Lineno), "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
+				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
 			}
 		}
 		escassignDereference(e, &e.theSink, n.List.N) // The original elements are now leaked, too
@@ -1667,9 +1667,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		// 4. return *in
 		if Debug['m'] != 0 {
 			if Debug['m'] == 1 {
-				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
+				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level.int())
 			} else {
-				Warnl(int(src.Lineno), "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
+				Warnl(src.Lineno, "leaking param: %v to result %v level=%v", Nconv(src, obj.FmtShort), dst.Sym, level)
 			}
 		}
 		if src.Esc&EscMask != EscReturn {
@@ -1686,7 +1686,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		level.int() > 0 {
 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 		if Debug['m'] != 0 {
-			Warnl(int(src.Lineno), "mark escaped content: %v", Nconv(src, obj.FmtShort))
+			Warnl(src.Lineno, "mark escaped content: %v", Nconv(src, obj.FmtShort))
 		}
 	}
 
@@ -1699,9 +1699,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 				src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
 				if Debug['m'] != 0 {
 					if Debug['m'] == 1 {
-						Warnl(int(src.Lineno), "leaking param content: %v", Nconv(src, obj.FmtShort))
+						Warnl(src.Lineno, "leaking param content: %v", Nconv(src, obj.FmtShort))
 					} else {
-						Warnl(int(src.Lineno), "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+						Warnl(src.Lineno, "leaking param content: %v level=%v dst.eld=%v src.eld=%v dst=%v",
 							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
 					}
 				}
@@ -1709,9 +1709,9 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 				src.Esc = EscScope
 				if Debug['m'] != 0 {
 					if Debug['m'] == 1 {
-						Warnl(int(src.Lineno), "leaking param: %v", Nconv(src, obj.FmtShort))
+						Warnl(src.Lineno, "leaking param: %v", Nconv(src, obj.FmtShort))
 					} else {
-						Warnl(int(src.Lineno), "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
+						Warnl(src.Lineno, "leaking param: %v level=%v dst.eld=%v src.eld=%v dst=%v",
 							Nconv(src, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth, Nconv(dst, obj.FmtShort))
 					}
 				}
@@ -1722,7 +1722,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		// original variable.
 		if src.Class == PPARAMREF {
 			if leaks && Debug['m'] != 0 {
-				Warnl(int(src.Lineno), "leaking closure reference %v", Nconv(src, obj.FmtShort))
+				Warnl(src.Lineno, "leaking closure reference %v", Nconv(src, obj.FmtShort))
 			}
 			escwalk(e, level, dst, src.Name.Param.Closure)
 		}
@@ -1737,10 +1737,10 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 					p = p.Left // merely to satisfy error messages in tests
 				}
 				if Debug['m'] > 1 {
-					Warnl(int(src.Lineno), "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
+					Warnl(src.Lineno, "%v escapes to heap, level=%v, dst.eld=%v, src.eld=%v",
 						Nconv(p, obj.FmtShort), level, dstE.Escloopdepth, modSrcLoopdepth)
 				} else {
-					Warnl(int(src.Lineno), "%v escapes to heap", Nconv(p, obj.FmtShort))
+					Warnl(src.Lineno, "%v escapes to heap", Nconv(p, obj.FmtShort))
 				}
 			}
 			escwalkBody(e, level.dec(), dst, src.Left, modSrcLoopdepth)
@@ -1756,7 +1756,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 {
-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
+				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, obj.FmtShort))
 			}
 			extraloopdepth = modSrcLoopdepth
 		}
@@ -1790,7 +1790,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		if leaks {
 			src.Esc = EscHeap
 			if Debug['m'] != 0 {
-				Warnl(int(src.Lineno), "%v escapes to heap", Nconv(src, obj.FmtShort))
+				Warnl(src.Lineno, "%v escapes to heap", Nconv(src, obj.FmtShort))
 			}
 			extraloopdepth = modSrcLoopdepth
 		}
@@ -1878,7 +1878,7 @@ func esctag(e *EscState, func_ *Node) {
 					} else {
 						name = fmt.Sprintf("arg#%d", narg)
 					}
-					Warnl(int(func_.Lineno), "%v assuming %v is unsafe uintptr", funcSym(func_), name)
+					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name)
 				}
 				t.Note = &unsafeUintptrTag
 			}

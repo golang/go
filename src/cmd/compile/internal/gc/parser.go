@@ -327,7 +327,7 @@ func (p *parser) importdcl() {
 		return
 	}
 
-	line := int32(parserline())
+	line := lineno
 
 	// We need to clear importpkg before calling p.next(),
 	// otherwise it will affect lexlineno.
@@ -1568,7 +1568,7 @@ func (p *parser) dcl_name() *Node {
 	symlineno := lineno
 	sym := p.sym()
 	if sym == nil {
-		yyerrorl(int(symlineno), "invalid declaration")
+		yyerrorl(symlineno, "invalid declaration")
 		return nil
 	}
 	return dclname(sym)
