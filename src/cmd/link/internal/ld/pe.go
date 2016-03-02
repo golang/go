@@ -488,7 +488,7 @@ func initdynimport() *Dll {
 	dr = nil
 	var m *Imp
 	for _, s := range Ctxt.Allsym {
-		if !s.Reachable || s.Type != obj.SDYNIMPORT {
+		if !s.Attr.Reachable() || s.Type != obj.SDYNIMPORT {
 			continue
 		}
 		for d = dr; d != nil; d = d.next {
@@ -538,7 +538,7 @@ func initdynimport() *Dll {
 					dynName += fmt.Sprintf("@%d", m.argsize)
 				}
 				dynSym := Linklookup(Ctxt, dynName, 0)
-				dynSym.Reachable = true
+				dynSym.Attr |= AttrReachable
 				dynSym.Type = obj.SHOSTOBJ
 				r := Addrel(m.s)
 				r.Sym = dynSym
@@ -549,7 +549,7 @@ func initdynimport() *Dll {
 		}
 	} else {
 		dynamic := Linklookup(Ctxt, ".windynamic", 0)
-		dynamic.Reachable = true
+		dynamic.Attr |= AttrReachable
 		dynamic.Type = obj.SWINDOWS
 		for d := dr; d != nil; d = d.next {
 			for m = d.ms; m != nil; m = m.next {
@@ -693,7 +693,7 @@ func (s byExtname) Less(i, j int) bool { return s[i].Extname < s[j].Extname }
 func initdynexport() {
 	nexport = 0
 	for _, s := range Ctxt.Allsym {
-		if !s.Reachable || s.Cgoexport&CgoExportDynamic == 0 {
+		if !s.Attr.Reachable() || !s.Attr.CgoExportDynamic() {
 			continue
 		}
 		if nexport+1 > len(dexport) {
@@ -785,7 +785,7 @@ func perelocsect(sect *Section, first *LSym) int {
 	sect.Reloff = uint64(Cpos())
 	var sym *LSym
 	for sym = first; sym != nil; sym = sym.Next {
-		if !sym.Reachable {
+		if !sym.Attr.Reachable() {
 			continue
 		}
 		if uint64(sym.Value) >= sect.Vaddr {
@@ -797,7 +797,7 @@ func perelocsect(sect *Section, first *LSym) int {
 	var r *Reloc
 	var ri int
 	for ; sym != nil; sym = sym.Next {
-		if !sym.Reachable {
+		if !sym.Attr.Reachable() {
 			continue
 		}
 		if sym.Value >= int64(eaddr) {
@@ -888,7 +888,7 @@ func dope() {
 	/* relocation table */
 	rel := Linklookup(Ctxt, ".rel", 0)
 
-	rel.Reachable = true
+	rel.Attr |= AttrReachable
 	rel.Type = obj.SELFROSECT
 
 	initdynimport()
@@ -941,7 +941,7 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int, 
 
 	if coffsym != nil {
 		// only windows/386 requires underscore prefix on external symbols
-		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Cgoexport != 0) && s.Name == s.Extname {
+		if Thearch.Thechar == '8' && Linkmode == LinkExternal && (s.Type == obj.SHOSTOBJ || s.Attr.CgoExport()) && s.Name == s.Extname {
 			s.Name = "_" + s.Name
 		}
 		cs := &coffsym[ncoffsym]

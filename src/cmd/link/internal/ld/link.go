@@ -38,25 +38,12 @@ import (
 )
 
 type LSym struct {
-	Name       string
-	Extname    string
-	Type       int16
-	Version    int16
-	Dupok      uint8
-	External   uint8
-	Nosplit    uint8
-	Reachable  bool
-	Cgoexport  uint8
-	Special    uint8
-	Stkcheck   uint8
-	Hidden     bool
-	Leaf       uint8
-	Localentry uint8
-	Onlist     uint8
-	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
-	// is not set for symbols defined by the packages being linked or by symbols
-	// read by ldelf (and so is left as elf.STT_NOTYPE).
-	ElfType     elf.SymType
+	Name        string
+	Extname     string
+	Type        int16
+	Version     int16
+	Attr        Attribute
+	Localentry  uint8
 	Dynid       int32
 	Plt         int32
 	Got         int32
@@ -67,6 +54,10 @@ type LSym struct {
 	Locals      int32
 	Value       int64
 	Size        int64
+	// ElfType is set for symbols read from shared libraries by ldshlibsyms. It
+	// is not set for symbols defined by the packages being linked or by symbols
+	// read by ldelf (and so is left as elf.STT_NOTYPE).
+	ElfType     elf.SymType
 	Next        *LSym
 	Sub         *LSym
 	Outer       *LSym
@@ -81,7 +72,6 @@ type LSym struct {
 	Pcln        *Pcln
 	P           []byte
 	R           []Reloc
-	Local       bool
 }
 
 func (s *LSym) String() string {
@@ -98,6 +88,47 @@ func (s *LSym) ElfsymForReloc() int32 {
 		return s.LocalElfsym
 	} else {
 		return s.Elfsym
+	}
+}
+
+// Attribute is a set of common symbol attributes.
+type Attribute int16
+
+const (
+	AttrDuplicateOK Attribute = 1 << iota
+	AttrExternal
+	AttrNoSplit
+	AttrReachable
+	AttrCgoExportDynamic
+	AttrCgoExportStatic
+	AttrSpecial
+	AttrStackCheck
+	AttrHidden
+	AttrOnList
+	AttrLocal
+)
+
+func (a Attribute) DuplicateOK() bool      { return a&AttrDuplicateOK != 0 }
+func (a Attribute) External() bool         { return a&AttrExternal != 0 }
+func (a Attribute) NoSplit() bool          { return a&AttrNoSplit != 0 }
+func (a Attribute) Reachable() bool        { return a&AttrReachable != 0 }
+func (a Attribute) CgoExportDynamic() bool { return a&AttrCgoExportDynamic != 0 }
+func (a Attribute) CgoExportStatic() bool  { return a&AttrCgoExportStatic != 0 }
+func (a Attribute) Special() bool          { return a&AttrSpecial != 0 }
+func (a Attribute) StackCheck() bool       { return a&AttrStackCheck != 0 }
+func (a Attribute) Hidden() bool           { return a&AttrHidden != 0 }
+func (a Attribute) OnList() bool           { return a&AttrOnList != 0 }
+func (a Attribute) Local() bool            { return a&AttrLocal != 0 }
+
+func (a Attribute) CgoExport() bool {
+	return a.CgoExportDynamic() || a.CgoExportStatic()
+}
+
+func (a *Attribute) Set(flag Attribute, value bool) {
+	if value {
+		*a |= flag
+	} else {
+		*a &= ^flag
 	}
 }
 

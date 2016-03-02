@@ -308,31 +308,31 @@ func domacho() {
 	s := Linklookup(Ctxt, ".machosymstr", 0)
 
 	s.Type = obj.SMACHOSYMSTR
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	Adduint8(Ctxt, s, ' ')
 	Adduint8(Ctxt, s, '\x00')
 
 	s = Linklookup(Ctxt, ".machosymtab", 0)
 	s.Type = obj.SMACHOSYMTAB
-	s.Reachable = true
+	s.Attr |= AttrReachable
 
 	if Linkmode != LinkExternal {
 		s := Linklookup(Ctxt, ".plt", 0) // will be __symbol_stub
 		s.Type = obj.SMACHOPLT
-		s.Reachable = true
+		s.Attr |= AttrReachable
 
 		s = Linklookup(Ctxt, ".got", 0) // will be __nl_symbol_ptr
 		s.Type = obj.SMACHOGOT
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Align = 4
 
 		s = Linklookup(Ctxt, ".linkedit.plt", 0) // indirect table for .plt
 		s.Type = obj.SMACHOINDIRECTPLT
-		s.Reachable = true
+		s.Attr |= AttrReachable
 
 		s = Linklookup(Ctxt, ".linkedit.got", 0) // indirect table for .got
 		s.Type = obj.SMACHOINDIRECTGOT
-		s.Reachable = true
+		s.Attr |= AttrReachable
 	}
 }
 
@@ -600,7 +600,7 @@ func symkind(s *LSym) int {
 	if s.Type == obj.SDYNIMPORT {
 		return SymKindUndef
 	}
-	if s.Cgoexport != 0 {
+	if s.Attr.CgoExport() {
 		return SymKindExtdef
 	}
 	return SymKindLocal
@@ -654,7 +654,7 @@ func machogenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	genasmsym(put)
 	for _, s := range Ctxt.Allsym {
 		if s.Type == obj.SDYNIMPORT || s.Type == obj.SHOSTOBJ {
-			if s.Reachable {
+			if s.Attr.Reachable() {
 				put(s, "", 'D', 0, 0, 0, nil)
 			}
 		}
@@ -666,7 +666,7 @@ func machosymorder() {
 	// So we sort them here and pre-allocate dynid for them
 	// See https://golang.org/issue/4029
 	for i := 0; i < len(dynexp); i++ {
-		dynexp[i].Reachable = true
+		dynexp[i].Attr |= AttrReachable
 	}
 	machogenasmsym(addsym)
 	sortsym = make([]*LSym, nsortsym)
@@ -717,7 +717,7 @@ func machosymtab() {
 			Adduint16(Ctxt, symtab, 0)                  // desc
 			adduintxx(Ctxt, symtab, 0, Thearch.Ptrsize) // no value
 		} else {
-			if s.Cgoexport != 0 {
+			if s.Attr.CgoExport() {
 				Adduint8(Ctxt, symtab, 0x0f)
 			} else {
 				Adduint8(Ctxt, symtab, 0x0e)
@@ -829,7 +829,7 @@ func machorelocsect(sect *Section, first *LSym) {
 	sect.Reloff = uint64(Cpos())
 	var sym *LSym
 	for sym = first; sym != nil; sym = sym.Next {
-		if !sym.Reachable {
+		if !sym.Attr.Reachable() {
 			continue
 		}
 		if uint64(sym.Value) >= sect.Vaddr {
@@ -841,7 +841,7 @@ func machorelocsect(sect *Section, first *LSym) {
 	var r *Reloc
 	var ri int
 	for ; sym != nil; sym = sym.Next {
-		if !sym.Reachable {
+		if !sym.Attr.Reachable() {
 			continue
 		}
 		if sym.Value >= int64(eaddr) {

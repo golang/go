@@ -39,7 +39,7 @@ import (
 
 // Append 4 bytes to s and create a R_CALL relocation targeting t to fill them in.
 func addcall(ctxt *ld.Link, s *ld.LSym, t *ld.LSym) {
-	s.Reachable = true
+	s.Attr |= ld.AttrReachable
 	i := s.Size
 	s.Size += 4
 	ld.Symgrow(ctxt, s, s.Size)
@@ -57,8 +57,8 @@ func gentext() {
 
 	thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0)
 	thunkfunc.Type = obj.STEXT
-	thunkfunc.Local = true
-	thunkfunc.Reachable = true
+	thunkfunc.Attr |= ld.AttrLocal
+	thunkfunc.Attr |= ld.AttrReachable
 	o := func(op ...uint8) {
 		for _, op1 := range op {
 			ld.Adduint8(ld.Ctxt, thunkfunc, op1)
@@ -83,12 +83,12 @@ func gentext() {
 		return
 	}
 
-	addmoduledata.Reachable = true
+	addmoduledata.Attr |= ld.AttrReachable
 
 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
 	initfunc.Type = obj.STEXT
-	initfunc.Local = true
-	initfunc.Reachable = true
+	initfunc.Attr |= ld.AttrLocal
+	initfunc.Attr |= ld.AttrReachable
 	o = func(op ...uint8) {
 		for _, op1 := range op {
 			ld.Adduint8(ld.Ctxt, initfunc, op1)
@@ -133,8 +133,8 @@ func gentext() {
 	ld.Ctxt.Etextp.Next = initfunc
 	ld.Ctxt.Etextp = initfunc
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
-	initarray_entry.Reachable = true
-	initarray_entry.Local = true
+	initarray_entry.Attr |= ld.AttrReachable
+	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = obj.SINITARR
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }
