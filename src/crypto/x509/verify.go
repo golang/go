@@ -179,7 +179,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	// being valid for encryption only, but no-one noticed. Another
 	// European CA marked its signature keys as not being valid for
 	// signatures. A different CA marked its own trusted root certificate
-	// as being invalid for certificate signing.  Another national CA
+	// as being invalid for certificate signing. Another national CA
 	// distributed a certificate to be used to encrypt data for the
 	// country’s tax authority that was marked as only being usable for
 	// digital signatures but not for encryption. Yet another CA reversed

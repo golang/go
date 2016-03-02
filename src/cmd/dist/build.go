@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -283,7 +284,7 @@ func findgoversion() string {
 	}
 
 	// The $GOROOT/VERSION.cache file is a cache to avoid invoking
-	// git every time we run this command.  Unlike VERSION, it gets
+	// git every time we run this command. Unlike VERSION, it gets
 	// deleted by the clean command.
 	path = pathf("%s/VERSION.cache", goroot)
 	if isfile(path) {
@@ -398,8 +399,8 @@ func setup() {
 
 	// Create object directory.
 	// We keep it in pkg/ so that all the generated binaries
-	// are in one tree.  If pkg/obj/libgc.a exists, it is a dreg from
-	// before we used subdirectories of obj.  Delete all of obj
+	// are in one tree. If pkg/obj/libgc.a exists, it is a dreg from
+	// before we used subdirectories of obj. Delete all of obj
 	// to clean up.
 	if p := pathf("%s/pkg/obj/libgc.a", goroot); isfile(p) {
 		xremoveall(pathf("%s/pkg/obj", goroot))
@@ -463,6 +464,9 @@ var deptab = []struct {
 	{"runtime/internal/sys", []string{
 		"zversion.go",
 	}},
+	{"go/build", []string{
+		"zcgo.go",
+	}},
 }
 
 // depsuffix records the allowed suffixes for source files.
@@ -478,6 +482,7 @@ var gentab = []struct {
 }{
 	{"zdefaultcc.go", mkzdefaultcc},
 	{"zversion.go", mkzversion},
+	{"zcgo.go", mkzcgo},
 
 	// not generated anymore, but delete the file if we see it
 	{"enam.c", nil},
@@ -754,7 +759,7 @@ func matchtag(tag string) bool {
 		}
 		return !matchtag(tag[1:])
 	}
-	return tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
+	return tag == "gc" || tag == goos || tag == goarch || tag == "cmd_go_bootstrap" || tag == "go1.1" || (goos == "android" && tag == "linux")
 }
 
 // shouldbuild reports whether we should build this file.
@@ -798,10 +803,15 @@ func shouldbuild(file, dir string) bool {
 		if p == "" {
 			continue
 		}
-		if strings.Contains(p, "package documentation") {
+		code := p
+		i := strings.Index(code, "//")
+		if i > 0 {
+			code = strings.TrimSpace(code[:i])
+		}
+		if code == "package documentation" {
 			return false
 		}
-		if strings.Contains(p, "package main") && dir != "cmd/go" && dir != "cmd/cgo" {
+		if code == "package main" && dir != "cmd/go" && dir != "cmd/cgo" {
 			return false
 		}
 		if !strings.HasPrefix(p, "//") {
@@ -810,11 +820,11 @@ func shouldbuild(file, dir string) bool {
 		if !strings.Contains(p, "+build") {
 			continue
 		}
-		fields := splitfields(p)
-		if len(fields) < 2 || fields[1] != "+build" {
+		fields := splitfields(p[2:])
+		if len(fields) < 1 || fields[0] != "+build" {
 			continue
 		}
-		for _, p := range fields[2:] {
+		for _, p := range fields[1:] {
 			if matchfield(p) {
 				goto fieldmatch
 			}
@@ -928,6 +938,7 @@ func usage() {
 		"clean          deletes all built files\n" +
 		"env [-p]       print environment (-p: include $PATH)\n" +
 		"install [dir]  install individual directory\n" +
+		"list [-json]   list all supported platforms\n" +
 		"test [-h]      run Go test(s)\n" +
 		"version        print Go version\n" +
 		"\n" +
@@ -1056,9 +1067,13 @@ func cmdbootstrap() {
 	}
 }
 
-// Copied from go/build/build.go.
 // Cannot use go/build directly because cmd/dist for a new release
 // builds against an old release's go/build, which may be out of sync.
+// To reduce duplication, we generate the list for go/build from this.
+//
+// We list all supported platforms in this list, so that this is the
+// single point of truth for supported platforms. This list is used
+// by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
 	"darwin/386":      true,
 	"darwin/amd64":    true,
@@ -1067,19 +1082,31 @@ var cgoEnabled = map[string]bool{
 	"dragonfly/amd64": true,
 	"freebsd/386":     true,
 	"freebsd/amd64":   true,
+	"freebsd/arm":     false,
 	"linux/386":       true,
 	"linux/amd64":     true,
 	"linux/arm":       true,
 	"linux/arm64":     true,
+	"linux/ppc64":     false,
 	"linux/ppc64le":   true,
+	"linux/mips64":    false,
+	"linux/mips64le":  false,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
+	"android/arm64":   true,
+	"nacl/386":        false,
+	"nacl/amd64p32":   false,
+	"nacl/arm":        false,
 	"netbsd/386":      true,
 	"netbsd/amd64":    true,
 	"netbsd/arm":      true,
 	"openbsd/386":     true,
 	"openbsd/amd64":   true,
+	"openbsd/arm":     false,
+	"plan9/386":       false,
+	"plan9/amd64":     false,
+	"plan9/arm":       false,
 	"solaris/amd64":   true,
 	"windows/386":     true,
 	"windows/amd64":   true,
@@ -1123,7 +1150,7 @@ func defaulttarg() string {
 		fatal("current directory %s is not under %s", pwd, real_src)
 	}
 	pwd = pwd[len(real_src):]
-	// guard againt xrealwd return the directory without the trailing /
+	// guard against xrealwd returning the directory without the trailing /
 	pwd = strings.TrimPrefix(pwd, "/")
 
 	return pwd
@@ -1189,4 +1216,44 @@ func cmdbanner() {
 func cmdversion() {
 	xflagparse(0)
 	xprintf("%s\n", findgoversion())
+}
+
+// cmdlist lists all supported platforms.
+func cmdlist() {
+	jsonFlag := flag.Bool("json", false, "produce JSON output")
+	xflagparse(0)
+
+	var plats []string
+	for p := range cgoEnabled {
+		plats = append(plats, p)
+	}
+	sort.Strings(plats)
+
+	if !*jsonFlag {
+		for _, p := range plats {
+			xprintf("%s\n", p)
+		}
+		return
+	}
+
+	type jsonResult struct {
+		GOOS         string
+		GOARCH       string
+		CgoSupported bool
+	}
+	var results []jsonResult
+	for _, p := range plats {
+		fields := strings.Split(p, "/")
+		results = append(results, jsonResult{
+			GOOS:         fields[0],
+			GOARCH:       fields[1],
+			CgoSupported: cgoEnabled[p]})
+	}
+	out, err := json.MarshalIndent(results, "", "\t")
+	if err != nil {
+		fatal("json marshal error: %v", err)
+	}
+	if _, err := os.Stdout.Write(out); err != nil {
+		fatal("write failed: %v", err)
+	}
 }

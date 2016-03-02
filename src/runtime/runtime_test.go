@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -104,7 +104,7 @@ func TestStopCPUProfilingWithProfilerOff(t *testing.T) {
 // of the larger addresses must themselves be invalid addresses.
 // We might get unlucky and the OS might have mapped one of these
 // addresses, but probably not: they're all in the first page, very high
-// adderesses that normally an OS would reserve for itself, or malformed
+// addresses that normally an OS would reserve for itself, or malformed
 // addresses. Even so, we might have to remove one or two on different
 // systems. We will see.
 
@@ -247,8 +247,8 @@ func TestBadOpen(t *testing.T) {
 	if GOOS == "windows" || GOOS == "nacl" {
 		t.Skip("skipping OS that doesn't have open/read/write/close")
 	}
-	// make sure we get the correct error code if open fails.  Same for
-	// read/write/close on the resulting -1 fd.  See issue 10052.
+	// make sure we get the correct error code if open fails. Same for
+	// read/write/close on the resulting -1 fd. See issue 10052.
 	nonfile := []byte("/notreallyafile")
 	fd := Open(&nonfile[0], 0, 0)
 	if fd != -1 {

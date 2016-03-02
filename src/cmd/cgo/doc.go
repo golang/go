@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -31,9 +31,9 @@ See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
 "C? Go? Cgo!" for an introduction to using cgo:
 https://golang.org/doc/articles/c_go_cgo.html.
 
-CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo
-directives within these comments to tweak the behavior of the C or C++
-compiler.  Values defined in multiple directives are concatenated
+CFLAGS, CPPFLAGS, CXXFLAGS, FFLAGS and LDFLAGS may be defined with pseudo
+#cgo directives within these comments to tweak the behavior of the C, C++
+or Fortran compiler.  Values defined in multiple directives are concatenated
 together.  The directive can include a list of build constraints limiting its
 effect to systems satisfying one of the constraints
 (see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
@@ -53,7 +53,7 @@ For example:
 	// #include <png.h>
 	import "C"
 
-When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS and
+When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
 CGO_LDFLAGS environment variables are added to the flags derived from
 these directives.  Package-specific flags should be set using the
 directives, not the environment variables, so that builds work in
@@ -62,10 +62,11 @@ unmodified environments.
 All the cgo CPPFLAGS and CFLAGS directives in a package are concatenated and
 used to compile C files in that package.  All the CPPFLAGS and CXXFLAGS
 directives in a package are concatenated and used to compile C++ files in that
-package.  All the LDFLAGS directives in any package in the program are
-concatenated and used at link time.  All the pkg-config directives are
-concatenated and sent to pkg-config simultaneously to add to each appropriate
-set of command-line flags.
+package.  All the CPPFLAGS and FFLAGS directives in a package are concatenated
+and used to compile Fortran files in that package.  All the LDFLAGS directives
+in any package in the program are concatenated and used at link time.  All the
+pkg-config directives are concatenated and sent to pkg-config simultaneously
+to add to each appropriate set of command-line flags.
 
 When the cgo directives are parsed, any occurrence of the string ${SRCDIR}
 will be replaced by the absolute path to the directory containing the source
@@ -83,7 +84,8 @@ When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
 them as part of the Go package.  Any .c, .s, or .S files will be
 compiled with the C compiler.  Any .cc, .cpp, or .cxx files will be
-compiled with the C++ compiler.  Any .h, .hh, .hpp, or .hxx files will
+compiled with the C++ compiler.  Any .f, .F, .for or .f90 files will be
+compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
 not be compiled separately, but, if these header files are changed,
 the C and C++ files will be recompiled.  The default C and C++
 compilers may be changed by the CC and CXX environment variables,
@@ -133,7 +135,7 @@ C's union types are represented as a Go byte array with the same length.
 
 Go structs cannot embed fields with C types.
 
-Go code can not refer to zero-sized fields that occur at the end of
+Go code cannot refer to zero-sized fields that occur at the end of
 non-empty C structs.  To get the address of such a field (which is the
 only operation you can do with a zero-sized field) you must take the
 address of the struct and add the size of the struct.
@@ -148,8 +150,9 @@ assignment context to retrieve both the return value (if any) and the
 C errno variable as an error (use _ to skip the result value if the
 function returns void).  For example:
 
-	n, err := C.sqrt(-1)
+	n, err = C.sqrt(-1)
 	_, err := C.voidFunc()
+	var n, err = C.sqrt(1)
 
 Calling C function pointers is currently not supported, however you can
 declare Go variables which hold C function pointers and pass them

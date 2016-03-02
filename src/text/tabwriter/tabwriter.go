@@ -33,18 +33,32 @@ type cell struct {
 // A Writer is a filter that inserts padding around tab-delimited
 // columns in its input to align them in the output.
 //
-// The Writer treats incoming bytes as UTF-8 encoded text consisting
-// of cells terminated by (horizontal or vertical) tabs or line
-// breaks (newline or formfeed characters). Cells in adjacent lines
-// constitute a column. The Writer inserts padding as needed to
-// make all cells in a column have the same width, effectively
-// aligning the columns. It assumes that all characters have the
-// same width except for tabs for which a tabwidth must be specified.
-// Note that cells are tab-terminated, not tab-separated: trailing
-// non-tab text at the end of a line does not form a column cell.
+// The Writer treats incoming bytes as UTF-8-encoded text consisting
+// of cells terminated by horizontal ('\t') or vertical ('\v') tabs,
+// and newline ('\n') or formfeed ('\f') characters; both newline and
+// formfeed act as line breaks.
+//
+// Tab-terminated cells in contiguous lines constitute a column. The
+// Writer inserts padding as needed to make all cells in a column have
+// the same width, effectively aligning the columns. It assumes that
+// all characters have the same width, except for tabs for which a
+// tabwidth must be specified. Column cells must be tab-terminated, not
+// tab-separated: non-tab terminated trailing text at the end of a line
+// forms a cell but that cell is not part of an aligned column.
+// For instance, in this example (where | stands for a horizontal tab):
+//
+//	aaaa|bbb|d
+//	aa  |b  |dd
+//	a   |
+//	aa  |cccc|eee
+//
+// the b and c are in distinct columns (the b column is not contiguous
+// all the way). The d and e are not in a column at all (there's no
+// terminating tab, nor would the column be contiguous).
 //
 // The Writer assumes that all Unicode code points have the same width;
-// this may not be true in some fonts.
+// this may not be true in some fonts or if the string contains combining
+// characters.
 //
 // If DiscardEmptyColumns is set, empty columns that are terminated
 // entirely by vertical (or "soft") tabs are discarded. Columns
@@ -64,9 +78,9 @@ type cell struct {
 // width of the escaped text is always computed excluding the Escape
 // characters.
 //
-// The formfeed character ('\f') acts like a newline but it also
-// terminates all columns in the current line (effectively calling
-// Flush). Cells in the next line start new columns. Unless found
+// The formfeed character acts like a newline but it also terminates
+// all columns in the current line (effectively calling Flush). Tab-
+// terminated cells in the next line start new columns. Unless found
 // inside an HTML tag or inside an escaped text segment, formfeed
 // characters appear as newlines in the output.
 //
@@ -448,8 +462,11 @@ func handlePanic(err *error, op string) {
 // that any data buffered in the Writer is written to output. Any
 // incomplete escape sequence at the end is considered
 // complete for formatting purposes.
-//
-func (b *Writer) Flush() (err error) {
+func (b *Writer) Flush() error {
+	return b.flush()
+}
+
+func (b *Writer) flush() (err error) {
 	defer b.reset() // even in the presence of errors
 	defer handlePanic(&err, "Flush")
 
@@ -464,8 +481,7 @@ func (b *Writer) Flush() (err error) {
 
 	// format contents of buffer
 	b.format(0, 0, len(b.lines))
-
-	return
+	return nil
 }
 
 var hbar = []byte("---\n")

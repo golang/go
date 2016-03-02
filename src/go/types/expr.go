@@ -184,7 +184,8 @@ func roundFloat64(x constant.Value) constant.Value {
 // provided (only needed for int/uint sizes).
 //
 // If rounded != nil, *rounded is set to the rounded value of x for
-// representable floating-point values; it is left alone otherwise.
+// representable floating-point and complex values, and to an Int
+// value for integer values; it is left alone otherwise.
 // It is ok to provide the addressof the first argument for rounded.
 func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *constant.Value) bool {
 	if x.Kind() == constant.Unknown {
@@ -196,6 +197,9 @@ func representableConst(x constant.Value, conf *Config, typ *Basic, rounded *con
 		x := constant.ToInt(x)
 		if x.Kind() != constant.Int {
 			return false
+		}
+		if rounded != nil {
+			*rounded = x
 		}
 		if x, ok := constant.Int64Val(x); ok {
 			switch typ.kind {
@@ -656,10 +660,10 @@ func (check *Checker) shift(x, y *operand, e *ast.BinaryExpr, op token.Token) {
 				return
 			}
 			// rhs must be within reasonable bounds
-			const stupidShift = 1023 - 1 + 52 // so we can express smallestFloat64
+			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64
 			s, ok := constant.Uint64Val(yval)
-			if !ok || s > stupidShift {
-				check.invalidOp(y.pos(), "stupid shift count %s", y)
+			if !ok || s > shiftBound {
+				check.invalidOp(y.pos(), "invalid shift count %s", y)
 				x.mode = invalid
 				return
 			}
@@ -808,8 +812,6 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 		typ := x.typ.Underlying().(*Basic)
 		// force integer division of integer operands
 		if op == token.QUO && isInteger(typ) {
-			xval = constant.ToInt(xval)
-			yval = constant.ToInt(yval)
 			op = token.QUO_ASSIGN
 		}
 		x.val = constant.BinaryOp(xval, op, yval)

@@ -63,7 +63,7 @@ type B struct {
 	netBytes  uint64
 }
 
-// StartTimer starts timing a test.  This function is called automatically
+// StartTimer starts timing a test. This function is called automatically
 // before a benchmark starts, but it can also used to resume timing after
 // a call to StopTimer.
 func (b *B) StartTimer() {
@@ -76,7 +76,7 @@ func (b *B) StartTimer() {
 	}
 }
 
-// StopTimer stops timing a test.  This can be used to pause the timer
+// StopTimer stops timing a test. This can be used to pause the timer
 // while performing complex initialization that you don't
 // want to measure.
 func (b *B) StopTimer() {
@@ -192,7 +192,7 @@ func (b *B) run() BenchmarkResult {
 	return b.result
 }
 
-// launch launches the benchmark function.  It gradually increases the number
+// launch launches the benchmark function. It gradually increases the number
 // of benchmark iterations until the benchmark runs for the requested benchtime.
 // It prints timing information in this form
 //		testing.BenchmarkHello	100000		19 ns/op
@@ -302,9 +302,13 @@ func benchmarkName(name string, n int) string {
 // An internal function but exported because it is cross-package; part of the implementation
 // of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+	runBenchmarksInternal(matchString, benchmarks)
+}
+
+func runBenchmarksInternal(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) bool {
 	// If no flag was specified, don't run benchmarks.
 	if len(*matchBenchmarks) == 0 {
-		return
+		return true
 	}
 	// Collect matching benchmarks and determine longest name.
 	maxprocs := 1
@@ -329,6 +333,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			}
 		}
 	}
+	ok := true
 	for _, Benchmark := range bs {
 		for _, procs := range cpuList {
 			runtime.GOMAXPROCS(procs)
@@ -342,6 +347,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			fmt.Printf("%-*s\t", maxlen, benchName)
 			r := b.run()
 			if b.failed {
+				ok = false
 				// The output could be very long here, but probably isn't.
 				// We print it all, regardless, because we don't want to trim the reason
 				// the benchmark failed.
@@ -364,6 +370,7 @@ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks [
 			}
 		}
 	}
+	return ok
 }
 
 // trimOutput shortens the output from a benchmark, which can be very long.

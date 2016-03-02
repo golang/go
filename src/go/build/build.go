@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -55,8 +55,8 @@ type Context struct {
 	InstallSuffix string
 
 	// By default, Import uses the operating system's file system calls
-	// to read directories and files.  To read from other sources,
-	// callers can set the following functions.  They all have default
+	// to read directories and files. To read from other sources,
+	// callers can set the following functions. They all have default
 	// behaviors that use the local file system, so clients need only set
 	// the functions whose behaviors they wish to change.
 
@@ -87,11 +87,11 @@ type Context struct {
 	// ReadDir returns a slice of os.FileInfo, sorted by Name,
 	// describing the content of the named directory.
 	// If ReadDir is nil, Import uses ioutil.ReadDir.
-	ReadDir func(dir string) (fi []os.FileInfo, err error)
+	ReadDir func(dir string) ([]os.FileInfo, error)
 
 	// OpenFile opens a file (not a directory) for reading.
 	// If OpenFile is nil, Import uses os.Open.
-	OpenFile func(path string) (r io.ReadCloser, err error)
+	OpenFile func(path string) (io.ReadCloser, error)
 }
 
 // joinPath calls ctxt.JoinPath (if not nil) or else filepath.Join.
@@ -256,34 +256,6 @@ func (ctxt *Context) SrcDirs() []string {
 // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
 var Default Context = defaultContext()
 
-// Also known to cmd/dist/build.go.
-var cgoEnabled = map[string]bool{
-	"darwin/386":      true,
-	"darwin/amd64":    true,
-	"darwin/arm":      true,
-	"darwin/arm64":    true,
-	"dragonfly/amd64": true,
-	"freebsd/386":     true,
-	"freebsd/amd64":   true,
-	"freebsd/arm":     true,
-	"linux/386":       true,
-	"linux/amd64":     true,
-	"linux/arm":       true,
-	"linux/arm64":     true,
-	"linux/ppc64le":   true,
-	"android/386":     true,
-	"android/amd64":   true,
-	"android/arm":     true,
-	"netbsd/386":      true,
-	"netbsd/amd64":    true,
-	"netbsd/arm":      true,
-	"openbsd/386":     true,
-	"openbsd/amd64":   true,
-	"solaris/amd64":   true,
-	"windows/386":     true,
-	"windows/amd64":   true,
-}
-
 func defaultContext() Context {
 	var c Context
 
@@ -330,7 +302,7 @@ type ImportMode uint
 
 const (
 	// If FindOnly is set, Import stops after locating the directory
-	// that should contain the sources for a package.  It does not
+	// that should contain the sources for a package. It does not
 	// read any files in the directory.
 	FindOnly ImportMode = 1 << iota
 
@@ -386,6 +358,7 @@ type Package struct {
 	CXXFiles       []string // .cc, .cpp and .cxx source files
 	MFiles         []string // .m (Objective-C) source files
 	HFiles         []string // .h, .hh, .hpp and .hxx source files
+	FFiles         []string // .f, .F, .for and .f90 Fortran source files
 	SFiles         []string // .s source files
 	SwigFiles      []string // .swig files
 	SwigCXXFiles   []string // .swigcxx files
@@ -395,6 +368,7 @@ type Package struct {
 	CgoCFLAGS    []string // Cgo CFLAGS directives
 	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
 	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
+	CgoFFLAGS    []string // Cgo FFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 	CgoPkgConfig []string // Cgo pkg-config directives
 
@@ -717,7 +691,7 @@ Found:
 			continue
 		}
 
-		// Going to save the file.  For non-Go files, can stop here.
+		// Going to save the file. For non-Go files, can stop here.
 		switch ext {
 		case ".c":
 			p.CFiles = append(p.CFiles, name)
@@ -730,6 +704,9 @@ Found:
 			continue
 		case ".h", ".hh", ".hpp", ".hxx":
 			p.HFiles = append(p.HFiles, name)
+			continue
+		case ".f", ".F", ".for", ".f90":
+			p.FFiles = append(p.FFiles, name)
 			continue
 		case ".s":
 			p.SFiles = append(p.SFiles, name)
@@ -1045,7 +1022,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
 	}
 
 	switch ext {
-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".S", ".swig", ".swigcxx":
+	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".swig", ".swigcxx":
 		// tentatively okay - read to make sure
 	case ".syso":
 		// binary, no reading
@@ -1110,7 +1087,7 @@ var slashslash = []byte("//")
 // lines beginning with '// +build' are taken as build directives.
 //
 // The file is accepted only if each such line lists something
-// matching the file.  For example:
+// matching the file. For example:
 //
 //	// +build windows linux
 //
@@ -1236,6 +1213,8 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 			di.CgoCPPFLAGS = append(di.CgoCPPFLAGS, args...)
 		case "CXXFLAGS":
 			di.CgoCXXFLAGS = append(di.CgoCXXFLAGS, args...)
+		case "FFLAGS":
+			di.CgoFFLAGS = append(di.CgoFFLAGS, args...)
 		case "LDFLAGS":
 			di.CgoLDFLAGS = append(di.CgoLDFLAGS, args...)
 		case "pkg-config":
@@ -1251,7 +1230,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 // the result is safe for the shell.
 func expandSrcDir(str string, srcdir string) (string, bool) {
 	// "\" delimited paths cause safeCgoName to fail
-	// so convert native paths with a different delimeter
+	// so convert native paths with a different delimiter
 	// to "/" before starting (eg: on windows).
 	srcdir = filepath.ToSlash(srcdir)
 
@@ -1300,7 +1279,7 @@ func safeCgoName(s string, spaces bool) bool {
 // Single quotes and double quotes are recognized to prevent splitting within the
 // quoted region, and are removed from the resulting substrings. If a quote in s
 // isn't closed err will be set and r will have the unclosed argument as the
-// last element.  The backslash is used for escaping.
+// last element. The backslash is used for escaping.
 //
 // For example, the following string:
 //

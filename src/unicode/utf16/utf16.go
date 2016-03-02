@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -36,7 +36,7 @@ func IsSurrogate(r rune) bool {
 // the Unicode replacement code point U+FFFD.
 func DecodeRune(r1, r2 rune) rune {
 	if surr1 <= r1 && r1 < surr2 && surr2 <= r2 && r2 < surr3 {
-		return (r1-surr1)<<10 | (r2 - surr2) + 0x10000
+		return (r1-surr1)<<10 | (r2 - surr2) + surrSelf
 	}
 	return replacementChar
 }
@@ -45,7 +45,7 @@ func DecodeRune(r1, r2 rune) rune {
 // If the rune is not a valid Unicode code point or does not need encoding,
 // EncodeRune returns U+FFFD, U+FFFD.
 func EncodeRune(r rune) (r1, r2 rune) {
-	if r < surrSelf || r > maxRune || IsSurrogate(r) {
+	if r < surrSelf || r > maxRune {
 		return replacementChar, replacementChar
 	}
 	r -= surrSelf
@@ -65,20 +65,22 @@ func Encode(s []rune) []uint16 {
 	n = 0
 	for _, v := range s {
 		switch {
-		case v < 0, surr1 <= v && v < surr3, v > maxRune:
-			v = replacementChar
-			fallthrough
-		case v < surrSelf:
+		case 0 <= v && v < surr1, surr3 <= v && v < surrSelf:
+			// normal rune
 			a[n] = uint16(v)
 			n++
-		default:
+		case surrSelf <= v && v <= maxRune:
+			// needs surrogate sequence
 			r1, r2 := EncodeRune(v)
 			a[n] = uint16(r1)
 			a[n+1] = uint16(r2)
 			n += 2
+		default:
+			a[n] = uint16(replacementChar)
+			n++
 		}
 	}
-	return a[0:n]
+	return a[:n]
 }
 
 // Decode returns the Unicode code point sequence represented
@@ -88,21 +90,19 @@ func Decode(s []uint16) []rune {
 	n := 0
 	for i := 0; i < len(s); i++ {
 		switch r := s[i]; {
+		case r < surr1, surr3 <= r:
+			// normal rune
+			a[n] = rune(r)
 		case surr1 <= r && r < surr2 && i+1 < len(s) &&
 			surr2 <= s[i+1] && s[i+1] < surr3:
 			// valid surrogate sequence
 			a[n] = DecodeRune(rune(r), rune(s[i+1]))
 			i++
-			n++
-		case surr1 <= r && r < surr3:
+		default:
 			// invalid surrogate sequence
 			a[n] = replacementChar
-			n++
-		default:
-			// normal rune
-			a[n] = rune(r)
-			n++
 		}
+		n++
 	}
-	return a[0:n]
+	return a[:n]
 }

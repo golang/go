@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -87,7 +87,7 @@ func Dial(network, addr string) (*Conn, error) {
 }
 
 // Cmd is a convenience method that sends a command after
-// waiting its turn in the pipeline.  The command text is the
+// waiting its turn in the pipeline. The command text is the
 // result of formatting format with args and appending \r\n.
 // Cmd returns the id of the command, for use with StartResponse and EndResponse.
 //

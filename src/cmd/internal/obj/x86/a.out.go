@@ -34,6 +34,12 @@ import "cmd/internal/obj"
 
 //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p x86
 
+const (
+	/* mark flags */
+	DONE          = 1 << iota
+	PRESERVEFLAGS // not allowed to clobber flags
+)
+
 /*
  *	amd64
  */
@@ -114,23 +120,23 @@ const (
 	AINTO
 	AIRETL
 	AIRETW
-	AJCC
-	AJCS
+	AJCC // >= unsigned
+	AJCS // < unsigned
 	AJCXZL
-	AJEQ
-	AJGE
-	AJGT
-	AJHI
-	AJLE
-	AJLS
-	AJLT
-	AJMI
-	AJNE
-	AJOC
-	AJOS
-	AJPC
-	AJPL
-	AJPS
+	AJEQ // == (zero)
+	AJGE // >= signed
+	AJGT // > signed
+	AJHI // > unsigned
+	AJLE // <= signed
+	AJLS // <= unsigned
+	AJLT // < signed
+	AJMI // sign bit set (negative)
+	AJNE // != (nonzero)
+	AJOC // overflow clear
+	AJOS // overflow set
+	AJPC // parity clear
+	AJPL // sign bit clear (positive)
+	AJPS // parity set
 	ALAHF
 	ALARL
 	ALARW
@@ -289,8 +295,6 @@ const (
 	AFMOVX
 	AFMOVXP
 
-	AFCOMB
-	AFCOMBP
 	AFCOMD
 	AFCOMDP
 	AFCOMDPP
@@ -620,14 +624,7 @@ const (
 	APADDUSW
 	APADDW
 	APAND
-	APANDB
-	APANDL
 	APANDN
-	APANDSB
-	APANDSW
-	APANDUSB
-	APANDUSW
-	APANDW
 	APAVGB
 	APAVGW
 	APCMPEQB
@@ -644,23 +641,6 @@ const (
 	APEXTRD
 	APEXTRQ
 	APEXTRW
-	APFACC
-	APFADD
-	APFCMPEQ
-	APFCMPGE
-	APFCMPGT
-	APFMAX
-	APFMIN
-	APFMUL
-	APFNACC
-	APFPNACC
-	APFRCP
-	APFRCPI2T
-	APFRCPIT1
-	APFRSQIT1
-	APFRSQRT
-	APFSUB
-	APFSUBR
 	APHADDD
 	APHADDSW
 	APHADDW
@@ -691,7 +671,6 @@ const (
 	APMOVZXWD
 	APMOVZXWQ
 	APMULDQ
-	APMULHRW
 	APMULHUW
 	APMULHW
 	APMULLD
@@ -722,7 +701,6 @@ const (
 	APSUBUSB
 	APSUBUSW
 	APSUBW
-	APSWAPL
 	APUNPCKHBW
 	APUNPCKHLQ
 	APUNPCKHQDQ
@@ -761,11 +739,6 @@ const (
 	AUNPCKLPS
 	AXORPD
 	AXORPS
-
-	APF2IW
-	APF2IL
-	API2FW
-	API2FL
 	ARETFW
 	ARETFL
 	ARETFQ

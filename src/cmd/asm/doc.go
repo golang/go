@@ -20,7 +20,7 @@ The GOOS and GOARCH environment variables set the desired target.
 Flags:
 
 	-D value
-		predefined symbol with optional simple value -D=identifer=value;
+		predefined symbol with optional simple value -D=identifier=value;
 		can be set multiple times
 	-I value
 		include directory; can be set multiple times

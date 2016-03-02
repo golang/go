@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -22,7 +22,7 @@ func _runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr)
 //go:cgo_export_static crosscall2
 //go:cgo_export_dynamic crosscall2
 
-// Panic.  The argument is converted into a Go string.
+// Panic. The argument is converted into a Go string.
 
 // Call like this in code compiled with gcc:
 //   struct { const char *p; } a;
@@ -69,7 +69,7 @@ var _cgo_thread_start = &x_cgo_thread_start
 // Creates a new system thread without updating any Go state.
 //
 // This method is invoked during shared library loading to create a new OS
-// thread to perform the runtime initialization.  This method is similar to
+// thread to perform the runtime initialization. This method is similar to
 // _cgo_sys_thread_start except that it doesn't update any Go state.
 
 //go:cgo_import_static x_cgo_sys_thread_create
@@ -78,11 +78,11 @@ var _cgo_thread_start = &x_cgo_thread_start
 var x_cgo_sys_thread_create byte
 var _cgo_sys_thread_create = &x_cgo_sys_thread_create
 
-// Notifies that the runtime has been intialized.
+// Notifies that the runtime has been initialized.
 //
 // We currently block at every CGO entry point (via _cgo_wait_runtime_init_done)
 // to ensure that the runtime has been initialized before the CGO call is
-// executed.  This is necessary for shared libraries where we kickoff runtime
+// executed. This is necessary for shared libraries where we kickoff runtime
 // initialization in a separate thread and return without waiting for this
 // thread to complete the init.
 

@@ -168,6 +168,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$-8-28
 	MOVV	dst+16(FP), R6
 	MOVV	$SYS_mincore, R2
 	SYSCALL
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 

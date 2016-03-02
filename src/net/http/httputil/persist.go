@@ -239,7 +239,7 @@ type ClientConn struct {
 	writeReq func(*http.Request, io.Writer) error
 }
 
-// NewClientConn returns a new ClientConn reading and writing c.  If r is not
+// NewClientConn returns a new ClientConn reading and writing c. If r is not
 // nil, it is the buffer to use when reading c.
 //
 // ClientConn is low-level and old. Applications should use Client or

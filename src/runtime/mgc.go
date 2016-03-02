@@ -216,9 +216,10 @@ var gcphase uint32
 // The compiler knows about this variable.
 // If you change it, you must change the compiler too.
 var writeBarrier struct {
-	enabled bool // compiler emits a check of this before calling write barrier
-	needed  bool // whether we need a write barrier for current GC phase
-	cgo     bool // whether we need a write barrier for a cgo check
+	enabled bool   // compiler emits a check of this before calling write barrier
+	needed  bool   // whether we need a write barrier for current GC phase
+	cgo     bool   // whether we need a write barrier for a cgo check
+	alignme uint64 // guarantee alignment so that compiler can use a 32 or 64-bit load
 }
 
 // gcBlackenEnabled is 1 if mutator assists and background mark
@@ -1164,8 +1165,8 @@ func gcMarkTermination() {
 	casgstatus(gp, _Grunning, _Gwaiting)
 	gp.waitreason = "garbage collection"
 
-	// Run gc on the g0 stack.  We do this so that the g stack
-	// we're currently running on will no longer change.  Cuts
+	// Run gc on the g0 stack. We do this so that the g stack
+	// we're currently running on will no longer change. Cuts
 	// the root set down a bit (g0 stacks are not scanned, and
 	// we don't need to scan gc's internal state).  We also
 	// need to switch to g0 so we can shrink the stack.
@@ -1555,8 +1556,8 @@ func gcMark(start_time int64) {
 
 	gchelperstart()
 
-	var gcw gcWork
-	gcDrain(&gcw, gcDrainBlock)
+	gcw := &getg().m.p.ptr().gcw
+	gcDrain(gcw, gcDrainBlock)
 	gcw.dispose()
 
 	gcMarkRootCheck()
@@ -1798,8 +1799,8 @@ func gchelper() {
 
 	// Parallel mark over GC roots and heap
 	if gcphase == _GCmarktermination {
-		var gcw gcWork
-		gcDrain(&gcw, gcDrainBlock) // blocks in getfull
+		gcw := &_g_.m.p.ptr().gcw
+		gcDrain(gcw, gcDrainBlock) // blocks in getfull
 		gcw.dispose()
 	}
 

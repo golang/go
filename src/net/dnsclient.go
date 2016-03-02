@@ -45,7 +45,7 @@ func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
-		// for the query we sent.  If we didn't get
+		// for the query we sent. If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly or
 		// having temporary trouble.
@@ -161,7 +161,7 @@ func isDomainName(s string) bool {
 	return ok
 }
 
-// absDomainName returns an absoulte domain name which ends with a
+// absDomainName returns an absolute domain name which ends with a
 // trailing dot to match pure Go reverse resolver and all other lookup
 // routines.
 // See golang.org/issue/12189.

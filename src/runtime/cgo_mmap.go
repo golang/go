@@ -1,8 +1,8 @@
-// Copyright 2015 The Go Authors.  All rights reserved.
+// Copyright 2015 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Support for memory sanitizer.  See runtime/cgo/mmap.go.
+// Support for memory sanitizer. See runtime/cgo/mmap.go.
 
 // +build linux,amd64
 
@@ -32,10 +32,10 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uns
 	return sysMmap(addr, n, prot, flags, fd, off)
 }
 
-// sysMmap calls the mmap system call.  It is implemented in assembly.
+// sysMmap calls the mmap system call. It is implemented in assembly.
 func sysMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) unsafe.Pointer
 
 // cgoMmap calls the mmap function in the runtime/cgo package on the
 // callCgoMmap calls the mmap function in the runtime/cgo package
-// using the GCC calling convention.  It is implemented in assembly.
+// using the GCC calling convention. It is implemented in assembly.
 func callCgoMmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr

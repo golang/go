@@ -41,10 +41,10 @@ type ProcAttr struct {
 	// new process in the form returned by Environ.
 	// If it is nil, the result of Environ will be used.
 	Env []string
-	// Files specifies the open files inherited by the new process.  The
+	// Files specifies the open files inherited by the new process. The
 	// first three entries correspond to standard input, standard output, and
-	// standard error.  An implementation may support additional entries,
-	// depending on the underlying operating system.  A nil entry corresponds
+	// standard error. An implementation may support additional entries,
+	// depending on the underlying operating system. A nil entry corresponds
 	// to that file being closed when the process starts.
 	Files []*File
 

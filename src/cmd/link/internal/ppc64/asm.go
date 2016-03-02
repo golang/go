@@ -48,7 +48,7 @@ func genplt() {
 	var i int
 
 	// The ppc64 ABI PLT has similar concepts to other
-	// architectures, but is laid out quite differently.  When we
+	// architectures, but is laid out quite differently. When we
 	// see an R_PPC64_REL24 relocation to a dynamic symbol
 	// (indicating that the call needs to go through the PLT), we
 	// generate up to three stubs and reserve a PLT slot.
@@ -78,7 +78,7 @@ func genplt() {
 	// 5) We generate the glink resolver stub (only once).  This
 	//    computes which symbol resolver stub we came through and
 	//    invokes the dynamic resolver via a pointer provided by
-	//    the dynamic linker.  This will patch up the .plt slot to
+	//    the dynamic linker. This will patch up the .plt slot to
 	//    point directly at the function so future calls go
 	//    straight from the call stub to the real function, and
 	//    then call the function.
@@ -89,8 +89,8 @@ func genplt() {
 	// platforms.
 
 	// Find all R_PPC64_REL24 relocations that reference dynamic
-	// imports.  Reserve PLT entries for these symbols and
-	// generate call stubs.  The call stubs need to live in .text,
+	// imports. Reserve PLT entries for these symbols and
+	// generate call stubs. The call stubs need to live in .text,
 	// which is why we need to do this pass this early.
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
@@ -131,7 +131,7 @@ func genplt() {
 			// Update the relocation to use the call stub
 			r.Sym = stub
 
-			// Restore TOC after bl.  The compiler put a
+			// Restore TOC after bl. The compiler put a
 			// nop here for us to overwrite.
 			o1 = 0xe8410018 // ld r2,24(r1)
 			ld.Ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
@@ -284,7 +284,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 
 		// This is a local call, so the caller isn't setting
 		// up r12 and r2 is the same for the caller and
-		// callee.  Hence, we need to go to the local entry
+		// callee. Hence, we need to go to the local entry
 		// point.  (If we don't do this, the callee will try
 		// to use r12 to compute r2.)
 		r.Add += int64(r.Sym.Localentry) * 4
@@ -465,7 +465,7 @@ func elfsetupplt() {
 		// The dynamic linker stores the address of the
 		// dynamic resolver and the DSO identifier in the two
 		// doublewords at the beginning of the .plt section
-		// before the PLT array.  Reserve space for these.
+		// before the PLT array. Reserve space for these.
 		plt.Size = 16
 	}
 }

@@ -44,7 +44,7 @@ func driverArgs(ds *driverStmt, args []interface{}) ([]driver.Value, error) {
 	// Let the Stmt convert its own arguments.
 	for n, arg := range args {
 		// First, see if the value itself knows how to convert
-		// itself to a driver type.  For example, a NullString
+		// itself to a driver type. For example, a NullString
 		// struct changing into a string or nil.
 		if svi, ok := arg.(driver.Valuer); ok {
 			sv, err := svi.Value()

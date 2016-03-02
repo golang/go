@@ -30,7 +30,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		if canfail {
 			return nil
 		}
-		panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *inter.mhdr[0].name})
+		panic(&TypeAssertionError{"", typ._string, inter.typ._string, *inter.mhdr[0].name})
 	}
 
 	// compiler has provided some good hash codes for us.
@@ -101,7 +101,7 @@ search:
 			if locked != 0 {
 				unlock(&ifaceLock)
 			}
-			panic(&TypeAssertionError{"", *typ._string, *inter.typ._string, *iname})
+			panic(&TypeAssertionError{"", typ._string, inter.typ._string, *iname})
 		}
 		m.bad = 1
 		break
@@ -140,7 +140,7 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 			x = newobject(t)
 		}
 		// TODO: We allocate a zeroed object only to overwrite it with
-		// actual data.  Figure out how to avoid zeroing.  Also below in convT2I.
+		// actual data. Figure out how to avoid zeroing. Also below in convT2I.
 		typedmemmove(t, x, elem)
 		e._type = t
 		e.data = x
@@ -177,18 +177,18 @@ func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, 
 func panicdottype(have, want, iface *_type) {
 	haveString := ""
 	if have != nil {
-		haveString = *have._string
+		haveString = have._string
 	}
-	panic(&TypeAssertionError{*iface._string, haveString, *want._string, ""})
+	panic(&TypeAssertionError{iface._string, haveString, want._string, ""})
 }
 
 func assertI2T(t *_type, i iface, r unsafe.Pointer) {
 	tab := i.tab
 	if tab == nil {
-		panic(&TypeAssertionError{"", "", *t._string, ""})
+		panic(&TypeAssertionError{"", "", t._string, ""})
 	}
 	if tab._type != t {
-		panic(&TypeAssertionError{*tab.inter.typ._string, *tab._type._string, *t._string, ""})
+		panic(&TypeAssertionError{tab.inter.typ._string, tab._type._string, t._string, ""})
 	}
 	if r != nil {
 		if isDirectIface(t) {
@@ -219,10 +219,10 @@ func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
 
 func assertE2T(t *_type, e eface, r unsafe.Pointer) {
 	if e._type == nil {
-		panic(&TypeAssertionError{"", "", *t._string, ""})
+		panic(&TypeAssertionError{"", "", t._string, ""})
 	}
 	if e._type != t {
-		panic(&TypeAssertionError{"", *e._type._string, *t._string, ""})
+		panic(&TypeAssertionError{"", e._type._string, t._string, ""})
 	}
 	if r != nil {
 		if isDirectIface(t) {
@@ -266,7 +266,7 @@ func assertI2E(inter *interfacetype, i iface, r *eface) {
 	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
 	}
 	r._type = tab._type
 	r.data = i.data
@@ -303,7 +303,7 @@ func assertI2I(inter *interfacetype, i iface, r *iface) {
 	tab := i.tab
 	if tab == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
 	}
 	if tab.inter == inter {
 		r.tab = tab
@@ -342,7 +342,7 @@ func assertE2I(inter *interfacetype, e eface, r *iface) {
 	t := e._type
 	if t == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
 	}
 	r.tab = getitab(inter, t, false)
 	r.data = e.data
@@ -383,7 +383,7 @@ func reflect_ifaceE2I(inter *interfacetype, e eface, dst *iface) {
 func assertE2E(inter *interfacetype, e eface, r *eface) {
 	if e._type == nil {
 		// explicit conversions require non-nil interface value.
-		panic(&TypeAssertionError{"", "", *inter.typ._string, ""})
+		panic(&TypeAssertionError{"", "", inter.typ._string, ""})
 	}
 	*r = e
 }
@@ -396,22 +396,6 @@ func assertE2E2(inter *interfacetype, e eface, r *eface) bool {
 	}
 	*r = e
 	return true
-}
-
-func ifacethash(i iface) uint32 {
-	tab := i.tab
-	if tab == nil {
-		return 0
-	}
-	return tab._type.hash
-}
-
-func efacethash(e eface) uint32 {
-	t := e._type
-	if t == nil {
-		return 0
-	}
-	return t.hash
 }
 
 func iterate_itabs(fn func(*itab)) {

@@ -236,7 +236,7 @@ func (f *File) Chdir() error {
 	return nil
 }
 
-// Open opens the named file for reading.  If successful, methods on
+// Open opens the named file for reading. If successful, methods on
 // the returned file can be used for reading; the associated file
 // descriptor has mode O_RDONLY.
 // If there is an error, it will be of type *PathError.

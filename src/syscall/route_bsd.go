@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -138,7 +138,7 @@ func parseNetworkLayerAddr(b []byte, family byte) (Sockaddr, error) {
 	//
 	// - The kernel form appends leading bytes to the prefix field
 	//   to make the <length, prefix> tuple to be conformed with
-	//   the routing messeage boundary
+	//   the routing message boundary
 	l := int(rsaAlignOf(int(b[0])))
 	if len(b) < l {
 		return nil, EINVAL

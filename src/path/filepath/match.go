@@ -49,7 +49,7 @@ Pattern:
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
 			// Trailing * matches rest of string unless it has a /.
-			return strings.Index(name, string(Separator)) < 0, nil
+			return !strings.Contains(name, string(Separator)), nil
 		}
 		// Look for match at current position.
 		t, ok, err := matchChunk(chunk, name)
@@ -305,5 +305,5 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 // recognized by Match.
 func hasMeta(path string) bool {
 	// TODO(niemeyer): Should other magic characters be added here?
-	return strings.IndexAny(path, "*?[") >= 0
+	return strings.ContainsAny(path, "*?[")
 }

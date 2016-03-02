@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -48,7 +48,7 @@ func TypeLinks() []string {
 	var r []string
 	for _, m := range typelinks() {
 		for _, t := range m {
-			r = append(r, *t.string)
+			r = append(r, t.string)
 		}
 	}
 	return r

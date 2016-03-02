@@ -82,7 +82,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 
 	// Only push runtime·sigpanic if r.ip() != 0.
 	// If r.ip() == 0, probably panicked because of a
-	// call to a nil func.  Not pushing that onto sp will
+	// call to a nil func. Not pushing that onto sp will
 	// make the trace look like a call to runtime·sigpanic instead.
 	// (Otherwise the trace will end at runtime·sigpanic and we
 	// won't get to see who faulted.)

@@ -142,7 +142,7 @@ func prepareArg(value reflect.Value, argType reflect.Type) (reflect.Value, error
 // Indexing.
 
 // index returns the result of indexing its first argument by the following
-// arguments.  Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
+// arguments. Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
 // indexed item must be a map, slice, or array.
 func index(item interface{}, indices ...interface{}) (interface{}, error) {
 	v := reflect.ValueOf(item)
@@ -515,7 +515,7 @@ func HTMLEscape(w io.Writer, b []byte) {
 // HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
 func HTMLEscapeString(s string) string {
 	// Avoid allocation if we can.
-	if strings.IndexAny(s, `'"&<>`) < 0 {
+	if !strings.ContainsAny(s, `'"&<>`) {
 		return s
 	}
 	var b bytes.Buffer

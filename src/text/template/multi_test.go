@@ -4,7 +4,7 @@
 
 package template
 
-// Tests for mulitple-template parsing and execution.
+// Tests for multiple-template parsing and execution.
 
 import (
 	"bytes"

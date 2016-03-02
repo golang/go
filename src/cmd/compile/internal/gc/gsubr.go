@@ -173,6 +173,18 @@ func dumpdata() {
 	Clearp(Pc)
 }
 
+func flushdata() {
+	if dfirst == nil {
+		return
+	}
+	newplist()
+	*Pc = *dfirst
+	Pc = dpc
+	Clearp(Pc)
+	dfirst = nil
+	dpc = nil
+}
+
 // Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
 func fixautoused(p *obj.Prog) {
 	for lp := &p; ; {
@@ -518,6 +530,16 @@ func newplist() *obj.Plist {
 	return pl
 }
 
+// nodarg does something that depends on the value of
+// fp (this was previously completely undocumented).
+//
+// fp=1 corresponds to input args
+// fp=0 corresponds to output args
+// fp=-1 is a special case of output args for a
+// specific call from walk that previously (and
+// incorrectly) passed a 1; the behavior is exactly
+// the same as it is for 1, except that PARAMOUT is
+// generated instead of PARAM.
 func nodarg(t *Type, fp int) *Node {
 	var n *Node
 
@@ -543,10 +565,8 @@ func nodarg(t *Type, fp int) *Node {
 		Fatalf("nodarg: not field %v", t)
 	}
 
-	if fp == 1 {
-		var n *Node
-		for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-			n = l.N
+	if fp == 1 || fp == -1 {
+		for _, n := range Curfn.Func.Dcl {
 			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
 				return n
 			}
@@ -581,6 +601,9 @@ fp:
 
 	case 1: // input arg
 		n.Class = PPARAM
+
+	case -1: // output arg from paramstoheap
+		n.Class = PPARAMOUT
 
 	case 2: // offset output arg
 		Fatalf("shouldn't be used")

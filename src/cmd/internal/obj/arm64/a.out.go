@@ -1,14 +1,14 @@
 // cmd/7c/7.out.h  from Vita Nuova.
 // https://code.google.com/p/ken-cc/source/browse/src/cmd/7c/7.out.h
 //
-// 	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+// 	Copyright © 1994-1999 Lucent Technologies Inc. All rights reserved.
 // 	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
 // 	Portions Copyright © 1997-1999 Vita Nuova Limited
 // 	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
 // 	Portions Copyright © 2004,2006 Bruce Ellis
 // 	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
 // 	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
-// 	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+// 	Portions Copyright © 2009 The Go Authors. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -167,7 +167,7 @@ const (
 )
 
 // Not registers, but flags that can be combined with regular register
-// constants to indicate extended register conversion.  When checking,
+// constants to indicate extended register conversion. When checking,
 // you should subtract obj.RBaseARM64 first. From this difference, bit 11
 // indicates extended register, bits 8-10 select the conversion mode.
 const REG_EXT = obj.RBaseARM64 + 1<<11

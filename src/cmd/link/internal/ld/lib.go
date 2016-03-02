@@ -107,9 +107,12 @@ type Arch struct {
 	Gentext          func()
 	Machoreloc1      func(*Reloc, int64) int
 	PEreloc1         func(*Reloc, int64) bool
-	Lput             func(uint32)
 	Wput             func(uint16)
+	Lput             func(uint32)
 	Vput             func(uint64)
+	Append16         func(b []byte, v uint16) []byte
+	Append32         func(b []byte, v uint32) []byte
+	Append64         func(b []byte, v uint64) []byte
 }
 
 type Rpath struct {
@@ -250,15 +253,27 @@ var (
 	Bso obj.Biobuf
 )
 
-var coutbuf struct {
-	*bufio.Writer
-	f *os.File
+type outBuf struct {
+	w   *bufio.Writer
+	f   *os.File
+	off int64
 }
 
-const (
-	symname = "__.GOSYMDEF"
-	pkgname = "__.PKGDEF"
-)
+func (w *outBuf) Write(p []byte) (n int, err error) {
+	n, err = w.w.Write(p)
+	w.off += int64(n)
+	return n, err
+}
+
+func (w *outBuf) WriteString(s string) (n int, err error) {
+	n, err = coutbuf.w.WriteString(s)
+	w.off += int64(n)
+	return n, err
+}
+
+var coutbuf outBuf
+
+const pkgname = "__.PKGDEF"
 
 var (
 	// Set if we see an object compiled by the host compiler that is not
@@ -399,7 +414,7 @@ func libinit() {
 		Exitf("cannot create %s: %v", outfile, err)
 	}
 
-	coutbuf.Writer = bufio.NewWriter(f)
+	coutbuf.w = bufio.NewWriter(f)
 	coutbuf.f = f
 
 	if INITENTRY == "" {
@@ -565,7 +580,7 @@ func loadlib() {
 	if Linkmode == LinkExternal && !iscgo {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
-		// whether to initialize the TLS.  So give it one.  This could
+		// whether to initialize the TLS.  So give it one. This could
 		// be handled differently but it's an unusual case.
 		loadinternal("runtime/cgo")
 
@@ -762,9 +777,7 @@ func objfile(lib *Library) {
 		fmt.Fprintf(&Bso, "%5.2f ldobj: %s (%s)\n", obj.Cputime(), lib.File, pkg)
 	}
 	Bso.Flush()
-	var err error
-	var f *obj.Biobuf
-	f, err = obj.Bopenr(lib.File)
+	f, err := obj.Bopenr(lib.File)
 	if err != nil {
 		Exitf("cannot open file %s: %v", lib.File, err)
 	}
@@ -781,7 +794,7 @@ func objfile(lib *Library) {
 		return
 	}
 
-	/* skip over optional __.GOSYMDEF and process __.PKGDEF */
+	/* process __.PKGDEF */
 	off := obj.Boffset(f)
 
 	var arhdr ArHdr
@@ -790,15 +803,6 @@ func objfile(lib *Library) {
 	if l <= 0 {
 		Diag("%s: short read on archive file symbol header", lib.File)
 		goto out
-	}
-
-	if strings.HasPrefix(arhdr.name, symname) {
-		off += l
-		l = nextar(f, off, &arhdr)
-		if l <= 0 {
-			Diag("%s: short read on archive file symbol header", lib.File)
-			goto out
-		}
 	}
 
 	if !strings.HasPrefix(arhdr.name, pkgname) {
@@ -829,7 +833,7 @@ func objfile(lib *Library) {
 	 * the individual symbols that are unused.
 	 *
 	 * loading every object will also make it possible to
-	 * load foreign objects not referenced by __.GOSYMDEF.
+	 * load foreign objects not referenced by __.PKGDEF.
 	 */
 	for {
 		l = nextar(f, off, &arhdr)
@@ -965,7 +969,7 @@ func hostlinksetup() {
 		Exitf("cannot create %s: %v", p, err)
 	}
 
-	coutbuf.Writer = bufio.NewWriter(f)
+	coutbuf.w = bufio.NewWriter(f)
 	coutbuf.f = f
 }
 
@@ -1111,8 +1115,8 @@ func hostlink() {
 
 	// On Windows, given -o foo, GCC will append ".exe" to produce
 	// "foo.exe".  We have decided that we want to honor the -o
-	// option.  To make this work, we append a '.' so that GCC
-	// will decide that the file already has an extension.  We
+	// option. To make this work, we append a '.' so that GCC
+	// will decide that the file already has an extension. We
 	// only want to do this when producing a Windows output file
 	// on a Windows host.
 	outopt := outfile
@@ -1178,8 +1182,8 @@ func hostlink() {
 
 		// clang, unlike GCC, passes -rdynamic to the linker
 		// even when linking with -static, causing a linker
-		// error when using GNU ld.  So take out -rdynamic if
-		// we added it.  We do it in this order, rather than
+		// error when using GNU ld. So take out -rdynamic if
+		// we added it. We do it in this order, rather than
 		// only adding -rdynamic later, so that -extldflags
 		// can override -rdynamic without using -static.
 		if Iself && p == "-static" {
@@ -1253,8 +1257,8 @@ func hostlinkArchArgs() []string {
 	return nil
 }
 
-// ldobj loads an input object.  If it is a host object (an object
-// compiled by a non-Go compiler) it returns the Hostobj pointer.  If
+// ldobj loads an input object. If it is a host object (an object
+// compiled by a non-Go compiler) it returns the Hostobj pointer. If
 // it is a Go object, it returns nil.
 func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
 	eof := obj.Boffset(f) + length
@@ -1771,7 +1775,7 @@ func stkcheck(up *Chain, depth int) int {
 					return -1
 				}
 
-			// Indirect call.  Assume it is a call to a splitting function,
+			// Indirect call. Assume it is a call to a splitting function,
 			// so we have to make sure it can call morestack.
 			// Arrange the data structures to report both calls, so that
 			// if there is an error, stkprint shows all the steps involved.
@@ -1829,24 +1833,28 @@ func stkprint(ch *Chain, limit int) {
 }
 
 func Cflush() {
-	if err := coutbuf.Writer.Flush(); err != nil {
+	if err := coutbuf.w.Flush(); err != nil {
 		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
 	}
 }
 
 func Cpos() int64 {
-	off, err := coutbuf.f.Seek(0, 1)
-	if err != nil {
-		Exitf("seeking in output [0, 1]: %v", err)
-	}
-	return off + int64(coutbuf.Buffered())
+	return coutbuf.off
 }
 
 func Cseek(p int64) {
+	if p == coutbuf.off {
+		return
+	}
 	Cflush()
 	if _, err := coutbuf.f.Seek(p, 0); err != nil {
 		Exitf("seeking in output [0, 1]: %v", err)
 	}
+	coutbuf.off = p
+}
+
+func Cwritestring(s string) {
+	coutbuf.WriteString(s)
 }
 
 func Cwrite(p []byte) {
@@ -1854,7 +1862,8 @@ func Cwrite(p []byte) {
 }
 
 func Cput(c uint8) {
-	coutbuf.WriteByte(c)
+	coutbuf.w.WriteByte(c)
+	coutbuf.off++
 }
 
 func usage() {
@@ -1896,7 +1905,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	}
 
 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if s.Hide != 0 || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
+		if s.Hidden || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
 			continue
 		}
 		switch s.Type & obj.SMASK {

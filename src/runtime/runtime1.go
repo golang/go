@@ -52,7 +52,7 @@ var (
 	argv **byte
 )
 
-// nosplit for use in linux/386 startup linux_setup_vdso
+// nosplit for use in linux startup sysargs
 //go:nosplit
 func argv_index(argv **byte, i int32) *byte {
 	return *(**byte)(add(unsafe.Pointer(argv), uintptr(i)*sys.PtrSize))
@@ -77,7 +77,7 @@ func goargs() {
 
 func goenvs_unix() {
 	// TODO(austin): ppc64 in dynamic linking mode doesn't
-	// guarantee env[] will immediately follow argv.  Might cause
+	// guarantee env[] will immediately follow argv. Might cause
 	// problems.
 	n := int32(0)
 	for argv_index(argv, argc+1+n) != nil {

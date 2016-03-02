@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -33,11 +33,6 @@ func mkEnv() []envVar {
 	var b builder
 	b.init()
 
-	vendorExpValue := "0"
-	if go15VendorExperiment {
-		vendorExpValue = "1"
-	}
-
 	env := []envVar{
 		{"GOARCH", goarch},
 		{"GOBIN", gobin},
@@ -49,7 +44,6 @@ func mkEnv() []envVar {
 		{"GORACE", os.Getenv("GORACE")},
 		{"GOROOT", goroot},
 		{"GOTOOLDIR", toolDir},
-		{"GO15VENDOREXPERIMENT", vendorExpValue},
 
 		// disable escape codes in clang errors
 		{"TERM", "dumb"},

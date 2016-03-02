@@ -5,7 +5,6 @@
 package fmt
 
 import (
-	"math"
 	"strconv"
 	"unicode/utf8"
 )
@@ -23,16 +22,6 @@ const (
 	signed   = true
 	unsigned = false
 )
-
-var padZeroBytes = make([]byte, nByte)
-var padSpaceBytes = make([]byte, nByte)
-
-func init() {
-	for i := 0; i < nByte; i++ {
-		padZeroBytes[i] = '0'
-		padSpaceBytes[i] = ' '
-	}
-}
 
 // flags placed in a separate struct for easy clearing.
 type fmtFlags struct {
@@ -73,88 +62,78 @@ func (f *fmt) init(buf *buffer) {
 	f.clearflags()
 }
 
-// computePadding computes left and right padding widths (only one will be non-zero).
-func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth int) {
-	left := !f.minus
-	w := f.wid
-	if w < 0 {
-		left = false
-		w = -w
-	}
-	w -= width
-	if w > 0 {
-		if left && f.zero {
-			return padZeroBytes, w, 0
-		}
-		if left {
-			return padSpaceBytes, w, 0
-		} else {
-			// can't be zero padding on the right
-			return padSpaceBytes, 0, w
-		}
-	}
-	return
-}
-
 // writePadding generates n bytes of padding.
-func (f *fmt) writePadding(n int, padding []byte) {
-	for n > 0 {
-		m := n
-		if m > nByte {
-			m = nByte
-		}
-		f.buf.Write(padding[0:m])
-		n -= m
+func (f *fmt) writePadding(n int) {
+	if n <= 0 { // No padding bytes needed.
+		return
 	}
+	buf := *f.buf
+	oldLen := len(buf)
+	newLen := oldLen + n
+	// Make enough room for padding.
+	if newLen > cap(buf) {
+		buf = make(buffer, cap(buf)*2+n)
+		copy(buf, *f.buf)
+	}
+	// Decide which byte the padding should be filled with.
+	padByte := byte(' ')
+	if f.zero {
+		padByte = byte('0')
+	}
+	// Fill padding with padByte.
+	padding := buf[oldLen:newLen]
+	for i := range padding {
+		padding[i] = padByte
+	}
+	*f.buf = buf[:newLen]
 }
 
-// pad appends b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus).
+// pad appends b to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) pad(b []byte) {
 	if !f.widPresent || f.wid == 0 {
 		f.buf.Write(b)
 		return
 	}
-	padding, left, right := f.computePadding(utf8.RuneCount(b))
-	if left > 0 {
-		f.writePadding(left, padding)
-	}
-	f.buf.Write(b)
-	if right > 0 {
-		f.writePadding(right, padding)
+	width := f.wid - utf8.RuneCount(b)
+	if !f.minus {
+		// left padding
+		f.writePadding(width)
+		f.buf.Write(b)
+	} else {
+		// right padding
+		f.buf.Write(b)
+		f.writePadding(width)
 	}
 }
 
-// padString appends s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+// padString appends s to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) padString(s string) {
 	if !f.widPresent || f.wid == 0 {
 		f.buf.WriteString(s)
 		return
 	}
-	padding, left, right := f.computePadding(utf8.RuneCountInString(s))
-	if left > 0 {
-		f.writePadding(left, padding)
-	}
-	f.buf.WriteString(s)
-	if right > 0 {
-		f.writePadding(right, padding)
+	width := f.wid - utf8.RuneCountInString(s)
+	if !f.minus {
+		// left padding
+		f.writePadding(width)
+		f.buf.WriteString(s)
+	} else {
+		// right padding
+		f.buf.WriteString(s)
+		f.writePadding(width)
 	}
 }
-
-var (
-	trueBytes  = []byte("true")
-	falseBytes = []byte("false")
-)
 
 // fmt_boolean formats a boolean.
 func (f *fmt) fmt_boolean(v bool) {
 	if v {
-		f.pad(trueBytes)
+		f.padString("true")
 	} else {
-		f.pad(falseBytes)
+		f.padString("false")
 	}
 }
 
-// integer; interprets prec but not wid.  Once formatted, result is sent to pad()
+// integer; interprets prec but not wid. Once formatted, result is sent to pad()
 // and then flags are cleared.
 func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	// precision of 0 and value of 0 means "print nothing"
@@ -405,42 +384,39 @@ func doPrec(f *fmt, def int) int {
 // formatFloat formats a float64; it is an efficient equivalent to  f.pad(strconv.FormatFloat()...).
 func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 	// Format number, reserving space for leading + sign if needed.
-	num := strconv.AppendFloat(f.intbuf[0:1], v, verb, prec, n)
+	num := strconv.AppendFloat(f.intbuf[:1], v, verb, prec, n)
 	if num[1] == '-' || num[1] == '+' {
 		num = num[1:]
 	} else {
 		num[0] = '+'
 	}
-	// Special handling for infinity, which doesn't look like a number so shouldn't be padded with zeros.
-	if math.IsInf(v, 0) {
-		if f.zero {
-			defer func() { f.zero = true }()
-			f.zero = false
-		}
+	// f.space means to add a leading space instead of a "+" sign unless
+	// the sign is explicitly asked for by f.plus.
+	if f.space && num[0] == '+' && !f.plus {
+		num[0] = ' '
 	}
-	// num is now a signed version of the number.
-	// If we're zero padding, want the sign before the leading zeros.
-	// Achieve this by writing the sign out and then padding the unsigned number.
-	if f.zero && f.widPresent && f.wid > len(num) {
-		if f.space && v >= 0 {
-			f.buf.WriteByte(' ') // This is what C does: even with zero, f.space means space.
-			f.wid--
-		} else if f.plus || v < 0 {
+	// Special handling for infinities and NaN,
+	// which don't look like a number so shouldn't be padded with zeros.
+	if num[1] == 'I' || num[1] == 'N' {
+		oldZero := f.zero
+		f.zero = false
+		// Remove sign before NaN if not asked for.
+		if num[1] == 'N' && !f.space && !f.plus {
+			num = num[1:]
+		}
+		f.pad(num)
+		f.zero = oldZero
+		return
+	}
+	// We want a sign if asked for and if the sign is not positive.
+	if f.plus || num[0] != '+' {
+		// If we're zero padding we want the sign before the leading zeros.
+		// Achieve this by writing the sign out and then padding the unsigned number.
+		if f.zero && f.widPresent && f.wid > len(num) {
 			f.buf.WriteByte(num[0])
 			f.wid--
+			num = num[1:]
 		}
-		f.pad(num[1:])
-		return
-	}
-	// f.space says to replace a leading + with a space.
-	if f.space && num[0] == '+' {
-		num[0] = ' '
-		f.pad(num)
-		return
-	}
-	// Now we know the sign is attached directly to the number, if present at all.
-	// We want a sign if asked for, if it's negative, or if it's infinity (+Inf vs. -Inf).
-	if f.plus || num[0] == '-' || math.IsInf(v, 0) {
 		f.pad(num)
 		return
 	}
@@ -531,5 +507,5 @@ func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
 	f.space = oldSpace
 	f.plus = oldPlus
 	f.wid = oldWid
-	f.buf.Write(irparenBytes)
+	f.buf.WriteString("i)")
 }

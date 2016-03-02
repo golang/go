@@ -63,7 +63,7 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 
 // quotToFloat32 returns the non-negative float32 value
 // nearest to the quotient a/b, using round-to-even in
-// halfway cases.  It does not mutate its arguments.
+// halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
 func quotToFloat32(a, b nat) (f float32, exact bool) {
 	const (
@@ -161,7 +161,7 @@ func quotToFloat32(a, b nat) (f float32, exact bool) {
 
 // quotToFloat64 returns the non-negative float64 value
 // nearest to the quotient a/b, using round-to-even in
-// halfway cases.  It does not mutate its arguments.
+// halfway cases. It does not mutate its arguments.
 // Preconditions: b is non-zero; a and b have no common factors.
 func quotToFloat64(a, b nat) (f float64, exact bool) {
 	const (

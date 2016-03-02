@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -117,6 +117,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AJPL:       {Flags: gc.Cjmp | gc.UseCarry},
 	x86.AJPS:       {Flags: gc.Cjmp | gc.UseCarry},
 	obj.AJMP:       {Flags: gc.Jump | gc.Break | gc.KillCarry},
+	x86.ALEAW:      {Flags: gc.LeftAddr | gc.RightWrite},
 	x86.ALEAL:      {Flags: gc.LeftAddr | gc.RightWrite},
 	x86.ALEAQ:      {Flags: gc.LeftAddr | gc.RightWrite},
 	x86.AMOVBLSX:   {Flags: gc.SizeL | gc.LeftRead | gc.RightWrite | gc.Conv},
@@ -167,6 +168,7 @@ var progtable = [x86.ALAST]obj.ProgInfo{
 	x86.AORW:      {Flags: gc.SizeW | gc.LeftRead | RightRdwr | gc.SetCarry},
 	x86.APOPQ:     {Flags: gc.SizeQ | gc.RightWrite},
 	x86.APUSHQ:    {Flags: gc.SizeQ | gc.LeftRead},
+	x86.APXOR:     {Flags: gc.SizeD | gc.LeftRead | RightRdwr},
 	x86.ARCLB:     {Flags: gc.SizeB | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
 	x86.ARCLL:     {Flags: gc.SizeL | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},
 	x86.ARCLQ:     {Flags: gc.SizeQ | gc.LeftRead | RightRdwr | gc.ShiftCX | gc.SetCarry | gc.UseCarry},

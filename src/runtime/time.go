@@ -16,7 +16,7 @@ type timer struct {
 	i int // heap index
 
 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
-	// each time calling f(now, arg) in the timer goroutine, so f must be
+	// each time calling f(arg, now) in the timer goroutine, so f must be
 	// a well-behaved function and not block.
 	when   int64
 	period int64
@@ -202,7 +202,7 @@ func timerproc() {
 			goparkunlock(&timers.lock, "timer goroutine (idle)", traceEvGoBlock, 1)
 			continue
 		}
-		// At least one timer pending.  Sleep until then.
+		// At least one timer pending. Sleep until then.
 		timers.sleeping = true
 		noteclear(&timers.waitnote)
 		unlock(&timers.lock)

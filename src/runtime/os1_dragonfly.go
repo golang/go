@@ -133,7 +133,7 @@ func sigblock() {
 }
 
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, can not allocate memory.
+// Called on the new thread, cannot allocate memory.
 func minit() {
 	_g_ := getg()
 
@@ -143,9 +143,9 @@ func minit() {
 	// Initialize signal handling.
 
 	// On DragonFly a thread created by pthread_create inherits
-	// the signal stack of the creating thread.  We always create
+	// the signal stack of the creating thread. We always create
 	// a new signal stack here, to avoid having two Go threads
-	// using the same signal stack.  This breaks the case of a
+	// using the same signal stack. This breaks the case of a
 	// thread created in C that calls sigaltstack and then calls a
 	// Go function, because we will lose track of the C code's
 	// sigaltstack, but it's the best we can do.
@@ -191,7 +191,7 @@ func memlimit() uintptr {
 					return 0;
 
 				// If there's not at least 16 MB left, we're probably
-				// not going to be able to do much.  Treat as no limit.
+				// not going to be able to do much. Treat as no limit.
 				rl.rlim_cur -= used;
 				if(rl.rlim_cur < (16<<20))
 					return 0;

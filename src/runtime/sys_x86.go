@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -40,13 +40,13 @@ func rewindmorestack(buf *gobuf) {
 		return
 	}
 	if pc[0] == 0xcc {
-		// This is a breakpoint inserted by gdb.  We could use
-		// runtime·findfunc to find the function.  But if we
+		// This is a breakpoint inserted by gdb. We could use
+		// runtime·findfunc to find the function. But if we
 		// do that, then we will continue execution at the
 		// function entry point, and we will not hit the gdb
-		// breakpoint.  So for this case we don't change
+		// breakpoint. So for this case we don't change
 		// buf.pc, so that when we return we will execute
-		// the jump instruction and carry on.  This means that
+		// the jump instruction and carry on. This means that
 		// stack unwinding may not work entirely correctly
 		// (https://golang.org/issue/5723) but the user is
 		// running under gdb anyhow.

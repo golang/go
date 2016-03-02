@@ -113,7 +113,7 @@ const maxBitsLimit = 16
 // The cases of 0, 1, and 2 literals are handled by special case code.
 //
 // list  An array of the literals with non-zero frequencies
-//             and their associated frequencies.  The array is in order of increasing
+//             and their associated frequencies. The array is in order of increasing
 //             frequency, and has as its last element a special element with frequency
 //             MaxInt32
 // maxBits     The maximum number of bits that should be used to encode any literal.
@@ -128,7 +128,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	list = list[0 : n+1]
 	list[n] = maxNode()
 
-	// The tree can't have greater depth than n - 1, no matter what.  This
+	// The tree can't have greater depth than n - 1, no matter what. This
 	// saves a little bit of work in some small cases
 	if maxBits > n-1 {
 		maxBits = n - 1
@@ -197,7 +197,7 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 
 		if l.needed--; l.needed == 0 {
 			// We've done everything we need to do for this level.
-			// Continue calculating one level up.  Fill in nextPairFreq
+			// Continue calculating one level up. Fill in nextPairFreq
 			// of that level with the sum of the two nodes we've just calculated on
 			// this level.
 			if l.level == maxBits {
@@ -277,7 +277,7 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 	h.codeBits = h.codeBits[0:len(freq)]
 	list = list[0:count]
 	if count <= 2 {
-		// Handle the small cases here, because they are awkward for the general case code.  With
+		// Handle the small cases here, because they are awkward for the general case code. With
 		// two or fewer literals, everything has bit length 1.
 		for i, node := range list {
 			// "list" is in order of increasing literal value.

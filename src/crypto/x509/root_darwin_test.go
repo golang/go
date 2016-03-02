@@ -57,6 +57,6 @@ func TestSystemRoots(t *testing.T) {
 	}
 
 	if have < want {
-		t.Errorf("insufficent overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
+		t.Errorf("insufficient overlap between cgo and non-cgo roots; want at least %d, have %d", want, have)
 	}
 }

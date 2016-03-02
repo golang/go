@@ -266,13 +266,16 @@ func walkDirs(t *testing.T, dir string) {
 	}
 
 	// typecheck package in directory
-	files, err := pkgFilenames(dir)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if files != nil {
-		typecheck(t, dir, files)
+	// but ignore files directly under $GOROOT/src (might be temporary test files).
+	if dir != filepath.Join(runtime.GOROOT(), "src") {
+		files, err := pkgFilenames(dir)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if files != nil {
+			typecheck(t, dir, files)
+		}
 	}
 
 	// traverse subdirectories, but don't walk into testdata

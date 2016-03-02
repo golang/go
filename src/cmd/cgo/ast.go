@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -40,7 +40,7 @@ func sourceLine(n ast.Node) int {
 }
 
 // ReadGo populates f with information learned from reading the
-// Go source file with the given file name.  It gathers the C preamble
+// Go source file with the given file name. It gathers the C preamble
 // attached to the import "C" comment, a list of references to C.xxx,
 // a list of exported functions, and the actual AST, to be rewritten and
 // printed.
@@ -447,7 +447,11 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
 	case *ast.ImportSpec:
 	case *ast.ValueSpec:
 		f.walk(&n.Type, "type", visit)
-		f.walk(n.Values, "expr", visit)
+		if len(n.Names) == 2 && len(n.Values) == 1 {
+			f.walk(&n.Values[0], "as2", visit)
+		} else {
+			f.walk(n.Values, "expr", visit)
+		}
 	case *ast.TypeSpec:
 		f.walk(&n.Type, "type", visit)
 

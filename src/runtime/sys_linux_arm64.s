@@ -269,6 +269,9 @@ TEXT runtime·mmap(SB),NOSPLIT,$-8
 
 	MOVD	$SYS_mmap, R8
 	SVC
+	CMN	$4095, R0
+	BCC	2(PC)
+	NEG	R0,R0
 	MOVD	R0, ret+32(FP)
 	RET
 

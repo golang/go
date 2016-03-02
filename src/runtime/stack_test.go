@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -111,7 +111,8 @@ func TestStackGrowth(t *testing.T) {
 		select {
 		case <-done:
 		case <-time.After(20 * time.Second):
-			t.Fatal("finalizer did not run")
+			t.Error("finalizer did not run")
+			return
 		}
 	}()
 	wg.Wait()
@@ -191,7 +192,6 @@ func TestStackGrowthCallback(t *testing.T) {
 			<-done
 		})
 	}()
-
 	wg.Wait()
 }
 
@@ -416,9 +416,9 @@ func TestStackAllOutput(t *testing.T) {
 }
 
 func TestStackPanic(t *testing.T) {
-	// Test that stack copying copies panics correctly.  This is difficult
+	// Test that stack copying copies panics correctly. This is difficult
 	// to test because it is very unlikely that the stack will be copied
-	// in the middle of gopanic.  But it can happen.
+	// in the middle of gopanic. But it can happen.
 	// To make this test effective, edit panic.go:gopanic and uncomment
 	// the GC() call just before freedefer(d).
 	defer func() {

@@ -259,6 +259,12 @@ var fmtTests = []struct {
 	{"%+.3F", float32(-1.0), "-1.000"},
 	{"%+07.2f", 1.0, "+001.00"},
 	{"%+07.2f", -1.0, "-001.00"},
+	{"%-07.2f", 1.0, "1.00   "},
+	{"%-07.2f", -1.0, "-1.00  "},
+	{"%+-07.2f", 1.0, "+1.00  "},
+	{"%+-07.2f", -1.0, "-1.00  "},
+	{"%-+07.2f", 1.0, "+1.00  "},
+	{"%-+07.2f", -1.0, "-1.00  "},
 	{"%+10.2f", +1.0, "     +1.00"},
 	{"%+10.2f", -1.0, "     -1.00"},
 	{"% .3E", -1.0, "-1.000E+00"},
@@ -272,6 +278,9 @@ var fmtTests = []struct {
 	{"%b", 1.0, "4503599627370496p-52"},
 
 	// complex values
+	{"%.f", 0i, "(0+0i)"},
+	{"%+.f", 0i, "(+0+0i)"},
+	{"% +.f", 0i, "(+0+0i)"},
 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
 	{"%+.3f", 0i, "(+0.000+0.000i)"},
 	{"%+.3g", 0i, "(+0+0i)"},
@@ -378,8 +387,15 @@ var fmtTests = []struct {
 	{"%g", 1.23456789e-3, "0.00123456789"},
 	{"%g", 1.23456789e20, "1.23456789e+20"},
 	{"%20e", math.Inf(1), "                +Inf"},
+	{"% 20f", math.Inf(1), "                 Inf"},
+	{"%+20f", math.Inf(1), "                +Inf"},
+	{"% +20f", math.Inf(1), "                +Inf"},
 	{"%-20f", math.Inf(-1), "-Inf                "},
 	{"%20g", math.NaN(), "                 NaN"},
+	{"%+20f", math.NaN(), "                +NaN"},
+	{"% +20f", math.NaN(), "                +NaN"},
+	{"% -20f", math.NaN(), " NaN                "},
+	{"%+-20f", math.NaN(), "+NaN                "},
 
 	// arrays
 	{"%v", array, "[1 2 3 4 5]"},
@@ -563,7 +579,7 @@ var fmtTests = []struct {
 
 	// The "<nil>" show up because maps are printed by
 	// first obtaining a list of keys and then looking up
-	// each key.  Since NaNs can be map keys but cannot
+	// each key. Since NaNs can be map keys but cannot
 	// be fetched directly, the lookup fails and returns a
 	// zero reflect.Value, which formats as <nil>.
 	// This test is just to check that it shows the two NaNs at all.
@@ -599,14 +615,16 @@ var fmtTests = []struct {
 			"[%7.2f]",
 			"[% 7.2f]",
 			"[%+7.2f]",
+			"[% +7.2f]",
 			"[%07.2f]",
 			"[% 07.2f]",
 			"[%+07.2f]",
+			"[% +07.2f]"
 		};
 
 		int main(void) {
 			int i;
-			for(i = 0; i < 9; i++) {
+			for(i = 0; i < 11; i++) {
 				printf("%s: ", format[i]);
 				printf(format[i], 1.0);
 				printf(" ");
@@ -622,9 +640,12 @@ var fmtTests = []struct {
 			[%7.2f]: [   1.00] [  -1.00]
 			[% 7.2f]: [   1.00] [  -1.00]
 			[%+7.2f]: [  +1.00] [  -1.00]
+			[% +7.2f]: [  +1.00] [  -1.00]
 			[%07.2f]: [0001.00] [-001.00]
 			[% 07.2f]: [ 001.00] [-001.00]
 			[%+07.2f]: [+001.00] [-001.00]
+			[% +07.2f]: [+001.00] [-001.00]
+
 	*/
 	{"%.2f", 1.0, "1.00"},
 	{"%.2f", -1.0, "-1.00"},
@@ -638,26 +659,40 @@ var fmtTests = []struct {
 	{"% 7.2f", -1.0, "  -1.00"},
 	{"%+7.2f", 1.0, "  +1.00"},
 	{"%+7.2f", -1.0, "  -1.00"},
+	{"% +7.2f", 1.0, "  +1.00"},
+	{"% +7.2f", -1.0, "  -1.00"},
 	{"%07.2f", 1.0, "0001.00"},
 	{"%07.2f", -1.0, "-001.00"},
 	{"% 07.2f", 1.0, " 001.00"},
 	{"% 07.2f", -1.0, "-001.00"},
 	{"%+07.2f", 1.0, "+001.00"},
 	{"%+07.2f", -1.0, "-001.00"},
+	{"% +07.2f", 1.0, "+001.00"},
+	{"% +07.2f", -1.0, "-001.00"},
 
 	// Complex numbers: exhaustively tested in TestComplexFormatting.
 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
-	// Zero padding does not apply to infinities.
+	// Zero padding does not apply to infinities and NaN.
 	{"%020f", math.Inf(-1), "                -Inf"},
 	{"%020f", math.Inf(+1), "                +Inf"},
+	{"%020f", math.NaN(), "                 NaN"},
 	{"% 020f", math.Inf(-1), "                -Inf"},
 	{"% 020f", math.Inf(+1), "                 Inf"},
+	{"% 020f", math.NaN(), "                 NaN"},
 	{"%+020f", math.Inf(-1), "                -Inf"},
 	{"%+020f", math.Inf(+1), "                +Inf"},
+	{"%+020f", math.NaN(), "                +NaN"},
+	{"%-020f", math.Inf(-1), "-Inf                "},
+	{"%-020f", math.Inf(+1), "+Inf                "},
+	{"%-020f", math.NaN(), "NaN                 "},
 	{"%20f", -1.0, "           -1.000000"},
 	// Make sure we can handle very large widths.
 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
+
+	// Use spaces instead of zero if padding to the right.
+	{"%0-5s", "abc", "abc  "},
+	{"%-05.1f", 1.0, "1.0  "},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
@@ -869,6 +904,14 @@ func TestReorder(t *testing.T) {
 	}
 }
 
+func BenchmarkSprintfPadding(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%16f", 1.0)
+		}
+	})
+}
+
 func BenchmarkSprintfEmpty(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -913,6 +956,13 @@ func BenchmarkSprintfFloat(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%g", 5.23184)
+		}
+	})
+}
+func BenchmarkSprintfBoolean(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%t", true)
 		}
 	})
 }

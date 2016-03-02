@@ -2372,7 +2372,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		// This is supposed to be something that stops execution.
 	// It's not supposed to be reached, ever, but if it is, we'd
-	// like to be able to tell how we got there.  Assemble as
+	// like to be able to tell how we got there. Assemble as
 	// 0xf7fabcfd which is guaranteed to raise undefined instruction
 	// exception.
 	case 96: /* UNDEF */

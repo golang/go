@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -243,7 +243,7 @@ type Field struct {
 	Class Class
 }
 
-// A Class is the DWARF 4 class of an attibute value.
+// A Class is the DWARF 4 class of an attribute value.
 //
 // In general, a given attribute's value may take on one of several
 // possible classes defined by DWARF, each of which leads to a
@@ -506,7 +506,7 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
 }
 
 // A Reader allows reading Entry structures from a DWARF ``info'' section.
-// The Entry structures are arranged in a tree.  The Reader's Next function
+// The Entry structures are arranged in a tree. The Reader's Next function
 // return successive entries from a pre-order traversal of the tree.
 // If an entry has children, its Children field will be true, and the children
 // follow, terminated by an Entry with Tag 0.
@@ -598,7 +598,7 @@ func (r *Reader) Next() (*Entry, error) {
 }
 
 // SkipChildren skips over the child entries associated with
-// the last Entry returned by Next.  If that Entry did not have
+// the last Entry returned by Next. If that Entry did not have
 // children or Next has not been called, SkipChildren is a no-op.
 func (r *Reader) SkipChildren() {
 	if r.err != nil || !r.lastChildren {
@@ -625,13 +625,13 @@ func (r *Reader) SkipChildren() {
 	}
 }
 
-// clone returns a copy of the reader.  This is used by the typeReader
+// clone returns a copy of the reader. This is used by the typeReader
 // interface.
 func (r *Reader) clone() typeReader {
 	return r.d.Reader()
 }
 
-// offset returns the current buffer offset.  This is used by the
+// offset returns the current buffer offset. This is used by the
 // typeReader interface.
 func (r *Reader) offset() Offset {
 	return r.b.off

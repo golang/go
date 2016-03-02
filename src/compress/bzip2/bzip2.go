@@ -27,7 +27,7 @@ type reader struct {
 	blockCRC     uint32
 	wantBlockCRC uint32
 	setupDone    bool // true if we have parsed the bzip2 header.
-	blockSize    int  // blockSize in bytes, i.e. 900 * 1024.
+	blockSize    int  // blockSize in bytes, i.e. 900 * 1000.
 	eof          bool
 	buf          []byte    // stores Burrows-Wheeler transformed data.
 	c            [256]uint // the `C' array for the inverse BWT.
@@ -76,7 +76,7 @@ func (bz2 *reader) setup(needMagic bool) error {
 	}
 
 	bz2.fileCRC = 0
-	bz2.blockSize = 100 * 1024 * (int(level) - '0')
+	bz2.blockSize = 100 * 1000 * (int(level) - '0')
 	if bz2.blockSize > len(bz2.tt) {
 		bz2.tt = make([]uint32, bz2.blockSize)
 	}

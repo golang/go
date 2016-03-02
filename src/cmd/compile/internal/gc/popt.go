@@ -138,15 +138,16 @@ func fixjmp(firstp *obj.Prog) {
 			fmt.Printf("%v\n", p)
 		}
 		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.AJMP {
-			p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
-			if Debug['R'] != 0 && Debug['v'] != 0 {
-				fmt.Printf("->%v\n", p)
+			if Debug['N'] == 0 {
+				p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
+				if Debug['R'] != 0 && Debug['v'] != 0 {
+					fmt.Printf("->%v\n", p)
+				}
 			}
 		}
 
 		p.Opt = dead
 	}
-
 	if Debug['R'] != 0 && Debug['v'] != 0 {
 		fmt.Printf("\n")
 	}
@@ -186,7 +187,7 @@ func fixjmp(firstp *obj.Prog) {
 
 	// pass 4: elide JMP to next instruction.
 	// only safe if there are no jumps to JMPs anymore.
-	if jmploop == 0 {
+	if jmploop == 0 && Debug['N'] == 0 {
 		var last *obj.Prog
 		for p := firstp; p != nil; p = p.Link {
 			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.Val == p.Link {
@@ -217,22 +218,22 @@ func fixjmp(firstp *obj.Prog) {
 // Control flow analysis. The Flow structures hold predecessor and successor
 // information as well as basic loop analysis.
 //
-//	graph = flowstart(firstp, 0);
+//	graph = Flowstart(firstp, nil)
 //	... use flow graph ...
-//	flowend(graph); // free graph
+//	Flowend(graph) // free graph
 //
 // Typical uses of the flow graph are to iterate over all the flow-relevant instructions:
 //
-//	for(f = graph->start; f != nil; f = f->link)
+//	for f := graph.Start; f != nil; f = f.Link {}
 //
 // or, given an instruction f, to iterate over all the predecessors, which is
-// f->p1 and this list:
+// f.P1 and this list:
 //
-//	for(f2 = f->p2; f2 != nil; f2 = f2->p2link)
+//	for f2 := f.P2; f2 != nil; f2 = f2.P2link {}
 //
-// The size argument to flowstart specifies an amount of zeroed memory
-// to allocate in every f->data field, for use by the client.
-// If size == 0, f->data will be nil.
+// The second argument (newData) to Flowstart specifies a func to create object
+// for every f.Data field, for use by the client.
+// If newData is nil, f.Data will be nil.
 
 var flowmark int
 
@@ -240,6 +241,19 @@ var flowmark int
 // for which the flow code will build a graph. Functions larger than this limit
 // will not have flow graphs and consequently will not be optimized.
 const MaxFlowProg = 50000
+
+var ffcache []Flow // reusable []Flow, to reduce allocation
+
+func growffcache(n int) {
+	if n > cap(ffcache) {
+		n = (n * 5) / 4
+		if n > MaxFlowProg {
+			n = MaxFlowProg
+		}
+		ffcache = make([]Flow, n)
+	}
+	ffcache = ffcache[:n]
+}
 
 func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 	// Count and mark instructions to annotate.
@@ -268,7 +282,9 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
 
 	// Allocate annotations and assign to instructions.
 	graph := new(Graph)
-	ff := make([]Flow, nf)
+
+	growffcache(nf)
+	ff := ffcache
 	start := &ff[0]
 	id := 0
 	var last *Flow
@@ -330,6 +346,10 @@ func Flowend(graph *Graph) {
 	for f := graph.Start; f != nil; f = f.Link {
 		f.Prog.Info.Flags = 0 // drop cached proginfo
 		f.Prog.Opt = nil
+	}
+	clear := ffcache[:graph.Num]
+	for i := range clear {
+		clear[i] = Flow{}
 	}
 }
 
@@ -452,8 +472,8 @@ func flowrpo(g *Graph) {
 		me = r1.Rpo
 		d = -1
 
-		// rpo2r[r->rpo] == r protects against considering dead code,
-		// which has r->rpo == 0.
+		// rpo2r[r.Rpo] == r protects against considering dead code,
+		// which has r.Rpo == 0.
 		if r1.P1 != nil && rpo2r[r1.P1.Rpo] == r1.P1 && r1.P1.Rpo < me {
 			d = r1.P1.Rpo
 		}
@@ -569,8 +589,8 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Build list of all mergeable variables.
 	var vars []*TempVar
-	for l := Curfn.Func.Dcl; l != nil; l = l.Next {
-		if n := l.N; canmerge(n) {
+	for _, n := range Curfn.Func.Dcl {
+		if canmerge(n) {
 			v := &TempVar{}
 			vars = append(vars, v)
 			n.SetOpt(v)
@@ -665,7 +685,7 @@ func mergetemp(firstp *obj.Prog) {
 
 	// Traverse live range of each variable to set start, end.
 	// Each flood uses a new value of gen so that we don't have
-	// to clear all the r->active words after each variable.
+	// to clear all the r.Active words after each variable.
 	gen := uint32(0)
 
 	for _, v := range vars {
@@ -799,22 +819,15 @@ func mergetemp(firstp *obj.Prog) {
 	}
 
 	// Delete merged nodes from declaration list.
-	for lp := &Curfn.Func.Dcl; ; {
-		l := *lp
-		if l == nil {
-			break
-		}
-
-		Curfn.Func.Dcl.End = l
-		n := l.N
+	dcl := make([]*Node, 0, len(Curfn.Func.Dcl)-nkill)
+	for _, n := range Curfn.Func.Dcl {
 		v, _ := n.Opt().(*TempVar)
 		if v != nil && (v.merge != nil || v.removed) {
-			*lp = l.Next
 			continue
 		}
-
-		lp = &l.Next
+		dcl = append(dcl, n)
 	}
+	Curfn.Func.Dcl = dcl
 
 	// Clear aux structures.
 	for _, v := range vars {
@@ -891,7 +904,7 @@ func varkillwalk(v *TempVar, f0 *Flow, gen uint32) {
 // from memory without being rechecked. Other variables need to be checked on
 // each load.
 
-var killed int // f->data is either nil or &killed
+var killed int // f.Data is either nil or &killed
 
 func nilopt(firstp *obj.Prog) {
 	g := Flowstart(firstp, nil)

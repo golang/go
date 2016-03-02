@@ -210,10 +210,10 @@ func loadZoneFile(dir, name string) (l *Location, err error) {
 	return loadZoneData(buf)
 }
 
-// There are 500+ zoneinfo files.  Rather than distribute them all
+// There are 500+ zoneinfo files. Rather than distribute them all
 // individually, we ship them in an uncompressed zip file.
 // Used this way, the zip file format serves as a commonly readable
-// container for the individual small files.  We choose zip over tar
+// container for the individual small files. We choose zip over tar
 // because zip files have a contiguous table of contents, making
 // individual file lookups faster, and because the per-file overhead
 // in a zip file is considerably less than tar's 512 bytes.

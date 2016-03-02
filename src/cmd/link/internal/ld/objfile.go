@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -165,7 +165,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 		log.Fatalf("readsym out of sync")
 	}
 	t := rdint(f)
-	name := expandpkg(rdstring(f), pkg)
+	name := rdsymName(f, pkg)
 	v := rdint(f)
 	if v != 0 && v != 1 {
 		log.Fatalf("invalid symbol version %d", v)
@@ -424,39 +424,81 @@ func rduint8(f *obj.Biobuf) uint8 {
 	return uint8(n)
 }
 
+// rdBuf is used by rdstring and rdsymName as scratch for reading strings.
+var rdBuf []byte
+var emptyPkg = []byte(`"".`)
+
 func rdstring(f *obj.Biobuf) string {
-	n := rdint64(f)
-	p := make([]byte, n)
-	obj.Bread(f, p)
-	return string(p)
+	n := rdint(f)
+	if len(rdBuf) < n {
+		rdBuf = make([]byte, n)
+	}
+	obj.Bread(f, rdBuf[:n])
+	return string(rdBuf[:n])
 }
 
+const rddataBufMax = 1 << 14
+
+var rddataBuf = make([]byte, rddataBufMax)
+
 func rddata(f *obj.Biobuf) []byte {
-	n := rdint64(f)
-	p := make([]byte, n)
+	var p []byte
+	n := rdint(f)
+	if n > rddataBufMax {
+		p = make([]byte, n)
+	} else {
+		if len(rddataBuf) < n {
+			rddataBuf = make([]byte, rddataBufMax)
+		}
+		p = rddataBuf[:n:n]
+		rddataBuf = rddataBuf[n:]
+	}
 	obj.Bread(f, p)
 	return p
 }
 
-var symbuf []byte
-
-func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
+// rdsymName reads a symbol name, replacing all "". with pkg.
+func rdsymName(f *obj.Biobuf, pkg string) string {
 	n := rdint(f)
 	if n == 0 {
 		rdint64(f)
-		return nil
+		return ""
 	}
 
-	if len(symbuf) < n {
-		symbuf = make([]byte, n)
+	if len(rdBuf) < n {
+		rdBuf = make([]byte, n, 2*n)
 	}
-	obj.Bread(f, symbuf[:n])
-	p := string(symbuf[:n])
+	origName := rdBuf[:n]
+	obj.Bread(f, origName)
+	adjName := rdBuf[n:n]
+	for {
+		i := bytes.Index(origName, emptyPkg)
+		if i == -1 {
+			adjName = append(adjName, origName...)
+			break
+		}
+		adjName = append(adjName, origName[:i]...)
+		adjName = append(adjName, pkg...)
+		adjName = append(adjName, '.')
+		origName = origName[i+len(emptyPkg):]
+	}
+	name := string(adjName)
+	if len(adjName) > len(rdBuf) {
+		rdBuf = adjName // save the larger buffer for reuse
+	}
+	return name
+}
+
+func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
+	name := rdsymName(f, pkg)
+	if name == "" {
+		return nil
+	}
 	v := rdint(f)
 	if v != 0 {
 		v = ctxt.Version
 	}
-	s := Linklookup(ctxt, expandpkg(p, pkg), v)
+	s := Linklookup(ctxt, name, v)
 
 	if v == 0 && s.Name[0] == '$' && s.Type == 0 {
 		if strings.HasPrefix(s.Name, "$f32.") {

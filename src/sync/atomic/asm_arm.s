@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -208,7 +208,7 @@ loop:
 ok:
 	RET
 
-// Fast, cached version of check.  No frame, just MOVW CMP RET after first time.
+// Fast, cached version of check. No frame, just MOVW CMP RET after first time.
 TEXT	fastCheck64<>(SB),NOSPLIT,$-4
 	MOVW	ok64<>(SB), R0
 	CMP	$0, R0	// have we been here before?

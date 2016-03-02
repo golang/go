@@ -110,6 +110,7 @@ func Linknew(arch *LinkArch) *Link {
 		ctxt.Goarm = Getgoarm()
 	}
 
+	ctxt.Flag_optimize = true
 	return ctxt
 }
 

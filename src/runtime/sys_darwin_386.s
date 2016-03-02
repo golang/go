@@ -377,7 +377,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
 	POPL	AX
 	POPAL
 
-	// Now segment is established.  Initialize m, g.
+	// Now segment is established. Initialize m, g.
 	get_tls(BP)
 	MOVL    m_g0(DX), AX
 	MOVL	AX, g(BP)

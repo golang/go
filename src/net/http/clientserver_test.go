@@ -356,7 +356,7 @@ func TestH12_HandlerWritesTooLittle(t *testing.T) {
 }
 
 // Tests that the HTTP/1 and HTTP/2 servers prevent handlers from
-// writing more than they declared.  This test does not test whether
+// writing more than they declared. This test does not test whether
 // the transport deals with too much data, though, since the server
 // doesn't make it possible to send bogus data. For those tests, see
 // transport_test.go (for HTTP/1) or x/net/http2/transport_test.go

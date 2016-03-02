@@ -26,7 +26,7 @@ import (
 type ErrorHandler func(pos token.Position, msg string)
 
 // A Scanner holds the scanner's internal state while processing
-// a given text.  It can be allocated as part of another data
+// a given text. It can be allocated as part of another data
 // structure but must be initialized via Init before use.
 //
 type Scanner struct {

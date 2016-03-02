@@ -47,7 +47,7 @@ func putelfstr(s string) int {
 
 	// When dynamically linking, we create LSym's by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
-	// match exactly.  Tools like DTrace will have to wait for now.
+	// match exactly. Tools like DTrace will have to wait for now.
 	if !DynlinkingGo() {
 		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
 		s = strings.Replace(s, "·", ".", -1)
@@ -215,6 +215,11 @@ func Asmelfsym() {
 
 	dwarfaddelfsectionsyms()
 
+	// Some linkers will add a FILE sym if one is not present.
+	// Avoid having the working directory inserted into the symbol table.
+	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
+	numelfsym++
+
 	elfbind = STB_LOCAL
 	genasmsym(putelfsym)
 
@@ -291,6 +296,13 @@ func Wputb(w uint16) {
 	Cput(uint8(w))
 }
 
+func Append16b(b []byte, v uint16) []byte {
+	return append(b, uint8(v>>8), uint8(v))
+}
+func Append16l(b []byte, v uint16) []byte {
+	return append(b, uint8(v), uint8(v>>8))
+}
+
 func Lputb(l uint32) {
 	Cput(uint8(l >> 24))
 	Cput(uint8(l >> 16))
@@ -305,6 +317,13 @@ func Lputl(l uint32) {
 	Cput(uint8(l >> 24))
 }
 
+func Append32b(b []byte, v uint32) []byte {
+	return append(b, uint8(v>>24), uint8(v>>16), uint8(v>>8), uint8(v))
+}
+func Append32l(b []byte, v uint32) []byte {
+	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24))
+}
+
 func Vputb(v uint64) {
 	Lputb(uint32(v >> 32))
 	Lputb(uint32(v))
@@ -313,6 +332,18 @@ func Vputb(v uint64) {
 func Vputl(v uint64) {
 	Lputl(uint32(v))
 	Lputl(uint32(v >> 32))
+}
+
+func Append64b(b []byte, v uint64) []byte {
+	b = Append32b(b, uint32(v>>32))
+	b = Append32b(b, uint32(v))
+	return b
+}
+
+func Append64l(b []byte, v uint64) []byte {
+	b = Append32l(b, uint32(v))
+	b = Append32l(b, uint32(v>>32))
+	return b
 }
 
 type byPkg []*Library
@@ -436,7 +467,7 @@ func symtab() {
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
-			s.Hide = 1
+			s.Hidden = true
 			if UseRelro() && len(s.R) > 0 {
 				s.Type = obj.STYPERELRO
 				s.Outer = symtyperel
@@ -449,31 +480,31 @@ func symtab() {
 		if strings.HasPrefix(s.Name, "go.typelink.") {
 			ntypelinks++
 			s.Type = obj.STYPELINK
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symtypelink
 		}
 
 		if strings.HasPrefix(s.Name, "go.string.") {
 			s.Type = obj.SGOSTRING
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgostring
 		}
 
 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
 			s.Type = obj.SGCBITS
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgcbits
 		}
 
 		if strings.HasPrefix(s.Name, "go.func.") {
 			s.Type = obj.SGOFUNC
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgofunc
 		}
 
 		if strings.HasPrefix(s.Name, "gcargs.") || strings.HasPrefix(s.Name, "gclocals.") || strings.HasPrefix(s.Name, "gclocals·") {
 			s.Type = obj.SGOFUNC
-			s.Hide = 1
+			s.Hidden = true
 			s.Outer = symgofunc
 			s.Align = 4
 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)

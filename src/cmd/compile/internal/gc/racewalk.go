@@ -13,7 +13,7 @@ import (
 //
 // For flag_race it modifies the function as follows:
 //
-// 1. It inserts a call to racefuncenter at the beginning of each function.
+// 1. It inserts a call to racefuncenterfp at the beginning of each function.
 // 2. It inserts a call to racefuncexit at the end of each function.
 // 3. It inserts a call to raceread before each memory read.
 // 4. It inserts a call to racewrite before each memory write.
@@ -33,7 +33,7 @@ import (
 // at best instrumentation would cause infinite recursion.
 var omit_pkgs = []string{"runtime/internal/atomic", "runtime/internal/sys", "runtime", "runtime/race", "runtime/msan"}
 
-// Only insert racefuncenter/racefuncexit into the following packages.
+// Only insert racefuncenterfp/racefuncexit into the following packages.
 // Memory accesses in the packages are either uninteresting or will cause false positives.
 var norace_inst_pkgs = []string{"sync", "sync/atomic"}
 
@@ -50,15 +50,15 @@ func ispkgin(pkgs []string) bool {
 }
 
 func instrument(fn *Node) {
-	if ispkgin(omit_pkgs) || fn.Func.Norace {
+	if ispkgin(omit_pkgs) || fn.Func.Pragma&Norace != 0 {
 		return
 	}
 
 	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
-		instrumentlist(fn.Nbody, nil)
+		instrumentslice(fn.Nbody.Slice(), nil)
 
 		// nothing interesting for race detector in fn->enter
-		instrumentlist(fn.Func.Exit, nil)
+		instrumentslice(fn.Func.Exit.Slice(), nil)
 	}
 
 	if flag_race != 0 {
@@ -71,18 +71,18 @@ func instrument(fn *Node) {
 		nodpc.Type = Types[TUINTPTR]
 		nodpc.Xoffset = int64(-Widthptr)
 		nd := mkcall("racefuncenter", nil, nil, nodpc)
-		fn.Func.Enter = concat(list1(nd), fn.Func.Enter)
+		fn.Func.Enter.Set(append([]*Node{nd}, fn.Func.Enter.Slice()...))
 		nd = mkcall("racefuncexit", nil, nil)
-		fn.Func.Exit = list(fn.Func.Exit, nd)
+		fn.Func.Exit.Append(nd)
 	}
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
-		dumplist(s, fn.Nbody)
+		dumpslice(s, fn.Nbody.Slice())
 		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
-		dumplist(s, fn.Func.Enter)
+		dumpslice(s, fn.Func.Enter.Slice())
 		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
-		dumplist(s, fn.Func.Exit)
+		dumpslice(s, fn.Func.Exit.Slice())
 	}
 }
 
@@ -94,6 +94,18 @@ func instrumentlist(l *NodeList, init **NodeList) {
 		instrumentnode(&l.N, &instr, 0, 0)
 		if init == nil {
 			l.N.Ninit = concat(l.N.Ninit, instr)
+		} else {
+			*init = concat(*init, instr)
+		}
+	}
+}
+
+func instrumentslice(l []*Node, init **NodeList) {
+	for i := range l {
+		var instr *NodeList
+		instrumentnode(&l[i], &instr, 0, 0)
+		if init == nil {
+			l[i].Ninit = concat(l[i].Ninit, instr)
 		} else {
 			*init = concat(*init, instr)
 		}
@@ -427,7 +439,7 @@ ret:
 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
 		instrumentlist(n.List, init)
 	}
-	instrumentlist(n.Nbody, nil)
+	instrumentslice(n.Nbody.Slice(), nil)
 	instrumentlist(n.Rlist, nil)
 	*np = n
 }
@@ -600,12 +612,18 @@ func foreachlist(l *NodeList, f func(*Node, interface{}), c interface{}) {
 	}
 }
 
+func foreachslice(l []*Node, f func(*Node, interface{}), c interface{}) {
+	for _, n := range l {
+		foreachnode(n, f, c)
+	}
+}
+
 func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
 	foreachlist(n.Ninit, f, c)
 	foreachnode(n.Left, f, c)
 	foreachnode(n.Right, f, c)
 	foreachlist(n.List, f, c)
-	foreachlist(n.Nbody, f, c)
+	foreachslice(n.Nbody.Slice(), f, c)
 	foreachlist(n.Rlist, f, c)
 }
 

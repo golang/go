@@ -449,7 +449,7 @@ func TestWalk(t *testing.T) {
 	checkMarks(t, true)
 	errors = errors[0:0]
 
-	// Test permission errors.  Only possible if we're not root
+	// Test permission errors. Only possible if we're not root
 	// and only on some file systems (AFS, FAT).  To avoid errors during
 	// all.bash on those file systems, skip during go test -short.
 	if os.Getuid() > 0 && !testing.Short() {

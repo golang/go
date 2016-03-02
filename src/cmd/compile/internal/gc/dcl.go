@@ -167,7 +167,7 @@ func declare(n *Node, ctxt Class) {
 	n.Lineno = int32(parserline())
 	s := n.Sym
 
-	// kludgy: typecheckok means we're past parsing.  Eg genwrapper may declare out of package names later.
+	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if importpkg == nil && !typecheckok && s.Pkg != localpkg {
 		Yyerror("cannot declare name %v", s)
 	}
@@ -187,7 +187,7 @@ func declare(n *Node, ctxt Class) {
 			Fatalf("automatic outside function")
 		}
 		if Curfn != nil {
-			Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+			Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 		}
 		if n.Op == OTYPE {
 			declare_typegen++
@@ -426,7 +426,7 @@ func oldname(s *Sym) *Node {
 			n.Name.Param.Closure = c
 			c.Name.Param.Closure = n
 			c.Xoffset = 0
-			Curfn.Func.Cvars = list(Curfn.Func.Cvars, c)
+			Curfn.Func.Cvars.Append(c)
 		}
 
 		// return ref to closure var, not original
@@ -1021,7 +1021,7 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 		CenterDot = 0xB7
 	)
 	// Names sometimes have disambiguation junk
-	// appended after a center dot.  Discard it when
+	// appended after a center dot. Discard it when
 	// making the name for the embedded struct field.
 	name := s.Name
 
@@ -1449,8 +1449,13 @@ func funccompile(n *Node) {
 	Funcdepth = n.Func.Depth + 1
 	compile(n)
 	Curfn = nil
+	Pc = nil
+	continpc = nil
+	breakpc = nil
 	Funcdepth = 0
 	dclcontext = PEXTERN
+	flushdata()
+	obj.Flushplist(Ctxt) // convert from Prog list to machine code
 }
 
 func funcsym(s *Sym) *Sym {
@@ -1515,7 +1520,7 @@ func checknowritebarrierrec() {
 			for _, n := range list {
 				if n.Func.WBLineno == 0 {
 					c.curfn = n
-					c.visitcodelist(n.Nbody)
+					c.visitcodeslice(n.Nbody.Slice())
 				}
 			}
 			if c.stable {
@@ -1525,7 +1530,7 @@ func checknowritebarrierrec() {
 
 		// Check nowritebarrierrec functions.
 		for _, n := range list {
-			if !n.Func.Nowritebarrierrec {
+			if n.Func.Pragma&Nowritebarrierrec == 0 {
 				continue
 			}
 			call, hasWB := c.best[n]
@@ -1552,6 +1557,12 @@ func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
 	}
 }
 
+func (c *nowritebarrierrecChecker) visitcodeslice(l []*Node) {
+	for _, n := range l {
+		c.visitcode(n)
+	}
+}
+
 func (c *nowritebarrierrecChecker) visitcode(n *Node) {
 	if n == nil {
 		return
@@ -1565,7 +1576,7 @@ func (c *nowritebarrierrecChecker) visitcode(n *Node) {
 	c.visitcode(n.Left)
 	c.visitcode(n.Right)
 	c.visitcodelist(n.List)
-	c.visitcodelist(n.Nbody)
+	c.visitcodeslice(n.Nbody.Slice())
 	c.visitcodelist(n.Rlist)
 }
 

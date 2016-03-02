@@ -59,7 +59,7 @@ func TestStack(t *testing.T) {
 }
 
 func check(t *testing.T, line, has string) {
-	if strings.Index(line, has) < 0 {
+	if !strings.Contains(line, has) {
 		t.Errorf("expected %q in %q", has, line)
 	}
 }

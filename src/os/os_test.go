@@ -47,10 +47,10 @@ var sysdir = func() *sysDir {
 	switch runtime.GOOS {
 	case "android":
 		return &sysDir{
-			"/system/framework",
+			"/system/lib",
 			[]string{
-				"ext.jar",
-				"framework.jar",
+				"libmedia.so",
+				"libpowermanager.so",
 			},
 		}
 	case "darwin":
@@ -538,7 +538,7 @@ func TestReaddirStatFailures(t *testing.T) {
 		return s
 	}
 
-	if got, want := names(mustReadDir("inital readdir")),
+	if got, want := names(mustReadDir("initial readdir")),
 		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("initial readdir got %q; want %q", got, want)
 	}

@@ -1427,7 +1427,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	}
 
 	if x.form == finite && y.form == finite {
-		// x + y (commom case)
+		// x + y (common case)
 		z.neg = x.neg
 		if x.neg == y.neg {
 			// x + y == x + y

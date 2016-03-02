@@ -69,7 +69,7 @@ var fmtbody bool
 // E.g. for %S:	%+S %#S %-S	print an identifier properly qualified for debug/export/internal mode.
 //
 // The mode flags  +, - and # are sticky, meaning they persist through
-// recursions of %N, %T and %S, but not the h and l flags.  The u flag is
+// recursions of %N, %T and %S, but not the h and l flags. The u flag is
 // sticky only on %T recursions and only used in %-/Sym mode.
 
 //
@@ -403,6 +403,7 @@ var etnames = []string{
 	TFORW:       "FORW",
 	TFIELD:      "FIELD",
 	TSTRING:     "STRING",
+	TUNSAFEPTR:  "TUNSAFEPTR",
 	TANY:        "ANY",
 }
 
@@ -748,7 +749,13 @@ func typefmt(t *Type, flag int) string {
 		if name != "" {
 			str = name + " " + typ
 		}
-		if flag&obj.FmtShort == 0 && !fmtbody && t.Note != nil {
+
+		// The fmtbody flag is intended to suppress escape analysis annotations
+		// when printing a function type used in a function body.
+		// (The escape analysis tags do not apply to func vars.)
+		// But it must not suppress struct field tags.
+		// See golang.org/issue/13777 and golang.org/issue/14331.
+		if flag&obj.FmtShort == 0 && (!fmtbody || !t.Funarg) && t.Note != nil {
 			str += " " + strconv.Quote(*t.Note)
 		}
 		return str
@@ -789,7 +796,7 @@ func stmtfmt(n *Node) string {
 
 	// some statements allow for an init, but at most one,
 	// but we may have an arbitrary number added, eg by typecheck
-	// and inlining.  If it doesn't fit the syntax, emit an enclosing
+	// and inlining. If it doesn't fit the syntax, emit an enclosing
 	// block starting with the init statements.
 
 	// if we can just say "for" n->ninit; ... then do so
@@ -1210,7 +1217,7 @@ func exprfmt(n *Node, prec int) string {
 		if fmtmode == FErr {
 			return "func literal"
 		}
-		if n.Nbody != nil {
+		if len(n.Nbody.Slice()) != 0 {
 			return fmt.Sprintf("%v { %v }", n.Type, n.Nbody)
 		}
 		return fmt.Sprintf("%v { %v }", n.Type, n.Name.Param.Closure.Nbody)
@@ -1536,7 +1543,7 @@ func nodedump(n *Node, flag int) string {
 		} else {
 			fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
 		}
-		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
+		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
 		}
@@ -1577,7 +1584,7 @@ func nodedump(n *Node, flag int) string {
 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(int(n.Op), 0), n.Rlist)
 		}
 
-		if n.Nbody != nil {
+		if len(n.Nbody.Slice()) != 0 {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-body%v", Oconv(int(n.Op), 0), n.Nbody)
 		}
@@ -1693,6 +1700,10 @@ func (l *NodeList) String() string {
 	return Hconv(l, 0)
 }
 
+func (n Nodes) String() string {
+	return Hconvslice(n.Slice(), 0)
+}
+
 // Fmt '%H': NodeList.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
 func Hconv(l *NodeList, flag int) string {
@@ -1723,8 +1734,40 @@ func Hconv(l *NodeList, flag int) string {
 	return buf.String()
 }
 
+func Hconvslice(l []*Node, flag int) string {
+	if len(l) == 0 && fmtmode == FDbg {
+		return "<nil>"
+	}
+
+	sf := flag
+	sm, sb := setfmode(&flag)
+	sep := "; "
+	if fmtmode == FDbg {
+		sep = "\n"
+	} else if flag&obj.FmtComma != 0 {
+		sep = ", "
+	}
+
+	var buf bytes.Buffer
+	for i, n := range l {
+		buf.WriteString(Nconv(n, 0))
+		if i+1 < len(l) {
+			buf.WriteString(sep)
+		}
+	}
+
+	flag = sf
+	fmtbody = sb
+	fmtmode = sm
+	return buf.String()
+}
+
 func dumplist(s string, l *NodeList) {
 	fmt.Printf("%s%v\n", s, Hconv(l, obj.FmtSign))
+}
+
+func dumpslice(s string, l []*Node) {
+	fmt.Printf("%s%v\n", s, Hconvslice(l, obj.FmtSign))
 }
 
 func Dump(s string, n *Node) {

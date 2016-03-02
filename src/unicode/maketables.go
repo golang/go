@@ -485,7 +485,7 @@ func printCategories() {
 			logger.Fatal("unknown category", name)
 		}
 		// We generate an UpperCase name to serve as concise documentation and an _UnderScored
-		// name to store the data.  This stops godoc dumping all the tables but keeps them
+		// name to store the data. This stops godoc dumping all the tables but keeps them
 		// available to clients.
 		// Cases deserving special comments
 		varDecl := ""
@@ -964,7 +964,7 @@ func getCaseState(i rune) (c *caseState) {
 		c._case = CaseTitle
 	}
 	// Some things such as roman numeral U+2161 don't describe themselves
-	// as upper case, but have a lower case.  Second-guess them.
+	// as upper case, but have a lower case. Second-guess them.
 	if c._case == CaseNone && ch.lowerCase != 0 {
 		c._case = CaseUpper
 	}

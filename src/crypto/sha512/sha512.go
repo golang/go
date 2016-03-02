@@ -208,7 +208,7 @@ func (d0 *digest) Sum(in []byte) []byte {
 }
 
 func (d *digest) checkSum() [Size]byte {
-	// Padding.  Add a 1 bit and 0 bits until 112 bytes mod 128.
+	// Padding. Add a 1 bit and 0 bits until 112 bytes mod 128.
 	len := d.len
 	var tmp [128]byte
 	tmp[0] = 0x80

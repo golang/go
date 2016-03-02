@@ -1,4 +1,4 @@
-// Copyright 2012 The Go Authors.  All rights reserved.
+// Copyright 2012 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -53,7 +53,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
 
 	// Not sure why the memset is necessary here,
 	// but without it, we get a bogus stack size
-	// out of pthread_attr_getstacksize.  C'est la Linux.
+	// out of pthread_attr_getstacksize. C'est la Linux.
 	memset(&attr, 0, sizeof attr);
 	pthread_attr_init(&attr);
 	size = 0;

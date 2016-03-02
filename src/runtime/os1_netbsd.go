@@ -114,9 +114,9 @@ func newosproc(mp *m, stk unsafe.Pointer) {
 }
 
 // netbsdMStart is the function call that starts executing a newly
-// created thread.  On NetBSD, a new thread inherits the signal stack
-// of the creating thread.  That confuses minit, so we remove that
-// signal stack here before calling the regular mstart.  It's a bit
+// created thread. On NetBSD, a new thread inherits the signal stack
+// of the creating thread. That confuses minit, so we remove that
+// signal stack here before calling the regular mstart. It's a bit
 // baroque to remove a signal stack here only to add one in minit, but
 // it's a simple change that keeps NetBSD working like other OS's.
 // At this point all signals are blocked, so there is no race.
@@ -167,7 +167,7 @@ func sigblock() {
 }
 
 // Called to initialize a new m (including the bootstrap m).
-// Called on the new thread, can not allocate memory.
+// Called on the new thread, cannot allocate memory.
 func minit() {
 	_g_ := getg()
 	_g_.m.procid = uint64(lwp_self())
@@ -175,9 +175,9 @@ func minit() {
 	// Initialize signal handling.
 
 	// On NetBSD a thread created by pthread_create inherits the
-	// signal stack of the creating thread.  We always create a
+	// signal stack of the creating thread. We always create a
 	// new signal stack here, to avoid having two Go threads using
-	// the same signal stack.  This breaks the case of a thread
+	// the same signal stack. This breaks the case of a thread
 	// created in C that calls sigaltstack and then calls a Go
 	// function, because we will lose track of the C code's
 	// sigaltstack, but it's the best we can do.

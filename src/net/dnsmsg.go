@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// DNS packet assembly.  See RFC 1035.
+// DNS packet assembly. See RFC 1035.
 //
 // This is intended to support name resolution during Dial.
 // It doesn't have to be blazing fast.
@@ -18,7 +18,7 @@
 // generic pack/unpack routines.
 //
 // TODO(rsc):  There are enough names defined in this file that they're all
-// prefixed with dns.  Perhaps put this in its own package later.
+// prefixed with dns. Perhaps put this in its own package later.
 
 package net
 
@@ -315,7 +315,7 @@ func (rr *dnsRR_TXT) Walk(f func(v interface{}, name, tag string) bool) bool {
 		if !f(&txt, "Txt", "") {
 			return false
 		}
-		// more bytes than rr.Hdr.Rdlength said there woudld be
+		// more bytes than rr.Hdr.Rdlength said there would be
 		if rr.Hdr.Rdlength-n < uint16(len(txt))+1 {
 			return false
 		}
@@ -376,7 +376,7 @@ func (rr *dnsRR_AAAA) Walk(f func(v interface{}, name, tag string) bool) bool {
 // All the packers and unpackers take a (msg []byte, off int)
 // and return (off1 int, ok bool).  If they return ok==false, they
 // also return off1==len(msg), so that the next unpacker will
-// also fail.  This lets us avoid checks of ok until the end of a
+// also fail. This lets us avoid checks of ok until the end of a
 // packing sequence.
 
 // Map of constructors for each RR wire type.
@@ -399,11 +399,18 @@ var rr_mk = map[int]func() dnsRR{
 
 // Pack a domain name s into msg[off:].
 // Domain names are a sequence of counted strings
-// split at the dots.  They end with a zero-length string.
+// split at the dots. They end with a zero-length string.
 func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 	// Add trailing dot to canonicalize name.
 	if n := len(s); n == 0 || s[n-1] != '.' {
 		s += "."
+	}
+
+	// Allow root domain.
+	if s == "." {
+		msg[off] = 0
+		off++
+		return off, true
 	}
 
 	// Each dot ends a segment of the name.
@@ -422,8 +429,13 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 			if i-begin >= 1<<6 { // top two bits of length must be clear
 				return len(msg), false
 			}
+			if i-begin == 0 {
+				return len(msg), false
+			}
+
 			msg[off] = byte(i - begin)
 			off++
+
 			for j := begin; j < i; j++ {
 				msg[off] = s[j]
 				off++
@@ -440,8 +452,8 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
 // In addition to the simple sequences of counted strings above,
 // domain names are allowed to refer to strings elsewhere in the
 // packet, to avoid repeating common suffixes when returning
-// many entries in a single domain.  The pointers are marked
-// by a length byte with the top two bits set.  Ignoring those
+// many entries in a single domain. The pointers are marked
+// by a length byte with the top two bits set. Ignoring those
 // two bits, that byte and the next give a 14 bit offset from msg[0]
 // where we should pick up the trail.
 // Note that if we jump elsewhere in the packet,
@@ -493,6 +505,9 @@ Loop:
 			// 0x80 and 0x40 are reserved
 			return "", len(msg), false
 		}
+	}
+	if len(s) == 0 {
+		s = "."
 	}
 	if ptr == 0 {
 		off1 = off
@@ -803,20 +818,32 @@ func (dns *dnsMsg) Pack() (msg []byte, ok bool) {
 	// Pack it in: header and then the pieces.
 	off := 0
 	off, ok = packStruct(&dh, msg, off)
+	if !ok {
+		return nil, false
+	}
 	for i := 0; i < len(question); i++ {
 		off, ok = packStruct(&question[i], msg, off)
+		if !ok {
+			return nil, false
+		}
 	}
 	for i := 0; i < len(answer); i++ {
 		off, ok = packRR(answer[i], msg, off)
+		if !ok {
+			return nil, false
+		}
 	}
 	for i := 0; i < len(ns); i++ {
 		off, ok = packRR(ns[i], msg, off)
+		if !ok {
+			return nil, false
+		}
 	}
 	for i := 0; i < len(extra); i++ {
 		off, ok = packRR(extra[i], msg, off)
-	}
-	if !ok {
-		return nil, false
+		if !ok {
+			return nil, false
+		}
 	}
 	return msg[0:off], true
 }
@@ -848,6 +875,9 @@ func (dns *dnsMsg) Unpack(msg []byte) bool {
 
 	for i := 0; i < len(dns.question); i++ {
 		off, ok = unpackStruct(&dns.question[i], msg, off)
+		if !ok {
+			return false
+		}
 	}
 	for i := 0; i < int(dh.Ancount); i++ {
 		rec, off, ok = unpackRR(msg, off)

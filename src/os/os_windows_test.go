@@ -177,7 +177,7 @@ func TestStatDir(t *testing.T) {
 	}
 
 	if !os.SameFile(fi, fi2) {
-		t.Fatal("race condition occured")
+		t.Fatal("race condition occurred")
 	}
 }
 

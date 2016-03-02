@@ -51,7 +51,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 	if err != nil {
 		return nil, err
 	}
-	// We don't check the version number in the premaster secret.  For one,
+	// We don't check the version number in the premaster secret. For one,
 	// by checking it, we would leak information about the validity of the
 	// encrypted pre-master secret. Secondly, it provides only a small
 	// benefit against a downgrade attack and some implementations send the

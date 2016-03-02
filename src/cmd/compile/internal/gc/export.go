@@ -112,6 +112,12 @@ func reexportdeplist(ll *NodeList) {
 	}
 }
 
+func reexportdepslice(ll []*Node) {
+	for _, n := range ll {
+		reexportdep(n)
+	}
+}
+
 func reexportdep(n *Node) {
 	if n == nil {
 		return
@@ -217,7 +223,7 @@ func reexportdep(n *Node) {
 	reexportdeplist(n.List)
 	reexportdeplist(n.Rlist)
 	reexportdeplist(n.Ninit)
-	reexportdeplist(n.Nbody)
+	reexportdepslice(n.Nbody.Slice())
 }
 
 func dumpexportconst(s *Sym) {
@@ -249,7 +255,7 @@ func dumpexportvar(s *Sym) {
 	dumpexporttype(t)
 
 	if t.Etype == TFUNC && n.Class == PFUNC {
-		if n.Func != nil && n.Func.Inl != nil {
+		if n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if Debug['l'] < 2 {
@@ -257,9 +263,9 @@ func dumpexportvar(s *Sym) {
 			}
 
 			// NOTE: The space after %#S here is necessary for ld's export data parser.
-			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconv(n.Func.Inl, obj.FmtSharp|obj.FmtBody))
+			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconvslice(n.Func.Inl.Slice(), obj.FmtSharp|obj.FmtBody))
 
-			reexportdeplist(n.Func.Inl)
+			reexportdepslice(n.Func.Inl.Slice())
 		} else {
 			exportf("\tfunc %v %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp))
 		}
@@ -307,15 +313,15 @@ func dumpexporttype(t *Type) {
 		if f.Nointerface {
 			exportf("\t//go:nointerface\n")
 		}
-		if f.Type.Nname != nil && f.Type.Nname.Func.Inl != nil { // nname was set by caninl
+		if f.Type.Nname != nil && len(f.Type.Nname.Func.Inl.Slice()) != 0 { // nname was set by caninl
 
 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname)
 			}
-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
-			reexportdeplist(f.Type.Nname.Func.Inl)
+			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconvslice(f.Type.Nname.Func.Inl.Slice(), obj.FmtSharp))
+			reexportdepslice(f.Type.Nname.Func.Inl.Slice())
 		} else {
 			exportf("\tfunc (%v) %v %v\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
 		}
@@ -442,7 +448,7 @@ func importsym(s *Sym, op Op) *Sym {
 
 	// mark the symbol so it is not reexported
 	if s.Def == nil {
-		if exportname(s.Name) || initname(s.Name) {
+		if Debug['A'] != 0 || exportname(s.Name) || initname(s.Name) {
 			s.Flags |= SymExport
 		} else {
 			s.Flags |= SymPackage // package scope

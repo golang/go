@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -108,7 +108,7 @@ import (
 )
 
 // The Go and C compilers, and the assembler, call writeobj to write
-// out a Go object file.  The linker does not call this; the linker
+// out a Go object file. The linker does not call this; the linker
 // does not write out object files.
 func Writeobjdirect(ctxt *Link, b *Biobuf) {
 	Flushplist(ctxt)
@@ -116,6 +116,12 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
 }
 
 func Flushplist(ctxt *Link) {
+	flushplist(ctxt, ctxt.Debugasm == 0)
+}
+func FlushplistNoFree(ctxt *Link) {
+	flushplist(ctxt, false)
+}
+func flushplist(ctxt *Link, freeProgs bool) {
 	var flag int
 	var s *LSym
 	var p *Prog
@@ -295,20 +301,34 @@ func Flushplist(ctxt *Link) {
 	for s := text; s != nil; s = s.Next {
 		mkfwd(s)
 		linkpatch(ctxt, s)
-		ctxt.Arch.Follow(ctxt, s)
+		if ctxt.Flag_optimize {
+			ctxt.Arch.Follow(ctxt, s)
+		}
 		ctxt.Arch.Preprocess(ctxt, s)
 		ctxt.Arch.Assemble(ctxt, s)
+		fieldtrack(ctxt, s)
 		linkpcln(ctxt, s)
+		if freeProgs {
+			s.Text = nil
+			s.Etext = nil
+		}
 	}
 
 	// Add to running list in ctxt.
-	if ctxt.Etext == nil {
-		ctxt.Text = text
-	} else {
-		ctxt.Etext.Next = text
+	if text != nil {
+		if ctxt.Text == nil {
+			ctxt.Text = text
+		} else {
+			ctxt.Etext.Next = text
+		}
+		ctxt.Etext = etext
 	}
-	ctxt.Etext = etext
 	ctxt.Plist = nil
+	ctxt.Plast = nil
+	ctxt.Curp = nil
+	if freeProgs {
+		ctxt.freeProgs()
+	}
 }
 
 func Writeobjfile(ctxt *Link, b *Biobuf) {

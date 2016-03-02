@@ -203,6 +203,6 @@ func BenchmarkQDecodeHeader(b *testing.B) {
 	dec := new(WordDecoder)
 
 	for i := 0; i < b.N; i++ {
-		dec.Decode("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
+		dec.DecodeHeader("=?utf-8?q?=C2=A1Hola,_se=C3=B1or!?=")
 	}
 }

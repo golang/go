@@ -196,7 +196,7 @@ func init() {
 //
 func def(obj Object) {
 	name := obj.Name()
-	if strings.Index(name, " ") >= 0 {
+	if strings.Contains(name, " ") {
 		return // nothing to do
 	}
 	// fix Obj link for named types

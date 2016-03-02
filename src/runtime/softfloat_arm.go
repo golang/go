@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Software floating point interpretaton of ARM 7500 FP instructions.
+// Software floating point interpretation of ARM 7500 FP instructions.
 // The interpretation is not bit compatible with the 7500.
 // It uses true little-endian doubles, while the 7500 used mixed-endian.
 

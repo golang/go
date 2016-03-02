@@ -93,7 +93,7 @@ const (
 	_StackGuard = 720*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
-	// many bytes below the stack guard.  This saves an instruction
+	// many bytes below the stack guard. This saves an instruction
 	// in the checking sequence for tiny frames.
 	_StackSmall = 128
 
@@ -180,13 +180,13 @@ func stacklog2(n uintptr) int {
 	return log2
 }
 
-// Allocates a stack from the free pool.  Must be called with
+// Allocates a stack from the free pool. Must be called with
 // stackpoolmu held.
 func stackpoolalloc(order uint8) gclinkptr {
 	list := &stackpool[order]
 	s := list.first
 	if s == nil {
-		// no free stacks.  Allocate another span worth.
+		// no free stacks. Allocate another span worth.
 		s = mheap_.allocStack(_StackCacheSize >> _PageShift)
 		if s == nil {
 			throw("out of memory")
@@ -217,7 +217,7 @@ func stackpoolalloc(order uint8) gclinkptr {
 	return x
 }
 
-// Adds stack x to the free pool.  Must be called with stackpoolmu held.
+// Adds stack x to the free pool. Must be called with stackpoolmu held.
 func stackpoolfree(x gclinkptr, order uint8) {
 	s := mheap_.lookup(unsafe.Pointer(x))
 	if s.state != _MSpanStack {
@@ -521,15 +521,15 @@ type adjustinfo struct {
 // Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
 // If so, it rewrites *vpp to point into the new stack.
 func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
-	pp := (*unsafe.Pointer)(vpp)
+	pp := (*uintptr)(vpp)
 	p := *pp
 	if stackDebug >= 4 {
-		print("        ", pp, ":", p, "\n")
+		print("        ", pp, ":", hex(p), "\n")
 	}
-	if adjinfo.old.lo <= uintptr(p) && uintptr(p) < adjinfo.old.hi {
-		*pp = add(p, adjinfo.delta)
+	if adjinfo.old.lo <= p && p < adjinfo.old.hi {
+		*pp = p + adjinfo.delta
 		if stackDebug >= 3 {
-			print("        adjust ptr ", pp, ":", p, " -> ", *pp, "\n")
+			print("        adjust ptr ", pp, ":", hex(p), " -> ", hex(*pp), "\n")
 		}
 	}
 }

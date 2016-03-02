@@ -316,8 +316,8 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHeaders map[string]string) erro
 	// succeed, and seems harmless enough.
 	ext.ModTime = hdr.ModTime
 	// The spec asks that we namespace our pseudo files
-	// with the current pid.  However, this results in differing outputs
-	// for identical inputs.  As such, the constant 0 is now used instead.
+	// with the current pid. However, this results in differing outputs
+	// for identical inputs. As such, the constant 0 is now used instead.
 	// golang.org/issue/12358
 	dir, file := path.Split(hdr.Name)
 	fullName := path.Join(dir, "PaxHeaders.0", file)

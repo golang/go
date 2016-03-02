@@ -5,9 +5,11 @@
 package gc
 
 import (
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"crypto/md5"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -186,21 +188,12 @@ func emitptrargsmap() {
 // the top of the stack and increasing in size.
 // Non-autos sort on offset.
 func cmpstackvarlt(a, b *Node) bool {
-	if a.Class != b.Class {
-		if a.Class == PAUTO {
-			return false
-		}
-		return true
+	if (a.Class == PAUTO) != (b.Class == PAUTO) {
+		return b.Class == PAUTO
 	}
 
 	if a.Class != PAUTO {
-		if a.Xoffset < b.Xoffset {
-			return true
-		}
-		if a.Xoffset > b.Xoffset {
-			return false
-		}
-		return false
+		return a.Xoffset < b.Xoffset
 	}
 
 	if a.Used != b.Used {
@@ -219,15 +212,19 @@ func cmpstackvarlt(a, b *Node) bool {
 		return ap
 	}
 
-	if a.Type.Width < b.Type.Width {
-		return false
-	}
-	if a.Type.Width > b.Type.Width {
-		return true
+	if a.Type.Width != b.Type.Width {
+		return a.Type.Width > b.Type.Width
 	}
 
 	return a.Sym.Name < b.Sym.Name
 }
+
+// byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
+type byStackVar []*Node
+
+func (s byStackVar) Len() int           { return len(s) }
+func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
+func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 // stkdelta records the stack offset delta for a node
 // during the compaction of the stack frame to remove
@@ -239,25 +236,23 @@ func allocauto(ptxt *obj.Prog) {
 	Stksize = 0
 	stkptrsize = 0
 
-	if Curfn.Func.Dcl == nil {
+	if len(Curfn.Func.Dcl) == 0 {
 		return
 	}
 
 	// Mark the PAUTO's unused.
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Class == PAUTO {
-			ll.N.Used = false
+	for _, ln := range Curfn.Func.Dcl {
+		if ln.Class == PAUTO {
+			ln.Used = false
 		}
 	}
 
 	markautoused(ptxt)
 
-	listsort(&Curfn.Func.Dcl, cmpstackvarlt)
+	sort.Sort(byStackVar(Curfn.Func.Dcl))
 
 	// Unused autos are at the end, chop 'em off.
-	ll := Curfn.Func.Dcl
-
-	n := ll.N
+	n := Curfn.Func.Dcl[0]
 	if n.Class == PAUTO && n.Op == ONAME && !n.Used {
 		// No locals used at all
 		Curfn.Func.Dcl = nil
@@ -266,19 +261,17 @@ func allocauto(ptxt *obj.Prog) {
 		return
 	}
 
-	for ll := Curfn.Func.Dcl; ll.Next != nil; ll = ll.Next {
-		n = ll.Next.N
+	for i := 1; i < len(Curfn.Func.Dcl); i++ {
+		n = Curfn.Func.Dcl[i]
 		if n.Class == PAUTO && n.Op == ONAME && !n.Used {
-			ll.Next = nil
-			Curfn.Func.Dcl.End = ll
+			Curfn.Func.Dcl = Curfn.Func.Dcl[:i]
 			break
 		}
 	}
 
 	// Reassign stack offsets of the locals that are still there.
 	var w int64
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		n = ll.N
+	for _, n := range Curfn.Func.Dcl {
 		if n.Class != PAUTO || n.Op != ONAME {
 			continue
 		}
@@ -310,12 +303,12 @@ func allocauto(ptxt *obj.Prog) {
 	fixautoused(ptxt)
 
 	// The debug information needs accurate offsets on the symbols.
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Class != PAUTO || ll.N.Op != ONAME {
+	for _, ln := range Curfn.Func.Dcl {
+		if ln.Class != PAUTO || ln.Op != ONAME {
 			continue
 		}
-		ll.N.Xoffset += stkdelta[ll.N]
-		delete(stkdelta, ll.N)
+		ln.Xoffset += stkdelta[ln]
+		delete(stkdelta, ln)
 	}
 }
 
@@ -349,7 +342,12 @@ func compile(fn *Node) {
 		Deferreturn = Sysfunc("deferreturn")
 		Panicindex = Sysfunc("panicindex")
 		panicslice = Sysfunc("panicslice")
+		panicdivide = Sysfunc("panicdivide")
 		throwreturn = Sysfunc("throwreturn")
+		growslice = Sysfunc("growslice")
+		writebarrierptr = Sysfunc("writebarrierptr")
+		typedmemmove = Sysfunc("typedmemmove")
+		panicdottype = Sysfunc("panicdottype")
 	}
 
 	lno := setlineno(fn)
@@ -366,7 +364,8 @@ func compile(fn *Node) {
 	var nam *Node
 	var gcargs *Sym
 	var gclocals *Sym
-	if fn.Nbody == nil {
+	var ssafn *ssa.Func
+	if len(fn.Nbody.Slice()) == 0 {
 		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
 			goto ret
@@ -393,7 +392,7 @@ func compile(fn *Node) {
 			if t.Nname != nil {
 				n = Nod(OAS, t.Nname, nil)
 				typecheck(&n, Etop)
-				Curfn.Nbody = concat(list1(n), Curfn.Nbody)
+				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
 			}
 
 			t = structnext(&save)
@@ -415,6 +414,11 @@ func compile(fn *Node) {
 	}
 	if nerrors != 0 {
 		goto ret
+	}
+
+	// Build an SSA backend function.
+	if shouldssa(Curfn) {
+		ssafn = buildssa(Curfn)
 	}
 
 	continpc = nil
@@ -442,10 +446,10 @@ func compile(fn *Node) {
 	if fn.Func.Needctxt {
 		ptxt.From3.Offset |= obj.NEEDCTXT
 	}
-	if fn.Func.Nosplit {
+	if fn.Func.Pragma&Nosplit != 0 {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
-	if fn.Func.Systemstack {
+	if fn.Func.Pragma&Systemstack != 0 {
 		ptxt.From.Sym.Cfunc = 1
 	}
 
@@ -467,21 +471,28 @@ func compile(fn *Node) {
 		gtrack(tracksym(t))
 	}
 
-	for l := fn.Func.Dcl; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range fn.Func.Dcl {
 		if n.Op != ONAME { // might be OTYPE or OLITERAL
 			continue
 		}
 		switch n.Class {
 		case PAUTO, PPARAM, PPARAMOUT:
-			Nodconst(&nod1, Types[TUINTPTR], l.N.Type.Width)
-			p = Thearch.Gins(obj.ATYPE, l.N, &nod1)
-			p.From.Gotype = Linksym(ngotype(l.N))
+			Nodconst(&nod1, Types[TUINTPTR], n.Type.Width)
+			p = Thearch.Gins(obj.ATYPE, n, &nod1)
+			p.From.Gotype = Linksym(ngotype(n))
 		}
 	}
 
-	Genlist(Curfn.Func.Enter)
-	Genlist(Curfn.Nbody)
+	if ssafn != nil {
+		genssa(ssafn, ptxt, gcargs, gclocals)
+		if Curfn.Func.Endlineno != 0 {
+			lineno = Curfn.Func.Endlineno
+		}
+		ssafn.Free()
+		return
+	}
+	Genslice(Curfn.Func.Enter.Slice())
+	Genslice(Curfn.Nbody.Slice())
 	gclean()
 	checklabels()
 	if nerrors != 0 {

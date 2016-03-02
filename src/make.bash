@@ -44,6 +44,9 @@
 # This is used by cgo. Default is CXX, or, if that is not set, 
 # "g++" or "clang++".
 #
+# FC: Command line to run to compile Fortran code for GOARCH.
+# This is used by cgo. Default is "gfortran".
+#
 # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
 
 set -e

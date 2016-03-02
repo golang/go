@@ -99,30 +99,37 @@ type Request struct {
 	ProtoMajor int    // 1
 	ProtoMinor int    // 0
 
-	// A header maps request lines to their values.
-	// If the header says
+	// Header contains the request header fields either received
+	// by the server or to be sent by the client.
 	//
+	// If a server received a request with header lines,
+	//
+	//	Host: example.com
 	//	accept-encoding: gzip, deflate
 	//	Accept-Language: en-us
-	//	Connection: keep-alive
+	//	fOO: Bar
+	//	foo: two
 	//
 	// then
 	//
 	//	Header = map[string][]string{
 	//		"Accept-Encoding": {"gzip, deflate"},
 	//		"Accept-Language": {"en-us"},
-	//		"Connection": {"keep-alive"},
+	//		"Foo": {"Bar", "two"},
 	//	}
 	//
-	// HTTP defines that header names are case-insensitive.
-	// The request parser implements this by canonicalizing the
-	// name, making the first character and any characters
-	// following a hyphen uppercase and the rest lowercase.
+	// For incoming requests, the Host header is promoted to the
+	// Request.Host field and removed from the Header map.
 	//
-	// For client requests certain headers are automatically
-	// added and may override values in Header.
+	// HTTP defines that header names are case-insensitive. The
+	// request parser implements this by using CanonicalHeaderKey,
+	// making the first character and any characters following a
+	// hyphen uppercase and the rest lowercase.
 	//
-	// See the documentation for the Request.Write method.
+	// For client requests, certain headers such as Content-Length
+	// and Connection are automatically written when needed and
+	// values in Header may be ignored. See the documentation
+	// for the Request.Write method.
 	Header Header
 
 	// Body is the request's body.
@@ -152,8 +159,15 @@ type Request struct {
 	TransferEncoding []string
 
 	// Close indicates whether to close the connection after
-	// replying to this request (for servers) or after sending
-	// the request (for clients).
+	// replying to this request (for servers) or after sending this
+	// request and reading its response (for clients).
+	//
+	// For server requests, the HTTP server handles this automatically
+	// and this field is not needed by Handlers.
+	//
+	// For client requests, setting this field prevents re-use of
+	// TCP connections between requests to the same hosts, as if
+	// Transport.DisableKeepAlives were set.
 	Close bool
 
 	// For server requests Host specifies the host on which the
@@ -265,8 +279,8 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 	return nil, ErrNoCookie
 }
 
-// AddCookie adds a cookie to the request.  Per RFC 6265 section 5.4,
-// AddCookie does not attach more than one Cookie header field.  That
+// AddCookie adds a cookie to the request. Per RFC 6265 section 5.4,
+// AddCookie does not attach more than one Cookie header field. That
 // means all cookies, if any, are written into the same line,
 // separated by semicolon.
 func (r *Request) AddCookie(c *Cookie) {
@@ -361,7 +375,7 @@ func (r *Request) Write(w io.Writer) error {
 }
 
 // WriteProxy is like Write but writes the request in the form
-// expected by an HTTP proxy.  In particular, WriteProxy writes the
+// expected by an HTTP proxy. In particular, WriteProxy writes the
 // initial Request-URI line of the request with an absolute URI, per
 // section 5.1.2 of RFC 2616, including the scheme and host.
 // In either case, WriteProxy also writes a Host header, using
@@ -507,7 +521,7 @@ func cleanHost(in string) string {
 	return in
 }
 
-// removeZone removes IPv6 zone identifer from host.
+// removeZone removes IPv6 zone identifier from host.
 // E.g., "[fe80::1%en0]:8080" to "[fe80::1]:8080"
 func removeZone(host string) string {
 	if !strings.HasPrefix(host, "[") {
@@ -690,7 +704,9 @@ func putTextprotoReader(r *textproto.Reader) {
 }
 
 // ReadRequest reads and parses an incoming request from b.
-func ReadRequest(b *bufio.Reader) (req *Request, err error) { return readRequest(b, deleteHostHeader) }
+func ReadRequest(b *bufio.Reader) (*Request, error) {
+	return readRequest(b, deleteHostHeader)
+}
 
 // Constants for readRequest's deleteHostHeader parameter.
 const (
@@ -760,7 +776,7 @@ func readRequest(b *bufio.Reader, deleteHostHeader bool) (req *Request, err erro
 	// and
 	//	GET http://www.google.com/index.html HTTP/1.1
 	//	Host: doesntmatter
-	// the same.  In the second case, any Host line is ignored.
+	// the same. In the second case, any Host line is ignored.
 	req.Host = req.URL.Host
 	if req.Host == "" {
 		req.Host = req.Header.get("Host")

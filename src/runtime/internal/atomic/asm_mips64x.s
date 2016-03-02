@@ -189,7 +189,7 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	// R4 = ((ptr & 3) * 8)
 	AND	$3, R1, R4
 	SLLV	$3, R4
-	// Shift val for aligned ptr.  R2 = val << R4
+	// Shift val for aligned ptr. R2 = val << R4
 	SLLV	R4, R2
 
 	SYNC
@@ -215,7 +215,7 @@ TEXT ·And8(SB), NOSPLIT, $0-9
 	// R4 = ((ptr & 3) * 8)
 	AND	$3, R1, R4
 	SLLV	$3, R4
-	// Shift val for aligned ptr.  R2 = val << R4 | ^(0xFF << R4)
+	// Shift val for aligned ptr. R2 = val << R4 | ^(0xFF << R4)
 	MOVV	$0xFF, R5
 	SLLV	R4, R2
 	SLLV	R4, R5

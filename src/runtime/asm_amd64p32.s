@@ -133,7 +133,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-4
 
 // func mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	MOVL	fn+0(FP), DI
@@ -166,7 +166,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $0-4
 	RET
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -198,7 +198,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-4
 	CALL	AX
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVL	$runtime·systemstack_switch(SB), SI
 	MOVL	SI, (g_sched+gobuf_pc)(AX)
@@ -491,7 +491,7 @@ TEXT runtime·memclr(SB),NOSPLIT,$0-8
 	REP
 	STOSB
 	// Note: we zero only 4 bytes at a time so that the tail is at most
-	// 3 bytes.  That guarantees that we aren't zeroing pointers with STOSB.
+	// 3 bytes. That guarantees that we aren't zeroing pointers with STOSB.
 	// See issue 13160.
 	RET
 
@@ -573,12 +573,18 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-20
 	MOVL	AX, ret+16(FP)
 	RET
 
-TEXT runtime·memeq(SB),NOSPLIT,$0-17
+// memequal(p, q unsafe.Pointer, size uintptr) bool
+TEXT runtime·memequal(SB),NOSPLIT,$0-13
 	MOVL	a+0(FP), SI
 	MOVL	b+4(FP), DI
+	CMPL	SI, DI
+	JEQ	eq
 	MOVL	size+8(FP), BX
 	CALL	runtime·memeqbody(SB)
 	MOVB	AX, ret+16(FP)
+	RET
+eq:
+	MOVB    $1, ret+16(FP)
 	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
@@ -686,7 +692,7 @@ small:
 	MOVQ	(SI), SI
 	JMP	si_finish
 si_high:
-	// address ends in 11111xxx.  Load up to bytes we want, move to correct position.
+	// address ends in 11111xxx. Load up to bytes we want, move to correct position.
 	MOVQ	BX, DX
 	ADDQ	SI, DX
 	MOVQ	-8(DX), SI

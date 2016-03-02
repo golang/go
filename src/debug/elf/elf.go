@@ -1896,7 +1896,7 @@ type Prog32 struct {
 	Align  uint32 /* Alignment in memory and file. */
 }
 
-// ELF32 Dynamic structure.  The ".dynamic" section contains an array of them.
+// ELF32 Dynamic structure. The ".dynamic" section contains an array of them.
 type Dyn32 struct {
 	Tag int32  /* Entry type. */
 	Val uint32 /* Integer/Address value. */
@@ -1997,7 +1997,7 @@ type Prog64 struct {
 	Align  uint64 /* Alignment in memory and file. */
 }
 
-// ELF64 Dynamic structure.  The ".dynamic" section contains an array of them.
+// ELF64 Dynamic structure. The ".dynamic" section contains an array of them.
 type Dyn64 struct {
 	Tag int64  /* Entry type. */
 	Val uint64 /* Integer/address value */

@@ -184,7 +184,6 @@ const (
 	Zm2_r
 	Zm_r_xm
 	Zm_r_i_xm
-	Zm_r_3d
 	Zm_r_xm_nr
 	Zr_m_xm_nr
 	Zibm_r /* mmx1,mmx2/mem64,imm8 */
@@ -753,10 +752,6 @@ var yxrrl = []ytab{
 	{Yxr, Ynone, Yrl, Zm_r, 1},
 }
 
-var ymfp = []ytab{
-	{Ymm, Ynone, Ymr, Zm_r_3d, 1},
-}
-
 var ymrxr = []ytab{
 	{Ymr, Ynone, Yxr, Zm_r, 1},
 	{Yxm, Ynone, Yxr, Zm_r_xm, 1},
@@ -1085,7 +1080,6 @@ var optab =
 	{ACVTPD2PS, yxm, Pe, [23]uint8{0x5a}},
 	{ACVTPS2PL, yxcvm1, Px, [23]uint8{Pe, 0x5b, Pm, 0x2d}},
 	{ACVTPS2PD, yxm, Pm, [23]uint8{0x5a}},
-	{API2FW, ymfp, Px, [23]uint8{0x0c}},
 	{ACVTSD2SL, yxcvfl, Pf2, [23]uint8{0x2d}},
 	{ACVTSD2SQ, yxcvfq, Pw, [23]uint8{Pf2, 0x2d}},
 	{ACVTSD2SS, yxm, Pf2, [23]uint8{0x5a}},
@@ -1303,26 +1297,6 @@ var optab =
 	{APEXTRB, yextr, Pq, [23]uint8{0x3a, 0x14, 00}},
 	{APEXTRD, yextr, Pq, [23]uint8{0x3a, 0x16, 00}},
 	{APEXTRQ, yextr, Pq3, [23]uint8{0x3a, 0x16, 00}},
-	{APF2IL, ymfp, Px, [23]uint8{0x1d}},
-	{APF2IW, ymfp, Px, [23]uint8{0x1c}},
-	{API2FL, ymfp, Px, [23]uint8{0x0d}},
-	{APFACC, ymfp, Px, [23]uint8{0xae}},
-	{APFADD, ymfp, Px, [23]uint8{0x9e}},
-	{APFCMPEQ, ymfp, Px, [23]uint8{0xb0}},
-	{APFCMPGE, ymfp, Px, [23]uint8{0x90}},
-	{APFCMPGT, ymfp, Px, [23]uint8{0xa0}},
-	{APFMAX, ymfp, Px, [23]uint8{0xa4}},
-	{APFMIN, ymfp, Px, [23]uint8{0x94}},
-	{APFMUL, ymfp, Px, [23]uint8{0xb4}},
-	{APFNACC, ymfp, Px, [23]uint8{0x8a}},
-	{APFPNACC, ymfp, Px, [23]uint8{0x8e}},
-	{APFRCP, ymfp, Px, [23]uint8{0x96}},
-	{APFRCPIT1, ymfp, Px, [23]uint8{0xa6}},
-	{APFRCPI2T, ymfp, Px, [23]uint8{0xb6}},
-	{APFRSQIT1, ymfp, Px, [23]uint8{0xa7}},
-	{APFRSQRT, ymfp, Px, [23]uint8{0x97}},
-	{APFSUB, ymfp, Px, [23]uint8{0x9a}},
-	{APFSUBR, ymfp, Px, [23]uint8{0xaa}},
 	{APHADDD, ymmxmm0f38, Px, [23]uint8{0x0F, 0x38, 0x02, 0, 0x66, 0x0F, 0x38, 0x02, 0}},
 	{APHADDSW, yxm_q4, Pq4, [23]uint8{0x03}},
 	{APHADDW, yxm_q4, Pq4, [23]uint8{0x01}},
@@ -1353,7 +1327,6 @@ var optab =
 	{APMOVZXWD, yxm_q4, Pq4, [23]uint8{0x33}},
 	{APMOVZXWQ, yxm_q4, Pq4, [23]uint8{0x34}},
 	{APMULDQ, yxm_q4, Pq4, [23]uint8{0x28}},
-	{APMULHRW, ymfp, Px, [23]uint8{0xb7}},
 	{APMULHUW, ymm, Py1, [23]uint8{0xe4, Pe, 0xe4}},
 	{APMULHW, ymm, Py1, [23]uint8{0xe5, Pe, 0xe5}},
 	{APMULLD, yxm_q4, Pq4, [23]uint8{0x40}},
@@ -1395,7 +1368,6 @@ var optab =
 	{APSUBUSB, yxm, Pe, [23]uint8{0xd8}},
 	{APSUBUSW, yxm, Pe, [23]uint8{0xd9}},
 	{APSUBW, yxm, Pe, [23]uint8{0xf9}},
-	{APSWAPL, ymfp, Px, [23]uint8{0xbb}},
 	{APUNPCKHBW, ymm, Py1, [23]uint8{0x68, Pe, 0x68}},
 	{APUNPCKHLQ, ymm, Py1, [23]uint8{0x6a, Pe, 0x6a}},
 	{APUNPCKHQDQ, yxm, Pe, [23]uint8{0x6d}},
@@ -1553,8 +1525,6 @@ var optab =
 	{AFCMOVNE, yfcmv, Px, [23]uint8{0xdb, 01}},
 	{AFCMOVNU, yfcmv, Px, [23]uint8{0xdb, 03}},
 	{AFCMOVUN, yfcmv, Px, [23]uint8{0xda, 03}},
-	{AFCOMB, nil, 0, [23]uint8{}},
-	{AFCOMBP, nil, 0, [23]uint8{}},
 	{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  /* botch */
 	{AFCOMDP, yfadd, Px, [23]uint8{0xdc, 03, 0xd8, 03, 0xdc, 03}}, /* botch */
 	{AFCOMDPP, ycompp, Px, [23]uint8{0xde, 03}},
@@ -1925,7 +1895,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			// process forward jumps to p
 			for q = p.Rel; q != nil; q = q.Forwd {
-				v = int32(p.Pc - (q.Pc + int64(q.Mark)))
+				v = int32(p.Pc - (q.Pc + int64(q.Isize)))
 				if q.Back&2 != 0 { // short
 					if v > 127 {
 						loop++
@@ -1938,7 +1908,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 						s.P[q.Pc+1] = byte(v)
 					}
 				} else {
-					bp = s.P[q.Pc+int64(q.Mark)-4:]
+					bp = s.P[q.Pc+int64(q.Isize)-4:]
 					bp[0] = byte(v)
 					bp = bp[1:]
 					bp[0] = byte(v >> 8)
@@ -1961,7 +1931,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			obj.Symgrow(ctxt, s, p.Pc+int64(m))
 			copy(s.P[p.Pc:][:m], ctxt.And[:m])
-			p.Mark = uint16(m)
 			c += int32(m)
 		}
 
@@ -2302,8 +2271,28 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 		return Yxxx
 
 	case obj.TYPE_MEM:
-		if a.Name != obj.NAME_NONE {
-			if ctxt.Asmode == 64 && (a.Reg != REG_NONE || a.Index != REG_NONE || a.Scale != 0) {
+		if a.Index == REG_SP {
+			// Can't use SP as the index register
+			return Yxxx
+		}
+		if ctxt.Asmode == 64 {
+			switch a.Name {
+			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+				// Global variables can't use index registers and their
+				// base register is %rip (%rip is encoded as REG_NONE).
+				if a.Reg != REG_NONE || a.Index != REG_NONE || a.Scale != 0 {
+					return Yxxx
+				}
+			case obj.NAME_AUTO, obj.NAME_PARAM:
+				// These names must have a base of SP.  The old compiler
+				// uses 0 for the base register. SSA uses REG_SP.
+				if a.Reg != REG_SP && a.Reg != 0 {
+					return Yxxx
+				}
+			case obj.NAME_NONE:
+				// everything is ok
+			default:
+				// unknown name
 				return Yxxx
 			}
 		}
@@ -2351,6 +2340,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
 			v = int64(int32(v))
 		}
 		if v == 0 {
+			if p.Mark&PRESERVEFLAGS != 0 {
+				// If PRESERVEFLAGS is set, avoid MOV $0, AX turning into XOR AX, AX.
+				return Yu7
+			}
 			return Yi0
 		}
 		if v == 1 {
@@ -3533,15 +3526,6 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
 				ctxt.Andptr[0] = byte(p.To.Offset)
 				ctxt.Andptr = ctxt.Andptr[1:]
 
-			case Zm_r_3d:
-				ctxt.Andptr[0] = 0x0f
-				ctxt.Andptr = ctxt.Andptr[1:]
-				ctxt.Andptr[0] = 0x0f
-				ctxt.Andptr = ctxt.Andptr[1:]
-				asmand(ctxt, p, &p.From, &p.To)
-				ctxt.Andptr[0] = byte(op)
-				ctxt.Andptr = ctxt.Andptr[1:]
-
 			case Zibm_r, Zibr_m:
 				for {
 					tmp1 := z
@@ -4594,15 +4578,6 @@ func nacltrunc(ctxt *obj.Link, reg int) {
 func asmins(ctxt *obj.Link, p *obj.Prog) {
 	ctxt.Andptr = ctxt.And[:]
 	ctxt.Asmode = int(p.Mode)
-
-	if p.As == obj.AUSEFIELD {
-		r := obj.Addrel(ctxt.Cursym)
-		r.Off = 0
-		r.Siz = 0
-		r.Sym = p.From.Sym
-		r.Type = obj.R_USEFIELD
-		return
-	}
 
 	if ctxt.Headtype == obj.Hnacl && p.Mode == 32 {
 		switch p.As {

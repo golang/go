@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -15,8 +15,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"golang.org/x/arch/arm/armasm"
-	"golang.org/x/arch/x86/x86asm"
+	"cmd/internal/unvendor/golang.org/x/arch/arm/armasm"
+	"cmd/internal/unvendor/golang.org/x/arch/x86/x86asm"
 )
 
 // Disasm is a disassembler for a given File.

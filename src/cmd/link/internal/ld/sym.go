@@ -34,8 +34,6 @@ package ld
 import (
 	"cmd/internal/obj"
 	"log"
-	"os"
-	"path/filepath"
 	"strconv"
 )
 
@@ -60,7 +58,8 @@ var headers = []struct {
 
 func linknew(arch *LinkArch) *Link {
 	ctxt := new(Link)
-	ctxt.Hash = make(map[symVer]*LSym)
+	// Preallocate about 2mb for hash
+	ctxt.Hash = make(map[symVer]*LSym, 100000)
 	ctxt.Arch = arch
 	ctxt.Version = obj.HistVersion
 	ctxt.Goroot = obj.Getgoroot()
@@ -69,13 +68,6 @@ func linknew(arch *LinkArch) *Link {
 	if p != arch.Name {
 		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
 	}
-
-	var buf string
-	buf, _ = os.Getwd()
-	if buf == "" {
-		buf = "/???"
-	}
-	buf = filepath.ToSlash(buf)
 
 	ctxt.Headtype = headtype(obj.Getgoos())
 	if ctxt.Headtype < 0 {
@@ -165,8 +157,12 @@ func linknew(arch *LinkArch) *Link {
 }
 
 func linknewsym(ctxt *Link, symb string, v int) *LSym {
-	s := new(LSym)
-	*s = LSym{}
+	batch := ctxt.LSymBatch
+	if len(batch) == 0 {
+		batch = make([]LSym, 1000)
+	}
+	s := &batch[0]
+	ctxt.LSymBatch = batch[1:]
 
 	s.Dynid = -1
 	s.Plt = -1

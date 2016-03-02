@@ -15,7 +15,7 @@ import (
 // A Writer writes records to a CSV encoded file.
 //
 // As returned by NewWriter, a Writer writes records terminated by a
-// newline and uses ',' as the field delimiter.  The exported fields can be
+// newline and uses ',' as the field delimiter. The exported fields can be
 // changed to customize the details before the first call to Write or WriteAll.
 //
 // Comma is the field delimiter.
@@ -37,27 +37,28 @@ func NewWriter(w io.Writer) *Writer {
 
 // Writer writes a single CSV record to w along with any necessary quoting.
 // A record is a slice of strings with each string being one field.
-func (w *Writer) Write(record []string) (err error) {
+func (w *Writer) Write(record []string) error {
 	for n, field := range record {
 		if n > 0 {
-			if _, err = w.w.WriteRune(w.Comma); err != nil {
-				return
+			if _, err := w.w.WriteRune(w.Comma); err != nil {
+				return err
 			}
 		}
 
 		// If we don't have to have a quoted field then just
 		// write out the field and continue to the next field.
 		if !w.fieldNeedsQuotes(field) {
-			if _, err = w.w.WriteString(field); err != nil {
-				return
+			if _, err := w.w.WriteString(field); err != nil {
+				return err
 			}
 			continue
 		}
-		if err = w.w.WriteByte('"'); err != nil {
-			return
+		if err := w.w.WriteByte('"'); err != nil {
+			return err
 		}
 
 		for _, r1 := range field {
+			var err error
 			switch r1 {
 			case '"':
 				_, err = w.w.WriteString(`""`)
@@ -75,20 +76,21 @@ func (w *Writer) Write(record []string) (err error) {
 				_, err = w.w.WriteRune(r1)
 			}
 			if err != nil {
-				return
+				return err
 			}
 		}
 
-		if err = w.w.WriteByte('"'); err != nil {
-			return
+		if err := w.w.WriteByte('"'); err != nil {
+			return err
 		}
 	}
+	var err error
 	if w.UseCRLF {
 		_, err = w.w.WriteString("\r\n")
 	} else {
 		err = w.w.WriteByte('\n')
 	}
-	return
+	return err
 }
 
 // Flush writes any buffered data to the underlying io.Writer.
@@ -104,9 +106,9 @@ func (w *Writer) Error() error {
 }
 
 // WriteAll writes multiple CSV records to w using Write and then calls Flush.
-func (w *Writer) WriteAll(records [][]string) (err error) {
+func (w *Writer) WriteAll(records [][]string) error {
 	for _, record := range records {
-		err = w.Write(record)
+		err := w.Write(record)
 		if err != nil {
 			return err
 		}
@@ -130,7 +132,7 @@ func (w *Writer) fieldNeedsQuotes(field string) bool {
 	if field == "" {
 		return false
 	}
-	if field == `\.` || strings.IndexRune(field, w.Comma) >= 0 || strings.IndexAny(field, "\"\r\n") >= 0 {
+	if field == `\.` || strings.ContainsRune(field, w.Comma) || strings.ContainsAny(field, "\"\r\n") {
 		return true
 	}
 

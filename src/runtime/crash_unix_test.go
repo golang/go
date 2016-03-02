@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -52,6 +53,18 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 	cmd = exec.Command(filepath.Join(dir, "a.exe"))
 	cmd = testEnv(cmd)
 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+
+	// Set GOGC=off. Because of golang.org/issue/10958, the tight
+	// loops in the test program are not preemptible. If GC kicks
+	// in, it may lock up and prevent main from saying it's ready.
+	newEnv := []string{}
+	for _, s := range cmd.Env {
+		if !strings.HasPrefix(s, "GOGC=") {
+			newEnv = append(newEnv, s)
+		}
+	}
+	cmd.Env = append(newEnv, "GOGC=off")
+
 	var outbuf bytes.Buffer
 	cmd.Stdout = &outbuf
 	cmd.Stderr = &outbuf
@@ -137,8 +150,8 @@ func loop(i int, c chan bool) {
 func TestSignalExitStatus(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	switch runtime.GOOS {
-	case "netbsd":
-		t.Skip("skipping on NetBSD; see https://golang.org/issue/14063")
+	case "netbsd", "solaris":
+		t.Skipf("skipping on %s; see https://golang.org/issue/14063", runtime.GOOS)
 	}
 	exe, err := buildTestProg(t, "testprog")
 	if err != nil {
