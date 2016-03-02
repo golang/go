@@ -650,7 +650,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	}
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v:[%d] %v esc: %v\n", Ctxt.Line(int(lineno)), e.loopdepth, funcSym(Curfn), n)
+		fmt.Printf("%v:[%d] %v esc: %v\n", linestr(lineno), e.loopdepth, funcSym(Curfn), n)
 	}
 
 	switch n.Op {
@@ -663,11 +663,11 @@ func esc(e *EscState, n *Node, up *Node) {
 	case OLABEL:
 		if n.Left.Sym.Label == &nonlooping {
 			if Debug['m'] > 1 {
-				fmt.Printf("%v:%v non-looping label\n", Ctxt.Line(int(lineno)), n)
+				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
 			}
 		} else if n.Left.Sym.Label == &looping {
 			if Debug['m'] > 1 {
-				fmt.Printf("%v: %v looping label\n", Ctxt.Line(int(lineno)), n)
+				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
 			}
 			e.loopdepth++
 		}
@@ -958,7 +958,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 	if Debug['m'] > 1 {
 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
-			Ctxt.Line(int(lineno)), e.loopdepth, funcSym(Curfn),
+			linestr(lineno), e.loopdepth, funcSym(Curfn),
 			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(int(dst.Op), 0),
 			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(int(src.Op), 0))
 	}
@@ -1228,7 +1228,7 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint
 
 	if Debug['m'] > 2 {
 		fmt.Printf("%v::assignfromtag:: src=%v, em=%s\n",
-			Ctxt.Line(int(lineno)), Nconv(src, obj.FmtShort), describeEscape(em))
+			linestr(lineno), Nconv(src, obj.FmtShort), describeEscape(em))
 	}
 
 	if em == EscUnknown {
@@ -1396,7 +1396,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		for ; ll != nil; ll = ll.Next {
 			escassign(e, &e.theSink, ll.N)
 			if Debug['m'] > 2 {
-				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", linestr(lineno), Nconv(ll.N, obj.FmtShort))
 			}
 		}
 		// Set up bogus outputs
@@ -1416,7 +1416,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
 		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 2 {
-			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
+			fmt.Printf("%v::esccall:: %v in recursive group\n", linestr(lineno), Nconv(n, obj.FmtShort))
 		}
 
 		// function in same mutually recursive group. Incorporate into flow graph.
@@ -1461,7 +1461,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		// "..." arguments are untracked
 		for ; ll != nil; ll = ll.Next {
 			if Debug['m'] > 2 {
-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(ll.N, obj.FmtShort))
 			}
 			escassign(e, &e.theSink, ll.N)
 		}
@@ -1475,7 +1475,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("%v::esccall:: %v not recursive\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
+		fmt.Printf("%v::esccall:: %v not recursive\n", linestr(lineno), Nconv(n, obj.FmtShort))
 	}
 
 	// set up out list on this call node with dummy auto ONAMES in the current (calling) function.
@@ -1543,7 +1543,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	for ; ll != nil; ll = ll.Next {
 		if Debug['m'] > 2 {
-			fmt.Printf("%v::esccall:: ... <- %v\n", Ctxt.Line(int(lineno)), Nconv(ll.N, obj.FmtShort))
+			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(ll.N, obj.FmtShort))
 		}
 		escassign(e, src, ll.N) // args to slice
 	}
@@ -1562,7 +1562,7 @@ func escflows(e *EscState, dst *Node, src *Node) {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("%v::flows:: %v <- %v\n", Ctxt.Line(int(lineno)), Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort))
+		fmt.Printf("%v::flows:: %v <- %v\n", linestr(lineno), Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort))
 	}
 
 	dstE := e.nodeEscState(dst)
@@ -1823,7 +1823,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 		if srcE.Escretval != nil {
 			if Debug['m'] > 1 {
 				fmt.Printf("%v:[%d] dst %v escwalk replace src: %v with %v\n",
-					Ctxt.Line(int(lineno)), e.loopdepth,
+					linestr(lineno), e.loopdepth,
 					Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Nconv(srcE.Escretval.N, obj.FmtShort))
 			}
 			src = srcE.Escretval.N

@@ -192,9 +192,9 @@ func checkgoto(from *Node, to *Node) {
 		}
 
 		if block != nil {
-			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
+			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
 		} else {
-			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, Ctxt.Line(int(dcl.Lastlineno)))
+			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
 		}
 		lineno = int32(lno)
 	}

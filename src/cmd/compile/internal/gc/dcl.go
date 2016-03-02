@@ -44,7 +44,7 @@ func pushdcl(s *Sym) *Sym {
 	d := push()
 	dcopy(d, s)
 	if dflag() {
-		fmt.Printf("\t%v push %v %p\n", Ctxt.Line(int(lineno)), s, s.Def)
+		fmt.Printf("\t%v push %v %p\n", linestr(lineno), s, s.Def)
 	}
 	return d
 }
@@ -57,7 +57,7 @@ func popdcl() {
 		dcopy(s, d)
 		d.Lastlineno = lno
 		if dflag() {
-			fmt.Printf("\t%v pop %v %p\n", Ctxt.Line(int(lineno)), s, s.Def)
+			fmt.Printf("\t%v pop %v %p\n", linestr(lineno), s, s.Def)
 		}
 	}
 
@@ -127,7 +127,7 @@ func redeclare(s *Sym, where string) {
 			line1 = s.Lastlineno
 		}
 
-		yyerrorl(line1, "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, Ctxt.Line(int(line2)))
+		yyerrorl(line1, "%v redeclared %s\n"+"\tprevious declaration at %v", s, where, linestr(line2))
 	}
 }
 
@@ -166,7 +166,7 @@ func declare(n *Node, ctxt Class) {
 	if ctxt == PEXTERN {
 		externdcl = append(externdcl, n)
 		if dflag() {
-			fmt.Printf("\t%v global decl %v %p\n", Ctxt.Line(int(lineno)), s, n)
+			fmt.Printf("\t%v global decl %v %p\n", linestr(lineno), s, n)
 		}
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
@@ -1527,7 +1527,7 @@ func checknowritebarrierrec() {
 			// Build the error message in reverse.
 			err := ""
 			for call.target != nil {
-				err = fmt.Sprintf("\n\t%v: called by %v%s", Ctxt.Line(int(call.lineno)), n.Func.Nname, err)
+				err = fmt.Sprintf("\n\t%v: called by %v%s", linestr(call.lineno), n.Func.Nname, err)
 				n = call.target
 				call = c.best[n]
 			}
