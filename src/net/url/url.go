@@ -461,7 +461,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
 	}
 	url.Scheme = strings.ToLower(url.Scheme)
 
-	if strings.HasSuffix(rest, "?") {
+	if strings.HasSuffix(rest, "?") && strings.Count(rest, "?") == 1 {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {

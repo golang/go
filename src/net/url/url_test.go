@@ -83,6 +83,17 @@ var urltests = []URLTest{
 		},
 		"",
 	},
+	// query ending in question mark (Issue 14573)
+	{
+		"http://www.google.com/?foo=bar?",
+		&URL{
+			Scheme:   "http",
+			Host:     "www.google.com",
+			Path:     "/",
+			RawQuery: "foo=bar?",
+		},
+		"",
+	},
 	// query
 	{
 		"http://www.google.com/?q=go+language",
@@ -564,8 +575,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
