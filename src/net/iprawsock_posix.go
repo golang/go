@@ -204,25 +204,29 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
 // netProto, which must be "ip", "ip4", or "ip6" followed by a colon
 // and a protocol number or name.
 func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
-	return dialIP(netProto, laddr, raddr, noDeadline)
+	c, err := dialIP(netProto, laddr, raddr, noDeadline)
+	if err != nil {
+		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+	}
+	return c, nil
 }
 
 func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn, error) {
 	net, proto, err := parseNetwork(netProto)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, err
 	}
 	switch net {
 	case "ip", "ip4", "ip6":
 	default:
-		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(netProto)}
+		return nil, UnknownNetworkError(netProto)
 	}
 	if raddr == nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+		return nil, errMissingAddress
 	}
 	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial", noCancel)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: netProto, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, err
 	}
 	return newIPConn(fd), nil
 }

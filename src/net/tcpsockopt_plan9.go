@@ -7,8 +7,13 @@
 package net
 
 import (
+	"syscall"
 	"time"
 )
+
+func setNoDelay(fd *netFD, noDelay bool) error {
+	return syscall.EPLAN9
+}
 
 // Set keep alive period.
 func setKeepAlivePeriod(fd *netFD, d time.Duration) error {
