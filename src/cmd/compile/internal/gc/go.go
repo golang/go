@@ -67,7 +67,7 @@ type Pkg struct {
 }
 
 type Sym struct {
-	Flags     uint8
+	Flags     SymFlags
 	Uniqgen   uint32
 	Link      *Sym
 	Importdef *Pkg   // where imported definition was found
@@ -175,14 +175,16 @@ type InitPlan struct {
 	E    []InitEntry
 }
 
+type SymFlags uint8
+
 const (
-	SymExport   = 1 << 0 // to be exported
-	SymPackage  = 1 << 1
-	SymExported = 1 << 2 // already written out by export
-	SymUniq     = 1 << 3
-	SymSiggen   = 1 << 4
-	SymAsm      = 1 << 5
-	SymAlgGen   = 1 << 6
+	SymExport SymFlags = 1 << iota // to be exported
+	SymPackage
+	SymExported // already written out by export
+	SymUniq
+	SymSiggen
+	SymAsm
+	SymAlgGen
 )
 
 var dclstack *Sym
