@@ -225,12 +225,6 @@ var (
 	liveness           int64
 )
 
-// for dynexport field of LSym
-const (
-	CgoExportDynamic = 1 << 0
-	CgoExportStatic  = 1 << 1
-)
-
 var (
 	Segtext   Segment
 	Segrodata Segment
@@ -499,11 +493,11 @@ func loadlib() {
 	switch Buildmode {
 	case BuildmodeCShared:
 		s := Linklookup(Ctxt, "runtime.islibrary", 0)
-		s.Dupok = 1
+		s.Attr |= AttrDuplicateOK
 		Adduint8(Ctxt, s, 1)
 	case BuildmodeCArchive:
 		s := Linklookup(Ctxt, "runtime.isarchive", 0)
-		s.Dupok = 1
+		s.Attr |= AttrDuplicateOK
 		Adduint8(Ctxt, s, 1)
 	}
 
@@ -605,7 +599,7 @@ func loadlib() {
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
-				if s.Extname != "" && s.Dynimplib != "" && s.Cgoexport == 0 {
+				if s.Extname != "" && s.Dynimplib != "" && !s.Attr.CgoExport() {
 					s.Type = obj.SDYNIMPORT
 				} else {
 					s.Type = 0
@@ -624,7 +618,7 @@ func loadlib() {
 	} else if tlsg.Type != obj.SDYNIMPORT {
 		Diag("internal error: runtime declared tlsg variable %d", tlsg.Type)
 	}
-	tlsg.Reachable = true
+	tlsg.Attr |= AttrReachable
 	Ctxt.Tlsg = tlsg
 
 	moduledata := Linklookup(Ctxt, "runtime.firstmoduledata", 0)
@@ -649,23 +643,23 @@ func loadlib() {
 		// If OTOH the module does not contain the runtime package,
 		// create a local symbol for the moduledata.
 		moduledata = Linklookup(Ctxt, "local.moduledata", 0)
-		moduledata.Local = true
+		moduledata.Attr |= AttrLocal
 	}
 	// In all cases way we mark the moduledata as noptrdata to hide it from
 	// the GC.
 	moduledata.Type = obj.SNOPTRDATA
-	moduledata.Reachable = true
+	moduledata.Attr |= AttrReachable
 	Ctxt.Moduledata = moduledata
 
 	// Now that we know the link mode, trim the dynexp list.
-	x := CgoExportDynamic
+	x := AttrCgoExportDynamic
 
 	if Linkmode == LinkExternal {
-		x = CgoExportStatic
+		x = AttrCgoExportStatic
 	}
 	w := 0
 	for i := 0; i < len(dynexp); i++ {
-		if int(dynexp[i].Cgoexport)&x != 0 {
+		if dynexp[i].Attr&x != 0 {
 			dynexp[w] = dynexp[i]
 			w++
 		}
@@ -1671,7 +1665,7 @@ func dostkcheck() {
 			continue
 		}
 
-		if s.Nosplit != 0 {
+		if s.Attr.NoSplit() {
 			Ctxt.Cursym = s
 			ch.sym = s
 			stkcheck(&ch, 0)
@@ -1679,7 +1673,7 @@ func dostkcheck() {
 	}
 
 	for s := Ctxt.Textp; s != nil; s = s.Next {
-		if s.Nosplit == 0 {
+		if !s.Attr.NoSplit() {
 			Ctxt.Cursym = s
 			ch.sym = s
 			stkcheck(&ch, 0)
@@ -1695,10 +1689,10 @@ func stkcheck(up *Chain, depth int) int {
 	// function at top of safe zone once.
 	top := limit == obj.StackLimit-callsize()
 	if top {
-		if s.Stkcheck != 0 {
+		if s.Attr.StackCheck() {
 			return 0
 		}
-		s.Stkcheck = 1
+		s.Attr |= AttrStackCheck
 	}
 
 	if depth > 100 {
@@ -1707,7 +1701,7 @@ func stkcheck(up *Chain, depth int) int {
 		return -1
 	}
 
-	if s.External != 0 || s.Pcln == nil {
+	if s.Attr.External() || s.Pcln == nil {
 		// external function.
 		// should never be called directly.
 		// only diagnose the direct caller.
@@ -1733,7 +1727,7 @@ func stkcheck(up *Chain, depth int) int {
 	var ch Chain
 	ch.up = up
 
-	if s.Nosplit == 0 {
+	if !s.Attr.NoSplit() {
 		// Ensure we have enough stack to call morestack.
 		ch.limit = limit - callsize()
 		ch.sym = morestack
@@ -1806,7 +1800,7 @@ func stkprint(ch *Chain, limit int) {
 
 	if ch.sym != nil {
 		name = ch.sym.Name
-		if ch.sym.Nosplit != 0 {
+		if ch.sym.Attr.NoSplit() {
 			name += " (nosplit)"
 		}
 	} else {
@@ -1815,7 +1809,7 @@ func stkprint(ch *Chain, limit int) {
 
 	if ch.up == nil {
 		// top of chain.  ch->sym != nil.
-		if ch.sym.Nosplit != 0 {
+		if ch.sym.Attr.NoSplit() {
 			fmt.Printf("\t%d\tassumed on entry to %s\n", ch.limit, name)
 		} else {
 			fmt.Printf("\t%d\tguaranteed after split check in %s\n", ch.limit, name)
@@ -1905,7 +1899,10 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 	}
 
 	for _, s := range Ctxt.Allsym {
-		if s.Hidden || ((s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC.") {
+		if s.Attr.Hidden() {
+			continue
+		}
+		if (s.Name == "" || s.Name[0] == '.') && s.Version == 0 && s.Name != ".rathole" && s.Name != ".TOC." {
 			continue
 		}
 		switch s.Type & obj.SMASK {
@@ -1931,17 +1928,17 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			obj.SRODATARELRO,
 			obj.STYPELINK,
 			obj.SWINDOWS:
-			if !s.Reachable {
+			if !s.Attr.Reachable() {
 				continue
 			}
 			put(s, s.Name, 'D', Symaddr(s), s.Size, int(s.Version), s.Gotype)
 
 		case obj.SBSS, obj.SNOPTRBSS:
-			if !s.Reachable {
+			if !s.Attr.Reachable() {
 				continue
 			}
 			if len(s.P) > 0 {
-				Diag("%s should not be bss (size=%d type=%d special=%d)", s.Name, int(len(s.P)), s.Type, s.Special)
+				Diag("%s should not be bss (size=%d type=%d special=%v)", s.Name, int(len(s.P)), s.Type, s.Attr.Special())
 			}
 			put(s, s.Name, 'B', Symaddr(s), s.Size, int(s.Version), s.Gotype)
 
@@ -1954,7 +1951,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			}
 
 		case obj.SDYNIMPORT:
-			if !s.Reachable {
+			if !s.Attr.Reachable() {
 				continue
 			}
 			put(s, s.Extname, 'U', 0, 0, int(s.Version), nil)
@@ -2011,7 +2008,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 }
 
 func Symaddr(s *LSym) int64 {
-	if !s.Reachable {
+	if !s.Attr.Reachable() {
 		Diag("unreachable symbol in symaddr - %s", s.Name)
 	}
 	return s.Value
@@ -2021,9 +2018,9 @@ func xdefine(p string, t int, v int64) {
 	s := Linklookup(Ctxt, p, 0)
 	s.Type = int16(t)
 	s.Value = v
-	s.Reachable = true
-	s.Special = 1
-	s.Local = true
+	s.Attr |= AttrReachable
+	s.Attr |= AttrSpecial
+	s.Attr |= AttrLocal
 }
 
 func datoff(addr int64) int64 {
@@ -2064,7 +2061,7 @@ func undefsym(s *LSym) {
 		if r.Sym.Type == obj.Sxxx || r.Sym.Type == obj.SXREF {
 			Diag("undefined: %s", r.Sym.Name)
 		}
-		if !r.Sym.Reachable {
+		if !r.Sym.Attr.Reachable() {
 			Diag("use of unreachable symbol: %s", r.Sym.Name)
 		}
 	}

@@ -93,7 +93,7 @@ func archinit() {
 		ld.Linkmode = ld.LinkExternal
 		got := ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
 		got.Type = obj.SDYNIMPORT
-		got.Reachable = true
+		got.Attr |= ld.AttrReachable
 	}
 
 	switch ld.HEADTYPE {
