@@ -282,14 +282,13 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 
 // truncate truncates the string to the specified precision, if present.
 func (f *fmt) truncate(s string) string {
-	if f.precPresent && f.prec < utf8.RuneCountInString(s) {
+	if f.precPresent {
 		n := f.prec
 		for i := range s {
-			if n == 0 {
-				s = s[:i]
-				break
-			}
 			n--
+			if n < 0 {
+				return s[:i]
+			}
 		}
 	}
 	return s

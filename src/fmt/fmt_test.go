@@ -199,7 +199,9 @@ var fmtTests = []struct {
 	{"%08q", "abc", `000"abc"`},
 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+	{"%.0s", "日本語日本語", ""},
 	{"%.5s", "日本語日本語", "日本語日本"},
+	{"%.10s", "日本語日本語", "日本語日本語"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
 	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
@@ -924,6 +926,14 @@ func BenchmarkSprintfString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%s", "hello")
+		}
+	})
+}
+
+func BenchmarkSprintfTruncateString(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.3s", "日本語日本語日本語")
 		}
 	})
 }
