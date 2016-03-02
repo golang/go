@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -51,6 +51,7 @@ syntax of package template.  The default output is equivalent to -f
         CXXFiles       []string // .cc, .cxx and .cpp source files
         MFiles         []string // .m source files
         HFiles         []string // .h, .hh, .hpp and .hxx source files
+        FFiles         []string // .f, .F, .for and .f90 Fortran source files
         SFiles         []string // .s source files
         SwigFiles      []string // .swig files
         SwigCXXFiles   []string // .swigcxx files
@@ -60,6 +61,7 @@ syntax of package template.  The default output is equivalent to -f
         CgoCFLAGS    []string // cgo: flags for C compiler
         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
+        CgoFFLAGS    []string // cgo: flags for Fortran compiler
         CgoLDFLAGS   []string // cgo: flags for linker
         CgoPkgConfig []string // cgo: pkg-config names
 

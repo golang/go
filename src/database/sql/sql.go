@@ -199,7 +199,7 @@ type Scanner interface {
 	//    time.Time
 	//    nil - for NULL values
 	//
-	// An error should be returned if the value can not be stored
+	// An error should be returned if the value cannot be stored
 	// without loss of information.
 	Scan(src interface{}) error
 }
@@ -797,7 +797,7 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 		return conn, nil
 	}
 
-	// Out of free connections or we were asked not to use one.  If we're not
+	// Out of free connections or we were asked not to use one. If we're not
 	// allowed to open any more connections, make a request and wait.
 	if db.maxOpen > 0 && db.numOpen >= db.maxOpen {
 		// Make the connRequest channel. It's buffered so that the
@@ -1207,7 +1207,7 @@ type Tx struct {
 	// ErrTxDone.
 	done bool
 
-	// All Stmts prepared for this transaction.  These will be closed after the
+	// All Stmts prepared for this transaction. These will be closed after the
 	// transaction has been committed or rolled back.
 	stmts struct {
 		sync.Mutex
@@ -1286,7 +1286,7 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	// necessary. Or, better: keep a map in DB of query string to
 	// Stmts, and have Stmt.Execute do the right thing and
 	// re-prepare if the Conn in use doesn't have that prepared
-	// statement.  But we'll want to avoid caching the statement
+	// statement. But we'll want to avoid caching the statement
 	// in the case where we only call conn.Prepare implicitly
 	// (such as in db.Exec or tx.Exec), but the caller package
 	// can't be holding a reference to the returned statement.
@@ -1334,7 +1334,7 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 // be used once the transaction has been committed or rolled back.
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	// TODO(bradfitz): optimize this. Currently this re-prepares
-	// each time.  This is fine for now to illustrate the API but
+	// each time. This is fine for now to illustrate the API but
 	// we should really cache already-prepared statements
 	// per-Conn. See also the big comment in Tx.Prepare.
 
@@ -1441,9 +1441,9 @@ type Stmt struct {
 	closed bool
 
 	// css is a list of underlying driver statement interfaces
-	// that are valid on particular connections.  This is only
+	// that are valid on particular connections. This is only
 	// used if tx == nil and one is found that has idle
-	// connections.  If tx != nil, txsi is always used.
+	// connections. If tx != nil, txsi is always used.
 	css []connStmt
 
 	// lastNumClosed is copied from db.numClosed when Stmt is created
@@ -1741,9 +1741,9 @@ type Rows struct {
 	closeStmt driver.Stmt // if non-nil, statement to Close on close
 }
 
-// Next prepares the next result row for reading with the Scan method.  It
+// Next prepares the next result row for reading with the Scan method. It
 // returns true on success, or false if there is no next result row or an error
-// happened while preparing it.  Err should be consulted to distinguish between
+// happened while preparing it. Err should be consulted to distinguish between
 // the two cases.
 //
 // Every call to Scan, even the first one, must be preceded by a call to Next.
@@ -1898,8 +1898,8 @@ func (r *Row) Scan(dest ...interface{}) error {
 	// the Rows in our defer, when we return from this function.
 	// the contract with the driver.Next(...) interface is that it
 	// can return slices into read-only temporary memory that's
-	// only valid until the next Scan/Close.  But the TODO is that
-	// for a lot of drivers, this copy will be unnecessary.  We
+	// only valid until the next Scan/Close. But the TODO is that
+	// for a lot of drivers, this copy will be unnecessary. We
 	// should provide an optional interface for drivers to
 	// implement to say, "don't worry, the []bytes that I return
 	// from Next will not be modified again." (for instance, if

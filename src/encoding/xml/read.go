@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,7 +27,7 @@ import (
 // discarded.
 //
 // Because Unmarshal uses the reflect package, it can only assign
-// to exported (upper case) fields.  Unmarshal uses a case-sensitive
+// to exported (upper case) fields. Unmarshal uses a case-sensitive
 // comparison to match XML element names to tag values and struct
 // field names.
 //
@@ -37,7 +37,7 @@ import (
 //
 //   * If the struct has a field of type []byte or string with tag
 //      ",innerxml", Unmarshal accumulates the raw XML nested inside the
-//      element in that field.  The rest of the rules still apply.
+//      element in that field. The rest of the rules still apply.
 //
 //   * If the struct has a field named XMLName of type xml.Name,
 //      Unmarshal records the element name in that field.
@@ -59,7 +59,7 @@ import (
 //
 //   * If the XML element contains comments, they are accumulated in
 //      the first struct field that has tag ",comment".  The struct
-//      field may have type []byte or string.  If there is no such
+//      field may have type []byte or string. If there is no such
 //      field, the comments are discarded.
 //
 //   * If the XML element contains a sub-element whose name matches
@@ -102,7 +102,7 @@ import (
 //
 // Unmarshal maps an XML element or attribute value to an integer or
 // floating-point field by setting the field to the result of
-// interpreting the string value in decimal.  There is no check for
+// interpreting the string value in decimal. There is no check for
 // overflow.
 //
 // Unmarshal maps an XML element to an xml.Name by recording the

@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -84,7 +84,7 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
 }
 
 // ReadMsgUDP reads a packet from c, copying the payload into b and
-// the associated out-of-band data into oob.  It returns the number
+// the associated out-of-band data into oob. It returns the number
 // of bytes copied into b, the number of bytes copied into oob, the
 // flags that were set on the packet and the source address of the
 // packet.
@@ -111,7 +111,7 @@ func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, 
 //
 // WriteToUDP can be made to time out and return an error with
 // Timeout() == true after a fixed time limit; see SetDeadline and
-// SetWriteDeadline.  On packet-oriented connections, write timeouts
+// SetWriteDeadline. On packet-oriented connections, write timeouts
 // are rare.
 func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (int, error) {
 	if !c.ok() {
@@ -149,7 +149,7 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (int, error) {
 // WriteMsgUDP writes a packet to addr via c if c isn't connected, or
 // to c's remote destination address if c is connected (in which case
 // addr must be nil).  The payload is copied from b and the associated
-// out-of-band data is copied from oob.  It returns the number of
+// out-of-band data is copied from oob. It returns the number of
 // payload and out-of-band bytes written.
 func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
 	if !c.ok() {
@@ -197,10 +197,10 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 }
 
 // ListenUDP listens for incoming UDP packets addressed to the local
-// address laddr.  Net must be "udp", "udp4", or "udp6".  If laddr has
+// address laddr. Net must be "udp", "udp4", or "udp6".  If laddr has
 // a port of 0, ListenUDP will choose an available port.
 // The LocalAddr method of the returned UDPConn can be used to
-// discover the port.  The returned connection's ReadFrom and WriteTo
+// discover the port. The returned connection's ReadFrom and WriteTo
 // methods can be used to receive and send UDP packets with per-packet
 // addressing.
 func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {

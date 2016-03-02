@@ -653,7 +653,7 @@ func ParseIP(s string) IP {
 // RFC 4632 and RFC 4291.
 //
 // It returns the IP address and the network implied by the IP
-// and mask.  For example, ParseCIDR("192.168.100.1/16") returns
+// and mask. For example, ParseCIDR("192.168.100.1/16") returns
 // the IP address 192.168.100.1 and the network 192.168.0.0/16.
 func ParseCIDR(s string) (IP, *IPNet, error) {
 	i := byteIndex(s, '/')

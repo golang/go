@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 )
 
 var dnsReadConfigTests = []struct {
@@ -76,6 +77,7 @@ func TestDNSReadConfig(t *testing.T) {
 		if conf.err != nil {
 			t.Fatal(conf.err)
 		}
+		conf.mtime = time.Time{}
 		if !reflect.DeepEqual(conf, tt.want) {
 			t.Errorf("%s:\ngot: %+v\nwant: %+v", tt.name, conf, tt.want)
 		}

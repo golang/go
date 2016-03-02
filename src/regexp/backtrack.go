@@ -146,7 +146,7 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 		// Optimization: rather than push and pop,
 		// code that is going to Push and continue
 		// the loop simply updates ip, p, and arg
-		// and jumps to CheckAndLoop.  We have to
+		// and jumps to CheckAndLoop. We have to
 		// do the ShouldVisit check that Push
 		// would have, but we avoid the stack
 		// manipulation.
@@ -254,7 +254,6 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 
 			}
 			panic("bad arg in InstCapture")
-			continue
 
 		case syntax.InstEmptyWidth:
 			if syntax.EmptyOp(inst.Arg)&^i.context(pos) != 0 {
@@ -299,7 +298,6 @@ func (m *machine) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 			// Otherwise, continue on in hope of a longer match.
 			continue
 		}
-		panic("unreachable")
 	}
 
 	return m.matched

@@ -33,7 +33,7 @@ type Response struct {
 	ProtoMajor int    // e.g. 1
 	ProtoMinor int    // e.g. 0
 
-	// Header maps header keys to values.  If the response had multiple
+	// Header maps header keys to values. If the response had multiple
 	// headers with the same key, they may be concatenated, with comma
 	// delimiters.  (Section 4.2 of RFC 2616 requires that multiple headers
 	// be semantically equivalent to a comma-delimited sequence.) Values
@@ -57,8 +57,8 @@ type Response struct {
 	// with a "chunked" Transfer-Encoding.
 	Body io.ReadCloser
 
-	// ContentLength records the length of the associated content.  The
-	// value -1 indicates that the length is unknown.  Unless Request.Method
+	// ContentLength records the length of the associated content. The
+	// value -1 indicates that the length is unknown. Unless Request.Method
 	// is "HEAD", values >= 0 indicate that the given number of bytes may
 	// be read from Body.
 	ContentLength int64
@@ -68,7 +68,7 @@ type Response struct {
 	TransferEncoding []string
 
 	// Close records whether the header directed that the connection be
-	// closed after reading Body.  The value is advice for clients: neither
+	// closed after reading Body. The value is advice for clients: neither
 	// ReadResponse nor Response.Write ever closes a connection.
 	Close bool
 
@@ -108,8 +108,8 @@ func (r *Response) Cookies() []*Cookie {
 var ErrNoLocation = errors.New("http: no Location header in response")
 
 // Location returns the URL of the response's "Location" header,
-// if present.  Relative redirects are resolved relative to
-// the Response's Request.  ErrNoLocation is returned if no
+// if present. Relative redirects are resolved relative to
+// the Response's Request. ErrNoLocation is returned if no
 // Location header is present.
 func (r *Response) Location() (*url.URL, error) {
 	lv := r.Header.Get("Location")

@@ -37,7 +37,7 @@ var _ = log.Printf
 // named method on fakeStmt to panic.
 //
 // When opening a fakeDriver's database, it starts empty with no
-// tables.  All tables and data are stored in memory only.
+// tables. All tables and data are stored in memory only.
 type fakeDriver struct {
 	mu         sync.Mutex // guards 3 following fields
 	openCount  int        // conn opens
@@ -705,7 +705,7 @@ func (s *fakeStmt) Query(args []driver.Value) (driver.Rows, error) {
 rows:
 	for _, trow := range t.rows {
 		// Process the where clause, skipping non-match rows. This is lazy
-		// and just uses fmt.Sprintf("%v") to test equality.  Good enough
+		// and just uses fmt.Sprintf("%v") to test equality. Good enough
 		// for test code.
 		for widx, wcol := range s.whereCol {
 			idx := t.columnIndex(wcol)

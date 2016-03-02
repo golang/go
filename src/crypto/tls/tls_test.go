@@ -199,7 +199,7 @@ func TestDialTimeout(t *testing.T) {
 func TestConnReadNonzeroAndEOF(t *testing.T) {
 	// This test is racy: it assumes that after a write to a
 	// localhost TCP connection, the peer TCP connection can
-	// immediately read it.  Because it's racy, we skip this test
+	// immediately read it. Because it's racy, we skip this test
 	// in short mode, and then retry it several times with an
 	// increasing sleep in between our final write (via srv.Close
 	// below) and the following read.

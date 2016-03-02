@@ -16,7 +16,7 @@ type Node struct {
 	Left  *Node
 	Right *Node
 	Ninit *NodeList
-	Nbody *NodeList
+	Nbody Nodes
 	List  *NodeList
 	Rlist *NodeList
 
@@ -149,11 +149,11 @@ type Param struct {
 // Func holds Node fields used only with function-like nodes.
 type Func struct {
 	Shortname  *Node
-	Enter      *NodeList
-	Exit       *NodeList
-	Cvars      *NodeList // closure params
-	Dcl        *NodeList // autodcl for this func/closure
-	Inldcl     *NodeList // copy of dcl for use in inlining
+	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
+	Exit       Nodes
+	Cvars      Nodes    // closure params
+	Dcl        []*Node  // autodcl for this func/closure
+	Inldcl     *[]*Node // copy of dcl for use in inlining
 	Closgen    int
 	Outerfunc  *Node
 	Fieldtrack []*Type
@@ -164,23 +164,17 @@ type Func struct {
 	FCurfn     *Node
 	Nname      *Node
 
-	Inl     *NodeList // copy of the body for use in inlining
+	Inl     Nodes // copy of the body for use in inlining
 	InlCost int32
 	Depth   int32
 
 	Endlineno int32
+	WBLineno  int32 // line number of first write barrier
 
-	Norace            bool // func must not have race detector annotations
-	Nosplit           bool // func should not execute on separate stack
-	Noinline          bool // func should not be inlined
-	Nowritebarrier    bool // emit compiler error instead of write barrier
-	Nowritebarrierrec bool // error on write barrier in this or recursive callees
-	Dupok             bool // duplicate definitions ok
-	Wrapper           bool // is method wrapper
-	Needctxt          bool // function uses context register (has closure variables)
-	Systemstack       bool // must run on system stack
-
-	WBLineno int32 // line number of first write barrier
+	Pragma   Pragma // go:xxx function annotations
+	Dupok    bool   // duplicate definitions ok
+	Wrapper  bool   // is method wrapper
+	Needctxt bool   // function uses context register (has closure variables)
 }
 
 type Op uint8
@@ -490,4 +484,76 @@ func count(l *NodeList) int {
 		Yyerror("too many elements in list")
 	}
 	return int(n)
+}
+
+// Nodes is a pointer to a slice of *Node.
+// For fields that are not used in most nodes, this is used instead of
+// a slice to save space.
+type Nodes struct{ slice *[]*Node }
+
+// Slice returns the entries in Nodes as a slice.
+// Changes to the slice entries (as in s[i] = n) will be reflected in
+// the Nodes.
+func (n *Nodes) Slice() []*Node {
+	if n.slice == nil {
+		return nil
+	}
+	return *n.slice
+}
+
+// NodeList returns the entries in Nodes as a NodeList.
+// Changes to the NodeList entries (as in l.N = n) will *not* be
+// reflected in the Nodes.
+// This wastes memory and should be used as little as possible.
+func (n *Nodes) NodeList() *NodeList {
+	if n.slice == nil {
+		return nil
+	}
+	var ret *NodeList
+	for _, n := range *n.slice {
+		ret = list(ret, n)
+	}
+	return ret
+}
+
+// Set sets Nodes to a slice.
+// This takes ownership of the slice.
+func (n *Nodes) Set(s []*Node) {
+	if len(s) == 0 {
+		n.slice = nil
+	} else {
+		n.slice = &s
+	}
+}
+
+// Append appends entries to Nodes.
+// If a slice is passed in, this will take ownership of it.
+func (n *Nodes) Append(a ...*Node) {
+	if n.slice == nil {
+		if len(a) > 0 {
+			n.slice = &a
+		}
+	} else {
+		*n.slice = append(*n.slice, a...)
+	}
+}
+
+// SetToNodeList sets Nodes to the contents of a NodeList.
+func (n *Nodes) SetToNodeList(l *NodeList) {
+	s := make([]*Node, 0, count(l))
+	for ; l != nil; l = l.Next {
+		s = append(s, l.N)
+	}
+	n.Set(s)
+}
+
+// AppendNodeList appends the contents of a NodeList.
+func (n *Nodes) AppendNodeList(l *NodeList) {
+	if n.slice == nil {
+		n.SetToNodeList(l)
+	} else {
+		for ; l != nil; l = l.Next {
+			*n.slice = append(*n.slice, l.N)
+		}
+	}
 }

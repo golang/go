@@ -26,7 +26,7 @@ const (
 	_Gwaiting                // 4
 	_Gmoribund_unused        // 5 currently unused, but hardcoded in gdb scripts
 	_Gdead                   // 6
-	_Genqueue                // 7 Only the Gscanenqueue is used.
+	_Genqueue_unused         // 7 currently unused
 	_Gcopystack              // 8 in this state when newstack is moving the stack
 	// the following encode that the GC is scanning the stack and what to do when it is done
 	_Gscan = 0x1000 // atomicstatus&~Gscan = the non-scan state,
@@ -37,7 +37,7 @@ const (
 	_Gscanwaiting  = _Gscan + _Gwaiting  //  0x1004 When scanning completes make it Gwaiting
 	// _Gscanmoribund_unused,               //  not possible
 	// _Gscandead,                          //  not possible
-	_Gscanenqueue = _Gscan + _Genqueue //  When scanning completes make it Grunnable and put on runqueue
+	// _Gscanenqueue_unused                 //  not possible
 )
 
 const (
@@ -311,7 +311,6 @@ type m struct {
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
-	machport      uint32 // return address for mach ipc (os x)
 	mcache        *mcache
 	lockedg       *g
 	createstack   [32]uintptr // stack that created this thread.
@@ -540,7 +539,7 @@ const (
 	_Structrnd = sys.RegSize
 )
 
-// startup_random_data holds random bytes initialized at startup.  These come from
+// startup_random_data holds random bytes initialized at startup. These come from
 // the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.go or os_linux_386.go).
 var startupRandomData []byte
 

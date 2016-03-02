@@ -15,7 +15,7 @@ import (
 //
 // Various implementations of ValueConverter are provided by the
 // driver package to provide consistent implementations of conversions
-// between drivers.  The ValueConverters have several uses:
+// between drivers. The ValueConverters have several uses:
 //
 //  * converting from the Value types as provided by the sql package
 //    into a database table's specific column type and making sure it

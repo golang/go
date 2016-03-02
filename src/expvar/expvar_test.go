@@ -26,6 +26,14 @@ func RemoveAll() {
 	varKeys = nil
 }
 
+func TestNil(t *testing.T) {
+	RemoveAll()
+	val := Get("missing")
+	if val != nil {
+		t.Errorf("got %v, want nil", val)
+	}
+}
+
 func TestInt(t *testing.T) {
 	RemoveAll()
 	reqs := NewInt("requests")

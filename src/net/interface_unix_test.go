@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors.  All rights reserved.
+// Copyright 2013 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -56,7 +56,7 @@ func TestPointToPointInterface(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		ti := &testInterface{local: local, remote: remote}
 		if err := ti.setPointToPoint(5963 + i); err != nil {
-			t.Skipf("test requries external command: %v", err)
+			t.Skipf("test requires external command: %v", err)
 		}
 		if err := ti.setup(); err != nil {
 			t.Fatal(err)

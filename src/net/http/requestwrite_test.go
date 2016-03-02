@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -573,7 +573,7 @@ func TestRequestWriteClosesBody(t *testing.T) {
 		"Transfer-Encoding: chunked\r\n\r\n" +
 		// TODO: currently we don't buffer before chunking, so we get a
 		// single "m" chunk before the other chunks, as this was the 1-byte
-		// read from our MultiReader where we stiched the Body back together
+		// read from our MultiReader where we stitched the Body back together
 		// after sniffing whether the Body was 0 bytes or not.
 		chunk("m") +
 		chunk("y body") +
@@ -604,7 +604,7 @@ func TestRequestWriteError(t *testing.T) {
 	failAfter, writeCount := 0, 0
 	errFail := errors.New("fake write failure")
 
-	// w is the buffered io.Writer to write the request to.  It
+	// w is the buffered io.Writer to write the request to. It
 	// fails exactly once on its Nth Write call, as controlled by
 	// failAfter. It also tracks the number of calls in
 	// writeCount.

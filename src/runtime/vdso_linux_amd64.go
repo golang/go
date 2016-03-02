@@ -263,7 +263,7 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
 		def = (*elf64Verdef)(add(unsafe.Pointer(def), uintptr(def.vd_next)))
 	}
 
-	return -1 // can not match any version
+	return -1 // cannot match any version
 }
 
 func vdso_parse_symbols(info *vdso_info, version int32) {

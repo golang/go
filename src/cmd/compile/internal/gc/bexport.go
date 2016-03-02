@@ -72,7 +72,7 @@ amount of space to hold the list without the need to grow it later.
 
 All integer values use a variable-length encoding for compact representation.
 
-If debugFormat is set, each integer and string value is preceeded by a marker
+If debugFormat is set, each integer and string value is preceded by a marker
 and position information in the encoding. This mechanism permits an importer
 to recognize immediately when it is out of sync. The importer recognizes this
 mode automatically (i.e., it can import export data produced with debugging
@@ -748,7 +748,7 @@ func (p *exporter) float(x *Mpflt) {
 // is written out for exported functions with inlined function bodies.
 
 func (p *exporter) collectInlined(n *Node) int {
-	if n != nil && n.Func != nil && n.Func.Inl != nil {
+	if n != nil && n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 		if Debug['l'] < 2 {
@@ -762,13 +762,13 @@ func (p *exporter) collectInlined(n *Node) int {
 
 func (p *exporter) body(i int, f *Func) {
 	p.int(i)
-	p.block(f.Inl)
+	p.block(f.Inl.Slice())
 }
 
-func (p *exporter) block(list *NodeList) {
-	p.int(count(list))
-	for q := list; q != nil; q = q.Next {
-		p.stmt(q.N)
+func (p *exporter) block(list []*Node) {
+	p.int(len(list))
+	for _, n := range list {
+		p.stmt(n)
 	}
 }
 
@@ -877,7 +877,7 @@ func (p *exporter) byte(b byte) {
 // tracef is like fmt.Printf but it rewrites the format string
 // to take care of indentation.
 func (p *exporter) tracef(format string, args ...interface{}) {
-	if strings.IndexAny(format, "<>\n") >= 0 {
+	if strings.ContainsAny(format, "<>\n") {
 		var buf bytes.Buffer
 		for i := 0; i < len(format); i++ {
 			// no need to deal with runes
@@ -1035,6 +1035,9 @@ func predeclared() []*Type {
 
 			// package unsafe
 			Types[TUNSAFEPTR],
+
+			// any type, for builtin export data
+			Types[TANY],
 		}
 	}
 	return predecl

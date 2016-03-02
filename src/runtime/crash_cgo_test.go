@@ -7,10 +7,13 @@
 package runtime_test
 
 import (
+	"fmt"
+	"internal/testenv"
 	"os/exec"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCgoCrashHandler(t *testing.T) {
@@ -145,5 +148,56 @@ func TestEnsureDropM(t *testing.T) {
 	want := "OK\n"
 	if got != want {
 		t.Errorf("expected %q, got %v", want, got)
+	}
+}
+
+// Test for issue 14387.
+// Test that the program that doesn't need any cgo pointer checking
+// takes about the same amount of time with it as without it.
+func TestCgoCheckBytes(t *testing.T) {
+	// Make sure we don't count the build time as part of the run time.
+	testenv.MustHaveGoBuild(t)
+	exe, err := buildTestProg(t, "testprogcgo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Try it 10 times to avoid flakiness.
+	const tries = 10
+	var tot1, tot2 time.Duration
+	for i := 0; i < tries; i++ {
+		cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
+		cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0", fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
+
+		start := time.Now()
+		cmd.Run()
+		d1 := time.Since(start)
+
+		cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("GO_CGOCHECKBYTES_TRY=%d", i))
+
+		start = time.Now()
+		cmd.Run()
+		d2 := time.Since(start)
+
+		if d1*20 > d2 {
+			// The slow version (d2) was less than 20 times
+			// slower than the fast version (d1), so OK.
+			return
+		}
+
+		tot1 += d1
+		tot2 += d2
+	}
+
+	t.Errorf("cgo check too slow: got %v, expected at most %v", tot2/tries, (tot1/tries)*20)
+}
+
+func TestCgoPanicDeadlock(t *testing.T) {
+	// test issue 14432
+	got := runTestProg(t, "testprogcgo", "CgoPanicDeadlock")
+	want := "panic: cgo error\n\n"
+	if !strings.HasPrefix(got, want) {
+		t.Fatalf("output does not start with %q:\n%s", want, got)
 	}
 }

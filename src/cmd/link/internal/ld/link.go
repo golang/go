@@ -50,7 +50,7 @@ type LSym struct {
 	Cgoexport  uint8
 	Special    uint8
 	Stkcheck   uint8
-	Hide       uint8
+	Hidden     bool
 	Leaf       uint8
 	Localentry uint8
 	Onlist     uint8
@@ -158,6 +158,7 @@ type Link struct {
 	Nhistfile  int32
 	Filesyms   *LSym
 	Moduledata *LSym
+	LSymBatch  []LSym
 }
 
 // The smallest possible offset from the hardware stack pointer to a local

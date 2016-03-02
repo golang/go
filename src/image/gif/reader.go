@@ -96,7 +96,7 @@ type decoder struct {
 // blockReader parses the block structure of GIF image data, which
 // comprises (n, (n bytes)) blocks, with 1 <= n <= 255.  It is the
 // reader given to the LZW decoder, which is thus immune to the
-// blocking.  After the LZW decoder completes, there will be a 0-byte
+// blocking. After the LZW decoder completes, there will be a 0-byte
 // block remaining (0, ()), which is consumed when checking that the
 // blockReader is exhausted.
 type blockReader struct {
@@ -210,7 +210,7 @@ func (d *decoder) decode(r io.Reader, configOnly bool) error {
 			// for an image". In practice, though, giflib (a widely used C
 			// library) does not enforce this, so we also accept lzwr returning
 			// io.ErrUnexpectedEOF (meaning that the encoded stream hit io.EOF
-			// before the LZW decoder saw an explict end code), provided that
+			// before the LZW decoder saw an explicit end code), provided that
 			// the io.ReadFull call above successfully read len(m.Pix) bytes.
 			// See https://golang.org/issue/9856 for an example GIF.
 			if n, err := lzwr.Read(d.tmp[:1]); n != 0 || (err != io.EOF && err != io.ErrUnexpectedEOF) {

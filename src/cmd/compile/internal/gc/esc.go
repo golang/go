@@ -15,7 +15,7 @@ import (
 // or single non-recursive functions, bottom up.
 //
 // Finding these sets is finding strongly connected components
-// in the static call graph.  The algorithm for doing that is taken
+// in the static call graph. The algorithm for doing that is taken
 // from Sedgewick, Algorithms, Second Edition, p. 482, with two
 // adaptations.
 //
@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	min := v.visitgen
 
 	v.stack = append(v.stack, n)
-	min = v.visitcodelist(n.Nbody, min)
+	min = v.visitcodeslice(n.Nbody.Slice(), min)
 	if (min == id || min == id+1) && n.Func.FCurfn == nil {
 		// This node is the root of a strongly connected component.
 
@@ -117,6 +117,13 @@ func (v *bottomUpVisitor) visitcodelist(l *NodeList, min uint32) uint32 {
 	return min
 }
 
+func (v *bottomUpVisitor) visitcodeslice(l []*Node, min uint32) uint32 {
+	for _, n := range l {
+		min = v.visitcode(n, min)
+	}
+	return min
+}
+
 func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	if n == nil {
 		return min
@@ -126,7 +133,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 	min = v.visitcode(n.Left, min)
 	min = v.visitcode(n.Right, min)
 	min = v.visitcodelist(n.List, min)
-	min = v.visitcodelist(n.Nbody, min)
+	min = v.visitcodeslice(n.Nbody.Slice(), min)
 	min = v.visitcodelist(n.Rlist, min)
 
 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
@@ -161,7 +168,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 //
 // First escfunc, esc and escassign recurse over the ast of each
 // function to dig out flow(dst,src) edges between any
-// pointer-containing nodes and store them in dst->escflowsrc.  For
+// pointer-containing nodes and store them in dst->escflowsrc. For
 // variables assigned to a variable in an outer scope or used as a
 // return value, they store a flow(theSink, src) edge to a fake node
 // 'the Sink'.  For variables referenced in closures, an edge
@@ -173,7 +180,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 // parameters it can reach as leaking.
 //
 // If a value's address is taken but the address does not escape,
-// then the value can stay on the stack.  If the value new(T) does
+// then the value can stay on the stack. If the value new(T) does
 // not escape, then new(T) can be rewritten into a stack allocation.
 // The same is true of slice literals.
 //
@@ -333,7 +340,7 @@ func (e *EscState) track(n *Node) {
 }
 
 // Escape constants are numbered in order of increasing "escapiness"
-// to help make inferences be monotonic.  With the exception of
+// to help make inferences be monotonic. With the exception of
 // EscNever which is sticky, eX < eY means that eY is more exposed
 // than eX, and hence replaces it in a conservative analysis.
 const (
@@ -371,7 +378,7 @@ func escMax(e, etype uint16) uint16 {
 }
 
 // For each input parameter to a function, the escapeReturnEncoding describes
-// how the parameter may leak to the function's outputs.  This is currently the
+// how the parameter may leak to the function's outputs. This is currently the
 // "level" of the leak where level is 0 or larger (negative level means stored into
 // something whose address is returned -- but that implies stored into the heap,
 // hence EscHeap, which means that the details are not currently relevant. )
@@ -476,48 +483,48 @@ func escfunc(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Op != ONAME {
+	for _, ln := range Curfn.Func.Dcl {
+		if ln.Op != ONAME {
 			continue
 		}
-		llNE := e.nodeEscState(ll.N)
-		switch ll.N.Class {
+		llNE := e.nodeEscState(ln)
+		switch ln.Class {
 		// out params are in a loopdepth between the sink and all local variables
 		case PPARAMOUT:
 			llNE.Escloopdepth = 0
 
 		case PPARAM:
 			llNE.Escloopdepth = 1
-			if ll.N.Type != nil && !haspointers(ll.N.Type) {
+			if ln.Type != nil && !haspointers(ln.Type) {
 				break
 			}
-			if Curfn.Nbody == nil && !Curfn.Noescape {
-				ll.N.Esc = EscHeap
+			if len(Curfn.Nbody.Slice()) == 0 && !Curfn.Noescape {
+				ln.Esc = EscHeap
 			} else {
-				ll.N.Esc = EscNone // prime for escflood later
+				ln.Esc = EscNone // prime for escflood later
 			}
-			e.noesc = list(e.noesc, ll.N)
+			e.noesc = list(e.noesc, ln)
 		}
 	}
 
 	// in a mutually recursive group we lose track of the return values
 	if e.recursive {
-		for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-			if ll.N.Op == ONAME && ll.N.Class == PPARAMOUT {
-				escflows(e, &e.theSink, ll.N)
+		for _, ln := range Curfn.Func.Dcl {
+			if ln.Op == ONAME && ln.Class == PPARAMOUT {
+				escflows(e, &e.theSink, ln)
 			}
 		}
 	}
 
-	escloopdepthlist(e, Curfn.Nbody)
-	esclist(e, Curfn.Nbody, Curfn)
+	escloopdepthslice(e, Curfn.Nbody.Slice())
+	escslice(e, Curfn.Nbody.Slice(), Curfn)
 	Curfn = savefn
 	e.loopdepth = saveld
 }
 
 // Mark labels that have no backjumps to them as not increasing e->loopdepth.
 // Walk hasn't generated (goto|label)->left->sym->label yet, so we'll cheat
-// and set it to one of the following two.  Then in esc we'll clear it again.
+// and set it to one of the following two. Then in esc we'll clear it again.
 var looping Label
 
 var nonlooping Label
@@ -525,6 +532,12 @@ var nonlooping Label
 func escloopdepthlist(e *EscState, l *NodeList) {
 	for ; l != nil; l = l.Next {
 		escloopdepth(e, l.N)
+	}
+}
+
+func escloopdepthslice(e *EscState, l []*Node) {
+	for _, n := range l {
+		escloopdepth(e, n)
 	}
 }
 
@@ -562,7 +575,7 @@ func escloopdepth(e *EscState, n *Node) {
 	escloopdepth(e, n.Left)
 	escloopdepth(e, n.Right)
 	escloopdepthlist(e, n.List)
-	escloopdepthlist(e, n.Nbody)
+	escloopdepthslice(e, n.Nbody.Slice())
 	escloopdepthlist(e, n.Rlist)
 }
 
@@ -572,8 +585,20 @@ func esclist(e *EscState, l *NodeList, up *Node) {
 	}
 }
 
+func escslice(e *EscState, l []*Node, up *Node) {
+	for _, n := range l {
+		esc(e, n, up)
+	}
+}
+
 func esc(e *EscState, n *Node, up *Node) {
 	if n == nil {
+		return
+	}
+	if n.Type != nil && n.Type.Etype == TFIELD {
+		// This is the left side of x:y in a struct literal.
+		// x is syntax, not an expression.
+		// See #14405.
 		return
 	}
 
@@ -602,9 +627,10 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	// Big stuff escapes unconditionally
 	// "Big" conditions that were scattered around in walk have been gathered here
-	if n.Esc != EscHeap && n.Type != nil && (n.Type.Width > MaxStackVarSize ||
-		n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
-		n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+	if n.Esc != EscHeap && n.Type != nil &&
+		(n.Type.Width > MaxStackVarSize ||
+			n.Op == ONEW && n.Type.Type.Width >= 1<<16 ||
+			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
 		if Debug['m'] > 1 {
 			Warnl(int(n.Lineno), "%v is too large for stack", n)
 		}
@@ -615,7 +641,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	esc(e, n.Left, n)
 	esc(e, n.Right, n)
-	esclist(e, n.Nbody, n)
+	escslice(e, n.Nbody.Slice(), n)
 	esclist(e, n.List, n)
 	esclist(e, n.Rlist, n)
 
@@ -772,11 +798,14 @@ func esc(e *EscState, n *Node, up *Node) {
 			ll = e.nodeEscState(n.List.N).Escretval
 		}
 
-		for lr := Curfn.Func.Dcl; lr != nil && ll != nil; lr = lr.Next {
-			if lr.N.Op != ONAME || lr.N.Class != PPARAMOUT {
+		for _, lrn := range Curfn.Func.Dcl {
+			if ll == nil {
+				break
+			}
+			if lrn.Op != ONAME || lrn.Class != PPARAMOUT {
 				continue
 			}
-			escassign(e, lr.N, ll.N)
+			escassign(e, lrn, ll.N)
 			ll = ll.Next
 		}
 
@@ -854,9 +883,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		// Link addresses of captured variables to closure.
 	case OCLOSURE:
 		var a *Node
-		var v *Node
-		for ll := n.Func.Cvars; ll != nil; ll = ll.Next {
-			v = ll.N
+		for _, v := range n.Func.Cvars.Slice() {
 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
 				continue
 			}
@@ -962,7 +989,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 			dst = &e.theSink
 		}
 
-	case ODOT: // treat "dst.x  = src" as "dst = src"
+	case ODOT: // treat "dst.x = src" as "dst = src"
 		escassign(e, dst.Left, src)
 
 		return
@@ -1042,7 +1069,6 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		ODOTMETH,
 		// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
 		// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
-		ODOTTYPE,
 		ODOTTYPE2,
 		OSLICE,
 		OSLICE3,
@@ -1050,6 +1076,12 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		OSLICE3ARR,
 		OSLICESTR:
 		// Conversions, field access, slice all preserve the input value.
+		escassign(e, dst, src.Left)
+
+	case ODOTTYPE:
+		if src.Type != nil && !haspointers(src.Type) {
+			break
+		}
 		escassign(e, dst, src.Left)
 
 	case OAPPEND:
@@ -1067,7 +1099,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 
 		// Might be pointer arithmetic, in which case
 	// the operands flow into the result.
-	// TODO(rsc): Decide what the story is here.  This is unsettling.
+	// TODO(rsc): Decide what the story is here. This is unsettling.
 	case OADD,
 		OSUB,
 		OOR,
@@ -1096,7 +1128,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 //  flow are 000, 001, 010, 011  and EEEE is computed Esc bits.
 // Note width of xxx depends on value of constant
 // bitsPerOutputInTag -- expect 2 or 3, so in practice the
-// tag cache array is 64 or 128 long.  Some entries will
+// tag cache array is 64 or 128 long. Some entries will
 // never be populated.
 var tags [1 << (bitsPerOutputInTag + EscReturnBits)]string
 
@@ -1258,7 +1290,7 @@ func (e *EscState) addDereference(n *Node) *Node {
 	if Istype(t, Tptr) {
 		// This should model our own sloppy use of OIND to encode
 		// decreasing levels of indirection; i.e., "indirecting" an array
-		// might yield the type of an element.  To be enhanced...
+		// might yield the type of an element. To be enhanced...
 		t = t.Type
 	}
 	ind.Type = t
@@ -1382,12 +1414,12 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	nE := e.nodeEscState(n)
 	if fn != nil && fn.Op == ONAME && fn.Class == PFUNC &&
-		fn.Name.Defn != nil && fn.Name.Defn.Nbody != nil && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
+		fn.Name.Defn != nil && len(fn.Name.Defn.Nbody.Slice()) != 0 && fn.Name.Param.Ntype != nil && fn.Name.Defn.Esc < EscFuncTagged {
 		if Debug['m'] > 2 {
 			fmt.Printf("%v::esccall:: %v in recursive group\n", Ctxt.Line(int(lineno)), Nconv(n, obj.FmtShort))
 		}
 
-		// function in same mutually recursive group.  Incorporate into flow graph.
+		// function in same mutually recursive group. Incorporate into flow graph.
 		//		print("esc local fn: %N\n", fn->ntype);
 		if fn.Name.Defn.Esc == EscFuncUnknown || nE.Escretval != nil {
 			Fatalf("graph inconsistency")
@@ -1437,7 +1469,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		return
 	}
 
-	// Imported or completely analyzed function.  Use the escape tags.
+	// Imported or completely analyzed function. Use the escape tags.
 	if nE.Escretval != nil {
 		Fatalf("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
 	}
@@ -1549,9 +1581,9 @@ func escflows(e *EscState, dst *Node, src *Node) {
 // finding an OADDR just means we're following the upstream of a dereference,
 // so this address doesn't leak (yet).
 // If level == 0, it means the /value/ of this node can reach the root of this flood.
-// so if this node is an OADDR, it's argument should be marked as escaping iff
-// it's currfn/e->loopdepth are different from the flood's root.
-// Once an object has been moved to the heap, all of it's upstream should be considered
+// so if this node is an OADDR, its argument should be marked as escaping iff
+// its currfn/e->loopdepth are different from the flood's root.
+// Once an object has been moved to the heap, all of its upstream should be considered
 // escaping to the global scope.
 func escflood(e *EscState, dst *Node) {
 	switch dst.Op {
@@ -1820,7 +1852,7 @@ func esctag(e *EscState, func_ *Node) {
 
 	// External functions are assumed unsafe,
 	// unless //go:noescape is given before the declaration.
-	if func_.Nbody == nil {
+	if len(func_.Nbody.Slice()) == 0 {
 		if func_.Noescape {
 			for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
 				if haspointers(t.Type) {
@@ -1858,16 +1890,16 @@ func esctag(e *EscState, func_ *Node) {
 	savefn := Curfn
 	Curfn = func_
 
-	for ll := Curfn.Func.Dcl; ll != nil; ll = ll.Next {
-		if ll.N.Op != ONAME {
+	for _, ln := range Curfn.Func.Dcl {
+		if ln.Op != ONAME {
 			continue
 		}
 
-		switch ll.N.Esc & EscMask {
+		switch ln.Esc & EscMask {
 		case EscNone, // not touched by escflood
 			EscReturn:
-			if haspointers(ll.N.Type) { // don't bother tagging for scalars
-				ll.N.Name.Param.Field.Note = mktag(int(ll.N.Esc))
+			if haspointers(ln.Type) { // don't bother tagging for scalars
+				ln.Name.Param.Field.Note = mktag(int(ln.Esc))
 			}
 
 		case EscHeap, // touched by escflood, moved to heap

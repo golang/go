@@ -12,7 +12,7 @@ import (
 )
 
 // Prune removes all nodes beneath a node matching dropRx, and not
-// matching keepRx.  If the root node of a Sample matches, the sample
+// matching keepRx. If the root node of a Sample matches, the sample
 // will have an empty stack.
 func (p *Profile) Prune(dropRx, keepRx *regexp.Regexp) {
 	prune := make(map[uint64]bool)

@@ -1511,7 +1511,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
 		// The way the code generator uses floating-point
 	// registers, a move from F0 to F0 is intended as a no-op.
 	// On the x86, it's not: it pushes a second copy of F0
-	// on the floating point stack.  So toss it away here.
+	// on the floating point stack. So toss it away here.
 	// Also, F0 is the *only* register we ever evaluate
 	// into, so we should only see register/register as F0/F0.
 	/*

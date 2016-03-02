@@ -1,0 +1,20 @@
+Tools:
+
+cmd/dist: add list subcommand to list all supported platforms (CL 19837)
+cmd/go: GO15VENDOREXPERIMENT gone, assumed on (CL 19615)
+cmd/link: "-X name value" form gone (CL 19614)
+cmd/compile: smaller binaries (many CLs)
+cmd/go, go/build: add support for Fortran (CL 19670, CL 4114)
+cmd/dist: introduce list subcommand to list all supported platforms (CL 19837)
+
+Ports:
+
+We now require OpenBSD 5.6+ (CL 18219, crypto/rand using getentropy)
+plan9/arm support? Start at least.
+
+API additions and behavior changes:
+
+runtime: add CallerFrames and Frames (CL 19869)
+testing/quick: now generates nil values (CL 16470)
+net/url: support query string without values (CL 19931)
+net/textproto: permit all valid token chars in CanonicalMIMEHeaderKey input (CL 18725)

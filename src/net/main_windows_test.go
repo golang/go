@@ -11,6 +11,7 @@ var (
 	origConnect     = connectFunc
 	origConnectEx   = connectExFunc
 	origListen      = listenFunc
+	origAccept      = acceptFunc
 )
 
 func installTestHooks() {
@@ -19,6 +20,7 @@ func installTestHooks() {
 	connectFunc = sw.Connect
 	connectExFunc = sw.ConnectEx
 	listenFunc = sw.Listen
+	acceptFunc = sw.AcceptEx
 }
 
 func uninstallTestHooks() {
@@ -27,6 +29,7 @@ func uninstallTestHooks() {
 	connectFunc = origConnect
 	connectExFunc = origConnectEx
 	listenFunc = origListen
+	acceptFunc = origAccept
 }
 
 func forceCloseSockets() {

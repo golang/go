@@ -11,10 +11,10 @@
 package unsafe
 
 // ArbitraryType is here for the purposes of documentation only and is not actually
-// part of the unsafe package.  It represents the type of an arbitrary Go expression.
+// part of the unsafe package. It represents the type of an arbitrary Go expression.
 type ArbitraryType int
 
-// Pointer represents a pointer to an arbitrary type.  There are four special operations
+// Pointer represents a pointer to an arbitrary type. There are four special operations
 // available for type Pointer that are not available for other types:
 //	- A pointer value of any type can be converted to a Pointer.
 //	- A Pointer can be converted to a pointer value of any type.
@@ -179,7 +179,7 @@ type Pointer *ArbitraryType
 func Sizeof(x ArbitraryType) uintptr
 
 // Offsetof returns the offset within the struct of the field represented by x,
-// which must be of the form structValue.field.  In other words, it returns the
+// which must be of the form structValue.field. In other words, it returns the
 // number of bytes between the start of the struct and the start of the field.
 func Offsetof(x ArbitraryType) uintptr
 
@@ -189,6 +189,6 @@ func Offsetof(x ArbitraryType) uintptr
 // It is the same as the value returned by reflect.TypeOf(x).Align().
 // As a special case, if a variable s is of struct type and f is a field
 // within that struct, then Alignof(s.f) will return the required alignment
-// of a field of that type within a struct.  This case is the same as the
+// of a field of that type within a struct. This case is the same as the
 // value returned by reflect.TypeOf(s.f).FieldAlign().
 func Alignof(x ArbitraryType) uintptr

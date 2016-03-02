@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -178,7 +178,7 @@ func BenchmarkAll(b *testing.B) {
 		for _, context := range contexts {
 			w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
 			for _, name := range pkgNames {
-				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") {
+				if name != "unsafe" && !strings.HasPrefix(name, "cmd/") && !internalPkg.MatchString(name) {
 					pkg, _ := w.Import(name)
 					w.export(pkg)
 				}

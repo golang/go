@@ -99,7 +99,7 @@ type parseContentTypeTest struct {
 
 var parseContentTypeTests = []parseContentTypeTest{
 	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Empty content type is legal - shoult be treated as
+	// Empty content type is legal - should be treated as
 	// application/octet-stream (RFC 2616, section 7.2.1)
 	{false, stringMap{}},
 	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},

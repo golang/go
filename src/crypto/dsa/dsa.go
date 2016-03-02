@@ -52,7 +52,7 @@ const numMRTests = 64
 
 // GenerateParameters puts a random, valid set of DSA parameters into params.
 // This function can take many seconds, even on fast machines.
-func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) (err error) {
+func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) error {
 	// This function doesn't follow FIPS 186-3 exactly in that it doesn't
 	// use a verification seed to generate the primes. The verification
 	// seed doesn't appear to be exported or used by other code and
@@ -87,9 +87,8 @@ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes
 
 GeneratePrimes:
 	for {
-		_, err = io.ReadFull(rand, qBytes)
-		if err != nil {
-			return
+		if _, err := io.ReadFull(rand, qBytes); err != nil {
+			return err
 		}
 
 		qBytes[len(qBytes)-1] |= 1
@@ -101,9 +100,8 @@ GeneratePrimes:
 		}
 
 		for i := 0; i < 4*L; i++ {
-			_, err = io.ReadFull(rand, pBytes)
-			if err != nil {
-				return
+			if _, err := io.ReadFull(rand, pBytes); err != nil {
+				return err
 			}
 
 			pBytes[len(pBytes)-1] |= 1
@@ -142,7 +140,7 @@ GeneratePrimes:
 		}
 
 		params.G = g
-		return
+		return nil
 	}
 }
 

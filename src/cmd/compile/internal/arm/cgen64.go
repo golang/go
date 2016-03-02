@@ -126,7 +126,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
 	var ah gc.Node
 	gc.Regalloc(&ah, hi1.Type, nil)
 
-	// Do op.  Leave result in ah:al.
+	// Do op. Leave result in ah:al.
 	switch n.Op {
 	default:
 		gc.Fatalf("cgen64: not implemented: %v\n", n)

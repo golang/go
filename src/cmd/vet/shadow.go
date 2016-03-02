@@ -232,7 +232,7 @@ func checkShadowing(f *File, ident *ast.Ident) {
 		// the shadowing identifier.
 		span, ok := f.pkg.spans[shadowed]
 		if !ok {
-			f.Badf(ident.Pos(), "internal error: no range for %s", ident.Name)
+			f.Badf(ident.Pos(), "internal error: no range for %q", ident.Name)
 			return
 		}
 		if !span.contains(ident.Pos()) {
@@ -241,6 +241,6 @@ func checkShadowing(f *File, ident *ast.Ident) {
 	}
 	// Don't complain if the types differ: that implies the programmer really wants two different things.
 	if types.Identical(obj.Type(), shadowed.Type()) {
-		f.Badf(ident.Pos(), "declaration of %s shadows declaration at %s", obj.Name(), f.loc(shadowed.Pos()))
+		f.Badf(ident.Pos(), "declaration of %q shadows declaration at %s", obj.Name(), f.loc(shadowed.Pos()))
 	}
 }

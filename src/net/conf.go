@@ -185,7 +185,7 @@ func (c *conf) hostLookupOrder(hostname string) (ret hostLookupOrder) {
 		hostname = hostname[:len(hostname)-1]
 	}
 	if stringsHasSuffixFold(hostname, ".local") {
-		// Per RFC 6762, the ".local" TLD is special.  And
+		// Per RFC 6762, the ".local" TLD is special. And
 		// because Go's native resolver doesn't do mDNS or
 		// similar local resolution mechanisms, assume that
 		// libc might (via Avahi, etc) and use cgo.

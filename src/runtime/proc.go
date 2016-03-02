@@ -126,7 +126,7 @@ func main() {
 	})
 
 	// Lock the main goroutine onto this, the main OS thread,
-	// during initialization.  Most programs won't care, but a few
+	// during initialization. Most programs won't care, but a few
 	// do require certain calls to be made by the main thread.
 	// Those can arrange for main.main to run in the main thread
 	// by calling runtime.LockOSThread during initialization
@@ -237,7 +237,7 @@ func forcegchelper() {
 
 //go:nosplit
 
-// Gosched yields the processor, allowing other goroutines to run.  It does not
+// Gosched yields the processor, allowing other goroutines to run. It does not
 // suspend the current goroutine, so execution resumes automatically.
 func Gosched() {
 	mcall(gosched_m)
@@ -424,7 +424,7 @@ func schedinit() {
 
 	sched.maxmcount = 10000
 
-	// Cache the framepointer experiment.  This affects stack unwinding.
+	// Cache the framepointer experiment. This affects stack unwinding.
 	framepointer_enabled = haveexperiment("framepointer")
 
 	tracebackinit()
@@ -454,7 +454,7 @@ func schedinit() {
 	}
 
 	if buildVersion == "" {
-		// Condition should never trigger.  This code just serves
+		// Condition should never trigger. This code just serves
 		// to ensure runtime·buildVersion is kept in the resulting binary.
 		buildVersion = "unknown"
 	}
@@ -660,10 +660,6 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		if newval == oldval&^_Gscan {
 			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
 		}
-	case _Gscanenqueue:
-		if newval == _Gwaiting {
-			success = atomic.Cas(&gp.atomicstatus, oldval, newval)
-		}
 	}
 	if !success {
 		print("runtime: casfrom_Gscanstatus failed gp=", gp, ", oldval=", hex(oldval), ", newval=", hex(newval), "\n")
@@ -680,13 +676,10 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 func castogscanstatus(gp *g, oldval, newval uint32) bool {
 	switch oldval {
 	case _Grunnable,
+		_Grunning,
 		_Gwaiting,
 		_Gsyscall:
 		if newval == oldval|_Gscan {
-			return atomic.Cas(&gp.atomicstatus, oldval, newval)
-		}
-	case _Grunning:
-		if newval == _Gscanrunning || newval == _Gscanenqueue {
 			return atomic.Cas(&gp.atomicstatus, oldval, newval)
 		}
 	}
@@ -843,17 +836,6 @@ func restartg(gp *g) {
 		_Gscanwaiting,
 		_Gscansyscall:
 		casfrom_Gscanstatus(gp, s, s&^_Gscan)
-
-	// Scan is now completed.
-	// Goroutine now needs to be made runnable.
-	// We put it on the global run queue; ready blocks on the global scheduler lock.
-	case _Gscanenqueue:
-		casfrom_Gscanstatus(gp, _Gscanenqueue, _Gwaiting)
-		if gp != getg().m.curg {
-			throw("processing Gscanenqueue on wrong m")
-		}
-		dropg()
-		ready(gp, 0)
 	}
 }
 
@@ -1032,7 +1014,7 @@ func startTheWorldWithSema() {
 		// in the hope that it will be available next time.
 		// It would have been even better to start it before the collection,
 		// but doing so requires allocating memory, so it's tricky to
-		// coordinate.  This lazy approach works out in practice:
+		// coordinate. This lazy approach works out in practice:
 		// we don't mind if the first couple gc rounds don't have quite
 		// the maximum number of procs.
 		newm(mhelpgc, nil)
@@ -1488,7 +1470,7 @@ func unlockextra(mp *m) {
 	atomic.Storeuintptr(&extram, uintptr(unsafe.Pointer(mp)))
 }
 
-// Create a new m.  It will start off with a call to fn, or else the scheduler.
+// Create a new m. It will start off with a call to fn, or else the scheduler.
 // fn needs to be static and not a heap allocated closure.
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
@@ -2099,10 +2081,8 @@ top:
 func dropg() {
 	_g_ := getg()
 
-	if _g_.m.lockedg == nil {
-		_g_.m.curg.m = nil
-		_g_.m.curg = nil
-	}
+	_g_.m.curg.m = nil
+	_g_.m.curg = nil
 }
 
 func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
@@ -2406,7 +2386,7 @@ func entersyscallblock_handoff() {
 // The goroutine g exited its system call.
 // Arrange for it to run on a cpu again.
 // This is called only from the go syscall library, not
-// from the low-level system calls used by the
+// from the low-level system calls used by the runtime.
 //go:nosplit
 func exitsyscall(dummy int32) {
 	_g_ := getg()
@@ -2661,7 +2641,7 @@ func newproc(siz int32, fn *funcval) {
 
 // Create a new g running fn with narg bytes of arguments starting
 // at argp and returning nret bytes of results.  callerpc is the
-// address of the go statement that created this.  The new g is put
+// address of the go statement that created this. The new g is put
 // on the queue of g's waiting to run.
 func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr) *g {
 	_g_ := getg()
@@ -2812,7 +2792,7 @@ retry:
 		_p_.gfree = gp.schedlink.ptr()
 		_p_.gfreecnt--
 		if gp.stack.lo == 0 {
-			// Stack was deallocated in gfput.  Allocate a new one.
+			// Stack was deallocated in gfput. Allocate a new one.
 			systemstack(func() {
 				gp.stack, gp.stkbar = stackalloc(_FixedStack)
 			})
@@ -3148,7 +3128,7 @@ func setcpuprofilerate_m(hz int32) {
 	_g_.m.locks--
 }
 
-// Change number of processors.  The world is stopped, sched is locked.
+// Change number of processors. The world is stopped, sched is locked.
 // gcworkbufs are not being modified by either the GC or
 // the write barrier code.
 // Returns list of Ps with local work, they need to be scheduled by the caller.
@@ -3354,7 +3334,7 @@ func incidlelocked(v int32) {
 // The check is based on number of running M's, if 0 -> deadlock.
 func checkdead() {
 	// For -buildmode=c-shared or -buildmode=c-archive it's OK if
-	// there are no running goroutines.  The calling program is
+	// there are no running goroutines. The calling program is
 	// assumed to be running.
 	if islibrary || isarchive {
 		return
@@ -3599,7 +3579,7 @@ func retake(now int64) uint32 {
 }
 
 // Tell all goroutines that they have been preempted and they should stop.
-// This function is purely best-effort.  It can fail to inform a goroutine if a
+// This function is purely best-effort. It can fail to inform a goroutine if a
 // processor just started running it.
 // No locks need to be held.
 // Returns true if preemption request was issued to at least one goroutine.
@@ -3618,8 +3598,8 @@ func preemptall() bool {
 }
 
 // Tell the goroutine running on processor P to stop.
-// This function is purely best-effort.  It can incorrectly fail to inform the
-// goroutine.  It can send inform the wrong goroutine.  Even if it informs the
+// This function is purely best-effort. It can incorrectly fail to inform the
+// goroutine. It can send inform the wrong goroutine. Even if it informs the
 // correct goroutine, that goroutine might ignore the request if it is
 // simultaneously executing newstack.
 // No lock needs to be held.
@@ -3910,7 +3890,7 @@ retry:
 	if runqputslow(_p_, gp, h, t) {
 		return
 	}
-	// the queue is not full, now the put above must suceed
+	// the queue is not full, now the put above must succeed
 	goto retry
 }
 

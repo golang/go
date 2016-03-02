@@ -101,7 +101,7 @@ func freemcache(c *mcache) {
 }
 
 // Gets a span that has a free object in it and assigns it
-// to be the cached span for the given sizeclass.  Returns this span.
+// to be the cached span for the given sizeclass. Returns this span.
 func (c *mcache) refill(sizeclass int32) *mspan {
 	_g_ := getg()
 

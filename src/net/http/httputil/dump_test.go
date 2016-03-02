@@ -288,6 +288,27 @@ Transfer-Encoding: chunked
 foo
 0`,
 	},
+	{
+		res: &http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			ContentLength: 0,
+			Header: http.Header{
+				// To verify if headers are not filtered out.
+				"Foo1": []string{"Bar1"},
+				"Foo2": []string{"Bar2"},
+			},
+			Body: nil,
+		},
+		body: false, // to verify we see 0, not empty.
+		want: `HTTP/1.1 200 OK
+Foo1: Bar1
+Foo2: Bar2
+Content-Length: 0`,
+	},
 }
 
 func TestDumpResponse(t *testing.T) {

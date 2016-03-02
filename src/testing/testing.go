@@ -45,7 +45,7 @@
 //
 // The benchmark function must run the target code b.N times.
 // During benchmark execution, b.N is adjusted until the benchmark function lasts
-// long enough to be timed reliably.  The output
+// long enough to be timed reliably. The output
 //     BenchmarkHello    10000000    282 ns/op
 // means that the loop ran 10000000 times at a speed of 282 ns per loop.
 //
@@ -160,8 +160,8 @@ import (
 
 var (
 	// The short flag requests that tests run more quickly, but its functionality
-	// is provided by test writers themselves.  The testing package is just its
-	// home.  The all.bash installation script sets it to make installation more
+	// is provided by test writers themselves. The testing package is just its
+	// home. The all.bash installation script sets it to make installation more
 	// efficient, but by default the flag is off so a plain "go test" will do a
 	// full test of the package.
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
@@ -337,9 +337,9 @@ func (c *common) FailNow() {
 	// This previous version duplicated code (those lines are in
 	// tRunner no matter what), but worse the goroutine teardown
 	// implicit in runtime.Goexit was not guaranteed to complete
-	// before the test exited.  If a test deferred an important cleanup
+	// before the test exited. If a test deferred an important cleanup
 	// function (like removing temporary files), there was no guarantee
-	// it would run on a test failure.  Because we send on c.signal during
+	// it would run on a test failure. Because we send on c.signal during
 	// a top-of-stack deferred function now, we know that the send
 	// only happens after any other stacked defers have completed.
 	c.finished = true
@@ -515,13 +515,12 @@ func (m *M) Run() int {
 	testOk := RunTests(m.matchString, m.tests)
 	exampleOk := RunExamples(m.matchString, m.examples)
 	stopAlarm()
-	if !testOk || !exampleOk {
+	if !testOk || !exampleOk || !runBenchmarksInternal(m.matchString, m.benchmarks) {
 		fmt.Println("FAIL")
 		after()
 		return 1
 	}
 	fmt.Println("PASS")
-	RunBenchmarks(m.matchString, m.benchmarks)
 	after()
 	return 0
 }

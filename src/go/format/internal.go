@@ -28,9 +28,9 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 ) {
 	// Try as whole source file.
 	file, err = parser.ParseFile(fset, filename, src, parserMode)
-	// If there's no error, return.  If the error is that the source file didn't begin with a
+	// If there's no error, return. If the error is that the source file didn't begin with a
 	// package line and source fragments are ok, fall through to
-	// try as a source fragment.  Stop and return on any other error.
+	// try as a source fragment. Stop and return on any other error.
 	if err == nil || !fragmentOk || !strings.Contains(err.Error(), "expected 'package'") {
 		return
 	}
@@ -59,7 +59,7 @@ func parse(fset *token.FileSet, filename string, src []byte, fragmentOk bool) (
 
 	// If this is a statement list, make it a source file
 	// by inserting a package clause and turning the list
-	// into a function body.  This handles expressions too.
+	// into a function body. This handles expressions too.
 	// Insert using a ;, not a newline, so that the line numbers
 	// in fsrc match the ones in src. Add an extra '\n' before the '}'
 	// to make sure comments are flushed before the '}'.

@@ -42,9 +42,9 @@ var resvd = []int{
 	ppc64.REGZERO,
 	ppc64.REGSP, // reserved for SP
 	// We need to preserve the C ABI TLS pointer because sigtramp
-	// may happen during C code and needs to access the g.  C
+	// may happen during C code and needs to access the g. C
 	// clobbers REGG, so if Go were to clobber REGTLS, sigtramp
-	// won't know which convention to use.  By preserving REGTLS,
+	// won't know which convention to use. By preserving REGTLS,
 	// we can just retrieve g from TLS when we aren't sure.
 	ppc64.REGTLS,
 

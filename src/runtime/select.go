@@ -239,7 +239,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
 	// only 0 or 1 cases plus default into simpler constructs.
 	// The only way we can end up with such small sel.ncase
 	// values here is for a larger select in which most channels
-	// have been nilled out.  The general code handles those
+	// have been nilled out. The general code handles those
 	// cases correctly, and they are rare enough not to bother
 	// optimizing (and needing to test).
 
@@ -370,6 +370,8 @@ loop:
 		sg.g = gp
 		// Note: selectdone is adjusted for stack copies in stack1.go:adjustsudogs
 		sg.selectdone = (*uint32)(noescape(unsafe.Pointer(&done)))
+		// No stack splits between assigning elem and enqueuing
+		// sg on gp.waiting where copystack can find it.
 		sg.elem = cas.elem
 		sg.releasetime = 0
 		if t0 != 0 {
@@ -647,8 +649,8 @@ func (q *waitq) dequeueSudoG(sgp *sudog) {
 		return
 	}
 
-	// x==y==nil.  Either sgp is the only element in the queue,
-	// or it has already been removed.  Use q.first to disambiguate.
+	// x==y==nil. Either sgp is the only element in the queue,
+	// or it has already been removed. Use q.first to disambiguate.
 	if q.first == sgp {
 		q.first = nil
 		q.last = nil

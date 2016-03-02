@@ -845,7 +845,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 			}
 
 			// For i386 Mach-O PC-relative, the addend is written such that
-			// it *is* the PC being subtracted.  Use that to make
+			// it *is* the PC being subtracted. Use that to make
 			// it match our version of PC-relative.
 			if rel.pcrel != 0 && Thearch.Thechar == '8' {
 				rp.Add += int64(rp.Off) + int64(rp.Siz)

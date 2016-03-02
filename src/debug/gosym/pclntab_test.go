@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -42,7 +42,7 @@ func dotest(t *testing.T) {
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}
-	cmd = exec.Command("go", "tool", "link", "-H", "linux", "-E", "main",
+	cmd = exec.Command("go", "tool", "link", "-H", "linux",
 		"-o", pclinetestBinary, pclinetestBinary+".o")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

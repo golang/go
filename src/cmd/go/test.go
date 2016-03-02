@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -388,7 +388,7 @@ func runTest(cmd *Command, args []string) {
 	}
 
 	// If a test timeout was given and is parseable, set our kill timeout
-	// to that timeout plus one minute.  This is a backup alarm in case
+	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
 	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
@@ -691,7 +691,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	// the usual place in the temporary tree, because then
 	// other tests will see it as the real package.
 	// Instead we make a _test directory under the import path
-	// and then repeat the import path there.  We tell the
+	// and then repeat the import path there. We tell the
 	// compiler and linker to look in that _test directory first.
 	//
 	// That is, if the package under test is unicode/utf8,
@@ -1206,11 +1206,11 @@ func (b *builder) notest(a *action) error {
 	return nil
 }
 
-// isTestMain tells whether fn is a TestMain(m *testing.M) function.
-func isTestMain(fn *ast.FuncDecl) bool {
-	if fn.Name.String() != "TestMain" ||
-		fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
-		fn.Type.Params == nil ||
+// isTestFunc tells whether fn has the type of a testing function. arg
+// specifies the parameter type we look for: B, M or T.
+func isTestFunc(fn *ast.FuncDecl, arg string) bool {
+	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
+		fn.Type.Params.List == nil ||
 		len(fn.Type.Params.List) != 1 ||
 		len(fn.Type.Params.List[0].Names) > 1 {
 		return false
@@ -1222,10 +1222,11 @@ func isTestMain(fn *ast.FuncDecl) bool {
 	// We can't easily check that the type is *testing.M
 	// because we don't know how testing has been imported,
 	// but at least check that it's *M or *something.M.
-	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == "M" {
+	// Same applies for B and T.
+	if name, ok := ptr.X.(*ast.Ident); ok && name.Name == arg {
 		return true
 	}
-	if sel, ok := ptr.X.(*ast.SelectorExpr); ok && sel.Sel.Name == "M" {
+	if sel, ok := ptr.X.(*ast.SelectorExpr); ok && sel.Sel.Name == arg {
 		return true
 	}
 	return false
@@ -1344,16 +1345,24 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 		name := n.Name.String()
 		switch {
-		case isTestMain(n):
+		case name == "TestMain" && isTestFunc(n, "M"):
 			if t.TestMain != nil {
 				return errors.New("multiple definitions of TestMain")
 			}
 			t.TestMain = &testFunc{pkg, name, ""}
 			*doImport, *seen = true, true
 		case isTest(name, "Test"):
+			err := checkTestFunc(n, "T")
+			if err != nil {
+				return err
+			}
 			t.Tests = append(t.Tests, testFunc{pkg, name, ""})
 			*doImport, *seen = true, true
 		case isTest(name, "Benchmark"):
+			err := checkTestFunc(n, "B")
+			if err != nil {
+				return err
+			}
 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
 			*doImport, *seen = true, true
 		}
@@ -1368,6 +1377,15 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		}
 		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
 		*seen = true
+	}
+	return nil
+}
+
+func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+	if !isTestFunc(fn, arg) {
+		name := fn.Name.String()
+		pos := testFileSet.Position(fn.Pos())
+		return fmt.Errorf("%s: wrong signature for %s, must be: func %s(%s *testing.%s)", pos, name, name, strings.ToLower(arg), arg)
 	}
 	return nil
 }

@@ -491,9 +491,9 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
 }
 
 // NewWriterDict is like NewWriter but initializes the new
-// Writer with a preset dictionary.  The returned Writer behaves
+// Writer with a preset dictionary. The returned Writer behaves
 // as if the dictionary had been written to it without producing
-// any compressed output.  The compressed data written to w
+// any compressed output. The compressed data written to w
 // can only be decompressed by a Reader initialized with the
 // same dictionary.
 func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {

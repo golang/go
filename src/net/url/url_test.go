@@ -72,6 +72,28 @@ var urltests = []URLTest{
 		},
 		"ftp://john%20doe@www.google.com/",
 	},
+	// empty query
+	{
+		"http://www.google.com/?",
+		&URL{
+			Scheme:     "http",
+			Host:       "www.google.com",
+			Path:       "/",
+			ForceQuery: true,
+		},
+		"",
+	},
+	// query ending in question mark (Issue 14573)
+	{
+		"http://www.google.com/?foo=bar?",
+		&URL{
+			Scheme:   "http",
+			Host:     "www.google.com",
+			Path:     "/",
+			RawQuery: "foo=bar?",
+		},
+		"",
+	},
 	// query
 	{
 		"http://www.google.com/?q=go+language",
@@ -553,8 +575,8 @@ func ufmt(u *URL) string {
 			pass = p
 		}
 	}
-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
+	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
+		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
 }
 
 func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
@@ -874,11 +896,13 @@ var resolveReferenceTests = []struct {
 	// Absolute URL references
 	{"http://foo.com?a=b", "https://bar.com/", "https://bar.com/"},
 	{"http://foo.com/", "https://bar.com/?a=b", "https://bar.com/?a=b"},
+	{"http://foo.com/", "https://bar.com/?", "https://bar.com/?"},
 	{"http://foo.com/bar", "mailto:foo@example.com", "mailto:foo@example.com"},
 
 	// Path-absolute references
 	{"http://foo.com/bar", "/baz", "http://foo.com/baz"},
 	{"http://foo.com/bar?a=b#f", "/baz", "http://foo.com/baz"},
+	{"http://foo.com/bar?a=b", "/baz?", "http://foo.com/baz?"},
 	{"http://foo.com/bar?a=b", "/baz?c=d", "http://foo.com/baz?c=d"},
 
 	// Scheme-relative
@@ -1216,6 +1240,15 @@ var requritests = []RequestURITest{
 			Path:   "//foo",
 		},
 		"//foo",
+	},
+	{
+		&URL{
+			Scheme:     "http",
+			Host:       "example.com",
+			Path:       "/foo",
+			ForceQuery: true,
+		},
+		"/foo?",
 	},
 }
 

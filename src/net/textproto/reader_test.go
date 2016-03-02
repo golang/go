@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -24,6 +24,12 @@ var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
 	{"uSER-aGENT", "User-Agent"},
 	{"user-agent", "User-Agent"},
 	{"USER-AGENT", "User-Agent"},
+
+	// Other valid tchar bytes in tokens:
+	{"foo-bar_baz", "Foo-Bar_baz"},
+	{"foo-bar$baz", "Foo-Bar$baz"},
+	{"foo-bar~baz", "Foo-Bar~baz"},
+	{"foo-bar*baz", "Foo-Bar*baz"},
 
 	// Non-ASCII or anything with spaces or non-token chars is unchanged:
 	{"üser-agenT", "üser-agenT"},

@@ -6,10 +6,10 @@ package runtime
 
 // This file contains the implementation of Go's map type.
 //
-// A map is just a hash table.  The data is arranged
-// into an array of buckets.  Each bucket contains up to
-// 8 key/value pairs.  The low-order bits of the hash are
-// used to select a bucket.  Each bucket contains a few
+// A map is just a hash table. The data is arranged
+// into an array of buckets. Each bucket contains up to
+// 8 key/value pairs. The low-order bits of the hash are
+// used to select a bucket. Each bucket contains a few
 // high-order bits of each hash to distinguish the entries
 // within a single bucket.
 //
@@ -17,7 +17,7 @@ package runtime
 // extra buckets.
 //
 // When the hashtable grows, we allocate a new array
-// of buckets twice as big.  Buckets are incrementally
+// of buckets twice as big. Buckets are incrementally
 // copied from the old bucket array to the new bucket array.
 //
 // Map iterators walk through the array of buckets and
@@ -31,7 +31,7 @@ package runtime
 // to the new table.
 
 // Picking loadFactor: too large and we have lots of overflow
-// buckets, too small and we waste a lot of space.  I wrote
+// buckets, too small and we waste a lot of space. I wrote
 // a simple program to check some stats for different loads:
 // (64-bit, 8 byte keys and values)
 //  loadFactor    %overflow  bytes/entry     hitprobe    missprobe
@@ -51,7 +51,7 @@ package runtime
 // missprobe   = # of entries to check when looking up an absent key
 //
 // Keep in mind this data is for maximally loaded tables, i.e. just
-// before the table grows.  Typical tables will be somewhat less loaded.
+// before the table grows. Typical tables will be somewhat less loaded.
 
 import (
 	"runtime/internal/atomic"
@@ -75,14 +75,14 @@ const (
 	maxValueSize = 128
 
 	// data offset should be the size of the bmap struct, but needs to be
-	// aligned correctly.  For amd64p32 this means 64-bit alignment
+	// aligned correctly. For amd64p32 this means 64-bit alignment
 	// even though pointers are 32 bit.
 	dataOffset = unsafe.Offsetof(struct {
 		b bmap
 		v int64
 	}{}.v)
 
-	// Possible tophash values.  We reserve a few possibilities for special marks.
+	// Possible tophash values. We reserve a few possibilities for special marks.
 	// Each bucket (including its overflow buckets, if any) will have either all or none of its
 	// entries in the evacuated* states (except during the evacuate() method, which only happens
 	// during map writes and thus no one else can observe the map during that time).
@@ -104,7 +104,7 @@ const (
 // A header for a Go map.
 type hmap struct {
 	// Note: the format of the Hmap is encoded in ../../cmd/internal/gc/reflect.go and
-	// ../reflect/type.go.  Don't change this structure without also changing that code!
+	// ../reflect/type.go. Don't change this structure without also changing that code!
 	count int // # live cells == size of map.  Must be first (used by len() builtin)
 	flags uint8
 	B     uint8  // log_2 of # of buckets (can hold up to loadFactor * 2^B items)
@@ -212,7 +212,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 		throw("value size wrong")
 	}
 
-	// invariants we depend on.  We should probably check these at compile time
+	// invariants we depend on. We should probably check these at compile time
 	// somewhere, but for now we'll do it here.
 	if t.key.align > bucketCnt {
 		throw("key align too big")
@@ -380,7 +380,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool) 
 	}
 }
 
-// returns both key and value.  Used by map iterator
+// returns both key and value. Used by map iterator
 func mapaccessK(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer) {
 	if h == nil || h.count == 0 {
 		return nil, nil
@@ -485,7 +485,7 @@ again:
 			if !alg.equal(key, k2) {
 				continue
 			}
-			// already have a mapping for key.  Update it.
+			// already have a mapping for key. Update it.
 			if t.needkeyupdate {
 				typedmemmove(t.key, k2, key)
 			}
@@ -504,7 +504,7 @@ again:
 		b = ovf
 	}
 
-	// did not find mapping for key.  Allocate new cell & add entry.
+	// did not find mapping for key. Allocate new cell & add entry.
 	if float32(h.count) >= loadFactor*float32((uintptr(1)<<h.B)) && h.count >= bucketCnt {
 		hashGrow(t, h)
 		goto again // Growing the table invalidates everything, so try again
@@ -718,9 +718,9 @@ next:
 		if b.tophash[offi] != empty && b.tophash[offi] != evacuatedEmpty {
 			if checkBucket != noCheck {
 				// Special case: iterator was started during a grow and the
-				// grow is not done yet.  We're working on a bucket whose
-				// oldbucket has not been evacuated yet.  Or at least, it wasn't
-				// evacuated when we started the bucket.  So we're iterating
+				// grow is not done yet. We're working on a bucket whose
+				// oldbucket has not been evacuated yet. Or at least, it wasn't
+				// evacuated when we started the bucket. So we're iterating
 				// through the oldbucket, skipping any keys that will go
 				// to the other new bucket (each oldbucket expands to two
 				// buckets during a grow).
@@ -738,7 +738,7 @@ next:
 				} else {
 					// Hash isn't repeatable if k != k (NaNs).  We need a
 					// repeatable and randomish choice of which direction
-					// to send NaNs during evacuation.  We'll use the low
+					// to send NaNs during evacuation. We'll use the low
 					// bit of tophash to decide which way NaNs go.
 					// NOTE: this case is why we need two evacuate tophash
 					// values, evacuatedX and evacuatedY, that differ in
@@ -779,7 +779,7 @@ next:
 					it.value = rv
 				} else {
 					// if key!=key then the entry can't be deleted or
-					// updated, so we can just return it.  That's lucky for
+					// updated, so we can just return it. That's lucky for
 					// us because when key!=key we can't look it up
 					// successfully in the current table.
 					it.key = k2
@@ -882,12 +882,12 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 				if h.flags&iterator != 0 {
 					if !t.reflexivekey && !alg.equal(k2, k2) {
 						// If key != key (NaNs), then the hash could be (and probably
-						// will be) entirely different from the old hash.  Moreover,
-						// it isn't reproducible.  Reproducibility is required in the
+						// will be) entirely different from the old hash. Moreover,
+						// it isn't reproducible. Reproducibility is required in the
 						// presence of iterators, as our evacuation decision must
 						// match whatever decision the iterator made.
 						// Fortunately, we have the freedom to send these keys either
-						// way.  Also, tophash is meaningless for these kinds of keys.
+						// way. Also, tophash is meaningless for these kinds of keys.
 						// We let the low bit of tophash drive the evacuation decision.
 						// We recompute a new random tophash for the next level so
 						// these keys will get evenly distributed across all buckets
@@ -965,7 +965,7 @@ func evacuate(t *maptype, h *hmap, oldbucket uintptr) {
 	if oldbucket == h.nevacuate {
 		h.nevacuate = oldbucket + 1
 		if oldbucket+1 == newbit { // newbit == # of oldbuckets
-			// Growing is all done.  Free old main bucket array.
+			// Growing is all done. Free old main bucket array.
 			h.oldbuckets = nil
 			// Can discard old overflow buckets as well.
 			// If they are still referenced by an iterator,
@@ -981,7 +981,7 @@ func ismapkey(t *_type) bool {
 	return t.alg.hash != nil
 }
 
-// Reflect stubs.  Called from ../reflect/asm_*.s
+// Reflect stubs. Called from ../reflect/asm_*.s
 
 //go:linkname reflect_makemap reflect.makemap
 func reflect_makemap(t *maptype) *hmap {

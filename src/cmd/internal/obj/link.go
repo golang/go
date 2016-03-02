@@ -214,14 +214,14 @@ type Prog struct {
 	Spadj  int32
 	As     int16
 	Reg    int16
-	RegTo2 int16 // 2nd register output operand
-	Mark   uint16
+	RegTo2 int16  // 2nd register output operand
+	Mark   uint16 // bitmask of arch-specific items
 	Optab  uint16
 	Scond  uint8
 	Back   uint8
 	Ft     uint8
 	Tt     uint8
-	Isize  uint8
+	Isize  uint8 // size of the instruction in bytes (x86 only)
 	Mode   int8
 
 	Info ProgInfo
@@ -444,6 +444,11 @@ const (
 	R_PLT1
 	R_PLT2
 	R_USEFIELD
+	// R_USETYPE resolves to an *rtype, but no relocation is created. The
+	// linker uses this as a signal that the pointed-to type information
+	// should be linked into the final binary, even if there are no other
+	// direct references. (This is used for types reachable by reflection.)
+	R_USETYPE
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
@@ -455,7 +460,7 @@ const (
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be
 	// stuffed into a 32-bit instruction, so an address needs to be spread across
 	// several instructions, and in turn this requires a sequence of relocations, each
-	// updating a part of an instruction.  This leads to relocation codes that are
+	// updating a part of an instruction. This leads to relocation codes that are
 	// inherently processor specific.
 
 	// Arm64.
@@ -572,6 +577,7 @@ type Link struct {
 	Debugpcln          int32
 	Flag_shared        int32
 	Flag_dynlink       bool
+	Flag_optimize      bool
 	Bso                *Biobuf
 	Pathname           string
 	Windows            int32
@@ -617,6 +623,10 @@ type Link struct {
 	Data  *LSym
 	Etext *LSym
 	Edata *LSym
+
+	// Cache of Progs
+	allocIdx int
+	progs    [10000]Prog
 }
 
 func (ctxt *Link) Diag(format string, args ...interface{}) {

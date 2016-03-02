@@ -52,33 +52,11 @@ func FindExportData(r *bufio.Reader) (hdr string, err error) {
 	if string(line) == "!<arch>\n" {
 		// Archive file. Scan to __.PKGDEF.
 		var name string
-		var size int
-		if name, size, err = readGopackHeader(r); err != nil {
+		if name, _, err = readGopackHeader(r); err != nil {
 			return
 		}
 
-		// Optional leading __.GOSYMDEF or __.SYMDEF.
-		// Read and discard.
-		if name == "__.SYMDEF" || name == "__.GOSYMDEF" {
-			const block = 4096
-			tmp := make([]byte, block)
-			for size > 0 {
-				n := size
-				if n > block {
-					n = block
-				}
-				if _, err = io.ReadFull(r, tmp[:n]); err != nil {
-					return
-				}
-				size -= n
-			}
-
-			if name, _, err = readGopackHeader(r); err != nil {
-				return
-			}
-		}
-
-		// First real entry should be __.PKGDEF.
+		// First entry should be __.PKGDEF.
 		if name != "__.PKGDEF" {
 			err = errors.New("go archive is missing __.PKGDEF")
 			return

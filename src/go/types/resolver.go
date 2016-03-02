@@ -483,11 +483,9 @@ func pkgName(path string) string {
 // (Per the go/build package dependency tests, we cannot import
 // path/filepath and simply use filepath.Dir.)
 func dir(path string) string {
-	if i := strings.LastIndexAny(path, "/\\"); i >= 0 {
-		path = path[:i]
+	if i := strings.LastIndexAny(path, `/\`); i > 0 {
+		return path[:i]
 	}
-	if path == "" {
-		path = "."
-	}
-	return path
+	// i <= 0
+	return "."
 }

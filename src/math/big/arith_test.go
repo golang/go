@@ -442,7 +442,7 @@ func benchmarkBitLenN(b *testing.B, nbits uint) {
 	}
 }
 
-// Individual bitLen tests.  Numbers chosen to examine both sides
+// Individual bitLen tests. Numbers chosen to examine both sides
 // of powers-of-two boundaries.
 func BenchmarkBitLen0(b *testing.B)  { benchmarkBitLenN(b, 0) }
 func BenchmarkBitLen1(b *testing.B)  { benchmarkBitLenN(b, 1) }

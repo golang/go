@@ -76,6 +76,9 @@ func addrescapes(n *Node) {
 			oldfn := Curfn
 
 			Curfn = n.Name.Curfn
+			if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+				Curfn = Curfn.Func.Closure
+			}
 			n.Name.Heapaddr = temp(Ptrto(n.Type))
 			buf := fmt.Sprintf("&%v", n.Sym)
 			n.Name.Heapaddr.Sym = Lookup(buf)
@@ -139,6 +142,8 @@ func newlab(n *Node) *Label {
 	return lab
 }
 
+// There is a copy of checkgoto in the new SSA backend.
+// Please keep them in sync.
 func checkgoto(from *Node, to *Node) {
 	if from.Sym == to.Sym {
 		return
@@ -213,6 +218,12 @@ func stmtlabel(n *Node) *Label {
 func Genlist(l *NodeList) {
 	for ; l != nil; l = l.Next {
 		gen(l.N)
+	}
+}
+
+func Genslice(l []*Node) {
+	for _, n := range l {
+		gen(n)
 	}
 }
 
@@ -585,6 +596,10 @@ func Tempname(nn *Node, t *Type) {
 	if Curfn == nil {
 		Fatalf("no curfn for tempname")
 	}
+	if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+		Dump("Tempname", Curfn)
+		Fatalf("adding tempname to wrong closure function")
+	}
 
 	if t == nil {
 		Yyerror("tempname called with nil type")
@@ -604,7 +619,7 @@ func Tempname(nn *Node, t *Type) {
 	n.Ullman = 1
 	n.Esc = EscNever
 	n.Name.Curfn = Curfn
-	Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 
 	dowidth(t)
 	n.Xoffset = 0
@@ -764,7 +779,7 @@ func gen(n *Node) {
 		gen(n.Right)                     // contin:	incr
 		Patch(p1, Pc)                    // test:
 		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
-		Genlist(n.Nbody)                 //		body
+		Genslice(n.Nbody.Slice())        //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -779,7 +794,7 @@ func gen(n *Node) {
 		p2 := gjmp(nil)                         // p2:		goto else
 		Patch(p1, Pc)                           // test:
 		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genlist(n.Nbody)                        //		then
+		Genslice(n.Nbody.Slice())               //		then
 		p3 := gjmp(nil)                         //		goto done
 		Patch(p2, Pc)                           // else:
 		Genlist(n.Rlist)                        //		else
@@ -796,9 +811,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)      // test:
-		Genlist(n.Nbody)   //		switch(test) body
-		Patch(breakpc, Pc) // done:
+		Patch(p1, Pc)             // test:
+		Genslice(n.Nbody.Slice()) //		switch(test) body
+		Patch(breakpc, Pc)        // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -815,9 +830,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)      // test:
-		Genlist(n.Nbody)   //		select() body
-		Patch(breakpc, Pc) // done:
+		Patch(p1, Pc)             // test:
+		Genslice(n.Nbody.Slice()) //		select() body
+		Patch(breakpc, Pc)        // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -827,7 +842,7 @@ func gen(n *Node) {
 		cgen_dcl(n.Left)
 
 	case OAS:
-		if gen_as_init(n) {
+		if gen_as_init(n, false) {
 			break
 		}
 		Cgen_as(n.Left, n.Right)
@@ -836,7 +851,7 @@ func gen(n *Node) {
 		Cgen_as_wb(n.Left, n.Right, true)
 
 	case OAS2DOTTYPE:
-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, false)
+		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)

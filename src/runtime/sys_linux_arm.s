@@ -313,7 +313,7 @@ nog:
 	MOVW	$16(R13), R13
 	BL	(R0)
 
-	// It shouldn't return.  If it does, exit that thread.
+	// It shouldn't return. If it does, exit that thread.
 	SUB	$16, R13 // restore the stack pointer to avoid memory corruption
 	MOVW	$0, R0
 	MOVW	R0, 4(R13)

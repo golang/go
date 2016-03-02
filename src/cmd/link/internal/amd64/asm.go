@@ -259,7 +259,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 				return
 			}
 			// The code is asking for the address of an external
-			// function.  We provide it with the address of the
+			// function. We provide it with the address of the
 			// correspondent GOT symbol.
 			addgotsym(targ)
 
@@ -292,7 +292,7 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
 			// Instead, interpret the C declaration
 			//	void *_Cvar_stderr = &stderr;
 			// as making _Cvar_stderr the name of a GOT entry
-			// for stderr.  This is separate from the usual GOT entry,
+			// for stderr. This is separate from the usual GOT entry,
 			// just in case the C code assigns to the variable,
 			// and of course it only works for single pointers,
 			// but we only need to support cgo and that's all it needs.
@@ -564,7 +564,7 @@ func addpltsym(s *ld.LSym) {
 		// To do lazy symbol lookup right, we're supposed
 		// to tell the dynamic loader which library each
 		// symbol comes from and format the link info
-		// section just so.  I'm too lazy (ha!) to do that
+		// section just so. I'm too lazy (ha!) to do that
 		// so for now we'll just use non-lazy pointers,
 		// which don't need to be told which library to use.
 		//

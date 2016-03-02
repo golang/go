@@ -252,14 +252,14 @@ loop1:
 	// MOVLQZX removal.
 	// The MOVLQZX exists to avoid being confused for a
 	// MOVL that is just copying 32-bit data around during
-	// copyprop.  Now that copyprop is done, remov MOVLQZX R1, R2
+	// copyprop. Now that copyprop is done, remov MOVLQZX R1, R2
 	// if it is dominated by an earlier ADDL/MOVL/etc into R1 that
 	// will have already cleared the high bits.
 	//
 	// MOVSD removal.
 	// We never use packed registers, so a MOVSD between registers
 	// can be replaced by MOVAPD, which moves the pair of float64s
-	// instead of just the lower one.  We only use the lower one, but
+	// instead of just the lower one. We only use the lower one, but
 	// the processor can do better if we do moves using both.
 	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
 		p = r.Prog
@@ -427,7 +427,7 @@ func elimshortmov(g *gc.Graph) {
 			}
 
 			if regtyp(&p.From) || p.From.Type == obj.TYPE_CONST {
-				// move or artihmetic into partial register.
+				// move or arithmetic into partial register.
 				// from another register or constant can be movl.
 				// we don't switch to 64-bit arithmetic if it can
 				// change how the carry bit is set (and the carry bit is needed).

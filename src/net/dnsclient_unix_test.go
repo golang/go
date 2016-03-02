@@ -67,7 +67,7 @@ var specialDomainNameTests = []struct {
 
 	// Name resolution APIs and libraries should recognize the
 	// followings as special and should not send any queries.
-	// Though, we test those names here for verifying nagative
+	// Though, we test those names here for verifying negative
 	// answers at DNS query-response interaction level.
 	{"localhost.", dnsTypeALL, dnsRcodeNameError},
 	{"invalid.", dnsTypeALL, dnsRcodeNameError},
@@ -124,20 +124,20 @@ func (conf *resolvConfTest) writeAndUpdate(lines []string) error {
 		return err
 	}
 	f.Close()
-	if err := conf.forceUpdate(conf.path); err != nil {
+	if err := conf.forceUpdate(conf.path, time.Now().Add(time.Hour)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (conf *resolvConfTest) forceUpdate(name string) error {
+func (conf *resolvConfTest) forceUpdate(name string, lastChecked time.Time) error {
 	dnsConf := dnsReadConfig(name)
 	conf.mu.Lock()
 	conf.dnsConfig = dnsConf
 	conf.mu.Unlock()
 	for i := 0; i < 5; i++ {
 		if conf.tryAcquireSema() {
-			conf.lastChecked = time.Time{}
+			conf.lastChecked = lastChecked
 			conf.releaseSema()
 			return nil
 		}
@@ -153,7 +153,7 @@ func (conf *resolvConfTest) servers() []string {
 }
 
 func (conf *resolvConfTest) teardown() error {
-	err := conf.forceUpdate("/etc/resolv.conf")
+	err := conf.forceUpdate("/etc/resolv.conf", time.Time{})
 	os.RemoveAll(conf.dir)
 	return err
 }
@@ -353,10 +353,15 @@ func TestGoLookupIPWithResolverConfig(t *testing.T) {
 			t.Error(err)
 			continue
 		}
-		conf.tryUpdate(conf.path)
 		addrs, err := goLookupIP(tt.name)
 		if err != nil {
-			if err, ok := err.(*DNSError); !ok || (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
+			// This test uses external network connectivity.
+			// We need to take care with errors on both
+			// DNS message exchange layer and DNS
+			// transport layer because goLookupIP may fail
+			// when the IP connectivty on node under test
+			// gets lost during its run.
+			if err, ok := err.(*DNSError); !ok || tt.error != nil && (err.Name != tt.error.(*DNSError).Name || err.Server != tt.error.(*DNSError).Server || err.IsTimeout != tt.error.(*DNSError).IsTimeout) {
 				t.Errorf("got %v; want %v", err, tt.error)
 			}
 			continue
@@ -392,7 +397,6 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	if err := conf.writeAndUpdate([]string{}); err != nil {
 		t.Fatal(err)
 	}
-	conf.tryUpdate(conf.path)
 	// Redirect host file lookups.
 	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
 	testHookHostsPath = "testdata/hosts"
@@ -400,7 +404,7 @@ func TestGoLookupIPOrderFallbackToFile(t *testing.T) {
 	for _, order := range []hostLookupOrder{hostLookupFilesDNS, hostLookupDNSFiles} {
 		name := fmt.Sprintf("order %v", order)
 
-		// First ensure that we get an error when contacting a non-existant host.
+		// First ensure that we get an error when contacting a non-existent host.
 		_, err := goLookupIPOrder("notarealhost", order)
 		if err == nil {
 			t.Errorf("%s: expected error while looking up name not in hosts file", name)

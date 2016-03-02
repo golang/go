@@ -185,12 +185,12 @@ func convlit1(np **Node, t *Type, explicit bool) {
 	}
 
 	ct := consttype(n)
-	var et int
+	var et EType
 	if ct < 0 {
 		goto bad
 	}
 
-	et = int(t.Etype)
+	et = t.Etype
 	if et == TINTER {
 		if ct == CTNIL && n.Type == Types[TNIL] {
 			n.Type = t
@@ -241,7 +241,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		}
 
 	case CTSTR, CTBOOL:
-		if et != int(n.Type.Etype) {
+		if et != n.Type.Etype {
 			goto bad
 		}
 
@@ -587,7 +587,7 @@ func evconst(n *Node) {
 	if consttype(nl) < 0 {
 		return
 	}
-	wl := int(nl.Type.Etype)
+	wl := nl.Type.Etype
 	if Isint[wl] || Isfloat[wl] || Iscomplex[wl] {
 		wl = TIDEAL
 	}
@@ -631,7 +631,7 @@ func evconst(n *Node) {
 	nr := n.Right
 	var rv Val
 	var lno int
-	var wr int
+	var wr EType
 	var v Val
 	var norig *Node
 	var nn *Node
@@ -681,9 +681,9 @@ func evconst(n *Node) {
 
 		case OCOM_ | CTINT_,
 			OCOM_ | CTRUNE_:
-			et := Txxx
+			var et EType = Txxx
 			if nl.Type != nil {
-				et = int(nl.Type.Etype)
+				et = nl.Type.Etype
 			}
 
 			// calculate the mask in b
@@ -733,7 +733,7 @@ func evconst(n *Node) {
 	if consttype(nr) < 0 {
 		return
 	}
-	wr = int(nr.Type.Etype)
+	wr = nr.Type.Etype
 	if Isint[wr] || Isfloat[wr] || Iscomplex[wr] {
 		wr = TIDEAL
 	}
@@ -1349,7 +1349,7 @@ num:
 // if they're both ideal going in they better
 // get the same type going out.
 // force means must assign concrete (non-ideal) type.
-func defaultlit2(lp **Node, rp **Node, force int) {
+func defaultlit2(lp **Node, rp **Node, force bool) {
 	l := *lp
 	r := *rp
 	if l.Type == nil || r.Type == nil {
@@ -1365,9 +1365,10 @@ func defaultlit2(lp **Node, rp **Node, force int) {
 		return
 	}
 
-	if force == 0 {
+	if !force {
 		return
 	}
+
 	if l.Type.Etype == TBOOL {
 		Convlit(lp, Types[TBOOL])
 		Convlit(rp, Types[TBOOL])

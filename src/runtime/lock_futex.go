@@ -58,7 +58,7 @@ func lock(l *mutex) {
 
 	// wait is either MUTEX_LOCKED or MUTEX_SLEEPING
 	// depending on whether there is a thread sleeping
-	// on this mutex.  If we ever change l->key from
+	// on this mutex. If we ever change l->key from
 	// MUTEX_SLEEPING to some other value, we must be
 	// careful to change it back to MUTEX_SLEEPING before
 	// returning, to ensure that the sleeping thread gets

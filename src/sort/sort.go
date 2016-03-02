@@ -7,7 +7,7 @@
 package sort
 
 // A type, typically a collection, that satisfies sort.Interface can be
-// sorted by the routines in this package.  The methods require that the
+// sorted by the routines in this package. The methods require that the
 // elements of the collection be enumerated by an integer index.
 type Interface interface {
 	// Len is the number of elements in the collection.
@@ -119,15 +119,15 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 	pivot := lo
 	a, c := lo+1, hi-1
 
-	for ; a != c && data.Less(a, pivot); a++ {
+	for ; a < c && data.Less(a, pivot); a++ {
 	}
 	b := a
 	for {
-		for ; b != c && !data.Less(pivot, b); b++ { // data[b] <= pivot
+		for ; b < c && !data.Less(pivot, b); b++ { // data[b] <= pivot
 		}
-		for ; b != c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
+		for ; b < c && data.Less(pivot, c-1); c-- { // data[c-1] > pivot
 		}
-		if b == c {
+		if b >= c {
 			break
 		}
 		// data[b] > pivot; data[c-1] <= pivot
@@ -167,11 +167,11 @@ func doPivot(data Interface, lo, hi int) (midlo, midhi int) {
 		//	data[a <= i < b] unexamined
 		//	data[b <= i < c] = pivot
 		for {
-			for ; a != b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
+			for ; a < b && !data.Less(b-1, pivot); b-- { // data[b] == pivot
 			}
-			for ; a != b && data.Less(a, pivot); a++ { // data[a] < pivot
+			for ; a < b && data.Less(a, pivot); a++ { // data[a] < pivot
 			}
-			if a == b {
+			if a >= b {
 				break
 			}
 			// data[a] == pivot; data[b-1] < pivot
@@ -315,7 +315,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 
 // Notes on stable sorting:
 // The used algorithms are simple and provable correct on all input and use
-// only logarithmic additional stack space.  They perform well if compared
+// only logarithmic additional stack space. They perform well if compared
 // experimentally to other stable in-place sorting algorithms.
 //
 // Remarks on other algorithms evaluated:
@@ -335,7 +335,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
 //    unstable or rely on enough different elements in each step to encode the
 //    performed block rearrangements. See also "In-Place Merging Algorithms",
 //    Denham Coates-Evely, Department of Computer Science, Kings College,
-//    January 2004 and the reverences in there.
+//    January 2004 and the references in there.
 //  - Often "optimal" algorithms are optimal in the number of assignments
 //    but Interface has only Swap as operation.
 

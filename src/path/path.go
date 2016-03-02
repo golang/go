@@ -48,7 +48,7 @@ func (b *lazybuf) string() string {
 }
 
 // Clean returns the shortest path name equivalent to path
-// by purely lexical processing.  It applies the following rules
+// by purely lexical processing. It applies the following rules
 // iteratively until no further processing can be done:
 //
 //	1. Replace multiple slashes with a single slash.

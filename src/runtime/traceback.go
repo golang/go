@@ -115,7 +115,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
 	}
 }
 
-// Generic traceback.  Handles runtime stack prints (pcbuf == nil),
+// Generic traceback. Handles runtime stack prints (pcbuf == nil),
 // the runtime.Callers function (pcbuf != nil), as well as the garbage
 // collector (callback != nil).  A little clunky to merge these, but avoids
 // duplicating the code and all its subtlety.
@@ -380,7 +380,11 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
 				if (n > 0 || flags&_TraceTrap == 0) && frame.pc > f.entry && !waspanic {
 					tracepc--
 				}
-				print(funcname(f), "(")
+				name := funcname(f)
+				if name == "runtime.gopanic" {
+					name = "panic"
+				}
+				print(name, "(")
 				argp := (*[100]uintptr)(unsafe.Pointer(frame.argp))
 				for i := uintptr(0); i < frame.arglen/sys.PtrSize; i++ {
 					if i >= 10 {
@@ -617,10 +621,10 @@ func showframe(f *_func, gp *g) bool {
 	level, _, _ := gotraceback()
 	name := funcname(f)
 
-	// Special case: always show runtime.panic frame, so that we can
+	// Special case: always show runtime.gopanic frame, so that we can
 	// see where a panic started in the middle of a stack trace.
 	// See golang.org/issue/5832.
-	if name == "runtime.panic" {
+	if name == "runtime.gopanic" {
 		return true
 	}
 
@@ -641,7 +645,6 @@ var gStatusStrings = [...]string{
 	_Gsyscall:   "syscall",
 	_Gwaiting:   "waiting",
 	_Gdead:      "dead",
-	_Genqueue:   "enqueue",
 	_Gcopystack: "copystack",
 }
 
@@ -703,7 +706,7 @@ func tracebackothers(me *g) {
 		goroutineheader(gp)
 		// Note: gp.m == g.m occurs when tracebackothers is
 		// called from a signal handler initiated during a
-		// systemstack call.  The original G is still in the
+		// systemstack call. The original G is still in the
 		// running state, and we want to print its stack.
 		if gp.m != g.m && readgstatus(gp)&^_Gscan == _Grunning {
 			print("\tgoroutine running on other thread; stack unavailable\n")

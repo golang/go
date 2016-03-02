@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors.  All rights reserved.
+// Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -130,7 +130,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-cha
 	return newTCPConn(fd), nil
 }
 
-// TCPListener is a TCP network listener.  Clients should typically
+// TCPListener is a TCP network listener. Clients should typically
 // use variables of type Listener instead of assuming TCP.
 type TCPListener struct {
 	fd *netFD
@@ -197,11 +197,11 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 }
 
 // File returns a copy of the underlying os.File, set to blocking
-// mode.  It is the caller's responsibility to close f when finished.
+// mode. It is the caller's responsibility to close f when finished.
 // Closing l does not affect f, and closing f does not affect l.
 //
 // The returned os.File's file descriptor is different from the
-// connection's.  Attempting to change properties of the original
+// connection's. Attempting to change properties of the original
 // using this duplicate may or may not have the desired effect.
 func (l *TCPListener) File() (f *os.File, err error) {
 	f, err = l.dup()
@@ -212,8 +212,8 @@ func (l *TCPListener) File() (f *os.File, err error) {
 }
 
 // ListenTCP announces on the TCP address laddr and returns a TCP
-// listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
-// port of 0, ListenTCP will choose an available port.  The caller can
+// listener. Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+// port of 0, ListenTCP will choose an available port. The caller can
 // use the Addr method of TCPListener to retrieve the chosen address.
 func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
 	switch net {

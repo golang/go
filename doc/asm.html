@@ -12,7 +12,7 @@ The document is not comprehensive.
 
 <p>
 The assembler is based on the input style of the Plan 9 assemblers, which is documented in detail
-<a href="http://plan9.bell-labs.com/sys/doc/asm.html">elsewhere</a>.
+<a href="https://9p.io/sys/doc/asm.html">elsewhere</a>.
 If you plan to write assembly language, you should read that document although much of it is Plan 9-specific.
 The current document provides a summary of the syntax and the differences with
 what is explained in that document, and
@@ -23,7 +23,7 @@ describes the peculiarities that apply when writing assembly code to interact wi
 The most important thing to know about Go's assembler is that it is not a direct representation of the underlying machine.
 Some of the details map precisely to the machine, but some do not.
 This is because the compiler suite (see
-<a href="http://plan9.bell-labs.com/sys/doc/compiler.html">this description</a>)
+<a href="https://9p.io/sys/doc/compiler.html">this description</a>)
 needs no assembler pass in the usual pipeline.
 Instead, the compiler operates on a kind of semi-abstract instruction set,
 and instruction selection occurs partly after code generation.
@@ -620,6 +620,15 @@ These modes accept only 1, 2, 4, and 8 as scale factors.
 </li>
 
 </ul>
+
+<p>
+When using the compiler and assembler's
+<code>-dynlink</code> or <code>-shared</code> modes,
+any load or store of a fixed memory location such as a global variable
+must be assumed to overwrite <code>CX</code>.
+Therefore, to be safe for use with these modes,
+assembly sources should typically avoid CX except between memory references.
+</p>
 
 <h3 id="amd64">64-bit Intel 386 (a.k.a. amd64)</h3>
 

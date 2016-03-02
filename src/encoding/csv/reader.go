@@ -14,11 +14,11 @@
 //
 // Carriage returns before newline characters are silently removed.
 //
-// Blank lines are ignored.  A line with only whitespace characters (excluding
+// Blank lines are ignored. A line with only whitespace characters (excluding
 // the ending newline character) is not considered a blank line.
 //
 // Fields which start and stop with the quote character " are called
-// quoted-fields.  The beginning and ending quote are not part of the
+// quoted-fields. The beginning and ending quote are not part of the
 // field.
 //
 // The source:
@@ -84,21 +84,23 @@ var (
 // The exported fields can be changed to customize the details before the
 // first call to Read or ReadAll.
 //
-// Comma is the field delimiter.  It defaults to ','.
+// Comma is the field delimiter. It defaults to ','.
 //
 // Comment, if not 0, is the comment character. Lines beginning with the
 // Comment character are ignored.
 //
 // If FieldsPerRecord is positive, Read requires each record to
-// have the given number of fields.  If FieldsPerRecord is 0, Read sets it to
+// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
 // the number of fields in the first record, so that future records must
-// have the same field count.  If FieldsPerRecord is negative, no check is
+// have the same field count. If FieldsPerRecord is negative, no check is
 // made and records may have a variable number of fields.
 //
 // If LazyQuotes is true, a quote may appear in an unquoted field and a
 // non-doubled quote may appear in a quoted field.
 //
 // If TrimLeadingSpace is true, leading white space in a field is ignored.
+// If the field delimiter is white space, TrimLeadingSpace will trim the
+// delimiter.
 type Reader struct {
 	Comma            rune // field delimiter (set to ',' by NewReader)
 	Comment          rune // comment character for start of line
@@ -129,7 +131,7 @@ func (r *Reader) error(err error) error {
 	}
 }
 
-// Read reads one record from r.  The record is a slice of strings with each
+// Read reads one record from r. The record is a slice of strings with each
 // string representing one field.
 func (r *Reader) Read() (record []string, err error) {
 	for {
@@ -177,7 +179,7 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 func (r *Reader) readRune() (rune, error) {
 	r1, _, err := r.r.ReadRune()
 
-	// Handle \r\n here.  We make the simplifying assumption that
+	// Handle \r\n here. We make the simplifying assumption that
 	// anytime \r is followed by \n that it can be folded to \n.
 	// We will not detect files which contain both \r\n and bare \n.
 	if r1 == '\r' {
@@ -208,13 +210,13 @@ func (r *Reader) skip(delim rune) error {
 
 // parseRecord reads and parses a single csv record from r.
 func (r *Reader) parseRecord() (fields []string, err error) {
-	// Each record starts on a new line.  We increment our line
+	// Each record starts on a new line. We increment our line
 	// number (lines start at 1, not 0) and set column to -1
 	// so as we increment in readRune it points to the character we read.
 	r.line++
 	r.column = -1
 
-	// Peek at the first rune.  If it is an error we are done.
+	// Peek at the first rune. If it is an error we are done.
 	// If we support comments and it is the comment character
 	// then skip to the end of line.
 
@@ -247,8 +249,8 @@ func (r *Reader) parseRecord() (fields []string, err error) {
 	}
 }
 
-// parseField parses the next field in the record.  The read field is
-// located in r.field.  Delim is the first character not part of the field
+// parseField parses the next field in the record. The read field is
+// located in r.field. Delim is the first character not part of the field
 // (r.Comma or '\n').
 func (r *Reader) parseField() (haveField bool, delim rune, err error) {
 	r.field.Reset()

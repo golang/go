@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -131,7 +131,7 @@ import (
 // an UnsupportedTypeError.
 //
 // JSON cannot represent cyclic data structures and Marshal does not
-// handle them.  Passing cyclic structures to Marshal will result in
+// handle them. Passing cyclic structures to Marshal will result in
 // an infinite recursion.
 //
 func Marshal(v interface{}) ([]byte, error) {
@@ -325,7 +325,7 @@ func typeEncoder(t reflect.Type) encoderFunc {
 
 	// To deal with recursive types, populate the map with an
 	// indirect func before we build it. This type waits on the
-	// real func (f) to be ready and then calls it.  This indirect
+	// real func (f) to be ready and then calls it. This indirect
 	// func is only used for recursive types.
 	encoderCache.Lock()
 	if encoderCache.m == nil {

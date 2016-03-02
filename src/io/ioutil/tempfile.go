@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors.  All rights reserved.
+// Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -41,8 +41,8 @@ func nextSuffix() string {
 // If dir is the empty string, TempFile uses the default directory
 // for temporary files (see os.TempDir).
 // Multiple programs calling TempFile simultaneously
-// will not choose the same file.  The caller can use f.Name()
-// to find the pathname of the file.  It is the caller's responsibility
+// will not choose the same file. The caller can use f.Name()
+// to find the pathname of the file. It is the caller's responsibility
 // to remove the file when no longer needed.
 func TempFile(dir, prefix string) (f *os.File, err error) {
 	if dir == "" {
@@ -68,10 +68,10 @@ func TempFile(dir, prefix string) (f *os.File, err error) {
 
 // TempDir creates a new temporary directory in the directory dir
 // with a name beginning with prefix and returns the path of the
-// new directory.  If dir is the empty string, TempDir uses the
+// new directory. If dir is the empty string, TempDir uses the
 // default directory for temporary files (see os.TempDir).
 // Multiple programs calling TempDir simultaneously
-// will not choose the same directory.  It is the caller's responsibility
+// will not choose the same directory. It is the caller's responsibility
 // to remove the directory when no longer needed.
 func TempDir(dir, prefix string) (name string, err error) {
 	if dir == "" {

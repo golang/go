@@ -227,6 +227,9 @@ TEXT runtime·mmap(SB),NOSPLIT,$32
 	LEAL	24(SP), AX
 	MOVL	AX, 20(SP)
 	NACL_SYSCALL(SYS_mmap)
+	CMPL	AX, $-4095
+	JNA	2(PC)
+	NEGL	AX
 	MOVL	AX, ret+24(FP)
 	RET
 

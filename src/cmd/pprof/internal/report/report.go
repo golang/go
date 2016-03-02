@@ -390,7 +390,7 @@ func printCallgrind(w io.Writer, rpt *Report) error {
 
 // callgrindName implements the callgrind naming compression scheme.
 // For names not previously seen returns "(N) name", where N is a
-// unique index.  For names previously seen returns "(N)" where N is
+// unique index. For names previously seen returns "(N)" where N is
 // the index returned the first time.
 func callgrindName(names map[string]int, name string) string {
 	if name == "" {
@@ -1340,7 +1340,7 @@ const (
 	addressOrder
 )
 
-// sort reoders the entries in a report based on the specified
+// sort reorders the entries in a report based on the specified
 // ordering criteria. The result is sorted in decreasing order for
 // numeric quantities, alphabetically for text, and increasing for
 // addresses.

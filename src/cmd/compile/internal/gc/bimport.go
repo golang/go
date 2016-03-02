@@ -95,7 +95,7 @@ func Import(in *obj.Biobuf) {
 		funchdr(n)
 
 		// go.y:hidden_import
-		n.Func.Inl = nil
+		n.Func.Inl.Set(nil)
 		funcbody(n)
 		importlist = append(importlist, n) // TODO(gri) do this only if body is inlineable?
 	}
@@ -240,21 +240,20 @@ func (p *importer) typ() *Type {
 			{
 				saved := structpkg
 				structpkg = tsym.Pkg
-				addmethod(sym, n.Type, false, nointerface)
+				addmethod(sym, n.Type, false, false)
 				structpkg = saved
 			}
-			nointerface = false
 			funchdr(n)
 
 			// (comment from go.y)
 			// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
-			// out by typecheck's lookdot as this $$.ttype.  So by providing
+			// out by typecheck's lookdot as this $$.ttype. So by providing
 			// this back link here we avoid special casing there.
 			n.Type.Nname = n
 
 			// go.y:hidden_import
-			n.Func.Inl = nil
+			n.Func.Inl.Set(nil)
 			funcbody(n)
 			importlist = append(importlist, n) // TODO(gri) do this only if body is inlineable?
 		}

@@ -245,7 +245,7 @@ cont:
 	MOVD	R1, 48(R6)
 
 	// switch stack and g
-	MOVD	R6, RSP	// sigtramp can not re-entrant, so no need to back up RSP.
+	MOVD	R6, RSP	// sigtramp is not re-entrant, so no need to back up RSP.
 	MOVD	R5, g
 
 	BL	(R0)

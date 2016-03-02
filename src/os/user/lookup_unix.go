@@ -108,7 +108,7 @@ func lookupUnix(uid int, username string, lookupByName bool) (*User, error) {
 		Name:     C.GoString(pwd.pw_gecos),
 		HomeDir:  C.GoString(pwd.pw_dir),
 	}
-	// The pw_gecos field isn't quite standardized.  Some docs
+	// The pw_gecos field isn't quite standardized. Some docs
 	// say: "It is expected to be a comma separated list of
 	// personal data where the first item is the full name of the
 	// user."

@@ -341,7 +341,7 @@ func RuneLen(r rune) int {
 // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
 // It returns the number of bytes written.
 func EncodeRune(p []byte, r rune) int {
-	// Negative values are erroneous.  Making it unsigned addresses the problem.
+	// Negative values are erroneous. Making it unsigned addresses the problem.
 	switch i := uint32(r); {
 	case i <= rune1Max:
 		p[0] = byte(r)
@@ -367,7 +367,7 @@ func EncodeRune(p []byte, r rune) int {
 	}
 }
 
-// RuneCount returns the number of runes in p.  Erroneous and short
+// RuneCount returns the number of runes in p. Erroneous and short
 // encodings are treated as single runes of width 1 byte.
 func RuneCount(p []byte) int {
 	np := len(p)
@@ -441,7 +441,7 @@ func RuneCountInString(s string) (n int) {
 }
 
 // RuneStart reports whether the byte could be the first byte of an encoded,
-// possibly invalid rune.  Second and subsequent bytes always have the top two
+// possibly invalid rune. Second and subsequent bytes always have the top two
 // bits set to 10.
 func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 

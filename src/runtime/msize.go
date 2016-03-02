@@ -13,7 +13,7 @@
 // and chopped up when new objects of the size class are needed.
 // That page count is chosen so that chopping up the run of
 // pages into objects of the given size wastes at most 12.5% (1.125x)
-// of the memory.  It is not necessary that the cutoff here be
+// of the memory. It is not necessary that the cutoff here be
 // the same as above.
 //
 // The two sources of waste multiply, so the worst possible case
@@ -27,7 +27,7 @@
 
 package runtime
 
-// Size classes.  Computed and initialized by InitSizes.
+// Size classes. Computed and initialized by InitSizes.
 //
 // SizeToClass(0 <= n <= MaxSmallSize) returns the size class,
 //	1 <= sizeclass < NumSizeClasses, for n.

@@ -86,9 +86,9 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 	}
 
 	// For nonzero-sized structs which end in a zero-sized thing, we add
-	// an extra byte of padding to the type.  This padding ensures that
+	// an extra byte of padding to the type. This padding ensures that
 	// taking the address of the zero-sized thing can't manufacture a
-	// pointer to the next object in the heap.  See issue 9401.
+	// pointer to the next object in the heap. See issue 9401.
 	if flag == 1 && o > starto && o == lastzero {
 		o++
 	}

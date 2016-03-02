@@ -31,7 +31,8 @@ var pkgExts = [...]string{".a", ".o"}
 
 // FindPkg returns the filename and unique package id for an import
 // path based on package information provided by build.Import (using
-// the build.Default build.Context).
+// the build.Default build.Context). A relative srcDir is interpreted
+// relative to the current working directory.
 // If no file was found, an empty filename is returned.
 //
 func FindPkg(path, srcDir string) (filename, id string) {
@@ -44,6 +45,9 @@ func FindPkg(path, srcDir string) (filename, id string) {
 	default:
 		// "x" -> "$GOPATH/pkg/$GOOS_$GOARCH/x.ext", "x"
 		// Don't require the source files to be present.
+		if abs, err := filepath.Abs(srcDir); err == nil { // see issue 14282
+			srcDir = abs
+		}
 		bp, _ := build.Import(path, srcDir, build.FindOnly|build.AllowBinary)
 		if bp.PkgObj == "" {
 			return
@@ -381,7 +385,7 @@ func (p *parser) getPkg(id, name string) *types.Package {
 		if pname := pkg.Name(); pname == "" {
 			pkg.SetName(name)
 		} else if pname != name {
-			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", pname, name)
+			p.errorf("%s package name mismatch: %s (given) vs %s (expected)", id, pname, name)
 		}
 	}
 	return pkg
@@ -447,7 +451,7 @@ func (p *parser) parseMapType(parent *types.Package) types.Type {
 // For qualified names, the returned package is nil (and not created if
 // it doesn't exist yet) unless materializePkg is set (which creates an
 // unnamed package with valid package path). In the latter case, a
-// subequent import clause is expected to provide a name for the package.
+// subsequent import clause is expected to provide a name for the package.
 //
 func (p *parser) parseName(parent *types.Package, materializePkg bool) (pkg *types.Package, name string) {
 	pkg = parent

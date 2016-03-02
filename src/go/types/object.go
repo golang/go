@@ -188,7 +188,7 @@ func (obj *Var) Anonymous() bool { return obj.anonymous }
 func (obj *Var) IsField() bool { return obj.isField }
 
 // A Func represents a declared function, concrete method, or abstract
-// (interface) method.  Its Type() is always a *Signature.
+// (interface) method. Its Type() is always a *Signature.
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object

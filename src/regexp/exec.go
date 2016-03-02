@@ -19,7 +19,7 @@ type queue struct {
 // A entry is an entry on a queue.
 // It holds both the instruction pc and the actual thread.
 // Some queue entries are just place holders so that the machine
-// knows it has considered that pc.  Such entries have t == nil.
+// knows it has considered that pc. Such entries have t == nil.
 type entry struct {
 	pc uint32
 	t  *thread

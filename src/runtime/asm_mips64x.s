@@ -130,7 +130,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $-8-8
 
 // void mcall(fn func(*g))
 // Switch to m->g0's stack, call fn(g).
-// Fn must never return.  It should gogo(&g->sched)
+// Fn must never return. It should gogo(&g->sched)
 // to keep running g.
 TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	// Save caller state in g->sched
@@ -156,7 +156,7 @@ TEXT runtime·mcall(SB), NOSPLIT, $-8-8
 	JMP	runtime·badmcall2(SB)
 
 // systemstack_switch is a dummy routine that systemstack leaves at the bottom
-// of the G stack.  We need to distinguish the routine that
+// of the G stack. We need to distinguish the routine that
 // lives at the bottom of the G stack from the one that lives
 // at the top of the system stack because the one at the top of
 // the system stack terminates the stack walk (see topofstack()).
@@ -186,7 +186,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	JAL	(R4)
 
 switch:
-	// save our state in g->sched.  Pretend to
+	// save our state in g->sched. Pretend to
 	// be systemstack_switch if the G stack is scanned.
 	MOVV	$runtime·systemstack_switch(SB), R4
 	ADDV	$8, R4	// get past prologue
@@ -647,9 +647,11 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$-8-0
 TEXT runtime·aeshashstr(SB),NOSPLIT,$-8-0
 	MOVW	(R0), R1
 
-TEXT runtime·memeq(SB),NOSPLIT,$-8-25
+// memequal(p, q unsafe.Pointer, size uintptr) bool
+TEXT runtime·memequal(SB),NOSPLIT,$-8-25
 	MOVV	a+0(FP), R1
 	MOVV	b+8(FP), R2
+	BEQ	R1, R2, eq
 	MOVV	size+16(FP), R3
 	ADDV	R1, R3, R4
 loop:
@@ -666,6 +668,10 @@ test:
 
 	MOVB	R0, ret+24(FP)
 	RET
+eq:
+	MOVV	$1, R1
+	MOVB	R1, ret+24(FP)
+	RET
 
 // memequal_varlen(a, b unsafe.Pointer) bool
 TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
@@ -676,7 +682,7 @@ TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
 	MOVV	R1, 8(R29)
 	MOVV	R2, 16(R29)
 	MOVV	R3, 24(R29)
-	JAL	runtime·memeq(SB)
+	JAL	runtime·memequal(SB)
 	MOVBU	32(R29), R1
 	MOVB	R1, ret+16(FP)
 	RET
@@ -710,7 +716,7 @@ loop:
 	MOVB	R0, ret+32(FP)
 	RET
 
-// TODO: share code with memeq?
+// TODO: share code with memequal?
 TEXT bytes·Equal(SB),NOSPLIT,$0-49
 	MOVV	a_len+8(FP), R3
 	MOVV	b_len+32(FP), R4

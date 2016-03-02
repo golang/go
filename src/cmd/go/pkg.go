@@ -1,4 +1,4 @@
-// Copyright 2011 The Go Authors.  All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -27,8 +27,8 @@ import (
 // A Package describes a single package found in a directory.
 type Package struct {
 	// Note: These fields are part of the go command's public API.
-	// See list.go.  It is okay to add fields, but not to change or
-	// remove existing ones.  Keep in sync with list.go
+	// See list.go. It is okay to add fields, but not to change or
+	// remove existing ones. Keep in sync with list.go
 	Dir           string `json:",omitempty"` // directory containing package sources
 	ImportPath    string `json:",omitempty"` // import path of package in dir
 	ImportComment string `json:",omitempty"` // path in import comment on package statement
@@ -50,6 +50,7 @@ type Package struct {
 	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
 	MFiles         []string `json:",omitempty"` // .m source files
 	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
+	FFiles         []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
 	SFiles         []string `json:",omitempty"` // .s source files
 	SwigFiles      []string `json:",omitempty"` // .swig files
 	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
@@ -59,6 +60,7 @@ type Package struct {
 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
 	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
 	CgoCXXFLAGS  []string `json:",omitempty"` // cgo: flags for C++ compiler
+	CgoFFLAGS    []string `json:",omitempty"` // cgo: flags for Fortran compiler
 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
 
@@ -161,6 +163,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CXXFiles = pp.CXXFiles
 	p.MFiles = pp.MFiles
 	p.HFiles = pp.HFiles
+	p.FFiles = pp.FFiles
 	p.SFiles = pp.SFiles
 	p.SwigFiles = pp.SwigFiles
 	p.SwigCXXFiles = pp.SwigCXXFiles
@@ -205,7 +208,7 @@ func (p *PackageError) Error() string {
 		return fmt.Sprintf("%s\npackage %s\n", p.Err, strings.Join(p.ImportStack, "\n\timports "))
 	}
 	if p.Pos != "" {
-		// Omit import stack.  The full path to the file where the error
+		// Omit import stack. The full path to the file where the error
 		// is the most important thing.
 		return p.Pos + ": " + p.Err
 	}
@@ -263,18 +266,9 @@ func reloadPackage(arg string, stk *importStack) *Package {
 	return loadPackage(arg, stk)
 }
 
-// The Go 1.5 vendoring experiment was enabled by setting GO15VENDOREXPERIMENT=1.
-// In Go 1.6 this is on by default and is disabled by setting GO15VENDOREXPERIMENT=0.
-// In Go 1.7 the variable will stop having any effect.
-// The variable is obnoxiously long so that years from now when people find it in
-// their profiles and wonder what it does, there is some chance that a web search
-// might answer the question.
-// There is a copy of this variable in src/go/build/build.go. Delete that one when this one goes away.
-var go15VendorExperiment = os.Getenv("GO15VENDOREXPERIMENT") != "0"
-
 // dirToImportPath returns the pseudo-import path we use for a package
-// outside the Go path.  It begins with _/ and then contains the full path
-// to the directory.  If the package lives in c:\home\gopher\my\pkg then
+// outside the Go path. It begins with _/ and then contains the full path
+// to the directory. If the package lives in c:\home\gopher\my\pkg then
 // the pseudo-import path is _/c_/home/gopher/my/pkg.
 // Using a pseudo-import path like this makes the ./ imports no longer
 // a special case, so that all the code to deal with ordinary imports works
@@ -361,7 +355,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 	// TODO: After Go 1, decide when to pass build.AllowBinary here.
 	// See issue 3268 for mistakes to avoid.
 	buildMode := build.ImportComment
-	if !go15VendorExperiment || mode&useVendor == 0 || path != origPath {
+	if mode&useVendor == 0 || path != origPath {
 		// Not vendoring, or we already found the vendored path.
 		buildMode |= build.IgnoreVendor
 	}
@@ -371,7 +365,7 @@ func loadImport(path, srcDir string, parent *Package, stk *importStack, importPo
 		bp.BinDir = gobin
 	}
 	if err == nil && !isLocal && bp.ImportComment != "" && bp.ImportComment != path &&
-		(!go15VendorExperiment || (!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/"))) {
+		!strings.Contains(path, "/vendor/") && !strings.HasPrefix(path, "vendor/") {
 		err = fmt.Errorf("code in directory %s expects import %q", bp.Dir, bp.ImportComment)
 	}
 	p.load(stk, bp, err)
@@ -412,7 +406,7 @@ func isDir(path string) bool {
 // x/vendor/path, vendor/path, or else stay path if none of those exist.
 // vendoredImportPath returns the expanded path or, if no expansion is found, the original.
 func vendoredImportPath(parent *Package, path string) (found string) {
-	if parent == nil || parent.Root == "" || !go15VendorExperiment {
+	if parent == nil || parent.Root == "" {
 		return path
 	}
 
@@ -478,7 +472,7 @@ func hasGoFiles(dir string) bool {
 }
 
 // reusePackage reuses package p to satisfy the import at the top
-// of the import stack stk.  If this use causes an import loop,
+// of the import stack stk. If this use causes an import loop,
 // reusePackage updates p's error information to record the loop.
 func reusePackage(p *Package, stk *importStack) *Package {
 	// We use p.imports==nil to detect a package that
@@ -580,10 +574,6 @@ func findInternal(path string) (index int, ok bool) {
 // If the import is allowed, disallowVendor returns the original package p.
 // If not, it returns a new package containing just an appropriate error.
 func disallowVendor(srcDir, path string, p *Package, stk *importStack) *Package {
-	if !go15VendorExperiment {
-		return p
-	}
-
 	// The stack includes p.ImportPath.
 	// If that's the only thing on the stack, we started
 	// with a name given on the command line, not an
@@ -725,7 +715,7 @@ func expandScanner(err error) error {
 		// Prepare error with \n before each message.
 		// When printed in something like context: %v
 		// this will put the leading file positions each on
-		// its own line.  It will also show all the errors
+		// its own line. It will also show all the errors
 		// instead of just the first, as err.Error does.
 		var buf bytes.Buffer
 		for _, e := range err {
@@ -922,6 +912,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 		p.CXXFiles,
 		p.MFiles,
 		p.HFiles,
+		p.FFiles,
 		p.SFiles,
 		p.SysoFiles,
 		p.SwigFiles,
@@ -967,7 +958,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 				}
 			}
 		}
-		if p.Standard && !p1.Standard && p.Error == nil {
+		if p.Standard && p.Error == nil && !p1.Standard && p1.Error == nil {
 			p.Error = &PackageError{
 				ImportStack: stk.copy(),
 				Err:         fmt.Sprintf("non-standard import %q in standard package %q", path, p.ImportPath),
@@ -1229,7 +1220,7 @@ var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
 // an explicit data comparison. Specifically, we build a list of the
 // inputs to the build, compute its SHA1 hash, and record that as the
 // ``build ID'' in the generated object. At the next build, we can
-// recompute the buid ID and compare it to the one in the generated
+// recompute the build ID and compare it to the one in the generated
 // object. If they differ, the list of inputs has changed, so the object
 // is out of date and must be rebuilt.
 //
@@ -1365,8 +1356,8 @@ func isStale(p *Package) bool {
 	}
 
 	// A package without Go sources means we only found
-	// the installed .a file.  Since we don't know how to rebuild
-	// it, it can't be stale, even if -a is set.  This enables binary-only
+	// the installed .a file. Since we don't know how to rebuild
+	// it, it can't be stale, even if -a is set. This enables binary-only
 	// distributions of Go packages, although such binaries are
 	// only useful with the specific version of the toolchain that
 	// created them.
@@ -1451,7 +1442,7 @@ func isStale(p *Package) bool {
 	// As a courtesy to developers installing new versions of the compiler
 	// frequently, define that packages are stale if they are
 	// older than the compiler, and commands if they are older than
-	// the linker.  This heuristic will not work if the binaries are
+	// the linker. This heuristic will not work if the binaries are
 	// back-dated, as some binary distributions may do, but it does handle
 	// a very common case.
 	// See issue 3036.
@@ -1508,7 +1499,7 @@ func isStale(p *Package) bool {
 	// to test for write access, and then skip GOPATH roots we don't have write
 	// access to. But hopefully we can just use the mtimes always.
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
+	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
 			return true
@@ -1573,7 +1564,7 @@ var cwd, _ = os.Getwd()
 var cmdCache = map[string]*Package{}
 
 // loadPackage is like loadImport but is used for command-line arguments,
-// not for paths found in import statements.  In addition to ordinary import paths,
+// not for paths found in import statements. In addition to ordinary import paths,
 // loadPackage accepts pseudo-paths beginning with cmd/ to denote commands
 // in the Go command directory, as well as paths to those directories.
 func loadPackage(arg string, stk *importStack) *Package {
@@ -1637,7 +1628,7 @@ func loadPackage(arg string, stk *importStack) *Package {
 // command line arguments 'args'.  If a named package
 // cannot be loaded at all (for example, if the directory does not exist),
 // then packages prints an error and does not include that
-// package in the results.  However, if errors occur trying
+// package in the results. However, if errors occur trying
 // to load dependencies of a named package, the named
 // package is still returned, with p.Incomplete = true
 // and details in p.DepsErrors.

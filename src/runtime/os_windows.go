@@ -1,4 +1,4 @@
-// Copyright 2014 The Go Authors.  All rights reserved.
+// Copyright 2014 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -17,7 +17,7 @@ func os_sigpipe() {
 	throw("too many writes on closed pipe")
 }
 
-// Stubs so tests can link correctly.  These should never be called.
+// Stubs so tests can link correctly. These should never be called.
 func open(name *byte, mode, perm int32) int32 {
 	throw("unimplemented")
 	return -1

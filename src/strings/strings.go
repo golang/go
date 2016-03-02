@@ -346,7 +346,7 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 	return a
 }
 
-// Join concatenates the elements of a to create a single string.   The separator string
+// Join concatenates the elements of a to create a single string. The separator string
 // sep is placed between elements in the resulting string.
 func Join(a []string, sep string) string {
 	if len(a) == 0 {
@@ -384,8 +384,8 @@ func HasSuffix(s, suffix string) bool {
 // dropped from the string with no replacement.
 func Map(mapping func(rune) rune, s string) string {
 	// In the worst case, the string can grow when mapped, making
-	// things unpleasant.  But it's so rare we barge in assuming it's
-	// fine.  It could also shrink but that falls out naturally.
+	// things unpleasant. But it's so rare we barge in assuming it's
+	// fine. It could also shrink but that falls out naturally.
 	maxbytes := len(s) // length of b
 	nbytes := 0        // number of bytes encoded in b
 	// The output buffer b is initialized on demand, the first
@@ -714,7 +714,7 @@ func EqualFold(s, t string) bool {
 			return false
 		}
 
-		// General case.  SimpleFold(x) returns the next equivalent rune > x
+		// General case. SimpleFold(x) returns the next equivalent rune > x
 		// or wraps around to smaller values.
 		r := unicode.SimpleFold(sr)
 		for r != sr && r < tr {
@@ -726,6 +726,6 @@ func EqualFold(s, t string) bool {
 		return false
 	}
 
-	// One string is empty.  Are both?
+	// One string is empty. Are both?
 	return s == t
 }

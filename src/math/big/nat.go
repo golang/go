@@ -647,7 +647,7 @@ func trailingZeroBits(x Word) uint {
 	// x & -x leaves only the right-most bit set in the word. Let k be the
 	// index of that bit. Since only a single bit is set, the value is two
 	// to the power of k. Multiplying by a power of two is equivalent to
-	// left shifting, in this case by k bits.  The de Bruijn constant is
+	// left shifting, in this case by k bits. The de Bruijn constant is
 	// such that all six bit, consecutive substrings are distinct.
 	// Therefore, if we have a left shifted version of this constant we can
 	// find by how many bits it was shifted by looking at which six bit
@@ -1018,7 +1018,7 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
 		for j := 0; j < _W; j += n {
 			if i != len(y)-1 || j != 0 {
 				// Unrolled loop for significant performance
-				// gain.  Use go test -bench=".*" in crypto/rsa
+				// gain. Use go test -bench=".*" in crypto/rsa
 				// to check performance before making changes.
 				zz = zz.mul(z, z)
 				zz, z = z, zz
