@@ -258,13 +258,17 @@ func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
 	default:
 		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
 	}
-	return dialUnix(net, laddr, raddr, noDeadline)
+	c, err := dialUnix(net, laddr, raddr, noDeadline)
+	if err != nil {
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+	}
+	return c, nil
 }
 
 func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn, error) {
 	fd, err := unixSocket(net, laddr, raddr, "dial", deadline)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+		return nil, err
 	}
 	return newUnixConn(fd), nil
 }
