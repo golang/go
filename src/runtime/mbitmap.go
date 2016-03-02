@@ -186,17 +186,59 @@ func (s *mspan) allocBitsForIndex(allocBitIndex uintptr) markBits {
 	return markBits{&s.allocBits[whichByte], uint8(1 << whichBit), allocBitIndex}
 }
 
+// ctzVals contains the count of trailing zeros for the
+// index. 0 returns 8 indicating 8 zeros.
+var ctzVals = [256]int8{
+	8, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	5, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	6, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	5, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	7, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	5, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	6, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	5, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0,
+	4, 0, 1, 0, 2, 0, 1, 0,
+	3, 0, 1, 0, 2, 0, 1, 0}
+
 // A temporary stand in for the count trailing zero ctz instruction.
 // IA bsf works on 64 bit non-zero word.
 func ctz64(markBits uint64) uint64 {
-	if markBits == 0 {
+	ctz8 := ctzVals[markBits&0xff]
+	if ctz8 != 8 {
+		return uint64(ctz8)
+	} else if markBits == 0 { // low byte is zero check fill word.
 		return 64 // bits in 64 bit word, ensures loop terminates
 	}
-	// tz holds trailing zero count.
-	tz := uint64(0)
-	for mask := uint64(1); mask&markBits == 0; mask, tz = mask<<1, tz+1 {
+	result := uint64(8)
+	markBits >>= 8
+	for ctz8 = ctzVals[markBits&0xff]; ctz8 == 8; ctz8 = ctzVals[markBits&0xff] {
+		result += 8
+		markBits >>= 8
 	}
-	return tz
+	result += uint64(ctz8)
+	return result
 }
 
 // refillAllocCache takes 8 bytes s.allocBits starting at whichByte
@@ -222,10 +264,12 @@ func (s *mspan) refillAllocCache(whichByte uintptr) {
 // There are hardware instructions that can be used to make this
 // faster if profiling warrants it.
 func (s *mspan) nextFreeIndex() uintptr {
-	if s.freeindex == s.nelems {
-		return s.freeindex
+	sfreeindex := s.freeindex
+	snelems := s.nelems
+	if sfreeindex == snelems {
+		return sfreeindex
 	}
-	if s.freeindex > s.nelems {
+	if sfreeindex > snelems {
 		throw("s.freeindex > s.nelems")
 	}
 
@@ -233,37 +277,37 @@ func (s *mspan) nextFreeIndex() uintptr {
 	bitIndex := ctz64(aCache)
 	for bitIndex == 64 {
 		// Move index to start of next cached bits.
-		s.freeindex = (s.freeindex + 64) &^ (64 - 1)
-		if s.freeindex >= s.nelems {
-			s.freeindex = s.nelems
-			return s.freeindex
+		sfreeindex = (sfreeindex + 64) &^ (64 - 1)
+		if sfreeindex >= snelems {
+			s.freeindex = snelems
+			return snelems
 		}
-		whichByte := s.freeindex / 8
+		whichByte := sfreeindex / 8
 		// Refill s.allocCache with the next 64 alloc bits.
-		// Unlike in allocBits a 1 in s.allocCache means
-		// the object is not marked.
 		s.refillAllocCache(whichByte)
 		aCache = s.allocCache
 		bitIndex = ctz64(aCache)
 		// Nothing was available try again now allocCache has been refilled.
 	}
-	result := s.freeindex + uintptr(bitIndex)
-	if result >= s.nelems {
-		s.freeindex = s.nelems
-		return s.freeindex
+	result := sfreeindex + uintptr(bitIndex)
+	if result >= snelems {
+		s.freeindex = snelems
+		return snelems
 	}
-	s.allocCache >>= bitIndex + 1
-	s.freeindex = result + 1
 
-	if s.freeindex%64 == 0 && s.freeindex != s.nelems {
+	s.allocCache >>= (bitIndex + 1)
+	sfreeindex = result + 1
+
+	if sfreeindex%64 == 0 && sfreeindex != snelems {
 		// We just incremented s.freeindex so it isn't 0.
 		// As each 1 in s.allocCache was encountered and used for allocation
 		// it was shifted away. At this point s.allocCache contains all 0s.
 		// Refill s.allocCache so that it corresponds
 		// to the bits at s.allocBits starting at s.freeindex.
-		whichByte := s.freeindex / 8
+		whichByte := sfreeindex / 8
 		s.refillAllocCache(whichByte)
 	}
+	s.freeindex = sfreeindex
 	return result
 }
 
@@ -760,120 +804,60 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 	}
 }
 
-// heapBitsSweepSpan coordinates the sweeping of a span and inspects
-// each freed object. If objects are being traced or if msan is enabled
-// then heapBitsSweepSpan calls f(p), where p is the object's base address.
-// When not tracing and msan is not enabled heapBitsSweepSpan is lightweight.
-// heapBitsSweepSpan never alters the pointer/scalar heapBit maps. HeapBit map
-// maintenance is the responsibility of the allocation routines.
-// TODO:(rlh) Deal with the checkmark bits but moving them
-// out of heap bitmap thus enabling bulk clearing.
-func heapBitsSweepSpan(s *mspan, f func(uintptr)) (nfree int) {
-	base := s.base()
-	size := s.elemsize
-	n := s.nelems
-	cl := s.sizeclass
-	doCall := debug.allocfreetrace != 0 || msanenabled || cl == 0
-	h := heapBitsForSpan(base)
-	switch {
-	default:
-		throw("heapBitsSweepSpan")
-	case sys.PtrSize == 8 && size == sys.PtrSize:
-		nfree = heapBitsSweep8BitPtrs(h, s, base, n, cl, doCall, f)
-	case size%(4*sys.PtrSize) == 0:
-		nfree = heapBitsSweepMap(h, s, base, size, n, cl, doCall, f)
-	case size%(4*sys.PtrSize) == 2*sys.PtrSize:
-		nfree = heapBitsSweepMap(h, s, base, size, n, cl, doCall, f)
-	}
-	return
-}
+// oneBitCount is indexed by byte and produces the
+// number of 1 bits in that byte. For example 128 has 1 bit set
+// and oneBitCount[128] will holds 1.
+var oneBitCount = [256]uint8{
+	0, 1, 1, 2, 1, 2, 2, 3,
+	1, 2, 2, 3, 2, 3, 3, 4,
+	1, 2, 2, 3, 2, 3, 3, 4,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	1, 2, 2, 3, 2, 3, 3, 4,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	1, 2, 2, 3, 2, 3, 3, 4,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	4, 5, 5, 6, 5, 6, 6, 7,
+	1, 2, 2, 3, 2, 3, 3, 4,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	4, 5, 5, 6, 5, 6, 6, 7,
+	2, 3, 3, 4, 3, 4, 4, 5,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	4, 5, 5, 6, 5, 6, 6, 7,
+	3, 4, 4, 5, 4, 5, 5, 6,
+	4, 5, 5, 6, 5, 6, 6, 7,
+	4, 5, 5, 6, 5, 6, 6, 7,
+	5, 6, 6, 7, 6, 7, 7, 8}
 
-func heapBitsSweep8BitPtrs(h heapBits, s *mspan, base, n uintptr, cl uint8, doCall bool, f func(uintptr)) (nfree int) {
-	mbits := s.markBitsForBase()
-	// Consider mark bits in all four 2-bit entries of each bitmap byte.
-	if cl == 0 {
-		throw("8BitPtrs are not in cl 0")
+// countFree runs through the mark bits in a span and counts the number of free objects
+// in the span.
+// TODO:(rlh) Use popcount intrinsic.
+func (s *mspan) countFree() int {
+	count := 0
+	maxIndex := s.nelems / 8
+	for i := uintptr(0); i < maxIndex; i++ {
+		count += int(oneBitCount[s.gcmarkBits[i]])
 	}
-	// Consider mark bits in all four 2-bit entries of each bitmap byte.
-	for i := uintptr(0); i < n; i++ {
-		// Note that unlike the other size cases, we leave the pointer bits set here.
-		// These are initialized during initSpan when the span is created and left
-		// in place the whole time the span is used for pointer-sized objects.
-		// That lets heapBitsSetType avoid an atomic update to set the pointer bit
-		// during allocation.
-		if !mbits.isMarked() {
-			nfree++
-			if mbits.index < s.freeindex {
-				f(base + i*sys.PtrSize)
-			} else if s.allocBits[mbits.index/8]&mbits.mask == 1 {
-				// it was marked in the previous cycle but not this cycle
-				// if it wasn't marked in the prvious cycle the call would be redundant.
-				f(base + i*sys.PtrSize)
-			}
-		}
-		mbits.advance()
-	}
-	return nfree
-}
 
-// nextFreed returns the next object that is being freed during this GC cycle.
-// If the mark bit is set then the object is free. If it is < s.freeindex
-// then either the object was freed during by this GC cycle.
-// If it is >= freeindex then if the allocBit is set then it was
-// freed during this GC cycle. If the allocBit is 0 it was freed
-// during a previous cycle so is not considered a freed.
-func (m *markBits) nextFreed(nelems uintptr, s *mspan, totalFree *int) bool {
-	mByte := *m.bytep
-	for {
-		for mByte == 0xff {
-			if m.index >= nelems {
-				return false
-			}
-			m.index = (m.index + 8) &^ (8 - 1)
-			m.mask = 1
-			m.bytep = add1(m.bytep)
-			mByte = *m.bytep
-			// Nothing free found totalFree remains the same.
-		}
-		if m.index >= nelems {
-			return false
-		}
-		for m.index < nelems {
-			if m.mask&mByte == 0 {
-				// At this point we have a free object so update totalFree
-				*totalFree++
-				if m.index < s.freeindex {
-					return true
-				}
-				if s.allocBits[m.index/8]&m.mask != 0 {
-					return true
-				}
-			}
-			if m.mask == 1<<7 {
-				m.mask = 1
-				m.bytep = add1(m.bytep)
-				mByte = *m.bytep
-				m.index++
-				break
-			} else {
-				m.mask = m.mask << 1
-				m.index++
-			}
-		}
+	if bitsInLastByte := s.nelems % 8; bitsInLastByte != 0 {
+		markBits := uint8(s.gcmarkBits[maxIndex])
+		mask := uint8((1 << bitsInLastByte) - 1)
+		bits := markBits & mask
+		count += int(oneBitCount[bits])
 	}
-	return false
-}
-
-func heapBitsSweepMap(h heapBits, s *mspan, base, size, n uintptr, cl uint8, doCall bool, f func(uintptr)) int {
-	totalFree := 0
-	twobits := s.markBitsForBase()
-	for twobits.nextFreed(n, s, &totalFree) {
-		if doCall {
-			f(base + twobits.index*size)
-		}
-		twobits.advance()
-	}
-	return totalFree
+	return int(s.nelems) - count
 }
 
 // heapBitsSetType records that the new allocation [x, x+size)

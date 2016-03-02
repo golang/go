@@ -137,6 +137,9 @@ type mspan struct {
 	//
 	// Object n starts at address n*elemsize + (start << pageShift).
 	freeindex uintptr
+	// TODO: Look up nelems from sizeclass and remove this field if it
+	// helps performance.
+	nelems uintptr // number of object in the span.
 
 	// Cache of the allocBits at freeindex. allocCache is shifted
 	// such that the lowest bit corresponds to the bit freeindex.
@@ -147,9 +150,6 @@ type mspan struct {
 	allocCache uint64
 	allocBits  *[maxObjsPerSpan / 8]uint8
 	gcmarkBits *[maxObjsPerSpan / 8]uint8
-	nelems     uintptr // number of object in the span.
-	// TODO(rlh) consider moving some of these fields into seperate arrays.
-	// Put another way is an array of structs a better idea than a struct of arrays.
 
 	// allocBits and gcmarkBits currently point to either markbits1
 	// or markbits2. At the end of a GC cycle allocBits and
@@ -753,6 +753,12 @@ func (h *mheap) freeSpan(s *mspan, acct int32) {
 		mp.mcache.local_scan = 0
 		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
 		mp.mcache.local_tinyallocs = 0
+		if msanenabled {
+			// Tell msan that this entire span is no longer in use.
+			base := unsafe.Pointer(s.base())
+			bytes := s.npages << _PageShift
+			msanfree(base, bytes)
+		}
 		if acct != 0 {
 			memstats.heap_objects--
 		}
