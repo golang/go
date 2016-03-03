@@ -37,6 +37,9 @@ func main() { // @describe func-def-main "main"
 	_ = d.f    // @describe func-ref-d.f "d.f"
 	_ = i.f    // @describe func-ref-i.f "i.f"
 
+	var dptr *D // @describe ptr-with-nonptr-methods "dptr"
+	_ = dptr
+
 	// var objects
 	anon := func() {
 		_ = d // @describe ref-lexical-d "d"

@@ -84,6 +84,14 @@ defined here
 reference to interface method func (I).f()
 defined here
 
+-------- @describe ptr-with-nonptr-methods --------
+definition of var dptr *D
+Method set:
+	method (*D) f()
+Fields:
+	Field        int
+	AnotherField string
+
 -------- @describe ref-lexical-d --------
 reference to var d D
 defined here
