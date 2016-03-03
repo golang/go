@@ -266,15 +266,14 @@ overwrite:
 		}
 		rdint(f) // v&1 is Leaf, currently unused
 		n := rdint(f)
-		var a *Auto
+		s.Autom = make([]Auto, n)
 		for i := 0; i < n; i++ {
-			a = new(Auto)
-			a.Asym = rdsym(ctxt, f, pkg)
-			a.Aoffset = rdint32(f)
-			a.Name = rdint16(f)
-			a.Gotype = rdsym(ctxt, f, pkg)
-			a.Link = s.Autom
-			s.Autom = a
+			s.Autom[i] = Auto{
+				Asym:    rdsym(ctxt, f, pkg),
+				Aoffset: rdint32(f),
+				Name:    rdint16(f),
+				Gotype:  rdsym(ctxt, f, pkg),
+			}
 		}
 
 		s.Pcln = new(Pcln)

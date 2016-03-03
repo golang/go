@@ -1964,7 +1964,6 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		}
 	}
 
-	var a *Auto
 	var off int32
 	for s := Ctxt.Textp; s != nil; s = s.Next {
 		put(s, s.Name, 'T', s.Value, s.Size, int(s.Version), s.Gotype)
@@ -1972,7 +1971,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
 		put(nil, ".frame", 'm', int64(s.Locals)+int64(Thearch.Ptrsize), 0, 0, nil)
 
-		for a = s.Autom; a != nil; a = a.Link {
+		for _, a := range s.Autom {
 			// Emit a or p according to actual offset, even if label is wrong.
 			// This avoids negative offsets, which cannot be encoded.
 			if a.Name != obj.A_AUTO && a.Name != obj.A_PARAM {

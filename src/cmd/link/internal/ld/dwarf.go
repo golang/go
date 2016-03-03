@@ -1589,7 +1589,7 @@ func writelines() {
 			dt, da int
 			offs   int64
 		)
-		for a := s.Autom; a != nil; a = a.Link {
+		for _, a := range s.Autom {
 			switch a.Name {
 			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO
