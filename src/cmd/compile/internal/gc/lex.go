@@ -2077,6 +2077,18 @@ var basicTypes = [...]struct {
 	{"any", TANY},
 }
 
+var typedefs = [...]struct {
+	name     string
+	etype    EType
+	width    *int
+	sameas32 EType
+	sameas64 EType
+}{
+	{"int", TINT, &Widthint, TINT32, TINT64},
+	{"uint", TUINT, &Widthint, TUINT32, TUINT64},
+	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
+}
+
 var builtinFuncs = [...]struct {
 	name string
 	op   Op
@@ -2223,12 +2235,29 @@ func lexinit1() {
 	s.Def = typenod(runetype)
 	s.Def.Name = new(Name)
 
-	// backend-specific builtin types (e.g. int).
-	for i := range Thearch.Typedefs {
-		s := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
-		s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
+	// backend-dependent builtin types (e.g. int).
+	for _, s := range typedefs {
+		s1 := Pkglookup(s.name, builtinpkg)
+
+		sameas := s.sameas32
+		if *s.width == 8 {
+			sameas = s.sameas64
+		}
+
+		Simtype[s.etype] = sameas
+		minfltval[s.etype] = minfltval[sameas]
+		maxfltval[s.etype] = maxfltval[sameas]
+		Minintval[s.etype] = Minintval[sameas]
+		Maxintval[s.etype] = Maxintval[sameas]
+
+		t := typ(s.etype)
+		t.Sym = s1
+		Types[s.etype] = t
+		s1.Def = typenod(t)
+		s1.Def.Name = new(Name)
+		s1.Origpkg = builtinpkg
+
+		dowidth(t)
 	}
 }
 

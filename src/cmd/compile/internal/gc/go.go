@@ -305,12 +305,6 @@ const (
 	Ecomplit  = 1 << 11 // type in composite literal
 )
 
-type Typedef struct {
-	Name   string
-	Etype  EType
-	Sameas EType
-}
-
 type Sig struct {
 	name   string
 	pkg    *Pkg
@@ -670,7 +664,6 @@ type Arch struct {
 	Thechar      int
 	Thestring    string
 	Thelinkarch  *obj.LinkArch
-	Typedefs     []Typedef
 	REGSP        int
 	REGCTXT      int
 	REGCALLX     int // BX

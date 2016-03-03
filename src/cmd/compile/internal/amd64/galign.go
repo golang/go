@@ -34,16 +34,6 @@ var (
 	cmpptr int = x86.ACMPQ
 )
 
-/*
- * go declares several platform-specific type aliases:
- * int, uint, and uintptr
- */
-var typedefs = []gc.Typedef{
-	{"int", gc.TINT, gc.TINT64},
-	{"uint", gc.TUINT, gc.TUINT64},
-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
-}
-
 func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
@@ -55,9 +45,6 @@ func betypeinit() {
 		movptr = x86.AMOVL
 		leaptr = x86.ALEAL
 		cmpptr = x86.ACMPL
-		typedefs[0].Sameas = gc.TINT32
-		typedefs[1].Sameas = gc.TUINT32
-		typedefs[2].Sameas = gc.TUINT32
 	}
 
 	if gc.Ctxt.Flag_dynlink {
@@ -75,7 +62,6 @@ func Main() {
 	gc.Thearch.Thechar = thechar
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
-	gc.Thearch.Typedefs = typedefs
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.REGCALLX = x86.REG_BX
