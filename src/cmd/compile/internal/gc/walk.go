@@ -1717,7 +1717,7 @@ func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeLi
 }
 
 // package all the arguments that match a ... T parameter into a []T.
-func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
+func mkdotargslice(lr0 nodesOrNodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
 	esc := uint16(EscUnknown)
 	if ddd != nil {
 		esc = ddd.Esc
@@ -1728,7 +1728,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
 	tslice.Bound = -1
 
 	var n *Node
-	if count(lr0) == 0 {
+	if nodeSeqLen(lr0) == 0 {
 		n = nodnil()
 		n.Type = tslice
 	} else {
@@ -1736,7 +1736,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
 		if ddd != nil && prealloc[ddd] != nil {
 			prealloc[n] = prealloc[ddd] // temporary to use
 		}
-		n.List = lr0
+		setNodeSeq(&n.List, lr0)
 		n.Esc = esc
 		typecheck(&n, Erv)
 		if n.Type == nil {
@@ -1772,14 +1772,14 @@ func dumptypes(nl **Type, what string) string {
 	return fmt_
 }
 
-func dumpnodetypes(l *NodeList, what string) string {
+func dumpnodetypes(l nodesOrNodeList, what string) string {
 	var r *Node
 
 	fmt_ := ""
 	fmt_ += "\t"
 	first := 1
-	for ; l != nil; l = l.Next {
-		r = l.N
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		r = it.N()
 		if first != 0 {
 			first = 0
 		} else {
@@ -1798,14 +1798,14 @@ func dumpnodetypes(l *NodeList, what string) string {
 // a type list. called in
 //	return expr-list
 //	func(expr-list)
-func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
+func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr nodesOrNodeList, fp int, init **NodeList) *NodeList {
 	var savel Iter
 
 	lr0 := lr
 	l := Structfirst(&savel, nl)
 	var r *Node
-	if lr != nil {
-		r = lr.N
+	if nodeSeqLen(lr) > 0 {
+		r = nodeSeqFirst(lr)
 	}
 	var nn *NodeList
 
@@ -1814,7 +1814,8 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, 
 	var l2 string
 	var ll *Type
 	var l1 string
-	if r != nil && lr.Next == nil && r.Type.Etype == TSTRUCT && r.Type.Funarg {
+	var lrit nodeSeqIterator
+	if r != nil && nodeSeqLen(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
 		// optimization - can do block copy
 		if eqtypenoname(r.Type, *nl) {
 			a := nodarg(*nl, fp)
@@ -1835,15 +1836,16 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, 
 
 		a = Nod(OAS2, nil, nil)
 		a.List = alist
-		a.Rlist = lr
+		setNodeSeq(&a.Rlist, lr)
 		typecheck(&a, Etop)
 		walkstmt(&a)
 		*init = list(*init, a)
 		lr = alist
-		r = lr.N
+		r = nodeSeqFirst(lr)
 		l = Structfirst(&savel, nl)
 	}
 
+	lrit = nodeSeqIterate(lr)
 loop:
 	if l != nil && l.Isddd {
 		// the ddd parameter must be last
@@ -1857,7 +1859,7 @@ loop:
 		// only if we are assigning a single ddd
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
-		if r != nil && lr.Next == nil && isddd && Eqtype(l.Type, r.Type) {
+		if r != nil && lrit.Len() <= 1 && isddd && Eqtype(l.Type, r.Type) {
 			a = Nod(OAS, nodarg(l, fp), r)
 			a = convas(a, init)
 			nn = list(nn, a)
@@ -1867,7 +1869,7 @@ loop:
 		// normal case -- make a slice of all
 		// remaining arguments and pass it to
 		// the ddd parameter.
-		nn = mkdotargslice(lr, nn, l, fp, init, call.Right)
+		nn = mkdotargslice(lrit.Seq(), nn, l, fp, init, call.Right)
 
 		goto ret
 	}
@@ -1892,15 +1894,15 @@ loop:
 
 	l = structnext(&savel)
 	r = nil
-	lr = lr.Next
-	if lr != nil {
-		r = lr.N
+	lrit.Next()
+	if !lrit.Done() {
+		r = lrit.N()
 	}
 	goto loop
 
 ret:
-	for lr = nn; lr != nil; lr = lr.Next {
-		lr.N.Typecheck = 1
+	for lrit = nodeSeqIterate(nn); !lrit.Done(); lrit.Next() {
+		lrit.N().Typecheck = 1
 	}
 	return nn
 }

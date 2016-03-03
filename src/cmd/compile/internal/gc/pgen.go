@@ -491,8 +491,8 @@ func compile(fn *Node) {
 		ssafn.Free()
 		return
 	}
-	Genslice(Curfn.Func.Enter.Slice())
-	Genslice(Curfn.Nbody.Slice())
+	Genlist(Curfn.Func.Enter)
+	Genlist(Curfn.Nbody)
 	gclean()
 	checklabels()
 	if nerrors != 0 {

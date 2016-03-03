@@ -215,15 +215,9 @@ func stmtlabel(n *Node) *Label {
 }
 
 // compile statements
-func Genlist(l *NodeList) {
-	for ; l != nil; l = l.Next {
-		gen(l.N)
-	}
-}
-
-func Genslice(l []*Node) {
-	for _, n := range l {
-		gen(n)
+func Genlist(l nodesOrNodeList) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		gen(it.N())
 	}
 }
 
@@ -445,8 +439,8 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 		call := Nod(OCALLFUNC, fn, nil)
 		r1.Type = byteptr
 		r2.Type = byteptr
-		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
-		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+		setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
+		setNodeSeq(&call.List, ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil))
 		gen(call)
 		Regfree(&r1)
 		Regfree(&r2)
@@ -531,8 +525,8 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	fn := syslook("panicdottype", 0)
 	dowidth(fn.Type)
 	call := Nod(OCALLFUNC, fn, nil)
-	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
-	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+	setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
+	setNodeSeq(&call.List, ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil))
 	gen(call)
 	Regfree(&r1)
 	Regfree(&r2)
@@ -644,7 +638,7 @@ func gen(n *Node) {
 		goto ret
 	}
 
-	if n.Ninit != nil {
+	if nodeSeqLen(n.Ninit) > 0 {
 		Genlist(n.Ninit)
 	}
 
@@ -779,7 +773,7 @@ func gen(n *Node) {
 		gen(n.Right)                     // contin:	incr
 		Patch(p1, Pc)                    // test:
 		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
-		Genslice(n.Nbody.Slice())        //		body
+		Genlist(n.Nbody)                 //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -794,7 +788,7 @@ func gen(n *Node) {
 		p2 := gjmp(nil)                         // p2:		goto else
 		Patch(p1, Pc)                           // test:
 		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genslice(n.Nbody.Slice())               //		then
+		Genlist(n.Nbody)                        //		then
 		p3 := gjmp(nil)                         //		goto done
 		Patch(p2, Pc)                           // else:
 		Genlist(n.Rlist)                        //		else
@@ -811,9 +805,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)             // test:
-		Genslice(n.Nbody.Slice()) //		switch(test) body
-		Patch(breakpc, Pc)        // done:
+		Patch(p1, Pc)      // test:
+		Genlist(n.Nbody)   //		switch(test) body
+		Patch(breakpc, Pc) // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -830,9 +824,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)             // test:
-		Genslice(n.Nbody.Slice()) //		select() body
-		Patch(breakpc, Pc)        // done:
+		Patch(p1, Pc)      // test:
+		Genlist(n.Nbody)   //		select() body
+		Patch(breakpc, Pc) // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -851,7 +845,7 @@ func gen(n *Node) {
 		Cgen_as_wb(n.Left, n.Right, true)
 
 	case OAS2DOTTYPE:
-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
+		cgen_dottype(nodeSeqFirst(n.Rlist), nodeSeqFirst(n.List), nodeSeqSecond(n.List), needwritebarrier(nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist)))
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
