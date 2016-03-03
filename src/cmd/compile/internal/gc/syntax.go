@@ -495,6 +495,18 @@ func (n *Nodes) AppendNodeList(l *NodeList) {
 	}
 }
 
+// nodesOrNodeList must be either type Nodes or type *NodeList, or, in
+// some cases, []*Node. It exists during the transition from NodeList
+// to Nodes only and then should be deleted. See nodeSeqIterate to
+// return an iterator from a nodesOrNodeList.
+type nodesOrNodeList interface{}
+
+// nodesOrNodeListPtr must be type *Nodes or type **NodeList, or, in
+// some cases, *[]*Node. It exists during the transition from NodeList
+// to Nodes only, and then should be deleted. See setNodeSeq to assign
+// to a generic value.
+type nodesOrNodeListPtr interface{}
+
 // nodeSeqIterator is an interface used to iterate over a sequence of nodes.
 // TODO(iant): Remove after conversion from NodeList to Nodes is complete.
 type nodeSeqIterator interface {
@@ -506,6 +518,8 @@ type nodeSeqIterator interface {
 	N() *Node
 	// Return the address of the current node.
 	P() **Node
+	// Return the number of items remaining in the iteration.
+	Len() int
 }
 
 // nodeListIterator is a type that implements nodeSeqIterator using a
@@ -530,6 +544,10 @@ func (nli *nodeListIterator) P() **Node {
 	return &nli.l.N
 }
 
+func (nli *nodeListIterator) Len() int {
+	return count(nli.l)
+}
+
 // nodesIterator implements nodeSeqIterator using a Nodes.
 type nodesIterator struct {
 	n Nodes
@@ -552,8 +570,12 @@ func (ni *nodesIterator) P() **Node {
 	return &ni.n.Slice()[ni.i]
 }
 
+func (ni *nodesIterator) Len() int {
+	return len(ni.n.Slice())
+}
+
 // nodeSeqIterate returns an iterator over either a *Nodelist or a *Nodes.
-func nodeSeqIterate(ns interface{}) nodeSeqIterator {
+func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 	switch ns := ns.(type) {
 	case *NodeList:
 		return &nodeListIterator{ns}
@@ -561,5 +583,53 @@ func nodeSeqIterate(ns interface{}) nodeSeqIterator {
 		return &nodesIterator{ns, 0}
 	default:
 		panic("can't happen")
+	}
+}
+
+// setNodeSeq implements *a = b.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// b must have type *NodeList, Nodes, or []*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+	// Simplify b to either *Nodelist or []*Node.
+	if n, ok := b.(Nodes); ok {
+		b = n.Slice()
+	}
+
+	if l, ok := a.(**NodeList); ok {
+		switch b := b.(type) {
+		case *NodeList:
+			*l = b
+		case []*Node:
+			var ll *NodeList
+			for _, n := range b {
+				ll = list(ll, n)
+			}
+			*l = ll
+		default:
+			panic("can't happen")
+		}
+	} else {
+		var s []*Node
+		switch b := b.(type) {
+		case *NodeList:
+			for l := b; l != nil; l = l.Next {
+				s = append(s, l.N)
+			}
+		case []*Node:
+			s = b
+		default:
+			panic("can't happen")
+		}
+
+		switch a := a.(type) {
+		case *Nodes:
+			a.Set(s)
+		case *[]*Node:
+			*a = s
+		default:
+			panic("can't happen")
+		}
 	}
 }

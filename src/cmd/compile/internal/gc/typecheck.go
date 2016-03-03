@@ -34,7 +34,7 @@ func resolve(n *Node) *Node {
 	return n
 }
 
-func typechecklist(l interface{}, top int) {
+func typechecklist(l nodesOrNodeList, top int) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		typecheck(it.P(), top)
 	}

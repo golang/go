@@ -335,7 +335,7 @@ func Export(out *obj.Biobuf, trace bool) int {
 		if p.trace {
 			p.tracef("{ %s }\n", Hconvslice(f.Inl.Slice(), obj.FmtSharp))
 		}
-		p.nodeSlice(f.Inl.Slice())
+		p.nodeList(f.Inl)
 		if p.trace {
 			p.tracef("\n")
 		}
@@ -806,45 +806,25 @@ func (p *exporter) inlinedBody(n *Node) {
 	p.int(index)
 }
 
-func (p *exporter) nodeSlice(list []*Node) {
+func (p *exporter) nodeList(list nodesOrNodeList) {
+	it := nodeSeqIterate(list)
 	if p.trace {
 		p.tracef("[ ")
 	}
-	p.int(len(list))
+	p.int(it.Len())
 	if p.trace {
-		if len(list) == 0 {
+		if it.Len() == 0 {
 			p.tracef("] {}")
 		} else {
 			p.tracef("] {>")
 			defer p.tracef("<\n}")
 		}
 	}
-	for _, n := range list {
+	for ; !it.Done(); it.Next() {
 		if p.trace {
 			p.tracef("\n")
 		}
-		p.node(n)
-	}
-}
-
-func (p *exporter) nodeList(list *NodeList) {
-	if p.trace {
-		p.tracef("[ ")
-	}
-	p.int(count(list))
-	if p.trace {
-		if list == nil {
-			p.tracef("] {}")
-		} else {
-			p.tracef("] {>")
-			defer p.tracef("<\n}")
-		}
-	}
-	for q := list; q != nil; q = q.Next {
-		if p.trace {
-			p.tracef("\n")
-		}
-		p.node(q.N)
+		p.node(it.N())
 	}
 }
 
@@ -982,20 +962,20 @@ func (p *exporter) node(n *Node) {
 	case OIF:
 		p.nodeList(n.Ninit)
 		p.node(n.Left)
-		p.nodeSlice(n.Nbody.Slice())
+		p.nodeList(n.Nbody)
 		p.nodeList(n.Rlist)
 
 	case OFOR:
 		p.nodeList(n.Ninit)
 		p.nodesOrNil(n.Left, n.Right)
-		p.nodeSlice(n.Nbody.Slice())
+		p.nodeList(n.Nbody)
 
 	case ORANGE:
 		if p.bool(n.List != nil) {
 			p.nodeList(n.List)
 		}
 		p.node(n.Right)
-		p.nodeSlice(n.Nbody.Slice())
+		p.nodeList(n.Nbody)
 
 	case OSELECT, OSWITCH:
 		p.nodeList(n.Ninit)
@@ -1006,7 +986,7 @@ func (p *exporter) node(n *Node) {
 		if p.bool(n.List != nil) {
 			p.nodeList(n.List)
 		}
-		p.nodeSlice(n.Nbody.Slice())
+		p.nodeList(n.Nbody)
 
 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
 		p.nodesOrNil(n.Left, nil)
