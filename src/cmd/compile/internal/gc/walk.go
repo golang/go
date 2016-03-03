@@ -3965,7 +3965,7 @@ func walkprintfunc(np **Node, init **NodeList) {
 	funcbody(fn)
 
 	typecheck(&fn, Etop)
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typechecklist(fn.Nbody, Etop)
 	xtop = list(xtop, fn)
 	Curfn = oldfn
 

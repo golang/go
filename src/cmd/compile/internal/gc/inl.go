@@ -87,7 +87,7 @@ func typecheckinl(fn *Node) {
 
 	savefn := Curfn
 	Curfn = fn
-	typecheckslice(fn.Func.Inl.Slice(), Etop)
+	typechecklist(fn.Func.Inl, Etop)
 	Curfn = savefn
 
 	safemode = save_safemode

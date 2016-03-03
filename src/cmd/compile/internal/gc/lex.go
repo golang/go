@@ -406,7 +406,7 @@ func Main() {
 			Curfn = l.N
 			decldepth = 1
 			saveerrors()
-			typecheckslice(l.N.Nbody.Slice(), Etop)
+			typechecklist(l.N.Nbody, Etop)
 			checkreturn(l.N)
 			if nerrors != 0 {
 				l.N.Nbody.Set(nil) // type errors; do not compile

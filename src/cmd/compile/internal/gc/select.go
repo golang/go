@@ -79,7 +79,7 @@ func typecheckselect(sel *Node) {
 			}
 		}
 
-		typecheckslice(ncase.Nbody.Slice(), Etop)
+		typechecklist(ncase.Nbody, Etop)
 	}
 
 	sel.Xoffset = int64(count)
