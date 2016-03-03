@@ -13,16 +13,17 @@ import (
 )
 
 type Config struct {
-	arch       string                     // "amd64", etc.
-	IntSize    int64                      // 4 or 8
-	PtrSize    int64                      // 4 or 8
-	lowerBlock func(*Block) bool          // lowering function
-	lowerValue func(*Value, *Config) bool // lowering function
-	fe         Frontend                   // callbacks into compiler frontend
-	HTML       *HTMLWriter                // html writer, for debugging
-	ctxt       *obj.Link                  // Generic arch information
-	optimize   bool                       // Do optimization
-	curFunc    *Func
+	arch         string                     // "amd64", etc.
+	IntSize      int64                      // 4 or 8
+	PtrSize      int64                      // 4 or 8
+	lowerBlock   func(*Block) bool          // lowering function
+	lowerValue   func(*Value, *Config) bool // lowering function
+	fe           Frontend                   // callbacks into compiler frontend
+	HTML         *HTMLWriter                // html writer, for debugging
+	ctxt         *obj.Link                  // Generic arch information
+	optimize     bool                       // Do optimization
+	noDuffDevice bool                       // Don't use Duff's device
+	curFunc      *Func
 
 	// TODO: more stuff. Compiler flags of interest, ...
 
@@ -121,6 +122,12 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config 
 	}
 	c.ctxt = ctxt
 	c.optimize = optimize
+
+	// Don't use Duff's device on Plan 9, because floating
+	// point operations are not allowed in note handler.
+	if obj.Getgoos() == "plan9" {
+		c.noDuffDevice = true
+	}
 
 	// Assign IDs to preallocated values/blocks.
 	for i := range c.values {
