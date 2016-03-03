@@ -162,7 +162,7 @@ func checkgoto(from *Node, to *Node) {
 		fs = fs.Link
 	}
 	if fs != to.Sym {
-		lno := int(lineno)
+		lno := lineno
 		setlineno(from)
 
 		// decide what to complain about.
@@ -196,7 +196,7 @@ func checkgoto(from *Node, to *Node) {
 		} else {
 			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
 		}
-		lineno = int32(lno)
+		lineno = lno
 	}
 }
 

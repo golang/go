@@ -630,7 +630,7 @@ func evconst(n *Node) {
 
 	nr := n.Right
 	var rv Val
-	var lno int
+	var lno int32
 	var wr EType
 	var v Val
 	var norig *Node
@@ -1104,10 +1104,9 @@ ret:
 	n.SetVal(v)
 
 	// check range.
-	lno = int(setlineno(n))
-
+	lno = setlineno(n)
 	overflow(v, n.Type)
-	lineno = int32(lno)
+	lineno = lno
 
 	// truncate precision for non-ideal float.
 	if v.Ctype() == CTFLT && n.Type.Etype != TIDEAL {
@@ -1258,7 +1257,7 @@ func defaultlit(np **Node, t *Type) {
 		*np = n
 	}
 
-	lno := int(setlineno(n))
+	lno := setlineno(n)
 	ctype := idealkind(n)
 	var t1 *Type
 	switch ctype {
@@ -1269,7 +1268,7 @@ func defaultlit(np **Node, t *Type) {
 		}
 
 		if n.Val().Ctype() == CTNIL {
-			lineno = int32(lno)
+			lineno = lno
 			if n.Diag == 0 {
 				Yyerror("use of untyped nil")
 				n.Diag = 1
@@ -1314,7 +1313,7 @@ func defaultlit(np **Node, t *Type) {
 		goto num
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 	return
 
 num:
@@ -1341,7 +1340,7 @@ num:
 		overflow(n.Val(), t1)
 	}
 	Convlit(np, t1)
-	lineno = int32(lno)
+	lineno = lno
 	return
 }
 

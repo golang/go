@@ -485,7 +485,7 @@ func orderstmt(n *Node, order *Order) {
 		return
 	}
 
-	lno := int(setlineno(n))
+	lno := setlineno(n)
 
 	orderinit(n, order)
 
@@ -975,7 +975,7 @@ func orderstmt(n *Node, order *Order) {
 		cleantemp(t, order)
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // Orderexprlist orders the expression list l into order.
@@ -1007,7 +1007,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		return
 	}
 
-	lno := int(setlineno(n))
+	lno := setlineno(n)
 	orderinit(n, order)
 
 	switch n.Op {
@@ -1218,7 +1218,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		}
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 
 	*np = n
 }

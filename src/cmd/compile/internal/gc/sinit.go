@@ -246,9 +246,9 @@ func initreorder(l *NodeList, out *[]*Node) {
 func initfix(l *NodeList) []*Node {
 	var lout []*Node
 	initplans = make(map[*Node]*InitPlan)
-	lno := int(lineno)
+	lno := lineno
 	initreorder(l, &lout)
-	lineno = int32(lno)
+	lineno = lno
 	initplans = nil
 	return lout
 }

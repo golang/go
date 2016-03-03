@@ -602,7 +602,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		return
 	}
 
-	lno := int(setlineno(n))
+	lno := setlineno(n)
 
 	// ninit logically runs at a different loopdepth than the rest of the for loop.
 	esclist(e, n.Ninit, n)
@@ -944,7 +944,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // Assert that expr somehow gets assigned to dst, if non nil.  for
@@ -1012,7 +1012,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 		dst = &e.theSink
 	}
 
-	lno := int(setlineno(src))
+	lno := setlineno(src)
 	e.pdepth++
 
 	switch src.Op {
@@ -1120,7 +1120,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	}
 
 	e.pdepth--
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // Common case for escapes is 16 bits 000000000xxxEEEE

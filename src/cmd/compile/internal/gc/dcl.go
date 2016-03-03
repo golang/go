@@ -755,7 +755,7 @@ func checkembeddedtype(t *Type) {
 }
 
 func structfield(n *Node) *Type {
-	lno := int(lineno)
+	lno := lineno
 	lineno = n.Lineno
 
 	if n.Op != ODCLFIELD {
@@ -802,14 +802,14 @@ func structfield(n *Node) *Type {
 		f.Sym = f.Nname.Sym
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 	return f
 }
 
 var uniqgen uint32
 
 func checkdupfields(t *Type, what string) {
-	lno := int(lineno)
+	lno := lineno
 
 	for ; t != nil; t = t.Down {
 		if t.Sym != nil && t.Nname != nil && !isblank(t.Nname) {
@@ -822,7 +822,7 @@ func checkdupfields(t *Type, what string) {
 		}
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // convert a parsed id/type list into
@@ -888,7 +888,7 @@ func tofunargs(l *NodeList) *Type {
 }
 
 func interfacefield(n *Node) *Type {
-	lno := int(lineno)
+	lno := lineno
 	lineno = n.Lineno
 
 	if n.Op != ODCLFIELD {
@@ -950,7 +950,7 @@ func interfacefield(n *Node) *Type {
 		f.Broke = true
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 	return f
 }
 

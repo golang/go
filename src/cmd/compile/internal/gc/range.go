@@ -143,7 +143,7 @@ func walkrange(n *Node) {
 	t := n.Type
 
 	a := n.Right
-	lno := int(setlineno(a))
+	lno := setlineno(a)
 	n.Right = nil
 
 	var v1 *Node
@@ -167,7 +167,7 @@ func walkrange(n *Node) {
 
 	case TARRAY:
 		if memclrrange(n, v1, v2, a) {
-			lineno = int32(lno)
+			lineno = lno
 			return
 		}
 
@@ -323,7 +323,7 @@ func walkrange(n *Node) {
 	n.Nbody.Set(append(body, n.Nbody.Slice()...))
 	walkstmt(&n)
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // Lower n into runtime·memclr if possible, for

@@ -10,7 +10,7 @@ func typecheckselect(sel *Node) {
 	var n *Node
 
 	var def *Node
-	lno := int(setlineno(sel))
+	lno := setlineno(sel)
 	count := 0
 	typechecklist(sel.Ninit, Etop)
 	for l := sel.List; l != nil; l = l.Next {
@@ -83,7 +83,7 @@ func typecheckselect(sel *Node) {
 	}
 
 	sel.Xoffset = int64(count)
-	lineno = int32(lno)
+	lineno = lno
 }
 
 func walkselect(sel *Node) {
@@ -91,7 +91,7 @@ func walkselect(sel *Node) {
 		Fatalf("double walkselect") // already rewrote
 	}
 
-	lno := int(setlineno(sel))
+	lno := setlineno(sel)
 	i := count(sel.List)
 
 	// optimization: zero-case select
@@ -322,7 +322,7 @@ func walkselect(sel *Node) {
 out:
 	sel.List = nil
 	walkstmtslice(sel.Nbody.Slice())
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // Keep in sync with src/runtime/runtime2.go and src/runtime/select.go.
