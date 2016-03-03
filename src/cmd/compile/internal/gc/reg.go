@@ -1525,7 +1525,7 @@ func (bits Bits) String() string {
 		} else {
 			fmt.Fprintf(&buf, "%s(%d)", v.node.Sym.Name, i)
 			if v.offset != 0 {
-				fmt.Fprintf(&buf, "%+d", int64(v.offset))
+				fmt.Fprintf(&buf, "%+d", v.offset)
 			}
 		}
 		biclr(&bits, uint(i))

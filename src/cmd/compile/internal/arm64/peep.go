@@ -40,7 +40,7 @@ import (
 var gactive uint32
 
 func peep(firstp *obj.Prog) {
-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
+	g := gc.Flowstart(firstp, nil)
 	if g == nil {
 		return
 	}
@@ -91,7 +91,7 @@ loop1:
 	 */
 	var p1 *obj.Prog
 	var r1 *gc.Flow
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		default:
@@ -130,7 +130,7 @@ loop1:
 	}
 
 	// MOVD $c, R'; ADD R', R (R' unused) -> ADD $c, R
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		default:
@@ -179,7 +179,7 @@ ret:
 }
 
 func excise(r *gc.Flow) {
-	p := (*obj.Prog)(r.Prog)
+	p := r.Prog
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("%v ===delete===\n", p)
 	}
@@ -210,12 +210,12 @@ func regtyp(a *obj.Addr) bool {
  * above sequences. This returns 1 if it modified any instructions.
  */
 func subprop(r0 *gc.Flow) bool {
-	p := (*obj.Prog)(r0.Prog)
-	v1 := (*obj.Addr)(&p.From)
+	p := r0.Prog
+	v1 := &p.From
 	if !regtyp(v1) {
 		return false
 	}
-	v2 := (*obj.Addr)(&p.To)
+	v2 := &p.To
 	if !regtyp(v2) {
 		return false
 	}
@@ -253,7 +253,7 @@ func subprop(r0 *gc.Flow) bool {
 						}
 					}
 
-					t := int(int(v1.Reg))
+					t := int(v1.Reg)
 					v1.Reg = v2.Reg
 					v2.Reg = int16(t)
 					if gc.Debug['P'] != 0 {
@@ -288,9 +288,9 @@ func subprop(r0 *gc.Flow) bool {
  *	set v2	return success (caller can remove v1->v2 move)
  */
 func copyprop(r0 *gc.Flow) bool {
-	p := (*obj.Prog)(r0.Prog)
-	v1 := (*obj.Addr)(&p.From)
-	v2 := (*obj.Addr)(&p.To)
+	p := r0.Prog
+	v1 := &p.From
+	v2 := &p.To
 	if copyas(v1, v2) {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("eliminating self-move: %v\n", r0.Prog)

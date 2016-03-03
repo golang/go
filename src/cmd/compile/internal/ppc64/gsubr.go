@@ -180,7 +180,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	ft := int(gc.Simsimtype(f.Type))
 	tt := int(gc.Simsimtype(t.Type))
-	cvt := (*gc.Type)(t.Type)
+	cvt := t.Type
 
 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)
@@ -409,7 +409,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 			gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], nil)
 			gmove(&bigf, &r2)
 			gins(ppc64.AFCMPU, &r1, &r2)
-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1))
+			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1)
 			gins(ppc64.AFSUB, &r2, &r1)
 			gc.Patch(p1, gc.Pc)
 			gc.Regfree(&r2)
@@ -419,7 +419,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		var r3 gc.Node
 		gc.Regalloc(&r3, gc.Types[gc.TINT64], t)
 		gins(ppc64.AFCTIDZ, &r1, &r2)
-		p1 := (*obj.Prog)(gins(ppc64.AFMOVD, &r2, nil))
+		p1 := gins(ppc64.AFMOVD, &r2, nil)
 		p1.To.Type = obj.TYPE_MEM
 		p1.To.Reg = ppc64.REGSP
 		p1.To.Offset = -8
@@ -430,7 +430,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		gc.Regfree(&r2)
 		gc.Regfree(&r1)
 		if tt == gc.TUINT64 {
-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1)) // use CR0 here again
+			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TFLOAT64]), nil, +1) // use CR0 here again
 			gc.Nodreg(&r1, gc.Types[gc.TINT64], ppc64.REGTMP)
 			gins(ppc64.AMOVD, &bigi, &r1)
 			gins(ppc64.AADD, &r1, &r3)
@@ -474,15 +474,15 @@ func gmove(f *gc.Node, t *gc.Node) {
 			gc.Nodreg(&r2, gc.Types[gc.TUINT64], ppc64.REGTMP)
 			gmove(&bigi, &r2)
 			gins(ppc64.ACMPU, &r1, &r2)
-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1))
-			p2 := (*obj.Prog)(gins(ppc64.ASRD, nil, &r1))
+			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)
+			p2 := gins(ppc64.ASRD, nil, &r1)
 			p2.From.Type = obj.TYPE_CONST
 			p2.From.Offset = 1
 			gc.Patch(p1, gc.Pc)
 		}
 
 		gc.Regalloc(&r2, gc.Types[gc.TFLOAT64], t)
-		p1 := (*obj.Prog)(gins(ppc64.AMOVD, &r1, nil))
+		p1 := gins(ppc64.AMOVD, &r1, nil)
 		p1.To.Type = obj.TYPE_MEM
 		p1.To.Reg = ppc64.REGSP
 		p1.To.Offset = -8
@@ -493,7 +493,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 		gins(ppc64.AFCFID, &r2, &r2)
 		gc.Regfree(&r1)
 		if ft == gc.TUINT64 {
-			p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1)) // use CR0 here again
+			p1 := gc.Gbranch(optoas(gc.OLT, gc.Types[gc.TUINT64]), nil, +1) // use CR0 here again
 			gc.Nodreg(&r1, gc.Types[gc.TFLOAT64], ppc64.FREGTWO)
 			gins(ppc64.AFMUL, &r1, &r2)
 			gc.Patch(p1, gc.Pc)

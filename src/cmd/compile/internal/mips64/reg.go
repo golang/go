@@ -111,7 +111,7 @@ func regnames(n *int) []string {
 
 func excludedregs() uint64 {
 	// Exclude registers with fixed functions
-	regbits := uint64(1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27))
+	regbits := 1<<0 | RtoB(mips.REGSP) | RtoB(mips.REGG) | RtoB(mips.REGTMP) | RtoB(mips.REGLINK) | RtoB(mips.REG_R26) | RtoB(mips.REG_R27)
 
 	// Also exclude floating point registers with fixed constants
 	regbits |= RtoB(mips.FREGZERO) | RtoB(mips.FREGHALF) | RtoB(mips.FREGONE) | RtoB(mips.FREGTWO)

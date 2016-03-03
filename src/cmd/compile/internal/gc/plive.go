@@ -488,7 +488,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
 
 	// Add missing successor edges to the selectgo blocks.
 	if len(selectgo) != 0 {
-		fixselectgo([]*BasicBlock(selectgo))
+		fixselectgo(selectgo)
 	}
 
 	// Find a depth-first order and assign a depth-first number to
@@ -764,13 +764,13 @@ func livenessprintblock(lv *Liveness, bb *BasicBlock) {
 	}
 	fmt.Printf("\n")
 
-	printvars("\tuevar", bb.uevar, []*Node(lv.vars))
-	printvars("\tvarkill", bb.varkill, []*Node(lv.vars))
-	printvars("\tlivein", bb.livein, []*Node(lv.vars))
-	printvars("\tliveout", bb.liveout, []*Node(lv.vars))
-	printvars("\tavarinit", bb.avarinit, []*Node(lv.vars))
-	printvars("\tavarinitany", bb.avarinitany, []*Node(lv.vars))
-	printvars("\tavarinitall", bb.avarinitall, []*Node(lv.vars))
+	printvars("\tuevar", bb.uevar, lv.vars)
+	printvars("\tvarkill", bb.varkill, lv.vars)
+	printvars("\tlivein", bb.livein, lv.vars)
+	printvars("\tliveout", bb.liveout, lv.vars)
+	printvars("\tavarinit", bb.avarinit, lv.vars)
+	printvars("\tavarinitany", bb.avarinitany, lv.vars)
+	printvars("\tavarinitall", bb.avarinitall, lv.vars)
 
 	fmt.Printf("\tprog:\n")
 	for prog := bb.first; ; prog = prog.Link {
@@ -1058,7 +1058,7 @@ func livenessprologue(lv *Liveness) {
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
 		for p := bb.last; p != nil; p = p.Opt.(*obj.Prog) {
-			progeffects(p, []*Node(lv.vars), uevar, varkill, avarinit)
+			progeffects(p, lv.vars, uevar, varkill, avarinit)
 			if debuglive >= 3 {
 				printeffects(p, uevar, varkill, avarinit)
 			}
@@ -1072,7 +1072,7 @@ func livenessprologue(lv *Liveness) {
 		bvresetall(varkill)
 
 		for p := bb.first; ; p = p.Link {
-			progeffects(p, []*Node(lv.vars), uevar, varkill, avarinit)
+			progeffects(p, lv.vars, uevar, varkill, avarinit)
 			if debuglive >= 3 {
 				printeffects(p, uevar, varkill, avarinit)
 			}
@@ -1247,7 +1247,7 @@ func livenessepilogue(lv *Liveness) {
 		// allocate liveness maps for those instructions that need them.
 		// Seed the maps with information about the addrtaken variables.
 		for p = bb.first; ; p = p.Link {
-			progeffects(p, []*Node(lv.vars), uevar, varkill, avarinit)
+			progeffects(p, lv.vars, uevar, varkill, avarinit)
 			bvandnot(any, any, varkill)
 			bvandnot(all, all, varkill)
 			bvor(any, any, avarinit)
@@ -1782,7 +1782,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	cfg := newcfg(firstp)
 
 	if debuglive >= 3 {
-		printcfg([]*BasicBlock(cfg))
+		printcfg(cfg)
 	}
 	vars := getvariables(fn)
 	lv := newliveness(fn, firstp, cfg, vars)
@@ -1820,7 +1820,7 @@ func liveness(fn *Node, firstp *obj.Prog, argssym *Sym, livesym *Sym) {
 	}
 	freeliveness(lv)
 
-	freecfg([]*BasicBlock(cfg))
+	freecfg(cfg)
 
 	debuglive -= debugdelta
 }

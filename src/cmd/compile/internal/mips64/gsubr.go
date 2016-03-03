@@ -223,7 +223,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	ft := int(gc.Simsimtype(f.Type))
 	tt := int(gc.Simsimtype(t.Type))
-	cvt := (*gc.Type)(t.Type)
+	cvt := t.Type
 
 	if gc.Iscomplex[ft] || gc.Iscomplex[tt] {
 		gc.Complexmove(f, t)

@@ -37,7 +37,7 @@ func adderrorname(n *Node) {
 		return
 	}
 	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
-	if len(errors) > 0 && int32(errors[len(errors)-1].lineno) == n.Lineno && errors[len(errors)-1].msg == old {
+	if len(errors) > 0 && errors[len(errors)-1].lineno == n.Lineno && errors[len(errors)-1].msg == old {
 		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
 	}
 }
@@ -2790,7 +2790,7 @@ func isbadimport(path string) bool {
 			return true
 		}
 
-		if unicode.IsSpace(rune(r)) {
+		if unicode.IsSpace(r) {
 			Yyerror("import path contains space character: %q", path)
 			return true
 		}

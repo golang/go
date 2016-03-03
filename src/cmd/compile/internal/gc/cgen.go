@@ -2963,7 +2963,7 @@ func cgen_append(n, res *Node) {
 		} else if w == 1 {
 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
 		} else {
-			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), int64(w), &r2)
+			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), w, &r2)
 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
 		}
 		Regfree(&r2)

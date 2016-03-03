@@ -44,7 +44,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// the src and dst overlap, then reverse direction
 	dir := align
 
-	if osrc < odst && int64(odst) < int64(osrc)+w {
+	if osrc < odst && odst < osrc+w {
 		dir = -dir
 	}
 

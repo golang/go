@@ -539,11 +539,11 @@ func compile(fn *Node) {
 	allocauto(ptxt)
 
 	if false {
-		fmt.Printf("allocauto: %d to %d\n", oldstksize, int64(Stksize))
+		fmt.Printf("allocauto: %d to %d\n", oldstksize, Stksize)
 	}
 
 	setlineno(Curfn)
-	if int64(Stksize)+Maxarg > 1<<31 {
+	if Stksize+Maxarg > 1<<31 {
 		Yyerror("stack frame too large (>2GB)")
 		goto ret
 	}
