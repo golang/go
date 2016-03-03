@@ -618,39 +618,6 @@ func typeinit() {
 	Simtype[TFUNC] = Tptr
 	Simtype[TUNSAFEPTR] = Tptr
 
-	// pick up the backend thearch.typedefs
-	for i = range Thearch.Typedefs {
-		s := Lookup(Thearch.Typedefs[i].Name)
-		s1 := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
-
-		etype := Thearch.Typedefs[i].Etype
-		if int(etype) >= len(Types) {
-			Fatalf("typeinit: %s bad etype", s.Name)
-		}
-		sameas := Thearch.Typedefs[i].Sameas
-		if int(sameas) >= len(Types) {
-			Fatalf("typeinit: %s bad sameas", s.Name)
-		}
-		Simtype[etype] = sameas
-		minfltval[etype] = minfltval[sameas]
-		maxfltval[etype] = maxfltval[sameas]
-		Minintval[etype] = Minintval[sameas]
-		Maxintval[etype] = Maxintval[sameas]
-
-		t = Types[etype]
-		if t != nil {
-			Fatalf("typeinit: %s already defined", s.Name)
-		}
-
-		t = typ(etype)
-		t.Sym = s1
-
-		dowidth(t)
-		Types[etype] = t
-		s1.Def = typenod(t)
-		s1.Def.Name = new(Name)
-	}
-
 	Array_array = int(Rnd(0, int64(Widthptr)))
 	Array_nel = int(Rnd(int64(Array_array)+int64(Widthptr), int64(Widthint)))
 	Array_cap = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthint)))
