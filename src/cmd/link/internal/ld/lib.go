@@ -88,6 +88,7 @@ type Arch struct {
 	Regsize          int
 	Funcalign        int
 	Maxalign         int
+	Minalign         int
 	Minlc            int
 	Dwarfregsp       int
 	Dwarfreglr       int

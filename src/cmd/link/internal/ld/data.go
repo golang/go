@@ -1026,17 +1026,17 @@ func dosymtype() {
 	}
 }
 
+// symalign returns the required alignment for the given symbol s.
 func symalign(s *LSym) int32 {
-	if s.Align != 0 {
+	min := int32(Thearch.Minalign)
+	if s.Align >= min {
 		return s.Align
+	} else if s.Align != 0 {
+		return min
 	}
-
 	align := int32(Thearch.Maxalign)
-	for int64(align) > s.Size && align > 1 {
+	for int64(align) > s.Size && align > min {
 		align >>= 1
-	}
-	if align < s.Align {
-		align = s.Align
 	}
 	return align
 }

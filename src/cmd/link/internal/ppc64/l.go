@@ -64,6 +64,7 @@ package ppc64
 const (
 	thechar   = '9'
 	MaxAlign  = 32 // max data alignment
+	MinAlign  = 1  // min data alignment
 	FuncAlign = 8
 	MINLC     = 4
 )
