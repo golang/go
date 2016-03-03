@@ -104,7 +104,7 @@ type Type struct {
 
 	Nod    *Node // canonical OTYPE node
 	Orig   *Type // original type (type literal or predefined type)
-	Lineno int
+	Lineno int32
 
 	// TFUNC
 	Thistuple int

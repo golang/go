@@ -391,7 +391,7 @@ func typ(et EType) *Type {
 	t := new(Type)
 	t.Etype = et
 	t.Width = BADWIDTH
-	t.Lineno = int(lineno)
+	t.Lineno = lineno
 	t.Orig = t
 	return t
 }
