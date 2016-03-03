@@ -182,6 +182,8 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "dec", fn: dec, required: true},
+	{name: "late opt", fn: opt}, // TODO: split required rules and optimizing rules
 	{name: "generic deadcode", fn: deadcode},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},

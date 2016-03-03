@@ -511,8 +511,8 @@
     (Store [8] dst real mem))
 
 // string ops
-(StringPtr (StringMake ptr _)) -> ptr
-(StringLen (StringMake _ len)) -> len
+(StringPtr (StringMake (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+(StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
   (StringMake (ConstNil) (Const32 <config.fe.TypeInt()> [0]))
 (ConstString {s}) && config.PtrSize == 8 && s.(string) == "" ->
@@ -540,9 +540,9 @@
     (Store [config.PtrSize] dst ptr mem))
 
 // slice ops
-(SlicePtr (SliceMake ptr _ _ )) -> ptr
-(SliceLen (SliceMake _ len _)) -> len
-(SliceCap (SliceMake _ _ cap)) -> cap
+(SlicePtr (SliceMake (Const64 <t> [c]) _ _)) -> (Const64 <t> [c])
+(SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+(SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
     (ConstNil <config.fe.TypeBytePtr()>)

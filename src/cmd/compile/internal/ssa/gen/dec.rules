@@ -1,0 +1,6 @@
+(StringPtr (StringMake ptr _)) -> ptr
+(StringLen (StringMake _ len)) -> len
+
+(SlicePtr (SliceMake ptr _ _ )) -> ptr
+(SliceLen (SliceMake _ len _)) -> len
+(SliceCap (SliceMake _ _ cap)) -> cap
