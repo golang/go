@@ -67,7 +67,7 @@ type LSym struct {
 	Dynimplib   string
 	Dynimpvers  string
 	Sect        *Section
-	Autom       *Auto
+	Autom       []Auto
 	Pcln        *Pcln
 	P           []byte
 	R           []Reloc
@@ -145,10 +145,9 @@ type Reloc struct {
 
 type Auto struct {
 	Asym    *LSym
-	Link    *Auto
+	Gotype  *LSym
 	Aoffset int32
 	Name    int16
-	Gotype  *LSym
 }
 
 type Shlib struct {

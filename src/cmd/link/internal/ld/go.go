@@ -394,7 +394,7 @@ func markflood() {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
 			}
-			for a := s.Autom; a != nil; a = a.Link {
+			for _, a := range s.Autom {
 				mark1(a.Gotype, s)
 			}
 		}
