@@ -138,7 +138,7 @@ type Address struct {
 
 // Parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
 func ParseAddress(address string) (*Address, error) {
-	return (&addrParser{s: address}).parseAddress()
+	return (&addrParser{s: address}).parseSingleAddress()
 }
 
 // ParseAddressList parses the given string as a list of addresses.
@@ -155,7 +155,7 @@ type AddressParser struct {
 // Parse parses a single RFC 5322 address of the
 // form "Gogh Fir <gf@example.com>" or "foo@example.com".
 func (p *AddressParser) Parse(address string) (*Address, error) {
-	return (&addrParser{s: address, dec: p.WordDecoder}).parseAddress()
+	return (&addrParser{s: address, dec: p.WordDecoder}).parseSingleAddress()
 }
 
 // ParseList parses the given string as a list of comma-separated addresses
@@ -168,7 +168,6 @@ func (p *AddressParser) ParseList(list string) ([]*Address, error) {
 // If the address's name contains non-ASCII characters
 // the name will be rendered according to RFC 2047.
 func (a *Address) String() string {
-
 	// Format address local@domain
 	at := strings.LastIndex(a.Address, "@")
 	var local, domain string
@@ -267,6 +266,18 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 		}
 	}
 	return list, nil
+}
+
+func (p *addrParser) parseSingleAddress() (*Address, error) {
+	addr, err := p.parseAddress()
+	if err != nil {
+		return nil, err
+	}
+	p.skipSpace()
+	if !p.empty() {
+		return nil, fmt.Errorf("mail: expected single address, got %q", p.s)
+	}
+	return addr, nil
 }
 
 // parseAddress parses a single RFC 5322 address at the start of p.

@@ -120,18 +120,20 @@ func TestDateParsing(t *testing.T) {
 }
 
 func TestAddressParsingError(t *testing.T) {
-	const txt = "=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>"
-	_, err := ParseAddress(txt)
-	if err == nil || !strings.Contains(err.Error(), "charset not supported") {
-		t.Errorf(`mail.ParseAddress(%q) err: %q, want ".*charset not supported.*"`, txt, err)
+	mustErrTestCases := [...]struct {
+		text        string
+		wantErrText string
+	}{
+		0: {"=?iso-8859-2?Q?Bogl=E1rka_Tak=E1cs?= <unknown@gmail.com>", "charset not supported"},
+		1: {"µ <micro@example.net>", "unencoded non-ASCII text in address"},
+		2: {"a@gmail.com b@gmail.com", "expected single address"},
 	}
-}
 
-func TestAddressParsingErrorUnquotedNonASCII(t *testing.T) {
-	const txt = "µ <micro@example.net>"
-	_, err := ParseAddress(txt)
-	if err == nil || !strings.Contains(err.Error(), "unencoded non-ASCII text in address") {
-		t.Errorf(`mail.ParseAddress(%q) err: %q, want ".*unencoded non-ASCII text in address.*"`, txt, err)
+	for i, tc := range mustErrTestCases {
+		_, err := ParseAddress(tc.text)
+		if err == nil || !strings.Contains(err.Error(), tc.wantErrText) {
+			t.Errorf(`mail.ParseAddress(%q) #%d want %q, got %v`, tc.text, i, tc.wantErrText, err)
+		}
 	}
 }
 
