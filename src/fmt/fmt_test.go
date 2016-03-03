@@ -422,8 +422,57 @@ var fmtTests = []struct {
 	{"%v", &slice, "&[1 2 3 4 5]"},
 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
 	{"%v", &bslice, "&[1 2 3 4 5]"},
-	{"%v", []byte{1}, "[1]"},
+
+	// byte slices and arrays with %d and %v variants
+	{"%d", [0]byte{}, "[]"},
+	{"%d", [1]byte{123}, "[123]"},
+	{"%012d", []byte{}, "[]"},
+	{"%d", [3]byte{1, 11, 111}, "[1 11 111]"},
+	{"%d", [3]uint8{1, 11, 111}, "[1 11 111]"},
+	{"%06d", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
+	{"%-6d", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%-06d", [3]byte{1, 11, 111}, "[1      11     111   ]"}, // 0 has no effect when - is present.
 	{"%v", []byte{}, "[]"},
+	{"%012v", []byte{}, "[]"},
+	{"%#v", []byte{}, "[]byte{}"},
+	{"%#v", []uint8{}, "[]byte{}"},
+	{"%#012v", []byte{}, "[]byte{}"},
+	{"%v", []byte{123}, "[123]"},
+	{"%v", []byte{1, 11, 111}, "[1 11 111]"},
+	{"%6v", []byte{1, 11, 111}, "[     1     11    111]"},
+	{"%06v", []byte{1, 11, 111}, "[000001 000011 000111]"},
+	{"%-6v", []byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%-06v", []byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%#v", []byte{1, 11, 111}, "[]byte{0x1, 0xb, 0x6f}"},
+	{"%#6v", []byte{1, 11, 111}, "[]byte{   0x1,    0xb,   0x6f}"},
+	{"%#06v", []byte{1, 11, 111}, "[]byte{0x000001, 0x00000b, 0x00006f}"},
+	{"%#-6v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
+	{"%#-06v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
+	{"%v", [0]byte{}, "[]"},
+	{"%-12v", [0]byte{}, "[]"},
+	{"%#v", [0]byte{}, "[0]uint8{}"},
+	{"%#v", [0]uint8{}, "[0]uint8{}"},
+	{"%#-12v", [0]byte{}, "[0]uint8{}"},
+	{"%v", [1]byte{123}, "[123]"},
+	{"%v", [3]byte{1, 11, 111}, "[1 11 111]"},
+	{"%06v", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
+	{"%-6v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%-06v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%#v", [3]byte{1, 11, 111}, "[3]uint8{0x1, 0xb, 0x6f}"},
+	{"%#6v", [3]byte{1, 11, 111}, "[3]uint8{   0x1,    0xb,   0x6f}"},
+	{"%#06v", [3]byte{1, 11, 111}, "[3]uint8{0x000001, 0x00000b, 0x00006f}"},
+	{"%#-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+	{"%#-06v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+	// f.space should and f.plus should not have an effect with %v.
+	{"% v", []byte{1, 11, 111}, "[ 1  11  111]"},
+	{"%+v", [3]byte{1, 11, 111}, "[1 11 111]"},
+	{"%# -6v", []byte{1, 11, 111}, "[]byte{ 0x1  ,  0xb  ,  0x6f }"},
+	{"%#+-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+	// f.space and f.plus should have an effect with %d.
+	{"% d", []byte{1, 11, 111}, "[ 1  11  111]"},
+	{"%+d", [3]byte{1, 11, 111}, "[+1 +11 +111]"},
+	{"%# -6d", []byte{1, 11, 111}, "[ 1      11     111  ]"},
+	{"%#+-6d", [3]byte{1, 11, 111}, "[+1     +11    +111  ]"},
 
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
@@ -809,6 +858,14 @@ var fmtTests = []struct {
 
 	// invalid reflect.Value doesn't crash.
 	{"%v", reflect.Value{}, "<invalid reflect.Value>"},
+
+	// Tests to check that not supported verbs generate an error string.
+	{"%☠", nil, "%!☠(<nil>)"},
+	{"%☠", interface{}(nil), "%!☠(<nil>)"},
+	{"%☠", []byte{0}, "%!☠([]uint8=[0])"},
+	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
+	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
+	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
@@ -1037,6 +1094,15 @@ func BenchmarkSprintfHexBytes(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("% #x", data)
+		}
+	})
+}
+
+func BenchmarkSprintfBytes(b *testing.B) {
+	data := []byte("0123456789abcdef")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%v", data)
 		}
 	})
 }

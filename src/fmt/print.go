@@ -26,7 +26,7 @@ const (
 	badIndexString    = "(BADINDEX)"
 	panicString       = "(PANIC="
 	extraString       = "%!(EXTRA "
-	bytesString       = "[]byte{"
+	bytesString       = "[]byte"
 	badWidthString    = "%!(BADWIDTH)"
 	badPrecString     = "%!(BADPREC)"
 	noVerbString      = "%!(NOVERB)"
@@ -522,45 +522,33 @@ func (p *pp) fmtString(v string, verb rune) {
 	}
 }
 
-func (p *pp) fmtBytes(v []byte, verb rune, typ reflect.Type, depth int) {
-	if verb == 'v' || verb == 'd' {
+func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
+	switch verb {
+	case 'v', 'd':
 		if p.fmt.sharpV {
+			p.buf.WriteString(typeString)
 			if v == nil {
-				if typ == nil {
-					p.buf.WriteString("[]byte(nil)")
-				} else {
-					p.buf.WriteString(typ.String())
-					p.buf.WriteString(nilParenString)
-				}
+				p.buf.WriteString(nilParenString)
 				return
 			}
-			if typ == nil {
-				p.buf.WriteString(bytesString)
-			} else {
-				p.buf.WriteString(typ.String())
-				p.buf.WriteByte('{')
-			}
-		} else {
-			p.buf.WriteByte('[')
-		}
-		for i, c := range v {
-			if i > 0 {
-				if p.fmt.sharpV {
+			p.buf.WriteByte('{')
+			for i, c := range v {
+				if i > 0 {
 					p.buf.WriteString(commaSpaceString)
-				} else {
-					p.buf.WriteByte(' ')
 				}
+				p.fmt0x64(uint64(c), true)
 			}
-			p.printArg(c, 'v', depth+1)
-		}
-		if p.fmt.sharpV {
 			p.buf.WriteByte('}')
 		} else {
+			p.buf.WriteByte('[')
+			for i, c := range v {
+				if i > 0 {
+					p.buf.WriteByte(' ')
+				}
+				p.fmt.integer(int64(c), 10, unsigned, ldigits)
+			}
 			p.buf.WriteByte(']')
 		}
-		return
-	}
-	switch verb {
 	case 's':
 		p.fmt.fmt_s(string(v))
 	case 'x':
@@ -788,7 +776,7 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
-		p.fmtBytes(f, verb, nil, depth)
+		p.fmtBytes(f, verb, bytesString)
 	case reflect.Value:
 		p.printReflectValue(f, verb, depth)
 		return
@@ -957,13 +945,13 @@ BigSwitch:
 					bytes[i] = byte(f.Index(i).Uint())
 				}
 			}
-			p.fmtBytes(bytes, verb, typ, depth)
+			p.fmtBytes(bytes, verb, typ.String())
 			break
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteString(value.Type().String())
 			if f.Kind() == reflect.Slice && f.IsNil() {
-				p.buf.WriteString("(nil)")
+				p.buf.WriteString(nilParenString)
 				break
 			}
 			p.buf.WriteByte('{')
