@@ -328,7 +328,7 @@
 		(MOVOstore dst (MOVOload src mem) mem))
 
 // Medium copying uses a duff device.
-(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 ->
+(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice ->
 	(DUFFCOPY [14*(64-size/16)] dst src mem)
 // 14 and 64 are magic constants.  14 is the number of bytes to encode:
 //	MOVUPS	(SI), X0
@@ -338,7 +338,7 @@
 // and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
 
 // Large copying uses REP MOVSQ.
-(Move [size] dst src mem) && size > 16*64 && size%8 == 0 ->
+(Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
 	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
 
 (Not x) -> (XORBconst [1] x)
@@ -869,13 +869,13 @@
 				(MOVQstoreconst [0] destptr mem))))
 
 // Medium zeroing uses a duff device.
-(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 ->
+(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
 	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
-(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 ->
+(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
 	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
-(Zero [size] destptr mem) && size > 1024 && size%8 == 0 ->
+(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
 	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
 
 // Absorb InvertFlags into branches.

@@ -8811,14 +8811,14 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [size] dst src mem)
-	// cond: size >= 32 && size <= 16*64 && size%16 == 0
+	// cond: size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice
 	// result: (DUFFCOPY [14*(64-size/16)] dst src mem)
 	for {
 		size := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(size >= 32 && size <= 16*64 && size%16 == 0) {
+		if !(size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(OpAMD64DUFFCOPY)
@@ -8829,14 +8829,14 @@ func rewriteValueAMD64_OpMove(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Move [size] dst src mem)
-	// cond: size > 16*64 && size%8 == 0
+	// cond: (size > 16*64 || config.noDuffDevice) && size%8 == 0
 	// result: (REPMOVSQ dst src (MOVQconst [size/8]) mem)
 	for {
 		size := v.AuxInt
 		dst := v.Args[0]
 		src := v.Args[1]
 		mem := v.Args[2]
-		if !(size > 16*64 && size%8 == 0) {
+		if !((size > 16*64 || config.noDuffDevice) && size%8 == 0) {
 			break
 		}
 		v.reset(OpAMD64REPMOVSQ)
@@ -13693,13 +13693,13 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [size] destptr mem)
-	// cond: size <= 1024 && size%8 == 0 && size%16 != 0
+	// cond: size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice
 	// result: (Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
 	for {
 		size := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(size <= 1024 && size%8 == 0 && size%16 != 0) {
+		if !(size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(OpZero)
@@ -13718,13 +13718,13 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [size] destptr mem)
-	// cond: size <= 1024 && size%16 == 0
+	// cond: size <= 1024 && size%16 == 0 && !config.noDuffDevice
 	// result: (DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
 	for {
 		size := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(size <= 1024 && size%16 == 0) {
+		if !(size <= 1024 && size%16 == 0 && !config.noDuffDevice) {
 			break
 		}
 		v.reset(OpAMD64DUFFZERO)
@@ -13740,13 +13740,13 @@ func rewriteValueAMD64_OpZero(v *Value, config *Config) bool {
 		return true
 	}
 	// match: (Zero [size] destptr mem)
-	// cond: size > 1024 && size%8 == 0
+	// cond: (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0
 	// result: (REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
 	for {
 		size := v.AuxInt
 		destptr := v.Args[0]
 		mem := v.Args[1]
-		if !(size > 1024 && size%8 == 0) {
+		if !((size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0) {
 			break
 		}
 		v.reset(OpAMD64REPSTOSQ)
