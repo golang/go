@@ -63,7 +63,6 @@ type LSym struct {
 	Outer       *LSym
 	Gotype      *LSym
 	Reachparent *LSym
-	Queue       *LSym
 	File        string
 	Dynimplib   string
 	Dynimpvers  string

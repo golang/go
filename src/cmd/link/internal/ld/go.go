@@ -367,9 +367,7 @@ func Adddynsym(ctxt *Link, s *LSym) {
 	}
 }
 
-var markq *LSym
-
-var emarkq *LSym
+var markQueue []*LSym
 
 func mark1(s *LSym, parent *LSym) {
 	if s == nil || s.Attr.Reachable() {
@@ -380,41 +378,34 @@ func mark1(s *LSym, parent *LSym) {
 	}
 	s.Attr |= AttrReachable
 	s.Reachparent = parent
-	if markq == nil {
-		markq = s
-	} else {
-		emarkq.Queue = s
-	}
-	emarkq = s
+	markQueue = append(markQueue, s)
 }
 
 func mark(s *LSym) {
 	mark1(s, nil)
 }
 
+// markflood makes the dependencies of any reachable symable also reachable.
 func markflood() {
-	var a *Auto
-	var i int
-
-	for s := markq; s != nil; s = s.Queue {
+	for len(markQueue) > 0 {
+		s := markQueue[0]
+		markQueue = markQueue[1:]
 		if s.Type == obj.STEXT {
 			if Debug['v'] > 1 {
 				fmt.Fprintf(&Bso, "marktext %s\n", s.Name)
 			}
-			for a = s.Autom; a != nil; a = a.Link {
+			for a := s.Autom; a != nil; a = a.Link {
 				mark1(a.Gotype, s)
 			}
 		}
-
-		for i = 0; i < len(s.R); i++ {
+		for i := 0; i < len(s.R); i++ {
 			mark1(s.R[i].Sym, s)
 		}
 		if s.Pcln != nil {
-			for i = 0; i < s.Pcln.Nfuncdata; i++ {
+			for i := 0; i < s.Pcln.Nfuncdata; i++ {
 				mark1(s.Pcln.Funcdata[i], s)
 			}
 		}
-
 		mark1(s.Gotype, s)
 		mark1(s.Sub, s)
 		mark1(s.Outer, s)
