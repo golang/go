@@ -181,7 +181,7 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		typecheckslice(ncase.Nbody.Slice(), Etop)
+		typechecklist(ncase.Nbody, Etop)
 	}
 
 	lineno = lno

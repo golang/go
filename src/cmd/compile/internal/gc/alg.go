@@ -303,7 +303,7 @@ func genhash(sym *Sym, t *Type) {
 	Curfn = fn
 	fn.Func.Dupok = true
 	typecheck(&fn, Etop)
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typechecklist(fn.Nbody, Etop)
 	Curfn = nil
 
 	// Disable safemode while compiling this code: the code we
@@ -511,7 +511,7 @@ func geneq(sym *Sym, t *Type) {
 	Curfn = fn
 	fn.Func.Dupok = true
 	typecheck(&fn, Etop)
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typechecklist(fn.Nbody, Etop)
 	Curfn = nil
 
 	// Disable safemode while compiling this code: the code we

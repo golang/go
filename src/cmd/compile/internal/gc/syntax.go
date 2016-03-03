@@ -494,3 +494,72 @@ func (n *Nodes) AppendNodeList(l *NodeList) {
 		}
 	}
 }
+
+// nodeSeqIterator is an interface used to iterate over a sequence of nodes.
+// TODO(iant): Remove after conversion from NodeList to Nodes is complete.
+type nodeSeqIterator interface {
+	// Return whether iteration is complete.
+	Done() bool
+	// Advance to the next node.
+	Next()
+	// Return the current node.
+	N() *Node
+	// Return the address of the current node.
+	P() **Node
+}
+
+// nodeListIterator is a type that implements nodeSeqIterator using a
+// *NodeList.
+type nodeListIterator struct {
+	l *NodeList
+}
+
+func (nli *nodeListIterator) Done() bool {
+	return nli.l == nil
+}
+
+func (nli *nodeListIterator) Next() {
+	nli.l = nli.l.Next
+}
+
+func (nli *nodeListIterator) N() *Node {
+	return nli.l.N
+}
+
+func (nli *nodeListIterator) P() **Node {
+	return &nli.l.N
+}
+
+// nodesIterator implements nodeSeqIterator using a Nodes.
+type nodesIterator struct {
+	n Nodes
+	i int
+}
+
+func (ni *nodesIterator) Done() bool {
+	return ni.i >= len(ni.n.Slice())
+}
+
+func (ni *nodesIterator) Next() {
+	ni.i++
+}
+
+func (ni *nodesIterator) N() *Node {
+	return ni.n.Slice()[ni.i]
+}
+
+func (ni *nodesIterator) P() **Node {
+	return &ni.n.Slice()[ni.i]
+}
+
+// nodeSeqIterate returns an iterator over either a *Nodelist or a *Nodes.
+func nodeSeqIterate(ns interface{}) nodeSeqIterator {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return &nodeListIterator{ns}
+	case Nodes:
+		return &nodesIterator{ns, 0}
+	default:
+		panic("can't happen")
+	}
+}

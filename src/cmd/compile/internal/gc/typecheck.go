@@ -34,9 +34,9 @@ func resolve(n *Node) *Node {
 	return n
 }
 
-func typechecklist(l *NodeList, top int) {
-	for ; l != nil; l = l.Next {
-		typecheck(&l.N, top)
+func typechecklist(l interface{}, top int) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		typecheck(it.P(), top)
 	}
 }
 
@@ -2073,7 +2073,7 @@ OpSwitch:
 			}
 		}
 		typecheck(&n.Right, Etop)
-		typecheckslice(n.Nbody.Slice(), Etop)
+		typechecklist(n.Nbody, Etop)
 		decldepth--
 		break OpSwitch
 
@@ -2087,7 +2087,7 @@ OpSwitch:
 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, obj.FmtLong))
 			}
 		}
-		typecheckslice(n.Nbody.Slice(), Etop)
+		typechecklist(n.Nbody, Etop)
 		typechecklist(n.Rlist, Etop)
 		break OpSwitch
 
@@ -2137,7 +2137,7 @@ OpSwitch:
 	case OXCASE:
 		ok |= Etop
 		typechecklist(n.List, Erv)
-		typecheckslice(n.Nbody.Slice(), Etop)
+		typechecklist(n.Nbody, Etop)
 		break OpSwitch
 
 	case ODCLFUNC:
