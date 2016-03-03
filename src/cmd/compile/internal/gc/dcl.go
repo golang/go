@@ -388,6 +388,7 @@ func oldname(s *Sym) *Node {
 		n = newname(s)
 		n.Op = ONONAME
 		n.Name.Iota = iota_ // save current iota value in const declarations
+		return n
 	}
 
 	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
