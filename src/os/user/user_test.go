@@ -16,8 +16,6 @@ func checkUser(t *testing.T) {
 }
 
 func TestCurrent(t *testing.T) {
-	checkUser(t)
-
 	u, err := Current()
 	if err != nil {
 		t.Fatalf("Current: %v", err)
