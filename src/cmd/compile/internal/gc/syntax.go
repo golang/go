@@ -520,6 +520,9 @@ type nodeSeqIterator interface {
 	P() **Node
 	// Return the number of items remaining in the iteration.
 	Len() int
+	// Return the remaining items as a sequence.
+	// This will have the same type as that passed to nodeSeqIterate.
+	Seq() nodesOrNodeList
 }
 
 // nodeListIterator is a type that implements nodeSeqIterator using a
@@ -548,6 +551,10 @@ func (nli *nodeListIterator) Len() int {
 	return count(nli.l)
 }
 
+func (nli *nodeListIterator) Seq() nodesOrNodeList {
+	return nli.l
+}
+
 // nodesIterator implements nodeSeqIterator using a Nodes.
 type nodesIterator struct {
 	n Nodes
@@ -574,7 +581,13 @@ func (ni *nodesIterator) Len() int {
 	return len(ni.n.Slice())
 }
 
-// nodeSeqIterate returns an iterator over either a *Nodelist or a *Nodes.
+func (ni *nodesIterator) Seq() nodesOrNodeList {
+	var r Nodes
+	r.Set(ni.n.Slice()[ni.i:])
+	return r
+}
+
+// nodeSeqIterate returns an iterator over either a *NodeList or a Nodes.
 func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 	switch ns := ns.(type) {
 	case *NodeList:
@@ -586,12 +599,64 @@ func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 	}
 }
 
+// nodeSeqLen returns the length of either a *NodeList or a Nodes.
+func nodeSeqLen(ns nodesOrNodeList) int {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return count(ns)
+	case Nodes:
+		return len(ns.Slice())
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqFirst returns the first element of either a *NodeList or a Nodes.
+// It panics if the sequence is empty.
+func nodeSeqFirst(ns nodesOrNodeList) *Node {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return ns.N
+	case Nodes:
+		return ns.Slice()[0]
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqSecond returns the second element of either a *NodeList or a Nodes.
+// It panics if the sequence has fewer than two elements.
+func nodeSeqSecond(ns nodesOrNodeList) *Node {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return ns.Next.N
+	case Nodes:
+		return ns.Slice()[1]
+	default:
+		panic("can't happen")
+	}
+}
+
 // setNodeSeq implements *a = b.
 // a must have type **NodeList, *Nodes, or *[]*Node.
-// b must have type *NodeList, Nodes, or []*Node.
+// b must have type *NodeList, Nodes, []*Node, or nil.
 // This is an interim function during the transition from NodeList to Nodes.
 // TODO(iant): Remove when transition is complete.
 func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+	if b == nil {
+		switch a := a.(type) {
+		case **NodeList:
+			*a = nil
+		case *Nodes:
+			a.Set(nil)
+		case *[]*Node:
+			*a = nil
+		default:
+			panic("can't happen")
+		}
+		return
+	}
+
 	// Simplify b to either *Nodelist or []*Node.
 	if n, ok := b.(Nodes); ok {
 		b = n.Slice()
