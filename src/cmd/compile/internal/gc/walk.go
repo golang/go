@@ -3763,6 +3763,11 @@ func usefield(n *Node) {
 	case ODOT, ODOTPTR:
 		break
 	}
+	if n.Right == nil {
+		// No field name.  This DOTPTR was built by the compiler for access
+		// to runtime data structures.  Ignore.
+		return
+	}
 
 	t := n.Left.Type
 	if Isptr[t.Etype] {
