@@ -505,6 +505,24 @@ func TestServeFileFromCWD(t *testing.T) {
 	}
 }
 
+// Issue 13996
+func TestServeDirWithoutTrailingSlash(t *testing.T) {
+	e := "/testdata/"
+	defer afterTest(t)
+	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+		ServeFile(w, r, ".")
+	}))
+	defer ts.Close()
+	r, err := Get(ts.URL + "/testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Body.Close()
+	if g := r.Request.URL.Path; g != e {
+		t.Errorf("got %s, want %s", g, e)
+	}
+}
+
 // Tests that ServeFile doesn't add a Content-Length if a Content-Encoding is
 // specified.
 func TestServeFileWithContentEncoding_h1(t *testing.T) { testServeFileWithContentEncoding(t, h1Mode) }
