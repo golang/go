@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"go/build"
 	"go/parser"
 	"go/token"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/go/buildutil"
 )
 
 // parseOctothorpDecimal returns the numeric value if s matches "#%d",
@@ -106,14 +108,17 @@ func sameFile(x, y string) bool {
 
 // fastQueryPos parses the position string and returns a queryPos.
 // It parses only a single file and does not run the type checker.
-func fastQueryPos(pos string) (*queryPos, error) {
+func fastQueryPos(ctxt *build.Context, pos string) (*queryPos, error) {
 	filename, startOffset, endOffset, err := parsePos(pos)
 	if err != nil {
 		return nil, err
 	}
 
+	// Parse the file, opening it the file via the build.Context
+	// so that we observe the effects of the -modified flag.
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filename, nil, 0)
+	cwd, _ := os.Getwd()
+	f, err := buildutil.ParseFile(fset, ctxt, nil, cwd, filename, parser.Mode(0))
 	// ParseFile usually returns a partial file along with an error.
 	// Only fail if there is no file.
 	if f == nil {

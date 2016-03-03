@@ -25,7 +25,7 @@ import (
 // the selected location.
 //
 func what(q *Query) error {
-	qpos, err := fastQueryPos(q.Pos)
+	qpos, err := fastQueryPos(q.Build, q.Pos)
 	if err != nil {
 		return err
 	}

@@ -20,7 +20,7 @@ func definition(q *Query) error {
 	// (Extending this approach to all the files of the package,
 	// resolved using ast.NewPackage, was not worth the effort.)
 	{
-		qpos, err := fastQueryPos(q.Pos)
+		qpos, err := fastQueryPos(q.Build, q.Pos)
 		if err != nil {
 			return err
 		}

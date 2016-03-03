@@ -179,7 +179,7 @@ func setupPTA(prog *ssa.Program, lprog *loader.Program, ptaLog io.Writer, reflec
 // query position and tells conf to import it.
 // It returns the package's path.
 func importQueryPackage(pos string, conf *loader.Config) (string, error) {
-	fqpos, err := fastQueryPos(pos)
+	fqpos, err := fastQueryPos(conf.Build, pos)
 	if err != nil {
 		return "", err // bad query
 	}
