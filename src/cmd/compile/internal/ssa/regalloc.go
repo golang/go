@@ -1161,7 +1161,8 @@ type edgeState struct {
 	p, b *Block // edge goes from p->b.
 
 	// for each pre-regalloc value, a list of equivalent cached values
-	cache map[ID][]*Value
+	cache      map[ID][]*Value
+	cachedVals []ID // (superset of) keys of the above map, for deterministic iteration
 
 	// map from location to the value it contains
 	contents map[Location]contentRecord
@@ -1194,9 +1195,10 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	}
 
 	// Clear state.
-	for k := range e.cache {
-		delete(e.cache, k)
+	for _, vid := range e.cachedVals {
+		delete(e.cache, vid)
 	}
+	e.cachedVals = e.cachedVals[:0]
 	for k := range e.contents {
 		delete(e.contents, k)
 	}
@@ -1234,7 +1236,8 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	e.destinations = dsts
 
 	if regDebug {
-		for vid, a := range e.cache {
+		for _, vid := range e.cachedVals {
+			a := e.cache[vid]
 			for _, c := range a {
 				fmt.Printf("src %s: v%d cache=%s\n", e.s.f.getHome(c.ID).Name(), vid, c)
 			}
@@ -1423,6 +1426,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool) {
 	e.erase(loc)
 	e.contents[loc] = contentRecord{vid, c, final}
 	a := e.cache[vid]
+	if len(a) == 0 {
+		e.cachedVals = append(e.cachedVals, vid)
+	}
 	a = append(a, c)
 	e.cache[vid] = a
 	if r, ok := loc.(*Register); ok {
@@ -1522,7 +1528,8 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	// TODO: reuse these slots.
 
 	// Pick a register to spill.
-	for vid, a := range e.cache {
+	for _, vid := range e.cachedVals {
+		a := e.cache[vid]
 		for _, c := range a {
 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.Num)&1 != 0 {
 				x := e.p.NewValue1(c.Line, OpStoreReg, c.Type, c)
@@ -1539,7 +1546,8 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	}
 
 	fmt.Printf("m:%d unique:%d final:%d\n", m, e.uniqueRegs, e.finalRegs)
-	for vid, a := range e.cache {
+	for _, vid := range e.cachedVals {
+		a := e.cache[vid]
 		for _, c := range a {
 			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID).Name())
 		}
