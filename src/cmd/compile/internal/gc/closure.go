@@ -219,7 +219,7 @@ func makeclosure(func_ *Node) *Node {
 func capturevars(xfunc *Node) {
 	var outer *Node
 
-	lno := int(lineno)
+	lno := lineno
 	lineno = xfunc.Lineno
 
 	func_ := xfunc.Func.Closure
@@ -268,13 +268,13 @@ func capturevars(xfunc *Node) {
 		func_.Func.Enter.Append(outer)
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // transformclosure is called in a separate phase after escape analysis.
 // It transform closure bodies to properly reference captured variables.
 func transformclosure(xfunc *Node) {
-	lno := int(lineno)
+	lno := lineno
 	lineno = xfunc.Lineno
 	func_ := xfunc.Func.Closure
 
@@ -401,7 +401,7 @@ func transformclosure(xfunc *Node) {
 		}
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 func walkclosure(func_ *Node, init **NodeList) *Node {

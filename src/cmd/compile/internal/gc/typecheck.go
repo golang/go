@@ -122,7 +122,7 @@ func typecheck(np **Node, top int) *Node {
 		return nil
 	}
 
-	lno := int(setlineno(n))
+	lno := setlineno(n)
 
 	// Skip over parens.
 	for n.Op == OPAREN {
@@ -142,7 +142,7 @@ func typecheck(np **Node, top int) *Node {
 			break
 
 		default:
-			lineno = int32(lno)
+			lineno = lno
 			return n
 		}
 	}
@@ -176,7 +176,7 @@ func typecheck(np **Node, top int) *Node {
 			Yyerror("typechecking loop involving %v%s", n, fmt_)
 		}
 
-		lineno = int32(lno)
+		lineno = lno
 		return n
 	}
 
@@ -192,7 +192,7 @@ func typecheck(np **Node, top int) *Node {
 	typecheck_tcstack[last] = nil
 	typecheck_tcstack = typecheck_tcstack[:last]
 
-	lineno = int32(lno)
+	lineno = lno
 	return n
 }
 
@@ -2612,7 +2612,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
 	var n1 int
 	var n2 int
 
-	lno := int(lineno)
+	lno := lineno
 
 	if tstruct.Broke {
 		goto out
@@ -2749,7 +2749,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
 	}
 
 out:
-	lineno = int32(lno)
+	lineno = lno
 	return
 
 notenough:
@@ -3552,7 +3552,7 @@ func copytype(n *Node, t *Type) {
 	}
 
 	// Double-check use of type as embedded type.
-	lno := int(lineno)
+	lno := lineno
 
 	if embedlineno != 0 {
 		lineno = int32(embedlineno)
@@ -3561,7 +3561,7 @@ func copytype(n *Node, t *Type) {
 		}
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 
 	// Queue check for map until all the types are done settling.
 	if maplineno != 0 {
@@ -3572,7 +3572,7 @@ func copytype(n *Node, t *Type) {
 
 func typecheckdeftype(n *Node) {
 	ntypecheckdeftype++
-	lno := int(lineno)
+	lno := lineno
 	setlineno(n)
 	n.Type.Sym = n.Sym
 	n.Typecheck = 1
@@ -3596,7 +3596,7 @@ func typecheckdeftype(n *Node) {
 	copytype(n, t)
 
 ret:
-	lineno = int32(lno)
+	lineno = lno
 
 	// if there are no type definitions going on, it's safe to
 	// try to resolve the method types for the interfaces
@@ -3619,7 +3619,7 @@ ret:
 			maptype(l.N.Type, Types[TBOOL])
 		}
 
-		lineno = int32(lno)
+		lineno = lno
 	}
 
 	ntypecheckdeftype--
@@ -3635,7 +3635,7 @@ func queuemethod(n *Node) {
 }
 
 func typecheckdef(n *Node) *Node {
-	lno := int(lineno)
+	lno := lineno
 	setlineno(n)
 
 	if n.Op == ONONAME {
@@ -3806,7 +3806,7 @@ ret:
 	typecheckdefstack[last] = nil
 	typecheckdefstack = typecheckdefstack[:last]
 
-	lineno = int32(lno)
+	lineno = lno
 	n.Walkdef = 1
 	return n
 }

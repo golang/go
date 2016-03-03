@@ -58,7 +58,7 @@ type caseClause struct {
 
 // typecheckswitch typechecks a switch statement.
 func typecheckswitch(n *Node) {
-	lno := int(lineno)
+	lno := lineno
 	typechecklist(n.Ninit, Etop)
 
 	var nilonly string
@@ -184,7 +184,7 @@ func typecheckswitch(n *Node) {
 		typecheckslice(ncase.Nbody.Slice(), Etop)
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // walkswitch walks a switch statement.
@@ -290,7 +290,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 		var cas *NodeList
 		for _, c := range cc {
 			n := c.node
-			lno := int(setlineno(n))
+			lno := setlineno(n)
 
 			a := Nod(OIF, nil, nil)
 			if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
@@ -306,7 +306,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 			a.Nbody.Set([]*Node{n.Right}) // goto l
 
 			cas = list(cas, a)
-			lineno = int32(lno)
+			lineno = lno
 		}
 		return liststmt(cas)
 	}

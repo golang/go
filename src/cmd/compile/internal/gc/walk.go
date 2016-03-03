@@ -25,7 +25,7 @@ func walk(fn *Node) {
 		dumpslice(s, Curfn.Nbody.Slice())
 	}
 
-	lno := int(lineno)
+	lno := lineno
 
 	// Final typecheck for any unused variables.
 	// It's hard to be on the heap when not-used, but best to be consistent about &~PHEAP here and below.
@@ -60,7 +60,7 @@ func walk(fn *Node) {
 		}
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 	if nerrors != 0 {
 		return
 	}
