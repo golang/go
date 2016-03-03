@@ -64,6 +64,7 @@ package arm64
 const (
 	thechar   = '7'
 	MaxAlign  = 32 // max data alignment
+	MinAlign  = 1  // min data alignment
 	FuncAlign = 8
 	MINLC     = 4
 )

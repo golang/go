@@ -65,6 +65,7 @@ package arm
 const (
 	thechar   = '5'
 	MaxAlign  = 8 // max data alignment
+	MinAlign  = 1 // min data alignment
 	FuncAlign = 4 // single-instruction alignment
 	MINLC     = 4
 )
