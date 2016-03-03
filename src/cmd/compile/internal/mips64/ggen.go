@@ -203,8 +203,8 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		nl, nr = nr, nl
 	}
 
-	t := (*gc.Type)(nl.Type)
-	w := int(int(t.Width * 8))
+	t := nl.Type
+	w := int(t.Width * 8)
 	var n1 gc.Node
 	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
@@ -217,7 +217,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		var lo gc.Node
 		gc.Nodreg(&lo, gc.Types[gc.TUINT64], mips.REG_LO)
 		gins(mips.AMOVV, &lo, &n1)
-		p := (*obj.Prog)(gins(mips.ASRAV, nil, &n1))
+		p := gins(mips.ASRAV, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(w)
 
@@ -228,7 +228,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		var lo gc.Node
 		gc.Nodreg(&lo, gc.Types[gc.TUINT64], mips.REG_LO)
 		gins(mips.AMOVV, &lo, &n1)
-		p := (*obj.Prog)(gins(mips.ASRLV, nil, &n1))
+		p := gins(mips.ASRLV, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(w)
 
@@ -258,7 +258,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl >> nr
  */
 func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	a := int(optoas(op, nl.Type))
+	a := optoas(op, nl.Type)
 
 	if nr.Op == gc.OLITERAL {
 		var n1 gc.Node
@@ -355,15 +355,15 @@ func clearfat(nl *gc.Node) {
 		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
 	}
 
-	w := uint64(uint64(nl.Type.Width))
+	w := uint64(nl.Type.Width)
 
 	// Avoid taking the address for simple enough types.
 	if gc.Componentgen(nil, nl) {
 		return
 	}
 
-	c := uint64(w % 8) // bytes
-	q := uint64(w / 8) // dwords
+	c := w % 8 // bytes
+	q := w / 8 // dwords
 
 	if gc.Reginuse(mips.REGRT1) {
 		gc.Fatalf("%v in use during clearfat", obj.Rconv(mips.REGRT1))
@@ -391,7 +391,7 @@ func clearfat(nl *gc.Node) {
 		p = gins(mips.AMOVV, &r0, &dst)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = 8
-		pl := (*obj.Prog)(p)
+		pl := p
 
 		p = gins(mips.AADDV, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
@@ -410,7 +410,7 @@ func clearfat(nl *gc.Node) {
 		p := gins(mips.ASUBV, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
-		f := (*gc.Node)(gc.Sysfunc("duffzero"))
+		f := gc.Sysfunc("duffzero")
 		p = gins(obj.ADUFFZERO, nil, f)
 		gc.Afunclit(&p.To, f)
 
@@ -445,7 +445,7 @@ func clearfat(nl *gc.Node) {
 func expandchecks(firstp *obj.Prog) {
 	var p1 *obj.Prog
 
-	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
 			fmt.Printf("expandchecks: %v\n", p)
 		}

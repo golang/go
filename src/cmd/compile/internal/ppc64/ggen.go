@@ -251,8 +251,8 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		nl, nr = nr, nl
 	}
 
-	t := (*gc.Type)(nl.Type)
-	w := int(int(t.Width * 8))
+	t := nl.Type
+	w := int(t.Width * 8)
 	var n1 gc.Node
 	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
@@ -262,7 +262,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.TINT16,
 		gc.TINT32:
 		gins(optoas(gc.OMUL, t), &n2, &n1)
-		p := (*obj.Prog)(gins(ppc64.ASRAD, nil, &n1))
+		p := gins(ppc64.ASRAD, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(w)
 
@@ -270,7 +270,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gc.TUINT16,
 		gc.TUINT32:
 		gins(optoas(gc.OMUL, t), &n2, &n1)
-		p := (*obj.Prog)(gins(ppc64.ASRD, nil, &n1))
+		p := gins(ppc64.ASRD, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = int64(w)
 
@@ -297,7 +297,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
  *	res = nl >> nr
  */
 func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
-	a := int(optoas(op, nl.Type))
+	a := optoas(op, nl.Type)
 
 	if nr.Op == gc.OLITERAL {
 		var n1 gc.Node
@@ -366,7 +366,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 	if !bounded {
 		gc.Nodconst(&n3, tcount, nl.Type.Width*8)
 		gins(optoas(gc.OCMP, tcount), &n1, &n3)
-		p1 := (*obj.Prog)(gc.Gbranch(optoas(gc.OLT, tcount), nil, +1))
+		p1 := gc.Gbranch(optoas(gc.OLT, tcount), nil, +1)
 		if op == gc.ORSH && gc.Issigned[nl.Type.Etype] {
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
 			gins(a, &n3, &n2)
@@ -392,15 +392,15 @@ func clearfat(nl *gc.Node) {
 		fmt.Printf("clearfat %v (%v, size: %d)\n", nl, nl.Type, nl.Type.Width)
 	}
 
-	w := uint64(uint64(nl.Type.Width))
+	w := uint64(nl.Type.Width)
 
 	// Avoid taking the address for simple enough types.
 	if gc.Componentgen(nil, nl) {
 		return
 	}
 
-	c := uint64(w % 8) // bytes
-	q := uint64(w / 8) // dwords
+	c := w % 8 // bytes
+	q := w / 8 // dwords
 
 	if gc.Reginuse(ppc64.REGRT1) {
 		gc.Fatalf("%v in use during clearfat", obj.Rconv(ppc64.REGRT1))
@@ -428,7 +428,7 @@ func clearfat(nl *gc.Node) {
 		p = gins(ppc64.AMOVDU, &r0, &dst)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Offset = 8
-		pl := (*obj.Prog)(p)
+		pl := p
 
 		p = gins(ppc64.ACMP, &dst, &end)
 		gc.Patch(gc.Gbranch(ppc64.ABNE, nil, 0), pl)
@@ -441,7 +441,7 @@ func clearfat(nl *gc.Node) {
 		p := gins(ppc64.ASUB, nil, &dst)
 		p.From.Type = obj.TYPE_CONST
 		p.From.Offset = 8
-		f := (*gc.Node)(gc.Sysfunc("duffzero"))
+		f := gc.Sysfunc("duffzero")
 		p = gins(obj.ADUFFZERO, nil, f)
 		gc.Afunclit(&p.To, f)
 
@@ -477,7 +477,7 @@ func expandchecks(firstp *obj.Prog) {
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 
-	for p := (*obj.Prog)(firstp); p != nil; p = p.Link {
+	for p := firstp; p != nil; p = p.Link {
 		if gc.Debug_checknil != 0 && gc.Ctxt.Debugvlog != 0 {
 			fmt.Printf("expandchecks: %v\n", p)
 		}

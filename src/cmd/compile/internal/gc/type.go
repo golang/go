@@ -380,7 +380,7 @@ func (t *Type) NumElem() int64 {
 	if t.Etype != TARRAY {
 		panic("NumElem on non-TARRAY")
 	}
-	return int64(t.Bound)
+	return t.Bound
 }
 
 func (t *Type) IsMemory() bool { return false }
