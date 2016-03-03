@@ -197,6 +197,7 @@ func Ldmain() {
 	checkstrdata()
 	deadcode()
 	callgraph()
+	mergestrings()
 
 	doelf()
 	if HEADTYPE == obj.Hdarwin {
