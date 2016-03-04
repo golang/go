@@ -341,14 +341,8 @@ func dowidth(t *Type) {
 // dowidth should only be called when the type's size
 // is needed immediately.  checkwidth makes sure the
 // size is evaluated eventually.
-type TypeList struct {
-	t    *Type
-	next *TypeList
-}
 
-var tlfree *TypeList
-
-var tlq *TypeList
+var deferredTypeStack []*Type
 
 func checkwidth(t *Type) {
 	if t == nil {
@@ -371,16 +365,7 @@ func checkwidth(t *Type) {
 	}
 	t.Deferwidth = true
 
-	l := tlfree
-	if l != nil {
-		tlfree = l.next
-	} else {
-		l = new(TypeList)
-	}
-
-	l.t = t
-	l.next = tlq
-	tlq = l
+	deferredTypeStack = append(deferredTypeStack, t)
 }
 
 func defercheckwidth() {
@@ -395,12 +380,11 @@ func resumecheckwidth() {
 	if defercalc == 0 {
 		Fatalf("resumecheckwidth")
 	}
-	for l := tlq; l != nil; l = tlq {
-		l.t.Deferwidth = false
-		tlq = l.next
-		dowidth(l.t)
-		l.next = tlfree
-		tlfree = l
+	for len(deferredTypeStack) > 0 {
+		t := deferredTypeStack[len(deferredTypeStack)-1]
+		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+		t.Deferwidth = false
+		dowidth(t)
 	}
 
 	defercalc = 0
