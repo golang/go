@@ -1708,7 +1708,7 @@ func rewriteValuegeneric_OpEq16(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst16 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -1788,7 +1788,7 @@ func rewriteValuegeneric_OpEq32(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst32 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -1868,7 +1868,7 @@ func rewriteValuegeneric_OpEq64(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst64 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -1995,7 +1995,7 @@ func rewriteValuegeneric_OpEq8(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst8 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -4057,13 +4057,13 @@ func rewriteValuegeneric_OpMul32(v *Value, config *Config) bool {
 		if v.Args[1].Op != OpAdd32 {
 			break
 		}
-		if v.Args[1].Type != v.Args[0].Type {
+		if v.Args[1].Type != t {
 			break
 		}
 		if v.Args[1].Args[0].Op != OpConst32 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -4147,13 +4147,13 @@ func rewriteValuegeneric_OpMul64(v *Value, config *Config) bool {
 		if v.Args[1].Op != OpAdd64 {
 			break
 		}
-		if v.Args[1].Type != v.Args[0].Type {
+		if v.Args[1].Type != t {
 			break
 		}
 		if v.Args[1].Args[0].Op != OpConst64 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -4395,7 +4395,7 @@ func rewriteValuegeneric_OpNeq16(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst16 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -4475,7 +4475,7 @@ func rewriteValuegeneric_OpNeq32(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst32 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -4555,7 +4555,7 @@ func rewriteValuegeneric_OpNeq64(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst64 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -4682,7 +4682,7 @@ func rewriteValuegeneric_OpNeq8(v *Value, config *Config) bool {
 		if v.Args[1].Args[0].Op != OpConst8 {
 			break
 		}
-		if v.Args[1].Args[0].Type != v.Args[0].Type {
+		if v.Args[1].Args[0].Type != t {
 			break
 		}
 		d := v.Args[1].Args[0].AuxInt
@@ -5173,7 +5173,7 @@ func rewriteValuegeneric_OpPhi(v *Value, config *Config) bool {
 		if v.Args[1].Op != OpConst64 {
 			break
 		}
-		if v.Args[1].AuxInt != v.Args[0].AuxInt {
+		if v.Args[1].AuxInt != c {
 			break
 		}
 		if len(v.Args) != 2 {

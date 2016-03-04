@@ -352,9 +352,9 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 				fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
 			} else {
 				// variable
-				if u, ok := m[t]; ok {
+				if _, ok := m[t]; ok {
 					// must match previous variable
-					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, u)
+					fmt.Fprintf(w, "if %s.Type != %s {\nbreak\n}\n", v, t)
 				} else {
 					m[t] = v + ".Type"
 					fmt.Fprintf(w, "%s := %s.Type\n", t, v)
@@ -368,8 +368,8 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 				fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
 			} else {
 				// variable
-				if y, ok := m[x]; ok {
-					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, y)
+				if _, ok := m[x]; ok {
+					fmt.Fprintf(w, "if %s.AuxInt != %s {\nbreak\n}\n", v, x)
 				} else {
 					m[x] = v + ".AuxInt"
 					fmt.Fprintf(w, "%s := %s.AuxInt\n", x, v)
@@ -383,8 +383,8 @@ func genMatch0(w io.Writer, arch arch, match, v string, m map[string]string, top
 				fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
 			} else {
 				// variable
-				if y, ok := m[x]; ok {
-					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, y)
+				if _, ok := m[x]; ok {
+					fmt.Fprintf(w, "if %s.Aux != %s {\nbreak\n}\n", v, x)
 				} else {
 					m[x] = v + ".Aux"
 					fmt.Fprintf(w, "%s := %s.Aux\n", x, v)
