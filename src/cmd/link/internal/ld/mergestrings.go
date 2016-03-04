@@ -52,15 +52,21 @@ func mergestrings() {
 	alldata := Linklookup(Ctxt, "go.string.alldata", 0)
 	alldata.Type = obj.SGOSTRING
 	alldata.Attr |= AttrReachable
-	alldata.Size = int64(size)
 	alldata.P = make([]byte, 0, size)
 	for _, str := range strs {
 		off := len(alldata.P)
 		alldata.P = append(alldata.P, str.P...)
+		// Architectures with Minalign > 1 cannot have relocations pointing
+		// to arbitrary locations, so make sure each string is appropriately
+		// aligned.
+		for r := len(alldata.P) % Thearch.Minalign; r > 0; r-- {
+			alldata.P = append(alldata.P, 0)
+		}
 		str.Attr.Set(AttrReachable, false)
 		for _, r := range relocsToStrs[str] {
 			r.Add += int64(off)
 			r.Sym = alldata
 		}
 	}
+	alldata.Size = int64(len(alldata.P))
 }
