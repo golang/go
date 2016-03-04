@@ -17,6 +17,8 @@ import (
 	"cmd/internal/obj/x86"
 )
 
+var ssaEnabled = true
+
 // Smallest possible faulting page at address zero.
 const minZeroPage = 4096
 
@@ -34,6 +36,9 @@ func initssa() *ssa.Config {
 
 func shouldssa(fn *Node) bool {
 	if Thearch.Thestring != "amd64" {
+		return false
+	}
+	if !ssaEnabled {
 		return false
 	}
 

@@ -231,6 +231,7 @@ func Main() {
 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
 	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
 	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
+	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
 	obj.Flagparse(usage)
 
 	if flag_dynlink {
