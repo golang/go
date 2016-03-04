@@ -843,6 +843,32 @@ func TestFloatFloat32(t *testing.T) {
 		{"1p-149", math.SmallestNonzeroFloat32, Exact},
 		{"0x.fffffep-126", math.Float32frombits(0x7fffff), Exact}, // largest denormal
 
+		// special cases (see issue 14553)
+		{"0x0.bp-149", math.Float32frombits(0x000000000), Below}, // ToNearestEven rounds down (to even)
+		{"0x0.cp-149", math.Float32frombits(0x000000001), Above},
+
+		{"0x1.0p-149", math.Float32frombits(0x000000001), Exact},
+		{"0x1.7p-149", math.Float32frombits(0x000000001), Below},
+		{"0x1.8p-149", math.Float32frombits(0x000000002), Above},
+		{"0x1.9p-149", math.Float32frombits(0x000000002), Above},
+
+		{"0x2.0p-149", math.Float32frombits(0x000000002), Exact},
+		{"0x2.8p-149", math.Float32frombits(0x000000002), Below}, // ToNearestEven rounds down (to even)
+		{"0x2.9p-149", math.Float32frombits(0x000000003), Above},
+
+		{"0x3.0p-149", math.Float32frombits(0x000000003), Exact},
+		{"0x3.7p-149", math.Float32frombits(0x000000003), Below},
+		{"0x3.8p-149", math.Float32frombits(0x000000004), Above}, // ToNearestEven rounds up (to even)
+
+		{"0x4.0p-149", math.Float32frombits(0x000000004), Exact},
+		{"0x4.8p-149", math.Float32frombits(0x000000004), Below}, // ToNearestEven rounds down (to even)
+		{"0x4.9p-149", math.Float32frombits(0x000000005), Above},
+
+		// specific case from issue 14553
+		{"0x7.7p-149", math.Float32frombits(0x000000007), Below},
+		{"0x7.8p-149", math.Float32frombits(0x000000008), Above},
+		{"0x7.9p-149", math.Float32frombits(0x000000008), Above},
+
 		// normals
 		{"0x.ffffffp-126", math.Float32frombits(0x00800000), Above}, // rounded up to smallest normal
 		{"1p-126", math.Float32frombits(0x00800000), Exact},         // smallest normal
@@ -914,6 +940,27 @@ func TestFloatFloat64(t *testing.T) {
 		{"0x.8p-1073", math.SmallestNonzeroFloat64, Exact},
 		{"1p-1074", math.SmallestNonzeroFloat64, Exact},
 		{"0x.fffffffffffffp-1022", math.Float64frombits(0x000fffffffffffff), Exact}, // largest denormal
+
+		// special cases (see issue 14553)
+		{"0x0.bp-1074", math.Float64frombits(0x00000000000000000), Below}, // ToNearestEven rounds down (to even)
+		{"0x0.cp-1074", math.Float64frombits(0x00000000000000001), Above},
+
+		{"0x1.0p-1074", math.Float64frombits(0x00000000000000001), Exact},
+		{"0x1.7p-1074", math.Float64frombits(0x00000000000000001), Below},
+		{"0x1.8p-1074", math.Float64frombits(0x00000000000000002), Above},
+		{"0x1.9p-1074", math.Float64frombits(0x00000000000000002), Above},
+
+		{"0x2.0p-1074", math.Float64frombits(0x00000000000000002), Exact},
+		{"0x2.8p-1074", math.Float64frombits(0x00000000000000002), Below}, // ToNearestEven rounds down (to even)
+		{"0x2.9p-1074", math.Float64frombits(0x00000000000000003), Above},
+
+		{"0x3.0p-1074", math.Float64frombits(0x00000000000000003), Exact},
+		{"0x3.7p-1074", math.Float64frombits(0x00000000000000003), Below},
+		{"0x3.8p-1074", math.Float64frombits(0x00000000000000004), Above}, // ToNearestEven rounds up (to even)
+
+		{"0x4.0p-1074", math.Float64frombits(0x00000000000000004), Exact},
+		{"0x4.8p-1074", math.Float64frombits(0x00000000000000004), Below}, // ToNearestEven rounds down (to even)
+		{"0x4.9p-1074", math.Float64frombits(0x00000000000000005), Above},
 
 		// normals
 		{"0x.fffffffffffff8p-1022", math.Float64frombits(0x0010000000000000), Above}, // rounded up to smallest normal
