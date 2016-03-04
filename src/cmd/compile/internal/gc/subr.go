@@ -705,32 +705,22 @@ func eqnote(a, b *string) bool {
 	return a == b || a != nil && b != nil && *a == *b
 }
 
-type TypePairList struct {
-	t1   *Type
-	t2   *Type
-	next *TypePairList
-}
-
-func onlist(l *TypePairList, t1 *Type, t2 *Type) bool {
-	for ; l != nil; l = l.next {
-		if (l.t1 == t1 && l.t2 == t2) || (l.t1 == t2 && l.t2 == t1) {
-			return true
-		}
-	}
-	return false
-}
-
-// Return 1 if t1 and t2 are identical, following the spec rules.
+// Eqtype reports whether t1 and t2 are identical, following the spec rules.
 //
 // Any cyclic type must go through a named type, and if one is
 // named, it is only identical to the other if they are the same
 // pointer (t1 == t2), so there's no chance of chasing cycles
 // ad infinitum, so no need for a depth counter.
-func Eqtype(t1 *Type, t2 *Type) bool {
+func Eqtype(t1, t2 *Type) bool {
 	return eqtype1(t1, t2, nil)
 }
 
-func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+type typePair struct {
+	t1 *Type
+	t2 *Type
+}
+
+func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 	if t1 == t2 {
 		return true
 	}
@@ -738,30 +728,24 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		return false
 	}
 	if t1.Sym != nil || t2.Sym != nil {
-		// Special case: we keep byte and uint8 separate
-		// for error messages. Treat them as equal.
+		// Special case: we keep byte/uint8 and rune/int32
+		// separate for error messages. Treat them as equal.
 		switch t1.Etype {
 		case TUINT8:
-			if (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype) {
-				return true
-			}
-
-		case TINT, TINT32:
-			if (t1 == Types[runetype.Etype] || t1 == runetype) && (t2 == Types[runetype.Etype] || t2 == runetype) {
-				return true
-			}
+			return (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype)
+		case TINT32:
+			return (t1 == Types[TINT32] || t1 == runetype) && (t2 == Types[TINT32] || t2 == runetype)
+		default:
+			return false
 		}
-
-		return false
 	}
 
-	if onlist(assumed_equal, t1, t2) {
+	if assumedEqual == nil {
+		assumedEqual = make(map[typePair]struct{})
+	} else if _, ok := assumedEqual[typePair{t1, t2}]; ok {
 		return true
 	}
-	var l TypePairList
-	l.next = assumed_equal
-	l.t1 = t1
-	l.t2 = t2
+	assumedEqual[typePair{t1, t2}] = struct{}{}
 
 	switch t1.Etype {
 	case TINTER, TSTRUCT:
@@ -771,7 +755,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
 				Fatalf("struct/interface missing field: %v %v", t1, t2)
 			}
-			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
+			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || !eqnote(t1.Note, t2.Note) {
 				return false
 			}
 		}
@@ -797,7 +781,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
 					Fatalf("func struct missing field: %v %v", ta, tb)
 				}
-				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
+				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, assumedEqual) {
 					return false
 				}
 			}
@@ -823,10 +807,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		}
 	}
 
-	if eqtype1(t1.Down, t2.Down, &l) && eqtype1(t1.Type, t2.Type, &l) {
-		return true
-	}
-	return false
+	return eqtype1(t1.Down, t2.Down, assumedEqual) && eqtype1(t1.Type, t2.Type, assumedEqual)
 }
 
 // Are t1 and t2 equal struct types when field names are ignored?
