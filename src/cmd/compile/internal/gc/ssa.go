@@ -1869,7 +1869,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		s.nilCheck(p)
-		p = s.newValue2(ssa.OpAddPtr, p.Type, p, s.constInt(Types[TINT], n.Xoffset))
+		p = s.newValue1I(ssa.OpOffPtr, p.Type, n.Xoffset, p)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
 
 	case OINDEX:
@@ -1884,7 +1884,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			ptrtyp := Ptrto(Types[TUINT8])
 			ptr := s.newValue1(ssa.OpStringPtr, ptrtyp, a)
-			ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+			if Isconst(n.Right, CTINT) {
+				ptr = s.newValue1I(ssa.OpOffPtr, ptrtyp, n.Right.Int(), ptr)
+			} else {
+				ptr = s.newValue2(ssa.OpAddPtr, ptrtyp, ptr, i)
+			}
 			return s.newValue2(ssa.OpLoad, Types[TUINT8], ptr, s.mem())
 		case n.Left.Type.IsSlice():
 			p := s.addr(n, false)
@@ -2526,17 +2530,16 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 		return p
 	case ODOT:
 		p := s.addr(n.Left, bounded)
-		return s.newValue2(ssa.OpAddPtr, t, p, s.constInt(Types[TINT], n.Xoffset))
+		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case ODOTPTR:
 		p := s.expr(n.Left)
 		if !bounded {
 			s.nilCheck(p)
 		}
-		return s.newValue2(ssa.OpAddPtr, t, p, s.constInt(Types[TINT], n.Xoffset))
+		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case OCLOSUREVAR:
-		return s.newValue2(ssa.OpAddPtr, t,
-			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])),
-			s.constInt(Types[TINT], n.Xoffset))
+		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
+			s.entryNewValue0(ssa.OpGetClosurePtr, Ptrto(Types[TUINT8])))
 	case OPARAM:
 		p := n.Left
 		if p.Op != ONAME || !(p.Class == PPARAM|PHEAP || p.Class == PPARAMOUT|PHEAP) {
