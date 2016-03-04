@@ -735,6 +735,13 @@ var fmtTests = []struct {
 	{"%0-5s", "abc", "abc  "},
 	{"%-05.1f", 1.0, "1.0  "},
 
+	// float and complex formatting should not change the padding width
+	// for other elements. See issue 14642.
+	{"%06v", []interface{}{+10.0, 10}, "[000010 000010]"},
+	{"%06v", []interface{}{-10.0, 10}, "[-00010 000010]"},
+	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
+	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
+
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
@@ -1008,6 +1015,7 @@ func BenchmarkSprintfFloat(b *testing.B) {
 		}
 	})
 }
+
 func BenchmarkSprintfBoolean(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
