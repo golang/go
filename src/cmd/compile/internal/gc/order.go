@@ -249,16 +249,9 @@ func cleantemp(top ordermarker, order *Order) {
 }
 
 // Orderstmtlist orders each of the statements in the list.
-func orderstmtlist(l *NodeList, order *Order) {
-	for ; l != nil; l = l.Next {
-		orderstmt(l.N, order)
-	}
-}
-
-// Orderstmtslice orders each of the statements in the slice.
-func orderstmtslice(l []*Node, order *Order) {
-	for _, n := range l {
-		orderstmt(n, order)
+func orderstmtlist(l nodesOrNodeList, order *Order) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		orderstmt(it.N(), order)
 	}
 }
 
@@ -281,7 +274,7 @@ func orderblock(l **NodeList) {
 func orderblockNodes(n *Nodes) {
 	var order Order
 	mark := marktemp(&order)
-	orderstmtslice(n.Slice(), &order)
+	orderstmtlist(n.Slice(), &order)
 	cleantemp(mark, &order)
 	n.Set(order.out)
 }
@@ -309,13 +302,13 @@ func orderstmtinplace(np **Node) {
 	mark := marktemp(&order)
 	orderstmt(n, &order)
 	cleantemp(mark, &order)
-	*np = liststmtslice(order.out)
+	*np = liststmt(order.out)
 }
 
 // Orderinit moves n's init list to order->out.
 func orderinit(n *Node, order *Order) {
 	orderstmtlist(n.Ninit, order)
-	n.Ninit = nil
+	setNodeSeq(&n.Ninit, nil)
 }
 
 // Ismulticall reports whether the list l is f() for a multi-value function.
@@ -358,8 +351,8 @@ func copyret(n *Node, order *Order) *NodeList {
 	}
 
 	as := Nod(OAS2, nil, nil)
-	as.List = l1
-	as.Rlist = list1(n)
+	setNodeSeq(&as.List, l1)
+	setNodeSeq(&as.Rlist, list1(n))
 	typecheck(&as, Etop)
 	orderstmt(as, order)
 
@@ -384,14 +377,15 @@ func ordercall(n *Node, order *Order) {
 	ordercallargs(&n.List, order)
 
 	if n.Op == OCALLFUNC {
-		for l, t := n.List, getinargx(n.Left.Type).Type; l != nil && t != nil; l, t = l.Next, t.Down {
+		t := getinargx(n.Left.Type).Type
+		for it := nodeSeqIterate(n.List); !it.Done() && t != nil; it.Next() {
 			// Check for "unsafe-uintptr" tag provided by escape analysis.
 			// If present and the argument is really a pointer being converted
 			// to uintptr, arrange for the pointer to be kept alive until the call
 			// returns, by copying it into a temp and marking that temp
 			// still alive when we pop the temp stack.
 			if t.Note != nil && *t.Note == unsafeUintptrTag {
-				xp := &l.N
+				xp := it.P()
 				for (*xp).Op == OCONVNOP && !Isptr[(*xp).Type.Etype] {
 					xp = &(*xp).Left
 				}
@@ -402,6 +396,7 @@ func ordercall(n *Node, order *Order) {
 					*xp = x
 				}
 			}
+			t = t.Down
 		}
 	}
 }
@@ -450,23 +445,23 @@ func ordermapassign(n *Node, order *Order) {
 		var post []*Node
 		var m *Node
 		var a *Node
-		for l := n.List; l != nil; l = l.Next {
-			if l.N.Op == OINDEXMAP {
-				m = l.N
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			if it.N().Op == OINDEXMAP {
+				m = it.N()
 				if !istemp(m.Left) {
 					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, 0)
 				}
 				if !istemp(m.Right) {
 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
 				}
-				l.N = ordertemp(m.Type, order, false)
-				a = Nod(OAS, m, l.N)
+				*it.P() = ordertemp(m.Type, order, false)
+				a = Nod(OAS, m, it.N())
 				typecheck(&a, Etop)
 				post = append(post, a)
-			} else if instrumenting && n.Op == OAS2FUNC && !isblank(l.N) {
-				m = l.N
-				l.N = ordertemp(m.Type, order, false)
-				a = Nod(OAS, m, l.N)
+			} else if instrumenting && n.Op == OAS2FUNC && !isblank(it.N()) {
+				m = it.N()
+				*it.P() = ordertemp(m.Type, order, false)
+				a = Nod(OAS, m, it.N())
 				typecheck(&a, Etop)
 				post = append(post, a)
 			}
@@ -553,7 +548,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexprlist(n.List, order)
-		r := n.Rlist.N
+		r := nodeSeqFirst(n.Rlist)
 		orderexpr(&r.Left, order, nil)
 		orderexpr(&r.Right, order, nil)
 
@@ -570,7 +565,7 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexprlist(n.List, order)
-		ordercall(n.Rlist.N, order)
+		ordercall(nodeSeqFirst(n.Rlist), order)
 		ordermapassign(n, order)
 		cleantemp(t, order)
 
@@ -581,17 +576,17 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexprlist(n.List, order)
-		orderexpr(&n.Rlist.N.Left, order, nil) // i in i.(T)
-		if isblank(n.List.N) {
+		orderexpr(&nodeSeqFirst(n.Rlist).Left, order, nil) // i in i.(T)
+		if isblank(nodeSeqFirst(n.List)) {
 			order.out = append(order.out, n)
 		} else {
-			typ := n.Rlist.N.Type
+			typ := nodeSeqFirst(n.Rlist).Type
 			tmp1 := ordertemp(typ, order, haspointers(typ))
 			order.out = append(order.out, n)
-			r := Nod(OAS, n.List.N, tmp1)
+			r := Nod(OAS, nodeSeqFirst(n.List), tmp1)
 			typecheck(&r, Etop)
 			ordermapassign(r, order)
-			n.List = list(list1(tmp1), n.List.Next.N)
+			setNodeSeq(&n.List, []*Node{tmp1, nodeSeqSecond(n.List)})
 		}
 
 		cleantemp(t, order)
@@ -602,23 +597,23 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexprlist(n.List, order)
-		orderexpr(&n.Rlist.N.Left, order, nil) // arg to recv
-		ch := n.Rlist.N.Left.Type
+		orderexpr(&nodeSeqFirst(n.Rlist).Left, order, nil) // arg to recv
+		ch := nodeSeqFirst(n.Rlist).Left.Type
 		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
 		var tmp2 *Node
-		if !isblank(n.List.Next.N) {
-			tmp2 = ordertemp(n.List.Next.N.Type, order, false)
+		if !isblank(nodeSeqSecond(n.List)) {
+			tmp2 = ordertemp(nodeSeqSecond(n.List).Type, order, false)
 		} else {
 			tmp2 = ordertemp(Types[TBOOL], order, false)
 		}
 		order.out = append(order.out, n)
-		r := Nod(OAS, n.List.N, tmp1)
+		r := Nod(OAS, nodeSeqFirst(n.List), tmp1)
 		typecheck(&r, Etop)
 		ordermapassign(r, order)
-		r = Nod(OAS, n.List.Next.N, tmp2)
+		r = Nod(OAS, nodeSeqSecond(n.List), tmp2)
 		typecheck(&r, Etop)
 		ordermapassign(r, order)
-		n.List = list(list1(tmp1), tmp2)
+		setNodeSeq(&n.List, []*Node{tmp1, tmp2})
 		cleantemp(t, order)
 
 		// Special: does not save n onto out.
@@ -658,7 +653,9 @@ func orderstmt(n *Node, order *Order) {
 			orderexprlist(n.Left.List, order)
 
 			t1 := marktemp(order)
-			np := &n.Left.List.Next.N // map key
+			it := nodeSeqIterate(n.Left.List)
+			it.Next()
+			np := it.P() // map key
 			*np = ordercopyexpr(*np, (*np).Type, order, 0)
 			poptemp(t1, order)
 
@@ -671,9 +668,11 @@ func orderstmt(n *Node, order *Order) {
 
 	case ODELETE:
 		t := marktemp(order)
-		orderexpr(&n.List.N, order, nil)
-		orderexpr(&n.List.Next.N, order, nil)
-		orderaddrtemp(&n.List.Next.N, order) // map key
+		it := nodeSeqIterate(n.List)
+		orderexpr(it.P(), order, nil)
+		it.Next()
+		orderexpr(it.P(), order, nil)
+		orderaddrtemp(it.P(), order) // map key
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
@@ -702,11 +701,7 @@ func orderstmt(n *Node, order *Order) {
 		n.Nbody.Set(append(l, n.Nbody.Slice()...))
 		l = nil
 		cleantempnopop(t, order, &l)
-		var ll *NodeList
-		for _, n := range l {
-			ll = list(ll, n)
-		}
-		n.Rlist = concat(ll, n.Rlist)
+		setNodeSeq(&n.Rlist, append(l, nodeSeqSlice(n.Rlist)...))
 		poptemp(t, order)
 		orderblockNodes(&n.Nbody)
 		orderblock(&n.Rlist)
@@ -746,7 +741,7 @@ func orderstmt(n *Node, order *Order) {
 			if n.Right.Op == OSTRARRAYBYTE {
 				n.Right.Op = OSTRARRAYBYTETMP
 			}
-			if count(n.List) < 2 || isblank(n.List.Next.N) {
+			if nodeSeqLen(n.List) < 2 || isblank(nodeSeqSecond(n.List)) {
 				// for i := range x will only use x once, to compute len(x).
 				// No need to copy it.
 				break
@@ -779,8 +774,8 @@ func orderstmt(n *Node, order *Order) {
 			prealloc[n] = ordertemp(Types[TUINT8], order, true)
 		}
 
-		for l := n.List; l != nil; l = l.Next {
-			orderexprinplace(&l.N, order)
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			orderexprinplace(it.P(), order)
 		}
 		orderblockNodes(&n.Nbody)
 		order.out = append(order.out, n)
@@ -805,16 +800,16 @@ func orderstmt(n *Node, order *Order) {
 		var tmp1 *Node
 		var tmp2 *Node
 		var r *Node
-		for l := n.List; l != nil; l = l.Next {
-			if l.N.Op != OXCASE {
-				Fatalf("order select case %v", Oconv(int(l.N.Op), 0))
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			if it.N().Op != OXCASE {
+				Fatalf("order select case %v", Oconv(int(it.N().Op), 0))
 			}
-			r = l.N.Left
-			setlineno(l.N)
+			r = it.N().Left
+			setlineno(it.N())
 
 			// Append any new body prologue to ninit.
 			// The next loop will insert ninit into nbody.
-			if l.N.Ninit != nil {
+			if nodeSeqLen(it.N().Ninit) != 0 {
 				Fatalf("order select ninit")
 			}
 			if r != nil {
@@ -829,19 +824,19 @@ func orderstmt(n *Node, order *Order) {
 				// Delete the ODCL nodes here and recreate them inside the body below.
 				case OSELRECV, OSELRECV2:
 					if r.Colas {
-						init := r.Ninit
-						if init != nil && init.N.Op == ODCL && init.N.Left == r.Left {
-							init = init.Next
+						itinit := nodeSeqIterate(r.Ninit)
+						if itinit.Len() != 0 && itinit.N().Op == ODCL && itinit.N().Left == r.Left {
+							itinit.Next()
 						}
-						if init != nil && init.N.Op == ODCL && r.List != nil && init.N.Left == r.List.N {
-							init = init.Next
+						if itinit.Len() != 0 && itinit.N().Op == ODCL && nodeSeqLen(r.List) != 0 && itinit.N().Left == nodeSeqFirst(r.List) {
+							itinit.Next()
 						}
-						if init == nil {
-							r.Ninit = nil
+						if itinit.Done() {
+							setNodeSeq(&r.Ninit, nil)
 						}
 					}
 
-					if r.Ninit != nil {
+					if nodeSeqLen(r.Ninit) != 0 {
 						Yyerror("ninit on select recv")
 						dumplist("ninit", r.Ninit)
 					}
@@ -875,36 +870,36 @@ func orderstmt(n *Node, order *Order) {
 						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
-							l.N.Ninit = list(l.N.Ninit, tmp2)
+							appendNodeSeqNode(&it.N().Ninit, tmp2)
 						}
 
 						r.Left = ordertemp(r.Right.Left.Type.Type, order, haspointers(r.Right.Left.Type.Type))
 						tmp2 = Nod(OAS, tmp1, r.Left)
 						typecheck(&tmp2, Etop)
-						l.N.Ninit = list(l.N.Ninit, tmp2)
+						appendNodeSeqNode(&it.N().Ninit, tmp2)
 					}
 
-					if r.List != nil && isblank(r.List.N) {
-						r.List = nil
+					if nodeSeqLen(r.List) != 0 && isblank(nodeSeqFirst(r.List)) {
+						setNodeSeq(&r.List, nil)
 					}
-					if r.List != nil {
-						tmp1 = r.List.N
+					if nodeSeqLen(r.List) != 0 {
+						tmp1 = nodeSeqFirst(r.List)
 						if r.Colas {
 							tmp2 = Nod(ODCL, tmp1, nil)
 							typecheck(&tmp2, Etop)
-							l.N.Ninit = list(l.N.Ninit, tmp2)
+							appendNodeSeqNode(&it.N().Ninit, tmp2)
 						}
 
-						r.List = list1(ordertemp(tmp1.Type, order, false))
-						tmp2 = Nod(OAS, tmp1, r.List.N)
+						setNodeSeq(&r.List, list1(ordertemp(tmp1.Type, order, false)))
+						tmp2 = Nod(OAS, tmp1, nodeSeqFirst(r.List))
 						typecheck(&tmp2, Etop)
-						l.N.Ninit = list(l.N.Ninit, tmp2)
+						appendNodeSeqNode(&it.N().Ninit, tmp2)
 					}
 
-					orderblock(&l.N.Ninit)
+					orderblock(&it.N().Ninit)
 
 				case OSEND:
-					if r.Ninit != nil {
+					if nodeSeqLen(r.Ninit) != 0 {
 						Yyerror("ninit on select send")
 						dumplist("ninit", r.Ninit)
 					}
@@ -923,20 +918,17 @@ func orderstmt(n *Node, order *Order) {
 				}
 			}
 
-			orderblockNodes(&l.N.Nbody)
+			orderblockNodes(&it.N().Nbody)
 		}
 
 		// Now that we have accumulated all the temporaries, clean them.
 		// Also insert any ninit queued during the previous loop.
 		// (The temporary cleaning must follow that ninit work.)
-		for l := n.List; l != nil; l = l.Next {
-			s := make([]*Node, 0, count(l.N.Ninit))
-			for ll := l.N.Ninit; ll != nil; ll = ll.Next {
-				s = append(s, ll.N)
-			}
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			s := nodeSeqSlice(it.N().Ninit)
 			cleantempnopop(t, order, &s)
-			l.N.Nbody.Set(append(s, l.N.Nbody.Slice()...))
-			l.N.Ninit = nil
+			it.N().Nbody.Set(append(s, it.N().Nbody.Slice()...))
+			setNodeSeq(&it.N().Ninit, nil)
 		}
 
 		order.out = append(order.out, n)
@@ -963,12 +955,12 @@ func orderstmt(n *Node, order *Order) {
 		t := marktemp(order)
 
 		orderexpr(&n.Left, order, nil)
-		for l := n.List; l != nil; l = l.Next {
-			if l.N.Op != OXCASE {
-				Fatalf("order switch case %v", Oconv(int(l.N.Op), 0))
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			if it.N().Op != OXCASE {
+				Fatalf("order switch case %v", Oconv(int(it.N().Op), 0))
 			}
-			orderexprlistinplace(l.N.List, order)
-			orderblockNodes(&l.N.Nbody)
+			orderexprlistinplace(it.N().List, order)
+			orderblockNodes(&it.N().Nbody)
 		}
 
 		order.out = append(order.out, n)
@@ -1023,9 +1015,9 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 	case OADDSTR:
 		orderexprlist(n.List, order)
 
-		if count(n.List) > 5 {
+		if nodeSeqLen(n.List) > 5 {
 			t := typ(TARRAY)
-			t.Bound = int64(count(n.List))
+			t.Bound = int64(nodeSeqLen(n.List))
 			t.Type = Types[TSTRING]
 			prealloc[n] = ordertemp(t, order, false)
 		}
@@ -1040,15 +1032,15 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		hasbyte := false
 
 		haslit := false
-		for l := n.List; l != nil; l = l.Next {
-			hasbyte = hasbyte || l.N.Op == OARRAYBYTESTR
-			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val().U.(string)) != 0
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			hasbyte = hasbyte || it.N().Op == OARRAYBYTESTR
+			haslit = haslit || it.N().Op == OLITERAL && len(it.N().Val().U.(string)) != 0
 		}
 
 		if haslit && hasbyte {
-			for l := n.List; l != nil; l = l.Next {
-				if l.N.Op == OARRAYBYTESTR {
-					l.N.Op = OARRAYBYTESTRTMP
+			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+				if it.N().Op == OARRAYBYTESTR {
+					it.N().Op = OARRAYBYTESTRTMP
 				}
 			}
 		}
@@ -1113,11 +1105,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		var s []*Node
 
 		cleantempnopop(mark, order, &s)
-		var l *NodeList
-		for _, n := range s {
-			l = list(l, n)
-		}
-		n.Right.Ninit = concat(l, n.Right.Ninit)
+		setNodeSeq(&n.Right.Ninit, append(s, nodeSeqSlice(n.Right.Ninit)...))
 		orderexprinplace(&n.Right, order)
 
 	case OCALLFUNC,
@@ -1144,7 +1132,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 
 	case OAPPEND:
 		ordercallargs(&n.List, order)
-		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.N) {
+		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, nodeSeqFirst(n.List)) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}
 

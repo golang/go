@@ -617,27 +617,31 @@ func nodeSeqLen(ns nodesOrNodeList) int {
 	}
 }
 
-// nodeSeqFirst returns the first element of either a *NodeList or a Nodes.
-// It panics if the sequence is empty.
+// nodeSeqFirst returns the first element of a *NodeList, a Nodes,
+// or a []*Node. It panics if the sequence is empty.
 func nodeSeqFirst(ns nodesOrNodeList) *Node {
 	switch ns := ns.(type) {
 	case *NodeList:
 		return ns.N
 	case Nodes:
 		return ns.Slice()[0]
+	case []*Node:
+		return ns[0]
 	default:
 		panic("can't happen")
 	}
 }
 
-// nodeSeqSecond returns the second element of either a *NodeList or a Nodes.
-// It panics if the sequence has fewer than two elements.
+// nodeSeqSecond returns the second element of a *NodeList, a Nodes,
+// or a []*Node. It panics if the sequence has fewer than two elements.
 func nodeSeqSecond(ns nodesOrNodeList) *Node {
 	switch ns := ns.(type) {
 	case *NodeList:
 		return ns.Next.N
 	case Nodes:
 		return ns.Slice()[1]
+	case []*Node:
+		return ns[1]
 	default:
 		panic("can't happen")
 	}
