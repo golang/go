@@ -801,7 +801,7 @@ func cgen_wbptr(n, res *Node) {
 		Cgenr(n, &src, nil)
 	}
 
-	wbVar := syslook("writeBarrier", 0)
+	wbVar := syslook("writeBarrier")
 	wbEnabled := Nod(ODOT, wbVar, newname(wbVar.Type.Type.Sym))
 	wbEnabled = typecheck(&wbEnabled, Erv)
 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
@@ -2874,8 +2874,8 @@ func cgen_append(n, res *Node) {
 	arg.Xoffset += int64(Widthptr)
 	Regfree(&rlen)
 
-	fn := syslook("growslice", 1)
-	substArgTypes(fn, res.Type.Type, res.Type.Type)
+	fn := syslook("growslice")
+	substArgTypes(&fn, res.Type.Type, res.Type.Type)
 	Ginscall(fn, 0)
 
 	if Widthptr == 4 && Widthreg == 8 {

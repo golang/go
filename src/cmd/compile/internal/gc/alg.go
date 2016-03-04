@@ -570,16 +570,16 @@ func eqmemfunc(size int64, type_ *Type, needsize *int) *Node {
 
 	switch size {
 	default:
-		fn = syslook("memequal", 1)
+		fn = syslook("memequal")
 		*needsize = 1
 
 	case 1, 2, 4, 8, 16:
 		buf := fmt.Sprintf("memequal%d", int(size)*8)
-		fn = syslook(buf, 1)
+		fn = syslook(buf)
 		*needsize = 0
 	}
 
-	substArgTypes(fn, type_, type_)
+	substArgTypes(&fn, type_, type_)
 	return fn
 }
 

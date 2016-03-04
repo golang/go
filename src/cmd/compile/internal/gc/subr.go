@@ -1112,10 +1112,15 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 // substArgTypes substitutes the given list of types for
 // successive occurrences of the "any" placeholder in the
 // type syntax expression n.Type.
-func substArgTypes(n *Node, types ...*Type) {
+func substArgTypes(np **Node, types ...*Type) {
+	n := Nod(0, nil, nil)
+	*n = **np
+	*np = n
+
 	for _, t := range types {
 		dowidth(t)
 	}
+	n.Type = deep(n.Type)
 	substAny(&n.Type, &types)
 	if len(types) > 0 {
 		Fatalf("substArgTypes: too many argument types")
@@ -1259,21 +1264,12 @@ func deep(t *Type) *Type {
 	return nt
 }
 
-func syslook(name string, copy int) *Node {
+func syslook(name string) *Node {
 	s := Pkglookup(name, Runtimepkg)
 	if s == nil || s.Def == nil {
 		Fatalf("syslook: can't find runtime.%s", name)
 	}
-
-	if copy == 0 {
-		return s.Def
-	}
-
-	n := Nod(0, nil, nil)
-	*n = *s.Def
-	n.Type = deep(s.Def.Type)
-
-	return n
+	return s.Def
 }
 
 // compute a hash value for type t.
@@ -2149,7 +2145,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		l = list(l, nodlit(v))
 		v.U = method.Sym.Name
 		l = list(l, nodlit(v)) // method name
-		call := Nod(OCALL, syslook("panicwrap", 0), nil)
+		call := Nod(OCALL, syslook("panicwrap"), nil)
 		call.List = l
 		n.Nbody.Set([]*Node{call})
 		fn.Nbody.Append(n)

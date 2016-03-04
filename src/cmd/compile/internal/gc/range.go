@@ -230,14 +230,14 @@ func walkrange(n *Node) {
 		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
 		valname := newname(th.Type.Down.Sym) // ditto
 
-		fn := syslook("mapiterinit", 1)
+		fn := syslook("mapiterinit")
 
-		substArgTypes(fn, t.Down, t.Type, th)
+		substArgTypes(&fn, t.Down, t.Type, th)
 		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
 
-		fn = syslook("mapiternext", 1)
-		substArgTypes(fn, th)
+		fn = syslook("mapiternext")
+		substArgTypes(&fn, th)
 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
 		key := Nod(ODOT, hit, keyname)
@@ -297,7 +297,7 @@ func walkrange(n *Node) {
 			hv2 = temp(runetype)
 			a = Nod(OAS2, nil, nil)
 			a.List = list(list1(hv1), hv2)
-			fn := syslook("stringiter2", 0)
+			fn := syslook("stringiter2")
 			a.Rlist = list1(mkcall1(fn, getoutargx(fn.Type), nil, ha, hv1))
 		}
 
