@@ -2185,7 +2185,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	}
 
 	if false && Debug['r'] != 0 {
-		dumpslice("genwrapper body", fn.Nbody.Slice())
+		dumplist("genwrapper body", fn.Nbody)
 	}
 
 	funcbody(fn)

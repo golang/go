@@ -106,15 +106,9 @@ func dumppkg(p *Pkg) {
 }
 
 // Look for anything we need for the inline body
-func reexportdeplist(ll *NodeList) {
-	for ; ll != nil; ll = ll.Next {
-		reexportdep(ll.N)
-	}
-}
-
-func reexportdepslice(ll []*Node) {
-	for _, n := range ll {
-		reexportdep(n)
+func reexportdeplist(ll nodesOrNodeList) {
+	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+		reexportdep(it.N())
 	}
 }
 
@@ -223,7 +217,7 @@ func reexportdep(n *Node) {
 	reexportdeplist(n.List)
 	reexportdeplist(n.Rlist)
 	reexportdeplist(n.Ninit)
-	reexportdepslice(n.Nbody.Slice())
+	reexportdeplist(n.Nbody)
 }
 
 func dumpexportconst(s *Sym) {
@@ -263,9 +257,9 @@ func dumpexportvar(s *Sym) {
 			}
 
 			// NOTE: The space after %#S here is necessary for ld's export data parser.
-			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconvslice(n.Func.Inl.Slice(), obj.FmtSharp|obj.FmtBody))
+			exportf("\tfunc %v %v { %v }\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp), Hconv(n.Func.Inl, obj.FmtSharp|obj.FmtBody))
 
-			reexportdepslice(n.Func.Inl.Slice())
+			reexportdeplist(n.Func.Inl)
 		} else {
 			exportf("\tfunc %v %v\n", Sconv(s, obj.FmtSharp), Tconv(t, obj.FmtShort|obj.FmtSharp))
 		}
@@ -320,8 +314,8 @@ func dumpexporttype(t *Type) {
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname)
 			}
-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconvslice(f.Type.Nname.Func.Inl.Slice(), obj.FmtSharp))
-			reexportdepslice(f.Type.Nname.Func.Inl.Slice())
+			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
+			reexportdeplist(f.Type.Nname.Func.Inl)
 		} else {
 			exportf("\tfunc (%v) %v %v\n", Tconv(getthisx(f.Type).Type, obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
 		}

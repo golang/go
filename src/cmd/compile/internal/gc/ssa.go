@@ -89,9 +89,9 @@ func buildssa(fn *Node) *ssa.Func {
 	printssa := name == os.Getenv("GOSSAFUNC")
 	if printssa {
 		fmt.Println("generating SSA for", name)
-		dumpslice("buildssa-enter", fn.Func.Enter.Slice())
-		dumpslice("buildssa-body", fn.Nbody.Slice())
-		dumpslice("buildssa-exit", fn.Func.Exit.Slice())
+		dumplist("buildssa-enter", fn.Func.Enter)
+		dumplist("buildssa-body", fn.Nbody)
+		dumplist("buildssa-exit", fn.Func.Exit)
 	}
 
 	var s state

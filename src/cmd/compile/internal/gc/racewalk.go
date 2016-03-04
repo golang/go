@@ -78,11 +78,11 @@ func instrument(fn *Node) {
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
-		dumpslice(s, fn.Nbody.Slice())
+		dumplist(s, fn.Nbody)
 		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
-		dumpslice(s, fn.Func.Enter.Slice())
+		dumplist(s, fn.Func.Enter)
 		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
-		dumpslice(s, fn.Func.Exit.Slice())
+		dumplist(s, fn.Func.Exit)
 	}
 }
 

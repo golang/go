@@ -79,7 +79,7 @@ func typecheckinl(fn *Node) {
 	}
 
 	if Debug['m'] > 2 {
-		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, obj.FmtLong), Hconvslice(fn.Func.Inl.Slice(), obj.FmtSharp))
+		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, obj.FmtLong), Hconv(fn.Func.Inl, obj.FmtSharp))
 	}
 
 	save_safemode := safemode
@@ -161,7 +161,7 @@ func caninl(fn *Node) {
 	fn.Type.Nname = fn.Func.Nname
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconvslice(fn.Func.Nname.Func.Inl.Slice(), obj.FmtSharp))
+		fmt.Printf("%v: can inline %v as: %v { %v }\n", fn.Line(), Nconv(fn.Func.Nname, obj.FmtSharp), Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Nname.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), fn.Func.Nname)
 	}
@@ -543,7 +543,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	// Bingo, we have a function node, and it has an inlineable body
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, obj.FmtSharp), Hconvslice(fn.Func.Inl.Slice(), obj.FmtSharp))
+		fmt.Printf("%v: inlining call to %v %v { %v }\n", n.Line(), fn.Sym, Tconv(fn.Type, obj.FmtSharp), Hconv(fn.Func.Inl, obj.FmtSharp))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: inlining call to %v\n", n.Line(), fn)
 	}
