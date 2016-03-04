@@ -587,13 +587,17 @@ func (ni *nodesIterator) Seq() nodesOrNodeList {
 	return r
 }
 
-// nodeSeqIterate returns an iterator over either a *NodeList or a Nodes.
+// nodeSeqIterate returns an iterator over a *NodeList, a Nodes, or a []*Node.
 func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 	switch ns := ns.(type) {
 	case *NodeList:
 		return &nodeListIterator{ns}
 	case Nodes:
 		return &nodesIterator{ns, 0}
+	case []*Node:
+		var r Nodes
+		r.Set(ns)
+		return &nodesIterator{r, 0}
 	default:
 		panic("can't happen")
 	}

@@ -321,7 +321,7 @@ func walkselect(sel *Node) {
 
 out:
 	sel.List = nil
-	walkstmtslice(sel.Nbody.Slice())
+	walkstmtlist(sel.Nbody)
 	lineno = lno
 }
 
