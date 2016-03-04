@@ -2366,21 +2366,13 @@ func listtreecopy(l *NodeList, lineno int32) *NodeList {
 	return out
 }
 
-func liststmt(l *NodeList) *Node {
+func liststmt(l nodesOrNodeList) *Node {
 	n := Nod(OBLOCK, nil, nil)
-	n.List = l
-	if l != nil {
-		n.Lineno = l.N.Lineno
+	setNodeSeq(&n.List, l)
+	if nodeSeqLen(l) != 0 {
+		n.Lineno = nodeSeqFirst(l).Lineno
 	}
 	return n
-}
-
-func liststmtslice(l []*Node) *Node {
-	var ll *NodeList
-	for _, n := range l {
-		ll = list(ll, n)
-	}
-	return liststmt(ll)
 }
 
 // return nelem of list
