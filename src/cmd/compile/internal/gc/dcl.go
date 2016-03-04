@@ -227,8 +227,8 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 	if count(el) == 1 && count(vl) > 1 {
 		e := el.N
 		as2 := Nod(OAS2, nil, nil)
-		as2.List = vl
-		as2.Rlist = list1(e)
+		setNodeSeq(&as2.List, vl)
+		setNodeSeqNode(&as2.Rlist, e)
 		var v *Node
 		for ; vl != nil; vl = vl.Next {
 			v = vl.N
@@ -474,7 +474,7 @@ func colasdefn(left *NodeList, defn *Node) {
 		n = newname(n.Sym)
 		declare(n, dclcontext)
 		n.Name.Defn = defn
-		defn.Ninit = list(defn.Ninit, Nod(ODCL, n, nil))
+		appendNodeSeqNode(&defn.Ninit, Nod(ODCL, n, nil))
 		l.N = n
 	}
 
@@ -485,18 +485,18 @@ func colasdefn(left *NodeList, defn *Node) {
 
 func colas(left *NodeList, right *NodeList, lno int32) *Node {
 	as := Nod(OAS2, nil, nil)
-	as.List = left
-	as.Rlist = right
+	setNodeSeq(&as.List, left)
+	setNodeSeq(&as.Rlist, right)
 	as.Colas = true
 	as.Lineno = lno
 	colasdefn(left, as)
 
 	// make the tree prettier; not necessary
 	if count(left) == 1 && count(right) == 1 {
-		as.Left = as.List.N
-		as.Right = as.Rlist.N
-		as.List = nil
-		as.Rlist = nil
+		as.Left = nodeSeqFirst(as.List)
+		as.Right = nodeSeqFirst(as.Rlist)
+		setNodeSeq(&as.List, nil)
+		setNodeSeq(&as.Rlist, nil)
 		as.Op = OAS
 	}
 
@@ -570,7 +570,7 @@ func funcargs(nt *Node) {
 	// re-start the variable generation number
 	// we want to use small numbers for the return variables,
 	// so let them have the chunk starting at 1.
-	vargen = count(nt.Rlist)
+	vargen = nodeSeqLen(nt.Rlist)
 
 	// declare the receiver and in arguments.
 	// no n->defn because type checking of func header
@@ -592,8 +592,8 @@ func funcargs(nt *Node) {
 	}
 
 	var n *Node
-	for l := nt.List; l != nil; l = l.Next {
-		n = l.N
+	for it := nodeSeqIterate(nt.List); !it.Done(); it.Next() {
+		n = it.N()
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs in %v", Oconv(int(n.Op), 0))
 		}
@@ -609,11 +609,11 @@ func funcargs(nt *Node) {
 	}
 
 	// declare the out arguments.
-	gen := count(nt.List)
+	gen := nodeSeqLen(nt.List)
 	var i int = 0
 	var nn *Node
-	for l := nt.Rlist; l != nil; l = l.Next {
-		n = l.N
+	for it := nodeSeqIterate(nt.Rlist); !it.Done(); it.Next() {
+		n = it.N()
 
 		if n.Op != ODCLFIELD {
 			Fatalf("funcargs out %v", Oconv(int(n.Op), 0))
@@ -1507,7 +1507,7 @@ func checknowritebarrierrec() {
 			for _, n := range list {
 				if n.Func.WBLineno == 0 {
 					c.curfn = n
-					c.visitcodeslice(n.Nbody.Slice())
+					c.visitcodelist(n.Nbody)
 				}
 			}
 			if c.stable {
@@ -1538,15 +1538,9 @@ func checknowritebarrierrec() {
 	})
 }
 
-func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
-	for ; l != nil; l = l.Next {
-		c.visitcode(l.N)
-	}
-}
-
-func (c *nowritebarrierrecChecker) visitcodeslice(l []*Node) {
-	for _, n := range l {
-		c.visitcode(n)
+func (c *nowritebarrierrecChecker) visitcodelist(l nodesOrNodeList) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		c.visitcode(it.N())
 	}
 }
 
@@ -1563,7 +1557,7 @@ func (c *nowritebarrierrecChecker) visitcode(n *Node) {
 	c.visitcode(n.Left)
 	c.visitcode(n.Right)
 	c.visitcodelist(n.List)
-	c.visitcodeslice(n.Nbody.Slice())
+	c.visitcodelist(n.Nbody)
 	c.visitcodelist(n.Rlist)
 }
 
