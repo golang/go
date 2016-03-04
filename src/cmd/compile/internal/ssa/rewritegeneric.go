@@ -206,6 +206,8 @@ func rewriteValuegeneric(v *Value, config *Config) bool {
 		return rewriteValuegeneric_OpNeqPtr(v, config)
 	case OpNeqSlice:
 		return rewriteValuegeneric_OpNeqSlice(v, config)
+	case OpOffPtr:
+		return rewriteValuegeneric_OpOffPtr(v, config)
 	case OpOr16:
 		return rewriteValuegeneric_OpOr16(v, config)
 	case OpOr32:
@@ -4817,6 +4819,26 @@ func rewriteValuegeneric_OpNeqSlice(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Line, OpSlicePtr, config.fe.TypeBytePtr())
 		v1.AddArg(y)
 		v.AddArg(v1)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpOffPtr(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (OffPtr (OffPtr p [b]) [a])
+	// cond:
+	// result: (OffPtr p [a+b])
+	for {
+		if v.Args[0].Op != OpOffPtr {
+			break
+		}
+		p := v.Args[0].Args[0]
+		b := v.Args[0].AuxInt
+		a := v.AuxInt
+		v.reset(OpOffPtr)
+		v.AddArg(p)
+		v.AuxInt = a + b
 		return true
 	}
 	return false
