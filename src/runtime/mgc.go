@@ -762,7 +762,7 @@ var work struct {
 	alldone note
 
 	// Number of roots of various root types. Set by gcMarkRootPrepare.
-	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots int
+	nDataRoots, nBSSRoots, nSpanRoots, nStackRoots, nRescanRoots int
 
 	// markrootDone indicates that roots have been marked at least
 	// once during the current GC cycle. This is checked by root
@@ -828,6 +828,14 @@ var work struct {
 	assistQueue struct {
 		lock       mutex
 		head, tail guintptr
+	}
+
+	// rescan is a list of G's that need to be rescanned during
+	// mark termination. A G adds itself to this list when it
+	// first invalidates its stack scan.
+	rescan struct {
+		lock mutex
+		list []guintptr
 	}
 
 	// Timing/utilization stats for this cycle.
@@ -1736,13 +1744,21 @@ func gcCopySpans() {
 func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
+	if !(gcphase == _GCoff || gcphase == _GCmarktermination) {
+		// Accessing gcRescan is unsafe.
+		throw("bad GC phase")
+	}
 	lock(&allglock)
 	for _, gp := range allgs {
 		gp.gcscandone = false  // set to true in gcphasework
 		gp.gcscanvalid = false // stack has not been scanned
+		gp.gcRescan = -1
 		gp.gcAssistBytes = 0
 	}
 	unlock(&allglock)
+
+	// Clear rescan list.
+	work.rescan.list = work.rescan.list[:0]
 
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live
