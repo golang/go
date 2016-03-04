@@ -534,11 +534,11 @@ func simplename(n *Node) bool {
 	return true
 }
 
-func litas(l *Node, r *Node, init **NodeList) {
+func litas(l *Node, r *Node, init nodesOrNodeListPtr) {
 	a := Nod(OAS, l, r)
 	typecheck(&a, Etop)
 	walkexpr(&a, init)
-	*init = list(*init, a)
+	appendNodeSeqNode(init, a)
 }
 
 const (
@@ -576,7 +576,7 @@ func getdyn(n *Node, top int) int {
 	return mode
 }
 
-func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+func structlit(ctxt int, pass int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	for nl := n.List; nl != nil; nl = nl.Next {
 		r := nl.N
 		if r.Op != OKEY {
@@ -637,11 +637,11 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 			walkstmt(&a)
 		}
 
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 	}
 }
 
-func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+func arraylit(ctxt int, pass int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	for l := n.List; l != nil; l = l.Next {
 		r := l.N
 		if r.Op != OKEY {
@@ -702,11 +702,11 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
 			walkstmt(&a)
 		}
 
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 	}
 }
 
-func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+func slicelit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	// make an array type
 	t := shallow(n.Type)
 
@@ -729,7 +729,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		a = Nod(OAS, var_, a)
 		typecheck(&a, Etop)
 		a.Dodata = 2
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 		return
 	}
 
@@ -774,7 +774,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		if vstat == nil {
 			a = Nod(OAS, x, nil)
 			typecheck(&a, Etop)
-			*init = list(*init, a) // zero new temp
+			appendNodeSeqNode(init, a) // zero new temp
 		}
 
 		a = Nod(OADDR, x, nil)
@@ -783,7 +783,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		if vstat == nil {
 			a = Nod(OAS, temp(t), nil)
 			typecheck(&a, Etop)
-			*init = list(*init, a) // zero new temp
+			appendNodeSeqNode(init, a) // zero new temp
 			a = a.Left
 		}
 
@@ -796,7 +796,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	a = Nod(OAS, vauto, a)
 	typecheck(&a, Etop)
 	walkexpr(&a, init)
-	*init = list(*init, a)
+	appendNodeSeqNode(init, a)
 
 	if vstat != nil {
 		// copy static to heap (4)
@@ -805,7 +805,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		a = Nod(OAS, a, vstat)
 		typecheck(&a, Etop)
 		walkexpr(&a, init)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 	}
 
 	// make slice out of heap (5)
@@ -814,7 +814,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	typecheck(&a, Etop)
 	orderstmtinplace(&a)
 	walkstmt(&a)
-	*init = list(*init, a)
+	appendNodeSeqNode(init, a)
 
 	// put dynamics into slice (6)
 	for l := n.List; l != nil; l = l.Next {
@@ -853,11 +853,11 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		typecheck(&a, Etop)
 		orderstmtinplace(&a)
 		walkstmt(&a)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 	}
 }
 
-func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+func maplit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	ctxt = 0
 
 	// make the map var
@@ -933,7 +933,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 				typecheck(&a, Etop)
 				walkexpr(&a, init)
 				a.Dodata = 2
-				*init = list(*init, a)
+				appendNodeSeqNode(init, a)
 
 				// build vstat[b].b = value;
 				setlineno(value)
@@ -945,7 +945,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 				typecheck(&a, Etop)
 				walkexpr(&a, init)
 				a.Dodata = 2
-				*init = list(*init, a)
+				appendNodeSeqNode(init, a)
 
 				b++
 			}
@@ -977,7 +977,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 		typecheck(&a, Etop)
 		walkstmt(&a)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 	}
 
 	// put in dynamic entries one-at-a-time
@@ -1006,18 +1006,18 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		a = Nod(OAS, key, r.Left)
 		typecheck(&a, Etop)
 		walkstmt(&a)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 		setlineno(r.Right)
 		a = Nod(OAS, val, r.Right)
 		typecheck(&a, Etop)
 		walkstmt(&a)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 
 		setlineno(val)
 		a = Nod(OAS, Nod(OINDEX, var_, key), val)
 		typecheck(&a, Etop)
 		walkstmt(&a)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 
 		if nerr != nerrors {
 			break
@@ -1027,14 +1027,14 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	if key != nil {
 		a = Nod(OVARKILL, key, nil)
 		typecheck(&a, Etop)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 		a = Nod(OVARKILL, val, nil)
 		typecheck(&a, Etop)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 	}
 }
 
-func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+func anylit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	t := n.Type
 	switch n.Op {
 	default:
@@ -1060,7 +1060,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 		a := Nod(OAS, var_, r)
 
 		typecheck(&a, Etop)
-		*init = list(*init, a)
+		appendNodeSeqNode(init, a)
 
 		var_ = Nod(OIND, var_, nil)
 		typecheck(&var_, Erv|Easgn)
@@ -1083,7 +1083,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 				typecheck(&a, Etop)
 				walkexpr(&a, init)
-				*init = list(*init, a)
+				appendNodeSeqNode(init, a)
 
 				// add expressions to automatic
 				structlit(ctxt, 2, n, var_, init)
@@ -1101,7 +1101,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			a := Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)
-			*init = list(*init, a)
+			appendNodeSeqNode(init, a)
 		}
 
 		structlit(ctxt, 3, n, var_, init)
@@ -1127,7 +1127,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 
 				typecheck(&a, Etop)
 				walkexpr(&a, init)
-				*init = list(*init, a)
+				appendNodeSeqNode(init, a)
 
 				// add expressions to automatic
 				arraylit(ctxt, 2, n, var_, init)
@@ -1145,7 +1145,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 			a := Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)
-			*init = list(*init, a)
+			appendNodeSeqNode(init, a)
 		}
 
 		arraylit(ctxt, 3, n, var_, init)
@@ -1158,7 +1158,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
 	}
 }
 
-func oaslit(n *Node, init **NodeList) bool {
+func oaslit(n *Node, init nodesOrNodeListPtr) bool {
 	if n.Left == nil || n.Right == nil {
 		// not a special composit literal assignment
 		return false
