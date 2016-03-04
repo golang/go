@@ -9,39 +9,56 @@ import (
 	"unsafe"
 )
 
+// Calling panic with one of the errors below will call errorString.Error
+// which will call mallocgc to concatenate strings. That will fail if
+// malloc is locked, causing a confusing error message. Throw a better
+// error message instead.
+func panicCheckMalloc(err error) {
+	gp := getg()
+	if gp != nil && gp.m != nil && gp.m.mallocing != 0 {
+		throw(string(err.(errorString)))
+	}
+}
+
 var indexError = error(errorString("index out of range"))
 
 func panicindex() {
+	panicCheckMalloc(indexError)
 	panic(indexError)
 }
 
 var sliceError = error(errorString("slice bounds out of range"))
 
 func panicslice() {
+	panicCheckMalloc(sliceError)
 	panic(sliceError)
 }
 
 var divideError = error(errorString("integer divide by zero"))
 
 func panicdivide() {
+	panicCheckMalloc(divideError)
 	panic(divideError)
 }
 
 var overflowError = error(errorString("integer overflow"))
 
 func panicoverflow() {
+	panicCheckMalloc(overflowError)
 	panic(overflowError)
 }
 
 var floatError = error(errorString("floating point error"))
 
 func panicfloat() {
+	panicCheckMalloc(floatError)
 	panic(floatError)
 }
 
 var memoryError = error(errorString("invalid memory address or nil pointer dereference"))
 
 func panicmem() {
+	panicCheckMalloc(memoryError)
 	panic(memoryError)
 }
 
