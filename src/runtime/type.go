@@ -42,10 +42,14 @@ func (t *_type) name() string {
 	if hasPrefix(t._string, "chan ") {
 		return ""
 	}
+	if hasPrefix(t._string, "chan<-") {
+		return ""
+	}
 	if hasPrefix(t._string, "func(") {
 		return ""
 	}
-	if t._string[0] == '[' || t._string[0] == '*' {
+	switch t._string[0] {
+	case '[', '*', '<':
 		return ""
 	}
 	i := len(t._string) - 1

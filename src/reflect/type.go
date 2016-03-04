@@ -563,10 +563,14 @@ func (t *rtype) Name() string {
 	if hasPrefix(t.string, "chan ") {
 		return ""
 	}
+	if hasPrefix(t.string, "chan<-") {
+		return ""
+	}
 	if hasPrefix(t.string, "func(") {
 		return ""
 	}
-	if t.string[0] == '[' || t.string[0] == '*' {
+	switch t.string[0] {
+	case '[', '*', '<':
 		return ""
 	}
 	i := len(t.string) - 1
