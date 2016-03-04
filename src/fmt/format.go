@@ -448,7 +448,9 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
 		if f.zero && f.widPresent && f.wid > len(num) {
 			f.buf.WriteByte(num[0])
 			f.wid--
-			num = num[1:]
+			f.pad(num[1:])
+			f.wid++
+			return
 		}
 		f.pad(num)
 		return
@@ -512,7 +514,6 @@ func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
 	f.buf.WriteByte('(')
 	oldPlus := f.plus
 	oldSpace := f.space
-	oldWid := f.wid
 	for i := 0; ; i++ {
 		switch verb {
 		case 'b':
@@ -534,11 +535,9 @@ func (f *fmt) fmt_complex(r, j float64, size int, verb rune) {
 		// Imaginary part always has a sign.
 		f.plus = true
 		f.space = false
-		f.wid = oldWid
 		r = j
 	}
 	f.space = oldSpace
 	f.plus = oldPlus
-	f.wid = oldWid
 	f.buf.WriteString("i)")
 }
