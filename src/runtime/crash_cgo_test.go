@@ -178,3 +178,11 @@ func TestCgoCheckBytes(t *testing.T) {
 		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
 	}
 }
+
+func TestCgoCCodeSIGPROF(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoCCodeSIGPROF")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
