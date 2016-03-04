@@ -657,7 +657,7 @@ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
 		return
 	}
 
-	// Simplify b to either *Nodelist or []*Node.
+	// Simplify b to either *NodeList or []*Node.
 	if n, ok := b.(Nodes); ok {
 		b = n.Slice()
 	}
@@ -696,5 +696,112 @@ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
 		default:
 			panic("can't happen")
 		}
+	}
+}
+
+// setNodeSeqNode sets the node sequence a to the node n.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func setNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
+	// This is what the old list1 function did;
+	// the rest of the compiler has come to expect it.
+	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
+		l := n.List
+		setNodeSeq(&n.List, nil)
+		setNodeSeq(a, l)
+		return
+	}
+
+	switch a := a.(type) {
+	case **NodeList:
+		*a = list1(n)
+	case *Nodes:
+		a.Set([]*Node{n})
+	case *[]*Node:
+		*a = []*Node{n}
+	default:
+		panic("can't happen")
+	}
+}
+
+// appendNodeSeq appends the node sequence b to the node sequence a.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// b must have type *NodeList, Nodes, or []*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func appendNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+	// Simplify b to either *NodeList or []*Node.
+	if n, ok := b.(Nodes); ok {
+		b = n.Slice()
+	}
+
+	if l, ok := a.(**NodeList); ok {
+		switch b := b.(type) {
+		case *NodeList:
+			*l = concat(*l, b)
+		case []*Node:
+			for _, n := range b {
+				*l = list(*l, n)
+			}
+		default:
+			panic("can't happen")
+		}
+	} else {
+		var s []*Node
+		switch a := a.(type) {
+		case *Nodes:
+			s = a.Slice()
+		case *[]*Node:
+			s = *a
+		default:
+			panic("can't happen")
+		}
+
+		switch b := b.(type) {
+		case *NodeList:
+			for l := b; l != nil; l = l.Next {
+				s = append(s, l.N)
+			}
+		case []*Node:
+			s = append(s, b...)
+		default:
+			panic("can't happen")
+		}
+
+		switch a := a.(type) {
+		case *Nodes:
+			a.Set(s)
+		case *[]*Node:
+			*a = s
+		default:
+			panic("can't happen")
+		}
+	}
+}
+
+// appendNodeSeqNode appends n to the node sequence a.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func appendNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
+	// This is what the old list1 function did;
+	// the rest of the compiler has come to expect it.
+	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
+		l := n.List
+		setNodeSeq(&n.List, nil)
+		appendNodeSeq(a, l)
+		return
+	}
+
+	switch a := a.(type) {
+	case **NodeList:
+		*a = list(*a, n)
+	case *Nodes:
+		a.Append(n)
+	case *[]*Node:
+		*a = append(*a, n)
+	default:
+		panic("can't happen")
 	}
 }
