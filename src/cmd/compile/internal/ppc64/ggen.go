@@ -252,7 +252,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	t := nl.Type
-	w := int(t.Width * 8)
+	w := t.Width * 8
 	var n1 gc.Node
 	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
@@ -264,7 +264,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gins(optoas(gc.OMUL, t), &n2, &n1)
 		p := gins(ppc64.ASRAD, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(w)
+		p.From.Offset = w
 
 	case gc.TUINT8,
 		gc.TUINT16,
@@ -272,7 +272,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gins(optoas(gc.OMUL, t), &n2, &n1)
 		p := gins(ppc64.ASRD, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(w)
+		p.From.Offset = w
 
 	case gc.TINT64,
 		gc.TUINT64:

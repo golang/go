@@ -121,7 +121,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	t := nl.Type
-	w := int(t.Width * 8)
+	w := t.Width * 8
 	var n1 gc.Node
 	gc.Regalloc(&n1, t, res)
 	gc.Cgen(nl, &n1)

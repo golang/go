@@ -263,7 +263,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	t := nl.Type
-	w := int(t.Width * 8)
+	w := t.Width * 8
 	var n1 gc.Node
 	gc.Cgenr(nl, &n1, res)
 	var n2 gc.Node
@@ -275,7 +275,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gins(optoas(gc.OMUL, t), &n2, &n1)
 		p := gins(arm64.AASR, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(w)
+		p.From.Offset = w
 
 	case gc.TUINT8,
 		gc.TUINT16,
@@ -283,7 +283,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 		gins(optoas(gc.OMUL, t), &n2, &n1)
 		p := gins(arm64.ALSR, nil, &n1)
 		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = int64(w)
+		p.From.Offset = w
 
 	case gc.TINT64,
 		gc.TUINT64:
@@ -315,7 +315,7 @@ func cgen_shift(op gc.Op, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) 
 		gc.Regalloc(&n1, nl.Type, res)
 		gc.Cgen(nl, &n1)
 		sc := uint64(nr.Int())
-		if sc >= uint64(nl.Type.Width*8) {
+		if sc >= uint64(nl.Type.Width)*8 {
 			// large shift gets 2 shifts by width-1
 			var n3 gc.Node
 			gc.Nodconst(&n3, gc.Types[gc.TUINT32], nl.Type.Width*8-1)
