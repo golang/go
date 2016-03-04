@@ -242,9 +242,7 @@ func subprop(r0 *gc.Flow) bool {
 						}
 					}
 
-					t := int(v1.Reg)
-					v1.Reg = v2.Reg
-					v2.Reg = int16(t)
+					v1.Reg, v2.Reg = v2.Reg, v1.Reg
 					if gc.Debug['P'] != 0 {
 						fmt.Printf("%v last\n", r.Prog)
 					}

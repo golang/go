@@ -355,7 +355,6 @@ func compile(fn *Node) {
 	Curfn = fn
 	dowidth(Curfn.Type)
 
-	var oldstksize int64
 	var nod1 Node
 	var ptxt *obj.Prog
 	var pl *obj.Plist
@@ -535,12 +534,7 @@ func compile(fn *Node) {
 
 	Thearch.Expandchecks(ptxt)
 
-	oldstksize = Stksize
 	allocauto(ptxt)
-
-	if false {
-		fmt.Printf("allocauto: %d to %d\n", oldstksize, Stksize)
-	}
 
 	setlineno(Curfn)
 	if Stksize+Maxarg > 1<<31 {

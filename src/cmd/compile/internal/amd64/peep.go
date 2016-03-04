@@ -605,9 +605,7 @@ func subprop(r0 *gc.Flow) bool {
 				}
 			}
 
-			t := int(v1.Reg)
-			v1.Reg = v2.Reg
-			v2.Reg = int16(t)
+			v1.Reg, v2.Reg = v2.Reg, v1.Reg
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("%v last\n", r.Prog)
 			}
@@ -948,19 +946,16 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
  */
 func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 	if copyas(a, v) {
-		reg := int(s.Reg)
-		if reg >= x86.REG_AX && reg <= x86.REG_R15 || reg >= x86.REG_X0 && reg <= x86.REG_X0+15 {
+		if s.Reg >= x86.REG_AX && s.Reg <= x86.REG_R15 || s.Reg >= x86.REG_X0 && s.Reg <= x86.REG_X0+15 {
 			if f != 0 {
-				a.Reg = int16(reg)
+				a.Reg = s.Reg
 			}
 		}
-
 		return 0
 	}
 
 	if regtyp(v) {
-		reg := int(v.Reg)
-		if a.Type == obj.TYPE_MEM && int(a.Reg) == reg {
+		if a.Type == obj.TYPE_MEM && a.Reg == v.Reg {
 			if (s.Reg == x86.REG_BP || s.Reg == x86.REG_R13) && a.Index != x86.REG_NONE {
 				return 1 /* can't use BP-base with index */
 			}
@@ -968,18 +963,14 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 				a.Reg = s.Reg
 			}
 		}
-
-		//			return 0;
-		if int(a.Index) == reg {
+		if a.Index == v.Reg {
 			if f != 0 {
 				a.Index = s.Reg
 			}
 			return 0
 		}
-
 		return 0
 	}
-
 	return 0
 }
 

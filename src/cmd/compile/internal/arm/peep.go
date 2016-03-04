@@ -308,9 +308,7 @@ func subprop(r0 *gc.Flow) bool {
 							}
 						}
 
-						t := int(v1.Reg)
-						v1.Reg = v2.Reg
-						v2.Reg = int16(t)
+						v1.Reg, v2.Reg = v2.Reg, v1.Reg
 						if gc.Debug['P'] != 0 {
 							fmt.Printf("%v last\n", r.Prog)
 						}
@@ -571,8 +569,8 @@ func shiftprop(r *gc.Flow) bool {
 		return false
 	}
 
-	n := int(p.To.Reg)
-	a := obj.Addr{}
+	n := p.To.Reg
+	var a obj.Addr
 	if p.Reg != 0 && p.Reg != p.To.Reg {
 		a.Type = obj.TYPE_REG
 		a.Reg = p.Reg
@@ -644,7 +642,7 @@ func shiftprop(r *gc.Flow) bool {
 		arm.ASBC,
 		arm.ARSB,
 		arm.ARSC:
-		if int(p1.Reg) == n || (p1.Reg == 0 && p1.To.Type == obj.TYPE_REG && int(p1.To.Reg) == n) {
+		if p1.Reg == n || (p1.Reg == 0 && p1.To.Type == obj.TYPE_REG && p1.To.Reg == n) {
 			if p1.From.Type != obj.TYPE_REG {
 				if gc.Debug['P'] != 0 {
 					fmt.Printf("\tcan't swap; FAILURE\n")
@@ -653,7 +651,7 @@ func shiftprop(r *gc.Flow) bool {
 			}
 
 			p1.Reg = p1.From.Reg
-			p1.From.Reg = int16(n)
+			p1.From.Reg = n
 			switch p1.As {
 			case arm.ASUB:
 				p1.As = arm.ARSB
@@ -678,14 +676,14 @@ func shiftprop(r *gc.Flow) bool {
 		arm.ATST,
 		arm.ACMP,
 		arm.ACMN:
-		if int(p1.Reg) == n {
+		if p1.Reg == n {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("\tcan't swap; FAILURE\n")
 			}
 			return false
 		}
 
-		if p1.Reg == 0 && int(p1.To.Reg) == n {
+		if p1.Reg == 0 && p1.To.Reg == n {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("\tshift result used twice; FAILURE\n")
 			}
@@ -700,7 +698,7 @@ func shiftprop(r *gc.Flow) bool {
 			return false
 		}
 
-		if p1.From.Type != obj.TYPE_REG || int(p1.From.Reg) != n {
+		if p1.From.Type != obj.TYPE_REG || p1.From.Reg != n {
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("\tBOTCH: where is it used?; FAILURE\n")
 			}
@@ -711,7 +709,7 @@ func shiftprop(r *gc.Flow) bool {
 	/* check whether shift result is used subsequently */
 	p2 := p1
 
-	if int(p1.To.Reg) != n {
+	if p1.To.Reg != n {
 		var p1 *obj.Prog
 		for {
 			r1 = gc.Uniqs(r1)
@@ -746,19 +744,18 @@ func shiftprop(r *gc.Flow) bool {
 
 	/* make the substitution */
 	p2.From.Reg = 0
-
-	o := int(p.Reg)
+	o := p.Reg
 	if o == 0 {
-		o = int(p.To.Reg)
+		o = p.To.Reg
 	}
 	o &= 15
 
 	switch p.From.Type {
 	case obj.TYPE_CONST:
-		o |= int((p.From.Offset & 0x1f) << 7)
+		o |= int16(p.From.Offset&0x1f) << 7
 
 	case obj.TYPE_REG:
-		o |= 1<<4 | (int(p.From.Reg)&15)<<8
+		o |= 1<<4 | (p.From.Reg&15)<<8
 	}
 
 	switch p.As {
