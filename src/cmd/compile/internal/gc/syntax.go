@@ -578,7 +578,7 @@ func (ni *nodesIterator) P() **Node {
 }
 
 func (ni *nodesIterator) Len() int {
-	return len(ni.n.Slice())
+	return len(ni.n.Slice()[ni.i:])
 }
 
 func (ni *nodesIterator) Seq() nodesOrNodeList {

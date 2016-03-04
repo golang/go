@@ -296,7 +296,7 @@ func genhash(sym *Sym, t *Type) {
 	fn.Nbody.Append(r)
 
 	if Debug['r'] != 0 {
-		dumpslice("genhash body", fn.Nbody.Slice())
+		dumplist("genhash body", fn.Nbody)
 	}
 
 	funcbody(fn)
@@ -504,7 +504,7 @@ func geneq(sym *Sym, t *Type) {
 	}
 
 	if Debug['r'] != 0 {
-		dumpslice("geneq body", fn.Nbody.Slice())
+		dumplist("geneq body", fn.Nbody)
 	}
 
 	funcbody(fn)

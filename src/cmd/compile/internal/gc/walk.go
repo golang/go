@@ -22,7 +22,7 @@ func walk(fn *Node) {
 
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("\nbefore %v", Curfn.Func.Nname.Sym)
-		dumpslice(s, Curfn.Nbody.Slice())
+		dumplist(s, Curfn.Nbody)
 	}
 
 	lno := lineno
@@ -67,13 +67,13 @@ func walk(fn *Node) {
 	walkstmtlist(Curfn.Nbody)
 	if Debug['W'] != 0 {
 		s := fmt.Sprintf("after walk %v", Curfn.Func.Nname.Sym)
-		dumpslice(s, Curfn.Nbody.Slice())
+		dumplist(s, Curfn.Nbody)
 	}
 
 	heapmoves()
 	if Debug['W'] != 0 && len(Curfn.Func.Enter.Slice()) > 0 {
 		s := fmt.Sprintf("enter %v", Curfn.Func.Nname.Sym)
-		dumpslice(s, Curfn.Func.Enter.Slice())
+		dumplist(s, Curfn.Func.Enter)
 	}
 }
 
@@ -2963,7 +2963,7 @@ func walkappend(n *Node, init nodesOrNodeListPtr, dst *Node) *Node {
 		nx = Nod(OINDEX, ns, nn) // s[n] ...
 		nx.Bounded = true
 		l = append(l, Nod(OAS, nx, it.N())) // s[n] = arg
-		if it.Len() != 0 {
+		if it.Len() > 1 {
 			l = append(l, Nod(OAS, nn, Nod(OADD, nn, Nodintconst(1)))) // n = n + 1
 		}
 	}
