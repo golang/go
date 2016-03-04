@@ -194,11 +194,13 @@ var assignableTests = []struct {
 	{new(*int), new(IntPtr), true},
 	{new(IntPtr), new(*int), true},
 	{new(IntPtr), new(IntPtr1), false},
+	{new(Ch), new(<-chan interface{}), true},
 	// test runs implementsTests too
 }
 
 type IntPtr *int
 type IntPtr1 *int
+type Ch <-chan interface{}
 
 func TestAssignableTo(t *testing.T) {
 	for _, tt := range append(assignableTests, implementsTests...) {

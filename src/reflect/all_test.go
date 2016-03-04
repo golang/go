@@ -5019,6 +5019,8 @@ var nameTests = []nameTest{
 	{[]D1{}, ""},
 	{(chan D1)(nil), ""},
 	{(func() D1)(nil), ""},
+	{(<-chan D1)(nil), ""},
+	{(chan<- D1)(nil), ""},
 }
 
 func TestNames(t *testing.T) {
