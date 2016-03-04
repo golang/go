@@ -9463,6 +9463,91 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ORL (ORL (ORL                     (MOVBQZXload [i]   {s} p mem)     (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))     (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))     (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem)))
+	// cond:
+	// result: (MOVLload p mem)
+	for {
+		if v.Args[0].Op != OpAMD64ORL {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpAMD64ORL {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		i := v.Args[0].Args[0].Args[0].AuxInt
+		s := v.Args[0].Args[0].Args[0].Aux
+		p := v.Args[0].Args[0].Args[0].Args[0]
+		mem := v.Args[0].Args[0].Args[0].Args[1]
+		if v.Args[0].Args[0].Args[1].Op != OpAMD64SHLLconst {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].AuxInt != 8 {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].AuxInt != i+1 {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[0].Args[1].Op != OpAMD64SHLLconst {
+			break
+		}
+		if v.Args[0].Args[1].AuxInt != 16 {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].AuxInt != i+2 {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[1].Op != OpAMD64SHLLconst {
+			break
+		}
+		if v.Args[1].AuxInt != 24 {
+			break
+		}
+		if v.Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[1].Args[0].AuxInt != i+3 {
+			break
+		}
+		if v.Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		v.reset(OpAMD64MOVLload)
+		v.AddArg(p)
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORLconst(v *Value, config *Config) bool {
@@ -9559,6 +9644,187 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ                     (MOVBQZXload [i]   {s} p mem)     (SHLQconst [8]  (MOVBQZXload [i+1] {s} p mem)))     (SHLQconst [16] (MOVBQZXload [i+2] {s} p mem)))     (SHLQconst [24] (MOVBQZXload [i+3] {s} p mem)))     (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))     (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))     (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))     (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem)))
+	// cond:
+	// result: (MOVQload p mem)
+	for {
+		if v.Args[0].Op != OpAMD64ORQ {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpAMD64ORQ {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Op != OpAMD64ORQ {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		i := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].AuxInt
+		s := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Aux
+		p := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0]
+		mem := v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1]
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].AuxInt != 8 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+1 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].AuxInt != 16 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+2 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].AuxInt != 24 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+3 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].AuxInt != 32 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].Args[0].AuxInt != i+4 {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].AuxInt != 40 {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].AuxInt != i+5 {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[0].Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].Args[1].AuxInt != 48 {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].AuxInt != i+6 {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[0].Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 56 {
+			break
+		}
+		if v.Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[1].Args[0].AuxInt != i+7 {
+			break
+		}
+		if v.Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		v.reset(OpAMD64MOVQload)
+		v.AddArg(p)
+		v.AddArg(mem)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORQconst(v *Value, config *Config) bool {
@@ -9645,6 +9911,43 @@ func rewriteValueAMD64_OpAMD64ORW(v *Value, config *Config) bool {
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
+		return true
+	}
+	// match: (ORW                (MOVBQZXload [i]   {s} p mem)      (SHLWconst [8] (MOVBQZXload [i+1] {s} p mem)))
+	// cond:
+	// result: (MOVWload p mem)
+	for {
+		if v.Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		i := v.Args[0].AuxInt
+		s := v.Args[0].Aux
+		p := v.Args[0].Args[0]
+		mem := v.Args[0].Args[1]
+		if v.Args[1].Op != OpAMD64SHLWconst {
+			break
+		}
+		if v.Args[1].AuxInt != 8 {
+			break
+		}
+		if v.Args[1].Args[0].Op != OpAMD64MOVBQZXload {
+			break
+		}
+		if v.Args[1].Args[0].AuxInt != i+1 {
+			break
+		}
+		if v.Args[1].Args[0].Aux != s {
+			break
+		}
+		if v.Args[1].Args[0].Args[0] != p {
+			break
+		}
+		if v.Args[1].Args[0].Args[1] != mem {
+			break
+		}
+		v.reset(OpAMD64MOVWload)
+		v.AddArg(p)
+		v.AddArg(mem)
 		return true
 	}
 	return false
