@@ -603,13 +603,15 @@ func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 	}
 }
 
-// nodeSeqLen returns the length of either a *NodeList or a Nodes.
+// nodeSeqLen returns the length of a *NodeList, a Nodes, or a []*Node.
 func nodeSeqLen(ns nodesOrNodeList) int {
 	switch ns := ns.(type) {
 	case *NodeList:
 		return count(ns)
 	case Nodes:
 		return len(ns.Slice())
+	case []*Node:
+		return len(ns)
 	default:
 		panic("can't happen")
 	}
@@ -636,6 +638,27 @@ func nodeSeqSecond(ns nodesOrNodeList) *Node {
 		return ns.Next.N
 	case Nodes:
 		return ns.Slice()[1]
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqSlice returns a []*Node containing the contents of a
+// *NodeList, a Nodes, or a []*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func nodeSeqSlice(ns nodesOrNodeList) []*Node {
+	switch ns := ns.(type) {
+	case *NodeList:
+		var s []*Node
+		for l := ns; l != nil; l = l.Next {
+			s = append(s, l.N)
+		}
+		return s
+	case Nodes:
+		return ns.Slice()
+	case []*Node:
+		return ns
 	default:
 		panic("can't happen")
 	}

@@ -292,7 +292,7 @@ func orderexprinplace(np **Node, outer *Order) {
 	n := *np
 	var order Order
 	orderexpr(&n, &order, nil)
-	addinitslice(&n, order.out)
+	addinit(&n, order.out)
 
 	// insert new temporaries from order
 	// at head of outer list.

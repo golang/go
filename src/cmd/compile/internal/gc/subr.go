@@ -2708,8 +2708,8 @@ func mkpkg(path string) *Pkg {
 	return p
 }
 
-func addinit(np **Node, init *NodeList) {
-	if init == nil {
+func addinit(np **Node, init nodesOrNodeList) {
+	if nodeSeqLen(init) == 0 {
 		return
 	}
 
@@ -2725,16 +2725,8 @@ func addinit(np **Node, init *NodeList) {
 		*np = n
 	}
 
-	n.Ninit = concat(init, n.Ninit)
+	setNodeSeq(&n.Ninit, append(nodeSeqSlice(init), nodeSeqSlice(n.Ninit)...))
 	n.Ullman = UINF
-}
-
-func addinitslice(np **Node, init []*Node) {
-	var l *NodeList
-	for _, n := range init {
-		l = list(l, n)
-	}
-	addinit(np, l)
 }
 
 var reservedimports = []string{
