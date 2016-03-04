@@ -397,6 +397,63 @@ func walkexprlistcheap(l nodesOrNodeList, init nodesOrNodeListPtr) {
 	}
 }
 
+// Build name of function: convI2E etc.
+// Not all names are possible
+// (e.g., we'll never generate convE2E or convE2I).
+func convFuncName(from, to *Type) string {
+	tkind := to.iet()
+	switch from.iet() {
+	case 'I':
+		switch tkind {
+		case 'E':
+			return "convI2E"
+		case 'I':
+			return "convI2I"
+		}
+	case 'T':
+		switch tkind {
+		case 'E':
+			return "convT2E"
+		case 'I':
+			return "convT2I"
+		}
+	}
+	Fatalf("unknown conv func %c2%c", from.iet(), to.iet())
+	panic("unreachable")
+}
+
+// Build name of function: assertI2E etc.
+// If with2suffix is true, the form ending in "2" is returned".
+func assertFuncName(from, to *Type, with2suffix bool) string {
+	l := len("assertX2X2")
+	if !with2suffix {
+		l--
+	}
+	tkind := to.iet()
+	switch from.iet() {
+	case 'E':
+		switch tkind {
+		case 'I':
+			return "assertE2I2"[:l]
+		case 'E':
+			return "assertE2E2"[:l]
+		case 'T':
+			return "assertE2T2"[:l]
+		}
+	case 'I':
+		switch tkind {
+		case 'I':
+			return "assertI2I2"[:l]
+		case 'E':
+			return "assertI2E2"[:l]
+		case 'T':
+			return "assertI2T2"[:l]
+		}
+	}
+	Fatalf("unknown assert func %c2%c", from.iet(), to.iet())
+	panic("unreachable")
+}
+
 func walkexpr(np **Node, init nodesOrNodeListPtr) {
 	n := *np
 
@@ -689,8 +746,7 @@ opswitch:
 				Warn("type assertion not inlined")
 			}
 
-			buf := "assert" + type2IET(r.Left.Type) + "2" + type2IET(r.Type)
-			fn := syslook(buf, 1)
+			fn := syslook(assertFuncName(r.Left.Type, r.Type, false), 1)
 			substArgTypes(fn, r.Left.Type, r.Type)
 
 			n = mkcall1(fn, nil, init, typename(r.Type), r.Left, n1)
@@ -892,8 +948,8 @@ opswitch:
 			oktype = ok.Type
 		}
 
-		fromKind := type2IET(from.Type)
-		toKind := type2IET(t)
+		fromKind := from.Type.iet()
+		toKind := t.iet()
 
 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
 		// This is faster and shorter and allows the corresponding assertX2X2
@@ -901,13 +957,13 @@ opswitch:
 		if isblank(nodeSeqFirst(n.List)) {
 			var fast *Node
 			switch {
-			case fromKind == "E" && toKind == "T":
+			case fromKind == 'E' && toKind == 'T':
 				tab := Nod(OITAB, from, nil) // type:eface::tab:iface
 				typ := Nod(OCONVNOP, typename(t), nil)
 				typ.Type = Ptrto(Types[TUINTPTR])
 				fast = Nod(OEQ, tab, typ)
-			case fromKind == "I" && toKind == "E",
-				fromKind == "E" && toKind == "E":
+			case fromKind == 'I' && toKind == 'E',
+				fromKind == 'E' && toKind == 'E':
 				tab := Nod(OITAB, from, nil)
 				fast = Nod(ONE, nodnil(), tab)
 			}
@@ -932,8 +988,7 @@ opswitch:
 		if Debug_typeassert > 0 {
 			Warn("type assertion not inlined")
 		}
-		buf := "assert" + fromKind + "2" + toKind + "2"
-		fn := syslook(buf, 1)
+		fn := syslook(assertFuncName(from.Type, t, true), 1)
 		substArgTypes(fn, from.Type, t)
 		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
 		n = Nod(OAS, ok, call)
@@ -1046,11 +1101,7 @@ opswitch:
 			ll = list(ll, r)
 		}
 
-		// Build name of function: convI2E etc.
-		// Not all names are possible
-		// (e.g., we'll never generate convE2E or convE2I).
-		buf := "conv" + type2IET(n.Left.Type) + "2" + type2IET(n.Type)
-		fn := syslook(buf, 1)
+		fn := syslook(convFuncName(n.Left.Type, n.Type), 1)
 		if !Isinter(n.Left.Type) {
 			substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
 		} else {
