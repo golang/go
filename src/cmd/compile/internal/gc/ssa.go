@@ -2778,7 +2778,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
+	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier").Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
 	// TODO: select the .enabled field. It is currently first, so not needed for now.
 	// Load word, test byte, avoiding partial register write from load byte.
@@ -2823,7 +2823,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
 
-	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier", 0).Sym}
+	aux := &ssa.ExternSymbol{Types[TBOOL], syslook("writeBarrier").Sym}
 	flagaddr := s.newValue1A(ssa.OpAddr, Ptrto(Types[TUINT32]), aux, s.sb)
 	// TODO: select the .enabled field. It is currently first, so not needed for now.
 	// Load word, test byte, avoiding partial register write from load byte.

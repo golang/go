@@ -746,8 +746,8 @@ opswitch:
 				Warn("type assertion not inlined")
 			}
 
-			fn := syslook(assertFuncName(r.Left.Type, r.Type, false), 1)
-			substArgTypes(fn, r.Left.Type, r.Type)
+			fn := syslook(assertFuncName(r.Left.Type, r.Type, false))
+			substArgTypes(&fn, r.Left.Type, r.Type)
 
 			n = mkcall1(fn, nil, init, typename(r.Type), r.Left, n1)
 			walkexpr(&n, init)
@@ -988,8 +988,8 @@ opswitch:
 		if Debug_typeassert > 0 {
 			Warn("type assertion not inlined")
 		}
-		fn := syslook(assertFuncName(from.Type, t, true), 1)
-		substArgTypes(fn, from.Type, t)
+		fn := syslook(assertFuncName(from.Type, t, true))
+		substArgTypes(&fn, from.Type, t)
 		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
 		n = Nod(OAS, ok, call)
 		typecheck(&n, Etop)
@@ -1052,7 +1052,7 @@ opswitch:
 				typecheck(&n1, Etop)
 				appendNodeSeqNode(init, n1)
 
-				fn := syslook("typ2Itab", 0)
+				fn := syslook("typ2Itab")
 				n1 = Nod(OCALL, fn, nil)
 				setNodeSeq(&n1.List, ll)
 				typecheck(&n1, Erv)
@@ -1101,11 +1101,11 @@ opswitch:
 			ll = list(ll, r)
 		}
 
-		fn := syslook(convFuncName(n.Left.Type, n.Type), 1)
+		fn := syslook(convFuncName(n.Left.Type, n.Type))
 		if !Isinter(n.Left.Type) {
-			substArgTypes(fn, n.Left.Type, n.Left.Type, n.Type)
+			substArgTypes(&fn, n.Left.Type, n.Left.Type, n.Type)
 		} else {
-			substArgTypes(fn, n.Left.Type, n.Type)
+			substArgTypes(&fn, n.Left.Type, n.Type)
 		}
 		dowidth(fn.Type)
 		n = Nod(OCALL, fn, nil)
@@ -1417,9 +1417,9 @@ opswitch:
 
 		// cannot use chanfn - closechan takes any, not chan any
 	case OCLOSE:
-		fn := syslook("closechan", 1)
+		fn := syslook("closechan")
 
-		substArgTypes(fn, n.Left.Type)
+		substArgTypes(&fn, n.Left.Type)
 		n = mkcall1(fn, nil, init, n.Left)
 
 	case OMAKECHAN:
@@ -1450,8 +1450,8 @@ opswitch:
 			r = Nod(OADDR, var_, nil)
 		}
 
-		fn := syslook("makemap", 1)
-		substArgTypes(fn, hmap(t), mapbucket(t), t.Down, t.Type)
+		fn := syslook("makemap")
+		substArgTypes(&fn, hmap(t), mapbucket(t), t.Down, t.Type)
 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
 
 	case OMAKESLICE:
@@ -1480,9 +1480,9 @@ opswitch:
 			n = r
 		} else {
 			// makeslice(t *Type, nel int64, max int64) (ary []any)
-			fn := syslook("makeslice", 1)
+			fn := syslook("makeslice")
 
-			substArgTypes(fn, t.Type) // any-1
+			substArgTypes(&fn, t.Type) // any-1
 			n = mkcall1(fn, n.Type, init, typename(n.Type), conv(l, Types[TINT64]), conv(r, Types[TINT64]))
 		}
 
@@ -1563,14 +1563,14 @@ opswitch:
 		}
 		var fn *Node
 		if isnilinter(n.Left.Type) {
-			fn = syslook("efaceeq", 1)
+			fn = syslook("efaceeq")
 		} else {
-			fn = syslook("ifaceeq", 1)
+			fn = syslook("ifaceeq")
 		}
 
 		n.Right = cheapexpr(n.Right, init)
 		n.Left = cheapexpr(n.Left, init)
-		substArgTypes(fn, n.Right.Type, n.Left.Type)
+		substArgTypes(&fn, n.Right.Type, n.Left.Type)
 		r := mkcall1(fn, n.Type, init, n.Left, n.Right)
 		// TODO(marvin): Fix Node.EType type union.
 		if Op(n.Etype) == ONE {
@@ -2010,35 +2010,35 @@ func walkprint(nn *Node, init nodesOrNodeListPtr) *Node {
 		et = n.Type.Etype
 		if Isinter(n.Type) {
 			if isnilinter(n.Type) {
-				on = syslook("printeface", 1)
+				on = syslook("printeface")
 			} else {
-				on = syslook("printiface", 1)
+				on = syslook("printiface")
 			}
-			substArgTypes(on, n.Type) // any-1
+			substArgTypes(&on, n.Type) // any-1
 		} else if Isptr[et] || et == TCHAN || et == TMAP || et == TFUNC || et == TUNSAFEPTR {
-			on = syslook("printpointer", 1)
-			substArgTypes(on, n.Type) // any-1
+			on = syslook("printpointer")
+			substArgTypes(&on, n.Type) // any-1
 		} else if Isslice(n.Type) {
-			on = syslook("printslice", 1)
-			substArgTypes(on, n.Type) // any-1
+			on = syslook("printslice")
+			substArgTypes(&on, n.Type) // any-1
 		} else if Isint[et] {
 			if et == TUINT64 {
 				if (t.Sym.Pkg == Runtimepkg || compiling_runtime != 0) && t.Sym.Name == "hex" {
-					on = syslook("printhex", 0)
+					on = syslook("printhex")
 				} else {
-					on = syslook("printuint", 0)
+					on = syslook("printuint")
 				}
 			} else {
-				on = syslook("printint", 0)
+				on = syslook("printint")
 			}
 		} else if Isfloat[et] {
-			on = syslook("printfloat", 0)
+			on = syslook("printfloat")
 		} else if Iscomplex[et] {
-			on = syslook("printcomplex", 0)
+			on = syslook("printcomplex")
 		} else if et == TBOOL {
-			on = syslook("printbool", 0)
+			on = syslook("printbool")
 		} else if et == TSTRING {
-			on = syslook("printstring", 0)
+			on = syslook("printstring")
 		} else {
 			badtype(OPRINT, n.Type, nil)
 			continue
@@ -2080,8 +2080,8 @@ func walkprint(nn *Node, init nodesOrNodeListPtr) *Node {
 
 func callnew(t *Type) *Node {
 	dowidth(t)
-	fn := syslook("newobject", 1)
-	substArgTypes(fn, t)
+	fn := syslook("newobject")
+	substArgTypes(&fn, t)
 	return mkcall1(fn, Ptrto(t), nil, typename(t))
 }
 
@@ -2698,7 +2698,7 @@ func vmkcall(fn *Node, t *Type, init nodesOrNodeListPtr, va []*Node) *Node {
 }
 
 func mkcall(name string, t *Type, init nodesOrNodeListPtr, args ...*Node) *Node {
-	return vmkcall(syslook(name, 0), t, init, args)
+	return vmkcall(syslook(name), t, init, args)
 }
 
 func mkcall1(fn *Node, t *Type, init nodesOrNodeListPtr, args ...*Node) *Node {
@@ -2719,14 +2719,14 @@ func chanfn(name string, n int, t *Type) *Node {
 	if t.Etype != TCHAN {
 		Fatalf("chanfn %v", t)
 	}
-	fn := syslook(name, 1)
+	fn := syslook(name)
 	switch n {
 	default:
 		Fatalf("chanfn %d", n)
 	case 1:
-		substArgTypes(fn, t.Type)
+		substArgTypes(&fn, t.Type)
 	case 2:
-		substArgTypes(fn, t.Type, t.Type)
+		substArgTypes(&fn, t.Type, t.Type)
 	}
 	return fn
 }
@@ -2735,8 +2735,8 @@ func mapfn(name string, t *Type) *Node {
 	if t.Etype != TMAP {
 		Fatalf("mapfn %v", t)
 	}
-	fn := syslook(name, 1)
-	substArgTypes(fn, t.Down, t.Type, t.Down, t.Type)
+	fn := syslook(name)
+	substArgTypes(&fn, t.Down, t.Type, t.Down, t.Type)
 	return fn
 }
 
@@ -2744,14 +2744,14 @@ func mapfndel(name string, t *Type) *Node {
 	if t.Etype != TMAP {
 		Fatalf("mapfn %v", t)
 	}
-	fn := syslook(name, 1)
-	substArgTypes(fn, t.Down, t.Type, t.Down)
+	fn := syslook(name)
+	substArgTypes(&fn, t.Down, t.Type, t.Down)
 	return fn
 }
 
 func writebarrierfn(name string, l *Type, r *Type) *Node {
-	fn := syslook(name, 1)
-	substArgTypes(fn, l, r)
+	fn := syslook(name)
+	substArgTypes(&fn, l, r)
 	return fn
 }
 
@@ -2810,7 +2810,7 @@ func addstr(n *Node, init nodesOrNodeListPtr) *Node {
 		slice.Esc = EscNone
 	}
 
-	cat := syslook(fn, 0)
+	cat := syslook(fn)
 	r := Nod(OCALL, cat, nil)
 	setNodeSeq(&r.List, args)
 	typecheck(&r, Erv)
@@ -2859,8 +2859,8 @@ func appendslice(n *Node, init nodesOrNodeListPtr) *Node {
 	nif.Left = Nod(OGT, nt, Nodintconst(0))
 
 	// instantiate growslice_n(Type*, []any, int) []any
-	fn := syslook("growslice_n", 1) //   growslice_n(<type>, old []T, n int64) (ret []T)
-	substArgTypes(fn, s.Type.Type, s.Type.Type)
+	fn := syslook("growslice_n") //   growslice_n(<type>, old []T, n int64) (ret []T)
+	substArgTypes(&fn, s.Type.Type, s.Type.Type)
 
 	// s = growslice_n(T, s, n)
 	nif.Nbody.Set([]*Node{Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt))})
@@ -2873,8 +2873,8 @@ func appendslice(n *Node, init nodesOrNodeListPtr) *Node {
 
 		nptr1.Etype = 1
 		nptr2 := l2
-		fn := syslook("typedslicecopy", 1)
-		substArgTypes(fn, l1.Type, l2.Type)
+		fn := syslook("typedslicecopy")
+		substArgTypes(&fn, l1.Type, l2.Type)
 		nt := mkcall1(fn, Types[TINT], &l, typename(l1.Type.Type), nptr1, nptr2)
 		l = append(l, nt)
 	} else if instrumenting {
@@ -2886,11 +2886,11 @@ func appendslice(n *Node, init nodesOrNodeListPtr) *Node {
 		nptr2 := l2
 		var fn *Node
 		if l2.Type.Etype == TSTRING {
-			fn = syslook("slicestringcopy", 1)
+			fn = syslook("slicestringcopy")
 		} else {
-			fn = syslook("slicecopy", 1)
+			fn = syslook("slicecopy")
 		}
-		substArgTypes(fn, l1.Type, l2.Type)
+		substArgTypes(&fn, l1.Type, l2.Type)
 		nt := mkcall1(fn, Types[TINT], &l, nptr1, nptr2, Nodintconst(s.Type.Type.Width))
 		l = append(l, nt)
 	} else {
@@ -2902,8 +2902,8 @@ func appendslice(n *Node, init nodesOrNodeListPtr) *Node {
 
 		nptr2 := Nod(OSPTR, l2, nil)
 
-		fn := syslook("memmove", 1)
-		substArgTypes(fn, s.Type.Type, s.Type.Type)
+		fn := syslook("memmove")
+		substArgTypes(&fn, s.Type.Type, s.Type.Type)
 
 		nwid := cheapexpr(conv(Nod(OLEN, l2, nil), Types[TUINTPTR]), &l)
 
@@ -2994,8 +2994,8 @@ func walkappend(n *Node, init nodesOrNodeListPtr, dst *Node) *Node {
 	nx := Nod(OIF, nil, nil)       // if cap(s) - len(s) < argc
 	nx.Left = Nod(OLT, Nod(OSUB, Nod(OCAP, ns, nil), Nod(OLEN, ns, nil)), na)
 
-	fn := syslook("growslice", 1) //   growslice(<type>, old []T, mincap int) (ret []T)
-	substArgTypes(fn, ns.Type.Type, ns.Type.Type)
+	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
+	substArgTypes(&fn, ns.Type.Type, ns.Type.Type)
 
 	nx.Nbody.Set([]*Node{Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, Nod(OADD, Nod(OLEN, ns, nil), na)))})
 
@@ -3045,11 +3045,11 @@ func copyany(n *Node, init nodesOrNodeListPtr, runtimecall bool) *Node {
 	if runtimecall {
 		var fn *Node
 		if n.Right.Type.Etype == TSTRING {
-			fn = syslook("slicestringcopy", 1)
+			fn = syslook("slicestringcopy")
 		} else {
-			fn = syslook("slicecopy", 1)
+			fn = syslook("slicecopy")
 		}
-		substArgTypes(fn, n.Left.Type, n.Right.Type)
+		substArgTypes(&fn, n.Left.Type, n.Right.Type)
 		return mkcall1(fn, n.Type, init, n.Left, n.Right, Nodintconst(n.Left.Type.Type.Width))
 	}
 
@@ -3077,9 +3077,9 @@ func copyany(n *Node, init nodesOrNodeListPtr, runtimecall bool) *Node {
 	l = list(l, nif)
 
 	// Call memmove.
-	fn := syslook("memmove", 1)
+	fn := syslook("memmove")
 
-	substArgTypes(fn, nl.Type.Type, nl.Type.Type)
+	substArgTypes(&fn, nl.Type.Type, nl.Type.Type)
 	nwid := temp(Types[TUINTPTR])
 	l = list(l, Nod(OAS, nwid, conv(nlen, Types[TUINTPTR])))
 	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
@@ -3103,8 +3103,8 @@ func eqfor(t *Type, needsize *int) *Node {
 	}
 
 	if a == AMEM {
-		n := syslook("memequal", 1)
-		substArgTypes(n, t, t)
+		n := syslook("memequal")
+		substArgTypes(&n, t, t)
 		*needsize = 1
 		return n
 	}

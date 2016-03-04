@@ -132,7 +132,7 @@ func fninit(n *NodeList) {
 	b.Likely = 1
 	r = append(r, b)
 	// (4a)
-	b.Nbody.Set([]*Node{Nod(OCALL, syslook("throwinit", 0), nil)})
+	b.Nbody.Set([]*Node{Nod(OCALL, syslook("throwinit"), nil)})
 
 	// (6)
 	a = Nod(OAS, gatevar, Nodintconst(1))

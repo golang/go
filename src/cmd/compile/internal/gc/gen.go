@@ -434,7 +434,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 		q := Gbranch(obj.AJMP, nil, 0)
 		Patch(p, Pc)
 		Regrealloc(&r2) // reclaim from above, for this failure path
-		fn := syslook("panicdottype", 0)
+		fn := syslook("panicdottype")
 		dowidth(fn.Type)
 		call := Nod(OCALLFUNC, fn, nil)
 		r1.Type = byteptr
@@ -522,7 +522,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	q := Gbranch(obj.AJMP, nil, 0)
 	Patch(p, Pc)
 
-	fn := syslook("panicdottype", 0)
+	fn := syslook("panicdottype")
 	dowidth(fn.Type)
 	call := Nod(OCALLFUNC, fn, nil)
 	setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
