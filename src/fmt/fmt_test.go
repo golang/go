@@ -48,19 +48,23 @@ func TestFmtInterface(t *testing.T) {
 	}
 }
 
+const (
+	b32 uint32 = 1<<32 - 1
+	b64 uint64 = 1<<64 - 1
+)
+
 var (
 	NaN    = math.NaN()
 	posInf = math.Inf(1)
 	negInf = math.Inf(-1)
+
+	intVar = 0
+
+	array  = [5]int{1, 2, 3, 4, 5}
+	iarray = [4]interface{}{1, "hello", 2.5, nil}
+	slice  = array[:]
+	islice = iarray[:]
 )
-
-const b32 uint32 = 1<<32 - 1
-const b64 uint64 = 1<<64 - 1
-
-var array = [5]int{1, 2, 3, 4, 5}
-var iarray = [4]interface{}{1, "hello", 2.5, nil}
-var slice = array[:]
-var islice = iarray[:]
 
 type A struct {
 	i int
@@ -129,8 +133,6 @@ func (byteFormatter) Format(f State, _ rune) {
 }
 
 var byteFormatterSlice = []byteFormatter{97, 98, 99, 100}
-
-var b byte
 
 var fmtTests = []struct {
 	fmt string
@@ -598,7 +600,7 @@ var fmtTests = []struct {
 
 	// go syntax
 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
-	{"%#v", &b, "(*uint8)(0xPTR)"},
+	{"%#v", new(byte), "(*uint8)(0xPTR)"},
 	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"},
 	{"%#v", make(chan int), "(chan int)(0xPTR)"},
 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
@@ -729,31 +731,40 @@ var fmtTests = []struct {
 	{"%10T", nil, "     <nil>"},
 	{"%-10T", nil, "<nil>     "},
 
-	// %p
-	{"p0=%p", new(int), "p0=0xPTR"},
-	{"p1=%s", &pValue, "p1=String(p)"}, // String method...
-	{"p2=%p", &pValue, "p2=0xPTR"},     // ... not called with %p
-	{"p3=%p", (*int)(nil), "p3=0x0"},
-	{"p4=%#p", new(int), "p4=PTR"},
-
+	// %p with pointers
+	{"%p", (*int)(nil), "0x0"},
+	{"%#p", (*int)(nil), "0"},
+	{"%p", &intVar, "0xPTR"},
+	{"%#p", &intVar, "PTR"},
+	{"%p", &array, "0xPTR"},
+	{"%p", &slice, "0xPTR"},
+	{"%8.2p", (*int)(nil), "    0x00"},
+	{"%-20.16p", &intVar, "0xPTR  "},
 	// %p on non-pointers
 	{"%p", make(chan int), "0xPTR"},
 	{"%p", make(map[int]int), "0xPTR"},
-	{"%p", make([]int, 1), "0xPTR"},
-	{"%p", 27, "%!p(int=27)"}, // not a pointer at all
-
-	// %q on pointers
-	{"%q", (*int)(nil), "%!q(*int=<nil>)"},
-	{"%q", new(int), "%!q(*int=0xPTR)"},
-
-	// %v on pointers formats 0 as <nil>
+	{"%p", func() {}, "0xPTR"},
+	{"%p", 27, "%!p(int=27)"},  // not a pointer at all
+	{"%p", nil, "%!p(<nil>)"},  // nil on its own has no type ...
+	{"%#p", nil, "%!p(<nil>)"}, // ... and hence is not a pointer type.
+	// pointers with specified base
+	{"%b", &intVar, "PTR_b"},
+	{"%d", &intVar, "PTR_d"},
+	{"%o", &intVar, "PTR_o"},
+	{"%x", &intVar, "PTR_x"},
+	{"%X", &intVar, "PTR_X"},
+	// %v on pointers
+	{"%v", nil, "<nil>"},
+	{"%#v", nil, "<nil>"},
 	{"%v", (*int)(nil), "<nil>"},
-	{"%v", new(int), "0xPTR"},
-
-	// %d etc. pointers use specified base.
-	{"%d", new(int), "PTR_d"},
-	{"%o", new(int), "PTR_o"},
-	{"%x", new(int), "PTR_x"},
+	{"%#v", (*int)(nil), "(*int)(nil)"},
+	{"%v", &intVar, "0xPTR"},
+	{"%#v", &intVar, "(*int)(0xPTR)"},
+	{"%8.2v", (*int)(nil), "   <nil>"},
+	{"%-20.16v", &intVar, "0xPTR  "},
+	// string method on pointer
+	{"%s", &pValue, "String(p)"}, // String method...
+	{"%p", &pValue, "0xPTR"},     // ... is not called with %p.
 
 	// %d on Stringer should give integer if possible
 	{"%s", time.Time{}.Month(), "January"},
@@ -961,6 +972,9 @@ var fmtTests = []struct {
 	{"%☠", float32(1.2345678), "%!☠(float32=1.2345678)"},
 	{"%☠", 1.2345678 + 1.2345678i, "%!☠(complex128=(1.2345678+1.2345678i))"},
 	{"%☠", complex64(1.2345678 + 1.2345678i), "%!☠(complex64=(1.2345678+1.2345678i))"},
+	{"%☠", &intVar, "%!☠(*int=0xPTR)"},
+	{"%☠", make(chan int), "%!☠(chan int=0xPTR)"},
+	{"%☠", func() {}, "%!☠(func()=0xPTR)"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
@@ -972,27 +986,37 @@ func zeroFill(prefix string, width int, suffix string) string {
 func TestSprintf(t *testing.T) {
 	for _, tt := range fmtTests {
 		s := Sprintf(tt.fmt, tt.val)
-		if i := strings.Index(tt.out, "PTR"); i >= 0 {
-			pattern := "PTR"
-			chars := "0123456789abcdefABCDEF"
+		i := strings.Index(tt.out, "PTR")
+		if i >= 0 && i < len(s) {
+			var pattern, chars string
 			switch {
-			case strings.HasPrefix(tt.out[i:], "PTR_d"):
-				pattern = "PTR_d"
-				chars = chars[:10]
+			case strings.HasPrefix(tt.out[i:], "PTR_b"):
+				pattern = "PTR_b"
+				chars = "01"
 			case strings.HasPrefix(tt.out[i:], "PTR_o"):
 				pattern = "PTR_o"
-				chars = chars[:8]
+				chars = "01234567"
+			case strings.HasPrefix(tt.out[i:], "PTR_d"):
+				pattern = "PTR_d"
+				chars = "0123456789"
 			case strings.HasPrefix(tt.out[i:], "PTR_x"):
 				pattern = "PTR_x"
+				chars = "0123456789abcdef"
+			case strings.HasPrefix(tt.out[i:], "PTR_X"):
+				pattern = "PTR_X"
+				chars = "0123456789ABCDEF"
+			default:
+				pattern = "PTR"
+				chars = "0123456789abcdefABCDEF"
 			}
-			j := i
-			for ; j < len(s); j++ {
-				c := s[j]
-				if !strings.ContainsRune(chars, rune(c)) {
+			p := s[:i] + pattern
+			for j := i; j < len(s); j++ {
+				if !strings.ContainsRune(chars, rune(s[j])) {
+					p += s[j:]
 					break
 				}
 			}
-			s = s[0:i] + pattern + s[j:]
+			s = p
 		}
 		if s != tt.out {
 			if _, ok := tt.val.(string); ok {
