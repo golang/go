@@ -504,9 +504,9 @@ func (s *state) stmts(a Nodes) {
 }
 
 // ssaStmtList converts the statement n to SSA and adds it to s.
-func (s *state) stmtList(l *NodeList) {
-	for ; l != nil; l = l.Next {
-		s.stmt(l.N)
+func (s *state) stmtList(l nodesOrNodeList) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		s.stmt(it.N())
 	}
 }
 
@@ -554,9 +554,9 @@ func (s *state) stmt(n *Node) {
 		s.call(n.Left, callGo)
 
 	case OAS2DOTTYPE:
-		res, resok := s.dottype(n.Rlist.N, true)
-		s.assign(n.List.N, res, needwritebarrier(n.List.N, n.Rlist.N), false, n.Lineno)
-		s.assign(n.List.Next.N, resok, false, false, n.Lineno)
+		res, resok := s.dottype(nodeSeqFirst(n.Rlist), true)
+		s.assign(nodeSeqFirst(n.List), res, needwritebarrier(nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist)), false, n.Lineno)
+		s.assign(nodeSeqSecond(n.List), resok, false, false, n.Lineno)
 		return
 
 	case ODCL:
@@ -697,7 +697,7 @@ func (s *state) stmt(n *Node) {
 		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var bElse *ssa.Block
-		if n.Rlist != nil {
+		if nodeSeqLen(n.Rlist) != 0 {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
 			s.condBranch(n.Left, bThen, bElse, n.Likely)
 		} else {
@@ -710,7 +710,7 @@ func (s *state) stmt(n *Node) {
 			b.AddEdgeTo(bEnd)
 		}
 
-		if n.Rlist != nil {
+		if nodeSeqLen(n.Rlist) != 0 {
 			s.startBlock(bElse)
 			s.stmtList(n.Rlist)
 			if b := s.endBlock(); b != nil {
@@ -2013,14 +2013,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		pt := Ptrto(et)
 
 		// Evaluate slice
-		slice := s.expr(n.List.N)
+		slice := s.expr(nodeSeqFirst(n.List))
 
 		// Allocate new blocks
 		grow := s.f.NewBlock(ssa.BlockPlain)
 		assign := s.f.NewBlock(ssa.BlockPlain)
 
 		// Decide if we need to grow
-		nargs := int64(count(n.List) - 1)
+		nargs := int64(nodeSeqLen(n.List) - 1)
 		p := s.newValue1(ssa.OpSlicePtr, pt, slice)
 		l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
@@ -2054,12 +2054,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// Evaluate args
 		args := make([]*ssa.Value, 0, nargs)
 		store := make([]bool, 0, nargs)
-		for l := n.List.Next; l != nil; l = l.Next {
-			if canSSAType(l.N.Type) {
-				args = append(args, s.expr(l.N))
+		it := nodeSeqIterate(n.List)
+		it.Next()
+		for ; !it.Done(); it.Next() {
+			if canSSAType(it.N().Type) {
+				args = append(args, s.expr(it.N()))
 				store = append(store, true)
 			} else {
-				args = append(args, s.addr(l.N, false))
+				args = append(args, s.addr(it.N(), false))
 				store = append(store, false)
 			}
 		}
