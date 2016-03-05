@@ -378,31 +378,31 @@ func (f *fmt) fmt_bx(b []byte, digits string) {
 }
 
 // fmt_q formats a string as a double-quoted, escaped Go string constant.
+// If f.sharp is set a raw (backquoted) string may be returned instead
+// if the string does not contain any control characters other than tab.
 func (f *fmt) fmt_q(s string) {
 	s = f.truncate(s)
-	var quoted string
 	if f.sharp && strconv.CanBackquote(s) {
-		quoted = "`" + s + "`"
-	} else {
-		if f.plus {
-			quoted = strconv.QuoteToASCII(s)
-		} else {
-			quoted = strconv.Quote(s)
-		}
+		f.padString("`" + s + "`")
+		return
 	}
-	f.padString(quoted)
+	buf := f.intbuf[:0]
+	if f.plus {
+		f.pad(strconv.AppendQuoteToASCII(buf, s))
+	} else {
+		f.pad(strconv.AppendQuote(buf, s))
+	}
 }
 
 // fmt_qc formats the integer as a single-quoted, escaped Go character constant.
 // If the character is not valid Unicode, it will print '\ufffd'.
 func (f *fmt) fmt_qc(c int64) {
-	var quoted []byte
+	buf := f.intbuf[:0]
 	if f.plus {
-		quoted = strconv.AppendQuoteRuneToASCII(f.intbuf[0:0], rune(c))
+		f.pad(strconv.AppendQuoteRuneToASCII(buf, rune(c)))
 	} else {
-		quoted = strconv.AppendQuoteRune(f.intbuf[0:0], rune(c))
+		f.pad(strconv.AppendQuoteRune(buf, rune(c)))
 	}
-	f.pad(quoted)
 }
 
 // floating-point
