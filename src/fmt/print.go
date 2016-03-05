@@ -541,18 +541,6 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 }
 
 func (p *pp) fmtPointer(value reflect.Value, verb rune) {
-	use0x64 := true
-	switch verb {
-	case 'p', 'v':
-		// ok
-	case 'b', 'd', 'o', 'x', 'X':
-		use0x64 = false
-		// ok
-	default:
-		p.badVerb(verb)
-		return
-	}
-
 	var u uintptr
 	switch value.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
@@ -562,24 +550,31 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 		return
 	}
 
-	if p.fmt.sharpV {
-		p.buf.WriteByte('(')
-		p.buf.WriteString(value.Type().String())
-		p.buf.WriteString(")(")
-		if u == 0 {
-			p.buf.WriteString(nilString)
+	switch verb {
+	case 'v':
+		if p.fmt.sharpV {
+			p.buf.WriteByte('(')
+			p.buf.WriteString(value.Type().String())
+			p.buf.WriteString(")(")
+			if u == 0 {
+				p.buf.WriteString(nilString)
+			} else {
+				p.fmt0x64(uint64(u), true)
+			}
+			p.buf.WriteByte(')')
 		} else {
-			p.fmt0x64(uint64(u), true)
+			if u == 0 {
+				p.fmt.padString(nilAngleString)
+			} else {
+				p.fmt0x64(uint64(u), !p.fmt.sharp)
+			}
 		}
-		p.buf.WriteByte(')')
-	} else if verb == 'v' && u == 0 {
-		p.buf.WriteString(nilAngleString)
-	} else {
-		if use0x64 {
-			p.fmt0x64(uint64(u), !p.fmt.sharp)
-		} else {
-			p.fmtUint64(uint64(u), verb)
-		}
+	case 'p':
+		p.fmt0x64(uint64(u), !p.fmt.sharp)
+	case 'b', 'o', 'd', 'x', 'X':
+		p.fmtUint64(uint64(u), verb)
+	default:
+		p.badVerb(verb)
 	}
 }
 
