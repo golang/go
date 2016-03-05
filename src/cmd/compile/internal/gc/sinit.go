@@ -30,8 +30,8 @@ func init1(n *Node, out *[]*Node) {
 	}
 	init1(n.Left, out)
 	init1(n.Right, out)
-	for l := n.List; l != nil; l = l.Next {
-		init1(l.N, out)
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		init1(it.N(), out)
 	}
 
 	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
@@ -98,7 +98,7 @@ func init1(n *Node, out *[]*Node) {
 			Fatalf("init1: bad defn")
 
 		case ODCLFUNC:
-			init2slice(defn.Nbody.Slice(), out)
+			init2list(defn.Nbody, out)
 
 		case OAS:
 			if defn.Left != n {
@@ -128,8 +128,8 @@ func init1(n *Node, out *[]*Node) {
 				break
 			}
 			defn.Initorder = InitPending
-			for l := defn.Rlist; l != nil; l = l.Next {
-				init1(l.N, out)
+			for it := nodeSeqIterate(defn.Rlist); !it.Done(); it.Next() {
+				init1(it.N(), out)
 			}
 			if Debug['%'] != 0 {
 				Dump("nonstatic", defn)
@@ -192,7 +192,7 @@ func init2(n *Node, out *[]*Node) {
 		return
 	}
 
-	if n.Op == ONAME && n.Ninit != nil {
+	if n.Op == ONAME && nodeSeqLen(n.Ninit) != 0 {
 		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
 	}
 
@@ -202,40 +202,34 @@ func init2(n *Node, out *[]*Node) {
 	init2list(n.Ninit, out)
 	init2list(n.List, out)
 	init2list(n.Rlist, out)
-	init2slice(n.Nbody.Slice(), out)
+	init2list(n.Nbody, out)
 
 	if n.Op == OCLOSURE {
-		init2slice(n.Func.Closure.Nbody.Slice(), out)
+		init2list(n.Func.Closure.Nbody, out)
 	}
 	if n.Op == ODOTMETH || n.Op == OCALLPART {
 		init2(n.Type.Nname, out)
 	}
 }
 
-func init2list(l *NodeList, out *[]*Node) {
-	for ; l != nil; l = l.Next {
-		init2(l.N, out)
+func init2list(l nodesOrNodeList, out *[]*Node) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		init2(it.N(), out)
 	}
 }
 
-func init2slice(l []*Node, out *[]*Node) {
-	for _, n := range l {
-		init2(n, out)
-	}
-}
-
-func initreorder(l *NodeList, out *[]*Node) {
+func initreorder(l nodesOrNodeList, out *[]*Node) {
 	var n *Node
 
-	for ; l != nil; l = l.Next {
-		n = l.N
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		n = it.N()
 		switch n.Op {
 		case ODCLFUNC, ODCLCONST, ODCLTYPE:
 			continue
 		}
 
 		initreorder(n.Ninit, out)
-		n.Ninit = nil
+		setNodeSeq(&n.Ninit, nil)
 		init1(n, out)
 	}
 }
@@ -243,7 +237,7 @@ func initreorder(l *NodeList, out *[]*Node) {
 // initfix computes initialization order for a list l of top-level
 // declarations and outputs the corresponding list of statements
 // to include in the init() function body.
-func initfix(l *NodeList) []*Node {
+func initfix(l nodesOrNodeList) []*Node {
 	var lout []*Node
 	initplans = make(map[*Node]*InitPlan)
 	lno := lineno
@@ -565,8 +559,8 @@ func getdyn(n *Node, top int) int {
 		break
 	}
 
-	for nl := n.List; nl != nil; nl = nl.Next {
-		value := nl.N.Right
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		value := it.N().Right
 		mode |= getdyn(value, 0)
 		if mode == MODEDYNAM|MODECONST {
 			break
@@ -577,8 +571,8 @@ func getdyn(n *Node, top int) int {
 }
 
 func structlit(ctxt int, pass int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
-	for nl := n.List; nl != nil; nl = nl.Next {
-		r := nl.N
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		r := it.N()
 		if r.Op != OKEY {
 			Fatalf("structlit: rhs not OKEY: %v", r)
 		}
@@ -642,8 +636,8 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init nodesOrNodeListPtr)
 }
 
 func arraylit(ctxt int, pass int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
-	for l := n.List; l != nil; l = l.Next {
-		r := l.N
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		r := it.N()
 		if r.Op != OKEY {
 			Fatalf("arraylit: rhs not OKEY: %v", r)
 		}
@@ -790,7 +784,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 		a = Nod(OADDR, a, nil)
 	} else {
 		a = Nod(ONEW, nil, nil)
-		a.List = list1(typenod(t))
+		setNodeSeq(&a.List, []*Node{typenod(t)})
 	}
 
 	a = Nod(OAS, vauto, a)
@@ -817,8 +811,8 @@ func slicelit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	appendNodeSeqNode(init, a)
 
 	// put dynamics into slice (6)
-	for l := n.List; l != nil; l = l.Next {
-		r := l.N
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		r := it.N()
 		if r.Op != OKEY {
 			Fatalf("slicelit: rhs not OKEY: %v", r)
 		}
@@ -864,13 +858,13 @@ func maplit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 	nerr := nerrors
 
 	a := Nod(OMAKE, nil, nil)
-	a.List = list1(typenod(n.Type))
+	setNodeSeq(&a.List, []*Node{typenod(n.Type)})
 	litas(var_, a, init)
 
 	// count the initializers
 	b := 0
-	for l := n.List; l != nil; l = l.Next {
-		r := l.N
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		r := it.N()
 		if r.Op != OKEY {
 			Fatalf("maplit: rhs not OKEY: %v", r)
 		}
@@ -913,8 +907,8 @@ func maplit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 		vstat := staticname(tarr, ctxt)
 
 		b := int64(0)
-		for l := n.List; l != nil; l = l.Next {
-			r := l.N
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			r := it.N()
 
 			if r.Op != OKEY {
 				Fatalf("maplit: rhs not OKEY: %v", r)
@@ -971,7 +965,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 		a = Nod(OFOR, nil, nil)
 		a.Nbody.Set([]*Node{r})
 
-		a.Ninit = list1(Nod(OAS, index, Nodintconst(0)))
+		setNodeSeq(&a.Ninit, []*Node{Nod(OAS, index, Nodintconst(0))})
 		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
 
@@ -982,8 +976,8 @@ func maplit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 
 	// put in dynamic entries one-at-a-time
 	var key, val *Node
-	for l := n.List; l != nil; l = l.Next {
-		r := l.N
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		r := it.N()
 
 		if r.Op != OKEY {
 			Fatalf("maplit: rhs not OKEY: %v", r)
@@ -1071,7 +1065,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 			Fatalf("anylit: not struct")
 		}
 
-		if simplename(var_) && count(n.List) > 4 {
+		if simplename(var_) && nodeSeqLen(n.List) > 4 {
 			if ctxt == 0 {
 				// lay out static data
 				vstat := staticname(t, ctxt)
@@ -1097,7 +1091,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 		}
 
 		// initialize of not completely specified
-		if simplename(var_) || count(n.List) < structcount(t) {
+		if simplename(var_) || nodeSeqLen(n.List) < structcount(t) {
 			a := Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)
@@ -1115,7 +1109,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 			break
 		}
 
-		if simplename(var_) && count(n.List) > 4 {
+		if simplename(var_) && nodeSeqLen(n.List) > 4 {
 			if ctxt == 0 {
 				// lay out static data
 				vstat := staticname(t, ctxt)
@@ -1141,7 +1135,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init nodesOrNodeListPtr) {
 		}
 
 		// initialize of not completely specified
-		if simplename(var_) || int64(count(n.List)) < t.Bound {
+		if simplename(var_) || int64(nodeSeqLen(n.List)) < t.Bound {
 			a := Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)
@@ -1263,8 +1257,8 @@ func initplan(n *Node) {
 		Fatalf("initplan")
 
 	case OARRAYLIT:
-		for l := n.List; l != nil; l = l.Next {
-			a := l.N
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			a := it.N()
 			if a.Op != OKEY || !Smallintconst(a.Left) {
 				Fatalf("initplan arraylit")
 			}
@@ -1272,8 +1266,8 @@ func initplan(n *Node) {
 		}
 
 	case OSTRUCTLIT:
-		for l := n.List; l != nil; l = l.Next {
-			a := l.N
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			a := it.N()
 			if a.Op != OKEY || a.Left.Type == nil {
 				Fatalf("initplan structlit")
 			}
@@ -1281,8 +1275,8 @@ func initplan(n *Node) {
 		}
 
 	case OMAPLIT:
-		for l := n.List; l != nil; l = l.Next {
-			a := l.N
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			a := it.N()
 			if a.Op != OKEY {
 				Fatalf("initplan maplit")
 			}
@@ -1357,8 +1351,8 @@ func iszero(n *Node) bool {
 
 		// fall through
 	case OSTRUCTLIT:
-		for l := n.List; l != nil; l = l.Next {
-			if !iszero(l.N.Right) {
+		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+			if !iszero(it.N().Right) {
 				return false
 			}
 		}
