@@ -164,7 +164,7 @@ func incdecs() {
 	const c = 3.14
 	c /* ERROR "cannot assign" */ ++
 	s := "foo"
-	s /* ERROR "cannot convert" */ --
+	s /* ERROR "invalid operation" */ --
 	3.14 /* ERROR "cannot assign" */ ++
 	var (
 		x int
