@@ -484,6 +484,46 @@ func round(n, a uintptr) uintptr {
 	return (n + a - 1) &^ (a - 1)
 }
 
+func newName(n, tag, pkgPath string, exported bool) name {
+	if len(n) > 1<<16-1 {
+		panic("reflect.nameFrom: name too long: " + n)
+	}
+	if len(tag) > 1<<16-1 {
+		panic("reflect.nameFrom: tag too long: " + tag)
+	}
+
+	var bits byte
+	l := 1 + 2 + len(n)
+	if exported {
+		bits |= 1 << 0
+	}
+	if len(tag) > 0 {
+		l += 2 + len(tag)
+		bits |= 1 << 1
+	}
+	if pkgPath != "" {
+		bits |= 1 << 2
+	}
+
+	b := make([]byte, l)
+	b[0] = bits
+	b[1] = uint8(len(n) >> 8)
+	b[2] = uint8(len(n))
+	copy(b[3:], n)
+	if len(tag) > 0 {
+		tb := b[3+len(n):]
+		tb[0] = uint8(len(tag) >> 8)
+		tb[1] = uint8(len(tag))
+		copy(tb[2:], tag)
+	}
+
+	if pkgPath != "" {
+		panic("reflect: creating a name with a package path is not supported")
+	}
+
+	return name{bytes: &b[0]}
+}
+
 /*
  * The compiler knows the exact layout of all the data structures above.
  * The compiler does not know about the data structures and methods below.
@@ -562,11 +602,7 @@ func (t *rtype) uncommon() *uncommonType {
 	}
 	switch t.Kind() {
 	case Struct:
-		type u struct {
-			structType
-			u uncommonType
-		}
-		return &(*u)(unsafe.Pointer(t)).u
+		return &(*structTypeWithMethods)(unsafe.Pointer(t)).u
 	case Ptr:
 		type u struct {
 			ptrType
@@ -1572,7 +1608,7 @@ func typesByString(s string) []*rtype {
 	return ret
 }
 
-// The lookupCache caches ChanOf, MapOf, and SliceOf lookups.
+// The lookupCache caches ArrayOf, ChanOf, MapOf and SliceOf lookups.
 var lookupCache struct {
 	sync.RWMutex
 	m map[cacheKey]*rtype
@@ -2110,6 +2146,431 @@ func SliceOf(t Type) Type {
 	slice.elem = typ
 
 	return cachePut(ckey, &slice.rtype)
+}
+
+// structTypeWithMethods is a structType created at runtime with StructOf.
+// It is needed to pin the []method slice from its associated uncommonType struct.
+// Keep in sync with the memory layout of structType.
+type structTypeWithMethods struct {
+	structType
+	u uncommonType
+}
+
+// The structLookupCache caches StructOf lookups.
+// StructOf does not share the common lookupCache since we need to pin
+// the *structType and its associated *uncommonType (especially the
+// []method slice field of that uncommonType.)
+var structLookupCache struct {
+	sync.RWMutex
+	m map[uint32][]*structTypeWithMethods // keyed by hash calculated in StructOf
+}
+
+// StructOf returns the struct type containing fields.
+// The Offset and Index fields are ignored and computed as they would be
+// by the compiler.
+//
+// StructOf does not support creating structs with UTF-8 field names or
+// UTF-8 (embedded) type names.
+// This limitation may be lifted eventually.
+func StructOf(fields []StructField) Type {
+	var (
+		hash       = fnv1(0, []byte("struct {")...)
+		size       uintptr
+		typalign   uint8
+		comparable = true
+		hashable   = true
+		typ        = new(structTypeWithMethods)
+
+		fs   = make([]structField, len(fields))
+		repr = make([]byte, 0, 64)
+		fset = map[string]struct{}{} // fields' names
+
+		hasPtr    = false // records whether at least one struct-field is a pointer
+		hasGCProg = false // records whether a struct-field type has a GCProg
+	)
+
+	repr = append(repr, "struct {"...)
+	for i, field := range fields {
+		if field.Type == nil {
+			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no type")
+		}
+		f := runtimeStructField(field)
+		ft := f.typ
+		if ft.kind&kindGCProg != 0 {
+			hasGCProg = true
+		}
+		if ft.pointers() {
+			hasPtr = true
+		}
+
+		name := ""
+		// Update string and hash
+		if f.name.nameLen() > 0 {
+			hash = fnv1(hash, []byte(f.name.name())...)
+			repr = append(repr, (" " + f.name.name())...)
+			name = f.name.name()
+		} else {
+			// Embedded field
+			if f.typ.Kind() == Ptr {
+				// Embedded ** and *interface{} are illegal
+				elem := ft.Elem()
+				if k := elem.Kind(); k == Ptr || k == Interface {
+					panic("reflect.StructOf: illegal anonymous field type " + ft.string)
+				}
+				name = elem.String()
+			} else {
+				name = ft.string
+			}
+			// TODO(sbinet) check for syntactically impossible type names?
+
+			switch f.typ.Kind() {
+			case Interface:
+				ift := (*interfaceType)(unsafe.Pointer(ft))
+				for im, m := range ift.methods {
+					if m.name.pkgPath() != nil {
+						// TODO(sbinet)
+						panic("reflect: embedded interface with unexported method(s) not implemented")
+					}
+
+					var (
+						ifield  = i
+						imethod = im
+						ifn     Value
+						tfn     Value
+					)
+
+					if ft.kind&kindDirectIface != 0 {
+						tfn = MakeFunc(m.typ, func(in []Value) []Value {
+							var args []Value
+							var recv = in[0]
+							if len(in) > 1 {
+								args = in[1:]
+							}
+							return recv.Field(ifield).Method(imethod).Call(args)
+						})
+						ifn = MakeFunc(m.typ, func(in []Value) []Value {
+							var args []Value
+							var recv = in[0]
+							if len(in) > 1 {
+								args = in[1:]
+							}
+							return recv.Field(ifield).Method(imethod).Call(args)
+						})
+
+					} else {
+						tfn = MakeFunc(m.typ, func(in []Value) []Value {
+							var args []Value
+							var recv = in[0]
+							if len(in) > 1 {
+								args = in[1:]
+							}
+							return recv.Field(ifield).Method(imethod).Call(args)
+						})
+						ifn = MakeFunc(m.typ, func(in []Value) []Value {
+							var args []Value
+							var recv = Indirect(in[0])
+							if len(in) > 1 {
+								args = in[1:]
+							}
+							return recv.Field(ifield).Method(imethod).Call(args)
+						})
+
+					}
+
+					typ.u.methods = append(
+						typ.u.methods,
+						method{
+							name: m.name,
+							mtyp: m.typ,
+							ifn:  unsafe.Pointer(&ifn),
+							tfn:  unsafe.Pointer(&tfn),
+						},
+					)
+				}
+			case Ptr:
+				ptr := (*ptrType)(unsafe.Pointer(ft))
+				if unt := ptr.uncommon(); unt != nil {
+					for _, m := range unt.methods {
+						if m.name.pkgPath() != nil {
+							// TODO(sbinet)
+							panic("reflect: embedded interface with unexported method(s) not implemented")
+						}
+						typ.u.methods = append(typ.u.methods, m)
+					}
+				}
+				if unt := ptr.elem.uncommon(); unt != nil {
+					for _, m := range unt.methods {
+						if m.name.pkgPath() != nil {
+							// TODO(sbinet)
+							panic("reflect: embedded interface with unexported method(s) not implemented")
+						}
+						typ.u.methods = append(typ.u.methods, m)
+					}
+				}
+			default:
+				if unt := ft.uncommon(); unt != nil {
+					for _, m := range unt.methods {
+						if m.name.pkgPath() != nil {
+							// TODO(sbinet)
+							panic("reflect: embedded interface with unexported method(s) not implemented")
+						}
+						typ.u.methods = append(typ.u.methods, m)
+					}
+				}
+			}
+		}
+		if _, dup := fset[name]; dup {
+			panic("reflect.StructOf: duplicate field " + name)
+		}
+		fset[name] = struct{}{}
+
+		hash = fnv1(hash, byte(ft.hash>>24), byte(ft.hash>>16), byte(ft.hash>>8), byte(ft.hash))
+
+		repr = append(repr, (" " + ft.string)...)
+		if f.name.tagLen() > 0 {
+			hash = fnv1(hash, []byte(f.name.tag())...)
+			repr = append(repr, (" " + strconv.Quote(f.name.tag()))...)
+		}
+		if i < len(fields)-1 {
+			repr = append(repr, ';')
+		}
+
+		comparable = comparable && (ft.alg.equal != nil)
+		hashable = hashable && (ft.alg.hash != nil)
+
+		f.offset = align(size, uintptr(ft.align))
+		if ft.align > typalign {
+			typalign = ft.align
+		}
+		size = f.offset + ft.size
+
+		fs[i] = f
+	}
+	if len(fs) > 0 {
+		repr = append(repr, ' ')
+	}
+	repr = append(repr, '}')
+	hash = fnv1(hash, '}')
+	str := string(repr)
+
+	// Round the size up to be a multiple of the alignment.
+	size = align(size, uintptr(typalign))
+
+	// Make the struct type.
+	var istruct interface{} = struct{}{}
+	prototype := *(**structType)(unsafe.Pointer(&istruct))
+	typ.structType = *prototype
+	typ.structType.fields = fs
+
+	// Look in cache
+	structLookupCache.RLock()
+	for _, t := range structLookupCache.m[hash] {
+		if haveIdenticalUnderlyingType(&typ.rtype, &t.rtype) {
+			structLookupCache.RUnlock()
+			return &t.rtype
+		}
+	}
+	structLookupCache.RUnlock()
+
+	// not in cache, lock and retry
+	structLookupCache.Lock()
+	defer structLookupCache.Unlock()
+	if structLookupCache.m == nil {
+		structLookupCache.m = make(map[uint32][]*structTypeWithMethods)
+	}
+	for _, t := range structLookupCache.m[hash] {
+		if haveIdenticalUnderlyingType(&typ.rtype, &t.rtype) {
+			return &t.rtype
+		}
+	}
+
+	// Look in known types.
+	for _, t := range typesByString(str) {
+		if haveIdenticalUnderlyingType(&typ.rtype, t) {
+			// even if 't' wasn't a structType with methods, we should be ok
+			// as the 'u uncommonType' field won't be accessed except when
+			// tflag&tflagUncommon is set.
+			tt := (*structTypeWithMethods)(unsafe.Pointer(t))
+			structLookupCache.m[hash] = append(structLookupCache.m[hash], tt)
+			return &tt.rtype
+		}
+	}
+
+	typ.string = str
+	typ.hash = hash
+	typ.size = size
+	typ.align = typalign
+	typ.fieldAlign = typalign
+	if len(typ.u.methods) > 0 {
+		typ.tflag |= tflagUncommon
+	}
+	if !hasPtr {
+		typ.kind |= kindNoPointers
+	} else {
+		typ.kind &^= kindNoPointers
+	}
+
+	if hasGCProg {
+		lastPtrField := 0
+		for i, ft := range fs {
+			if ft.typ.pointers() {
+				lastPtrField = i
+			}
+		}
+		prog := []byte{0, 0, 0, 0} // will be length of prog
+		for i, ft := range fs {
+			if i > lastPtrField {
+				// gcprog should not include anything for any field after
+				// the last field that contains pointer data
+				break
+			}
+			// FIXME(sbinet) handle padding, fields smaller than a word
+			elemGC := (*[1 << 30]byte)(unsafe.Pointer(ft.typ.gcdata))[:]
+			elemPtrs := ft.typ.ptrdata / ptrSize
+			switch {
+			case ft.typ.kind&kindGCProg == 0 && ft.typ.ptrdata != 0:
+				// Element is small with pointer mask; use as literal bits.
+				mask := elemGC
+				// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
+				var n uintptr
+				for n := elemPtrs; n > 120; n -= 120 {
+					prog = append(prog, 120)
+					prog = append(prog, mask[:15]...)
+					mask = mask[15:]
+				}
+				prog = append(prog, byte(n))
+				prog = append(prog, mask[:(n+7)/8]...)
+			case ft.typ.kind&kindGCProg != 0:
+				// Element has GC program; emit one element.
+				elemProg := elemGC[4 : 4+*(*uint32)(unsafe.Pointer(&elemGC[0]))-1]
+				prog = append(prog, elemProg...)
+			}
+			// Pad from ptrdata to size.
+			elemWords := ft.typ.size / ptrSize
+			if elemPtrs < elemWords {
+				// Emit literal 0 bit, then repeat as needed.
+				prog = append(prog, 0x01, 0x00)
+				if elemPtrs+1 < elemWords {
+					prog = append(prog, 0x81)
+					prog = appendVarint(prog, elemWords-elemPtrs-1)
+				}
+			}
+		}
+		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+		typ.kind |= kindGCProg
+		typ.gcdata = &prog[0]
+	} else {
+		typ.kind &^= kindGCProg
+		bv := new(bitVector)
+		addTypeBits(bv, 0, typ.common())
+		if len(bv.data) > 0 {
+			typ.gcdata = &bv.data[0]
+		}
+	}
+	typ.ptrdata = typeptrdata(typ.common())
+	typ.alg = new(typeAlg)
+	if hashable {
+		typ.alg.hash = func(p unsafe.Pointer, seed uintptr) uintptr {
+			o := seed
+			for _, ft := range typ.fields {
+				pi := unsafe.Pointer(uintptr(p) + ft.offset)
+				o = ft.typ.alg.hash(pi, o)
+			}
+			return o
+		}
+	}
+
+	if comparable {
+		typ.alg.equal = func(p, q unsafe.Pointer) bool {
+			for _, ft := range typ.fields {
+				pi := unsafe.Pointer(uintptr(p) + ft.offset)
+				qi := unsafe.Pointer(uintptr(q) + ft.offset)
+				if !ft.typ.alg.equal(pi, qi) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+
+	switch {
+	case len(fs) == 1 && !ifaceIndir(fs[0].typ):
+		// structs of 1 direct iface type can be direct
+		typ.kind |= kindDirectIface
+	default:
+		typ.kind &^= kindDirectIface
+	}
+
+	structLookupCache.m[hash] = append(structLookupCache.m[hash], typ)
+	return &typ.rtype
+}
+
+func runtimeStructField(field StructField) structField {
+	exported := field.PkgPath == ""
+	if field.Name == "" {
+		t := field.Type
+		if t.Kind() == Ptr {
+			t = t.Elem()
+		}
+		exported = isExported(t.Name())
+	} else if exported {
+		b0 := field.Name[0]
+		if ('a' <= b0 && b0 <= 'z') || b0 == '_' {
+			panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but has no PkgPath")
+		}
+	}
+
+	return structField{
+		name:   newName(field.Name, string(field.Tag), field.PkgPath, exported),
+		typ:    field.Type.common(),
+		offset: 0,
+	}
+}
+
+func isExported(s string) bool {
+	if s == "" {
+		return false
+	}
+	// FIXME(sbinet): handle utf8/runes (see https://golang.org/issue/15064)
+	// TODO: turn rtype.string into a reflect.name type, and put the exported
+	//       bit on there which can be checked here with field.Type.(*rtype).string.isExported()
+	//       When done, remove the documented limitation of StructOf.
+	r := s[0]
+	switch {
+	case 'A' <= r && r <= 'Z':
+		return true
+	case r == '_' || 'a' <= r && r <= 'z':
+		return false
+	default:
+		panic("reflect.StructOf: creating a struct with UTF-8 fields is not supported yet")
+	}
+}
+
+// typeptrdata returns the length in bytes of the prefix of t
+// containing pointer data. Anything after this offset is scalar data.
+// keep in sync with ../cmd/compile/internal/gc/reflect.go
+func typeptrdata(t *rtype) uintptr {
+	if !t.pointers() {
+		return 0
+	}
+	switch t.Kind() {
+	case Struct:
+		st := (*structType)(unsafe.Pointer(t))
+		// find the last field that has pointers.
+		field := 0
+		for i := range st.fields {
+			ft := st.fields[i].typ
+			if ft.pointers() {
+				field = i
+			}
+		}
+		f := st.fields[field]
+		return f.offset + f.typ.ptrdata
+
+	default:
+		panic("reflect.typeptrdata: unexpected type, " + t.String())
+	}
+	return 0
 }
 
 // See cmd/compile/internal/gc/reflect.go for derivation of constant.

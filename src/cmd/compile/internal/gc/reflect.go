@@ -1307,7 +1307,7 @@ ok:
 	// we want be able to find.
 	if t.Sym == nil {
 		switch t.Etype {
-		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP:
+		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
 			slink := typelinksym(t)
 			dsymptr(slink, 0, s, 0)
 			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
