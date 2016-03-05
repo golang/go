@@ -2264,7 +2264,7 @@ func lexinit1() {
 
 func lexfini() {
 	for _, s := range builtinpkg.Syms {
-		if s.Def == nil {
+		if s.Def == nil || (s.Name == "any" && Debug['A'] == 0) {
 			continue
 		}
 		s1 := Lookup(s.Name)
