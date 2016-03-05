@@ -268,7 +268,6 @@ type decompressor struct {
 	// Input source.
 	r       Reader
 	roffset int64
-	woffset int64
 
 	// Input bits, in top of b.
 	b  uint32
@@ -352,7 +351,6 @@ func (f *decompressor) Read(b []byte) (int, error) {
 			return 0, f.err
 		}
 		f.step(f)
-		f.woffset += int64(len(f.toRead))
 	}
 }
 
