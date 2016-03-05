@@ -521,6 +521,11 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
+			if n.Implicit && !okforarith[l.Type.Etype] {
+				Yyerror("invalid operation: %v (non-numeric type %v)", n, l.Type)
+				n.Type = nil
+				return
+			}
 			// TODO(marvin): Fix Node.EType type union.
 			op = Op(n.Etype)
 		} else {
@@ -632,12 +637,6 @@ OpSwitch:
 
 		if t.Etype != TIDEAL && !Eqtype(l.Type, r.Type) {
 			defaultlit2(&l, &r, true)
-			if n.Op == OASOP && n.Implicit {
-				Yyerror("invalid operation: %v (non-numeric type %v)", n, l.Type)
-				n.Type = nil
-				return
-			}
-
 			if Isinter(r.Type) == Isinter(l.Type) || aop == 0 {
 				Yyerror("invalid operation: %v (mismatched types %v and %v)", n, l.Type, r.Type)
 				n.Type = nil
