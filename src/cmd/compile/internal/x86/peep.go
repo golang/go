@@ -387,7 +387,7 @@ func subprop(r0 *gc.Flow) bool {
 		}
 
 		if (p.Info.Flags&gc.Move != 0) && (p.Info.Flags&(gc.SizeL|gc.SizeQ|gc.SizeF|gc.SizeD) != 0) && p.To.Type == v1.Type && p.To.Reg == v1.Reg {
-			copysub(&p.To, v1, v2, 1)
+			copysub(&p.To, v1, v2, true)
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("gotit: %v->%v\n%v", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), r.Prog)
 				if p.From.Type == v2.Type && p.From.Reg == v2.Reg {
@@ -398,8 +398,8 @@ func subprop(r0 *gc.Flow) bool {
 
 			for r = gc.Uniqs(r); r != r0; r = gc.Uniqs(r) {
 				p = r.Prog
-				copysub(&p.From, v1, v2, 1)
-				copysub(&p.To, v1, v2, 1)
+				copysub(&p.From, v1, v2, true)
+				copysub(&p.To, v1, v2, true)
 				if gc.Debug['P'] != 0 {
 					fmt.Printf("%v\n", r.Prog)
 				}
@@ -417,7 +417,7 @@ func subprop(r0 *gc.Flow) bool {
 		if copyau(&p.From, v2) || copyau(&p.To, v2) {
 			break
 		}
-		if copysub(&p.From, v1, v2, 0) != 0 || copysub(&p.To, v1, v2, 0) != 0 {
+		if copysub(&p.From, v1, v2, false) || copysub(&p.To, v1, v2, false) {
 			break
 		}
 	}
@@ -445,10 +445,10 @@ func copyprop(g *gc.Graph, r0 *gc.Flow) bool {
 		return true
 	}
 	gactive++
-	return copy1(v1, v2, r0.S1, 0)
+	return copy1(v1, v2, r0.S1, false)
 }
 
-func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
+func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f bool) bool {
 	if uint32(r.Active) == gactive {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("act set; return 1\n")
@@ -458,24 +458,21 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 
 	r.Active = int32(gactive)
 	if gc.Debug['P'] != 0 {
-		fmt.Printf("copy %v->%v f=%d\n", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), f)
+		fmt.Printf("copy %v->%v f=%v\n", gc.Ctxt.Dconv(v1), gc.Ctxt.Dconv(v2), f)
 	}
-	var t int
-	var p *obj.Prog
 	for ; r != nil; r = r.S1 {
-		p = r.Prog
+		p := r.Prog
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("%v", p)
 		}
-		if f == 0 && gc.Uniqp(r) == nil {
-			f = 1
+		if !f && gc.Uniqp(r) == nil {
+			f = true
 			if gc.Debug['P'] != 0 {
-				fmt.Printf("; merge; f=%d", f)
+				fmt.Printf("; merge; f=%v", f)
 			}
 		}
 
-		t = copyu(p, v2, nil)
-		switch t {
+		switch t := copyu(p, v2, nil); t {
 		case 2: /* rar, can't split */
 			if gc.Debug['P'] != 0 {
 				fmt.Printf("; %v rar; return 0\n", gc.Ctxt.Dconv(v2))
@@ -490,14 +487,14 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 
 		case 1, /* used, substitute */
 			4: /* use and set */
-			if f != 0 {
+			if f {
 				if gc.Debug['P'] == 0 {
 					return false
 				}
 				if t == 4 {
-					fmt.Printf("; %v used+set and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+					fmt.Printf("; %v used+set and f=%v; return 0\n", gc.Ctxt.Dconv(v2), f)
 				} else {
-					fmt.Printf("; %v used and f=%d; return 0\n", gc.Ctxt.Dconv(v2), f)
+					fmt.Printf("; %v used and f=%v; return 0\n", gc.Ctxt.Dconv(v2), f)
 				}
 				return false
 			}
@@ -520,12 +517,12 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 			}
 		}
 
-		if f == 0 {
-			t = copyu(p, v1, nil)
-			if f == 0 && (t == 2 || t == 3 || t == 4) {
-				f = 1
+		if !f {
+			t := copyu(p, v1, nil)
+			if t == 2 || t == 3 || t == 4 {
+				f = true
 				if gc.Debug['P'] != 0 {
-					fmt.Printf("; %v set and !f; f=%d", gc.Ctxt.Dconv(v1), f)
+					fmt.Printf("; %v set and !f; f=%v", gc.Ctxt.Dconv(v1), f)
 				}
 			}
 		}
@@ -539,7 +536,6 @@ func copy1(v1 *obj.Addr, v2 *obj.Addr, r *gc.Flow, f int) bool {
 			}
 		}
 	}
-
 	return true
 }
 
@@ -555,7 +551,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	switch p.As {
 	case obj.AJMP:
 		if s != nil {
-			if copysub(&p.To, v, s, 1) != 0 {
+			if copysub(&p.To, v, s, true) {
 				return 1
 			}
 			return 0
@@ -584,7 +580,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 		}
 
 		if s != nil {
-			if copysub(&p.To, v, s, 1) != 0 {
+			if copysub(&p.To, v, s, true) {
 				return 1
 			}
 			return 0
@@ -625,7 +621,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	if p.Info.Flags&gc.RightWrite != 0 {
 		if copyas(&p.To, v) {
 			if s != nil {
-				return copysub(&p.From, v, s, 1)
+				if copysub(&p.From, v, s, true) {
+					return 1
+				}
+				return 0
 			}
 			if copyau(&p.From, v) {
 				return 4
@@ -636,12 +635,14 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	if p.Info.Flags&(gc.LeftAddr|gc.LeftRead|gc.LeftWrite|gc.RightAddr|gc.RightRead|gc.RightWrite) != 0 {
 		if s != nil {
-			if copysub(&p.From, v, s, 1) != 0 {
+			if copysub(&p.From, v, s, true) {
 				return 1
 			}
-			return copysub(&p.To, v, s, 1)
+			if copysub(&p.To, v, s, true) {
+				return 1
+			}
+			return 0
 		}
-
 		if copyau(&p.From, v) {
 			return 1
 		}
@@ -649,7 +650,6 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 			return 1
 		}
 	}
-
 	return 0
 }
 
@@ -714,50 +714,40 @@ func copyau(a *obj.Addr, v *obj.Addr) bool {
 	return false
 }
 
-/*
- * substitute s for v in a
- * return failure to substitute
- */
-func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
+// copysub substitute s for v in a.
+// copysub returns true on failure to substitute.
+// TODO(dfc) reverse this logic to return false on sunstitution failure.
+func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f bool) bool {
 	if copyas(a, v) {
-		reg := int(s.Reg)
-		if reg >= x86.REG_AX && reg <= x86.REG_DI || reg >= x86.REG_X0 && reg <= x86.REG_X7 {
-			if f != 0 {
-				a.Reg = int16(reg)
+		if s.Reg >= x86.REG_AX && s.Reg <= x86.REG_DI || s.Reg >= x86.REG_X0 && s.Reg <= x86.REG_X7 {
+			if f {
+				a.Reg = s.Reg
 			}
 		}
-
-		return 0
+		return false
 	}
 
 	if regtyp(v) {
-		reg := int(v.Reg)
-		if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && int(a.Reg) == reg {
+		if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && a.Reg == v.Reg {
 			if (s.Reg == x86.REG_BP) && a.Index != x86.REG_NONE {
-				return 1 /* can't use BP-base with index */
+				return true /* can't use BP-base with index */
 			}
-			if f != 0 {
+			if f {
 				a.Reg = s.Reg
 			}
 		}
 
-		//			return 0;
-		if int(a.Index) == reg {
-			if f != 0 {
+		if a.Index == v.Reg {
+			if f {
 				a.Index = s.Reg
 			}
-			return 0
 		}
-
-		return 0
 	}
-
-	return 0
+	return false
 }
 
 func conprop(r0 *gc.Flow) {
 	var p *obj.Prog
-	var t int
 
 	p0 := r0.Prog
 	v0 := &p0.To
@@ -773,8 +763,7 @@ loop:
 	}
 
 	p = r.Prog
-	t = copyu(p, v0, nil)
-	switch t {
+	switch copyu(p, v0, nil) {
 	case 0, // miss
 		1: // use
 		goto loop
