@@ -391,12 +391,12 @@ func list1(n *Node) *NodeList {
 	if n == nil {
 		return nil
 	}
-	if n.Op == OBLOCK && n.Ninit == nil {
+	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
 		// Flatten list and steal storage.
 		// Poison pointer to catch errant uses.
 		l := n.List
 
-		n.List = nil
+		setNodeSeq(&n.List, nil)
 		return l
 	}
 

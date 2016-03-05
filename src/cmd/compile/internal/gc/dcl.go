@@ -297,19 +297,19 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		lastconst = cl
 		lasttype = t
 	}
-	cl = listtreecopy(cl, lno)
+	clcopy := listtreecopy(cl, lno)
 
 	var v *Node
 	var c *Node
 	var vv *NodeList
 	for ; vl != nil; vl = vl.Next {
-		if cl == nil {
+		if len(clcopy) == 0 {
 			Yyerror("missing value in const declaration")
 			break
 		}
 
-		c = cl.N
-		cl = cl.Next
+		c = clcopy[0]
+		clcopy = clcopy[1:]
 
 		v = vl.N
 		v.Op = OLITERAL
@@ -321,7 +321,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		vv = list(vv, Nod(ODCLCONST, v, nil))
 	}
 
-	if cl != nil {
+	if len(clcopy) != 0 {
 		Yyerror("extra expression in const declaration")
 	}
 	iota_ += 1

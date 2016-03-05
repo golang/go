@@ -536,7 +536,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		m.Orig = m
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
-		m.List = listtreecopy(n.List, lineno)
+		setNodeSeq(&m.List, listtreecopy(n.List, lineno))
 		if lineno != 0 {
 			m.Lineno = lineno
 		}
@@ -1393,7 +1393,7 @@ func ullmancalc(n *Node) {
 
 	var ul int
 	var ur int
-	if n.Ninit != nil {
+	if nodeSeqLen(n.Ninit) != 0 {
 		ul = UINF
 		goto out
 	}
@@ -2014,13 +2014,13 @@ func expandmeth(t *Type) {
 }
 
 // Given funarg struct list, return list of ODCLFIELD Node fn args.
-func structargs(tl **Type, mustname int) *NodeList {
+func structargs(tl **Type, mustname int) []*Node {
 	var savet Iter
 	var a *Node
 	var n *Node
 	var buf string
 
-	var args *NodeList
+	var args []*Node
 	gen := 0
 	for t := Structfirst(&savet, tl); t != nil; t = structnext(&savet) {
 		n = nil
@@ -2038,7 +2038,7 @@ func structargs(tl **Type, mustname int) *NodeList {
 		if n != nil {
 			n.Isddd = t.Isddd
 		}
-		args = list(args, a)
+		args = append(args, a)
 	}
 
 	return args
@@ -2091,7 +2091,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	out := structargs(Getoutarg(method.Type), 0)
 
 	t := Nod(OTFUNC, nil, nil)
-	l := list1(this)
+	l := []*Node{this}
 	if iface != 0 && rcvr.Width < Types[Tptr].Width {
 		// Building method for interface table and receiver
 		// is smaller than the single pointer-sized word
@@ -2103,11 +2103,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		tpad.Type = Types[TUINT8]
 		tpad.Bound = Types[Tptr].Width - rcvr.Width
 		pad := Nod(ODCLFIELD, newname(Lookup(".pad")), typenod(tpad))
-		l = list(l, pad)
+		l = append(l, pad)
 	}
 
-	t.List = concat(l, in)
-	t.Rlist = out
+	setNodeSeq(&t.List, append(l, in...))
+	setNodeSeq(&t.Rlist, out)
 
 	fn := Nod(ODCLFUNC, nil, nil)
 	fn.Func.Nname = newname(newnam)
@@ -2117,12 +2117,12 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	funchdr(fn)
 
 	// arg list
-	var args *NodeList
+	var args []*Node
 
 	isddd := false
-	for l := in; l != nil; l = l.Next {
-		args = list(args, l.N.Left)
-		isddd = l.N.Left.Isddd
+	for _, n := range in {
+		args = append(args, n.Left)
+		isddd = n.Left.Isddd
 	}
 
 	methodrcvr := getthisx(method.Type).Type.Type
@@ -2136,17 +2136,17 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 		// these strings are already in the reflect tables,
 		// so no space cost to use them here.
-		var l *NodeList
+		var l []*Node
 
 		var v Val
 		v.U = rcvr.Type.Sym.Pkg.Name // package name
-		l = list(l, nodlit(v))
+		l = append(l, nodlit(v))
 		v.U = rcvr.Type.Sym.Name // type name
-		l = list(l, nodlit(v))
+		l = append(l, nodlit(v))
 		v.U = method.Sym.Name
-		l = list(l, nodlit(v)) // method name
+		l = append(l, nodlit(v)) // method name
 		call := Nod(OCALL, syslook("panicwrap"), nil)
-		call.List = l
+		setNodeSeq(&call.List, l)
 		n.Nbody.Set([]*Node{call})
 		fn.Nbody.Append(n)
 	}
@@ -2169,11 +2169,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	} else {
 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
 		call := Nod(OCALL, dot, nil)
-		call.List = args
+		setNodeSeq(&call.List, args)
 		call.Isddd = isddd
 		if method.Type.Outtuple > 0 {
 			n := Nod(ORETURN, nil, nil)
-			n.List = list1(call)
+			setNodeSeq(&n.List, []*Node{call})
 			call = n
 		}
 
@@ -2207,10 +2207,10 @@ func hashmem(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.Rlist = list(tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	appendNodeSeqNode(&tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	typecheck(&tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -2354,10 +2354,10 @@ func Simsimtype(t *Type) EType {
 	return et
 }
 
-func listtreecopy(l *NodeList, lineno int32) *NodeList {
-	var out *NodeList
-	for ; l != nil; l = l.Next {
-		out = list(out, treecopy(l.N, lineno))
+func listtreecopy(l nodesOrNodeList, lineno int32) []*Node {
+	var out []*Node
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		out = append(out, treecopy(it.N(), lineno))
 	}
 	return out
 }
