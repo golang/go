@@ -346,7 +346,17 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.invalidAST(s.TokPos, "unknown inc/dec operation %s", s.Tok)
 			return
 		}
+
 		var x operand
+		check.expr(&x, s.X)
+		if x.mode == invalid {
+			return
+		}
+		if !isNumeric(x.typ) {
+			check.invalidOp(s.X.Pos(), "%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
+			return
+		}
+
 		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
 		check.binary(&x, nil, s.X, Y, op)
 		if x.mode == invalid {
