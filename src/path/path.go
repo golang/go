@@ -65,7 +65,7 @@ func (b *lazybuf) string() string {
 //
 // See also Rob Pike, ``Lexical File Names in Plan 9 or
 // Getting Dot-Dot Right,''
-// http://plan9.bell-labs.com/sys/doc/lexnames.html
+// https://9p.io/sys/doc/lexnames.html
 func Clean(path string) string {
 	if path == "" {
 		return "."

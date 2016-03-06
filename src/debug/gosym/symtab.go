@@ -8,7 +8,7 @@
 package gosym
 
 // The table format is a variant of the format used in Plan 9's a.out
-// format, documented at http://plan9.bell-labs.com/magic/man2html/6/a.out.
+// format, documented at https://9p.io/magic/man2html/6/a.out.
 // The best reference for the differences between the Plan 9 format
 // and the Go format is the runtime source, specifically ../../runtime/symtab.c.
 
