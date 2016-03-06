@@ -425,8 +425,6 @@ var typepkg *Pkg // fake package for runtime type info (headers)
 
 var typelinkpkg *Pkg // fake package for runtime type info (data)
 
-var weaktypepkg *Pkg // weak references to runtime type info
-
 var unsafepkg *Pkg // package unsafe
 
 var trackpkg *Pkg // fake package for field tracking

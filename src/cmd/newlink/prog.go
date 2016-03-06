@@ -149,7 +149,6 @@ func (p *Prog) link(w io.Writer, mainFile string) {
 	p.runtime()
 	p.autoData()
 	p.layout()
-	p.autoConst()
 	if p.NumError > 0 {
 		return
 	}

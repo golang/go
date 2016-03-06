@@ -22,7 +22,6 @@ import (
 // identical 8-byte sequences.
 var autoTests = []string{
 	"testdata/autosection.6",
-	"testdata/autoweak.6",
 }
 
 func TestAuto(t *testing.T) {

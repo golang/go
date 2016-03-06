@@ -844,15 +844,6 @@ func typename(t *Type) *Node {
 	return n
 }
 
-func weaktypesym(t *Type) *Sym {
-	p := Tconv(t, obj.FmtLeft)
-	s := Pkglookup(p, weaktypepkg)
-
-	//print("weaktypesym: %s -> %+S\n", p, s);
-
-	return s
-}
-
 // isreflexive reports whether t has a reflexive equality operator.
 // That is, if x==x for all x of type t.
 func isreflexive(t *Type) bool {

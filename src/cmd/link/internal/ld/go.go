@@ -373,9 +373,6 @@ func mark1(s *LSym, parent *LSym) {
 	if s == nil || s.Attr.Reachable() {
 		return
 	}
-	if strings.HasPrefix(s.Name, "go.weak.") {
-		return
-	}
 	s.Attr |= AttrReachable
 	s.Reachparent = parent
 	markQueue = append(markQueue, s)
@@ -494,14 +491,6 @@ func deadcode() {
 		}
 	}
 
-	for _, s := range Ctxt.Allsym {
-		if strings.HasPrefix(s.Name, "go.weak.") {
-			s.Attr |= AttrSpecial // do not lay out in data segment
-			s.Attr |= AttrReachable
-			s.Attr |= AttrHidden
-		}
-	}
-
 	// record field tracking references
 	var buf bytes.Buffer
 	for _, s := range Ctxt.Allsym {
@@ -530,26 +519,6 @@ func deadcode() {
 		return
 	}
 	addstrdata(tracksym, buf.String())
-}
-
-func doweak() {
-	// resolve weak references only if
-	// target symbol will be in binary anyway.
-	for _, s := range Ctxt.Allsym {
-		if strings.HasPrefix(s.Name, "go.weak.") {
-			t := Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
-			if t != nil && t.Type != 0 && t.Attr.Reachable() {
-				s.Value = t.Value
-				s.Type = t.Type
-				s.Outer = t
-			} else {
-				s.Type = obj.SCONST
-				s.Value = 0
-			}
-
-			continue
-		}
-	}
 }
 
 func addexport() {

@@ -42,8 +42,7 @@ var linkerDefined = map[string]bool{
 
 // isAuto reports whether sym is an automatically-generated data or constant symbol.
 func (p *Prog) isAuto(sym goobj.SymID) bool {
-	return strings.HasPrefix(sym.Name, "go.weak.") ||
-		strings.HasPrefix(sym.Name, "$f64.") ||
+	return strings.HasPrefix(sym.Name, "$f64.") ||
 		strings.HasPrefix(sym.Name, "$f32.") ||
 		linkerDefined[sym.Name]
 }
@@ -81,24 +80,6 @@ func (p *Prog) autoData() {
 				},
 				Bytes: data,
 			})
-		}
-	}
-}
-
-// autoConst defines the automatically generated constant symbols needed by p.
-func (p *Prog) autoConst() {
-	for sym := range p.Missing {
-		switch {
-		case strings.HasPrefix(sym.Name, "go.weak."):
-			// weak symbol resolves to actual symbol if present, or else nil.
-			delete(p.Missing, sym)
-			targ := sym
-			targ.Name = sym.Name[len("go.weak."):]
-			var addr Addr
-			if s := p.Syms[targ]; s != nil {
-				addr = s.Addr
-			}
-			p.defineConst(sym.Name, addr)
 		}
 	}
 }
