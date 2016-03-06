@@ -105,28 +105,18 @@ var progtable = [ppc64.ALAST]obj.ProgInfo{
 	obj.ADUFFCOPY: {Flags: gc.Call},
 }
 
-var initproginfo_initialized int
-
 func initproginfo() {
 	var addvariant = []int{V_CC, V_V, V_CC | V_V}
 
-	if initproginfo_initialized != 0 {
-		return
-	}
-	initproginfo_initialized = 1
-
 	// Perform one-time expansion of instructions in progtable to
 	// their CC, V, and VCC variants
-	var as2 int
-	var i int
-	var variant int
-	for as := int(0); as < len(progtable); as++ {
+	for as := range progtable {
 		if progtable[as].Flags == 0 {
 			continue
 		}
-		variant = as2variant(as)
-		for i = 0; i < len(addvariant); i++ {
-			as2 = variant2as(as, variant|addvariant[i])
+		variant := as2variant(as)
+		for i := range addvariant {
+			as2 := variant2as(as, variant|addvariant[i])
 			if as2 != 0 && progtable[as2].Flags == 0 {
 				progtable[as2] = progtable[as]
 			}
@@ -135,8 +125,6 @@ func initproginfo() {
 }
 
 func proginfo(p *obj.Prog) {
-	initproginfo()
-
 	info := &p.Info
 	*info = progtable[p.As]
 	if info.Flags == 0 {
@@ -269,26 +257,17 @@ var varianttable = [ppc64.ALAST][4]int{
 	ppc64.AXOR:     {ppc64.AXOR, ppc64.AXORCC, 0, 0},
 }
 
-var initvariants_initialized int
-
 func initvariants() {
-	if initvariants_initialized != 0 {
-		return
-	}
-	initvariants_initialized = 1
-
-	var j int
-	for i := int(0); i < len(varianttable); i++ {
+	for i := range varianttable {
 		if varianttable[i][0] == 0 {
 			// Instruction has no variants
 			varianttable[i][0] = i
-
 			continue
 		}
 
 		// Copy base form to other variants
 		if varianttable[i][0] == i {
-			for j = 0; j < len(varianttable[i]); j++ {
+			for j := range varianttable[i] {
 				varianttable[varianttable[i][j]] = varianttable[i]
 			}
 		}
@@ -297,8 +276,7 @@ func initvariants() {
 
 // as2variant returns the variant (V_*) flags of instruction as.
 func as2variant(as int) int {
-	initvariants()
-	for i := int(0); i < len(varianttable[as]); i++ {
+	for i := range varianttable[as] {
 		if varianttable[as][i] == as {
 			return i
 		}
@@ -310,6 +288,5 @@ func as2variant(as int) int {
 // variant2as returns the instruction as with the given variant (V_*) flags.
 // If no such variant exists, this returns 0.
 func variant2as(as int, flags int) int {
-	initvariants()
 	return varianttable[as][flags]
 }
