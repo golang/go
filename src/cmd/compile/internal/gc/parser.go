@@ -684,7 +684,11 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	label.Name.Defn = ls
 	l := list1(label)
 	if ls != nil {
-		l = list(l, ls)
+		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
+			l = concat(l, ls.List)
+		} else {
+			l = list(l, ls)
+		}
 	}
 	return liststmt(l)
 }
@@ -1043,7 +1047,12 @@ func (p *parser) if_stmt() *Node {
 		if p.tok == LIF {
 			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
 		} else {
-			setNodeSeq(&stmt.Rlist, []*Node{p.compound_stmt(true)})
+			cs := p.compound_stmt(true)
+			if cs.Op == OBLOCK && cs.Ninit == nil {
+				setNodeSeq(&stmt.Rlist, cs.List)
+			} else {
+				setNodeSeq(&stmt.Rlist, []*Node{cs})
+			}
 		}
 	}
 
@@ -2538,7 +2547,11 @@ func (p *parser) stmt_list() (l *NodeList) {
 		if s == missing_stmt {
 			break
 		}
-		l = list(l, s)
+		if s != nil && s.Op == OBLOCK && nodeSeqLen(s.Ninit) == 0 {
+			l = concat(l, s.List)
+		} else {
+			l = list(l, s)
+		}
 		// customized version of osemi:
 		// ';' is optional before a closing ')' or '}'
 		if p.tok == ')' || p.tok == '}' {
