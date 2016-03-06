@@ -42,6 +42,14 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
+
+.permalink {
+	display: none;
+}
+h2:hover .permalink, h3:hover .permalink {
+	display: inline;
+}
+
 p, li {
 	max-width: 800px;
 	word-wrap: break-word;

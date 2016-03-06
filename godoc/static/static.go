@@ -1748,7 +1748,9 @@ function cgAddChild(tree, ul, cgn) {
 		{{range .Funcs}}
 			{{/* Name is a string - no need for FSet */}}
 			{{$name_html := html .Name}}
-			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h2>
+			<h2 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
+				<a class="permalink" href="#{{$name_html}}">&#xb6;</a>
+			</h2>
 			<pre>{{node_html $ .Decl true}}</pre>
 			{{comment_html .Doc}}
 			{{example_html $ .Name}}
@@ -1758,7 +1760,9 @@ function cgAddChild(tree, ul, cgn) {
 		{{range .Types}}
 			{{$tname := .Name}}
 			{{$tname_html := html .Name}}
-			<h2 id="{{$tname_html}}">type <a href="{{posLink_url $ .Decl}}">{{$tname_html}}</a></h2>
+			<h2 id="{{$tname_html}}">type <a href="{{posLink_url $ .Decl}}">{{$tname_html}}</a>
+				<a class="permalink" href="#{{$tname_html}}">&#xb6;</a>
+			</h2>
 			<pre>{{node_html $ .Decl true}}</pre>
 			{{comment_html .Doc}}
 
@@ -1778,7 +1782,9 @@ function cgAddChild(tree, ul, cgn) {
 
 			{{range .Funcs}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
+				<h3 id="{{$name_html}}">func <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
+					<a class="permalink" href="#{{$tname_html}}">&#xb6;</a>
+				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 				{{example_html $ .Name}}
@@ -1787,7 +1793,9 @@ function cgAddChild(tree, ul, cgn) {
 
 			{{range .Methods}}
 				{{$name_html := html .Name}}
-				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a></h3>
+				<h3 id="{{$tname_html}}.{{$name_html}}">func ({{html .Recv}}) <a href="{{posLink_url $ .Decl}}">{{$name_html}}</a>
+					<a class="permalink" href="#{{$tname_html}}.{{$name_html}}">&#xb6;</a>
+				</h3>
 				<pre>{{node_html $ .Decl true}}</pre>
 				{{comment_html .Doc}}
 				{{$name := printf "%s_%s" $tname .Name}}
@@ -2826,6 +2834,14 @@ a:hover,
 .exampleHeading .text:hover {
 	text-decoration: underline;
 }
+
+.permalink {
+	display: none;
+}
+h2:hover .permalink, h3:hover .permalink {
+	display: inline;
+}
+
 p, li {
 	max-width: 800px;
 	word-wrap: break-word;
