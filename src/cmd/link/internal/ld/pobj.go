@@ -216,7 +216,6 @@ func Ldmain() {
 	symtab()
 	dodata()
 	address()
-	doweak()
 	reloc()
 	Thearch.Asmb()
 	undef()
