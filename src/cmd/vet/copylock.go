@@ -18,7 +18,7 @@ func init() {
 	register("copylocks",
 		"check that locks are not passed by value",
 		checkCopyLocks,
-		funcDecl, rangeStmt, funcLit, assignStmt)
+		funcDecl, rangeStmt, funcLit, assignStmt, genDecl, compositeLit)
 }
 
 // checkCopyLocks checks whether node might
@@ -33,15 +33,47 @@ func checkCopyLocks(f *File, node ast.Node) {
 		checkCopyLocksFunc(f, "func", nil, node.Type)
 	case *ast.AssignStmt:
 		checkCopyLocksAssign(f, node)
+	case *ast.GenDecl:
+		checkCopyLocksGenDecl(f, node)
+	case *ast.CompositeLit:
+		checkCopyCompositeLit(f, node)
 	}
 }
 
 // checkCopyLocksAssign checks whether an assignment
 // copies a lock.
 func checkCopyLocksAssign(f *File, as *ast.AssignStmt) {
-	for _, x := range as.Lhs {
-		if path := lockPath(f.pkg.typesPkg, f.pkg.types[x].Type); path != nil {
-			f.Badf(x.Pos(), "assignment copies lock value to %v: %v", f.gofmt(x), path)
+	for i, x := range as.Rhs {
+		if path := lockPathRhs(f, x); path != nil {
+			f.Badf(x.Pos(), "assignment copies lock value to %v: %v", f.gofmt(as.Lhs[i]), path)
+		}
+	}
+}
+
+// checkCopyLocksGenDecl checks whether lock is copied
+// in variable declaration.
+func checkCopyLocksGenDecl(f *File, gd *ast.GenDecl) {
+	if gd.Tok != token.VAR {
+		return
+	}
+	for _, spec := range gd.Specs {
+		valueSpec := spec.(*ast.ValueSpec)
+		for i, x := range valueSpec.Values {
+			if path := lockPathRhs(f, x); path != nil {
+				f.Badf(x.Pos(), "variable declaration copies lock value to %v: %v", valueSpec.Names[i].Name, path)
+			}
+		}
+	}
+}
+
+// checkCopyCompositeLit detects lock copy inside a composite literal
+func checkCopyCompositeLit(f *File, cl *ast.CompositeLit) {
+	for _, x := range cl.Elts {
+		if node, ok := x.(*ast.KeyValueExpr); ok {
+			x = node.Value
+		}
+		if path := lockPathRhs(f, x); path != nil {
+			f.Badf(x.Pos(), "literal copies lock value from %v: %v", f.gofmt(x), path)
 		}
 	}
 }
@@ -130,6 +162,13 @@ func (path typePath) String() string {
 		fmt.Fprint(&buf, path[n-i-1].String())
 	}
 	return buf.String()
+}
+
+func lockPathRhs(f *File, x ast.Expr) typePath {
+	if _, ok := x.(*ast.CompositeLit); ok {
+		return nil
+	}
+	return lockPath(f.pkg.typesPkg, f.pkg.types[x].Type)
 }
 
 // lockPath returns a typePath describing the location of a lock value
