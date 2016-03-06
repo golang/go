@@ -89,6 +89,9 @@ func Main() {
 	gc.Thearch.Doregbits = doregbits
 	gc.Thearch.Regnames = regnames
 
+	initvariants()
+	initproginfo()
+
 	gc.Main()
 	gc.Exit(0)
 }
