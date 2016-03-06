@@ -391,15 +391,6 @@ func list1(n *Node) *NodeList {
 	if n == nil {
 		return nil
 	}
-	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
-		// Flatten list and steal storage.
-		// Poison pointer to catch errant uses.
-		l := n.List
-
-		setNodeSeq(&n.List, nil)
-		return l
-	}
-
 	l := new(NodeList)
 	l.N = n
 	l.End = l
@@ -741,15 +732,6 @@ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
 // This is an interim function during the transition from NodeList to Nodes.
 // TODO(iant): Remove when transition is complete.
 func setNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
-	// This is what the old list1 function did;
-	// the rest of the compiler has come to expect it.
-	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
-		l := n.List
-		setNodeSeq(&n.List, nil)
-		setNodeSeq(a, l)
-		return
-	}
-
 	switch a := a.(type) {
 	case **NodeList:
 		*a = list1(n)
@@ -822,15 +804,6 @@ func appendNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
 // This is an interim function during the transition from NodeList to Nodes.
 // TODO(iant): Remove when transition is complete.
 func appendNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
-	// This is what the old list1 function did;
-	// the rest of the compiler has come to expect it.
-	if n.Op == OBLOCK && nodeSeqLen(n.Ninit) == 0 {
-		l := n.List
-		setNodeSeq(&n.List, nil)
-		appendNodeSeq(a, l)
-		return
-	}
-
 	switch a := a.(type) {
 	case **NodeList:
 		*a = list(*a, n)
