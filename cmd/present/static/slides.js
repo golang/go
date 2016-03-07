@@ -135,7 +135,7 @@ if (objCtr.defineProperty) {
 /* Slide movement */
 
 function hideHelpText() {
-  $('#help').hide();
+  document.getElementById('help').style.display = 'none';
 };
 
 function getSlideEl(no) {
