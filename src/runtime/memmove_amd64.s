@@ -77,11 +77,24 @@ forward:
 	CMPQ	BX, $2048
 	JLS	move_256through2048
 
+	// Check alignment
+	MOVQ	SI, AX
+	ORQ	DI, AX
+	TESTL	$7, AX
+	JNE	unaligned_fwd
+
+	// Aligned - do 8 bytes at a time
 	MOVQ	BX, CX
 	SHRQ	$3, CX
 	ANDQ	$7, BX
 	REP;	MOVSQ
 	JMP	tail
+
+unaligned_fwd:
+	// Unaligned - do 1 byte at a time
+	MOVQ	BX, CX
+	REP;	MOVSB
+	RET
 
 back:
 /*
