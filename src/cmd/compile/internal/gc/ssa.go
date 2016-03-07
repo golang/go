@@ -466,6 +466,10 @@ func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ss
 }
 
 // const* routines add a new const value to the entry block.
+func (s *state) constSlice(t ssa.Type) *ssa.Value       { return s.f.ConstSlice(s.peekLine(), t) }
+func (s *state) constInterface(t ssa.Type) *ssa.Value   { return s.f.ConstInterface(s.peekLine(), t) }
+func (s *state) constNil(t ssa.Type) *ssa.Value         { return s.f.ConstNil(s.peekLine(), t) }
+func (s *state) constEmptyString(t ssa.Type) *ssa.Value { return s.f.ConstEmptyString(s.peekLine(), t) }
 func (s *state) constBool(c bool) *ssa.Value {
 	return s.f.ConstBool(s.peekLine(), Types[TBOOL], c)
 }
@@ -1383,6 +1387,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 				return nil
 			}
 		case CTSTR:
+			if n.Val().U == "" {
+				return s.constEmptyString(n.Type)
+			}
 			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
 		case CTBOOL:
 			v := s.constBool(n.Val().U.(bool))
@@ -1397,11 +1404,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 			t := n.Type
 			switch {
 			case t.IsSlice():
-				return s.entryNewValue0(ssa.OpConstSlice, t)
+				return s.constSlice(t)
 			case t.IsInterface():
-				return s.entryNewValue0(ssa.OpConstInterface, t)
+				return s.constInterface(t)
 			default:
-				return s.entryNewValue0(ssa.OpConstNil, t)
+				return s.constNil(t)
 			}
 		case CTFLT:
 			f := n.Val().U.(*Mpflt)
@@ -2266,15 +2273,15 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 		}
 
 	case t.IsString():
-		return s.entryNewValue0A(ssa.OpConstString, t, "")
+		return s.constEmptyString(t)
 	case t.IsPtr():
-		return s.entryNewValue0(ssa.OpConstNil, t)
+		return s.constNil(t)
 	case t.IsBoolean():
 		return s.constBool(false)
 	case t.IsInterface():
-		return s.entryNewValue0(ssa.OpConstInterface, t)
+		return s.constInterface(t)
 	case t.IsSlice():
-		return s.entryNewValue0(ssa.OpConstSlice, t)
+		return s.constSlice(t)
 	case t.IsStruct():
 		n := t.NumFields()
 		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
@@ -3191,7 +3198,7 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
 	//   return *(((*int)n)+1)
 	// }
 	lenType := n.Type
-	nilValue := s.newValue0(ssa.OpConstNil, Types[TUINTPTR])
+	nilValue := s.constNil(Types[TUINTPTR])
 	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, nilValue)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
@@ -3312,7 +3319,7 @@ func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
 
 	tab := s.newValue1(ssa.OpITab, byteptr, v)
 	s.vars[&typVar] = tab
-	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.entryNewValue0(ssa.OpConstNil, byteptr))
+	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.constNil(byteptr))
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Control = isnonnil
@@ -3391,7 +3398,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 
 	// type assertion failed
 	s.startBlock(bFail)
-	s.vars[&idataVar] = s.entryNewValue0(ssa.OpConstNil, byteptr)
+	s.vars[&idataVar] = s.constNil(byteptr)
 	s.vars[&okVar] = s.constBool(false)
 	s.endBlock()
 	bFail.AddEdgeTo(bEnd)
