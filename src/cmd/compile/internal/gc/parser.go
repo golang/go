@@ -633,7 +633,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			r := Nod(ORANGE, nil, p.expr())
 			setNodeSeq(&r.List, lhs)
 			r.Colas = true
-			colasdefn(lhs, r)
+			colasdefn(r.List, r)
 			return r
 		}
 
@@ -685,9 +685,9 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	l := list1(label)
 	if ls != nil {
 		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
-			l = concat(l, ls.List)
+			appendNodeSeq(&l, ls.List)
 		} else {
-			l = list(l, ls)
+			appendNodeSeqNode(&l, ls)
 		}
 	}
 	return liststmt(l)
@@ -1021,7 +1021,9 @@ func (p *parser) if_header() *Node {
 
 	init, cond, _ := p.header(false)
 	h := Nod(OIF, nil, nil)
-	setNodeSeq(&h.Ninit, []*Node{init})
+	if init != nil {
+		setNodeSeq(&h.Ninit, []*Node{init})
+	}
 	h.Left = cond
 	return h
 }
@@ -1048,7 +1050,7 @@ func (p *parser) if_stmt() *Node {
 			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
 		} else {
 			cs := p.compound_stmt(true)
-			if cs.Op == OBLOCK && cs.Ninit == nil {
+			if cs.Op == OBLOCK && nodeSeqLen(cs.Ninit) == 0 {
 				setNodeSeq(&stmt.Rlist, cs.List)
 			} else {
 				setNodeSeq(&stmt.Rlist, []*Node{cs})
@@ -2548,9 +2550,9 @@ func (p *parser) stmt_list() (l *NodeList) {
 			break
 		}
 		if s != nil && s.Op == OBLOCK && nodeSeqLen(s.Ninit) == 0 {
-			l = concat(l, s.List)
+			appendNodeSeq(&l, s.List)
 		} else {
-			l = list(l, s)
+			appendNodeSeqNode(&l, s)
 		}
 		// customized version of osemi:
 		// ';' is optional before a closing ')' or '}'
