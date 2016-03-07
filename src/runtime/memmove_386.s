@@ -69,13 +69,25 @@ nosse2:
 /*
  * forward copy loop
  */
-forward:	
+forward:
+	// Check alignment
+	MOVL	SI, AX
+	ORL	DI, AX
+	TESTL	$3, AX
+	JNE	unaligned_fwd
+
 	MOVL	BX, CX
 	SHRL	$2, CX
 	ANDL	$3, BX
 
 	REP;	MOVSL
 	JMP	tail
+
+unaligned_fwd:
+	MOVL	BX, CX
+	REP;	MOVSB
+	RET
+
 /*
  * check overlap
  */

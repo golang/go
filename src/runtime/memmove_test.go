@@ -116,7 +116,7 @@ func BenchmarkMemmove1024(b *testing.B) { bmMemmove(b, 1024) }
 func BenchmarkMemmove2048(b *testing.B) { bmMemmove(b, 2048) }
 func BenchmarkMemmove4096(b *testing.B) { bmMemmove(b, 4096) }
 
-func bmMemmoveUnaligned(b *testing.B, n int) {
+func bmMemmoveUnalignedDst(b *testing.B, n int) {
 	x := make([]byte, n+1)
 	y := make([]byte, n)
 	b.SetBytes(int64(n))
@@ -125,31 +125,66 @@ func bmMemmoveUnaligned(b *testing.B, n int) {
 	}
 }
 
-func BenchmarkMemmoveUnaligned0(b *testing.B)    { bmMemmoveUnaligned(b, 0) }
-func BenchmarkMemmoveUnaligned1(b *testing.B)    { bmMemmoveUnaligned(b, 1) }
-func BenchmarkMemmoveUnaligned2(b *testing.B)    { bmMemmoveUnaligned(b, 2) }
-func BenchmarkMemmoveUnaligned3(b *testing.B)    { bmMemmoveUnaligned(b, 3) }
-func BenchmarkMemmoveUnaligned4(b *testing.B)    { bmMemmoveUnaligned(b, 4) }
-func BenchmarkMemmoveUnaligned5(b *testing.B)    { bmMemmoveUnaligned(b, 5) }
-func BenchmarkMemmoveUnaligned6(b *testing.B)    { bmMemmoveUnaligned(b, 6) }
-func BenchmarkMemmoveUnaligned7(b *testing.B)    { bmMemmoveUnaligned(b, 7) }
-func BenchmarkMemmoveUnaligned8(b *testing.B)    { bmMemmoveUnaligned(b, 8) }
-func BenchmarkMemmoveUnaligned9(b *testing.B)    { bmMemmoveUnaligned(b, 9) }
-func BenchmarkMemmoveUnaligned10(b *testing.B)   { bmMemmoveUnaligned(b, 10) }
-func BenchmarkMemmoveUnaligned11(b *testing.B)   { bmMemmoveUnaligned(b, 11) }
-func BenchmarkMemmoveUnaligned12(b *testing.B)   { bmMemmoveUnaligned(b, 12) }
-func BenchmarkMemmoveUnaligned13(b *testing.B)   { bmMemmoveUnaligned(b, 13) }
-func BenchmarkMemmoveUnaligned14(b *testing.B)   { bmMemmoveUnaligned(b, 14) }
-func BenchmarkMemmoveUnaligned15(b *testing.B)   { bmMemmoveUnaligned(b, 15) }
-func BenchmarkMemmoveUnaligned16(b *testing.B)   { bmMemmoveUnaligned(b, 16) }
-func BenchmarkMemmoveUnaligned32(b *testing.B)   { bmMemmoveUnaligned(b, 32) }
-func BenchmarkMemmoveUnaligned64(b *testing.B)   { bmMemmoveUnaligned(b, 64) }
-func BenchmarkMemmoveUnaligned128(b *testing.B)  { bmMemmoveUnaligned(b, 128) }
-func BenchmarkMemmoveUnaligned256(b *testing.B)  { bmMemmoveUnaligned(b, 256) }
-func BenchmarkMemmoveUnaligned512(b *testing.B)  { bmMemmoveUnaligned(b, 512) }
-func BenchmarkMemmoveUnaligned1024(b *testing.B) { bmMemmoveUnaligned(b, 1024) }
-func BenchmarkMemmoveUnaligned2048(b *testing.B) { bmMemmoveUnaligned(b, 2048) }
-func BenchmarkMemmoveUnaligned4096(b *testing.B) { bmMemmoveUnaligned(b, 4096) }
+func BenchmarkMemmoveUnalignedDst0(b *testing.B)    { bmMemmoveUnalignedDst(b, 0) }
+func BenchmarkMemmoveUnalignedDst1(b *testing.B)    { bmMemmoveUnalignedDst(b, 1) }
+func BenchmarkMemmoveUnalignedDst2(b *testing.B)    { bmMemmoveUnalignedDst(b, 2) }
+func BenchmarkMemmoveUnalignedDst3(b *testing.B)    { bmMemmoveUnalignedDst(b, 3) }
+func BenchmarkMemmoveUnalignedDst4(b *testing.B)    { bmMemmoveUnalignedDst(b, 4) }
+func BenchmarkMemmoveUnalignedDst5(b *testing.B)    { bmMemmoveUnalignedDst(b, 5) }
+func BenchmarkMemmoveUnalignedDst6(b *testing.B)    { bmMemmoveUnalignedDst(b, 6) }
+func BenchmarkMemmoveUnalignedDst7(b *testing.B)    { bmMemmoveUnalignedDst(b, 7) }
+func BenchmarkMemmoveUnalignedDst8(b *testing.B)    { bmMemmoveUnalignedDst(b, 8) }
+func BenchmarkMemmoveUnalignedDst9(b *testing.B)    { bmMemmoveUnalignedDst(b, 9) }
+func BenchmarkMemmoveUnalignedDst10(b *testing.B)   { bmMemmoveUnalignedDst(b, 10) }
+func BenchmarkMemmoveUnalignedDst11(b *testing.B)   { bmMemmoveUnalignedDst(b, 11) }
+func BenchmarkMemmoveUnalignedDst12(b *testing.B)   { bmMemmoveUnalignedDst(b, 12) }
+func BenchmarkMemmoveUnalignedDst13(b *testing.B)   { bmMemmoveUnalignedDst(b, 13) }
+func BenchmarkMemmoveUnalignedDst14(b *testing.B)   { bmMemmoveUnalignedDst(b, 14) }
+func BenchmarkMemmoveUnalignedDst15(b *testing.B)   { bmMemmoveUnalignedDst(b, 15) }
+func BenchmarkMemmoveUnalignedDst16(b *testing.B)   { bmMemmoveUnalignedDst(b, 16) }
+func BenchmarkMemmoveUnalignedDst32(b *testing.B)   { bmMemmoveUnalignedDst(b, 32) }
+func BenchmarkMemmoveUnalignedDst64(b *testing.B)   { bmMemmoveUnalignedDst(b, 64) }
+func BenchmarkMemmoveUnalignedDst128(b *testing.B)  { bmMemmoveUnalignedDst(b, 128) }
+func BenchmarkMemmoveUnalignedDst256(b *testing.B)  { bmMemmoveUnalignedDst(b, 256) }
+func BenchmarkMemmoveUnalignedDst512(b *testing.B)  { bmMemmoveUnalignedDst(b, 512) }
+func BenchmarkMemmoveUnalignedDst1024(b *testing.B) { bmMemmoveUnalignedDst(b, 1024) }
+func BenchmarkMemmoveUnalignedDst2048(b *testing.B) { bmMemmoveUnalignedDst(b, 2048) }
+func BenchmarkMemmoveUnalignedDst4096(b *testing.B) { bmMemmoveUnalignedDst(b, 4096) }
+
+func bmMemmoveUnalignedSrc(b *testing.B, n int) {
+	x := make([]byte, n)
+	y := make([]byte, n+1)
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		copy(x, y[1:])
+	}
+}
+
+func BenchmarkMemmoveUnalignedSrc0(b *testing.B)    { bmMemmoveUnalignedSrc(b, 0) }
+func BenchmarkMemmoveUnalignedSrc1(b *testing.B)    { bmMemmoveUnalignedSrc(b, 1) }
+func BenchmarkMemmoveUnalignedSrc2(b *testing.B)    { bmMemmoveUnalignedSrc(b, 2) }
+func BenchmarkMemmoveUnalignedSrc3(b *testing.B)    { bmMemmoveUnalignedSrc(b, 3) }
+func BenchmarkMemmoveUnalignedSrc4(b *testing.B)    { bmMemmoveUnalignedSrc(b, 4) }
+func BenchmarkMemmoveUnalignedSrc5(b *testing.B)    { bmMemmoveUnalignedSrc(b, 5) }
+func BenchmarkMemmoveUnalignedSrc6(b *testing.B)    { bmMemmoveUnalignedSrc(b, 6) }
+func BenchmarkMemmoveUnalignedSrc7(b *testing.B)    { bmMemmoveUnalignedSrc(b, 7) }
+func BenchmarkMemmoveUnalignedSrc8(b *testing.B)    { bmMemmoveUnalignedSrc(b, 8) }
+func BenchmarkMemmoveUnalignedSrc9(b *testing.B)    { bmMemmoveUnalignedSrc(b, 9) }
+func BenchmarkMemmoveUnalignedSrc10(b *testing.B)   { bmMemmoveUnalignedSrc(b, 10) }
+func BenchmarkMemmoveUnalignedSrc11(b *testing.B)   { bmMemmoveUnalignedSrc(b, 11) }
+func BenchmarkMemmoveUnalignedSrc12(b *testing.B)   { bmMemmoveUnalignedSrc(b, 12) }
+func BenchmarkMemmoveUnalignedSrc13(b *testing.B)   { bmMemmoveUnalignedSrc(b, 13) }
+func BenchmarkMemmoveUnalignedSrc14(b *testing.B)   { bmMemmoveUnalignedSrc(b, 14) }
+func BenchmarkMemmoveUnalignedSrc15(b *testing.B)   { bmMemmoveUnalignedSrc(b, 15) }
+func BenchmarkMemmoveUnalignedSrc16(b *testing.B)   { bmMemmoveUnalignedSrc(b, 16) }
+func BenchmarkMemmoveUnalignedSrc32(b *testing.B)   { bmMemmoveUnalignedSrc(b, 32) }
+func BenchmarkMemmoveUnalignedSrc64(b *testing.B)   { bmMemmoveUnalignedSrc(b, 64) }
+func BenchmarkMemmoveUnalignedSrc128(b *testing.B)  { bmMemmoveUnalignedSrc(b, 128) }
+func BenchmarkMemmoveUnalignedSrc256(b *testing.B)  { bmMemmoveUnalignedSrc(b, 256) }
+func BenchmarkMemmoveUnalignedSrc512(b *testing.B)  { bmMemmoveUnalignedSrc(b, 512) }
+func BenchmarkMemmoveUnalignedSrc1024(b *testing.B) { bmMemmoveUnalignedSrc(b, 1024) }
+func BenchmarkMemmoveUnalignedSrc2048(b *testing.B) { bmMemmoveUnalignedSrc(b, 2048) }
+func BenchmarkMemmoveUnalignedSrc4096(b *testing.B) { bmMemmoveUnalignedSrc(b, 4096) }
 
 func TestMemclr(t *testing.T) {
 	size := 512
