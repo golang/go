@@ -38,8 +38,8 @@ type Value struct {
 	// Source line number
 	Line int32
 
-	// Storage for the first two args
-	argstorage [2]*Value
+	// Storage for the first three args
+	argstorage [3]*Value
 }
 
 // Examples:
