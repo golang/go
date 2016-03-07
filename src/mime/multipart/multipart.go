@@ -96,12 +96,30 @@ func (p *Part) parseContentDisposition() {
 func NewReader(r io.Reader, boundary string) *Reader {
 	b := []byte("\r\n--" + boundary + "--")
 	return &Reader{
-		bufReader:        bufio.NewReaderSize(r, peekBufferSize),
+		bufReader:        bufio.NewReaderSize(&stickyErrorReader{r: r}, peekBufferSize),
 		nl:               b[:2],
 		nlDashBoundary:   b[:len(b)-2],
 		dashBoundaryDash: b[2:],
 		dashBoundary:     b[2 : len(b)-2],
 	}
+}
+
+// stickyErrorReader is an io.Reader which never calls Read on its
+// underlying Reader once an error has been seen. (the io.Reader
+// interface's contract promises nothing about the return values of
+// Read calls after an error, yet this package does do multiple Reads
+// after error)
+type stickyErrorReader struct {
+	r   io.Reader
+	err error
+}
+
+func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
+	if r.err != nil {
+		return 0, r.err
+	}
+	n, r.err = r.r.Read(p)
+	return n, r.err
 }
 
 func newPart(mr *Reader) (*Part, error) {
