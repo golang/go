@@ -1181,7 +1181,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 19: /* mov $lcon,r ==> lu+or */
 		v := regoff(ctxt, &p.From)
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(p.To.Reg))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(p.To.Reg))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(p.To.Reg), uint32(p.To.Reg))
 		if p.From.Sym != nil {
 			rel := obj.Addrel(ctxt.Cursym)
@@ -1211,7 +1211,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 23: /* add $lcon,r1,r2 ==> lu+or+add */
 		v := regoff(ctxt, &p.From)
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 		r := int(p.Reg)
 		if r == 0 {
@@ -1221,11 +1221,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 24: /* mov $ucon,r ==> lu r */
 		v := regoff(ctxt, &p.From)
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(p.To.Reg))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(p.To.Reg))
 
 	case 25: /* add/and $ucon,[r1],r2 ==> lu $con,t; add t,[r1],r2 */
 		v := regoff(ctxt, &p.From)
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		r := int(p.Reg)
 		if r == 0 {
 			r = int(p.To.Reg)
@@ -1234,7 +1234,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	case 26: /* mov $lsext/auto/oreg,r ==> lu+or+add */
 		v := regoff(ctxt, &p.From)
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 		r := int(p.From.Reg)
 		if r == 0 {
@@ -1254,7 +1254,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		switch o.size {
 		case 16:
-			o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+			o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 			o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 			o3 = OP_RRR(opirr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
 			o4 = OP_IRR(opirr(ctxt, a), uint32(0), uint32(r), uint32(p.To.Reg))
@@ -1275,7 +1275,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 		switch o.size {
 		case 16:
-			o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+			o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 			o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 			o3 = OP_RRR(opirr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
 			o4 = OP_IRR(opirr(ctxt, a), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
@@ -1317,7 +1317,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(o.param)
 		}
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 		o3 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_IRR(opirr(ctxt, int(p.As)), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
@@ -1328,7 +1328,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(o.param)
 		}
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 		o3 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
 		o4 = OP_IRR(opirr(ctxt, int(p.As)+ALAST), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
@@ -1370,7 +1370,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 	/* relocation operations */
 	case 50: /* mov r,addr ==> lu + or + sw (REGTMP) */
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(0), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(0), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel := obj.Addrel(ctxt.Cursym)
 		rel.Off = int32(ctxt.Pc)
@@ -1381,7 +1381,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o3 = OP_IRR(opirr(ctxt, int(p.As)), uint32(0), uint32(REGTMP), uint32(p.From.Reg))
 
 	case 51: /* mov addr,r ==> lu + or + lw (REGTMP) */
-		o1 = OP_IRR(opirr(ctxt, ALAST), uint32(0), uint32(REGZERO), uint32(REGTMP))
+		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(0), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(0), uint32(REGTMP), uint32(REGTMP))
 		rel := obj.Addrel(ctxt.Cursym)
 		rel.Off = int32(ctxt.Pc)
@@ -1586,8 +1586,8 @@ func opirr(ctxt *obj.Link, a int) uint32 {
 		return SP(1, 5)
 	case AXOR:
 		return SP(1, 6)
-	case ALAST:
-		return SP(1, 7) /* lui */
+	case ALUI:
+		return SP(1, 7)
 	case ASLL:
 		return OP(0, 0)
 	case ASRL:
