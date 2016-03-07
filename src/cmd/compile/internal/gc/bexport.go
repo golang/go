@@ -221,7 +221,7 @@ func Export(out *obj.Biobuf, trace bool) int {
 				types = append(types, t)
 
 			default:
-				Fatalf("exporter: unexpected export symbol: %v %v", Oconv(int(n.Op), 0), sym)
+				Fatalf("exporter: unexpected export symbol: %v %v", Oconv(n.Op, 0), sym)
 			}
 		}
 	}

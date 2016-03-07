@@ -163,7 +163,7 @@ func walkstmt(np **Node) {
 		if n.Op == ONAME {
 			Yyerror("%v is not a top level statement", n.Sym)
 		} else {
-			Yyerror("%v is not a top level statement", Oconv(int(n.Op), 0))
+			Yyerror("%v is not a top level statement", Oconv(n.Op, 0))
 		}
 		Dump("nottop", n)
 
@@ -1559,7 +1559,7 @@ opswitch:
 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
 	case OCMPIFACE:
 		if !Eqtype(n.Left.Type, n.Right.Type) {
-			Fatalf("ifaceeq %v %v %v", Oconv(int(n.Op), 0), n.Left.Type, n.Right.Type)
+			Fatalf("ifaceeq %v %v %v", Oconv(n.Op, 0), n.Left.Type, n.Right.Type)
 		}
 		var fn *Node
 		if isnilinter(n.Left.Type) {
@@ -1685,7 +1685,7 @@ func ascompatee(op Op, nl *NodeList, nr *NodeList, init nodesOrNodeListPtr) *Nod
 
 	// cannot happen: caller checked that lists had same length
 	if ll != nil || lr != nil {
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(int(op), 0), Hconv(nr, obj.FmtSign), count(nl), count(nr), Curfn.Func.Nname.Sym.Name)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(op, 0), Hconv(nr, obj.FmtSign), count(nl), count(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1930,9 +1930,9 @@ loop:
 			l1 = dumptypes(nl, "expected")
 			l2 = dumpnodetypes(lr0, "given")
 			if l != nil {
-				Yyerror("not enough arguments to %v\n%s\n%s", Oconv(int(op), 0), l1, l2)
+				Yyerror("not enough arguments to %v\n%s\n%s", Oconv(op, 0), l1, l2)
 			} else {
-				Yyerror("too many arguments to %v\n%s\n%s", Oconv(int(op), 0), l1, l2)
+				Yyerror("too many arguments to %v\n%s\n%s", Oconv(op, 0), l1, l2)
 			}
 		}
 
@@ -2205,7 +2205,7 @@ func applywritebarrier(n *Node) *Node {
 
 func convas(n *Node, init nodesOrNodeListPtr) *Node {
 	if n.Op != OAS {
-		Fatalf("convas: not OAS %v", Oconv(int(n.Op), 0))
+		Fatalf("convas: not OAS %v", Oconv(n.Op, 0))
 	}
 
 	n.Typecheck = 1
@@ -2352,7 +2352,7 @@ func reorder3(all *NodeList) *NodeList {
 
 		switch l.Op {
 		default:
-			Fatalf("reorder3 unexpected lvalue %v", Oconv(int(l.Op), obj.FmtSharp))
+			Fatalf("reorder3 unexpected lvalue %v", Oconv(l.Op, obj.FmtSharp))
 
 		case ONAME:
 			break
@@ -3813,7 +3813,7 @@ func usefield(n *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("usefield %v", Oconv(int(n.Op), 0))
+		Fatalf("usefield %v", Oconv(n.Op, 0))
 
 	case ODOT, ODOTPTR:
 		break

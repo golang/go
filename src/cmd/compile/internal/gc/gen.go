@@ -225,7 +225,7 @@ func Genlist(l nodesOrNodeList) {
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
-		Fatalf("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
+		Fatalf("cgen_proc: unknown call %v", Oconv(n.Left.Op, 0))
 
 	case OCALLMETH:
 		cgen_callmeth(n.Left, proc)

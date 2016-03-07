@@ -322,7 +322,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a := a // copy to let escape into Ctxt.Dconv
 		Debug['h'] = 1
 		Dump("naddr", n)
-		Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+		Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
 
 	case OREGISTER:
 		a.Type = obj.TYPE_REG
@@ -423,7 +423,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Type.Sym != n.Right.Sym {
 			Debug['h'] = 1
 			Dump("naddr", n)
-			Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
 		}
 		Naddr(a, n.Left)
 
@@ -466,7 +466,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		if a.Type != obj.TYPE_MEM {
 			a := a // copy to let escape into Ctxt.Dconv
-			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
+			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(n.Left.Op, 0))
 		}
 		a.Type = obj.TYPE_ADDR
 

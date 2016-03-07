@@ -722,7 +722,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(op, 0), t)
 
 	case OADDR_ | gc.TPTR32:
 		a = x86.ALEAL
@@ -1264,7 +1264,7 @@ func jmptoset(jmp int) int {
 	case x86.AJPS:
 		return x86.ASETPS
 	}
-	gc.Fatalf("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
+	gc.Fatalf("jmptoset: no entry for %v", jmp)
 	panic("unreachable")
 }
 

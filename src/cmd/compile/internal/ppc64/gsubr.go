@@ -711,7 +711,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	a := int(obj.AXXX)
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
 
 	case OEQ_ | gc.TBOOL,
 		OEQ_ | gc.TINT8,

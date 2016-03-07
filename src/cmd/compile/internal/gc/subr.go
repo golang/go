@@ -1376,9 +1376,9 @@ func printframenode(n *Node) {
 	}
 	switch n.Op {
 	case ONAME:
-		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
+		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(n.Op, 0), n.Sym, n.Name.Vargen, n.Type, w)
 	case OTYPE:
-		fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
+		fmt.Printf("%v %v width=%d\n", Oconv(n.Op, 0), n.Type, w)
 	}
 }
 
@@ -1459,7 +1459,7 @@ func badtype(op Op, tl *Type, tr *Type) {
 	}
 
 	s := fmt_
-	Yyerror("illegal types for operand: %v%s", Oconv(int(op), 0), s)
+	Yyerror("illegal types for operand: %v%s", Oconv(op, 0), s)
 }
 
 // iterator to walk a structure declaration
@@ -1601,7 +1601,7 @@ func Brcom(op Op) Op {
 	case OGE:
 		return OLT
 	}
-	Fatalf("brcom: no com for %v\n", Oconv(int(op), 0))
+	Fatalf("brcom: no com for %v\n", Oconv(op, 0))
 	return op
 }
 
@@ -1622,7 +1622,7 @@ func Brrev(op Op) Op {
 	case OGE:
 		return OLE
 	}
-	Fatalf("brrev: no rev for %v\n", Oconv(int(op), 0))
+	Fatalf("brrev: no rev for %v\n", Oconv(op, 0))
 	return op
 }
 

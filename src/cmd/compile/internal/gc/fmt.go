@@ -174,14 +174,14 @@ var goopnames = []string{
 }
 
 // Fmt "%O":  Node opcodes
-func Oconv(o int, flag int) string {
+func Oconv(o Op, flag int) string {
 	if (flag&obj.FmtSharp != 0) || fmtmode != FDbg {
-		if o >= 0 && o < len(goopnames) && goopnames[o] != "" {
+		if o >= 0 && int(o) < len(goopnames) && goopnames[o] != "" {
 			return goopnames[o]
 		}
 	}
 
-	if o >= 0 && o < len(opnames) && opnames[o] != "" {
+	if o >= 0 && int(o) < len(opnames) && opnames[o] != "" {
 		return opnames[o]
 	}
 
@@ -859,7 +859,7 @@ func stmtfmt(n *Node) string {
 			break
 		}
 
-		f += fmt.Sprintf("%v %v= %v", n.Left, Oconv(int(n.Etype), obj.FmtSharp), n.Right)
+		f += fmt.Sprintf("%v %v= %v", n.Left, Oconv(Op(n.Etype), obj.FmtSharp), n.Right)
 
 	case OAS2:
 		if n.Colas && !complexinit {
@@ -933,11 +933,11 @@ func stmtfmt(n *Node) string {
 
 	case OSELECT, OSWITCH:
 		if fmtmode == FErr {
-			f += fmt.Sprintf("%v statement", Oconv(int(n.Op), 0))
+			f += fmt.Sprintf("%v statement", Oconv(n.Op, 0))
 			break
 		}
 
-		f += Oconv(int(n.Op), obj.FmtSharp)
+		f += Oconv(n.Op, obj.FmtSharp)
 		if simpleinit {
 			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
 		}
@@ -960,9 +960,9 @@ func stmtfmt(n *Node) string {
 		OFALL,
 		OXFALL:
 		if n.Left != nil {
-			f += fmt.Sprintf("%v %v", Oconv(int(n.Op), obj.FmtSharp), n.Left)
+			f += fmt.Sprintf("%v %v", Oconv(n.Op, obj.FmtSharp), n.Left)
 		} else {
-			f += Oconv(int(n.Op), obj.FmtSharp)
+			f += Oconv(n.Op, obj.FmtSharp)
 		}
 
 	case OEMPTY:
@@ -1341,7 +1341,7 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OCOPY, OCOMPLEX:
-		return fmt.Sprintf("%v(%v, %v)", Oconv(int(n.Op), obj.FmtSharp), n.Left, n.Right)
+		return fmt.Sprintf("%v(%v, %v)", Oconv(n.Op, obj.FmtSharp), n.Left, n.Right)
 
 	case OCONV,
 		OCONVIFACE,
@@ -1373,12 +1373,12 @@ func exprfmt(n *Node, prec int) string {
 		OPRINT,
 		OPRINTN:
 		if n.Left != nil {
-			return fmt.Sprintf("%v(%v)", Oconv(int(n.Op), obj.FmtSharp), n.Left)
+			return fmt.Sprintf("%v(%v)", Oconv(n.Op, obj.FmtSharp), n.Left)
 		}
 		if n.Isddd {
-			return fmt.Sprintf("%v(%v...)", Oconv(int(n.Op), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
+			return fmt.Sprintf("%v(%v...)", Oconv(n.Op, obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 		}
-		return fmt.Sprintf("%v(%v)", Oconv(int(n.Op), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
+		return fmt.Sprintf("%v(%v)", Oconv(n.Op, obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 
 	case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH, OGETG:
 		var f string
@@ -1412,9 +1412,9 @@ func exprfmt(n *Node, prec int) string {
 		ORECV:
 		var f string
 		if n.Left.Op == n.Op {
-			f += fmt.Sprintf("%v ", Oconv(int(n.Op), obj.FmtSharp))
+			f += fmt.Sprintf("%v ", Oconv(n.Op, obj.FmtSharp))
 		} else {
-			f += Oconv(int(n.Op), obj.FmtSharp)
+			f += Oconv(n.Op, obj.FmtSharp)
 		}
 		f += exprfmt(n.Left, nprec+1)
 		return f
@@ -1443,7 +1443,7 @@ func exprfmt(n *Node, prec int) string {
 		var f string
 		f += exprfmt(n.Left, nprec)
 
-		f += fmt.Sprintf(" %v ", Oconv(int(n.Op), obj.FmtSharp))
+		f += fmt.Sprintf(" %v ", Oconv(n.Op, obj.FmtSharp))
 		f += exprfmt(n.Right, nprec+1)
 		return f
 
@@ -1464,12 +1464,12 @@ func exprfmt(n *Node, prec int) string {
 		var f string
 		f += exprfmt(n.Left, nprec)
 		// TODO(marvin): Fix Node.EType type union.
-		f += fmt.Sprintf(" %v ", Oconv(int(n.Etype), obj.FmtSharp))
+		f += fmt.Sprintf(" %v ", Oconv(Op(n.Etype), obj.FmtSharp))
 		f += exprfmt(n.Right, nprec+1)
 		return f
 	}
 
-	return fmt.Sprintf("<node %v>", Oconv(int(n.Op), 0))
+	return fmt.Sprintf("<node %v>", Oconv(n.Op, 0))
 }
 
 func nodefmt(n *Node, flag int) string {
@@ -1524,40 +1524,40 @@ func nodedump(n *Node, flag int) string {
 		}
 
 		if nodeSeqLen(n.Ninit) != 0 {
-			fmt.Fprintf(&buf, "%v-init%v", Oconv(int(n.Op), 0), n.Ninit)
+			fmt.Fprintf(&buf, "%v-init%v", Oconv(n.Op, 0), n.Ninit)
 			indent(&buf)
 		}
 	}
 
 	switch n.Op {
 	default:
-		fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v%v", Oconv(n.Op, 0), Jconv(n, 0))
 
 	case OREGISTER, OINDREG:
-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), obj.Rconv(int(n.Reg)), Jconv(n, 0))
 
 	case OLITERAL:
-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Vconv(n.Val(), 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), Vconv(n.Val(), 0), Jconv(n, 0))
 
 	case ONAME, ONONAME:
 		if n.Sym != nil {
-			fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), n.Sym, Jconv(n, 0))
+			fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), n.Sym, Jconv(n, 0))
 		} else {
-			fmt.Fprintf(&buf, "%v%v", Oconv(int(n.Op), 0), Jconv(n, 0))
+			fmt.Fprintf(&buf, "%v%v", Oconv(n.Op, 0), Jconv(n, 0))
 		}
 		if recur && n.Type == nil && n.Name != nil && n.Name.Param != nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
+			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(n.Op, 0), n.Name.Param.Ntype)
 		}
 
 	case OASOP:
-		fmt.Fprintf(&buf, "%v-%v%v", Oconv(int(n.Op), 0), Oconv(int(n.Etype), 0), Jconv(n, 0))
+		fmt.Fprintf(&buf, "%v-%v%v", Oconv(n.Op, 0), Oconv(Op(n.Etype), 0), Jconv(n, 0))
 
 	case OTYPE:
-		fmt.Fprintf(&buf, "%v %v%v type=%v", Oconv(int(n.Op), 0), n.Sym, Jconv(n, 0), n.Type)
+		fmt.Fprintf(&buf, "%v %v%v type=%v", Oconv(n.Op, 0), n.Sym, Jconv(n, 0), n.Type)
 		if recur && n.Type == nil && n.Name.Param.Ntype != nil {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(int(n.Op), 0), n.Name.Param.Ntype)
+			fmt.Fprintf(&buf, "%v-ntype%v", Oconv(n.Op, 0), n.Name.Param.Ntype)
 		}
 	}
 
@@ -1578,17 +1578,17 @@ func nodedump(n *Node, flag int) string {
 		}
 		if nodeSeqLen(n.List) != 0 {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-list%v", Oconv(int(n.Op), 0), n.List)
+			fmt.Fprintf(&buf, "%v-list%v", Oconv(n.Op, 0), n.List)
 		}
 
 		if nodeSeqLen(n.Rlist) != 0 {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(int(n.Op), 0), n.Rlist)
+			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(n.Op, 0), n.Rlist)
 		}
 
 		if len(n.Nbody.Slice()) != 0 {
 			indent(&buf)
-			fmt.Fprintf(&buf, "%v-body%v", Oconv(int(n.Op), 0), n.Nbody)
+			fmt.Fprintf(&buf, "%v-body%v", Oconv(n.Op, 0), n.Nbody)
 		}
 	}
 
