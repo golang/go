@@ -543,39 +543,31 @@ func evconst(n *Node) {
 
 		// merge adjacent constants in the argument list.
 	case OADDSTR:
-		// TODO: We make a copy of n.List in order to abstract
-		// away the details of deleting elements.
-		// Once n.List is some kind of Node slice,
-		// re-implement using deletion.
-		var l *NodeList // replacement list
-		for l1 := n.List; l1 != nil; {
-			if !Isconst(l1.N, CTSTR) || l1.Next == nil || !Isconst(l1.Next.N, CTSTR) {
-				// non-constant string or solitary constant string
-				l = list(l, l1.N)
-				l1 = l1.Next
-				continue
+		s := nodeSeqSlice(n.List)
+		for i1 := 0; i1 < len(s); i1++ {
+			if Isconst(s[i1], CTSTR) && i1+1 < len(s) && Isconst(s[i1+1], CTSTR) {
+				// merge from i1 up to but not including i2
+				var strs []string
+				i2 := i1
+				for i2 < len(s) && Isconst(s[i2], CTSTR) {
+					strs = append(strs, s[i2].Val().U.(string))
+					i2++
+				}
+
+				nl := Nod(OXXX, nil, nil)
+				*nl = *s[i1]
+				nl.Orig = nl
+				nl.SetVal(Val{strings.Join(strs, "")})
+				s[i1] = nl
+				s = append(s[:i1+1], s[i2:]...)
 			}
-
-			first := l1.N
-
-			// merge run of constants
-			var strs []string
-			for ; l1 != nil && Isconst(l1.N, CTSTR); l1 = l1.Next {
-				strs = append(strs, l1.N.Val().U.(string))
-			}
-
-			nl := Nod(OXXX, nil, nil)
-			*nl = *first
-			nl.Orig = nl
-			nl.SetVal(Val{strings.Join(strs, "")})
-			l = list(l, nl)
 		}
-		n.List = l
 
-		// collapse single-constant list to single constant.
-		if count(n.List) == 1 && Isconst(n.List.N, CTSTR) {
+		if len(s) == 1 && Isconst(s[0], CTSTR) {
 			n.Op = OLITERAL
-			n.SetVal(n.List.N.Val())
+			n.SetVal(s[0].Val())
+		} else {
+			setNodeSeq(&n.List, s)
 		}
 
 		return
@@ -1745,13 +1737,13 @@ func hascallchan(n *Node) bool {
 		return true
 	}
 
-	for l := n.List; l != nil; l = l.Next {
-		if hascallchan(l.N) {
+	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		if hascallchan(it.N()) {
 			return true
 		}
 	}
-	for l := n.Rlist; l != nil; l = l.Next {
-		if hascallchan(l.N) {
+	for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
+		if hascallchan(it.N()) {
 			return true
 		}
 	}

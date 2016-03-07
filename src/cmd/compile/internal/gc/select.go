@@ -240,7 +240,7 @@ func walkselect(sel *Node) {
 
 			setNodeSeq(&r.Ninit, cas.Ninit)
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.N, ch)
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, nodeSeqFirst(n.List), ch)
 		}
 
 		typecheck(&r.Left, Erv)

@@ -670,7 +670,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	as = Nod(OAS2, nil, nil)
 
 	setNodeSeq(&as.Rlist, n.List)
-	ll := n.List
+	it := nodeSeqIterate(n.List)
 
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
@@ -689,7 +689,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
 		}
 		appendNodeSeqNode(&as.List, tinlvar(t))
-		ll = ll.Next // track argument count.
+		it.Next() // track argument count.
 	}
 
 	// append ordinary arguments to LHS.
@@ -703,7 +703,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		for t := getinargx(fn.Type).Type; t != nil; t = t.Down {
 			if variadic && t.Isddd {
 				vararg = tinlvar(t)
-				for i = 0; i < varargcount && ll != nil; i++ {
+				for i = 0; i < varargcount && it.Len() != 0; i++ {
 					m = argvar(varargtype, i)
 					varargs = append(varargs, m)
 					appendNodeSeqNode(&as.List, m)
@@ -718,7 +718,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		// match arguments except final variadic (unless the call is dotted itself)
 		var t *Type
 		for t = getinargx(fn.Type).Type; t != nil; {
-			if ll == nil {
+			if it.Done() {
 				break
 			}
 			if variadic && t.Isddd {
@@ -726,18 +726,18 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			}
 			appendNodeSeqNode(&as.List, tinlvar(t))
 			t = t.Down
-			ll = ll.Next
+			it.Next()
 		}
 
 		// match varargcount arguments with variadic parameters.
 		if variadic && t != nil && t.Isddd {
 			vararg = tinlvar(t)
 			var i int
-			for i = 0; i < varargcount && ll != nil; i++ {
+			for i = 0; i < varargcount && !it.Done(); i++ {
 				m = argvar(varargtype, i)
 				varargs = append(varargs, m)
 				appendNodeSeqNode(&as.List, m)
-				ll = ll.Next
+				it.Next()
 			}
 
 			if i == varargcount {
@@ -745,7 +745,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			}
 		}
 
-		if ll != nil || t != nil {
+		if !it.Done() || t != nil {
 			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(getinargx(fn.Type), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 		}
 	}

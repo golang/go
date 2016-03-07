@@ -771,12 +771,12 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 	case ORETURN:
-		ll := n.List
+		ll := nodesOrNodeList(n.List)
 		if nodeSeqLen(n.List) == 1 && Curfn.Type.Outtuple > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n->list->n
 			// tie n->list->n->escretval to curfn->dcl PPARAMOUT's
-			ll = e.nodeEscState(n.List.N).Escretval
+			ll = e.nodeEscState(nodeSeqFirst(n.List)).Escretval
 		}
 
 		llit := nodeSeqIterate(ll)
@@ -1368,9 +1368,9 @@ func esccall(e *EscState, n *Node, up *Node) {
 		indirect = true
 	}
 
-	ll := n.List
-	if n.List != nil && n.List.Next == nil {
-		a := n.List.N
+	ll := nodesOrNodeList(n.List)
+	if nodeSeqLen(n.List) == 1 {
+		a := nodeSeqFirst(n.List)
 		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).
 			ll = e.nodeEscState(a).Escretval
 		}
@@ -1481,15 +1481,16 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	var src *Node
-	for t := getinargx(fntype).Type; ll != nil; ll = ll.Next {
-		src = ll.N
+	it := nodeSeqIterate(ll)
+	for t := getinargx(fntype).Type; !it.Done(); it.Next() {
+		src = it.N()
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
 			src.Type = typ(TARRAY)
 			src.Type.Type = t.Type.Type
-			src.Type.Bound = int64(count(ll))
+			src.Type.Bound = int64(it.Len())
 			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
 			e.track(src)
 			n.Right = src
@@ -1522,18 +1523,18 @@ func esccall(e *EscState, n *Node, up *Node) {
 			}
 		}
 
-		if src != ll.N {
+		if src != it.N() {
 			// This occurs when function parameter type Isddd and n not Isddd
 			break
 		}
 		t = t.Down
 	}
 
-	for ; ll != nil; ll = ll.Next {
+	for ; !it.Done(); it.Next() {
 		if Debug['m'] > 2 {
-			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(ll.N, obj.FmtShort))
+			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(it.N(), obj.FmtShort))
 		}
-		escassign(e, src, ll.N) // args to slice
+		escassign(e, src, it.N()) // args to slice
 	}
 }
 

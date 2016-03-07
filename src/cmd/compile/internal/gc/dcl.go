@@ -437,18 +437,18 @@ func colasname(n *Node) bool {
 	return false
 }
 
-func colasdefn(left *NodeList, defn *Node) {
-	for l := left; l != nil; l = l.Next {
-		if l.N.Sym != nil {
-			l.N.Sym.Flags |= SymUniq
+func colasdefn(left nodesOrNodeList, defn *Node) {
+	for it := nodeSeqIterate(left); !it.Done(); it.Next() {
+		if it.N().Sym != nil {
+			it.N().Sym.Flags |= SymUniq
 		}
 	}
 
 	nnew := 0
 	nerr := 0
 	var n *Node
-	for l := left; l != nil; l = l.Next {
-		n = l.N
+	for it := nodeSeqIterate(left); !it.Done(); it.Next() {
+		n = it.N()
 		if isblank(n) {
 			continue
 		}
@@ -475,7 +475,7 @@ func colasdefn(left *NodeList, defn *Node) {
 		declare(n, dclcontext)
 		n.Name.Defn = defn
 		appendNodeSeqNode(&defn.Ninit, Nod(ODCL, n, nil))
-		l.N = n
+		*it.P() = n
 	}
 
 	if nnew == 0 && nerr == 0 {
@@ -828,19 +828,19 @@ func checkdupfields(t *Type, what string) {
 
 // convert a parsed id/type list into
 // a type for struct/interface/arglist
-func tostruct(l *NodeList) *Type {
+func tostruct(l nodesOrNodeList) *Type {
 	t := typ(TSTRUCT)
 	tostruct0(t, l)
 	return t
 }
 
-func tostruct0(t *Type, l *NodeList) {
+func tostruct0(t *Type, l nodesOrNodeList) {
 	if t == nil || t.Etype != TSTRUCT {
 		Fatalf("struct expected")
 	}
 
-	for tp := &t.Type; l != nil; l = l.Next {
-		f := structfield(l.N)
+	for tp, it := &t.Type, nodeSeqIterate(l); !it.Done(); it.Next() {
+		f := structfield(it.N())
 
 		*tp = f
 		tp = &f.Down
@@ -860,19 +860,19 @@ func tostruct0(t *Type, l *NodeList) {
 	}
 }
 
-func tofunargs(l *NodeList) *Type {
+func tofunargs(l nodesOrNodeList) *Type {
 	var f *Type
 
 	t := typ(TSTRUCT)
 	t.Funarg = true
 
-	for tp := &t.Type; l != nil; l = l.Next {
-		f = structfield(l.N)
+	for tp, it := &t.Type, nodeSeqIterate(l); !it.Done(); it.Next() {
+		f = structfield(it.N())
 		f.Funarg = true
 
 		// esc.go needs to find f given a PPARAM to add the tag.
-		if l.N.Left != nil && l.N.Left.Class == PPARAM {
-			l.N.Left.Name.Param.Field = f
+		if it.N().Left != nil && it.N().Left.Class == PPARAM {
+			it.N().Left.Name.Param.Field = f
 		}
 
 		*tp = f
@@ -955,22 +955,22 @@ func interfacefield(n *Node) *Type {
 	return f
 }
 
-func tointerface(l *NodeList) *Type {
+func tointerface(l nodesOrNodeList) *Type {
 	t := typ(TINTER)
 	tointerface0(t, l)
 	return t
 }
 
-func tointerface0(t *Type, l *NodeList) *Type {
+func tointerface0(t *Type, l nodesOrNodeList) *Type {
 	if t == nil || t.Etype != TINTER {
 		Fatalf("interface expected")
 	}
 
 	tp := &t.Type
-	for ; l != nil; l = l.Next {
-		f := interfacefield(l.N)
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		f := interfacefield(it.N())
 
-		if l.N.Left == nil && f.Type.Etype == TINTER {
+		if it.N().Left == nil && f.Type.Etype == TINTER {
 			// embedded interface, inline methods
 			for t1 := f.Type.Type; t1 != nil; t1 = t1.Down {
 				f = typ(TFIELD)
@@ -1155,13 +1155,13 @@ func isifacemethod(f *Type) bool {
 }
 
 // turn a parsed function declaration into a type
-func functype(this *Node, in *NodeList, out *NodeList) *Type {
+func functype(this *Node, in nodesOrNodeList, out nodesOrNodeList) *Type {
 	t := typ(TFUNC)
 	functype0(t, this, in, out)
 	return t
 }
 
-func functype0(t *Type, this *Node, in *NodeList, out *NodeList) {
+func functype0(t *Type, this *Node, in nodesOrNodeList, out nodesOrNodeList) {
 	if t == nil || t.Etype != TFUNC {
 		Fatalf("function type expected")
 	}
@@ -1186,11 +1186,11 @@ func functype0(t *Type, this *Node, in *NodeList, out *NodeList) {
 	if this != nil {
 		t.Thistuple = 1
 	}
-	t.Outtuple = count(out)
-	t.Intuple = count(in)
+	t.Outtuple = nodeSeqLen(out)
+	t.Intuple = nodeSeqLen(in)
 	t.Outnamed = false
-	if t.Outtuple > 0 && out.N.Left != nil && out.N.Left.Orig != nil {
-		s := out.N.Left.Orig.Sym
+	if t.Outtuple > 0 && nodeSeqFirst(out).Left != nil && nodeSeqFirst(out).Left.Orig != nil {
+		s := nodeSeqFirst(out).Left.Orig.Sym
 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
 			t.Outnamed = true
 		}

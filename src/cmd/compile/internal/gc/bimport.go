@@ -636,7 +636,7 @@ func (p *importer) node() *Node {
 		// }
 		x := Nod(OCALL, p.typ().Nod, nil)
 		if p.bool() {
-			x.List = list1(p.node())
+			setNodeSeq(&x.List, []*Node{p.node()})
 		} else {
 			setNodeSeq(&x.List, p.nodeList())
 		}

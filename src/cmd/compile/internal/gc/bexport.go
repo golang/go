@@ -849,7 +849,7 @@ func (p *exporter) node(n *Node) {
 
 	// expressions
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
-		if p.bool(n.List != nil) {
+		if p.bool(nodeSeqLen(n.List) != 0) {
 			p.nodeList(n.List) // TODO(gri) do we still need to export this?
 		}
 		p.nodesOrNil(n.Left, n.Right)
@@ -971,7 +971,7 @@ func (p *exporter) node(n *Node) {
 		p.nodeList(n.Nbody)
 
 	case ORANGE:
-		if p.bool(n.List != nil) {
+		if p.bool(nodeSeqLen(n.List) != 0) {
 			p.nodeList(n.List)
 		}
 		p.node(n.Right)
@@ -983,7 +983,7 @@ func (p *exporter) node(n *Node) {
 		p.nodeList(n.List)
 
 	case OCASE, OXCASE:
-		if p.bool(n.List != nil) {
+		if p.bool(nodeSeqLen(n.List) != 0) {
 			p.nodeList(n.List)
 		}
 		p.nodeList(n.Nbody)
