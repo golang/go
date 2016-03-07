@@ -489,10 +489,10 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
 	setNodeSeq(&as.Rlist, right)
 	as.Colas = true
 	as.Lineno = lno
-	colasdefn(left, as)
+	colasdefn(as.List, as)
 
 	// make the tree prettier; not necessary
-	if count(left) == 1 && count(right) == 1 {
+	if nodeSeqLen(as.List) == 1 && nodeSeqLen(as.Rlist) == 1 {
 		as.Left = nodeSeqFirst(as.List)
 		as.Right = nodeSeqFirst(as.Rlist)
 		setNodeSeq(&as.List, nil)

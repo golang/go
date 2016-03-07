@@ -15,10 +15,10 @@ type Node struct {
 	// Generic recursive walks should follow these fields.
 	Left  *Node
 	Right *Node
-	Ninit *NodeList
+	Ninit Nodes
 	Nbody Nodes
-	List  *NodeList
-	Rlist *NodeList
+	List  Nodes
+	Rlist Nodes
 
 	// most nodes
 	Type *Type
