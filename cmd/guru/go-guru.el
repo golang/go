@@ -45,6 +45,11 @@
   nil
   "History of values supplied to `go-guru-set-scope'.")
 
+(defcustom go-guru-build-tags ""
+  "Build tags passed to guru."
+  :type 'string
+  :group 'go-guru)
+
 ;; Extend go-mode-map.
 (let ((m (define-prefix-command 'go-guru-map)))
   (define-key m "d" #'go-guru-describe)
@@ -131,7 +136,8 @@ a scope if not already set.  Return the output buffer."
       (erase-buffer)
       (go-guru--insert-modified-files)
       (let* ((args (append (list "-modified"
-				 "-scope" go-guru-scope)
+                                 "-scope" go-guru-scope
+                                 "-tags" go-guru-build-tags)
 			   flags
 			   (list mode posn))))
 	;; Log the command to *Messages*, for debugging.
