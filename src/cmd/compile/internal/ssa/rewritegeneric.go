@@ -2487,6 +2487,18 @@ func rewriteValuegeneric_OpITab(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (IsInBounds x x)
+	// cond:
+	// result: (ConstBool [0])
+	for {
+		x := v.Args[0]
+		if v.Args[1] != x {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
 	// match: (IsInBounds (And32 (Const32 [c]) _) (Const32 [d]))
 	// cond: inBounds32(c, d)
 	// result: (ConstBool [1])
@@ -2568,6 +2580,18 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (IsSliceInBounds x x)
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		x := v.Args[0]
+		if v.Args[1] != x {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	// match: (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d]))
 	// cond: sliceInBounds32(c, d)
 	// result: (ConstBool [1])
@@ -2612,6 +2636,34 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
 		v.AuxInt = 1
 		return true
 	}
+	// match: (IsSliceInBounds (Const32 [0]) _)
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpConst32 {
+			break
+		}
+		if v.Args[0].AuxInt != 0 {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsSliceInBounds (Const64 [0]) _)
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpConst64 {
+			break
+		}
+		if v.Args[0].AuxInt != 0 {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	// match: (IsSliceInBounds (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(sliceInBounds32(c,d))])
@@ -2642,6 +2694,24 @@ func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
 		d := v.Args[1].AuxInt
 		v.reset(OpConstBool)
 		v.AuxInt = b2i(sliceInBounds64(c, d))
+		return true
+	}
+	// match: (IsSliceInBounds (SliceLen x) (SliceCap x))
+	// cond:
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpSliceLen {
+			break
+		}
+		x := v.Args[0].Args[0]
+		if v.Args[1].Op != OpSliceCap {
+			break
+		}
+		if v.Args[1].Args[0] != x {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
 		return true
 	}
 	return false
@@ -6709,6 +6779,21 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
 		v.AuxInt = c
 		return true
 	}
+	// match: (SliceCap (SliceMake _ _ (SliceCap x)))
+	// cond:
+	// result: (SliceCap x)
+	for {
+		if v.Args[0].Op != OpSliceMake {
+			break
+		}
+		if v.Args[0].Args[2].Op != OpSliceCap {
+			break
+		}
+		x := v.Args[0].Args[2].Args[0]
+		v.reset(OpSliceCap)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
@@ -6731,6 +6816,21 @@ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {
 		v.AuxInt = c
 		return true
 	}
+	// match: (SliceLen (SliceMake _ (SliceLen x) _))
+	// cond:
+	// result: (SliceLen x)
+	for {
+		if v.Args[0].Op != OpSliceMake {
+			break
+		}
+		if v.Args[0].Args[1].Op != OpSliceLen {
+			break
+		}
+		x := v.Args[0].Args[1].Args[0]
+		v.reset(OpSliceLen)
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
@@ -6751,6 +6851,21 @@ func rewriteValuegeneric_OpSlicePtr(v *Value, config *Config) bool {
 		v.reset(OpConst64)
 		v.Type = t
 		v.AuxInt = c
+		return true
+	}
+	// match: (SlicePtr (SliceMake (SlicePtr x) _ _))
+	// cond:
+	// result: (SlicePtr x)
+	for {
+		if v.Args[0].Op != OpSliceMake {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpSlicePtr {
+			break
+		}
+		x := v.Args[0].Args[0].Args[0]
+		v.reset(OpSlicePtr)
+		v.AddArg(x)
 		return true
 	}
 	return false

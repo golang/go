@@ -5,11 +5,11 @@ package main
 
 func f0(a []int) int {
 	a[0] = 1
-	a[0] = 1 // ERROR "Proved IsInBounds$"
+	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
 	a[6] = 1
-	a[6] = 1 // ERROR "Proved IsInBounds$"
+	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
 	a[5] = 1
-	a[5] = 1 // ERROR "Proved IsInBounds$"
+	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
 	return 13
 }
 
@@ -18,18 +18,18 @@ func f1(a []int) int {
 		return 18
 	}
 	a[0] = 1
-	a[0] = 1 // ERROR "Proved IsInBounds$"
+	a[0] = 1 // ERROR "Proved boolean IsInBounds$"
 	a[6] = 1
-	a[6] = 1 // ERROR "Proved IsInBounds$"
-	a[5] = 1 // ERROR "Proved constant IsInBounds$"
-	a[5] = 1 // ERROR "Proved IsInBounds$"
+	a[6] = 1 // ERROR "Proved boolean IsInBounds$"
+	a[5] = 1 // ERROR "Proved non-negative bounds IsInBounds$"
+	a[5] = 1 // ERROR "Proved boolean IsInBounds$"
 	return 26
 }
 
 func f2(a []int) int {
 	for i := range a {
 		a[i] = i
-		a[i] = i // ERROR "Proved IsInBounds$"
+		a[i] = i // ERROR "Proved boolean IsInBounds$"
 	}
 	return 34
 }
@@ -49,13 +49,13 @@ func f4a(a, b, c int) int {
 		if a > b { // ERROR "Disproved Greater64$"
 			return 50
 		}
-		if a < b { // ERROR "Proved Less64$"
+		if a < b { // ERROR "Proved boolean Less64$"
 			return 53
 		}
-		if a == b { // ERROR "Disproved Eq64$"
+		if a == b { // ERROR "Disproved boolean Eq64$"
 			return 56
 		}
-		if a > b {
+		if a > b { // ERROR "Disproved boolean Greater64$"
 			return 59
 		}
 		return 61
@@ -92,8 +92,8 @@ func f4c(a, b, c int) int {
 func f4d(a, b, c int) int {
 	if a < b {
 		if a < c {
-			if a < b { // ERROR "Proved Less64$"
-				if a < c { // ERROR "Proved Less64$"
+			if a < b { // ERROR "Proved boolean Less64$"
+				if a < c { // ERROR "Proved boolean Less64$"
 					return 87
 				}
 				return 89
@@ -183,8 +183,8 @@ func f6e(a uint8) int {
 func f7(a []int, b int) int {
 	if b < len(a) {
 		a[b] = 3
-		if b < len(a) { // ERROR "Proved Less64$"
-			a[b] = 5 // ERROR "Proved IsInBounds$"
+		if b < len(a) { // ERROR "Proved boolean Less64$"
+			a[b] = 5 // ERROR "Proved boolean IsInBounds$"
 		}
 	}
 	return 161
@@ -201,6 +201,56 @@ func f8(a, b uint) int {
 		return 172
 	}
 	return 174
+}
+
+func f9(a, b bool) int {
+	if a {
+		return 1
+	}
+	if a || b { // ERROR "Disproved boolean Arg$"
+		return 2
+	}
+	return 3
+}
+
+func f10(a string) int {
+	n := len(a)
+	if a[:n>>1] == "aaa" {
+		return 0
+	}
+	return 1
+}
+
+func f11a(a []int, i int) {
+	useInt(a[i])
+	useInt(a[i]) // ERROR "Proved boolean IsInBounds$"
+}
+
+func f11b(a []int, i int) {
+	useSlice(a[i:])
+	useSlice(a[i:]) // ERROR "Proved boolean IsSliceInBounds$"
+}
+
+func f11c(a []int, i int) {
+	useSlice(a[:i])
+	useSlice(a[:i]) // ERROR "Proved boolean IsSliceInBounds$"
+}
+
+func f11d(a []int, i int) {
+	useInt(a[2*i+7])
+	useInt(a[2*i+7])
+}
+
+func f12(a []int, b int) {
+	useSlice(a[:b])
+}
+
+//go:noinline
+func useInt(a int) {
+}
+
+//go:noinline
+func useSlice(a []int) {
 }
 
 func main() {
