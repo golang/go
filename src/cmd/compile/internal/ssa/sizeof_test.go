@@ -4,7 +4,7 @@
 
 // +build !nacl
 
-package gc
+package ssa
 
 import (
 	"reflect"
@@ -22,12 +22,8 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr     // size on 32bit platforms
 		_64bit uintptr     // size on 64bit platforms
 	}{
-		{Flow{}, 52, 88},
-		{Func{}, 104, 184},
-		{Name{}, 52, 80},
-		{Node{}, 92, 144},
-		{Sym{}, 64, 112},
-		{Type{}, 144, 240},
+		{Value{}, 60, 104},
+		{Block{}, 124, 232},
 	}
 
 	for _, tt := range tests {
