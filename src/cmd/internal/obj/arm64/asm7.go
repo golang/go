@@ -58,14 +58,9 @@ type Optab struct {
 	scond uint16
 }
 
-type Oprange struct {
-	start []Optab
-	stop  []Optab
-}
+var oprange [ALAST][]Optab
 
-var oprange [ALAST]Oprange
-
-var xcmp [C_NCLASS][C_NCLASS]uint8
+var xcmp [C_NCLASS][C_NCLASS]bool
 
 const (
 	S32     = 0 << 31
@@ -532,7 +527,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	ctxt.Cursym = cursym
 	ctxt.Autosize = int32(p.To.Offset&0xffffffff) + 8
 
-	if oprange[AAND].start == nil {
+	if oprange[AAND] == nil {
 		buildop(ctxt)
 	}
 
@@ -1112,41 +1107,31 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 	if p.Reg != 0 {
 		a2 = rclass(p.Reg)
 	}
-	r := int(p.As)
-	o := oprange[r].start
-	if o == nil {
-		o = oprange[r].stop /* just generate an error */
-	}
 
 	if false {
 		fmt.Printf("oplook %v %d %d %d\n", obj.Aconv(int(p.As)), a1, a2, a3)
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
-	e := oprange[r].stop
-	c1 := xcmp[a1][:]
-	c2 := xcmp[a2][:]
-	c3 := xcmp[a3][:]
-	c4 := xcmp[p.Scond>>5][:]
-	for ; -cap(o) < -cap(e); o = o[1:] {
-		if int(o[0].a2) == a2 || c2[o[0].a2] != 0 {
-			if c4[o[0].scond>>5] != 0 {
-				if c1[o[0].a1] != 0 {
-					if c3[o[0].a3] != 0 {
-						p.Optab = uint16((-cap(o) + cap(optab)) + 1)
-						return &o[0]
-					}
-				}
-			}
+	ops := oprange[p.As]
+	c1 := &xcmp[a1]
+	c2 := &xcmp[a2]
+	c3 := &xcmp[a3]
+	c4 := &xcmp[p.Scond>>5]
+	for i := range ops {
+		op := &ops[i]
+		if (int(op.a2) == a2 || c2[op.a2]) && c4[op.scond>>5] && c1[op.a1] && c3[op.a3] {
+			p.Optab = uint16(cap(optab) - cap(ops) + i + 1)
+			return op
 		}
 	}
 
 	ctxt.Diag("illegal combination %v %v %v %v, %d %d", p, DRconv(a1), DRconv(a2), DRconv(a3), p.From.Type, p.To.Type)
 	prasm(p)
-	if o == nil {
-		o = optab
+	if ops == nil {
+		ops = optab
 	}
-	return &o[0]
+	return &ops[0]
 }
 
 func cmp(a int, b int) bool {
@@ -1333,7 +1318,7 @@ func buildop(ctxt *obj.Link) {
 	for i := 0; i < C_GOK; i++ {
 		for n = 0; n < C_GOK; n++ {
 			if cmp(n, i) {
-				xcmp[i][n] = 1
+				xcmp[i][n] = true
 			}
 		}
 	}
@@ -1341,16 +1326,15 @@ func buildop(ctxt *obj.Link) {
 	}
 	sort.Sort(ocmp(optab[:n]))
 	var r int
-	var t Oprange
 	for i := 0; i < n; i++ {
 		r = int(optab[i].as)
-		oprange[r].start = optab[i:]
+		start := i
 		for int(optab[i].as) == r {
 			i++
 		}
-		oprange[r].stop = optab[i:]
+		t := optab[start:i]
 		i--
-		t = oprange[r]
+		oprange[r] = t
 		switch r {
 		default:
 			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
