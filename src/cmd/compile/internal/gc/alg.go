@@ -187,13 +187,13 @@ func genhash(sym *Sym, t *Type) {
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
-	tfn.List = list(tfn.List, n)
+	appendNodeSeqNode(&tfn.List, n)
 	np := n.Left
 	n = Nod(ODCLFIELD, newname(Lookup("h")), typenod(Types[TUINTPTR]))
-	tfn.List = list(tfn.List, n)
+	appendNodeSeqNode(&tfn.List, n)
 	nh := n.Left
 	n = Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])) // return value
-	tfn.Rlist = list(tfn.Rlist, n)
+	appendNodeSeqNode(&tfn.Rlist, n)
 
 	funchdr(fn)
 	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
@@ -218,10 +218,10 @@ func genhash(sym *Sym, t *Type) {
 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
 		ni := newname(Lookup("i"))
 		ni.Type = Types[TINT]
-		n.List = list1(ni)
+		setNodeSeq(&n.List, []*Node{ni})
 		n.Colas = true
 		colasdefn(n.List, n)
-		ni = n.List.N
+		ni = nodeSeqFirst(n.List)
 
 		// h = hashel(&p[i], h)
 		call := Nod(OCALL, hashel, nil)
@@ -230,8 +230,8 @@ func genhash(sym *Sym, t *Type) {
 		nx.Bounded = true
 		na := Nod(OADDR, nx, nil)
 		na.Etype = 1 // no escape to heap
-		call.List = list(call.List, na)
-		call.List = list(call.List, nh)
+		appendNodeSeqNode(&call.List, na)
+		appendNodeSeqNode(&call.List, nh)
 		n.Nbody.Append(Nod(OAS, nh, call))
 
 		fn.Nbody.Append(n)
@@ -259,9 +259,9 @@ func genhash(sym *Sym, t *Type) {
 				nx = Nod(OXDOT, np, newname(first.Sym)) // TODO: fields from other packages?
 				na = Nod(OADDR, nx, nil)
 				na.Etype = 1 // no escape to heap
-				call.List = list(call.List, na)
-				call.List = list(call.List, nh)
-				call.List = list(call.List, Nodintconst(size))
+				appendNodeSeqNode(&call.List, na)
+				appendNodeSeqNode(&call.List, nh)
+				appendNodeSeqNode(&call.List, Nodintconst(size))
 				fn.Nbody.Append(Nod(OAS, nh, call))
 			}
 
@@ -283,8 +283,8 @@ func genhash(sym *Sym, t *Type) {
 			nx = Nod(OXDOT, np, newname(t1.Sym)) // TODO: fields from other packages?
 			na = Nod(OADDR, nx, nil)
 			na.Etype = 1 // no escape to heap
-			call.List = list(call.List, na)
-			call.List = list(call.List, nh)
+			appendNodeSeqNode(&call.List, na)
+			appendNodeSeqNode(&call.List, nh)
 			fn.Nbody.Append(Nod(OAS, nh, call))
 
 			t1 = t1.Down
@@ -292,7 +292,7 @@ func genhash(sym *Sym, t *Type) {
 	}
 
 	r := Nod(ORETURN, nil, nil)
-	r.List = list(r.List, nh)
+	appendNodeSeqNode(&r.List, nh)
 	fn.Nbody.Append(r)
 
 	if Debug['r'] != 0 {
@@ -354,9 +354,9 @@ func hashfor(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.Rlist = list(tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	appendNodeSeqNode(&tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	typecheck(&tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -382,13 +382,13 @@ func geneq(sym *Sym, t *Type) {
 	fn.Func.Nname.Name.Param.Ntype = tfn
 
 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
-	tfn.List = list(tfn.List, n)
+	appendNodeSeqNode(&tfn.List, n)
 	np := n.Left
 	n = Nod(ODCLFIELD, newname(Lookup("q")), typenod(Ptrto(t)))
-	tfn.List = list(tfn.List, n)
+	appendNodeSeqNode(&tfn.List, n)
 	nq := n.Left
 	n = Nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
-	tfn.Rlist = list(tfn.Rlist, n)
+	appendNodeSeqNode(&tfn.Rlist, n)
 
 	funchdr(fn)
 
@@ -413,10 +413,10 @@ func geneq(sym *Sym, t *Type) {
 
 		ni := newname(Lookup("i"))
 		ni.Type = Types[TINT]
-		nrange.List = list1(ni)
+		setNodeSeq(&nrange.List, []*Node{ni})
 		nrange.Colas = true
 		colasdefn(nrange.List, nrange)
-		ni = nrange.List.N
+		ni = nodeSeqFirst(nrange.List)
 
 		// if p[i] != q[i] { return false }
 		nx := Nod(OINDEX, np, ni)
@@ -428,14 +428,14 @@ func geneq(sym *Sym, t *Type) {
 		nif := Nod(OIF, nil, nil)
 		nif.Left = Nod(ONE, nx, ny)
 		r := Nod(ORETURN, nil, nil)
-		r.List = list(r.List, Nodbool(false))
+		appendNodeSeqNode(&r.List, Nodbool(false))
 		nif.Nbody.Append(r)
 		nrange.Nbody.Append(nif)
 		fn.Nbody.Append(nrange)
 
 		// return true
 		ret := Nod(ORETURN, nil, nil)
-		ret.List = list(ret.List, Nodbool(true))
+		appendNodeSeqNode(&ret.List, Nodbool(true))
 		fn.Nbody.Append(ret)
 
 	// Walk the struct using memequal for runs of AMEM
@@ -499,7 +499,7 @@ func geneq(sym *Sym, t *Type) {
 		}
 
 		ret := Nod(ORETURN, nil, nil)
-		ret.List = list(ret.List, and)
+		appendNodeSeqNode(&ret.List, and)
 		fn.Nbody.Append(ret)
 	}
 
@@ -556,10 +556,10 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
 	typecheck(&ny, Erv)
 
 	call := Nod(OCALL, eqmemfunc(size, nx.Type.Type, &needsize), nil)
-	call.List = list(call.List, nx)
-	call.List = list(call.List, ny)
+	appendNodeSeqNode(&call.List, nx)
+	appendNodeSeqNode(&call.List, ny)
 	if needsize != 0 {
-		call.List = list(call.List, Nodintconst(size))
+		appendNodeSeqNode(&call.List, Nodintconst(size))
 	}
 
 	return call

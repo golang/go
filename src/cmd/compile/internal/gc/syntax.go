@@ -587,7 +587,8 @@ func (ni *nodesIterator) Seq() nodesOrNodeList {
 	return r
 }
 
-// nodeSeqIterate returns an iterator over a *NodeList, a Nodes, or a []*Node.
+// nodeSeqIterate returns an iterator over a *NodeList, a Nodes,
+// a []*Node, or nil.
 func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 	switch ns := ns.(type) {
 	case *NodeList:
@@ -598,12 +599,15 @@ func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
 		var r Nodes
 		r.Set(ns)
 		return &nodesIterator{r, 0}
+	case nil:
+		var r Nodes
+		return &nodesIterator{r, 0}
 	default:
 		panic("can't happen")
 	}
 }
 
-// nodeSeqLen returns the length of a *NodeList, a Nodes, or a []*Node.
+// nodeSeqLen returns the length of a *NodeList, a Nodes, a []*Node, or nil.
 func nodeSeqLen(ns nodesOrNodeList) int {
 	switch ns := ns.(type) {
 	case *NodeList:
@@ -612,6 +616,8 @@ func nodeSeqLen(ns nodesOrNodeList) int {
 		return len(ns.Slice())
 	case []*Node:
 		return len(ns)
+	case nil:
+		return 0
 	default:
 		panic("can't happen")
 	}

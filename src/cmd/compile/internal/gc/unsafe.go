@@ -26,12 +26,12 @@ func unsafenmagic(nn *Node) *Node {
 		return nil
 	}
 
-	if args == nil {
+	if nodeSeqLen(args) == 0 {
 		Yyerror("missing argument for %v", s)
 		return nil
 	}
 
-	r := args.N
+	r := nodeSeqFirst(args)
 
 	var v int64
 	if s.Name == "Sizeof" {
@@ -129,7 +129,7 @@ bad:
 	goto ret
 
 yes:
-	if args.Next != nil {
+	if nodeSeqLen(args) > 1 {
 		Yyerror("extra arguments for %v", s)
 	}
 

@@ -885,7 +885,7 @@ func stmtfmt(n *Node) string {
 
 	case OIF:
 		if simpleinit {
-			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.N, n.Left, n.Nbody)
+			f += fmt.Sprintf("if %v; %v { %v }", nodeSeqFirst(n.Ninit), n.Left, n.Nbody)
 		} else {
 			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
 		}

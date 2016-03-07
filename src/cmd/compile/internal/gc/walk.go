@@ -89,13 +89,17 @@ func walkstmtslice(l []*Node) {
 	}
 }
 
-func samelist(a *NodeList, b *NodeList) bool {
-	for ; a != nil && b != nil; a, b = a.Next, b.Next {
-		if a.N != b.N {
+func samelist(a nodesOrNodeList, b nodesOrNodeList) bool {
+	ita := nodeSeqIterate(a)
+	itb := nodeSeqIterate(b)
+	for !ita.Done() && !itb.Done() {
+		if ita.N() != itb.N() {
 			return false
 		}
+		ita.Next()
+		itb.Next()
 	}
-	return a == b
+	return ita.Done() == itb.Done()
 }
 
 func paramoutheap(fn *Node) bool {
@@ -651,7 +655,7 @@ opswitch:
 			// transformclosure already did all preparation work.
 
 			// Prepend captured variables to argument list.
-			setNodeSeq(&n.List, concat(n.Left.Func.Enter.NodeList(), n.List))
+			setNodeSeq(&n.List, append(n.Left.Func.Enter.Slice(), nodeSeqSlice(n.List)...))
 
 			n.Left.Func.Enter.Set(nil)
 
@@ -1659,33 +1663,35 @@ func ascompatee1(op Op, l *Node, r *Node, init nodesOrNodeListPtr) *Node {
 	return convas(n, init)
 }
 
-func ascompatee(op Op, nl *NodeList, nr *NodeList, init nodesOrNodeListPtr) *NodeList {
+func ascompatee(op Op, nl nodesOrNodeList, nr nodesOrNodeList, init nodesOrNodeListPtr) *NodeList {
 	// check assign expression list to
 	// a expression list. called in
 	//	expr-list = expr-list
 
 	// ensure order of evaluation for function calls
-	for ll := nl; ll != nil; ll = ll.Next {
-		ll.N = safeexpr(ll.N, init)
+	for nlit := nodeSeqIterate(nl); !nlit.Done(); nlit.Next() {
+		*nlit.P() = safeexpr(nlit.N(), init)
 	}
-	for lr := nr; lr != nil; lr = lr.Next {
-		lr.N = safeexpr(lr.N, init)
+	for nrit := nodeSeqIterate(nr); !nrit.Done(); nrit.Next() {
+		*nrit.P() = safeexpr(nrit.N(), init)
 	}
 
 	var nn *NodeList
-	ll := nl
-	lr := nr
-	for ; ll != nil && lr != nil; ll, lr = ll.Next, lr.Next {
+	nlit := nodeSeqIterate(nl)
+	nrit := nodeSeqIterate(nr)
+	for ; !nlit.Done() && !nrit.Done(); nlit.Next() {
 		// Do not generate 'x = x' during return. See issue 4014.
-		if op == ORETURN && ll.N == lr.N {
+		if op == ORETURN && nlit.N() == nrit.N() {
+			nrit.Next()
 			continue
 		}
-		nn = list(nn, ascompatee1(op, ll.N, lr.N, init))
+		nn = list(nn, ascompatee1(op, nlit.N(), nrit.N(), init))
+		nrit.Next()
 	}
 
 	// cannot happen: caller checked that lists had same length
-	if ll != nil || lr != nil {
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(op, 0), Hconv(nr, obj.FmtSign), count(nl), count(nr), Curfn.Func.Nname.Sym.Name)
+	if !nlit.Done() || !nrit.Done() {
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(op, 0), Hconv(nr, obj.FmtSign), nodeSeqLen(nl), nodeSeqLen(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1708,11 +1714,10 @@ func fncall(l *Node, rt *Type) bool {
 	return true
 }
 
-func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init nodesOrNodeListPtr) *NodeList {
+func ascompatet(op Op, nl nodesOrNodeList, nr **Type, fp int, init nodesOrNodeListPtr) *NodeList {
 	var l *Node
 	var tmp *Node
 	var a *Node
-	var ll *NodeList
 	var saver Iter
 
 	// check assign type list to
@@ -1723,11 +1728,12 @@ func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init nodesOrNodeListPtr)
 	var nn *NodeList
 	var mm *NodeList
 	ucount := 0
-	for ll = nl; ll != nil; ll = ll.Next {
+	it := nodeSeqIterate(nl)
+	for ; !it.Done(); it.Next() {
 		if r == nil {
 			break
 		}
-		l = ll.N
+		l = it.N()
 		if isblank(l) {
 			r = structnext(&saver)
 			continue
@@ -1757,8 +1763,8 @@ func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init nodesOrNodeListPtr)
 		r = structnext(&saver)
 	}
 
-	if ll != nil || r != nil {
-		Yyerror("ascompatet: assignment count mismatch: %d = %d", count(nl), structcount(*nr))
+	if !it.Done() || r != nil {
+		Yyerror("ascompatet: assignment count mismatch: %d = %d", nodeSeqLen(nl), structcount(*nr))
 	}
 
 	if ucount != 0 {
@@ -2947,7 +2953,7 @@ func appendslice(n *Node, init nodesOrNodeListPtr) *Node {
 //   }
 //   s
 func walkappend(n *Node, init nodesOrNodeListPtr, dst *Node) *Node {
-	if !samesafeexpr(dst, n.List.N) {
+	if !samesafeexpr(dst, nodeSeqFirst(n.List)) {
 		it := nodeSeqIterate(n.List)
 		*it.P() = safeexpr(it.N(), init)
 		walkexpr(it.P(), init)

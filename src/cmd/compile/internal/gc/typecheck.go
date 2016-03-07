@@ -1671,7 +1671,7 @@ OpSwitch:
 	case OCOPY:
 		ok |= Etop | Erv
 		args := n.List
-		if nodeSeqLen(args) == 0 || args.Next == nil {
+		if nodeSeqLen(args) < 2 {
 			Yyerror("missing arguments to copy")
 			n.Type = nil
 			return
@@ -2575,9 +2575,9 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 	return nil
 }
 
-func nokeys(l *NodeList) bool {
-	for ; l != nil; l = l.Next {
-		if l.N.Op == OKEY {
+func nokeys(l nodesOrNodeList) bool {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		if it.N().Op == OKEY {
 			return false
 		}
 	}
@@ -2606,11 +2606,12 @@ func downcount(t *Type) int {
 }
 
 // typecheck assignment: type list = expression list
-func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, desc func() string) {
+func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl nodesOrNodeList, desc func() string) {
 	var t *Type
 	var n *Node
 	var n1 int
 	var n2 int
+	var it nodeSeqIterator
 
 	lno := lineno
 
@@ -2619,8 +2620,8 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
 	}
 
 	n = nil
-	if nl != nil && nl.Next == nil {
-		n = nl.N
+	if nodeSeqLen(nl) == 1 {
+		n = nodeSeqFirst(nl)
 		if n.Type != nil {
 			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
 				if !hasddd(tstruct) {
@@ -2674,7 +2675,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
 	}
 
 	n1 = downcount(tstruct)
-	n2 = count(nl)
+	n2 = nodeSeqLen(nl)
 	if !hasddd(tstruct) {
 		if n2 > n1 {
 			goto toomany
@@ -2697,47 +2698,48 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
 		}
 	}
 
+	it = nodeSeqIterate(nl)
 	for tl := tstruct.Type; tl != nil; tl = tl.Down {
 		t = tl.Type
 		if tl.Isddd {
 			if isddd {
-				if nl == nil {
+				if it.Done() {
 					goto notenough
 				}
-				if nl.Next != nil {
+				if it.Len() > 1 {
 					goto toomany
 				}
-				n = nl.N
+				n = it.N()
 				setlineno(n)
 				if n.Type != nil {
-					nl.N = assignconvfn(n, t, desc)
+					*it.P() = assignconvfn(n, t, desc)
 				}
 				goto out
 			}
 
-			for ; nl != nil; nl = nl.Next {
-				n = nl.N
-				setlineno(nl.N)
+			for ; !it.Done(); it.Next() {
+				n = it.N()
+				setlineno(it.N())
 				if n.Type != nil {
-					nl.N = assignconvfn(n, t.Type, desc)
+					*it.P() = assignconvfn(n, t.Type, desc)
 				}
 			}
 
 			goto out
 		}
 
-		if nl == nil {
+		if it.Done() {
 			goto notenough
 		}
-		n = nl.N
+		n = it.N()
 		setlineno(n)
 		if n.Type != nil {
-			nl.N = assignconvfn(n, t, desc)
+			*it.P() = assignconvfn(n, t, desc)
 		}
-		nl = nl.Next
+		it.Next()
 	}
 
-	if nl != nil {
+	if !it.Done() {
 		goto toomany
 	}
 	if isddd {
@@ -3233,9 +3235,9 @@ func checkassign(stmt *Node, n *Node) {
 	Yyerror("cannot assign to %v", n)
 }
 
-func checkassignlist(stmt *Node, l *NodeList) {
-	for ; l != nil; l = l.Next {
-		checkassign(stmt, l.N)
+func checkassignlist(stmt *Node, l nodesOrNodeList) {
+	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+		checkassign(stmt, it.N())
 	}
 }
 
