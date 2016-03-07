@@ -2276,13 +2276,13 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 |= (uint32(p.From.Reg) & 15) << 0
 		o1 |= (FREGTMP & 15) << 12
-		o2 = oprrr(ctxt, AMOVFW+ALAST, int(p.Scond))
+		o2 = oprrr(ctxt, -AMOVFW, int(p.Scond))
 		o2 |= (FREGTMP & 15) << 16
 		o2 |= (uint32(p.To.Reg) & 15) << 12
 
 		// macro for movw reg,FTMP; movwf FTMP,freg
 	case 87: /* movwf reg,freg - fix-to-float */
-		o1 = oprrr(ctxt, AMOVWF+ALAST, int(p.Scond))
+		o1 = oprrr(ctxt, -AMOVWF, int(p.Scond))
 
 		o1 |= (uint32(p.From.Reg) & 15) << 12
 		o1 |= (FREGTMP & 15) << 16
@@ -2291,19 +2291,19 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o2 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 88: /* movw reg,freg  */
-		o1 = oprrr(ctxt, AMOVWF+ALAST, int(p.Scond))
+		o1 = oprrr(ctxt, -AMOVWF, int(p.Scond))
 
 		o1 |= (uint32(p.From.Reg) & 15) << 12
 		o1 |= (uint32(p.To.Reg) & 15) << 16
 
 	case 89: /* movw freg,reg  */
-		o1 = oprrr(ctxt, AMOVFW+ALAST, int(p.Scond))
+		o1 = oprrr(ctxt, -AMOVFW, int(p.Scond))
 
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 		o1 |= (uint32(p.To.Reg) & 15) << 12
 
 	case 90: /* tst reg  */
-		o1 = oprrr(ctxt, ACMP+ALAST, int(p.Scond))
+		o1 = oprrr(ctxt, -ACMP, int(p.Scond))
 
 		o1 |= (uint32(p.From.Reg) & 15) << 16
 
@@ -2560,13 +2560,13 @@ func oprrr(ctxt *obj.Link, a int, sc int) uint32 {
 		}
 		return o | 0xe<<24 | 0xb<<20 | 8<<16 | 0xa<<8 | 4<<4 | 1<<18 | 1<<8 | 1<<7 // toint, double, trunc
 
-	case AMOVWF + ALAST: // copy WtoF
+	case -AMOVWF: // copy WtoF
 		return o | 0xe<<24 | 0x0<<20 | 0xb<<8 | 1<<4
 
-	case AMOVFW + ALAST: // copy FtoW
+	case -AMOVFW: // copy FtoW
 		return o | 0xe<<24 | 0x1<<20 | 0xb<<8 | 1<<4
 
-	case ACMP + ALAST: // cmp imm
+	case -ACMP: // cmp imm
 		return o | 0x3<<24 | 0x5<<20
 
 		// CLZ doesn't support .nil

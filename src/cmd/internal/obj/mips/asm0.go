@@ -1072,7 +1072,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 			r = int(o.param)
 		}
 		v := regoff(ctxt, &p.From)
-		o1 = OP_IRR(opirr(ctxt, int(p.As)+ALAST), uint32(v), uint32(r), uint32(p.To.Reg))
+		o1 = OP_IRR(opirr(ctxt, -int(p.As)), uint32(v), uint32(r), uint32(p.To.Reg))
 
 	case 9: /* sll r1,[r2],r3 */
 		r := int(p.Reg)
@@ -1147,11 +1147,11 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 14: /* movwu r,r */
-		o1 = OP_SRR(opirr(ctxt, ASLLV+ALAST), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
+		o1 = OP_SRR(opirr(ctxt, -ASLLV), uint32(0), uint32(p.From.Reg), uint32(p.To.Reg))
 		if p.As == AMOVWU {
-			o2 = OP_SRR(opirr(ctxt, ASRLV+ALAST), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+			o2 = OP_SRR(opirr(ctxt, -ASRLV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
 		} else {
-			o2 = OP_SRR(opirr(ctxt, ASRAV+ALAST), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
+			o2 = OP_SRR(opirr(ctxt, -ASRAV), uint32(0), uint32(p.To.Reg), uint32(p.To.Reg))
 		}
 
 	case 16: /* sll $c,[r1],r2 */
@@ -1163,7 +1163,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 
 		/* OP_SRR will use only the low 5 bits of the shift value */
 		if v >= 32 && vshift(p.As) {
-			o1 = OP_SRR(opirr(ctxt, int(p.As)+ALAST), uint32(v-32), uint32(r), uint32(p.To.Reg))
+			o1 = OP_SRR(opirr(ctxt, -int(p.As)), uint32(v-32), uint32(r), uint32(p.To.Reg))
 		} else {
 			o1 = OP_SRR(opirr(ctxt, int(p.As)), uint32(v), uint32(r), uint32(p.To.Reg))
 		}
@@ -1248,9 +1248,9 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = int(o.param)
 		}
-		a := AMOVF + ALAST
+		a := -AMOVF
 		if p.As == AMOVD {
-			a = AMOVD + ALAST
+			a = -AMOVD
 		}
 		switch o.size {
 		case 16:
@@ -1331,7 +1331,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		o1 = OP_IRR(opirr(ctxt, ALUI), uint32(v>>16), uint32(REGZERO), uint32(REGTMP))
 		o2 = OP_IRR(opirr(ctxt, AOR), uint32(v), uint32(REGTMP), uint32(REGTMP))
 		o3 = OP_RRR(oprrr(ctxt, AADDVU), uint32(r), uint32(REGTMP), uint32(REGTMP))
-		o4 = OP_IRR(opirr(ctxt, int(p.As)+ALAST), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+		o4 = OP_IRR(opirr(ctxt, -int(p.As)), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 
 	case 37: /* movw r,mr */
 		a := SP(2, 0) | (4 << 21) /* mtc0 */
@@ -1389,7 +1389,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
 		rel.Sym = p.From.Sym
 		rel.Add = p.From.Offset
 		rel.Type = obj.R_ADDRMIPS
-		o3 = OP_IRR(opirr(ctxt, int(p.As)+ALAST), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
+		o3 = OP_IRR(opirr(ctxt, -int(p.As)), uint32(0), uint32(REGTMP), uint32(p.To.Reg))
 	}
 
 	out[0] = o1
@@ -1562,8 +1562,8 @@ func oprrr(ctxt *obj.Link, a int) uint32 {
 		return FPD(7, 6)
 	}
 
-	if a >= ALAST {
-		ctxt.Diag("bad rrr opcode %v+ALAST", obj.Aconv(a-ALAST))
+	if a < 0 {
+		ctxt.Diag("bad rrr opcode -%v", obj.Aconv(-a))
 	} else {
 		ctxt.Diag("bad rrr opcode %v", obj.Aconv(a))
 	}
@@ -1607,43 +1607,43 @@ func opirr(ctxt *obj.Link, a int) uint32 {
 		return SP(0, 3)
 	case ABEQ:
 		return SP(0, 4)
-	case ABEQ + ALAST:
+	case -ABEQ:
 		return SP(2, 4) /* likely */
 	case ABNE:
 		return SP(0, 5)
-	case ABNE + ALAST:
+	case -ABNE:
 		return SP(2, 5) /* likely */
 	case ABGEZ:
 		return SP(0, 1) | BCOND(0, 1)
-	case ABGEZ + ALAST:
+	case -ABGEZ:
 		return SP(0, 1) | BCOND(0, 3) /* likely */
 	case ABGEZAL:
 		return SP(0, 1) | BCOND(2, 1)
-	case ABGEZAL + ALAST:
+	case -ABGEZAL:
 		return SP(0, 1) | BCOND(2, 3) /* likely */
 	case ABGTZ:
 		return SP(0, 7)
-	case ABGTZ + ALAST:
+	case -ABGTZ:
 		return SP(2, 7) /* likely */
 	case ABLEZ:
 		return SP(0, 6)
-	case ABLEZ + ALAST:
+	case -ABLEZ:
 		return SP(2, 6) /* likely */
 	case ABLTZ:
 		return SP(0, 1) | BCOND(0, 0)
-	case ABLTZ + ALAST:
+	case -ABLTZ:
 		return SP(0, 1) | BCOND(0, 2) /* likely */
 	case ABLTZAL:
 		return SP(0, 1) | BCOND(2, 0)
-	case ABLTZAL + ALAST:
+	case -ABLTZAL:
 		return SP(0, 1) | BCOND(2, 2) /* likely */
 	case ABFPT:
 		return SP(2, 1) | (257 << 16)
-	case ABFPT + ALAST:
+	case -ABFPT:
 		return SP(2, 1) | (259 << 16) /* likely */
 	case ABFPF:
 		return SP(2, 1) | (256 << 16)
-	case ABFPF + ALAST:
+	case -ABFPF:
 		return SP(2, 1) | (258 << 16) /* likely */
 
 	case AMOVB,
@@ -1673,31 +1673,31 @@ func opirr(ctxt *obj.Link, a int) uint32 {
 	case ABREAK:
 		return SP(5, 7)
 
-	case AMOVWL + ALAST:
+	case -AMOVWL:
 		return SP(4, 2)
-	case AMOVWR + ALAST:
+	case -AMOVWR:
 		return SP(4, 6)
-	case AMOVVL + ALAST:
+	case -AMOVVL:
 		return SP(3, 2)
-	case AMOVVR + ALAST:
+	case -AMOVVR:
 		return SP(3, 3)
-	case AMOVB + ALAST:
+	case -AMOVB:
 		return SP(4, 0)
-	case AMOVBU + ALAST:
+	case -AMOVBU:
 		return SP(4, 4)
-	case AMOVH + ALAST:
+	case -AMOVH:
 		return SP(4, 1)
-	case AMOVHU + ALAST:
+	case -AMOVHU:
 		return SP(4, 5)
-	case AMOVW + ALAST:
+	case -AMOVW:
 		return SP(4, 3)
-	case AMOVWU + ALAST:
+	case -AMOVWU:
 		return SP(4, 7)
-	case AMOVV + ALAST:
+	case -AMOVV:
 		return SP(6, 7)
-	case AMOVF + ALAST:
+	case -AMOVF:
 		return SP(6, 1)
-	case AMOVD + ALAST:
+	case -AMOVD:
 		return SP(6, 5)
 
 	case ASLLV:
@@ -1706,16 +1706,16 @@ func opirr(ctxt *obj.Link, a int) uint32 {
 		return OP(7, 2)
 	case ASRAV:
 		return OP(7, 3)
-	case ASLLV + ALAST:
+	case -ASLLV:
 		return OP(7, 4)
-	case ASRLV + ALAST:
+	case -ASRLV:
 		return OP(7, 6)
-	case ASRAV + ALAST:
+	case -ASRAV:
 		return OP(7, 7)
 	}
 
-	if a >= ALAST {
-		ctxt.Diag("bad irr opcode %v+ALAST", obj.Aconv(a-ALAST))
+	if a < 0 {
+		ctxt.Diag("bad irr opcode -%v", obj.Aconv(-a))
 	} else {
 		ctxt.Diag("bad irr opcode %v", obj.Aconv(a))
 	}
