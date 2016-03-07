@@ -124,6 +124,9 @@ func fastQueryPos(ctxt *build.Context, pos string) (*queryPos, error) {
 	if f == nil {
 		return nil, err
 	}
+	if !f.Pos().IsValid() {
+		return nil, fmt.Errorf("%s is not a Go source file", filename)
+	}
 
 	start, end, err := fileOffsetToPos(fset.File(f.Pos()), startOffset, endOffset)
 	if err != nil {

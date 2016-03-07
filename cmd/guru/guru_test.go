@@ -272,3 +272,20 @@ func TestGuru(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue14684(t *testing.T) {
+	var buildContext = build.Default
+	buildContext.GOPATH = "testdata"
+	query := guru.Query{
+		Mode:  "freevars",
+		Pos:   "testdata/src/README.txt:#1",
+		Build: &buildContext,
+	}
+	err := guru.Run(&query)
+	if err == nil {
+		t.Fatal("guru query succeeded unexpectedly")
+	}
+	if got, want := err.Error(), "testdata/src/README.txt is not a Go source file"; got != want {
+		t.Errorf("query error was %q, want %q", got, want)
+	}
+}
