@@ -372,6 +372,12 @@ pre {
   color: black;
 }
 
+pre.numbers span:before {
+  content: attr(num);
+  margin-right: 1em;
+  display: inline-block;
+}
+
 code {
   font-size: 95%;
   font-family: 'Droid Sans Mono', 'Courier New', monospace;
