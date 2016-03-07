@@ -1792,7 +1792,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if n.Type.Etype != TBOOL {
-		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
+		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(n.Op, 0))
 	}
 
 	for n.Op == OCONVNOP {
@@ -2439,12 +2439,12 @@ func Ginscall(f *Node, proc int) {
 func cgen_callinter(n *Node, res *Node, proc int) {
 	i := n.Left
 	if i.Op != ODOTINTER {
-		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(int(i.Op), 0))
+		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(i.Op, 0))
 	}
 
 	f := i.Right // field
 	if f.Op != ONAME {
-		Fatalf("cgen_callinter: not ONAME %v", Oconv(int(f.Op), 0))
+		Fatalf("cgen_callinter: not ONAME %v", Oconv(f.Op, 0))
 	}
 
 	i = i.Left // interface

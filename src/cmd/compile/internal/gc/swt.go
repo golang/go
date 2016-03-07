@@ -349,7 +349,7 @@ func casebody(sw *Node, typeswvar *Node) {
 		n := it.N()
 		setlineno(n)
 		if n.Op != OXCASE {
-			Fatalf("casebody %v", Oconv(int(n.Op), 0))
+			Fatalf("casebody %v", Oconv(n.Op, 0))
 		}
 		n.Op = OCASE
 		needvar := nodeSeqLen(n.List) != 1 || nodeSeqFirst(n.List).Op == OLITERAL

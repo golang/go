@@ -18,7 +18,7 @@ func typecheckselect(sel *Node) {
 		ncase = it.N()
 		setlineno(ncase)
 		if ncase.Op != OXCASE {
-			Fatalf("typecheckselect %v", Oconv(int(ncase.Op), 0))
+			Fatalf("typecheckselect %v", Oconv(ncase.Op, 0))
 		}
 
 		if nodeSeqLen(ncase.List) == 0 {
@@ -121,7 +121,7 @@ func walkselect(sel *Node) {
 			var ch *Node
 			switch n.Op {
 			default:
-				Fatalf("select %v", Oconv(int(n.Op), 0))
+				Fatalf("select %v", Oconv(n.Op, 0))
 
 				// ok already
 			case OSEND:
@@ -218,7 +218,7 @@ func walkselect(sel *Node) {
 		setNodeSeq(&r.Ninit, cas.Ninit)
 		switch n.Op {
 		default:
-			Fatalf("select %v", Oconv(int(n.Op), 0))
+			Fatalf("select %v", Oconv(n.Op, 0))
 
 			// if selectnbsend(c, v) { body } else { default body }
 		case OSEND:
@@ -284,7 +284,7 @@ func walkselect(sel *Node) {
 		} else {
 			switch n.Op {
 			default:
-				Fatalf("select %v", Oconv(int(n.Op), 0))
+				Fatalf("select %v", Oconv(n.Op, 0))
 
 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
 			case OSEND:

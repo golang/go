@@ -661,7 +661,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
 	switch n.Op {
 	default:
 		gc.Dump("cgen_floatsse", n)
-		gc.Fatalf("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
+		gc.Fatalf("cgen_floatsse %v", gc.Oconv(n.Op, 0))
 		return
 
 	case gc.OMINUS,

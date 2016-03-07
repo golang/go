@@ -943,8 +943,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
 	if Debug['m'] > 1 {
 		fmt.Printf("%v:[%d] %v escassign: %v(%v)[%v] = %v(%v)[%v]\n",
 			linestr(lineno), e.loopdepth, funcSym(Curfn),
-			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(int(dst.Op), 0),
-			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(int(src.Op), 0))
+			Nconv(dst, obj.FmtShort), Jconv(dst, obj.FmtShort), Oconv(dst.Op, 0),
+			Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), Oconv(src.Op, 0))
 	}
 
 	setlineno(dst)
@@ -1639,7 +1639,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth 
 
 	if Debug['m'] > 1 {
 		fmt.Printf("escwalk: level:%d depth:%d %.*s op=%v %v(%v) scope:%v[%d] extraloopdepth=%v\n",
-			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(int(src.Op), 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
+			level, e.pdepth, e.pdepth, "\t\t\t\t\t\t\t\t\t\t", Oconv(src.Op, 0), Nconv(src, obj.FmtShort), Jconv(src, obj.FmtShort), e.curfnSym(src), srcE.Escloopdepth, extraloopdepth)
 	}
 
 	e.pdepth++

@@ -564,7 +564,7 @@ func funchdr(n *Node) {
 
 func funcargs(nt *Node) {
 	if nt.Op != OTFUNC {
-		Fatalf("funcargs %v", Oconv(int(nt.Op), 0))
+		Fatalf("funcargs %v", Oconv(nt.Op, 0))
 	}
 
 	// re-start the variable generation number
@@ -578,7 +578,7 @@ func funcargs(nt *Node) {
 	if nt.Left != nil {
 		n := nt.Left
 		if n.Op != ODCLFIELD {
-			Fatalf("funcargs receiver %v", Oconv(int(n.Op), 0))
+			Fatalf("funcargs receiver %v", Oconv(n.Op, 0))
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
@@ -595,7 +595,7 @@ func funcargs(nt *Node) {
 	for it := nodeSeqIterate(nt.List); !it.Done(); it.Next() {
 		n = it.N()
 		if n.Op != ODCLFIELD {
-			Fatalf("funcargs in %v", Oconv(int(n.Op), 0))
+			Fatalf("funcargs in %v", Oconv(n.Op, 0))
 		}
 		if n.Left != nil {
 			n.Left.Op = ONAME
@@ -616,7 +616,7 @@ func funcargs(nt *Node) {
 		n = it.N()
 
 		if n.Op != ODCLFIELD {
-			Fatalf("funcargs out %v", Oconv(int(n.Op), 0))
+			Fatalf("funcargs out %v", Oconv(n.Op, 0))
 		}
 
 		if n.Left == nil {

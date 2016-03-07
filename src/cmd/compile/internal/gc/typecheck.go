@@ -273,7 +273,7 @@ OpSwitch:
 	default:
 		Dump("typecheck", n)
 
-		Fatalf("typecheck %v", Oconv(int(n.Op), 0))
+		Fatalf("typecheck %v", Oconv(n.Op, 0))
 
 	// names
 	case OLITERAL:
@@ -592,7 +592,7 @@ OpSwitch:
 				aop = assignop(l.Type, r.Type, nil)
 				if aop != 0 {
 					if Isinter(r.Type) && !Isinter(l.Type) && algtype1(l.Type, nil) == ANOEQ {
-						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(int(op), 0), typekind(l.Type))
+						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(l.Type))
 						n.Type = nil
 						return
 					}
@@ -614,7 +614,7 @@ OpSwitch:
 				aop = assignop(r.Type, l.Type, nil)
 				if aop != 0 {
 					if Isinter(l.Type) && !Isinter(r.Type) && algtype1(r.Type, nil) == ANOEQ {
-						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(int(op), 0), typekind(r.Type))
+						Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(r.Type))
 						n.Type = nil
 						return
 					}
@@ -645,7 +645,7 @@ OpSwitch:
 		}
 
 		if !okfor[op][et] {
-			Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(int(op), 0), typekind(t))
+			Yyerror("invalid operation: %v (operator %v not defined on %s)", n, Oconv(op, 0), typekind(t))
 			n.Type = nil
 			return
 		}
@@ -753,7 +753,7 @@ OpSwitch:
 			return
 		}
 		if !okfor[n.Op][t.Etype] {
-			Yyerror("invalid operation: %v %v", Oconv(int(n.Op), 0), t)
+			Yyerror("invalid operation: %v %v", Oconv(n.Op, 0), t)
 			n.Type = nil
 			return
 		}
@@ -1369,7 +1369,7 @@ OpSwitch:
 
 	case OCAP, OLEN, OREAL, OIMAG:
 		ok |= Erv
-		if !onearg(n, "%v", Oconv(int(n.Op), 0)) {
+		if !onearg(n, "%v", Oconv(n.Op, 0)) {
 			n.Type = nil
 			return
 		}
@@ -1438,7 +1438,7 @@ OpSwitch:
 		break OpSwitch
 
 	badcall1:
-		Yyerror("invalid argument %v for %v", Nconv(n.Left, obj.FmtLong), Oconv(int(n.Op), 0))
+		Yyerror("invalid argument %v for %v", Nconv(n.Left, obj.FmtLong), Oconv(n.Op, 0))
 		n.Type = nil
 		return
 
@@ -1519,7 +1519,7 @@ OpSwitch:
 		break OpSwitch
 
 	case OCLOSE:
-		if !onearg(n, "%v", Oconv(int(n.Op), 0)) {
+		if !onearg(n, "%v", Oconv(n.Op, 0)) {
 			n.Type = nil
 			return
 		}
@@ -2356,19 +2356,19 @@ func twoarg(n *Node) bool {
 		return true
 	}
 	if nodeSeqLen(n.List) == 0 {
-		Yyerror("missing argument to %v - %v", Oconv(int(n.Op), 0), n)
+		Yyerror("missing argument to %v - %v", Oconv(n.Op, 0), n)
 		return false
 	}
 
 	n.Left = nodeSeqFirst(n.List)
 	if nodeSeqLen(n.List) == 1 {
-		Yyerror("missing argument to %v - %v", Oconv(int(n.Op), 0), n)
+		Yyerror("missing argument to %v - %v", Oconv(n.Op, 0), n)
 		setNodeSeq(&n.List, nil)
 		return false
 	}
 
 	if nodeSeqLen(n.List) > 2 {
-		Yyerror("too many arguments to %v - %v", Oconv(int(n.Op), 0), n)
+		Yyerror("too many arguments to %v - %v", Oconv(n.Op, 0), n)
 		setNodeSeq(&n.List, nil)
 		return false
 	}
@@ -2744,7 +2744,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl *NodeList, d
 		if call != nil {
 			Yyerror("invalid use of ... in call to %v", call)
 		} else {
-			Yyerror("invalid use of ... in %v", Oconv(int(op), 0))
+			Yyerror("invalid use of ... in %v", Oconv(op, 0))
 		}
 	}
 
@@ -2764,7 +2764,7 @@ notenough:
 				Yyerror("not enough arguments in call to %v", call)
 			}
 		} else {
-			Yyerror("not enough arguments to %v", Oconv(int(op), 0))
+			Yyerror("not enough arguments to %v", Oconv(op, 0))
 		}
 		if n != nil {
 			n.Diag = 1
@@ -2777,7 +2777,7 @@ toomany:
 	if call != nil {
 		Yyerror("too many arguments in call to %v", call)
 	} else {
-		Yyerror("too many arguments to %v", Oconv(int(op), 0))
+		Yyerror("too many arguments to %v", Oconv(op, 0))
 	}
 	goto out
 }
@@ -3679,7 +3679,7 @@ func typecheckdef(n *Node) *Node {
 
 	switch n.Op {
 	default:
-		Fatalf("typecheckdef %v", Oconv(int(n.Op), 0))
+		Fatalf("typecheckdef %v", Oconv(n.Op, 0))
 
 		// not really syms
 	case OGOTO, OLABEL:
