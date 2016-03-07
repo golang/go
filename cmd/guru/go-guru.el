@@ -60,6 +60,7 @@
   (define-key m "j" #'go-guru-definition) ; j for jump
   (define-key m "p" #'go-guru-pointsto)
   (define-key m "s" #'go-guru-callstack) ; s for stack
+  (define-key m "e" #'go-guru-whicherrs) ; e for error
   (define-key m "<" #'go-guru-callers)
   (define-key m ">" #'go-guru-callees))
 
@@ -236,12 +237,6 @@ set the point to it, switching the current buffer."
   "Show the set of callers of the function containing the current point."
   (interactive)
   (go-guru--run "callers" t))
-
-;;;###autoload
-(defun go-guru-callgraph ()
-  "Show the callgraph of the current program."
-  (interactive)
-  (go-guru--run "callgraph" t))
 
 ;;;###autoload
 (defun go-guru-callstack ()
