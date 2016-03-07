@@ -65,13 +65,6 @@
 
 (define-key go-mode-map (kbd "C-c C-o") #'go-guru-map)
 
-;; TODO(dominikh): Rethink set-scope some. Setting it to a file is
-;; painful because it doesn't use find-file, and variables/~ aren't
-;; expanded. Setting it to an import path is somewhat painful because
-;; it doesn't make use of go-mode's import path completion. One option
-;; would be having two different functions, but then we can't
-;; automatically call it when no scope has been set. Also it wouldn't
-;; easily allow specifying more than one file/package.
 ;;;###autoload
 (defun go-guru-set-scope ()
   "Set the scope for the Go guru, prompting the user to edit the
@@ -100,7 +93,7 @@ specify to 'go build'."
 (defun go-guru--run (mode &optional need-scope)
   "Run the Go guru in the specified MODE, passing it the selected
 region of the current buffer.  If NEED-SCOPE, prompt for a scope
-if not already set.  Mark up the output using `compilation-node`,
+if not already set.  Mark up the output using `compilation-mode`,
 replacing each file name with a small hyperlink, and display the
 result."
   (with-current-buffer (go-guru--exec mode need-scope)
@@ -167,7 +160,7 @@ a scope if not already set.  Return the output buffer."
   (insert "\n")
   (compilation-mode)
   (setq compilation-error-screen-columns nil)
-  
+
   ;; Hide the file/line info to save space.
   ;; Replace each with a little widget.
   ;; compilation-mode + this loop = slooow.
@@ -196,7 +189,7 @@ a scope if not already set.  Return the output buffer."
 	      (incf np))) ; so we don't get stuck (e.g. on a panic stack dump)
 	(setq p np)))
     (message nil))
-  
+
   (let ((w (display-buffer (current-buffer))))
     (set-window-point w (point-min))))
 
@@ -267,6 +260,8 @@ function containing the current point."
 		(goto-char (point-min))
 		(cdr (car (json-read)))))
 	 (desc (cdr (assoc 'desc res))))
+    (push-mark)
+    (ring-insert find-tag-marker-ring (point-marker))
     (go-guru--goto-pos (cdr (assoc 'objpos res)))
     (message "%s" desc)))
 
