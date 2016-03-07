@@ -949,8 +949,6 @@ func gcStart(mode gcMode, forceTrigger bool) {
 	// reclaimed until the next GC cycle.
 	clearpools()
 
-	work.finalizersDone = false
-
 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
 		gcController.startCycle()
 		work.heapGoal = gcController.heapGoal
@@ -1738,6 +1736,7 @@ func gcResetMarkState() {
 
 	work.bytesMarked = 0
 	work.initialHeapLive = memstats.heap_live
+	work.finalizersDone = false
 }
 
 // Hooks for other packages
