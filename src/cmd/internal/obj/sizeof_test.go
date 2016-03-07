@@ -34,7 +34,7 @@ func TestSizeof(t *testing.T) {
 		}
 		got := reflect.TypeOf(tt.val).Size()
 		if want != got {
-			t.Errorf("unsafe.Sizeof(%T): want %d, got %d", tt.val, want, got)
+			t.Errorf("unsafe.Sizeof(%T) = %d, want %d", tt.val, got, want)
 		}
 	}
 }
