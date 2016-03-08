@@ -121,6 +121,9 @@ func TestLookupGroup(t *testing.T) {
 
 func TestGroupIds(t *testing.T) {
 	checkGroup(t)
+	if runtime.GOOS == "solaris" {
+		t.Skip("skipping GroupIds, see golang.org/issue/14709")
+	}
 	user, err := Current()
 	if err != nil {
 		t.Fatalf("Current(): %v", err)
