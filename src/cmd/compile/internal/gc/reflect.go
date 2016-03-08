@@ -762,7 +762,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
-	
+
 	// If we're writing out type T,
 	// we are very likely to write out type *T as well.
 	// Use the string "*T"[1:] for "T", so that the two
@@ -770,7 +770,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	// amount of space taken up by reflect strings.
 	prefix := 0
 	if !strings.HasPrefix(p, "*") {
-		p = "*"+p
+		p = "*" + p
 		prefix = 1
 	}
 	_, symdata := stringsym(p) // string
