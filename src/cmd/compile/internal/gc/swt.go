@@ -279,7 +279,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	if nerrors == 0 {
 		cas = append(cas, def)
 		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
-		walkstmtlist(sw.Nbody)
+		walkstmtlist(sw.Nbody.Slice())
 	}
 }
 
@@ -670,7 +670,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		cas = append(cas, def)
 		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
 		setNodeSeq(&sw.List, nil)
-		walkstmtlist(sw.Nbody)
+		walkstmtlist(sw.Nbody.Slice())
 	}
 }
 

@@ -86,16 +86,14 @@ func instrument(fn *Node) {
 	}
 }
 
-func instrumentlist(l nodesOrNodeList, init nodesOrNodeListPtr) {
-	var instr *NodeList
-
+func instrumentlist(l nodesOrNodeList, init *Nodes) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
-		instr = nil
+		var instr Nodes
 		instrumentnode(it.P(), &instr, 0, 0)
 		if init == nil {
-			appendNodeSeq(&it.N().Ninit, instr)
+			it.N().Ninit.AppendNodes(&instr)
 		} else {
-			appendNodeSeq(init, instr)
+			init.AppendNodes(&instr)
 		}
 	}
 }
@@ -103,7 +101,7 @@ func instrumentlist(l nodesOrNodeList, init nodesOrNodeListPtr) {
 // walkexpr and walkstmt combined
 // walks the tree and adds calls to the
 // instrumentation code to top-level (statement) nodes' init
-func instrumentnode(np **Node, init nodesOrNodeListPtr, wr int, skip int) {
+func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 	n := *np
 
 	if n == nil {
@@ -163,8 +161,10 @@ func instrumentnode(np **Node, init nodesOrNodeListPtr, wr int, skip int) {
 					out = append(out, it.N())
 				}
 			default:
-				instrumentnode(it.P(), &out, 0, 0)
-				out = append(out, it.N())
+				var outn Nodes
+				outn.Set(out)
+				instrumentnode(it.P(), &outn, 0, 0)
+				out = append(outn.Slice(), it.N())
 			}
 		}
 		setNodeSeq(&n.List, out)
@@ -460,7 +460,7 @@ func isartificial(n *Node) bool {
 	return false
 }
 
-func callinstr(np **Node, init nodesOrNodeListPtr, wr int, skip int) bool {
+func callinstr(np **Node, init *Nodes, wr int, skip int) bool {
 	n := *np
 
 	//print("callinstr for %+N [ %O ] etype=%E class=%d\n",
@@ -529,7 +529,7 @@ func callinstr(np **Node, init nodesOrNodeListPtr, wr int, skip int) bool {
 			f = mkcall(name, nil, init, uintptraddr(n))
 		}
 
-		appendNodeSeqNode(init, f)
+		init.Append(f)
 		return true
 	}
 
@@ -575,13 +575,13 @@ func uintptraddr(n *Node) *Node {
 	return r
 }
 
-func detachexpr(n *Node, init nodesOrNodeListPtr) *Node {
+func detachexpr(n *Node, init *Nodes) *Node {
 	addr := Nod(OADDR, n, nil)
 	l := temp(Ptrto(n.Type))
 	as := Nod(OAS, l, addr)
 	typecheck(&as, Etop)
 	walkexpr(&as, init)
-	appendNodeSeqNode(init, as)
+	init.Append(as)
 	ind := Nod(OIND, l, nil)
 	typecheck(&ind, Erv)
 	walkexpr(&ind, init)
