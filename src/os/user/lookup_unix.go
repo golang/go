@@ -37,11 +37,6 @@ static int mygetgrgid_r(int gid, struct group *grp,
 	char *buf, size_t buflen, struct group **result) {
  return getgrgid_r(gid, grp, buf, buflen, result);
 }
-
-static int mygetgrouplist(const char *user, gid_t group, gid_t *groups,
-	int *ngroups) {
- return getgrouplist(user, group, groups, ngroups);
-}
 */
 import "C"
 
@@ -110,38 +105,6 @@ func lookupUnixUid(uid int) (*User, error) {
 		return nil, UnknownUserIdError(uid)
 	}
 	return buildUser(&pwd), nil
-}
-
-func listGroups(u *User) ([]string, error) {
-	ug, err := strconv.Atoi(u.Gid)
-	if err != nil {
-		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
-	}
-	userGID := C.gid_t(ug)
-	nameC := C.CString(u.Username)
-	defer C.free(unsafe.Pointer(nameC))
-
-	n := C.int(256)
-	gidsC := make([]C.gid_t, n)
-	rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
-	if rv == -1 {
-		// More than initial buffer, but now n contains the correct size.
-		const maxGroups = 2048
-		if n > maxGroups {
-			return nil, fmt.Errorf("user: list groups for %s: member of more than %d groups", u.Username, maxGroups)
-		}
-		gidsC = make([]C.gid_t, n)
-		rv := C.mygetgrouplist(nameC, userGID, &gidsC[0], &n)
-		if rv == -1 {
-			return nil, fmt.Errorf("user: list groups for %s failed (changed groups?)", u.Username)
-		}
-	}
-	gidsC = gidsC[:n]
-	gids := make([]string, 0, n)
-	for _, g := range gidsC[:n] {
-		gids = append(gids, strconv.Itoa(int(g)))
-	}
-	return gids, nil
 }
 
 func buildUser(pwd *C.struct_passwd) *User {
