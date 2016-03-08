@@ -2407,8 +2407,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 
 	// Start exit block, find address of result.
 	s.startBlock(bNext)
-	var titer Iter
-	fp := Structfirst(&titer, Getoutarg(n.Left.Type))
+	fp, _ := IterFields(getoutargx(n.Left.Type))
 	if fp == nil || k != callNormal {
 		// call has no return value. Continue with the next statement.
 		return nil

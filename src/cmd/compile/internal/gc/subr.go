@@ -1892,14 +1892,13 @@ func expandmeth(t *Type) {
 
 // Given funarg struct list, return list of ODCLFIELD Node fn args.
 func structargs(tl **Type, mustname int) []*Node {
-	var savet Iter
 	var a *Node
 	var n *Node
 	var buf string
 
 	var args []*Node
 	gen := 0
-	for t := Structfirst(&savet, tl); t != nil; t = structnext(&savet) {
+	for t, it := IterFields(*tl); t != nil; t = it.Next() {
 		n = nil
 		if mustname != 0 && (t.Sym == nil || t.Sym.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
@@ -2250,10 +2249,8 @@ func liststmt(l []*Node) *Node {
 
 // return nelem of list
 func structcount(t *Type) int {
-	var s Iter
-
 	v := 0
-	for t = Structfirst(&s, &t); t != nil; t = structnext(&s) {
+	for t, it := IterFields(t); t != nil; t = it.Next() {
 		v++
 	}
 	return v

@@ -164,101 +164,48 @@ type Type struct {
 	Lastfn *Node // for usefield
 }
 
-// Iter provides an abstraction for iterating across struct fields
-// and function parameters.
+// Iter provides an abstraction for iterating across struct fields,
+// interface methods, and function parameters.
 type Iter struct {
-	Done  int
-	Tfunc *Type
-	T     *Type
+	a, b *Type
 }
 
-// iterator to walk a structure declaration
-func Structfirst(s *Iter, nn **Type) *Type {
-	var t *Type
-
-	n := *nn
-	if n == nil {
-		goto bad
+// IterFields returns the first field or method in struct or interface type t
+// and an Iter value to continue iterating across the rest.
+func IterFields(t *Type) (*Type, Iter) {
+	if t.Etype != TSTRUCT && t.Etype != TINTER {
+		Fatalf("IterFields: type %v does not have fields", t)
 	}
-
-	switch n.Etype {
-	default:
-		goto bad
-
-	case TSTRUCT, TINTER, TFUNC:
-		break
-	}
-
-	t = n.Type
-	if t == nil {
-		return nil
-	}
-
-	if t.Etype != TFIELD {
-		Fatalf("structfirst: not field %v", t)
-	}
-
-	s.T = t
-	return t
-
-bad:
-	Fatalf("structfirst: not struct %v", n)
-
-	return nil
+	i := Iter{a: t.Type}
+	f := i.Next()
+	return f, i
 }
 
-func structnext(s *Iter) *Type {
-	n := s.T
-	t := n.Down
-	if t == nil {
-		return nil
-	}
-
-	if t.Etype != TFIELD {
-		Fatalf("structnext: not struct %v", n)
-
-		return nil
-	}
-
-	s.T = t
-	return t
-}
-
-// iterator to this and inargs in a function
-func funcfirst(s *Iter, t *Type) *Type {
-	var fp *Type
-
-	if t == nil {
-		goto bad
-	}
-
+// IterParams returns the first reeiver or input parameter in function type t
+// and an Iter value to continue iterating across the rest.
+func IterParams(t *Type) (*Type, Iter) {
 	if t.Etype != TFUNC {
-		goto bad
+		Fatalf("IterParams: type %v does not have params", t)
 	}
-
-	s.Tfunc = t
-	s.Done = 0
-	fp = Structfirst(s, getthis(t))
-	if fp == nil {
-		s.Done = 1
-		fp = Structfirst(s, getinarg(t))
-	}
-
-	return fp
-
-bad:
-	Fatalf("funcfirst: not func %v", t)
-	return nil
+	i := Iter{a: getthisx(t).Type, b: getinargx(t).Type}
+	f := i.Next()
+	return f, i
 }
 
-func funcnext(s *Iter) *Type {
-	fp := structnext(s)
-	if fp == nil && s.Done == 0 {
-		s.Done = 1
-		fp = Structfirst(s, getinarg(s.Tfunc))
+// Next returns the next field, method, or parameter, if any.
+func (i *Iter) Next() *Type {
+	if i.a == nil {
+		if i.b == nil {
+			return nil
+		}
+		i.a, i.b = i.b, nil
 	}
-
-	return fp
+	t := i.a
+	if t.Etype != TFIELD {
+		Fatalf("Iter.Next: type %v is not a field", t)
+	}
+	i.a = t.Down
+	return t
 }
 
 func getthis(t *Type) **Type {

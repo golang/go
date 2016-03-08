@@ -295,9 +295,9 @@ func dowidth(t *Type) {
 	case TFUNCARGS:
 		t1 := t.Type
 
-		w = widstruct(t.Type, *getthis(t1), 0, 0)
-		w = widstruct(t.Type, *getinarg(t1), w, Widthreg)
-		w = widstruct(t.Type, *Getoutarg(t1), w, Widthreg)
+		w = widstruct(t.Type, getthisx(t1), 0, 0)
+		w = widstruct(t.Type, getinargx(t1), w, Widthreg)
+		w = widstruct(t.Type, getoutargx(t1), w, Widthreg)
 		t1.Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)
@@ -616,27 +616,18 @@ func typeinit() {
 
 // compute total size of f's in/out arguments.
 func Argsize(t *Type) int {
-	var save Iter
-	var x int64
+	var w int64
 
-	w := int64(0)
-
-	fp := Structfirst(&save, Getoutarg(t))
-	for fp != nil {
-		x = fp.Width + fp.Type.Width
-		if x > w {
+	for fp, ip := IterFields(getoutargx(t)); fp != nil; fp = ip.Next() {
+		if x := fp.Width + fp.Type.Width; x > w {
 			w = x
 		}
-		fp = structnext(&save)
 	}
 
-	fp = funcfirst(&save, t)
-	for fp != nil {
-		x = fp.Width + fp.Type.Width
-		if x > w {
+	for fp, ip := IterParams(t); fp != nil; fp = ip.Next() {
+		if x := fp.Width + fp.Type.Width; x > w {
 			w = x
 		}
-		fp = funcnext(&save)
 	}
 
 	w = (w + int64(Widthptr) - 1) &^ (int64(Widthptr) - 1)
