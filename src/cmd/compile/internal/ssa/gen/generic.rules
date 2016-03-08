@@ -366,13 +366,11 @@
 (Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
 (Trunc16to8 (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
 
-// Rewrite AND of consts as shifts if possible, slightly faster for 32/64 bit operands
+// Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
 // leading zeros can be shifted left, then right
-(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
-(And32 <t> (Const32 [y]) x) && nlz(int64(int32(y))) + nto(int64(int32(y))) == 64 -> (Rsh32Ux32 (Lsh32x32 <t> x (Const32 <t> [nlz(int64(int32(y)))-32])) (Const32 <t> [nlz(int64(int32(y)))-32]))
+(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
 // trailing zeros can be shifted right, then left
-(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
-(And32 <t> (Const32 [y]) x) && nlo(int64(int32(y))) + ntz(int64(int32(y))) == 64 -> (Lsh32x32 (Rsh32Ux32 <t> x (Const32 <t> [ntz(int64(int32(y)))])) (Const32 <t> [ntz(int64(int32(y)))]))
+(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 && ntz(y) >= 32 -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
 
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub64 (Add64 x y) x) -> y
