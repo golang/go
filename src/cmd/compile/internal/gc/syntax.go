@@ -429,6 +429,26 @@ func (n *Nodes) Slice() []*Node {
 	return *n.slice
 }
 
+// Len returns the number of entries in Nodes.
+func (n *Nodes) Len() int {
+	if n.slice == nil {
+		return 0
+	}
+	return len(*n.slice)
+}
+
+// First returns the first element of Nodes.
+// It panics if Nodes has no elements.
+func (n *Nodes) First() *Node {
+	return (*n.slice)[0]
+}
+
+// Second returns the second element of Nodes.
+// It panics if Nodes has fewer than two elements.
+func (n *Nodes) Second() *Node {
+	return (*n.slice)[1]
+}
+
 // NodeList returns the entries in Nodes as a NodeList.
 // Changes to the NodeList entries (as in l.N = n) will *not* be
 // reflected in the Nodes.

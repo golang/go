@@ -589,7 +589,7 @@ func (p *importer) node() *Node {
 	// expressions
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
 		if p.bool() {
-			setNodeSeq(&n.List, p.nodeList())
+			n.List.Set(p.nodeList())
 		}
 		n.Left, n.Right = p.nodesOrNil()
 		n.Type = p.typ()
@@ -604,19 +604,19 @@ func (p *importer) node() *Node {
 		n.Right = p.node()
 
 	case OADDSTR:
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 
 	case OPTRLIT:
 		n.Left = p.node()
 
 	case OSTRUCTLIT:
 		n.Type = p.typ()
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 		n.Implicit = p.bool()
 
 	case OARRAYLIT, OMAPLIT:
 		n.Type = p.typ()
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 		n.Implicit = p.bool()
 
 	case OKEY:
@@ -635,9 +635,9 @@ func (p *importer) node() *Node {
 		// }
 		x := Nod(OCALL, p.typ().Nod, nil)
 		if p.bool() {
-			setNodeSeq(&x.List, []*Node{p.node()})
+			x.List.Set([]*Node{p.node()})
 		} else {
-			setNodeSeq(&x.List, p.nodeList())
+			x.List.Set(p.nodeList())
 		}
 		return x
 
@@ -667,12 +667,12 @@ func (p *importer) node() *Node {
 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC,
 		ORECOVER, OPRINT, OPRINTN:
 		n.Left, _ = p.nodesOrNil()
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 		n.Isddd = p.bool()
 
 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
 		n.Left = p.node()
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 		n.Isddd = p.bool()
 
 	case OCMPSTR, OCMPIFACE:
@@ -698,45 +698,45 @@ func (p *importer) node() *Node {
 		n.Etype = EType(p.int())
 
 	case OAS2, OASWB:
-		setNodeSeq(&n.List, p.nodeList())
-		setNodeSeq(&n.Rlist, p.nodeList())
+		n.List.Set(p.nodeList())
+		n.Rlist.Set(p.nodeList())
 
 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		setNodeSeq(&n.List, p.nodeList())
-		setNodeSeq(&n.Rlist, p.nodeList())
+		n.List.Set(p.nodeList())
+		n.Rlist.Set(p.nodeList())
 
 	case ORETURN:
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 
 	case OPROC, ODEFER:
 		n.Left = p.node()
 
 	case OIF:
-		setNodeSeq(&n.Ninit, p.nodeList())
+		n.Ninit.Set(p.nodeList())
 		n.Left = p.node()
 		n.Nbody.Set(p.nodeList())
-		setNodeSeq(&n.Rlist, p.nodeList())
+		n.Rlist.Set(p.nodeList())
 
 	case OFOR:
-		setNodeSeq(&n.Ninit, p.nodeList())
+		n.Ninit.Set(p.nodeList())
 		n.Left, n.Right = p.nodesOrNil()
 		n.Nbody.Set(p.nodeList())
 
 	case ORANGE:
 		if p.bool() {
-			setNodeSeq(&n.List, p.nodeList())
+			n.List.Set(p.nodeList())
 		}
 		n.Right = p.node()
 		n.Nbody.Set(p.nodeList())
 
 	case OSELECT, OSWITCH:
-		setNodeSeq(&n.Ninit, p.nodeList())
+		n.Ninit.Set(p.nodeList())
 		n.Left, _ = p.nodesOrNil()
-		setNodeSeq(&n.List, p.nodeList())
+		n.List.Set(p.nodeList())
 
 	case OCASE, OXCASE:
 		if p.bool() {
-			setNodeSeq(&n.List, p.nodeList())
+			n.List.Set(p.nodeList())
 		}
 		n.Nbody.Set(p.nodeList())
 

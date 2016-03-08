@@ -800,10 +800,10 @@ func stmtfmt(n *Node) string {
 	// block starting with the init statements.
 
 	// if we can just say "for" n->ninit; ... then do so
-	simpleinit := nodeSeqLen(n.Ninit) == 1 && nodeSeqLen(nodeSeqFirst(n.Ninit).Ninit) == 0 && stmtwithinit(n.Op)
+	simpleinit := n.Ninit.Len() == 1 && n.Ninit.First().Ninit.Len() == 0 && stmtwithinit(n.Op)
 
 	// otherwise, print the inits as separate statements
-	complexinit := nodeSeqLen(n.Ninit) != 0 && !simpleinit && (fmtmode != FErr)
+	complexinit := n.Ninit.Len() != 0 && !simpleinit && (fmtmode != FErr)
 
 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
 	extrablock := complexinit && stmtwithinit(n.Op)
@@ -885,11 +885,11 @@ func stmtfmt(n *Node) string {
 
 	case OIF:
 		if simpleinit {
-			f += fmt.Sprintf("if %v; %v { %v }", nodeSeqFirst(n.Ninit), n.Left, n.Nbody)
+			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.First(), n.Left, n.Nbody)
 		} else {
 			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
 		}
-		if nodeSeqLen(n.Rlist) != 0 {
+		if n.Rlist.Len() != 0 {
 			f += fmt.Sprintf(" else { %v }", n.Rlist)
 		}
 
@@ -901,7 +901,7 @@ func stmtfmt(n *Node) string {
 
 		f += "for"
 		if simpleinit {
-			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
+			f += fmt.Sprintf(" %v;", n.Ninit.First())
 		} else if n.Right != nil {
 			f += " ;"
 		}
@@ -924,7 +924,7 @@ func stmtfmt(n *Node) string {
 			break
 		}
 
-		if nodeSeqLen(n.List) == 0 {
+		if n.List.Len() == 0 {
 			f += fmt.Sprintf("for range %v { %v }", n.Right, n.Nbody)
 			break
 		}
@@ -939,7 +939,7 @@ func stmtfmt(n *Node) string {
 
 		f += Oconv(n.Op, obj.FmtSharp)
 		if simpleinit {
-			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
+			f += fmt.Sprintf(" %v;", n.Ninit.First())
 		}
 		if n.Left != nil {
 			f += Nconv(n.Left, 0)
@@ -948,7 +948,7 @@ func stmtfmt(n *Node) string {
 		f += fmt.Sprintf(" { %v }", n.List)
 
 	case OCASE, OXCASE:
-		if nodeSeqLen(n.List) != 0 {
+		if n.List.Len() != 0 {
 			f += fmt.Sprintf("case %v: %v", Hconv(n.List, obj.FmtComma), n.Nbody)
 		} else {
 			f += fmt.Sprintf("default: %v", n.Nbody)
@@ -1391,7 +1391,7 @@ func exprfmt(n *Node, prec int) string {
 		return f
 
 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
-		if nodeSeqLen(n.List) != 0 { // pre-typecheck
+		if n.List.Len() != 0 { // pre-typecheck
 			return fmt.Sprintf("make(%v, %v)", n.Type, Hconv(n.List, obj.FmtComma))
 		}
 		if n.Right != nil {
@@ -1450,11 +1450,11 @@ func exprfmt(n *Node, prec int) string {
 	case OADDSTR:
 		var f string
 		i := 0
-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+		for _, n1 := range n.List.Slice() {
 			if i != 0 {
 				f += " + "
 			}
-			f += exprfmt(it.N(), nprec)
+			f += exprfmt(n1, nprec)
 			i++
 		}
 
@@ -1523,7 +1523,7 @@ func nodedump(n *Node, flag int) string {
 			return buf.String()
 		}
 
-		if nodeSeqLen(n.Ninit) != 0 {
+		if n.Ninit.Len() != 0 {
 			fmt.Fprintf(&buf, "%v-init%v", Oconv(n.Op, 0), n.Ninit)
 			indent(&buf)
 		}
@@ -1576,12 +1576,12 @@ func nodedump(n *Node, flag int) string {
 		if n.Right != nil {
 			buf.WriteString(Nconv(n.Right, 0))
 		}
-		if nodeSeqLen(n.List) != 0 {
+		if n.List.Len() != 0 {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-list%v", Oconv(n.Op, 0), n.List)
 		}
 
-		if nodeSeqLen(n.Rlist) != 0 {
+		if n.Rlist.Len() != 0 {
 			indent(&buf)
 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(n.Op, 0), n.Rlist)
 		}
@@ -1711,7 +1711,7 @@ func (n Nodes) String() string {
 // Fmt '%H': NodeList.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
 func Hconv(l Nodes, flag int) string {
-	if nodeSeqLen(l) == 0 && fmtmode == FDbg {
+	if l.Len() == 0 && fmtmode == FDbg {
 		return "<nil>"
 	}
 

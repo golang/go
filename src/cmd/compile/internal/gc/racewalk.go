@@ -87,11 +87,11 @@ func instrument(fn *Node) {
 }
 
 func instrumentlist(l Nodes, init *Nodes) {
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+	for i := range l.Slice() {
 		var instr Nodes
-		instrumentnode(it.P(), &instr, 0, 0)
+		instrumentnode(&l.Slice()[i], &instr, 0, 0)
 		if init == nil {
-			it.N().Ninit.AppendNodes(&instr)
+			l.Slice()[i].Ninit.AppendNodes(&instr)
 		} else {
 			init.AppendNodes(&instr)
 		}
@@ -121,7 +121,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 		// nil it out and handle it separately before putting it back.
 		l := n.Ninit
 
-		setNodeSeq(&n.Ninit, nil)
+		n.Ninit.Set(nil)
 		instrumentlist(l, nil)
 		instrumentnode(&n, &l, wr, skip) // recurse with nil n->ninit
 		appendinit(&n, l)
@@ -167,7 +167,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 				out = append(outn.Slice(), it.N())
 			}
 		}
-		setNodeSeq(&n.List, out)
+		n.List.Set(out)
 		goto ret
 
 	case ODEFER:
@@ -595,8 +595,8 @@ func foreachnode(n *Node, f func(*Node, interface{}), c interface{}) {
 }
 
 func foreachlist(l Nodes, f func(*Node, interface{}), c interface{}) {
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
-		foreachnode(it.N(), f, c)
+	for _, n := range l.Slice() {
+		foreachnode(n, f, c)
 	}
 }
 
@@ -619,7 +619,7 @@ func hascallspred(n *Node, c interface{}) {
 // appendinit is like addinit in subr.go
 // but appends rather than prepends.
 func appendinit(np **Node, init Nodes) {
-	if nodeSeqLen(init) == 0 {
+	if init.Len() == 0 {
 		return
 	}
 
@@ -635,6 +635,6 @@ func appendinit(np **Node, init Nodes) {
 		*np = n
 	}
 
-	appendNodeSeq(&n.Ninit, init)
+	n.Ninit.AppendNodes(&init)
 	n.Ullman = UINF
 }

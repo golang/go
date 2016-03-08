@@ -13,28 +13,28 @@ func typecheckselect(sel *Node) {
 	lno := setlineno(sel)
 	count := 0
 	typechecklist(sel.Ninit.Slice(), Etop)
-	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
+	for _, n1 := range sel.List.Slice() {
 		count++
-		ncase = it.N()
+		ncase = n1
 		setlineno(ncase)
 		if ncase.Op != OXCASE {
 			Fatalf("typecheckselect %v", Oconv(ncase.Op, 0))
 		}
 
-		if nodeSeqLen(ncase.List) == 0 {
+		if ncase.List.Len() == 0 {
 			// default
 			if def != nil {
 				Yyerror("multiple defaults in select (first at %v)", def.Line())
 			} else {
 				def = ncase
 			}
-		} else if nodeSeqLen(ncase.List) > 1 {
+		} else if ncase.List.Len() > 1 {
 			Yyerror("select cases cannot be lists")
 		} else {
 			it2 := nodeSeqIterate(ncase.List)
 			n = typecheck(it2.P(), Etop)
 			ncase.Left = n
-			setNodeSeq(&ncase.List, nil)
+			ncase.List.Set(nil)
 			setlineno(n)
 			switch n.Op {
 			default:
@@ -57,16 +57,16 @@ func typecheckselect(sel *Node) {
 
 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
 			case OAS2RECV:
-				if nodeSeqFirst(n.Rlist).Op != ORECV {
+				if n.Rlist.First().Op != ORECV {
 					Yyerror("select assignment must have receive on right hand side")
 					break
 				}
 
 				n.Op = OSELRECV2
-				n.Left = nodeSeqFirst(n.List)
-				setNodeSeq(&n.List, []*Node{nodeSeqSecond(n.List)})
-				n.Right = nodeSeqFirst(n.Rlist)
-				setNodeSeq(&n.Rlist, nil)
+				n.Left = n.List.First()
+				n.List.Set([]*Node{n.List.Second()})
+				n.Right = n.Rlist.First()
+				n.Rlist.Set(nil)
 
 				// convert <-c into OSELRECV(N, <-c)
 			case ORECV:
@@ -88,12 +88,12 @@ func typecheckselect(sel *Node) {
 }
 
 func walkselect(sel *Node) {
-	if nodeSeqLen(sel.List) == 0 && sel.Xoffset != 0 {
+	if sel.List.Len() == 0 && sel.Xoffset != 0 {
 		Fatalf("double walkselect") // already rewrote
 	}
 
 	lno := setlineno(sel)
-	i := nodeSeqLen(sel.List)
+	i := sel.List.Len()
 
 	// optimization: zero-case select
 	var init []*Node
@@ -111,13 +111,13 @@ func walkselect(sel *Node) {
 	// TODO(rsc): Reenable optimization once order.go can handle it.
 	// golang.org/issue/7672.
 	if i == 1 {
-		cas := nodeSeqFirst(sel.List)
+		cas := sel.List.First()
 		setlineno(cas)
-		l := nodeSeqSlice(cas.Ninit)
+		l := cas.Ninit.Slice()
 		if cas.Left != nil { // not default:
 			n := cas.Left
-			l = append(l, nodeSeqSlice(n.Ninit)...)
-			setNodeSeq(&n.Ninit, nil)
+			l = append(l, n.Ninit.Slice()...)
+			n.Ninit.Set(nil)
 			var ch *Node
 			switch n.Op {
 			default:
@@ -129,7 +129,7 @@ func walkselect(sel *Node) {
 
 			case OSELRECV, OSELRECV2:
 				ch = n.Right.Left
-				if n.Op == OSELRECV || nodeSeqLen(n.List) == 0 {
+				if n.Op == OSELRECV || n.List.Len() == 0 {
 					if n.Left == nil {
 						n = n.Right
 					} else {
@@ -144,8 +144,8 @@ func walkselect(sel *Node) {
 				}
 
 				n.Op = OAS2
-				setNodeSeq(&n.List, append([]*Node{n.Left}, nodeSeqSlice(n.List)...))
-				setNodeSeq(&n.Rlist, []*Node{n.Right})
+				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
+				n.Rlist.Set([]*Node{n.Right})
 				n.Right = nil
 				n.Left = nil
 				n.Typecheck = 0
@@ -185,7 +185,7 @@ func walkselect(sel *Node) {
 			typecheck(&n.Right, Erv)
 
 		case OSELRECV, OSELRECV2:
-			if n.Op == OSELRECV2 && nodeSeqLen(n.List) == 0 {
+			if n.Op == OSELRECV2 && n.List.Len() == 0 {
 				n.Op = OSELRECV
 			}
 			if n.Op == OSELRECV2 {
@@ -204,21 +204,21 @@ func walkselect(sel *Node) {
 	}
 
 	// optimization: two-case select but one is default: single non-blocking op.
-	if i == 2 && (nodeSeqFirst(sel.List).Left == nil || nodeSeqSecond(sel.List).Left == nil) {
+	if i == 2 && (sel.List.First().Left == nil || sel.List.Second().Left == nil) {
 		var cas *Node
 		var dflt *Node
-		if nodeSeqFirst(sel.List).Left == nil {
-			cas = nodeSeqSecond(sel.List)
-			dflt = nodeSeqFirst(sel.List)
+		if sel.List.First().Left == nil {
+			cas = sel.List.Second()
+			dflt = sel.List.First()
 		} else {
-			dflt = nodeSeqSecond(sel.List)
+			dflt = sel.List.Second()
 			cas = nodeSeqFirst(sel.List.Slice())
 		}
 
 		n := cas.Left
 		setlineno(n)
 		r := Nod(OIF, nil, nil)
-		setNodeSeq(&r.Ninit, cas.Ninit)
+		r.Ninit.Set(cas.Ninit.Slice())
 		switch n.Op {
 		default:
 			Fatalf("select %v", Oconv(n.Op, 0))
@@ -233,7 +233,7 @@ func walkselect(sel *Node) {
 		case OSELRECV:
 			r = Nod(OIF, nil, nil)
 
-			setNodeSeq(&r.Ninit, cas.Ninit)
+			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
 			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
 
@@ -241,20 +241,20 @@ func walkselect(sel *Node) {
 		case OSELRECV2:
 			r = Nod(OIF, nil, nil)
 
-			setNodeSeq(&r.Ninit, cas.Ninit)
+			r.Ninit.Set(cas.Ninit.Slice())
 			ch := n.Right.Left
-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, nodeSeqFirst(n.List), ch)
+			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
 		}
 
 		typecheck(&r.Left, Erv)
 		r.Nbody.Set(cas.Nbody.Slice())
-		setNodeSeq(&r.Rlist, append(nodeSeqSlice(dflt.Ninit), dflt.Nbody.Slice()...))
+		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
 		sel.Nbody.Set([]*Node{r})
 		goto out
 	}
 
-	init = nodeSeqSlice(sel.Ninit)
-	setNodeSeq(&sel.Ninit, nil)
+	init = sel.Ninit.Slice()
+	sel.Ninit.Set(nil)
 
 	// generate sel-struct
 	setlineno(sel)
@@ -267,18 +267,16 @@ func walkselect(sel *Node) {
 	r = mkcall("newselect", nil, nil, var_, Nodintconst(selv.Type.Width), Nodintconst(sel.Xoffset))
 	typecheck(&r, Etop)
 	init = append(init, r)
-
 	// register cases
-	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
-		cas = it.N()
+	for _, cas = range sel.List.Slice() {
 		setlineno(cas)
 		n = cas.Left
 		r = Nod(OIF, nil, nil)
-		setNodeSeq(&r.Ninit, cas.Ninit)
-		setNodeSeq(&cas.Ninit, nil)
+		r.Ninit.Set(cas.Ninit.Slice())
+		cas.Ninit.Set(nil)
 		if n != nil {
-			appendNodeSeq(&r.Ninit, n.Ninit)
-			setNodeSeq(&n.Ninit, nil)
+			r.Ninit.AppendNodes(&n.Ninit)
+			n.Ninit.Set(nil)
 		}
 
 		if n == nil {
@@ -299,7 +297,7 @@ func walkselect(sel *Node) {
 
 				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
 			case OSELRECV2:
-				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, nodeSeqFirst(n.List))
+				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.List.First())
 			}
 		}
 
@@ -318,7 +316,7 @@ func walkselect(sel *Node) {
 	sel.Nbody.Set(init)
 
 out:
-	setNodeSeq(&sel.List, nil)
+	sel.List.Set(nil)
 	walkstmtlist(sel.Nbody.Slice())
 	lineno = lno
 }
@@ -329,41 +327,41 @@ func selecttype(size int32) *Type {
 	// and then cache; and also cache Select per size.
 	sudog := Nod(OTSTRUCT, nil, nil)
 
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
+	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
 	typecheck(&sudog, Etype)
 	sudog.Type.Noalg = true
 	sudog.Type.Local = true
 
 	scase := Nod(OTSTRUCT, nil, nil)
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
+	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
 	typecheck(&scase, Etype)
 	scase.Type.Noalg = true
 	scase.Type.Local = true
 
 	sel := Nod(OTSTRUCT, nil, nil)
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("ncase")), typenod(Types[TUINT16])))
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("pollorder")), typenod(Ptrto(Types[TUINT8]))))
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("ncase")), typenod(Types[TUINT16])))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorder")), typenod(Ptrto(Types[TUINT8]))))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
 	arr := Nod(OTARRAY, Nodintconst(int64(size)), scase)
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("scase")), arr))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("scase")), arr))
 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Ptrto(Types[TUINT8])))
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
+	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
 	typecheck(&sel, Etype)
 	sel.Type.Noalg = true
 	sel.Type.Local = true

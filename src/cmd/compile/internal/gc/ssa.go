@@ -510,8 +510,8 @@ func (s *state) stmts(a Nodes) {
 
 // ssaStmtList converts the statement n to SSA and adds it to s.
 func (s *state) stmtList(l Nodes) {
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
-		s.stmt(it.N())
+	for _, n := range l.Slice() {
+		s.stmt(n)
 	}
 }
 
@@ -559,9 +559,9 @@ func (s *state) stmt(n *Node) {
 		s.call(n.Left, callGo)
 
 	case OAS2DOTTYPE:
-		res, resok := s.dottype(nodeSeqFirst(n.Rlist), true)
-		s.assign(nodeSeqFirst(n.List), res, needwritebarrier(nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist)), false, n.Lineno)
-		s.assign(nodeSeqSecond(n.List), resok, false, false, n.Lineno)
+		res, resok := s.dottype(n.Rlist.First(), true)
+		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno)
+		s.assign(n.List.Second(), resok, false, false, n.Lineno)
 		return
 
 	case ODCL:
@@ -702,7 +702,7 @@ func (s *state) stmt(n *Node) {
 		bThen := s.f.NewBlock(ssa.BlockPlain)
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var bElse *ssa.Block
-		if nodeSeqLen(n.Rlist) != 0 {
+		if n.Rlist.Len() != 0 {
 			bElse = s.f.NewBlock(ssa.BlockPlain)
 			s.condBranch(n.Left, bThen, bElse, n.Likely)
 		} else {
@@ -715,7 +715,7 @@ func (s *state) stmt(n *Node) {
 			b.AddEdgeTo(bEnd)
 		}
 
-		if nodeSeqLen(n.Rlist) != 0 {
+		if n.Rlist.Len() != 0 {
 			s.startBlock(bElse)
 			s.stmtList(n.Rlist)
 			if b := s.endBlock(); b != nil {
@@ -2025,14 +2025,14 @@ func (s *state) expr(n *Node) *ssa.Value {
 		pt := Ptrto(et)
 
 		// Evaluate slice
-		slice := s.expr(nodeSeqFirst(n.List))
+		slice := s.expr(n.List.First())
 
 		// Allocate new blocks
 		grow := s.f.NewBlock(ssa.BlockPlain)
 		assign := s.f.NewBlock(ssa.BlockPlain)
 
 		// Decide if we need to grow
-		nargs := int64(nodeSeqLen(n.List) - 1)
+		nargs := int64(n.List.Len() - 1)
 		p := s.newValue1(ssa.OpSlicePtr, pt, slice)
 		l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
 		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)

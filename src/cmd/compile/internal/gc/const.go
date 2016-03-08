@@ -543,7 +543,7 @@ func evconst(n *Node) {
 
 		// merge adjacent constants in the argument list.
 	case OADDSTR:
-		s := nodeSeqSlice(n.List)
+		s := n.List.Slice()
 		for i1 := 0; i1 < len(s); i1++ {
 			if Isconst(s[i1], CTSTR) && i1+1 < len(s) && Isconst(s[i1+1], CTSTR) {
 				// merge from i1 up to but not including i2
@@ -567,7 +567,7 @@ func evconst(n *Node) {
 			n.Op = OLITERAL
 			n.SetVal(s[0].Val())
 		} else {
-			setNodeSeq(&n.List, s)
+			n.List.Set(s)
 		}
 
 		return
@@ -1736,14 +1736,13 @@ func hascallchan(n *Node) bool {
 	if hascallchan(n.Left) || hascallchan(n.Right) {
 		return true
 	}
-
-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-		if hascallchan(it.N()) {
+	for _, n1 := range n.List.Slice() {
+		if hascallchan(n1) {
 			return true
 		}
 	}
-	for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
-		if hascallchan(it.N()) {
+	for _, n2 := range n.Rlist.Slice() {
+		if hascallchan(n2) {
 			return true
 		}
 	}

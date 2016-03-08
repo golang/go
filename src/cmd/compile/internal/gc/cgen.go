@@ -1752,7 +1752,7 @@ func Bvgen(n, res *Node, wantTrue bool) {
 func bvgenjump(n, res *Node, wantTrue, geninit bool) {
 	init := n.Ninit
 	if !geninit {
-		setNodeSeq(&n.Ninit, nil)
+		n.Ninit.Set(nil)
 	}
 	p1 := Gbranch(obj.AJMP, nil, 0)
 	p2 := Pc
@@ -1762,7 +1762,7 @@ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
 	Bgen(n, wantTrue, 0, p2)
 	Thearch.Gmove(Nodbool(false), res)
 	Patch(p3, Pc)
-	setNodeSeq(&n.Ninit, init)
+	n.Ninit.Set(init.Slice())
 }
 
 // bgenx is the backend for Bgen and Bvgen.
@@ -1920,11 +1920,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		if Isfloat[nr.Type.Etype] {
 			// Brcom is not valid on floats when NaN is involved.
 			ll := n.Ninit // avoid re-genning Ninit
-			setNodeSeq(&n.Ninit, nil)
+			n.Ninit.Set(nil)
 			if genval {
 				bgenx(n, res, true, likely, to)
 				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res) // res = !res
-				setNodeSeq(&n.Ninit, ll)
+				n.Ninit.Set(ll.Slice())
 				return
 			}
 			p1 := Gbranch(obj.AJMP, nil, 0)
@@ -1933,7 +1933,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			bgenx(n, res, true, -likely, p2)
 			Patch(Gbranch(obj.AJMP, nil, 0), to)
 			Patch(p2, Pc)
-			setNodeSeq(&n.Ninit, ll)
+			n.Ninit.Set(ll.Slice())
 			return
 		}
 
@@ -2799,13 +2799,13 @@ func cgen_append(n, res *Node) {
 		Dump("cgen_append-n", n)
 		Dump("cgen_append-res", res)
 	}
-	if res.Op != ONAME && !samesafeexpr(res, nodeSeqFirst(n.List)) {
+	if res.Op != ONAME && !samesafeexpr(res, n.List.First()) {
 		Dump("cgen_append-n", n)
 		Dump("cgen_append-res", res)
 		Fatalf("append not lowered")
 	}
-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-		if it.N().Ullman >= UINF {
+	for _, n1 := range n.List.Slice() {
+		if n1.Ullman >= UINF {
 			Fatalf("append with function call arguments")
 		}
 	}
@@ -2814,7 +2814,7 @@ func cgen_append(n, res *Node) {
 	//
 	// If res and src are the same, we can avoid writing to base and cap
 	// unless we grow the underlying array.
-	needFullUpdate := !samesafeexpr(res, nodeSeqFirst(n.List))
+	needFullUpdate := !samesafeexpr(res, n.List.First())
 
 	// Copy src triple into base, len, cap.
 	base := temp(Types[Tptr])
@@ -2822,7 +2822,7 @@ func cgen_append(n, res *Node) {
 	cap := temp(Types[TUINT])
 
 	var src Node
-	Igen(nodeSeqFirst(n.List), &src, nil)
+	Igen(n.List.First(), &src, nil)
 	src.Type = Types[Tptr]
 	Thearch.Gmove(&src, base)
 	src.Type = Types[TUINT]
@@ -2835,7 +2835,7 @@ func cgen_append(n, res *Node) {
 	var rlen Node
 	Regalloc(&rlen, Types[TUINT], nil)
 	Thearch.Gmove(len, &rlen)
-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(nodeSeqLen(n.List)-1), &rlen)
+	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(n.List.Len()-1), &rlen)
 	p := Thearch.Ginscmp(OLE, Types[TUINT], &rlen, cap, +1)
 	// Note: rlen and src are Regrealloc'ed below at the target of the
 	// branch we just emitted; do not reuse these Go variables for
@@ -2905,7 +2905,7 @@ func cgen_append(n, res *Node) {
 	dst.Xoffset += int64(Widthptr)
 	Regalloc(&r1, Types[TUINT], nil)
 	Thearch.Gmove(len, &r1)
-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(nodeSeqLen(n.List)-1), &r1)
+	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(n.List.Len()-1), &r1)
 	Thearch.Gmove(&r1, &dst)
 	Regfree(&r1)
 	dst.Xoffset += int64(Widthptr)

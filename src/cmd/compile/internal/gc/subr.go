@@ -536,7 +536,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		m.Orig = m
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
-		setNodeSeq(&m.List, listtreecopy(n.List.Slice(), lineno))
+		m.List.Set(listtreecopy(n.List.Slice(), lineno))
 		if lineno != 0 {
 			m.Lineno = lineno
 		}
@@ -1379,7 +1379,7 @@ func ullmancalc(n *Node) {
 
 	var ul int
 	var ur int
-	if nodeSeqLen(n.Ninit) != 0 {
+	if n.Ninit.Len() != 0 {
 		ul = UINF
 		goto out
 	}
@@ -1497,7 +1497,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
 		return nil
 	}
 
-	if nodeSeqLen(n.Ninit) != 0 {
+	if n.Ninit.Len() != 0 {
 		walkstmtlist(n.Ninit.Slice())
 		init.AppendNodes(&n.Ninit)
 	}
@@ -1968,8 +1968,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		l = append(l, pad)
 	}
 
-	setNodeSeq(&t.List, append(l, in...))
-	setNodeSeq(&t.Rlist, out)
+	t.List.Set(append(l, in...))
+	t.Rlist.Set(out)
 
 	fn := Nod(ODCLFUNC, nil, nil)
 	fn.Func.Nname = newname(newnam)
@@ -2008,7 +2008,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		v.U = method.Sym.Name
 		l = append(l, nodlit(v)) // method name
 		call := Nod(OCALL, syslook("panicwrap"), nil)
-		setNodeSeq(&call.List, l)
+		call.List.Set(l)
 		n.Nbody.Set([]*Node{call})
 		fn.Nbody.Append(n)
 	}
@@ -2031,11 +2031,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	} else {
 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
 		call := Nod(OCALL, dot, nil)
-		setNodeSeq(&call.List, args)
+		call.List.Set(args)
 		call.Isddd = isddd
 		if method.Type.Outtuple > 0 {
 			n := Nod(ORETURN, nil, nil)
-			setNodeSeq(&n.List, []*Node{call})
+			n.List.Set([]*Node{call})
 			call = n
 		}
 
@@ -2069,10 +2069,10 @@ func hashmem(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	appendNodeSeqNode(&tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	typecheck(&tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -2218,15 +2218,15 @@ func Simsimtype(t *Type) EType {
 
 func listtreecopy(l []*Node, lineno int32) []*Node {
 	var out []*Node
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
-		out = append(out, treecopy(it.N(), lineno))
+	for _, n := range l {
+		out = append(out, treecopy(n, lineno))
 	}
 	return out
 }
 
 func liststmt(l []*Node) *Node {
 	n := Nod(OBLOCK, nil, nil)
-	setNodeSeq(&n.List, l)
+	n.List.Set(l)
 	if nodeSeqLen(l) != 0 {
 		n.Lineno = nodeSeqFirst(l).Lineno
 	}
@@ -2573,7 +2573,7 @@ func addinit(np **Node, init []*Node) {
 		*np = n
 	}
 
-	setNodeSeq(&n.Ninit, append(nodeSeqSlice(init), nodeSeqSlice(n.Ninit)...))
+	n.Ninit.Set(append(nodeSeqSlice(init), n.Ninit.Slice()...))
 	n.Ullman = UINF
 }
 
