@@ -2578,7 +2578,7 @@ func vmatch1(l *Node, r *Node) bool {
 	if vmatch1(l.Right, r) {
 		return true
 	}
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+	for it := nodeSeqIterate(l.List); !it.Done(); it.Next() {
 		if vmatch1(it.N(), r) {
 			return true
 		}
