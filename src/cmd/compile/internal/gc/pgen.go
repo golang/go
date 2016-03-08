@@ -350,31 +350,24 @@ func compile(fn *Node) {
 		panicdottype = Sysfunc("panicdottype")
 	}
 
-	lno := setlineno(fn)
+	defer func(lno int32) {
+		lineno = lno
+	}(setlineno(fn))
 
 	Curfn = fn
 	dowidth(Curfn.Type)
 
-	var nod1 Node
-	var ptxt *obj.Prog
-	var pl *obj.Plist
-	var p *obj.Prog
-	var n *Node
-	var nam *Node
-	var gcargs *Sym
-	var gclocals *Sym
-	var ssafn *ssa.Func
 	if len(fn.Nbody.Slice()) == 0 {
 		if pure_go != 0 || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
 			Yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
-			goto ret
+			return
 		}
 
 		if Debug['A'] != 0 {
-			goto ret
+			return
 		}
 		emitptrargsmap()
-		goto ret
+		return
 	}
 
 	saveerrors()
@@ -385,37 +378,34 @@ func compile(fn *Node) {
 	if Curfn.Type.Outnamed {
 		// add clearing of the output parameters
 		var save Iter
-		t := Structfirst(&save, Getoutarg(Curfn.Type))
-
-		for t != nil {
+		for t := Structfirst(&save, Getoutarg(Curfn.Type)); t != nil; t = structnext(&save) {
 			if t.Nname != nil {
-				n = Nod(OAS, t.Nname, nil)
+				n := Nod(OAS, t.Nname, nil)
 				typecheck(&n, Etop)
 				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
 			}
-
-			t = structnext(&save)
 		}
 	}
 
 	order(Curfn)
 	if nerrors != 0 {
-		goto ret
+		return
 	}
 
 	hasdefer = false
 	walk(Curfn)
 	if nerrors != 0 {
-		goto ret
+		return
 	}
 	if instrumenting {
 		instrument(Curfn)
 	}
 	if nerrors != 0 {
-		goto ret
+		return
 	}
 
 	// Build an SSA backend function.
+	var ssafn *ssa.Func
 	if shouldssa(Curfn) {
 		ssafn = buildssa(Curfn)
 	}
@@ -423,17 +413,18 @@ func compile(fn *Node) {
 	continpc = nil
 	breakpc = nil
 
-	pl = newplist()
+	pl := newplist()
 	pl.Name = Linksym(Curfn.Func.Nname.Sym)
 
 	setlineno(Curfn)
 
+	var nod1 Node
 	Nodconst(&nod1, Types[TINT32], 0)
-	nam = Curfn.Func.Nname
+	nam := Curfn.Func.Nname
 	if isblank(nam) {
 		nam = nil
 	}
-	ptxt = Thearch.Gins(obj.ATEXT, nam, &nod1)
+	ptxt := Thearch.Gins(obj.ATEXT, nam, &nod1)
 	Afunclit(&ptxt.From, Curfn.Func.Nname)
 	ptxt.From3 = new(obj.Addr)
 	if fn.Func.Dupok {
@@ -455,7 +446,7 @@ func compile(fn *Node) {
 	// Clumsy but important.
 	// See test/recover.go for test cases and src/reflect/value.go
 	// for the actual functions being considered.
-	if myimportpath != "" && myimportpath == "reflect" {
+	if myimportpath == "reflect" {
 		if Curfn.Func.Nname.Sym.Name == "callReflect" || Curfn.Func.Nname.Sym.Name == "callMethod" {
 			ptxt.From3.Offset |= obj.WRAPPER
 		}
@@ -463,8 +454,8 @@ func compile(fn *Node) {
 
 	ginit()
 
-	gcargs = makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
-	gclocals = makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
+	gcargs := makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
+	gclocals := makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
 
 	for _, t := range Curfn.Func.Fieldtrack {
 		gtrack(tracksym(t))
@@ -477,7 +468,7 @@ func compile(fn *Node) {
 		switch n.Class {
 		case PAUTO, PPARAM, PPARAMOUT:
 			Nodconst(&nod1, Types[TUINTPTR], n.Type.Width)
-			p = Thearch.Gins(obj.ATYPE, n, &nod1)
+			p := Thearch.Gins(obj.ATYPE, n, &nod1)
 			p.From.Gotype = Linksym(ngotype(n))
 		}
 	}
@@ -485,14 +476,19 @@ func compile(fn *Node) {
 	if ssafn != nil {
 		genssa(ssafn, ptxt, gcargs, gclocals)
 		ssafn.Free()
-		goto ret
+	} else {
+		genlegacy(ptxt, gcargs, gclocals)
 	}
+}
+
+// genlegacy compiles Curfn using the legacy non-SSA code generator.
+func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	Genlist(Curfn.Func.Enter)
 	Genlist(Curfn.Nbody)
 	gclean()
 	checklabels()
 	if nerrors != 0 {
-		goto ret
+		return
 	}
 	if Curfn.Func.Endlineno != 0 {
 		lineno = Curfn.Func.Endlineno
@@ -517,7 +513,7 @@ func compile(fn *Node) {
 
 	gclean()
 	if nerrors != 0 {
-		goto ret
+		return
 	}
 
 	Pc.As = obj.ARET // overwrite AEND
@@ -536,7 +532,7 @@ func compile(fn *Node) {
 	setlineno(Curfn)
 	if Stksize+Maxarg > 1<<31 {
 		Yyerror("stack frame too large (>2GB)")
-		goto ret
+		return
 	}
 
 	// Emit garbage collection symbols.
@@ -553,7 +549,4 @@ func compile(fn *Node) {
 
 	// Remove leftover instrumentation from the instruction stream.
 	removevardef(ptxt)
-
-ret:
-	lineno = lno
 }
