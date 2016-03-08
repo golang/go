@@ -170,8 +170,8 @@ func proginfo(p *obj.Prog) {
 }
 
 // Instruction variants table. Initially this contains entries only
-// for the "base" form of each instruction. On the first call to
-// as2variant or variant2as, we'll add the variants to the table.
+// for the "base" form of each instruction.
+// This table is completed by calling initvariants in Main.
 var varianttable = [ppc64.ALAST][4]obj.As{
 	ppc64.AADD:     {ppc64.AADD, ppc64.AADDCC, ppc64.AADDV, ppc64.AADDVCC},
 	ppc64.AADDC:    {ppc64.AADDC, ppc64.AADDCCC, ppc64.AADDCV, ppc64.AADDCVCC},
