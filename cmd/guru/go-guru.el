@@ -50,6 +50,11 @@
   :type 'string
   :group 'go-guru)
 
+(defcustom go-guru-debug nil
+  "Print debug messages when running guru."
+  :type 'boolean
+  :group 'go-guru)
+
 ;; Extend go-mode-map.
 (let ((m (define-prefix-command 'go-guru-map)))
   (define-key m "d" #'go-guru-describe)
@@ -133,9 +138,10 @@ a scope if not already set.  Return the output buffer."
 			   flags
 			   (list mode posn))))
 	;; Log the command to *Messages*, for debugging.
-	(message "Command: %s:" args)
-	(message nil) ; clears/shrinks minibuffer
-	(message "Running guru %s..." mode)
+ 	(when go-guru-debug
+	  (message "Command: %s:" args)
+	  (message nil) ; clears/shrinks minibuffer
+	  (message "Running guru %s..." mode))
 	;; Use dynamic binding to modify/restore the environment
 	(let* ((process-environment (list* goroot-env gopath-env process-environment))
 	       (c-p-args (append (list (point-min)
