@@ -50,10 +50,28 @@
   :type 'string
   :group 'go-guru)
 
+(defface go-guru-hl-identifier-face
+  '((t (:inherit highlight)))
+  "Face used for highlighting identifiers in `go-guru-hl-identifier'."
+  :group 'go-guru)
+
 (defcustom go-guru-debug nil
   "Print debug messages when running guru."
   :type 'boolean
   :group 'go-guru)
+
+(defcustom go-guru-hl-identifier-idle-time 0.5
+  "How long to wait after user input before highlighting the current identifier."
+  :type 'float
+  :group 'go-guru)
+
+(defvar go-guru--current-hl-identifier-idle-time
+  0
+  "The current delay for hl-identifier-mode.")
+
+(defvar go-guru--hl-identifier-timer
+  nil
+  "The global timer used for highlighting identifiers.")
 
 ;; Extend go-mode-map.
 (let ((m (define-prefix-command 'go-guru-map)))
@@ -219,14 +237,24 @@ If BUFFER, return the number of characters in that buffer instead."
     (string-bytes (buffer-substring (point-min)
                                     (point-max)))))
 
-
+;; FIXME(dominikh): go-guru--goto-pos-no-file and go-guru--goto-pos
+;; assume that Guru is giving rune offsets in the columns field.
+;; However, it is giving us byte offsets, causing us to highlight
+;; wrong ranges as soon as there's any multi-byte runes in the line.
 (defun go-guru--goto-pos (posn)
   "Find the file containing the position POSN (of the form `file:line:col')
 set the point to it, switching the current buffer."
   (let ((file-line-pos (split-string posn ":")))
     (find-file (car file-line-pos))
     (goto-char (point-min))
-    ;; NB: go/token's column offsets are byte- not rune-based.
+    (forward-line (1- (string-to-number (cadr file-line-pos))))
+    (forward-char (1- (string-to-number (caddr file-line-pos))))))
+
+(defun go-guru--goto-pos-no-file (posn)
+  "Given `file:line:col', go to the line and column. The file
+component will be ignored."
+  (let ((file-line-pos (split-string posn ":")))
+    (goto-char (point-min))
     (forward-line (1- (string-to-number (cadr file-line-pos))))
     (forward-char (1- (string-to-number (caddr file-line-pos))))))
 
@@ -309,6 +337,104 @@ identifier."
 expression (of type 'error') may refer."
   (interactive)
   (go-guru--run "whicherrs" t))
+
+(defun go-guru-what ()
+  "Run a 'what' query and return the parsed JSON response as an
+associative list."
+  (let ((res (with-current-buffer (go-guru--exec "what" nil '("-format=json") t)
+	       (goto-char (point-min))
+	       (cdr (car (json-read))))))
+    res))
+
+(defun go-guru--hl-symbols (posn face id)
+  "Highlight the symbols at the positions POSN by creating
+overlays with face FACE. The attribute 'go-guru-overlay on the
+overlays will be set to ID."
+  (save-excursion
+    (mapc (lambda (pos)
+	    (go-guru--goto-pos-no-file pos)
+	    (let ((x (make-overlay (point) (+ (point) (length (current-word))))))
+	      (overlay-put x 'go-guru-overlay id)
+	      (overlay-put x 'face face)))
+	  posn)))
+
+;;;###autoload
+(defun go-guru-unhighlight-identifiers ()
+  "Remove highlights from previously highlighted identifier."
+  (remove-overlays nil nil 'go-guru-overlay 'sameid))
+
+;;;###autoload
+(defun go-guru-hl-identifier ()
+  "Highlight all instances of the identifier under point. Removes
+highlights from previously highlighted identifier."
+  (interactive)
+  (go-guru-unhighlight-identifiers)
+  (go-guru--hl-identifier))
+
+(defun go-guru--hl-identifier ()
+  "Highlight all instances of the identifier under point."
+  (let ((posn (cdr (assoc 'sameids (go-guru-what)))))
+    (go-guru--hl-symbols posn 'go-guru-hl-identifier-face 'sameid)))
+
+(defun go-guru--hl-identifiers-function ()
+  "Function run after an idle timeout, highlighting the
+identifier at point, if necessary."
+  (when go-guru-hl-identifier-mode
+    (unless (go-guru--on-overlay-p 'sameid)
+      ;; Ignore guru errors. Otherwise, we might end up with an error
+      ;; every time the timer runs, e.g. because of a malformed
+      ;; buffer.
+      (condition-case nil
+          (go-guru-hl-identifier)
+        (error nil)))
+    (unless (eq go-guru--current-hl-identifier-idle-time go-guru-hl-identifier-idle-time)
+      (go-guru--hl-set-timer))))
+
+(defun go-guru--hl-set-timer ()
+  (if go-guru--hl-identifier-timer
+      (cancel-timer go-guru--hl-identifier-timer))
+  (setq go-guru--current-hl-identifier-idle-time go-guru-hl-identifier-idle-time)
+  (setq go-guru--hl-identifier-timer (run-with-idle-timer
+				      go-guru-hl-identifier-idle-time
+				      t
+				      #'go-guru--hl-identifiers-function)))
+
+;;;###autoload
+(define-minor-mode go-guru-hl-identifier-mode
+  "Highlight instances of the identifier at point after a short
+timeout."
+  :group 'go-guru
+  (if go-guru-hl-identifier-mode
+      (progn
+	(go-guru--hl-set-timer)
+	;; Unhighlight if point moves off identifier
+	(add-hook 'post-command-hook #'go-guru--hl-identifiers-post-command-hook nil t)
+	;; Unhighlight any time the buffer changes
+	(add-hook 'before-change-functions #'go-guru--hl-identifiers-before-change-function nil t))
+    (remove-hook 'post-command-hook #'go-guru--hl-identifiers-post-command-hook t)
+    (remove-hook 'before-change-functions #'go-guru--hl-identifiers-before-change-function t)
+    (go-guru-unhighlight-identifiers)))
+
+(defun go-guru--on-overlay-p (id)
+  "Return whether point is on a guru overlay of type ID."
+  (find-if (lambda (el) (eq (overlay-get el 'go-guru-overlay) id)) (overlays-at (point))))
+
+(defun go-guru--hl-identifiers-post-command-hook ()
+  (if (and go-guru-hl-identifier-mode
+	   (not (go-guru--on-overlay-p 'sameid)))
+      (go-guru-unhighlight-identifiers)))
+
+(defun go-guru--hl-identifiers-before-change-function (_beg _end)
+  (go-guru-unhighlight-identifiers))
+
+;; FIXME(dominikh): currently we're using the same buffer for
+;; interactive and non-interactive output. E.g. if a user ran the
+;; referrers query, and then the hl-identifier timer ran a what query,
+;; the what query's json response would be visible and overwrite the
+;; referrers output
+
+;; TODO(dominikh): a future feature may be to cycle through all uses
+;; of an identifier.
 
 (provide 'go-guru)
 
