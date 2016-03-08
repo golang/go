@@ -536,3 +536,19 @@ func TestEncodeString(t *testing.T) {
 		}
 	}
 }
+
+func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
+	b, err := Marshal(map[unmarshalerText]int{
+		{"x", "y"}: 1,
+		{"y", "x"}: 2,
+		{"a", "z"}: 3,
+		{"z", "a"}: 4,
+	})
+	if err != nil {
+		t.Fatalf("Failed to Marshal text.Marshaler: %v", err)
+	}
+	const want = `{"a:z":3,"x:y":1,"y:x":2,"z:a":4}`
+	if string(b) != want {
+		t.Errorf("Marshal map with text.Marshaler keys: got %#q, want %#q", b, want)
+	}
+}
