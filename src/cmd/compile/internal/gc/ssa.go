@@ -180,6 +180,7 @@ func buildssa(fn *Node) *ssa.Func {
 		s.stmts(s.exitCode)
 		m := s.mem()
 		b := s.endBlock()
+		b.Line = fn.Func.Endlineno
 		b.Kind = ssa.BlockRet
 		b.Control = m
 	}
