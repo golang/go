@@ -27,7 +27,7 @@ import (
 const (
 	repoURL      = "https://go.googlesource.com/"
 	metaURL      = "https://go.googlesource.com/?b=master&format=JSON"
-	startTimeout = 5 * time.Minute
+	startTimeout = 10 * time.Minute
 )
 
 func main() {
@@ -179,6 +179,9 @@ func (p *Proxy) poll() {
 			}
 		}()
 		err = waitReady(p.builder, hostport)
+		if err != nil {
+			cmd.Process.Kill()
+		}
 	}
 
 	p.mu.Lock()
