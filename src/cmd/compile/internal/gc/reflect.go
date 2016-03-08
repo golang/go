@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 )
 
 // runtime interface and reflection data structures
@@ -761,10 +762,20 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
 	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
-
+	
+	// If we're writing out type T,
+	// we are very likely to write out type *T as well.
+	// Use the string "*T"[1:] for "T", so that the two
+	// share storage. This is a cheap way to reduce the
+	// amount of space taken up by reflect strings.
+	prefix := 0
+	if !strings.HasPrefix(p, "*") {
+		p = "*"+p
+		prefix = 1
+	}
 	_, symdata := stringsym(p) // string
-	ot = dsymptr(s, ot, symdata, 0)
-	ot = duintxx(s, ot, uint64(len(p)), Widthint)
+	ot = dsymptr(s, ot, symdata, prefix)
+	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
 	//fmt.Printf("dcommontype: %s\n", p)
 
 	// skip pointer to extraType,

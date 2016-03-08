@@ -1034,6 +1034,11 @@ func symalign(s *LSym) int32 {
 	} else if s.Align != 0 {
 		return min
 	}
+	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
+		// String data is just bytes.
+		// If we align it, we waste a lot of space to padding.
+		return 1
+	}
 	align := int32(Thearch.Maxalign)
 	for int64(align) > s.Size && align > min {
 		align >>= 1
@@ -1206,7 +1211,7 @@ func dodata() {
 		// when building a shared library. We do this by boosting objects of
 		// type SXXX with relocations to type SXXXRELRO.
 		for s := datap; s != nil; s = s.Next {
-			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRING {
+			if (s.Type >= obj.STYPE && s.Type <= obj.SFUNCTAB && len(s.R) > 0) || s.Type == obj.SGOSTRINGHDR {
 				s.Type += (obj.STYPERELRO - obj.STYPE)
 				if s.Outer != nil {
 					s.Outer.Type = s.Type

@@ -432,6 +432,13 @@ func symtab() {
 	s.Attr |= AttrReachable
 	symgostring := s
 
+	s = Linklookup(Ctxt, "go.string.hdr.*", 0)
+	s.Type = obj.SGOSTRINGHDR
+	s.Attr |= AttrLocal
+	s.Size = 0
+	s.Attr |= AttrReachable
+	symgostringhdr := s
+
 	s = Linklookup(Ctxt, "go.func.*", 0)
 	s.Type = obj.SGOFUNC
 	s.Attr |= AttrLocal
@@ -488,6 +495,10 @@ func symtab() {
 			s.Type = obj.SGOSTRING
 			s.Attr |= AttrHidden
 			s.Outer = symgostring
+			if strings.HasPrefix(s.Name, "go.string.hdr.") {
+				s.Type = obj.SGOSTRINGHDR
+				s.Outer = symgostringhdr
+			}
 		}
 
 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
