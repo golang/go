@@ -3338,9 +3338,8 @@ func typecheckas2(n *Node) {
 	var r *Node
 	if cl == cr {
 		// easy
-		llit := nodeSeqIterate(n.List)
 		lrit := nodeSeqIterate(n.Rlist)
-		for llit = nodeSeqIterate(n.List); !llit.Done(); llit.Next() {
+		for llit := nodeSeqIterate(n.List); !llit.Done(); llit.Next() {
 			if llit.N().Type != nil && lrit.N().Type != nil {
 				*lrit.P() = assignconv(lrit.N(), llit.N().Type, "assignment")
 			}
