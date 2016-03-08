@@ -4,7 +4,7 @@
 
 // Binary package export.
 // Based loosely on x/tools/go/importer.
-// (see fmt.go, go.y as "documentation" for how to use/setup data structures)
+// (see fmt.go, parser.go as "documentation" for how to use/setup data structures)
 //
 // Use "-newexport" flag to enable.
 
@@ -155,7 +155,6 @@ func Export(out *obj.Biobuf, trace bool) int {
 	p.pkg(localpkg)
 
 	// write compiler-specific flags
-	// go.y:import_safety
 	{
 		var flags string
 		if safemode != 0 {
