@@ -1628,15 +1628,14 @@ func Brrev(op Op) Op {
 
 // return side effect-free n, appending side effects to init.
 // result is assignable if n is.
-func safeexpr(n *Node, init nodesOrNodeListPtr) *Node {
+func safeexpr(n *Node, init *Nodes) *Node {
 	if n == nil {
 		return nil
 	}
 
 	if nodeSeqLen(n.Ninit) != 0 {
-		walkstmtlist(n.Ninit)
-		appendNodeSeq(init, n.Ninit)
-		setNodeSeq(&n.Ninit, nil)
+		walkstmtlist(n.Ninit.Slice())
+		init.AppendNodes(&n.Ninit)
 	}
 
 	switch n.Op {
@@ -1687,18 +1686,18 @@ func safeexpr(n *Node, init nodesOrNodeListPtr) *Node {
 	return cheapexpr(n, init)
 }
 
-func copyexpr(n *Node, t *Type, init nodesOrNodeListPtr) *Node {
+func copyexpr(n *Node, t *Type, init *Nodes) *Node {
 	l := temp(t)
 	a := Nod(OAS, l, n)
 	typecheck(&a, Etop)
 	walkexpr(&a, init)
-	appendNodeSeqNode(init, a)
+	init.Append(a)
 	return l
 }
 
 // return side-effect free and cheap n, appending side effects to init.
 // result may not be assignable.
-func cheapexpr(n *Node, init nodesOrNodeListPtr) *Node {
+func cheapexpr(n *Node, init *Nodes) *Node {
 	switch n.Op {
 	case ONAME, OLITERAL:
 		return n
@@ -2765,7 +2764,7 @@ func isbadimport(path string) bool {
 	return false
 }
 
-func checknil(x *Node, init nodesOrNodeListPtr) {
+func checknil(x *Node, init *Nodes) {
 	if Isinter(x.Type) {
 		x = Nod(OITAB, x, nil)
 		typecheck(&x, Erv)
@@ -2773,7 +2772,7 @@ func checknil(x *Node, init nodesOrNodeListPtr) {
 
 	n := Nod(OCHECKNIL, x, nil)
 	n.Typecheck = 1
-	appendNodeSeqNode(init, n)
+	init.Append(n)
 }
 
 // Can this type be stored directly in an interface word?

@@ -466,6 +466,18 @@ func (n *Nodes) Append(a ...*Node) {
 	}
 }
 
+// AppendNodes appends the contents of *n2 to n, then clears n2.
+func (n *Nodes) AppendNodes(n2 *Nodes) {
+	switch {
+	case n2.slice == nil:
+	case n.slice == nil:
+		n.slice = n2.slice
+	default:
+		*n.slice = append(*n.slice, *n2.slice...)
+	}
+	n2.slice = nil
+}
+
 // SetToNodeList sets Nodes to the contents of a NodeList.
 func (n *Nodes) SetToNodeList(l *NodeList) {
 	s := make([]*Node, 0, count(l))

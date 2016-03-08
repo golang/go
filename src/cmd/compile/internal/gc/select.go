@@ -156,7 +156,10 @@ func walkselect(sel *Node) {
 			a := Nod(OIF, nil, nil)
 
 			a.Left = Nod(OEQ, ch, nodnil())
-			a.Nbody.Set([]*Node{mkcall("block", nil, &l)})
+			var ln Nodes
+			ln.Set(l)
+			a.Nbody.Set([]*Node{mkcall("block", nil, &ln)})
+			l = ln.Slice()
 			typecheck(&a, Etop)
 			l = append(l, a)
 			l = append(l, n)
@@ -303,7 +306,7 @@ func walkselect(sel *Node) {
 		// selv is no longer alive after use.
 		r.Nbody.Append(Nod(OVARKILL, selv, nil))
 
-		r.Nbody.Append(cas.Nbody.Slice()...)
+		r.Nbody.AppendNodes(&cas.Nbody)
 		r.Nbody.Append(Nod(OBREAK, nil, nil))
 		init = append(init, r)
 	}
@@ -316,7 +319,7 @@ func walkselect(sel *Node) {
 
 out:
 	setNodeSeq(&sel.List, nil)
-	walkstmtlist(sel.Nbody)
+	walkstmtlist(sel.Nbody.Slice())
 	lineno = lno
 }
 

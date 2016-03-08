@@ -395,7 +395,7 @@ func transformclosure(xfunc *Node) {
 
 		if len(body) > 0 {
 			typecheckslice(body, Etop)
-			walkstmtslice(body)
+			walkstmtlist(body)
 			xfunc.Func.Enter.Set(body)
 			xfunc.Func.Needctxt = true
 		}
@@ -404,7 +404,7 @@ func transformclosure(xfunc *Node) {
 	lineno = lno
 }
 
-func walkclosure(func_ *Node, init nodesOrNodeListPtr) *Node {
+func walkclosure(func_ *Node, init *Nodes) *Node {
 	// If no closure vars, don't bother wrapping.
 	if len(func_.Func.Cvars.Slice()) == 0 {
 		return func_.Func.Closure.Func.Nname
@@ -623,7 +623,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	return xfunc
 }
 
-func walkpartialcall(n *Node, init nodesOrNodeListPtr) *Node {
+func walkpartialcall(n *Node, init *Nodes) *Node {
 	// Create closure in the form of a composite literal.
 	// For x.M with receiver (x) type T, the generated code looks like:
 	//
