@@ -116,8 +116,8 @@ import (
 // an anonymous struct field in both current and earlier versions, give the field
 // a JSON tag of "-".
 //
-// Map values encode as JSON objects.
-// The map's key type must be string; the map keys are used as JSON object
+// Map values encode as JSON objects. The map's key type must either be a string
+// or implement encoding.TextMarshaler.  The map keys are used as JSON object
 // keys, subject to the UTF-8 coercion described for string values above.
 //
 // Pointer values encode as the value pointed to.
@@ -611,21 +611,31 @@ func (me *mapEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
 		return
 	}
 	e.WriteByte('{')
-	var sv stringValues = v.MapKeys()
-	sort.Sort(sv)
-	for i, k := range sv {
+
+	// Extract and sort the keys.
+	keys := v.MapKeys()
+	sv := make([]reflectWithString, len(keys))
+	for i, v := range keys {
+		sv[i].v = v
+		if err := sv[i].resolve(); err != nil {
+			e.error(&MarshalerError{v.Type(), err})
+		}
+	}
+	sort.Sort(byString(sv))
+
+	for i, kv := range sv {
 		if i > 0 {
 			e.WriteByte(',')
 		}
-		e.string(k.String())
+		e.string(kv.s)
 		e.WriteByte(':')
-		me.elemEnc(e, v.MapIndex(k), false)
+		me.elemEnc(e, v.MapIndex(kv.v), false)
 	}
 	e.WriteByte('}')
 }
 
 func newMapEncoder(t reflect.Type) encoderFunc {
-	if t.Key().Kind() != reflect.String {
+	if t.Key().Kind() != reflect.String && !t.Key().Implements(textMarshalerType) {
 		return unsupportedTypeEncoder
 	}
 	me := &mapEncoder{typeEncoder(t.Elem())}
@@ -775,14 +785,29 @@ func typeByIndex(t reflect.Type, index []int) reflect.Type {
 	return t
 }
 
-// stringValues is a slice of reflect.Value holding *reflect.StringValue.
-// It implements the methods to sort by string.
-type stringValues []reflect.Value
+type reflectWithString struct {
+	v reflect.Value
+	s string
+}
 
-func (sv stringValues) Len() int           { return len(sv) }
-func (sv stringValues) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
-func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
-func (sv stringValues) get(i int) string   { return sv[i].String() }
+func (w *reflectWithString) resolve() error {
+	if w.v.Kind() == reflect.String {
+		w.s = w.v.String()
+		return nil
+	}
+	buf, err := w.v.Interface().(encoding.TextMarshaler).MarshalText()
+	w.s = string(buf)
+	return err
+}
+
+// byString is a slice of reflectWithString where the reflect.Value is either
+// a string or an encoding.TextMarshaler.
+// It implements the methods to sort by string.
+type byString []reflectWithString
+
+func (sv byString) Len() int           { return len(sv) }
+func (sv byString) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
+func (sv byString) Less(i, j int) bool { return sv[i].s < sv[j].s }
 
 // NOTE: keep in sync with stringBytes below.
 func (e *encodeState) string(s string) int {
