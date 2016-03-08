@@ -212,13 +212,13 @@ func init2(n *Node, out *[]*Node) {
 	}
 }
 
-func init2list(l nodesOrNodeList, out *[]*Node) {
+func init2list(l Nodes, out *[]*Node) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		init2(it.N(), out)
 	}
 }
 
-func initreorder(l nodesOrNodeList, out *[]*Node) {
+func initreorder(l []*Node, out *[]*Node) {
 	var n *Node
 
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
@@ -228,7 +228,7 @@ func initreorder(l nodesOrNodeList, out *[]*Node) {
 			continue
 		}
 
-		initreorder(n.Ninit, out)
+		initreorder(n.Ninit.Slice(), out)
 		setNodeSeq(&n.Ninit, nil)
 		init1(n, out)
 	}
@@ -237,7 +237,7 @@ func initreorder(l nodesOrNodeList, out *[]*Node) {
 // initfix computes initialization order for a list l of top-level
 // declarations and outputs the corresponding list of statements
 // to include in the init() function body.
-func initfix(l nodesOrNodeList) []*Node {
+func initfix(l []*Node) []*Node {
 	var lout []*Node
 	initplans = make(map[*Node]*InitPlan)
 	lno := lineno

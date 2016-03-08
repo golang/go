@@ -110,7 +110,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	return min
 }
 
-func (v *bottomUpVisitor) visitcodelist(l nodesOrNodeList, min uint32) uint32 {
+func (v *bottomUpVisitor) visitcodelist(l Nodes, min uint32) uint32 {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		min = v.visitcode(it.N(), min)
 	}
@@ -300,9 +300,9 @@ func (l Level) guaranteedDereference() int {
 
 type NodeEscState struct {
 	Curfn             *Node
-	Escflowsrc        []*Node   // flow(this, src)
-	Escretval         *NodeList // on OCALLxxx, list of dummy return values
-	Escloopdepth      int32     // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+	Escflowsrc        []*Node // flow(this, src)
+	Escretval         Nodes   // on OCALLxxx, list of dummy return values
+	Escloopdepth      int32   // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
 	Esclevel          Level
 	Walkgen           uint32
 	Maxextraloopdepth int32
@@ -522,7 +522,7 @@ var looping Label
 
 var nonlooping Label
 
-func escloopdepthlist(e *EscState, l nodesOrNodeList) {
+func escloopdepthlist(e *EscState, l Nodes) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		escloopdepth(e, it.N())
 	}
@@ -566,7 +566,7 @@ func escloopdepth(e *EscState, n *Node) {
 	escloopdepthlist(e, n.Rlist)
 }
 
-func esclist(e *EscState, l nodesOrNodeList, up *Node) {
+func esclist(e *EscState, l Nodes, up *Node) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		esc(e, it.N(), up)
 	}
@@ -771,7 +771,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 
 	case ORETURN:
-		ll := nodesOrNodeList(n.List)
+		ll := n.List
 		if nodeSeqLen(n.List) == 1 && Curfn.Type.Outtuple > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n->list->n
@@ -1204,7 +1204,7 @@ func describeEscape(em uint16) string {
 
 // escassignfromtag models the input-to-output assignment flow of one of a function
 // calls arguments, where the flow is encoded in "note".
-func escassignfromtag(e *EscState, note *string, dsts nodesOrNodeList, src *Node) uint16 {
+func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 	em := parsetag(note)
 	if src.Op == OLITERAL {
 		return em
@@ -1320,7 +1320,7 @@ func escNoteOutputParamFlow(e uint16, vargen int32, level Level) uint16 {
 func initEscretval(e *EscState, n *Node, fntype *Type) {
 	i := 0
 	nE := e.nodeEscState(n)
-	setNodeSeq(&nE.Escretval, nil) // Suspect this is not nil for indirect calls.
+	nE.Escretval.Set(nil) // Suspect this is not nil for indirect calls.
 	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
 		src := Nod(ONAME, nil, nil)
 		buf := fmt.Sprintf(".out%d", i)
@@ -1332,7 +1332,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
 		e.nodeEscState(src).Escloopdepth = e.loopdepth
 		src.Used = true
 		src.Lineno = n.Lineno
-		appendNodeSeqNode(&nE.Escretval, src)
+		nE.Escretval.Append(src)
 	}
 }
 
@@ -1368,7 +1368,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		indirect = true
 	}
 
-	ll := nodesOrNodeList(n.List)
+	ll := n.List
 	if nodeSeqLen(n.List) == 1 {
 		a := nodeSeqFirst(n.List)
 		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).

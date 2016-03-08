@@ -237,11 +237,11 @@ func hiter(t *Type) *Type {
 // f is method type, with receiver.
 // return function type, receiver as first argument (or not).
 func methodfunc(f *Type, receiver *Type) *Type {
-	var in *NodeList
+	var in []*Node
 	if receiver != nil {
 		d := Nod(ODCLFIELD, nil, nil)
 		d.Type = receiver
-		in = list(in, d)
+		in = append(in, d)
 	}
 
 	var d *Node
@@ -249,14 +249,14 @@ func methodfunc(f *Type, receiver *Type) *Type {
 		d = Nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		d.Isddd = t.Isddd
-		in = list(in, d)
+		in = append(in, d)
 	}
 
-	var out *NodeList
+	var out []*Node
 	for t := getoutargx(f).Type; t != nil; t = t.Down {
 		d = Nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
-		out = list(out, d)
+		out = append(out, d)
 	}
 
 	t := functype(nil, in, out)
@@ -1249,7 +1249,7 @@ func dumptypestructs() {
 		// The latter is the type of an auto-generated wrapper.
 		dtypesym(Ptrto(errortype))
 
-		dtypesym(functype(nil, list1(Nod(ODCLFIELD, nil, typenod(errortype))), list1(Nod(ODCLFIELD, nil, typenod(Types[TSTRING])))))
+		dtypesym(functype(nil, []*Node{Nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{Nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
 
 		// add paths for runtime and main, which 6l imports implicitly.
 		dimportpath(Runtimepkg)

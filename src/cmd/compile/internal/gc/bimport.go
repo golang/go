@@ -249,8 +249,8 @@ func (p *importer) typ() *Type {
 			}
 			sym := pkg.Lookup(name)
 
-			n := methodname1(newname(sym), recv.N.Right)
-			n.Type = functype(recv.N, params, result)
+			n := methodname1(newname(sym), recv[0].Right)
+			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
 			// addmethod uses the global variable structpkg to verify consistency
 			{
@@ -342,14 +342,14 @@ func (p *importer) qualifiedName() *Sym {
 }
 
 // go.y:hidden_structdcl_list
-func (p *importer) fieldList() *NodeList {
+func (p *importer) fieldList() []*Node {
 	i := p.int()
 	if i == 0 {
 		return nil
 	}
-	n := list1(p.field())
-	for i--; i > 0; i-- {
-		n = list(n, p.field())
+	n := make([]*Node, 0, i)
+	for ; i > 0; i-- {
+		n = append(n, p.field())
 	}
 	return n
 }
@@ -389,14 +389,14 @@ func (p *importer) note() (v Val) {
 }
 
 // go.y:hidden_interfacedcl_list
-func (p *importer) methodList() *NodeList {
+func (p *importer) methodList() []*Node {
 	i := p.int()
 	if i == 0 {
 		return nil
 	}
-	n := list1(p.method())
-	for i--; i > 0; i-- {
-		n = list(n, p.method())
+	n := make([]*Node, 0, i)
+	for ; i > 0; i-- {
+		n = append(n, p.method())
 	}
 	return n
 }
@@ -428,7 +428,7 @@ func (p *importer) fieldName() *Sym {
 }
 
 // go.y:ohidden_funarg_list
-func (p *importer) paramList() *NodeList {
+func (p *importer) paramList() []*Node {
 	i := p.int()
 	if i == 0 {
 		return nil
@@ -440,10 +440,9 @@ func (p *importer) paramList() *NodeList {
 		named = false
 	}
 	// i > 0
-	n := list1(p.param(named))
-	i--
+	n := make([]*Node, 0, i)
 	for ; i > 0; i-- {
-		n = list(n, p.param(named))
+		n = append(n, p.param(named))
 	}
 	return n
 }

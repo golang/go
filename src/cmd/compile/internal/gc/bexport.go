@@ -806,7 +806,7 @@ func (p *exporter) inlinedBody(n *Node) {
 	p.int(index)
 }
 
-func (p *exporter) nodeList(list nodesOrNodeList) {
+func (p *exporter) nodeList(list Nodes) {
 	it := nodeSeqIterate(list)
 	if p.trace {
 		p.tracef("[ ")

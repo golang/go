@@ -87,7 +87,7 @@ func typecheckinl(fn *Node) {
 
 	savefn := Curfn
 	Curfn = fn
-	typechecklist(fn.Func.Inl, Etop)
+	typechecklist(fn.Func.Inl.Slice(), Etop)
 	Curfn = savefn
 
 	safemode = save_safemode
@@ -170,7 +170,7 @@ func caninl(fn *Node) {
 }
 
 // Look for anything we want to punt on.
-func ishairylist(ll nodesOrNodeList, budget *int) bool {
+func ishairylist(ll Nodes, budget *int) bool {
 	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
 		if ishairy(it.N(), budget) {
 			return true
@@ -245,7 +245,7 @@ func ishairy(n *Node, budget *int) bool {
 // Inlcopy and inlcopylist recursively copy the body of a function.
 // Any name-like node of non-local class is marked for re-export by adding it to
 // the exportlist.
-func inlcopylist(ll nodesOrNodeList) []*Node {
+func inlcopylist(ll []*Node) []*Node {
 	s := make([]*Node, 0, nodeSeqLen(ll))
 	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
 		s = append(s, inlcopy(it.N()))
@@ -270,9 +270,9 @@ func inlcopy(n *Node) *Node {
 	}
 	m.Left = inlcopy(n.Left)
 	m.Right = inlcopy(n.Right)
-	setNodeSeq(&m.List, inlcopylist(n.List))
-	setNodeSeq(&m.Rlist, inlcopylist(n.Rlist))
-	setNodeSeq(&m.Ninit, inlcopylist(n.Ninit))
+	setNodeSeq(&m.List, inlcopylist(n.List.Slice()))
+	setNodeSeq(&m.Rlist, inlcopylist(n.Rlist.Slice()))
+	setNodeSeq(&m.Ninit, inlcopylist(n.Ninit.Slice()))
 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
 
 	return m
@@ -324,7 +324,7 @@ func inlconv2list(n *Node) []*Node {
 	return s
 }
 
-func inlnodelist(l nodesOrNodeList) {
+func inlnodelist(l Nodes) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		inlnode(it.P())
 	}
@@ -899,7 +899,7 @@ func newlabel_inl() *Node {
 // pristine ->inl body of the function while substituting references
 // to input/output parameters with ones to the tmpnames, and
 // substituting returns with assignments to the output.
-func inlsubstlist(ll nodesOrNodeList) []*Node {
+func inlsubstlist(ll Nodes) []*Node {
 	s := make([]*Node, 0, nodeSeqLen(ll))
 	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
 		s = append(s, inlsubst(it.N()))
@@ -949,7 +949,7 @@ func inlsubst(n *Node) *Node {
 			appendNodeSeqNode(&m.Ninit, as)
 		}
 
-		typechecklist(m.Ninit, Etop)
+		typechecklist(m.Ninit.Slice(), Etop)
 		typecheck(&m, Etop)
 
 		//		dump("Return after substitution", m);
@@ -984,7 +984,7 @@ func inlsubst(n *Node) *Node {
 }
 
 // Plaster over linenumbers
-func setlnolist(ll nodesOrNodeList, lno int32) {
+func setlnolist(ll Nodes, lno int32) {
 	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
 		setlno(it.N(), lno)
 	}

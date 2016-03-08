@@ -297,7 +297,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		lastconst = cl
 		lasttype = t
 	}
-	clcopy := listtreecopy(cl, lno)
+	clcopy := listtreecopy(nodeSeqSlice(cl), lno)
 
 	var v *Node
 	var c *Node
@@ -437,7 +437,7 @@ func colasname(n *Node) bool {
 	return false
 }
 
-func colasdefn(left nodesOrNodeList, defn *Node) {
+func colasdefn(left Nodes, defn *Node) {
 	for it := nodeSeqIterate(left); !it.Done(); it.Next() {
 		if it.N().Sym != nil {
 			it.N().Sym.Flags |= SymUniq
@@ -828,13 +828,13 @@ func checkdupfields(t *Type, what string) {
 
 // convert a parsed id/type list into
 // a type for struct/interface/arglist
-func tostruct(l nodesOrNodeList) *Type {
+func tostruct(l []*Node) *Type {
 	t := typ(TSTRUCT)
 	tostruct0(t, l)
 	return t
 }
 
-func tostruct0(t *Type, l nodesOrNodeList) {
+func tostruct0(t *Type, l []*Node) {
 	if t == nil || t.Etype != TSTRUCT {
 		Fatalf("struct expected")
 	}
@@ -860,7 +860,7 @@ func tostruct0(t *Type, l nodesOrNodeList) {
 	}
 }
 
-func tofunargs(l nodesOrNodeList) *Type {
+func tofunargs(l []*Node) *Type {
 	var f *Type
 
 	t := typ(TSTRUCT)
@@ -955,13 +955,13 @@ func interfacefield(n *Node) *Type {
 	return f
 }
 
-func tointerface(l nodesOrNodeList) *Type {
+func tointerface(l []*Node) *Type {
 	t := typ(TINTER)
 	tointerface0(t, l)
 	return t
 }
 
-func tointerface0(t *Type, l nodesOrNodeList) *Type {
+func tointerface0(t *Type, l []*Node) *Type {
 	if t == nil || t.Etype != TINTER {
 		Fatalf("interface expected")
 	}
@@ -1155,20 +1155,20 @@ func isifacemethod(f *Type) bool {
 }
 
 // turn a parsed function declaration into a type
-func functype(this *Node, in nodesOrNodeList, out nodesOrNodeList) *Type {
+func functype(this *Node, in, out []*Node) *Type {
 	t := typ(TFUNC)
 	functype0(t, this, in, out)
 	return t
 }
 
-func functype0(t *Type, this *Node, in nodesOrNodeList, out nodesOrNodeList) {
+func functype0(t *Type, this *Node, in, out []*Node) {
 	if t == nil || t.Etype != TFUNC {
 		Fatalf("function type expected")
 	}
 
-	var rcvr *NodeList
+	var rcvr []*Node
 	if this != nil {
-		rcvr = list1(this)
+		rcvr = []*Node{this}
 	}
 	t.Type = tofunargs(rcvr)
 	t.Type.Down = tofunargs(out)
@@ -1538,7 +1538,7 @@ func checknowritebarrierrec() {
 	})
 }
 
-func (c *nowritebarrierrecChecker) visitcodelist(l nodesOrNodeList) {
+func (c *nowritebarrierrecChecker) visitcodelist(l Nodes) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		c.visitcode(it.N())
 	}
