@@ -188,9 +188,16 @@ func TestDialTimeout(t *testing.T) {
 		t.Fatal("DialWithTimeout completed successfully")
 	}
 
-	if !strings.Contains(err.Error(), "timed out") {
-		t.Errorf("resulting error not a timeout: %s", err)
+	if !isTimeoutError(err) {
+		t.Errorf("resulting error not a timeout: %v\nType %T: %#v", err, err, err)
 	}
+}
+
+func isTimeoutError(err error) bool {
+	if ne, ok := err.(net.Error); ok {
+		return ne.Timeout()
+	}
+	return false
 }
 
 // tests that Conn.Read returns (non-zero, io.EOF) instead of
