@@ -356,7 +356,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		}
 	}
 
-	var a int
+	var a obj.As
 	switch n.Op {
 	default:
 		Dump("cgen", n)
@@ -3011,7 +3011,7 @@ func cgen_slice(n, res *Node, wb bool) {
 		regalloc = func(n *Node, t *Type, reuse *Node) {
 			Tempname(n, t)
 		}
-		ginscon = func(as int, c int64, n *Node) {
+		ginscon = func(as obj.As, c int64, n *Node) {
 			var n1 Node
 			Regalloc(&n1, n.Type, n)
 			Thearch.Gmove(n, &n1)
@@ -3019,7 +3019,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			Thearch.Gmove(&n1, n)
 			Regfree(&n1)
 		}
-		gins = func(as int, f, t *Node) *obj.Prog {
+		gins = func(as obj.As, f, t *Node) *obj.Prog {
 			var n1 Node
 			Regalloc(&n1, t.Type, t)
 			Thearch.Gmove(t, &n1)

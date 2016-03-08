@@ -3,7 +3,10 @@
 
 package ssa
 
-import "cmd/internal/obj/x86"
+import (
+	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
+)
 
 const (
 	BlockInvalid BlockKind = iota
@@ -5261,5 +5264,5 @@ var opcodeTable = [...]opInfo{
 	},
 }
 
-func (o Op) Asm() int       { return opcodeTable[o].asm }
+func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
 func (o Op) String() string { return opcodeTable[o].name }

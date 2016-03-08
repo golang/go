@@ -110,7 +110,8 @@ func initproginfo() {
 
 	// Perform one-time expansion of instructions in progtable to
 	// their CC, V, and VCC variants
-	for as := range progtable {
+	for i := range progtable {
+		as := obj.As(i)
 		if progtable[as].Flags == 0 {
 			continue
 		}
@@ -171,7 +172,7 @@ func proginfo(p *obj.Prog) {
 // Instruction variants table. Initially this contains entries only
 // for the "base" form of each instruction. On the first call to
 // as2variant or variant2as, we'll add the variants to the table.
-var varianttable = [ppc64.ALAST][4]int{
+var varianttable = [ppc64.ALAST][4]obj.As{
 	ppc64.AADD:     {ppc64.AADD, ppc64.AADDCC, ppc64.AADDV, ppc64.AADDVCC},
 	ppc64.AADDC:    {ppc64.AADDC, ppc64.AADDCCC, ppc64.AADDCV, ppc64.AADDCVCC},
 	ppc64.AADDE:    {ppc64.AADDE, ppc64.AADDECC, ppc64.AADDEV, ppc64.AADDEVCC},
@@ -261,12 +262,12 @@ func initvariants() {
 	for i := range varianttable {
 		if varianttable[i][0] == 0 {
 			// Instruction has no variants
-			varianttable[i][0] = i
+			varianttable[i][0] = obj.As(i)
 			continue
 		}
 
 		// Copy base form to other variants
-		if varianttable[i][0] == i {
+		if varianttable[i][0] == obj.As(i) {
 			for j := range varianttable[i] {
 				varianttable[varianttable[i][j]] = varianttable[i]
 			}
@@ -275,7 +276,7 @@ func initvariants() {
 }
 
 // as2variant returns the variant (V_*) flags of instruction as.
-func as2variant(as int) int {
+func as2variant(as obj.As) int {
 	for i := range varianttable[as] {
 		if varianttable[as][i] == as {
 			return i
@@ -287,6 +288,6 @@ func as2variant(as int) int {
 
 // variant2as returns the instruction as with the given variant (V_*) flags.
 // If no such variant exists, this returns 0.
-func variant2as(as int, flags int) int {
+func variant2as(as obj.As, flags int) obj.As {
 	return varianttable[as][flags]
 }

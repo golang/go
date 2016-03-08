@@ -691,7 +691,7 @@ type Arch struct {
 	Excise       func(*Flow)
 	Expandchecks func(*obj.Prog)
 	Getg         func(*Node)
-	Gins         func(int, *Node, *Node) *obj.Prog
+	Gins         func(obj.As, *Node, *Node) *obj.Prog
 
 	// Ginscmp generates code comparing n1 to n2 and jumping away if op is satisfied.
 	// The returned prog should be Patch'ed with the jump target.
@@ -711,9 +711,9 @@ type Arch struct {
 	// corresponding to the desired value.
 	// The second argument is the destination.
 	// If not present, Ginsboolval will be emulated with jumps.
-	Ginsboolval func(int, *Node)
+	Ginsboolval func(obj.As, *Node)
 
-	Ginscon      func(int, int64, *Node)
+	Ginscon      func(obj.As, int64, *Node)
 	Ginsnop      func()
 	Gmove        func(*Node, *Node)
 	Igenindex    func(*Node, *Node, bool) *obj.Prog
@@ -725,14 +725,14 @@ type Arch struct {
 	Smallindir   func(*obj.Addr, *obj.Addr) bool
 	Stackaddr    func(*obj.Addr) bool
 	Blockcopy    func(*Node, *Node, int64, int64, int64)
-	Sudoaddable  func(int, *Node, *obj.Addr) bool
+	Sudoaddable  func(obj.As, *Node, *obj.Addr) bool
 	Sudoclean    func()
 	Excludedregs func() uint64
 	RtoB         func(int) uint64
 	FtoB         func(int) uint64
 	BtoR         func(uint64) int
 	BtoF         func(uint64) int
-	Optoas       func(Op, *Type) int
+	Optoas       func(Op, *Type) obj.As
 	Doregbits    func(int) uint64
 	Regnames     func(*int) []string
 	Use387       bool // should 8g use 387 FP instructions instead of sse2.

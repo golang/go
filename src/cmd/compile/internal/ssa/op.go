@@ -4,7 +4,10 @@
 
 package ssa
 
-import "fmt"
+import (
+	"cmd/internal/obj"
+	"fmt"
+)
 
 // An Op encodes the specific operation that a Value performs.
 // Opcodes' semantics can be modified by the type and aux fields of the Value.
@@ -16,13 +19,13 @@ type Op int32
 
 type opInfo struct {
 	name              string
-	asm               int
 	reg               regInfo
 	auxType           auxType
 	argLen            int32 // the number of arugments, -1 if variable length
-	generic           bool  // this is a generic (arch-independent) opcode
-	rematerializeable bool  // this op is rematerializeable
-	commutative       bool  // this operation is commutative (e.g. addition)
+	asm               obj.As
+	generic           bool // this is a generic (arch-independent) opcode
+	rematerializeable bool // this op is rematerializeable
+	commutative       bool // this operation is commutative (e.g. addition)
 }
 
 type inputInfo struct {

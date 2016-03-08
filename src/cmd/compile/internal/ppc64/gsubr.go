@@ -62,7 +62,7 @@ var resvd = []int{
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
@@ -86,7 +86,7 @@ func ginscon(as int, c int64, n2 *gc.Node) {
  * generate
  *	as n, $c (CMP/CMPU)
  */
-func ginscon2(as int, n2 *gc.Node, c int64) {
+func ginscon2(as obj.As, n2 *gc.Node, c int64) {
 	var n1 gc.Node
 
 	gc.Nodconst(&n1, gc.Types[gc.TINT64], c)
@@ -190,7 +190,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// cannot have two memory operands
 	var r2 gc.Node
 	var r1 gc.Node
-	var a int
+	var a obj.As
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -548,7 +548,7 @@ hard:
 // gins is called by the front end.
 // It synthesizes some multiple-instruction sequences
 // so the front end can stay simpler.
-func gins(as int, f, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f, t *gc.Node) *obj.Prog {
 	if as >= obj.A_ARCHSPECIFIC {
 		if x, ok := f.IntLiteral(); ok {
 			ginscon(as, x, t)
@@ -568,7 +568,7 @@ func gins(as int, f, t *gc.Node) *obj.Prog {
  * generate one instruction:
  *	as f, t
  */
-func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func rawgins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	// TODO(austin): Add self-move test like in 6g (but be careful
 	// of truncation moves)
 
@@ -680,7 +680,7 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -708,7 +708,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 		OHMUL_  = uint32(gc.OHMUL) << 16
 	)
 
-	a := int(obj.AXXX)
+	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
 		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(op, 0), t)
@@ -1059,7 +1059,7 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	// TODO(minux)
 
 	*a = obj.Addr{}

@@ -166,10 +166,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32, x0 *uin
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
 	q.From.Type = ftype
 	q.From.Reg = int16(freg)
@@ -747,7 +747,7 @@ func expandchecks(firstp *obj.Prog) {
 		p2.Lineno = p.Lineno
 		p1.Pc = 9999
 		p2.Pc = 9999
-		p.As = int16(cmpptr)
+		p.As = cmpptr
 		p.To.Type = obj.TYPE_CONST
 		p.To.Offset = 0
 		p1.As = x86.AJNE

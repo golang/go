@@ -52,7 +52,7 @@ var resvd = []int{
  * generate
  *	as $c, reg
  */
-func gconreg(as int, c int64, reg int) {
+func gconreg(as obj.As, c int64, reg int) {
 	var nr gc.Node
 
 	switch as {
@@ -72,7 +72,7 @@ func gconreg(as int, c int64, reg int) {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 
 	switch as {
@@ -144,7 +144,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
 	return gc.Gbranch(optoas(op, t), nil, likely)
 }
 
-func ginsboolval(a int, n *gc.Node) {
+func ginsboolval(a obj.As, n *gc.Node) {
 	gins(jmptoset(a), nil, n)
 }
 
@@ -191,7 +191,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	}
 
 	// cannot have two memory operands
-	var a int
+	var a obj.As
 	if gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -583,7 +583,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  * generate one instruction:
  *	as f, t
  */
-func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	//	Node nod;
 
 	//	if(f != N && f->op == OINDEX) {
@@ -681,7 +681,7 @@ func ginsnop() {
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -1229,7 +1229,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 }
 
 // jmptoset returns ASETxx for AJxx.
-func jmptoset(jmp int) int {
+func jmptoset(jmp obj.As) obj.As {
 	switch jmp {
 	case x86.AJEQ:
 		return x86.ASETEQ
@@ -1298,7 +1298,7 @@ func sudoclean() {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	if n.Type == nil {
 		return false
 	}

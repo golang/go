@@ -85,7 +85,7 @@ func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
 // that its argument is certainly dead, for use when the liveness analysis
 // would not otherwise be able to deduce that fact.
 
-func gvardefx(n *Node, as int) {
+func gvardefx(n *Node, as obj.As) {
 	if n == nil {
 		Fatalf("gvardef nil")
 	}

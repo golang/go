@@ -444,12 +444,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 
 	autosize := int32(0)
 	var aoffset int
-	var mov int
-	var o int
+	var mov obj.As
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
-		o = int(p.As)
+		o := p.As
 		switch o {
 		case obj.ATEXT:
 			mov = AMOVD
@@ -548,7 +547,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 			q.To.Reg = REGTMP
 
 			q = obj.Appendp(ctxt, q)
-			q.As = int16(mov)
+			q.As = mov
 			q.Lineno = p.Lineno
 			q.From.Type = obj.TYPE_REG
 			q.From.Reg = REGTMP
@@ -1025,7 +1024,7 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 	s.Text = firstp.Link
 }
 
-func relinv(a int) int {
+func relinv(a obj.As) obj.As {
 	switch a {
 	case ABEQ:
 		return ABNE
@@ -1054,15 +1053,14 @@ func relinv(a int) int {
 func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
 	var q *obj.Prog
 	var r *obj.Prog
-	var a int
-	var b int
+	var b obj.As
 	var i int
 
 loop:
 	if p == nil {
 		return
 	}
-	a = int(p.As)
+	a := p.As
 	if a == ABR {
 		q = p.Pcond
 		if (p.Mark&NOSCHED != 0) || q != nil && (q.Mark&NOSCHED != 0) {
@@ -1095,7 +1093,7 @@ loop:
 				break
 			}
 			b = 0 /* set */
-			a = int(q.As)
+			a = q.As
 			if a == obj.ANOP {
 				i--
 				continue
@@ -1132,7 +1130,7 @@ loop:
 				if a == ABR || a == obj.ARET || a == ARFI || a == ARFCI || a == ARFID || a == AHRFID {
 					return
 				}
-				r.As = int16(b)
+				r.As = b
 				r.Pcond = p.Link
 				r.Link = p.Pcond
 				if r.Link.Mark&FOLL == 0 {
@@ -1147,7 +1145,7 @@ loop:
 
 		a = ABR
 		q = ctxt.NewProg()
-		q.As = int16(a)
+		q.As = a
 		q.Lineno = p.Lineno
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc
