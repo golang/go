@@ -3371,8 +3371,7 @@ func typecheckas2(n *Node) {
 				goto mismatch
 			}
 			n.Op = OAS2FUNC
-			var s Iter
-			t := Structfirst(&s, &r.Type)
+			t, s := IterFields(r.Type)
 			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
 				if t.Type != nil && it.N().Type != nil {
 					checkassignto(t.Type, it.N())
@@ -3380,7 +3379,7 @@ func typecheckas2(n *Node) {
 				if it.N().Name != nil && it.N().Name.Defn == n && it.N().Name.Param.Ntype == nil {
 					it.N().Type = t.Type
 				}
-				t = structnext(&s)
+				t = s.Next()
 			}
 
 			goto out

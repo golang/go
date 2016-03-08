@@ -1706,12 +1706,11 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 	var l *Node
 	var tmp *Node
 	var a *Node
-	var saver Iter
 
 	// check assign type list to
 	// a expression list. called in
 	//	expr-list = func()
-	r := Structfirst(&saver, nr)
+	r, saver := IterFields(*nr)
 
 	var nn []*Node
 	var mm []*Node
@@ -1723,7 +1722,7 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 		}
 		l = it.N()
 		if isblank(l) {
-			r = structnext(&saver)
+			r = saver.Next()
 			continue
 		}
 
@@ -1748,7 +1747,7 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 		}
 
 		nn = append(nn, a)
-		r = structnext(&saver)
+		r = saver.Next()
 	}
 
 	if !it.Done() || r != nil {
@@ -1797,12 +1796,10 @@ func mkdotargslice(lr0, nn []*Node, l *Type, fp int, init *Nodes, ddd *Node) []*
 
 // helpers for shape errors
 func dumptypes(nl **Type, what string) string {
-	var savel Iter
-
 	fmt_ := ""
 	fmt_ += "\t"
 	first := 1
-	for l := Structfirst(&savel, nl); l != nil; l = structnext(&savel) {
+	for l, it := IterFields(*nl); l != nil; l = it.Next() {
 		if first != 0 {
 			first = 0
 		} else {
@@ -1844,10 +1841,8 @@ func dumpnodetypes(l []*Node, what string) string {
 //	return expr-list
 //	func(expr-list)
 func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, init *Nodes) []*Node {
-	var savel Iter
-
 	lr0 := lr
-	l := Structfirst(&savel, nl)
+	l, savel := IterFields(*nl)
 	var r *Node
 	if nodeSeqLen(lr) > 0 {
 		r = nodeSeqFirst(lr)
@@ -1873,7 +1868,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, in
 		// copy into temporaries.
 		var alist []*Node
 
-		for l := Structfirst(&savel, &r.Type); l != nil; l = structnext(&savel) {
+		for l, it := IterFields(r.Type); l != nil; l = it.Next() {
 			a = temp(l.Type)
 			alist = append(alist, a)
 		}
@@ -1886,13 +1881,13 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, in
 		init.Append(a)
 		lr = alist
 		r = nodeSeqFirst(lr)
-		l = Structfirst(&savel, nl)
+		l, savel = IterFields(*nl)
 	}
 
 loop:
 	if l != nil && l.Isddd {
 		// the ddd parameter must be last
-		ll = structnext(&savel)
+		ll = savel.Next()
 
 		if ll != nil {
 			Yyerror("... must be last argument")
@@ -1935,7 +1930,7 @@ loop:
 	a = convas(a, init)
 	nn = append(nn, a)
 
-	l = structnext(&savel)
+	l = savel.Next()
 	r = nil
 	lr = lr[1:]
 	if len(lr) > 0 {
@@ -2036,7 +2031,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			continue
 		}
 
-		t = *getinarg(on.Type)
+		t = getinargx(on.Type)
 		if t != nil {
 			t = t.Type
 		}
@@ -2590,12 +2585,11 @@ func vmatch1(l *Node, r *Node) bool {
 // generate and return code to allocate
 // copies of escaped parameters to the heap.
 func paramstoheap(argin **Type, out int) []*Node {
-	var savet Iter
 	var v *Node
 	var as *Node
 
 	var nn []*Node
-	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
+	for t, it := IterFields(*argin); t != nil; t = it.Next() {
 		v = t.Nname
 		if v != nil && v.Sym != nil && v.Sym.Name[0] == '~' && v.Sym.Name[1] == 'r' { // unnamed result
 			v = nil
@@ -2636,11 +2630,10 @@ func paramstoheap(argin **Type, out int) []*Node {
 
 // walk through argout parameters copying back to stack
 func returnsfromheap(argin **Type) []*Node {
-	var savet Iter
 	var v *Node
 
 	var nn []*Node
-	for t := Structfirst(&savet, argin); t != nil; t = structnext(&savet) {
+	for t, it := IterFields(*argin); t != nil; t = it.Next() {
 		v = t.Nname
 		if v == nil || v.Class != PHEAP|PPARAMOUT {
 			continue
