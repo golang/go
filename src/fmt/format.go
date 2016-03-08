@@ -394,14 +394,30 @@ func (f *fmt) fmt_q(s string) {
 	}
 }
 
-// fmt_qc formats the integer as a single-quoted, escaped Go character constant.
+// fmt_c formats an integer as a Unicode character.
 // If the character is not valid Unicode, it will print '\ufffd'.
-func (f *fmt) fmt_qc(c int64) {
+func (f *fmt) fmt_c(c uint64) {
+	r := rune(c)
+	if c > utf8.MaxRune {
+		r = utf8.RuneError
+	}
+	buf := f.intbuf[:0]
+	w := utf8.EncodeRune(buf[:utf8.UTFMax], r)
+	f.pad(buf[:w])
+}
+
+// fmt_qc formats an integer as a single-quoted, escaped Go character constant.
+// If the character is not valid Unicode, it will print '\ufffd'.
+func (f *fmt) fmt_qc(c uint64) {
+	r := rune(c)
+	if c > utf8.MaxRune {
+		r = utf8.RuneError
+	}
 	buf := f.intbuf[:0]
 	if f.plus {
-		f.pad(strconv.AppendQuoteRuneToASCII(buf, rune(c)))
+		f.pad(strconv.AppendQuoteRuneToASCII(buf, r))
 	} else {
-		f.pad(strconv.AppendQuoteRune(buf, rune(c)))
+		f.pad(strconv.AppendQuoteRune(buf, r))
 	}
 }
 
