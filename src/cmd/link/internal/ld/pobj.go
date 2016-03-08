@@ -186,16 +186,9 @@ func Ldmain() {
 	}
 	loadlib()
 
-	if Thearch.Thechar == '5' {
-		// mark some functions that are only referenced after linker code editing
-		if Ctxt.Goarm == 5 {
-			mark(Linkrlookup(Ctxt, "_sfloat", 0))
-		}
-		mark(Linklookup(Ctxt, "runtime.read_tls_fallback", 0))
-	}
-
 	checkstrdata()
-	deadcode()
+	deadcode(Ctxt)
+	fieldtrack(Ctxt)
 	callgraph()
 
 	doelf()
