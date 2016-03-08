@@ -6,16 +6,20 @@
 
 package crc32
 
-// The file contains the generic version of updateCastagnoli which just calls
-// the software implementation.
+// This file contains the generic version of updateCastagnoli which does
+// slicing-by-8, or uses the fallback for very small sizes.
 
 func updateCastagnoli(crc uint32, p []byte) uint32 {
+	// Use slicing-by-8 on larger inputs.
+	if len(p) >= sliceBy8Cutoff {
+		return updateSlicingBy8(crc, castagnoliTable8, p)
+	}
 	return update(crc, castagnoliTable, p)
 }
 
 func updateIEEE(crc uint32, p []byte) uint32 {
-	// only use slicing-by-8 when input is >= 4KB
-	if len(p) >= 4096 {
+	// Use slicing-by-8 on larger inputs.
+	if len(p) >= sliceBy8Cutoff {
 		ieeeTable8Once.Do(func() {
 			ieeeTable8 = makeTable8(IEEE)
 		})
