@@ -43,7 +43,7 @@ func current() (*User, error) {
 	if u.Uid != "" && u.Username != "" && u.HomeDir != "" {
 		return u, nil
 	}
-	return nil, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
 func lookupUser(username string) (*User, error) {
