@@ -684,7 +684,7 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	label.Name.Defn = ls
 	l := []*Node{label}
 	if ls != nil {
-		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
+		if ls.Op == OBLOCK && ls.Ninit.Len() == 0 {
 			l = append(l, ls.List.Slice()...)
 		} else {
 			l = append(l, ls)
@@ -726,7 +726,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 					// type switch - declare variable
 					nn := newname(n.Sym)
 					declare(nn, dclcontext)
-					setNodeSeq(&stmt.Rlist, []*Node{nn})
+					stmt.Rlist.Set([]*Node{nn})
 
 					// keep track of the instances for reporting unused
 					nn.Name.Defn = tswitch
@@ -752,9 +752,9 @@ func (p *parser) case_(tswitch *Node) *Node {
 			} else {
 				n = Nod(OAS2, nil, nil)
 				setNodeSeq(&n.List, cases)
-				setNodeSeq(&n.Rlist, []*Node{rhs})
+				n.Rlist.Set([]*Node{rhs})
 			}
-			setNodeSeq(&stmt.List, []*Node{n})
+			stmt.List.Set([]*Node{n})
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -770,7 +770,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			setNodeSeq(&stmt.List, []*Node{colas(cases, list1(rhs), lno)})
+			stmt.List.Set([]*Node{colas(cases, list1(rhs), lno)})
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -794,7 +794,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 				// type switch - declare variable
 				nn := newname(n.Sym)
 				declare(nn, dclcontext)
-				setNodeSeq(&stmt.Rlist, []*Node{nn})
+				stmt.Rlist.Set([]*Node{nn})
 
 				// keep track of the instances for reporting unused
 				nn.Name.Defn = tswitch
@@ -918,7 +918,7 @@ func (p *parser) for_header() *Node {
 		}
 		h := Nod(OFOR, nil, nil)
 		if init != nil {
-			setNodeSeq(&h.Ninit, []*Node{init})
+			h.Ninit.Set([]*Node{init})
 		}
 		h.Left = cond
 		h.Right = post
@@ -1022,7 +1022,7 @@ func (p *parser) if_header() *Node {
 	init, cond, _ := p.header(false)
 	h := Nod(OIF, nil, nil)
 	if init != nil {
-		setNodeSeq(&h.Ninit, []*Node{init})
+		h.Ninit.Set([]*Node{init})
 	}
 	h.Left = cond
 	return h
@@ -1047,13 +1047,13 @@ func (p *parser) if_stmt() *Node {
 
 	if p.got(LELSE) {
 		if p.tok == LIF {
-			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
+			stmt.Rlist.Set([]*Node{p.if_stmt()})
 		} else {
 			cs := p.compound_stmt(true)
-			if cs.Op == OBLOCK && nodeSeqLen(cs.Ninit) == 0 {
-				setNodeSeq(&stmt.Rlist, cs.List)
+			if cs.Op == OBLOCK && cs.Ninit.Len() == 0 {
+				stmt.Rlist.Set(cs.List.Slice())
 			} else {
-				setNodeSeq(&stmt.Rlist, []*Node{cs})
+				stmt.Rlist.Set([]*Node{cs})
 			}
 		}
 	}
@@ -1553,7 +1553,7 @@ func (p *parser) complitexpr() *Node {
 	p.xnest--
 	p.want('}')
 
-	setNodeSeq(&n.List, l)
+	n.List.Set(l)
 	return n
 }
 
@@ -1842,7 +1842,7 @@ func (p *parser) interfacetype() *Node {
 	p.want('}')
 
 	t := Nod(OTINTER, nil, nil)
-	setNodeSeq(&t.List, l)
+	t.List.Set(l)
 	return t
 }
 
@@ -2514,7 +2514,7 @@ func (p *parser) stmt() *Node {
 
 		stmt := Nod(ORETURN, nil, nil)
 		setNodeSeq(&stmt.List, results)
-		if nodeSeqLen(stmt.List) == 0 && Curfn != nil {
+		if stmt.List.Len() == 0 && Curfn != nil {
 			for _, ln := range Curfn.Func.Dcl {
 				if ln.Class == PPARAM {
 					continue
@@ -2549,7 +2549,7 @@ func (p *parser) stmt_list() (l *NodeList) {
 		if s == missing_stmt {
 			break
 		}
-		if s != nil && s.Op == OBLOCK && nodeSeqLen(s.Ninit) == 0 {
+		if s != nil && s.Op == OBLOCK && s.Ninit.Len() == 0 {
 			appendNodeSeq(&l, s.List)
 		} else {
 			appendNodeSeqNode(&l, s)

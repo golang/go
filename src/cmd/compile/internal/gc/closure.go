@@ -26,30 +26,29 @@ func closurehdr(ntype *Node) {
 	// references to these variables need to
 	// refer to the variables in the external
 	// function declared below; see walkclosure.
-	setNodeSeq(&n.List, ntype.List)
+	n.List.Set(ntype.List.Slice())
 
-	setNodeSeq(&n.Rlist, ntype.Rlist)
-	setNodeSeq(&ntype.List, nil)
-	setNodeSeq(&ntype.Rlist, nil)
-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-		name = it.N().Left
+	n.Rlist.Set(ntype.Rlist.Slice())
+	ntype.List.Set(nil)
+	ntype.Rlist.Set(nil)
+	for _, n1 := range n.List.Slice() {
+		name = n1.Left
 		if name != nil {
 			name = newname(name.Sym)
 		}
-		a = Nod(ODCLFIELD, name, it.N().Right)
-		a.Isddd = it.N().Isddd
+		a = Nod(ODCLFIELD, name, n1.Right)
+		a.Isddd = n1.Isddd
 		if name != nil {
 			name.Isddd = a.Isddd
 		}
-		appendNodeSeqNode(&ntype.List, a)
+		ntype.List.Append(a)
 	}
-
-	for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
-		name = it.N().Left
+	for _, n2 := range n.Rlist.Slice() {
+		name = n2.Left
 		if name != nil {
 			name = newname(name.Sym)
 		}
-		appendNodeSeqNode(&ntype.Rlist, Nod(ODCLFIELD, name, it.N().Right))
+		ntype.Rlist.Append(Nod(ODCLFIELD, name, n2.Right))
 	}
 }
 
@@ -177,8 +176,8 @@ func makeclosure(func_ *Node) *Node {
 	// that begins by reading closure parameters.
 	xtype := Nod(OTFUNC, nil, nil)
 
-	setNodeSeq(&xtype.List, func_.List)
-	setNodeSeq(&xtype.Rlist, func_.Rlist)
+	xtype.List.Set(func_.List.Slice())
+	xtype.Rlist.Set(func_.Rlist.Slice())
 
 	// create the function
 	xfunc := Nod(ODCLFUNC, nil, nil)
@@ -205,8 +204,8 @@ func makeclosure(func_ *Node) *Node {
 	func_.Func.Closure = xfunc
 
 	func_.Nbody.Set(nil)
-	setNodeSeq(&func_.List, nil)
-	setNodeSeq(&func_.Rlist, nil)
+	func_.List.Set(nil)
+	func_.Rlist.Set(nil)
 
 	return xfunc
 }
@@ -426,7 +425,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 
 	typ := Nod(OTSTRUCT, nil, nil)
 
-	setNodeSeq(&typ.List, []*Node{Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR]))})
+	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR]))})
 	var typ1 *Node
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
@@ -436,13 +435,13 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 		if !v.Name.Byval {
 			typ1 = Nod(OIND, typ1, nil)
 		}
-		appendNodeSeqNode(&typ.List, Nod(ODCLFIELD, newname(v.Sym), typ1))
+		typ.List.Append(Nod(ODCLFIELD, newname(v.Sym), typ1))
 	}
 
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = func_.Esc
 	clos.Right.Implicit = true
-	setNodeSeq(&clos.List, append([]*Node{Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)}, func_.Func.Enter.Slice()...))
+	clos.List.Set(append([]*Node{Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)}, func_.Func.Enter.Slice()...))
 
 	// Force type conversion from *struct to the func type.
 	clos = Nod(OCONVNOP, clos, nil)
@@ -550,7 +549,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		l = append(l, fld)
 	}
 
-	setNodeSeq(&xtype.List, l)
+	xtype.List.Set(l)
 	i = 0
 	l = nil
 	var retargs []*Node
@@ -563,7 +562,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		l = append(l, Nod(ODCLFIELD, n, typenod(t.Type)))
 	}
 
-	setNodeSeq(&xtype.Rlist, l)
+	xtype.Rlist.Set(l)
 
 	xfunc.Func.Dupok = true
 	xfunc.Func.Nname = newfuncname(sym)
@@ -600,14 +599,14 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	}
 
 	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
-	setNodeSeq(&call.List, callargs)
+	call.List.Set(callargs)
 	call.Isddd = ddd
 	if t0.Outtuple == 0 {
 		body = append(body, call)
 	} else {
 		n := Nod(OAS2, nil, nil)
-		setNodeSeq(&n.List, retargs)
-		setNodeSeq(&n.Rlist, []*Node{call})
+		n.List.Set(retargs)
+		n.Rlist.Set([]*Node{call})
 		body = append(body, n)
 		n = Nod(ORETURN, nil, nil)
 		body = append(body, n)
@@ -640,14 +639,14 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	}
 
 	typ := Nod(OTSTRUCT, nil, nil)
-	setNodeSeq(&typ.List, []*Node{Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR]))})
-	appendNodeSeqNode(&typ.List, Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
+	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR]))})
+	typ.List.Append(Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
 
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = n.Esc
 	clos.Right.Implicit = true
-	setNodeSeq(&clos.List, []*Node{Nod(OCFUNC, n.Func.Nname, nil)})
-	appendNodeSeqNode(&clos.List, n.Left)
+	clos.List.Set([]*Node{Nod(OCFUNC, n.Func.Nname, nil)})
+	clos.List.Append(n.Left)
 
 	// Force type conversion from *struct to the func type.
 	clos = Nod(OCONVNOP, clos, nil)

@@ -171,8 +171,8 @@ func caninl(fn *Node) {
 
 // Look for anything we want to punt on.
 func ishairylist(ll Nodes, budget *int) bool {
-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
-		if ishairy(it.N(), budget) {
+	for _, n := range ll.Slice() {
+		if ishairy(n, budget) {
 			return true
 		}
 	}
@@ -247,8 +247,8 @@ func ishairy(n *Node, budget *int) bool {
 // the exportlist.
 func inlcopylist(ll []*Node) []*Node {
 	s := make([]*Node, 0, nodeSeqLen(ll))
-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
-		s = append(s, inlcopy(it.N()))
+	for _, n := range ll {
+		s = append(s, inlcopy(n))
 	}
 	return s
 }
@@ -270,9 +270,9 @@ func inlcopy(n *Node) *Node {
 	}
 	m.Left = inlcopy(n.Left)
 	m.Right = inlcopy(n.Right)
-	setNodeSeq(&m.List, inlcopylist(n.List.Slice()))
-	setNodeSeq(&m.Rlist, inlcopylist(n.Rlist.Slice()))
-	setNodeSeq(&m.Ninit, inlcopylist(n.Ninit.Slice()))
+	m.List.Set(inlcopylist(n.List.Slice()))
+	m.Rlist.Set(inlcopylist(n.Rlist.Slice()))
+	m.Ninit.Set(inlcopylist(n.Ninit.Slice()))
 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
 
 	return m
@@ -295,17 +295,17 @@ func inlconv2stmt(n *Node) {
 	n.Op = OBLOCK
 
 	// n->ninit stays
-	setNodeSeq(&n.List, n.Nbody)
+	n.List.Set(n.Nbody.Slice())
 
 	n.Nbody.Set(nil)
-	setNodeSeq(&n.Rlist, nil)
+	n.Rlist.Set(nil)
 }
 
 // Turn an OINLCALL into a single valued expression.
 func inlconv2expr(np **Node) {
 	n := *np
-	r := nodeSeqFirst(n.Rlist)
-	addinit(&r, append(nodeSeqSlice(n.Ninit), n.Nbody.Slice()...))
+	r := n.Rlist.First()
+	addinit(&r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
 	*np = r
 }
 
@@ -315,18 +315,18 @@ func inlconv2expr(np **Node) {
 // order will be preserved Used in return, oas2func and call
 // statements.
 func inlconv2list(n *Node) []*Node {
-	if n.Op != OINLCALL || nodeSeqLen(n.Rlist) == 0 {
+	if n.Op != OINLCALL || n.Rlist.Len() == 0 {
 		Fatalf("inlconv2list %v\n", Nconv(n, obj.FmtSign))
 	}
 
-	s := nodeSeqSlice(n.Rlist)
-	addinit(&s[0], append(nodeSeqSlice(n.Ninit), n.Nbody.Slice()...))
+	s := n.Rlist.Slice()
+	addinit(&s[0], append(n.Ninit.Slice(), n.Nbody.Slice()...))
 	return s
 }
 
 func inlnodelist(l Nodes) {
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
-		inlnode(it.P())
+	for i := range l.Slice() {
+		inlnode(&l.Slice()[i])
 	}
 }
 
@@ -367,9 +367,9 @@ func inlnode(np **Node) {
 	lno := setlineno(n)
 
 	inlnodelist(n.Ninit)
-	for it := nodeSeqIterate(n.Ninit); !it.Done(); it.Next() {
-		if it.N().Op == OINLCALL {
-			inlconv2stmt(it.N())
+	for _, n1 := range n.Ninit.Slice() {
+		if n1.Op == OINLCALL {
+			inlconv2stmt(n1)
 		}
 	}
 
@@ -390,9 +390,9 @@ func inlnode(np **Node) {
 	inlnodelist(n.List)
 	switch n.Op {
 	case OBLOCK:
-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-			if it.N().Op == OINLCALL {
-				inlconv2stmt(it.N())
+		for _, n2 := range n.List.Slice() {
+			if n2.Op == OINLCALL {
+				inlconv2stmt(n2)
 			}
 		}
 
@@ -404,16 +404,16 @@ func inlnode(np **Node) {
 		OCALLINTER,
 		OAPPEND,
 		OCOMPLEX:
-		if nodeSeqLen(n.List) == 1 && nodeSeqFirst(n.List).Op == OINLCALL && nodeSeqLen(nodeSeqFirst(n.List).Rlist) > 1 {
-			setNodeSeq(&n.List, inlconv2list(nodeSeqFirst(n.List)))
+		if n.List.Len() == 1 && n.List.First().Op == OINLCALL && n.List.First().Rlist.Len() > 1 {
+			n.List.Set(inlconv2list(n.List.First()))
 			break
 		}
 		fallthrough
 
 	default:
-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-			if it.N().Op == OINLCALL {
-				inlconv2expr(it.P())
+		for i3, n3 := range n.List.Slice() {
+			if n3.Op == OINLCALL {
+				inlconv2expr(&n.List.Slice()[i3])
 			}
 		}
 	}
@@ -421,8 +421,8 @@ func inlnode(np **Node) {
 	inlnodelist(n.Rlist)
 	switch n.Op {
 	case OAS2FUNC:
-		if nodeSeqFirst(n.Rlist).Op == OINLCALL {
-			setNodeSeq(&n.Rlist, inlconv2list(nodeSeqFirst(n.Rlist)))
+		if n.Rlist.First().Op == OINLCALL {
+			n.Rlist.Set(inlconv2list(n.Rlist.First()))
 			n.Op = OAS2
 			n.Typecheck = 0
 			typecheck(np, Etop)
@@ -431,12 +431,12 @@ func inlnode(np **Node) {
 		fallthrough
 
 	default:
-		for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
-			if it.N().Op == OINLCALL {
+		for i4, n4 := range n.Rlist.Slice() {
+			if n4.Op == OINLCALL {
 				if n.Op == OIF {
-					inlconv2stmt(it.N())
+					inlconv2stmt(n4)
 				} else {
-					inlconv2expr(it.P())
+					inlconv2expr(&n.Rlist.Slice()[i4])
 				}
 			}
 		}
@@ -585,7 +585,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			typecheck(&ln.Name.Inlvar, Erv)
 
 			if ln.Class&^PHEAP != PAUTO {
-				appendNodeSeqNode(&ninit, Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
 			}
 		}
 	}
@@ -603,7 +603,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			i++
 		}
 
-		appendNodeSeqNode(&ninit, Nod(ODCL, m, nil))
+		ninit.Append(Nod(ODCL, m, nil))
 		inlretvars = list(inlretvars, m)
 	}
 
@@ -625,7 +625,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		as = Nod(OAS, tinlvar(t), n.Left.Left)
 		if as != nil {
 			typecheck(&as, Etop)
-			appendNodeSeqNode(&ninit, as)
+			ninit.Append(as)
 		}
 	}
 
@@ -649,17 +649,17 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	// check if argument is actually a returned tuple from call.
 	multiret := 0
 
-	if nodeSeqLen(n.List) == 1 {
-		switch nodeSeqFirst(n.List).Op {
+	if n.List.Len() == 1 {
+		switch n.List.First().Op {
 		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
-			if nodeSeqFirst(n.List).Left.Type.Outtuple > 1 {
-				multiret = nodeSeqFirst(n.List).Left.Type.Outtuple - 1
+			if n.List.First().Left.Type.Outtuple > 1 {
+				multiret = n.List.First().Left.Type.Outtuple - 1
 			}
 		}
 	}
 
 	if variadic {
-		varargcount = nodeSeqLen(n.List) + multiret
+		varargcount = n.List.Len() + multiret
 		if n.Left.Op != ODOTMETH {
 			varargcount -= fn.Type.Thistuple
 		}
@@ -669,13 +669,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	// assign arguments to the parameters' temp names
 	as = Nod(OAS2, nil, nil)
 
-	setNodeSeq(&as.Rlist, n.List)
+	as.Rlist.Set(n.List.Slice())
 	it := nodeSeqIterate(n.List)
 
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
 		// non-method call to method
-		if nodeSeqLen(n.List) == 0 {
+		if n.List.Len() == 0 {
 			Fatalf("non-method call to method without first arg: %v", Nconv(n, obj.FmtSign))
 		}
 
@@ -688,12 +688,12 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		if t == nil {
 			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
 		}
-		appendNodeSeqNode(&as.List, tinlvar(t))
+		as.List.Append(tinlvar(t))
 		it.Next() // track argument count.
 	}
 
 	// append ordinary arguments to LHS.
-	chkargcount := nodeSeqLen(n.List) > 1
+	chkargcount := n.List.Len() > 1
 
 	var vararg *Node    // the slice argument to a variadic call
 	var varargs []*Node // the list of LHS names to put in vararg.
@@ -706,13 +706,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 				for i = 0; i < varargcount && it.Len() != 0; i++ {
 					m = argvar(varargtype, i)
 					varargs = append(varargs, m)
-					appendNodeSeqNode(&as.List, m)
+					as.List.Append(m)
 				}
 
 				break
 			}
 
-			appendNodeSeqNode(&as.List, tinlvar(t))
+			as.List.Append(tinlvar(t))
 		}
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
@@ -724,7 +724,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			if variadic && t.Isddd {
 				break
 			}
-			appendNodeSeqNode(&as.List, tinlvar(t))
+			as.List.Append(tinlvar(t))
 			t = t.Down
 			it.Next()
 		}
@@ -736,7 +736,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			for i = 0; i < varargcount && !it.Done(); i++ {
 				m = argvar(varargtype, i)
 				varargs = append(varargs, m)
-				appendNodeSeqNode(&as.List, m)
+				as.List.Append(m)
 				it.Next()
 			}
 
@@ -750,9 +750,9 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 	}
 
-	if nodeSeqLen(as.Rlist) != 0 {
+	if as.Rlist.Len() != 0 {
 		typecheck(&as, Etop)
-		appendNodeSeqNode(&ninit, as)
+		ninit.Append(as)
 	}
 
 	// turn the variadic args into a slice.
@@ -767,19 +767,19 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			vararrtype.Bound = int64(varargcount)
 
 			as.Right = Nod(OCOMPLIT, nil, typenod(varargtype))
-			setNodeSeq(&as.Right.List, varargs)
+			as.Right.List.Set(varargs)
 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
 		}
 
 		typecheck(&as, Etop)
-		appendNodeSeqNode(&ninit, as)
+		ninit.Append(as)
 	}
 
 	// zero the outparams
 	for ll := inlretvars; ll != nil; ll = ll.Next {
 		as = Nod(OAS, ll.N, nil)
 		typecheck(&as, Etop)
-		appendNodeSeqNode(&ninit, as)
+		ninit.Append(as)
 	}
 
 	inlretlabel = newlabel_inl()
@@ -795,7 +795,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	call := Nod(OINLCALL, nil, nil)
 
-	setNodeSeq(&call.Ninit, ninit)
+	call.Ninit.Set(ninit.Slice())
 	call.Nbody.Set(body)
 	setNodeSeq(&call.Rlist, inlretvars)
 	call.Type = n.Type
@@ -804,11 +804,11 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	// Hide the args from setlno -- the parameters to the inlined
 	// call already have good line numbers that should be preserved.
 	args := as.Rlist
-	setNodeSeq(&as.Rlist, nil)
+	as.Rlist.Set(nil)
 
 	setlno(call, n.Lineno)
 
-	setNodeSeq(&as.Rlist, args)
+	as.Rlist.Set(args.Slice())
 
 	//dumplist("call body", body);
 
@@ -900,9 +900,9 @@ func newlabel_inl() *Node {
 // to input/output parameters with ones to the tmpnames, and
 // substituting returns with assignments to the output.
 func inlsubstlist(ll Nodes) []*Node {
-	s := make([]*Node, 0, nodeSeqLen(ll))
-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
-		s = append(s, inlsubst(it.N()))
+	s := make([]*Node, 0, ll.Len())
+	for _, n := range ll.Slice() {
+		s = append(s, inlsubst(n))
 	}
 	return s
 }
@@ -935,18 +935,18 @@ func inlsubst(n *Node) *Node {
 	case ORETURN:
 		m := Nod(OGOTO, inlretlabel, nil)
 
-		setNodeSeq(&m.Ninit, inlsubstlist(n.Ninit))
+		m.Ninit.Set(inlsubstlist(n.Ninit))
 
-		if inlretvars != nil && nodeSeqLen(n.List) != 0 {
+		if inlretvars != nil && n.List.Len() != 0 {
 			as := Nod(OAS2, nil, nil)
 
 			// shallow copy or OINLCALL->rlist will be the same list, and later walk and typecheck may clobber that.
 			for ll := inlretvars; ll != nil; ll = ll.Next {
-				appendNodeSeqNode(&as.List, ll.N)
+				as.List.Append(ll.N)
 			}
-			setNodeSeq(&as.Rlist, inlsubstlist(n.List))
+			as.Rlist.Set(inlsubstlist(n.List))
 			typecheck(&as, Etop)
-			appendNodeSeqNode(&m.Ninit, as)
+			m.Ninit.Append(as)
 		}
 
 		typechecklist(m.Ninit.Slice(), Etop)
@@ -958,7 +958,7 @@ func inlsubst(n *Node) *Node {
 	case OGOTO, OLABEL:
 		m := Nod(OXXX, nil, nil)
 		*m = *n
-		setNodeSeq(&m.Ninit, nil)
+		m.Ninit.Set(nil)
 		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
 		m.Left = newname(Lookup(p))
 
@@ -967,7 +967,7 @@ func inlsubst(n *Node) *Node {
 
 	m := Nod(OXXX, nil, nil)
 	*m = *n
-	setNodeSeq(&m.Ninit, nil)
+	m.Ninit.Set(nil)
 
 	if n.Op == OCLOSURE {
 		Fatalf("cannot inline function containing closure: %v", Nconv(n, obj.FmtSign))
@@ -975,9 +975,9 @@ func inlsubst(n *Node) *Node {
 
 	m.Left = inlsubst(n.Left)
 	m.Right = inlsubst(n.Right)
-	setNodeSeq(&m.List, inlsubstlist(n.List))
-	setNodeSeq(&m.Rlist, inlsubstlist(n.Rlist))
-	setNodeSeq(&m.Ninit, append(nodeSeqSlice(m.Ninit), inlsubstlist(n.Ninit)...))
+	m.List.Set(inlsubstlist(n.List))
+	m.Rlist.Set(inlsubstlist(n.Rlist))
+	m.Ninit.Set(append(m.Ninit.Slice(), inlsubstlist(n.Ninit)...))
 	m.Nbody.Set(inlsubstlist(n.Nbody))
 
 	return m
@@ -985,8 +985,8 @@ func inlsubst(n *Node) *Node {
 
 // Plaster over linenumbers
 func setlnolist(ll Nodes, lno int32) {
-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
-		setlno(it.N(), lno)
+	for _, n := range ll.Slice() {
+		setlno(n, lno)
 	}
 }
 

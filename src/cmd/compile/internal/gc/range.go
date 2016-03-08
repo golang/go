@@ -31,11 +31,10 @@ func typecheckrange(n *Node) {
 	if t == nil {
 		goto out
 	}
-
 	// delicate little dance.  see typecheckas2
-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-		if it.N().Name == nil || it.N().Name.Defn != n {
-			typecheck(it.P(), Erv|Easgn)
+	for i1, n1 := range n.List.Slice() {
+		if n1.Name == nil || n1.Name.Defn != n {
+			typecheck(&n.List.Slice()[i1], Erv|Easgn)
 		}
 	}
 
@@ -66,7 +65,7 @@ func typecheckrange(n *Node) {
 
 		t1 = t.Type
 		t2 = nil
-		if nodeSeqLen(n.List) == 2 {
+		if n.List.Len() == 2 {
 			toomany = 1
 		}
 
@@ -75,17 +74,17 @@ func typecheckrange(n *Node) {
 		t2 = runetype
 	}
 
-	if nodeSeqLen(n.List) > 2 || toomany != 0 {
+	if n.List.Len() > 2 || toomany != 0 {
 		Yyerror("too many variables in range")
 	}
 
 	v1 = nil
-	if nodeSeqLen(n.List) != 0 {
-		v1 = nodeSeqFirst(n.List)
+	if n.List.Len() != 0 {
+		v1 = n.List.First()
 	}
 	v2 = nil
-	if nodeSeqLen(n.List) > 1 {
-		v2 = nodeSeqSecond(n.List)
+	if n.List.Len() > 1 {
+		v2 = n.List.Second()
 	}
 
 	// this is not only a optimization but also a requirement in the spec.
@@ -94,7 +93,7 @@ func typecheckrange(n *Node) {
 	// present."
 	if isblank(v2) {
 		if v1 != nil {
-			setNodeSeq(&n.List, []*Node{v1})
+			n.List.Set([]*Node{v1})
 		}
 		v2 = nil
 	}
@@ -120,10 +119,9 @@ func typecheckrange(n *Node) {
 	// second half of dance
 out:
 	n.Typecheck = 1
-
-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-		if it.N().Typecheck == 0 {
-			typecheck(it.P(), Erv|Easgn)
+	for i2, n2 := range n.List.Slice() {
+		if n2.Typecheck == 0 {
+			typecheck(&n.List.Slice()[i2], Erv|Easgn)
 		}
 	}
 
@@ -147,17 +145,17 @@ func walkrange(n *Node) {
 	n.Right = nil
 
 	var v1 *Node
-	if nodeSeqLen(n.List) != 0 {
-		v1 = nodeSeqFirst(n.List)
+	if n.List.Len() != 0 {
+		v1 = n.List.First()
 	}
 	var v2 *Node
-	if nodeSeqLen(n.List) > 1 && !isblank(nodeSeqSecond(n.List)) {
-		v2 = nodeSeqSecond(n.List)
+	if n.List.Len() > 1 && !isblank(n.List.Second()) {
+		v2 = n.List.Second()
 	}
 
 	// n->list has no meaning anymore, clear it
 	// to avoid erroneous processing by racewalk.
-	setNodeSeq(&n.List, nil)
+	n.List.Set(nil)
 
 	var body []*Node
 	var init []*Node
@@ -195,8 +193,8 @@ func walkrange(n *Node) {
 			body = []*Node{Nod(OAS, v1, hv1)}
 		} else {
 			a := Nod(OAS2, nil, nil)
-			setNodeSeq(&a.List, []*Node{v1, v2})
-			setNodeSeq(&a.Rlist, []*Node{hv1, Nod(OIND, hp, nil)})
+			a.List.Set([]*Node{v1, v2})
+			a.Rlist.Set([]*Node{hv1, Nod(OIND, hp, nil)})
 			body = []*Node{a}
 
 			// Advance pointer as part of increment.
@@ -215,7 +213,7 @@ func walkrange(n *Node) {
 			tmp.Right.Typecheck = 1
 			a = Nod(OAS, hp, tmp)
 			typecheck(&a, Etop)
-			setNodeSeq(&n.Right.Ninit, []*Node{a})
+			n.Right.Ninit.Set([]*Node{a})
 		}
 
 		// orderstmt allocated the iterator for us.
@@ -250,8 +248,8 @@ func walkrange(n *Node) {
 			val := Nod(ODOT, hit, valname)
 			val = Nod(OIND, val, nil)
 			a := Nod(OAS2, nil, nil)
-			setNodeSeq(&a.List, []*Node{v1, v2})
-			setNodeSeq(&a.Rlist, []*Node{key, val})
+			a.List.Set([]*Node{v1, v2})
+			a.Rlist.Set([]*Node{key, val})
 			body = []*Node{a}
 		}
 
@@ -271,9 +269,9 @@ func walkrange(n *Node) {
 		n.Left = Nod(ONE, hb, Nodbool(false))
 		a := Nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
-		setNodeSeq(&a.List, []*Node{hv1, hb})
-		setNodeSeq(&a.Rlist, []*Node{Nod(ORECV, ha, nil)})
-		setNodeSeq(&n.Left.Ninit, []*Node{a})
+		a.List.Set([]*Node{hv1, hb})
+		a.Rlist.Set([]*Node{Nod(ORECV, ha, nil)})
+		n.Left.Ninit.Set([]*Node{a})
 		if v1 == nil {
 			body = nil
 		} else {
@@ -296,13 +294,13 @@ func walkrange(n *Node) {
 		} else {
 			hv2 = temp(runetype)
 			a = Nod(OAS2, nil, nil)
-			setNodeSeq(&a.List, []*Node{hv1, hv2})
+			a.List.Set([]*Node{hv1, hv2})
 			fn := syslook("stringiter2")
-			setNodeSeq(&a.Rlist, []*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
+			a.Rlist.Set([]*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
 		}
 
 		n.Left = Nod(ONE, hv1, Nodintconst(0))
-		setNodeSeq(&n.Left.Ninit, []*Node{Nod(OAS, ohv1, hv1), a})
+		n.Left.Ninit.Set([]*Node{Nod(OAS, ohv1, hv1), a})
 
 		body = nil
 		if v1 != nil {
@@ -315,7 +313,7 @@ func walkrange(n *Node) {
 
 	n.Op = OFOR
 	typechecklist(init, Etop)
-	appendNodeSeq(&n.Ninit, init)
+	n.Ninit.Append(init...)
 	typechecklist(n.Left.Ninit.Slice(), Etop)
 	typecheck(&n.Left, Erv)
 	typecheck(&n.Right, Etop)

@@ -107,8 +107,8 @@ func dumppkg(p *Pkg) {
 
 // Look for anything we need for the inline body
 func reexportdeplist(ll Nodes) {
-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
-		reexportdep(it.N())
+	for _, n := range ll.Slice() {
+		reexportdep(n)
 	}
 }
 
