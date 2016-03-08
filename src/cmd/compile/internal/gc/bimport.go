@@ -347,9 +347,9 @@ func (p *importer) fieldList() []*Node {
 	if i == 0 {
 		return nil
 	}
-	n := make([]*Node, 0, i)
-	for ; i > 0; i-- {
-		n = append(n, p.field())
+	n := make([]*Node, i)
+	for i := range n {
+		n[i] = p.field()
 	}
 	return n
 }
@@ -394,9 +394,9 @@ func (p *importer) methodList() []*Node {
 	if i == 0 {
 		return nil
 	}
-	n := make([]*Node, 0, i)
-	for ; i > 0; i-- {
-		n = append(n, p.method())
+	n := make([]*Node, i)
+	for i := range n {
+		n[i] = p.method()
 	}
 	return n
 }
@@ -440,9 +440,9 @@ func (p *importer) paramList() []*Node {
 		named = false
 	}
 	// i > 0
-	n := make([]*Node, 0, i)
-	for ; i > 0; i-- {
-		n = append(n, p.param(named))
+	n := make([]*Node, i)
+	for i := range n {
+		n[i] = p.param(named)
 	}
 	return n
 }
@@ -551,9 +551,9 @@ func (p *importer) float(x *Mpflt) {
 // parser.go:stmt_list
 func (p *importer) nodeList() []*Node {
 	c := p.int()
-	s := make([]*Node, 0, c)
-	for i := 0; i < c; i++ {
-		s = append(s, p.node())
+	s := make([]*Node, c)
+	for i := range s {
+		s[i] = p.node()
 	}
 	return s
 }
@@ -817,7 +817,7 @@ func (p *importer) string() string {
 		} else {
 			p.buf = p.buf[:n]
 		}
-		for i := 0; i < n; i++ {
+		for i := range p.buf {
 			p.buf[i] = p.byte()
 		}
 		return string(p.buf)
