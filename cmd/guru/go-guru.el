@@ -121,16 +121,25 @@ result."
   (with-current-buffer (go-guru--exec mode need-scope)
     (go-guru--compilation-markup)))
 
-(defun go-guru--exec (mode &optional need-scope flags)
+(defun go-guru--exec (mode &optional need-scope flags allow-unnamed)
   "Execute the Go guru in the specified MODE, passing it the
-selected region of the current buffer.  If NEED-SCOPE, prompt for
-a scope if not already set.  Return the output buffer."
-  (if (not buffer-file-name)
-      (error "Cannot use guru on a buffer without a file name"))
+selected region of the current buffer. If NEED-SCOPE, prompt for
+a scope if not already set. If ALLOW-UNNAMED is non-nil, a
+synthetic file for the unnamed buffer will be created. This
+should only be used with queries that work on single files
+only (e.g. 'what'). If ALLOW-UNNAMED is nil and the buffer has no
+associated name, an error will be signaled.
+
+Return the output buffer."
+  (or
+   buffer-file-name
+   allow-unnamed
+   (error "Cannot use guru on a buffer without a file name"))
   (and need-scope
        (string-equal "" go-guru-scope)
        (go-guru-set-scope))
-  (let* ((filename (file-truename buffer-file-name))
+  (let* ((is-unnamed (not buffer-file-name))
+	 (filename (file-truename (or buffer-file-name "synthetic.go")))
          (posn (if (use-region-p)
 		   (format "%s:#%d,#%d"
 			   filename
@@ -142,14 +151,17 @@ a scope if not already set.  Return the output buffer."
          (env-vars (go-root-and-paths))
          (goroot-env (concat "GOROOT=" (car env-vars)))
          (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":")))
-	 (output-buffer (get-buffer-create "*go-guru*")))
+         (output-buffer (get-buffer-create "*go-guru*"))
+         (buf (current-buffer)))
     (with-current-buffer output-buffer
       (setq buffer-read-only nil)
       (erase-buffer))
     (with-current-buffer (get-buffer-create "*go-guru-input*")
       (setq buffer-read-only nil)
       (erase-buffer)
-      (go-guru--insert-modified-files)
+      (if is-unnamed
+	  (go-guru--insert-modified-file filename buf)
+        (go-guru--insert-modified-files))
       (let* ((args (append (list "-modified"
                                  "-scope" go-guru-scope
                                  "-tags" go-guru-build-tags)
@@ -220,15 +232,14 @@ a scope if not already set.  Return the output buffer."
   "Insert the contents of each modified Go buffer into the
 current buffer in the format specified by guru's -modified flag."
   (mapc #'(lambda (b)
-	    (and (buffer-modified-p b)
-		 (buffer-file-name b)
-		 (string= (file-name-extension (buffer-file-name b)) "go")
-		 (progn
-		   (insert (format "%s\n%d\n"
-				   (buffer-file-name b)
-                                   (go-guru--buffer-size-bytes b)))
-                   (insert-buffer-substring b))))
-	(buffer-list)))
+            (and (buffer-modified-p b)
+                 (string= (file-name-extension (buffer-file-name b)) "go")
+                 (go-guru--insert-modified-file (buffer-file-name b) b)))
+        (buffer-list)))
+
+(defun go-guru--insert-modified-file (name buffer)
+  (insert (format "%s\n%d\n" name (go-guru--buffer-size-bytes buffer)))
+  (insert-buffer-substring buffer))
 
 (defun go-guru--buffer-size-bytes (&optional buffer)
   "Return the number of bytes in the current buffer.
