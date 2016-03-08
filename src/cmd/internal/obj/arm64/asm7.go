@@ -58,7 +58,7 @@ type Optab struct {
 	scond uint16
 }
 
-var oprange [ALAST][]Optab
+var oprange [ALAST & obj.AMask][]Optab
 
 var xcmp [C_NCLASS][C_NCLASS]bool
 
@@ -527,7 +527,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
 	ctxt.Cursym = cursym
 	ctxt.Autosize = int32(p.To.Offset&0xffffffff) + 8
 
-	if oprange[AAND] == nil {
+	if oprange[AAND&obj.AMask] == nil {
 		buildop(ctxt)
 	}
 
@@ -1113,7 +1113,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 		fmt.Printf("\t\t%d %d\n", p.From.Type, p.To.Type)
 	}
 
-	ops := oprange[p.As]
+	ops := oprange[p.As&obj.AMask]
 	c1 := &xcmp[a1]
 	c2 := &xcmp[a2]
 	c3 := &xcmp[a3]
@@ -1308,6 +1308,10 @@ func (x ocmp) Less(i, j int) bool {
 	return false
 }
 
+func oprangeset(a obj.As, t []Optab) {
+	oprange[a&obj.AMask] = t
+}
+
 func buildop(ctxt *obj.Link) {
 	var n int
 	for i := 0; i < C_GOK; i++ {
@@ -1328,229 +1332,229 @@ func buildop(ctxt *obj.Link) {
 		}
 		t := optab[start:i]
 		i--
-		oprange[r] = t
+		oprangeset(r, t)
 		switch r {
 		default:
 			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
 			log.Fatalf("bad code")
 
 		case AADD:
-			oprange[AADDS] = t
-			oprange[ASUB] = t
-			oprange[ASUBS] = t
-			oprange[AADDW] = t
-			oprange[AADDSW] = t
-			oprange[ASUBW] = t
-			oprange[ASUBSW] = t
+			oprangeset(AADDS, t)
+			oprangeset(ASUB, t)
+			oprangeset(ASUBS, t)
+			oprangeset(AADDW, t)
+			oprangeset(AADDSW, t)
+			oprangeset(ASUBW, t)
+			oprangeset(ASUBSW, t)
 
 		case AAND: /* logical immediate, logical shifted register */
-			oprange[AANDS] = t
+			oprangeset(AANDS, t)
 
-			oprange[AANDSW] = t
-			oprange[AANDW] = t
-			oprange[AEOR] = t
-			oprange[AEORW] = t
-			oprange[AORR] = t
-			oprange[AORRW] = t
+			oprangeset(AANDSW, t)
+			oprangeset(AANDW, t)
+			oprangeset(AEOR, t)
+			oprangeset(AEORW, t)
+			oprangeset(AORR, t)
+			oprangeset(AORRW, t)
 
 		case ABIC: /* only logical shifted register */
-			oprange[ABICS] = t
+			oprangeset(ABICS, t)
 
-			oprange[ABICSW] = t
-			oprange[ABICW] = t
-			oprange[AEON] = t
-			oprange[AEONW] = t
-			oprange[AORN] = t
-			oprange[AORNW] = t
+			oprangeset(ABICSW, t)
+			oprangeset(ABICW, t)
+			oprangeset(AEON, t)
+			oprangeset(AEONW, t)
+			oprangeset(AORN, t)
+			oprangeset(AORNW, t)
 
 		case ANEG:
-			oprange[ANEGS] = t
-			oprange[ANEGSW] = t
-			oprange[ANEGW] = t
+			oprangeset(ANEGS, t)
+			oprangeset(ANEGSW, t)
+			oprangeset(ANEGW, t)
 
 		case AADC: /* rn=Rd */
-			oprange[AADCW] = t
+			oprangeset(AADCW, t)
 
-			oprange[AADCS] = t
-			oprange[AADCSW] = t
-			oprange[ASBC] = t
-			oprange[ASBCW] = t
-			oprange[ASBCS] = t
-			oprange[ASBCSW] = t
+			oprangeset(AADCS, t)
+			oprangeset(AADCSW, t)
+			oprangeset(ASBC, t)
+			oprangeset(ASBCW, t)
+			oprangeset(ASBCS, t)
+			oprangeset(ASBCSW, t)
 
 		case ANGC: /* rn=REGZERO */
-			oprange[ANGCW] = t
+			oprangeset(ANGCW, t)
 
-			oprange[ANGCS] = t
-			oprange[ANGCSW] = t
+			oprangeset(ANGCS, t)
+			oprangeset(ANGCSW, t)
 
 		case ACMP:
-			oprange[ACMPW] = t
-			oprange[ACMN] = t
-			oprange[ACMNW] = t
+			oprangeset(ACMPW, t)
+			oprangeset(ACMN, t)
+			oprangeset(ACMNW, t)
 
 		case ATST:
-			oprange[ATSTW] = t
+			oprangeset(ATSTW, t)
 
 			/* register/register, and shifted */
 		case AMVN:
-			oprange[AMVNW] = t
+			oprangeset(AMVNW, t)
 
 		case AMOVK:
-			oprange[AMOVKW] = t
-			oprange[AMOVN] = t
-			oprange[AMOVNW] = t
-			oprange[AMOVZ] = t
-			oprange[AMOVZW] = t
+			oprangeset(AMOVKW, t)
+			oprangeset(AMOVN, t)
+			oprangeset(AMOVNW, t)
+			oprangeset(AMOVZ, t)
+			oprangeset(AMOVZW, t)
 
 		case ABEQ:
-			oprange[ABNE] = t
-			oprange[ABCS] = t
-			oprange[ABHS] = t
-			oprange[ABCC] = t
-			oprange[ABLO] = t
-			oprange[ABMI] = t
-			oprange[ABPL] = t
-			oprange[ABVS] = t
-			oprange[ABVC] = t
-			oprange[ABHI] = t
-			oprange[ABLS] = t
-			oprange[ABGE] = t
-			oprange[ABLT] = t
-			oprange[ABGT] = t
-			oprange[ABLE] = t
+			oprangeset(ABNE, t)
+			oprangeset(ABCS, t)
+			oprangeset(ABHS, t)
+			oprangeset(ABCC, t)
+			oprangeset(ABLO, t)
+			oprangeset(ABMI, t)
+			oprangeset(ABPL, t)
+			oprangeset(ABVS, t)
+			oprangeset(ABVC, t)
+			oprangeset(ABHI, t)
+			oprangeset(ABLS, t)
+			oprangeset(ABGE, t)
+			oprangeset(ABLT, t)
+			oprangeset(ABGT, t)
+			oprangeset(ABLE, t)
 
 		case ALSL:
-			oprange[ALSLW] = t
-			oprange[ALSR] = t
-			oprange[ALSRW] = t
-			oprange[AASR] = t
-			oprange[AASRW] = t
-			oprange[AROR] = t
-			oprange[ARORW] = t
+			oprangeset(ALSLW, t)
+			oprangeset(ALSR, t)
+			oprangeset(ALSRW, t)
+			oprangeset(AASR, t)
+			oprangeset(AASRW, t)
+			oprangeset(AROR, t)
+			oprangeset(ARORW, t)
 
 		case ACLS:
-			oprange[ACLSW] = t
-			oprange[ACLZ] = t
-			oprange[ACLZW] = t
-			oprange[ARBIT] = t
-			oprange[ARBITW] = t
-			oprange[AREV] = t
-			oprange[AREVW] = t
-			oprange[AREV16] = t
-			oprange[AREV16W] = t
-			oprange[AREV32] = t
+			oprangeset(ACLSW, t)
+			oprangeset(ACLZ, t)
+			oprangeset(ACLZW, t)
+			oprangeset(ARBIT, t)
+			oprangeset(ARBITW, t)
+			oprangeset(AREV, t)
+			oprangeset(AREVW, t)
+			oprangeset(AREV16, t)
+			oprangeset(AREV16W, t)
+			oprangeset(AREV32, t)
 
 		case ASDIV:
-			oprange[ASDIVW] = t
-			oprange[AUDIV] = t
-			oprange[AUDIVW] = t
-			oprange[ACRC32B] = t
-			oprange[ACRC32CB] = t
-			oprange[ACRC32CH] = t
-			oprange[ACRC32CW] = t
-			oprange[ACRC32CX] = t
-			oprange[ACRC32H] = t
-			oprange[ACRC32W] = t
-			oprange[ACRC32X] = t
+			oprangeset(ASDIVW, t)
+			oprangeset(AUDIV, t)
+			oprangeset(AUDIVW, t)
+			oprangeset(ACRC32B, t)
+			oprangeset(ACRC32CB, t)
+			oprangeset(ACRC32CH, t)
+			oprangeset(ACRC32CW, t)
+			oprangeset(ACRC32CX, t)
+			oprangeset(ACRC32H, t)
+			oprangeset(ACRC32W, t)
+			oprangeset(ACRC32X, t)
 
 		case AMADD:
-			oprange[AMADDW] = t
-			oprange[AMSUB] = t
-			oprange[AMSUBW] = t
-			oprange[ASMADDL] = t
-			oprange[ASMSUBL] = t
-			oprange[AUMADDL] = t
-			oprange[AUMSUBL] = t
+			oprangeset(AMADDW, t)
+			oprangeset(AMSUB, t)
+			oprangeset(AMSUBW, t)
+			oprangeset(ASMADDL, t)
+			oprangeset(ASMSUBL, t)
+			oprangeset(AUMADDL, t)
+			oprangeset(AUMSUBL, t)
 
 		case AREM:
-			oprange[AREMW] = t
-			oprange[AUREM] = t
-			oprange[AUREMW] = t
+			oprangeset(AREMW, t)
+			oprangeset(AUREM, t)
+			oprangeset(AUREMW, t)
 
 		case AMUL:
-			oprange[AMULW] = t
-			oprange[AMNEG] = t
-			oprange[AMNEGW] = t
-			oprange[ASMNEGL] = t
-			oprange[ASMULL] = t
-			oprange[ASMULH] = t
-			oprange[AUMNEGL] = t
-			oprange[AUMULH] = t
-			oprange[AUMULL] = t
+			oprangeset(AMULW, t)
+			oprangeset(AMNEG, t)
+			oprangeset(AMNEGW, t)
+			oprangeset(ASMNEGL, t)
+			oprangeset(ASMULL, t)
+			oprangeset(ASMULH, t)
+			oprangeset(AUMNEGL, t)
+			oprangeset(AUMULH, t)
+			oprangeset(AUMULL, t)
 
 		case AMOVB:
-			oprange[AMOVBU] = t
+			oprangeset(AMOVBU, t)
 
 		case AMOVH:
-			oprange[AMOVHU] = t
+			oprangeset(AMOVHU, t)
 
 		case AMOVW:
-			oprange[AMOVWU] = t
+			oprangeset(AMOVWU, t)
 
 		case ABFM:
-			oprange[ABFMW] = t
-			oprange[ASBFM] = t
-			oprange[ASBFMW] = t
-			oprange[AUBFM] = t
-			oprange[AUBFMW] = t
+			oprangeset(ABFMW, t)
+			oprangeset(ASBFM, t)
+			oprangeset(ASBFMW, t)
+			oprangeset(AUBFM, t)
+			oprangeset(AUBFMW, t)
 
 		case ABFI:
-			oprange[ABFIW] = t
-			oprange[ABFXIL] = t
-			oprange[ABFXILW] = t
-			oprange[ASBFIZ] = t
-			oprange[ASBFIZW] = t
-			oprange[ASBFX] = t
-			oprange[ASBFXW] = t
-			oprange[AUBFIZ] = t
-			oprange[AUBFIZW] = t
-			oprange[AUBFX] = t
-			oprange[AUBFXW] = t
+			oprangeset(ABFIW, t)
+			oprangeset(ABFXIL, t)
+			oprangeset(ABFXILW, t)
+			oprangeset(ASBFIZ, t)
+			oprangeset(ASBFIZW, t)
+			oprangeset(ASBFX, t)
+			oprangeset(ASBFXW, t)
+			oprangeset(AUBFIZ, t)
+			oprangeset(AUBFIZW, t)
+			oprangeset(AUBFX, t)
+			oprangeset(AUBFXW, t)
 
 		case AEXTR:
-			oprange[AEXTRW] = t
+			oprangeset(AEXTRW, t)
 
 		case ASXTB:
-			oprange[ASXTBW] = t
-			oprange[ASXTH] = t
-			oprange[ASXTHW] = t
-			oprange[ASXTW] = t
-			oprange[AUXTB] = t
-			oprange[AUXTH] = t
-			oprange[AUXTW] = t
-			oprange[AUXTBW] = t
-			oprange[AUXTHW] = t
+			oprangeset(ASXTBW, t)
+			oprangeset(ASXTH, t)
+			oprangeset(ASXTHW, t)
+			oprangeset(ASXTW, t)
+			oprangeset(AUXTB, t)
+			oprangeset(AUXTH, t)
+			oprangeset(AUXTW, t)
+			oprangeset(AUXTBW, t)
+			oprangeset(AUXTHW, t)
 
 		case ACCMN:
-			oprange[ACCMNW] = t
-			oprange[ACCMP] = t
-			oprange[ACCMPW] = t
+			oprangeset(ACCMNW, t)
+			oprangeset(ACCMP, t)
+			oprangeset(ACCMPW, t)
 
 		case ACSEL:
-			oprange[ACSELW] = t
-			oprange[ACSINC] = t
-			oprange[ACSINCW] = t
-			oprange[ACSINV] = t
-			oprange[ACSINVW] = t
-			oprange[ACSNEG] = t
-			oprange[ACSNEGW] = t
+			oprangeset(ACSELW, t)
+			oprangeset(ACSINC, t)
+			oprangeset(ACSINCW, t)
+			oprangeset(ACSINV, t)
+			oprangeset(ACSINVW, t)
+			oprangeset(ACSNEG, t)
+			oprangeset(ACSNEGW, t)
 
 			// aliases Rm=Rn, !cond
-			oprange[ACINC] = t
+			oprangeset(ACINC, t)
 
-			oprange[ACINCW] = t
-			oprange[ACINV] = t
-			oprange[ACINVW] = t
-			oprange[ACNEG] = t
-			oprange[ACNEGW] = t
+			oprangeset(ACINCW, t)
+			oprangeset(ACINV, t)
+			oprangeset(ACINVW, t)
+			oprangeset(ACNEG, t)
+			oprangeset(ACNEGW, t)
 
 			// aliases, Rm=Rn=REGZERO, !cond
 		case ACSET:
-			oprange[ACSETW] = t
+			oprangeset(ACSETW, t)
 
-			oprange[ACSETM] = t
-			oprange[ACSETMW] = t
+			oprangeset(ACSETM, t)
+			oprangeset(ACSETMW, t)
 
 		case AMOVD,
 			AMOVBU,
@@ -1565,20 +1569,20 @@ func buildop(ctxt *obj.Link) {
 			break
 
 		case AERET:
-			oprange[AWFE] = t
-			oprange[AWFI] = t
-			oprange[AYIELD] = t
-			oprange[ASEV] = t
-			oprange[ASEVL] = t
-			oprange[ADRPS] = t
+			oprangeset(AWFE, t)
+			oprangeset(AWFI, t)
+			oprangeset(AYIELD, t)
+			oprangeset(ASEV, t)
+			oprangeset(ASEVL, t)
+			oprangeset(ADRPS, t)
 
 		case ACBZ:
-			oprange[ACBZW] = t
-			oprange[ACBNZ] = t
-			oprange[ACBNZW] = t
+			oprangeset(ACBZW, t)
+			oprangeset(ACBNZ, t)
+			oprangeset(ACBNZW, t)
 
 		case ATBZ:
-			oprange[ATBNZ] = t
+			oprangeset(ATBNZ, t)
 
 		case AADR, AADRP:
 			break
@@ -1587,154 +1591,154 @@ func buildop(ctxt *obj.Link) {
 			break
 
 		case ASVC:
-			oprange[AHLT] = t
-			oprange[AHVC] = t
-			oprange[ASMC] = t
-			oprange[ABRK] = t
-			oprange[ADCPS1] = t
-			oprange[ADCPS2] = t
-			oprange[ADCPS3] = t
+			oprangeset(AHLT, t)
+			oprangeset(AHVC, t)
+			oprangeset(ASMC, t)
+			oprangeset(ABRK, t)
+			oprangeset(ADCPS1, t)
+			oprangeset(ADCPS2, t)
+			oprangeset(ADCPS3, t)
 
 		case AFADDS:
-			oprange[AFADDD] = t
-			oprange[AFSUBS] = t
-			oprange[AFSUBD] = t
-			oprange[AFMULS] = t
-			oprange[AFMULD] = t
-			oprange[AFNMULS] = t
-			oprange[AFNMULD] = t
-			oprange[AFDIVS] = t
-			oprange[AFMAXD] = t
-			oprange[AFMAXS] = t
-			oprange[AFMIND] = t
-			oprange[AFMINS] = t
-			oprange[AFMAXNMD] = t
-			oprange[AFMAXNMS] = t
-			oprange[AFMINNMD] = t
-			oprange[AFMINNMS] = t
-			oprange[AFDIVD] = t
+			oprangeset(AFADDD, t)
+			oprangeset(AFSUBS, t)
+			oprangeset(AFSUBD, t)
+			oprangeset(AFMULS, t)
+			oprangeset(AFMULD, t)
+			oprangeset(AFNMULS, t)
+			oprangeset(AFNMULD, t)
+			oprangeset(AFDIVS, t)
+			oprangeset(AFMAXD, t)
+			oprangeset(AFMAXS, t)
+			oprangeset(AFMIND, t)
+			oprangeset(AFMINS, t)
+			oprangeset(AFMAXNMD, t)
+			oprangeset(AFMAXNMS, t)
+			oprangeset(AFMINNMD, t)
+			oprangeset(AFMINNMS, t)
+			oprangeset(AFDIVD, t)
 
 		case AFCVTSD:
-			oprange[AFCVTDS] = t
-			oprange[AFABSD] = t
-			oprange[AFABSS] = t
-			oprange[AFNEGD] = t
-			oprange[AFNEGS] = t
-			oprange[AFSQRTD] = t
-			oprange[AFSQRTS] = t
-			oprange[AFRINTNS] = t
-			oprange[AFRINTND] = t
-			oprange[AFRINTPS] = t
-			oprange[AFRINTPD] = t
-			oprange[AFRINTMS] = t
-			oprange[AFRINTMD] = t
-			oprange[AFRINTZS] = t
-			oprange[AFRINTZD] = t
-			oprange[AFRINTAS] = t
-			oprange[AFRINTAD] = t
-			oprange[AFRINTXS] = t
-			oprange[AFRINTXD] = t
-			oprange[AFRINTIS] = t
-			oprange[AFRINTID] = t
-			oprange[AFCVTDH] = t
-			oprange[AFCVTHS] = t
-			oprange[AFCVTHD] = t
-			oprange[AFCVTSH] = t
+			oprangeset(AFCVTDS, t)
+			oprangeset(AFABSD, t)
+			oprangeset(AFABSS, t)
+			oprangeset(AFNEGD, t)
+			oprangeset(AFNEGS, t)
+			oprangeset(AFSQRTD, t)
+			oprangeset(AFSQRTS, t)
+			oprangeset(AFRINTNS, t)
+			oprangeset(AFRINTND, t)
+			oprangeset(AFRINTPS, t)
+			oprangeset(AFRINTPD, t)
+			oprangeset(AFRINTMS, t)
+			oprangeset(AFRINTMD, t)
+			oprangeset(AFRINTZS, t)
+			oprangeset(AFRINTZD, t)
+			oprangeset(AFRINTAS, t)
+			oprangeset(AFRINTAD, t)
+			oprangeset(AFRINTXS, t)
+			oprangeset(AFRINTXD, t)
+			oprangeset(AFRINTIS, t)
+			oprangeset(AFRINTID, t)
+			oprangeset(AFCVTDH, t)
+			oprangeset(AFCVTHS, t)
+			oprangeset(AFCVTHD, t)
+			oprangeset(AFCVTSH, t)
 
 		case AFCMPS:
-			oprange[AFCMPD] = t
-			oprange[AFCMPES] = t
-			oprange[AFCMPED] = t
+			oprangeset(AFCMPD, t)
+			oprangeset(AFCMPES, t)
+			oprangeset(AFCMPED, t)
 
 		case AFCCMPS:
-			oprange[AFCCMPD] = t
-			oprange[AFCCMPES] = t
-			oprange[AFCCMPED] = t
+			oprangeset(AFCCMPD, t)
+			oprangeset(AFCCMPES, t)
+			oprangeset(AFCCMPED, t)
 
 		case AFCSELD:
-			oprange[AFCSELS] = t
+			oprangeset(AFCSELS, t)
 
 		case AFMOVS, AFMOVD:
 			break
 
 		case AFCVTZSD:
-			oprange[AFCVTZSDW] = t
-			oprange[AFCVTZSS] = t
-			oprange[AFCVTZSSW] = t
-			oprange[AFCVTZUD] = t
-			oprange[AFCVTZUDW] = t
-			oprange[AFCVTZUS] = t
-			oprange[AFCVTZUSW] = t
+			oprangeset(AFCVTZSDW, t)
+			oprangeset(AFCVTZSS, t)
+			oprangeset(AFCVTZSSW, t)
+			oprangeset(AFCVTZUD, t)
+			oprangeset(AFCVTZUDW, t)
+			oprangeset(AFCVTZUS, t)
+			oprangeset(AFCVTZUSW, t)
 
 		case ASCVTFD:
-			oprange[ASCVTFS] = t
-			oprange[ASCVTFWD] = t
-			oprange[ASCVTFWS] = t
-			oprange[AUCVTFD] = t
-			oprange[AUCVTFS] = t
-			oprange[AUCVTFWD] = t
-			oprange[AUCVTFWS] = t
+			oprangeset(ASCVTFS, t)
+			oprangeset(ASCVTFWD, t)
+			oprangeset(ASCVTFWS, t)
+			oprangeset(AUCVTFD, t)
+			oprangeset(AUCVTFS, t)
+			oprangeset(AUCVTFWD, t)
+			oprangeset(AUCVTFWS, t)
 
 		case ASYS:
-			oprange[AAT] = t
-			oprange[ADC] = t
-			oprange[AIC] = t
-			oprange[ATLBI] = t
+			oprangeset(AAT, t)
+			oprangeset(ADC, t)
+			oprangeset(AIC, t)
+			oprangeset(ATLBI, t)
 
 		case ASYSL, AHINT:
 			break
 
 		case ADMB:
-			oprange[ADSB] = t
-			oprange[AISB] = t
+			oprangeset(ADSB, t)
+			oprangeset(AISB, t)
 
 		case AMRS, AMSR:
 			break
 
 		case ALDAR:
-			oprange[ALDARW] = t
+			oprangeset(ALDARW, t)
 			fallthrough
 
 		case ALDXR:
-			oprange[ALDXRB] = t
-			oprange[ALDXRH] = t
-			oprange[ALDXRW] = t
+			oprangeset(ALDXRB, t)
+			oprangeset(ALDXRH, t)
+			oprangeset(ALDXRW, t)
 
 		case ALDAXR:
-			oprange[ALDAXRW] = t
+			oprangeset(ALDAXRW, t)
 
 		case ALDXP:
-			oprange[ALDXPW] = t
+			oprangeset(ALDXPW, t)
 
 		case ASTLR:
-			oprange[ASTLRW] = t
+			oprangeset(ASTLRW, t)
 
 		case ASTXR:
-			oprange[ASTXRB] = t
-			oprange[ASTXRH] = t
-			oprange[ASTXRW] = t
+			oprangeset(ASTXRB, t)
+			oprangeset(ASTXRH, t)
+			oprangeset(ASTXRW, t)
 
 		case ASTLXR:
-			oprange[ASTLXRW] = t
+			oprangeset(ASTLXRW, t)
 
 		case ASTXP:
-			oprange[ASTXPW] = t
+			oprangeset(ASTXPW, t)
 
 		case AAESD:
-			oprange[AAESE] = t
-			oprange[AAESMC] = t
-			oprange[AAESIMC] = t
-			oprange[ASHA1H] = t
-			oprange[ASHA1SU1] = t
-			oprange[ASHA256SU0] = t
+			oprangeset(AAESE, t)
+			oprangeset(AAESMC, t)
+			oprangeset(AAESIMC, t)
+			oprangeset(ASHA1H, t)
+			oprangeset(ASHA1SU1, t)
+			oprangeset(ASHA256SU0, t)
 
 		case ASHA1C:
-			oprange[ASHA1P] = t
-			oprange[ASHA1M] = t
-			oprange[ASHA1SU0] = t
-			oprange[ASHA256H] = t
-			oprange[ASHA256H2] = t
-			oprange[ASHA256SU1] = t
+			oprangeset(ASHA1P, t)
+			oprangeset(ASHA1M, t)
+			oprangeset(ASHA1SU0, t)
+			oprangeset(ASHA256H, t)
+			oprangeset(ASHA256H2, t)
+			oprangeset(ASHA256SU1, t)
 
 		case obj.ANOP,
 			obj.AUNDEF,
