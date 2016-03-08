@@ -469,6 +469,11 @@ const (
 	// should be linked into the final binary, even if there are no other
 	// direct references. (This is used for types reachable by reflection.)
 	R_USETYPE
+	// R_METHOD resolves to an *rtype for a method.
+	// It is used when linking from the uncommonType of another *rtype, and
+	// may be set to zero by the linker if it determines the method text is
+	// unreachable by the linked program.
+	R_METHOD
 	R_POWER_TOC
 	R_GOTPCREL
 	// R_JMPMIPS (only used on mips64) resolves to non-PC-relative target address
