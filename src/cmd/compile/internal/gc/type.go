@@ -14,6 +14,286 @@ import (
 	"fmt"
 )
 
+// EType describes a kind of type.
+type EType uint8
+
+const (
+	Txxx = iota
+
+	TINT8
+	TUINT8
+	TINT16
+	TUINT16
+	TINT32
+	TUINT32
+	TINT64
+	TUINT64
+	TINT
+	TUINT
+	TUINTPTR
+
+	TCOMPLEX64
+	TCOMPLEX128
+
+	TFLOAT32
+	TFLOAT64
+
+	TBOOL
+
+	TPTR32
+	TPTR64
+
+	TFUNC
+	TARRAY
+	T_old_DARRAY // Doesn't seem to be used in existing code. Used now for Isddd export (see bexport.go). TODO(gri) rename.
+	TSTRUCT
+	TCHAN
+	TMAP
+	TINTER
+	TFORW
+	TFIELD
+	TANY
+	TSTRING
+	TUNSAFEPTR
+
+	// pseudo-types for literals
+	TIDEAL
+	TNIL
+	TBLANK
+
+	// pseudo-type for frame layout
+	TFUNCARGS
+	TCHANARGS
+	TINTERMETH
+
+	NTYPE
+)
+
+// Types stores pointers to predeclared named types.
+//
+// It also stores pointers to several special types:
+//   - Types[TANY] is the placeholder "any" type recognized by substArgTypes.
+//   - Types[TBLANK] represents the blank variable's type.
+//   - Types[TIDEAL] represents untyped numeric constants.
+//   - Types[TNIL] represents the predeclared "nil" value's type.
+//   - Types[TUNSAFEPTR] is package unsafe's Pointer type.
+var Types [NTYPE]*Type
+
+var (
+	// Predeclared alias types. Kept separate for better error messages.
+	bytetype *Type
+	runetype *Type
+
+	// Predeclared error interface type.
+	errortype *Type
+
+	// Types to represent untyped string and boolean constants.
+	idealstring *Type
+	idealbool   *Type
+
+	// Types to represent untyped numeric constants.
+	// Note: Currently these are only used within the binary export
+	// data format. The rest of the compiler only uses Types[TIDEAL].
+	idealint     = typ(TIDEAL)
+	idealrune    = typ(TIDEAL)
+	idealfloat   = typ(TIDEAL)
+	idealcomplex = typ(TIDEAL)
+)
+
+// A Type represents a Go type.
+type Type struct {
+	Etype       EType
+	Nointerface bool
+	Noalg       bool
+	Chan        uint8
+	Trecur      uint8 // to detect loops
+	Printed     bool
+	Embedded    uint8 // TFIELD embedded type
+	Funarg      bool  // on TSTRUCT and TFIELD
+	Copyany     bool
+	Local       bool // created in this file
+	Deferwidth  bool
+	Broke       bool // broken type definition.
+	Isddd       bool // TFIELD is ... argument
+	Align       uint8
+	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+
+	Nod    *Node // canonical OTYPE node
+	Orig   *Type // original type (type literal or predefined type)
+	Lineno int32
+
+	// TFUNC
+	Thistuple int
+	Outtuple  int
+	Intuple   int
+	Outnamed  bool
+
+	Method  *Type
+	Xmethod *Type
+
+	Sym    *Sym
+	Vargen int32 // unique name for OTYPE/ONAME
+
+	Nname  *Node
+	Argwid int64
+
+	// most nodes
+	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
+	Width int64 // offset in TFIELD, width in all others
+
+	// TFIELD
+	Down  *Type   // next struct field, also key type in TMAP
+	Outer *Type   // outer struct
+	Note  *string // literal string annotation
+
+	// TARRAY
+	Bound int64 // negative is slice
+
+	// TMAP
+	Bucket *Type // internal type representing a hash bucket
+	Hmap   *Type // internal type representing a Hmap (map header object)
+	Hiter  *Type // internal type representing hash iterator state
+	Map    *Type // link from the above 3 internal types back to the map type.
+
+	Maplineno   int32 // first use of TFORW as map key
+	Embedlineno int32 // first use of TFORW as embedded type
+
+	// for TFORW, where to copy the eventual value to
+	Copyto []*Node
+
+	Lastfn *Node // for usefield
+}
+
+// Iter provides an abstraction for iterating across struct fields
+// and function parameters.
+type Iter struct {
+	Done  int
+	Tfunc *Type
+	T     *Type
+}
+
+// iterator to walk a structure declaration
+func Structfirst(s *Iter, nn **Type) *Type {
+	var t *Type
+
+	n := *nn
+	if n == nil {
+		goto bad
+	}
+
+	switch n.Etype {
+	default:
+		goto bad
+
+	case TSTRUCT, TINTER, TFUNC:
+		break
+	}
+
+	t = n.Type
+	if t == nil {
+		return nil
+	}
+
+	if t.Etype != TFIELD {
+		Fatalf("structfirst: not field %v", t)
+	}
+
+	s.T = t
+	return t
+
+bad:
+	Fatalf("structfirst: not struct %v", n)
+
+	return nil
+}
+
+func structnext(s *Iter) *Type {
+	n := s.T
+	t := n.Down
+	if t == nil {
+		return nil
+	}
+
+	if t.Etype != TFIELD {
+		Fatalf("structnext: not struct %v", n)
+
+		return nil
+	}
+
+	s.T = t
+	return t
+}
+
+// iterator to this and inargs in a function
+func funcfirst(s *Iter, t *Type) *Type {
+	var fp *Type
+
+	if t == nil {
+		goto bad
+	}
+
+	if t.Etype != TFUNC {
+		goto bad
+	}
+
+	s.Tfunc = t
+	s.Done = 0
+	fp = Structfirst(s, getthis(t))
+	if fp == nil {
+		s.Done = 1
+		fp = Structfirst(s, getinarg(t))
+	}
+
+	return fp
+
+bad:
+	Fatalf("funcfirst: not func %v", t)
+	return nil
+}
+
+func funcnext(s *Iter) *Type {
+	fp := structnext(s)
+	if fp == nil && s.Done == 0 {
+		s.Done = 1
+		fp = Structfirst(s, getinarg(s.Tfunc))
+	}
+
+	return fp
+}
+
+func getthis(t *Type) **Type {
+	if t.Etype != TFUNC {
+		Fatalf("getthis: not a func %v", t)
+	}
+	return &t.Type
+}
+
+func Getoutarg(t *Type) **Type {
+	if t.Etype != TFUNC {
+		Fatalf("getoutarg: not a func %v", t)
+	}
+	return &t.Type.Down
+}
+
+func getinarg(t *Type) **Type {
+	if t.Etype != TFUNC {
+		Fatalf("getinarg: not a func %v", t)
+	}
+	return &t.Type.Down.Down
+}
+
+func getthisx(t *Type) *Type {
+	return *getthis(t)
+}
+
+func getoutargx(t *Type) *Type {
+	return *Getoutarg(t)
+}
+
+func getinargx(t *Type) *Type {
+	return *getinarg(t)
+}
+
 func (t *Type) Size() int64 {
 	dowidth(t)
 	return t.Width

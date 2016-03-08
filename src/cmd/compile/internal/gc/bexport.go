@@ -1250,13 +1250,6 @@ func untype(ctype Ctype) *Type {
 	return nil
 }
 
-var (
-	idealint     = typ(TIDEAL)
-	idealrune    = typ(TIDEAL)
-	idealfloat   = typ(TIDEAL)
-	idealcomplex = typ(TIDEAL)
-)
-
 var predecl []*Type // initialized lazily
 
 func predeclared() []*Type {
