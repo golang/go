@@ -2135,13 +2135,7 @@ func lexinit() {
 		s2.Def.Etype = EType(s.op)
 	}
 
-	// logically, the type of a string literal.
-	// types[TSTRING] is the named type string
-	// (the type of x in var x string or var x = "hello").
-	// this is the ideal form
-	// (the type of x in const x = "hello").
 	idealstring = typ(TSTRING)
-
 	idealbool = typ(TBOOL)
 
 	s := Pkglookup("true", builtinpkg)

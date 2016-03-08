@@ -85,69 +85,6 @@ type Sym struct {
 	Fsym       *Sym // funcsym
 }
 
-type Type struct {
-	Etype       EType
-	Nointerface bool
-	Noalg       bool
-	Chan        uint8
-	Trecur      uint8 // to detect loops
-	Printed     bool
-	Embedded    uint8 // TFIELD embedded type
-	Funarg      bool  // on TSTRUCT and TFIELD
-	Copyany     bool
-	Local       bool // created in this file
-	Deferwidth  bool
-	Broke       bool // broken type definition.
-	Isddd       bool // TFIELD is ... argument
-	Align       uint8
-	Haspointers uint8 // 0 unknown, 1 no, 2 yes
-
-	Nod    *Node // canonical OTYPE node
-	Orig   *Type // original type (type literal or predefined type)
-	Lineno int32
-
-	// TFUNC
-	Thistuple int
-	Outtuple  int
-	Intuple   int
-	Outnamed  bool
-
-	Method  *Type
-	Xmethod *Type
-
-	Sym    *Sym
-	Vargen int32 // unique name for OTYPE/ONAME
-
-	Nname  *Node
-	Argwid int64
-
-	// most nodes
-	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
-	Width int64 // offset in TFIELD, width in all others
-
-	// TFIELD
-	Down  *Type   // next struct field, also key type in TMAP
-	Outer *Type   // outer struct
-	Note  *string // literal string annotation
-
-	// TARRAY
-	Bound int64 // negative is slice
-
-	// TMAP
-	Bucket *Type // internal type representing a hash bucket
-	Hmap   *Type // internal type representing a Hmap (map header object)
-	Hiter  *Type // internal type representing hash iterator state
-	Map    *Type // link from the above 3 internal types back to the map type.
-
-	Maplineno   int32 // first use of TFORW as map key
-	Embedlineno int32 // first use of TFORW as embedded type
-
-	// for TFORW, where to copy the eventual value to
-	Copyto []*Node
-
-	Lastfn *Node // for usefield
-}
-
 type Label struct {
 	Sym  *Sym
 	Def  *Node
@@ -188,66 +125,6 @@ const (
 )
 
 var dclstack *Sym
-
-type Iter struct {
-	Done  int
-	Tfunc *Type
-	T     *Type
-}
-
-type EType uint8
-
-const (
-	Txxx = iota
-
-	TINT8
-	TUINT8
-	TINT16
-	TUINT16
-	TINT32
-	TUINT32
-	TINT64
-	TUINT64
-	TINT
-	TUINT
-	TUINTPTR
-
-	TCOMPLEX64
-	TCOMPLEX128
-
-	TFLOAT32
-	TFLOAT64
-
-	TBOOL
-
-	TPTR32
-	TPTR64
-
-	TFUNC
-	TARRAY
-	T_old_DARRAY // Doesn't seem to be used in existing code. Used now for Isddd export (see bexport.go). TODO(gri) rename.
-	TSTRUCT
-	TCHAN
-	TMAP
-	TINTER
-	TFORW
-	TFIELD
-	TANY
-	TSTRING
-	TUNSAFEPTR
-
-	// pseudo-types for literals
-	TIDEAL
-	TNIL
-	TBLANK
-
-	// pseudo-type for frame layout
-	TFUNCARGS
-	TCHANARGS
-	TINTERMETH
-
-	NTYPE
-)
 
 // Ctype describes the constant kind of an "ideal" (untyped) constant.
 type Ctype int8
@@ -436,18 +313,6 @@ var myimportpath string
 var localimport string
 
 var asmhdr string
-
-var Types [NTYPE]*Type
-
-var idealstring *Type
-
-var idealbool *Type
-
-var bytetype *Type
-
-var runetype *Type
-
-var errortype *Type
 
 var Simtype [NTYPE]EType
 
