@@ -116,7 +116,6 @@ type pp struct {
 	reordered bool
 	// goodArgNum records whether the most recent reordering directive was valid.
 	goodArgNum bool
-	runeBuf    [utf8.UTFMax]byte
 	fmt        fmt
 }
 
@@ -340,29 +339,19 @@ func (p *pp) fmtBool(v bool, verb rune) {
 	}
 }
 
-// fmtC formats a rune for the 'c' format.
-func (p *pp) fmtC(c int64) {
-	r := rune(c) // Check for overflow.
-	if int64(r) != c {
-		r = utf8.RuneError
-	}
-	w := utf8.EncodeRune(p.runeBuf[0:utf8.UTFMax], r)
-	p.fmt.pad(p.runeBuf[0:w])
-}
-
 func (p *pp) fmtInt64(v int64, verb rune) {
 	switch verb {
 	case 'b':
 		p.fmt.integer(v, 2, signed, ldigits)
 	case 'c':
-		p.fmtC(v)
+		p.fmt.fmt_c(uint64(v))
 	case 'd', 'v':
 		p.fmt.integer(v, 10, signed, ldigits)
 	case 'o':
 		p.fmt.integer(v, 8, signed, ldigits)
 	case 'q':
 		if 0 <= v && v <= utf8.MaxRune {
-			p.fmt.fmt_qc(v)
+			p.fmt.fmt_qc(uint64(v))
 		} else {
 			p.badVerb(verb)
 		}
@@ -413,7 +402,7 @@ func (p *pp) fmtUint64(v uint64, verb rune) {
 	case 'b':
 		p.fmt.integer(int64(v), 2, unsigned, ldigits)
 	case 'c':
-		p.fmtC(int64(v))
+		p.fmt.fmt_c(v)
 	case 'd':
 		p.fmt.integer(int64(v), 10, unsigned, ldigits)
 	case 'v':
@@ -426,7 +415,7 @@ func (p *pp) fmtUint64(v uint64, verb rune) {
 		p.fmt.integer(int64(v), 8, unsigned, ldigits)
 	case 'q':
 		if 0 <= v && v <= utf8.MaxRune {
-			p.fmt.fmt_qc(int64(v))
+			p.fmt.fmt_qc(v)
 		} else {
 			p.badVerb(verb)
 		}

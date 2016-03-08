@@ -225,18 +225,38 @@ var fmtTests = []struct {
 	{"%+q", "abc\xffdef", `"abc\xffdef"`},
 	{"%#q", "abc\xffdef", `"abc\xffdef"`},
 	{"%#+q", "abc\xffdef", `"abc\xffdef"`},
-	{"%q", "\U0010ffff", `"\U0010ffff"`}, // Rune is not printable.
+	// Runes that are not printable.
+	{"%q", "\U0010ffff", `"\U0010ffff"`},
 	{"%+q", "\U0010ffff", `"\U0010ffff"`},
 	{"%#q", "\U0010ffff", "`􏿿`"},
 	{"%#+q", "\U0010ffff", "`􏿿`"},
-	{"%q", string(0x110000), `"�"`}, // Rune is not valid.
+	// Runes that are not valid.
+	{"%q", string(0x110000), `"�"`},
 	{"%+q", string(0x110000), `"\ufffd"`},
 	{"%#q", string(0x110000), "`�`"},
 	{"%#+q", string(0x110000), "`�`"},
 
+	// characters
+	{"%c", uint('x'), "x"},
+	{"%c", 0xe4, "ä"},
+	{"%c", 0x672c, "本"},
+	{"%c", '日', "日"},
+	{"%.0c", '⌘', "⌘"}, // Specifying precision should have no effect.
+	{"%3c", '⌘', "  ⌘"},
+	{"%-3c", '⌘', "⌘  "},
+	// Runes that are not printable.
+	{"%c", '\U00000e00', "\u0e00"},
+	{"%c", '\U0010ffff', "\U0010ffff"},
+	// Runes that are not valid.
+	{"%c", -1, "�"},
+	{"%c", 0xDC80, "�"},
+	{"%c", rune(0x110000), "�"},
+	{"%c", int64(0xFFFFFFFFF), "�"},
+	{"%c", uint64(0xFFFFFFFFF), "�"},
+
 	// escaped characters
-	{"%q", 0, `'\x00'`},
-	{"%+q", 0, `'\x00'`},
+	{"%q", uint(0), `'\x00'`},
+	{"%+q", uint(0), `'\x00'`},
 	{"%q", '"', `'"'`},
 	{"%+q", '"', `'"'`},
 	{"%q", '\'', `'\''`},
@@ -250,8 +270,9 @@ var fmtTests = []struct {
 	{"%q", '\n', `'\n'`},
 	{"%+q", '\n', `'\n'`},
 	{"%q", '☺', `'☺'`},
-	{"% q", '☺', `'☺'`}, // The space modifier should have no effect.
 	{"%+q", '☺', `'\u263a'`},
+	{"% q", '☺', `'☺'`},  // The space modifier should have no effect.
+	{"%.0q", '☺', `'☺'`}, // Specifying precision should have no effect.
 	{"%10q", '⌘', `       '⌘'`},
 	{"%+10q", '⌘', `  '\u2318'`},
 	{"%-10q", '⌘', `'⌘'       `},
@@ -260,12 +281,15 @@ var fmtTests = []struct {
 	{"%+010q", '⌘', `00'\u2318'`},
 	{"%-010q", '⌘', `'⌘'       `}, // 0 has no effect when - is present.
 	{"%+-010q", '⌘', `'\u2318'  `},
-	{"%q", '\U00000e00', `'\u0e00'`},             // Rune is not printable.
-	{"%q", '\U000c2345', `'\U000c2345'`},         // Rune is not printable.
-	{"%q", '\U0010ffff', `'\U0010ffff'`},         // Rune is not printable.
-	{"%q", rune(0x110000), `%!q(int32=1114112)`}, // Rune is not valid.
-	{"%q", int64(0x7FFFFFFF), `%!q(int64=2147483647)`},
-	{"%q", uint64(0xFFFFFFFF), `%!q(uint64=4294967295)`},
+	// Runes that are not printable.
+	{"%q", '\U00000e00', `'\u0e00'`},
+	{"%q", '\U0010ffff', `'\U0010ffff'`},
+	// Runes that are not valid.
+	{"%q", int32(-1), "%!q(int32=-1)"},
+	{"%q", 0xDC80, `'�'`},
+	{"%q", rune(0x110000), "%!q(int32=1114112)"},
+	{"%q", int64(0xFFFFFFFFF), "%!q(int64=68719476735)"},
+	{"%q", uint64(0xFFFFFFFFF), "%!q(uint64=68719476735)"},
 
 	// width
 	{"%5s", "abc", "  abc"},
@@ -291,8 +315,6 @@ var fmtTests = []struct {
 	{"%.1x", "日本語", "e6"},
 	{"%.1X", []byte("日本語"), "E6"},
 	{"%10.1q", "日本語日本語", `       "日"`},
-	{"%3c", '⌘', "  ⌘"},
-	{"%5q", '\u2026', `  '…'`},
 	{"%10v", nil, "     <nil>"},
 	{"%-10v", nil, "<nil>     "},
 
@@ -472,10 +494,6 @@ var fmtTests = []struct {
 	{"%G", -7.0, "-7"},
 	{"%G", -1e-9, "-1E-09"},
 	{"%G", float32(-1e-9), "-1E-09"},
-	{"%c", 'x', "x"},
-	{"%c", 0xe4, "ä"},
-	{"%c", 0x672c, "本"},
-	{"%c", '日', "日"},
 	{"%20.8d", 1234, "            00001234"},
 	{"%20.8d", -1234, "           -00001234"},
 	{"%20d", 1234, "                1234"},
@@ -967,6 +985,8 @@ var fmtTests = []struct {
 	// Tests to check that not supported verbs generate an error string.
 	{"%☠", nil, "%!☠(<nil>)"},
 	{"%☠", interface{}(nil), "%!☠(<nil>)"},
+	{"%☠", int(0), "%!☠(int=0)"},
+	{"%☠", uint(0), "%!☠(uint=0)"},
 	{"%☠", []byte{0}, "%!☠([]uint8=[0])"},
 	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
 	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
