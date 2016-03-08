@@ -106,7 +106,7 @@ func dumppkg(p *Pkg) {
 }
 
 // Look for anything we need for the inline body
-func reexportdeplist(ll nodesOrNodeList) {
+func reexportdeplist(ll Nodes) {
 	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
 		reexportdep(it.N())
 	}

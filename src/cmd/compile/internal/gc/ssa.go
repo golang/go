@@ -508,7 +508,7 @@ func (s *state) stmts(a Nodes) {
 }
 
 // ssaStmtList converts the statement n to SSA and adds it to s.
-func (s *state) stmtList(l nodesOrNodeList) {
+func (s *state) stmtList(l Nodes) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		s.stmt(it.N())
 	}

@@ -128,7 +128,7 @@ out:
 	}
 
 	decldepth++
-	typechecklist(n.Nbody, Etop)
+	typechecklist(n.Nbody.Slice(), Etop)
 	decldepth--
 }
 
@@ -160,7 +160,7 @@ func walkrange(n *Node) {
 	setNodeSeq(&n.List, nil)
 
 	var body []*Node
-	var init *NodeList
+	var init []*Node
 	switch t.Etype {
 	default:
 		Fatalf("walkrange")
@@ -178,13 +178,13 @@ func walkrange(n *Node) {
 		hn := temp(Types[TINT])
 		var hp *Node
 
-		init = list(init, Nod(OAS, hv1, nil))
-		init = list(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
+		init = append(init, Nod(OAS, hv1, nil))
+		init = append(init, Nod(OAS, hn, Nod(OLEN, ha, nil)))
 		if v2 != nil {
 			hp = temp(Ptrto(n.Type.Type))
 			tmp := Nod(OINDEX, ha, Nodintconst(0))
 			tmp.Bounded = true
-			init = list(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
+			init = append(init, Nod(OAS, hp, Nod(OADDR, tmp, nil)))
 		}
 
 		n.Left = Nod(OLT, hv1, hn)
@@ -233,7 +233,7 @@ func walkrange(n *Node) {
 		fn := syslook("mapiterinit")
 
 		substArgTypes(&fn, t.Down, t.Type, th)
-		init = list(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
+		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
 
 		fn = syslook("mapiternext")
@@ -264,7 +264,7 @@ func walkrange(n *Node) {
 		hv1 := temp(t.Type)
 		hv1.Typecheck = 1
 		if haspointers(t.Type) {
-			init = list(init, Nod(OAS, hv1, nil))
+			init = append(init, Nod(OAS, hv1, nil))
 		}
 		hb := temp(Types[TBOOL])
 
@@ -287,7 +287,7 @@ func walkrange(n *Node) {
 		ohv1 := temp(Types[TINT])
 
 		hv1 := temp(Types[TINT])
-		init = list(init, Nod(OAS, hv1, nil))
+		init = append(init, Nod(OAS, hv1, nil))
 
 		var a *Node
 		var hv2 *Node
@@ -316,7 +316,7 @@ func walkrange(n *Node) {
 	n.Op = OFOR
 	typechecklist(init, Etop)
 	appendNodeSeq(&n.Ninit, init)
-	typechecklist(n.Left.Ninit, Etop)
+	typechecklist(n.Left.Ninit.Slice(), Etop)
 	typecheck(&n.Left, Erv)
 	typecheck(&n.Right, Etop)
 	typecheckslice(body, Etop)
@@ -400,7 +400,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(v1)
 
 	typecheck(&n.Left, Erv)
-	typechecklist(n.Nbody, Etop)
+	typechecklist(n.Nbody.Slice(), Etop)
 	walkstmt(&n)
 	return true
 }

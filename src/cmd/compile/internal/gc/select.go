@@ -12,7 +12,7 @@ func typecheckselect(sel *Node) {
 	var def *Node
 	lno := setlineno(sel)
 	count := 0
-	typechecklist(sel.Ninit, Etop)
+	typechecklist(sel.Ninit.Slice(), Etop)
 	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
 		count++
 		ncase = it.N()
@@ -80,7 +80,7 @@ func typecheckselect(sel *Node) {
 			}
 		}
 
-		typechecklist(ncase.Nbody, Etop)
+		typechecklist(ncase.Nbody.Slice(), Etop)
 	}
 
 	sel.Xoffset = int64(count)
@@ -212,7 +212,7 @@ func walkselect(sel *Node) {
 			dflt = nodeSeqFirst(sel.List)
 		} else {
 			dflt = nodeSeqSecond(sel.List)
-			cas = nodeSeqFirst(sel.List)
+			cas = nodeSeqFirst(sel.List.Slice())
 		}
 
 		n := cas.Left

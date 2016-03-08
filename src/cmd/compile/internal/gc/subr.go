@@ -536,7 +536,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		m.Orig = m
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
-		setNodeSeq(&m.List, listtreecopy(n.List, lineno))
+		setNodeSeq(&m.List, listtreecopy(n.List.Slice(), lineno))
 		if lineno != 0 {
 			m.Lineno = lineno
 		}
@@ -2191,7 +2191,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		fn.Func.Dupok = true
 	}
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody, Etop)
+	typechecklist(fn.Nbody.Slice(), Etop)
 
 	inlcalls(fn)
 	escAnalyze([]*Node{fn}, false)
@@ -2353,7 +2353,7 @@ func Simsimtype(t *Type) EType {
 	return et
 }
 
-func listtreecopy(l nodesOrNodeList, lineno int32) []*Node {
+func listtreecopy(l []*Node, lineno int32) []*Node {
 	var out []*Node
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		out = append(out, treecopy(it.N(), lineno))
@@ -2361,7 +2361,7 @@ func listtreecopy(l nodesOrNodeList, lineno int32) []*Node {
 	return out
 }
 
-func liststmt(l nodesOrNodeList) *Node {
+func liststmt(l []*Node) *Node {
 	n := Nod(OBLOCK, nil, nil)
 	setNodeSeq(&n.List, l)
 	if nodeSeqLen(l) != 0 {
@@ -2695,7 +2695,7 @@ func mkpkg(path string) *Pkg {
 	return p
 }
 
-func addinit(np **Node, init nodesOrNodeList) {
+func addinit(np **Node, init []*Node) {
 	if nodeSeqLen(init) == 0 {
 		return
 	}

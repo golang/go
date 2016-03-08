@@ -1699,7 +1699,9 @@ func Nconv(n *Node, flag int) string {
 }
 
 func (l *NodeList) String() string {
-	return Hconv(l, 0)
+	var n Nodes
+	n.Set(nodeSeqSlice(l))
+	return Hconv(n, 0)
 }
 
 func (n Nodes) String() string {
@@ -1708,7 +1710,7 @@ func (n Nodes) String() string {
 
 // Fmt '%H': NodeList.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
-func Hconv(l nodesOrNodeList, flag int) string {
+func Hconv(l Nodes, flag int) string {
 	if nodeSeqLen(l) == 0 && fmtmode == FDbg {
 		return "<nil>"
 	}
@@ -1736,7 +1738,7 @@ func Hconv(l nodesOrNodeList, flag int) string {
 	return buf.String()
 }
 
-func dumplist(s string, l nodesOrNodeList) {
+func dumplist(s string, l Nodes) {
 	fmt.Printf("%s%v\n", s, Hconv(l, obj.FmtSign))
 }
 

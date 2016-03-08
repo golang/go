@@ -682,12 +682,12 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	}
 
 	label.Name.Defn = ls
-	l := list1(label)
+	l := []*Node{label}
 	if ls != nil {
 		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
-			appendNodeSeq(&l, ls.List)
+			l = append(l, ls.List.Slice()...)
 		} else {
-			appendNodeSeqNode(&l, ls)
+			l = append(l, ls)
 		}
 	}
 	return liststmt(l)
@@ -837,7 +837,7 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 	if l == nil {
 		stmt = Nod(OEMPTY, nil, nil)
 	} else {
-		stmt = liststmt(l)
+		stmt = liststmt(nodeSeqSlice(l))
 	}
 	popdcl()
 
@@ -1983,7 +1983,7 @@ func (p *parser) hidden_fndcl() *Node {
 		s5 := p.ohidden_funres()
 
 		s := s1
-		t := functype(nil, s3, s5)
+		t := functype(nil, nodeSeqSlice(s3), nodeSeqSlice(s5))
 
 		importsym(s, ONAME)
 		if s.Def != nil && s.Def.Op == ONAME {
@@ -2013,7 +2013,7 @@ func (p *parser) hidden_fndcl() *Node {
 		s8 := p.ohidden_funres()
 
 		ss := methodname1(newname(s4), s2.N.Right)
-		ss.Type = functype(s2.N, s6, s8)
+		ss.Type = functype(s2.N, nodeSeqSlice(s6), nodeSeqSlice(s8))
 
 		checkwidth(ss.Type)
 		addmethod(s4, ss.Type, false, false)
@@ -2457,7 +2457,7 @@ func (p *parser) stmt() *Node {
 		return p.compound_stmt(false)
 
 	case LVAR, LCONST, LTYPE:
-		return liststmt(p.common_dcl())
+		return liststmt(nodeSeqSlice(p.common_dcl()))
 
 	case LNAME, '@', '?', LLITERAL, LFUNC, '(', // operands
 		'[', LSTRUCT, LMAP, LCHAN, LINTERFACE, // composite types
@@ -2973,7 +2973,7 @@ func (p *parser) hidden_type_misc() *Type {
 		s3 := p.ohidden_structdcl_list()
 		p.want('}')
 
-		return tostruct(s3)
+		return tostruct(nodeSeqSlice(s3))
 
 	case LINTERFACE:
 		// LINTERFACE '{' ohidden_interfacedcl_list '}'
@@ -2982,7 +2982,7 @@ func (p *parser) hidden_type_misc() *Type {
 		s3 := p.ohidden_interfacedcl_list()
 		p.want('}')
 
-		return tointerface(s3)
+		return tointerface(nodeSeqSlice(s3))
 
 	case '*':
 		// '*' hidden_type
@@ -3053,7 +3053,7 @@ func (p *parser) hidden_type_func() *Type {
 	p.want(')')
 	s5 := p.ohidden_funres()
 
-	return functype(nil, s3, s5)
+	return functype(nil, nodeSeqSlice(s3), nodeSeqSlice(s5))
 }
 
 func (p *parser) hidden_funarg() *Node {
@@ -3159,7 +3159,7 @@ func (p *parser) hidden_interfacedcl() *Node {
 	p.want(')')
 	s5 := p.ohidden_funres()
 
-	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
+	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), nodeSeqSlice(s3), nodeSeqSlice(s5))))
 }
 
 func (p *parser) ohidden_funres() *NodeList {

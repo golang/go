@@ -55,10 +55,10 @@ func instrument(fn *Node) {
 	}
 
 	if flag_race == 0 || !ispkgin(norace_inst_pkgs) {
-		instrumentlist(fn.Nbody.Slice(), nil)
+		instrumentlist(fn.Nbody, nil)
 
 		// nothing interesting for race detector in fn->enter
-		instrumentlist(fn.Func.Exit.Slice(), nil)
+		instrumentlist(fn.Func.Exit, nil)
 	}
 
 	if flag_race != 0 {
@@ -86,7 +86,7 @@ func instrument(fn *Node) {
 	}
 }
 
-func instrumentlist(l nodesOrNodeList, init *Nodes) {
+func instrumentlist(l Nodes, init *Nodes) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		var instr Nodes
 		instrumentnode(it.P(), &instr, 0, 0)
@@ -427,7 +427,7 @@ ret:
 	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
 		instrumentlist(n.List, init)
 	}
-	instrumentlist(n.Nbody.Slice(), nil)
+	instrumentlist(n.Nbody, nil)
 	instrumentlist(n.Rlist, nil)
 	*np = n
 }
@@ -594,7 +594,7 @@ func foreachnode(n *Node, f func(*Node, interface{}), c interface{}) {
 	}
 }
 
-func foreachlist(l nodesOrNodeList, f func(*Node, interface{}), c interface{}) {
+func foreachlist(l Nodes, f func(*Node, interface{}), c interface{}) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		foreachnode(it.N(), f, c)
 	}
@@ -618,7 +618,7 @@ func hascallspred(n *Node, c interface{}) {
 
 // appendinit is like addinit in subr.go
 // but appends rather than prepends.
-func appendinit(np **Node, init nodesOrNodeList) {
+func appendinit(np **Node, init Nodes) {
 	if nodeSeqLen(init) == 0 {
 		return
 	}

@@ -59,7 +59,7 @@ type caseClause struct {
 // typecheckswitch typechecks a switch statement.
 func typecheckswitch(n *Node) {
 	lno := lineno
-	typechecklist(n.Ninit, Etop)
+	typechecklist(n.Ninit.Slice(), Etop)
 
 	var nilonly string
 	var top int
@@ -181,7 +181,7 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		typechecklist(ncase.Nbody, Etop)
+		typechecklist(ncase.Nbody.Slice(), Etop)
 	}
 
 	lineno = lno
@@ -287,7 +287,7 @@ func (s *exprSwitch) walk(sw *Node) {
 func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 	if len(cc) < binarySearchMin {
 		// linear search
-		var cas *NodeList
+		var cas []*Node
 		for _, c := range cc {
 			n := c.node
 			lno := setlineno(n)
@@ -305,7 +305,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 			}
 			a.Nbody.Set([]*Node{n.Right}) // goto l
 
-			cas = list(cas, a)
+			cas = append(cas, a)
 			lineno = lno
 		}
 		return liststmt(cas)
@@ -653,9 +653,9 @@ func (s *typeSwitch) walk(sw *Node) {
 		ncase := 0
 		for i := 0; i < run; i++ {
 			ncase++
-			hash := list1(cc[i].node.Right)
+			hash := []*Node{cc[i].node.Right}
 			for j := i + 1; j < run && cc[i].hash == cc[j].hash; j++ {
-				hash = list(hash, cc[j].node.Right)
+				hash = append(hash, cc[j].node.Right)
 			}
 			cc[i].node.Right = liststmt(hash)
 		}
@@ -678,16 +678,16 @@ func (s *typeSwitch) walk(sw *Node) {
 // case body if the variable is of type t.
 func (s *typeSwitch) typeone(t *Node) *Node {
 	var name *Node
-	var init *NodeList
+	var init []*Node
 	if nodeSeqLen(t.Rlist) == 0 {
 		name = nblank
 		typecheck(&nblank, Erv|Easgn)
 	} else {
 		name = nodeSeqFirst(t.Rlist)
-		init = list1(Nod(ODCL, name, nil))
+		init = []*Node{Nod(ODCL, name, nil)}
 		a := Nod(OAS, name, nil)
 		typecheck(&a, Etop)
-		init = list(init, a)
+		init = append(init, a)
 	}
 
 	a := Nod(OAS2, nil, nil)
@@ -696,19 +696,19 @@ func (s *typeSwitch) typeone(t *Node) *Node {
 	b.Type = t.Left.Type // interface.(type)
 	setNodeSeq(&a.Rlist, []*Node{b})
 	typecheck(&a, Etop)
-	init = list(init, a)
+	init = append(init, a)
 
 	c := Nod(OIF, nil, nil)
 	c.Left = s.okname
 	c.Nbody.Set([]*Node{t.Right}) // if ok { goto l }
 
-	return liststmt(list(init, c))
+	return liststmt(append(init, c))
 }
 
 // walkCases generates an AST implementing the cases in cc.
 func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 	if len(cc) < binarySearchMin {
-		var cas *NodeList
+		var cas []*Node
 		for _, c := range cc {
 			n := c.node
 			if c.typ != caseKindTypeConst {
@@ -718,7 +718,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
 			typecheck(&a.Left, Erv)
 			a.Nbody.Set([]*Node{n.Right})
-			cas = list(cas, a)
+			cas = append(cas, a)
 		}
 		return liststmt(cas)
 	}

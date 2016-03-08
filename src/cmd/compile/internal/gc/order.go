@@ -249,7 +249,7 @@ func cleantemp(top ordermarker, order *Order) {
 }
 
 // Orderstmtlist orders each of the statements in the list.
-func orderstmtlist(l nodesOrNodeList, order *Order) {
+func orderstmtlist(l Nodes, order *Order) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		orderstmt(it.N(), order)
 	}
@@ -257,7 +257,7 @@ func orderstmtlist(l nodesOrNodeList, order *Order) {
 
 // Orderblock orders the block of statements l onto a new list,
 // and returns the ordered list.
-func orderblock(l nodesOrNodeList) []*Node {
+func orderblock(l Nodes) []*Node {
 	var order Order
 	mark := marktemp(&order)
 	orderstmtlist(l, &order)
@@ -270,7 +270,7 @@ func orderblock(l nodesOrNodeList) []*Node {
 func orderblockNodes(n *Nodes) {
 	var order Order
 	mark := marktemp(&order)
-	orderstmtlist(n.Slice(), &order)
+	orderstmtlist(*n, &order)
 	cleantemp(mark, &order)
 	n.Set(order.out)
 }
@@ -309,7 +309,7 @@ func orderinit(n *Node, order *Order) {
 
 // Ismulticall reports whether the list l is f() for a multi-value function.
 // Such an f() could appear as the lone argument to a multi-arg function.
-func ismulticall(l nodesOrNodeList) bool {
+func ismulticall(l Nodes) bool {
 	// one arg only
 	if nodeSeqLen(l) != 1 {
 		return false
@@ -331,33 +331,34 @@ func ismulticall(l nodesOrNodeList) bool {
 
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
-func copyret(n *Node, order *Order) *NodeList {
+func copyret(n *Node, order *Order) Nodes {
 	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
 	}
 
-	var l1 *NodeList
-	var l2 *NodeList
+	var l1 []*Node
+	var l2 []*Node
 	var tl Iter
-	var tmp *Node
 	for t := Structfirst(&tl, &n.Type); t != nil; t = structnext(&tl) {
-		tmp = temp(t.Type)
-		l1 = list(l1, tmp)
-		l2 = list(l2, tmp)
+		tmp := temp(t.Type)
+		l1 = append(l1, tmp)
+		l2 = append(l2, tmp)
 	}
 
 	as := Nod(OAS2, nil, nil)
-	setNodeSeq(&as.List, l1)
-	setNodeSeq(&as.Rlist, list1(n))
+	as.List.Set(l1)
+	as.Rlist.Set([]*Node{n})
 	typecheck(&as, Etop)
 	orderstmt(as, order)
 
-	return l2
+	var r Nodes
+	r.Set(l2)
+	return r
 }
 
 // Ordercallargs orders the list of call arguments l and returns the
 // ordered list.
-func ordercallargs(l nodesOrNodeList, order *Order) nodesOrNodeList {
+func ordercallargs(l Nodes, order *Order) Nodes {
 	if ismulticall(l) {
 		// return f() where f() is multiple values.
 		return copyret(nodeSeqFirst(l), order)
@@ -969,7 +970,7 @@ func orderstmt(n *Node, order *Order) {
 }
 
 // Orderexprlist orders the expression list l into order.
-func orderexprlist(l nodesOrNodeList, order *Order) {
+func orderexprlist(l Nodes, order *Order) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		orderexpr(it.P(), order, nil)
 	}
@@ -977,7 +978,7 @@ func orderexprlist(l nodesOrNodeList, order *Order) {
 
 // Orderexprlist orders the expression list l but saves
 // the side effects on the individual expression ninit lists.
-func orderexprlistinplace(l nodesOrNodeList, order *Order) {
+func orderexprlistinplace(l Nodes, order *Order) {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		orderexprinplace(it.P(), order)
 	}

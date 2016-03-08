@@ -191,7 +191,7 @@ func walkstmt(np **Node) {
 		init := n.Ninit
 		setNodeSeq(&n.Ninit, nil)
 		walkexpr(&n, &init)
-		addinit(&n, init)
+		addinit(&n, init.Slice())
 		if (*np).Op == OCOPY && n.Op == OCONVNOP {
 			n.Op = OEMPTY // don't leave plain values as statements.
 		}
@@ -209,7 +209,7 @@ func walkstmt(np **Node) {
 		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, typename(n.Left.Type), n.Left, nodnil())
 		walkexpr(&n, &init)
 
-		addinit(&n, init)
+		addinit(&n, init.Slice())
 
 	case OBREAK,
 		ODCL,
@@ -257,7 +257,7 @@ func walkstmt(np **Node) {
 			init := n.Left.Ninit
 			setNodeSeq(&n.Left.Ninit, nil)
 			walkexpr(&n.Left, &init)
-			addinit(&n.Left, init)
+			addinit(&n.Left, init.Slice())
 		}
 
 		walkstmt(&n.Right)
@@ -320,7 +320,7 @@ func walkstmt(np **Node) {
 			// move function calls out, to make reorder3's job easier.
 			walkexprlistsafe(n.List.Slice(), &n.Ninit)
 
-			ll := ascompatee(n.Op, rl, n.List, &n.Ninit)
+			ll := ascompatee(n.Op, rl, n.List.Slice(), &n.Ninit)
 			setNodeSeq(&n.List, reorder3(ll))
 			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
 				*it.P() = applywritebarrier(it.N())
@@ -328,7 +328,7 @@ func walkstmt(np **Node) {
 			break
 		}
 
-		ll := ascompatte(n.Op, nil, false, Getoutarg(Curfn.Type), n.List, 1, &n.Ninit)
+		ll := ascompatte(n.Op, nil, false, Getoutarg(Curfn.Type), n.List.Slice(), 1, &n.Ninit)
 		setNodeSeq(&n.List, ll)
 
 	case ORETJMP:
@@ -608,7 +608,7 @@ opswitch:
 		var ll Nodes
 
 		walkexpr(&n.Right, &ll)
-		addinit(&n.Right, ll)
+		addinit(&n.Right, ll.Slice())
 
 	case OPRINT, OPRINTN:
 		walkexprlist(n.List.Slice(), init)
@@ -638,7 +638,7 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List.Slice(), 0, init)
 		setNodeSeq(&n.List, reorder1(ll))
 
 	case OCALLFUNC:
@@ -685,7 +685,7 @@ opswitch:
 			}
 		}
 
-		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List.Slice(), 0, init)
 		setNodeSeq(&n.List, reorder1(ll))
 
 	case OCALLMETH:
@@ -695,9 +695,9 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, false, getthis(t), list1(n.Left.Left), 0, init)
-		lr := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List, 0, init)
-		ll = concat(ll, lr)
+		ll := ascompatte(n.Op, n, false, getthis(t), []*Node{n.Left.Left}, 0, init)
+		lr := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List.Slice(), 0, init)
+		ll = append(ll, lr...)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
 		setNodeSeq(&n.List, reorder1(ll))
@@ -788,7 +788,7 @@ opswitch:
 		init.AppendNodes(&n.Ninit)
 		walkexprlistsafe(n.List.Slice(), init)
 		walkexprlistsafe(n.Rlist.Slice(), init)
-		ll := ascompatee(OAS, n.List, n.Rlist, init)
+		ll := ascompatee(OAS, n.List.Slice(), n.Rlist.Slice(), init)
 		ll = reorder3(ll)
 		for i, n := range ll {
 			ll[i] = applywritebarrier(n)
@@ -804,10 +804,10 @@ opswitch:
 		walkexpr(&r, init)
 
 		ll := ascompatet(n.Op, n.List, &r.Type, 0, init)
-		for lr := ll; lr != nil; lr = lr.Next {
-			lr.N = applywritebarrier(lr.N)
+		for i, n := range ll {
+			ll[i] = applywritebarrier(n)
 		}
-		n = liststmt(concat(list1(r), ll))
+		n = liststmt(append([]*Node{r}, ll...))
 
 		// x, y = <-c
 	// orderstmt made sure x is addressable.
@@ -1648,7 +1648,7 @@ func ascompatee1(op Op, l *Node, r *Node, init *Nodes) *Node {
 	return convas(n, init)
 }
 
-func ascompatee(op Op, nl nodesOrNodeList, nr nodesOrNodeList, init *Nodes) []*Node {
+func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 	// check assign expression list to
 	// a expression list. called in
 	//	expr-list = expr-list
@@ -1676,7 +1676,10 @@ func ascompatee(op Op, nl nodesOrNodeList, nr nodesOrNodeList, init *Nodes) []*N
 
 	// cannot happen: caller checked that lists had same length
 	if !nlit.Done() || !nrit.Done() {
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nl, obj.FmtSign), Oconv(op, 0), Hconv(nr, obj.FmtSign), nodeSeqLen(nl), nodeSeqLen(nr), Curfn.Func.Nname.Sym.Name)
+		var nln, nrn Nodes
+		nln.Set(nl)
+		nrn.Set(nr)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, obj.FmtSign), Oconv(op, 0), Hconv(nrn, obj.FmtSign), nodeSeqLen(nl), nodeSeqLen(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1699,7 +1702,7 @@ func fncall(l *Node, rt *Type) bool {
 	return true
 }
 
-func ascompatet(op Op, nl nodesOrNodeList, nr **Type, fp int, init *Nodes) *NodeList {
+func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 	var l *Node
 	var tmp *Node
 	var a *Node
@@ -1710,8 +1713,8 @@ func ascompatet(op Op, nl nodesOrNodeList, nr **Type, fp int, init *Nodes) *Node
 	//	expr-list = func()
 	r := Structfirst(&saver, nr)
 
-	var nn *NodeList
-	var mm *NodeList
+	var nn []*Node
+	var mm []*Node
 	ucount := 0
 	it := nodeSeqIterate(nl)
 	for ; !it.Done(); it.Next() {
@@ -1732,7 +1735,7 @@ func ascompatet(op Op, nl nodesOrNodeList, nr **Type, fp int, init *Nodes) *Node
 			typecheck(&tmp, Erv)
 			a = Nod(OAS, l, tmp)
 			a = convas(a, init)
-			mm = list(mm, a)
+			mm = append(mm, a)
 			l = tmp
 		}
 
@@ -1744,7 +1747,7 @@ func ascompatet(op Op, nl nodesOrNodeList, nr **Type, fp int, init *Nodes) *Node
 			ucount++
 		}
 
-		nn = list(nn, a)
+		nn = append(nn, a)
 		r = structnext(&saver)
 	}
 
@@ -1755,11 +1758,11 @@ func ascompatet(op Op, nl nodesOrNodeList, nr **Type, fp int, init *Nodes) *Node
 	if ucount != 0 {
 		Fatalf("ascompatet: too many function calls evaluating parameters")
 	}
-	return concat(nn, mm)
+	return append(nn, mm...)
 }
 
 // package all the arguments that match a ... T parameter into a []T.
-func mkdotargslice(lr0 nodesOrNodeList, nn *NodeList, l *Type, fp int, init *Nodes, ddd *Node) *NodeList {
+func mkdotargslice(lr0, nn []*Node, l *Type, fp int, init *Nodes, ddd *Node) []*Node {
 	esc := uint16(EscUnknown)
 	if ddd != nil {
 		esc = ddd.Esc
@@ -1788,7 +1791,7 @@ func mkdotargslice(lr0 nodesOrNodeList, nn *NodeList, l *Type, fp int, init *Nod
 	}
 
 	a := Nod(OAS, nodarg(l, fp), n)
-	nn = list(nn, convas(a, init))
+	nn = append(nn, convas(a, init))
 	return nn
 }
 
@@ -1814,7 +1817,7 @@ func dumptypes(nl **Type, what string) string {
 	return fmt_
 }
 
-func dumpnodetypes(l nodesOrNodeList, what string) string {
+func dumpnodetypes(l []*Node, what string) string {
 	var r *Node
 
 	fmt_ := ""
@@ -1840,7 +1843,7 @@ func dumpnodetypes(l nodesOrNodeList, what string) string {
 // a type list. called in
 //	return expr-list
 //	func(expr-list)
-func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr nodesOrNodeList, fp int, init *Nodes) *NodeList {
+func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, init *Nodes) []*Node {
 	var savel Iter
 
 	lr0 := lr
@@ -1849,31 +1852,30 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr nodesOrNodeList, fp
 	if nodeSeqLen(lr) > 0 {
 		r = nodeSeqFirst(lr)
 	}
-	var nn *NodeList
+	var nn []*Node
 
 	// f(g()) where g has multiple return values
 	var a *Node
 	var l2 string
 	var ll *Type
 	var l1 string
-	var lrit nodeSeqIterator
 	if r != nil && nodeSeqLen(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
 		// optimization - can do block copy
 		if eqtypenoname(r.Type, *nl) {
 			a := nodarg(*nl, fp)
 			r = Nod(OCONVNOP, r, nil)
 			r.Type = a.Type
-			nn = list1(convas(Nod(OAS, a, r), init))
+			nn = []*Node{convas(Nod(OAS, a, r), init)}
 			goto ret
 		}
 
 		// conversions involved.
 		// copy into temporaries.
-		var alist *NodeList
+		var alist []*Node
 
 		for l := Structfirst(&savel, &r.Type); l != nil; l = structnext(&savel) {
 			a = temp(l.Type)
-			alist = list(alist, a)
+			alist = append(alist, a)
 		}
 
 		a = Nod(OAS2, nil, nil)
@@ -1887,7 +1889,6 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr nodesOrNodeList, fp
 		l = Structfirst(&savel, nl)
 	}
 
-	lrit = nodeSeqIterate(lr)
 loop:
 	if l != nil && l.Isddd {
 		// the ddd parameter must be last
@@ -1901,17 +1902,17 @@ loop:
 		// only if we are assigning a single ddd
 		// argument to a ddd parameter then it is
 		// passed thru unencapsulated
-		if r != nil && lrit.Len() <= 1 && isddd && Eqtype(l.Type, r.Type) {
+		if r != nil && len(lr) <= 1 && isddd && Eqtype(l.Type, r.Type) {
 			a = Nod(OAS, nodarg(l, fp), r)
 			a = convas(a, init)
-			nn = list(nn, a)
+			nn = append(nn, a)
 			goto ret
 		}
 
 		// normal case -- make a slice of all
 		// remaining arguments and pass it to
 		// the ddd parameter.
-		nn = mkdotargslice(lrit.Seq(), nn, l, fp, init, call.Right)
+		nn = mkdotargslice(lr, nn, l, fp, init, call.Right)
 
 		goto ret
 	}
@@ -1932,19 +1933,19 @@ loop:
 
 	a = Nod(OAS, nodarg(l, fp), r)
 	a = convas(a, init)
-	nn = list(nn, a)
+	nn = append(nn, a)
 
 	l = structnext(&savel)
 	r = nil
-	lrit.Next()
-	if !lrit.Done() {
-		r = lrit.N()
+	lr = lr[1:]
+	if len(lr) > 0 {
+		r = lr[0]
 	}
 	goto loop
 
 ret:
-	for lrit = nodeSeqIterate(nn); !lrit.Done(); lrit.Next() {
-		lrit.N().Typecheck = 1
+	for _, n := range nn {
+		n.Typecheck = 1
 	}
 	return nn
 }
@@ -2250,14 +2251,11 @@ out:
 // if there is exactly one function expr,
 // then it is done first. otherwise must
 // make temp variables
-func reorder1(all *NodeList) *NodeList {
-	var n *Node
-
+func reorder1(all []*Node) []*Node {
 	c := 0 // function calls
 	t := 0 // total parameters
 
-	for l := all; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range all {
 		t++
 		ullmancalc(n)
 		if n.Ullman >= UINF {
@@ -2269,15 +2267,14 @@ func reorder1(all *NodeList) *NodeList {
 		return all
 	}
 
-	var g *NodeList // fncalls assigned to tempnames
-	var f *Node     // last fncall assigned to stack
-	var r *NodeList // non fncalls and tempnames assigned to stack
+	var g []*Node // fncalls assigned to tempnames
+	var f *Node   // last fncall assigned to stack
+	var r []*Node // non fncalls and tempnames assigned to stack
 	d := 0
 	var a *Node
-	for l := all; l != nil; l = l.Next {
-		n = l.N
+	for _, n := range all {
 		if n.Ullman < UINF {
-			r = list(r, n)
+			r = append(r, n)
 			continue
 		}
 
@@ -2291,19 +2288,19 @@ func reorder1(all *NodeList) *NodeList {
 		a = temp(n.Right.Type)
 
 		a = Nod(OAS, a, n.Right)
-		g = list(g, a)
+		g = append(g, a)
 
 		// put normal arg assignment on list
 		// with fncall replaced by tempname
 		n.Right = a.Left
 
-		r = list(r, n)
+		r = append(r, n)
 	}
 
 	if f != nil {
-		g = list(g, f)
+		g = append(g, f)
 	}
-	return concat(g, r)
+	return append(g, r...)
 }
 
 // from ascompat[ee]
@@ -3850,7 +3847,7 @@ func usefield(n *Node) {
 	Curfn.Func.Fieldtrack = append(Curfn.Func.Fieldtrack, field)
 }
 
-func candiscardlist(l nodesOrNodeList) bool {
+func candiscardlist(l Nodes) bool {
 	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
 		if !candiscard(it.N()) {
 			return false
@@ -4005,7 +4002,7 @@ func walkprintfunc(np **Node, init *Nodes) {
 	funcbody(fn)
 
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody, Etop)
+	typechecklist(fn.Nbody.Slice(), Etop)
 	xtop = list(xtop, fn)
 	Curfn = oldfn
 

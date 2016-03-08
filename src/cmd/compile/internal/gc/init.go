@@ -94,7 +94,7 @@ func fninit(n *NodeList) {
 		return
 	}
 
-	nf := initfix(n)
+	nf := initfix(nodeSeqSlice(n))
 	if !anyinit(nf) {
 		return
 	}
