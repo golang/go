@@ -95,10 +95,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int32, ttype obj.AddrType, treg int, toffset int32) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int32, ttype obj.AddrType, treg int, toffset int32) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
 	q.From.Type = ftype
 	q.From.Reg = int16(freg)
@@ -464,7 +464,7 @@ func ginsnop() {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n *gc.Node) {
+func ginscon(as obj.As, c int64, n *gc.Node) {
 	var n1 gc.Node
 	gc.Nodconst(&n1, gc.Types[gc.TINT32], c)
 	var n2 gc.Node

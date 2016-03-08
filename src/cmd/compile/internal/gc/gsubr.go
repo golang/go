@@ -79,7 +79,7 @@ func Samereg(a *Node, b *Node) bool {
 	return true
 }
 
-func Gbranch(as int, t *Type, likely int) *obj.Prog {
+func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Val = nil
@@ -97,7 +97,7 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	return p
 }
 
-func Prog(as int) *obj.Prog {
+func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
 	if as == obj.ADATA || as == obj.AGLOBL {
@@ -125,7 +125,7 @@ func Prog(as int) *obj.Prog {
 		}
 	}
 
-	p.As = int16(as)
+	p.As = as
 	p.Lineno = lineno
 	return p
 }

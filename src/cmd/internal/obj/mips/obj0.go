@@ -261,11 +261,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	}
 
 	autosize := int32(0)
-	var o int
 	var p1 *obj.Prog
 	var p2 *obj.Prog
 	for p := cursym.Text; p != nil; p = p.Link {
-		o = int(p.As)
+		o := p.As
 		switch o {
 		case obj.ATEXT:
 			autosize = int32(textstksiz + 8)
@@ -513,7 +512,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
 	// instruction scheduling
 	q = nil          // p - 1
 	q1 = cursym.Text // top of block
-	o = 0            // count of instructions
+	o := 0           // count of instructions
 	for p = cursym.Text; p != nil; p = p1 {
 		p1 = p.Link
 		o++
@@ -1342,14 +1341,13 @@ func follow(ctxt *obj.Link, s *obj.LSym) {
 func xfol(ctxt *obj.Link, p *obj.Prog, last **obj.Prog) {
 	var q *obj.Prog
 	var r *obj.Prog
-	var a int
 	var i int
 
 loop:
 	if p == nil {
 		return
 	}
-	a = int(p.As)
+	a := p.As
 	if a == AJMP {
 		q = p.Pcond
 		if (p.Mark&NOSCHED != 0) || q != nil && (q.Mark&NOSCHED != 0) {
@@ -1381,7 +1379,7 @@ loop:
 			if q == *last || (q.Mark&NOSCHED != 0) {
 				break
 			}
-			a = int(q.As)
+			a = q.As
 			if a == obj.ANOP {
 				i--
 				continue
@@ -1435,7 +1433,7 @@ loop:
 
 		a = AJMP
 		q = ctxt.NewProg()
-		q.As = int16(a)
+		q.As = a
 		q.Lineno = p.Lineno
 		q.To.Type = obj.TYPE_BRANCH
 		q.To.Offset = p.Pc

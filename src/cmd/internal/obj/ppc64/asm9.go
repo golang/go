@@ -48,7 +48,7 @@ const (
 )
 
 type Optab struct {
-	as    int16
+	as    obj.As
 	a1    uint8
 	a2    uint8
 	a3    uint8
@@ -770,7 +770,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
 		}
 	}
 
-	ctxt.Diag("illegal combination %v %v %v %v %v", obj.Aconv(int(p.As)), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
+	ctxt.Diag("illegal combination %v %v %v %v %v", obj.Aconv(p.As), DRconv(a1), DRconv(a2), DRconv(a3), DRconv(a4))
 	prasm(p)
 	if ops == nil {
 		ops = optab
@@ -890,7 +890,7 @@ func (x ocmp) Less(i, j int) bool {
 	}
 	return false
 }
-func opset(a, b0 int16) {
+func opset(a, b0 obj.As) {
 	oprange[a&obj.AMask] = oprange[b0]
 }
 
@@ -919,7 +919,7 @@ func buildop(ctxt *obj.Link) {
 
 		switch r {
 		default:
-			ctxt.Diag("unknown op in build: %v", obj.Aconv(int(r)))
+			ctxt.Diag("unknown op in build: %v", obj.Aconv(r))
 			log.Fatalf("bad code")
 
 		case ADCBF: /* unary indexed: op (b+a); op (b) */
@@ -2527,7 +2527,7 @@ func regoff(ctxt *obj.Link, a *obj.Addr) int32 {
 	return int32(vregoff(ctxt, a))
 }
 
-func oprrr(ctxt *obj.Link, a int16) uint32 {
+func oprrr(ctxt *obj.Link, a obj.As) uint32 {
 	switch a {
 	case AADD:
 		return OPVCC(31, 266, 0, 0)
@@ -3026,11 +3026,11 @@ func oprrr(ctxt *obj.Link, a int16) uint32 {
 		return OPVCC(31, 316, 0, 1)
 	}
 
-	ctxt.Diag("bad r/r opcode %v", obj.Aconv(int(a)))
+	ctxt.Diag("bad r/r opcode %v", obj.Aconv(a))
 	return 0
 }
 
-func opirr(ctxt *obj.Link, a int16) uint32 {
+func opirr(ctxt *obj.Link, a obj.As) uint32 {
 	switch a {
 	case AADD:
 		return OPVCC(14, 0, 0, 0)
@@ -3148,14 +3148,14 @@ func opirr(ctxt *obj.Link, a int16) uint32 {
 		return OPVCC(27, 0, 0, 0) /* XORIU */
 	}
 
-	ctxt.Diag("bad opcode i/r %v", obj.Aconv(int(a)))
+	ctxt.Diag("bad opcode i/r %v", obj.Aconv(a))
 	return 0
 }
 
 /*
  * load o(a),d
  */
-func opload(ctxt *obj.Link, a int16) uint32 {
+func opload(ctxt *obj.Link, a obj.As) uint32 {
 	switch a {
 	case AMOVD:
 		return OPVCC(58, 0, 0, 0) /* ld */
@@ -3195,14 +3195,14 @@ func opload(ctxt *obj.Link, a int16) uint32 {
 		return OPVCC(46, 0, 0, 0) /* lmw */
 	}
 
-	ctxt.Diag("bad load opcode %v", obj.Aconv(int(a)))
+	ctxt.Diag("bad load opcode %v", obj.Aconv(a))
 	return 0
 }
 
 /*
  * indexed load a(b),d
  */
-func oploadx(ctxt *obj.Link, a int16) uint32 {
+func oploadx(ctxt *obj.Link, a obj.As) uint32 {
 	switch a {
 	case AMOVWZ:
 		return OPVCC(31, 23, 0, 0) /* lwzx */
@@ -3252,14 +3252,14 @@ func oploadx(ctxt *obj.Link, a int16) uint32 {
 		return OPVCC(31, 53, 0, 0) /* ldux */
 	}
 
-	ctxt.Diag("bad loadx opcode %v", obj.Aconv(int(a)))
+	ctxt.Diag("bad loadx opcode %v", obj.Aconv(a))
 	return 0
 }
 
 /*
  * store s,o(d)
  */
-func opstore(ctxt *obj.Link, a int16) uint32 {
+func opstore(ctxt *obj.Link, a obj.As) uint32 {
 	switch a {
 	case AMOVB, AMOVBZ:
 		return OPVCC(38, 0, 0, 0) /* stb */
@@ -3296,14 +3296,14 @@ func opstore(ctxt *obj.Link, a int16) uint32 {
 		return OPVCC(62, 0, 0, 1) /* stdu */
 	}
 
-	ctxt.Diag("unknown store opcode %v", obj.Aconv(int(a)))
+	ctxt.Diag("unknown store opcode %v", obj.Aconv(a))
 	return 0
 }
 
 /*
  * indexed store s,a(b)
  */
-func opstorex(ctxt *obj.Link, a int16) uint32 {
+func opstorex(ctxt *obj.Link, a obj.As) uint32 {
 	switch a {
 	case AMOVB, AMOVBZ:
 		return OPVCC(31, 215, 0, 0) /* stbx */
@@ -3348,6 +3348,6 @@ func opstorex(ctxt *obj.Link, a int16) uint32 {
 		return OPVCC(31, 181, 0, 0) /* stdux */
 	}
 
-	ctxt.Diag("unknown storex opcode %v", obj.Aconv(int(a)))
+	ctxt.Diag("unknown storex opcode %v", obj.Aconv(a))
 	return 0
 }

@@ -1018,10 +1018,10 @@ func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
 }
 
 // Construct a disembodied instruction.
-func unlinkedprog(as int) *obj.Prog {
+func unlinkedprog(as obj.As) *obj.Prog {
 	p := Ctxt.NewProg()
 	Clearp(p)
-	p.As = int16(as)
+	p.As = as
 	return p
 }
 

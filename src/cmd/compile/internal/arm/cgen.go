@@ -60,7 +60,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
 	// for example moving [4]byte must use 4 MOVB not 1 MOVW.
 	align := int(n.Type.Align)
 
-	var op int
+	var op obj.As
 	switch align {
 	default:
 		gc.Fatalf("sgen: invalid alignment %d for %v", align, n.Type)

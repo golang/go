@@ -3766,7 +3766,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 //     dest := dest(To) op src(From)
 // and also returns the created obj.Prog so it
 // may be further adjusted (offset, scale, etc).
-func opregreg(op int, dest, src int16) *obj.Prog {
+func opregreg(op obj.As, dest, src int16) *obj.Prog {
 	p := Prog(op)
 	p.From.Type = obj.TYPE_REG
 	p.To.Type = obj.TYPE_REG
@@ -3796,7 +3796,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		default:
-			var asm int
+			var asm obj.As
 			switch v.Op {
 			case ssa.OpAMD64ADDQ:
 				asm = x86.ALEAQ
@@ -4039,7 +4039,7 @@ func (s *genState) genValue(v *ssa.Value) {
 		a := regnum(v.Args[0])
 		if r == a {
 			if v.AuxInt2Int64() == 1 {
-				var asm int
+				var asm obj.As
 				switch v.Op {
 				// Software optimization manual recommends add $1,reg.
 				// But inc/dec is 1 byte smaller. ICC always uses inc
@@ -4058,7 +4058,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				p.To.Reg = r
 				return
 			} else if v.AuxInt2Int64() == -1 {
-				var asm int
+				var asm obj.As
 				switch v.Op {
 				case ssa.OpAMD64ADDQconst:
 					asm = x86.ADECQ
@@ -4080,7 +4080,7 @@ func (s *genState) genValue(v *ssa.Value) {
 				return
 			}
 		}
-		var asm int
+		var asm obj.As
 		switch v.Op {
 		case ssa.OpAMD64ADDQconst:
 			asm = x86.ALEAQ
@@ -4138,7 +4138,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		} else if x == r && v.AuxInt2Int64() == -1 {
-			var asm int
+			var asm obj.As
 			// x = x - (-1) is the same as x++
 			// See OpAMD64ADDQconst comments about inc vs add $1,reg
 			switch v.Op {
@@ -4153,7 +4153,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		} else if x == r && v.AuxInt2Int64() == 1 {
-			var asm int
+			var asm obj.As
 			switch v.Op {
 			case ssa.OpAMD64SUBQconst:
 				asm = x86.ADECQ
@@ -4166,7 +4166,7 @@ func (s *genState) genValue(v *ssa.Value) {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = r
 		} else {
-			var asm int
+			var asm obj.As
 			switch v.Op {
 			case ssa.OpAMD64SUBQconst:
 				asm = x86.ALEAQ
@@ -4735,7 +4735,7 @@ func (s *genState) markMoves(b *ssa.Block) {
 }
 
 // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
-func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
+func movZero(as obj.As, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
 	p := Prog(as)
 	// TODO: use zero register on archs that support it.
 	p.From.Type = obj.TYPE_CONST
@@ -4749,7 +4749,7 @@ func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nle
 }
 
 var blockJump = [...]struct {
-	asm, invasm int
+	asm, invasm obj.As
 }{
 	ssa.BlockAMD64EQ:  {x86.AJEQ, x86.AJNE},
 	ssa.BlockAMD64NE:  {x86.AJNE, x86.AJEQ},
@@ -4766,7 +4766,8 @@ var blockJump = [...]struct {
 }
 
 type floatingEQNEJump struct {
-	jump, index int
+	jump  obj.As
+	index int
 }
 
 var eqfJumps = [2][2]floatingEQNEJump{
@@ -5034,7 +5035,7 @@ var ssaRegToReg = [...]int16{
 }
 
 // loadByType returns the load instruction of the given type.
-func loadByType(t ssa.Type) int {
+func loadByType(t ssa.Type) obj.As {
 	// Avoid partial register write
 	if !t.IsFloat() && t.Size() <= 2 {
 		if t.Size() == 1 {
@@ -5048,7 +5049,7 @@ func loadByType(t ssa.Type) int {
 }
 
 // storeByType returns the store instruction of the given type.
-func storeByType(t ssa.Type) int {
+func storeByType(t ssa.Type) obj.As {
 	width := t.Size()
 	if t.IsFloat() {
 		switch width {
@@ -5073,7 +5074,7 @@ func storeByType(t ssa.Type) int {
 }
 
 // moveByType returns the reg->reg move instruction of the given type.
-func moveByType(t ssa.Type) int {
+func moveByType(t ssa.Type) obj.As {
 	if t.IsFloat() {
 		// Moving the whole sse2 register is faster
 		// than moving just the correct low portion of it.

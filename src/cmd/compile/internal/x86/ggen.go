@@ -84,10 +84,10 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int64, ttype obj.AddrType, treg int, toffset int64) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
 	q.From.Type = ftype
 	q.From.Reg = int16(freg)
@@ -654,7 +654,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
 }
 
 func cgen_floatsse(n *gc.Node, res *gc.Node) {
-	var a int
+	var a obj.As
 
 	nl := n.Left
 	nr := n.Right

@@ -197,7 +197,7 @@ func (p *Parser) line() bool {
 	return true
 }
 
-func (p *Parser) instruction(op int, word, cond string, operands [][]lex.Token) {
+func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Token) {
 	p.addr = p.addr[0:0]
 	p.isJump = p.arch.IsJump(word)
 	for _, op := range operands {
@@ -214,7 +214,7 @@ func (p *Parser) instruction(op int, word, cond string, operands [][]lex.Token) 
 	p.asmInstruction(op, cond, p.addr)
 }
 
-func (p *Parser) pseudo(op int, word string, operands [][]lex.Token) {
+func (p *Parser) pseudo(op obj.As, word string, operands [][]lex.Token) {
 	switch op {
 	case obj.ATEXT:
 		p.asmText(word, operands)

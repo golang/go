@@ -59,7 +59,7 @@ const (
 )
 
 type Optab struct {
-	as     int16
+	as     obj.As
 	ytab   []ytab
 	prefix uint8
 	op     [23]uint8
@@ -74,7 +74,7 @@ type ytab struct {
 }
 
 type Movtab struct {
-	as   int16
+	as   obj.As
 	ft   uint8
 	f3t  uint8
 	tt   uint8
@@ -1753,7 +1753,7 @@ func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
 	return c + pad
 }
 
-func spadjop(ctxt *obj.Link, p *obj.Prog, l int, q int) int {
+func spadjop(ctxt *obj.Link, p *obj.Prog, l, q obj.As) obj.As {
 	if p.Mode != 64 || ctxt.Arch.Ptrsize == 4 {
 		return l
 	}
@@ -1783,9 +1783,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			p.To.Reg = REG_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
-			p.As = int16(spadjop(ctxt, p, AADDL, AADDQ))
+			p.As = spadjop(ctxt, p, AADDL, AADDQ)
 			if v < 0 {
-				p.As = int16(spadjop(ctxt, p, ASUBL, ASUBQ))
+				p.As = spadjop(ctxt, p, ASUBL, ASUBQ)
 				v = -v
 				p.From.Offset = int64(v)
 			}
@@ -1810,9 +1810,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			p.To.Reg = REG_SP
 			v = int32(-p.From.Offset)
 			p.From.Offset = int64(v)
-			p.As = int16(spadjop(ctxt, p, AADDL, AADDQ))
+			p.As = spadjop(ctxt, p, AADDL, AADDQ)
 			if v < 0 {
-				p.As = int16(spadjop(ctxt, p, ASUBL, ASUBQ))
+				p.As = spadjop(ctxt, p, ASUBL, ASUBQ)
 				v = -v
 				p.From.Offset = int64(v)
 			}
@@ -1985,10 +1985,8 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 }
 
 func instinit() {
-	var c int
-
 	for i := 1; optab[i].as != 0; i++ {
-		c = int(optab[i].as)
+		c := optab[i].as
 		if opindex[c&obj.AMask] != nil {
 			log.Fatalf("phase error in optab: %d (%v)", i, obj.Aconv(c))
 		}

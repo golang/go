@@ -246,11 +246,11 @@ func addmove(r *Flow, bn int, rn int, f int) {
 	else if(a->sym == nil)
 		a->type = TYPE_CONST;
 	*/
-	p1.As = int16(Thearch.Optoas(OAS, Types[uint8(v.etype)]))
+	p1.As = Thearch.Optoas(OAS, Types[uint8(v.etype)])
 
 	// TODO(rsc): Remove special case here.
 	if (Thearch.Thechar == '0' || Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && v.etype == TBOOL {
-		p1.As = int16(Thearch.Optoas(OAS, Types[TUINT8]))
+		p1.As = Thearch.Optoas(OAS, Types[TUINT8])
 	}
 	p1.From.Type = obj.TYPE_REG
 	p1.From.Reg = int16(rn)

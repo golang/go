@@ -48,7 +48,7 @@ func peep(firstp *obj.Prog) {
 
 	var p *obj.Prog
 	var r *gc.Flow
-	var t int
+	var t obj.As
 loop1:
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		gc.Dumpit("loop1", g.Start, 0)
@@ -328,13 +328,13 @@ loop1:
 				ppc64.ASUBZE,
 				ppc64.ASUBZEV,
 				ppc64.AXOR:
-				t = variant2as(int(p1.As), as2variant(int(p1.As))|V_CC)
+				t = variant2as(p1.As, as2variant(p1.As)|V_CC)
 			}
 
 			if gc.Debug['D'] != 0 {
 				fmt.Printf("cmp %v; %v -> ", p1, p)
 			}
-			p1.As = int16(t)
+			p1.As = t
 			if gc.Debug['D'] != 0 {
 				fmt.Printf("%v\n", p1)
 			}
@@ -611,7 +611,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
+		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
 		return 2
 
 	case obj.ANOP, /* read p->from, write p->to */

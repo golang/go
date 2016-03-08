@@ -299,7 +299,7 @@ func (p *Prog) String() string {
 
 	var buf bytes.Buffer
 
-	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(int(p.As)), sc)
+	fmt.Fprintf(&buf, "%.5d (%v)\t%v%s", p.Pc, p.Line(), Aconv(p.As), sc)
 	sep := "\t"
 	if p.From.Type != TYPE_NONE {
 		fmt.Fprintf(&buf, "%s%v", sep, Dconv(p, &p.From))
@@ -595,26 +595,8 @@ func regListConv(list int) string {
 	return str
 }
 
-/*
-	Each architecture defines an instruction (A*) space as a unique
-	integer range.
-	Global opcodes like CALL start at 0; the architecture-specific ones
-	start at a distinct, big-maskable offsets.
-	Here is the list of architectures and the base of their opcode spaces.
-*/
-
-const (
-	ABase386 = (1 + iota) << 12
-	ABaseARM
-	ABaseAMD64
-	ABasePPC64
-	ABaseARM64
-	ABaseMIPS64
-	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
-)
-
 type opSet struct {
-	lo    int
+	lo    As
 	names []string
 }
 
@@ -623,17 +605,17 @@ var aSpace []opSet
 
 // RegisterOpcode binds a list of instruction names
 // to a given instruction number range.
-func RegisterOpcode(lo int, Anames []string) {
+func RegisterOpcode(lo As, Anames []string) {
 	aSpace = append(aSpace, opSet{lo, Anames})
 }
 
-func Aconv(a int) string {
-	if 0 <= a && a < len(Anames) {
+func Aconv(a As) string {
+	if 0 <= a && int(a) < len(Anames) {
 		return Anames[a]
 	}
 	for i := range aSpace {
 		as := &aSpace[i]
-		if as.lo <= a && a < as.lo+len(as.names) {
+		if as.lo <= a && int(a-as.lo) < len(as.names) {
 			return as.names[a-as.lo]
 		}
 	}

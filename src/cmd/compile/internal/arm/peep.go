@@ -543,7 +543,7 @@ gotit:
 	}
 
 	if gc.Debug['P'] != 0 {
-		fmt.Printf(" => %v\n", obj.Aconv(int(p.As)))
+		fmt.Printf(" => %v\n", obj.Aconv(p.As))
 	}
 	return true
 }
@@ -1041,7 +1041,7 @@ func xtramodes(g *gc.Graph, r *gc.Flow, a *obj.Addr) bool {
 func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
+		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
 		return 2
 
 	case arm.AMOVM:
@@ -1501,8 +1501,8 @@ func copysub1(p1 *obj.Prog, v *obj.Addr, s *obj.Addr, f int) int {
 }
 
 var predinfo = []struct {
-	opcode    int
-	notopcode int
+	opcode    obj.As
+	notopcode obj.As
 	scond     int
 	notscond  int
 }{
@@ -1672,9 +1672,9 @@ func applypred(rstart *gc.Flow, j *Joininfo, cond int, branch int) {
 				excise(r)
 			} else {
 				if cond == Truecond {
-					r.Prog.As = int16(predinfo[rstart.Prog.As-arm.ABEQ].opcode)
+					r.Prog.As = predinfo[rstart.Prog.As-arm.ABEQ].opcode
 				} else {
-					r.Prog.As = int16(predinfo[rstart.Prog.As-arm.ABEQ].notopcode)
+					r.Prog.As = predinfo[rstart.Prog.As-arm.ABEQ].notopcode
 				}
 			}
 		} else if predicable(r.Prog) {
