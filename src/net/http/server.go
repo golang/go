@@ -2309,15 +2309,10 @@ func (srv *Server) onceSetNextProtoDefaults() {
 // TimeoutHandler buffers all Handler writes to memory and does not
 // support the Hijacker or Flusher interfaces.
 func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
-	t := time.NewTimer(dt)
 	return &timeoutHandler{
 		handler: h,
 		body:    msg,
-
-		// Effectively storing a *time.Timer, but decomposed
-		// for testing:
-		timeout:     func() <-chan time.Time { return t.C },
-		cancelTimer: t.Stop,
+		dt:      dt,
 	}
 }
 
@@ -2328,12 +2323,11 @@ var ErrHandlerTimeout = errors.New("http: Handler timeout")
 type timeoutHandler struct {
 	handler Handler
 	body    string
+	dt      time.Duration
 
-	// timeout returns the channel of a *time.Timer and
-	// cancelTimer cancels it. They're stored separately for
-	// testing purposes.
-	timeout     func() <-chan time.Time // returns channel producing a timeout
-	cancelTimer func() bool             // optional
+	// When set, no timer will be created and this channel will
+	// be used instead.
+	testTimeout <-chan time.Time
 }
 
 func (h *timeoutHandler) errorBody() string {
@@ -2344,6 +2338,12 @@ func (h *timeoutHandler) errorBody() string {
 }
 
 func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+	var t *time.Timer
+	timeout := h.testTimeout
+	if timeout == nil {
+		t = time.NewTimer(h.dt)
+		timeout = t.C
+	}
 	done := make(chan struct{})
 	tw := &timeoutWriter{
 		w: w,
@@ -2363,10 +2363,10 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
 		}
 		w.WriteHeader(tw.code)
 		w.Write(tw.wbuf.Bytes())
-		if h.cancelTimer != nil {
-			h.cancelTimer()
+		if t != nil {
+			t.Stop()
 		}
-	case <-h.timeout():
+	case <-timeout:
 		tw.mu.Lock()
 		defer tw.mu.Unlock()
 		w.WriteHeader(StatusServiceUnavailable)

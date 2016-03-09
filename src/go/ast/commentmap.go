@@ -267,7 +267,7 @@ func (cmap CommentMap) Filter(node Node) CommentMap {
 }
 
 // Comments returns the list of comment groups in the comment map.
-// The result is sorted is source order.
+// The result is sorted in source order.
 //
 func (cmap CommentMap) Comments() []*CommentGroup {
 	list := make([]*CommentGroup, 0, len(cmap))

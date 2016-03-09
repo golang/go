@@ -102,6 +102,14 @@ import (
 const regDebug = false // TODO: compiler flag
 const logSpills = false
 
+// distance is a measure of how far into the future values are used.
+// distance is measured in units of instructions.
+const (
+	likelyDistance   = 1
+	normalDistance   = 10
+	unlikelyDistance = 100
+)
+
 // regalloc performs register allocation on f. It sets f.RegAlloc
 // to the resulting allocation.
 func regalloc(f *Func) {
@@ -550,7 +558,7 @@ func (s *regAllocState) setState(regs []endReg) {
 // compatRegs returns the set of registers which can store a type t.
 func (s *regAllocState) compatRegs(t Type) regMask {
 	var m regMask
-	if t.IsFloat() {
+	if t.IsFloat() || t == TypeInt128 {
 		m = 0xffff << 16 // X0-X15
 	} else {
 		m = 0xffef << 0 // AX-R15, except SP
@@ -576,8 +584,12 @@ func (s *regAllocState) regalloc(f *Func) {
 		// Initialize liveSet and uses fields for this block.
 		// Walk backwards through the block doing liveness analysis.
 		liveSet.clear()
+		d := int32(len(b.Values))
+		if b.Kind == BlockCall {
+			d += unlikelyDistance
+		}
 		for _, e := range s.live[b.ID] {
-			s.addUse(e.ID, int32(len(b.Values))+e.dist) // pseudo-uses from beyond end of block
+			s.addUse(e.ID, d+e.dist) // pseudo-uses from beyond end of block
 			liveSet.add(e.ID)
 		}
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
@@ -944,11 +956,11 @@ func (s *regAllocState) regalloc(f *Func) {
 			}
 		}
 
+		// Load control value into reg.
 		if v := b.Control; v != nil && s.values[v.ID].needReg {
 			if regDebug {
 				fmt.Printf("  processing control %s\n", v.LongString())
 			}
-			// Load control value into reg.
 			// TODO: regspec for block control values, instead of using
 			// register set from the control op's output.
 			s.allocValToReg(v, opcodeTable[v.Op].reg.outputs[0], false, b.Line)
@@ -962,6 +974,53 @@ func (s *regAllocState) regalloc(f *Func) {
 			u.next = s.freeUseRecords
 			s.freeUseRecords = u
 		}
+
+		// If we are approaching a merge point and we are the primary
+		// predecessor of it, find live values that we use soon after
+		// the merge point and promote them to registers now.
+		if len(b.Succs) == 1 && len(b.Succs[0].Preds) > 1 && b.Succs[0].Preds[s.primary[b.Succs[0].ID]] == b {
+			// For this to be worthwhile, the loop must have no calls in it.
+			// Use a very simple loop detector. TODO: incorporate David's loop stuff
+			// once it is in.
+			top := b.Succs[0]
+			for _, p := range top.Preds {
+				if p == b {
+					continue
+				}
+				for {
+					if p.Kind == BlockCall {
+						goto badloop
+					}
+					if p == top {
+						break
+					}
+					if len(p.Preds) != 1 {
+						goto badloop
+					}
+					p = p.Preds[0]
+				}
+			}
+
+			// TODO: sort by distance, pick the closest ones?
+			for _, live := range s.live[b.ID] {
+				if live.dist >= unlikelyDistance {
+					// Don't preload anything live after the loop.
+					continue
+				}
+				vid := live.ID
+				vi := &s.values[vid]
+				if vi.regs != 0 {
+					continue
+				}
+				v := s.orig[vid]
+				m := s.compatRegs(v.Type) &^ s.used
+				if m != 0 {
+					s.allocValToReg(v, m, false, b.Line)
+				}
+			}
+		}
+	badloop:
+		;
 
 		// Save end-of-block register state.
 		// First count how many, this cuts allocations in half.
@@ -1102,7 +1161,8 @@ type edgeState struct {
 	p, b *Block // edge goes from p->b.
 
 	// for each pre-regalloc value, a list of equivalent cached values
-	cache map[ID][]*Value
+	cache      map[ID][]*Value
+	cachedVals []ID // (superset of) keys of the above map, for deterministic iteration
 
 	// map from location to the value it contains
 	contents map[Location]contentRecord
@@ -1135,9 +1195,10 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	}
 
 	// Clear state.
-	for k := range e.cache {
-		delete(e.cache, k)
+	for _, vid := range e.cachedVals {
+		delete(e.cache, vid)
 	}
+	e.cachedVals = e.cachedVals[:0]
 	for k := range e.contents {
 		delete(e.contents, k)
 	}
@@ -1175,7 +1236,8 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
 	e.destinations = dsts
 
 	if regDebug {
-		for vid, a := range e.cache {
+		for _, vid := range e.cachedVals {
+			a := e.cache[vid]
 			for _, c := range a {
 				fmt.Printf("src %s: v%d cache=%s\n", e.s.f.getHome(c.ID).Name(), vid, c)
 			}
@@ -1364,6 +1426,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool) {
 	e.erase(loc)
 	e.contents[loc] = contentRecord{vid, c, final}
 	a := e.cache[vid]
+	if len(a) == 0 {
+		e.cachedVals = append(e.cachedVals, vid)
+	}
 	a = append(a, c)
 	e.cache[vid] = a
 	if r, ok := loc.(*Register); ok {
@@ -1463,7 +1528,8 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	// TODO: reuse these slots.
 
 	// Pick a register to spill.
-	for vid, a := range e.cache {
+	for _, vid := range e.cachedVals {
+		a := e.cache[vid]
 		for _, c := range a {
 			if r, ok := e.s.f.getHome(c.ID).(*Register); ok && m>>uint(r.Num)&1 != 0 {
 				x := e.p.NewValue1(c.Line, OpStoreReg, c.Type, c)
@@ -1480,7 +1546,8 @@ func (e *edgeState) findRegFor(typ Type) Location {
 	}
 
 	fmt.Printf("m:%d unique:%d final:%d\n", m, e.uniqueRegs, e.finalRegs)
-	for vid, a := range e.cache {
+	for _, vid := range e.cachedVals {
+		a := e.cache[vid]
 		for _, c := range a {
 			fmt.Printf("v%d: %s %s\n", vid, c, e.s.f.getHome(c.ID).Name())
 		}
@@ -1539,8 +1606,14 @@ func (s *regAllocState) computeLive() {
 			// Add len(b.Values) to adjust from end-of-block distance
 			// to beginning-of-block distance.
 			live.clear()
+			d := int32(len(b.Values))
+			if b.Kind == BlockCall {
+				// Because we keep no values in registers across a call,
+				// make every use past a call very far away.
+				d += unlikelyDistance
+			}
 			for _, e := range s.live[b.ID] {
-				live.set(e.ID, e.dist+int32(len(b.Values)))
+				live.set(e.ID, e.dist+d)
 			}
 
 			// Mark control value as live
@@ -1570,20 +1643,17 @@ func (s *regAllocState) computeLive() {
 			// invariant: live contains the values live at the start of b (excluding phi inputs)
 			for i, p := range b.Preds {
 				// Compute additional distance for the edge.
-				const normalEdge = 10
-				const likelyEdge = 1
-				const unlikelyEdge = 100
 				// Note: delta must be at least 1 to distinguish the control
 				// value use from the first user in a successor block.
-				delta := int32(normalEdge)
+				delta := int32(normalDistance)
 				if len(p.Succs) == 2 {
 					if p.Succs[0] == b && p.Likely == BranchLikely ||
 						p.Succs[1] == b && p.Likely == BranchUnlikely {
-						delta = likelyEdge
+						delta = likelyDistance
 					}
 					if p.Succs[0] == b && p.Likely == BranchUnlikely ||
 						p.Succs[1] == b && p.Likely == BranchLikely {
-						delta = unlikelyEdge
+						delta = unlikelyDistance
 					}
 				}
 

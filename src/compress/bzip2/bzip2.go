@@ -319,6 +319,9 @@ func (bz2 *reader) readBlock() (err error) {
 		length := br.ReadBits(5)
 		for j := range lengths {
 			for {
+				if length < 1 || length > 20 {
+					return StructuralError("Huffman length out of range")
+				}
 				if !br.ReadBit() {
 					break
 				}
@@ -327,9 +330,6 @@ func (bz2 *reader) readBlock() (err error) {
 				} else {
 					length++
 				}
-			}
-			if length < 0 || length > 20 {
-				return StructuralError("Huffman length out of range")
 			}
 			lengths[j] = uint8(length)
 		}

@@ -127,16 +127,18 @@ func TestDecompressor(t *testing.T) {
 	b := new(bytes.Buffer)
 	for _, tt := range zlibTests {
 		in := bytes.NewReader(tt.compressed)
-		zlib, err := NewReaderDict(in, tt.dict)
+		zr, err := NewReaderDict(in, tt.dict)
 		if err != nil {
 			if err != tt.err {
 				t.Errorf("%s: NewReader: %s", tt.desc, err)
 			}
 			continue
 		}
-		defer zlib.Close()
+		defer zr.Close()
+
+		// Read and verify correctness of data.
 		b.Reset()
-		n, err := io.Copy(b, zlib)
+		n, err := io.Copy(b, zr)
 		if err != nil {
 			if err != tt.err {
 				t.Errorf("%s: io.Copy: %v want %v", tt.desc, err, tt.err)
@@ -146,6 +148,14 @@ func TestDecompressor(t *testing.T) {
 		s := b.String()
 		if s != tt.raw {
 			t.Errorf("%s: got %d-byte %q want %d-byte %q", tt.desc, n, s, len(tt.raw), tt.raw)
+		}
+
+		// Check for sticky errors.
+		if n, err := zr.Read([]byte{0}); n != 0 || err != io.EOF {
+			t.Errorf("%s: Read() = (%d, %v), want (0, io.EOF)", tt.desc, n, err)
+		}
+		if err := zr.Close(); err != nil {
+			t.Errorf("%s: Close() = %v, want nil", tt.desc, err)
 		}
 	}
 }

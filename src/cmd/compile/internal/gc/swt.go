@@ -58,8 +58,8 @@ type caseClause struct {
 
 // typecheckswitch typechecks a switch statement.
 func typecheckswitch(n *Node) {
-	lno := int(lineno)
-	typechecklist(n.Ninit, Etop)
+	lno := lineno
+	typechecklist(n.Ninit.Slice(), Etop)
 
 	var nilonly string
 	var top int
@@ -105,11 +105,9 @@ func typecheckswitch(n *Node) {
 	n.Type = t
 
 	var def *Node
-	var ll *NodeList
-	for l := n.List; l != nil; l = l.Next {
-		ncase := l.N
+	for _, ncase := range n.List.Slice() {
 		setlineno(n)
-		if ncase.List == nil {
+		if ncase.List.Len() == 0 {
 			// default
 			if def != nil {
 				Yyerror("multiple defaults in switch (first at %v)", def.Line())
@@ -117,30 +115,30 @@ func typecheckswitch(n *Node) {
 				def = ncase
 			}
 		} else {
-			for ll = ncase.List; ll != nil; ll = ll.Next {
-				setlineno(ll.N)
-				typecheck(&ll.N, Erv|Etype)
-				if ll.N.Type == nil || t == nil {
+			for i1, n1 := range ncase.List.Slice() {
+				setlineno(n1)
+				typecheck(&ncase.List.Slice()[i1], Erv|Etype)
+				if ncase.List.Slice()[i1].Type == nil || t == nil {
 					continue
 				}
 				setlineno(ncase)
 				switch top {
 				// expression switch
 				case Erv:
-					defaultlit(&ll.N, t)
+					defaultlit(&ncase.List.Slice()[i1], t)
 					switch {
-					case ll.N.Op == OTYPE:
-						Yyerror("type %v is not an expression", ll.N.Type)
-					case ll.N.Type != nil && assignop(ll.N.Type, t, nil) == 0 && assignop(t, ll.N.Type, nil) == 0:
+					case ncase.List.Slice()[i1].Op == OTYPE:
+						Yyerror("type %v is not an expression", ncase.List.Slice()[i1].Type)
+					case ncase.List.Slice()[i1].Type != nil && assignop(ncase.List.Slice()[i1].Type, t, nil) == 0 && assignop(t, ncase.List.Slice()[i1].Type, nil) == 0:
 						if n.Left != nil {
-							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ll.N, n.Left, ll.N.Type, t)
+							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ncase.List.Slice()[i1], n.Left, ncase.List.Slice()[i1].Type, t)
 						} else {
-							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ll.N, ll.N.Type)
+							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ncase.List.Slice()[i1], ncase.List.Slice()[i1].Type)
 						}
-					case nilonly != "" && !isnil(ll.N):
-						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ll.N, nilonly, n.Left)
-					case Isinter(t) && !Isinter(ll.N.Type) && algtype1(ll.N.Type, nil) == ANOEQ:
-						Yyerror("invalid case %v in switch (incomparable type)", Nconv(ll.N, obj.FmtLong))
+					case nilonly != "" && !isnil(ncase.List.Slice()[i1]):
+						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ncase.List.Slice()[i1], nilonly, n.Left)
+					case Isinter(t) && !Isinter(ncase.List.Slice()[i1].Type) && algtype1(ncase.List.Slice()[i1].Type, nil) == ANOEQ:
+						Yyerror("invalid case %v in switch (incomparable type)", Nconv(ncase.List.Slice()[i1], obj.FmtLong))
 					}
 
 				// type switch
@@ -148,16 +146,16 @@ func typecheckswitch(n *Node) {
 					var missing, have *Type
 					var ptr int
 					switch {
-					case ll.N.Op == OLITERAL && Istype(ll.N.Type, TNIL):
-					case ll.N.Op != OTYPE && ll.N.Type != nil: // should this be ||?
-						Yyerror("%v is not a type", Nconv(ll.N, obj.FmtLong))
+					case ncase.List.Slice()[i1].Op == OLITERAL && Istype(ncase.List.Slice()[i1].Type, TNIL):
+					case ncase.List.Slice()[i1].Op != OTYPE && ncase.List.Slice()[i1].Type != nil: // should this be ||?
+						Yyerror("%v is not a type", Nconv(ncase.List.Slice()[i1], obj.FmtLong))
 						// reset to original type
-						ll.N = n.Left.Right
-					case ll.N.Type.Etype != TINTER && t.Etype == TINTER && !implements(ll.N.Type, t, &missing, &have, &ptr):
+						ncase.List.Slice()[i1] = n.Left.Right
+					case ncase.List.Slice()[i1].Type.Etype != TINTER && t.Etype == TINTER && !implements(ncase.List.Slice()[i1].Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ncase.List.Slice()[i1].Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
 						} else if !missing.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ll.N.Type, missing.Sym)
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ncase.List.Slice()[i1].Type, missing.Sym)
 						}
 					}
 				}
@@ -165,26 +163,27 @@ func typecheckswitch(n *Node) {
 		}
 
 		if top == Etype && n.Type != nil {
-			ll = ncase.List
-			if ncase.Rlist != nil {
-				nvar := ncase.Rlist.N
-				if ll != nil && ll.Next == nil && ll.N.Type != nil && !Istype(ll.N.Type, TNIL) {
+			ll := ncase.List
+			if ncase.Rlist.Len() != 0 {
+				nvar := ncase.Rlist.First()
+				if ll.Len() == 1 && ll.First().Type != nil && !Istype(ll.First().Type, TNIL) {
 					// single entry type switch
-					nvar.Name.Param.Ntype = typenod(ll.N.Type)
+					nvar.Name.Param.Ntype = typenod(ll.First().Type)
 				} else {
 					// multiple entry type switch or default
 					nvar.Name.Param.Ntype = typenod(n.Type)
 				}
 
 				typecheck(&nvar, Erv|Easgn)
-				ncase.Rlist.N = nvar
+				rit := nodeSeqIterate(ncase.Rlist)
+				*rit.P() = nvar
 			}
 		}
 
-		typecheckslice(ncase.Nbody.Slice(), Etop)
+		typechecklist(ncase.Nbody.Slice(), Etop)
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 }
 
 // walkswitch walks a switch statement.
@@ -244,7 +243,7 @@ func (s *exprSwitch) walk(sw *Node) {
 
 	// enumerate the cases, and lop off the default case
 	cc := caseClauses(sw, s.kind)
-	sw.List = nil
+	sw.List.Set(nil)
 	var def *Node
 	if len(cc) > 0 && cc[0].typ == caseKindDefault {
 		def = cc[0].node.Right
@@ -279,7 +278,7 @@ func (s *exprSwitch) walk(sw *Node) {
 	if nerrors == 0 {
 		cas = append(cas, def)
 		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
-		walkstmtslice(sw.Nbody.Slice())
+		walkstmtlist(sw.Nbody.Slice())
 	}
 }
 
@@ -287,10 +286,10 @@ func (s *exprSwitch) walk(sw *Node) {
 func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 	if len(cc) < binarySearchMin {
 		// linear search
-		var cas *NodeList
+		var cas []*Node
 		for _, c := range cc {
 			n := c.node
-			lno := int(setlineno(n))
+			lno := setlineno(n)
 
 			a := Nod(OIF, nil, nil)
 			if (s.kind != switchKindTrue && s.kind != switchKindFalse) || assignop(n.Left.Type, s.exprname.Type, nil) == OCONVIFACE || assignop(s.exprname.Type, n.Left.Type, nil) == OCONVIFACE {
@@ -305,8 +304,8 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 			}
 			a.Nbody.Set([]*Node{n.Right}) // goto l
 
-			cas = list(cas, a)
-			lineno = int32(lno)
+			cas = append(cas, a)
+			lineno = lno
 		}
 		return liststmt(cas)
 	}
@@ -326,7 +325,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 	}
 	typecheck(&a.Left, Erv)
 	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
-	a.Rlist = list1(s.walkCases(cc[half:]))
+	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
 	return a
 }
 
@@ -334,28 +333,28 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 // It makes labels between cases and statements
 // and deals with fallthrough, break, and unreachable statements.
 func casebody(sw *Node, typeswvar *Node) {
-	if sw.List == nil {
+	if sw.List.Len() == 0 {
 		return
 	}
 
 	lno := setlineno(sw)
 
-	var cas *NodeList // cases
-	var stat []*Node  // statements
-	var def *Node     // defaults
+	var cas []*Node  // cases
+	var stat []*Node // statements
+	var def *Node    // defaults
 	br := Nod(OBREAK, nil, nil)
 
-	for l := sw.List; l != nil; l = l.Next {
-		n := l.N
+	for it := nodeSeqIterate(sw.List); !it.Done(); it.Next() {
+		n := it.N()
 		setlineno(n)
 		if n.Op != OXCASE {
-			Fatalf("casebody %v", Oconv(int(n.Op), 0))
+			Fatalf("casebody %v", Oconv(n.Op, 0))
 		}
 		n.Op = OCASE
-		needvar := count(n.List) != 1 || n.List.N.Op == OLITERAL
+		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
 
 		jmp := Nod(OGOTO, newCaseLabel(), nil)
-		if n.List == nil {
+		if n.List.Len() == 0 {
 			if def != nil {
 				Yyerror("more than one default case")
 			}
@@ -364,24 +363,24 @@ func casebody(sw *Node, typeswvar *Node) {
 			def = n
 		}
 
-		if n.List != nil && n.List.Next == nil {
+		if n.List.Len() == 1 {
 			// one case -- reuse OCASE node
-			n.Left = n.List.N
+			n.Left = n.List.First()
 			n.Right = jmp
-			n.List = nil
-			cas = list(cas, n)
+			n.List.Set(nil)
+			cas = append(cas, n)
 		} else {
 			// expand multi-valued cases
-			for lc := n.List; lc != nil; lc = lc.Next {
-				cas = list(cas, Nod(OCASE, lc.N, jmp))
+			for _, n1 := range n.List.Slice() {
+				cas = append(cas, Nod(OCASE, n1, jmp))
 			}
 		}
 
 		stat = append(stat, Nod(OLABEL, jmp.Left, nil))
-		if typeswvar != nil && needvar && n.Rlist != nil {
+		if typeswvar != nil && needvar && n.Rlist.Len() != 0 {
 			l := []*Node{
-				Nod(ODCL, n.Rlist.N, nil),
-				Nod(OAS, n.Rlist.N, typeswvar),
+				Nod(ODCL, n.Rlist.First(), nil),
+				Nod(OAS, n.Rlist.First(), typeswvar),
 			}
 			typecheckslice(l, Etop)
 			stat = append(stat, l...)
@@ -396,7 +395,7 @@ func casebody(sw *Node, typeswvar *Node) {
 				Yyerror("cannot fallthrough in type switch")
 			}
 
-			if l.Next == nil {
+			if it.Len() <= 1 {
 				setlineno(last)
 				Yyerror("cannot fallthrough final case in switch")
 			}
@@ -409,10 +408,10 @@ func casebody(sw *Node, typeswvar *Node) {
 
 	stat = append(stat, br)
 	if def != nil {
-		cas = list(cas, def)
+		cas = append(cas, def)
 	}
 
-	sw.List = cas
+	sw.List.Set(cas)
 	sw.Nbody.Set(stat)
 	lineno = lno
 }
@@ -432,8 +431,7 @@ func newCaseLabel() *Node {
 // Kind is the kind of switch statement.
 func caseClauses(sw *Node, kind int) []*caseClause {
 	var cc []*caseClause
-	for l := sw.List; l != nil; l = l.Next {
-		n := l.N
+	for _, n := range sw.List.Slice() {
 		c := new(caseClause)
 		cc = append(cc, c)
 		c.ordinal = len(cc)
@@ -483,7 +481,7 @@ func caseClauses(sw *Node, kind int) []*caseClause {
 					break
 				}
 				if Eqtype(c1.node.Left.Type, c2.node.Left.Type) {
-					yyerrorl(int(c2.node.Lineno), "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
+					yyerrorl(c2.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c2.node.Left.Type, c1.node.Line())
 				}
 			}
 		}
@@ -518,7 +516,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	sw.Left = nil
 
 	if cond == nil {
-		sw.List = nil
+		sw.List.Set(nil)
 		return
 	}
 	if cond.Right == nil {
@@ -552,7 +550,7 @@ func (s *typeSwitch) walk(sw *Node) {
 	casebody(sw, s.facename)
 
 	cc := caseClauses(sw, switchKindType)
-	sw.List = nil
+	sw.List.Set(nil)
 	var def *Node
 	if len(cc) > 0 && cc[0].typ == caseKindDefault {
 		def = cc[0].node.Right
@@ -588,7 +586,7 @@ func (s *typeSwitch) walk(sw *Node) {
 		i.Nbody.Set([]*Node{Nod(OGOTO, lbl, nil)})
 		// Wrap default case with label.
 		blk := Nod(OBLOCK, nil, nil)
-		blk.List = list(list1(Nod(OLABEL, lbl, nil)), def)
+		blk.List.Set([]*Node{Nod(OLABEL, lbl, nil), def})
 		def = blk
 	}
 	typecheck(&i.Left, Erv)
@@ -653,9 +651,9 @@ func (s *typeSwitch) walk(sw *Node) {
 		ncase := 0
 		for i := 0; i < run; i++ {
 			ncase++
-			hash := list1(cc[i].node.Right)
+			hash := []*Node{cc[i].node.Right}
 			for j := i + 1; j < run && cc[i].hash == cc[j].hash; j++ {
-				hash = list(hash, cc[j].node.Right)
+				hash = append(hash, cc[j].node.Right)
 			}
 			cc[i].node.Right = liststmt(hash)
 		}
@@ -669,8 +667,8 @@ func (s *typeSwitch) walk(sw *Node) {
 	if nerrors == 0 {
 		cas = append(cas, def)
 		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
-		sw.List = nil
-		walkstmtslice(sw.Nbody.Slice())
+		sw.List.Set(nil)
+		walkstmtlist(sw.Nbody.Slice())
 	}
 }
 
@@ -678,37 +676,37 @@ func (s *typeSwitch) walk(sw *Node) {
 // case body if the variable is of type t.
 func (s *typeSwitch) typeone(t *Node) *Node {
 	var name *Node
-	var init *NodeList
-	if t.Rlist == nil {
+	var init []*Node
+	if t.Rlist.Len() == 0 {
 		name = nblank
 		typecheck(&nblank, Erv|Easgn)
 	} else {
-		name = t.Rlist.N
-		init = list1(Nod(ODCL, name, nil))
+		name = t.Rlist.First()
+		init = []*Node{Nod(ODCL, name, nil)}
 		a := Nod(OAS, name, nil)
 		typecheck(&a, Etop)
-		init = list(init, a)
+		init = append(init, a)
 	}
 
 	a := Nod(OAS2, nil, nil)
-	a.List = list(list1(name), s.okname) // name, ok =
+	a.List.Set([]*Node{name, s.okname}) // name, ok =
 	b := Nod(ODOTTYPE, s.facename, nil)
 	b.Type = t.Left.Type // interface.(type)
-	a.Rlist = list1(b)
+	a.Rlist.Set([]*Node{b})
 	typecheck(&a, Etop)
-	init = list(init, a)
+	init = append(init, a)
 
 	c := Nod(OIF, nil, nil)
 	c.Left = s.okname
 	c.Nbody.Set([]*Node{t.Right}) // if ok { goto l }
 
-	return liststmt(list(init, c))
+	return liststmt(append(init, c))
 }
 
 // walkCases generates an AST implementing the cases in cc.
 func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 	if len(cc) < binarySearchMin {
-		var cas *NodeList
+		var cas []*Node
 		for _, c := range cc {
 			n := c.node
 			if c.typ != caseKindTypeConst {
@@ -718,7 +716,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
 			typecheck(&a.Left, Erv)
 			a.Nbody.Set([]*Node{n.Right})
-			cas = list(cas, a)
+			cas = append(cas, a)
 		}
 		return liststmt(cas)
 	}
@@ -729,7 +727,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
 	typecheck(&a.Left, Erv)
 	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
-	a.Rlist = list1(s.walkCases(cc[half:]))
+	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
 	return a
 }
 

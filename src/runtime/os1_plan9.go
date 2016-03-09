@@ -151,6 +151,7 @@ var goexits = []byte("go: exit ")
 
 func goexitsall(status *byte) {
 	var buf [_ERRMAX]byte
+	getg().m.locks++
 	n := copy(buf[:], goexits)
 	n = copy(buf[n:], gostringnocopy(status))
 	pid := getpid()
@@ -159,6 +160,7 @@ func goexitsall(status *byte) {
 			postnote(mp.procid, buf[:])
 		}
 	}
+	getg().m.locks--
 }
 
 var procdir = []byte("/proc/")

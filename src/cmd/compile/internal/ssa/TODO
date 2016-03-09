@@ -29,8 +29,6 @@ Optimizations (better compiled code)
 
 Optimizations (better compiler)
 -------------------------------
-- OpStore uses 3 args.  Increase the size of Value.argstorage to 3?
-- Use a constant cache for OpConstNil, OpConstInterface, OpConstSlice, maybe OpConstString
 - Handle signed division overflow and sign extension earlier
 
 Regalloc

@@ -1012,6 +1012,19 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 	}
 	p.Target = p.target
 
+	// If cgo is not enabled, ignore cgo supporting sources
+	// just as we ignore go files containing import "C".
+	if !buildContext.CgoEnabled {
+		p.CFiles = nil
+		p.CXXFiles = nil
+		p.MFiles = nil
+		p.SwigFiles = nil
+		p.SwigCXXFiles = nil
+		p.SysoFiles = nil
+		// Note that SFiles are okay (they go to the Go assembler)
+		// and HFiles are okay (they might be used by the SFiles).
+	}
+
 	// The gc toolchain only permits C source files with cgo.
 	if len(p.CFiles) > 0 && !p.usesCgo() && !p.usesSwig() && buildContext.Compiler == "gc" {
 		p.Error = &PackageError{

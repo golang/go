@@ -784,7 +784,7 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 
 		s = sym.sym
 		if s.Outer != nil {
-			if s.Dupok != 0 {
+			if s.Attr.DuplicateOK() {
 				continue
 			}
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
@@ -793,17 +793,17 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 		s.Sub = sect.sym.Sub
 		sect.sym.Sub = s
 		s.Type = sect.sym.Type | s.Type&^obj.SMASK | obj.SSUB
-		if s.Cgoexport&CgoExportDynamic == 0 {
+		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}
 		s.Value = int64(sym.value)
 		s.Size = int64(sym.size)
 		s.Outer = sect.sym
 		if sect.sym.Type == obj.STEXT {
-			if s.External != 0 && s.Dupok == 0 {
+			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
-			s.External = 1
+			s.Attr |= AttrExternal
 		}
 
 		if elfobj.machine == ElfMachPower64 {
@@ -827,10 +827,10 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 			s.Sub = listsort(s.Sub, valuecmp, listsubp)
 		}
 		if s.Type == obj.STEXT {
-			if s.Onlist != 0 {
+			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
-			s.Onlist = 1
+			s.Attr |= AttrOnList
 			if Ctxt.Etextp != nil {
 				Ctxt.Etextp.Next = s
 			} else {
@@ -838,10 +838,10 @@ func ldelf(f *obj.Biobuf, pkg string, length int64, pn string) {
 			}
 			Ctxt.Etextp = s
 			for s = s.Sub; s != nil; s = s.Sub {
-				if s.Onlist != 0 {
+				if s.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
-				s.Onlist = 1
+				s.Attr |= AttrOnList
 				Ctxt.Etextp.Next = s
 				Ctxt.Etextp = s
 			}
@@ -1043,7 +1043,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
 				// comment #5 for details.
 				if s != nil && sym.other == 2 {
 					s.Type |= obj.SHIDDEN
-					s.Dupok = 1
+					s.Attr |= AttrDuplicateOK
 				}
 			}
 

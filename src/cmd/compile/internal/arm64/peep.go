@@ -40,7 +40,7 @@ import (
 var gactive uint32
 
 func peep(firstp *obj.Prog) {
-	g := (*gc.Graph)(gc.Flowstart(firstp, nil))
+	g := gc.Flowstart(firstp, nil)
 	if g == nil {
 		return
 	}
@@ -91,7 +91,7 @@ loop1:
 	 */
 	var p1 *obj.Prog
 	var r1 *gc.Flow
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		default:
@@ -130,7 +130,7 @@ loop1:
 	}
 
 	// MOVD $c, R'; ADD R', R (R' unused) -> ADD $c, R
-	for r := (*gc.Flow)(g.Start); r != nil; r = r.Link {
+	for r := g.Start; r != nil; r = r.Link {
 		p = r.Prog
 		switch p.As {
 		default:
@@ -162,7 +162,7 @@ loop1:
 			continue
 		}
 		if gc.Debug['P'] != 0 {
-			fmt.Printf("encoding $%d directly into %v in:\n%v\n%v\n", p.From.Offset, obj.Aconv(int(p1.As)), p, p1)
+			fmt.Printf("encoding $%d directly into %v in:\n%v\n%v\n", p.From.Offset, obj.Aconv(p1.As), p, p1)
 		}
 		p1.From.Type = obj.TYPE_CONST
 		p1.From = p.From
@@ -179,7 +179,7 @@ ret:
 }
 
 func excise(r *gc.Flow) {
-	p := (*obj.Prog)(r.Prog)
+	p := r.Prog
 	if gc.Debug['P'] != 0 && gc.Debug['v'] != 0 {
 		fmt.Printf("%v ===delete===\n", p)
 	}
@@ -210,12 +210,12 @@ func regtyp(a *obj.Addr) bool {
  * above sequences. This returns 1 if it modified any instructions.
  */
 func subprop(r0 *gc.Flow) bool {
-	p := (*obj.Prog)(r0.Prog)
-	v1 := (*obj.Addr)(&p.From)
+	p := r0.Prog
+	v1 := &p.From
 	if !regtyp(v1) {
 		return false
 	}
-	v2 := (*obj.Addr)(&p.To)
+	v2 := &p.To
 	if !regtyp(v2) {
 		return false
 	}
@@ -253,9 +253,7 @@ func subprop(r0 *gc.Flow) bool {
 						}
 					}
 
-					t := int(int(v1.Reg))
-					v1.Reg = v2.Reg
-					v2.Reg = int16(t)
+					v1.Reg, v2.Reg = v2.Reg, v1.Reg
 					if gc.Debug['P'] != 0 {
 						fmt.Printf("%v last\n", r.Prog)
 					}
@@ -288,9 +286,9 @@ func subprop(r0 *gc.Flow) bool {
  *	set v2	return success (caller can remove v1->v2 move)
  */
 func copyprop(r0 *gc.Flow) bool {
-	p := (*obj.Prog)(r0.Prog)
-	v1 := (*obj.Addr)(&p.From)
-	v2 := (*obj.Addr)(&p.To)
+	p := r0.Prog
+	v1 := &p.From
+	v2 := &p.To
 	if copyas(v1, v2) {
 		if gc.Debug['P'] != 0 {
 			fmt.Printf("eliminating self-move: %v\n", r0.Prog)
@@ -429,7 +427,7 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
 
 	switch p.As {
 	default:
-		fmt.Printf("copyu: can't find %v\n", obj.Aconv(int(p.As)))
+		fmt.Printf("copyu: can't find %v\n", obj.Aconv(p.As))
 		return 2
 
 	case obj.ANOP, /* read p->from, write p->to */

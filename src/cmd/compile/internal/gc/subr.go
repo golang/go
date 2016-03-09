@@ -18,7 +18,7 @@ import (
 )
 
 type Error struct {
-	lineno int
+	lineno int32
 	msg    string
 }
 
@@ -32,24 +32,20 @@ func errorexit() {
 	os.Exit(2)
 }
 
-func parserline() int {
-	return int(lineno)
-}
-
 func adderrorname(n *Node) {
 	if n.Op != ODOT {
 		return
 	}
 	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
-	if len(errors) > 0 && int32(errors[len(errors)-1].lineno) == n.Lineno && errors[len(errors)-1].msg == old {
+	if len(errors) > 0 && errors[len(errors)-1].lineno == n.Lineno && errors[len(errors)-1].msg == old {
 		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
 	}
 }
 
-func adderr(line int, format string, args ...interface{}) {
+func adderr(line int32, format string, args ...interface{}) {
 	errors = append(errors, Error{
 		lineno: line,
-		msg:    fmt.Sprintf("%v: %s\n", Ctxt.Line(line), fmt.Sprintf(format, args...)),
+		msg:    fmt.Sprintf("%v: %s\n", linestr(line), fmt.Sprintf(format, args...)),
 	})
 }
 
@@ -85,14 +81,18 @@ func hcrash() {
 	}
 }
 
-func yyerrorl(line int, format string, args ...interface{}) {
+func linestr(line int32) string {
+	return Ctxt.Line(int(line))
+}
+
+func yyerrorl(line int32, format string, args ...interface{}) {
 	adderr(line, format, args...)
 
 	hcrash()
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
-		fmt.Printf("%v: too many errors\n", Ctxt.Line(line))
+		fmt.Printf("%v: too many errors\n", linestr(line))
 		errorexit()
 	}
 }
@@ -110,28 +110,28 @@ func Yyerror(format string, args ...interface{}) {
 		}
 		yyerror_lastsyntax = lineno
 
-		yyerrorl(int(lineno), "%s", msg)
+		yyerrorl(lineno, "%s", msg)
 		return
 	}
 
-	adderr(parserline(), "%s", msg)
+	adderr(lineno, "%s", msg)
 
 	hcrash()
 	nerrors++
 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
 		Flusherrors()
-		fmt.Printf("%v: too many errors\n", Ctxt.Line(parserline()))
+		fmt.Printf("%v: too many errors\n", linestr(lineno))
 		errorexit()
 	}
 }
 
 func Warn(fmt_ string, args ...interface{}) {
-	adderr(parserline(), fmt_, args...)
+	adderr(lineno, fmt_, args...)
 
 	hcrash()
 }
 
-func Warnl(line int, fmt_ string, args ...interface{}) {
+func Warnl(line int32, fmt_ string, args ...interface{}) {
 	adderr(line, fmt_, args...)
 	if Debug['m'] != 0 {
 		Flusherrors()
@@ -141,7 +141,7 @@ func Warnl(line int, fmt_ string, args ...interface{}) {
 func Fatalf(fmt_ string, args ...interface{}) {
 	Flusherrors()
 
-	fmt.Printf("%v: internal compiler error: ", Ctxt.Line(int(lineno)))
+	fmt.Printf("%v: internal compiler error: ", linestr(lineno))
 	fmt.Printf(fmt_, args...)
 	fmt.Printf("\n")
 
@@ -158,28 +158,28 @@ func Fatalf(fmt_ string, args ...interface{}) {
 
 func linehistpragma(file string) {
 	if Debug['i'] != 0 {
-		fmt.Printf("pragma %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+		fmt.Printf("pragma %s at line %v\n", file, linestr(lexlineno))
 	}
 	Ctxt.AddImport(file)
 }
 
 func linehistpush(file string) {
 	if Debug['i'] != 0 {
-		fmt.Printf("import %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+		fmt.Printf("import %s at line %v\n", file, linestr(lexlineno))
 	}
 	Ctxt.LineHist.Push(int(lexlineno), file)
 }
 
 func linehistpop() {
 	if Debug['i'] != 0 {
-		fmt.Printf("end of import at line %v\n", Ctxt.Line(int(lexlineno)))
+		fmt.Printf("end of import at line %v\n", linestr(lexlineno))
 	}
 	Ctxt.LineHist.Pop(int(lexlineno))
 }
 
 func linehistupdate(file string, off int) {
 	if Debug['i'] != 0 {
-		fmt.Printf("line %s at line %v\n", file, Ctxt.Line(int(lexlineno)))
+		fmt.Printf("line %s at line %v\n", file, linestr(lexlineno))
 	}
 	Ctxt.LineHist.Update(int(lexlineno), file, off)
 }
@@ -304,7 +304,7 @@ func importdot(opkg *Pkg, pack *Node) {
 
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		yyerrorl(int(pack.Lineno), "imported and not used: %q", opkg.Path)
+		yyerrorl(pack.Lineno, "imported and not used: %q", opkg.Path)
 	}
 }
 
@@ -313,7 +313,7 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
 	n.Op = op
 	n.Left = nleft
 	n.Right = nright
-	n.Lineno = int32(parserline())
+	n.Lineno = lineno
 	n.Xoffset = BADWIDTH
 	n.Orig = n
 	switch op {
@@ -391,7 +391,7 @@ func typ(et EType) *Type {
 	t := new(Type)
 	t.Etype = et
 	t.Width = BADWIDTH
-	t.Lineno = int(lineno)
+	t.Lineno = lineno
 	t.Orig = t
 	return t
 }
@@ -431,7 +431,7 @@ func sortinter(t *Type) *Type {
 	}
 
 	var a []*Type
-	for f := t.Type; f != nil; f = f.Down {
+	for f, it := IterFields(t); f != nil; f = it.Next() {
 		a = append(a, f)
 	}
 	sort.Sort(methcmp(a))
@@ -536,7 +536,7 @@ func treecopy(n *Node, lineno int32) *Node {
 		m.Orig = m
 		m.Left = treecopy(n.Left, lineno)
 		m.Right = treecopy(n.Right, lineno)
-		m.List = listtreecopy(n.List, lineno)
+		m.List.Set(listtreecopy(n.List.Slice(), lineno))
 		if lineno != 0 {
 			m.Lineno = lineno
 		}
@@ -705,32 +705,22 @@ func eqnote(a, b *string) bool {
 	return a == b || a != nil && b != nil && *a == *b
 }
 
-type TypePairList struct {
-	t1   *Type
-	t2   *Type
-	next *TypePairList
-}
-
-func onlist(l *TypePairList, t1 *Type, t2 *Type) bool {
-	for ; l != nil; l = l.next {
-		if (l.t1 == t1 && l.t2 == t2) || (l.t1 == t2 && l.t2 == t1) {
-			return true
-		}
-	}
-	return false
-}
-
-// Return 1 if t1 and t2 are identical, following the spec rules.
+// Eqtype reports whether t1 and t2 are identical, following the spec rules.
 //
 // Any cyclic type must go through a named type, and if one is
 // named, it is only identical to the other if they are the same
 // pointer (t1 == t2), so there's no chance of chasing cycles
 // ad infinitum, so no need for a depth counter.
-func Eqtype(t1 *Type, t2 *Type) bool {
+func Eqtype(t1, t2 *Type) bool {
 	return eqtype1(t1, t2, nil)
 }
 
-func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+type typePair struct {
+	t1 *Type
+	t2 *Type
+}
+
+func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 	if t1 == t2 {
 		return true
 	}
@@ -738,30 +728,24 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		return false
 	}
 	if t1.Sym != nil || t2.Sym != nil {
-		// Special case: we keep byte and uint8 separate
-		// for error messages. Treat them as equal.
+		// Special case: we keep byte/uint8 and rune/int32
+		// separate for error messages. Treat them as equal.
 		switch t1.Etype {
 		case TUINT8:
-			if (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype) {
-				return true
-			}
-
-		case TINT, TINT32:
-			if (t1 == Types[runetype.Etype] || t1 == runetype) && (t2 == Types[runetype.Etype] || t2 == runetype) {
-				return true
-			}
+			return (t1 == Types[TUINT8] || t1 == bytetype) && (t2 == Types[TUINT8] || t2 == bytetype)
+		case TINT32:
+			return (t1 == Types[TINT32] || t1 == runetype) && (t2 == Types[TINT32] || t2 == runetype)
+		default:
+			return false
 		}
-
-		return false
 	}
 
-	if onlist(assumed_equal, t1, t2) {
+	if assumedEqual == nil {
+		assumedEqual = make(map[typePair]struct{})
+	} else if _, ok := assumedEqual[typePair{t1, t2}]; ok {
 		return true
 	}
-	var l TypePairList
-	l.next = assumed_equal
-	l.t1 = t1
-	l.t2 = t2
+	assumedEqual[typePair{t1, t2}] = struct{}{}
 
 	switch t1.Etype {
 	case TINTER, TSTRUCT:
@@ -771,7 +755,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
 				Fatalf("struct/interface missing field: %v %v", t1, t2)
 			}
-			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
+			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || !eqnote(t1.Note, t2.Note) {
 				return false
 			}
 		}
@@ -783,34 +767,20 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 
 		// Loop over structs: receiver, in, out.
 	case TFUNC:
-		t1 = t1.Type
-		t2 = t2.Type
-		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
-			if t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
-				Fatalf("func missing struct: %v %v", t1, t2)
-			}
-
+		for _, f := range recvParamsResults {
 			// Loop over fields in structs, ignoring argument names.
-			ta := t1.Type
-			tb := t2.Type
-			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
-				if ta.Etype != TFIELD || tb.Etype != TFIELD {
-					Fatalf("func struct missing field: %v %v", ta, tb)
-				}
-				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
+			ta, ia := IterFields(f(t1))
+			tb, ib := IterFields(f(t2))
+			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
+				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, assumedEqual) {
 					return false
 				}
 			}
-
 			if ta != nil || tb != nil {
 				return false
 			}
 		}
-
-		if t1 == nil && t2 == nil {
-			return true
-		}
-		return false
+		return true
 
 	case TARRAY:
 		if t1.Bound != t2.Bound {
@@ -823,10 +793,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
 		}
 	}
 
-	if eqtype1(t1.Down, t2.Down, &l) && eqtype1(t1.Type, t2.Type, &l) {
-		return true
-	}
-	return false
+	return eqtype1(t1.Down, t2.Down, assumedEqual) && eqtype1(t1.Type, t2.Type, assumedEqual)
 }
 
 // Are t1 and t2 equal struct types when field names are ignored?
@@ -1131,10 +1098,15 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 // substArgTypes substitutes the given list of types for
 // successive occurrences of the "any" placeholder in the
 // type syntax expression n.Type.
-func substArgTypes(n *Node, types ...*Type) {
+func substArgTypes(np **Node, types ...*Type) {
+	n := Nod(0, nil, nil)
+	*n = **np
+	*np = n
+
 	for _, t := range types {
 		dowidth(t)
 	}
+	n.Type = deep(n.Type)
 	substAny(&n.Type, &types)
 	if len(types) > 0 {
 		Fatalf("substArgTypes: too many argument types")
@@ -1168,9 +1140,9 @@ func substAny(tp **Type, types *[]*Type) {
 			continue
 
 		case TFUNC:
-			substAny(&t.Type, types)
-			substAny(&t.Type.Down.Down, types)
-			substAny(&t.Type.Down, types)
+			substAny(t.RecvP(), types)
+			substAny(t.ParamsP(), types)
+			substAny(t.ResultsP(), types)
 
 		case TSTRUCT:
 			for t = t.Type; t != nil; t = t.Down {
@@ -1259,9 +1231,9 @@ func deep(t *Type) *Type {
 
 	case TFUNC:
 		nt = shallow(t)
-		nt.Type = deep(t.Type)
-		nt.Type.Down = deep(t.Type.Down)
-		nt.Type.Down.Down = deep(t.Type.Down.Down)
+		*nt.RecvP() = deep(t.Recv())
+		*nt.ResultsP() = deep(t.Results())
+		*nt.ParamsP() = deep(t.Params())
 
 	case TSTRUCT:
 		nt = shallow(t)
@@ -1278,21 +1250,12 @@ func deep(t *Type) *Type {
 	return nt
 }
 
-func syslook(name string, copy int) *Node {
+func syslook(name string) *Node {
 	s := Pkglookup(name, Runtimepkg)
 	if s == nil || s.Def == nil {
 		Fatalf("syslook: can't find runtime.%s", name)
 	}
-
-	if copy == 0 {
-		return s.Def
-	}
-
-	n := Nod(0, nil, nil)
-	*n = *s.Def
-	n.Type = deep(s.Def.Type)
-
-	return n
+	return s.Def
 }
 
 // compute a hash value for type t.
@@ -1399,9 +1362,9 @@ func printframenode(n *Node) {
 	}
 	switch n.Op {
 	case ONAME:
-		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(int(n.Op), 0), n.Sym, n.Name.Vargen, n.Type, w)
+		fmt.Printf("%v %v G%d %v width=%d\n", Oconv(n.Op, 0), n.Sym, n.Name.Vargen, n.Type, w)
 	case OTYPE:
-		fmt.Printf("%v %v width=%d\n", Oconv(int(n.Op), 0), n.Type, w)
+		fmt.Printf("%v %v width=%d\n", Oconv(n.Op, 0), n.Type, w)
 	}
 }
 
@@ -1416,7 +1379,7 @@ func ullmancalc(n *Node) {
 
 	var ul int
 	var ur int
-	if n.Ninit != nil {
+	if n.Ninit.Len() != 0 {
 		ul = UINF
 		goto out
 	}
@@ -1482,129 +1445,7 @@ func badtype(op Op, tl *Type, tr *Type) {
 	}
 
 	s := fmt_
-	Yyerror("illegal types for operand: %v%s", Oconv(int(op), 0), s)
-}
-
-// iterator to walk a structure declaration
-func Structfirst(s *Iter, nn **Type) *Type {
-	var t *Type
-
-	n := *nn
-	if n == nil {
-		goto bad
-	}
-
-	switch n.Etype {
-	default:
-		goto bad
-
-	case TSTRUCT, TINTER, TFUNC:
-		break
-	}
-
-	t = n.Type
-	if t == nil {
-		return nil
-	}
-
-	if t.Etype != TFIELD {
-		Fatalf("structfirst: not field %v", t)
-	}
-
-	s.T = t
-	return t
-
-bad:
-	Fatalf("structfirst: not struct %v", n)
-
-	return nil
-}
-
-func structnext(s *Iter) *Type {
-	n := s.T
-	t := n.Down
-	if t == nil {
-		return nil
-	}
-
-	if t.Etype != TFIELD {
-		Fatalf("structnext: not struct %v", n)
-
-		return nil
-	}
-
-	s.T = t
-	return t
-}
-
-// iterator to this and inargs in a function
-func funcfirst(s *Iter, t *Type) *Type {
-	var fp *Type
-
-	if t == nil {
-		goto bad
-	}
-
-	if t.Etype != TFUNC {
-		goto bad
-	}
-
-	s.Tfunc = t
-	s.Done = 0
-	fp = Structfirst(s, getthis(t))
-	if fp == nil {
-		s.Done = 1
-		fp = Structfirst(s, getinarg(t))
-	}
-
-	return fp
-
-bad:
-	Fatalf("funcfirst: not func %v", t)
-	return nil
-}
-
-func funcnext(s *Iter) *Type {
-	fp := structnext(s)
-	if fp == nil && s.Done == 0 {
-		s.Done = 1
-		fp = Structfirst(s, getinarg(s.Tfunc))
-	}
-
-	return fp
-}
-
-func getthis(t *Type) **Type {
-	if t.Etype != TFUNC {
-		Fatalf("getthis: not a func %v", t)
-	}
-	return &t.Type
-}
-
-func Getoutarg(t *Type) **Type {
-	if t.Etype != TFUNC {
-		Fatalf("getoutarg: not a func %v", t)
-	}
-	return &t.Type.Down
-}
-
-func getinarg(t *Type) **Type {
-	if t.Etype != TFUNC {
-		Fatalf("getinarg: not a func %v", t)
-	}
-	return &t.Type.Down.Down
-}
-
-func getthisx(t *Type) *Type {
-	return *getthis(t)
-}
-
-func getoutargx(t *Type) *Type {
-	return *Getoutarg(t)
-}
-
-func getinargx(t *Type) *Type {
-	return *getinarg(t)
+	Yyerror("illegal types for operand: %v%s", Oconv(op, 0), s)
 }
 
 // Brcom returns !(op).
@@ -1624,7 +1465,7 @@ func Brcom(op Op) Op {
 	case OGE:
 		return OLT
 	}
-	Fatalf("brcom: no com for %v\n", Oconv(int(op), 0))
+	Fatalf("brcom: no com for %v\n", Oconv(op, 0))
 	return op
 }
 
@@ -1645,21 +1486,20 @@ func Brrev(op Op) Op {
 	case OGE:
 		return OLE
 	}
-	Fatalf("brrev: no rev for %v\n", Oconv(int(op), 0))
+	Fatalf("brrev: no rev for %v\n", Oconv(op, 0))
 	return op
 }
 
 // return side effect-free n, appending side effects to init.
 // result is assignable if n is.
-func safeexpr(n *Node, init **NodeList) *Node {
+func safeexpr(n *Node, init *Nodes) *Node {
 	if n == nil {
 		return nil
 	}
 
-	if n.Ninit != nil {
-		walkstmtlist(n.Ninit)
-		*init = concat(*init, n.Ninit)
-		n.Ninit = nil
+	if n.Ninit.Len() != 0 {
+		walkstmtlist(n.Ninit.Slice())
+		init.AppendNodes(&n.Ninit)
 	}
 
 	switch n.Op {
@@ -1710,18 +1550,18 @@ func safeexpr(n *Node, init **NodeList) *Node {
 	return cheapexpr(n, init)
 }
 
-func copyexpr(n *Node, t *Type, init **NodeList) *Node {
+func copyexpr(n *Node, t *Type, init *Nodes) *Node {
 	l := temp(t)
 	a := Nod(OAS, l, n)
 	typecheck(&a, Etop)
 	walkexpr(&a, init)
-	*init = list(*init, a)
+	init.Append(a)
 	return l
 }
 
 // return side-effect free and cheap n, appending side effects to init.
 // result may not be assignable.
-func cheapexpr(n *Node, init **NodeList) *Node {
+func cheapexpr(n *Node, init *Nodes) *Node {
 	switch n.Op {
 	case ONAME, OLITERAL:
 		return n
@@ -2037,31 +1877,25 @@ func expandmeth(t *Type) {
 }
 
 // Given funarg struct list, return list of ODCLFIELD Node fn args.
-func structargs(tl **Type, mustname int) *NodeList {
-	var savet Iter
-	var a *Node
-	var n *Node
-	var buf string
-
-	var args *NodeList
+func structargs(tl *Type, mustname bool) []*Node {
+	var args []*Node
 	gen := 0
-	for t := Structfirst(&savet, tl); t != nil; t = structnext(&savet) {
-		n = nil
-		if mustname != 0 && (t.Sym == nil || t.Sym.Name == "_") {
+	for t, it := IterFields(tl); t != nil; t = it.Next() {
+		var n *Node
+		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
-			buf = fmt.Sprintf(".anon%d", gen)
+			buf := fmt.Sprintf(".anon%d", gen)
 			gen++
-
 			n = newname(Lookup(buf))
 		} else if t.Sym != nil {
 			n = newname(t.Sym)
 		}
-		a = Nod(ODCLFIELD, n, typenod(t.Type))
+		a := Nod(ODCLFIELD, n, typenod(t.Type))
 		a.Isddd = t.Isddd
 		if n != nil {
 			n.Isddd = t.Isddd
 		}
-		args = list(args, a)
+		args = append(args, a)
 	}
 
 	return args
@@ -2110,11 +1944,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
 	this.Left.Name.Param.Ntype = this.Right
-	in := structargs(getinarg(method.Type), 1)
-	out := structargs(Getoutarg(method.Type), 0)
+	in := structargs(method.Type.Params(), true)
+	out := structargs(method.Type.Results(), false)
 
 	t := Nod(OTFUNC, nil, nil)
-	l := list1(this)
+	l := []*Node{this}
 	if iface != 0 && rcvr.Width < Types[Tptr].Width {
 		// Building method for interface table and receiver
 		// is smaller than the single pointer-sized word
@@ -2126,11 +1960,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		tpad.Type = Types[TUINT8]
 		tpad.Bound = Types[Tptr].Width - rcvr.Width
 		pad := Nod(ODCLFIELD, newname(Lookup(".pad")), typenod(tpad))
-		l = list(l, pad)
+		l = append(l, pad)
 	}
 
-	t.List = concat(l, in)
-	t.Rlist = out
+	t.List.Set(append(l, in...))
+	t.Rlist.Set(out)
 
 	fn := Nod(ODCLFUNC, nil, nil)
 	fn.Func.Nname = newname(newnam)
@@ -2140,15 +1974,15 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	funchdr(fn)
 
 	// arg list
-	var args *NodeList
+	var args []*Node
 
 	isddd := false
-	for l := in; l != nil; l = l.Next {
-		args = list(args, l.N.Left)
-		isddd = l.N.Left.Isddd
+	for _, n := range in {
+		args = append(args, n.Left)
+		isddd = n.Left.Isddd
 	}
 
-	methodrcvr := getthisx(method.Type).Type.Type
+	methodrcvr := method.Type.Recv().Type.Type
 
 	// generate nil pointer check for better error
 	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
@@ -2159,17 +1993,17 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 		// these strings are already in the reflect tables,
 		// so no space cost to use them here.
-		var l *NodeList
+		var l []*Node
 
 		var v Val
 		v.U = rcvr.Type.Sym.Pkg.Name // package name
-		l = list(l, nodlit(v))
+		l = append(l, nodlit(v))
 		v.U = rcvr.Type.Sym.Name // type name
-		l = list(l, nodlit(v))
+		l = append(l, nodlit(v))
 		v.U = method.Sym.Name
-		l = list(l, nodlit(v)) // method name
-		call := Nod(OCALL, syslook("panicwrap", 0), nil)
-		call.List = l
+		l = append(l, nodlit(v)) // method name
+		call := Nod(OCALL, syslook("panicwrap"), nil)
+		call.List.Set(l)
 		n.Nbody.Set([]*Node{call})
 		fn.Nbody.Append(n)
 	}
@@ -2192,11 +2026,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	} else {
 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
 		call := Nod(OCALL, dot, nil)
-		call.List = args
+		call.List.Set(args)
 		call.Isddd = isddd
 		if method.Type.Outtuple > 0 {
 			n := Nod(ORETURN, nil, nil)
-			n.List = list1(call)
+			n.List.Set([]*Node{call})
 			call = n
 		}
 
@@ -2204,7 +2038,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 	}
 
 	if false && Debug['r'] != 0 {
-		dumpslice("genwrapper body", fn.Nbody.Slice())
+		dumplist("genwrapper body", fn.Nbody)
 	}
 
 	funcbody(fn)
@@ -2215,7 +2049,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		fn.Func.Dupok = true
 	}
 	typecheck(&fn, Etop)
-	typecheckslice(fn.Nbody.Slice(), Etop)
+	typechecklist(fn.Nbody.Slice(), Etop)
 
 	inlcalls(fn)
 	escAnalyze([]*Node{fn}, false)
@@ -2230,10 +2064,10 @@ func hashmem(t *Type) *Node {
 	n := newname(sym)
 	n.Class = PFUNC
 	tfn := Nod(OTFUNC, nil, nil)
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.List = list(tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	tfn.Rlist = list(tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	typecheck(&tfn, Etype)
 	n.Type = tfn.Type
 	return n
@@ -2337,7 +2171,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
-		rcvr = getthisx(tm.Type).Type.Type
+		rcvr = tm.Type.Recv().Type.Type
 
 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
@@ -2377,37 +2211,27 @@ func Simsimtype(t *Type) EType {
 	return et
 }
 
-func listtreecopy(l *NodeList, lineno int32) *NodeList {
-	var out *NodeList
-	for ; l != nil; l = l.Next {
-		out = list(out, treecopy(l.N, lineno))
+func listtreecopy(l []*Node, lineno int32) []*Node {
+	var out []*Node
+	for _, n := range l {
+		out = append(out, treecopy(n, lineno))
 	}
 	return out
 }
 
-func liststmt(l *NodeList) *Node {
+func liststmt(l []*Node) *Node {
 	n := Nod(OBLOCK, nil, nil)
-	n.List = l
-	if l != nil {
-		n.Lineno = l.N.Lineno
+	n.List.Set(l)
+	if nodeSeqLen(l) != 0 {
+		n.Lineno = nodeSeqFirst(l).Lineno
 	}
 	return n
 }
 
-func liststmtslice(l []*Node) *Node {
-	var ll *NodeList
-	for _, n := range l {
-		ll = list(ll, n)
-	}
-	return liststmt(ll)
-}
-
 // return nelem of list
 func structcount(t *Type) int {
-	var s Iter
-
 	v := 0
-	for t = Structfirst(&s, &t); t != nil; t = structnext(&s) {
+	for t, it := IterFields(t); t != nil; t = it.Next() {
 		v++
 	}
 	return v
@@ -2727,8 +2551,8 @@ func mkpkg(path string) *Pkg {
 	return p
 }
 
-func addinit(np **Node, init *NodeList) {
-	if init == nil {
+func addinit(np **Node, init []*Node) {
+	if nodeSeqLen(init) == 0 {
 		return
 	}
 
@@ -2744,16 +2568,8 @@ func addinit(np **Node, init *NodeList) {
 		*np = n
 	}
 
-	n.Ninit = concat(init, n.Ninit)
+	n.Ninit.Set(append(nodeSeqSlice(init), n.Ninit.Slice()...))
 	n.Ullman = UINF
-}
-
-func addinitslice(np **Node, init []*Node) {
-	var l *NodeList
-	for _, n := range init {
-		l = list(l, n)
-	}
-	addinit(np, l)
 }
 
 var reservedimports = []string{
@@ -2790,7 +2606,7 @@ func isbadimport(path string) bool {
 			return true
 		}
 
-		if unicode.IsSpace(rune(r)) {
+		if unicode.IsSpace(r) {
 			Yyerror("import path contains space character: %q", path)
 			return true
 		}
@@ -2804,7 +2620,7 @@ func isbadimport(path string) bool {
 	return false
 }
 
-func checknil(x *Node, init **NodeList) {
+func checknil(x *Node, init *Nodes) {
 	if Isinter(x.Type) {
 		x = Nod(OITAB, x, nil)
 		typecheck(&x, Erv)
@@ -2812,7 +2628,7 @@ func checknil(x *Node, init **NodeList) {
 
 	n := Nod(OCHECKNIL, x, nil)
 	n.Typecheck = 1
-	*init = list(*init, n)
+	init.Append(n)
 }
 
 // Can this type be stored directly in an interface word?
@@ -2839,15 +2655,15 @@ func isdirectiface(t *Type) bool {
 	return false
 }
 
-// type2IET returns "T" if t is a concrete type,
-// "I" if t is an interface type, and "E" if t is an empty interface type.
+// iet returns 'T' if t is a concrete type,
+// 'I' if t is an interface type, and 'E' if t is an empty interface type.
 // It is used to build calls to the conv* and assert* runtime routines.
-func type2IET(t *Type) string {
+func (t *Type) iet() byte {
 	if isnilinter(t) {
-		return "E"
+		return 'E'
 	}
 	if Isinter(t) {
-		return "I"
+		return 'I'
 	}
-	return "T"
+	return 'T'
 }

@@ -1114,7 +1114,7 @@ func gcDumpObject(label string, obj, off uintptr) {
 			print(" ...\n")
 			skipped = false
 		}
-		print(" *(", label, "+", i, ") = ", hex(*(*uintptr)(unsafe.Pointer(obj + uintptr(i)))))
+		print(" *(", label, "+", i, ") = ", hex(*(*uintptr)(unsafe.Pointer(obj + i))))
 		if i == off {
 			print(" <==")
 		}

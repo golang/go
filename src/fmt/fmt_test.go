@@ -48,6 +48,12 @@ func TestFmtInterface(t *testing.T) {
 	}
 }
 
+var (
+	NaN    = math.NaN()
+	posInf = math.Inf(1)
+	negInf = math.Inf(-1)
+)
+
 const b32 uint32 = 1<<32 - 1
 const b64 uint64 = 1<<64 - 1
 
@@ -141,6 +147,10 @@ var fmtTests = []struct {
 	{"%x", "abc", "616263"},
 	{"%x", "\xff\xf0\x0f\xff", "fff00fff"},
 	{"%X", "\xff\xf0\x0f\xff", "FFF00FFF"},
+	{"%x", "", ""},
+	{"% x", "", ""},
+	{"%#x", "", ""},
+	{"%# x", "", ""},
 	{"%x", "xyz", "78797a"},
 	{"%X", "xyz", "78797A"},
 	{"% x", "xyz", "78 79 7a"},
@@ -156,6 +166,10 @@ var fmtTests = []struct {
 	{"%x", []byte("abc"), "616263"},
 	{"%x", []byte("\xff\xf0\x0f\xff"), "fff00fff"},
 	{"%X", []byte("\xff\xf0\x0f\xff"), "FFF00FFF"},
+	{"%x", []byte(""), ""},
+	{"% x", []byte(""), ""},
+	{"%#x", []byte(""), ""},
+	{"%# x", []byte(""), ""},
 	{"%x", []byte("xyz"), "78797a"},
 	{"%X", []byte("xyz"), "78797A"},
 	{"% x", []byte("xyz"), "78 79 7a"},
@@ -166,29 +180,88 @@ var fmtTests = []struct {
 	{"%# X", []byte("xyz"), "0X78 0X79 0X7A"},
 
 	// escaped strings
-	{"%#q", `abc`, "`abc`"},
-	{"%#q", `"`, "`\"`"},
-	{"1 %#q", `\n`, "1 `\\n`"},
-	{"2 %#q", "\n", `2 "\n"`},
-	{"%q", `"`, `"\""`},
-	{"%q", "\a\b\f\r\n\t\v", `"\a\b\f\r\n\t\v"`},
+	{"%q", "", `""`},
+	{"%#q", "", "``"},
+	{"%q", "\"", `"\""`},
+	{"%#q", "\"", "`\"`"},
+	{"%q", "`", `"` + "`" + `"`},
+	{"%#q", "`", `"` + "`" + `"`},
+	{"%q", "\n", `"\n"`},
+	{"%#q", "\n", `"\n"`},
+	{"%q", `\n`, `"\\n"`},
+	{"%#q", `\n`, "`\\n`"},
+	{"%q", "abc", `"abc"`},
+	{"%#q", "abc", "`abc`"},
+	{"%q", "日本語", `"日本語"`},
+	{"%+q", "日本語", `"\u65e5\u672c\u8a9e"`},
+	{"%#q", "日本語", "`日本語`"},
+	{"%#+q", "日本語", "`日本語`"},
+	{"%q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
+	{"%+q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
+	{"%#q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
+	{"%#+q", "\a\b\f\n\r\t\v\"\\", `"\a\b\f\n\r\t\v\"\\"`},
+	{"%q", "☺", `"☺"`},
+	{"% q", "☺", `"☺"`}, // The space modifier should have no effect.
+	{"%+q", "☺", `"\u263a"`},
+	{"%#q", "☺", "`☺`"},
+	{"%#+q", "☺", "`☺`"},
+	{"%10q", "⌘", `       "⌘"`},
+	{"%+10q", "⌘", `  "\u2318"`},
+	{"%-10q", "⌘", `"⌘"       `},
+	{"%+-10q", "⌘", `"\u2318"  `},
+	{"%010q", "⌘", `0000000"⌘"`},
+	{"%+010q", "⌘", `00"\u2318"`},
+	{"%-010q", "⌘", `"⌘"       `}, // 0 has no effect when - is present.
+	{"%+-010q", "⌘", `"\u2318"  `},
+	{"%#8q", "\n", `    "\n"`},
+	{"%#+8q", "\r", `    "\r"`},
+	{"%#-8q", "\t", "`	`     "},
+	{"%#+-8q", "\b", `"\b"    `},
 	{"%q", "abc\xffdef", `"abc\xffdef"`},
-	{"%q", "\u263a", `"☺"`},
-	{"%+q", "\u263a", `"\u263a"`},
-	{"%q", "\U0010ffff", `"\U0010ffff"`},
+	{"%+q", "abc\xffdef", `"abc\xffdef"`},
+	{"%#q", "abc\xffdef", `"abc\xffdef"`},
+	{"%#+q", "abc\xffdef", `"abc\xffdef"`},
+	{"%q", "\U0010ffff", `"\U0010ffff"`}, // Rune is not printable.
+	{"%+q", "\U0010ffff", `"\U0010ffff"`},
+	{"%#q", "\U0010ffff", "`􏿿`"},
+	{"%#+q", "\U0010ffff", "`􏿿`"},
+	{"%q", string(0x110000), `"�"`}, // Rune is not valid.
+	{"%+q", string(0x110000), `"\ufffd"`},
+	{"%#q", string(0x110000), "`�`"},
+	{"%#+q", string(0x110000), "`�`"},
 
 	// escaped characters
-	{"%q", 'x', `'x'`},
 	{"%q", 0, `'\x00'`},
+	{"%+q", 0, `'\x00'`},
+	{"%q", '"', `'"'`},
+	{"%+q", '"', `'"'`},
+	{"%q", '\'', `'\''`},
+	{"%+q", '\'', `'\''`},
+	{"%q", '`', "'`'"},
+	{"%+q", '`', "'`'"},
+	{"%q", 'x', `'x'`},
+	{"%+q", 'x', `'x'`},
+	{"%q", 'ÿ', `'ÿ'`},
+	{"%+q", 'ÿ', `'\u00ff'`},
 	{"%q", '\n', `'\n'`},
-	{"%q", '\u0e00', `'\u0e00'`},         // not a printable rune.
-	{"%q", '\U000c2345', `'\U000c2345'`}, // not a printable rune.
+	{"%+q", '\n', `'\n'`},
+	{"%q", '☺', `'☺'`},
+	{"% q", '☺', `'☺'`}, // The space modifier should have no effect.
+	{"%+q", '☺', `'\u263a'`},
+	{"%10q", '⌘', `       '⌘'`},
+	{"%+10q", '⌘', `  '\u2318'`},
+	{"%-10q", '⌘', `'⌘'       `},
+	{"%+-10q", '⌘', `'\u2318'  `},
+	{"%010q", '⌘', `0000000'⌘'`},
+	{"%+010q", '⌘', `00'\u2318'`},
+	{"%-010q", '⌘', `'⌘'       `}, // 0 has no effect when - is present.
+	{"%+-010q", '⌘', `'\u2318'  `},
+	{"%q", '\U00000e00', `'\u0e00'`},             // Rune is not printable.
+	{"%q", '\U000c2345', `'\U000c2345'`},         // Rune is not printable.
+	{"%q", '\U0010ffff', `'\U0010ffff'`},         // Rune is not printable.
+	{"%q", rune(0x110000), `%!q(int32=1114112)`}, // Rune is not valid.
 	{"%q", int64(0x7FFFFFFF), `%!q(int64=2147483647)`},
 	{"%q", uint64(0xFFFFFFFF), `%!q(uint64=4294967295)`},
-	{"%q", '"', `'"'`},
-	{"%q", '\'', `'\''`},
-	{"%q", "\u263a", `"☺"`},
-	{"%+q", "\u263a", `"\u263a"`},
 
 	// width
 	{"%5s", "abc", "  abc"},
@@ -199,18 +272,20 @@ var fmtTests = []struct {
 	{"%08q", "abc", `000"abc"`},
 	{"%5s", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
 	{"%.5s", "abcdefghijklmnopqrstuvwxyz", "abcde"},
+	{"%.0s", "日本語日本語", ""},
 	{"%.5s", "日本語日本語", "日本語日本"},
+	{"%.10s", "日本語日本語", "日本語日本語"},
 	{"%.5s", []byte("日本語日本語"), "日本語日本"},
 	{"%.5q", "abcdefghijklmnopqrstuvwxyz", `"abcde"`},
-	{"%.5x", "abcdefghijklmnopqrstuvwxyz", `6162636465`},
+	{"%.5x", "abcdefghijklmnopqrstuvwxyz", "6162636465"},
 	{"%.5q", []byte("abcdefghijklmnopqrstuvwxyz"), `"abcde"`},
-	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), `6162636465`},
+	{"%.5x", []byte("abcdefghijklmnopqrstuvwxyz"), "6162636465"},
 	{"%.3q", "日本語日本語", `"日本語"`},
 	{"%.3q", []byte("日本語日本語"), `"日本語"`},
 	{"%.1q", "日本語", `"日"`},
 	{"%.1q", []byte("日本語"), `"日"`},
-	{"%.1x", "日本語", `e6`},
-	{"%.1X", []byte("日本語"), `E6`},
+	{"%.1x", "日本語", "e6"},
+	{"%.1X", []byte("日本語"), "E6"},
 	{"%10.1q", "日本語日本語", `       "日"`},
 	{"%3c", '⌘', "  ⌘"},
 	{"%5q", '\u2026', `  '…'`},
@@ -276,9 +351,31 @@ var fmtTests = []struct {
 	{"% .3g", 1.0, " 1"},
 	{"%b", float32(1.0), "8388608p-23"},
 	{"%b", 1.0, "4503599627370496p-52"},
+	// Precision has no effect for binary float format.
+	{"%.4b", float32(1.0), "8388608p-23"},
+	{"%.4b", -1.0, "-4503599627370496p-52"},
+	// float infinites and NaNs
+	{"%f", posInf, "+Inf"},
+	{"%.1f", negInf, "-Inf"},
+	{"% f", NaN, " NaN"},
+	{"%20f", posInf, "                +Inf"},
+	{"% 20F", posInf, "                 Inf"},
+	{"% 20e", negInf, "                -Inf"},
+	{"%+20E", negInf, "                -Inf"},
+	{"% +20g", negInf, "                -Inf"},
+	{"%+-20G", posInf, "+Inf                "},
+	{"%20e", NaN, "                 NaN"},
+	{"% +20E", NaN, "                +NaN"},
+	{"% -20g", NaN, " NaN                "},
+	{"%+-20G", NaN, "+NaN                "},
+	// Zero padding does not apply to infinities and NaN.
+	{"%+020e", posInf, "                +Inf"},
+	{"%-020f", negInf, "-Inf                "},
+	{"%-020E", NaN, "NaN                 "},
 
 	// complex values
 	{"%.f", 0i, "(0+0i)"},
+	{"% .f", 0i, "( 0+0i)"},
 	{"%+.f", 0i, "(+0+0i)"},
 	{"% +.f", 0i, "(+0+0i)"},
 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
@@ -299,10 +396,31 @@ var fmtTests = []struct {
 	{"%.3f", -1 - 2i, "(-1.000-2.000i)"},
 	{"%.3g", -1 - 2i, "(-1-2i)"},
 	{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
+	{"%+.3g", 1 + 2i, "(+1+2i)"},
 	{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
-	{"%+.3g", complex128(1 + 2i), "(+1+2i)"},
-	{"%b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
 	{"%b", 1 + 2i, "(4503599627370496p-52+4503599627370496p-51i)"},
+	{"%b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
+	// Precision has no effect for binary complex format.
+	{"%.4b", 1 + 2i, "(4503599627370496p-52+4503599627370496p-51i)"},
+	{"%.4b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
+	// complex infinites and NaNs
+	{"%f", complex(posInf, posInf), "(+Inf+Infi)"},
+	{"%f", complex(negInf, negInf), "(-Inf-Infi)"},
+	{"%f", complex(NaN, NaN), "(NaN+NaNi)"},
+	{"%.1f", complex(posInf, posInf), "(+Inf+Infi)"},
+	{"% f", complex(posInf, posInf), "( Inf+Infi)"},
+	{"% f", complex(negInf, negInf), "(-Inf-Infi)"},
+	{"% f", complex(NaN, NaN), "( NaN+NaNi)"},
+	{"%8e", complex(posInf, posInf), "(    +Inf    +Infi)"},
+	{"% 8E", complex(posInf, posInf), "(     Inf    +Infi)"},
+	{"%+8f", complex(negInf, negInf), "(    -Inf    -Infi)"},
+	{"% +8g", complex(negInf, negInf), "(    -Inf    -Infi)"},
+	{"% -8G", complex(NaN, NaN), "( NaN    +NaN    i)"},
+	{"%+-8b", complex(NaN, NaN), "(+NaN    +NaN    i)"},
+	// Zero padding does not apply to infinities and NaN.
+	{"%08f", complex(posInf, posInf), "(    +Inf    +Infi)"},
+	{"%-08g", complex(negInf, negInf), "(-Inf    -Inf    i)"},
+	{"%-08G", complex(NaN, NaN), "(NaN     +NaN    i)"},
 
 	// erroneous formats
 	{"", 2, "%!(EXTRA int=2)"},
@@ -386,16 +504,6 @@ var fmtTests = []struct {
 	{"%g", 1.23456789e3, "1234.56789"},
 	{"%g", 1.23456789e-3, "0.00123456789"},
 	{"%g", 1.23456789e20, "1.23456789e+20"},
-	{"%20e", math.Inf(1), "                +Inf"},
-	{"% 20f", math.Inf(1), "                 Inf"},
-	{"%+20f", math.Inf(1), "                +Inf"},
-	{"% +20f", math.Inf(1), "                +Inf"},
-	{"%-20f", math.Inf(-1), "-Inf                "},
-	{"%20g", math.NaN(), "                 NaN"},
-	{"%+20f", math.NaN(), "                +NaN"},
-	{"% +20f", math.NaN(), "                +NaN"},
-	{"% -20f", math.NaN(), " NaN                "},
-	{"%+-20f", math.NaN(), "+NaN                "},
 
 	// arrays
 	{"%v", array, "[1 2 3 4 5]"},
@@ -412,13 +520,65 @@ var fmtTests = []struct {
 	{"%v", &slice, "&[1 2 3 4 5]"},
 	{"%v", &islice, "&[1 hello 2.5 <nil>]"},
 	{"%v", &bslice, "&[1 2 3 4 5]"},
-	{"%v", []byte{1}, "[1]"},
+
+	// byte slices and arrays with %d and %v variants
+	{"%d", [0]byte{}, "[]"},
+	{"%d", [1]byte{123}, "[123]"},
+	{"%012d", []byte{}, "[]"},
+	{"%d", [3]byte{1, 11, 111}, "[1 11 111]"},
+	{"%d", [3]uint8{1, 11, 111}, "[1 11 111]"},
+	{"%06d", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
+	{"%-6d", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%-06d", [3]byte{1, 11, 111}, "[1      11     111   ]"}, // 0 has no effect when - is present.
 	{"%v", []byte{}, "[]"},
+	{"%012v", []byte{}, "[]"},
+	{"%#v", []byte{}, "[]byte{}"},
+	{"%#v", []uint8{}, "[]byte{}"},
+	{"%#012v", []byte{}, "[]byte{}"},
+	{"%v", []byte{123}, "[123]"},
+	{"%v", []byte{1, 11, 111}, "[1 11 111]"},
+	{"%6v", []byte{1, 11, 111}, "[     1     11    111]"},
+	{"%06v", []byte{1, 11, 111}, "[000001 000011 000111]"},
+	{"%-6v", []byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%-06v", []byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%#v", []byte{1, 11, 111}, "[]byte{0x1, 0xb, 0x6f}"},
+	{"%#6v", []byte{1, 11, 111}, "[]byte{   0x1,    0xb,   0x6f}"},
+	{"%#06v", []byte{1, 11, 111}, "[]byte{0x000001, 0x00000b, 0x00006f}"},
+	{"%#-6v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
+	{"%#-06v", []byte{1, 11, 111}, "[]byte{0x1   , 0xb   , 0x6f  }"},
+	{"%v", [0]byte{}, "[]"},
+	{"%-12v", [0]byte{}, "[]"},
+	{"%#v", [0]byte{}, "[0]uint8{}"},
+	{"%#v", [0]uint8{}, "[0]uint8{}"},
+	{"%#-12v", [0]byte{}, "[0]uint8{}"},
+	{"%v", [1]byte{123}, "[123]"},
+	{"%v", [3]byte{1, 11, 111}, "[1 11 111]"},
+	{"%06v", [3]byte{1, 11, 111}, "[000001 000011 000111]"},
+	{"%-6v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%-06v", [3]byte{1, 11, 111}, "[1      11     111   ]"},
+	{"%#v", [3]byte{1, 11, 111}, "[3]uint8{0x1, 0xb, 0x6f}"},
+	{"%#6v", [3]byte{1, 11, 111}, "[3]uint8{   0x1,    0xb,   0x6f}"},
+	{"%#06v", [3]byte{1, 11, 111}, "[3]uint8{0x000001, 0x00000b, 0x00006f}"},
+	{"%#-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+	{"%#-06v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+	// f.space should and f.plus should not have an effect with %v.
+	{"% v", []byte{1, 11, 111}, "[ 1  11  111]"},
+	{"%+v", [3]byte{1, 11, 111}, "[1 11 111]"},
+	{"%# -6v", []byte{1, 11, 111}, "[]byte{ 0x1  ,  0xb  ,  0x6f }"},
+	{"%#+-6v", [3]byte{1, 11, 111}, "[3]uint8{0x1   , 0xb   , 0x6f  }"},
+	// f.space and f.plus should have an effect with %d.
+	{"% d", []byte{1, 11, 111}, "[ 1  11  111]"},
+	{"%+d", [3]byte{1, 11, 111}, "[+1 +11 +111]"},
+	{"%# -6d", []byte{1, 11, 111}, "[ 1      11     111  ]"},
+	{"%#+-6d", [3]byte{1, 11, 111}, "[+1     +11    +111  ]"},
+
+	// floates with %v
+	{"%v", 1.2345678, "1.2345678"},
+	{"%v", float32(1.2345678), "1.2345678"},
 
 	// complexes with %v
 	{"%v", 1 + 2i, "(1+2i)"},
 	{"%v", complex64(1 + 2i), "(1+2i)"},
-	{"%v", complex128(1 + 2i), "(1+2i)"},
 
 	// structs
 	{"%v", A{1, 2, "a", []int{1, 2}}, `{1 2 a [1 2]}`},
@@ -460,6 +620,8 @@ var fmtTests = []struct {
 	{"%#v", bslice, `[]fmt_test.renamedUint8{0x1, 0x2, 0x3, 0x4, 0x5}`},
 	{"%#v", []byte(nil), "[]byte(nil)"},
 	{"%#v", []int32(nil), "[]int32(nil)"},
+	{"%#v", 1.2345678, "1.2345678"},
+	{"%#v", float32(1.2345678), "1.2345678"},
 
 	// slices with other formats
 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
@@ -469,30 +631,61 @@ var fmtTests = []struct {
 	{"%q", []string{"a", "b"}, `["a" "b"]`},
 	{"% 02x", []byte{1}, "01"},
 	{"% 02x", []byte{1, 2, 3}, "01 02 03"},
+
 	// Padding with byte slices.
-	{"%x", []byte{}, ""},
-	{"%02x", []byte{}, "00"},
+	{"%2x", []byte{}, "  "},
+	{"%#2x", []byte{}, "  "},
 	{"% 02x", []byte{}, "00"},
-	{"%08x", []byte{0xab}, "000000ab"},
-	{"% 08x", []byte{0xab}, "000000ab"},
-	{"%08x", []byte{0xab, 0xcd}, "0000abcd"},
-	{"% 08x", []byte{0xab, 0xcd}, "000ab cd"},
+	{"%# 02x", []byte{}, "00"},
+	{"%-2x", []byte{}, "  "},
+	{"%-02x", []byte{}, "  "},
 	{"%8x", []byte{0xab}, "      ab"},
 	{"% 8x", []byte{0xab}, "      ab"},
-	{"%8x", []byte{0xab, 0xcd}, "    abcd"},
-	{"% 8x", []byte{0xab, 0xcd}, "   ab cd"},
+	{"%#8x", []byte{0xab}, "    0xab"},
+	{"%# 8x", []byte{0xab}, "    0xab"},
+	{"%08x", []byte{0xab}, "000000ab"},
+	{"% 08x", []byte{0xab}, "000000ab"},
+	{"%#08x", []byte{0xab}, "00000xab"},
+	{"%# 08x", []byte{0xab}, "00000xab"},
+	{"%10x", []byte{0xab, 0xcd}, "      abcd"},
+	{"% 10x", []byte{0xab, 0xcd}, "     ab cd"},
+	{"%#10x", []byte{0xab, 0xcd}, "    0xabcd"},
+	{"%# 10x", []byte{0xab, 0xcd}, " 0xab 0xcd"},
+	{"%010x", []byte{0xab, 0xcd}, "000000abcd"},
+	{"% 010x", []byte{0xab, 0xcd}, "00000ab cd"},
+	{"%#010x", []byte{0xab, 0xcd}, "00000xabcd"},
+	{"%# 010x", []byte{0xab, 0xcd}, "00xab 0xcd"},
+	{"%-10X", []byte{0xab}, "AB        "},
+	{"% -010X", []byte{0xab}, "AB        "},
+	{"%#-10X", []byte{0xab, 0xcd}, "0XABCD    "},
+	{"%# -010X", []byte{0xab, 0xcd}, "0XAB 0XCD "},
 	// Same for strings
-	{"%x", "", ""},
-	{"%02x", "", "00"},
+	{"%2x", "", "  "},
+	{"%#2x", "", "  "},
 	{"% 02x", "", "00"},
-	{"%08x", "\xab", "000000ab"},
-	{"% 08x", "\xab", "000000ab"},
-	{"%08x", "\xab\xcd", "0000abcd"},
-	{"% 08x", "\xab\xcd", "000ab cd"},
+	{"%# 02x", "", "00"},
+	{"%-2x", "", "  "},
+	{"%-02x", "", "  "},
 	{"%8x", "\xab", "      ab"},
 	{"% 8x", "\xab", "      ab"},
-	{"%8x", "\xab\xcd", "    abcd"},
-	{"% 8x", "\xab\xcd", "   ab cd"},
+	{"%#8x", "\xab", "    0xab"},
+	{"%# 8x", "\xab", "    0xab"},
+	{"%08x", "\xab", "000000ab"},
+	{"% 08x", "\xab", "000000ab"},
+	{"%#08x", "\xab", "00000xab"},
+	{"%# 08x", "\xab", "00000xab"},
+	{"%10x", "\xab\xcd", "      abcd"},
+	{"% 10x", "\xab\xcd", "     ab cd"},
+	{"%#10x", "\xab\xcd", "    0xabcd"},
+	{"%# 10x", "\xab\xcd", " 0xab 0xcd"},
+	{"%010x", "\xab\xcd", "000000abcd"},
+	{"% 010x", "\xab\xcd", "00000ab cd"},
+	{"%#010x", "\xab\xcd", "00000xabcd"},
+	{"%# 010x", "\xab\xcd", "00xab 0xcd"},
+	{"%-10X", "\xab", "AB        "},
+	{"% -010X", "\xab", "AB        "},
+	{"%#-10X", "\xab\xcd", "0XABCD    "},
+	{"%# -010X", "\xab\xcd", "0XAB 0XCD "},
 
 	// renamings
 	{"%v", renamedBool(true), "true"},
@@ -583,7 +776,7 @@ var fmtTests = []struct {
 	// be fetched directly, the lookup fails and returns a
 	// zero reflect.Value, which formats as <nil>.
 	// This test is just to check that it shows the two NaNs at all.
-	{"%v", map[float64]int{math.NaN(): 1, math.NaN(): 2}, "map[NaN:<nil> NaN:<nil>]"},
+	{"%v", map[float64]int{NaN: 1, NaN: 2}, "map[NaN:<nil> NaN:<nil>]"},
 
 	// Used to crash because nByte didn't allow for a sign.
 	{"%b", int64(-1 << 63), zeroFill("-1", 63, "")},
@@ -673,19 +866,7 @@ var fmtTests = []struct {
 	// Complex numbers: exhaustively tested in TestComplexFormatting.
 	{"%7.2f", 1 + 2i, "(   1.00  +2.00i)"},
 	{"%+07.2f", -1 - 2i, "(-001.00-002.00i)"},
-	// Zero padding does not apply to infinities and NaN.
-	{"%020f", math.Inf(-1), "                -Inf"},
-	{"%020f", math.Inf(+1), "                +Inf"},
-	{"%020f", math.NaN(), "                 NaN"},
-	{"% 020f", math.Inf(-1), "                -Inf"},
-	{"% 020f", math.Inf(+1), "                 Inf"},
-	{"% 020f", math.NaN(), "                 NaN"},
-	{"%+020f", math.Inf(-1), "                -Inf"},
-	{"%+020f", math.Inf(+1), "                +Inf"},
-	{"%+020f", math.NaN(), "                +NaN"},
-	{"%-020f", math.Inf(-1), "-Inf                "},
-	{"%-020f", math.Inf(+1), "+Inf                "},
-	{"%-020f", math.NaN(), "NaN                 "},
+
 	{"%20f", -1.0, "           -1.000000"},
 	// Make sure we can handle very large widths.
 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
@@ -693,6 +874,13 @@ var fmtTests = []struct {
 	// Use spaces instead of zero if padding to the right.
 	{"%0-5s", "abc", "abc  "},
 	{"%-05.1f", 1.0, "1.0  "},
+
+	// float and complex formatting should not change the padding width
+	// for other elements. See issue 14642.
+	{"%06v", []interface{}{+10.0, 10}, "[000010 000010]"},
+	{"%06v", []interface{}{-10.0, 10}, "[-00010 000010]"},
+	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
+	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
 
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
@@ -761,6 +949,18 @@ var fmtTests = []struct {
 
 	// invalid reflect.Value doesn't crash.
 	{"%v", reflect.Value{}, "<invalid reflect.Value>"},
+
+	// Tests to check that not supported verbs generate an error string.
+	{"%☠", nil, "%!☠(<nil>)"},
+	{"%☠", interface{}(nil), "%!☠(<nil>)"},
+	{"%☠", []byte{0}, "%!☠([]uint8=[0])"},
+	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
+	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
+	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
+	{"%☠", 1.2345678, "%!☠(float64=1.2345678)"},
+	{"%☠", float32(1.2345678), "%!☠(float32=1.2345678)"},
+	{"%☠", 1.2345678 + 1.2345678i, "%!☠(complex128=(1.2345678+1.2345678i))"},
+	{"%☠", complex64(1.2345678 + 1.2345678i), "%!☠(complex64=(1.2345678+1.2345678i))"},
 }
 
 // zeroFill generates zero-filled strings of the specified width. The length
@@ -810,7 +1010,7 @@ func TestSprintf(t *testing.T) {
 // thing as if done by hand with two singleton prints.
 func TestComplexFormatting(t *testing.T) {
 	var yesNo = []bool{true, false}
-	var values = []float64{1, 0, -1, math.Inf(1), math.Inf(-1), math.NaN()}
+	var values = []float64{1, 0, -1, posInf, negInf, NaN}
 	for _, plus := range yesNo {
 		for _, zero := range yesNo {
 			for _, space := range yesNo {
@@ -928,6 +1128,22 @@ func BenchmarkSprintfString(b *testing.B) {
 	})
 }
 
+func BenchmarkSprintfTruncateString(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%.3s", "日本語日本語日本語")
+		}
+	})
+}
+
+func BenchmarkSprintfQuoteString(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%q", "日本語日本語日本語")
+		}
+	})
+}
+
 func BenchmarkSprintfInt(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
@@ -959,10 +1175,45 @@ func BenchmarkSprintfFloat(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkSprintfComplex(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%f", 5.23184+5.23184i)
+		}
+	})
+}
+
 func BenchmarkSprintfBoolean(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			Sprintf("%t", true)
+		}
+	})
+}
+
+func BenchmarkSprintfHexString(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("% #x", "0123456789abcdef")
+		}
+	})
+}
+
+func BenchmarkSprintfHexBytes(b *testing.B) {
+	data := []byte("0123456789abcdef")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("% #x", data)
+		}
+	})
+}
+
+func BenchmarkSprintfBytes(b *testing.B) {
+	data := []byte("0123456789abcdef")
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Sprintf("%v", data)
 		}
 	})
 }

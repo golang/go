@@ -32,11 +32,11 @@ func (c *sigctxt) r14() uint64     { return c.regs().mc_r14 }
 func (c *sigctxt) r15() uint64     { return c.regs().mc_r15 }
 func (c *sigctxt) rip() uint64     { return c.regs().mc_rip }
 func (c *sigctxt) rflags() uint64  { return c.regs().mc_rflags }
-func (c *sigctxt) cs() uint64      { return uint64(c.regs().mc_cs) }
+func (c *sigctxt) cs() uint64      { return c.regs().mc_cs }
 func (c *sigctxt) fs() uint64      { return uint64(c.regs().mc_fs) }
 func (c *sigctxt) gs() uint64      { return uint64(c.regs().mc_gs) }
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
-func (c *sigctxt) sigaddr() uint64 { return uint64(c.info.si_addr) }
+func (c *sigctxt) sigaddr() uint64 { return c.info.si_addr }
 
 func (c *sigctxt) set_rip(x uint64)     { c.regs().mc_rip = x }
 func (c *sigctxt) set_rsp(x uint64)     { c.regs().mc_rsp = x }

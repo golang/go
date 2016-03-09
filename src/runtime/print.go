@@ -209,7 +209,7 @@ func printstring(s string) {
 func printslice(s []byte) {
 	sp := (*slice)(unsafe.Pointer(&s))
 	print("[", len(s), "/", cap(s), "]")
-	printpointer(unsafe.Pointer(sp.array))
+	printpointer(sp.array)
 }
 
 func printeface(e eface) {

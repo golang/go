@@ -1226,14 +1226,6 @@ func TestGetGitDefaultBranch(t *testing.T) {
 	tg.grepStdout(`\* another-branch`, "not on correct default branch")
 }
 
-func TestDisallowedCSourceFiles(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "badc")
-	tg.grepStderr("C source files not allowed", "go test did not say C source files not allowed")
-}
-
 func TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2105,10 +2097,33 @@ func main() { C.f() }`)
 	tg.grepStderr(`gccgo.*\-L alibpath \-lalib`, `no Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage`)
 }
 
-func TestListTemplateCanUseContextFunction(t *testing.T) {
+func TestListTemplateContextFunction(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
-	tg.run("list", "-f", "GOARCH: {{context.GOARCH}}")
+	for _, tt := range []struct {
+		v    string
+		want string
+	}{
+		{"GOARCH", runtime.GOARCH},
+		{"GOOS", runtime.GOOS},
+		{"GOROOT", filepath.Clean(runtime.GOROOT())},
+		{"GOPATH", os.Getenv("GOPATH")},
+		{"CgoEnabled", ""},
+		{"UseAllFiles", ""},
+		{"Compiler", ""},
+		{"BuildTags", ""},
+		{"ReleaseTags", ""},
+		{"InstallSuffix", ""},
+	} {
+		tmpl := "{{context." + tt.v + "}}"
+		tg.run("list", "-f", tmpl)
+		if tt.want == "" {
+			continue
+		}
+		if got := strings.TrimSpace(tg.getStdout()); got != tt.want {
+			t.Errorf("go list -f %q: got %q; want %q", tmpl, got, tt.want)
+		}
+	}
 }
 
 // cmd/go: "go test" should fail if package does not build

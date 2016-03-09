@@ -328,7 +328,7 @@
 		(MOVOstore dst (MOVOload src mem) mem))
 
 // Medium copying uses a duff device.
-(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 ->
+(Move [size] dst src mem) && size >= 32 && size <= 16*64 && size%16 == 0 && !config.noDuffDevice ->
 	(DUFFCOPY [14*(64-size/16)] dst src mem)
 // 14 and 64 are magic constants.  14 is the number of bytes to encode:
 //	MOVUPS	(SI), X0
@@ -338,7 +338,7 @@
 // and 64 is the number of such blocks. See src/runtime/duff_amd64.s:duffcopy.
 
 // Large copying uses REP MOVSQ.
-(Move [size] dst src mem) && size > 16*64 && size%8 == 0 ->
+(Move [size] dst src mem) && (size > 16*64 || config.noDuffDevice) && size%8 == 0 ->
 	(REPMOVSQ dst src (MOVQconst [size/8]) mem)
 
 (Not x) -> (XORBconst [1] x)
@@ -869,13 +869,13 @@
 				(MOVQstoreconst [0] destptr mem))))
 
 // Medium zeroing uses a duff device.
-(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 ->
+(Zero [size] destptr mem) && size <= 1024 && size%8 == 0 && size%16 != 0 && !config.noDuffDevice ->
 	(Zero [size-8] (ADDQconst [8] destptr) (MOVQstore destptr (MOVQconst [0]) mem))
-(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 ->
+(Zero [size] destptr mem) && size <= 1024 && size%16 == 0 && !config.noDuffDevice ->
 	(DUFFZERO [duffStart(size)] (ADDQconst [duffAdj(size)] destptr) (MOVOconst [0]) mem)
 
 // Large zeroing uses REP STOSQ.
-(Zero [size] destptr mem) && size > 1024 && size%8 == 0 ->
+(Zero [size] destptr mem) && (size > 1024 || (config.noDuffDevice && size > 32)) && size%8 == 0 ->
 	(REPSTOSQ destptr (MOVQconst [size/8]) (MOVQconst [0]) mem)
 
 // Absorb InvertFlags into branches.
@@ -1162,3 +1162,25 @@
 (CMPLconst (ANDLconst [c] x) [0]) -> (TESTLconst [c] x)
 (CMPWconst (ANDWconst [c] x) [0]) -> (TESTWconst [c] x)
 (CMPBconst (ANDBconst [c] x) [0]) -> (TESTBconst [c] x)
+
+// Combining byte loads into larger (unaligned) loads.
+// There are many ways these combinations could occur.  This is
+// designed to match the way encoding/binary.LittleEndian does it.
+(ORW                (MOVBQZXload [i]   {s} p mem)
+     (SHLWconst [8] (MOVBQZXload [i+1] {s} p mem))) -> (MOVWload (ADDQconst [i] p) mem)
+
+(ORL (ORL (ORL
+                    (MOVBQZXload [i]   {s} p mem)
+    (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))
+    (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))
+    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> (MOVLload (ADDQconst [i] p) mem)
+
+(ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
+                    (MOVBQZXload [i]   {s} p mem)
+    (SHLQconst [8]  (MOVBQZXload [i+1] {s} p mem)))
+    (SHLQconst [16] (MOVBQZXload [i+2] {s} p mem)))
+    (SHLQconst [24] (MOVBQZXload [i+3] {s} p mem)))
+    (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))
+    (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))
+    (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))
+    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> (MOVQload (ADDQconst [i] p) mem)

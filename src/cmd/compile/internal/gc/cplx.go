@@ -398,7 +398,7 @@ func Complexgen(n *Node, res *Node) {
 	switch n.Op {
 	default:
 		Dump("complexgen: unknown op", n)
-		Fatalf("complexgen: unknown op %v", Oconv(int(n.Op), 0))
+		Fatalf("complexgen: unknown op %v", Oconv(n.Op, 0))
 
 	case ODOT,
 		ODOTPTR,
@@ -457,7 +457,7 @@ func Complexgen(n *Node, res *Node) {
 
 	switch n.Op {
 	default:
-		Fatalf("complexgen: unknown op %v", Oconv(int(n.Op), 0))
+		Fatalf("complexgen: unknown op %v", Oconv(n.Op, 0))
 
 	case OCONV:
 		Complexmove(nl, res)

@@ -162,7 +162,7 @@ func checkgoto(from *Node, to *Node) {
 		fs = fs.Link
 	}
 	if fs != to.Sym {
-		lno := int(lineno)
+		lno := lineno
 		setlineno(from)
 
 		// decide what to complain about.
@@ -192,11 +192,11 @@ func checkgoto(from *Node, to *Node) {
 		}
 
 		if block != nil {
-			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, Ctxt.Line(int(block.Lastlineno)))
+			Yyerror("goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
 		} else {
-			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, Ctxt.Line(int(dcl.Lastlineno)))
+			Yyerror("goto %v jumps over declaration of %v at %v", from.Left.Sym, dcl, linestr(dcl.Lastlineno))
 		}
-		lineno = int32(lno)
+		lineno = lno
 	}
 }
 
@@ -215,14 +215,8 @@ func stmtlabel(n *Node) *Label {
 }
 
 // compile statements
-func Genlist(l *NodeList) {
-	for ; l != nil; l = l.Next {
-		gen(l.N)
-	}
-}
-
-func Genslice(l []*Node) {
-	for _, n := range l {
+func Genlist(l Nodes) {
+	for _, n := range l.Slice() {
 		gen(n)
 	}
 }
@@ -231,7 +225,7 @@ func Genslice(l []*Node) {
 func cgen_proc(n *Node, proc int) {
 	switch n.Left.Op {
 	default:
-		Fatalf("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
+		Fatalf("cgen_proc: unknown call %v", Oconv(n.Left.Op, 0))
 
 	case OCALLMETH:
 		cgen_callmeth(n.Left, proc)
@@ -440,13 +434,13 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 		q := Gbranch(obj.AJMP, nil, 0)
 		Patch(p, Pc)
 		Regrealloc(&r2) // reclaim from above, for this failure path
-		fn := syslook("panicdottype", 0)
+		fn := syslook("panicdottype")
 		dowidth(fn.Type)
 		call := Nod(OCALLFUNC, fn, nil)
 		r1.Type = byteptr
 		r2.Type = byteptr
-		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
-		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+		setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
+		call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
 		gen(call)
 		Regfree(&r1)
 		Regfree(&r2)
@@ -528,11 +522,11 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	q := Gbranch(obj.AJMP, nil, 0)
 	Patch(p, Pc)
 
-	fn := syslook("panicdottype", 0)
+	fn := syslook("panicdottype")
 	dowidth(fn.Type)
 	call := Nod(OCALLFUNC, fn, nil)
-	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
-	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
+	setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
+	call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
 	gen(call)
 	Regfree(&r1)
 	Regfree(&r2)
@@ -644,7 +638,7 @@ func gen(n *Node) {
 		goto ret
 	}
 
-	if n.Ninit != nil {
+	if n.Ninit.Len() > 0 {
 		Genlist(n.Ninit)
 	}
 
@@ -779,7 +773,7 @@ func gen(n *Node) {
 		gen(n.Right)                     // contin:	incr
 		Patch(p1, Pc)                    // test:
 		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
-		Genslice(n.Nbody.Slice())        //		body
+		Genlist(n.Nbody)                 //		body
 		gjmp(continpc)
 		Patch(breakpc, Pc) // done:
 		continpc = scontin
@@ -794,7 +788,7 @@ func gen(n *Node) {
 		p2 := gjmp(nil)                         // p2:		goto else
 		Patch(p1, Pc)                           // test:
 		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
-		Genslice(n.Nbody.Slice())               //		then
+		Genlist(n.Nbody)                        //		then
 		p3 := gjmp(nil)                         //		goto done
 		Patch(p2, Pc)                           // else:
 		Genlist(n.Rlist)                        //		else
@@ -811,9 +805,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)             // test:
-		Genslice(n.Nbody.Slice()) //		switch(test) body
-		Patch(breakpc, Pc)        // done:
+		Patch(p1, Pc)      // test:
+		Genlist(n.Nbody)   //		switch(test) body
+		Patch(breakpc, Pc) // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -830,9 +824,9 @@ func gen(n *Node) {
 			lab.Breakpc = breakpc
 		}
 
-		Patch(p1, Pc)             // test:
-		Genslice(n.Nbody.Slice()) //		select() body
-		Patch(breakpc, Pc)        // done:
+		Patch(p1, Pc)      // test:
+		Genlist(n.Nbody)   //		select() body
+		Patch(breakpc, Pc) // done:
 		breakpc = sbreak
 		if lab != nil {
 			lab.Breakpc = nil
@@ -851,7 +845,7 @@ func gen(n *Node) {
 		Cgen_as_wb(n.Left, n.Right, true)
 
 	case OAS2DOTTYPE:
-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
+		cgen_dottype(n.Rlist.First(), n.List.First(), n.List.Second(), needwritebarrier(n.List.First(), n.Rlist.First()))
 
 	case OCALLMETH:
 		cgen_callmeth(n, 0)
@@ -983,13 +977,13 @@ func checklabels() {
 	for lab := labellist; lab != nil; lab = lab.Link {
 		if lab.Def == nil {
 			for _, n := range lab.Use {
-				yyerrorl(int(n.Lineno), "label %v not defined", lab.Sym)
+				yyerrorl(n.Lineno, "label %v not defined", lab.Sym)
 			}
 			continue
 		}
 
 		if lab.Use == nil && !lab.Used {
-			yyerrorl(int(lab.Def.Lineno), "label %v defined and not used", lab.Sym)
+			yyerrorl(lab.Def.Lineno, "label %v defined and not used", lab.Sym)
 			continue
 		}
 

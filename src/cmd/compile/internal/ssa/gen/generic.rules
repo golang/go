@@ -19,6 +19,10 @@
 // succ* fields must be variables
 // For now, the generated successors must be a permutation of the matched successors.
 
+// Simplify nil checks.
+// These are inserted by for _, e := range a {}
+(NilCheck (Phi x (Add64 (Const64 [c]) y)) mem) && c > 0 && v.Args[0] == y -> (NilCheck x mem)
+
 // constant folding
 (Trunc16to8 (Const16 [c])) -> (Const8 [int64(int8(c))])
 (Trunc32to8 (Const32 [c])) -> (Const8 [int64(int8(c))])
@@ -73,8 +77,12 @@
 (Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
 (Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
 
+(IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && inBounds32(c, d) -> (ConstBool [1])
+(IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && inBounds64(c, d) -> (ConstBool [1])
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
+(IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && sliceInBounds32(c, d) -> (ConstBool [1])
+(IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && sliceInBounds64(c, d) -> (ConstBool [1])
 (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
 (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
 
@@ -355,13 +363,18 @@
 (Neg32 (Sub32 x y)) -> (Sub32 y x)
 (Neg64 (Sub64 x y)) -> (Sub64 y x)
 
-// Rewrite AND of consts as shifts if possible, slightly faster for 32/64 bit operands
+(Trunc64to8 (And64 (Const64 [y]) x)) && y&0xFF == 0xFF -> (Trunc64to8 x)
+(Trunc64to16 (And64 (Const64 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc64to16 x)
+(Trunc64to32 (And64 (Const64 [y]) x)) && y&0xFFFFFFFF == 0xFFFFFFFF -> (Trunc64to32 x)
+(Trunc32to8 (And32 (Const32 [y]) x)) && y&0xFF == 0xFF -> (Trunc32to8 x)
+(Trunc32to16 (And32 (Const32 [y]) x)) && y&0xFFFF == 0xFFFF -> (Trunc32to16 x)
+(Trunc16to8 (And16 (Const16 [y]) x)) && y&0xFF == 0xFF -> (Trunc16to8 x)
+
+// Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
 // leading zeros can be shifted left, then right
-(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
-(And32 <t> (Const32 [y]) x) && nlz(int64(int32(y))) + nto(int64(int32(y))) == 64 -> (Rsh32Ux32 (Lsh32x32 <t> x (Const32 <t> [nlz(int64(int32(y)))-32])) (Const32 <t> [nlz(int64(int32(y)))-32]))
+(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
 // trailing zeros can be shifted right, then left
-(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
-(And32 <t> (Const32 [y]) x) && nlo(int64(int32(y))) + ntz(int64(int32(y))) == 64 -> (Lsh32x32 (Rsh32Ux32 <t> x (Const32 <t> [ntz(int64(int32(y)))])) (Const32 <t> [ntz(int64(int32(y)))]))
+(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 && ntz(y) >= 32 -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
 
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub64 (Add64 x y) x) -> y
@@ -396,6 +409,9 @@
 
 // Load of store of same address, with compatibly typed value and same size
 (Load <t1> p1 (Store [w] p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size() -> x
+
+// Collapse OffPtr
+(OffPtr (OffPtr p [b]) [a]) -> (OffPtr p [a+b])
 
 
 // indexing operations
@@ -499,8 +515,8 @@
     (Store [8] dst real mem))
 
 // string ops
-(StringPtr (StringMake ptr _)) -> ptr
-(StringLen (StringMake _ len)) -> len
+(StringPtr (StringMake (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+(StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
   (StringMake (ConstNil) (Const32 <config.fe.TypeInt()> [0]))
 (ConstString {s}) && config.PtrSize == 8 && s.(string) == "" ->
@@ -528,9 +544,9 @@
     (Store [config.PtrSize] dst ptr mem))
 
 // slice ops
-(SlicePtr (SliceMake ptr _ _ )) -> ptr
-(SliceLen (SliceMake _ len _)) -> len
-(SliceCap (SliceMake _ _ cap)) -> cap
+(SlicePtr (SliceMake (Const64 <t> [c]) _ _)) -> (Const64 <t> [c])
+(SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
+(SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstSlice) && config.PtrSize == 4 ->
   (SliceMake
     (ConstNil <config.fe.TypeBytePtr()>)
@@ -652,9 +668,9 @@
 //(Mod64 n (Const64 [1])) -> (Const64 [0])
 //(Mod64u n (Const64 [1])) -> (Const64 [0])
 
-// Unsigned divide by power of 2.  Currently handled by frontend.
-//(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
-//(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
+// Unsigned divide by power of 2.
+(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
+(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
 
 // Signed divide by power of 2.  Currently handled by frontend.
 // n / c = n >> log(c)       if n >= 0

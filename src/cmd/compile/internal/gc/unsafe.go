@@ -26,12 +26,12 @@ func unsafenmagic(nn *Node) *Node {
 		return nil
 	}
 
-	if args == nil {
+	if args.Len() == 0 {
 		Yyerror("missing argument for %v", s)
 		return nil
 	}
 
-	r := args.N
+	r := args.First()
 
 	var v int64
 	if s.Name == "Sizeof" {
@@ -87,7 +87,7 @@ func unsafenmagic(nn *Node) *Node {
 
 			default:
 				Dump("unsafenmagic", r)
-				Fatalf("impossible %v node after dot insertion", Oconv(int(r1.Op), obj.FmtSharp))
+				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, obj.FmtSharp))
 				goto bad
 			}
 		}
@@ -129,7 +129,7 @@ bad:
 	goto ret
 
 yes:
-	if args.Next != nil {
+	if args.Len() > 1 {
 		Yyerror("extra arguments for %v", s)
 	}
 

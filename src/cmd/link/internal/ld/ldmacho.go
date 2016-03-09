@@ -620,7 +620,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 		}
 		s = Linklookup(Ctxt, name, v)
 		if sym.type_&N_EXT == 0 {
-			s.Dupok = 1
+			s.Attr |= AttrDuplicateOK
 		}
 		sym.sym = s
 		if sym.sectnum == 0 { // undefined
@@ -639,7 +639,7 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 		}
 
 		if s.Outer != nil {
-			if s.Dupok != 0 {
+			if s.Attr.DuplicateOK() {
 				continue
 			}
 			Exitf("%s: duplicate symbol reference: %s in both %s and %s", pn, s.Name, s.Outer.Name, sect.sym.Name)
@@ -650,14 +650,14 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 		outer.Sub = s
 		s.Outer = outer
 		s.Value = int64(sym.value - sect.addr)
-		if s.Cgoexport&CgoExportDynamic == 0 {
+		if !s.Attr.CgoExportDynamic() {
 			s.Dynimplib = "" // satisfy dynimport
 		}
 		if outer.Type == obj.STEXT {
-			if s.External != 0 && s.Dupok == 0 {
+			if s.Attr.External() && !s.Attr.DuplicateOK() {
 				Diag("%s: duplicate definition of %s", pn, s.Name)
 			}
-			s.External = 1
+			s.Attr |= AttrExternal
 		}
 
 		sym.sym = s
@@ -685,10 +685,10 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 		}
 
 		if s.Type == obj.STEXT {
-			if s.Onlist != 0 {
+			if s.Attr.OnList() {
 				log.Fatalf("symbol %s listed multiple times", s.Name)
 			}
-			s.Onlist = 1
+			s.Attr |= AttrOnList
 			if Ctxt.Etextp != nil {
 				Ctxt.Etextp.Next = s
 			} else {
@@ -696,10 +696,10 @@ func ldmacho(f *obj.Biobuf, pkg string, length int64, pn string) {
 			}
 			Ctxt.Etextp = s
 			for s1 = s.Sub; s1 != nil; s1 = s1.Sub {
-				if s1.Onlist != 0 {
+				if s1.Attr.OnList() {
 					log.Fatalf("symbol %s listed multiple times", s1.Name)
 				}
-				s1.Onlist = 1
+				s1.Attr |= AttrOnList
 				Ctxt.Etextp.Next = s1
 				Ctxt.Etextp = s1
 			}

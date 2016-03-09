@@ -207,11 +207,20 @@ func isSamePtr(p1, p2 *Value) bool {
 	if p1 == p2 {
 		return true
 	}
-	// Aux isn't used  in OffPtr, and AuxInt isn't currently used in
-	// Addr, but this still works as the values will be null/0
-	return (p1.Op == OpOffPtr || p1.Op == OpAddr) && p1.Op == p2.Op &&
-		p1.Aux == p2.Aux && p1.AuxInt == p2.AuxInt &&
-		p1.Args[0] == p2.Args[0]
+	if p1.Op != p2.Op {
+		return false
+	}
+	switch p1.Op {
+	case OpOffPtr:
+		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
+	case OpAddr:
+		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
+		// Checking for value equality only works after [z]cse has run.
+		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
+	case OpAddPtr:
+		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
+	}
+	return false
 }
 
 // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,

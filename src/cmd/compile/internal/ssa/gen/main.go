@@ -78,7 +78,10 @@ func genOp() {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "package ssa")
 
-	fmt.Fprintln(w, "import \"cmd/internal/obj/x86\"")
+	fmt.Fprintln(w, "import (")
+	fmt.Fprintln(w, "\"cmd/internal/obj\"")
+	fmt.Fprintln(w, "\"cmd/internal/obj/x86\"")
+	fmt.Fprintln(w, ")")
 
 	// generate Block* declarations
 	fmt.Fprintln(w, "const (")
@@ -184,7 +187,7 @@ func genOp() {
 	}
 	fmt.Fprintln(w, "}")
 
-	fmt.Fprintln(w, "func (o Op) Asm() int {return opcodeTable[o].asm}")
+	fmt.Fprintln(w, "func (o Op) Asm() obj.As {return opcodeTable[o].asm}")
 
 	// generate op string method
 	fmt.Fprintln(w, "func (o Op) String() string {return opcodeTable[o].name }")

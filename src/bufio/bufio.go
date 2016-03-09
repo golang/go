@@ -124,14 +124,16 @@ func (b *Reader) Peek(n int) ([]byte, error) {
 	if n < 0 {
 		return nil, ErrNegativeCount
 	}
-	if n > len(b.buf) {
-		return nil, ErrBufferFull
-	}
-	// 0 <= n <= len(b.buf)
-	for b.w-b.r < n && b.err == nil {
+
+	for b.w-b.r < n && b.w-b.r < len(b.buf) && b.err == nil {
 		b.fill() // b.w-b.r < len(b.buf) => buffer is not full
 	}
 
+	if n > len(b.buf) {
+		return b.buf[b.r:b.w], ErrBufferFull
+	}
+
+	// 0 <= n <= len(b.buf)
 	var err error
 	if avail := b.w - b.r; avail < n {
 		// not enough data in buffer

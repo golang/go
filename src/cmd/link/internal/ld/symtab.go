@@ -142,7 +142,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Local {
+	if ver != 0 || (x.Type&obj.SHIDDEN != 0) || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -151,7 +151,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
 	// To avoid filling the dynamic table with lots of unnecessary symbols,
 	// mark all Go symbols local (not global) in the final executable.
 	// But when we're dynamically linking, we need all those global symbols.
-	if !DynlinkingGo() && Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 && elfshnum != SHN_UNDEF {
+	if !DynlinkingGo() && Linkmode == LinkExternal && !x.Attr.CgoExportStatic() && elfshnum != SHN_UNDEF {
 		bind = STB_LOCAL
 	}
 
@@ -389,13 +389,13 @@ func symtab() {
 
 	s.Type = obj.SRODATA
 	s.Size = 0
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	xdefine("runtime.egcdata", obj.SRODATA, 0)
 
 	s = Linklookup(Ctxt, "runtime.gcbss", 0)
 	s.Type = obj.SRODATA
 	s.Size = 0
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	xdefine("runtime.egcbss", obj.SRODATA, 0)
 
 	// pseudo-symbols to mark locations of type, string, and go string data.
@@ -406,54 +406,61 @@ func symtab() {
 
 		s.Type = obj.STYPE
 		s.Size = 0
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		symtype = s
 
 		s = Linklookup(Ctxt, "typerel.*", 0)
 
 		s.Type = obj.STYPERELRO
 		s.Size = 0
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		symtyperel = s
 	} else if !DynlinkingGo() {
 		s = Linklookup(Ctxt, "type.*", 0)
 
 		s.Type = obj.STYPE
 		s.Size = 0
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		symtype = s
 		symtyperel = s
 	}
 
 	s = Linklookup(Ctxt, "go.string.*", 0)
 	s.Type = obj.SGOSTRING
-	s.Local = true
+	s.Attr |= AttrLocal
 	s.Size = 0
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	symgostring := s
+
+	s = Linklookup(Ctxt, "go.string.hdr.*", 0)
+	s.Type = obj.SGOSTRINGHDR
+	s.Attr |= AttrLocal
+	s.Size = 0
+	s.Attr |= AttrReachable
+	symgostringhdr := s
 
 	s = Linklookup(Ctxt, "go.func.*", 0)
 	s.Type = obj.SGOFUNC
-	s.Local = true
+	s.Attr |= AttrLocal
 	s.Size = 0
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	symgofunc := s
 
 	s = Linklookup(Ctxt, "runtime.gcbits.*", 0)
 	s.Type = obj.SGCBITS
-	s.Local = true
+	s.Attr |= AttrLocal
 	s.Size = 0
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	symgcbits := s
 
 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
 	symtypelink.Type = obj.STYPELINK
 
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
-	symt.Local = true
+	symt.Attr |= AttrLocal
 	symt.Type = obj.SSYMTAB
 	symt.Size = 0
-	symt.Reachable = true
+	symt.Attr |= AttrReachable
 
 	ntypelinks := 0
 
@@ -461,13 +468,13 @@ func symtab() {
 	// within a type they sort by size, so the .* symbols
 	// just defined above will be first.
 	// hide the specific symbols.
-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
-		if !s.Reachable || s.Special != 0 || s.Type != obj.SRODATA {
+	for _, s := range Ctxt.Allsym {
+		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != obj.SRODATA {
 			continue
 		}
 
 		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
-			s.Hidden = true
+			s.Attr |= AttrHidden
 			if UseRelro() && len(s.R) > 0 {
 				s.Type = obj.STYPERELRO
 				s.Outer = symtyperel
@@ -480,31 +487,35 @@ func symtab() {
 		if strings.HasPrefix(s.Name, "go.typelink.") {
 			ntypelinks++
 			s.Type = obj.STYPELINK
-			s.Hidden = true
+			s.Attr |= AttrHidden
 			s.Outer = symtypelink
 		}
 
 		if strings.HasPrefix(s.Name, "go.string.") {
 			s.Type = obj.SGOSTRING
-			s.Hidden = true
+			s.Attr |= AttrHidden
 			s.Outer = symgostring
+			if strings.HasPrefix(s.Name, "go.string.hdr.") {
+				s.Type = obj.SGOSTRINGHDR
+				s.Outer = symgostringhdr
+			}
 		}
 
 		if strings.HasPrefix(s.Name, "runtime.gcbits.") {
 			s.Type = obj.SGCBITS
-			s.Hidden = true
+			s.Attr |= AttrHidden
 			s.Outer = symgcbits
 		}
 
 		if strings.HasPrefix(s.Name, "go.func.") {
 			s.Type = obj.SGOFUNC
-			s.Hidden = true
+			s.Attr |= AttrHidden
 			s.Outer = symgofunc
 		}
 
 		if strings.HasPrefix(s.Name, "gcargs.") || strings.HasPrefix(s.Name, "gclocals.") || strings.HasPrefix(s.Name, "gclocals·") {
 			s.Type = obj.SGOFUNC
-			s.Hidden = true
+			s.Attr |= AttrHidden
 			s.Outer = symgofunc
 			s.Align = 4
 			liveness += (s.Size + int64(s.Align) - 1) &^ (int64(s.Align) - 1)
@@ -513,7 +524,7 @@ func symtab() {
 
 	if Buildmode == BuildmodeShared {
 		abihashgostr := Linklookup(Ctxt, "go.link.abihash."+filepath.Base(outfile), 0)
-		abihashgostr.Reachable = true
+		abihashgostr.Attr |= AttrReachable
 		abihashgostr.Type = obj.SRODATA
 		hashsym := Linklookup(Ctxt, "go.link.abihashbytes", 0)
 		Addaddr(Ctxt, abihashgostr, hashsym)
@@ -571,8 +582,8 @@ func symtab() {
 		addgostring(moduledata, "go.link.thismodulename", thismodulename)
 
 		modulehashes := Linklookup(Ctxt, "go.link.abihashes", 0)
-		modulehashes.Reachable = true
-		modulehashes.Local = true
+		modulehashes.Attr |= AttrReachable
+		modulehashes.Attr |= AttrLocal
 		modulehashes.Type = obj.SRODATA
 
 		for i, shlib := range Ctxt.Shlibs {
@@ -585,7 +596,7 @@ func symtab() {
 
 			// modulehashes[i].runtimehash
 			abihash := Linklookup(Ctxt, "go.link.abihash."+modulename, 0)
-			abihash.Reachable = true
+			abihash.Attr |= AttrReachable
 			Addaddr(Ctxt, modulehashes, abihash)
 		}
 

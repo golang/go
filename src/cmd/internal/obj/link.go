@@ -144,10 +144,10 @@ import "encoding/binary"
 //			scale = 1
 //
 type Addr struct {
-	Type   int16
 	Reg    int16
 	Index  int16
 	Scale  int16 // Sometimes holds a register.
+	Type   AddrType
 	Name   int8
 	Class  int8
 	Etype  uint8
@@ -166,6 +166,8 @@ type Addr struct {
 	Node interface{} // for use by compiler
 }
 
+type AddrType uint8
+
 const (
 	NAME_NONE = 0 + iota
 	NAME_EXTERN
@@ -178,11 +180,9 @@ const (
 )
 
 const (
-	TYPE_NONE = 0
-)
+	TYPE_NONE AddrType = 0
 
-const (
-	TYPE_BRANCH = 5 + iota
+	TYPE_BRANCH AddrType = 5 + iota
 	TYPE_TEXTSIZE
 	TYPE_MEM
 	TYPE_CONST
@@ -212,7 +212,7 @@ type Prog struct {
 	Pc     int64
 	Lineno int32
 	Spadj  int32
-	As     int16
+	As     As // Assembler opcode.
 	Reg    int16
 	RegTo2 int16  // 2nd register output operand
 	Mark   uint16 // bitmask of arch-specific items
@@ -228,7 +228,7 @@ type Prog struct {
 }
 
 // From3Type returns From3.Type, or TYPE_NONE when From3 is nil.
-func (p *Prog) From3Type() int16 {
+func (p *Prog) From3Type() AddrType {
 	if p.From3 == nil {
 		return TYPE_NONE
 	}
@@ -254,16 +254,16 @@ type ProgInfo struct {
 	Regindex uint64   // registers used by addressing mode
 }
 
-// Prog.as opcodes.
-// These are the portable opcodes, common to all architectures.
-// Each architecture defines many more arch-specific opcodes,
-// with values starting at A_ARCHSPECIFIC.
-// Each architecture adds an offset to this so each machine has
-// distinct space for its instructions. The offset is a power of
-// two so it can be masked to return to origin zero.
-// See the definitions of ABase386 etc.
+// An As denotes an assembler opcode.
+// There are some portable opcodes, declared here in package obj,
+// that are common to all architectures.
+// However, the majority of opcodes are arch-specific
+// and are declared in their respective architecture's subpackage.
+type As int16
+
+// These are the portable opcodes.
 const (
-	AXXX = 0 + iota
+	AXXX As = iota
 	ACALL
 	ACHECKNIL
 	ADATA
@@ -284,6 +284,24 @@ const (
 	AVARKILL
 	AVARLIVE
 	A_ARCHSPECIFIC
+)
+
+// Each architecture is allotted a distinct subspace of opcode values
+// for declaring its arch-specific opcodes.
+// Within this subspace, the first arch-specific opcode should be
+// at offset A_ARCHSPECIFIC.
+//
+// Subspaces are aligned to a power of two so opcodes can be masked
+// with AMask and used as compact array indices.
+const (
+	ABase386 = (1 + iota) << 12
+	ABaseARM
+	ABaseAMD64
+	ABasePPC64
+	ABaseARM64
+	ABaseMIPS64
+
+	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
 )
 
 // An LSym is the sort of symbol that is written to an object file.
@@ -339,6 +357,7 @@ const (
 	STYPE
 	SSTRING
 	SGOSTRING
+	SGOSTRINGHDR
 	SGOFUNC
 	SGCBITS
 	SRODATA
@@ -357,6 +376,7 @@ const (
 	STYPERELRO
 	SSTRINGRELRO
 	SGOSTRINGRELRO
+	SGOSTRINGHDRRELRO
 	SGOFUNCRELRO
 	SGCBITSRELRO
 	SRODATARELRO
@@ -665,7 +685,7 @@ type LinkArch struct {
 	Assemble   func(*Link, *LSym)
 	Follow     func(*Link, *LSym)
 	Progedit   func(*Link, *Prog)
-	UnaryDst   map[int]bool // Instruction takes one operand, a destination.
+	UnaryDst   map[As]bool // Instruction takes one operand, a destination.
 	Minlc      int
 	Ptrsize    int
 	Regsize    int

@@ -247,8 +247,8 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	if n == 0 {
 		return 0
 	}
-	dstp := unsafe.Pointer(dst.array)
-	srcp := unsafe.Pointer(src.array)
+	dstp := dst.array
+	srcp := src.array
 
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&typ))
@@ -304,7 +304,7 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 			}
 		}
 	})
-	return int(n)
+	return n
 }
 
 //go:linkname reflect_typedslicecopy reflect.typedslicecopy

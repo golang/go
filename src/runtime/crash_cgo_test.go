@@ -201,3 +201,11 @@ func TestCgoPanicDeadlock(t *testing.T) {
 		t.Fatalf("output does not start with %q:\n%s", want, got)
 	}
 }
+
+func TestCgoCCodeSIGPROF(t *testing.T) {
+	got := runTestProg(t, "testprogcgo", "CgoCCodeSIGPROF")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}

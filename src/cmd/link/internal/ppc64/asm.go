@@ -112,7 +112,9 @@ func genplt() {
 			n = fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
 
 			stub = ld.Linklookup(ld.Ctxt, n, 0)
-			stub.Reachable = stub.Reachable || s.Reachable
+			if s.Attr.Reachable() {
+				stub.Attr |= ld.AttrReachable
+			}
 			if stub.Size == 0 {
 				// Need outer to resolve .TOC.
 				stub.Outer = s
@@ -145,11 +147,11 @@ func genaddmoduledata() {
 	if addmoduledata.Type == obj.STEXT {
 		return
 	}
-	addmoduledata.Reachable = true
+	addmoduledata.Attr |= ld.AttrReachable
 	initfunc := ld.Linklookup(ld.Ctxt, "go.link.addmoduledata", 0)
 	initfunc.Type = obj.STEXT
-	initfunc.Local = true
-	initfunc.Reachable = true
+	initfunc.Attr |= ld.AttrLocal
+	initfunc.Attr |= ld.AttrReachable
 	o := func(op uint32) {
 		ld.Adduint32(ld.Ctxt, initfunc, op)
 	}
@@ -201,8 +203,8 @@ func genaddmoduledata() {
 	ld.Ctxt.Etextp = initfunc
 
 	initarray_entry := ld.Linklookup(ld.Ctxt, "go.link.addmoduledatainit", 0)
-	initarray_entry.Reachable = true
-	initarray_entry.Local = true
+	initarray_entry.Attr |= ld.AttrReachable
+	initarray_entry.Attr |= ld.AttrLocal
 	initarray_entry.Type = obj.SINITARR
 	ld.Addaddr(ld.Ctxt, initarray_entry, initfunc)
 }

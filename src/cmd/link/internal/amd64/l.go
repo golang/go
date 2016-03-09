@@ -33,6 +33,7 @@ package amd64
 const (
 	thechar   = '6'
 	MaxAlign  = 32 // max data alignment
+	MinAlign  = 1  // min data alignment
 	FuncAlign = 16
 )
 

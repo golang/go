@@ -26,7 +26,7 @@ const (
 	badIndexString    = "(BADINDEX)"
 	panicString       = "(PANIC="
 	extraString       = "%!(EXTRA "
-	bytesString       = "[]byte{"
+	bytesString       = "[]byte"
 	badWidthString    = "%!(BADWIDTH)"
 	badPrecString     = "%!(BADPREC)"
 	noVerbString      = "%!(NOVERB)"
@@ -441,61 +441,39 @@ func (p *pp) fmtUint64(v uint64, verb rune) {
 	}
 }
 
-func (p *pp) fmtFloat32(v float32, verb rune) {
+// fmtFloat formats a float. The default precision for each verb
+// is specified as last argument in the call to fmt_float.
+func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	switch verb {
-	case 'b':
-		p.fmt.fmt_fb32(v)
-	case 'e':
-		p.fmt.fmt_e32(v)
-	case 'E':
-		p.fmt.fmt_E32(v)
-	case 'f', 'F':
-		p.fmt.fmt_f32(v)
-	case 'g', 'v':
-		p.fmt.fmt_g32(v)
-	case 'G':
-		p.fmt.fmt_G32(v)
-	default:
-		p.badVerb(verb)
-	}
-}
-
-func (p *pp) fmtFloat64(v float64, verb rune) {
-	switch verb {
-	case 'b':
-		p.fmt.fmt_fb64(v)
-	case 'e':
-		p.fmt.fmt_e64(v)
-	case 'E':
-		p.fmt.fmt_E64(v)
-	case 'f', 'F':
-		p.fmt.fmt_f64(v)
-	case 'g', 'v':
-		p.fmt.fmt_g64(v)
-	case 'G':
-		p.fmt.fmt_G64(v)
-	default:
-		p.badVerb(verb)
-	}
-}
-
-func (p *pp) fmtComplex64(v complex64, verb rune) {
-	switch verb {
-	case 'b', 'e', 'E', 'f', 'F', 'g', 'G':
-		p.fmt.fmt_c64(v, verb)
 	case 'v':
-		p.fmt.fmt_c64(v, 'g')
+		p.fmt.fmt_float(v, size, 'g', -1)
+	case 'b', 'g', 'G':
+		p.fmt.fmt_float(v, size, verb, -1)
+	case 'f', 'e', 'E':
+		p.fmt.fmt_float(v, size, verb, 6)
+	case 'F':
+		p.fmt.fmt_float(v, size, 'f', 6)
 	default:
 		p.badVerb(verb)
 	}
 }
 
-func (p *pp) fmtComplex128(v complex128, verb rune) {
+// fmtComplex formats a complex number v with
+// r = real(v) and j = imag(v) as (r+ji) using
+// fmtFloat for r and j formatting.
+func (p *pp) fmtComplex(v complex128, size int, verb rune) {
+	// Make sure any unsupported verbs are found before the
+	// calls to fmtFloat to not generate an incorrect error string.
 	switch verb {
-	case 'b', 'e', 'E', 'f', 'F', 'g', 'G':
-		p.fmt.fmt_c128(v, verb)
-	case 'v':
-		p.fmt.fmt_c128(v, 'g')
+	case 'v', 'b', 'g', 'G', 'f', 'F', 'e', 'E':
+		oldPlus := p.fmt.plus
+		p.buf.WriteByte('(')
+		p.fmtFloat(real(v), size/2, verb)
+		// Imaginary part always has a sign.
+		p.fmt.plus = true
+		p.fmtFloat(imag(v), size/2, verb)
+		p.buf.WriteString("i)")
+		p.fmt.plus = oldPlus
 	default:
 		p.badVerb(verb)
 	}
@@ -522,45 +500,33 @@ func (p *pp) fmtString(v string, verb rune) {
 	}
 }
 
-func (p *pp) fmtBytes(v []byte, verb rune, typ reflect.Type, depth int) {
-	if verb == 'v' || verb == 'd' {
+func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
+	switch verb {
+	case 'v', 'd':
 		if p.fmt.sharpV {
+			p.buf.WriteString(typeString)
 			if v == nil {
-				if typ == nil {
-					p.buf.WriteString("[]byte(nil)")
-				} else {
-					p.buf.WriteString(typ.String())
-					p.buf.WriteString(nilParenString)
-				}
+				p.buf.WriteString(nilParenString)
 				return
 			}
-			if typ == nil {
-				p.buf.WriteString(bytesString)
-			} else {
-				p.buf.WriteString(typ.String())
-				p.buf.WriteByte('{')
-			}
-		} else {
-			p.buf.WriteByte('[')
-		}
-		for i, c := range v {
-			if i > 0 {
-				if p.fmt.sharpV {
+			p.buf.WriteByte('{')
+			for i, c := range v {
+				if i > 0 {
 					p.buf.WriteString(commaSpaceString)
-				} else {
-					p.buf.WriteByte(' ')
 				}
+				p.fmt0x64(uint64(c), true)
 			}
-			p.printArg(c, 'v', depth+1)
-		}
-		if p.fmt.sharpV {
 			p.buf.WriteByte('}')
 		} else {
+			p.buf.WriteByte('[')
+			for i, c := range v {
+				if i > 0 {
+					p.buf.WriteByte(' ')
+				}
+				p.fmt.integer(int64(c), 10, unsigned, ldigits)
+			}
 			p.buf.WriteByte(']')
 		}
-		return
-	}
-	switch verb {
 	case 's':
 		p.fmt.fmt_s(string(v))
 	case 'x':
@@ -756,13 +722,13 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	case bool:
 		p.fmtBool(f, verb)
 	case float32:
-		p.fmtFloat32(f, verb)
+		p.fmtFloat(float64(f), 32, verb)
 	case float64:
-		p.fmtFloat64(f, verb)
+		p.fmtFloat(f, 64, verb)
 	case complex64:
-		p.fmtComplex64(f, verb)
+		p.fmtComplex(complex128(f), 64, verb)
 	case complex128:
-		p.fmtComplex128(f, verb)
+		p.fmtComplex(f, 128, verb)
 	case int:
 		p.fmtInt64(int64(f), verb)
 	case int8:
@@ -788,7 +754,7 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
-		p.fmtBytes(f, verb, nil, depth)
+		p.fmtBytes(f, verb, bytesString)
 	case reflect.Value:
 		p.printReflectValue(f, verb, depth)
 		return
@@ -857,18 +823,14 @@ BigSwitch:
 		p.fmtInt64(f.Int(), verb)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		p.fmtUint64(f.Uint(), verb)
-	case reflect.Float32, reflect.Float64:
-		if f.Type().Size() == 4 {
-			p.fmtFloat32(float32(f.Float()), verb)
-		} else {
-			p.fmtFloat64(f.Float(), verb)
-		}
-	case reflect.Complex64, reflect.Complex128:
-		if f.Type().Size() == 8 {
-			p.fmtComplex64(complex64(f.Complex()), verb)
-		} else {
-			p.fmtComplex128(f.Complex(), verb)
-		}
+	case reflect.Float32:
+		p.fmtFloat(f.Float(), 32, verb)
+	case reflect.Float64:
+		p.fmtFloat(f.Float(), 64, verb)
+	case reflect.Complex64:
+		p.fmtComplex(f.Complex(), 64, verb)
+	case reflect.Complex128:
+		p.fmtComplex(f.Complex(), 128, verb)
 	case reflect.String:
 		p.fmtString(f.String(), verb)
 	case reflect.Map:
@@ -957,13 +919,13 @@ BigSwitch:
 					bytes[i] = byte(f.Index(i).Uint())
 				}
 			}
-			p.fmtBytes(bytes, verb, typ, depth)
+			p.fmtBytes(bytes, verb, typ.String())
 			break
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteString(value.Type().String())
 			if f.Kind() == reflect.Slice && f.IsNil() {
-				p.buf.WriteString("(nil)")
+				p.buf.WriteString(nilParenString)
 				break
 			}
 			p.buf.WriteByte('{')

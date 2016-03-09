@@ -327,7 +327,7 @@ func (p *parser) importdcl() {
 		return
 	}
 
-	line := int32(parserline())
+	line := lineno
 
 	// We need to clear importpkg before calling p.next(),
 	// otherwise it will affect lexlineno.
@@ -606,7 +606,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		if rangeOk && p.got(LRANGE) {
 			// expr_list '=' LRANGE expr
 			r := Nod(ORANGE, nil, p.expr())
-			r.List = lhs
+			setNodeSeq(&r.List, lhs)
 			r.Etype = 0 // := flag
 			return r
 		}
@@ -620,8 +620,8 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		}
 		// multiple
 		stmt := Nod(OAS2, nil, nil)
-		stmt.List = lhs
-		stmt.Rlist = rhs
+		setNodeSeq(&stmt.List, lhs)
+		setNodeSeq(&stmt.Rlist, rhs)
 		return stmt
 
 	case LCOLAS:
@@ -631,9 +631,9 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 		if rangeOk && p.got(LRANGE) {
 			// expr_list LCOLAS LRANGE expr
 			r := Nod(ORANGE, nil, p.expr())
-			r.List = lhs
+			setNodeSeq(&r.List, lhs)
 			r.Colas = true
-			colasdefn(lhs, r)
+			colasdefn(r.List, r)
 			return r
 		}
 
@@ -654,7 +654,7 @@ func (p *parser) simple_stmt(labelOk, rangeOk bool) *Node {
 			} // it's a colas, so must not re-use an oldname
 			return ts
 		}
-		return colas(lhs, rhs, int32(lno))
+		return colas(lhs, rhs, lno)
 
 	default:
 		p.syntax_error("expecting := or = or comma")
@@ -682,9 +682,13 @@ func (p *parser) labeled_stmt(label *Node) *Node {
 	}
 
 	label.Name.Defn = ls
-	l := list1(label)
+	l := []*Node{label}
 	if ls != nil {
-		l = list(l, ls)
+		if ls.Op == OBLOCK && ls.Ninit.Len() == 0 {
+			l = append(l, ls.List.Slice()...)
+		} else {
+			l = append(l, ls)
+		}
 	}
 	return liststmt(l)
 }
@@ -716,13 +720,13 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			stmt.List = cases
+			setNodeSeq(&stmt.List, cases)
 			if tswitch != nil {
 				if n := tswitch.Left; n != nil {
 					// type switch - declare variable
 					nn := newname(n.Sym)
 					declare(nn, dclcontext)
-					stmt.Rlist = list1(nn)
+					stmt.Rlist.Set([]*Node{nn})
 
 					// keep track of the instances for reporting unused
 					nn.Name.Defn = tswitch
@@ -747,10 +751,10 @@ func (p *parser) case_(tswitch *Node) *Node {
 				n = Nod(OAS, cases.N, rhs)
 			} else {
 				n = Nod(OAS2, nil, nil)
-				n.List = cases
-				n.Rlist = list1(rhs)
+				setNodeSeq(&n.List, cases)
+				n.Rlist.Set([]*Node{rhs})
 			}
-			stmt.List = list1(n)
+			stmt.List.Set([]*Node{n})
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -766,7 +770,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			stmt.List = list1(colas(cases, list1(rhs), int32(lno)))
+			stmt.List.Set([]*Node{colas(cases, list1(rhs), lno)})
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -790,7 +794,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 				// type switch - declare variable
 				nn := newname(n.Sym)
 				declare(nn, dclcontext)
-				stmt.Rlist = list1(nn)
+				stmt.Rlist.Set([]*Node{nn})
 
 				// keep track of the instances for reporting unused
 				nn.Name.Defn = tswitch
@@ -833,7 +837,7 @@ func (p *parser) compound_stmt(else_clause bool) *Node {
 	if l == nil {
 		stmt = Nod(OEMPTY, nil, nil)
 	} else {
-		stmt = liststmt(l)
+		stmt = liststmt(nodeSeqSlice(l))
 	}
 	popdcl()
 
@@ -914,7 +918,7 @@ func (p *parser) for_header() *Node {
 		}
 		h := Nod(OFOR, nil, nil)
 		if init != nil {
-			h.Ninit = list1(init)
+			h.Ninit.Set([]*Node{init})
 		}
 		h.Left = cond
 		h.Right = post
@@ -1017,7 +1021,9 @@ func (p *parser) if_header() *Node {
 
 	init, cond, _ := p.header(false)
 	h := Nod(OIF, nil, nil)
-	h.Ninit = list1(init)
+	if init != nil {
+		h.Ninit.Set([]*Node{init})
+	}
 	h.Left = cond
 	return h
 }
@@ -1041,9 +1047,14 @@ func (p *parser) if_stmt() *Node {
 
 	if p.got(LELSE) {
 		if p.tok == LIF {
-			stmt.Rlist = list1(p.if_stmt())
+			stmt.Rlist.Set([]*Node{p.if_stmt()})
 		} else {
-			stmt.Rlist = list1(p.compound_stmt(true))
+			cs := p.compound_stmt(true)
+			if cs.Op == OBLOCK && cs.Ninit.Len() == 0 {
+				stmt.Rlist.Set(cs.List.Slice())
+			} else {
+				stmt.Rlist.Set([]*Node{cs})
+			}
 		}
 	}
 
@@ -1072,7 +1083,7 @@ func (p *parser) switch_stmt() *Node {
 		tswitch = nil
 	}
 
-	hdr.List = p.caseblock_list(tswitch)
+	setNodeSeq(&hdr.List, p.caseblock_list(tswitch))
 	popdcl()
 
 	return hdr
@@ -1086,7 +1097,7 @@ func (p *parser) select_stmt() *Node {
 
 	p.want(LSELECT)
 	hdr := Nod(OSELECT, nil, nil)
-	hdr.List = p.caseblock_list(nil)
+	setNodeSeq(&hdr.List, p.caseblock_list(nil))
 	return hdr
 }
 
@@ -1434,7 +1445,7 @@ loop:
 
 			// call or conversion
 			x = Nod(OCALL, x, nil)
-			x.List = args
+			setNodeSeq(&x.List, args)
 			x.Isddd = ddd
 
 		case '{':
@@ -1531,9 +1542,9 @@ func (p *parser) complitexpr() *Node {
 	p.want('{')
 	p.xnest++
 
-	var l *NodeList
+	var l []*Node
 	for p.tok != EOF && p.tok != '}' {
-		l = list(l, p.keyval())
+		l = append(l, p.keyval())
 		if !p.ocomma('}') {
 			break
 		}
@@ -1542,7 +1553,7 @@ func (p *parser) complitexpr() *Node {
 	p.xnest--
 	p.want('}')
 
-	n.List = l
+	n.List.Set(l)
 	return n
 }
 
@@ -1568,7 +1579,7 @@ func (p *parser) dcl_name() *Node {
 	symlineno := lineno
 	sym := p.sym()
 	if sym == nil {
-		yyerrorl(int(symlineno), "invalid declaration")
+		yyerrorl(symlineno, "invalid declaration")
 		return nil
 	}
 	return dclname(sym)
@@ -1684,8 +1695,8 @@ func (p *parser) try_ntype() *Node {
 		result := p.fnres()
 		params = checkarglist(params, 1)
 		t := Nod(OTFUNC, nil, nil)
-		t.List = params
-		t.Rlist = result
+		setNodeSeq(&t.List, params)
+		setNodeSeq(&t.Rlist, result)
 		return t
 
 	case '[':
@@ -1765,19 +1776,18 @@ func (p *parser) chan_elem() *Node {
 	return nil
 }
 
-func (p *parser) new_dotname(pkg *Node) *Node {
+func (p *parser) new_dotname(obj *Node) *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("new_dotname")()
 	}
 
 	sel := p.sym()
-	if pkg.Op == OPACK {
-		s := restrictlookup(sel.Name, pkg.Name.Pkg)
-		pkg.Used = true
+	if obj.Op == OPACK {
+		s := restrictlookup(sel.Name, obj.Name.Pkg)
+		obj.Used = true
 		return oldname(s)
 	}
-	return Nod(OXDOT, pkg, newname(sel))
-
+	return Nod(OXDOT, obj, newname(sel))
 }
 
 func (p *parser) dotname() *Node {
@@ -1810,7 +1820,7 @@ func (p *parser) structtype() *Node {
 	p.want('}')
 
 	t := Nod(OTSTRUCT, nil, nil)
-	t.List = l
+	setNodeSeq(&t.List, l)
 	return t
 }
 
@@ -1822,9 +1832,9 @@ func (p *parser) interfacetype() *Node {
 
 	p.want(LINTERFACE)
 	p.want('{')
-	var l *NodeList
+	var l []*Node
 	for p.tok != EOF && p.tok != '}' {
-		l = list(l, p.interfacedcl())
+		l = append(l, p.interfacedcl())
 		if !p.osemi('}') {
 			break
 		}
@@ -1832,7 +1842,7 @@ func (p *parser) interfacetype() *Node {
 	p.want('}')
 
 	t := Nod(OTINTER, nil, nil)
-	t.List = l
+	t.List.Set(l)
 	return t
 }
 
@@ -1898,8 +1908,8 @@ func (p *parser) fndcl(nointerface bool) *Node {
 		}
 
 		t := Nod(OTFUNC, nil, nil)
-		t.List = params
-		t.Rlist = result
+		setNodeSeq(&t.List, params)
+		setNodeSeq(&t.Rlist, result)
 
 		f := Nod(ODCLFUNC, nil, nil)
 		f.Func.Nname = newfuncname(name)
@@ -1937,8 +1947,8 @@ func (p *parser) fndcl(nointerface bool) *Node {
 		}
 
 		t := Nod(OTFUNC, rcvr, nil)
-		t.List = params
-		t.Rlist = result
+		setNodeSeq(&t.List, params)
+		setNodeSeq(&t.Rlist, result)
 
 		f := Nod(ODCLFUNC, nil, nil)
 		f.Func.Shortname = newfuncname(name)
@@ -1973,7 +1983,7 @@ func (p *parser) hidden_fndcl() *Node {
 		s5 := p.ohidden_funres()
 
 		s := s1
-		t := functype(nil, s3, s5)
+		t := functype(nil, nodeSeqSlice(s3), nodeSeqSlice(s5))
 
 		importsym(s, ONAME)
 		if s.Def != nil && s.Def.Op == ONAME {
@@ -2003,7 +2013,7 @@ func (p *parser) hidden_fndcl() *Node {
 		s8 := p.ohidden_funres()
 
 		ss := methodname1(newname(s4), s2.N.Right)
-		ss.Type = functype(s2.N, s6, s8)
+		ss.Type = functype(s2.N, nodeSeqSlice(s6), nodeSeqSlice(s8))
 
 		checkwidth(ss.Type)
 		addmethod(s4, ss.Type, false, false)
@@ -2353,8 +2363,8 @@ func (p *parser) indcl() *Node {
 	// without func keyword
 	params = checkarglist(params, 1)
 	t := Nod(OTFUNC, fakethis(), nil)
-	t.List = params
-	t.Rlist = result
+	setNodeSeq(&t.List, params)
+	setNodeSeq(&t.Rlist, result)
 
 	return t
 }
@@ -2447,7 +2457,7 @@ func (p *parser) stmt() *Node {
 		return p.compound_stmt(false)
 
 	case LVAR, LCONST, LTYPE:
-		return liststmt(p.common_dcl())
+		return liststmt(nodeSeqSlice(p.common_dcl()))
 
 	case LNAME, '@', '?', LLITERAL, LFUNC, '(', // operands
 		'[', LSTRUCT, LMAP, LCHAN, LINTERFACE, // composite types
@@ -2503,8 +2513,8 @@ func (p *parser) stmt() *Node {
 		}
 
 		stmt := Nod(ORETURN, nil, nil)
-		stmt.List = results
-		if stmt.List == nil && Curfn != nil {
+		setNodeSeq(&stmt.List, results)
+		if stmt.List.Len() == 0 && Curfn != nil {
 			for _, ln := range Curfn.Func.Dcl {
 				if ln.Class == PPARAM {
 					continue
@@ -2539,7 +2549,11 @@ func (p *parser) stmt_list() (l *NodeList) {
 		if s == missing_stmt {
 			break
 		}
-		l = list(l, s)
+		if s != nil && s.Op == OBLOCK && s.Ninit.Len() == 0 {
+			appendNodeSeq(&l, s.List)
+		} else {
+			appendNodeSeqNode(&l, s)
+		}
 		// customized version of osemi:
 		// ';' is optional before a closing ')' or '}'
 		if p.tok == ')' || p.tok == '}' {
@@ -2959,7 +2973,7 @@ func (p *parser) hidden_type_misc() *Type {
 		s3 := p.ohidden_structdcl_list()
 		p.want('}')
 
-		return tostruct(s3)
+		return tostruct(nodeSeqSlice(s3))
 
 	case LINTERFACE:
 		// LINTERFACE '{' ohidden_interfacedcl_list '}'
@@ -2968,7 +2982,7 @@ func (p *parser) hidden_type_misc() *Type {
 		s3 := p.ohidden_interfacedcl_list()
 		p.want('}')
 
-		return tointerface(s3)
+		return tointerface(nodeSeqSlice(s3))
 
 	case '*':
 		// '*' hidden_type
@@ -3039,7 +3053,7 @@ func (p *parser) hidden_type_func() *Type {
 	p.want(')')
 	s5 := p.ohidden_funres()
 
-	return functype(nil, s3, s5)
+	return functype(nil, nodeSeqSlice(s3), nodeSeqSlice(s5))
 }
 
 func (p *parser) hidden_funarg() *Node {
@@ -3145,7 +3159,7 @@ func (p *parser) hidden_interfacedcl() *Node {
 	p.want(')')
 	s5 := p.ohidden_funres()
 
-	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), s3, s5)))
+	return Nod(ODCLFIELD, newname(s1), typenod(functype(fakethis(), nodeSeqSlice(s3), nodeSeqSlice(s5))))
 }
 
 func (p *parser) ohidden_funres() *NodeList {

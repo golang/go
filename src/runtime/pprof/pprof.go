@@ -296,22 +296,25 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		}
 		return buf.String()
 	}
-	m := map[string]int{}
+	count := map[string]int{}
+	index := map[string]int{}
+	var keys []string
 	n := p.Len()
 	for i := 0; i < n; i++ {
-		m[key(p.Stack(i))]++
+		k := key(p.Stack(i))
+		if count[k] == 0 {
+			index[k] = i
+			keys = append(keys, k)
+		}
+		count[k]++
 	}
 
-	// Print stacks, listing count on first occurrence of a unique stack.
-	for i := 0; i < n; i++ {
-		stk := p.Stack(i)
-		s := key(stk)
-		if count := m[s]; count != 0 {
-			fmt.Fprintf(w, "%d %s\n", count, s)
-			if debug > 0 {
-				printStackRecord(w, stk, false)
-			}
-			delete(m, s)
+	sort.Sort(&keysByCount{keys, count})
+
+	for _, k := range keys {
+		fmt.Fprintf(w, "%d %s\n", count[k], k)
+		if debug > 0 {
+			printStackRecord(w, p.Stack(index[k]), false)
 		}
 	}
 
@@ -319,6 +322,23 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 		tw.Flush()
 	}
 	return b.Flush()
+}
+
+// keysByCount sorts keys with higher counts first, breaking ties by key string order.
+type keysByCount struct {
+	keys  []string
+	count map[string]int
+}
+
+func (x *keysByCount) Len() int      { return len(x.keys) }
+func (x *keysByCount) Swap(i, j int) { x.keys[i], x.keys[j] = x.keys[j], x.keys[i] }
+func (x *keysByCount) Less(i, j int) bool {
+	ki, kj := x.keys[i], x.keys[j]
+	ci, cj := x.count[ki], x.count[kj]
+	if ci != cj {
+		return ci > cj
+	}
+	return ki < kj
 }
 
 // printStackRecord prints the function + source line information
@@ -465,7 +485,6 @@ func writeHeap(w io.Writer, debug int) error {
 	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
 	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
 	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
-	fmt.Fprintf(w, "# EnableGC = %v\n", s.EnableGC)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
 
 	if tw != nil {

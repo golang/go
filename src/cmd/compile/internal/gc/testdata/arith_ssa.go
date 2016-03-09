@@ -15,6 +15,40 @@ const (
 )
 
 //go:noinline
+func parseLE64(b []byte) uint64 {
+	// skip the first two bytes, and parse the remaining 8 as a uint64
+	return uint64(b[2]) | uint64(b[3])<<8 | uint64(b[4])<<16 | uint64(b[5])<<24 |
+		uint64(b[6])<<32 | uint64(b[7])<<40 | uint64(b[8])<<48 | uint64(b[9])<<56
+}
+
+//go:noinline
+func parseLE32(b []byte) uint32 {
+	return uint32(b[2]) | uint32(b[3])<<8 | uint32(b[4])<<16 | uint32(b[5])<<24
+}
+
+//go:noinline
+func parseLE16(b []byte) uint16 {
+	return uint16(b[2]) | uint16(b[3])<<8
+}
+
+// testLoadCombine tests for issue #14694 where load combining didn't respect the pointer offset.
+func testLoadCombine() {
+	testData := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	if want, got := uint64(0x0908070605040302), parseLE64(testData); want != got {
+		println("testLargeConst add failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint32(0x05040302), parseLE32(testData); want != got {
+		println("testLargeConst add failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint16(0x0302), parseLE16(testData); want != got {
+		println("testLargeConst add failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
+//go:noinline
 func invalidAdd_ssa(x uint32) uint32 {
 	return x + y + y + y + y + y + y + y + y + y + y + y + y + y + y + y + y + y
 }
@@ -431,6 +465,7 @@ func main() {
 	testArithConstShift()
 	testArithRshConst()
 	testLargeConst()
+	testLoadCombine()
 
 	if failed {
 		panic("failed")

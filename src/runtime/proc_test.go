@@ -178,7 +178,14 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
 		}
 		if netpoll {
 			// Enable netpoller, affects schedler behavior.
-			ln, err := net.Listen("tcp", "localhost:0")
+			laddr := "localhost:0"
+			if runtime.GOOS == "android" {
+				// On some Android devices, there are no records for localhost,
+				// see https://golang.org/issues/14486.
+				// Don't use 127.0.0.1 for every case, it won't work on IPv6-only systems.
+				laddr = "127.0.0.1:0"
+			}
+			ln, err := net.Listen("tcp", laddr)
 			if err != nil {
 				defer ln.Close() // yup, defer in a loop
 			}

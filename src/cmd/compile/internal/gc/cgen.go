@@ -356,7 +356,7 @@ func cgen_wb(n, res *Node, wb bool) {
 		}
 	}
 
-	var a int
+	var a obj.As
 	switch n.Op {
 	default:
 		Dump("cgen", n)
@@ -801,7 +801,7 @@ func cgen_wbptr(n, res *Node) {
 		Cgenr(n, &src, nil)
 	}
 
-	wbVar := syslook("writeBarrier", 0)
+	wbVar := syslook("writeBarrier")
 	wbEnabled := Nod(ODOT, wbVar, newname(wbVar.Type.Type.Sym))
 	wbEnabled = typecheck(&wbEnabled, Erv)
 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
@@ -1677,8 +1677,7 @@ func Igen(n *Node, a *Node, res *Node) {
 			cgen_callinter(n, nil, 0)
 		}
 
-		var flist Iter
-		fp := Structfirst(&flist, Getoutarg(n.Left.Type))
+		fp, _ := IterFields(n.Left.Type.Results())
 		*a = Node{}
 		a.Op = OINDREG
 		a.Reg = int16(Thearch.REGSP)
@@ -1753,7 +1752,7 @@ func Bvgen(n, res *Node, wantTrue bool) {
 func bvgenjump(n, res *Node, wantTrue, geninit bool) {
 	init := n.Ninit
 	if !geninit {
-		n.Ninit = nil
+		n.Ninit.Set(nil)
 	}
 	p1 := Gbranch(obj.AJMP, nil, 0)
 	p2 := Pc
@@ -1763,7 +1762,7 @@ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
 	Bgen(n, wantTrue, 0, p2)
 	Thearch.Gmove(Nodbool(false), res)
 	Patch(p3, Pc)
-	n.Ninit = init
+	n.Ninit.Set(init.Slice())
 }
 
 // bgenx is the backend for Bgen and Bvgen.
@@ -1792,7 +1791,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	}
 
 	if n.Type.Etype != TBOOL {
-		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
+		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(n.Op, 0))
 	}
 
 	for n.Op == OCONVNOP {
@@ -1921,11 +1920,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 		if Isfloat[nr.Type.Etype] {
 			// Brcom is not valid on floats when NaN is involved.
 			ll := n.Ninit // avoid re-genning Ninit
-			n.Ninit = nil
+			n.Ninit.Set(nil)
 			if genval {
 				bgenx(n, res, true, likely, to)
 				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res) // res = !res
-				n.Ninit = ll
+				n.Ninit.Set(ll.Slice())
 				return
 			}
 			p1 := Gbranch(obj.AJMP, nil, 0)
@@ -1934,7 +1933,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 			bgenx(n, res, true, -likely, p2)
 			Patch(Gbranch(obj.AJMP, nil, 0), to)
 			Patch(p2, Pc)
-			n.Ninit = ll
+			n.Ninit.Set(ll.Slice())
 			return
 		}
 
@@ -2226,8 +2225,7 @@ func stkof(n *Node) int64 {
 			t = t.Type
 		}
 
-		var flist Iter
-		t = Structfirst(&flist, Getoutarg(t))
+		t, _ = IterFields(t.Results())
 		if t != nil {
 			return t.Width + Ctxt.FixedFrameSize()
 		}
@@ -2439,12 +2437,12 @@ func Ginscall(f *Node, proc int) {
 func cgen_callinter(n *Node, res *Node, proc int) {
 	i := n.Left
 	if i.Op != ODOTINTER {
-		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(int(i.Op), 0))
+		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(i.Op, 0))
 	}
 
 	f := i.Right // field
 	if f.Op != ONAME {
-		Fatalf("cgen_callinter: not ONAME %v", Oconv(int(f.Op), 0))
+		Fatalf("cgen_callinter: not ONAME %v", Oconv(f.Op, 0))
 	}
 
 	i = i.Left // interface
@@ -2563,8 +2561,7 @@ func cgen_callret(n *Node, res *Node) {
 		t = t.Type
 	}
 
-	var flist Iter
-	fp := Structfirst(&flist, Getoutarg(t))
+	fp, _ := IterFields(t.Results())
 	if fp == nil {
 		Fatalf("cgen_callret: nil")
 	}
@@ -2588,8 +2585,7 @@ func cgen_aret(n *Node, res *Node) {
 		t = t.Type
 	}
 
-	var flist Iter
-	fp := Structfirst(&flist, Getoutarg(t))
+	fp, _ := IterFields(t.Results())
 	if fp == nil {
 		Fatalf("cgen_aret: nil")
 	}
@@ -2621,7 +2617,7 @@ func cgen_ret(n *Node) {
 	if hasdefer {
 		Ginscall(Deferreturn, 0)
 	}
-	Genslice(Curfn.Func.Exit.Slice())
+	Genlist(Curfn.Func.Exit)
 	p := Thearch.Gins(obj.ARET, nil, nil)
 	if n != nil && n.Op == ORETJMP {
 		p.To.Type = obj.TYPE_MEM
@@ -2803,13 +2799,13 @@ func cgen_append(n, res *Node) {
 		Dump("cgen_append-n", n)
 		Dump("cgen_append-res", res)
 	}
-	if res.Op != ONAME && !samesafeexpr(res, n.List.N) {
+	if res.Op != ONAME && !samesafeexpr(res, n.List.First()) {
 		Dump("cgen_append-n", n)
 		Dump("cgen_append-res", res)
 		Fatalf("append not lowered")
 	}
-	for l := n.List; l != nil; l = l.Next {
-		if l.N.Ullman >= UINF {
+	for _, n1 := range n.List.Slice() {
+		if n1.Ullman >= UINF {
 			Fatalf("append with function call arguments")
 		}
 	}
@@ -2818,7 +2814,7 @@ func cgen_append(n, res *Node) {
 	//
 	// If res and src are the same, we can avoid writing to base and cap
 	// unless we grow the underlying array.
-	needFullUpdate := !samesafeexpr(res, n.List.N)
+	needFullUpdate := !samesafeexpr(res, n.List.First())
 
 	// Copy src triple into base, len, cap.
 	base := temp(Types[Tptr])
@@ -2826,7 +2822,7 @@ func cgen_append(n, res *Node) {
 	cap := temp(Types[TUINT])
 
 	var src Node
-	Igen(n.List.N, &src, nil)
+	Igen(n.List.First(), &src, nil)
 	src.Type = Types[Tptr]
 	Thearch.Gmove(&src, base)
 	src.Type = Types[TUINT]
@@ -2839,7 +2835,7 @@ func cgen_append(n, res *Node) {
 	var rlen Node
 	Regalloc(&rlen, Types[TUINT], nil)
 	Thearch.Gmove(len, &rlen)
-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &rlen)
+	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(n.List.Len()-1), &rlen)
 	p := Thearch.Ginscmp(OLE, Types[TUINT], &rlen, cap, +1)
 	// Note: rlen and src are Regrealloc'ed below at the target of the
 	// branch we just emitted; do not reuse these Go variables for
@@ -2874,8 +2870,8 @@ func cgen_append(n, res *Node) {
 	arg.Xoffset += int64(Widthptr)
 	Regfree(&rlen)
 
-	fn := syslook("growslice", 1)
-	substArgTypes(fn, res.Type.Type, res.Type.Type)
+	fn := syslook("growslice")
+	substArgTypes(&fn, res.Type.Type, res.Type.Type)
 	Ginscall(fn, 0)
 
 	if Widthptr == 4 && Widthreg == 8 {
@@ -2909,7 +2905,7 @@ func cgen_append(n, res *Node) {
 	dst.Xoffset += int64(Widthptr)
 	Regalloc(&r1, Types[TUINT], nil)
 	Thearch.Gmove(len, &r1)
-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &r1)
+	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(n.List.Len()-1), &r1)
 	Thearch.Gmove(&r1, &dst)
 	Regfree(&r1)
 	dst.Xoffset += int64(Widthptr)
@@ -2947,7 +2943,9 @@ func cgen_append(n, res *Node) {
 	// is not going to use a write barrier.
 	i := 0
 	var r2 Node
-	for l := n.List.Next; l != nil; l = l.Next {
+	it := nodeSeqIterate(n.List)
+	it.Next()
+	for ; !it.Done(); it.Next() {
 		Regalloc(&r1, Types[Tptr], nil)
 		Thearch.Gmove(base, &r1)
 		Regalloc(&r2, Types[TUINT], nil)
@@ -2961,14 +2959,14 @@ func cgen_append(n, res *Node) {
 		} else if w == 1 {
 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
 		} else {
-			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), int64(w), &r2)
+			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), w, &r2)
 			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
 		}
 		Regfree(&r2)
 
 		r1.Op = OINDREG
 		r1.Type = res.Type.Type
-		cgen_wb(l.N, &r1, needwritebarrier(&r1, l.N))
+		cgen_wb(it.N(), &r1, needwritebarrier(&r1, it.N()))
 		Regfree(&r1)
 		i++
 	}
@@ -3009,7 +3007,7 @@ func cgen_slice(n, res *Node, wb bool) {
 		regalloc = func(n *Node, t *Type, reuse *Node) {
 			Tempname(n, t)
 		}
-		ginscon = func(as int, c int64, n *Node) {
+		ginscon = func(as obj.As, c int64, n *Node) {
 			var n1 Node
 			Regalloc(&n1, n.Type, n)
 			Thearch.Gmove(n, &n1)
@@ -3017,7 +3015,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			Thearch.Gmove(&n1, n)
 			Regfree(&n1)
 		}
-		gins = func(as int, f, t *Node) *obj.Prog {
+		gins = func(as obj.As, f, t *Node) *obj.Prog {
 			var n1 Node
 			Regalloc(&n1, t.Type, t)
 			Thearch.Gmove(t, &n1)
