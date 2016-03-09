@@ -454,6 +454,7 @@ func (p *importer) param(named bool) *Node {
 	isddd := false
 	if typ.Etype == T_old_DARRAY {
 		// T_old_DARRAY indicates ... type
+		// TODO(mdempsky): Fix Type rekinding.
 		typ.Etype = TARRAY
 		isddd = true
 	}

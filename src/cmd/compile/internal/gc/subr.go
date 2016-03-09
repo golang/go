@@ -387,15 +387,6 @@ func maptype(key *Type, val *Type) *Type {
 	return t
 }
 
-func typ(et EType) *Type {
-	t := new(Type)
-	t.Etype = et
-	t.Width = BADWIDTH
-	t.Lineno = lineno
-	t.Orig = t
-	return t
-}
-
 // methcmp sorts by symbol, then by package path for unexported symbols.
 type methcmp []*Type
 
@@ -1194,18 +1185,6 @@ func Noconv(t1 *Type, t2 *Type) bool {
 	return false
 }
 
-func shallow(t *Type) *Type {
-	if t == nil {
-		return nil
-	}
-	nt := typ(0)
-	*nt = *t
-	if t.Orig == t {
-		nt.Orig = nt
-	}
-	return nt
-}
-
 func deep(t *Type) *Type {
 	if t == nil {
 		return nil
@@ -1217,32 +1196,32 @@ func deep(t *Type) *Type {
 		nt = t // share from here down
 
 	case TANY:
-		nt = shallow(t)
+		nt = t.Copy()
 		nt.Copyany = true
 
 	case TPTR32, TPTR64, TCHAN, TARRAY:
-		nt = shallow(t)
+		nt = t.Copy()
 		nt.Type = deep(t.Type)
 
 	case TMAP:
-		nt = shallow(t)
+		nt = t.Copy()
 		nt.Down = deep(t.Down)
 		nt.Type = deep(t.Type)
 
 	case TFUNC:
-		nt = shallow(t)
+		nt = t.Copy()
 		*nt.RecvP() = deep(t.Recv())
 		*nt.ResultsP() = deep(t.Results())
 		*nt.ParamsP() = deep(t.Params())
 
 	case TSTRUCT:
-		nt = shallow(t)
-		nt.Type = shallow(t.Type)
+		nt = t.Copy()
+		nt.Type = t.Type.Copy()
 		xt := nt.Type
 
 		for t = t.Type; t != nil; t = t.Down {
 			xt.Type = deep(t.Type)
-			xt.Down = shallow(t.Down)
+			xt.Down = t.Down.Copy()
 			xt = xt.Down
 		}
 	}
@@ -1863,9 +1842,7 @@ func expandmeth(t *Type) {
 	for sl := slist; sl != nil; sl = sl.link {
 		if sl.good {
 			// add it to the base type method list
-			f = typ(TFIELD)
-
-			*f = *sl.field
+			f := sl.field.Copy()
 			f.Embedded = 1 // needs a trampoline
 			if sl.followptr {
 				f.Embedded = 2
