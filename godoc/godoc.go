@@ -491,8 +491,8 @@ func (p *Presentation) example_htmlFunc(info *PageInfo, funcName string) string 
 
 		err := p.ExampleHTML.Execute(&buf, struct {
 			Name, Doc, Code, Play, Output string
-			Share, Unordered              bool
-		}{eg.Name, eg.Doc, code, play, out, info.Share, eg.Unordered})
+			Share                         bool
+		}{eg.Name, eg.Doc, code, play, out, info.Share})
 		if err != nil {
 			log.Print(err)
 		}
@@ -587,7 +587,7 @@ func startsWithUppercase(s string) bool {
 	return unicode.IsUpper(r)
 }
 
-var exampleOutputRx = regexp.MustCompile(`(?i)//([[:space:]]*unordered)?[[:space:]]*output:`)
+var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
 
 // stripExampleSuffix strips lowercase braz in Foo_braz or Foo_Bar_braz from name
 // while keeping uppercase Braz in Foo_Braz.

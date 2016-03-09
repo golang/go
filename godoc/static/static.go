@@ -450,11 +450,7 @@ var Files = map[string]string{
 			<p>Code:</p>
 			<pre class="code">{{.Code}}</pre>
 			{{with .Output}}
-			{{if $.Unordered}}
-			<p>Unordered Output:</p>
-			{{else}}
 			<p>Output:</p>
-			{{end}}
 			<pre class="output">{{html .}}</pre>
 			{{end}}
 		{{end}}
