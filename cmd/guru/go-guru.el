@@ -68,19 +68,17 @@
 
 ;;;###autoload
 (defun go-guru-set-scope ()
-  "Set the scope for the Go guru, prompting the user to edit the
-previous scope.
+  "Set the scope for the Go guru, prompting the user to edit the previous scope.
 
-The scope specifies a set of arguments, separated by spaces.
-It may be:
-1) a set of packages whose main functions will be analyzed.
-2) a list of *.go filenames; they will treated like as a single
-   package (see #3).
-3) a single package whose main function and/or Test* functions
-   will be analyzed.
+The scope restricts analysis to the specified packages.
+Its value is a comma-separated list of patterns of these forms:
+	golang.org/x/tools/cmd/guru     # a single package
+	golang.org/x/tools/...          # all packages beneath dir
+	...                             # the entire workspace.
 
-In the common case, this is similar to the argument(s) you would
-specify to 'go build'."
+A pattern preceded by '-' is negative, so the scope
+	encoding/...,-encoding/xml
+matches all encoding packages except encoding/xml."
   (interactive)
   (let ((scope (read-from-minibuffer "Go guru scope: "
                                      go-guru-scope

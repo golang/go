@@ -91,7 +91,7 @@ The -scope flag restricts analysis to the specified packages.
 		...                             # the entire workspace.
 	A pattern preceded by '-' is negative, so the scope
 		encoding/...,-encoding/xml
-	matches all encoding packages except encoding/xml:
+	matches all encoding packages except encoding/xml.
 
 User manual: http://golang.org/s/oracle-user-manual
 
