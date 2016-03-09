@@ -116,6 +116,19 @@ func (f *Func) freeValue(v *Value) {
 	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
+
+	// Zero argument values might be cached, so remove them there.
+	nArgs := opcodeTable[v.Op].argLen
+	if nArgs == 0 {
+		vv := f.constants[v.AuxInt]
+		for i, cv := range vv {
+			if v == cv {
+				vv[i] = vv[len(vv)-1]
+				f.constants[v.AuxInt] = vv[0 : len(vv)-1]
+				break
+			}
+		}
+	}
 	*v = Value{}
 	v.ID = id
 	v.argstorage[0] = f.freeValues
@@ -280,6 +293,9 @@ func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value 
 	vv := f.constants[c]
 	for _, v := range vv {
 		if v.Op == op && v.Type.Equal(t) {
+			if setAux && v.AuxInt != c {
+				panic(fmt.Sprintf("cached const %s should have AuxInt of %d", v.LongString(), c))
+			}
 			return v
 		}
 	}
