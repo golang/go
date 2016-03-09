@@ -241,6 +241,7 @@ Return the output buffer."
 current buffer in the format specified by guru's -modified flag."
   (mapc #'(lambda (b)
             (and (buffer-modified-p b)
+                 (buffer-file-name b)
                  (string= (file-name-extension (buffer-file-name b)) "go")
                  (go-guru--insert-modified-file (buffer-file-name b) b)))
         (buffer-list)))
