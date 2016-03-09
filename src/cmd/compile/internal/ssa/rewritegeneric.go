@@ -1577,6 +1577,26 @@ func rewriteValuegeneric_OpDiv64(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpDiv64u(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Div64u <t> n (Const64 [c]))
+	// cond: isPowerOfTwo(c)
+	// result: (Rsh64Ux64 n (Const64 <t> [log2(c)]))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			break
+		}
+		c := v.Args[1].AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpRsh64Ux64)
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = log2(c)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Div64u <t> x (Const64 [c]))
 	// cond: umagic64ok(c) && !umagic64a(c)
 	// result: (Rsh64Ux64     (Hmul64u <t>       (Const64 <t> [umagic64m(c)])       x)     (Const64 <t> [umagic64s(c)]))
@@ -2467,6 +2487,50 @@ func rewriteValuegeneric_OpITab(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (IsInBounds (And32 (Const32 [c]) _) (Const32 [d]))
+	// cond: inBounds32(c, d)
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpAnd32 {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpConst32 {
+			break
+		}
+		c := v.Args[0].Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if !(inBounds32(c, d)) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsInBounds (And64 (Const64 [c]) _) (Const64 [d]))
+	// cond: inBounds64(c, d)
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpAnd64 {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpConst64 {
+			break
+		}
+		c := v.Args[0].Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if !(inBounds64(c, d)) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	// match: (IsInBounds (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(inBounds32(c,d))])
@@ -2504,6 +2568,50 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpIsSliceInBounds(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d]))
+	// cond: sliceInBounds32(c, d)
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpAnd32 {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpConst32 {
+			break
+		}
+		c := v.Args[0].Args[0].AuxInt
+		if v.Args[1].Op != OpConst32 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if !(sliceInBounds32(c, d)) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d]))
+	// cond: sliceInBounds64(c, d)
+	// result: (ConstBool [1])
+	for {
+		if v.Args[0].Op != OpAnd64 {
+			break
+		}
+		if v.Args[0].Args[0].Op != OpConst64 {
+			break
+		}
+		c := v.Args[0].Args[0].AuxInt
+		if v.Args[1].Op != OpConst64 {
+			break
+		}
+		d := v.Args[1].AuxInt
+		if !(sliceInBounds64(c, d)) {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	// match: (IsSliceInBounds (Const32 [c]) (Const32 [d]))
 	// cond:
 	// result: (ConstBool [b2i(sliceInBounds32(c,d))])
@@ -3875,6 +3983,26 @@ func rewriteValuegeneric_OpMod64(v *Value, config *Config) bool {
 func rewriteValuegeneric_OpMod64u(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
+	// match: (Mod64u <t> n (Const64 [c]))
+	// cond: isPowerOfTwo(c)
+	// result: (And64 n (Const64 <t> [c-1]))
+	for {
+		t := v.Type
+		n := v.Args[0]
+		if v.Args[1].Op != OpConst64 {
+			break
+		}
+		c := v.Args[1].AuxInt
+		if !(isPowerOfTwo(c)) {
+			break
+		}
+		v.reset(OpAnd64)
+		v.AddArg(n)
+		v0 := b.NewValue0(v.Line, OpConst64, t)
+		v0.AuxInt = c - 1
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Mod64u <t> x (Const64 [c]))
 	// cond: umagic64ok(c)
 	// result: (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
