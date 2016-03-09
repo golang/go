@@ -376,14 +376,17 @@ func ordercall(n *Node, order *Order) {
 
 	if n.Op == OCALLFUNC {
 		t := n.Left.Type.Params().Type
-		for it := nodeSeqIterate(n.List); !it.Done() && t != nil; it.Next() {
+		for i := range n.List.Slice() {
 			// Check for "unsafe-uintptr" tag provided by escape analysis.
 			// If present and the argument is really a pointer being converted
 			// to uintptr, arrange for the pointer to be kept alive until the call
 			// returns, by copying it into a temp and marking that temp
 			// still alive when we pop the temp stack.
+			if t == nil {
+				break
+			}
 			if t.Note != nil && *t.Note == unsafeUintptrTag {
-				xp := it.P()
+				xp := n.List.Addr(i)
 				for (*xp).Op == OCONVNOP && !Isptr[(*xp).Type.Etype] {
 					xp = &(*xp).Left
 				}
@@ -452,14 +455,15 @@ func ordermapassign(n *Node, order *Order) {
 				if !istemp(m.Right) {
 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
 				}
-				n.List.Slice()[i1] = ordertemp(m.Type, order, false)
-				a = Nod(OAS, m, n.List.Slice()[i1])
+				n.List.SetIndex(i1, ordertemp(m.Type, order, false))
+				a = Nod(OAS, m, n.List.Index(i1))
 				typecheck(&a, Etop)
 				post = append(post, a)
-			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Slice()[i1]) {
-				m = n.List.Slice()[i1]
-				n.List.Slice()[i1] = ordertemp(m.Type, order, false)
-				a = Nod(OAS, m, n.List.Slice()[i1])
+			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Index(i1)) {
+				m = n.List.Index(i1)
+				t := ordertemp(m.Type, order, false)
+				n.List.SetIndex(i1, t)
+				a = Nod(OAS, m, t)
 				typecheck(&a, Etop)
 				post = append(post, a)
 			}
@@ -651,9 +655,7 @@ func orderstmt(n *Node, order *Order) {
 			orderexprlist(n.Left.List, order)
 
 			t1 := marktemp(order)
-			it := nodeSeqIterate(n.Left.List)
-			it.Next()
-			np := it.P() // map key
+			np := n.Left.List.Addr(1) // map key
 			*np = ordercopyexpr(*np, (*np).Type, order, 0)
 			poptemp(t1, order)
 
@@ -666,11 +668,9 @@ func orderstmt(n *Node, order *Order) {
 
 	case ODELETE:
 		t := marktemp(order)
-		it := nodeSeqIterate(n.List)
-		orderexpr(it.P(), order, nil)
-		it.Next()
-		orderexpr(it.P(), order, nil)
-		orderaddrtemp(it.P(), order) // map key
+		orderexpr(n.List.Addr(0), order, nil)
+		orderexpr(n.List.Addr(1), order, nil)
+		orderaddrtemp(n.List.Addr(1), order) // map key
 		order.out = append(order.out, n)
 		cleantemp(t, order)
 
@@ -771,8 +771,8 @@ func orderstmt(n *Node, order *Order) {
 			// n->alloc is the temp for the iterator.
 			prealloc[n] = ordertemp(Types[TUINT8], order, true)
 		}
-		for i1 := range n.List.Slice() {
-			orderexprinplace(&n.List.Slice()[i1], order)
+		for i := range n.List.Slice() {
+			orderexprinplace(n.List.Addr(i), order)
 		}
 		orderblockNodes(&n.Nbody)
 		order.out = append(order.out, n)
@@ -815,20 +815,20 @@ func orderstmt(n *Node, order *Order) {
 					Yyerror("unknown op in select %v", Oconv(r.Op, 0))
 					Dump("select case", r)
 
-					// If this is case x := <-ch or case x, y := <-ch, the case has
+				// If this is case x := <-ch or case x, y := <-ch, the case has
 				// the ODCL nodes to declare x and y. We want to delay that
 				// declaration (and possible allocation) until inside the case body.
 				// Delete the ODCL nodes here and recreate them inside the body below.
 				case OSELRECV, OSELRECV2:
 					if r.Colas {
-						itinit := nodeSeqIterate(r.Ninit)
-						if itinit.Len() != 0 && itinit.N().Op == ODCL && itinit.N().Left == r.Left {
-							itinit.Next()
+						i := 0
+						if r.Ninit.Len() != 0 && r.Ninit.First().Op == ODCL && r.Ninit.First().Left == r.Left {
+							i++
 						}
-						if itinit.Len() != 0 && itinit.N().Op == ODCL && r.List.Len() != 0 && itinit.N().Left == r.List.First() {
-							itinit.Next()
+						if i < r.Ninit.Len() && r.Ninit.Index(i).Op == ODCL && r.List.Len() != 0 && r.Ninit.Index(i).Left == r.List.First() {
+							i++
 						}
-						if itinit.Done() {
+						if i >= r.Ninit.Len() {
 							r.Ninit.Set(nil)
 						}
 					}
@@ -967,16 +967,18 @@ func orderstmt(n *Node, order *Order) {
 
 // Orderexprlist orders the expression list l into order.
 func orderexprlist(l Nodes, order *Order) {
-	for i := range l.Slice() {
-		orderexpr(&l.Slice()[i], order, nil)
+	s := l.Slice()
+	for i := range s {
+		orderexpr(&s[i], order, nil)
 	}
 }
 
 // Orderexprlist orders the expression list l but saves
 // the side effects on the individual expression ninit lists.
 func orderexprlistinplace(l Nodes, order *Order) {
-	for i := range l.Slice() {
-		orderexprinplace(&l.Slice()[i], order)
+	s := l.Slice()
+	for i := range s {
+		orderexprinplace(&s[i], order)
 	}
 }
 

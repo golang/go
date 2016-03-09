@@ -1762,7 +1762,7 @@ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
 	Bgen(n, wantTrue, 0, p2)
 	Thearch.Gmove(Nodbool(false), res)
 	Patch(p3, Pc)
-	n.Ninit.Set(init.Slice())
+	n.Ninit.MoveNodes(&init)
 }
 
 // bgenx is the backend for Bgen and Bvgen.
@@ -2943,9 +2943,7 @@ func cgen_append(n, res *Node) {
 	// is not going to use a write barrier.
 	i := 0
 	var r2 Node
-	it := nodeSeqIterate(n.List)
-	it.Next()
-	for ; !it.Done(); it.Next() {
+	for _, n2 := range n.List.Slice()[1:] {
 		Regalloc(&r1, Types[Tptr], nil)
 		Thearch.Gmove(base, &r1)
 		Regalloc(&r2, Types[TUINT], nil)
@@ -2966,7 +2964,7 @@ func cgen_append(n, res *Node) {
 
 		r1.Op = OINDREG
 		r1.Type = res.Type.Type
-		cgen_wb(it.N(), &r1, needwritebarrier(&r1, it.N()))
+		cgen_wb(n2, &r1, needwritebarrier(&r1, n2))
 		Regfree(&r1)
 		i++
 	}

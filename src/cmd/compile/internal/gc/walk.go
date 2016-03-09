@@ -321,8 +321,9 @@ func walkstmt(np **Node) {
 
 			ll := ascompatee(n.Op, rl, n.List.Slice(), &n.Ninit)
 			n.List.Set(reorder3(ll))
-			for i1 := range n.List.Slice() {
-				n.List.Slice()[i1] = applywritebarrier(n.List.Slice()[i1])
+			ls := n.List.Slice()
+			for i, n := range ls {
+				ls[i] = applywritebarrier(n)
 			}
 			break
 		}
@@ -884,8 +885,7 @@ opswitch:
 		if !isblank(a) {
 			var_ := temp(Ptrto(t.Type))
 			var_.Typecheck = 1
-			it := nodeSeqIterate(n.List)
-			*it.P() = var_
+			n.List.SetIndex(0, var_)
 			walkexpr(&n, init)
 			init.Append(n)
 			n = Nod(OAS, a, Nod(OIND, var_, nil))
@@ -1661,20 +1661,20 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 	}
 
 	var nn []*Node
-	nlit := nodeSeqIterate(nl)
-	nrit := nodeSeqIterate(nr)
-	for ; !nlit.Done() && !nrit.Done(); nlit.Next() {
+	i := 0
+	for ; i < len(nl); i++ {
+		if i >= len(nr) {
+			break
+		}
 		// Do not generate 'x = x' during return. See issue 4014.
-		if op == ORETURN && nlit.N() == nrit.N() {
-			nrit.Next()
+		if op == ORETURN && nl[i] == nr[i] {
 			continue
 		}
-		nn = append(nn, ascompatee1(op, nlit.N(), nrit.N(), init))
-		nrit.Next()
+		nn = append(nn, ascompatee1(op, nl[i], nr[i], init))
 	}
 
 	// cannot happen: caller checked that lists had same length
-	if !nlit.Done() || !nrit.Done() {
+	if i < len(nl) || i < len(nr) {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
@@ -1714,12 +1714,12 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 	var nn []*Node
 	var mm []*Node
 	ucount := 0
-	it := nodeSeqIterate(nl)
-	for ; !it.Done(); it.Next() {
+	var i int
+	for i = 0; i < nl.Len(); i++ {
 		if r == nil {
 			break
 		}
-		l = it.N()
+		l = nl.Index(i)
 		if isblank(l) {
 			r = saver.Next()
 			continue
@@ -1749,7 +1749,7 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 		r = saver.Next()
 	}
 
-	if !it.Done() || r != nil {
+	if i < nl.Len() || r != nil {
 		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), structcount(*nr))
 	}
 
@@ -1985,7 +1985,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			defaultlit(&n, Types[TINT64])
 		}
 		defaultlit(&n, nil)
-		all.Slice()[i1] = n
+		all.SetIndex(i1, n)
 		if n.Type == nil || n.Type.Etype == TFORW {
 			continue
 		}
@@ -2811,14 +2811,13 @@ func addstr(n *Node, init *Nodes) *Node {
 // l2 is allowed to be a string.
 func appendslice(n *Node, init *Nodes) *Node {
 	walkexprlistsafe(n.List.Slice(), init)
-	for i1 := range
 
 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
 	// and n are name or literal, but those may index the slice we're
 	// modifying here. Fix explicitly.
-	n.List.Slice() {
-		n.List.Slice()[i1] = cheapexpr(n.List.Slice()[i1],
-			init)
+	ls := n.List.Slice()
+	for i1, n1 := range ls {
+		ls[i1] = cheapexpr(n1, init)
 	}
 
 	l1 := n.List.First()
@@ -2933,9 +2932,8 @@ func appendslice(n *Node, init *Nodes) *Node {
 //   s
 func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	if !samesafeexpr(dst, n.List.First()) {
-		it := nodeSeqIterate(n.List)
-		*it.P() = safeexpr(it.N(), init)
-		walkexpr(it.P(), init)
+		n.List.SetIndex(0, safeexpr(n.List.Index(0), init))
+		walkexpr(n.List.Addr(0), init)
 	}
 	walkexprlistsafe(n.List.Slice()[1:], init)
 
@@ -2945,10 +2943,9 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	// Using cheapexpr also makes sure that the evaluation
 	// of all arguments (and especially any panics) happen
 	// before we begin to modify the slice in a visible way.
-	it := nodeSeqIterate(n.List)
-	it.Next()
-	for ; !it.Done(); it.Next() {
-		*it.P() = cheapexpr(it.N(), init)
+	ls := n.List.Slice()[1:]
+	for i, n := range ls {
+		ls[i] = cheapexpr(n, init)
 	}
 
 	nsrc := n.List.First()
@@ -2991,13 +2988,12 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	nx.Etype = 1
 	l = append(l, Nod(OAS, ns, nx)) // s = s[:n+argc]
 
-	it = nodeSeqIterate(n.List)
-	it.Next()
-	for ; !it.Done(); it.Next() {
+	ls = n.List.Slice()[1:]
+	for i, n := range ls {
 		nx = Nod(OINDEX, ns, nn) // s[n] ...
 		nx.Bounded = true
-		l = append(l, Nod(OAS, nx, it.N())) // s[n] = arg
-		if it.Len() > 1 {
+		l = append(l, Nod(OAS, nx, n)) // s[n] = arg
+		if i+1 < len(ls) {
 			l = append(l, Nod(OAS, nn, Nod(OADD, nn, Nodintconst(1)))) // n = n + 1
 		}
 	}

@@ -437,14 +437,20 @@ func (n *Nodes) Len() int {
 	return len(*n.slice)
 }
 
-// First returns the first element of Nodes.
-// It panics if Nodes has no elements.
+// Index returns the i'th element of Nodes.
+// It panics if n does not have at least i+1 elements.
+func (n *Nodes) Index(i int) *Node {
+	return (*n.slice)[i]
+}
+
+// First returns the first element of Nodes (same as n.Index(0)).
+// It panics if n has no elements.
 func (n *Nodes) First() *Node {
 	return (*n.slice)[0]
 }
 
-// Second returns the second element of Nodes.
-// It panics if Nodes has fewer than two elements.
+// Second returns the second element of Nodes (same as n.Index(1)).
+// It panics if n has fewer than two elements.
 func (n *Nodes) Second() *Node {
 	return (*n.slice)[1]
 }
@@ -464,7 +470,7 @@ func (n *Nodes) NodeList() *NodeList {
 	return ret
 }
 
-// Set sets Nodes to a slice.
+// Set sets n to a slice.
 // This takes ownership of the slice.
 func (n *Nodes) Set(s []*Node) {
 	if len(s) == 0 {
@@ -472,6 +478,24 @@ func (n *Nodes) Set(s []*Node) {
 	} else {
 		n.slice = &s
 	}
+}
+
+// MoveNodes sets n to the contents of n2, then clears n2.
+func (n *Nodes) MoveNodes(n2 *Nodes) {
+	n.slice = n2.slice
+	n2.slice = nil
+}
+
+// SetIndex sets the i'th element of Nodes to node.
+// It panics if n does not have at least i+1 elements.
+func (n *Nodes) SetIndex(i int, node *Node) {
+	(*n.slice)[i] = node
+}
+
+// Addr returns the address of the i'th element of Nodes.
+// It panics if n does not have at least i+1 elements.
+func (n *Nodes) Addr(i int) **Node {
+	return &(*n.slice)[i]
 }
 
 // Append appends entries to Nodes.
@@ -529,106 +553,6 @@ type nodesOrNodeList interface{}
 // to Nodes only, and then should be deleted. See setNodeSeq to assign
 // to a generic value.
 type nodesOrNodeListPtr interface{}
-
-// nodeSeqIterator is an interface used to iterate over a sequence of nodes.
-// TODO(iant): Remove after conversion from NodeList to Nodes is complete.
-type nodeSeqIterator interface {
-	// Return whether iteration is complete.
-	Done() bool
-	// Advance to the next node.
-	Next()
-	// Return the current node.
-	N() *Node
-	// Return the address of the current node.
-	P() **Node
-	// Return the number of items remaining in the iteration.
-	Len() int
-	// Return the remaining items as a sequence.
-	// This will have the same type as that passed to nodeSeqIterate.
-	Seq() nodesOrNodeList
-}
-
-// nodeListIterator is a type that implements nodeSeqIterator using a
-// *NodeList.
-type nodeListIterator struct {
-	l *NodeList
-}
-
-func (nli *nodeListIterator) Done() bool {
-	return nli.l == nil
-}
-
-func (nli *nodeListIterator) Next() {
-	nli.l = nli.l.Next
-}
-
-func (nli *nodeListIterator) N() *Node {
-	return nli.l.N
-}
-
-func (nli *nodeListIterator) P() **Node {
-	return &nli.l.N
-}
-
-func (nli *nodeListIterator) Len() int {
-	return count(nli.l)
-}
-
-func (nli *nodeListIterator) Seq() nodesOrNodeList {
-	return nli.l
-}
-
-// nodesIterator implements nodeSeqIterator using a Nodes.
-type nodesIterator struct {
-	n Nodes
-	i int
-}
-
-func (ni *nodesIterator) Done() bool {
-	return ni.i >= len(ni.n.Slice())
-}
-
-func (ni *nodesIterator) Next() {
-	ni.i++
-}
-
-func (ni *nodesIterator) N() *Node {
-	return ni.n.Slice()[ni.i]
-}
-
-func (ni *nodesIterator) P() **Node {
-	return &ni.n.Slice()[ni.i]
-}
-
-func (ni *nodesIterator) Len() int {
-	return len(ni.n.Slice()[ni.i:])
-}
-
-func (ni *nodesIterator) Seq() nodesOrNodeList {
-	var r Nodes
-	r.Set(ni.n.Slice()[ni.i:])
-	return r
-}
-
-// nodeSeqIterate returns an iterator over a *NodeList, a Nodes,
-// a []*Node, or nil.
-func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
-	switch ns := ns.(type) {
-	case *NodeList:
-		return &nodeListIterator{ns}
-	case Nodes:
-		return &nodesIterator{ns, 0}
-	case []*Node:
-		var r Nodes
-		r.Set(ns)
-		return &nodesIterator{r, 0}
-	case nil:
-		var r Nodes
-		return &nodesIterator{r, 0}
-	default:
-		panic("can't happen")
-	}
-}
 
 // nodeSeqLen returns the length of a *NodeList, a Nodes, a []*Node, or nil.
 func nodeSeqLen(ns nodesOrNodeList) int {

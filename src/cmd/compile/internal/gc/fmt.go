@@ -1257,10 +1257,10 @@ func exprfmt(n *Node, prec int) string {
 			} else {
 				f += fmt.Sprintf("(%v{", n.Type)
 			}
-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
-				f += fmt.Sprintf(" %v:%v", Sconv(it.N().Left.Sym, obj.FmtShort|obj.FmtByte), it.N().Right)
+			for i1, n1 := range n.List.Slice() {
+				f += fmt.Sprintf(" %v:%v", Sconv(n1.Left.Sym, obj.FmtShort|obj.FmtByte), n1.Right)
 
-				if it.Len() > 1 {
+				if i1+1 < n.List.Len() {
 					f += ","
 				} else {
 					f += " "
@@ -1725,9 +1725,9 @@ func Hconv(l Nodes, flag int) string {
 	}
 
 	var buf bytes.Buffer
-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
-		buf.WriteString(Nconv(it.N(), 0))
-		if it.Len() > 1 {
+	for i, n := range l.Slice() {
+		buf.WriteString(Nconv(n, 0))
+		if i+1 < l.Len() {
 			buf.WriteString(sep)
 		}
 	}

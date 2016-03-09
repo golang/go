@@ -2066,14 +2066,12 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// Evaluate args
 		args := make([]*ssa.Value, 0, nargs)
 		store := make([]bool, 0, nargs)
-		it := nodeSeqIterate(n.List)
-		it.Next()
-		for ; !it.Done(); it.Next() {
-			if canSSAType(it.N().Type) {
-				args = append(args, s.expr(it.N()))
+		for _, n := range n.List.Slice()[1:] {
+			if canSSAType(n.Type) {
+				args = append(args, s.expr(n))
 				store = append(store, true)
 			} else {
-				args = append(args, s.addr(it.N(), false))
+				args = append(args, s.addr(n, false))
 				store = append(store, false)
 			}
 		}

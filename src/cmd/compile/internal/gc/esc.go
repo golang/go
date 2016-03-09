@@ -722,10 +722,9 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OAS2: // x,y = a,b
 		if n.List.Len() == n.Rlist.Len() {
-			lrit := nodeSeqIterate(n.Rlist)
-			for _, n3 := range n.List.Slice() {
-				escassign(e, n3, lrit.N())
-				lrit.Next()
+			rs := n.Rlist.Slice()
+			for i, n := range n.List.Slice() {
+				escassign(e, n, rs[i])
 			}
 		}
 
@@ -759,14 +758,14 @@ func esc(e *EscState, n *Node, up *Node) {
 
 		// esccall already done on n->rlist->n. tie it's escretval to n->list
 	case OAS2FUNC: // x,y = f()
-		lrit := nodeSeqIterate(e.nodeEscState(n.Rlist.First()).Escretval)
-
-		var llit nodeSeqIterator
-		for llit = nodeSeqIterate(n.List); !lrit.Done() && !llit.Done(); llit.Next() {
-			escassign(e, llit.N(), lrit.N())
-			lrit.Next()
+		rs := e.nodeEscState(n.Rlist.First()).Escretval.Slice()
+		for i, n := range n.List.Slice() {
+			if i >= len(rs) {
+				break
+			}
+			escassign(e, n, rs[i])
 		}
-		if !llit.Done() || !lrit.Done() {
+		if n.List.Len() != len(rs) {
 			Fatalf("esc oas2func")
 		}
 
@@ -779,19 +778,19 @@ func esc(e *EscState, n *Node, up *Node) {
 			ll = e.nodeEscState(n.List.First()).Escretval
 		}
 
-		llit := nodeSeqIterate(ll)
+		i := 0
 		for _, lrn := range Curfn.Func.Dcl {
-			if llit.Done() {
+			if i >= ll.Len() {
 				break
 			}
 			if lrn.Op != ONAME || lrn.Class != PPARAMOUT {
 				continue
 			}
-			escassign(e, lrn, llit.N())
-			llit.Next()
+			escassign(e, lrn, ll.Index(i))
+			i++
 		}
 
-		if !llit.Done() {
+		if i < ll.Len() {
 			Fatalf("esc return list")
 		}
 
@@ -801,10 +800,8 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case OAPPEND:
 		if !n.Isddd {
-			llit := nodeSeqIterate(n.List)
-			llit.Next()
-			for ; !llit.Done(); llit.Next() {
-				escassign(e, &e.theSink, llit.N()) // lose track of assign to dereference
+			for _, n := range n.List.Slice()[1:] {
+				escassign(e, &e.theSink, n) // lose track of assign to dereference
 			}
 		} else {
 			// append(slice1, slice2...) -- slice2 itself does not escape, but contents do.
@@ -1229,8 +1226,8 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 	}
 
 	em0 := em
-	it := nodeSeqIterate(dsts)
-	for em >>= EscReturnBits; em != 0 && !it.Done(); em = em >> bitsPerOutputInTag {
+	dstsi := 0
+	for em >>= EscReturnBits; em != 0 && dstsi < dsts.Len(); em = em >> bitsPerOutputInTag {
 		// Prefer the lowest-level path to the reference (for escape purposes).
 		// Two-bit encoding (for example. 1, 3, and 4 bits are other options)
 		//  01 = 0-level
@@ -1242,15 +1239,15 @@ func escassignfromtag(e *EscState, note *string, dsts Nodes, src *Node) uint16 {
 			for i := uint16(0); i < embits-1; i++ {
 				n = e.addDereference(n) // encode level>0 as indirections
 			}
-			escassign(e, it.N(), n)
+			escassign(e, dsts.Index(dstsi), n)
 		}
-		it.Next()
+		dstsi++
 	}
 	// If there are too many outputs to fit in the tag,
 	// that is handled at the encoding end as EscHeap,
 	// so there is no need to check here.
 
-	if em != 0 && it.Done() {
+	if em != 0 && dstsi >= dsts.Len() {
 		Fatalf("corrupt esc tag %q or messed up escretval list\n", note)
 	}
 	return em0
@@ -1419,36 +1416,37 @@ func esccall(e *EscState, n *Node, up *Node) {
 		}
 
 		var src *Node
-		llit := nodeSeqIterate(ll)
-		for lrit := nodeSeqIterate(fn.Name.Param.Ntype.List); !llit.Done() && !lrit.Done(); llit.Next() {
-			src = llit.N()
-			if lrit.N().Isddd && !n.Isddd {
+		lls := ll.Slice()
+		lrs := fn.Name.Param.Ntype.List.Slice()
+		i := 0
+		for ; i < len(lls) && i < len(lrs); i++ {
+			src = lls[i]
+			if lrs[i].Isddd && !n.Isddd {
 				// Introduce ODDDARG node to represent ... allocation.
 				src = Nod(ODDDARG, nil, nil)
 				src.Type = typ(TARRAY)
-				src.Type.Type = lrit.N().Type.Type
-				src.Type.Bound = int64(llit.Len())
+				src.Type.Type = lrs[i].Type.Type
+				src.Type.Bound = int64(len(lls) - i)
 				src.Type = Ptrto(src.Type) // make pointer so it will be tracked
 				src.Lineno = n.Lineno
 				e.track(src)
 				n.Right = src
 			}
 
-			if lrit.N().Left != nil {
-				escassign(e, lrit.N().Left, src)
+			if lrs[i].Left != nil {
+				escassign(e, lrs[i].Left, src)
 			}
-			if src != llit.N() {
+			if src != lls[i] {
 				break
 			}
-			lrit.Next()
 		}
 
 		// "..." arguments are untracked
-		for ; !llit.Done(); llit.Next() {
+		for ; i < len(lls); i++ {
 			if Debug['m'] > 2 {
-				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(llit.N(), obj.FmtShort))
+				fmt.Printf("%v::esccall:: ... <- %v, untracked\n", linestr(lineno), Nconv(lls[i], obj.FmtShort))
 			}
-			escassign(e, &e.theSink, llit.N())
+			escassign(e, &e.theSink, lls[i])
 		}
 
 		return
@@ -1478,16 +1476,17 @@ func esccall(e *EscState, n *Node, up *Node) {
 	}
 
 	var src *Node
-	it := nodeSeqIterate(ll)
-	for t := fntype.Params().Type; !it.Done(); it.Next() {
-		src = it.N()
+	i := 0
+	lls := ll.Slice()
+	for t := fntype.Params().Type; i < len(lls); i++ {
+		src = lls[i]
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
 			src = Nod(ODDDARG, nil, nil)
 			src.Lineno = n.Lineno
 			src.Type = typ(TARRAY)
 			src.Type.Type = t.Type.Type
-			src.Type.Bound = int64(it.Len())
+			src.Type.Bound = int64(len(lls) - i)
 			src.Type = Ptrto(src.Type) // make pointer so it will be tracked
 			e.track(src)
 			n.Right = src
@@ -1520,18 +1519,18 @@ func esccall(e *EscState, n *Node, up *Node) {
 			}
 		}
 
-		if src != it.N() {
+		if src != lls[i] {
 			// This occurs when function parameter type Isddd and n not Isddd
 			break
 		}
 		t = t.Down
 	}
 
-	for ; !it.Done(); it.Next() {
+	for ; i < len(lls); i++ {
 		if Debug['m'] > 2 {
-			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(it.N(), obj.FmtShort))
+			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(lls[i], obj.FmtShort))
 		}
-		escassign(e, src, it.N()) // args to slice
+		escassign(e, src, lls[i]) // args to slice
 	}
 }
 
