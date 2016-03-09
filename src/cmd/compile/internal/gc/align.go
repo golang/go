@@ -618,15 +618,11 @@ func typeinit() {
 func Argsize(t *Type) int {
 	var w int64
 
-	for fp, ip := IterFields(t.Results()); fp != nil; fp = ip.Next() {
-		if x := fp.Width + fp.Type.Width; x > w {
-			w = x
-		}
-	}
-
-	for fp, ip := IterParams(t); fp != nil; fp = ip.Next() {
-		if x := fp.Width + fp.Type.Width; x > w {
-			w = x
+	for _, p := range recvParamsResults {
+		for f, it := IterFields(p(t)); f != nil; f = it.Next() {
+			if x := f.Width + f.Type.Width; x > w {
+				w = x
+			}
 		}
 	}
 
