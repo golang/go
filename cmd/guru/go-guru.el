@@ -118,8 +118,13 @@ region of the current buffer.  If NEED-SCOPE, prompt for a scope
 if not already set.  Mark up the output using `compilation-mode`,
 replacing each file name with a small hyperlink, and display the
 result."
-  (with-current-buffer (go-guru--exec mode need-scope)
-    (go-guru--compilation-markup)))
+  (let ((output (go-guru--exec mode need-scope))
+	(display (get-buffer-create "*go-guru*")))
+    (with-current-buffer display
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (insert-buffer-substring output)
+      (go-guru--compilation-markup))))
 
 (defun go-guru--exec (mode &optional need-scope flags allow-unnamed)
   "Execute the Go guru in the specified MODE, passing it the
@@ -151,7 +156,7 @@ Return the output buffer."
          (env-vars (go-root-and-paths))
          (goroot-env (concat "GOROOT=" (car env-vars)))
          (gopath-env (concat "GOPATH=" (mapconcat #'identity (cdr env-vars) ":")))
-         (output-buffer (get-buffer-create "*go-guru*"))
+         (output-buffer (get-buffer-create "*go-guru-output*"))
          (buf (current-buffer)))
     (with-current-buffer output-buffer
       (setq buffer-read-only nil)
@@ -192,6 +197,7 @@ Return the output buffer."
 
 (defun go-guru--compilation-markup ()
   "Present guru output in the current buffer using `compilation-mode'."
+  (goto-char (point-max))
   (insert "\n")
   (compilation-mode)
   (setq compilation-error-screen-columns nil)
@@ -437,12 +443,6 @@ timeout."
 
 (defun go-guru--hl-identifiers-before-change-function (_beg _end)
   (go-guru-unhighlight-identifiers))
-
-;; FIXME(dominikh): currently we're using the same buffer for
-;; interactive and non-interactive output. E.g. if a user ran the
-;; referrers query, and then the hl-identifier timer ran a what query,
-;; the what query's json response would be visible and overwrite the
-;; referrers output
 
 ;; TODO(dominikh): a future feature may be to cycle through all uses
 ;; of an identifier.
