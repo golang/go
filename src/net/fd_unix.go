@@ -139,7 +139,16 @@ func (fd *netFD) connect(la, ra syscall.Sockaddr, deadline time.Time, cancel <-c
 		switch err := syscall.Errno(nerr); err {
 		case syscall.EINPROGRESS, syscall.EALREADY, syscall.EINTR:
 		case syscall.Errno(0), syscall.EISCONN:
-			return nil
+			if runtime.GOOS != "darwin" {
+				return nil
+			}
+			// See golang.org/issue/14548.
+			// On Darwin, multiple connect system calls on
+			// a non-blocking socket never harm SO_ERROR.
+			switch err := connectFunc(fd.sysfd, ra); err {
+			case nil, syscall.EISCONN:
+				return nil
+			}
 		default:
 			return os.NewSyscallError("getsockopt", err)
 		}
