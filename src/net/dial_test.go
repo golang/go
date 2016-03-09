@@ -238,9 +238,14 @@ const (
 func slowDialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time, cancel <-chan struct{}) (*TCPConn, error) {
 	c, err := dialTCP(net, laddr, raddr, deadline, cancel)
 	if ParseIP(slowDst4).Equal(raddr.IP) || ParseIP(slowDst6).Equal(raddr.IP) {
+		// Wait for the deadline, or indefinitely if none exists.
+		var wait <-chan time.Time
+		if !deadline.IsZero() {
+			wait = time.After(deadline.Sub(time.Now()))
+		}
 		select {
 		case <-cancel:
-		case <-time.After(deadline.Sub(time.Now())):
+		case <-wait:
 		}
 	}
 	return c, err
