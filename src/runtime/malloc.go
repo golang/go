@@ -170,7 +170,7 @@ const (
 	_MaxGcproc = 32
 )
 
-const _MaxArena32 = 2 << 30
+const _MaxArena32 = 1<<32 - 1
 
 // OS-defined helpers:
 //
@@ -227,7 +227,7 @@ func mallocinit() {
 
 	// Set up the allocation arena, a contiguous area of memory where
 	// allocated data will be found. The arena begins with a bitmap large
-	// enough to hold 4 bits per allocated word.
+	// enough to hold 2 bits per allocated word.
 	if sys.PtrSize == 8 && (limit == 0 || limit > 1<<30) {
 		// On a 64-bit machine, allocate from a single contiguous reservation.
 		// 512 GB (MaxMem) should be big enough for now.
@@ -259,7 +259,7 @@ func mallocinit() {
 		// translation buffers, the user address space is limited to 39 bits
 		// On darwin/arm64, the address space is even smaller.
 		arenaSize := round(_MaxMem, _PageSize)
-		bitmapSize = arenaSize / (sys.PtrSize * 8 / 4)
+		bitmapSize = arenaSize / (sys.PtrSize * 8 / 2)
 		spansSize = arenaSize / _PageSize * sys.PtrSize
 		spansSize = round(spansSize, _PageSize)
 		for i := 0; i <= 0x7f; i++ {
@@ -284,32 +284,26 @@ func mallocinit() {
 		// with a giant virtual address space reservation.
 		// Instead we map the memory information bitmap
 		// immediately after the data segment, large enough
-		// to handle another 2GB of mappings (256 MB),
+		// to handle the entire 4GB address space (256 MB),
 		// along with a reservation for an initial arena.
 		// When that gets used up, we'll start asking the kernel
-		// for any memory anywhere and hope it's in the 2GB
-		// following the bitmap (presumably the executable begins
-		// near the bottom of memory, so we'll have to use up
-		// most of memory before the kernel resorts to giving out
-		// memory before the beginning of the text segment).
-		//
-		// Alternatively we could reserve 512 MB bitmap, enough
-		// for 4GB of mappings, and then accept any memory the
-		// kernel threw at us, but normally that's a waste of 512 MB
-		// of address space, which is probably too much in a 32-bit world.
+		// for any memory anywhere.
 
 		// If we fail to allocate, try again with a smaller arena.
 		// This is necessary on Android L where we share a process
 		// with ART, which reserves virtual memory aggressively.
+		// In the worst case, fall back to a 0-sized initial arena,
+		// in the hope that subsequent reservations will succeed.
 		arenaSizes := []uintptr{
 			512 << 20,
 			256 << 20,
 			128 << 20,
+			0,
 		}
 
 		for _, arenaSize := range arenaSizes {
-			bitmapSize = _MaxArena32 / (sys.PtrSize * 8 / 4)
-			spansSize = _MaxArena32 / _PageSize * sys.PtrSize
+			bitmapSize = (_MaxArena32 + 1) / (sys.PtrSize * 8 / 2)
+			spansSize = (_MaxArena32 + 1) / _PageSize * sys.PtrSize
 			if limit > 0 && arenaSize+bitmapSize+spansSize > limit {
 				bitmapSize = (limit / 9) &^ ((1 << _PageShift) - 1)
 				arenaSize = bitmapSize * 8
@@ -344,10 +338,16 @@ func mallocinit() {
 	p1 := round(p, _PageSize)
 
 	mheap_.spans = (**mspan)(unsafe.Pointer(p1))
-	mheap_.bitmap = p1 + spansSize
-	mheap_.arena_start = p1 + (spansSize + bitmapSize)
-	mheap_.arena_used = mheap_.arena_start
+	mheap_.bitmap = p1 + spansSize + bitmapSize
+	if sys.PtrSize == 4 {
+		// Set arena_start such that we can accept memory
+		// reservations located anywhere in the 4GB virtual space.
+		mheap_.arena_start = 0
+	} else {
+		mheap_.arena_start = p1 + (spansSize + bitmapSize)
+	}
 	mheap_.arena_end = p + pSize
+	mheap_.arena_used = p1 + (spansSize + bitmapSize)
 	mheap_.arena_reserved = reserved
 
 	if mheap_.arena_start&(_PageSize-1) != 0 {
@@ -361,29 +361,6 @@ func mallocinit() {
 	_g_.m.mcache = allocmcache()
 }
 
-// sysReserveHigh reserves space somewhere high in the address space.
-// sysReserve doesn't actually reserve the full amount requested on
-// 64-bit systems, because of problems with ulimit. Instead it checks
-// that it can get the first 64 kB and assumes it can grab the rest as
-// needed. This doesn't work well with the "let the kernel pick an address"
-// mode, so don't do that. Pick a high address instead.
-func sysReserveHigh(n uintptr, reserved *bool) unsafe.Pointer {
-	if sys.PtrSize == 4 {
-		return sysReserve(nil, n, reserved)
-	}
-
-	for i := 0; i <= 0x7f; i++ {
-		p := uintptr(i)<<40 | uintptrMask&(0x00c0<<32)
-		*reserved = false
-		p = uintptr(sysReserve(unsafe.Pointer(p), n, reserved))
-		if p != 0 {
-			return unsafe.Pointer(p)
-		}
-	}
-
-	return sysReserve(nil, n, reserved)
-}
-
 // sysAlloc allocates the next n bytes from the heap arena. The
 // returned pointer is always _PageSize aligned and between
 // h.arena_start and h.arena_end. sysAlloc returns nil on failure.
@@ -394,7 +371,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 		// Reserve some more space.
 		p_size := round(n+_PageSize, 256<<20)
 		new_end := h.arena_end + p_size // Careful: can overflow
-		if h.arena_end <= new_end && new_end <= h.arena_start+_MaxArena32 {
+		if h.arena_end <= new_end && new_end-h.arena_start-1 <= _MaxArena32 {
 			// TODO: It would be bad if part of the arena
 			// is reserved and part is not.
 			var reserved bool
@@ -405,7 +382,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 			if p == h.arena_end {
 				h.arena_end = new_end
 				h.arena_reserved = reserved
-			} else if h.arena_start <= p && p+p_size <= h.arena_start+_MaxArena32 {
+			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxArena32 {
 				// Keep everything page-aligned.
 				// Our pages are bigger than hardware pages.
 				h.arena_end = p + p_size
@@ -442,23 +419,22 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
 	}
 
 	// If using 64-bit, our reservation is all we have.
-	if h.arena_end-h.arena_start >= _MaxArena32 {
+	if h.arena_end-h.arena_start > _MaxArena32 {
 		return nil
 	}
 
 	// On 32-bit, once the reservation is gone we can
-	// try to get memory at a location chosen by the OS
-	// and hope that it is in the range we allocated bitmap for.
+	// try to get memory at a location chosen by the OS.
 	p_size := round(n, _PageSize) + _PageSize
 	p := uintptr(sysAlloc(p_size, &memstats.heap_sys))
 	if p == 0 {
 		return nil
 	}
 
-	if p < h.arena_start || p+p_size-h.arena_start >= _MaxArena32 {
+	if p < h.arena_start || p+p_size-h.arena_start > _MaxArena32 {
 		top := ^uintptr(0)
-		if top-h.arena_start > _MaxArena32 {
-			top = h.arena_start + _MaxArena32
+		if top-h.arena_start-1 > _MaxArena32 {
+			top = h.arena_start + _MaxArena32 + 1
 		}
 		print("runtime: memory allocated by OS (", hex(p), ") not in usable range [", hex(h.arena_start), ",", hex(top), ")\n")
 		sysFree(unsafe.Pointer(p), p_size, &memstats.heap_sys)
