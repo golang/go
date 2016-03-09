@@ -164,10 +164,10 @@ type Type struct {
 	Lastfn *Node // for usefield
 }
 
-// Iter provides an abstraction for iterating across struct fields,
-// interface methods, and function parameters.
+// Iter provides an abstraction for iterating across struct fields and
+// interface methods.
 type Iter struct {
-	a, b *Type
+	x *Type
 }
 
 // IterFields returns the first field or method in struct or interface type t
@@ -176,35 +176,21 @@ func IterFields(t *Type) (*Type, Iter) {
 	if t.Etype != TSTRUCT && t.Etype != TINTER {
 		Fatalf("IterFields: type %v does not have fields", t)
 	}
-	i := Iter{a: t.Type}
+	i := Iter{x: t.Type}
 	f := i.Next()
 	return f, i
 }
 
-// IterParams returns the first reeiver or input parameter in function type t
-// and an Iter value to continue iterating across the rest.
-func IterParams(t *Type) (*Type, Iter) {
-	if t.Etype != TFUNC {
-		Fatalf("IterParams: type %v does not have params", t)
-	}
-	i := Iter{a: t.Recv().Type, b: t.Params().Type}
-	f := i.Next()
-	return f, i
-}
-
-// Next returns the next field, method, or parameter, if any.
+// Next returns the next field or method, if any.
 func (i *Iter) Next() *Type {
-	if i.a == nil {
-		if i.b == nil {
-			return nil
-		}
-		i.a, i.b = i.b, nil
+	if i.x == nil {
+		return nil
 	}
-	t := i.a
+	t := i.x
 	if t.Etype != TFIELD {
 		Fatalf("Iter.Next: type %v is not a field", t)
 	}
-	i.a = t.Down
+	i.x = t.Down
 	return t
 }
 
@@ -232,6 +218,13 @@ func (t *Type) ResultsP() **Type {
 func (t *Type) Recv() *Type    { return *t.RecvP() }
 func (t *Type) Params() *Type  { return *t.ParamsP() }
 func (t *Type) Results() *Type { return *t.ResultsP() }
+
+// recvParamsResults stores the accessor functions for a function Type's
+// receiver, parameters, and result parameters, in that order.
+// It can be used to iterate over all of a function's parameter lists.
+var recvParamsResults = [3]func(*Type) *Type{
+	(*Type).Recv, (*Type).Params, (*Type).Results,
+}
 
 func (t *Type) Size() int64 {
 	dowidth(t)
