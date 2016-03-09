@@ -1877,25 +1877,20 @@ func expandmeth(t *Type) {
 }
 
 // Given funarg struct list, return list of ODCLFIELD Node fn args.
-func structargs(tl **Type, mustname int) []*Node {
-	var a *Node
-	var n *Node
-	var buf string
-
+func structargs(tl *Type, mustname bool) []*Node {
 	var args []*Node
 	gen := 0
-	for t, it := IterFields(*tl); t != nil; t = it.Next() {
-		n = nil
-		if mustname != 0 && (t.Sym == nil || t.Sym.Name == "_") {
+	for t, it := IterFields(tl); t != nil; t = it.Next() {
+		var n *Node
+		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
-			buf = fmt.Sprintf(".anon%d", gen)
+			buf := fmt.Sprintf(".anon%d", gen)
 			gen++
-
 			n = newname(Lookup(buf))
 		} else if t.Sym != nil {
 			n = newname(t.Sym)
 		}
-		a = Nod(ODCLFIELD, n, typenod(t.Type))
+		a := Nod(ODCLFIELD, n, typenod(t.Type))
 		a.Isddd = t.Isddd
 		if n != nil {
 			n.Isddd = t.Isddd
@@ -1949,8 +1944,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
 	this.Left.Name.Param.Ntype = this.Right
-	in := structargs(method.Type.ParamsP(), 1)
-	out := structargs(method.Type.ResultsP(), 0)
+	in := structargs(method.Type.Params(), true)
+	out := structargs(method.Type.Results(), false)
 
 	t := Nod(OTFUNC, nil, nil)
 	l := []*Node{this}
