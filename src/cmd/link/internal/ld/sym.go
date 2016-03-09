@@ -58,11 +58,12 @@ var headers = []struct {
 
 func linknew(arch *LinkArch) *Link {
 	ctxt := &Link{
-		Hash:    make(map[symVer]*LSym, 100000), // preallocate about 2mb for hash
-		Allsym:  make([]*LSym, 0, 100000),
-		Arch:    arch,
-		Version: obj.HistVersion,
-		Goroot:  obj.Getgoroot(),
+		HashName:    make(map[string]*LSym, 100000), // preallocate about 2mb for hash
+		HashVersion: make(map[symVer]*LSym),
+		Allsym:      make([]*LSym, 0, 100000),
+		Arch:        arch,
+		Version:     obj.HistVersion,
+		Goroot:      obj.Getgoroot(),
 	}
 
 	p := obj.Getgoarch()
@@ -182,9 +183,20 @@ type symVer struct {
 }
 
 func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
-	s := ctxt.Hash[symVer{symb, v}]
+	// Most symbols have only a single version, and a string key
+	// is faster to search for. So we store the first symbol in HashName,
+	// keyed only by symbol name. If there are name collisions, the
+	// alternate versions are stored in the spill over map
+	// HashVersion.
+	s, exist := ctxt.HashName[symb]
 	if s != nil {
-		return s
+		if int(s.Version) == v {
+			return s
+		}
+		s = ctxt.HashVersion[symVer{symb, v}]
+		if s != nil {
+			return s
+		}
 	}
 	if creat == 0 {
 		return nil
@@ -192,7 +204,11 @@ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
 
 	s = linknewsym(ctxt, symb, v)
 	s.Extname = s.Name
-	ctxt.Hash[symVer{symb, v}] = s
+	if exist {
+		ctxt.HashVersion[symVer{symb, v}] = s
+	} else {
+		ctxt.HashName[symb] = s
+	}
 	return s
 }
 
