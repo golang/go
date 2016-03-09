@@ -767,7 +767,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 
 		// Loop over structs: receiver, in, out.
 	case TFUNC:
-		for _, f := range [...]func(*Type) *Type{(*Type).Recv, (*Type).Results, (*Type).Params} {
+		for _, f := range recvParamsResults {
 			// Loop over fields in structs, ignoring argument names.
 			ta, ia := IterFields(f(t1))
 			tb, ib := IterFields(f(t2))
