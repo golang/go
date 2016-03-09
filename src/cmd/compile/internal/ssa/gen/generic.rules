@@ -77,8 +77,12 @@
 (Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
 (Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
 
+(IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && inBounds32(c, d) -> (ConstBool [1])
+(IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && inBounds64(c, d) -> (ConstBool [1])
 (IsInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(inBounds32(c,d))])
 (IsInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(inBounds64(c,d))])
+(IsSliceInBounds (And32 (Const32 [c]) _) (Const32 [d])) && sliceInBounds32(c, d) -> (ConstBool [1])
+(IsSliceInBounds (And64 (Const64 [c]) _) (Const64 [d])) && sliceInBounds64(c, d) -> (ConstBool [1])
 (IsSliceInBounds (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(sliceInBounds32(c,d))])
 (IsSliceInBounds (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(sliceInBounds64(c,d))])
 
@@ -664,9 +668,9 @@
 //(Mod64 n (Const64 [1])) -> (Const64 [0])
 //(Mod64u n (Const64 [1])) -> (Const64 [0])
 
-// Unsigned divide by power of 2.  Currently handled by frontend.
-//(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
-//(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
+// Unsigned divide by power of 2.
+(Div64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (Rsh64Ux64 n (Const64 <t> [log2(c)]))
+(Mod64u <t> n (Const64 [c])) && isPowerOfTwo(c) -> (And64 n (Const64 <t> [c-1]))
 
 // Signed divide by power of 2.  Currently handled by frontend.
 // n / c = n >> log(c)       if n >= 0
