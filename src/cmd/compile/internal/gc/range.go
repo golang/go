@@ -298,7 +298,7 @@ func walkrange(n *Node) {
 			a = Nod(OAS2, nil, nil)
 			setNodeSeq(&a.List, []*Node{hv1, hv2})
 			fn := syslook("stringiter2")
-			setNodeSeq(&a.Rlist, []*Node{mkcall1(fn, getoutargx(fn.Type), nil, ha, hv1)})
+			setNodeSeq(&a.Rlist, []*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
 		}
 
 		n.Left = Nod(ONE, hv1, Nodintconst(0))

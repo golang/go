@@ -1003,14 +1003,14 @@ func onebitlivepointermap(lv *Liveness, liveout Bvec, vars []*Node, args Bvec, l
 	// If the receiver or arguments are unnamed, they will be omitted
 	// from the list above. Preserve those values - even though they are unused -
 	// in order to keep their addresses live for use in stack traces.
-	thisargtype := getthisx(lv.fn.Type)
+	thisargtype := lv.fn.Type.Recv()
 
 	if thisargtype != nil {
 		xoffset = 0
 		onebitwalktype1(thisargtype, &xoffset, args)
 	}
 
-	inargtype := getinargx(lv.fn.Type)
+	inargtype := lv.fn.Type.Params()
 	if inargtype != nil {
 		xoffset = 0
 		onebitwalktype1(inargtype, &xoffset, args)

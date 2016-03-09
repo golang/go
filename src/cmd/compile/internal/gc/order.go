@@ -375,7 +375,7 @@ func ordercall(n *Node, order *Order) {
 	setNodeSeq(&n.List, ordercallargs(n.List, order))
 
 	if n.Op == OCALLFUNC {
-		t := getinargx(n.Left.Type).Type
+		t := n.Left.Type.Params().Type
 		for it := nodeSeqIterate(n.List); !it.Done() && t != nil; it.Next() {
 			// Check for "unsafe-uintptr" tag provided by escape analysis.
 			// If present and the argument is really a pointer being converted

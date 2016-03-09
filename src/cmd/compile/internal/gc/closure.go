@@ -299,7 +299,7 @@ func transformclosure(xfunc *Node) {
 
 		// Get pointer to input arguments.
 		// We are going to insert captured variables before input args.
-		param := &getinargx(f.Type).Type
+		param := &f.Type.Params().Type
 		original_args := *param // old input args
 		original_dcl := xfunc.Func.Dcl
 		xfunc.Func.Dcl = nil
@@ -535,7 +535,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	Curfn = xfunc
 	var fld *Node
 	var n *Node
-	for t := getinargx(t0).Type; t != nil; t = t.Down {
+	for t, it := IterFields(t0.Params()); t != nil; t = it.Next() {
 		n = newname(Lookupf("a%d", i))
 		i++
 		n.Class = PPARAM
@@ -554,7 +554,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	i = 0
 	l = nil
 	var retargs []*Node
-	for t := getoutargx(t0).Type; t != nil; t = t.Down {
+	for t, it := IterFields(t0.Results()); t != nil; t = it.Next() {
 		n = newname(Lookupf("r%d", i))
 		i++
 		n.Class = PPARAMOUT

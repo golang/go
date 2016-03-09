@@ -1312,7 +1312,7 @@ OpSwitch:
 			// information further down the call chain to know if we
 			// were testing a method receiver for unexported fields.
 			// It isn't necessary, so just do a sanity check.
-			tp := getthisx(t).Type.Type
+			tp := t.Recv().Type.Type
 
 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
 				Fatalf("method receiver")
@@ -1327,14 +1327,14 @@ OpSwitch:
 			}
 		}
 
-		typecheckaste(OCALL, n.Left, n.Isddd, getinargx(t), n.List, func() string { return fmt.Sprintf("argument to %v", n.Left) })
+		typecheckaste(OCALL, n.Left, n.Isddd, t.Params(), n.List, func() string { return fmt.Sprintf("argument to %v", n.Left) })
 		ok |= Etop
 		if t.Outtuple == 0 {
 			break OpSwitch
 		}
 		ok |= Erv
 		if t.Outtuple == 1 {
-			t := getoutargx(l.Type).Type
+			t := l.Type.Results().Type
 			if t == nil {
 				n.Type = nil
 				return
@@ -1363,7 +1363,7 @@ OpSwitch:
 			break OpSwitch
 		}
 
-		n.Type = getoutargx(l.Type)
+		n.Type = l.Type.Results()
 
 		break OpSwitch
 
@@ -2107,7 +2107,7 @@ OpSwitch:
 		if Curfn.Type.Outnamed && nodeSeqLen(n.List) == 0 {
 			break OpSwitch
 		}
-		typecheckaste(ORETURN, nil, false, getoutargx(Curfn.Type), n.List, func() string { return "return argument" })
+		typecheckaste(ORETURN, nil, false, Curfn.Type.Results(), n.List, func() string { return "return argument" })
 		break OpSwitch
 
 	case ORETJMP:
@@ -2438,7 +2438,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	}
 
 	// disallow T.m if m requires *T receiver
-	if Isptr[getthisx(f2.Type).Type.Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+	if Isptr[f2.Type.Recv().Type.Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, obj.FmtShort))
 		return false
 	}
@@ -2521,7 +2521,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 		}
 		tt := n.Left.Type
 		dowidth(tt)
-		rcvr := getthisx(f2.Type).Type.Type
+		rcvr := f2.Type.Recv().Type.Type
 		if !Eqtype(rcvr, tt) {
 			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
 				checklvalue(n.Left, "call pointer method on")
@@ -3445,7 +3445,7 @@ func typecheckfunc(n *Node) {
 	}
 	n.Type = t
 	t.Nname = n.Func.Nname
-	rcvr := getthisx(t).Type
+	rcvr := t.Recv().Type
 	if rcvr != nil && n.Func.Shortname != nil {
 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
 	}
@@ -3508,7 +3508,7 @@ func domethod(n *Node) {
 	// value of its argument, a specific implementation of I may
 	// care. The _ would suppress the assignment to that argument
 	// while generating a call, so remove it.
-	for t := getinargx(nt.Type).Type; t != nil; t = t.Down {
+	for t, it := IterFields(nt.Type.Params()); t != nil; t = it.Next() {
 		if t.Sym != nil && t.Sym.Name == "_" {
 			t.Sym = nil
 		}

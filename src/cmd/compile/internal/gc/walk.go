@@ -328,7 +328,7 @@ func walkstmt(np **Node) {
 			break
 		}
 
-		ll := ascompatte(n.Op, nil, false, Getoutarg(Curfn.Type), n.List.Slice(), 1, &n.Ninit)
+		ll := ascompatte(n.Op, nil, false, Curfn.Type.ResultsP(), n.List.Slice(), 1, &n.Ninit)
 		setNodeSeq(&n.List, ll)
 
 	case ORETJMP:
@@ -638,7 +638,7 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List.Slice(), 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
 		setNodeSeq(&n.List, reorder1(ll))
 
 	case OCALLFUNC:
@@ -657,13 +657,13 @@ opswitch:
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
 			if n.Left.Type.Outtuple == 1 {
-				t := getoutargx(n.Left.Type).Type
+				t := n.Left.Type.Results().Type
 				if t.Etype == TFIELD {
 					t = t.Type
 				}
 				n.Type = t
 			} else {
-				n.Type = getoutargx(n.Left.Type)
+				n.Type = n.Left.Type.Results()
 			}
 		}
 
@@ -685,7 +685,7 @@ opswitch:
 			}
 		}
 
-		ll := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List.Slice(), 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
 		setNodeSeq(&n.List, reorder1(ll))
 
 	case OCALLMETH:
@@ -695,8 +695,8 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, false, getthis(t), []*Node{n.Left.Left}, 0, init)
-		lr := ascompatte(n.Op, n, n.Isddd, getinarg(t), n.List.Slice(), 0, init)
+		ll := ascompatte(n.Op, n, false, t.RecvP(), []*Node{n.Left.Left}, 0, init)
+		lr := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
 		ll = append(ll, lr...)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
@@ -870,7 +870,7 @@ opswitch:
 		a := nodeSeqFirst(n.List)
 
 		fn := mapfn(p, t)
-		r = mkcall1(fn, getoutargx(fn.Type), init, typename(t), r.Left, key)
+		r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
 
 		// mapaccess2* returns a typed bool, but due to spec changes,
 		// the boolean result of i.(T) is now untyped so we make it the
@@ -2031,7 +2031,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			continue
 		}
 
-		t = getinargx(on.Type)
+		t = on.Type.Params()
 		if t != nil {
 			t = t.Type
 		}
@@ -2650,12 +2650,12 @@ func returnsfromheap(argin **Type) []*Node {
 func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
-	nn := paramstoheap(getthis(Curfn.Type), 0)
-	nn = append(nn, paramstoheap(getinarg(Curfn.Type), 0)...)
-	nn = append(nn, paramstoheap(Getoutarg(Curfn.Type), 1)...)
+	nn := paramstoheap(Curfn.Type.RecvP(), 0)
+	nn = append(nn, paramstoheap(Curfn.Type.ParamsP(), 0)...)
+	nn = append(nn, paramstoheap(Curfn.Type.ResultsP(), 1)...)
 	Curfn.Func.Enter.Append(nn...)
 	lineno = Curfn.Func.Endlineno
-	Curfn.Func.Exit.Append(returnsfromheap(Getoutarg(Curfn.Type))...)
+	Curfn.Func.Exit.Append(returnsfromheap(Curfn.Type.ResultsP())...)
 	lineno = lno
 }
 

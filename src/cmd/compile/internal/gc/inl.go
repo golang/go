@@ -48,7 +48,7 @@ var inlretvars *NodeList // temp out variables
 func fnpkg(fn *Node) *Pkg {
 	if fn.Type.Thistuple != 0 {
 		// method
-		rcvr := getthisx(fn.Type).Type.Type
+		rcvr := fn.Type.Recv().Type.Type
 
 		if Isptr[rcvr.Etype] {
 			rcvr = rcvr.Type
@@ -122,7 +122,7 @@ func caninl(fn *Node) {
 
 	// can't handle ... args yet
 	if Debug['l'] < 3 {
-		for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
+		for t, it := IterFields(fn.Type.Params()); t != nil; t = it.Next() {
 			if t.Isddd {
 				return
 			}
@@ -592,7 +592,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	// temporaries for return values.
 	var m *Node
-	for t := getoutargx(fn.Type).Type; t != nil; t = t.Down {
+	for t, it := IterFields(fn.Type.Results()); t != nil; t = it.Next() {
 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
 			m = inlvar(t.Nname)
 			typecheck(&m, Erv)
@@ -611,7 +611,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	var as *Node
 	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
 		// method call with a receiver.
-		t := getthisx(fn.Type).Type
+		t := fn.Type.Recv().Type
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
@@ -634,7 +634,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	var varargtype *Type
 	varargcount := 0
-	for t := fn.Type.Type.Down.Down.Type; t != nil; t = t.Down {
+	for t, it := IterFields(fn.Type.Params()); t != nil; t = it.Next() {
 		if t.Isddd {
 			variadic = true
 			varargtype = t.Type
@@ -680,7 +680,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 
 		// append receiver inlvar to LHS.
-		t := getthisx(fn.Type).Type
+		t := fn.Type.Recv().Type
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
@@ -700,7 +700,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	if !chkargcount {
 		// 0 or 1 expression on RHS.
 		var i int
-		for t := getinargx(fn.Type).Type; t != nil; t = t.Down {
+		for t, it2 := IterFields(fn.Type.Params()); t != nil; t = it2.Next() {
 			if variadic && t.Isddd {
 				vararg = tinlvar(t)
 				for i = 0; i < varargcount && it.Len() != 0; i++ {
@@ -717,7 +717,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
 		var t *Type
-		for t = getinargx(fn.Type).Type; t != nil; {
+		for t = fn.Type.Params().Type; t != nil; {
 			if it.Done() {
 				break
 			}
@@ -746,7 +746,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 
 		if !it.Done() || t != nil {
-			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(getinargx(fn.Type), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
+			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(fn.Type.Params(), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 		}
 	}
 

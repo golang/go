@@ -187,7 +187,7 @@ func IterParams(t *Type) (*Type, Iter) {
 	if t.Etype != TFUNC {
 		Fatalf("IterParams: type %v does not have params", t)
 	}
-	i := Iter{a: getthisx(t).Type, b: getinargx(t).Type}
+	i := Iter{a: t.Recv().Type, b: t.Params().Type}
 	f := i.Next()
 	return f, i
 }
@@ -208,38 +208,30 @@ func (i *Iter) Next() *Type {
 	return t
 }
 
-func getthis(t *Type) **Type {
-	if t.Etype != TFUNC {
-		Fatalf("getthis: not a func %v", t)
+func (t *Type) wantEtype(et EType) {
+	if t.Etype != et {
+		Fatalf("want %v, but have %v", et, t)
 	}
+}
+
+func (t *Type) RecvP() **Type {
+	t.wantEtype(TFUNC)
 	return &t.Type
 }
 
-func Getoutarg(t *Type) **Type {
-	if t.Etype != TFUNC {
-		Fatalf("getoutarg: not a func %v", t)
-	}
-	return &t.Type.Down
-}
-
-func getinarg(t *Type) **Type {
-	if t.Etype != TFUNC {
-		Fatalf("getinarg: not a func %v", t)
-	}
+func (t *Type) ParamsP() **Type {
+	t.wantEtype(TFUNC)
 	return &t.Type.Down.Down
 }
 
-func getthisx(t *Type) *Type {
-	return *getthis(t)
+func (t *Type) ResultsP() **Type {
+	t.wantEtype(TFUNC)
+	return &t.Type.Down
 }
 
-func getoutargx(t *Type) *Type {
-	return *Getoutarg(t)
-}
-
-func getinargx(t *Type) *Type {
-	return *getinarg(t)
-}
+func (t *Type) Recv() *Type    { return *t.RecvP() }
+func (t *Type) Params() *Type  { return *t.ParamsP() }
+func (t *Type) Results() *Type { return *t.ResultsP() }
 
 func (t *Type) Size() int64 {
 	dowidth(t)
@@ -408,14 +400,11 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 
 		fallthrough
 	case TINTER:
-		t1 := t.Type
-		x1 := x.Type
-		for ; t1 != nil && x1 != nil; t1, x1 = t1.Down, x1.Down {
+		t1, ti := IterFields(t)
+		x1, xi := IterFields(x)
+		for ; t1 != nil && x1 != nil; t1, x1 = ti.Next(), xi.Next() {
 			if t1.Embedded != x1.Embedded {
-				if t1.Embedded < x1.Embedded {
-					return ssa.CMPlt
-				}
-				return ssa.CMPgt
+				return cmpForNe(t1.Embedded < x1.Embedded)
 			}
 			if t1.Note != x1.Note {
 				if t1.Note == nil {
@@ -425,61 +414,37 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 					return ssa.CMPgt
 				}
 				if *t1.Note != *x1.Note {
-					if *t1.Note < *x1.Note {
-						return ssa.CMPlt
-					}
-					return ssa.CMPgt
+					return cmpForNe(*t1.Note < *x1.Note)
 				}
 			}
-			c := t1.Sym.cmpsym(x1.Sym)
-			if c != ssa.CMPeq {
+			if c := t1.Sym.cmpsym(x1.Sym); c != ssa.CMPeq {
 				return c
 			}
-			c = t1.Type.cmp(x1.Type)
-			if c != ssa.CMPeq {
+			if c := t1.Type.cmp(x1.Type); c != ssa.CMPeq {
 				return c
 			}
 		}
-		if t1 == x1 {
-			return ssa.CMPeq
+		if t1 != x1 {
+			return cmpForNe(t1 == nil)
 		}
-		if t1 == nil {
-			return ssa.CMPlt
-		}
-		return ssa.CMPgt
+		return ssa.CMPeq
 
 	case TFUNC:
-		t1 := t.Type
-		t2 := x.Type
-		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
+		for _, f := range [...]func(*Type) *Type{(*Type).Recv, (*Type).Results, (*Type).Params} {
 			// Loop over fields in structs, ignoring argument names.
-			ta := t1.Type
-			tb := t2.Type
-			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
+			ta, ia := IterFields(f(t))
+			tb, ib := IterFields(f(x))
+			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
 				if ta.Isddd != tb.Isddd {
-					if ta.Isddd {
-						return ssa.CMPgt
-					}
-					return ssa.CMPlt
+					return cmpForNe(!ta.Isddd)
 				}
-				c := ta.Type.cmp(tb.Type)
-				if c != ssa.CMPeq {
+				if c := ta.Type.cmp(tb.Type); c != ssa.CMPeq {
 					return c
 				}
 			}
-
 			if ta != tb {
-				if t1 == nil {
-					return ssa.CMPlt
-				}
-				return ssa.CMPgt
+				return cmpForNe(ta == nil)
 			}
-		}
-		if t1 != t2 {
-			if t1 == nil {
-				return ssa.CMPlt
-			}
-			return ssa.CMPgt
 		}
 		return ssa.CMPeq
 

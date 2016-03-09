@@ -255,7 +255,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
 	}
 
 	var d *Node
-	for t := getinargx(f).Type; t != nil; t = t.Down {
+	for t, it := IterFields(f.Params()); t != nil; t = it.Next() {
 		d = Nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		d.Isddd = t.Isddd
@@ -263,7 +263,7 @@ func methodfunc(f *Type, receiver *Type) *Type {
 	}
 
 	var out []*Node
-	for t := getoutargx(f).Type; t != nil; t = t.Down {
+	for t, it := IterFields(f.Results()); t != nil; t = it.Next() {
 		d = Nod(ODCLFIELD, nil, nil)
 		d.Type = t.Type
 		out = append(out, d)
@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
-		if getthisx(f.Type).Type == nil {
+		if f.Type.Recv().Type == nil {
 			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Nointerface {
@@ -322,7 +322,7 @@ func methods(t *Type) []*Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		this := getthisx(f.Type).Type.Type
+		this := f.Type.Recv().Type.Type
 
 		if Isptr[this.Etype] && this.Type == t {
 			continue
@@ -373,7 +373,7 @@ func methods(t *Type) []*Sig {
 // imethods returns the methods of the interface type t, sorted by name.
 func imethods(t *Type) []*Sig {
 	var methods []*Sig
-	for f := t.Type; f != nil; f = f.Down {
+	for f, it := IterFields(t); f != nil; f = it.Next() {
 		if f.Etype != TFIELD {
 			Fatalf("imethods: not field")
 		}
@@ -612,7 +612,7 @@ func haspointers(t *Type) bool {
 
 	case TSTRUCT:
 		ret = false
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if haspointers(t1.Type) {
 				ret = true
 				break
@@ -675,7 +675,7 @@ func typeptrdata(t *Type) int64 {
 	case TSTRUCT:
 		// Find the last field that has pointers.
 		var lastPtrField *Type
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if haspointers(t1.Type) {
 				lastPtrField = t1
 			}
@@ -906,7 +906,7 @@ func isreflexive(t *Type) bool {
 		return isreflexive(t.Type)
 
 	case TSTRUCT:
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if !isreflexive(t1.Type) {
 				return false
 			}
@@ -956,7 +956,7 @@ func needkeyupdate(t *Type) bool {
 		return needkeyupdate(t.Type)
 
 	case TSTRUCT:
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if needkeyupdate(t1.Type) {
 				return true
 			}
@@ -1051,15 +1051,15 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TFUNC:
-		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t.Recv()); t1 != nil; t1 = it.Next() {
 			dtypesym(t1.Type)
 		}
 		isddd := false
-		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t.Params()); t1 != nil; t1 = it.Next() {
 			isddd = t1.Isddd
 			dtypesym(t1.Type)
 		}
-		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t.Results()); t1 != nil; t1 = it.Next() {
 			dtypesym(t1.Type)
 		}
 
@@ -1079,13 +1079,13 @@ ok:
 		ot = dextratype(s, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
-		for t1 := getthisx(t).Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t.Recv()); t1 != nil; t1 = it.Next() {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
 		}
-		for t1 := getinargx(t).Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t.Params()); t1 != nil; t1 = it.Next() {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
 		}
-		for t1 := getoutargx(t).Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t.Results()); t1 != nil; t1 = it.Next() {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
 		}
 
@@ -1166,7 +1166,7 @@ ok:
 	case TSTRUCT:
 		n := 0
 
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			dtypesym(t1.Type)
 			n++
 		}
@@ -1179,8 +1179,8 @@ ok:
 		dataAdd := n * structfieldSize()
 		ot = dextratype(s, ot, t, dataAdd)
 
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
-			// ../../../../runtime/type.go:/structfield
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+			// ../../../../runtime/type.go:/structField
 			if t1.Sym != nil && t1.Embedded == 0 {
 				ot = dgostringptr(s, ot, t1.Sym.Name)
 				if exportname(t1.Sym.Name) {
@@ -1547,7 +1547,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
 		p.w.Repeat(elem.Width/int64(Widthptr), count-1)
 
 	case TSTRUCT:
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			p.emit(t1.Type, offset+t1.Width)
 		}
 	}

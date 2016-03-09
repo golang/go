@@ -295,9 +295,9 @@ func dowidth(t *Type) {
 	case TFUNCARGS:
 		t1 := t.Type
 
-		w = widstruct(t.Type, getthisx(t1), 0, 0)
-		w = widstruct(t.Type, getinargx(t1), w, Widthreg)
-		w = widstruct(t.Type, getoutargx(t1), w, Widthreg)
+		w = widstruct(t.Type, t1.Recv(), 0, 0)
+		w = widstruct(t.Type, t1.Params(), w, Widthreg)
+		w = widstruct(t.Type, t1.Results(), w, Widthreg)
 		t1.Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)
@@ -618,7 +618,7 @@ func typeinit() {
 func Argsize(t *Type) int {
 	var w int64
 
-	for fp, ip := IterFields(getoutargx(t)); fp != nil; fp = ip.Next() {
+	for fp, ip := IterFields(t.Results()); fp != nil; fp = ip.Next() {
 		if x := fp.Width + fp.Type.Width; x > w {
 			w = x
 		}

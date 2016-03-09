@@ -431,7 +431,7 @@ func sortinter(t *Type) *Type {
 	}
 
 	var a []*Type
-	for f := t.Type; f != nil; f = f.Down {
+	for f, it := IterFields(t); f != nil; f = it.Next() {
 		a = append(a, f)
 	}
 	sort.Sort(methcmp(a))
@@ -767,34 +767,20 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 
 		// Loop over structs: receiver, in, out.
 	case TFUNC:
-		t1 = t1.Type
-		t2 = t2.Type
-		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
-			if t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
-				Fatalf("func missing struct: %v %v", t1, t2)
-			}
-
+		for _, f := range [...]func(*Type) *Type{(*Type).Recv, (*Type).Results, (*Type).Params} {
 			// Loop over fields in structs, ignoring argument names.
-			ta := t1.Type
-			tb := t2.Type
-			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
-				if ta.Etype != TFIELD || tb.Etype != TFIELD {
-					Fatalf("func struct missing field: %v %v", ta, tb)
-				}
+			ta, ia := IterFields(f(t1))
+			tb, ib := IterFields(f(t2))
+			for ; ta != nil && tb != nil; ta, tb = ia.Next(), ib.Next() {
 				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, assumedEqual) {
 					return false
 				}
 			}
-
 			if ta != nil || tb != nil {
 				return false
 			}
 		}
-
-		if t1 == nil && t2 == nil {
-			return true
-		}
-		return false
+		return true
 
 	case TARRAY:
 		if t1.Bound != t2.Bound {
@@ -1154,9 +1140,9 @@ func substAny(tp **Type, types *[]*Type) {
 			continue
 
 		case TFUNC:
-			substAny(&t.Type, types)
-			substAny(&t.Type.Down.Down, types)
-			substAny(&t.Type.Down, types)
+			substAny(t.RecvP(), types)
+			substAny(t.ParamsP(), types)
+			substAny(t.ResultsP(), types)
 
 		case TSTRUCT:
 			for t = t.Type; t != nil; t = t.Down {
@@ -1245,9 +1231,9 @@ func deep(t *Type) *Type {
 
 	case TFUNC:
 		nt = shallow(t)
-		nt.Type = deep(t.Type)
-		nt.Type.Down = deep(t.Type.Down)
-		nt.Type.Down.Down = deep(t.Type.Down.Down)
+		*nt.RecvP() = deep(t.Recv())
+		*nt.ResultsP() = deep(t.Results())
+		*nt.ParamsP() = deep(t.Params())
 
 	case TSTRUCT:
 		nt = shallow(t)
@@ -1963,8 +1949,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	this := Nod(ODCLFIELD, newname(Lookup(".this")), typenod(rcvr))
 	this.Left.Name.Param.Ntype = this.Right
-	in := structargs(getinarg(method.Type), 1)
-	out := structargs(Getoutarg(method.Type), 0)
+	in := structargs(method.Type.ParamsP(), 1)
+	out := structargs(method.Type.ResultsP(), 0)
 
 	t := Nod(OTFUNC, nil, nil)
 	l := []*Node{this}
@@ -2001,7 +1987,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		isddd = n.Left.Isddd
 	}
 
-	methodrcvr := getthisx(method.Type).Type.Type
+	methodrcvr := method.Type.Recv().Type.Type
 
 	// generate nil pointer check for better error
 	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
@@ -2190,7 +2176,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
-		rcvr = getthisx(tm.Type).Type.Type
+		rcvr = tm.Type.Recv().Type.Type
 
 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
