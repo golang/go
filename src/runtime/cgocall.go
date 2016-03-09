@@ -601,7 +601,7 @@ func cgoIsGoPointer(p unsafe.Pointer) bool {
 		return false
 	}
 
-	if cgoInRange(p, mheap_.arena_start, mheap_.arena_used) {
+	if inHeapOrStack(uintptr(p)) {
 		return true
 	}
 
