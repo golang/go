@@ -95,15 +95,15 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, r0 *uint32) *obj.Pr
 	return p
 }
 
-func appendpp(p *obj.Prog, as int, ftype int, freg int, foffset int32, ttype int, treg int, toffset int32) *obj.Prog {
+func appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int, foffset int32, ttype obj.AddrType, treg int, toffset int32) *obj.Prog {
 	q := gc.Ctxt.NewProg()
 	gc.Clearp(q)
-	q.As = int16(as)
+	q.As = as
 	q.Lineno = p.Lineno
-	q.From.Type = int16(ftype)
+	q.From.Type = ftype
 	q.From.Reg = int16(freg)
 	q.From.Offset = int64(foffset)
-	q.To.Type = int16(ttype)
+	q.To.Type = ttype
 	q.To.Reg = int16(treg)
 	q.To.Offset = int64(toffset)
 	q.Link = p.Link
@@ -121,7 +121,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
 	}
 
 	t := nl.Type
-	w := int(t.Width * 8)
+	w := t.Width * 8
 	var n1 gc.Node
 	gc.Regalloc(&n1, t, res)
 	gc.Cgen(nl, &n1)
@@ -421,7 +421,7 @@ func expandchecks(firstp *obj.Prog) {
 			continue
 		}
 		if gc.Debug_checknil != 0 && p.Lineno > 1 { // p->lineno==1 in generated wrappers
-			gc.Warnl(int(p.Lineno), "generated nil check")
+			gc.Warnl(p.Lineno, "generated nil check")
 		}
 		if p.From.Type != obj.TYPE_REG {
 			gc.Fatalf("invalid nil check %v", p)
@@ -464,7 +464,7 @@ func ginsnop() {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n *gc.Node) {
+func ginscon(as obj.As, c int64, n *gc.Node) {
 	var n1 gc.Node
 	gc.Nodconst(&n1, gc.Types[gc.TINT32], c)
 	var n2 gc.Node

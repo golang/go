@@ -22,12 +22,12 @@ func (c *sigctxt) ebp() uint32      { return c.regs().__gregs[_REG_EBP] }
 func (c *sigctxt) esp() uint32      { return c.regs().__gregs[_REG_UESP] }
 func (c *sigctxt) eip() uint32      { return c.regs().__gregs[_REG_EIP] }
 func (c *sigctxt) eflags() uint32   { return c.regs().__gregs[_REG_EFL] }
-func (c *sigctxt) cs() uint32       { return uint32(c.regs().__gregs[_REG_CS]) }
-func (c *sigctxt) fs() uint32       { return uint32(c.regs().__gregs[_REG_FS]) }
-func (c *sigctxt) gs() uint32       { return uint32(c.regs().__gregs[_REG_GS]) }
+func (c *sigctxt) cs() uint32       { return c.regs().__gregs[_REG_CS] }
+func (c *sigctxt) fs() uint32       { return c.regs().__gregs[_REG_FS] }
+func (c *sigctxt) gs() uint32       { return c.regs().__gregs[_REG_GS] }
 func (c *sigctxt) sigcode() uint32  { return uint32(c.info._code) }
 func (c *sigctxt) sigaddr() uint32 {
-	return uint32(*(*uint32)(unsafe.Pointer(&c.info._reason[0])))
+	return *(*uint32)(unsafe.Pointer(&c.info._reason[0]))
 }
 
 func (c *sigctxt) set_eip(x uint32)     { c.regs().__gregs[_REG_EIP] = x }

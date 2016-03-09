@@ -143,7 +143,7 @@ func fprintFunc(p funcPrinter, f *Func) {
 
 		p.endBlock(b)
 	}
-	for name, vals := range f.NamedValues {
-		p.named(name, vals)
+	for _, name := range f.Names {
+		p.named(name, f.NamedValues[name])
 	}
 }

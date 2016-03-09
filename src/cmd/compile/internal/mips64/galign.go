@@ -29,16 +29,6 @@ func linkarchinit() {
 
 var MAXWIDTH int64 = 1 << 50
 
-/*
- * go declares several platform-specific type aliases:
- * int, uint, and uintptr
- */
-var typedefs = []gc.Typedef{
-	{"int", gc.TINT, gc.TINT64},
-	{"uint", gc.TUINT, gc.TUINT64},
-	{"uintptr", gc.TUINTPTR, gc.TUINT64},
-}
-
 func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
@@ -49,7 +39,6 @@ func Main() {
 	gc.Thearch.Thechar = thechar
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
-	gc.Thearch.Typedefs = typedefs
 	gc.Thearch.REGSP = mips.REGSP
 	gc.Thearch.REGCTXT = mips.REGCTXT
 	gc.Thearch.REGCALLX = mips.REG_R1

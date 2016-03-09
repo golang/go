@@ -3,7 +3,10 @@
 
 package ssa
 
-import "cmd/internal/obj/x86"
+import (
+	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
+)
 
 const (
 	BlockInvalid BlockKind = iota
@@ -3272,7 +3275,7 @@ var opcodeTable = [...]opInfo{
 		name:    "MOVBQZXload",
 		auxType: auxSymOff,
 		argLen:  2,
-		asm:     x86.AMOVBQZX,
+		asm:     x86.AMOVBLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
@@ -3314,7 +3317,7 @@ var opcodeTable = [...]opInfo{
 		name:    "MOVWQZXload",
 		auxType: auxSymOff,
 		argLen:  2,
-		asm:     x86.AMOVWQZX,
+		asm:     x86.AMOVWLZX,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
@@ -3356,7 +3359,7 @@ var opcodeTable = [...]opInfo{
 		name:    "MOVLQZXload",
 		auxType: auxSymOff,
 		argLen:  2,
-		asm:     x86.AMOVLQZX,
+		asm:     x86.AMOVL,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 4295032831}, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15 .SB
@@ -5261,5 +5264,5 @@ var opcodeTable = [...]opInfo{
 	},
 }
 
-func (o Op) Asm() int       { return opcodeTable[o].asm }
+func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
 func (o Op) String() string { return opcodeTable[o].name }

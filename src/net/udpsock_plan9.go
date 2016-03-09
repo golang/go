@@ -117,7 +117,11 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
 // which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
 // used as the local address for the connection.
 func DialUDP(net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
-	return dialUDP(net, laddr, raddr, noDeadline)
+	c, err := dialUDP(net, laddr, raddr, noDeadline)
+	if err != nil {
+		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: err}
+	}
+	return c, nil
 }
 
 func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, error) {
@@ -127,10 +131,10 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
 	switch net {
 	case "udp", "udp4", "udp6":
 	default:
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: raddr.opAddr(), Err: UnknownNetworkError(net)}
+		return nil, UnknownNetworkError(net)
 	}
 	if raddr == nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr.opAddr(), Addr: nil, Err: errMissingAddress}
+		return nil, errMissingAddress
 	}
 	fd, err := dialPlan9(net, laddr, raddr)
 	if err != nil {

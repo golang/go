@@ -142,7 +142,3 @@ func sqrt(x float64) float64 {
 	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
 	return Float64frombits(ix)
 }
-
-func sqrtC(f float64, r *float64) {
-	*r = sqrt(f)
-}

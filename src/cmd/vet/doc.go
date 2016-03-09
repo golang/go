@@ -198,7 +198,5 @@ These flags configure the behavior of vet:
 		For more information, see the discussion of the -printf flag.
 	-shadowstrict
 		Whether to be strict about shadowing; can be noisy.
-	-test
-		For testing only: sets -all and -shadow.
 */
 package main // import "golang.org/x/tools/cmd/vet"

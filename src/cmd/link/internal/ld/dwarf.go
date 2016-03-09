@@ -485,18 +485,6 @@ func writeabbrev() {
 /*
  * Debugging Information Entries and their attributes.
  */
-const (
-	HASHSIZE = 107
-)
-
-func dwarfhashstr(s string) uint32 {
-	h := uint32(0)
-	for s != "" {
-		h = h + h + h + uint32(s[0])
-		s = s[1:]
-	}
-	return h % HASHSIZE
-}
 
 // For DW_CLS_string and _block, value should contain the length, and
 // data the data, for _reference, value is 0 and data is a DWDie* to
@@ -518,9 +506,8 @@ type DWDie struct {
 	attr   *DWAttr
 	// offset into .debug_info section, i.e relative to
 	// infoo. only valid after call to putdie()
-	offs  int64
-	hash  []*DWDie // optional index of children by name, enabled by mkindex()
-	hlink *DWDie   // bucket chain in parent's index
+	offs int64
+	hash map[string]*DWDie // optional index of DWAttr by name, enabled by mkindex()
 }
 
 /*
@@ -580,16 +567,14 @@ func newdie(parent *DWDie, abbrev int, name string) *DWDie {
 	newattr(die, DW_AT_name, DW_CLS_STRING, int64(len(name)), name)
 
 	if parent.hash != nil {
-		h := int(dwarfhashstr(name))
-		die.hlink = parent.hash[h]
-		parent.hash[h] = die
+		parent.hash[name] = die
 	}
 
 	return die
 }
 
 func mkindex(die *DWDie) {
-	die.hash = make([]*DWDie, HASHSIZE)
+	die.hash = make(map[string]*DWDie)
 }
 
 func walktypedef(die *DWDie) *DWDie {
@@ -610,7 +595,6 @@ func walktypedef(die *DWDie) *DWDie {
 func find(die *DWDie, name string) *DWDie {
 	var prev *DWDie
 	for ; die != prev; prev, die = die, walktypedef(die) {
-
 		if die.hash == nil {
 			for a := die.child; a != nil; a = a.link {
 				if name == getattr(a, DW_AT_name).data {
@@ -619,27 +603,8 @@ func find(die *DWDie, name string) *DWDie {
 			}
 			continue
 		}
-
-		h := int(dwarfhashstr(name))
-		a := die.hash[h]
-
-		if a == nil {
-			continue
-		}
-
-		if name == getattr(a, DW_AT_name).data {
+		if a := die.hash[name]; a != nil {
 			return a
-		}
-
-		// Move found ones to head of the list.
-		for b := a.hlink; b != nil; b = b.hlink {
-			if name == getattr(b, DW_AT_name).data {
-				a.hlink = b.hlink
-				b.hlink = die.hash[h]
-				die.hash[h] = b
-				return b
-			}
-			a = b
 		}
 	}
 	return nil
@@ -1019,7 +984,7 @@ func defgotype(gotype *LSym) *DWDie {
 			newrefattr(fld, DW_AT_type, defgotype(s))
 		}
 
-		if decodetype_funcdotdotdot(gotype) != 0 {
+		if decodetype_funcdotdotdot(gotype) {
 			newdie(die, DW_ABRV_DOTDOTDOT, "...")
 		}
 		nfields = decodetype_funcoutcount(gotype)
@@ -1621,13 +1586,10 @@ func writelines() {
 		}
 
 		var (
-			dt      int
-			offs    int64
-			varhash [HASHSIZE]*DWDie
+			dt, da int
+			offs   int64
 		)
-		da := 0
-		dwfunc.hash = varhash[:] // enable indexing of children by name
-		for a := s.Autom; a != nil; a = a.Link {
+		for _, a := range s.Autom {
 			switch a.Name {
 			case obj.A_AUTO:
 				dt = DW_ABRV_AUTO
@@ -1678,8 +1640,6 @@ func writelines() {
 
 			da++
 		}
-
-		dwfunc.hash = nil
 	}
 
 	flushunit(dwinfo, epc, epcs, unitstart, int32(headerend-unitstart-10))
@@ -2037,16 +1997,16 @@ func Dwarfemitdebugsections() {
 			sect = addmachodwarfsect(sect, ".debug_info")
 
 			infosym = Linklookup(Ctxt, ".debug_info", 0)
-			infosym.Hidden = true
+			infosym.Attr |= AttrHidden
 
 			abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
-			abbrevsym.Hidden = true
+			abbrevsym.Attr |= AttrHidden
 
 			linesym = Linklookup(Ctxt, ".debug_line", 0)
-			linesym.Hidden = true
+			linesym.Attr |= AttrHidden
 
 			framesym = Linklookup(Ctxt, ".debug_frame", 0)
-			framesym.Hidden = true
+			framesym.Attr |= AttrHidden
 		}
 	}
 
@@ -2223,16 +2183,16 @@ func dwarfaddshstrings(shstrtab *LSym) {
 		}
 
 		infosym = Linklookup(Ctxt, ".debug_info", 0)
-		infosym.Hidden = true
+		infosym.Attr |= AttrHidden
 
 		abbrevsym = Linklookup(Ctxt, ".debug_abbrev", 0)
-		abbrevsym.Hidden = true
+		abbrevsym.Attr |= AttrHidden
 
 		linesym = Linklookup(Ctxt, ".debug_line", 0)
-		linesym.Hidden = true
+		linesym.Attr |= AttrHidden
 
 		framesym = Linklookup(Ctxt, ".debug_frame", 0)
-		framesym.Hidden = true
+		framesym.Attr |= AttrHidden
 	}
 }
 

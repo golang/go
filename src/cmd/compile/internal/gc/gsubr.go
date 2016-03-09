@@ -79,7 +79,7 @@ func Samereg(a *Node, b *Node) bool {
 	return true
 }
 
-func Gbranch(as int, t *Type, likely int) *obj.Prog {
+func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 	p := Prog(as)
 	p.To.Type = obj.TYPE_BRANCH
 	p.To.Val = nil
@@ -97,7 +97,7 @@ func Gbranch(as int, t *Type, likely int) *obj.Prog {
 	return p
 }
 
-func Prog(as int) *obj.Prog {
+func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
 	if as == obj.ADATA || as == obj.AGLOBL {
@@ -125,7 +125,7 @@ func Prog(as int) *obj.Prog {
 		}
 	}
 
-	p.As = int16(as)
+	p.As = as
 	p.Lineno = lineno
 	return p
 }
@@ -322,7 +322,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		a := a // copy to let escape into Ctxt.Dconv
 		Debug['h'] = 1
 		Dump("naddr", n)
-		Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+		Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
 
 	case OREGISTER:
 		a.Type = obj.TYPE_REG
@@ -423,7 +423,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Type.Sym != n.Right.Sym {
 			Debug['h'] = 1
 			Dump("naddr", n)
-			Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
 		}
 		Naddr(a, n.Left)
 
@@ -466,7 +466,7 @@ func Naddr(a *obj.Addr, n *Node) {
 		}
 		if a.Type != obj.TYPE_MEM {
 			a := a // copy to let escape into Ctxt.Dconv
-			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
+			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(n.Left.Op, 0))
 		}
 		a.Type = obj.TYPE_ADDR
 
@@ -548,8 +548,7 @@ func nodarg(t *Type, fp int) *Node {
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t
-		var savet Iter
-		first := Structfirst(&savet, &t)
+		first, _ := IterFields(t)
 		if first == nil {
 			Fatalf("nodarg: bad struct")
 		}

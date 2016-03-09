@@ -183,10 +183,10 @@ func dumptype(t *_type) {
 	dumpint(tagType)
 	dumpint(uint64(uintptr(unsafe.Pointer(t))))
 	dumpint(uint64(t.size))
-	if t.x == nil || t.x.pkgpath == nil {
+	if x := t.uncommon(); x == nil || x.pkgpath == nil {
 		dumpstr(t._string)
 	} else {
-		pkgpath := stringStructOf(t.x.pkgpath)
+		pkgpath := stringStructOf(x.pkgpath)
 		namestr := t.name()
 		name := stringStructOf(&namestr)
 		dumpint(uint64(uintptr(pkgpath.len) + 1 + uintptr(name.len)))
@@ -234,7 +234,7 @@ type childInfo struct {
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
 	bv := gobv(*cbv)
-	for i := uintptr(0); i < uintptr(bv.n); i++ {
+	for i := uintptr(0); i < bv.n; i++ {
 		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(offset + i*sys.PtrSize))

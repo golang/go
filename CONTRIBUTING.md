@@ -26,7 +26,8 @@ Please read the [Contribution Guidelines](https://golang.org/doc/contribute.html
 before sending patches.
 
 **We do not accept GitHub pull requests**
-(we use [Gerrit](https://code.google.com/p/gerrit/) instead for code review).
+(we use [an instance](https://go-review.googlesource.com/) of the
+[Gerrit](https://www.gerritcodereview.com/) code review system instead).
 
 Unless otherwise noted, the Go source files are distributed under
 the BSD-style license found in the LICENSE file.

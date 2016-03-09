@@ -273,7 +273,7 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, 
 }
 
 // constVal returns a constant value for c.
-func (f *Func) constVal(line int32, op Op, t Type, c int64) *Value {
+func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value {
 	if f.constants == nil {
 		f.constants = make(map[int64][]*Value)
 	}
@@ -283,10 +283,26 @@ func (f *Func) constVal(line int32, op Op, t Type, c int64) *Value {
 			return v
 		}
 	}
-	v := f.Entry.NewValue0I(line, op, t, c)
+	var v *Value
+	if setAux {
+		v = f.Entry.NewValue0I(line, op, t, c)
+	} else {
+		v = f.Entry.NewValue0(line, op, t)
+	}
 	f.constants[c] = append(vv, v)
 	return v
 }
+
+// These magic auxint values let us easily cache non-numeric constants
+// using the same constants map while making collisions unlikely.
+// These values are unlikely to occur in regular code and
+// are easy to grep for in case of bugs.
+const (
+	constSliceMagic       = 1122334455
+	constInterfaceMagic   = 2233445566
+	constNilMagic         = 3344556677
+	constEmptyStringMagic = 4455667788
+)
 
 // ConstInt returns an int constant representing its argument.
 func (f *Func) ConstBool(line int32, t Type, c bool) *Value {
@@ -294,25 +310,40 @@ func (f *Func) ConstBool(line int32, t Type, c bool) *Value {
 	if c {
 		i = 1
 	}
-	return f.constVal(line, OpConstBool, t, i)
+	return f.constVal(line, OpConstBool, t, i, true)
 }
 func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
-	return f.constVal(line, OpConst8, t, int64(c))
+	return f.constVal(line, OpConst8, t, int64(c), true)
 }
 func (f *Func) ConstInt16(line int32, t Type, c int16) *Value {
-	return f.constVal(line, OpConst16, t, int64(c))
+	return f.constVal(line, OpConst16, t, int64(c), true)
 }
 func (f *Func) ConstInt32(line int32, t Type, c int32) *Value {
-	return f.constVal(line, OpConst32, t, int64(c))
+	return f.constVal(line, OpConst32, t, int64(c), true)
 }
 func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
-	return f.constVal(line, OpConst64, t, c)
+	return f.constVal(line, OpConst64, t, c, true)
 }
 func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
-	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(c)))
+	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(c)), true)
 }
 func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
-	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)))
+	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)), true)
+}
+
+func (f *Func) ConstSlice(line int32, t Type) *Value {
+	return f.constVal(line, OpConstSlice, t, constSliceMagic, false)
+}
+func (f *Func) ConstInterface(line int32, t Type) *Value {
+	return f.constVal(line, OpConstInterface, t, constInterfaceMagic, false)
+}
+func (f *Func) ConstNil(line int32, t Type) *Value {
+	return f.constVal(line, OpConstNil, t, constNilMagic, false)
+}
+func (f *Func) ConstEmptyString(line int32, t Type) *Value {
+	v := f.constVal(line, OpConstString, t, constEmptyStringMagic, false)
+	v.Aux = ""
+	return v
 }
 
 func (f *Func) Logf(msg string, args ...interface{})   { f.Config.Logf(msg, args...) }

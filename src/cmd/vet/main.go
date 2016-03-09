@@ -24,10 +24,9 @@ import (
 )
 
 var (
-	verbose  = flag.Bool("v", false, "verbose")
-	testFlag = flag.Bool("test", false, "for testing only: sets -all and -shadow")
-	tags     = flag.String("tags", "", "comma-separated list of build tags to apply when parsing")
-	tagList  = []string{} // exploded version of tags flag; set in main
+	verbose = flag.Bool("v", false, "verbose")
+	tags    = flag.String("tags", "", "comma-separated list of build tags to apply when parsing")
+	tagList = []string{} // exploded version of tags flag; set in main
 )
 
 var exitCode = 0
@@ -116,9 +115,6 @@ func (ts triState) IsBoolFlag() bool {
 
 // vet tells whether to report errors for the named check, a flag name.
 func vet(name string) bool {
-	if *testFlag {
-		return true
-	}
 	return report[name].isTrue()
 }
 

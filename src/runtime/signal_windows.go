@@ -88,7 +88,7 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
 	// won't get to see who faulted.)
 	if r.ip() != 0 {
 		sp := unsafe.Pointer(r.sp())
-		sp = add(sp, ^uintptr(unsafe.Sizeof(uintptr(0))-1)) // sp--
+		sp = add(sp, ^(unsafe.Sizeof(uintptr(0)) - 1)) // sp--
 		*((*uintptr)(sp)) = r.ip()
 		r.setsp(uintptr(sp))
 	}
@@ -155,7 +155,7 @@ func sigpanic() {
 		throw("unexpected signal during runtime execution")
 	}
 
-	switch uint32(g.sig) {
+	switch g.sig {
 	case _EXCEPTION_ACCESS_VIOLATION:
 		if g.sigcode1 < 0x1000 || g.paniconfault {
 			panicmem()

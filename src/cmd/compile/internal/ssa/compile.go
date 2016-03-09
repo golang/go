@@ -40,7 +40,9 @@ func Compile(f *Func) {
 	// Run all the passes
 	printFunc(f)
 	f.Config.HTML.WriteFunc("start", f)
-	checkFunc(f)
+	if checkEnabled {
+		checkFunc(f)
+	}
 	const logMemStats = false
 	for _, p := range passes {
 		if !f.Config.optimize && !p.required {
@@ -93,7 +95,9 @@ func Compile(f *Func) {
 				f.logStat("TIME(ns):BYTES:ALLOCS", time, nBytes, nAllocs)
 			}
 		}
-		checkFunc(f)
+		if checkEnabled {
+			checkFunc(f)
+		}
 	}
 
 	// Squash error printing defer
@@ -112,6 +116,9 @@ type pass struct {
 	test     int  // pass-specific ad-hoc option, perhaps useful in development
 }
 
+// Run consistency checker between each phase
+var checkEnabled = true
+
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
 // the error if it was not. A version of the phase name with "_"
@@ -120,6 +127,14 @@ type pass struct {
 // GO_GCFLAGS=-d=ssa/generic_cse/time,ssa/generic_cse/stats,ssa/generic_cse/debug=3 ./make.bash ...
 //
 func PhaseOption(phase, flag string, val int) string {
+	if phase == "check" && flag == "on" {
+		checkEnabled = val != 0
+		return ""
+	}
+	if phase == "check" && flag == "off" {
+		checkEnabled = val == 0
+		return ""
+	}
 	underphase := strings.Replace(phase, "_", " ", -1)
 	for i, p := range passes {
 		if p.name == phase || p.name == underphase {
@@ -167,6 +182,8 @@ var passes = [...]pass{
 	{name: "phiopt", fn: phiopt},
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
+	{name: "dec", fn: dec, required: true},
+	{name: "late opt", fn: opt}, // TODO: split required rules and optimizing rules
 	{name: "generic deadcode", fn: deadcode},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},

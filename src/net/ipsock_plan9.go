@@ -169,23 +169,23 @@ func dialPlan9(net string, laddr, raddr Addr) (fd *netFD, err error) {
 	defer func() { netErr(err) }()
 	f, dest, proto, name, err := startPlan9(net, raddr)
 	if err != nil {
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: err}
+		return nil, err
 	}
 	_, err = f.WriteString("connect " + dest)
 	if err != nil {
 		f.Close()
-		return nil, &OpError{Op: "dial", Net: f.Name(), Source: laddr, Addr: raddr, Err: err}
+		return nil, err
 	}
 	data, err := os.OpenFile(netdir+"/"+proto+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
 		f.Close()
-		return nil, &OpError{Op: "dial", Net: net, Source: laddr, Addr: raddr, Err: err}
+		return nil, err
 	}
 	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		data.Close()
 		f.Close()
-		return nil, &OpError{Op: "dial", Net: proto, Source: laddr, Addr: raddr, Err: err}
+		return nil, err
 	}
 	return newFD(proto, name, f, data, laddr, raddr)
 }
@@ -194,17 +194,17 @@ func listenPlan9(net string, laddr Addr) (fd *netFD, err error) {
 	defer func() { netErr(err) }()
 	f, dest, proto, name, err := startPlan9(net, laddr)
 	if err != nil {
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: err}
+		return nil, err
 	}
 	_, err = f.WriteString("announce " + dest)
 	if err != nil {
 		f.Close()
-		return nil, &OpError{Op: "announce", Net: proto, Source: nil, Addr: laddr, Err: err}
+		return nil, err
 	}
 	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {
 		f.Close()
-		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: laddr, Err: err}
+		return nil, err
 	}
 	return newFD(proto, name, f, nil, laddr, nil)
 }
@@ -221,25 +221,25 @@ func (fd *netFD) acceptPlan9() (nfd *netFD, err error) {
 	defer fd.readUnlock()
 	f, err := os.Open(fd.dir + "/listen")
 	if err != nil {
-		return nil, &OpError{Op: "accept", Net: fd.dir + "/listen", Source: nil, Addr: fd.laddr, Err: err}
+		return nil, err
 	}
 	var buf [16]byte
 	n, err := f.Read(buf[:])
 	if err != nil {
 		f.Close()
-		return nil, &OpError{Op: "accept", Net: fd.dir + "/listen", Source: nil, Addr: fd.laddr, Err: err}
+		return nil, err
 	}
 	name := string(buf[:n])
 	data, err := os.OpenFile(netdir+"/"+fd.net+"/"+name+"/data", os.O_RDWR, 0)
 	if err != nil {
 		f.Close()
-		return nil, &OpError{Op: "accept", Net: fd.net, Source: nil, Addr: fd.laddr, Err: err}
+		return nil, err
 	}
 	raddr, err := readPlan9Addr(fd.net, netdir+"/"+fd.net+"/"+name+"/remote")
 	if err != nil {
 		data.Close()
 		f.Close()
-		return nil, &OpError{Op: "accept", Net: fd.net, Source: nil, Addr: fd.laddr, Err: err}
+		return nil, err
 	}
 	return newFD(fd.net, name, f, data, fd.laddr, raddr)
 }

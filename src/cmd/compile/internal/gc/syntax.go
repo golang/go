@@ -15,10 +15,10 @@ type Node struct {
 	// Generic recursive walks should follow these fields.
 	Left  *Node
 	Right *Node
-	Ninit *NodeList
+	Ninit Nodes
 	Nbody Nodes
-	List  *NodeList
-	Rlist *NodeList
+	List  Nodes
+	Rlist Nodes
 
 	// most nodes
 	Type *Type
@@ -195,7 +195,7 @@ const (
 	OSUB             // Left - Right
 	OOR              // Left | Right
 	OXOR             // Left ^ Right
-	OADDSTR          // Left + Right (string addition)
+	OADDSTR          // +{List} (string addition, list elements are strings)
 	OADDR            // &Left
 	OANDAND          // Left && Right
 	OAPPEND          // append(List)
@@ -391,15 +391,6 @@ func list1(n *Node) *NodeList {
 	if n == nil {
 		return nil
 	}
-	if n.Op == OBLOCK && n.Ninit == nil {
-		// Flatten list and steal storage.
-		// Poison pointer to catch errant uses.
-		l := n.List
-
-		n.List = nil
-		return l
-	}
-
 	l := new(NodeList)
 	l.N = n
 	l.End = l
@@ -409,69 +400,6 @@ func list1(n *Node) *NodeList {
 // list returns the result of appending n to l.
 func list(l *NodeList, n *Node) *NodeList {
 	return concat(l, list1(n))
-}
-
-// listsort sorts *l in place according to the comparison function lt.
-// The algorithm expects lt(a, b) to be equivalent to a < b.
-// The algorithm is mergesort, so it is guaranteed to be O(n log n).
-func listsort(l **NodeList, lt func(*Node, *Node) bool) {
-	if *l == nil || (*l).Next == nil {
-		return
-	}
-
-	l1 := *l
-	l2 := *l
-	for {
-		l2 = l2.Next
-		if l2 == nil {
-			break
-		}
-		l2 = l2.Next
-		if l2 == nil {
-			break
-		}
-		l1 = l1.Next
-	}
-
-	l2 = l1.Next
-	l1.Next = nil
-	l2.End = (*l).End
-	(*l).End = l1
-
-	l1 = *l
-	listsort(&l1, lt)
-	listsort(&l2, lt)
-
-	if lt(l1.N, l2.N) {
-		*l = l1
-	} else {
-		*l = l2
-		l2 = l1
-		l1 = *l
-	}
-
-	// now l1 == *l; and l1 < l2
-
-	var le *NodeList
-	for (l1 != nil) && (l2 != nil) {
-		for (l1.Next != nil) && lt(l1.Next.N, l2.N) {
-			l1 = l1.Next
-		}
-
-		// l1 is last one from l1 that is < l2
-		le = l1.Next // le is the rest of l1, first one that is >= l2
-		if le != nil {
-			le.End = (*l).End
-		}
-
-		(*l).End = l1       // cut *l at l1
-		*l = concat(*l, l2) // glue l2 to *l's tail
-
-		l1 = l2 // l1 is the first element of *l that is < the new l2
-		l2 = le // ... because l2 now is the old tail of l1
-	}
-
-	*l = concat(*l, l2) // any remainder
 }
 
 // count returns the length of the list l.
@@ -499,6 +427,26 @@ func (n *Nodes) Slice() []*Node {
 		return nil
 	}
 	return *n.slice
+}
+
+// Len returns the number of entries in Nodes.
+func (n *Nodes) Len() int {
+	if n.slice == nil {
+		return 0
+	}
+	return len(*n.slice)
+}
+
+// First returns the first element of Nodes.
+// It panics if Nodes has no elements.
+func (n *Nodes) First() *Node {
+	return (*n.slice)[0]
+}
+
+// Second returns the second element of Nodes.
+// It panics if Nodes has fewer than two elements.
+func (n *Nodes) Second() *Node {
+	return (*n.slice)[1]
 }
 
 // NodeList returns the entries in Nodes as a NodeList.
@@ -538,6 +486,18 @@ func (n *Nodes) Append(a ...*Node) {
 	}
 }
 
+// AppendNodes appends the contents of *n2 to n, then clears n2.
+func (n *Nodes) AppendNodes(n2 *Nodes) {
+	switch {
+	case n2.slice == nil:
+	case n.slice == nil:
+		n.slice = n2.slice
+	default:
+		*n.slice = append(*n.slice, *n2.slice...)
+	}
+	n2.slice = nil
+}
+
 // SetToNodeList sets Nodes to the contents of a NodeList.
 func (n *Nodes) SetToNodeList(l *NodeList) {
 	s := make([]*Node, 0, count(l))
@@ -555,5 +515,335 @@ func (n *Nodes) AppendNodeList(l *NodeList) {
 		for ; l != nil; l = l.Next {
 			*n.slice = append(*n.slice, l.N)
 		}
+	}
+}
+
+// nodesOrNodeList must be either type Nodes or type *NodeList, or, in
+// some cases, []*Node. It exists during the transition from NodeList
+// to Nodes only and then should be deleted. See nodeSeqIterate to
+// return an iterator from a nodesOrNodeList.
+type nodesOrNodeList interface{}
+
+// nodesOrNodeListPtr must be type *Nodes or type **NodeList, or, in
+// some cases, *[]*Node. It exists during the transition from NodeList
+// to Nodes only, and then should be deleted. See setNodeSeq to assign
+// to a generic value.
+type nodesOrNodeListPtr interface{}
+
+// nodeSeqIterator is an interface used to iterate over a sequence of nodes.
+// TODO(iant): Remove after conversion from NodeList to Nodes is complete.
+type nodeSeqIterator interface {
+	// Return whether iteration is complete.
+	Done() bool
+	// Advance to the next node.
+	Next()
+	// Return the current node.
+	N() *Node
+	// Return the address of the current node.
+	P() **Node
+	// Return the number of items remaining in the iteration.
+	Len() int
+	// Return the remaining items as a sequence.
+	// This will have the same type as that passed to nodeSeqIterate.
+	Seq() nodesOrNodeList
+}
+
+// nodeListIterator is a type that implements nodeSeqIterator using a
+// *NodeList.
+type nodeListIterator struct {
+	l *NodeList
+}
+
+func (nli *nodeListIterator) Done() bool {
+	return nli.l == nil
+}
+
+func (nli *nodeListIterator) Next() {
+	nli.l = nli.l.Next
+}
+
+func (nli *nodeListIterator) N() *Node {
+	return nli.l.N
+}
+
+func (nli *nodeListIterator) P() **Node {
+	return &nli.l.N
+}
+
+func (nli *nodeListIterator) Len() int {
+	return count(nli.l)
+}
+
+func (nli *nodeListIterator) Seq() nodesOrNodeList {
+	return nli.l
+}
+
+// nodesIterator implements nodeSeqIterator using a Nodes.
+type nodesIterator struct {
+	n Nodes
+	i int
+}
+
+func (ni *nodesIterator) Done() bool {
+	return ni.i >= len(ni.n.Slice())
+}
+
+func (ni *nodesIterator) Next() {
+	ni.i++
+}
+
+func (ni *nodesIterator) N() *Node {
+	return ni.n.Slice()[ni.i]
+}
+
+func (ni *nodesIterator) P() **Node {
+	return &ni.n.Slice()[ni.i]
+}
+
+func (ni *nodesIterator) Len() int {
+	return len(ni.n.Slice()[ni.i:])
+}
+
+func (ni *nodesIterator) Seq() nodesOrNodeList {
+	var r Nodes
+	r.Set(ni.n.Slice()[ni.i:])
+	return r
+}
+
+// nodeSeqIterate returns an iterator over a *NodeList, a Nodes,
+// a []*Node, or nil.
+func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return &nodeListIterator{ns}
+	case Nodes:
+		return &nodesIterator{ns, 0}
+	case []*Node:
+		var r Nodes
+		r.Set(ns)
+		return &nodesIterator{r, 0}
+	case nil:
+		var r Nodes
+		return &nodesIterator{r, 0}
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqLen returns the length of a *NodeList, a Nodes, a []*Node, or nil.
+func nodeSeqLen(ns nodesOrNodeList) int {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return count(ns)
+	case Nodes:
+		return len(ns.Slice())
+	case []*Node:
+		return len(ns)
+	case nil:
+		return 0
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqFirst returns the first element of a *NodeList, a Nodes,
+// or a []*Node. It panics if the sequence is empty.
+func nodeSeqFirst(ns nodesOrNodeList) *Node {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return ns.N
+	case Nodes:
+		return ns.Slice()[0]
+	case []*Node:
+		return ns[0]
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqSecond returns the second element of a *NodeList, a Nodes,
+// or a []*Node. It panics if the sequence has fewer than two elements.
+func nodeSeqSecond(ns nodesOrNodeList) *Node {
+	switch ns := ns.(type) {
+	case *NodeList:
+		return ns.Next.N
+	case Nodes:
+		return ns.Slice()[1]
+	case []*Node:
+		return ns[1]
+	default:
+		panic("can't happen")
+	}
+}
+
+// nodeSeqSlice returns a []*Node containing the contents of a
+// *NodeList, a Nodes, or a []*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func nodeSeqSlice(ns nodesOrNodeList) []*Node {
+	switch ns := ns.(type) {
+	case *NodeList:
+		var s []*Node
+		for l := ns; l != nil; l = l.Next {
+			s = append(s, l.N)
+		}
+		return s
+	case Nodes:
+		return ns.Slice()
+	case []*Node:
+		return ns
+	default:
+		panic("can't happen")
+	}
+}
+
+// setNodeSeq implements *a = b.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// b must have type *NodeList, Nodes, []*Node, or nil.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+	if b == nil {
+		switch a := a.(type) {
+		case **NodeList:
+			*a = nil
+		case *Nodes:
+			a.Set(nil)
+		case *[]*Node:
+			*a = nil
+		default:
+			panic("can't happen")
+		}
+		return
+	}
+
+	// Simplify b to either *NodeList or []*Node.
+	if n, ok := b.(Nodes); ok {
+		b = n.Slice()
+	}
+
+	if l, ok := a.(**NodeList); ok {
+		switch b := b.(type) {
+		case *NodeList:
+			*l = b
+		case []*Node:
+			var ll *NodeList
+			for _, n := range b {
+				ll = list(ll, n)
+			}
+			*l = ll
+		default:
+			panic("can't happen")
+		}
+	} else {
+		var s []*Node
+		switch b := b.(type) {
+		case *NodeList:
+			for l := b; l != nil; l = l.Next {
+				s = append(s, l.N)
+			}
+		case []*Node:
+			s = b
+		default:
+			panic("can't happen")
+		}
+
+		switch a := a.(type) {
+		case *Nodes:
+			a.Set(s)
+		case *[]*Node:
+			*a = s
+		default:
+			panic("can't happen")
+		}
+	}
+}
+
+// setNodeSeqNode sets the node sequence a to the node n.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func setNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
+	switch a := a.(type) {
+	case **NodeList:
+		*a = list1(n)
+	case *Nodes:
+		a.Set([]*Node{n})
+	case *[]*Node:
+		*a = []*Node{n}
+	default:
+		panic("can't happen")
+	}
+}
+
+// appendNodeSeq appends the node sequence b to the node sequence a.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// b must have type *NodeList, Nodes, or []*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func appendNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
+	// Simplify b to either *NodeList or []*Node.
+	if n, ok := b.(Nodes); ok {
+		b = n.Slice()
+	}
+
+	if l, ok := a.(**NodeList); ok {
+		switch b := b.(type) {
+		case *NodeList:
+			*l = concat(*l, b)
+		case []*Node:
+			for _, n := range b {
+				*l = list(*l, n)
+			}
+		default:
+			panic("can't happen")
+		}
+	} else {
+		var s []*Node
+		switch a := a.(type) {
+		case *Nodes:
+			s = a.Slice()
+		case *[]*Node:
+			s = *a
+		default:
+			panic("can't happen")
+		}
+
+		switch b := b.(type) {
+		case *NodeList:
+			for l := b; l != nil; l = l.Next {
+				s = append(s, l.N)
+			}
+		case []*Node:
+			s = append(s, b...)
+		default:
+			panic("can't happen")
+		}
+
+		switch a := a.(type) {
+		case *Nodes:
+			a.Set(s)
+		case *[]*Node:
+			*a = s
+		default:
+			panic("can't happen")
+		}
+	}
+}
+
+// appendNodeSeqNode appends n to the node sequence a.
+// a must have type **NodeList, *Nodes, or *[]*Node.
+// This is an interim function during the transition from NodeList to Nodes.
+// TODO(iant): Remove when transition is complete.
+func appendNodeSeqNode(a nodesOrNodeListPtr, n *Node) {
+	switch a := a.(type) {
+	case **NodeList:
+		*a = list(*a, n)
+	case *Nodes:
+		a.Append(n)
+	case *[]*Node:
+		*a = append(*a, n)
+	default:
+		panic("can't happen")
 	}
 }

@@ -54,6 +54,7 @@ func linkarchinit() {
 	ld.Thearch.Regsize = ld.Thelinkarch.Regsize
 	ld.Thearch.Funcalign = FuncAlign
 	ld.Thearch.Maxalign = MaxAlign
+	ld.Thearch.Minalign = MinAlign
 	ld.Thearch.Minlc = MINLC
 	ld.Thearch.Dwarfregsp = DWARFREGSP
 	ld.Thearch.Dwarfreglr = DWARFREGLR
@@ -93,7 +94,7 @@ func archinit() {
 		ld.Linkmode = ld.LinkExternal
 		got := ld.Linklookup(ld.Ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
 		got.Type = obj.SDYNIMPORT
-		got.Reachable = true
+		got.Attr |= ld.AttrReachable
 	}
 
 	switch ld.HEADTYPE {

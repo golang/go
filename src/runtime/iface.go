@@ -25,7 +25,7 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	}
 
 	// easy case
-	x := typ.x
+	x := typ.uncommon()
 	if x == nil {
 		if canfail {
 			return nil
@@ -89,6 +89,9 @@ search:
 		itype := i._type
 		for ; j < nt; j++ {
 			t := &x.mhdr[j]
+			if t.name == nil {
+				throw("itab t.name is nil")
+			}
 			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
 				if m != nil {
 					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = t.ifn
@@ -203,7 +206,7 @@ func assertI2T2(t *_type, i iface, r unsafe.Pointer) bool {
 	tab := i.tab
 	if tab == nil || tab._type != t {
 		if r != nil {
-			memclr(r, uintptr(t.size))
+			memclr(r, t.size)
 		}
 		return false
 	}
@@ -241,7 +244,7 @@ func assertE2T2(t *_type, e eface, r unsafe.Pointer) bool {
 		GC()
 	}
 	if e._type != t {
-		memclr(r, uintptr(t.size))
+		memclr(r, t.size)
 		return false
 	}
 	if isDirectIface(t) {

@@ -123,15 +123,12 @@ func dowidth(t *Type) {
 	}
 
 	if t.Width == -2 {
-		lno := int(lineno)
-		lineno = int32(t.Lineno)
 		if !t.Broke {
 			t.Broke = true
-			Yyerror("invalid recursive type %v", t)
+			yyerrorl(t.Lineno, "invalid recursive type %v", t)
 		}
 
 		t.Width = 0
-		lineno = int32(lno)
 		return
 	}
 
@@ -144,8 +141,8 @@ func dowidth(t *Type) {
 	// defer checkwidth calls until after we're done
 	defercalc++
 
-	lno := int(lineno)
-	lineno = int32(t.Lineno)
+	lno := lineno
+	lineno = t.Lineno
 	t.Width = -2
 	t.Align = 0
 
@@ -298,9 +295,9 @@ func dowidth(t *Type) {
 	case TFUNCARGS:
 		t1 := t.Type
 
-		w = widstruct(t.Type, *getthis(t1), 0, 0)
-		w = widstruct(t.Type, *getinarg(t1), w, Widthreg)
-		w = widstruct(t.Type, *Getoutarg(t1), w, Widthreg)
+		w = widstruct(t.Type, t1.Recv(), 0, 0)
+		w = widstruct(t.Type, t1.Params(), w, Widthreg)
+		w = widstruct(t.Type, t1.Results(), w, Widthreg)
 		t1.Argwid = w
 		if w%int64(Widthreg) != 0 {
 			Warn("bad type %v %d\n", t1, w)
@@ -320,7 +317,7 @@ func dowidth(t *Type) {
 		t.Align = uint8(w)
 	}
 
-	lineno = int32(lno)
+	lineno = lno
 
 	if defercalc == 1 {
 		resumecheckwidth()
@@ -344,14 +341,8 @@ func dowidth(t *Type) {
 // dowidth should only be called when the type's size
 // is needed immediately.  checkwidth makes sure the
 // size is evaluated eventually.
-type TypeList struct {
-	t    *Type
-	next *TypeList
-}
 
-var tlfree *TypeList
-
-var tlq *TypeList
+var deferredTypeStack []*Type
 
 func checkwidth(t *Type) {
 	if t == nil {
@@ -374,16 +365,7 @@ func checkwidth(t *Type) {
 	}
 	t.Deferwidth = true
 
-	l := tlfree
-	if l != nil {
-		tlfree = l.next
-	} else {
-		l = new(TypeList)
-	}
-
-	l.t = t
-	l.next = tlq
-	tlq = l
+	deferredTypeStack = append(deferredTypeStack, t)
 }
 
 func defercheckwidth() {
@@ -398,12 +380,11 @@ func resumecheckwidth() {
 	if defercalc == 0 {
 		Fatalf("resumecheckwidth")
 	}
-	for l := tlq; l != nil; l = tlq {
-		l.t.Deferwidth = false
-		tlq = l.next
-		dowidth(l.t)
-		l.next = tlfree
-		tlfree = l
+	for len(deferredTypeStack) > 0 {
+		t := deferredTypeStack[len(deferredTypeStack)-1]
+		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+		t.Deferwidth = false
+		dowidth(t)
 	}
 
 	defercalc = 0
@@ -618,39 +599,6 @@ func typeinit() {
 	Simtype[TFUNC] = Tptr
 	Simtype[TUNSAFEPTR] = Tptr
 
-	// pick up the backend thearch.typedefs
-	for i = range Thearch.Typedefs {
-		s := Lookup(Thearch.Typedefs[i].Name)
-		s1 := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
-
-		etype := Thearch.Typedefs[i].Etype
-		if int(etype) >= len(Types) {
-			Fatalf("typeinit: %s bad etype", s.Name)
-		}
-		sameas := Thearch.Typedefs[i].Sameas
-		if int(sameas) >= len(Types) {
-			Fatalf("typeinit: %s bad sameas", s.Name)
-		}
-		Simtype[etype] = sameas
-		minfltval[etype] = minfltval[sameas]
-		maxfltval[etype] = maxfltval[sameas]
-		Minintval[etype] = Minintval[sameas]
-		Maxintval[etype] = Maxintval[sameas]
-
-		t = Types[etype]
-		if t != nil {
-			Fatalf("typeinit: %s already defined", s.Name)
-		}
-
-		t = typ(etype)
-		t.Sym = s1
-
-		dowidth(t)
-		Types[etype] = t
-		s1.Def = typenod(t)
-		s1.Def.Name = new(Name)
-	}
-
 	Array_array = int(Rnd(0, int64(Widthptr)))
 	Array_nel = int(Rnd(int64(Array_array)+int64(Widthptr), int64(Widthint)))
 	Array_cap = int(Rnd(int64(Array_nel)+int64(Widthint), int64(Widthint)))
@@ -668,27 +616,14 @@ func typeinit() {
 
 // compute total size of f's in/out arguments.
 func Argsize(t *Type) int {
-	var save Iter
-	var x int64
+	var w int64
 
-	w := int64(0)
-
-	fp := Structfirst(&save, Getoutarg(t))
-	for fp != nil {
-		x = fp.Width + fp.Type.Width
-		if x > w {
-			w = x
+	for _, p := range recvParamsResults {
+		for f, it := IterFields(p(t)); f != nil; f = it.Next() {
+			if x := f.Width + f.Type.Width; x > w {
+				w = x
+			}
 		}
-		fp = structnext(&save)
-	}
-
-	fp = funcfirst(&save, t)
-	for fp != nil {
-		x = fp.Width + fp.Type.Width
-		if x > w {
-			w = x
-		}
-		fp = funcnext(&save)
 	}
 
 	w = (w + int64(Widthptr) - 1) &^ (int64(Widthptr) - 1)

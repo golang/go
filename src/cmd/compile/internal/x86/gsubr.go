@@ -53,7 +53,7 @@ const (
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -91,7 +91,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(op, 0), t)
 
 	case OADDR_ | gc.TPTR32:
 		a = x86.ALEAL
@@ -436,7 +436,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	return a
 }
 
-func foptoas(op gc.Op, t *gc.Type, flg int) int {
+func foptoas(op gc.Op, t *gc.Type, flg int) obj.As {
 	a := obj.AXXX
 	et := gc.Simtype[t.Etype]
 
@@ -454,7 +454,7 @@ func foptoas(op gc.Op, t *gc.Type, flg int) int {
 	if !gc.Thearch.Use387 {
 		switch uint32(op)<<16 | uint32(et) {
 		default:
-			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
+			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(op, 0), t)
 
 		case OCMP_ | gc.TFLOAT32:
 			a = x86.AUCOMISS
@@ -587,7 +587,7 @@ func foptoas(op gc.Op, t *gc.Type, flg int) int {
 		return x86.AFCHS
 	}
 
-	gc.Fatalf("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
+	gc.Fatalf("foptoas %v %v %#x", gc.Oconv(op, 0), t, flg)
 	return 0
 }
 
@@ -605,7 +605,7 @@ var resvd = []int{
  * generate
  *	as $c, reg
  */
-func gconreg(as int, c int64, reg int) {
+func gconreg(as obj.As, c int64, reg int) {
 	var n1 gc.Node
 	var n2 gc.Node
 
@@ -618,7 +618,7 @@ func gconreg(as int, c int64, reg int) {
  * generate
  *	as $c, n
  */
-func ginscon(as int, c int64, n2 *gc.Node) {
+func ginscon(as obj.As, c int64, n2 *gc.Node) {
 	var n1 gc.Node
 	gc.Nodconst(&n1, gc.Types[gc.TINT32], c)
 	gins(as, &n1, n2)
@@ -831,7 +831,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 	// cannot have two integer memory operands;
 	// except 64-bit, which always copies via registers anyway.
 	var r1 gc.Node
-	var a int
+	var a obj.As
 	if gc.Isint[ft] && gc.Isint[tt] && !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
 	}
@@ -1360,7 +1360,7 @@ hardmem:
 
 func floatmove_387(f *gc.Node, t *gc.Node) {
 	var r1 gc.Node
-	var a int
+	var a obj.As
 
 	ft := gc.Simsimtype(f.Type)
 	tt := gc.Simsimtype(t.Type)
@@ -1611,7 +1611,7 @@ fatal:
 func floatmove_sse(f *gc.Node, t *gc.Node) {
 	var r1 gc.Node
 	var cvt *gc.Type
-	var a int
+	var a obj.As
 
 	ft := gc.Simsimtype(f.Type)
 	tt := gc.Simsimtype(t.Type)
@@ -1753,7 +1753,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  * generate one instruction:
  *	as f, t
  */
-func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	if as == x86.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
 		gc.Fatalf("gins MOVF reg, reg")
 	}
@@ -1847,7 +1847,7 @@ func dotaddable(n *gc.Node, n1 *gc.Node) bool {
 func sudoclean() {
 }
 
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	*a = obj.Addr{}
 	return false
 }

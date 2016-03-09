@@ -874,15 +874,15 @@ func (x *Float) Float32() (float32, Accuracy) {
 			emax  = bias              //   127  largest unbiased exponent (normal)
 		)
 
-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for floatxx mantissa.
+		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float32 mantissa.
 		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
 		p := mbits + 1 // precision of normal float
 
 		// If the exponent is too small, we may have a denormal number
-		// in which case we have fewer mantissa bits available: reduce
-		// precision accordingly.
+		// in which case we have fewer mantissa bits available: recompute
+		// precision.
 		if e < emin {
-			p -= emin - int(e)
+			p = mbits + 1 - emin + int(e)
 			// Make sure we have at least 1 bit so that we don't
 			// lose numbers rounded up to the smallest denormal.
 			if p < 1 {
@@ -931,7 +931,9 @@ func (x *Float) Float32() (float32, Accuracy) {
 				return 0.0, Below
 			}
 			// bexp = 0
-			mant = msb32(r.mant) >> (fbits - r.prec)
+			// recompute precision
+			p = mbits + 1 - emin + int(e)
+			mant = msb32(r.mant) >> uint(fbits-p)
 		} else {
 			// normal number: emin <= e <= emax
 			bexp = uint32(e+bias) << mbits
@@ -981,15 +983,15 @@ func (x *Float) Float64() (float64, Accuracy) {
 			emax  = bias              //  1023  largest unbiased exponent (normal)
 		)
 
-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for floatxx mantissa.
+		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float64 mantissa.
 		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
 		p := mbits + 1 // precision of normal float
 
 		// If the exponent is too small, we may have a denormal number
-		// in which case we have fewer mantissa bits available: reduce
-		// precision accordingly.
+		// in which case we have fewer mantissa bits available: recompute
+		// precision.
 		if e < emin {
-			p -= emin - int(e)
+			p = mbits + 1 - emin + int(e)
 			// Make sure we have at least 1 bit so that we don't
 			// lose numbers rounded up to the smallest denormal.
 			if p < 1 {
@@ -1038,7 +1040,9 @@ func (x *Float) Float64() (float64, Accuracy) {
 				return 0.0, Below
 			}
 			// bexp = 0
-			mant = msb64(r.mant) >> (fbits - r.prec)
+			// recompute precision
+			p = mbits + 1 - emin + int(e)
+			mant = msb64(r.mant) >> uint(fbits-p)
 		} else {
 			// normal number: emin <= e <= emax
 			bexp = uint64(e+bias) << mbits
@@ -1427,7 +1431,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	}
 
 	if x.form == finite && y.form == finite {
-		// x + y (commom case)
+		// x + y (common case)
 		z.neg = x.neg
 		if x.neg == y.neg {
 			// x + y == x + y

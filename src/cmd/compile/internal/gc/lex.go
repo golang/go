@@ -140,11 +140,6 @@ func Main() {
 	itabpkg.Name = "go.itab"
 	itabpkg.Prefix = "go.itab" // not go%2eitab
 
-	weaktypepkg = mkpkg("go.weak.type")
-
-	weaktypepkg.Name = "go.weak.type"
-	weaktypepkg.Prefix = "go.weak.type" // not go%2eweak%2etype
-
 	typelinkpkg = mkpkg("go.typelink")
 	typelinkpkg.Name = "go.typelink"
 	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
@@ -231,6 +226,7 @@ func Main() {
 	obj.Flagstr("cpuprofile", "write cpu profile to `file`", &cpuprofile)
 	obj.Flagstr("memprofile", "write memory profile to `file`", &memprofile)
 	obj.Flagint64("memprofilerate", "set runtime.MemProfileRate to `rate`", &memprofilerate)
+	flag.BoolVar(&ssaEnabled, "ssa", true, "use SSA backend to generate code")
 	obj.Flagparse(usage)
 
 	if flag_dynlink {
@@ -406,7 +402,7 @@ func Main() {
 			Curfn = l.N
 			decldepth = 1
 			saveerrors()
-			typecheckslice(l.N.Nbody.Slice(), Etop)
+			typechecklist(l.N.Nbody.Slice(), Etop)
 			checkreturn(l.N)
 			if nerrors != 0 {
 				l.N.Nbody.Set(nil) // type errors; do not compile
@@ -1239,9 +1235,9 @@ l0:
 lx:
 	if Debug['x'] != 0 {
 		if c >= utf8.RuneSelf {
-			fmt.Printf("%v lex: TOKEN %s\n", Ctxt.Line(int(lineno)), lexname(c))
+			fmt.Printf("%v lex: TOKEN %s\n", linestr(lineno), lexname(c))
 		} else {
-			fmt.Printf("%v lex: TOKEN '%c'\n", Ctxt.Line(int(lineno)), c)
+			fmt.Printf("%v lex: TOKEN '%c'\n", linestr(lineno), c)
 		}
 	}
 
@@ -1900,7 +1896,7 @@ redo:
 	c := obj.Bgetc(l.bin)
 	if c < utf8.RuneSelf {
 		if c == 0 {
-			yyerrorl(int(lexlineno), "illegal NUL byte")
+			yyerrorl(lexlineno, "illegal NUL byte")
 			return 0
 		}
 		if c == '\n' && importpkg == nil {
@@ -1924,11 +1920,11 @@ redo:
 		// The string conversion here makes a copy for passing
 		// to fmt.Printf, so that buf itself does not escape and
 		// can be allocated on the stack.
-		yyerrorl(int(lexlineno), "illegal UTF-8 sequence % x", string(buf[:i]))
+		yyerrorl(lexlineno, "illegal UTF-8 sequence % x", string(buf[:i]))
 	}
 
 	if r == BOM {
-		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
+		yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file")
 		goto redo
 	}
 
@@ -2077,6 +2073,18 @@ var basicTypes = [...]struct {
 	{"any", TANY},
 }
 
+var typedefs = [...]struct {
+	name     string
+	etype    EType
+	width    *int
+	sameas32 EType
+	sameas64 EType
+}{
+	{"int", TINT, &Widthint, TINT32, TINT64},
+	{"uint", TUINT, &Widthint, TUINT32, TUINT64},
+	{"uintptr", TUINTPTR, &Widthptr, TUINT32, TUINT64},
+}
+
 var builtinFuncs = [...]struct {
 	name string
 	op   Op
@@ -2127,13 +2135,7 @@ func lexinit() {
 		s2.Def.Etype = EType(s.op)
 	}
 
-	// logically, the type of a string literal.
-	// types[TSTRING] is the named type string
-	// (the type of x in var x string or var x = "hello").
-	// this is the ideal form
-	// (the type of x in const x = "hello").
 	idealstring = typ(TSTRING)
-
 	idealbool = typ(TBOOL)
 
 	s := Pkglookup("true", builtinpkg)
@@ -2191,9 +2193,9 @@ func lexinit1() {
 	out.Type.Type = Types[TSTRING]
 	out.Funarg = true
 	f := typ(TFUNC)
-	*getthis(f) = rcvr
-	*Getoutarg(f) = out
-	*getinarg(f) = in
+	*f.RecvP() = rcvr
+	*f.ResultsP() = out
+	*f.ParamsP() = in
 	f.Thistuple = 1
 	f.Intuple = 0
 	f.Outnamed = false
@@ -2223,18 +2225,35 @@ func lexinit1() {
 	s.Def = typenod(runetype)
 	s.Def.Name = new(Name)
 
-	// backend-specific builtin types (e.g. int).
-	for i := range Thearch.Typedefs {
-		s := Pkglookup(Thearch.Typedefs[i].Name, builtinpkg)
-		s.Def = typenod(Types[Thearch.Typedefs[i].Etype])
-		s.Def.Name = new(Name)
-		s.Origpkg = builtinpkg
+	// backend-dependent builtin types (e.g. int).
+	for _, s := range typedefs {
+		s1 := Pkglookup(s.name, builtinpkg)
+
+		sameas := s.sameas32
+		if *s.width == 8 {
+			sameas = s.sameas64
+		}
+
+		Simtype[s.etype] = sameas
+		minfltval[s.etype] = minfltval[sameas]
+		maxfltval[s.etype] = maxfltval[sameas]
+		Minintval[s.etype] = Minintval[sameas]
+		Maxintval[s.etype] = Maxintval[sameas]
+
+		t := typ(s.etype)
+		t.Sym = s1
+		Types[s.etype] = t
+		s1.Def = typenod(t)
+		s1.Def.Name = new(Name)
+		s1.Origpkg = builtinpkg
+
+		dowidth(t)
 	}
 }
 
 func lexfini() {
 	for _, s := range builtinpkg.Syms {
-		if s.Def == nil {
+		if s.Def == nil || (s.Name == "any" && Debug['A'] == 0) {
 			continue
 		}
 		s1 := Lookup(s.Name)
@@ -2299,7 +2318,7 @@ func lexname(lex rune) string {
 	return fmt.Sprintf("LEX-%d", lex)
 }
 
-func pkgnotused(lineno int, path string, name string) {
+func pkgnotused(lineno int32, path string, name string) {
 	// If the package was imported with a name other than the final
 	// import path element, show it explicitly in the error message.
 	// Note that this handles both renamed imports and imports of
@@ -2311,9 +2330,9 @@ func pkgnotused(lineno int, path string, name string) {
 		elem = elem[i+1:]
 	}
 	if name == "" || elem == name {
-		yyerrorl(int(lineno), "imported and not used: %q", path)
+		yyerrorl(lineno, "imported and not used: %q", path)
 	} else {
-		yyerrorl(int(lineno), "imported and not used: %q as %s", path, name)
+		yyerrorl(lineno, "imported and not used: %q as %s", path, name)
 	}
 }
 
@@ -2338,7 +2357,7 @@ func mkpackage(pkgname string) {
 				// errors if a conflicting top-level name is
 				// introduced by a different file.
 				if !s.Def.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Lineno), s.Def.Name.Pkg.Path, s.Name)
+					pkgnotused(s.Def.Lineno, s.Def.Name.Pkg.Path, s.Name)
 				}
 				s.Def = nil
 				continue
@@ -2348,7 +2367,7 @@ func mkpackage(pkgname string) {
 				// throw away top-level name left over
 				// from previous import . "x"
 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
-					pkgnotused(int(s.Def.Name.Pack.Lineno), s.Def.Name.Pack.Name.Pkg.Path, "")
+					pkgnotused(s.Def.Name.Pack.Lineno, s.Def.Name.Pack.Name.Pkg.Path, "")
 					s.Def.Name.Pack.Used = true
 				}
 

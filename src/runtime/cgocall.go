@@ -264,7 +264,7 @@ func cgocallbackg1() {
 	// For cgo, cb.arg points into a C stack frame and therefore doesn't
 	// hold any pointers that the GC can find anyway - the write barrier
 	// would be a no-op.
-	reflectcall(nil, unsafe.Pointer(cb.fn), unsafe.Pointer(cb.arg), uint32(cb.argsize), 0)
+	reflectcall(nil, unsafe.Pointer(cb.fn), cb.arg, uint32(cb.argsize), 0)
 
 	if raceenabled {
 		racereleasemerge(unsafe.Pointer(&racecgosync))

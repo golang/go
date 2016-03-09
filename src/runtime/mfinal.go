@@ -166,7 +166,7 @@ func runfinq() {
 			for i := fb.cnt; i > 0; i-- {
 				f := &fb.fin[i-1]
 
-				framesz := unsafe.Sizeof((interface{})(nil)) + uintptr(f.nret)
+				framesz := unsafe.Sizeof((interface{})(nil)) + f.nret
 				if framecap < framesz {
 					// The frame does not contain pointers interesting for GC,
 					// all not yet finalized objects are stored in finq.
@@ -331,16 +331,19 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 		throw("runtime.SetFinalizer: second argument is " + ftyp._string + ", not a function")
 	}
 	ft := (*functype)(unsafe.Pointer(ftyp))
-	if ft.dotdotdot || len(ft.in) != 1 {
+	if ft.dotdotdot() {
+		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string + " because dotdotdot")
+	}
+	if ft.dotdotdot() || ft.inCount != 1 {
 		throw("runtime.SetFinalizer: cannot pass " + etyp._string + " to finalizer " + ftyp._string)
 	}
-	fint := ft.in[0]
+	fint := ft.in()[0]
 	switch {
 	case fint == etyp:
 		// ok - same type
 		goto okarg
 	case fint.kind&kindMask == kindPtr:
-		if (fint.x == nil || etyp.x == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
+		if (fint.uncommon() == nil || etyp.uncommon() == nil) && (*ptrtype)(unsafe.Pointer(fint)).elem == ot.elem {
 			// ok - not same type, but both pointers,
 			// one or the other is unnamed, and same element type, so assignable.
 			goto okarg
@@ -359,7 +362,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
 okarg:
 	// compute size needed for return parameters
 	nret := uintptr(0)
-	for _, t := range ft.out {
+	for _, t := range ft.out() {
 		nret = round(nret, uintptr(t.align)) + uintptr(t.size)
 	}
 	nret = round(nret, sys.PtrSize)
@@ -407,7 +410,7 @@ func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
 		return
 	}
 
-	n = uintptr(s.elemsize)
+	n = s.elemsize
 	if s.sizeclass != 0 {
 		x = add(x, (uintptr(v)-uintptr(x))/n*n)
 	}

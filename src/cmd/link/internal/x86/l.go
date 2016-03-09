@@ -34,6 +34,7 @@ const (
 	thechar   = '8'
 	PtrSize   = 4
 	MaxAlign  = 32 // max data alignment
+	MinAlign  = 1  // min data alignment
 	FuncAlign = 16
 	MINLC     = 1
 )

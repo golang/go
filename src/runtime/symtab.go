@@ -277,7 +277,7 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
 
 func findmoduledatap(pc uintptr) *moduledata {
 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		if datap.minpc <= pc && pc <= datap.maxpc {
+		if datap.minpc <= pc && pc < datap.maxpc {
 			return datap
 		}
 	}

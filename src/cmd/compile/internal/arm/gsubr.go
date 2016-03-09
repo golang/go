@@ -149,7 +149,7 @@ func gmove(f *gc.Node, t *gc.Node) {
 
 	// cannot have two memory operands;
 	// except 64-bit, which always copies via registers anyway.
-	var a int
+	var a obj.As
 	var r1 gc.Node
 	if !gc.Is64(f.Type) && !gc.Is64(t.Type) && gc.Ismem(f) && gc.Ismem(t) {
 		goto hard
@@ -636,7 +636,7 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
  * generate one instruction:
  *	as f, t
  */
-func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+func gins(as obj.As, f *gc.Node, t *gc.Node) *obj.Prog {
 	//	Node nod;
 	//	int32 v;
 
@@ -719,7 +719,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
 	gc.Naddr(&a, n)
 	if a.Type != obj.TYPE_REG {
 		if n != nil {
-			gc.Fatalf("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+			gc.Fatalf("bad in raddr: %v", gc.Oconv(n.Op, 0))
 		} else {
 			gc.Fatalf("bad in raddr: <null>")
 		}
@@ -732,7 +732,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
 /* generate a constant shift
  * arm encodes a shift by 32 as 0, thus asking for 0 shift is illegal.
  */
-func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Prog {
+func gshift(as obj.As, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Prog {
 	if sval <= 0 || sval > 32 {
 		gc.Fatalf("bad shift value: %d", sval)
 	}
@@ -747,7 +747,7 @@ func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Pr
 
 /* generate a register shift
  */
-func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *obj.Prog {
+func gregshift(as obj.As, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *obj.Prog {
 	p := gins(as, nil, rhs)
 	p.From.Type = obj.TYPE_SHIFT
 	p.From.Offset = int64(stype) | (int64(reg.Reg)&15)<<8 | 1<<4 | int64(lhs.Reg)&15
@@ -757,7 +757,7 @@ func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *o
 /*
  * return Axxx for Oxxx on type t.
  */
-func optoas(op gc.Op, t *gc.Type) int {
+func optoas(op gc.Op, t *gc.Type) obj.As {
 	if t == nil {
 		gc.Fatalf("optoas: t is nil")
 	}
@@ -790,7 +790,7 @@ func optoas(op gc.Op, t *gc.Type) int {
 	a := obj.AXXX
 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
 	default:
-		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(int(op), 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
+		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(op, 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
 
 		/*	case CASE(OADDR, TPTR32):
 				a = ALEAL;
@@ -1131,7 +1131,7 @@ func dotaddable(n *gc.Node, n1 *gc.Node) bool {
  * after successful sudoaddable,
  * to release the register used for a.
  */
-func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+func sudoaddable(as obj.As, n *gc.Node, a *obj.Addr) bool {
 	if n.Type == nil {
 		return false
 	}

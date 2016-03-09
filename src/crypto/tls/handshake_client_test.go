@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -723,5 +724,53 @@ func TestServerSelectingUnconfiguredCipherSuite(t *testing.T) {
 
 	if err := <-errChan; !strings.Contains(err.Error(), "unconfigured cipher") {
 		t.Fatalf("Expected error about unconfigured cipher suite but got %q", err)
+	}
+}
+
+// brokenConn wraps a net.Conn and causes all Writes after a certain number to
+// fail with brokenConnErr.
+type brokenConn struct {
+	net.Conn
+
+	// breakAfter is the number of successful writes that will be allowed
+	// before all subsequent writes fail.
+	breakAfter int
+
+	// numWrites is the number of writes that have been done.
+	numWrites int
+}
+
+// brokenConnErr is the error that brokenConn returns once exhausted.
+var brokenConnErr = errors.New("too many writes to brokenConn")
+
+func (b *brokenConn) Write(data []byte) (int, error) {
+	if b.numWrites >= b.breakAfter {
+		return 0, brokenConnErr
+	}
+
+	b.numWrites++
+	return b.Conn.Write(data)
+}
+
+func TestFailedWrite(t *testing.T) {
+	// Test that a write error during the handshake is returned.
+	for _, breakAfter := range []int{0, 1, 2, 3} {
+		c, s := net.Pipe()
+		done := make(chan bool)
+
+		go func() {
+			Server(s, testConfig).Handshake()
+			s.Close()
+			done <- true
+		}()
+
+		brokenC := &brokenConn{Conn: c, breakAfter: breakAfter}
+		err := Client(brokenC, testConfig).Handshake()
+		if err != brokenConnErr {
+			t.Errorf("#%d: expected error from brokenConn but got %q", breakAfter, err)
+		}
+		brokenC.Close()
+
+		<-done
 	}
 }

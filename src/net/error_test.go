@@ -91,6 +91,9 @@ second:
 	case *os.SyscallError:
 		nestedErr = err.Err
 		goto third
+	case *os.PathError: // for Plan 9
+		nestedErr = err.Err
+		goto third
 	}
 	switch nestedErr {
 	case errCanceled, errClosing, errMissingAddress:
@@ -541,6 +544,9 @@ second:
 	}
 	switch err := nestedErr.(type) {
 	case *os.SyscallError:
+		nestedErr = err.Err
+		goto third
+	case *os.PathError: // for Plan 9
 		nestedErr = err.Err
 		goto third
 	}

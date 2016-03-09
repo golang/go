@@ -191,7 +191,7 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
 			}
 		}
 		h_allspans = new
-		h.allspans = (**mspan)(unsafe.Pointer(sp.array))
+		h.allspans = (**mspan)(sp.array)
 	}
 	h_allspans = append(h_allspans, s)
 	h.nspan = uint32(len(h_allspans))
@@ -275,7 +275,7 @@ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
 
 	n := s.elemsize
 	if base != nil {
-		i := (uintptr(v) - uintptr(p)) / n
+		i := (v - p) / n
 		*base = p + i*n
 	}
 	if size != nil {

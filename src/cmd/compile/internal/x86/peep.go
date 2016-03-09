@@ -733,7 +733,7 @@ func copysub(a *obj.Addr, v *obj.Addr, s *obj.Addr, f int) int {
 	if regtyp(v) {
 		reg := int(v.Reg)
 		if (a.Type == obj.TYPE_MEM || a.Type == obj.TYPE_ADDR) && int(a.Reg) == reg {
-			if (s.Reg == x86.REG_BP) && a.Index != obj.TYPE_NONE {
+			if (s.Reg == x86.REG_BP) && a.Index != x86.REG_NONE {
 				return 1 /* can't use BP-base with index */
 			}
 			if f != 0 {

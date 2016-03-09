@@ -188,7 +188,7 @@ func (h *hmap) createOverflow() {
 // If h != nil, the map can be created directly in h.
 // If bucket != nil, bucket can be used as the first bucket.
 func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
-	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != uintptr(t.hmap.size) {
+	if sz := unsafe.Sizeof(hmap{}); sz > 48 || sz != t.hmap.size {
 		println("runtime: sizeof(hmap) =", sz, ", t.hmap.size =", t.hmap.size)
 		throw("bad hmap size")
 	}
@@ -220,10 +220,10 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
 	if t.elem.align > bucketCnt {
 		throw("value align too big")
 	}
-	if uintptr(t.key.size)%uintptr(t.key.align) != 0 {
+	if t.key.size%uintptr(t.key.align) != 0 {
 		throw("key size not a multiple of key align")
 	}
-	if uintptr(t.elem.size)%uintptr(t.elem.align) != 0 {
+	if t.elem.size%uintptr(t.elem.align) != 0 {
 		throw("value size not a multiple of value align")
 	}
 	if bucketCnt < 8 {

@@ -8,6 +8,7 @@ import (
 	"cmd/internal/obj"
 	"crypto/sha1"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -1042,19 +1043,15 @@ func elfwritehdr() uint32 {
 }
 
 /* Taken directly from the definition document for ELF64 */
-func elfhash(name []byte) uint32 {
-	var h uint32 = 0
-	var g uint32
-	for len(name) != 0 {
-		h = (h << 4) + uint32(name[0])
-		name = name[1:]
-		g = h & 0xf0000000
-		if g != 0 {
+func elfhash(name string) uint32 {
+	var h uint32
+	for i := 0; i < len(name); i++ {
+		h = (h << 4) + uint32(name[i])
+		if g := h & 0xf0000000; g != 0 {
 			h ^= g >> 24
 		}
 		h &= 0x0fffffff
 	}
-
 	return h
 }
 
@@ -1200,45 +1197,30 @@ func elfwriteopenbsdsig() int {
 }
 
 func addbuildinfo(val string) {
-	var j int
-
-	if val[0] != '0' || val[1] != 'x' {
+	if !strings.HasPrefix(val, "0x") {
 		Exitf("-B argument must start with 0x: %s", val)
 	}
 
 	ov := val
 	val = val[2:]
-	i := 0
-	var b int
-	for val != "" {
-		if len(val) == 1 {
-			Exitf("-B argument must have even number of digits: %s", ov)
-		}
 
-		b = 0
-		for j = 0; j < 2; j, val = j+1, val[1:] {
-			b *= 16
-			if val[0] >= '0' && val[0] <= '9' {
-				b += int(val[0]) - '0'
-			} else if val[0] >= 'a' && val[0] <= 'f' {
-				b += int(val[0]) - 'a' + 10
-			} else if val[0] >= 'A' && val[0] <= 'F' {
-				b += int(val[0]) - 'A' + 10
-			} else {
-				Exitf("-B argument contains invalid hex digit %c: %s", val[0], ov)
-			}
-		}
-
-		const maxLen = 32
-		if i >= maxLen {
-			Exitf("-B option too long (max %d digits): %s", maxLen, ov)
-		}
-
-		buildinfo = append(buildinfo, uint8(b))
-		i++
+	const maxLen = 32
+	if hex.DecodedLen(len(val)) > maxLen {
+		Exitf("-B option too long (max %d digits): %s", maxLen, ov)
 	}
 
-	buildinfo = buildinfo[:i]
+	b, err := hex.DecodeString(val)
+	if err != nil {
+		if err == hex.ErrLength {
+			Exitf("-B argument must have even number of digits: %s", ov)
+		}
+		if inv, ok := err.(hex.InvalidByteError); ok {
+			Exitf("-B argument contains invalid hex digit %c: %s", byte(inv), ov)
+		}
+		Exitf("-B argument contains invalid hex: %s", ov)
+	}
+
+	buildinfo = b
 }
 
 // Build info note
@@ -1346,7 +1328,7 @@ func elfdynhash() {
 	nsym := Nelfsym
 	s := Linklookup(Ctxt, ".hash", 0)
 	s.Type = obj.SELFROSECT
-	s.Reachable = true
+	s.Attr |= AttrReachable
 
 	i := nsym
 	nbucket := 1
@@ -1361,9 +1343,7 @@ func elfdynhash() {
 	buckets := make([]uint32, nbucket)
 
 	var b int
-	var hc uint32
-	var name string
-	for sy := Ctxt.Allsym; sy != nil; sy = sy.Allsym {
+	for _, sy := range Ctxt.Allsym {
 		if sy.Dynid <= 0 {
 			continue
 		}
@@ -1372,8 +1352,8 @@ func elfdynhash() {
 			need[sy.Dynid] = addelflib(&needlib, sy.Dynimplib, sy.Dynimpvers)
 		}
 
-		name = sy.Extname
-		hc = elfhash([]byte(name))
+		name := sy.Extname
+		hc := elfhash(name)
 
 		b = int(hc % uint32(nbucket))
 		chain[sy.Dynid] = buckets[b]
@@ -1420,7 +1400,7 @@ func elfdynhash() {
 			i++
 
 			// aux struct
-			Adduint32(Ctxt, s, elfhash([]byte(x.vers)))           // hash
+			Adduint32(Ctxt, s, elfhash(x.vers))                   // hash
 			Adduint16(Ctxt, s, 0)                                 // flags
 			Adduint16(Ctxt, s, uint16(x.num))                     // other - index we refer to this by
 			Adduint32(Ctxt, s, uint32(Addstring(dynstr, x.vers))) // version string offset
@@ -1630,7 +1610,7 @@ func elfrelocsect(sect *Section, first *LSym) {
 	sect.Reloff = uint64(Cpos())
 	var sym *LSym
 	for sym = first; sym != nil; sym = sym.Next {
-		if !sym.Reachable {
+		if !sym.Attr.Reachable() {
 			continue
 		}
 		if uint64(sym.Value) >= sect.Vaddr {
@@ -1642,7 +1622,7 @@ func elfrelocsect(sect *Section, first *LSym) {
 	var r *Reloc
 	var ri int
 	for ; sym != nil; sym = sym.Next {
-		if !sym.Reachable {
+		if !sym.Attr.Reachable() {
 			continue
 		}
 		if sym.Value >= int64(eaddr) {
@@ -1691,7 +1671,7 @@ func Elfemitreloc() {
 
 func addgonote(sectionName string, tag uint32, desc []byte) {
 	s := Linklookup(Ctxt, sectionName, 0)
-	s.Reachable = true
+	s.Attr |= AttrReachable
 	s.Type = obj.SELFROSECT
 	// namesz
 	Adduint32(Ctxt, s, uint32(len(ELF_NOTE_GO_NAME)))
@@ -1721,7 +1701,7 @@ func doelf() {
 	shstrtab := Linklookup(Ctxt, ".shstrtab", 0)
 
 	shstrtab.Type = obj.SELFROSECT
-	shstrtab.Reachable = true
+	shstrtab.Attr |= AttrReachable
 
 	Addstring(shstrtab, "")
 	Addstring(shstrtab, ".text")
@@ -1856,7 +1836,7 @@ func doelf() {
 		s := Linklookup(Ctxt, ".dynsym", 0)
 
 		s.Type = obj.SELFROSECT
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		switch Thearch.Thechar {
 		case '0', '6', '7', '9':
 			s.Size += ELF64SYMSIZE
@@ -1868,7 +1848,7 @@ func doelf() {
 		s = Linklookup(Ctxt, ".dynstr", 0)
 
 		s.Type = obj.SELFROSECT
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		if s.Size == 0 {
 			Addstring(s, "")
 		}
@@ -1881,35 +1861,35 @@ func doelf() {
 		default:
 			s = Linklookup(Ctxt, ".rel", 0)
 		}
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
 		/* global offset table */
 		s = Linklookup(Ctxt, ".got", 0)
 
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFGOT // writable
 
 		/* ppc64 glink resolver */
 		if Thearch.Thechar == '9' {
 			s := Linklookup(Ctxt, ".glink", 0)
-			s.Reachable = true
+			s.Attr |= AttrReachable
 			s.Type = obj.SELFRXSECT
 		}
 
 		/* hash */
 		s = Linklookup(Ctxt, ".hash", 0)
 
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
 		s = Linklookup(Ctxt, ".got.plt", 0)
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFSECT // writable
 
 		s = Linklookup(Ctxt, ".plt", 0)
 
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		if Thearch.Thechar == '9' {
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
@@ -1926,21 +1906,21 @@ func doelf() {
 		default:
 			s = Linklookup(Ctxt, ".rel.plt", 0)
 		}
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
 		s = Linklookup(Ctxt, ".gnu.version", 0)
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
 		s = Linklookup(Ctxt, ".gnu.version_r", 0)
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFROSECT
 
 		/* define dynamic elf table */
 		s = Linklookup(Ctxt, ".dynamic", 0)
 
-		s.Reachable = true
+		s.Attr |= AttrReachable
 		s.Type = obj.SELFSECT // writable
 
 		/*
@@ -1993,10 +1973,10 @@ func doelf() {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
 		s := Linklookup(Ctxt, "go.link.abihashbytes", 0)
-		s.Local = true
+		s.Attr |= AttrLocal
 		s.Type = obj.SRODATA
-		s.Special = 1
-		s.Reachable = true
+		s.Attr |= AttrSpecial
+		s.Attr |= AttrReachable
 		s.Size = int64(sha1.Size)
 
 		sort.Sort(byPkg(Ctxt.Library))
@@ -2537,7 +2517,7 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
 		/* type */
 		t := STB_GLOBAL << 4
 
-		if s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+		if s.Attr.CgoExport() && s.Type&obj.SMASK == obj.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2564,7 +2544,7 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
 		/* size of object */
 		Adduint64(ctxt, d, uint64(s.Size))
 
-		if Thearch.Thechar == '6' && s.Cgoexport&CgoExportDynamic == 0 && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
+		if Thearch.Thechar == '6' && !s.Attr.CgoExportDynamic() && s.Dynimplib != "" && !seenlib[s.Dynimplib] {
 			Elfwritedynent(Linklookup(ctxt, ".dynamic", 0), DT_NEEDED, uint64(Addstring(Linklookup(ctxt, ".dynstr", 0), s.Dynimplib)))
 		}
 	} else {
@@ -2592,9 +2572,9 @@ func Elfadddynsym(ctxt *Link, s *LSym) {
 		t := STB_GLOBAL << 4
 
 		// TODO(mwhudson): presumably the behaviour should actually be the same on both arm and 386.
-		if Thearch.Thechar == '8' && s.Cgoexport != 0 && s.Type&obj.SMASK == obj.STEXT {
+		if Thearch.Thechar == '8' && s.Attr.CgoExport() && s.Type&obj.SMASK == obj.STEXT {
 			t |= STT_FUNC
-		} else if Thearch.Thechar == '5' && s.Cgoexport&CgoExportDynamic != 0 && s.Type&obj.SMASK == obj.STEXT {
+		} else if Thearch.Thechar == '5' && s.Attr.CgoExportDynamic() && s.Type&obj.SMASK == obj.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
