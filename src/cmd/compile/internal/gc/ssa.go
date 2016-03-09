@@ -3608,6 +3608,11 @@ func (s *state) addNamedValue(n *Node, v *ssa.Value) {
 		// pseudos in the right place when we spill to these nodes.
 		return
 	}
+	if n.Class == PPARAMOUT {
+		// Don't track named output values.  This prevents return values
+		// from being assigned too early. See #14591 and #14762. TODO: allow this.
+		return
+	}
 	if n.Class == PAUTO && n.Xoffset != 0 {
 		s.Fatalf("AUTO var with offset %s %d", n, n.Xoffset)
 	}

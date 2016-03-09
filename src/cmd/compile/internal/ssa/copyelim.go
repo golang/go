@@ -28,7 +28,7 @@ func copyelim(f *Func) {
 				x = x.Args[0]
 			}
 			if x != v {
-				values[i] = v
+				values[i] = x
 			}
 		}
 	}
