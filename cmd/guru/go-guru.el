@@ -119,9 +119,11 @@ if not already set.  Mark up the output using `compilation-mode`,
 replacing each file name with a small hyperlink, and display the
 result."
   (let ((output (go-guru--exec mode need-scope))
-	(display (get-buffer-create "*go-guru*")))
+	(display (get-buffer-create "*go-guru*"))
+	(dir default-directory))
     (with-current-buffer display
       (setq buffer-read-only nil)
+      (setq default-directory dir)
       (erase-buffer)
       (insert-buffer-substring output)
       (go-guru--compilation-markup))))
