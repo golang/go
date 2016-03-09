@@ -161,17 +161,23 @@ type Shlib struct {
 }
 
 type Link struct {
-	Thechar    int32
-	Thestring  string
-	Goarm      int32
-	Headtype   int
-	Arch       *LinkArch
-	Debugasm   int32
-	Debugvlog  int32
-	Bso        *obj.Biobuf
-	Windows    int32
-	Goroot     string
-	Hash       map[symVer]*LSym
+	Thechar   int32
+	Thestring string
+	Goarm     int32
+	Headtype  int
+	Arch      *LinkArch
+	Debugasm  int32
+	Debugvlog int32
+	Bso       *obj.Biobuf
+	Windows   int32
+	Goroot    string
+
+	// Map for fast access of symbols based on name.
+	HashName map[string]*LSym
+	// Fallback map based also on version, for symbols
+	// with more than one version (see func _lookup).
+	HashVersion map[symVer]*LSym
+
 	Allsym     []*LSym
 	Nsymbol    int32
 	Tlsg       *LSym
