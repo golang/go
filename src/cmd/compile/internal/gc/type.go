@@ -164,6 +164,31 @@ type Type struct {
 	Lastfn *Node // for usefield
 }
 
+// typ returns a new Type of the specified kind.
+func typ(et EType) *Type {
+	t := &Type{
+		Etype:  et,
+		Width:  BADWIDTH,
+		Lineno: lineno,
+	}
+	t.Orig = t
+	return t
+}
+
+// Copy returns a shallow copy of the Type.
+func (t *Type) Copy() *Type {
+	if t == nil {
+		return nil
+	}
+	nt := new(Type)
+	*nt = *t
+	// TODO(mdempsky): Find out why this is necessary and explain.
+	if t.Orig == t {
+		nt.Orig = nt
+	}
+	return nt
+}
+
 // Iter provides an abstraction for iterating across struct fields and
 // interface methods.
 type Iter struct {

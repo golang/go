@@ -3485,8 +3485,8 @@ func domethod(n *Node) {
 	typecheck(&nt, Etype)
 	if nt.Type == nil {
 		// type check failed; leave empty func
+		// TODO(mdempsky): Fix Type rekinding.
 		n.Type.Etype = TFUNC
-
 		n.Type.Nod = nil
 		return
 	}
@@ -3505,6 +3505,7 @@ func domethod(n *Node) {
 		}
 	}
 
+	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *nt.Type
 	n.Type.Nod = nil
 	checkwidth(n.Type)
@@ -3522,8 +3523,9 @@ func copytype(n *Node, t *Type) {
 
 	maplineno := int(n.Type.Maplineno)
 	embedlineno := int(n.Type.Embedlineno)
-
 	l := n.Type.Copyto
+
+	// TODO(mdempsky): Fix Type rekinding.
 	*n.Type = *t
 
 	t = n.Type

@@ -697,8 +697,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	// make an array type
-	t := shallow(n.Type)
-
+	t := n.Type.Copy()
 	t.Bound = Mpgetfix(n.Right.Val().U.(*Mpint))
 	t.Width = 0
 	t.Sym = nil
