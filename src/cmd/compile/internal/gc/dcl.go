@@ -664,36 +664,33 @@ func funcargs2(t *Type) {
 	}
 
 	if t.Thistuple != 0 {
-		var n *Node
-		for ft := getthisx(t).Type; ft != nil; ft = ft.Down {
+		for ft, it := IterFields(t.Recv()); ft != nil; ft = it.Next() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
-			n = ft.Nname // no need for newname(ft->nname->sym)
+			n := ft.Nname // no need for newname(ft->nname->sym)
 			n.Type = ft.Type
 			declare(n, PPARAM)
 		}
 	}
 
 	if t.Intuple != 0 {
-		var n *Node
-		for ft := getinargx(t).Type; ft != nil; ft = ft.Down {
+		for ft, it := IterFields(t.Params()); ft != nil; ft = it.Next() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
-			n = ft.Nname
+			n := ft.Nname
 			n.Type = ft.Type
 			declare(n, PPARAM)
 		}
 	}
 
 	if t.Outtuple != 0 {
-		var n *Node
-		for ft := getoutargx(t).Type; ft != nil; ft = ft.Down {
+		for ft, it := IterFields(t.Results()); ft != nil; ft = it.Next() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
-			n = ft.Nname
+			n := ft.Nname
 			n.Type = ft.Type
 			declare(n, PPARAMOUT)
 		}
@@ -1139,7 +1136,7 @@ func fakethis() *Node {
 // Those methods have an anonymous *struct{} as the receiver.
 // (See fakethis above.)
 func isifacemethod(f *Type) bool {
-	rcvr := getthisx(f).Type
+	rcvr := f.Recv().Type
 	if rcvr.Sym != nil {
 		return false
 	}
@@ -1170,16 +1167,16 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 	if this != nil {
 		rcvr = []*Node{this}
 	}
-	t.Type = tofunargs(rcvr)
-	t.Type.Down = tofunargs(out)
-	t.Type.Down.Down = tofunargs(in)
+	*t.RecvP() = tofunargs(rcvr)
+	*t.ResultsP() = tofunargs(out)
+	*t.ParamsP() = tofunargs(in)
 
 	uniqgen++
-	checkdupfields(t.Type.Type, "argument")
-	checkdupfields(t.Type.Down.Type, "argument")
-	checkdupfields(t.Type.Down.Down.Type, "argument")
+	checkdupfields(t.Recv().Type, "argument")
+	checkdupfields(t.Results().Type, "argument")
+	checkdupfields(t.Params().Type, "argument")
 
-	if t.Type.Broke || t.Type.Down.Broke || t.Type.Down.Down.Broke {
+	if t.Recv().Broke || t.Results().Broke || t.Params().Broke {
 		t.Broke = true
 	}
 
@@ -1311,7 +1308,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	}
 
 	// get parent type sym
-	pa := getthisx(t).Type // ptr to this structure
+	pa := t.Recv().Type // ptr to this structure
 	if pa == nil {
 		Yyerror("missing receiver")
 		return

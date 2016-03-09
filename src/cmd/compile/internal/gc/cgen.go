@@ -1677,7 +1677,7 @@ func Igen(n *Node, a *Node, res *Node) {
 			cgen_callinter(n, nil, 0)
 		}
 
-		fp, _ := IterFields(getoutargx(n.Left.Type))
+		fp, _ := IterFields(n.Left.Type.Results())
 		*a = Node{}
 		a.Op = OINDREG
 		a.Reg = int16(Thearch.REGSP)
@@ -2225,7 +2225,7 @@ func stkof(n *Node) int64 {
 			t = t.Type
 		}
 
-		t, _ = IterFields(getoutargx(t))
+		t, _ = IterFields(t.Results())
 		if t != nil {
 			return t.Width + Ctxt.FixedFrameSize()
 		}
@@ -2561,7 +2561,7 @@ func cgen_callret(n *Node, res *Node) {
 		t = t.Type
 	}
 
-	fp, _ := IterFields(getoutargx(t))
+	fp, _ := IterFields(t.Results())
 	if fp == nil {
 		Fatalf("cgen_callret: nil")
 	}
@@ -2585,7 +2585,7 @@ func cgen_aret(n *Node, res *Node) {
 		t = t.Type
 	}
 
-	fp, _ := IterFields(getoutargx(t))
+	fp, _ := IterFields(t.Results())
 	if fp == nil {
 		Fatalf("cgen_aret: nil")
 	}

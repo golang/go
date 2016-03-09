@@ -1321,7 +1321,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
 	i := 0
 	nE := e.nodeEscState(n)
 	nE.Escretval.Set(nil) // Suspect this is not nil for indirect calls.
-	for t := getoutargx(fntype).Type; t != nil; t = t.Down {
+	for t, it := IterFields(fntype.Results()); t != nil; t = it.Next() {
 		src := Nod(ONAME, nil, nil)
 		buf := fmt.Sprintf(".out%d", i)
 		i++
@@ -1389,7 +1389,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		initEscretval(e, n, fntype)
 		// If there is a receiver, it also leaks to heap.
 		if n.Op != OCALLFUNC {
-			t := getthisx(fntype).Type
+			t := fntype.Recv().Type
 			src := n.Left.Left
 			if haspointers(t.Type) {
 				escassign(e, &e.theSink, src)
@@ -1473,7 +1473,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	// Receiver.
 	if n.Op != OCALLFUNC {
-		t := getthisx(fntype).Type
+		t := fntype.Recv().Type
 		src := n.Left.Left
 		if haspointers(t.Type) {
 			escassignfromtag(e, t.Note, nE.Escretval, src)
@@ -1482,7 +1482,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	var src *Node
 	it := nodeSeqIterate(ll)
-	for t := getinargx(fntype).Type; !it.Done(); it.Next() {
+	for t := fntype.Params().Type; !it.Done(); it.Next() {
 		src = it.N()
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
@@ -1843,7 +1843,7 @@ func esctag(e *EscState, func_ *Node) {
 	// unless //go:noescape is given before the declaration.
 	if len(func_.Nbody.Slice()) == 0 {
 		if func_.Noescape {
-			for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
+			for t, it := IterFields(func_.Type.Params()); t != nil; t = it.Next() {
 				if haspointers(t.Type) {
 					t.Note = mktag(EscNone)
 				}
@@ -1857,7 +1857,7 @@ func esctag(e *EscState, func_ *Node) {
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
 		narg := 0
-		for t := getinargx(func_.Type).Type; t != nil; t = t.Down {
+		for t, it := IterFields(func_.Type.Params()); t != nil; t = it.Next() {
 			narg++
 			if t.Type.Etype == TUINTPTR {
 				if Debug['m'] != 0 {

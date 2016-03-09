@@ -615,12 +615,12 @@ func typefmt(t *Type, flag int) string {
 		} else {
 			if t.Thistuple != 0 {
 				buf.WriteString("method")
-				buf.WriteString(Tconv(getthisx(t), 0))
+				buf.WriteString(Tconv(t.Recv(), 0))
 				buf.WriteString(" ")
 			}
 			buf.WriteString("func")
 		}
-		buf.WriteString(Tconv(getinargx(t), 0))
+		buf.WriteString(Tconv(t.Params(), 0))
 
 		switch t.Outtuple {
 		case 0:
@@ -629,14 +629,14 @@ func typefmt(t *Type, flag int) string {
 		case 1:
 			if fmtmode != FExp {
 				buf.WriteString(" ")
-				buf.WriteString(Tconv(getoutargx(t).Type.Type, 0)) // struct->field->field's type
+				buf.WriteString(Tconv(t.Results().Type.Type, 0)) // struct->field->field's type
 				break
 			}
 			fallthrough
 
 		default:
 			buf.WriteString(" ")
-			buf.WriteString(Tconv(getoutargx(t), 0))
+			buf.WriteString(Tconv(t.Results(), 0))
 		}
 		return buf.String()
 

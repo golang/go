@@ -155,12 +155,12 @@ func emitptrargsmap() {
 	var xoffset int64
 	if Curfn.Type.Thistuple > 0 {
 		xoffset = 0
-		onebitwalktype1(getthisx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(Curfn.Type.Recv(), &xoffset, bv)
 	}
 
 	if Curfn.Type.Intuple > 0 {
 		xoffset = 0
-		onebitwalktype1(getinargx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
 	}
 
 	for j := 0; int32(j) < bv.n; j += 32 {
@@ -168,7 +168,7 @@ func emitptrargsmap() {
 	}
 	if Curfn.Type.Outtuple > 0 {
 		xoffset = 0
-		onebitwalktype1(getoutargx(Curfn.Type), &xoffset, bv)
+		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
 		for j := 0; int32(j) < bv.n; j += 32 {
 			off = duint32(sym, off, bv.b[j/32])
 		}
@@ -377,7 +377,7 @@ func compile(fn *Node) {
 
 	if Curfn.Type.Outnamed {
 		// add clearing of the output parameters
-		for t, it := IterFields(getoutargx(Curfn.Type)); t != nil; t = it.Next() {
+		for t, it := IterFields(Curfn.Type.Results()); t != nil; t = it.Next() {
 			if t.Nname != nil {
 				n := Nod(OAS, t.Nname, nil)
 				typecheck(&n, Etop)

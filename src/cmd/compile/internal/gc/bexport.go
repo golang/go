@@ -477,9 +477,9 @@ func (p *exporter) typ(t *Type) {
 
 		for _, m := range methods {
 			p.string(m.Sym.Name)
-			p.paramList(getthisx(m.Type))
-			p.paramList(getinargx(m.Type))
-			p.paramList(getoutargx(m.Type))
+			p.paramList(m.Type.Recv())
+			p.paramList(m.Type.Params())
+			p.paramList(m.Type.Results())
 			p.inlinedBody(m.Type.Nname)
 
 			if p.trace && m.Down != nil {
@@ -521,8 +521,8 @@ func (p *exporter) typ(t *Type) {
 
 	case TFUNC:
 		p.tag(signatureTag)
-		p.paramList(getinargx(t))
-		p.paramList(getoutargx(t))
+		p.paramList(t.Params())
+		p.paramList(t.Results())
 
 	case TINTER:
 		p.tag(interfaceTag)
@@ -609,8 +609,8 @@ func (p *exporter) method(m *Type) {
 	// TODO(gri) For functions signatures, we use p.typ() to export
 	// so we could share the same type with multiple functions. Do
 	// the same here, or never try to do this for functions.
-	p.paramList(getinargx(m.Type))
-	p.paramList(getoutargx(m.Type))
+	p.paramList(m.Type.Params())
+	p.paramList(m.Type.Results())
 }
 
 // fieldName is like qualifiedName but it doesn't record the package
