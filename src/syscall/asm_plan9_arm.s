@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 #include "textflag.h"
+#include "funcdata.h"
 
 #define SYS_SEEK 39	/* from zsysnum_plan9.go */
 
@@ -22,7 +23,7 @@ ok:
 	RET
 	
 //func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err ErrorString)
-TEXT	·Syscall(SB),NOSPLIT,$0
+TEXT	·Syscall(SB),NOSPLIT,$0-32
 	BL		runtime·entersyscall(SB)
 	MOVW	trap+0(FP), R0	// syscall num
 	MOVM.IA.W	(R13),[R1-R2]	// pop LR and caller's LR
@@ -37,7 +38,7 @@ TEXT	·Syscall(SB),NOSPLIT,$0
 
 //func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err ErrorString)
 // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
-TEXT	·Syscall6(SB),NOSPLIT,$0
+TEXT	·Syscall6(SB),NOSPLIT,$0-44
 	BL		runtime·entersyscall(SB)
 	MOVW	trap+0(FP), R0	// syscall num
 	MOVM.IA.W	(R13),[R1-R2]	// pop LR and caller's LR
@@ -51,7 +52,7 @@ TEXT	·Syscall6(SB),NOSPLIT,$0
 	RET
 
 //func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2, err uintptr)
-TEXT ·RawSyscall(SB),NOSPLIT,$0
+TEXT ·RawSyscall(SB),NOSPLIT,$0-28
 	MOVW	trap+0(FP), R0	// syscall num
 	MOVM.IA.W	(R13),[R1]		// pop caller's LR
 	SWI		0
@@ -63,7 +64,7 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0
 
 //func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
 // Actually RawSyscall5 but the rest of the code expects it to be named RawSyscall6.
-TEXT	·RawSyscall6(SB),NOSPLIT,$0
+TEXT	·RawSyscall6(SB),NOSPLIT,$0-40
 	MOVW	trap+0(FP), R0	// syscall num
 	MOVM.IA.W	(R13),[R1]		// pop caller's LR
 	SWI		0
@@ -74,7 +75,7 @@ TEXT	·RawSyscall6(SB),NOSPLIT,$0
 	RET
 
 //func seek(placeholder uintptr, fd int, offset int64, whence int) (newoffset int64, err string)
-TEXT ·seek(SB),NOSPLIT,$0
+TEXT ·seek(SB),NOSPLIT,$0-36
 	MOVW	$newoffset_lo+20(FP), R5
 	MOVW	R5, placeholder+0(FP)	//placeholder = dest for return value
 	MOVW	$SYS_SEEK, R0		// syscall num
@@ -90,7 +91,8 @@ TEXT ·seek(SB),NOSPLIT,$0
 
 //func exit(code int)
 // Import runtime·exit for cleanly exiting.
-TEXT ·exit(SB),NOSPLIT,$4
+TEXT ·exit(SB),NOSPLIT,$4-4
+	NO_LOCAL_POINTERS
 	MOVW	code+0(FP), R0
 	MOVW	R0, e-4(SP)
 	BL		runtime·exit(SB)
