@@ -806,24 +806,23 @@ func (p *exporter) inlinedBody(n *Node) {
 }
 
 func (p *exporter) nodeList(list Nodes) {
-	it := nodeSeqIterate(list)
 	if p.trace {
 		p.tracef("[ ")
 	}
-	p.int(it.Len())
+	p.int(list.Len())
 	if p.trace {
-		if it.Len() <= 1 {
+		if list.Len() == 0 {
 			p.tracef("] {}")
 		} else {
 			p.tracef("] {>")
 			defer p.tracef("<\n}")
 		}
 	}
-	for ; !it.Done(); it.Next() {
+	for _, n := range list.Slice() {
 		if p.trace {
 			p.tracef("\n")
 		}
-		p.node(it.N())
+		p.node(n)
 	}
 }
 

@@ -31,8 +31,7 @@ func typecheckselect(sel *Node) {
 		} else if ncase.List.Len() > 1 {
 			Yyerror("select cases cannot be lists")
 		} else {
-			it2 := nodeSeqIterate(ncase.List)
-			n = typecheck(it2.P(), Etop)
+			n = typecheck(ncase.List.Addr(0), Etop)
 			ncase.Left = n
 			ncase.List.Set(nil)
 			setlineno(n)
@@ -101,7 +100,6 @@ func walkselect(sel *Node) {
 	var n *Node
 	var var_ *Node
 	var selv *Node
-	var cas *Node
 	if i == 0 {
 		sel.Nbody.Set([]*Node{mkcall("block", nil, nil)})
 		goto out
@@ -172,8 +170,7 @@ func walkselect(sel *Node) {
 
 	// convert case value arguments to addresses.
 	// this rewrite is used by both the general code and the next optimization.
-	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
-		cas = it.N()
+	for _, cas := range sel.List.Slice() {
 		setlineno(cas)
 		n = cas.Left
 		if n == nil {
@@ -189,9 +186,8 @@ func walkselect(sel *Node) {
 				n.Op = OSELRECV
 			}
 			if n.Op == OSELRECV2 {
-				it := nodeSeqIterate(n.List)
-				*it.P() = Nod(OADDR, it.N(), nil)
-				typecheck(it.P(), Erv)
+				n.List.SetIndex(0, Nod(OADDR, n.List.First(), nil))
+				typecheck(n.List.Addr(0), Erv)
 			}
 
 			if n.Left == nil {
@@ -268,7 +264,7 @@ func walkselect(sel *Node) {
 	typecheck(&r, Etop)
 	init = append(init, r)
 	// register cases
-	for _, cas = range sel.List.Slice() {
+	for _, cas := range sel.List.Slice() {
 		setlineno(cas)
 		n = cas.Left
 		r = Nod(OIF, nil, nil)

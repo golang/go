@@ -475,7 +475,7 @@ func colasdefn(left Nodes, defn *Node) {
 		declare(n, dclcontext)
 		n.Name.Defn = defn
 		defn.Ninit.Append(Nod(ODCL, n, nil))
-		left.Slice()[i2] = n
+		left.SetIndex(i2, n)
 	}
 
 	if nnew == 0 && nerr == 0 {
@@ -833,9 +833,9 @@ func tostruct0(t *Type, l []*Node) {
 		Fatalf("struct expected")
 	}
 
-	for tp, it := &t.Type, nodeSeqIterate(l); !it.Done(); it.Next() {
-		f := structfield(it.N())
-
+	tp := &t.Type
+	for _, n := range l {
+		f := structfield(n)
 		*tp = f
 		tp = &f.Down
 	}
@@ -860,13 +860,14 @@ func tofunargs(l []*Node) *Type {
 	t := typ(TSTRUCT)
 	t.Funarg = true
 
-	for tp, it := &t.Type, nodeSeqIterate(l); !it.Done(); it.Next() {
-		f = structfield(it.N())
+	tp := &t.Type
+	for _, n := range l {
+		f = structfield(n)
 		f.Funarg = true
 
 		// esc.go needs to find f given a PPARAM to add the tag.
-		if it.N().Left != nil && it.N().Left.Class == PPARAM {
-			it.N().Left.Name.Param.Field = f
+		if n.Left != nil && n.Left.Class == PPARAM {
+			n.Left.Name.Param.Field = f
 		}
 
 		*tp = f

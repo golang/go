@@ -14,6 +14,7 @@ func typecheckrange(n *Node) {
 	var t2 *Type
 	var v1 *Node
 	var v2 *Node
+	var ls []*Node
 
 	// Typechecking order is important here:
 	// 0. first typecheck range expression (slice/map/chan),
@@ -32,9 +33,10 @@ func typecheckrange(n *Node) {
 		goto out
 	}
 	// delicate little dance.  see typecheckas2
-	for i1, n1 := range n.List.Slice() {
+	ls = n.List.Slice()
+	for i1, n1 := range ls {
 		if n1.Name == nil || n1.Name.Defn != n {
-			typecheck(&n.List.Slice()[i1], Erv|Easgn)
+			typecheck(&ls[i1], Erv|Easgn)
 		}
 	}
 
@@ -119,9 +121,10 @@ func typecheckrange(n *Node) {
 	// second half of dance
 out:
 	n.Typecheck = 1
-	for i2, n2 := range n.List.Slice() {
-		if n2.Typecheck == 0 {
-			typecheck(&n.List.Slice()[i2], Erv|Easgn)
+	ls = n.List.Slice()
+	for i1, n1 := range ls {
+		if n1.Typecheck == 0 {
+			typecheck(&ls[i1], Erv|Easgn)
 		}
 	}
 
@@ -342,10 +345,10 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	if v1 == nil || v2 != nil {
 		return false
 	}
-	if len(n.Nbody.Slice()) == 0 || n.Nbody.Slice()[0] == nil || len(n.Nbody.Slice()) > 1 {
+	if n.Nbody.Len() == 0 || n.Nbody.First() == nil || n.Nbody.Len() > 1 {
 		return false
 	}
-	stmt := n.Nbody.Slice()[0] // only stmt in body
+	stmt := n.Nbody.First() // only stmt in body
 	if stmt.Op != OAS || stmt.Left.Op != OINDEX {
 		return false
 	}

@@ -325,8 +325,9 @@ func inlconv2list(n *Node) []*Node {
 }
 
 func inlnodelist(l Nodes) {
-	for i := range l.Slice() {
-		inlnode(&l.Slice()[i])
+	s := l.Slice()
+	for i := range s {
+		inlnode(&s[i])
 	}
 }
 
@@ -411,9 +412,10 @@ func inlnode(np **Node) {
 		fallthrough
 
 	default:
-		for i3, n3 := range n.List.Slice() {
-			if n3.Op == OINLCALL {
-				inlconv2expr(&n.List.Slice()[i3])
+		s := n.List.Slice()
+		for i1, n1 := range s {
+			if n1.Op == OINLCALL {
+				inlconv2expr(&s[i1])
 			}
 		}
 	}
@@ -431,12 +433,13 @@ func inlnode(np **Node) {
 		fallthrough
 
 	default:
-		for i4, n4 := range n.Rlist.Slice() {
-			if n4.Op == OINLCALL {
+		s := n.Rlist.Slice()
+		for i1, n1 := range s {
+			if n1.Op == OINLCALL {
 				if n.Op == OIF {
-					inlconv2stmt(n4)
+					inlconv2stmt(n1)
 				} else {
-					inlconv2expr(&n.Rlist.Slice()[i4])
+					inlconv2expr(&s[i1])
 				}
 			}
 		}
@@ -670,7 +673,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	as = Nod(OAS2, nil, nil)
 
 	as.Rlist.Set(n.List.Slice())
-	it := nodeSeqIterate(n.List)
+	li := 0
 
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
@@ -689,7 +692,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
 		}
 		as.List.Append(tinlvar(t))
-		it.Next() // track argument count.
+		li++
 	}
 
 	// append ordinary arguments to LHS.
@@ -703,7 +706,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		for t, it2 := IterFields(fn.Type.Params()); t != nil; t = it2.Next() {
 			if variadic && t.Isddd {
 				vararg = tinlvar(t)
-				for i = 0; i < varargcount && it.Len() != 0; i++ {
+				for i = 0; i < varargcount && li < n.List.Len(); i++ {
 					m = argvar(varargtype, i)
 					varargs = append(varargs, m)
 					as.List.Append(m)
@@ -718,7 +721,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		// match arguments except final variadic (unless the call is dotted itself)
 		var t *Type
 		for t = fn.Type.Params().Type; t != nil; {
-			if it.Done() {
+			if li >= n.List.Len() {
 				break
 			}
 			if variadic && t.Isddd {
@@ -726,18 +729,18 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			}
 			as.List.Append(tinlvar(t))
 			t = t.Down
-			it.Next()
+			li++
 		}
 
 		// match varargcount arguments with variadic parameters.
 		if variadic && t != nil && t.Isddd {
 			vararg = tinlvar(t)
 			var i int
-			for i = 0; i < varargcount && !it.Done(); i++ {
+			for i = 0; i < varargcount && li < n.List.Len(); i++ {
 				m = argvar(varargtype, i)
 				varargs = append(varargs, m)
 				as.List.Append(m)
-				it.Next()
+				li++
 			}
 
 			if i == varargcount {
@@ -745,7 +748,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			}
 		}
 
-		if !it.Done() || t != nil {
+		if li < n.List.Len() || t != nil {
 			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(fn.Type.Params(), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
 		}
 	}

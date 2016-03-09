@@ -115,30 +115,33 @@ func typecheckswitch(n *Node) {
 				def = ncase
 			}
 		} else {
-			for i1, n1 := range ncase.List.Slice() {
+			ls := ncase.List.Slice()
+			for i1, n1 := range ls {
 				setlineno(n1)
-				typecheck(&ncase.List.Slice()[i1], Erv|Etype)
-				if ncase.List.Slice()[i1].Type == nil || t == nil {
+				typecheck(&ls[i1], Erv|Etype)
+				n1 = ls[i1]
+				if n1.Type == nil || t == nil {
 					continue
 				}
 				setlineno(ncase)
 				switch top {
 				// expression switch
 				case Erv:
-					defaultlit(&ncase.List.Slice()[i1], t)
+					defaultlit(&ls[i1], t)
+					n1 = ls[i1]
 					switch {
-					case ncase.List.Slice()[i1].Op == OTYPE:
-						Yyerror("type %v is not an expression", ncase.List.Slice()[i1].Type)
-					case ncase.List.Slice()[i1].Type != nil && assignop(ncase.List.Slice()[i1].Type, t, nil) == 0 && assignop(t, ncase.List.Slice()[i1].Type, nil) == 0:
+					case n1.Op == OTYPE:
+						Yyerror("type %v is not an expression", n1.Type)
+					case n1.Type != nil && assignop(n1.Type, t, nil) == 0 && assignop(t, n1.Type, nil) == 0:
 						if n.Left != nil {
-							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ncase.List.Slice()[i1], n.Left, ncase.List.Slice()[i1].Type, t)
+							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", n1, n.Left, n1.Type, t)
 						} else {
-							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ncase.List.Slice()[i1], ncase.List.Slice()[i1].Type)
+							Yyerror("invalid case %v in switch (mismatched types %v and bool)", n1, n1.Type)
 						}
-					case nilonly != "" && !isnil(ncase.List.Slice()[i1]):
-						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ncase.List.Slice()[i1], nilonly, n.Left)
-					case Isinter(t) && !Isinter(ncase.List.Slice()[i1].Type) && algtype1(ncase.List.Slice()[i1].Type, nil) == ANOEQ:
-						Yyerror("invalid case %v in switch (incomparable type)", Nconv(ncase.List.Slice()[i1], obj.FmtLong))
+					case nilonly != "" && !isnil(n1):
+						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
+					case Isinter(t) && !Isinter(n1.Type) && algtype1(n1.Type, nil) == ANOEQ:
+						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, obj.FmtLong))
 					}
 
 				// type switch
@@ -146,16 +149,17 @@ func typecheckswitch(n *Node) {
 					var missing, have *Type
 					var ptr int
 					switch {
-					case ncase.List.Slice()[i1].Op == OLITERAL && Istype(ncase.List.Slice()[i1].Type, TNIL):
-					case ncase.List.Slice()[i1].Op != OTYPE && ncase.List.Slice()[i1].Type != nil: // should this be ||?
-						Yyerror("%v is not a type", Nconv(ncase.List.Slice()[i1], obj.FmtLong))
+					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
+					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
+						Yyerror("%v is not a type", Nconv(n1, obj.FmtLong))
 						// reset to original type
-						ncase.List.Slice()[i1] = n.Left.Right
-					case ncase.List.Slice()[i1].Type.Etype != TINTER && t.Etype == TINTER && !implements(ncase.List.Slice()[i1].Type, t, &missing, &have, &ptr):
+						n1 = n.Left.Right
+						ls[i1] = n1
+					case n1.Type.Etype != TINTER && t.Etype == TINTER && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ncase.List.Slice()[i1].Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
 						} else if !missing.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ncase.List.Slice()[i1].Type, missing.Sym)
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), n1.Type, missing.Sym)
 						}
 					}
 				}
@@ -175,8 +179,7 @@ func typecheckswitch(n *Node) {
 				}
 
 				typecheck(&nvar, Erv|Easgn)
-				rit := nodeSeqIterate(ncase.Rlist)
-				*rit.P() = nvar
+				ncase.Rlist.SetIndex(0, nvar)
 			}
 		}
 
@@ -344,8 +347,7 @@ func casebody(sw *Node, typeswvar *Node) {
 	var def *Node    // defaults
 	br := Nod(OBREAK, nil, nil)
 
-	for it := nodeSeqIterate(sw.List); !it.Done(); it.Next() {
-		n := it.N()
+	for i, n := range sw.List.Slice() {
 		setlineno(n)
 		if n.Op != OXCASE {
 			Fatalf("casebody %v", Oconv(n.Op, 0))
@@ -395,7 +397,7 @@ func casebody(sw *Node, typeswvar *Node) {
 				Yyerror("cannot fallthrough in type switch")
 			}
 
-			if it.Len() <= 1 {
+			if i+1 >= sw.List.Len() {
 				setlineno(last)
 				Yyerror("cannot fallthrough final case in switch")
 			}
