@@ -1384,7 +1384,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 		initEscretval(e, n, fntype)
 		// If there is a receiver, it also leaks to heap.
 		if n.Op != OCALLFUNC {
-			t := fntype.Recv().Type
+			t := fntype.Recv0()
 			src := n.Left.Left
 			if haspointers(t.Type) {
 				escassign(e, &e.theSink, src)
@@ -1468,7 +1468,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 
 	// Receiver.
 	if n.Op != OCALLFUNC {
-		t := fntype.Recv().Type
+		t := fntype.Recv0()
 		src := n.Left.Left
 		if haspointers(t.Type) {
 			escassignfromtag(e, t.Note, nE.Escretval, src)

@@ -548,7 +548,7 @@ func nodarg(t *Type, fp int) *Node {
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t
-		first, _ := IterFields(t)
+		first := t.Field(0)
 		if first == nil {
 			Fatalf("nodarg: bad struct")
 		}

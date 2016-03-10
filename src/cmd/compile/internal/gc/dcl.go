@@ -1134,7 +1134,7 @@ func fakethis() *Node {
 // Those methods have an anonymous *struct{} as the receiver.
 // (See fakethis above.)
 func isifacemethod(f *Type) bool {
-	rcvr := f.Recv().Type
+	rcvr := f.Recv0()
 	if rcvr.Sym != nil {
 		return false
 	}
@@ -1306,7 +1306,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	}
 
 	// get parent type sym
-	pa := t.Recv().Type // ptr to this structure
+	pa := t.Recv0() // ptr to this structure
 	if pa == nil {
 		Yyerror("missing receiver")
 		return

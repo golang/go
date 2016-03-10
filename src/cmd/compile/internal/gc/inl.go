@@ -48,7 +48,7 @@ var inlretvars *NodeList // temp out variables
 func fnpkg(fn *Node) *Pkg {
 	if fn.Type.Thistuple != 0 {
 		// method
-		rcvr := fn.Type.Recv().Type.Type
+		rcvr := fn.Type.Recv0().Type
 
 		if Isptr[rcvr.Etype] {
 			rcvr = rcvr.Type
@@ -614,7 +614,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	var as *Node
 	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
 		// method call with a receiver.
-		t := fn.Type.Recv().Type
+		t := fn.Type.Recv0()
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
@@ -683,7 +683,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 
 		// append receiver inlvar to LHS.
-		t := fn.Type.Recv().Type
+		t := fn.Type.Recv0()
 
 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
