@@ -151,9 +151,7 @@ func caninl(fn *Node) {
 	fn.Func.Nname.Func.Inl.Set(fn.Nbody.Slice())
 	fn.Nbody.Set(inlcopylist(fn.Func.Nname.Func.Inl.Slice()))
 	inldcl := inlcopylist(fn.Func.Nname.Name.Defn.Func.Dcl)
-	if len(inldcl) > 0 {
-		fn.Func.Nname.Func.Inldcl = &inldcl
-	}
+	fn.Func.Nname.Func.Inldcl.Set(inldcl)
 	fn.Func.Nname.Func.InlCost = int32(maxBudget - budget)
 
 	// hack, TODO, check for better way to link method nodes back to the thing with the ->inl
@@ -565,9 +563,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	var dcl []*Node
 	if fn.Name.Defn != nil {
 		// local function
-		if fn.Func.Inldcl != nil {
-			dcl = *fn.Func.Inldcl
-		}
+		dcl = fn.Func.Inldcl.Slice()
 	} else {
 		// imported function
 		dcl = fn.Func.Dcl
