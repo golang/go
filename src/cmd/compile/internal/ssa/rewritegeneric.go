@@ -5325,7 +5325,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 	_ = b
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 4
-	// result: (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.Elem().Size()])))
+	// result: (AddPtr ptr (Mul32 <config.fe.TypeInt()> idx (Const32 <config.fe.TypeInt()> [t.ElemType().Size()])))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -5338,14 +5338,14 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpMul32, config.fe.TypeInt())
 		v0.AddArg(idx)
 		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt())
-		v1.AuxInt = t.Elem().Size()
+		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (PtrIndex <t> ptr idx)
 	// cond: config.PtrSize == 8
-	// result: (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.Elem().Size()])))
+	// result: (AddPtr ptr (Mul64 <config.fe.TypeInt()> idx (Const64 <config.fe.TypeInt()> [t.ElemType().Size()])))
 	for {
 		t := v.Type
 		ptr := v.Args[0]
@@ -5358,7 +5358,7 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
 		v0 := b.NewValue0(v.Line, OpMul64, config.fe.TypeInt())
 		v0.AddArg(idx)
 		v1 := b.NewValue0(v.Line, OpConst64, config.fe.TypeInt())
-		v1.AuxInt = t.Elem().Size()
+		v1.AuxInt = t.ElemType().Size()
 		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true

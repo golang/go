@@ -88,7 +88,7 @@ func dse(f *Func) {
 					v.SetArgs1(v.Args[2])
 				} else {
 					// zero addr mem
-					sz := v.Args[0].Type.Elem().Size()
+					sz := v.Args[0].Type.ElemType().Size()
 					if v.AuxInt != sz {
 						f.Fatalf("mismatched zero/store sizes: %d and %d [%s]",
 							v.AuxInt, sz, v.LongString())

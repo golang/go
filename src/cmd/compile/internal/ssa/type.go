@@ -28,8 +28,8 @@ type Type interface {
 	IsFlags() bool
 	IsVoid() bool
 
-	Elem() Type  // given []T or *T or [n]T, return T
-	PtrTo() Type // given T, return *T
+	ElemType() Type // given []T or *T or [n]T, return T
+	PtrTo() Type    // given T, return *T
 
 	NumFields() int64       // # of fields of a struct
 	FieldType(i int64) Type // type of ith field of the struct
@@ -71,7 +71,7 @@ func (t *CompilerType) IsFlags() bool          { return t.Flags }
 func (t *CompilerType) IsVoid() bool           { return t.Void }
 func (t *CompilerType) String() string         { return t.Name }
 func (t *CompilerType) SimpleString() string   { return t.Name }
-func (t *CompilerType) Elem() Type             { panic("not implemented") }
+func (t *CompilerType) ElemType() Type         { panic("not implemented") }
 func (t *CompilerType) PtrTo() Type            { panic("not implemented") }
 func (t *CompilerType) NumFields() int64       { panic("not implemented") }
 func (t *CompilerType) FieldType(i int64) Type { panic("not implemented") }
