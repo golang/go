@@ -914,6 +914,9 @@ var fmtTests = []struct {
 	{"%06v", []interface{}{+10.0 + 10i, 10}, "[(000010+00010i) 000010]"},
 	{"%06v", []interface{}{-10.0 + 10i, 10}, "[(-00010+00010i) 000010]"},
 
+	// integer formatting should not alter padding for other elements.
+	{"%03.6v", []interface{}{1, 2.0, "x"}, "[000001 002 00x]"},
+
 	// Complex fmt used to leave the plus flag set for future entries in the array
 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
