@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
-		if f.Type.Recv().Type == nil {
+		if f.Type.Recv0() == nil {
 			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Nointerface {
@@ -322,7 +322,7 @@ func methods(t *Type) []*Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		this := f.Type.Recv().Type.Type
+		this := f.Type.Recv0().Type
 
 		if Isptr[this.Etype] && this.Type == t {
 			continue

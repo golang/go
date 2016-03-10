@@ -243,11 +243,34 @@ func (t *Type) Recv() *Type    { return *t.RecvP() }
 func (t *Type) Params() *Type  { return *t.ParamsP() }
 func (t *Type) Results() *Type { return *t.ResultsP() }
 
+// TODO(mdempsky): Rename Recv to Recvs, so Recv0 can become just Recv.
+func (t *Type) Recv0() *Type { return t.Recv().Field(0) }
+
 // recvParamsResults stores the accessor functions for a function Type's
 // receiver, parameters, and result parameters, in that order.
 // It can be used to iterate over all of a function's parameter lists.
 var recvParamsResults = [3]func(*Type) *Type{
 	(*Type).Recv, (*Type).Params, (*Type).Results,
+}
+
+// Field returns the i'th field/method of struct/interface type t.
+func (t *Type) Field(i int) *Type {
+	// TODO: store fields in a slice so we can
+	// look them up by index in constant time.
+	for f, it := IterFields(t); f != nil; f = it.Next() {
+		if i == 0 {
+			return f
+		}
+		i--
+	}
+	if i == 0 {
+		// To simplify automated rewrites of existing code, if the
+		// caller asks for the n'th member of an n-element type,
+		// return nil instead of panicking.
+		// TODO(mdempsky): Make callers responsible for bounds checking.
+		return nil
+	}
+	panic("not enough fields")
 }
 
 func (t *Type) Size() int64 {
@@ -551,30 +574,10 @@ func (t *Type) NumFields() int64 {
 	return int64(countfield(t))
 }
 func (t *Type) FieldType(i int64) ssa.Type {
-	// TODO: store fields in a slice so we can
-	// look them up by index in constant time.
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
-		if t1.Etype != TFIELD {
-			panic("non-TFIELD in a TSTRUCT")
-		}
-		if i == 0 {
-			return t1.Type
-		}
-		i--
-	}
-	panic("not enough fields")
+	return t.Field(int(i)).Type
 }
 func (t *Type) FieldOff(i int64) int64 {
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
-		if t1.Etype != TFIELD {
-			panic("non-TFIELD in a TSTRUCT")
-		}
-		if i == 0 {
-			return t1.Width
-		}
-		i--
-	}
-	panic("not enough fields")
+	return t.Field(int(i)).Width
 }
 
 func (t *Type) NumElem() int64 {

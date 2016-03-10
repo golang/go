@@ -1959,7 +1959,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		isddd = n.Left.Isddd
 	}
 
-	methodrcvr := method.Type.Recv().Type.Type
+	methodrcvr := method.Type.Recv0().Type
 
 	// generate nil pointer check for better error
 	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
@@ -2148,7 +2148,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
-		rcvr = tm.Type.Recv().Type.Type
+		rcvr = tm.Type.Recv0().Type
 
 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {
