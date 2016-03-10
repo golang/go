@@ -9,304 +9,141 @@ import (
 	"unicode/utf8"
 )
 
+// buf [...read...|...|...unread...|s|...free...]
+//         ^      ^   ^            ^
+//         |      |   |            |
+//        suf     r0  r            w
+
 type source struct {
 	src io.Reader
-	end int
 
-	buf             []byte
-	litbuf          []byte
-	pos, line       int
-	oldpos, oldline int
-	pin             int
+	// source buffer
+	buf         [4 << 10]byte
+	offs        int   // source offset of buf
+	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
+	line0, line int   // previous/current line
+	err         error // pending io error
+
+	// literal buffer
+	lit []byte // literal prefix
+	suf int    // literal suffix; suf >= 0 means we are scanning a literal
 }
 
-func (s *source) init(src []byte) {
-	s.buf = append(src, utf8.RuneSelf) // terminate with sentinel
-	s.pos = 0
-	s.line = 1
-	s.oldline = 1
+func (s *source) init(src io.Reader) {
+	s.src = src
+	s.buf[0] = utf8.RuneSelf // terminate with sentinel
+	s.offs = 0
+	s.r0, s.r, s.w = 0, 0, 0
+	s.line0, s.line = 1, 1
+	s.err = nil
+
+	s.lit = s.lit[:0]
+	s.suf = -1
+}
+
+func (s *source) pos() int {
+	return s.offs + s.r
 }
 
 func (s *source) ungetr() {
-	s.pos, s.line = s.oldpos, s.oldline
+	s.r, s.line = s.r0, s.line0
 }
 
 func (s *source) getr() rune {
-redo:
-	s.oldpos, s.oldline = s.pos, s.line
+	for {
+		s.r0, s.line0 = s.r, s.line
 
-	// common case: 7bit ASCII
-	if b := s.buf[s.pos]; b < utf8.RuneSelf {
-		s.pos++
-		if b == 0 {
-			panic("invalid NUL byte")
-			goto redo // (or return 0?)
+		// common case: ASCII and enough bytes
+		if b := s.buf[s.r]; b < utf8.RuneSelf {
+			s.r++
+			if b == 0 {
+				panic("invalid NUL character")
+				continue
+			}
+			if b == '\n' {
+				s.line++
+			}
+			return rune(b)
 		}
-		if b == '\n' {
-			s.line++
+
+		// uncommon case: not ASCII or not enough bytes
+		r, w := utf8.DecodeRune(s.buf[s.r:s.w]) // optimistically assume valid rune
+		if r != utf8.RuneError || w > 1 {
+			s.r += w
+			// BOM's are only allowed as the first character in a file
+			const BOM = 0xfeff
+			if r == BOM && s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to 1)
+				panic("invalid BOM in the middle of the file")
+				continue
+			}
+			return r
 		}
-		return rune(b)
-	}
 
-	// uncommon case: not ASCII or not enough bytes
-	r, w := utf8.DecodeRune(s.buf[s.pos:])
-	s.pos += w
-	if r == utf8.RuneError && w == 1 {
-		if s.pos >= len(s.buf) {
-			s.ungetr() // so next getr also returns EOF
-			return -1  // EOF
+		if w == 0 && s.err != nil {
+			if s.err != io.EOF {
+				panic(s.err)
+			}
+			return -1
 		}
-		panic("invalid Unicode character")
-		goto redo
-	}
 
-	// BOM's are only allowed as the first character in a file
-	const BOM = 0xfeff
-	if r == BOM && s.oldpos > 0 {
-		panic("invalid BOM in the middle of the file")
-		goto redo
-	}
+		if w == 1 && (s.r+utf8.UTFMax <= s.w || utf8.FullRune(s.buf[s.r:s.w])) {
+			s.r++
+			panic("invalid UTF-8 encoding")
+			continue
+		}
 
-	return r
+		s.fill()
+	}
 }
 
-// TODO(gri) enable this one
-func (s *source) getr_() rune {
-redo:
-	s.oldpos, s.oldline = s.pos, s.line
-
-	// common case: 7bit ASCII
-	if b := s.buf[s.pos]; b < utf8.RuneSelf {
-		s.pos++
-		if b == 0 {
-			panic("invalid NUL byte")
-			goto redo // (or return 0?)
+func (s *source) fill() {
+	// Slide unread bytes to beginning but preserve last read char
+	// (for one ungetr call) plus one extra byte (for a 2nd ungetr
+	// call, only for ".." character sequence).
+	if s.r0 > 1 {
+		// save literal prefix, if any
+		// (We see at most one ungetr call while reading
+		// a literal, so make sure s.r0 remains in buf.)
+		if s.suf >= 0 {
+			s.lit = append(s.lit, s.buf[s.suf:s.r0]...)
+			s.suf = 1 // == s.r0 after slide below
 		}
-		if b == '\n' {
-			s.line++
-		}
-		return rune(b)
+		s.offs += s.r0 - 1
+		r := s.r - s.r0 + 1 // last read char plus one byte
+		s.w = r + copy(s.buf[r:], s.buf[s.r:s.w])
+		s.r = r
+		s.r0 = 1
 	}
 
-	// uncommon case: not ASCII or not enough bytes
-	r, w := utf8.DecodeRune(s.buf[s.pos:s.end])
-	if r == utf8.RuneError && w == 1 {
-		if s.refill() {
-			goto redo
+	// read more data: try a limited number of times
+	for i := 100; i > 0; i-- {
+		n, err := s.src.Read(s.buf[s.w : len(s.buf)-1]) // -1 to leave space for sentinel
+		if n < 0 {
+			panic("negative read")
 		}
-		// TODO(gri) carefull: this depends on whether s.end includes sentinel or not
-		if s.pos < s.end {
-			panic("invalid Unicode character")
-			goto redo
-		}
-		// EOF
-		return -1
-	}
-
-	s.pos += w
-
-	// BOM's are only allowed as the first character in a file
-	const BOM = 0xfeff
-	if r == BOM && s.oldpos > 0 {
-		panic("invalid BOM in the middle of the file")
-		goto redo
-	}
-
-	return r
-}
-
-func (s *source) refill() bool {
-	for s.pos+utf8.UTFMax > s.end && !utf8.FullRune(s.buf[s.pos:s.end]) {
-		// not enough bytes
-
-		// save literal prefix if any
-		if s.pin >= 0 {
-			s.litbuf = append(s.litbuf, s.buf[s.pin:s.oldpos]...)
-			s.pin = 0
-		}
-
-		// move unread bytes to beginning of buffer
-		copy(s.buf[0:], s.buf[s.oldpos:s.end])
-		// read more bytes
-		// (an io.Reader must return io.EOF when it reaches
-		// the end of what it is reading - simply returning
-		// n == 0 will make this loop retry forever; but the
-		// error is in the reader implementation in that case)
-		// TODO(gri) check for it and return io.ErrNoProgress?
-		// (see also bufio.go:666)
-		i := s.end - s.oldpos
-		n, err := s.src.Read(s.buf[i : len(s.buf)-1])
-		s.pos -= s.oldpos
-		s.oldpos = 0
-		s.end = i + n
-		s.buf[s.end] = utf8.RuneSelf // sentinel
-		if err != nil {
-			if s.pos == s.end {
-				return false // EOF
+		s.w += n
+		if n > 0 || err != nil {
+			s.buf[s.w] = utf8.RuneSelf // sentinel
+			if err != nil {
+				s.err = err
 			}
-			if err != io.EOF {
-				panic(err) // TODO(gri) fix this
-			}
-			// If err == EOF, we won't be getting more
-			// bytes; break to avoid infinite loop. If
-			// err is something else, we don't know if
-			// we can get more bytes; thus also break.
-			break
+			return
 		}
 	}
-	return true
+
+	panic("no progress")
 }
 
 func (s *source) startLit() {
-	s.litbuf = s.litbuf[:0]
-	s.pin = s.oldpos
+	s.suf = s.r0
+	s.lit = s.lit[:0] // reuse lit
 }
 
 func (s *source) stopLit() string {
-	return string(s.buf[s.pin:s.pos])
-
-	lit := s.buf[s.pin:s.pos]
-	s.pin = -1
-	if len(s.litbuf) > 0 {
-		s.litbuf = append(s.litbuf, lit...)
-		lit = s.litbuf
+	lit := s.buf[s.suf:s.r]
+	if len(s.lit) > 0 {
+		lit = append(s.lit, lit...)
 	}
-
+	s.suf = -1 // no pending literal
 	return string(lit)
 }
-
-/*
-// getr reads and returns the next Unicode character. It is designed such
-// that only a minimal amount of work needs to be done in the common ASCII
-// case (a single test to check for both ASCII and end-of-buffer, and one
-// test each to check for NUL and to count newlines).
-func (s *scanner) getr() rune {
-	// unread rune != 0 available
-	if r := s.peekr1; r != 0 {
-		s.peekr1 = s.peekr2
-		s.peekr2 = 0
-		if r == '\n' && importpkg == nil {
-			lexlineno++
-		}
-		return r
-	}
-
-redo:
-	// common case: 7bit ASCII
-	if b := s.buf[s.pos]; b < utf8.RuneSelf {
-		s.pos++
-		if b == 0 {
-			// TODO(gri) do we need lineno = lexlineno here?
-			Yyerror("illegal NUL byte")
-			return 0
-		}
-		if b == '\n' && importpkg == nil {
-			lexlineno++
-		}
-		return rune(b)
-	}
-
-	// uncommon case: not ASCII or not enough bytes
-	for s.pos+utf8.UTFMax > s.end && !utf8.FullRune(s.buf[s.pos:s.end]) {
-		// not enough bytes: read some more, but first
-		// move unread bytes to beginning of buffer
-		copy(s.buf[0:], s.buf[s.pos:s.end])
-		// read more bytes
-		// (an io.Reader must return io.EOF when it reaches
-		// the end of what it is reading - simply returning
-		// n == 0 will make this loop retry forever; but the
-		// error is in the reader implementation in that case)
-		// TODO(gri) check for it an return io.ErrNoProgress?
-		// (see also bufio.go:666)
-		i := s.end - s.pos
-		n, err := s.src.Read(s.buf[i : len(s.buf)-1])
-		s.pos = 0
-		s.end = i + n
-		s.buf[s.end] = utf8.RuneSelf // sentinel
-		if err != nil {
-			if s.end == 0 {
-				return EOF
-			}
-			if err != io.EOF {
-				panic(err) // TODO(gri) fix this
-			}
-			// If err == EOF, we won't be getting more
-			// bytes; break to avoid infinite loop. If
-			// err is something else, we don't know if
-			// we can get more bytes; thus also break.
-			break
-		}
-	}
-
-	// we have at least one byte (excluding sentinel)
-	// common case: 7bit ASCII
-	if b := s.buf[s.pos]; b < utf8.RuneSelf {
-		s.pos++
-		if b == 0 {
-			// TODO(gri) do we need lineno = lexlineno here?
-			Yyerror("illegal NUL byte")
-			return 0
-		}
-		if b == '\n' && importpkg == nil {
-			lexlineno++
-		}
-		return rune(b)
-	}
-
-	// uncommon case: not ASCII
-	r, w := utf8.DecodeRune(s.buf[s.pos:s.end])
-	s.pos += w
-	if r == utf8.RuneError && w == 1 {
-		lineno = lexlineno
-		// The string conversion here makes a copy for passing
-		// to fmt.Printf, so that buf itself does not escape and
-		// can be allocated on the stack.
-		Yyerror("illegal UTF-8 sequence %x", r)
-	}
-
-	if r == BOM {
-		yyerrorl(int(lexlineno), "Unicode (UTF-8) BOM in middle of file")
-		goto redo
-	}
-
-	return r
-}
-
-// pos returns the position of the most recently read character s.ch.
-func (s *Scanner) pos() Offset {
-	// TODO(gri) consider replacing lastCharLen with chPos or equivalent
-	return Offset(s.srcBufOffset + s.srcPos - s.chLen)
-}
-
-func (s *Scanner) startLiteral() {
-	s.symBuf = s.symBuf[:0]
-	s.symPos = s.srcPos - s.chLen
-}
-
-func (s *Scanner) stopLiteral(stripCR bool) string {
-	symEnd := s.srcPos - s.chLen
-
-	lit := s.srcBuf[s.symPos:symEnd]
-	s.symPos = -1
-	if len(s.symBuf) > 0 {
-		// part of the symbol text was saved in symBuf: save the rest in
-		// symBuf as well and return its content
-		s.symBuf = append(s.symBuf, lit...)
-		lit = s.symBuf
-	}
-
-	if stripCR {
-		c := make([]byte, len(lit))
-		i := 0
-		for _, ch := range lit {
-			if ch != '\r' {
-				c[i] = ch
-				i++
-			}
-		}
-		lit = c[:i]
-	}
-
-	return string(lit)
-}
-*/

@@ -89,7 +89,7 @@ func (decl) aDecl() {}
 
 // All declarations belonging to the same group point to the same Group node.
 type Group struct {
-	dummy int // make sure it's not an empty node
+	dummy int // not empty so we are guaranteed different Group instances
 }
 
 // ----------------------------------------------------------------------------

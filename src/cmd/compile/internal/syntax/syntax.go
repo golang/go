@@ -7,7 +7,7 @@ package syntax
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 )
 
 type Mode uint
@@ -15,14 +15,32 @@ type Mode uint
 // TODO(gri) These need a lot more work.
 
 func ReadFile(filename string, mode Mode) (*File, error) {
-	src, err := ioutil.ReadFile(filename)
+	src, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	return ReadBytes(src, mode)
+	defer src.Close()
+	return Read(src, mode)
+}
+
+type bytesReader struct {
+	data []byte
+}
+
+func (r *bytesReader) Read(p []byte) (int, error) {
+	if len(r.data) > 0 {
+		n := copy(p, r.data)
+		r.data = r.data[n:]
+		return n, nil
+	}
+	return 0, io.EOF
 }
 
 func ReadBytes(src []byte, mode Mode) (*File, error) {
+	return Read(&bytesReader{src}, mode)
+}
+
+func Read(src io.Reader, mode Mode) (*File, error) {
 	var p parser
 	p.init(src)
 
@@ -39,14 +57,6 @@ func ReadBytes(src []byte, mode Mode) (*File, error) {
 	}
 
 	return ast, nil
-}
-
-func Read(r io.Reader, mode Mode) (*File, error) {
-	src, err := ioutil.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return ReadBytes(src, mode)
 }
 
 func Write(w io.Writer, n *File) error {

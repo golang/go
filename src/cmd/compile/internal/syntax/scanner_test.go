@@ -6,15 +6,17 @@ package syntax
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
 func TestScanner(t *testing.T) {
-	src, err := ioutil.ReadFile("parser.go")
+	src, err := os.Open("parser.go")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer src.Close()
+
 	var s scanner
 	s.init(src)
 	for {

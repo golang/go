@@ -6,6 +6,7 @@ package syntax
 
 import (
 	"fmt"
+	"io"
 	"unicode"
 	"unicode/utf8"
 )
@@ -22,7 +23,7 @@ type scanner struct {
 	prec      int      // valid if tok is _Operator
 }
 
-func (s *scanner) init(src []byte) {
+func (s *scanner) init(src io.Reader) {
 	s.source.init(src)
 	s.nlsemi = false
 }
@@ -39,7 +40,7 @@ redo:
 	}
 
 	// token start
-	s.pos, s.line = s.source.pos, s.source.line
+	s.pos, s.line = s.source.pos(), s.source.line
 
 	if isLetter(c) || c >= utf8.RuneSelf && unicode.IsLetter(c) {
 		s.ident()
@@ -127,7 +128,7 @@ redo:
 				break
 			}
 			s.ungetr()
-			s.oldpos-- // make next ungetr work (line cannot have changed)
+			s.source.r0-- // make next ungetr work (line cannot have changed)
 		}
 		s.ungetr()
 		s.tok = _Dot
@@ -274,7 +275,9 @@ redo:
 
 	default:
 		s.tok = 0
-		panic(0)
+		fmt.Printf("invalid rune %q\n", c)
+		panic("invalid rune")
+		goto redo
 	}
 
 	return
@@ -357,11 +360,12 @@ func (s *scanner) number(c rune) {
 			if c == 'x' || c == 'X' {
 				// hex
 				c = s.getr()
-				pos := s.source.pos
+				hasDigit := false
 				for isDigit(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F' {
 					c = s.getr()
+					hasDigit = true
 				}
-				if pos == s.source.pos {
+				if !hasDigit {
 					panic("malformed hex constant")
 				}
 				s.ungetr()
@@ -500,17 +504,16 @@ var pragmas = map[string]bool{
 
 func (s *scanner) lineComment() {
 	// recognize pragmas
-	start := s.source.pos
 	r := s.getr()
 	switch r {
 	case 'g':
 		r = s.match(r, "go:")
 		if r < 0 {
-			m := string(s.buf[start+3 : s.source.pos])
-			if pragmas[m] {
-				// TODO(gri) record pragma
-				//println(m)
-			}
+			// m := string(s.buf[start+3 : s.source.pos()])
+			// if pragmas[m] {
+			// 	// TODO(gri) record pragma
+			// 	//println(m)
+			// }
 			return
 		}
 	case 'l':
