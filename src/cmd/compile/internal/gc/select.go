@@ -63,7 +63,7 @@ func typecheckselect(sel *Node) {
 
 				n.Op = OSELRECV2
 				n.Left = n.List.First()
-				n.List.Set([]*Node{n.List.Second()})
+				n.List.Set1(n.List.Second())
 				n.Right = n.Rlist.First()
 				n.Rlist.Set(nil)
 
@@ -101,7 +101,7 @@ func walkselect(sel *Node) {
 	var var_ *Node
 	var selv *Node
 	if i == 0 {
-		sel.Nbody.Set([]*Node{mkcall("block", nil, nil)})
+		sel.Nbody.Set1(mkcall("block", nil, nil))
 		goto out
 	}
 
@@ -143,7 +143,7 @@ func walkselect(sel *Node) {
 
 				n.Op = OAS2
 				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
-				n.Rlist.Set([]*Node{n.Right})
+				n.Rlist.Set1(n.Right)
 				n.Right = nil
 				n.Left = nil
 				n.Typecheck = 0
@@ -156,7 +156,7 @@ func walkselect(sel *Node) {
 			a.Left = Nod(OEQ, ch, nodnil())
 			var ln Nodes
 			ln.Set(l)
-			a.Nbody.Set([]*Node{mkcall("block", nil, &ln)})
+			a.Nbody.Set1(mkcall("block", nil, &ln))
 			l = ln.Slice()
 			typecheck(&a, Etop)
 			l = append(l, a)
@@ -245,7 +245,7 @@ func walkselect(sel *Node) {
 		typecheck(&r.Left, Erv)
 		r.Nbody.Set(cas.Nbody.Slice())
 		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
-		sel.Nbody.Set([]*Node{r})
+		sel.Nbody.Set1(r)
 		goto out
 	}
 

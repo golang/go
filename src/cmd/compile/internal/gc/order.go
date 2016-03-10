@@ -346,7 +346,7 @@ func copyret(n *Node, order *Order) []*Node {
 
 	as := Nod(OAS2, nil, nil)
 	as.List.Set(l1)
-	as.Rlist.Set([]*Node{n})
+	as.Rlist.Set1(n)
 	typecheck(&as, Etop)
 	orderstmt(as, order)
 
@@ -883,7 +883,7 @@ func orderstmt(n *Node, order *Order) {
 							n2.Ninit.Append(tmp2)
 						}
 
-						r.List.Set([]*Node{ordertemp(tmp1.Type, order, false)})
+						r.List.Set1(ordertemp(tmp1.Type, order, false))
 						tmp2 = Nod(OAS, tmp1, r.List.First())
 						typecheck(&tmp2, Etop)
 						n2.Ninit.Append(tmp2)

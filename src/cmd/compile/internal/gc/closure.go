@@ -425,7 +425,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 
 	typ := Nod(OTSTRUCT, nil, nil)
 
-	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR]))})
+	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
 	var typ1 *Node
 	for _, v := range func_.Func.Cvars.Slice() {
 		if v.Op == OXXX {
@@ -606,7 +606,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	} else {
 		n := Nod(OAS2, nil, nil)
 		n.List.Set(retargs)
-		n.Rlist.Set([]*Node{call})
+		n.Rlist.Set1(call)
 		body = append(body, n)
 		n = Nod(ORETURN, nil, nil)
 		body = append(body, n)
@@ -639,13 +639,13 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 	}
 
 	typ := Nod(OTSTRUCT, nil, nil)
-	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR]))})
+	typ.List.Set1(Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR])))
 	typ.List.Append(Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
 
 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
 	clos.Esc = n.Esc
 	clos.Right.Implicit = true
-	clos.List.Set([]*Node{Nod(OCFUNC, n.Func.Nname, nil)})
+	clos.List.Set1(Nod(OCFUNC, n.Func.Nname, nil))
 	clos.List.Append(n.Left)
 
 	// Force type conversion from *struct to the func type.

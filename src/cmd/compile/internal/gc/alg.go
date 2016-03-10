@@ -206,7 +206,7 @@ func genhash(sym *Sym, t *Type) {
 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
 		ni := newname(Lookup("i"))
 		ni.Type = Types[TINT]
-		n.List.Set([]*Node{ni})
+		n.List.Set1(ni)
 		n.Colas = true
 		colasdefn(n.List, n)
 		ni = n.List.First()
@@ -382,7 +382,7 @@ func geneq(sym *Sym, t *Type) {
 
 		ni := newname(Lookup("i"))
 		ni.Type = Types[TINT]
-		nrange.List.Set([]*Node{ni})
+		nrange.List.Set1(ni)
 		nrange.Colas = true
 		colasdefn(nrange.List, nrange)
 		ni = nrange.List.First()

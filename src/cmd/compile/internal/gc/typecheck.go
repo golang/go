@@ -706,7 +706,7 @@ OpSwitch:
 				if l.Op == OADDSTR {
 					n.List.Set(l.List.Slice())
 				} else {
-					n.List.Set([]*Node{l})
+					n.List.Set1(l)
 				}
 				if r.Op == OADDSTR {
 					n.List.AppendNodes(&r.List)

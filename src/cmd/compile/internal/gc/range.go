@@ -95,7 +95,7 @@ func typecheckrange(n *Node) {
 	// present."
 	if isblank(v2) {
 		if v1 != nil {
-			n.List.Set([]*Node{v1})
+			n.List.Set1(v1)
 		}
 		v2 = nil
 	}
@@ -216,7 +216,7 @@ func walkrange(n *Node) {
 			tmp.Right.Typecheck = 1
 			a = Nod(OAS, hp, tmp)
 			typecheck(&a, Etop)
-			n.Right.Ninit.Set([]*Node{a})
+			n.Right.Ninit.Set1(a)
 		}
 
 		// orderstmt allocated the iterator for us.
@@ -273,8 +273,8 @@ func walkrange(n *Node) {
 		a := Nod(OAS2RECV, nil, nil)
 		a.Typecheck = 1
 		a.List.Set([]*Node{hv1, hb})
-		a.Rlist.Set([]*Node{Nod(ORECV, ha, nil)})
-		n.Left.Ninit.Set([]*Node{a})
+		a.Rlist.Set1(Nod(ORECV, ha, nil))
+		n.Left.Ninit.Set1(a)
 		if v1 == nil {
 			body = nil
 		} else {
@@ -299,7 +299,7 @@ func walkrange(n *Node) {
 			a = Nod(OAS2, nil, nil)
 			a.List.Set([]*Node{hv1, hv2})
 			fn := syslook("stringiter2")
-			a.Rlist.Set([]*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
+			a.Rlist.Set1(mkcall1(fn, fn.Type.Results(), nil, ha, hv1))
 		}
 
 		n.Left = Nod(ONE, hv1, Nodintconst(0))

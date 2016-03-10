@@ -778,7 +778,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		a = Nod(OADDR, a, nil)
 	} else {
 		a = Nod(ONEW, nil, nil)
-		a.List.Set([]*Node{typenod(t)})
+		a.List.Set1(typenod(t))
 	}
 
 	a = Nod(OAS, vauto, a)
@@ -850,7 +850,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	nerr := nerrors
 
 	a := Nod(OMAKE, nil, nil)
-	a.List.Set([]*Node{typenod(n.Type)})
+	a.List.Set1(typenod(n.Type))
 	litas(var_, a, init)
 
 	// count the initializers
@@ -952,9 +952,9 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		r = Nod(OAS, r, a)
 
 		a = Nod(OFOR, nil, nil)
-		a.Nbody.Set([]*Node{r})
+		a.Nbody.Set1(r)
 
-		a.Ninit.Set([]*Node{Nod(OAS, index, Nodintconst(0))})
+		a.Ninit.Set1(Nod(OAS, index, Nodintconst(0)))
 		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
 

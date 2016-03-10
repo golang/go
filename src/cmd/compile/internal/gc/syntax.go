@@ -411,6 +411,11 @@ func (n *Nodes) Set(s []*Node) {
 	}
 }
 
+// Set1 sets n to a slice containing a single node.
+func (n *Nodes) Set1(node *Node) {
+	n.slice = &[]*Node{node}
+}
+
 // MoveNodes sets n to the contents of n2, then clears n2.
 func (n *Nodes) MoveNodes(n2 *Nodes) {
 	n.slice = n2.slice

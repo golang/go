@@ -122,7 +122,7 @@ func fninit(n []*Node) {
 	a.Likely = 1
 	r = append(r, a)
 	// (3a)
-	a.Nbody.Set([]*Node{Nod(ORETURN, nil, nil)})
+	a.Nbody.Set1(Nod(ORETURN, nil, nil))
 
 	// (4)
 	b := Nod(OIF, nil, nil)
@@ -132,7 +132,7 @@ func fninit(n []*Node) {
 	b.Likely = 1
 	r = append(r, b)
 	// (4a)
-	b.Nbody.Set([]*Node{Nod(OCALL, syslook("throwinit"), nil)})
+	b.Nbody.Set1(Nod(OCALL, syslook("throwinit"), nil))
 
 	// (6)
 	a = Nod(OAS, gatevar, Nodintconst(1))
