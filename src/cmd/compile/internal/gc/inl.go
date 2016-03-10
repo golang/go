@@ -32,17 +32,6 @@ import (
 	"fmt"
 )
 
-// Used by caninl.
-
-// Used by inlcalls
-
-// Used during inlsubst[list]
-var inlfn *Node // function currently being inlined
-
-var inlretlabel *Node // target of the goto substituted in place of a return
-
-var inlretvars []*Node // temp out variables
-
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *Node) *Pkg {
@@ -553,9 +542,6 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		fmt.Printf("%v: Before inlining: %v\n", n.Line(), Nconv(n, obj.FmtSign))
 	}
 
-	saveinlfn := inlfn
-	inlfn = fn
-
 	ninit := n.Ninit
 
 	//dumplist("ninit pre", ninit);
@@ -569,7 +555,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		dcl = fn.Func.Dcl
 	}
 
-	inlretvars = nil
+	var retvars []*Node
 	i := 0
 
 	// Make temp names to use instead of the originals
@@ -603,7 +589,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 
 		ninit.Append(Nod(ODCL, m, nil))
-		inlretvars = append(inlretvars, m)
+		retvars = append(retvars, m)
 	}
 
 	// assign receiver.
@@ -774,18 +760,24 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	}
 
 	// zero the outparams
-	for _, n := range inlretvars {
+	for _, n := range retvars {
 		as = Nod(OAS, n, nil)
 		typecheck(&as, Etop)
 		ninit.Append(as)
 	}
 
-	inlretlabel = newlabel_inl()
+	retlabel := newlabel_inl()
 	inlgen++
-	body := inlsubstlist(fn.Func.Inl)
 
-	body = append(body, Nod(OGOTO, inlretlabel, nil)) // avoid 'not used' when function doesn't have return
-	body = append(body, Nod(OLABEL, inlretlabel, nil))
+	subst := inlsubst{
+		retlabel: retlabel,
+		retvars:  retvars,
+	}
+
+	body := subst.list(fn.Func.Inl)
+
+	body = append(body, Nod(OGOTO, retlabel, nil)) // avoid 'not used' when function doesn't have return
+	body = append(body, Nod(OLABEL, retlabel, nil))
 
 	typecheckslice(body, Etop)
 
@@ -795,7 +787,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	call.Ninit.Set(ninit.Slice())
 	call.Nbody.Set(body)
-	call.Rlist.Set(inlretvars)
+	call.Rlist.Set(retvars)
 	call.Type = n.Type
 	call.Typecheck = 1
 
@@ -811,8 +803,6 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	//dumplist("call body", body);
 
 	*np = call
-
-	inlfn = saveinlfn
 
 	// transitive inlining
 	// might be nice to do this before exporting the body,
@@ -893,19 +883,30 @@ func newlabel_inl() *Node {
 	return n
 }
 
-// inlsubst and inlsubstlist recursively copy the body of the saved
-// pristine ->inl body of the function while substituting references
-// to input/output parameters with ones to the tmpnames, and
-// substituting returns with assignments to the output.
-func inlsubstlist(ll Nodes) []*Node {
+// The inlsubst type implements the actual inlining of a single
+// function call.
+type inlsubst struct {
+	// Target of the goto substituted in place of a return.
+	retlabel *Node
+
+	// Temporary result variables.
+	retvars []*Node
+}
+
+// list inlines a list of nodes.
+func (subst *inlsubst) list(ll Nodes) []*Node {
 	s := make([]*Node, 0, ll.Len())
 	for _, n := range ll.Slice() {
-		s = append(s, inlsubst(n))
+		s = append(s, subst.node(n))
 	}
 	return s
 }
 
-func inlsubst(n *Node) *Node {
+// node recursively copies a node from the saved pristine body of the
+// inlined function, substituting references to input/output
+// parameters with ones to the tmpnames, and substituting returns with
+// assignments to the output.
+func (subst *inlsubst) node(n *Node) *Node {
 	if n == nil {
 		return nil
 	}
@@ -931,18 +932,20 @@ func inlsubst(n *Node) *Node {
 
 	//		dump("Return before substitution", n);
 	case ORETURN:
-		m := Nod(OGOTO, inlretlabel, nil)
+		m := Nod(OGOTO, subst.retlabel, nil)
 
-		m.Ninit.Set(inlsubstlist(n.Ninit))
+		m.Ninit.Set(subst.list(n.Ninit))
 
-		if len(inlretvars) != 0 && n.List.Len() != 0 {
+		if len(subst.retvars) != 0 && n.List.Len() != 0 {
 			as := Nod(OAS2, nil, nil)
 
-			// shallow copy or OINLCALL->rlist will be the same list, and later walk and typecheck may clobber that.
-			for _, n := range inlretvars {
+			// Make a shallow copy of retvars.
+			// Otherwise OINLCALL.Rlist will be the same list,
+			// and later walk and typecheck may clobber it.
+			for _, n := range subst.retvars {
 				as.List.Append(n)
 			}
-			as.Rlist.Set(inlsubstlist(n.List))
+			as.Rlist.Set(subst.list(n.List))
 			typecheck(&as, Etop)
 			m.Ninit.Append(as)
 		}
@@ -971,12 +974,12 @@ func inlsubst(n *Node) *Node {
 		Fatalf("cannot inline function containing closure: %v", Nconv(n, obj.FmtSign))
 	}
 
-	m.Left = inlsubst(n.Left)
-	m.Right = inlsubst(n.Right)
-	m.List.Set(inlsubstlist(n.List))
-	m.Rlist.Set(inlsubstlist(n.Rlist))
-	m.Ninit.Set(append(m.Ninit.Slice(), inlsubstlist(n.Ninit)...))
-	m.Nbody.Set(inlsubstlist(n.Nbody))
+	m.Left = subst.node(n.Left)
+	m.Right = subst.node(n.Right)
+	m.List.Set(subst.list(n.List))
+	m.Rlist.Set(subst.list(n.Rlist))
+	m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
+	m.Nbody.Set(subst.list(n.Nbody))
 
 	return m
 }
