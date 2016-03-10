@@ -2073,7 +2073,6 @@ func (p *parser) xdcl_list() (l []*Node) {
 		defer p.trace("xdcl_list")()
 	}
 
-loop:
 	for p.tok != EOF {
 		switch p.tok {
 		case LVAR, LCONST, LTYPE:
@@ -2090,7 +2089,7 @@ loop:
 				p.syntax_error("non-declaration statement outside function body")
 			}
 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
-			goto loop
+			continue
 		}
 
 		if nsyntaxerrors == 0 {
@@ -2104,7 +2103,6 @@ loop:
 		if p.tok != EOF && !p.got(';') {
 			p.syntax_error("after top level declaration")
 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
-			goto loop
 		}
 	}
 	return
