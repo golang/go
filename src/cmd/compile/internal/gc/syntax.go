@@ -151,9 +151,9 @@ type Func struct {
 	Shortname  *Node
 	Enter      Nodes // for example, allocate and initialize memory for escaping parameters
 	Exit       Nodes
-	Cvars      Nodes    // closure params
-	Dcl        []*Node  // autodcl for this func/closure
-	Inldcl     *[]*Node // copy of dcl for use in inlining
+	Cvars      Nodes   // closure params
+	Dcl        []*Node // autodcl for this func/closure
+	Inldcl     Nodes   // copy of dcl for use in inlining
 	Closgen    int
 	Outerfunc  *Node
 	Fieldtrack []*Type
