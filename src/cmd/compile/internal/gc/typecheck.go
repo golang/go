@@ -1021,9 +1021,9 @@ OpSwitch:
 
 		case TMAP:
 			n.Etype = 0
-			defaultlit(&n.Right, t.Down)
+			defaultlit(&n.Right, t.Key())
 			if n.Right.Type != nil {
-				n.Right = assignconv(n.Right, t.Down, "map index")
+				n.Right = assignconv(n.Right, t.Key(), "map index")
 			}
 			n.Type = t.Type
 			n.Op = OINDEXMAP
@@ -1460,9 +1460,9 @@ OpSwitch:
 				return
 			}
 
-			t = n.List.First().Type.Type
-			l = t.Nname
-			r = t.Down.Nname
+			t = n.List.First().Type
+			l = t.Field(0).Nname
+			r = t.Field(1).Nname
 		} else {
 			if !twoarg(n) {
 				n.Type = nil
@@ -1575,7 +1575,7 @@ OpSwitch:
 			return
 		}
 
-		args.SetIndex(1, assignconv(r, l.Type.Down, "delete"))
+		args.SetIndex(1, assignconv(r, l.Type.Key(), "delete"))
 		break OpSwitch
 
 	case OAPPEND:
@@ -3028,10 +3028,10 @@ func typecheckcomplit(np **Node) {
 			}
 
 			r = l.Left
-			pushtype(r, t.Down)
+			pushtype(r, t.Key())
 			typecheck(&r, Erv)
-			defaultlit(&r, t.Down)
-			l.Left = assignconv(r, t.Down, "map key")
+			defaultlit(&r, t.Key())
+			l.Left = assignconv(r, t.Key(), "map key")
 			if l.Left.Op != OCONV {
 				keydup(l.Left, hash)
 			}

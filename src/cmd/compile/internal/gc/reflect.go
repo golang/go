@@ -75,7 +75,7 @@ func mapbucket(t *Type) *Type {
 	}
 
 	bucket := typ(TSTRUCT)
-	keytype := t.Down
+	keytype := t.Key()
 	valtype := t.Type
 	dowidth(keytype)
 	dowidth(valtype)
@@ -119,7 +119,7 @@ func mapbucket(t *Type) *Type {
 	// so if the struct needs 64-bit padding (because a key or value does)
 	// then it would end with an extra 32-bit padding field.
 	// Preempt that by emitting the padding here.
-	if int(t.Type.Align) > Widthptr || int(t.Down.Align) > Widthptr {
+	if int(t.Type.Align) > Widthptr || int(t.Key().Align) > Widthptr {
 		field = append(field, makefield("pad", Types[TUINTPTR]))
 	}
 
@@ -130,7 +130,7 @@ func mapbucket(t *Type) *Type {
 	// the type of the overflow field to uintptr in this case.
 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
 	otyp := Ptrto(bucket)
-	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
+	if !haspointers(t.Type) && !haspointers(t.Key()) && t.Type.Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
 		otyp = Types[TUINTPTR]
 	}
 	ovf := makefield("overflow", otyp)
@@ -139,11 +139,7 @@ func mapbucket(t *Type) *Type {
 	// link up fields
 	bucket.Noalg = true
 	bucket.Local = t.Local
-	bucket.Type = field[0]
-	for n := int32(0); n < int32(len(field)-1); n++ {
-		field[n].Down = field[n+1]
-	}
-	field[len(field)-1].Down = nil
+	bucket.SetFields(field[:])
 	dowidth(bucket)
 
 	// Double-check that overflow field is final memory in struct,
@@ -179,11 +175,7 @@ func hmap(t *Type) *Type {
 	h := typ(TSTRUCT)
 	h.Noalg = true
 	h.Local = t.Local
-	h.Type = field[0]
-	for n := int32(0); n < int32(len(field)-1); n++ {
-		field[n].Down = field[n+1]
-	}
-	field[len(field)-1].Down = nil
+	h.SetFields(field[:])
 	dowidth(h)
 	t.Hmap = h
 	h.Map = t
@@ -212,8 +204,7 @@ func hiter(t *Type) *Type {
 	// }
 	// must match ../../../../runtime/hashmap.go:hiter.
 	var field [12]*Type
-	field[0] = makefield("key", Ptrto(t.Down))
-
+	field[0] = makefield("key", Ptrto(t.Key()))
 	field[1] = makefield("val", Ptrto(t.Type))
 	field[2] = makefield("t", Ptrto(Types[TUINT8]))
 	field[3] = makefield("h", Ptrto(hmap(t)))
@@ -228,13 +219,8 @@ func hiter(t *Type) *Type {
 
 	// build iterator struct holding the above fields
 	i := typ(TSTRUCT)
-
 	i.Noalg = true
-	i.Type = field[0]
-	for n := int32(0); n < int32(len(field)-1); n++ {
-		field[n].Down = field[n+1]
-	}
-	field[len(field)-1].Down = nil
+	i.SetFields(field[:])
 	dowidth(i)
 	if i.Width != int64(12*Widthptr) {
 		Yyerror("hash_iter size not correct %d %d", i.Width, 12*Widthptr)
@@ -1124,8 +1110,7 @@ ok:
 
 	// ../../../../runtime/type.go:/mapType
 	case TMAP:
-		s1 := dtypesym(t.Down)
-
+		s1 := dtypesym(t.Key())
 		s2 := dtypesym(t.Type)
 		s3 := dtypesym(mapbucket(t))
 		s4 := dtypesym(hmap(t))
@@ -1134,11 +1119,11 @@ ok:
 		ot = dsymptr(s, ot, s2, 0)
 		ot = dsymptr(s, ot, s3, 0)
 		ot = dsymptr(s, ot, s4, 0)
-		if t.Down.Width > MAXKEYSIZE {
+		if t.Key().Width > MAXKEYSIZE {
 			ot = duint8(s, ot, uint8(Widthptr))
 			ot = duint8(s, ot, 1) // indirect
 		} else {
-			ot = duint8(s, ot, uint8(t.Down.Width))
+			ot = duint8(s, ot, uint8(t.Key().Width))
 			ot = duint8(s, ot, 0) // not indirect
 		}
 
@@ -1151,8 +1136,8 @@ ok:
 		}
 
 		ot = duint16(s, ot, uint16(mapbucket(t).Width))
-		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Down))))
-		ot = duint8(s, ot, uint8(obj.Bool2int(needkeyupdate(t.Down))))
+		ot = duint8(s, ot, uint8(obj.Bool2int(isreflexive(t.Key()))))
+		ot = duint8(s, ot, uint8(obj.Bool2int(needkeyupdate(t.Key()))))
 		ot = dextratype(s, ot, t, 0)
 
 	case TPTR32, TPTR64:

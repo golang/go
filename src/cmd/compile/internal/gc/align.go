@@ -223,7 +223,7 @@ func dowidth(t *Type) {
 		w = int64(Widthptr)
 
 		checkwidth(t.Type)
-		checkwidth(t.Down)
+		checkwidth(t.Key())
 
 	case TFORW: // should have been filled in
 		if !t.Broke {

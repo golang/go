@@ -56,7 +56,7 @@ func typecheckrange(n *Node) {
 		t2 = t.Type
 
 	case TMAP:
-		t1 = t.Down
+		t1 = t.Key()
 		t2 = t.Type
 
 	case TCHAN:
@@ -228,12 +228,12 @@ func walkrange(n *Node) {
 		hit := prealloc[n]
 		hit.Type = th
 		n.Left = nil
-		keyname := newname(th.Type.Sym)      // depends on layout of iterator struct.  See reflect.go:hiter
-		valname := newname(th.Type.Down.Sym) // ditto
+		keyname := newname(th.Field(0).Sym) // depends on layout of iterator struct.  See reflect.go:hiter
+		valname := newname(th.Field(1).Sym) // ditto
 
 		fn := syslook("mapiterinit")
 
-		substArgTypes(&fn, t.Down, t.Type, th)
+		substArgTypes(&fn, t.Key(), t.Type, th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
 

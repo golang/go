@@ -104,19 +104,21 @@ func unsafenmagic(nn *Node) *Node {
 			goto bad
 		}
 
+		var f [2]*Type
+		f[0] = typ(TFIELD)
+		f[0].Type = Types[TUINT8]
+		f[1] = typ(TFIELD)
+		f[1].Type = tr
+
 		// make struct { byte; T; }
 		t := typ(TSTRUCT)
-
-		t.Type = typ(TFIELD)
-		t.Type.Type = Types[TUINT8]
-		t.Type.Down = typ(TFIELD)
-		t.Type.Down.Type = tr
+		t.SetFields(f[:])
 
 		// compute struct widths
 		dowidth(t)
 
 		// the offset of T is its required alignment
-		v = t.Type.Down.Width
+		v = t.Field(1).Width
 
 		goto yes
 	}

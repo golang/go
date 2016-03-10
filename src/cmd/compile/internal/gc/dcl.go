@@ -827,12 +827,11 @@ func tostruct0(t *Type, l []*Node) {
 		Fatalf("struct expected")
 	}
 
-	tp := &t.Type
+	var fields []*Type
 	for _, n := range l {
-		f := structfield(n)
-		*tp = f
-		tp = &f.Down
+		fields = append(fields, structfield(n))
 	}
+	t.SetFields(fields)
 
 	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
@@ -849,14 +848,12 @@ func tostruct0(t *Type, l []*Node) {
 }
 
 func tofunargs(l []*Node) *Type {
-	var f *Type
-
 	t := typ(TSTRUCT)
 	t.Funarg = true
 
-	tp := &t.Type
+	var fields []*Type
 	for _, n := range l {
-		f = structfield(n)
+		f := structfield(n)
 		f.Funarg = true
 
 		// esc.go needs to find f given a PPARAM to add the tag.
@@ -864,9 +861,9 @@ func tofunargs(l []*Node) *Type {
 			n.Left.Name.Param.Field = f
 		}
 
-		*tp = f
-		tp = &f.Down
+		fields = append(fields, f)
 	}
+	t.SetFields(fields)
 
 	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
@@ -955,7 +952,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 		Fatalf("interface expected")
 	}
 
-	tp := &t.Type
+	var fields []*Type
 	for _, n := range l {
 		f := interfacefield(n)
 
@@ -969,14 +966,13 @@ func tointerface0(t *Type, l []*Node) *Type {
 				if f.Sym != nil {
 					f.Nname = newname(f.Sym)
 				}
-				*tp = f
-				tp = &f.Down
+				fields = append(fields, f)
 			}
 		} else {
-			*tp = f
-			tp = &f.Down
+			fields = append(fields, f)
 		}
 	}
+	t.SetFields(fields)
 
 	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
 		if f.Broke {
