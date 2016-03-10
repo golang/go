@@ -758,7 +758,7 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 
 		// Loop over structs: receiver, in, out.
 	case TFUNC:
-		for _, f := range recvParamsResults {
+		for _, f := range recvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
 			ta, ia := IterFields(f(t1))
 			tb, ib := IterFields(f(t2))
@@ -1131,7 +1131,7 @@ func substAny(tp **Type, types *[]*Type) {
 			continue
 
 		case TFUNC:
-			substAny(t.RecvP(), types)
+			substAny(t.RecvsP(), types)
 			substAny(t.ParamsP(), types)
 			substAny(t.ResultsP(), types)
 
@@ -1210,7 +1210,7 @@ func deep(t *Type) *Type {
 
 	case TFUNC:
 		nt = t.Copy()
-		*nt.RecvP() = deep(t.Recv())
+		*nt.RecvsP() = deep(t.Recvs())
 		*nt.ResultsP() = deep(t.Results())
 		*nt.ParamsP() = deep(t.Params())
 
@@ -1959,7 +1959,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		isddd = n.Left.Isddd
 	}
 
-	methodrcvr := method.Type.Recv0().Type
+	methodrcvr := method.Type.Recv().Type
 
 	// generate nil pointer check for better error
 	if Isptr[rcvr.Etype] && rcvr.Type == methodrcvr {
@@ -2148,7 +2148,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
-		rcvr = tm.Type.Recv0().Type
+		rcvr = tm.Type.Recv().Type
 
 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {

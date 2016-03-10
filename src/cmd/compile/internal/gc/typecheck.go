@@ -1311,7 +1311,7 @@ OpSwitch:
 			// information further down the call chain to know if we
 			// were testing a method receiver for unexported fields.
 			// It isn't necessary, so just do a sanity check.
-			tp := t.Recv0().Type
+			tp := t.Recv().Type
 
 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
 				Fatalf("method receiver")
@@ -2430,7 +2430,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	}
 
 	// disallow T.m if m requires *T receiver
-	if Isptr[f2.Type.Recv0().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
+	if Isptr[f2.Type.Recv().Type.Etype] && !Isptr[t.Etype] && f2.Embedded != 2 && !isifacemethod(f2.Type) {
 		Yyerror("invalid method expression %v (needs pointer receiver: (*%v).%v)", n, t, Sconv(f2.Sym, obj.FmtShort))
 		return false
 	}
@@ -2513,7 +2513,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 		}
 		tt := n.Left.Type
 		dowidth(tt)
-		rcvr := f2.Type.Recv0().Type
+		rcvr := f2.Type.Recv().Type
 		if !Eqtype(rcvr, tt) {
 			if rcvr.Etype == Tptr && Eqtype(rcvr.Type, tt) {
 				checklvalue(n.Left, "call pointer method on")
@@ -3436,7 +3436,7 @@ func typecheckfunc(n *Node) {
 	}
 	n.Type = t
 	t.Nname = n.Func.Nname
-	rcvr := t.Recv0()
+	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
 		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
 	}

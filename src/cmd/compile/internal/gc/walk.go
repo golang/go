@@ -695,7 +695,7 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, false, t.Recv(), []*Node{n.Left.Left}, 0, init)
+		ll := ascompatte(n.Op, n, false, t.Recvs(), []*Node{n.Left.Left}, 0, init)
 		lr := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		ll = append(ll, lr...)
 		n.Left.Left = nil
@@ -2623,7 +2623,7 @@ func returnsfromheap(params *Type) []*Node {
 func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
-	nn := paramstoheap(Curfn.Type.Recv(), false)
+	nn := paramstoheap(Curfn.Type.Recvs(), false)
 	nn = append(nn, paramstoheap(Curfn.Type.Params(), false)...)
 	nn = append(nn, paramstoheap(Curfn.Type.Results(), true)...)
 	Curfn.Func.Enter.Append(nn...)

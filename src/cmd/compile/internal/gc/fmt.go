@@ -615,7 +615,7 @@ func typefmt(t *Type, flag int) string {
 		} else {
 			if t.Thistuple != 0 {
 				buf.WriteString("method")
-				buf.WriteString(Tconv(t.Recv(), 0))
+				buf.WriteString(Tconv(t.Recvs(), 0))
 				buf.WriteString(" ")
 			}
 			buf.WriteString("func")

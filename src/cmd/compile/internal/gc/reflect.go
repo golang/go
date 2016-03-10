@@ -306,7 +306,7 @@ func methods(t *Type) []*Sig {
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
-		if f.Type.Recv0() == nil {
+		if f.Type.Recv() == nil {
 			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Nointerface {
@@ -322,7 +322,7 @@ func methods(t *Type) []*Sig {
 		// if pointer receiver but non-pointer t and
 		// this is not an embedded pointer inside a struct,
 		// method does not apply.
-		this := f.Type.Recv0().Type
+		this := f.Type.Recv().Type
 
 		if Isptr[this.Etype] && this.Type == t {
 			continue
@@ -1061,7 +1061,7 @@ ok:
 		ot = dextratype(s, ot, t, 0)
 
 	case TFUNC:
-		for t1, it := IterFields(t.Recv()); t1 != nil; t1 = it.Next() {
+		for t1, it := IterFields(t.Recvs()); t1 != nil; t1 = it.Next() {
 			dtypesym(t1.Type)
 		}
 		isddd := false
@@ -1089,7 +1089,7 @@ ok:
 		ot = dextratype(s, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
-		for t1, it := IterFields(t.Recv()); t1 != nil; t1 = it.Next() {
+		for t1, it := IterFields(t.Recvs()); t1 != nil; t1 = it.Next() {
 			ot = dsymptr(s, ot, dtypesym(t1.Type), 0)
 		}
 		for t1, it := IterFields(t.Params()); t1 != nil; t1 = it.Next() {

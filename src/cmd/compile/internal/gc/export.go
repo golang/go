@@ -314,10 +314,10 @@ func dumpexporttype(t *Type) {
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname)
 			}
-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv0(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
+			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
 			reexportdeplist(f.Type.Nname.Func.Inl)
 		} else {
-			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv0(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
+			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
 		}
 	}
 }

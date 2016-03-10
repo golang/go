@@ -661,7 +661,7 @@ func funcargs2(t *Type) {
 	}
 
 	if t.Thistuple != 0 {
-		for ft, it := IterFields(t.Recv()); ft != nil; ft = it.Next() {
+		for ft, it := IterFields(t.Recvs()); ft != nil; ft = it.Next() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
@@ -1134,7 +1134,7 @@ func fakethis() *Node {
 // Those methods have an anonymous *struct{} as the receiver.
 // (See fakethis above.)
 func isifacemethod(f *Type) bool {
-	rcvr := f.Recv0()
+	rcvr := f.Recv()
 	if rcvr.Sym != nil {
 		return false
 	}
@@ -1165,16 +1165,16 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 	if this != nil {
 		rcvr = []*Node{this}
 	}
-	*t.RecvP() = tofunargs(rcvr)
+	*t.RecvsP() = tofunargs(rcvr)
 	*t.ResultsP() = tofunargs(out)
 	*t.ParamsP() = tofunargs(in)
 
 	uniqgen++
-	checkdupfields(t.Recv().Type, "argument")
+	checkdupfields(t.Recvs().Type, "argument")
 	checkdupfields(t.Results().Type, "argument")
 	checkdupfields(t.Params().Type, "argument")
 
-	if t.Recv().Broke || t.Results().Broke || t.Params().Broke {
+	if t.Recvs().Broke || t.Results().Broke || t.Params().Broke {
 		t.Broke = true
 	}
 
@@ -1306,7 +1306,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	}
 
 	// get parent type sym
-	pa := t.Recv0() // ptr to this structure
+	pa := t.Recv() // ptr to this structure
 	if pa == nil {
 		Yyerror("missing receiver")
 		return
