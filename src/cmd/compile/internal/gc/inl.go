@@ -41,7 +41,7 @@ var inlfn *Node // function currently being inlined
 
 var inlretlabel *Node // target of the goto substituted in place of a return
 
-var inlretvars *NodeList // temp out variables
+var inlretvars []*Node // temp out variables
 
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
@@ -246,7 +246,7 @@ func ishairy(n *Node, budget *int) bool {
 // Any name-like node of non-local class is marked for re-export by adding it to
 // the exportlist.
 func inlcopylist(ll []*Node) []*Node {
-	s := make([]*Node, 0, nodeSeqLen(ll))
+	s := make([]*Node, 0, len(ll))
 	for _, n := range ll {
 		s = append(s, inlcopy(n))
 	}
@@ -607,11 +607,10 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 
 		ninit.Append(Nod(ODCL, m, nil))
-		inlretvars = list(inlretvars, m)
+		inlretvars = append(inlretvars, m)
 	}
 
 	// assign receiver.
-	var as *Node
 	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
 		// method call with a receiver.
 		t := fn.Type.Recv()
@@ -625,7 +624,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		if t == nil {
 			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
 		}
-		as = Nod(OAS, tinlvar(t), n.Left.Left)
+		as := Nod(OAS, tinlvar(t), n.Left.Left)
 		if as != nil {
 			typecheck(&as, Etop)
 			ninit.Append(as)
@@ -670,7 +669,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	}
 
 	// assign arguments to the parameters' temp names
-	as = Nod(OAS2, nil, nil)
+	as := Nod(OAS2, nil, nil)
 
 	as.Rlist.Set(n.List.Slice())
 	li := 0
@@ -779,8 +778,8 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	}
 
 	// zero the outparams
-	for ll := inlretvars; ll != nil; ll = ll.Next {
-		as = Nod(OAS, ll.N, nil)
+	for _, n := range inlretvars {
+		as = Nod(OAS, n, nil)
 		typecheck(&as, Etop)
 		ninit.Append(as)
 	}
@@ -800,7 +799,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	call.Ninit.Set(ninit.Slice())
 	call.Nbody.Set(body)
-	setNodeSeq(&call.Rlist, inlretvars)
+	call.Rlist.Set(inlretvars)
 	call.Type = n.Type
 	call.Typecheck = 1
 
@@ -940,12 +939,12 @@ func inlsubst(n *Node) *Node {
 
 		m.Ninit.Set(inlsubstlist(n.Ninit))
 
-		if inlretvars != nil && n.List.Len() != 0 {
+		if len(inlretvars) != 0 && n.List.Len() != 0 {
 			as := Nod(OAS2, nil, nil)
 
 			// shallow copy or OINLCALL->rlist will be the same list, and later walk and typecheck may clobber that.
-			for ll := inlretvars; ll != nil; ll = ll.Next {
-				as.List.Append(ll.N)
+			for _, n := range inlretvars {
+				as.List.Append(n)
 			}
 			as.Rlist.Set(inlsubstlist(n.List))
 			typecheck(&as, Etop)

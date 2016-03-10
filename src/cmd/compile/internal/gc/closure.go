@@ -52,13 +52,13 @@ func closurehdr(ntype *Node) {
 	}
 }
 
-func closurebody(body *NodeList) *Node {
-	if body == nil {
-		body = list1(Nod(OEMPTY, nil, nil))
+func closurebody(body []*Node) *Node {
+	if len(body) == 0 {
+		body = []*Node{Nod(OEMPTY, nil, nil)}
 	}
 
 	func_ := Curfn
-	func_.Nbody.SetToNodeList(body)
+	func_.Nbody.Set(body)
 	func_.Func.Endlineno = lineno
 	funcbody(func_)
 
@@ -116,7 +116,7 @@ func typecheckclosure(func_ *Node, top int) {
 	}
 
 	// Create top-level function
-	xtop = list(xtop, makeclosure(func_))
+	xtop = append(xtop, makeclosure(func_))
 }
 
 // closurename returns name for OCLOSURE n.
@@ -616,7 +616,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 
 	typecheck(&xfunc, Etop)
 	sym.Def = xfunc
-	xtop = list(xtop, xfunc)
+	xtop = append(xtop, xfunc)
 	Curfn = savecurfn
 
 	return xfunc

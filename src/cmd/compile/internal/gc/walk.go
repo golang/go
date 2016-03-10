@@ -878,7 +878,7 @@ opswitch:
 		if !isblank(n.List.Second()) {
 			r.Type.Type.Down.Type = n.List.Second().Type
 		}
-		setNodeSeq(&n.Rlist, list1(r))
+		n.Rlist.Set([]*Node{r})
 		n.Op = OAS2FUNC
 
 		// don't generate a = *var if a is _
@@ -1000,12 +1000,12 @@ opswitch:
 			break
 		}
 
-		var ll *NodeList
+		var ll []*Node
 		if !Isinter(n.Left.Type) {
-			ll = list(ll, typename(n.Left.Type))
+			ll = append(ll, typename(n.Left.Type))
 		}
 		if !isnilinter(n.Type) {
-			ll = list(ll, typename(n.Type))
+			ll = append(ll, typename(n.Type))
 		}
 		if !Isinter(n.Left.Type) && !isnilinter(n.Type) {
 			sym := Pkglookup(Tconv(n.Left.Type, obj.FmtLeft)+"."+Tconv(n.Type, obj.FmtLeft), itabpkg)
@@ -1022,7 +1022,7 @@ opswitch:
 
 			l := Nod(OADDR, sym.Def, nil)
 			l.Addable = true
-			ll = list(ll, l)
+			ll = append(ll, l)
 
 			if isdirectiface(n.Left.Type) {
 				// For pointer types, we can make a special form of optimization
@@ -1042,7 +1042,7 @@ opswitch:
 
 				fn := syslook("typ2Itab")
 				n1 = Nod(OCALL, fn, nil)
-				setNodeSeq(&n1.List, ll)
+				n1.List.Set(ll)
 				typecheck(&n1, Erv)
 				walkexpr(&n1, init)
 
@@ -1062,7 +1062,7 @@ opswitch:
 		}
 
 		if Isinter(n.Left.Type) {
-			ll = list(ll, n.Left)
+			ll = append(ll, n.Left)
 		} else {
 			// regular types are passed by reference to avoid C vararg calls
 			// orderexpr arranged for n.Left to be a temporary for all
@@ -1071,9 +1071,9 @@ opswitch:
 			// with non-interface cases, is not visible to orderstmt, so we
 			// have to fall back on allocating a temp here.
 			if islvalue(n.Left) {
-				ll = list(ll, Nod(OADDR, n.Left, nil))
+				ll = append(ll, Nod(OADDR, n.Left, nil))
 			} else {
-				ll = list(ll, Nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
+				ll = append(ll, Nod(OADDR, copyexpr(n.Left, n.Left.Type, init), nil))
 			}
 			dowidth(n.Left.Type)
 			r := nodnil()
@@ -1086,7 +1086,7 @@ opswitch:
 				r = Nod(OADDR, r.Left, nil)
 				typecheck(&r, Erv)
 			}
-			ll = list(ll, r)
+			ll = append(ll, r)
 		}
 
 		fn := syslook(convFuncName(n.Left.Type, n.Type))
@@ -1097,7 +1097,7 @@ opswitch:
 		}
 		dowidth(fn.Type)
 		n = Nod(OCALL, fn, nil)
-		setNodeSeq(&n.List, ll)
+		n.List.Set(ll)
 		typecheck(&n, Erv)
 		walkexpr(&n, init)
 
@@ -1678,7 +1678,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, obj.FmtSign), Oconv(op, 0), Hconv(nrn, obj.FmtSign), nodeSeqLen(nl), nodeSeqLen(nr), Curfn.Func.Nname.Sym.Name)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, obj.FmtSign), Oconv(op, 0), Hconv(nrn, obj.FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -1766,7 +1766,7 @@ func mkdotargslice(lr0, nn []*Node, l *Type, fp int, init *Nodes, ddd *Node) []*
 	tslice.Bound = -1
 
 	var n *Node
-	if nodeSeqLen(lr0) == 0 {
+	if len(lr0) == 0 {
 		n = nodnil()
 		n.Type = tslice
 	} else {
@@ -1825,13 +1825,13 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 	lr0 := lr
 	l, savel := IterFields(nl)
 	var r *Node
-	if nodeSeqLen(lr) > 0 {
-		r = nodeSeqFirst(lr)
+	if len(lr) > 0 {
+		r = lr[0]
 	}
 	var nn []*Node
 
 	// f(g()) where g has multiple return values
-	if r != nil && nodeSeqLen(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
+	if r != nil && len(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
 		// optimization - can do block copy
 		if eqtypenoname(r.Type, nl) {
 			arg := nodarg(nl, fp)
@@ -1857,7 +1857,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 		walkstmt(&a)
 		init.Append(a)
 		lr = alist
-		r = nodeSeqFirst(lr)
+		r = lr[0]
 		l, savel = IterFields(nl)
 	}
 
@@ -2808,7 +2808,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 	nif := Nod(OIF, nil, nil)
 
 	// n := len(s) + len(l2) - cap(s)
-	setNodeSeq(&nif.Ninit, list1(Nod(OAS, nt, Nod(OSUB, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)), Nod(OCAP, s, nil)))))
+	nif.Ninit.Set([]*Node{Nod(OAS, nt, Nod(OSUB, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)), Nod(OCAP, s, nil)))})
 
 	nif.Left = Nod(OGT, nt, Nodintconst(0))
 
@@ -3966,7 +3966,7 @@ func walkprintfunc(np **Node, init *Nodes) {
 
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody.Slice(), Etop)
-	xtop = list(xtop, fn)
+	xtop = append(xtop, fn)
 	Curfn = oldfn
 
 	a = Nod(OCALL, nil, nil)

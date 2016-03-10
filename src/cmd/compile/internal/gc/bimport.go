@@ -632,7 +632,7 @@ func (p *importer) node() *Node {
 		// if p.bool() {
 		// 	n.Left = p.node()
 		// } else {
-		// 	setNodeSeq(&n.List, p.nodeList())
+		// 	n.List.Set(p.nodeList())
 		// }
 		x := Nod(OCALL, p.typ().Nod, nil)
 		if p.bool() {

@@ -381,31 +381,35 @@ func Main() {
 	//   and methods but doesn't depend on any of it.
 	defercheckwidth()
 
-	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op != ODCL && l.N.Op != OAS && l.N.Op != OAS2 {
-			typecheck(&l.N, Etop)
+	// Don't use range--typecheck can add closures to xtop.
+	for i := 0; i < len(xtop); i++ {
+		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
+			typecheck(&xtop[i], Etop)
 		}
 	}
 
 	// Phase 2: Variable assignments.
 	//   To check interface assignments, depends on phase 1.
-	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCL || l.N.Op == OAS || l.N.Op == OAS2 {
-			typecheck(&l.N, Etop)
+
+	// Don't use range--typecheck can add closures to xtop.
+	for i := 0; i < len(xtop); i++ {
+		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
+			typecheck(&xtop[i], Etop)
 		}
 	}
 	resumecheckwidth()
 
 	// Phase 3: Type check function bodies.
-	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC || l.N.Op == OCLOSURE {
-			Curfn = l.N
+	// Don't use range--typecheck can add closures to xtop.
+	for i := 0; i < len(xtop); i++ {
+		if xtop[i].Op == ODCLFUNC || xtop[i].Op == OCLOSURE {
+			Curfn = xtop[i]
 			decldepth = 1
 			saveerrors()
-			typechecklist(l.N.Nbody.Slice(), Etop)
-			checkreturn(l.N)
+			typechecklist(Curfn.Nbody.Slice(), Etop)
+			checkreturn(Curfn)
 			if nerrors != 0 {
-				l.N.Nbody.Set(nil) // type errors; do not compile
+				Curfn.Nbody.Set(nil) // type errors; do not compile
 			}
 		}
 	}
@@ -413,10 +417,10 @@ func Main() {
 	// Phase 4: Decide how to capture closed variables.
 	// This needs to run before escape analysis,
 	// because variables captured by value do not escape.
-	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
-			Curfn = l.N
-			capturevars(l.N)
+	for _, n := range xtop {
+		if n.Op == ODCLFUNC && n.Func.Closure != nil {
+			Curfn = n
+			capturevars(n)
 		}
 	}
 
@@ -469,19 +473,20 @@ func Main() {
 	// Phase 7: Transform closure bodies to properly reference captured variables.
 	// This needs to happen before walk, because closures must be transformed
 	// before walk reaches a call of a closure.
-	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Func.Closure != nil {
-			Curfn = l.N
-			transformclosure(l.N)
+	for _, n := range xtop {
+		if n.Op == ODCLFUNC && n.Func.Closure != nil {
+			Curfn = n
+			transformclosure(n)
 		}
 	}
 
 	Curfn = nil
 
 	// Phase 8: Compile top level functions.
-	for l := xtop; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC {
-			funccompile(l.N)
+	// Don't use range--walk can add functions to xtop.
+	for i := 0; i < len(xtop); i++ {
+		if xtop[i].Op == ODCLFUNC {
+			funccompile(xtop[i])
 		}
 	}
 
