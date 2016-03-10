@@ -5,6 +5,9 @@
 package flate
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"runtime"
 	"testing"
@@ -59,3 +62,68 @@ func BenchmarkEncodeTwainDefault1e6(b *testing.B)   { benchmarkEncoder(b, twain,
 func BenchmarkEncodeTwainCompress1e4(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e4) }
 func BenchmarkEncodeTwainCompress1e5(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e5) }
 func BenchmarkEncodeTwainCompress1e6(b *testing.B)  { benchmarkEncoder(b, twain, compress, 1e6) }
+
+// errorWriter is a writer that fails after N writes.
+type errorWriter struct {
+	N int
+}
+
+func (e *errorWriter) Write(b []byte) (int, error) {
+	if e.N <= 0 {
+		return 0, io.ErrClosedPipe
+	}
+	e.N--
+	return len(b), nil
+}
+
+// Test if errors from the underlying writer is passed upwards.
+func TestWriteError(t *testing.T) {
+	buf := new(bytes.Buffer)
+	for i := 0; i < 1024*1024; i++ {
+		buf.WriteString(fmt.Sprintf("asdasfasf%d%dfghfgujyut%dyutyu\n", i, i, i))
+	}
+	in := buf.Bytes()
+	// We create our own buffer to control number of writes.
+	copyBuffer := make([]byte, 1024)
+	for l := 0; l < 10; l++ {
+		for fail := 1; fail <= 512; fail *= 2 {
+			// Fail after 'fail' writes
+			ew := &errorWriter{N: fail}
+			w, err := NewWriter(ew, l)
+			if err != nil {
+				t.Fatalf("NewWriter: level %d: %v", l, err)
+			}
+			n, err := io.CopyBuffer(w, bytes.NewBuffer(in), copyBuffer)
+			if err == nil {
+				t.Fatalf("Level %d: Expected an error, writer was %#v", l, ew)
+			}
+			n2, err := w.Write([]byte{1, 2, 2, 3, 4, 5})
+			if n2 != 0 {
+				t.Fatal("Level", l, "Expected 0 length write, got", n)
+			}
+			if err == nil {
+				t.Fatal("Level", l, "Expected an error")
+			}
+			err = w.Flush()
+			if err == nil {
+				t.Fatal("Level", l, "Expected an error on flush")
+			}
+			err = w.Close()
+			if err == nil {
+				t.Fatal("Level", l, "Expected an error on close")
+			}
+
+			w.Reset(ioutil.Discard)
+			n2, err = w.Write([]byte{1, 2, 3, 4, 5, 6})
+			if err != nil {
+				t.Fatal("Level", l, "Got unexpected error after reset:", err)
+			}
+			if n2 == 0 {
+				t.Fatal("Level", l, "Got 0 length write, expected > 0")
+			}
+			if testing.Short() {
+				return
+			}
+		}
+	}
+}
