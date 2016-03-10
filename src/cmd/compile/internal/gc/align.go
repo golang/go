@@ -295,7 +295,7 @@ func dowidth(t *Type) {
 	case TFUNCARGS:
 		t1 := t.Type
 
-		w = widstruct(t.Type, t1.Recv(), 0, 0)
+		w = widstruct(t.Type, t1.Recvs(), 0, 0)
 		w = widstruct(t.Type, t1.Params(), w, Widthreg)
 		w = widstruct(t.Type, t1.Results(), w, Widthreg)
 		t1.Argwid = w
@@ -618,7 +618,7 @@ func typeinit() {
 func Argsize(t *Type) int {
 	var w int64
 
-	for _, p := range recvParamsResults {
+	for _, p := range recvsParamsResults {
 		for f, it := IterFields(p(t)); f != nil; f = it.Next() {
 			if x := f.Width + f.Type.Width; x > w {
 				w = x

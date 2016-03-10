@@ -224,7 +224,7 @@ func (t *Type) wantEtype(et EType) {
 	}
 }
 
-func (t *Type) RecvP() **Type {
+func (t *Type) RecvsP() **Type {
 	t.wantEtype(TFUNC)
 	return &t.Type
 }
@@ -239,18 +239,17 @@ func (t *Type) ResultsP() **Type {
 	return &t.Type.Down
 }
 
-func (t *Type) Recv() *Type    { return *t.RecvP() }
+func (t *Type) Recvs() *Type   { return *t.RecvsP() }
 func (t *Type) Params() *Type  { return *t.ParamsP() }
 func (t *Type) Results() *Type { return *t.ResultsP() }
 
-// TODO(mdempsky): Rename Recv to Recvs, so Recv0 can become just Recv.
-func (t *Type) Recv0() *Type { return t.Recv().Field(0) }
+func (t *Type) Recv() *Type { return t.Recvs().Field(0) }
 
-// recvParamsResults stores the accessor functions for a function Type's
+// recvsParamsResults stores the accessor functions for a function Type's
 // receiver, parameters, and result parameters, in that order.
 // It can be used to iterate over all of a function's parameter lists.
-var recvParamsResults = [3]func(*Type) *Type{
-	(*Type).Recv, (*Type).Params, (*Type).Results,
+var recvsParamsResults = [3]func(*Type) *Type{
+	(*Type).Recvs, (*Type).Params, (*Type).Results,
 }
 
 // Field returns the i'th field/method of struct/interface type t.
@@ -463,7 +462,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		return ssa.CMPeq
 
 	case TFUNC:
-		for _, f := range recvParamsResults {
+		for _, f := range recvsParamsResults {
 			// Loop over fields in structs, ignoring argument names.
 			ta, ia := IterFields(f(t))
 			tb, ib := IterFields(f(x))

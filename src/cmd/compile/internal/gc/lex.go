@@ -2193,7 +2193,7 @@ func lexinit1() {
 	out.Type.Type = Types[TSTRING]
 	out.Funarg = true
 	f := typ(TFUNC)
-	*f.RecvP() = rcvr
+	*f.RecvsP() = rcvr
 	*f.ResultsP() = out
 	*f.ParamsP() = in
 	f.Thistuple = 1

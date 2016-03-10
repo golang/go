@@ -155,7 +155,7 @@ func emitptrargsmap() {
 	var xoffset int64
 	if Curfn.Type.Thistuple > 0 {
 		xoffset = 0
-		onebitwalktype1(Curfn.Type.Recv(), &xoffset, bv)
+		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
 	}
 
 	if Curfn.Type.Intuple > 0 {

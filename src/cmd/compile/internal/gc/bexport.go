@@ -477,7 +477,7 @@ func (p *exporter) typ(t *Type) {
 
 		for _, m := range methods {
 			p.string(m.Sym.Name)
-			p.paramList(m.Type.Recv())
+			p.paramList(m.Type.Recvs())
 			p.paramList(m.Type.Params())
 			p.paramList(m.Type.Results())
 			p.inlinedBody(m.Type.Nname)
