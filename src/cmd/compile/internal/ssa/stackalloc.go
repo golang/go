@@ -8,8 +8,6 @@ package ssa
 
 import "fmt"
 
-const stackDebug = false // TODO: compiler flag
-
 type stackAllocState struct {
 	f         *Func
 	values    []stackValState
@@ -27,7 +25,7 @@ type stackValState struct {
 // all Values that did not get a register.
 // Returns a map from block ID to the stack values live at the end of that block.
 func stackalloc(f *Func, spillLive [][]ID) [][]ID {
-	if stackDebug {
+	if f.pass.debug > stackDebug {
 		fmt.Println("before stackalloc")
 		fmt.Println(f.String())
 	}
@@ -46,7 +44,7 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
 		for _, v := range b.Values {
 			s.values[v.ID].typ = v.Type
 			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable()
-			if stackDebug && s.values[v.ID].needSlot {
+			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
 				fmt.Printf("%s needs a stack slot\n", v)
 			}
 			if v.Op == OpStoreReg {
@@ -83,7 +81,7 @@ func (s *stackAllocState) stackalloc() {
 			continue
 		}
 		loc := LocalSlot{v.Aux.(GCNode), v.Type, v.AuxInt}
-		if stackDebug {
+		if f.pass.debug > stackDebug {
 			fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
 		}
 		f.setHome(v, loc)
@@ -131,7 +129,7 @@ func (s *stackAllocState) stackalloc() {
 						goto noname
 					}
 				}
-				if stackDebug {
+				if f.pass.debug > stackDebug {
 					fmt.Printf("stackalloc %s to %s\n", v, name.Name())
 				}
 				f.setHome(v, name)
@@ -165,7 +163,7 @@ func (s *stackAllocState) stackalloc() {
 			}
 			// Use the stack variable at that index for v.
 			loc := locs[i]
-			if stackDebug {
+			if f.pass.debug > stackDebug {
 				fmt.Printf("stackalloc %s to %s\n", v, loc.Name())
 			}
 			f.setHome(v, loc)
@@ -249,7 +247,7 @@ func (s *stackAllocState) computeLive(spillLive [][]ID) {
 			break
 		}
 	}
-	if stackDebug {
+	if s.f.pass.debug > stackDebug {
 		for _, b := range s.f.Blocks {
 			fmt.Printf("stacklive %s %v\n", b, s.live[b.ID])
 		}
@@ -307,7 +305,7 @@ func (s *stackAllocState) buildInterferenceGraph() {
 			}
 		}
 	}
-	if stackDebug {
+	if f.pass.debug > stackDebug {
 		for vid, i := range s.interfere {
 			if len(i) > 0 {
 				fmt.Printf("v%d interferes with", vid)
