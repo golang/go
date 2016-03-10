@@ -171,10 +171,11 @@ type Func struct {
 	Endlineno int32
 	WBLineno  int32 // line number of first write barrier
 
-	Pragma   Pragma // go:xxx function annotations
-	Dupok    bool   // duplicate definitions ok
-	Wrapper  bool   // is method wrapper
-	Needctxt bool   // function uses context register (has closure variables)
+	Pragma        Pragma // go:xxx function annotations
+	Dupok         bool   // duplicate definitions ok
+	Wrapper       bool   // is method wrapper
+	Needctxt      bool   // function uses context register (has closure variables)
+	ReflectMethod bool   // function calls reflect.Type.Method or MethodByName
 }
 
 type Op uint8

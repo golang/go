@@ -25,7 +25,7 @@ import (
 //
 //	1. direct call
 //	2. through a reachable interface type
-//	3. reflect.Value.Call
+//	3. reflect.Value.Call / reflect.Method.Func
 //
 // The first case is handled by the flood fill, a directly called method
 // is marked as reachable.
@@ -36,8 +36,10 @@ import (
 // as reachable. This is extremely conservative, but easy and correct.
 //
 // The third case is handled by looking to see if reflect.Value.Call is
-// ever marked reachable. If it is, all bets are off and all exported
-// methods of reachable types are marked reachable.
+// ever marked reachable, or if a reflect.Method struct is ever
+// constructed by a call to reflect.Type.Method or MethodByName. If it
+// is, all bets are off and all exported methods of reachable types are
+// marked reachable.
 //
 // Any unreached text symbols are removed from ctxt.Textp.
 func deadcode(ctxt *Link) {
@@ -59,7 +61,7 @@ func deadcode(ctxt *Link) {
 	callSymSeen := false
 
 	for {
-		if callSym != nil && callSym.Attr.Reachable() {
+		if callSym != nil && (callSym.Attr.Reachable() || d.reflectMethod) {
 			// Methods are called via reflection. Give up on
 			// static analysis, mark all exported methods of
 			// all reachable types as reachable.
@@ -169,6 +171,7 @@ type deadcodepass struct {
 	markQueue       []*LSym            // symbols to flood fill in next pass
 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
 	markableMethods []methodref        // methods of reached types
+	reflectMethod   bool
 }
 
 func (d *deadcodepass) cleanupReloc(r *Reloc) {
@@ -187,6 +190,9 @@ func (d *deadcodepass) cleanupReloc(r *Reloc) {
 func (d *deadcodepass) mark(s, parent *LSym) {
 	if s == nil || s.Attr.Reachable() {
 		return
+	}
+	if s.Attr.ReflectMethod() {
+		d.reflectMethod = true
 	}
 	s.Attr |= AttrReachable
 	s.Reachparent = parent

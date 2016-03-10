@@ -242,6 +242,9 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if flag&NOSPLIT != 0 {
 					s.Nosplit = 1
 				}
+				if flag&REFLECTMETHOD != 0 {
+					s.ReflectMethod = true
+				}
 				s.Next = nil
 				s.Type = STEXT
 				s.Text = p
@@ -460,7 +463,11 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		wrint(b, int64(s.Args))
 		wrint(b, int64(s.Locals))
 		wrint(b, int64(s.Nosplit))
-		wrint(b, int64(s.Leaf)|int64(s.Cfunc)<<1)
+		flags := int64(s.Leaf) | int64(s.Cfunc)<<1
+		if s.ReflectMethod {
+			flags |= 1 << 2
+		}
+		wrint(b, flags)
 		n := 0
 		for a := s.Autom; a != nil; a = a.Link {
 			n++
