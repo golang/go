@@ -180,13 +180,12 @@ func (t *Type) Copy() *Type {
 	if t == nil {
 		return nil
 	}
-	nt := new(Type)
-	*nt = *t
+	nt := *t
 	// TODO(mdempsky): Find out why this is necessary and explain.
 	if t.Orig == t {
-		nt.Orig = nt
+		nt.Orig = &nt
 	}
-	return nt
+	return &nt
 }
 
 // Iter provides an abstraction for iterating across struct fields and
@@ -267,10 +266,7 @@ func (t *Type) SimpleString() string {
 
 func (t *Type) Equal(u ssa.Type) bool {
 	x, ok := u.(*Type)
-	if !ok {
-		return false
-	}
-	return Eqtype(t, x)
+	return ok && Eqtype(t, x)
 }
 
 // Compare compares types for purposes of the SSA back
@@ -368,20 +364,16 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		}
 	}
 
-	csym := t.Sym.cmpsym(x.Sym)
-	if csym != ssa.CMPeq {
-		return csym
+	if c := t.Sym.cmpsym(x.Sym); c != ssa.CMPeq {
+		return c
 	}
 
 	if x.Sym != nil {
 		// Syms non-nil, if vargens match then equal.
-		if t.Vargen == x.Vargen {
-			return ssa.CMPeq
+		if t.Vargen != x.Vargen {
+			return cmpForNe(t.Vargen < x.Vargen)
 		}
-		if t.Vargen < x.Vargen {
-			return ssa.CMPlt
-		}
-		return ssa.CMPgt
+		return ssa.CMPeq
 	}
 	// both syms nil, look at structure below.
 
@@ -481,8 +473,7 @@ func (t *Type) cmp(x *Type) ssa.Cmp {
 		panic(e)
 	}
 
-	c := t.Down.cmp(x.Down)
-	if c != ssa.CMPeq {
+	if c := t.Down.cmp(x.Down); c != ssa.CMPeq {
 		return c
 	}
 	return t.Type.cmp(x.Type)
