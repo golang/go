@@ -360,60 +360,6 @@ const (
 	OEND
 )
 
-// A NodeList is a linked list of nodes.
-// TODO(rsc): Some uses of NodeList should be made into slices.
-// The remaining ones probably just need a simple linked list,
-// not one with concatenation support.
-type NodeList struct {
-	N    *Node
-	Next *NodeList
-	End  *NodeList
-}
-
-// concat returns the concatenation of the lists a and b.
-// The storage taken by both is reused for the result.
-func concat(a *NodeList, b *NodeList) *NodeList {
-	if a == nil {
-		return b
-	}
-	if b == nil {
-		return a
-	}
-
-	a.End.Next = b
-	a.End = b.End
-	b.End = nil
-	return a
-}
-
-// list1 returns a one-element list containing n.
-func list1(n *Node) *NodeList {
-	if n == nil {
-		return nil
-	}
-	l := new(NodeList)
-	l.N = n
-	l.End = l
-	return l
-}
-
-// list returns the result of appending n to l.
-func list(l *NodeList, n *Node) *NodeList {
-	return concat(l, list1(n))
-}
-
-// count returns the length of the list l.
-func count(l *NodeList) int {
-	n := int64(0)
-	for ; l != nil; l = l.Next {
-		n++
-	}
-	if int64(int(n)) != n { // Overflow.
-		Yyerror("too many elements in list")
-	}
-	return int(n)
-}
-
 // Nodes is a pointer to a slice of *Node.
 // For fields that are not used in most nodes, this is used instead of
 // a slice to save space.

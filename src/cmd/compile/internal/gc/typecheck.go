@@ -3478,7 +3478,7 @@ func stringtoarraylit(np **Node) {
 
 var ntypecheckdeftype int
 
-var methodqueue *NodeList
+var methodqueue []*Node
 
 func domethod(n *Node) {
 	nt := n.Type.Nname
@@ -3511,7 +3511,7 @@ func domethod(n *Node) {
 	checkwidth(n.Type)
 }
 
-var mapqueue *NodeList
+var mapqueue []*Node
 
 func copytype(n *Node, t *Type) {
 	if t.Etype == TFORW {
@@ -3561,7 +3561,7 @@ func copytype(n *Node, t *Type) {
 	// Queue check for map until all the types are done settling.
 	if maplineno != 0 {
 		t.Maplineno = int32(maplineno)
-		mapqueue = list(mapqueue, n)
+		mapqueue = append(mapqueue, n)
 	}
 }
 
@@ -3597,21 +3597,20 @@ ret:
 	// try to resolve the method types for the interfaces
 	// we just read.
 	if ntypecheckdeftype == 1 {
-		var l *NodeList
 		for {
-			l = methodqueue
-			if l == nil {
+			s := methodqueue
+			if len(s) == 0 {
 				break
 			}
 			methodqueue = nil
-			for ; l != nil; l = l.Next {
-				domethod(l.N)
+			for _, n := range s {
+				domethod(n)
 			}
 		}
 
-		for l := mapqueue; l != nil; l = l.Next {
-			lineno = l.N.Type.Maplineno
-			maptype(l.N.Type, Types[TBOOL])
+		for _, n := range mapqueue {
+			lineno = n.Type.Maplineno
+			maptype(n.Type, Types[TBOOL])
 		}
 
 		lineno = lno
@@ -3626,7 +3625,7 @@ func queuemethod(n *Node) {
 		return
 	}
 
-	methodqueue = list(methodqueue, n)
+	methodqueue = append(methodqueue, n)
 }
 
 func typecheckdef(n *Node) *Node {
@@ -3900,18 +3899,6 @@ func markbreaklist(l Nodes, implicit *Node) {
 
 		markbreak(n, implicit)
 	}
-}
-
-// Isterminating returns whether the NodeList l ends with a
-// terminating statement.
-func (l *NodeList) isterminating() bool {
-	if l == nil {
-		return false
-	}
-	for l.Next != nil {
-		l = l.Next
-	}
-	return l.N.isterminating()
 }
 
 // Isterminating whether the Nodes list ends with a terminating

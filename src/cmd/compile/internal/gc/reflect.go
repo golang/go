@@ -14,7 +14,7 @@ import (
 )
 
 // runtime interface and reflection data structures
-var signatlist *NodeList
+var signatlist []*Node
 
 // byMethodNameAndPackagePath sorts method signatures by name, then package path.
 type byMethodNameAndPackagePath []*Sig
@@ -863,7 +863,7 @@ func typenamesym(t *Type) *Sym {
 		n.Typecheck = 1
 		s.Def = n
 
-		signatlist = list(signatlist, typenod(t))
+		signatlist = append(signatlist, typenod(t))
 	}
 
 	return s.Def.Sym
@@ -1235,24 +1235,22 @@ ok:
 }
 
 func dumptypestructs() {
-	var n *Node
-
 	// copy types from externdcl list to signatlist
 	for _, n := range externdcl {
 		if n.Op != OTYPE {
 			continue
 		}
-		signatlist = list(signatlist, n)
+		signatlist = append(signatlist, n)
 	}
 
-	// process signatlist
-	var t *Type
-	for l := signatlist; l != nil; l = l.Next {
-		n = l.N
+	// Process signatlist.  This can't use range, as entries are
+	// added to the list while it is being processed.
+	for i := 0; i < len(signatlist); i++ {
+		n := signatlist[i]
 		if n.Op != OTYPE {
 			continue
 		}
-		t = n.Type
+		t := n.Type
 		dtypesym(t)
 		if t.Sym != nil {
 			dtypesym(Ptrto(t))

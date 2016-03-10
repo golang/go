@@ -43,7 +43,7 @@ import (
 //			'h' (only in +/debug mode) suppress recursion
 //			'l' (only in Error mode) print "foo (type Bar)"
 //
-//	%H NodeList*	NodeLists
+//	%H Nodes	Nodes
 //		Flags: those of %N
 //			','  separate items with ',' instead of ';'
 //
@@ -1698,19 +1698,11 @@ func Nconv(n *Node, flag int) string {
 	return str
 }
 
-func (l *NodeList) String() string {
-	var n Nodes
-	for ll := l; ll != nil; ll = ll.Next {
-		n.Append(ll.N)
-	}
-	return Hconv(n, 0)
-}
-
 func (n Nodes) String() string {
 	return Hconv(n, 0)
 }
 
-// Fmt '%H': NodeList.
+// Fmt '%H': Nodes.
 // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
 func Hconv(l Nodes, flag int) string {
 	if l.Len() == 0 && fmtmode == FDbg {
