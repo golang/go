@@ -585,7 +585,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		// Walk backwards through the block doing liveness analysis.
 		liveSet.clear()
 		d := int32(len(b.Values))
-		if b.Kind == BlockCall {
+		if b.Kind == BlockCall || b.Kind == BlockDefer {
 			d += unlikelyDistance
 		}
 		for _, e := range s.live[b.ID] {
@@ -988,7 +988,7 @@ func (s *regAllocState) regalloc(f *Func) {
 					continue
 				}
 				for {
-					if p.Kind == BlockCall {
+					if p.Kind == BlockCall || p.Kind == BlockDefer {
 						goto badloop
 					}
 					if p == top {
@@ -1607,7 +1607,7 @@ func (s *regAllocState) computeLive() {
 			// to beginning-of-block distance.
 			live.clear()
 			d := int32(len(b.Values))
-			if b.Kind == BlockCall {
+			if b.Kind == BlockCall || b.Kind == BlockDefer {
 				// Because we keep no values in registers across a call,
 				// make every use past a call very far away.
 				d += unlikelyDistance

@@ -401,6 +401,7 @@ var genericBlocks = []blockData{
 	{name: "Plain"},  // a single successor
 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
 	{name: "Call"},   // 1 successor, control is call op (of memory type)
+	{name: "Defer"},  // 2 successors, Succs[0]=defer queued, Succs[1]=defer recovered. control is call op (of memory type)
 	{name: "Check"},  // 1 successor, control is nilcheck op (of void type)
 	{name: "Ret"},    // no successors, control value is memory result
 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)

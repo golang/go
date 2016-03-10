@@ -100,7 +100,7 @@ func likelyadjust(f *Func) {
 			// Calls. TODO not all calls are equal, names give useful clues.
 			// Any name-based heuristics are only relative to other calls,
 			// and less influential than inferences from loop structure.
-		case BlockCall:
+		case BlockCall, BlockDefer:
 			local[b.ID] = blCALL
 			certain[b.ID] = max8(blCALL, certain[b.Succs[0].ID])
 
