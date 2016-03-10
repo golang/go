@@ -979,7 +979,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		// build list of var[c] = expr.
 		// use temporary so that mapassign1 can have addressable key, val.
 		if key == nil {
-			key = temp(var_.Type.Down)
+			key = temp(var_.Type.Key())
 			val = temp(var_.Type.Type)
 		}
 

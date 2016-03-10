@@ -840,7 +840,7 @@ opswitch:
 		t := r.Left.Type
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch algtype(t.Down) {
+			switch algtype(t.Key()) {
 			case AMEM32:
 				p = "mapaccess2_fast32"
 			case AMEM64:
@@ -876,7 +876,7 @@ opswitch:
 		// the boolean result of i.(T) is now untyped so we make it the
 		// same type as the variable on the lhs.
 		if !isblank(n.List.Second()) {
-			r.Type.Type.Down.Type = n.List.Second().Type
+			r.Type.Field(1).Type = n.List.Second().Type
 		}
 		n.Rlist.Set1(r)
 		n.Op = OAS2FUNC
@@ -1247,7 +1247,7 @@ opswitch:
 		t := n.Left.Type
 		p := ""
 		if t.Type.Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
-			switch algtype(t.Down) {
+			switch algtype(t.Key()) {
 			case AMEM32:
 				p = "mapaccess1_fast32"
 			case AMEM64:
@@ -1439,7 +1439,7 @@ opswitch:
 		}
 
 		fn := syslook("makemap")
-		substArgTypes(&fn, hmap(t), mapbucket(t), t.Down, t.Type)
+		substArgTypes(&fn, hmap(t), mapbucket(t), t.Key(), t.Type)
 		n = mkcall1(fn, n.Type, init, typename(n.Type), conv(n.Left, Types[TINT64]), a, r)
 
 	case OMAKESLICE:
@@ -2690,7 +2690,7 @@ func mapfn(name string, t *Type) *Node {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
-	substArgTypes(&fn, t.Down, t.Type, t.Down, t.Type)
+	substArgTypes(&fn, t.Key(), t.Type, t.Key(), t.Type)
 	return fn
 }
 
@@ -2699,7 +2699,7 @@ func mapfndel(name string, t *Type) *Node {
 		Fatalf("mapfn %v", t)
 	}
 	fn := syslook(name)
-	substArgTypes(&fn, t.Down, t.Type, t.Down)
+	substArgTypes(&fn, t.Key(), t.Type, t.Key())
 	return fn
 }
 

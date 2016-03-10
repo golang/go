@@ -417,23 +417,9 @@ func (x methcmp) Less(i, j int) bool {
 }
 
 func sortinter(t *Type) *Type {
-	if t.Type == nil || t.Type.Down == nil {
-		return t
-	}
-
-	var a []*Type
-	for f, it := IterFields(t); f != nil; f = it.Next() {
-		a = append(a, f)
-	}
-	sort.Sort(methcmp(a))
-
-	n := len(a) // n > 0 due to initial conditions.
-	for i := 0; i < n-1; i++ {
-		a[i].Down = a[i+1]
-	}
-	a[n-1].Down = nil
-
-	t.Type = a[0]
+	s := t.FieldSlice()
+	sort.Sort(methcmp(s))
+	t.SetFields(s)
 	return t
 }
 
@@ -740,12 +726,9 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 
 	switch t1.Etype {
 	case TINTER, TSTRUCT:
-		t1 = t1.Type
-		t2 = t2.Type
-		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
-			if t1.Etype != TFIELD || t2.Etype != TFIELD {
-				Fatalf("struct/interface missing field: %v %v", t1, t2)
-			}
+		t1, i1 := IterFields(t1)
+		t2, i2 := IterFields(t2)
+		for ; t1 != nil && t2 != nil; t1, t2 = i1.Next(), i2.Next() {
 			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, assumedEqual) || !eqnote(t1.Note, t2.Note) {
 				return false
 			}
@@ -782,9 +765,14 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		if t1.Chan != t2.Chan {
 			return false
 		}
+
+	case TMAP:
+		if !eqtype1(t1.Key(), t2.Key(), assumedEqual) {
+			return false
+		}
 	}
 
-	return eqtype1(t1.Down, t2.Down, assumedEqual) && eqtype1(t1.Type, t2.Type, assumedEqual)
+	return eqtype1(t1.Type, t2.Type, assumedEqual)
 }
 
 // Are t1 and t2 equal struct types when field names are ignored?
@@ -795,8 +783,8 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 		return false
 	}
 
-	t1 = t1.Type
-	t2 = t2.Type
+	t1, i1 := IterFields(t1)
+	t2, i2 := IterFields(t2)
 	for {
 		if !Eqtype(t1, t2) {
 			return false
@@ -804,8 +792,8 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 		if t1 == nil {
 			return true
 		}
-		t1 = t1.Down
-		t2 = t2.Down
+		t1 = i1.Next()
+		t2 = i2.Next()
 	}
 }
 
@@ -2635,13 +2623,13 @@ func isdirectiface(t *Type) bool {
 		TUNSAFEPTR:
 		return true
 
-		// Array of 1 direct iface type can be direct.
 	case TARRAY:
+		// Array of 1 direct iface type can be direct.
 		return t.Bound == 1 && isdirectiface(t.Type)
 
-		// Struct with 1 field of direct iface type can be direct.
 	case TSTRUCT:
-		return t.Type != nil && t.Type.Down == nil && isdirectiface(t.Type.Type)
+		// Struct with 1 field of direct iface type can be direct.
+		return countfield(t) == 1 && isdirectiface(t.Field(0).Type)
 	}
 
 	return false

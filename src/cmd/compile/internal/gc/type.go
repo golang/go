@@ -274,6 +274,12 @@ var recvsParamsResults = [3]func(*Type) *Type{
 	(*Type).Recvs, (*Type).Params, (*Type).Results,
 }
 
+// Key returns the key type of map type t.
+func (t *Type) Key() *Type {
+	t.wantEtype(TMAP)
+	return t.Down
+}
+
 // Field returns the i'th field/method of struct/interface type t.
 func (t *Type) Field(i int) *Type {
 	// TODO: store fields in a slice so we can
@@ -292,6 +298,29 @@ func (t *Type) Field(i int) *Type {
 		return nil
 	}
 	panic("not enough fields")
+}
+
+// FieldSlice returns a slice of containing all fields/methods of
+// struct/interface type t.
+func (t *Type) FieldSlice() []*Type {
+	var s []*Type
+	for f, it := IterFields(t); f != nil; f = it.Next() {
+		s = append(s, f)
+	}
+	return s
+}
+
+// SetFields sets struct/interface type t's fields/methods to fields.
+func (t *Type) SetFields(fields []*Type) {
+	if t.Etype != TSTRUCT && t.Etype != TINTER {
+		Fatalf("SetFields: type %v does not have fields", t)
+	}
+	var next *Type
+	for i := len(fields) - 1; i >= 0; i-- {
+		fields[i].Down = next
+		next = fields[i]
+	}
+	t.Type = next
 }
 
 func (t *Type) Size() int64 {
