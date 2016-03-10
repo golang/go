@@ -3083,7 +3083,7 @@ func eqfor(t *Type, needsize *int) *Node {
 
 func countfield(t *Type) int {
 	n := 0
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 		n++
 	}
 	return n
@@ -3234,7 +3234,7 @@ func walkcompare(np **Node, init *Nodes) {
 		// Inline comparisons.
 		var li *Node
 		var ri *Node
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if isblanksym(t1.Sym) {
 				continue
 			}

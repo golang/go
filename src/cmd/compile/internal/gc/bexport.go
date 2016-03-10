@@ -465,7 +465,7 @@ func (p *exporter) typ(t *Type) {
 		// TODO(gri) Determine if they are already sorted
 		// in which case we can drop this step.
 		var methods []*Type
-		for m := t.Method; m != nil; m = m.Down {
+		for m, it := IterMethods(t); m != nil; m = it.Next() {
 			methods = append(methods, m)
 		}
 		sort.Sort(methodbyname(methods))
@@ -559,7 +559,7 @@ func (p *exporter) fieldList(t *Type) {
 	}
 
 	p.int(countfield(t))
-	for f := t.Type; f != nil; f = f.Down {
+	for f, it := IterFields(t); f != nil; f = it.Next() {
 		p.field(f)
 		if p.trace && f.Down != nil {
 			p.tracef("\n")
@@ -592,7 +592,7 @@ func (p *exporter) methodList(t *Type) {
 	}
 
 	p.int(countfield(t))
-	for m := t.Type; m != nil; m = m.Down {
+	for m, it := IterFields(t); m != nil; m = it.Next() {
 		p.method(m)
 		if p.trace && m.Down != nil {
 			p.tracef("\n")
@@ -657,7 +657,7 @@ func (p *exporter) paramList(params *Type) {
 		n = -n
 	}
 	p.int(n)
-	for q := params.Type; q != nil; q = q.Down {
+	for q, it := IterFields(params); q != nil; q = it.Next() {
 		p.param(q, n)
 	}
 }

@@ -1136,7 +1136,7 @@ func substAny(tp **Type, types *[]*Type) {
 			substAny(t.ResultsP(), types)
 
 		case TSTRUCT:
-			for t = t.Type; t != nil; t = t.Down {
+			for t, it := IterFields(t); t != nil; t = it.Next() {
 				substAny(&t.Type, types)
 			}
 		}
@@ -1219,7 +1219,7 @@ func deep(t *Type) *Type {
 		nt.Type = t.Type.Copy()
 		xt := nt.Type
 
-		for t = t.Type; t != nil; t = t.Down {
+		for t, it := IterFields(t); t != nil; t = it.Next() {
 			xt.Type = deep(t.Type)
 			xt.Down = t.Down.Copy()
 			xt = xt.Down
@@ -1588,7 +1588,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
 
 	c := 0
 	if u.Etype == TSTRUCT || u.Etype == TINTER {
-		for f := u.Type; f != nil; f = f.Down {
+		for f, it := IterFields(u); f != nil; f = it.Next() {
 			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
@@ -1600,7 +1600,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
 
 	u = methtype(t, 0)
 	if u != nil {
-		for f := u.Method; f != nil; f = f.Down {
+		for f, it := IterMethods(u); f != nil; f = it.Next() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
 				if save != nil {
 					*save = f
@@ -1645,7 +1645,7 @@ func adddot1(s *Sym, t *Type, d int, save **Type, ignorecase bool) (c int, more 
 		goto out
 	}
 
-	for f := u.Type; f != nil; f = f.Down {
+	for f, it := IterFields(u); f != nil; f = it.Next() {
 		if f.Embedded == 0 || f.Sym == nil {
 			continue
 		}
@@ -1759,7 +1759,7 @@ func expand0(t *Type, followptr bool) {
 
 	if u.Etype == TINTER {
 		var sl *Symlink
-		for f := u.Type; f != nil; f = f.Down {
+		for f, it := IterFields(u); f != nil; f = it.Next() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
 			}
@@ -1777,7 +1777,7 @@ func expand0(t *Type, followptr bool) {
 	u = methtype(t, 0)
 	if u != nil {
 		var sl *Symlink
-		for f := u.Method; f != nil; f = f.Down {
+		for f, it := IterMethods(u); f != nil; f = it.Next() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
 			}
@@ -1811,7 +1811,7 @@ func expand1(t *Type, top, followptr bool) {
 		goto out
 	}
 
-	for f := u.Type; f != nil; f = f.Down {
+	for f, it := IterFields(u); f != nil; f = it.Next() {
 		if f.Embedded == 0 {
 			continue
 		}
@@ -1833,7 +1833,7 @@ func expandmeth(t *Type) {
 	// mark top-level method symbols
 	// so that expand1 doesn't consider them.
 	var f *Type
-	for f = t.Method; f != nil; f = f.Down {
+	for f, it := IterMethods(t); f != nil; f = it.Next() {
 		f.Sym.Flags |= SymUniq
 	}
 
@@ -1855,7 +1855,7 @@ func expandmeth(t *Type) {
 		}
 	}
 
-	for f = t.Method; f != nil; f = f.Down {
+	for f, it := IterMethods(t); f != nil; f = it.Next() {
 		f.Sym.Flags &^= SymUniq
 	}
 
@@ -2114,9 +2114,8 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 	// and then do one loop.
 
 	if t.Etype == TINTER {
-		var tm *Type
-		for im := iface.Type; im != nil; im = im.Down {
-			for tm = t.Type; tm != nil; tm = tm.Down {
+		for im, it := IterFields(iface); im != nil; im = it.Next() {
+			for tm, it2 := IterFields(t); tm != nil; tm = it2.Next() {
 				if tm.Sym == im.Sym {
 					if Eqtype(tm.Type, im.Type) {
 						goto found
@@ -2146,7 +2145,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 	var imtype *Type
 	var followptr bool
 	var rcvr *Type
-	for im := iface.Type; im != nil; im = im.Down {
+	for im, it := IterFields(iface); im != nil; im = it.Next() {
 		if im.Broke {
 			continue
 		}

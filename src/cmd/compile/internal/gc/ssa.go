@@ -2634,7 +2634,7 @@ func canSSAType(t *Type) bool {
 		if countfield(t) > ssa.MaxStruct {
 			return false
 		}
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if !canSSAType(t1.Type) {
 				return false
 			}
@@ -5138,7 +5138,7 @@ func fieldIdx(n *Node) int64 {
 	}
 
 	var i int64
-	for t1 := t.Type; t1 != nil; t1 = t1.Down {
+	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 		if t1.Etype != TFIELD {
 			panic("non-TFIELD in TSTRUCT")
 		}

@@ -299,7 +299,7 @@ func methods(t *Type) []*Sig {
 	// make list of methods for t,
 	// generating code if necessary.
 	var ms []*Sig
-	for f := mt.Xmethod; f != nil; f = f.Down {
+	for f, it2 := IterAllMethods(mt); f != nil; f = it2.Next() {
 		if f.Etype != TFIELD {
 			Fatalf("methods: not field %v", f)
 		}
