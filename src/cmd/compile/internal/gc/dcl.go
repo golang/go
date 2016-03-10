@@ -795,19 +795,23 @@ func structfield(n *Node) *Type {
 	return f
 }
 
-var uniqgen uint32
-
-func checkdupfields(t *Type, what string) {
+// checkdupfields emits errors for duplicately named fields or methods in
+// a list of struct or interface types.
+func checkdupfields(what string, ts ...*Type) {
 	lno := lineno
 
-	for ; t != nil; t = t.Down {
-		if t.Sym != nil && t.Nname != nil && !isblank(t.Nname) {
-			if t.Sym.Uniqgen == uniqgen {
-				lineno = t.Nname.Lineno
-				Yyerror("duplicate %s %s", what, t.Sym.Name)
-			} else {
-				t.Sym.Uniqgen = uniqgen
+	seen := make(map[*Sym]bool)
+	for _, t := range ts {
+		for f, it := IterFields(t); f != nil; f = it.Next() {
+			if f.Sym == nil || f.Nname == nil || isblank(f.Nname) {
+				continue
 			}
+			if seen[f.Sym] {
+				lineno = f.Nname.Lineno
+				Yyerror("duplicate %s %s", what, f.Sym.Name)
+				continue
+			}
+			seen[f.Sym] = true
 		}
 	}
 
@@ -839,8 +843,7 @@ func tostruct0(t *Type, l []*Node) {
 		}
 	}
 
-	uniqgen++
-	checkdupfields(t.Type, "field")
+	checkdupfields("field", t)
 
 	if !t.Broke {
 		checkwidth(t)
@@ -980,8 +983,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 		}
 	}
 
-	uniqgen++
-	checkdupfields(t.Type, "method")
+	checkdupfields("method", t)
 	t = sortinter(t)
 	checkwidth(t)
 
@@ -1156,10 +1158,7 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 	*t.ResultsP() = tofunargs(out)
 	*t.ParamsP() = tofunargs(in)
 
-	uniqgen++
-	checkdupfields(t.Recvs().Type, "argument")
-	checkdupfields(t.Results().Type, "argument")
-	checkdupfields(t.Params().Type, "argument")
+	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
 
 	if t.Recvs().Broke || t.Results().Broke || t.Params().Broke {
 		t.Broke = true

@@ -68,7 +68,6 @@ type Pkg struct {
 
 type Sym struct {
 	Flags     SymFlags
-	Uniqgen   uint32
 	Link      *Sym
 	Importdef *Pkg   // where imported definition was found
 	Linkname  string // link name
