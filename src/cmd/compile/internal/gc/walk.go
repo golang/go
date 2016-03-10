@@ -632,6 +632,7 @@ opswitch:
 		}
 
 	case OCALLINTER:
+		usemethod(n)
 		t := n.Left.Type
 		if n.List.Len() != 0 && n.List.First().Op == OAS {
 			break
@@ -3763,6 +3764,48 @@ func bounded(n *Node, max int64) bool {
 	}
 
 	return false
+}
+
+// usemethod check interface method calls for uses of reflect.Type.Method.
+func usemethod(n *Node) {
+	t := n.Left.Type
+
+	// Looking for either of:
+	//	Method(int) reflect.Method
+	//	MethodByName(string) (reflect.Method, bool)
+	//
+	// TODO(crawshaw): improve precision of match by working out
+	//                 how to check the method name.
+	if n := countfield(t.Params()); n != 1 {
+		return
+	}
+	if n := countfield(t.Results()); n != 1 && n != 2 {
+		return
+	}
+	p0 := t.Params().Field(0)
+	res0 := t.Results().Field(0)
+	var res1 *Type
+	if countfield(t.Results()) == 2 {
+		res1 = t.Results().Field(1)
+	}
+
+	if res1 == nil {
+		if p0.Type.Etype != TINT {
+			return
+		}
+	} else {
+		if p0.Type.Etype != TSTRING {
+			return
+		}
+		if res1.Type.Etype != TBOOL {
+			return
+		}
+	}
+	if Tconv(res0, 0) != "reflect.Method" {
+		return
+	}
+
+	Curfn.Func.ReflectMethod = true
 }
 
 func usefield(n *Node) {

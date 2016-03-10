@@ -438,6 +438,9 @@ func compile(fn *Node) {
 	if fn.Func.Pragma&Nosplit != 0 {
 		ptxt.From3.Offset |= obj.NOSPLIT
 	}
+	if fn.Func.ReflectMethod {
+		ptxt.From3.Offset |= obj.REFLECTMETHOD
+	}
 	if fn.Func.Pragma&Systemstack != 0 {
 		ptxt.From.Sym.Cfunc = 1
 	}

@@ -54,8 +54,9 @@ package ld
 //	- locals [int]
 //	- nosplit [int]
 //	- flags [int]
-//		1 leaf
-//		2 C function
+//		1<<0 leaf
+//		1<<1 C function
+//		1<<2 function may call reflect.Type.Method
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]
@@ -264,7 +265,10 @@ overwrite:
 		if rduint8(f) != 0 {
 			s.Attr |= AttrNoSplit
 		}
-		rdint(f) // v&1 is Leaf, currently unused
+		flags := rdint(f)
+		if flags&(1<<2) != 0 {
+			s.Attr |= AttrReflectMethod
+		}
 		n := rdint(f)
 		s.Autom = make([]Auto, n)
 		for i := 0; i < n; i++ {
