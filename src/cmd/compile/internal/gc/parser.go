@@ -815,33 +815,21 @@ func (p *parser) case_(tswitch *Node) *Node {
 
 // Block         = "{" StatementList "}" .
 // StatementList = { Statement ";" } .
-func (p *parser) compound_stmt(else_clause bool) *Node {
+func (p *parser) compound_stmt() *Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("compound_stmt")()
 	}
 
 	markdcl()
-	if p.got('{') {
-		// ok
-	} else if else_clause {
-		p.syntax_error("else must be followed by if or statement block")
-		p.advance(LNAME, '}')
-	} else {
-		panic("unreachable")
-	}
-
+	p.want('{')
 	l := p.stmt_list()
 	p.want('}')
-
-	var stmt *Node
-	if len(l) == 0 {
-		stmt = Nod(OEMPTY, nil, nil)
-	} else {
-		stmt = liststmt(l)
-	}
 	popdcl()
 
-	return stmt
+	if len(l) == 0 {
+		return Nod(OEMPTY, nil, nil)
+	}
+	return liststmt(l)
 }
 
 // caseblock parses a superset of switch and select clauses.
@@ -1046,15 +1034,19 @@ func (p *parser) if_stmt() *Node {
 	stmt.Nbody.Set(p.loop_body("if clause"))
 
 	if p.got(LELSE) {
-		if p.tok == LIF {
+		switch p.tok {
+		case LIF:
 			stmt.Rlist.Set1(p.if_stmt())
-		} else {
-			cs := p.compound_stmt(true)
+		case '{':
+			cs := p.compound_stmt()
 			if cs.Op == OBLOCK && cs.Ninit.Len() == 0 {
 				stmt.Rlist.Set(cs.List.Slice())
 			} else {
 				stmt.Rlist.Set1(cs)
 			}
+		default:
+			p.syntax_error("else must be followed by if or statement block")
+			p.advance(LNAME, '}')
 		}
 	}
 
@@ -2452,7 +2444,7 @@ func (p *parser) stmt() *Node {
 
 	switch p.tok {
 	case '{':
-		return p.compound_stmt(false)
+		return p.compound_stmt()
 
 	case LVAR, LCONST, LTYPE:
 		return liststmt(p.common_dcl())
