@@ -373,16 +373,25 @@ func (d *compressor) store() {
 }
 
 func (d *compressor) write(b []byte) (n int, err error) {
+	if d.err != nil {
+		return 0, d.err
+	}
 	n = len(b)
 	b = b[d.fill(d, b):]
 	for len(b) > 0 {
 		d.step(d)
 		b = b[d.fill(d, b):]
+		if d.err != nil {
+			return 0, d.err
+		}
 	}
-	return n, d.err
+	return n, nil
 }
 
 func (d *compressor) syncFlush() error {
+	if d.err != nil {
+		return d.err
+	}
 	d.sync = true
 	d.step(d)
 	if d.err == nil {
@@ -461,6 +470,9 @@ func (d *compressor) reset(w io.Writer) {
 }
 
 func (d *compressor) close() error {
+	if d.err != nil {
+		return d.err
+	}
 	d.sync = true
 	d.step(d)
 	if d.err != nil {
