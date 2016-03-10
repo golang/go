@@ -42,7 +42,7 @@ func (t *TypeImpl) IsFlags() bool          { return false }
 func (t *TypeImpl) IsVoid() bool           { return false }
 func (t *TypeImpl) String() string         { return t.Name }
 func (t *TypeImpl) SimpleString() string   { return t.Name }
-func (t *TypeImpl) Elem() Type             { return t.Elem_ }
+func (t *TypeImpl) ElemType() Type         { return t.Elem_ }
 func (t *TypeImpl) PtrTo() Type            { panic("not implemented") }
 func (t *TypeImpl) NumFields() int64       { panic("not implemented") }
 func (t *TypeImpl) FieldType(i int64) Type { panic("not implemented") }

@@ -584,8 +584,12 @@ func (t *Type) IsInterface() bool {
 	return t.Etype == TINTER
 }
 
-func (t *Type) Elem() ssa.Type {
-	return t.Type
+func (t *Type) ElemType() ssa.Type {
+	switch t.Etype {
+	case TARRAY, TPTR32, TPTR64:
+		return t.Type
+	}
+	panic(fmt.Sprintf("ElemType on invalid type %v", t))
 }
 func (t *Type) PtrTo() ssa.Type {
 	return Ptrto(t)
