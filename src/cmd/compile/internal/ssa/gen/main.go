@@ -34,6 +34,7 @@ type opData struct {
 	rematerializeable bool
 	argLength         int32 // number of arguments, if -1, then this operation has a variable number of arguments
 	commutative       bool  // this operation is commutative (e.g. addition)
+	resultInArg0      bool  // prefer v and v.Args[0] to be allocated to the same register
 }
 
 type blockData struct {
@@ -140,6 +141,9 @@ func genOp() {
 			}
 			if v.commutative {
 				fmt.Fprintln(w, "commutative: true,")
+			}
+			if v.resultInArg0 {
+				fmt.Fprintln(w, "resultInArg0: true,")
 			}
 			if a.name == "generic" {
 				fmt.Fprintln(w, "generic:true,")

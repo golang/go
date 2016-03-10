@@ -923,14 +923,26 @@ func (s *regAllocState) regalloc(f *Func) {
 			s.freeRegs(regspec.clobbers)
 
 			// Pick register for output.
-			var mask regMask
 			if s.values[v.ID].needReg {
-				mask = regspec.outputs[0] &^ s.reserved()
+				mask := regspec.outputs[0] &^ s.reserved()
 				if mask>>33&1 != 0 {
 					s.f.Fatalf("bad mask %s\n", v.LongString())
 				}
-			}
-			if mask != 0 {
+				if opcodeTable[v.Op].resultInArg0 {
+					r := register(s.f.getHome(args[0].ID).(*Register).Num)
+					if (mask&^s.used)>>r&1 != 0 {
+						mask = regMask(1) << r
+					}
+					if opcodeTable[v.Op].commutative {
+						r := register(s.f.getHome(args[1].ID).(*Register).Num)
+						if (mask&^s.used)>>r&1 != 0 {
+							mask = regMask(1) << r
+						}
+					}
+					// TODO: enforce resultInArg0 always, instead of treating it
+					// as a hint.  Then we don't need the special cases adding
+					// moves all throughout ssa.go:genValue.
+				}
 				r := s.allocReg(v, mask)
 				s.assignReg(r, v, v)
 			}
