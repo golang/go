@@ -894,12 +894,14 @@ BigSwitch:
 			p.printValue(value, verb, depth+1)
 		}
 	case reflect.Array, reflect.Slice:
-		// Byte slices are special:
+		// Byte arrays and slices are special:
 		// - Handle []byte (== []uint8) with fmtBytes.
 		// - Handle []T, where T is a named byte type, with fmtBytes only
-		//   for the s, q, an x verbs. For other verbs, T might be a
+		//   for the s, q, x and X verbs. For other verbs, T might be a
 		//   Stringer, so we use printValue to print each element.
-		if typ := f.Type(); typ.Elem().Kind() == reflect.Uint8 && (typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x') {
+		typ := f.Type()
+		if typ.Elem().Kind() == reflect.Uint8 &&
+			(typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x' || verb == 'X') {
 			var bytes []byte
 			if f.Kind() == reflect.Slice {
 				bytes = f.Bytes()
@@ -918,7 +920,7 @@ BigSwitch:
 			break
 		}
 		if p.fmt.sharpV {
-			p.buf.WriteString(value.Type().String())
+			p.buf.WriteString(typ.String())
 			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString(nilParenString)
 				break

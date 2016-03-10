@@ -122,9 +122,11 @@ var bslice = barray[:]
 
 type byteStringer byte
 
-func (byteStringer) String() string { return "X" }
+func (byteStringer) String() string {
+	return "X"
+}
 
-var byteStringerSlice = []byteStringer{97, 98, 99, 100}
+var byteStringerSlice = []byteStringer{'h', 'e', 'l', 'l', 'o'}
 
 type byteFormatter byte
 
@@ -132,7 +134,7 @@ func (byteFormatter) Format(f State, _ rune) {
 	Fprint(f, "X")
 }
 
-var byteFormatterSlice = []byteFormatter{97, 98, 99, 100}
+var byteFormatterSlice = []byteFormatter{'h', 'e', 'l', 'l', 'o'}
 
 var fmtTests = []struct {
 	fmt string
@@ -706,7 +708,8 @@ var fmtTests = []struct {
 	{"%x", renamedString("thing"), "7468696e67"},
 	{"%d", renamedBytes([]byte{1, 2, 15}), `[1 2 15]`},
 	{"%q", renamedBytes([]byte("hello")), `"hello"`},
-	{"%x", []renamedUint8{'a', 'b', 'c'}, "616263"},
+	{"%x", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "68656c6c6f"},
+	{"%X", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "68656C6C6F"},
 	{"%s", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, "hello"},
 	{"%q", []renamedUint8{'h', 'e', 'l', 'l', 'o'}, `"hello"`},
 	{"%v", renamedFloat32(22), "22"},
@@ -933,19 +936,21 @@ var fmtTests = []struct {
 	{"%+010.2f", -104.66 - 440.51i, "(-000104.66-000440.51i)"},
 
 	// []T where type T is a byte with a Stringer method.
-	{"%v", byteStringerSlice, "[X X X X]"},
-	{"%s", byteStringerSlice, "abcd"},
-	{"%q", byteStringerSlice, "\"abcd\""},
-	{"%x", byteStringerSlice, "61626364"},
-	{"%#v", byteStringerSlice, "[]fmt_test.byteStringer{0x61, 0x62, 0x63, 0x64}"},
+	{"%v", byteStringerSlice, "[X X X X X]"},
+	{"%s", byteStringerSlice, "hello"},
+	{"%q", byteStringerSlice, "\"hello\""},
+	{"%x", byteStringerSlice, "68656c6c6f"},
+	{"%X", byteStringerSlice, "68656C6C6F"},
+	{"%#v", byteStringerSlice, "[]fmt_test.byteStringer{0x68, 0x65, 0x6c, 0x6c, 0x6f}"},
 
 	// And the same for Formatter.
-	{"%v", byteFormatterSlice, "[X X X X]"},
-	{"%s", byteFormatterSlice, "abcd"},
-	{"%q", byteFormatterSlice, "\"abcd\""},
-	{"%x", byteFormatterSlice, "61626364"},
+	{"%v", byteFormatterSlice, "[X X X X X]"},
+	{"%s", byteFormatterSlice, "hello"},
+	{"%q", byteFormatterSlice, "\"hello\""},
+	{"%x", byteFormatterSlice, "68656c6c6f"},
+	{"%X", byteFormatterSlice, "68656C6C6F"},
 	// This next case seems wrong, but the docs say the Formatter wins here.
-	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X}"},
+	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X, X}"},
 
 	// reflect.Value handled specially in Go 1.5, making it possible to
 	// see inside non-exported fields (which cannot be accessed with Interface()).
