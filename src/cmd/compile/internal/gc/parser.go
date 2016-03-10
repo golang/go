@@ -2142,8 +2142,8 @@ func (p *parser) structdcl() []*Node {
 		typ := p.ntype()
 		tag := p.oliteral()
 
-		if l := fields; len(l) == 0 || l[0].Sym.Name == "?" {
-			// ? symbol, during import (list1(nil) == nil)
+		if len(fields) == 0 || fields[0].Sym.Name == "?" {
+			// ? symbol, during import
 			n := typ
 			if n.Op == OIND {
 				n = n.Left

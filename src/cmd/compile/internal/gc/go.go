@@ -76,12 +76,13 @@ type Sym struct {
 	Pkg        *Pkg
 	Name       string // variable name
 	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
-	Label      *Label // corresponding label (ephemeral)
 	Block      int32  // blocknumber to catch redeclaration
 	Lastlineno int32  // last declaration for diagnostic
-	Origpkg    *Pkg   // original package for . import
-	Lsym       *obj.LSym
-	Fsym       *Sym // funcsym
+
+	Label   *Label // corresponding label (ephemeral)
+	Origpkg *Pkg   // original package for . import
+	Lsym    *obj.LSym
+	Fsym    *Sym // funcsym
 }
 
 type Label struct {

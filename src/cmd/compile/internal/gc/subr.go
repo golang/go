@@ -2030,6 +2030,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 
 	funcbody(fn)
 	Curfn = fn
+	popdcl()
+	testdclstack()
 
 	// wrappers where T is anonymous (struct or interface) can be duplicated.
 	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Type.Etype == TSTRUCT {

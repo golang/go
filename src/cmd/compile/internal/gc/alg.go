@@ -280,6 +280,8 @@ func genhash(sym *Sym, t *Type) {
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody.Slice(), Etop)
 	Curfn = nil
+	popdcl()
+	testdclstack()
 
 	// Disable safemode while compiling this code: the code we
 	// generate internally can refer to unsafe.Pointer.
@@ -472,6 +474,8 @@ func geneq(sym *Sym, t *Type) {
 	typecheck(&fn, Etop)
 	typechecklist(fn.Nbody.Slice(), Etop)
 	Curfn = nil
+	popdcl()
+	testdclstack()
 
 	// Disable safemode while compiling this code: the code we
 	// generate internally can refer to unsafe.Pointer.
