@@ -440,7 +440,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
 		r1.Type = byteptr
 		r2.Type = byteptr
 		setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
-		call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
+		call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.Params(), call.List.Slice(), 0, nil))
 		gen(call)
 		Regfree(&r1)
 		Regfree(&r2)
@@ -526,7 +526,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
 	dowidth(fn.Type)
 	call := Nod(OCALLFUNC, fn, nil)
 	setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
-	call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
+	call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.Params(), call.List.Slice(), 0, nil))
 	gen(call)
 	Regfree(&r1)
 	Regfree(&r2)

@@ -328,7 +328,7 @@ func walkstmt(np **Node) {
 			break
 		}
 
-		ll := ascompatte(n.Op, nil, false, Curfn.Type.ResultsP(), n.List.Slice(), 1, &n.Ninit)
+		ll := ascompatte(n.Op, nil, false, Curfn.Type.Results(), n.List.Slice(), 1, &n.Ninit)
 		n.List.Set(ll)
 
 	case ORETJMP:
@@ -638,7 +638,7 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 
 	case OCALLFUNC:
@@ -685,7 +685,7 @@ opswitch:
 			}
 		}
 
-		ll := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
+		ll := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		n.List.Set(reorder1(ll))
 
 	case OCALLMETH:
@@ -695,8 +695,8 @@ opswitch:
 		}
 		walkexpr(&n.Left, init)
 		walkexprlist(n.List.Slice(), init)
-		ll := ascompatte(n.Op, n, false, t.RecvP(), []*Node{n.Left.Left}, 0, init)
-		lr := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
+		ll := ascompatte(n.Op, n, false, t.Recv(), []*Node{n.Left.Left}, 0, init)
+		lr := ascompatte(n.Op, n, n.Isddd, t.Params(), n.List.Slice(), 0, init)
 		ll = append(ll, lr...)
 		n.Left.Left = nil
 		ullmancalc(n.Left)
@@ -803,7 +803,7 @@ opswitch:
 		walkexprlistsafe(n.List.Slice(), init)
 		walkexpr(&r, init)
 
-		ll := ascompatet(n.Op, n.List, &r.Type, 0, init)
+		ll := ascompatet(n.Op, n.List, r.Type, 0, init)
 		for i, n := range ll {
 			ll[i] = applywritebarrier(n)
 		}
@@ -1701,25 +1701,20 @@ func fncall(l *Node, rt *Type) bool {
 	return true
 }
 
-func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
-	var l *Node
-	var tmp *Node
-	var a *Node
+// check assign type list to
+// a expression list. called in
+//	expr-list = func()
+func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
+	r, saver := IterFields(nr)
 
-	// check assign type list to
-	// a expression list. called in
-	//	expr-list = func()
-	r, saver := IterFields(*nr)
-
-	var nn []*Node
-	var mm []*Node
-	ucount := 0
+	var nn, mm []*Node
+	var ullmanOverflow bool
 	var i int
 	for i = 0; i < nl.Len(); i++ {
 		if r == nil {
 			break
 		}
-		l = nl.Index(i)
+		l := nl.Index(i)
 		if isblank(l) {
 			r = saver.Next()
 			continue
@@ -1729,20 +1724,20 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 		// deferred until all the return arguments
 		// have been pulled from the output arguments
 		if fncall(l, r.Type) {
-			tmp = temp(r.Type)
+			tmp := temp(r.Type)
 			typecheck(&tmp, Erv)
-			a = Nod(OAS, l, tmp)
+			a := Nod(OAS, l, tmp)
 			a = convas(a, init)
 			mm = append(mm, a)
 			l = tmp
 		}
 
-		a = Nod(OAS, l, nodarg(r, fp))
+		a := Nod(OAS, l, nodarg(r, fp))
 		a = convas(a, init)
 		ullmancalc(a)
 		if a.Ullman >= UINF {
 			Dump("ascompatet ucount", a)
-			ucount++
+			ullmanOverflow = true
 		}
 
 		nn = append(nn, a)
@@ -1750,10 +1745,10 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
 	}
 
 	if i < nl.Len() || r != nil {
-		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), structcount(*nr))
+		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), structcount(nr))
 	}
 
-	if ucount != 0 {
+	if ullmanOverflow {
 		Fatalf("ascompatet: too many function calls evaluating parameters")
 	}
 	return append(nn, mm...)
@@ -1794,53 +1789,41 @@ func mkdotargslice(lr0, nn []*Node, l *Type, fp int, init *Nodes, ddd *Node) []*
 }
 
 // helpers for shape errors
-func dumptypes(nl **Type, what string) string {
-	fmt_ := ""
-	fmt_ += "\t"
-	first := 1
-	for l, it := IterFields(*nl); l != nil; l = it.Next() {
-		if first != 0 {
-			first = 0
-		} else {
-			fmt_ += ", "
+func dumptypes(nl *Type, what string) string {
+	s := ""
+	for l, it := IterFields(nl); l != nil; l = it.Next() {
+		if s != "" {
+			s += ", "
 		}
-		fmt_ += Tconv(l, 0)
+		s += Tconv(l, 0)
 	}
-
-	if first != 0 {
-		fmt_ += fmt.Sprintf("[no arguments %s]", what)
+	if s == "" {
+		s = fmt.Sprintf("[no arguments %s]", what)
 	}
-	return fmt_
+	return s
 }
 
 func dumpnodetypes(l []*Node, what string) string {
-	var r *Node
-
-	fmt_ := ""
-	fmt_ += "\t"
-	first := 1
-	for _, r = range l {
-		if first != 0 {
-			first = 0
-		} else {
-			fmt_ += ", "
+	s := ""
+	for _, r := range l {
+		if s != "" {
+			s += ", "
 		}
-		fmt_ += Tconv(r.Type, 0)
+		s += Tconv(r.Type, 0)
 	}
-
-	if first != 0 {
-		fmt_ += fmt.Sprintf("[no arguments %s]", what)
+	if s == "" {
+		s = fmt.Sprintf("[no arguments %s]", what)
 	}
-	return fmt_
+	return s
 }
 
 // check assign expression list to
 // a type list. called in
 //	return expr-list
 //	func(expr-list)
-func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, init *Nodes) []*Node {
+func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, init *Nodes) []*Node {
 	lr0 := lr
-	l, savel := IterFields(*nl)
+	l, savel := IterFields(nl)
 	var r *Node
 	if nodeSeqLen(lr) > 0 {
 		r = nodeSeqFirst(lr)
@@ -1848,17 +1831,13 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, in
 	var nn []*Node
 
 	// f(g()) where g has multiple return values
-	var a *Node
-	var l2 string
-	var ll *Type
-	var l1 string
 	if r != nil && nodeSeqLen(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
 		// optimization - can do block copy
-		if eqtypenoname(r.Type, *nl) {
-			a := nodarg(*nl, fp)
+		if eqtypenoname(r.Type, nl) {
+			arg := nodarg(nl, fp)
 			r = Nod(OCONVNOP, r, nil)
-			r.Type = a.Type
-			nn = []*Node{convas(Nod(OAS, a, r), init)}
+			r.Type = arg.Type
+			nn = []*Node{convas(Nod(OAS, arg, r), init)}
 			goto ret
 		}
 
@@ -1867,11 +1846,11 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, in
 		var alist []*Node
 
 		for l, it := IterFields(r.Type); l != nil; l = it.Next() {
-			a = temp(l.Type)
-			alist = append(alist, a)
+			tmp := temp(l.Type)
+			alist = append(alist, tmp)
 		}
 
-		a = Nod(OAS2, nil, nil)
+		a := Nod(OAS2, nil, nil)
 		a.List.Set(alist)
 		a.Rlist.Set(lr)
 		typecheck(&a, Etop)
@@ -1879,62 +1858,62 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, in
 		init.Append(a)
 		lr = alist
 		r = nodeSeqFirst(lr)
-		l, savel = IterFields(*nl)
+		l, savel = IterFields(nl)
 	}
 
-loop:
-	if l != nil && l.Isddd {
-		// the ddd parameter must be last
-		ll = savel.Next()
+	for {
+		if l != nil && l.Isddd {
+			// the ddd parameter must be last
+			ll := savel.Next()
 
-		if ll != nil {
-			Yyerror("... must be last argument")
-		}
-
-		// special case --
-		// only if we are assigning a single ddd
-		// argument to a ddd parameter then it is
-		// passed thru unencapsulated
-		if r != nil && len(lr) <= 1 && isddd && Eqtype(l.Type, r.Type) {
-			a = Nod(OAS, nodarg(l, fp), r)
-			a = convas(a, init)
-			nn = append(nn, a)
-			goto ret
-		}
-
-		// normal case -- make a slice of all
-		// remaining arguments and pass it to
-		// the ddd parameter.
-		nn = mkdotargslice(lr, nn, l, fp, init, call.Right)
-
-		goto ret
-	}
-
-	if l == nil || r == nil {
-		if l != nil || r != nil {
-			l1 = dumptypes(nl, "expected")
-			l2 = dumpnodetypes(lr0, "given")
-			if l != nil {
-				Yyerror("not enough arguments to %v\n%s\n%s", Oconv(op, 0), l1, l2)
-			} else {
-				Yyerror("too many arguments to %v\n%s\n%s", Oconv(op, 0), l1, l2)
+			if ll != nil {
+				Yyerror("... must be last argument")
 			}
+
+			// special case --
+			// only if we are assigning a single ddd
+			// argument to a ddd parameter then it is
+			// passed thru unencapsulated
+			if r != nil && len(lr) <= 1 && isddd && Eqtype(l.Type, r.Type) {
+				a := Nod(OAS, nodarg(l, fp), r)
+				a = convas(a, init)
+				nn = append(nn, a)
+				break
+			}
+
+			// normal case -- make a slice of all
+			// remaining arguments and pass it to
+			// the ddd parameter.
+			nn = mkdotargslice(lr, nn, l, fp, init, call.Right)
+
+			break
 		}
 
-		goto ret
-	}
+		if l == nil || r == nil {
+			if l != nil || r != nil {
+				l1 := dumptypes(nl, "expected")
+				l2 := dumpnodetypes(lr0, "given")
+				if l != nil {
+					Yyerror("not enough arguments to %v\n\t%s\n\t%s", Oconv(op, 0), l1, l2)
+				} else {
+					Yyerror("too many arguments to %v\n\t%s\n\t%s", Oconv(op, 0), l1, l2)
+				}
+			}
 
-	a = Nod(OAS, nodarg(l, fp), r)
-	a = convas(a, init)
-	nn = append(nn, a)
+			break
+		}
 
-	l = savel.Next()
-	r = nil
-	lr = lr[1:]
-	if len(lr) > 0 {
-		r = lr[0]
+		a := Nod(OAS, nodarg(l, fp), r)
+		a = convas(a, init)
+		nn = append(nn, a)
+
+		l = savel.Next()
+		r = nil
+		lr = lr[1:]
+		if len(lr) > 0 {
+			r = lr[0]
+		}
 	}
-	goto loop
 
 ret:
 	for _, n := range nn {
