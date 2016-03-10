@@ -2002,7 +2002,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		l = append(l, nodlit(v)) // method name
 		call := Nod(OCALL, syslook("panicwrap"), nil)
 		call.List.Set(l)
-		n.Nbody.Set([]*Node{call})
+		n.Nbody.Set1(call)
 		fn.Nbody.Append(n)
 	}
 
@@ -2029,7 +2029,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
 		call.Isddd = isddd
 		if method.Type.Outtuple > 0 {
 			n := Nod(ORETURN, nil, nil)
-			n.List.Set([]*Node{call})
+			n.List.Set1(call)
 			call = n
 		}
 

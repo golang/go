@@ -305,7 +305,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 				a.Left = Nod(ONOT, n.Left, nil) // if !val
 				typecheck(&a.Left, Erv)
 			}
-			a.Nbody.Set([]*Node{n.Right}) // goto l
+			a.Nbody.Set1(n.Right) // goto l
 
 			cas = append(cas, a)
 			lineno = lno
@@ -327,8 +327,8 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
 		a.Left = le
 	}
 	typecheck(&a.Left, Erv)
-	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
-	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
+	a.Nbody.Set1(s.walkCases(cc[:half]))
+	a.Rlist.Set1(s.walkCases(cc[half:]))
 	return a
 }
 
@@ -581,11 +581,11 @@ func (s *typeSwitch) walk(sw *Node) {
 	i.Left = Nod(OEQ, typ, nodnil())
 	if typenil != nil {
 		// Do explicit nil case right here.
-		i.Nbody.Set([]*Node{typenil})
+		i.Nbody.Set1(typenil)
 	} else {
 		// Jump to default case.
 		lbl := newCaseLabel()
-		i.Nbody.Set([]*Node{Nod(OGOTO, lbl, nil)})
+		i.Nbody.Set1(Nod(OGOTO, lbl, nil))
 		// Wrap default case with label.
 		blk := Nod(OBLOCK, nil, nil)
 		blk.List.Set([]*Node{Nod(OLABEL, lbl, nil), def})
@@ -694,13 +694,13 @@ func (s *typeSwitch) typeone(t *Node) *Node {
 	a.List.Set([]*Node{name, s.okname}) // name, ok =
 	b := Nod(ODOTTYPE, s.facename, nil)
 	b.Type = t.Left.Type // interface.(type)
-	a.Rlist.Set([]*Node{b})
+	a.Rlist.Set1(b)
 	typecheck(&a, Etop)
 	init = append(init, a)
 
 	c := Nod(OIF, nil, nil)
 	c.Left = s.okname
-	c.Nbody.Set([]*Node{t.Right}) // if ok { goto l }
+	c.Nbody.Set1(t.Right) // if ok { goto l }
 
 	return liststmt(append(init, c))
 }
@@ -717,7 +717,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 			a := Nod(OIF, nil, nil)
 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
 			typecheck(&a.Left, Erv)
-			a.Nbody.Set([]*Node{n.Right})
+			a.Nbody.Set1(n.Right)
 			cas = append(cas, a)
 		}
 		return liststmt(cas)
@@ -728,8 +728,8 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
 	a := Nod(OIF, nil, nil)
 	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
 	typecheck(&a.Left, Erv)
-	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
-	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
+	a.Nbody.Set1(s.walkCases(cc[:half]))
+	a.Rlist.Set1(s.walkCases(cc[half:]))
 	return a
 }
 

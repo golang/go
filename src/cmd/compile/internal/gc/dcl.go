@@ -228,7 +228,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		e := el[0]
 		as2 := Nod(OAS2, nil, nil)
 		as2.List.Set(vl)
-		as2.Rlist.Set([]*Node{e})
+		as2.Rlist.Set1(e)
 		for _, v := range vl {
 			v.Op = ONAME
 			declare(v, dclcontext)

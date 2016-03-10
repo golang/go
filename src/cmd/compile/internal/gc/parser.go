@@ -726,7 +726,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 					// type switch - declare variable
 					nn := newname(n.Sym)
 					declare(nn, dclcontext)
-					stmt.Rlist.Set([]*Node{nn})
+					stmt.Rlist.Set1(nn)
 
 					// keep track of the instances for reporting unused
 					nn.Name.Defn = tswitch
@@ -752,9 +752,9 @@ func (p *parser) case_(tswitch *Node) *Node {
 			} else {
 				n = Nod(OAS2, nil, nil)
 				n.List.Set(cases)
-				n.Rlist.Set([]*Node{rhs})
+				n.Rlist.Set1(rhs)
 			}
-			stmt.List.Set([]*Node{n})
+			stmt.List.Set1(n)
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -770,7 +770,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 			// done in casebody()
 			markdcl() // matching popdcl in caseblock
 			stmt := Nod(OXCASE, nil, nil)
-			stmt.List.Set([]*Node{colas(cases, []*Node{rhs}, lno)})
+			stmt.List.Set1(colas(cases, []*Node{rhs}, lno))
 
 			p.want(':') // consume ':' after declaring select cases for correct lineno
 			return stmt
@@ -794,7 +794,7 @@ func (p *parser) case_(tswitch *Node) *Node {
 				// type switch - declare variable
 				nn := newname(n.Sym)
 				declare(nn, dclcontext)
-				stmt.Rlist.Set([]*Node{nn})
+				stmt.Rlist.Set1(nn)
 
 				// keep track of the instances for reporting unused
 				nn.Name.Defn = tswitch
@@ -918,7 +918,7 @@ func (p *parser) for_header() *Node {
 		}
 		h := Nod(OFOR, nil, nil)
 		if init != nil {
-			h.Ninit.Set([]*Node{init})
+			h.Ninit.Set1(init)
 		}
 		h.Left = cond
 		h.Right = post
@@ -1022,7 +1022,7 @@ func (p *parser) if_header() *Node {
 	init, cond, _ := p.header(false)
 	h := Nod(OIF, nil, nil)
 	if init != nil {
-		h.Ninit.Set([]*Node{init})
+		h.Ninit.Set1(init)
 	}
 	h.Left = cond
 	return h
@@ -1047,13 +1047,13 @@ func (p *parser) if_stmt() *Node {
 
 	if p.got(LELSE) {
 		if p.tok == LIF {
-			stmt.Rlist.Set([]*Node{p.if_stmt()})
+			stmt.Rlist.Set1(p.if_stmt())
 		} else {
 			cs := p.compound_stmt(true)
 			if cs.Op == OBLOCK && cs.Ninit.Len() == 0 {
 				stmt.Rlist.Set(cs.List.Slice())
 			} else {
-				stmt.Rlist.Set([]*Node{cs})
+				stmt.Rlist.Set1(cs)
 			}
 		}
 	}

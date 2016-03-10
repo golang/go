@@ -878,7 +878,7 @@ opswitch:
 		if !isblank(n.List.Second()) {
 			r.Type.Type.Down.Type = n.List.Second().Type
 		}
-		n.Rlist.Set([]*Node{r})
+		n.Rlist.Set1(r)
 		n.Op = OAS2FUNC
 
 		// don't generate a = *var if a is _
@@ -1048,7 +1048,7 @@ opswitch:
 
 				n2 := Nod(OIF, nil, nil)
 				n2.Left = Nod(OEQ, l, nodnil())
-				n2.Nbody.Set([]*Node{Nod(OAS, l, n1)})
+				n2.Nbody.Set1(Nod(OAS, l, n1))
 				n2.Likely = -1
 				typecheck(&n2, Etop)
 				init.Append(n2)
@@ -2808,7 +2808,9 @@ func appendslice(n *Node, init *Nodes) *Node {
 	nif := Nod(OIF, nil, nil)
 
 	// n := len(s) + len(l2) - cap(s)
-	nif.Ninit.Set([]*Node{Nod(OAS, nt, Nod(OSUB, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)), Nod(OCAP, s, nil)))})
+	nif.Ninit.Set1(Nod(OAS, nt, Nod(OSUB,
+		Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)),
+		Nod(OCAP, s, nil))))
 
 	nif.Left = Nod(OGT, nt, Nodintconst(0))
 
@@ -2817,7 +2819,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 	substArgTypes(&fn, s.Type.Type, s.Type.Type)
 
 	// s = growslice_n(T, s, n)
-	nif.Nbody.Set([]*Node{Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt))})
+	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
 
 	l = append(l, nif)
 
@@ -2953,7 +2955,9 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 	fn := syslook("growslice") //   growslice(<type>, old []T, mincap int) (ret []T)
 	substArgTypes(&fn, ns.Type.Type, ns.Type.Type)
 
-	nx.Nbody.Set([]*Node{Nod(OAS, ns, mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns, Nod(OADD, Nod(OLEN, ns, nil), na)))})
+	nx.Nbody.Set1(Nod(OAS, ns,
+		mkcall1(fn, ns.Type, &nx.Ninit, typename(ns.Type), ns,
+			Nod(OADD, Nod(OLEN, ns, nil), na))))
 
 	l = append(l, nx)
 
@@ -3960,7 +3964,7 @@ func walkprintfunc(np **Node, init *Nodes) {
 	typecheck(&a, Etop)
 	walkstmt(&a)
 
-	fn.Nbody.Set([]*Node{a})
+	fn.Nbody.Set1(a)
 
 	funcbody(fn)
 

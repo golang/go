@@ -636,7 +636,7 @@ func (p *importer) node() *Node {
 		// }
 		x := Nod(OCALL, p.typ().Nod, nil)
 		if p.bool() {
-			x.List.Set([]*Node{p.node()})
+			x.List.Set1(p.node())
 		} else {
 			x.List.Set(p.nodeList())
 		}
