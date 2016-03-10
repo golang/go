@@ -274,6 +274,8 @@ type regAllocState struct {
 
 	// spillLive[blockid] is the set of live spills at the end of each block
 	spillLive [][]ID
+
+	loopnest *loopnest
 }
 
 type endReg struct {
@@ -996,27 +998,12 @@ func (s *regAllocState) regalloc(f *Func) {
 		// If we are approaching a merge point and we are the primary
 		// predecessor of it, find live values that we use soon after
 		// the merge point and promote them to registers now.
-		if len(b.Succs) == 1 && len(b.Succs[0].Preds) > 1 && b.Succs[0].Preds[s.primary[b.Succs[0].ID]] == b {
+		if len(b.Succs) == 1 {
 			// For this to be worthwhile, the loop must have no calls in it.
-			// Use a very simple loop detector. TODO: incorporate David's loop stuff
-			// once it is in.
 			top := b.Succs[0]
-			for _, p := range top.Preds {
-				if p == b {
-					continue
-				}
-				for {
-					if p.Kind == BlockCall || p.Kind == BlockDefer {
-						goto badloop
-					}
-					if p == top {
-						break
-					}
-					if len(p.Preds) != 1 {
-						goto badloop
-					}
-					p = p.Preds[0]
-				}
+			loop := s.loopnest.b2l[top.ID]
+			if loop == nil || loop.header != top || loop.containsCall {
+				goto badloop
 			}
 
 			// TODO: sort by distance, pick the closest ones?
@@ -1620,7 +1607,8 @@ func (s *regAllocState) computeLive() {
 	// Walk the dominator tree from end to beginning, just once, treating SCC
 	// components as single blocks, duplicated calculated liveness information
 	// out to all of them.
-	po := postorder(f)
+	s.loopnest = loopnestfor(f)
+	po := s.loopnest.po
 	for {
 		changed := false
 
