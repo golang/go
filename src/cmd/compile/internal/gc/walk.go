@@ -2578,23 +2578,21 @@ func vmatch1(l *Node, r *Node) bool {
 	return false
 }
 
-// walk through argin parameters.
-// generate and return code to allocate
-// copies of escaped parameters to the heap.
-func paramstoheap(argin **Type, out int) []*Node {
-	var v *Node
-	var as *Node
-
+// paramstoheap returns code to allocate memory for heap-escaped parameters
+// and to copy non-result prameters' values from the stack.
+// If out is true, then code is also produced to zero-initialize their
+// stack memory addresses.
+func paramstoheap(params *Type, out bool) []*Node {
 	var nn []*Node
-	for t, it := IterFields(*argin); t != nil; t = it.Next() {
-		v = t.Nname
-		if v != nil && v.Sym != nil && v.Sym.Name[0] == '~' && v.Sym.Name[1] == 'r' { // unnamed result
+	for t, it := IterFields(params); t != nil; t = it.Next() {
+		v := t.Nname
+		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
 			v = nil
 		}
 
 		// For precise stacks, the garbage collector assumes results
 		// are always live, so zero them always.
-		if out != 0 {
+		if out {
 			// Defer might stop a panic and show the
 			// return values as they exist at the time of panic.
 			// Make sure to zero them on entry to the function.
@@ -2614,7 +2612,7 @@ func paramstoheap(argin **Type, out int) []*Node {
 		}
 		nn = append(nn, Nod(OAS, v.Name.Heapaddr, prealloc[v]))
 		if v.Class&^PHEAP != PPARAMOUT {
-			as = Nod(OAS, v, v.Name.Param.Stackparam)
+			as := Nod(OAS, v, v.Name.Param.Stackparam)
 			v.Name.Param.Stackparam.Typecheck = 1
 			typecheck(&as, Etop)
 			as = applywritebarrier(as)
@@ -2625,13 +2623,12 @@ func paramstoheap(argin **Type, out int) []*Node {
 	return nn
 }
 
-// walk through argout parameters copying back to stack
-func returnsfromheap(argin **Type) []*Node {
-	var v *Node
-
+// returnsfromheap returns code to copy values for heap-escaped parameters
+// back to the stack.
+func returnsfromheap(params *Type) []*Node {
 	var nn []*Node
-	for t, it := IterFields(*argin); t != nil; t = it.Next() {
-		v = t.Nname
+	for t, it := IterFields(params); t != nil; t = it.Next() {
+		v := t.Nname
 		if v == nil || v.Class != PHEAP|PPARAMOUT {
 			continue
 		}
@@ -2641,18 +2638,18 @@ func returnsfromheap(argin **Type) []*Node {
 	return nn
 }
 
-// take care of migrating any function in/out args
-// between the stack and the heap.  adds code to
-// curfn's before and after lists.
+// heapmoves generates code to handle migrating heap-escaped parameters
+// between the stack and the heap. The generated code is added to Curfn's
+// Enter and Exit lists.
 func heapmoves() {
 	lno := lineno
 	lineno = Curfn.Lineno
-	nn := paramstoheap(Curfn.Type.RecvP(), 0)
-	nn = append(nn, paramstoheap(Curfn.Type.ParamsP(), 0)...)
-	nn = append(nn, paramstoheap(Curfn.Type.ResultsP(), 1)...)
+	nn := paramstoheap(Curfn.Type.Recv(), false)
+	nn = append(nn, paramstoheap(Curfn.Type.Params(), false)...)
+	nn = append(nn, paramstoheap(Curfn.Type.Results(), true)...)
 	Curfn.Func.Enter.Append(nn...)
 	lineno = Curfn.Func.Endlineno
-	Curfn.Func.Exit.Append(returnsfromheap(Curfn.Type.ResultsP())...)
+	Curfn.Func.Exit.Append(returnsfromheap(Curfn.Type.Results())...)
 	lineno = lno
 }
 
