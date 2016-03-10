@@ -126,7 +126,7 @@ type certificate struct {
 
 type tbsCertificate struct {
 	Raw                asn1.RawContent
-	Version            int `asn1:"optional,explicit,default:1,tag:0"`
+	Version            int `asn1:"optional,explicit,default:0,tag:0"`
 	SerialNumber       *big.Int
 	SignatureAlgorithm pkix.AlgorithmIdentifier
 	Issuer             asn1.RawValue
