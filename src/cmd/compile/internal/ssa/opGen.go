@@ -29,6 +29,7 @@ const (
 	BlockPlain
 	BlockIf
 	BlockCall
+	BlockDefer
 	BlockCheck
 	BlockRet
 	BlockRetJmp
@@ -58,6 +59,7 @@ var blockString = [...]string{
 	BlockPlain:  "Plain",
 	BlockIf:     "If",
 	BlockCall:   "Call",
+	BlockDefer:  "Defer",
 	BlockCheck:  "Check",
 	BlockRet:    "Ret",
 	BlockRetJmp: "RetJmp",

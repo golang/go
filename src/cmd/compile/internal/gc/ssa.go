@@ -177,12 +177,9 @@ func buildssa(fn *Node) *ssa.Func {
 
 	// fallthrough to exit
 	if s.curBlock != nil {
-		s.stmts(s.exitCode)
-		m := s.mem()
-		b := s.endBlock()
-		b.Line = fn.Func.Endlineno
-		b.Kind = ssa.BlockRet
-		b.Control = m
+		s.pushLine(fn.Func.Endlineno)
+		s.exit()
+		s.popLine()
 	}
 
 	// Check that we used all labels
@@ -904,6 +901,10 @@ func (s *state) stmt(n *Node) {
 // It returns a BlockRet block that ends the control flow. Its control value
 // will be set to the final memory state.
 func (s *state) exit() *ssa.Block {
+	if hasdefer {
+		s.rtcall(Deferreturn, true, nil)
+	}
+
 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
 	// variables back to the stack.
 	s.stmts(s.exitCode)
@@ -2402,6 +2403,15 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	b.Kind = ssa.BlockCall
 	b.Control = call
 	b.AddEdgeTo(bNext)
+	if k == callDefer {
+		// Add recover edge to exit code.
+		b.Kind = ssa.BlockDefer
+		r := s.f.NewBlock(ssa.BlockPlain)
+		s.startBlock(r)
+		s.exit()
+		b.AddEdgeTo(r)
+		b.Likely = ssa.BranchLikely
+	}
 
 	// Start exit block, find address of result.
 	s.startBlock(bNext)
@@ -3622,12 +3632,6 @@ type genState struct {
 
 	// bstart remembers where each block starts (indexed by block ID)
 	bstart []*obj.Prog
-
-	// deferBranches remembers all the defer branches we've seen.
-	deferBranches []*obj.Prog
-
-	// deferTarget remembers the (last) deferreturn call site.
-	deferTarget *obj.Prog
 }
 
 // genssa appends entries to ptxt for each instruction in f.
@@ -3689,15 +3693,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	// Resolve branches
 	for _, br := range s.branches {
 		br.p.To.Val = s.bstart[br.b.ID]
-	}
-	if s.deferBranches != nil && s.deferTarget == nil {
-		// This can happen when the function has a defer but
-		// no return (because it has an infinite loop).
-		s.deferReturn()
-		Prog(obj.ARET)
-	}
-	for _, p := range s.deferBranches {
-		p.To.Val = s.deferTarget
 	}
 
 	if logProgs {
@@ -4529,6 +4524,17 @@ func (s *genState) genValue(v *ssa.Value) {
 			q.To.Reg = r
 		}
 	case ssa.OpAMD64CALLstatic:
+		if v.Aux.(*Sym) == Deferreturn.Sym {
+			// Deferred calls will appear to be returning to
+			// the CALL deferreturn(SB) that we are about to emit.
+			// However, the stack trace code will show the line
+			// of the instruction byte before the return PC.
+			// To avoid that being an unrelated instruction,
+			// insert an actual hardware NOP that will have the right line number.
+			// This is different from obj.ANOP, which is a virtual no-op
+			// that doesn't make it into the instruction stream.
+			Thearch.Ginsnop()
+		}
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
 		p.To.Name = obj.NAME_EXTERN
@@ -4551,17 +4557,6 @@ func (s *genState) genValue(v *ssa.Value) {
 		if Maxarg < v.AuxInt {
 			Maxarg = v.AuxInt
 		}
-		// defer returns in rax:
-		// 0 if we should continue executing
-		// 1 if we should jump to deferreturn call
-		p = Prog(x86.ATESTL)
-		p.From.Type = obj.TYPE_REG
-		p.From.Reg = x86.REG_AX
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_AX
-		p = Prog(x86.AJNE)
-		p.To.Type = obj.TYPE_BRANCH
-		s.deferBranches = append(s.deferBranches, p)
 	case ssa.OpAMD64CALLgo:
 		p := Prog(obj.ACALL)
 		p.To.Type = obj.TYPE_MEM
@@ -4835,12 +4830,26 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 			p.To.Type = obj.TYPE_BRANCH
 			s.branches = append(s.branches, branch{p, b.Succs[0]})
 		}
+	case ssa.BlockDefer:
+		// defer returns in rax:
+		// 0 if we should continue executing
+		// 1 if we should jump to deferreturn call
+		p := Prog(x86.ATESTL)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_AX
+		p = Prog(x86.AJNE)
+		p.To.Type = obj.TYPE_BRANCH
+		s.branches = append(s.branches, branch{p, b.Succs[1]})
+		if b.Succs[0] != next {
+			p := Prog(obj.AJMP)
+			p.To.Type = obj.TYPE_BRANCH
+			s.branches = append(s.branches, branch{p, b.Succs[0]})
+		}
 	case ssa.BlockExit:
 		Prog(obj.AUNDEF) // tell plive.go that we never reach here
 	case ssa.BlockRet:
-		if hasdefer {
-			s.deferReturn()
-		}
 		Prog(obj.ARET)
 	case ssa.BlockRetJmp:
 		p := Prog(obj.AJMP)
@@ -4897,23 +4906,6 @@ func (s *genState) genBlock(b, next *ssa.Block) {
 	default:
 		b.Unimplementedf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
 	}
-}
-
-func (s *genState) deferReturn() {
-	// Deferred calls will appear to be returning to
-	// the CALL deferreturn(SB) that we are about to emit.
-	// However, the stack trace code will show the line
-	// of the instruction byte before the return PC.
-	// To avoid that being an unrelated instruction,
-	// insert an actual hardware NOP that will have the right line number.
-	// This is different from obj.ANOP, which is a virtual no-op
-	// that doesn't make it into the instruction stream.
-	s.deferTarget = Pc
-	Thearch.Ginsnop()
-	p := Prog(obj.ACALL)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = Linksym(Deferreturn.Sym)
 }
 
 // addAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
