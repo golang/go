@@ -915,9 +915,14 @@ func (s *ss) hexString() string {
 	return string(s.buf)
 }
 
-const floatVerbs = "beEfFgGv"
+const (
+	floatVerbs = "beEfFgGv"
 
-const hugeWid = 1 << 30
+	hugeWid = 1 << 30
+
+	intBits     = 32 << (^uint(0) >> 63)
+	uintptrBits = 32 << (^uintptr(0) >> 63)
+)
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
 func (s *ss) scanOne(verb rune, arg interface{}) {

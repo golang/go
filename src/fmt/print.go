@@ -578,11 +578,6 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	}
 }
 
-var (
-	intBits     = reflect.TypeOf(0).Bits()
-	uintptrBits = reflect.TypeOf(uintptr(0)).Bits()
-)
-
 func (p *pp) catchPanic(arg interface{}, verb rune) {
 	if err := recover(); err != nil {
 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
