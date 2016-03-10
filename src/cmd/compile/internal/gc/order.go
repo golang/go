@@ -331,7 +331,7 @@ func ismulticall(l Nodes) bool {
 
 // Copyret emits t1, t2, ... = n, where n is a function call,
 // and then returns the list t1, t2, ....
-func copyret(n *Node, order *Order) Nodes {
+func copyret(n *Node, order *Order) []*Node {
 	if n.Type.Etype != TSTRUCT || !n.Type.Funarg {
 		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
 	}
@@ -350,20 +350,16 @@ func copyret(n *Node, order *Order) Nodes {
 	typecheck(&as, Etop)
 	orderstmt(as, order)
 
-	var r Nodes
-	r.Set(l2)
-	return r
+	return l2
 }
 
-// Ordercallargs orders the list of call arguments l and returns the
-// ordered list.
-func ordercallargs(l Nodes, order *Order) Nodes {
-	if ismulticall(l) {
+// Ordercallargs orders the list of call arguments *l.
+func ordercallargs(l *Nodes, order *Order) {
+	if ismulticall(*l) {
 		// return f() where f() is multiple values.
-		return copyret(l.First(), order)
+		l.Set(copyret(l.First(), order))
 	} else {
-		orderexprlist(l, order)
-		return l
+		orderexprlist(*l, order)
 	}
 }
 
@@ -372,7 +368,7 @@ func ordercallargs(l Nodes, order *Order) Nodes {
 func ordercall(n *Node, order *Order) {
 	orderexpr(&n.Left, order, nil)
 	orderexpr(&n.Right, order, nil) // ODDDARG temp
-	setNodeSeq(&n.List, ordercallargs(n.List, order))
+	ordercallargs(&n.List, order)
 
 	if n.Op == OCALLFUNC {
 		t := n.Left.Type.Params().Type
@@ -779,7 +775,7 @@ func orderstmt(n *Node, order *Order) {
 		cleantemp(t, order)
 
 	case ORETURN:
-		setNodeSeq(&n.List, ordercallargs(n.List, order))
+		ordercallargs(&n.List, order)
 		order.out = append(order.out, n)
 
 	// Special: clean case temporaries in each block entry.
@@ -887,7 +883,7 @@ func orderstmt(n *Node, order *Order) {
 							n2.Ninit.Append(tmp2)
 						}
 
-						setNodeSeq(&r.List, list1(ordertemp(tmp1.Type, order, false)))
+						r.List.Set([]*Node{ordertemp(tmp1.Type, order, false)})
 						tmp2 = Nod(OAS, tmp1, r.List.First())
 						typecheck(&tmp2, Etop)
 						n2.Ninit.Append(tmp2)
@@ -1128,7 +1124,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
 		}
 
 	case OAPPEND:
-		setNodeSeq(&n.List, ordercallargs(n.List, order))
+		ordercallargs(&n.List, order)
 		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
 			n = ordercopyexpr(n, n.Type, order, 0)
 		}

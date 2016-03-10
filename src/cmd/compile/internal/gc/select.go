@@ -208,7 +208,7 @@ func walkselect(sel *Node) {
 			dflt = sel.List.First()
 		} else {
 			dflt = sel.List.Second()
-			cas = nodeSeqFirst(sel.List.Slice())
+			cas = sel.List.First()
 		}
 
 		n := cas.Left

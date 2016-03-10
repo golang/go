@@ -220,63 +220,59 @@ func addvar(n *Node, t *Type, ctxt Class) {
 
 // declare variables from grammar
 // new_name_list (type | [type] = expr_list)
-func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
-	var init *NodeList
-	doexpr := el != nil
+func variter(vl []*Node, t *Node, el []*Node) []*Node {
+	var init []*Node
+	doexpr := len(el) > 0
 
-	if count(el) == 1 && count(vl) > 1 {
-		e := el.N
+	if len(el) == 1 && len(vl) > 1 {
+		e := el[0]
 		as2 := Nod(OAS2, nil, nil)
-		setNodeSeq(&as2.List, vl)
+		as2.List.Set(vl)
 		as2.Rlist.Set([]*Node{e})
-		var v *Node
-		for ; vl != nil; vl = vl.Next {
-			v = vl.N
+		for _, v := range vl {
 			v.Op = ONAME
 			declare(v, dclcontext)
 			v.Name.Param.Ntype = t
 			v.Name.Defn = as2
 			if Funcdepth > 0 {
-				init = list(init, Nod(ODCL, v, nil))
+				init = append(init, Nod(ODCL, v, nil))
 			}
 		}
 
-		return list(init, as2)
+		return append(init, as2)
 	}
 
-	var v *Node
-	var e *Node
-	for ; vl != nil; vl = vl.Next {
+	for _, v := range vl {
+		var e *Node
 		if doexpr {
-			if el == nil {
+			if len(el) == 0 {
 				Yyerror("missing expression in var declaration")
 				break
 			}
 
-			e = el.N
-			el = el.Next
+			e = el[0]
+			el = el[1:]
 		} else {
 			e = nil
 		}
 
-		v = vl.N
 		v.Op = ONAME
 		declare(v, dclcontext)
 		v.Name.Param.Ntype = t
 
 		if e != nil || Funcdepth > 0 || isblank(v) {
 			if Funcdepth > 0 {
-				init = list(init, Nod(ODCL, v, nil))
+				init = append(init, Nod(ODCL, v, nil))
 			}
 			e = Nod(OAS, v, e)
-			init = list(init, e)
+			init = append(init, e)
 			if e.Right != nil {
 				v.Name.Defn = e
 			}
 		}
 	}
 
-	if el != nil {
+	if len(el) != 0 {
 		Yyerror("extra expression in var declaration")
 	}
 	return init
@@ -284,25 +280,24 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
 
 // declare constants from grammar
 // new_name_list [[type] = expr_list]
-func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
 	lno := int32(0) // default is to leave line number alone in listtreecopy
-	if cl == nil {
+	if len(cl) == 0 {
 		if t != nil {
 			Yyerror("const declaration cannot have type without expression")
 		}
 		cl = lastconst
 		t = lasttype
-		lno = vl.N.Lineno
+		lno = vl[0].Lineno
 	} else {
 		lastconst = cl
 		lasttype = t
 	}
-	clcopy := listtreecopy(nodeSeqSlice(cl), lno)
+	clcopy := listtreecopy(cl, lno)
 
-	var v *Node
 	var c *Node
-	var vv *NodeList
-	for ; vl != nil; vl = vl.Next {
+	var vv []*Node
+	for _, v := range vl {
 		if len(clcopy) == 0 {
 			Yyerror("missing value in const declaration")
 			break
@@ -311,14 +306,13 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
 		c = clcopy[0]
 		clcopy = clcopy[1:]
 
-		v = vl.N
 		v.Op = OLITERAL
 		declare(v, dclcontext)
 
 		v.Name.Param.Ntype = t
 		v.Name.Defn = c
 
-		vv = list(vv, Nod(ODCLCONST, v, nil))
+		vv = append(vv, Nod(ODCLCONST, v, nil))
 	}
 
 	if len(clcopy) != 0 {
@@ -483,10 +477,10 @@ func colasdefn(left Nodes, defn *Node) {
 	}
 }
 
-func colas(left *NodeList, right *NodeList, lno int32) *Node {
+func colas(left []*Node, right []*Node, lno int32) *Node {
 	as := Nod(OAS2, nil, nil)
-	setNodeSeq(&as.List, left)
-	setNodeSeq(&as.Rlist, right)
+	as.List.Set(left)
+	as.Rlist.Set(right)
 	as.Colas = true
 	as.Lineno = lno
 	colasdefn(as.List, as)
@@ -1026,56 +1020,53 @@ func embedded(s *Sym, pkg *Pkg) *Node {
 }
 
 // check that the list of declarations is either all anonymous or all named
-func findtype(l *NodeList) *Node {
-	for ; l != nil; l = l.Next {
-		if l.N.Op == OKEY {
-			return l.N.Right
+func findtype(s []*Node) *Node {
+	for _, n := range s {
+		if n.Op == OKEY {
+			return n.Right
 		}
 	}
 	return nil
 }
 
-func checkarglist(all *NodeList, input int) *NodeList {
-	named := 0
-	for l := all; l != nil; l = l.Next {
-		if l.N.Op == OKEY {
-			named = 1
+func checkarglist(all []*Node, input int) []*Node {
+	named := false
+	for _, n := range all {
+		if n.Op == OKEY {
+			named = true
 			break
 		}
 	}
 
-	if named != 0 {
-		var n *Node
-		var l *NodeList
-		for l = all; l != nil; l = l.Next {
-			n = l.N
+	if named {
+		ok := true
+		for _, n := range all {
 			if n.Op != OKEY && n.Sym == nil {
 				Yyerror("mixed named and unnamed function parameters")
+				ok = false
 				break
 			}
 		}
 
-		if l == nil && n != nil && n.Op != OKEY {
+		if ok && len(all) > 0 && all[len(all)-1].Op != OKEY {
 			Yyerror("final function parameter must have type")
 		}
 	}
 
 	var nextt *Node
-	var t *Node
-	var n *Node
-	for l := all; l != nil; l = l.Next {
+	for i, n := range all {
 		// can cache result from findtype to avoid
 		// quadratic behavior here, but unlikely to matter.
-		n = l.N
 
-		if named != 0 {
+		var t *Node
+		if named {
 			if n.Op == OKEY {
 				t = n.Right
 				n = n.Left
 				nextt = nil
 			} else {
 				if nextt == nil {
-					nextt = findtype(l)
+					nextt = findtype(all[i:])
 				}
 				t = nextt
 			}
@@ -1107,7 +1098,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 		if n.Right != nil && n.Right.Op == ODDD {
 			if input == 0 {
 				Yyerror("cannot use ... in output argument list")
-			} else if l.Next != nil {
+			} else if i+1 < len(all) {
 				Yyerror("can only use ... as final argument in list")
 			}
 			n.Right.Op = OTARRAY
@@ -1119,7 +1110,7 @@ func checkarglist(all *NodeList, input int) *NodeList {
 			}
 		}
 
-		l.N = n
+		all[i] = n
 	}
 
 	return all
@@ -1181,11 +1172,11 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 	if this != nil {
 		t.Thistuple = 1
 	}
-	t.Outtuple = nodeSeqLen(out)
-	t.Intuple = nodeSeqLen(in)
+	t.Outtuple = len(out)
+	t.Intuple = len(in)
 	t.Outnamed = false
-	if t.Outtuple > 0 && nodeSeqFirst(out).Left != nil && nodeSeqFirst(out).Left.Orig != nil {
-		s := nodeSeqFirst(out).Left.Orig.Sym
+	if t.Outtuple > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
+		s := out[0].Left.Orig.Sym
 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
 			t.Outnamed = true
 		}

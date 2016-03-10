@@ -2215,8 +2215,8 @@ func listtreecopy(l []*Node, lineno int32) []*Node {
 func liststmt(l []*Node) *Node {
 	n := Nod(OBLOCK, nil, nil)
 	n.List.Set(l)
-	if nodeSeqLen(l) != 0 {
-		n.Lineno = nodeSeqFirst(l).Lineno
+	if len(l) != 0 {
+		n.Lineno = l[0].Lineno
 	}
 	return n
 }
@@ -2545,7 +2545,7 @@ func mkpkg(path string) *Pkg {
 }
 
 func addinit(np **Node, init []*Node) {
-	if nodeSeqLen(init) == 0 {
+	if len(init) == 0 {
 		return
 	}
 
@@ -2561,7 +2561,7 @@ func addinit(np **Node, init []*Node) {
 		*np = n
 	}
 
-	n.Ninit.Set(append(nodeSeqSlice(init), n.Ninit.Slice()...))
+	n.Ninit.Set(append(init, n.Ninit.Slice()...))
 	n.Ullman = UINF
 }
 

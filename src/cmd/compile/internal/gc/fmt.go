@@ -1700,7 +1700,9 @@ func Nconv(n *Node, flag int) string {
 
 func (l *NodeList) String() string {
 	var n Nodes
-	n.Set(nodeSeqSlice(l))
+	for ll := l; ll != nil; ll = ll.Next {
+		n.Append(ll.N)
+	}
 	return Hconv(n, 0)
 }
 

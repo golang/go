@@ -88,13 +88,13 @@ func anyinit(n []*Node) bool {
 	return false
 }
 
-func fninit(n *NodeList) {
+func fninit(n []*Node) {
 	if Debug['A'] != 0 {
 		// sys.go or unsafe.go during compiler build
 		return
 	}
 
-	nf := initfix(nodeSeqSlice(n))
+	nf := initfix(n)
 	if !anyinit(nf) {
 		return
 	}

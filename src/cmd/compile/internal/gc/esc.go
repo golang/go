@@ -54,13 +54,13 @@ type bottomUpVisitor struct {
 // If recursive is false, the list consists of only a single function and its closures.
 // If recursive is true, the list may still contain only a single function,
 // if that function is itself recursive.
-func visitBottomUp(list *NodeList, analyze func(list []*Node, recursive bool)) {
+func visitBottomUp(list []*Node, analyze func(list []*Node, recursive bool)) {
 	var v bottomUpVisitor
 	v.analyze = analyze
 	v.nodeID = make(map[*Node]uint32)
-	for l := list; l != nil; l = l.Next {
-		if l.N.Op == ODCLFUNC && l.N.Func.FCurfn == nil {
-			v.visit(l.N)
+	for _, n := range list {
+		if n.Op == ODCLFUNC && n.Func.FCurfn == nil {
+			v.visit(n)
 		}
 	}
 }
@@ -183,7 +183,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
 // needs to be moved to the heap, and new(T) and slice
 // literals are always real allocations.
 
-func escapes(all *NodeList) {
+func escapes(all []*Node) {
 	visitBottomUp(all, escAnalyze)
 }
 

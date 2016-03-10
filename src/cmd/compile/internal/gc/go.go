@@ -346,7 +346,7 @@ var minfltval [NTYPE]*Mpflt
 
 var maxfltval [NTYPE]*Mpflt
 
-var xtop *NodeList
+var xtop []*Node
 
 var externdcl []*Node
 
@@ -364,7 +364,7 @@ var statuniqgen int // name generator for static temps
 
 var iota_ int32
 
-var lastconst *NodeList
+var lastconst []*Node
 
 var lasttype *Node
 
