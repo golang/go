@@ -2372,7 +2372,7 @@ func twoarg(n *Node) bool {
 
 func lookdot1(errnode *Node, s *Sym, t *Type, f *Type, dostrcmp int) *Type {
 	var r *Type
-	for ; f != nil; f = f.Down {
+	for f, it := RawIter(f); f != nil; f = it.Next() {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
 			return f
 		}
@@ -2577,7 +2577,7 @@ func nokeys(l Nodes) bool {
 }
 
 func hasddd(t *Type) bool {
-	for tl := t.Type; tl != nil; tl = tl.Down {
+	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
 		if tl.Isddd {
 			return true
 		}
@@ -2590,7 +2590,7 @@ func hasddd(t *Type) bool {
 // TODO decide if we want both (for semantic reasons)
 func downcount(t *Type) int {
 	n := 0
-	for tl := t.Type; tl != nil; tl = tl.Down {
+	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
 		n++
 	}
 
@@ -2629,7 +2629,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 
 				tn := n.Type.Type
 				var why string
-				for tl := tstruct.Type; tl != nil; tl = tl.Down {
+				for tl, it2 := IterFields(tstruct); tl != nil; tl = it2.Next() {
 					if tl.Isddd {
 						for ; tn != nil; tn = tn.Down {
 							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
@@ -2691,7 +2691,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 	}
 
 	i = 0
-	for tl := tstruct.Type; tl != nil; tl = tl.Down {
+	for tl, it := IterFields(tstruct); tl != nil; tl = it.Next() {
 		t = tl.Type
 		if tl.Isddd {
 			if isddd {

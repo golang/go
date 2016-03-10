@@ -1242,7 +1242,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			Fatalf("struct not at offset 0")
 		}
 
-		for field := t.Type; field != nil; field = field.Down {
+		for field, it := IterFields(t); field != nil; field = it.Next() {
 			if field.Etype != TFIELD {
 				Fatalf("bad struct")
 			}

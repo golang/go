@@ -296,7 +296,7 @@ func dumpexporttype(t *Type) {
 	}
 
 	var m []*Type
-	for f := t.Method; f != nil; f = f.Down {
+	for f, it := IterMethods(t); f != nil; f = it.Next() {
 		dumpexporttype(f)
 		m = append(m, f)
 	}
@@ -584,7 +584,7 @@ func dumpasmhdr() {
 				break
 			}
 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
-			for t = t.Type; t != nil; t = t.Down {
+			for t, it := IterFields(t); t != nil; t = it.Next() {
 				if !isblanksym(t.Sym) {
 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Width))
 				}

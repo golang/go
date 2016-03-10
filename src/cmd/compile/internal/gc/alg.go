@@ -135,7 +135,7 @@ func algtype1(t *Type, bad **Type) int {
 		}
 
 		ret := AMEM
-		for f := t.Type; f != nil; f = f.Down {
+		for f, it := IterFields(t); f != nil; f = it.Next() {
 			// All fields must be comparable.
 			a := algtype1(f.Type, bad)
 			if a == ANOEQ {

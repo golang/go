@@ -200,7 +200,29 @@ func IterFields(t *Type) (*Type, Iter) {
 	if t.Etype != TSTRUCT && t.Etype != TINTER {
 		Fatalf("IterFields: type %v does not have fields", t)
 	}
-	i := Iter{x: t.Type}
+	return RawIter(t.Type)
+}
+
+// IterMethods returns the first method in type t's method set
+// and an Iter value to continue iterating across the rest.
+// IterMethods does not include promoted methods.
+func IterMethods(t *Type) (*Type, Iter) {
+	// TODO(mdempsky): Validate t?
+	return RawIter(t.Method)
+}
+
+// IterAllMethods returns the first (possibly promoted) method in type t's
+// method set and an Iter value to continue iterating across the rest.
+func IterAllMethods(t *Type) (*Type, Iter) {
+	// TODO(mdempsky): Validate t?
+	return RawIter(t.Xmethod)
+}
+
+// RawIter returns field t and an Iter value to continue iterating across
+// its successor fields. Most code should instead use one of the IterXXX
+// functions above.
+func RawIter(t *Type) (*Type, Iter) {
+	i := Iter{x: t}
 	f := i.Next()
 	return f, i
 }

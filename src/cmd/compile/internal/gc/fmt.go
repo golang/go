@@ -585,7 +585,7 @@ func typefmt(t *Type, flag int) string {
 	case TINTER:
 		var buf bytes.Buffer
 		buf.WriteString("interface {")
-		for t1 := t.Type; t1 != nil; t1 = t1.Down {
+		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			buf.WriteString(" ")
 			switch {
 			case t1.Sym == nil:
@@ -663,14 +663,14 @@ func typefmt(t *Type, flag int) string {
 		if t.Funarg {
 			buf.WriteString("(")
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
-				for t1 := t.Type; t1 != nil; t1 = t1.Down {
+				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 					buf.WriteString(Tconv(t1, obj.FmtShort))
 					if t1.Down != nil {
 						buf.WriteString(", ")
 					}
 				}
 			} else {
-				for t1 := t.Type; t1 != nil; t1 = t1.Down {
+				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 					buf.WriteString(Tconv(t1, 0))
 					if t1.Down != nil {
 						buf.WriteString(", ")
@@ -680,7 +680,7 @@ func typefmt(t *Type, flag int) string {
 			buf.WriteString(")")
 		} else {
 			buf.WriteString("struct {")
-			for t1 := t.Type; t1 != nil; t1 = t1.Down {
+			for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 				buf.WriteString(" ")
 				buf.WriteString(Tconv(t1, obj.FmtLong))
 				if t1.Down != nil {
