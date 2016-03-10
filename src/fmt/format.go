@@ -221,6 +221,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 
 	// two ways to ask for extra leading zero digits: %.3d or %03d.
 	// apparently the first cancels the second.
+	oldZero := f.zero // f.zero is used in f.pad but modified below; restored at end of function.
 	prec := 0
 	if f.precPresent {
 		prec = f.prec
@@ -305,6 +306,7 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	}
 
 	f.pad(buf[i:])
+	f.zero = oldZero
 }
 
 // truncate truncates the string to the specified precision, if present.
