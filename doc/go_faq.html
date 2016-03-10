@@ -1806,15 +1806,16 @@ Why does Go perform badly on benchmark X?</h3>
 <p>
 One of Go's design goals is to approach the performance of C for comparable
 programs, yet on some benchmarks it does quite poorly, including several
-in <a href="/test/bench/shootout/">test/bench/shootout</a>. The slowest depend on libraries
-for which versions of comparable performance are not available in Go.
-For instance, <a href="/test/bench/shootout/pidigits.go">pidigits.go</a>
+in <a href="https://go.googlesource.com/exp/+/master/shootout/">golang.org/x/exp/shootout</a>.
+The slowest depend on libraries for which versions of comparable performance
+are not available in Go.
+For instance, <a href="https://go.googlesource.com/exp/+/master/shootout/pidigits.go">pidigits.go</a>
 depends on a multi-precision math package, and the C
 versions, unlike Go's, use <a href="http://gmplib.org/">GMP</a> (which is
 written in optimized assembler).
 Benchmarks that depend on regular expressions
-(<a href="/test/bench/shootout/regex-dna.go">regex-dna.go</a>, for instance) are
-essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
+(<a href="https://go.googlesource.com/exp/+/master/shootout/regex-dna.go">regex-dna.go</a>,
+for instance) are essentially comparing Go's native <a href="/pkg/regexp">regexp package</a> to
 mature, highly optimized regular expression libraries like PCRE.
 </p>
 
@@ -1822,9 +1823,9 @@ mature, highly optimized regular expression libraries like PCRE.
 Benchmark games are won by extensive tuning and the Go versions of most
 of the benchmarks need attention.  If you measure comparable C
 and Go programs
-(<a href="/test/bench/shootout/reverse-complement.go">reverse-complement.go</a> is one example), you'll see the two
-languages are much closer in raw performance than this suite would
-indicate.
+(<a href="https://go.googlesource.com/exp/+/master/shootout/reverse-complement.go">reverse-complement.go</a>
+is one example), you'll see the two languages are much closer in raw performance
+than this suite would indicate.
 </p>
 
 <p>
