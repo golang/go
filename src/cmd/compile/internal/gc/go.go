@@ -86,10 +86,9 @@ type Sym struct {
 }
 
 type Label struct {
-	Sym  *Sym
-	Def  *Node
-	Use  []*Node
-	Link *Label
+	Sym *Sym
+	Def *Node
+	Use []*Node
 
 	// for use during gen
 	Gotopc   *obj.Prog // pointer to unresolved gotos
