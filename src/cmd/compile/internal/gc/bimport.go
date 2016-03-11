@@ -77,16 +77,18 @@ func Import(in *bufio.Reader) {
 	for i := p.int(); i > 0; i-- {
 		// parser.go:hidden_fndcl
 		sym := p.localname()
-		typ := p.typ()
+		params := p.paramList()
+		result := p.paramList()
 		inl := p.int()
 
+		sig := functype(nil, params, result)
 		importsym(sym, ONAME)
-		if sym.Def != nil && sym.Def.Op == ONAME && !Eqtype(typ, sym.Def.Type) {
-			Fatalf("importer: inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, typ)
+		if sym.Def != nil && sym.Def.Op == ONAME && !Eqtype(sig, sym.Def.Type) {
+			Fatalf("importer: inconsistent definition for func %v during import\n\t%v\n\t%v", sym, sym.Def.Type, sig)
 		}
 
 		n := newfuncname(sym)
-		n.Type = typ
+		n.Type = sig
 		declare(n, PFUNC)
 		funchdr(n)
 
@@ -94,7 +96,7 @@ func Import(in *bufio.Reader) {
 		n.Func.Inl.Set(nil)
 		if inl >= 0 {
 			if inl != len(p.inlined) {
-				panic("inlined body list inconsistent")
+				panic(fmt.Sprintf("inlined body list inconsistent: %d != %d", inl, len(p.inlined)))
 			}
 			p.inlined = append(p.inlined, n.Func)
 		}
@@ -113,7 +115,7 @@ func Import(in *bufio.Reader) {
 	// read inlined functions bodies
 	n := p.int()
 	for i := 0; i < n; i++ {
-		body := p.nodeList()
+		body := p.block()
 		const hookup = false // TODO(gri) enable and remove this condition
 		if hookup {
 			p.inlined[i].Inl.Set(body)
@@ -265,7 +267,7 @@ func (p *importer) typ() *Type {
 			n.Func.Inl.Set(nil)
 			if inl >= 0 {
 				if inl != len(p.inlined) {
-					panic("inlined body list inconsistent")
+					panic(fmt.Sprintf("inlined body list inconsistent: %d != %d", inl, len(p.inlined)))
 				}
 				p.inlined = append(p.inlined, n.Func)
 			}
@@ -541,6 +543,15 @@ func (p *importer) float(x *Mpflt) {
 
 // ----------------------------------------------------------------------------
 // Inlined function bodies
+
+func (p *importer) block() []*Node {
+	markdcl()
+	// TODO(gri) populate "scope" with function parameters so they can be found
+	//           inside the function body
+	list := p.nodeList()
+	popdcl()
+	return list
+}
 
 // parser.go:stmt_list
 func (p *importer) nodeList() []*Node {

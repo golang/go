@@ -87,7 +87,9 @@ func BImportData(imports map[string]*types.Package, data []byte, path string) (i
 	// read funcs
 	for i := p.int(); i > 0; i-- {
 		name := p.string()
-		sig := p.typ(nil).(*types.Signature)
+		params, isddd := p.paramList()
+		result, _ := p.paramList()
+		sig := types.NewSignature(nil, params, result, isddd)
 		p.int() // read and discard index of inlined function body
 		p.declare(types.NewFunc(token.NoPos, pkg, name, sig))
 	}
