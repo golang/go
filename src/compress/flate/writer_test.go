@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"runtime"
 	"testing"
 )
@@ -125,5 +126,70 @@ func TestWriteError(t *testing.T) {
 				return
 			}
 		}
+	}
+}
+
+// Test if two runs produce identical results
+// even when writing different sizes to the Writer.
+func TestDeterministicL0(t *testing.T) { testDeterministic(0, t) }
+func TestDeterministicL1(t *testing.T) { testDeterministic(1, t) }
+func TestDeterministicL2(t *testing.T) { testDeterministic(2, t) }
+func TestDeterministicL3(t *testing.T) { testDeterministic(3, t) }
+func TestDeterministicL4(t *testing.T) { testDeterministic(4, t) }
+func TestDeterministicL5(t *testing.T) { testDeterministic(5, t) }
+func TestDeterministicL6(t *testing.T) { testDeterministic(6, t) }
+func TestDeterministicL7(t *testing.T) { testDeterministic(7, t) }
+func TestDeterministicL8(t *testing.T) { testDeterministic(8, t) }
+func TestDeterministicL9(t *testing.T) { testDeterministic(9, t) }
+
+func testDeterministic(i int, t *testing.T) {
+	// Test so much we cross a good number of block boundaries.
+	var length = maxStoreBlockSize*30 + 500
+	if testing.Short() {
+		length /= 10
+	}
+
+	// Create a random, but compressible stream.
+	rng := rand.New(rand.NewSource(1))
+	t1 := make([]byte, length)
+	for i := range t1 {
+		t1[i] = byte(rng.Int63() & 7)
+	}
+
+	// Do our first encode.
+	var b1 bytes.Buffer
+	br := bytes.NewBuffer(t1)
+	w, err := NewWriter(&b1, i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Use a very small prime sized buffer.
+	cbuf := make([]byte, 787)
+	_, err = io.CopyBuffer(w, br, cbuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.Close()
+
+	// We choose a different buffer size,
+	// bigger than a maximum block, and also a prime.
+	var b2 bytes.Buffer
+	cbuf = make([]byte, 81761)
+	br2 := bytes.NewBuffer(t1)
+	w2, err := NewWriter(&b2, i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.CopyBuffer(w2, br2, cbuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w2.Close()
+
+	b1b := b1.Bytes()
+	b2b := b2.Bytes()
+
+	if bytes.Compare(b1b, b2b) != 0 {
+		t.Errorf("level %d did not produce deterministic result, result mismatch, len(a) = %d, len(b) = %d", i, len(b1b), len(b2b))
 	}
 }
