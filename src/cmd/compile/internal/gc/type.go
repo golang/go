@@ -110,8 +110,7 @@ type Type struct {
 	Printed     bool
 	Embedded    uint8 // TFIELD embedded type
 	Funarg      bool  // on TSTRUCT and TFIELD
-	Copyany     bool
-	Local       bool // created in this file
+	Local       bool  // created in this file
 	Deferwidth  bool
 	Broke       bool // broken type definition.
 	Isddd       bool // TFIELD is ... argument
