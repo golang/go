@@ -494,25 +494,31 @@ func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
 		v = ctxt.Version
 	}
 	s := Linklookup(ctxt, name, v)
-
-	if v == 0 && s.Name[0] == '$' && s.Type == 0 {
-		if strings.HasPrefix(s.Name, "$f32.") {
-			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
-			i32 := int32(x)
-			s.Type = obj.SRODATA
-			s.Attr |= AttrLocal
-			Adduint32(ctxt, s, uint32(i32))
-			s.Attr.Set(AttrReachable, false)
-		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
-			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
-			i64 := int64(x)
-			s.Type = obj.SRODATA
-			s.Attr |= AttrLocal
-			Adduint64(ctxt, s, uint64(i64))
-			s.Attr.Set(AttrReachable, false)
-		}
+	if v != 0 {
+		return s
 	}
-	if v == 0 && strings.HasPrefix(s.Name, "runtime.gcbits.") {
+
+	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 {
+		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
+		if err != nil {
+			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
+		}
+		s.Type = obj.SRODATA
+		s.Attr |= AttrLocal
+		switch s.Name[:5] {
+		case "$f32.":
+			if uint64(uint32(x)) != x {
+				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+			}
+			Adduint32(ctxt, s, uint32(x))
+		case "$f64.", "$i64.":
+			Adduint64(ctxt, s, x)
+		default:
+			log.Panicf("unrecognized $-symbol: %s", s.Name)
+		}
+		s.Attr.Set(AttrReachable, false)
+	}
+	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
 		s.Attr |= AttrLocal
 	}
 	return s
