@@ -141,9 +141,8 @@ type Type struct {
 	Width int64 // offset in TFIELD, width in all others
 
 	// TFIELD
-	Down  *Type   // next struct field, also key type in TMAP
-	Outer *Type   // outer struct
-	Note  *string // literal string annotation
+	Down *Type   // next struct field, also key type in TMAP
+	Note *string // literal string annotation
 
 	// TARRAY
 	Bound int64 // negative is slice
@@ -159,8 +158,6 @@ type Type struct {
 
 	// for TFORW, where to copy the eventual value to
 	Copyto []*Node
-
-	Lastfn *Node // for usefield
 }
 
 // typ returns a new Type of the specified kind.

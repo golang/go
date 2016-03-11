@@ -798,8 +798,10 @@ func typesym(t *Type) *Sym {
 	return Pkglookup(Tconv(t, obj.FmtLeft), typepkg)
 }
 
-func tracksym(t *Type) *Sym {
-	return Pkglookup(Tconv(t.Outer, obj.FmtLeft)+"."+t.Sym.Name, trackpkg)
+// tracksym returns the symbol for tracking use of field/method f, assumed
+// to be a member of struct/interface type t.
+func tracksym(t, f *Type) *Sym {
+	return Pkglookup(Tconv(t, obj.FmtLeft)+"."+f.Sym.Name, trackpkg)
 }
 
 func typelinksym(t *Type) *Sym {
