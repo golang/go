@@ -1078,51 +1078,91 @@ func substArgTypes(np **Node, types ...*Type) {
 	for _, t := range types {
 		dowidth(t)
 	}
-	n.Type = deep(n.Type)
-	substAny(&n.Type, &types)
+	n.Type = substAny(n.Type, &types)
 	if len(types) > 0 {
 		Fatalf("substArgTypes: too many argument types")
 	}
 }
 
-// substAny walks *tp, replacing instances of "any" with successive
-// elements removed from types.
-func substAny(tp **Type, types *[]*Type) {
-	for {
-		t := *tp
-		if t == nil {
-			return
-		}
-		if t.Etype == TANY && t.Copyany {
-			if len(*types) == 0 {
-				Fatalf("substArgTypes: not enough argument types")
-			}
-			*tp = (*types)[0]
-			*types = (*types)[1:]
-		}
-
-		switch t.Etype {
-		case TPTR32, TPTR64, TCHAN, TARRAY:
-			tp = &t.Type
-			continue
-
-		case TMAP:
-			substAny(&t.Down, types)
-			tp = &t.Type
-			continue
-
-		case TFUNC:
-			substAny(t.RecvsP(), types)
-			substAny(t.ParamsP(), types)
-			substAny(t.ResultsP(), types)
-
-		case TSTRUCT:
-			for t, it := IterFields(t); t != nil; t = it.Next() {
-				substAny(&t.Type, types)
-			}
-		}
-		return
+// substAny walks t, replacing instances of "any" with successive
+// elements removed from types.  It returns the substituted type.
+func substAny(t *Type, types *[]*Type) *Type {
+	if t == nil {
+		return nil
 	}
+
+	switch t.Etype {
+	default:
+		// Leave the type unchanged.
+
+	case TANY:
+		if len(*types) == 0 {
+			Fatalf("substArgTypes: not enough argument types")
+		}
+		t = (*types)[0]
+		*types = (*types)[1:]
+
+	case TPTR32, TPTR64, TCHAN, TARRAY, TFIELD:
+		elem := substAny(t.Type, types)
+		if elem != t.Type {
+			t = t.Copy()
+			t.Type = elem
+		}
+
+	case TMAP:
+		key := substAny(t.Down, types)
+		val := substAny(t.Type, types)
+		if key != t.Down || val != t.Type {
+			t = t.Copy()
+			t.Down = key
+			t.Type = val
+		}
+
+	case TFUNC:
+		recvs := substAny(t.Recvs(), types)
+		params := substAny(t.Params(), types)
+		results := substAny(t.Results(), types)
+		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
+			// Note that this code has to be aware of the
+			// representation underlying Recvs/Results/Params.
+			if recvs == t.Recvs() {
+				recvs = recvs.Copy()
+			}
+			if results == t.Results() {
+				results = results.Copy()
+			}
+			t = t.Copy()
+			*t.RecvsP() = recvs
+			*t.ResultsP() = results
+			*t.ParamsP() = params
+		}
+
+	case TSTRUCT:
+		// nfs only has to be big enough for the builtin functions.
+		var nfs [8]*Type
+		fields := t.FieldSlice()
+		changed := false
+		for i, f := range fields {
+			nf := substAny(f, types)
+			if nf != f {
+				if !changed {
+					for j := 0; j < i; j++ {
+						nfs[j] = fields[j].Copy()
+					}
+				}
+				changed = true
+			} else if changed {
+				nf = f.Copy()
+			}
+			nfs[i] = nf
+		}
+		if changed {
+			t = t.Copy()
+			t.SetFields(nfs[:len(fields)])
+		}
+	}
+
+	return t
 }
 
 // Is this a 64-bit type?
@@ -1164,50 +1204,6 @@ func Noconv(t1 *Type, t2 *Type) bool {
 	}
 
 	return false
-}
-
-func deep(t *Type) *Type {
-	if t == nil {
-		return nil
-	}
-
-	var nt *Type
-	switch t.Etype {
-	default:
-		nt = t // share from here down
-
-	case TANY:
-		nt = t.Copy()
-		nt.Copyany = true
-
-	case TPTR32, TPTR64, TCHAN, TARRAY:
-		nt = t.Copy()
-		nt.Type = deep(t.Type)
-
-	case TMAP:
-		nt = t.Copy()
-		nt.Down = deep(t.Down)
-		nt.Type = deep(t.Type)
-
-	case TFUNC:
-		nt = t.Copy()
-		*nt.RecvsP() = deep(t.Recvs())
-		*nt.ResultsP() = deep(t.Results())
-		*nt.ParamsP() = deep(t.Params())
-
-	case TSTRUCT:
-		nt = t.Copy()
-		nt.Type = t.Type.Copy()
-		xt := nt.Type
-
-		for t, it := IterFields(t); t != nil; t = it.Next() {
-			xt.Type = deep(t.Type)
-			xt.Down = t.Down.Copy()
-			xt = xt.Down
-		}
-	}
-
-	return nt
 }
 
 func syslook(name string) *Node {
