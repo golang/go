@@ -129,13 +129,15 @@ func algtype1(t *Type, bad **Type) int {
 		return -1 // needs special compare
 
 	case TSTRUCT:
-		if t.Type != nil && t.Type.Down == nil && !isblanksym(t.Type.Sym) {
-			// One-field struct is same as that one field alone.
-			return algtype1(t.Type.Type, bad)
+		fields := t.FieldSlice()
+
+		// One-field struct is same as that one field alone.
+		if len(fields) == 1 && !isblanksym(fields[0].Sym) {
+			return algtype1(fields[0].Type, bad)
 		}
 
 		ret := AMEM
-		for f, it := IterFields(t); f != nil; f = it.Next() {
+		for i, f := range fields {
 			// All fields must be comparable.
 			a := algtype1(f.Type, bad)
 			if a == ANOEQ {
@@ -144,7 +146,7 @@ func algtype1(t *Type, bad **Type) int {
 
 			// Blank fields, padded fields, fields with non-memory
 			// equality need special compare.
-			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, f) {
+			if a != AMEM || isblanksym(f.Sym) || ispaddedfield(t, fields, i) {
 				ret = -1
 			}
 		}
@@ -227,10 +229,12 @@ func genhash(sym *Sym, t *Type) {
 	case TSTRUCT:
 		// Walk the struct using memhash for runs of AMEM
 		// and calling specific hash functions for the others.
-		for f := t.Type; f != nil; {
+		for i, fields := 0, t.FieldSlice(); i < len(fields); {
+			f := fields[i]
+
 			// Skip blank fields.
 			if isblanksym(f.Sym) {
-				f = f.Down
+				i++
 				continue
 			}
 
@@ -244,12 +248,12 @@ func genhash(sym *Sym, t *Type) {
 				call.List.Append(na)
 				call.List.Append(nh)
 				fn.Nbody.Append(Nod(OAS, nh, call))
-				f = f.Down
+				i++
 				continue
 			}
 
 			// Otherwise, hash a maximal length run of raw memory.
-			size, next := memrun(t, f)
+			size, next := memrun(t, fields, i)
 
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
@@ -262,7 +266,7 @@ func genhash(sym *Sym, t *Type) {
 			call.List.Append(Nodintconst(size))
 			fn.Nbody.Append(Nod(OAS, nh, call))
 
-			f = next
+			i = next
 		}
 	}
 
@@ -410,57 +414,56 @@ func geneq(sym *Sym, t *Type) {
 		fn.Nbody.Append(ret)
 
 	case TSTRUCT:
-		var conjuncts []*Node
+		var cond *Node
+		and := func(n *Node) {
+			if cond == nil {
+				cond = n
+				return
+			}
+			cond = Nod(OANDAND, cond, n)
+		}
 
 		// Walk the struct using memequal for runs of AMEM
 		// and calling specific equality tests for the others.
-		for f := t.Type; f != nil; {
+		for i, fields := 0, t.FieldSlice(); i < len(fields); {
+			f := fields[i]
+
 			// Skip blank-named fields.
 			if isblanksym(f.Sym) {
-				f = f.Down
+				i++
 				continue
 			}
 
 			// Compare non-memory fields with field equality.
 			if algtype1(f.Type, nil) != AMEM {
-				conjuncts = append(conjuncts, eqfield(np, nq, newname(f.Sym)))
-				f = f.Down
+				and(eqfield(np, nq, newname(f.Sym)))
+				i++
 				continue
 			}
 
 			// Find maximal length run of memory-only fields.
-			size, next := memrun(t, f)
+			size, next := memrun(t, fields, i)
 
-			// Run memequal on fields from f to next.
 			// TODO(rsc): All the calls to newname are wrong for
 			// cross-package unexported fields.
-			if f.Down == next {
-				conjuncts = append(conjuncts, eqfield(np, nq, newname(f.Sym)))
-			} else if f.Down.Down == next {
-				conjuncts = append(conjuncts, eqfield(np, nq, newname(f.Sym)))
-				conjuncts = append(conjuncts, eqfield(np, nq, newname(f.Down.Sym)))
+			if s := fields[i:next]; len(s) <= 2 {
+				// Two or fewer fields: use plain field equality.
+				for _, f := range s {
+					and(eqfield(np, nq, newname(f.Sym)))
+				}
 			} else {
 				// More than two fields: use memequal.
-				conjuncts = append(conjuncts, eqmem(np, nq, newname(f.Sym), size))
+				and(eqmem(np, nq, newname(f.Sym), size))
 			}
-			f = next
+			i = next
 		}
 
-		var and *Node
-		switch len(conjuncts) {
-		case 0:
-			and = Nodbool(true)
-		case 1:
-			and = conjuncts[0]
-		default:
-			and = Nod(OANDAND, conjuncts[0], conjuncts[1])
-			for _, conjunct := range conjuncts[2:] {
-				and = Nod(OANDAND, and, conjunct)
-			}
+		if cond == nil {
+			cond = Nodbool(true)
 		}
 
 		ret := Nod(ORETURN, nil, nil)
-		ret.List.Append(and)
+		ret.List.Append(cond)
 		fn.Nbody.Append(ret)
 	}
 
@@ -542,42 +545,41 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 }
 
 // memrun finds runs of struct fields for which memory-only algs are appropriate.
-// t is the parent struct type, and start is the field that starts the run.
+// t is the parent struct type, and start is the field index at which to start the run.
+// The caller is responsible for providing t.FieldSlice() as fields.
 // size is the length in bytes of the memory included in the run.
-// next is the next field after the memory run.
-func memrun(t *Type, start *Type) (size int64, next *Type) {
-	var last *Type
+// next is the index just after the end of the memory run.
+// TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
+func memrun(t *Type, fields []*Type, start int) (size int64, next int) {
 	next = start
 	for {
-		last, next = next, next.Down
-		if next == nil {
+		next++
+		if next == len(fields) {
 			break
 		}
 		// Stop run after a padded field.
-		if ispaddedfield(t, last) {
+		if ispaddedfield(t, fields, next-1) {
 			break
 		}
 		// Also, stop before a blank or non-memory field.
-		if isblanksym(next.Sym) || algtype1(next.Type, nil) != AMEM {
+		if isblanksym(fields[next].Sym) || algtype1(fields[next].Type, nil) != AMEM {
 			break
 		}
 	}
-	end := last.Width + last.Type.Width
-	return end - start.Width, next
+	end := fields[next-1].Width + fields[next-1].Type.Width
+	return end - fields[start].Width, next
 }
 
-// ispaddedfield reports whether the given field f, assumed to be
-// a field in struct t, is followed by padding.
-func ispaddedfield(t *Type, f *Type) bool {
+// ispaddedfield reports whether the i'th field of struct type t is followed
+// by padding. The caller is responsible for providing t.FieldSlice() as fields.
+// TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
+func ispaddedfield(t *Type, fields []*Type, i int) bool {
 	if t.Etype != TSTRUCT {
 		Fatalf("ispaddedfield called non-struct %v", t)
 	}
-	if f.Etype != TFIELD {
-		Fatalf("ispaddedfield called non-field %v", f)
-	}
 	end := t.Width
-	if f.Down != nil {
-		end = f.Down.Width
+	if i+1 < len(fields) {
+		end = fields[i+1].Width
 	}
-	return f.Width+f.Type.Width != end
+	return fields[i].Width+fields[i].Type.Width != end
 }
