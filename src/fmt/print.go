@@ -1164,8 +1164,6 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			p.buf.WriteString(missingString)
 			continue
 		}
-		arg := a[argNum]
-		argNum++
 
 		if c == 'v' {
 			if p.fmt.sharp {
@@ -1185,23 +1183,26 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			p.fmt.zero = false
 		}
 
-		p.printArg(arg, c, 0)
+		p.printArg(a[argNum], c, 0)
+		argNum++
 	}
 
 	// Check for extra arguments unless the call accessed the arguments
 	// out of order, in which case it's too expensive to detect if they've all
 	// been used and arguably OK if they're not.
 	if !p.reordered && argNum < len(a) {
+		p.fmt.clearflags()
 		p.buf.WriteString(extraString)
-		for ; argNum < len(a); argNum++ {
-			arg := a[argNum]
-			if arg != nil {
+		for i, arg := range a[argNum:] {
+			if i > 0 {
+				p.buf.WriteString(commaSpaceString)
+			}
+			if arg == nil {
+				p.buf.WriteString(nilAngleString)
+			} else {
 				p.buf.WriteString(reflect.TypeOf(arg).String())
 				p.buf.WriteByte('=')
-			}
-			p.printArg(arg, 'v', 0)
-			if argNum+1 < len(a) {
-				p.buf.WriteString(commaSpaceString)
+				p.printArg(arg, 'v', 0)
 			}
 		}
 		p.buf.WriteByte(')')

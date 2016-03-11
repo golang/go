@@ -426,10 +426,6 @@ var fmtTests = []struct {
 	{"%-08g", complex(negInf, negInf), "(-Inf    -Inf    i)"},
 	{"%-08G", complex(NaN, NaN), "(NaN     +NaN    i)"},
 
-	// erroneous formats
-	{"", 2, "%!(EXTRA int=2)"},
-	{"%d", "hello", "%!d(string=hello)"},
-
 	// old test/fmt_test.go
 	{"%d", 1234, "1234"},
 	{"%d", -1234, "-1234"},
@@ -774,15 +770,15 @@ var fmtTests = []struct {
 	{"%d", time.Time{}.Month(), "1"},
 
 	// erroneous things
+	{"", nil, "%!(EXTRA <nil>)"},
+	{"", 2, "%!(EXTRA int=2)"},
+	{"no args", "hello", "no args%!(EXTRA string=hello)"},
 	{"%s %", "hello", "hello %!(NOVERB)"},
 	{"%s %.2", "hello", "hello %!(NOVERB)"},
-	{"%d", "hello", "%!d(string=hello)"},
-	{"no args", "hello", "no args%!(EXTRA string=hello)"},
-	{"%s", nil, "%!s(<nil>)"},
-	{"%T", nil, "<nil>"},
-	{"%-1", 100, "%!(NOVERB)%!(EXTRA int=100)"},
 	{"%017091901790959340919092959340919017929593813360", 0, "%!(NOVERB)%!(EXTRA int=0)"},
 	{"%184467440737095516170v", 0, "%!(NOVERB)%!(EXTRA int=0)"},
+	// Extra argument errors should format without flags set.
+	{"%010.2", "12345", "%!(NOVERB)%!(EXTRA string=12345)"},
 
 	// The "<nil>" show up because maps are printed by
 	// first obtaining a list of keys and then looking up
@@ -973,6 +969,7 @@ var fmtTests = []struct {
 	{"%☠", []uint8{0}, "%!☠([]uint8=[0])"},
 	{"%☠", [1]byte{0}, "%!☠([1]uint8=[0])"},
 	{"%☠", [1]uint8{0}, "%!☠([1]uint8=[0])"},
+	{"%☠", "hello", "%!☠(string=hello)"},
 	{"%☠", 1.2345678, "%!☠(float64=1.2345678)"},
 	{"%☠", float32(1.2345678), "%!☠(float32=1.2345678)"},
 	{"%☠", 1.2345678 + 1.2345678i, "%!☠(complex128=(1.2345678+1.2345678i))"},
