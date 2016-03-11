@@ -358,7 +358,7 @@ func (p *pp) fmtInt64(v int64, verb rune) {
 	case 'x':
 		p.fmt.integer(v, 16, signed, ldigits)
 	case 'U':
-		p.fmtUnicode(v)
+		p.fmt.fmt_unicode(uint64(v))
 	case 'X':
 		p.fmt.integer(v, 16, signed, udigits)
 	default:
@@ -372,28 +372,6 @@ func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
 	p.fmt.integer(int64(v), 16, unsigned, ldigits)
-	p.fmt.sharp = sharp
-}
-
-// fmtUnicode formats a uint64 in U+1234 form by
-// temporarily turning on the unicode flag and tweaking the precision.
-func (p *pp) fmtUnicode(v int64) {
-	precPresent := p.fmt.precPresent
-	sharp := p.fmt.sharp
-	p.fmt.sharp = false
-	prec := p.fmt.prec
-	if !precPresent {
-		// If prec is already set, leave it alone; otherwise 4 is minimum.
-		p.fmt.prec = 4
-		p.fmt.precPresent = true
-	}
-	p.fmt.unicode = true // turn on U+
-	p.fmt.uniQuote = sharp
-	p.fmt.integer(int64(v), 16, unsigned, udigits)
-	p.fmt.unicode = false
-	p.fmt.uniQuote = false
-	p.fmt.prec = prec
-	p.fmt.precPresent = precPresent
 	p.fmt.sharp = sharp
 }
 
@@ -424,7 +402,7 @@ func (p *pp) fmtUint64(v uint64, verb rune) {
 	case 'X':
 		p.fmt.integer(int64(v), 16, unsigned, udigits)
 	case 'U':
-		p.fmtUnicode(int64(v))
+		p.fmt.fmt_unicode(v)
 	default:
 		p.badVerb(verb)
 	}

@@ -31,8 +31,6 @@ type fmtFlags struct {
 	plus        bool
 	sharp       bool
 	space       bool
-	unicode     bool
-	uniQuote    bool // Use 'x'= prefix for %U if printable.
 	zero        bool
 
 	// For the formats %+v %#v, we set the plusV/sharpV flags
@@ -133,6 +131,65 @@ func (f *fmt) fmt_boolean(v bool) {
 	}
 }
 
+// fmt_unicode formats a uint64 as "U+0078" or with f.sharp set as "U+0078 'x'".
+func (f *fmt) fmt_unicode(u uint64) {
+	buf := f.intbuf[0:]
+
+	// With default precision set the maximum needed buf length is 18
+	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF")
+	// which fits into the already allocated intbuf with a capacity of 65 bytes.
+	prec := 4
+	if f.precPresent && f.prec > 4 {
+		prec = f.prec
+		// Compute space needed for "U+" , number, " '", character, "'".
+		width := 2 + prec + 2 + utf8.UTFMax + 1
+		if width > cap(buf) {
+			buf = make([]byte, width)
+		}
+	}
+
+	// Format into buf, ending at buf[i]. Formatting numbers is easier right-to-left.
+	i := len(buf)
+
+	// For %#U we want to add a space and a quoted character at the end of the buffer.
+	if f.sharp && u <= utf8.MaxRune && strconv.IsPrint(rune(u)) {
+		i--
+		buf[i] = '\''
+		i -= utf8.RuneLen(rune(u))
+		utf8.EncodeRune(buf[i:], rune(u))
+		i--
+		buf[i] = '\''
+		i--
+		buf[i] = ' '
+	}
+	// Format the Unicode code point u as a hexadecimal number.
+	for u >= 16 {
+		i--
+		buf[i] = udigits[u&0xF]
+		prec--
+		u >>= 4
+	}
+	i--
+	buf[i] = udigits[u]
+	prec--
+	// Add zeros in front of the number until requested precision is reached.
+	for prec > 0 {
+		i--
+		buf[i] = '0'
+		prec--
+	}
+	// Add a leading "U+".
+	i--
+	buf[i] = '+'
+	i--
+	buf[i] = 'U'
+
+	oldZero := f.zero
+	f.zero = false
+	f.pad(buf[i:])
+	f.zero = oldZero
+}
+
 // integer; interprets prec but not wid. Once formatted, result is sent to pad()
 // and then flags are cleared.
 func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
@@ -152,14 +209,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		if base == 16 && f.sharp {
 			// Also adds "0x".
 			width += 2
-		}
-		if f.unicode {
-			// Also adds "U+".
-			width += 2
-			if f.uniQuote {
-				// Also adds " 'x'".
-				width += 1 + 1 + utf8.UTFMax + 1
-			}
 		}
 		if negative || f.plus || f.space {
 			width++
@@ -243,12 +292,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 			buf[i] = '0'
 		}
 	}
-	if f.unicode {
-		i--
-		buf[i] = '+'
-		i--
-		buf[i] = 'U'
-	}
 
 	if negative {
 		i--
@@ -259,23 +302,6 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 	} else if f.space {
 		i--
 		buf[i] = ' '
-	}
-
-	// If we want a quoted char for %#U, move the data up to make room.
-	if f.unicode && f.uniQuote && a >= 0 && a <= utf8.MaxRune && strconv.IsPrint(rune(a)) {
-		runeWidth := utf8.RuneLen(rune(a))
-		width := 1 + 1 + runeWidth + 1 // space, quote, rune, quote
-		copy(buf[i-width:], buf[i:])   // guaranteed to have enough room.
-		i -= width
-		// Now put " 'x'" at the end.
-		j := len(buf) - width
-		buf[j] = ' '
-		j++
-		buf[j] = '\''
-		j++
-		utf8.EncodeRune(buf[j:], rune(a))
-		j += runeWidth
-		buf[j] = '\''
 	}
 
 	f.pad(buf[i:])
