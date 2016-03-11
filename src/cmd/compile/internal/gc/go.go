@@ -191,23 +191,6 @@ type Sig struct {
 	offset int32
 }
 
-// argument passing to/from
-// smagic and umagic
-type Magic struct {
-	W   int // input for both - width
-	S   int // output for both - shift
-	Bad int // output for both - unexpected failure
-
-	// magic multiplier for signed literal divisors
-	Sd int64 // input - literal divisor
-	Sm int64 // output - multiplier
-
-	// magic multiplier for unsigned literal divisors
-	Ud uint64 // input - literal divisor
-	Um uint64 // output - multiplier
-	Ua int    // output - adder
-}
-
 // note this is the runtime representation
 // of the compilers arrays.
 //
