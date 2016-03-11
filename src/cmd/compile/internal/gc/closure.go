@@ -296,20 +296,14 @@ func transformclosure(xfunc *Node) {
 		// f is ONAME of the actual function.
 		f := xfunc.Func.Nname
 
-		// Get pointer to input arguments.
 		// We are going to insert captured variables before input args.
-		param := &f.Type.Params().Type
-		original_args := *param // old input args
-		original_dcl := xfunc.Func.Dcl
-		xfunc.Func.Dcl = nil
-
-		var addr *Node
-		var fld *Type
+		var params []*Type
+		var decls []*Node
 		for _, v := range func_.Func.Cvars.Slice() {
 			if v.Op == OXXX {
 				continue
 			}
-			fld = typ(TFIELD)
+			fld := typ(TFIELD)
 			fld.Funarg = true
 			if v.Name.Byval {
 				// If v is captured by value, we merely downgrade it to PPARAM.
@@ -322,7 +316,7 @@ func transformclosure(xfunc *Node) {
 				// we introduce function param &v *T
 				// and v remains PPARAMREF with &v heapaddr
 				// (accesses will implicitly deref &v).
-				addr = newname(Lookupf("&%s", v.Sym.Name))
+				addr := newname(Lookupf("&%s", v.Sym.Name))
 				addr.Type = Ptrto(v.Type)
 				addr.Class = PPARAM
 				v.Name.Heapaddr = addr
@@ -332,14 +326,15 @@ func transformclosure(xfunc *Node) {
 			fld.Type = fld.Nname.Type
 			fld.Sym = fld.Nname.Sym
 
-			// Declare the new param and add it the first part of the input arguments.
-			xfunc.Func.Dcl = append(xfunc.Func.Dcl, fld.Nname)
-
-			*param = fld
-			param = &fld.Down
+			params = append(params, fld)
+			decls = append(decls, fld.Nname)
 		}
-		*param = original_args
-		xfunc.Func.Dcl = append(xfunc.Func.Dcl, original_dcl...)
+
+		if len(params) > 0 {
+			// Prepend params and decls.
+			f.Type.Params().SetFields(append(params, f.Type.Params().FieldSlice()...))
+			xfunc.Func.Dcl = append(decls, xfunc.Func.Dcl...)
+		}
 
 		// Recalculate param offsets.
 		if f.Type.Width > 0 {
