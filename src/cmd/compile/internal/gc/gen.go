@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Portable half of code generator; mainly statements and control flow.
+
 package gc
 
 import (
@@ -9,11 +11,8 @@ import (
 	"fmt"
 )
 
-// portable half of code generator.
-// mainly statements and control flow.
-var labellist *Label
-
-var lastlabel *Label
+// TODO: labellist should become part of a "compilation state" for functions.
+var labellist []*Label
 
 func Sysfunc(name string) *Node {
 	n := newname(Pkglookup(name, Runtimepkg))
@@ -106,12 +105,10 @@ func addrescapes(n *Node) {
 }
 
 func clearlabels() {
-	for l := labellist; l != nil; l = l.Link {
+	for _, l := range labellist {
 		l.Sym.Label = nil
 	}
-
-	labellist = nil
-	lastlabel = nil
+	labellist = labellist[:0]
 }
 
 func newlab(n *Node) *Label {
@@ -119,14 +116,9 @@ func newlab(n *Node) *Label {
 	lab := s.Label
 	if lab == nil {
 		lab = new(Label)
-		if lastlabel == nil {
-			labellist = lab
-		} else {
-			lastlabel.Link = lab
-		}
-		lastlabel = lab
 		lab.Sym = s
 		s.Label = lab
+		labellist = append(labellist, lab)
 	}
 
 	if n.Op == OLABEL {
@@ -974,7 +966,7 @@ func CgenTemp(n *Node) *Node {
 }
 
 func checklabels() {
-	for lab := labellist; lab != nil; lab = lab.Link {
+	for _, lab := range labellist {
 		if lab.Def == nil {
 			for _, n := range lab.Use {
 				yyerrorl(n.Lineno, "label %v not defined", lab.Sym)
