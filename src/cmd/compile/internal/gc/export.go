@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"bufio"
 	"bytes"
 	"cmd/internal/obj"
 	"fmt"
@@ -387,7 +388,7 @@ func dumpexport() {
 			pkgMap = make(map[string]*Pkg)
 			pkgs = nil
 			importpkg = mkpkg("")
-			Import(obj.Binitr(&copy)) // must not die
+			Import(bufio.NewReader(&copy)) // must not die
 			importpkg = nil
 			pkgs = savedPkgs
 			pkgMap = savedPkgMap

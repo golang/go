@@ -8,8 +8,8 @@
 package gc
 
 import (
+	"bufio"
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
 	"encoding/binary"
 	"fmt"
 )
@@ -20,7 +20,7 @@ import (
 // changes to bimport.go and bexport.go.
 
 // Import populates importpkg from the serialized package data.
-func Import(in *obj.Biobuf) {
+func Import(in *bufio.Reader) {
 	p := importer{in: in}
 	p.buf = p.bufarray[:]
 
@@ -137,7 +137,7 @@ func idealType(typ *Type) *Type {
 }
 
 type importer struct {
-	in       *obj.Biobuf
+	in       *bufio.Reader
 	buf      []byte   // for reading strings
 	bufarray [64]byte // initial underlying array for buf, large enough to avoid allocation when compiling std lib
 	pkgList  []*Pkg
@@ -855,16 +855,16 @@ func (p *importer) ReadByte() (byte, error) {
 // byte is the bottleneck interface for reading from p.in.
 // It unescapes '|' 'S' to '$' and '|' '|' to '|'.
 func (p *importer) byte() byte {
-	c := obj.Bgetc(p.in)
+	c, err := p.in.ReadByte()
 	p.read++
-	if c < 0 {
-		Fatalf("importer: read error")
+	if err != nil {
+		Fatalf("importer: read error: %v", err)
 	}
 	if c == '|' {
-		c = obj.Bgetc(p.in)
+		c, err = p.in.ReadByte()
 		p.read++
-		if c < 0 {
-			Fatalf("importer: read error")
+		if err != nil {
+			Fatalf("importer: read error: %v", err)
 		}
 		switch c {
 		case 'S':
@@ -875,5 +875,5 @@ func (p *importer) byte() byte {
 			Fatalf("importer: unexpected escape sequence in export data")
 		}
 	}
-	return byte(c)
+	return c
 }

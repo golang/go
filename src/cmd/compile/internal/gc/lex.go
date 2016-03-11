@@ -7,6 +7,7 @@
 package gc
 
 import (
+	"bufio"
 	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 	"flag"
@@ -335,15 +336,16 @@ func Main() {
 
 		linehistpush(infile)
 
-		bin, err := obj.Bopenr(infile)
+		f, err := os.Open(infile)
 		if err != nil {
 			fmt.Printf("open %s: %v\n", infile, err)
 			errorexit()
 		}
+		bin := bufio.NewReader(f)
 
 		// Skip initial BOM if present.
-		if obj.Bgetrune(bin) != BOM {
-			obj.Bungetrune(bin)
+		if r, _, _ := bin.ReadRune(); r != BOM {
+			bin.UnreadRune()
 		}
 
 		block = 1
@@ -362,7 +364,7 @@ func Main() {
 		lexlineno++
 
 		linehistpop()
-		obj.Bterm(bin)
+		f.Close()
 	}
 
 	testdclstack()
@@ -541,7 +543,7 @@ func saveerrors() {
 	nerrors = 0
 }
 
-func arsize(b *obj.Biobuf, name string) int {
+func arsize(b *bufio.Reader, name string) int {
 	var buf [ArhdrSize]byte
 	if _, err := io.ReadFull(b, buf[:]); err != nil {
 		return -1
@@ -555,14 +557,11 @@ func arsize(b *obj.Biobuf, name string) int {
 	return i
 }
 
-func skiptopkgdef(b *obj.Biobuf) bool {
+func skiptopkgdef(b *bufio.Reader) bool {
 	// archive header
-	p := obj.Brdline(b, '\n')
-	if p == "" {
-		return false
-	}
-	if obj.Blinelen(b) != 8 {
-		return false
+	p, err := b.ReadString('\n')
+	if err != nil {
+		log.Fatalf("reading input: %v", err)
 	}
 	if p != "!<arch>\n" {
 		return false
@@ -672,10 +671,10 @@ func loadsys() {
 	incannedimport = 1
 
 	importpkg = Runtimepkg
-	parse_import(obj.Binitr(strings.NewReader(runtimeimport)), nil)
+	parse_import(bufio.NewReader(strings.NewReader(runtimeimport)), nil)
 
 	importpkg = unsafepkg
-	parse_import(obj.Binitr(strings.NewReader(unsafeimport)), nil)
+	parse_import(bufio.NewReader(strings.NewReader(unsafeimport)), nil)
 
 	importpkg = nil
 	incannedimport = 0
@@ -761,12 +760,13 @@ func importfile(f *Val, indent []byte) {
 
 	importpkg.Imported = true
 
-	imp, err := obj.Bopenr(file)
+	impf, err := os.Open(file)
 	if err != nil {
 		Yyerror("can't open import: %q: %v", path_, err)
 		errorexit()
 	}
-	defer obj.Bterm(imp)
+	defer impf.Close()
+	imp := bufio.NewReader(impf)
 
 	if strings.HasSuffix(file, ".a") {
 		if !skiptopkgdef(imp) {
@@ -776,7 +776,13 @@ func importfile(f *Val, indent []byte) {
 	}
 
 	// check object header
-	p := obj.Brdstr(imp, '\n', 1)
+	p, err := imp.ReadString('\n')
+	if err != nil {
+		log.Fatalf("reading input: %v", err)
+	}
+	if len(p) > 0 {
+		p = p[:len(p)-1]
+	}
 
 	if p != "empty archive" {
 		if !strings.HasPrefix(p, "go object ") {
@@ -800,23 +806,23 @@ func importfile(f *Val, indent []byte) {
 	// $$B\n (new format): import directly, then feed the lexer a dummy statement
 
 	// look for $$
-	var c int
+	var c byte
 	for {
-		c = obj.Bgetc(imp)
-		if c < 0 {
+		c, err = imp.ReadByte()
+		if err != nil {
 			break
 		}
 		if c == '$' {
-			c = obj.Bgetc(imp)
-			if c == '$' || c < 0 {
+			c, err = imp.ReadByte()
+			if c == '$' || err != nil {
 				break
 			}
 		}
 	}
 
 	// get character after $$
-	if c >= 0 {
-		c = obj.Bgetc(imp)
+	if err == nil {
+		c, _ = imp.ReadByte()
 	}
 
 	switch c {
@@ -826,7 +832,7 @@ func importfile(f *Val, indent []byte) {
 
 	case 'B':
 		// new export format
-		obj.Bgetc(imp) // skip \n after $$B
+		imp.ReadByte() // skip \n after $$B
 		Import(imp)
 
 	default:
@@ -879,9 +885,7 @@ const (
 
 type lexer struct {
 	// source
-	bin    *obj.Biobuf
-	peekr1 rune
-	peekr2 rune // second peekc for ...
+	bin *bufio.Reader
 
 	nlsemi bool // if set, '\n' and EOF translate to ';'
 
@@ -1025,8 +1029,9 @@ l0:
 		}
 
 		if c1 == '.' {
-			c1 = l.getr()
-			if c1 == '.' {
+			p, err := l.bin.Peek(1)
+			if err == nil && p[0] == '.' {
+				l.getr()
 				c = LDDD
 				goto lx
 			}
@@ -1886,49 +1891,26 @@ func pragcgo(text string) {
 }
 
 func (l *lexer) getr() rune {
-	// unread rune != 0 available
-	if r := l.peekr1; r != 0 {
-		l.peekr1 = l.peekr2
-		l.peekr2 = 0
-		if r == '\n' && importpkg == nil {
-			lexlineno++
-		}
-		return r
-	}
-
 redo:
-	// common case: 7bit ASCII
-	c := obj.Bgetc(l.bin)
-	if c < utf8.RuneSelf {
-		if c == 0 {
-			yyerrorl(lexlineno, "illegal NUL byte")
-			return 0
+	r, w, err := l.bin.ReadRune()
+	if err != nil {
+		if err != io.EOF {
+			Fatalf("io error: %v", err)
 		}
-		if c == '\n' && importpkg == nil {
+		return -1
+	}
+	switch r {
+	case 0:
+		yyerrorl(lexlineno, "illegal NUL byte")
+	case '\n':
+		if importpkg == nil {
 			lexlineno++
 		}
-		return rune(c)
-	}
-	// c >= utf8.RuneSelf
-
-	// uncommon case: non-ASCII
-	var buf [utf8.UTFMax]byte
-	buf[0] = byte(c)
-	buf[1] = byte(obj.Bgetc(l.bin))
-	i := 2
-	for ; i < len(buf) && !utf8.FullRune(buf[:i]); i++ {
-		buf[i] = byte(obj.Bgetc(l.bin))
-	}
-
-	r, w := utf8.DecodeRune(buf[:i])
-	if r == utf8.RuneError && w == 1 {
-		// The string conversion here makes a copy for passing
-		// to fmt.Printf, so that buf itself does not escape and
-		// can be allocated on the stack.
-		yyerrorl(lexlineno, "illegal UTF-8 sequence % x", string(buf[:i]))
-	}
-
-	if r == BOM {
+	case utf8.RuneError:
+		if w == 1 {
+			yyerrorl(lexlineno, "illegal UTF-8 sequence")
+		}
+	case BOM:
 		yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file")
 		goto redo
 	}
@@ -1937,8 +1919,7 @@ redo:
 }
 
 func (l *lexer) ungetr(r rune) {
-	l.peekr2 = l.peekr1
-	l.peekr1 = r
+	l.bin.UnreadRune()
 	if r == '\n' && importpkg == nil {
 		lexlineno--
 	}

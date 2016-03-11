@@ -13,7 +13,7 @@ package gc
 // to handle optional commas and semicolons before a closing ) or } .
 
 import (
-	"cmd/internal/obj"
+	"bufio"
 	"fmt"
 	"strconv"
 	"strings"
@@ -22,12 +22,12 @@ import (
 const trace = false // if set, parse tracing can be enabled with -x
 
 // parse_import parses the export data of a package that is imported.
-func parse_import(bin *obj.Biobuf, indent []byte) {
+func parse_import(bin *bufio.Reader, indent []byte) {
 	newparser(bin, indent).import_package()
 }
 
 // parse_file parses a single Go source file.
-func parse_file(bin *obj.Biobuf) {
+func parse_file(bin *bufio.Reader) {
 	newparser(bin, nil).file()
 }
 
@@ -40,7 +40,7 @@ type parser struct {
 
 // newparser returns a new parser ready to parse from src.
 // indent is the initial indentation for tracing output.
-func newparser(src *obj.Biobuf, indent []byte) *parser {
+func newparser(src *bufio.Reader, indent []byte) *parser {
 	var p parser
 	p.bin = src
 	p.indent = indent
