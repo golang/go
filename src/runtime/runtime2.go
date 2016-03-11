@@ -523,9 +523,10 @@ type schedt struct {
 	runqsize int32
 
 	// Global cache of dead G's.
-	gflock mutex
-	gfree  *g
-	ngfree int32
+	gflock       mutex
+	gfreeStack   *g
+	gfreeNoStack *g
+	ngfree       int32
 
 	// Central cache of sudog structs.
 	sudoglock  mutex
