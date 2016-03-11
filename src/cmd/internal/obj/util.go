@@ -129,18 +129,6 @@ func Bgetc(b *Biobuf) int {
 	return int(c)
 }
 
-func Bgetrune(b *Biobuf) int {
-	r, _, err := b.r.ReadRune()
-	if err != nil {
-		return -1
-	}
-	return int(r)
-}
-
-func Bungetrune(b *Biobuf) {
-	b.r.UnreadRune()
-}
-
 func (b *Biobuf) Read(p []byte) (int, error) {
 	return b.r.Read(p)
 }
@@ -156,17 +144,6 @@ func Brdline(b *Biobuf, delim int) string {
 	}
 	b.linelen = len(s)
 	return string(s)
-}
-
-func Brdstr(b *Biobuf, delim int, cut int) string {
-	s, err := b.r.ReadString(byte(delim))
-	if err != nil {
-		log.Fatalf("reading input: %v", err)
-	}
-	if len(s) > 0 && cut > 0 {
-		s = s[:len(s)-1]
-	}
-	return s
 }
 
 func Blinelen(b *Biobuf) int {
