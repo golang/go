@@ -55,8 +55,8 @@ func (v Val) Ctype() Ctype {
 }
 
 type Pkg struct {
-	Name     string // package name
-	Path     string // string literal used in import statement
+	Name     string // package name, e.g. "sys"
+	Path     string // string literal used in import statement, e.g. "runtime/internal/sys"
 	Pathsym  *Sym
 	Prefix   string // escaped path for use in symbol table
 	Imported bool   // export data of this package was parsed
@@ -469,6 +469,9 @@ const (
 
 	// Set, use, or kill of carry bit.
 	// Kill means we never look at the carry bit after this kind of instruction.
+	// Originally for understanding ADC, RCR, and so on, but now also
+	// tracks set, use, and kill of the zero and overflow bits as well.
+	// TODO rename to {Set,Use,Kill}Flags
 	SetCarry  = 1 << 24
 	UseCarry  = 1 << 25
 	KillCarry = 1 << 26

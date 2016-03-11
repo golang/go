@@ -453,7 +453,7 @@ func inlnode(n *Node) *Node {
 		if Debug['m'] > 3 {
 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, FmtSign))
 		}
-		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 { // normal case
+		if n.Left.Func != nil && len(n.Left.Func.Inl.Slice()) != 0 && !isIntrinsicCall1(n) { // normal case
 			n = mkinlcall(n, n.Left, n.Isddd)
 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
 			if n.Left.Sym.Def != nil {

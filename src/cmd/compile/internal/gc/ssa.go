@@ -2052,7 +2052,13 @@ func (s *state) expr(n *Node) *ssa.Value {
 		p, l, c := s.slice(n.Left.Type, v, i, j, k)
 		return s.newValue3(ssa.OpSliceMake, n.Type, p, l, c)
 
-	case OCALLFUNC, OCALLINTER, OCALLMETH:
+	case OCALLFUNC:
+		if isIntrinsicCall1(n) {
+			return s.intrinsicCall1(n)
+		}
+		fallthrough
+
+	case OCALLINTER, OCALLMETH:
 		a := s.call(n, callNormal)
 		return s.newValue2(ssa.OpLoad, n.Type, a, s.mem())
 
@@ -2372,6 +2378,75 @@ const (
 	callDefer
 	callGo
 )
+
+// isSSAIntrinsic1 returns true if n is a call to a recognized 1-arg intrinsic
+// that can be handled by the SSA backend.
+// SSA uses this, but so does the front end to see if should not
+// inline a function because it is a candidate for intrinsic
+// substitution.
+func isSSAIntrinsic1(s *Sym) bool {
+	// The test below is not quite accurate -- in the event that
+	// a function is disabled on a per-function basis, for example
+	// because of hash-keyed binary failure search, SSA might be
+	// disabled for that function but it would not be noted here,
+	// and thus an inlining would not occur (in practice, inlining
+	// so far has only been noticed for Bswap32 and the 16-bit count
+	// leading/trailing instructions, but heuristics might change
+	// in the future or on different architectures).
+	if !ssaEnabled || ssa.IntrinsicsDisable || Thearch.Thechar != '6' {
+		return false
+	}
+	if s != nil && s.Pkg != nil && s.Pkg.Path == "runtime/internal/sys" {
+		switch s.Name {
+		case
+			"Ctz64", "Ctz32", "Ctz16",
+			"Bswap64", "Bswap32":
+			return true
+		}
+	}
+	return false
+}
+
+func isIntrinsicCall1(n *Node) bool {
+	if n == nil || n.Left == nil {
+		return false
+	}
+	return isSSAIntrinsic1(n.Left.Sym)
+}
+
+// intrinsicFirstArg extracts arg from n.List and eval
+func (s *state) intrinsicFirstArg(n *Node) *ssa.Value {
+	x := n.List.First()
+	if x.Op == OAS {
+		x = x.Right
+	}
+	return s.expr(x)
+}
+
+// intrinsicCall1 converts a call to a recognized 1-arg intrinsic
+// into the intrinsic
+func (s *state) intrinsicCall1(n *Node) *ssa.Value {
+	var result *ssa.Value
+	switch n.Left.Sym.Name {
+	case "Ctz64":
+		result = s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
+	case "Ctz32":
+		result = s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+	case "Ctz16":
+		result = s.newValue1(ssa.OpCtz16, Types[TUINT16], s.intrinsicFirstArg(n))
+	case "Bswap64":
+		result = s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
+	case "Bswap32":
+		result = s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
+	}
+	if result == nil {
+		Fatalf("Unknown special call: %v", n.Left.Sym)
+	}
+	if ssa.IntrinsicsDebug > 0 {
+		Warnl(n.Lineno, "intrinsic substitution for %v with %s", n.Left.Sym.Name, result.LongString())
+	}
+	return result
+}
 
 // Calls the function n using the specified call type.
 // Returns the address of the return value (or nil if none).

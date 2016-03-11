@@ -477,6 +477,33 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Offset = v.AuxInt2Int64()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
+
+	case ssa.OpAMD64CMOVQEQconst, ssa.OpAMD64CMOVLEQconst, ssa.OpAMD64CMOVWEQconst,
+		ssa.OpAMD64CMOVQNEconst, ssa.OpAMD64CMOVLNEconst, ssa.OpAMD64CMOVWNEconst:
+		r := gc.SSARegNum(v)
+		x := gc.SSARegNum(v.Args[0])
+		// Arg0 is in/out, move in to out if not already same
+		if r != x {
+			p := gc.Prog(moveByType(v.Type))
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = x
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = r
+		}
+
+		// Constant into AX, after arg0 movement in case arg0 is in AX
+		p := gc.Prog(moveByType(v.Type))
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt2Int64()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = x86.REG_AX
+
+		p = gc.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = x86.REG_AX
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = r
+
 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst, ssa.OpAMD64MULWconst, ssa.OpAMD64MULBconst:
 		r := gc.SSARegNum(v)
 		x := gc.SSARegNum(v.Args[0])
@@ -955,6 +982,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 			gc.Maxarg = v.AuxInt
 		}
 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL, ssa.OpAMD64NEGW, ssa.OpAMD64NEGB,
+		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL, ssa.OpAMD64NOTW, ssa.OpAMD64NOTB:
 		x := gc.SSARegNum(v.Args[0])
 		r := gc.SSARegNum(v)
@@ -968,7 +996,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p := gc.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = r
-	case ssa.OpAMD64SQRTSD:
+	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSFW,
+		ssa.OpAMD64BSRQ, ssa.OpAMD64BSRL, ssa.OpAMD64BSRW,
+		ssa.OpAMD64SQRTSD:
 		p := gc.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = gc.SSARegNum(v.Args[0])
@@ -1008,9 +1038,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		opregreg(x86.AANDL, gc.SSARegNum(v), x86.REG_AX)
 
 	case ssa.OpAMD64InvertFlags:
-		v.Fatalf("InvertFlags should never make it to codegen %v", v)
+		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpAMD64FlagEQ, ssa.OpAMD64FlagLT_ULT, ssa.OpAMD64FlagLT_UGT, ssa.OpAMD64FlagGT_ULT, ssa.OpAMD64FlagGT_UGT:
-		v.Fatalf("Flag* ops should never make it to codegen %v", v)
+		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
 	case ssa.OpAMD64REPSTOSQ:
 		gc.Prog(x86.AREP)
 		gc.Prog(x86.ASTOSQ)

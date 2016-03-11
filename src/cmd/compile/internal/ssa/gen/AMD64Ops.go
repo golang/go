@@ -103,9 +103,13 @@ func init() {
 		gp11mod = regInfo{inputs: []regMask{ax, gpsp &^ dx}, outputs: []regMask{dx},
 			clobbers: ax | flags}
 
-		gp2flags  = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
-		gp1flags  = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
-		flagsgp   = regInfo{inputs: flagsonly, outputs: gponly}
+		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+		flagsgp  = regInfo{inputs: flagsonly, outputs: gponly}
+
+		// for CMOVconst -- uses AX to hold constant temporary. AX input is moved before temp.
+		gp1flagsgp = regInfo{inputs: []regMask{gp, flags}, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
+
 		readflags = regInfo{inputs: flagsonly, outputs: gponly}
 		flagsgpax = regInfo{inputs: flagsonly, clobbers: ax | flags, outputs: []regMask{gp &^ ax}}
 
@@ -306,6 +310,25 @@ func init() {
 		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
 		{name: "NOTW", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
 		{name: "NOTB", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
+
+		{name: "BSFQ", argLength: 1, reg: gp11, asm: "BSFQ"}, // arg0 # of low-order zeroes ; undef if zero
+		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL"}, // arg0 # of low-order zeroes ; undef if zero
+		{name: "BSFW", argLength: 1, reg: gp11, asm: "BSFW"}, // arg0 # of low-order zeroes ; undef if zero
+
+		{name: "BSRQ", argLength: 1, reg: gp11, asm: "BSRQ"}, // arg0 # of high-order zeroes ; undef if zero
+		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL"}, // arg0 # of high-order zeroes ; undef if zero
+		{name: "BSRW", argLength: 1, reg: gp11, asm: "BSRW"}, // arg0 # of high-order zeroes ; undef if zero
+
+		// Note ASM for ops moves whole register
+		{name: "CMOVQEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVQEQ", typ: "UInt64", aux: "Int64", resultInArg0: true}, // replace arg0 w/ constant if Z set
+		{name: "CMOVLEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLEQ", typ: "UInt32", aux: "Int32", resultInArg0: true}, // replace arg0 w/ constant if Z set
+		{name: "CMOVWEQconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLEQ", typ: "UInt16", aux: "Int16", resultInArg0: true}, // replace arg0 w/ constant if Z set
+		{name: "CMOVQNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVQNE", typ: "UInt64", aux: "Int64", resultInArg0: true}, // replace arg0 w/ constant if Z not set
+		{name: "CMOVLNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLNE", typ: "UInt32", aux: "Int32", resultInArg0: true}, // replace arg0 w/ constant if Z not set
+		{name: "CMOVWNEconst", argLength: 2, reg: gp1flagsgp, asm: "CMOVLNE", typ: "UInt16", aux: "Int16", resultInArg0: true}, // replace arg0 w/ constant if Z not set
+
+		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true}, // arg0 swap bytes
+		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true}, // arg0 swap bytes
 
 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
 

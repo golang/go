@@ -120,6 +120,10 @@ type pass struct {
 // Run consistency checker between each phase
 var checkEnabled = false
 
+// Debug output
+var IntrinsicsDebug int
+var IntrinsicsDisable bool
+
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
 // the error if it was not.
@@ -155,6 +159,20 @@ func PhaseOption(phase, flag string, val int) string {
 		} else {
 			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
 		}
+	}
+
+	if phase == "intrinsics" {
+		switch flag {
+		case "on":
+			IntrinsicsDisable = val == 0
+		case "off":
+			IntrinsicsDisable = val != 0
+		case "debug":
+			IntrinsicsDebug = val
+		default:
+			return fmt.Sprintf("Did not find a flag matching %s in -d=ssa/%s debug option", flag, phase)
+		}
+		return ""
 	}
 
 	underphase := strings.Replace(phase, "_", " ", -1)

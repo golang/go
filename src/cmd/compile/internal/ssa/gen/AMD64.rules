@@ -92,6 +92,38 @@
 (Com16 x) -> (NOTW x)
 (Com8 x) -> (NOTB x)
 
+// CMPQconst 0 below is redundant because BSF sets Z but how to remove?
+(Ctz64 <t> x) -> (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
+(Ctz32 <t> x) -> (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
+(Ctz16 <t> x) -> (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
+
+(CMOVQEQconst x (InvertFlags y) [c]) -> (CMOVQNEconst x y [c])
+(CMOVLEQconst x (InvertFlags y) [c]) -> (CMOVLNEconst x y [c])
+(CMOVWEQconst x (InvertFlags y) [c]) -> (CMOVWNEconst x y [c])
+
+(CMOVQEQconst _ (FlagEQ) [c]) -> (Const64 [c])
+(CMOVLEQconst _ (FlagEQ) [c]) -> (Const32 [c])
+(CMOVWEQconst _ (FlagEQ) [c]) -> (Const16 [c])
+
+(CMOVQEQconst x (FlagLT_ULT)) -> x
+(CMOVLEQconst x (FlagLT_ULT)) -> x
+(CMOVWEQconst x (FlagLT_ULT)) -> x
+
+(CMOVQEQconst x (FlagLT_UGT)) -> x
+(CMOVLEQconst x (FlagLT_UGT)) -> x
+(CMOVWEQconst x (FlagLT_UGT)) -> x
+
+(CMOVQEQconst x (FlagGT_ULT)) -> x
+(CMOVLEQconst x (FlagGT_ULT)) -> x
+(CMOVWEQconst x (FlagGT_ULT)) -> x
+
+(CMOVQEQconst x (FlagGT_UGT)) -> x
+(CMOVLEQconst x (FlagGT_UGT)) -> x
+(CMOVWEQconst x (FlagGT_UGT)) -> x
+
+(Bswap64 x) -> (BSWAPQ x)
+(Bswap32 x) -> (BSWAPL x)
+
 (Sqrt x) -> (SQRTSD x)
 
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
