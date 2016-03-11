@@ -2798,8 +2798,13 @@ func gfput(_p_ *p, gp *g) {
 			_p_.gfreecnt--
 			gp = _p_.gfree
 			_p_.gfree = gp.schedlink.ptr()
-			gp.schedlink.set(sched.gfree)
-			sched.gfree = gp
+			if gp.stack.lo == 0 {
+				gp.schedlink.set(sched.gfreeNoStack)
+				sched.gfreeNoStack = gp
+			} else {
+				gp.schedlink.set(sched.gfreeStack)
+				sched.gfreeStack = gp
+			}
 			sched.ngfree++
 		}
 		unlock(&sched.gflock)
@@ -2811,12 +2816,20 @@ func gfput(_p_ *p, gp *g) {
 func gfget(_p_ *p) *g {
 retry:
 	gp := _p_.gfree
-	if gp == nil && sched.gfree != nil {
+	if gp == nil && (sched.gfreeStack != nil || sched.gfreeNoStack != nil) {
 		lock(&sched.gflock)
-		for _p_.gfreecnt < 32 && sched.gfree != nil {
+		for _p_.gfreecnt < 32 {
+			if sched.gfreeStack != nil {
+				// Prefer Gs with stacks.
+				gp = sched.gfreeStack
+				sched.gfreeStack = gp.schedlink.ptr()
+			} else if sched.gfreeNoStack != nil {
+				gp = sched.gfreeNoStack
+				sched.gfreeNoStack = gp.schedlink.ptr()
+			} else {
+				break
+			}
 			_p_.gfreecnt++
-			gp = sched.gfree
-			sched.gfree = gp.schedlink.ptr()
 			sched.ngfree--
 			gp.schedlink.set(_p_.gfree)
 			_p_.gfree = gp
@@ -2853,8 +2866,13 @@ func gfpurge(_p_ *p) {
 		_p_.gfreecnt--
 		gp := _p_.gfree
 		_p_.gfree = gp.schedlink.ptr()
-		gp.schedlink.set(sched.gfree)
-		sched.gfree = gp
+		if gp.stack.lo == 0 {
+			gp.schedlink.set(sched.gfreeNoStack)
+			sched.gfreeNoStack = gp
+		} else {
+			gp.schedlink.set(sched.gfreeStack)
+			sched.gfreeStack = gp
+		}
 		sched.ngfree++
 	}
 	unlock(&sched.gflock)
