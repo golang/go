@@ -276,12 +276,16 @@ func Export(out *obj.Biobuf, trace bool) int {
 	}
 	for _, sym := range funcs {
 		p.string(sym.Name)
-		// The type can only be a signature for functions. However, by always
-		// writing the complete type specification (rather than just a signature)
-		// we keep the option open of sharing common signatures across multiple
-		// functions as a means to further compress the export data.
-		p.typ(sym.Def.Type)
-		p.inlinedBody(sym.Def)
+		sig := sym.Def.Type
+		inlineable := p.isInlineable(sym.Def)
+		p.paramList(sig.Params(), inlineable)
+		p.paramList(sig.Results(), inlineable)
+		index := -1
+		if inlineable {
+			index = len(p.inlined)
+			p.inlined = append(p.inlined, sym.Def.Func)
+		}
+		p.int(index)
 		if p.trace {
 			p.tracef("\n")
 		}
@@ -476,10 +480,17 @@ func (p *exporter) typ(t *Type) {
 				p.tracef("\n")
 			}
 			p.string(m.Sym.Name)
-			p.paramList(m.Type.Recvs())
-			p.paramList(m.Type.Params())
-			p.paramList(m.Type.Results())
-			p.inlinedBody(m.Type.Nname)
+			sig := m.Type
+			inlineable := p.isInlineable(sig.Nname)
+			p.paramList(sig.Recvs(), inlineable)
+			p.paramList(sig.Params(), inlineable)
+			p.paramList(sig.Results(), inlineable)
+			index := -1
+			if inlineable {
+				index = len(p.inlined)
+				p.inlined = append(p.inlined, sig.Nname.Func)
+			}
+			p.int(index)
 		}
 
 		if p.trace && len(methods) > 0 {
@@ -516,8 +527,8 @@ func (p *exporter) typ(t *Type) {
 
 	case TFUNC:
 		p.tag(signatureTag)
-		p.paramList(t.Params())
-		p.paramList(t.Results())
+		p.paramList(t.Params(), false)
+		p.paramList(t.Results(), false)
 
 	case TINTER:
 		p.tag(interfaceTag)
@@ -596,8 +607,8 @@ func (p *exporter) method(m *Field) {
 	// TODO(gri) For functions signatures, we use p.typ() to export
 	// so we could share the same type with multiple functions. Do
 	// the same here, or never try to do this for functions.
-	p.paramList(m.Type.Params())
-	p.paramList(m.Type.Results())
+	p.paramList(m.Type.Params(), false)
+	p.paramList(m.Type.Results(), false)
 }
 
 // fieldName is like qualifiedName but it doesn't record the package
@@ -631,7 +642,7 @@ func basetypeName(t *Type) string {
 	return ""
 }
 
-func (p *exporter) paramList(params *Type) {
+func (p *exporter) paramList(params *Type, numbered bool) {
 	if params.Etype != TSTRUCT || !params.Funarg {
 		Fatalf("exporter: parameter list expected")
 	}
@@ -640,16 +651,16 @@ func (p *exporter) paramList(params *Type) {
 	// (look at the first parameter only since either all
 	// names are present or all are absent)
 	n := countfield(params)
-	if n > 0 && parName(params.Field(0)) == "" {
+	if n > 0 && parName(params.Field(0), numbered) == "" {
 		n = -n
 	}
 	p.int(n)
 	for q, it := IterFields(params); q != nil; q = it.Next() {
-		p.param(q, n)
+		p.param(q, n, numbered)
 	}
 }
 
-func (p *exporter) param(q *Field, n int) {
+func (p *exporter) param(q *Field, n int, numbered bool) {
 	t := q.Type
 	if q.Isddd {
 		// create a fake type to encode ... just for the p.typ call
@@ -659,7 +670,7 @@ func (p *exporter) param(q *Field, n int) {
 	}
 	p.typ(t)
 	if n > 0 {
-		p.string(parName(q))
+		p.string(parName(q, numbered))
 	}
 	// TODO(gri) This is compiler-specific (escape info).
 	// Move into compiler-specific section eventually?
@@ -670,7 +681,7 @@ func (p *exporter) param(q *Field, n int) {
 	p.note(q.Note)
 }
 
-func parName(q *Field) string {
+func parName(q *Field, numbered bool) string {
 	if q.Sym == nil {
 		return ""
 	}
@@ -687,9 +698,11 @@ func parName(q *Field) string {
 			Fatalf("exporter: unexpected parameter name: %s", name)
 		}
 	}
-	// undo gc-internal name specialization
-	if i := strings.Index(name, "·"); i > 0 {
-		name = name[:i] // cut off numbering
+	// undo gc-internal name specialization unless required
+	if !numbered {
+		if i := strings.Index(name, "·"); i > 0 {
+			name = name[:i] // cut off numbering
+		}
 	}
 	return name
 }
@@ -775,18 +788,16 @@ func (p *exporter) float(x *Mpflt) {
 // ----------------------------------------------------------------------------
 // Inlined function bodies
 
-func (p *exporter) inlinedBody(n *Node) {
-	index := -1 // index < 0 => not inlined
+func (p *exporter) isInlineable(n *Node) bool {
 	if n != nil && n.Func != nil && len(n.Func.Inl.Slice()) != 0 {
 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
 		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
 		if Debug['l'] < 2 {
 			typecheckinl(n)
 		}
-		index = len(p.inlined) // index >= 0 => inlined
-		p.inlined = append(p.inlined, n.Func)
+		return true
 	}
-	p.int(index)
+	return false
 }
 
 func (p *exporter) nodeList(list Nodes) {
