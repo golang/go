@@ -471,23 +471,22 @@ func (p *exporter) typ(t *Type) {
 		sort.Sort(methodbyname(methods))
 		p.int(len(methods))
 
-		if p.trace && t.Method != nil {
-			p.tracef("associated methods {>\n")
+		if p.trace && len(methods) > 0 {
+			p.tracef("associated methods {>")
 		}
 
 		for _, m := range methods {
+			if p.trace {
+				p.tracef("\n")
+			}
 			p.string(m.Sym.Name)
 			p.paramList(m.Type.Recvs())
 			p.paramList(m.Type.Params())
 			p.paramList(m.Type.Results())
 			p.inlinedBody(m.Type.Nname)
-
-			if p.trace && m.Down != nil {
-				p.tracef("\n")
-			}
 		}
 
-		if p.trace && t.Method != nil {
+		if p.trace && len(methods) > 0 {
 			p.tracef("<\n} ")
 		}
 
@@ -553,17 +552,17 @@ func (p *exporter) qualifiedName(sym *Sym) {
 }
 
 func (p *exporter) fieldList(t *Type) {
-	if p.trace && t.Type != nil {
-		p.tracef("fields {>\n")
+	if p.trace && countfield(t) > 0 {
+		p.tracef("fields {>")
 		defer p.tracef("<\n} ")
 	}
 
 	p.int(countfield(t))
 	for f, it := IterFields(t); f != nil; f = it.Next() {
-		p.field(f)
-		if p.trace && f.Down != nil {
+		if p.trace {
 			p.tracef("\n")
 		}
+		p.field(f)
 	}
 }
 
@@ -586,17 +585,17 @@ func (p *exporter) note(n *string) {
 }
 
 func (p *exporter) methodList(t *Type) {
-	if p.trace && t.Type != nil {
-		p.tracef("methods {>\n")
+	if p.trace && countfield(t) > 0 {
+		p.tracef("methods {>")
 		defer p.tracef("<\n} ")
 	}
 
 	p.int(countfield(t))
 	for m, it := IterFields(t); m != nil; m = it.Next() {
-		p.method(m)
-		if p.trace && m.Down != nil {
+		if p.trace {
 			p.tracef("\n")
 		}
+		p.method(m)
 	}
 }
 
