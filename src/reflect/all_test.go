@@ -2410,6 +2410,17 @@ func TestEmbeddedMethods(t *testing.T) {
 	}
 }
 
+type FuncDDD func(...interface{}) error
+
+func (f FuncDDD) M() {}
+
+func TestNumMethodOnDDD(t *testing.T) {
+	rv := ValueOf((FuncDDD)(nil))
+	if n := rv.NumMethod(); n != 1 {
+		t.Fatalf("NumMethod()=%d, want 1", n)
+	}
+}
+
 func TestPtrTo(t *testing.T) {
 	var i int
 

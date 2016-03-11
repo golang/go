@@ -1068,7 +1068,7 @@ ok:
 			ot += 4 // align for *rtype
 		}
 
-		dataAdd := (inCount + outCount) * Widthptr
+		dataAdd := (inCount + t.Outtuple) * Widthptr
 		ot = dextratype(s, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.
