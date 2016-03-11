@@ -55,8 +55,19 @@ func gcMarkRootPrepare() {
 		}
 	}
 
-	// Compute number of span roots.
-	work.nSpanRoots = (len(work.spans) + rootBlockSpans - 1) / rootBlockSpans
+	if !work.markrootDone {
+		// On the first markroot, we need to scan span roots.
+		// In concurrent GC, this happens during concurrent
+		// mark and we depend on addfinalizer to ensure the
+		// above invariants for objects that get finalizers
+		// after concurrent mark. In STW GC, this will happen
+		// during mark termination.
+		work.nSpanRoots = (len(work.spans) + rootBlockSpans - 1) / rootBlockSpans
+	} else {
+		// We've already scanned span roots and kept the scan
+		// up-to-date during concurrent mark.
+		work.nSpanRoots = 0
+	}
 
 	// Snapshot of allglen. During concurrent scan, we just need
 	// to be consistent about how many markroot jobs we create and
@@ -263,14 +274,8 @@ func markrootSpans(gcw *gcWork, shard int) {
 	// TODO(austin): There are several ideas for making this more
 	// efficient in issue #11485.
 
-	// We process objects with finalizers only during the first
-	// markroot pass. In concurrent GC, this happens during
-	// concurrent mark and we depend on addfinalizer to ensure the
-	// above invariants for objects that get finalizers after
-	// concurrent mark. In STW GC, this will happen during mark
-	// termination.
 	if work.markrootDone {
-		return
+		throw("markrootSpans during second markroot")
 	}
 
 	sg := mheap_.sweepgen
