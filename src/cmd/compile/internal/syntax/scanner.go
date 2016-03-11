@@ -320,7 +320,7 @@ func (s *scanner) ident() {
 
 	// possibly a keyword
 	if len(lit) >= 2 {
-		if tok := keywordMap[hash(lit)]; tok != 0 && tokstrings[tok] == lit {
+		if tok := keywordMap[hash(lit)]; tok != 0 && strbyteseql(tokstrings[tok], lit) {
 			s.nlsemi = contains(1<<_Break|1<<_Continue|1<<_Fallthrough|1<<_Return, tok)
 			s.tok = tok
 			return
@@ -329,13 +329,25 @@ func (s *scanner) ident() {
 
 	s.nlsemi = true
 	s.tok = _Name
-	s.lit = lit
+	s.lit = string(lit)
 }
 
 // hash is a perfect hash function for keywords.
 // It assumes that s has at least length 2.
-func hash(s string) uint {
+func hash(s []byte) uint {
 	return (uint(s[0])<<4 ^ uint(s[1]) + uint(len(s))) & uint(len(keywordMap)-1)
+}
+
+func strbyteseql(s string, b []byte) bool {
+	if len(s) == len(b) {
+		for i, b := range b {
+			if s[i] != b {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 var keywordMap [1 << 6]token // size must be power of two
@@ -343,7 +355,7 @@ var keywordMap [1 << 6]token // size must be power of two
 func init() {
 	// populate keywordMap
 	for tok := _Break; tok <= _Var; tok++ {
-		h := hash(tokstrings[tok])
+		h := hash([]byte(tokstrings[tok]))
 		if keywordMap[h] != 0 {
 			panic("imperfect hash")
 		}
@@ -369,7 +381,7 @@ func (s *scanner) number(c rune) {
 					panic("malformed hex constant")
 				}
 				s.ungetr()
-				s.lit = s.stopLit()
+				s.lit = string(s.stopLit())
 				return
 			}
 
@@ -387,7 +399,7 @@ func (s *scanner) number(c rune) {
 					panic("malformed octal constant")
 				}
 				s.ungetr()
-				s.lit = s.stopLit()
+				s.lit = string(s.stopLit())
 				return
 			}
 
@@ -426,7 +438,7 @@ func (s *scanner) number(c rune) {
 		s.ungetr() // not complex
 	}
 
-	s.lit = s.stopLit()
+	s.lit = string(s.stopLit())
 }
 
 func (s *scanner) stdString() {
@@ -443,7 +455,7 @@ func (s *scanner) stdString() {
 			panic("string not terminated")
 		}
 	}
-	s.lit = s.stopLit()
+	s.lit = string(s.stopLit())
 }
 
 func (s *scanner) rawString() {
@@ -458,7 +470,7 @@ func (s *scanner) rawString() {
 		}
 		// TODO(gri) deal with CRs (or don't?)
 	}
-	s.lit = s.stopLit()
+	s.lit = string(s.stopLit())
 }
 
 func (s *scanner) rune() {
@@ -471,7 +483,7 @@ func (s *scanner) rune() {
 	if c != '\'' {
 		panic(c)
 	}
-	s.lit = s.stopLit()
+	s.lit = string(s.stopLit())
 }
 
 func (s *scanner) match(r rune, prefix string) rune {

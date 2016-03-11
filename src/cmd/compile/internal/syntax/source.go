@@ -139,11 +139,11 @@ func (s *source) startLit() {
 	s.lit = s.lit[:0] // reuse lit
 }
 
-func (s *source) stopLit() string {
+func (s *source) stopLit() []byte {
 	lit := s.buf[s.suf:s.r]
 	if len(s.lit) > 0 {
 		lit = append(s.lit, lit...)
 	}
 	s.suf = -1 // no pending literal
-	return string(lit)
+	return lit
 }
