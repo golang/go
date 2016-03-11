@@ -681,9 +681,6 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
 		dumpgstatus(gp)
 		throw("casfrom_Gscanstatus: gp->status is not in scan state")
 	}
-	if newval == _Grunning {
-		gp.gcscanvalid = false
-	}
 }
 
 // This will return false if the gp is not in the expected status and the cas fails.
