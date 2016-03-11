@@ -406,7 +406,7 @@ func Dconv(p *Prog, a *Addr) string {
 		if a.Index != REG_NONE {
 			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
 		}
-		if p.As == ATYPE && a.Gotype != nil {
+		if p != nil && p.As == ATYPE && a.Gotype != nil {
 			str += fmt.Sprintf("%s", a.Gotype.Name)
 		}
 
