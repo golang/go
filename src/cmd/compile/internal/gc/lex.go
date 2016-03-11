@@ -137,6 +137,54 @@ const (
 	LIGNORE
 )
 
+var lexn = map[rune]string{
+	LNAME:    "NAME",
+	LLITERAL: "LITERAL",
+
+	LOPER:  "OPER",
+	LASOP:  "ASOP",
+	LINCOP: "INCOP",
+
+	LCOLAS: "COLAS",
+	LCOMM:  "COMM",
+	LDDD:   "DDD",
+
+	LBREAK:     "BREAK",
+	LCASE:      "CASE",
+	LCHAN:      "CHAN",
+	LCONST:     "CONST",
+	LCONTINUE:  "CONTINUE",
+	LDEFAULT:   "DEFAULT",
+	LDEFER:     "DEFER",
+	LELSE:      "ELSE",
+	LFALL:      "FALL",
+	LFOR:       "FOR",
+	LFUNC:      "FUNC",
+	LGO:        "GO",
+	LGOTO:      "GOTO",
+	LIF:        "IF",
+	LIMPORT:    "IMPORT",
+	LINTERFACE: "INTERFACE",
+	LMAP:       "MAP",
+	LPACKAGE:   "PACKAGE",
+	LRANGE:     "RANGE",
+	LRETURN:    "RETURN",
+	LSELECT:    "SELECT",
+	LSTRUCT:    "STRUCT",
+	LSWITCH:    "SWITCH",
+	LTYPE:      "TYPE",
+	LVAR:       "VAR",
+
+	// LIGNORE is never escaping lexer.next
+}
+
+func lexname(lex rune) string {
+	if s, ok := lexn[lex]; ok {
+		return s
+	}
+	return fmt.Sprintf("LEX-%d", lex)
+}
+
 func (l *lexer) next() {
 	nlsemi := l.nlsemi
 	l.nlsemi = false
