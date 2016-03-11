@@ -16,6 +16,18 @@ const (
 	InitPending    = 2
 )
 
+type InitEntry struct {
+	Xoffset int64 // struct, array only
+	Expr    *Node // bytes of run-time computed expressions
+}
+
+type InitPlan struct {
+	Lit  int64
+	Zero int64
+	Expr int64
+	E    []InitEntry
+}
+
 var (
 	initlist  []*Node
 	initplans map[*Node]*InitPlan
