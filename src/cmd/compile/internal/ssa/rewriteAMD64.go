@@ -66,6 +66,16 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpAnd8(v, config)
 	case OpAvg64u:
 		return rewriteValueAMD64_OpAvg64u(v, config)
+	case OpBswap32:
+		return rewriteValueAMD64_OpBswap32(v, config)
+	case OpBswap64:
+		return rewriteValueAMD64_OpBswap64(v, config)
+	case OpAMD64CMOVLEQconst:
+		return rewriteValueAMD64_OpAMD64CMOVLEQconst(v, config)
+	case OpAMD64CMOVQEQconst:
+		return rewriteValueAMD64_OpAMD64CMOVQEQconst(v, config)
+	case OpAMD64CMOVWEQconst:
+		return rewriteValueAMD64_OpAMD64CMOVWEQconst(v, config)
 	case OpAMD64CMPB:
 		return rewriteValueAMD64_OpAMD64CMPB(v, config)
 	case OpAMD64CMPBconst:
@@ -110,6 +120,12 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
 		return rewriteValueAMD64_OpConstNil(v, config)
 	case OpConvert:
 		return rewriteValueAMD64_OpConvert(v, config)
+	case OpCtz16:
+		return rewriteValueAMD64_OpCtz16(v, config)
+	case OpCtz32:
+		return rewriteValueAMD64_OpCtz32(v, config)
+	case OpCtz64:
+		return rewriteValueAMD64_OpCtz64(v, config)
 	case OpCvt32Fto32:
 		return rewriteValueAMD64_OpCvt32Fto32(v, config)
 	case OpCvt32Fto64:
@@ -2119,6 +2135,307 @@ func rewriteValueAMD64_OpAvg64u(v *Value, config *Config) bool {
 	}
 	return false
 }
+func rewriteValueAMD64_OpBswap32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Bswap32 x)
+	// cond:
+	// result: (BSWAPL x)
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64BSWAPL)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpBswap64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Bswap64 x)
+	// cond:
+	// result: (BSWAPQ x)
+	for {
+		x := v.Args[0]
+		v.reset(OpAMD64BSWAPQ)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64CMOVLEQconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (CMOVLEQconst x (InvertFlags y) [c])
+	// cond:
+	// result: (CMOVLNEconst x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64InvertFlags {
+			break
+		}
+		y := v_1.Args[0]
+		c := v.AuxInt
+		v.reset(OpAMD64CMOVLNEconst)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AuxInt = c
+		return true
+	}
+	// match: (CMOVLEQconst _ (FlagEQ) [c])
+	// cond:
+	// result: (Const32 [c])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagEQ {
+			break
+		}
+		c := v.AuxInt
+		v.reset(OpConst32)
+		v.AuxInt = c
+		return true
+	}
+	// match: (CMOVLEQconst x (FlagLT_ULT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagLT_ULT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVLEQconst x (FlagLT_UGT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagLT_UGT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVLEQconst x (FlagGT_ULT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagGT_ULT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVLEQconst x (FlagGT_UGT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagGT_UGT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64CMOVQEQconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (CMOVQEQconst x (InvertFlags y) [c])
+	// cond:
+	// result: (CMOVQNEconst x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64InvertFlags {
+			break
+		}
+		y := v_1.Args[0]
+		c := v.AuxInt
+		v.reset(OpAMD64CMOVQNEconst)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AuxInt = c
+		return true
+	}
+	// match: (CMOVQEQconst _ (FlagEQ) [c])
+	// cond:
+	// result: (Const64 [c])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagEQ {
+			break
+		}
+		c := v.AuxInt
+		v.reset(OpConst64)
+		v.AuxInt = c
+		return true
+	}
+	// match: (CMOVQEQconst x (FlagLT_ULT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagLT_ULT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVQEQconst x (FlagLT_UGT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagLT_UGT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVQEQconst x (FlagGT_ULT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagGT_ULT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVQEQconst x (FlagGT_UGT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagGT_UGT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpAMD64CMOVWEQconst(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (CMOVWEQconst x (InvertFlags y) [c])
+	// cond:
+	// result: (CMOVWNEconst x y [c])
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64InvertFlags {
+			break
+		}
+		y := v_1.Args[0]
+		c := v.AuxInt
+		v.reset(OpAMD64CMOVWNEconst)
+		v.AddArg(x)
+		v.AddArg(y)
+		v.AuxInt = c
+		return true
+	}
+	// match: (CMOVWEQconst _ (FlagEQ) [c])
+	// cond:
+	// result: (Const16 [c])
+	for {
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagEQ {
+			break
+		}
+		c := v.AuxInt
+		v.reset(OpConst16)
+		v.AuxInt = c
+		return true
+	}
+	// match: (CMOVWEQconst x (FlagLT_ULT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagLT_ULT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVWEQconst x (FlagLT_UGT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagLT_UGT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVWEQconst x (FlagGT_ULT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagGT_ULT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMOVWEQconst x (FlagGT_UGT))
+	// cond:
+	// result: x
+	for {
+		x := v.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpAMD64FlagGT_UGT {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = x.Type
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
 func rewriteValueAMD64_OpAMD64CMPB(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
@@ -3022,6 +3339,72 @@ func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
 		v.Type = t
 		v.AddArg(x)
 		v.AddArg(mem)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCtz16(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Ctz16 <t> x)
+	// cond:
+	// result: (CMOVWEQconst (BSFW <t> x) (CMPWconst x [0]) [16])
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpAMD64CMOVWEQconst)
+		v0 := b.NewValue0(v.Line, OpAMD64BSFW, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpAMD64CMPWconst, TypeFlags)
+		v1.AddArg(x)
+		v1.AuxInt = 0
+		v.AddArg(v1)
+		v.AuxInt = 16
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCtz32(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Ctz32 <t> x)
+	// cond:
+	// result: (CMOVLEQconst (BSFL <t> x) (CMPLconst x [0]) [32])
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpAMD64CMOVLEQconst)
+		v0 := b.NewValue0(v.Line, OpAMD64BSFL, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpAMD64CMPLconst, TypeFlags)
+		v1.AddArg(x)
+		v1.AuxInt = 0
+		v.AddArg(v1)
+		v.AuxInt = 32
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64_OpCtz64(v *Value, config *Config) bool {
+	b := v.Block
+	_ = b
+	// match: (Ctz64 <t> x)
+	// cond:
+	// result: (CMOVQEQconst (BSFQ <t> x) (CMPQconst x [0]) [64])
+	for {
+		t := v.Type
+		x := v.Args[0]
+		v.reset(OpAMD64CMOVQEQconst)
+		v0 := b.NewValue0(v.Line, OpAMD64BSFQ, t)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		v1 := b.NewValue0(v.Line, OpAMD64CMPQconst, TypeFlags)
+		v1.AddArg(x)
+		v1.AuxInt = 0
+		v.AddArg(v1)
+		v.AuxInt = 64
 		return true
 	}
 	return false

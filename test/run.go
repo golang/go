@@ -34,6 +34,7 @@ import (
 
 var (
 	verbose        = flag.Bool("v", false, "verbose. if set, parallelism is set to 1.")
+	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
 	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary        = flag.Bool("summary", false, "show summary of results")
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
@@ -201,8 +202,9 @@ func compileFile(runcmd runCmd, longname string) (out []byte, err error) {
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, names ...string) (out []byte, err error) {
+func compileInDir(runcmd runCmd, dir string, flags []string, names ...string) (out []byte, err error) {
 	cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", "."}
+	cmd = append(cmd, flags...)
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
 	}
@@ -477,6 +479,9 @@ func (t *test) run() {
 		fallthrough
 	case "compile", "compiledir", "build", "run", "runoutput", "rundir":
 		t.action = action
+	case "errorcheckandrundir":
+		wantError = false // should be no error if also will run
+		fallthrough
 	case "errorcheck", "errorcheckdir", "errorcheckoutput":
 		t.action = action
 		wantError = true
@@ -501,7 +506,9 @@ func (t *test) run() {
 	}
 
 	t.makeTempDir()
-	defer os.RemoveAll(t.tempDir)
+	if !*keep {
+		defer os.RemoveAll(t.tempDir)
+	}
 
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	check(err)
@@ -577,13 +584,13 @@ func (t *test) run() {
 			return
 		}
 		for _, gofiles := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, gofiles...)
+			_, t.err = compileInDir(runcmd, longdir, flags, gofiles...)
 			if t.err != nil {
 				return
 			}
 		}
 
-	case "errorcheckdir":
+	case "errorcheckdir", "errorcheckandrundir":
 		// errorcheck all files in lexicographic order
 		// useful for finding importing errors
 		longdir := filepath.Join(cwd, t.goDirName())
@@ -593,7 +600,7 @@ func (t *test) run() {
 			return
 		}
 		for i, gofiles := range pkgs {
-			out, err := compileInDir(runcmd, longdir, gofiles...)
+			out, err := compileInDir(runcmd, longdir, flags, gofiles...)
 			if i == len(pkgs)-1 {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -615,6 +622,10 @@ func (t *test) run() {
 				break
 			}
 		}
+		if action == "errorcheckdir" {
+			return
+		}
+		fallthrough
 
 	case "rundir":
 		// Compile all files in the directory in lexicographic order.
@@ -626,7 +637,7 @@ func (t *test) run() {
 			return
 		}
 		for i, gofiles := range pkgs {
-			_, err := compileInDir(runcmd, longdir, gofiles...)
+			_, err := compileInDir(runcmd, longdir, flags, gofiles...)
 			if err != nil {
 				t.err = err
 				return
@@ -774,6 +785,9 @@ func (t *test) makeTempDir() {
 	var err error
 	t.tempDir, err = ioutil.TempDir("", "")
 	check(err)
+	if *keep {
+		log.Printf("Temporary directory is %s", t.tempDir)
+	}
 }
 
 func (t *test) expectedOutput() string {
