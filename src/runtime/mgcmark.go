@@ -15,6 +15,7 @@ import (
 const (
 	fixedRootFinalizers = iota
 	fixedRootFlushCaches
+	fixedRootFreeGStacks
 	fixedRootCount
 
 	// rootBlockBytes is the number of bytes to scan per data or
@@ -126,6 +127,13 @@ func markroot(gcw *gcWork, i uint32) {
 			flushallmcaches()
 		}
 
+	case i == fixedRootFreeGStacks:
+		// Only do this once per GC cycle; preferably
+		// concurrently.
+		if !work.markrootDone {
+			markrootFreeGStacks()
+		}
+
 	case baseSpans <= i && i < baseStacks:
 		// mark MSpan.specials
 		markrootSpans(gcw, int(i-baseSpans))
@@ -142,13 +150,6 @@ func markroot(gcw *gcWork, i uint32) {
 		status := readgstatus(gp) // We are not in a scan state
 		if (status == _Gwaiting || status == _Gsyscall) && gp.waitsince == 0 {
 			gp.waitsince = work.tstart
-		}
-
-		if gcphase == _GCmarktermination && status == _Gdead {
-			// Free gp's stack if necessary. Only do this
-			// during mark termination because otherwise
-			// _Gdead may be transient.
-			shrinkstack(gp)
 		}
 
 		if gcphase != _GCmarktermination && gp.startpc == gcBgMarkWorkerPC {
@@ -213,6 +214,36 @@ func markrootBlock(b0, n0 uintptr, ptrmask0 *uint8, gcw *gcWork, shard int) {
 
 	// Scan this shard.
 	scanblock(b, n, ptrmask, gcw)
+}
+
+// markrootFreeGStacks frees stacks of dead Gs.
+//
+// This does not free stacks of dead Gs cached on Ps, but having a few
+// cached stacks around isn't a problem.
+//
+//TODO go:nowritebarrier
+func markrootFreeGStacks() {
+	// Take list of dead Gs with stacks.
+	lock(&sched.gflock)
+	list := sched.gfreeStack
+	sched.gfreeStack = nil
+	unlock(&sched.gflock)
+	if list == nil {
+		return
+	}
+
+	// Free stacks.
+	tail := list
+	for gp := list; gp != nil; gp = gp.schedlink.ptr() {
+		shrinkstack(gp)
+		tail = gp
+	}
+
+	// Put Gs back on the free list.
+	lock(&sched.gflock)
+	tail.schedlink.set(sched.gfreeNoStack)
+	sched.gfreeNoStack = list
+	unlock(&sched.gflock)
 }
 
 // markrootSpans marks roots for one shard of work.spans.
