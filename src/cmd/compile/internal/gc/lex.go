@@ -885,7 +885,8 @@ const (
 
 type lexer struct {
 	// source
-	bin *bufio.Reader
+	bin        *bufio.Reader
+	prevlineno int32 // line no. of most recently read character
 
 	nlsemi bool // if set, '\n' and EOF translate to ';'
 
@@ -1003,7 +1004,7 @@ l0:
 
 	switch c {
 	case EOF:
-		l.ungetr(EOF) // return EOF again in future next call
+		l.ungetr()
 		// Treat EOF as "end of line" for the purposes
 		// of inserting a semicolon.
 		if nlsemi {
@@ -1023,7 +1024,7 @@ l0:
 	case '.':
 		c1 = l.getr()
 		if isDigit(c1) {
-			l.ungetr(c1)
+			l.ungetr()
 			l.number('.')
 			return
 		}
@@ -1036,7 +1037,7 @@ l0:
 				goto lx
 			}
 
-			l.ungetr(c1)
+			l.ungetr()
 			c1 = '.'
 		}
 
@@ -1086,7 +1087,7 @@ l0:
 			c = l.getlinepragma()
 			for {
 				if c == '\n' || c == EOF {
-					l.ungetr(c)
+					l.ungetr()
 					goto l0
 				}
 
@@ -1240,7 +1241,7 @@ l0:
 		goto l0
 	}
 
-	l.ungetr(c1)
+	l.ungetr()
 
 lx:
 	if Debug['x'] != 0 {
@@ -1269,7 +1270,7 @@ binop:
 	c1 = l.getr()
 binop1:
 	if c1 != '=' {
-		l.ungetr(c1)
+		l.ungetr()
 		l.op = op
 		l.prec = prec
 		goto lx
@@ -1312,7 +1313,7 @@ func (l *lexer) ident(c rune) {
 	}
 
 	cp = nil
-	l.ungetr(c)
+	l.ungetr()
 
 	name := lexbuf.Bytes()
 
@@ -1478,7 +1479,7 @@ func (l *lexer) number(c rune) {
 		}
 	}
 
-	l.ungetr(c)
+	l.ungetr()
 
 	if isInt {
 		if malformedOctal {
@@ -1591,7 +1592,7 @@ func (l *lexer) rune() {
 
 	if c := l.getr(); c != '\'' {
 		Yyerror("missing '")
-		l.ungetr(c)
+		l.ungetr()
 	}
 
 	x := new(Mpint)
@@ -1892,6 +1893,7 @@ func pragcgo(text string) {
 
 func (l *lexer) getr() rune {
 redo:
+	l.prevlineno = lexlineno
 	r, w, err := l.bin.ReadRune()
 	if err != nil {
 		if err != io.EOF {
@@ -1918,11 +1920,9 @@ redo:
 	return r
 }
 
-func (l *lexer) ungetr(r rune) {
+func (l *lexer) ungetr() {
 	l.bin.UnreadRune()
-	if r == '\n' && importpkg == nil {
-		lexlineno--
-	}
+	lexlineno = l.prevlineno
 }
 
 // onechar lexes a single character within a rune or interpreted string literal,
@@ -1932,12 +1932,12 @@ func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
 	switch c {
 	case EOF:
 		Yyerror("eof in string")
-		l.ungetr(EOF)
+		l.ungetr()
 		return
 
 	case '\n':
 		Yyerror("newline in string")
-		l.ungetr('\n')
+		l.ungetr()
 		return
 
 	case '\\':
@@ -1971,7 +1971,7 @@ func (l *lexer) onechar(quote rune) (r rune, b byte, ok bool) {
 			}
 
 			Yyerror("non-octal character in escape sequence: %c", c)
-			l.ungetr(c)
+			l.ungetr()
 		}
 
 		if x > 255 {
@@ -2029,7 +2029,7 @@ func (l *lexer) hexchar(n int) uint32 {
 			d = uint32(c - 'A' + 10)
 		default:
 			Yyerror("non-hex character in escape sequence: %c", c)
-			l.ungetr(c)
+			l.ungetr()
 			return x
 		}
 		x = x*16 + d
