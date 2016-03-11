@@ -459,8 +459,15 @@ func compile(fn *Node) {
 	gcargs := makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
 	gclocals := makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
 
-	for _, t := range Curfn.Func.Fieldtrack {
-		gtrack(tracksym(t))
+	if obj.Fieldtrack_enabled != 0 && len(Curfn.Func.FieldTrack) > 0 {
+		trackSyms := make([]*Sym, 0, len(Curfn.Func.FieldTrack))
+		for sym := range Curfn.Func.FieldTrack {
+			trackSyms = append(trackSyms, sym)
+		}
+		sort.Sort(symByName(trackSyms))
+		for _, sym := range trackSyms {
+			gtrack(sym)
+		}
 	}
 
 	for _, n := range fn.Func.Dcl {

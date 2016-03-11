@@ -3838,23 +3838,22 @@ func usefield(n *Node) {
 		return
 	}
 
-	// dedup on list
-	if field.Lastfn == Curfn {
-		return
+	outer := n.Left.Type
+	if Isptr[outer.Etype] {
+		outer = outer.Type
 	}
-	field.Lastfn = Curfn
-	field.Outer = n.Left.Type
-	if Isptr[field.Outer.Etype] {
-		field.Outer = field.Outer.Type
-	}
-	if field.Outer.Sym == nil {
+	if outer.Sym == nil {
 		Yyerror("tracked field must be in named struct type")
 	}
 	if !exportname(field.Sym.Name) {
 		Yyerror("tracked field must be exported (upper case)")
 	}
 
-	Curfn.Func.Fieldtrack = append(Curfn.Func.Fieldtrack, field)
+	sym := tracksym(outer, field)
+	if Curfn.Func.FieldTrack == nil {
+		Curfn.Func.FieldTrack = make(map[*Sym]struct{})
+	}
+	Curfn.Func.FieldTrack[sym] = struct{}{}
 }
 
 func candiscardlist(l Nodes) bool {

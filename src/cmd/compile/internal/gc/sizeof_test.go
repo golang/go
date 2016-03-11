@@ -23,11 +23,11 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr     // size on 64bit platforms
 	}{
 		{Flow{}, 52, 88},
-		{Func{}, 104, 184},
+		{Func{}, 96, 168},
 		{Name{}, 52, 80},
 		{Node{}, 92, 144},
 		{Sym{}, 60, 112},
-		{Type{}, 144, 240},
+		{Type{}, 136, 224},
 	}
 
 	for _, tt := range tests {
