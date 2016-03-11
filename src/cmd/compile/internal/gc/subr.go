@@ -416,13 +416,6 @@ func (x methcmp) Less(i, j int) bool {
 	return false
 }
 
-func sortinter(t *Type) *Type {
-	s := t.FieldSlice()
-	sort.Sort(methcmp(s))
-	t.SetFields(s)
-	return t
-}
-
 func Nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
