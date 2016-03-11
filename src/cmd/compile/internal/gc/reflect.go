@@ -452,15 +452,12 @@ func dgopkgpath(s *Sym, ot int, pkg *Pkg) int {
 	}
 
 	if pkg == localpkg && myimportpath == "" {
-		// If we don't know the full path of the package being compiled (i.e. -p
-		// was not passed on the compiler command line), emit reference to
-		// go.importpath.""., which 6l will rewrite using the correct import path.
+		// If we don't know the full import path of the package being compiled
+		// (i.e. -p was not passed on the compiler command line), emit a reference to
+		// go.importpath.""., which the linker will rewrite using the correct import path.
 		// Every package that imports this one directly defines the symbol.
-		var ns *Sym
-
-		if ns == nil {
-			ns = Pkglookup("importpath.\"\".", mkpkg("go"))
-		}
+		// See also https://groups.google.com/forum/#!topic/golang-dev/myb9s53HxGQ.
+		ns := Pkglookup("importpath.\"\".", mkpkg("go"))
 		return dsymptr(s, ot, ns, 0)
 	}
 
