@@ -300,6 +300,11 @@ var recvsParamsResults = [3]func(*Type) *Type{
 	(*Type).Recvs, (*Type).Params, (*Type).Results,
 }
 
+// paramsResults is like recvsParamsResults, but omits receiver parameters.
+var paramsResults = [2]func(*Type) *Type{
+	(*Type).Params, (*Type).Results,
+}
+
 // Key returns the key type of map type t.
 func (t *Type) Key() *Type {
 	t.wantEtype(TMAP)

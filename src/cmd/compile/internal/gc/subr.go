@@ -726,9 +726,11 @@ func eqtype1(t1, t2 *Type, assumedEqual map[typePair]struct{}) bool {
 		}
 		return false
 
-		// Loop over structs: receiver, in, out.
 	case TFUNC:
-		for _, f := range recvsParamsResults {
+		// Check parameters and result parameters for type equality.
+		// We intentionally ignore receiver parameters for type
+		// equality, because they're never relevant.
+		for _, f := range paramsResults {
 			// Loop over fields in structs, ignoring argument names.
 			ta, ia := IterFields(f(t1))
 			tb, ib := IterFields(f(t2))
@@ -2127,10 +2129,9 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 		if im.Broke {
 			continue
 		}
-		imtype := methodfunc(im.Type, nil)
 		var followptr bool
 		tm := ifacelookdot(im.Sym, t, &followptr, false)
-		if tm == nil || tm.Nointerface || !Eqtype(methodfunc(tm.Type, nil), imtype) {
+		if tm == nil || tm.Nointerface || !Eqtype(tm.Type, im.Type) {
 			if tm == nil {
 				tm = ifacelookdot(im.Sym, t, &followptr, true)
 			}
