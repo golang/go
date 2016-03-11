@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/internal/obj"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -975,6 +976,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 			fields = append(fields, f)
 		}
 	}
+	sort.Sort(methcmp(fields))
 	t.SetFields(fields)
 
 	for f, it := IterFields(t); f != nil && !t.Broke; f = it.Next() {
@@ -984,7 +986,6 @@ func tointerface0(t *Type, l []*Node) *Type {
 	}
 
 	checkdupfields("method", t)
-	t = sortinter(t)
 	checkwidth(t)
 
 	return t
