@@ -53,10 +53,68 @@ func GCMask(x interface{}) (ret []byte) {
 }
 
 func RunSchedLocalQueueTest() {
-	testSchedLocalQueue()
+	_p_ := new(p)
+	gs := make([]g, len(_p_.runq))
+	for i := 0; i < len(_p_.runq); i++ {
+		if g, _ := runqget(_p_); g != nil {
+			throw("runq is not empty initially")
+		}
+		for j := 0; j < i; j++ {
+			runqput(_p_, &gs[i], false)
+		}
+		for j := 0; j < i; j++ {
+			if g, _ := runqget(_p_); g != &gs[i] {
+				print("bad element at iter ", i, "/", j, "\n")
+				throw("bad element")
+			}
+		}
+		if g, _ := runqget(_p_); g != nil {
+			throw("runq is not empty afterwards")
+		}
+	}
 }
+
 func RunSchedLocalQueueStealTest() {
-	testSchedLocalQueueSteal()
+	p1 := new(p)
+	p2 := new(p)
+	gs := make([]g, len(p1.runq))
+	for i := 0; i < len(p1.runq); i++ {
+		for j := 0; j < i; j++ {
+			gs[j].sig = 0
+			runqput(p1, &gs[j], false)
+		}
+		gp := runqsteal(p2, p1, true)
+		s := 0
+		if gp != nil {
+			s++
+			gp.sig++
+		}
+		for {
+			gp, _ = runqget(p2)
+			if gp == nil {
+				break
+			}
+			s++
+			gp.sig++
+		}
+		for {
+			gp, _ = runqget(p1)
+			if gp == nil {
+				break
+			}
+			gp.sig++
+		}
+		for j := 0; j < i; j++ {
+			if gs[j].sig != 1 {
+				print("bad element ", j, "(", gs[j].sig, ") at iter ", i, "\n")
+				throw("bad element")
+			}
+		}
+		if s != i/2 && s != i/2+1 {
+			print("bad steal ", s, ", want ", i/2, " or ", i/2+1, ", iter ", i, "\n")
+			throw("bad steal")
+		}
+	}
 }
 
 var StringHash = stringHash
