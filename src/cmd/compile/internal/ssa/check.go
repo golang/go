@@ -171,8 +171,13 @@ func checkFunc(f *Func) {
 			canHaveAuxInt := false
 			switch opcodeTable[v.Op].auxType {
 			case auxNone:
-			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat:
+			case auxBool, auxInt8, auxInt16, auxInt32, auxInt64, auxFloat64:
 				canHaveAuxInt = true
+			case auxFloat32:
+				canHaveAuxInt = true
+				if !isExactFloat32(v) {
+					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
+				}
 			case auxString, auxSym:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff:
@@ -298,4 +303,9 @@ func domCheck(f *Func, sdom sparseTree, x, y *Block) bool {
 		return true
 	}
 	return sdom.isAncestorEq(x, y)
+}
+
+// isExactFloat32 reoprts whether v has an AuxInt that can be exactly represented as a float32.
+func isExactFloat32(v *Value) bool {
+	return v.AuxFloat() == float64(float32(v.AuxFloat()))
 }

@@ -153,12 +153,12 @@ func init() {
 		{name: "DIVSS", argLength: 2, reg: fp21x15, asm: "DIVSS", resultInArg0: true},                 // fp32 div
 		{name: "DIVSD", argLength: 2, reg: fp21x15, asm: "DIVSD", resultInArg0: true},                 // fp64 div
 
-		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},          // fp32 load
-		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},          // fp64 load
-		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float", rematerializeable: true}, // fp32 constant
-		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float", rematerializeable: true}, // fp64 constant
-		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},   // fp32 load
-		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},   // fp64 load
+		{name: "MOVSSload", argLength: 2, reg: fpload, asm: "MOVSS", aux: "SymOff"},            // fp32 load
+		{name: "MOVSDload", argLength: 2, reg: fpload, asm: "MOVSD", aux: "SymOff"},            // fp64 load
+		{name: "MOVSSconst", reg: fp01, asm: "MOVSS", aux: "Float32", rematerializeable: true}, // fp32 constant
+		{name: "MOVSDconst", reg: fp01, asm: "MOVSD", aux: "Float64", rematerializeable: true}, // fp64 constant
+		{name: "MOVSSloadidx4", argLength: 3, reg: fploadidx, asm: "MOVSS", aux: "SymOff"},     // fp32 load
+		{name: "MOVSDloadidx8", argLength: 3, reg: fploadidx, asm: "MOVSD", aux: "SymOff"},     // fp64 load
 
 		{name: "MOVSSstore", argLength: 3, reg: fpstore, asm: "MOVSS", aux: "SymOff"},        // fp32 store
 		{name: "MOVSDstore", argLength: 3, reg: fpstore, asm: "MOVSD", aux: "SymOff"},        // fp64 store

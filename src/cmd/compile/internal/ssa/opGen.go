@@ -748,7 +748,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "MOVSSconst",
-		auxType:           auxFloat,
+		auxType:           auxFloat32,
 		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVSS,
@@ -760,7 +760,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:              "MOVSDconst",
-		auxType:           auxFloat,
+		auxType:           auxFloat64,
 		argLen:            0,
 		rematerializeable: true,
 		asm:               x86.AMOVSD,
@@ -4957,13 +4957,13 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Const32F",
-		auxType: auxFloat,
+		auxType: auxFloat32,
 		argLen:  0,
 		generic: true,
 	},
 	{
 		name:    "Const64F",
-		auxType: auxFloat,
+		auxType: auxFloat64,
 		argLen:  0,
 		generic: true,
 	},

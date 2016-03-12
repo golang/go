@@ -30,26 +30,40 @@
 (Trunc64to8 (Const64 [c])) -> (Const8 [int64(int8(c))])
 (Trunc64to16 (Const64 [c])) -> (Const16 [int64(int16(c))])
 (Trunc64to32 (Const64 [c])) -> (Const32 [int64(int32(c))])
+(Cvt64Fto32F (Const64F [c])) -> (Const32F [f2i(float64(i2f32(c)))])
+(Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
 
-(Neg8 (Const8 [c])) -> (Const8 [-c])
-(Neg16 (Const16 [c])) -> (Const16 [-c])
-(Neg32 (Const32 [c])) -> (Const32 [-c])
-(Neg64 (Const64 [c])) -> (Const64 [-c])
+// const negation is currently handled by frontend
+//(Neg8 (Const8 [c])) -> (Const8 [-c])
+//(Neg16 (Const16 [c])) -> (Const16 [-c])
+//(Neg32 (Const32 [c])) -> (Const32 [-c])
+//(Neg64 (Const64 [c])) -> (Const64 [-c])
+//(Neg32F (Const32F [c])) -> (Const32F [f2i(-i2f(c))])
+//(Neg64F (Const64F [c])) -> (Const64F [f2i(-i2f(c))])
 
 (Add8 (Const8 [c]) (Const8 [d])) -> (Const8 [c+d])
 (Add16 (Const16 [c]) (Const16 [d])) -> (Const16 [c+d])
 (Add32 (Const32 [c]) (Const32 [d])) -> (Const32 [c+d])
 (Add64 (Const64 [c]) (Const64 [d])) -> (Const64 [c+d])
+(Add32F (Const32F [c]) (Const32F [d])) -> 
+        (Const32F [f2i(float64(i2f32(c) + i2f32(d)))]) // ensure we combine the operands with 32 bit precision
+(Add64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) + i2f(d))])
 
 (Sub8 (Const8 [c]) (Const8 [d])) -> (Const8 [c-d])
 (Sub16 (Const16 [c]) (Const16 [d])) -> (Const16 [c-d])
 (Sub32 (Const32 [c]) (Const32 [d])) -> (Const32 [c-d])
 (Sub64 (Const64 [c]) (Const64 [d])) -> (Const64 [c-d])
+(Sub32F (Const32F [c]) (Const32F [d])) -> 
+        (Const32F [f2i(float64(i2f32(c) - i2f32(d)))])
+(Sub64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) - i2f(d))])
 
 (Mul8 (Const8 [c]) (Const8 [d])) -> (Const8 [c*d])
 (Mul16 (Const16 [c]) (Const16 [d])) -> (Const16 [c*d])
 (Mul32 (Const32 [c]) (Const32 [d])) -> (Const32 [c*d])
 (Mul64 (Const64 [c]) (Const64 [d])) -> (Const64 [c*d])
+(Mul32F (Const32F [c]) (Const32F [d])) -> 
+        (Const32F [f2i(float64(i2f32(c) * i2f32(d)))])
+(Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) * i2f(d))])
 
 (Lsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c << uint64(d)])
 (Rsh64x64  (Const64 [c]) (Const64 [d])) -> (Const64 [c >> uint64(d)])
