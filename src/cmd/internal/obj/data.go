@@ -54,7 +54,7 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 
 // prepwrite prepares to write data of size siz into s at offset off.
 func (s *LSym) prepwrite(ctxt *Link, off, siz int64) {
-	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
+	if off < 0 || siz < 0 || off >= 1<<30 {
 		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
 	}
 	if s.Type == SBSS || s.Type == STLSBSS {
@@ -80,7 +80,7 @@ func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
 	s.prepwrite(ctxt, off, siz)
 	switch siz {
 	default:
-		ctxt.Diag("WriteInt bad integer: %d", siz)
+		ctxt.Diag("WriteInt: bad integer size: %d", siz)
 	case 1:
 		s.P[off] = byte(i)
 	case 2:
@@ -95,6 +95,9 @@ func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
 // WriteAddr writes an address of size siz into s at offset off.
 // rsym and roff specify the relocation for the address.
 func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
+	if siz != int64(ctxt.Arch.Ptrsize) {
+		ctxt.Diag("WriteAddr: bad address size: %d", siz)
+	}
 	s.prepwrite(ctxt, off, siz)
 	r := Addrel(s)
 	r.Off = int32(off)
@@ -106,6 +109,9 @@ func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
 
 // WriteString writes a string of size siz into s at offset off.
 func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
+	if siz < int64(len(str)) {
+		ctxt.Diag("WriteString: bad string size: %d < %d", siz, len(str))
+	}
 	s.prepwrite(ctxt, off, siz)
 	copy(s.P[off:off+siz], str)
 }

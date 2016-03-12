@@ -223,16 +223,7 @@ func stringsym(s string) (hdr, data *Sym) {
 	symdata.Flags |= SymUniq
 	symdata.Def = newname(symdata)
 
-	off = 0
-	var m int
-	for n := 0; n < len(s); n += m {
-		m = 8
-		if m > len(s)-n {
-			m = len(s) - n
-		}
-		off = dsname(symdata, off, s[n:n+m])
-	}
-
+	off = dsname(symdata, 0, s)
 	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
 	return symhdr, symdata
@@ -241,22 +232,12 @@ func stringsym(s string) (hdr, data *Sym) {
 var slicebytes_gen int
 
 func slicebytes(nam *Node, s string, len int) {
-	var m int
-
 	slicebytes_gen++
 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
 	sym := Pkglookup(symname, localpkg)
 	sym.Def = newname(sym)
 
-	off := 0
-	for n := 0; n < len; n += m {
-		m = 8
-		if m > len-n {
-			m = len - n
-		}
-		off = dsname(sym, off, s[n:n+m])
-	}
-
+	off := dsname(sym, 0, s)
 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
 
 	if nam.Op != ONAME {
