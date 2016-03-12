@@ -37,11 +37,11 @@ import (
 	"strings"
 )
 
-var ddumped int
-
-var dfirst *obj.Prog
-
-var dpc *obj.Prog
+var (
+	ddumped bool
+	dfirst  *obj.Prog
+	dpc     *obj.Prog
+)
 
 // Is this node a memory operand?
 func Ismem(n *Node) bool {
@@ -101,7 +101,7 @@ func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
 	if as == obj.ADATA || as == obj.AGLOBL {
-		if ddumped != 0 {
+		if ddumped {
 			Fatalf("already dumped data")
 		}
 		if dpc == nil {
@@ -119,10 +119,8 @@ func Prog(as obj.As) *obj.Prog {
 		p.Link = Pc
 	}
 
-	if lineno == 0 {
-		if Debug['K'] != 0 {
-			Warn("prog: line 0")
-		}
+	if lineno == 0 && Debug['K'] != 0 {
+		Warn("prog: line 0")
 	}
 
 	p.As = as
@@ -163,7 +161,7 @@ func Clearp(p *obj.Prog) {
 }
 
 func dumpdata() {
-	ddumped = 1
+	ddumped = true
 	if dfirst == nil {
 		return
 	}
@@ -383,14 +381,8 @@ func Naddr(a *obj.Addr, n *Node) {
 		if s == nil {
 			s = Lookup(".noname")
 		}
-		if n.Name.Method {
-			if n.Type != nil {
-				if n.Type.Sym != nil {
-					if n.Type.Sym.Pkg != nil {
-						s = Pkglookup(s.Name, n.Type.Sym.Pkg)
-					}
-				}
-			}
+		if n.Name.Method && n.Type != nil && n.Type.Sym != nil && n.Type.Sym.Pkg != nil {
+			s = Pkglookup(s.Name, n.Type.Sym.Pkg)
 		}
 
 		a.Type = obj.TYPE_MEM
@@ -517,7 +509,6 @@ func Naddr(a *obj.Addr, n *Node) {
 			a.Width = int64(Widthint)
 		}
 	}
-	return
 }
 
 func newplist() *obj.Plist {

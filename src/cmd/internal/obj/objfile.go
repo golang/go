@@ -123,32 +123,25 @@ func FlushplistNoFree(ctxt *Link) {
 	flushplist(ctxt, false)
 }
 func flushplist(ctxt *Link, freeProgs bool) {
-	var flag int
-	var s *LSym
-	var p *Prog
-	var plink *Prog
-	var a *Auto
-
 	// Build list of symbols, and assign instructions to lists.
 	// Ignore ctxt->plist boundaries. There are no guarantees there,
 	// and the assemblers just use one big list.
-	var curtext *LSym
-	var text *LSym
-	var etext *LSym
+	var curtext, text, etext *LSym
 
 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
-		for p = pl.Firstpc; p != nil; p = plink {
+		var plink *Prog
+		for p := pl.Firstpc; p != nil; p = plink {
 			if ctxt.Debugasm != 0 && ctxt.Debugvlog != 0 {
 				fmt.Printf("obj: %v\n", p)
 			}
 			plink = p.Link
 			p.Link = nil
 
-			if p.As == AEND {
+			switch p.As {
+			case AEND:
 				continue
-			}
 
-			if p.As == ATYPE {
+			case ATYPE:
 				// Assume each TYPE instruction describes
 				// a different local variable or parameter,
 				// so no dedup.
@@ -163,7 +156,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if curtext == nil {
 					continue
 				}
-				a = new(Auto)
+				a := new(Auto)
 				a.Asym = p.From.Sym
 				a.Aoffset = int32(p.From.Offset)
 				a.Name = int16(p.From.Name)
@@ -171,10 +164,9 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				a.Link = curtext.Autom
 				curtext.Autom = a
 				continue
-			}
 
-			if p.As == AGLOBL {
-				s = p.From.Sym
+			case AGLOBL:
+				s := p.From.Sym
 				tmp6 := s.Seenglobl
 				s.Seenglobl++
 				if tmp6 != 0 {
@@ -194,7 +186,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if s.Type == 0 || s.Type == SXREF {
 					s.Type = SBSS
 				}
-				flag = int(p.From3.Offset)
+				flag := int(p.From3.Offset)
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
 				}
@@ -207,15 +199,13 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				}
 				ctxt.Edata = s
 				continue
-			}
 
-			if p.As == ADATA {
+			case ADATA:
 				savedata(ctxt, p.From.Sym, p, "<input>")
 				continue
-			}
 
-			if p.As == ATEXT {
-				s = p.From.Sym
+			case ATEXT:
+				s := p.From.Sym
 				if s == nil {
 					// func _() { }
 					curtext = nil
@@ -236,7 +226,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 					etext.Next = s
 				}
 				etext = s
-				flag = int(p.From3Offset())
+				flag := int(p.From3Offset())
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
 				}
@@ -252,9 +242,8 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				s.Etext = p
 				curtext = s
 				continue
-			}
 
-			if p.As == AFUNCDATA {
+			case AFUNCDATA:
 				// Rewrite reference to go_args_stackmap(SB) to the Go-provided declaration information.
 				if curtext == nil { // func _() {}
 					continue
@@ -265,32 +254,33 @@ func flushplist(ctxt *Link, freeProgs bool) {
 					}
 					p.To.Sym = Linklookup(ctxt, fmt.Sprintf("%s.args_stackmap", curtext.Name), int(curtext.Version))
 				}
+
 			}
 
 			if curtext == nil {
 				continue
 			}
-			s = curtext
+			s := curtext
 			s.Etext.Link = p
 			s.Etext = p
 		}
 	}
 
 	// Add reference to Go arguments for C or assembly functions without them.
-	var found int
 	for s := text; s != nil; s = s.Next {
 		if !strings.HasPrefix(s.Name, "\"\".") {
 			continue
 		}
-		found = 0
+		found := false
+		var p *Prog
 		for p = s.Text; p != nil; p = p.Link {
 			if p.As == AFUNCDATA && p.From.Type == TYPE_CONST && p.From.Offset == FUNCDATA_ArgsPointerMaps {
-				found = 1
+				found = true
 				break
 			}
 		}
 
-		if found == 0 {
+		if !found {
 			p = Appendp(ctxt, s.Text)
 			p.As = AFUNCDATA
 			p.From.Type = TYPE_CONST
