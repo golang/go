@@ -195,7 +195,6 @@ func (p *importer) localname() *Sym {
 	if name == "" {
 		Fatalf("importer: unexpected anonymous name")
 	}
-	structpkg = importpkg // parser.go:hidden_pkg_importsym
 	return importpkg.Lookup(name)
 }
 
@@ -252,13 +251,7 @@ func (p *importer) typ() *Type {
 			n := methodname1(newname(sym), recv[0].Right)
 			n.Type = functype(recv[0], params, result)
 			checkwidth(n.Type)
-			// addmethod uses the global variable structpkg to verify consistency
-			{
-				saved := structpkg
-				structpkg = tsym.Pkg
-				addmethod(sym, n.Type, false, false)
-				structpkg = saved
-			}
+			addmethod(sym, n.Type, tsym.Pkg, false, false)
 			funchdr(n)
 
 			// (comment from parser.go)
