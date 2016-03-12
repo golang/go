@@ -16,12 +16,17 @@ TEXT _rt0_arm64_darwin(SB),NOSPLIT,$-8
 //
 // Note that all currently shipping darwin/arm64 platforms require
 // cgo and do not support c-shared.
-TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
-	// R27 is REGTMP, reserved for liblink. It is used below to
-	// move R0/R1 into globals. However in the standard ARM64 calling
-	// convention, it is a callee-saved register. So we save it to a
-	// temporary register.
-	MOVD  R27, R7
+TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$88
+	// Preserve callee-save registers.
+	MOVD R19, 24(RSP)
+	MOVD R20, 32(RSP)
+	MOVD R21, 40(RSP)
+	MOVD R22, 48(RSP)
+	MOVD R23, 56(RSP)
+	MOVD R24, 64(RSP)
+	MOVD R25, 72(RSP)
+	MOVD R26, 80(RSP)
+	MOVD R27, 88(RSP)
 
 	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
 	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
@@ -36,7 +41,16 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$0
 	MOVD  $0, R1
 	BL    (R4)
 
-	MOVD  R7, R27
+	// Restore callee-save registers.
+	MOVD 24(RSP), R19
+	MOVD 32(RSP), R20
+	MOVD 40(RSP), R21
+	MOVD 48(RSP), R22
+	MOVD 56(RSP), R23
+	MOVD 64(RSP), R24
+	MOVD 72(RSP), R25
+	MOVD 80(RSP), R26
+	MOVD 88(RSP), R27
 	RET
 
 TEXT _rt0_arm64_darwin_lib_go(SB),NOSPLIT,$0
