@@ -645,7 +645,9 @@ func (r *reader) computeMethodSets() {
 func (r *reader) cleanupTypes() {
 	for _, t := range r.types {
 		visible := r.isVisible(t.name)
-		if t.decl == nil && (predeclaredTypes[t.name] || visible && (t.isEmbedded || r.hasDotImp)) {
+		predeclared := predeclaredTypes[t.name]
+
+		if t.decl == nil && (predeclared || visible && (t.isEmbedded || r.hasDotImp)) {
 			// t.name is a predeclared type (and was not redeclared in this package),
 			// or it was embedded somewhere but its declaration is missing (because
 			// the AST is incomplete), or we have a dot-import (and all bets are off):
@@ -660,10 +662,12 @@ func (r *reader) cleanupTypes() {
 				r.funcs[name] = f
 			}
 			// 3) move methods
-			for name, m := range t.methods {
-				// don't overwrite functions with the same name - drop them
-				if _, found := r.funcs[name]; !found {
-					r.funcs[name] = m
+			if !predeclared {
+				for name, m := range t.methods {
+					// don't overwrite functions with the same name - drop them
+					if _, found := r.funcs[name]; !found {
+						r.funcs[name] = m
+					}
 				}
 			}
 		}
