@@ -138,14 +138,6 @@ func refererForURL(lastReq, newReq *url.URL) string {
 	return referer
 }
 
-// Used in Send to implement io.ReadCloser by bundling together the
-// bufio.Reader through which we read the response, and the underlying
-// network connection.
-type readClose struct {
-	io.Reader
-	io.Closer
-}
-
 func (c *Client) send(req *Request, deadline time.Time) (*Response, error) {
 	if c.Jar != nil {
 		for _, cookie := range c.Jar.Cookies(req.URL) {
