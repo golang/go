@@ -248,8 +248,6 @@ var localpkg *Pkg // package being compiled
 
 var importpkg *Pkg // package being imported
 
-var structpkg *Pkg // package that declared struct, during import
-
 var gostringpkg *Pkg // fake pkg for Go strings
 
 var itabpkg *Pkg // fake pkg for itab cache

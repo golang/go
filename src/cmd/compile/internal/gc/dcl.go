@@ -1284,11 +1284,13 @@ func methodname1(n *Node, t *Node) *Node {
 	return n
 }
 
-// add a method, declared as a function,
-// n is fieldname, pa is base type, t is function type
-func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+// Add a method, declared as a function.
+// - msym is the method symbol
+// - t is function type (with receiver)
+// - tpkg is the package of the type declaring the method during import, or nil (ignored) --- for verification only
+func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	// get field sym
-	if sf == nil {
+	if msym == nil {
 		Fatalf("no method symbol")
 	}
 
@@ -1299,7 +1301,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		return
 	}
 
-	pa = pa.Type
+	pa = pa.Type // base type
 	f := methtype(pa, 1)
 	if f == nil {
 		t = pa
@@ -1348,20 +1350,20 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		return
 	}
 
-	if isblanksym(sf) {
+	if isblanksym(msym) {
 		return
 	}
 
 	if pa.Etype == TSTRUCT {
 		for f, it := IterFields(pa); f != nil; f = it.Next() {
-			if f.Sym == sf {
-				Yyerror("type %v has both field and method named %v", pa, sf)
+			if f.Sym == msym {
+				Yyerror("type %v has both field and method named %v", pa, msym)
 				return
 			}
 		}
 	}
 
-	n := Nod(ODCLFIELD, newname(sf), nil)
+	n := Nod(ODCLFIELD, newname(msym), nil)
 	n.Type = t
 
 	var d *Type // last found
@@ -1370,11 +1372,11 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 		if f.Etype != TFIELD {
 			Fatalf("addmethod: not TFIELD: %v", Tconv(f, obj.FmtLong))
 		}
-		if sf.Name != f.Sym.Name {
+		if msym.Name != f.Sym.Name {
 			continue
 		}
 		if !Eqtype(t, f.Type) {
-			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", pa, sf, f.Type, t)
+			Yyerror("method redeclared: %v.%v\n\t%v\n\t%v", pa, msym, f.Type, t)
 		}
 		return
 	}
@@ -1383,8 +1385,8 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	f.Nointerface = nointerface
 
 	// during import unexported method names should be in the type's package
-	if importpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != structpkg {
-		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), structpkg.Name)
+	if tpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != tpkg {
+		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), tpkg.Name)
 	}
 
 	if d == nil {
@@ -1392,7 +1394,6 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
 	} else {
 		d.Down = f
 	}
-	return
 }
 
 func funccompile(n *Node) {

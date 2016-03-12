@@ -3438,7 +3438,7 @@ func typecheckfunc(n *Node) {
 	t.Nname = n.Func.Nname
 	rcvr := t.Recv()
 	if rcvr != nil && n.Func.Shortname != nil {
-		addmethod(n.Func.Shortname.Sym, t, true, n.Func.Nname.Nointerface)
+		addmethod(n.Func.Shortname.Sym, t, nil, true, n.Func.Nname.Nointerface)
 	}
 
 	for _, ln := range n.Func.Dcl {

@@ -36,6 +36,9 @@ type parser struct {
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
+
+	// TODO(gri) remove this once we switch to binary export format
+	structpkg *Pkg // for verification in addmethod only
 }
 
 // newparser returns a new parser ready to parse from src.
@@ -2008,7 +2011,7 @@ func (p *parser) hidden_fndcl() *Node {
 		ss.Type = functype(s2[0], s6, s8)
 
 		checkwidth(ss.Type)
-		addmethod(s4, ss.Type, false, false)
+		addmethod(s4, ss.Type, p.structpkg, false, false)
 		funchdr(ss)
 
 		// inl.C's inlnode in on a dotmeth node expects to find the inlineable body as
@@ -2863,12 +2866,9 @@ func (p *parser) hidden_pkg_importsym() *Sym {
 		defer p.trace("hidden_pkg_importsym")()
 	}
 
-	s1 := p.hidden_importsym()
-
-	ss := s1
-	structpkg = ss.Pkg
-
-	return ss
+	s := p.hidden_importsym()
+	p.structpkg = s.Pkg
+	return s
 }
 
 func (p *parser) hidden_pkgtype() *Type {
