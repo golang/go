@@ -16,12 +16,15 @@ TEXT _rt0_arm_darwin(SB),7,$-4
 //
 // Note that all currently shipping darwin/arm platforms require
 // cgo and do not support c-shared.
-TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$0
-	// R11 is REGTMP, reserved for liblink. It is used below to
-	// move R0/R1 into globals. However in the darwin ARMv7 calling
-	// convention, it is a callee-saved register. So we save it to a
-	// temporary register.
-	MOVW  R11, R2
+TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$32
+	// Preserve callee-save registers.
+	MOVW    R4, 12(R13)
+	MOVW    R5, 16(R13)
+	MOVW    R6, 20(R13)
+	MOVW    R7, 24(R13)
+	MOVW    R8, 28(R13)
+	MOVW    R11, 32(R13)
+
 	MOVW  R0, _rt0_arm_darwin_lib_argc<>(SB)
 	MOVW  R1, _rt0_arm_darwin_lib_argv<>(SB)
 
@@ -35,9 +38,8 @@ TEXT _rt0_arm_darwin_lib(SB),NOSPLIT,$0
 	B.EQ  nocgo
 	MOVW  $_rt0_arm_darwin_lib_go(SB), R0
 	MOVW  $0, R1
-	MOVW  R2, R11
 	BL    (R3)
-	RET
+	B rr
 nocgo:
 	MOVW  $0x400000, R0
 	MOVW  R0, (R13) // stacksize
@@ -46,9 +48,17 @@ nocgo:
 	MOVW  $0, R0
 	MOVW  R0, 8(R13) // fnarg
 	MOVW  $runtime·newosproc0(SB), R3
-	MOVW  R2, R11
 	BL    (R3)
+rr:
+	// Restore callee-save registers and return.
+	MOVW    12(R13), R4
+	MOVW    16(R13), R5
+	MOVW    20(R13), R6
+	MOVW    24(R13), R7
+	MOVW    28(R13), R8
+	MOVW    32(R13), R11
 	RET
+
 
 TEXT _rt0_arm_darwin_lib_go(SB),NOSPLIT,$0
 	MOVW  _rt0_arm_darwin_lib_argc<>(SB), R0
