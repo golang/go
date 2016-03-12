@@ -259,8 +259,8 @@ var genericOps = []opData{
 	{name: "Const16", aux: "Int16"},      // value is low 16 bits of auxint
 	{name: "Const32", aux: "Int32"},      // value is low 32 bits of auxint
 	{name: "Const64", aux: "Int64"},      // value is auxint
-	{name: "Const32F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
-	{name: "Const64F", aux: "Float"},     // value is math.Float64frombits(uint64(auxint))
+	{name: "Const32F", aux: "Float32"},   // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
+	{name: "Const64F", aux: "Float64"},   // value is math.Float64frombits(uint64(auxint))
 	{name: "ConstInterface"},             // nil interface
 	{name: "ConstSlice"},                 // nil slice
 

@@ -192,6 +192,16 @@ func b2i(b bool) int64 {
 	return 0
 }
 
+// i2f is used in rules for converting from an AuxInt to a float.
+func i2f(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+
+// i2f32 is used in rules for converting from an AuxInt to a float32.
+func i2f32(i int64) float32 {
+	return float32(math.Float64frombits(uint64(i)))
+}
+
 // f2i is used in the rules for storing a float in AuxInt.
 func f2i(f float64) int64 {
 	return int64(math.Float64bits(f))

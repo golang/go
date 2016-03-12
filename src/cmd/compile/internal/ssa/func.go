@@ -341,7 +341,7 @@ func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
 	return f.constVal(line, OpConst64, t, c, true)
 }
 func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
-	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(c)), true)
+	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
 }
 func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
 	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)), true)

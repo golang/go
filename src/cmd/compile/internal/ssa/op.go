@@ -49,7 +49,8 @@ const (
 	auxInt16                // auxInt is a 16-bit integer
 	auxInt32                // auxInt is a 32-bit integer
 	auxInt64                // auxInt is a 64-bit integer
-	auxFloat                // auxInt is a float64 (encoded with math.Float64bits)
+	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
 	auxString               // auxInt is a string
 	auxSym                  // aux is a symbol
 	auxSymOff               // aux is a symbol, auxInt is an offset
