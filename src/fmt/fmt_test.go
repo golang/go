@@ -723,10 +723,12 @@ var fmtTests = []struct {
 	{"%#v", S{F(7), G(8)}, "fmt_test.S{F:<v=F(7)>, G:GoString(8)}"},
 
 	// %T
+	{"%T", byte(0), "uint8"},
+	{"%T", reflect.ValueOf(nil), "reflect.Value"},
 	{"%T", (4 - 3i), "complex128"},
 	{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
-	{"%T", intVal, "int"},
-	{"%6T", &intVal, "  *int"},
+	{"%T", intVar, "int"},
+	{"%6T", &intVar, "  *int"},
 	{"%10T", nil, "     <nil>"},
 	{"%-10T", nil, "<nil>     "},
 
