@@ -868,10 +868,10 @@ func gen(n *Node) {
 		Cgen_checknil(n.Left)
 
 	case OVARKILL:
-		gvarkill(n.Left)
+		Gvarkill(n.Left)
 
 	case OVARLIVE:
-		gvarlive(n.Left)
+		Gvarlive(n.Left)
 	}
 
 ret:

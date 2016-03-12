@@ -9,5 +9,9 @@ var decOps = []opData{}
 var decBlocks = []blockData{}
 
 func init() {
-	archs = append(archs, arch{"dec", decOps, decBlocks, nil})
+	archs = append(archs, arch{
+		name:   "dec",
+		ops:    decOps,
+		blocks: decBlocks,
+	})
 }

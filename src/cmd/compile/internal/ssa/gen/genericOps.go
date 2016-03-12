@@ -413,5 +413,9 @@ var genericBlocks = []blockData{
 }
 
 func init() {
-	archs = append(archs, arch{"generic", genericOps, genericBlocks, nil})
+	archs = append(archs, arch{
+		name:   "generic",
+		ops:    genericOps,
+		blocks: genericBlocks,
+	})
 }

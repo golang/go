@@ -14,12 +14,15 @@ import (
 	"go/format"
 	"io/ioutil"
 	"log"
+	"path"
 	"regexp"
 	"sort"
 )
 
 type arch struct {
 	name     string
+	pkg      string // obj package to import for this arch.
+	genfile  string // source file containing opcode code generation.
 	ops      []opData
 	blocks   []blockData
 	regnames []string
@@ -81,7 +84,11 @@ func genOp() {
 
 	fmt.Fprintln(w, "import (")
 	fmt.Fprintln(w, "\"cmd/internal/obj\"")
-	fmt.Fprintln(w, "\"cmd/internal/obj/x86\"")
+	for _, a := range archs {
+		if a.pkg != "" {
+			fmt.Fprintf(w, "%q\n", a.pkg)
+		}
+	}
 	fmt.Fprintln(w, ")")
 
 	// generate Block* declarations
@@ -123,6 +130,8 @@ func genOp() {
 	fmt.Fprintln(w, " { name: \"OpInvalid\" },")
 	for _, a := range archs {
 		fmt.Fprintln(w)
+
+		pkg := path.Base(a.pkg)
 		for _, v := range a.ops {
 			fmt.Fprintln(w, "{")
 			fmt.Fprintf(w, "name:\"%s\",\n", v.name)
@@ -152,7 +161,7 @@ func genOp() {
 				continue
 			}
 			if v.asm != "" {
-				fmt.Fprintf(w, "asm: x86.A%s,\n", v.asm)
+				fmt.Fprintf(w, "asm: %s.A%s,\n", pkg, v.asm)
 			}
 			fmt.Fprintln(w, "reg:regInfo{")
 
@@ -210,24 +219,26 @@ func genOp() {
 		log.Fatalf("can't write output: %v\n", err)
 	}
 
-	// Check that ../gc/ssa.go handles all the arch-specific opcodes.
+	// Check that the arch genfile handles all the arch-specific opcodes.
 	// This is very much a hack, but it is better than nothing.
-	ssa, err := ioutil.ReadFile("../../gc/ssa.go")
-	if err != nil {
-		log.Fatalf("can't read ../../gc/ssa.go: %v", err)
-	}
 	for _, a := range archs {
-		if a.name == "generic" {
+		if a.genfile == "" {
 			continue
 		}
+
+		src, err := ioutil.ReadFile(a.genfile)
+		if err != nil {
+			log.Fatalf("can't read %s: %v", a.genfile, err)
+		}
+
 		for _, v := range a.ops {
 			pattern := fmt.Sprintf("\\Wssa[.]Op%s%s\\W", a.name, v.name)
-			match, err := regexp.Match(pattern, ssa)
+			match, err := regexp.Match(pattern, src)
 			if err != nil {
 				log.Fatalf("bad opcode regexp %s: %v", pattern, err)
 			}
 			if !match {
-				log.Fatalf("Op%s%s has no code generation in ../../gc/ssa.go", a.name, v.name)
+				log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
 			}
 		}
 	}
