@@ -2487,15 +2487,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
 			return nil
 		case PAUTO:
-			// We need to regenerate the address of autos
-			// at every use. This prevents LEA instructions
-			// from occurring before the corresponding VarDef
-			// op and confusing the liveness analysis into thinking
-			// the variable is live at function entry.
-			// TODO: I'm not sure if this really works or we're just
-			// getting lucky. We might need a real dependency edge
-			// between vardef and addr ops.
-			aux := &ssa.AutoSymbol{Typ: n.Type, Node: n}
+			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
 			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
 			// ensure that we reuse symbols for out parameters so
