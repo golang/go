@@ -139,7 +139,7 @@ func adjustURL(source string, sec int, ui plugin.UI) (adjusted, host string, dur
 	if err != nil || (url.Host == "" && url.Scheme != "" && url.Scheme != "file") {
 		url, err = url.Parse("http://" + source)
 		if err != nil {
-			return source, url.Host, time.Duration(30) * time.Second
+			return source, "", 0
 		}
 	}
 	if scheme := strings.ToLower(url.Scheme); scheme == "" || scheme == "file" {
