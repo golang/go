@@ -548,6 +548,7 @@
 (MULQconst [3] x) -> (LEAQ2 x x)
 (MULQconst [5] x) -> (LEAQ4 x x)
 (MULQconst [9] x) -> (LEAQ8 x x)
+(MULQconst [24] x) -> (SHLQconst [3] (LEAQ2 <v.Type> x x)) // Useful for [][]T accesses
 (MULQconst [c] x) && isPowerOfTwo(c) -> (SHLQconst [log2(c)] x)
 
 // combine add/shift into LEAQ

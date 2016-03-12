@@ -8280,6 +8280,22 @@ func rewriteValueAMD64_OpAMD64MULQconst(v *Value, config *Config) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MULQconst [24] x)
+	// cond:
+	// result: (SHLQconst [3] (LEAQ2 <v.Type> x x))
+	for {
+		if v.AuxInt != 24 {
+			break
+		}
+		x := v.Args[0]
+		v.reset(OpAMD64SHLQconst)
+		v.AuxInt = 3
+		v0 := b.NewValue0(v.Line, OpAMD64LEAQ2, v.Type)
+		v0.AddArg(x)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (MULQconst [c] x)
 	// cond: isPowerOfTwo(c)
 	// result: (SHLQconst [log2(c)] x)
