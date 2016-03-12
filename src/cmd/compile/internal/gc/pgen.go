@@ -108,11 +108,11 @@ func Gvardef(n *Node) {
 	gvardefx(n, obj.AVARDEF)
 }
 
-func gvarkill(n *Node) {
+func Gvarkill(n *Node) {
 	gvardefx(n, obj.AVARKILL)
 }
 
-func gvarlive(n *Node) {
+func Gvarlive(n *Node) {
 	gvardefx(n, obj.AVARLIVE)
 }
 

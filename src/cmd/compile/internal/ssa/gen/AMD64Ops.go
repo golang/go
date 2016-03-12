@@ -531,5 +531,12 @@ func init() {
 		{name: "NAN"}, // FP, unordered comparison (parity one)
 	}
 
-	archs = append(archs, arch{"AMD64", AMD64ops, AMD64blocks, regNamesAMD64})
+	archs = append(archs, arch{
+		name:     "AMD64",
+		pkg:      "cmd/internal/obj/x86",
+		genfile:  "../../amd64/ssa.go",
+		ops:      AMD64ops,
+		blocks:   AMD64blocks,
+		regnames: regNamesAMD64,
+	})
 }

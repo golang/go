@@ -6,6 +6,7 @@ package gc
 
 import (
 	"bytes"
+	"cmd/compile/internal/ssa"
 	"cmd/internal/obj"
 )
 
@@ -561,6 +562,19 @@ type Arch struct {
 	Doregbits    func(int) uint64
 	Regnames     func(*int) []string
 	Use387       bool // should 8g use 387 FP instructions instead of sse2.
+
+	// SSARegToReg maps ssa register numbers to obj register numbers.
+	SSARegToReg []int16
+
+	// SSAMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+	SSAMarkMoves func(*SSAGenState, *ssa.Block)
+
+	// SSAGenValue emits Prog(s) for the Value.
+	SSAGenValue func(*SSAGenState, *ssa.Value)
+
+	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
+	// for all values in the block before SSAGenBlock.
+	SSAGenBlock func(s *SSAGenState, b, next *ssa.Block)
 }
 
 var pcloc int32
