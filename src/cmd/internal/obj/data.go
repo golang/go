@@ -52,14 +52,12 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 	s.P = s.P[:siz]
 }
 
-func savedata(ctxt *Link, s *LSym, p *Prog, file string) {
+func savedata(ctxt *Link, p *Prog) {
+	s := p.From.Sym
 	off := int32(p.From.Offset)
 	siz := int32(p.From3.Offset)
 	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
-		log.Fatalf("%s: mangled input file", file)
-	}
-	if ctxt.Enforce_data_order != 0 && off < int32(len(s.P)) {
-		ctxt.Diag("data out of order (already have %d)\n%v", len(s.P), p)
+		log.Fatalf("savedata: bad off=%d siz=%d", off, siz)
 	}
 	if s.Type == SBSS || s.Type == STLSBSS {
 		ctxt.Diag("cannot supply data for BSS var")
