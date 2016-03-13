@@ -2777,10 +2777,12 @@ func addstr(n *Node, init *Nodes) *Node {
 // expand append(l1, l2...) to
 //   init {
 //     s := l1
-//     if n := len(l1) + len(l2) - cap(s); n > 0 {
-//       s = growslice_n(s, n)
+//     n := len(s) + len(l2)
+//     // Compare as uint so growslice can panic on overflow.
+//     if uint(n) > uint(cap(s)) {
+//       s = growslice(s, n)
 //     }
-//     s = s[:len(l1)+len(l2)]
+//     s = s[:n]
 //     memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 //   }
 //   s
@@ -2800,33 +2802,38 @@ func appendslice(n *Node, init *Nodes) *Node {
 	l1 := n.List.First()
 	l2 := n.List.Second()
 
-	s := temp(l1.Type) // var s []T
 	var l []*Node
+
+	// var s []T
+	s := temp(l1.Type)
 	l = append(l, Nod(OAS, s, l1)) // s = l1
 
-	nt := temp(Types[TINT])
+	// n := len(s) + len(l2)
+	nn := temp(Types[TINT])
+	l = append(l, Nod(OAS, nn, Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil))))
 
+	// if uint(n) > uint(cap(s))
 	nif := Nod(OIF, nil, nil)
+	nif.Left = Nod(OGT, Nod(OCONV, nn, nil), Nod(OCONV, Nod(OCAP, s, nil), nil))
+	nif.Left.Left.Type = Types[TUINT]
+	nif.Left.Right.Type = Types[TUINT]
 
-	// n := len(s) + len(l2) - cap(s)
-	nif.Ninit.Set1(Nod(OAS, nt, Nod(OSUB,
-		Nod(OADD, Nod(OLEN, s, nil), Nod(OLEN, l2, nil)),
-		Nod(OCAP, s, nil))))
-
-	nif.Left = Nod(OGT, nt, Nodintconst(0))
-
-	// instantiate growslice_n(Type*, []any, int) []any
-	fn := syslook("growslice_n") //   growslice_n(<type>, old []T, n int64) (ret []T)
+	// instantiate growslice(Type*, []any, int) []any
+	fn := syslook("growslice")
 	substArgTypes(&fn, s.Type.Type, s.Type.Type)
 
-	// s = growslice_n(T, s, n)
-	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
-
+	// s = growslice(T, s, n)
+	nif.Nbody.Set1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nn)))
 	l = append(l, nif)
 
+	// s = s[:n]
+	nt := Nod(OSLICE, s, Nod(OKEY, nil, nn))
+	nt.Etype = 1
+	l = append(l, Nod(OAS, s, nt))
+
 	if haspointers(l1.Type.Type) {
-		// copy(s[len(l1):len(l1)+len(l2)], l2)
-		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))))
+		// copy(s[len(l1):], l2)
+		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
 
 		nptr1.Etype = 1
 		nptr2 := l2
@@ -2838,8 +2845,8 @@ func appendslice(n *Node, init *Nodes) *Node {
 		l = append(ln.Slice(), nt)
 	} else if instrumenting {
 		// rely on runtime to instrument copy.
-		// copy(s[len(l1):len(l1)+len(l2)], l2)
-		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))))
+		// copy(s[len(l1):], l2)
+		nptr1 := Nod(OSLICE, s, Nod(OKEY, Nod(OLEN, l1, nil), nil))
 
 		nptr1.Etype = 1
 		nptr2 := l2
@@ -2857,8 +2864,8 @@ func appendslice(n *Node, init *Nodes) *Node {
 	} else {
 		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
 		nptr1 := Nod(OINDEX, s, Nod(OLEN, l1, nil))
-
 		nptr1.Bounded = true
+
 		nptr1 = Nod(OADDR, nptr1, nil)
 
 		nptr2 := Nod(OSPTR, l2, nil)
@@ -2874,13 +2881,6 @@ func appendslice(n *Node, init *Nodes) *Node {
 		nt := mkcall1(fn, nil, &ln, nptr1, nptr2, nwid)
 		l = append(ln.Slice(), nt)
 	}
-
-	// s = s[:len(l1)+len(l2)]
-	nt = Nod(OADD, Nod(OLEN, l1, nil), Nod(OLEN, l2, nil))
-
-	nt = Nod(OSLICE, s, Nod(OKEY, nil, nt))
-	nt.Etype = 1
-	l = append(l, Nod(OAS, s, nt))
 
 	typechecklist(l, Etop)
 	walkstmtlist(l)
