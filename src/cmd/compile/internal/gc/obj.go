@@ -300,113 +300,97 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
 		return duintptr(s, off, 0)
 	}
 	off = int(Rnd(int64(off), int64(Widthptr)))
-	p := Thearch.Gins(obj.ADATA, nil, nil)
-	p.From.Type = obj.TYPE_MEM
-	p.From.Name = obj.NAME_EXTERN
-	p.From.Sym = Linksym(s)
-	p.From.Offset = int64(off)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(Widthptr)
-	datagostring(*lit, &p.To)
-	p.To.Type = obj.TYPE_ADDR
-	p.To.Etype = uint8(Simtype[TINT])
+	symhdr, _ := stringsym(*lit)
+	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(symhdr), 0)
 	off += Widthptr
-
 	return off
 }
 
 func dsname(s *Sym, off int, t string) int {
-	p := Thearch.Gins(obj.ADATA, nil, nil)
-	p.From.Type = obj.TYPE_MEM
-	p.From.Name = obj.NAME_EXTERN
-	p.From.Offset = int64(off)
-	p.From.Sym = Linksym(s)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(len(t))
-
-	p.To.Type = obj.TYPE_SCONST
-	p.To.Val = t
+	Linksym(s).WriteString(Ctxt, int64(off), int64(len(t)), t)
 	return off + len(t)
 }
 
 func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
 	off = int(Rnd(int64(off), int64(Widthptr)))
-
-	p := Thearch.Gins(obj.ADATA, nil, nil)
-	p.From.Type = obj.TYPE_MEM
-	p.From.Name = obj.NAME_EXTERN
-	p.From.Sym = Linksym(s)
-	p.From.Offset = int64(off)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(Widthptr)
-	p.To.Type = obj.TYPE_ADDR
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = Linksym(x)
-	p.To.Offset = int64(xoff)
+	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(x), int64(xoff))
 	off += Widthptr
-
 	return off
 }
 
 func gdata(nam *Node, nr *Node, wid int) {
-	if nr.Op == OLITERAL {
+	if nam.Op != ONAME {
+		Fatalf("gdata nam op %v", opnames[nam.Op])
+	}
+	if nam.Sym == nil {
+		Fatalf("gdata nil nam sym")
+	}
+
+	switch nr.Op {
+	case OLITERAL:
 		switch nr.Val().Ctype() {
 		case CTCPLX:
 			gdatacomplex(nam, nr.Val().U.(*Mpcplx))
-			return
 
 		case CTSTR:
 			gdatastring(nam, nr.Val().U.(string))
-			return
-		}
-	}
 
-	p := Thearch.Gins(obj.ADATA, nam, nr)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(wid)
+		case CTINT, CTRUNE, CTBOOL:
+			i, _ := nr.IntLiteral()
+			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, int64(wid), i)
+
+		case CTFLT:
+			s := Linksym(nam.Sym)
+			f := mpgetflt(nr.Val().U.(*Mpflt))
+			switch nam.Type.Etype {
+			case TFLOAT32:
+				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
+			case TFLOAT64:
+				s.WriteFloat64(Ctxt, nam.Xoffset, f)
+			}
+
+		default:
+			// CTNILs don't reach gdata; search for CTNIL in sinit.go. Probably they should, eventually.
+			Fatalf("gdata unhandled OLITERAL %v", nr)
+		}
+
+	case OADDR:
+		if nr.Left.Op != ONAME {
+			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
+		}
+		to := nr.Left
+		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(to.Sym), to.Xoffset)
+
+	case ONAME:
+		if nr.Class != PFUNC {
+			Fatalf("gdata NAME not PFUNC %d", nr.Class)
+		}
+		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(funcsym(nr.Sym)), nr.Xoffset)
+
+	default:
+		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
+	}
 }
 
 func gdatacomplex(nam *Node, cval *Mpcplx) {
-	cst := cplxsubtype(nam.Type.Etype)
-	w := int(Types[cst].Width)
+	t := Types[cplxsubtype(nam.Type.Etype)]
+	r := mpgetflt(&cval.Real)
+	i := mpgetflt(&cval.Imag)
+	s := Linksym(nam.Sym)
 
-	p := Thearch.Gins(obj.ADATA, nam, nil)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(w)
-	p.To.Type = obj.TYPE_FCONST
-	p.To.Val = mpgetflt(&cval.Real)
-
-	p = Thearch.Gins(obj.ADATA, nam, nil)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(w)
-	p.From.Offset += int64(w)
-	p.To.Type = obj.TYPE_FCONST
-	p.To.Val = mpgetflt(&cval.Imag)
+	switch t.Etype {
+	case TFLOAT32:
+		s.WriteFloat32(Ctxt, nam.Xoffset, float32(r))
+		s.WriteFloat32(Ctxt, nam.Xoffset+4, float32(i))
+	case TFLOAT64:
+		s.WriteFloat64(Ctxt, nam.Xoffset, r)
+		s.WriteFloat64(Ctxt, nam.Xoffset+8, i)
+	}
 }
 
 func gdatastring(nam *Node, sval string) {
-	var nod1 Node
-
-	p := Thearch.Gins(obj.ADATA, nam, nil)
-	Datastring(sval, &p.To)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = Types[Tptr].Width
-	p.To.Type = obj.TYPE_ADDR
-
-	//print("%v\n", p);
-
-	Nodconst(&nod1, Types[TINT], int64(len(sval)))
-
-	p = Thearch.Gins(obj.ADATA, nam, &nod1)
-	p.From3 = new(obj.Addr)
-	p.From3.Type = obj.TYPE_CONST
-	p.From3.Offset = int64(Widthint)
-	p.From.Offset += int64(Widthptr)
+	s := Linksym(nam.Sym)
+	_, symdata := stringsym(sval)
+	s.WriteAddr(Ctxt, nam.Xoffset, Types[Tptr].Width, Linksym(symdata), 0)
+	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), int64(Widthint), int64(len(sval)))
 }
