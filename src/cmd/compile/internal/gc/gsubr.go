@@ -100,7 +100,7 @@ func Gbranch(as obj.As, t *Type, likely int) *obj.Prog {
 func Prog(as obj.As) *obj.Prog {
 	var p *obj.Prog
 
-	if as == obj.ADATA || as == obj.AGLOBL {
+	if as == obj.AGLOBL {
 		if ddumped {
 			Fatalf("already dumped data")
 		}

@@ -1100,7 +1100,6 @@ var optab =
 	{ACQO, ynone, Pw, [23]uint8{0x99}},
 	{ADAA, ynone, P32, [23]uint8{0x27}},
 	{ADAS, ynone, P32, [23]uint8{0x2f}},
-	{obj.ADATA, nil, 0, [23]uint8{}},
 	{ADECB, yincb, Pb, [23]uint8{0xfe, 01}},
 	{ADECL, yincl, Px1, [23]uint8{0x48, 0xff, 01}},
 	{ADECQ, yincq, Pw, [23]uint8{0xff, 01}},

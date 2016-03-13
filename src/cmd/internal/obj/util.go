@@ -288,7 +288,7 @@ func (p *Prog) String() string {
 		sep = ", "
 	}
 	if p.From3Type() != TYPE_NONE {
-		if p.From3.Type == TYPE_CONST && (p.As == ADATA || p.As == ATEXT || p.As == AGLOBL) {
+		if p.From3.Type == TYPE_CONST && (p.As == ATEXT || p.As == AGLOBL) {
 			// Special case - omit $.
 			fmt.Fprintf(&buf, "%s%d", sep, p.From3.Offset)
 		} else {

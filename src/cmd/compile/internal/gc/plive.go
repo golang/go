@@ -864,7 +864,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
 		if false {
 			fmt.Printf("analyzing '%v'\n", p)
 		}
-		if p.As != obj.ADATA && p.As != obj.AGLOBL && p.As != obj.ATYPE {
+		if p.As != obj.AGLOBL && p.As != obj.ATYPE {
 			checkprog(fn, p)
 		}
 	}

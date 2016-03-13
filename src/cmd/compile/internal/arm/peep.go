@@ -1547,7 +1547,6 @@ func predicable(p *obj.Prog) bool {
 	switch p.As {
 	case obj.ANOP,
 		obj.AXXX,
-		obj.ADATA,
 		obj.AGLOBL,
 		obj.ATEXT,
 		arm.AWORD:
