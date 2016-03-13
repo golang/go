@@ -603,7 +603,6 @@ var Anames = []string{
 	"XXX",
 	"CALL",
 	"CHECKNIL",
-	"DATA",
 	"DUFFCOPY",
 	"DUFFZERO",
 	"END",
