@@ -38,10 +38,6 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
 // and it returns a new slice with at least that capacity, with the old data
 // copied into it.
 func growslice(t *slicetype, old slice, cap int) slice {
-	if cap < old.cap || t.elem.size > 0 && uintptr(cap) > _MaxMem/t.elem.size {
-		panic(errorString("growslice: cap out of range"))
-	}
-
 	if raceenabled {
 		callerpc := getcallerpc(unsafe.Pointer(&t))
 		racereadrangepc(old.array, uintptr(old.len*int(t.elem.size)), callerpc, funcPC(growslice))
@@ -52,9 +48,17 @@ func growslice(t *slicetype, old slice, cap int) slice {
 
 	et := t.elem
 	if et.size == 0 {
+		if cap < old.cap {
+			panic(errorString("growslice: cap out of range"))
+		}
 		// append should not create a slice with nil pointer but non-zero len.
 		// We assume that append doesn't need to preserve old.array in this case.
 		return slice{unsafe.Pointer(&zerobase), old.len, cap}
+	}
+
+	maxcap := _MaxMem / et.size
+	if cap < old.cap || uintptr(cap) > maxcap {
+		panic(errorString("growslice: cap out of range"))
 	}
 
 	newcap := old.cap
@@ -73,12 +77,18 @@ func growslice(t *slicetype, old slice, cap int) slice {
 		}
 	}
 
-	if uintptr(newcap) >= _MaxMem/et.size {
+	if uintptr(newcap) >= maxcap {
 		panic(errorString("growslice: cap out of range"))
 	}
+
 	lenmem := uintptr(old.len) * et.size
 	capmem := roundupsize(uintptr(newcap) * et.size)
-	newcap = int(capmem / et.size)
+	if et.size == 1 {
+		newcap = int(capmem)
+	} else {
+		newcap = int(capmem / et.size)
+	}
+
 	var p unsafe.Pointer
 	if et.kind&kindNoPointers != 0 {
 		p = rawmem(capmem)
