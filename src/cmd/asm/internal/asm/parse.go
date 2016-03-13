@@ -183,12 +183,10 @@ func (p *Parser) line() bool {
 			p.errorf("missing operand")
 		}
 	}
-	i, present := arch.Pseudos[word]
-	if present {
-		p.pseudo(i, word, operands)
+	if p.pseudo(word, operands) {
 		return true
 	}
-	i, present = p.arch.Instructions[word]
+	i, present := p.arch.Instructions[word]
 	if present {
 		p.instruction(i, word, cond, operands)
 		return true
@@ -214,21 +212,22 @@ func (p *Parser) instruction(op obj.As, word, cond string, operands [][]lex.Toke
 	p.asmInstruction(op, cond, p.addr)
 }
 
-func (p *Parser) pseudo(op obj.As, word string, operands [][]lex.Token) {
-	switch op {
-	case obj.ATEXT:
-		p.asmText(word, operands)
-	case obj.ADATA:
+func (p *Parser) pseudo(word string, operands [][]lex.Token) bool {
+	switch word {
+	case "DATA":
 		p.asmData(word, operands)
-	case obj.AGLOBL:
-		p.asmGlobl(word, operands)
-	case obj.APCDATA:
-		p.asmPCData(word, operands)
-	case obj.AFUNCDATA:
+	case "FUNCDATA":
 		p.asmFuncData(word, operands)
+	case "GLOBL":
+		p.asmGlobl(word, operands)
+	case "PCDATA":
+		p.asmPCData(word, operands)
+	case "TEXT":
+		p.asmText(word, operands)
 	default:
-		p.errorf("unimplemented: %s", word)
+		return false
 	}
+	return true
 }
 
 func (p *Parser) start(operand []lex.Token) {

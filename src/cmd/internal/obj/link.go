@@ -266,7 +266,6 @@ const (
 	AXXX As = iota
 	ACALL
 	ACHECKNIL
-	ADATA // used only by the assembler for parsing
 	ADUFFCOPY
 	ADUFFZERO
 	AEND
