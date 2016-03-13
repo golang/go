@@ -198,7 +198,7 @@ const (
 )
 
 // TODO(rsc): Describe prog.
-// TODO(rsc): Describe TEXT/GLOBL flag in from3, DATA width in from3.
+// TODO(rsc): Describe TEXT/GLOBL flag in from3
 type Prog struct {
 	Ctxt   *Link
 	Link   *Prog
@@ -266,7 +266,7 @@ const (
 	AXXX As = iota
 	ACALL
 	ACHECKNIL
-	ADATA
+	ADATA // used only by the assembler for parsing
 	ADUFFCOPY
 	ADUFFZERO
 	AEND

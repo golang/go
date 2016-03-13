@@ -110,65 +110,6 @@ func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
 	copy(s.P[off:off+siz], str)
 }
 
-func savedata(ctxt *Link, p *Prog) {
-	s := p.From.Sym
-	off := int32(p.From.Offset)
-	siz := int32(p.From3.Offset)
-	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
-		log.Fatalf("savedata: bad off=%d siz=%d", off, siz)
-	}
-	if s.Type == SBSS || s.Type == STLSBSS {
-		ctxt.Diag("cannot supply data for BSS var")
-	}
-	Symgrow(ctxt, s, int64(off+siz))
-
-	switch p.To.Type {
-	default:
-		ctxt.Diag("bad data: %v", p)
-
-	case TYPE_FCONST:
-		switch siz {
-		default:
-			ctxt.Diag("unexpected %d-byte floating point constant", siz)
-
-		case 4:
-			flt := math.Float32bits(float32(p.To.Val.(float64)))
-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], flt)
-
-		case 8:
-			flt := math.Float64bits(p.To.Val.(float64))
-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], flt)
-		}
-
-	case TYPE_SCONST:
-		copy(s.P[off:off+siz], p.To.Val.(string))
-
-	case TYPE_CONST, TYPE_ADDR:
-		if p.To.Sym != nil || p.To.Type == TYPE_ADDR {
-			r := Addrel(s)
-			r.Off = off
-			r.Siz = uint8(siz)
-			r.Sym = p.To.Sym
-			r.Type = R_ADDR
-			r.Add = p.To.Offset
-			break
-		}
-		o := p.To.Offset
-		switch siz {
-		default:
-			ctxt.Diag("unexpected %d-byte integer constant", siz)
-		case 1:
-			s.P[off] = byte(o)
-		case 2:
-			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(o))
-		case 4:
-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(o))
-		case 8:
-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
-		}
-	}
-}
-
 func Addrel(s *LSym) *Reloc {
 	s.R = append(s.R, Reloc{})
 	return &s.R[len(s.R)-1]

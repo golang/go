@@ -219,18 +219,23 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 	}
 	p.dataAddr[name] = nameAddr.Offset + int64(scale)
 
-	prog := &obj.Prog{
-		Ctxt:   p.ctxt,
-		As:     obj.ADATA,
-		Lineno: p.histLineNum,
-		From:   nameAddr,
-		From3: &obj.Addr{
-			Offset: int64(scale),
-		},
-		To: valueAddr,
+	switch valueAddr.Type {
+	case obj.TYPE_CONST:
+		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Offset)
+	case obj.TYPE_FCONST:
+		switch scale {
+		case 4:
+			nameAddr.Sym.WriteFloat32(p.ctxt, nameAddr.Offset, float32(valueAddr.Val.(float64)))
+		case 8:
+			nameAddr.Sym.WriteFloat64(p.ctxt, nameAddr.Offset, valueAddr.Val.(float64))
+		default:
+			panic("bad float scale")
+		}
+	case obj.TYPE_SCONST:
+		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Val.(string))
+	case obj.TYPE_ADDR:
+		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Sym, valueAddr.Offset)
 	}
-
-	p.append(prog, "", false)
 }
 
 // asmGlobl assembles a GLOBL pseudo-op.

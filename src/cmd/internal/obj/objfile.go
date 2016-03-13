@@ -200,10 +200,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				ctxt.Edata = s
 				continue
 
-			case ADATA:
-				savedata(ctxt, p)
-				continue
-
 			case ATEXT:
 				s := p.From.Sym
 				if s == nil {
