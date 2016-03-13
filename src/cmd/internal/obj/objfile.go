@@ -104,6 +104,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -417,11 +418,9 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 			i += 16
 		}
 
-		var r *Reloc
-		var name string
-		for i := 0; i < len(s.R); i++ {
-			r = &s.R[i]
-			name = ""
+		sort.Sort(relocByOff(s.R)) // generate stable output
+		for _, r := range s.R {
+			name := ""
 			if r.Sym != nil {
 				name = r.Sym.Name
 			}
@@ -562,3 +561,10 @@ func wrsym(b *Biobuf, s *LSym) {
 	wrstring(b, s.Name)
 	wrint(b, int64(s.Version))
 }
+
+// relocByOff sorts relocations by their offsets.
+type relocByOff []Reloc
+
+func (x relocByOff) Len() int           { return len(x) }
+func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
+func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
