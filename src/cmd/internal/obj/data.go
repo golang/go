@@ -52,6 +52,64 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
 	s.P = s.P[:siz]
 }
 
+// prepwrite prepares to write data of size siz into s at offset off.
+func (s *LSym) prepwrite(ctxt *Link, off, siz int64) {
+	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
+		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
+	}
+	if s.Type == SBSS || s.Type == STLSBSS {
+		ctxt.Diag("cannot supply data for BSS var")
+	}
+	Symgrow(ctxt, s, off+siz)
+}
+
+// WriteFloat32 writes f into s at offset off.
+func (s *LSym) WriteFloat32(ctxt *Link, off int64, f float32) {
+	s.prepwrite(ctxt, off, 4)
+	ctxt.Arch.ByteOrder.PutUint32(s.P[off:], math.Float32bits(f))
+}
+
+// WriteFloat64 writes f into s at offset off.
+func (s *LSym) WriteFloat64(ctxt *Link, off int64, f float64) {
+	s.prepwrite(ctxt, off, 8)
+	ctxt.Arch.ByteOrder.PutUint64(s.P[off:], math.Float64bits(f))
+}
+
+// WriteInt writes an integer i of size siz into s at offset off.
+func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
+	s.prepwrite(ctxt, off, siz)
+	switch siz {
+	default:
+		ctxt.Diag("WriteInt bad integer: %d", siz)
+	case 1:
+		s.P[off] = byte(i)
+	case 2:
+		ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i))
+	case 4:
+		ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(i))
+	case 8:
+		ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(i))
+	}
+}
+
+// WriteAddr writes an address of size siz into s at offset off.
+// rsym and roff specify the relocation for the address.
+func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
+	s.prepwrite(ctxt, off, siz)
+	r := Addrel(s)
+	r.Off = int32(off)
+	r.Siz = uint8(siz)
+	r.Sym = rsym
+	r.Type = R_ADDR
+	r.Add = roff
+}
+
+// WriteString writes a string of size siz into s at offset off.
+func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
+	s.prepwrite(ctxt, off, siz)
+	copy(s.P[off:off+siz], str)
+}
+
 func savedata(ctxt *Link, p *Prog) {
 	s := p.From.Sym
 	off := int32(p.From.Offset)
