@@ -201,7 +201,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				continue
 
 			case ADATA:
-				savedata(ctxt, p.From.Sym, p, "<input>")
+				savedata(ctxt, p)
 				continue
 
 			case ATEXT:
