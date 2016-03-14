@@ -279,19 +279,19 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
 	}
 	off = int(Rnd(int64(off), int64(Widthptr)))
 	symhdr, _ := stringsym(*lit)
-	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(symhdr), 0)
+	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(symhdr), 0)
 	off += Widthptr
 	return off
 }
 
 func dsname(s *Sym, off int, t string) int {
-	Linksym(s).WriteString(Ctxt, int64(off), int64(len(t)), t)
+	Linksym(s).WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
 
 func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
 	off = int(Rnd(int64(off), int64(Widthptr)))
-	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(x), int64(xoff))
+	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(x), int64(xoff))
 	off += Widthptr
 	return off
 }
@@ -315,7 +315,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 		case CTINT, CTRUNE, CTBOOL:
 			i, _ := nr.IntLiteral()
-			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, int64(wid), i)
+			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, i)
 
 		case CTFLT:
 			s := Linksym(nam.Sym)
@@ -336,13 +336,13 @@ func gdata(nam *Node, nr *Node, wid int) {
 			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
 		}
 		to := nr.Left
-		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(to.Sym), to.Xoffset)
+		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
 
 	case ONAME:
 		if nr.Class != PFUNC {
 			Fatalf("gdata NAME not PFUNC %d", nr.Class)
 		}
-		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(funcsym(nr.Sym)), nr.Xoffset)
+		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
 
 	default:
 		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
@@ -368,6 +368,6 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 func gdatastring(nam *Node, sval string) {
 	s := Linksym(nam.Sym)
 	_, symdata := stringsym(sval)
-	s.WriteAddr(Ctxt, nam.Xoffset, Types[Tptr].Width, Linksym(symdata), 0)
-	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), int64(Widthint), int64(len(sval)))
+	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, Linksym(symdata), 0)
+	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(sval)))
 }
