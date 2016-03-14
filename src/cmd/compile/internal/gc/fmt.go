@@ -602,7 +602,7 @@ func typefmt(t *Type, flag int) string {
 				buf.WriteString(";")
 			}
 		}
-		if t.Type != nil {
+		if t.Fields != nil {
 			buf.WriteString(" ")
 		}
 		buf.WriteString("}")
@@ -629,7 +629,7 @@ func typefmt(t *Type, flag int) string {
 		case 1:
 			if fmtmode != FExp {
 				buf.WriteString(" ")
-				buf.WriteString(Tconv(t.Results().Type.Type, 0)) // struct->field->field's type
+				buf.WriteString(Tconv(t.Results().Field(0).Type, 0)) // struct->field->field's type
 				break
 			}
 			fallthrough
@@ -687,7 +687,7 @@ func typefmt(t *Type, flag int) string {
 					buf.WriteString(";")
 				}
 			}
-			if t.Type != nil {
+			if t.Fields != nil {
 				buf.WriteString(" ")
 			}
 			buf.WriteString("}")

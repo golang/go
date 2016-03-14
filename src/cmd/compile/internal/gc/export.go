@@ -202,8 +202,11 @@ func reexportdep(n *Node) {
 		OMAKECHAN:
 		t := n.Type
 
-		if t.Sym == nil && t.Type != nil {
-			t = t.Type
+		switch t.Etype {
+		case TARRAY, TCHAN, TPTR32, TPTR64:
+			if t.Sym == nil {
+				t = t.Type
+			}
 		}
 		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
 			if Debug['E'] != 0 {
@@ -280,25 +283,41 @@ func dumpexporttype(t *Type) {
 	if t == nil {
 		return
 	}
+	if t.Etype == TFIELD {
+		Fatalf("unexpected TFIELD in dumpexporttype")
+	}
 	if t.Printed || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
 		return
 	}
 	t.Printed = true
 
-	if t.Sym != nil && t.Etype != TFIELD {
+	if t.Sym != nil {
 		dumppkg(t.Sym.Pkg)
 	}
 
-	dumpexporttype(t.Type)
-	dumpexporttype(t.Down)
+	switch t.Etype {
+	case TSTRUCT, TINTER:
+		for f, it := IterFields(t); f != nil; f = it.Next() {
+			dumpexporttype(f.Type)
+		}
+	case TFUNC:
+		dumpexporttype(t.Recvs())
+		dumpexporttype(t.Results())
+		dumpexporttype(t.Params())
+	case TMAP:
+		dumpexporttype(t.Type)
+		dumpexporttype(t.Down) // key
+	case TARRAY, TCHAN, TPTR32, TPTR64:
+		dumpexporttype(t.Type)
+	}
 
-	if t.Sym == nil || t.Etype == TFIELD {
+	if t.Sym == nil {
 		return
 	}
 
 	var m []*Type
 	for f, it := IterMethods(t); f != nil; f = it.Next() {
-		dumpexporttype(f)
+		dumpexporttype(f.Type)
 		m = append(m, f)
 	}
 	sort.Sort(methodbyname(m))

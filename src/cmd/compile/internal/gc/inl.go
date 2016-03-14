@@ -700,8 +700,8 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 		}
 	} else {
 		// match arguments except final variadic (unless the call is dotted itself)
-		var t *Type
-		for t = fn.Type.Params().Type; t != nil; {
+		t, it := IterFields(fn.Type.Params())
+		for t != nil {
 			if li >= n.List.Len() {
 				break
 			}
@@ -709,7 +709,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 				break
 			}
 			as.List.Append(tinlvar(t))
-			t = t.Down
+			t = it.Next()
 			li++
 		}
 
@@ -725,7 +725,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 			}
 
 			if i == varargcount {
-				t = t.Down
+				t = it.Next()
 			}
 		}
 

@@ -1333,15 +1333,7 @@ OpSwitch:
 		}
 		ok |= Erv
 		if t.Outtuple == 1 {
-			t := l.Type.Results().Type
-			if t == nil {
-				n.Type = nil
-				return
-			}
-			if t.Etype == TFIELD {
-				t = t.Type
-			}
-			n.Type = t
+			n.Type = l.Type.Results().Field(0).Type
 
 			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime != 0 || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
 				// Emit code for runtime.getg() directly instead of calling function.
@@ -1603,7 +1595,7 @@ OpSwitch:
 		var funarg *Type
 		if Istype(t, TSTRUCT) && t.Funarg {
 			funarg = t
-			t = t.Type.Type
+			t = t.Field(0).Type
 		}
 
 		n.Type = t
@@ -1642,7 +1634,8 @@ OpSwitch:
 		}
 
 		if funarg != nil {
-			for t := funarg.Type.Down; t != nil; t = t.Down {
+			_, it := IterFields(funarg) // Skip first field
+			for t := it.Next(); t != nil; t = it.Next() {
 				if assignop(t.Type, n.Type.Type, nil) == 0 {
 					Yyerror("cannot append %v value to []%v", t.Type, n.Type.Type)
 				}
@@ -2403,7 +2396,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	s := n.Right.Sym
 
 	if t.Etype == TINTER {
-		f1 := lookdot1(n, s, t, t.Type, dostrcmp)
+		f1 := lookdot1(n, s, t, t.Fields, dostrcmp)
 		if f1 == nil {
 			return false
 		}
@@ -2464,7 +2457,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
 	dowidth(t)
 	var f1 *Type
 	if t.Etype == TSTRUCT || t.Etype == TINTER {
-		f1 = lookdot1(n, s, t, t.Type, dostrcmp)
+		f1 = lookdot1(n, s, t, t.Fields, dostrcmp)
 	}
 
 	var f2 *Type
@@ -2627,11 +2620,11 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 					}
 				}
 
-				tn := n.Type.Type
+				tn, it := IterFields(n.Type)
 				var why string
 				for tl, it2 := IterFields(tstruct); tl != nil; tl = it2.Next() {
 					if tl.Isddd {
-						for ; tn != nil; tn = tn.Down {
+						for ; tn != nil; tn = it.Next() {
 							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
 								if call != nil {
 									Yyerror("cannot use %v as type %v in argument to %v%s", tn.Type, tl.Type.Type, call, why)
@@ -2655,7 +2648,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 						}
 					}
 
-					tn = tn.Down
+					tn = it.Next()
 				}
 
 				if tn != nil {
@@ -3049,7 +3042,7 @@ func typecheckcomplit(np **Node) {
 		bad := 0
 		if n.List.Len() != 0 && nokeys(n.List) {
 			// simple list of variables
-			f := t.Type
+			f, it := IterFields(t)
 
 			var s *Sym
 			ls := n.List.Slice()
@@ -3075,7 +3068,7 @@ func typecheckcomplit(np **Node) {
 				n1.Left.Type = f
 				n1.Left.Typecheck = 1
 				ls[i1] = n1
-				f = f.Down
+				f = it.Next()
 			}
 
 			if f != nil {
@@ -3114,7 +3107,7 @@ func typecheckcomplit(np **Node) {
 					}
 				}
 
-				f := lookdot1(nil, s, t, t.Type, 0)
+				f := lookdot1(nil, s, t, t.Fields, 0)
 				if f == nil {
 					Yyerror("unknown %v field '%v' in struct literal", t, s)
 					continue

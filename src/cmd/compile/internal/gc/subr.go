@@ -592,13 +592,7 @@ func Isinter(t *Type) bool {
 }
 
 func isnilinter(t *Type) bool {
-	if !Isinter(t) {
-		return false
-	}
-	if t.Type != nil {
-		return false
-	}
-	return true
+	return Isinter(t) && countfield(t) == 0
 }
 
 func isideal(t *Type) bool {

@@ -1478,7 +1478,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 	var src *Node
 	i := 0
 	lls := ll.Slice()
-	for t := fntype.Params().Type; i < len(lls); i++ {
+	for t, it := IterFields(fntype.Params()); i < len(lls); i++ {
 		src = lls[i]
 		if t.Isddd && !n.Isddd {
 			// Introduce ODDDARG node to represent ... allocation.
@@ -1523,7 +1523,7 @@ func esccall(e *EscState, n *Node, up *Node) {
 			// This occurs when function parameter type Isddd and n not Isddd
 			break
 		}
-		t = t.Down
+		t = it.Next()
 	}
 
 	for ; i < len(lls); i++ {

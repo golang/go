@@ -367,17 +367,22 @@ func typeinit() {
 
 func lexinit1() {
 	// t = interface { Error() string }
-	rcvr := typ(TSTRUCT)
 
-	rcvr.Type = typ(TFIELD)
-	rcvr.Type.Type = Ptrto(typ(TSTRUCT))
+	rcvr := typ(TSTRUCT)
 	rcvr.Funarg = true
+	field := typ(TFIELD)
+	field.Type = Ptrto(typ(TSTRUCT))
+	rcvr.SetFields([]*Type{field})
+
 	in := typ(TSTRUCT)
 	in.Funarg = true
+
 	out := typ(TSTRUCT)
-	out.Type = typ(TFIELD)
-	out.Type.Type = Types[TSTRING]
 	out.Funarg = true
+	field = typ(TFIELD)
+	field.Type = Types[TSTRING]
+	out.SetFields([]*Type{field})
+
 	f := typ(TFUNC)
 	*f.RecvsP() = rcvr
 	*f.ResultsP() = out
@@ -386,10 +391,12 @@ func lexinit1() {
 	f.Intuple = 0
 	f.Outnamed = false
 	f.Outtuple = 1
+
 	t := typ(TINTER)
-	t.Type = typ(TFIELD)
-	t.Type.Sym = Lookup("Error")
-	t.Type.Type = f
+	field = typ(TFIELD)
+	field.Sym = Lookup("Error")
+	field.Type = f
+	t.SetFields([]*Type{field})
 
 	// error type
 	s := Pkglookup("error", builtinpkg)

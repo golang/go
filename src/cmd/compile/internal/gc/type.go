@@ -140,6 +140,9 @@ type Type struct {
 	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
 	Width int64 // offset in TFIELD, width in all others
 
+	// TSTRUCT
+	Fields *Type // first struct field
+
 	// TFIELD
 	Down *Type   // next struct field, also key type in TMAP
 	Note *string // literal string annotation
@@ -196,7 +199,7 @@ func IterFields(t *Type) (*Type, Iter) {
 	if t.Etype != TSTRUCT && t.Etype != TINTER {
 		Fatalf("IterFields: type %v does not have fields", t)
 	}
-	return RawIter(t.Type)
+	return RawIter(t.Fields)
 }
 
 // IterMethods returns the first method in type t's method set
@@ -316,7 +319,7 @@ func (t *Type) SetFields(fields []*Type) {
 		fields[i].Down = next
 		next = fields[i]
 	}
-	t.Type = next
+	t.Fields = next
 }
 
 func (t *Type) Size() int64 {

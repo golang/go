@@ -883,19 +883,19 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		tk := t.Down
 		tv := t.Type
 
-		symb := Lookup("b")
-		fieldb := typ(TFIELD)
-		fieldb.Type = tv
-		fieldb.Sym = symb
-
 		syma := Lookup("a")
-		fielda := typ(TFIELD)
-		fielda.Type = tk
-		fielda.Sym = syma
-		fielda.Down = fieldb
+		symb := Lookup("b")
+
+		var fields [2]*Type
+		fields[0] = typ(TFIELD)
+		fields[0].Type = tk
+		fields[0].Sym = syma
+		fields[1] = typ(TFIELD)
+		fields[1].Type = tv
+		fields[1].Sym = symb
 
 		tstruct := typ(TSTRUCT)
-		tstruct.Type = fielda
+		tstruct.SetFields(fields[:])
 
 		tarr := typ(TARRAY)
 		tarr.Bound = int64(b)
