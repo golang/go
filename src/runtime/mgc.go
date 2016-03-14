@@ -1554,8 +1554,11 @@ func gcMark(start_time int64) {
 	gcDrain(gcw, gcDrainBlock)
 	gcw.dispose()
 
-	// TODO: Re-enable once this is cheap.
-	//gcMarkRootCheck()
+	if debug.gccheckmark > 0 {
+		// This is expensive when there's a large number of
+		// Gs, so only do it if checkmark is also enabled.
+		gcMarkRootCheck()
+	}
 	if work.full != 0 {
 		throw("work.full != 0")
 	}
