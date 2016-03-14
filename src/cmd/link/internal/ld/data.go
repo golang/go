@@ -84,6 +84,20 @@ func setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	return off + wid
 }
 
+func Addbytes(ctxt *Link, s *LSym, bytes []byte) int64 {
+	if s.Type == 0 {
+		s.Type = obj.SDATA
+	}
+	s.Attr |= AttrReachable
+	s.Size += int64(len(bytes))
+	if int64(int(s.Size)) != s.Size {
+		log.Fatalf("Addbytes size %d too long", s.Size)
+	}
+	s.P = append(s.P, bytes...)
+
+	return s.Size
+}
+
 func adduintxx(ctxt *Link, s *LSym, v uint64, wid int) int64 {
 	off := s.Size
 	setuintxx(ctxt, s, off, v, int64(wid))
@@ -489,6 +503,25 @@ func relocsym(s *LSym) {
 				errorexit()
 			}
 
+		case obj.R_DWARFREF:
+			if r.Sym.Sect == nil {
+				Diag("missing DWARF section: %s from %s", r.Sym.Name, s.Name)
+			}
+			if Linkmode == LinkExternal {
+				r.Done = 0
+				r.Type = obj.R_ADDR
+
+				r.Xsym = Linkrlookup(Ctxt, r.Sym.Sect.Name, 0)
+				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
+				o = r.Xadd
+				rs = r.Xsym
+				if Iself && Thearch.Thechar == '6' {
+					o = 0
+				}
+				break
+			}
+			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
+
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != Ctxt.Cursym.Sect || r.Type == obj.R_GOTPCREL) {
@@ -612,6 +645,9 @@ func reloc() {
 		relocsym(s)
 	}
 	for s := datap; s != nil; s = s.Next {
+		relocsym(s)
+	}
+	for s := dwarfp; s != nil; s = s.Next {
 		relocsym(s)
 	}
 }
@@ -891,6 +927,14 @@ func Datblk(addr int64, size int64) {
 		fmt.Fprintf(&Bso, "\t%.8x| 00 ...\n", uint(addr))
 	}
 	fmt.Fprintf(&Bso, "\t%.8x|\n", uint(eaddr))
+}
+
+func Dwarfblk(addr int64, size int64) {
+	if Debug['a'] != 0 {
+		fmt.Fprintf(&Bso, "dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, Cpos())
+	}
+
+	blk(dwarfp, addr, size)
 }
 
 var zeros [512]byte
@@ -1691,6 +1735,40 @@ func dodata() {
 		Diag("read-only data segment too large")
 	}
 
+	dwarfgeneratedebugsyms()
+
+	for s = dwarfp; s != nil && s.Type == obj.SDWARFSECT; s = s.Next {
+		sect = addsection(&Segdwarf, s.Name, 04)
+		sect.Align = 1
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		s.Sect = sect
+		s.Type = obj.SRODATA
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		growdatsize(&datsize, s)
+		sect.Length = uint64(datsize) - sect.Vaddr
+	}
+
+	if s != nil {
+		sect = addsection(&Segdwarf, ".debug_info", 04)
+		sect.Align = 1
+		datsize = Rnd(datsize, int64(sect.Align))
+		sect.Vaddr = uint64(datsize)
+		for ; s != nil && s.Type == obj.SDWARFINFO; s = s.Next {
+			s.Sect = sect
+			s.Type = obj.SRODATA
+			s.Value = int64(uint64(datsize) - sect.Vaddr)
+			s.Attr |= AttrLocal
+			growdatsize(&datsize, s)
+		}
+		sect.Length = uint64(datsize) - sect.Vaddr
+	}
+
+	// The compiler uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+	if datsize != int64(uint32(datsize)) {
+		Diag("dwarf segment too large")
+	}
+
 	/* number the sections */
 	n := int32(1)
 
@@ -1703,6 +1781,10 @@ func dodata() {
 		n++
 	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+		sect.Extnum = int16(n)
+		n++
+	}
+	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
 		sect.Extnum = int16(n)
 		n++
 	}
@@ -1857,6 +1939,29 @@ func address() {
 
 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
 
+	va = uint64(Rnd(int64(va), int64(INITRND)))
+	Segdwarf.Rwx = 06
+	Segdwarf.Vaddr = va
+	Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(INITRND)))
+	Segdwarf.Filelen = 0
+	if HEADTYPE == obj.Hwindows {
+		Segdwarf.Fileoff = Segdata.Fileoff + uint64(Rnd(int64(Segdata.Filelen), int64(PEFILEALIGN)))
+	}
+	for s := Segdwarf.Sect; s != nil; s = s.Next {
+		vlen = int64(s.Length)
+		if s.Next != nil {
+			vlen = int64(s.Next.Vaddr - s.Vaddr)
+		}
+		s.Vaddr = va
+		va += uint64(vlen)
+		if HEADTYPE == obj.Hwindows {
+			va = uint64(Rnd(int64(va), PEFILEALIGN))
+		}
+		Segdwarf.Length = va - Segdwarf.Vaddr
+	}
+
+	Segdwarf.Filelen = va - Segdwarf.Vaddr
+
 	text := Segtext.Sect
 	var rodata *Section
 	if Segrodata.Sect != nil {
@@ -1876,6 +1981,15 @@ func address() {
 
 	var sub *LSym
 	for sym := datap; sym != nil; sym = sym.Next {
+		Ctxt.Cursym = sym
+		if sym.Sect != nil {
+			sym.Value += int64(sym.Sect.Vaddr)
+		}
+		for sub = sym.Sub; sub != nil; sub = sub.Sub {
+			sub.Value += sym.Value
+		}
+	}
+	for sym := dwarfp; sym != nil; sym = sym.Next {
 		Ctxt.Cursym = sym
 		if sym.Sect != nil {
 			sym.Value += int64(sym.Sect.Vaddr)

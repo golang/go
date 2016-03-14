@@ -539,6 +539,9 @@ func asmb() {
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
+	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ld.Dwarfblk(int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -552,7 +555,7 @@ func asmb() {
 			fmt.Fprintf(&ld.Bso, "%5.2f sym\n", obj.Cputime())
 		}
 		ld.Bso.Flush()
-		symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+		symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 		symo = uint32(ld.Rnd(int64(symo), int64(ld.INITRND)))
 
 		ld.Cseek(int64(symo))
@@ -566,7 +569,6 @@ func asmb() {
 		if ld.Debug['v'] != 0 {
 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 		}
-		ld.Dwarfemitdebugsections()
 
 		if ld.Linkmode == ld.LinkExternal {
 			ld.Elfemitreloc()

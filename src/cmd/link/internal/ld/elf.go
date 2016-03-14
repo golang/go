@@ -1622,6 +1622,9 @@ func elfshbits(sect *Section) *ElfShdr {
 		sh.flags |= SHF_TLS
 		sh.type_ = SHT_NOBITS
 	}
+	if strings.HasPrefix(sect.Name, ".debug") {
+		sh.flags = 0
+	}
 
 	if Linkmode != LinkExternal {
 		sh.addr = sect.Vaddr
@@ -1738,6 +1741,9 @@ func Elfemitreloc() {
 	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfrelocsect(sect, datap)
+	}
+	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+		elfrelocsect(sect, dwarfp)
 	}
 }
 
@@ -2065,6 +2071,9 @@ func Asmbelfsetup() {
 		elfshalloc(sect)
 	}
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+		elfshalloc(sect)
+	}
+	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
 		elfshalloc(sect)
 	}
 }
@@ -2432,6 +2441,9 @@ elfobj:
 	for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 		elfshbits(sect)
 	}
+	for sect := Segdwarf.Sect; sect != nil; sect = sect.Next {
+		elfshbits(sect)
+	}
 
 	if Linkmode == LinkExternal {
 		for sect := Segtext.Sect; sect != nil; sect = sect.Next {
@@ -2443,7 +2455,14 @@ elfobj:
 		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
 			elfshreloc(sect)
 		}
-
+		for s := dwarfp; s != nil; s = s.Next {
+			if len(s.R) > 0 || s.Type == obj.SDWARFINFO {
+				elfshreloc(s.Sect)
+			}
+			if s.Type == obj.SDWARFINFO {
+				break
+			}
+		}
 		// add a .note.GNU-stack section to mark the stack as non-executable
 		sh := elfshname(".note.GNU-stack")
 
@@ -2467,8 +2486,6 @@ elfobj:
 		sh.off = uint64(symo) + uint64(Symsize)
 		sh.size = uint64(len(Elfstrdat))
 		sh.addralign = 1
-
-		dwarfaddelfheaders()
 	}
 
 	/* Main header */

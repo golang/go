@@ -423,6 +423,8 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
+	SDWARFSECT
+	SDWARFINFO
 	SSUB       = 1 << 8
 	SMASK      = SSUB - 1
 	SHIDDEN    = 1 << 9
@@ -495,6 +497,8 @@ const (
 	// of a JMP instruction, by encoding the address into the instruction.
 	// The stack nosplit check ignores this since it is not a function call.
 	R_JMPMIPS
+	// R_DWARFREF resolves to the offset of the symbol from its section.
+	R_DWARFREF
 
 	// Platform dependent relocations. Architectures with fixed width instructions
 	// have the inherent issue that a 32-bit (or 64-bit!) displacement cannot be

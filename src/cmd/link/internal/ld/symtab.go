@@ -195,18 +195,6 @@ func putelfsectionsym(s *LSym, shndx int) {
 	numelfsym++
 }
 
-func putelfsymshndx(sympos int64, shndx int) {
-	here := Cpos()
-	if elf64 {
-		Cseek(sympos + 6)
-	} else {
-		Cseek(sympos + 14)
-	}
-
-	Thearch.Wput(uint16(shndx))
-	Cseek(here)
-}
-
 func Asmelfsym() {
 	// the first symbol entry is reserved
 	putelfsyment(0, 0, 0, STB_LOCAL<<4|STT_NOTYPE, 0, 0)
