@@ -221,7 +221,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 
 	switch valueAddr.Type {
 	case obj.TYPE_CONST:
-		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Offset)
+		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Offset)
 	case obj.TYPE_FCONST:
 		switch scale {
 		case 4:
@@ -232,9 +232,9 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
 			panic("bad float scale")
 		}
 	case obj.TYPE_SCONST:
-		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Val.(string))
+		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Val.(string))
 	case obj.TYPE_ADDR:
-		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Sym, valueAddr.Offset)
+		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Sym, valueAddr.Offset)
 	}
 }
 
