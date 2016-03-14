@@ -32,6 +32,7 @@ package x86
 
 import (
 	"cmd/internal/obj"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"strings"
@@ -1770,7 +1771,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		instinit()
 	}
 
-	var v int32
 	for p := ctxt.Cursym.Text; p != nil; p = p.Link {
 		if p.To.Type == obj.TYPE_BRANCH {
 			if p.Pcond == nil {
@@ -1780,7 +1780,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REG_SP
-			v = int32(-p.From.Offset)
+			v := int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = spadjop(ctxt, p, AADDL, AADDQ)
 			if v < 0 {
@@ -1807,7 +1807,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 		if p.As == AADJSP {
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REG_SP
-			v = int32(-p.From.Offset)
+			v := int32(-p.From.Offset)
 			p.From.Offset = int64(v)
 			p.As = spadjop(ctxt, p, AADDL, AADDQ)
 			if v < 0 {
@@ -1823,28 +1823,22 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 	}
 
 	n := 0
-	var bp []byte
 	var c int32
-	var i int
-	var loop int32
-	var m int
-	var p *obj.Prog
 	errors := ctxt.Errors
+	var deferreturn *obj.LSym
+	if ctxt.Headtype == obj.Hnacl {
+		deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
+	}
 	for {
-		loop = 0
-		for i = 0; i < len(s.R); i++ {
+		loop := int32(0)
+		for i := range s.R {
 			s.R[i] = obj.Reloc{}
 		}
 		s.R = s.R[:0]
 		s.P = s.P[:0]
 		c = 0
-		for p = s.Text; p != nil; p = p.Link {
+		for p := s.Text; p != nil; p = p.Link {
 			if ctxt.Headtype == obj.Hnacl && p.Isize > 0 {
-				var deferreturn *obj.LSym
-
-				if deferreturn == nil {
-					deferreturn = obj.Linklookup(ctxt, "runtime.deferreturn", 0)
-				}
 
 				// pad everything to avoid crossing 32-byte boundary
 				if c>>5 != (c+int32(p.Isize)-1)>>5 {
@@ -1881,7 +1875,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			if (p.Back&4 != 0) && c&(LoopAlign-1) != 0 {
 				// pad with NOPs
-				v = -c & (LoopAlign - 1)
+				v := -c & (LoopAlign - 1)
 
 				if v <= MaxLoopPad {
 					obj.Symgrow(ctxt, s, int64(c)+int64(v))
@@ -1894,7 +1888,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			// process forward jumps to p
 			for q = p.Rel; q != nil; q = q.Forwd {
-				v = int32(p.Pc - (q.Pc + int64(q.Isize)))
+				v := int32(p.Pc - (q.Pc + int64(q.Isize)))
 				if q.Back&2 != 0 { // short
 					if v > 127 {
 						loop++
@@ -1907,14 +1901,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 						s.P[q.Pc+1] = byte(v)
 					}
 				} else {
-					bp = s.P[q.Pc+int64(q.Isize)-4:]
-					bp[0] = byte(v)
-					bp = bp[1:]
-					bp[0] = byte(v >> 8)
-					bp = bp[1:]
-					bp[0] = byte(v >> 16)
-					bp = bp[1:]
-					bp[0] = byte(v >> 24)
+					binary.LittleEndian.PutUint32(s.P[q.Pc+int64(q.Isize)-4:], uint32(v))
 				}
 			}
 
@@ -1922,7 +1909,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 			p.Pc = int64(c)
 			asmins(ctxt, p)
-			m = -cap(ctxt.Andptr) + cap(ctxt.And[:])
+			m := -cap(ctxt.Andptr) + cap(ctxt.And[:])
 			if int(p.Isize) != m {
 				p.Isize = uint8(m)
 				loop++
@@ -1952,7 +1939,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 
 	// Pad functions with trap instruction, to catch invalid jumps
 	if c&(FuncAlign-1) != 0 {
-		v = -c & (FuncAlign - 1)
+		v := -c & (FuncAlign - 1)
 		obj.Symgrow(ctxt, s, int64(c)+int64(v))
 		for i := c; i < c+v; i++ {
 			// 0xCC is INT $3 - breakpoint instruction
