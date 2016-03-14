@@ -504,18 +504,10 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
 		ot = dgostringptr(s, ot, a.name)
 
 		ot = dgopkgpath(s, ot, a.pkg)
-		ot = dsymptr(s, ot, dtypesym(a.mtype), 0)
-		ot = dsymptr(s, ot, dtypesym(a.type_), 0)
-		if a.isym != nil {
-			ot = dmethodptr(s, ot, a.isym)
-		} else {
-			ot = duintptr(s, ot, 0)
-		}
-		if a.tsym != nil {
-			ot = dmethodptr(s, ot, a.tsym)
-		} else {
-			ot = duintptr(s, ot, 0)
-		}
+		ot = dmethodptr(s, ot, dtypesym(a.mtype))
+		ot = dmethodptr(s, ot, dtypesym(a.type_))
+		ot = dmethodptr(s, ot, a.isym)
+		ot = dmethodptr(s, ot, a.tsym)
 	}
 	return ot
 }
