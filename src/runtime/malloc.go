@@ -711,7 +711,7 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
 			s = largeAlloc(size, flags)
 		})
 		s.freeindex = 1
-		x = unsafe.Pointer(uintptr(s.start << pageShift))
+		x = unsafe.Pointer(s.base())
 		size = s.elemsize
 	}
 
@@ -833,7 +833,7 @@ func largeAlloc(size uintptr, flag uint32) *mspan {
 	if s == nil {
 		throw("out of memory")
 	}
-	s.limit = uintptr(s.start)<<_PageShift + size
+	s.limit = s.base() + size
 	heapBitsForSpan(s.base()).initSpan(s)
 	return s
 }

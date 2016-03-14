@@ -211,13 +211,13 @@ func (s *mspan) sweep(preserve bool) bool {
 	special := *specialp
 	for special != nil {
 		// A finalizer can be set for an inner byte of an object, find object beginning.
-		p := uintptr(s.start<<_PageShift) + uintptr(special.offset)/size*size
+		p := s.base() + uintptr(special.offset)/size*size
 		mbits := s.markBitsForAddr(p)
 		if !mbits.isMarked() {
 			// This object is not marked and has at least one special record.
 			// Pass 1: see if it has at least one finalizer.
 			hasFin := false
-			endOffset := p - uintptr(s.start<<_PageShift) + size
+			endOffset := p - s.base() + size
 			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
 				if tmp.kind == _KindSpecialFinalizer {
 					// Stop freeing of object if it has a finalizer.
@@ -230,7 +230,7 @@ func (s *mspan) sweep(preserve bool) bool {
 			for special != nil && uintptr(special.offset) < endOffset {
 				// Find the exact byte for which the special was setup
 				// (as opposed to object beginning).
-				p := uintptr(s.start<<_PageShift) + uintptr(special.offset)
+				p := s.base() + uintptr(special.offset)
 				if special.kind == _KindSpecialFinalizer || !hasFin {
 					// Splice out special record.
 					y := special
@@ -311,7 +311,7 @@ func (s *mspan) sweep(preserve bool) bool {
 		// implement and then call some kind of MHeap_DeleteSpan.
 		if debug.efence > 0 {
 			s.limit = 0 // prevent mlookup from finding this span
-			sysFault(unsafe.Pointer(uintptr(s.start<<_PageShift)), size)
+			sysFault(unsafe.Pointer(s.base()), size)
 		} else {
 			mheap_.freeSpan(s, 1)
 		}
