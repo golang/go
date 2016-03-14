@@ -473,7 +473,7 @@
     (Load <t.FieldType(3)> (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] ptr) mem))
 
 (StructSelect [i] (Load <t> ptr mem)) && !config.fe.CanSSA(t) ->
-  @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(i)] ptr) mem)
+  @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 
 (Store _ (StructMake0) mem) -> mem
 (Store dst (StructMake1 <t> f0) mem) ->

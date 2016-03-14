@@ -7517,7 +7517,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 	}
 	// match: (StructSelect [i] (Load <t> ptr mem))
 	// cond: !config.fe.CanSSA(t)
-	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(i)] ptr) mem)
+	// result: @v.Args[0].Block (Load <v.Type> (OffPtr <v.Type.PtrTo()> [t.FieldOff(int(i))] ptr) mem)
 	for {
 		i := v.AuxInt
 		if v.Args[0].Op != OpLoad {
@@ -7536,7 +7536,7 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 		v1 := b.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
 		v.reset(OpCopy)
 		v.AddArg(v1)
-		v1.AuxInt = t.FieldOff(i)
+		v1.AuxInt = t.FieldOff(int(i))
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
 		v0.AddArg(mem)

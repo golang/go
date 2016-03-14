@@ -2199,15 +2199,6 @@ func liststmt(l []*Node) *Node {
 	return n
 }
 
-// return nelem of list
-func structcount(t *Type) int {
-	v := 0
-	for t, it := IterFields(t); t != nil; t = it.Next() {
-		v++
-	}
-	return v
-}
-
 // return power of 2 of the constant
 // operand. -1 if it is not a power of 2.
 // 1000+ if it is a -(power of 2)

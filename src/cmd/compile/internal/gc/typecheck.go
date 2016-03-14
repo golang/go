@@ -2577,17 +2577,6 @@ func hasddd(t *Type) bool {
 	return false
 }
 
-// downcount is the same as countfield
-// TODO decide if we want both (for semantic reasons)
-func downcount(t *Type) int {
-	n := 0
-	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
-		n++
-	}
-
-	return n
-}
-
 // typecheck assignment: type list = expression list
 func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc func() string) {
 	var t *Type
