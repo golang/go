@@ -42,8 +42,8 @@ func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t
 func (d DummyFrontend) Unimplementedf(line int32, msg string, args ...interface{}) {
 	d.t.Fatalf(msg, args...)
 }
-func (d DummyFrontend) Warnl(line int, msg string, args ...interface{}) { d.t.Logf(msg, args...) }
-func (d DummyFrontend) Debug_checknil() bool                            { return false }
+func (d DummyFrontend) Warnl(line int32, msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+func (d DummyFrontend) Debug_checknil() bool                              { return false }
 
 func (d DummyFrontend) TypeBool() Type    { return TypeBool }
 func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }

@@ -317,8 +317,8 @@ func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peek
 func (s *state) Unimplementedf(msg string, args ...interface{}) {
 	s.config.Unimplementedf(s.peekLine(), msg, args...)
 }
-func (s *state) Warnl(line int, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
-func (s *state) Debug_checknil() bool                            { return s.config.Debug_checknil() }
+func (s *state) Warnl(line int32, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
+func (s *state) Debug_checknil() bool                              { return s.config.Debug_checknil() }
 
 var (
 	// dummy node for the memory variable
@@ -5229,8 +5229,8 @@ func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{}) 
 
 // Warnl reports a "warning", which is usually flag-triggered
 // logging output for the benefit of tests.
-func (e *ssaExport) Warnl(line int, fmt_ string, args ...interface{}) {
-	Warnl(int32(line), fmt_, args...)
+func (e *ssaExport) Warnl(line int32, fmt_ string, args ...interface{}) {
+	Warnl(line, fmt_, args...)
 }
 
 func (e *ssaExport) Debug_checknil() bool {

@@ -75,7 +75,7 @@ type Logger interface {
 	Unimplementedf(line int32, msg string, args ...interface{})
 
 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
-	Warnl(line int, fmt_ string, args ...interface{})
+	Warnl(line int32, fmt_ string, args ...interface{})
 
 	// Fowards the Debug_checknil flag from gc
 	Debug_checknil() bool
@@ -162,8 +162,8 @@ func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fata
 func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
 	c.fe.Unimplementedf(line, msg, args...)
 }
-func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
-func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
+func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
 
 func (c *Config) logDebugHashMatch(evname, name string) {
 	var file *os.File

@@ -69,7 +69,7 @@ func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
 }
 
 func describeBranchPrediction(f *Func, b *Block, likely, not int8, prediction BranchPrediction) {
-	f.Config.Warnl(int(b.Line), "Branch prediction rule %s < %s%s",
+	f.Config.Warnl(b.Line, "Branch prediction rule %s < %s%s",
 		bllikelies[likely-blMin], bllikelies[not-blMin], describePredictionAgrees(b, prediction))
 }
 
@@ -144,7 +144,7 @@ func likelyadjust(f *Func) {
 						noprediction = true
 					}
 					if f.pass.debug > 0 && !noprediction {
-						f.Config.Warnl(int(b.Line), "Branch prediction rule stay in loop%s",
+						f.Config.Warnl(b.Line, "Branch prediction rule stay in loop%s",
 							describePredictionAgrees(b, prediction))
 					}
 
@@ -180,7 +180,7 @@ func likelyadjust(f *Func) {
 			}
 		}
 		if f.pass.debug > 2 {
-			f.Config.Warnl(int(b.Line), "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
+			f.Config.Warnl(b.Line, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
 		}
 
 	}
