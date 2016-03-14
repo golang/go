@@ -576,7 +576,7 @@ func esc(e *EscState, n *Node, up *Node) {
 	if n == nil {
 		return
 	}
-	if n.Type != nil && n.Type.Etype == TFIELD {
+	if n.Type == structkey {
 		// This is the left side of x:y in a struct literal.
 		// x is syntax, not an expression.
 		// See #14405.

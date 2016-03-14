@@ -1287,7 +1287,7 @@ func exprfmt(n *Node, prec int) string {
 
 	case OKEY:
 		if n.Left != nil && n.Right != nil {
-			if fmtmode == FExp && n.Left.Type != nil && n.Left.Type.Etype == TFIELD {
+			if fmtmode == FExp && n.Left.Type == structkey {
 				// requires special handling of field names
 				return fmt.Sprintf("%v:%v", Sconv(n.Left.Sym, obj.FmtShort|obj.FmtByte), n.Right)
 			} else {

@@ -2893,6 +2893,11 @@ func pushtype(n *Node, t *Type) {
 	}
 }
 
+// Marker type so esc, fmt, and sinit can recognize the LHS of an OKEY node
+// in a struct literal.
+// TODO(mdempsky): Find a nicer solution.
+var structkey = typ(Txxx)
+
 func typecheckcomplit(np **Node) {
 	n := *np
 	lno := lineno
@@ -3039,6 +3044,9 @@ func typecheckcomplit(np **Node) {
 		n.Op = OMAPLIT
 
 	case TSTRUCT:
+		// Need valid field offsets for Xoffset below.
+		dowidth(t)
+
 		bad := 0
 		if n.List.Len() != 0 && nokeys(n.List) {
 			// simple list of variables
@@ -3065,7 +3073,8 @@ func typecheckcomplit(np **Node) {
 				// No pushtype allowed here. Must name fields for that.
 				n1 = assignconv(n1, f.Type, "field value")
 				n1 = Nod(OKEY, newname(f.Sym), n1)
-				n1.Left.Type = f
+				n1.Left.Type = structkey
+				n1.Left.Xoffset = f.Width
 				n1.Left.Typecheck = 1
 				ls[i1] = n1
 				f = it.Next()
@@ -3114,8 +3123,9 @@ func typecheckcomplit(np **Node) {
 				}
 
 				l.Left = newname(s)
+				l.Left.Type = structkey
+				l.Left.Xoffset = f.Width
 				l.Left.Typecheck = 1
-				l.Left.Type = f
 				s = f.Sym
 				fielddup(newname(s), hash)
 				r = l.Right

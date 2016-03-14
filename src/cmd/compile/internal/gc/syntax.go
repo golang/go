@@ -33,6 +33,13 @@ type Node struct {
 	Sym *Sym        // various
 	E   interface{} // Opt or Val, see methods below
 
+	// Various. Usually an offset into a struct. For example, ONAME nodes
+	// that refer to local variables use it to identify their stack frame
+	// position. ODOT, ODOTPTR, and OINDREG use it to indicate offset
+	// relative to their base address. ONAME nodes on the left side of an
+	// OKEY within an OSTRUCTLIT use it to store the named field's offset.
+	// OXCASE and OXFALL use it to validate the use of fallthrough.
+	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
 	Lineno int32
