@@ -104,7 +104,11 @@ func TestLookupGroup(t *testing.T) {
 
 	g1, err := LookupGroupId(user.Gid)
 	if err != nil {
-		t.Fatalf("LookupGroupId(%q): %v", user.Gid, err)
+		// NOTE(rsc): Maybe the group isn't defined. That's fine.
+		// On my OS X laptop, rsc logs in with group 5000 even
+		// though there's no name for group 5000. Such is Unix.
+		t.Logf("LookupGroupId(%q): %v", user.Gid, err)
+		return
 	}
 	if g1.Gid != user.Gid {
 		t.Errorf("LookupGroupId(%q).Gid = %s; want %s", user.Gid, g1.Gid, user.Gid)
