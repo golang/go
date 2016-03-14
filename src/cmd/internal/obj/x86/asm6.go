@@ -1796,7 +1796,9 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 	}
 
 	var q *obj.Prog
+	var count int64 // rough count of number of instructions
 	for p := s.Text; p != nil; p = p.Link {
+		count++
 		p.Back = 2 // use short branches first time through
 		q = p.Pcond
 		if q != nil && (q.Back&2 != 0) {
@@ -1821,6 +1823,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 			}
 		}
 	}
+	s.GrowCap(count * 5) // preallocate roughly 5 bytes per instruction
 
 	n := 0
 	var c int32

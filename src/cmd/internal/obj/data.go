@@ -53,6 +53,20 @@ func (s *LSym) Grow(lsiz int64) {
 	s.P = s.P[:siz]
 }
 
+// GrowCap increases the capacity of s.P to c.
+func (s *LSym) GrowCap(c int64) {
+	if int64(cap(s.P)) >= c {
+		return
+	}
+	if s.P == nil {
+		s.P = make([]byte, 0, c)
+		return
+	}
+	b := make([]byte, len(s.P), c)
+	copy(b, s.P)
+	s.P = b
+}
+
 // prepwrite prepares to write data of size siz into s at offset off.
 func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if off < 0 || siz < 0 || off >= 1<<30 {
