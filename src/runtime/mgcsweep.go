@@ -51,6 +51,7 @@ func finishsweep_m(stw bool) {
 			}
 		}
 	}
+	nextMarkBitArenaEpoch()
 }
 
 func bgsweep(c chan int) {
@@ -211,8 +212,9 @@ func (s *mspan) sweep(preserve bool) bool {
 	special := *specialp
 	for special != nil {
 		// A finalizer can be set for an inner byte of an object, find object beginning.
-		p := s.base() + uintptr(special.offset)/size*size
-		mbits := s.markBitsForAddr(p)
+		objIndex := uintptr(special.offset) / size
+		p := s.base() + objIndex*size
+		mbits := s.markBitsForIndex(objIndex)
 		if !mbits.isMarked() {
 			// This object is not marked and has at least one special record.
 			// Pass 1: see if it has at least one finalizer.
@@ -260,13 +262,13 @@ func (s *mspan) sweep(preserve bool) bool {
 
 	s.allocCount = uint16(s.nelems) - uint16(nfree)
 	wasempty := s.nextFreeIndex() == s.nelems
-
 	s.freeindex = 0 // reset allocation index to start of span.
 
-	// Swap role of allocBits with gcmarkBits
-	// Clear gcmarkBits in preparation for next GC
-	s.allocBits, s.gcmarkBits = s.gcmarkBits, s.allocBits
-	s.clearGCMarkBits() // prepare for next GC
+	// gcmarkBits becomes the allocBits.
+	// get a fresh cleared gcmarkBits in preparation for next GC
+	s.allocBits = s.gcmarkBits
+	s.gcmarkBits = newMarkBits(s.nelems)
+
 	// Initialize alloc bits cache.
 	s.refillAllocCache(0)
 

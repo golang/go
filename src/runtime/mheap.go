@@ -149,16 +149,31 @@ type mspan struct {
 	// allocCache may contain bits beyond s.nelems; the caller must ignore
 	// these.
 	allocCache uint64
-	allocBits  *[maxObjsPerSpan / 8]uint8
-	gcmarkBits *[maxObjsPerSpan / 8]uint8
 
-	// allocBits and gcmarkBits currently point to either markbits1
-	// or markbits2. At the end of a GC cycle allocBits and
-	// gcmarkBits swap roles simply by swapping pointers.
-	// This level of indirection also facilitates an implementation
-	// where markbits1 and markbits2 are not inlined in mspan.
-	markbits1 [maxObjsPerSpan / 8]uint8 // A bit for each obj.
-	markbits2 [maxObjsPerSpan / 8]uint8 // A bit for each obj.
+	// allocBits and gcmarkBits hold pointers to a span's mark and
+	// allocation bits. The pointers are 8 byte aligned.
+	// There are three arenas where this data is held.
+	// free: Dirty arenas that are no longer accessed
+	//       and can be reused.
+	// next: Holds information to be used in the next GC cycle.
+	// current: Information being used during this GC cycle.
+	// previous: Information being used during the last GC cycle.
+	// A new GC cycle starts with the call to finishsweep_m.
+	// finishsweep_m moves the previous arena to the free arena,
+	// the current arena to the previous arena, and
+	// the next arena to the current arena.
+	// The next arena is populated as the spans request
+	// memory to hold gcmarkBits for the next GC cycle as well
+	// as allocBits for newly allocated spans.
+	//
+	// The pointer arithmetic is done "by hand" instead of using
+	// arrays to avoid bounds checks along critical performance
+	// paths.
+	// The sweep will free the old allocBits and set allocBits to the
+	// gcmarkBits. The gcmarkBits are replaced with a fresh zeroed
+	// out memory.
+	allocBits  *uint8
+	gcmarkBits *uint8
 
 	// sweep generation:
 	// if sweepgen == h->sweepgen - 2, the span needs sweeping
@@ -950,16 +965,8 @@ func (span *mspan) init(start pageID, npages uintptr) {
 	span.specials = nil
 	span.needzero = 0
 	span.freeindex = 0
-	span.allocBits = &span.markbits1
-	span.gcmarkBits = &span.markbits2
-	// determine if this is actually needed. It is once / span so it
-	// isn't expensive. This is to be replaced by an arena
-	// based system where things can be cleared all at once so
-	// don't worry about optimizing this.
-	for i := 0; i < len(span.markbits1); i++ {
-		span.allocBits[i] = 0
-		span.gcmarkBits[i] = 0
-	}
+	span.allocBits = nil
+	span.gcmarkBits = nil
 }
 
 func (span *mspan) inList() bool {
@@ -1225,4 +1232,118 @@ func freespecial(s *special, p unsafe.Pointer, size uintptr) {
 		throw("bad special kind")
 		panic("not reached")
 	}
+}
+
+const gcBitsChunkBytes = uintptr(1 << 16)
+const gcBitsHeaderBytes = unsafe.Sizeof(gcBitsHeader{})
+
+type gcBitsHeader struct {
+	free uintptr // free is the index into bits of the next free byte.
+	next uintptr // *gcBits triggers recursive type bug. (issue 14620)
+}
+
+type gcBits struct {
+	// gcBitsHeader // side step recursive type bug (issue 14620) by including fields by hand.
+	free uintptr // free is the index into bits of the next free byte.
+	next *gcBits
+	bits [gcBitsChunkBytes - gcBitsHeaderBytes]uint8
+}
+
+var gcBitsArenas struct {
+	lock     mutex
+	free     *gcBits
+	next     *gcBits
+	current  *gcBits
+	previous *gcBits
+}
+
+// newMarkBits returns a pointer to 8 byte aligned bytes
+// to be used for a span's mark bits.
+func newMarkBits(nelems uintptr) *uint8 {
+	lock(&gcBitsArenas.lock)
+	blocksNeeded := uintptr((nelems + 63) / 64)
+	bytesNeeded := blocksNeeded * 8
+	if gcBitsArenas.next == nil ||
+		gcBitsArenas.next.free+bytesNeeded > uintptr(len(gcBits{}.bits)) {
+		// Allocate a new arena.
+		fresh := newArena()
+		fresh.next = gcBitsArenas.next
+		gcBitsArenas.next = fresh
+	}
+	if gcBitsArenas.next.free >= gcBitsChunkBytes {
+		println("runtime: gcBitsArenas.next.free=", gcBitsArenas.next.free, gcBitsChunkBytes)
+		throw("markBits overflow")
+	}
+	result := &gcBitsArenas.next.bits[gcBitsArenas.next.free]
+	gcBitsArenas.next.free += bytesNeeded
+	unlock(&gcBitsArenas.lock)
+	return result
+}
+
+// newAllocBits returns a pointer to 8 byte aligned bytes
+// to be used for this span's alloc bits.
+// newAllocBits is used to provide newly initialized spans
+// allocation bits. For spans not being initialized the
+// the mark bits are repurposed as allocation bits when
+// the span is swept.
+func newAllocBits(nelems uintptr) *uint8 {
+	return newMarkBits(nelems)
+}
+
+// nextMarkBitArenaEpoch establishes a new epoch for the arenas
+// holding the mark bits. The arenas are named relative to the
+// current GC cycle which is demarcated by the call to finishweep_m.
+//
+// All current spans have been swept.
+// During that sweep each span allocated room for its gcmarkBits in
+// gcBitsArenas.next block. gcBitsArenas.next becomes the gcBitsArenas.current
+// where the GC will mark objects and after each span is swept these bits
+// will be used to allocate objects.
+// gcBitsArenas.current becomes gcBitsArenas.previous where the span's
+// gcAllocBits live until all the spans have been swept during this GC cycle.
+// The span's sweep extinguishes all the references to gcBitsArenas.previous
+// by pointing gcAllocBits into the gcBitsArenas.current.
+// The gcBitsArenas.previous is released to the gcBitsArenas.free list.
+func nextMarkBitArenaEpoch() {
+	lock(&gcBitsArenas.lock)
+	if gcBitsArenas.previous != nil {
+		if gcBitsArenas.free == nil {
+			gcBitsArenas.free = gcBitsArenas.previous
+		} else {
+			// Find end of previous arenas.
+			last := gcBitsArenas.previous
+			for last = gcBitsArenas.previous; last.next != nil; last = last.next {
+			}
+			last.next = gcBitsArenas.free
+			gcBitsArenas.free = gcBitsArenas.previous
+		}
+	}
+	gcBitsArenas.previous = gcBitsArenas.current
+	gcBitsArenas.current = gcBitsArenas.next
+	gcBitsArenas.next = nil // newMarkBits calls newArena when needed
+	unlock(&gcBitsArenas.lock)
+}
+
+// newArena allocates and zeroes a gcBits arena.
+func newArena() *gcBits {
+	var result *gcBits
+	if gcBitsArenas.free == nil {
+		result = (*gcBits)(sysAlloc(gcBitsChunkBytes, &memstats.gc_sys))
+		if result == nil {
+			throw("runtime: cannot allocate memory")
+		}
+	} else {
+		result = gcBitsArenas.free
+		gcBitsArenas.free = gcBitsArenas.free.next
+		memclr(unsafe.Pointer(result), gcBitsChunkBytes)
+	}
+	result.next = nil
+	// If result.bits is not 8 byte aligned adjust index so
+	// that &result.bits[result.free] is 8 byte aligned.
+	if uintptr(unsafe.Offsetof(gcBits{}.bits))&7 == 0 {
+		result.free = 0
+	} else {
+		result.free = 8 - (uintptr(unsafe.Pointer(&result.bits[0])) & 7)
+	}
+	return result
 }

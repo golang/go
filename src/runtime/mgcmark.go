@@ -1082,8 +1082,8 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
 				// Same work as in scanobject; see comments there.
 				obj := *(*uintptr)(unsafe.Pointer(b + i))
 				if obj != 0 && arena_start <= obj && obj < arena_used {
-					if obj, hbits, span := heapBitsForObject(obj, b, i); obj != 0 {
-						greyobject(obj, b, i, hbits, span, gcw)
+					if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
+						greyobject(obj, b, i, hbits, span, gcw, objIndex)
 					}
 				}
 			}
@@ -1148,8 +1148,8 @@ func scanobject(b uintptr, gcw *gcWork) {
 		// Check if it points into heap and not back at the current object.
 		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
 			// Mark the object.
-			if obj, hbits, span := heapBitsForObject(obj, b, i); obj != 0 {
-				greyobject(obj, b, i, hbits, span, gcw)
+			if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
+				greyobject(obj, b, i, hbits, span, gcw, objIndex)
 			}
 		}
 	}
@@ -1162,9 +1162,9 @@ func scanobject(b uintptr, gcw *gcWork) {
 // Preemption must be disabled.
 //go:nowritebarrier
 func shade(b uintptr) {
-	if obj, hbits, span := heapBitsForObject(b, 0, 0); obj != 0 {
+	if obj, hbits, span, objIndex := heapBitsForObject(b, 0, 0); obj != 0 {
 		gcw := &getg().m.p.ptr().gcw
-		greyobject(obj, 0, 0, hbits, span, gcw)
+		greyobject(obj, 0, 0, hbits, span, gcw, objIndex)
 		if gcphase == _GCmarktermination || gcBlackenPromptly {
 			// Ps aren't allowed to cache work during mark
 			// termination.
@@ -1177,12 +1177,13 @@ func shade(b uintptr) {
 // If it isn't already marked, mark it and enqueue into gcw.
 // base and off are for debugging only and could be removed.
 //go:nowritebarrierrec
-func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork) {
+func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork, objIndex uintptr) {
 	// obj should be start of allocation, and so must be at least pointer-aligned.
 	if obj&(sys.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
 	}
-	mbits := span.markBitsForAddr(obj)
+	mbits := span.markBitsForIndex(objIndex)
+
 	if useCheckmark {
 		if !mbits.isMarked() {
 			printlock()
@@ -1209,8 +1210,8 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 		if mbits.isMarked() {
 			return
 		}
-		mbits.setMarked()
-
+		// mbits.setMarked() // Avoid extra call overhead with manual inlining.
+		atomic.Or8(mbits.bytep, mbits.mask)
 		// If this is a noscan object, fast-track it to black
 		// instead of greying it.
 		if !hbits.hasPointers(span.elemsize) {
