@@ -534,6 +534,9 @@
     (Store [8] dst real mem))
 
 // string ops
+// Decomposing StringMake and lowering of StringPtr and StringLen
+// happens in a later pass, dec, so that these operations are available
+// to otherpasses for optimizations.
 (StringPtr (StringMake (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
 (ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
@@ -563,6 +566,9 @@
     (Store [config.PtrSize] dst ptr mem))
 
 // slice ops
+// Decomposing SliceMake, and lowering of SlicePtr, SliceLen, and SliceCap
+// happens in a later pass, dec, so that these operations are available
+// to other passes for optimizations.
 (SlicePtr (SliceMake (Const64 <t> [c]) _ _)) -> (Const64 <t> [c])
 (SliceLen (SliceMake _ (Const64 <t> [c]) _)) -> (Const64 <t> [c])
 (SliceCap (SliceMake _ _ (Const64 <t> [c]))) -> (Const64 <t> [c])

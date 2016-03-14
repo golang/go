@@ -183,7 +183,7 @@ var passes = [...]pass{
 	{name: "prove", fn: prove},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "dec", fn: dec, required: true},
-	{name: "late opt", fn: opt}, // TODO: split required rules and optimizing rules
+	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
 	{name: "generic deadcode", fn: deadcode},
 	{name: "fuse", fn: fuse},
 	{name: "dse", fn: dse},
