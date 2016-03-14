@@ -328,7 +328,6 @@ func gdata(nam *Node, nr *Node, wid int) {
 			}
 
 		default:
-			// CTNILs don't reach gdata; search for CTNIL in sinit.go. Probably they should, eventually.
 			Fatalf("gdata unhandled OLITERAL %v", nr)
 		}
 
