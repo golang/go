@@ -514,6 +514,7 @@ func staticname(t *Type, ctxt int) *Node {
 }
 
 func isliteral(n *Node) bool {
+	// Treat nils as zeros rather than literals.
 	if n.Op == OLITERAL {
 		if n.Val().Ctype() != CTNIL {
 			return true
