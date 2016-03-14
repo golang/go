@@ -1876,7 +1876,7 @@ func Copy(dst, src Value) int {
 // A runtimeSelect is a single case passed to rselect.
 // This must match ../runtime/select.go:/runtimeSelect
 type runtimeSelect struct {
-	dir uintptr        // 0, SendDir, or RecvDir
+	dir SelectDir      // SelectSend, SelectRecv or SelectDefault
 	typ *rtype         // channel type
 	ch  unsafe.Pointer // channel
 	val unsafe.Pointer // ptr to data (SendDir) or ptr to receive buffer (RecvDir)
@@ -1939,7 +1939,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	haveDefault := false
 	for i, c := range cases {
 		rc := &runcases[i]
-		rc.dir = uintptr(c.Dir)
+		rc.dir = c.Dir
 		switch c.Dir {
 		default:
 			panic("reflect.Select: invalid Dir")
@@ -2002,7 +2002,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
 	}
 
 	chosen, recvOK = rselect(runcases)
-	if runcases[chosen].dir == uintptr(SelectRecv) {
+	if runcases[chosen].dir == SelectRecv {
 		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
 		t := tt.elem
 		p := runcases[chosen].val
