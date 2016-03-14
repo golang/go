@@ -831,7 +831,10 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 		if blocking {
 			b = gcw.get()
 		} else {
-			b = gcw.tryGet()
+			b = gcw.tryGetFast()
+			if b == 0 {
+				b = gcw.tryGet()
+			}
 		}
 		if b == 0 {
 			// work barrier reached or tryGet failed.
@@ -894,7 +897,11 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
 		//         PREFETCH(wbuf->obj[wbuf.nobj - 3];
 		//  }
 		//
-		b := gcw.tryGet()
+		b := gcw.tryGetFast()
+		if b == 0 {
+			b = gcw.tryGet()
+		}
+
 		if b == 0 {
 			break
 		}
@@ -1087,8 +1094,9 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
 	// Previously we put the obj in an 8 element buffer that is drained at a rate
 	// to give the PREFETCH time to do its work.
 	// Use of PREFETCHNTA might be more appropriate than PREFETCH
-
-	gcw.put(obj)
+	if !gcw.putFast(obj) {
+		gcw.put(obj)
+	}
 }
 
 // gcDumpObject dumps the contents of obj for debugging and marks the
