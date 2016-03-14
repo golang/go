@@ -650,19 +650,11 @@ func asmb() {
 	ld.Cseek(int64(ld.Segdata.Fileoff))
 	ld.Datblk(int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
 
+	ld.Cseek(int64(ld.Segdwarf.Fileoff))
+	ld.Dwarfblk(int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+
 	machlink := int64(0)
 	if ld.HEADTYPE == obj.Hdarwin {
-		if ld.Debug['v'] != 0 {
-			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
-		}
-
-		dwarfoff := ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND))
-		ld.Cseek(dwarfoff)
-
-		ld.Segdwarf.Fileoff = uint64(ld.Cpos())
-		ld.Dwarfemitdebugsections()
-		ld.Segdwarf.Filelen = uint64(ld.Cpos()) - ld.Segdwarf.Fileoff
-
 		machlink = ld.Domacholink()
 	}
 
@@ -715,11 +707,11 @@ func asmb() {
 			obj.Hdragonfly,
 			obj.Hsolaris,
 			obj.Hnacl:
-			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, int64(ld.INITRND))
 
 		case obj.Hwindows:
-			symo = int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, ld.PEFILEALIGN)
 		}
 
@@ -735,8 +727,6 @@ func asmb() {
 				if ld.Debug['v'] != 0 {
 					fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 				}
-
-				ld.Dwarfemitdebugsections()
 
 				if ld.Linkmode == ld.LinkExternal {
 					ld.Elfemitreloc()
@@ -761,8 +751,6 @@ func asmb() {
 			if ld.Debug['v'] != 0 {
 				fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
 			}
-
-			ld.Dwarfemitdebugsections()
 
 		case obj.Hdarwin:
 			if ld.Linkmode == ld.LinkExternal {
