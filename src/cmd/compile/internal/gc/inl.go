@@ -497,7 +497,7 @@ func mkinlcall(np **Node, fn *Node, isddd bool) {
 	safemode = save_safemode
 }
 
-func tinlvar(t *Type) *Node {
+func tinlvar(t *Field) *Node {
 	if t.Nname != nil && !isblank(t.Nname) {
 		if t.Nname.Name.Inlvar == nil {
 			Fatalf("missing inlvar for %v\n", t.Nname)
@@ -852,7 +852,7 @@ func inlvar(var_ *Node) *Node {
 }
 
 // Synthesize a variable to store the inlined function's results in.
-func retvar(t *Type, i int) *Node {
+func retvar(t *Field, i int) *Node {
 	n := newname(Lookupf("~r%d", i))
 	n.Type = t.Type
 	n.Class = PAUTO

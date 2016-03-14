@@ -62,8 +62,8 @@ func uncommonSize(t *Type) int { // Sizeof(runtime.uncommontype{})
 	return 2*Widthptr + 2*Widthint
 }
 
-func makefield(name string, t *Type) *Type {
-	f := typ(TFIELD)
+func makefield(name string, t *Type) *Field {
+	f := newField()
 	f.Type = t
 	f.Sym = nopkg.Lookup(name)
 	return f
@@ -91,7 +91,7 @@ func mapbucket(t *Type) *Type {
 
 	arr.Type = Types[TUINT8]
 	arr.Bound = BUCKETSIZE
-	field := make([]*Type, 0, 5)
+	field := make([]*Field, 0, 5)
 	field = append(field, makefield("topbits", arr))
 	arr = typ(TARRAY)
 	arr.Type = keytype
@@ -162,7 +162,7 @@ func hmap(t *Type) *Type {
 	}
 
 	bucket := mapbucket(t)
-	var field [8]*Type
+	var field [8]*Field
 	field[0] = makefield("count", Types[TINT])
 	field[1] = makefield("flags", Types[TUINT8])
 	field[2] = makefield("B", Types[TUINT8])
@@ -203,7 +203,7 @@ func hiter(t *Type) *Type {
 	//    checkBucket uintptr
 	// }
 	// must match ../../../../runtime/hashmap.go:hiter.
-	var field [12]*Type
+	var field [12]*Field
 	field[0] = makefield("key", Ptrto(t.Key()))
 	field[1] = makefield("val", Ptrto(t.Type))
 	field[2] = makefield("t", Ptrto(Types[TUINT8]))
@@ -286,9 +286,6 @@ func methods(t *Type) []*Sig {
 	// generating code if necessary.
 	var ms []*Sig
 	for f, it2 := IterAllMethods(mt); f != nil; f = it2.Next() {
-		if f.Etype != TFIELD {
-			Fatalf("methods: not field %v", f)
-		}
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
@@ -360,9 +357,6 @@ func methods(t *Type) []*Sig {
 func imethods(t *Type) []*Sig {
 	var methods []*Sig
 	for f, it := IterFields(t); f != nil; f = it.Next() {
-		if f.Etype != TFIELD {
-			Fatalf("imethods: not field")
-		}
 		if f.Type.Etype != TFUNC || f.Sym == nil {
 			continue
 		}
@@ -623,9 +617,6 @@ func haspointers(t *Type) bool {
 		fallthrough
 	default:
 		ret = true
-
-	case TFIELD:
-		Fatalf("haspointers: unexpected type, %v", t)
 	}
 
 	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
@@ -667,7 +658,7 @@ func typeptrdata(t *Type) int64 {
 
 	case TSTRUCT:
 		// Find the last field that has pointers.
-		var lastPtrField *Type
+		var lastPtrField *Field
 		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 			if haspointers(t1.Type) {
 				lastPtrField = t1
@@ -800,7 +791,7 @@ func typesym(t *Type) *Sym {
 
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
-func tracksym(t, f *Type) *Sym {
+func tracksym(t *Type, f *Field) *Sym {
 	return Pkglookup(Tconv(t, obj.FmtLeft)+"."+f.Sym.Name, trackpkg)
 }
 

@@ -1235,9 +1235,6 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 		}
 
 		for field, it := IterFields(t); field != nil; field = it.Next() {
-			if field.Etype != TFIELD {
-				Fatalf("bad struct")
-			}
 			if !visitComponents(field.Type, startOffset+field.Width, f) {
 				return false
 			}

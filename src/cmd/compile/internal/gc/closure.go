@@ -297,13 +297,13 @@ func transformclosure(xfunc *Node) {
 		f := xfunc.Func.Nname
 
 		// We are going to insert captured variables before input args.
-		var params []*Type
+		var params []*Field
 		var decls []*Node
 		for _, v := range func_.Func.Cvars.Slice() {
 			if v.Op == OXXX {
 				continue
 			}
-			fld := typ(TFIELD)
+			fld := newField()
 			fld.Funarg = true
 			if v.Name.Byval {
 				// If v is captured by value, we merely downgrade it to PPARAM.

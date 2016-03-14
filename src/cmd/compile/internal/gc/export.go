@@ -273,7 +273,7 @@ func dumpexportvar(s *Sym) {
 }
 
 // methodbyname sorts types by symbol name.
-type methodbyname []*Type
+type methodbyname []*Field
 
 func (x methodbyname) Len() int           { return len(x) }
 func (x methodbyname) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
@@ -282,9 +282,6 @@ func (x methodbyname) Less(i, j int) bool { return x[i].Sym.Name < x[j].Sym.Name
 func dumpexporttype(t *Type) {
 	if t == nil {
 		return
-	}
-	if t.Etype == TFIELD {
-		Fatalf("unexpected TFIELD in dumpexporttype")
 	}
 	if t.Printed || t == Types[t.Etype] || t == bytetype || t == runetype || t == errortype {
 		return
@@ -315,7 +312,7 @@ func dumpexporttype(t *Type) {
 		return
 	}
 
-	var m []*Type
+	var m []*Field
 	for f, it := IterMethods(t); f != nil; f = it.Next() {
 		dumpexporttype(f.Type)
 		m = append(m, f)
@@ -334,10 +331,10 @@ func dumpexporttype(t *Type) {
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname)
 			}
-			exportf("\tfunc (%v) %v %v { %v }\n", Tconv(f.Type.Recv(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
+			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp), Hconv(f.Type.Nname.Func.Inl, obj.FmtSharp))
 			reexportdeplist(f.Type.Nname.Func.Inl)
 		} else {
-			exportf("\tfunc (%v) %v %v\n", Tconv(f.Type.Recv(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
+			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), obj.FmtSharp), Sconv(f.Sym, obj.FmtShort|obj.FmtByte|obj.FmtSharp), Tconv(f.Type, obj.FmtShort|obj.FmtSharp))
 		}
 	}
 }

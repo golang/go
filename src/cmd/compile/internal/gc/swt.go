@@ -146,7 +146,7 @@ func typecheckswitch(n *Node) {
 
 				// type switch
 				case Etype:
-					var missing, have *Type
+					var missing, have *Field
 					var ptr int
 					switch {
 					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
