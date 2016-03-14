@@ -869,11 +869,11 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		syma := Lookup("a")
 		symb := Lookup("b")
 
-		var fields [2]*Type
-		fields[0] = typ(TFIELD)
+		var fields [2]*Field
+		fields[0] = newField()
 		fields[0].Type = tk
 		fields[0].Sym = syma
-		fields[1] = typ(TFIELD)
+		fields[1] = newField()
 		fields[1].Type = tv
 		fields[1].Sym = symb
 

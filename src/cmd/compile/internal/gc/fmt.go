@@ -401,7 +401,6 @@ var etnames = []string{
 	TMAP:        "MAP",
 	TINTER:      "INTER",
 	TFORW:       "FORW",
-	TFIELD:      "FIELD",
 	TSTRING:     "STRING",
 	TUNSAFEPTR:  "TUNSAFEPTR",
 	TANY:        "ANY",
@@ -510,7 +509,7 @@ func typefmt(t *Type, flag int) string {
 	}
 
 	// Unless the 'l' flag was specified, if the type has a name, just print that name.
-	if flag&obj.FmtLong == 0 && t.Sym != nil && t.Etype != TFIELD && t != Types[t.Etype] {
+	if flag&obj.FmtLong == 0 && t.Sym != nil && t != Types[t.Etype] {
 		switch fmtmode {
 		case FTypeId:
 			if flag&obj.FmtShort != 0 {
@@ -664,14 +663,14 @@ func typefmt(t *Type, flag int) string {
 			buf.WriteString("(")
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
 				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
-					buf.WriteString(Tconv(t1, obj.FmtShort))
+					buf.WriteString(Fldconv(t1, obj.FmtShort))
 					if t1.Down != nil {
 						buf.WriteString(", ")
 					}
 				}
 			} else {
 				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
-					buf.WriteString(Tconv(t1, 0))
+					buf.WriteString(Fldconv(t1, 0))
 					if t1.Down != nil {
 						buf.WriteString(", ")
 					}
@@ -682,7 +681,7 @@ func typefmt(t *Type, flag int) string {
 			buf.WriteString("struct {")
 			for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 				buf.WriteString(" ")
-				buf.WriteString(Tconv(t1, obj.FmtLong))
+				buf.WriteString(Fldconv(t1, obj.FmtLong))
 				if t1.Down != nil {
 					buf.WriteString(";")
 				}
@@ -693,72 +692,6 @@ func typefmt(t *Type, flag int) string {
 			buf.WriteString("}")
 		}
 		return buf.String()
-
-	case TFIELD:
-		var name string
-		if flag&obj.FmtShort == 0 {
-			s := t.Sym
-
-			// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
-			// ~r%d is a (formerly) unnamed result.
-			if (fmtmode == FErr || fmtmode == FExp) && t.Nname != nil {
-				if t.Nname.Orig != nil {
-					s = t.Nname.Orig.Sym
-					if s != nil && s.Name[0] == '~' {
-						if s.Name[1] == 'r' { // originally an unnamed result
-							s = nil
-						} else if s.Name[1] == 'b' { // originally the blank identifier _
-							s = Lookup("_")
-						}
-					}
-				} else {
-					s = nil
-				}
-			}
-
-			if s != nil && t.Embedded == 0 {
-				if t.Funarg {
-					name = Nconv(t.Nname, 0)
-				} else if flag&obj.FmtLong != 0 {
-					name = Sconv(s, obj.FmtShort|obj.FmtByte) // qualify non-exported names (used on structs, not on funarg)
-				} else {
-					name = Sconv(s, 0)
-				}
-			} else if fmtmode == FExp {
-				// TODO(rsc) this breaks on the eliding of unused arguments in the backend
-				// when this is fixed, the special case in dcl.go checkarglist can go.
-				//if(t->funarg)
-				//	fmtstrcpy(fp, "_ ");
-				//else
-				if t.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
-					name = fmt.Sprintf("@%q.?", s.Pkg.Path)
-				} else {
-					name = "?"
-				}
-			}
-		}
-
-		var typ string
-		if t.Isddd {
-			typ = "..." + Tconv(t.Type.Type, 0)
-		} else {
-			typ = Tconv(t.Type, 0)
-		}
-
-		str := typ
-		if name != "" {
-			str = name + " " + typ
-		}
-
-		// The fmtbody flag is intended to suppress escape analysis annotations
-		// when printing a function type used in a function body.
-		// (The escape analysis tags do not apply to func vars.)
-		// But it must not suppress struct field tags.
-		// See golang.org/issue/13777 and golang.org/issue/14331.
-		if flag&obj.FmtShort == 0 && (!fmtbody || !t.Funarg) && t.Note != nil {
-			str += " " + strconv.Quote(*t.Note)
-		}
-		return str
 
 	case TFORW:
 		if t.Sym != nil {
@@ -1625,6 +1558,95 @@ func Sconv(s *Sym, flag int) string {
 
 func (t *Type) String() string {
 	return Tconv(t, 0)
+}
+
+func Fldconv(f *Field, flag int) string {
+	if f == nil {
+		return "<T>"
+	}
+
+	sf := flag
+	sm, sb := setfmode(&flag)
+
+	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
+		fmtpkgpfx++
+	}
+	if fmtpkgpfx != 0 {
+		flag |= obj.FmtUnsigned
+	}
+
+	var name string
+	if flag&obj.FmtShort == 0 {
+		s := f.Sym
+
+		// Take the name from the original, lest we substituted it with ~r%d or ~b%d.
+		// ~r%d is a (formerly) unnamed result.
+		if (fmtmode == FErr || fmtmode == FExp) && f.Nname != nil {
+			if f.Nname.Orig != nil {
+				s = f.Nname.Orig.Sym
+				if s != nil && s.Name[0] == '~' {
+					if s.Name[1] == 'r' { // originally an unnamed result
+						s = nil
+					} else if s.Name[1] == 'b' { // originally the blank identifier _
+						s = Lookup("_")
+					}
+				}
+			} else {
+				s = nil
+			}
+		}
+
+		if s != nil && f.Embedded == 0 {
+			if f.Funarg {
+				name = Nconv(f.Nname, 0)
+			} else if flag&obj.FmtLong != 0 {
+				name = Sconv(s, obj.FmtShort|obj.FmtByte) // qualify non-exported names (used on structs, not on funarg)
+			} else {
+				name = Sconv(s, 0)
+			}
+		} else if fmtmode == FExp {
+			// TODO(rsc) this breaks on the eliding of unused arguments in the backend
+			// when this is fixed, the special case in dcl.go checkarglist can go.
+			//if(t->funarg)
+			//	fmtstrcpy(fp, "_ ");
+			//else
+			if f.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
+				name = fmt.Sprintf("@%q.?", s.Pkg.Path)
+			} else {
+				name = "?"
+			}
+		}
+	}
+
+	var typ string
+	if f.Isddd {
+		typ = "..." + Tconv(f.Type.Type, 0)
+	} else {
+		typ = Tconv(f.Type, 0)
+	}
+
+	str := typ
+	if name != "" {
+		str = name + " " + typ
+	}
+
+	// The fmtbody flag is intended to suppress escape analysis annotations
+	// when printing a function type used in a function body.
+	// (The escape analysis tags do not apply to func vars.)
+	// But it must not suppress struct field tags.
+	// See golang.org/issue/13777 and golang.org/issue/14331.
+	if flag&obj.FmtShort == 0 && (!fmtbody || !f.Funarg) && f.Note != nil {
+		str += " " + strconv.Quote(*f.Note)
+	}
+
+	if fmtmode == FTypeId && (sf&obj.FmtUnsigned != 0) {
+		fmtpkgpfx--
+	}
+
+	flag = sf
+	fmtbody = sb
+	fmtmode = sm
+	return str
 }
 
 // Fmt "%T": types.

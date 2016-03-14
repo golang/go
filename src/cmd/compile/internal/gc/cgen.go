@@ -2225,9 +2225,9 @@ func stkof(n *Node) int64 {
 			t = t.Type
 		}
 
-		t = t.Results().Field(0)
-		if t != nil {
-			return t.Width + Ctxt.FixedFrameSize()
+		f := t.Results().Field(0)
+		if f != nil {
+			return f.Width + Ctxt.FixedFrameSize()
 		}
 	}
 

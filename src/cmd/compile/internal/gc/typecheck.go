@@ -946,8 +946,7 @@ OpSwitch:
 		}
 
 		if n.Type != nil && n.Type.Etype != TINTER {
-			var have *Type
-			var missing *Type
+			var missing, have *Field
 			var ptr int
 			if !implements(n.Type, t, &missing, &have, &ptr) {
 				if have != nil && have.Sym == missing.Sym {
@@ -2363,8 +2362,8 @@ func twoarg(n *Node) bool {
 	return true
 }
 
-func lookdot1(errnode *Node, s *Sym, t *Type, f *Type, dostrcmp int) *Type {
-	var r *Type
+func lookdot1(errnode *Node, s *Sym, t *Type, f *Field, dostrcmp int) *Field {
+	var r *Field
 	for f, it := RawIter(f); f != nil; f = it.Next() {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
 			return f
@@ -2410,14 +2409,13 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 
 	// Find the base type: methtype will fail if t
 	// is not of the form T or *T.
-	f2 := methtype(t, 0)
-
-	if f2 == nil {
+	mt := methtype(t, 0)
+	if mt == nil {
 		return false
 	}
 
-	expandmeth(f2)
-	f2 = lookdot1(n, s, f2, f2.Xmethod, dostrcmp)
+	expandmeth(mt)
+	f2 := lookdot1(n, s, mt, mt.Xmethod, dostrcmp)
 	if f2 == nil {
 		return false
 	}
@@ -2449,24 +2447,24 @@ type typeSym struct {
 
 // dotField maps (*Type, *Sym) pairs to the corresponding struct field (*Type with Etype==TFIELD).
 // It is a cache for use during usefield in walk.go, only enabled when field tracking.
-var dotField = map[typeSym]*Type{}
+var dotField = map[typeSym]*Field{}
 
-func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 	s := n.Right.Sym
 
 	dowidth(t)
-	var f1 *Type
+	var f1 *Field
 	if t.Etype == TSTRUCT || t.Etype == TINTER {
 		f1 = lookdot1(n, s, t, t.Fields, dostrcmp)
 	}
 
-	var f2 *Type
+	var f2 *Field
 	if n.Left.Type == t || n.Left.Type.Sym == nil {
-		f2 = methtype(t, 0)
-		if f2 != nil {
+		mt := methtype(t, 0)
+		if mt != nil {
 			// Use f2->method, not f2->xmethod: adddot has
 			// already inserted all the necessary embedded dots.
-			f2 = lookdot1(n, s, f2, f2.Method, dostrcmp)
+			f2 = lookdot1(n, s, mt, mt.Method, dostrcmp)
 		}
 	}
 

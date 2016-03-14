@@ -146,7 +146,7 @@ type Param struct {
 	Stackparam *Node // OPARAM node referring to stack copy of param
 
 	// ONAME PPARAM
-	Field *Type // TFIELD in arg struct
+	Field *Field // TFIELD in arg struct
 
 	// ONAME closure param with PPARAMREF
 	Outer   *Node // outer PPARAMREF in nested closure

@@ -3943,9 +3943,6 @@ func fieldIdx(n *Node) int64 {
 
 	var i int64
 	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
-		if t1.Etype != TFIELD {
-			panic("non-TFIELD in TSTRUCT")
-		}
 		if t1.Sym != f.Sym {
 			i++
 			continue

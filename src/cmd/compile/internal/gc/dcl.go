@@ -744,7 +744,7 @@ func checkembeddedtype(t *Type) {
 	}
 }
 
-func structfield(n *Node) *Type {
+func structfield(n *Node) *Field {
 	lno := lineno
 	lineno = n.Lineno
 
@@ -752,7 +752,7 @@ func structfield(n *Node) *Type {
 		Fatalf("structfield: oops %v\n", n)
 	}
 
-	f := typ(TFIELD)
+	f := newField()
 	f.Isddd = n.Isddd
 
 	if n.Right != nil {
@@ -832,7 +832,7 @@ func tostruct0(t *Type, l []*Node) {
 		Fatalf("struct expected")
 	}
 
-	var fields []*Type
+	var fields []*Field
 	for _, n := range l {
 		fields = append(fields, structfield(n))
 	}
@@ -855,7 +855,7 @@ func tofunargs(l []*Node) *Type {
 	t := typ(TSTRUCT)
 	t.Funarg = true
 
-	var fields []*Type
+	var fields []*Field
 	for _, n := range l {
 		f := structfield(n)
 		f.Funarg = true
@@ -878,7 +878,7 @@ func tofunargs(l []*Node) *Type {
 	return t
 }
 
-func interfacefield(n *Node) *Type {
+func interfacefield(n *Node) *Field {
 	lno := lineno
 	lineno = n.Lineno
 
@@ -890,7 +890,7 @@ func interfacefield(n *Node) *Type {
 		Yyerror("interface method cannot have annotation")
 	}
 
-	f := typ(TFIELD)
+	f := newField()
 	f.Isddd = n.Isddd
 
 	if n.Right != nil {
@@ -956,14 +956,14 @@ func tointerface0(t *Type, l []*Node) *Type {
 		Fatalf("interface expected")
 	}
 
-	var fields []*Type
+	var fields []*Field
 	for _, n := range l {
 		f := interfacefield(n)
 
 		if n.Left == nil && f.Type.Etype == TINTER {
 			// embedded interface, inline methods
 			for t1, it := IterFields(f.Type); t1 != nil; t1 = it.Next() {
-				f = typ(TFIELD)
+				f = newField()
 				f.Type = t1.Type
 				f.Broke = t1.Broke
 				f.Sym = t1.Sym
@@ -1295,15 +1295,15 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	}
 
 	// get parent type sym
-	pa := t.Recv() // ptr to this structure
-	if pa == nil {
+	rf := t.Recv() // ptr to this structure
+	if rf == nil {
 		Yyerror("missing receiver")
 		return
 	}
 
-	pa = pa.Type // base type
-	f := methtype(pa, 1)
-	if f == nil {
+	pa := rf.Type // base type
+	mt := methtype(pa, 1)
+	if mt == nil {
 		t = pa
 		if t == nil { // rely on typecheck having complained before
 			return
@@ -1344,7 +1344,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		return
 	}
 
-	pa = f
+	pa = mt
 	if local && !pa.Local {
 		Yyerror("cannot define new methods on non-local type %v", pa)
 		return
@@ -1366,12 +1366,9 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	n := Nod(ODCLFIELD, newname(msym), nil)
 	n.Type = t
 
-	var d *Type // last found
+	var d *Field // last found
 	for f, it := IterMethods(pa); f != nil; f = it.Next() {
 		d = f
-		if f.Etype != TFIELD {
-			Fatalf("addmethod: not TFIELD: %v", Tconv(f, obj.FmtLong))
-		}
 		if msym.Name != f.Sym.Name {
 			continue
 		}
@@ -1381,7 +1378,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		return
 	}
 
-	f = structfield(n)
+	f := structfield(n)
 	f.Nointerface = nointerface
 
 	// during import unexported method names should be in the type's package

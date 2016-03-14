@@ -20,9 +20,6 @@ func Rnd(o int64, r int64) int64 {
 func offmod(t *Type) {
 	o := int32(0)
 	for f, it := IterFields(t); f != nil; f = it.Next() {
-		if f.Etype != TFIELD {
-			Fatalf("offmod: not TFIELD: %v", Tconv(f, obj.FmtLong))
-		}
 		f.Width = int64(o)
 		o += int32(Widthptr)
 		if int64(o) >= Thearch.MAXWIDTH {
@@ -41,9 +38,6 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 	lastzero := int64(0)
 	var w int64
 	for f, it := IterFields(t); f != nil; f = it.Next() {
-		if f.Etype != TFIELD {
-			Fatalf("widstruct: not TFIELD: %v", Tconv(f, obj.FmtLong))
-		}
 		if f.Type == nil {
 			// broken field, just skip it so that other valid fields
 			// get a width.

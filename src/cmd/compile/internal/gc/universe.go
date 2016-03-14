@@ -370,18 +370,18 @@ func lexinit1() {
 
 	rcvr := typ(TSTRUCT)
 	rcvr.Funarg = true
-	field := typ(TFIELD)
+	field := newField()
 	field.Type = Ptrto(typ(TSTRUCT))
-	rcvr.SetFields([]*Type{field})
+	rcvr.SetFields([]*Field{field})
 
 	in := typ(TSTRUCT)
 	in.Funarg = true
 
 	out := typ(TSTRUCT)
 	out.Funarg = true
-	field = typ(TFIELD)
+	field = newField()
 	field.Type = Types[TSTRING]
-	out.SetFields([]*Type{field})
+	out.SetFields([]*Field{field})
 
 	f := typ(TFUNC)
 	*f.RecvsP() = rcvr
@@ -393,10 +393,10 @@ func lexinit1() {
 	f.Outtuple = 1
 
 	t := typ(TINTER)
-	field = typ(TFIELD)
+	field = newField()
 	field.Sym = Lookup("Error")
 	field.Type = f
-	t.SetFields([]*Type{field})
+	t.SetFields([]*Field{field})
 
 	// error type
 	s := Pkglookup("error", builtinpkg)

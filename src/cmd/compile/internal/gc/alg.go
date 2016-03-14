@@ -550,7 +550,7 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 // size is the length in bytes of the memory included in the run.
 // next is the index just after the end of the memory run.
 // TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
-func memrun(t *Type, fields []*Type, start int) (size int64, next int) {
+func memrun(t *Type, fields []*Field, start int) (size int64, next int) {
 	next = start
 	for {
 		next++
@@ -573,7 +573,7 @@ func memrun(t *Type, fields []*Type, start int) (size int64, next int) {
 // ispaddedfield reports whether the i'th field of struct type t is followed
 // by padding. The caller is responsible for providing t.FieldSlice() as fields.
 // TODO(mdempsky): Eliminate fields parameter once struct fields are kept in slices.
-func ispaddedfield(t *Type, fields []*Type, i int) bool {
+func ispaddedfield(t *Type, fields []*Field, i int) bool {
 	if t.Etype != TSTRUCT {
 		Fatalf("ispaddedfield called non-struct %v", t)
 	}

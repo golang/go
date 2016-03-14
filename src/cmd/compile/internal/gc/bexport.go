@@ -433,10 +433,6 @@ func (p *exporter) typ(t *Type) {
 
 	// pick off named types
 	if sym := t.Sym; sym != nil {
-		// Fields should be exported by p.field().
-		if t.Etype == TFIELD {
-			Fatalf("exporter: printing a field/parameter with wrong function")
-		}
 		// Predeclared types should have been found in the type map.
 		if t.Orig == t {
 			Fatalf("exporter: predeclared type missing from type map?")
@@ -464,7 +460,7 @@ func (p *exporter) typ(t *Type) {
 		// sort methods for reproducible export format
 		// TODO(gri) Determine if they are already sorted
 		// in which case we can drop this step.
-		var methods []*Type
+		var methods []*Field
 		for m, it := IterMethods(t); m != nil; m = it.Next() {
 			methods = append(methods, m)
 		}
@@ -566,11 +562,7 @@ func (p *exporter) fieldList(t *Type) {
 	}
 }
 
-func (p *exporter) field(f *Type) {
-	if f.Etype != TFIELD {
-		Fatalf("exporter: field expected")
-	}
-
+func (p *exporter) field(f *Field) {
 	p.fieldName(f)
 	p.typ(f.Type)
 	p.note(f.Note)
@@ -599,11 +591,7 @@ func (p *exporter) methodList(t *Type) {
 	}
 }
 
-func (p *exporter) method(m *Type) {
-	if m.Etype != TFIELD {
-		Fatalf("exporter: method expected")
-	}
-
+func (p *exporter) method(m *Field) {
 	p.fieldName(m)
 	// TODO(gri) For functions signatures, we use p.typ() to export
 	// so we could share the same type with multiple functions. Do
@@ -614,13 +602,13 @@ func (p *exporter) method(m *Type) {
 
 // fieldName is like qualifiedName but it doesn't record the package
 // for blank (_) or exported names.
-func (p *exporter) fieldName(t *Type) {
+func (p *exporter) fieldName(t *Field) {
 	sym := t.Sym
 
 	var name string
 	if t.Embedded == 0 {
 		name = sym.Name
-	} else if bname := basetypeName(t); bname != "" && !exportname(bname) {
+	} else if bname := basetypeName(t.Type); bname != "" && !exportname(bname) {
 		// anonymous field with unexported base type name: use "?" as field name
 		// (bname != "" per spec, but we are conservative in case of errors)
 		name = "?"
@@ -661,10 +649,7 @@ func (p *exporter) paramList(params *Type) {
 	}
 }
 
-func (p *exporter) param(q *Type, n int) {
-	if q.Etype != TFIELD {
-		Fatalf("exporter: parameter expected")
-	}
+func (p *exporter) param(q *Field, n int) {
 	t := q.Type
 	if q.Isddd {
 		// create a fake type to encode ... just for the p.typ call
@@ -685,7 +670,7 @@ func (p *exporter) param(q *Type, n int) {
 	p.note(q.Note)
 }
 
-func parName(q *Type) string {
+func parName(q *Field) string {
 	if q.Sym == nil {
 		return ""
 	}

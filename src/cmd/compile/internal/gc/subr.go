@@ -388,7 +388,7 @@ func maptype(key *Type, val *Type) *Type {
 }
 
 // methcmp sorts by symbol, then by package path for unexported symbols.
-type methcmp []*Type
+type methcmp []*Field
 
 func (x methcmp) Len() int      { return len(x) }
 func (x methcmp) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
@@ -770,17 +770,17 @@ func eqtypenoname(t1 *Type, t2 *Type) bool {
 		return false
 	}
 
-	t1, i1 := IterFields(t1)
-	t2, i2 := IterFields(t2)
+	f1, i1 := IterFields(t1)
+	f2, i2 := IterFields(t2)
 	for {
-		if !Eqtype(t1, t2) {
+		if !Eqtype(f1.Type, f2.Type) {
 			return false
 		}
-		if t1 == nil {
+		if f1 == nil {
 			return true
 		}
-		t1 = i1.Next()
-		t2 = i2.Next()
+		f1 = i1.Next()
+		f2 = i2.Next()
 	}
 }
 
@@ -822,9 +822,8 @@ func assignop(src *Type, dst *Type, why *string) Op {
 
 	// 3. dst is an interface type and src implements dst.
 	if dst.Etype == TINTER && src.Etype != TNIL {
-		var missing *Type
+		var missing, have *Field
 		var ptr int
-		var have *Type
 		if implements(src, dst, &missing, &have, &ptr) {
 			return OCONVIFACE
 		}
@@ -861,9 +860,8 @@ func assignop(src *Type, dst *Type, why *string) Op {
 	}
 
 	if src.Etype == TINTER && dst.Etype != TBLANK {
-		var have *Type
+		var missing, have *Field
 		var ptr int
-		var missing *Type
 		if why != nil && implements(dst, src, &missing, &have, &ptr) {
 			*why = ": need type assertion"
 		}
@@ -1096,7 +1094,7 @@ func substAny(t *Type, types *[]*Type) *Type {
 		t = (*types)[0]
 		*types = (*types)[1:]
 
-	case TPTR32, TPTR64, TCHAN, TARRAY, TFIELD:
+	case TPTR32, TPTR64, TCHAN, TARRAY:
 		elem := substAny(t.Type, types)
 		if elem != t.Type {
 			t = t.Copy()
@@ -1133,24 +1131,35 @@ func substAny(t *Type, types *[]*Type) *Type {
 
 	case TSTRUCT:
 		// nfs only has to be big enough for the builtin functions.
-		var nfs [8]*Type
+		var nfs [8]*Field
 		fields := t.FieldSlice()
 		changed := false
 		for i, f := range fields {
-			nf := substAny(f, types)
-			if nf != f {
-				if !changed {
-					for j := 0; j < i; j++ {
-						nfs[j] = fields[j].Copy()
-					}
-				}
+			nft := substAny(f.Type, types)
+			if nft != f.Type {
+				nfs[i] = f.Copy()
+				nfs[i].Type = nft
 				changed = true
-			} else if changed {
-				nf = f.Copy()
 			}
-			nfs[i] = nf
 		}
+
 		if changed {
+			// Above we've initialized nfs with copied fields
+			// whenever the field type changed. However, because
+			// we keep fields in a linked list, we can only safely
+			// share the unmodified tail of the list. We need to
+			// copy the rest.
+			tail := true
+			for i := len(fields) - 1; i >= 0; i-- {
+				if nfs[i] != nil {
+					tail = false
+				} else if tail {
+					nfs[i] = fields[i]
+				} else {
+					nfs[i] = fields[i].Copy()
+				}
+			}
+
 			t = t.Copy()
 			t.SetFields(nfs[:len(fields)])
 		}
@@ -1540,7 +1549,7 @@ func Setmaxarg(t *Type, extra int32) {
 // A Dlist stores a pointer to a TFIELD Type embedded within
 // a TSTRUCT or TINTER Type.
 type Dlist struct {
-	field *Type
+	field *Field
 }
 
 // dotlist is used by adddot1 to record the path of embedded fields
@@ -1551,7 +1560,7 @@ var dotlist = make([]Dlist, 10)
 // lookdot0 returns the number of fields or methods named s associated
 // with Type t. If exactly one exists, it will be returned in *save
 // (if save is not nil).
-func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
+func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 	u := t
 	if Isptr[u.Etype] {
 		u = u.Type
@@ -1590,7 +1599,7 @@ func lookdot0(s *Sym, t *Type, save **Type, ignorecase bool) int {
 // in reverse order. If none exist, more will indicate whether t contains any
 // embedded fields at depth d, so callers can decide whether to retry at
 // a greater depth.
-func adddot1(s *Sym, t *Type, d int, save **Type, ignorecase bool) (c int, more bool) {
+func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more bool) {
 	if t.Trecur != 0 {
 		return
 	}
@@ -1644,7 +1653,7 @@ out:
 // a selection expression x.f, where x is of type t and f is the symbol s.
 // If no such path exists, dotpath returns nil.
 // If there are multiple shortest paths to the same depth, ambig is true.
-func dotpath(s *Sym, t *Type, save **Type, ignorecase bool) (path []Dlist, ambig bool) {
+func dotpath(s *Sym, t *Type, save **Field, ignorecase bool) (path []Dlist, ambig bool) {
 	// The embedding of types within structs imposes a tree structure onto
 	// types: structs parent the types they embed, and types parent their
 	// fields or methods. Our goal here is to find the shortest path to
@@ -1713,7 +1722,7 @@ func adddot(n *Node) *Node {
 // with unique tasks and they return
 // the actual methods.
 type Symlink struct {
-	field     *Type
+	field     *Field
 	link      *Symlink
 	good      bool
 	followptr bool
@@ -1803,7 +1812,6 @@ func expandmeth(t *Type) {
 
 	// mark top-level method symbols
 	// so that expand1 doesn't consider them.
-	var f *Type
 	for f, it := IterMethods(t); f != nil; f = it.Next() {
 		f.Sym.Flags |= SymUniq
 	}
@@ -1816,6 +1824,7 @@ func expandmeth(t *Type) {
 	// check each method to be uniquely reachable
 	for sl := slist; sl != nil; sl = sl.link {
 		sl.field.Sym.Flags &^= SymUniq
+		var f *Field
 		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
 			continue
 		}
@@ -1894,7 +1903,7 @@ func structargs(tl *Type, mustname bool) []*Node {
 
 var genwrapper_linehistdone int = 0
 
-func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 	if false && Debug['r'] != 0 {
 		fmt.Printf("genwrapper rcvrtype=%v method=%v newnam=%v\n", rcvr, method, newnam)
 	}
@@ -2045,14 +2054,14 @@ func hashmem(t *Type) *Node {
 	return n
 }
 
-func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Type {
+func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
 	*followptr = false
 
 	if t == nil {
 		return nil
 	}
 
-	var m *Type
+	var m *Field
 	path, ambig := dotpath(s, t, &m, ignorecase)
 	if path == nil {
 		if ambig {
@@ -2076,7 +2085,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Type {
 	return m
 }
 
-func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool {
+func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 	t0 := t
 	if t == nil {
 		return false
@@ -2114,16 +2123,13 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 	if t != nil {
 		expandmeth(t)
 	}
-	var tm *Type
-	var imtype *Type
-	var followptr bool
-	var rcvr *Type
 	for im, it := IterFields(iface); im != nil; im = it.Next() {
 		if im.Broke {
 			continue
 		}
-		imtype = methodfunc(im.Type, nil)
-		tm = ifacelookdot(im.Sym, t, &followptr, false)
+		imtype := methodfunc(im.Type, nil)
+		var followptr bool
+		tm := ifacelookdot(im.Sym, t, &followptr, false)
 		if tm == nil || tm.Nointerface || !Eqtype(methodfunc(tm.Type, nil), imtype) {
 			if tm == nil {
 				tm = ifacelookdot(im.Sym, t, &followptr, true)
@@ -2136,7 +2142,7 @@ func implements(t *Type, iface *Type, m **Type, samename **Type, ptr *int) bool 
 
 		// if pointer receiver in method,
 		// the method does not exist for value types.
-		rcvr = tm.Type.Recv().Type
+		rcvr := tm.Type.Recv().Type
 
 		if Isptr[rcvr.Etype] && !Isptr[t0.Etype] && !followptr && !isifacemethod(tm.Type) {
 			if false && Debug['r'] != 0 {

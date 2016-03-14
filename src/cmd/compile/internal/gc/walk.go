@@ -1752,7 +1752,7 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
 }
 
 // package all the arguments that match a ... T parameter into a []T.
-func mkdotargslice(lr0, nn []*Node, l *Type, fp int, init *Nodes, ddd *Node) []*Node {
+func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []*Node {
 	esc := uint16(EscUnknown)
 	if ddd != nil {
 		esc = ddd.Esc
@@ -1792,7 +1792,7 @@ func dumptypes(nl *Type, what string) string {
 		if s != "" {
 			s += ", "
 		}
-		s += Tconv(l, 0)
+		s += Fldconv(l, 0)
 	}
 	if s == "" {
 		s = fmt.Sprintf("[no arguments %s]", what)
@@ -3774,7 +3774,7 @@ func usemethod(n *Node) {
 	}
 	p0 := t.Params().Field(0)
 	res0 := t.Results().Field(0)
-	var res1 *Type
+	var res1 *Field
 	if countfield(t.Results()) == 2 {
 		res1 = t.Results().Field(1)
 	}
@@ -3791,7 +3791,7 @@ func usemethod(n *Node) {
 			return
 		}
 	}
-	if Tconv(res0, 0) != "reflect.Method" {
+	if Tconv(res0.Type, 0) != "reflect.Method" {
 		return
 	}
 

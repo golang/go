@@ -531,11 +531,15 @@ func newplist() *obj.Plist {
 // incorrectly) passed a 1; the behavior is exactly
 // the same as it is for 1, except that PARAMOUT is
 // generated instead of PARAM.
-func nodarg(t *Type, fp int) *Node {
+func nodarg(t interface{}, fp int) *Node {
 	var n *Node
 
-	// entire argument struct, not just one arg
-	if t.Etype == TSTRUCT && t.Funarg {
+	switch t := t.(type) {
+	case *Type:
+		// entire argument struct, not just one arg
+		if t.Etype != TSTRUCT || !t.Funarg {
+			Fatalf("nodarg: bad type %v", t)
+		}
 		n = Nod(ONAME, nil, nil)
 		n.Sym = Lookup(".args")
 		n.Type = t
@@ -548,36 +552,31 @@ func nodarg(t *Type, fp int) *Node {
 		}
 		n.Xoffset = first.Width
 		n.Addable = true
-		goto fp
-	}
-
-	if t.Etype != TFIELD {
-		Fatalf("nodarg: not field %v", t)
-	}
-
-	if fp == 1 || fp == -1 {
-		for _, n := range Curfn.Func.Dcl {
-			if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
-				return n
+	case *Field:
+		if fp == 1 || fp == -1 {
+			for _, n := range Curfn.Func.Dcl {
+				if (n.Class == PPARAM || n.Class == PPARAMOUT) && !isblanksym(t.Sym) && n.Sym == t.Sym {
+					return n
+				}
 			}
 		}
-	}
 
-	n = Nod(ONAME, nil, nil)
-	n.Type = t.Type
-	n.Sym = t.Sym
-
-	if t.Width == BADWIDTH {
-		Fatalf("nodarg: offset not computed for %v", t)
+		n = Nod(ONAME, nil, nil)
+		n.Type = t.Type
+		n.Sym = t.Sym
+		if t.Width == BADWIDTH {
+			Fatalf("nodarg: offset not computed for %v", t)
+		}
+		n.Xoffset = t.Width
+		n.Addable = true
+		n.Orig = t.Nname
+	default:
+		panic("unreachable")
 	}
-	n.Xoffset = t.Width
-	n.Addable = true
-	n.Orig = t.Nname
 
 	// Rewrite argument named _ to __,
 	// or else the assignment to _ will be
 	// discarded during code generation.
-fp:
 	if isblank(n) {
 		n.Sym = Lookup("__")
 	}
