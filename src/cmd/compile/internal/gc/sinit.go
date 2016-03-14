@@ -525,37 +525,38 @@ func litas(l *Node, r *Node, init *Nodes) {
 	init.Append(a)
 }
 
+// initGenType is a bitmap indicating the types of generation that will occur for a static value.
+type initGenType uint8
+
 const (
-	MODEDYNAM = 1
-	MODECONST = 2
+	initDynamic initGenType = 1 << iota // contains some dynamic values, for which init code will be generated
+	initConst                           // contains some constant values, which may be written into data symbols
 )
 
-func getdyn(n *Node, top int) int {
-	mode := 0
+func getdyn(n *Node, top int) initGenType {
 	switch n.Op {
 	default:
 		if isliteral(n) {
-			return MODECONST
+			return initConst
 		}
-		return MODEDYNAM
+		return initDynamic
 
 	case OARRAYLIT:
 		if top == 0 && n.Type.Bound < 0 {
-			return MODEDYNAM
+			return initDynamic
 		}
-		fallthrough
 
 	case OSTRUCTLIT:
-		break
 	}
+
+	var mode initGenType
 	for _, n1 := range n.List.Slice() {
 		value := n1.Right
 		mode |= getdyn(value, 0)
-		if mode == MODEDYNAM|MODECONST {
+		if mode == initDynamic|initConst {
 			break
 		}
 	}
-
 	return mode
 }
 
@@ -737,7 +738,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	var vstat *Node
 
 	mode := getdyn(n, 1)
-	if mode&MODECONST != 0 {
+	if mode&initConst != 0 {
 		vstat = staticname(t, ctxt)
 		arraylit(ctxt, 1, n, vstat, init)
 	}
