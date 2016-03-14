@@ -22,10 +22,7 @@ type InitEntry struct {
 }
 
 type InitPlan struct {
-	Lit  int64
-	Zero int64
-	Expr int64
-	E    []InitEntry
+	E []InitEntry
 }
 
 var (
@@ -1261,7 +1258,7 @@ func initplan(n *Node) {
 			if a.Op != OKEY || !Smallintconst(a.Left) {
 				Fatalf("initplan arraylit")
 			}
-			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val().U.(*Mpint)), nil, a.Right)
+			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val().U.(*Mpint)), a.Right)
 		}
 
 	case OSTRUCTLIT:
@@ -1269,7 +1266,7 @@ func initplan(n *Node) {
 			if a.Op != OKEY || a.Left.Type == nil {
 				Fatalf("initplan structlit")
 			}
-			addvalue(p, a.Left.Type.Width, nil, a.Right)
+			addvalue(p, a.Left.Type.Width, a.Right)
 		}
 
 	case OMAPLIT:
@@ -1277,15 +1274,14 @@ func initplan(n *Node) {
 			if a.Op != OKEY {
 				Fatalf("initplan maplit")
 			}
-			addvalue(p, -1, a.Left, a.Right)
+			addvalue(p, -1, a.Right)
 		}
 	}
 }
 
-func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
+func addvalue(p *InitPlan, xoffset int64, n *Node) {
 	// special case: zero can be dropped entirely
 	if iszero(n) {
-		p.Zero += n.Type.Width
 		return
 	}
 
@@ -1294,23 +1290,15 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
 		initplan(n)
 		q := initplans[n]
 		for _, qe := range q.E {
-			e := entry(p)
-			*e = qe
-			e.Xoffset += xoffset
+			// qe is a copy; we are not modifying entries in q.E
+			qe.Xoffset += xoffset
+			p.E = append(p.E, qe)
 		}
 		return
 	}
 
 	// add to plan
-	if n.Op == OLITERAL {
-		p.Lit += n.Type.Width
-	} else {
-		p.Expr += n.Type.Width
-	}
-
-	e := entry(p)
-	e.Xoffset = xoffset
-	e.Expr = n
+	p.E = append(p.E, InitEntry{Xoffset: xoffset, Expr: n})
 }
 
 func iszero(n *Node) bool {
@@ -1361,11 +1349,6 @@ func iszero(n *Node) bool {
 
 func isvaluelit(n *Node) bool {
 	return (n.Op == OARRAYLIT && Isfixedarray(n.Type)) || n.Op == OSTRUCTLIT
-}
-
-func entry(p *InitPlan) *InitEntry {
-	p.E = append(p.E, InitEntry{})
-	return &p.E[len(p.E)-1]
 }
 
 // gen_as_init attempts to emit static data for n and reports whether it succeeded.
