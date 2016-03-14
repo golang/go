@@ -1246,10 +1246,10 @@ func initplan(n *Node) {
 
 	case OSTRUCTLIT:
 		for _, a := range n.List.Slice() {
-			if a.Op != OKEY || a.Left.Type == nil {
+			if a.Op != OKEY || a.Left.Type != structkey {
 				Fatalf("initplan structlit")
 			}
-			addvalue(p, a.Left.Type.Width, a.Right)
+			addvalue(p, a.Left.Xoffset, a.Right)
 		}
 
 	case OMAPLIT:
