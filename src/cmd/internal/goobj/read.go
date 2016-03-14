@@ -215,6 +215,7 @@ type FuncData struct {
 type Package struct {
 	ImportPath string   // import path denoting this package
 	Imports    []string // packages imported by this package
+	SymRefs    []SymID  // list of symbol names and versions refered to by this pack
 	Syms       []*Sym   // symbols defined by this package
 	MaxVersion int      // maximum Version in any SymID in Syms
 }
@@ -390,6 +391,11 @@ func (r *objReader) readString() string {
 
 // readSymID reads a SymID from the input file.
 func (r *objReader) readSymID() SymID {
+	i := r.readInt()
+	return r.p.SymRefs[i]
+}
+
+func (r *objReader) readRef() {
 	name, vers := r.readString(), r.readInt()
 
 	// In a symbol name in an object file, "". denotes the
@@ -404,8 +410,7 @@ func (r *objReader) readSymID() SymID {
 	if vers != 0 {
 		vers = r.p.MaxVersion
 	}
-
-	return SymID{name, vers}
+	r.p.SymRefs = append(r.p.SymRefs, SymID{name, vers})
 }
 
 // readData reads a data reference from the input file.
@@ -591,6 +596,18 @@ func (r *objReader) parseObject(prefix []byte) error {
 			break
 		}
 		r.p.Imports = append(r.p.Imports, s)
+	}
+
+	r.p.SymRefs = []SymID{{"", 0}}
+	for {
+		if b := r.readByte(); b != 0xfe {
+			if b != 0xff {
+				return r.error(errCorruptObject)
+			}
+			break
+		}
+
+		r.readRef()
 	}
 
 	// Symbols.

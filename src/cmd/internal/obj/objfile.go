@@ -19,6 +19,8 @@
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
+//	- sequence of sybol references used by the defined symbols
+//	- byte 0xff (marks end of sequence)
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
 //	- magic footer: "\xff\xffgo13ld"
@@ -30,18 +32,21 @@
 // followed by that many bytes.
 //
 // A symbol reference is a string name followed by a version.
-// An empty name corresponds to a nil LSym* pointer.
+//
+// A symbol points to other symbols using an index into the symbol
+// reference sequence. Index 0 corresponds to a nil LSym* pointer.
+// In the symbol layout described below "symref index" stands for this
+// index.
 //
 // Each symbol is laid out as the following fields (taken from LSym*):
 //
 //	- byte 0xfe (sanity check for synchronization)
 //	- type [int]
-//	- name [string]
-//	- version [int]
+//	- name & version [symref index]
 //	- flags [int]
 //		1 dupok
 //	- size [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //	- p [data block]
 //	- nr [int]
 //	- r [nr relocations, sorted by off]
@@ -52,8 +57,9 @@
 //	- locals [int]
 //	- nosplit [int]
 //	- flags [int]
-//		1 leaf
-//		2 C function
+//		1<<0 leaf
+//		1<<1 C function
+//		1<<2 function may call reflect.Type.Method
 //	- nlocal [int]
 //	- local [nlocal automatics]
 //	- pcln [pcln table]
@@ -65,15 +71,15 @@
 //	- type [int]
 //	- add [int]
 //	- xadd [int]
-//	- sym [symbol reference]
-//	- xsym [symbol reference]
+//	- sym [symref index]
+//	- xsym [symref index]
 //
 // Each local has the encoding:
 //
-//	- asym [symbol reference]
+//	- asym [symref index]
 //	- offset [int]
 //	- type [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //
 // The pcln table has the encoding:
 //
@@ -83,10 +89,10 @@
 //	- npcdata [int]
 //	- pcdata [npcdata data blocks]
 //	- nfuncdata [int]
-//	- funcdata [nfuncdata symbol references]
+//	- funcdata [nfuncdata symref index]
 //	- funcdatasym [nfuncdata ints]
 //	- nfile [int]
-//	- file [nfile symbol references]
+//	- file [nfile symref index]
 //
 // The file layout and meaning of type integers are architecture-independent.
 //
@@ -95,8 +101,6 @@
 //	- The actual symbol memory images are interlaced with the symbol
 //	  metadata. They should be separated, to reduce the I/O required to
 //	  load just the metadata.
-//	- The symbol references should be shortened, either with a symbol
-//	  table or by using a simple backward index to an earlier mentioned symbol.
 
 package obj
 
@@ -335,6 +339,15 @@ func Writeobjfile(ctxt *Link, b *Biobuf) {
 	}
 	wrstring(b, "")
 
+	// Emit symbol references.
+	for s := ctxt.Text; s != nil; s = s.Next {
+		writerefs(ctxt, b, s)
+	}
+	for s := ctxt.Data; s != nil; s = s.Next {
+		writerefs(ctxt, b, s)
+	}
+	Bputc(b, 0xff)
+
 	// Emit symbols.
 	for s := ctxt.Text; s != nil; s = s.Next {
 		writesym(ctxt, b, s)
@@ -348,6 +361,43 @@ func Writeobjfile(ctxt *Link, b *Biobuf) {
 
 	Bputc(b, 0xff)
 	fmt.Fprintf(b, "go13ld")
+}
+
+func wrref(ctxt *Link, b *Biobuf, s *LSym, isPath bool) {
+	if s == nil || s.RefIdx != 0 {
+		return
+	}
+	Bputc(b, 0xfe)
+	if isPath {
+		wrstring(b, filepath.ToSlash(s.Name))
+	} else {
+		wrstring(b, s.Name)
+	}
+	wrint(b, int64(s.Version))
+	ctxt.RefsWritten++
+	s.RefIdx = ctxt.RefsWritten
+}
+
+func writerefs(ctxt *Link, b *Biobuf, s *LSym) {
+	wrref(ctxt, b, s, false)
+	wrref(ctxt, b, s.Gotype, false)
+	for i := range s.R {
+		wrref(ctxt, b, s.R[i].Sym, false)
+	}
+
+	if s.Type == STEXT {
+		for a := s.Autom; a != nil; a = a.Link {
+			wrref(ctxt, b, a.Asym, false)
+			wrref(ctxt, b, a.Gotype, false)
+		}
+		pc := s.Pcln
+		for _, d := range pc.Funcdata {
+			wrref(ctxt, b, d, false)
+		}
+		for _, f := range pc.File {
+			wrref(ctxt, b, f, true)
+		}
+	}
 }
 
 func writesym(ctxt *Link, b *Biobuf, s *LSym) {
@@ -420,8 +470,7 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 
 	Bputc(b, 0xfe)
 	wrint(b, int64(s.Type))
-	wrstring(b, s.Name)
-	wrint(b, int64(s.Version))
+	wrsym(b, s)
 	flags := int64(s.Dupok)
 	if s.Local {
 		flags |= 2
@@ -487,8 +536,8 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 			wrint(b, pc.Funcdataoff[i])
 		}
 		wrint(b, int64(len(pc.File)))
-		for i := 0; i < len(pc.File); i++ {
-			wrpathsym(ctxt, b, pc.File[i])
+		for _, f := range pc.File {
+			wrsym(b, f)
 		}
 	}
 }
@@ -515,37 +564,20 @@ func wrstring(b *Biobuf, s string) {
 	b.w.WriteString(s)
 }
 
-// wrpath writes a path just like a string, but on windows, it
-// translates '\\' to '/' in the process.
-func wrpath(ctxt *Link, b *Biobuf, p string) {
-	wrstring(b, filepath.ToSlash(p))
-}
-
 func wrdata(b *Biobuf, v []byte) {
 	wrint(b, int64(len(v)))
 	b.Write(v)
 }
 
-func wrpathsym(ctxt *Link, b *Biobuf, s *LSym) {
-	if s == nil {
-		wrint(b, 0)
-		wrint(b, 0)
-		return
-	}
-
-	wrpath(ctxt, b, s.Name)
-	wrint(b, int64(s.Version))
-}
-
 func wrsym(b *Biobuf, s *LSym) {
 	if s == nil {
 		wrint(b, 0)
-		wrint(b, 0)
 		return
 	}
-
-	wrstring(b, s.Name)
-	wrint(b, int64(s.Version))
+	if s.RefIdx == 0 {
+		log.Fatalln("writing an unreferenced symbol", s.Name)
+	}
+	wrint(b, int64(s.RefIdx))
 }
 
 // relocByOff sorts relocations by their offsets.

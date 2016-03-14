@@ -4,7 +4,7 @@
 
 package ld
 
-// Writing and reading of Go object files.
+// Reading of Go object files.
 //
 // Originally, Go object files were Plan 9 object files, but no longer.
 // Now they are more like standard object files, in that each symbol is defined
@@ -21,6 +21,8 @@ package ld
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
+//	- sequence of sybol references used by the defined symbols
+//	- byte 0xff (marks end of sequence)
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
 //	- magic footer: "\xff\xffgo13ld"
@@ -32,18 +34,21 @@ package ld
 // followed by that many bytes.
 //
 // A symbol reference is a string name followed by a version.
-// An empty name corresponds to a nil LSym* pointer.
+//
+// A symbol points to other symbols using an index into the symbol
+// reference sequence. Index 0 corresponds to a nil LSym* pointer.
+// In the symbol layout described below "symref index" stands for this
+// index.
 //
 // Each symbol is laid out as the following fields (taken from LSym*):
 //
 //	- byte 0xfe (sanity check for synchronization)
 //	- type [int]
-//	- name [string]
-//	- version [int]
+//	- name & version [symref index]
 //	- flags [int]
 //		1 dupok
 //	- size [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //	- p [data block]
 //	- nr [int]
 //	- r [nr relocations, sorted by off]
@@ -68,15 +73,15 @@ package ld
 //	- type [int]
 //	- add [int]
 //	- xadd [int]
-//	- sym [symbol reference]
-//	- xsym [symbol reference]
+//	- sym [symref index]
+//	- xsym [symref index]
 //
 // Each local has the encoding:
 //
-//	- asym [symbol reference]
+//	- asym [symref index]
 //	- offset [int]
 //	- type [int]
-//	- gotype [symbol reference]
+//	- gotype [symref index]
 //
 // The pcln table has the encoding:
 //
@@ -86,10 +91,10 @@ package ld
 //	- npcdata [int]
 //	- pcdata [npcdata data blocks]
 //	- nfuncdata [int]
-//	- funcdata [nfuncdata symbol references]
+//	- funcdata [nfuncdata symref index]
 //	- funcdatasym [nfuncdata ints]
 //	- nfile [int]
-//	- file [nfile symbol references]
+//	- file [nfile symref index]
 //
 // The file layout and meaning of type integers are architecture-independent.
 //
@@ -98,8 +103,6 @@ package ld
 //	- The actual symbol memory images are interlaced with the symbol
 //	  metadata. They should be separated, to reduce the I/O required to
 //	  load just the metadata.
-//	- The symbol references should be shortened, either with a symbol
-//	  table or by using a simple backward index to an earlier mentioned symbol.
 
 import (
 	"bytes"
@@ -137,6 +140,19 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		addlib(ctxt, pkg, pn, lib)
 	}
 
+	ctxt.CurRefs = []*LSym{nil} // zeroth ref is nil
+	for {
+		c, err := f.Peek(1)
+		if err != nil {
+			log.Fatalf("%s: peeking: %v", pn, err)
+		}
+		if c[0] == 0xff {
+			obj.Bgetc(f)
+			break
+		}
+		readref(ctxt, f, pkg, pn)
+	}
+
 	for {
 		c, err := f.Peek(1)
 		if err != nil {
@@ -166,11 +182,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 		log.Fatalf("readsym out of sync")
 	}
 	t := rdint(f)
-	name := rdsymName(f, pkg)
-	v := rdint(f)
-	if v != 0 && v != 1 {
-		log.Fatalf("invalid symbol version %d", v)
-	}
+	s := rdsym(ctxt, f, pkg)
 	flags := rdint(f)
 	dupok := flags&1 != 0
 	local := flags&2 != 0
@@ -179,10 +191,6 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 	data := rddata(f)
 	nreloc := rdint(f)
 
-	if v != 0 {
-		v = ctxt.Version
-	}
-	s := Linklookup(ctxt, name, v)
 	var dup *LSym
 	if s.Type != 0 && s.Type != obj.SXREF {
 		if (t == obj.SDATA || t == obj.SBSS || t == obj.SNOPTRBSS) && len(data) == 0 && nreloc == 0 {
@@ -217,7 +225,7 @@ overwrite:
 		log.Fatalf("bad sxref")
 	}
 	if t == 0 {
-		log.Fatalf("missing type for %s in %s", name, pn)
+		log.Fatalf("missing type for %s in %s", s.Name, pn)
 	}
 	if t == obj.SBSS && (s.Type == obj.SRODATA || s.Type == obj.SNOPTRBSS) {
 		t = int(s.Type)
@@ -373,6 +381,22 @@ overwrite:
 	}
 }
 
+func readref(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+	if obj.Bgetc(f) != 0xfe {
+		log.Fatalf("readsym out of sync")
+	}
+	name := rdsymName(f, pkg)
+	v := rdint(f)
+	if v != 0 && v != 1 {
+		log.Fatalf("invalid symbol version %d", v)
+	}
+	if v == 1 {
+		v = ctxt.Version
+	}
+	lsym := Linklookup(ctxt, name, v)
+	ctxt.CurRefs = append(ctxt.CurRefs, lsym)
+}
+
 func rdint64(f *obj.Biobuf) int64 {
 	var c int
 
@@ -489,16 +513,13 @@ func rdsymName(f *obj.Biobuf, pkg string) string {
 }
 
 func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
-	name := rdsymName(f, pkg)
-	if name == "" {
+	i := rdint(f)
+	if i == 0 {
 		return nil
 	}
-	v := rdint(f)
-	if v != 0 {
-		v = ctxt.Version
-	}
-	s := Linklookup(ctxt, name, v)
-	if v != 0 {
+
+	s := ctxt.CurRefs[i]
+	if s == nil || s.Version != 0 {
 		return s
 	}
 

@@ -314,6 +314,7 @@ type LSym struct {
 	Leaf      uint8
 	Seenglobl uint8
 	Onlist    uint8
+	RefIdx    int // Index of this symbol in the symbol reference list.
 
 	// ReflectMethod means the function may call reflect.Type.Method or
 	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
@@ -649,6 +650,7 @@ type Link struct {
 	Textp         *LSym
 	Etextp        *LSym
 	Errors        int
+	RefsWritten   int // Number of symbol references already written to object file.
 
 	// state for writing objects
 	Text  *LSym
