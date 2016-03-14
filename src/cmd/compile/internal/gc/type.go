@@ -643,14 +643,18 @@ func (t *Type) PtrTo() ssa.Type {
 	return Ptrto(t)
 }
 
-func (t *Type) NumFields() int64 {
-	return int64(countfield(t))
+func (t *Type) NumFields() int {
+	n := 0
+	for f, it := IterFields(t); f != nil; f = it.Next() {
+		n++
+	}
+	return n
 }
-func (t *Type) FieldType(i int64) ssa.Type {
-	return t.Field(int(i)).Type
+func (t *Type) FieldType(i int) ssa.Type {
+	return t.Field(i).Type
 }
-func (t *Type) FieldOff(i int64) int64 {
-	return t.Field(int(i)).Width
+func (t *Type) FieldOff(i int) int64 {
+	return t.Field(i).Width
 }
 
 func (t *Type) NumElem() int64 {
@@ -663,3 +667,8 @@ func (t *Type) NumElem() int64 {
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
 func (t *Type) IsVoid() bool   { return false }
+
+// TODO(mdempsky): Replace all of these with direct calls to t.NumFields().
+func countfield(t *Type) int  { return t.NumFields() }
+func downcount(t *Type) int   { return t.NumFields() }
+func structcount(t *Type) int { return t.NumFields() }

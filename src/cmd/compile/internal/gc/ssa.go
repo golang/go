@@ -1865,7 +1865,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		t := n.Left.Type
 		if canSSAType(t) {
 			v := s.expr(n.Left)
-			return s.newValue1I(ssa.OpStructSelect, n.Type, fieldIdx(n), v)
+			return s.newValue1I(ssa.OpStructSelect, n.Type, int64(fieldIdx(n)), v)
 		}
 		p := s.addr(n, false)
 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
@@ -1956,7 +1956,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 						// eface type could also be struct{p *byte; q [0]int}
 						continue
 					}
-					data = s.newValue1I(ssa.OpStructSelect, f, i, data)
+					data = s.newValue1I(ssa.OpStructSelect, f, int64(i), data)
 					break
 				}
 			default:
@@ -2186,11 +2186,11 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32)
 			new := s.newValue0(ssa.StructMakeOp(t.NumFields()), t)
 
 			// Add fields as args.
-			for i := int64(0); i < nf; i++ {
+			for i := 0; i < nf; i++ {
 				if i == idx {
 					new.AddArg(right)
 				} else {
-					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), i, old))
+					new.AddArg(s.newValue1I(ssa.OpStructSelect, t.FieldType(i), int64(i), old))
 				}
 			}
 
@@ -2280,7 +2280,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
 	case t.IsStruct():
 		n := t.NumFields()
 		v := s.entryNewValue0(ssa.StructMakeOp(t.NumFields()), t)
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			v.AddArg(s.zeroVal(t.FieldType(i).(*Type)))
 		}
 		return v
@@ -2883,10 +2883,10 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value) {
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypeScalars(ft.(*Type), addr, val)
 		}
 	default:
@@ -2912,13 +2912,13 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
 	case t.IsStruct():
 		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			if !haspointers(ft.(*Type)) {
 				continue
 			}
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrs(ft.(*Type), addr, val)
 		}
 	default:
@@ -2943,13 +2943,13 @@ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
 		s.rtcall(writebarrierptr, true, nil, idataAddr, idata)
 	case t.IsStruct():
 		n := t.NumFields()
-		for i := int64(0); i < n; i++ {
+		for i := 0; i < n; i++ {
 			ft := t.FieldType(i)
 			if !haspointers(ft.(*Type)) {
 				continue
 			}
 			addr := s.newValue1I(ssa.OpOffPtr, ft.PtrTo(), t.FieldOff(i), left)
-			val := s.newValue1I(ssa.OpStructSelect, ft, i, right)
+			val := s.newValue1I(ssa.OpStructSelect, ft, int64(i), right)
 			s.storeTypePtrsWB(ft.(*Type), addr, val)
 		}
 	default:
@@ -3935,14 +3935,14 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
 }
 
 // fieldIdx finds the index of the field referred to by the ODOT node n.
-func fieldIdx(n *Node) int64 {
+func fieldIdx(n *Node) int {
 	t := n.Left.Type
 	f := n.Right
 	if t.Etype != TSTRUCT {
 		panic("ODOT's LHS is not a struct")
 	}
 
-	var i int64
+	var i int
 	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
 		if t1.Sym != f.Sym {
 			i++
