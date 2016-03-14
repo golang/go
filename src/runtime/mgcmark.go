@@ -287,7 +287,7 @@ func markrootSpans(gcw *gcWork, shard int) {
 			// retain everything it points to.
 			spf := (*specialfinalizer)(unsafe.Pointer(sp))
 			// A finalizer can be set for an inner byte of an object, find object beginning.
-			p := uintptr(s.start<<_PageShift) + uintptr(spf.special.offset)/s.elemsize*s.elemsize
+			p := s.base() + uintptr(spf.special.offset)/s.elemsize*s.elemsize
 
 			// Mark everything that can be reached from
 			// the object (but *not* the object itself or
