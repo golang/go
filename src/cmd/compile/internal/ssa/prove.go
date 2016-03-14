@@ -371,13 +371,13 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 	m := ft.get(nil, b.Control, boolean)
 	if m == lt|gt {
 		if b.Func.pass.debug > 0 {
-			b.Func.Config.Warnl(int(b.Line), "Proved boolean %s", b.Control.Op)
+			b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
 		}
 		return positive
 	}
 	if m == eq {
 		if b.Func.pass.debug > 0 {
-			b.Func.Config.Warnl(int(b.Line), "Disproved boolean %s", b.Control.Op)
+			b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
 		}
 		return negative
 	}
@@ -404,13 +404,13 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		m := ft.get(a0, a1, d)
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(int(b.Line), "Proved %s", c.Op)
+				b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
 			}
 			return positive
 		}
 		if m != 0 && ((lt|eq|gt)^tr.r)&m == m {
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(int(b.Line), "Disproved %s", c.Op)
+				b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
 			}
 			return negative
 		}
@@ -425,7 +425,7 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
 		m := ft.get(a0, a1, signed)
 		if m != 0 && tr.r&m == m {
 			if b.Func.pass.debug > 0 {
-				b.Func.Config.Warnl(int(b.Line), "Proved non-negative bounds %s", c.Op)
+				b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
 			}
 			return positive
 		}

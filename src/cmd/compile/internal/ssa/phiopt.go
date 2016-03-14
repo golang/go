@@ -66,7 +66,7 @@ func phiopt(f *Func) {
 
 			if ok && isCopy {
 				if f.pass.debug > 0 {
-					f.Config.Warnl(int(b.Line), "converted OpPhi to OpCopy")
+					f.Config.Warnl(b.Line, "converted OpPhi to OpCopy")
 				}
 				v.reset(OpCopy)
 				v.AddArg(b0.Control)
@@ -74,7 +74,7 @@ func phiopt(f *Func) {
 			}
 			if ok && !isCopy {
 				if f.pass.debug > 0 {
-					f.Config.Warnl(int(b.Line), "converted OpPhi to OpNot")
+					f.Config.Warnl(b.Line, "converted OpPhi to OpNot")
 				}
 				v.reset(OpNot)
 				v.AddArg(b0.Control)

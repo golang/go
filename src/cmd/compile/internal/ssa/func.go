@@ -106,7 +106,7 @@ func (f *Func) logStat(key string, args ...interface{}) {
 	for _, a := range args {
 		value += fmt.Sprintf("\t%v", a)
 	}
-	f.Config.Warnl(int(f.Entry.Line), "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
+	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
 }
 
 // freeValue frees a value. It must no longer be referenced.
