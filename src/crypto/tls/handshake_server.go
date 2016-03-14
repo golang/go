@@ -187,12 +187,13 @@ Curves:
 		}
 	}
 
-	if hs.cert, err = config.getCertificate(&ClientHelloInfo{
+	hs.cert, err = config.getCertificate(&ClientHelloInfo{
 		CipherSuites:    hs.clientHello.cipherSuites,
 		ServerName:      hs.clientHello.serverName,
 		SupportedCurves: hs.clientHello.supportedCurves,
 		SupportedPoints: hs.clientHello.supportedPoints,
-	}); err != nil {
+	})
+	if err != nil {
 		c.sendAlert(alertInternalError)
 		return false, err
 	}
@@ -710,20 +711,20 @@ func (hs *serverHandshakeState) processCertsFromClient(certificates [][]byte) (c
 		c.verifiedChains = chains
 	}
 
-	if len(certs) > 0 {
-		var pub crypto.PublicKey
-		switch key := certs[0].PublicKey.(type) {
-		case *ecdsa.PublicKey, *rsa.PublicKey:
-			pub = key
-		default:
-			c.sendAlert(alertUnsupportedCertificate)
-			return nil, fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
-		}
-		c.peerCertificates = certs
-		return pub, nil
+	if len(certs) == 0 {
+		return nil, nil
 	}
 
-	return nil, nil
+	var pub crypto.PublicKey
+	switch key := certs[0].PublicKey.(type) {
+	case *ecdsa.PublicKey, *rsa.PublicKey:
+		pub = key
+	default:
+		c.sendAlert(alertUnsupportedCertificate)
+		return nil, fmt.Errorf("tls: client's certificate contains an unsupported public key of type %T", certs[0].PublicKey)
+	}
+	c.peerCertificates = certs
+	return pub, nil
 }
 
 // setCipherSuite sets a cipherSuite with the given id as the serverHandshakeState

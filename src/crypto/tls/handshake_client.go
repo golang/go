@@ -552,14 +552,15 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
 	}
 	c.scts = hs.serverHello.scts
 
-	if hs.serverResumedSession() {
-		// Restore masterSecret and peerCerts from previous state
-		hs.masterSecret = hs.session.masterSecret
-		c.peerCertificates = hs.session.serverCertificates
-		c.verifiedChains = hs.session.verifiedChains
-		return true, nil
+	if !hs.serverResumedSession() {
+		return false, nil
 	}
-	return false, nil
+
+	// Restore masterSecret and peerCerts from previous state
+	hs.masterSecret = hs.session.masterSecret
+	c.peerCertificates = hs.session.serverCertificates
+	c.verifiedChains = hs.session.verifiedChains
+	return true, nil
 }
 
 func (hs *clientHandshakeState) readFinished(out []byte) error {
