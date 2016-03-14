@@ -371,7 +371,7 @@ func ordercall(n *Node, order *Order) {
 	ordercallargs(&n.List, order)
 
 	if n.Op == OCALLFUNC {
-		t := n.Left.Type.Params().Type
+		t, it := IterFields(n.Left.Type.Params())
 		for i := range n.List.Slice() {
 			// Check for "unsafe-uintptr" tag provided by escape analysis.
 			// If present and the argument is really a pointer being converted
@@ -393,7 +393,7 @@ func ordercall(n *Node, order *Order) {
 					*xp = x
 				}
 			}
-			t = t.Down
+			t = it.Next()
 		}
 	}
 }

@@ -658,11 +658,7 @@ opswitch:
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
 			if n.Left.Type.Outtuple == 1 {
-				t := n.Left.Type.Results().Type
-				if t.Etype == TFIELD {
-					t = t.Type
-				}
-				n.Type = t
+				n.Type = n.Left.Type.Results().Field(0).Type
 			} else {
 				n.Type = n.Left.Type.Results()
 			}
@@ -2008,13 +2004,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 			continue
 		}
 
-		t = on.Type.Params()
-		if t != nil {
-			t = t.Type
-		}
-		if t != nil {
-			t = t.Type
-		}
+		t = on.Type.Params().Field(0).Type
 
 		if !Eqtype(t, n.Type) {
 			n = Nod(OCONV, n, nil)

@@ -652,7 +652,7 @@ func (p *exporter) paramList(params *Type) {
 	// (look at the first parameter only since either all
 	// names are present or all are absent)
 	n := countfield(params)
-	if n > 0 && parName(params.Type) == "" {
+	if n > 0 && parName(params.Field(0)) == "" {
 		n = -n
 	}
 	p.int(n)

@@ -1133,7 +1133,7 @@ func isifacemethod(f *Type) bool {
 		return false
 	}
 	t = t.Type
-	if t.Sym != nil || t.Etype != TSTRUCT || t.Type != nil {
+	if t.Sym != nil || t.Etype != TSTRUCT || countfield(t) != 0 {
 		return false
 	}
 	return true
