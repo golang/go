@@ -865,7 +865,10 @@ func TestFindImportInternal(t *testing.T) {
 		build.Default.GOPATH = oldGOPATH
 	}()
 
-	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal"))
+	// Check for src/internal/race, not just src/internal,
+	// so that we can run this test also against go1.5
+	// (which doesn't contain that file).
+	_, err := os.Stat(filepath.Join(runtime.GOROOT(), "src/internal/race"))
 	if err != nil {
 		t.Skip(err)
 	}
