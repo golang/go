@@ -23,7 +23,7 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr     // size on 64bit platforms
 	}{
 		{Addr{}, 52, 80},
-		{LSym{}, 100, 168},
+		{LSym{}, 92, 160},
 		{Prog{}, 196, 288},
 	}
 
