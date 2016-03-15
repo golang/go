@@ -7,7 +7,7 @@
 // finalizers, etc.) to a file.
 
 // The format of the dumped file is described at
-// https://golang.org/s/go14heapdump.
+// https://golang.org/s/go15heapdump.
 
 package runtime
 
