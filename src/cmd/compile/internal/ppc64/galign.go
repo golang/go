@@ -10,22 +10,6 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-var (
-	thestring   = "ppc64"
-	thelinkarch *obj.LinkArch
-)
-
-func linkarchinit() {
-	thestring = obj.Getgoarch()
-	gc.Thearch.Thestring = thestring
-	if thestring == "ppc64le" {
-		thelinkarch = &ppc64.Linkppc64le
-	} else {
-		thelinkarch = &ppc64.Linkppc64
-	}
-	gc.Thearch.Thelinkarch = thelinkarch
-}
-
 func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
@@ -39,8 +23,12 @@ func betypeinit() {
 
 func Main() {
 	gc.Thearch.Thechar = '9'
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
+	gc.Thearch.Thestring = "ppc64"
+	gc.Thearch.Thelinkarch = &ppc64.Linkppc64
+	if obj.Getgoarch() == "ppc64le" {
+		gc.Thearch.Thestring = "ppc64le"
+		gc.Thearch.Thelinkarch = &ppc64.Linkppc64le
+	}
 	gc.Thearch.REGSP = ppc64.REGSP
 	gc.Thearch.REGCTXT = ppc64.REGCTXT
 	gc.Thearch.REGCALLX = ppc64.REG_R3
@@ -67,7 +55,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp

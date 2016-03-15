@@ -11,22 +11,11 @@ import (
 )
 
 var (
-	thestring   = "amd64"
-	thelinkarch = &x86.Linkamd64
-	addptr      = x86.AADDQ
-	movptr      = x86.AMOVQ
-	leaptr      = x86.ALEAQ
-	cmpptr      = x86.ACMPQ
+	addptr = x86.AADDQ
+	movptr = x86.AMOVQ
+	leaptr = x86.ALEAQ
+	cmpptr = x86.ACMPQ
 )
-
-func linkarchinit() {
-	if obj.Getgoarch() == "amd64p32" {
-		thelinkarch = &x86.Linkamd64p32
-		gc.Thearch.Thelinkarch = thelinkarch
-		thestring = "amd64p32"
-		gc.Thearch.Thestring = "amd64p32"
-	}
-}
 
 func betypeinit() {
 	gc.Widthptr = 8
@@ -54,8 +43,12 @@ func Main() {
 	}
 
 	gc.Thearch.Thechar = '6'
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
+	gc.Thearch.Thestring = "amd64"
+	gc.Thearch.Thelinkarch = &x86.Linkamd64
+	if obj.Getgoarch() == "amd64p32" {
+		gc.Thearch.Thestring = "amd64p32"
+		gc.Thearch.Thelinkarch = &x86.Linkamd64p32
+	}
 	gc.Thearch.REGSP = x86.REGSP
 	gc.Thearch.REGCTXT = x86.REGCTXT
 	gc.Thearch.REGCALLX = x86.REG_BX
@@ -85,7 +78,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp

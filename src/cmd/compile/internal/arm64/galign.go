@@ -9,9 +9,6 @@ import (
 	"cmd/internal/obj/arm64"
 )
 
-func linkarchinit() {
-}
-
 func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
@@ -49,7 +46,6 @@ func Main() {
 	gc.Thearch.Ginscon = ginscon
 	gc.Thearch.Ginsnop = ginsnop
 	gc.Thearch.Gmove = gmove
-	gc.Thearch.Linkarchinit = linkarchinit
 	gc.Thearch.Peep = peep
 	gc.Thearch.Proginfo = proginfo
 	gc.Thearch.Regtyp = regtyp
