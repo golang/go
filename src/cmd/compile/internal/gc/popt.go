@@ -718,7 +718,7 @@ func mergetemp(firstp *obj.Prog) {
 	nfree := len(bystart)
 	for _, v := range bystart {
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, obj.FmtSharp), v.removed)
+			fmt.Printf("consider %v: removed=%t\n", Nconv(v.node, FmtSharp), v.removed)
 		}
 
 		if v.removed {
@@ -733,7 +733,7 @@ func mergetemp(firstp *obj.Prog) {
 		}
 
 		if debugmerge > 0 && Debug['v'] != 0 {
-			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, obj.FmtSharp), v.removed, nfree, len(bystart))
+			fmt.Printf("consider %v: removed=%t nfree=%d nvar=%d\n", Nconv(v.node, FmtSharp), v.removed, nfree, len(bystart))
 		}
 
 		// Find old temp to reuse if possible.
@@ -742,7 +742,7 @@ func mergetemp(firstp *obj.Prog) {
 		for j := nfree; j < len(inuse); j++ {
 			v1 := inuse[j]
 			if debugmerge > 0 && Debug['v'] != 0 {
-				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, obj.FmtSharp), Nconv(v1.node, obj.FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
+				fmt.Printf("consider %v: maybe %v: type=%v,%v addrtaken=%v,%v\n", Nconv(v.node, FmtSharp), Nconv(v1.node, FmtSharp), t, v1.node.Type, v.node.Addrtaken, v1.node.Addrtaken)
 			}
 
 			// Require the types to match but also require the addrtaken bits to match.
@@ -778,7 +778,7 @@ func mergetemp(firstp *obj.Prog) {
 	if debugmerge > 0 && Debug['v'] != 0 {
 		fmt.Printf("%v [%d - %d]\n", Curfn.Func.Nname.Sym, len(vars), nkill)
 		for _, v := range vars {
-			fmt.Printf("var %v %v %d-%d", Nconv(v.node, obj.FmtSharp), v.node.Type, v.start, v.end)
+			fmt.Printf("var %v %v %d-%d", Nconv(v.node, FmtSharp), v.node.Type, v.start, v.end)
 			if v.addr {
 				fmt.Printf(" addr=true")
 			}
@@ -786,7 +786,7 @@ func mergetemp(firstp *obj.Prog) {
 				fmt.Printf(" removed=true")
 			}
 			if v.merge != nil {
-				fmt.Printf(" merge %v", Nconv(v.merge.node, obj.FmtSharp))
+				fmt.Printf(" merge %v", Nconv(v.merge.node, FmtSharp))
 			}
 			if v.start == v.end && v.def != nil {
 				fmt.Printf(" %v", v.def.Prog)

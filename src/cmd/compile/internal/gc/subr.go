@@ -839,11 +839,11 @@ func assignop(src *Type, dst *Type, why *string) Op {
 			} else if have != nil && have.Sym == missing.Sym && have.Nointerface {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method is marked 'nointerface')", src, dst, missing.Sym)
 			} else if have != nil && have.Sym == missing.Sym {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (wrong type for %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
 			} else if ptr != 0 {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (%v method has pointer receiver)", src, dst, missing.Sym)
 			} else if have != nil {
-				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort|obj.FmtByte), missing.Sym, Tconv(missing.Type, obj.FmtShort|obj.FmtByte))
+				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)\n"+"\t\thave %v%v\n\t\twant %v%v", src, dst, missing.Sym, have.Sym, Tconv(have.Type, FmtShort|FmtByte), missing.Sym, Tconv(missing.Type, FmtShort|FmtByte))
 			} else {
 				*why = fmt.Sprintf(":\n\t%v does not implement %v (missing %v method)", src, dst, missing.Sym)
 			}
@@ -1047,7 +1047,7 @@ func assignconvfn(n *Node, t *Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, obj.FmtLong), t, context(), why)
+		Yyerror("cannot use %v as type %v in %s%s", Nconv(n, FmtLong), t, context(), why)
 		op = OCONV
 	}
 
@@ -1234,10 +1234,10 @@ func typehash(t *Type) uint32 {
 		// hide method receiver from Tpretty
 		t.Thistuple = 0
 
-		p = Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
+		p = Tconv(t, FmtLeft|FmtUnsigned)
 		t.Thistuple = 1
 	} else {
-		p = Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
+		p = Tconv(t, FmtLeft|FmtUnsigned)
 	}
 
 	//print("typehash: %s\n", p);

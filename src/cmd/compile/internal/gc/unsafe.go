@@ -4,8 +4,6 @@
 
 package gc
 
-import "cmd/internal/obj"
-
 // unsafenmagic rewrites calls to package unsafe's functions into constants.
 func unsafenmagic(nn *Node) *Node {
 	fn := nn.Left
@@ -84,7 +82,7 @@ func unsafenmagic(nn *Node) *Node {
 				v += r1.Xoffset
 			default:
 				Dump("unsafenmagic", r)
-				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, obj.FmtSharp))
+				Fatalf("impossible %v node after dot insertion", Oconv(r1.Op, FmtSharp))
 				goto bad
 			}
 		}

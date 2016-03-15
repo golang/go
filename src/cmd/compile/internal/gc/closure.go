@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/internal/obj"
 	"fmt"
 )
 
@@ -80,7 +79,7 @@ func typecheckclosure(func_ *Node, top int) {
 		if !n.Name.Captured {
 			n.Name.Captured = true
 			if n.Name.Decldepth == 0 {
-				Fatalf("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
+				Fatalf("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, FmtShort))
 			}
 
 			// Ignore assignments to the variable in straightline code
@@ -165,7 +164,7 @@ func closurename(n *Node) *Sym {
 		n.Func.Outerfunc.Func.Closgen++
 		gen = n.Func.Outerfunc.Func.Closgen
 	} else {
-		Fatalf("closurename called for %v", Nconv(n, obj.FmtShort))
+		Fatalf("closurename called for %v", Nconv(n, FmtShort))
 	}
 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
 	return n.Sym
@@ -487,9 +486,9 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 
 	rcvrtype := fn.Left.Type
 	if exportname(meth.Sym.Name) {
-		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), meth.Sym.Name)
+		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Sym.Name)
 	} else {
-		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
+		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth.Sym, FmtLeft))
 	}
 	basetype := rcvrtype
 	if Isptr[rcvrtype.Etype] {

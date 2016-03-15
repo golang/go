@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/internal/obj"
 	"sort"
 	"strconv"
 )
@@ -71,7 +70,7 @@ func typecheckswitch(n *Node) {
 		typecheck(&n.Left.Right, Erv)
 		t = n.Left.Right.Type
 		if t != nil && t.Etype != TINTER {
-			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, obj.FmtLong))
+			Yyerror("cannot type switch on non-interface value %v", Nconv(n.Left.Right, FmtLong))
 		}
 	} else {
 		// expression switch
@@ -87,13 +86,13 @@ func typecheckswitch(n *Node) {
 			var badtype *Type
 			switch {
 			case !okforeq[t.Etype]:
-				Yyerror("cannot switch on %v", Nconv(n.Left, obj.FmtLong))
+				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
 			case t.Etype == TARRAY && !Isfixedarray(t):
 				nilonly = "slice"
 			case t.Etype == TARRAY && Isfixedarray(t) && algtype1(t, nil) == ANOEQ:
-				Yyerror("cannot switch on %v", Nconv(n.Left, obj.FmtLong))
+				Yyerror("cannot switch on %v", Nconv(n.Left, FmtLong))
 			case t.Etype == TSTRUCT && algtype1(t, &badtype) == ANOEQ:
-				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, obj.FmtLong), badtype)
+				Yyerror("cannot switch on %v (struct containing %v cannot be compared)", Nconv(n.Left, FmtLong), badtype)
 			case t.Etype == TFUNC:
 				nilonly = "func"
 			case t.Etype == TMAP:
@@ -141,7 +140,7 @@ func typecheckswitch(n *Node) {
 					case nilonly != "" && !isnil(n1):
 						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", n1, nilonly, n.Left)
 					case Isinter(t) && !Isinter(n1.Type) && algtype1(n1.Type, nil) == ANOEQ:
-						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, obj.FmtLong))
+						Yyerror("invalid case %v in switch (incomparable type)", Nconv(n1, FmtLong))
 					}
 
 				// type switch
@@ -151,15 +150,15 @@ func typecheckswitch(n *Node) {
 					switch {
 					case n1.Op == OLITERAL && Istype(n1.Type, TNIL):
 					case n1.Op != OTYPE && n1.Type != nil: // should this be ||?
-						Yyerror("%v is not a type", Nconv(n1, obj.FmtLong))
+						Yyerror("%v is not a type", Nconv(n1, FmtLong))
 						// reset to original type
 						n1 = n.Left.Right
 						ls[i1] = n1
 					case n1.Type.Etype != TINTER && t.Etype == TINTER && !implements(n1.Type, t, &missing, &have, &ptr):
 						if have != nil && !missing.Broke && !have.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym, have.Sym, Tconv(have.Type, FmtShort), missing.Sym, Tconv(missing.Type, FmtShort))
 						} else if !missing.Broke {
-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), n1.Type, missing.Sym)
+							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, FmtLong), n1.Type, missing.Sym)
 						}
 					}
 				}

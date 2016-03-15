@@ -362,7 +362,7 @@ func toflt(v Val) Val {
 		f := newMpflt()
 		mpmovefltflt(f, &v.U.(*Mpcplx).Real)
 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
 		}
 		v.U = f
 	}
@@ -385,17 +385,17 @@ func toint(v Val) Val {
 			if f.Val.IsInt() {
 				msg = "constant %v overflows integer"
 			}
-			Yyerror(msg, Fconv(f, obj.FmtSharp))
+			Yyerror(msg, Fconv(f, FmtSharp))
 		}
 		v.U = i
 
 	case CTCPLX:
 		i := new(Mpint)
 		if mpmovefltfix(i, &v.U.(*Mpcplx).Real) < 0 {
-			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
 		}
 		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
 		}
 		v.U = i
 	}
@@ -1280,7 +1280,7 @@ func defaultlit(np **Node, t *Type) {
 		Yyerror("defaultlit: unknown literal: %v", n)
 
 	case CTxxx:
-		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
+		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, FmtSign))
 
 	case CTBOOL:
 		t1 := Types[TBOOL]
@@ -1487,7 +1487,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		var i int64
 		switch n.Val().Ctype() {
 		default:
-			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, obj.FmtLong))
+			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
 
 		case CTINT, CTRUNE:
 			i = Mpgetfix(n.Val().U.(*Mpint))
@@ -1524,7 +1524,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		return
 	}
 
-	Fatalf("convconst %v constant", Tconv(t, obj.FmtLong))
+	Fatalf("convconst %v constant", Tconv(t, FmtLong))
 }
 
 // complex multiply v *= rv

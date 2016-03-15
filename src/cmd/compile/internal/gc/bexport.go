@@ -336,7 +336,7 @@ func Export(out *obj.Biobuf, trace bool) int {
 	}
 	for _, f := range p.inlined {
 		if p.trace {
-			p.tracef("{ %s }\n", Hconv(f.Inl, obj.FmtSharp))
+			p.tracef("{ %s }\n", Hconv(f.Inl, FmtSharp))
 		}
 		p.nodeList(f.Inl)
 		if p.trace {
