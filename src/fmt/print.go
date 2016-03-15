@@ -26,7 +26,6 @@ const (
 	badIndexString    = "(BADINDEX)"
 	panicString       = "(PANIC="
 	extraString       = "%!(EXTRA "
-	bytesString       = "[]byte"
 	badWidthString    = "%!(BADWIDTH)"
 	badPrecString     = "%!(BADPREC)"
 	noVerbString      = "%!(NOVERB)"
@@ -476,7 +475,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 	case 'q':
 		p.fmt.fmt_q(string(v))
 	default:
-		p.badVerb(verb)
+		p.printValue(reflect.ValueOf(v), verb, 0)
 	}
 }
 
@@ -655,7 +654,7 @@ func (p *pp) printArg(arg interface{}, verb rune) {
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
-		p.fmtBytes(f, verb, bytesString)
+		p.fmtBytes(f, verb, "[]byte")
 	case reflect.Value:
 		p.printValue(f, verb, 0)
 	default:
@@ -775,54 +774,52 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			p.printValue(value, verb, depth+1)
 		}
 	case reflect.Array, reflect.Slice:
-		// Byte arrays and slices are special:
-		// - Handle []byte (== []uint8) with fmtBytes.
-		// - Handle []T, where T is a named byte type, with fmtBytes only
-		//   for the s, q, x and X verbs. For other verbs, T might be a
-		//   Stringer, so we use printValue to print each element.
-		typ := f.Type()
-		if typ.Elem().Kind() == reflect.Uint8 &&
-			(typ.Elem() == byteType || verb == 's' || verb == 'q' || verb == 'x' || verb == 'X') {
-			var bytes []byte
-			if f.Kind() == reflect.Slice {
-				bytes = f.Bytes()
-			} else if f.CanAddr() {
-				bytes = f.Slice(0, f.Len()).Bytes()
-			} else {
-				// We have an array, but we cannot Slice() a non-addressable array,
-				// so we build a slice by hand. This is a rare case but it would be nice
-				// if reflection could help a little more.
-				bytes = make([]byte, f.Len())
-				for i := range bytes {
-					bytes[i] = byte(f.Index(i).Uint())
+		switch verb {
+		case 's', 'q', 'x', 'X':
+			// Handle byte and uint8 slices and arrays special for the above verbs.
+			t := f.Type()
+			if t.Elem().Kind() == reflect.Uint8 {
+				var bytes []byte
+				if f.Kind() == reflect.Slice {
+					bytes = f.Bytes()
+				} else if f.CanAddr() {
+					bytes = f.Slice(0, f.Len()).Bytes()
+				} else {
+					// We have an array, but we cannot Slice() a non-addressable array,
+					// so we build a slice by hand. This is a rare case but it would be nice
+					// if reflection could help a little more.
+					bytes = make([]byte, f.Len())
+					for i := range bytes {
+						bytes[i] = byte(f.Index(i).Uint())
+					}
 				}
+				p.fmtBytes(bytes, verb, t.String())
+				return
 			}
-			p.fmtBytes(bytes, verb, typ.String())
-			return
 		}
 		if p.fmt.sharpV {
-			p.buf.WriteString(typ.String())
+			p.buf.WriteString(f.Type().String())
 			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString(nilParenString)
 				return
+			} else {
+				p.buf.WriteByte('{')
+				for i := 0; i < f.Len(); i++ {
+					if i > 0 {
+						p.buf.WriteString(commaSpaceString)
+					}
+					p.printValue(f.Index(i), verb, depth+1)
+				}
+				p.buf.WriteByte('}')
 			}
-			p.buf.WriteByte('{')
 		} else {
 			p.buf.WriteByte('[')
-		}
-		for i := 0; i < f.Len(); i++ {
-			if i > 0 {
-				if p.fmt.sharpV {
-					p.buf.WriteString(commaSpaceString)
-				} else {
+			for i := 0; i < f.Len(); i++ {
+				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
+				p.printValue(f.Index(i), verb, depth+1)
 			}
-			p.printValue(f.Index(i), verb, depth+1)
-		}
-		if p.fmt.sharpV {
-			p.buf.WriteByte('}')
-		} else {
 			p.buf.WriteByte(']')
 		}
 	case reflect.Ptr:
