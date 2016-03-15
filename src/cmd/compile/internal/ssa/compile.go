@@ -117,7 +117,7 @@ type pass struct {
 }
 
 // Run consistency checker between each phase
-var checkEnabled = true
+var checkEnabled = false
 
 // PhaseOption sets the specified flag in the specified ssa phase,
 // returning empty string if this was successful or a string explaining
