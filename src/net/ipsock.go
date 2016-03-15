@@ -6,10 +6,7 @@
 
 package net
 
-import (
-	"errors"
-	"time"
-)
+import "time"
 
 var (
 	// supportsIPv4 reports whether the platform supports IPv4
@@ -72,8 +69,6 @@ func (addrs addrList) partition(strategy func(Addr) bool) (primaries, fallbacks 
 	}
 	return
 }
-
-var errNoSuitableAddress = errors.New("no suitable address found")
 
 // filterAddrList applies a filter to a list of IP addresses,
 // yielding a list of Addr objects. Known filters are nil, ipv4only,
