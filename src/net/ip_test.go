@@ -421,12 +421,15 @@ func TestSplitHostPort(t *testing.T) {
 		}
 	}
 	for _, tt := range splitFailureTests {
-		if _, _, err := SplitHostPort(tt.hostPort); err == nil {
+		if host, port, err := SplitHostPort(tt.hostPort); err == nil {
 			t.Errorf("SplitHostPort(%q) should have failed", tt.hostPort)
 		} else {
 			e := err.(*AddrError)
 			if e.Err != tt.err {
 				t.Errorf("SplitHostPort(%q) = _, _, %q; want %q", tt.hostPort, e.Err, tt.err)
+			}
+			if host != "" || port != "" {
+				t.Errorf("SplitHostPort(%q) = %q, %q, err; want %q, %q, err on failure", tt.hostPort, host, port, "", "")
 			}
 		}
 	}
