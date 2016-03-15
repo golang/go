@@ -353,7 +353,7 @@ type describeValueResult struct {
 func (r *describeValueResult) display(printf printfFunc) {
 	var prefix, suffix string
 	if r.constVal != nil {
-		suffix = fmt.Sprintf(" of constant value %s", r.constVal)
+		suffix = fmt.Sprintf(" of constant value %s", constValString(r.constVal))
 	}
 	switch obj := r.obj.(type) {
 	case *types.Func:
@@ -652,13 +652,26 @@ func (r *describePackageResult) display(printf printfFunc) {
 	}
 }
 
+// Helper function to adjust go1.5 numeric go/constant formatting.
+// Can be removed once we give up compatibility with go1.5.
+func constValString(v exact.Value) string {
+	if v.Kind() == exact.Float {
+		// In go1.5, go/constant floating-point values are printed
+		// as fractions. Make them appear as floating-point numbers.
+		if f, ok := exact.Float64Val(v); ok {
+			return fmt.Sprintf("%g", f)
+		}
+	}
+	return v.String()
+}
+
 func formatMember(obj types.Object, maxname int) string {
 	qualifier := types.RelativeTo(obj.Pkg())
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%-5s %-*s", tokenOf(obj), maxname, obj.Name())
 	switch obj := obj.(type) {
 	case *types.Const:
-		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), obj.Val().String())
+		fmt.Fprintf(&buf, " %s = %s", types.TypeString(obj.Type(), qualifier), constValString(obj.Val()))
 
 	case *types.Func:
 		fmt.Fprintf(&buf, " %s", types.TypeString(obj.Type(), qualifier))
@@ -695,7 +708,7 @@ func (r *describePackageResult) toSerial(res *serial.Result, fset *token.FileSet
 		var val string
 		switch mem := mem.obj.(type) {
 		case *types.Const:
-			val = mem.Val().String()
+			val = constValString(mem.Val())
 		case *types.TypeName:
 			typ = typ.Underlying()
 		}
