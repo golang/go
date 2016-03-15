@@ -1662,6 +1662,30 @@ func (p *parser) ntype() *Node {
 	return nil
 }
 
+// signature parses a function signature and returns an OTFUNC node.
+//
+// Signature = Parameters [ Result ] .
+func (p *parser) signature(recv *Node) *Node {
+	if trace && Debug['x'] != 0 {
+		defer p.trace("signature")()
+	}
+
+	params := p.param_list(true)
+
+	var result []*Node
+	if p.tok == '(' {
+		result = p.param_list(false)
+	} else if t := p.try_ntype(); t != nil {
+		result = []*Node{Nod(ODCLFIELD, nil, t)}
+	}
+
+	typ := Nod(OTFUNC, recv, nil)
+	typ.List.Set(params)
+	typ.Rlist.Set(result)
+
+	return typ
+}
+
 // try_ntype is like ntype but it returns nil if there was no type
 // instead of reporting an error.
 //
@@ -1686,13 +1710,7 @@ func (p *parser) try_ntype() *Node {
 	case LFUNC:
 		// fntype
 		p.next()
-		params := p.param_list()
-		result := p.fnres()
-		params = checkarglist(params, 1)
-		t := Nod(OTFUNC, nil, nil)
-		t.List.Set(params)
-		t.Rlist.Set(result)
-		return t
+		return p.signature(nil)
 
 	case '[':
 		// '[' oexpr ']' ntype
@@ -1882,29 +1900,22 @@ func (p *parser) fndcl(nointerface bool) *Node {
 
 	switch p.tok {
 	case LNAME, '@', '?':
-		// sym '(' oarg_type_list_ocomma ')' fnres
+		// FunctionName Signature
 		name := p.sym()
-		params := p.param_list()
-		result := p.fnres()
-
-		params = checkarglist(params, 1)
+		t := p.signature(nil)
 
 		if name.Name == "init" {
 			name = renameinit()
-			if len(params) != 0 || len(result) != 0 {
+			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
 				Yyerror("func init must have no arguments and no return values")
 			}
 		}
 
 		if localpkg.Name == "main" && name.Name == "main" {
-			if len(params) != 0 || len(result) != 0 {
+			if t.List.Len() > 0 || t.Rlist.Len() > 0 {
 				Yyerror("func main must have no arguments and no return values")
 			}
 		}
-
-		t := Nod(OTFUNC, nil, nil)
-		t.List.Set(params)
-		t.Rlist.Set(result)
 
 		f := Nod(ODCLFUNC, nil, nil)
 		f.Func.Nname = newfuncname(name)
@@ -1916,16 +1927,17 @@ func (p *parser) fndcl(nointerface bool) *Node {
 		return f
 
 	case '(':
-		// '(' oarg_type_list_ocomma ')' sym '(' oarg_type_list_ocomma ')' fnres
-		rparam := p.param_list()
+		// Receiver MethodName Signature
+		rparam := p.param_list(false)
+		var recv *Node
+		if len(rparam) > 0 {
+			recv = rparam[0]
+		}
 		name := p.sym()
-		params := p.param_list()
-		result := p.fnres()
+		t := p.signature(recv)
 
-		rparam = checkarglist(rparam, 0)
-		params = checkarglist(params, 1)
-
-		if len(rparam) == 0 {
+		// check after parsing header for fault-tolerance
+		if recv == nil {
 			Yyerror("method has no receiver")
 			return nil
 		}
@@ -1935,19 +1947,14 @@ func (p *parser) fndcl(nointerface bool) *Node {
 			return nil
 		}
 
-		rcvr := rparam[0]
-		if rcvr.Op != ODCLFIELD {
+		if recv.Op != ODCLFIELD {
 			Yyerror("bad receiver in method")
 			return nil
 		}
 
-		t := Nod(OTFUNC, rcvr, nil)
-		t.List.Set(params)
-		t.Rlist.Set(result)
-
 		f := Nod(ODCLFUNC, nil, nil)
 		f.Func.Shortname = newfuncname(name)
-		f.Func.Nname = methodname1(f.Func.Shortname, rcvr.Right)
+		f.Func.Nname = methodname1(f.Func.Shortname, recv.Right)
 		f.Func.Nname.Name.Defn = f
 		f.Func.Nname.Name.Param.Ntype = t
 		f.Func.Nname.Nointerface = nointerface
@@ -2038,24 +2045,6 @@ func (p *parser) fnbody() []*Node {
 			body = []*Node{Nod(OEMPTY, nil, nil)}
 		}
 		return body
-	}
-
-	return nil
-}
-
-// Result = Parameters | Type .
-func (p *parser) fnres() []*Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("fnres")()
-	}
-
-	if p.tok == '(' {
-		result := p.param_list()
-		return checkarglist(result, 0)
-	}
-
-	if result := p.try_ntype(); result != nil {
-		return []*Node{Nod(ODCLFIELD, nil, result)}
 	}
 
 	return nil
@@ -2302,16 +2291,17 @@ func (p *parser) interfacedcl() *Node {
 			return Nod(ODCLFIELD, nil, oldname(pname))
 		}
 
-		// newname indcl
+		// MethodName Signature
 		mname := newname(sym)
-		sig := p.indcl()
+		sig := p.signature(fakethis())
 
 		meth := Nod(ODCLFIELD, mname, sig)
 		ifacedcl(meth)
 		return meth
 
 	case '@', '?':
-		// newname indcl
+		// MethodName Signature
+		//
 		// We arrive here when parsing an interface type declared inside
 		// an exported and inlineable function and the interface declares
 		// unexported methods (which are then package-qualified).
@@ -2322,7 +2312,7 @@ func (p *parser) interfacedcl() *Node {
 		//
 		// See also issue 14164.
 		mname := newname(p.sym())
-		sig := p.indcl()
+		sig := p.signature(fakethis())
 
 		meth := Nod(ODCLFIELD, mname, sig)
 		ifacedcl(meth)
@@ -2343,29 +2333,10 @@ func (p *parser) interfacedcl() *Node {
 	}
 }
 
-// MethodSpec = MethodName Signature .
-// MethodName = identifier .
-func (p *parser) indcl() *Node {
+// [ParameterName] Type
+func (p *parser) par_type() *Node {
 	if trace && Debug['x'] != 0 {
-		defer p.trace("indcl")()
-	}
-
-	params := p.param_list()
-	result := p.fnres()
-
-	// without func keyword
-	params = checkarglist(params, 1)
-	t := Nod(OTFUNC, fakethis(), nil)
-	t.List.Set(params)
-	t.Rlist.Set(result)
-
-	return t
-}
-
-// ParameterDecl = [ IdentifierList ] [ "..." ] Type .
-func (p *parser) arg_type() *Node {
-	if trace && Debug['x'] != 0 {
-		defer p.trace("arg_type")()
+		defer p.trace("par_type")()
 	}
 
 	switch p.tok {
@@ -2413,22 +2384,28 @@ func (p *parser) arg_type() *Node {
 
 // Parameters    = "(" [ ParameterList [ "," ] ] ")" .
 // ParameterList = ParameterDecl { "," ParameterDecl } .
-func (p *parser) param_list() (l []*Node) {
+// ParameterDecl = [ IdentifierList ] [ "..." ] Type .
+func (p *parser) param_list(dddOk bool) []*Node {
 	if trace && Debug['x'] != 0 {
 		defer p.trace("param_list")()
 	}
 
 	p.want('(')
-
+	var l []*Node
 	for p.tok != EOF && p.tok != ')' {
-		l = append(l, p.arg_type())
+		l = append(l, p.par_type())
 		if !p.ocomma(')') {
 			break
 		}
 	}
-
 	p.want(')')
-	return
+
+	// TODO(gri) remove this with next commit
+	input := 0
+	if dddOk {
+		input = 1
+	}
+	return checkarglist(l, input)
 }
 
 var missing_stmt = Nod(OXXX, nil, nil)
