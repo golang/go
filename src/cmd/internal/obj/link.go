@@ -334,7 +334,6 @@ type LSym struct {
 	Args   int32
 	Locals int32
 	Size   int64
-	Next   *LSym
 	Gotype *LSym
 	Autom  *Auto
 	Text   *Prog
@@ -652,10 +651,8 @@ type Link struct {
 	RefsWritten   int // Number of symbol references already written to object file.
 
 	// state for writing objects
-	Text  *LSym
-	Data  *LSym
-	Etext *LSym
-	Edata *LSym
+	Text []*LSym
+	Data []*LSym
 
 	// Cache of Progs
 	allocIdx int

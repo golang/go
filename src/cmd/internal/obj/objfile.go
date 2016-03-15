@@ -130,7 +130,8 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	// Build list of symbols, and assign instructions to lists.
 	// Ignore ctxt->plist boundaries. There are no guarantees there,
 	// and the assemblers just use one big list.
-	var curtext, text, etext *LSym
+	var curtext *LSym
+	var text []*LSym
 
 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
 		var plink *Prog
@@ -180,12 +181,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
 				s.Onlist = 1
-				if ctxt.Data == nil {
-					ctxt.Data = s
-				} else {
-					ctxt.Edata.Next = s
-				}
-				s.Next = nil
+				ctxt.Data = append(ctxt.Data, s)
 				s.Size = p.To.Offset
 				if s.Type == 0 || s.Type == SXREF {
 					s.Type = SBSS
@@ -201,7 +197,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				} else if flag&TLSBSS != 0 {
 					s.Type = STLSBSS
 				}
-				ctxt.Edata = s
 				continue
 
 			case ATEXT:
@@ -220,12 +215,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 					log.Fatalf("symbol %s listed multiple times", s.Name)
 				}
 				s.Onlist = 1
-				if text == nil {
-					text = s
-				} else {
-					etext.Next = s
-				}
-				etext = s
+				text = append(text, s)
 				flag := int(p.From3Offset())
 				if flag&DUPOK != 0 {
 					s.Dupok = 1
@@ -236,7 +226,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				if flag&REFLECTMETHOD != 0 {
 					s.ReflectMethod = true
 				}
-				s.Next = nil
 				s.Type = STEXT
 				s.Text = p
 				s.Etext = p
@@ -267,7 +256,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	}
 
 	// Add reference to Go arguments for C or assembly functions without them.
-	for s := text; s != nil; s = s.Next {
+	for _, s := range text {
 		if !strings.HasPrefix(s.Name, "\"\".") {
 			continue
 		}
@@ -292,7 +281,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	}
 
 	// Turn functions into machine code images.
-	for s := text; s != nil; s = s.Next {
+	for _, s := range text {
 		mkfwd(s)
 		linkpatch(ctxt, s)
 		if ctxt.Flag_optimize {
@@ -309,14 +298,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	}
 
 	// Add to running list in ctxt.
-	if text != nil {
-		if ctxt.Text == nil {
-			ctxt.Text = text
-		} else {
-			ctxt.Etext.Next = text
-		}
-		ctxt.Etext = etext
-	}
+	ctxt.Text = append(ctxt.Text, text...)
 	ctxt.Plist = nil
 	ctxt.Plast = nil
 	ctxt.Curp = nil
@@ -340,19 +322,19 @@ func Writeobjfile(ctxt *Link, b *Biobuf) {
 	wrstring(b, "")
 
 	// Emit symbol references.
-	for s := ctxt.Text; s != nil; s = s.Next {
+	for _, s := range ctxt.Text {
 		writerefs(ctxt, b, s)
 	}
-	for s := ctxt.Data; s != nil; s = s.Next {
+	for _, s := range ctxt.Data {
 		writerefs(ctxt, b, s)
 	}
 	Bputc(b, 0xff)
 
 	// Emit symbols.
-	for s := ctxt.Text; s != nil; s = s.Next {
+	for _, s := range ctxt.Text {
 		writesym(ctxt, b, s)
 	}
-	for s := ctxt.Data; s != nil; s = s.Next {
+	for _, s := range ctxt.Data {
 		writesym(ctxt, b, s)
 	}
 
