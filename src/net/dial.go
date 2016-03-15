@@ -5,7 +5,6 @@
 package net
 
 import (
-	"errors"
 	"runtime"
 	"time"
 )
@@ -140,8 +139,11 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 	return "", 0, UnknownNetworkError(net)
 }
 
-func resolveAddrList(op, net, addr string, deadline time.Time) (addrList, error) {
-	afnet, _, err := parseNetwork(net)
+// resolverAddrList resolves addr using hint and returns a list of
+// addresses. The result contains at least one address when error is
+// nil.
+func resolveAddrList(op, network, addr string, hint Addr, deadline time.Time) (addrList, error) {
+	afnet, _, err := parseNetwork(network)
 	if err != nil {
 		return nil, err
 	}
@@ -154,9 +156,59 @@ func resolveAddrList(op, net, addr string, deadline time.Time) (addrList, error)
 		if err != nil {
 			return nil, err
 		}
+		if op == "dial" && hint != nil && addr.Network() != hint.Network() {
+			return nil, &AddrError{Err: "mismatched local address type", Addr: hint.String()}
+		}
 		return addrList{addr}, nil
 	}
-	return internetAddrList(afnet, addr, deadline)
+	addrs, err := internetAddrList(afnet, addr, deadline)
+	if err != nil || op != "dial" || hint == nil {
+		return addrs, err
+	}
+	var (
+		tcp      *TCPAddr
+		udp      *UDPAddr
+		ip       *IPAddr
+		wildcard bool
+	)
+	switch hint := hint.(type) {
+	case *TCPAddr:
+		tcp = hint
+		wildcard = tcp.isWildcard()
+	case *UDPAddr:
+		udp = hint
+		wildcard = udp.isWildcard()
+	case *IPAddr:
+		ip = hint
+		wildcard = ip.isWildcard()
+	}
+	naddrs := addrs[:0]
+	for _, addr := range addrs {
+		if addr.Network() != hint.Network() {
+			return nil, &AddrError{Err: "mismatched local address type", Addr: hint.String()}
+		}
+		switch addr := addr.(type) {
+		case *TCPAddr:
+			if !wildcard && !addr.isWildcard() && !addr.IP.matchAddrFamily(tcp.IP) {
+				continue
+			}
+			naddrs = append(naddrs, addr)
+		case *UDPAddr:
+			if !wildcard && !addr.isWildcard() && !addr.IP.matchAddrFamily(udp.IP) {
+				continue
+			}
+			naddrs = append(naddrs, addr)
+		case *IPAddr:
+			if !wildcard && !addr.isWildcard() && !addr.IP.matchAddrFamily(ip.IP) {
+				continue
+			}
+			naddrs = append(naddrs, addr)
+		}
+	}
+	if len(naddrs) == 0 {
+		return nil, errNoSuitableAddress
+	}
+	return naddrs, nil
 }
 
 // Dial connects to the address on the named network.
@@ -214,7 +266,7 @@ type dialContext struct {
 // parameters.
 func (d *Dialer) Dial(network, address string) (Conn, error) {
 	finalDeadline := d.deadline(time.Now())
-	addrs, err := resolveAddrList("dial", network, address, finalDeadline)
+	addrs, err := resolveAddrList("dial", network, address, d.LocalAddr, finalDeadline)
 	if err != nil {
 		return nil, &OpError{Op: "dial", Net: network, Source: nil, Addr: nil, Err: err}
 	}
@@ -387,9 +439,6 @@ func dialSerial(ctx *dialContext, ras addrList, cancel <-chan struct{}) (Conn, e
 // dial function, because some OSes don't implement the deadline feature.
 func dialSingle(ctx *dialContext, ra Addr, deadline time.Time, cancel <-chan struct{}) (c Conn, err error) {
 	la := ctx.LocalAddr
-	if la != nil && la.Network() != ra.Network() {
-		return nil, &OpError{Op: "dial", Net: ctx.network, Source: la, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
-	}
 	switch ra := ra.(type) {
 	case *TCPAddr:
 		la, _ := la.(*TCPAddr)
@@ -420,7 +469,7 @@ func dialSingle(ctx *dialContext, ra Addr, deadline time.Time, cancel <-chan str
 // instead of just the interface with the given host address.
 // See Dial for more details about address syntax.
 func Listen(net, laddr string) (Listener, error) {
-	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
+	addrs, err := resolveAddrList("listen", net, laddr, nil, noDeadline)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: err}
 	}
@@ -447,7 +496,7 @@ func Listen(net, laddr string) (Listener, error) {
 // instead of just the interface with the given host address.
 // See Dial for the syntax of laddr.
 func ListenPacket(net, laddr string) (PacketConn, error) {
-	addrs, err := resolveAddrList("listen", net, laddr, noDeadline)
+	addrs, err := resolveAddrList("listen", net, laddr, nil, noDeadline)
 	if err != nil {
 		return nil, &OpError{Op: "listen", Net: net, Source: nil, Addr: nil, Err: err}
 	}
