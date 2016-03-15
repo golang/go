@@ -35,15 +35,42 @@ func parseLE16(b []byte) uint16 {
 func testLoadCombine() {
 	testData := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	if want, got := uint64(0x0908070605040302), parseLE64(testData); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
+		println("testLoadCombine failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := uint32(0x05040302), parseLE32(testData); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
+		println("testLoadCombine failed, wanted", want, "got", got)
 		failed = true
 	}
 	if want, got := uint16(0x0302), parseLE16(testData); want != got {
-		println("testLargeConst add failed, wanted", want, "got", got)
+		println("testLoadCombine failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
+var loadSymData = [...]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
+
+func testLoadSymCombine() {
+	w2 := uint16(0x0201)
+	g2 := uint16(loadSymData[0]) | uint16(loadSymData[1])<<8
+	if g2 != w2 {
+		println("testLoadSymCombine failed, wanted", w2, "got", g2)
+		failed = true
+	}
+	w4 := uint32(0x04030201)
+	g4 := uint32(loadSymData[0]) | uint32(loadSymData[1])<<8 |
+		uint32(loadSymData[2])<<16 | uint32(loadSymData[3])<<24
+	if g4 != w4 {
+		println("testLoadSymCombine failed, wanted", w4, "got", g4)
+		failed = true
+	}
+	w8 := uint64(0x0807060504030201)
+	g8 := uint64(loadSymData[0]) | uint64(loadSymData[1])<<8 |
+		uint64(loadSymData[2])<<16 | uint64(loadSymData[3])<<24 |
+		uint64(loadSymData[4])<<32 | uint64(loadSymData[5])<<40 |
+		uint64(loadSymData[6])<<48 | uint64(loadSymData[7])<<56
+	if g8 != w8 {
+		println("testLoadSymCombine failed, wanted", w8, "got", g8)
 		failed = true
 	}
 }
@@ -466,6 +493,7 @@ func main() {
 	testArithRshConst()
 	testLargeConst()
 	testLoadCombine()
+	testLoadSymCombine()
 
 	if failed {
 		panic("failed")

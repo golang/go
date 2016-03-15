@@ -689,6 +689,20 @@
 (MOVOload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
 	(MOVOload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
 
+(MOVBQZXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVBQZXload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVWQZXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVWQZXload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVLQZXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVLQZXload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVBQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVBQSXload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVWQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVWQSXload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+(MOVLQSXload [off1] {sym1} (LEAQ [off2] {sym2} base) mem) && canMergeSym(sym1, sym2) ->
+	(MOVLQSXload [addOff(off1,off2)] {mergeSym(sym1,sym2)} base mem)
+
+
 (MOVQstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
 	(MOVQstore  [addOff(off1,off2)] {mergeSym(sym1,sym2)} base val mem)
 (MOVLstore  [off1] {sym1} (LEAQ [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) ->
@@ -1168,13 +1182,13 @@
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.
 (ORW                (MOVBQZXload [i]   {s} p mem)
-     (SHLWconst [8] (MOVBQZXload [i+1] {s} p mem))) -> (MOVWload (ADDQconst [i] p) mem)
+    (SHLWconst [8]  (MOVBQZXload [i+1] {s} p mem))) -> @v.Args[0].Block (MOVWload [i] {s} p mem)
 
 (ORL (ORL (ORL
                     (MOVBQZXload [i]   {s} p mem)
     (SHLLconst [8]  (MOVBQZXload [i+1] {s} p mem)))
     (SHLLconst [16] (MOVBQZXload [i+2] {s} p mem)))
-    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> (MOVLload (ADDQconst [i] p) mem)
+    (SHLLconst [24] (MOVBQZXload [i+3] {s} p mem))) -> @v.Args[0].Args[0].Args[0].Block (MOVLload [i] {s} p mem)
 
 (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ (ORQ
                     (MOVBQZXload [i]   {s} p mem)
@@ -1184,4 +1198,4 @@
     (SHLQconst [32] (MOVBQZXload [i+4] {s} p mem)))
     (SHLQconst [40] (MOVBQZXload [i+5] {s} p mem)))
     (SHLQconst [48] (MOVBQZXload [i+6] {s} p mem)))
-    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> (MOVQload (ADDQconst [i] p) mem)
+    (SHLQconst [56] (MOVBQZXload [i+7] {s} p mem))) -> @v.Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Args[0].Block (MOVQload [i] {s} p mem)
