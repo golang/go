@@ -418,7 +418,7 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		if s.Nosplit != 0 {
 			fmt.Fprintf(ctxt.Bso, "nosplit ")
 		}
-		fmt.Fprintf(ctxt.Bso, "size=%d value=%d", int64(s.Size), int64(s.Value))
+		fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 		if s.Type == STEXT {
 			fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Args), uint64(s.Locals))
 			if s.Leaf != 0 {

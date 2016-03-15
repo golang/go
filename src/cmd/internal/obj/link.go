@@ -333,7 +333,6 @@ type LSym struct {
 	Local  bool
 	Args   int32
 	Locals int32
-	Value  int64
 	Size   int64
 	Next   *LSym
 	Gotype *LSym

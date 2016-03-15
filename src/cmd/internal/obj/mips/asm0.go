@@ -536,11 +536,11 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
 				break
 			}
 			if s.Type == obj.SCONST {
-				ctxt.Instoffset = s.Value + a.Offset
+				ctxt.Instoffset = a.Offset
 				goto consize
 			}
 
-			ctxt.Instoffset = s.Value + a.Offset
+			ctxt.Instoffset = a.Offset
 
 			/* not sure why this barfs */
 			return C_LCON

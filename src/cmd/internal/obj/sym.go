@@ -124,7 +124,6 @@ func Linklookup(ctxt *Link, name string, v int) *LSym {
 		Name:    name,
 		Type:    0,
 		Version: int16(v),
-		Value:   0,
 		Size:    0,
 	}
 	ctxt.Hash[SymVer{name, v}] = s
