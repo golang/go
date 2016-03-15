@@ -543,7 +543,6 @@ type Arch struct {
 	Ginsnop      func()
 	Gmove        func(*Node, *Node)
 	Igenindex    func(*Node, *Node, bool) *obj.Prog
-	Linkarchinit func()
 	Peep         func(*obj.Prog)
 	Proginfo     func(*obj.Prog) // fills in Prog.Info
 	Regtyp       func(*obj.Addr) bool

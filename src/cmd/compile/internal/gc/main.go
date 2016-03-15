@@ -98,7 +98,6 @@ func Main() {
 	}
 	goarch = p
 
-	Thearch.Linkarchinit()
 	Ctxt = obj.Linknew(Thearch.Thelinkarch)
 	Ctxt.DiagFunc = Yyerror
 	Ctxt.Bso = &bstdout
