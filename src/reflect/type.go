@@ -291,7 +291,6 @@ type method struct {
 	name    *string        // name of method
 	pkgPath *string        // nil for exported Names; otherwise import path
 	mtyp    *rtype         // method type (without receiver)
-	typ     *rtype         // .(*FuncType) underneath (with receiver)
 	ifn     unsafe.Pointer // fn used in interface call (one-word receiver)
 	tfn     unsafe.Pointer // fn used for normal method call
 }
@@ -561,11 +560,29 @@ func (t *rtype) pointers() bool { return t.kind&kindNoPointers == 0 }
 
 func (t *rtype) common() *rtype { return t }
 
-func (t *uncommonType) Method(i int) (m Method) {
-	if t == nil || i < 0 || i >= len(t.methods) {
+func (t *rtype) NumMethod() int {
+	if t.Kind() == Interface {
+		tt := (*interfaceType)(unsafe.Pointer(t))
+		return tt.NumMethod()
+	}
+	ut := t.uncommon()
+	if ut == nil {
+		return 0
+	}
+	return len(ut.methods)
+}
+
+func (t *rtype) Method(i int) (m Method) {
+	if t.Kind() == Interface {
+		tt := (*interfaceType)(unsafe.Pointer(t))
+		return tt.Method(i)
+	}
+	ut := t.uncommon()
+
+	if ut == nil || i < 0 || i >= len(ut.methods) {
 		panic("reflect: Method index out of range")
 	}
-	p := &t.methods[i]
+	p := &ut.methods[i]
 	if p.name != nil {
 		m.Name = *p.name
 	}
@@ -574,52 +591,22 @@ func (t *uncommonType) Method(i int) (m Method) {
 		m.PkgPath = *p.pkgPath
 		fl |= flagStickyRO
 	}
-	mt := p.typ
+	ft := (*funcType)(unsafe.Pointer(p.mtyp))
+	in := make([]Type, 0, 1+len(ft.in()))
+	in = append(in, t)
+	for _, arg := range ft.in() {
+		in = append(in, arg)
+	}
+	out := make([]Type, 0, len(ft.out()))
+	for _, ret := range ft.out() {
+		out = append(out, ret)
+	}
+	mt := FuncOf(in, out, p.mtyp.IsVariadic())
 	m.Type = mt
 	fn := unsafe.Pointer(&p.tfn)
-	m.Func = Value{mt, fn, fl}
+	m.Func = Value{mt.(*rtype), fn, fl}
 	m.Index = i
-	return
-}
-
-func (t *uncommonType) NumMethod() int {
-	if t == nil {
-		return 0
-	}
-	return len(t.methods)
-}
-
-func (t *uncommonType) MethodByName(name string) (m Method, ok bool) {
-	if t == nil {
-		return
-	}
-	var p *method
-	for i := range t.methods {
-		p = &t.methods[i]
-		if p.name != nil && *p.name == name {
-			return t.Method(i), true
-		}
-	}
-	return
-}
-
-// TODO(rsc): gc supplies these, but they are not
-// as efficient as they could be: they have commonType
-// as the receiver instead of *rtype.
-func (t *rtype) NumMethod() int {
-	if t.Kind() == Interface {
-		tt := (*interfaceType)(unsafe.Pointer(t))
-		return tt.NumMethod()
-	}
-	return t.uncommon().NumMethod()
-}
-
-func (t *rtype) Method(i int) (m Method) {
-	if t.Kind() == Interface {
-		tt := (*interfaceType)(unsafe.Pointer(t))
-		return tt.Method(i)
-	}
-	return t.uncommon().Method(i)
+	return m
 }
 
 func (t *rtype) MethodByName(name string) (m Method, ok bool) {
@@ -627,7 +614,18 @@ func (t *rtype) MethodByName(name string) (m Method, ok bool) {
 		tt := (*interfaceType)(unsafe.Pointer(t))
 		return tt.MethodByName(name)
 	}
-	return t.uncommon().MethodByName(name)
+	ut := t.uncommon()
+	if ut == nil {
+		return Method{}, false
+	}
+	var p *method
+	for i := range ut.methods {
+		p = &ut.methods[i]
+		if p.name != nil && *p.name == name {
+			return t.Method(i), true
+		}
+	}
+	return Method{}, false
 }
 
 func (t *rtype) PkgPath() string {

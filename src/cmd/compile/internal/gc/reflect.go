@@ -505,7 +505,6 @@ func dextratypeData(s *Sym, ot int, t *Type) int {
 
 		ot = dgopkgpath(s, ot, a.pkg)
 		ot = dmethodptr(s, ot, dtypesym(a.mtype))
-		ot = dmethodptr(s, ot, dtypesym(a.type_))
 		ot = dmethodptr(s, ot, a.isym)
 		ot = dmethodptr(s, ot, a.tsym)
 	}

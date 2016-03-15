@@ -155,7 +155,6 @@ type method struct {
 	name    *string
 	pkgpath *string
 	mtyp    *_type
-	typ     *_type
 	ifn     unsafe.Pointer
 	tfn     unsafe.Pointer
 }
