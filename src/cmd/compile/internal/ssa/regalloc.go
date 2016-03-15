@@ -450,7 +450,7 @@ func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line
 		// Load v from its spill location.
 		case vi.spill != nil:
 			if s.f.pass.debug > logSpills {
-				fmt.Println("regalloc: load spill")
+				s.f.Config.Warnl(vi.spill.Line, "load spill")
 			}
 			c = s.curBlock.NewValue1(line, OpLoadReg, v.Type, vi.spill)
 			vi.spillUsed = true
@@ -1114,7 +1114,7 @@ func (s *regAllocState) regalloc(f *Func) {
 		vi := s.values[i]
 		if vi.spillUsed {
 			if s.f.pass.debug > logSpills {
-				fmt.Println("regalloc: spilled value")
+				s.f.Config.Warnl(vi.spill.Line, "spilled value")
 			}
 			continue
 		}
