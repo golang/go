@@ -131,6 +131,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 	// Ignore ctxt->plist boundaries. There are no guarantees there,
 	// and the assemblers just use one big list.
 	var curtext *LSym
+	var etext *Prog
 	var text []*LSym
 
 	for pl := ctxt.Plist; pl != nil; pl = pl.Link {
@@ -228,7 +229,7 @@ func flushplist(ctxt *Link, freeProgs bool) {
 				}
 				s.Type = STEXT
 				s.Text = p
-				s.Etext = p
+				etext = p
 				curtext = s
 				continue
 
@@ -247,11 +248,11 @@ func flushplist(ctxt *Link, freeProgs bool) {
 			}
 
 			if curtext == nil {
+				etext = nil
 				continue
 			}
-			s := curtext
-			s.Etext.Link = p
-			s.Etext = p
+			etext.Link = p
+			etext = p
 		}
 	}
 
@@ -293,7 +294,6 @@ func flushplist(ctxt *Link, freeProgs bool) {
 		linkpcln(ctxt, s)
 		if freeProgs {
 			s.Text = nil
-			s.Etext = nil
 		}
 	}
 
