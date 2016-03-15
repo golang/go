@@ -1092,9 +1092,8 @@ func livenesssolve(lv *Liveness) {
 		bvcopy(bb.avarinitany, bb.avarinit)
 	}
 
-	change := int32(1)
-	for change != 0 {
-		change = 0
+	for change := true; change; {
+		change = false
 		for _, bb := range lv.cfg {
 			bvresetall(any)
 			bvresetall(all)
@@ -1112,13 +1111,13 @@ func livenesssolve(lv *Liveness) {
 			bvandnot(all, all, bb.varkill)
 			bvor(any, any, bb.avarinit)
 			bvor(all, all, bb.avarinit)
-			if bvcmp(any, bb.avarinitany) != 0 {
-				change = 1
+			if !bveq(any, bb.avarinitany) {
+				change = true
 				bvcopy(bb.avarinitany, any)
 			}
 
-			if bvcmp(all, bb.avarinitall) != 0 {
-				change = 1
+			if !bveq(all, bb.avarinitall) {
+				change = true
 				bvcopy(bb.avarinitall, all)
 			}
 		}
@@ -1127,10 +1126,9 @@ func livenesssolve(lv *Liveness) {
 	// Iterate through the blocks in reverse round-robin fashion. A work
 	// queue might be slightly faster. As is, the number of iterations is
 	// so low that it hardly seems to be worth the complexity.
-	change = 1
 
-	for change != 0 {
-		change = 0
+	for change := true; change; {
+		change = false
 
 		// Walk blocks in the general direction of propagation. This
 		// improves convergence.
@@ -1146,8 +1144,8 @@ func livenesssolve(lv *Liveness) {
 				bvor(newliveout, newliveout, succ.livein)
 			}
 
-			if bvcmp(bb.liveout, newliveout) != 0 {
-				change = 1
+			if !bveq(bb.liveout, newliveout) {
+				change = true
 				bvcopy(bb.liveout, newliveout)
 			}
 
@@ -1506,7 +1504,7 @@ func livenesscompact(lv *Liveness) {
 			}
 			jlocal := lv.livepointers[j]
 			jarg := lv.argslivepointers[j]
-			if bvcmp(local, jlocal) == 0 && bvcmp(arg, jarg) == 0 {
+			if bveq(local, jlocal) && bveq(arg, jarg) {
 				remap[i] = j
 				goto Next
 			}
