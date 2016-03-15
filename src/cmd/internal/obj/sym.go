@@ -114,31 +114,21 @@ func Linknew(arch *LinkArch) *Link {
 	return ctxt
 }
 
-func _lookup(ctxt *Link, symb string, v int, create bool) *LSym {
-	s := ctxt.Hash[SymVer{symb, v}]
-	if s != nil || !create {
+func Linklookup(ctxt *Link, name string, v int) *LSym {
+	s := ctxt.Hash[SymVer{name, v}]
+	if s != nil {
 		return s
 	}
 
 	s = &LSym{
-		Name:    symb,
+		Name:    name,
 		Type:    0,
 		Version: int16(v),
 		Value:   0,
 		Size:    0,
 	}
-	ctxt.Hash[SymVer{symb, v}] = s
-
+	ctxt.Hash[SymVer{name, v}] = s
 	return s
-}
-
-func Linklookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, true)
-}
-
-// read-only lookup
-func linkrlookup(ctxt *Link, name string, v int) *LSym {
-	return _lookup(ctxt, name, v, false)
 }
 
 func Linksymfmt(s *LSym) string {
