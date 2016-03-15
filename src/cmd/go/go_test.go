@@ -1870,7 +1870,9 @@ func TestShadowingLogic(t *testing.T) {
 	}
 	// The output will have makeImportValid applies, but we only
 	// bother to deal with characters we might reasonably see.
-	pwdForwardSlash = strings.Replace(pwdForwardSlash, ":", "_", -1)
+	for _, r := range " :" {
+		pwdForwardSlash = strings.Replace(pwdForwardSlash, string(r), "_", -1)
+	}
 	want := "(_" + pwdForwardSlash + "/testdata/shadow/root1/src/math) (" + filepath.Join(runtime.GOROOT(), "src", "math") + ")"
 	if strings.TrimSpace(tg.getStdout()) != want {
 		t.Error("shadowed math is not shadowed; looking for", want)
