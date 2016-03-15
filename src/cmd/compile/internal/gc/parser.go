@@ -2087,10 +2087,6 @@ func (p *parser) xdcl_list() (l []*Node) {
 			continue
 		}
 
-		if nsyntaxerrors == 0 {
-			testdclstack()
-		}
-
 		// Reset p.pragma BEFORE advancing to the next token (consuming ';')
 		// since comments before may set pragmas for the next function decl.
 		p.pragma = 0
@@ -2099,6 +2095,10 @@ func (p *parser) xdcl_list() (l []*Node) {
 			p.syntax_error("after top level declaration")
 			p.advance(LVAR, LCONST, LTYPE, LFUNC)
 		}
+	}
+
+	if nsyntaxerrors == 0 {
+		testdclstack()
 	}
 	return
 }
