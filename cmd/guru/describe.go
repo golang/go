@@ -658,9 +658,8 @@ func constValString(v exact.Value) string {
 	if v.Kind() == exact.Float {
 		// In go1.5, go/constant floating-point values are printed
 		// as fractions. Make them appear as floating-point numbers.
-		if f, ok := exact.Float64Val(v); ok {
-			return fmt.Sprintf("%g", f)
-		}
+		f, _ := exact.Float64Val(v)
+		return fmt.Sprintf("%g", f)
 	}
 	return v.String()
 }
