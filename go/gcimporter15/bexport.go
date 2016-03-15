@@ -119,11 +119,9 @@ func BExportData(pkg *types.Package) []byte {
 	p.int(len(funcs))
 	for _, obj := range funcs {
 		p.string(obj.Name())
-		// The type can only be a signature for functions. However, by always
-		// writing the complete type specification (rather than just a signature)
-		// we keep the option open of sharing common signatures across multiple
-		// functions as a means to further compress the export data.
-		p.typ(obj.Type())
+		sig := obj.Type().(*types.Signature)
+		p.paramList(sig.Params(), sig.Variadic())
+		p.paramList(sig.Results(), false)
 		p.int(-1) // no inlined function bodies
 	}
 
