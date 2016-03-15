@@ -185,7 +185,7 @@ func walkstmt(np **Node) {
 		ORECOVER,
 		OGETG:
 		if n.Typecheck == 0 {
-			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
+			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
 		}
 		init := n.Ninit
 		n.Ninit.Set(nil)
@@ -199,7 +199,7 @@ func walkstmt(np **Node) {
 	// the value received.
 	case ORECV:
 		if n.Typecheck == 0 {
-			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
+			Fatalf("missing typecheck: %v", Nconv(n, FmtSign))
 		}
 		init := n.Ninit
 		n.Ninit.Set(nil)
@@ -349,7 +349,7 @@ func walkstmt(np **Node) {
 	}
 
 	if n.Op == ONAME {
-		Fatalf("walkstmt ended up with name: %v", Nconv(n, obj.FmtSign))
+		Fatalf("walkstmt ended up with name: %v", Nconv(n, FmtSign))
 	}
 
 	*np = n
@@ -484,14 +484,14 @@ func walkexpr(np **Node, init *Nodes) {
 	}
 
 	if n.Typecheck != 1 {
-		Fatalf("missed typecheck: %v\n", Nconv(n, obj.FmtSign))
+		Fatalf("missed typecheck: %v\n", Nconv(n, FmtSign))
 	}
 
 opswitch:
 	switch n.Op {
 	default:
 		Dump("walk", n)
-		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, FmtShort|FmtSign))
 
 	case OTYPE,
 		ONONAME,
@@ -1005,7 +1005,7 @@ opswitch:
 			ll = append(ll, typename(n.Type))
 		}
 		if !Isinter(n.Left.Type) && !isnilinter(n.Type) {
-			sym := Pkglookup(Tconv(n.Left.Type, obj.FmtLeft)+"."+Tconv(n.Type, obj.FmtLeft), itabpkg)
+			sym := Pkglookup(Tconv(n.Left.Type, FmtLeft)+"."+Tconv(n.Type, FmtLeft), itabpkg)
 			if sym.Def == nil {
 				l := Nod(ONAME, nil, nil)
 				l.Sym = sym
@@ -1675,7 +1675,7 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
 		var nln, nrn Nodes
 		nln.Set(nl)
 		nrn.Set(nr)
-		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, obj.FmtSign), Oconv(op, 0), Hconv(nrn, obj.FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
+		Yyerror("error in shape across %v %v %v / %d %d [%s]", Hconv(nln, FmtSign), Oconv(op, 0), Hconv(nrn, FmtSign), len(nl), len(nr), Curfn.Func.Nname.Sym.Name)
 	}
 	return nn
 }
@@ -2302,7 +2302,7 @@ func reorder3(all []*Node) []*Node {
 
 		switch l.Op {
 		default:
-			Fatalf("reorder3 unexpected lvalue %v", Oconv(l.Op, obj.FmtSharp))
+			Fatalf("reorder3 unexpected lvalue %v", Oconv(l.Op, FmtSharp))
 
 		case ONAME:
 			break

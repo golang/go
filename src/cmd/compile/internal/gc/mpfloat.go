@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
 	"fmt"
 	"math"
 )
@@ -209,8 +208,8 @@ func (f *Mpflt) String() string {
 	return Fconv(f, 0)
 }
 
-func Fconv(fvp *Mpflt, flag int) string {
-	if flag&obj.FmtSharp == 0 {
+func Fconv(fvp *Mpflt, flag FmtFlag) string {
+	if flag&FmtSharp == 0 {
 		return fvp.Val.Text('b', 0)
 	}
 
@@ -222,7 +221,7 @@ func Fconv(fvp *Mpflt, flag int) string {
 	if f.Sign() < 0 {
 		sign = "-"
 		f = new(big.Float).Abs(f)
-	} else if flag&obj.FmtSign != 0 {
+	} else if flag&FmtSign != 0 {
 		sign = "+"
 	}
 

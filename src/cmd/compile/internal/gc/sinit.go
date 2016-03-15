@@ -5,7 +5,6 @@
 package gc
 
 import (
-	"cmd/internal/obj"
 	"fmt"
 )
 
@@ -202,7 +201,7 @@ func init2(n *Node, out *[]*Node) {
 	}
 
 	if n.Op == ONAME && n.Ninit.Len() != 0 {
-		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
+		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, FmtSign))
 	}
 
 	init1(n, out)

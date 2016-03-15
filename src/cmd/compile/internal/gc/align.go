@@ -4,8 +4,6 @@
 
 package gc
 
-import "cmd/internal/obj"
-
 // machine size and rounding alignment is dictated around
 // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
 var defercalc int
@@ -74,7 +72,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
 		}
 		o += w
 		if o >= Thearch.MAXWIDTH {
-			Yyerror("type %v too large", Tconv(errtype, obj.FmtLong))
+			Yyerror("type %v too large", Tconv(errtype, FmtLong))
 			o = 8 // small but nonzero
 		}
 	}
@@ -248,7 +246,7 @@ func dowidth(t *Type) {
 			if t.Type.Width != 0 {
 				cap := (uint64(Thearch.MAXWIDTH) - 1) / uint64(t.Type.Width)
 				if uint64(t.Bound) > cap {
-					Yyerror("type %v larger than address space", Tconv(t, obj.FmtLong))
+					Yyerror("type %v larger than address space", Tconv(t, FmtLong))
 				}
 			}
 

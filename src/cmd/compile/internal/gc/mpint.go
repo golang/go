@@ -6,7 +6,6 @@ package gc
 
 import (
 	"cmd/compile/internal/big"
-	"cmd/internal/obj"
 	"fmt"
 )
 
@@ -309,8 +308,8 @@ func (x *Mpint) String() string {
 	return Bconv(x, 0)
 }
 
-func Bconv(xval *Mpint, flag int) string {
-	if flag&obj.FmtSharp != 0 {
+func Bconv(xval *Mpint, flag FmtFlag) string {
+	if flag&FmtSharp != 0 {
 		return fmt.Sprintf("%#x", &xval.Val)
 	}
 	return xval.Val.String()

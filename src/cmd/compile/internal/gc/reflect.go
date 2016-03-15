@@ -757,7 +757,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 	}
 	ot = dsymptr(s, ot, gcsym, 0) // gcdata
 
-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned)
+	p := Tconv(t, FmtLeft|FmtUnsigned)
 
 	// If we're writing out type T,
 	// we are very likely to write out type *T as well.
@@ -777,13 +777,13 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 }
 
 func typesym(t *Type) *Sym {
-	return Pkglookup(Tconv(t, obj.FmtLeft), typepkg)
+	return Pkglookup(Tconv(t, FmtLeft), typepkg)
 }
 
 // tracksym returns the symbol for tracking use of field/method f, assumed
 // to be a member of struct/interface type t.
 func tracksym(t *Type, f *Field) *Sym {
-	return Pkglookup(Tconv(t, obj.FmtLeft)+"."+f.Sym.Name, trackpkg)
+	return Pkglookup(Tconv(t, FmtLeft)+"."+f.Sym.Name, trackpkg)
 }
 
 func typelinksym(t *Type) *Sym {
@@ -796,7 +796,7 @@ func typelinksym(t *Type) *Sym {
 	// ensure the types appear sorted by their string field. The
 	// names are a little long but they are discarded by the linker
 	// and do not end up in the symbol table of the final binary.
-	p := Tconv(t, obj.FmtLeft|obj.FmtUnsigned) + "\t" + Tconv(t, obj.FmtLeft)
+	p := Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
 
 	s := Pkglookup(p, typelinkpkg)
 
@@ -806,7 +806,7 @@ func typelinksym(t *Type) *Sym {
 }
 
 func typesymprefix(prefix string, t *Type) *Sym {
-	p := prefix + "." + Tconv(t, obj.FmtLeft)
+	p := prefix + "." + Tconv(t, FmtLeft)
 	s := Pkglookup(p, typepkg)
 
 	//print("algsym: %s -> %+S\n", p, s);
