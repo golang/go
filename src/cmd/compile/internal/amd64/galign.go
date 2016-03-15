@@ -11,9 +11,12 @@ import (
 )
 
 var (
-	thechar     int           = '6'
-	thestring   string        = "amd64"
-	thelinkarch *obj.LinkArch = &x86.Linkamd64
+	thestring   = "amd64"
+	thelinkarch = &x86.Linkamd64
+	addptr      = x86.AADDQ
+	movptr      = x86.AMOVQ
+	leaptr      = x86.ALEAQ
+	cmpptr      = x86.ACMPQ
 )
 
 func linkarchinit() {
@@ -24,15 +27,6 @@ func linkarchinit() {
 		gc.Thearch.Thestring = "amd64p32"
 	}
 }
-
-var MAXWIDTH int64 = 1 << 50
-
-var (
-	addptr = x86.AADDQ
-	movptr = x86.AMOVQ
-	leaptr = x86.ALEAQ
-	cmpptr = x86.ACMPQ
-)
 
 func betypeinit() {
 	gc.Widthptr = 8
@@ -59,7 +53,7 @@ func Main() {
 		resvd = append(resvd, x86.REG_BP)
 	}
 
-	gc.Thearch.Thechar = thechar
+	gc.Thearch.Thechar = '6'
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
 	gc.Thearch.REGSP = x86.REGSP
@@ -71,7 +65,7 @@ func Main() {
 	gc.Thearch.REGMAX = x86.REG_R15
 	gc.Thearch.FREGMIN = x86.REG_X0
 	gc.Thearch.FREGMAX = x86.REG_X15
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.AddIndex = addindex

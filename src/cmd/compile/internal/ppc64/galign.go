@@ -10,11 +10,10 @@ import (
 	"cmd/internal/obj/ppc64"
 )
 
-var thechar int = '9'
-
-var thestring string = "ppc64"
-
-var thelinkarch *obj.LinkArch
+var (
+	thestring   = "ppc64"
+	thelinkarch *obj.LinkArch
+)
 
 func linkarchinit() {
 	thestring = obj.Getgoarch()
@@ -26,8 +25,6 @@ func linkarchinit() {
 	}
 	gc.Thearch.Thelinkarch = thelinkarch
 }
-
-var MAXWIDTH int64 = 1 << 50
 
 func betypeinit() {
 	gc.Widthptr = 8
@@ -41,7 +38,7 @@ func betypeinit() {
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
+	gc.Thearch.Thechar = '9'
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
 	gc.Thearch.REGSP = ppc64.REGSP
@@ -53,7 +50,7 @@ func Main() {
 	gc.Thearch.REGMAX = ppc64.REG_R31
 	gc.Thearch.FREGMIN = ppc64.REG_F0
 	gc.Thearch.FREGMAX = ppc64.REG_F31
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit

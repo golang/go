@@ -10,11 +10,10 @@ import (
 	"cmd/internal/obj/mips"
 )
 
-var thechar int = '0'
-
-var thestring string = "mips64"
-
-var thelinkarch *obj.LinkArch
+var (
+	thestring   = "mips64"
+	thelinkarch *obj.LinkArch
+)
 
 func linkarchinit() {
 	thestring = obj.Getgoarch()
@@ -27,8 +26,6 @@ func linkarchinit() {
 	gc.Thearch.Thelinkarch = thelinkarch
 }
 
-var MAXWIDTH int64 = 1 << 50
-
 func betypeinit() {
 	gc.Widthptr = 8
 	gc.Widthint = 8
@@ -36,7 +33,7 @@ func betypeinit() {
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
+	gc.Thearch.Thechar = '0'
 	gc.Thearch.Thestring = thestring
 	gc.Thearch.Thelinkarch = thelinkarch
 	gc.Thearch.REGSP = mips.REGSP
@@ -48,7 +45,7 @@ func Main() {
 	gc.Thearch.REGMAX = mips.REG_R31
 	gc.Thearch.FREGMIN = mips.REG_F0
 	gc.Thearch.FREGMAX = mips.REG_F31
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
