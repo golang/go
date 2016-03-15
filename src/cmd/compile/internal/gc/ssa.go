@@ -2410,11 +2410,12 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 
 	// Start exit block, find address of result.
 	s.startBlock(bNext)
-	fp := n.Left.Type.Results().Field(0)
-	if fp == nil || k != callNormal {
+	res := n.Left.Type.Results()
+	if res.NumFields() == 0 || k != callNormal {
 		// call has no return value. Continue with the next statement.
 		return nil
 	}
+	fp := res.Field(0)
 	return s.entryNewValue1I(ssa.OpOffPtr, Ptrto(fp.Type), fp.Width, s.sp)
 }
 
