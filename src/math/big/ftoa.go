@@ -333,9 +333,9 @@ func (x *Float) fmtB(buf []byte) []byte {
 	return strconv.AppendInt(buf, e, 10)
 }
 
-// fmtP appends the string of x in the format 0x." mantissa "p" exponent
-// with a hexadecimal mantissa and a binary exponent, or 0" if x is zero,
-// ad returns the extended buffer.
+// fmtP appends the string of x in the format "0x." mantissa "p" exponent
+// with a hexadecimal mantissa and a binary exponent, or "0" if x is zero,
+// and returns the extended buffer.
 // The mantissa is normalized such that 0.5 <= 0.mantissa < 1.0.
 // The sign of x is ignored, and x must not be an Inf.
 func (x *Float) fmtP(buf []byte) []byte {
