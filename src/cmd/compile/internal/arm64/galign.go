@@ -6,20 +6,11 @@ package arm64
 
 import (
 	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
 )
 
-var thechar int = '7'
-
-var thestring string = "arm64"
-
-var thelinkarch *obj.LinkArch = &arm64.Linkarm64
-
 func linkarchinit() {
 }
-
-var MAXWIDTH int64 = 1 << 50
 
 func betypeinit() {
 	gc.Widthptr = 8
@@ -28,9 +19,9 @@ func betypeinit() {
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
+	gc.Thearch.Thechar = '7'
+	gc.Thearch.Thestring = "arm64"
+	gc.Thearch.Thelinkarch = &arm64.Linkarm64
 	gc.Thearch.REGSP = arm64.REGSP
 	gc.Thearch.REGCTXT = arm64.REGCTXT
 	gc.Thearch.REGCALLX = arm64.REGRT1
@@ -41,7 +32,7 @@ func Main() {
 	gc.Thearch.REGZERO = arm64.REGZERO
 	gc.Thearch.FREGMIN = arm64.REG_F0
 	gc.Thearch.FREGMAX = arm64.REG_F31
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = 1 << 50
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit

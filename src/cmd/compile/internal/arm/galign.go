@@ -6,20 +6,11 @@ package arm
 
 import (
 	"cmd/compile/internal/gc"
-	"cmd/internal/obj"
 	"cmd/internal/obj/arm"
 )
 
-var thechar int = '5'
-
-var thestring string = "arm"
-
-var thelinkarch *obj.LinkArch = &arm.Linkarm
-
 func linkarchinit() {
 }
-
-var MAXWIDTH int64 = (1 << 32) - 1
 
 func betypeinit() {
 	gc.Widthptr = 4
@@ -28,9 +19,9 @@ func betypeinit() {
 }
 
 func Main() {
-	gc.Thearch.Thechar = thechar
-	gc.Thearch.Thestring = thestring
-	gc.Thearch.Thelinkarch = thelinkarch
+	gc.Thearch.Thechar = '5'
+	gc.Thearch.Thestring = "arm"
+	gc.Thearch.Thelinkarch = &arm.Linkarm
 	gc.Thearch.REGSP = arm.REGSP
 	gc.Thearch.REGCTXT = arm.REGCTXT
 	gc.Thearch.REGCALLX = arm.REG_R1
@@ -40,7 +31,7 @@ func Main() {
 	gc.Thearch.REGMAX = arm.REGEXT
 	gc.Thearch.FREGMIN = arm.REG_F0
 	gc.Thearch.FREGMAX = arm.FREGEXT
-	gc.Thearch.MAXWIDTH = MAXWIDTH
+	gc.Thearch.MAXWIDTH = (1 << 32) - 1
 	gc.Thearch.ReservedRegs = resvd
 
 	gc.Thearch.Betypeinit = betypeinit
