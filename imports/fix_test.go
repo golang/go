@@ -905,8 +905,11 @@ func TestFindImportVendor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "golang.org/x/net/http2/hpack" || rename {
-		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want "golang.org/x/net/http2/hpack", false`, got, rename)
+	// TODO: adjust once we use vendoring again
+	// want := "golang.org/x/net/http2/hpack"
+	want := "internal/golang.org/x/net/http2/hpack"
+	if got != want || rename {
+		t.Errorf(`findImportGoPath("hpack", HuffmanDecode ...)=%q, %t, want %q, false`, got, rename, want)
 	}
 
 	// should not be able to use vendor from outside that tree
@@ -938,7 +941,10 @@ func TestProcessVendor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(out, []byte("\"golang.org/x/net/http2/hpack\"")) {
+	// TODO: adjust once we use vendoring again
+	// want := "golang.org/x/net/http2/hpack"
+	want := "internal/golang.org/x/net/http2/hpack"
+	if !bytes.Contains(out, []byte(want)) {
 		t.Fatalf("Process(%q) did not add expected hpack import:\n%s", target, out)
 	}
 }
