@@ -22,6 +22,9 @@ func critical(f *Func) {
 			// allocate a new block to place on the edge
 			d := f.NewBlock(BlockPlain)
 			d.Line = c.Line
+			if f.pass.debug > 0 {
+				f.Config.Warnl(c.Line, "split critical edge")
+			}
 
 			// splice it in
 			d.Preds = append(d.Preds, c)

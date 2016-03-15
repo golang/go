@@ -64,5 +64,9 @@ func phielimValue(v *Value) bool {
 	}
 	v.Op = OpCopy
 	v.SetArgs1(w)
+	f := v.Block.Func
+	if f.pass.debug > 0 {
+		f.Config.Warnl(v.Line, "eliminated phi")
+	}
 	return true
 }
