@@ -284,7 +284,14 @@ func (t *Type) Recvs() *Type   { return *t.RecvsP() }
 func (t *Type) Params() *Type  { return *t.ParamsP() }
 func (t *Type) Results() *Type { return *t.ResultsP() }
 
-func (t *Type) Recv() *Field { return t.Recvs().Field(0) }
+// Recv returns the receiver of function type t, if any.
+func (t *Type) Recv() *Field {
+	s := t.Recvs()
+	if s.NumFields() == 0 {
+		return nil
+	}
+	return s.Field(0)
+}
 
 // recvsParamsResults stores the accessor functions for a function Type's
 // receiver, parameters, and result parameters, in that order.
@@ -308,13 +315,6 @@ func (t *Type) Field(i int) *Field {
 			return f
 		}
 		i--
-	}
-	if i == 0 {
-		// To simplify automated rewrites of existing code, if the
-		// caller asks for the n'th member of an n-element type,
-		// return nil instead of panicking.
-		// TODO(mdempsky): Make callers responsible for bounds checking.
-		return nil
 	}
 	panic("not enough fields")
 }
