@@ -95,7 +95,7 @@ func deadcode(ctxt *Link) {
 				// and setting those fields to nil. Doing so
 				// would reduce the binary size of typical
 				// programs like cmd/go by ~2%.
-				d.markMethodType(m)
+				d.mark(m.mtyp(), m.src)
 				rem = append(rem, m)
 			} else {
 				rem = append(rem, m)
@@ -171,18 +171,17 @@ var markextra = []string{
 }
 
 // methodref holds the relocations from a receiver type symbol to its
-// method. There are four relocations, one for each of the fields in
-// the reflect.method struct: mtyp, typ, ifn, and tfn.
+// method. There are three relocations, one for each of the fields in
+// the reflect.method struct: mtyp, ifn, and tfn.
 type methodref struct {
 	m   methodsig
 	src *LSym     // receiver type symbol
-	r   [4]*Reloc // R_METHOD relocations to fields of runtime.method
+	r   [3]*Reloc // R_METHOD relocations to fields of runtime.method
 }
 
 func (m methodref) mtyp() *LSym { return m.r[0].Sym }
-func (m methodref) typ() *LSym  { return m.r[1].Sym }
-func (m methodref) ifn() *LSym  { return m.r[2].Sym }
-func (m methodref) tfn() *LSym  { return m.r[3].Sym }
+func (m methodref) ifn() *LSym  { return m.r[1].Sym }
+func (m methodref) tfn() *LSym  { return m.r[2].Sym }
 
 func (m methodref) isExported() bool {
 	for _, r := range m.m {
@@ -231,12 +230,6 @@ func (d *deadcodepass) markMethod(m methodref) {
 		d.mark(r.Sym, m.src)
 		r.Type = obj.R_ADDR
 	}
-}
-
-// markMethodType marks just a method's types as reachable.
-func (d *deadcodepass) markMethodType(m methodref) {
-	d.mark(m.mtyp(), m.src)
-	d.mark(m.typ(), m.src)
 }
 
 // init marks all initial symbols as reachable.
