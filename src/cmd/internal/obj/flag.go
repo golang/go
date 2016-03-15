@@ -80,11 +80,6 @@ func (c *count) IsBoolFlag() bool {
 
 type int32Value int32
 
-func newIntValue(val int32, p *int32) *int32Value {
-	*p = val
-	return (*int32Value)(p)
-}
-
 func (i *int32Value) Set(s string) error {
 	v, err := strconv.ParseInt(s, 0, 64)
 	*i = int32Value(v)
