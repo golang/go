@@ -158,3 +158,13 @@ func t1(i interface{}) **int {
 	}
 	return nil
 }
+
+type T17 struct {
+	f func(*T17)
+}
+
+func f17(x *T17) {
+	// See golang.org/issue/13901
+	x.f = f17                      // no barrier
+	x.f = func(y *T17) { *y = *x } // ERROR "write barrier"
+}
