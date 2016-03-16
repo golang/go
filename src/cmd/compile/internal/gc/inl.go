@@ -217,8 +217,7 @@ func ishairy(n *Node, budget *int) bool {
 		OSWITCH,
 		OPROC,
 		ODEFER,
-		ODCLTYPE,  // can't print yet
-		ODCLCONST, // can't print yet
+		ODCLTYPE, // can't print yet
 		ORETJMP:
 		return true
 	}

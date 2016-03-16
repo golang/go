@@ -1413,6 +1413,13 @@ func exprfmt(n *Node, prec int) string {
 		f += fmt.Sprintf(" %v ", Oconv(Op(n.Etype), FmtSharp))
 		f += exprfmt(n.Right, nprec+1)
 		return f
+
+	case ODCLCONST:
+		// if exporting, DCLCONST should just be removed as its usage
+		// has already been replaced with literals
+		if fmtbody {
+			return ""
+		}
 	}
 
 	return fmt.Sprintf("<node %v>", Oconv(n.Op, 0))

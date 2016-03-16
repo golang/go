@@ -31,3 +31,8 @@ func g(x int) int {
 func h(x int) int { // ERROR "can inline h"
 	return x + 2
 }
+
+func i(x int) int { // ERROR "can inline i"
+	const y = 2
+	return x + y
+}

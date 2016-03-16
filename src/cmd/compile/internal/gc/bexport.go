@@ -984,7 +984,7 @@ func (p *exporter) node(n *Node) {
 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
 		p.nodesOrNil(n.Left, nil)
 
-	case OEMPTY:
+	case OEMPTY, ODCLCONST:
 		// nothing to do
 
 	case OLABEL:
