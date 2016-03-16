@@ -34,18 +34,18 @@ const (
 	mutexWMask   = (1<<20 - 1) << 43
 )
 
-// Read operations must do RWLock(true)/RWUnlock(true).
-// Write operations must do RWLock(false)/RWUnlock(false).
-// Misc operations must do Incref/Decref. Misc operations include functions like
-// setsockopt and setDeadline. They need to use Incref/Decref to ensure that
-// they operate on the correct fd in presence of a concurrent Close call
+// Read operations must do rwlock(true)/rwunlock(true).
+// Write operations must do rwlock(false)/rwunlock(false).
+// Misc operations must do incref/decref. Misc operations include functions like
+// setsockopt and setDeadline. They need to use incref/decref to ensure that
+// they operate on the correct fd in presence of a concurrent close call
 // (otherwise fd can be closed under their feet).
-// Close operation must do IncrefAndClose/Decref.
+// Close operation must do increfAndClose/decref.
 
-// RWLock/Incref return whether fd is open.
-// RWUnlock/Decref return whether fd is closed and there are no remaining references.
+// rwlock/incref return whether fd is open.
+// rwunlock/decref return whether fd is closed and there are no remaining references.
 
-func (mu *fdMutex) Incref() bool {
+func (mu *fdMutex) incref() bool {
 	for {
 		old := atomic.LoadUint64(&mu.state)
 		if old&mutexClosed != 0 {
@@ -61,7 +61,7 @@ func (mu *fdMutex) Incref() bool {
 	}
 }
 
-func (mu *fdMutex) IncrefAndClose() bool {
+func (mu *fdMutex) increfAndClose() bool {
 	for {
 		old := atomic.LoadUint64(&mu.state)
 		if old&mutexClosed != 0 {
@@ -90,7 +90,7 @@ func (mu *fdMutex) IncrefAndClose() bool {
 	}
 }
 
-func (mu *fdMutex) Decref() bool {
+func (mu *fdMutex) decref() bool {
 	for {
 		old := atomic.LoadUint64(&mu.state)
 		if old&mutexRefMask == 0 {
@@ -103,7 +103,7 @@ func (mu *fdMutex) Decref() bool {
 	}
 }
 
-func (mu *fdMutex) RWLock(read bool) bool {
+func (mu *fdMutex) rwlock(read bool) bool {
 	var mutexBit, mutexWait, mutexMask uint64
 	var mutexSema *uint32
 	if read {
@@ -146,7 +146,7 @@ func (mu *fdMutex) RWLock(read bool) bool {
 	}
 }
 
-func (mu *fdMutex) RWUnlock(read bool) bool {
+func (mu *fdMutex) rwunlock(read bool) bool {
 	var mutexBit, mutexWait, mutexMask uint64
 	var mutexSema *uint32
 	if read {
