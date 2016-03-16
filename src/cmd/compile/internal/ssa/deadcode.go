@@ -164,6 +164,18 @@ func deadcode(f *Func) {
 	}
 	f.Names = f.Names[:i]
 
+	// Unlink values.
+	for _, b := range f.Blocks {
+		if !reachable[b.ID] {
+			b.SetControl(nil)
+		}
+		for _, v := range b.Values {
+			if !live[v.ID] {
+				v.resetArgs()
+			}
+		}
+	}
+
 	// Remove dead values from blocks' value list. Return dead
 	// values to the allocator.
 	for _, b := range f.Blocks {
@@ -231,6 +243,7 @@ func (b *Block) removePred(p *Block) {
 		if v.Op != OpPhi {
 			continue
 		}
+		v.Args[i].Uses--
 		v.Args[i] = v.Args[n]
 		v.Args[n] = nil // aid GC
 		v.Args = v.Args[:n]

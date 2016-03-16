@@ -97,6 +97,16 @@ func (b *Block) LongString() string {
 	return s
 }
 
+func (b *Block) SetControl(v *Value) {
+	if w := b.Control; w != nil {
+		w.Uses--
+	}
+	b.Control = v
+	if v != nil {
+		v.Uses++
+	}
+}
+
 // AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {

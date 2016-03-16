@@ -540,7 +540,7 @@ func (s *state) stmt(n *Node) {
 			m := s.mem()
 			b := s.endBlock()
 			b.Kind = ssa.BlockExit
-			b.Control = m
+			b.SetControl(m)
 			// TODO: never rewrite OPANIC to OCALLFUNC in the
 			// first place. Need to wait until all backends
 			// go through SSA.
@@ -920,7 +920,7 @@ func (s *state) exit() *ssa.Block {
 	m := s.mem()
 	b := s.endBlock()
 	b.Kind = ssa.BlockRet
-	b.Control = m
+	b.SetControl(m)
 	return b
 }
 
@@ -1795,7 +1795,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
-		b.Control = el
+		b.SetControl(el)
 		// In theory, we should set b.Likely here based on context.
 		// However, gc only gives us likeliness hints
 		// in a single place, for plain OIF statements,
@@ -2039,7 +2039,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b := s.endBlock()
 		b.Kind = ssa.BlockIf
 		b.Likely = ssa.BranchUnlikely
-		b.Control = cmp
+		b.SetControl(cmp)
 		b.AddEdgeTo(grow)
 		b.AddEdgeTo(assign)
 
@@ -2143,7 +2143,7 @@ func (s *state) condBranch(cond *Node, yes, no *ssa.Block, likely int8) {
 	c := s.expr(cond)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = c
+	b.SetControl(c)
 	b.Likely = ssa.BranchPrediction(likely) // gc and ssa both use -1/0/+1 for likeliness
 	b.AddEdgeTo(yes)
 	b.AddEdgeTo(no)
@@ -2396,7 +2396,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 	s.vars[&memVar] = call
 	b := s.endBlock()
 	b.Kind = ssa.BlockCall
-	b.Control = call
+	b.SetControl(call)
 	b.AddEdgeTo(bNext)
 	if k == callDefer {
 		// Add recover edge to exit code.
@@ -2654,7 +2654,7 @@ func (s *state) nilCheck(ptr *ssa.Value) {
 	chk := s.newValue2(ssa.OpNilCheck, ssa.TypeVoid, ptr, s.mem())
 	b := s.endBlock()
 	b.Kind = ssa.BlockCheck
-	b.Control = chk
+	b.SetControl(chk)
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
 	s.startBlock(bNext)
@@ -2692,7 +2692,7 @@ func (s *state) sliceBoundsCheck(idx, len *ssa.Value) {
 func (s *state) check(cmp *ssa.Value, fn *Node) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	line := s.peekLine()
@@ -2740,7 +2740,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 	b := s.endBlock()
 	if !returns {
 		b.Kind = ssa.BlockExit
-		b.Control = call
+		b.SetControl(call)
 		call.AuxInt = off
 		if len(results) > 0 {
 			Fatalf("panic call can't have results")
@@ -2748,7 +2748,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
 		return nil
 	}
 	b.Kind = ssa.BlockCall
-	b.Control = call
+	b.SetControl(call)
 	bNext := s.f.NewBlock(ssa.BlockPlain)
 	b.AddEdgeTo(bNext)
 	s.startBlock(bNext)
@@ -2793,7 +2793,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
-	b.Control = flag
+	b.SetControl(flag)
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
@@ -2838,7 +2838,7 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchUnlikely
-	b.Control = flag
+	b.SetControl(flag)
 	b.AddEdgeTo(bThen)
 	b.AddEdgeTo(bElse)
 
@@ -3049,7 +3049,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.Likely = ssa.BranchLikely
-	b.Control = cmp
+	b.SetControl(cmp)
 
 	// Generate code for non-zero length slice case.
 	nz := s.f.NewBlock(ssa.BlockPlain)
@@ -3150,7 +3150,7 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	cmp := s.newValue2(cvttab.geq, Types[TBOOL], x, s.zeroVal(ft))
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -3198,7 +3198,7 @@ func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
 	cmp := s.newValue2(ssa.OpEqPtr, Types[TBOOL], x, nilValue)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchUnlikely
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -3269,7 +3269,7 @@ func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Ty
 	cmp := s.newValue2(cvttab.ltf, Types[TBOOL], x, twoToThe63)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cmp
+	b.SetControl(cmp)
 	b.Likely = ssa.BranchLikely
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
@@ -3318,7 +3318,7 @@ func (s *state) ifaceType(n *Node, v *ssa.Value) *ssa.Value {
 	isnonnil := s.newValue2(ssa.OpNeqPtr, Types[TBOOL], tab, s.constNil(byteptr))
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = isnonnil
+	b.SetControl(isnonnil)
 	b.Likely = ssa.BranchLikely
 
 	bLoad := s.f.NewBlock(ssa.BlockPlain)
@@ -3360,7 +3360,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 	cond := s.newValue2(ssa.OpEqPtr, Types[TBOOL], typ, target)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
-	b.Control = cond
+	b.SetControl(cond)
 	b.Likely = ssa.BranchLikely
 
 	byteptr := Ptrto(Types[TUINT8])

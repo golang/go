@@ -38,6 +38,9 @@ type Value struct {
 	// Source line number
 	Line int32
 
+	// Use count. Each appearance in Value.Args and Block.Control counts once.
+	Uses int32
+
 	// Storage for the first three args
 	argstorage [3]*Value
 }
@@ -162,17 +165,24 @@ func (v *Value) AddArg(w *Value) {
 		v.resetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, w)
+	w.Uses++
 }
 func (v *Value) AddArgs(a ...*Value) {
 	if v.Args == nil {
 		v.resetArgs() // use argstorage
 	}
 	v.Args = append(v.Args, a...)
+	for _, x := range a {
+		x.Uses++
+	}
 }
 func (v *Value) SetArg(i int, w *Value) {
+	v.Args[i].Uses--
 	v.Args[i] = w
+	w.Uses++
 }
 func (v *Value) RemoveArg(i int) {
+	v.Args[i].Uses--
 	copy(v.Args[i:], v.Args[i+1:])
 	v.Args[len(v.Args)-1] = nil // aid GC
 	v.Args = v.Args[:len(v.Args)-1]
@@ -188,6 +198,9 @@ func (v *Value) SetArgs2(a *Value, b *Value) {
 }
 
 func (v *Value) resetArgs() {
+	for _, a := range v.Args {
+		a.Uses--
+	}
 	v.argstorage[0] = nil
 	v.argstorage[1] = nil
 	v.Args = v.argstorage[:0]

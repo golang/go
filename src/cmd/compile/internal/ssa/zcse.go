@@ -48,7 +48,7 @@ func zcse(f *Func) {
 				if opcodeTable[a.Op].argLen == 0 {
 					key := vkey{a.Op, keyFor(a), a.Aux, typeStr(a)}
 					if rv, ok := vals[key]; ok {
-						v.Args[i] = rv
+						v.SetArg(i, rv)
 					}
 				}
 			}

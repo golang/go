@@ -897,6 +897,9 @@ func (s *regAllocState) regalloc(f *Func) {
 				// Value is rematerializeable, don't issue it here.
 				// It will get issued just before each use (see
 				// allocValueToReg).
+				for _, a := range v.Args {
+					a.Uses--
+				}
 				s.advanceUses(v)
 				continue
 			}
@@ -949,7 +952,7 @@ func (s *regAllocState) regalloc(f *Func) {
 
 			// Issue the Value itself.
 			for i, a := range args {
-				v.Args[i] = a // use register version of arguments
+				v.SetArg(i, a) // use register version of arguments
 			}
 			b.Values = append(b.Values, v)
 
@@ -1123,6 +1126,7 @@ func (s *regAllocState) regalloc(f *Func) {
 			// Constants, SP, SB, ...
 			continue
 		}
+		spill.Args[0].Uses--
 		f.freeValue(spill)
 	}
 	for _, b := range f.Blocks {
@@ -1333,7 +1337,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 		// Value is already in the correct place.
 		e.contents[loc] = contentRecord{vid, occupant.c, true}
 		if splice != nil {
+			(*splice).Uses--
 			*splice = occupant.c
+			occupant.c.Uses++
 		}
 		// Note: if splice==nil then c will appear dead. This is
 		// non-SSA formed code, so be careful after this pass not to run
@@ -1430,7 +1436,9 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value) bool {
 	}
 	e.set(loc, vid, x, true)
 	if splice != nil {
+		(*splice).Uses--
 		*splice = x
+		x.Uses++
 	}
 	return true
 }

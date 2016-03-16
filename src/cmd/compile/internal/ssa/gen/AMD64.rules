@@ -602,12 +602,15 @@
 // as the original load. If not, we end up making a value with
 // memory type live in two different blocks, which can lead to
 // multiple memory values alive simultaneously.
-(MOVBQSX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
-(MOVBQZX (MOVBload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
-(MOVWQSX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
-(MOVWQZX (MOVWload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
-(MOVLQSX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
-(MOVLQZX (MOVLload [off] {sym} ptr mem)) -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
+// Make sure we don't combine these ops if the load has another use.
+// This prevents a single load from being split into multiple loads
+// which then might return different values.  See test/atomicload.go.
+(MOVBQSX (MOVBload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
+(MOVBQZX (MOVBload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
+(MOVWQSX (MOVWload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
+(MOVWQZX (MOVWload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
+(MOVLQSX (MOVLload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
+(MOVLQZX (MOVLload [off] {sym} ptr mem)) && v.Args[0].Uses == 1 -> @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
 
 // replace load from same location as preceding store with copy
 (MOVBload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x

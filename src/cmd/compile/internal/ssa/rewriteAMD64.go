@@ -5390,7 +5390,7 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVBQSX (MOVBload [off] {sym} ptr mem))
-	// cond:
+	// cond: v.Args[0].Uses == 1
 	// result: @v.Args[0].Block (MOVBQSXload <v.Type> [off] {sym} ptr mem)
 	for {
 		if v.Args[0].Op != OpAMD64MOVBload {
@@ -5400,6 +5400,9 @@ func rewriteValueAMD64_OpAMD64MOVBQSX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(v.Args[0].Uses == 1) {
+			break
+		}
 		b = v.Args[0].Block
 		v0 := b.NewValue0(v.Line, OpAMD64MOVBQSXload, v.Type)
 		v.reset(OpCopy)
@@ -5461,7 +5464,7 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVBQZX (MOVBload [off] {sym} ptr mem))
-	// cond:
+	// cond: v.Args[0].Uses == 1
 	// result: @v.Args[0].Block (MOVBQZXload <v.Type> [off] {sym} ptr mem)
 	for {
 		if v.Args[0].Op != OpAMD64MOVBload {
@@ -5471,6 +5474,9 @@ func rewriteValueAMD64_OpAMD64MOVBQZX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(v.Args[0].Uses == 1) {
+			break
+		}
 		b = v.Args[0].Block
 		v0 := b.NewValue0(v.Line, OpAMD64MOVBQZXload, v.Type)
 		v.reset(OpCopy)
@@ -6051,7 +6057,7 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVLQSX (MOVLload [off] {sym} ptr mem))
-	// cond:
+	// cond: v.Args[0].Uses == 1
 	// result: @v.Args[0].Block (MOVLQSXload <v.Type> [off] {sym} ptr mem)
 	for {
 		if v.Args[0].Op != OpAMD64MOVLload {
@@ -6061,6 +6067,9 @@ func rewriteValueAMD64_OpAMD64MOVLQSX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(v.Args[0].Uses == 1) {
+			break
+		}
 		b = v.Args[0].Block
 		v0 := b.NewValue0(v.Line, OpAMD64MOVLQSXload, v.Type)
 		v.reset(OpCopy)
@@ -6122,7 +6131,7 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVLQZX (MOVLload [off] {sym} ptr mem))
-	// cond:
+	// cond: v.Args[0].Uses == 1
 	// result: @v.Args[0].Block (MOVLQZXload <v.Type> [off] {sym} ptr mem)
 	for {
 		if v.Args[0].Op != OpAMD64MOVLload {
@@ -6132,6 +6141,9 @@ func rewriteValueAMD64_OpAMD64MOVLQZX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(v.Args[0].Uses == 1) {
+			break
+		}
 		b = v.Args[0].Block
 		v0 := b.NewValue0(v.Line, OpAMD64MOVLQZXload, v.Type)
 		v.reset(OpCopy)
@@ -7652,7 +7664,7 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVWQSX (MOVWload [off] {sym} ptr mem))
-	// cond:
+	// cond: v.Args[0].Uses == 1
 	// result: @v.Args[0].Block (MOVWQSXload <v.Type> [off] {sym} ptr mem)
 	for {
 		if v.Args[0].Op != OpAMD64MOVWload {
@@ -7662,6 +7674,9 @@ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(v.Args[0].Uses == 1) {
+			break
+		}
 		b = v.Args[0].Block
 		v0 := b.NewValue0(v.Line, OpAMD64MOVWQSXload, v.Type)
 		v.reset(OpCopy)
@@ -7723,7 +7738,7 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
 	b := v.Block
 	_ = b
 	// match: (MOVWQZX (MOVWload [off] {sym} ptr mem))
-	// cond:
+	// cond: v.Args[0].Uses == 1
 	// result: @v.Args[0].Block (MOVWQZXload <v.Type> [off] {sym} ptr mem)
 	for {
 		if v.Args[0].Op != OpAMD64MOVWload {
@@ -7733,6 +7748,9 @@ func rewriteValueAMD64_OpAMD64MOVWQZX(v *Value, config *Config) bool {
 		sym := v.Args[0].Aux
 		ptr := v.Args[0].Args[0]
 		mem := v.Args[0].Args[1]
+		if !(v.Args[0].Uses == 1) {
+			break
+		}
 		b = v.Args[0].Block
 		v0 := b.NewValue0(v.Line, OpAMD64MOVWQZXload, v.Type)
 		v.reset(OpCopy)
@@ -14375,7 +14393,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64EQ
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14391,7 +14409,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14407,7 +14425,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14424,7 +14442,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14441,7 +14459,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14458,7 +14476,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14477,7 +14495,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64LE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14493,7 +14511,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14509,7 +14527,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14526,7 +14544,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14543,7 +14561,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14559,7 +14577,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14577,7 +14595,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64LT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14593,7 +14611,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14610,7 +14628,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14627,7 +14645,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -14644,7 +14662,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14660,7 +14678,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14678,7 +14696,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64LT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14695,7 +14713,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64LE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14712,7 +14730,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64GT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14729,7 +14747,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64GE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14746,7 +14764,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64EQ
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14763,7 +14781,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64NE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14780,7 +14798,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64ULT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14797,7 +14815,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64ULE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14814,7 +14832,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14831,7 +14849,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14848,7 +14866,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14865,7 +14883,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14882,7 +14900,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64EQF
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14899,7 +14917,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64NEF
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14916,7 +14934,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			v0 := b.NewValue0(v.Line, OpAMD64TESTB, TypeFlags)
 			v0.AddArg(cond)
 			v0.AddArg(cond)
-			b.Control = v0
+			b.SetControl(v0)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14934,7 +14952,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64GE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14950,7 +14968,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14966,7 +14984,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14982,7 +15000,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -14998,7 +15016,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15015,7 +15033,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15034,7 +15052,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64GT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15050,7 +15068,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15067,7 +15085,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15083,7 +15101,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15099,7 +15117,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15116,7 +15134,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15138,7 +15156,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64LT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15158,7 +15176,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64LE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15178,7 +15196,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64GT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15198,7 +15216,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64GE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15218,7 +15236,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64EQ
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15238,7 +15256,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64NE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15258,7 +15276,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64ULT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15278,7 +15296,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64ULE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15298,7 +15316,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15318,7 +15336,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15338,7 +15356,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15358,7 +15376,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15378,7 +15396,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64EQF
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15398,7 +15416,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64NEF
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15415,7 +15433,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64NE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15431,7 +15449,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15448,7 +15466,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15464,7 +15482,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15480,7 +15498,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15496,7 +15514,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15514,7 +15532,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64ULE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15530,7 +15548,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15546,7 +15564,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15563,7 +15581,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15579,7 +15597,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15596,7 +15614,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15614,7 +15632,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64ULT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15630,7 +15648,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15647,7 +15665,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15664,7 +15682,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15680,7 +15698,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15697,7 +15715,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15715,7 +15733,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGE
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15731,7 +15749,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15747,7 +15765,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15763,7 +15781,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15780,7 +15798,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15796,7 +15814,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15815,7 +15833,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockAMD64UGT
-			b.Control = cmp
+			b.SetControl(cmp)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15831,7 +15849,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15848,7 +15866,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15864,7 +15882,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -15881,7 +15899,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -15897,7 +15915,7 @@ func rewriteBlockAMD64(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1

@@ -98,10 +98,10 @@ func nilcheckelim(f *Func) {
 					switch node.block.Kind {
 					case BlockIf:
 						node.block.Kind = BlockFirst
-						node.block.Control = nil
+						node.block.SetControl(nil)
 					case BlockCheck:
 						node.block.Kind = BlockPlain
-						node.block.Control = nil
+						node.block.SetControl(nil)
 					default:
 						f.Fatalf("bad block kind in nilcheck %s", node.block.Kind)
 					}

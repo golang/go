@@ -31,7 +31,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			if b.Control != nil && b.Control.Op == OpCopy {
 				for b.Control.Op == OpCopy {
-					b.Control = b.Control.Args[0]
+					b.SetControl(b.Control.Args[0])
 				}
 			}
 			curb = b
@@ -40,7 +40,7 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool) 
 			}
 			curb = nil
 			for _, v := range b.Values {
-				copyelimValue(v)
+				change = copyelimValue(v) || change
 				change = phielimValue(v) || change
 
 				// apply rewrite function
