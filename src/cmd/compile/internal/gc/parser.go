@@ -1161,13 +1161,6 @@ func (p *parser) uexpr() *Node {
 	case '!':
 		op = ONOT
 
-	case '~':
-		// TODO(gri) do this in the lexer instead (issue 13244)
-		p.next()
-		x := p.uexpr()
-		Yyerror("the bitwise complement operator is ^")
-		return Nod(OCOM, x, nil)
-
 	case '^':
 		op = OCOM
 
@@ -2517,7 +2510,7 @@ func (p *parser) stmt() *Node {
 
 	case LNAME, '@', '?', LLITERAL, LFUNC, '(', // operands
 		'[', LSTRUCT, LMAP, LCHAN, LINTERFACE, // composite types
-		'+', '-', '*', '&', '^', '~', LCOMM, '!': // unary operators
+		'+', '-', '*', '&', '^', LCOMM, '!': // unary operators
 		return p.simple_stmt(true, false)
 
 	case LFOR:
