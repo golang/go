@@ -175,8 +175,6 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 	}
 }
 
-var readsym_ndup int
-
 func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 	if obj.Bgetc(f) != 0xfe {
 		log.Fatalf("readsym out of sync")
@@ -211,8 +209,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 		}
 		if len(s.P) > 0 {
 			dup = s
-			s = linknewsym(ctxt, ".dup", readsym_ndup)
-			readsym_ndup++ // scratch
+			s = linknewsym(ctxt, ".dup", -1)
 		}
 	}
 

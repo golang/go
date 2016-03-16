@@ -173,7 +173,11 @@ func linknewsym(ctxt *Link, symb string, v int) *LSym {
 	s.Version = int16(v)
 	ctxt.Nsymbol++
 
-	ctxt.Allsym = append(ctxt.Allsym, s)
+	if v != -1 {
+		ctxt.Allsym = append(ctxt.Allsym, s)
+	} else if v < -1 {
+		ctxt.Diag("invalid version %d in linknewsym", v)
+	}
 	return s
 }
 

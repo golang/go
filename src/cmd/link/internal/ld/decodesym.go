@@ -348,7 +348,7 @@ func decodetype_methods(s *LSym) []methodsig {
 	numMethods := int(decode_inuxi(s.P[off+2*Thearch.Ptrsize:], Thearch.Intsize))
 	r := decode_reloc(s, int32(off+Thearch.Ptrsize))
 	if r.Sym != s {
-		panic(fmt.Sprintf("method slice pointer in %q leads to a different symbol", s.Name))
+		panic(fmt.Sprintf("method slice pointer in %s leads to a different symbol %s", s, r.Sym))
 	}
 	off = int(r.Add)                    // array of reflect.method values
 	sizeofMethod := 5 * Thearch.Ptrsize // sizeof reflect.method in program

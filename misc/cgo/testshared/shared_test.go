@@ -203,6 +203,26 @@ func TestNoTextrel(t *testing.T) {
 	}
 }
 
+// The shared library does not contain symbols called ".dup"
+func TestNoDupSymbols(t *testing.T) {
+	sopath := filepath.Join(gorootInstallDir, soname)
+	f, err := elf.Open(sopath)
+	if err != nil {
+		t.Fatal("elf.Open failed: ", err)
+	}
+	defer f.Close()
+	syms, err := f.Symbols()
+	if err != nil {
+		t.Errorf("error reading symbols %v", err)
+		return
+	}
+	for _, s := range syms {
+		if s.Name == ".dup" {
+			t.Fatalf("%s contains symbol called .dup", sopath)
+		}
+	}
+}
+
 // The install command should have created a "shlibname" file for the
 // listed packages (and runtime/cgo, and math on arm) indicating the
 // name of the shared library containing it.
