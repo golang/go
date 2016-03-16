@@ -152,7 +152,7 @@ func (s *ioSrv) ProcessRemoteIO() {
 func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) error) (int, error) {
 	fd := o.fd
 	// Notify runtime netpoll about starting IO.
-	err := fd.pd.Prepare(int(o.mode))
+	err := fd.pd.prepare(int(o.mode))
 	if err != nil {
 		return 0, err
 	}
@@ -180,7 +180,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 		return 0, err
 	}
 	// Wait for our request to complete.
-	err = fd.pd.Wait(int(o.mode))
+	err = fd.pd.wait(int(o.mode))
 	if err == nil {
 		// All is good. Extract our IO results and return.
 		if o.errno != 0 {
@@ -210,7 +210,7 @@ func (s *ioSrv) ExecIO(o *operation, name string, submit func(o *operation) erro
 		<-o.errc
 	}
 	// Wait for cancelation to complete.
-	fd.pd.WaitCanceled(int(o.mode))
+	fd.pd.waitCanceled(int(o.mode))
 	if o.errno != 0 {
 		err = syscall.Errno(o.errno)
 		if err == syscall.ERROR_OPERATION_ABORTED { // IO Canceled
@@ -273,7 +273,7 @@ func newFD(sysfd syscall.Handle, family, sotype int, net string) (*netFD, error)
 }
 
 func (fd *netFD) init() error {
-	if err := fd.pd.Init(fd); err != nil {
+	if err := fd.pd.init(fd); err != nil {
 		return err
 	}
 	if hasLoadSetFileCompletionNotificationModes {
@@ -388,7 +388,7 @@ func (fd *netFD) destroy() {
 	}
 	// Poller may want to unregister fd in readiness notification mechanism,
 	// so this must be executed before closeFunc.
-	fd.pd.Close()
+	fd.pd.close()
 	closeFunc(fd.sysfd)
 	fd.sysfd = syscall.InvalidHandle
 	// no need for a finalizer anymore
@@ -398,7 +398,7 @@ func (fd *netFD) destroy() {
 // Add a reference to this fd.
 // Returns an error if the fd cannot be used.
 func (fd *netFD) incref() error {
-	if !fd.fdmu.Incref() {
+	if !fd.fdmu.incref() {
 		return errClosing
 	}
 	return nil
@@ -407,7 +407,7 @@ func (fd *netFD) incref() error {
 // Remove a reference to this FD and close if we've been asked to do so
 // (and there are no references left).
 func (fd *netFD) decref() {
-	if fd.fdmu.Decref() {
+	if fd.fdmu.decref() {
 		fd.destroy()
 	}
 }
@@ -415,7 +415,7 @@ func (fd *netFD) decref() {
 // Add a reference to this fd and lock for reading.
 // Returns an error if the fd cannot be used.
 func (fd *netFD) readLock() error {
-	if !fd.fdmu.RWLock(true) {
+	if !fd.fdmu.rwlock(true) {
 		return errClosing
 	}
 	return nil
@@ -423,7 +423,7 @@ func (fd *netFD) readLock() error {
 
 // Unlock for reading and remove a reference to this FD.
 func (fd *netFD) readUnlock() {
-	if fd.fdmu.RWUnlock(true) {
+	if fd.fdmu.rwunlock(true) {
 		fd.destroy()
 	}
 }
@@ -431,7 +431,7 @@ func (fd *netFD) readUnlock() {
 // Add a reference to this fd and lock for writing.
 // Returns an error if the fd cannot be used.
 func (fd *netFD) writeLock() error {
-	if !fd.fdmu.RWLock(false) {
+	if !fd.fdmu.rwlock(false) {
 		return errClosing
 	}
 	return nil
@@ -439,17 +439,17 @@ func (fd *netFD) writeLock() error {
 
 // Unlock for writing and remove a reference to this FD.
 func (fd *netFD) writeUnlock() {
-	if fd.fdmu.RWUnlock(false) {
+	if fd.fdmu.rwunlock(false) {
 		fd.destroy()
 	}
 }
 
 func (fd *netFD) Close() error {
-	if !fd.fdmu.IncrefAndClose() {
+	if !fd.fdmu.increfAndClose() {
 		return errClosing
 	}
 	// unblock pending reader and writer
-	fd.pd.Evict()
+	fd.pd.evict()
 	fd.decref()
 	return nil
 }
