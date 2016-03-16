@@ -176,7 +176,7 @@ func reexportdep(n *Node) {
 		fallthrough
 
 	case OTYPE:
-		if n.Sym != nil && !exportedsym(n.Sym) {
+		if n.Sym != nil && n.Sym.Def != nil && !exportedsym(n.Sym) {
 			if Debug['E'] != 0 {
 				fmt.Printf("reexport literal/type %v\n", n.Sym)
 			}
@@ -331,7 +331,7 @@ func dumpexporttype(t *Type) {
 			if Debug['l'] < 2 {
 				typecheckinl(f.Type.Nname)
 			}
-			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp))
+			exportf("\tfunc %v %v %v { %v }\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp), Hconv(f.Type.Nname.Func.Inl, FmtSharp|FmtBody))
 			reexportdeplist(f.Type.Nname.Func.Inl)
 		} else {
 			exportf("\tfunc %v %v %v\n", Tconv(f.Type.Recvs(), FmtSharp), Sconv(f.Sym, FmtShort|FmtByte|FmtSharp), Tconv(f.Type, FmtShort|FmtSharp))

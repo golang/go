@@ -751,7 +751,7 @@ func (p *importer) node() *Node {
 	case OBREAK, OCONTINUE, OGOTO, OFALL, OXFALL:
 		n.Left, _ = p.nodesOrNil()
 
-	case OEMPTY:
+	case OEMPTY, ODCLCONST:
 		// nothing to do
 
 	case OLABEL:
