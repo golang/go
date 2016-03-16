@@ -171,7 +171,9 @@ func (p *Proxy) poll() {
 		hostport = "localhost:8082"
 	}
 	cmd, err := p.builder.Init(dir, hostport, heads)
-	if err == nil {
+	if err != nil {
+		err = fmt.Errorf("builder.Init: %v", err)
+	} else {
 		go func() {
 			// TODO(adg,bradfitz): be smarter about dead processes
 			if err := cmd.Wait(); err != nil {
@@ -181,6 +183,7 @@ func (p *Proxy) poll() {
 		err = waitReady(p.builder, hostport)
 		if err != nil {
 			cmd.Process.Kill()
+			err = fmt.Errorf("waitReady: %v", err)
 		}
 	}
 
@@ -194,6 +197,7 @@ func (p *Proxy) poll() {
 
 	u, err := url.Parse(fmt.Sprintf("http://%v/", hostport))
 	if err != nil {
+		err = fmt.Errorf("parsing hostport: %v", err)
 		log.Println(err)
 		p.err = err
 		return
@@ -234,29 +238,32 @@ func checkout(repo, hash, path string) error {
 	// Clone git repo if it doesn't exist.
 	if _, err := os.Stat(filepath.Join(path, ".git")); os.IsNotExist(err) {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return err
+			return fmt.Errorf("mkdir: %v", err)
 		}
 		if err := runErr(exec.Command("git", "clone", repo, path)); err != nil {
-			return err
+			return fmt.Errorf("clone: %v", err)
 		}
 	} else if err != nil {
-		return err
+		return fmt.Errorf("stat .git: %v", err)
 	}
 
 	// Pull down changes and update to hash.
 	cmd := exec.Command("git", "fetch")
 	cmd.Dir = path
 	if err := runErr(cmd); err != nil {
-		return err
+		return fmt.Errorf("fetch: %v", err)
 	}
 	cmd = exec.Command("git", "reset", "--hard", hash)
 	cmd.Dir = path
 	if err := runErr(cmd); err != nil {
-		return err
+		return fmt.Errorf("reset: %v", err)
 	}
 	cmd = exec.Command("git", "clean", "-d", "-f", "-x")
 	cmd.Dir = path
-	return runErr(cmd)
+	if err := runErr(cmd); err != nil {
+		return fmt.Errorf("clean: %v", err)
+	}
+	return nil
 }
 
 // gerritMetaMap returns the map from repo name (e.g. "go") to its
