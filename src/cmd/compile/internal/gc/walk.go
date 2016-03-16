@@ -2140,6 +2140,12 @@ func needwritebarrier(l *Node, r *Node) bool {
 		return false
 	}
 
+	// No write barrier for storing global function, which is live
+	// no matter what.
+	if r.Op == ONAME && r.Class == PFUNC {
+		return false
+	}
+
 	// Otherwise, be conservative and use write barrier.
 	return true
 }
