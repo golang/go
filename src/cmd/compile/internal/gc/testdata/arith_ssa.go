@@ -15,6 +15,84 @@ const (
 )
 
 //go:noinline
+func lshNop1(x uint64) uint64 {
+	// two outer shifts should be removed
+	return (((x << 5) >> 2) << 2)
+}
+
+//go:noinline
+func lshNop2(x uint64) uint64 {
+	return (((x << 5) >> 2) << 3)
+}
+
+//go:noinline
+func lshNop3(x uint64) uint64 {
+	return (((x << 5) >> 2) << 6)
+}
+
+//go:noinline
+func lshNotNop(x uint64) uint64 {
+	// outer shift can't be removed
+	return (((x << 5) >> 2) << 1)
+}
+
+//go:noinline
+func rshNop1(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 2)
+}
+
+//go:noinline
+func rshNop2(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 3)
+}
+
+//go:noinline
+func rshNop3(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 6)
+}
+
+//go:noinline
+func rshNotNop(x uint64) uint64 {
+	return (((x >> 5) << 2) >> 1)
+}
+
+func testShiftRemoval() {
+	allSet := ^uint64(0)
+	if want, got := uint64(0x7ffffffffffffff), rshNop1(allSet); want != got {
+		println("testShiftRemoval rshNop1 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0x3ffffffffffffff), rshNop2(allSet); want != got {
+		println("testShiftRemoval rshNop2 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0x7fffffffffffff), rshNop3(allSet); want != got {
+		println("testShiftRemoval rshNop3 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xffffffffffffffe), rshNotNop(allSet); want != got {
+		println("testShiftRemoval rshNotNop failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xffffffffffffffe0), lshNop1(allSet); want != got {
+		println("testShiftRemoval lshNop1 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xffffffffffffffc0), lshNop2(allSet); want != got {
+		println("testShiftRemoval lshNop2 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0xfffffffffffffe00), lshNop3(allSet); want != got {
+		println("testShiftRemoval lshNop3 failed, wanted", want, "got", got)
+		failed = true
+	}
+	if want, got := uint64(0x7ffffffffffffff0), lshNotNop(allSet); want != got {
+		println("testShiftRemoval lshNotNop failed, wanted", want, "got", got)
+		failed = true
+	}
+}
+
+//go:noinline
 func parseLE64(b []byte) uint64 {
 	// skip the first two bytes, and parse the remaining 8 as a uint64
 	return uint64(b[2]) | uint64(b[3])<<8 | uint64(b[4])<<16 | uint64(b[5])<<24 |
@@ -494,6 +572,7 @@ func main() {
 	testLargeConst()
 	testLoadCombine()
 	testLoadSymCombine()
+	testShiftRemoval()
 
 	if failed {
 		panic("failed")
