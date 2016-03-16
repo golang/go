@@ -2333,53 +2333,52 @@ func (p *parser) interfacedcl() *Node {
 	}
 }
 
+// param parses and returns a function parameter list entry which may be
+// a parameter name and type pair (name, typ), a single type (nil, typ),
+// or a single name (name, nil). In the last case, the name may still be
+// a type name. The result is (nil, nil) in case of a syntax error.
+//
 // [ParameterName] Type
-func (p *parser) par_type() *Node {
+func (p *parser) param() (name *Sym, typ *Node) {
 	if trace && Debug['x'] != 0 {
-		defer p.trace("par_type")()
+		defer p.trace("param")()
 	}
 
 	switch p.tok {
 	case LNAME, '@', '?':
-		name := p.sym()
+		name = p.sym() // nil if p.tok == '?' (importing only)
 		switch p.tok {
 		case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', LNAME, '@', '?', '(':
 			// sym name_or_type
-			typ := p.ntype()
-			nn := Nod(ONONAME, nil, nil)
-			nn.Sym = name
-			return Nod(OKEY, nn, typ)
+			typ = p.ntype()
 
 		case LDDD:
 			// sym dotdotdot
-			typ := p.dotdotdot()
-			nn := Nod(ONONAME, nil, nil)
-			nn.Sym = name
-			return Nod(OKEY, nn, typ)
+			typ = p.dotdotdot()
 
 		default:
 			// name_or_type
-			name := mkname(name)
-			// from dotname
 			if p.got('.') {
-				return p.new_dotname(name)
+				// a qualified name cannot be a parameter name
+				typ = p.new_dotname(mkname(name))
+				name = nil
 			}
-			return name
 		}
 
 	case LDDD:
 		// dotdotdot
-		return p.dotdotdot()
+		typ = p.dotdotdot()
 
 	case LCOMM, LFUNC, '[', LCHAN, LMAP, LSTRUCT, LINTERFACE, '*', '(':
 		// name_or_type
-		return p.ntype()
+		typ = p.ntype()
 
 	default:
 		p.syntax_error("expecting )")
 		p.advance(',', ')')
-		return nil
 	}
+
+	return
 }
 
 // Parameters    = "(" [ ParameterList [ "," ] ] ")" .
@@ -2390,22 +2389,109 @@ func (p *parser) param_list(dddOk bool) []*Node {
 		defer p.trace("param_list")()
 	}
 
+	type param struct {
+		name *Sym
+		typ  *Node
+	}
+	var params []param
+	var named int // number of parameters that have a name and type
+
 	p.want('(')
-	var l []*Node
 	for p.tok != EOF && p.tok != ')' {
-		l = append(l, p.par_type())
+		name, typ := p.param()
+		params = append(params, param{name, typ})
+		if name != nil && typ != nil {
+			named++
+		}
 		if !p.ocomma(')') {
 			break
 		}
 	}
 	p.want(')')
+	// 0 <= named <= len(params)
 
-	// TODO(gri) remove this with next commit
-	input := 0
-	if dddOk {
-		input = 1
+	// There are 3 cases:
+	//
+	// 1) named == 0:
+	//    No parameter list entry has both a name and a type; i.e. there are only
+	//    unnamed parameters. Any name must be a type name; they are "converted"
+	//    to types when creating the final parameter list.
+	//    In case of a syntax error, there is neither a name nor a type.
+	//    Nil checks take care of this.
+	//
+	// 2) named == len(names):
+	//    All parameter list entries have both a name and a type.
+	//
+	// 3) Otherwise:
+	if named != 0 && named != len(params) {
+		// Some parameter list entries have both a name and a type:
+		// Distribute types backwards and check that there are no
+		// mixed named and unnamed parameters.
+		var T *Node // type T in a parameter sequence: a, b, c T
+		for i := len(params) - 1; i >= 0; i-- {
+			p := &params[i]
+			if t := p.typ; t != nil {
+				// explicit type: use type for earlier parameters
+				T = t
+				// an explicitly typed entry must have a name
+				// TODO(gri) remove extra importpkg == nil check below
+				//           after switch to binary eport format
+				// Exported inlined function bodies containing function
+				// literals may print parameter names as '?' resulting
+				// in nil *Sym and thus nil names. Don't report an error
+				// in this case.
+				if p.name == nil && importpkg == nil {
+					T = nil // error
+				}
+			} else {
+				// no explicit type: use type of next parameter
+				p.typ = T
+			}
+			if T == nil {
+				Yyerror("mixed named and unnamed function parameters")
+				break
+			}
+		}
+		// Unless there was an error, now all parameter entries have a type.
 	}
-	return checkarglist(l, input)
+
+	// create final parameter list
+	list := make([]*Node, len(params))
+	for i, p := range params {
+		// create dcl node
+		var name, typ *Node
+		if p.typ != nil {
+			typ = p.typ
+			if p.name != nil {
+				// name must be a parameter name
+				name = newname(p.name)
+			}
+		} else if p.name != nil {
+			// p.name must be a type name (or nil in case of syntax error)
+			typ = mkname(p.name)
+		}
+		n := Nod(ODCLFIELD, name, typ)
+
+		// rewrite ...T parameter
+		if typ != nil && typ.Op == ODDD {
+			if !dddOk {
+				Yyerror("cannot use ... in receiver or result parameter list")
+			} else if i+1 < len(params) {
+				Yyerror("can only use ... with final parameter in list")
+			}
+			typ.Op = OTARRAY
+			typ.Right = typ.Left
+			typ.Left = nil
+			n.Isddd = true
+			if n.Left != nil {
+				n.Left.Isddd = true
+			}
+		}
+
+		list[i] = n
+	}
+
+	return list
 }
 
 var missing_stmt = Nod(OXXX, nil, nil)

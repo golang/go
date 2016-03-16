@@ -1623,11 +1623,6 @@ func Fldconv(f *Field, flag FmtFlag) string {
 				name = Sconv(s, 0)
 			}
 		} else if fmtmode == FExp {
-			// TODO(rsc) this breaks on the eliding of unused arguments in the backend
-			// when this is fixed, the special case in dcl.go checkarglist can go.
-			//if(t->funarg)
-			//	fmtstrcpy(fp, "_ ");
-			//else
 			if f.Embedded != 0 && s.Pkg != nil && len(s.Pkg.Path) > 0 {
 				name = fmt.Sprintf("@%q.?", s.Pkg.Path)
 			} else {
