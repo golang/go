@@ -314,7 +314,6 @@ type LSym struct {
 	Leaf      uint8
 	Seenglobl uint8
 	Onlist    uint8
-	RefIdx    int // Index of this symbol in the symbol reference list.
 
 	// ReflectMethod means the function may call reflect.Type.Method or
 	// reflect.Type.MethodByName. Matching is imprecise (as reflect.Type
@@ -330,7 +329,9 @@ type LSym struct {
 	// visible outside of the module (shared library or executable) that contains its
 	// definition. (When not compiling to support Go shared libraries, all symbols are
 	// local in this sense unless there is a cgo_export_* directive).
-	Local  bool
+	Local bool
+
+	RefIdx int // Index of this symbol in the symbol reference list.
 	Args   int32
 	Locals int32
 	Size   int64
