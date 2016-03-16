@@ -737,7 +737,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym) {
 
 	p = cursym.Text
 	ctxt.Autosize = int32(p.To.Offset + 4)
-	obj.Symgrow(ctxt, cursym, cursym.Size)
+	cursym.Grow(cursym.Size)
 
 	bp := cursym.P
 	c = int32(p.Pc) // even p->link might need extra padding
