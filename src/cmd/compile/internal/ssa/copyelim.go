@@ -11,11 +11,11 @@ func copyelim(f *Func) {
 			copyelimValue(v)
 		}
 		v := b.Control
-		if v != nil {
+		if v != nil && v.Op == OpCopy {
 			for v.Op == OpCopy {
 				v = v.Args[0]
 			}
-			b.Control = v
+			b.SetControl(v)
 		}
 	}
 
@@ -34,8 +34,9 @@ func copyelim(f *Func) {
 	}
 }
 
-func copyelimValue(v *Value) {
+func copyelimValue(v *Value) bool {
 	// elide any copies generated during rewriting
+	changed := false
 	for i, a := range v.Args {
 		if a.Op != OpCopy {
 			continue
@@ -55,6 +56,8 @@ func copyelimValue(v *Value) {
 			}
 			advance = !advance
 		}
-		v.Args[i] = a
+		v.SetArg(i, a)
+		changed = true
 	}
+	return changed
 }

@@ -168,7 +168,7 @@ func Fun(c *Config, entry string, blocs ...bloc) fun {
 			if !ok {
 				f.Fatalf("control value for block %s missing", bloc.name)
 			}
-			b.Control = cval
+			b.SetControl(cval)
 		}
 		// Fill in args.
 		for _, valu := range bloc.valus {

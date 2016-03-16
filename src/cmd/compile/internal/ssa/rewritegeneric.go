@@ -7798,8 +7798,6 @@ func rewriteValuegeneric_OpStructSelect(v *Value, config *Config) bool {
 		v.reset(OpCopy)
 		v.AddArg(v0)
 		v1 := b.NewValue0(v.Line, OpOffPtr, v.Type.PtrTo())
-		v.reset(OpCopy)
-		v.AddArg(v1)
 		v1.AuxInt = t.FieldOff(int(i))
 		v1.AddArg(ptr)
 		v0.AddArg(v1)
@@ -8642,7 +8640,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			}
 			next := b.Succs[0]
 			b.Kind = BlockPlain
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = next
 			b.Likely = BranchUnknown
 			return true
@@ -8660,7 +8658,7 @@ func rewriteBlockgeneric(b *Block) bool {
 			yes := b.Succs[0]
 			no := b.Succs[1]
 			b.Kind = BlockIf
-			b.Control = cond
+			b.SetControl(cond)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1
@@ -8681,7 +8679,7 @@ func rewriteBlockgeneric(b *Block) bool {
 				break
 			}
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = yes
 			b.Succs[1] = no
 			return true
@@ -8701,7 +8699,7 @@ func rewriteBlockgeneric(b *Block) bool {
 				break
 			}
 			b.Kind = BlockFirst
-			b.Control = nil
+			b.SetControl(nil)
 			b.Succs[0] = no
 			b.Succs[1] = yes
 			b.Likely *= -1

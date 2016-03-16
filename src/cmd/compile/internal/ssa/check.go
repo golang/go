@@ -294,6 +294,26 @@ func checkFunc(f *Func) {
 			}
 		}
 	}
+
+	// Check use counts
+	uses := make([]int32, f.NumValues())
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			for _, a := range v.Args {
+				uses[a.ID]++
+			}
+		}
+		if b.Control != nil {
+			uses[b.Control.ID]++
+		}
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Uses != uses[v.ID] {
+				f.Fatalf("%s has %d uses, but has Uses=%d", v, uses[v.ID], v.Uses)
+			}
+		}
+	}
 }
 
 // domCheck reports whether x dominates y (including x==y).

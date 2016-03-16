@@ -258,9 +258,9 @@ func genRules(arch arch) {
 
 			fmt.Fprintf(w, "b.Kind = %s\n", blockName(t[0], arch))
 			if t[1] == "nil" {
-				fmt.Fprintf(w, "b.Control = nil\n")
+				fmt.Fprintf(w, "b.SetControl(nil)\n")
 			} else {
-				fmt.Fprintf(w, "b.Control = %s\n", genResult0(w, arch, t[1], new(int), false, false))
+				fmt.Fprintf(w, "b.SetControl(%s)\n", genResult0(w, arch, t[1], new(int), false, false))
 			}
 			if len(newsuccs) < len(succs) {
 				fmt.Fprintf(w, "b.Succs = b.Succs[:%d]\n", len(newsuccs))
@@ -486,7 +486,7 @@ func genResult0(w io.Writer, arch arch, result string, alloc *int, top, move boo
 		v = fmt.Sprintf("v%d", *alloc)
 		*alloc++
 		fmt.Fprintf(w, "%s := b.NewValue0(v.Line, %s, %s)\n", v, opName(s[0], arch), opType)
-		if move {
+		if move && top {
 			// Rewrite original into a copy
 			fmt.Fprintf(w, "v.reset(OpCopy)\n")
 			fmt.Fprintf(w, "v.AddArg(%s)\n", v)

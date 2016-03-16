@@ -113,7 +113,7 @@ func flagalloc(f *Func) {
 		if v := b.Control; v != nil && v != flag && v.Type.IsFlags() {
 			// Recalculate control value.
 			c := v.copyInto(b)
-			b.Control = c
+			b.SetControl(c)
 			flag = v
 		}
 		if v := end[b.ID]; v != nil && v != flag {

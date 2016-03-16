@@ -307,7 +307,7 @@ func prove(f *Func) {
 			if succ != unknown {
 				b := node.block
 				b.Kind = BlockFirst
-				b.Control = nil
+				b.SetControl(nil)
 				if succ == negative {
 					b.Succs[0], b.Succs[1] = b.Succs[1], b.Succs[0]
 				}

@@ -114,6 +114,9 @@ func (f *Func) freeValue(v *Value) {
 	if v.Block == nil {
 		f.Fatalf("trying to free an already freed value")
 	}
+	if v.Uses != 0 {
+		f.Fatalf("value %s still has %d uses", v, v.Uses)
+	}
 	// Clear everything but ID (which we reuse).
 	id := v.ID
 
@@ -217,6 +220,7 @@ func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
 	v.AuxInt = 0
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -226,6 +230,7 @@ func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value) 
 	v.AuxInt = auxint
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -236,6 +241,7 @@ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Valu
 	v.Aux = aux
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -246,6 +252,7 @@ func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interfa
 	v.Aux = aux
 	v.Args = v.argstorage[:1]
 	v.argstorage[0] = arg
+	arg.Uses++
 	return v
 }
 
@@ -256,6 +263,8 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
 	v.Args = v.argstorage[:2]
 	v.argstorage[0] = arg0
 	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
 	return v
 }
 
@@ -266,6 +275,8 @@ func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *
 	v.Args = v.argstorage[:2]
 	v.argstorage[0] = arg0
 	v.argstorage[1] = arg1
+	arg0.Uses++
+	arg1.Uses++
 	return v
 }
 
@@ -274,6 +285,9 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
 	v := b.Func.newValue(op, t, b, line)
 	v.AuxInt = 0
 	v.Args = []*Value{arg0, arg1, arg2}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
 	return v
 }
 
@@ -282,6 +296,9 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, 
 	v := b.Func.newValue(op, t, b, line)
 	v.AuxInt = auxint
 	v.Args = []*Value{arg0, arg1, arg2}
+	arg0.Uses++
+	arg1.Uses++
+	arg2.Uses++
 	return v
 }
 
