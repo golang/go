@@ -36,10 +36,11 @@ import (
 	"math"
 )
 
-func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
+// Grow increases the length of s.P to lsiz.
+func (s *LSym) Grow(lsiz int64) {
 	siz := int(lsiz)
 	if int64(siz) != lsiz {
-		log.Fatalf("Symgrow size %d too long", lsiz)
+		log.Fatalf("LSym.Grow size %d too long", lsiz)
 	}
 	if len(s.P) >= siz {
 		return
@@ -60,7 +61,7 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
 	if s.Type == SBSS || s.Type == STLSBSS {
 		ctxt.Diag("cannot supply data for BSS var")
 	}
-	Symgrow(ctxt, s, off+int64(siz))
+	s.Grow(off + int64(siz))
 }
 
 // WriteFloat32 writes f into s at offset off.
@@ -127,7 +128,7 @@ func Setuintxx(ctxt *Link, s *LSym, off int64, v uint64, wid int64) int64 {
 	}
 	if s.Size < off+wid {
 		s.Size = off + wid
-		Symgrow(ctxt, s, s.Size)
+		s.Grow(s.Size)
 	}
 
 	switch wid {

@@ -1748,7 +1748,7 @@ func fillnop(p []byte, n int) {
 }
 
 func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
-	obj.Symgrow(ctxt, s, int64(c)+int64(pad))
+	s.Grow(int64(c) + int64(pad))
 	fillnop(s.P[c:], int(pad))
 	return c + pad
 }
@@ -1878,7 +1878,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 				v := -c & (LoopAlign - 1)
 
 				if v <= MaxLoopPad {
-					obj.Symgrow(ctxt, s, int64(c)+int64(v))
+					s.Grow(int64(c) + int64(v))
 					fillnop(s.P[c:], int(v))
 					c += v
 				}
@@ -1915,7 +1915,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 				loop++
 			}
 
-			obj.Symgrow(ctxt, s, p.Pc+int64(m))
+			s.Grow(p.Pc + int64(m))
 			copy(s.P[p.Pc:], ctxt.AsmBuf.Bytes())
 			c += int32(m)
 		}
@@ -1940,7 +1940,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
 	// Pad functions with trap instruction, to catch invalid jumps
 	if c&(FuncAlign-1) != 0 {
 		v := -c & (FuncAlign - 1)
-		obj.Symgrow(ctxt, s, int64(c)+int64(v))
+		s.Grow(int64(c) + int64(v))
 		for i := c; i < c+v; i++ {
 			// 0xCC is INT $3 - breakpoint instruction
 			s.P[i] = uint8(0xCC)
