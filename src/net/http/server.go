@@ -1800,10 +1800,12 @@ type muxEntry struct {
 }
 
 // NewServeMux allocates and returns a new ServeMux.
-func NewServeMux() *ServeMux { return &ServeMux{m: make(map[string]muxEntry)} }
+func NewServeMux() *ServeMux { return new(ServeMux) }
 
 // DefaultServeMux is the default ServeMux used by Serve.
-var DefaultServeMux = NewServeMux()
+var DefaultServeMux = &defaultServeMux
+
+var defaultServeMux ServeMux
 
 // Does path match pattern?
 func pathMatch(pattern, path string) bool {
@@ -1926,6 +1928,9 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 		panic("http: multiple registrations for " + pattern)
 	}
 
+	if mux.m == nil {
+		mux.m = make(map[string]muxEntry)
+	}
 	mux.m[pattern] = muxEntry{explicit: true, h: handler, pattern: pattern}
 
 	if pattern[0] != '/' {

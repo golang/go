@@ -84,8 +84,10 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
 		"net/http.(*Transport).RoundTrip": true,
 
 		// Verify these don't exist:
-		"net/http.http2Server":     false,
-		"net/http.(*Server).Serve": false,
+		"net/http.http2Server":           false,
+		"net/http.(*Server).Serve":       false,
+		"net/http.(*ServeMux).ServeHTTP": false,
+		"net/http.DefaultServeMux":       false,
 	}
 	for sym, want := range wantSym {
 		got := bytes.Contains(out, []byte(sym))
