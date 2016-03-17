@@ -193,3 +193,6 @@ func SetTracebackEnv(level string) {
 	setTraceback(level)
 	traceback_env = traceback_cache
 }
+
+var ReadUnaligned32 = readUnaligned32
+var ReadUnaligned64 = readUnaligned64
