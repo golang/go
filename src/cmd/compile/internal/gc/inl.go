@@ -214,10 +214,11 @@ func ishairy(n *Node, budget *int) bool {
 		ORANGE,
 		OFOR,
 		OSELECT,
-		OSWITCH,
+		OTYPESW,
 		OPROC,
 		ODEFER,
 		ODCLTYPE, // can't print yet
+		OBREAK,
 		ORETJMP:
 		return true
 	}
