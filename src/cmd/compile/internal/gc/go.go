@@ -250,6 +250,10 @@ var importpkg *Pkg // package being imported
 
 var itabpkg *Pkg // fake pkg for itab cache
 
+var itab2pkg *Pkg // fake pkg for itab entries
+
+var itablinkpkg *Pkg // fake package for runtime itab entries
+
 var Runtimepkg *Pkg // package runtime
 
 var racepkg *Pkg // package runtime/race
