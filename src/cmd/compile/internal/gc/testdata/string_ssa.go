@@ -60,9 +60,8 @@ func (p *prefix) slice_ssa() {
 	p.prefix = p.prefix[:3]
 }
 
+//go:noinline
 func testStructSlice() {
-	switch {
-	}
 	p := &prefix{"prefix"}
 	p.slice_ssa()
 	if "pre" != p.prefix {

@@ -509,9 +509,9 @@ func sub1_ssa() uint64 {
 	v1 := uint64(3) // uint64
 	return v1*v1 - (v1&v1)&v1
 }
+
+//go:noinline
 func sub2_ssa() uint8 {
-	switch {
-	}
 	v1 := uint8(0)
 	v3 := v1 + v1 + v1 ^ v1 | 3 + v1 ^ v1 | v1 ^ v1
 	v1-- // dev.ssa doesn't see this one
