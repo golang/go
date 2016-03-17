@@ -79,6 +79,7 @@ func critical(f *Func) {
 			if reusedBlock {
 				d.Preds = append(d.Preds, c)
 				b.Preds[i] = nil
+				phi.Args[i].Uses--
 				phi.Args[i] = nil
 			} else {
 				// splice it in
