@@ -122,11 +122,6 @@ func Main() {
 	Runtimepkg.Name = "runtime"
 
 	// pseudo-packages used in symbol tables
-	gostringpkg = mkpkg("go.string")
-
-	gostringpkg.Name = "go.string"
-	gostringpkg.Prefix = "go.string" // not go%2estring
-
 	itabpkg = mkpkg("go.itab")
 
 	itabpkg.Name = "go.itab"

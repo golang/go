@@ -770,7 +770,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
 		prefix = 1
 	}
 	_, symdata := stringsym(p) // string
-	ot = dsymptr(s, ot, symdata, prefix)
+	ot = dsymptrLSym(Linksym(s), ot, symdata, prefix)
 	ot = duintxx(s, ot, uint64(len(p)-prefix), Widthint)
 
 	return ot

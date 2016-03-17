@@ -343,6 +343,12 @@ type LSym struct {
 	R      []Reloc
 }
 
+// The compiler needs LSym to satisfy fmt.Stringer, because it stores
+// an LSym in ssa.ExternSymbol.
+func (s *LSym) String() string {
+	return s.Name
+}
+
 type Pcln struct {
 	Pcsp        Pcdata
 	Pcfile      Pcdata
