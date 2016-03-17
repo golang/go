@@ -96,6 +96,14 @@ func buildssa(fn *Node) *ssa.Func {
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
 		s.cgoUnsafeArgs = true
 	}
+	if fn.Func.Pragma&Nowritebarrier != 0 {
+		s.noWB = true
+	}
+	defer func() {
+		if s.WBLineno != 0 {
+			fn.Func.WBLineno = s.WBLineno
+		}
+	}()
 	// TODO(khr): build config just once at the start of the compiler binary
 
 	ssaExp.log = printssa
@@ -271,6 +279,8 @@ type state struct {
 	returns []*Node
 
 	cgoUnsafeArgs bool
+	noWB          bool
+	WBLineno      int32 // line number of first write barrier. 0=no write barriers
 }
 
 type funcLine struct {
@@ -2780,6 +2790,13 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32) {
 	// } else {
 	//   *left = *right
 	// }
+
+	if s.noWB {
+		s.Fatalf("write barrier prohibited")
+	}
+	if s.WBLineno == 0 {
+		s.WBLineno = left.Line
+	}
 	bThen := s.f.NewBlock(ssa.BlockPlain)
 	bElse := s.f.NewBlock(ssa.BlockPlain)
 	bEnd := s.f.NewBlock(ssa.BlockPlain)
@@ -2823,6 +2840,12 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32) {
 	//   store pointer fields
 	// }
 
+	if s.noWB {
+		s.Fatalf("write barrier prohibited")
+	}
+	if s.WBLineno == 0 {
+		s.WBLineno = left.Line
+	}
 	s.storeTypeScalars(t, left, right)
 
 	bThen := s.f.NewBlock(ssa.BlockPlain)
