@@ -164,7 +164,7 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
 	fmt.Fprintf(os.Stderr, "For more information run\n")
-	fmt.Fprintf(os.Stderr, "\tgodoc cmd/vet\n\n")
+	fmt.Fprintf(os.Stderr, "\tgo doc cmd/vet\n\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 	os.Exit(2)
