@@ -888,7 +888,7 @@ func stmtfmt(n *Node) string {
 			f += fmt.Sprintf(" %v;", n.Ninit.First())
 		}
 		if n.Left != nil {
-			f += Nconv(n.Left, 0)
+			f += fmt.Sprintf(" %s ", Nconv(n.Left, 0))
 		}
 
 		f += fmt.Sprintf(" { %v }", n.List)
