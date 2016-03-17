@@ -345,8 +345,29 @@ func Writeobjfile(ctxt *Link, b *Biobuf) {
 	fmt.Fprintf(b, "go13ld")
 }
 
+// Provide the the index of a symbol reference by symbol name.
+// One map for versioned symbols and one for unversioned symbols.
+// Used for deduplicating the symbol reference list.
+var refIdx = make(map[string]int)
+var vrefIdx = make(map[string]int)
+
 func wrref(ctxt *Link, b *Biobuf, s *LSym, isPath bool) {
 	if s == nil || s.RefIdx != 0 {
+		return
+	}
+	var m map[string]int
+	switch s.Version {
+	case 0:
+		m = refIdx
+	case 1:
+		m = vrefIdx
+	default:
+		log.Fatalf("%s: invalid version number %d", s.Name, s.Version)
+	}
+
+	idx := m[s.Name]
+	if idx != 0 {
+		s.RefIdx = idx
 		return
 	}
 	Bputc(b, 0xfe)
@@ -358,6 +379,7 @@ func wrref(ctxt *Link, b *Biobuf, s *LSym, isPath bool) {
 	wrint(b, int64(s.Version))
 	ctxt.RefsWritten++
 	s.RefIdx = ctxt.RefsWritten
+	m[s.Name] = ctxt.RefsWritten
 }
 
 func writerefs(ctxt *Link, b *Biobuf, s *LSym) {
