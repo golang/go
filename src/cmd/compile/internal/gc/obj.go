@@ -159,12 +159,16 @@ func Linksym(s *Sym) *obj.LSym {
 }
 
 func duintxx(s *Sym, off int, v uint64, wid int) int {
+	return duintxxLSym(Linksym(s), off, v, wid)
+}
+
+func duintxxLSym(s *obj.LSym, off int, v uint64, wid int) int {
 	// Update symbol data directly instead of generating a
 	// DATA instruction that liblink will have to interpret later.
 	// This reduces compilation time and memory usage.
 	off = int(Rnd(int64(off), int64(wid)))
 
-	return int(obj.Setuintxx(Ctxt, Linksym(s), int64(off), v, int64(wid)))
+	return int(obj.Setuintxx(Ctxt, s, int64(off), v, int64(wid)))
 }
 
 func duint8(s *Sym, off int, v uint8) int {
@@ -183,7 +187,18 @@ func duintptr(s *Sym, off int, v uint64) int {
 	return duintxx(s, off, v, Widthptr)
 }
 
-func stringsym(s string) (hdr, data *Sym) {
+// stringConstantSyms holds the pair of symbols we create for a
+// constant string.
+type stringConstantSyms struct {
+	hdr  *obj.LSym // string header
+	data *obj.LSym // actual string data
+}
+
+// stringConstants maps from the symbol name we use for the string
+// contents to the pair of linker symbols for that string.
+var stringConstants = make(map[string]stringConstantSyms, 100)
+
+func stringsym(s string) (hdr, data *obj.LSym) {
 	var symname string
 	if len(s) > 100 {
 		// Huge strings are hashed to avoid long names in object files.
@@ -197,31 +212,34 @@ func stringsym(s string) (hdr, data *Sym) {
 		symname = strconv.Quote(s)
 	}
 
-	symhdr := Pkglookup("hdr."+symname, gostringpkg)
-	symdata := Pkglookup(symname, gostringpkg)
+	const prefix = "go.string."
+	symdataname := prefix + symname
 
-	// SymUniq flag indicates that data is generated already
-	if symhdr.Flags&SymUniq != 0 {
-		return symhdr, symdata
+	// All the strings have the same prefix, so ignore it for map
+	// purposes, but use a slice of the symbol name string to
+	// reduce long-term memory overhead.
+	key := symdataname[len(prefix):]
+
+	if syms, ok := stringConstants[key]; ok {
+		return syms.hdr, syms.data
 	}
-	symhdr.Flags |= SymUniq
-	symhdr.Def = newname(symhdr)
+
+	symhdrname := "go.string.hdr." + symname
+
+	symhdr := obj.Linklookup(Ctxt, symhdrname, 0)
+	symdata := obj.Linklookup(Ctxt, symdataname, 0)
+
+	stringConstants[key] = stringConstantSyms{symhdr, symdata}
 
 	// string header
 	off := 0
-	off = dsymptr(symhdr, off, symdata, 0)
-	off = duintxx(symhdr, off, uint64(len(s)), Widthint)
-	ggloblsym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	off = dsymptrLSym(symhdr, off, symdata, 0)
+	off = duintxxLSym(symhdr, off, uint64(len(s)), Widthint)
+	ggloblLSym(symhdr, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
 	// string data
-	if symdata.Flags&SymUniq != 0 {
-		return symhdr, symdata
-	}
-	symdata.Flags |= SymUniq
-	symdata.Def = newname(symdata)
-
-	off = dsname(symdata, 0, s)
-	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+	off = dsnameLSym(symdata, 0, s)
+	ggloblLSym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
 
 	return symhdr, symdata
 }
@@ -250,8 +268,7 @@ func Datastring(s string, a *obj.Addr) {
 	_, symdata := stringsym(s)
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_EXTERN
-	a.Sym = Linksym(symdata)
-	a.Node = symdata.Def
+	a.Sym = symdata
 	a.Offset = 0
 	a.Etype = uint8(Simtype[TINT])
 }
@@ -260,8 +277,7 @@ func datagostring(sval string, a *obj.Addr) {
 	symhdr, _ := stringsym(sval)
 	a.Type = obj.TYPE_MEM
 	a.Name = obj.NAME_EXTERN
-	a.Sym = Linksym(symhdr)
-	a.Node = symhdr.Def
+	a.Sym = symhdr
 	a.Offset = 0
 	a.Etype = uint8(TSTRING)
 }
@@ -279,19 +295,27 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
 	}
 	off = int(Rnd(int64(off), int64(Widthptr)))
 	symhdr, _ := stringsym(*lit)
-	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(symhdr), 0)
+	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, symhdr, 0)
 	off += Widthptr
 	return off
 }
 
 func dsname(s *Sym, off int, t string) int {
-	Linksym(s).WriteString(Ctxt, int64(off), len(t), t)
+	return dsnameLSym(Linksym(s), off, t)
+}
+
+func dsnameLSym(s *obj.LSym, off int, t string) int {
+	s.WriteString(Ctxt, int64(off), len(t), t)
 	return off + len(t)
 }
 
 func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
+	return dsymptrLSym(Linksym(s), off, Linksym(x), xoff)
+}
+
+func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	off = int(Rnd(int64(off), int64(Widthptr)))
-	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(x), int64(xoff))
+	s.WriteAddr(Ctxt, int64(off), Widthptr, x, int64(xoff))
 	off += Widthptr
 	return off
 }
@@ -368,6 +392,6 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
 func gdatastring(nam *Node, sval string) {
 	s := Linksym(nam.Sym)
 	_, symdata := stringsym(sval)
-	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, Linksym(symdata), 0)
+	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, symdata, 0)
 	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(sval)))
 }

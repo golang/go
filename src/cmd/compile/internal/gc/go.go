@@ -249,8 +249,6 @@ var localpkg *Pkg // package being compiled
 
 var importpkg *Pkg // package being imported
 
-var gostringpkg *Pkg // fake pkg for Go strings
-
 var itabpkg *Pkg // fake pkg for itab cache
 
 var Runtimepkg *Pkg // package runtime

@@ -234,10 +234,14 @@ func ggloblnod(nam *Node) {
 }
 
 func ggloblsym(s *Sym, width int32, flags int16) {
+	ggloblLSym(Linksym(s), width, flags)
+}
+
+func ggloblLSym(s *obj.LSym, width int32, flags int16) {
 	p := Thearch.Gins(obj.AGLOBL, nil, nil)
 	p.From.Type = obj.TYPE_MEM
 	p.From.Name = obj.NAME_EXTERN
-	p.From.Sym = Linksym(s)
+	p.From.Sym = s
 	if flags&obj.LOCAL != 0 {
 		p.From.Sym.Local = true
 		flags &= ^obj.LOCAL

@@ -3845,7 +3845,14 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
 	switch sym := v.Aux.(type) {
 	case *ssa.ExternSymbol:
 		a.Name = obj.NAME_EXTERN
-		a.Sym = Linksym(sym.Sym.(*Sym))
+		switch s := sym.Sym.(type) {
+		case *Sym:
+			a.Sym = Linksym(s)
+		case *obj.LSym:
+			a.Sym = s
+		default:
+			v.Fatalf("ExternSymbol.Sym is %T", s)
+		}
 	case *ssa.ArgSymbol:
 		n := sym.Node.(*Node)
 		a.Name = obj.NAME_PARAM
