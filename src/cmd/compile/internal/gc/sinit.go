@@ -1071,7 +1071,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 		}
 
 		// initialize of not completely specified
-		if var_.isSimpleName() || n.List.Len() < structcount(t) {
+		if var_.isSimpleName() || n.List.Len() < t.NumFields() {
 			a := Nod(OAS, var_, nil)
 			typecheck(&a, Etop)
 			walkexpr(&a, init)

@@ -683,8 +683,3 @@ func (t *Type) NumElem() int64 {
 func (t *Type) IsMemory() bool { return false }
 func (t *Type) IsFlags() bool  { return false }
 func (t *Type) IsVoid() bool   { return false }
-
-// TODO(mdempsky): Replace all of these with direct calls to t.NumFields().
-func countfield(t *Type) int  { return t.NumFields() }
-func downcount(t *Type) int   { return t.NumFields() }
-func structcount(t *Type) int { return t.NumFields() }

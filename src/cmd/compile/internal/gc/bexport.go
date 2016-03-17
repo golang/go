@@ -559,12 +559,12 @@ func (p *exporter) qualifiedName(sym *Sym) {
 }
 
 func (p *exporter) fieldList(t *Type) {
-	if p.trace && countfield(t) > 0 {
+	if p.trace && t.NumFields() > 0 {
 		p.tracef("fields {>")
 		defer p.tracef("<\n} ")
 	}
 
-	p.int(countfield(t))
+	p.int(t.NumFields())
 	for _, f := range t.Fields().Slice() {
 		if p.trace {
 			p.tracef("\n")
@@ -588,12 +588,12 @@ func (p *exporter) note(n *string) {
 }
 
 func (p *exporter) methodList(t *Type) {
-	if p.trace && countfield(t) > 0 {
+	if p.trace && t.NumFields() > 0 {
 		p.tracef("methods {>")
 		defer p.tracef("<\n} ")
 	}
 
-	p.int(countfield(t))
+	p.int(t.NumFields())
 	for _, m := range t.Fields().Slice() {
 		if p.trace {
 			p.tracef("\n")
@@ -650,7 +650,7 @@ func (p *exporter) paramList(params *Type, numbered bool) {
 	// use negative length to indicate unnamed parameters
 	// (look at the first parameter only since either all
 	// names are present or all are absent)
-	n := countfield(params)
+	n := params.NumFields()
 	if n > 0 && parName(params.Field(0), numbered) == "" {
 		n = -n
 	}

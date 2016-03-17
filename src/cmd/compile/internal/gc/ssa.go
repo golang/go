@@ -2639,7 +2639,7 @@ func canSSAType(t *Type) bool {
 		// introduced by the compiler for variadic functions.
 		return false
 	case TSTRUCT:
-		if countfield(t) > ssa.MaxStruct {
+		if t.NumFields() > ssa.MaxStruct {
 			return false
 		}
 		for _, t1 := range t.Fields().Slice() {
