@@ -10,9 +10,8 @@ type T1 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1copy_ssa(y, x *[1]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1() {
@@ -32,9 +31,8 @@ type T2 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t2copy_ssa(y, x *[2]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy2() {
@@ -54,9 +52,8 @@ type T3 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t3copy_ssa(y, x *[3]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy3() {
@@ -76,9 +73,8 @@ type T4 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t4copy_ssa(y, x *[4]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy4() {
@@ -98,9 +94,8 @@ type T5 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t5copy_ssa(y, x *[5]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy5() {
@@ -120,9 +115,8 @@ type T6 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t6copy_ssa(y, x *[6]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy6() {
@@ -142,9 +136,8 @@ type T7 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t7copy_ssa(y, x *[7]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy7() {
@@ -164,9 +157,8 @@ type T8 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t8copy_ssa(y, x *[8]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy8() {
@@ -186,9 +178,8 @@ type T9 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t9copy_ssa(y, x *[9]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy9() {
@@ -208,9 +199,8 @@ type T10 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t10copy_ssa(y, x *[10]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy10() {
@@ -230,9 +220,8 @@ type T15 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t15copy_ssa(y, x *[15]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy15() {
@@ -252,9 +241,8 @@ type T16 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t16copy_ssa(y, x *[16]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy16() {
@@ -274,9 +262,8 @@ type T17 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t17copy_ssa(y, x *[17]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy17() {
@@ -296,9 +283,8 @@ type T23 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t23copy_ssa(y, x *[23]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy23() {
@@ -318,9 +304,8 @@ type T24 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t24copy_ssa(y, x *[24]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy24() {
@@ -340,9 +325,8 @@ type T25 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t25copy_ssa(y, x *[25]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy25() {
@@ -362,9 +346,8 @@ type T31 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t31copy_ssa(y, x *[31]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy31() {
@@ -384,9 +367,8 @@ type T32 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t32copy_ssa(y, x *[32]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy32() {
@@ -406,9 +388,8 @@ type T33 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t33copy_ssa(y, x *[33]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy33() {
@@ -428,9 +409,8 @@ type T63 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t63copy_ssa(y, x *[63]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy63() {
@@ -450,9 +430,8 @@ type T64 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t64copy_ssa(y, x *[64]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy64() {
@@ -472,9 +451,8 @@ type T65 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t65copy_ssa(y, x *[65]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy65() {
@@ -494,9 +472,8 @@ type T1023 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1023copy_ssa(y, x *[1023]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1023() {
@@ -516,9 +493,8 @@ type T1024 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1024copy_ssa(y, x *[1024]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1024() {
@@ -538,9 +514,8 @@ type T1025 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1025copy_ssa(y, x *[1025]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1025() {
@@ -560,9 +535,8 @@ type T1031 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1031copy_ssa(y, x *[1031]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1031() {
@@ -582,9 +556,8 @@ type T1032 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1032copy_ssa(y, x *[1032]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1032() {
@@ -604,9 +577,8 @@ type T1033 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1033copy_ssa(y, x *[1033]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1033() {
@@ -626,9 +598,8 @@ type T1039 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1039copy_ssa(y, x *[1039]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1039() {
@@ -648,9 +619,8 @@ type T1040 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1040copy_ssa(y, x *[1040]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1040() {
@@ -670,9 +640,8 @@ type T1041 struct {
 	post [8]byte
 }
 
+//go:noinline
 func t1041copy_ssa(y, x *[1041]byte) {
-	switch {
-	}
 	*y = *x
 }
 func testCopy1041() {
