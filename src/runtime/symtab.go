@@ -129,6 +129,7 @@ type moduledata struct {
 	end, gcdata, gcbss    uintptr
 
 	typelinks []*_type
+	itablinks []*itab
 
 	modulename   string
 	modulehashes []modulehash

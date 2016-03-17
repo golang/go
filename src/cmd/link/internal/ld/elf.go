@@ -1740,6 +1740,7 @@ func doelf() {
 		relro_prefix = ".data.rel.ro"
 	}
 	Addstring(shstrtab, relro_prefix+".typelink")
+	Addstring(shstrtab, relro_prefix+".itablink")
 	Addstring(shstrtab, relro_prefix+".gosymtab")
 	Addstring(shstrtab, relro_prefix+".gopclntab")
 
@@ -1751,6 +1752,7 @@ func doelf() {
 			Addstring(shstrtab, ".rela.text")
 			Addstring(shstrtab, ".rela.rodata")
 			Addstring(shstrtab, ".rela"+relro_prefix+".typelink")
+			Addstring(shstrtab, ".rela"+relro_prefix+".itablink")
 			Addstring(shstrtab, ".rela"+relro_prefix+".gosymtab")
 			Addstring(shstrtab, ".rela"+relro_prefix+".gopclntab")
 			Addstring(shstrtab, ".rela.noptrdata")
@@ -1763,6 +1765,7 @@ func doelf() {
 			Addstring(shstrtab, ".rel.text")
 			Addstring(shstrtab, ".rel.rodata")
 			Addstring(shstrtab, ".rel"+relro_prefix+".typelink")
+			Addstring(shstrtab, ".rel"+relro_prefix+".itablink")
 			Addstring(shstrtab, ".rel"+relro_prefix+".gosymtab")
 			Addstring(shstrtab, ".rel"+relro_prefix+".gopclntab")
 			Addstring(shstrtab, ".rel.noptrdata")

@@ -41,7 +41,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 		switch s.Kind {
 		case goobj.STEXT, goobj.SELFRXSECT:
 			sym.Code = 'T'
-		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
+		case goobj.STYPE, goobj.SSTRING, goobj.SGOSTRING, goobj.SGOFUNC, goobj.SRODATA, goobj.SFUNCTAB, goobj.STYPELINK, goobj.SITABLINK, goobj.SSYMTAB, goobj.SPCLNTAB, goobj.SELFROSECT:
 			sym.Code = 'R'
 		case goobj.SMACHOPLT, goobj.SELFSECT, goobj.SMACHO, goobj.SMACHOGOT, goobj.SNOPTRDATA, goobj.SINITARR, goobj.SDATA, goobj.SWINDOWS:
 			sym.Code = 'D'

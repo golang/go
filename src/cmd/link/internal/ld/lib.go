@@ -1930,6 +1930,7 @@ func genasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
 			obj.SGCBITSRELRO,
 			obj.SRODATARELRO,
 			obj.STYPELINK,
+			obj.SITABLINK,
 			obj.SWINDOWS:
 			if !s.Attr.Reachable() {
 				continue

@@ -1605,6 +1605,24 @@ func dodata() {
 
 	sect.Length = uint64(datsize) - sect.Vaddr
 
+	/* itablink */
+	sect = addsection(segro, relro_prefix+".itablink", relro_perms)
+
+	sect.Align = maxalign(s, obj.SITABLINK)
+	datsize = Rnd(datsize, int64(sect.Align))
+	sect.Vaddr = uint64(datsize)
+	Linklookup(Ctxt, "runtime.itablink", 0).Sect = sect
+	Linklookup(Ctxt, "runtime.eitablink", 0).Sect = sect
+	for ; s != nil && s.Type == obj.SITABLINK; s = s.Next {
+		datsize = aligndatsize(datsize, s)
+		s.Sect = sect
+		s.Type = obj.SRODATA
+		s.Value = int64(uint64(datsize) - sect.Vaddr)
+		growdatsize(&datsize, s)
+	}
+
+	sect.Length = uint64(datsize) - sect.Vaddr
+
 	/* gosymtab */
 	sect = addsection(segro, relro_prefix+".gosymtab", relro_perms)
 
@@ -1835,7 +1853,8 @@ func address() {
 		// object on elf systems.
 		typelink = typelink.Next
 	}
-	symtab := typelink.Next
+	itablink := typelink.Next
+	symtab := itablink.Next
 	pclntab := symtab.Next
 
 	var sub *LSym
@@ -1862,6 +1881,8 @@ func address() {
 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
 	xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
+	xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
+	xdefine("runtime.eitablink", obj.SRODATA, int64(itablink.Vaddr+itablink.Length))
 
 	sym := Linklookup(Ctxt, "runtime.gcdata", 0)
 	sym.Attr |= AttrLocal

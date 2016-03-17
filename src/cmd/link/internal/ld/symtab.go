@@ -342,6 +342,8 @@ func symtab() {
 	xdefine("runtime.etext", obj.STEXT, 0)
 	xdefine("runtime.typelink", obj.SRODATA, 0)
 	xdefine("runtime.etypelink", obj.SRODATA, 0)
+	xdefine("runtime.itablink", obj.SRODATA, 0)
+	xdefine("runtime.eitablink", obj.SRODATA, 0)
 	xdefine("runtime.rodata", obj.SRODATA, 0)
 	xdefine("runtime.erodata", obj.SRODATA, 0)
 	xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
@@ -428,6 +430,9 @@ func symtab() {
 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
 	symtypelink.Type = obj.STYPELINK
 
+	symitablink := Linklookup(Ctxt, "runtime.itablink", 0)
+	symitablink.Type = obj.SITABLINK
+
 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
 	symt.Attr |= AttrLocal
 	symt.Type = obj.SSYMTAB
@@ -435,6 +440,7 @@ func symtab() {
 	symt.Attr |= AttrReachable
 
 	ntypelinks := 0
+	nitablinks := 0
 
 	// assign specific types so that they sort together.
 	// within a type they sort by size, so the .* symbols
@@ -461,6 +467,13 @@ func symtab() {
 			s.Type = obj.STYPELINK
 			s.Attr |= AttrHidden
 			s.Outer = symtypelink
+		}
+
+		if strings.HasPrefix(s.Name, "go.itablink.") {
+			nitablinks++
+			s.Type = obj.SITABLINK
+			s.Attr |= AttrHidden
+			s.Outer = symitablink
 		}
 
 		if strings.HasPrefix(s.Name, "go.string.") {
@@ -543,6 +556,10 @@ func symtab() {
 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
 	adduint(Ctxt, moduledata, uint64(ntypelinks))
+	// The itablinks slice
+	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.itablink", 0))
+	adduint(Ctxt, moduledata, uint64(nitablinks))
+	adduint(Ctxt, moduledata, uint64(nitablinks))
 	if len(Ctxt.Shlibs) > 0 {
 		thismodulename := filepath.Base(outfile)
 		switch Buildmode {
