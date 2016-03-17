@@ -112,22 +112,17 @@ type Type struct {
 	Broke       bool // broken type definition.
 	Align       uint8
 	Haspointers uint8 // 0 unknown, 1 no, 2 yes
+	Outnamed    bool  // on TFUNC
 
-	Nod    *Node // canonical OTYPE node
-	Orig   *Type // original type (type literal or predefined type)
-	Lineno int32
-
-	// TFUNC
-	Thistuple int
-	Outtuple  int
-	Intuple   int
-	Outnamed  bool
+	Nod  *Node // canonical OTYPE node
+	Orig *Type // original type (type literal or predefined type)
 
 	methods    Fields
 	allMethods Fields
 
 	Sym    *Sym
 	Vargen int32 // unique name for OTYPE/ONAME
+	Lineno int32
 
 	Nname  *Node
 	Argwid int64

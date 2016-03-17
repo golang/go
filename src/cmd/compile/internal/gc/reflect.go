@@ -286,7 +286,7 @@ func methods(t *Type) []*Sig {
 	// generating code if necessary.
 	var ms []*Sig
 	for _, f := range mt.AllMethods().Slice() {
-		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
+		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
 		if f.Type.Recv() == nil {
@@ -1041,8 +1041,8 @@ ok:
 		}
 
 		ot = dcommontype(s, ot, t)
-		inCount := t.Thistuple + t.Intuple
-		outCount := t.Outtuple
+		inCount := t.Recvs().NumFields() + t.Params().NumFields()
+		outCount := t.Results().NumFields()
 		if isddd {
 			outCount |= 1 << 15
 		}
@@ -1052,7 +1052,7 @@ ok:
 			ot += 4 // align for *rtype
 		}
 
-		dataAdd := (inCount + t.Outtuple) * Widthptr
+		dataAdd := (inCount + t.Results().NumFields()) * Widthptr
 		ot = dextratype(s, ot, t, dataAdd)
 
 		// Array of rtype pointers follows funcType.

@@ -655,37 +655,31 @@ func funcargs2(t *Type) {
 		Fatalf("funcargs2 %v", t)
 	}
 
-	if t.Thistuple != 0 {
-		for _, ft := range t.Recvs().Fields().Slice() {
-			if ft.Nname == nil || ft.Nname.Sym == nil {
-				continue
-			}
-			n := ft.Nname // no need for newname(ft->nname->sym)
-			n.Type = ft.Type
-			declare(n, PPARAM)
+	for _, ft := range t.Recvs().Fields().Slice() {
+		if ft.Nname == nil || ft.Nname.Sym == nil {
+			continue
 		}
+		n := ft.Nname // no need for newname(ft->nname->sym)
+		n.Type = ft.Type
+		declare(n, PPARAM)
 	}
 
-	if t.Intuple != 0 {
-		for _, ft := range t.Params().Fields().Slice() {
-			if ft.Nname == nil || ft.Nname.Sym == nil {
-				continue
-			}
-			n := ft.Nname
-			n.Type = ft.Type
-			declare(n, PPARAM)
+	for _, ft := range t.Params().Fields().Slice() {
+		if ft.Nname == nil || ft.Nname.Sym == nil {
+			continue
 		}
+		n := ft.Nname
+		n.Type = ft.Type
+		declare(n, PPARAM)
 	}
 
-	if t.Outtuple != 0 {
-		for _, ft := range t.Results().Fields().Slice() {
-			if ft.Nname == nil || ft.Nname.Sym == nil {
-				continue
-			}
-			n := ft.Nname
-			n.Type = ft.Type
-			declare(n, PPARAMOUT)
+	for _, ft := range t.Results().Fields().Slice() {
+		if ft.Nname == nil || ft.Nname.Sym == nil {
+			continue
 		}
+		n := ft.Nname
+		n.Type = ft.Type
+		declare(n, PPARAMOUT)
 	}
 }
 
@@ -1068,13 +1062,8 @@ func functype0(t *Type, this *Node, in, out []*Node) {
 		t.Broke = true
 	}
 
-	if this != nil {
-		t.Thistuple = 1
-	}
-	t.Outtuple = len(out)
-	t.Intuple = len(in)
 	t.Outnamed = false
-	if t.Outtuple > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
+	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
 		s := out[0].Left.Orig.Sym
 		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
 			t.Outnamed = true

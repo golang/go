@@ -387,10 +387,6 @@ func lexinit1() {
 	*f.RecvsP() = rcvr
 	*f.ResultsP() = out
 	*f.ParamsP() = in
-	f.Thistuple = 1
-	f.Intuple = 0
-	f.Outnamed = false
-	f.Outtuple = 1
 
 	t := typ(TINTER)
 	field = newField()

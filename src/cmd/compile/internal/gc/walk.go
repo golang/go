@@ -657,7 +657,7 @@ opswitch:
 
 			// Update type of OCALLFUNC node.
 			// Output arguments had not changed, but their offsets could.
-			if n.Left.Type.Outtuple == 1 {
+			if n.Left.Type.Results().NumFields() == 1 {
 				n.Type = n.Left.Type.Results().Field(0).Type
 			} else {
 				n.Type = n.Left.Type.Results()
@@ -2634,11 +2634,11 @@ func vmkcall(fn *Node, t *Type, init *Nodes, va []*Node) *Node {
 		Fatalf("mkcall %v %v", fn, fn.Type)
 	}
 
-	n := fn.Type.Intuple
+	n := fn.Type.Params().NumFields()
 
 	r := Nod(OCALL, fn, nil)
 	r.List.Set(va[:n])
-	if fn.Type.Outtuple > 0 {
+	if fn.Type.Results().NumFields() > 0 {
 		typecheck(&r, Erv|Efnstruct)
 	} else {
 		typecheck(&r, Etop)

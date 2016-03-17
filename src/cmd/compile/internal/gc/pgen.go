@@ -147,18 +147,18 @@ func emitptrargsmap() {
 	nptr := int(Curfn.Type.Argwid / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)
 	nbitmap := 1
-	if Curfn.Type.Outtuple > 0 {
+	if Curfn.Type.Results().NumFields() > 0 {
 		nbitmap = 2
 	}
 	off := duint32(sym, 0, uint32(nbitmap))
 	off = duint32(sym, off, uint32(bv.n))
 	var xoffset int64
-	if Curfn.Type.Thistuple > 0 {
+	if Curfn.Type.Recv() != nil {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Recvs(), &xoffset, bv)
 	}
 
-	if Curfn.Type.Intuple > 0 {
+	if Curfn.Type.Params().NumFields() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Params(), &xoffset, bv)
 	}
@@ -166,7 +166,7 @@ func emitptrargsmap() {
 	for j := 0; int32(j) < bv.n; j += 32 {
 		off = duint32(sym, off, bv.b[j/32])
 	}
-	if Curfn.Type.Outtuple > 0 {
+	if Curfn.Type.Results().NumFields() > 0 {
 		xoffset = 0
 		onebitwalktype1(Curfn.Type.Results(), &xoffset, bv)
 		for j := 0; int32(j) < bv.n; j += 32 {
@@ -503,7 +503,7 @@ func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
 		lineno = Curfn.Func.Endlineno
 	}
 
-	if Curfn.Type.Outtuple != 0 {
+	if Curfn.Type.Results().NumFields() != 0 {
 		Ginscall(throwreturn, 0)
 	}
 
