@@ -775,7 +775,7 @@ func esc(e *EscState, n *Node, up *Node) {
 		}
 		// arguments leak out of scope
 		// TODO: leak to a dummy node instead
-		// go f(x) - f and x escape
+		// defer f(x) - f and x escape
 		escassignSinkNilWhy(e, n, n.Left.Left, "defer func")
 
 		escassignSinkNilWhy(e, n, n.Left.Right, "defer func ...") // ODDDARG for call
