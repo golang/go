@@ -2362,9 +2362,9 @@ func twoarg(n *Node) bool {
 	return true
 }
 
-func lookdot1(errnode *Node, s *Sym, t *Type, f *Field, dostrcmp int) *Field {
+func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
 	var r *Field
-	for f, it := RawIter(f); f != nil; f = it.Next() {
+	for _, f := range fs.Slice() {
 		if dostrcmp != 0 && f.Sym.Name == s.Name {
 			return f
 		}
@@ -2395,7 +2395,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	s := n.Right.Sym
 
 	if t.Etype == TINTER {
-		f1 := lookdot1(n, s, t, t.Fields, dostrcmp)
+		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
 		if f1 == nil {
 			return false
 		}
@@ -2415,7 +2415,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 	}
 
 	expandmeth(mt)
-	f2 := lookdot1(n, s, mt, mt.Xmethod, dostrcmp)
+	f2 := lookdot1(n, s, mt, mt.AllMethods(), dostrcmp)
 	if f2 == nil {
 		return false
 	}
@@ -2455,7 +2455,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 	dowidth(t)
 	var f1 *Field
 	if t.Etype == TSTRUCT || t.Etype == TINTER {
-		f1 = lookdot1(n, s, t, t.Fields, dostrcmp)
+		f1 = lookdot1(n, s, t, t.Fields(), dostrcmp)
 	}
 
 	var f2 *Field
@@ -2464,7 +2464,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 		if mt != nil {
 			// Use f2->method, not f2->xmethod: adddot has
 			// already inserted all the necessary embedded dots.
-			f2 = lookdot1(n, s, mt, mt.Method, dostrcmp)
+			f2 = lookdot1(n, s, mt, mt.Methods(), dostrcmp)
 		}
 	}
 
@@ -3103,7 +3103,7 @@ func typecheckcomplit(np **Node) {
 					}
 				}
 
-				f := lookdot1(nil, s, t, t.Fields, 0)
+				f := lookdot1(nil, s, t, t.Fields(), 0)
 				if f == nil {
 					Yyerror("unknown %v field '%v' in struct literal", t, s)
 					continue
@@ -3524,8 +3524,8 @@ func copytype(n *Node, t *Type) {
 	if n.Name != nil {
 		t.Vargen = n.Name.Vargen
 	}
-	t.Method = nil
-	t.Xmethod = nil
+	t.methods = Fields{}
+	t.allMethods = Fields{}
 	t.Nod = nil
 	t.Printed = false
 	t.Deferwidth = false

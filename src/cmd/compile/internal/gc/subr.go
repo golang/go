@@ -1725,12 +1725,10 @@ func adddot(n *Node) *Node {
 // the actual methods.
 type Symlink struct {
 	field     *Field
-	link      *Symlink
-	good      bool
 	followptr bool
 }
 
-var slist *Symlink
+var slist []Symlink
 
 func expand0(t *Type, followptr bool) {
 	u := t
@@ -1740,17 +1738,12 @@ func expand0(t *Type, followptr bool) {
 	}
 
 	if u.Etype == TINTER {
-		var sl *Symlink
 		for f, it := IterFields(u); f != nil; f = it.Next() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
 			}
 			f.Sym.Flags |= SymUniq
-			sl = new(Symlink)
-			sl.field = f
-			sl.link = slist
-			sl.followptr = followptr
-			slist = sl
+			slist = append(slist, Symlink{field: f, followptr: followptr})
 		}
 
 		return
@@ -1758,17 +1751,12 @@ func expand0(t *Type, followptr bool) {
 
 	u = methtype(t, 0)
 	if u != nil {
-		var sl *Symlink
 		for f, it := IterMethods(u); f != nil; f = it.Next() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
 			}
 			f.Sym.Flags |= SymUniq
-			sl = new(Symlink)
-			sl.field = f
-			sl.link = slist
-			sl.followptr = followptr
-			slist = sl
+			slist = append(slist, Symlink{field: f, followptr: followptr})
 		}
 	}
 }
@@ -1808,7 +1796,7 @@ out:
 }
 
 func expandmeth(t *Type) {
-	if t == nil || t.Xmethod != nil {
+	if t == nil || t.AllMethods().Len() != 0 {
 		return
 	}
 
@@ -1819,41 +1807,40 @@ func expandmeth(t *Type) {
 	}
 
 	// generate all reachable methods
-	slist = nil
-
+	slist = slist[:0]
 	expand1(t, true, false)
 
 	// check each method to be uniquely reachable
-	for sl := slist; sl != nil; sl = sl.link {
+	var ms []*Field
+	for i, sl := range slist {
+		slist[i].field = nil
 		sl.field.Sym.Flags &^= SymUniq
+
 		var f *Field
 		if path, _ := dotpath(sl.field.Sym, t, &f, false); path == nil {
 			continue
 		}
+
 		// dotpath may have dug out arbitrary fields, we only want methods.
-		if f.Type.Etype == TFUNC && f.Type.Thistuple > 0 {
-			sl.good = true
-			sl.field = f
+		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
+			continue
 		}
+
+		// add it to the base type method list
+		f = f.Copy()
+		f.Embedded = 1 // needs a trampoline
+		if sl.followptr {
+			f.Embedded = 2
+		}
+		ms = append(ms, f)
 	}
 
 	for f, it := IterMethods(t); f != nil; f = it.Next() {
 		f.Sym.Flags &^= SymUniq
 	}
 
-	t.Xmethod = t.Method
-	for sl := slist; sl != nil; sl = sl.link {
-		if sl.good {
-			// add it to the base type method list
-			f := sl.field.Copy()
-			f.Embedded = 1 // needs a trampoline
-			if sl.followptr {
-				f.Embedded = 2
-			}
-			f.Down = t.Xmethod
-			t.Xmethod = f
-		}
-	}
+	ms = append(ms, t.Methods().Slice()...)
+	t.AllMethods().Set(ms)
 }
 
 // Given funarg struct list, return list of ODCLFIELD Node fn args.

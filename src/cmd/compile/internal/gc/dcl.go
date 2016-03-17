@@ -1269,9 +1269,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	n := Nod(ODCLFIELD, newname(msym), nil)
 	n.Type = t
 
-	var d *Field // last found
 	for f, it := IterMethods(pa); f != nil; f = it.Next() {
-		d = f
 		if msym.Name != f.Sym.Name {
 			continue
 		}
@@ -1291,11 +1289,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, FmtSign), tpkg.Name)
 	}
 
-	if d == nil {
-		pa.Method = f
-	} else {
-		d.Down = f
-	}
+	pa.Methods().Append(f)
 }
 
 func funccompile(n *Node) {

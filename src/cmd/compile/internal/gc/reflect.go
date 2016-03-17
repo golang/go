@@ -285,7 +285,7 @@ func methods(t *Type) []*Sig {
 	// make list of methods for t,
 	// generating code if necessary.
 	var ms []*Sig
-	for f, it2 := IterAllMethods(mt); f != nil; f = it2.Next() {
+	for _, f := range mt.AllMethods().Slice() {
 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
 			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
 		}
