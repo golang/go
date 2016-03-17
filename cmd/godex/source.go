@@ -8,14 +8,14 @@
 
 package main
 
-import (
-	"golang.org/x/tools/go/types"
-)
+import "go/types"
 
 func init() {
-	register("source", sourceImporter)
+	register("source", sourceImporter{})
 }
 
-func sourceImporter(packages map[string]*types.Package, path string) (*types.Package, error) {
+type sourceImporter struct{}
+
+func (sourceImporter) Import(path string) (*types.Package, error) {
 	panic("unimplemented")
 }

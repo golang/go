@@ -1,4 +1,0 @@
-v1;
-package pointer;
-pkgpath pointer;
-type <type 1 "Int8Ptr" <type 2 *<type -1>>>;

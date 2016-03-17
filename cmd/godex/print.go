@@ -9,12 +9,11 @@ package main
 import (
 	"bytes"
 	"fmt"
+	exact "go/constant"
 	"go/token"
+	"go/types"
 	"io"
 	"math/big"
-
-	"golang.org/x/tools/go/exact"
-	"golang.org/x/tools/go/types"
 )
 
 // TODO(gri) use tabwriter for alignment?

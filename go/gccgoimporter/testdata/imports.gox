@@ -1,7 +1,0 @@
-v1;
-package imports;
-pkgpath imports;
-priority 7;
-import fmt fmt "fmt";
-init imports imports..import 7 math math..import 1 runtime runtime..import 1 strconv strconv..import 2 io io..import 3 reflect reflect..import 3 syscall syscall..import 3 time time..import 4 os os..import 5 fmt fmt..import 6;
-var Hello <type -16>;

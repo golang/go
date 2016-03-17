@@ -9,34 +9,28 @@
 package main
 
 import (
-	"golang.org/x/tools/go/gccgoimporter"
-	"golang.org/x/tools/go/types"
-)
-
-var (
-	initmap = make(map[*types.Package]gccgoimporter.InitData)
+	"go/importer"
+	"go/types"
 )
 
 func init() {
-	incpaths := []string{"/"}
-
-	// importer for default gccgo
-	var inst gccgoimporter.GccgoInstallation
-	inst.InitFromDriver("gccgo")
-	register("gccgo", inst.GetImporter(incpaths, initmap))
+	register("gccgo", importer.For("gccgo", nil))
 }
 
 // Print the extra gccgo compiler data for this package, if it exists.
 func (p *printer) printGccgoExtra(pkg *types.Package) {
-	if initdata, ok := initmap[pkg]; ok {
-		p.printf("/*\npriority %d\n", initdata.Priority)
+	// Disabled for now.
+	// TODO(gri) address this at some point.
 
-		p.printDecl("init", len(initdata.Inits), func() {
-			for _, init := range initdata.Inits {
-				p.printf("%s %s %d\n", init.Name, init.InitFunc, init.Priority)
-			}
-		})
+	// if initdata, ok := initmap[pkg]; ok {
+	// 	p.printf("/*\npriority %d\n", initdata.Priority)
 
-		p.print("*/\n")
-	}
+	// 	p.printDecl("init", len(initdata.Inits), func() {
+	// 		for _, init := range initdata.Inits {
+	// 			p.printf("%s %s %d\n", init.Name, init.InitFunc, init.Priority)
+	// 		}
+	// 	})
+
+	// 	p.print("*/\n")
+	// }
 }
