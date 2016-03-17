@@ -1234,7 +1234,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
 			Fatalf("struct not at offset 0")
 		}
 
-		for field, it := IterFields(t); field != nil; field = it.Next() {
+		for _, field := range t.Fields().Slice() {
 			if !visitComponents(field.Type, startOffset+field.Width, f) {
 				return false
 			}

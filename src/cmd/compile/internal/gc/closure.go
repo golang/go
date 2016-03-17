@@ -528,7 +528,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	Curfn = xfunc
 	var fld *Node
 	var n *Node
-	for t, it := IterFields(t0.Params()); t != nil; t = it.Next() {
+	for _, t := range t0.Params().Fields().Slice() {
 		n = newname(Lookupf("a%d", i))
 		i++
 		n.Class = PPARAM
@@ -547,7 +547,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 	i = 0
 	l = nil
 	var retargs []*Node
-	for t, it := IterFields(t0.Results()); t != nil; t = it.Next() {
+	for _, t := range t0.Results().Fields().Slice() {
 		n = newname(Lookupf("r%d", i))
 		i++
 		n.Class = PPARAMOUT

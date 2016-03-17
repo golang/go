@@ -2568,7 +2568,7 @@ func nokeys(l Nodes) bool {
 }
 
 func hasddd(t *Type) bool {
-	for tl, it := IterFields(t); tl != nil; tl = it.Next() {
+	for _, tl := range t.Fields().Slice() {
 		if tl.Isddd {
 			return true
 		}
@@ -2609,7 +2609,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 
 				tn, it := IterFields(n.Type)
 				var why string
-				for tl, it2 := IterFields(tstruct); tl != nil; tl = it2.Next() {
+				for _, tl := range tstruct.Fields().Slice() {
 					if tl.Isddd {
 						for ; tn != nil; tn = it.Next() {
 							if assignop(tn.Type, tl.Type.Type, &why) == 0 {
@@ -2671,7 +2671,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 	}
 
 	i = 0
-	for tl, it := IterFields(tstruct); tl != nil; tl = it.Next() {
+	for _, tl := range tstruct.Fields().Slice() {
 		t = tl.Type
 		if tl.Isddd {
 			if isddd {
@@ -3489,7 +3489,7 @@ func domethod(n *Node) {
 	// value of its argument, a specific implementation of I may
 	// care. The _ would suppress the assignment to that argument
 	// while generating a call, so remove it.
-	for t, it := IterFields(nt.Type.Params()); t != nil; t = it.Next() {
+	for _, t := range nt.Type.Params().Fields().Slice() {
 		if t.Sym != nil && t.Sym.Name == "_" {
 			t.Sym = nil
 		}

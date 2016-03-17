@@ -338,7 +338,7 @@ func copyret(n *Node, order *Order) []*Node {
 
 	var l1 []*Node
 	var l2 []*Node
-	for t, it := IterFields(n.Type); t != nil; t = it.Next() {
+	for _, t := range n.Type.Fields().Slice() {
 		tmp := temp(t.Type)
 		l1 = append(l1, tmp)
 		l2 = append(l2, tmp)

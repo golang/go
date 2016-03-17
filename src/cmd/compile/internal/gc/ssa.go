@@ -2632,7 +2632,7 @@ func canSSAType(t *Type) bool {
 		if countfield(t) > ssa.MaxStruct {
 			return false
 		}
-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+		for _, t1 := range t.Fields().Slice() {
 			if !canSSAType(t1.Type) {
 				return false
 			}
@@ -3950,7 +3950,7 @@ func fieldIdx(n *Node) int {
 	}
 
 	var i int
-	for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+	for _, t1 := range t.Fields().Slice() {
 		if t1.Sym != f.Sym {
 			i++
 			continue

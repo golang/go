@@ -1788,7 +1788,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
 // helpers for shape errors
 func dumptypes(nl *Type, what string) string {
 	s := ""
-	for l, it := IterFields(nl); l != nil; l = it.Next() {
+	for _, l := range nl.Fields().Slice() {
 		if s != "" {
 			s += ", "
 		}
@@ -1842,7 +1842,7 @@ func ascompatte(op Op, call *Node, isddd bool, nl *Type, lr []*Node, fp int, ini
 		// copy into temporaries.
 		var alist []*Node
 
-		for l, it := IterFields(r.Type); l != nil; l = it.Next() {
+		for _, l := range r.Type.Fields().Slice() {
 			tmp := temp(l.Type)
 			alist = append(alist, tmp)
 		}
@@ -2560,7 +2560,7 @@ func vmatch1(l *Node, r *Node) bool {
 // stack memory addresses.
 func paramstoheap(params *Type, out bool) []*Node {
 	var nn []*Node
-	for t, it := IterFields(params); t != nil; t = it.Next() {
+	for _, t := range params.Fields().Slice() {
 		v := t.Nname
 		if v != nil && v.Sym != nil && strings.HasPrefix(v.Sym.Name, "~r") { // unnamed result
 			v = nil
@@ -2603,7 +2603,7 @@ func paramstoheap(params *Type, out bool) []*Node {
 // back to the stack.
 func returnsfromheap(params *Type) []*Node {
 	var nn []*Node
-	for t, it := IterFields(params); t != nil; t = it.Next() {
+	for _, t := range params.Fields().Slice() {
 		v := t.Nname
 		if v == nil || v.Class != PHEAP|PPARAMOUT {
 			continue
@@ -3223,7 +3223,7 @@ func walkcompare(np **Node, init *Nodes) {
 		// Inline comparisons.
 		var li *Node
 		var ri *Node
-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+		for _, t1 := range t.Fields().Slice() {
 			if isblanksym(t1.Sym) {
 				continue
 			}

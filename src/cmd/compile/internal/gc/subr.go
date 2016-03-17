@@ -1570,7 +1570,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 
 	c := 0
 	if u.Etype == TSTRUCT || u.Etype == TINTER {
-		for f, it := IterFields(u); f != nil; f = it.Next() {
+		for _, f := range u.Fields().Slice() {
 			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
@@ -1582,7 +1582,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 
 	u = methtype(t, 0)
 	if u != nil {
-		for f, it := IterMethods(u); f != nil; f = it.Next() {
+		for _, f := range u.Methods().Slice() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
 				if save != nil {
 					*save = f
@@ -1627,7 +1627,7 @@ func adddot1(s *Sym, t *Type, d int, save **Field, ignorecase bool) (c int, more
 		goto out
 	}
 
-	for f, it := IterFields(u); f != nil; f = it.Next() {
+	for _, f := range u.Fields().Slice() {
 		if f.Embedded == 0 || f.Sym == nil {
 			continue
 		}
@@ -1738,7 +1738,7 @@ func expand0(t *Type, followptr bool) {
 	}
 
 	if u.Etype == TINTER {
-		for f, it := IterFields(u); f != nil; f = it.Next() {
+		for _, f := range u.Fields().Slice() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
 			}
@@ -1751,7 +1751,7 @@ func expand0(t *Type, followptr bool) {
 
 	u = methtype(t, 0)
 	if u != nil {
-		for f, it := IterMethods(u); f != nil; f = it.Next() {
+		for _, f := range u.Methods().Slice() {
 			if f.Sym.Flags&SymUniq != 0 {
 				continue
 			}
@@ -1781,7 +1781,7 @@ func expand1(t *Type, top, followptr bool) {
 		goto out
 	}
 
-	for f, it := IterFields(u); f != nil; f = it.Next() {
+	for _, f := range u.Fields().Slice() {
 		if f.Embedded == 0 {
 			continue
 		}
@@ -1802,7 +1802,7 @@ func expandmeth(t *Type) {
 
 	// mark top-level method symbols
 	// so that expand1 doesn't consider them.
-	for f, it := IterMethods(t); f != nil; f = it.Next() {
+	for _, f := range t.Methods().Slice() {
 		f.Sym.Flags |= SymUniq
 	}
 
@@ -1835,7 +1835,7 @@ func expandmeth(t *Type) {
 		ms = append(ms, f)
 	}
 
-	for f, it := IterMethods(t); f != nil; f = it.Next() {
+	for _, f := range t.Methods().Slice() {
 		f.Sym.Flags &^= SymUniq
 	}
 
@@ -1847,7 +1847,7 @@ func expandmeth(t *Type) {
 func structargs(tl *Type, mustname bool) []*Node {
 	var args []*Node
 	gen := 0
-	for t, it := IterFields(tl); t != nil; t = it.Next() {
+	for _, t := range tl.Fields().Slice() {
 		var n *Node
 		if mustname && (t.Sym == nil || t.Sym.Name == "_") {
 			// invent a name so that we can refer to it in the trampoline
@@ -2085,8 +2085,8 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 	// and then do one loop.
 
 	if t.Etype == TINTER {
-		for im, it := IterFields(iface); im != nil; im = it.Next() {
-			for tm, it2 := IterFields(t); tm != nil; tm = it2.Next() {
+		for _, im := range iface.Fields().Slice() {
+			for _, tm := range t.Fields().Slice() {
 				if tm.Sym == im.Sym {
 					if Eqtype(tm.Type, im.Type) {
 						goto found
@@ -2112,7 +2112,7 @@ func implements(t, iface *Type, m, samename **Field, ptr *int) bool {
 	if t != nil {
 		expandmeth(t)
 	}
-	for im, it := IterFields(iface); im != nil; im = it.Next() {
+	for _, im := range iface.Fields().Slice() {
 		if im.Broke {
 			continue
 		}
