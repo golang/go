@@ -279,3 +279,59 @@ func TestEvalSymlinksCanonicalNamesWith8dot3Disabled(t *testing.T) {
 	}
 	TestEvalSymlinksCanonicalNames(t)
 }
+
+func TestToNorm(t *testing.T) {
+	stubBase := func(path string) (string, error) {
+		vol := filepath.VolumeName(path)
+		path = path[len(vol):]
+
+		if strings.Contains(path, "/") {
+			return "", fmt.Errorf("invalid path is given to base: %s", vol+path)
+		}
+
+		if path == "" || path == "." || path == `\` {
+			return "", fmt.Errorf("invalid path is given to base: %s", vol+path)
+		}
+
+		i := strings.LastIndexByte(path, filepath.Separator)
+		if i == len(path)-1 { // trailing '\' is invalid
+			return "", fmt.Errorf("invalid path is given to base: %s", vol+path)
+		}
+		if i == -1 {
+			return strings.ToUpper(path), nil
+		}
+
+		return strings.ToUpper(path[i+1:]), nil
+	}
+
+	// On this test, toNorm should be same as string.ToUpper(filepath.Clean(path)) except empty string.
+	tests := []struct {
+		arg  string
+		want string
+	}{
+		{"", ""},
+		{".", "."},
+		{"./foo/bar", `FOO\BAR`},
+		{"/", `\`},
+		{"/foo/bar", `\FOO\BAR`},
+		{"/foo/bar/baz/qux", `\FOO\BAR\BAZ\QUX`},
+		{"foo/bar", `FOO\BAR`},
+		{"C:/foo/bar", `C:\FOO\BAR`},
+		{"C:foo/bar", `C:FOO\BAR`},
+		{"c:/foo/bar", `C:\FOO\BAR`},
+		{"C:/foo/bar", `C:\FOO\BAR`},
+		{"C:/foo/bar/", `C:\FOO\BAR`},
+		{`C:\foo\bar`, `C:\FOO\BAR`},
+		{`C:\foo/bar\`, `C:\FOO\BAR`},
+		{"C:/ふー/バー", `C:\ふー\バー`},
+	}
+
+	for _, test := range tests {
+		got, err := filepath.ToNorm(test.arg, stubBase)
+		if err != nil {
+			t.Errorf("unexpected toNorm error, arg: %s, err: %v\n", test.arg, err)
+		} else if got != test.want {
+			t.Errorf("toNorm error, arg: %s, want: %s, got: %s\n", test.arg, test.want, got)
+		}
+	}
+}
