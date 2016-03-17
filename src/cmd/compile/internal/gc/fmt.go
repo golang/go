@@ -630,7 +630,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		if flag&FmtShort != 0 {
 			// no leading func
 		} else {
-			if t.Thistuple != 0 {
+			if t.Recv() != nil {
 				buf.WriteString("method")
 				buf.WriteString(Tconv(t.Recvs(), 0))
 				buf.WriteString(" ")
@@ -639,7 +639,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 		}
 		buf.WriteString(Tconv(t.Params(), 0))
 
-		switch t.Outtuple {
+		switch t.Results().NumFields() {
 		case 0:
 			break
 

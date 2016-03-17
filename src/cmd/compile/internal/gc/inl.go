@@ -34,7 +34,7 @@ import (
 // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
 // the ->sym can be re-used in the local package, so peel it off the receiver's type.
 func fnpkg(fn *Node) *Pkg {
-	if fn.Type.Thistuple != 0 {
+	if fn.Type.Recv() != nil {
 		// method
 		rcvr := fn.Type.Recv().Type
 
@@ -592,7 +592,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	}
 
 	// assign receiver.
-	if fn.Type.Thistuple != 0 && n.Left.Op == ODOTMETH {
+	if fn.Type.Recv() != nil && n.Left.Op == ODOTMETH {
 		// method call with a receiver.
 		t := fn.Type.Recv()
 
@@ -635,8 +635,8 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	if n.List.Len() == 1 {
 		switch n.List.First().Op {
 		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
-			if n.List.First().Left.Type.Outtuple > 1 {
-				multiret = n.List.First().Left.Type.Outtuple - 1
+			if n.List.First().Left.Type.Results().NumFields() > 1 {
+				multiret = n.List.First().Left.Type.Results().NumFields() - 1
 			}
 		}
 	}
@@ -644,9 +644,9 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	if variadic {
 		varargcount = n.List.Len() + multiret
 		if n.Left.Op != ODOTMETH {
-			varargcount -= fn.Type.Thistuple
+			varargcount -= fn.Type.Recvs().NumFields()
 		}
-		varargcount -= fn.Type.Intuple - 1
+		varargcount -= fn.Type.Params().NumFields() - 1
 	}
 
 	// assign arguments to the parameters' temp names
@@ -656,7 +656,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	li := 0
 
 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
-	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
+	if fn.Type.Recv() != nil && n.Left.Op != ODOTMETH {
 		// non-method call to method
 		if n.List.Len() == 0 {
 			Fatalf("non-method call to method without first arg: %v", Nconv(n, FmtSign))

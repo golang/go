@@ -810,7 +810,7 @@ func esc(e *EscState, n *Node, up *Node) {
 
 	case ORETURN:
 		ll := n.List
-		if n.List.Len() == 1 && Curfn.Type.Outtuple > 1 {
+		if n.List.Len() == 1 && Curfn.Type.Results().NumFields() > 1 {
 			// OAS2FUNC in disguise
 			// esccall already done on n->list->n
 			// tie n->list->n->escretval to curfn->dcl PPARAMOUT's

@@ -130,7 +130,7 @@ func reexportdep(n *Node) {
 			}
 
 			// nodes for method calls.
-			if n.Type == nil || n.Type.Thistuple > 0 {
+			if n.Type == nil || n.Type.Recv() != nil {
 				break
 			}
 			fallthrough

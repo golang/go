@@ -1556,7 +1556,7 @@ func lookdot0(s *Sym, t *Type, save **Field, ignorecase bool) int {
 	c := 0
 	if u.Etype == TSTRUCT || u.Etype == TINTER {
 		for _, f := range u.Fields().Slice() {
-			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Thistuple > 0 && strings.EqualFold(f.Sym.Name, s.Name)) {
+			if f.Sym == s || (ignorecase && f.Type.Etype == TFUNC && f.Type.Recv() != nil && strings.EqualFold(f.Sym.Name, s.Name)) {
 				if save != nil {
 					*save = f
 				}
@@ -1807,7 +1807,7 @@ func expandmeth(t *Type) {
 		}
 
 		// dotpath may have dug out arbitrary fields, we only want methods.
-		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
+		if f.Type.Etype != TFUNC || f.Type.Recv() == nil {
 			continue
 		}
 
@@ -1981,7 +1981,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		call := Nod(OCALL, dot, nil)
 		call.List.Set(args)
 		call.Isddd = isddd
-		if method.Type.Outtuple > 0 {
+		if method.Type.Results().NumFields() > 0 {
 			n := Nod(ORETURN, nil, nil)
 			n.List.Set1(call)
 			call = n
@@ -2051,7 +2051,7 @@ func ifacelookdot(s *Sym, t *Type, followptr *bool, ignorecase bool) *Field {
 		}
 	}
 
-	if m.Type.Etype != TFUNC || m.Type.Thistuple == 0 {
+	if m.Type.Etype != TFUNC || m.Type.Recv() == nil {
 		Yyerror("%v.%v is a field, not a method", t, s)
 		return nil
 	}

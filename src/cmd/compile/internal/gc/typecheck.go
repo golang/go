@@ -845,7 +845,7 @@ OpSwitch:
 				return
 			}
 
-			if n.Type.Etype != TFUNC || n.Type.Thistuple != 1 {
+			if n.Type.Etype != TFUNC || n.Type.Recv() == nil {
 				Yyerror("type %v has no method %v", n.Left.Type, Sconv(n.Right.Sym, FmtShort))
 				n.Type = nil
 				n.Type = nil
@@ -1327,11 +1327,11 @@ OpSwitch:
 
 		typecheckaste(OCALL, n.Left, n.Isddd, t.Params(), n.List, func() string { return fmt.Sprintf("argument to %v", n.Left) })
 		ok |= Etop
-		if t.Outtuple == 0 {
+		if t.Results().NumFields() == 0 {
 			break OpSwitch
 		}
 		ok |= Erv
-		if t.Outtuple == 1 {
+		if t.Results().NumFields() == 1 {
 			n.Type = l.Type.Results().Field(0).Type
 
 			if n.Op == OCALLFUNC && n.Left.Op == ONAME && (compiling_runtime != 0 || n.Left.Sym.Pkg == Runtimepkg) && n.Left.Sym.Name == "getg" {
@@ -1445,8 +1445,8 @@ OpSwitch:
 			}
 
 			t := n.List.First().Left.Type
-			if t.Outtuple != 2 {
-				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Outtuple)
+			if t.Results().NumFields() != 2 {
+				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
 				n.Type = nil
 				return
 			}
@@ -3957,7 +3957,7 @@ func (n *Node) isterminating() bool {
 }
 
 func checkreturn(fn *Node) {
-	if fn.Type.Outtuple != 0 && len(fn.Nbody.Slice()) != 0 {
+	if fn.Type.Results().NumFields() != 0 && len(fn.Nbody.Slice()) != 0 {
 		markbreaklist(fn.Nbody, nil)
 		if !fn.Nbody.isterminating() {
 			yyerrorl(fn.Func.Endlineno, "missing return at end of function")
