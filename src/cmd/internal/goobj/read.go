@@ -43,6 +43,7 @@ const (
 	SRODATA    SymKind = obj.SRODATA
 	SFUNCTAB   SymKind = obj.SFUNCTAB
 	STYPELINK  SymKind = obj.STYPELINK
+	SITABLINK  SymKind = obj.SITABLINK
 	SSYMTAB    SymKind = obj.SSYMTAB // TODO: move to unmapped section
 	SPCLNTAB   SymKind = obj.SPCLNTAB
 	SELFROSECT SymKind = obj.SELFROSECT
@@ -106,6 +107,7 @@ var symKindStrings = []string{
 	STLSBSS:           "STLSBSS",
 	STYPE:             "STYPE",
 	STYPELINK:         "STYPELINK",
+	SITABLINK:         "SITABLINK",
 	SWINDOWS:          "SWINDOWS",
 	SXREF:             "SXREF",
 }
