@@ -592,7 +592,7 @@ func Isinter(t *Type) bool {
 }
 
 func isnilinter(t *Type) bool {
-	return Isinter(t) && countfield(t) == 0
+	return Isinter(t) && t.NumFields() == 0
 }
 
 func isideal(t *Type) bool {
@@ -2388,7 +2388,7 @@ func isdirectiface(t *Type) bool {
 
 	case TSTRUCT:
 		// Struct with 1 field of direct iface type can be direct.
-		return countfield(t) == 1 && isdirectiface(t.Field(0).Type)
+		return t.NumFields() == 1 && isdirectiface(t.Field(0).Type)
 	}
 
 	return false

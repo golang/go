@@ -1742,7 +1742,7 @@ func ascompatet(op Op, nl Nodes, nr *Type, fp int, init *Nodes) []*Node {
 	}
 
 	if i < nl.Len() || r != nil {
-		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), structcount(nr))
+		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), nr.NumFields())
 	}
 
 	if ullmanOverflow {
@@ -3225,7 +3225,7 @@ func walkcompare(np **Node, init *Nodes) {
 		}
 	}
 
-	if t.Etype == TSTRUCT && countfield(t) <= 4 {
+	if t.Etype == TSTRUCT && t.NumFields() <= 4 {
 		// Struct of four or fewer fields.
 		// Inline comparisons.
 		var li *Node
@@ -3771,16 +3771,16 @@ func usemethod(n *Node) {
 	//
 	// TODO(crawshaw): improve precision of match by working out
 	//                 how to check the method name.
-	if n := countfield(t.Params()); n != 1 {
+	if n := t.Params().NumFields(); n != 1 {
 		return
 	}
-	if n := countfield(t.Results()); n != 1 && n != 2 {
+	if n := t.Results().NumFields(); n != 1 && n != 2 {
 		return
 	}
 	p0 := t.Params().Field(0)
 	res0 := t.Results().Field(0)
 	var res1 *Field
-	if countfield(t.Results()) == 2 {
+	if t.Results().NumFields() == 2 {
 		res1 = t.Results().Field(1)
 	}
 

@@ -2597,8 +2597,8 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 		if n.Type != nil {
 			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
 				if !hasddd(tstruct) {
-					n1 := downcount(tstruct)
-					n2 := downcount(n.Type)
+					n1 := tstruct.NumFields()
+					n2 := n.Type.NumFields()
 					if n2 > n1 {
 						goto toomany
 					}
@@ -2646,7 +2646,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc 
 		}
 	}
 
-	n1 = downcount(tstruct)
+	n1 = tstruct.NumFields()
 	n2 = nl.Len()
 	if !hasddd(tstruct) {
 		if n2 > n1 {
@@ -3347,7 +3347,7 @@ func typecheckas2(n *Node) {
 			if r.Type.Etype != TSTRUCT || !r.Type.Funarg {
 				break
 			}
-			cr = structcount(r.Type)
+			cr = r.Type.NumFields()
 			if cr != cl {
 				goto mismatch
 			}
