@@ -656,7 +656,7 @@ func funcargs2(t *Type) {
 	}
 
 	if t.Thistuple != 0 {
-		for ft, it := IterFields(t.Recvs()); ft != nil; ft = it.Next() {
+		for _, ft := range t.Recvs().Fields().Slice() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
@@ -667,7 +667,7 @@ func funcargs2(t *Type) {
 	}
 
 	if t.Intuple != 0 {
-		for ft, it := IterFields(t.Params()); ft != nil; ft = it.Next() {
+		for _, ft := range t.Params().Fields().Slice() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
@@ -678,7 +678,7 @@ func funcargs2(t *Type) {
 	}
 
 	if t.Outtuple != 0 {
-		for ft, it := IterFields(t.Results()); ft != nil; ft = it.Next() {
+		for _, ft := range t.Results().Fields().Slice() {
 			if ft.Nname == nil || ft.Nname.Sym == nil {
 				continue
 			}
@@ -803,7 +803,7 @@ func checkdupfields(what string, ts ...*Type) {
 
 	seen := make(map[*Sym]bool)
 	for _, t := range ts {
-		for f, it := IterFields(t); f != nil; f = it.Next() {
+		for _, f := range t.Fields().Slice() {
 			if f.Sym == nil || f.Nname == nil || isblank(f.Nname) {
 				continue
 			}
@@ -962,7 +962,7 @@ func tointerface0(t *Type, l []*Node) *Type {
 
 		if n.Left == nil && f.Type.Etype == TINTER {
 			// embedded interface, inline methods
-			for t1, it := IterFields(f.Type); t1 != nil; t1 = it.Next() {
+			for _, t1 := range f.Type.Fields().Slice() {
 				f = newField()
 				f.Type = t1.Type
 				f.Broke = t1.Broke
@@ -1258,7 +1258,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	}
 
 	if pa.Etype == TSTRUCT {
-		for f, it := IterFields(pa); f != nil; f = it.Next() {
+		for _, f := range pa.Fields().Slice() {
 			if f.Sym == msym {
 				Yyerror("type %v has both field and method named %v", pa, msym)
 				return
@@ -1269,7 +1269,7 @@ func addmethod(msym *Sym, t *Type, tpkg *Pkg, local, nointerface bool) {
 	n := Nod(ODCLFIELD, newname(msym), nil)
 	n.Type = t
 
-	for f, it := IterMethods(pa); f != nil; f = it.Next() {
+	for _, f := range pa.Methods().Slice() {
 		if msym.Name != f.Sym.Name {
 			continue
 		}

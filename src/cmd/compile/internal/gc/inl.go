@@ -110,7 +110,7 @@ func caninl(fn *Node) {
 
 	// can't handle ... args yet
 	if Debug['l'] < 3 {
-		for t, it := IterFields(fn.Type.Params()); t != nil; t = it.Next() {
+		for _, t := range fn.Type.Params().Fields().Slice() {
 			if t.Isddd {
 				return
 			}
@@ -576,7 +576,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	// temporaries for return values.
 	var m *Node
-	for t, it := IterFields(fn.Type.Results()); t != nil; t = it.Next() {
+	for _, t := range fn.Type.Results().Fields().Slice() {
 		if t != nil && t.Nname != nil && !isblank(t.Nname) {
 			m = inlvar(t.Nname)
 			typecheck(&m, Erv)
@@ -617,7 +617,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 
 	var varargtype *Type
 	varargcount := 0
-	for t, it := IterFields(fn.Type.Params()); t != nil; t = it.Next() {
+	for _, t := range fn.Type.Params().Fields().Slice() {
 		if t.Isddd {
 			variadic = true
 			varargtype = t.Type
@@ -683,7 +683,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
 	if !chkargcount {
 		// 0 or 1 expression on RHS.
 		var i int
-		for t, it2 := IterFields(fn.Type.Params()); t != nil; t = it2.Next() {
+		for _, t := range fn.Type.Params().Fields().Slice() {
 			if variadic && t.Isddd {
 				vararg = tinlvar(t)
 				for i = 0; i < varargcount && li < n.List.Len(); i++ {

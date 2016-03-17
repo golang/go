@@ -1386,7 +1386,7 @@ func initEscretval(e *EscState, n *Node, fntype *Type) {
 	i := 0
 	nE := e.nodeEscState(n)
 	nE.Escretval.Set(nil) // Suspect this is not nil for indirect calls.
-	for t, it := IterFields(fntype.Results()); t != nil; t = it.Next() {
+	for _, t := range fntype.Results().Fields().Slice() {
 		src := Nod(ONAME, nil, nil)
 		buf := fmt.Sprintf(".out%d", i)
 		i++
@@ -1967,7 +1967,7 @@ func esctag(e *EscState, func_ *Node) {
 	// unless //go:noescape is given before the declaration.
 	if len(func_.Nbody.Slice()) == 0 {
 		if func_.Noescape {
-			for t, it := IterFields(func_.Type.Params()); t != nil; t = it.Next() {
+			for _, t := range func_.Type.Params().Fields().Slice() {
 				if haspointers(t.Type) {
 					t.Note = mktag(EscNone)
 				}
@@ -1981,7 +1981,7 @@ func esctag(e *EscState, func_ *Node) {
 		// but we are reusing the ability to annotate an individual function
 		// argument and pass those annotations along to importing code.
 		narg := 0
-		for t, it := IterFields(func_.Type.Params()); t != nil; t = it.Next() {
+		for _, t := range func_.Type.Params().Fields().Slice() {
 			narg++
 			if t.Type.Etype == TUINTPTR {
 				if Debug['m'] != 0 {

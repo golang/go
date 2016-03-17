@@ -263,13 +263,6 @@ func IterFields(t *Type) (*Field, Iter) {
 	return t.Fields().Iter()
 }
 
-// IterMethods returns the first method in type t's method set
-// and an Iter value to continue iterating across the rest.
-// IterMethods does not include promoted methods.
-func IterMethods(t *Type) (*Field, Iter) {
-	return t.Methods().Iter()
-}
-
 // Iter returns the first field in fs and an Iter value to continue iterating
 // across its successor fields.
 // Deprecated: New code should use Slice instead.

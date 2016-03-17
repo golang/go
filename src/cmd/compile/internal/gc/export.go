@@ -294,7 +294,7 @@ func dumpexporttype(t *Type) {
 
 	switch t.Etype {
 	case TSTRUCT, TINTER:
-		for f, it := IterFields(t); f != nil; f = it.Next() {
+		for _, f := range t.Fields().Slice() {
 			dumpexporttype(f.Type)
 		}
 	case TFUNC:
@@ -313,7 +313,7 @@ func dumpexporttype(t *Type) {
 	}
 
 	var m []*Field
-	for f, it := IterMethods(t); f != nil; f = it.Next() {
+	for _, f := range t.Methods().Slice() {
 		dumpexporttype(f.Type)
 		m = append(m, f)
 	}
@@ -601,7 +601,7 @@ func dumpasmhdr() {
 				break
 			}
 			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
-			for t, it := IterFields(t); t != nil; t = it.Next() {
+			for _, t := range t.Fields().Slice() {
 				if !isblanksym(t.Sym) {
 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Width))
 				}

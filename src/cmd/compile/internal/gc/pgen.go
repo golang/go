@@ -377,7 +377,7 @@ func compile(fn *Node) {
 
 	if Curfn.Type.Outnamed {
 		// add clearing of the output parameters
-		for t, it := IterFields(Curfn.Type.Results()); t != nil; t = it.Next() {
+		for _, t := range Curfn.Type.Results().Fields().Slice() {
 			if t.Nname != nil {
 				n := Nod(OAS, t.Nname, nil)
 				typecheck(&n, Etop)
