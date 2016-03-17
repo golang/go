@@ -602,24 +602,24 @@ func typefmt(t *Type, flag FmtFlag) string {
 	case TINTER:
 		var buf bytes.Buffer
 		buf.WriteString("interface {")
-		for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
+		for i, f := range t.Fields().Slice() {
+			if i != 0 {
+				buf.WriteString(";")
+			}
 			buf.WriteString(" ")
 			switch {
-			case t1.Sym == nil:
+			case f.Sym == nil:
 				// Check first that a symbol is defined for this type.
 				// Wrong interface definitions may have types lacking a symbol.
 				break
-			case exportname(t1.Sym.Name):
-				buf.WriteString(Sconv(t1.Sym, FmtShort))
+			case exportname(f.Sym.Name):
+				buf.WriteString(Sconv(f.Sym, FmtShort))
 			default:
-				buf.WriteString(Sconv(t1.Sym, FmtUnsigned))
+				buf.WriteString(Sconv(f.Sym, FmtUnsigned))
 			}
-			buf.WriteString(Tconv(t1.Type, FmtShort))
-			if t1.Down != nil {
-				buf.WriteString(";")
-			}
+			buf.WriteString(Tconv(f.Type, FmtShort))
 		}
-		if t.Fields != nil {
+		if t.NumFields() != 0 {
 			buf.WriteString(" ")
 		}
 		buf.WriteString("}")
@@ -679,32 +679,27 @@ func typefmt(t *Type, flag FmtFlag) string {
 		var buf bytes.Buffer
 		if t.Funarg {
 			buf.WriteString("(")
+			var flag1 FmtFlag
 			if fmtmode == FTypeId || fmtmode == FErr { // no argument names on function signature, and no "noescape"/"nosplit" tags
-				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
-					buf.WriteString(Fldconv(t1, FmtShort))
-					if t1.Down != nil {
-						buf.WriteString(", ")
-					}
+				flag1 = FmtShort
+			}
+			for i, f := range t.Fields().Slice() {
+				if i != 0 {
+					buf.WriteString(", ")
 				}
-			} else {
-				for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
-					buf.WriteString(Fldconv(t1, 0))
-					if t1.Down != nil {
-						buf.WriteString(", ")
-					}
-				}
+				buf.WriteString(Fldconv(f, flag1))
 			}
 			buf.WriteString(")")
 		} else {
 			buf.WriteString("struct {")
-			for t1, it := IterFields(t); t1 != nil; t1 = it.Next() {
-				buf.WriteString(" ")
-				buf.WriteString(Fldconv(t1, FmtLong))
-				if t1.Down != nil {
+			for i, f := range t.Fields().Slice() {
+				if i != 0 {
 					buf.WriteString(";")
 				}
+				buf.WriteString(" ")
+				buf.WriteString(Fldconv(f, FmtLong))
 			}
-			if t.Fields != nil {
+			if t.NumFields() != 0 {
 				buf.WriteString(" ")
 			}
 			buf.WriteString("}")

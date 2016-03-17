@@ -123,8 +123,8 @@ type Type struct {
 	Intuple   int
 	Outnamed  bool
 
-	Method  *Field
-	Xmethod *Field
+	methods    Fields
+	allMethods Fields
 
 	Sym    *Sym
 	Vargen int32 // unique name for OTYPE/ONAME
@@ -137,7 +137,7 @@ type Type struct {
 	Width int64
 
 	// TSTRUCT
-	Fields *Field // first struct field
+	fields Fields
 
 	Down *Type // key type in TMAP; next struct in Funarg TSTRUCT
 
@@ -172,7 +172,48 @@ type Field struct {
 	Type  *Type   // field type
 	Width int64   // TODO(mdempsky): Rename to offset.
 	Note  *string // literal string annotation
-	Down  *Field  // next struct field
+}
+
+// Fields is a pointer to a slice of *Field.
+// This saves space in Types that do not have fields or methods
+// compared to a simple slice of *Field.
+type Fields struct {
+	s *[]*Field
+}
+
+// Len returns the number of entries in f.
+func (f *Fields) Len() int {
+	if f.s == nil {
+		return 0
+	}
+	return len(*f.s)
+}
+
+// Slice returns the entries in f as a slice.
+// Changes to the slice entries will be reflected in f.
+func (f *Fields) Slice() []*Field {
+	if f.s == nil {
+		return nil
+	}
+	return *f.s
+}
+
+// Set sets f to a slice.
+// This takes ownership of the slice.
+func (f *Fields) Set(s []*Field) {
+	if len(s) != 0 {
+		f.s = &s
+	} else {
+		f.s = nil
+	}
+}
+
+// Append appends entries to f.
+func (f *Fields) Append(s ...*Field) {
+	if f.s == nil {
+		f.s = new([]*Field)
+	}
+	*f.s = append(*f.s, s...)
 }
 
 // typ returns a new Type of the specified kind.
@@ -213,49 +254,38 @@ func (f *Field) Copy() *Field {
 // Iter provides an abstraction for iterating across struct fields and
 // interface methods.
 type Iter struct {
-	x *Field
+	s []*Field
 }
 
 // IterFields returns the first field or method in struct or interface type t
 // and an Iter value to continue iterating across the rest.
 func IterFields(t *Type) (*Field, Iter) {
-	if t.Etype != TSTRUCT && t.Etype != TINTER {
-		Fatalf("IterFields: type %v does not have fields", t)
-	}
-	return RawIter(t.Fields)
+	return t.Fields().Iter()
 }
 
 // IterMethods returns the first method in type t's method set
 // and an Iter value to continue iterating across the rest.
 // IterMethods does not include promoted methods.
 func IterMethods(t *Type) (*Field, Iter) {
-	// TODO(mdempsky): Validate t?
-	return RawIter(t.Method)
+	return t.Methods().Iter()
 }
 
-// IterAllMethods returns the first (possibly promoted) method in type t's
-// method set and an Iter value to continue iterating across the rest.
-func IterAllMethods(t *Type) (*Field, Iter) {
-	// TODO(mdempsky): Validate t?
-	return RawIter(t.Xmethod)
-}
-
-// RawIter returns field t and an Iter value to continue iterating across
-// its successor fields. Most code should instead use one of the IterXXX
-// functions above.
-func RawIter(t *Field) (*Field, Iter) {
-	i := Iter{x: t}
+// Iter returns the first field in fs and an Iter value to continue iterating
+// across its successor fields.
+// Deprecated: New code should use Slice instead.
+func (fs *Fields) Iter() (*Field, Iter) {
+	i := Iter{s: fs.Slice()}
 	f := i.Next()
 	return f, i
 }
 
 // Next returns the next field or method, if any.
 func (i *Iter) Next() *Field {
-	if i.x == nil {
+	if len(i.s) == 0 {
 		return nil
 	}
-	f := i.x
-	i.x = f.Down
+	f := i.s[0]
+	i.s = i.s[1:]
 	return f
 }
 
@@ -311,40 +341,37 @@ func (t *Type) Key() *Type {
 	return t.Down
 }
 
+func (t *Type) Methods() *Fields {
+	// TODO(mdempsky): Validate t?
+	return &t.methods
+}
+
+func (t *Type) AllMethods() *Fields {
+	// TODO(mdempsky): Validate t?
+	return &t.allMethods
+}
+
+func (t *Type) Fields() *Fields {
+	if t.Etype != TSTRUCT && t.Etype != TINTER {
+		Fatalf("Fields: type %v does not have fields", t)
+	}
+	return &t.fields
+}
+
 // Field returns the i'th field/method of struct/interface type t.
 func (t *Type) Field(i int) *Field {
-	// TODO: store fields in a slice so we can
-	// look them up by index in constant time.
-	for f, it := IterFields(t); f != nil; f = it.Next() {
-		if i == 0 {
-			return f
-		}
-		i--
-	}
-	panic("not enough fields")
+	return t.Fields().Slice()[i]
 }
 
 // FieldSlice returns a slice of containing all fields/methods of
 // struct/interface type t.
 func (t *Type) FieldSlice() []*Field {
-	var s []*Field
-	for f, it := IterFields(t); f != nil; f = it.Next() {
-		s = append(s, f)
-	}
-	return s
+	return t.Fields().Slice()
 }
 
 // SetFields sets struct/interface type t's fields/methods to fields.
 func (t *Type) SetFields(fields []*Field) {
-	if t.Etype != TSTRUCT && t.Etype != TINTER {
-		Fatalf("SetFields: type %v does not have fields", t)
-	}
-	var next *Field
-	for i := len(fields) - 1; i >= 0; i-- {
-		fields[i].Down = next
-		next = fields[i]
-	}
-	t.Fields = next
+	t.Fields().Set(fields)
 }
 
 func (t *Type) Size() int64 {
@@ -649,11 +676,7 @@ func (t *Type) PtrTo() ssa.Type {
 }
 
 func (t *Type) NumFields() int {
-	n := 0
-	for f, it := IterFields(t); f != nil; f = it.Next() {
-		n++
-	}
-	return n
+	return t.Fields().Len()
 }
 func (t *Type) FieldType(i int) ssa.Type {
 	return t.Field(i).Type
