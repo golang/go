@@ -210,7 +210,7 @@ func Errorf(format string, a ...interface{}) error {
 // It returns the number of bytes written and any write error encountered.
 func Fprint(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
-	p.doPrint(a, false, false)
+	p.doPrint(a)
 	n, err = w.Write(p.buf)
 	p.free()
 	return
@@ -227,7 +227,7 @@ func Print(a ...interface{}) (n int, err error) {
 // Spaces are added between operands when neither is a string.
 func Sprint(a ...interface{}) string {
 	p := newPrinter()
-	p.doPrint(a, false, false)
+	p.doPrint(a)
 	s := string(p.buf)
 	p.free()
 	return s
@@ -242,7 +242,7 @@ func Sprint(a ...interface{}) string {
 // It returns the number of bytes written and any write error encountered.
 func Fprintln(w io.Writer, a ...interface{}) (n int, err error) {
 	p := newPrinter()
-	p.doPrint(a, true, true)
+	p.doPrintln(a)
 	n, err = w.Write(p.buf)
 	p.free()
 	return
@@ -259,7 +259,7 @@ func Println(a ...interface{}) (n int, err error) {
 // Spaces are always added between operands and a newline is appended.
 func Sprintln(a ...interface{}) string {
 	p := newPrinter()
-	p.doPrint(a, true, true)
+	p.doPrintln(a)
 	s := string(p.buf)
 	p.free()
 	return s
@@ -1127,20 +1127,27 @@ formatLoop:
 	}
 }
 
-func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
+func (p *pp) doPrint(a []interface{}) {
 	prevString := false
 	for argNum, arg := range a {
-		p.fmt.clearflags()
 		isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
-		// Add a space between two non-string arguments or if
-		// explicitly asked for by addspace.
-		if argNum > 0 && (addspace || (!isString && !prevString)) {
+		// Add a space between two non-string arguments.
+		if argNum > 0 && !isString && !prevString {
 			p.buf.WriteByte(' ')
 		}
 		p.printArg(arg, 'v')
 		prevString = isString
 	}
-	if addnewline {
-		p.buf.WriteByte('\n')
+}
+
+// doPrintln is like doPrint but always adds a space between arguments
+// and a newline after the last argument.
+func (p *pp) doPrintln(a []interface{}) {
+	for argNum, arg := range a {
+		if argNum > 0 {
+			p.buf.WriteByte(' ')
+		}
+		p.printArg(arg, 'v')
 	}
+	p.buf.WriteByte('\n')
 }
