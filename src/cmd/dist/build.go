@@ -31,6 +31,7 @@ var (
 	goroot           string
 	goroot_final     string
 	goextlinkenabled string
+	gogcflags        string // For running built compiler
 	workdir          string
 	tooldir          string
 	oldgoos          string
@@ -165,6 +166,8 @@ func xinit() {
 		}
 		goextlinkenabled = b
 	}
+
+	gogcflags = os.Getenv("GO_GCFLAGS")
 
 	b = os.Getenv("CC")
 	if b == "" {
@@ -687,6 +690,9 @@ func install(dir string) {
 		archive = b
 	}
 	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+	if gogcflags != "" {
+		compile = append(compile, gogcflags)
+	}
 	if dir == "runtime" {
 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
 	}
