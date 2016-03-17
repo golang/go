@@ -1219,30 +1219,15 @@ func syslook(name string) *Node {
 	return s.Def
 }
 
-// compute a hash value for type t.
-// if t is a method type, ignore the receiver
-// so that the hash can be used in interface checks.
-// %T already contains
-// all the necessary logic to generate a representation
-// of the type that completely describes it.
-// using smprint here avoids duplicating that code.
-// using md5 here is overkill, but i got tired of
-// accidental collisions making the runtime think
-// two types are equal when they really aren't.
+// typehash computes a hash value for type t to use in type switch
+// statements.
 func typehash(t *Type) uint32 {
-	var p string
+	// Tconv already contains all the necessary logic to generate
+	// a representation that completely describes the type, so using
+	// it here avoids duplicating that code.
+	p := Tconv(t, FmtLeft|FmtUnsigned)
 
-	if t.Thistuple != 0 {
-		// hide method receiver from Tpretty
-		t.Thistuple = 0
-
-		p = Tconv(t, FmtLeft|FmtUnsigned)
-		t.Thistuple = 1
-	} else {
-		p = Tconv(t, FmtLeft|FmtUnsigned)
-	}
-
-	//print("typehash: %s\n", p);
+	// Using MD5 is overkill, but reduces accidental collisions.
 	h := md5.Sum([]byte(p))
 	return binary.LittleEndian.Uint32(h[:4])
 }
