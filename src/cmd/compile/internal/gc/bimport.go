@@ -509,6 +509,9 @@ func (p *importer) value(typ *Type) (x Val) {
 	case stringTag:
 		x.U = p.string()
 
+	case unknownTag:
+		Fatalf("importer: unknown constant (importing package with errors)")
+
 	case nilTag:
 		x.U = new(NilVal)
 

@@ -1190,6 +1190,7 @@ const (
 	complexTag
 	stringTag
 	nilTag
+	unknownTag // not used by gc (only appears in packages with errors)
 )
 
 // Debugging support.
@@ -1218,6 +1219,8 @@ var tagString = [...]string{
 	-fractionTag: "fraction",
 	-complexTag:  "complex",
 	-stringTag:   "string",
+	-nilTag:      "nil",
+	-unknownTag:  "unknown",
 }
 
 // untype returns the "pseudo" untyped type for a Ctype (import/export use only).
@@ -1288,6 +1291,9 @@ func predeclared() []*Type {
 
 			// package unsafe
 			Types[TUNSAFEPTR],
+
+			// invalid type (package contains errors)
+			Types[Txxx],
 
 			// any type, for builtin export data
 			Types[TANY],
