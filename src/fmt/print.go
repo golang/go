@@ -103,7 +103,6 @@ func (bp *buffer) WriteRune(r rune) {
 }
 
 type pp struct {
-	n         int
 	panicking bool
 	erroring  bool // printing an error condition
 	buf       buffer
