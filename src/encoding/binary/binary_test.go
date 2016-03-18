@@ -374,7 +374,7 @@ func BenchmarkReadStruct(b *testing.B) {
 	}
 	b.StopTimer()
 	if !reflect.DeepEqual(s, t) {
-		b.Fatal("no match")
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
 	}
 }
 
@@ -406,7 +406,7 @@ func BenchmarkReadInts(b *testing.B) {
 	}
 	b.StopTimer()
 	if !reflect.DeepEqual(ls, want) {
-		panic("no match")
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
 	}
 }
 
