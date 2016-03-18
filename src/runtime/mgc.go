@@ -1086,13 +1086,6 @@ top:
 		// cached workbufs.
 		atomic.Xadd(&work.nwait, -1)
 
-		// Rescan global data and BSS. There may still work
-		// workers running at this point, so bump "jobs" down
-		// before "next" so they won't try running root jobs
-		// until we set next.
-		atomic.Store(&work.markrootJobs, uint32(fixedRootCount+work.nDataRoots+work.nBSSRoots))
-		atomic.Store(&work.markrootNext, fixedRootCount)
-
 		// GC is set up for mark 2. Let Gs blocked on the
 		// transition lock go while we flush caches.
 		semrelease(&work.markDoneSema)
