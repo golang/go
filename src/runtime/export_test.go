@@ -117,6 +117,38 @@ func RunSchedLocalQueueStealTest() {
 	}
 }
 
+func RunSchedLocalQueueEmptyTest(iters int) {
+	// Test that runq is not spuriously reported as empty.
+	// Runq emptiness affects scheduling decisions and spurious emptiness
+	// can lead to underutilization (both runnable Gs and idle Ps coexist
+	// for arbitrary long time).
+	done := make(chan bool, 1)
+	p := new(p)
+	gs := make([]g, 2)
+	ready := new(uint32)
+	for i := 0; i < iters; i++ {
+		*ready = 0
+		next0 := (i & 1) == 0
+		next1 := (i & 2) == 0
+		runqput(p, &gs[0], next0)
+		go func() {
+			for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+			}
+			if runqempty(p) {
+				println("next:", next0, next1)
+				throw("queue is empty")
+			}
+			done <- true
+		}()
+		for atomic.Xadd(ready, 1); atomic.Load(ready) != 2; {
+		}
+		runqput(p, &gs[1], next1)
+		runqget(p)
+		<-done
+		runqget(p)
+	}
+}
+
 var StringHash = stringHash
 var BytesHash = bytesHash
 var Int32Hash = int32Hash
