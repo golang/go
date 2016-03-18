@@ -1432,7 +1432,7 @@ func (c *nowritebarrierrecChecker) visitcode(n *Node) {
 func (c *nowritebarrierrecChecker) visitcall(n *Node) {
 	fn := n.Left
 	if n.Op == OCALLMETH {
-		fn = n.Left.Right.Sym.Def
+		fn = n.Left.Sym.Def
 	}
 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
 		return

@@ -226,27 +226,27 @@ func walkrange(n *Node) {
 		hit := prealloc[n]
 		hit.Type = th
 		n.Left = nil
-		keyname := newname(th.Field(0).Sym) // depends on layout of iterator struct.  See reflect.go:hiter
-		valname := newname(th.Field(1).Sym) // ditto
+		keysym := th.Field(0).Sym // depends on layout of iterator struct.  See reflect.go:hiter
+		valsym := th.Field(1).Sym // ditto
 
 		fn := syslook("mapiterinit")
 
 		substArgTypes(&fn, t.Key(), t.Type, th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
-		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
+		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
 
 		fn = syslook("mapiternext")
 		substArgTypes(&fn, th)
 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
-		key := Nod(ODOT, hit, keyname)
+		key := NodSym(ODOT, hit, keysym)
 		key = Nod(OIND, key, nil)
 		if v1 == nil {
 			body = nil
 		} else if v2 == nil {
 			body = []*Node{Nod(OAS, v1, key)}
 		} else {
-			val := Nod(ODOT, hit, valname)
+			val := NodSym(ODOT, hit, valsym)
 			val = Nod(OIND, val, nil)
 			a := Nod(OAS2, nil, nil)
 			a.List.Set([]*Node{v1, v2})

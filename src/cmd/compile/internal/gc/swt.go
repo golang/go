@@ -595,14 +595,14 @@ func (s *typeSwitch) walk(sw *Node) {
 
 	if !isnilinter(cond.Right.Type) {
 		// Load type from itab.
-		typ = Nod(ODOTPTR, typ, nil)
+		typ = NodSym(ODOTPTR, typ, nil)
 		typ.Type = Ptrto(Types[TUINT8])
 		typ.Typecheck = 1
 		typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
 		typ.Bounded = true            // guaranteed not to fault
 	}
 	// Load hash from type.
-	h := Nod(ODOTPTR, typ, nil)
+	h := NodSym(ODOTPTR, typ, nil)
 	h.Type = Types[TUINT32]
 	h.Typecheck = 1
 	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type

@@ -220,6 +220,13 @@ func ishairy(n *Node, budget *int) bool {
 		ODCLTYPE, // can't print yet
 		ORETJMP:
 		return true
+
+	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
+		// These used to store the symbol name as an ONAME in
+		// the Right field, meaning that it cost one budget
+		// unit.  Stay compatible for now.
+		// TODO(iant): Remove this.
+		(*budget)--
 	}
 
 	(*budget)--

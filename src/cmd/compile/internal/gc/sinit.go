@@ -574,10 +574,10 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 		case OARRAYLIT:
 			if value.Type.Bound < 0 {
 				if pass == 1 && ctxt != 0 {
-					a = Nod(ODOT, var_, newname(index.Sym))
+					a = NodSym(ODOT, var_, index.Sym)
 					slicelit(ctxt, value, a, init)
 				} else if pass == 2 && ctxt == 0 {
-					a = Nod(ODOT, var_, newname(index.Sym))
+					a = NodSym(ODOT, var_, index.Sym)
 					slicelit(ctxt, value, a, init)
 				} else if pass == 3 {
 					break
@@ -585,12 +585,12 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 				continue
 			}
 
-			a = Nod(ODOT, var_, newname(index.Sym))
+			a = NodSym(ODOT, var_, index.Sym)
 			arraylit(ctxt, pass, value, a, init)
 			continue
 
 		case OSTRUCTLIT:
-			a = Nod(ODOT, var_, newname(index.Sym))
+			a = NodSym(ODOT, var_, index.Sym)
 			structlit(ctxt, pass, value, a, init)
 			continue
 		}
@@ -605,7 +605,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 
 		// build list of var.field = expr
 		setlineno(value)
-		a = Nod(ODOT, var_, newname(index.Sym))
+		a = NodSym(ODOT, var_, index.Sym)
 
 		a = Nod(OAS, a, value)
 		typecheck(&a, Etop)
@@ -904,7 +904,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 				a = Nodintconst(b)
 
 				a = Nod(OINDEX, vstat, a)
-				a = Nod(ODOT, a, newname(syma))
+				a = NodSym(ODOT, a, syma)
 				a = Nod(OAS, a, index)
 				typecheck(&a, Etop)
 				walkexpr(&a, init)
@@ -916,7 +916,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 				a = Nodintconst(b)
 
 				a = Nod(OINDEX, vstat, a)
-				a = Nod(ODOT, a, newname(symb))
+				a = NodSym(ODOT, a, symb)
 				a = Nod(OAS, a, value)
 				typecheck(&a, Etop)
 				walkexpr(&a, init)
@@ -935,11 +935,11 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 
 		a = Nod(OINDEX, vstat, index)
 		a.Bounded = true
-		a = Nod(ODOT, a, newname(symb))
+		a = NodSym(ODOT, a, symb)
 
 		r := Nod(OINDEX, vstat, index)
 		r.Bounded = true
-		r = Nod(ODOT, r, newname(syma))
+		r = NodSym(ODOT, r, syma)
 		r = Nod(OINDEX, var_, r)
 
 		r = Nod(OAS, r, a)

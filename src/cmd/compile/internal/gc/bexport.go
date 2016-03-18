@@ -890,7 +890,7 @@ func (p *exporter) node(n *Node) {
 
 	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
 		p.node(n.Left)
-		p.sym(n.Right.Sym)
+		p.sym(n.Sym)
 
 	case ODOTTYPE, ODOTTYPE2:
 		p.node(n.Left)

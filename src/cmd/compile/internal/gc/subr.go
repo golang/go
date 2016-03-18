@@ -339,6 +339,14 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
 	return n
 }
 
+// NodSym makes a Node with Op op and with the Left field set to left
+// and the Sym field set to sym. This is for ODOT and friends.
+func NodSym(op Op, left *Node, sym *Sym) *Node {
+	n := Nod(op, left, nil)
+	n.Sym = sym
+	return n
+}
+
 func saveorignode(n *Node) {
 	if n.Orig != nil {
 		return
@@ -1677,10 +1685,7 @@ func adddot(n *Node) *Node {
 		return n
 	}
 
-	if n.Right.Op != ONAME {
-		return n
-	}
-	s := n.Right.Sym
+	s := n.Sym
 	if s == nil {
 		return n
 	}
@@ -1689,7 +1694,7 @@ func adddot(n *Node) *Node {
 	case path != nil:
 		// rebuild elided dots
 		for c := len(path) - 1; c >= 0; c-- {
-			n.Left = Nod(ODOT, n.Left, newname(path[c].field.Sym))
+			n.Left = NodSym(ODOT, n.Left, path[c].field.Sym)
 			n.Left.Implicit = true
 		}
 	case ambig:
@@ -1960,7 +1965,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		fn.Nbody.Append(n)
 	}
 
-	dot := adddot(Nod(OXDOT, this.Left, newname(method.Sym)))
+	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
 
 	// generate call
 	if !instrumenting && Isptr[rcvr.Etype] && Isptr[methodrcvr.Etype] && method.Embedded != 0 && !isifacemethod(method.Type) {

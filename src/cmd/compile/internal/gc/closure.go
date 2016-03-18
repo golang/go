@@ -462,7 +462,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 	return clos
 }
 
-func typecheckpartialcall(fn *Node, sym *Node) {
+func typecheckpartialcall(fn *Node, sym *Sym) {
 	switch fn.Op {
 	case ODOTINTER, ODOTMETH:
 		break
@@ -474,21 +474,21 @@ func typecheckpartialcall(fn *Node, sym *Node) {
 	// Create top-level function.
 	xfunc := makepartialcall(fn, fn.Type, sym)
 	fn.Func = xfunc.Func
-	fn.Right = sym
+	fn.Right = newname(sym)
 	fn.Op = OCALLPART
 	fn.Type = xfunc.Type
 }
 
 var makepartialcall_gopkg *Pkg
 
-func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	var p string
 
 	rcvrtype := fn.Left.Type
-	if exportname(meth.Sym.Name) {
-		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Sym.Name)
+	if exportname(meth.Name) {
+		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Name)
 	} else {
-		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth.Sym, FmtLeft))
+		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth, FmtLeft))
 	}
 	basetype := rcvrtype
 	if Isptr[rcvrtype.Etype] {
@@ -592,7 +592,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
 		body = append(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
 	}
 
-	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
+	call := Nod(OCALL, NodSym(OXDOT, ptr, meth), nil)
 	call.List.Set(callargs)
 	call.Isddd = ddd
 	if t0.Results().NumFields() == 0 {

@@ -1793,7 +1793,7 @@ func (p *parser) new_dotname(obj *Node) *Node {
 		obj.Used = true
 		return oldname(s)
 	}
-	return Nod(OXDOT, obj, newname(sel))
+	return NodSym(OXDOT, obj, sel)
 }
 
 func (p *parser) dotname() *Node {

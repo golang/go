@@ -802,7 +802,7 @@ func cgen_wbptr(n, res *Node) {
 	}
 
 	wbVar := syslook("writeBarrier")
-	wbEnabled := Nod(ODOT, wbVar, newname(wbVar.Type.Field(0).Sym))
+	wbEnabled := NodSym(ODOT, wbVar, wbVar.Type.Field(0).Sym)
 	wbEnabled = typecheck(&wbEnabled, Erv)
 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
@@ -2438,11 +2438,6 @@ func cgen_callinter(n *Node, res *Node, proc int) {
 	i := n.Left
 	if i.Op != ODOTINTER {
 		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(i.Op, 0))
-	}
-
-	f := i.Right // field
-	if f.Op != ONAME {
-		Fatalf("cgen_callinter: not ONAME %v", Oconv(f.Op, 0))
 	}
 
 	i = i.Left // interface
