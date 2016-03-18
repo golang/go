@@ -428,6 +428,9 @@ func TestPingPongHog(t *testing.T) {
 }
 
 func BenchmarkPingPongHog(b *testing.B) {
+	if b.N == 0 {
+		return
+	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
 	// Create a CPU hog
