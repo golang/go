@@ -338,68 +338,42 @@ func (p *pp) fmtBool(v bool, verb rune) {
 	}
 }
 
-func (p *pp) fmtInt64(v int64, verb rune) {
-	switch verb {
-	case 'b':
-		p.fmt.integer(v, 2, signed, ldigits)
-	case 'c':
-		p.fmt.fmt_c(uint64(v))
-	case 'd', 'v':
-		p.fmt.integer(v, 10, signed, ldigits)
-	case 'o':
-		p.fmt.integer(v, 8, signed, ldigits)
-	case 'q':
-		if 0 <= v && v <= utf8.MaxRune {
-			p.fmt.fmt_qc(uint64(v))
-		} else {
-			p.badVerb(verb)
-		}
-	case 'x':
-		p.fmt.integer(v, 16, signed, ldigits)
-	case 'U':
-		p.fmt.fmt_unicode(uint64(v))
-	case 'X':
-		p.fmt.integer(v, 16, signed, udigits)
-	default:
-		p.badVerb(verb)
-	}
-}
-
 // fmt0x64 formats a uint64 in hexadecimal and prefixes it with 0x or
 // not, as requested, by temporarily setting the sharp flag.
 func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
-	p.fmt.integer(int64(v), 16, unsigned, ldigits)
+	p.fmt.fmt_integer(v, 16, unsigned, ldigits)
 	p.fmt.sharp = sharp
 }
 
-func (p *pp) fmtUint64(v uint64, verb rune) {
+// fmtInteger formats a signed or unsigned integer.
+func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 	switch verb {
-	case 'b':
-		p.fmt.integer(int64(v), 2, unsigned, ldigits)
-	case 'c':
-		p.fmt.fmt_c(v)
-	case 'd':
-		p.fmt.integer(int64(v), 10, unsigned, ldigits)
 	case 'v':
-		if p.fmt.sharpV {
+		if p.fmt.sharpV && !isSigned {
 			p.fmt0x64(v, true)
 		} else {
-			p.fmt.integer(int64(v), 10, unsigned, ldigits)
+			p.fmt.fmt_integer(v, 10, isSigned, ldigits)
 		}
+	case 'd':
+		p.fmt.fmt_integer(v, 10, isSigned, ldigits)
+	case 'b':
+		p.fmt.fmt_integer(v, 2, isSigned, ldigits)
 	case 'o':
-		p.fmt.integer(int64(v), 8, unsigned, ldigits)
+		p.fmt.fmt_integer(v, 8, isSigned, ldigits)
+	case 'x':
+		p.fmt.fmt_integer(v, 16, isSigned, ldigits)
+	case 'X':
+		p.fmt.fmt_integer(v, 16, isSigned, udigits)
+	case 'c':
+		p.fmt.fmt_c(v)
 	case 'q':
-		if 0 <= v && v <= utf8.MaxRune {
+		if v <= utf8.MaxRune {
 			p.fmt.fmt_qc(v)
 		} else {
 			p.badVerb(verb)
 		}
-	case 'x':
-		p.fmt.integer(int64(v), 16, unsigned, ldigits)
-	case 'X':
-		p.fmt.integer(int64(v), 16, unsigned, udigits)
 	case 'U':
 		p.fmt.fmt_unicode(v)
 	default:
@@ -489,7 +463,7 @@ func (p *pp) fmtBytes(v []byte, verb rune, typeString string) {
 				if i > 0 {
 					p.buf.WriteByte(' ')
 				}
-				p.fmt.integer(int64(c), 10, unsigned, ldigits)
+				p.fmt.fmt_integer(uint64(c), 10, unsigned, ldigits)
 			}
 			p.buf.WriteByte(']')
 		}
@@ -538,7 +512,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 	case 'p':
 		p.fmt0x64(uint64(u), !p.fmt.sharp)
 	case 'b', 'o', 'd', 'x', 'X':
-		p.fmtUint64(uint64(u), verb)
+		p.fmtInteger(uint64(u), unsigned, verb)
 	default:
 		p.badVerb(verb)
 	}
@@ -657,27 +631,27 @@ func (p *pp) printArg(arg interface{}, verb rune) {
 	case complex128:
 		p.fmtComplex(f, 128, verb)
 	case int:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int8:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int16:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int32:
-		p.fmtInt64(int64(f), verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case int64:
-		p.fmtInt64(f, verb)
+		p.fmtInteger(uint64(f), signed, verb)
 	case uint:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint8:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint16:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint32:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case uint64:
-		p.fmtUint64(f, verb)
+		p.fmtInteger(f, unsigned, verb)
 	case uintptr:
-		p.fmtUint64(uint64(f), verb)
+		p.fmtInteger(uint64(f), unsigned, verb)
 	case string:
 		p.fmtString(f, verb)
 	case []byte:
@@ -737,9 +711,9 @@ BigSwitch:
 	case reflect.Bool:
 		p.fmtBool(f.Bool(), verb)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		p.fmtInt64(f.Int(), verb)
+		p.fmtInteger(uint64(f.Int()), signed, verb)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		p.fmtUint64(f.Uint(), verb)
+		p.fmtInteger(f.Uint(), unsigned, verb)
 	case reflect.Float32:
 		p.fmtFloat(f.Float(), 32, verb)
 	case reflect.Float64:
