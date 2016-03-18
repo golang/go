@@ -120,7 +120,7 @@ func goEnv(key string) string {
 func compilemain(t *testing.T, libgo string) {
 	ccArgs := append(cc, "-o", "testp"+exeSuffix, "main.c")
 	if GOOS == "windows" {
-		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32")
+		ccArgs = append(ccArgs, "main_windows.c", libgo, "-lntdll", "-lws2_32", "-lwinmm")
 	} else {
 		ccArgs = append(ccArgs, "main_unix.c", libgo)
 	}

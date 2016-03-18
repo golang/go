@@ -622,6 +622,13 @@ uintptr_t cfunc(callback f, uintptr_t n) {
 	}
 }
 
+func TestTimeBeginPeriod(t *testing.T) {
+	const TIMERR_NOERROR = 0
+	if *runtime.TimeBeginPeriodRetValue != TIMERR_NOERROR {
+		t.Fatalf("timeBeginPeriod failed: it returned %d", *runtime.TimeBeginPeriodRetValue)
+	}
+}
+
 // removeOneCPU removes one (any) cpu from affinity mask.
 // It returns new affinity mask.
 func removeOneCPU(mask uintptr) (uintptr, error) {
@@ -874,20 +881,9 @@ var (
 	modwinmm    = syscall.NewLazyDLL("winmm.dll")
 	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	proctimeBeginPeriod = modwinmm.NewProc("timeBeginPeriod")
-	proctimeEndPeriod   = modwinmm.NewProc("timeEndPeriod")
-
 	procCreateEvent = modkernel32.NewProc("CreateEventW")
 	procSetEvent    = modkernel32.NewProc("SetEvent")
 )
-
-func timeBeginPeriod(period uint32) {
-	syscall.Syscall(proctimeBeginPeriod.Addr(), 1, uintptr(period), 0, 0)
-}
-
-func timeEndPeriod(period uint32) {
-	syscall.Syscall(proctimeEndPeriod.Addr(), 1, uintptr(period), 0, 0)
-}
 
 func createEvent() (syscall.Handle, error) {
 	r0, _, e0 := syscall.Syscall6(procCreateEvent.Addr(), 4, 0, 0, 0, 0, 0, 0)
@@ -905,7 +901,7 @@ func setEvent(h syscall.Handle) error {
 	return nil
 }
 
-func benchChanToSyscallPing(b *testing.B) {
+func BenchmarkChanToSyscallPing(b *testing.B) {
 	n := b.N
 	ch := make(chan int)
 	event, err := createEvent()
@@ -927,17 +923,7 @@ func benchChanToSyscallPing(b *testing.B) {
 	}
 }
 
-func BenchmarkChanToSyscallPing1ms(b *testing.B) {
-	timeBeginPeriod(1)
-	benchChanToSyscallPing(b)
-	timeEndPeriod(1)
-}
-
-func BenchmarkChanToSyscallPing15ms(b *testing.B) {
-	benchChanToSyscallPing(b)
-}
-
-func benchSyscallToSyscallPing(b *testing.B) {
+func BenchmarkSyscallToSyscallPing(b *testing.B) {
 	n := b.N
 	event1, err := createEvent()
 	if err != nil {
@@ -965,17 +951,7 @@ func benchSyscallToSyscallPing(b *testing.B) {
 	}
 }
 
-func BenchmarkSyscallToSyscallPing1ms(b *testing.B) {
-	timeBeginPeriod(1)
-	benchSyscallToSyscallPing(b)
-	timeEndPeriod(1)
-}
-
-func BenchmarkSyscallToSyscallPing15ms(b *testing.B) {
-	benchSyscallToSyscallPing(b)
-}
-
-func benchChanToChanPing(b *testing.B) {
+func BenchmarkChanToChanPing(b *testing.B) {
 	n := b.N
 	ch1 := make(chan int)
 	ch2 := make(chan int)
@@ -991,28 +967,8 @@ func benchChanToChanPing(b *testing.B) {
 	}
 }
 
-func BenchmarkChanToChanPing1ms(b *testing.B) {
-	timeBeginPeriod(1)
-	benchChanToChanPing(b)
-	timeEndPeriod(1)
-}
-
-func BenchmarkChanToChanPing15ms(b *testing.B) {
-	benchChanToChanPing(b)
-}
-
-func benchOsYield(b *testing.B) {
+func BenchmarkOsYield(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		runtime.OsYield()
 	}
-}
-
-func BenchmarkOsYield1ms(b *testing.B) {
-	timeBeginPeriod(1)
-	benchOsYield(b)
-	timeEndPeriod(1)
-}
-
-func BenchmarkOsYield15ms(b *testing.B) {
-	benchOsYield(b)
 }
