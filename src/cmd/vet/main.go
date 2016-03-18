@@ -139,6 +139,7 @@ var (
 	genDecl       *ast.GenDecl
 	interfaceType *ast.InterfaceType
 	rangeStmt     *ast.RangeStmt
+	returnStmt    *ast.ReturnStmt
 
 	// checkers is a two-level map.
 	// The outer level is keyed by a nil pointer, one of the AST vars above.
@@ -476,6 +477,8 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
 		key = interfaceType
 	case *ast.RangeStmt:
 		key = rangeStmt
+	case *ast.ReturnStmt:
+		key = returnStmt
 	}
 	for _, fn := range f.checkers[key] {
 		fn(f, node)
