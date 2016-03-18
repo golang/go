@@ -53,6 +53,9 @@ func critical(f *Func) {
 				// find or record the block that we used to split
 				// critical edges for this argument
 				if d = blocks[argID]; d == nil {
+					// splitting doesn't necessarily remove the critical edge,
+					// since we're iterating over len(f.Blocks) above, this forces
+					// the new blocks to be re-examined.
 					d = f.NewBlock(BlockPlain)
 					d.Line = c.Line
 					blocks[argID] = d
@@ -101,6 +104,11 @@ func critical(f *Func) {
 		if phi != nil {
 			phi.Args = filterNilValues(phi.Args)
 			b.Preds = filterNilBlocks(b.Preds)
+			// splitting occasionally leads to a phi having
+			// a single argument (occurs with -N)
+			if len(phi.Args) == 1 {
+				phi.Op = OpCopy
+			}
 		}
 	}
 }
