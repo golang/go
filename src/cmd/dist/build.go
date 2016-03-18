@@ -60,6 +60,7 @@ var okgoarch = []string{
 	"mips64le",
 	"ppc64",
 	"ppc64le",
+	"s390x",
 }
 
 // The known operating systems.
@@ -1097,6 +1098,7 @@ var cgoEnabled = map[string]bool{
 	"linux/ppc64le":   true,
 	"linux/mips64":    false,
 	"linux/mips64le":  false,
+	"linux/s390x":     true,
 	"android/386":     true,
 	"android/amd64":   true,
 	"android/arm":     true,
