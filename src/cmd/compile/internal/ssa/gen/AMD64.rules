@@ -571,7 +571,7 @@
 (ADDQ x (LEAQ [c] {s} y)) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
 (ADDQ (LEAQ [c] {s} x) y) && x.Op != OpSB && y.Op != OpSB -> (LEAQ1 [c] {s} x y)
 
-// fold ADDQconst into leaqX
+// fold ADDQconst into LEAQx
 (ADDQconst [c] (LEAQ1 [d] {s} x y)) -> (LEAQ1 [c+d] {s} x y)
 (ADDQconst [c] (LEAQ2 [d] {s} x y)) -> (LEAQ2 [c+d] {s} x y)
 (ADDQconst [c] (LEAQ4 [d] {s} x y)) -> (LEAQ4 [c+d] {s} x y)
@@ -584,6 +584,18 @@
 (LEAQ4 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ4 [c+4*d] {s} x y)
 (LEAQ8 [c] {s} (ADDQconst [d] x) y) && x.Op != OpSB -> (LEAQ8 [c+d] {s} x y)
 (LEAQ8 [c] {s} x (ADDQconst [d] y)) && y.Op != OpSB -> (LEAQ8 [c+8*d] {s} x y)
+
+// fold shifts into LEAQx
+(LEAQ1 [c] {s} x (SHLQconst [1] y)) -> (LEAQ2 [c] {s} x y)
+(LEAQ1 [c] {s} (SHLQconst [1] x) y) -> (LEAQ2 [c] {s} y x)
+(LEAQ1 [c] {s} x (SHLQconst [2] y)) -> (LEAQ4 [c] {s} x y)
+(LEAQ1 [c] {s} (SHLQconst [2] x) y) -> (LEAQ4 [c] {s} y x)
+(LEAQ1 [c] {s} x (SHLQconst [3] y)) -> (LEAQ8 [c] {s} x y)
+(LEAQ1 [c] {s} (SHLQconst [3] x) y) -> (LEAQ8 [c] {s} y x)
+
+(LEAQ2 [c] {s} x (SHLQconst [1] y)) -> (LEAQ4 [c] {s} x y)
+(LEAQ2 [c] {s} x (SHLQconst [2] y)) -> (LEAQ8 [c] {s} x y)
+(LEAQ4 [c] {s} x (SHLQconst [1] y)) -> (LEAQ8 [c] {s} x y)
 
 // reverse ordering of compare instruction
 (SETL (InvertFlags x)) -> (SETG x)

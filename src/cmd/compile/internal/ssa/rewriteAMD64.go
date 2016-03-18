@@ -4195,6 +4195,132 @@ func rewriteValueAMD64_OpAMD64LEAQ1(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (LEAQ1 [c] {s} x (SHLQconst [1] y))
+	// cond:
+	// result: (LEAQ2 [c] {s} x y)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 1 {
+			break
+		}
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ2)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (LEAQ1 [c] {s} (SHLQconst [1] x) y)
+	// cond:
+	// result: (LEAQ2 [c] {s} y x)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		if v.Args[0].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].AuxInt != 1 {
+			break
+		}
+		x := v.Args[0].Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64LEAQ2)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
+	// match: (LEAQ1 [c] {s} x (SHLQconst [2] y))
+	// cond:
+	// result: (LEAQ4 [c] {s} x y)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 2 {
+			break
+		}
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ4)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (LEAQ1 [c] {s} (SHLQconst [2] x) y)
+	// cond:
+	// result: (LEAQ4 [c] {s} y x)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		if v.Args[0].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].AuxInt != 2 {
+			break
+		}
+		x := v.Args[0].Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64LEAQ4)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
+	// match: (LEAQ1 [c] {s} x (SHLQconst [3] y))
+	// cond:
+	// result: (LEAQ8 [c] {s} x y)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 3 {
+			break
+		}
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (LEAQ1 [c] {s} (SHLQconst [3] x) y)
+	// cond:
+	// result: (LEAQ8 [c] {s} y x)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		if v.Args[0].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[0].AuxInt != 3 {
+			break
+		}
+		x := v.Args[0].Args[0]
+		y := v.Args[1]
+		v.reset(OpAMD64LEAQ8)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(y)
+		v.AddArg(x)
+		return true
+	}
 	// match: (LEAQ1 [off1] {sym1} (LEAQ [off2] {sym2} x) y)
 	// cond: canMergeSym(sym1, sym2) && x.Op != OpSB
 	// result: (LEAQ1 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
@@ -4290,6 +4416,48 @@ func rewriteValueAMD64_OpAMD64LEAQ2(v *Value, config *Config) bool {
 		v.AddArg(y)
 		return true
 	}
+	// match: (LEAQ2 [c] {s} x (SHLQconst [1] y))
+	// cond:
+	// result: (LEAQ4 [c] {s} x y)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 1 {
+			break
+		}
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ4)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (LEAQ2 [c] {s} x (SHLQconst [2] y))
+	// cond:
+	// result: (LEAQ8 [c] {s} x y)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 2 {
+			break
+		}
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v.AuxInt = c
+		v.Aux = s
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	// match: (LEAQ2 [off1] {sym1} (LEAQ [off2] {sym2} x) y)
 	// cond: canMergeSym(sym1, sym2) && x.Op != OpSB
 	// result: (LEAQ2 [addOff(off1,off2)] {mergeSym(sym1,sym2)} x y)
@@ -4357,6 +4525,27 @@ func rewriteValueAMD64_OpAMD64LEAQ4(v *Value, config *Config) bool {
 		}
 		v.reset(OpAMD64LEAQ4)
 		v.AuxInt = c + 4*d
+		v.Aux = s
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
+	// match: (LEAQ4 [c] {s} x (SHLQconst [1] y))
+	// cond:
+	// result: (LEAQ8 [c] {s} x y)
+	for {
+		c := v.AuxInt
+		s := v.Aux
+		x := v.Args[0]
+		if v.Args[1].Op != OpAMD64SHLQconst {
+			break
+		}
+		if v.Args[1].AuxInt != 1 {
+			break
+		}
+		y := v.Args[1].Args[0]
+		v.reset(OpAMD64LEAQ8)
+		v.AuxInt = c
 		v.Aux = s
 		v.AddArg(x)
 		v.AddArg(y)
