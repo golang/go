@@ -471,6 +471,9 @@ func (p *importer) value() constant.Value {
 		return constant.BinaryOp(re, token.ADD, constant.MakeImag(im))
 	case stringTag:
 		return constant.MakeString(p.string())
+	case unknownTag:
+		// (Encoded package contains type errors.)
+		return constant.MakeUnknown()
 	default:
 		panic(fmt.Sprintf("unexpected value tag %d", tag))
 	}
@@ -644,6 +647,7 @@ const (
 	fractionTag // not used by gc
 	complexTag
 	stringTag
+	unknownTag // only appears in packages with errors
 )
 
 var predeclared = []types.Type{
@@ -685,7 +689,10 @@ var predeclared = []types.Type{
 	// package unsafe
 	types.Typ[types.UnsafePointer],
 
-	// any type, for builtin export data
+	// invalid type
+	types.Typ[types.Invalid], // only appears in packages with errors
+
 	// TODO(mdempsky): Provide an actual Type value to represent "any"?
+	// (Why exactly does gc emit the "any" type?)
 	types.Typ[types.Invalid],
 }

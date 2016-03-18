@@ -32,9 +32,6 @@ const (
 )
 
 // BExportData returns binary export data for pkg.
-//
-// It is not safe to call this function on a package containing errors.
-// TODO(adonovan): add InvalidType to the protocol and lift this restriction.
 func BExportData(pkg *types.Package) []byte {
 	p := exporter{
 		pkgIndex: make(map[*types.Package]int),
@@ -208,9 +205,6 @@ func (p *exporter) pkg(pkg *types.Package, emptypath bool) {
 func (p *exporter) typ(t types.Type) {
 	if t == nil {
 		log.Fatalf("nil type")
-	}
-	if t == types.Typ[types.Invalid] {
-		log.Fatal("BExportData invoked on package with errors")
 	}
 
 	// Possible optimization: Anonymous pointer types *T where
@@ -489,6 +483,10 @@ func (p *exporter) value(x constant.Value) {
 		p.tag(stringTag)
 		p.string(constant.StringVal(x))
 
+	case constant.Unknown:
+		// (Package contains type errors.)
+		p.tag(unknownTag)
+
 	default:
 		log.Fatalf("unexpected value %v (%T)", x, x)
 	}
@@ -700,4 +698,5 @@ var tagString = [...]string{
 	-fractionTag: "fraction",
 	-complexTag:  "complex",
 	-stringTag:   "string",
+	-unknownTag:  "unknown",
 }

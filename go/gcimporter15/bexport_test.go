@@ -30,10 +30,24 @@ func TestBExportData_stdlib(t *testing.T) {
 	// Load, parse and type-check the program.
 	ctxt := build.Default // copy
 	ctxt.GOPATH = ""      // disable GOPATH
-	conf := loader.Config{Build: &ctxt}
+	conf := loader.Config{
+		Build:       &ctxt,
+		AllowErrors: true,
+	}
 	for _, path := range buildutil.AllPackages(conf.Build) {
 		conf.Import(path)
 	}
+
+	// Create a package containing type and value errors to ensure
+	// they are properly encoded/decoded.
+	f, err := conf.ParseFile("haserrors/haserrors.go", `package haserrors
+const UnknownValue = "" + 0
+type UnknownType undefined
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conf.CreateFromFiles("haserrors", f)
 
 	prog, err := conf.Load()
 	if err != nil {
@@ -49,7 +63,6 @@ func TestBExportData_stdlib(t *testing.T) {
 		if info.Files == nil {
 			continue // empty directory
 		}
-
 		exportdata := gcimporter.BExportData(pkg)
 
 		imports := make(map[string]*types.Package)
