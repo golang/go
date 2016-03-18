@@ -167,7 +167,7 @@ func xinit() {
 		goextlinkenabled = b
 	}
 
-	gogcflags = os.Getenv("GO_GCFLAGS")
+	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
 
 	b = os.Getenv("CC")
 	if b == "" {
@@ -691,7 +691,7 @@ func install(dir string) {
 	}
 	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
 	if gogcflags != "" {
-		compile = append(compile, gogcflags)
+		compile = append(compile, strings.Fields(gogcflags)...)
 	}
 	if dir == "runtime" {
 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
