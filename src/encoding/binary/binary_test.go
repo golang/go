@@ -373,7 +373,7 @@ func BenchmarkReadStruct(b *testing.B) {
 		Read(bsr, BigEndian, &t)
 	}
 	b.StopTimer()
-	if !reflect.DeepEqual(s, t) {
+	if b.N > 0 && !reflect.DeepEqual(s, t) {
 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
 	}
 }
@@ -405,7 +405,7 @@ func BenchmarkReadInts(b *testing.B) {
 		want.Array[i] = 0
 	}
 	b.StopTimer()
-	if !reflect.DeepEqual(ls, want) {
+	if b.N > 0 && !reflect.DeepEqual(ls, want) {
 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
 	}
 }
@@ -427,7 +427,7 @@ func BenchmarkWriteInts(b *testing.B) {
 		Write(w, BigEndian, s.Uint64)
 	}
 	b.StopTimer()
-	if !bytes.Equal(buf.Bytes(), big[:30]) {
+	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[:30]) {
 		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[:30])
 	}
 }
