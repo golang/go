@@ -246,8 +246,8 @@ func cgocallbackg1() {
 	case "386":
 		// On 386, stack frame is three words, plus caller PC.
 		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
-	case "ppc64", "ppc64le":
-		// On ppc64, the callback arguments are in the arguments area of
+	case "ppc64", "ppc64le", "s390x":
+		// On ppc64 and s390x, the callback arguments are in the arguments area of
 		// cgocallback's stack frame. The stack looks like this:
 		// +--------------------+------------------------------+
 		// |                    | ...                          |
@@ -300,7 +300,7 @@ func unwindm(restore *bool) {
 	switch GOARCH {
 	default:
 		throw("unwindm not implemented")
-	case "386", "amd64", "arm", "ppc64", "ppc64le":
+	case "386", "amd64", "arm", "ppc64", "ppc64le", "s390x":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
 	case "arm64":
 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))

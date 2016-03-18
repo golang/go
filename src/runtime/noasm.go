@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x}.s
+// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x,s390x}.s
 
 // +build mips64 mips64le
 
