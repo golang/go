@@ -19,25 +19,28 @@ var (
 	hash      [hashSize]*itab
 )
 
+func itabhash(inter *interfacetype, typ *_type) uint32 {
+	// compiler has provided some good hash codes for us.
+	h := inter.typ.hash
+	h += 17 * typ.hash
+	// TODO(rsc): h += 23 * x.mhash ?
+	return h % hashSize
+}
+
 func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	if len(inter.mhdr) == 0 {
 		throw("internal error - misuse of itab")
 	}
 
 	// easy case
-	x := typ.uncommon()
-	if x == nil {
+	if typ.tflag&tflagUncommon == 0 {
 		if canfail {
 			return nil
 		}
 		panic(&TypeAssertionError{"", typ._string, inter.typ._string, inter.mhdr[0].name.name()})
 	}
 
-	// compiler has provided some good hash codes for us.
-	h := inter.typ.hash
-	h += 17 * typ.hash
-	// TODO(rsc): h += 23 * x.mhash ?
-	h %= hashSize
+	h := itabhash(inter, typ)
 
 	// look twice - once without lock, once with.
 	// common case will be no lock contention.
@@ -56,10 +59,9 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 						// was already done once using the , ok form
 						// and we have a cached negative result.
 						// the cached result doesn't record which
-						// interface function was missing, so jump
-						// down to the interface check, which will
-						// do more work but give a better error.
-						goto search
+						// interface function was missing, so try
+						// adding the itab again, which will throw an error.
+						additab(m, locked != 0, false)
 					}
 				}
 				if locked != 0 {
@@ -73,8 +75,19 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
+	additab(m, true, canfail)
+	unlock(&ifaceLock)
+	if m.bad != 0 {
+		return nil
+	}
+	return m
+}
 
-search:
+func additab(m *itab, locked, canfail bool) {
+	inter := m.inter
+	typ := m._type
+	x := typ.uncommon()
+
 	// both inter and typ have method sorted by name,
 	// and interface names are unique,
 	// so can iterate over both in lock step;
@@ -107,7 +120,7 @@ search:
 		}
 		// didn't find method
 		if !canfail {
-			if locked != 0 {
+			if locked {
 				unlock(&ifaceLock)
 			}
 			panic(&TypeAssertionError{"", typ._string, inter.typ._string, iname})
@@ -116,16 +129,22 @@ search:
 		break
 	nextimethod:
 	}
-	if locked == 0 {
+	if !locked {
 		throw("invalid itab locking")
 	}
+	h := itabhash(inter, typ)
 	m.link = hash[h]
 	atomicstorep(unsafe.Pointer(&hash[h]), unsafe.Pointer(m))
-	unlock(&ifaceLock)
-	if m.bad != 0 {
-		return nil
+}
+
+func itabsinit() {
+	lock(&ifaceLock)
+	for m := &firstmoduledata; m != nil; m = m.next {
+		for _, i := range m.itablinks {
+			additab(i, true, false)
+		}
 	}
-	return m
+	unlock(&ifaceLock)
 }
 
 func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {

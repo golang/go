@@ -435,6 +435,7 @@ func schedinit() {
 	tracebackinit()
 	moduledataverify()
 	stackinit()
+	itabsinit()
 	mallocinit()
 	mcommoninit(_g_.m)
 
