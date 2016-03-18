@@ -535,8 +535,11 @@ func (pb *PB) Next() bool {
 // The body function will be run in each goroutine. It should set up any
 // goroutine-local state and then iterate until pb.Next returns false.
 // It should not use the StartTimer, StopTimer, or ResetTimer functions,
-// because they have global effect.
+// because they have global effect. It should also not call Run.
 func (b *B) RunParallel(body func(*PB)) {
+	if b.N == 0 {
+		return // Nothing to do when probing.
+	}
 	// Calculate grain size as number of iterations that take ~100µs.
 	// 100µs is enough to amortize the overhead and provide sufficient
 	// dynamic load balancing.
