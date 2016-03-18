@@ -987,17 +987,19 @@ opswitch:
 	case OCONVIFACE:
 		n.Left = walkexpr(n.Left, init)
 
-		// Optimize convT2E as a two-word copy when T is pointer-shaped.
-		if isnilinter(n.Type) && isdirectiface(n.Left.Type) {
-			l := Nod(OEFACE, typename(n.Left.Type), n.Left)
+		// Optimize convT2E or convT2I as a two-word copy when T is pointer-shaped.
+		if isdirectiface(n.Left.Type) {
+			var t *Node
+			if isnilinter(n.Type) {
+				t = typename(n.Left.Type)
+			} else {
+				t = itabname(n.Left.Type, n.Type)
+			}
+			l := Nod(OEFACE, t, n.Left)
 			l.Type = n.Type
 			l.Typecheck = n.Typecheck
 			n = l
 			break
-		}
-
-		if isdirectiface(n.Left.Type) {
-			itabnamesym(n.Left.Type, n.Type)
 		}
 
 		var ll []*Node
