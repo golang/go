@@ -1583,6 +1583,41 @@ func TestStatDirModeExec(t *testing.T) {
 	}
 }
 
+func TestStatStdin(t *testing.T) {
+	if runtime.GOOS == "plan9" {
+		t.Skipf("skipping test on plan9")
+	}
+
+	testenv.MustHaveExec(t)
+
+	if Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		st, err := Stdin.Stat()
+		if err != nil {
+			t.Fatalf("Stat failed: %v", err)
+		}
+		fmt.Println(st.Mode() & ModeNamedPipe)
+		Exit(0)
+	}
+
+	var cmd *osexec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = osexec.Command("cmd", "/c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+	} else {
+		cmd = osexec.Command("/bin/sh", "-c", "echo output | "+Args[0]+" -test.run=TestStatStdin")
+	}
+	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to spawn child process: %v %q", err, string(output))
+	}
+
+	// result will be like "prw-rw-rw"
+	if len(output) < 1 || output[0] != 'p' {
+		t.Fatalf("Child process reports stdin is not pipe '%v'", string(output))
+	}
+}
+
 func TestReadAtEOF(t *testing.T) {
 	f := newFile("TestReadAtEOF", t)
 	defer Remove(f.Name())

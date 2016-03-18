@@ -25,10 +25,19 @@ func (file *File) Stat() (FileInfo, error) {
 	if file.name == DevNull {
 		return &devNullStat, nil
 	}
+
+	ft, err := syscall.GetFileType(file.fd)
+	if err != nil {
+		return nil, &PathError{"GetFileType", file.name, err}
+	}
+	if ft == syscall.FILE_TYPE_PIPE {
+		return &fileStat{name: basename(file.name), pipe: true}, nil
+	}
+
 	var d syscall.ByHandleFileInformation
-	e := syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
-	if e != nil {
-		return nil, &PathError{"GetFileInformationByHandle", file.name, e}
+	err = syscall.GetFileInformationByHandle(syscall.Handle(file.fd), &d)
+	if err != nil {
+		return nil, &PathError{"GetFileInformationByHandle", file.name, err}
 	}
 	return &fileStat{
 		name: basename(file.name),
@@ -43,6 +52,7 @@ func (file *File) Stat() (FileInfo, error) {
 		vol:   d.VolumeSerialNumber,
 		idxhi: d.FileIndexHigh,
 		idxlo: d.FileIndexLow,
+		pipe:  false,
 	}, nil
 }
 
