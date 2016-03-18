@@ -44,6 +44,7 @@ var bootstrapDirs = []string{
 	"internal/obj/arm64",
 	"internal/obj/mips",
 	"internal/obj/ppc64",
+	"internal/obj/s390x",
 	"internal/obj/x86",
 	"link",
 	"link/internal/amd64",
