@@ -151,8 +151,8 @@ if [ "$1" = "--no-clean" ]; then
 	buildall=""
 	shift
 fi
+./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
 
-GO_GCFLAGS="$BOOT_GO_GCFLAGS" ./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
 # Delay move of dist tool to now, because bootstrap may clear tool directory.
 mv cmd/dist/dist "$GOTOOLDIR"/dist
 echo
