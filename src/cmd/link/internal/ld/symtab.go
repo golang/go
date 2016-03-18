@@ -67,7 +67,7 @@ func putelfstr(s string) int {
 
 func putelfsyment(off int, addr int64, size int64, info int, shndx int, other int) {
 	switch Thearch.Thechar {
-	case '0', '6', '7', '9':
+	case '0', '6', '7', '9', 'z':
 		Thearch.Lput(uint32(off))
 		Cput(uint8(info))
 		Cput(uint8(other))
@@ -593,6 +593,7 @@ func symtab() {
 		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
 		adduint(Ctxt, moduledata, uint64(len(Ctxt.Shlibs)))
 	}
+
 	// The rest of moduledata is zero initialized.
 	// When linking an object that does not contain the runtime we are
 	// creating the moduledata from scratch and it does not have a

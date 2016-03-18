@@ -264,6 +264,12 @@ const (
 	RV_POWER_HI
 	RV_POWER_HA
 	RV_POWER_DS
+
+	// RV_390_DBL is a s390x-specific relocation variant that indicates that
+	// the value to be placed into the relocatable field should first be
+	// divided by 2.
+	RV_390_DBL
+
 	RV_CHECK_OVERFLOW = 1 << 8
 	RV_TYPE_MASK      = RV_CHECK_OVERFLOW - 1
 )
