@@ -152,9 +152,9 @@ func (p *pp) Flag(b int) bool {
 	case '-':
 		return p.fmt.minus
 	case '+':
-		return p.fmt.plus
+		return p.fmt.plus || p.fmt.plusV
 	case '#':
-		return p.fmt.sharp
+		return p.fmt.sharp || p.fmt.sharpV
 	case ' ':
 		return p.fmt.space
 	case '0':
@@ -570,34 +570,6 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 	}
 }
 
-// clearSpecialFlags pushes %#v back into the regular flags and returns their old state.
-func (p *pp) clearSpecialFlags() (plusV, sharpV bool) {
-	plusV = p.fmt.plusV
-	if plusV {
-		p.fmt.plus = true
-		p.fmt.plusV = false
-	}
-	sharpV = p.fmt.sharpV
-	if sharpV {
-		p.fmt.sharp = true
-		p.fmt.sharpV = false
-	}
-	return
-}
-
-// restoreSpecialFlags, whose argument should be a call to clearSpecialFlags,
-// restores the setting of the plusV and sharpV flags.
-func (p *pp) restoreSpecialFlags(plusV, sharpV bool) {
-	if plusV {
-		p.fmt.plus = false
-		p.fmt.plusV = true
-	}
-	if sharpV {
-		p.fmt.sharp = false
-		p.fmt.sharpV = true
-	}
-}
-
 func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 	if p.erroring {
 		return
@@ -605,7 +577,6 @@ func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 	// Is it a Formatter?
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
-		defer p.restoreSpecialFlags(p.clearSpecialFlags())
 		defer p.catchPanic(p.arg, verb)
 		formatter.Format(p, verb)
 		return
