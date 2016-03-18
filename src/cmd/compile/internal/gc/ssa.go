@@ -2326,16 +2326,14 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		if fn.Op != ODOTMETH {
 			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
 		}
-		if fn.Right.Op != ONAME {
-			Fatalf("OCALLMETH: n.Left.Right not a ONAME: %v", fn.Right)
-		}
 		if k == callNormal {
-			sym = fn.Right.Sym
+			sym = fn.Sym
 			break
 		}
-		n2 := *fn.Right
+		n2 := newname(fn.Sym)
 		n2.Class = PFUNC
-		closure = s.expr(&n2)
+		n2.Lineno = fn.Lineno
+		closure = s.expr(n2)
 		// Note: receiver is already assigned in n.List, so we don't
 		// want to set it here.
 	case OCALLINTER:
@@ -3967,14 +3965,14 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
 // fieldIdx finds the index of the field referred to by the ODOT node n.
 func fieldIdx(n *Node) int {
 	t := n.Left.Type
-	f := n.Right
+	f := n.Sym
 	if t.Etype != TSTRUCT {
 		panic("ODOT's LHS is not a struct")
 	}
 
 	var i int
 	for _, t1 := range t.Fields().Slice() {
-		if t1.Sym != f.Sym {
+		if t1.Sym != f {
 			i++
 			continue
 		}

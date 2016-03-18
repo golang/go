@@ -252,17 +252,22 @@ func typecheck1(np **Node, top int) {
 		*np = n
 	}()
 
-	if n.Sym != nil {
-		if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
-			Yyerror("use of builtin %v not in function call", n.Sym)
-			n.Type = nil
-			return
-		}
+	switch n.Op {
+	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
+		// n.Sym is a field/method name, not a variable.
+	default:
+		if n.Sym != nil {
+			if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
+				Yyerror("use of builtin %v not in function call", n.Sym)
+				n.Type = nil
+				return
+			}
 
-		typecheckdef(n)
-		if n.Op == ONONAME {
-			n.Type = nil
-			return
+			typecheckdef(n)
+			if n.Op == ONONAME {
+				n.Type = nil
+				return
+			}
 		}
 	}
 
@@ -819,11 +824,6 @@ OpSwitch:
 		typecheck(&n.Left, Erv|Etype)
 
 		defaultlit(&n.Left, nil)
-		if n.Right.Op != ONAME {
-			Yyerror("rhs of . must be a name") // impossible
-			n.Type = nil
-			return
-		}
 
 		t := n.Left.Type
 		if t == nil {
@@ -832,14 +832,14 @@ OpSwitch:
 			return
 		}
 
-		r := n.Right
+		s := n.Sym
 
 		if n.Left.Op == OTYPE {
 			if !looktypedot(n, t, 0) {
 				if looktypedot(n, t, 1) {
-					Yyerror("%v undefined (cannot refer to unexported method %v)", n, n.Right.Sym)
+					Yyerror("%v undefined (cannot refer to unexported method %v)", n, n.Sym)
 				} else {
-					Yyerror("%v undefined (type %v has no method %v)", n, t, n.Right.Sym)
+					Yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
 				}
 				n.Type = nil
 				return
@@ -856,7 +856,7 @@ OpSwitch:
 			if n.Name == nil {
 				n.Name = new(Name)
 			}
-			n.Sym = n.Right.Sym
+			n.Right = newname(n.Sym)
 			n.Type = methodfunc(n.Type, n.Left.Type)
 			n.Xoffset = 0
 			n.Class = PFUNC
@@ -874,7 +874,7 @@ OpSwitch:
 			checkwidth(t)
 		}
 
-		if isblank(n.Right) {
+		if isblanksym(n.Sym) {
 			Yyerror("cannot refer to blank field or method")
 			n.Type = nil
 			return
@@ -892,13 +892,13 @@ OpSwitch:
 
 			case lookdot(n, t, 1) != nil:
 				// Field or method matches by name, but it is not exported.
-				Yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Right.Sym)
+				Yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Sym)
 
 			default:
 				if mt := lookdot(n, t, 2); mt != nil { // Case-insensitive lookup.
-					Yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Right.Sym, mt.Sym)
+					Yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Sym, mt.Sym)
 				} else {
-					Yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Right.Sym)
+					Yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Sym)
 				}
 			}
 			n.Type = nil
@@ -910,7 +910,7 @@ OpSwitch:
 			if top&Ecall != 0 {
 				ok |= Ecall
 			} else {
-				typecheckpartialcall(n, r)
+				typecheckpartialcall(n, s)
 				ok |= Erv
 			}
 
@@ -2392,7 +2392,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
 }
 
 func looktypedot(n *Node, t *Type, dostrcmp int) bool {
-	s := n.Right.Sym
+	s := n.Sym
 
 	if t.Etype == TINTER {
 		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
@@ -2400,7 +2400,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 			return false
 		}
 
-		n.Right = methodname(n.Right, t)
+		n.Sym = methodsym(n.Sym, t, 0)
 		n.Xoffset = f1.Width
 		n.Type = f1.Type
 		n.Op = ODOTINTER
@@ -2426,7 +2426,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
 		return false
 	}
 
-	n.Right = methodname(n.Right, t)
+	n.Sym = methodsym(n.Sym, t, 0)
 	n.Xoffset = f2.Width
 	n.Type = f2.Type
 	n.Op = ODOTMETH
@@ -2450,7 +2450,7 @@ type typeSym struct {
 var dotField = map[typeSym]*Field{}
 
 func lookdot(n *Node, t *Type, dostrcmp int) *Field {
-	s := n.Right.Sym
+	s := n.Sym
 
 	dowidth(t)
 	var f1 *Field
@@ -2474,7 +2474,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 			return f1
 		}
 		if f2 != nil {
-			Yyerror("%v is both field and method", n.Right.Sym)
+			Yyerror("%v is both field and method", n.Sym)
 		}
 		if f1.Width == BADWIDTH {
 			Fatalf("lookdot badwidth %v %p", f1, f1)
@@ -2516,7 +2516,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 				n.Left.Implicit = true
 				typecheck(&n.Left, Etype|Erv)
 			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
-				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Right, Nconv(n.Left, FmtLong))
+				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Sym, Nconv(n.Left, FmtLong))
 				for tt.Etype == Tptr {
 					// Stop one level early for method with pointer receiver.
 					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
@@ -2545,7 +2545,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
 			return nil
 		}
 
-		n.Right = methodname(n.Right, n.Left.Type)
+		n.Sym = methodsym(n.Sym, n.Left.Type, 0)
 		n.Xoffset = f2.Width
 		n.Type = f2.Type
 
@@ -3232,7 +3232,7 @@ func samesafeexpr(l *Node, r *Node) bool {
 		return l == r
 
 	case ODOT, ODOTPTR:
-		return l.Right != nil && r.Right != nil && l.Right.Sym == r.Right.Sym && samesafeexpr(l.Left, r.Left)
+		return l.Sym != nil && r.Sym != nil && l.Sym == r.Sym && samesafeexpr(l.Left, r.Left)
 
 	case OIND:
 		return samesafeexpr(l.Left, r.Left)

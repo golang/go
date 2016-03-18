@@ -2480,12 +2480,17 @@ func varexpr(n *Node) bool {
 		OPAREN,
 		OANDAND,
 		OOROR,
-		ODOT, // but not ODOTPTR
 		OCONV,
 		OCONVNOP,
 		OCONVIFACE,
 		ODOTTYPE:
 		return varexpr(n.Left) && varexpr(n.Right)
+
+	case ODOT: // but not ODOTPTR
+		// The original code always returned false for ODOT,
+		// because n.Right would be an ONAME with n.Class not set.
+		// TODO(iant): Fix this to remove "&& false".
+		return varexpr(n.Left) && false
 	}
 
 	// Be conservative.
@@ -3234,8 +3239,8 @@ func walkcompare(np **Node, init *Nodes) {
 			if isblanksym(t1.Sym) {
 				continue
 			}
-			li = Nod(OXDOT, l, newname(t1.Sym))
-			ri = Nod(OXDOT, r, newname(t1.Sym))
+			li = NodSym(OXDOT, l, t1.Sym)
+			ri = NodSym(OXDOT, r, t1.Sym)
 			a = Nod(n.Op, li, ri)
 			if expr == nil {
 				expr = a
@@ -3295,9 +3300,7 @@ func samecheap(a *Node, b *Node) bool {
 			return a == b
 
 		case ODOT, ODOTPTR:
-			ar = a.Right
-			br = b.Right
-			if ar.Op != ONAME || br.Op != ONAME || ar.Sym != br.Sym {
+			if a.Sym != b.Sym {
 				return false
 			}
 
@@ -3815,7 +3818,7 @@ func usefield(n *Node) {
 	case ODOT, ODOTPTR:
 		break
 	}
-	if n.Right == nil {
+	if n.Sym == nil {
 		// No field name.  This DOTPTR was built by the compiler for access
 		// to runtime data structures.  Ignore.
 		return
@@ -3825,9 +3828,9 @@ func usefield(n *Node) {
 	if Isptr[t.Etype] {
 		t = t.Type
 	}
-	field := dotField[typeSym{t.Orig, n.Right.Sym}]
+	field := dotField[typeSym{t.Orig, n.Sym}]
 	if field == nil {
-		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
+		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Sym)
 	}
 	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
 		return

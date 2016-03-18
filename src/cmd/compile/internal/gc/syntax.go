@@ -249,11 +249,11 @@ const (
 	ODCLTYPE  // type Int int
 
 	ODELETE    // delete(Left, Right)
-	ODOT       // Left.Right (Left is of struct type)
-	ODOTPTR    // Left.Right (Left is of pointer to struct type)
-	ODOTMETH   // Left.Right (Left is non-interface, Right is method name)
-	ODOTINTER  // Left.Right (Left is interface, Right is method name)
-	OXDOT      // Left.Right (before rewrite to one of the preceding)
+	ODOT       // Left.Sym (Left is of struct type)
+	ODOTPTR    // Left.Sym (Left is of pointer to struct type)
+	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
+	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
+	OXDOT      // Left.Sym (before rewrite to one of the preceding)
 	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved)
 	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE)
 	OEQ        // Left == Right

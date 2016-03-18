@@ -1249,12 +1249,7 @@ func exprfmt(n *Node, prec int) string {
 		}
 		return ":"
 
-	case OXDOT,
-		ODOT,
-		ODOTPTR,
-		ODOTINTER,
-		ODOTMETH,
-		OCALLPART:
+	case OCALLPART:
 		var f string
 		f += exprfmt(n.Left, nprec)
 		if n.Right == nil || n.Right.Sym == nil {
@@ -1262,6 +1257,16 @@ func exprfmt(n *Node, prec int) string {
 			return f
 		}
 		f += fmt.Sprintf(".%v", Sconv(n.Right.Sym, FmtShort|FmtByte))
+		return f
+
+	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+		var f string
+		f += exprfmt(n.Left, nprec)
+		if n.Sym == nil {
+			f += ".<nil>"
+			return f
+		}
+		f += fmt.Sprintf(".%v", Sconv(n.Sym, FmtShort|FmtByte))
 		return f
 
 	case ODOTTYPE, ODOTTYPE2:

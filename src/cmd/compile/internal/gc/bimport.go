@@ -658,7 +658,7 @@ func (p *importer) node() *Node {
 			obj.Used = true
 			return oldname(s)
 		}
-		return Nod(OXDOT, obj, newname(sel))
+		return NodSym(OXDOT, obj, sel)
 
 	case ODOTTYPE, ODOTTYPE2:
 		n.Left = p.node()

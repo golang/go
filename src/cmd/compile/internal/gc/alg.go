@@ -242,7 +242,7 @@ func genhash(sym *Sym, t *Type) {
 			if algtype1(f.Type, nil) != AMEM {
 				hashel := hashfor(f.Type)
 				call := Nod(OCALL, hashel, nil)
-				nx := Nod(OXDOT, np, newname(f.Sym)) // TODO: fields from other packages?
+				nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
 				na := Nod(OADDR, nx, nil)
 				na.Etype = 1 // no escape to heap
 				call.List.Append(na)
@@ -258,7 +258,7 @@ func genhash(sym *Sym, t *Type) {
 			// h = hashel(&p.first, size, h)
 			hashel := hashmem(f.Type)
 			call := Nod(OCALL, hashel, nil)
-			nx := Nod(OXDOT, np, newname(f.Sym)) // TODO: fields from other packages?
+			nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
 			na := Nod(OADDR, nx, nil)
 			na.Etype = 1 // no escape to heap
 			call.List.Append(na)
@@ -436,7 +436,7 @@ func geneq(sym *Sym, t *Type) {
 
 			// Compare non-memory fields with field equality.
 			if algtype1(f.Type, nil) != AMEM {
-				and(eqfield(np, nq, newname(f.Sym)))
+				and(eqfield(np, nq, f.Sym))
 				i++
 				continue
 			}
@@ -449,11 +449,11 @@ func geneq(sym *Sym, t *Type) {
 			if s := fields[i:next]; len(s) <= 2 {
 				// Two or fewer fields: use plain field equality.
 				for _, f := range s {
-					and(eqfield(np, nq, newname(f.Sym)))
+					and(eqfield(np, nq, f.Sym))
 				}
 			} else {
 				// More than two fields: use memequal.
-				and(eqmem(np, nq, newname(f.Sym), size))
+				and(eqmem(np, nq, f.Sym, size))
 			}
 			i = next
 		}
@@ -502,19 +502,19 @@ func geneq(sym *Sym, t *Type) {
 
 // eqfield returns the node
 // 	p.field == q.field
-func eqfield(p *Node, q *Node, field *Node) *Node {
-	nx := Nod(OXDOT, p, field)
-	ny := Nod(OXDOT, q, field)
+func eqfield(p *Node, q *Node, field *Sym) *Node {
+	nx := NodSym(OXDOT, p, field)
+	ny := NodSym(OXDOT, q, field)
 	ne := Nod(OEQ, nx, ny)
 	return ne
 }
 
 // eqmem returns the node
 // 	memequal(&p.field, &q.field [, size])
-func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
-	nx := Nod(OADDR, Nod(OXDOT, p, field), nil)
+func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
+	nx := Nod(OADDR, NodSym(OXDOT, p, field), nil)
 	nx.Etype = 1 // does not escape
-	ny := Nod(OADDR, Nod(OXDOT, q, field), nil)
+	ny := Nod(OADDR, NodSym(OXDOT, q, field), nil)
 	ny.Etype = 1 // does not escape
 	typecheck(&nx, Erv)
 	typecheck(&ny, Erv)

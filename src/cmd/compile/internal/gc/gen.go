@@ -948,7 +948,7 @@ func cgen_callmeth(n *Node, proc int) {
 
 	n2 := *n
 	n2.Op = OCALLFUNC
-	n2.Left = l.Right
+	n2.Left = newname(l.Sym)
 	n2.Left.Type = l.Type
 
 	if n2.Left.Op == ONAME {
