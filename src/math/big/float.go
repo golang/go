@@ -874,21 +874,43 @@ func (x *Float) Float32() (float32, Accuracy) {
 			emax  = bias              //   127  largest unbiased exponent (normal)
 		)
 
-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float32 mantissa.
-		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
-		p := mbits + 1 // precision of normal float
+		// Float mantissa m is 0.5 <= m < 1.0; compute exponent e for float32 mantissa.
+		e := x.exp - 1 // exponent for normal mantissa m with 1.0 <= m < 2.0
 
-		// If the exponent is too small, we may have a denormal number
-		// in which case we have fewer mantissa bits available: recompute
-		// precision.
+		// Compute precision p for float32 mantissa.
+		// If the exponent is too small, we have a denormal number before
+		// rounding and fewer than p mantissa bits of precision available
+		// (the exponent remains fixed but the mantissa gets shifted right).
+		p := mbits + 1 // precision of normal float
 		if e < emin {
+			// recompute precision
 			p = mbits + 1 - emin + int(e)
-			// Make sure we have at least 1 bit so that we don't
-			// lose numbers rounded up to the smallest denormal.
-			if p < 1 {
-				p = 1
+			// If p == 0, the mantissa of x is shifted so much to the right
+			// that its msb falls immediately to the right of the float32
+			// mantissa space. In other words, if the smallest denormal is
+			// considered "1.0", for p == 0, the mantissa value m is >= 0.5.
+			// If m > 0.5, it is rounded up to 1.0; i.e., the smallest denormal.
+			// If m == 0.5, it is rounded down to even, i.e., 0.0.
+			// If p < 0, the mantissa value m is <= "0.25" which is never rounded up.
+			if p < 0 /* m <= 0.25 */ || p == 0 && x.mant.sticky(uint(len(x.mant))*_W-1) == 0 /* m == 0.5 */ {
+				// underflow to ±0
+				if x.neg {
+					var z float32
+					return -z, Above
+				}
+				return 0.0, Below
+			}
+			// otherwise, round up
+			// We handle p == 0 explicitly because it's easy and because
+			// Float.round doesn't support rounding to 0 bits of precision.
+			if p == 0 {
+				if x.neg {
+					return -math.SmallestNonzeroFloat32, Below
+				}
+				return math.SmallestNonzeroFloat32, Above
 			}
 		}
+		// p > 0
 
 		// round
 		var r Float
@@ -898,12 +920,8 @@ func (x *Float) Float32() (float32, Accuracy) {
 
 		// Rounding may have caused r to overflow to ±Inf
 		// (rounding never causes underflows to 0).
-		if r.form == inf {
-			e = emax + 1 // cause overflow below
-		}
-
-		// If the exponent is too large, overflow to ±Inf.
-		if e > emax {
+		// If the exponent is too large, also overflow to ±Inf.
+		if r.form == inf || e > emax {
 			// overflow
 			if x.neg {
 				return float32(math.Inf(-1)), Below
@@ -921,17 +939,10 @@ func (x *Float) Float32() (float32, Accuracy) {
 		// Rounding may have caused a denormal number to
 		// become normal. Check again.
 		if e < emin {
-			// denormal number
-			if e < dmin {
-				// underflow to ±0
-				if x.neg {
-					var z float32
-					return -z, Above
-				}
-				return 0.0, Below
-			}
-			// bexp = 0
-			// recompute precision
+			// denormal number: recompute precision
+			// Since rounding may have at best increased precision
+			// and we have eliminated p <= 0 early, we know p > 0.
+			// bexp == 0 for denormals
 			p = mbits + 1 - emin + int(e)
 			mant = msb32(r.mant) >> uint(fbits-p)
 		} else {
@@ -983,21 +994,43 @@ func (x *Float) Float64() (float64, Accuracy) {
 			emax  = bias              //  1023  largest unbiased exponent (normal)
 		)
 
-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent for float64 mantissa.
-		e := x.exp - 1 // exponent for mantissa m with 1.0 <= m < 2.0
-		p := mbits + 1 // precision of normal float
+		// Float mantissa m is 0.5 <= m < 1.0; compute exponent e for float64 mantissa.
+		e := x.exp - 1 // exponent for normal mantissa m with 1.0 <= m < 2.0
 
-		// If the exponent is too small, we may have a denormal number
-		// in which case we have fewer mantissa bits available: recompute
-		// precision.
+		// Compute precision p for float64 mantissa.
+		// If the exponent is too small, we have a denormal number before
+		// rounding and fewer than p mantissa bits of precision available
+		// (the exponent remains fixed but the mantissa gets shifted right).
+		p := mbits + 1 // precision of normal float
 		if e < emin {
+			// recompute precision
 			p = mbits + 1 - emin + int(e)
-			// Make sure we have at least 1 bit so that we don't
-			// lose numbers rounded up to the smallest denormal.
-			if p < 1 {
-				p = 1
+			// If p == 0, the mantissa of x is shifted so much to the right
+			// that its msb falls immediately to the right of the float64
+			// mantissa space. In other words, if the smallest denormal is
+			// considered "1.0", for p == 0, the mantissa value m is >= 0.5.
+			// If m > 0.5, it is rounded up to 1.0; i.e., the smallest denormal.
+			// If m == 0.5, it is rounded down to even, i.e., 0.0.
+			// If p < 0, the mantissa value m is <= "0.25" which is never rounded up.
+			if p < 0 /* m <= 0.25 */ || p == 0 && x.mant.sticky(uint(len(x.mant))*_W-1) == 0 /* m == 0.5 */ {
+				// underflow to ±0
+				if x.neg {
+					var z float64
+					return -z, Above
+				}
+				return 0.0, Below
+			}
+			// otherwise, round up
+			// We handle p == 0 explicitly because it's easy and because
+			// Float.round doesn't support rounding to 0 bits of precision.
+			if p == 0 {
+				if x.neg {
+					return -math.SmallestNonzeroFloat64, Below
+				}
+				return math.SmallestNonzeroFloat64, Above
 			}
 		}
+		// p > 0
 
 		// round
 		var r Float
@@ -1007,17 +1040,13 @@ func (x *Float) Float64() (float64, Accuracy) {
 
 		// Rounding may have caused r to overflow to ±Inf
 		// (rounding never causes underflows to 0).
-		if r.form == inf {
-			e = emax + 1 // cause overflow below
-		}
-
-		// If the exponent is too large, overflow to ±Inf.
-		if e > emax {
+		// If the exponent is too large, also overflow to ±Inf.
+		if r.form == inf || e > emax {
 			// overflow
 			if x.neg {
-				return math.Inf(-1), Below
+				return float64(math.Inf(-1)), Below
 			}
-			return math.Inf(+1), Above
+			return float64(math.Inf(+1)), Above
 		}
 		// e <= emax
 
@@ -1030,17 +1059,10 @@ func (x *Float) Float64() (float64, Accuracy) {
 		// Rounding may have caused a denormal number to
 		// become normal. Check again.
 		if e < emin {
-			// denormal number
-			if e < dmin {
-				// underflow to ±0
-				if x.neg {
-					var z float64
-					return -z, Above
-				}
-				return 0.0, Below
-			}
-			// bexp = 0
-			// recompute precision
+			// denormal number: recompute precision
+			// Since rounding may have at best increased precision
+			// and we have eliminated p <= 0 early, we know p > 0.
+			// bexp == 0 for denormals
 			p = mbits + 1 - emin + int(e)
 			mant = msb64(r.mant) >> uint(fbits-p)
 		} else {
