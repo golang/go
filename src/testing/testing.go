@@ -602,7 +602,7 @@ type testContext struct {
 func newTestContext(maxParallel int) *testContext {
 	return &testContext{
 		startParallel: make(chan bool),
-		maxParallel:   *parallel,
+		maxParallel:   maxParallel,
 		running:       1, // Set the count to 1 for the main (sequential) test.
 	}
 }

@@ -179,6 +179,57 @@ func TestTRun(t *T) {
 			}
 		},
 	}, {
+		desc:   "run no more than *parallel tests concurrently",
+		ok:     true,
+		maxPar: 4,
+		f: func(t *T) {
+			max := 0
+			in := make(chan int)
+			out := make(chan int)
+			ctx := t.context
+			t.Run("wait", func(t *T) {
+				t.Run("controller", func(t *T) {
+					// Verify sequential tests don't skew counts.
+					t.Run("seq1", func(t *T) {})
+					t.Run("seq2", func(t *T) {})
+					t.Run("seq3", func(t *T) {})
+					t.Parallel()
+					for i := 0; i < 80; i++ {
+						ctx.mu.Lock()
+						if ctx.running > max {
+							max = ctx.running
+						}
+						ctx.mu.Unlock()
+						<-in
+						// force a minimum to avoid a race, although it works
+						// without it.
+						if i >= ctx.maxParallel-2 { // max - this - 1
+							out <- i
+						}
+					}
+					close(out)
+				})
+				// Ensure we don't exceed the maximum even with nested parallelism.
+				for i := 0; i < 2; i++ {
+					t.Run("", func(t *T) {
+						t.Parallel()
+						for j := 0; j < 40; j++ {
+							t.Run("", func(t *T) {
+								t.Run("seq1", func(t *T) {})
+								t.Run("seq2", func(t *T) {})
+								t.Parallel()
+								in <- j
+								<-out
+							})
+						}
+					})
+				}
+			})
+			if max != ctx.maxParallel {
+				realTest.Errorf("max: got %d; want: %d", max, ctx.maxParallel)
+			}
+		},
+	}, {
 		desc: "alternate sequential and parallel",
 		// Sequential tests should partake in the counting of running threads.
 		// Otherwise, if one runs parallel subtests in sequential tests that are
