@@ -689,3 +689,7 @@ func matmult(done chan<- struct{}, A, B, C Matrix, i0, i1, j0, j1, k0, k1, thres
 		done <- struct{}{}
 	}
 }
+
+func TestStealOrder(t *testing.T) {
+	runtime.RunStealOrderTest()
+}
