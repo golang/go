@@ -377,7 +377,7 @@ func buildModeInit() {
 			fatalf("-buildmode=pie not supported by gccgo")
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le",
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 				codegenArg = "-shared"
 			default:
@@ -391,7 +391,7 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
 			default:
 				fatalf("-buildmode=shared not supported on %s\n", platform)
 			}
@@ -409,7 +409,7 @@ func buildModeInit() {
 			codegenArg = "-fPIC"
 		} else {
 			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
 				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
 			default:
 				fatalf("-linkshared not supported on %s\n", platform)
@@ -3025,6 +3025,8 @@ func (b *builder) gccArchArgs() []string {
 		return []string{"-m64"}
 	case "arm":
 		return []string{"-marm"} // not thumb
+	case "s390x":
+		return []string{"-m64", "-march=z196"}
 	}
 	return nil
 }
