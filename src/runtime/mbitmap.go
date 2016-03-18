@@ -384,10 +384,10 @@ func (h heapBits) setCheckmarked(size uintptr) {
 
 // heapBitsBulkBarrier executes writebarrierptr_nostore
 // for every pointer slot in the memory range [p, p+size),
-// using the heap bitmap to locate those pointer slots.
+// using the heap, data, or BSS bitmap to locate those pointer slots.
 // This executes the write barriers necessary after a memmove.
 // Both p and size must be pointer-aligned.
-// The range [p, p+size) must lie within a single allocation.
+// The range [p, p+size) must lie within a single object.
 //
 // Callers should call heapBitsBulkBarrier immediately after
 // calling memmove(p, src, size). This function is marked nosplit
@@ -431,6 +431,22 @@ func heapBitsBulkBarrier(p, size uintptr) {
 			systemstack(func() {
 				gcUnwindBarriers(gp, p)
 			})
+			return
+		}
+
+		// If p is a global, use the data or BSS bitmaps to
+		// execute write barriers.
+		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+			if datap.data <= p && p < datap.edata {
+				bulkBarrierBitmap(p, size, p-datap.data, datap.gcdatamask.bytedata)
+				return
+			}
+		}
+		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+			if datap.bss <= p && p < datap.ebss {
+				bulkBarrierBitmap(p, size, p-datap.bss, datap.gcbssmask.bytedata)
+				return
+			}
 		}
 		return
 	}
@@ -442,6 +458,36 @@ func heapBitsBulkBarrier(p, size uintptr) {
 			writebarrierptr_nostore(x, *x)
 		}
 		h = h.next()
+	}
+}
+
+// bulkBarrierBitmap executes write barriers for [p, p+size) using a
+// 1-bit pointer bitmap. p is assumed to start maskOffset bytes into
+// the data covered by the bitmap in bits.
+//
+// This is used by heapBitsBulkBarrier for writes to data and BSS.
+//
+//go:nosplit
+func bulkBarrierBitmap(p, size, maskOffset uintptr, bits *uint8) {
+	word := maskOffset / sys.PtrSize
+	bits = addb(bits, word/8)
+	mask := uint8(1) << (word % 8)
+
+	for i := uintptr(0); i < size; i += sys.PtrSize {
+		if mask == 0 {
+			bits = addb(bits, 1)
+			if *bits == 0 {
+				// Skip 8 words.
+				i += 7 * sys.PtrSize
+				continue
+			}
+			mask = 1
+		}
+		if *bits&mask != 0 {
+			x := (*uintptr)(unsafe.Pointer(p + i))
+			writebarrierptr_nostore(x, *x)
+		}
+		mask <<= 1
 	}
 }
 

@@ -42,18 +42,22 @@ func gcMarkRootPrepare() {
 	}
 
 	work.nDataRoots = 0
-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		nDataRoots := nBlocks(datap.edata - datap.data)
-		if nDataRoots > work.nDataRoots {
-			work.nDataRoots = nDataRoots
-		}
-	}
-
 	work.nBSSRoots = 0
-	for datap := &firstmoduledata; datap != nil; datap = datap.next {
-		nBSSRoots := nBlocks(datap.ebss - datap.bss)
-		if nBSSRoots > work.nBSSRoots {
-			work.nBSSRoots = nBSSRoots
+
+	// Only scan globals once per cycle; preferably concurrently.
+	if !work.markrootDone {
+		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+			nDataRoots := nBlocks(datap.edata - datap.data)
+			if nDataRoots > work.nDataRoots {
+				work.nDataRoots = nDataRoots
+			}
+		}
+
+		for datap := &firstmoduledata; datap != nil; datap = datap.next {
+			nBSSRoots := nBlocks(datap.ebss - datap.bss)
+			if nBSSRoots > work.nBSSRoots {
+				work.nBSSRoots = nBSSRoots
+			}
 		}
 	}
 

@@ -196,3 +196,18 @@ func f20(x, y *int, i int) []*int {
 	a := []*int{x, y} // ERROR "write barrier"
 	return a
 }
+
+var x21 *int
+var y21 struct {
+	x *int
+}
+var z21 int
+
+func f21(x *int) {
+	// Global -> heap pointer updates must have write barriers.
+	x21 = x                   // ERROR "write barrier"
+	y21.x = x                 // ERROR "write barrier"
+	x21 = &z21                // no barrier
+	y21.x = &z21              // no barrier
+	y21 = struct{ x *int }{x} // ERROR "write barrier"
+}
