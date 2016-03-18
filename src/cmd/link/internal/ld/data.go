@@ -149,6 +149,9 @@ func Addpcrelplus(ctxt *Link, s *LSym, t *LSym, add int64) int64 {
 	r.Add = add
 	r.Type = obj.R_PCREL
 	r.Siz = 4
+	if Thearch.Thechar == 'z' {
+		r.Variant = RV_390_DBL
+	}
 	return i + int64(r.Siz)
 }
 
@@ -345,6 +348,17 @@ func relocsym(s *LSym) {
 		}
 		if r.Sym != nil && r.Sym.Type != obj.STLSBSS && !r.Sym.Attr.Reachable() {
 			Diag("unreachable sym in relocation: %s %s", s.Name, r.Sym.Name)
+		}
+
+		// TODO(mundaym): remove this special case - see issue 14218.
+		if Thearch.Thechar == 'z' {
+			switch r.Type {
+			case obj.R_PCRELDBL:
+				r.Type = obj.R_PCREL
+				r.Variant = RV_390_DBL
+			case obj.R_CALL:
+				r.Variant = RV_390_DBL
+			}
 		}
 
 		switch r.Type {
@@ -1020,7 +1034,7 @@ func symalign(s *LSym) int32 {
 	if strings.HasPrefix(s.Name, "go.string.") && !strings.HasPrefix(s.Name, "go.string.hdr.") {
 		// String data is just bytes.
 		// If we align it, we waste a lot of space to padding.
-		return 1
+		return min
 	}
 	align := int32(Thearch.Maxalign)
 	for int64(align) > s.Size && align > min {

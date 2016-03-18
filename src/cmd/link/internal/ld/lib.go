@@ -339,7 +339,7 @@ func (mode *BuildMode) Set(s string) error {
 		switch goos {
 		case "linux":
 			switch goarch {
-			case "386", "amd64", "arm", "arm64", "ppc64le":
+			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
 			default:
 				return badmode()
 			}
@@ -1242,7 +1242,7 @@ func hostlinkArchArgs() []string {
 	switch Thearch.Thechar {
 	case '8':
 		return []string{"-m32"}
-	case '6', '9':
+	case '6', '9', 'z':
 		return []string{"-m64"}
 	case '5':
 		return []string{"-marm"}
