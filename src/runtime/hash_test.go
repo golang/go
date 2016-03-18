@@ -671,6 +671,7 @@ func BenchmarkAlignedLoad(b *testing.B) {
 	}
 	sink = s
 }
+
 func BenchmarkUnalignedLoad(b *testing.B) {
 	var buf [16]byte
 	p := unsafe.Pointer(&buf[1])
