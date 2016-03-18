@@ -18,7 +18,7 @@ func init() {
 	register("copylocks",
 		"check that locks are not passed by value",
 		checkCopyLocks,
-		funcDecl, rangeStmt, funcLit, assignStmt, genDecl, compositeLit)
+		funcDecl, rangeStmt, funcLit, callExpr, assignStmt, genDecl, compositeLit, returnStmt)
 }
 
 // checkCopyLocks checks whether node might
@@ -31,12 +31,16 @@ func checkCopyLocks(f *File, node ast.Node) {
 		checkCopyLocksFunc(f, node.Name.Name, node.Recv, node.Type)
 	case *ast.FuncLit:
 		checkCopyLocksFunc(f, "func", nil, node.Type)
+	case *ast.CallExpr:
+		checkCopyLocksCallExpr(f, node)
 	case *ast.AssignStmt:
 		checkCopyLocksAssign(f, node)
 	case *ast.GenDecl:
 		checkCopyLocksGenDecl(f, node)
 	case *ast.CompositeLit:
-		checkCopyCompositeLit(f, node)
+		checkCopyLocksCompositeLit(f, node)
+	case *ast.ReturnStmt:
+		checkCopyLocksReturnStmt(f, node)
 	}
 }
 
@@ -66,14 +70,32 @@ func checkCopyLocksGenDecl(f *File, gd *ast.GenDecl) {
 	}
 }
 
-// checkCopyCompositeLit detects lock copy inside a composite literal
-func checkCopyCompositeLit(f *File, cl *ast.CompositeLit) {
+// checkCopyLocksCompositeLit detects lock copy inside a composite literal
+func checkCopyLocksCompositeLit(f *File, cl *ast.CompositeLit) {
 	for _, x := range cl.Elts {
 		if node, ok := x.(*ast.KeyValueExpr); ok {
 			x = node.Value
 		}
 		if path := lockPathRhs(f, x); path != nil {
 			f.Badf(x.Pos(), "literal copies lock value from %v: %v", f.gofmt(x), path)
+		}
+	}
+}
+
+// checkCopyLocksReturnStmt detects lock copy in return statement
+func checkCopyLocksReturnStmt(f *File, rs *ast.ReturnStmt) {
+	for _, x := range rs.Results {
+		if path := lockPathRhs(f, x); path != nil {
+			f.Badf(x.Pos(), "return copies lock value: %v", path)
+		}
+	}
+}
+
+// checkCopyLocksCallExpr detects lock copy in function call
+func checkCopyLocksCallExpr(f *File, ce *ast.CallExpr) {
+	for _, x := range ce.Args {
+		if path := lockPathRhs(f, x); path != nil {
+			f.Badf(x.Pos(), "function call copies lock value: %v", path)
 		}
 	}
 }
