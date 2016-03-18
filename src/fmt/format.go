@@ -190,17 +190,16 @@ func (f *fmt) fmt_unicode(u uint64) {
 	f.zero = oldZero
 }
 
-// integer; interprets prec but not wid. Once formatted, result is sent to pad()
-// and then flags are cleared.
-func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
+// fmt_integer formats signed and unsigned integers.
+func (f *fmt) fmt_integer(u uint64, base int, isSigned bool, digits string) {
 	// precision of 0 and value of 0 means "print nothing"
-	if f.precPresent && f.prec == 0 && a == 0 {
+	if f.precPresent && f.prec == 0 && u == 0 {
 		return
 	}
 
-	negative := signedness == signed && a < 0
+	negative := isSigned && int64(u) < 0
 	if negative {
-		a = -a
+		u = -u
 	}
 
 	var buf []byte = f.intbuf[0:]
@@ -233,45 +232,43 @@ func (f *fmt) integer(a int64, base uint64, signedness bool, digits string) {
 		}
 	}
 
-	// format a into buf, ending at buf[i].  (printing is easier right-to-left.)
-	// a is made into unsigned ua.  we could make things
-	// marginally faster by splitting the 32-bit case out into a separate
-	// block but it's not worth the duplication, so ua has 64 bits.
+	// Because printing is easier right-to-left: format u into buf, ending at buf[i].
+	// We could make things marginally faster by splitting the 32-bit case out
+	// into a separate block but it's not worth the duplication, so u has 64 bits.
 	i := len(buf)
-	ua := uint64(a)
-	// use constants for the division and modulo for more efficient code.
-	// switch cases ordered by popularity.
+	// Use constants for the division and modulo for more efficient code.
+	// Switch cases ordered by popularity.
 	switch base {
 	case 10:
-		for ua >= 10 {
+		for u >= 10 {
 			i--
-			next := ua / 10
-			buf[i] = byte('0' + ua - next*10)
-			ua = next
+			next := u / 10
+			buf[i] = byte('0' + u - next*10)
+			u = next
 		}
 	case 16:
-		for ua >= 16 {
+		for u >= 16 {
 			i--
-			buf[i] = digits[ua&0xF]
-			ua >>= 4
+			buf[i] = digits[u&0xF]
+			u >>= 4
 		}
 	case 8:
-		for ua >= 8 {
+		for u >= 8 {
 			i--
-			buf[i] = byte('0' + ua&7)
-			ua >>= 3
+			buf[i] = byte('0' + u&7)
+			u >>= 3
 		}
 	case 2:
-		for ua >= 2 {
+		for u >= 2 {
 			i--
-			buf[i] = byte('0' + ua&1)
-			ua >>= 1
+			buf[i] = byte('0' + u&1)
+			u >>= 1
 		}
 	default:
 		panic("fmt: unknown base; can't happen")
 	}
 	i--
-	buf[i] = digits[ua]
+	buf[i] = digits[u]
 	for i > 0 && prec > len(buf)-i {
 		i--
 		buf[i] = '0'
