@@ -299,6 +299,7 @@ const (
 	ABasePPC64
 	ABaseARM64
 	ABaseMIPS64
+	ABaseS390X
 
 	AMask = 1<<12 - 1 // AND with this to use the opcode as an array index.
 )
@@ -564,6 +565,10 @@ const (
 	// R_ADDRPOWER_DS but inserts the offset from the TOC to the address of the the
 	// relocated symbol rather than the symbol's address.
 	R_ADDRPOWER_TOCREL_DS
+
+	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
+	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
+	R_PCRELDBL
 )
 
 type Auto struct {
