@@ -3921,9 +3921,20 @@ func pidleget() *p {
 }
 
 // runqempty returns true if _p_ has no Gs on its local run queue.
-// Note that this test is generally racy.
+// It never returns true spuriously.
 func runqempty(_p_ *p) bool {
-	return _p_.runqhead == _p_.runqtail && _p_.runnext == 0
+	// Defend against a race where 1) _p_ has G1 in runqnext but runqhead == runqtail,
+	// 2) runqput on _p_ kicks G1 to the runq, 3) runqget on _p_ empties runqnext.
+	// Simply observing that runqhead == runqtail and then observing that runqnext == nil
+	// does not mean the queue is empty.
+	for {
+		head := atomic.Load(&_p_.runqhead)
+		tail := atomic.Load(&_p_.runqtail)
+		runnext := atomic.Loaduintptr((*uintptr)(unsafe.Pointer(&_p_.runnext)))
+		if tail == atomic.Load(&_p_.runqtail) {
+			return head == tail && runnext == 0
+		}
+	}
 }
 
 // To shake out latent assumptions about scheduling order,
