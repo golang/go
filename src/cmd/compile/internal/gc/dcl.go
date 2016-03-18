@@ -1309,6 +1309,10 @@ func funccompile(n *Node) {
 	breakpc = nil
 	Funcdepth = 0
 	dclcontext = PEXTERN
+	if nerrors != 0 {
+		// If we have compile errors, ignore any assembler/linker errors.
+		Ctxt.DiagFunc = func(string, ...interface{}) {}
+	}
 	flushdata()
 	obj.Flushplist(Ctxt) // convert from Prog list to machine code
 }

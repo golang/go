@@ -2750,6 +2750,16 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
 	var rel obj.Reloc
 
 	rex &= 0x40 | Rxr
+	switch {
+	case int64(int32(a.Offset)) == a.Offset:
+		// Offset fits in sign-extended 32 bits.
+	case int64(uint32(a.Offset)) == a.Offset && ctxt.Rexflag&Rxw == 0:
+		// Offset fits in zero-extended 32 bits in a 32-bit instruction.
+		// This is allowed for assembly that wants to use 32-bit hex
+		// constants, e.g. LEAL 0x99999999(AX), AX.
+	default:
+		ctxt.Diag("offset too large in %s", p)
+	}
 	v := int32(a.Offset)
 	rel.Siz = 0
 

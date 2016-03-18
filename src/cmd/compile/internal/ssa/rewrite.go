@@ -95,16 +95,6 @@ func typeSize(t Type) int64 {
 	return t.Size()
 }
 
-// addOff adds two int64 offsets. Fails if wraparound happens.
-func addOff(x, y int64) int64 {
-	z := x + y
-	// x and y have same sign and z has a different sign => overflow
-	if x^y >= 0 && x^z < 0 {
-		panic(fmt.Sprintf("offset overflow %d %d", x, y))
-	}
-	return z
-}
-
 // mergeSym merges two symbolic offsets. There is no real merging of
 // offsets, we just pick the non-nil one.
 func mergeSym(x, y interface{}) interface{} {
