@@ -109,27 +109,20 @@ func Main() {
 
 	// pseudo-package, for scoping
 	builtinpkg = mkpkg("go.builtin")
-
 	builtinpkg.Prefix = "go.builtin" // not go%2ebuiltin
 
 	// pseudo-package, accessed by import "unsafe"
 	unsafepkg = mkpkg("unsafe")
-
 	unsafepkg.Name = "unsafe"
 
 	// real package, referred to by generated runtime calls
 	Runtimepkg = mkpkg("runtime")
-
 	Runtimepkg.Name = "runtime"
 
 	// pseudo-packages used in symbol tables
 	itabpkg = mkpkg("go.itab")
 	itabpkg.Name = "go.itab"
 	itabpkg.Prefix = "go.itab" // not go%2eitab
-
-	itab2pkg = mkpkg("go.itab2")
-	itab2pkg.Name = "go.itab2"
-	itab2pkg.Prefix = "go.itab2" // not go%2eitab2
 
 	typelinkpkg = mkpkg("go.typelink")
 	typelinkpkg.Name = "go.typelink"
@@ -140,12 +133,10 @@ func Main() {
 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
 
 	trackpkg = mkpkg("go.track")
-
 	trackpkg.Name = "go.track"
 	trackpkg.Prefix = "go.track" // not go%2etrack
 
 	typepkg = mkpkg("type")
-
 	typepkg.Name = "type"
 
 	goroot = obj.Getgoroot()

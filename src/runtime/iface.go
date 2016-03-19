@@ -147,12 +147,6 @@ func itabsinit() {
 	unlock(&ifaceLock)
 }
 
-func typ2Itab(t *_type, inter *interfacetype, cache **itab) *itab {
-	tab := getitab(inter, t, false)
-	atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
-	return tab
-}
-
 func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 	if raceenabled {
 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2E))
@@ -176,17 +170,13 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
 	return
 }
 
-func convT2I(t *_type, inter *interfacetype, cache **itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
+func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
+	t := tab._type
 	if raceenabled {
 		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
 	}
 	if msanenabled {
 		msanread(elem, t.size)
-	}
-	tab := (*itab)(atomic.Loadp(unsafe.Pointer(cache)))
-	if tab == nil {
-		tab = getitab(inter, t, false)
-		atomicstorep(unsafe.Pointer(cache), unsafe.Pointer(tab))
 	}
 	if isDirectIface(t) {
 		i.tab = tab
