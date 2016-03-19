@@ -803,7 +803,7 @@ func TestFindImportGoPath(t *testing.T) {
 	}
 	defer os.RemoveAll(goroot)
 
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 
 	origStdlib := stdlib
 	defer func() {
@@ -858,7 +858,7 @@ type Buffer2 struct {}
 }
 
 func TestFindImportInternal(t *testing.T) {
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {
@@ -892,7 +892,7 @@ func TestFindImportInternal(t *testing.T) {
 }
 
 func TestFindImportVendor(t *testing.T) {
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {
@@ -926,7 +926,7 @@ func TestFindImportVendor(t *testing.T) {
 }
 
 func TestProcessVendor(t *testing.T) {
-	pkgIndexOnce = sync.Once{}
+	pkgIndexOnce = &sync.Once{}
 	oldGOPATH := build.Default.GOPATH
 	build.Default.GOPATH = ""
 	defer func() {

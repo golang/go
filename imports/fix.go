@@ -171,7 +171,7 @@ type pkg struct {
 	dir        string // absolute file path to pkg directory e.g. "/usr/lib/go/src/fmt"
 }
 
-var pkgIndexOnce sync.Once
+var pkgIndexOnce = &sync.Once{}
 
 var pkgIndex struct {
 	sync.Mutex
