@@ -445,16 +445,16 @@ func symfmt(s *Sym, flag FmtFlag) string {
 			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
 				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
 			}
-			return fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name)
+			return s.Pkg.Name + "." + s.Name
 
 		case FDbg:
-			return fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name)
+			return s.Pkg.Name + "." + s.Name
 
 		case FTypeId:
 			if flag&FmtUnsigned != 0 {
-				return fmt.Sprintf("%s.%s", s.Pkg.Name, s.Name) // dcommontype, typehash
+				return s.Pkg.Name + "." + s.Name // dcommontype, typehash
 			}
-			return fmt.Sprintf("%s.%s", s.Pkg.Prefix, s.Name) // (methodsym), typesym, weaksym
+			return s.Pkg.Prefix + "." + s.Name // (methodsym), typesym, weaksym
 
 		case FExp:
 			if s.Name != "" && s.Name[0] == '.' {
@@ -569,35 +569,35 @@ func typefmt(t *Type, flag FmtFlag) string {
 	switch t.Etype {
 	case TPTR32, TPTR64:
 		if fmtmode == FTypeId && (flag&FmtShort != 0) {
-			return fmt.Sprintf("*%v", Tconv(t.Type, FmtShort))
+			return "*" + Tconv(t.Type, FmtShort)
 		}
-		return fmt.Sprintf("*%v", t.Type)
+		return "*" + t.Type.String()
 
 	case TARRAY:
 		if t.Bound >= 0 {
 			return fmt.Sprintf("[%d]%v", t.Bound, t.Type)
 		}
 		if t.Bound == -100 {
-			return fmt.Sprintf("[...]%v", t.Type)
+			return "[...]" + t.Type.String()
 		}
-		return fmt.Sprintf("[]%v", t.Type)
+		return "[]" + t.Type.String()
 
 	case TCHAN:
 		switch t.Chan {
 		case Crecv:
-			return fmt.Sprintf("<-chan %v", t.Type)
+			return "<-chan " + t.Type.String()
 
 		case Csend:
-			return fmt.Sprintf("chan<- %v", t.Type)
+			return "chan<- " + t.Type.String()
 		}
 
 		if t.Type != nil && t.Type.Etype == TCHAN && t.Type.Sym == nil && t.Type.Chan == Crecv {
-			return fmt.Sprintf("chan (%v)", t.Type)
+			return "chan (" + t.Type.String() + ")"
 		}
-		return fmt.Sprintf("chan %v", t.Type)
+		return "chan " + t.Type.String()
 
 	case TMAP:
-		return fmt.Sprintf("map[%v]%v", t.Key(), t.Type)
+		return "map[" + t.Key().String() + "]" + t.Type.String()
 
 	case TINTER:
 		var buf bytes.Buffer
@@ -662,15 +662,15 @@ func typefmt(t *Type, flag FmtFlag) string {
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
 			if t.Map.Bucket == t {
-				return fmt.Sprintf("map.bucket[%v]%v", t.Map.Key(), t.Map.Type)
+				return "map.bucket[" + t.Map.Key().String() + "]" + t.Map.Type.String()
 			}
 
 			if t.Map.Hmap == t {
-				return fmt.Sprintf("map.hdr[%v]%v", t.Map.Key(), t.Map.Type)
+				return "map.hdr[" + t.Map.Key().String() + "]" + t.Map.Type.String()
 			}
 
 			if t.Map.Hiter == t {
-				return fmt.Sprintf("map.iter[%v]%v", t.Map.Key(), t.Map.Type)
+				return "map.iter[" + t.Map.Key().String() + "]" + t.Map.Type.String()
 			}
 
 			Yyerror("unknown internal map type")
@@ -708,7 +708,7 @@ func typefmt(t *Type, flag FmtFlag) string {
 
 	case TFORW:
 		if t.Sym != nil {
-			return fmt.Sprintf("undefined %v", t.Sym)
+			return "undefined " + t.Sym.String()
 		}
 		return "undefined"
 
