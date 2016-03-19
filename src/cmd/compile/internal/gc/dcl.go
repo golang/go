@@ -79,18 +79,17 @@ func markdcl() {
 	block = blockgen
 }
 
-func dumpdcl(st string) {
+// keep around for debugging
+func dumpdclstack() {
 	i := 0
 	for d := dclstack; d != nil; d = d.Link {
-		i++
-		fmt.Printf("    %.2d %p", i, d)
-		if d.Name == "" {
-			fmt.Printf("\n")
-			continue
+		fmt.Printf("%6d  %p", i, d)
+		if d.Name != "" {
+			fmt.Printf("  '%s'  %v\n", d.Name, Pkglookup(d.Name, d.Pkg))
+		} else {
+			fmt.Printf("  ---\n")
 		}
-
-		fmt.Printf(" '%s'", d.Name)
-		fmt.Printf(" %v\n", Pkglookup(d.Name, d.Pkg))
+		i++
 	}
 }
 
@@ -250,11 +249,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 				Yyerror("missing expression in var declaration")
 				break
 			}
-
 			e = el[0]
 			el = el[1:]
-		} else {
-			e = nil
 		}
 
 		v.Op = ONAME
@@ -527,7 +523,7 @@ func ifacedcl(n *Node) {
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
 	if Funcdepth == 0 && dclcontext != PEXTERN {
-		Fatalf("funchdr: dclcontext")
+		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
 	if importpkg == nil && n.Func.Nname != nil {
@@ -678,7 +674,7 @@ func funcargs2(t *Type) {
 func funcbody(n *Node) {
 	// change the declaration context from auto to extern
 	if dclcontext != PAUTO {
-		Fatalf("funcbody: dclcontext")
+		Fatalf("funcbody: unexpected dclcontext %d", dclcontext)
 	}
 	popdcl()
 	Funcdepth--

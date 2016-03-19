@@ -801,7 +801,7 @@ func stmtfmt(n *Node) string {
 		}
 
 	// Don't export "v = <N>" initializing statements, hope they're always
-	// preceded by the DCL which will be re-parsed and typecheck to reproduce
+	// preceded by the DCL which will be re-parsed and typechecked to reproduce
 	// the "v = <N>" again.
 	case OAS, OASWB:
 		if fmtmode == FExp && n.Right == nil {
@@ -1146,9 +1146,7 @@ func exprfmt(n *Node, prec int) string {
 		if n.Left != nil {
 			return fmt.Sprintf("[]%v", n.Left)
 		}
-		var f string
-		f += fmt.Sprintf("[]%v", n.Right)
-		return f // happens before typecheck
+		return fmt.Sprintf("[]%v", n.Right) // happens before typecheck
 
 	case OTMAP:
 		return fmt.Sprintf("map[%v]%v", n.Left, n.Right)

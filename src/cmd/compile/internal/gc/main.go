@@ -815,6 +815,9 @@ func importfile(f *Val, indent []byte) {
 
 	case 'B':
 		// new export format
+		if Debug_export != 0 {
+			fmt.Printf("importing %s (%s)\n", path_, file)
+		}
 		imp.ReadByte() // skip \n after $$B
 		Import(imp)
 
