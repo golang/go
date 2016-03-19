@@ -33,6 +33,8 @@ type Biobuf struct {
 	linelen int
 }
 
+func (b *Biobuf) Reader() *bufio.Reader { return b.r }
+
 func Bopenw(name string) (*Biobuf, error) {
 	f, err := os.Create(name)
 	if err != nil {
