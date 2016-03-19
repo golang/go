@@ -1003,63 +1003,15 @@ opswitch:
 		}
 
 		var ll []*Node
-		if !Isinter(n.Left.Type) {
-			ll = append(ll, typename(n.Left.Type))
-		}
-		if !isnilinter(n.Type) {
-			ll = append(ll, typename(n.Type))
-		}
-		if !Isinter(n.Left.Type) && !isnilinter(n.Type) {
-			sym := Pkglookup(Tconv(n.Left.Type, FmtLeft)+"."+Tconv(n.Type, FmtLeft), itabpkg)
-			if sym.Def == nil {
-				l := Nod(ONAME, nil, nil)
-				l.Sym = sym
-				l.Type = Ptrto(Types[TUINT8])
-				l.Addable = true
-				l.Class = PEXTERN
-				l.Xoffset = 0
-				sym.Def = l
-				ggloblsym(sym, int32(Widthptr), obj.DUPOK|obj.NOPTR)
+		if isnilinter(n.Type) {
+			if !Isinter(n.Left.Type) {
+				ll = append(ll, typename(n.Left.Type))
 			}
-
-			l := Nod(OADDR, sym.Def, nil)
-			l.Addable = true
-			ll = append(ll, l)
-
-			if isdirectiface(n.Left.Type) {
-				// For pointer types, we can make a special form of optimization
-				//
-				// These statements are put onto the expression init list:
-				// 	Itab *tab = atomicloadtype(&cache);
-				// 	if(tab == nil)
-				// 		tab = typ2Itab(type, itype, &cache);
-				//
-				// The CONVIFACE expression is replaced with this:
-				// 	OEFACE{tab, ptr};
-				l := temp(Ptrto(Types[TUINT8]))
-
-				n1 := Nod(OAS, l, sym.Def)
-				n1 = typecheck(n1, Etop)
-				init.Append(n1)
-
-				fn := syslook("typ2Itab")
-				n1 = Nod(OCALL, fn, nil)
-				n1.List.Set(ll)
-				n1 = typecheck(n1, Erv)
-				n1 = walkexpr(n1, init)
-
-				n2 := Nod(OIF, nil, nil)
-				n2.Left = Nod(OEQ, l, nodnil())
-				n2.Nbody.Set1(Nod(OAS, l, n1))
-				n2.Likely = -1
-				n2 = typecheck(n2, Etop)
-				init.Append(n2)
-
-				l = Nod(OEFACE, l, n.Left)
-				l.Typecheck = n.Typecheck
-				l.Type = n.Type
-				n = l
-				break
+		} else {
+			if Isinter(n.Left.Type) {
+				ll = append(ll, typename(n.Type))
+			} else {
+				ll = append(ll, itabname(n.Left.Type, n.Type))
 			}
 		}
 
