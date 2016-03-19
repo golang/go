@@ -317,7 +317,7 @@ func (p *pp) badVerb(verb rune) {
 	case p.arg != nil:
 		p.buf.WriteString(reflect.TypeOf(p.arg).String())
 		p.buf.WriteByte('=')
-		p.printArg(p.arg, 'v', 0)
+		p.printArg(p.arg, 'v')
 	case p.value.IsValid():
 		p.buf.WriteString(p.value.Type().String())
 		p.buf.WriteByte('=')
@@ -564,13 +564,13 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
 		p.buf.WriteRune(verb)
 		p.buf.WriteString(panicString)
 		p.panicking = true
-		p.printArg(err, 'v', 0)
+		p.printArg(err, 'v')
 		p.panicking = false
 		p.buf.WriteByte(')')
 	}
 }
 
-func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
+func (p *pp) handleMethods(verb rune) (handled bool) {
 	if p.erroring {
 		return
 	}
@@ -605,13 +605,13 @@ func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 			case error:
 				handled = true
 				defer p.catchPanic(p.arg, verb)
-				p.printArg(v.Error(), verb, depth)
+				p.fmtString(v.Error(), verb)
 				return
 
 			case Stringer:
 				handled = true
 				defer p.catchPanic(p.arg, verb)
-				p.printArg(v.String(), verb, depth)
+				p.fmtString(v.String(), verb)
 				return
 			}
 		}
@@ -619,7 +619,7 @@ func (p *pp) handleMethods(verb rune, depth int) (handled bool) {
 	return false
 }
 
-func (p *pp) printArg(arg interface{}, verb rune, depth int) {
+func (p *pp) printArg(arg interface{}, verb rune) {
 	p.arg = arg
 	p.value = reflect.Value{}
 
@@ -683,15 +683,15 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) {
 	case []byte:
 		p.fmtBytes(f, verb, bytesString)
 	case reflect.Value:
-		p.printReflectValue(f, verb, depth)
+		p.printReflectValue(f, verb, 0)
 		return
 	default:
 		// If the type is not simple, it might have methods.
-		if p.handleMethods(verb, depth) {
+		if p.handleMethods(verb) {
 			return
 		}
 		// Need to use reflection
-		p.printReflectValue(reflect.ValueOf(arg), verb, depth)
+		p.printReflectValue(reflect.ValueOf(arg), verb, 0)
 		return
 	}
 	p.arg = nil
@@ -716,7 +716,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	if value.CanInterface() {
 		p.arg = value.Interface()
 	}
-	if p.handleMethods(verb, depth) {
+	if p.handleMethods(verb) {
 		return
 	}
 
@@ -1110,7 +1110,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			p.fmt.zero = false
 		}
 
-		p.printArg(a[argNum], c, 0)
+		p.printArg(a[argNum], c)
 		argNum++
 	}
 
@@ -1129,7 +1129,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			} else {
 				p.buf.WriteString(reflect.TypeOf(arg).String())
 				p.buf.WriteByte('=')
-				p.printArg(arg, 'v', 0)
+				p.printArg(arg, 'v')
 			}
 		}
 		p.buf.WriteByte(')')
@@ -1146,7 +1146,7 @@ func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
 		if argNum > 0 && (addspace || (!isString && !prevString)) {
 			p.buf.WriteByte(' ')
 		}
-		p.printArg(arg, 'v', 0)
+		p.printArg(arg, 'v')
 		prevString = isString
 	}
 	if addnewline {
