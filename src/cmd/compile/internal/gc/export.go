@@ -380,9 +380,8 @@ func dumpexport() {
 	if forceNewExport || newexport != 0 {
 		// binary export
 		// The linker also looks for the $$ marker - use char after $$ to distinguish format.
-		exportf("\n$$B\n")        // indicate binary format
-		const verifyExport = true // enable to check format changes
-		if verifyExport {
+		exportf("\n$$B\n") // indicate binary format
+		if debugFormat {
 			// save a copy of the export data
 			var copy bytes.Buffer
 			bcopy := obj.Binitw(&copy)
@@ -430,9 +429,8 @@ func dumpexport() {
 		}
 
 		// exportlist grows during iteration - cannot use range
-		for len(exportlist) > 0 {
-			n := exportlist[0]
-			exportlist = exportlist[1:]
+		for i := 0; i < len(exportlist); i++ {
+			n := exportlist[i]
 			lineno = n.Lineno
 			dumpsym(n.Sym)
 		}

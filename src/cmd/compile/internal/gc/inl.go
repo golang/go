@@ -66,7 +66,7 @@ func typecheckinl(fn *Node) {
 		return // typecheckinl on local function
 	}
 
-	if Debug['m'] > 2 {
+	if Debug['m'] > 2 || Debug_export != 0 {
 		fmt.Printf("typecheck import [%v] %v { %v }\n", fn.Sym, Nconv(fn, FmtLong), Hconv(fn.Func.Inl, FmtSharp))
 	}
 

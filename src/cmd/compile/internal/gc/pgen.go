@@ -490,6 +490,12 @@ func compile(fn *Node) {
 	}
 }
 
+type symByName []*Sym
+
+func (a symByName) Len() int           { return len(a) }
+func (a symByName) Less(i, j int) bool { return a[i].Name < a[j].Name }
+func (a symByName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
 // genlegacy compiles Curfn using the legacy non-SSA code generator.
 func genlegacy(ptxt *obj.Prog, gcargs, gclocals *Sym) {
 	Genlist(Curfn.Func.Enter)

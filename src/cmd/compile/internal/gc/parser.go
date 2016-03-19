@@ -1588,7 +1588,7 @@ func (p *parser) onew_name() *Node {
 func (p *parser) sym() *Sym {
 	switch p.tok {
 	case LNAME:
-		s := p.sym_
+		s := p.sym_ // from localpkg
 		p.next()
 		// during imports, unqualified non-exported identifiers are from builtinpkg
 		if importpkg != nil && !exportname(s.Name) {
