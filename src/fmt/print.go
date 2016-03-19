@@ -657,57 +657,44 @@ func (p *pp) printArg(arg interface{}, verb rune) {
 	case []byte:
 		p.fmtBytes(f, verb, bytesString)
 	case reflect.Value:
-		p.printReflectValue(f, verb, 0)
-		return
+		p.printValue(f, verb, 0)
 	default:
 		// If the type is not simple, it might have methods.
-		if p.handleMethods(verb) {
-			return
+		if !p.handleMethods(verb) {
+			// Need to use reflection, since the type had no
+			// interface methods that could be used for formatting.
+			p.printValue(reflect.ValueOf(f), verb, 0)
 		}
-		// Need to use reflection
-		p.printReflectValue(reflect.ValueOf(arg), verb, 0)
-		return
 	}
-	p.arg = nil
-}
-
-// printValue is similar to printArg but starts with a reflect value, not an interface{} value.
-// It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
-func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
-	if !value.IsValid() {
-		switch verb {
-		case 'v':
-			p.buf.WriteString(nilAngleString)
-		default:
-			p.badVerb(verb)
-		}
-		return
-	}
-
-	// Handle values with special methods.
-	// Call always, even when arg == nil, because handleMethods clears p.fmt.plus for us.
-	p.arg = nil // Make sure it's cleared, for safety.
-	if value.CanInterface() {
-		p.arg = value.Interface()
-	}
-	if p.handleMethods(verb) {
-		return
-	}
-
-	p.printReflectValue(value, verb, depth)
 }
 
 var byteType = reflect.TypeOf(byte(0))
 
-// printReflectValue is the fallback for both printArg and printValue.
-// It uses reflect to print the value.
-func (p *pp) printReflectValue(value reflect.Value, verb rune, depth int) {
-	oldValue := p.value
+// printValue is similar to printArg but starts with a reflect value, not an interface{} value.
+// It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
+func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+	// Handle values with special methods if not already handled by printArg (depth == 0).
+	if depth > 0 && value.IsValid() && value.CanInterface() {
+		p.arg = value.Interface()
+		if p.handleMethods(verb) {
+			return
+		}
+	}
+	p.arg = nil
 	p.value = value
-BigSwitch:
-	switch f := value; f.Kind() {
+
+	switch f := value; value.Kind() {
 	case reflect.Invalid:
-		p.buf.WriteString(invReflectString)
+		if depth == 0 {
+			p.buf.WriteString(invReflectString)
+		} else {
+			switch verb {
+			case 'v':
+				p.buf.WriteString(nilAngleString)
+			default:
+				p.badVerb(verb)
+			}
+		}
 	case reflect.Bool:
 		p.fmtBool(f.Bool(), verb)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -729,7 +716,7 @@ BigSwitch:
 			p.buf.WriteString(f.Type().String())
 			if f.IsNil() {
 				p.buf.WriteString(nilParenString)
-				break
+				return
 			}
 			p.buf.WriteByte('{')
 		} else {
@@ -755,12 +742,10 @@ BigSwitch:
 		}
 	case reflect.Struct:
 		if p.fmt.sharpV {
-			p.buf.WriteString(value.Type().String())
+			p.buf.WriteString(f.Type().String())
 		}
 		p.buf.WriteByte('{')
-		v := f
-		t := v.Type()
-		for i := 0; i < v.NumField(); i++ {
+		for i := 0; i < f.NumField(); i++ {
 			if i > 0 {
 				if p.fmt.sharpV {
 					p.buf.WriteString(commaSpaceString)
@@ -769,12 +754,12 @@ BigSwitch:
 				}
 			}
 			if p.fmt.plusV || p.fmt.sharpV {
-				if f := t.Field(i); f.Name != "" {
-					p.buf.WriteString(f.Name)
+				if name := f.Type().Field(i).Name; name != "" {
+					p.buf.WriteString(name)
 					p.buf.WriteByte(':')
 				}
 			}
-			p.printValue(getField(v, i), verb, depth+1)
+			p.printValue(getField(f, i), verb, depth+1)
 		}
 		p.buf.WriteByte('}')
 	case reflect.Interface:
@@ -813,13 +798,13 @@ BigSwitch:
 				}
 			}
 			p.fmtBytes(bytes, verb, typ.String())
-			break
+			return
 		}
 		if p.fmt.sharpV {
 			p.buf.WriteString(typ.String())
 			if f.Kind() == reflect.Slice && f.IsNil() {
 				p.buf.WriteString(nilParenString)
-				break
+				return
 			}
 			p.buf.WriteByte('{')
 		} else {
@@ -841,32 +826,22 @@ BigSwitch:
 			p.buf.WriteByte(']')
 		}
 	case reflect.Ptr:
-		v := f.Pointer()
 		// pointer to array or slice or struct?  ok at top level
 		// but not embedded (avoid loops)
-		if v != 0 && depth == 0 {
+		if depth == 0 && f.Pointer() != 0 {
 			switch a := f.Elem(); a.Kind() {
-			case reflect.Array, reflect.Slice:
+			case reflect.Array, reflect.Slice, reflect.Struct, reflect.Map:
 				p.buf.WriteByte('&')
 				p.printValue(a, verb, depth+1)
-				break BigSwitch
-			case reflect.Struct:
-				p.buf.WriteByte('&')
-				p.printValue(a, verb, depth+1)
-				break BigSwitch
-			case reflect.Map:
-				p.buf.WriteByte('&')
-				p.printValue(a, verb, depth+1)
-				break BigSwitch
+				return
 			}
 		}
 		fallthrough
 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		p.fmtPointer(value, verb)
+		p.fmtPointer(f, verb)
 	default:
 		p.unknownType(f)
 	}
-	p.value = oldValue
 }
 
 // intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
