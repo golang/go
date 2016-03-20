@@ -236,15 +236,16 @@ var (
 
 // An objReader is an object file reader.
 type objReader struct {
-	p         *Package
-	b         *bufio.Reader
-	f         io.ReadSeeker
-	err       error
-	offset    int64
-	limit     int64
-	tmp       [256]byte
-	pkg       string
-	pkgprefix string
+	p          *Package
+	b          *bufio.Reader
+	f          io.ReadSeeker
+	err        error
+	offset     int64
+	dataOffset int64
+	limit      int64
+	tmp        [256]byte
+	pkg        string
+	pkgprefix  string
 }
 
 // importPathToPrefix returns the prefix that will be used in the
@@ -416,8 +417,8 @@ func (r *objReader) readRef() {
 // readData reads a data reference from the input file.
 func (r *objReader) readData() Data {
 	n := r.readInt()
-	d := Data{Offset: r.offset, Size: int64(n)}
-	r.skip(int64(n))
+	d := Data{Offset: r.dataOffset, Size: int64(n)}
+	r.dataOffset += int64(n)
 	return d
 }
 
@@ -609,6 +610,10 @@ func (r *objReader) parseObject(prefix []byte) error {
 
 		r.readRef()
 	}
+
+	dataLength := r.readInt()
+	r.dataOffset = r.offset
+	r.skip(int64(dataLength))
 
 	// Symbols.
 	for {

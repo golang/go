@@ -23,6 +23,8 @@ package ld
 //	- empty string (marks end of sequence)
 //	- sequence of sybol references used by the defined symbols
 //	- byte 0xff (marks end of sequence)
+//	- integer (length of following data)
+//	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
 //	- magic footer: "\xff\xffgo13ld"
@@ -98,9 +100,6 @@ package ld
 //
 // TODO(rsc): The file format is good for a first pass but needs work.
 //	- There are SymID in the object file that should really just be strings.
-//	- The actual symbol memory images are interlaced with the symbol
-//	  metadata. They should be separated, to reduce the I/O required to
-//	  load just the metadata.
 
 import (
 	"bytes"
@@ -151,6 +150,10 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		readref(ctxt, f, pkg, pn)
 	}
 
+	dataLength := rdint64(f)
+	data := make([]byte, dataLength)
+	obj.Bread(f, data)
+
 	for {
 		c, err := f.Peek(1)
 		if err != nil {
@@ -159,7 +162,7 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 		if c[0] == 0xff {
 			break
 		}
-		readsym(ctxt, f, pkg, pn)
+		readsym(ctxt, f, &data, pkg, pn)
 	}
 
 	buf = [8]uint8{}
@@ -173,7 +176,7 @@ func ldobjfile(ctxt *Link, f *obj.Biobuf, pkg string, length int64, pn string) {
 	}
 }
 
-func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+func readsym(ctxt *Link, f *obj.Biobuf, buf *[]byte, pkg string, pn string) {
 	if obj.Bgetc(f) != 0xfe {
 		log.Fatalf("readsym out of sync")
 	}
@@ -184,7 +187,7 @@ func readsym(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 	local := flags&2 != 0
 	size := rdint(f)
 	typ := rdsym(ctxt, f, pkg)
-	data := rddata(f)
+	data := rddata(f, buf)
 	nreloc := rdint(f)
 
 	var dup *LSym
@@ -283,14 +286,14 @@ overwrite:
 
 		s.Pcln = new(Pcln)
 		pc := s.Pcln
-		pc.Pcsp.P = rddata(f)
-		pc.Pcfile.P = rddata(f)
-		pc.Pcline.P = rddata(f)
+		pc.Pcsp.P = rddata(f, buf)
+		pc.Pcfile.P = rddata(f, buf)
+		pc.Pcline.P = rddata(f, buf)
 		n = rdint(f)
 		pc.Pcdata = make([]Pcdata, n)
 		pc.Npcdata = n
 		for i := 0; i < n; i++ {
-			pc.Pcdata[i].P = rddata(f)
+			pc.Pcdata[i].P = rddata(f, buf)
 		}
 		n = rdint(f)
 		pc.Funcdata = make([]*LSym, n)
@@ -482,23 +485,10 @@ func rdstring(f *obj.Biobuf) string {
 	return string(rdBuf[:n])
 }
 
-const rddataBufMax = 1 << 14
-
-var rddataBuf = make([]byte, rddataBufMax)
-
-func rddata(f *obj.Biobuf) []byte {
-	var p []byte
+func rddata(f *obj.Biobuf, buf *[]byte) []byte {
 	n := rdint(f)
-	if n > rddataBufMax {
-		p = make([]byte, n)
-	} else {
-		if len(rddataBuf) < n {
-			rddataBuf = make([]byte, rddataBufMax)
-		}
-		p = rddataBuf[:n:n]
-		rddataBuf = rddataBuf[n:]
-	}
-	obj.Bread(f, p)
+	p := (*buf)[:n:n]
+	*buf = (*buf)[n:]
 	return p
 }
 
