@@ -286,35 +286,19 @@ func Asmplan9sym() {
 
 var symt *LSym
 
-func Wputl(w uint16) {
-	Cput(uint8(w))
-	Cput(uint8(w >> 8))
-}
+func Wputb(w uint16) { Cwrite(Append16b(encbuf[:0], w)) }
+func Lputb(l uint32) { Cwrite(Append32b(encbuf[:0], l)) }
+func Vputb(v uint64) { Cwrite(Append64b(encbuf[:0], v)) }
 
-func Wputb(w uint16) {
-	Cput(uint8(w >> 8))
-	Cput(uint8(w))
-}
+func Wputl(w uint16) { Cwrite(Append16l(encbuf[:0], w)) }
+func Lputl(l uint32) { Cwrite(Append32l(encbuf[:0], l)) }
+func Vputl(v uint64) { Cwrite(Append64l(encbuf[:0], v)) }
 
 func Append16b(b []byte, v uint16) []byte {
 	return append(b, uint8(v>>8), uint8(v))
 }
 func Append16l(b []byte, v uint16) []byte {
 	return append(b, uint8(v), uint8(v>>8))
-}
-
-func Lputb(l uint32) {
-	Cput(uint8(l >> 24))
-	Cput(uint8(l >> 16))
-	Cput(uint8(l >> 8))
-	Cput(uint8(l))
-}
-
-func Lputl(l uint32) {
-	Cput(uint8(l))
-	Cput(uint8(l >> 8))
-	Cput(uint8(l >> 16))
-	Cput(uint8(l >> 24))
 }
 
 func Append32b(b []byte, v uint32) []byte {
@@ -324,26 +308,14 @@ func Append32l(b []byte, v uint32) []byte {
 	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24))
 }
 
-func Vputb(v uint64) {
-	Lputb(uint32(v >> 32))
-	Lputb(uint32(v))
-}
-
-func Vputl(v uint64) {
-	Lputl(uint32(v))
-	Lputl(uint32(v >> 32))
-}
-
 func Append64b(b []byte, v uint64) []byte {
-	b = Append32b(b, uint32(v>>32))
-	b = Append32b(b, uint32(v))
-	return b
+	return append(b, uint8(v>>56), uint8(v>>48), uint8(v>>40), uint8(v>>32),
+		uint8(v>>24), uint8(v>>16), uint8(v>>8), uint8(v))
 }
 
 func Append64l(b []byte, v uint64) []byte {
-	b = Append32l(b, uint32(v))
-	b = Append32l(b, uint32(v>>32))
-	return b
+	return append(b, uint8(v), uint8(v>>8), uint8(v>>16), uint8(v>>24),
+		uint8(v>>32), uint8(v>>40), uint8(v>>48), uint8(v>>56))
 }
 
 type byPkg []*Library
