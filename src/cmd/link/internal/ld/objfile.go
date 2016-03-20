@@ -386,8 +386,35 @@ func readref(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
 	if v == 1 {
 		v = ctxt.Version
 	}
-	lsym := Linklookup(ctxt, name, v)
-	ctxt.CurRefs = append(ctxt.CurRefs, lsym)
+	s := Linklookup(ctxt, name, v)
+	ctxt.CurRefs = append(ctxt.CurRefs, s)
+
+	if s == nil || v != 0 {
+		return
+	}
+	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 && len(s.P) == 0 {
+		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
+		if err != nil {
+			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
+		}
+		s.Type = obj.SRODATA
+		s.Attr |= AttrLocal
+		switch s.Name[:5] {
+		case "$f32.":
+			if uint64(uint32(x)) != x {
+				log.Panicf("$-symbol %s too large: %d", s.Name, x)
+			}
+			Adduint32(ctxt, s, uint32(x))
+		case "$f64.", "$i64.":
+			Adduint64(ctxt, s, x)
+		default:
+			log.Panicf("unrecognized $-symbol: %s", s.Name)
+		}
+		s.Attr.Set(AttrReachable, false)
+	}
+	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
+		s.Attr |= AttrLocal
+	}
 }
 
 func rdint64(f *obj.Biobuf) int64 {
@@ -509,37 +536,5 @@ func rdsymName(f *obj.Biobuf, pkg string) string {
 
 func rdsym(ctxt *Link, f *obj.Biobuf, pkg string) *LSym {
 	i := rdint(f)
-	if i == 0 {
-		return nil
-	}
-
-	s := ctxt.CurRefs[i]
-	if s == nil || s.Version != 0 {
-		return s
-	}
-
-	if s.Name[0] == '$' && len(s.Name) > 5 && s.Type == 0 {
-		x, err := strconv.ParseUint(s.Name[5:], 16, 64)
-		if err != nil {
-			log.Panicf("failed to parse $-symbol %s: %v", s.Name, err)
-		}
-		s.Type = obj.SRODATA
-		s.Attr |= AttrLocal
-		switch s.Name[:5] {
-		case "$f32.":
-			if uint64(uint32(x)) != x {
-				log.Panicf("$-symbol %s too large: %d", s.Name, x)
-			}
-			Adduint32(ctxt, s, uint32(x))
-		case "$f64.", "$i64.":
-			Adduint64(ctxt, s, x)
-		default:
-			log.Panicf("unrecognized $-symbol: %s", s.Name)
-		}
-		s.Attr.Set(AttrReachable, false)
-	}
-	if strings.HasPrefix(s.Name, "runtime.gcbits.") {
-		s.Attr |= AttrLocal
-	}
-	return s
+	return ctxt.CurRefs[i]
 }
