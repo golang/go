@@ -22,11 +22,6 @@ func maybeSkip(t *testing.T) {
 	}
 }
 
-const (
-	dataDir = "testdata"
-	binary  = "testdoc"
-)
-
 type test struct {
 	name string
 	args []string // Arguments to "[go] doc".

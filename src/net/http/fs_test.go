@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -38,8 +37,6 @@ const (
 type wantRange struct {
 	start, end int64 // range [start,end)
 }
-
-var itoa = strconv.Itoa
 
 var ServeFileRangeTests = []struct {
 	r      string

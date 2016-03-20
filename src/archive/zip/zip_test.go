@@ -366,27 +366,6 @@ func testZip64DirectoryRecordLength(buf *rleBuffer, t *testing.T) {
 	}
 }
 
-func testInvalidHeader(h *FileHeader, t *testing.T) {
-	var buf bytes.Buffer
-	z := NewWriter(&buf)
-
-	f, err := z.CreateHeader(h)
-	if err != nil {
-		t.Fatalf("error creating header: %v", err)
-	}
-	if _, err := f.Write([]byte("hi")); err != nil {
-		t.Fatalf("error writing content: %v", err)
-	}
-	if err := z.Close(); err != nil {
-		t.Fatalf("error closing zip writer: %v", err)
-	}
-
-	b := buf.Bytes()
-	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != ErrFormat {
-		t.Fatalf("got %v, expected ErrFormat", err)
-	}
-}
-
 func testValidHeader(h *FileHeader, t *testing.T) {
 	var buf bytes.Buffer
 	z := NewWriter(&buf)

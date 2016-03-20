@@ -133,8 +133,6 @@ func TestMergeRuneSet(t *testing.T) {
 	}
 }
 
-const noStr = `!`
-
 var onePass = &onePassProg{}
 
 var onePassTests = []struct {

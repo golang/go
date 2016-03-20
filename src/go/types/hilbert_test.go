@@ -193,19 +193,6 @@ func (g *gen) printProduct(n int) {
 	g.p("}\n\n")
 }
 
-func (g *gen) mulRange(a, b int) {
-	if a > b {
-		g.p("1")
-		return
-	}
-	for i := a; i <= b; i++ {
-		if i > a {
-			g.p("*")
-		}
-		g.p("%d", i)
-	}
-}
-
 func (g *gen) binomials(n int) {
 	g.p(`// Binomials
 const (
