@@ -1033,7 +1033,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if Isconst(nl, CTSTR) {
 					Fatalf("constant string constant index")
 				}
-				v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+				v := uint64(nr.Val().U.(*Mpint).Int64())
 				var n2 Node
 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 					if Debug['B'] == 0 && !n.Bounded {
@@ -1185,7 +1185,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 				if Isconst(nl, CTSTR) {
 					Fatalf("constant string constant index") // front end should handle
 				}
-				v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+				v := uint64(nr.Val().U.(*Mpint).Int64())
 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 					if Debug['B'] == 0 && !n.Bounded {
 						nlen := n3
@@ -1375,7 +1375,7 @@ func Agenr(n *Node, a *Node, res *Node) {
 			if Isconst(nl, CTSTR) {
 				Fatalf("constant string constant index") // front end should handle
 			}
-			v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+			v := uint64(nr.Val().U.(*Mpint).Int64())
 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
 				if Debug['B'] == 0 && !n.Bounded {
 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
@@ -1709,7 +1709,7 @@ func Igen(n *Node, a *Node, res *Node) {
 				// Compute &a[i] as &a + i*width.
 				a.Type = n.Type
 
-				a.Xoffset += Mpgetfix(n.Right.Val().U.(*Mpint)) * n.Type.Width
+				a.Xoffset += n.Right.Val().U.(*Mpint).Int64() * n.Type.Width
 				Fixlargeoffset(a)
 				return
 			}
@@ -2215,7 +2215,7 @@ func stkof(n *Node) int64 {
 			return off
 		}
 		if Isconst(n.Right, CTINT) {
-			return off + t.Type.Width*Mpgetfix(n.Right.Val().U.(*Mpint))
+			return off + t.Type.Width*n.Right.Val().U.(*Mpint).Int64()
 		}
 		return +1000 // on stack but not sure exactly where
 
@@ -2646,7 +2646,7 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 	case TUINT64:
 		var m Magic
 		m.W = w
-		m.Ud = uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+		m.Ud = uint64(nr.Val().U.(*Mpint).Int64())
 		Umagic(&m)
 		if m.Bad != 0 {
 			break
@@ -2684,7 +2684,7 @@ func cgen_div(op Op, nl *Node, nr *Node, res *Node) {
 	case TINT64:
 		var m Magic
 		m.W = w
-		m.Sd = Mpgetfix(nr.Val().U.(*Mpint))
+		m.Sd = nr.Val().U.(*Mpint).Int64()
 		Smagic(&m)
 		if m.Bad != 0 {
 			break
@@ -3189,17 +3189,17 @@ func cgen_slice(n, res *Node, wb bool) {
 		bound = int64(len(n.Left.Val().U.(string)))
 	}
 	if Isconst(&i, CTINT) {
-		if mpcmpfixc(i.Val().U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(i.Val().U.(*Mpint), bound) > 0 {
+		if i.Val().U.(*Mpint).CmpInt64(0) < 0 || bound >= 0 && i.Val().U.(*Mpint).CmpInt64(bound) > 0 {
 			Yyerror("slice index out of bounds")
 		}
 	}
 	if Isconst(&j, CTINT) {
-		if mpcmpfixc(j.Val().U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(j.Val().U.(*Mpint), bound) > 0 {
+		if j.Val().U.(*Mpint).CmpInt64(0) < 0 || bound >= 0 && j.Val().U.(*Mpint).CmpInt64(bound) > 0 {
 			Yyerror("slice index out of bounds")
 		}
 	}
 	if Isconst(&k, CTINT) {
-		if mpcmpfixc(k.Val().U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(k.Val().U.(*Mpint), bound) > 0 {
+		if k.Val().U.(*Mpint).CmpInt64(0) < 0 || bound >= 0 && k.Val().U.(*Mpint).CmpInt64(bound) > 0 {
 			Yyerror("slice index out of bounds")
 		}
 	}
@@ -3208,7 +3208,7 @@ func cgen_slice(n, res *Node, wb bool) {
 	same := func(n1, n2 *Node) bool {
 		return n1.Op == OREGISTER && n2.Op == OREGISTER && n1.Reg == n2.Reg ||
 			n1.Op == ONAME && n2.Op == ONAME && n1.Orig == n2.Orig && n1.Type == n2.Type && n1.Xoffset == n2.Xoffset ||
-			n1.Op == OLITERAL && n2.Op == OLITERAL && Mpcmpfixfix(n1.Val().U.(*Mpint), n2.Val().U.(*Mpint)) == 0
+			n1.Op == OLITERAL && n2.Op == OLITERAL && n1.Val().U.(*Mpint).Cmp(n2.Val().U.(*Mpint)) == 0
 	}
 
 	// obvious reports whether n1 <= n2 is obviously true,
@@ -3227,7 +3227,7 @@ func cgen_slice(n, res *Node, wb bool) {
 			return true // len(x) <= cap(x) always true
 		}
 		if Isconst(n1, CTINT) && Isconst(n2, CTINT) {
-			if Mpcmpfixfix(n1.Val().U.(*Mpint), n2.Val().U.(*Mpint)) <= 0 {
+			if n1.Val().U.(*Mpint).Cmp(n2.Val().U.(*Mpint)) <= 0 {
 				return true // n1, n2 constants such that n1 <= n2
 			}
 			Yyerror("slice index out of bounds")
@@ -3240,11 +3240,11 @@ func cgen_slice(n, res *Node, wb bool) {
 		// n1 might be a 64-bit constant, even on 32-bit architectures,
 		// but it will be represented in 32 bits.
 		if Ctxt.Arch.Regsize == 4 && Is64(n1.Type) {
-			if mpcmpfixc(n1.Val().U.(*Mpint), 1<<31) >= 0 {
+			if n1.Val().U.(*Mpint).CmpInt64(1<<31) >= 0 {
 				Fatalf("missed slice out of bounds check")
 			}
 			var tmp Node
-			Nodconst(&tmp, indexRegType, Mpgetfix(n1.Val().U.(*Mpint)))
+			Nodconst(&tmp, indexRegType, n1.Val().U.(*Mpint).Int64())
 			n1 = &tmp
 		}
 		p := Thearch.Ginscmp(OGT, indexRegType, n1, n2, -1)
@@ -3328,9 +3328,9 @@ func cgen_slice(n, res *Node, wb bool) {
 			switch j.Op {
 			case OLITERAL:
 				if Isconst(&i, CTINT) {
-					Nodconst(&j, indexRegType, Mpgetfix(j.Val().U.(*Mpint))-Mpgetfix(i.Val().U.(*Mpint)))
+					Nodconst(&j, indexRegType, j.Val().U.(*Mpint).Int64()-i.Val().U.(*Mpint).Int64())
 					if Debug_slice > 0 {
-						Warn("slice: result len == %d", Mpgetfix(j.Val().U.(*Mpint)))
+						Warn("slice: result len == %d", j.Val().U.(*Mpint).Int64())
 					}
 					break
 				}
@@ -3345,7 +3345,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				fallthrough
 			case OREGISTER:
 				if i.Op == OLITERAL {
-					v := Mpgetfix(i.Val().U.(*Mpint))
+					v := i.Val().U.(*Mpint).Int64()
 					if v != 0 {
 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &j)
 					}
@@ -3388,9 +3388,9 @@ func cgen_slice(n, res *Node, wb bool) {
 			switch k.Op {
 			case OLITERAL:
 				if Isconst(&i, CTINT) {
-					Nodconst(&k, indexRegType, Mpgetfix(k.Val().U.(*Mpint))-Mpgetfix(i.Val().U.(*Mpint)))
+					Nodconst(&k, indexRegType, k.Val().U.(*Mpint).Int64()-i.Val().U.(*Mpint).Int64())
 					if Debug_slice > 0 {
-						Warn("slice: result cap == %d", Mpgetfix(k.Val().U.(*Mpint)))
+						Warn("slice: result cap == %d", k.Val().U.(*Mpint).Int64())
 					}
 					break
 				}
@@ -3411,7 +3411,7 @@ func cgen_slice(n, res *Node, wb bool) {
 						Warn("slice: result cap == 0")
 					}
 				} else if i.Op == OLITERAL {
-					v := Mpgetfix(i.Val().U.(*Mpint))
+					v := i.Val().U.(*Mpint).Int64()
 					if v != 0 {
 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &k)
 					}
@@ -3494,7 +3494,7 @@ func cgen_slice(n, res *Node, wb bool) {
 				w = res.Type.Type.Width // res is []T, elem size is T.width
 			}
 			if Isconst(&i, CTINT) {
-				ginscon(Thearch.Optoas(OADD, xbase.Type), Mpgetfix(i.Val().U.(*Mpint))*w, &xbase)
+				ginscon(Thearch.Optoas(OADD, xbase.Type), i.Val().U.(*Mpint).Int64()*w, &xbase)
 			} else if Thearch.AddIndex != nil && Thearch.AddIndex(&i, w, &xbase) {
 				// done by back end
 			} else if w == 1 {

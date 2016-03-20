@@ -484,7 +484,7 @@ func (p *importer) value(typ *Type) (x Val) {
 
 	case int64Tag:
 		u := new(Mpint)
-		Mpmovecfix(u, p.int64())
+		u.SetInt64(p.int64())
 		u.Rune = typ == idealrune
 		x.U = u
 
@@ -494,7 +494,7 @@ func (p *importer) value(typ *Type) (x Val) {
 		if typ == idealint || Isint[typ.Etype] {
 			// uncommon case: large int encoded as float
 			u := new(Mpint)
-			mpmovefltfix(u, f)
+			u.SetFloat(f)
 			x.U = u
 			break
 		}
@@ -530,7 +530,7 @@ func (p *importer) value(typ *Type) (x Val) {
 func (p *importer) float(x *Mpflt) {
 	sign := p.int()
 	if sign == 0 {
-		Mpmovecflt(x, 0)
+		x.SetFloat64(0)
 		return
 	}
 

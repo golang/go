@@ -1379,7 +1379,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 	case OLITERAL:
 		switch n.Val().Ctype() {
 		case CTINT:
-			i := Mpgetfix(n.Val().U.(*Mpint))
+			i := n.Val().U.(*Mpint).Int64()
 			switch n.Type.Size() {
 			case 1:
 				return s.constInt8(n.Type, int8(i))
@@ -1421,9 +1421,9 @@ func (s *state) expr(n *Node) *ssa.Value {
 			f := n.Val().U.(*Mpflt)
 			switch n.Type.Size() {
 			case 4:
-				return s.constFloat32(n.Type, mpgetflt32(f))
+				return s.constFloat32(n.Type, f.Float32())
 			case 8:
-				return s.constFloat64(n.Type, mpgetflt(f))
+				return s.constFloat64(n.Type, f.Float64())
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())
 				return nil
@@ -1437,15 +1437,15 @@ func (s *state) expr(n *Node) *ssa.Value {
 				{
 					pt := Types[TFLOAT32]
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat32(pt, mpgetflt32(r)),
-						s.constFloat32(pt, mpgetflt32(i)))
+						s.constFloat32(pt, r.Float32()),
+						s.constFloat32(pt, i.Float32()))
 				}
 			case 16:
 				{
 					pt := Types[TFLOAT64]
 					return s.newValue2(ssa.OpComplexMake, n.Type,
-						s.constFloat64(pt, mpgetflt(r)),
-						s.constFloat64(pt, mpgetflt(i)))
+						s.constFloat64(pt, r.Float64()),
+						s.constFloat64(pt, i.Float64()))
 				}
 			default:
 				s.Fatalf("bad float size %d", n.Type.Size())

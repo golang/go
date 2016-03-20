@@ -721,16 +721,16 @@ func (p *exporter) value(x Val) {
 		p.tag(tag)
 
 	case *Mpint:
-		if Mpcmpfixfix(Minintval[TINT64], x) <= 0 && Mpcmpfixfix(x, Maxintval[TINT64]) <= 0 {
+		if Minintval[TINT64].Cmp(x) <= 0 && x.Cmp(Maxintval[TINT64]) <= 0 {
 			// common case: x fits into an int64 - use compact encoding
 			p.tag(int64Tag)
-			p.int64(Mpgetfix(x))
+			p.int64(x.Int64())
 			return
 		}
 		// uncommon case: large x - use float encoding
 		// (powers of 2 will be encoded efficiently with exponent)
 		f := newMpflt()
-		Mpmovefixflt(f, x)
+		f.SetInt(x)
 		p.tag(floatTag)
 		p.float(f)
 

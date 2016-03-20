@@ -343,7 +343,7 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 		case CTFLT:
 			s := Linksym(nam.Sym)
-			f := mpgetflt(nr.Val().U.(*Mpflt))
+			f := nr.Val().U.(*Mpflt).Float64()
 			switch nam.Type.Etype {
 			case TFLOAT32:
 				s.WriteFloat32(Ctxt, nam.Xoffset, float32(f))
@@ -375,8 +375,8 @@ func gdata(nam *Node, nr *Node, wid int) {
 
 func gdatacomplex(nam *Node, cval *Mpcplx) {
 	t := Types[cplxsubtype(nam.Type.Etype)]
-	r := mpgetflt(&cval.Real)
-	i := mpgetflt(&cval.Imag)
+	r := cval.Real.Float64()
+	i := cval.Imag.Float64()
 	s := Linksym(nam.Sym)
 
 	switch t.Etype {

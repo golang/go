@@ -309,25 +309,25 @@ func typeinit() {
 	iscmp[OEQ] = true
 	iscmp[ONE] = true
 
-	mpatofix(Maxintval[TINT8], "0x7f")
-	mpatofix(Minintval[TINT8], "-0x80")
-	mpatofix(Maxintval[TINT16], "0x7fff")
-	mpatofix(Minintval[TINT16], "-0x8000")
-	mpatofix(Maxintval[TINT32], "0x7fffffff")
-	mpatofix(Minintval[TINT32], "-0x80000000")
-	mpatofix(Maxintval[TINT64], "0x7fffffffffffffff")
-	mpatofix(Minintval[TINT64], "-0x8000000000000000")
+	Maxintval[TINT8].SetString("0x7f")
+	Minintval[TINT8].SetString("-0x80")
+	Maxintval[TINT16].SetString("0x7fff")
+	Minintval[TINT16].SetString("-0x8000")
+	Maxintval[TINT32].SetString("0x7fffffff")
+	Minintval[TINT32].SetString("-0x80000000")
+	Maxintval[TINT64].SetString("0x7fffffffffffffff")
+	Minintval[TINT64].SetString("-0x8000000000000000")
 
-	mpatofix(Maxintval[TUINT8], "0xff")
-	mpatofix(Maxintval[TUINT16], "0xffff")
-	mpatofix(Maxintval[TUINT32], "0xffffffff")
-	mpatofix(Maxintval[TUINT64], "0xffffffffffffffff")
+	Maxintval[TUINT8].SetString("0xff")
+	Maxintval[TUINT16].SetString("0xffff")
+	Maxintval[TUINT32].SetString("0xffffffff")
+	Maxintval[TUINT64].SetString("0xffffffffffffffff")
 
 	// f is valid float if min < f < max.  (min and max are not themselves valid.)
-	mpatoflt(maxfltval[TFLOAT32], "33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
-	mpatoflt(minfltval[TFLOAT32], "-33554431p103")
-	mpatoflt(maxfltval[TFLOAT64], "18014398509481983p970") // 2^53-1 p (1023-52) + 1/2 ulp
-	mpatoflt(minfltval[TFLOAT64], "-18014398509481983p970")
+	maxfltval[TFLOAT32].SetString("33554431p103") // 2^24-1 p (127-23) + 1/2 ulp
+	minfltval[TFLOAT32].SetString("-33554431p103")
+	maxfltval[TFLOAT64].SetString("18014398509481983p970") // 2^53-1 p (1023-52) + 1/2 ulp
+	minfltval[TFLOAT64].SetString("-18014398509481983p970")
 
 	maxfltval[TCOMPLEX64] = maxfltval[TFLOAT32]
 	minfltval[TCOMPLEX64] = minfltval[TFLOAT32]

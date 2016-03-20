@@ -319,12 +319,12 @@ func Clearslim(n *Node) {
 	switch Simtype[n.Type.Etype] {
 	case TCOMPLEX64, TCOMPLEX128:
 		z.SetVal(Val{new(Mpcplx)})
-		Mpmovecflt(&z.Val().U.(*Mpcplx).Real, 0.0)
-		Mpmovecflt(&z.Val().U.(*Mpcplx).Imag, 0.0)
+		z.Val().U.(*Mpcplx).Real.SetFloat64(0.0)
+		z.Val().U.(*Mpcplx).Imag.SetFloat64(0.0)
 
 	case TFLOAT32, TFLOAT64:
 		var zero Mpflt
-		Mpmovecflt(&zero, 0.0)
+		zero.SetFloat64(0.0)
 		z.SetVal(Val{&zero})
 
 	case TPTR32, TPTR64, TCHAN, TMAP:
@@ -342,7 +342,7 @@ func Clearslim(n *Node) {
 		TUINT32,
 		TUINT64:
 		z.SetVal(Val{new(Mpint)})
-		Mpmovecfix(z.Val().U.(*Mpint), 0)
+		z.Val().U.(*Mpint).SetInt64(0)
 
 	default:
 		Fatalf("clearslim called on type %v", n.Type)

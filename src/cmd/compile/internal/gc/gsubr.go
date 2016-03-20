@@ -433,12 +433,12 @@ func Naddr(a *obj.Addr, n *Node) {
 
 		case CTFLT:
 			a.Type = obj.TYPE_FCONST
-			a.Val = mpgetflt(n.Val().U.(*Mpflt))
+			a.Val = n.Val().U.(*Mpflt).Float64()
 
 		case CTINT, CTRUNE:
 			a.Sym = nil
 			a.Type = obj.TYPE_CONST
-			a.Offset = Mpgetfix(n.Val().U.(*Mpint))
+			a.Offset = n.Val().U.(*Mpint).Int64()
 
 		case CTSTR:
 			datagostring(n.Val().U.(string), a)

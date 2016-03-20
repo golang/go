@@ -335,7 +335,7 @@ func Vconv(v Val, flag FmtFlag) string {
 		return Bconv(v.U.(*Mpint), 0)
 
 	case CTRUNE:
-		x := Mpgetfix(v.U.(*Mpint))
+		x := v.U.(*Mpint).Int64()
 		if ' ' <= x && x < 0x80 && x != '\\' && x != '\'' {
 			return fmt.Sprintf("'%c'", int(x))
 		}
@@ -357,13 +357,13 @@ func Vconv(v Val, flag FmtFlag) string {
 		if (flag&FmtSharp != 0) || fmtmode == FExp {
 			return fmt.Sprintf("(%v+%vi)", &v.U.(*Mpcplx).Real, &v.U.(*Mpcplx).Imag)
 		}
-		if mpcmpfltc(&v.U.(*Mpcplx).Real, 0) == 0 {
+		if v.U.(*Mpcplx).Real.CmpFloat64(0) == 0 {
 			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
 		}
-		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) == 0 {
+		if v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
 			return Fconv(&v.U.(*Mpcplx).Real, FmtSharp)
 		}
-		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) < 0 {
+		if v.U.(*Mpcplx).Imag.CmpFloat64(0) < 0 {
 			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))
 		}
 		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp))

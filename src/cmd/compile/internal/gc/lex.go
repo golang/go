@@ -687,11 +687,11 @@ func (l *lexer) number(c rune) {
 		if c == 'i' {
 			str = lexbuf.String()
 			x := new(Mpcplx)
-			Mpmovecflt(&x.Real, 0.0)
-			mpatoflt(&x.Imag, str)
+			x.Real.SetFloat64(0.0)
+			x.Imag.SetString(str)
 			if x.Imag.Val.IsInf() {
 				Yyerror("overflow in imaginary constant")
-				Mpmovecflt(&x.Imag, 0.0)
+				x.Imag.SetFloat64(0.0)
 			}
 			l.val.U = x
 
@@ -711,10 +711,10 @@ func (l *lexer) number(c rune) {
 
 		str = lexbuf.String()
 		x := new(Mpint)
-		mpatofix(x, str)
+		x.SetString(str)
 		if x.Ovf {
 			Yyerror("overflow in constant")
-			Mpmovecfix(x, 0)
+			x.SetInt64(0)
 		}
 		l.val.U = x
 
@@ -726,10 +726,10 @@ func (l *lexer) number(c rune) {
 
 		str = lexbuf.String()
 		x := newMpflt()
-		mpatoflt(x, str)
+		x.SetString(str)
 		if x.Val.IsInf() {
 			Yyerror("overflow in float constant")
-			Mpmovecflt(x, 0.0)
+			x.SetFloat64(0.0)
 		}
 		l.val.U = x
 
@@ -820,7 +820,7 @@ func (l *lexer) rune() {
 
 	x := new(Mpint)
 	l.val.U = x
-	Mpmovecfix(x, int64(r))
+	x.SetInt64(int64(r))
 	x.Rune = true
 	if Debug['x'] != 0 {
 		fmt.Printf("lex: codepoint literal\n")
