@@ -635,9 +635,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			rel.Size = r.readInt()
 			rel.Type = r.readInt()
 			rel.Add = r.readInt()
-			r.readInt() // Xadd - ignored
 			rel.Sym = r.readSymID()
-			r.readSymID() // Xsym - ignored
 		}
 
 		if s.Kind == STEXT {
