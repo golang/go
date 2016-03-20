@@ -17,7 +17,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 var cmdGenerate = &Command{
@@ -369,17 +368,6 @@ func (g *Generator) expandVar(word string) string {
 		}
 	}
 	return os.Getenv(word)
-}
-
-// identLength returns the length of the identifier beginning the string.
-func (g *Generator) identLength(word string) int {
-	for i, r := range word {
-		if r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) {
-			continue
-		}
-		return i
-	}
-	return len(word)
 }
 
 // setShorthand installs a new shorthand as defined by a -command directive.

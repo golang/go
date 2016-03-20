@@ -403,8 +403,6 @@ func errorf(format string, args ...interface{}) {
 	setExitStatus(1)
 }
 
-var logf = log.Printf
-
 func exitIfErrors() {
 	if exitStatus != 0 {
 		exit()
@@ -426,19 +424,6 @@ func run(cmdargs ...interface{}) {
 	if err := cmd.Run(); err != nil {
 		errorf("%v", err)
 	}
-}
-
-func runOut(dir string, cmdargs ...interface{}) []byte {
-	cmdline := stringList(cmdargs...)
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		os.Stderr.Write(out)
-		errorf("%v", err)
-		out = nil
-	}
-	return out
 }
 
 // envForDir returns a copy of the environment

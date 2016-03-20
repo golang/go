@@ -1312,16 +1312,6 @@ func (b *builder) do(root *action) {
 	wg.Wait()
 }
 
-// hasString reports whether s appears in the list of strings.
-func hasString(strings []string, s string) bool {
-	for _, t := range strings {
-		if s == t {
-			return true
-		}
-	}
-	return false
-}
-
 // build is the action for building a single package or command.
 func (b *builder) build(a *action) (err error) {
 	// Return an error if the package has CXX files but it's not using

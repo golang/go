@@ -368,15 +368,6 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
 	return f, nil
 }
 
-func contains(list []string, s string) bool {
-	for _, t := range list {
-		if t == s {
-			return true
-		}
-	}
-	return false
-}
-
 // The package cache doesn't operate correctly in rare (so far artificial)
 // circumstances (issue 8425). Disable before debugging non-obvious errors
 // from the type-checker.

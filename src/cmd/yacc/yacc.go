@@ -237,7 +237,6 @@ var defact = make([]int, NSTATES)  // default actions of states
 
 // lookahead set information
 
-var lkst []Lkset
 var nolook = 0  // flag to turn off lookahead computations
 var tbitset = 0 // size of lookahead sets
 var clset Lkset // temporary storage for lookahead computations
@@ -3185,8 +3184,6 @@ func isword(c rune) bool {
 	return c >= 0xa0 || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-func mktemp(t string) string { return t }
-
 //
 // return 1 if 2 arrays are equal
 // return 0 if not equal
@@ -3202,13 +3199,6 @@ func aryeq(a []int, b []int) int {
 		}
 	}
 	return 1
-}
-
-func putrune(f *bufio.Writer, c int) {
-	s := string(c)
-	for i := 0; i < len(s); i++ {
-		f.WriteByte(s[i])
-	}
 }
 
 func getrune(f *bufio.Reader) rune {

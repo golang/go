@@ -29,17 +29,15 @@ const (
 )
 
 type Package struct {
-	writer     io.Writer // Destination for output.
-	name       string    // Package name, json for encoding/json.
-	userPath   string    // String the user used to find this package.
-	unexported bool
-	matchCase  bool
-	pkg        *ast.Package // Parsed package.
-	file       *ast.File    // Merged from all files in the package
-	doc        *doc.Package
-	build      *build.Package
-	fs         *token.FileSet // Needed for printing.
-	buf        bytes.Buffer
+	writer   io.Writer    // Destination for output.
+	name     string       // Package name, json for encoding/json.
+	userPath string       // String the user used to find this package.
+	pkg      *ast.Package // Parsed package.
+	file     *ast.File    // Merged from all files in the package
+	doc      *doc.Package
+	build    *build.Package
+	fs       *token.FileSet // Needed for printing.
+	buf      bytes.Buffer
 }
 
 type PackageError string // type returned by pkg.Fatalf.

@@ -1371,7 +1371,6 @@ func (e *httpError) Timeout() bool   { return e.timeout }
 func (e *httpError) Temporary() bool { return true }
 
 var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
-var errClosed error = &httpError{err: "net/http: server closed connection before response was received"}
 var errRequestCanceled = errors.New("net/http: request canceled")
 var errRequestCanceledConn = errors.New("net/http: request canceled while waiting for connection") // TODO: unify?
 
@@ -1696,17 +1695,6 @@ type fakeLocker struct{}
 
 func (fakeLocker) Lock()   {}
 func (fakeLocker) Unlock() {}
-
-func isNetWriteError(err error) bool {
-	switch e := err.(type) {
-	case *url.Error:
-		return isNetWriteError(e.Err)
-	case *net.OpError:
-		return e.Op == "write"
-	default:
-		return false
-	}
-}
 
 // cloneTLSConfig returns a shallow clone of the exported
 // fields of cfg, ignoring the unexported sync.Once, which
