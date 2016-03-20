@@ -613,7 +613,7 @@ func funcargs(nt *Node) {
 
 		if n.Left == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Left = newname(Lookupf("~r%d", gen))
+			n.Left = newname(LookupN("~r", gen))
 			gen++
 		}
 
@@ -633,7 +633,7 @@ func funcargs(nt *Node) {
 
 			*nn = *n.Left
 			nn.Orig = nn
-			nn.Sym = Lookupf("~b%d", gen)
+			nn.Sym = LookupN("~b", gen)
 			gen++
 			n.Left = nn
 		}

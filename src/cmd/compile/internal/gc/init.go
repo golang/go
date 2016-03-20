@@ -27,7 +27,7 @@ var renameinit_initgen int
 
 func renameinit() *Sym {
 	renameinit_initgen++
-	return Lookupf("init.%d", renameinit_initgen)
+	return LookupN("init.", renameinit_initgen)
 }
 
 // hand-craft the following initialization code
@@ -154,7 +154,7 @@ func fninit(n []*Node) {
 	// (9)
 	// could check that it is fn of no args/returns
 	for i := 1; ; i++ {
-		s := Lookupf("init.%d", i)
+		s := LookupN("init.", i)
 		if s.Def == nil {
 			break
 		}

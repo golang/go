@@ -500,7 +500,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 // data statements for the constant
 // part of the composite literal.
 func staticname(t *Type, ctxt int) *Node {
-	n := newname(Lookupf("statictmp_%.4d", statuniqgen))
+	n := newname(LookupN("statictmp_", statuniqgen))
 	statuniqgen++
 	if ctxt == 0 {
 		n.Name.Readonly = true
