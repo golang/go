@@ -2022,7 +2022,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
 
 	calls = append(calls, mkcall("printunlock", nil, init))
 
-	typechecklist(calls, Etop)
+	typecheckslice(calls, Etop)
 	walkexprlist(calls, init)
 
 	r = Nod(OEMPTY, nil, nil)
@@ -2890,7 +2890,7 @@ func appendslice(n *Node, init *Nodes) *Node {
 		l = append(ln.Slice(), nt)
 	}
 
-	typechecklist(l, Etop)
+	typecheckslice(l, Etop)
 	walkstmtlist(l)
 	init.Append(l...)
 	return s
@@ -2987,7 +2987,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
 		}
 	}
 
-	typechecklist(l, Etop)
+	typecheckslice(l, Etop)
 	walkstmtlist(l)
 	init.Append(l...)
 	return ns
@@ -3053,7 +3053,7 @@ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
 	nwid = Nod(OMUL, nwid, Nodintconst(nl.Type.Type.Width))
 	l = append(l, mkcall1(fn, nil, init, nto, nfrm, nwid))
 
-	typechecklist(l, Etop)
+	typecheckslice(l, Etop)
 	walkstmtlist(l)
 	init.Append(l...)
 	return nlen
@@ -4009,7 +4009,7 @@ func walkprintfunc(np **Node, init *Nodes) {
 	funcbody(fn)
 
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 	xtop = append(xtop, fn)
 	Curfn = oldfn
 

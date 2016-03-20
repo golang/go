@@ -392,7 +392,7 @@ func Main() {
 			Curfn = xtop[i]
 			decldepth = 1
 			saveerrors()
-			typechecklist(Curfn.Nbody.Slice(), Etop)
+			typecheckslice(Curfn.Nbody.Slice(), Etop)
 			checkreturn(Curfn)
 			if nerrors != 0 {
 				Curfn.Nbody.Set(nil) // type errors; do not compile

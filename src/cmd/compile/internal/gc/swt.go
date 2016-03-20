@@ -58,7 +58,7 @@ type caseClause struct {
 // typecheckswitch typechecks a switch statement.
 func typecheckswitch(n *Node) {
 	lno := lineno
-	typechecklist(n.Ninit.Slice(), Etop)
+	typecheckslice(n.Ninit.Slice(), Etop)
 
 	var nilonly string
 	var top int
@@ -182,7 +182,7 @@ func typecheckswitch(n *Node) {
 			}
 		}
 
-		typechecklist(ncase.Nbody.Slice(), Etop)
+		typecheckslice(ncase.Nbody.Slice(), Etop)
 	}
 
 	lineno = lno

@@ -282,7 +282,7 @@ func genhash(sym *Sym, t *Type) {
 	Curfn = fn
 	fn.Func.Dupok = true
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
 	popdcl()
 	testdclstack()
@@ -475,7 +475,7 @@ func geneq(sym *Sym, t *Type) {
 	Curfn = fn
 	fn.Func.Dupok = true
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
 	popdcl()
 	testdclstack()

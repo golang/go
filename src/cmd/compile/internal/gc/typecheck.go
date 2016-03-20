@@ -34,12 +34,6 @@ func resolve(n *Node) *Node {
 	return n
 }
 
-func typechecklist(l []*Node, top int) {
-	for i := range l {
-		typecheck(&l[i], top)
-	}
-}
-
 func typecheckslice(l []*Node, top int) {
 	for i := range l {
 		typecheck(&l[i], top)
@@ -1290,7 +1284,7 @@ OpSwitch:
 		if n.List.Len() == 1 && !n.Isddd {
 			typecheck(n.List.Addr(0), Erv|Efnstruct)
 		} else {
-			typechecklist(n.List.Slice(), Erv)
+			typecheckslice(n.List.Slice(), Erv)
 		}
 		t := l.Type
 		if t == nil {
@@ -1437,7 +1431,7 @@ OpSwitch:
 		var r *Node
 		var l *Node
 		if n.List.Len() == 1 {
-			typechecklist(n.List.Slice(), Efnstruct)
+			typecheckslice(n.List.Slice(), Efnstruct)
 			if n.List.First().Op != OCALLFUNC && n.List.First().Op != OCALLMETH {
 				Yyerror("invalid operation: complex expects two arguments")
 				n.Type = nil
@@ -1557,7 +1551,7 @@ OpSwitch:
 		}
 
 		ok |= Etop
-		typechecklist(args.Slice(), Erv)
+		typecheckslice(args.Slice(), Erv)
 		l := args.First()
 		r := args.Second()
 		if l.Type != nil && l.Type.Etype != TMAP {
@@ -1581,7 +1575,7 @@ OpSwitch:
 		if args.Len() == 1 && !n.Isddd {
 			typecheck(args.Addr(0), Erv|Efnstruct)
 		} else {
-			typechecklist(args.Slice(), Erv)
+			typecheckslice(args.Slice(), Erv)
 		}
 
 		t := args.First().Type
@@ -1904,7 +1898,7 @@ OpSwitch:
 
 	case OPRINT, OPRINTN:
 		ok |= Etop
-		typechecklist(n.List.Slice(), Erv|Eindir) // Eindir: address does not escape
+		typecheckslice(n.List.Slice(), Erv|Eindir) // Eindir: address does not escape
 		ls := n.List.Slice()
 		for i1, n1 := range ls {
 			// Special case for print: int constant is int64, not int.
@@ -2047,7 +2041,7 @@ OpSwitch:
 
 	case OFOR:
 		ok |= Etop
-		typechecklist(n.Ninit.Slice(), Etop)
+		typecheckslice(n.Ninit.Slice(), Etop)
 		decldepth++
 		typecheck(&n.Left, Erv)
 		if n.Left != nil {
@@ -2057,13 +2051,13 @@ OpSwitch:
 			}
 		}
 		typecheck(&n.Right, Etop)
-		typechecklist(n.Nbody.Slice(), Etop)
+		typecheckslice(n.Nbody.Slice(), Etop)
 		decldepth--
 		break OpSwitch
 
 	case OIF:
 		ok |= Etop
-		typechecklist(n.Ninit.Slice(), Etop)
+		typecheckslice(n.Ninit.Slice(), Etop)
 		typecheck(&n.Left, Erv)
 		if n.Left != nil {
 			t := n.Left.Type
@@ -2071,16 +2065,16 @@ OpSwitch:
 				Yyerror("non-bool %v used as if condition", Nconv(n.Left, FmtLong))
 			}
 		}
-		typechecklist(n.Nbody.Slice(), Etop)
-		typechecklist(n.Rlist.Slice(), Etop)
+		typecheckslice(n.Nbody.Slice(), Etop)
+		typecheckslice(n.Rlist.Slice(), Etop)
 		break OpSwitch
 
 	case ORETURN:
 		ok |= Etop
 		if n.List.Len() == 1 {
-			typechecklist(n.List.Slice(), Erv|Efnstruct)
+			typecheckslice(n.List.Slice(), Erv|Efnstruct)
 		} else {
-			typechecklist(n.List.Slice(), Erv)
+			typecheckslice(n.List.Slice(), Erv)
 		}
 		if Curfn == nil {
 			Yyerror("return outside function")
@@ -2120,8 +2114,8 @@ OpSwitch:
 
 	case OXCASE:
 		ok |= Etop
-		typechecklist(n.List.Slice(), Erv)
-		typechecklist(n.Nbody.Slice(), Etop)
+		typecheckslice(n.List.Slice(), Erv)
+		typecheckslice(n.Nbody.Slice(), Etop)
 		break OpSwitch
 
 	case ODCLFUNC:
@@ -3310,7 +3304,7 @@ func typecheckas2(n *Node) {
 	if cl > 1 && cr == 1 {
 		typecheck(n.Rlist.Addr(0), Erv|Efnstruct)
 	} else {
-		typechecklist(n.Rlist.Slice(), Erv)
+		typecheckslice(n.Rlist.Slice(), Erv)
 	}
 	checkassignlist(n, n.List)
 

@@ -127,7 +127,7 @@ out:
 	}
 
 	decldepth++
-	typechecklist(n.Nbody.Slice(), Etop)
+	typecheckslice(n.Nbody.Slice(), Etop)
 	decldepth--
 }
 
@@ -313,9 +313,9 @@ func walkrange(n *Node) {
 	}
 
 	n.Op = OFOR
-	typechecklist(init, Etop)
+	typecheckslice(init, Etop)
 	n.Ninit.Append(init...)
-	typechecklist(n.Left.Ninit.Slice(), Etop)
+	typecheckslice(n.Left.Ninit.Slice(), Etop)
 	typecheck(&n.Left, Erv)
 	typecheck(&n.Right, Etop)
 	typecheckslice(body, Etop)
@@ -399,7 +399,7 @@ func memclrrange(n, v1, v2, a *Node) bool {
 	n.Nbody.Append(v1)
 
 	typecheck(&n.Left, Erv)
-	typechecklist(n.Nbody.Slice(), Etop)
+	typecheckslice(n.Nbody.Slice(), Etop)
 	walkstmt(&n)
 	return true
 }
