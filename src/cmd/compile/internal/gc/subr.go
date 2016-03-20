@@ -2009,7 +2009,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
 		fn.Func.Dupok = true
 	}
 	typecheck(&fn, Etop)
-	typechecklist(fn.Nbody.Slice(), Etop)
+	typecheckslice(fn.Nbody.Slice(), Etop)
 
 	inlcalls(fn)
 	escAnalyze([]*Node{fn}, false)

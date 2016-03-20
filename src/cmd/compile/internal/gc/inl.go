@@ -75,7 +75,7 @@ func typecheckinl(fn *Node) {
 
 	savefn := Curfn
 	Curfn = fn
-	typechecklist(fn.Func.Inl.Slice(), Etop)
+	typecheckslice(fn.Func.Inl.Slice(), Etop)
 	Curfn = savefn
 
 	safemode = save_safemode
@@ -955,7 +955,7 @@ func (subst *inlsubst) node(n *Node) *Node {
 			m.Ninit.Append(as)
 		}
 
-		typechecklist(m.Ninit.Slice(), Etop)
+		typecheckslice(m.Ninit.Slice(), Etop)
 		typecheck(&m, Etop)
 
 		//		dump("Return after substitution", m);

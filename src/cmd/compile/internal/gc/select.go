@@ -12,7 +12,7 @@ func typecheckselect(sel *Node) {
 	var def *Node
 	lno := setlineno(sel)
 	count := 0
-	typechecklist(sel.Ninit.Slice(), Etop)
+	typecheckslice(sel.Ninit.Slice(), Etop)
 	for _, n1 := range sel.List.Slice() {
 		count++
 		ncase = n1
@@ -79,7 +79,7 @@ func typecheckselect(sel *Node) {
 			}
 		}
 
-		typechecklist(ncase.Nbody.Slice(), Etop)
+		typecheckslice(ncase.Nbody.Slice(), Etop)
 	}
 
 	sel.Xoffset = int64(count)

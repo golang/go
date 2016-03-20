@@ -109,7 +109,7 @@ func typecheckclosure(func_ *Node, top int) {
 		Curfn = func_
 		olddd := decldepth
 		decldepth = 1
-		typechecklist(func_.Nbody.Slice(), Etop)
+		typecheckslice(func_.Nbody.Slice(), Etop)
 		decldepth = olddd
 		Curfn = oldfn
 	}
