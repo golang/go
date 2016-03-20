@@ -30,8 +30,8 @@ func unsafenmagic(nn *Node) *Node {
 	var v int64
 	switch s.Name {
 	case "Alignof", "Sizeof":
-		typecheck(&r, Erv)
-		defaultlit(&r, nil)
+		r = typecheck(r, Erv)
+		r = defaultlit(r, nil)
 		tr := r.Type
 		if tr == nil {
 			goto bad
@@ -52,10 +52,10 @@ func unsafenmagic(nn *Node) *Node {
 		// Remember base of selector to find it back after dot insertion.
 		// Since r->left may be mutated by typechecking, check it explicitly
 		// first to track it correctly.
-		typecheck(&r.Left, Erv)
+		r.Left = typecheck(r.Left, Erv)
 		base := r.Left
 
-		typecheck(&r, Erv)
+		r = typecheck(r, Erv)
 		switch r.Op {
 		case ODOT, ODOTPTR:
 			break

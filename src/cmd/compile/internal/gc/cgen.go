@@ -391,7 +391,7 @@ func cgen_wb(n, res *Node, wb bool) {
 	case OMINUS:
 		if Isfloat[nl.Type.Etype] {
 			nr = Nodintconst(-1)
-			convlit(&nr, n.Type)
+			nr = convlit(nr, n.Type)
 			a = Thearch.Optoas(OMUL, nl.Type)
 			goto sbop
 		}
@@ -803,7 +803,7 @@ func cgen_wbptr(n, res *Node) {
 
 	wbVar := syslook("writeBarrier")
 	wbEnabled := NodSym(ODOT, wbVar, wbVar.Type.Field(0).Sym)
-	wbEnabled = typecheck(&wbEnabled, Erv)
+	wbEnabled = typecheck(wbEnabled, Erv)
 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
 	pjmp := Gbranch(obj.AJMP, nil, 0)
@@ -1784,7 +1784,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
 	Genlist(n.Ninit)
 
 	if n.Type == nil {
-		convlit(&n, Types[TBOOL])
+		n = convlit(n, Types[TBOOL])
 		if n.Type == nil {
 			return
 		}
@@ -2866,7 +2866,7 @@ func cgen_append(n, res *Node) {
 	Regfree(&rlen)
 
 	fn := syslook("growslice")
-	substArgTypes(&fn, res.Type.Type, res.Type.Type)
+	fn = substArgTypes(fn, res.Type.Type, res.Type.Type)
 	Ginscall(fn, 0)
 
 	if Widthptr == 4 && Widthreg == 8 {

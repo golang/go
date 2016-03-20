@@ -177,7 +177,7 @@ func fninit(n []*Node) {
 	funcbody(fn)
 
 	Curfn = fn
-	typecheck(&fn, Etop)
+	fn = typecheck(fn, Etop)
 	typecheckslice(r, Etop)
 	Curfn = nil
 	funccompile(fn)

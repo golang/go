@@ -750,7 +750,7 @@ func structfield(n *Node) *Field {
 	f.Isddd = n.Isddd
 
 	if n.Right != nil {
-		typecheck(&n.Right, Etype)
+		n.Right = typecheck(n.Right, Etype)
 		n.Type = n.Right.Type
 		if n.Left != nil {
 			n.Left.Type = n.Type
@@ -904,7 +904,7 @@ func interfacefield(n *Node) *Field {
 				f.Sym = f.Nname.Sym
 			}
 		} else {
-			typecheck(&n.Right, Etype)
+			n.Right = typecheck(n.Right, Etype)
 			n.Type = n.Right.Type
 
 			if n.Embedded != 0 {
