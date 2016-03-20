@@ -97,7 +97,7 @@ func typecheckclosure(func_ *Node, top int) {
 	}
 
 	oldfn := Curfn
-	typecheck(&func_.Func.Ntype, Etype)
+	func_.Func.Ntype = typecheck(func_.Func.Ntype, Etype)
 	func_.Type = func_.Func.Ntype.Type
 	func_.Func.Top = top
 
@@ -197,7 +197,7 @@ func makeclosure(func_ *Node) *Node {
 	if len(xfunc.Nbody.Slice()) == 0 {
 		Fatalf("empty body - won't generate any code")
 	}
-	typecheck(&xfunc, Etop)
+	xfunc = typecheck(xfunc, Etop)
 
 	xfunc.Func.Closure = func_
 	func_.Func.Closure = xfunc
@@ -262,7 +262,7 @@ func capturevars(xfunc *Node) {
 			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, v.Name.Param.Closure.Addrtaken, v.Name.Param.Closure.Assigned, int32(v.Type.Width))
 		}
 
-		typecheck(&outer, Erv)
+		outer = typecheck(outer, Erv)
 		func_.Func.Enter.Append(outer)
 	}
 
@@ -442,7 +442,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 
 	clos.Type = func_.Type
 
-	typecheck(&clos, Erv)
+	clos = typecheck(clos, Erv)
 
 	// typecheck will insert a PTRLIT node under CONVNOP,
 	// tag it with escape analysis result.
@@ -457,7 +457,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
 		delete(prealloc, func_)
 	}
 
-	walkexpr(&clos, init)
+	clos = walkexpr(clos, init)
 
 	return clos
 }
@@ -608,7 +608,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 
 	xfunc.Nbody.Set(body)
 
-	typecheck(&xfunc, Etop)
+	xfunc = typecheck(xfunc, Etop)
 	sym.Def = xfunc
 	xtop = append(xtop, xfunc)
 	Curfn = savecurfn
@@ -647,7 +647,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	clos.Type = n.Type
 
-	typecheck(&clos, Erv)
+	clos = typecheck(clos, Erv)
 
 	// typecheck will insert a PTRLIT node under CONVNOP,
 	// tag it with escape analysis result.
@@ -662,7 +662,7 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 		delete(prealloc, n)
 	}
 
-	walkexpr(&clos, init)
+	clos = walkexpr(clos, init)
 
 	return clos
 }

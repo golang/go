@@ -186,7 +186,7 @@ func genhash(sym *Sym, t *Type) {
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
-	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
+	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
 
 	// genhash is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -281,7 +281,7 @@ func genhash(sym *Sym, t *Type) {
 	funcbody(fn)
 	Curfn = fn
 	fn.Func.Dupok = true
-	typecheck(&fn, Etop)
+	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
 	popdcl()
@@ -331,7 +331,7 @@ func hashfor(t *Type) *Node {
 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
 	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
 	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
-	typecheck(&tfn, Etype)
+	tfn = typecheck(tfn, Etype)
 	n.Type = tfn.Type
 	return n
 }
@@ -365,7 +365,7 @@ func geneq(sym *Sym, t *Type) {
 	tfn.Rlist.Append(n)
 
 	funchdr(fn)
-	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
+	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
 
 	// geneq is only called for types that have equality but
 	// cannot be handled by the standard algorithms,
@@ -474,7 +474,7 @@ func geneq(sym *Sym, t *Type) {
 	funcbody(fn)
 	Curfn = fn
 	fn.Func.Dupok = true
-	typecheck(&fn, Etop)
+	fn = typecheck(fn, Etop)
 	typecheckslice(fn.Nbody.Slice(), Etop)
 	Curfn = nil
 	popdcl()
@@ -516,8 +516,8 @@ func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
 	nx.Etype = 1 // does not escape
 	ny := Nod(OADDR, NodSym(OXDOT, q, field), nil)
 	ny.Etype = 1 // does not escape
-	typecheck(&nx, Erv)
-	typecheck(&ny, Erv)
+	nx = typecheck(nx, Erv)
+	ny = typecheck(ny, Erv)
 
 	fn, needsize := eqmemfunc(size, nx.Type.Type)
 	call := Nod(OCALL, fn, nil)
@@ -540,7 +540,7 @@ func eqmemfunc(size int64, t *Type) (fn *Node, needsize bool) {
 		fn = syslook(buf)
 	}
 
-	substArgTypes(&fn, t, t)
+	fn = substArgTypes(fn, t, t)
 	return fn, needsize
 }
 

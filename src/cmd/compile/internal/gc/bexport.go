@@ -193,7 +193,7 @@ func Export(out *obj.Biobuf, trace bool) int {
 			switch n := sym.Def; n.Op {
 			case OLITERAL:
 				// constant
-				typecheck(&n, Erv)
+				n = typecheck(n, Erv)
 				if n == nil || n.Op != OLITERAL {
 					Fatalf("exporter: dumpexportconst: oconst nil: %v", sym)
 				}
@@ -201,7 +201,7 @@ func Export(out *obj.Biobuf, trace bool) int {
 
 			case ONAME:
 				// variable or function
-				typecheck(&n, Erv|Ecall)
+				n = typecheck(n, Erv|Ecall)
 				if n == nil || n.Type == nil {
 					Fatalf("exporter: variable/function exported but not defined: %v", sym)
 				}

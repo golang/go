@@ -912,7 +912,7 @@ func esc(e *EscState, n *Node, up *Node) {
 				a = Nod(OADDR, a, nil)
 				a.Lineno = v.Lineno
 				e.nodeEscState(a).Escloopdepth = e.loopdepth
-				typecheck(&a, Erv)
+				a = typecheck(a, Erv)
 			}
 
 			escassignNilWhy(e, n, a, "captured by a closure")

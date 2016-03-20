@@ -228,7 +228,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
 			n1 := Nod(OCONVNOP, n.Left, nil)
 			n1.Type = Ptrto(Types[TUINT8])
 			n1 = Nod(OIND, n1, nil)
-			typecheck(&n1, Erv)
+			n1 = typecheck(n1, Erv)
 			callinstr(&n1, init, 0, skip)
 		}
 
@@ -581,12 +581,12 @@ func detachexpr(n *Node, init *Nodes) *Node {
 	addr := Nod(OADDR, n, nil)
 	l := temp(Ptrto(n.Type))
 	as := Nod(OAS, l, addr)
-	typecheck(&as, Etop)
-	walkexpr(&as, init)
+	as = typecheck(as, Etop)
+	as = walkexpr(as, init)
 	init.Append(as)
 	ind := Nod(OIND, l, nil)
-	typecheck(&ind, Erv)
-	walkexpr(&ind, init)
+	ind = typecheck(ind, Erv)
+	ind = walkexpr(ind, init)
 	return ind
 }
 

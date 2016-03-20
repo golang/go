@@ -24,7 +24,7 @@ func typecheckrange(n *Node) {
 	// 3. typecheck body.
 	// 4. decldepth--.
 
-	typecheck(&n.Right, Erv)
+	n.Right = typecheck(n.Right, Erv)
 
 	t := n.Right.Type
 	if t == nil {
@@ -34,7 +34,7 @@ func typecheckrange(n *Node) {
 	ls = n.List.Slice()
 	for i1, n1 := range ls {
 		if n1.Name == nil || n1.Name.Defn != n {
-			typecheck(&ls[i1], Erv|Easgn)
+			ls[i1] = typecheck(ls[i1], Erv|Easgn)
 		}
 	}
 
@@ -122,7 +122,7 @@ out:
 	ls = n.List.Slice()
 	for i1, n1 := range ls {
 		if n1.Typecheck == 0 {
-			typecheck(&ls[i1], Erv|Easgn)
+			ls[i1] = typecheck(ls[i1], Erv|Easgn)
 		}
 	}
 
@@ -213,7 +213,7 @@ func walkrange(n *Node) {
 			tmp.Right.Type = Types[Tptr]
 			tmp.Right.Typecheck = 1
 			a = Nod(OAS, hp, tmp)
-			typecheck(&a, Etop)
+			a = typecheck(a, Etop)
 			n.Right.Ninit.Set1(a)
 		}
 
@@ -231,12 +231,12 @@ func walkrange(n *Node) {
 
 		fn := syslook("mapiterinit")
 
-		substArgTypes(&fn, t.Key(), t.Type, th)
+		fn = substArgTypes(fn, t.Key(), t.Type, th)
 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
 		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
 
 		fn = syslook("mapiternext")
-		substArgTypes(&fn, th)
+		fn = substArgTypes(fn, th)
 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
 
 		key := NodSym(ODOT, hit, keysym)
@@ -316,11 +316,11 @@ func walkrange(n *Node) {
 	typecheckslice(init, Etop)
 	n.Ninit.Append(init...)
 	typecheckslice(n.Left.Ninit.Slice(), Etop)
-	typecheck(&n.Left, Erv)
-	typecheck(&n.Right, Etop)
+	n.Left = typecheck(n.Left, Erv)
+	n.Right = typecheck(n.Right, Etop)
 	typecheckslice(body, Etop)
 	n.Nbody.Set(append(body, n.Nbody.Slice()...))
-	walkstmt(&n)
+	n = walkstmt(n)
 
 	lineno = lno
 }
@@ -398,8 +398,8 @@ func memclrrange(n, v1, v2, a *Node) bool {
 
 	n.Nbody.Append(v1)
 
-	typecheck(&n.Left, Erv)
+	n.Left = typecheck(n.Left, Erv)
 	typecheckslice(n.Nbody.Slice(), Etop)
-	walkstmt(&n)
+	n = walkstmt(n)
 	return true
 }

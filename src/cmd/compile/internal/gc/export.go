@@ -226,7 +226,7 @@ func reexportdep(n *Node) {
 
 func dumpexportconst(s *Sym) {
 	n := s.Def
-	typecheck(&n, Erv)
+	n = typecheck(n, Erv)
 	if n == nil || n.Op != OLITERAL {
 		Fatalf("dumpexportconst: oconst nil: %v", s)
 	}
@@ -243,7 +243,7 @@ func dumpexportconst(s *Sym) {
 
 func dumpexportvar(s *Sym) {
 	n := s.Def
-	typecheck(&n, Erv|Ecall)
+	n = typecheck(n, Erv|Ecall)
 	if n == nil || n.Type == nil {
 		Yyerror("variable exported but not defined: %v", s)
 		return
@@ -511,7 +511,7 @@ func importimport(s *Sym, path string) {
 
 func importconst(s *Sym, t *Type, n *Node) {
 	importsym(s, OLITERAL)
-	convlit(&n, t)
+	n = convlit(n, t)
 
 	if s.Def != nil { // TODO: check if already the same.
 		return

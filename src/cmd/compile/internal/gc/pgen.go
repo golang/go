@@ -380,7 +380,7 @@ func compile(fn *Node) {
 		for _, t := range Curfn.Type.Results().Fields().Slice() {
 			if t.Nname != nil {
 				n := Nod(OAS, t.Nname, nil)
-				typecheck(&n, Etop)
+				n = typecheck(n, Etop)
 				Curfn.Nbody.Set(append([]*Node{n}, Curfn.Nbody.Slice()...))
 			}
 		}

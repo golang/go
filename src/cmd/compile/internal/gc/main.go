@@ -371,7 +371,7 @@ func Main() {
 	// Don't use range--typecheck can add closures to xtop.
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op != ODCL && xtop[i].Op != OAS && xtop[i].Op != OAS2 {
-			typecheck(&xtop[i], Etop)
+			xtop[i] = typecheck(xtop[i], Etop)
 		}
 	}
 
@@ -381,7 +381,7 @@ func Main() {
 	// Don't use range--typecheck can add closures to xtop.
 	for i := 0; i < len(xtop); i++ {
 		if xtop[i].Op == ODCL || xtop[i].Op == OAS || xtop[i].Op == OAS2 {
-			typecheck(&xtop[i], Etop)
+			xtop[i] = typecheck(xtop[i], Etop)
 		}
 	}
 	resumecheckwidth()
@@ -488,7 +488,7 @@ func Main() {
 	// Phase 9: Check external declarations.
 	for i, n := range externdcl {
 		if n.Op == ONAME {
-			typecheck(&externdcl[i], Erv)
+			externdcl[i] = typecheck(externdcl[i], Erv)
 		}
 	}
 
