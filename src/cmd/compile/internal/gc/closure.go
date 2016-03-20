@@ -529,7 +529,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	var fld *Node
 	var n *Node
 	for _, t := range t0.Params().Fields().Slice() {
-		n = newname(Lookupf("a%d", i))
+		n = newname(LookupN("a%d", i))
 		i++
 		n.Class = PPARAM
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)
@@ -548,7 +548,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
 	l = nil
 	var retargs []*Node
 	for _, t := range t0.Results().Fields().Slice() {
-		n = newname(Lookupf("r%d", i))
+		n = newname(LookupN("r", i))
 		i++
 		n.Class = PPARAMOUT
 		xfunc.Func.Dcl = append(xfunc.Func.Dcl, n)

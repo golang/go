@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -221,6 +222,15 @@ func Lookupf(format string, a ...interface{}) *Sym {
 
 func LookupBytes(name []byte) *Sym {
 	return localpkg.LookupBytes(name)
+}
+
+// LookupN looks up the symbol starting with prefix and ending with
+// the decimal n. If prefix is too long, LookupN panics.
+func LookupN(prefix string, n int) *Sym {
+	var buf [20]byte // plenty long enough for all current users
+	copy(buf[:], prefix)
+	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
+	return LookupBytes(b)
 }
 
 var initSyms []*Sym

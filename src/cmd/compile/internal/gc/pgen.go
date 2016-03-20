@@ -15,12 +15,12 @@ import (
 
 // "Portable" code generation.
 
-var makefuncdatasym_nsym int32
+var makefuncdatasym_nsym int
 
-func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
+func makefuncdatasym(nameprefix string, funcdatakind int64) *Sym {
 	var nod Node
 
-	sym := Lookupf(namefmt, makefuncdatasym_nsym)
+	sym := LookupN(nameprefix, makefuncdatasym_nsym)
 	makefuncdatasym_nsym++
 	pnod := newname(sym)
 	pnod.Class = PEXTERN
@@ -456,8 +456,8 @@ func compile(fn *Node) {
 
 	ginit()
 
-	gcargs := makefuncdatasym("gcargs·%d", obj.FUNCDATA_ArgsPointerMaps)
-	gclocals := makefuncdatasym("gclocals·%d", obj.FUNCDATA_LocalsPointerMaps)
+	gcargs := makefuncdatasym("gcargs·", obj.FUNCDATA_ArgsPointerMaps)
+	gclocals := makefuncdatasym("gclocals·", obj.FUNCDATA_LocalsPointerMaps)
 
 	if obj.Fieldtrack_enabled != 0 && len(Curfn.Func.FieldTrack) > 0 {
 		trackSyms := make([]*Sym, 0, len(Curfn.Func.FieldTrack))

@@ -851,7 +851,7 @@ func inlvar(var_ *Node) *Node {
 
 // Synthesize a variable to store the inlined function's results in.
 func retvar(t *Field, i int) *Node {
-	n := newname(Lookupf("~r%d", i))
+	n := newname(LookupN("~r", i))
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = true
@@ -863,7 +863,7 @@ func retvar(t *Field, i int) *Node {
 // Synthesize a variable to store the inlined function's arguments
 // when they come from a multiple return call.
 func argvar(t *Type, i int) *Node {
-	n := newname(Lookupf("~arg%d", i))
+	n := newname(LookupN("~arg", i))
 	n.Type = t.Type
 	n.Class = PAUTO
 	n.Used = true
@@ -876,7 +876,7 @@ var newlabel_inl_label int
 
 func newlabel_inl() *Node {
 	newlabel_inl_label++
-	n := newname(Lookupf(".inlret%.6d", newlabel_inl_label))
+	n := newname(LookupN(".inlret", newlabel_inl_label))
 	n.Etype = 1 // flag 'safe' for escape analysis (no backjumps)
 	return n
 }
