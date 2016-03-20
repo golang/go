@@ -3269,14 +3269,14 @@ func (p *parser) hidden_literal() *Node {
 			p.next()
 			switch ss.Val().Ctype() {
 			case CTINT, CTRUNE:
-				mpnegfix(ss.Val().U.(*Mpint))
+				ss.Val().U.(*Mpint).Neg()
 				break
 			case CTFLT:
-				mpnegflt(ss.Val().U.(*Mpflt))
+				ss.Val().U.(*Mpflt).Neg()
 				break
 			case CTCPLX:
-				mpnegflt(&ss.Val().U.(*Mpcplx).Real)
-				mpnegflt(&ss.Val().U.(*Mpcplx).Imag)
+				ss.Val().U.(*Mpcplx).Real.Neg()
+				ss.Val().U.(*Mpcplx).Imag.Neg()
 				break
 			default:
 				Yyerror("bad negated constant")
@@ -3318,11 +3318,11 @@ func (p *parser) hidden_constant() *Node {
 
 		if s2.Val().Ctype() == CTRUNE && s4.Val().Ctype() == CTINT {
 			ss := s2
-			mpaddfixfix(s2.Val().U.(*Mpint), s4.Val().U.(*Mpint), 0)
+			s2.Val().U.(*Mpint).Add(s4.Val().U.(*Mpint), 0)
 			return ss
 		}
 		s4.Val().U.(*Mpcplx).Real = s4.Val().U.(*Mpcplx).Imag
-		Mpmovecflt(&s4.Val().U.(*Mpcplx).Imag, 0.0)
+		s4.Val().U.(*Mpcplx).Imag.SetFloat64(0.0)
 		return nodcplxlit(s2.Val(), s4.Val())
 	}
 }

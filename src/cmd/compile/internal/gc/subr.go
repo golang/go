@@ -438,7 +438,7 @@ func Nodintconst(v int64) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
 	c.SetVal(Val{new(Mpint)})
-	Mpmovecfix(c.Val().U.(*Mpint), v)
+	c.Val().U.(*Mpint).SetInt64(v)
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -448,7 +448,7 @@ func nodfltconst(v *Mpflt) *Node {
 	c := Nod(OLITERAL, nil, nil)
 	c.Addable = true
 	c.SetVal(Val{newMpflt()})
-	mpmovefltflt(c.Val().U.(*Mpflt), v)
+	c.Val().U.(*Mpflt).Set(v)
 	c.Type = Types[TIDEAL]
 	ullmancalc(c)
 	return c
@@ -460,7 +460,7 @@ func Nodconst(n *Node, t *Type, v int64) {
 	n.Addable = true
 	ullmancalc(n)
 	n.SetVal(Val{new(Mpint)})
-	Mpmovecfix(n.Val().U.(*Mpint), v)
+	n.Val().U.(*Mpint).SetInt64(v)
 	n.Type = t
 
 	if Isfloat[t.Etype] {
@@ -491,7 +491,7 @@ func aindex(b *Node, t *Type) *Type {
 			Yyerror("array bound must be an integer expression")
 
 		case CTINT, CTRUNE:
-			bound = Mpgetfix(b.Val().U.(*Mpint))
+			bound = b.Val().U.(*Mpint).Int64()
 			if bound < 0 {
 				Yyerror("array bound must be non negative")
 			}
@@ -2198,7 +2198,7 @@ func powtwo(n *Node) int {
 		return -1
 	}
 
-	v := uint64(Mpgetfix(n.Val().U.(*Mpint)))
+	v := uint64(n.Val().U.(*Mpint).Int64())
 	b := uint64(1)
 	for i := 0; i < 64; i++ {
 		if b == v {

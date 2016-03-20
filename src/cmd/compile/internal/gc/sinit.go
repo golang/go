@@ -436,7 +436,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
 			ta := typ(TARRAY)
 
 			ta.Type = r.Type.Type
-			ta.Bound = Mpgetfix(r.Right.Val().U.(*Mpint))
+			ta.Bound = r.Right.Val().U.(*Mpint).Int64()
 			a := staticname(ta, 1)
 			inittemps[r] = a
 			n := *l
@@ -691,7 +691,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
 func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
 	// make an array type
 	t := n.Type.Copy()
-	t.Bound = Mpgetfix(n.Right.Val().U.(*Mpint))
+	t.Bound = n.Right.Val().U.(*Mpint).Int64()
 	t.Width = 0
 	t.Sym = nil
 	t.Haspointers = 0
@@ -1178,7 +1178,7 @@ func oaslit(n *Node, init *Nodes) bool {
 
 func getlit(lit *Node) int {
 	if Smallintconst(lit) {
-		return int(Mpgetfix(lit.Val().U.(*Mpint)))
+		return int(lit.Val().U.(*Mpint).Int64())
 	}
 	return -1
 }
@@ -1241,7 +1241,7 @@ func initplan(n *Node) {
 			if a.Op != OKEY || !Smallintconst(a.Left) {
 				Fatalf("initplan arraylit")
 			}
-			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val().U.(*Mpint)), a.Right)
+			addvalue(p, n.Type.Type.Width*a.Left.Val().U.(*Mpint).Int64(), a.Right)
 		}
 
 	case OSTRUCTLIT:
@@ -1302,13 +1302,13 @@ func iszero(n *Node) bool {
 			return !n.Val().U.(bool)
 
 		case CTINT, CTRUNE:
-			return mpcmpfixc(n.Val().U.(*Mpint), 0) == 0
+			return n.Val().U.(*Mpint).CmpInt64(0) == 0
 
 		case CTFLT:
-			return mpcmpfltc(n.Val().U.(*Mpflt), 0) == 0
+			return n.Val().U.(*Mpflt).CmpFloat64(0) == 0
 
 		case CTCPLX:
-			return mpcmpfltc(&n.Val().U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&n.Val().U.(*Mpcplx).Imag, 0) == 0
+			return n.Val().U.(*Mpcplx).Real.CmpFloat64(0) == 0 && n.Val().U.(*Mpcplx).Imag.CmpFloat64(0) == 0
 		}
 
 	case OARRAYLIT:

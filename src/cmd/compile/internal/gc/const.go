@@ -29,7 +29,7 @@ func (n *Node) Int() int64 {
 	if !Isconst(n, CTINT) {
 		Fatalf("Int(%v)", n)
 	}
-	return Mpgetfix(n.Val().U.(*Mpint))
+	return n.Val().U.(*Mpint).Int64()
 }
 
 // SetInt sets n's value to i.
@@ -38,7 +38,7 @@ func (n *Node) SetInt(i int64) {
 	if !Isconst(n, CTINT) {
 		Fatalf("SetInt(%v)", n)
 	}
-	Mpmovecfix(n.Val().U.(*Mpint), i)
+	n.Val().U.(*Mpint).SetInt64(i)
 }
 
 // SetBigInt sets n's value to x.
@@ -71,18 +71,18 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
 	overflow(v, t)
 
 	fv := newMpflt()
-	mpmovefltflt(fv, oldv)
+	fv.Set(oldv)
 
 	// convert large precision literal floating
 	// into limited precision (float64 or float32)
 	switch t.Etype {
 	case TFLOAT64:
-		d := mpgetflt(fv)
-		Mpmovecflt(fv, d)
+		d := fv.Float64()
+		fv.SetFloat64(d)
 
 	case TFLOAT32:
-		d := mpgetflt32(fv)
-		Mpmovecflt(fv, d)
+		d := fv.Float32()
+		fv.SetFloat64(d)
 	}
 
 	return fv
@@ -241,7 +241,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
 		case TUINTPTR:
 			if n.Type.Etype == TUNSAFEPTR {
 				n.SetVal(Val{new(Mpint)})
-				Mpmovecfix(n.Val().U.(*Mpint), 0)
+				n.Val().U.(*Mpint).SetInt64(0)
 			} else {
 				goto bad
 			}
@@ -321,19 +321,19 @@ func copyval(v Val) Val {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		i := new(Mpint)
-		mpmovefixfix(i, v.U.(*Mpint))
+		i.Set(v.U.(*Mpint))
 		i.Rune = v.U.(*Mpint).Rune
 		v.U = i
 
 	case CTFLT:
 		f := newMpflt()
-		mpmovefltflt(f, v.U.(*Mpflt))
+		f.Set(v.U.(*Mpflt))
 		v.U = f
 
 	case CTCPLX:
 		c := new(Mpcplx)
-		mpmovefltflt(&c.Real, &v.U.(*Mpcplx).Real)
-		mpmovefltflt(&c.Imag, &v.U.(*Mpcplx).Imag)
+		c.Real.Set(&v.U.(*Mpcplx).Real)
+		c.Imag.Set(&v.U.(*Mpcplx).Imag)
 		v.U = c
 	}
 
@@ -344,14 +344,14 @@ func tocplx(v Val) Val {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		c := new(Mpcplx)
-		Mpmovefixflt(&c.Real, v.U.(*Mpint))
-		Mpmovecflt(&c.Imag, 0.0)
+		c.Real.SetInt(v.U.(*Mpint))
+		c.Imag.SetFloat64(0.0)
 		v.U = c
 
 	case CTFLT:
 		c := new(Mpcplx)
-		mpmovefltflt(&c.Real, v.U.(*Mpflt))
-		Mpmovecflt(&c.Imag, 0.0)
+		c.Real.Set(v.U.(*Mpflt))
+		c.Imag.SetFloat64(0.0)
 		v.U = c
 	}
 
@@ -362,13 +362,13 @@ func toflt(v Val) Val {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
 		f := newMpflt()
-		Mpmovefixflt(f, v.U.(*Mpint))
+		f.SetInt(v.U.(*Mpint))
 		v.U = f
 
 	case CTCPLX:
 		f := newMpflt()
-		mpmovefltflt(f, &v.U.(*Mpcplx).Real)
-		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
+		f.Set(&v.U.(*Mpcplx).Real)
+		if v.U.(*Mpcplx).Imag.CmpFloat64(0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
 		}
 		v.U = f
@@ -381,14 +381,14 @@ func toint(v Val) Val {
 	switch v.Ctype() {
 	case CTRUNE:
 		i := new(Mpint)
-		mpmovefixfix(i, v.U.(*Mpint))
+		i.Set(v.U.(*Mpint))
 		v.U = i
 
 	case CTFLT:
 		i := new(Mpint)
-		if f := v.U.(*Mpflt); mpmovefltfix(i, f) < 0 {
+		if f := v.U.(*Mpflt); i.SetFloat(f) < 0 {
 			msg := "constant %v truncated to integer"
-			// provide better error message if mpmovefltfix failed because f was too large
+			// provide better error message if SetFloat failed because f was too large
 			if f.Val.IsInt() {
 				msg = "constant %v overflows integer"
 			}
@@ -398,10 +398,10 @@ func toint(v Val) Val {
 
 	case CTCPLX:
 		i := new(Mpint)
-		if mpmovefltfix(i, &v.U.(*Mpcplx).Real) < 0 {
+		if i.SetFloat(&v.U.(*Mpcplx).Real) < 0 {
 			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
 		}
-		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
+		if v.U.(*Mpcplx).Imag.CmpFloat64(0) != 0 {
 			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, FmtSharp|FmtSign))
 		}
 		v.U = i
@@ -416,7 +416,7 @@ func doesoverflow(v Val, t *Type) bool {
 		if !Isint[t.Etype] {
 			Fatalf("overflow: %v integer constant", t)
 		}
-		if Mpcmpfixfix(v.U.(*Mpint), Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[t.Etype]) > 0 {
+		if v.U.(*Mpint).Cmp(Minintval[t.Etype]) < 0 || v.U.(*Mpint).Cmp(Maxintval[t.Etype]) > 0 {
 			return true
 		}
 
@@ -424,7 +424,7 @@ func doesoverflow(v Val, t *Type) bool {
 		if !Isfloat[t.Etype] {
 			Fatalf("overflow: %v floating-point constant", t)
 		}
-		if mpcmpfltflt(v.U.(*Mpflt), minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.(*Mpflt), maxfltval[t.Etype]) >= 0 {
+		if v.U.(*Mpflt).Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpflt).Cmp(maxfltval[t.Etype]) >= 0 {
 			return true
 		}
 
@@ -432,7 +432,7 @@ func doesoverflow(v Val, t *Type) bool {
 		if !Iscomplex[t.Etype] {
 			Fatalf("overflow: %v complex constant", t)
 		}
-		if mpcmpfltflt(&v.U.(*Mpcplx).Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, maxfltval[t.Etype]) >= 0 {
+		if v.U.(*Mpcplx).Real.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Real.Cmp(maxfltval[t.Etype]) >= 0 || v.U.(*Mpcplx).Imag.Cmp(minfltval[t.Etype]) <= 0 || v.U.(*Mpcplx).Imag.Cmp(maxfltval[t.Etype]) >= 0 {
 			return true
 		}
 	}
@@ -460,10 +460,10 @@ func overflow(v Val, t *Type) {
 func tostr(v Val) Val {
 	switch v.Ctype() {
 	case CTINT, CTRUNE:
-		if Mpcmpfixfix(v.U.(*Mpint), Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[TINT]) > 0 {
+		if v.U.(*Mpint).Cmp(Minintval[TINT]) < 0 || v.U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
 			Yyerror("overflow in int -> string")
 		}
-		r := uint(Mpgetfix(v.U.(*Mpint)))
+		r := uint(v.U.(*Mpint).Int64())
 		v = Val{}
 		v.U = string(r)
 
@@ -677,7 +677,7 @@ func evconst(n *Node) {
 
 		case OMINUS_ | CTINT_,
 			OMINUS_ | CTRUNE_:
-			mpnegfix(v.U.(*Mpint))
+			v.U.(*Mpint).Neg()
 
 		case OCOM_ | CTINT_,
 			OCOM_ | CTRUNE_:
@@ -692,7 +692,7 @@ func evconst(n *Node) {
 			switch et {
 			// signed guys change sign
 			default:
-				Mpmovecfix(&b, -1)
+				b.SetInt64(-1)
 
 				// unsigned guys invert their bits
 			case TUINT8,
@@ -701,23 +701,23 @@ func evconst(n *Node) {
 				TUINT64,
 				TUINT,
 				TUINTPTR:
-				mpmovefixfix(&b, Maxintval[et])
+				b.Set(Maxintval[et])
 			}
 
-			mpxorfixfix(v.U.(*Mpint), &b)
+			v.U.(*Mpint).Xor(&b)
 
 		case OPLUS_ | CTFLT_:
 			break
 
 		case OMINUS_ | CTFLT_:
-			mpnegflt(v.U.(*Mpflt))
+			v.U.(*Mpflt).Neg()
 
 		case OPLUS_ | CTCPLX_:
 			break
 
 		case OMINUS_ | CTCPLX_:
-			mpnegflt(&v.U.(*Mpcplx).Real)
-			mpnegflt(&v.U.(*Mpcplx).Imag)
+			v.U.(*Mpcplx).Real.Neg()
+			v.U.(*Mpcplx).Imag.Neg()
 
 		case ONOT_ | CTBOOL_:
 			if !v.U.(bool) {
@@ -800,18 +800,18 @@ func evconst(n *Node) {
 	// Rune and int turns into rune.
 	if v.Ctype() == CTRUNE && rv.Ctype() == CTINT {
 		i := new(Mpint)
-		mpmovefixfix(i, rv.U.(*Mpint))
+		i.Set(rv.U.(*Mpint))
 		i.Rune = true
 		rv.U = i
 	}
 	if v.Ctype() == CTINT && rv.Ctype() == CTRUNE {
 		if n.Op == OLSH || n.Op == ORSH {
 			i := new(Mpint)
-			mpmovefixfix(i, rv.U.(*Mpint))
+			i.Set(rv.U.(*Mpint))
 			rv.U = i
 		} else {
 			i := new(Mpint)
-			mpmovefixfix(i, v.U.(*Mpint))
+			i.Set(v.U.(*Mpint))
 			i.Rune = true
 			v.U = i
 		}
@@ -832,77 +832,77 @@ func evconst(n *Node) {
 
 	case OADD_ | CTINT_,
 		OADD_ | CTRUNE_:
-		mpaddfixfix(v.U.(*Mpint), rv.U.(*Mpint), 0)
+		v.U.(*Mpint).Add(rv.U.(*Mpint), 0)
 
 	case OSUB_ | CTINT_,
 		OSUB_ | CTRUNE_:
-		mpsubfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Sub(rv.U.(*Mpint))
 
 	case OMUL_ | CTINT_,
 		OMUL_ | CTRUNE_:
-		mpmulfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Mul(rv.U.(*Mpint))
 
 	case ODIV_ | CTINT_,
 		ODIV_ | CTRUNE_:
-		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
+		if rv.U.(*Mpint).CmpInt64(0) == 0 {
 			Yyerror("division by zero")
-			mpsetovf(v.U.(*Mpint))
+			v.U.(*Mpint).SetOverflow()
 			break
 		}
 
-		mpdivfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Quo(rv.U.(*Mpint))
 
 	case OMOD_ | CTINT_,
 		OMOD_ | CTRUNE_:
-		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
+		if rv.U.(*Mpint).CmpInt64(0) == 0 {
 			Yyerror("division by zero")
-			mpsetovf(v.U.(*Mpint))
+			v.U.(*Mpint).SetOverflow()
 			break
 		}
 
-		mpmodfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Rem(rv.U.(*Mpint))
 
 	case OLSH_ | CTINT_,
 		OLSH_ | CTRUNE_:
-		mplshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Lsh(rv.U.(*Mpint))
 
 	case ORSH_ | CTINT_,
 		ORSH_ | CTRUNE_:
-		mprshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Rsh(rv.U.(*Mpint))
 
 	case OOR_ | CTINT_,
 		OOR_ | CTRUNE_:
-		mporfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Or(rv.U.(*Mpint))
 
 	case OAND_ | CTINT_,
 		OAND_ | CTRUNE_:
-		mpandfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).And(rv.U.(*Mpint))
 
 	case OANDNOT_ | CTINT_,
 		OANDNOT_ | CTRUNE_:
-		mpandnotfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).AndNot(rv.U.(*Mpint))
 
 	case OXOR_ | CTINT_,
 		OXOR_ | CTRUNE_:
-		mpxorfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+		v.U.(*Mpint).Xor(rv.U.(*Mpint))
 
 	case OADD_ | CTFLT_:
-		mpaddfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+		v.U.(*Mpflt).Add(rv.U.(*Mpflt))
 
 	case OSUB_ | CTFLT_:
-		mpsubfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+		v.U.(*Mpflt).Sub(rv.U.(*Mpflt))
 
 	case OMUL_ | CTFLT_:
-		mpmulfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+		v.U.(*Mpflt).Mul(rv.U.(*Mpflt))
 
 	case ODIV_ | CTFLT_:
-		if mpcmpfltc(rv.U.(*Mpflt), 0) == 0 {
+		if rv.U.(*Mpflt).CmpFloat64(0) == 0 {
 			Yyerror("division by zero")
-			Mpmovecflt(v.U.(*Mpflt), 1.0)
+			v.U.(*Mpflt).SetFloat64(1.0)
 			break
 		}
 
-		mpdivfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+		v.U.(*Mpflt).Quo(rv.U.(*Mpflt))
 
 		// The default case above would print 'ideal % ideal',
 	// which is not quite an ideal error.
@@ -915,21 +915,21 @@ func evconst(n *Node) {
 		return
 
 	case OADD_ | CTCPLX_:
-		mpaddfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
-		mpaddfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
+		v.U.(*Mpcplx).Real.Add(&rv.U.(*Mpcplx).Real)
+		v.U.(*Mpcplx).Imag.Add(&rv.U.(*Mpcplx).Imag)
 
 	case OSUB_ | CTCPLX_:
-		mpsubfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
-		mpsubfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
+		v.U.(*Mpcplx).Real.Sub(&rv.U.(*Mpcplx).Real)
+		v.U.(*Mpcplx).Imag.Sub(&rv.U.(*Mpcplx).Imag)
 
 	case OMUL_ | CTCPLX_:
 		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
 
 	case ODIV_ | CTCPLX_:
-		if mpcmpfltc(&rv.U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&rv.U.(*Mpcplx).Imag, 0) == 0 {
+		if rv.U.(*Mpcplx).Real.CmpFloat64(0) == 0 && rv.U.(*Mpcplx).Imag.CmpFloat64(0) == 0 {
 			Yyerror("complex division by zero")
-			Mpmovecflt(&rv.U.(*Mpcplx).Real, 1.0)
-			Mpmovecflt(&rv.U.(*Mpcplx).Imag, 0.0)
+			rv.U.(*Mpcplx).Real.SetFloat64(1.0)
+			rv.U.(*Mpcplx).Imag.SetFloat64(0.0)
 			break
 		}
 
@@ -943,90 +943,90 @@ func evconst(n *Node) {
 
 	case OEQ_ | CTINT_,
 		OEQ_ | CTRUNE_:
-		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) == 0 {
+		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case ONE_ | CTINT_,
 		ONE_ | CTRUNE_:
-		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) != 0 {
+		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) != 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OLT_ | CTINT_,
 		OLT_ | CTRUNE_:
-		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) < 0 {
+		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) < 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OLE_ | CTINT_,
 		OLE_ | CTRUNE_:
-		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) <= 0 {
+		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) <= 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OGE_ | CTINT_,
 		OGE_ | CTRUNE_:
-		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) >= 0 {
+		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) >= 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OGT_ | CTINT_,
 		OGT_ | CTRUNE_:
-		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) > 0 {
+		if v.U.(*Mpint).Cmp(rv.U.(*Mpint)) > 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OEQ_ | CTFLT_:
-		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) == 0 {
+		if v.U.(*Mpflt).Cmp(rv.U.(*Mpflt)) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case ONE_ | CTFLT_:
-		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) != 0 {
+		if v.U.(*Mpflt).Cmp(rv.U.(*Mpflt)) != 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OLT_ | CTFLT_:
-		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) < 0 {
+		if v.U.(*Mpflt).Cmp(rv.U.(*Mpflt)) < 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OLE_ | CTFLT_:
-		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) <= 0 {
+		if v.U.(*Mpflt).Cmp(rv.U.(*Mpflt)) <= 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OGE_ | CTFLT_:
-		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) >= 0 {
+		if v.U.(*Mpflt).Cmp(rv.U.(*Mpflt)) >= 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OGT_ | CTFLT_:
-		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) > 0 {
+		if v.U.(*Mpflt).Cmp(rv.U.(*Mpflt)) > 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case OEQ_ | CTCPLX_:
-		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) == 0 && mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) == 0 {
+		if v.U.(*Mpcplx).Real.Cmp(&rv.U.(*Mpcplx).Real) == 0 && v.U.(*Mpcplx).Imag.Cmp(&rv.U.(*Mpcplx).Imag) == 0 {
 			goto settrue
 		}
 		goto setfalse
 
 	case ONE_ | CTCPLX_:
-		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) != 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) != 0 {
+		if v.U.(*Mpcplx).Real.Cmp(&rv.U.(*Mpcplx).Real) != 0 || v.U.(*Mpcplx).Imag.Cmp(&rv.U.(*Mpcplx).Imag) != 0 {
 			goto settrue
 		}
 		goto setfalse
@@ -1175,8 +1175,8 @@ func nodcplxlit(r Val, i Val) *Node {
 		Fatalf("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
 	}
 
-	mpmovefltflt(&c.Real, r.U.(*Mpflt))
-	mpmovefltflt(&c.Imag, i.U.(*Mpflt))
+	c.Real.Set(r.U.(*Mpflt))
+	c.Imag.Set(i.U.(*Mpflt))
 	return n
 }
 
@@ -1416,7 +1416,7 @@ func Smallintconst(n *Node) bool {
 			return true
 
 		case TIDEAL, TINT64, TUINT64, TPTR64:
-			if Mpcmpfixfix(n.Val().U.(*Mpint), Minintval[TINT32]) < 0 || Mpcmpfixfix(n.Val().U.(*Mpint), Maxintval[TINT32]) > 0 {
+			if n.Val().U.(*Mpint).Cmp(Minintval[TINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
 				break
 			}
 			return true
@@ -1439,10 +1439,10 @@ func nonnegconst(n *Node) int {
 			TINT64,
 			TUINT64,
 			TIDEAL:
-			if Mpcmpfixfix(n.Val().U.(*Mpint), Minintval[TUINT32]) < 0 || Mpcmpfixfix(n.Val().U.(*Mpint), Maxintval[TINT32]) > 0 {
+			if n.Val().U.(*Mpint).Cmp(Minintval[TUINT32]) < 0 || n.Val().U.(*Mpint).Cmp(Maxintval[TINT32]) > 0 {
 				break
 			}
-			return int(Mpgetfix(n.Val().U.(*Mpint)))
+			return int(n.Val().U.(*Mpint).Int64())
 		}
 	}
 
@@ -1497,7 +1497,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, FmtLong))
 
 		case CTINT, CTRUNE:
-			i = Mpgetfix(n.Val().U.(*Mpint))
+			i = n.Val().U.(*Mpint).Int64()
 
 		case CTBOOL:
 			i = int64(obj.Bool2int(n.Val().U.(bool)))
@@ -1507,7 +1507,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
 		}
 
 		i = iconv(i, tt)
-		Mpmovecfix(con.Val().U.(*Mpint), i)
+		con.Val().U.(*Mpint).SetInt64(i)
 		return
 	}
 
@@ -1542,28 +1542,28 @@ func cmplxmpy(v *Mpcplx, rv *Mpcplx) {
 	var bc Mpflt
 	var ad Mpflt
 
-	mpmovefltflt(&ac, &v.Real)
-	mpmulfltflt(&ac, &rv.Real) // ac
+	ac.Set(&v.Real)
+	ac.Mul(&rv.Real) // ac
 
-	mpmovefltflt(&bd, &v.Imag)
+	bd.Set(&v.Imag)
 
-	mpmulfltflt(&bd, &rv.Imag) // bd
+	bd.Mul(&rv.Imag) // bd
 
-	mpmovefltflt(&bc, &v.Imag)
+	bc.Set(&v.Imag)
 
-	mpmulfltflt(&bc, &rv.Real) // bc
+	bc.Mul(&rv.Real) // bc
 
-	mpmovefltflt(&ad, &v.Real)
+	ad.Set(&v.Real)
 
-	mpmulfltflt(&ad, &rv.Imag) // ad
+	ad.Mul(&rv.Imag) // ad
 
-	mpmovefltflt(&v.Real, &ac)
+	v.Real.Set(&ac)
 
-	mpsubfltflt(&v.Real, &bd) // ac-bd
+	v.Real.Sub(&bd) // ac-bd
 
-	mpmovefltflt(&v.Imag, &bc)
+	v.Imag.Set(&bc)
 
-	mpaddfltflt(&v.Imag, &ad) // bc+ad
+	v.Imag.Add(&ad) // bc+ad
 }
 
 // complex divide v /= rv
@@ -1575,40 +1575,40 @@ func cmplxdiv(v *Mpcplx, rv *Mpcplx) {
 	var ad Mpflt
 	var cc_plus_dd Mpflt
 
-	mpmovefltflt(&cc_plus_dd, &rv.Real)
-	mpmulfltflt(&cc_plus_dd, &rv.Real) // cc
+	cc_plus_dd.Set(&rv.Real)
+	cc_plus_dd.Mul(&rv.Real) // cc
 
-	mpmovefltflt(&ac, &rv.Imag)
+	ac.Set(&rv.Imag)
 
-	mpmulfltflt(&ac, &rv.Imag) // dd
+	ac.Mul(&rv.Imag) // dd
 
-	mpaddfltflt(&cc_plus_dd, &ac) // cc+dd
+	cc_plus_dd.Add(&ac) // cc+dd
 
-	mpmovefltflt(&ac, &v.Real)
+	ac.Set(&v.Real)
 
-	mpmulfltflt(&ac, &rv.Real) // ac
+	ac.Mul(&rv.Real) // ac
 
-	mpmovefltflt(&bd, &v.Imag)
+	bd.Set(&v.Imag)
 
-	mpmulfltflt(&bd, &rv.Imag) // bd
+	bd.Mul(&rv.Imag) // bd
 
-	mpmovefltflt(&bc, &v.Imag)
+	bc.Set(&v.Imag)
 
-	mpmulfltflt(&bc, &rv.Real) // bc
+	bc.Mul(&rv.Real) // bc
 
-	mpmovefltflt(&ad, &v.Real)
+	ad.Set(&v.Real)
 
-	mpmulfltflt(&ad, &rv.Imag) // ad
+	ad.Mul(&rv.Imag) // ad
 
-	mpmovefltflt(&v.Real, &ac)
+	v.Real.Set(&ac)
 
-	mpaddfltflt(&v.Real, &bd)         // ac+bd
-	mpdivfltflt(&v.Real, &cc_plus_dd) // (ac+bd)/(cc+dd)
+	v.Real.Add(&bd)         // ac+bd
+	v.Real.Quo(&cc_plus_dd) // (ac+bd)/(cc+dd)
 
-	mpmovefltflt(&v.Imag, &bc)
+	v.Imag.Set(&bc)
 
-	mpsubfltflt(&v.Imag, &ad)         // bc-ad
-	mpdivfltflt(&v.Imag, &cc_plus_dd) // (bc+ad)/(cc+dd)
+	v.Imag.Sub(&ad)         // bc-ad
+	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
 }
 
 // Is n a Go language constant (as opposed to a compile-time constant)?

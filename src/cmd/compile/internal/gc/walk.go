@@ -366,7 +366,7 @@ func isSmallMakeSlice(n *Node) bool {
 	}
 	t := n.Type
 
-	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val().U.(*Mpint)) < (1<<16)/t.Type.Width)
+	return Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || r.Val().U.(*Mpint).Int64() < (1<<16)/t.Type.Width)
 }
 
 // walk the whole tree of the body of an
@@ -1220,7 +1220,7 @@ opswitch:
 					// replace "abc"[1] with 'b'.
 					// delayed until now because "abc"[1] is not
 					// an ideal constant.
-					v := Mpgetfix(n.Right.Val().U.(*Mpint))
+					v := n.Right.Val().U.(*Mpint).Int64()
 
 					Nodconst(n, n.Type, int64(n.Left.Val().U.(string)[v]))
 					n.Typecheck = 1
@@ -1229,7 +1229,7 @@ opswitch:
 		}
 
 		if Isconst(n.Right, CTINT) {
-			if Mpcmpfixfix(n.Right.Val().U.(*Mpint), &mpzero) < 0 || Mpcmpfixfix(n.Right.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
+			if n.Right.Val().U.(*Mpint).Cmp(&mpzero) < 0 || n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
 				Yyerror("index out of bounds")
 			}
 		}
@@ -3304,7 +3304,7 @@ func samecheap(a *Node, b *Node) bool {
 		case OINDEX:
 			ar = a.Right
 			br = b.Right
-			if !Isconst(ar, CTINT) || !Isconst(br, CTINT) || Mpcmpfixfix(ar.Val().U.(*Mpint), br.Val().U.(*Mpint)) != 0 {
+			if !Isconst(ar, CTINT) || !Isconst(br, CTINT) || ar.Val().U.(*Mpint).Cmp(br.Val().U.(*Mpint)) != 0 {
 				return false
 			}
 		}
@@ -3340,9 +3340,9 @@ func walkrotate(np **Node) {
 	w := int(l.Type.Width * 8)
 
 	if Smallintconst(l.Right) && Smallintconst(r.Right) {
-		sl := int(Mpgetfix(l.Right.Val().U.(*Mpint)))
+		sl := int(l.Right.Val().U.(*Mpint).Int64())
 		if sl >= 0 {
-			sr := int(Mpgetfix(r.Right.Val().U.(*Mpint)))
+			sr := int(r.Right.Val().U.(*Mpint).Int64())
 			if sr >= 0 && sl+sr == w {
 				// Rewrite left shift half to left rotate.
 				if l.Op == OLSH {
@@ -3353,7 +3353,7 @@ func walkrotate(np **Node) {
 				n.Op = OLROT
 
 				// Remove rotate 0 and rotate w.
-				s := int(Mpgetfix(n.Right.Val().U.(*Mpint)))
+				s := int(n.Right.Val().U.(*Mpint).Int64())
 
 				if s == 0 || s == w {
 					n = n.Left
@@ -3394,7 +3394,7 @@ func walkmul(np **Node, init *Nodes) {
 	// x*0 is 0 (and side effects of x).
 	var pow int
 	var w int
-	if Mpgetfix(nr.Val().U.(*Mpint)) == 0 {
+	if nr.Val().U.(*Mpint).Int64() == 0 {
 		cheapexpr(nl, init)
 		Nodconst(n, n.Type, 0)
 		goto ret
@@ -3485,10 +3485,10 @@ func walkdiv(np **Node, init *Nodes) {
 		m.W = w
 
 		if Issigned[nl.Type.Etype] {
-			m.Sd = Mpgetfix(nr.Val().U.(*Mpint))
+			m.Sd = nr.Val().U.(*Mpint).Int64()
 			Smagic(&m)
 		} else {
-			m.Ud = uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+			m.Ud = uint64(nr.Val().U.(*Mpint).Int64())
 			Umagic(&m)
 		}
 
@@ -3680,7 +3680,7 @@ func walkdiv(np **Node, init *Nodes) {
 			// n = nl & (nr-1)
 			n.Op = OAND
 
-			Nodconst(nc, nl.Type, Mpgetfix(nr.Val().U.(*Mpint))-1)
+			Nodconst(nc, nl.Type, nr.Val().U.(*Mpint).Int64()-1)
 		} else {
 			// n = nl >> pow
 			n.Op = ORSH
@@ -3710,7 +3710,7 @@ func bounded(n *Node, max int64) bool {
 	bits := int32(8 * n.Type.Width)
 
 	if Smallintconst(n) {
-		v := Mpgetfix(n.Val().U.(*Mpint))
+		v := n.Val().U.(*Mpint).Int64()
 		return 0 <= v && v < max
 	}
 
@@ -3718,9 +3718,9 @@ func bounded(n *Node, max int64) bool {
 	case OAND:
 		v := int64(-1)
 		if Smallintconst(n.Left) {
-			v = Mpgetfix(n.Left.Val().U.(*Mpint))
+			v = n.Left.Val().U.(*Mpint).Int64()
 		} else if Smallintconst(n.Right) {
-			v = Mpgetfix(n.Right.Val().U.(*Mpint))
+			v = n.Right.Val().U.(*Mpint).Int64()
 		}
 
 		if 0 <= v && v < max {
@@ -3729,7 +3729,7 @@ func bounded(n *Node, max int64) bool {
 
 	case OMOD:
 		if !sign && Smallintconst(n.Right) {
-			v := Mpgetfix(n.Right.Val().U.(*Mpint))
+			v := n.Right.Val().U.(*Mpint).Int64()
 			if 0 <= v && v <= max {
 				return true
 			}
@@ -3737,7 +3737,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ODIV:
 		if !sign && Smallintconst(n.Right) {
-			v := Mpgetfix(n.Right.Val().U.(*Mpint))
+			v := n.Right.Val().U.(*Mpint).Int64()
 			for bits > 0 && v >= 2 {
 				bits--
 				v >>= 1
@@ -3746,7 +3746,7 @@ func bounded(n *Node, max int64) bool {
 
 	case ORSH:
 		if !sign && Smallintconst(n.Right) {
-			v := Mpgetfix(n.Right.Val().U.(*Mpint))
+			v := n.Right.Val().U.(*Mpint).Int64()
 			if v > int64(bits) {
 				return true
 			}
@@ -3926,17 +3926,17 @@ func candiscard(n *Node) bool {
 
 		// Discardable as long as we know it's not division by zero.
 	case ODIV, OMOD:
-		if Isconst(n.Right, CTINT) && mpcmpfixc(n.Right.Val().U.(*Mpint), 0) != 0 {
+		if Isconst(n.Right, CTINT) && n.Right.Val().U.(*Mpint).CmpInt64(0) != 0 {
 			break
 		}
-		if Isconst(n.Right, CTFLT) && mpcmpfltc(n.Right.Val().U.(*Mpflt), 0) != 0 {
+		if Isconst(n.Right, CTFLT) && n.Right.Val().U.(*Mpflt).CmpFloat64(0) != 0 {
 			break
 		}
 		return false
 
 		// Discardable as long as we know it won't fail because of a bad size.
 	case OMAKECHAN, OMAKEMAP:
-		if Isconst(n.Left, CTINT) && mpcmpfixc(n.Left.Val().U.(*Mpint), 0) == 0 {
+		if Isconst(n.Left, CTINT) && n.Left.Val().U.(*Mpint).CmpInt64(0) == 0 {
 			break
 		}
 		return false

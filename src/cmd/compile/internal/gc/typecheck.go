@@ -367,7 +367,7 @@ OpSwitch:
 				return
 			}
 
-			t.Bound = Mpgetfix(v.U.(*Mpint))
+			t.Bound = v.U.(*Mpint).Int64()
 			if doesoverflow(v, Types[TINT]) {
 				Yyerror("array bound is too large")
 				n.Type = nil
@@ -733,7 +733,7 @@ OpSwitch:
 		}
 
 		if (op == ODIV || op == OMOD) && Isconst(r, CTINT) {
-			if mpcmpfixc(r.Val().U.(*Mpint), 0) == 0 {
+			if r.Val().U.(*Mpint).CmpInt64(0) == 0 {
 				Yyerror("division by zero")
 				n.Type = nil
 				return
@@ -1000,14 +1000,14 @@ OpSwitch:
 			}
 
 			if !n.Bounded && Isconst(n.Right, CTINT) {
-				x := Mpgetfix(n.Right.Val().U.(*Mpint))
+				x := n.Right.Val().U.(*Mpint).Int64()
 				if x < 0 {
 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
 				} else if Isfixedarray(t) && x >= t.Bound {
 					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
 				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val().U.(string))) {
 					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val().U.(string)))
-				} else if Mpcmpfixfix(n.Right.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
+				} else if n.Right.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
 					Yyerror("invalid %s index %v (index too large)", why, n.Right)
 				}
 			}
@@ -1808,7 +1808,7 @@ OpSwitch:
 				n.Type = nil
 				return
 			}
-			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val().U.(*Mpint), r.Val().U.(*Mpint)) > 0 {
+			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && l.Val().U.(*Mpint).Cmp(r.Val().U.(*Mpint)) > 0 {
 				Yyerror("len larger than cap in make(%v)", t)
 				n.Type = nil
 				return
@@ -2204,16 +2204,16 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
 	}
 
 	if r.Op == OLITERAL {
-		if Mpgetfix(r.Val().U.(*Mpint)) < 0 {
+		if r.Val().U.(*Mpint).Int64() < 0 {
 			Yyerror("invalid slice index %v (index must be non-negative)", r)
 			return false
-		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val().U.(*Mpint)) > tp.Bound {
+		} else if tp != nil && tp.Bound > 0 && r.Val().U.(*Mpint).Int64() > tp.Bound {
 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.Bound)
 			return false
-		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val().U.(*Mpint)) > int64(len(l.Val().U.(string))) {
+		} else if Isconst(l, CTSTR) && r.Val().U.(*Mpint).Int64() > int64(len(l.Val().U.(string))) {
 			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val().U.(string)))
 			return false
-		} else if Mpcmpfixfix(r.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
+		} else if r.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
 			Yyerror("invalid slice index %v (index too large)", r)
 			return false
 		}
@@ -2223,7 +2223,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) bool {
 }
 
 func checksliceconst(lo *Node, hi *Node) bool {
-	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val().U.(*Mpint), hi.Val().U.(*Mpint)) > 0 {
+	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && lo.Val().U.(*Mpint).Cmp(hi.Val().U.(*Mpint)) > 0 {
 		Yyerror("invalid slice index: %v > %v", lo, hi)
 		return false
 	}
@@ -2779,10 +2779,10 @@ func keydup(n *Node, hash map[uint32][]*Node) {
 		h = 23
 
 	case CTINT, CTRUNE:
-		h = uint32(Mpgetfix(n.Val().U.(*Mpint)))
+		h = uint32(n.Val().U.(*Mpint).Int64())
 
 	case CTFLT:
-		d := mpgetflt(n.Val().U.(*Mpflt))
+		d := n.Val().U.(*Mpflt).Float64()
 		x := math.Float64bits(d)
 		for i := 0; i < 8; i++ {
 			h = h*PRIME1 + uint32(x&0xFF)
@@ -2834,7 +2834,7 @@ func indexdup(n *Node, hash map[int64]*Node) {
 		Fatalf("indexdup: not OLITERAL")
 	}
 
-	v := Mpgetfix(n.Val().U.(*Mpint))
+	v := n.Val().U.(*Mpint).Int64()
 	if hash[v] != nil {
 		Yyerror("duplicate index in array literal: %d", v)
 		return
@@ -3794,12 +3794,12 @@ func checkmake(t *Type, arg string, n *Node) bool {
 		switch n.Val().Ctype() {
 		case CTINT, CTRUNE, CTFLT, CTCPLX:
 			n.SetVal(toint(n.Val()))
-			if mpcmpfixc(n.Val().U.(*Mpint), 0) < 0 {
+			if n.Val().U.(*Mpint).CmpInt64(0) < 0 {
 				Yyerror("negative %s argument in make(%v)", arg, t)
 				return false
 			}
 
-			if Mpcmpfixfix(n.Val().U.(*Mpint), Maxintval[TINT]) > 0 {
+			if n.Val().U.(*Mpint).Cmp(Maxintval[TINT]) > 0 {
 				Yyerror("%s argument too large in make(%v)", arg, t)
 				return false
 			}

@@ -103,7 +103,7 @@ ret:
 	// any side effects disappear; ignore init
 	var val Val
 	val.U = new(Mpint)
-	Mpmovecfix(val.U.(*Mpint), v)
+	val.U.(*Mpint).SetInt64(v)
 	n := Nod(OLITERAL, nil, nil)
 	n.Orig = nn
 	n.SetVal(val)
