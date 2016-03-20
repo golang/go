@@ -968,6 +968,17 @@ func TestTransportGzipShort(t *testing.T) {
 	}
 }
 
+// Wait until number of goroutines is no greater than nmax, or time out.
+func waitNumGoroutine(nmax int) int {
+	nfinal := runtime.NumGoroutine()
+	for ntries := 10; ntries > 0 && nfinal > nmax; ntries-- {
+		time.Sleep(50 * time.Millisecond)
+		runtime.GC()
+		nfinal = runtime.NumGoroutine()
+	}
+	return nfinal
+}
+
 // tests that persistent goroutine connections shut down when no longer desired.
 func TestTransportPersistConnLeak(t *testing.T) {
 	setParallel(t)
@@ -1019,10 +1030,7 @@ func TestTransportPersistConnLeak(t *testing.T) {
 	}
 
 	tr.CloseIdleConnections()
-	time.Sleep(100 * time.Millisecond)
-	runtime.GC()
-	runtime.GC() // even more.
-	nfinal := runtime.NumGoroutine()
+	nfinal := waitNumGoroutine(n0 + 5)
 
 	growth := nfinal - n0
 
@@ -1061,9 +1069,7 @@ func TestTransportPersistConnLeakShortBody(t *testing.T) {
 	}
 	nhigh := runtime.NumGoroutine()
 	tr.CloseIdleConnections()
-	time.Sleep(400 * time.Millisecond)
-	runtime.GC()
-	nfinal := runtime.NumGoroutine()
+	nfinal := waitNumGoroutine(n0 + 5)
 
 	growth := nfinal - n0
 
