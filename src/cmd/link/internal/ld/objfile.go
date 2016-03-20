@@ -72,9 +72,7 @@ package ld
 //	- siz [int]
 //	- type [int]
 //	- add [int]
-//	- xadd [int]
 //	- sym [symref index]
-//	- xsym [symref index]
 //
 // Each local has the encoding:
 //
@@ -250,9 +248,7 @@ overwrite:
 			r.Siz = rduint8(f)
 			r.Type = rdint32(f)
 			r.Add = rdint64(f)
-			rdint64(f) // Xadd, ignored
 			r.Sym = rdsym(ctxt, f, pkg)
-			rdsym(ctxt, f, pkg) // Xsym, ignored
 		}
 	}
 
