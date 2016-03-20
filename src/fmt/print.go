@@ -943,11 +943,24 @@ func (p *pp) argNumber(argNum int, format string, i int, numArgs int) (newArgNum
 	return argNum, i + wid, ok
 }
 
+func (p *pp) badArgNum(verb rune) {
+	p.buf.WriteString(percentBangString)
+	p.buf.WriteRune(verb)
+	p.buf.WriteString(badIndexString)
+}
+
+func (p *pp) missingArg(verb rune) {
+	p.buf.WriteString(percentBangString)
+	p.buf.WriteRune(verb)
+	p.buf.WriteString(missingString)
+}
+
 func (p *pp) doPrintf(format string, a []interface{}) {
 	end := len(format)
 	argNum := 0         // we process one argument per non-trivial format
 	afterIndex := false // previous item in format was an index like [3].
 	p.reordered = false
+formatLoop:
 	for i := 0; i < end; {
 		p.goodArgNum = true
 		lasti := i
@@ -967,21 +980,40 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 
 		// Do we have flags?
 		p.fmt.clearflags()
-	F:
+	simpleFormat:
 		for ; i < end; i++ {
-			switch format[i] {
+			c := format[i]
+			switch c {
 			case '#':
 				p.fmt.sharp = true
 			case '0':
-				p.fmt.zero = true
+				p.fmt.zero = !p.fmt.minus // Only allow zero padding to the left.
 			case '+':
 				p.fmt.plus = true
 			case '-':
 				p.fmt.minus = true
+				p.fmt.zero = false // Do not pad with zeros to the right.
 			case ' ':
 				p.fmt.space = true
 			default:
-				break F
+				// Fast path for common case of ascii lower case simple verbs
+				// without precision or width or argument indices.
+				if 'a' <= c && c <= 'z' && argNum < len(a) {
+					if c == 'v' {
+						// Go syntax
+						p.fmt.sharpV = p.fmt.sharp
+						p.fmt.sharp = false
+						// Struct-field syntax
+						p.fmt.plusV = p.fmt.plus
+						p.fmt.plus = false
+					}
+					p.printArg(a[argNum], rune(c))
+					argNum++
+					i++
+					continue formatLoop
+				}
+				// Format is more complex than simple flags and a verb or is malformed.
+				break simpleFormat
 			}
 		}
 
@@ -1002,6 +1034,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 			if p.fmt.wid < 0 {
 				p.fmt.wid = -p.fmt.wid
 				p.fmt.minus = true
+				p.fmt.zero = false // Do not pad with zeros to the right.
 			}
 			afterIndex = false
 		} else {
@@ -1045,47 +1078,31 @@ func (p *pp) doPrintf(format string, a []interface{}) {
 
 		if i >= end {
 			p.buf.WriteString(noVerbString)
-			continue
+			break
 		}
-		c, w := utf8.DecodeRuneInString(format[i:])
+
+		verb, w := utf8.DecodeRuneInString(format[i:])
 		i += w
-		// percent is special - absorbs no operand
-		if c == '%' {
-			p.buf.WriteByte('%') // We ignore width and prec.
-			continue
-		}
-		if !p.goodArgNum {
-			p.buf.WriteString(percentBangString)
-			p.buf.WriteRune(c)
-			p.buf.WriteString(badIndexString)
-			continue
-		} else if argNum >= len(a) { // out of operands
-			p.buf.WriteString(percentBangString)
-			p.buf.WriteRune(c)
-			p.buf.WriteString(missingString)
-			continue
-		}
 
-		if c == 'v' {
-			if p.fmt.sharp {
-				// Go syntax. Set the flag in the fmt and clear the sharp flag.
-				p.fmt.sharp = false
-				p.fmt.sharpV = true
-			}
-			if p.fmt.plus {
-				// Struct-field syntax. Set the flag in the fmt and clear the plus flag.
-				p.fmt.plus = false
-				p.fmt.plusV = true
-			}
+		switch {
+		case verb == '%': // Percent does not absorb operands and ignores f.wid and f.prec.
+			p.buf.WriteByte('%')
+		case !p.goodArgNum:
+			p.badArgNum(verb)
+		case argNum >= len(a): // No argument left over to print for the current verb.
+			p.missingArg(verb)
+		case verb == 'v':
+			// Go syntax
+			p.fmt.sharpV = p.fmt.sharp
+			p.fmt.sharp = false
+			// Struct-field syntax
+			p.fmt.plusV = p.fmt.plus
+			p.fmt.plus = false
+			fallthrough
+		default:
+			p.printArg(a[argNum], verb)
+			argNum++
 		}
-
-		// Use space padding instead of zero padding to the right.
-		if p.fmt.minus {
-			p.fmt.zero = false
-		}
-
-		p.printArg(a[argNum], c)
-		argNum++
 	}
 
 	// Check for extra arguments unless the call accessed the arguments
