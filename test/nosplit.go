@@ -275,6 +275,9 @@ TestCases:
 		case "amd64":
 			ptrSize = 8
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
+		case "s390x":
+			ptrSize = 8
+			fmt.Fprintf(&buf, "#define REGISTER R10\n")
 		default:
 			fmt.Fprintf(&buf, "#define REGISTER AX\n")
 		}
