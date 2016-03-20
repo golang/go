@@ -19,13 +19,6 @@ type Interface interface {
 	Swap(i, j int)
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // Insertion sort
 func insertionSort(data Interface, a, b int) {
 	for i := a + 1; i < b; i++ {

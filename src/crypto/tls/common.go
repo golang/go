@@ -590,13 +590,6 @@ type Certificate struct {
 	Leaf *x509.Certificate
 }
 
-// A TLS record.
-type record struct {
-	contentType  recordType
-	major, minor uint8
-	payload      []byte
-}
-
 type handshakeMessage interface {
 	marshal() []byte
 	unmarshal([]byte) bool

@@ -174,13 +174,6 @@ func (hc *halfConn) incSeq() {
 	panic("TLS: sequence number wraparound")
 }
 
-// resetSeq resets the sequence number to zero.
-func (hc *halfConn) resetSeq() {
-	for i := range hc.seq {
-		hc.seq[i] = 0
-	}
-}
-
 // removePadding returns an unpadded slice, in constant time, which is a prefix
 // of the input. It also returns a byte which is equal to 255 if the padding
 // was valid and 0 otherwise. See RFC 2246, section 6.2.3.2

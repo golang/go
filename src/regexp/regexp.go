@@ -75,8 +75,6 @@ import (
 	"unicode/utf8"
 )
 
-var debug = false
-
 // Regexp is the representation of a compiled regular expression.
 // A Regexp is safe for concurrent use by multiple goroutines.
 type Regexp struct {

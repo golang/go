@@ -90,7 +90,6 @@ type Package struct {
 	target       string               // installed file for this package (may be executable)
 	fake         bool                 // synthesized package
 	external     bool                 // synthesized external test package
-	forceBuild   bool                 // this package must be rebuilt
 	forceLibrary bool                 // this package is a library (even if named "main")
 	cmdline      bool                 // defined by files listed on command line
 	local        bool                 // imported via local path (./ or ../)

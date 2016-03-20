@@ -838,11 +838,6 @@ func (db *DB) conn(strategy connReuseStrategy) (*driverConn, error) {
 	return dc, nil
 }
 
-var (
-	errConnClosed = errors.New("database/sql: internal sentinel error: conn is closed")
-	errConnBusy   = errors.New("database/sql: internal sentinel error: conn is busy")
-)
-
 // putConnHook is a hook for testing.
 var putConnHook func(*DB, *driverConn)
 

@@ -291,26 +291,3 @@ func stringName(i uint32, names []intName, goSyntax bool) string {
 	}
 	return strconv.FormatUint(uint64(i), 10)
 }
-
-func flagName(i uint32, names []intName, goSyntax bool) string {
-	s := ""
-	for _, n := range names {
-		if n.i&i == n.i {
-			if len(s) > 0 {
-				s += "+"
-			}
-			if goSyntax {
-				s += "macho."
-			}
-			s += n.s
-			i -= n.i
-		}
-	}
-	if len(s) == 0 {
-		return "0x" + strconv.FormatUint(uint64(i), 16)
-	}
-	if i != 0 {
-		s += "+0x" + strconv.FormatUint(uint64(i), 16)
-	}
-	return s
-}
