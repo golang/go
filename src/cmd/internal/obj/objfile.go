@@ -19,8 +19,10 @@
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
-//	- sequence of sybol references used by the defined symbols
+//	- sequence of symbol references used by the defined symbols
 //	- byte 0xff (marks end of sequence)
+//	- integer (length of following data)
+//	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
 //	- magic footer: "\xff\xffgo13ld"
@@ -96,9 +98,6 @@
 //
 // TODO(rsc): The file format is good for a first pass but needs work.
 //	- There are SymID in the object file that should really just be strings.
-//	- The actual symbol memory images are interlaced with the symbol
-//	  metadata. They should be separated, to reduce the I/O required to
-//	  load just the metadata.
 
 package obj
 
@@ -319,14 +318,41 @@ func Writeobjfile(ctxt *Link, b *Biobuf) {
 	}
 	wrstring(b, "")
 
+	var dataLength int64
 	// Emit symbol references.
 	for _, s := range ctxt.Text {
 		writerefs(ctxt, b, s)
+		dataLength += int64(len(s.P))
+
+		pc := s.Pcln
+		dataLength += int64(len(pc.Pcsp.P))
+		dataLength += int64(len(pc.Pcfile.P))
+		dataLength += int64(len(pc.Pcline.P))
+		for i := 0; i < len(pc.Pcdata); i++ {
+			dataLength += int64(len(pc.Pcdata[i].P))
+		}
 	}
 	for _, s := range ctxt.Data {
 		writerefs(ctxt, b, s)
+		dataLength += int64(len(s.P))
 	}
 	Bputc(b, 0xff)
+
+	// Write data block
+	wrint(b, dataLength)
+	for _, s := range ctxt.Text {
+		b.w.Write(s.P)
+		pc := s.Pcln
+		b.w.Write(pc.Pcsp.P)
+		b.w.Write(pc.Pcfile.P)
+		b.w.Write(pc.Pcline.P)
+		for i := 0; i < len(pc.Pcdata); i++ {
+			b.w.Write(pc.Pcdata[i].P)
+		}
+	}
+	for _, s := range ctxt.Data {
+		b.w.Write(s.P)
+	}
 
 	// Emit symbols.
 	for _, s := range ctxt.Text {
@@ -480,7 +506,7 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 	wrint(b, flags)
 	wrint(b, s.Size)
 	wrsym(b, s.Gotype)
-	wrdata(b, s.P)
+	wrint(b, int64(len(s.P)))
 
 	wrint(b, int64(len(s.R)))
 	var r *Reloc
@@ -521,12 +547,12 @@ func writesym(ctxt *Link, b *Biobuf, s *LSym) {
 		}
 
 		pc := s.Pcln
-		wrdata(b, pc.Pcsp.P)
-		wrdata(b, pc.Pcfile.P)
-		wrdata(b, pc.Pcline.P)
+		wrint(b, int64(len(pc.Pcsp.P)))
+		wrint(b, int64(len(pc.Pcfile.P)))
+		wrint(b, int64(len(pc.Pcline.P)))
 		wrint(b, int64(len(pc.Pcdata)))
 		for i := 0; i < len(pc.Pcdata); i++ {
-			wrdata(b, pc.Pcdata[i].P)
+			wrint(b, int64(len(pc.Pcdata[i].P)))
 		}
 		wrint(b, int64(len(pc.Funcdataoff)))
 		for i := 0; i < len(pc.Funcdataoff); i++ {
@@ -562,11 +588,6 @@ func wrint(b *Biobuf, sval int64) {
 func wrstring(b *Biobuf, s string) {
 	wrint(b, int64(len(s)))
 	b.w.WriteString(s)
-}
-
-func wrdata(b *Biobuf, v []byte) {
-	wrint(b, int64(len(v)))
-	b.Write(v)
 }
 
 func wrsym(b *Biobuf, s *LSym) {
