@@ -2487,10 +2487,7 @@ func varexpr(n *Node) bool {
 		return varexpr(n.Left) && varexpr(n.Right)
 
 	case ODOT: // but not ODOTPTR
-		// The original code always returned false for ODOT,
-		// because n.Right would be an ONAME with n.Class not set.
-		// TODO(iant): Fix this to remove "&& false".
-		return varexpr(n.Left) && false
+		return varexpr(n.Left)
 	}
 
 	// Be conservative.
