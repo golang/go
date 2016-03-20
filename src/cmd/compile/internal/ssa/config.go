@@ -36,6 +36,10 @@ type Config struct {
 	values [2000]Value
 	blocks [200]Block
 
+	// Reusable stackAllocState.
+	// See stackalloc.go's {new,put}StackAllocState.
+	stackAllocState *stackAllocState
+
 	domblockstore []ID         // scratch space for computing dominators
 	scrSparse     []*sparseSet // scratch sparse sets to be re-used.
 }

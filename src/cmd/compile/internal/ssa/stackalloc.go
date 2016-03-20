@@ -9,10 +9,51 @@ package ssa
 import "fmt"
 
 type stackAllocState struct {
-	f         *Func
+	f *Func
+
+	// live is the output of stackalloc.
+	// live[b.id] = live values at the end of block b.
+	live [][]ID
+
+	// The following slices are reused across multiple users
+	// of stackAllocState.
 	values    []stackValState
-	live      [][]ID // live[b.id] = live values at the end of block b.
 	interfere [][]ID // interfere[v.id] = values that interfere with v.
+	names     []LocalSlot
+	slots     []int
+	used      []bool
+}
+
+func newStackAllocState(f *Func) *stackAllocState {
+	s := f.Config.stackAllocState
+	if s == nil {
+		return new(stackAllocState)
+	}
+	if s.f != nil {
+		f.Config.Fatalf(0, "newStackAllocState called without previous free")
+	}
+	return s
+}
+
+func putStackAllocState(s *stackAllocState) {
+	for i := range s.values {
+		s.values[i] = stackValState{}
+	}
+	for i := range s.interfere {
+		s.interfere[i] = nil
+	}
+	for i := range s.names {
+		s.names[i] = LocalSlot{}
+	}
+	for i := range s.slots {
+		s.slots[i] = 0
+	}
+	for i := range s.used {
+		s.used[i] = false
+	}
+	s.f.Config.stackAllocState = s
+	s.f = nil
+	s.live = nil
 }
 
 type stackValState struct {
@@ -29,8 +70,10 @@ func stackalloc(f *Func, spillLive [][]ID) [][]ID {
 		fmt.Println("before stackalloc")
 		fmt.Println(f.String())
 	}
-	var s stackAllocState
+	s := newStackAllocState(f)
 	s.init(f, spillLive)
+	defer putStackAllocState(s)
+
 	s.stackalloc()
 	return s.live
 }
@@ -39,7 +82,11 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
 	s.f = f
 
 	// Initialize value information.
-	s.values = make([]stackValState, f.NumValues())
+	if n := f.NumValues(); cap(s.values) >= n {
+		s.values = s.values[:n]
+	} else {
+		s.values = make([]stackValState, n)
+	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			s.values[v.ID].typ = v.Type
@@ -66,7 +113,12 @@ func (s *stackAllocState) stackalloc() {
 	// Build map from values to their names, if any.
 	// A value may be associated with more than one name (e.g. after
 	// the assignment i=j). This step picks one name per value arbitrarily.
-	names := make([]LocalSlot, f.NumValues())
+	if n := f.NumValues(); cap(s.names) >= n {
+		s.names = s.names[:n]
+	} else {
+		s.names = make([]LocalSlot, n)
+	}
+	names := s.names
 	for _, name := range f.Names {
 		// Note: not "range f.NamedValues" above, because
 		// that would be nondeterministic.
@@ -96,13 +148,25 @@ func (s *stackAllocState) stackalloc() {
 
 	// Each time we assign a stack slot to a value v, we remember
 	// the slot we used via an index into locations[v.Type].
-	slots := make([]int, f.NumValues())
+	slots := s.slots
+	if n := f.NumValues(); cap(slots) >= n {
+		slots = slots[:n]
+	} else {
+		slots = make([]int, n)
+		s.slots = slots
+	}
 	for i := f.NumValues() - 1; i >= 0; i-- {
 		slots[i] = -1
 	}
 
 	// Pick a stack slot for each value needing one.
-	used := make([]bool, f.NumValues())
+	var used []bool
+	if n := f.NumValues(); cap(s.used) >= n {
+		used = s.used[:n]
+	} else {
+		used = make([]bool, n)
+		s.used = used
+	}
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			if !s.values[v.ID].needSlot {
@@ -270,7 +334,11 @@ func (f *Func) setHome(v *Value, loc Location) {
 
 func (s *stackAllocState) buildInterferenceGraph() {
 	f := s.f
-	s.interfere = make([][]ID, f.NumValues())
+	if n := f.NumValues(); cap(s.interfere) >= n {
+		s.interfere = s.interfere[:n]
+	} else {
+		s.interfere = make([][]ID, n)
+	}
 	live := f.newSparseSet(f.NumValues())
 	defer f.retSparseSet(live)
 	for _, b := range f.Blocks {
